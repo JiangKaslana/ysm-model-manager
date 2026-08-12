@@ -1,1 +1,0 @@
-{"animation_controllers":{"player.parallel_7":{"initial_state":"default","states":{"default":{"animations":["TankWalk"],"transitions":[{"default":"ctrl.idle"}]}}}},"format_version":"1.19.0"}
