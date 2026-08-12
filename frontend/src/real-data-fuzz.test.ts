@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 真实数据轰击测试（ADR-044 数据驱动补强）=====
 // 数据源：tests/fixtures/ysm/（git 跟踪的最小真实模型解码样本：lucia/shen-fengling/
 // xigelika 全量 + suifan/wine-fox 各 2 个代表模型，97 个 JSON）

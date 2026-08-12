@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== sync handler 测试：download-missing / toggle-status =====
 // 覆盖：并发守卫、repoRoot 未配置、成功路径、finally 解锁、toggle 成功/失败聚合
 // mock 基线来自 e2e/mock-data.ts（共享单源：改 Go 数据只改一处，防双源漂移）

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== describeVersionRange 测试：pack_format → 版本号描述 =====
 // 覆盖：supported_formats 优先 / min-max（数字与数组）/ 9999 上限 / 单体 pack_format / 未知回退
 import { describe, it, expect } from "vitest";

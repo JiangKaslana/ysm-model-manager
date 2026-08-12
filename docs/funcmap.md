@@ -615,8 +615,8 @@
 |------|--------|------|
 | `normalizeTheme()` | `frontend/src/app-modules:63` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
 | `applyTheme()` | `frontend/src/app-modules:67` | — |
-| `initTheme()` | `frontend/src/app-modules:91` | — |
-| `applyUIPrefs()` | `frontend/src/app-modules:110` | 应用 UI 偏好（字号/字体/密度/动画），不依赖设置页打开 |
+| `initTheme()` | `frontend/src/app-modules:92` | — |
+| `applyUIPrefs()` | `frontend/src/app-modules:111` | 应用 UI 偏好（字号/字体/密度/动画），不依赖设置页打开 |
 | `bus()` | `frontend/src/bus:189` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
@@ -822,8 +822,8 @@
 | `evaluateClip()` | `frontend/src/utils/animation/animation:347` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
-| `dbg()` | `frontend/src/utils/debug/debug:36` | 输出调试日志（保留 tag 用于过滤） |
-| `safeStr()` | `frontend/src/utils/debug/debug:59` | 任意值 → 可读字符串（200 字符截断；供单测导出的纯函数） |
+| `dbg()` | `frontend/src/utils/debug/debug:38` | 输出调试日志（保留 tag 用于过滤） |
+| `safeStr()` | `frontend/src/utils/debug/debug:61` | 任意值 → 可读字符串（200 字符截断；供单测导出的纯函数） |
 | `WailsAndroidBridge()` | `frontend/src/utils/dom/android-bridge:7` | — |
 | `getAndroidBridge()` | `frontend/src/utils/dom/android-bridge:13` | 返回 Android Java 桥（桌面端为 null），类型安全断言（无 as any） |
 | `isViewerMode()` | `frontend/src/utils/dom/android-bridge:24` | 查看器模式判定（ADR-049 Phase 3 能力门控统一入口）： Android（双端桥存在）或网页版（browser adapter）——均无本地文件系统写能力、 无桌面专属 |

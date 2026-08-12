@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== preview HTML 模板测试 =====
 // 覆盖：modelDetailHTML（占位/错误/正常+转义）、statsCardHTML（格式后缀/徽标/多纹理）
 import { describe, it, expect } from "vitest";

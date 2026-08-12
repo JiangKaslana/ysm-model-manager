@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 全局事件总线测试（bus.ts）=====
 // on / off / emit / once 的类型化事件总线，覆盖：
 // 1. 常规订阅与取消

@@ -197,4 +197,5 @@ declare global {
     bus: Bus;
   }
 }
-window.bus = bus;
+// node 测试环境无 window（vitest @vitest-environment node），跳过挂载
+if (typeof window !== "undefined") window.bus = bus;

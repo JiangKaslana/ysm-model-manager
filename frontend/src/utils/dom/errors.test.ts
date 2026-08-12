@@ -1,3 +1,4 @@
+// @vitest-environment node
 ﻿// ===== friendlyError 错误友好化测试（ADR-014 P2 + ADR-045 i18n）=====
 // Go 原始错误 → 友好提示；覆盖空值/中文直通/模式匹配/兜底四类路径。
 // i18n t() 已由 test-setup.ts 全局 mock，无需重复。

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 树选择状态测试（ADR-021 扩展）=====
 // toggleSelect：普通切换 / 全清重置 lastKey。Shift 范围选择由 events.ts 实现（需要可见行列表）。
 import { describe, it, expect, beforeEach } from "vitest";

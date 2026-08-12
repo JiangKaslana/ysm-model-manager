@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 高级筛选条件解析/校验纯函数测试（ADR-023 L3）=====
 import { describe, it, expect } from "vitest";
 import {

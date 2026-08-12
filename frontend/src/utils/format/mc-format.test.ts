@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== Minecraft § 分节符颜色渲染测试 =====
 // 覆盖：空输入、普通文本、单行颜色、多行（含空行）、格式码叠加、§r 重置、无效码保留、§k 忽略、XSS 转义
 import { describe, it, expect } from "vitest";

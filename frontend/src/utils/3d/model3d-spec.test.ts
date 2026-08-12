@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== model3d-spec 黄金样本测试（JS 兜底算法 ↔ Go threejs.Build 口径对齐）=====
 // 用例镜像 go/threejs/spec_test.go：同名骨骼 overwrite、mergeCubes、相对坐标口径。
 // 任一侧口径漂移都会使 Go/JS 其中一套测试失败，双边锁定。

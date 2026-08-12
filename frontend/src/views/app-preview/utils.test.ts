@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 预览共享工具纯函数测试 =====
 // stripYsgpTextHeader：BOM/hash 检测、YSGP V2/V3 重建、无 BOM/过短/无 hash 原样返回。
 // getPrefer3D / setPrefer3D：模块级偏好状态单例。

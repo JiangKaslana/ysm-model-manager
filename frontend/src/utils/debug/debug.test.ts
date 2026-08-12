@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== debug.safeStr 纯函数测试（ADR-023 L3）=====
 import { describe, it, expect } from "vitest";
 import { safeStr } from "./debug.ts";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 下载任务构建 + 大小策略纯函数测试（ADR-023 L3）=====
 import { describe, it, expect } from "vitest";
 import {

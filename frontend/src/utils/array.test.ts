@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 通用数组操作纯函数测试（ADR-023 L3）=====
 import { describe, it, expect } from "vitest";
 import { moveItem } from "./array.ts";

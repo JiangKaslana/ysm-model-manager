@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 紧凑列表行模板测试（row-tpl-list）=====
 // 覆盖：文件行（类型图标/禁用/缩进）、文件夹行（锁定/展开/半选）
 import { describe, it, expect } from "vitest";

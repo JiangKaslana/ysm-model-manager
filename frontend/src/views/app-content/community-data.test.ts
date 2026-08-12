@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 创意工坊数据层纯函数测试 =====
 // mergeCommunityCreators：新增/更新计数、字段补充、type 追加去重、_fromCommunity 标记。
 // mergeCommunitySites：按 id 去重新增。

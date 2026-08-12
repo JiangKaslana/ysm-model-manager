@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== Android 系统事件消费回归测试（P1-1 修复闸门）=====
 // 验证 MainActivity 经 WailsBridge.emitEvent(CustomEvent 通道) 发出的事件名，
 // 能被前端 registerAndroidEvents 正确消费且处理逻辑正确。

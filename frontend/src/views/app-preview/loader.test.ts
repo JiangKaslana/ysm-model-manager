@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 模型数据加载（loader.ts）测试 =====
 // 覆盖：缓存命中 / WASM 解码成功 / WASM 空结果回退 Go / Go 兜底 + texMappingLog /
 //       .json 目录 authors 填补 / 缓存 authors 填补 / 空结果返回 null

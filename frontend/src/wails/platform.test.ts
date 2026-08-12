@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 平台环境判定测试（ADR-049 Phase 1：Tier 分层路由）=====
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { resolveWebMode, readDeclaredBackend, isWebEntryMode } from "./platform.ts";

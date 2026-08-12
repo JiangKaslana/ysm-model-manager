@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 语言包一致性测试 =====
 // zh-CN 为唯一编辑基准；en/ja 必须与其 key 集合逐一对齐，且占位符 {xxx} 不丢失。
 // 防翻译 key 漂移（ADR-045：缺 key 时 t() 返回 key 本身，用户看到英文/日文串裸奔）。

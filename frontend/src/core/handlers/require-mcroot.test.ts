@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== requireMcRoot 测试：读配置 + 空守卫 + toast =====
 // 覆盖：已配置 mcRoot 返回路径；未配置发 warn toast 并返回 null
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

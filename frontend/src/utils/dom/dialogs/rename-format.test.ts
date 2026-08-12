@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 重命名文件名构建 + 校验纯函数测试（ADR-023 L3）=====
 import { describe, it, expect } from "vitest";
 import { buildRenameName, validateRenameFields, type RenameFields } from "./rename-format.ts";

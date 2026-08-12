@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== spec-builder 契约测试（镜像 internal/app/app_model_test.go）=====
 // 纯 TS 移植（ADR-049 P2-2 闭环）：buildSpecFromGeometryJSON ↔ Go
 // Build3DSpecFromGeometryJSON。任一侧口径漂移都会使其中一套测试失败，双边锁定。

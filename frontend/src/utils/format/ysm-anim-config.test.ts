@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from "vitest";
 import { extractAnimGroupsAndConfigs, type YsmProperties } from "./ysm-anim-config.ts";
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 创意工坊 SVG 图标测试：平台映射 + 角色映射 =====
 // 覆盖：getSiteIcon / getTagIconFromRole 各分支（含未知回退）
 import { describe, it, expect } from "vitest";

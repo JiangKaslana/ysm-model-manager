@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from "vitest";
 import { RESOURCE_EXTS, ALL_EXTS, getExts, isSupportedExt, extBelongsTo } from "./extensions.ts";
 // P2 修复：直接 import 根目录 resource_types.json 做双向对账（仿 types.test.ts:9）——

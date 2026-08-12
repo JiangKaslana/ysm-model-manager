@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== idb.ts 故障路径测试（子代理审计 P2：idb 零测试，被 browser-adapter 整体 mock 掉）=====
 // 覆盖：open 失败降级 / onblocked / 内存驱逐双上限 / versionchange 重开 / _resetDBForTest
 // 实现：vi.stubGlobal 注入受控 fake indexedDB（open 可触发 onsuccess/onerror/onblocked），

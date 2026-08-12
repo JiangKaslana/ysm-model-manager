@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 跨平台目录选择器测试（directory-picker.ts，ADR-046 P2）=====
 // 覆盖四分支：桌面（Wails Dialog）/ 网页版（定位虚拟根 /web）/ Android 未授权（引导 +
 // 返回 null）/ Android 已授权（GetDefaultRepoRoot 自动定位 + toast + 返回路径）。

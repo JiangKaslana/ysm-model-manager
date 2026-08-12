@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== app-content 页面模板测试 =====
 // 覆盖：repository/instances/settings/downloads/diagnostics/recycle/github/workshop HTML 生成
 import { describe, it, expect, vi, beforeEach } from "vitest";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== loadCommunityData 集成测试 =====
 // 覆盖：本地作者合并（type 分号分段去重）、失败降级（全链 / 单绑定）
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

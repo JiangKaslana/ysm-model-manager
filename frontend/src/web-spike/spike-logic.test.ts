@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== web-spike 纯逻辑单测（ADR-049 Phase 0）=====
 // 镜像 main.ts 原 summarize/findBones 统计口径：骨骼数、立方体数、纹理数。
 import { describe, expect, it } from "vitest";

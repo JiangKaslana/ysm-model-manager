@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== DnD 导入共享逻辑测试（dnd-shared.ts）=====
 // 覆盖：isSupportedFile、isImportableFile、shouldEnterForm、getExt
 import { describe, it, expect, vi, beforeEach } from "vitest";

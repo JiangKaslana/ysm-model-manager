@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 多角度截图渲染器测试 =====
 // 覆盖 renderMultiAngle 全部路径：
 //  - spec 获取/解析失败 → null（P2 修复：不 reject 防 unhandled rejection）

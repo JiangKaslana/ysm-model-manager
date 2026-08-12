@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 资源类型映射测试（ADR-021 扩展）=====
 // TS 常量（RESOURCE_TYPES/LABELS/ALL）与 resource_types.json（单一事实来源）对账。
 import { describe, it, expect } from "vitest";

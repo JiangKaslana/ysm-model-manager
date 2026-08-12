@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 树构建/扁平化纯函数测试（ADR-021 扩展）=====
 // buildTree：排序（name/size/date）/ search 过滤 / filterPaths 交集 / Windows 路径归一。
 // flattenVisible：目录展开/折叠 / 搜索自动展开 / 文件行 key 用 fullPath。

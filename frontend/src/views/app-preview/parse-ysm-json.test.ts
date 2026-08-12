@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== ysm.json 直解析纯函数测试（ADR-023 L3）=====
 import { describe, it, expect } from "vitest";
 import { parseYsmJsonDirect } from "./parse-ysm-json.ts";

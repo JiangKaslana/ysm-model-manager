@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== loadResourceRegistry 单测（P2 补测：原 registry.ts 零测试覆盖）=====
 // 覆盖：成功缓存命中、失败不缓存、空结果不缓存（Go 错误路径返回 "{}"）、
 // 重复调用仅一次 Go 调用。mock getApp / LoadResourceTypes。

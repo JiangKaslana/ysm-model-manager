@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== recycle-bin 过滤谓词测试（code_review P3 补测）=====
 // 覆盖 isPathInRoot 的路径分隔符边界语义：ysm vs ysm2 误入、精确根匹配、
 // 缺失 Path、尾部分隔符 root（specificRoot 返回用户配置原值可能带尾斜杠）。

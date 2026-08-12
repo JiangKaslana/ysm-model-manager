@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== i18n 翻译函数测试 =====
 // 覆盖真实 t()：缺失 key 返回 key + 单次告警、参数插值、无参数不替换。
 // test-setup.ts 全局 mock 了 t.ts（查 zhCN），此处 vi.unmock 取真实实现。

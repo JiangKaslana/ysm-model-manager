@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== parseBedrockGeometryFromJSON 测试 =====
 // 覆盖：基础解析、无 bones 返回 null、UV 三种形态（数组/字符串/对象）、pivot 对象、texSlot、缺省字段
 import { describe, it, expect } from "vitest";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 标签集合操作纯函数测试（ADR-023 L3）=====
 import { describe, it, expect } from "vitest";
 import { addTagToSet, MAX_TAG_LENGTH } from "./tag-set.ts";

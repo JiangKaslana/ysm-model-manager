@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 骨骼名导出文本纯函数测试（ADR-023 L3）=====
 import { describe, it, expect } from "vitest";
 import { buildBoneNamesText } from "./bone-names.ts";

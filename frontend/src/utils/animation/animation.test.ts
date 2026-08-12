@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 骨骼动画计算测试（ADR-021 扩展，坐标高危区）=====
 // evaluateKeyframes（插值）/ parseBedrockAnimationJSON（解析）/ evaluateClip（父级传播）。
 import { describe, it, expect } from "vitest";

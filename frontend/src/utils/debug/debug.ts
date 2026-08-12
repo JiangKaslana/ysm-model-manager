@@ -25,12 +25,14 @@ declare global {
 // P3 修复（审核）：模块顶层裸调 localStorage 改 safeGet——隐私模式（存储禁用）下
 // getItem 抛错会中断 debug 模块加载链（debug 被全库 import，牵连启动流程）；
 // safeGet 静默降级返回 null（= 开启调试，等价于无 _debug 键）
+// node 测试环境无 window.location（vitest @vitest-environment node）→ ENABLED=false
 const ENABLED =
+  typeof window !== "undefined" &&
   !new URLSearchParams(window.location.search).has("nodebug") &&
   safeGet("_debug") !== "0";
 
 const RING_MAX = 200;
-window._DBG_RING = window._DBG_RING || [];
+if (typeof window !== "undefined") window._DBG_RING = window._DBG_RING || [];
 
 /** 输出调试日志（保留 tag 用于过滤） */
 export function dbg(tag: string, ...args: unknown[]): void {
@@ -85,15 +87,18 @@ export function safeStr(v: unknown): string {
 }
 
 // 调试：控制台可调 window.debugGetSpec(path) 获取 Go spec 骨骼数据
-window.debugGetSpec = async (path?: string): Promise<unknown> => {
-  try {
-    const { GetModel3DSpec } = await getApp();
-    const jsonStr = await GetModel3DSpec(path || "");
-    const spec = JSON.parse(jsonStr);
-    dbg("model3d", "spec:", spec);
-    return spec;
-  } catch (e) {
-    console.error("[DEBUG]", e);
-    return null;
-  }
-};
+// node 测试环境无 window，跳过挂载
+if (typeof window !== "undefined") {
+  window.debugGetSpec = async (path?: string): Promise<unknown> => {
+    try {
+      const { GetModel3DSpec } = await getApp();
+      const jsonStr = await GetModel3DSpec(path || "");
+      const spec = JSON.parse(jsonStr);
+      dbg("model3d", "spec:", spec);
+      return spec;
+    } catch (e) {
+      console.error("[DEBUG]", e);
+      return null;
+    }
+  };
+}

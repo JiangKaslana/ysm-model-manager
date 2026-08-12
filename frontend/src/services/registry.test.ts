@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 服务注册表测试（ADR-023 Vitest 体系）=====
 // register / get / has / unregister / clear 全生命周期。
 // 服务名已收窄为 ServiceName 联合（拼错编译期拦截），

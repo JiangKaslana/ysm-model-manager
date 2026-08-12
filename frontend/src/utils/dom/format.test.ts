@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== formatBytes / sizeColor / fmtDate 格式化工具测试 =====
 // 覆盖：formatBytes 边界（NaN/0/各量级）、sizeColor 三分区、fmtDate 的 NaN 守卫与三种日期形态
 import { describe, it, expect, vi, afterEach } from "vitest";

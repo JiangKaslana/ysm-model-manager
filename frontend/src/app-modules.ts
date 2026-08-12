@@ -76,7 +76,8 @@ export function applyTheme(mode: string): void {
     document.body.classList.add("theme-" + mode);
   }
 }
-window.applyTheme = applyTheme;
+// node 测试环境无 window，跳过挂载（浏览器语义不变）
+if (typeof window !== "undefined") window.applyTheme = applyTheme;
 // P3 修复（code_review）：把 page-store 白名单桥接到 window，供 index.html 内联
 // DOMContentLoaded 脚本复用（经典脚本无法 import）——消除内联源硬编码第二份列表的
 // 双源漂移（新增页时内联源把新页重置回 repository 的静默回归）。

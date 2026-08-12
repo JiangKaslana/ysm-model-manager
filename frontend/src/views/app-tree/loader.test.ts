@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 文件树数据加载层测试 =====
 // 覆盖：loadEntries 空 repoRoot / 空 raw / 扩展名过滤 / banned / relPath / 异常 toast
 // mock 基线来自 e2e/mock-data.ts（共享单源：改 Go 数据只改一处，防双源漂移），

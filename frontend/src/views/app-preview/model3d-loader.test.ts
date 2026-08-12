@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 3D 模型加载器测试 =====
 // 覆盖：loadTextures（成功/失败 null 占位保索引）、fetchSpec LRU 缓存、
 // preloadModel R1 纹理序契约校验（texArrOrder vs textureNames 不一致 warn）
