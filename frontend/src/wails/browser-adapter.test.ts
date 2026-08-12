@@ -1,6 +1,12 @@
 // ===== 浏览器后端适配器测试（ADR-049 Phase 1 骨架 + Phase 2 IndexedDB 模型库）=====
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { browserAdapter, WebUnsupportedError, importWebFiles, WEB_ROOT } from "./browser-adapter.ts";
+import {
+  browserAdapter,
+  WebUnsupportedError,
+  importWebFiles,
+  selectLocalRepo,
+  WEB_ROOT,
+} from "./browser-adapter.ts";
 
 // idb 层内存实现（真实 indexedDB 仅在浏览器存在，测试注入 Map 语义）
 const idbMock = vi.hoisted(() => {
@@ -252,6 +258,70 @@ describe("importWebFiles — Phase 2 数据层", () => {
     expect(idbMock.idbDel).toHaveBeenCalledWith("files", "file:ysm/新人/新人.ysm");
     // 回滚后孤儿清理完成：库中无残留
     expect(idbMock._store.has("file:ysm/新人/新人.ysm")).toBe(false);
+  });
+});
+
+describe("selectLocalRepo — FSA 授权本地仓库（ADR-049 能力门控缺口补齐）", () => {
+  // FSA 句柄桩：目录 → 异步迭代子项；文件 → kind/name/getFile（结构对齐 _FsaDirHandle）
+  function fileHandle(name: string, content: string): unknown {
+    return {
+      kind: "file",
+      name,
+      getFile: async () => new File([enc.encode(content)], name),
+    };
+  }
+  function dirHandle(name: string, children: unknown[]): unknown {
+    return {
+      kind: "directory", // 真实 FileSystemDirectoryHandle 带 kind，_collectYsmFiles 靠它判定递归
+      name,
+      async *values(): AsyncIterableIterator<unknown> {
+        for (const c of children) yield c;
+      },
+    };
+  }
+  function setPicker(handle: unknown): void {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      value: vi.fn(async () => handle),
+      writable: true,
+      configurable: true,
+    });
+  }
+
+  it("授权目录 → 递归扫 .ysm 落 IDB，返回 {ok, imported, failed, dir}", async () => {
+    setPicker(
+      dirHandle("模型库", [
+        fileHandle("狐狸.ysm", "YSM"),
+        dirHandle("子目录", [fileHandle("小猫.YSM", "cat")]),
+        fileHandle("说明.txt", "忽略"),
+      ]),
+    );
+    const r = await selectLocalRepo();
+    expect(r).toEqual({ ok: true, imported: 2, failed: 0, dir: "模型库" });
+    // 递归（子目录）+ 大小写扩展名（.YSM）均入模型库
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{
+      Name: string;
+      Ext: string;
+    }>;
+    expect(entries).toHaveLength(2);
+    expect(entries.find((e) => e.Name === "狐狸.ysm")).toBeDefined();
+    expect(entries.find((e) => e.Name === "小猫.YSM")?.Ext).toBe(".ysm");
+    // 非 .ysm 文件（说明.txt）不被收集
+    expect(entries.some((e) => e.Name === "说明.txt")).toBe(false);
+  });
+
+  it("目录内无 .ysm → {imported: 0, failed: 0}（空授权不算失败）", async () => {
+    setPicker(dirHandle("空库", [fileHandle("说明.txt", "x")]));
+    await expect(selectLocalRepo()).resolves.toEqual({
+      ok: true,
+      imported: 0,
+      failed: 0,
+      dir: "空库",
+    });
+  });
+
+  it("环境无 showDirectoryPicker → reject WebUnsupportedError（fail-fast 明确报错）", async () => {
+    delete (window as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+    await expect(selectLocalRepo()).rejects.toBeInstanceOf(WebUnsupportedError);
   });
 });
 

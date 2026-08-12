@@ -3,7 +3,7 @@ kind: wails-bridge
 name: Wails 桥接 app.ts
 tier: architecture
 adr:
-  - ADR-177
+  - ADR-049
 category: core
 source_files:
   - frontend/src/wails/app.ts
