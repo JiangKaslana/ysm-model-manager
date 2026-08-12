@@ -33,12 +33,12 @@ ADR-049 确立了网页版（查看器模式）通过 `browser-adapter.ts` 的 P
 - **MoveModelFile / CopyModelFile**：依赖 `resolveDstDir`（桌面真实目录选择器）产出 `dstDir`；网页版无文件系统、无任意目标目录可选，`dstDir` 无对应物。阻塞点在缺失目标目录 UI，而非 binding 本身。强行映射 `dstDir→type` 有静默移错模型组的语义风险。
 - **ExportBoneStructures**：已在 `toolbar-events.ts` 被 `resolveWebMode()` 守卫正确隐藏（fail-fast → 提示 toast），无红错，维持现状。
 - **OS / 实例 / 自更新类**：`OpenInBrowser` / `RevealInExplorer` / `SelectDirectory` / `ListVersionInstances`（整合包）/ 实例同步 / 自更新 / 回收站等——均属桌面或 Android 原生能力，网页版不可等价复现。
-- **3D 真闭环（P2-2）**：`GetModel3DSpec`/`Build3DSpecFromGeometryJSON` 当前返回 `"{}"` 兜底；真实渲染需将 Go 几何 JSON→spec 变换移植到 `ysm-parser` WASM，超出「纯前端复现」范畴，列为独立攻坚项。
+- **3D 真闭环（P2-2，2026-08-12 已闭环）**：`GetModel3DSpec` 返回 `"{}"` 恒空是**有意**让 `model3d-loader` 走前端 WASM 兜底；spec 构建由 `spec-builder.ts`（纯 TS 移植 Go `Build3DSpecFromGeometryJSON`，ADR-049 P2-2）承接，`browser-adapter` 的 `Build3DSpecFromGeometryJSON` 桩仅作 Android 路径形状占位。渲染链路：WASM 解码 → TS spec 构建 → Three.js。
 
 ## 3. 后果（Consequences）
 
 - **正面**：网页版模型库核心（搜索/标签/开关/删除/重命名/日志/子目录）、社区与工坊（只读 + 本地覆盖）、作者扫描与仓库索引均已可用；创意工坊/作者 tab 不再恒空；GitHub tab 对查看器模式可见。验证：`tsc` 0 错、全量 vitest 1758/1758 通过、`build:web` 172 模块 transform 成功。
-- **负面 / 边界**：网页版「移动到文件夹 / 复制到文件夹」因缺目标目录选择器不可用（与桌面体验差异，已文档化）；3D 预览仍为空 spec 兜底提示。
+- **负面 / 边界**：网页版「移动到文件夹 / 复制到文件夹」因缺目标目录选择器不可用（与桌面体验差异，已文档化）；3D 预览经 WASM 解码 + TS spec 构建可渲染（P2-2 闭环，2026-08-12），与桌面的差异仅在性能/内存（浏览器限制）。
 - **已知遗留**：B2 的 `SaveWorkshopCreatorsBySite` / `SaveWorkshopPresetsBySite` 仍 fail-fast，`community-data` 的 `tryAutoMergeCommunity` 实时合并写入被 `.catch` 静默降级——读取路径正确，写入持久化留待后续批次。
 
 ## 4. 数据溯源

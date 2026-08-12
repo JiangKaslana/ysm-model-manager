@@ -607,13 +607,13 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   GetAppVersion: () => Promise.resolve("web"),
   CurrentVersion: () => Promise.resolve("web"),
   // 网页版无 Go 侧 Node 解码通道：GetModel3DSpec 恒空让 model3d-loader 的 WASM 兜底
-  // 守卫可达；Build3DSpecFromGeometryJSON 暂以 "{}" 兜底（真实闭环见下方说明）
+  // 守卫可达。P2-2 已闭环（2026-08-12）：网页版渲染走 model3d-loader web 分支的
+  // buildSpecFromGeometryJSON（spec-builder.ts 纯 TS 移植，Go app_model.go 同契约），
+  // 本 binding 桩仅供 Android 兜底通道形状占位（网页版不会调用到它）。
   GetModel3DSpec: () => Promise.resolve("{}"),
   Build3DSpecFromGeometryJSON: (_geo: string) => {
-    // TODO(ADR-049 P2-2): 真实闭环需把 Go app_model.go 的「几何 JSON→spec」变换移植到
-    // ysm-parser WASM；当前返回 "{}" 仅保证兜底守卫走通（spec 空→前端降级提示），
-    // 网页版 3D 预览仍需该 WASM 绑定才能真正渲染。
-    console.warn("[web] Build3DSpecFromGeometryJSON 暂未移植到 WASM（ADR-049 P2-2 遗留），返回空 spec");
+    // 占位：网页版不调此 binding（TS 移植替代，见 spec-builder.ts）；仅保持 Proxy
+    // binding 形状完整，Android 路径仍走 Go 真实现
     return Promise.resolve("{}");
   },
   LoadAppConfig: () => Promise.resolve(loadWebConfig()),

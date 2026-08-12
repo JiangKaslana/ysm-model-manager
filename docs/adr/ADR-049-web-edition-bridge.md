@@ -1,6 +1,6 @@
 # ADR-049：网页版（Web 端）桥接：backend 适配器 + IndexedDB 模型库
 
-- **状态**：🔄 部分采纳（功能全落地：Phase 0-3 + Web e2e + 部署配置；剩 3D 预览 WASM 专项 P2-2 与推送验证）
+- **状态**：🔄 部分采纳（功能全落地：Phase 0-3 + P2-2 3D 渲染闭环 + Web e2e + 部署配置；剩线上 URL 验证）
 - **日期**：2026-08-10
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`ADR-029（WASM 内嵌）、ADR-046（全平台化）、MikuMikuAR ADR-176/177 参考、frontend/src/wails/app.ts`
@@ -46,7 +46,7 @@
   - `wails/idb.ts`：openDB 惰性单例 + idbGet/idbSet/idbDel/idbKeys 前缀扫描（onabort 处理 QuotaExceeded）；IndexedDB 不可用（非浏览器/隐私模式）自动降级内存 Map（应用不崩）
   - browserAdapter 真实实现：ScanModelEntries（IDB dir: 前缀 → ModelEntry，Path 指向主文件）/ ReadFileBytes（`/web/<type>/<name>/<rel>` → base64，wasm.ts 解码链零改动复用）/ GetRepoRoot/GetDefaultRepoRoot（虚拟根 /web）/ LoadAppConfig/SaveAppConfig（localStorage）
   - `importWebFiles(files, type)`：File API → IDB（dir + file 双记录），返回 {imported, failed}（Phase 3 接拖拽 UI）
-  - model3d-loader WASM 兜底守卫扩展 `getAndroidBridge() || resolveWebMode()`（网页版 spec 空走前端 WASM 解码；**注意：P2-2 未真正闭环**，见下方「Phase 2 审核遗留」）
+  - model3d-loader WASM 兜底守卫扩展 `getAndroidBridge() || resolveWebMode()`（网页版 spec 空走前端 WASM 解码；**P2-2 于 2026-08-12 闭环**，见下方「Phase 2 审核遗留」）
   - 验证：全量 1636 测试通过 + typecheck 零错
 
   **Phase 2 审核遗留（2026-08-10 三路子代理并发审核，commit 见 `fix: ADR-049 Phase 2 审核 P1 修复`）**：
@@ -62,10 +62,10 @@
 
   另修 P2：`idb.ts` 原 `openDB` reject 后 `dbPromise` 持 rejected promise 令后续调用永久失败；Firefox 隐私模式 `indexedDB` 存在但 `open()` 抛错不降级 → 现 `getIdb()` 捕获后置 `forcedMemory` 改走内存分支，单例失败可恢复。适配层 Proxy 补 `has` 陷阱 + fail-fast 稳定引用（供 Phase 3 能力门控 `'X' in adapter` 探测）。
 
-  **⚠️ P2-2 仍未闭环（如实标注）**：`Build3DSpecFromGeometryJSON` 是 Go `app_model.go` 专属「几何 JSON→spec」变换，前端/WASM 无对应实现。网页版 3D 封底现状：
-  - `decodeYsmViaWasm` 在网页版**确实可用**（走 `ReadFileBytes`→IDB→base64，产出 `geometryRaw`）——解码段闭环成立；
-  - 但 `fetchSpecViaWasmFallback` 调 `Build3DSpecFromGeometryJSON` 时，网页版仅以 `"{}"` 桩兜底（守卫走通、不崩），**真实 3D 渲染需把该变换移植到 `ysm-parser` WASM**（标记为 TODO，属 Phase 3 或独立专项）。
-  - 因此网页版打开 .ysm 当前会走到「3D spec 为空」降级提示，而非真正渲染——与初审「3D 预览走 WASM 兜底」表述不符，已更正。
+  **✅ P2-2 已闭环（2026-08-12）**：`Build3DSpecFromGeometryJSON` 的「几何 JSON→spec」变换以**纯 TS 移植**到 `frontend/src/utils/3d/spec-builder.ts`（契约镜像 `internal/app/app_model.go`，双边测试锁定：`spec-builder.test.ts` ↔ `app_model_test.go`）。网页版渲染路径：
+  - `model3d-loader.ts` 的 `fetchSpecViaWasmFallback` 在 `resolveWebMode()` 分支直接调 `buildSpecFromGeometryJSON(geometryRaw)`（不再依赖 Go binding），`decodeYsmViaWasm`（base64 → geometryRaw）→ TS spec 构建 → Three.js 渲染全链路闭环；
+  - `browser-adapter.ts` 的 `Build3DSpecFromGeometryJSON` 保留 `"{}"` 桩仅作 Android 兜底通道的形状占位（网页版不会调用）；
+  - 实现路径与原计划（移植到 ysm-parser WASM）不同——**TS 移植**成本更低、与 Go 契约可直接双边对拍，WASM 路线放弃。
 - **Phase 3 能力门控 + UI 降级**：C 类桌面专属 binding（自更新/系统对话框/资源管理器/剪贴板等 9 个）隐藏对应按钮；B 类写操作降级语义逐项定义（导入→IndexedDB/浏览器下载；回收站/硬链接/重链→不可用隐藏）。✅ **门控主体已完成（2026-08-10）**：
   - `isViewerMode()`（android-bridge.ts）：Android 双端桥 || 网页版 browser adapter 统一判定（Tier 0 `__YSM_BACKEND__` 权威信号，误嵌 WebView 强制走 web）
   - 门控改造 6 处：设置页隐藏游戏目录/链接模式卡片（tpl）、自更新跳过（version-updater）、树「打开/导入文件夹」+ 资源管理器「打开文件夹」走 `resolveAndroidRepoDir`（网页版定位虚拟根 /web）
@@ -76,7 +76,7 @@
   - ⚠️ **踩坑**：`import.meta.env?.MODE`（可选链/中间变量）编译后变成 `(t=import.meta.env)==null?void 0:t.MODE`，vite 的 `define` 是文本替换匹配不到原文 → `mode:"web"` 不生效（WebView 下实测 404 `/wails/runtime`×7）。修：`platform.ts` 直接写 `import.meta.env.MODE === "web"`（无中间变量）
   - 全局 DnD 补网页版分支（`import-dnd.ts`）：拖到任意位置 → `importWebFiles` 写 IDB + toast + tree:reload（与 import-queue drop 分支同语义）
   - 全链路实测（Playwright 冒烟）：主 UI 加载无 404/无报错 → 拖拽导入 `dir:`/`file:` 双记录落 IDB → 树刷新显示模型
-  - **遗留 P2-2**：3D 预览的 `Build3DSpecFromGeometryJSON` 仍为 `"{}"` 桩（守卫走通、不崩），真实渲染需把 Go 变换移植到 `ysm-parser` WASM（独立专项）
+  - **P2-2 闭环（2026-08-12）**：3D 预览的 spec 构建走纯 TS 移植 `spec-builder.ts`（model3d-loader web 分支），`browser-adapter` 的 `"{}"` 桩降级为 Android 形状占位
   - **Web 端 e2e 固化** ✅：`playwright.web.config.ts`（vite dev --mode web 双 webServer）+ `e2e-web/web-smoke.spec.ts` 3 用例（主 UI 加载零 Wails runtime 请求 / 拖拽导入 IDB 双记录 + 树刷新 / 幂等覆盖写），跑法 `npm run test:e2e:web`
   - **GitHub Pages 部署配置** ✅（2026-08-10）：`pages-deploy.yml` build job 增 Web 版构建（`WEB_BASE=/ysm-model-manager/app/`，注意 git-bash 需 `MSYS2_ENV_CONV_EXCL="WEB_BASE"` 防路径转换）+ 合并 `dist-web → docs/.vitepress/dist/app`；文档站首页加 /app/ 入口；`npm run build:web` 脚本。**待推送生效**（线上 URL 验证后状态转已采纳）
   - **部署冲突修复**（2026-08-11）：`docs/app/index.md` 占位页与 web 产物同路径 `app/` 冲突——VitePress 渲染该页到 `dist/app/index.html` 后，`cp -r dist-web dist/app` 因目标已存在把 dist-web 复制成 `dist/app/dist-web/` 且不覆盖旧 index.html，线上 `/app/` 仍返回「开发中」占位页而非 App 入口。修复：删除 `docs/app/index.md`（/app/ 归纯 Web App 入口独占）+ CI 合并步骤改「先 `rm -rf dist/app` 再 `cp -r`」防路径残留。
