@@ -479,27 +479,27 @@
 | `App.ListRecycleBin()` | `internal/app/app_install:468` | — |
 | `App.RestoreFromRecycle()` | `internal/app/app_install:485` | — |
 | `App.DeleteFromRecycle()` | `internal/app/app_install:506` | — |
-| `App.EmptyRecycleBin()` | `internal/app/app_install:519` | — |
-| `App.GetInstanceStatus()` | `internal/app/app_install:559` | ========== 状态同步 ========== |
-| `App.GetResourceInstanceStatus()` | `internal/app/app_install:571` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
-| `App.SyncModelToggleStatus()` | `internal/app/app_install:611` | — |
-| `App.RelinkCustomDir()` | `internal/app/app_install:616` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
-| `App.RelinkAllInstanceResources()` | `internal/app/app_install:636` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
-| `App.SyncResources()` | `internal/app/app_install:678` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install:712` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install:730` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install:764` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install:781` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install:801` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
-| `App.HasYSMMod()` | `internal/app/app_install:853` | ========== YSM 检测 ========== |
-| `App.SetLinkMode()` | `internal/app/app_install:871` | ========== 链接模式 ========== |
-| `App.GetLinkMode()` | `internal/app/app_install:888` | — |
-| `App.AddImportLog()` | `internal/app/app_install:893` | ========== 日志 ========== |
-| `App.AddOpLog()` | `internal/app/app_install:897` | — |
-| `App.GetImportLogs()` | `internal/app/app_install:901` | — |
-| `App.ClearImportLogs()` | `internal/app/app_install:905` | — |
-| `App.GetRuntimeLogs()` | `internal/app/app_install:910` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
-| `App.ClearRuntimeLogs()` | `internal/app/app_install:915` | ClearRuntimeLogs 清空运行时日志缓冲 |
+| `App.EmptyRecycleBin()` | `internal/app/app_install:522` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
+| `App.GetInstanceStatus()` | `internal/app/app_install:562` | ========== 状态同步 ========== |
+| `App.GetResourceInstanceStatus()` | `internal/app/app_install:574` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
+| `App.SyncModelToggleStatus()` | `internal/app/app_install:614` | — |
+| `App.RelinkCustomDir()` | `internal/app/app_install:619` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
+| `App.RelinkAllInstanceResources()` | `internal/app/app_install:639` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
+| `App.SyncResources()` | `internal/app/app_install:681` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
+| `App.PushResourceToInstance()` | `internal/app/app_install:715` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install:733` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install:767` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install:784` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install:804` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
+| `App.HasYSMMod()` | `internal/app/app_install:856` | ========== YSM 检测 ========== |
+| `App.SetLinkMode()` | `internal/app/app_install:874` | ========== 链接模式 ========== |
+| `App.GetLinkMode()` | `internal/app/app_install:891` | — |
+| `App.AddImportLog()` | `internal/app/app_install:896` | ========== 日志 ========== |
+| `App.AddOpLog()` | `internal/app/app_install:900` | — |
+| `App.GetImportLogs()` | `internal/app/app_install:904` | — |
+| `App.ClearImportLogs()` | `internal/app/app_install:908` | — |
+| `App.GetRuntimeLogs()` | `internal/app/app_install:913` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
+| `App.ClearRuntimeLogs()` | `internal/app/app_install:918` | ClearRuntimeLogs 清空运行时日志缓冲 |
 | `App.AnalyzeYSMModel()` | `internal/app/app_model:24` | — |
 | `App.ExtractYsmSummary()` | `internal/app/app_model:28` | — |
 | `App.ExtractYSMHeader()` | `internal/app/app_model:42` | — |
@@ -1046,7 +1046,7 @@
 | `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:25` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
-| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:225` | — |
+| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:237` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |
@@ -1068,8 +1068,8 @@
 | `MAX_IMPORT_BYTES()` | `frontend/src/wails/browser-adapter:29` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/wails/browser-adapter:59` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `selectLocalRepo()` | `frontend/src/wails/browser-adapter:121` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `importWebFiles()` | `frontend/src/wails/browser-adapter:347` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
-| `browserAdapter()` | `frontend/src/wails/browser-adapter:464` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `importWebFiles()` | `frontend/src/wails/browser-adapter:547` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
+| `browserAdapter()` | `frontend/src/wails/browser-adapter:664` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `STORES()` | `frontend/src/wails/idb:16` | — |
 | `Store()` | `frontend/src/wails/idb:17` | — |
 | `openDB()` | `frontend/src/wails/idb:21` | — |

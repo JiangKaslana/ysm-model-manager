@@ -23,16 +23,10 @@ type $Id = (id: string) => HTMLElement | null;
 
 // 打开弹窗版筛选器（应用结果到 inline 面板 + 后端搜索）
 async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
-  // 查看器模式（Android/网页版 ADR-049）：后端 SearchModels/ListByTag 未实现
-  // browser-adapter，且网页版模型数据在 IndexedDB 虚拟根，无法按 YSM 元数据搜索
-  if (isViewerMode()) {
-    bus.emit("toast:show", {
-      msg: "网页版暂不支持高级筛选（按骨骼/立方体搜索）",
-      duration: 3000,
-      type: "warn",
-    });
-    return;
-  }
+  // ADR-049 桥接增强：网页版已实现 SearchModels（关键词）/ ListByTag（标签），
+  // 早期「网页版未实现」守卫已移除。数值范围条件（骨骼/立方体/纹理）浏览器端无几何
+  // 分析能力，由后端降级为仅关键词匹配（在 rv 确定后于下方提示，不阻断调用）。
+  // 桌面/Android 不受影响：isViewerMode 为 false，下面分支不触发。
   dbg("adv-filter", "open:start", { repoRoot: vm._repoRoot });
   // 输入框值都是字符串形态（弹窗内部转数字）；AdvFilterValue 为 number|null，
   // 此处是「当前输入框值」表示，类型上放宽转换
@@ -92,6 +86,24 @@ async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
     vm._filterPaths = null;
     vm._renderTree();
     return;
+  }
+  // 网页版数值范围条件降级提示（仅提示，不阻断：后端按关键词/标签匹配，
+  // 骨骼/立方体/纹理数值条件浏览器端无几何分析能力，ADR-049 桥接增强）
+  if (isViewerMode()) {
+    const hasNumRange =
+      !isUnset(rv.minBones) ||
+      !isUnset(rv.maxBones) ||
+      !isUnset(rv.minCubes) ||
+      !isUnset(rv.maxCubes) ||
+      !isUnset(rv.minTex) ||
+      !isUnset(rv.maxTex);
+    if (hasNumRange) {
+      bus.emit("toast:show", {
+        msg: "网页版仅支持关键词/标签筛选，骨骼/立方体数值条件已忽略",
+        duration: 3000,
+        type: "warn",
+      });
+    }
   }
   const { SearchModels, ListByTag, GetRepoRoot } =
     await getApp();

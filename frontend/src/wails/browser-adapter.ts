@@ -220,7 +220,9 @@ async function addWebImportLog(
 async function addWebOpLog(
   op: string, modelName: string, sourcePath: string, targetDir: string, fileSize: number, status: string, errMsg: string,
 ): Promise<void> {
-  pushWebLog(webImportLogs, WEB_IMPORT_LOG_CAP, {
+  // 操作日志归入运行时环（webRuntimeLogs），与导入日志环（webImportLogs）分离，
+  // 否则 GetRuntimeLogs 恒空、ClearRuntimeLogs 形同虚设（原实现误写入导入环）
+  pushWebLog(webRuntimeLogs, WEB_RUNTIME_LOG_CAP, {
     Op: op, ModelName: modelName, SourcePath: sourcePath, TargetDir: targetDir,
     FileSize: fileSize, Status: status, ErrMsg: errMsg, Time: new Date().toISOString(),
   });
@@ -271,6 +273,170 @@ async function batchExtractCreatorAvatars(): Promise<Record<string, string>> {
     // 模型库不可用：返回空 map（前端 index.ts 已处理空结果，无红错）
   }
   return result;
+}
+
+// ===== ADR-049 桥接增强 Batch 1：纯前端可复现绑定（IndexedDB / localStorage / 静态派生）=====
+// 这些 binding 桌面走 Go 文件系统/扫描，网页版用 IDB 虚拟根 + 前端计算等价复现，
+// 业务调用零改动。数值型条件（骨骼/立方体/纹理）在浏览器端无几何分析能力，
+// 由 SearchModels 降级为仅关键词匹配（如实标注，非静默错误）。
+
+/** /web/<type>/<name>/<rel> → 三段解析 */
+function parseWebModelPath(p: string): { type: string; name: string; rel: string } | null {
+  const m = p.match(/^\/web\/([^/]+)\/([^/]+)\/(.+)$/);
+  if (!m) return null;
+  return { type: m[1], name: m[2], rel: m[3] };
+}
+/** /web/<type>/<name> → 类型+模型名（目录形态） */
+function parseWebModelDir(p: string): { type: string; name: string } | null {
+  const m = p.match(/^\/web\/([^/]+)\/([^/]+)\/?$/);
+  if (!m) return null;
+  return { type: m[1], name: m[2] };
+}
+
+/** 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） */
+async function scanAllWebModels(): Promise<Array<{ type: string; name: string; path: string }>> {
+  const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string }> }).resourceTypes ?? [];
+  const out: Array<{ type: string; name: string; path: string }> = [];
+  for (const r of rts) {
+    const entries = await scanWebModels(`${WEB_ROOT}/${r.id}`);
+    for (const e of entries) {
+      const pm = parseWebModelPath(e.Path);
+      out.push({ type: pm?.type ?? r.id, name: pm?.name ?? e.Name, path: e.Path });
+    }
+  }
+  return out;
+}
+
+// --- 标签（config store: tags:<path> = string[]）---
+const tagKeyOf = (path: string): string => `tags:${path}`;
+async function getWebTags(path: string): Promise<string[]> {
+  const v = await idbGet<string[]>("config", tagKeyOf(path));
+  return Array.isArray(v) ? v : [];
+}
+async function setWebTags(path: string, tags: string[] | null): Promise<void> {
+  await idbSet("config", tagKeyOf(path), Array.isArray(tags) ? tags : []);
+}
+async function listByTagWeb(tag: string): Promise<string[]> {
+  const models = await scanAllWebModels();
+  const out: string[] = [];
+  for (const m of models) {
+    const tags = await getWebTags(m.path);
+    if (tags.includes(tag)) out.push(m.path);
+  }
+  return out;
+}
+async function allTagsWeb(): Promise<string[]> {
+  const models = await scanAllWebModels();
+  const set = new Set<string>();
+  for (const m of models) (await getWebTags(m.path)).forEach((t) => set.add(t));
+  return [...set];
+}
+
+// --- 启用开关（config store: ban:<path> = boolean）---
+const banKeyOf = (path: string): string => `ban:${path}`;
+async function isWebBanned(path: string): Promise<boolean> {
+  return (await idbGet<boolean>("config", banKeyOf(path))) === true;
+}
+async function toggleWebEnable(path: string): Promise<boolean> {
+  const nextBanned = !(await isWebBanned(path));
+  await idbSet("config", banKeyOf(path), nextBanned);
+  return !nextBanned; // 返回新的「已启用」状态（对齐桌面 ToggleModelEnable 语义）
+}
+
+// --- 搜索（关键词匹配；数值范围条件浏览器端无几何分析，降级忽略）---
+async function searchWebModels(
+  repoRoot: string,
+  keyword: string,
+): Promise<Array<{ name: string; path: string; boneCount: number; cubeCount: number; texWidth: number; texHeight: number; hasError: boolean }>> {
+  const type = typeFromWebDir(repoRoot);
+  const entries = await scanWebModels(`${WEB_ROOT}/${type}`);
+  const kw = (keyword || "").toLowerCase();
+  return entries
+    .filter((e) => !kw || e.Name.toLowerCase().includes(kw))
+    .map((e) => ({ name: e.Name, path: e.Path, boneCount: 0, cubeCount: 0, texWidth: 0, texHeight: 0, hasError: false }));
+}
+
+// --- 删除模型组（dir + 所有 file + 元数据标记）---
+async function deleteWebModel(type: string, name: string): Promise<void> {
+  await idbDel("files", dirKey(type, name));
+  const fks = await idbKeys("files", `file:${type}/${name}/`);
+  for (const k of fks) await idbDel("files", k);
+  // 清理 ban/tags 标记（best-effort）
+  for (const prefix of ["ban:", "tags:"]) {
+    const keys = await idbKeys("config", `${prefix}/web/${type}/${name}/`);
+    for (const k of keys) await idbDel("config", k);
+  }
+}
+
+// --- 重命名模型目录（dir + file + 标记整组 rekey）---
+async function renameWebDir(oldPath: string, newName: string): Promise<void> {
+  const di = parseWebModelDir(oldPath);
+  if (!di) return;
+  const { type, name } = di;
+  const oldDirKey = dirKey(type, name);
+  const newDirKey = dirKey(type, newName);
+  const dv = await idbGet("files", oldDirKey);
+  if (dv !== undefined) {
+    // 同步更新 dir 条目的 name 字段：scanWebModels 用 meta.name 推导文件查找前缀，
+    // 若沿用旧名会在重命名后的 file:<type>/<newName>/ 下扫不到模型（列表变空）
+    await idbSet("files", newDirKey, { ...(dv as Record<string, unknown>), name: newName });
+    await idbDel("files", oldDirKey);
+  }
+  const fks = await idbKeys("files", `file:${type}/${name}/`);
+  for (const k of fks) {
+    const rel = k.slice(`file:${type}/${name}/`.length);
+    const val = await idbGet("files", k);
+    if (val !== undefined) {
+      await idbSet("files", fileKey(type, newName, rel), val);
+      await idbDel("files", k);
+    }
+  }
+  // 标记 rekey（best-effort）：ban:/web/<type>/<name>/<rel> → 新名
+  for (const prefix of ["ban:", "tags:"]) {
+    const scanPrefix = `${prefix}/web/${type}/${name}/`;
+    const keys = await idbKeys("config", scanPrefix);
+    for (const k of keys) {
+      const suffix = k.slice(scanPrefix.length); // 含原 rel（含前导斜杠），拼接新路径即正确
+      const val = await idbGet("config", k);
+      if (val !== undefined) {
+        await idbSet("config", `${prefix}/web/${type}/${newName}/${suffix}`, val);
+        await idbDel("config", k);
+      }
+    }
+  }
+}
+
+// --- 重命名单个文件（模型组内某文件 rekey，保留 .ban 后缀语义由调用方负责）---
+async function renameWebFile(oldPath: string, newName: string): Promise<void> {
+  const pm = parseWebModelPath(oldPath);
+  if (!pm) return;
+  const { type, name, rel } = pm;
+  const oldKey = fileKey(type, name, rel);
+  const newKey = fileKey(type, name, newName);
+  const val = await idbGet("files", oldKey);
+  if (val !== undefined) {
+    await idbSet("files", newKey, val);
+    await idbDel("files", oldKey);
+  }
+  // 移动按全路径 key 的 ban/tags 标记
+  const newPath = oldPath.replace(/\/[^/]+$/, `/${newName}`);
+  for (const prefix of ["ban:", "tags:"]) {
+    const oldMk = `${prefix}${oldPath}`;
+    const newMk = `${prefix}${newPath}`;
+    const mv = await idbGet("config", oldMk);
+    if (mv !== undefined) {
+      await idbSet("config", newMk, mv);
+      await idbDel("config", oldMk);
+    }
+  }
+}
+
+// --- 子目录映射（resource_types.json → {id: storageSubDir}）---
+async function getWebSubDirMap(): Promise<Record<string, string>> {
+  const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string; storageSubDir?: string }> }).resourceTypes ?? [];
+  const map: Record<string, string> = {};
+  for (const r of rts) map[r.id] = r.storageSubDir ?? "";
+  return map;
 }
 
 // Phase 2 已实现的 binding（其余走 fail-fast Proxy）
@@ -327,6 +493,40 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   BatchExtractCreatorAvatars: () => batchExtractCreatorAvatars(),
   // 网页版 FSA 授权本地仓库目录（替代 Go 本地文件系统扫描，作为模型库文件来源）
   SelectLocalRepo: () => selectLocalRepo(),
+  // ===== ADR-049 桥接增强 Batch 1：纯前端可复现绑定 =====
+  // 搜索：关键词匹配（数值范围条件浏览器端无几何分析，降级忽略，如实标注）
+  SearchModels: (repoRoot: string, keyword: string, ..._rest: number[]) => searchWebModels(repoRoot, keyword),
+  // 启用开关：ban 标记翻转，返回新「已启用」态（对齐桌面 ToggleModelEnable 语义）
+  IsFileBanned: (path: string) => isWebBanned(path),
+  ToggleModelEnable: (path: string) => toggleWebEnable(path),
+  // 标签：config store tags:<path>
+  GetModelTags: (path: string) => getWebTags(path),
+  SetModelTags: (path: string, tags: string[] | null) => setWebTags(path, tags),
+  ListByTag: (tag: string) => listByTagWeb(tag),
+  AllTags: () => allTagsWeb(),
+  // 删除模型组（dir + file + 标记）
+  DeleteModelDir: (path: string) => {
+    const pm = parseWebModelPath(path);
+    return pm ? deleteWebModel(pm.type, pm.name) : Promise.resolve();
+  },
+  RemoveDir: (dir: string) => {
+    const di = parseWebModelDir(dir);
+    return di ? deleteWebModel(di.type, di.name) : Promise.resolve();
+  },
+  // 重命名：模型目录整组 rekey / 组内单文件 rekey
+  RenameDir: (oldPath: string, newName: string) => renameWebDir(oldPath, newName),
+  RenameFile: (oldPath: string, newName: string) => renameWebFile(oldPath, newName),
+  // 日志环清空
+  ClearImportLogs: () => {
+    webImportLogs.length = 0;
+    return Promise.resolve();
+  },
+  ClearRuntimeLogs: () => {
+    webRuntimeLogs.length = 0;
+    return Promise.resolve();
+  },
+  // 子目录映射（resource_types.json 派生）
+  GetSubDirMap: () => getWebSubDirMap(),
 };
 
 /**

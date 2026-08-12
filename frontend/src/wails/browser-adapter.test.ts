@@ -335,6 +335,102 @@ describe("browserAdapter — LoadResourceTypes（注册表驱动视图降级消�
   });
 });
 
+describe("browserAdapter — ADR-049 桥接增强 Batch 1（纯前端可复现绑定）", () => {
+  const enc2 = new TextEncoder();
+
+  it("SearchModels：关键词匹配模型名，返回 SearchResult[]（数值范围条件浏览器端降级忽略）", async () => {
+    await importWebFiles([new File([enc2.encode("YSM")], "狐狸.ysm")], "ysm");
+    await importWebFiles([new File([enc2.encode("YSM")], "小猫.ysm")], "ysm");
+    const hit = (await browserAdapter.SearchModels("/web/ysm", "狐狸", 0, 0, 0, 0, 0, 0)) as Array<{ name: string; path: string }>;
+    expect(hit).toHaveLength(1);
+    expect(hit[0].name).toBe("狐狸.ysm");
+    expect(hit[0].path).toBe("/web/ysm/狐狸/狐狸.ysm");
+    const miss = (await browserAdapter.SearchModels("/web/ysm", "龙", 0, 0, 0, 0, 0, 0)) as unknown[];
+    expect(miss).toHaveLength(0);
+  });
+
+  it("ToggleModelEnable / IsFileBanned：ban 标记翻转，返回新「已启用」态", async () => {
+    await importWebFiles([new File([enc2.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    expect(await browserAdapter.IsFileBanned(p)).toBe(false);
+    expect(await browserAdapter.ToggleModelEnable(p)).toBe(false); // 首次切换 → 禁用
+    expect(await browserAdapter.IsFileBanned(p)).toBe(true);
+    expect(await browserAdapter.ToggleModelEnable(p)).toBe(true); // 再次切换 → 启用
+    expect(await browserAdapter.IsFileBanned(p)).toBe(false);
+  });
+
+  it("标签：SetModelTags → GetModelTags / AllTags / ListByTag 闭环", async () => {
+    await importWebFiles([new File([enc2.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.SetModelTags(p, ["新番", "联动"]);
+    expect((await browserAdapter.GetModelTags(p)) as string[]).toEqual(["新番", "联动"]);
+    expect((await browserAdapter.AllTags()) as string[]).toEqual(expect.arrayContaining(["新番", "联动"]));
+    expect((await browserAdapter.ListByTag("新番")) as string[]).toContain(p);
+    await browserAdapter.SetModelTags(p, null);
+    expect((await browserAdapter.GetModelTags(p)) as string[]).toEqual([]);
+  });
+
+  it("DeleteModelDir / RemoveDir：删除模型组（dir + file + 标记）", async () => {
+    await importWebFiles([new File([enc2.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.SetModelTags(p, ["临时"]);
+    await browserAdapter.DeleteModelDir(p);
+    expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(false);
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(false);
+    expect(idbMock._store.has("tags:/web/ysm/狐狸/狐狸.ysm")).toBe(false);
+    // RemoveDir 走目录形态同样删除
+    await importWebFiles([new File([enc2.encode("Y")], "小猫.ysm")], "ysm");
+    await browserAdapter.RemoveDir("/web/ysm/小猫");
+    expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
+  });
+
+  it("RenameDir：模型目录整组 rekey（dir + file + 标记）；仅改目录名不改主文件名", async () => {
+    await importWebFiles([new File([enc2.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.ToggleModelEnable(p); // 置 ban 标记，验证 rekey 跟随
+    await browserAdapter.RenameDir("/web/ysm/狐狸", "小猫");
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Name: string; Path: string }>;
+    expect(entries).toHaveLength(1);
+    // RenameDir 重命名目录（模型文件夹），主文件名不变（与桌面一致：Name=主文件名）
+    expect(entries[0].Name).toBe("狐狸.ysm");
+    expect(entries[0].Path).toBe("/web/ysm/小猫/狐狸.ysm");
+    // ban 标记随全路径 rekey 到新目录
+    expect(await browserAdapter.IsFileBanned("/web/ysm/小猫/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(false);
+    expect(idbMock._store.has("file:ysm/小猫/狐狸.ysm")).toBe(true);
+  });
+
+  it("RenameFile：组内单文件 rekey（保留标记跟随全路径）", async () => {
+    const f1 = new File([enc2.encode("Y")], "狐狸.ysm");
+    const f2 = new File([enc2.encode("{}")], "main.json");
+    Object.defineProperty(f1, "webkitRelativePath", { value: "狐狸/狐狸.ysm" });
+    Object.defineProperty(f2, "webkitRelativePath", { value: "狐狸/main.json" });
+    await importWebFiles([f1, f2], "ysm");
+    await browserAdapter.RenameFile("/web/ysm/狐狸/main.json", "data.json");
+    expect(idbMock._store.has("file:ysm/狐狸/data.json")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/main.json")).toBe(false);
+  });
+
+  it("ClearImportLogs / ClearRuntimeLogs：清空内存日志环", async () => {
+    await browserAdapter.AddImportLog("m", "s", "t", 1, "ok", "");
+    expect((await browserAdapter.GetImportLogs()) as unknown[]).toHaveLength(1);
+    await browserAdapter.ClearImportLogs();
+    expect((await browserAdapter.GetImportLogs()) as unknown[]).toHaveLength(0);
+    await browserAdapter.AddOpLog("op", "m", "s", "t", 1, "ok", "");
+    expect((await browserAdapter.GetRuntimeLogs()) as unknown[]).toHaveLength(1);
+    await browserAdapter.ClearRuntimeLogs();
+    expect((await browserAdapter.GetRuntimeLogs()) as unknown[]).toHaveLength(0);
+  });
+
+  it("GetSubDirMap：由 resource_types.json 派生 {id: storageSubDir}", async () => {
+    const map = (await browserAdapter.GetSubDirMap()) as Record<string, string>;
+    expect(map.ysm).toBeDefined();
+    expect(typeof map.ysm).toBe("string");
+    expect(Object.keys(map).length).toBeGreaterThanOrEqual(7);
+  });
+});
+
 describe("browserAdapter — Proxy 原型成员（P3：Object 原型成员不路由 fail-fast）", () => {
   it("toString 等返回原型链实现，String(adapter) 正常而非 rejected Promise", () => {
     const proxy = browserAdapter as unknown as {
