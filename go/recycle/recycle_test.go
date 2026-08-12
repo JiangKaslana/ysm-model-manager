@@ -371,3 +371,26 @@ func TestDelete_FolderModelGrouped(t *testing.T) {
 		t.Fatalf("删除后列表应为空, 实际 %d 条", len(got))
 	}
 }
+
+// P2 补测（根守卫）：Delete 回收站根目录自身应被拒绝（对齐 Move/Restore 的根级守卫），
+// 且 .recycle 目录仍存在
+func TestDelete_RootRejected(t *testing.T) {
+	dir := t.TempDir()
+	tm := New(dir)
+
+	// 先移入一个文件确保 .recycle 目录已存在
+	src := testutil.CreateTestFile(t, dir, "test.ysm", "x")
+	if err := tm.Move(src); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(tm.RecycleDir()); err != nil {
+		t.Fatalf("前置条件失败：.recycle 目录应存在: %v", err)
+	}
+
+	if err := tm.Delete(tm.RecycleDir()); err == nil {
+		t.Fatal("删除回收站根目录应被拒绝")
+	}
+	if _, err := os.Stat(tm.RecycleDir()); err != nil {
+		t.Fatalf(".recycle 目录应仍存在: %v", err)
+	}
+}

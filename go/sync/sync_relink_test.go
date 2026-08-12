@@ -101,3 +101,92 @@ func TestRelinkDir_FlatEntryAtCustomDirRoot(t *testing.T) {
 		t.Fatalf("不应有 .relink-bak 残留: %v", matches)
 	}
 }
+
+// P2 补测：.ban 条目跳过——重链接不得静默恢复禁用状态。
+// custom 条目 m.ysm.ban（hash 与仓库活跃版匹配）应被跳过：count 不含它、.ban 文件保留原内容
+func TestRelinkDir_BanEntrySkipped(t *testing.T) {
+	base := t.TempDir()
+	repoRoot := filepath.Join(base, "repo")
+	customDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	if err := os.MkdirAll(repoRoot, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(customDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// 仓库侧活跃版 + 实例侧禁用态（.ban），hash 相同
+	_ = os.WriteFile(filepath.Join(repoRoot, "m.ysm"), []byte("same"), 0644)
+	banFile := filepath.Join(customDir, "m.ysm.ban")
+	_ = os.WriteFile(banFile, []byte("disabled-copy"), 0644)
+
+	scanFn := func(dir string) []types.ModelEntry {
+		if dir == repoRoot {
+			return []types.ModelEntry{{Name: "m.ysm", Path: filepath.Join(dir, "m.ysm"), Hash: "h1"}}
+		}
+		return []types.ModelEntry{{Name: "m.ysm.ban", Path: filepath.Join(dir, "m.ysm.ban"), Hash: "h1"}}
+	}
+	count, err := RelinkDir(customDir, repoRoot, "resourcepack", "copy", scanFn,
+		func(name, src, dst string, size int64, status, msg string) {})
+	if err != nil {
+		t.Fatalf("RelinkDir 失败: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf(".ban 条目不应被重链接，实际 count=%d", count)
+	}
+	// .ban 文件保留（内容不变，未被替换为仓库活跃版）
+	data, err := os.ReadFile(banFile)
+	if err != nil {
+		t.Fatalf(".ban 文件应保留: %v", err)
+	}
+	if string(data) != "disabled-copy" {
+		t.Fatalf(".ban 文件应保持原内容，实际 %q", string(data))
+	}
+}
+
+// P2 补测：RelinkDir 目录级分支（非平铺）——custom 有 sub/ysm.json、repo 有同 hash 的
+// ysm.json，rtype=ysm 时旧目录应被整体替换（rename 备份 + InstallDir 重建），不留 .relink-bak
+func TestRelinkDir_DirLevelReplacesOldDir(t *testing.T) {
+	base := t.TempDir()
+	repoRoot := filepath.Join(base, "repo")
+	customDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	if err := os.MkdirAll(filepath.Join(repoRoot, "repo-sub"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(customDir, "custom-sub"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(repoRoot, "repo-sub", "ysm.json"), []byte("repo-version"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "custom-sub", "ysm.json"), []byte("stale"), 0644)
+
+	scanFn := func(dir string) []types.ModelEntry {
+		if dir == repoRoot {
+			return []types.ModelEntry{{Name: "ysm.json", Path: filepath.Join(dir, "repo-sub", "ysm.json"), Hash: "h1"}}
+		}
+		return []types.ModelEntry{{Name: "ysm.json", Path: filepath.Join(dir, "custom-sub", "ysm.json"), Hash: "h1"}}
+	}
+	count, err := RelinkDir(customDir, repoRoot, "ysm", "copy", scanFn,
+		func(name, src, dst string, size int64, status, msg string) {})
+	if err != nil {
+		t.Fatalf("RelinkDir 失败: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("应重链接 1 个，实际 %d", count)
+	}
+	// 旧目录被替换：custom-sub 不再存在
+	if _, err := os.Stat(filepath.Join(customDir, "custom-sub")); !os.IsNotExist(err) {
+		t.Fatalf("旧目录应被替换移除: %v", err)
+	}
+	// 无 .relink-bak 残留
+	matches, _ := filepath.Glob(filepath.Join(customDir, "*.relink-bak"))
+	if len(matches) != 0 {
+		t.Fatalf("不应有 .relink-bak 残留: %v", matches)
+	}
+	// 新目录内容为仓库版本
+	data, err := os.ReadFile(filepath.Join(customDir, "repo-sub", "ysm.json"))
+	if err != nil {
+		t.Fatalf("新目录 ysm.json 应存在: %v", err)
+	}
+	if string(data) != "repo-version" {
+		t.Fatalf("新目录应为仓库版本，实际 %q", string(data))
+	}
+}

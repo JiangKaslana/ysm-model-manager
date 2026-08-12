@@ -338,7 +338,9 @@ func (a *App) MergeWorkshopCreatorsFromJSON(jsonContent string) (int, int, error
 	added, updated := 0, 0
 	for _, cr := range imported {
 		if idx, ok := existMap[cr.Name]; ok {
-			existing[idx].Desc = cr.Desc
+			if cr.Desc != "" && existing[idx].Desc == "" {
+				existing[idx].Desc = cr.Desc
+			}
 			if cr.Type != "" {
 				existing[idx].Type = cr.Type
 			}

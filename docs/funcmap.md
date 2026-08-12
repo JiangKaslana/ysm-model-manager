@@ -546,7 +546,7 @@
 | `App.ExportWorkshopCreatorsJSONFile()` | `internal/app/app_workshop:302` | — |
 | `App.BackupWorkshopCreators()` | `internal/app/app_workshop:309` | — |
 | `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:322` | — |
-| `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:362` | — |
+| `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:364` | — |
 | `NewApp()` | `internal/app/app:51` | — |
 | `App.SetApp()` | `internal/app/app:77` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
 | `App.SetMainWindow()` | `internal/app/app:82` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |

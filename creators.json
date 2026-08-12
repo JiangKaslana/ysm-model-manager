@@ -1,31 +1,31 @@
 [
   {
     "name": "eghrhegpe/YSM-Model-Workshop",
-    "desc": "-Model-Manager 整合仓库、141个模型",
+    "desc": "YSM-Model-Manager 整合仓库，141个模型",
     "type": "github",
     "role": "repo"
   },
   {
     "name": "HSOS6/YSM-model",
-    "desc": "800+",
+    "desc": "800+ YSM模型，来源于网络，仅学习使用",
     "type": "github",
     "role": "repo"
   },
   {
     "name": "OrangeMiracle/winefox-ysm-models",
-    "desc": "工程师酒狐·黄铜工坊修会 角色模型",
+    "desc": "工程师酒狐·黄铜工坊修会 YSM角色模型",
     "type": "github",
     "role": "repo"
   },
   {
     "name": "dudu-ke/ysm-share",
-    "desc": "分享",
+    "desc": "分享YSM模型，模型来自网络，侵删",
     "type": "github",
     "role": "repo"
   },
   {
     "name": "Elaina69/Yes-Steve-Model-Repo",
-    "desc": "Elaina69收集的、使用",
+    "desc": "Elaina69收集的YSM模型，免费使用",
     "type": "github",
     "role": "repo"
   },
@@ -1344,13 +1344,7 @@
     "role": "creator"
   },
   {
-    "name": "塩タン昆布",
-    "desc": "【VRC想定3Dモデル】エフォール【フェアリーフェンサーエフ】",
-    "type": "booth",
-    "role": "creator"
-  },
-  {
-    "name": "namekuji1337",
+    "name": "namekuji1337（Parfaitty）",
     "desc": "Parfaitty（MMDモデル）",
     "type": "booth",
     "role": "creator"

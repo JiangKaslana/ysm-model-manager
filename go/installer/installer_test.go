@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"ysm-model-manager/go/types"
 )
 
 // setupTestDirs 创建测试用目录结构并返回 (repoRoot, customDir, mcRoot, ysmFile)
@@ -433,5 +436,116 @@ func TestInstallDir_DstInsideSrc(t *testing.T) {
 	err := InstallDir(repo, inner, repo, "copy", "")
 	if err == nil {
 		t.Fatal("finalDst 位于 srcDir 内应拒绝（死递归守卫）")
+	}
+}
+
+// ====== EvalSymlinks 二次校验守卫（P2 补测）======
+
+// Install 的 customDir 含指向 .minecraft 外的 symlink 段时：
+// 字符串守卫 ContainsMinecraftMarker 放行，EvalSymlinks 解析真实路径后二次校验应返回 INVALID_PATH
+func TestInstall_EvalSymlinksGuard_CustomDirSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 不支持 os.Symlink（需管理员权限）")
+	}
+	repo, _, mcRoot, src := setupTestDirs(t)
+
+	// .minecraft 内一个中间段 symlink 指向仓库外目录
+	outside := t.TempDir()
+	externalCustom := filepath.Join(outside, "custom")
+	if err := os.MkdirAll(externalCustom, 0755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(mcRoot, ".minecraft", "versions", "link_out")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	custom := filepath.Join(link, "custom")
+
+	err := Install(src, custom, repo, "copy")
+	var ae types.AppError
+	if !errors.As(err, &ae) || ae.Code != "INVALID_PATH" {
+		t.Fatalf("customDir 含指向 .minecraft 外 symlink 段应返回 INVALID_PATH, got %v", err)
+	}
+}
+
+// Install 的 src 含指向仓库外的 symlink 段时：
+// 字符串守卫 IsInside 放行，EvalSymlinks 解析真实路径后二次校验应返回 INVALID_PATH
+func TestInstall_EvalSymlinksGuard_SrcSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 不支持 os.Symlink（需管理员权限）")
+	}
+	repo, custom, _, _ := setupTestDirs(t)
+
+	// 仓库内一个 symlink 指向仓库外目录，源文件真实位置在仓库外
+	outside := t.TempDir()
+	realFile := filepath.Join(outside, "model.ysm")
+	if err := os.WriteFile(realFile, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(repo, "link_out")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(link, "model.ysm")
+
+	err := Install(src, custom, repo, "copy")
+	var ae types.AppError
+	if !errors.As(err, &ae) || ae.Code != "INVALID_PATH" {
+		t.Fatalf("src 含指向仓库外 symlink 段应返回 INVALID_PATH, got %v", err)
+	}
+}
+
+// ====== InstallDir dstExisted 失败回滚（P2 补测）======
+
+// srcDir 含不可读条目（权限 000 子目录）触发 installDirRecursive 报错时：
+// 本次新建的 finalDst 应被回滚删除；已存在的 finalDst（用户既有数据）不得被删除
+func TestInstallDir_DstExistedRollback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 无法构造权限 000 的不可读条目")
+	}
+	repo, custom, _, _ := setupTestDirs(t)
+
+	// srcDir：一个可读子目录（正常复制）+ 一个权限 000 的不可读子目录（注入失败）
+	srcDir := filepath.Join(repo, "bad_model")
+	if err := os.MkdirAll(filepath.Join(srcDir, "ok"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "ok", "model.pmx"), []byte("pmx"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	blocked := filepath.Join(srcDir, "blocked")
+	if err := os.MkdirAll(blocked, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(blocked, 0000); err != nil {
+		t.Fatal(err)
+	}
+	// 当前用户若不受权限位约束（root 等特权用户）无法注入失败 → 跳过
+	if _, err := os.ReadDir(blocked); err == nil {
+		t.Skip("当前用户可读权限 000 目录，无法构造不可读条目")
+	}
+
+	// 场景 A：finalDst 本次新建 → 失败后应被回滚删除
+	if err := InstallDir(srcDir, custom, repo, "copy", "mmd-skin"); err == nil {
+		t.Fatal("srcDir 含不可读条目时安装应报错")
+	}
+	finalDst := filepath.Join(custom, "bad_model")
+	if _, err := os.Stat(finalDst); !os.IsNotExist(err) {
+		t.Fatalf("新建 finalDst 应被回滚删除: %v", err)
+	}
+
+	// 场景 B：finalDst 已存在（用户既有数据）→ 失败后不得被删除
+	if err := os.MkdirAll(finalDst, 0755); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(finalDst, "keep.txt")
+	if err := os.WriteFile(marker, []byte("keep"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := InstallDir(srcDir, custom, repo, "copy", "mmd-skin"); err == nil {
+		t.Fatal("srcDir 含不可读条目时安装应报错")
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("已存在 finalDst 不应被回滚删除: %v", err)
 	}
 }

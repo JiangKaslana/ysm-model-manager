@@ -566,3 +566,40 @@ func TestAppPlazaWindowExistsNil(t *testing.T) {
 		t.Error("expected false")
 	}
 }
+
+// P2 补测：startProxy 成功路径 + stopProxy 起→停闭环。
+// startProxy 绑定本地回环随机端口（不产生对外请求），用公开域名构造即可离线运行
+func TestStartStopProxy_Lifecycle(t *testing.T) {
+	a := &App{}
+	target := "http://example.com/"
+
+	proxyURL, err := a.startProxy(target)
+	if err != nil {
+		t.Fatalf("startProxy 失败: %v", err)
+	}
+	if proxyURL == "" {
+		t.Fatal("startProxy 应返回非空 URL")
+	}
+
+	key := proxyServerKey{host: "example.com"}
+	a.proxyMu.Lock()
+	session, ok := a.proxySessions[key]
+	a.proxyMu.Unlock()
+	if !ok {
+		t.Fatal("proxySessions 应含该 host 条目")
+	}
+	if session.port <= 0 {
+		t.Fatalf("proxy port 应 > 0，实际 %d", session.port)
+	}
+
+	a.stopProxy(target)
+	a.proxyMu.Lock()
+	left := len(a.proxySessions)
+	a.proxyMu.Unlock()
+	if left != 0 {
+		t.Fatalf("stopProxy 后 proxySessions 应为空，实际 %d 条", left)
+	}
+	if port := a.getProxyPort(key); port != "0" {
+		t.Fatalf("stopProxy 后 getProxyPort 应返回 0，实际 %q", port)
+	}
+}

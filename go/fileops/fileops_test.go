@@ -883,3 +883,70 @@ func TestDeleteModelFile_OutOfRootRejected(t *testing.T) {
 		t.Fatalf("仓库外 ysm.json 不应被删除: %v", err)
 	}
 }
+
+// P2 补测（防覆盖）：MoveModelFile 目标已存在应报错（对齐 Copy 既有防覆盖测试，
+// POSIX rename 会静默覆盖同名目标 → 必须先防覆盖检查）
+func TestMoveModelFile_TargetExists(t *testing.T) {
+	base := t.TempDir()
+	src1 := filepath.Join(base, "a.ysm")
+	if err := os.WriteFile(src1, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dstDir := filepath.Join(base, "sub")
+	// 第一次移动到 dstDir → 成功
+	if err := MoveModelFile(base, src1, dstDir); err != nil {
+		t.Fatalf("首次移动失败: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstDir, "a.ysm")); err != nil {
+		t.Fatalf("首次移动目标应存在: %v", err)
+	}
+	// 同名第二个源（不同目录）→ 目标 dstDir/a.ysm 已存在 → 防覆盖报错
+	src2Dir := filepath.Join(base, "other")
+	if err := os.MkdirAll(src2Dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	src2 := filepath.Join(src2Dir, "a.ysm")
+	if err := os.WriteFile(src2, []byte("y"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := MoveModelFile(base, src2, dstDir); err == nil {
+		t.Fatal("目标已存在应报错")
+	}
+	// 首次移动的目标文件应保留（不被覆盖）
+	if _, err := os.Stat(filepath.Join(dstDir, "a.ysm")); err != nil {
+		t.Fatalf("首次移动目标应保留: %v", err)
+	}
+}
+
+// P2 补测（symlink 逃逸）：dstDir 中间段为指向仓库外目录的 symlink 时
+// Move/Copy 均应被 checkNoSymlinkInPath 拦截（MkdirAll 放行、rename/copy 会穿透写出）
+func TestMoveCopyModelFile_SymlinkMiddleSegmentRejected(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 不支持 os.Symlink（需管理员权限）")
+	}
+	base := t.TempDir()
+	repo := filepath.Join(base, "repo")
+	if err := os.MkdirAll(repo, 0755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(repo, "m.ysm")
+	if err := os.WriteFile(src, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir() // 仓库外目录
+	symDir := filepath.Join(repo, "symdir")
+	if err := os.Symlink(outside, symDir); err != nil {
+		t.Fatal(err)
+	}
+	// dstDir 中间组件为 symlink（repo/symdir/sub）→ Move/Copy 均拒绝
+	if err := MoveModelFile(repo, src, filepath.Join(symDir, "sub")); err == nil {
+		t.Fatal("MoveModelFile 应拦截指向仓库外的 symlink 中间段")
+	}
+	if err := CopyModelFile(repo, src, filepath.Join(symDir, "sub")); err == nil {
+		t.Fatal("CopyModelFile 应拦截指向仓库外的 symlink 中间段")
+	}
+	// 仓库外目标未被写入
+	if _, err := os.Stat(filepath.Join(outside, "sub", "m.ysm")); !os.IsNotExist(err) {
+		t.Fatalf("仓库外不应有穿透写入: %v", err)
+	}
+}

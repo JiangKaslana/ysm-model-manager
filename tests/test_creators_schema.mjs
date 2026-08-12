@@ -46,7 +46,10 @@ function validate() {
     if (!name || typeof name !== 'string') {
       errors.push(`${prefix}: 'name' must be non-empty string`);
     }
-    // duplicate names are allowed (multiple source entries)
+    // 默认拒绝重复 name
+    if (names.has(name)) {
+      errors.push(`${prefix}: duplicate name '${name}'`);
+    }
     names.add(name);
 
     for (const field of ['desc', 'type', 'role']) {
