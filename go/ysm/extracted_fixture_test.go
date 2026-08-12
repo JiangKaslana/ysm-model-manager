@@ -74,8 +74,9 @@ func TestFindComponentsInExtractedYSM_SourceNameNoExt(t *testing.T) {
 	}
 }
 
-// TestFindComponentsInExtractedYSM_WineFoxAll 遍历 wine-fox 全部 22 个子目录模型
-// （每个子目录 = 独立完整模型：ysm.json + animations/controller/models/），
+// TestFindComponentsInExtractedYSM_WineFoxAll 遍历 wine-fox 全部现存子目录模型
+// （当前保留 2 个代表样本：01_taisho_maid / 16_tactics，含 vehicle/多组件形态；
+// 每个子目录 = 独立完整模型：ysm.json + animations/controller/models/），
 // 逐一走 FindComponentsInExtractedYSM 全链路：不 panic、组件非空、main 优先、
 // 纹理声明序非空——多目录批量回归（子代理审计 P3 遗留：wine-fox 结构未覆盖）。
 func TestFindComponentsInExtractedYSM_WineFoxAll(t *testing.T) {
