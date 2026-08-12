@@ -652,6 +652,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-053：网页版桥接能力边界（ADR-049 增强 B1–B3 收尾）",
+        "link": "/adr/ADR-053-web-bridge-boundary"
+      },
+      {
         "text": "ADR-052：RenderSession 对象化：model3d 场景状态收敛与回调方法化",
         "link": "/adr/ADR-052-render-session-objectification"
       },

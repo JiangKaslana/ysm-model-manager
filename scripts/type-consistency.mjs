@@ -42,26 +42,22 @@ function readResourceTypes(issues) {
 }
 
 function readJsExtensions() {
-  // ADR-014 后 extensions.ts 取代 extensions.js（.test.js 保留供 vitest）
+  // ADR-014 后 extensions.ts 取代 extensions.js（.test.js 保留供 vitest）。
+  // extensions.ts 不再手写 RESOURCE_EXTS 字面量：RESOURCE_EXTS 由 resource_types.json
+  // 构建期派生（Object.fromEntries + registryEntries，单一事实来源，消灭手写副本漂移）。
+  // 故此处不再解析字面量对象，改为校验「派生链路」完整：
+  //   - 必须 import resourceTypesJson from "resource_types.json"
+  //   - RESOURCE_EXTS 必须经 Object.fromEntries 派生
+  // 链路完好 ⇒ JS 端与 JSON 恒一致（构建期 import 保证），返回 null 表示「派生即一致」；
+  // 链路破坏 ⇒ 抛错走 fatal（阻止放行，防手写副本死灰复燃）。
   const fp = path.join(ROOT, 'frontend/src/utils/resource/extensions.ts');
   const text = fs.readFileSync(fp, 'utf-8');
-  // 提取 RESOURCE_EXTS 对象（TS 版带类型注解 `: Record<...>`，需宽容中间部分）
-  const m = text.match(/export const RESOURCE_EXTS(?::[^{=]+)? = \{([^}]+)\}/s);
-  if (!m) return {};
-  const body = m[1];
-  const types = {};
-  for (const line of body.split('\n')) {
-    const clean = line.trim().replace(/,$/, '');
-    if (!clean || clean.startsWith('//')) continue;
-    // "key": [".ext1", ".ext2"]
-    const m2 = clean.match(/"?([\w-]+)"?\s*:\s*\[([^\]]+)\]/);
-    if (m2) {
-      const key = m2[1];
-      const exts = [...m2[2].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
-      types[key] = exts;
-    }
+  const importsJson = /import resourceTypesJson\b[\s\S]*resource_types\.json/.test(text);
+  const derives = /export const RESOURCE_EXTS/.test(text) && text.includes('Object.fromEntries');
+  if (!importsJson || !derives) {
+    throw new Error('extensions.ts 未从 resource_types.json 派生 RESOURCE_EXTS（ADR-014 单一事实来源被破坏，勿手写副本）');
   }
-  return types;
+  return null;
 }
 
 const args = process.argv.slice(2);
@@ -85,37 +81,40 @@ let issues = [];
 try {
   const jsonTypes = readResourceTypes(issues); // 传入真实 issues 数组，dup_id_in_json 才会被保留（code_review P2）
   const jsTypes = readJsExtensions();
-
-  // JSON → JS: 检查 JS 是否缺失类型
-  for (const [tid, rt] of Object.entries(jsonTypes)) {
-    if (!(tid in jsTypes)) {
-      issues.push({
-        type: 'missing_in_js', id: tid,
-        json_exts: rt.extensions,
-        detail: `resource_types.json 有 ${tid}，但 extensions.js 没有`,
-      });
-    } else {
-      // 两端运行时均 toLowerCase 归一化（extensions.ts L40 / extensions.go L34），比对保持一致
-      const jsExts = jsTypes[tid].map((e) => e.toLowerCase());
-      const jsonExts = rt.extensions.map((e) => e.toLowerCase());
-      if (new Set(jsExts).size !== new Set(jsonExts).size || !jsonExts.every((e) => jsExts.includes(e)) || !jsExts.every((e) => jsonExts.includes(e))) {
+  // jsTypes === null：extensions.ts 派生自 resource_types.json（构建期 import），
+  // JS 端与 JSON 恒一致，一致性由构建期保证，无需（也无法）比对字面量。
+  if (jsTypes !== null) {
+    // JSON → JS: 检查 JS 是否缺失类型
+    for (const [tid, rt] of Object.entries(jsonTypes)) {
+      if (!(tid in jsTypes)) {
         issues.push({
-          type: 'ext_mismatch', id: tid,
-          json_exts: jsonExts, js_exts: jsExts,
-          detail: `${tid}: JSON=${JSON.stringify(jsonExts)} JS=${JSON.stringify(jsExts)}`,
+          type: 'missing_in_js', id: tid,
+          json_exts: rt.extensions,
+          detail: `resource_types.json 有 ${tid}，但 extensions.js 没有`,
         });
+      } else {
+        // 两端运行时均 toLowerCase 归一化（extensions.ts L40 / extensions.go L34），比对保持一致
+        const jsExts = jsTypes[tid].map((e) => e.toLowerCase());
+        const jsonExts = rt.extensions.map((e) => e.toLowerCase());
+        if (new Set(jsExts).size !== new Set(jsonExts).size || !jsonExts.every((e) => jsExts.includes(e)) || !jsExts.every((e) => jsonExts.includes(e))) {
+          issues.push({
+            type: 'ext_mismatch', id: tid,
+            json_exts: jsonExts, js_exts: jsExts,
+            detail: `${tid}: JSON=${JSON.stringify(jsonExts)} JS=${JSON.stringify(jsExts)}`,
+          });
+        }
       }
     }
-  }
 
-  // JS → JSON: 检查 JS 是否有多余的类型
-  for (const tid of Object.keys(jsTypes)) {
-    if (!(tid in jsonTypes)) {
-      issues.push({
-        type: 'extra_in_js', id: tid,
-        js_exts: jsTypes[tid],
-        detail: `extensions.js 有 ${tid}，但 resource_types.json 没有`,
-      });
+    // JS → JSON: 检查 JS 是否有多余的类型
+    for (const tid of Object.keys(jsTypes)) {
+      if (!(tid in jsonTypes)) {
+        issues.push({
+          type: 'extra_in_js', id: tid,
+          js_exts: jsTypes[tid],
+          detail: `extensions.js 有 ${tid}，但 resource_types.json 没有`,
+        });
+      }
     }
   }
 } catch (e) {

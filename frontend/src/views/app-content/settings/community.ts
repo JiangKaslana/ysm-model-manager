@@ -8,6 +8,7 @@ import { esc } from "../../../utils/dom/html.ts";
 import { safeGet, safeSet, safeRemove } from "../../../utils/dom/storage.ts";
 import { getApp } from "../../../wails/app.ts";
 import { selectLocalRepo } from "../../../wails/browser-adapter.ts";
+import { RESOURCE_TYPES } from "../../../utils/resource/types.ts";
 import { pickDirectory } from "../../../utils/dom/directory-picker.ts";
 import { isViewerMode } from "../../../utils/dom/android-bridge.ts";
 import { t } from "../../../core/i18n/t.ts";
@@ -1051,7 +1052,7 @@ export async function initSettings(root: ShadowRoot): Promise<void> {
             .replace("{failed}", String(r.failed));
         }
         // 刷新模型库视图（对齐 import 流程：bus.emit repo:rtype-changed）
-        bus.emit("repo:rtype-changed", "ysm");
+        bus.emit("repo:rtype-changed", RESOURCE_TYPES.YSM);
       } catch (e) {
         if (webRepoStatus) webRepoStatus.textContent = friendlyError(e);
       } finally {

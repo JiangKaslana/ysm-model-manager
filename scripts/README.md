@@ -163,7 +163,7 @@
 
 | 校验项 | 工具 |
 |--------|------|
-| `resource_types.json` ↔ `extensions.js` 双向比对 | `type-consistency.mjs` |
+| `resource_types.json` → `extensions.ts` 派生链路校验（ADR-014 单一事实来源，非字面量比对） | `type-consistency.mjs` |
 | Markdown 内部链接断链检测 | `link-checker.mjs` |
 | `EventsOn`/`bus.on` 注册位置审计 | `event-audit.mjs` |
 | AI 废话注释（「用于」「这是」「检查…是否」） | `comment-checker.mjs` |
