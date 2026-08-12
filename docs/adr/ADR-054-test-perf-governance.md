@@ -16,12 +16,13 @@
 
 ## 2. 决策（Decision）
 
-### 2.1 fixtures 裁剪到最小样本（392 → 40 文件，68MB → ~5MB）
+### 2.1 fixtures 裁剪到最小样本（392 → 49 文件，68MB → ~5MB）
 
-分两轮：
+分三轮：
 
 - **第一轮（AI 提交 d7f114b6）**：392→97 文件。保留 `lucia`/`shen-fengling`/`xigelika` 全量（go/ysm、go/threejs 测试按目录名硬依赖），suifan/wine-fox 各留 2 个代表模型（覆盖 vehicle/多组件/controller/fp.arm 等特殊形态）。
 - **第二轮（用户提交 f26cf074）**：97→40 文件。作者目录层（wine-fox/suifan/shen-fengling/xigelika）移除，仅留 3 个顶层代表目录：`01_taisho_maid`（18 文件，vehicle + 多组件 + fp.arm）、`博丽灵梦Hakurei_Reimu`（17 文件，controller × 3 + 多动画）、`lucia`（5 文件，go/threejs 依赖）。
+- **第三轮（极简目录样本，AI 提交 35e6ff36 后续）**：为恢复 Go 侧目录式回归，重建 3 个极简目录样本共 9 文件 / 1.6KB——`shen-fengling/`（ysm.json + models/main.json + arm.json）、`xigelika/`（同结构）、`wine-fox/01_minimal/`（同结构）。几何 JSON 复用 `extracted_arm_test.go` 模板（format_version 1.16.0 + 单骨骼 + 极简 cube），纹理解析只读 ysm.json 声明不需实体纹理。
 
 ### 2.2 vitest 环境分流：纯逻辑测试切 node（58/60 文件）
 
@@ -37,12 +38,12 @@
 
 - **正面**：real-data-fuzz 46s→<10s；vitest 全量 62s→20.3s（-68%）；doctor 全量 ~95s→67.7s（-29%）；git 仓库 -60MB+。验证：vitest 119 文件全绿（fixtures 精简后 1440 用例）、go test 全过、vite build + tsc 通过。
 - **负面 / 取舍**：
-  - 模型覆盖样本从 30+ 模型收敛到 3 个代表（特殊形态 vehicle/controller/fp.arm 仍覆盖，批量多样性收窄）。
-  - **go/ysm 目录式回归测试静默 SKIP**：`TestFindComponentsInExtractedYSM_DirFixture_ShenFengling / _Xigelika / _SourceNameNoExt / _WineFoxAll` 因对应目录移除而 `t.Skipf`（fixture 缺失按设计降级，不红但不测）——"真实目录式 YSM 模型（ysm.json + models/ + 纹理声明序）"链路的 Go 侧回归覆盖失效，仅保留 vitest 侧解析覆盖与 `lucia` 的 threejs 链路。若后续需要 Go 侧目录式回归，需重新引入一个含 `ysm.json + models/` 结构的目录样本。
+  - 模型覆盖样本从 30+ 模型收敛到 3+3 个代表（特殊形态 vehicle/controller/fp.arm 仍覆盖，批量多样性收窄）。
+  - ~~go/ysm 目录式回归测试静默 SKIP~~ **已修复**：第二轮移除作者目录层曾使 `TestFindComponentsInExtractedYSM_DirFixture_ShenFengling / _Xigelika / _SourceNameNoExt / _WineFoxAll` 静默 SKIP；第三轮重建极简目录样本（1.6KB）后 4 个测试恢复 PASS（`go test ./go/ysm/...` 验证）。目录式回归链路由"真实完整模型"降为"极简几何"——解析链路（ysm.json 声明序 + models/ 补扫 + SourceName 去扩展名）仍被覆盖，真实数据形态轰击由 vitest real-data-fuzz（49 文件）承担。
   - 惰性化 3 个生产模块引入守卫分支（语义不变但需在新增模块顶层 window 副作用时保持此约定）。
 - **已知遗留**：环境累计仍 ~70-78s（60 个 happy-dom 文件为真 DOM/渲染路径）；`isolate: false` 与测试文件合并（MikuMikuAR ADR-256 路线）均评估不采纳——isolate 关闭有单例穿透风险，合并解决的是 import 成本（本项目仅 7-9s，非瓶颈）。
 
 ## 4. 数据溯源
 
 - 来源：doctor/pre-push/vitest 各环节 `Measure-Command` 实测计时 ∩ junit/JSON reporter 逐文件耗时分析 ∩ `git grep` fixtures 引用面 ∩ MikuMikuAR ADR-255/256 结论搬运。
-- 结果：fixtures 392→40 文件（三轮提交 `c985660d` 并发对齐 / `d7f114b6` 首轮裁剪 / `e7e36de0` 环境分流 / `f26cf074` 用户二轮精简）；58 个测试文件标注 node 环境；3 个源模块惰性化；go/ysm 4 个 fixture 测试 SKIP 副作用如实记录。
+- 结果：fixtures 392→49 文件（提交 `c985660d` 并发对齐 / `d7f114b6` 首轮裁剪 / `e7e36de0` 环境分流 / `f26cf074` 用户二轮精简 / 极简目录样本恢复 Go 回归）；58 个测试文件标注 node 环境；3 个源模块惰性化；go/ysm 目录式回归由极简样本承接（1.6KB，4 测试 PASS）。

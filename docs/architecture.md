@@ -185,8 +185,6 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 | `go/sync/link_unix.go` | `!windows` | 硬链接创建（Unix） |
 | `go/recycle/isHardLink_windows.go` / `_other.go` | `windows` / `!windows` | 硬链接检测 |
 | `go/recycle/isCrossDevice_windows.go` / `_other.go` | `windows` / `!windows` | 跨卷判断 |
-| `go/fileops/hidewindow_windows.go` / `_other.go` | `windows` / `!windows` | 创建窗口隐藏 |
-| `go/avatar/hidewindow_windows.go` / `_other.go` | `windows` / `!windows` | 文件操作窗口隐藏 |
 
 约 **150 个导出方法**构成绑定面。
 
@@ -206,7 +204,7 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 | `avatar` / `download` / `updater` | 头像提取 / 下载 / 自更新 |
 | `watcher` | fsnotify 监听目录变更 |
 | `tags` / `logs` / `paths` / `fsutil` / `version` | 标签 / 日志 / 路径 / 文件工具 / 版本号 |
-| `fileops` | 文件 CRUD + 窗口隐藏（hidewindow build tags） |
+| `fileops` | 文件 CRUD + 文件夹导入 |
 | `instance` | Minecraft 版本实例发现 + 同步 |
 | `scanner` | 仓库扫描/索引（`go/scanner`） |
 
@@ -538,7 +536,6 @@ ysm-model-manager/
 │       ├── pathmgr_desktop.go   # desktop 实现 (!android)
 │       ├── pathmgr_android.go   # Android 实现 (android)
 │       ├── screen_windows.go / screen_other.go  # 虚拟屏幕
-│       ├── hidewindow_windows.go / hidewindow_other.go
 │       ├── bundled_data.go cli.go
 ├── go/                         # ★ 业务逻辑包 (23 包)
 │   ├── ysm/ threejs/ geometry/ litematic/ types/ sync/ installer/
