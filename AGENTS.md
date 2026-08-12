@@ -17,7 +17,7 @@
 # 暂存（本地缓存）
 git add <通过测试的路径...> # 精准提交自己的代码。
 git commit -m "<type>: <简短描述>"    # pre-commit 自动同步文档/索引（秒级），勿 --no-verify 跳过
-git push --verbose 2>&1 | Select-Object -Last 50    # 推送结束时，返回检查信息。
+git push --verbose 2>&1 | Select-Object -Last 50    # 仅在完成多轮对话后再推送，推送结束时，返回检查信息。
 
 # 恢复（从本地缓存取出）
 git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留在暂存区（staged）
