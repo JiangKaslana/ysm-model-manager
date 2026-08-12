@@ -652,6 +652,14 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-055：红线门禁行号不敏感比对",
+        "link": "/adr/ADR-055-redlines-content-baseline"
+      },
+      {
+        "text": "ADR-054：测试性能治理：fixtures 裁剪与 vitest 环境分流",
+        "link": "/adr/ADR-054-test-perf-governance"
+      },
+      {
         "text": "ADR-053：网页版桥接能力边界（ADR-049 增强 B1–B3 收尾）",
         "link": "/adr/ADR-053-web-bridge-boundary"
       },
