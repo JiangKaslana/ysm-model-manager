@@ -63,28 +63,52 @@ function insideFence(text, pos) {
 }
 
 function resolvePath(filepath, rawPath) {
-  /** 将 Markdown 相对路径解析为实际文件系统路径。 */
+  /** 将 Markdown 相对路径解析为实际文件系统路径，并分离 `#anchor`（批次4 P3：锚点此前被丢弃不校验）。 */
   if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) return null; // 外部链接跳过
   if (rawPath.startsWith('file://')) return null; // 源码引用(file://...)非文档链接，跳过
-  if (rawPath.startsWith('#')) return null; // 锚点跳过
+  if (rawPath.startsWith('#')) return null; // 纯页内锚点（同一文件的标题跳转，不校验）
   if (/[<>]/.test(rawPath)) return null; // 占位符链接（如 <page>-<n>.png）非真实链接，跳过
+  const hashIdx = rawPath.indexOf('#');
+  const anchor = hashIdx !== -1 ? rawPath.slice(hashIdx + 1) : '';
+  const cleanPath = hashIdx !== -1 ? rawPath.slice(0, hashIdx) : rawPath;
   let candidate;
-  if (rawPath.startsWith('/')) {
+  if (cleanPath.startsWith('/')) {
     // 绝对路径从项目根开始
-    candidate = path.join(ROOT, rawPath.replace(/^\/+/, ''));
+    candidate = path.join(ROOT, cleanPath.replace(/^\/+/, ''));
   } else {
     // 相对路径从文件目录开始
-    candidate = path.join(path.dirname(filepath), rawPath);
+    candidate = path.join(path.dirname(filepath), cleanPath);
   }
-
-  // 去掉 #anchor
-  const base = path.basename(candidate);
-  if (base.includes('#')) {
-    candidate = path.join(path.dirname(candidate), base.split('#')[0]);
-  }
-
   candidate = path.resolve(candidate);
-  return candidate;
+  return { path: candidate, anchor };
+}
+
+/**
+ * 收集 md 文件的标题锚点集合（vitepress 规则）：
+ * `## 标题 {#custom}` 取自定义 id；普通标题生成 slug（去标点、空格→连字符、小写）。
+ * 中文标题另加「原文无空格」候选——vitepress 对纯中文标题的 anchor 即原文。
+ */
+function collectAnchors(mdFile) {
+  const anchors = new Set();
+  let text;
+  try { text = fs.readFileSync(mdFile, 'utf8'); } catch { return anchors; }
+  for (const line of text.split('\n')) {
+    const m = line.match(/^#{1,6}\s+(.+)$/);
+    if (!m) continue;
+    const title = m[1].trim();
+    const custom = title.match(/\{#([A-Za-z0-9_-]+)\}\s*$/);
+    if (custom) { anchors.add(custom[1]); continue; }
+    const textOnly = title.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`]/g, '');
+    const slug = textOnly
+      .replace(/[^\p{L}\p{N}\s-]/gu, '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+    if (slug) anchors.add(slug);
+    const zh = textOnly.replace(/[^\p{Script=Han}]/gu, '').trim();
+    if (zh) anchors.add(zh);
+  }
+  return anchors;
 }
 
 function checkLinks(files) {
@@ -94,22 +118,33 @@ function checkLinks(files) {
   for (const fp of files) {
     for (const [text, rawPath, pos] of extractLinks(fp)) {
       const resolved = resolvePath(fp, rawPath);
-      if (resolved === null) continue; // 外部链接
-      if (fs.existsSync(resolved)) {
+      if (resolved === null) continue; // 外部链接 / 页内锚点
+      if (fs.existsSync(resolved.path)) {
+        // 跨文件锚点校验：目标 md 存在但 #anchor 无对应标题 → 断链（此前漏检，批次4 P3）
+        if (resolved.anchor && resolved.path.toLowerCase().endsWith('.md')
+            && !collectAnchors(resolved.path).has(resolved.anchor)) {
+          const rel = path.relative(ROOT, fp);
+          broken.push({
+            file: rel,
+            position: pos,
+            link_text: text,
+            raw_path: rawPath,
+            resolved_path: resolved.path,
+            type: 'anchor',
+            anchor: resolved.anchor,
+          });
+          continue;
+        }
         okCount += 1;
       } else {
         const rel = path.relative(ROOT, fp);
-        let type = 'file';
-        try {
-          if (fs.statSync(resolved).isDirectory()) type = 'dir';
-        } catch { /* doesn't exist */ }
         broken.push({
           file: rel,
           position: pos,
           link_text: text,
           raw_path: rawPath,
-          resolved_path: resolved,
-          type,
+          resolved_path: resolved.path,
+          type: 'file',
         });
       }
     }

@@ -144,7 +144,8 @@ export function CopyModelFile(src: string, dstDir: string): $CancellablePromise<
 }
 
 /**
- * CountDuplicateFiles 快速统计重复文件数量
+ * CountDuplicateFiles 快速统计重复文件数量。
+ * 契约（见 docs/wails-bindings.md）：成功 → {groups, extra}；失败 → {error: string}。
  */
 export function CountDuplicateFiles(dir: string): $CancellablePromise<string> {
     return $Call.ByID(2412651574, dir);
@@ -237,8 +238,13 @@ export function DownloadUpdate(url: string, expectedHash: string): $CancellableP
     return $Call.ByID(2886098546, url, expectedHash);
 }
 
-export function EmptyRecycleBin($0: string): $CancellablePromise<number> {
-    return $Call.ByID(4211256250, $0);
+/**
+ * EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。
+ * src 参数保留以兼容既有前端绑定契约（批次4 P2 参数命名）：历史遗留占位，
+ * 实际清空全部回收站而非按单目录，Go 端不消费该值。
+ */
+export function EmptyRecycleBin(src: string): $CancellablePromise<number> {
+    return $Call.ByID(4211256250, src);
 }
 
 export function EnqueueDownloads(tasks: $models.DownloadTask[] | null): $CancellablePromise<void> {
@@ -291,7 +297,8 @@ export function ExtractYsmSummary(path: string): $CancellablePromise<ysm$0.YsmSu
 }
 
 /**
- * FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）
+ * FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。
+ * 契约（见 docs/wails-bindings.md）：成功 → DedupGroup[]；失败 → {error: string}。
  */
 export function FindDuplicateFiles(dir: string): $CancellablePromise<string> {
     return $Call.ByID(1295941240, dir);
@@ -862,6 +869,9 @@ export function ScanModelEntries(dir: string): $CancellablePromise<types$0.Model
  * ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签
  * （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描的文件类型。
  * 仅在缓存未命中时记日志，避免刷屏。
+ * 与 ScanModelEntries 共用同一路径守卫——原实现无守卫，
+ * 前端主扫描入口（loader.ts/app-content/community.ts 等）可传 `..`/盘符根越权遍历，
+ * 且与 ScanModelEntries 行为不一致（ADR-044③ 路径边界对称范式）。
  */
 export function ScanModelEntriesWithLabel(dir: string, label: string): $CancellablePromise<types$0.ModelEntry[] | null> {
     return $Call.ByID(3762097925, dir, label);
@@ -932,7 +942,9 @@ export function SetModelTags(modelPath: string, tags: string[] | null): $Cancell
 
 /**
  * SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认）
- * P1 修复：非空入参经 filepath.Abs(filepath.Clean()) 规范化，防止含 .. 或未规范化路径
+ * 非空入参经 filepath.Abs(filepath.Clean()) 规范化，防止含 .. 或未规范化路径
+ * 配置字段由注册表 configField 反射驱动（复用 specificRoot 同款模式），
+ * 避免硬编码 switch 与注册表新增类型漂移。
  */
 export function SetResourceRoot(rtype: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(3405438717, rtype, path);
@@ -973,9 +985,9 @@ export function ToggleModelEnable(path: string): $CancellablePromise<boolean> {
 
 /**
  * ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled）
- * P2 修复：补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 ToggleModelEnable 经 fileops
+ * 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 ToggleModelEnable 经 fileops
  * 的 ysmRoot 防护；rename 目标派生自输入路径，越权路径会连带生成越权目标）。
- * P2 修复（code_review）：额外拒绝 path == 仓库根——IsInside 对「路径等于基准」按设计返回 nil，
+ * 额外拒绝 path == 仓库根——IsInside 对「路径等于基准」按设计返回 nil，
  * 传入仓库根时 os.Rename(root, root+".disabled") 会把整个仓库移出配置位置（镜像 DeleteModelDir
  * 的 rel=="." 拒绝同类输入）
  */

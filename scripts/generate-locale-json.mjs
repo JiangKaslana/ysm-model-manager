@@ -37,6 +37,7 @@ if (tsFiles.length === 0) {
 
 mkdirSync(OUT_DIR, { recursive: true });
 
+let failed = 0;
 for (const file of tsFiles) {
   const lang = basename(file, ".ts"); // zh-CN.ts → zh-CN
   const srcPath = join(SRC_DIR, file);
@@ -68,6 +69,7 @@ for (const file of tsFiles) {
 
     if (!obj || typeof obj !== "object") {
       console.error(`[locale-gen] ${file}: 未找到有效的导出对象`);
+      failed++;
       continue;
     }
 
@@ -77,7 +79,15 @@ for (const file of tsFiles) {
     console.log(`[locale-gen] ${lang}.json ← ${file} (${keyCount} keys)`);
   } catch (e) {
     console.error(`[locale-gen] ${file} 编译失败:`, e.message);
+    failed++;
   }
+}
+
+if (failed > 0) {
+  // 批次4 P2：此前 catch 只打日志不置失败标记 → 有语言包失败仍恒 exit 0（吞错假绿），
+  // CI/doctor 无法感知。失败即非零退出。
+  console.error(`[locale-gen] ${failed}/${tsFiles.length} 个语言包失败`);
+  process.exit(1);
 }
 
 console.log(`[locale-gen] 完成，共 ${tsFiles.length} 个语言包`);

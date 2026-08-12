@@ -15,7 +15,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
 
-const CHECK = process.argv.includes('--check');
+const argv = process.argv.slice(2);
+// 未知 flag 白名单拦截（批次4 P2）：`--chck` 拼错会被 includes 静默忽略 → 走进 collect 而非
+// --check 门禁（发版说明漂移检查退化假绿）。拼错即退 1。
+const UNKNOWN_FLAGS = argv.filter((a) => a.startsWith("--") && !["--check", "--json", "--help", "-h"].includes(a));
+if (UNKNOWN_FLAGS.length) {
+  console.error(`[release-notes-gen] 未知 flag: ${UNKNOWN_FLAGS.join(", ")}（支持 --check）`);
+  process.exit(1);
+}
+const CHECK = argv.includes("--check");
 const RELEASES_DIR = path.join(ROOT, 'docs', 'releases');
 /** 豁免 tag：非正式发版（预发布/开源准备等临时标记），不要求发版说明。
  * v1.7.0-open-source-prep.20260617 为开源准备临时 tag，非正式版本（历史遗留）。 */

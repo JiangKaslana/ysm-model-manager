@@ -54,8 +54,10 @@ function aggregate(entriesList) {
     const agg = byUrl.get(url);
     for (const fn of e.functions) {
       agg.total++;
-      // V8 precise：ranges 非空 = 该函数至少被走到一次（ranges[0].count>0）
-      const executed = fn.ranges && fn.ranges.length > 0;
+      // V8 precise：ranges 是「已覆盖区间」列表，count>0 的段才算执行过。
+      // 不能只看 ranges.length——未执行函数也可能带 count=0 的区间（块级覆盖），
+      // `length > 0` 恒真 → 全部判为已走到（假绿，批次4 P1）。以 count>0 为准。
+      const executed = Array.isArray(fn.ranges) && fn.ranges.some((r) => r && r.count > 0);
       if (executed) agg.hit++;
     }
   }

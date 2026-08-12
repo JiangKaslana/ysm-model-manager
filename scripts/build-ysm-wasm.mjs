@@ -29,7 +29,8 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync, statSync, renameSync } from "node:fs";
-import { join, dirname, basename } from "node:path";
+import { join, dirname, basename, delimiter as PATH_DELIM } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -38,8 +39,31 @@ const UPSTREAM = join(ROOT, "upstream", "YesSteveModel-Parser");
 const FRONT_SRC = join(ROOT, "frontend", "src", "wasm");
 const FRONT_PUBLIC = join(ROOT, "frontend", "public", "wasm");
 const OUT_DIR = join(UPSTREAM, "build-unified");
-const EMSDK = process.env.EMSDK || "C:/Users/zhujieling11/emsdk";
 const SKIP_BUILD = process.argv.includes("--skip-build");
+
+// EMSDK 定位（批次4 P1）：不硬编码用户路径。优先环境变量，其次探测常见安装位，
+// 全部未命中则 fail-closed 提示设置 EMSDK，避免在别人机器上静默失败/走错 emsdk。
+function detectEmsdk() {
+  const candidates = [
+    process.env.EMSDK,
+    join(homedir(), "emsdk"),
+    "C:/emsdk",
+    "D:/emsdk",
+  ].filter(Boolean);
+  for (const c of candidates) {
+    if (existsSync(join(c, "upstream", "emscripten"))) return c;
+  }
+  return null;
+}
+const EMSDK = detectEmsdk();
+if (!EMSDK) {
+  console.error("未找到 emsdk（探测 HOME/emsdk、C:/emsdk、D:/emsdk 均失败）。");
+  console.error("  请设置环境变量 EMSDK 指向 emsdk 根目录后重试，如：$env:EMSDK='C:/emsdk'");
+  process.exit(1);
+}
+const EMCC_DIR = join(EMSDK, "upstream", "emscripten");
+// em++ 可执行文件名分平台：Windows 下为 em++.bat（Node 自动经 cmd.exe 执行），POSIX 为无扩展名脚本
+const EMXX = join(EMCC_DIR, process.platform === "win32" ? "em++.bat" : "em++");
 
 if (!existsSync(UPSTREAM)) {
   console.error(`未找到 upstream/YesSteveModel-Parser: ${UPSTREAM}`);
@@ -97,10 +121,10 @@ if (!SKIP_BUILD) {
     ...src, ...inc, ...libs,
   ];
   console.log("[build] em++ 编译中...");
-  execFileSync(join(EMSDK, "upstream", "emscripten", "em++"), args, {
+  execFileSync(EMXX, args, {
     cwd: UPSTREAM,
     stdio: "inherit",
-    env: { ...process.env, PATH: `${EMSDK}/upstream/emscripten;${process.env.PATH}`, EMSDK },
+    env: { ...process.env, PATH: `${EMCC_DIR}${PATH_DELIM}${process.env.PATH}`, EMSDK },
   });
   console.log(`[build] ✅ 编译完成: ${OUT_DIR}`);
 } else {
@@ -110,6 +134,15 @@ if (!SKIP_BUILD) {
   }
   console.log("[build] ⏭ 跳过编译，复用 build-unified/");
 }
+
+// 锚点前置校验（批次4 P3）：任何打包/拷贝前先确认编译产物含 Go embed 补丁锚点。
+// 缺锚点直接 fail——避免编译完才发现、且半坏产物已拷进 frontend/public|dist（wasm_decoder.go 依赖）。
+const glueProbe = readFileSync(join(OUT_DIR, "YSMParser.js"), "utf8");
+if (!glueProbe.includes(";updateMemoryViews()")) {
+  console.error("glue 缺少 ;updateMemoryViews() 补丁锚点（wasm_decoder.go 依赖），拒绝打包/拷贝");
+  process.exit(1);
+}
+console.log("[verify] ✅ glue 补丁锚点存在；建议跑 node scripts/test-decode-from-memory.mjs 实测解码");
 
 // 前端 base64 打包（与 pack-wasm.ps1 同格式）
 // wasm 文件：_getWasmBinary 返回 ArrayBuffer；glue 文件：_getGlueCode 返回 string
@@ -156,11 +189,4 @@ const FRONT_DIST_WASM = join(ROOT, "frontend", "dist", "wasm");
 mkdirSync(FRONT_DIST_WASM, { recursive: true });
 copyFileSync(join(OUT_DIR, "YSMParser.wasm"), join(FRONT_DIST_WASM, "YSMParser.wasm"));
 console.log(`[pack] ✅ Go embed 源已同步: frontend/dist/wasm/YSMParser.wasm`);
-
-// 验证锚点
-const glue = readFileSync(join(FRONT_PUBLIC, "YSMParser.js"), "utf8");
-if (!glue.includes(";updateMemoryViews()")) {
-  console.error("glue 缺少 ;updateMemoryViews() 补丁锚点（wasm_decoder.go 依赖）");
-  process.exit(1);
-}
-console.log("[verify] ✅ glue 补丁锚点存在；建议跑 node scripts/test-decode-from-memory.mjs 实测解码");
+console.log("[done] 建议跑 node scripts/test-decode-from-memory.mjs 实测解码");

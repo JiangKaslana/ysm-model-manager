@@ -901,15 +901,15 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `LocalCreator()` | `frontend/src/views/app-content/community-data:9` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
-| `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:35` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:141` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:195` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:224` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:261` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:285` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:306` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `LocalCreator()` | `frontend/src/views/app-content/community-data:8` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
+| `CommunityData()` | `frontend/src/views/app-content/community-data:24` | 站点 + 创作者 + 作者 数据包 |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:34` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:126` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:180` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:209` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:246` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:270` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:291` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/community:29` | 初始化诊断页所有功能 |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/community:400` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
@@ -1063,13 +1063,13 @@
 |------|--------|------|
 | `AppBindings()` | `frontend/src/wails/app` | — |
 | `getApp()` | `frontend/src/wails/app:18` | 获取 Go App 绑定的缓存引用，避免重复动态 import |
-| `WebUnsupportedError()` | `frontend/src/wails/browser-adapter:18` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
-| `WEB_ROOT()` | `frontend/src/wails/browser-adapter:26` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
-| `MAX_IMPORT_BYTES()` | `frontend/src/wails/browser-adapter:29` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
-| `arrayBufferToBase64()` | `frontend/src/wails/browser-adapter:59` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
-| `selectLocalRepo()` | `frontend/src/wails/browser-adapter:121` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `importWebFiles()` | `frontend/src/wails/browser-adapter:547` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
-| `browserAdapter()` | `frontend/src/wails/browser-adapter:664` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `WebUnsupportedError()` | `frontend/src/wails/browser-adapter:22` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
+| `WEB_ROOT()` | `frontend/src/wails/browser-adapter:30` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
+| `MAX_IMPORT_BYTES()` | `frontend/src/wails/browser-adapter:33` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
+| `arrayBufferToBase64()` | `frontend/src/wails/browser-adapter:63` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
+| `selectLocalRepo()` | `frontend/src/wails/browser-adapter:125` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `importWebFiles()` | `frontend/src/wails/browser-adapter:616` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
+| `browserAdapter()` | `frontend/src/wails/browser-adapter:733` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `STORES()` | `frontend/src/wails/idb:16` | — |
 | `Store()` | `frontend/src/wails/idb:17` | — |
 | `openDB()` | `frontend/src/wails/idb:21` | — |

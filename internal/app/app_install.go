@@ -516,7 +516,10 @@ func (a *App) DeleteFromRecycle(src string) error {
 	return recycle.Delete(src, a.ysmRoot())
 }
 
-func (a *App) EmptyRecycleBin(_ string) (int, error) {
+// EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。
+// src 参数保留以兼容既有前端绑定契约（批次4 P2 参数命名）：历史遗留占位，
+// 实际清空全部回收站而非按单目录，Go 端不消费该值。
+func (a *App) EmptyRecycleBin(src string) (int, error) {
 	cfg := a.LoadAppConfig()
 	total := 0
 	failed := []string{}

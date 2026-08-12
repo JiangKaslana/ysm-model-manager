@@ -38,6 +38,14 @@ const LOCALE_DIR = path.join(SRC, "core", "i18n", "locales");
 const args = new Set(process.argv.slice(2));
 const JSON_OUT = args.has("--json");
 const STRICT = args.has("--strict");
+// 未知 flag 白名单拦截（批次4 P2）：`--stric` 拼错会被 Set 静默忽略 → 严格门禁悄悄关闭（假绿）。
+// 与 link-checker/codemod 同款守卫，拼错即退 1。
+const KNOWN_FLAGS = new Set(["--json", "--strict", "--help", "-h"]);
+const unknownFlags = [...args].filter((a) => a.startsWith("--") && !KNOWN_FLAGS.has(a));
+if (unknownFlags.length) {
+  console.error(`[i18n-ui-check] 未知 flag: ${unknownFlags.join(", ")}（支持 --json / --strict）`);
+  process.exit(1);
+}
 
 const HAN = /[一-鿿]/;
 const HTML_SIGNAL =

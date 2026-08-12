@@ -115,6 +115,46 @@ function findExportDecl(name) {
   return null;
 }
 
+/**
+ * saveSync 原子写/回滚（批次4 P2）：写盘前备份全部将被覆盖的文件，保存抛错时
+ * 自动还原——重构工具绝不留下「部分文件已改、部分没改」的半截状态。
+ * 逻辑改错仍需靠 git diff 审查（提示用户先 commit），本守卫只防写盘中断/异常。
+ */
+function saveWithRollback() {
+  const backups = new Map();
+  for (const sf of project.getSourceFiles()) {
+    const p = sf.getFilePath();
+    if (!p || !fs.existsSync(p)) continue;
+    const onDisk = fs.readFileSync(p, "utf8");
+    if (sf.getText() !== onDisk) backups.set(p, onDisk);
+  }
+  try {
+    project.saveSync();
+  } catch (e) {
+    for (const [p, content] of backups) {
+      try { fs.writeFileSync(p, content); } catch { /* 回滚失败仅留日志位，不吞原始错误 */ }
+    }
+    throw e;
+  }
+}
+
+/**
+ * 判断 ref（函数名 Identifier）是否构成一次对该函数的真实调用，并返回调用表达式节点。
+ * 直调 `foo()`：parent 即 CallExpression；方法调用 `obj.foo()` / `this.foo()`：
+ * parent 是 PropertyAccessExpression（属性名 = 函数名），再上一层才是 CallExpression。
+ * 仅凭「parent 是 CallExpression」会把 obj.foo() 调用方漏掉（漏补 undefined → 编译错，批次4 P2）。
+ */
+function callExprOf(ref, funcName) {
+  const parent = ref?.getParent();
+  if (!parent) return null;
+  if (parent.getKind() === SyntaxKind.CallExpression) return parent;
+  if (parent.getKind() === SyntaxKind.PropertyAccessExpression && parent.getName() === funcName) {
+    const grand = parent.getParent();
+    return grand && grand.getKind() === SyntaxKind.CallExpression ? grand : null;
+  }
+  return null;
+}
+
 /** 在 frontend/src 下 grep 字符串匹配（纯 Node.js，跨平台） */
 function grepString(pattern) {
   // ysm 源码目录为 frontend/src（联邦为 frontend/src）
@@ -236,7 +276,7 @@ function cmdRenameFunction(oldName, newName) {
 
   console.log(`📍 定义位置: ${target.sourceFile.getFilePath()} （${target.kind}）`);
   target.node.rename(newName);
-  project.saveSync();
+  saveWithRollback();
 
   console.log(`✅ 重命名完成: "${oldName}" → "${newName}"`);
   console.log('   ts-morph 已自动更新所有引用');
@@ -383,7 +423,7 @@ function cmdMoveFunction(funcName, destRelPath) {
   destSf.addStatements(text.trim());
   if (!text.endsWith('\n')) destSf.addStatements('\n');
 
-  project.saveSync();
+  saveWithRollback();
 
   console.log(`✅ "${funcName}" 已移至 ${absDest}`);
   console.log(`   源文件 ${srcPath}`);
@@ -423,8 +463,7 @@ function cmdAddParam(funcName, paramSignature, defaultValue) {
   const callerFiles = new Set();
   if (!defaultValue) {
     for (const ref of fn.findReferencesAsNodes()) {
-      const callExpr = ref.getParent();
-      if (callExpr && callExpr.getKind() === SyntaxKind.CallExpression) {
+      if (callExprOf(ref, funcName)) {
         callerCount++;
         callerFiles.add(ref.getSourceFile().getFilePath());
       }
@@ -442,14 +481,14 @@ function cmdAddParam(funcName, paramSignature, defaultValue) {
   // 给调用方加参数（仅当无默认值时）
   if (!defaultValue) {
     for (const ref of fn.findReferencesAsNodes()) {
-      const callExpr = ref.getParent();
-      if (callExpr && callExpr.getKind() === SyntaxKind.CallExpression) {
+      const callExpr = callExprOf(ref, funcName);
+      if (callExpr) {
         callExpr.addArgument('undefined');
       }
     }
   }
 
-  project.saveSync();
+  saveWithRollback();
 
   console.log(`✅ 参数已添加: "${funcName}" 现在接受 "${paramSignature}"`);
   if (defaultValue) {
