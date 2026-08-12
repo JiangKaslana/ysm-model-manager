@@ -7,7 +7,7 @@
 // 与桌面一致，业务调用零改动。
 import { idbGet, idbSet, idbKeys, idbDel } from "./idb.ts";
 import type { AppBindings } from "./types.ts";
-import type { ModelEntry, WorkshopCreator, WorkshopSite } from "../../bindings/ysm-model-manager/go/types/models.ts";
+import type { ModelEntry, WorkshopCreator, WorkshopSite, AuthorInfo } from "../../bindings/ysm-model-manager/go/types/models.ts";
 // 复用 dnd-shared 的导入白名单（.json 仅放行 ysm.json，其余须 ALL_EXTS 成员），
 // 避免 browser-adapter 另起一套扩展名校验导致漂移
 import resourceTypesJson from "../../../resource_types.json" with { type: "json" };
@@ -17,6 +17,8 @@ import workshopGithubJson from "../../../workshop-github.json" with { type: "jso
 import workshopSitesJson from "../../../workshop_sites.json" with { type: "json" };
 // 网页版头像提取复用前端 YSM 解包能力（替代 Go ExtractAvatarURI，ADR-049 缺口补齐）
 import { decodeYsmFile } from "../wasm/ysm-parser.ts";
+// rtype 魔法字符串统一走 RESOURCE_TYPES 常量（治理红线 R7）
+import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 
 /** 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） */
 export class WebUnsupportedError extends Error {
@@ -129,7 +131,7 @@ export async function selectLocalRepo(): Promise<{ ok: boolean; imported: number
   const handle = (await (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker()) as _FsaDirHandle;
   const files: File[] = [];
   await _collectYsmFiles(handle, files);
-  const { imported, failed } = await importWebFiles(files, "ysm");
+  const { imported, failed } = await importWebFiles(files, RESOURCE_TYPES.YSM);
   return { ok: true, imported, failed, dir: handle.name };
 }
 
@@ -495,6 +497,93 @@ function saveWebSites(sites: WorkshopSite[] | null): void {
   localStorage.setItem(WEB_SITES_KEY, JSON.stringify(sites));
 }
 
+// --- 作者扫描 / 仓库索引（ADR-049 桥接增强 Batch 3）---
+// 纯前端可复现：基于 IDB 模型库（scanWebModels）推导，与桌面 scanner.go 同口径
+// （[作者] 前缀提取、计数降序、类型合并）。网页版无磁盘，GenerateRepoIndex 返回
+// index.json 内容字符串（调用方在 web 模式触发下载，对齐桌面写盘语义）。
+/** 从文件名提取 [作者] 前缀（去除 .ban 后缀）；非括号名返回 null */
+function extractBracketAuthor(name: string): string | null {
+  let n = name;
+  if (n.toLowerCase().endsWith(".ban")) n = n.slice(0, -4);
+  if (!n.startsWith("[")) return null;
+  const idx = n.indexOf("]");
+  if (idx <= 0) return null;
+  const author = n.slice(1, idx);
+  return author || null;
+}
+
+/** 聚合所有资源类型的 IDB 模型条目（网页版「本地仓库」= 虚拟根 /web） */
+async function collectAllWebEntries(): Promise<ModelEntry[]> {
+  const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string }> }).resourceTypes ?? [];
+  const all: ModelEntry[] = [];
+  for (const r of rts) {
+    const entries = await scanWebModels(`${WEB_ROOT}/${r.id}`);
+    all.push(...entries);
+  }
+  return all;
+}
+
+/** ListModelAuthors 网页版：从模型名 [作者] 前缀统计（计数降序），对齐 scanner.go:265 */
+async function listWebAuthors(): Promise<AuthorInfo[]> {
+  const entries = await collectAllWebEntries();
+  const m = new Map<string, { count: number; sample: string }>();
+  for (const e of entries) {
+    const a = extractBracketAuthor(e.Name);
+    if (!a) continue;
+    const cur = m.get(a);
+    if (cur) cur.count++;
+    else m.set(a, { count: 1, sample: e.Path });
+  }
+  const result: AuthorInfo[] = [...m.entries()].map(([name, v]) => ({
+    Name: name,
+    Count: v.count,
+    SampleFile: v.sample,
+  }));
+  result.sort((x, y) => y.Count - x.Count);
+  return result;
+}
+
+/** ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 */
+async function scanWebLocalAuthors(): Promise<WorkshopCreator[]> {
+  const entries = await collectAllWebEntries();
+  const seen = new Set<string>();
+  const result: WorkshopCreator[] = [];
+  for (const e of entries) {
+    const a = extractBracketAuthor(e.Name);
+    if (!a) continue;
+    const rtype = typeFromWebDir(e.Path);
+    const key = `${a}@${rtype}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const existing = result.find((c) => c.name === a);
+    if (existing) {
+      if (!existing.type?.includes(rtype)) {
+        existing.type = existing.type ? `${existing.type};${rtype}` : rtype;
+      }
+    } else {
+      result.push({ name: a, desc: "来自本地仓库", type: rtype });
+    }
+  }
+  return result;
+}
+
+/** GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） */
+async function generateWebRepoIndex(repoPath: string): Promise<string> {
+  const entries = repoPath && repoPath.startsWith(WEB_ROOT)
+    ? await scanWebModels(repoPath)
+    : await collectAllWebEntries();
+  const list = entries.map((e) => {
+    let rel = e.Path;
+    if (repoPath && e.Path.startsWith(repoPath)) {
+      rel = e.Path.slice(repoPath.length).replace(/^[/\\]/, "");
+    } else if (e.Path.startsWith(WEB_ROOT)) {
+      rel = e.Path.slice(WEB_ROOT.length).replace(/^[/\\]/, "");
+    }
+    return { Name: e.Name, Path: rel.replace(/\\/g, "/"), Size: e.Size, Hash: e.Hash ?? "" };
+  });
+  return JSON.stringify(list, null, 2);
+}
+
 const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   ScanModelEntries: (dir: string) => scanWebModels(dir),
   // 真实列表入口（loader/import-queue/resource-manager 等 6 处均调 WithLabel 版本）
@@ -582,6 +671,10 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   },
   // 子目录映射（resource_types.json 派生）
   GetSubDirMap: () => getWebSubDirMap(),
+  // ===== ADR-049 桥接增强 Batch 3：作者扫描 / 仓库索引（基于 IDB 模型库）=====
+  ListModelAuthors: () => Promise.resolve(listWebAuthors()),
+  ScanLocalAuthors: () => Promise.resolve(scanWebLocalAuthors()),
+  GenerateRepoIndex: (repoPath: string) => Promise.resolve(generateWebRepoIndex(repoPath)),
   // ===== ADR-049 桥接增强 Batch 2：社区/工坊只读 + 本地覆盖写入 =====
   // bundled 默认 + localStorage 覆盖（对齐桌面 Save→Load 语义）；GitHub 仓库列表只读
   LoadWorkshopCreators: () => Promise.resolve(loadWebCreators()),

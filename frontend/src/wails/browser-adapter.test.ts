@@ -509,3 +509,43 @@ describe("browserAdapter — 社区/工坊桥接（ADR-049 Batch 2：bundled 默
     expect(c.length).toBeGreaterThan(0);
   });
 });
+
+describe("browserAdapter — 作者扫描/仓库索引（ADR-049 Batch 3：基于 IDB 模型库）", () => {
+  it("ListModelAuthors 从 [作者] 前缀统计并按计数降序", async () => {
+    await importWebFiles([
+      new File([enc.encode("Y")], "[张三]模型A.ysm"),
+      new File([enc.encode("Y")], "[张三]模型B.ysm"),
+      new File([enc.encode("Y")], "[李四]角色.ysm"),
+    ], "ysm");
+    const authors = (await browserAdapter.ListModelAuthors()) as Array<{ Name: string; Count: number }>;
+    expect(authors).toHaveLength(2);
+    expect(authors[0].Name).toBe("张三");
+    expect(authors[0].Count).toBe(2);
+    expect(authors[1].Name).toBe("李四");
+    expect(authors[1].Count).toBe(1);
+  });
+
+  it("ScanLocalAuthors 提取 [作者] 并带 type 标签（来自本地仓库）", async () => {
+    await importWebFiles([new File([enc.encode("Y")], "[王五]角色.ysm")], "ysm");
+    const creators = (await browserAdapter.ScanLocalAuthors()) as Array<{ name: string; type: string; desc: string }>;
+    expect(creators).toHaveLength(1);
+    expect(creators[0].name).toBe("王五");
+    expect(creators[0].type).toBe("ysm");
+    expect(creators[0].desc).toBe("来自本地仓库");
+  });
+
+  it("GenerateRepoIndex 返回 index.json 内容（相对路径正斜杠）", async () => {
+    await importWebFiles([new File([enc.encode("YY")], "赵六.ysm")], "ysm");
+    const idx = (await browserAdapter.GenerateRepoIndex("/web/ysm")) as string;
+    const parsed = JSON.parse(idx) as Array<{ Name: string; Path: string; Size: number }>;
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].Name).toBe("赵六.ysm");
+    expect(parsed[0].Path).toBe("赵六/赵六.ysm"); // 相对 /web/ysm
+    expect(parsed[0].Size).toBe(2);
+  });
+
+  it("空库时 ListModelAuthors/ScanLocalAuthors 返回 []（非 null，不抛错）", async () => {
+    expect(await browserAdapter.ListModelAuthors()).toEqual([]);
+    expect(await browserAdapter.ScanLocalAuthors()).toEqual([]);
+  });
+});

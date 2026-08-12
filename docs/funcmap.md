@@ -913,7 +913,7 @@
 | `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/community:29` | 初始化诊断页所有功能 |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/community:400` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
-| `initSettings()` | `frontend/src/views/app-content/settings/community:23` | 初始化设置页所有事件绑定 |
+| `initSettings()` | `frontend/src/views/app-content/settings/community:24` | 初始化设置页所有事件绑定 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:11` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:14` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:37` | 本地创作者（绑定 + 运行时附加字段） |
@@ -1063,13 +1063,13 @@
 |------|--------|------|
 | `AppBindings()` | `frontend/src/wails/app` | — |
 | `getApp()` | `frontend/src/wails/app:18` | 获取 Go App 绑定的缓存引用，避免重复动态 import |
-| `WebUnsupportedError()` | `frontend/src/wails/browser-adapter:22` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
-| `WEB_ROOT()` | `frontend/src/wails/browser-adapter:30` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
-| `MAX_IMPORT_BYTES()` | `frontend/src/wails/browser-adapter:33` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
-| `arrayBufferToBase64()` | `frontend/src/wails/browser-adapter:63` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
-| `selectLocalRepo()` | `frontend/src/wails/browser-adapter:125` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `importWebFiles()` | `frontend/src/wails/browser-adapter:616` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
-| `browserAdapter()` | `frontend/src/wails/browser-adapter:733` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `WebUnsupportedError()` | `frontend/src/wails/browser-adapter:24` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
+| `WEB_ROOT()` | `frontend/src/wails/browser-adapter:32` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
+| `MAX_IMPORT_BYTES()` | `frontend/src/wails/browser-adapter:35` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
+| `arrayBufferToBase64()` | `frontend/src/wails/browser-adapter:65` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
+| `selectLocalRepo()` | `frontend/src/wails/browser-adapter:127` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `importWebFiles()` | `frontend/src/wails/browser-adapter:709` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
+| `browserAdapter()` | `frontend/src/wails/browser-adapter:826` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `STORES()` | `frontend/src/wails/idb:16` | — |
 | `Store()` | `frontend/src/wails/idb:17` | — |
 | `openDB()` | `frontend/src/wails/idb:21` | — |

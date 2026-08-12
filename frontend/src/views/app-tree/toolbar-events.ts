@@ -503,15 +503,8 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         vm._renderTree();
       } else if (action === "genindex") {
         const btn = item as HTMLButtonElement;
-        // 网页版无 GenerateRepoIndex（fail-fast）→ 门控提示，不触发按钮 loading
-        if (resolveWebMode()) {
-          bus.emit("toast:show", {
-            msg: "网页版暂不支持生成索引",
-            duration: 3000,
-            type: "warn",
-          });
-          return;
-        }
+        // ADR-049 桥接增强 Batch 3：GenerateRepoIndex 已桥接（返回 index.json 内容字符串）。
+        // 网页版无磁盘，生成后触发下载；桌面由 Go 写盘，不下载（对齐既有 ExportBoneStructures 范式）。
         btn.textContent = "⏳";
         btn.disabled = true;
         try {
@@ -526,7 +519,17 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
             });
             return;
           }
-          await GenerateRepoIndex(repoRoot);
+          const idx = await GenerateRepoIndex(repoRoot);
+          if (resolveWebMode() && typeof idx === "string") {
+            const blob = new Blob([idx], { type: "application/json;charset=utf-8" });
+            const a = document.createElement("a");
+            a.download = "index.json";
+            a.href = URL.createObjectURL(blob);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+          }
           bus.emit("toast:show", {
             msg: "✅ index.json 已生成",
             duration: 3000,
