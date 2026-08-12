@@ -1,0 +1,267 @@
+// ===== DnD 全局拖拽守卫测试 =====
+// 守卫层：PageStore 页面守卫 / registerDnD 资源配对
+// 深层收集逻辑（webkitGetAsEntry 等）依赖浏览器 DnD API，jsdom 不覆盖，测守卫与配对层。
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { bus } from "../bus.ts";
+import { registerPageStore } from "../core/page-store.ts";
+import { registerDnD } from "./import-dnd.ts";
+import { fireDrop } from "../test-utils/events.ts";
+
+vi.mock("../wails/app.ts", () => ({
+  getApp: vi.fn().mockResolvedValue({
+    ImportModelFile: vi.fn().mockResolvedValue(undefined),
+    DetectZipType: vi.fn().mockResolvedValue("ysm"),
+  }),
+}));
+
+// 网页版分支（ADR-049 Phase 3）：browserAdapter 的 importWebFiles 直写 IndexedDB
+const { importWebFilesMock } = vi.hoisted(() => ({
+  importWebFilesMock: vi.fn().mockResolvedValue({ imported: 1, failed: 0 }),
+}));
+vi.mock("../wails/browser-adapter.ts", () => ({
+  importWebFiles: importWebFilesMock,
+  // P3 修复（审核）：mock 缺 MAX_IMPORT_BYTES 导出——import-dnd.ts:273 的 oversize
+  // 过滤读取它，缺导出时 onDrop 抛错、getApp 从未被调用（守卫层 3 项测试假失败）
+  MAX_IMPORT_BYTES: 100 * 1024 * 1024,
+}));
+
+import { getApp } from "../wails/app.ts";
+import { importWebFiles } from "../wails/browser-adapter.ts";
+
+const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+// jsdom 无 DragEvent 构造器：用 Event + cast（守卫层测试不依赖 dataTransfer 细节）
+const dropEvent = (): DragEvent => new Event("drop", { cancelable: true }) as DragEvent;
+
+describe("registerDnD 资源配对", () => {
+  const unsubs: Array<() => void> = [];
+
+  beforeEach(() => {
+    unsubs.length = 0;
+    document.querySelectorAll("#global-drop-overlay").forEach((el) => el.remove());
+  });
+
+  afterEach(() => {
+    unsubs.forEach((fn) => fn());
+    unsubs.length = 0;
+    // 清理网页版标记，防跨用例污染（resolveWebMode 依赖 globalThis）
+    delete (globalThis as unknown as Record<string, unknown>)["__YSM_BACKEND__"];
+    importWebFilesMock.mockClear();
+    (getApp as ReturnType<typeof vi.fn>).mockClear();
+  });
+
+  it("注册 5 个 document listener，unsubs 清理时全部移除", () => {
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
+    registerDnD(unsubs);
+    expect(addSpy).toHaveBeenCalledTimes(5); // dragenter/dragover/dragleave/drop/dragend
+    unsubs.forEach((fn) => fn());
+    expect(removeSpy).toHaveBeenCalledTimes(5);
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+});
+
+describe("DnD 守卫层", () => {
+  const pageUnsubs: Array<() => void> = [];
+  const dndUnsubs: Array<() => void> = [];
+
+  beforeEach(() => {
+    (getApp as unknown as ReturnType<typeof vi.fn>).mockClear();
+    pageUnsubs.length = 0;
+    dndUnsubs.length = 0;
+    registerPageStore(pageUnsubs);
+    bus.emit("nav:changed", { page: "repository" });
+    registerDnD(dndUnsubs);
+  });
+
+  afterEach(() => {
+    pageUnsubs.forEach((fn) => fn());
+    dndUnsubs.forEach((fn) => fn());
+  });
+
+  it("非仓库页 drop 带文件 → 页面守卫拦截（getApp 零调用）", async () => {
+    bus.emit("nav:changed", { page: "settings" });
+    fireDrop(document, { items: [], files: [new File(["a"], "model.ysm", { type: "application/octet-stream" })], types: ["Files"] });
+    await flush();
+    await flush();
+    expect(getApp).not.toHaveBeenCalled();
+  });
+
+  it("仓库页 drop 带文件 → 放行触发导入（getApp 被调用，对照组）", async () => {
+    bus.emit("nav:changed", { page: "repository" });
+    fireDrop(document, { items: [], files: [new File(["a"], "model.ysm", { type: "application/octet-stream" })], types: ["Files"] });
+    await flush();
+    await flush();
+    expect(getApp).toHaveBeenCalled();
+  });
+
+  it("drop 在途时二次 drop 被互斥忽略（getApp 只调一次，busy toast 提示）", async () => {
+    bus.emit("nav:changed", { page: "repository" });
+    const toastSpy = vi.fn();
+    const unsubToast = bus.on("toast:show", (p) => toastSpy(p.msg));
+    // 第一次 drop：onDrop 同步跑到 executeCollected 的 await 点，_dropBusy 已置 true
+    fireDrop(document, { items: [], files: [new File(["a"], "model.ysm", { type: "application/octet-stream" })], types: ["Files"] });
+    // 第二次 drop：此刻 _dropBusy 仍为 true → 应被忽略，不产生第二次导入
+    fireDrop(document, { items: [], files: [new File(["a"], "model.ysm", { type: "application/octet-stream" })], types: ["Files"] });
+    await flush();
+    await flush();
+    expect(getApp).toHaveBeenCalledTimes(1);
+    expect(toastSpy).toHaveBeenCalled();
+    expect(String(toastSpy.mock.calls[0][0])).toContain("正在导入");
+    unsubToast();
+  });
+
+  it("首次 drop 完成后释放互斥（后续 drop 仍被处理）", async () => {
+    bus.emit("nav:changed", { page: "repository" });
+    fireDrop(document, { items: [], files: [new File(["a"], "model.ysm", { type: "application/octet-stream" })], types: ["Files"] });
+    await flush();
+    await flush();
+    expect(getApp).toHaveBeenCalledTimes(1);
+    // 第一次完全 settle（finally 已复位 _dropBusy）后，再 drop 应照常导入
+    fireDrop(document, { items: [], files: [new File(["a"], "model.ysm", { type: "application/octet-stream" })], types: ["Files"] });
+    await flush();
+    await flush();
+    expect(getApp).toHaveBeenCalledTimes(2);
+  });
+
+  it("仓库页 drop 无文件时 toast 提示", async () => {
+    const toastSpy = vi.fn();
+    const unsubToast = bus.on("toast:show", (p) => toastSpy(p.msg));
+    document.dispatchEvent(dropEvent());
+    await flush();
+    expect(toastSpy).toHaveBeenCalled();
+    expect(String(toastSpy.mock.calls[0][0])).toContain("未检测到");
+    unsubToast();
+  });
+
+  it("unsubs 清理后 drop 不再有副作用", async () => {
+    dndUnsubs.forEach((fn) => fn());
+    dndUnsubs.length = 0;
+    const toastSpy = vi.fn();
+    const unsubToast = bus.on("toast:show", (p) => toastSpy(p.msg));
+    document.dispatchEvent(dropEvent());
+    await flush();
+    expect(toastSpy).not.toHaveBeenCalled();
+    unsubToast();
+  });
+});
+
+describe("网页版 DnD（ADR-049 Phase 3：browserAdapter 分支）", () => {
+  const pageUnsubs: Array<() => void> = [];
+  const dndUnsubs: Array<() => void> = [];
+
+  beforeEach(() => {
+    pageUnsubs.length = 0;
+    dndUnsubs.length = 0;
+    registerPageStore(pageUnsubs);
+    registerDnD(dndUnsubs);
+  });
+
+  afterEach(() => {
+    pageUnsubs.forEach((fn) => fn());
+    dndUnsubs.forEach((fn) => fn());
+    delete (globalThis as unknown as Record<string, unknown>)["__YSM_BACKEND__"];
+    importWebFilesMock.mockClear();
+  });
+
+  it("resolveWebMode → importWebFiles 入库 + toast + tree:reload + getApp 零调用", async () => {
+    (globalThis as unknown as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    const { resolveWebMode } = await import("../wails/platform.ts");
+    expect(resolveWebMode()).toBe(true);
+    bus.emit("nav:changed", { page: "repository" });
+    const toastSpy = vi.fn();
+    const reloadSpy = vi.fn();
+    const unsubToast = bus.on("toast:show", (p) => toastSpy(p.msg));
+    const unsubReload = bus.on("tree:reload", () => reloadSpy());
+    fireDrop(document, {
+      items: [],
+      files: [new File(["ysm"], "m.ysm", { type: "application/octet-stream" })],
+      types: ["Files"],
+    });
+    await flush();
+    await flush();
+    expect(importWebFiles).toHaveBeenCalledTimes(1);
+    expect((importWebFiles as ReturnType<typeof vi.fn>).mock.calls[0][0][0].name).toBe("m.ysm");
+    expect((importWebFiles as ReturnType<typeof vi.fn>).mock.calls[0][1]).toBe("ysm");
+    expect(reloadSpy).toHaveBeenCalled();
+    expect(toastSpy).toHaveBeenCalled();
+    expect(String(toastSpy.mock.calls[0][0])).toContain("1 个模型已导入");
+    expect(getApp).not.toHaveBeenCalled();
+    unsubToast();
+    unsubReload();
+  });
+
+  it("网页版导入部分失败 → warn 文案带失败数", async () => {
+    (globalThis as unknown as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    bus.emit("nav:changed", { page: "repository" });
+    importWebFilesMock.mockResolvedValueOnce({ imported: 2, failed: 1 });
+    const toastSpy = vi.fn();
+    const unsubToast = bus.on("toast:show", (p) => toastSpy(p.msg));
+    fireDrop(document, {
+      items: [],
+      files: [new File(["a"], "a.ysm"), new File(["b"], "b.ysm")],
+      types: ["Files"],
+    });
+    await flush();
+    await flush();
+    expect(String(toastSpy.mock.calls[0][0])).toContain("2 个导入成功，1 个失败");
+    unsubToast();
+  });
+});
+
+describe("拖拽遮罩隐藏状态机（dragDepth 计数器）", () => {
+  const pageUnsubs: Array<() => void> = [];
+  const dndUnsubs: Array<() => void> = [];
+
+  // jsdom 无 DragEvent 真实实现：用 Event + defineProperty 注入 dataTransfer / relatedTarget
+  const makeDrag = (
+    type: string,
+    relatedTarget: EventTarget | null,
+    types: string[] = ["Files"],
+  ): DragEvent => {
+    const ev = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+    Object.defineProperty(ev, "dataTransfer", {
+      value: { types, items: [], dropEffect: "" },
+      configurable: true,
+    });
+    Object.defineProperty(ev, "relatedTarget", {
+      value: relatedTarget,
+      configurable: true,
+    });
+    return ev;
+  };
+
+  beforeEach(() => {
+    pageUnsubs.length = 0;
+    dndUnsubs.length = 0;
+    document.querySelectorAll("#global-drop-overlay").forEach((el) => el.remove());
+    registerPageStore(pageUnsubs);
+    bus.emit("nav:changed", { page: "repository" });
+    registerDnD(dndUnsubs);
+  });
+
+  afterEach(() => {
+    pageUnsubs.forEach((fn) => fn());
+    dndUnsubs.forEach((fn) => fn());
+    document.querySelectorAll("#global-drop-overlay").forEach((el) => el.remove());
+  });
+
+  it("进入即显示；子元素穿梭不隐藏；relatedTarget=null 才隐藏", () => {
+    document.dispatchEvent(makeDrag("dragenter", document.body));
+    document.dispatchEvent(makeDrag("dragenter", document.body)); // 进入子元素
+    let ov = document.getElementById("global-drop-overlay");
+    expect(ov).not.toBeNull();
+    expect(ov!.style.display).not.toBe("none");
+
+    // 子元素间穿梭：leave 落到真实元素（relatedTarget 非 null）→ 计数器 -1，不隐藏
+    document.dispatchEvent(makeDrag("dragleave", document.body));
+    ov = document.getElementById("global-drop-overlay");
+    expect(ov!.style.display).not.toBe("none");
+
+    // 真正离开视口：relatedTarget 为 null → 隐藏并归零
+    document.dispatchEvent(makeDrag("dragleave", null));
+    ov = document.getElementById("global-drop-overlay");
+    expect(ov!.style.display).toBe("none");
+  });
+});

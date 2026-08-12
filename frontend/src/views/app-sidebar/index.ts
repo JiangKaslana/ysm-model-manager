@@ -1,0 +1,426 @@
+// ===== <app-sidebar> 入口 =====
+import { bus } from "../../bus.ts";
+import { dbg } from "../../utils/debug/debug.ts";
+import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS, ALL_RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { sidebarCSS } from "./sidebar-css.ts";
+import { headerHTML, footerHTML, listContainerHTML } from "./tpl.ts";
+import { renderVersionCards } from "./render.ts";
+import { bindCardEvents, bindFooter, resetSelectedEmit } from "./events.ts";
+import { get } from "../../services/registry.ts";
+import type { loadInstances } from "./loader.ts";
+import type { SidebarInstance } from "./data.ts";
+import { getApp } from "../../wails/app.ts";
+
+// 持久化勾选状态（跨重新渲染保持），按 rtype 隔离避免类型切换串扰
+const _checkedSets = new Map<string, Set<string>>();
+function checkedSetFor(rtype: string): Set<string> {
+  let s = _checkedSets.get(rtype);
+  if (!s) {
+    s = new Set<string>();
+    _checkedSets.set(rtype, s);
+  }
+  return s;
+}
+
+class AppSidebar extends HTMLElement {
+  static get observedAttributes(): string[] {
+    return ["rtype"];
+  }
+
+  private _root: ShadowRoot;
+  private _instances: SidebarInstance[] = [];
+  private _unsubs: Array<() => void> = [];
+  private _rtype: string;
+  private _cardCleanup: (() => void) | null = null;
+  private _docClickHandler: (() => void) | null = null;
+  private _syncInProgress = false; // 防止并发推送/拉取
+  private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _loading = false;
+  /** 重载代数：rtype 快速切换时用代数校验丢弃过期结果 */
+  private _reloadGen = 0;
+  /** _loading 进行中又有新请求 → 标记待补跑（完成后用最新 rtype 再跑一次） */
+  private _pendingReload = false;
+
+  constructor() {
+    super();
+    this._root = this.attachShadow({ mode: "open" });
+    this._root.adoptedStyleSheets = [new CSSStyleSheet()];
+    this._root.adoptedStyleSheets[0].replaceSync(sidebarCSS);
+    this._rtype = this.getAttribute("rtype") || RESOURCE_TYPES.YSM;
+  }
+
+  attributeChangedCallback(name: string, oldVal: string | null, newVal: string | null): void {
+    if (name === "rtype" && oldVal !== newVal && newVal) {
+      this._rtype = newVal;
+      this._reload();
+      // 更新导入按钮文字
+      const btn = this._root.querySelector(".sidebar-import-all");
+      if (btn) {
+        btn.textContent = "⬇️ 一键安装" + (RESOURCE_TYPE_LABELS[this._rtype] || "资源");
+      }
+    }
+  }
+
+  async connectedCallback(): Promise<void> {
+    this._renderLayout();
+
+    // 监听刷新事件（300ms 防抖，防止短时间内多次重载）
+    this._unsubs.push(
+      bus.on("stats:refresh", () => {
+        clearTimeout(this._debounceTimer ?? undefined);
+        this._debounceTimer = setTimeout(() => this._reload(), 300);
+      }),
+    );
+
+    // 监听全局 subtab 类型切换 → 重新加载该类型的统计
+    this._unsubs.push(
+      bus.on("repo:rtype-changed", async (rtype) => {
+        if (rtype && rtype !== this._rtype) {
+          this._rtype = rtype;
+          clearTimeout(this._debounceTimer ?? undefined);
+          this._debounceTimer = setTimeout(() => this._reload(), 100);
+        }
+      }),
+    );
+
+    // 绑定全选 + 同步所选
+    this._bindSelectAll();
+    this._bindSyncSelected();
+
+    clearTimeout(this._debounceTimer ?? undefined);
+    this._debounceTimer = setTimeout(() => this._reload(), 50);
+  }
+
+  private _bindSelectAll(): void {
+    const cb = this._root.getElementById("sb-select-all") as HTMLInputElement | null;
+    if (!cb) return;
+    cb.addEventListener("change", () => {
+      const checked = cb.checked;
+      const set = checkedSetFor(this._rtype);
+      this._root.querySelectorAll(".chk").forEach((c) => {
+        const input = c as HTMLInputElement;
+        input.checked = checked;
+        const idx = parseInt(input.dataset.idx || "", 10);
+        if (!isNaN(idx) && this._instances[idx]) {
+          if (checked) set.add(this._instances[idx].name);
+          else set.delete(this._instances[idx].name);
+        }
+      });
+    });
+  }
+
+  // 渲染后恢复勾选 + 监听新 checkbox
+  private _restoreCheckboxes(): void {
+    const set = checkedSetFor(this._rtype);
+    this._root.querySelectorAll(".chk").forEach((c) => {
+      const input = c as HTMLInputElement;
+      const idx = parseInt(input.dataset.idx || "", 10);
+      if (!isNaN(idx) && this._instances[idx]) {
+        input.checked = set.has(this._instances[idx].name);
+        input.addEventListener("change", () => {
+          if (input.checked) set.add(this._instances[idx].name);
+          else set.delete(this._instances[idx].name);
+        });
+      }
+    });
+  }
+
+  private _bindSyncSelected(): void {
+    const pushBtn = this._root.querySelector(".sidebar-push-selected") as HTMLButtonElement | null;
+    const pushMenu = this._root.getElementById("sidebar-push-menu") as HTMLElement | null;
+    const pullBtn = this._root.querySelector(".sidebar-pull-selected") as HTMLButtonElement | null;
+    const pullMenu = this._root.getElementById("sidebar-pull-menu") as HTMLElement | null;
+    if (!pushBtn || !pushMenu || !pullBtn || !pullMenu) return;
+
+    // 关闭所有下拉菜单
+    const closeAllMenus = (): void => {
+      pushMenu.style.display = "none";
+      pullMenu.style.display = "none";
+    };
+
+    // 点击按钮切换菜单（stopPropagation 防止冒泡到 document 后被 Shadow DOM 边界改写 e.target）
+    pushBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const wasOpen = pushMenu.style.display === "block";
+      closeAllMenus();
+      if (!wasOpen) pushMenu.style.display = "block";
+    });
+    pullBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const wasOpen = pullMenu.style.display === "block";
+      closeAllMenus();
+      if (!wasOpen) pullMenu.style.display = "block";
+    });
+    // 菜单内点击也阻止冒泡
+    pushMenu.addEventListener("click", (e) => e.stopPropagation());
+    pullMenu.addEventListener("click", (e) => e.stopPropagation());
+    // 点击其他地方关闭（先移除旧 handler 防止重复注册）
+    if (this._docClickHandler) {
+      document.removeEventListener("click", this._docClickHandler);
+    }
+    this._docClickHandler = () => closeAllMenus();
+    document.addEventListener("click", this._docClickHandler);
+
+    const getSelected = (): string[] => {
+      const sel: string[] = [];
+      this._root.querySelectorAll(".chk:checked").forEach((c) => {
+        const input = c as HTMLInputElement;
+        const idx = parseInt(input.dataset.idx || "", 10);
+        if (!isNaN(idx) && this._instances[idx])
+          sel.push(this._instances[idx].name);
+      });
+      return sel;
+    };
+
+    const resolveTypes = (t: string): string[] =>
+      t === "all" ? ALL_RESOURCE_TYPES : [t];
+
+    // 推送：emit sync:download:missing（带 correlation token 防交叉触发）
+    pushMenu.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement | null;
+      const item = target ? target.closest(".dd-item") : null;
+      if (!item) return;
+      const selected = getSelected();
+      if (!selected.length) {
+        bus.emit("toast:show", { msg: "请先勾选要推送的整合包", duration: 2000, type: "info" });
+        return;
+      }
+      if (this._syncInProgress) return;
+      this._syncInProgress = true;
+      closeAllMenus();
+      pushBtn.textContent = "⏳";
+      pushBtn.disabled = true;
+      (async () => {
+        let skipped = 0;
+        let timedOut = 0;
+        try {
+        const types = resolveTypes((item as HTMLElement).dataset.syncType || "all");
+        for (const insName of selected) {
+          // P1 修复（审核）：逐类型串行 emit+await——原 `types.map` 的 Promise executor
+          // 同步执行，N 个 sync:download:missing 在同一同步块内全部发出，而 sync.ts 的
+          // _downloadBusy 在首个 handler 首个 await 前同步置位 → 「全部类型」只有第 1 类
+          // 真正执行，其余 6 类立即被 skipped 打回（实测 toast 报 6 个被跳过但实际没推）
+          for (const rt of types) {
+            try {
+              await new Promise<unknown>((resolve, reject) => {
+                const token = `${insName}:${rt}:${Date.now()}`;
+                // timer 先声明再赋值：handler 内引用不在 TDZ（bus 同步 emit 场景安全）
+                let timer: ReturnType<typeof setTimeout> | null = null;
+                const unsub = bus.on("sync:download:done", (payload) => {
+                  // P1 修复：只按 token 精确匹配 + 识别 skipped——原 `|| payload?.instanceName === insName`
+                  // 会把「busy 被吞未处理」误判为成功（toast 报 ✅ 实际未推）；
+                  // 现被吞请求带 skipped 标记按拒绝处理
+                  if (payload?.token === token) {
+                    unsub();
+                    if (timer) clearTimeout(timer);
+                    if (payload.skipped) {
+                      // P3 修复（审核发现）：skipped 与超时混报——附 kind 标记供结果分类，
+                      // 避免 toast 把「被跳过」误报为「超时」
+                      const err = new Error(`推送被跳过（已有同步进行中）: ${insName}/${rt}`);
+                      (err as Error & { kind?: string }).kind = "skipped";
+                      reject(err);
+                    } else {
+                      resolve(payload);
+                    }
+                  }
+                });
+                timer = setTimeout(() => {
+                  unsub();
+                  const err = new Error(`推送超时: ${insName}/${rt}`);
+                  (err as Error & { kind?: string }).kind = "timeout";
+                  reject(err);
+                }, 30000);
+                bus.emit("sync:download:missing", { instanceName: insName, rtype: rt, token });
+              });
+            } catch (e) {
+              const kind = (e as Error & { kind?: string })?.kind;
+              if (kind === "skipped") skipped++;
+              else timedOut++;
+              // P2 修复（审核）：超时意味着上一类型已持有 _downloadBusy 超过 30s（sync.ts
+              // 从首个 await 到 finally 全程持有）。若不等待其释放就立即 emit 下一类型，
+              // 下一个 handler 必被 busy 打回 skipped——「全部类型」推送会退化为只有第一个
+              // 真正执行、其余全部被跳过。等待任一 done（该 done 必然来自在途请求的 finally）
+              // 后再推进。skipped 分支不等待：被 skip 的类型不会重推，等待无意义且外部并发
+              // 持续占用时会导致连锁等待。
+              if (kind !== "skipped") {
+                await new Promise<void>((resolve) => {
+                  const waitUnsub = bus.on("sync:download:done", (p) => {
+                    // busy 打回的即时回执（skipped:true）不代表 busy 已释放（handler 仍在跑）——
+                    // 只等真正完成（finally 先置 _downloadBusy=false 再 emit done）
+                    if (p?.skipped) return;
+                    waitUnsub();
+                    resolve();
+                  });
+                  // 兜底：理论上 done 由 finally 保证必达；万一丢失不应让 sidebar 卡死
+                  setTimeout(() => {
+                    waitUnsub();
+                    resolve();
+                  }, 30000);
+                });
+              }
+            }
+          }
+        }
+        if (skipped > 0 || timedOut > 0) {
+          // P3 修复（审核发现）：skipped 与超时分别计数——原统一报「操作超时」，
+          // 被 busy 跳过的请求被误报为超时（真实原因是同步进行中）
+          const parts: string[] = [];
+          if (skipped > 0) parts.push(`${skipped} 个被跳过（同步进行中）`);
+          if (timedOut > 0) parts.push(`${timedOut} 个超时`);
+          bus.emit("toast:show", { msg: `⚠️ 推送完成，${parts.join("，")}`, duration: 3000, type: "warn" });
+        } else {
+          bus.emit("toast:show", { msg: `✅ 推送完成：${selected.length} 个整合包`, duration: 2500 });
+        }
+        } catch (err) {
+          bus.emit("toast:show", { msg: "❌ 推送失败: " + (err instanceof Error ? err.message : String(err)), duration: 3000, type: "error" });
+        } finally {
+          // 意外 throw 也必须恢复按钮与锁（陷阱 #3：按钮卡死根因）
+          pushBtn.textContent = "⬆️ 推送所选 ▾";
+          pushBtn.disabled = false;
+          this._syncInProgress = false;
+        }
+      })();
+    });
+
+    // 拉取：调用 PullResourceFromInstance
+    pullMenu.addEventListener("click", async (e) => {
+      const target = e.target as HTMLElement | null;
+      const item = target ? target.closest(".dd-item") : null;
+      if (!item) return;
+      const selected = getSelected();
+      if (!selected.length) {
+        bus.emit("toast:show", { msg: "请先勾选要拉取的整合包", duration: 2000, type: "info" });
+        return;
+      }
+      if (this._syncInProgress) return;
+      this._syncInProgress = true;
+      closeAllMenus();
+      pullBtn.textContent = "⏳";
+      pullBtn.disabled = true;
+      let totalPulled = 0;
+      let failed = 0;
+      try {
+        const { PullResourceFromInstance } = await getApp();
+        const types = resolveTypes((item as HTMLElement).dataset.syncType || "all");
+        for (const insName of selected) {
+          const results = await Promise.allSettled(
+            types.map((rt) => PullResourceFromInstance(rt, insName)),
+          );
+          for (const r of results) {
+            if (r.status === "fulfilled") totalPulled += r.value;
+            else failed++;
+          }
+        }
+        if (failed > 0) {
+          bus.emit("toast:show", { msg: `⚠️ 拉取完成: ${totalPulled} 个文件, ${failed} 个失败`, duration: 3000, type: "warn" });
+        } else if (totalPulled > 0) {
+          bus.emit("toast:show", { msg: `✅ 拉取完成，共 ${totalPulled} 个文件`, duration: 2500 });
+        } else {
+          bus.emit("toast:show", { msg: "📭 没有可拉取的文件（实例中无多余资源）", duration: 2500, type: "info" });
+        }
+        bus.emit("stats:refresh");
+        bus.emit("tree:reload");
+      } catch (err) {
+        bus.emit("toast:show", { msg: "❌ 拉取失败: " + (err instanceof Error ? err.message : String(err)), duration: 3000, type: "error" });
+      } finally {
+        // 意外 throw 也必须恢复按钮与锁（陷阱 #3：按钮卡死根因）
+        pullBtn.textContent = "⬇️ 拉取所选 ▾";
+        pullBtn.disabled = false;
+        this._syncInProgress = false;
+      }
+    });
+  }
+
+  private _renderCards(): void {
+    const container = this._root.getElementById("vg");
+    if (!container) return;
+    renderVersionCards(container, this._instances);
+    // 先清理旧的事件监听，再绑定新的（防止重复累积）
+    if (this._cardCleanup) {
+      this._cardCleanup();
+      this._cardCleanup = null;
+    }
+    this._cardCleanup = bindCardEvents(this._root, this._instances);
+    this._restoreCheckboxes();
+  }
+
+  private async _reload(): Promise<void> {
+    if (this._loading) {
+      // 丢弃语义会导致 rtype 快速切换时 _instances 与 _rtype 错配：
+      // 记下补跑请求，当前完成后用最新 rtype 再跑一次
+      this._pendingReload = true;
+      return;
+    }
+    this._loading = true;
+    const gen = ++this._reloadGen;
+    try {
+      const instances = await get<typeof loadInstances>("loadInstances")(this._rtype);
+      if (gen !== this._reloadGen) return; // 已被更新的重载取代，丢弃过期结果
+      this._instances = instances;
+      dbg(
+        "sidebar",
+        "_reload 完成, 实例数:",
+        this._instances.length,
+        "rtype:",
+        this._rtype,
+        "首个:",
+        this._instances[0]
+          ? {
+              name: this._instances[0].name,
+              synced: this._instances[0].synced,
+              missing: this._instances[0].missing,
+            }
+          : "无",
+      );
+    } catch (e) {
+      if (gen !== this._reloadGen) return;
+      dbg("sidebar", "_reload 失败:", e);
+      this._instances = [];
+    } finally {
+      this._loading = false;
+    }
+    if (gen !== this._reloadGen) return;
+    this._renderCards();
+    bindFooter(this._root, this._instances);
+    if (this._pendingReload) {
+      this._pendingReload = false;
+      void this._reload();
+    }
+  }
+
+  disconnectedCallback(): void {
+    this._unsubs.forEach((fn) => fn());
+    // P3 修复（子代理审计）：卸载时复位在途同步标志——推送/拉取 IIFE 的 finally
+    // 只在本组件存活期间执行，卸载后 _syncInProgress/_loading 若保持 true，重挂载时
+    // 新按钮点击被 L188/L269/L322 静默 return（按钮"死了"最多 30s 直到 timer 超时）。
+    // 在途 bus.on 订阅与 30s timer 由各自 unsub 兜底（超时/完成后自行清理），此处
+    // 仅需复位标志解除新实例的卡死
+    this._syncInProgress = false;
+    this._loading = false;
+    // 清理防抖定时器，防止组件销毁后回调在已销毁实例上执行
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = null;
+    }
+    this._pendingReload = false;
+    // P2 复核修复：组件真正卸载时复位去重标记（同组件 reload 不复位、去重跨 reload 生效）
+    resetSelectedEmit();
+    // 清理 DOM 事件监听
+    if (this._cardCleanup) {
+      this._cardCleanup();
+      this._cardCleanup = null;
+    }
+    if (this._docClickHandler) {
+      document.removeEventListener("click", this._docClickHandler);
+      this._docClickHandler = null;
+    }
+  }
+
+  private _renderLayout(): void {
+    this._root.innerHTML = headerHTML() + listContainerHTML() + footerHTML();
+  }
+}
+// 注册组件（防 HMR/重复 import 时重复 define）
+if (!customElements.get("app-sidebar")) {
+  customElements.define("app-sidebar", AppSidebar);
+}

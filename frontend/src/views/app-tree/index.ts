@@ -1,0 +1,390 @@
+// ===== <app-tree> 入口 — 生命周期编排 =====
+import { t } from "../../core/i18n/t.ts";
+import { friendlyError } from "../../utils/dom/errors.ts";
+import { treeCSS } from "./app-tree-styles.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { headerHTML, footerHTML, spinnerHTML } from "./tpl.ts";
+import { renderTree, updateStat, getRenderMode, setRenderMode, cleanupVirtualScroll, type RenderMode, type TreeRow } from "./render.ts";
+import { bindTreeEvents } from "./events.ts";
+import { bindToolbarEvents } from "./toolbar-events.ts";
+import { get } from "../../services/registry.ts";
+import type { loadEntries, TreeEntry } from "./loader.ts";
+import { bindBusEvents } from "./bus-handlers.ts";
+import { loadAuthors, type AuthorInfo } from "./authors.ts";
+import { bus } from "../../bus.ts";
+import { selectState } from "./data.ts";
+import { dbg } from "../../utils/debug/debug.ts";
+import { getApp } from "../../wails/app.ts";
+import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
+import { isViewerMode } from "../../utils/dom/android-bridge.ts";
+
+
+
+// —— 全局扩展：虚拟滚动容器属性 ——
+declare global {
+  interface ShadowRoot {
+    /** 作者列表缓存（root 上，供外部读取） */
+    _treeAuthors?: Array<AuthorInfo | string>;
+  }
+  interface HTMLElement {
+    /** 虚拟滚动清理函数（render/events 共用） */
+    _vsCleanup?: (() => void) | null;
+    /** 虚拟滚动行缓存 */
+    _vsRows?: TreeRow[];
+    /** 当前渲染模式 */
+    _vsMode?: RenderMode | null;
+    /** 尺寸变化观察器 */
+    _vsResizeObserver?: ResizeObserver | null;
+    /** 作者列表缓存（root 上，供外部读取） */
+    _treeAuthors?: AuthorInfo[];
+  }
+}
+
+export class AppTree extends HTMLElement {
+  _root: ShadowRoot;
+  _entries: TreeEntry[] = [];
+  _search = "";
+  _sort = "name";
+  _typeFilter = "";
+  _rootAttr = ""; // 由 root 属性指定，覆盖 _typeFilter 加载用
+  _dirOpen: Record<string, boolean> = {};
+  _repoRoot = "";
+  _authors: Array<AuthorInfo | string> = [];
+  _filterPaths: Set<string> | null = null; // Set 或 null，来自 SearchModels 结果
+  _renderMode: RenderMode = getRenderMode(); // 'grid' | 'list'
+  _unsubs: Array<() => void> = [];
+  /** 批量启用/禁用进行中（防连点菜单重叠循环二次 Toggle 把状态打回原形） */
+  _batchBusy = false;
+  /** 单文件开关进行中（防连点翻转状态） */
+  _toggleBusy = false;
+  private _keydownHandler: EventListener | null = null;
+  /** 批量删除进行中（防连点 Delete 二次触发） */
+  private _deleting = false;
+  /** 已完成 connectedCallback 初始化（用于区分首次挂载与后续属性变更） */
+  private _ready = false;
+  /** root 属性切换代际计数：快速切换时丢弃过期加载的渲染 */
+  private _gen = 0;
+  /** P2 修复（审核）：挂载期间 root 变更标记——_ready 前不吞掉变更，connected 补加载 */
+  private _pendingRoot = false;
+
+  /** 响应式属性：root（资源类型根，Design.md §15 契约） */
+  static get observedAttributes(): string[] {
+    return ["root"];
+  }
+
+  constructor() {
+    super();
+    this._root = this.attachShadow({ mode: "open" });
+    this._root.adoptedStyleSheets = [new CSSStyleSheet()];
+    this._root.adoptedStyleSheets[0].replaceSync(treeCSS);
+  }
+
+  async connectedCallback(): Promise<void> {
+    this._rootAttr = this.getAttribute("root") || "";
+    // P3 修复：挂载代际捕获——二次挂载时若 root 在途被切换（attributeChangedCallback 已 ++_gen），
+    // 丢弃本代过期 _load 的渲染，防旧类型数据覆盖新树（绑定逻辑不受影响，容器不变）
+    const gen = ++this._gen;
+
+    try {
+      Object.assign(
+        this._dirOpen,
+        JSON.parse(localStorage.getItem("at_dirs") || "{}"),
+      );
+    } catch (_) {}
+
+    try {
+      this._renderLayout();
+      this._unsubs = [];
+      bindToolbarEvents(this._root, this);
+      this._unsubs.push(...bindBusEvents(this));
+
+      // 事件委托绑定（只一次，虚拟滚动换 innerHTML 仍有效）
+      const treeEl = this._root.getElementById("tree");
+      if (treeEl) bindTreeEvents(treeEl, this);
+
+      // 键盘快捷键（只用 document + this._root，提前注册——异步 _load 期间 disconnect
+      // 也能经 disconnectedCallback 正常移除，避免 keydown 监听泄漏）
+      this._initKeyboardShortcuts();
+
+      // 监听高级筛选结果
+      this._unsubs.push(
+        bus.on("filter:results", (results) => {
+          if (results && results.length) {
+            this._filterPaths = new Set(results.map((r) => r.path));
+          } else {
+            this._filterPaths = null;
+          }
+          this._renderTree();
+        }),
+      );
+
+      // 监听创作者详情→搜索本地模型
+      this._unsubs.push(
+        bus.on("tree:set-search", (name) => {
+          const srch = this._root?.getElementById("srch") as HTMLInputElement | null;
+          if (srch) {
+            srch.value = name;
+            srch.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+        }),
+      );
+
+      // 延迟加载作者列表（不影响树渲染）
+      this._loadAuthorsAsync();
+
+      await this._load();
+      // P3：挂载期间 root 已切换（attributeChangedCallback 在途 ++_gen）→ 丢弃本代渲染
+      //（不 return：事件绑定/订阅与渲染解耦，容器不变，后续逻辑照常执行）
+      if (gen === this._gen) this._renderTree();
+      // P2 修复（审核，挂载时序）：_ready 前 root 被切换时 attributeChangedCallback
+      // 只置 pending 标记不启动加载——此处补加载最新 root，防「树停在 spinner」
+      if (this._pendingRoot) {
+        this._pendingRoot = false;
+        const gen2 = ++this._gen;
+        try {
+          const App = await getApp();
+          if (App.ClearScanCache) await App.ClearScanCache(); // P2-3：root 切换清扫描缓存
+          await this._load();
+          if (gen2 === this._gen) this._renderTree();
+        } catch (e) {
+          console.error("[Tree pendingRoot Error]", e);
+        }
+      }
+
+    } catch (e) {
+      console.error("[Tree Init Error]", e);
+      const tree = this._root?.getElementById("tree");
+      if (tree)
+        tree.innerHTML =
+          t("tree.treeLoadFailed");
+    } finally {
+      this._ready = true;
+    }
+  }
+
+  /** root 属性变更 → 重新加载并渲染（首次挂载由 connectedCallback 负责，避免重复加载） */
+  attributeChangedCallback(name: string, oldVal: string | null, newVal: string | null): void {
+    if (name !== "root" || oldVal === newVal) return;
+    this._rootAttr = newVal || "";
+    if (!this._ready || !this.isConnected) {
+      // P2 修复（审核，挂载时序）：_ready 前不吞掉变更——记 pending，connectedCallback
+      // 的 _load 完成后补加载最新 root（原直接 return → 新类型树永不渲染，停在 spinner）
+      this._pendingRoot = true;
+      return;
+    }
+    const gen = ++this._gen;
+    void (async () => {
+      try {
+        // P2 修复（审核，缓存一致性）：root 切换先清扫描缓存——原 _load() 命中 30s
+        // scanCache（watcher 只监听 ysmRoot/mcRoot，其他类型目录与 Web viewer 无监听），
+        // 切 root 后 30s 内拿到陈旧缓存；与 bus-handlers.reload() 链对齐
+        const App = await getApp();
+        if (App.ClearScanCache) await App.ClearScanCache();
+        await this._load();
+        // 期间 root 属性再次切换：丢弃本次过期加载的渲染，防旧类型数据覆盖新类型树
+        if (gen !== this._gen) return;
+        this._renderTree();
+      } catch (e) {
+        console.error("[Tree root change Error]", e);
+      }
+    })();
+  }
+  disconnectedCallback(): void {
+    this._unsubs?.forEach((fn) => fn?.());
+    if (this._keydownHandler) {
+      document.removeEventListener("keydown", this._keydownHandler);
+      this._keydownHandler = null;
+    }
+    const treeEl = this._root.getElementById("tree");
+    if (treeEl) {
+      // 清理虚拟滚动：scroll 监听 + ResizeObserver + 缓存引用
+      cleanupVirtualScroll(treeEl);
+    }
+  }
+
+  async _loadAuthorsAsync(): Promise<void> {
+    try {
+      this._authors = await loadAuthors();
+    } catch {
+      this._authors = [];
+    }
+  }
+
+  async _load(): Promise<void> {
+    try {
+      const rtype = this._rootAttr || this._typeFilter;
+      const r = await get<typeof loadEntries>("loadEntries")(rtype);
+      if (r && r.entries) {
+        this._repoRoot = r.repoRoot;
+        this._entries = r.entries;
+      } else {
+        this._entries = [];
+      }
+    } catch (_) {
+      this._entries = [];
+    }
+  }
+
+  _renderLayout(): void {
+    this._root.innerHTML =
+      headerHTML() +
+      '<div class="list" id="tree">' +
+      spinnerHTML() +
+      "</div>" +
+      footerHTML();
+  }
+
+  _renderTree(): void {
+    const c = this._root.getElementById("tree");
+    // 清理旧的虚拟滚动监听
+    if (c && c._vsCleanup) {
+      c._vsCleanup();
+      c._vsCleanup = null;
+    }
+    // 按类型过滤
+    let filtered: TreeEntry[] = Array.isArray(this._entries) ? this._entries : [];
+    if (this._typeFilter) {
+      filtered = filtered.filter((e) => e.type === this._typeFilter);
+    }
+    // [DBG] 诊断：_renderTree 入参（entries 数 / filterPaths 大小）
+    dbg(
+      "_renderTree",
+      "entries=" +
+        filtered.length +
+        " search=" +
+        JSON.stringify(this._search) +
+        " filterPaths=" +
+        (this._filterPaths ? this._filterPaths.size : "null") +
+        " typeFilter=" +
+        JSON.stringify(this._typeFilter),
+    );
+    renderTree(
+      c as HTMLElement,
+      filtered,
+      this._search,
+      this._sort,
+      this._dirOpen,
+      this._filterPaths,
+      this._renderMode,
+    );
+    // 有选中项时不更新 stat（由 updateSelectCount 维护），避免动画覆盖
+    if (!selectState.keys.size) {
+      updateStat(this._root.getElementById("ftr-stat"), filtered);
+    }
+    // 仓库路径显示在按钮上
+    const repoBtn = this._root.getElementById("btn-repo");
+    if (repoBtn)
+      repoBtn.textContent = this._repoRoot
+        ? `📁 ${this._repoRoot}`
+        : t("tree.repoNotSet");
+    // 存到 root 上供需要时访问
+    this._root._treeAuthors = this._authors;
+  }
+
+  // ========== 键盘快捷键 ==========
+  private _initKeyboardShortcuts(): void {
+    this._keydownHandler = (async (e: KeyboardEvent): Promise<void> => {
+      // Ctrl+F / Cmd+F → 聚焦搜索框（允许输入框内响应）
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        const srch = this._root.getElementById("srch") as HTMLInputElement | null;
+        if (srch) {
+          srch.focus();
+          srch.select();
+        }
+        return;
+      }
+
+      // Delete → 删除选中文件（输入框中不触发，避免误删）
+      const target = e.target as HTMLElement | null;
+      if (
+        (e.key === "Delete" || e.key === "Del") &&
+        target &&
+        target.tagName !== "INPUT" &&
+        target.tagName !== "TEXTAREA"
+      ) {
+        const paths = [...(selectState?.keys || [])];
+        if (!paths.length) {
+          bus.emit("toast:show", {
+            msg: t("tree.selectFilesFirst"),
+            duration: 2000,
+            type: "warn",
+          });
+          return;
+        }
+        // 查看器模式（Android/网页版 ADR-049）：无本地文件系统写能力，删除不可用
+        if (isViewerMode()) {
+          bus.emit("toast:show", {
+            msg: "网页版不支持删除模型",
+            duration: 3000,
+            type: "warn",
+          });
+          return;
+        }
+        e.preventDefault();
+        if (!(await modalConfirm({
+          title: "批量删除",
+          icon: "🗑️",
+          message: `确定要删除选中的 ${paths.length} 个文件吗？`,
+          okText: "🗑️ 删除",
+          danger: true,
+        })))
+          return;
+        const rtype = this._rootAttr || "ysm";
+        const isDirModel = [RESOURCE_TYPES.MMD, RESOURCE_TYPES.VRC].includes(rtype);
+        this._deleteSelected(paths, isDirModel);
+      }
+    }) as unknown as EventListener;
+    // 只注册 document 级：shadow 内组合键事件会 composed 冒泡，双注册会导致 Delete 双触发
+    document.addEventListener("keydown", this._keydownHandler as unknown as EventListener);
+  }
+
+  async _deleteSelected(paths: string[], isDirModel: boolean): Promise<void> {
+    if (this._deleting) return; // 并发守卫：连点 Delete 只执行第一次
+    this._deleting = true;
+    try {
+      let ok = 0,
+        fail = 0;
+      const { DeleteModelDir, DeleteResourcePack } =
+        await getApp();
+      for (const p of paths) {
+        try {
+          if (isDirModel) await DeleteModelDir(p);
+          else await DeleteResourcePack(p);
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      selectState.keys.clear();
+      selectState.lastKey = null;
+      // P2 修复（审核，缓存一致性）：删除后先清扫描缓存再加载——原 _load() 命中
+      // 30s scanCache（Go 侧 DeleteModelFile 无 InvalidateCache，watcher 清缓存异步），
+      // 刚删除的文件会立即"复活"显示。与 bus-handlers.reload() 的 ClearScanCache 链对齐。
+      try {
+        const App = await getApp();
+        if (App.ClearScanCache) await App.ClearScanCache();
+      } catch (_) {
+        /* 清缓存失败不影响删除结果，_load 仍会执行 */
+      }
+      await this._load();
+      this._renderTree();
+      bus.emit("toast:show", {
+        msg: `✅ ${t("tree.deleted", { ok, fail: fail || 0 })}`,
+        duration: 3000,
+        type: "success",
+      });
+    } catch (e) {
+      // P2 修复：getApp/删除/刷新任一环节失败都要有出口，避免 unhandled rejection 静默
+      bus.emit("toast:show", {
+        msg: "❌ " + friendlyError(e),
+        duration: 5000,
+        type: "error",
+      });
+    } finally {
+      this._deleting = false;
+    }
+  }
+}
+
+customElements.define("app-tree", AppTree);

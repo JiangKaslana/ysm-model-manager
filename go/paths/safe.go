@@ -1,0 +1,73 @@
+package paths
+
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+)
+
+// ErrPathEscalation 路径越权错误
+type ErrPathEscalation struct {
+	Path    string
+	BaseDir string
+	Reason  string
+}
+
+func (e *ErrPathEscalation) Error() string {
+	return fmt.Sprintf("路径越权: %s 不在 %s 目录下 (%s)", e.Path, e.BaseDir, e.Reason)
+}
+
+// IsInside 检查 path 是否在 baseDir 下，防止路径遍历。
+// 注意：本函数不追踪符号链接。若 baseDir 或 path 中包含指向外部目录的符号链接，
+// 可能错误地判定为安全。调用方应在必要时先用 filepath.EvalSymlinks 解析。
+func IsInside(baseDir, path string) error {
+	absBase, err := filepath.Abs(filepath.Clean(baseDir))
+	if err != nil {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "无法解析基准路径: " + err.Error()}
+	}
+	absPath, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "无法解析目标路径: " + err.Error()}
+	}
+
+	rel, err := filepath.Rel(absBase, absPath)
+	if err != nil {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "计算相对路径失败: " + err.Error()}
+	}
+	// `rel == ".."` 或 `rel` 以 `..` + 分隔符开头才算越权——
+	// 裸 `strings.HasPrefix(rel, "..")` 会把 base 下合法子目录名 `..foo` 误判为越权（false positive）
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "路径不在基准目录内"}
+	}
+	// 大小写不敏感检查（Windows 路径不区分大小写）
+	basePrefix := strings.ToLower(absBase) + string(filepath.Separator)
+	if !strings.EqualFold(absPath, absBase) && !strings.HasPrefix(strings.ToLower(absPath), basePrefix) {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "路径不在基准目录内"}
+	}
+	return nil
+}
+
+// ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记
+// PrismLauncher 实例目录下可能是 minecraft（无点），与 .minecraft 等价
+// 注意：不解析符号链接，调用方需自行处理
+func ContainsMinecraftMarker(path string) bool {
+	cleaned := filepath.Clean(path)
+	lower := strings.ToLower(cleaned)
+	sep := strings.ToLower(string(filepath.Separator))
+	for _, marker := range []string{".minecraft", "minecraft"} {
+		// 相对路径首段 / 单段漏检——原只查 `sep+marker+sep`（中间段）与
+		// `sep+marker` 后缀，`minecraft/mods`、`".minecraft/mods"`（无前导分隔符的首段）
+		// 与单个 `minecraft` 段均不匹配，PrismLauncher 布局 `minecraft/mods` 会漏判
+		if lower == marker || strings.HasPrefix(lower, marker+sep) {
+			return true
+		}
+		mcMarker := sep + marker + sep
+		if strings.Contains(lower, mcMarker) {
+			return true
+		}
+		if strings.HasSuffix(lower, sep+marker) {
+			return true
+		}
+	}
+	return false
+}

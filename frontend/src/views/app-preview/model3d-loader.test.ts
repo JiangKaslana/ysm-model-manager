@@ -1,0 +1,325 @@
+// ===== 3D 模型加载器测试 =====
+// 覆盖：loadTextures（成功/失败 null 占位保索引）、fetchSpec LRU 缓存、
+// preloadModel R1 纹理序契约校验（texArrOrder vs textureNames 不一致 warn）
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as THREE from "three";
+
+const { getAppMock, specMock, buildSpecMock, getAndroidBridgeMock, decodeWasmMock, tsSpecBuilderMock } = vi.hoisted(() => ({
+  getAppMock: vi.fn(),
+  specMock: vi.fn(),
+  buildSpecMock: vi.fn(),
+  // Android 双端桥 + WASM 解码（fetchSpec 兜底路径，ADR-049/046）
+  getAndroidBridgeMock: vi.fn().mockReturnValue(null), // 默认桌面
+  decodeWasmMock: vi.fn(),
+  // 网页版纯 TS 移植（ADR-049 P2-2）：fetchSpecViaWasmFallback 的 resolveWebMode 分支
+  tsSpecBuilderMock: vi.fn(),
+}));
+
+vi.mock("../../wails/app.ts", () => ({
+  getApp: getAppMock,
+}));
+vi.mock("../../utils/dom/android-bridge.ts", () => ({
+  getAndroidBridge: getAndroidBridgeMock,
+}));
+vi.mock("./wasm.ts", () => ({
+  decodeYsmViaWasm: decodeWasmMock,
+}));
+vi.mock("../../utils/3d/spec-builder.ts", () => ({
+  buildSpecFromGeometryJSON: tsSpecBuilderMock,
+}));
+
+import { loadTextures, preloadModel } from "./model3d-loader.ts";
+
+/** 可控 Image：src setter 同步触发 onload/onerror（happy-dom 无真实网络） */
+class FakeImage {
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  naturalWidth = 64;
+  naturalHeight = 32;
+  _src = "";
+  _fail = false;
+  set src(u: string) {
+    this._src = u;
+    if (this._fail) this.onerror?.();
+    else this.onload?.();
+  }
+  get src(): string {
+    return this._src;
+  }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  delete (globalThis as Record<string, unknown>)["__YSM_BACKEND__"];
+  getAppMock.mockResolvedValue({
+    GetModel3DSpec: specMock,
+    Build3DSpecFromGeometryJSON: buildSpecMock,
+  });
+});
+
+describe("loadTextures", () => {
+  it("空/无 urls → 空数组", async () => {
+    expect(await loadTextures([])).toEqual([]);
+    expect(await loadTextures(undefined)).toEqual([]);
+  });
+
+  it("全部加载成功 → THREE.Texture 数组（flipY=false、userData 尺寸）", async () => {
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      const texArr = await loadTextures(["a.png", "b.png"]);
+      expect(texArr).toHaveLength(2);
+      expect(texArr[0]).toBeInstanceOf(THREE.Texture);
+      expect(texArr[0]!.flipY).toBe(false);
+      expect(texArr[0]!.userData.imgWidth).toBe(64);
+      expect(texArr[1]).toBeInstanceOf(THREE.Texture);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("部分失败 → null 占位且索引不压缩（后续组件贴纹理不错位）", async () => {
+    class PartialImage extends FakeImage {
+      // b.png 加载失败
+      set src(u: string) {
+        this._src = u;
+        if (u === "b.png") this.onerror?.();
+        else this.onload?.();
+      }
+    }
+    vi.stubGlobal("Image", PartialImage as never);
+    try {
+      const texArr = await loadTextures(["a.png", "b.png", "c.png"]);
+      expect(texArr).toHaveLength(3);
+      expect(texArr[0]).toBeInstanceOf(THREE.Texture);
+      expect(texArr[1]).toBeNull(); // 失败占位，不 filter
+      expect(texArr[2]).toBeInstanceOf(THREE.Texture);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("preloadModel / fetchSpec", () => {
+  const spec = (texArrOrder?: string[]) =>
+    JSON.stringify({
+      models: [{ meshGroups: [{ boneId: "root", positions: [0, 0, 0], normals: [], uvs: [], indices: [] }] }],
+      texArrOrder,
+    });
+
+  it("同一路径二次调用 → GetModel3DSpec 只调一次（LRU 缓存命中）", async () => {
+    specMock.mockResolvedValue(spec());
+    const model = { _modelPath: "/m/lru.ysm", texture: "t.png" };
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      const r1 = await preloadModel(model);
+      const r2 = await preloadModel(model);
+      expect(r1.spec.models?.length).toBe(1);
+      expect(r2.spec.models?.length).toBe(1);
+      expect(specMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("R1 契约：texArrOrder 与 textureNames 不一致 → console.warn", async () => {
+    specMock.mockResolvedValue(spec(["a.png", "X.png"]));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      await preloadModel({
+        _modelPath: "/m/r1-mismatch.ysm",
+        textureNames: ["a.png", "b.png"],
+        texture: "a.png",
+      });
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("[model3d] R1 纹理缺失"),
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("R1 契约：共享槽位（arm 钳制贴 skin）→ 存在性校验不误报", async () => {
+    // 02_new_year 回归：1 张声明纹理 skin + 组件 main/arm/arrow。
+    // Go 端 arm 钳制到 skin（texArrOrder=[skin,skin,arrow]），texArr 实际 = [skin, arrow]，
+    // 索引比对会误报；存在性比对（每个期望名都在已加载清单中）应通过。
+    specMock.mockResolvedValue(spec(["skin", "skin", "arrow"]));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      await preloadModel({
+        _modelPath: "/m/shared-slot.ysm",
+        textureNames: ["skin", "arrow"],
+        textures: ["u1", "u2"],
+      });
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("R1 契约：顺序一致 → 不 warn", async () => {
+    specMock.mockResolvedValue(spec(["a.png", "b.png"]));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      await preloadModel({
+        _modelPath: "/m/r1-match.ysm",
+        textureNames: ["a.png", "b.png"],
+        texture: "a.png",
+      });
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("texArr 用全量纹理清单，不被 texArrOrder（组件序，长度=组件数）截断", async () => {
+    // 魔法酒狐回归：ysm.json 声明 6 张纹理，组件只有 3 个（main/arm/arrow），
+    // texArrOrder = [magic winefox ice]。texArr 必须以全量 6 张为槽位——
+    // 之前 de09164a 用 texArrOrder 当槽位清单，面板只显示「纹理 (3)」且 arrow
+    // texSlot=6 越界品红。
+    specMock.mockResolvedValue(spec(["magic", "winefox", "ice"]));
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      const r = await preloadModel({
+        _modelPath: "/m/fox.ysm",
+        textures: ["u1", "u2", "u3", "u4", "u5", "u6"],
+        textureNames: ["magic", "winefox", "ice", "flower", "blood", "water"],
+      });
+      expect(r.texArr).toHaveLength(6);
+      expect(r.texArr.every((t) => t !== null)).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("spec 无 models → 抛错（fetchSpec 空 spec 守卫）", async () => {
+    specMock.mockResolvedValue(JSON.stringify({ models: [] }));
+    await expect(
+      preloadModel({ _modelPath: "/m/empty.ysm", texture: "t.png" }),
+    ).rejects.toThrow("3D spec 为空");
+  });
+
+  it("Android spec 空 → WASM 兜底成功（fetchSpecViaWasmFallback 构建 spec）", async () => {
+    getAndroidBridgeMock.mockReturnValue({} as never);
+    specMock.mockResolvedValue(JSON.stringify({ models: [] })); // Go 恒空（无 Node 通道）
+    buildSpecMock.mockResolvedValue(
+      JSON.stringify({ models: [{ meshGroups: [{ boneId: "root", positions: [0, 0, 0], normals: [], uvs: [], indices: [] }] }] }),
+    );
+    decodeWasmMock.mockResolvedValue({ geometryRaw: '{"geometry":"x"}' });
+    vi.stubGlobal("Image", FakeImage as never); // 纹理加载需同步 onload 的 Image mock
+    try {
+      const r = await preloadModel({ _modelPath: "/m/android.ysm", texture: "t.png" });
+      expect(r.spec.models?.length).toBe(1);
+      expect(buildSpecMock).toHaveBeenCalledWith('{"geometry":"x"}');
+      expect(decodeWasmMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("Android WASM 兜底解码失败 → 仍抛 3D spec 为空（不吞错）", async () => {
+    getAndroidBridgeMock.mockReturnValue({} as never);
+    specMock.mockResolvedValue(JSON.stringify({ models: [] }));
+    decodeWasmMock.mockResolvedValue(null); // 解码失败
+    await expect(
+      preloadModel({ _modelPath: "/m/android-fail.ysm", texture: "t.png" }),
+    ).rejects.toThrow("3D spec 为空");
+  });
+
+  it("Android Go binding 返回 {}（无数据）→ 兜底 null → 抛 3D spec 为空", async () => {
+    getAndroidBridgeMock.mockReturnValue({} as never);
+    specMock.mockResolvedValue(JSON.stringify({ models: [] }));
+    decodeWasmMock.mockResolvedValue({ geometryRaw: '{"geometry":"x"}' });
+    buildSpecMock.mockResolvedValue("{}"); // Go binding 无数据
+    try {
+      await expect(
+        preloadModel({ _modelPath: "/m/android-empty.ysm", texture: "t.png" }),
+      ).rejects.toThrow("3D spec 为空");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("网页版（__YSM_BACKEND__=browser）spec 空 → WASM 兜底成功（P2-2 闭环：纯 TS 移植）", async () => {
+    (globalThis as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    specMock.mockResolvedValue(JSON.stringify({ models: [] }));
+    tsSpecBuilderMock.mockReturnValue(
+      JSON.stringify({ models: [{ meshGroups: [{ boneId: "root", positions: [0, 0, 0], normals: [], uvs: [], indices: [] }] }] }),
+    );
+    decodeWasmMock.mockResolvedValue({ geometryRaw: '{"geometry":"x"}' });
+    vi.stubGlobal("Image", FakeImage as never); // 纹理加载需同步 onload 的 Image mock
+    try {
+      const r = await preloadModel({ _modelPath: "/m/web.ysm", texture: "t.png" });
+      expect(r.spec.models?.length).toBe(1);
+      expect(tsSpecBuilderMock).toHaveBeenCalledWith('{"geometry":"x"}'); // 走纯 TS 移植
+      expect(buildSpecMock).not.toHaveBeenCalled(); // 网页版不走 Go binding
+      expect(decodeWasmMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("网页版 WASM 兜底解码失败 → 仍抛 3D spec 为空（镜像 Android 失败用例）", async () => {
+    (globalThis as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    specMock.mockResolvedValue(JSON.stringify({ models: [] }));
+    decodeWasmMock.mockResolvedValue(null); // 解码失败
+    try {
+      await expect(
+        preloadModel({ _modelPath: "/m/web-fail.ysm", texture: "t.png" }),
+      ).rejects.toThrow("3D spec 为空");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("网页版纯 TS 返回 {}（无数据）→ 兜底 null → 抛 3D spec 为空", async () => {
+    (globalThis as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    specMock.mockResolvedValue(JSON.stringify({ models: [] }));
+    decodeWasmMock.mockResolvedValue({ geometryRaw: '{"geometry":"x"}' });
+    tsSpecBuilderMock.mockReturnValue("{}"); // 纯 TS 移植无数据
+    try {
+      await expect(
+        preloadModel({ _modelPath: "/m/web-empty.ysm", texture: "t.png" }),
+      ).rejects.toThrow("3D spec 为空");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("网页版 WASM 兜底 geometryRaw 为空（\"\"/undefined）→ 兜底 null → 抛 3D spec 为空", async () => {
+    (globalThis as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    specMock.mockResolvedValue(JSON.stringify({ models: [] }));
+    try {
+      for (const [i, empty] of (["", undefined] as const).entries()) {
+        decodeWasmMock.mockResolvedValue({ geometryRaw: empty });
+        await expect(
+          preloadModel({ _modelPath: `/m/web-empty-geo-${i}.ysm`, texture: "t.png" }),
+        ).rejects.toThrow("3D spec 为空");
+      }
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("WASM 路径无 texArrOrder → 契约校验整体跳过，不 warn", async () => {
+    specMock.mockResolvedValue(spec()); // texArrOrder undefined（WASM 路径）
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      await preloadModel({
+        _modelPath: "/m/wasm.ysm",
+        textureNames: ["a.png"],
+        texture: "a.png",
+      });
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+});

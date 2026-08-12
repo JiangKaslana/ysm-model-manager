@@ -1,0 +1,94 @@
+#!/bin/sh
+# YMM pre-commit — 秒级文档/索引自动同步（非阻断）
+# 职责：commit 前自动跑全部秒级 gen 脚本，同步文档/索引/知识卡机器生成区，并 stage 生成文件。
+#       文档与源码同步在 commit 时自动完成，push 时 pre-push 全量门禁兜底。
+# 安装：git config core.hooksPath .githooks（仓库已配置）
+# 逃生阀：YSM_SKIP_GEN=1 git commit  或  git commit --no-verify
+# 设计原则：
+#   - 只做「快速更新 + stage」，不做阻断检查（阻断留给 pre-push）
+#   - 任何 gen 失败仅提示，不阻断 commit
+#   - 幂等：文档已同步时无 diff，git add docs/ 无副作用
+#   - 输出全走 stderr（exec 1>&2）：Windows git hook 下 stdout 管道易断，且 stderr 是 AI 必看的终端通道
+exec 1>&2
+set -u
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || exit 0)"
+[ -z "${ROOT:-}" ] && exit 0
+
+# ── 逃生阀 ──
+if [ "${YSM_SKIP_GEN:-0}" = "1" ]; then
+  echo "[pre-commit] YSM_SKIP_GEN=1, 跳过文档同步"
+  exit 0
+fi
+
+# ── 环境修正（Windows 多 git/node 环境兼容，同 pre-push） ──
+command -v node >/dev/null 2>&1 || {
+  SYS_NODE="/c/Program Files/nodejs"
+  [ -d "$SYS_NODE" ] && PATH="$SYS_NODE:$PATH"
+  export PATH
+  command -v node >/dev/null 2>&1 || {
+    echo "⚠️  node 不可用（PATH 异常）。跳过文档自动同步。"
+    exit 0
+  }
+}
+
+cd "$ROOT"
+
+# ── 秒级文档同步（全部输出在 docs/ 下；失败不阻断） ──
+# 注意：不放任何触发 vitest/coverage 的命令——覆盖率建议由 prepare-commit-msg
+# 只读 frontend/coverage/coverage-final.json，不在此触发（避免提交前跑慢检查）。
+echo "[pre-commit] 文档自动同步..."
+GEN_CMDS='gen-docs-index.mjs
+funcmap.mjs
+gen-knowledge-index.mjs
+build-novel-index.mjs
+gen-project-map.mjs
+gen-vitepress-sidebar.mjs
+gen-knowledge-h1.mjs
+gen-knowledge-symbols.mjs
+gen-knowledge-adr.mjs
+gen-knowledge-tests.mjs
+generate-locale-json.mjs'
+echo "$GEN_CMDS" | while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  # shellcheck disable=SC2086（有意分词以携带 --file 等参数）
+  node scripts/$line >/dev/null 2>&1 || echo "⚠️  scripts/$line 执行失败（不阻断）"
+done
+
+# ── stage 生成的文档（无 diff 则无副作用） ──
+ADD_FAIL=""
+git add docs/ 2>/dev/null || ADD_FAIL="$ADD_FAIL docs/"
+# generate-locale-json.mjs 输出在 frontend/public/locales/（运行时 fetch 消费，与 TS 单一事实源保持同步）
+git add frontend/public/locales/ 2>/dev/null || ADD_FAIL="$ADD_FAIL locales/"
+
+if [ -n "$ADD_FAIL" ]; then
+  echo "⚠️  git add 失败（$ADD_FAIL），文档产物未 stage（不阻断 commit，请检查索引状态）"
+else
+  echo "[pre-commit] ✅ 文档已同步并 stage"
+fi
+
+# ── gofmt 自动修复（staged go 文件；失败仅提示不阻断） ──
+# 修复必须发生在提交时：pre-push 内 commit --amend 是假成功（push 推的是钩子前快照 oid，
+# 钩子里 amend 只改本地 HEAD → 分叉，见 pre-push-gate.mjs 已知坑 2026-08-12）。
+# pre-commit 修复 + stage 后，pre-push 只读校验兜底（检出未格式化即阻断，防 --no-verify 绕过）。
+if command -v gofmt >/dev/null 2>&1; then
+  STAGED_GO=$(git diff --cached --name-only --diff-filter=ACM -- '*.go' 2>/dev/null || true)
+  if [ -n "$STAGED_GO" ]; then
+    UNFMT=$(printf '%s\n' "$STAGED_GO" | xargs gofmt -l 2>/dev/null | grep -v '^$' || true)
+    if [ -n "$UNFMT" ]; then
+      echo "[pre-commit] gofmt 自动修复："
+      printf '%s\n' "$UNFMT" | while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        if git diff --quiet -- "$f"; then
+          gofmt -w "$f" && git add "$f" && echo "  gofmt -w $f"
+        else
+          echo "  ⚠️ $f 含未暂存编辑，跳过自动格式化（请手动 gofmt -w 后提交）"
+        fi
+      done
+      echo "[pre-commit] ✅ go 文件处理完成"
+    fi
+  fi
+else
+  echo "⚠️  gofmt 不可用（PATH 异常），跳过 go 格式化。"
+fi
+
+exit 0

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://v3.wails.io/schemas/config.v3.json",
+  "name": "YSM-Model-Manager",
+  "frontend": {
+    "dir": "./frontend",
+    "install": "npm install",
+    "build": "npm run build",
+    "dev": "npm run dev",
+    "devServerUrl": "http://localhost:5173"
+  }
+}

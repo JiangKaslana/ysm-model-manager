@@ -1,0 +1,267 @@
+// ===== YSMParser WASM 封装 =====
+// 用 Module.wasmBinary 注入方式加载，规避 WebView2 fetch() 限制
+// 优先使用内存解析（ysm_decode_from_memory），回退 callMain + MEMFS
+
+declare global {
+  interface Window {
+    /** Emscripten 模块注入点（initYSMParser 设置，胶水代码消费） */
+    Module?: {
+      wasmBinary: ArrayBuffer;
+      print: () => void;
+      printErr: () => void;
+      noInitialRun: boolean;
+      HEAPU8?: Uint8Array;
+    };
+  }
+}
+
+/** Emscripten FS 最小接口（WASM 导出） */
+interface FSLike {
+  readdir(path: string): string[];
+  stat(path: string): { mode: number };
+  isDir(mode: number): boolean;
+  readFile(path: string): Uint8Array;
+  writeFile(path: string, data: Uint8Array): void;
+  mkdir(path: string): void;
+  rmdir(path: string): void;
+  unlink(path: string): void;
+}
+
+/** Emscripten Module 最小接口（WASM 实例） */
+interface WasmModuleLike {
+  _malloc(len: number): number;
+  _free(ptr: number): void;
+  ccall(
+    fn: string,
+    ret: string | null,
+    args: string[],
+    params: Array<number | string>,
+  ): number | null;
+  FS: FSLike;
+  HEAPU8?: Uint8Array;
+  callMain?: (args: string[]) => void;
+}
+
+/** 解码输出文件 */
+export interface YsmDecodedFile {
+  path: string;
+  data: Uint8Array;
+}
+
+let wasmModule: WasmModuleLike | null = null;
+let loading = false;
+let waiters: Array<(ok: boolean) => void> = [];
+
+// 注：WASM 为 app 级常驻单例（initYSMParser 懒加载后生命周期等同应用），
+// 无销毁场景——曾提供 destroyYSMParser() 但 _free(0) 无法真正释放 HEAP，
+// 且销毁后重新 init 有加载成本，已移除（knip 死代码基线）
+
+export async function initYSMParser(): Promise<boolean> {
+  if (wasmModule) return true;
+  if (loading) return new Promise<boolean>((r) => waiters.push(r));
+  loading = true;
+
+  try {
+    // 1. 从内嵌 JS 拿 .wasm 二进制 + 胶水代码
+    // ⚠️ ysm-wasm-data.js / ysm-glue-data.js 为自动生成的 base64 数据文件（保持 .js）
+    // P2 修复（审计）：此前注释声称 ysm-glue-data.js 的 _getGlueCode 引用未声明的
+    // _cachedWasm（ReferenceError）且返回 ArrayBuffer——已核实数据文件现用 _cachedGlue
+    // 且返回 TextDecoder string，bug 已不存在，WASM 路径不再必然回退 Go。
+    // 若未来生成脚本变动导致 glue 结构变化，先核对 _getGlueCode 返回值形态再改本段。
+    const { _getWasmBinary } = await import("./ysm-wasm-data.js");
+    const { _getGlueCode } = await import("./ysm-glue-data.js");
+    const wasmBinary = _getWasmBinary() as ArrayBuffer | null;
+    const glueCode = _getGlueCode() as string | null;
+    if (!wasmBinary || !wasmBinary.byteLength) throw new Error("wasmBinary 空");
+    if (!glueCode) throw new Error("胶水代码空");
+
+    // 2. 修改胶水代码：在所有 updateMemoryViews 调用后导出 HEAPU8 到 Module
+    //    用 ";updateMemoryViews()" 避免误改函数定义；replaceAll 确保所有调用点都被 patch
+    const patchedGlue = glueCode.replaceAll(
+      ";updateMemoryViews()",
+      ';updateMemoryViews();Module["HEAPU8"]=HEAPU8',
+    );
+
+    // 3. 设置 Module.wasmBinary — 胶水代码执行时直接用，关掉 WASM 的 stdout
+    window.Module = {
+      wasmBinary,
+      print: () => {},
+      printErr: () => {},
+      noInitialRun: true,
+    };
+
+    // 4. 间接 eval 执行胶水代码（代替 <script> 注入，快 ~5x）
+    //    ⚠️ ADR-039 §2.1 安全边界：eval 仅执行 auto-generated 内嵌胶水代码（可信链），
+    //    无外部输入。WebView2/Wails v3 当前无 CSP 配置 API，若未来需 CSP 白名单，
+    //    改用 <script> 注入或 Web Worker 沙箱承载（需回归 ADR-029 解码优先级链）。
+    (0, eval)(patchedGlue);
+
+    // 5. 调用工厂
+    const factory = (window as unknown as { YSMParserModule?: unknown }).YSMParserModule;
+    if (!factory) throw new Error("YSMParserModule 未定义");
+    const factoryFn = factory as (module: unknown) => unknown | Promise<unknown>;
+    const mod = factoryFn(window.Module);
+    const resolved = mod instanceof Promise ? await mod : mod;
+    if (!resolved || typeof (resolved as WasmModuleLike).ccall !== "function") {
+      throw new Error("YSMParserModule 工厂返回异常值");
+    }
+    wasmModule = resolved as WasmModuleLike;
+    loading = false; // 成功后复位，避免 wasmModule 被置空后 loading 恒真 → 永久挂起
+
+    waiters.forEach((r) => r(true));
+    waiters = [];
+    return true;
+  } catch (e) {
+    waiters.forEach((r) => r(false));
+    waiters = [];
+    loading = false;
+    throw e;
+  }
+}
+
+/** 安全获取最新的 WASM HEAPU8（patch 注入到 Module 上，内存扩容后自动更新） */
+function _getHeap(): Uint8Array {
+  // 每次从 window.Module.HEAPU8 取最新的（内存扩容后 updateMemoryViews 会更新它）
+  const h = (window.Module as { HEAPU8?: Uint8Array } | undefined)?.HEAPU8;
+  if (h) return h;
+  // 兜底：取 wasmModule 上的（老版本 Emscripten）
+  if (wasmModule?.HEAPU8) return wasmModule.HEAPU8;
+  throw new Error("无法获取 WASM HEAPU8");
+}
+
+/** 将 JS 数据写入 WASM 内存，返回指针 */
+function _writeHeap(data: Uint8Array): number {
+  // data 现在是 Uint8Array（已在 _decodeYsmViaWasm 中从 base64 解码）
+  const src = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const len = src.length;
+  const ptr = wasmModule!._malloc(len);
+  if (!ptr) throw new Error("malloc 失败 (" + len + " bytes)");
+  const heap = _getHeap();
+  heap.set(src, ptr);
+  return ptr;
+}
+
+/**
+ * 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组）
+ * 返回 [{path, data}]，失败返回 null
+ */
+export async function decodeYsmFileFromMemory(
+  bytes: Uint8Array,
+): Promise<YsmDecodedFile[] | null> {
+  if (!wasmModule) {
+    const ok = await initYSMParser();
+    if (!ok) throw new Error("YSMParser WASM 未就绪");
+  }
+
+  const FS = wasmModule!.FS;
+  const ccall = wasmModule!.ccall;
+  if (!ccall) throw new Error("ccall 不可用，请重新编译 WASM");
+
+  // 准备输出目录
+  wipeDir(FS, "/output");
+  ensureDir(FS, "/output");
+
+  // 使用辅助函数分配内存并写入数据
+  const ptr = _writeHeap(bytes);
+
+  try {
+    const len = bytes.byteLength || bytes.length;
+    const success = ccall(
+      "ysm_decode_from_memory",
+      "number",
+      ["number", "number", "string"],
+      [ptr, len, "/output"],
+    );
+
+    if (!success) return null;
+    return collectOutputFiles(FS, "/output");
+  } finally {
+    wasmModule!._free(ptr);
+  }
+}
+
+/**
+ * 通过 callMain + MEMFS 解码 .ysm（回退路径）
+ * 保留以兼容旧的 WASM 编译
+ */
+export async function decodeYsmFile(
+  bytes: Uint8Array,
+): Promise<YsmDecodedFile[]> {
+  if (!wasmModule) {
+    const ok = await initYSMParser();
+    if (!ok) throw new Error("YSMParser WASM 未就绪");
+  }
+  const FS = wasmModule!.FS;
+  if (!FS) throw new Error("YSMParser FS 不可用");
+
+  wipeDir(FS, "/input");
+  wipeDir(FS, "/output");
+  ensureDir(FS, "/input");
+  ensureDir(FS, "/output");
+
+  FS.writeFile("/input/model.ysm", bytes);
+
+  const hasCallMain = typeof wasmModule!.callMain === "function";
+  if (!hasCallMain) {
+    console.warn("[YSM] WASM 无 callMain，MEMFS 路径不可用");
+  }
+
+  try {
+    if (hasCallMain) {
+      wasmModule!.callMain!(["-i", "/input", "-o", "/output"]);
+    }
+  } catch (err) {
+    const errObj = err as { name?: string; status?: unknown };
+    const errStr = String(errObj?.name || err);
+    if (errStr.includes("ExitStatus")) {
+      if (typeof errObj?.status === "number" && errObj.status !== 0) {
+        throw new Error("YSMParser exit code " + errObj.status);
+      }
+    } else {
+      throw err;
+    }
+  }
+
+  const files = collectOutputFiles(FS, "/output");
+  // 读取后立即清理 MEMFS，避免 WASM HEAP 残留
+  wipeDir(FS, "/output");
+  wipeDir(FS, "/input");
+  return files;
+}
+
+function wipeDir(FS: FSLike, dir: string): void {
+  try {
+    for (const e of FS.readdir(dir).filter((n) => n !== "." && n !== "..")) {
+      const f = dir + "/" + e;
+      if (FS.isDir(FS.stat(f).mode)) {
+        wipeDir(FS, f);
+        FS.rmdir(f);
+      } else {
+        FS.unlink(f);
+      }
+    }
+  } catch (_) {}
+}
+
+function ensureDir(FS: FSLike, dir: string): void {
+  let cur = "";
+  for (const p of dir.split("/").filter(Boolean)) {
+    cur += "/" + p;
+    try {
+      FS.mkdir(cur);
+    } catch (_) {}
+  }
+}
+
+function collectOutputFiles(FS: FSLike, root: string): YsmDecodedFile[] {
+  const r: YsmDecodedFile[] = [];
+  (function w(d: string, rel: string): void {
+    for (const e of FS.readdir(d).filter((n) => n !== "." && n !== "..")) {
+      const f = d + "/" + e;
+      const rp = rel ? rel + "/" + e : e;
+      if (FS.isDir(FS.stat(f).mode)) w(f, rp);
+      else r.push({ path: rp, data: FS.readFile(f) });
+    }
+  })(root, "");
+  return r;
+}

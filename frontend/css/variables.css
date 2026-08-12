@@ -1,0 +1,370 @@
+/* ===== YSM 模型管理器 - CSS 变量系统 ===== */
+/*
+ * 主题系统说明：
+ * - theme-cyber: 赛博霓虹（默认深色，科技感）
+ * - theme-warm: 温暖木纹（明亮模式，自然感）
+ * - theme-pro: 极简深邃（专业向深色，高对比度）
+ *
+ * 变量分类：
+ * - 颜色变量：--bg, --surf, --card, --accent, --txt, --muted, --bd
+ * - 状态变量：--status-success, --status-error, --size-ok, --size-large
+ * - 元数据变量：--meta-author, --meta-work, --meta-date
+ * - 布局变量：--sidebar-width, --preview-width, --r (圆角)
+ * - 字体变量：--fs-*, --fw-*, --font-*
+ * - 间距变量：--space-*, --pad-*
+ * - 按钮变量：--btn-radius, --btn-padding-*, --btn-transition
+ *
+ * 使用规范：
+ * - 优先使用语义化变量（如 --status-success）而非具体颜色值
+ * - 避免硬编码颜色，使用 var() 引用主题变量
+ * - 新增变量时在对应主题中同步定义
+ */
+
+/* ===== 赛博霓虹（默认深色） ===== */
+:root,
+.theme-cyber {
+  --bg: #11111b;
+  --surf: #161622;
+  --card: #24243e;
+  --hover: #2a2a42;
+  --act: #313145;
+  --accent: #9575cd;
+  --txt: #e0d5f5;
+  --muted: #8b7fad;
+  --bd: rgba(149, 117, 205, 0.1);
+  --menu-indicator: #9575cd;
+  --meta-author: #66d9ef;
+  --meta-work: #bd93f9;
+  --meta-date: #f1fa8c;
+  --status-success: #a6e3a1;
+  --status-error: #f38ba8;
+  --size-ok: #a6e3a1;
+  --size-large: #f38ba8;
+  /* P2 修复：默认 cyber 主题补 --accent-btn-*（.btn-base.accent 消费，与 pro 主题同值口径）——
+     原缺失导致默认暗色主题下 accent 主操作按钮静默失去样式（var 无 fallback → background 归初始） */
+  --accent-btn-bg: color-mix(in srgb, var(--accent) 15%, transparent);
+  --accent-btn-color: var(--accent);
+  --accent-btn-border: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* ===== 温暖木纹（明亮模式） ===== */
+.theme-warm {
+  --bg: #f5f0e1;
+  --surf: #ede4cf;
+  --card: #faf6ed;
+  --hover: #e6dcc4;
+  --act: #ddd0b8;
+  --accent: #8b4513;
+  --txt: #3e2723;
+  --muted: #8b7355;
+  --bd: rgba(139, 69, 19, 0.12);
+  --card-shadow: var(--shadow-sm);
+  --card-shadow-hover: var(--shadow-md);
+  --menu-indicator: #8b4513;
+  --meta-author: #b5651d;
+  --meta-work: #9b4d2a;
+  --meta-date: #a0866a;
+  --status-success: #2e7d32;  /* 绿色 — 与深色主题语义一致 */
+  --status-error: #c62828;
+  --size-ok: #2e7d32;
+  --size-large: #c62828;
+  --accent-btn-bg: color-mix(in srgb, var(--accent) 15%, transparent);
+  --accent-btn-color: var(--accent);
+  --accent-btn-border: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* ===== 极简深邃（专业向深色/暖灰） ===== */
+.theme-pro {
+  --bg: #0f0f0f;
+  --surf: #1a1a1a;
+  --card: #222222;
+  --hover: #2a2a2a;
+  --act: #333333;
+  --accent: #ff8a65;
+  --txt: #f0e6e0;
+  --muted: #a09080;
+  --bd: rgba(255, 138, 101, 0.1);
+  --menu-indicator: #ff8a65;
+  --meta-author: #ff8a65;
+  --meta-work: #b0bec5;
+  --meta-date: #90a4ae;
+  --status-success: #a5d6a7;
+  --status-error: #ef9a9a;
+  --size-ok: #a5d6a7;
+  --size-large: #ef9a9a;
+  --accent-btn-bg: color-mix(in srgb, var(--accent) 20%, transparent);
+  --accent-btn-color: var(--accent);
+  --accent-btn-border: color-mix(in srgb, var(--accent) 33%, transparent);
+}
+
+/* ===== 樱花物语（亮色/粉色系） ===== */
+.theme-sakura {
+  --bg: #fdf2f5;
+  --surf: #fbe8ee;
+  --card: #fff0f4;
+  --hover: #fce0e8;
+  --act: #f48fb1;
+  --accent: #d81b60;
+  --txt: #37474f;
+  --muted: #78909c;
+  --bd: rgba(216, 27, 96, 0.12);
+  --menu-indicator: #d81b60;
+  --meta-author: #d81b60;
+  --meta-work: #7b1fa2;
+  --meta-date: #ef6c00;
+  --status-success: #2e7d32;
+  --status-error: #c62828;
+  --size-ok: #2e7d32;
+  --size-large: #c62828;
+  --accent-btn-bg: color-mix(in srgb, var(--accent) 15%, transparent);
+  --accent-btn-color: var(--accent);
+  --accent-btn-border: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* ===== 深海探秘（暗色/蓝色系） ===== */
+.theme-ocean {
+  --bg: #0a1e2d;
+  --surf: #0f2a3d;
+  --card: #15334a;
+  --hover: #1a3d55;
+  --act: #1f4a65;
+  --accent: #5c6bc0;
+  --txt: #c5d8e8;
+  --muted: #5f8a87;
+  --bd: rgba(92, 107, 192, 0.12);
+  --menu-indicator: #5c6bc0;
+  --meta-author: #42a5f5;
+  --meta-work: #7e57c2;
+  --meta-date: #ffb74d;
+  --status-success: #81c784;
+  --status-error: #e57373;
+  --size-ok: #81c784;
+  --size-large: #e57373;
+  --accent-btn-bg: color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-btn-color: var(--accent);
+  --accent-btn-border: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* ===== 薄荷物语（亮色/绿色系） ===== */
+.theme-mint {
+  --bg: #f0faf5;
+  --surf: #e6f5ec;
+  --card: #f5fdf9;
+  --hover: #dceede;
+  --act: #a5d6a7;
+  --accent: #4db6ac;
+  --txt: #2c3e3a;
+  --muted: #6d8a7e;
+  --bd: rgba(77, 182, 172, 0.12);
+  --menu-indicator: #4db6ac;
+  --meta-author: #4db6ac;
+  --meta-work: #7986cb;
+  --meta-date: #ffb74d;
+  --status-success: #2e7d32;
+  --status-error: #c62828;
+  --size-ok: #2e7d32;
+  --size-large: #c62828;
+  --accent-btn-bg: color-mix(in srgb, var(--accent) 15%, transparent);
+  --accent-btn-color: var(--accent);
+  --accent-btn-border: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* ===== 字体系统 ===== */
+:root {
+  /* 基准大小 + 缩放量（由设置页控制，默认 0px = 12px 基准） */
+  --fs-base-size: 12px;
+  --fs-scale: 0px;
+
+  /* 字号 - 全部相对基准缩放 */
+  --fs-tiny: calc(var(--fs-base-size) - 5px + var(--fs-scale)); /* 7px @ 基准 */
+  --fs-xs: calc(var(--fs-base-size) - 2px + var(--fs-scale)); /* 10px @ 基准 */
+  --fs-sm: calc(var(--fs-base-size) - 1px + var(--fs-scale)); /* 11px @ 基准 */
+  --fs-base: calc(var(--fs-base-size) + var(--fs-scale)); /* 12px @ 基准 */
+  --fs-md: calc(var(--fs-base-size) + 1px + var(--fs-scale)); /* 13px @ 基准 */
+  --fs-lg: calc(var(--fs-base-size) + 2px + var(--fs-scale)); /* 14px @ 基准 */
+  --fs-xl: calc(var(--fs-base-size) + 12px + var(--fs-scale)); /* 24px @ 基准 */
+
+  /* 字重 */
+  --fw-normal: 400;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* 字体栈 */
+  --font-ui:
+    -apple-system, "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  --font-display: "STKaiti", "KaiTi", "楷体", serif;
+}
+
+/* 布局变量 — 共享布局变量提升到 :root */
+:root {
+  --sidebar-width: 300px;
+  --preview-width: 240px;
+  --card-padding: 6px 10px;
+  --card-gap: 6px;
+  --sm-optional: #f9a826;
+  /* 间距变量 — 按钮/tab padding-V 使用，随字号缩放 */
+  --space-xs: calc(3px + var(--fs-scale) * 0.25);
+  --space-sm: calc(4px + var(--fs-scale) * 0.35);
+  --space-md: calc(5px + var(--fs-scale) * 0.42);
+  --space-lg: calc(6px + var(--fs-scale) * 0.5);
+
+  /* 语义化字号 — 按 UI 角色命名，随 --fs-scale 缩放 */
+  --fs-nav: calc(13px + var(--fs-scale)); /* 导航主标签（repo-tab）*/
+  --fs-tab: calc(12px + var(--fs-scale)); /* 二级子标签（repo-subtab, sm-tab）*/
+  --fs-filter: calc(11px + var(--fs-scale)); /* 筛选标签（sm-status-tab）*/
+  --fs-btn-primary: calc(
+    12px + var(--fs-scale)
+  ); /* 主要操作按钮（hdr-btn, dlg-btn）*/
+  --fs-btn-secondary: calc(
+    11px + var(--fs-scale)
+  ); /* 次要/行内按钮（sm-item-btn）*/
+  --fs-btn-tool: calc(10px + var(--fs-scale)); /* 工具栏小按钮（repo-bar-btn）*/
+
+  /* 语义化垂直间距 — 按 UI 角色，随字号比例缩放 */
+  --pad-nav: calc(6px + var(--fs-scale) * 0.5);
+  --pad-tab: calc(5px + var(--fs-scale) * 0.42);
+  --pad-filter: calc(4px + var(--fs-scale) * 0.35);
+  --pad-btn-primary: calc(5px + var(--fs-scale) * 0.42);
+  --pad-btn-secondary: calc(4px + var(--fs-scale) * 0.35);
+  --pad-btn-tool: calc(3px + var(--fs-scale) * 0.25);
+
+  /* ===== 统一按钮系统变量 ===== */
+  --btn-radius: 6px;
+  --btn-padding-sm: var(--pad-btn-tool) 6px;    /* 工具栏小按钮 */
+  --btn-padding-md: var(--pad-btn-secondary) 8px; /* 次要按钮 */
+  --btn-padding-lg: var(--pad-btn-primary) 12px;  /* 主要按钮 */
+  --btn-transition: background-color var(--tr-normal), border-color var(--tr-normal), color var(--tr-normal), box-shadow var(--tr-normal);
+
+  /* ===== 过渡时长系统 ===== */
+  --tr-fast: 0.12s ease;      /* 按钮 hover、微交互 */
+  --tr-normal: 0.15s ease;    /* 面板展开、卡片过渡 */
+  --tr-slow: 0.2s ease;       /* 页面切换、内容淡入 */
+  --tr-enter: 0.25s ease-out; /* 入场动画 */
+
+  /* ===== 阴影层级系统 ===== */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.25);
+
+  /* ===== 圆角系统 ===== */
+  --radius-xs: 3px;   /* 标签内小元素、进度条 */
+  --radius-sm: 4px;   /* 按钮、输入框、筛选标签 */
+  --radius-md: 6px;   /* 卡片、对话框、按钮组 */
+  --radius-lg: 8px;   /* 大卡片、弹出面板 */
+  --radius-xl: 10px;  /* 全局卡片默认（--r） */
+  --radius-pill: 20px; /* 药丸形徽章 */
+
+  /* ===== Z-Index 层级系统 ===== */
+  --z-dropdown: 100;        /* 下拉菜单、弹出框 */
+  --z-sticky: 200;          /* 吸顶元素 */
+  --z-modal-backdrop: 900;  /* 模态框背景 */
+  --z-modal: 1000;          /* 模态框内容 */
+  --z-popover: 1100;        /* Popover、Tooltip */
+  --z-toast: 1200;          /* Toast 通知 */
+  --z-fullscreen: 9999;     /* 全屏预览、拖拽覆盖层 */
+}
+
+/* 减少动画模式：仅禁用 hover/装饰性动画，保留布局过渡 */
+.no-animations .gh-card,
+.no-animations .model-card,
+.no-animations .model-card-sm,
+.no-animations .rec-card,
+.no-animations .vm-card,
+.no-animations .cr-creator-card,
+.no-animations .repo-tab,
+.no-animations .repo-subtab,
+.no-animations .diag-btn,
+.no-animations .hdr-btn,
+.no-animations .btn,
+.no-animations .tb-btn,
+.no-animations .cr-avatar,
+.no-animations .vc,
+.no-animations .vc-header,
+.no-animations .logo-icon,
+.no-animations .toast,
+.no-animations .theme-ripple-active,
+.no-animations .dlg-overlay,
+.no-animations .dlg-box,
+.no-animations .page,
+.no-animations .content > *,
+.no-animations .btn-base,
+.no-animations #set-advanced-panel,
+.no-animations .sm-list {
+  transition-duration: 0s !important;
+  animation: none !important;
+}
+
+.no-animations .sm-item,
+.no-animations .sm-item-btn,
+.no-animations .sm-tab,
+.no-animations .sm-status-tab,
+.no-animations .sm-empty {
+  transition-duration: 0s !important;
+  animation: none !important;
+}
+
+/* 网格背景和涟漪动画单独处理 */
+.no-animations.theme-cyber #root::before { animation: none !important; }
+.no-animations .menu { animation: none !important; }
+.no-animations .menu .item { animation: none !important; }
+/* 通用 stagger 入场 */
+.no-animations .stagger-in > * { animation: none !important; }
+/* 导入队列项目滑入 */
+.no-animations #dl-imported-list > div { animation: none !important; }
+/* 创作者卡片筛选淡出 */
+.no-animations .cr-creator-card.cr-card-hidden { transition: none !important; }
+/* 批量重命名行入场 */
+.no-animations .br-row { animation: none !important; }
+/* 诊断面板切换 */
+.no-animations .diag-panel { animation: none !important; }
+/* 回收站项目 */
+.no-animations .recy-item { animation: none !important; }
+.no-animations .recy-item.leaving { transition: none !important; }
+/* 资源管理器 */
+.no-animations .rm-item { animation: none !important; }
+.no-animations .rm-content { animation: none !important; }
+/* 对话框退场动画 */
+.no-animations .dlg-overlay.dlg-closing { animation: none !important; }
+.no-animations .dlg-overlay.dlg-closing .dlg-box { animation: none !important; }
+
+/* ===== 无障碍支持：焦点状态 ===== */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+[tabindex]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+  outline: none; /* 使用 box-shadow 替代 outline，避免与边框冲突 */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-normal);
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  background: var(--bg);
+  color: var(--txt);
+  overflow: hidden;
+}
+
+/* ===== 向后兼容别名（逐步迁移后可删除） ===== */
+:root {
+  --free: var(--status-success);     /* @deprecated 使用 --status-success */
+  --paid: var(--status-error);       /* @deprecated 使用 --status-error */
+  --sz-green: var(--size-ok);        /* @deprecated 使用 --size-ok */
+  --sz-red: var(--size-large);       /* @deprecated 使用 --size-large */
+}

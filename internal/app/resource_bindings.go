@@ -1,0 +1,555 @@
+package app
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+
+	"ysm-model-manager/go/dedup"
+	"ysm-model-manager/go/fileops"
+	"ysm-model-manager/go/importer"
+	"ysm-model-manager/go/installer"
+	"ysm-model-manager/go/litematic"
+	"ysm-model-manager/go/packs"
+	"ysm-model-manager/go/paths"
+	"ysm-model-manager/go/scanner"
+	"ysm-model-manager/go/types"
+)
+
+// LoadResourceTypes 加载资源类型注册表
+func (a *App) LoadResourceTypes() string {
+	data, err := loadBundledData("resource_types.json")
+	if err != nil {
+		return "{}"
+	}
+	return string(data)
+}
+
+// ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png）
+func (a *App) ReadPackMeta(path string) string {
+	meta, thumb, err := packs.ReadPackMeta(path)
+	if err != nil {
+		log.Printf("[packs] ReadPackMeta 失败 %s: %v", path, err)
+		return "{}"
+	}
+	result := map[string]interface{}{
+		"pack_format": meta.Pack.PackFormat,
+		"description": meta.Desc(),
+		"thumbnail":   thumb,
+	}
+	if meta.Pack.SupportedFormats != nil {
+		result["supported_formats"] = []int{meta.Pack.SupportedFormats.Min, meta.Pack.SupportedFormats.Max}
+	}
+	if meta.Pack.MinFormat != nil {
+		result["min_format"] = []int{meta.Pack.MinFormat.Min, meta.Pack.MinFormat.Max}
+	}
+	if meta.Pack.MaxFormat != nil {
+		result["max_format"] = []int{meta.Pack.MaxFormat.Min, meta.Pack.MaxFormat.Max}
+	}
+	data, _ := json.Marshal(result)
+	return string(data)
+}
+
+// ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名
+func (a *App) ReadShaderpackLang(path string) string {
+	return packs.ReadShaderpackLang(path)
+}
+
+// ===== Litematica 蓝图/投影绑定 =====
+
+// marshalVoxelData 调用体素构建函数并序列化为 JSON。
+func marshalVoxelData(tag, fnName, path string, buildFn func(string, int) (*types.LitematicVoxelData, error), maxBlocks int) string {
+	data, err := buildFn(path, maxBlocks)
+	if err != nil {
+		log.Printf("[%s] %s 失败 %s: %v", tag, fnName, path, err)
+		return "{}"
+	}
+	result, _ := json.Marshal(data)
+	return string(result)
+}
+
+// voxelMaxBlocks 从配置读取体素渲染上限，未设置时默认 200000。
+func (a *App) voxelMaxBlocks() int {
+	cfg := a.LoadAppConfig()
+	if cfg.VoxelMaxBlocks > 0 {
+		return cfg.VoxelMaxBlocks
+	}
+	return 200000
+}
+
+// GetNbtVoxelData 读取 .nbt 结构文件体素数据
+func (a *App) GetNbtVoxelData(path string) string {
+	return marshalVoxelData("nbt", "BuildNbtVoxelData", path, litematic.BuildNbtVoxelData, a.voxelMaxBlocks())
+}
+
+// GetSchematicVoxelData 读取 .schematic 文件体素数据
+func (a *App) GetSchematicVoxelData(path string) string {
+	return marshalVoxelData("schematic", "BuildSchematicVoxelData", path, litematic.BuildSchematicVoxelData, a.voxelMaxBlocks())
+}
+
+// ReadSchematic 读取 .schematic 文件基本信息
+func (a *App) ReadSchematic(path string) string {
+	result := litematic.ParseSchematicSummary(path)
+	if result == nil {
+		return "{}"
+	}
+	data, _ := json.Marshal(result)
+	return string(data)
+}
+
+// ReadNbtStructure 读取 .nbt 结构文件基本信息
+func (a *App) ReadNbtStructure(path string) string {
+	result := litematic.ParseNbtStructure(path)
+	if result == nil {
+		return "{}"
+	}
+	data, _ := json.Marshal(result)
+	return string(data)
+}
+
+// ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图）
+func (a *App) ReadLitematicMeta(path string) string {
+	meta, err := litematic.ParseMeta(path)
+	if err != nil {
+		log.Printf("[litematic] ParseMeta 失败 %s: %v", path, err)
+		return "{}"
+	}
+	data, _ := json.Marshal(meta)
+	return string(data)
+}
+
+// GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置）
+func (a *App) GetLitematicVoxelData(path string) string {
+	return marshalVoxelData("litematic", "BuildVoxelData", path, litematic.BuildVoxelData, a.voxelMaxBlocks())
+}
+
+// SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000
+func (a *App) SetVoxelMaxBlocks(limit int) error {
+	cfg := a.LoadAppConfig()
+	cfg.VoxelMaxBlocks = limit
+	return a.saveConfig(cfg)
+}
+
+// DetectResourceType 检测指定文件的资源类型
+func (a *App) DetectResourceType(path string) string {
+	var registry types.ResourceTypeRegistry
+	if data, err := loadBundledData("resource_types.json"); err == nil {
+		// json.Unmarshal 忽略 err——损坏 JSON → 空注册表 →
+		// 检测全部返回 ""（静默失效）；显式 log + 回退嵌入基线
+		if uerr := json.Unmarshal(data, &registry); uerr != nil {
+			log.Printf("[app] DetectResourceType: resource_types.json 解析失败: %v, 回退嵌入基线", uerr)
+			registry = *types.LoadRegistry()
+		}
+	} else {
+		registry = *types.LoadRegistry()
+	}
+	return packs.DetectResourceType(path, &registry)
+}
+
+// GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。
+// Android：固定公共路径（如 /storage/emulated/0/YSM-Model-Manager，授权
+// MANAGE_EXTERNAL_STORAGE 后直读，查看器模式）；desktop：空串。
+// 供前端 Android 分支「自动定位公共目录」使用（ADR-046 P2）。
+// 会尝试 MkdirAll 创建目录；创建后目录仍不可读（未授权）则返回空串，
+// 避免前端 toast 假成功（review 修复）。
+func (a *App) GetDefaultRepoRoot() string {
+	root := defaultRepoRoot()
+	if root == "" {
+		return ""
+	}
+	// 尝试创建（查看器模式：定位即创建）；失败不影响返回（可能已存在只读场景）
+	_ = os.MkdirAll(root, 0755)
+	// 目录存在且可读才返回（未授权时 os.Open 失败 → 空串，前端走引导）
+	if !repoDirAccessible(root) {
+		return ""
+	}
+	return root
+}
+
+// GetRepoRoot 根据资源类型返回对应的仓库根目录
+func (a *App) GetRepoRoot(rtype string) (string, error) {
+	cfg := a.LoadAppConfig()
+	// 1. 类型专属覆写
+	if root := specificRoot(cfg, rtype); root != "" {
+		return root, nil
+	}
+	subDir := types.StorageSubDir(rtype)
+	// 2. FilesRoot + 存储子目录
+	if cfg.FilesRoot != "" {
+		if subDir != "" {
+			return filepath.Join(cfg.FilesRoot, subDir), nil
+		}
+		// 空 rtype 时返回 FilesRoot 根目录，供跨类型搜索使用
+		if rtype == "" {
+			return cfg.FilesRoot, nil
+		}
+	}
+	// 3. 平台默认公共仓库根（Android：固定路径，授权 MANAGE_EXTERNAL_STORAGE 后直读，
+	//    查看器模式；desktop：空串不介入，用户需在设置页配置）。
+	//    ⚠️ 仅在目录真实存在且可读时回退——未授权/目录不存在时返回空串，
+	//    保留「未配置」信号，让调用方走「请先配置仓库目录」引导而非裸文件错误。
+	if root := defaultRepoRoot(); root != "" && repoDirAccessible(root) {
+		if subDir != "" {
+			return filepath.Join(root, subDir), nil
+		}
+		return root, nil
+	}
+	return "", nil
+}
+
+// repoDirAccessible 校验目录真实存在且可读（防未授权/未创建时静默假成功）。
+// 与 writableDir 不同：仓库目录只读即可（查看器模式），不做可写性探针。
+func repoDirAccessible(dir string) bool {
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	f, err := os.Open(dir)
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	return true
+}
+
+// specificRoot 返回资源类型的专属覆写路径，从 resource_types.json 注册表驱动
+func specificRoot(cfg types.AppConfig, rtype string) string {
+	rt := types.RegistryType(rtype)
+	if rt == nil || rt.ConfigField == "" {
+		return ""
+	}
+	v := reflect.ValueOf(cfg)
+	if f := v.FieldByName(rt.ConfigField); f.IsValid() && f.Kind() == reflect.String {
+		if s := f.String(); s != "" {
+			return s
+		}
+	}
+	if rt.ConfigFallback != "" {
+		if f := v.FieldByName(rt.ConfigFallback); f.IsValid() && f.Kind() == reflect.String {
+			return f.String()
+		}
+	}
+	return ""
+}
+
+// ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled）
+// 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 ToggleModelEnable 经 fileops
+// 的 ysmRoot 防护；rename 目标派生自输入路径，越权路径会连带生成越权目标）。
+// 额外拒绝 path == 仓库根——IsInside 对「路径等于基准」按设计返回 nil，
+// 传入仓库根时 os.Rename(root, root+".disabled") 会把整个仓库移出配置位置（镜像 DeleteModelDir
+// 的 rel=="." 拒绝同类输入）
+func (a *App) ToggleResourcePack(path string) bool {
+	// 守卫基准遍历全部配置根——原基准 a.ysmRoot() 下 resourcepacks 是
+	// FilesRoot 的兄弟子目录，相对 ysmRoot 为 ../ 被误拒，启用/禁用永远失败。
+	// 对任一根：路径等于根本身拒绝（防根被改名），在根内则放行；都不匹配返回 false。
+	cfg := a.LoadAppConfig()
+	roots := []string{
+		cfg.FilesRoot, cfg.McRoot, cfg.ResourcepackRoot,
+		cfg.ShaderpackRoot, cfg.SchematicRoot, cfg.LitematicRoot, cfg.MmdRoot, cfg.VrcRoot,
+	}
+	allowed := false
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		if filepath.Clean(path) == filepath.Clean(root) {
+			return false
+		}
+		if paths.IsInside(root, path) == nil {
+			allowed = true
+		}
+	}
+	if !allowed {
+		return false
+	}
+	disabled := strings.HasSuffix(path, ".disabled")
+	var src, dst string
+	if disabled {
+		src = path
+		dst = strings.TrimSuffix(path, ".disabled")
+	} else {
+		src = path
+		dst = path + ".disabled"
+	}
+	// 防覆盖：目标已存在（同名新文件/旧状态残留）时拒绝——os.Rename 会静默覆盖，
+	// 对齐 ToggleModelEnable 批次3 P1 修复（剥 .ban 后静默覆盖同名新文件）
+	if _, err := os.Stat(dst); err == nil {
+		return false
+	}
+	if err := os.Rename(src, dst); err != nil {
+		return false
+	}
+	// 切换后失效该目录扫描缓存——与 ToggleModelEnable 的 InvalidatePath 对齐（防 30s 陈旧缓存）
+	scanner.InvalidatePath(filepath.Dir(path))
+	return true
+}
+
+// IsResourcePackEnabled 检查资源包是否启用
+func (a *App) IsResourcePackEnabled(path string) bool {
+	return !strings.HasSuffix(path, ".disabled")
+}
+
+// SelectImportZip 打开文件选择器选取 .zip 文件
+func (a *App) SelectImportZip() string {
+	path, err := a.app.Dialog.OpenFile().
+		SetTitle("选择资源包文件").
+		AddFilter("ZIP 资源包", "*.zip").
+		PromptForSingleSelection()
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
+// SelectImportFile 打开文件选择器，按给定扩展名过滤
+// filter 格式: "显示名|*.ext1;*.ext2"
+func (a *App) SelectImportFile(filter, title string) string {
+	dialog := a.app.Dialog.OpenFile()
+	if title == "" {
+		title = "选择文件"
+	}
+	dialog = dialog.SetTitle(title)
+	if filter != "" {
+		parts := strings.SplitN(filter, "|", 2)
+		if len(parts) == 2 {
+			dialog = dialog.AddFilter(parts[0], parts[1])
+		}
+	}
+	path, err := dialog.PromptForSingleSelection()
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
+// SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认）
+// 非空入参经 filepath.Abs(filepath.Clean()) 规范化，防止含 .. 或未规范化路径
+// 配置字段由注册表 configField 反射驱动（复用 specificRoot 同款模式），
+// 避免硬编码 switch 与注册表新增类型漂移。
+func (a *App) SetResourceRoot(rtype, path string) error {
+	cfg := a.LoadAppConfig()
+	rt := types.RegistryType(rtype)
+	if rt == nil || rt.ConfigField == "" {
+		return fmt.Errorf("不支持单独设置此类型的路径: %s", rtype)
+	}
+	if path != "" {
+		abs, err := filepath.Abs(filepath.Clean(path))
+		if err != nil {
+			return fmt.Errorf("路径异常: %v", err)
+		}
+		path = abs
+	}
+	v := reflect.ValueOf(&cfg).Elem().FieldByName(rt.ConfigField)
+	if !v.IsValid() || v.Kind() != reflect.String {
+		return fmt.Errorf("配置字段缺失: %s", rt.ConfigField)
+	}
+	v.SetString(path)
+	return a.saveConfig(cfg)
+}
+
+// ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值）
+func (a *App) ResetResourceRoot(rtype string) error {
+	return a.SetResourceRoot(rtype, "")
+}
+
+// saveConfig 写入配置到文件
+func (a *App) saveConfig(cfg types.AppConfig) error {
+	if configDir() == "" {
+		// 平台数据根缺失（Android 沙盒不可用等）：fail-fast 报明确错误，
+		// 绝不退化为相对路径（CWD=/ 只读 → 无意义的 read-only 报错）
+		return errors.New("配置目录不可用：平台数据根缺失（Android 沙盒不可用）")
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	dest := configPath()
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(dest, data, 0644); err != nil {
+		return err
+	}
+	// update in-memory cache
+	a.configMu.Lock()
+	a.configCache = cfg
+	a.configLoaded = true
+	a.configMu.Unlock()
+	return nil
+}
+
+// ImportResourcePack 使用策略模式导入资源包
+func (a *App) ImportResourcePack(srcPath, rtype string) string {
+	dstDir, _ := a.GetRepoRoot(rtype)
+	if dstDir == "" {
+		return "未设置" + rtype + "目录"
+	}
+	h := importer.Get(rtype)
+	if h == nil {
+		return fmt.Sprintf("未知的资源类型: %s", rtype)
+	}
+	return h.Import(srcPath, dstDir)
+}
+
+// ImportByType 统一导入入口——根据资源类型自动选择导入策略
+func (a *App) ImportByType(rtype, srcPath string) string {
+	h := importer.Get(rtype)
+	if h == nil {
+		return fmt.Sprintf("未找到资源类型 %s 的导入策略", rtype)
+	}
+	dstDir, _ := a.GetRepoRoot(rtype)
+	if dstDir == "" {
+		return "未设置" + rtype + "目录"
+	}
+	return h.Import(srcPath, dstDir)
+}
+
+// DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）：
+// src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。
+// 统一委托 fileops.DeleteModelFile，消除与 DeleteModelDir 的双轨语义。
+// 守卫根传类型特定仓库根（ysm 用 a.ysmRoot()）：防根级 ysm.json 清空整个 ysm 仓库；
+// 守卫拒绝时 fileops 内部回退单文件删除。
+func (a *App) DeleteResourcePack(path string) error {
+	if err := fileops.DeleteModelFile(a.ysmRoot(), path); err != nil {
+		return err
+	}
+	// 删除后失效扫描缓存——否则 30s 内已删文件仍出现在扫描结果（陈旧缓存"复活"）
+	scanner.InvalidateCache()
+	return nil
+}
+
+// DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹
+// 路径守卫：限制在 FilesRoot 内，防止删除系统目录
+func (a *App) DeleteModelDir(path string) error {
+	root := a.ysmRoot()
+	clean := filepath.Clean(filepath.Dir(path))
+	rel, err := filepath.Rel(root, clean)
+	// `rel == "."`（clean 即根目录本身）同样拒绝——原 `strings.HasPrefix(rel, "..")`
+	// 对 `"."` 不成立 → 传入仓库根路径时可 `os.RemoveAll` 整删整个 ysm 仓库
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return fmt.Errorf("路径超出仓库目录")
+	}
+	if err := os.RemoveAll(clean); err != nil {
+		return err
+	}
+	// 删除后失效扫描缓存——否则 30s 内已删文件夹仍出现在扫描结果
+	scanner.InvalidateCache()
+	return nil
+}
+
+// findDuplicateErrorJSON 返回结构化错误 JSON（绑定契约：DedupGroup[] | {error}）。
+// 前端社区诊断按 JSON.parse 后 {error} 字段区分扫描失败与无重复（避免假绿）；
+// 使用 json.Marshal 生成，而非 strconv.Quote 拼接（避免手工拼接 JSON 的转义遗漏）。
+func findDuplicateErrorJSON(msg string) string {
+	data, err := json.Marshal(map[string]string{"error": msg})
+	if err != nil {
+		return `{"error":"json marshal failed"}`
+	}
+	return string(data)
+}
+
+// FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。
+// 契约（见 docs/wails-bindings.md）：成功 → DedupGroup[]；失败 → {error: string}。
+func (a *App) FindDuplicateFiles(dir string) string {
+	if !a.isPathInRootOrSelf(dir) {
+		return findDuplicateErrorJSON("路径超出仓库目录")
+	}
+	groups, err := dedup.FindDuplicateFiles(dir, true)
+	if err != nil {
+		// 失败时返回 {error: ...}，前端据此区分失败与无重复，避免假绿
+		// （根符号链接/权限错误时用户以为全扫到了而实际没扫）
+		log.Printf("[dedup] FindDuplicateFiles 扫描失败: %v", err)
+		return findDuplicateErrorJSON(err.Error())
+	}
+	data, _ := json.Marshal(groups)
+	return string(data)
+}
+
+// CountDuplicateFiles 快速统计重复文件数量。
+// 契约（见 docs/wails-bindings.md）：成功 → {groups, extra}；失败 → {error: string}。
+func (a *App) CountDuplicateFiles(dir string) string {
+	if !a.isPathInRootOrSelf(dir) {
+		return findDuplicateErrorJSON("路径超出仓库目录")
+	}
+	groups, extra, err := dedup.CountDuplicates(dir, true)
+	if err != nil {
+		log.Printf("[dedup] CountDuplicateFiles 扫描失败: %v", err)
+		return findDuplicateErrorJSON(err.Error())
+	}
+	data, _ := json.Marshal(map[string]int{"groups": groups, "extra": extra})
+	return string(data)
+}
+
+// InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache）
+func (a *App) InvalidateScanCache() {
+	a.ClearScanCache()
+}
+
+// InstallResourceToInstance 将资源文件安装到指定整合包
+// rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文件路径，instanceName: 整合包名称
+func (a *App) InstallResourceToInstance(rtype, srcPath, instanceName string) error {
+	cfg := a.LoadAppConfig()
+	if cfg.McRoot == "" {
+		return fmt.Errorf("请先设置游戏根目录")
+	}
+
+	// 查找目标整合包
+	instances := a.ListVersionInstances(cfg.McRoot)
+	var target *types.VersionInstance
+	for i := range instances {
+		if instances[i].Name == instanceName {
+			target = &instances[i]
+			break
+		}
+	}
+	if target == nil {
+		return fmt.Errorf("未找到整合包: %s", instanceName)
+	}
+
+	// 根据 rtype 确定安装子目录（集中定义在 go/types/extensions.go）
+	subDir := types.SubDirMap(rtype)
+	if subDir == "" {
+		return fmt.Errorf("未知的资源类型: %s", rtype)
+	}
+
+	// 目标路径 = 整合包版本目录 + 子目录
+	dstDir := filepath.Join(target.VersionDir, subDir)
+
+	// 统一走 installer.Install，复用链接模式支持
+	globalRoot, _ := a.GetRepoRoot(rtype)
+
+	// 如果源文件父目录 != 全局根目录，说明在子目录中 → 推送整个文件夹
+	srcParent := filepath.Dir(srcPath)
+
+	if globalRoot == "" {
+		return installer.Install(srcPath, dstDir, globalRoot, a.LinkMode)
+	}
+
+	cleanParent := filepath.Clean(srcParent)
+	cleanRoot := filepath.Clean(globalRoot)
+
+	hasPrefix := strings.HasPrefix(strings.ToLower(srcParent), strings.ToLower(globalRoot))
+
+	// YSM(.json) 和 MMD(.pmx/.pmd) 模型可能有子文件夹（含动作/纹理等配套文件）
+	// VRM(.vrm) 是自包含格式，单文件即可
+	// 目录型行为由注册表 isDir 驱动（mmd-skin/vrchat-avatar isDir:true）；
+	// ysm 注册表 isDir:false，但现状 ysm 需要文件夹级推送（含配套文件），
+	// 故显式保留 rtype == "ysm" 维持既有行为不变。
+	rt := types.RegistryType(rtype)
+	needsFolder := rt != nil && (rt.IsDir || rtype == "ysm")
+
+	if cleanParent != cleanRoot && hasPrefix && needsFolder {
+		if err := installer.InstallDir(srcParent, dstDir, globalRoot, a.LinkMode, rtype); err != nil {
+			// 文件夹级安装失败直接报错：静默降级为单文件会丢配套文件且用户无感知
+			return fmt.Errorf("安装目录失败: %w", err)
+		}
+		return nil
+	}
+
+	return installer.Install(srcPath, dstDir, globalRoot, a.LinkMode)
+}

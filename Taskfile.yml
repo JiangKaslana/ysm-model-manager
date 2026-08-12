@@ -1,0 +1,73 @@
+version: '3'
+
+vars:
+  APP_NAME: "YSM-Model-Manager"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  # 版本号：dev 模式直接用 "dev"，正式构建通过环境变量注入
+  APP_VERSION: '{{.APP_VERSION | default "dev"}}'
+  BUILD_TIME: '{{.BUILD_TIME | default "unknown"}}'
+  COMMIT_HASH: '{{.COMMIT_HASH | default "unknown"}}'
+
+# 平台 includes：windows 为主力，darwin/linux 桌面三平台（ADR-046 P1），
+# android 为移动端（ADR-046 P2，工程资产已搬运，需 NDK 环境）。
+# ios 联邦标准分支在本仓库尚不存在对应 build/<os>/ 目录，
+# 若未来扩展移动端再补 includes 即可。
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+  android: ./build/android/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+
+  build:dev:
+    summary: Dev build (no production tag; asset server proxies to vite)
+    cmds:
+      - task: "{{OS}}:build:dev"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{OS}}:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{OS}}:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  setup:docker:
+    summary: Builds Docker image for cross-compilation (~800MB download)
+    cmds:
+      - task: common:setup:docker
+
+  build:server:
+    summary: Builds the application in server mode (no GUI, HTTP server only)
+    cmds:
+      - task: common:build:server
+
+  run:server:
+    summary: Runs the application in server mode
+    cmds:
+      - task: common:run:server
+
+  build:docker:
+    summary: Builds a Docker image for server mode deployment
+    cmds:
+      - task: common:build:docker
+
+  run:docker:
+    summary: Builds and runs the Docker image
+    cmds:
+      - task: common:run:docker

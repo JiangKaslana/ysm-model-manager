@@ -1,0 +1,125 @@
+// ===== Bedrock Geometry JSON 解析 =====
+// 从 app_model.go 拆分：解析标准 minecraft:geometry JSON 格式
+package geometry
+
+import (
+	"encoding/json"
+	"log"
+
+	"ysm-model-manager/go/types"
+)
+
+// maxParseSize ParseBedrockGeometry 接受的最大输入大小
+const maxParseSize = 100 << 20 // 100MB
+
+// pivotOf 解引用 cube 的 pivot 指针；JSON 缺席（nil）→ 零值 [0,0,0]
+func pivotOf(p *[3]float64) [3]float64 {
+	if p == nil {
+		return [3]float64{}
+	}
+	return *p
+}
+
+// ParseBedrockGeometry 解析标准 Bedrock geometry JSON（minecraft:geometry 格式）
+// 注意：data 大小不应超过 maxParseSize（100MB），调用方应自行限制
+func ParseBedrockGeometry(data []byte) *types.BedrockModel {
+	if len(data) > maxParseSize {
+		log.Printf("[geometry] ParseBedrockGeometry 输入过大: %d bytes", len(data))
+		return nil
+	}
+	var raw struct {
+		FormatVersion string `json:"format_version"`
+		Geometry      []struct {
+			Description struct {
+				Identifier    string  `json:"identifier"`
+				TextureWidth  float64 `json:"texture_width"`
+				TextureHeight float64 `json:"texture_height"`
+			} `json:"description"`
+			Bones []struct {
+				Name     string          `json:"name"`
+				Parent   string          `json:"parent,omitempty"`
+				Pivot    [3]float64      `json:"pivot"`
+				Rotation json.RawMessage `json:"rotation,omitempty"`
+				Cubes    []struct {
+					Origin   [3]float64      `json:"origin"`
+					Size     [3]float64      `json:"size"`
+					Pivot    *[3]float64     `json:"pivot,omitempty"` // nil=缺席（显式 [0,0,0] 可区分）
+					UV       json.RawMessage `json:"uv,omitempty"`
+					Rotation json.RawMessage `json:"rotation,omitempty"`
+					Texture  int             `json:"texture"`
+					Inflate  float64         `json:"inflate,omitempty"`
+					Mirror   bool            `json:"mirror,omitempty"`
+				} `json:"cubes"`
+			} `json:"bones"`
+		} `json:"minecraft:geometry"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil
+	}
+	if len(raw.Geometry) == 0 {
+		return nil
+	}
+	g := raw.Geometry[0]
+	// texture_width/height 无有限性/上界校验——畸形输入如
+	// 1e100（合法 JSON 数字）float→int 溢出为最小 int，TexWidth 巨大负数随 CubeTexW
+	// 流入 spec.go UV 归一化除出垃圾值渲染花屏。钳到 [0, 65536]（合法贴图远小于此）。
+	texW := int(g.Description.TextureWidth)
+	if texW < 0 || texW > 65536 {
+		texW = 0
+	}
+	texH := int(g.Description.TextureHeight)
+	if texH < 0 || texH > 65536 {
+		texH = 0
+	}
+	model := &types.BedrockModel{
+		Format:    raw.FormatVersion,
+		TexWidth:  texW,
+		TexHeight: texH,
+	}
+	var cubeTotal int
+	for _, b := range g.Bones {
+		cubes := make([]types.Cube2D, 0, len(b.Cubes))
+		for _, c := range b.Cubes {
+			var uv [2]float64
+			var faceUV string
+			var rot [3]float64
+			if len(c.UV) > 0 {
+				uvStr := string(c.UV)
+				if len(uvStr) > 0 && uvStr[0] == '{' {
+					faceUV = uvStr
+				} else {
+					if err := json.Unmarshal(c.UV, &uv); err != nil {
+						log.Printf("[geometry] 解析 cube UV 失败: %v", err)
+					}
+				}
+			}
+			if len(c.Rotation) > 0 {
+				if err := json.Unmarshal(c.Rotation, &rot); err != nil {
+					log.Printf("[geometry] 解析 cube rotation 失败: %v", err)
+				}
+			}
+			cubes = append(cubes, types.Cube2D{
+				Origin: c.Origin, Size: c.Size,
+				Pivot:    pivotOf(c.Pivot),
+				PivotSet: c.Pivot != nil,
+				UV:       uv, FaceUV: faceUV, Rotation: rot,
+				TexSlot: c.Texture,
+				Inflate: c.Inflate, Mirror: c.Mirror,
+			})
+		}
+		var boneRot [3]float64
+		if len(b.Rotation) > 0 {
+			if err := json.Unmarshal(b.Rotation, &boneRot); err != nil {
+				log.Printf("[geometry] 解析 bone rotation 失败: %v", err)
+			}
+		}
+		model.Bones = append(model.Bones, types.Bone2D{
+			Name: b.Name, Parent: b.Parent, Pivot: b.Pivot,
+			Rotation: boneRot, Cubes: cubes,
+		})
+		cubeTotal += len(cubes)
+	}
+	model.BoneCount = len(g.Bones)
+	model.CubeCount = cubeTotal
+	return model
+}

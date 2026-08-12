@@ -1,0 +1,115 @@
+﻿// ===== 声明式菜单规格（ADR-021 B 层）=====
+// 唯一事实来源：context-menus.ts 从本表生成 menu:show 载荷；
+// 测试遍历本表断言结构与行为，加菜单项只改这里，测试自动覆盖。
+import type { CtxShowPayload } from "../bus";
+import { t } from "./i18n/t.ts";
+
+/** 菜单项声明：结构（label/icon/danger/divider）+ 行为标识（action） */
+interface MenuItemDef {
+  /** 行为标识：context-menus.ts 查 handler 表绑定 onClick */
+  action?: string;
+  /** 静态文案或按 ctx 动态生成（如标题项） */
+  label?: string | ((ctx: CtxShowPayload) => string);
+  icon?: string;
+  danger?: boolean;
+  divider?: boolean;
+}
+
+/** 单类菜单的完整声明 */
+export interface MenuDef {
+  type: CtxShowPayload["type"];
+  items: MenuItemDef[];
+}
+
+/** 四类右键菜单的声明式规格（唯一事实来源） */
+export const MENU_DEFS: MenuDef[] = [
+  {
+    type: "instance",
+    items: [
+      {
+        action: "noop",
+        label: (ctx) =>
+          `📦 ${ctx.instanceName || ""}${ctx.rtype ? ` (${ctx.rtype})` : ""}`,
+      },
+      { divider: true },
+      { action: "instance.open-folder", label: () => t("menu.openFolder"), icon: "📂" },
+      { divider: true },
+      { action: "instance.export-list", label: () => t("menu.copyModelList"), icon: "📄" },
+      { divider: true },
+      {
+        action: "instance.clear",
+        label: () => t("menu.clearPack"),
+        icon: "🗑️",
+        danger: true,
+      },
+    ],
+  },
+  {
+    type: "batch",
+    items: [
+      {
+        action: "noop",
+        label: (ctx) => `📦 已选 ${ctx.count || 0} 个文件`,
+      },
+      { divider: true },
+      { action: "batch.rename", label: () => t("menu.batchRename"), icon: "✂️" },
+      { action: "batch.move", label: () => t("menu.moveTo"), icon: "📂" },
+      { action: "batch.copy", label: () => t("menu.copyTo"), icon: "📋" },
+      { divider: true },
+      {
+        action: "batch.recycle",
+        label: () => t("menu.recycle"),
+        icon: "♻️",
+        danger: true,
+      },
+      { divider: true },
+      { action: "batch.copy-paths", label: () => t("menu.copyPaths"), icon: "📋" },
+      { action: "batch.export-list", label: () => t("menu.exportList"), icon: "📄" },
+    ],
+  },
+  {
+    type: "file",
+    items: [
+      { action: "file.rename", label: () => t("menu.rename"), icon: "✂️" },
+      { action: "file.move", label: () => t("menu.moveTo"), icon: "📂" },
+      { action: "file.copy", label: () => t("menu.copyTo"), icon: "📋" },
+      { action: "file.push-to-pack", label: () => t("menu.pushToPack"), icon: "📦" },
+      { divider: true },
+      { action: "file.edit-tags", label: () => t("menu.editTags"), icon: "🏷️" },
+      { divider: true },
+      {
+        action: "file.recycle",
+        label: () => t("menu.recycle"),
+        icon: "♻️",
+        danger: true,
+      },
+      { action: "file.reveal", label: () => t("menu.openFileLocation"), icon: "📂" },
+      { divider: true },
+      { action: "file.copy-path", label: () => t("menu.copyFilePath"), icon: "📋" },
+    ],
+  },
+  {
+    type: "dir",
+    items: [
+      { action: "dir.rename", label: () => t("menu.rename"), icon: "✂️" },
+      { action: "dir.batch-rename", label: () => t("menu.batchRename"), icon: "📝" },
+      { divider: true },
+      { action: "dir.move", label: () => t("menu.moveTo"), icon: "📂" },
+      { action: "dir.copy", label: () => t("menu.copyTo"), icon: "📋" },
+      { divider: true },
+      { action: "dir.mkdir", label: () => t("menu.newSubfolder"), icon: "🗂" },
+      { divider: true },
+      {
+        action: "dir.recycle",
+        label: () => t("menu.recycle"),
+        icon: "♻️",
+        danger: true,
+      },
+    ],
+  },
+];
+
+/** 测试辅助：按 type 取声明（不存在返回 undefined） */
+export function getMenuDef(type: CtxShowPayload["type"]): MenuDef | undefined {
+  return MENU_DEFS.find((d) => d.type === type);
+}

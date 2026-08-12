@@ -1,0 +1,98 @@
+frontend/dist
+frontend/coverage/
+# Playwright E2E 运行产物（.last-run.json / 失败截图 / HTML 报告 / G-4 覆盖采集）
+frontend/test-results/
+frontend/e2e-report/
+frontend/e2e-coverage/
+# link-checker 输出报告（工具产物，不入库）
+link-checker-out.json
+*.out
+build/bin/
+bin/
+build/release/
+build/ysmparser-cache/
+cmd/*/genindex.exe
+cmd/*/*.exe
+*.exe
+node_modules/
+# VitePress 构建产物（docs 站点，迁移自 Jekyll）
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+.DS_Store
+*.log
+*.tmp
+*.bak
+_wails_test/
+
+project_tree.txt
+project_tree_lite.txt
+
+commit_msg.txt
+
+_binding_add.txt
+_fix_decode.js
+
+tool-test.md
+
+CLAUDE.md
+.claude/
+
+# 个人 AI 工具配置（非项目配置，不入库）
+opencode.json
+reasonix.toml
+
+# Wails 3 task 引擎运行时缓存（wails3 task / wails3 dev 生成）
+.task/
+
+# 应用运行时配置已迁移到用户目录 %APPDATA%/YSM-Model-Manager/，不再入仓
+/ysm_config.json
+tests/python/__pycache__/
+
+# IDE / AI 工具缓存
+.reasonix/
+.atomcode/
+.rg-test-tmp/
+.qoder/
+.workbuddy/
+.codebuddy/
+
+# 构建产物：build/ 脚手架（Taskfile/config/图标/manifest）入仓；
+# 仅生成的 bin/、release/、ysmparser-cache/ 被忽略（见上方规则）
+
+# 签名密钥（机密，永不入库；未来移动端签名用）
+*.keystore
+*.jks
+docs/.doc-next-steps.md
+
+#参考源码
+upstream/
+
+# 解码落盘产物（渲染对齐验证工具的输出，20MB 级）
+tests/ysm-reference/
+.cov-hint-e2e.txt
+
+# Android 构建产物（NDK .so / gradle 输出 / wails 前端资源打包，不入库）
+build/android/app/src/main/jniLibs/
+build/android/app/src/main/assets/
+build/android/build/
+build/android/.gradle/
+build/android/app/build/
+build/android/local.properties
+
+# Android 签名 keystore（敏感，禁止入库）
+build/android/keystore/
+
+# Android overlay 生成物（wails3 android overlay:gen 每次构建前强制重新生成，
+# 内含本机绝对路径，入库会导致换机/CI 构建失败——ADR-047 P1-2）
+build/android/overlay.json
+build/android/gen/
+
+# 本地构建产物（APK / 平台二进制，dist 目录不入库）
+/dist/
+
+# Playwright E2E 报告产物
+frontend/e2e-report/
+frontend/test-results/
+
+# Web 版构建产物（ADR-049，GitHub Pages 部署用，不入库）
+frontend/dist-web/

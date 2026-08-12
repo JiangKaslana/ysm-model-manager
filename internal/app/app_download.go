@@ -1,0 +1,274 @@
+// ========== 下载队列 ==========
+// 从 app.go 拆分：串行下载队列、文件下载、镜像回退
+package app
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+	"sync"
+
+	"ysm-model-manager/go/download"
+	"ysm-model-manager/go/ysm"
+)
+
+// QueueStatusInfo 队列状态（替代多返回值，Wails 自动映射为 JS object）
+type QueueStatusInfo struct {
+	Remaining int  `json:"remaining"`
+	Running   bool `json:"running"`
+}
+
+// DownloadTask 下载队列任务
+type DownloadTask struct {
+	URL     string `json:"url"`
+	SaveDir string `json:"saveDir"`
+	Name    string `json:"name"`
+	Size    int64  `json:"size"`
+}
+
+// DownloadQueue 串行下载队列
+// 回调注入替代 *App 反向引用（ADR-002 P1：打破 DownloadQueue ↔ App 循环，解锁独立测试）
+type DownloadQueue struct {
+	tasks     []DownloadTask
+	mu        sync.Mutex
+	running   bool
+	cancelled bool
+	// epoch 代际计数：CancelQueue / EnqueueDownloads 递增。
+	// process 记录启动时 epoch，退出时仅当代际一致才复位 running / 发 done，
+	// 防止「取消后立即重新入队」时旧 goroutine 与新 goroutine 并发处理同一队列（P1 竞态修复）。
+	epoch    uint64
+	ctx      context.Context
+	cancelFn context.CancelFunc
+
+	downloadFn func(ctx context.Context, url, saveDir string) (string, error)
+	emitFn     func(name string, args ...interface{})
+	logFn      func(op, modelName, sourcePath, targetDir string, fileSize int64, status, errMsg string)
+}
+
+// NewDownloadQueue 创建串行下载队列（回调由 App 初始化时注入）
+func NewDownloadQueue(downloadFn func(ctx context.Context, url, saveDir string) (string, error), emitFn func(name string, args ...interface{}), logFn func(op, modelName, sourcePath, targetDir string, fileSize int64, status, errMsg string)) *DownloadQueue {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &DownloadQueue{downloadFn: downloadFn, emitFn: emitFn, logFn: logFn, ctx: ctx, cancelFn: cancel}
+}
+
+func (a *App) EnqueueDownloads(tasks []DownloadTask) error {
+	if len(tasks) == 0 {
+		return nil
+	}
+	// URL 校验：仅允许 https scheme，拒绝 file:// / ftp:// 等（防 SSRF / 本地文件读取）
+	for _, t := range tasks {
+		if !strings.HasPrefix(t.URL, "https://") {
+			return fmt.Errorf("不支持的 URL scheme: %s（仅支持 https）", t.URL)
+		}
+	}
+	a.queue.mu.Lock()
+	// 新一批任务视为重新开始：复位取消标志，否则上次取消后 process 永不发 done（前端会永久卡 downloading）
+	a.queue.cancelled = false
+	a.queue.tasks = append(a.queue.tasks, tasks...)
+	total := len(a.queue.tasks)
+	// running 判断必须在锁内，避免并发入队启动多个 process goroutine
+	start := !a.queue.running
+	if start {
+		a.queue.running = true
+		a.queue.epoch++
+	}
+	a.queue.mu.Unlock()
+	if start {
+		go a.queue.process()
+	}
+	log.Printf("[queue] emit queue:status enqueued total=%d", total)
+	a.app.Event.Emit("queue:status", "enqueued", total, "")
+	return nil
+}
+
+func (a *App) CancelQueue() {
+	a.queue.mu.Lock()
+	defer a.queue.mu.Unlock()
+	a.queue.cancelled = true
+	// 递增代际：使在途 process goroutine 退出时不再复位 running / 发 done，
+	// 避免「取消后立即重新入队」启动新 goroutine 时双 process 并发（P1 竞态）
+	a.queue.epoch++
+	if a.queue.running {
+		a.queue.cancelFn()
+		a.queue.ctx, a.queue.cancelFn = context.WithCancel(context.Background())
+	}
+	a.queue.tasks = nil
+	a.queue.running = false
+	log.Printf("[queue] emit queue:status cancelled")
+	a.app.Event.Emit("queue:status", "cancelled", 0, "")
+}
+
+func (a *App) QueueStatus() QueueStatusInfo {
+	a.queue.mu.Lock()
+	defer a.queue.mu.Unlock()
+	return QueueStatusInfo{Remaining: len(a.queue.tasks), Running: a.queue.running}
+}
+
+func (q *DownloadQueue) process() {
+	q.processForEpoch(0) // 0 = 启动时取当前 epoch（EnqueueDownloads 路径）
+}
+
+// processForEpoch 按指定代际运行队列消费循环。
+// target > 0 时（重启路径），worker 启动即校验代际：若已被 CancelQueue/重入队取代
+// （q.epoch 已越过 target）则拒绝运行——防 restart-spawned goroutine 在 spawn 与首次
+// 取锁之间被新 EnqueueDownloads 启动的 worker 重复（code_review P2）。
+func (q *DownloadQueue) processForEpoch(target uint64) {
+	q.mu.Lock()
+	if target > 0 && q.epoch != target {
+		q.mu.Unlock()
+		return
+	}
+	q.running = true
+	myEpoch := q.epoch
+	q.mu.Unlock()
+
+	defer func() {
+		q.mu.Lock()
+		// 仅当代际一致才复位 running / 发 done：
+		// 若已被 CancelQueue（或取消后重新入队）取代，本 goroutine 不再触碰队列状态，
+		// 防止旧 goroutine 退出时把新队列的 running 误复位或重复发 done（P1 竞态修复）
+		if q.epoch != myEpoch {
+			q.mu.Unlock()
+			return
+		}
+		q.running = false
+		cancelled := q.cancelled
+		// 丢失唤醒竞态——process 判空解锁 return 与 defer 取锁复位 running 之间，
+		// Enqueue 可能已追加任务（running 仍 true → start=false 不启新 goroutine）；
+		// 复位后重检任务列表：代际一致且有任务则重启处理，防队列静默停滞
+		restart := !cancelled && len(q.tasks) > 0
+		if restart {
+			q.running = true
+			q.epoch++
+		}
+		// code_review P2：重启 worker 绑定到 spawn 时决定的代际——若 spawn 后
+		// CancelQueue+Enqueue 完成（epoch 再递增），本 goroutine 启动即拒绝运行，
+		// 避免与 EnqueueDownloads 启动的 worker 重复消费队列
+		newEpoch := q.epoch
+		q.mu.Unlock()
+		if !cancelled && !restart {
+			log.Printf("[queue] emit queue:status done")
+			q.emitFn("queue:status", "done", 0, "")
+		}
+		if restart {
+			go q.processForEpoch(newEpoch)
+		}
+	}()
+
+	for {
+		q.mu.Lock()
+		if q.epoch != myEpoch {
+			// 代际已变：本队列已被取代（取消后重新入队），立即退出不再消费新任务
+			q.mu.Unlock()
+			return
+		}
+		if len(q.tasks) == 0 {
+			q.mu.Unlock()
+			return
+		}
+		task := q.tasks[0]
+		q.tasks = q.tasks[1:]
+		remaining := len(q.tasks)
+		// 锁内快照 ctx：CancelQueue 会替换 q.ctx，必须用本任务发起时的 ctx 做请求取消
+		ctx := q.ctx
+		q.mu.Unlock()
+
+		log.Printf("[queue] emit queue:file-start name=%s pos=%d left=%d", task.Name, remaining+1, remaining)
+		q.emitFn("queue:file-start", task.Name, remaining+1, remaining)
+
+		savePath, err := q.downloadFn(ctx, task.URL, task.SaveDir)
+		if err != nil {
+			log.Printf("[queue] emit queue:file-done name=%s status=fail err=%v", task.Name, err)
+			q.emitFn("queue:file-done", task.Name, "fail", err.Error())
+			q.logFn("download", task.Name, task.URL, task.SaveDir, 0, "failed", err.Error())
+		} else {
+			log.Printf("[queue] emit queue:file-done name=%s status=ok", task.Name)
+			q.emitFn("queue:file-done", task.Name, "ok", "")
+			// 写入导入日志
+			var fileSize int64
+			if fi, st := os.Stat(savePath); st == nil {
+				fileSize = fi.Size()
+			}
+			q.logFn("download", task.Name, task.URL, task.SaveDir, fileSize, "success", "")
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
+}
+
+func (a *App) downloadFileWithQueue(ctx context.Context, rawURL, saveDir string) (string, error) {
+	savePath, jsdURL, apiURL := download.ResolveSavePath(rawURL, saveDir)
+	if savePath == "" {
+		return "", fmt.Errorf("解析保存路径失败: %s", rawURL)
+	}
+
+	dl := download.New()
+	mirror := a.LoadAppConfig().Mirror
+	type src struct {
+		url  string
+		kind string
+	}
+	sources := []src{{rawURL, "raw"}}
+	if jsdURL != "" {
+		sources = append(sources, src{jsdURL, "jsd"})
+	}
+	if apiURL != "" {
+		sources = append(sources, src{apiURL, "api"})
+	}
+	if mirror == "jsdelivr" && len(sources) >= 3 {
+		sources[0], sources[1] = sources[1], sources[0]
+	} else if mirror == "githubapi" && len(sources) >= 3 {
+		sources[0], sources[2] = sources[2], sources[0]
+		sources[1], sources[2] = sources[2], sources[1]
+	}
+
+	var lastErr error
+	for _, s := range sources {
+		var err error
+		if s.kind == "api" {
+			err = dl.FromGitHubAPI(ctx, s.url, savePath, a.emitDownloadProgress)
+		} else {
+			err = dl.File(ctx, s.url, savePath, a.emitDownloadProgress)
+		}
+		if err == nil {
+			return savePath, nil
+		}
+		lastErr = err
+	}
+	return "", fmt.Errorf("所有源均失败: %s", lastErr)
+}
+
+// emitDownloadProgress 下载进度回调 → Wails 事件（go/download 包内已做 200ms 节流与 final 兜底）
+func (a *App) emitDownloadProgress(downloaded, total int64) {
+	// 进度事件高频（200ms/文件），只对 final（下载完成）打日志，避免长队列刷屏日志
+	if total > 0 && downloaded >= total {
+		log.Printf("[queue] emit download:progress final dl=%d total=%d", downloaded, total)
+	}
+	a.app.Event.Emit("download:progress", downloaded, total)
+}
+
+func (a *App) DownloadFromGitHub(rawURL string, saveDir string) (string, error) {
+	// 复用 EnqueueDownloads 的 scheme 校验——原实现无校验直通
+	// downloadFileWithQueue，http/ftp/任意主机可拉取（与入队路径的安全口径不一致，
+	// 前端未使用但已暴露为 Binding API）
+	if !strings.HasPrefix(rawURL, "https://") {
+		return "", fmt.Errorf("不支持的 URL scheme: %s（仅支持 https）", rawURL)
+	}
+	return a.downloadFileWithQueue(context.Background(), rawURL, saveDir)
+}
+
+// GetModelTexSizes 扫描仓库文件提取纹理尺寸（轻量级，不解析完整模型）
+func (a *App) GetModelTexSizes(repoRoot string) []ysm.TexInfo {
+	entries := a.ScanModelEntries(repoRoot)
+	var simple []ysm.ModelEntry
+	for _, e := range entries {
+		simple = append(simple, ysm.ModelEntry{Path: e.Path, Name: e.Name})
+	}
+	return ysm.ScanModelTexSizes(simple)
+}

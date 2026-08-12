@@ -1,0 +1,41 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "gen:locales": "node ../scripts/generate-locale-json.mjs",
+    "build": "npm run gen:locales && vite build",
+    "build:dev": "npm run gen:locales && vite build",
+    "build:web": "npm run gen:locales && vite build --config vite.web.config.ts",
+    "preview": "vite preview",
+    "test": "vitest run --maxWorkers 8",
+    "test:full": "vitest run",
+    "test:coverage": "vitest run --coverage --maxWorkers 8",
+    "typecheck": "tsc --noEmit",
+    "test:e2e:web": "playwright test --config playwright.web.config.ts",
+    "codemod": "node ../scripts/codemod.mjs",
+    "generate:bindings": "cd .. && wails3 generate bindings -clean=true -ts -i"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/three": "^0.185.4",
+    "@vitest/coverage-v8": "^4.1.10",
+    "happy-dom": "^20.11.1",
+    "jscpd": "^5.0.14",
+    "knip": "^6.31.0",
+    "ts-morph": "^28.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^6.4.3",
+    "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "@wailsio/runtime": "^3.0.0-alpha.97",
+    "three": "^0.185.1"
+  },
+  "knip": {
+    "ignoreDependencies": [
+      "ts-morph"
+    ]
+  }
+}

@@ -1,0 +1,78 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Pages 部署权限：只读仓库内容，写入 Pages，签发 OIDC token
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 并发：同一时刻只允许一个 Pages 部署在跑，新推送取消旧的
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 构建站点（VitePress · docs/）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 安装 ripgrep（契约测试依赖 rg 二进制；ubuntu-latest 默认未预装）
+        run: sudo apt-get update -y && sudo apt-get install -y ripgrep
+
+      - name: 契约测试 + 断链检查（失败不部署）
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in tests/*.mjs; do node "$f"; done
+          node scripts/link-checker.mjs --strict
+
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 安装 Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+
+      - name: 安装依赖 + VitePress 构建（srcDir = docs/）
+        run: |
+          cd docs
+          npm install
+          npm run build
+
+      - name: Web 版构建（ADR-049：网页版主 UI，base=/ysm-model-manager/app/）
+        run: |
+          cd frontend
+          npm install
+          WEB_BASE=/ysm-model-manager/app/ npm run build:web
+
+      - name: 合并网页版产物到站点 /app/ 子目录
+        # 先清后拷：VitePress 曾渲染 docs/app/ 占位页到同路径 dist/app，
+        # 目标已存在时 `cp -r <src> <dst>` 会把 src 作为子目录复制（dst/app/dist-web/），
+        # 且不覆盖旧 index.html，导致 /app/ 仍返回占位页。须先删除旧目录再整体拷入。
+        run: |
+          rm -rf docs/.vitepress/dist/app
+          cp -r frontend/dist-web docs/.vitepress/dist/app
+
+      - name: 上传产物（VitePress 输出目录，含网页版 /app/）
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    name: 发布
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

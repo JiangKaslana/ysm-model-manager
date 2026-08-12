@@ -1,0 +1,309 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  GO_VERSION: ${{ vars.GO_VERSION }}
+  NODE_VERSION: ${{ vars.NODE_VERSION }}
+  # 与 go.mod 对齐（wailsapp/wails/v3 v3.0.0-alpha2.105），避免 CLI 与库版本错配
+  WAILS_VERSION: ${{ vars.WAILS_VERSION }}
+
+jobs:
+  # ── 测试门禁（可复用 workflow test.yml，main/PR 由 ci.yml 调用）───
+  test:
+    uses: ./.github/workflows/test.yml
+
+  # ── 版本提取与校验 ─────────────────────────────────────
+  prepare:
+    name: Prepare（版本校验）
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: 校验 tag 与 config.yml 版本一致
+        id: ver
+        run: |
+          TAG_VER="${GITHUB_REF#refs/tags/v}"
+          # 版本单一事实来源：build/config.yml（发版脚本同步，非 package.json）
+          CFG_VER=$(grep -E '^\s+version:' build/config.yml | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+          echo "tag=$TAG_VER config.yml=$CFG_VER"
+          if [ "$TAG_VER" != "$CFG_VER" ]; then
+            echo "::error::版本不一致！tag=$TAG_VER config.yml=$CFG_VER"
+            echo "Fix: 更新 build/config.yml 版本后重新打 tag。"
+            exit 1
+          fi
+          echo "version=$TAG_VER" >> "$GITHUB_OUTPUT"
+
+  # ── Windows 构建 ───────────────────────────────────────
+  build-windows:
+    name: Windows
+    needs: [prepare, test]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: 缓存 Go 模块（含 wails3，命中免下载）
+        uses: actions/cache@v5.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\go\pkg\mod' || '~/go/pkg/mod' }}
+          key: go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-
+            go-mod-${{ runner.os }}-
+      - name: 缓存 wails3 CLI 二进制（命中免编译）
+        uses: actions/cache@v5.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\go\bin' || '~/go/bin' }}
+          key: wails3-${{ runner.os }}-${{ env.WAILS_VERSION }}
+      - name: 安装 Wails v3 CLI（缓存命中则跳过）
+        shell: bash
+        run: |
+          if ! command -v wails3 >/dev/null 2>&1; then
+            go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          fi
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm ci
+      - name: 打包（build-release.ps1 → build/release zip + SHA256SUMS）
+        run: |
+          & .\cmd\build-release.ps1 -Version "${{ needs.prepare.outputs.version }}" -SkipUpload
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 上传产物
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-amd64
+          path: |
+            build/release/*.zip
+            build/release/SHA256SUMS
+          if-no-files-found: error
+
+  # ── Linux 构建 ─────────────────────────────────────────
+  build-linux:
+    name: Linux
+    needs: [prepare, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: 缓存 Go 模块（含 wails3，命中免下载）
+        uses: actions/cache@v5.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\go\pkg\mod' || '~/go/pkg/mod' }}
+          key: go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-
+            go-mod-${{ runner.os }}-
+      - name: 缓存 wails3 CLI 二进制（命中免编译）
+        uses: actions/cache@v5.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\go\bin' || '~/go/bin' }}
+          key: wails3-${{ runner.os }}-${{ env.WAILS_VERSION }}
+      - name: 安装 Linux 系统依赖（GTK4 + WebKitGTK 6.0）
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
+            libglib2.0-dev \
+            libsoup-3.0-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libatk1.0-dev \
+            libgirepository1.0-dev
+      - name: 安装 Wails v3 CLI（缓存命中则跳过）
+        shell: bash
+        run: |
+          if ! command -v wails3 >/dev/null 2>&1; then
+            go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          fi
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm ci
+      - name: 打包（build-linux.sh → dist/ 二进制）
+        run: |
+          bash ./cmd/build-linux.sh "${{ needs.prepare.outputs.version }}"
+      - name: 上传产物
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-amd64
+          path: dist/YSM-Model-Manager-*-linux-*
+          if-no-files-found: error
+
+  # ── macOS 构建 ─────────────────────────────────────────
+  build-darwin:
+    name: macOS
+    needs: [prepare, test]
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: 缓存 Go 模块（含 wails3，命中免下载）
+        uses: actions/cache@v5.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\go\pkg\mod' || '~/go/pkg/mod' }}
+          key: go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-
+            go-mod-${{ runner.os }}-
+      - name: 缓存 wails3 CLI 二进制（命中免编译）
+        uses: actions/cache@v5.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\go\bin' || '~/go/bin' }}
+          key: wails3-${{ runner.os }}-${{ env.WAILS_VERSION }}
+      - name: 安装 Wails v3 CLI（缓存命中则跳过）
+        shell: bash
+        run: |
+          if ! command -v wails3 >/dev/null 2>&1; then
+            go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          fi
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm ci
+      - name: 打包（build-darwin.sh → dist/ 二进制）
+        run: |
+          bash ./cmd/build-darwin.sh "${{ needs.prepare.outputs.version }}"
+      - name: 上传产物
+        uses: actions/upload-artifact@v6
+        with:
+          name: darwin-arm64
+          path: dist/YSM-Model-Manager-*-darwin-*
+          if-no-files-found: error
+
+  # ── Android 构建（NDK 交叉编译 + gradle APK）───────────
+  build-android:
+    name: Android
+    needs: [prepare, test]
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: 缓存 Go 模块（含 wails3，命中免下载）
+        uses: actions/cache@v5.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\go\pkg\mod' || '~/go/pkg/mod' }}
+          key: go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-
+            go-mod-${{ runner.os }}-
+      - name: 缓存 wails3 CLI 二进制（命中免编译）
+        uses: actions/cache@v5.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\go\bin' || '~/go/bin' }}
+          key: wails3-${{ runner.os }}-${{ env.WAILS_VERSION }}
+      - uses: android-actions/setup-android@v4
+      - name: 安装 Android SDK 组件（platform + build-tools + NDK）
+        run: |
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.3.11579264"
+      - name: 安装 Wails v3 CLI（缓存命中则跳过）
+        shell: bash
+        run: |
+          if ! command -v wails3 >/dev/null 2>&1; then
+            go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          fi
+      - name: 解码签名 keystore（可选，无则 debug 构建）
+        run: |
+          $dir = "${{ github.workspace }}\build\android\keystore"
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          $file = "$dir\release.keystore"
+          $b64 = '${{ secrets.ANDROID_KEYSTORE_BASE64 }}'
+          if ([string]::IsNullOrWhiteSpace($b64)) {
+            Write-Output "ANDROID_KEYSTORE_BASE64 未设置 — 跳过签名（debug 构建）"
+            return
+          }
+          [System.IO.File]::WriteAllBytes($file, [System.Convert]::FromBase64String($b64))
+          Write-Output "Keystore 已解码"
+      - name: 检查 keystore 是否存在
+        id: check_ks
+        run: |
+          $ks = "${{ github.workspace }}\build\android\keystore\release.keystore"
+          if (Test-Path $ks) { echo "has_keystore=true" >> $env:GITHUB_OUTPUT }
+          else { echo "has_keystore=false" >> $env:GITHUB_OUTPUT }
+      - name: 打包（build-android.ps1，有 keystore 则 release 签名）
+        if: steps.check_ks.outputs.has_keystore == 'true'
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ github.workspace }}\build\android\keystore\release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\cmd\build-android.ps1 "${{ needs.prepare.outputs.version }}" -Arch arm64 -Production
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 打包（build-android.ps1，无 keystore → debug）
+        if: steps.check_ks.outputs.has_keystore != 'true'
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\cmd\build-android.ps1 "${{ needs.prepare.outputs.version }}" -Arch arm64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 上传产物
+        uses: actions/upload-artifact@v6
+        with:
+          name: android-arm64
+          path: dist/*.apk
+          if-no-files-found: error
+
+  # ── 合并发布到 GitHub Release ──────────────────────────
+  release:
+    name: GitHub Release
+    needs: [prepare, build-windows, build-linux, build-darwin, build-android]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v5
+      - name: 下载全部产物
+        uses: actions/download-artifact@v6
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: 列示产物
+        run: ls -lh release-assets/
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*

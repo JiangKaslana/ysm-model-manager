@@ -1,0 +1,407 @@
+package recycle
+
+import (
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"ysm-model-manager/go/paths"
+	"ysm-model-manager/go/types"
+)
+
+// MoveResult 回收操作结果
+type MoveResult struct {
+	Action string `json:"action"`
+	Reason string `json:"reason"`
+}
+
+// TrashManager 可配置的回收站管理器
+type TrashManager struct {
+	recycleDir string
+	// 跨设备回退的 rename/目录复制实现（测试注入点：模拟 EXDEV 与复制中途失败），
+	// 生产恒为真实实现（New 中初始化）
+	renameForMove  func(src, dst string) error
+	copyDirForMove func(src, dst string) error
+}
+
+// New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle
+func New(root string) *TrashManager {
+	return &TrashManager{
+		recycleDir:     filepath.Join(root, ".recycle"),
+		renameForMove:  os.Rename,
+		copyDirForMove: copyDirRecursive,
+	}
+}
+
+// RecycleDir 返回回收站目录路径
+func (tm *TrashManager) RecycleDir() string {
+	return tm.recycleDir
+}
+
+// Move 移动文件到回收站
+func (tm *TrashManager) Move(src string) error {
+	_, err := tm.moveEx(src)
+	return err
+}
+
+// MoveEx 移动文件到回收站，返回操作详情
+func (tm *TrashManager) MoveEx(src string) *MoveResult {
+	res, err := tm.moveEx(src)
+	if err != nil {
+		return &MoveResult{Action: "error", Reason: err.Error()}
+	}
+	return res
+}
+
+func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
+	if tm.recycleDir == "" {
+		return nil, fmt.Errorf("回收站目录未设置")
+	}
+	rootDir := filepath.Dir(tm.recycleDir)
+	// IsInside 对 path==baseDir（rel=="."）放行——src==rootDir
+	// 时 rel=="."、dst==recycleDir 命中回收站自身，整树 rename 会把回收站搬进自己
+	// （目标已存在报错，但守卫语义错位）；显式拒绝 src 等于资源根（对齐 AGENTS.md
+	// 「IsInside 相等放行时额外 Clean 相等拒绝」范式）
+	if paths.IsInside(rootDir, src) != nil || filepath.Clean(src) == filepath.Clean(rootDir) {
+		return nil, fmt.Errorf("路径越权: %s 不在资源目录下", src)
+	}
+	info, err := os.Lstat(src)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		if err := os.Remove(src); err != nil {
+			return nil, err
+		}
+		return &MoveResult{Action: "deleted_link", Reason: "符号链接，已直接删除"}, nil
+	}
+	// 硬链接检测：Unix 通过 Nlink()，Windows 通过 syscall
+	if isHardLink(info, src) {
+		if err := os.Remove(src); err != nil {
+			return nil, err
+		}
+		return &MoveResult{Action: "deleted_link", Reason: "硬链接，已直接删除"}, nil
+	}
+	if err := os.MkdirAll(tm.recycleDir, 0755); err != nil {
+		return nil, err // fail-fast：回收站目录创建失败（权限/磁盘满）提前暴露，避免后续 rename 报无关错误
+	}
+	rel, err := filepath.Rel(rootDir, src)
+	if err != nil {
+		return nil, err
+	}
+	dst := filepath.Join(tm.recycleDir, rel)
+	// dst 由 tm.recycleDir + rel 构造，安全检查
+	cleanDst := filepath.Clean(dst)
+	cleanRecycle := filepath.Clean(tm.recycleDir)
+	if !strings.HasPrefix(cleanDst, cleanRecycle+string(filepath.Separator)) && cleanDst != cleanRecycle {
+		return nil, fmt.Errorf("路径越权: %s 不在回收站目录下", dst)
+	}
+	for i := 1; ; i++ {
+		if _, err := os.Stat(dst); os.IsNotExist(err) {
+			break
+		} else if err != nil {
+			// 非"不存在"错误（权限等）直接返回，避免静默跳过冲突检测
+			return nil, err
+		}
+		ext := filepath.Ext(rel)
+		name := rel[:len(rel)-len(ext)]
+		dst = filepath.Join(tm.recycleDir, name+"("+strconv.Itoa(i)+")"+ext)
+		cleanDst = filepath.Clean(dst)
+		if !strings.HasPrefix(cleanDst, cleanRecycle+string(filepath.Separator)) && cleanDst != cleanRecycle {
+			return nil, fmt.Errorf("路径越权: %s 不在回收站目录下", dst)
+		}
+	}
+	// 优先瞬时移动（同分区原子操作，避免大模型文件全量复制）；
+	// 仅跨设备（EXDEV）回退复制后删；权限/占用等其他失败直接报错，
+	// 避免无谓全量复制，以及「副本已入站、源未删」的重试堆积（审核 P2）
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return nil, err
+	}
+	if err := tm.renameForMove(src, dst); err == nil {
+		return &MoveResult{Action: "recycled", Reason: ""}, nil
+	} else if !isCrossDeviceErr(err) {
+		return nil, err
+	}
+	// 跨设备回退：目录（文件夹型模型）递归复制整棵树；文件走 copyFile
+	if info.IsDir() {
+		if err := tm.copyDirForMove(src, dst); err != nil {
+			// 复制中断/失败时清理半截目录，避免回收站残留损坏数据
+			if rerr := os.RemoveAll(dst); rerr != nil {
+				log.Printf("[recycle] 清理半截目录失败 %s: %v", dst, rerr)
+			}
+			return nil, err
+		}
+		if err := os.RemoveAll(src); err != nil {
+			return nil, fmt.Errorf("回收站已入副本但源目录删除失败 %s: %w（副本在 %s，请手动清理）", src, err, dst)
+		}
+		return &MoveResult{Action: "recycled", Reason: ""}, nil
+	}
+	if err := copyFile(src, dst); err != nil {
+		// 复制中断/失败时清理半截文件，避免回收站残留损坏文件
+		if rerr := os.Remove(dst); rerr != nil {
+			log.Printf("[recycle] 清理半截文件失败 %s: %v", dst, rerr)
+		}
+		return nil, err
+	}
+	if err := os.Remove(src); err != nil {
+		return nil, fmt.Errorf("回收站已入副本但源文件删除失败 %s: %w（副本在 %s，请手动清理）", src, err, dst)
+	}
+	return &MoveResult{Action: "recycled", Reason: ""}, nil
+}
+
+// isHardLink 判断文件是否为硬链接（nlink > 1）。
+// 实现按平台隔离：见 recycle_windows.go / recycle_other.go。
+
+// List 列出回收站中的文件。
+// ADR-038 D3.4：文件夹型模型（含 ysm.json 的目录）整组合并显示为单一条目，
+// 不再拆散成 ysm.json / 几何 / 动画 / 语言 json 等单文件；Restore 保持目录级还原。
+func (tm *TrashManager) List() []types.ModelEntry {
+	entries := []types.ModelEntry{}
+	filepath.WalkDir(tm.recycleDir, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			log.Printf("[recycle] WalkDir 错误 %s: %v", p, err)
+			return nil
+		}
+		if d.IsDir() {
+			// 文件夹模型整组：目录含 ysm.json 清单 → 合并为单一条目，跳过目录内部文件
+			if _, statErr := os.Stat(filepath.Join(p, "ysm.json")); statErr == nil {
+				info, _ := d.Info()
+				e := types.ModelEntry{
+					Name: filepath.Base(p),
+					Path: p,
+					Ext:  "",
+				}
+				if info != nil {
+					e.Size = dirSize(p)
+				}
+				entries = append(entries, e)
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(p))
+		// 检查是否为 .ban 后缀（禁用标记）或其他受支持的扩展名
+		if ext != ".ban" && !types.IsSupportedExt(ext) {
+			return nil
+		}
+		info, _ := d.Info()
+		e := types.ModelEntry{
+			Name: filepath.Base(p),
+			Path: p,
+			Ext:  ext,
+		}
+		if info != nil {
+			e.Size = info.Size()
+		}
+		entries = append(entries, e)
+		return nil
+	})
+	return entries
+}
+
+// dirSize 递归统计目录总大小（文件夹模型整组条目显示用）
+func dirSize(dir string) int64 {
+	var total int64
+	_ = filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if info, err := d.Info(); err == nil {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total
+}
+
+// Restore 从回收站恢复到原目录
+func (tm *TrashManager) Restore(src string) error {
+	// IsInside 对 path==baseDir 放行——src==recycleDir 时
+	// rel=="."、dst==rootDir，整个回收站会被 rename 成 rootDir 的兄弟目录
+	// （rootDir(1)），回收站被整体搬走；显式拒绝 src 等于回收站本身
+	if paths.IsInside(tm.recycleDir, src) != nil || filepath.Clean(src) == filepath.Clean(tm.recycleDir) {
+		return fmt.Errorf("路径越权: %s 不在回收站目录下", src)
+	}
+	rootDir := filepath.Dir(tm.recycleDir)
+	rel, err := filepath.Rel(tm.recycleDir, src)
+	if err != nil {
+		return err
+	}
+	dst := filepath.Join(rootDir, rel)
+	if err := paths.IsInside(rootDir, dst); err != nil {
+		return err
+	}
+	dstDir := filepath.Dir(dst)
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return err
+	}
+	for i := 1; ; i++ {
+		if _, err := os.Stat(dst); err == nil {
+			// 目标已存在 → 加后缀重试
+		} else if os.IsNotExist(err) {
+			break
+		} else {
+			// 非 IsNotExist 错误（权限 EACCES 等）直接返回——原实现继续加后缀循环，
+			// 若错误持续（同一父目录权限问题）i 无界递增 → 死循环（moveEx 同场景已正确处理）
+			return err
+		}
+		ext := filepath.Ext(rel)
+		name := rel[:len(rel)-len(ext)]
+		dst = filepath.Join(rootDir, name+"("+strconv.Itoa(i)+")"+ext)
+		if err := paths.IsInside(rootDir, dst); err != nil {
+			return err
+		}
+	}
+	// 优先瞬时移动（同分区原子操作）；跨设备时回退复制后删，语义不变
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	} else if !isCrossDeviceErr(err) {
+		return err // 权限/占用等非跨设备错误直接返回，不尝试复制
+	}
+	// 目录（整组合并条目）跨设备：递归复制整棵树；文件走 copyFile
+	if info, statErr := os.Lstat(src); statErr == nil && info.IsDir() {
+		if err := copyDirRecursive(src, dst); err != nil {
+			// 清理失败记录日志，与 moveEx 的清理分支对齐（原 _ 静默）
+			if rerr := os.RemoveAll(dst); rerr != nil {
+				log.Printf("[recycle] Restore 清理半截目录失败 %s: %v", dst, rerr)
+			}
+			return err
+		}
+		return os.RemoveAll(src)
+	}
+	if err := copyFile(src, dst); err != nil {
+		// 复制中断/失败时清理半截恢复文件，避免目标目录残留损坏文件
+		// 清理失败记录日志（原 _ 静默）
+		if rerr := os.Remove(dst); rerr != nil {
+			log.Printf("[recycle] Restore 清理半截文件失败 %s: %v", dst, rerr)
+		}
+		return err
+	}
+	return os.Remove(src)
+}
+
+// copyDirRecursive 递归复制目录树（跨设备 Restore 整组合并条目的 fallback）
+func copyDirRecursive(src, dst string) error {
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		return err
+	}
+	return filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0755)
+		}
+		// 符号链接：复制链接本身（保留语义）；不跟随复制——symlink-to-dir 走
+		// copyFile 会 os.Open(目录)+io.Copy → EISDIR 中断整棵树复制
+		if d.Type()&os.ModeSymlink != 0 {
+			linkTarget, err := os.Readlink(p)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(linkTarget, target)
+		}
+		return copyFile(p, target)
+	})
+}
+
+// Delete 永久删除回收站中的文件
+// ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll
+func (tm *TrashManager) Delete(src string) error {
+	if err := paths.IsInside(tm.recycleDir, src); err != nil {
+		return err
+	}
+	// 对齐 Move/Restore 的根级守卫：IsInside 对 path==baseDir 放行（rel=="."）
+	if filepath.Clean(src) == filepath.Clean(tm.recycleDir) {
+		return fmt.Errorf("路径越权: 不能删除回收站根目录")
+	}
+	info, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return os.RemoveAll(src)
+	}
+	return os.Remove(src)
+}
+
+// Empty 清空回收站
+// 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理
+func (tm *TrashManager) Empty() (int, error) {
+	if tm.recycleDir == "" {
+		return 0, nil
+	}
+	if _, err := os.Stat(tm.recycleDir); os.IsNotExist(err) {
+		return 0, nil
+	}
+	// 先统计文件数（最佳努力）
+	count := len(tm.List())
+	// 删除整个回收站目录
+	if err := os.RemoveAll(tm.recycleDir); err != nil {
+		return 0, fmt.Errorf("清空回收站失败: %w", err)
+	}
+	// 重建空目录
+	if err := os.MkdirAll(tm.recycleDir, 0755); err != nil {
+		return 0, fmt.Errorf("重建回收站目录失败: %w", err)
+	}
+	return count, nil
+}
+
+// ===== 向后兼容的包级函数 =====
+
+func Move(src, repoRoot string) error {
+	return New(repoRoot).Move(src)
+}
+
+func MoveEx(src, repoRoot string) *MoveResult {
+	return New(repoRoot).MoveEx(src)
+}
+
+func List(repoRoot string) []types.ModelEntry {
+	return New(repoRoot).List()
+}
+
+func Restore(src, repoRoot string) error {
+	return New(repoRoot).Restore(src)
+}
+
+func Delete(src, repoRoot string) error {
+	return New(repoRoot).Delete(src)
+}
+
+func Empty(repoRoot string) (int, error) {
+	return New(repoRoot).Empty()
+}
+
+// copyFile 复制文件（跨分区兼容）
+// 注意：未限制读取大小，但回收站场景目标文件来自用户本地目录，风险可控
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(out, in)
+	// 显式 Close 并检查错误——defer 吞掉 Close 错误时，
+	// ENOSPC/EIO 等落盘失败会被误判为成功，随后源文件被删除 → 数据丢失
+	if cerr := out.Close(); err == nil {
+		err = cerr
+	}
+	return err
+}

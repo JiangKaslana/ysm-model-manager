@@ -1,0 +1,471 @@
+// ===== app-content 方法级补测 =====
+// 覆盖：_render 各页面分支、_bindTabs 懒初始化（import/recycle/dedup/oldest）、
+// _initRepository subtab 切换、_initPreviewResize 拖拽宽度、_initInstances、
+// 事件订阅（repo:switch-tab / repo:search-creator / lang:changed / package:selected）、
+// _fmtSize / _esc 纯函数。
+// heavy feature 模块全 mock（副作用 import 断开），页面 HTML 用真实 tpl。
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+vi.mock("@wailsio/runtime", () => ({
+  Events: { On: vi.fn().mockReturnValue(() => {}) },
+}));
+
+vi.mock("../../wails/app.ts", () => ({
+  getApp: vi.fn().mockResolvedValue({
+    LoadAppConfig: vi.fn().mockResolvedValue({}),
+    GetRepoRoot: vi.fn().mockResolvedValue(""),
+    ScanModelEntriesWithLabel: vi.fn().mockResolvedValue([]),
+    LoadGitHubRepos: vi.fn().mockResolvedValue([]),
+    OpenInBrowser: vi.fn().mockResolvedValue(undefined),
+    BatchExtractCreatorAvatars: vi.fn().mockResolvedValue({}),
+  }),
+}));
+
+vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
+  ScanModelEntries: vi.fn().mockResolvedValue([]),
+  GetRepoRoot: vi.fn().mockResolvedValue("/repo"),
+  LoadAppConfig: vi.fn().mockResolvedValue({}),
+  GetMinecraftPaths: vi.fn().mockResolvedValue([]),
+}));
+
+// heavy feature 模块 mock（断开 import 副作用链）
+vi.mock("../../core/handlers/global.ts", () => ({
+  registerGlobalHandlers: vi.fn(() => []),
+}));
+vi.mock("../../features/import-dnd.ts", () => ({ registerDnD: vi.fn() }));
+vi.mock("../app-resource-manager/index.ts", () => ({
+  registerResourceManagerGlobal: vi.fn(),
+}));
+vi.mock("./diagnostics/community.ts", () => ({
+  initDiagnostics: vi.fn(),
+  startDedup: vi.fn(),
+}));
+vi.mock("../../features/import-queue.ts", () => ({ initImportQueue: vi.fn() }));
+vi.mock("../../features/recycle-bin.ts", () => ({ initRecycleBin: vi.fn() }));
+vi.mock("../../features/oldest-models.ts", () => ({
+  loadOldestModel: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../../features/community/data.ts", () => ({ tryFetchModels: vi.fn() }));
+vi.mock("./settings/community.ts", () => ({
+  initSettings: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("./community-data.ts", () => ({
+  loadCommunityData: vi.fn().mockResolvedValue({ sites: [], creators: [], authors: [] }),
+  fillSearch: vi.fn(),
+}));
+vi.mock("./site-view.ts", () => ({ renderSiteView: vi.fn(() => () => {}) }));
+vi.mock("../../features/community/events.ts", () => ({ bindRepoEvents: vi.fn() }));
+vi.mock("../../utils/icon/workshop-icons.ts", () => ({ getSiteIcon: vi.fn(() => "") }));
+
+import { bus } from "../../bus.ts";
+import { initImportQueue } from "../../features/import-queue.ts";
+import { initRecycleBin } from "../../features/recycle-bin.ts";
+import { loadOldestModel } from "../../features/oldest-models.ts";
+import { startDedup } from "./diagnostics/community.ts";
+import { loadCommunityData } from "./community-data.ts";
+import { tryFetchModels } from "../../features/community/data.ts";
+import { renderSiteView } from "./site-view.ts";
+import "./index.ts"; // 触发 customElements.define("app-content")
+import { sleep, mountCustomElement, unmountElement } from "../../test-utils/index.ts";
+
+type ContentEl = {
+  shadowRoot: ShadowRoot;
+  _current: string;
+  _root: ShadowRoot;
+  _globalUnsubs: Array<() => void>;
+  _unsubs: Array<() => void>;
+  _render(): void;
+  _initPreviewResize(): void;
+  _initRepository(): void;
+  _initInstances(): void;
+  _bindTabs(sel: string, prefix: string, ids: string[]): void;
+  _fmtSize(bytes: number): string;
+  _esc(s: unknown): string;
+  [key: string]: unknown;
+} & Element;
+
+function mountContent(): ContentEl {
+  const el = mountCustomElement("app-content") as unknown as ContentEl;
+  // 页面级 init 方法替换为 spy（各自模块已有独立测试；此处只测 _render 分支/交互层）
+  (el as unknown as { _initDiagnostics: () => void })._initDiagnostics = vi.fn();
+  (el as unknown as { _initWorkshop: () => void })._initWorkshop = vi.fn();
+  (el as unknown as { _initGithub: () => void })._initGithub = vi.fn();
+  (el as unknown as { _initSettings: () => Promise<void> })._initSettings = vi.fn().mockResolvedValue(undefined);
+  // _initInstances 保留真实实现（package:selected 订阅测试需要）
+  return el;
+}
+
+beforeEach(() => {
+  document.body.innerHTML = "";
+  localStorage.removeItem("nav_page");
+  localStorage.removeItem("ui-default-page");
+  localStorage.removeItem("repo_rtype");
+  localStorage.removeItem("preview-width");
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  document.body.innerHTML = "";
+});
+
+describe("_render — 页面分支", () => {
+  it("repository → 仓库页（.repo-tab + subtab）", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    expect(el.shadowRoot.querySelector(".repo-tab")).not.toBeNull();
+    expect(el.shadowRoot.querySelector(".repo-subtab")).not.toBeNull();
+    unmountElement(el);
+  });
+
+  it("instances 与未知页 → 整合包页（.ins-content）", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "instances";
+    el._render();
+    expect(el.shadowRoot.querySelector(".ins-content")).not.toBeNull();
+    el._current = "weird-page";
+    el._render(); // default 分支回落 instances
+    expect(el.shadowRoot.querySelector(".ins-content")).not.toBeNull();
+    unmountElement(el);
+  });
+
+  it("settings → .stg-tab；diagnostics/oldest → 诊断页；workshop → #ws-tabs；github → #gh-grid", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "settings";
+    el._render();
+    expect(el.shadowRoot.querySelector(".stg-tab")).not.toBeNull();
+    el._current = "diagnostics";
+    el._render();
+    // P3 修复（审核）：原断言 .repo-tab 是全部页面模板的通用类名（tpl.ts 各页都有），
+    // 诊断页渲染错误也会通过——改断言诊断页专属 .diag-wrapper
+    expect(el.shadowRoot.querySelector(".diag-wrapper")).not.toBeNull();
+    el._current = "workshop";
+    el._render();
+    expect(el.shadowRoot.querySelector("#ws-tabs")).not.toBeNull();
+    el._current = "github";
+    el._render();
+    expect(el.shadowRoot.querySelector("#gh-grid")).not.toBeNull();
+    unmountElement(el);
+  });
+
+  it("init 抛错 → toast:show 而非中断（bus 收到错误事件）", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "settings";
+    // _render 的 try/catch 只捕获同步 throw（async reject 会变 unhandled，不进 catch）
+    (el as unknown as { _initSettings: () => Promise<void> })._initSettings = vi.fn(() => {
+      throw new Error("boom");
+    }) as unknown as () => Promise<void>;
+    const toastSpy = vi.fn();
+    const unsub = bus.on("toast:show", toastSpy);
+    try {
+      el._render();
+      await sleep(20);
+      expect(toastSpy).toHaveBeenCalled();
+    } finally {
+      unsub();
+      unmountElement(el);
+    }
+  });
+});
+
+describe("_bindTabs — 仓库 tab 懒初始化", () => {
+  it("点击 import tab → 渲染下载页 + initImportQueue 注册", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    const importBtn = el.shadowRoot.querySelector('.repo-tab[data-tab="import"]') as HTMLElement;
+    importBtn.click();
+    await sleep(20);
+    expect(initImportQueue).toHaveBeenCalled();
+    const body = el.shadowRoot.getElementById("repo-tab-import");
+    expect(body?.innerHTML.length).toBeGreaterThan(0);
+    expect(body?.style.display).not.toBe("none");
+    unmountElement(el);
+  });
+
+  it("点击 recycle tab → initRecycleBin 注册", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    const btn = el.shadowRoot.querySelector('.repo-tab[data-tab="recycle"]') as HTMLElement;
+    btn.click();
+    await sleep(20);
+    expect(initRecycleBin).toHaveBeenCalled();
+    unmountElement(el);
+  });
+
+  it("点击 oldest tab → loadOldestModel 注册", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    const btn = el.shadowRoot.querySelector('.repo-tab[data-tab="oldest"]') as HTMLElement;
+    btn.click();
+    await sleep(20);
+    expect(loadOldestModel).toHaveBeenCalled();
+    unmountElement(el);
+  });
+
+  it("点击 dedup tab → 渲染去重按钮；点击按钮与 rtype-changed 均触发 startDedup", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    const btn = el.shadowRoot.querySelector('.repo-tab[data-tab="dedup"]') as HTMLElement;
+    btn.click();
+    await sleep(20);
+    const startBtn = el.shadowRoot.getElementById("dedup-start-btn") as HTMLElement | null;
+    expect(startBtn).toBeTruthy();
+    startBtn!.click();
+    await sleep(20);
+    expect(startDedup).toHaveBeenCalledTimes(1);
+    bus.emit("repo:rtype-changed", "mmd"); // 全局类型切换 → 自动重复
+    await sleep(20);
+    expect(startDedup).toHaveBeenCalledTimes(2);
+    unmountElement(el);
+  });
+});
+
+describe("_initRepository — subtab 切换", () => {
+  it("切换 rtype → 更新树 + 发 repo:rtype-changed", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    const rtypeSpy = vi.fn();
+    const unsub = bus.on("repo:rtype-changed", rtypeSpy);
+    try {
+      const mmd = el.shadowRoot.querySelector('.repo-subtab[data-rtab="mmd-skin"]') as HTMLElement;
+      mmd.click();
+      await sleep(20);
+      expect(localStorage.getItem("repo_rtype")).toBe("mmd-skin");
+      expect(rtypeSpy).toHaveBeenCalledWith("mmd-skin");
+      // 树容器被重写为对应 <app-tree root>
+      const tree = el.shadowRoot.getElementById("repo-tab-tree");
+      expect(tree?.innerHTML).toContain('root="mmd-skin"');
+    } finally {
+      unsub();
+      unmountElement(el);
+    }
+  });
+});
+
+describe("_initPreviewResize — 拖拽调宽", () => {
+  it("拖拽 handle → preview 宽度变化 + 保存 localStorage", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    const handle = el.shadowRoot.getElementById("preview-resize-handle") as HTMLElement | null;
+    const preview = el.shadowRoot.getElementById("app-preview") as HTMLElement | null;
+    expect(handle).toBeTruthy();
+    expect(preview).toBeTruthy();
+    // happy-dom 无布局，getBoundingClientRect 返回 0 → newW 取 max(160, ...) 下限
+    handle!.dispatchEvent(new PointerEvent("pointerdown", { cancelable: true }));
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 50 }));
+    document.dispatchEvent(new PointerEvent("pointerup"));
+    expect(preview!.style.width).toContain("px");
+    expect(localStorage.getItem("preview-width")).toContain("px");
+    unmountElement(el);
+  });
+
+  it("localStorage 已有宽度 → 恢复并钳制 160–500", async () => {
+    localStorage.setItem("preview-width", "999"); // 超上限 → 500
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    const preview = el.shadowRoot.getElementById("app-preview") as HTMLElement | null;
+    expect(preview?.style.width).toBe("500px");
+    unmountElement(el);
+  });
+});
+
+describe("事件订阅", () => {
+  it("repo:switch-tab → 点击对应 tab", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    const importBtn = el.shadowRoot.querySelector('.repo-tab[data-tab="import"]') as HTMLElement;
+    const clickSpy = vi.spyOn(importBtn, "click");
+    bus.emit("repo:switch-tab", { tab: "import" });
+    await sleep(10);
+    expect(clickSpy).toHaveBeenCalled();
+    unmountElement(el);
+  });
+
+  it("repo:search-creator → 发射 tree:set-search + 切仓库页", async () => {
+    const el = mountContent();
+    await sleep(50);
+    const navSpy = vi.fn();
+    const searchSpy = vi.fn();
+    const unsubNav = bus.on("nav:change", navSpy);
+    const unsubSearch = bus.on("tree:set-search", searchSpy);
+    try {
+      bus.emit("repo:search-creator", "某作者");
+      await sleep(10);
+      expect(searchSpy).toHaveBeenCalledWith("某作者");
+      expect(navSpy).toHaveBeenCalledWith({ page: "repository" });
+    } finally {
+      unsubNav();
+      unsubSearch();
+      unmountElement(el);
+    }
+  });
+
+  it("lang:changed → 重渲染当前页", async () => {
+    const el = mountContent();
+    await sleep(50);
+    // P2（子代理审核）：原测试为 no-op——before 在显式 _render() 前捕获后 void 丢弃，
+    // 断言仅 .repo-tab 存在（显式 _render 已满足），删掉 lang:changed 订阅测试照样通过。
+    // 改为 spyOn(_render) 断言 emit 后热重渲染真实触发。
+    const renderSpy = vi.spyOn(el, "_render");
+    bus.emit("lang:changed", { lang: "en" });
+    await sleep(10);
+    expect(renderSpy).toHaveBeenCalled();
+    unmountElement(el);
+  });
+
+  it("package:selected → ins-content 渲染 app-sync-manager", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "instances";
+    el._render(); // 真实 _initInstances 注册 package:selected 订阅
+    bus.emit("package:selected", { name: "MyPack", rtype: "ysm" });
+    await sleep(10);
+    const content = el.shadowRoot.getElementById("ins-content");
+    expect(content?.innerHTML).toContain("app-sync-manager");
+    expect(content?.innerHTML).toContain('instance="MyPack"');
+    unmountElement(el);
+  });
+});
+
+describe("_initGithub / _initWorkshop 真实路径", () => {
+  it("github 无仓库 → 「暂无 GitHub 仓库」占位", async () => {
+    const el = mountCustomElement("app-content") as unknown as ContentEl;
+    await sleep(50);
+    el._current = "github";
+    el._render(); // 真实 _initGithub → loadRepos → LoadGitHubRepos(mock [])
+    await sleep(20);
+    const grid = el.shadowRoot.getElementById("gh-grid");
+    expect(grid?.textContent).toContain("暂无 GitHub 仓库");
+    unmountElement(el);
+  });
+
+  it("github 有仓库 → 卡片渲染 + 点击走 showRepo（未找到模型列表）", async () => {
+    const el = mountCustomElement("app-content") as unknown as ContentEl;
+    await sleep(50);
+    const appMock = (await import("../../wails/app.ts")).getApp as unknown as ReturnType<typeof vi.fn>;
+    appMock.mockResolvedValue({
+      LoadAppConfig: vi.fn().mockResolvedValue({}),
+      GetRepoRoot: vi.fn().mockResolvedValue("/repo"),
+      ScanModelEntriesWithLabel: vi.fn().mockResolvedValue([]),
+      LoadGitHubRepos: vi.fn().mockResolvedValue([{ name: "creator/models", desc: "索引" }]),
+      OpenInBrowser: vi.fn().mockResolvedValue(undefined),
+      BatchExtractCreatorAvatars: vi.fn().mockResolvedValue({}),
+    });
+    vi.mocked(tryFetchModels).mockResolvedValue(undefined as never); // 未找到模型列表分支
+    el._current = "github";
+    el._render();
+    await sleep(50);
+    const card = el.shadowRoot.querySelector(".gh-repo-card") as HTMLElement | null;
+    expect(card).toBeTruthy();
+    card!.click();
+    await sleep(30);
+    const body = el.shadowRoot.getElementById("gh-results-body");
+    expect(body?.textContent).toContain("未找到模型列表");
+    unmountElement(el);
+  });
+
+  it("workshop 空站点 → 不生成 tab；有站点 → 生成 tab + 默认显示第一个", async () => {
+    const el = mountCustomElement("app-content") as unknown as ContentEl;
+    await sleep(50);
+    vi.mocked(loadCommunityData).mockResolvedValue({
+      sites: [
+        { id: "bilibili", label: "B站", url: "https://bilibili.com", icon: "", desc: "", group: "" },
+        { id: "afdian", label: "爱发电", url: "https://afdian.com", icon: "", desc: "", group: "" },
+      ],
+      creators: [],
+      authors: [],
+    });
+    el._current = "workshop";
+    el._render();
+    // _initWorkshop 用 setTimeout(100) 延迟加载站点
+    await sleep(200);
+    const tabs = el.shadowRoot.getElementById("ws-tabs");
+    expect(tabs?.querySelectorAll("button").length).toBe(2);
+    // 默认站点（bilibili）触发 showSiteView → renderSiteView（mock 内联）
+    expect(renderSiteView).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "bilibili" }),
+      expect.anything(),
+    );
+    unmountElement(el);
+  });
+
+  it("内嵌模式直连官网（iframe.src=site.url，不再走本地代理 127.0.0.1）", async () => {
+    const el = mountCustomElement("app-content") as unknown as ContentEl;
+    await sleep(50);
+    vi.mocked(loadCommunityData).mockResolvedValue({
+      sites: [
+        { id: "bilibili", label: "B站", url: "https://bilibili.com", icon: "", desc: "", group: "" },
+      ],
+      creators: [],
+      authors: [],
+    });
+    // renderSiteView mock：渲染可交互卡片 + 模式切换按钮（真实实现内部同样绑定 ctx.openUrl）
+    vi.mocked(renderSiteView).mockImplementation((site, ctx) => {
+      ctx.searchResults.innerHTML =
+        '<button id="cr-mode-toggle"><span class="cr-mode-opt cr-mode-ext active">↗ 外链</span><span class="cr-mode-opt cr-mode-emb">🔍 内嵌</span><span class="cr-mode-opt cr-mode-win">🖥️ 窗口</span></button>' +
+        `<div class="cr-site-card">${site.label}</div>`;
+      ctx.searchResults
+        .querySelector(".cr-site-card")!
+        .addEventListener("click", () => ctx.openUrl(site.url));
+      return () => {};
+    });
+    el._current = "workshop";
+    el._render();
+    await sleep(200);
+
+    // 切到内嵌模式 → 点击卡片 → openUrl 走 openEmbedded
+    const toggle = el.shadowRoot.getElementById("cr-mode-toggle") as HTMLElement | null;
+    expect(toggle).toBeTruthy();
+    toggle!.click();
+    (el.shadowRoot.querySelector(".cr-site-card") as HTMLElement).click();
+    await sleep(20);
+
+    const iframe = el.shadowRoot.getElementById("ws-iframe") as HTMLIFrameElement | null;
+    expect(iframe).toBeTruthy();
+    expect(String(iframe!.src)).toContain("bilibili.com");
+    expect(String(iframe!.src)).not.toContain("127.0.0.1"); // 直连官网，非本地反代
+    // [ADR-077] sandbox 必须带 allow-same-origin：否则 iframe origin 变 opaque null，
+    // 登录站 SPA（如模之屋）fetch/XHR 被 CORS 拦截白屏
+    expect(iframe!.getAttribute("sandbox")).toContain("allow-same-origin");
+    unmountElement(el);
+  });
+});
+
+describe("纯函数", () => {
+  it("_fmtSize：0/字节/KB/MB 分级", () => {
+    const el = mountCustomElement("app-content") as unknown as ContentEl;
+    expect((el as unknown as { _fmtSize(n: number): string })._fmtSize(0)).toBe("");
+    expect((el as unknown as { _fmtSize(n: number): string })._fmtSize(512)).toBe("512 B");
+    expect((el as unknown as { _fmtSize(n: number): string })._fmtSize(2048)).toBe("2.0 KB");
+    expect((el as unknown as { _fmtSize(n: number): string })._fmtSize(5 * 1048576)).toBe("5.0 MB");
+  });
+
+  it("_esc：委托规范 esc（含引号转义）", () => {
+    const el = mountCustomElement("app-content") as unknown as ContentEl;
+    const esc = (el as unknown as { _esc(s: unknown): string })._esc.bind(el);
+    expect(esc('<b title="x">')).toContain("&lt;b");
+    expect(esc('a"b')).toContain("&quot;");
+    expect(esc(null)).toBe("");
+    expect(esc(undefined)).toBe("");
+  });
+});

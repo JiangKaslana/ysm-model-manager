@@ -1,0 +1,661 @@
+package ysm
+
+import (
+	"archive/zip"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"ysm-model-manager/go/fsutil"
+)
+
+type Author struct {
+	Name     string `json:"name"`
+	Roles    string `json:"roles,omitempty"`
+	Bilibili string `json:"bilibili,omitempty"`
+}
+
+type Link struct {
+	Home   string `json:"home,omitempty"`
+	Donate string `json:"donate,omitempty"`
+}
+
+type AnimGroup struct {
+	ID    string   `json:"id"`
+	Name  string   `json:"name"`
+	Items []string `json:"items"`
+}
+
+type ConfigMenu struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Controls []string `json:"controls"`
+}
+
+type PreviewInfo struct {
+	DefaultTexture string  `json:"defaultTexture,omitempty"`
+	HasGUI         bool    `json:"hasGui"`
+	HeightScale    float64 `json:"heightScale,omitempty"`
+	WidthScale     float64 `json:"widthScale,omitempty"`
+}
+
+// YsmSummary 是前端右侧面板和 AI 搜索消费的标准摘要
+type YsmSummary struct {
+	Schema      string       `json:"schema"` // "ysm-summary/v1"
+	Source      string       `json:"source"` // 原始文件名
+	Name        string       `json:"name"`
+	Tips        string       `json:"tips,omitempty"`
+	License     string       `json:"license,omitempty"`
+	Authors     []Author     `json:"authors,omitempty"`
+	Links       Link         `json:"links,omitempty"`
+	Spec        int          `json:"spec"`
+	Format      string       `json:"format"` // "ysm" 或 "zip"
+	Size        int64        `json:"size"`   // 文件大小 bytes
+	Stats       Stats        `json:"stats"`
+	AnimGroups  []AnimGroup  `json:"animGroups,omitempty"`
+	ConfigMenus []ConfigMenu `json:"configMenus,omitempty"`
+	Preview     PreviewInfo  `json:"preview"`
+}
+
+type Stats struct {
+	Textures   int `json:"textures"`
+	Models     int `json:"models"`
+	Animations int `json:"animations"`
+	TexWidth   int `json:"texWidth"`
+	TexHeight  int `json:"texHeight"`
+}
+
+// ===== 内部解析用的完整 ysm.json 结构 =====
+
+type ysmRoot struct {
+	Spec       int             `json:"spec"`
+	Metadata   *ysmMetadata    `json:"metadata,omitempty"`
+	Properties *ysmProperties  `json:"properties,omitempty"`
+	Files      json.RawMessage `json:"files,omitempty"`
+}
+
+type ysmMetadata struct {
+	Name    string      `json:"name"`
+	Tips    string      `json:"tips,omitempty"`
+	License *ysmLicense `json:"license,omitempty"`
+	Authors []ysmAuthor `json:"authors,omitempty"`
+	Link    *ysmLink    `json:"link,omitempty"`
+}
+
+type ysmLicense struct {
+	Type string `json:"type"`
+}
+
+type ysmAuthor struct {
+	Name    string      `json:"name"`
+	Role    string      `json:"role,omitempty"`
+	Avatar  string      `json:"avatar,omitempty"`
+	Contact *ysmContact `json:"contact,omitempty"`
+}
+
+type ysmContact struct {
+	Bilibili string `json:"bilibili,omitempty"`
+}
+
+type ysmLink struct {
+	Home   string `json:"home,omitempty"`
+	Donate string `json:"donate,omitempty"`
+}
+
+type ysmProperties struct {
+	DefaultTexture    string                 `json:"default_texture,omitempty"`
+	HeightScale       float64                `json:"height_scale,omitempty"`
+	WidthScale        float64                `json:"width_scale,omitempty"`
+	ExtraAnimation    map[string]interface{} `json:"extra_animation,omitempty"`
+	ExtraAnimClassify []ysmAnimClassify      `json:"extra_animation_classify,omitempty"`
+	ExtraAnimButtons  []ysmConfigButton      `json:"extra_animation_buttons,omitempty"`
+}
+
+type ysmAnimClassify struct {
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	ExtraAnimation json.RawMessage `json:"extra_animation,omitempty"` // 取 keys
+}
+
+type ysmConfigButton struct {
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	ConfigForms json.RawMessage `json:"config_forms,omitempty"`
+}
+
+// ===== 摘要提取入口 =====
+
+// ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要
+func ExtractYsmSummary(path string) (YsmSummary, error) {
+	summary := YsmSummary{
+		Schema: "ysm-summary/v1",
+		Source: filepath.Base(path),
+		Format: "ysm",
+	}
+
+	// 文件大小
+	fi, err := os.Stat(path)
+	if err == nil {
+		summary.Size = fi.Size()
+	}
+
+	// YSGP（YSM V2）加密二进制格式 — 无法直接读取内容，返回基本摘要
+	if isYSGP(path) {
+		summary.Format = "ysm"
+		summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
+		summary.Spec = 2
+		return summary, nil
+	}
+
+	// 裸 ysm.json（解压后的 YSM 模型文件），直接读取 JSON
+	if strings.HasSuffix(strings.ToLower(path), ".json") {
+		// 裸 ysm.json 也设大小上限（与 zip 分支 50MB 对齐），防超大文件整读内存
+		if fi, err := os.Stat(path); err == nil && fi.Size() > (50<<20) {
+			return summary, fmt.Errorf("ysm.json 超过 50MB 上限，已拒绝解析")
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return summary, fmt.Errorf("无法读取 JSON: %v", err)
+		}
+		summary.Format = "ysm"
+
+		// 尝试解析 ysm.json 完整结构
+		var root ysmRoot
+		if err := json.Unmarshal(data, &root); err != nil {
+			// 解析失败必须返回结构化错误——原实现 `err == nil && root.Metadata != nil`
+			// 使 Unmarshal 失败时整个 if 跳过、静默降级为「文件名摘要」（返回 nil error），
+			// 违反「解析错误必须返回结构化错误信息」不变量，前端 toast 链路无法触发
+			return summary, fmt.Errorf("ysm.json 解析失败: %v", err)
+		}
+		// 原 `summary.Spec = 2` 硬编码——spec 1 的裸 ysm.json 会被
+		// 报成 2（zip 分支正确用 root.Spec）；统一为解析后的 root.Spec
+		summary.Spec = root.Spec
+		if root.Metadata != nil {
+			summary.Name = root.Metadata.Name
+			summary.Tips = root.Metadata.Tips
+			if root.Metadata.License != nil {
+				summary.License = root.Metadata.License.Type
+			}
+			for _, a := range root.Metadata.Authors {
+				author := Author{Name: a.Name, Roles: a.Role}
+				if a.Contact != nil {
+					author.Bilibili = a.Contact.Bilibili
+				}
+				summary.Authors = append(summary.Authors, author)
+			}
+			if root.Metadata.Link != nil {
+				summary.Links = Link{Home: root.Metadata.Link.Home, Donate: root.Metadata.Link.Donate}
+			}
+		}
+		if summary.Name == "" {
+			summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
+		}
+		if root.Properties != nil {
+			summary.Preview.DefaultTexture = root.Properties.DefaultTexture
+			summary.Preview.HeightScale = root.Properties.HeightScale
+			summary.Preview.WidthScale = root.Properties.WidthScale
+		}
+		// 与 .zip 分支共用：提取「其他动画」分组 + 「模型配置/自定义表情」配置菜单
+		appendAnimGroupsAndConfigs(&root, &summary)
+		// 统计 files 中的 model/texture 数量（与 .zip 分支同口径，按声明数组长度计数）
+		summary.Stats, _ = extractFileStats(root.Files)
+		return summary, nil
+	}
+
+	// 打开 ZIP
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return summary, fmt.Errorf("无法打开文件: %v", err)
+	}
+	defer r.Close()
+
+	// 查找 ysm.json / model.json
+	var ysmFile *zip.File
+	for _, f := range r.File {
+		name := strings.ToLower(filepath.Base(f.Name))
+		if name == "ysm.json" || name == "model.json" {
+			ysmFile = f
+			break
+		}
+	}
+	if ysmFile == nil {
+		// 无 ysm.json 的 ZIP（如直接在 ZIP 内放 main.json + PNG），降级扫描生成基本摘要
+		summary.Format = "zip"
+		summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
+		var modelCount, texCount, animCount int
+		for _, f := range r.File {
+			if f.FileInfo().IsDir() {
+				continue
+			}
+			low := strings.ToLower(f.Name)
+			if strings.HasSuffix(low, ".json") {
+				// 判断是否为几何体 JSON（含 minecraft:geometry）
+				rc, err := f.Open()
+				if err != nil {
+					continue
+				}
+				// limit+1 探测截断 + 不丢弃 ReadAll 错误（ADR-033 陷阱）。
+				// ADR-044 策略 A：统一走 fsutil.ReadLimitedEntry（超限/错误返回 nil → 跳过）
+				const maxGeoJSON = 5 << 20
+				buf := fsutil.ReadLimitedEntry(rc, int64(maxGeoJSON))
+				if buf == nil {
+					continue // 读取失败或超过 5MB 上限，跳过该文件
+				}
+				if len(buf) > 0 && (bytes.Contains(buf, []byte(`"minecraft:geometry"`)) || bytes.Contains(buf, []byte(`"minecraft:geometry":`))) {
+					modelCount++
+					continue
+				}
+				// 动画 JSON
+				if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
+					animCount++
+				}
+			}
+			if strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") {
+				texCount++
+			}
+		}
+		summary.Stats = Stats{
+			Models:     modelCount,
+			Textures:   texCount,
+			Animations: animCount,
+		}
+		return summary, nil
+	}
+
+	// 读取并解析
+	rc, err := ysmFile.Open()
+	if err != nil {
+		return summary, fmt.Errorf("读取 ysm.json 失败: %v", err)
+	}
+	defer rc.Close()
+
+	// limit+1 探测截断（ADR-033 陷阱）——截断数据 JSON 解析会失败且报错信息误导。
+	// 注：本处保留手写实现（未接入 fsutil.ReadLimitedEntry）——调用点需区分「读取失败」与
+	// 「超限」两种错误消息返回调用方，而 fsutil 版对两者统一返回 nil（ADR-044 策略 A 例外说明）
+	const maxYsmJSON = 50 << 20
+	data, err := io.ReadAll(io.LimitReader(rc, maxYsmJSON+1))
+	if err != nil {
+		return summary, fmt.Errorf("读取 ysm.json 失败: %v", err)
+	}
+	if len(data) > maxYsmJSON {
+		return summary, fmt.Errorf("ysm.json 超过 %dMB 上限，已拒绝解析", maxYsmJSON>>20)
+	}
+
+	var root ysmRoot
+	if err := json.Unmarshal(data, &root); err != nil {
+		return summary, fmt.Errorf("解析 ysm.json 失败: %v", err)
+	}
+
+	summary.Spec = root.Spec
+
+	// metadata
+	if root.Metadata != nil {
+		summary.Name = root.Metadata.Name
+		summary.Tips = truncate(root.Metadata.Tips, 200)
+		if root.Metadata.License != nil {
+			summary.License = root.Metadata.License.Type
+		}
+		for _, a := range root.Metadata.Authors {
+			author := Author{
+				Name:  a.Name,
+				Roles: a.Role,
+			}
+			if a.Contact != nil {
+				author.Bilibili = a.Contact.Bilibili
+			}
+			summary.Authors = append(summary.Authors, author)
+		}
+		if root.Metadata.Link != nil {
+			summary.Links = Link{
+				Home:   root.Metadata.Link.Home,
+				Donate: root.Metadata.Link.Donate,
+			}
+		}
+	}
+	// zip 分支补 Name 空值兜底——裸 ysm.json 分支
+	// （L194-196）在 metadata.name 为空时回退文件名，zip 分支无此兜底，同一函数
+	// 内两分支不对称（ysm.json 缺 name 时前端显示空模型名）
+	if summary.Name == "" {
+		summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
+	}
+
+	// properties: 动画分组 + 配置菜单 (已抽到 appendAnimGroupsAndConfigs 与裸 ysm.json 分支共用)
+	if root.Properties != nil {
+		summary.Preview = PreviewInfo{
+			DefaultTexture: root.Properties.DefaultTexture,
+			HeightScale:    root.Properties.HeightScale,
+			WidthScale:     root.Properties.WidthScale,
+		}
+		appendAnimGroupsAndConfigs(&root, &summary)
+	}
+	// Stats 统计不依赖 properties（有 files 无 properties 的模型同样需要统计）
+	stats, geoPaths := extractFileStats(root.Files)
+	if root.Properties != nil {
+		// 从几何体文件提取纹理尺寸
+		for _, geoPath := range geoPaths {
+			for _, f := range r.File {
+				if strings.HasSuffix(strings.ToLower(f.Name), strings.ToLower(geoPath)) {
+					rc, err := f.Open()
+					if err != nil {
+						continue
+					}
+					// limit+1 探测截断 + 不丢弃 ReadAll 错误（ADR-033 陷阱）。
+					// ADR-044 策略 A：统一走 fsutil.ReadLimitedEntry（超限/错误返回 nil → 跳过）
+					const maxTexGeo = 50 << 20
+					data := fsutil.ReadLimitedEntry(rc, int64(maxTexGeo))
+					if data == nil {
+						continue
+					}
+					if w, h := extractTexSizeFromGeometry(data); w > 0 && h > 0 {
+						stats.TexWidth = w
+						stats.TexHeight = h
+					}
+					break
+				}
+			}
+			if stats.TexWidth > 0 {
+				break
+			}
+		}
+	}
+	summary.Stats = stats
+
+	return summary, nil
+}
+
+// appendAnimGroupsAndConfigs 从 ysmRoot.Properties 提取「其他动画」动画分组与
+// 「模型配置/自定义表情」配置菜单，写入 summary。
+// 供 .zip 分支与裸 ysm.json（解压目录）分支共用，消除两者在面板渲染上的格式不对称。
+func appendAnimGroupsAndConfigs(root *ysmRoot, summary *YsmSummary) {
+	if root.Properties == nil {
+		return
+	}
+
+	// 动画分组（extra_animation_classify）
+	for _, g := range root.Properties.ExtraAnimClassify {
+		name := g.Name
+		// 如果 name 为空，从 properties.extra_animation 中按 #id 查找名称
+		if name == "" && root.Properties.ExtraAnimation != nil {
+			if v, ok := root.Properties.ExtraAnimation["#"+g.ID]; ok {
+				if s, ok2 := v.(string); ok2 {
+					name = s
+				}
+			}
+		}
+		// 用 extra_animation 的 value（中文名）替换 raw id
+		var displayItems []string
+		if len(g.ExtraAnimation) > 0 {
+			displayItems = extractDisplayValues(g.ExtraAnimation)
+		}
+		if len(displayItems) == 0 {
+			// 全是内部引用（#开头）时跳过整个组
+			continue
+		}
+		summary.AnimGroups = append(summary.AnimGroups, AnimGroup{
+			ID:    g.ID,
+			Name:  name,
+			Items: displayItems,
+		})
+	}
+
+	// 兜底：extra_animation 中未被分类的直接动画（非 # 开头的值）
+	if root.Properties.ExtraAnimation != nil {
+		classifiedItems := make(map[string]bool)
+		for _, g := range root.Properties.ExtraAnimClassify {
+			if len(g.ExtraAnimation) > 0 {
+				for k := range extractKeySet(g.ExtraAnimation) {
+					classifiedItems[k] = true
+				}
+			}
+		}
+		var looseAnims []string
+		for k, v := range root.Properties.ExtraAnimation {
+			if s, ok := v.(string); ok && s != "" && !strings.HasPrefix(s, "#") {
+				if strings.HasPrefix(k, "#") {
+					continue // 组名跳过
+				}
+				if !classifiedItems[k] {
+					looseAnims = append(looseAnims, s)
+				}
+			}
+		}
+		if len(looseAnims) > 0 {
+			summary.AnimGroups = append(summary.AnimGroups, AnimGroup{
+				ID:    "_loose",
+				Name:  "其他动画",
+				Items: looseAnims,
+			})
+		}
+	}
+
+	// 配置菜单（extra_animation_buttons → 模型配置/自定义表情）
+	for _, b := range root.Properties.ExtraAnimButtons {
+		types := extractControlTypes(b.ConfigForms)
+		summary.ConfigMenus = append(summary.ConfigMenus, ConfigMenu{
+			ID:       b.ID,
+			Name:     b.Name,
+			Controls: types,
+		})
+	}
+}
+
+// ===== 辅助函数 =====
+
+// 解析 bedrock geometry JSON 的纹理尺寸
+func extractTexSizeFromGeometry(data []byte) (w, h int) {
+	var raw struct {
+		Geometry []struct {
+			Description struct {
+				TextureWidth  float64 `json:"texture_width"`
+				TextureHeight float64 `json:"texture_height"`
+			} `json:"description"`
+		} `json:"minecraft:geometry"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil || len(raw.Geometry) == 0 {
+		return 0, 0
+	}
+	return clampTexDim(raw.Geometry[0].Description.TextureWidth), clampTexDim(raw.Geometry[0].Description.TextureHeight)
+}
+
+// 从 files.player 统计纹理、模型主体、动画数量，并收集几何体文件路径
+func extractFileStats(filesRaw json.RawMessage) (Stats, []string) {
+	var stats Stats
+	var geoFiles []string
+
+	// files 可能形如: { "player": { "texture": [...], "animation": {...}, "model": [...] } }
+	var files map[string]json.RawMessage
+	if err := json.Unmarshal(filesRaw, &files); err != nil {
+		return stats, nil
+	}
+
+	playerRaw, ok := files["player"]
+	if !ok {
+		return stats, nil
+	}
+
+	var player map[string]json.RawMessage
+	if err := json.Unmarshal(playerRaw, &player); err != nil {
+		return stats, nil
+	}
+
+	// textures
+	if texRaw, ok := player["texture"]; ok {
+		var arr []json.RawMessage
+		if err := json.Unmarshal(texRaw, &arr); err == nil {
+			stats.Textures = len(arr)
+		}
+	}
+
+	// animation (对象或数组)
+	if animRaw, ok := player["animation"]; ok {
+		var arr []json.RawMessage
+		if err := json.Unmarshal(animRaw, &arr); err == nil {
+			stats.Animations = len(arr)
+		} else {
+			var obj map[string]json.RawMessage
+			if err := json.Unmarshal(animRaw, &obj); err == nil {
+				stats.Animations = len(obj)
+			}
+		}
+	}
+
+	// model — 同时收集路径
+	if modelRaw, ok := player["model"]; ok {
+		var models []struct {
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal(modelRaw, &models); err == nil {
+			stats.Models = len(models)
+			for _, m := range models {
+				if m.Path != "" {
+					geoFiles = append(geoFiles, m.Path)
+				}
+			}
+		} else {
+			var obj map[string]json.RawMessage
+			if err := json.Unmarshal(modelRaw, &obj); err == nil {
+				stats.Models = len(obj)
+			} else {
+				// 字符串数组 / 单字符串形态（与 extracted.go 支持面一致）
+				var strs []string
+				if err := json.Unmarshal(modelRaw, &strs); err == nil {
+					stats.Models = len(strs)
+					geoFiles = append(geoFiles, strs...)
+				} else {
+					var single string
+					if err := json.Unmarshal(modelRaw, &single); err == nil && single != "" {
+						stats.Models = 1
+						geoFiles = append(geoFiles, single)
+					}
+				}
+			}
+		}
+	}
+
+	return stats, geoFiles
+}
+
+// 从 extra_animation 对象中提取键名列表
+func extractKeys(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	// 可能是对象
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err == nil {
+		keys := make([]string, 0, len(obj))
+		for k := range obj {
+			keys = append(keys, k)
+		}
+		return keys
+	}
+	// 可能是数组
+	var arr []json.RawMessage
+	if err := json.Unmarshal(raw, &arr); err == nil {
+		keys := make([]string, len(arr))
+		for i := range arr {
+			keys[i] = fmt.Sprintf("动画 %d", i+1)
+		}
+		return keys
+	}
+	return nil
+}
+
+// 从 extra_animation map 提取中文显示名
+// extra_animation 的 value 可能是一个对象或字符串
+func extractDisplayValues(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil
+	}
+	var result []string
+	for _, v := range obj {
+		// 尝试直接解析为字符串
+		var s string
+		if err := json.Unmarshal(v, &s); err == nil && s != "" {
+			if strings.HasPrefix(s, "#") {
+				continue // # 开头的是内部引用，跳过
+			}
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func extractKeySet(raw json.RawMessage) map[string]bool {
+	if len(raw) == 0 {
+		return nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil
+	}
+	set := make(map[string]bool, len(obj))
+	for k := range obj {
+		set[k] = true
+	}
+	return set
+}
+
+// 从 config_forms 提取控件类型摘要
+func extractControlTypes(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	var forms []json.RawMessage
+	if err := json.Unmarshal(raw, &forms); err != nil {
+		return nil
+	}
+	types := make([]string, 0, len(forms))
+	for _, f := range forms {
+		var m map[string]json.RawMessage
+		if err := json.Unmarshal(f, &m); err != nil {
+			continue
+		}
+		t := string(m["type"])
+		// 去掉引号
+		t = strings.Trim(t, "\"")
+		if t == "" {
+			t = "unknown"
+		}
+		types = append(types, t)
+	}
+	return types
+}
+
+// 截断字符串（按 rune 计，避免中文字符被字节截断产生乱码）
+func truncate(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + "..."
+}
+
+// isYSGP 检测文件是否是 YSGP（YSM V2）二进制格式（支持带 BOM 的变体）
+func isYSGP(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	var buf [7]byte
+	n, err := io.ReadFull(f, buf[:])
+	if err != nil && n < 4 {
+		return false
+	}
+	data := buf[:n]
+	// 跳过 UTF-8 BOM
+	offset := 0
+	if n >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
+		offset = 3
+	}
+	return n >= offset+4 && string(data[offset:offset+4]) == "YSGP"
+}

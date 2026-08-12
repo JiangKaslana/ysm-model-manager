@@ -1,0 +1,44 @@
+// ===== Playwright E2E 配置（ADR-037）=====
+// 在 vite dev 纯前端模式下运行，mock Wails bridge 阻断后端依赖。
+// 内置 webServer 自动管理 vite dev 生命周期。
+// 使用 data-testid 稳定钩子定位元素（Design.md §19.1）。
+import { defineConfig, devices } from "@playwright/test";
+
+export default defineConfig({
+  testDir: "./e2e",
+  // ADR-035 G-4：覆盖广度采集 spec 按需执行（npx playwright test coverage-breadth），
+  // 不纳入日常 e2e 套件（采集会拖慢且产物仅人工观察面）
+  testIgnore: ["**/coverage-breadth.spec.ts"],
+  // 每项限 15 秒（用户侧验收标准）；总套件限 7 分钟；累计 5 次失败阻断（ADR-037 接入参数）
+  timeout: 15000,
+  globalTimeout: 7 * 60 * 1000,
+  maxFailures: 5,
+  // retries: 0 —— 失败即真红，不靠重试掩盖竞态（子代理审核 P2）。
+  // 已知环境性缺口（vite 冷启动）已由 fixture 的 app-content shadowRoot
+  // 轮询等待根治；条件性 test.skip 保留（mock 未渲染时优雅跳过，有原因注释）。
+  retries: 0,
+  workers: 1,
+  reporter: [["list"], ["html", { outputFolder: "e2e-report" }]],
+  use: {
+    baseURL: "http://localhost:5173",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    // 显式固定语言环境：settings.spec 断言 "Path updated" 等英文文案依赖 en-US，
+    // 若不固定，CI 系统语言/locale 变化即翻车（context-menu 已踩过 Copy File Path）
+    locale: "en-US",
+  },
+  // 内置 webServer：自动启动/关闭 vite dev
+  webServer: {
+    command: "npx vite --port 5173 --host 127.0.0.1",
+    url: "http://localhost:5173",
+    reuseExistingServer: !process.env.CI,
+    cwd: ".",
+    timeout: 30000,
+  },
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+  ],
+});
