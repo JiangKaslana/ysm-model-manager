@@ -207,7 +207,9 @@ function checkFrontendTest() {
     console.log('        run manually: cd frontend && npx vitest run');
     return;
   }
-  const { rc, out } = run([bin, 'run'], path.join(ROOT, 'frontend'), { shell: true });
+  // 与 frontend/package.json test 对齐：--maxWorkers 8 实测比默认并发快约 10s
+  // （24 核机器默认 fork 过多 worker 反有调度开销）
+  const { rc, out } = run([bin, 'run', '--maxWorkers', '8'], path.join(ROOT, 'frontend'), { shell: true });
   if (rc === 0) {
     console.log(`  ${PASS} vitest run passed`);
   } else {

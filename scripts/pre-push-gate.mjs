@@ -282,7 +282,8 @@ function main() {
 
     // ADR-023 P3：L3 Vitest 随前端域变更回归（写了要跑、坏了要红）
     const t1 = Date.now();
-    const ft = sh('npx vitest run', { cwd: path.join(ROOT, 'frontend') });
+    // 与 frontend/package.json test 对齐：--maxWorkers 8（24 核默认并发过载反慢 ~10s）
+    const ft = sh('npx vitest run --maxWorkers 8', { cwd: path.join(ROOT, 'frontend') });
     results.push({ label: 'vitest run', ok: ft.rc === 0, time: Date.now() - t1,
       tail: ft.rc ? ft.out.trim().split('\n').slice(-4).join('\n') : '' });
     if (ft.rc !== 0) blocked = true;
