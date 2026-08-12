@@ -45,6 +45,10 @@ function runChecks() {
     const violations = [];
     for (const l of lines) {
       const [file, lineno, text] = parseRgLine(l);
+      // 基线文件自引用排除（2026-08-12）：R2 等扫 '.' 的规则会命中
+      // scripts/baseline/redlines-baseline.json 自身（内容含违规键文本），
+      // 基线格式变更时键错位产生大量假新增。基线文件不是代码，不应成为违规源。
+      if (String(file).includes('scripts/baseline/')) continue;
       violations.push({ file: String(file), line: lineno, snippet: cleanSnippet(text) });
     }
     results.push({ rule_id: ruleId, name, fix, count: violations.length, violations });
@@ -182,7 +186,12 @@ function collectViolationKeys(results) {
     for (const v of r.violations) {
       // toPosix 归一化跨平台路径（Windows 反斜杠 → 正斜杠）
       const f = String(v.file).replace(/\\/g, '/');
-      keys.push(`${f}:${v.line}:${r.rule_id}`);
+      // 行号不敏感比对（2026-08-12 治理）：键用「文件 + 规则 + 行内容」而非 file:line——
+      // 加首行注释/格式化等行号漂移不再产生假新增（曾因 58 个测试文件加
+      // // @vitest-environment node 触发 91 条存量违规"假新增"阻断推送）；
+      // 只有行内容真正变化或出现新行才算新增。行号仍保留在 violations 中供定位。
+      const content = (v.snippet || '').trim();
+      keys.push(`${f}:${r.rule_id}:${content}`);
     }
   }
   return [...new Set(keys)].sort();
