@@ -32,6 +32,14 @@ function rg(pattern, paths, globs) {
  */
 const BASELINE_FILE = path.join(ROOT, 'scripts', 'baseline', 'redlines-baseline.json');
 
+/**
+ * 债务型规则（2026-08-12 治理，ADR-055 演进）：基线存量 >50 条且属命名/样式规范，
+ * 新增仅 WARN 不阻断推送——存量累积导致行号/内容比对噪声高，阻断价值低。
+ * 安全/缺陷类真红线（R1 window.__ / R8 innerHTML XSS / R10 esc 单点 / W7 缓存失效
+ * / W6 bypass dialogs / R6 JS in public / R3 .file API / W2 window.go）保持阻断。
+ */
+const WARN_RULES = new Set(['R2', 'R5', 'R7', 'R4', 'W1']);
+
 function runChecks() {
   const results = [];
 
@@ -181,7 +189,8 @@ function outputJson(results, summary = null) {
 }
 
 function collectViolationKeys(results) {
-  const keys = [];
+  const blocking = [];
+  const advisory = [];
   for (const r of results) {
     for (const v of r.violations) {
       // toPosix 归一化跨平台路径（Windows 反斜杠 → 正斜杠）
@@ -191,52 +200,64 @@ function collectViolationKeys(results) {
       // // @vitest-environment node 触发 91 条存量违规"假新增"阻断推送）；
       // 只有行内容真正变化或出现新行才算新增。行号仍保留在 violations 中供定位。
       const content = (v.snippet || '').trim();
-      keys.push(`${f}:${r.rule_id}:${content}`);
+      const key = `${f}:${r.rule_id}:${content}`;
+      (WARN_RULES.has(r.rule_id) ? advisory : blocking).push(key);
     }
   }
-  return [...new Set(keys)].sort();
+  return {
+    blocking: [...new Set(blocking)].sort(),
+    advisory: [...new Set(advisory)].sort(),
+  };
 }
 
-/** --baseline 模式：读入红线条目与基线比对，只报新增（ERROR 阻断）；--update-baseline 重建基线。 */
+/** --baseline 模式：读入红线条目与基线比对，只报新增；阻断仅限真红线（债务型规则 WARN）。 */
 function runBaseline(results) {
   const current = collectViolationKeys(results);
+  const allKeys = [...current.blocking, ...current.advisory];
   // 扫描健康门（fail-closed，比对前）：rg 缺失/执行失败时上方 rg() 已返回 []，
   // 若不拦截，--baseline 模式 newV=[] 会退 0 假绿放行（code_review P1）。
   if (!rgHealthy) {
     return { ok: false,
       note: '[扫描不可用] ripgrep 缺失或执行失败，红线扫描未完整执行——拒绝放行（fail-closed）',
-      current, newViolations: current };
+      current: allKeys, newViolations: allKeys, advisoryViolations: [] };
   }
   const update = process.argv.includes('--update-baseline');
   if (update) {
     fs.mkdirSync(path.dirname(BASELINE_FILE), { recursive: true });
     fs.writeFileSync(BASELINE_FILE, JSON.stringify(
-      { generated: new Date().toISOString(), count: current.length, violations: current }, null, 2) + '\n');
-    return { ok: true, note: `--update-baseline: 已写入 ${current.length} 条红线基线`, current };
+      { generated: new Date().toISOString(), count: allKeys.length, violations: allKeys }, null, 2) + '\n');
+    return { ok: true, note: `--update-baseline: 已写入 ${allKeys.length} 条红线基线`, current: allKeys };
   }
   if (!fs.existsSync(BASELINE_FILE)) {
     return { ok: false,
       note: `[缺失基线] redlines-baseline.json 不存在——无法比对新增违规，请先运行 node scripts/check-redlines.mjs --json --update-baseline 建立基线`,
-      current, newViolations: current };
+      current: allKeys, newViolations: allKeys, advisoryViolations: [] };
   }
   let base;
   try { base = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf-8')); }
   catch {
     return { ok: false,
       note: `[基线损坏] redlines-baseline.json 无法解析，删除后重跑 --update-baseline`,
-      current };
+      current: allKeys };
   }
   const baseSet = new Set(base.violations || []);
-  const newV = current.filter((k) => !baseSet.has(k));
-  const gone = [...baseSet].filter((k) => !current.includes(k));
-  const errors = newV.map((k) => `[新增红线违规] ${k}`);
+  const newBlocking = current.blocking.filter((k) => !baseSet.has(k));
+  const newAdvisory = current.advisory.filter((k) => !baseSet.has(k));
+  const gone = [...baseSet].filter((k) => !allKeys.includes(k));
+  const errors = newBlocking.map((k) => `[新增红线违规] ${k}`);
+  const warns = newAdvisory.slice(0, 10).map((k) => `[债务规则 WARN] ${k}`);
   const infos = gone.slice(0, 10).map((k) => `[已清理] ${k}`);
+  const blocking = newBlocking.length;
+  const advisory = newAdvisory.length;
   return {
-    ok: newV.length === 0,
-    note: newV.length
-      ? `${newV.length} 条新增违规${errors[0]}`
-      : (gone.length ? `${gone.length} 条历史违规已清理` : '红线零新增'),
-    current, newViolations: newV, errors, infos,
+    ok: blocking === 0,
+    note: blocking
+      ? `${blocking} 条新增红线违规${errors[0]}`
+      : (advisory
+        ? `${advisory} 条债务规则新增（WARN 不阻断）${warns[0]}`
+        : (gone.length ? `${gone.length} 条历史违规已清理` : '红线零新增')),
+    current: allKeys, newViolations: newBlocking, advisoryViolations: newAdvisory,
+    errors, warns, infos,
     baselineCount: baseSet.size, goneCount: gone.length,
   };
 }
@@ -316,6 +337,7 @@ if (baselineMode) {
       violations: results.reduce((s, rr) => s + rr.count, 0),
       baselineViolations: r.baselineCount ?? null,
       newViolations: r.newViolations?.length ?? null,
+      advisoryViolations: r.advisoryViolations?.length ?? null,
       goneCount: r.goneCount ?? null,
       ok: r.ok,
       notice: r.note,
@@ -323,6 +345,7 @@ if (baselineMode) {
   } else {
     console.log(`红线基线比对: ${r.ok ? '[OK]' : '[FAIL]'} ${r.note}`);
     for (const e of r.errors || []) console.log(`  ${e}`);
+    for (const w of r.warns || []) console.log(`  ${w}`);
     for (const i of r.infos || []) console.log(`  ${i}`);
   }
   process.exitCode = r.ok ? 0 : 1;
