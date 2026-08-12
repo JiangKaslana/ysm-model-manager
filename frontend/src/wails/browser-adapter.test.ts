@@ -446,3 +446,66 @@ describe("browserAdapter — Proxy 原型成员（P3：Object 原型成员不路
     expect(String(browserAdapter)).toBe("[object Object]");
   });
 });
+
+describe("browserAdapter — 社区/工坊桥接（ADR-049 Batch 2：bundled 默认 + localStorage 覆盖）", () => {
+  it("LoadWorkshopCreators 返回 bundled creators（非 null、含 name/desc）", async () => {
+    const c = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string; desc: string }>;
+    expect(Array.isArray(c)).toBe(true);
+    expect(c.length).toBeGreaterThan(0);
+    expect(typeof c[0].name).toBe("string");
+    expect(typeof c[0].desc).toBe("string");
+  });
+
+  it("DefaultWorkshopSites 返回 bundled sites（非 null、含 id/url）", async () => {
+    const s = (await browserAdapter.DefaultWorkshopSites()) as Array<{ id: string; url: string }>;
+    expect(Array.isArray(s)).toBe(true);
+    expect(s.length).toBeGreaterThan(0);
+    expect(typeof s[0].id).toBe("string");
+    expect(typeof s[0].url).toBe("string");
+  });
+
+  it("LoadGitHubRepos 返回 bundled github 仓库（只读，非 null）", async () => {
+    const r = (await browserAdapter.LoadGitHubRepos()) as Array<{ name: string; type: string }>;
+    expect(Array.isArray(r)).toBe(true);
+    expect(r.length).toBeGreaterThan(0);
+    expect(r[0].type).toBe("github");
+  });
+
+  it("Save→Load 覆盖优先：创作者自定义列表可被读回", async () => {
+    const custom = [{ name: "测试作者", desc: "单测注入", type: "bilibili" }];
+    await browserAdapter.SaveWorkshopCreators(custom as never);
+    const got = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string }>;
+    expect(got).toHaveLength(1);
+    expect(got[0].name).toBe("测试作者");
+  });
+
+  it("Save(null) 重置覆盖层：回退 bundled 默认", async () => {
+    await browserAdapter.SaveWorkshopCreators([{ name: "临时", desc: "x" }] as never);
+    await browserAdapter.SaveWorkshopCreators(null);
+    const got = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string }>;
+    expect(got.length).toBeGreaterThan(1); // bundled 默认远大于 1
+  });
+
+  it("Save→Load 覆盖优先：站点自定义列表可被读回，且与创作者隔离", async () => {
+    const customSites = [{ id: "mysite", icon: "⭐", label: "我的站", url: "https://x.test", desc: "t", group: "search" }];
+    await browserAdapter.SaveWorkshopSites(customSites as never);
+    const got = (await browserAdapter.DefaultWorkshopSites()) as Array<{ id: string }>;
+    expect(got).toHaveLength(1);
+    expect(got[0].id).toBe("mysite");
+    // 创作者覆盖层不受影响（独立 key）
+    expect(((await browserAdapter.LoadWorkshopCreators()) as Array<unknown>).length).toBeGreaterThan(0);
+  });
+
+  it("Load 返回深拷贝：修改返回值不影响下次 Load", async () => {
+    const a = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string }>;
+    a.push({ name: "被污染" } as never);
+    const b = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string }>;
+    expect(b.length).toBe(a.length - 1);
+  });
+
+  it("覆盖数据损坏（非 JSON）时回退 bundled，不抛错", async () => {
+    localStorage.setItem("web:workshop-creators", "{broken");
+    const c = (await browserAdapter.LoadWorkshopCreators()) as Array<unknown>;
+    expect(c.length).toBeGreaterThan(0);
+  });
+});

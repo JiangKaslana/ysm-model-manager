@@ -54,15 +54,16 @@ class AppNav extends HTMLElement {
     // 折叠态在 host 上以 data-collapsed 标记，CSS 据此切换窄条布局
     if (this._collapsed) this.setAttribute("data-collapsed", "");
     else this.removeAttribute("data-collapsed");
-    // 查看器模式（Android/网页版 ADR-049）：整合包（ListVersionInstances）、
-    // GitHub 仓库列表（LoadGitHubRepos）入口 binding 未桥接且必报错，隐藏对应 tab；
-    // 其余 tab 桌面/网页版均可用。
+    // 查看器模式（Android/网页版 ADR-049）：整合包（ListVersionInstances）入口 binding
+    // 仍属桌面专属、未桥接，隐藏对应 instances tab；GitHub 仓库列表（LoadGitHubRepos）
+    // 已在 ADR-049 桥接增强 Batch 2 桥接（bundled workshop-github.json），网页版可用，
+    // 故 github tab 不再对查看器模式隐藏。
     const isViewer = isViewerMode();
     const items = [
       { id: "repository", icon: "📚", key: "nav.repository" },
       ...(isViewer ? [] : [{ id: "instances", icon: "🎮", key: "nav.instances" }]),
       { id: "workshop", icon: "🎨", key: "nav.community" },
-      ...(isViewer ? [] : [{ id: "github", icon: "🧩", key: "nav.workshop" }]),
+      { id: "github", icon: "🧩", key: "nav.workshop" },
       { id: "diagnostics", icon: "🛠️", key: "nav.diagnostics" },
       { id: "settings", icon: "⚙️", key: "nav.settings" },
     ];

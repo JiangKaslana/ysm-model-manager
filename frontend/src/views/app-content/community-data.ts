@@ -2,7 +2,6 @@
 import { t } from "../../core/i18n/t.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../wails/app.ts";
-import { resolveWebMode } from "../../wails/platform.ts";
 import type { WorkshopSite, WorkshopCreator } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 
 /** 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） */
@@ -33,26 +32,12 @@ export interface CommunityData {
  * 自动合并本地仓库提取的作者
  */
 export async function loadCommunityData(): Promise<CommunityData> {
-  // 网页版（ADR-049）：DefaultWorkshopSites/LoadWorkshopCreators 等 Go binding 读本地
-  // bundled JSON，browser-adapter 未实现 → 改从 GitHub 拉公开索引（community-data
-  // 同源三路回退 fetchCommunitySites/fetchCommunityCreators），否则创意工坊恒「暂无数据」。
-  // 作者（ListModelAuthors 扫描本地模型）网页版无本地模型库，返回空（次级信息，不影响站点/创作者）。
-  if (resolveWebMode()) {
-    const [sites, creators] = await Promise.all([
-      fetchCommunitySites(),
-      fetchCommunityCreators(DEFAULT_COMMUNITY_URL),
-    ]);
-    return {
-      sites: sites || [],
-      creators: (creators || []) as LocalCreator[],
-      authors: [],
-    };
-  }
-
   const App = await getApp();
-  // P2 修复：Promise.all 整体加 catch——原仅 ScanLocalAuthors 有 .catch(() => [])，
-  // 其余三个 Go 绑定任一个 reject 会使整链 reject，调用方（tab click / _workshopTimer
-  // 定时器路径）无 try/catch → unhandled rejection（致命陷阱 #1）
+  // 网页版（ADR-049 桥接增强 Batch 2）：DefaultWorkshopSites/LoadWorkshopCreators 已由
+  // browser-adapter 桥接（bundled JSON + localStorage 覆盖），与桌面共用同一条加载路径，
+  // 桥接真正生效（不再走 GitHub 拉取旁路）。作者扫描（ListModelAuthors/ScanLocalAuthors）
+  // 仍属桌面专属、网页版未桥接，各自 .catch(() => []) 降级为空，不影响站点/创作者透传
+  // （与文件内既有 P2/P4 防御风格一致，避免单点 unbridged binding 拖垮整链）。
   let sites: WorkshopSite[] = [];
   let creators: WorkshopCreator[] = [];
   let authors: unknown[] = [];
@@ -61,7 +46,7 @@ export async function loadCommunityData(): Promise<CommunityData> {
     const results = await Promise.all([
       App.DefaultWorkshopSites(),
       App.LoadWorkshopCreators(),
-      App.ListModelAuthors(),
+      App.ListModelAuthors().catch(() => []),
       App.ScanLocalAuthors().catch(() => []),
     ]);
     sites = results[0] || [];

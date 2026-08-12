@@ -49,15 +49,15 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     unmountElement(el);
   });
 
-  it("查看器模式隐藏整合包/ GitHub 导航项（入口 binding 未桥接，ADR-049）", async () => {
+  it("查看器模式隐藏整合包导航项；GitHub 已由桥接增强 Batch 2 启用（ADR-049）", async () => {
     isViewerModeMock.mockReturnValue(true); // Android/网页版
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 4);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 5);
     const items = getAllByTestId(root, "nav-item");
-    expect(items.length).toBe(4); // repository/workshop/diagnostics/settings
+    expect(items.length).toBe(5); // repository/workshop/github/diagnostics/settings
     expect(items.some((i) => (i as HTMLElement).dataset.page === "instances")).toBe(false);
-    expect(items.some((i) => (i as HTMLElement).dataset.page === "github")).toBe(false);
+    expect(items.some((i) => (i as HTMLElement).dataset.page === "github")).toBe(true);
     expect(items.some((i) => (i as HTMLElement).dataset.page === "repository")).toBe(true);
     expect(items.some((i) => (i as HTMLElement).dataset.page === "settings")).toBe(true);
     unmountElement(el);

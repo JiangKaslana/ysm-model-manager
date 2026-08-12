@@ -7,10 +7,14 @@
 // 与桌面一致，业务调用零改动。
 import { idbGet, idbSet, idbKeys, idbDel } from "./idb.ts";
 import type { AppBindings } from "./types.ts";
-import type { ModelEntry } from "../../bindings/ysm-model-manager/go/types/models.ts";
+import type { ModelEntry, WorkshopCreator, WorkshopSite } from "../../bindings/ysm-model-manager/go/types/models.ts";
 // 复用 dnd-shared 的导入白名单（.json 仅放行 ysm.json，其余须 ALL_EXTS 成员），
 // 避免 browser-adapter 另起一套扩展名校验导致漂移
 import resourceTypesJson from "../../../resource_types.json" with { type: "json" };
+// 社区/工坊默认数据源（bundled JSON，build 期内联；与 resource_types.json 同源范式）
+import creatorsJson from "../../../creators.json" with { type: "json" };
+import workshopGithubJson from "../../../workshop-github.json" with { type: "json" };
+import workshopSitesJson from "../../../workshop_sites.json" with { type: "json" };
 // 网页版头像提取复用前端 YSM 解包能力（替代 Go ExtractAvatarURI，ADR-049 缺口补齐）
 import { decodeYsmFile } from "../wasm/ysm-parser.ts";
 
@@ -440,6 +444,57 @@ async function getWebSubDirMap(): Promise<Record<string, string>> {
 }
 
 // Phase 2 已实现的 binding（其余走 fail-fast Proxy）
+// --- 社区/工坊数据（ADR-049 桥接增强 Batch 2）---
+// 网页版无 Go 侧磁盘配置文件：bundled JSON 作默认，localStorage 作用户覆盖层
+// （覆盖优先于默认，对齐桌面 Save→Load 语义）。GitHub 仓库列表为只读 bundled。
+const WEB_CREATORS_KEY = "web:workshop-creators";
+const WEB_SITES_KEY = "web:workshop-sites";
+
+function cloneJson<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T;
+}
+
+function loadWebCreators(): WorkshopCreator[] {
+  const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_CREATORS_KEY) : null;
+  if (ov !== null) {
+    try {
+      return JSON.parse(ov) as WorkshopCreator[];
+    } catch {
+      // 覆盖数据损坏则回退默认 bundled，避免整个社区加载崩溃
+    }
+  }
+  return cloneJson(creatorsJson as unknown as WorkshopCreator[]);
+}
+
+function saveWebCreators(list: WorkshopCreator[] | null): void {
+  // null → 清除覆盖层，下次 Load 回退默认（对齐桌面 Save(null) 重置语义）
+  if (list === null) {
+    localStorage.removeItem(WEB_CREATORS_KEY);
+    return;
+  }
+  localStorage.setItem(WEB_CREATORS_KEY, JSON.stringify(list));
+}
+
+function loadWebSites(): WorkshopSite[] {
+  const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_SITES_KEY) : null;
+  if (ov !== null) {
+    try {
+      return JSON.parse(ov) as WorkshopSite[];
+    } catch {
+      // 覆盖数据损坏则回退默认 bundled
+    }
+  }
+  return cloneJson(workshopSitesJson as unknown as WorkshopSite[]);
+}
+
+function saveWebSites(sites: WorkshopSite[] | null): void {
+  if (sites === null) {
+    localStorage.removeItem(WEB_SITES_KEY);
+    return;
+  }
+  localStorage.setItem(WEB_SITES_KEY, JSON.stringify(sites));
+}
+
 const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   ScanModelEntries: (dir: string) => scanWebModels(dir),
   // 真实列表入口（loader/import-queue/resource-manager 等 6 处均调 WithLabel 版本）
@@ -527,6 +582,20 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   },
   // 子目录映射（resource_types.json 派生）
   GetSubDirMap: () => getWebSubDirMap(),
+  // ===== ADR-049 桥接增强 Batch 2：社区/工坊只读 + 本地覆盖写入 =====
+  // bundled 默认 + localStorage 覆盖（对齐桌面 Save→Load 语义）；GitHub 仓库列表只读
+  LoadWorkshopCreators: () => Promise.resolve(loadWebCreators()),
+  SaveWorkshopCreators: (list: WorkshopCreator[] | null) => {
+    saveWebCreators(list);
+    return Promise.resolve();
+  },
+  LoadGitHubRepos: () =>
+    Promise.resolve(cloneJson(workshopGithubJson as unknown as WorkshopCreator[])),
+  DefaultWorkshopSites: () => Promise.resolve(loadWebSites()),
+  SaveWorkshopSites: (sites: WorkshopSite[] | null) => {
+    saveWebSites(sites);
+    return Promise.resolve();
+  },
 };
 
 /**

@@ -111,28 +111,20 @@ describe("loadCommunityData", () => {
     expect(data.creators.find((c) => c.name === "A")?._fromLocal).toBeUndefined();
   });
 
-  it("网页版（resolveWebMode=true）从 GitHub 拉站点/创作者索引，不调 Go binding（修复「暂无数据」）", async () => {
+  it("网页版（resolveWebMode=true）桥接增强 Batch 2：经 Go binding（adapter）加载 bundled 默认，不绕道 GitHub 拉取", async () => {
     mocks.resolveWebMode.mockReturnValue(true);
-    const fetchMock = vi.fn((url: string) => {
-      const sites = [
-        { id: "bilibili", name: "B站" },
-        { id: "youtube", name: "YouTube" },
-      ];
-      const creators = [{ name: "A", type: "bilibili" }];
-      const data = url.includes("workshop_sites.json") ? sites : creators;
-      return Promise.resolve({ ok: true, json: async () => data });
-    });
+    // 绑定返回 bundled 默认（网页版由 browser-adapter 桥接，见 ADR-049 Batch 2）
+    mocks.DefaultWorkshopSites.mockResolvedValue([{ id: "bilibili", url: "https://bili.test", label: "B站" }]);
+    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "A", type: "bilibili" }]);
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: async () => [] }));
     vi.stubGlobal("fetch", fetchMock);
 
     const data = await loadCommunityData();
 
-    // 走 GitHub 索引，非 Go binding
-    expect(mocks.DefaultWorkshopSites).not.toHaveBeenCalled();
-    expect(mocks.LoadWorkshopCreators).not.toHaveBeenCalled();
-    expect(data.sites).toEqual([
-      { id: "bilibili", name: "B站" },
-      { id: "youtube", name: "YouTube" },
-    ]);
-    expect(data.creators).toEqual([{ name: "A", type: "bilibili" }]);
+    // 网页版不再走 GitHub 拉取旁路，而是经桥接的 Go binding 读取 bundled 默认
+    expect(mocks.DefaultWorkshopSites).toHaveBeenCalled();
+    expect(mocks.LoadWorkshopCreators).toHaveBeenCalled();
+    expect(data.sites).toEqual([{ id: "bilibili", url: "https://bili.test", label: "B站" }]);
+    expect(data.creators.find((c) => c.name === "A")).toBeDefined();
   });
 });
