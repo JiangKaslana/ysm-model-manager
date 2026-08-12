@@ -163,7 +163,7 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 | `app_config_windows.go` | — | Windows 专属：`scanMinecraftDirsPlatform`（Java 启动器路径） |
 | `app_config_other.go` | 26 | macOS/Linux 专属：`scanMinecraftDirsPlatform`（PrismLauncher/XDG/传统 .minecraft） |
 | `app_config_android.go` | 7 | Android 专属：`scanMinecraftDirsPlatform` 空实现（查看器模式无启动器扫描） |
-| `hidewindow_windows.go` / `hidewindow_other.go` | — | 窗口隐藏（Wails Dialog 创建时 `SW_HIDE`） |
+| `go/executil/hidewindow_windows.go` / `hidewindow_other.go` | — | 窗口隐藏（Wails Dialog 创建时 `SW_HIDE`，原 internal/app 副本已收敛） |
 | `screen_windows.go` / `screen_other.go` | 28/11 | 虚拟屏幕坐标（窗口位置恢复） |
 | `texture_order.go` | — | 纹理序口径统一：ysm.json 声明序优先 / 尺寸降序 |
 | `assets.go` / `wasm_embed.go` | 20/17 | `SetEmbedded` 注入点；`GetWasmBinary` |
@@ -174,13 +174,13 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 | `pathmgr_android.go` | `android` | `androidPathManager`：沙盒私有目录 + `MANAGE_EXTERNAL_STORAGE` 公共仓库根 |
 | `screen_windows.go` | `windows` | `getVirtualScreen()`→`user32.dll` 虚拟屏幕 API |
 | `screen_other.go` | `!windows` | `getVirtualScreen()`→零值（窗口位置退化为默认） |
-| `hidewindow_windows.go` | `windows` | `HideWindow()`→`ShowWindow` |
-| `hidewindow_other.go` | `!windows` | `HideWindow()`→Noop |
+| `go/executil/hidewindow_windows.go` | `windows` | `HideWindow()`→`ShowWindow`（原 internal/app、go/avatar、go/fileops 三处副本已收敛至此） |
+| `go/executil/hidewindow_other.go` | `!windows` | `HideWindow()`→Noop（原 internal/app、go/avatar、go/fileops 三处副本已收敛至此） |
 | `app_config_windows.go` | `windows` | Minecraft 启动器扫描（Java） |
 | `app_config_other.go` | `!windows && !android` | Minecraft 启动器扫描（PrismLauncher/XDG） |
 | `app_config_android.go` | `android` | Minecraft 启动器扫描（空实现） |
-| `go/updater/update_windows.go` | `windows` | 自更新 |
-| `go/updater/update_other.go` | `!windows` | 自更新（拒绝，非 Windows 不支持） |
+| `go/updater/updater_windows.go` | `windows` | 自更新 |
+| `go/updater/updater_other.go` | `!windows` | 自更新（拒绝，非 Windows 不支持） |
 | `go/sync/link_windows.go` | `windows` | 硬链接创建 |
 | `go/sync/link_unix.go` | `!windows` | 硬链接创建（Unix） |
 | `go/recycle/isHardLink_windows.go` / `_other.go` | `windows` / `!windows` | 硬链接检测 |
@@ -220,7 +220,7 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 | DefaultRepoRoot | `""`（用户在设置页配置） | `/storage/emulated/0/YSM-Model-Manager`（`EXTERNAL_STORAGE` env，授权后 `os.*` 直读） |
 | 文件选择 | Wails Dialog | 授权 + 手动输入路径（Wails 官方拒绝 Android 目录对话框） |
 | 扫 Minecraft 启动器 | scanMinecraftDirsPlatform（Java/Prism/XDG） | 空实现 |
-| 自动更新 | `go/updater` (Windows) / 拒绝 (`update_other.go`) | 跳过 |
+| 自动更新 | `go/updater` (Windows) / 拒绝 (`updater_other.go`) | 跳过 |
 | `RevealInExplorer`/`OpenFolder` | `explorer`/`open`/`xdg-open` | 显式拒绝 |
 | `RestartApplication` | `os.Executable` + `exec.Command` | 显式拒绝 |
 | 文件监听 watcher | fsnotify | 启动时跳过（sdistFUSE 事件不完整） |
@@ -544,7 +544,8 @@ ysm-model-manager/
 │   ├── ysm/ threejs/ geometry/ litematic/ types/ sync/ installer/
 │   ├── importer/ recycle/ dedup/ packs/ avatar/ download/ updater/
 │   ├── watcher/ tags/ logs/ paths/ fsutil/ version/
-│   ├── fileops/                # 文件操作 (hidewindow_* build tags)
+│   ├── executil/              # 外部进程工具（hidewindow 平台双实现，收敛自三处副本）
+│   ├── fileops/               # 文件操作（ADR-003 下沉）
 │   ├── instance/               # Minecraft 实例管理
 ├── frontend/
 │   ├── index.html               # 桌面/Android 入口 → js/app-modules.ts

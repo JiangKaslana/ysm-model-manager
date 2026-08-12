@@ -11,8 +11,8 @@ use_when:
   - 版本升级
   - updater
 invariant_anchors:
-  - go/updater/update.go|fetchExpectedHash
-  - go/updater/update.go|StatusCode
+  - go/updater/updater.go|fetchExpectedHash
+  - go/updater/updater.go|StatusCode
 ---
 
 # 自动更新 go/updater

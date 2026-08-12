@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"ysm-model-manager/go/avatar"
+	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/types"
 )
@@ -131,7 +132,7 @@ main().catch(e=>{console.error(e);process.exit(1)});
 	ctx, cancel := context.WithTimeout(context.Background(), ysmNodeDecodeTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, nodeJSPath, scriptPath)
-	hideWindow(cmd)
+	executil.HideWindow(cmd)
 	cmd.Dir = tmpDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {

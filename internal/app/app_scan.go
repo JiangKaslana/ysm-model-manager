@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/scanner"
 	ysmsync "ysm-model-manager/go/sync"
@@ -372,7 +373,7 @@ func (a *App) OpenFolder(dir string) error {
 	default:
 		cmd = exec.Command("xdg-open", dir)
 	}
-	hideWindow(cmd)
+	executil.HideWindow(cmd)
 	return cmd.Start()
 }
 

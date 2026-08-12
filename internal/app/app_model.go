@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/threejs"
 	"ysm-model-manager/go/types"
@@ -284,7 +285,7 @@ func (a *App) runYSMParserOnFile(modelPath string) types.BedrockModel {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, parserPath, "-i", inDir, "-o", outDir)
-	hideWindow(cmd)
+	executil.HideWindow(cmd)
 	if err := cmd.Run(); err != nil {
 		return types.BedrockModel{}
 	}

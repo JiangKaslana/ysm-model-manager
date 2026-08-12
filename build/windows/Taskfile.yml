@@ -90,13 +90,13 @@ tasks:
     summary: Dev build (no production tag; asset server proxies to vite)
     deps:
       - task: check:deps
-      # embed 前置：go/updater/update.go 通过 //go:embed 内嵌 ysm-updater-helper.exe
+      # embed 前置：go/updater/updater.go 通过 //go:embed 内嵌 ysm-updater-helper.exe
       - task: build:helper
     cmds:
       - go build -buildvcs=false -gcflags=all="-l" -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe" .
 
   # 构建内嵌的更新助手 helper。
-  # go/updater/update.go 用 //go:embed ysm-updater-helper.exe 内嵌该二进制，
+  # go/updater/updater.go 用 //go:embed ysm-updater-helper.exe 内嵌该二进制，
   # 它由 cmd/updater/main.go 编译生成，且被 .gitignore(*.exe) 忽略、不入库。
   # 因此任何 go build/go vet 之前都必须先构建它（见 cmd/build-release.ps1 步骤 1b）。
   build:helper:

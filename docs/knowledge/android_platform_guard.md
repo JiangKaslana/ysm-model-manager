@@ -54,7 +54,7 @@ ADR-047「平台守卫批量」：Go 侧对 Android 上**无效或不适用的�
 
 - **前端**：`getAndroidBridge()` 平台门控（version-updater 跳过更新）与 Go 侧守卫互补——前端先行过滤，Go 侧兜底拒绝
 - **PathManager**（pathmgr.go）：build-tag 双实现（desktop `os.UserConfigDir` / android 沙盒 + 公共仓库根），ADR-046 P2 参考 MikuMikuAR ADR-018
-- **updater**：`InstallUpdate` 非 Windows 拒绝（ADR-033，`update_other.go` stub）
+- **updater**：`InstallUpdate` 非 Windows 拒绝（ADR-033，`updater_other.go` stub）
 
 ## 不变量
 

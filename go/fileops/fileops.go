@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/types"
@@ -249,7 +250,7 @@ func extractTextureViaYSM(modelPath string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, parserPath, "-i", inDir, "-o", outDir)
-	hideWindow(cmd)
+	executil.HideWindow(cmd)
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}

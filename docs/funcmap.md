@@ -10,6 +10,7 @@
 | Go·头像 | 1 | 9 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 7 |
+| go/executil | 2 | 2 |
 | go/fileops | 2 | 13 |
 | Go·文件系统 | 2 | 8 |
 | Go·几何 | 2 | 8 |
@@ -41,21 +42,21 @@
 | 前端·Wails 桥接 | 5 | 21 |
 | 前端·WASM | 3 | 6 |
 | frontend/web-spike | 1 | 3 |
-| **合计** | **195** | **889** |
+| **合计** | **197** | **891** |
 
 ## Go·头像
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SafeName()` | `go/avatar/avatar:47` | SafeName 将非法文件名字符替换为下划线。 |
-| `ReadCachedAvatar()` | `go/avatar/avatar:141` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
-| `SaveAvatarData()` | `go/avatar/avatar:167` | SaveAvatarData 将头像数据写入缓存。 |
-| `ExtractAvatarURI()` | `go/avatar/avatar:188` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
-| `CacheAvatarsFromJSON()` | `go/avatar/avatar:352` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
-| `CacheAvatarsFromModel()` | `go/avatar/avatar:417` | CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。 |
-| `ReadFileFromZip()` | `go/avatar/avatar:516` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
-| `SetNodeJS()` | `go/avatar/avatar:578` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
-| `DecodeYSMFiles()` | `go/avatar/avatar:585` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
+| `SafeName()` | `go/avatar/avatar:48` | SafeName 将非法文件名字符替换为下划线。 |
+| `ReadCachedAvatar()` | `go/avatar/avatar:142` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
+| `SaveAvatarData()` | `go/avatar/avatar:168` | SaveAvatarData 将头像数据写入缓存。 |
+| `ExtractAvatarURI()` | `go/avatar/avatar:189` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
+| `CacheAvatarsFromJSON()` | `go/avatar/avatar:353` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
+| `CacheAvatarsFromModel()` | `go/avatar/avatar:418` | CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。 |
+| `ReadFileFromZip()` | `go/avatar/avatar:517` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
+| `SetNodeJS()` | `go/avatar/avatar:579` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
+| `DecodeYSMFiles()` | `go/avatar/avatar:586` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
 
 ## Go·去重
 
@@ -71,30 +72,37 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `New()` | `go/download/downloader:42` | New 创建 Downloader，默认 5 分钟超时。 |
-| `NewWithClient()` | `go/download/downloader:47` | NewWithClient 使用指定 HTTP client。 |
-| `Downloader.File()` | `go/download/downloader:181` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
-| `Downloader.FromGitHubAPI()` | `go/download/downloader:186` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `ResolveSavePath()` | `go/download/downloader:191` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
-| `ProgressFn()` | `go/download/downloader:33` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
-| `Downloader()` | `go/download/downloader:36` | Downloader 文件下载器。 |
+| `New()` | `go/download/download:42` | New 创建 Downloader，默认 5 分钟超时。 |
+| `NewWithClient()` | `go/download/download:47` | NewWithClient 使用指定 HTTP client。 |
+| `Downloader.File()` | `go/download/download:181` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
+| `Downloader.FromGitHubAPI()` | `go/download/download:186` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
+| `ResolveSavePath()` | `go/download/download:191` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `ProgressFn()` | `go/download/download:33` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
+| `Downloader()` | `go/download/download:36` | Downloader 文件下载器。 |
+
+## go/executil
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `HideWindow()` | `go/executil/hidewindow_other:8` | HideWindow 非 Windows no-op（Unix 无控制台窗口概念）。 |
+| `HideWindow()` | `go/executil/hidewindow_windows:14` | HideWindow 隐藏子进程控制台窗口（Windows 专属）。 |
 
 ## go/fileops
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `CreateDir()` | `go/fileops/fileops:50` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
-| `RenameDir()` | `go/fileops/fileops:68` | RenameDir 重命名目录（仅改末段，保持父目录） |
-| `RemoveDir()` | `go/fileops/fileops:93` | RemoveDir 递归删除目录 |
-| `RenameFile()` | `go/fileops/fileops:100` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
-| `FindPreviewImage()` | `go/fileops/fileops:126` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
-| `ExtractPreviewTexture()` | `go/fileops/fileops:152` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
-| `GetPackInfo()` | `go/fileops/fileops:282` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
-| `MoveModelFile()` | `go/fileops/fileops:331` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:408` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:540` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
-| `ToggleModelEnable()` | `go/fileops/fileops:595` | ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 . |
-| `IsFileBanned()` | `go/fileops/fileops:710` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
+| `CreateDir()` | `go/fileops/fileops:51` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
+| `RenameDir()` | `go/fileops/fileops:69` | RenameDir 重命名目录（仅改末段，保持父目录） |
+| `RemoveDir()` | `go/fileops/fileops:94` | RemoveDir 递归删除目录 |
+| `RenameFile()` | `go/fileops/fileops:101` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
+| `FindPreviewImage()` | `go/fileops/fileops:127` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
+| `ExtractPreviewTexture()` | `go/fileops/fileops:153` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
+| `GetPackInfo()` | `go/fileops/fileops:283` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
+| `MoveModelFile()` | `go/fileops/fileops:332` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
+| `CopyModelFile()` | `go/fileops/fileops:409` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:541` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `ToggleModelEnable()` | `go/fileops/fileops:596` | ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 . |
+| `IsFileBanned()` | `go/fileops/fileops:711` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
 | `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
@@ -364,16 +372,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `progressWriter.Write()` | `go/updater/update:50` | — |
-| `Check()` | `go/updater/update:108` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
-| `CheckWithClient()` | `go/updater/update:114` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
-| `Download()` | `go/updater/update:217` | Download 下载更新包到临时目录，返回 zip 路径（无进度回调，兼容旧调用方）。 |
-| `DownloadWithProgress()` | `go/updater/update:226` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
-| `CleanupOldVersion()` | `go/updater/update:340` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
-| `InstallUpdate()` | `go/updater/update:363` | InstallUpdate 解压更新包并通过 helper 进程替换当前 exe。 |
-| `ReleaseAsset()` | `go/updater/update:70` | ReleaseAsset GitHub Release 中的文件 |
-| `Release()` | `go/updater/update:76` | Release GitHub Release 信息 |
-| `UpdateInfo()` | `go/updater/update:85` | UpdateInfo 更新信息（序列化给前端） |
+| `progressWriter.Write()` | `go/updater/updater:50` | — |
+| `Check()` | `go/updater/updater:108` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
+| `CheckWithClient()` | `go/updater/updater:114` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
+| `Download()` | `go/updater/updater:217` | Download 下载更新包到临时目录，返回 zip 路径（无进度回调，兼容旧调用方）。 |
+| `DownloadWithProgress()` | `go/updater/updater:226` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
+| `CleanupOldVersion()` | `go/updater/updater:340` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
+| `InstallUpdate()` | `go/updater/updater:363` | InstallUpdate 解压更新包并通过 helper 进程替换当前 exe。 |
+| `ReleaseAsset()` | `go/updater/updater:70` | ReleaseAsset GitHub Release 中的文件 |
+| `Release()` | `go/updater/updater:76` | Release GitHub Release 信息 |
+| `UpdateInfo()` | `go/updater/updater:85` | UpdateInfo 更新信息（序列化给前端） |
 
 ## Go·监听
 
@@ -447,19 +455,19 @@
 | `QueueStatusInfo()` | `internal/app/app_download:18` | QueueStatusInfo 队列状态（替代多返回值，Wails 自动映射为 JS object） |
 | `DownloadTask()` | `internal/app/app_download:24` | DownloadTask 下载队列任务 |
 | `DownloadQueue()` | `internal/app/app_download:33` | DownloadQueue 串行下载队列 回调注入替代 *App 反向引用（ADR-002 P1：打破 DownloadQueue ↔ App 循环，解锁独立测试） |
-| `App.CreateDir()` | `internal/app/app_files:20` | ========== 目录操作 ========== |
-| `App.RenameDir()` | `internal/app/app_files:24` | — |
-| `App.RemoveDir()` | `internal/app/app_files:36` | — |
-| `App.RenameFile()` | `internal/app/app_files:48` | — |
-| `App.FindPreviewImage()` | `internal/app/app_files:62` | ========== 预览提取 ========== |
-| `App.ExtractPreviewTexture()` | `internal/app/app_files:66` | — |
-| `App.GetPackInfo()` | `internal/app/app_files:71` | ========== 包信息 ========== |
-| `App.MoveModelFile()` | `internal/app/app_files:77` | ========== 模型移动/复制 ========== MoveModelFile 移动（root 传 FilesRoot 做路径安全校验，对齐 CopyModelFile） |
-| `App.CopyModelFile()` | `internal/app/app_files:83` | CopyModelFile 复制（root 传 FilesRoot 做路径安全校验） |
-| `App.ImportModelFolder()` | `internal/app/app_files:90` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模型名）；files = |
-| `App.RevealInExplorer()` | `internal/app/app_files:103` | ========== 在资源管理器中显示 ========== |
-| `App.ToggleModelEnable()` | `internal/app/app_files:129` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
-| `App.IsFileBanned()` | `internal/app/app_files:137` | — |
+| `App.CreateDir()` | `internal/app/app_files:21` | ========== 目录操作 ========== |
+| `App.RenameDir()` | `internal/app/app_files:25` | — |
+| `App.RemoveDir()` | `internal/app/app_files:37` | — |
+| `App.RenameFile()` | `internal/app/app_files:49` | — |
+| `App.FindPreviewImage()` | `internal/app/app_files:63` | ========== 预览提取 ========== |
+| `App.ExtractPreviewTexture()` | `internal/app/app_files:67` | — |
+| `App.GetPackInfo()` | `internal/app/app_files:72` | ========== 包信息 ========== |
+| `App.MoveModelFile()` | `internal/app/app_files:78` | ========== 模型移动/复制 ========== MoveModelFile 移动（root 传 FilesRoot 做路径安全校验，对齐 CopyModelFile） |
+| `App.CopyModelFile()` | `internal/app/app_files:84` | CopyModelFile 复制（root 传 FilesRoot 做路径安全校验） |
+| `App.ImportModelFolder()` | `internal/app/app_files:91` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模型名）；files = |
+| `App.RevealInExplorer()` | `internal/app/app_files:104` | ========== 在资源管理器中显示 ========== |
+| `App.ToggleModelEnable()` | `internal/app/app_files:130` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
+| `App.IsFileBanned()` | `internal/app/app_files:138` | — |
 | `App.InstallModelFile()` | `internal/app/app_install:26` | ========== 安装 ========== |
 | `App.InstallModelTo()` | `internal/app/app_install:30` | — |
 | `App.InstallModelWithOverlay()` | `internal/app/app_install:40` | — |
@@ -500,33 +508,33 @@
 | `App.ClearImportLogs()` | `internal/app/app_install:908` | — |
 | `App.GetRuntimeLogs()` | `internal/app/app_install:913` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
 | `App.ClearRuntimeLogs()` | `internal/app/app_install:918` | ClearRuntimeLogs 清空运行时日志缓冲 |
-| `App.AnalyzeYSMModel()` | `internal/app/app_model:24` | — |
-| `App.ExtractYsmSummary()` | `internal/app/app_model:28` | — |
-| `App.ExtractYSMHeader()` | `internal/app/app_model:42` | — |
-| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:46` | — |
-| `App.SavePreviewTempFile()` | `internal/app/app_model:54` | — |
-| `App.ReadFileBytes()` | `internal/app/app_model:73` | — |
-| `App.AnalyzeBedrockModel()` | `internal/app/app_model:87` | — |
-| `App.GetModel3DSpec()` | `internal/app/app_model:139` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:175` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:237` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
-| `App.ExportBoneStructures()` | `internal/app/app_scan:24` | ========== 批量导出骨骼结构 ========== |
-| `App.ExportModelStructureJSON()` | `internal/app/app_scan:80` | ExportModelStructureJSON 导出单模型骨骼结构 |
-| `App.SearchModels()` | `internal/app/app_scan:117` | ========== 高级搜索 ========== |
-| `App.ScanModelEntries()` | `internal/app/app_scan:188` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
-| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:210` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
-| `App.ClearScanCache()` | `internal/app/app_scan:226` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
-| `App.ListModelAuthors()` | `internal/app/app_scan:231` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
-| `App.GenerateRepoIndex()` | `internal/app/app_scan:240` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
-| `App.ScanLocalAuthors()` | `internal/app/app_scan:248` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:256` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:260` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:264` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:277` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:284` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:358` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:380` | OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录 |
-| `progressReader.Read()` | `internal/app/app_scan:403` | — |
+| `App.AnalyzeYSMModel()` | `internal/app/app_model:25` | — |
+| `App.ExtractYsmSummary()` | `internal/app/app_model:29` | — |
+| `App.ExtractYSMHeader()` | `internal/app/app_model:43` | — |
+| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:47` | — |
+| `App.SavePreviewTempFile()` | `internal/app/app_model:55` | — |
+| `App.ReadFileBytes()` | `internal/app/app_model:74` | — |
+| `App.AnalyzeBedrockModel()` | `internal/app/app_model:88` | — |
+| `App.GetModel3DSpec()` | `internal/app/app_model:140` | — |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:176` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:238` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.ExportBoneStructures()` | `internal/app/app_scan:25` | ========== 批量导出骨骼结构 ========== |
+| `App.ExportModelStructureJSON()` | `internal/app/app_scan:81` | ExportModelStructureJSON 导出单模型骨骼结构 |
+| `App.SearchModels()` | `internal/app/app_scan:118` | ========== 高级搜索 ========== |
+| `App.ScanModelEntries()` | `internal/app/app_scan:189` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
+| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:211` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
+| `App.ClearScanCache()` | `internal/app/app_scan:227` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
+| `App.ListModelAuthors()` | `internal/app/app_scan:232` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
+| `App.GenerateRepoIndex()` | `internal/app/app_scan:241` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
+| `App.ScanLocalAuthors()` | `internal/app/app_scan:249` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
+| `App.ListVersionInstances()` | `internal/app/app_scan:257` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:261` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:265` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:278` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:285` | — |
+| `App.OpenFolder()` | `internal/app/app_scan:359` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:381` | OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录 |
+| `progressReader.Read()` | `internal/app/app_scan:404` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |

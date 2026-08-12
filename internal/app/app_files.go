@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 
+	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fileops"
 	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/types"
@@ -120,7 +121,7 @@ func (a *App) RevealInExplorer(path string) error {
 		// Linux: 无"选中文件"命令，退化为打开所在目录
 		cmd = exec.Command("xdg-open", filepath.Dir(filepath.FromSlash(path)))
 	}
-	hideWindow(cmd)
+	executil.HideWindow(cmd)
 	return cmd.Start()
 }
 

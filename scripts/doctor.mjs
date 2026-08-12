@@ -107,7 +107,7 @@ function checkGoTest() {
 }
 
 function buildUpdaterHelper() {
-  // go/updater/update.go 通过 //go:embed 内嵌 ysm-updater-helper.exe，
+  // go/updater/updater.go 通过 //go:embed 内嵌 ysm-updater-helper.exe，
   // 该文件由 cmd/updater/main.go 编译生成（见 cmd/build-release.ps1 步骤 1b），
   // 且被 .gitignore(*.exe) 忽略、不入库。CI / 干净 checkout 缺此文件会导致
   // go vet / go build / go test 因 embed 找不到文件而失败。
