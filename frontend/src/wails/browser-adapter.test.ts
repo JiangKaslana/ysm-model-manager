@@ -549,3 +549,77 @@ describe("browserAdapter — 作者扫描/仓库索引（ADR-049 Batch 3：基�
     expect(await browserAdapter.ScanLocalAuthors()).toEqual([]);
   });
 });
+
+describe("browserAdapter — 桥接增强边界/异常分支补全（审核补充）", () => {
+  const enc3 = new TextEncoder();
+
+  it("SearchModels 数值范围条件浏览器端降级：boneCount 恒 0 且非零数值不影响关键词匹配", async () => {
+    await importWebFiles([new File([enc3.encode("YSM")], "狐狸.ysm")], "ysm");
+    const hit = (await browserAdapter.SearchModels("/web/ysm", "狐狸", 999, 999, 999, 999, 999, 999)) as Array<{
+      name: string;
+      boneCount: number;
+      cubeCount: number;
+      hasError: boolean;
+    }>;
+    expect(hit).toHaveLength(1);
+    expect(hit[0].name).toBe("狐狸.ysm");
+    // 数值条件无几何分析，如实降级（非静默错误）：sizes 恒 0
+    expect(hit[0].boneCount).toBe(0);
+    expect(hit[0].cubeCount).toBe(0);
+    expect(hit[0].hasError).toBe(false);
+  });
+
+  it("DeleteModelDir 清理 ban 标记（dir+file+ban/tags 整组清理）", async () => {
+    await importWebFiles([new File([enc3.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.ToggleModelEnable(p); // 置 ban
+    expect(await browserAdapter.IsFileBanned(p)).toBe(true);
+    await browserAdapter.DeleteModelDir(p);
+    expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
+    expect(idbMock._store.has("ban:/web/ysm/狐狸/狐狸.ysm")).toBe(false);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(false);
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(false);
+  });
+
+  it("SetModelTags(path, null) 删除标签 key（对齐桌面清除语义，不残留空数组）", async () => {
+    await importWebFiles([new File([enc3.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.SetModelTags(p, ["临时"]);
+    expect(idbMock._store.has("tags:/web/ysm/狐狸/狐狸.ysm")).toBe(true);
+    await browserAdapter.SetModelTags(p, null);
+    // 修复后：key 被删除（而非残留空数组）
+    expect(idbMock._store.has("tags:/web/ysm/狐狸/狐狸.ysm")).toBe(false);
+    expect((await browserAdapter.GetModelTags(p)) as string[]).toEqual([]);
+  });
+
+  it("GenerateRepoIndex 全库（repoPath 非 /web 开头）→ 跨类型相对 WEB_ROOT 路径", async () => {
+    await importWebFiles([new File([enc3.encode("YY")], "赵六.ysm")], "ysm");
+    const idx = (await browserAdapter.GenerateRepoIndex("not-a-web-root")) as string;
+    const parsed = JSON.parse(idx) as Array<{ Name: string; Path: string }>;
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].Name).toBe("赵六.ysm");
+    expect(parsed[0].Path).toBe("ysm/赵六/赵六.ysm"); // 相对 WEB_ROOT=/web
+  });
+
+  it("ScanLocalAuthors 跨类型同作者 → type 用 ; 合并（来自本地仓库）", async () => {
+    await importWebFiles([new File([enc3.encode("Y")], "[王五]A.ysm")], "ysm");
+    await importWebFiles([new File([enc3.encode("Y")], "[王五]B.ysm")], "litematic");
+    const creators = (await browserAdapter.ScanLocalAuthors()) as Array<{ name: string; type: string }>;
+    expect(creators).toHaveLength(1);
+    expect(creators[0].name).toBe("王五");
+    expect(creators[0].type).toContain("ysm");
+    expect(creators[0].type).toContain("litematic");
+  });
+
+  it("ListModelAuthors 忽略无 [作者] 前缀的模型名（仅统计括号作者）", async () => {
+    await importWebFiles([new File([enc3.encode("Y")], "普通模型.ysm")], "ysm");
+    expect((await browserAdapter.ListModelAuthors()) as unknown[]).toEqual([]);
+  });
+
+  it("SaveWorkshopSites(null) 重置覆盖层 → 回退 bundled 默认", async () => {
+    await browserAdapter.SaveWorkshopSites([{ id: "x", url: "https://x.test" }] as never);
+    await browserAdapter.SaveWorkshopSites(null);
+    const got = (await browserAdapter.DefaultWorkshopSites()) as Array<{ id: string }>;
+    expect(got.length).toBeGreaterThan(1); // bundled 默认远大于 1
+  });
+});

@@ -320,7 +320,12 @@ async function getWebTags(path: string): Promise<string[]> {
   return Array.isArray(v) ? v : [];
 }
 async function setWebTags(path: string, tags: string[] | null): Promise<void> {
-  await idbSet("config", tagKeyOf(path), Array.isArray(tags) ? tags : []);
+  // null → 清除标签（对齐桌面 SetModelTags(path, null) 删除语义），而非残留空数组 key
+  if (tags === null) {
+    await idbDel("config", tagKeyOf(path));
+    return;
+  }
+  await idbSet("config", tagKeyOf(path), tags);
 }
 async function listByTagWeb(tag: string): Promise<string[]> {
   const models = await scanAllWebModels();

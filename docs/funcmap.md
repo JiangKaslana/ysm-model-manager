@@ -1068,8 +1068,8 @@
 | `MAX_IMPORT_BYTES()` | `frontend/src/wails/browser-adapter:35` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/wails/browser-adapter:65` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `selectLocalRepo()` | `frontend/src/wails/browser-adapter:127` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `importWebFiles()` | `frontend/src/wails/browser-adapter:709` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
-| `browserAdapter()` | `frontend/src/wails/browser-adapter:826` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `importWebFiles()` | `frontend/src/wails/browser-adapter:714` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
+| `browserAdapter()` | `frontend/src/wails/browser-adapter:831` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `STORES()` | `frontend/src/wails/idb:16` | — |
 | `Store()` | `frontend/src/wails/idb:17` | — |
 | `openDB()` | `frontend/src/wails/idb:21` | — |
