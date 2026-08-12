@@ -924,16 +924,16 @@
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:29` | 初始化诊断页所有功能 |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init:400` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:24` | 初始化设置页所有事件绑定 |
-| `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:11` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
-| `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:14` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
-| `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:37` | 本地创作者（绑定 + 运行时附加字段） |
-| `renderSiteView()` | `frontend/src/views/app-content/site-view:48` | 站点视图渲染主入口 — 编排壳：构造数据 → 构 HTML → 绑事件 → 聚 cleanup。 |
+| `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
+| `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
+| `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:38` | 本地创作者（绑定 + 运行时附加字段） |
+| `renderSiteView()` | `frontend/src/views/app-content/site-view:49` | 站点视图渲染主入口 — 编排壳：构造数据 → 构 HTML → 绑事件 → 聚 cleanup。 |
 | `bindDragEvents()` | `frontend/src/views/app-content/site/drag:14` | 绑定拖拽 JSON 导入事件：创作者 JSON / 站点 JSON 识别 + 合并。 |
 | `bindEditEvents()` | `frontend/src/views/app-content/site/edit:17` | 绑定编辑模式事件：编辑入口 / 拉取配置 / 取消 / 保存 / 行内编辑 / 删除创作者 / 拖拽排序 / 增删搜索词 / 搜索过滤。 |
 | `bindBrowseEvents()` | `frontend/src/views/app-content/site/events:28` | 绑定浏览态事件：空状态按钮 / 创作者卡片网格 / 预设搜索 / 收藏 / 头像调试 / 卡片点击详情浮层 / 键盘导航 / storage 同步 / 浏览仓库模型。 |
 | `CrCardCtx()` | `frontend/src/views/app-content/site/render:13` | 创作者卡片工厂上下文 |
 | `BuildSiteHtmlCtx()` | `frontend/src/views/app-content/site/render:24` | buildSiteHtml 依赖的渲染上下文 |
-| `createCrCard()` | `frontend/src/views/app-content/site/render:42` | 创作者卡片工厂 |
+| `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |
 | `SiteViewState()` | `frontend/src/views/app-content/site/types:12` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:43` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
 | `GH_RELEASES()` | `frontend/src/views/app-content/tpl:12` | — |

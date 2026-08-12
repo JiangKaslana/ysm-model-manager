@@ -28,15 +28,15 @@ export const MOCK_DATA = {
   AddImportLog: undefined,
   AddOpLog: undefined,
   ScanModelEntriesWithLabel: [
-    { Name: "model-a.ysm", Path: "/e2e/repo/model-a.ysm", Size: 1024, ModTime: 0 },
-    { Name: "model-b.ysm", Path: "/e2e/repo/model-b.ysm", Size: 2048, ModTime: 0 },
-    { Name: "subdir", Path: "/e2e/repo/subdir", Size: 0, ModTime: 0 },
+    { Name: "model-a.ysm", Path: "/e2e/repo/model-a.ysm", Size: 1024, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
+    { Name: "model-b.ysm", Path: "/e2e/repo/model-b.ysm", Size: 2048, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
+    { Name: "subdir", Path: "/e2e/repo/subdir", Size: 0, ModTime: 0, Ext: "", Hash: "", HasTags: false },
     // 嵌套文件：其 Path 前缀段生成 subdir 目录节点 → tree-dir 真实渲染子行
     // （此前无嵌套条目 → tree-dir 恒 0，目录展开/折叠测试永远 skip，file-tree 审核 P1）
-    { Name: "subdir-model.ysm", Path: "/e2e/repo/subdir/subdir-model.ysm", Size: 512, ModTime: 0 },
+    { Name: "subdir-model.ysm", Path: "/e2e/repo/subdir/subdir-model.ysm", Size: 512, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
     // 资源包类型条目（供 app-resource-manager 列表渲染）
-    { Name: "pack-a.zip", Path: "/e2e/repo/pack-a.zip", Size: 4096, ModTime: 0 },
-    { Name: "pack-b.zip", Path: "/e2e/repo/pack-b.zip", Size: 8192, ModTime: 0 },
+    { Name: "pack-a.zip", Path: "/e2e/repo/pack-a.zip", Size: 4096, ModTime: 0, Ext: ".zip", Hash: "", HasTags: false },
+    { Name: "pack-b.zip", Path: "/e2e/repo/pack-b.zip", Size: 8192, ModTime: 0, Ext: ".zip", Hash: "", HasTags: false },
   ],
   ListVersionInstances: [
     { Name: "1.20.1-Fabric", VersionDir: "/e2e/mc/1.20.1-Fabric" },
@@ -110,11 +110,16 @@ export const MOCK_DATA = {
       url: "https://github.com/",
       desc: "开源仓库托管平台",
       group: "repo",
+      // 对齐真实 workshop_sites.json 的 github 条目：带 searchUrl 走 fillSearch 分支
+      // （缺失会退化为「打开首页」分支，e2e 覆盖不到真实搜索路径）
+      searchUrl: "https://github.com/search?q={{q}}",
+      presetSearches: [{ label: "免费 YSM 模型仓库", q: "" }],
     },
   ],
   LoadWorkshopCreators: [
-    { name: "测试创作者A", type: "bilibili" },
-    { name: "测试创作者B", type: "bilibili" },
+    // 对齐 WorkshopCreator 契约：desc 必填（community 列表卡片渲染 cr.desc，缺失显示 undefined）
+    { name: "测试创作者A", desc: "E2E 创作者A", type: "bilibili" },
+    { name: "测试创作者B", desc: "E2E 创作者B", type: "bilibili" },
   ],
   ListModelAuthors: [],
   ScanLocalAuthors: [],

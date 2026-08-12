@@ -26,7 +26,8 @@ async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
   // ADR-049 桥接增强：网页版已实现 SearchModels（关键词）/ ListByTag（标签），
   // 早期「网页版未实现」守卫已移除。数值范围条件（骨骼/立方体/纹理）浏览器端无几何
   // 分析能力，由后端降级为仅关键词匹配（在 rv 确定后于下方提示，不阻断调用）。
-  // 桌面/Android 不受影响：isViewerMode 为 false，下面分支不触发。
+  // 降级提示仅限网页版（resolveWebMode）：Android 的 isViewerMode 恒 true，但其走
+  // 真实 Go 后端、SearchModels 支持数值范围，误提示会与后端行为不符。
   dbg("adv-filter", "open:start", { repoRoot: vm._repoRoot });
   // 输入框值都是字符串形态（弹窗内部转数字）；AdvFilterValue 为 number|null，
   // 此处是「当前输入框值」表示，类型上放宽转换
@@ -88,8 +89,10 @@ async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
     return;
   }
   // 网页版数值范围条件降级提示（仅提示，不阻断：后端按关键词/标签匹配，
-  // 骨骼/立方体/纹理数值条件浏览器端无几何分析能力，ADR-049 桥接增强）
-  if (isViewerMode()) {
+  // 骨骼/立方体/纹理数值条件浏览器端无几何分析能力，ADR-049 桥接增强）。
+  // 门控用 resolveWebMode 而非 isViewerMode：isViewerMode 对 Android 恒 true，
+  // 但 Android 走真实 Go 后端、数值范围可用，提示会误导用户
+  if (resolveWebMode()) {
     const hasNumRange =
       !isUnset(rv.minBones) ||
       !isUnset(rv.maxBones) ||

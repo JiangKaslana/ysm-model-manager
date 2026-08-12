@@ -36,6 +36,8 @@ export interface BuildSiteHtmlCtx {
   activeTag: string;
   /** 创作者搜索关键词（localStorage 持久化） */
   searchKw: string;
+  /** 查看器模式（网页版/Android ADR-049 能力门控）：隐藏桌面专属的创作者编辑入口（保存走未桥接 BySite 绑定） */
+  viewerMode: boolean;
 }
 
 /** 创作者卡片工厂 */
@@ -159,7 +161,7 @@ export function buildSiteHtml(ctx: BuildSiteHtmlCtx): string {
       '<input type="text" id="ws-cr-search" class="cr-search-input" placeholder="' + t("content.searchCreatorPlaceholder") + '" value="' + esc(ctx.searchKw) + '">' +
       '<span class="cr-section-fill"></span>' +
       '<button class="cr-fetch-btn" title="' + t("content.fetchConfigTitle") + '">' + t("content.fetchConfig") + "</button>" +
-      '<button class="cr-edit-btn">' + t("content.edit") + "</button>" +
+      (ctx.viewerMode ? "" : '<button class="cr-edit-btn">' + t("content.edit") + "</button>") +
       "</div>",
     );
     if (creators.length) {

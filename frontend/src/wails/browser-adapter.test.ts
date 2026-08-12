@@ -623,3 +623,130 @@ describe("browserAdapter — 桥接增强边界/异常分支补全（审核补�
     expect(got.length).toBeGreaterThan(1); // bundled 默认远大于 1
   });
 });
+
+// ===== 审计补测：三向一致性 / 错误路径 / 空输入 / 重复操作（Batch1-3 覆盖空洞堵漏）=====
+// 上一批测试的缺口：RenameDir 只验证了 file+ban（未验证 dir key rekey 与 tags 跟随）；
+// RenameFile 测试名宣称「保留标记跟随全路径」却无任何标记断言（半假绿）；
+// 错误路径 / 空输入 / 重复操作均无覆盖。以下用例逐一补齐。
+describe("browserAdapter — 三向一致性/边界补测（审核补充）", () => {
+  const e4 = new TextEncoder();
+
+  it("RenameDir：dir + file + ban/tags 三向 rekey（含 dir meta.name 更新，列表可见性保持）", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.SetModelTags(p, ["旧标签"]);
+    await browserAdapter.ToggleModelEnable(p); // 置 ban
+    await browserAdapter.RenameDir("/web/ysm/狐狸", "小猫");
+    // dir key rekey（旧 key 消失、新 key 出现）
+    expect(idbMock._store.has("dir:ysm/小猫:")).toBe(true);
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(false);
+    // file key rekey
+    expect(idbMock._store.has("file:ysm/小猫/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(false);
+    // ban/tags 标记随全路径 rekey（上一批只验证了 ban，tags 未验证）
+    expect(idbMock._store.has("ban:/web/ysm/小猫/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("tags:/web/ysm/小猫/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("ban:/web/ysm/狐狸/狐狸.ysm")).toBe(false);
+    expect(await browserAdapter.IsFileBanned("/web/ysm/小猫/狐狸.ysm")).toBe(true);
+    expect((await browserAdapter.GetModelTags("/web/ysm/小猫/狐狸.ysm")) as string[]).toEqual(["旧标签"]);
+    // dir meta.name 更新 → scanWebModels 在新前缀下仍能扫到（列表不空）
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Path: string }>;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].Path).toBe("/web/ysm/小猫/狐狸.ysm");
+  });
+
+  it("RenameFile：ban/tags 标记跟随重命名后的全路径（补上测试名宣称却未断言的标记路径）", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    const oldP = "/web/ysm/狐狸/狐狸.ysm";
+    const newP = "/web/ysm/狐狸/小狐狸.ysm";
+    await browserAdapter.SetModelTags(oldP, ["联动"]);
+    await browserAdapter.ToggleModelEnable(oldP); // 置 ban
+    await browserAdapter.RenameFile(oldP, "小狐狸.ysm");
+    // 文件数据 rekey
+    expect(idbMock._store.has("file:ysm/狐狸/小狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(false);
+    // 标记按新全路径跟随（原测试无断言 → 实现回归时假绿）
+    expect(idbMock._store.has("ban:/web/ysm/狐狸/小狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("tags:/web/ysm/狐狸/小狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("tags:/web/ysm/狐狸/狐狸.ysm")).toBe(false);
+    expect(await browserAdapter.IsFileBanned(newP)).toBe(true);
+    expect((await browserAdapter.GetModelTags(newP)) as string[]).toEqual(["联动"]);
+  });
+
+  it("错误路径：非 /web/ 路径的删除/重命名静默 no-op（不抛错、不污染 IDB）", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    await expect(browserAdapter.DeleteModelDir("/repo/ysm/狐狸/狐狸.ysm")).resolves.toBeUndefined();
+    await expect(browserAdapter.RemoveDir("/repo/ysm/狐狸")).resolves.toBeUndefined();
+    await expect(browserAdapter.RenameDir("/repo/ysm/狐狸", "猫")).resolves.toBeUndefined();
+    await expect(browserAdapter.RenameFile("/repo/ysm/狐狸/狐狸.ysm", "猫.ysm")).resolves.toBeUndefined();
+    // 模型组未受影响（dir + file 仍在）
+    expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(1);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
+  });
+
+  it("空输入：空库 GenerateRepoIndex → [] JSON（不抛错）", async () => {
+    const idx = (await browserAdapter.GenerateRepoIndex("/web/ysm")) as string;
+    expect(JSON.parse(idx)).toEqual([]);
+  });
+
+  it("空输入：空库 AllTags / ListByTag → []（不抛错，非 null）", async () => {
+    expect(await browserAdapter.AllTags()).toEqual([]);
+    expect(await browserAdapter.ListByTag("任意")).toEqual([]);
+  });
+
+  it("空输入：SearchModels 空关键词 → 返回全部条目（对齐桌面 kw=='' 语义）", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    const hit = (await browserAdapter.SearchModels("/web/ysm", "", 0, 0, 0, 0, 0, 0)) as Array<{ name: string }>;
+    expect(hit).toHaveLength(1);
+    expect(hit[0].name).toBe("狐狸.ysm");
+  });
+
+  it("SetModelTags(path, []) 空数组 ≠ null：key 保留空数组，GetModelTags 返回 []", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.SetModelTags(p, []);
+    expect(idbMock._store.has(`tags:${p}`)).toBe(true); // 空数组也落 key（与 null 删除语义区分）
+    expect((await browserAdapter.GetModelTags(p)) as string[]).toEqual([]);
+  });
+
+  it("重复操作：连续两次不同名 RenameDir → 数据完整保持（每次 rekey 闭环无残留）", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    await browserAdapter.RenameDir("/web/ysm/狐狸", "小猫");
+    await browserAdapter.RenameDir("/web/ysm/小猫", "大猫");
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Path: string }>;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].Path).toBe("/web/ysm/大猫/狐狸.ysm");
+    expect(idbMock._store.has("dir:ysm/大猫:")).toBe(true);
+    expect(idbMock._store.has("file:ysm/大猫/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/小猫/狐狸.ysm")).toBe(false);
+    expect(idbMock._store.has("dir:ysm/小猫:")).toBe(false);
+  });
+
+  it("重复操作：删除已删模型组幂等（不抛错）", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.DeleteModelDir(p);
+    await expect(browserAdapter.DeleteModelDir(p)).resolves.toBeUndefined();
+    expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
+  });
+
+  // ===== 缺陷/边界（对齐并行修复后的源码行为）=====
+  it("RenameDir 同名/目标已存在 → 拒绝并保留数据（对齐桌面「目标已存在」语义）", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    await expect(browserAdapter.RenameDir("/web/ysm/狐狸", "狐狸")).rejects.toThrow("目标已存在");
+    // 数据保留（不静默覆盖/合并）
+    expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(1);
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
+  });
+
+  // 缺陷证据（第六轮批次1 修复）：renameWebFile 的「目标已存在」守卫原用
+  // newKey !== oldKey 跳过同名场景，同名时 idbSet(newKey) 再 idbDel(oldKey)（同 key）
+  // → 文件被删除（数据丢失）。已修复：同名 no-op 早退，测试启用。
+  it("RenameFile 同名（newName === 原 rel）→ 文件保留（修复前 set 后 del 同名 key → 文件丢失）", async () => {
+    await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
+    await browserAdapter.RenameFile("/web/ysm/狐狸/狐狸.ysm", "狐狸.ysm"); // 同名重命名
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
+    expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(1);
+  });
+});

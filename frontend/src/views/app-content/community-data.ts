@@ -2,6 +2,7 @@
 import { t } from "../../core/i18n/t.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../wails/app.ts";
+import { resolveWebMode } from "../../wails/platform.ts";
 import type { WorkshopSite, WorkshopCreator } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 
 /** 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） */
@@ -84,8 +85,14 @@ export async function loadCommunityData(): Promise<CommunityData> {
     }
   }
 
-  // 自动拉取社区索引（静默，后台执行）
-  tryAutoMergeCommunity(merged).catch((e) => { dbg("tryAutoMergeCommunity failed", e); });
+  // 自动拉取社区索引（静默，后台执行）——仅桌面/Android。网页版数据已由
+  // browser-adapter 桥接提供（bundled JSON 默认 + localStorage 覆盖，Batch 2
+  // 设计意图：不再走 GitHub 拉取旁路）；且自动合并的持久化走
+  // SaveWorkshopCreatorsBySite（网页版未桥接、恒抛 WebUnsupportedError），
+  // 若在网页版执行会造成每访必网络拉取 + 必败保存被静默吞掉（dbg 日志级别）
+  if (!resolveWebMode()) {
+    tryAutoMergeCommunity(merged).catch((e) => { dbg("tryAutoMergeCommunity failed", e); });
+  }
 
   return {
     sites: sites || [],

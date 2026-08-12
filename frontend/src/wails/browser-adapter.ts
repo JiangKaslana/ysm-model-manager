@@ -334,13 +334,18 @@ async function listByTagWeb(tag: string): Promise<string[]> {
     const tags = await getWebTags(m.path);
     if (tags.includes(tag)) out.push(m.path);
   }
-  return out;
+  return out.sort(); // 对齐桌面 tags.Store.ListByTag 的 sort.Strings（稳定输出）
 }
 async function allTagsWeb(): Promise<string[]> {
   const models = await scanAllWebModels();
-  const set = new Set<string>();
-  for (const m of models) (await getWebTags(m.path)).forEach((t) => set.add(t));
-  return [...set];
+  const counts = new Map<string, number>();
+  for (const m of models) {
+    for (const t of await getWebTags(m.path)) counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  // 对齐桌面 tags.Store.AllTags 契约：按使用次数降序，同次数按名称升序（标签面板热门在前）
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "zh-CN"))
+    .map(([t]) => t);
 }
 
 // --- 启用开关（config store: ban:<path> = boolean）---
@@ -363,8 +368,23 @@ async function searchWebModels(
   const entries = await scanWebModels(`${WEB_ROOT}/${type}`);
   const kw = (keyword || "").toLowerCase();
   return entries
-    .filter((e) => !kw || e.Name.toLowerCase().includes(kw))
+    // 对齐桌面 app_scan.go SearchModels：匹配 name OR path（搜索目录名/作者路径段可命中）
+    .filter((e) => !kw || e.Name.toLowerCase().includes(kw) || e.Path.toLowerCase().includes(kw))
     .map((e) => ({ name: e.Name, path: e.Path, boneCount: 0, cubeCount: 0, texWidth: 0, texHeight: 0, hasError: false }));
+}
+
+// --- 重命名校验（对齐桌面 fileops.RenameDir/RenameFile：非法字符/空名/穿越拒绝）---
+// 缺校验的后果：newName 含 / 或为空会制造坏 key（dir:ysm/a/b:），scanWebModels 仍能扫到，
+// 但 parseWebModelDir 三段解析失败 → 该模型变成幽灵（无法删除/再次重命名），且重命名到
+// 已存在模型名会静默覆盖 dir key 合并数据（桌面 os.Rename 对目标已存在报错，web 必须对齐）
+const INVALID_NAME_CHARS = /[\\/:*?"<>|]/;
+
+/** 校验重命名目标名（对齐桌面 fileops.go 非法字符 + 空名 + 路径段校验，非法则抛错） */
+function assertValidRenameName(newName: string, kind: "目录" | "文件"): void {
+  const n = (newName || "").trim();
+  if (!n) throw new Error(`重命名失败：${kind}名称为空`);
+  if (INVALID_NAME_CHARS.test(n)) throw new Error(`重命名失败：${kind}名称包含非法字符`);
+  if (n === "." || n === "..") throw new Error(`重命名失败：${kind}名称包含非法路径段`);
 }
 
 // --- 删除模型组（dir + 所有 file + 元数据标记）---
@@ -384,13 +404,19 @@ async function renameWebDir(oldPath: string, newName: string): Promise<void> {
   const di = parseWebModelDir(oldPath);
   if (!di) return;
   const { type, name } = di;
+  assertValidRenameName(newName, "目录");
+  const finalName = newName.trim();
   const oldDirKey = dirKey(type, name);
-  const newDirKey = dirKey(type, newName);
+  const newDirKey = dirKey(type, finalName);
+  // 目标已存在（含重命名为同名）：对齐桌面「目标已存在」拒绝，防静默覆盖合并两模型数据
+  if ((await idbGet("files", newDirKey)) !== undefined) {
+    throw new Error(`重命名失败：目标已存在: ${WEB_ROOT}/${type}/${finalName}`);
+  }
   const dv = await idbGet("files", oldDirKey);
   if (dv !== undefined) {
     // 同步更新 dir 条目的 name 字段：scanWebModels 用 meta.name 推导文件查找前缀，
     // 若沿用旧名会在重命名后的 file:<type>/<newName>/ 下扫不到模型（列表变空）
-    await idbSet("files", newDirKey, { ...(dv as Record<string, unknown>), name: newName });
+    await idbSet("files", newDirKey, { ...(dv as Record<string, unknown>), name: finalName });
     await idbDel("files", oldDirKey);
   }
   const fks = await idbKeys("files", `file:${type}/${name}/`);
@@ -398,7 +424,7 @@ async function renameWebDir(oldPath: string, newName: string): Promise<void> {
     const rel = k.slice(`file:${type}/${name}/`.length);
     const val = await idbGet("files", k);
     if (val !== undefined) {
-      await idbSet("files", fileKey(type, newName, rel), val);
+      await idbSet("files", fileKey(type, finalName, rel), val);
       await idbDel("files", k);
     }
   }
@@ -410,7 +436,7 @@ async function renameWebDir(oldPath: string, newName: string): Promise<void> {
       const suffix = k.slice(scanPrefix.length); // 含原 rel（含前导斜杠），拼接新路径即正确
       const val = await idbGet("config", k);
       if (val !== undefined) {
-        await idbSet("config", `${prefix}/web/${type}/${newName}/${suffix}`, val);
+        await idbSet("config", `${prefix}/web/${type}/${finalName}/${suffix}`, val);
         await idbDel("config", k);
       }
     }
@@ -422,15 +448,28 @@ async function renameWebFile(oldPath: string, newName: string): Promise<void> {
   const pm = parseWebModelPath(oldPath);
   if (!pm) return;
   const { type, name, rel } = pm;
+  assertValidRenameName(newName, "文件");
+  const finalName = newName.trim();
+  // ysm.json 是模型目录清单（游戏按目录名识别模型）：禁止单文件改名，
+  // 否则 scanWebModels 主文件 rank 从 2 掉到 0 → 模型从列表中消失（对齐桌面 fileops.RenameFile ADR-038 D3）
+  if (rel.toLowerCase() === "ysm.json") {
+    throw new Error("ysm.json 是模型目录清单，请重命名所在文件夹（整组操作）");
+  }
   const oldKey = fileKey(type, name, rel);
-  const newKey = fileKey(type, name, newName);
+  const newKey = fileKey(type, name, finalName);
+  // 同名（含 trim 归一后）：无事可做，直接返回——不得走下方 idbSet+idbDel（同 key 自删 = 数据丢失回归）
+  if (newKey === oldKey) return;
+  // 目标已存在：对齐桌面「目标已存在」拒绝，防静默覆盖目标文件内容
+  if ((await idbGet("files", newKey)) !== undefined) {
+    throw new Error(`重命名失败：目标已存在: ${WEB_ROOT}/${type}/${name}/${finalName}`);
+  }
   const val = await idbGet("files", oldKey);
   if (val !== undefined) {
     await idbSet("files", newKey, val);
     await idbDel("files", oldKey);
   }
   // 移动按全路径 key 的 ban/tags 标记
-  const newPath = oldPath.replace(/\/[^/]+$/, `/${newName}`);
+  const newPath = oldPath.replace(/\/[^/]+$/, `/${finalName}`);
   for (const prefix of ["ban:", "tags:"]) {
     const oldMk = `${prefix}${oldPath}`;
     const newMk = `${prefix}${newPath}`;

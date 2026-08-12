@@ -6,6 +6,7 @@ import { bindDragEvents } from "./site/drag.ts";
 import type { SiteViewState, CleanupFn } from "./site/types.ts";
 import { bus } from "../../bus.ts";
 import type { WorkshopSite, WorkshopCreator } from "../../../bindings/ysm-model-manager/go/types/models.ts";
+import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 
 /** 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） */
 export type RepoAuthorLike = string | { Name?: string; Count?: number };
@@ -90,6 +91,7 @@ export function renderSiteView(site: WorkshopSite, ctx: RenderSiteViewCtx): Clea
   // 构建 HTML（纯函数，实现在 site-view-render.ts）
   const html = buildSiteHtml({
     esc, site, creators, allSites, wsEditModeRef, repoAuthors, authorCountMap, avatarCache, browseMode, activeTag, searchKw,
+    viewerMode: isViewerMode(),
   });
   searchResults.innerHTML = html;
 
