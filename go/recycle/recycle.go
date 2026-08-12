@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/paths"
 	"ysm-model-manager/go/types"
 )
@@ -79,8 +80,8 @@ func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 		}
 		return &MoveResult{Action: "deleted_link", Reason: "符号链接，已直接删除"}, nil
 	}
-	// 硬链接检测：Unix 通过 Nlink()，Windows 通过 syscall
-	if isHardLink(info, src) {
+	// 硬链接检测：统一走 fsutil.IsHardLink（含目录排除 ADR-038）
+	if fsutil.IsHardLink(src) {
 		if err := os.Remove(src); err != nil {
 			return nil, err
 		}
@@ -152,9 +153,6 @@ func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 	}
 	return &MoveResult{Action: "recycled", Reason: ""}, nil
 }
-
-// isHardLink 判断文件是否为硬链接（nlink > 1）。
-// 实现按平台隔离：见 recycle_windows.go / recycle_other.go。
 
 // List 列出回收站中的文件。
 // ADR-038 D3.4：文件夹型模型（含 ysm.json 的目录）整组合并显示为单一条目，

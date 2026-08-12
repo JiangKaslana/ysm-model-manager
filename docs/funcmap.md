@@ -12,7 +12,7 @@
 | Go·下载 | 1 | 7 |
 | go/executil | 2 | 2 |
 | go/fileops | 2 | 13 |
-| Go·文件系统 | 2 | 8 |
+| Go·文件系统 | 4 | 10 |
 | Go·几何 | 2 | 8 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 6 |
@@ -39,10 +39,10 @@
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 36 | 124 |
 | frontend/views | 54 | 155 |
-| 前端·Wails 桥接 | 5 | 21 |
+| 前端·Wails 桥接 | 5 | 19 |
 | 前端·WASM | 3 | 6 |
 | frontend/web-spike | 1 | 3 |
-| **合计** | **197** | **891** |
+| **合计** | **199** | **891** |
 
 ## Go·头像
 
@@ -109,6 +109,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `IsHardLink()` | `go/fsutil/hardlink_other:15` | IsHardLink 判断路径是否为硬链接（nlink &gt; 1）。 |
+| `IsHardLink()` | `go/fsutil/hardlink_windows:14` | IsHardLink 判断路径是否为硬链接（NumberOfLinks &gt; 1）。 |
 | `WalkAllFiles()` | `go/fsutil/walk:13` | WalkAllFiles 递归遍历目录返回所有文件的完整路径（不限制扩展名） skipRecycle 为 true 时跳过 .recycle 子目录 |
 | `WalkAllDirs()` | `go/fsutil/walk:38` | WalkAllDirs 递归遍历目录，返回所有子目录路径（深度优先后序：子目录在前，父目录在后） 不包含根目录本身。后序便于删除类操作（先删深目录，父目录变空后可被继续删除）。 |
 | `CountFiles()` | `go/fsutil/walk:70` | CountFiles 统计目录中的文件数（不限制扩展名） |
@@ -232,22 +234,22 @@
 | `RemoveRepoDuplicates()` | `go/recycle/recycle_clean:22` | RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件： 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推） |
 | `DeduplicateEntries()` | `go/recycle/recycle_clean:59` | DeduplicateEntries 按 SHA256 哈希分组去重：每组显式按路径排序保留第一个，其余移入回收站 |
 | `CleanOpLogger()` | `go/recycle/recycle_clean:18` | CleanOpLogger 清理操作日志回调（薄壳注入 App.logger.Add） |
-| `New()` | `go/recycle/recycle:32` | New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle |
-| `TrashManager.RecycleDir()` | `go/recycle/recycle:41` | RecycleDir 返回回收站目录路径 |
-| `TrashManager.Move()` | `go/recycle/recycle:46` | Move 移动文件到回收站 |
-| `TrashManager.MoveEx()` | `go/recycle/recycle:52` | MoveEx 移动文件到回收站，返回操作详情 |
-| `TrashManager.List()` | `go/recycle/recycle:162` | List 列出回收站中的文件。 |
-| `TrashManager.Restore()` | `go/recycle/recycle:222` | Restore 从回收站恢复到原目录 |
-| `TrashManager.Delete()` | `go/recycle/recycle:319` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `TrashManager.Empty()` | `go/recycle/recycle:339` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
-| `Move()` | `go/recycle/recycle:46` | Move 移动文件到回收站 |
-| `MoveEx()` | `go/recycle/recycle:52` | MoveEx 移动文件到回收站，返回操作详情 |
-| `List()` | `go/recycle/recycle:162` | List 列出回收站中的文件。 |
-| `Restore()` | `go/recycle/recycle:222` | Restore 从回收站恢复到原目录 |
-| `Delete()` | `go/recycle/recycle:319` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `Empty()` | `go/recycle/recycle:339` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
-| `MoveResult()` | `go/recycle/recycle:17` | MoveResult 回收操作结果 |
-| `TrashManager()` | `go/recycle/recycle:23` | TrashManager 可配置的回收站管理器 |
+| `New()` | `go/recycle/recycle:33` | New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle |
+| `TrashManager.RecycleDir()` | `go/recycle/recycle:42` | RecycleDir 返回回收站目录路径 |
+| `TrashManager.Move()` | `go/recycle/recycle:47` | Move 移动文件到回收站 |
+| `TrashManager.MoveEx()` | `go/recycle/recycle:53` | MoveEx 移动文件到回收站，返回操作详情 |
+| `TrashManager.List()` | `go/recycle/recycle:160` | List 列出回收站中的文件。 |
+| `TrashManager.Restore()` | `go/recycle/recycle:220` | Restore 从回收站恢复到原目录 |
+| `TrashManager.Delete()` | `go/recycle/recycle:317` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `TrashManager.Empty()` | `go/recycle/recycle:337` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `Move()` | `go/recycle/recycle:47` | Move 移动文件到回收站 |
+| `MoveEx()` | `go/recycle/recycle:53` | MoveEx 移动文件到回收站，返回操作详情 |
+| `List()` | `go/recycle/recycle:160` | List 列出回收站中的文件。 |
+| `Restore()` | `go/recycle/recycle:220` | Restore 从回收站恢复到原目录 |
+| `Delete()` | `go/recycle/recycle:317` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `Empty()` | `go/recycle/recycle:337` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `MoveResult()` | `go/recycle/recycle:18` | MoveResult 回收操作结果 |
+| `TrashManager()` | `go/recycle/recycle:24` | TrashManager 可配置的回收站管理器 |
 
 ## go/scanner
 
@@ -283,10 +285,10 @@
 | `SyncResourcesDirLevel()` | `go/sync/sync:527` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
 | `SortEntries()` | `go/sync/sync:597` | SortEntries 按名称排序模型条目 |
 | `GetLinkType()` | `go/sync/sync:605` | getLinkType 判断文件的链接类型 GetLinkType 判断文件的链接类型 |
-| `CompareGlobalInstanceHashes()` | `go/sync/sync:659` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录的哈希， 返回每个实例的 Missing / Extra / Synced 状态。 |
+| `CompareGlobalInstanceHashes()` | `go/sync/sync:662` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录的哈希， 返回每个实例的 Missing / Extra / Synced 状态。 |
 | `ScanFunc()` | `go/sync/sync:24` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 | `ListVersionsFunc()` | `go/sync/sync:27` | ListVersionsFunc 列出版本实例（函数类型，测试时可注入 mock） |
-| `HasModInDirFn()` | `go/sync/sync:654` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
+| `HasModInDirFn()` | `go/sync/sync:657` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
 
 ## Go·标签
 
@@ -909,19 +911,19 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `LocalCreator()` | `frontend/src/views/app-content/community-data:8` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
-| `CommunityData()` | `frontend/src/views/app-content/community-data:24` | 站点 + 创作者 + 作者 数据包 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:34` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:126` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:180` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:209` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:246` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:270` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:291` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `LocalCreator()` | `frontend/src/views/app-content/community-data:9` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
+| `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:35` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:133` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:187` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:216` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:253` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:277` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:298` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/community:29` | 初始化诊断页所有功能 |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/community:400` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
-| `initSettings()` | `frontend/src/views/app-content/settings/community:24` | 初始化设置页所有事件绑定 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:29` | 初始化诊断页所有功能 |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/init:400` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `initSettings()` | `frontend/src/views/app-content/settings/init:24` | 初始化设置页所有事件绑定 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:11` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:14` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:37` | 本地创作者（绑定 + 运行时附加字段） |
@@ -1054,7 +1056,7 @@
 | `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:25` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
-| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:237` | — |
+| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:240` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |
@@ -1076,8 +1078,6 @@
 | `MAX_IMPORT_BYTES()` | `frontend/src/wails/browser-adapter:35` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/wails/browser-adapter:65` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `selectLocalRepo()` | `frontend/src/wails/browser-adapter:127` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `importWebFiles()` | `frontend/src/wails/browser-adapter:714` | 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。 |
-| `browserAdapter()` | `frontend/src/wails/browser-adapter:831` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `STORES()` | `frontend/src/wails/idb:16` | — |
 | `Store()` | `frontend/src/wails/idb:17` | — |
 | `openDB()` | `frontend/src/wails/idb:21` | — |

@@ -106,7 +106,7 @@
 
 ## 四、放行条件（建议优先级）
 
-1. **[已修复]** P1-1 已于 2026-08-10 修复：`MainActivity.java` 9 处 `emitSystemEvent` 全改 `emitEvent`（走 CustomEvent 通道直达前端）；`android-events.ts` 注释与 `android_events.md`/`android-dev.md` 错误不变量已同步；`android-events.test.ts` 作回归闸门。待真机 `assembleDebug` 复验。
+1. **[已修复]** P1-1 已于 2026-08-10 修复：`MainActivity.java` 9 处 `emitSystemEvent` 全改 `emitEvent`（走 CustomEvent 通道直达前端）；`android-events.ts` 注释与 `android-events.md`/`android-dev.md` 错误不变量已同步；`android-events.test.ts` 作回归闸门。待真机 `assembleDebug` 复验。
 2. **[阻断]** 清理 `wails-picker` 缓存（P1-2）。
 3. **[高]** 修复返回键计时竞态 + `NetworkChanged` payload 形状 + 授权双发重扫（P2-6/7/8）。
 4. **[部分满足]** `android-events.test.ts` 已新增（P1-3）；`getAndroidBridge.test.ts` 待补（P1-4）。
@@ -143,7 +143,7 @@ _附录：三份子代理原始报告分别对应 桥接层(agent-d366811c) / �
 | `frontend/src/core/handlers/android-events.ts` | 顶部注释纠正通道前提（`emitSystemEvent` → `emitEvent`，说明不到前端原因） |
 | `frontend/src/core/handlers/android-events.test.ts` | **新增** vitest 回归测试（8 用例：事件名匹配 / string payload 解析 / 非 string 不崩 / 返回键弹窗消费 / 授权双刷新） |
 | `docs/android-dev.md` | 双端桥表格修正通道名 + 坑点速查新增 `emitEvent` 坑点 |
-| `docs/knowledge/android_events.md` | Java 层关系说明 `emitSystemEvent` → `emitEvent` |
+| `docs/knowledge/android-events.md` | Java 层关系说明 `emitSystemEvent` → `emitEvent` |
 
 ### 验证
 - `npx vitest run src/core/handlers/android-events.test.ts` → **8/8 通过**

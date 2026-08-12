@@ -1,5 +1,5 @@
 ---
-kind: pointer_events
+kind: pointer-events
 name: Pointer Events 统一交互（触屏 + 桌面）
 tier: architecture
 category: core
@@ -10,7 +10,7 @@ source_files:
   - frontend/src/views/app-preview/skeleton.ts
   - frontend/src/views/app-preview/litematic-3d.ts
   - frontend/src/views/app-content/index.ts
-  - frontend/src/views/app-content/settings/community.ts
+  - frontend/src/views/app-content/settings/init.ts
   - frontend/src/views/app-content/site/edit.ts
   - frontend/src/views/app-tree/toolbar-events.ts
 tests:
@@ -57,7 +57,7 @@ ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事
 
 ## 与其他子系统关系
 
-- **modal.ts**：`android:back` 先关活动弹窗（触屏无 Esc，见 android_events.md）
+- **modal.ts**：`android:back` 先关活动弹窗（触屏无 Esc，见 android-events.md）
 - **全局清理模式**：`_sessionCleanups` / `ctx.unsubs` / `disconnectedCallback` 负责 pointer 监听回收（与 mouse 时代一致，防累积泄漏）
 
 ## 不变量
@@ -71,4 +71,4 @@ ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事
 ## 相关
 
 - ADR-047（核心立项 A）、ADR-008（事件实现统一治理）
-- `docs/knowledge/model2d.md`、`docs/knowledge/model3d.md`、`docs/knowledge/app-preview.md`、`docs/knowledge/android_events.md`
+- `docs/knowledge/model2d.md`、`docs/knowledge/model3d.md`、`docs/knowledge/app-preview.md`、`docs/knowledge/android-events.md`

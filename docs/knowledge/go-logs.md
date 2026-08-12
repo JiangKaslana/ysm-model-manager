@@ -43,7 +43,7 @@ invariant_anchors:
 - 被 `internal/app/app.go` 持有：`logger`（`NewLogger()`）与 `runtimeLogs`（`NewRuntimeBuffer(200)`）两个字段；启动时 `log.SetOutput(io.MultiWriter(os.Stderr, a.runtimeLogs))`（app.go:64）把标准库 log 同时写终端与缓冲
 - 被 `internal/app/app_install.go` 在导入/推送/删除各路径记录 success/failed/skipped/warn；该文件同时提供 `AddOpLog` 与 `GetRuntimeLogs` / `ClearRuntimeLogs` 三个 binding
 - 前端 `core/error-diary.ts` 监听所有 error toast，自动以 op=`"ui"` 写入日记，使 UI 报错持久化可回溯
-- 前端 `views/app-content/diagnostics/community.ts` 消费两者：操作日志按 `Operation` 字段分组渲染（`OP_META` 给出 import/scan/download/sync/rename/delete/ui 七种中文标签+图标，`community.ts:99`；未知 op 由 `opMeta` 回退成「🧾 + op 原字符串」、op 为空时回退「导入」，`community.ts:112`；组头右侧显示「N 条」），运行时日志单列一个诊断标签页
+- 前端 `views/app-content/diagnostics/init.ts` 消费两者：操作日志按 `Operation` 字段分组渲染（`OP_META` 给出 import/scan/download/sync/rename/delete/ui 七种中文标签+图标，`init.ts:99`；未知 op 由 `opMeta` 回退成「🧾 + op 原字符串」、op 为空时回退「导入」，`init.ts:112`；组头右侧显示「N 条」），运行时日志单列一个诊断标签页
 - 依赖 `go/types`（`ImportLog` / `RuntimeLog` 结构）
 
 ## 不变量

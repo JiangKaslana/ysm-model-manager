@@ -2,8 +2,8 @@
 
 > 面向在 ysm-model-manager 上做 Android 适配的开发者（人类 + AI）。本手册是 Android 开发的**枢纽总览**：
 > 决策看 [ADR-046](adr/ADR-046-cross-platform-feasibility.md)，实现细节看知识卡
-> （[android_bridge](knowledge/android_bridge.md) / [android_events](knowledge/android_events.md) /
-> [android_platform_guard](knowledge/android_platform_guard.md) / [wails-bridge](knowledge/wails-bridge.md)），
+> （[android-bridge](knowledge/android-bridge.md) / [android-events](knowledge/android-events.md) /
+> [go-android-platform-guard](knowledge/go-android-platform-guard.md) / [wails-bridge](knowledge/wails-bridge.md)），
 > 本页收拢**现状快照、双端桥机制、按钮适配清单、构建链路、坑点速查**。
 
 ## 平台定位（查看器模式）
@@ -27,7 +27,7 @@ Android 端模型仓库 = **公共目录固定路径**（`internal/app/pathmgr_a
 
 | 按钮 | 桌面 | Android | 实现位置 |
 |------|------|---------|---------|
-| 设置页「选择目录」 | Wails Dialog | `resolveAndroidRepoDir`（授权引导 → 定位公共仓库） | `directory-picker.ts` / `settings/community.ts` |
+| 设置页「选择目录」 | Wails Dialog | `resolveAndroidRepoDir`（授权引导 → 定位公共仓库） | `directory-picker.ts` / `settings/init.ts` |
 | 树「📁 导入文件夹」 | `SelectDirectory` + `ImportByType` | `resolveAndroidRepoDir`（查看器模式公共目录即仓库） | `toolbar-events.ts` |
 | 树「📂 打开文件夹」 | `OpenFolder` | `resolveAndroidRepoDir`（提示路径，不调 Go 守卫报错） | `toolbar-events.ts` / `app-resource-manager/index.ts` |
 | 树「📁 导入文件」 | `SelectImportFile` | **官方桥可用**（`launchFilePicker` → `ACTION_OPEN_DOCUMENT` 多选 → 复制到缓存 → Go 读真实路径） | — |
@@ -103,6 +103,6 @@ Wails v3 官方 `dialogs_android.go` **明确拒绝 Android 目录选择**（SAF
 ## 相关
 
 - [ADR-046 全平台化可行性调查](adr/ADR-046-cross-platform-feasibility.md)
-- 知识卡：[android_bridge](knowledge/android_bridge.md) / [android_events](knowledge/android_events.md) / [android_platform_guard](knowledge/android_platform_guard.md) / [wails-bridge](knowledge/wails-bridge.md)
+- 知识卡：[android-bridge](knowledge/android-bridge.md) / [android-events](knowledge/android-events.md) / [go-android-platform-guard](knowledge/go-android-platform-guard.md) / [wails-bridge](knowledge/wails-bridge.md)
 - Go 平台隔离：`internal/app/pathmgr_*.go`（build tags：desktop / android 双实现）
 - Android 工程：`build/android/`（gradle + Java 源码 + Taskfile）

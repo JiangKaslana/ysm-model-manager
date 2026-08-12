@@ -1,5 +1,5 @@
 ---
-kind: android_events
+kind: android-events
 name: Android 系统事件消费（back/网络/存储授权）
 tier: architecture
 category: core
@@ -54,4 +54,4 @@ invariant_anchors:
 ## 相关
 
 - ADR-047（`android:back` 先关活动弹窗再退出）
-- `docs/knowledge/android_bridge.md`、`docs/knowledge/dialog-modal.md`（closeActiveDialog 单例槽位）
+- `docs/knowledge/android-bridge.md`、`docs/knowledge/dialog-modal.md`（closeActiveDialog 单例槽位）

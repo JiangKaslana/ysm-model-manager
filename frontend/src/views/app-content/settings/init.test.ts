@@ -7,7 +7,7 @@
 //  - 高级面板展开、主题卡片点击、镜像源切换、发布页跳转
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { waitFor } from "../../../test-utils/index.ts";
-import { initSettings } from "./community.ts";
+import { initSettings } from "./init.ts";
 
 const {
   busEmit,

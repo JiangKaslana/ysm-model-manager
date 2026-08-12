@@ -612,8 +612,11 @@ func GetLinkType(path string) types.LinkType {
 		return types.LinkSym
 	}
 	// 在 Windows 上判断硬链接：通过 syscall.GetFileInformationByHandle 获取 nlink
-	// 如果 nlink > 1，说明是硬链接
-	return checkHardLink(path)
+	// 如果 nlink > 1，说明是硬链接（统一走 fsutil.IsHardLink，含目录排除 ADR-038）
+	if fsutil.IsHardLink(path) {
+		return types.LinkHard
+	}
+	return types.LinkCopy
 }
 
 // isFileLocked 判断错误是否因为文件被其他进程锁定

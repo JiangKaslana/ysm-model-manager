@@ -1,7 +1,7 @@
 // ===== localStorage 安全读写（ADR-044 策略 A：基础设施工具函数收敛）=====
 // 隐私模式 / 存储禁用下 localStorage 读写会抛错——裸调会中断启动链（initTheme/applyUIPrefs）、
 // 初始化（settings.initSettings）或事件回调。全项目统一经本模块读写，禁止裸调 localStorage。
-// 收敛自：app-modules.ts 的模块级 safeGet/safeSet、settings/community.ts 的 themeGet/themeSet。
+// 收敛自：app-modules.ts 的模块级 safeGet/safeSet、settings/init.ts 的 themeGet/themeSet。
 
 /** 安全读：存储不可用时返回 null（调用方走默认值回退） */
 export function safeGet(key: string): string | null {

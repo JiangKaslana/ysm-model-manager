@@ -453,7 +453,7 @@ views/app-xxx/
 | `docs/adr/` | `ADR-NNN-kebab-case.md` | `ADR-005-frontend-governance-rules.md` |
 | `docs/releases/` | `vX.Y.Z.md` / `vX.Y.Z-compare.md` | `v1.9.3.md` / `v1.5.8-compare.md` |
 | `docs/guide/` | kebab-case | `import-model.md` / `3d-preview.md` |
-| `docs/knowledge/` | snake_case | `go_ysm_parser.md` / `page_store.md` |
+| `docs/knowledge/` | kebab-case | `go-ysm-parser.md` / `page-store.md` |
 | `docs/novel/act-*/` | `NN-中文.md` | `01-裂隙初现.md` |
 | `docs/archive/` | 原名冻结，不改名 | `bug-chronicle.md` |
 | `docs/` 根 | kebab-case | `governance-rules.md` / `pitfalls.md` |

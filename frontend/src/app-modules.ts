@@ -86,7 +86,7 @@ if (typeof window !== "undefined") window.applyTheme = applyTheme;
 
 // ADR-044 策略 A：safeGet/safeSet 收敛至 utils/dom/storage.ts 统一实现——
 // 隐私模式/存储禁用下 localStorage 读写抛错会中断启动链；原模块级定义与
-// settings/community.ts 的 themeGet/themeSet 为重复实现，现统一 import 共享工具。
+// settings/init.ts 的 themeGet/themeSet 为重复实现，现统一 import 共享工具。
 import { safeGet, safeSet } from "./utils/dom/storage.ts";
 
 export async function initTheme() {

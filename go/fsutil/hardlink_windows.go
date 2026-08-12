@@ -1,18 +1,19 @@
 //go:build windows
 
-package recycle
+package fsutil
 
 import (
 	"os"
 	"syscall"
 )
 
-// isHardLink 判断文件是否为硬链接（NumberOfLinks > 1）。
+// IsHardLink 判断路径是否为硬链接（NumberOfLinks > 1）。
 // Windows 的 os.FileInfo.Sys() 不暴露 Nlink，须通过 syscall 获取。
 // 目录不参与硬链接判断：目录 CreateFile 需 BACKUP_SEMANTICS 且无硬链接语义，
 // 直接排除避免文件夹模型 Move 误判（ADR-038 D3.4）。
-func isHardLink(info os.FileInfo, path string) bool {
-	if info.IsDir() {
+func IsHardLink(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
 		return false
 	}
 	pathp, err := syscall.UTF16PtrFromString(path)

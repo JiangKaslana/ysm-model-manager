@@ -6,7 +6,7 @@
 //  - scanConflicts：无游戏目录 / 无实例 / 冲突渲染 / 无冲突 / 扫描失败
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { waitFor } from "../../../test-utils/index.ts";
-import { initDiagnostics, startDedup } from "./community.ts";
+import { initDiagnostics, startDedup } from "./init.ts";
 
 const { busEmit, busOn, getApp, loadResourceRegistry } = vi.hoisted(() => ({
   busEmit: vi.fn(),

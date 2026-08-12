@@ -1,5 +1,5 @@
 ---
-kind: android_platform_guard
+kind: go-android-platform-guard
 name: Android 平台守卫（Go 侧）
 tier: architecture
 category: go
@@ -65,4 +65,4 @@ ADR-047「平台守卫批量」：Go 侧对 Android 上**无效或不适用的�
 ## 相关
 
 - ADR-047（平台守卫批量）、ADR-046（全平台化）、ADR-033（更新 Windows-only）
-- `docs/knowledge/android_bridge.md`（前端门控）、`docs/knowledge/go-watcher.md`、`docs/knowledge/go-updater.md`
+- `docs/knowledge/android-bridge.md`（前端门控）、`docs/knowledge/go-watcher.md`、`docs/knowledge/go-updater.md`

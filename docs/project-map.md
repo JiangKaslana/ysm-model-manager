@@ -13,7 +13,7 @@
 | `avatar/` | 创作者头像提取与缓存 |
 | `dedup/` | 文件去重检测（纯函数，不绑回收站/UI） |
 | `download/` | 纯下载逻辑（不依赖 Wails runtime） |
-| `executil/` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `executil/` | 外部进程工具（HideWindow 平台双实现，收敛自三处副本） |
 | `fileops/` | 文件操作 + 预览提取 + 包信息（ADR-003 P3 下沉） |
 | `fsutil/` | 目录遍历工具（WalkDir 集中管理） |
 | `geometry/` | Bedrock Geometry JSON 解析（ZIP/7z 提取，防炸弹限制） |

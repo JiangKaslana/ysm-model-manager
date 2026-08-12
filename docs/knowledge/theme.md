@@ -32,7 +32,7 @@ invariant_anchors:
 - `initTheme()`：动态 import `LoadAppConfig` 读取 Go 配置，取 `localStorage.getItem("theme") || cfg.theme || THEME_DARK`（THEME_DARK = "cyber"）并回写 localStorage；`LoadAppConfig` 失败时 catch 回退 localStorage 或默认暗色，不阻塞启动
 - 系统主题监听：`matchMedia` change 事件仅在 localStorage 主题为 `system` 时重应用，并 toast 提示「已跟随系统切换至深/浅色主题」
 - `applyUIPrefs()`：应用 UI 偏好——`ui-font-size`（经 `--fs-scale` 缩放，先清除旧版内联 `--fs-*`）、`ui-display-font`（`--font-display` 楷体/系统）、`ui-card-density`（`--card-padding`/`--card-gap`）、`ui-animations`（off 时给 `<html>` 加 `no-animations` 类全局关动画）
-- 设置页入口（frontend/src/views/app-content/settings/community.ts）：主题卡片点选 → `window.applyTheme(themeName)` + 写 localStorage；`theme-auto` 下拉支持 off/系统跟随/按时间（白天 warm、夜晚 cyber）三种自动模式
+- 设置页入口（frontend/src/views/app-content/settings/init.ts）：主题卡片点选 → `window.applyTheme(themeName)` + 写 localStorage；`theme-auto` 下拉支持 off/系统跟随/按时间（白天 warm、夜晚 cyber）三种自动模式
 - `variables.css`：定义 `.theme-cyber`/`.theme-warm`/`.theme-pro`/`.theme-sakura`/`.theme-ocean`/`.theme-mint` 六组变量与 `.no-animations` 覆盖规则
 
 ## 对外 API / 入口

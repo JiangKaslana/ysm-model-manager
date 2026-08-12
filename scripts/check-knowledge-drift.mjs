@@ -100,7 +100,7 @@ function checkKnowledgeMeta() {
     // kind 格式
     const kind = getScalar(fm, 'kind');
     if (kind && !KIND_RE.test(kind)) {
-      errors.push(`知识卡 ${cf} 的 kind 非法: ${kind}（应为小写 kebab-case 或 snake_case，允许 - 与 _）`);
+      errors.push(`知识卡 ${cf} 的 kind 非法: ${kind}（应为小写 kebab-case，兼容历史 snake_case，允许 - 与 _）`);
     }
 
     // kind 与文件名同源（单一不变量：文件名是命名事实源）

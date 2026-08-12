@@ -1,5 +1,5 @@
 ---
-kind: ysm_baked
+kind: ysm-baked
 name: YSM 烘焙与几何反推
 tier: architecture
 category: core

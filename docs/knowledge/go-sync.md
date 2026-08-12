@@ -7,8 +7,8 @@ source_files:
   - go/sync/sync.go
   - go/sync/sync_push.go
   - go/sync/sync_relink.go
-  - go/sync/link_windows.go
-  - go/sync/link_unix.go
+  - go/fsutil/hardlink_windows.go
+  - go/fsutil/hardlink_other.go
   - go/sync/
 use_when:
   - 整合包
@@ -36,8 +36,8 @@ invariant_anchors:
 - `sync.go` — 实例枚举、哈希差异对比、启禁状态同步、资源差异对比、链接类型判定
 - `sync_push.go` — 推送/拉取执行循环（`PushResources` / `PullResources` 及单条变体、`SyncCustomToRepo`），失败逐条经注入的 `Logger` 记账、聚合成一条错误返回
 - `sync_relink.go` — 重链接执行（`RelinkDir`）：按哈希把实例文件重新指向仓库版本，文件夹级类型用「备份→重建→失败回滚」保证不丢目录
-- `link_windows.go` — Windows 硬链接检测（`syscall.GetFileInformationByHandle` → `NumberOfLinks`）
-- `link_unix.go` — Unix/macOS 硬链接检测（`syscall.Stat_t.Nlink`）
+- `go/fsutil/hardlink_windows.go` — Windows 硬链接检测（`syscall.GetFileInformationByHandle` → `NumberOfLinks`，收敛自原 link_windows.go）
+- `go/fsutil/hardlink_other.go` — Unix/macOS 硬链接检测（`syscall.Stat_t.Nlink`，含目录排除 ADR-038，收敛自原 link_unix.go）
 
 ## 对外 API / 入口
 

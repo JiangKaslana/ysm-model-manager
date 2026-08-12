@@ -880,11 +880,11 @@ export const autoSidebar = [
         "items": [
           {
             "text": "Android 桥接层：存储授权 + 目录选择器",
-            "link": "/knowledge/android_bridge"
+            "link": "/knowledge/android-bridge"
           },
           {
             "text": "Android 系统事件消费（back/网络/存储授权）",
-            "link": "/knowledge/android_events"
+            "link": "/knowledge/android-events"
           },
           {
             "text": "事件总线 bus.ts",
@@ -900,7 +900,7 @@ export const autoSidebar = [
           },
           {
             "text": "Pointer Events 统一交互（触屏 + 桌面）",
-            "link": "/knowledge/pointer_events"
+            "link": "/knowledge/pointer-events"
           },
           {
             "text": "主题系统 theme",
@@ -912,7 +912,7 @@ export const autoSidebar = [
           },
           {
             "text": "YSM 烘焙与几何反推",
-            "link": "/knowledge/ysm_baked"
+            "link": "/knowledge/ysm-baked"
           }
         ]
       },
@@ -922,7 +922,7 @@ export const autoSidebar = [
         "items": [
           {
             "text": "Android 平台守卫（Go 侧）",
-            "link": "/knowledge/android_platform_guard"
+            "link": "/knowledge/go-android-platform-guard"
           },
           {
             "text": "头像 go/avatar",
@@ -1236,16 +1236,16 @@ export const autoSidebar = [
             "link": "/novel/02-模型仓库/02-错误的名字"
           },
           {
-            "text": "第 02 区域 · 第 2 章 · 空转的门",
-            "link": "/novel/02-模型仓库/02-空转的门"
+            "text": "第 02 区域 · 第 3 章 · 空转的门",
+            "link": "/novel/02-模型仓库/03-空转的门"
           },
           {
-            "text": "第 02 区域 · 第 3 章 · 负负得正",
-            "link": "/novel/02-模型仓库/03-负负得正"
+            "text": "第 02 区域 · 第 4 章 · 负负得正",
+            "link": "/novel/02-模型仓库/04-负负得正"
           },
           {
-            "text": "第 02 区域 · 第 4 章 · 共享的桌子",
-            "link": "/novel/02-模型仓库/04-共享的桌子"
+            "text": "第 02 区域 · 第 5 章 · 共享的桌子",
+            "link": "/novel/02-模型仓库/05-共享的桌子"
           }
         ]
       },
@@ -1262,16 +1262,16 @@ export const autoSidebar = [
             "link": "/novel/03-UI器官/02-过期的点击"
           },
           {
-            "text": "第 03 区域 · 第 2 章 · 十种砖十种缝",
-            "link": "/novel/03-UI器官/02-十种砖十种缝"
+            "text": "第 03 区域 · 第 3 章 · 十种砖十种缝",
+            "link": "/novel/03-UI器官/03-十种砖十种缝"
           },
           {
-            "text": "第 03 区域 · 第 3 章 · 违章建筑",
-            "link": "/novel/03-UI器官/03-违章建筑"
+            "text": "第 03 区域 · 第 4 章 · 违章建筑",
+            "link": "/novel/03-UI器官/04-违章建筑"
           },
           {
-            "text": "第 03 区域 · 第 4 章 · 裸奔的边界",
-            "link": "/novel/03-UI器官/04-裸奔的边界"
+            "text": "第 03 区域 · 第 5 章 · 裸奔的边界",
+            "link": "/novel/03-UI器官/05-裸奔的边界"
           }
         ]
       },
@@ -1366,7 +1366,7 @@ export const autoSidebar = [
             "link": "/novel/09-工具链/02-值夜班的灯"
           },
           {
-            "text": "第 09 区域 · 第 2 章 · 自动化裁判",
+            "text": "第 09 区域 · 第 3 章 · 自动化裁判",
             "link": "/novel/09-工具链/03-自动化裁判"
           }
         ]
@@ -1380,16 +1380,16 @@ export const autoSidebar = [
             "link": "/novel/10-文档治理/01-十二轮之后的账"
           },
           {
-            "text": "第 10 区域 · 第 2 章 · 登记簿上的旧伤",
-            "link": "/novel/10-文档治理/02-登记簿上的旧伤"
-          },
-          {
             "text": "第 10 区域 · 第 2 章 · 六条新戒律",
             "link": "/novel/10-文档治理/02-六条新戒律"
           },
           {
-            "text": "第 10 区域 · 第 3 章 · 换墙记",
-            "link": "/novel/10-文档治理/03-换墙记"
+            "text": "第 10 区域 · 第 3 章 · 登记簿上的旧伤",
+            "link": "/novel/10-文档治理/03-登记簿上的旧伤"
+          },
+          {
+            "text": "第 10 区域 · 第 4 章 · 换墙记",
+            "link": "/novel/10-文档治理/04-换墙记"
           }
         ]
       },

@@ -5,8 +5,8 @@ import { t } from "../../core/i18n/t.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 
 // P3 修复（审核）：GitHub 仓库 URL 集中为常量——原 repo/releases/docs 三形态
-// 散落于 tpl.ts 与 settings/community.ts 四处，仓库迁移时遗漏一处即漂移
-// 注：仅 GH_RELEASES 被包外（settings/community.ts）引用，其余为 tpl.ts 内部使用，
+// 散落于 tpl.ts 与 settings/init.ts 四处，仓库迁移时遗漏一处即漂移
+// 注：仅 GH_RELEASES 被包外（settings/init.ts）引用，其余为 tpl.ts 内部使用，
 // 不导出（deadcode 门禁：无外部消费者的导出会被标死代码）
 const GH_REPO = "https://github.com/eghrhegpe/ysm-model-manager";
 export const GH_RELEASES = GH_REPO + "/releases";

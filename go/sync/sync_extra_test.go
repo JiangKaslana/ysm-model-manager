@@ -222,7 +222,7 @@ func TestGetLinkType_RegularFile(t *testing.T) {
 	}
 	lt := GetLinkType(path)
 	// 原 `if lt == LinkUnknown { t.Logf(...) }` 永不失败——
-	// 普通文件应走 checkHardLink 返回 LinkCopy，硬断言
+	// 普通文件应走 fsutil.IsHardLink 返回 LinkCopy，硬断言
 	if lt != types.LinkCopy {
 		t.Errorf("regular file link type = %v, 期望 %v", lt, types.LinkCopy)
 	}

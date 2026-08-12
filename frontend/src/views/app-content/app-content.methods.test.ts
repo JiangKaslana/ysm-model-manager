@@ -36,7 +36,7 @@ vi.mock("../../features/import-dnd.ts", () => ({ registerDnD: vi.fn() }));
 vi.mock("../app-resource-manager/index.ts", () => ({
   registerResourceManagerGlobal: vi.fn(),
 }));
-vi.mock("./diagnostics/community.ts", () => ({
+vi.mock("./diagnostics/init.ts", () => ({
   initDiagnostics: vi.fn(),
   startDedup: vi.fn(),
 }));
@@ -46,7 +46,7 @@ vi.mock("../../features/oldest-models.ts", () => ({
   loadOldestModel: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../../features/community/data.ts", () => ({ tryFetchModels: vi.fn() }));
-vi.mock("./settings/community.ts", () => ({
+vi.mock("./settings/init.ts", () => ({
   initSettings: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("./community-data.ts", () => ({
@@ -61,7 +61,7 @@ import { bus } from "../../bus.ts";
 import { initImportQueue } from "../../features/import-queue.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
-import { startDedup } from "./diagnostics/community.ts";
+import { startDedup } from "./diagnostics/init.ts";
 import { loadCommunityData } from "./community-data.ts";
 import { tryFetchModels } from "../../features/community/data.ts";
 import { renderSiteView } from "./site-view.ts";

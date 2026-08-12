@@ -1,5 +1,5 @@
 ---
-kind: android_bridge
+kind: android-bridge
 name: Android 桥接层：存储授权 + 目录选择器
 tier: architecture
 category: core
@@ -45,7 +45,7 @@ Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 
 ## 与其他子系统关系
 
 - **Java 层**：`build/android/app/src/main/java/com/wails/app/MainActivity.java`（`hasStoragePermission`/`requestStoragePermission` 实现 + `MANAGE_STORAGE_REQUEST` 请求码）
-- **目录选择调用方**：`app-content/settings/community.ts`（设置页路径卡片）、`app-tree/toolbar-events.ts`（导入文件夹）——统一复用 `resolveAndroidRepoDir`，禁止各调用方复制授权逻辑
+- **目录选择调用方**：`app-content/settings/init.ts`（设置页路径卡片）、`app-tree/toolbar-events.ts`（导入文件夹）——统一复用 `resolveAndroidRepoDir`，禁止各调用方复制授权逻辑
 - **平台门控消费**：`features/version-updater.ts` 用 `getAndroidBridge()` 判断 Android 跳过自动更新（ADR-047）
 - **PathManager**（Go 侧）：`pathmgr_android.go` 的 `DefaultRepoRoot()` 返回 `/storage/emulated/0/YSM-Model-Manager`，授权后 `os.*` 直读
 
@@ -59,4 +59,4 @@ Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 
 ## 相关
 
 - ADR-046（全平台化可行性）、ADR-047（Android 可用性落地规划）
-- `docs/knowledge/android_events.md`、`docs/knowledge/android_platform_guard.md`、`docs/knowledge/pathmgr`（若存在）
+- `docs/knowledge/android-events.md`、`docs/knowledge/go-android-platform-guard.md`、`docs/knowledge/pathmgr`（若存在）

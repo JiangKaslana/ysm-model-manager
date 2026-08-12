@@ -32,7 +32,7 @@ invariant_anchors:
 
 ## 与其他子系统关系
 
-- **实际消费方**：`internal/app/resource_bindings.go`（Wails 绑定，`FindDuplicateFiles`/`CountDuplicates`）；前端 `app-content/diagnostics/community.ts` 去重页
+- **实际消费方**：`internal/app/resource_bindings.go`（Wails 绑定，`FindDuplicateFiles`/`CountDuplicates`）；前端 `app-content/diagnostics/init.ts` 去重页
 - **无 `go/importer` 引用**（导入前去重的旧表述为幽灵关系，知识卡已自纠）；**无 `go/ysm` 引用**（元数据比对同为幽灵关系）
 - 去重只检测不删除；实际删除走 `go/recycle.DeduplicateEntries`（recycle_clean.go），已安装资源不受影响
 

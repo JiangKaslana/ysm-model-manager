@@ -28,7 +28,7 @@ let _avatarConfigLoadedUnsub: (() => void) | null = null;
 import { registerGlobalHandlers } from "../../core/handlers/global.ts";
 import { registerDnD } from "../../features/import-dnd.ts";
 import { registerResourceManagerGlobal } from "../app-resource-manager/index.ts";
-import { initDiagnostics, startDedup } from "./diagnostics/community.ts";
+import { initDiagnostics, startDedup } from "./diagnostics/init.ts";
 import { initImportQueue } from "../../features/import-queue.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
@@ -38,7 +38,7 @@ import { tryFetchModels } from "../../features/community/data.ts";
 // 副作用导入：注册 <app-preview> 组件（原动态 import 预加载的静态化替代）
 import "../app-preview/index.ts";
 
-import { initSettings } from "./settings/community.ts";
+import { initSettings } from "./settings/init.ts";
 import {
   countMissing,
   renderCardsHTML,

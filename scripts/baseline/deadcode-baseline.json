@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-11T05:43:31.092Z",
+  "generated": "2026-08-12T15:50:51.000Z",
   "knip": [
     "e2e/modal.spec.ts|unresolved|/src/utils/dom/dialogs/modal.ts",
     "package.json|binaries|wails3",
@@ -33,16 +33,12 @@
     "src/views/app-preview/geometry.ts|types|BedrockCube",
     "src/views/app-preview/utils.ts|types|PreviewImageLoader",
     "src/views/app-preview/wasm.ts|exports|doDecodeYsmViaWasm",
-    "src/wails/browser-adapter.ts|exports|MAX_IMPORT_BYTES",
     "src/wails/browser-adapter.ts|exports|arrayBufferToBase64",
     "src/wails/idb.ts|exports|STORES",
-    "src/wails/idb.ts|exports|_resetDBForTest",
-    "src/wails/idb.ts|exports|idbDel",
-    "src/wails/idb.ts|exports|openDB",
     "src/web-spike/main.ts|file|src/web-spike/main.ts"
   ],
   "jscpd": [
-    "src/app-modules.ts#src/views/app-content/settings/community.ts",
+    "src/app-modules.ts#src/views/app-content/settings/init.ts",
     "src/core/context-menus.ts#src/core/context-menus.ts",
     "src/core/handlers/instance-ops.test.ts#src/core/handlers/sync.test.ts",
     "src/features/community/download-queue.test.ts#src/features/community/download-queue.test.ts",

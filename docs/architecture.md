@@ -121,7 +121,7 @@ Wails v3 **Service 反射绑定**：`*app.App` 的所有导出方法自动暴露
 | `WailsBridge.java` | 原生库加载、桥接初始化 |
 | `WailsPathHandler.java` | WebView 资产请求处理 |
 
-Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿用 `emitSystemEvent`**，后者仅达 Go 侧）转发，前端 `Events.On("android:*")` 消费。详见 `docs/knowledge/android_bridge.md`。
+Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿用 `emitSystemEvent`**，后者仅达 Go 侧）转发，前端 `Events.On("android:*")` 消费。详见 `docs/knowledge/android-bridge.md`。
 
 ### 2.3 Web 版 backend adapter
 
@@ -181,10 +181,9 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 | `app_config_android.go` | `android` | Minecraft 启动器扫描（空实现） |
 | `go/updater/updater_windows.go` | `windows` | 自更新 |
 | `go/updater/updater_other.go` | `!windows` | 自更新（拒绝，非 Windows 不支持） |
-| `go/sync/link_windows.go` | `windows` | 硬链接创建 |
-| `go/sync/link_unix.go` | `!windows` | 硬链接创建（Unix） |
-| `go/recycle/isHardLink_windows.go` / `_other.go` | `windows` / `!windows` | 硬链接检测 |
-| `go/recycle/isCrossDevice_windows.go` / `_other.go` | `windows` / `!windows` | 跨卷判断 |
+| `go/fsutil/hardlink_windows.go` | `windows` | 硬链接检测（收敛自原 sync/checkHardLink + recycle/isHardLink） |
+| `go/fsutil/hardlink_other.go` | `!windows` | 硬链接检测（含目录排除 ADR-038） |
+| `go/recycle/crossdevice_windows.go` / `_other.go` | `windows` / `!windows` | 跨设备判断 |
 
 约 **150 个导出方法**构成绑定面。
 
@@ -203,7 +202,7 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 | `packs` | mcmeta 解析 |
 | `avatar` / `download` / `updater` | 头像提取 / 下载 / 自更新 |
 | `watcher` | fsnotify 监听目录变更 |
-| `tags` / `logs` / `paths` / `fsutil` / `version` | 标签 / 日志 / 路径 / 文件工具 / 版本号 |
+| `tags` / `logs` / `paths` / `fsutil` / `executil` / `version` | 标签 / 日志 / 路径 / 文件工具 / 外部进程工具 / 版本号 |
 | `fileops` | 文件 CRUD + 文件夹导入 |
 | `instance` | Minecraft 版本实例发现 + 同步 |
 | `scanner` | 仓库扫描/索引（`go/scanner`） |
