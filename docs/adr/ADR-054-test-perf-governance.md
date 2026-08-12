@@ -16,13 +16,12 @@
 
 ## 2. 决策（Decision）
 
-### 2.1 fixtures 裁剪到最小样本（392→97 文件，68MB→15MB）
+### 2.1 fixtures 裁剪到最小样本（392 → 40 文件，68MB → ~5MB）
 
-- **保留全量**：`lucia` / `shen-fengling` / `xigelika`——`go/ysm` 与 `go/threejs` 测试按目录名硬依赖（`fixtureYsmPath("shen-fengling")` 等）。
-- **每作者保留 2 个代表模型**（覆盖特殊形态，覆盖零损失的替代）：
-  - `suifan`：博丽灵梦 Reimu（controller × 3 + 多组件）、雾雨魔理沙 Marisa（11 动画含 fp.arm）。
-  - `wine-fox`：01_taisho_maid（vehicle + 6 组件）、16_tactics（多组件 + horse）。
-- 引用方均为**目录遍历式**（`os.ReadDir` / 递归 collectJson），裁剪后自动适配，零代码改动；仅同步修正 2 处过时注释（"22 个子目录" → "2 个代表样本"）。
+分两轮：
+
+- **第一轮（AI 提交 d7f114b6）**：392→97 文件。保留 `lucia`/`shen-fengling`/`xigelika` 全量（go/ysm、go/threejs 测试按目录名硬依赖），suifan/wine-fox 各留 2 个代表模型（覆盖 vehicle/多组件/controller/fp.arm 等特殊形态）。
+- **第二轮（用户提交 f26cf074）**：97→40 文件。作者目录层（wine-fox/suifan/shen-fengling/xigelika）移除，仅留 3 个顶层代表目录：`01_taisho_maid`（18 文件，vehicle + 多组件 + fp.arm）、`博丽灵梦Hakurei_Reimu`（17 文件，controller × 3 + 多动画）、`lucia`（5 文件，go/threejs 依赖）。
 
 ### 2.2 vitest 环境分流：纯逻辑测试切 node（58/60 文件）
 
@@ -36,11 +35,14 @@
 
 ## 3. 后果（Consequences）
 
-- **正面**：real-data-fuzz 46s→13.4s；vitest 全量 62s→20.3s（-68%）；doctor 全量 ~95s→67.7s（-29%）；git 仓库 -53MB。全部验证：vitest 119 文件/1491 用例全绿、go test 全过、vite build + tsc 通过、doctor 全量 exit 0。
-- **负面 / 取舍**：wine-fox/suifan 覆盖样本从 22/8 模型降至 2/2（批量回归的模型多样性收窄，但多组件/vehicle/controller/fp.arm 等特殊形态仍被代表样本覆盖）；惰性化 3 个生产模块引入守卫分支（语义不变但需在新增模块顶层 window 副作用时保持此约定）。
-- **已知遗留**：环境累计仍 70.8s（61 个 happy-dom 文件为真 DOM/渲染路径）；`isolate: false` 与测试文件合并（MikuMikuAR ADR-256 路线）均评估不采纳——isolate 关闭有单例穿透风险，合并解决的是 import 成本（本项目仅 7-9s，非瓶颈）。
+- **正面**：real-data-fuzz 46s→<10s；vitest 全量 62s→20.3s（-68%）；doctor 全量 ~95s→67.7s（-29%）；git 仓库 -60MB+。验证：vitest 119 文件全绿（fixtures 精简后 1440 用例）、go test 全过、vite build + tsc 通过。
+- **负面 / 取舍**：
+  - 模型覆盖样本从 30+ 模型收敛到 3 个代表（特殊形态 vehicle/controller/fp.arm 仍覆盖，批量多样性收窄）。
+  - **go/ysm 目录式回归测试静默 SKIP**：`TestFindComponentsInExtractedYSM_DirFixture_ShenFengling / _Xigelika / _SourceNameNoExt / _WineFoxAll` 因对应目录移除而 `t.Skipf`（fixture 缺失按设计降级，不红但不测）——"真实目录式 YSM 模型（ysm.json + models/ + 纹理声明序）"链路的 Go 侧回归覆盖失效，仅保留 vitest 侧解析覆盖与 `lucia` 的 threejs 链路。若后续需要 Go 侧目录式回归，需重新引入一个含 `ysm.json + models/` 结构的目录样本。
+  - 惰性化 3 个生产模块引入守卫分支（语义不变但需在新增模块顶层 window 副作用时保持此约定）。
+- **已知遗留**：环境累计仍 ~70-78s（60 个 happy-dom 文件为真 DOM/渲染路径）；`isolate: false` 与测试文件合并（MikuMikuAR ADR-256 路线）均评估不采纳——isolate 关闭有单例穿透风险，合并解决的是 import 成本（本项目仅 7-9s，非瓶颈）。
 
 ## 4. 数据溯源
 
-- 来源：doctor/pre-push/vitest 各环节 `Measure-Command` 实测计时 ∩ junit/JSON reporter 逐文件耗时分析 ∩ `git grep` fixtures 引用面（go/ysm、go/threejs、real-data-fuzz 三处）∩ MikuMikuAR ADR-255/256 结论搬运。
-- 结果：fixtures 392→97 文件；58 个测试文件标注 node 环境；3 个源模块惰性化。提交 `c985660d`（并发对齐）/ `d7f114b6`（fixtures 裁剪）/ `e7e36de0`（环境分流）。
+- 来源：doctor/pre-push/vitest 各环节 `Measure-Command` 实测计时 ∩ junit/JSON reporter 逐文件耗时分析 ∩ `git grep` fixtures 引用面 ∩ MikuMikuAR ADR-255/256 结论搬运。
+- 结果：fixtures 392→40 文件（三轮提交 `c985660d` 并发对齐 / `d7f114b6` 首轮裁剪 / `e7e36de0` 环境分流 / `f26cf074` 用户二轮精简）；58 个测试文件标注 node 环境；3 个源模块惰性化；go/ysm 4 个 fixture 测试 SKIP 副作用如实记录。

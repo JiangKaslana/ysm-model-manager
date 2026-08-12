@@ -1,7 +1,7 @@
 // @vitest-environment node
 // ===== 真实数据轰击测试（ADR-044 数据驱动补强）=====
-// 数据源：tests/fixtures/ysm/（git 跟踪的最小真实模型解码样本：lucia/shen-fengling/
-// xigelika 全量 + suifan/wine-fox 各 2 个代表模型，97 个 JSON）
+// 数据源：tests/fixtures/ysm/（git 跟踪的最小真实模型解码样本：顶层 3 个代表目录
+// 01_taisho_maid / 博丽灵梦Hakurei_Reimu / lucia，40 个 JSON）
 // 覆盖：真实世界数据形态——负 size cube、UV 对象形态、Molang 动画值、特殊字符元数据。
 // 纯函数解析入口不崩溃、数值有限；曾用临时脚本轰 tests/ysm-reference/（git 忽略）
 // 发现负 size 误判为缺陷，实为 Bedrock 合法特性（见 geometry.test.ts 回归）。

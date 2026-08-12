@@ -75,10 +75,11 @@ func TestFindComponentsInExtractedYSM_SourceNameNoExt(t *testing.T) {
 }
 
 // TestFindComponentsInExtractedYSM_WineFoxAll 遍历 wine-fox 全部现存子目录模型
-// （当前保留 2 个代表样本：01_taisho_maid / 16_tactics，含 vehicle/多组件形态；
-// 每个子目录 = 独立完整模型：ysm.json + animations/controller/models/），
 // 逐一走 FindComponentsInExtractedYSM 全链路：不 panic、组件非空、main 优先、
 // 纹理声明序非空——多目录批量回归（子代理审计 P3 遗留：wine-fox 结构未覆盖）。
+// 注意：2026-08-12 fixtures 精简（ADR-054）移除 wine-fox 目录层后此测试恒 SKIP，
+// 目录式回归覆盖由 vitest real-data-fuzz 承担；如需恢复 Go 侧目录式回归，
+// 重新引入一个含 ysm.json + models/ 结构的目录样本即可（fixtureYsmPath 自动适配）。
 func TestFindComponentsInExtractedYSM_WineFoxAll(t *testing.T) {
 	base := filepath.Join("..", "..", "tests", "fixtures", "ysm", "wine-fox")
 	entries, err := os.ReadDir(base)
