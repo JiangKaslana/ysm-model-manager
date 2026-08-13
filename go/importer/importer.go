@@ -223,19 +223,9 @@ func copyDirContents(src, dst string) error {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
 		if entry.IsDir() {
-			// 符号链接目录：复制链接本身而非进入
-			if entry.Type()&os.ModeSymlink != 0 {
-				target, rErr := os.Readlink(srcPath)
-				if rErr != nil {
-					return rErr
-				}
-				if sErr := os.Symlink(target, dstPath); sErr != nil {
-					return sErr
-				}
-				continue
-			}
 			// 必须先建目录再递归——否则源中的空子目录会整体丢失
 			// （copyFile 仅在复制文件时 MkdirAll 父目录，空目录无人创建）
+			// 注：目录符号链接/junction 的 IsDir() 恒 false，走 else 分支复制链接本身
 			if err := os.MkdirAll(dstPath, 0755); err != nil {
 				return err
 			}
@@ -343,16 +333,7 @@ func copyDir(src, dst string) error {
 		srcPath := filepath.Join(src, e.Name())
 		dstPath := filepath.Join(tmpDir, e.Name())
 		if e.IsDir() {
-			if e.Type()&os.ModeSymlink != 0 {
-				if target, rErr := os.Readlink(srcPath); rErr == nil {
-					if sErr := os.Symlink(target, dstPath); sErr != nil {
-						return sErr
-					}
-				} else {
-					return rErr
-				}
-				continue
-			}
+			// 注：目录符号链接/junction 的 IsDir() 恒 false，走 else 分支复制链接本身
 			if err := copyDir(srcPath, dstPath); err != nil {
 				return err
 			}
