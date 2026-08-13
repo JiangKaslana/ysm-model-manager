@@ -57,6 +57,16 @@ jobs:
         shell: pwsh
         run: node scripts/binding-check.mjs
 
+      - name: 绑定产物保鲜（重新生成必须零 diff）
+        shell: pwsh
+        run: |
+          npm --prefix frontend run generate:bindings
+          git diff --exit-code -- frontend/bindings
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Go 签名变更但 frontend/bindings 未重新生成/提交"
+            exit 1
+          }
+
       - name: ADR 登记一致性（adr-check — G-2 治理门槛）
         shell: pwsh
         run: |
