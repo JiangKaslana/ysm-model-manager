@@ -178,6 +178,7 @@ function scanCallersInRef(terms, newer, scope) {
         const rel = toPosix(path.relative(ROOT, f));
         // 跳过二进制 / 不存在于 newer 的文件（避免 git show 噪声）
         if (rel.endsWith('.png') || rel.endsWith('.gif') || rel.endsWith('.jpg')) continue;
+        if (!existsAt(newer, rel)) continue; // 磁盘有但 newer ref 无（并行拆分的在建文件）→ 跳过，否则 git show 报 fatal 噪声
         const text = showAt(newer, rel);
         if (!text) continue;
         for (const sym of terms) {

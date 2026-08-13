@@ -37,6 +37,9 @@ function git(args) {
     cwd: ROOT,
     encoding: 'utf8',
     maxBuffer: 128 * 1024 * 1024,
+    // Windows 上 execFileSync 默认 stdio 会把 git 的 stderr 透传到父进程
+    // （cat-file -e 失败等探测路径会刷 fatal 噪声）；显式 pipe 捕获进 error.stderr
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 
