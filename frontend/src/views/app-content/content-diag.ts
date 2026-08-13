@@ -110,7 +110,7 @@ export const contentDiagCSS: string = `
 .gh-card-label { font-size:var(--fs-base); font-weight:600; color:var(--txt); }
 .gh-card.active .gh-card-label { color:var(--bg); }
 .gh-card-desc { font-size:var(--fs-xs); color:var(--muted); margin-top:0; }
-.gh-card.active .gh-card-desc { color:var(--bg)d; }
+.gh-card.active .gh-card-desc { color:var(--bg); }
 .gh-card-external { width:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);cursor:pointer;border-left:1px solid var(--bd);transition:var(--tr-fast); }
 .gh-card-external:hover { color:var(--accent);background:var(--hover); }
 .gh-card.active .gh-card-external { border-left-color:var(--accent);color:var(--accent); }
