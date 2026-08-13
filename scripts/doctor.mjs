@@ -79,6 +79,26 @@ function grepLines(files, re) {
   return hits;
 }
 
+/**
+ * GCC 预检：Windows 环境下 go test -race 依赖 MinGW/GCC (CGO)。
+ * 若 PATH 上没有可用的 gcc（MSYS2 UCRT64 路径通常为 C:\msys64\ucrt64\bin），
+ * -race 会报 "runtime/cgo: cgo.exe: exit status 2"——非代码问题，纯环境缺失。
+ * 仅给 WARN，不阻断（go build / 非 race 的 go test 仍可用）。
+ */
+function checkGcc() {
+  const { rc, out } = run(['gcc', '--version']);
+  if (rc === 0) {
+    const ver = out.trim().split('\n')[0] || 'gcc ok';
+    console.log(`  ${PASS} ${ver}`);
+    return true;
+  }
+  console.log(`  ${WARN} gcc not found or broken — go test -race will likely fail`);
+  console.log(`        修复: 将 C:\\msys64\\ucrt64\\bin 加入系统 PATH`);
+  console.log(`        例: [Environment]::SetEnvironmentVariable('Path', 'C:\\msys64\\ucrt64\\bin;' + [Environment]::GetEnvironmentVariable('Path','User'), 'User')`);
+  console.log(`        或在当前会话执行: $env:Path = 'C:\\msys64\\ucrt64\\bin;' + $env:Path`);
+  return false;
+}
+
 function checkGoBuild() {
   console.log('=== Go Build ===');
   const { rc, out } = run(['go', 'build', './go/...']);
@@ -524,6 +544,7 @@ if (GATE_MODE) {
   if (rc !== 0) {
     console.log(`[--gate] 无法解析 ref "${baseRef}"，退化为全量`);
     console.log('========== YSM Doctor (gate fallback: bad ref) ==========');
+    checkGcc();
     buildUpdaterHelper();
     checkGoBuild();
     checkGoVet();
@@ -586,6 +607,7 @@ if (GATE_MODE) {
 
   // --- Go 域 ---
   if (plan.go) {
+    checkGcc();
     const t0 = Date.now();
     const gb = run(['go', 'build', './go/...']);
     record('go build', gb.rc === 0, gb.rc ? gb.out.trim().split('\n').slice(-3).join(' | ') : '');
@@ -712,6 +734,7 @@ if (GATE_MODE) {
 } else {
   // —— 全量模式：编译 + 构建 + 文件 + 红线 + Git ——
   console.log('========== YSM Doctor ==========');
+  checkGcc();
   buildUpdaterHelper();
   checkGoBuild();
   checkGoVet();
