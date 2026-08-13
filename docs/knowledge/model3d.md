@@ -66,7 +66,7 @@ invariant_anchors:
 
 ## 与其他子系统关系
 
-- 消费方：`app-preview/preview-skeleton.ts`（动态 import renderModel3D / preloadModel / screenshotPreview）、`utils/screenshot-renderer.ts`（复用 buildSceneMesh + loadTextures 做离屏多角度截图）
+- 消费方：`app-preview/skeleton.ts`（动态 import renderModel3D / preloadModel / screenshotPreview）、`utils/screenshot-renderer.ts`（复用 buildSceneMesh + loadTextures 做离屏多角度截图）
 - 上游数据：Go `GetModel3DSpec` binding ← [go_threejs](./go-threejs.md) `threejs.Build()`；纹理/模型对象来自 [go_geometry](./go-geometry.md)
 - 相机/调试状态存于模块级 `_scene3d/_camera3d/_renderer3d/_rootGroup3d`（供 screenshotPreview 使用，cleanup 时置空，不挂 window 全局）
 

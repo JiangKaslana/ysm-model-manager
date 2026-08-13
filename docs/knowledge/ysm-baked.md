@@ -6,8 +6,8 @@ category: core
 source_files:
   - frontend/src/views/app-preview/wasm.ts
   - frontend/src/views/app-preview/geometry.ts
-  - upstream/ModernYSM-1.20.1-forge/common/src/main/java/com/elfmcys/yesstevemodel/resource/YSMBinaryDeserializer.java
-  - upstream/ModernYSM-1.20.1-forge/common/src/main/java/com/elfmcys/yesstevemodel/resource/pojo/RawYsmModel.java
+  - frontend/public/wasm/YSMParser.js
+  - frontend/public/wasm/YSMParser.wasm
 tests:
   - frontend/src/views/app-preview/geometry.test.ts
 use_when:
@@ -49,7 +49,8 @@ YSM 作者导出模型时，**cube 的语义参数（origin/size/uv/rotation）�
 
 ## 与其他子系统关系
 
-- 上游参照：`upstream/ModernYSM-1.20.1-forge`（开源版）二进制反序列化 + 渲染直接吃烘焙数据，能力对标 YSMViewer
+- 上游参照：`upstream/ModernYSM-1.20.1-forge`（开源版）二进制反序列化 + 渲染直接吃烘焙数据，能力对标 YSMViewer（**该 upstream 目录未纳入本仓库**，`YSMBinaryDeserializer.java` / `RawYsmModel.java` 的具体行号引用仅作为外部参考，不在本卡 source_files 中）
+- 本仓库实际 YSM 解析落地：`frontend/public/wasm/YSMParser.{js,wasm}` — 由公共 C++ 解析器（与 YSMViewer 同源）编译的 WASM 二进制 + 胶水 JS，前端 `decodeYsmViaWasm` 通过 import 调用；Go 端不直接反序列化 YSM 二进制，仅消费 WASM 反推出的 JSON
 - 下游消费：[app_preview](./app-preview.md) 的 model3d/model2d 渲染；`model3d.ts` 的 pivot 符号约定是有历史修复点（见 bug-chronicle）
 - 相关卡：[ysm_wasm](./ysm-wasm.md)（解码层机制）、[go_geometry](./go-geometry.md)（Go 端解析）、[go_ysm_parser](./go-ysm-parser.md)
 
