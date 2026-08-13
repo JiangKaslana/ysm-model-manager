@@ -58,11 +58,11 @@ async function importOne(name: string): Promise<string> {
 }
 
 describe("契约 B1 — SearchModels 关键词口径对齐 Go app_scan.go:124", () => {
-  it("关键词首尾空白应被 TrimSpace（Go: strings.TrimSpace(keyword)），web 不 trim → 命中差异", async () => {
+  it("关键词首尾空白应被 TrimSpace（Go: strings.TrimSpace(keyword)），web 已对齐", async () => {
     const p = await importOne("狐狸.ysm");
     // Go: kw = strings.ToLower(strings.TrimSpace(keyword))，空白被裁掉，' 狐狸 ' 命中 '狐狸.ysm'
     const hit = (await browserAdapter.SearchModels("/web/ysm", " 狐狸 ", 0, 0, 0, 0, 0, 0)) as Array<{ name: string }>;
-    expect(hit.map((h) => h.name)).toContain("狐狸.ysm"); // 期望对齐 Go；web 当前不 trim → 失败
+    expect(hit.map((h) => h.name)).toContain("狐狸.ysm"); // 契约守门：web 已实现 TrimSpace
     void p;
   });
 
@@ -75,43 +75,43 @@ describe("契约 B1 — SearchModels 关键词口径对齐 Go app_scan.go:124", 
 });
 
 describe("契约 B1 — SetModelTags 规范化对齐 Go tags.go:120 (trimTag+去重+排序)", () => {
-  it("应 trim/去重/排序（Go: set[trimTag(t)] + sort.Strings），web 原样存储 → 偏差", async () => {
+  it("应 trim/去重/排序（Go: set[trimTag(t)] + sort.Strings），web 已对齐", async () => {
     const p = await importOne("狐狸.ysm");
     // Go 写入前对每标签 trimTag（去空白/控制符）、去重、排序；[' B ','A','A'] → ['A','B']
     await browserAdapter.SetModelTags(p, [" B ", "A", "A"] as never);
     const got = (await browserAdapter.GetModelTags(p)) as string[];
-    expect(got).toEqual(["A", "B"]); // 对齐 Go 契约；web 当前返回 [' B ','A','A']
+    expect(got).toEqual(["A", "B"]); // 契约守门：web 已实现 trim/去重/排序
   });
 
-  it("空数组应删除 key（Go: len(tags)==0 → delete(s.data, path)），web 保留空数组 key → 偏差", async () => {
+  it("空数组应删除 key（Go: len(tags)==0 → delete(s.data, path)），web 已对齐", async () => {
     const p = await importOne("狐狸.ysm");
     await browserAdapter.SetModelTags(p, ["临时"] as never);
     await browserAdapter.SetModelTags(p, [] as never);
     // Go 契约：空数组等同删除条目，tags.json 中不再有该 path
-    expect(idbMock._store.has(`tags:${p}`)).toBe(false); // web 当前仍保留空数组 key
+    expect(idbMock._store.has(`tags:${p}`)).toBe(false); // 契约守门：web 已实现空数组删除 key
     expect((await browserAdapter.GetModelTags(p)) as string[]).toEqual([]);
   });
 });
 
 describe("契约 B1 — ListByTag 查询规范化对齐 Go tags.go:205 (trimTag)", () => {
-  it("查询标签首尾空白应 trim（Go: tag = trimTag(tag)），web 不 trim → 命中差异", async () => {
+  it("查询标签首尾空白应 trim（Go: tag = trimTag(tag)），web 已对齐", async () => {
     const p = await importOne("狐狸.ysm");
     await browserAdapter.SetModelTags(p, ["联动"] as never);
-    // Go: ListByTag(' 联动 ') 先 trimTag → '联动'，命中；web 直接 includes(' 联动 ') → 落空
+    // Go: ListByTag(' 联动 ') 先 trimTag → '联动'，命中
     const got = (await browserAdapter.ListByTag(" 联动 ")) as string[];
-    expect(got).toContain(p); // 对齐 Go 契约；web 当前返回 []
+    expect(got).toContain(p); // 契约守门：web 已实现 trimTag 查询
   });
 });
 
 describe("契约 B1 — GetSubDirMap 字段对齐 Go types.SubDirAll (rt.ScanDir)", () => {
-  it("返回整合包实例扫描子目录 rt.ScanDir（非 storageSubDir）；web 用错字段 → 严重偏差", async () => {
+  it("返回整合包实例扫描子目录 rt.ScanDir（非 storageSubDir），web 已对齐", async () => {
     const map = (await browserAdapter.GetSubDirMap()) as Record<string, string>;
-    // Go SubDirAll() 返回 id → rt.ScanDir（见 extensions.go:170）；web 返 rt.storageSubDir（browser-adapter.ts:488）
-    expect(map.ysm).toBe("config/yes_steve_model/custom"); // Go；web 返 'ysm'
-    expect(map["create-blueprint"]).toBe("schematics"); // Go；web 返 'create-blueprint'
-    expect(map.litematic).toBe("schematics"); // Go；web 返 'litematics'
-    expect(map["mmd-skin"]).toBe("3d-skin/EntityPlayer"); // Go；web 返 'mmd'
-    expect(map["vrchat-avatar"]).toBe("vrchat-avatars"); // Go；web 返 'vrchat'
+    // Go SubDirAll() 返回 id → rt.ScanDir（见 extensions.go:170）；web 同样使用 rt.scanDir（browser-adapter.ts getWebSubDirMap）
+    expect(map.ysm).toBe("config/yes_steve_model/custom"); // Go 契约守门：scanDir 非 storageSubDir
+    expect(map["create-blueprint"]).toBe("schematics"); // 契约守门
+    expect(map.litematic).toBe("schematics"); // 契约守门
+    expect(map["mmd-skin"]).toBe("3d-skin/EntityPlayer"); // 契约守门
+    expect(map["vrchat-avatar"]).toBe("vrchat-avatars"); // 契约守门
     // storageSubDir 与 scanDir 相同者（resourcepack/shaderpack）两实现一致
     expect(map.resourcepack).toBe("resourcepacks");
     expect(map.shaderpack).toBe("shaderpacks");

@@ -90,8 +90,9 @@ describe("B3 契约 — ListModelAuthors（对齐 go/scanner/scanner.go:265）",
 
   // 网页局限（非 B3 提取器 bug）：Go 把 xxx.ysm.ban 当作被封禁模型计入作者，
   // 但网页 importWebFiles 仅接受 .ysm/ysm.json 作主文件，.ysm.ban 在导入层即被拒，
-  // 故 browser-adapter.ts:551 的 .ban 分支在网页不可达（死代码）。这里显式记录该缺口。
-  it("【网页局限】.ban 后缀模型在导入层被过滤，ListModelAuthors 的 .ban 分支在网页不可达", async () => {
+  // 故经由模型库路径 .ban 不可达。注意：extractBracketAuthor（browser-adapter.ts:591-594）
+  // 的 .ban 分支函数级仍存活（保留作防御/潜在复用），但网页导入层过滤使其在该路径不可达。
+  it("【网页局限】.ban 后缀模型在导入层被过滤，ListModelAuthors 的 .ban 分支在网页模型库路径不可达", async () => {
     const r = await importWebFiles([new File([enc.encode("X")], "[张三].ysm.ban")], "ysm");
     expect(r).toEqual({ imported: 0, failed: 1 });
     expect((await browserAdapter.ListModelAuthors()) as unknown[]).toEqual([]);
@@ -176,15 +177,15 @@ describe("B3 契约 — GenerateRepoIndex（对齐 go/scanner/scanner.go:356 ind
     expect(JSON.parse(idx)).toEqual([]);
   });
 
-  // —— 以下为反推源码 bug 的核心契约断言（预期失败，揭示偏差）——
+  // —— 以下为对齐 Go indexEntry json tag 的核心契约守门断言（web 已对齐小写键）——
   it("【契约】index.json 键为小写 name/path/size（对齐 Go indexEntry json tag）", async () => {
     await putModel("赵六.ysm");
     const idx = (await browserAdapter.GenerateRepoIndex("/web/ysm")) as string;
     const parsed = JSON.parse(idx) as Array<Record<string, unknown>>;
     // 网页版 hash 恒空（scanWebModels 不计算），故 Go 会因 omitempty 省略 hash 键，
-    // 仅剩 name/path/size 三键。断言小写键存在。
+    // 仅剩 name/path/size 三键。断言小写键存在（browser-adapter.ts GenerateRepoIndex 已用小写键）。
     expect(Object.keys(parsed[0])).toEqual(expect.arrayContaining(["name", "path", "size"]));
-    // 反证：不应出现大写键（网页版当前实现用了 Name/Path/Size）
+    // 契约守门：不得出现大写键（Go indexEntry json tag 为小写）
     expect(parsed[0]).not.toHaveProperty("Name");
     expect(parsed[0]).not.toHaveProperty("Path");
     expect(parsed[0]).not.toHaveProperty("Size");

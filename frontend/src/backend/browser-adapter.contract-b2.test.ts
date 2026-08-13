@@ -10,8 +10,8 @@
 //   LoadWorkshopCreators : 用户配置 creators.json > 内联 bundled > nil
 //   SaveWorkshopCreators : 整体覆盖写盘（签名 []WorkshopCreator，无 null）
 //   LoadGitHubRepos      : 用户配置 workshop-github.json > 内联 bundled > nil  ← 可被用户覆盖！
-// 关键差异：Go 全部从「用户配置目录优先」读取，覆盖层存在于磁盘；网页版仅创作者/站点
-// 有 localStorage 覆盖层，GitHub 仓库列表无任何覆盖层（纯 bundled 只读）。
+// 关键差异：Go 全部从「用户配置目录优先」读取，覆盖层存在于磁盘；网页版创作者/站点/GitHub
+// 仓库均有 localStorage 覆盖层（WEB_CREATORS_KEY / WEB_SITES_KEY / web:github-repos，见 browser-adapter.ts）。
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { browserAdapter } from "./browser-adapter.ts";
 
@@ -43,7 +43,7 @@ vi.mock("./idb.ts", () => ({
 // 各覆盖层 key（与 browser-adapter.ts 中保持一致，供测试直接探查）。
 const WEB_CREATORS_KEY = "web:workshop-creators";
 const WEB_SITES_KEY = "web:workshop-sites";
-// 注意：网页版根本没有为 GitHub 仓库定义覆盖层 key（Go 侧却有 workshop-github.json 覆盖）。
+// 注意：网页版 GitHub 仓库覆盖层 key 为 web:github-repos（browser-adapter.ts:518），与 Go workshop-github.json 覆盖同构。
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -147,16 +147,15 @@ describe("B2 契约：DefaultWorkshopSites — 恒返回站点列表", () => {
   });
 });
 
-describe("B2 契约：LoadGitHubRepos — 覆盖层缺口（真实偏差）", () => {
-  it("Go 契约：LoadGitHubRepos 应优先读取用户覆盖（workshop-github.json）；网页版须提供覆盖层", async () => {
+describe("B2 契约：LoadGitHubRepos — 覆盖层（已对齐 Go 用户配置优先语义）", () => {
+  it("Go 契约：LoadGitHubRepos 应优先读取用户覆盖（workshop-github.json）；网页版覆盖层已对齐", async () => {
     // 模拟用户编辑了 GitHub 仓库列表（对照 Go 用户配置优先语义）
     const custom = [{ name: "user/repo-custom", desc: "用户覆盖", type: "github" }];
-    // 网页版若有覆盖层，应使用与创作者/站点同构的 key（此处探测 web:github-repos）
+    // 网页版覆盖层使用与创作者/站点同构的 key（web:github-repos，见 browser-adapter.ts:518 / loadWebGitHubRepos）
     localStorage.setItem("web:github-repos", JSON.stringify(custom));
 
     const got = (await browserAdapter.LoadGitHubRepos()) as Array<{ name: string }>;
-    // 期望：若网页版实现了覆盖层，应返回用户覆盖；当前实现硬编码 bundled，
-    // 此断言将失败 → 暴露「网页版缺少 GitHub 仓库覆盖层」这一真实缺口。
+    // 契约守门：web 已实现覆盖层优先返回用户覆盖（loadWebGitHubRepos 先读 web:github-repos）
     expect(got.some((r) => r.name === "user/repo-custom")).toBe(true);
   });
 
