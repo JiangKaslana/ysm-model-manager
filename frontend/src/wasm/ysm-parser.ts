@@ -56,8 +56,10 @@ let waiters: Array<(ok: boolean) => void> = [];
 // 无销毁场景——曾提供 destroyYSMParser() 但 _free(0) 无法真正释放 HEAP，
 // 且销毁后重新 init 有加载成本，已移除（knip 死代码基线）
 
-// 硬崩溃（内存越界/栈溢出等不可捕获 trap）后重置单例，下次调用可重新 init
-export function resetYSMParser(): void {
+// 硬崩溃（内存越界/栈溢出等不可捕获 trap）后重置单例，下次调用可重新 init。
+// 仅包内使用（decodeYsmFileFromMemory/decodeYsmFile 的崩溃恢复分支），不导出
+//（无外部消费方，deadcode 门禁）
+function resetYSMParser(): void {
   wasmModule = null;
   loading = false;
   // @ts-expect-error 清理 Emscripten 全局注入点（MODULARIZE 挂载）

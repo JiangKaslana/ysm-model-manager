@@ -40,8 +40,8 @@
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 36 | 127 |
 | frontend/views | 54 | 155 |
-| 前端·WASM | 3 | 7 |
-| **合计** | **201** | **896** |
+| 前端·WASM | 3 | 6 |
+| **合计** | **201** | **895** |
 
 ## Go·头像
 
@@ -1103,10 +1103,9 @@
 |------|--------|------|
 | `_getGlueCode()` | `frontend/src/wasm/ysm-glue-data:3` | — |
 | `YsmDecodedFile()` | `frontend/src/wasm/ysm-parser:46` | 解码输出文件 |
-| `resetYSMParser()` | `frontend/src/wasm/ysm-parser:60` | — |
-| `initYSMParser()` | `frontend/src/wasm/ysm-parser:67` | — |
-| `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:159` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
-| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:208` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
+| `initYSMParser()` | `frontend/src/wasm/ysm-parser:69` | — |
+| `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:161` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
+| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:210` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
 
 ---

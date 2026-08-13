@@ -339,7 +339,7 @@ describe("异步 handler（batch / file 动态 import 分支）", () => {
     CopyModelFileMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("exists"));
     await clickAsync("batch", "batch.copy", { paths: ["/a.ysm", "/b.ysm"] });
     expect(CopyModelFileMock).toHaveBeenCalledTimes(2);
-    expect(toasts().some((t) => t.msg.includes("复制成功") && t.msg.includes("失败"))).toBe(true);
+    expect(toasts().some((t) => t.msg.includes("已复制") && t.msg.includes("失败"))).toBe(true);
   });
 
   it("batch.copy 取消输入 → 不执行", async () => {
