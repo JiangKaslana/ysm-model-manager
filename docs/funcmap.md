@@ -1264,9 +1264,9 @@
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
 | `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-events` | — |
 | `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-events` | — |
-| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:240` | — |
-| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:16` | — |
-| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:192` | — |
+| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:60` | — |
+| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:17` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:193` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |
