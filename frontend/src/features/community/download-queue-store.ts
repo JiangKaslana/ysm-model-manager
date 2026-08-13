@@ -1,0 +1,300 @@
+// ===== 创意工坊 — 批量下载队列 · 状态层（模块级 Store）=====
+// v2: 模块级持久层 — EventsOn 在脚本加载时注册一次，页面切换不丢失事件
+//
+// ⚠️ ADR-039 §2.2 Events.On 豁免声明：
+// 本模块顶层注册 4 组 Wails Events.On（queue:status / queue:file-start / queue:file-done /
+// download:progress），无对应 Events.Off 退出路径。认定为 app 级单例豁免——
+// download-queue 是社区页常驻单例（_registered 布尔守卫防重复注册），
+// 生命周期等于应用生命周期，与 registerErrorDiary / matchMedia 监听同类。
+// 禁止非 app 级模块复制此模式；若未来社区页支持卸载/热重载，再补 Events.Off。
+//
+// 拆分说明（ADR-040 ≤400 行红线）：自 download-queue.ts（829 行）拆出，
+// 类型/STATE/Go 调用/后端事件注册全部内聚于此；
+// download-queue-progress.ts 承接 99% 卡进度守卫状态机；
+// download-queue.ts 保留 createDownloadQueue UI 控制器并对外 re-export（消费者零改动）。
+import { bus } from "../../bus.ts";
+import { t } from "../../core/i18n/t.ts";
+import { dbg } from "../../utils/debug/debug.ts";
+import { getApp } from "../../backend/app.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
+import { Events } from "@wailsio/runtime";
+
+// ============================================================
+//  模块顶层 — 持久状态与事件注册（脚本加载时执行一次）
+// ============================================================
+
+/** 下载任务 */
+export interface DownloadTask {
+  url: string;
+  saveDir: string;
+  name: string;
+  size: number;
+}
+
+/** 队列错误项 */
+export interface QueueError {
+  name: string;
+  err: string;
+}
+
+/** 队列状态快照 */
+export interface DownloadState {
+  status: string; // "idle" | "downloading" | "done" | "cancelled"
+  total: number;
+  remaining: number;
+  currentFile: string;
+  progress: { dl: number; total: number };
+  errorList: QueueError[];
+  _lastDone: { name: string; status: string; errMsg: string } | null;
+  _lastDoneSeq: number;
+}
+
+/** 模块级共享状态（progress guard / UI 控制器 import 协作，不对外 re-export） */
+export const STATE: DownloadState = {
+  status: "idle",
+  total: 0,
+  remaining: 0,
+  currentFile: "",
+  progress: { dl: 0, total: 0 },
+  errorList: [],
+  _lastDone: null,
+  _lastDoneSeq: 0,
+};
+
+const listeners = new Set<(s: DownloadState) => void>();
+let _registered = false;
+// P3 修复（审核）：头像提取串行化——每成功一个 .ysm 就调 DebugExtractCreatorAvatar
+// （内部跑 Node+WASM 解码，60s 超时）。批量下载 N 个不同作者文件会并发 N 个子进程，
+// CPU/内存峰值。用 Promise 链限并发 1，排队执行不丢（作者去重防重复排队）。
+let _avatarChain: Promise<void> = Promise.resolve();
+const _avatarInFlight = new Set<string>();
+
+/**
+ * 订阅 STATE 变更。返回取消订阅函数。
+ */
+export function subscribe(fn: (s: DownloadState) => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
+/** 广播 STATE 变更（UI 控制器 enqueue 失败回滚等场景也经此通知） */
+export function notify(): void {
+  listeners.forEach((fn) => fn(STATE));
+}
+
+/** 当前状态的只读快照 */
+export function getState(): DownloadState {
+  return STATE;
+}
+
+/**
+ * 页面切回时调用，从 Go 端恢复当前队列状态。
+ * 如果下载仍在运行，STATE.status 会更新为 "downloading"，
+ * 已订阅的 UI 层会根据 STATE 渲染进度条。
+ */
+export async function resume(): Promise<void> {
+  try {
+    dbg("resume:start");
+    const { QueueStatus } = await getApp();
+    const result = await QueueStatus();
+    dbg("resume:result", result);
+    // Wails v2 多返回值映射：数组/对象/单值 三种格式都要兜底
+    let remaining: number;
+    let running: boolean;
+    if (Array.isArray(result)) {
+      remaining = result[0] ?? 0;
+      running = Boolean(result[1]);
+    } else if (result && typeof result === "object") {
+      // Wails 某些版本返回 {Remaining, Running} 大写字段
+      const r = result as { Remaining?: number; remaining?: number; Running?: boolean; running?: boolean };
+      remaining = r.Remaining ?? r.remaining ?? 0;
+      running = r.Running ?? r.running ?? false;
+    } else if (typeof result === "number") {
+      remaining = result;
+      running = remaining > 0;
+    } else {
+      return; // 无法解析，安全忽略
+    }
+    if (running) {
+      STATE.status = "downloading";
+      STATE.remaining = remaining;
+      notify();
+    }
+  } catch (e) {
+    // P3（审核发现）：不静默吞错——QueueStatus 失败会导致恢复/防重入逻辑失明
+    dbg("queue:status 解析失败:", e);
+  }
+}
+
+/**
+ * 队列是否处于活跃下载中（downloading 或 enqueued）。
+ * Go 端入队后只发 queue:status "enqueued"（从不发 "downloading"），
+ * 因此所有「是否在下载」守卫必须同时认两个状态，否则取消/防重入会静默失效（P1 修复）。
+ */
+export function isActiveStatus(s: DownloadState): boolean {
+  return s.status === "downloading" || s.status === "enqueued";
+}
+
+/**
+ * 模块级入队 — 纯粹的 Go 调用，不涉及 DOM。
+ * UI 层应在此之前完成配置检查和 DOM 初始化。
+ */
+export async function enqueueDownloads(tasks: DownloadTask[]): Promise<void> {
+  dbg("enqueue:start", tasks.length);
+  if (isActiveStatus(STATE)) return;
+  if (!tasks || !tasks.length) return;
+
+  STATE.status = "downloading";
+  STATE.total = tasks.length;
+  STATE.remaining = tasks.length;
+  STATE.currentFile = "";
+  STATE.progress = { dl: 0, total: 0 };
+  STATE.errorList = [];
+  STATE._lastDone = null;
+  STATE._lastDoneSeq = 0;
+  notify();
+
+  tasks.forEach((t) => (t.saveDir = t.saveDir || ""));
+  // 网页版（ADR-049）：EnqueueDownloads 在 browser-adapter 未实现（桌面 Go 队列依赖
+  // 本地下载器）。降级为浏览器直链下载——用 <a download> 逐个触发浏览器保存，
+  // 不走后端事件流（无进度条，完成后置 idle 避免队列 UI 卡「下载中」）。
+  if (resolveWebMode()) {
+    for (const task of tasks) {
+      if (!task.url) continue;
+      try {
+        const a = document.createElement("a");
+        a.href = task.url;
+        a.download = task.name || "";
+        a.target = "_blank";
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {
+        dbg("enqueue:web-dl-fail", task.url, e);
+        STATE.errorList.push({ name: task.name, err: String((e as Error)?.message || e) });
+      }
+    }
+    STATE.status = "idle";
+    notify();
+    return;
+  }
+  try {
+    const { EnqueueDownloads } = await getApp();
+    await EnqueueDownloads(tasks);
+    dbg("enqueue:done", STATE.status);
+  } catch (e) {
+    // P3 修复：模块级函数失败也回滚 idle，否则状态永久卡 downloading，
+    // 后续所有入队被守卫静默拦截（UI 层 enqueue 另有 toast/按钮恢复兜底）
+    STATE.status = "idle";
+    notify();
+    throw e;
+  }
+}
+
+/**
+ * 模块级取消 — 纯粹的 Go 调用。
+ */
+export async function cancelDownloads(): Promise<void> {
+  if (!isActiveStatus(STATE)) return;
+  try {
+    const { CancelQueue } = await getApp();
+    await CancelQueue();
+  } catch (e) {
+    // P3（审核发现）：不静默吞错——取消失败时 UI 仍显示下载中，记录原因便于排查
+    dbg("cancelDownloads 失败:", e);
+  }
+}
+
+// ── 一次性注册全部后端事件 ──
+// Wails 脚本加载时执行一次，页面切换不受影响
+// v3: 事件 payload 为单对象，多参经 Go Emit 打包为数组，此处按 e.data 解构
+if (!_registered) {
+  _registered = true;
+
+  Events.On("queue:status", (e: { data: unknown[] }) => {
+    const [status, total, extra] = e.data as [string, number, unknown];
+    dbg("event:queue:status", status, total, extra);
+    STATE.total = total ?? STATE.total;
+    if (status === "done" || status === "cancelled") {
+      STATE.status = status;
+      STATE.currentFile = "";
+      STATE.progress = { dl: 0, total: 0 };
+      notify();
+    } else if (status === "enqueued") {
+      STATE.status = "enqueued";
+      // ★ 不改 STATE.currentFile，避免覆盖 file-start 已设的文件名
+      STATE.progress = { dl: 0, total: 0 };
+      notify();
+    } else {
+      STATE.status = status;
+      notify();
+    }
+  });
+
+  Events.On("queue:file-start", (e: { data: unknown[] }) => {
+    const [name, total, remaining] = e.data as [string, number, number];
+    dbg("event:queue:file-start", name, total, remaining);
+    STATE.currentFile = name;
+    STATE.total = total;
+    STATE.remaining = remaining;
+    STATE.progress = { dl: 0, total: 0 };
+    notify();
+  });
+
+  Events.On("queue:file-done", (e: { data: unknown[] }) => {
+    const [name, status, errMsg] = e.data as [string, string, string];
+    dbg("event:queue:file-done", name, status, errMsg);
+    if (status === "fail") {
+      STATE.errorList.push({ name, err: errMsg || t("error.unknown") });
+    }
+    STATE._lastDone = { name, status, errMsg: errMsg || "" };
+    STATE._lastDoneSeq++;
+    notify();
+
+    // 增量提取创作者头像（仅 .ysm 文件成功时）
+    if (status === "ok" && /\.ysm$/i.test(name)) {
+      const authorMatch = name.match(/^\[(.+?)\]/);
+      if (authorMatch) {
+        const author = authorMatch[1];
+        // P3 修复（审核）：排队串行执行（见 _avatarChain 注释）；同一作者在途去重
+        if (!_avatarInFlight.has(author)) {
+          _avatarInFlight.add(author);
+          _avatarChain = _avatarChain
+            .then(async () => {
+              try {
+                const { CachedCreatorAvatar, DebugExtractCreatorAvatar } =
+                  await getApp();
+                let dataUri = await CachedCreatorAvatar(author);
+                if (!dataUri) {
+                  await DebugExtractCreatorAvatar(author);
+                  dataUri = await CachedCreatorAvatar(author);
+                }
+                if (dataUri) {
+                  bus.emit("avatar:refresh", { author, dataUri });
+                }
+              } catch (e) {
+                dbg("avatar-refresh", "提取失败:", author, (e as Error)?.message);
+              } finally {
+                _avatarInFlight.delete(author);
+              }
+            })
+            .catch((e) => {
+              // 队列内异常兜底：不能让一个作者失败阻塞后续排队（链已自捕获，双保险）
+              dbg("avatar-refresh", "队列异常:", e);
+              _avatarInFlight.delete(author);
+            });
+        }
+      }
+    }
+  });
+
+  Events.On("download:progress", (e: { data: unknown[] }) => {
+    const [dl, total] = e.data as [number, number];
+    dbg("event:download:progress", dl, total, typeof dl, typeof total);
+    STATE.progress = { dl, total };
+    notify();
+  });
+}
