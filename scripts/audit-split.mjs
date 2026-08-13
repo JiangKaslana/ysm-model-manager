@@ -27,7 +27,7 @@ const REDLINE = 400; // ADR-040：拆分后每文件 ≤400 行
 // ── git 封装（Windows 安全：execFileSync 无 shell 展开）──
 
 function git(args) {
-  return execFileSync('git', args, {
+  return execFileSync('git', ['-c', 'core.quotepath=false', ...args], {
     cwd: ROOT, encoding: 'utf8', maxBuffer: 128 * 1024 * 1024,
     stdio: ['ignore', 'pipe', 'ignore'], // 探测型调用成败均不向终端撒 stderr
   });
