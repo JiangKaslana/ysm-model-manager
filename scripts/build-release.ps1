@@ -97,12 +97,11 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "   ✅ ysm-cli.exe 已构建" -ForegroundColor Green
 }
 
-# 3. 复制配置文件
-Write-Host "📋 复制资源配置..." -ForegroundColor Yellow
-Copy-Item "$ProjectRoot\workshop_sites.json" "$OutputDir\" -ErrorAction SilentlyContinue
-Copy-Item "$ProjectRoot\creators.json" "$OutputDir\" -ErrorAction SilentlyContinue
-Copy-Item "$ProjectRoot\workshop-github.json" "$OutputDir\" -ErrorAction SilentlyContinue
-Copy-Item "$ProjectRoot\resource_types.json" "$OutputDir\" -ErrorAction SilentlyContinue
+# 3. 纯 exe 发布：数据 JSON（resource_types/creators/workshop 系列）编译期内嵌，
+#    用户可编辑数据在用户目录（%APPDATA%/YSM-Model-Manager），zip 不再附带——
+#    下载单个 exe 即具备全部数据能力。
+#    注意：Compress-Archive 用 $OutputDir\*，若 OutputDir 混入旧 JSON 会误打包，
+#    发布前确保 OutputDir 干净（建议删旧目录重建）。
 
 # 4. 打包 zip
 Write-Host "📦 打包 $ZipName ..." -ForegroundColor Yellow

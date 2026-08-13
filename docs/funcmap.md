@@ -345,17 +345,17 @@
 | `SubDirEntry()` | `go/types/extensions:152` | SubDirEntry 资源类型的版本子目录信息 |
 | `SetRegistryPath()` | `go/types/resource:42` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
 | `LoadRegistry()` | `go/types/resource:53` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
-| `RegistryType()` | `go/types/resource:110` | RegistryType 按 id 查找资源类型，不存在时返回 nil |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:128` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:224` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `RegistryType()` | `go/types/resource:142` | RegistryType 按 id 查找资源类型，不存在时返回 nil |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:160` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:256` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:13` | ResourceTypeRegistry 资源类型注册表 |
 | `ResourceType()` | `go/types/resource:18` | ResourceType 一种受支持的资源类型定义 |
-| `FormatRange()` | `go/types/resource:122` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:213` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:231` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:248` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:254` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:262` | VoxelGroup 同一颜色的方块组 |
+| `FormatRange()` | `go/types/resource:154` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:245` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:263` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:280` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:286` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:294` | VoxelGroup 同一颜色的方块组 |
 | `AppError.WithCause()` | `go/types/types:117` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:123` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
 | `AppError.Error()` | `go/types/types:125` | — |
@@ -497,26 +497,26 @@
 | `App.RestoreFromRecycle()` | `internal/app/app_install:492` | — |
 | `App.DeleteFromRecycle()` | `internal/app/app_install:513` | — |
 | `App.EmptyRecycleBin()` | `internal/app/app_install:529` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
-| `App.GetInstanceStatus()` | `internal/app/app_install:569` | ========== 状态同步 ========== |
-| `App.GetResourceInstanceStatus()` | `internal/app/app_install:581` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
-| `App.SyncModelToggleStatus()` | `internal/app/app_install:621` | — |
-| `App.RelinkCustomDir()` | `internal/app/app_install:626` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
-| `App.RelinkAllInstanceResources()` | `internal/app/app_install:646` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
-| `App.SyncResources()` | `internal/app/app_install:688` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install:722` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install:740` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install:774` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install:791` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install:811` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
-| `App.HasYSMMod()` | `internal/app/app_install:863` | ========== YSM 检测 ========== |
-| `App.SetLinkMode()` | `internal/app/app_install:881` | ========== 链接模式 ========== |
-| `App.GetLinkMode()` | `internal/app/app_install:908` | — |
-| `App.AddImportLog()` | `internal/app/app_install:913` | ========== 日志 ========== |
-| `App.AddOpLog()` | `internal/app/app_install:917` | — |
-| `App.GetImportLogs()` | `internal/app/app_install:921` | — |
-| `App.ClearImportLogs()` | `internal/app/app_install:925` | — |
-| `App.GetRuntimeLogs()` | `internal/app/app_install:930` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
-| `App.ClearRuntimeLogs()` | `internal/app/app_install:935` | ClearRuntimeLogs 清空运行时日志缓冲 |
+| `App.GetInstanceStatus()` | `internal/app/app_install:570` | ========== 状态同步 ========== |
+| `App.GetResourceInstanceStatus()` | `internal/app/app_install:582` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
+| `App.SyncModelToggleStatus()` | `internal/app/app_install:622` | — |
+| `App.RelinkCustomDir()` | `internal/app/app_install:627` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
+| `App.RelinkAllInstanceResources()` | `internal/app/app_install:647` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
+| `App.SyncResources()` | `internal/app/app_install:689` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
+| `App.PushResourceToInstance()` | `internal/app/app_install:723` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install:741` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install:775` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install:792` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install:812` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
+| `App.HasYSMMod()` | `internal/app/app_install:864` | ========== YSM 检测 ========== |
+| `App.SetLinkMode()` | `internal/app/app_install:882` | ========== 链接模式 ========== |
+| `App.GetLinkMode()` | `internal/app/app_install:909` | — |
+| `App.AddImportLog()` | `internal/app/app_install:914` | ========== 日志 ========== |
+| `App.AddOpLog()` | `internal/app/app_install:918` | — |
+| `App.GetImportLogs()` | `internal/app/app_install:922` | — |
+| `App.ClearImportLogs()` | `internal/app/app_install:926` | — |
+| `App.GetRuntimeLogs()` | `internal/app/app_install:931` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
+| `App.ClearRuntimeLogs()` | `internal/app/app_install:936` | ClearRuntimeLogs 清空运行时日志缓冲 |
 | `App.AnalyzeYSMModel()` | `internal/app/app_model:37` | — |
 | `App.ExtractYsmSummary()` | `internal/app/app_model:41` | — |
 | `App.ExtractYSMHeader()` | `internal/app/app_model:55` | — |

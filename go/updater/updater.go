@@ -385,14 +385,10 @@ func InstallUpdate(zipPath string) error {
 
 	var exeInZip *zip.File
 	targetExe := "YSM-Model-Manager.exe"
+	// 纯 exe 发布（2026-08 起 zip 不再附数据 JSON——资源内嵌、用户数据在用户目录）：
+	// 仅 CLI 工具随更新覆盖，其余条目忽略（数据文件不再 exe 旁分发）
 	alwaysOverwrite := map[string]bool{
-		"resource_types.json": true,
-		"ysm-cli.exe":         true, // 发布 zip 内含 CLI 工具，随更新覆盖
-	}
-	createIfMissing := map[string]bool{
-		"workshop_sites.json":  true,
-		"workshop-github.json": true,
-		"creators.json":        true,
+		"ysm-cli.exe": true,
 	}
 
 	for _, f := range r.File {
@@ -410,12 +406,6 @@ func InstallUpdate(zipPath string) error {
 		if alwaysOverwrite[name] {
 			if err := extractZipFile(f, dest); err != nil {
 				log.Printf("[updater] 提取 %s 失败: %v", name, err)
-			}
-		} else if createIfMissing[name] {
-			if _, err := os.Stat(dest); os.IsNotExist(err) {
-				if err := extractZipFile(f, dest); err != nil {
-					log.Printf("[updater] 提取 %s 失败: %v", name, err)
-				}
 			}
 		}
 	}

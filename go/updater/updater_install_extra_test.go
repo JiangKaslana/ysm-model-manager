@@ -71,29 +71,21 @@ func TestInstallUpdate_InvalidExeContent(t *testing.T) {
 		t.Skip("仅 Windows")
 	}
 	// 在测试二进制同目录（exeDir）预置碰撞：
-	// - resource_types.json 以目录存在 → alwaysOverwrite 提取失败（写不入盘）→ 告警日志
-	// - workshop_sites.json 以文件存在 → createIfMissing 已存在 → 跳过
+	// - ysm-cli.exe 以目录存在 → alwaysOverwrite 提取失败（写不入盘）→ 告警日志
 	exe, err := os.Executable()
 	if err != nil {
 		t.Skip("无法获取可执行路径")
 	}
 	exeDir := filepath.Dir(exe)
-	collideDir := filepath.Join(exeDir, "resource_types.json")
-	collideFile := filepath.Join(exeDir, "workshop_sites.json")
+	collideDir := filepath.Join(exeDir, "ysm-cli.exe")
 	if err := os.MkdirAll(collideDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(collideFile, []byte("{}"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		os.Remove(collideDir)
-		os.Remove(collideFile)
-	})
+	t.Cleanup(func() { os.Remove(collideDir) })
 
 	zipPath := makeZipFile(t, map[string]string{
 		"YSM-Model-Manager.exe": "this is not a PE binary",
-		"resource_types.json":   `{"resourceTypes":[]}`,
+		"ysm-cli.exe":           "fake cli",
 		"workshop_sites.json":   `[]`,
 		"..":                    "path traversal attempt",
 	})
@@ -104,12 +96,16 @@ func TestInstallUpdate_InvalidExeContent(t *testing.T) {
 	if !strings.Contains(err.Error(), "有效 Windows 程序") {
 		t.Errorf("错误信息应提示 PE 校验失败, got %v", err)
 	}
+	// 纯 exe 语义：zip 内 JSON 数据文件不应被提取到 exe 旁
+	if _, err := os.Stat(filepath.Join(exeDir, "workshop_sites.json")); err == nil {
+		t.Error("数据 JSON 不应再被提取到 exe 旁（纯 exe 发布）")
+	}
 }
 
-// TestInstallUpdate_CreateIfMissingExtracted 覆盖 createIfMissing 的提取成功分支：
-// workshop_sites.json 在 exeDir 缺失 → 从 zip 解压补全（写入测试二进制同目录，随即清理），
+// TestInstallUpdate_CliAlwaysOverwrite 覆盖 alwaysOverwrite 的提取成功分支：
+// ysm-cli.exe 在 exeDir 缺失 → 从 zip 解压覆盖（写入测试二进制同目录，随即清理），
 // 随后 PE 校验失败提前返回，不触碰真实 exe
-func TestInstallUpdate_CreateIfMissingExtracted(t *testing.T) {
+func TestInstallUpdate_CliAlwaysOverwrite(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("仅 Windows")
 	}
@@ -118,12 +114,12 @@ func TestInstallUpdate_CreateIfMissingExtracted(t *testing.T) {
 		t.Skip("无法获取可执行路径")
 	}
 	exeDir := filepath.Dir(exe)
-	dest := filepath.Join(exeDir, "workshop_sites.json")
+	dest := filepath.Join(exeDir, "ysm-cli.exe")
 	t.Cleanup(func() { os.Remove(dest) })
 
 	zipPath := makeZipFile(t, map[string]string{
 		"YSM-Model-Manager.exe": "not a PE binary",
-		"workshop_sites.json":   `[{"name":"site"}]`,
+		"ysm-cli.exe":           "fake cli binary",
 	})
 	err = InstallUpdate(zipPath)
 	if err == nil {
@@ -131,10 +127,10 @@ func TestInstallUpdate_CreateIfMissingExtracted(t *testing.T) {
 	}
 	data, err := os.ReadFile(dest)
 	if err != nil {
-		t.Fatalf("workshop_sites.json 应已解压补全: %v", err)
+		t.Fatalf("ysm-cli.exe 应已解压覆盖: %v", err)
 	}
-	if !strings.Contains(string(data), "site") {
-		t.Errorf("补全内容不符: %s", data)
+	if !strings.Contains(string(data), "fake cli") {
+		t.Errorf("覆盖内容不符: %s", data)
 	}
 }
 
