@@ -12,7 +12,7 @@ import { fitCameraToScene } from "./camera-setup.ts"; // 相机初始化（已�
 import { getBoneList } from "./bone-list.ts"; // 骨骼列表（已拆）
 import { setBoneVisible as _setBoneVisible, toggleBone as _toggleBone, showModelGroup as _showModelGroup } from "./bone-visibility.ts"; // 骨骼可见性（已拆）
 import { resetRendererState, detachRendererCanvas } from "./session-state.ts"; // 会话状态重置（已拆）
-
+import { setupRenderer } from "./renderer-setup.ts"; // renderer 场景初始化（已拆）
 // ── Spec 结构（Go 返回的 models 结构）────────────────
 
 export interface SpecBone3D {
@@ -119,48 +119,13 @@ export async function renderModel3D(
     resetRendererState({ _renderer3d, _scene3d, _camera3d, _rootGroup3d });
   }
 
-  const scene = new THREE.Scene();
-  _scene3d = scene;
-  scene.background = new THREE.Color(0x1a1b2e);
-  const aspect = container.clientWidth / container.clientHeight || 1;
-  const camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
-  _camera3d = camera;
-  // 默认相机在 Z 负侧（看向模型正面；历史曾用 +Z/YSMViewer 默认，实际 YSM 模型脸朝 Z-）
-  camera.position.set(0, 80, -120);
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    powerPreference: "high-performance",
-    preserveDrawingBuffer: true,
-  });
-  _renderer3d = renderer;
-  // P2-4 修复：后半段（renderer 创建后 → return handle 前）包 try/catch——
-  // 异常路径统一执行会话清理并 dispose renderer、复位模块级引用后 rethrow，
-  // 防入口守卫/调用方无感知时泄漏已创建资源（GPU 缓冲/监听器）。
+  // 初始化 renderer + 场景 + 灯光 + 辅助线（已拆至 renderer-setup.ts）
+  // P2-4 修复：后半段包 try/catch——异常路径统一执行会话清理并 rethrow
   try {
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  // ADR-047：触屏拖拽旋转需禁用浏览器手势默认（滚动/缩放），pointer 事件才完整
-  renderer.domElement.style.touchAction = "none";
-  container.innerHTML = "";
-  container.appendChild(renderer.domElement);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  // P2-2 修复：controls 创建后立即纳入会话清理——入口守卫/异常路径释放时统一 dispose，
-  // 防未走 handle.cleanup 的路径泄漏 document 监听器（与 cleanup 内 dispose 幂等共存）
-  _sessionCleanups.push(() => controls.dispose());
-  controls.target.set(0, 80, 0);
-  controls.update();
-  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-  const dl = new THREE.DirectionalLight(0xffffff, 2);
-  dl.position.set(10, 30, 20);
-  scene.add(dl);
-  const backLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  backLight.position.set(-10, 10, -20);
-  scene.add(backLight);
-  const grid = new THREE.GridHelper(400, 20, 0x8888cc, 0x6666aa);
-  grid.position.y = -1;
-  scene.add(grid);
-  scene.add(new THREE.AxesHelper(60));
+  const { scene, camera, renderer, controls } = setupRenderer(container);
+  _scene3d = scene;
+  _camera3d = camera;
+  _renderer3d = renderer;
 
   const { boneGroupMap, rootGroup, modelGroups } = buildSceneMesh(spec);
   _rootGroup3d = rootGroup;
@@ -487,11 +452,10 @@ export async function renderModel3D(
     get() { return _currentOnBoneSelect; },
   });
   return handle;
-  // P2-4 修复：异常路径执行部分清理后 rethrow（见下方 catch）
   } catch (e) {
     _sessionCleanups.forEach((fn) => fn());
     _sessionCleanups = [];
-    try { renderer.dispose(); } catch { /* ignore */ }
+    try { safeDisposeRenderer(_renderer3d!); } catch { /* ignore */ }
     resetRendererState({ _renderer3d, _scene3d, _camera3d, _rootGroup3d });
     throw e;
   }
