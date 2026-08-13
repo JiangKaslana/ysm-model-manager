@@ -1,7 +1,6 @@
 {
-  "generated": "2026-08-13T03:11:07.043Z",
+  "generated": "2026-08-13T07:35:02.869Z",
   "knip": [
-    "e2e/modal.spec.ts|unresolved|/src/utils/dom/dialogs/modal.ts",
     "package.json|binaries|wails3",
     "package.json|devDependencies|jscpd",
     "src/backend/browser-adapter.ts|exports|arrayBufferToBase64",
@@ -29,7 +28,9 @@
     "src/utils/3d/model3d.ts|types|SpecMeshGroup3D",
     "src/utils/3d/model3d.ts|types|SpecModelGroup3D",
     "src/utils/animation/animation.ts|types|BoneChannels",
+    "src/utils/dom/android-bridge.ts|exports|emitAndroidBack",
     "src/utils/dom/dialogs/modal.ts|exports|trapFocus",
+    "src/utils/dom/fab.ts|exports|YSW_FAB_CSS",
     "src/utils/format/summarize.ts|types|SummaryAuthor",
     "src/views/app-preview/geometry.ts|types|BedrockBone",
     "src/views/app-preview/geometry.ts|types|BedrockCube",
@@ -57,7 +58,6 @@
     "src/views/app-content/app-content.component.test.ts#src/views/app-content/app-content.methods.test.ts",
     "src/views/app-content/site-view.ts#src/views/app-content/site/types.ts",
     "src/views/app-content/site/edit.ts#src/views/app-content/site/edit.ts",
-    "src/views/app-preview/litematic-3d.ts#src/views/app-preview/skeleton.ts",
     "src/views/app-preview/wasm.ts#src/views/app-preview/wasm.ts",
     "src/views/app-sidebar/app-sidebar.sync.test.ts#src/views/app-sidebar/app-sidebar.sync.test.ts",
     "src/views/app-sync-manager/index.ts#src/views/app-sync-manager/index.ts",

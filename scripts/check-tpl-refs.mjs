@@ -35,6 +35,9 @@ function collectDefinedIds(text) {
   // 双引号/单引号字面量 + 模板字符串内的静态 id="..."（模板 ${} 片段天然被排除，因为引号不闭合）
   for (const m of text.matchAll(/\bid="([a-zA-Z0-9_-]+)"/g)) out.add(m[1]);
   for (const m of text.matchAll(/\bid='([a-zA-Z0-9_-]+)'/g)) out.add(m[1]);
+  // JS 属性赋值形式：el.id = "xxx" / el.style.id = "xxx"（动态创建的真实 id，如 fab.ts 注入 style）
+  for (const m of text.matchAll(/\.id\s*=\s*"([a-zA-Z0-9_-]+)"/g)) out.add(m[1]);
+  for (const m of text.matchAll(/\.id\s*=\s*'([a-zA-Z0-9_-]+)'/g)) out.add(m[1]);
   return out;
 }
 
