@@ -48,9 +48,12 @@ export function gitMaybe(args) {
   try { return git(args); } catch { return null; }
 }
 
-/** 把本地路径归一化为 git 内部路径格式（正斜杠，相对仓库根）。 */
+/** 把本地路径归一化为 git 内部路径格式（正斜杠，相对仓库根）。
+ *  相对路径按 ROOT 解析（path.resolve），cwd 无关——此前直接用
+ *  path.relative(ROOT, p) 对相对输入会按进程 cwd 解析而错位（code_review P3，
+ *  一处修复覆盖 audit-split/rollback-impact/bloat-history/api-break 全部调用点）。 */
 function toGitPath(p) {
-  return toPosix(path.relative(ROOT, p));
+  return toPosix(path.relative(ROOT, path.resolve(ROOT, p)));
 }
 
 /**

@@ -365,9 +365,12 @@ const callers = allDeletedExp.length
 
 if (JSON_OUT) {
   console.log(JSON.stringify(toJ(report, callers), null, 2));
-} else if (QUIET && allDeletedExp.length === 0) {
-  // 静默模式（--quiet）：无破坏性变更时只输出一行结论，供 CI/脚本消费（Q1 实现）
+} else if (QUIET && allDeletedExp.length === 0 && !report.mods.some((m) => m.redline)) {
+  // 静默模式（--quiet）：无破坏性变更且无红线文件时只输出一行结论（Q1 实现；
+  // 与 --redline 退出码一致——有红线时走下方 ⚠️ 行并 exit 1）
   console.log('✅ 无破坏性变更');
+} else if (QUIET && allDeletedExp.length === 0) {
+  console.log(`⚠️ ${report.mods.filter((m) => m.redline).length} 个超红线文件（ADR-040）`);
 } else {
   console.log(human(report, callers, COMPACT));
 }
