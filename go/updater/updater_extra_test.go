@@ -19,8 +19,8 @@ func TestAssetPattern_Windows(t *testing.T) {
 	if !strings.HasPrefix(pattern, "YSM-Model-Manager_windows_") {
 		t.Errorf("期望 windows 前缀, 得到 %q", pattern)
 	}
-	if !strings.HasSuffix(pattern, ".zip") {
-		t.Errorf("期望 .zip 结尾, 得到 %q", pattern)
+	if !strings.HasSuffix(pattern, ".exe") {
+		t.Errorf("期望 .exe 结尾（纯 exe 发布）, 得到 %q", pattern)
 	}
 }
 

@@ -104,15 +104,6 @@ if [ ! -f "$OUTPUT_DIR/$EXE_NAME" ]; then
 fi
 echo -e "\033[32m   ✅ 主程序已编译到 $OUTPUT_DIR/$EXE_NAME\033[0m"
 
-# 3b. 构建 CLI 工具
-echo -e "\033[33m🔧 构建 CLI 工具 ysm-cli.exe ...\033[0m"
-cd "$PROJECT_ROOT"
-if go build -tags cli -ldflags "-X ysm-model-manager/go/version.Version=$VER_TAG" -o "$OUTPUT_DIR/ysm-cli.exe" . 2>&1; then
-  echo -e "\033[32m   ✅ ysm-cli.exe 已构建\033[0m"
-else
-  echo -e "\033[33m⚠️ CLI 构建失败（不影响主程序）\033[0m"
-fi
-
 # 4. 复制配置文件
 echo -e "\033[33m📋 复制资源配置...\033[0m"
 for f in workshop_sites.json creators.json workshop-github.json resource_types.json; do

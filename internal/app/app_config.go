@@ -271,9 +271,9 @@ func (a *App) DownloadUpdate(url string, expectedHash string) (string, error) {
 	return updater.Download(url, expectedHash)
 }
 
-func (a *App) ApplyUpdate(zipPath string) error {
-	// 入口白名单：zipPath 必须存在、非空且不超过 200MB（防任意路径 / 超大文件）
-	fi, err := os.Stat(zipPath)
+func (a *App) ApplyUpdate(exePath string) error {
+	// 入口白名单：exePath 必须存在、非空且不超过 200MB（防任意路径 / 超大文件）
+	fi, err := os.Stat(exePath)
 	if err != nil {
 		return fmt.Errorf("更新包不可用: %w", err)
 	}
@@ -283,7 +283,7 @@ func (a *App) ApplyUpdate(zipPath string) error {
 	if fi.Size() > 200<<20 {
 		return fmt.Errorf("更新包过大（超过 200MB）")
 	}
-	return updater.InstallUpdate(zipPath)
+	return updater.InstallUpdate(exePath)
 }
 
 // validUpdateURL 更新下载地址白名单校验（DoUpdate 是 Wails binding，
@@ -313,15 +313,15 @@ func (a *App) DoUpdate(url string, expectedHash string) string {
 	if !validUpdateURL(url) {
 		return "下载失败: 非法的更新地址"
 	}
-	zipPath, err := updater.DownloadWithProgress(url, expectedHash, func(done, total int64) {
+	exePath, err := updater.DownloadWithProgress(url, expectedHash, func(done, total int64) {
 		// 下载进度事件：与前端 download-queue 的 download:progress 同构，多参打包为数组
 		a.app.Event.Emit("update:progress", done, total)
 	})
 	if err != nil {
 		return "下载失败: " + err.Error()
 	}
-	defer os.Remove(zipPath)
-	if err := updater.InstallUpdate(zipPath); err != nil {
+	defer os.Remove(exePath)
+	if err := updater.InstallUpdate(exePath); err != nil {
 		return "安装失败: " + err.Error()
 	}
 	return "success"

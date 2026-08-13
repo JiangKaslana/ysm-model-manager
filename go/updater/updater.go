@@ -1,7 +1,6 @@
 package updater
 
 import (
-	"archive/zip"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -94,13 +93,14 @@ type UpdateInfo struct {
 }
 
 // assetPattern 返回当前系统匹配的 asset 名
+// v1.13.0 起纯 exe 发布：Windows Release 资产为裸 exe（不再打包 zip）。
 // 注意：非 Windows 分支返回 .tar.gz 为占位——自动更新仅支持 Windows
 // （InstallUpdate 平台守卫），此分支供未来扩展或手动下载参考
 func assetPattern() string {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 	if goos == "windows" {
-		return fmt.Sprintf("YSM-Model-Manager_windows_%s.zip", goarch)
+		return fmt.Sprintf("YSM-Model-Manager_windows_%s.exe", goarch)
 	}
 	return fmt.Sprintf("YSM-Model-Manager_%s_%s.tar.gz", goos, goarch)
 }
@@ -213,7 +213,7 @@ func CheckWithClient(client *http.Client, apiURL, current string) (*UpdateInfo, 
 	}, nil
 }
 
-// Download 下载更新包到临时目录，返回 zip 路径（无进度回调，兼容旧调用方）。
+// Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。
 // 若 expectedHash 非空，下载完成后校验 SHA256，不匹配则删除文件并报错。
 func Download(assetURL string, expectedHash string) (string, error) {
 	return DownloadWithProgress(assetURL, expectedHash, nil)
@@ -378,13 +378,14 @@ func CleanupOldVersion() {
 	}
 }
 
-// InstallUpdate 解压更新包并通过 helper 进程替换当前 exe。
-// 流程：解压新 exe → 释放 helper 到临时目录 → 启动 helper → 主进程退出
-func InstallUpdate(zipPath string) error {
+// InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。
+// 流程：校验新 exe（PE 魔数）→ 复制到临时目录 → 释放 helper → 启动 helper → 主进程退出
+// （v1.13.0 起纯 exe 发布：Windows Release 资产为裸 exe，不再有 zip 解压环节）
+func InstallUpdate(exePath string) error {
 	updateLock.Lock()
 	defer updateLock.Unlock()
 
-	// 平台守卫：非 Windows asset 为 .tar.gz，而 InstallUpdate 仅能解压 zip——
+	// 平台守卫：非 Windows asset 为 .tar.gz，自动更新仅支持 Windows——
 	// 明确拒绝而非静默下载后在装包时给误导性错误
 	if runtime.GOOS != "windows" {
 		return fmt.Errorf("自动更新当前仅支持 Windows 平台，请手动下载更新")
@@ -394,78 +395,36 @@ func InstallUpdate(zipPath string) error {
 	if err != nil {
 		return fmt.Errorf("获取程序路径失败: %w", err)
 	}
-	exeDir := filepath.Dir(exe)
-
-	// 1. 解压 zip
-	r, err := zip.OpenReader(zipPath)
-	if err != nil {
-		return fmt.Errorf("打开 zip 失败: %w", err)
-	}
-	defer r.Close()
-
-	var exeInZip *zip.File
-	targetExe := "YSM-Model-Manager.exe"
-	// 纯 exe 发布（2026-08 起 zip 不再附数据 JSON——资源内嵌、用户数据在用户目录）：
-	// 仅 CLI 工具随更新覆盖，其余条目忽略（数据文件不再 exe 旁分发）
-	alwaysOverwrite := map[string]bool{
-		"ysm-cli.exe": true,
-	}
-
-	for _, f := range r.File {
-		name := filepath.Base(f.Name)
-		if strings.EqualFold(name, targetExe) {
-			exeInZip = f
-			continue
-		}
-		dest := filepath.Join(exeDir, name)
-		cleanDir := filepath.Clean(exeDir) + string(os.PathSeparator)
-		if !strings.HasPrefix(dest, cleanDir) {
-			log.Printf("[updater] 跳过异常路径 %s", f.Name)
-			continue
-		}
-		if alwaysOverwrite[name] {
-			if err := extractZipFile(f, dest); err != nil {
-				log.Printf("[updater] 提取 %s 失败: %v", name, err)
-			}
-		}
-	}
-	if exeInZip == nil {
-		return fmt.Errorf("zip 中未找到 %s", targetExe)
-	}
-
-	// 2. 解压新 exe 到临时目录
-	tmpDir, err := os.MkdirTemp("", "ysm-update")
-	if err != nil {
-		return fmt.Errorf("创建临时目录失败: %w", err)
-	}
-	newPath := filepath.Join(tmpDir, targetExe)
-	if err := extractZipFile(exeInZip, newPath); err != nil {
-		os.RemoveAll(tmpDir)
-		return fmt.Errorf("解压 exe 失败: %w", err)
-	}
 
 	// 装盘前预检：无哈希降级场景下至少校验 PE 魔数，防损坏/篡改包替换运行中 exe
-	f, err := os.Open(newPath)
+	f, err := os.Open(exePath)
 	if err != nil {
-		os.RemoveAll(tmpDir)
-		return fmt.Errorf("校验新 exe 失败: %w", err)
+		return fmt.Errorf("打开更新包失败: %w", err)
 	}
 	var magic [2]byte
 	_, err = io.ReadFull(f, magic[:])
 	f.Close()
 	if err != nil || string(magic[:]) != "MZ" {
-		os.RemoveAll(tmpDir)
-		return fmt.Errorf("更新包内 exe 不是有效 Windows 程序")
+		return fmt.Errorf("更新包不是有效 Windows 程序")
 	}
 
-	// 3. 释放 helper 到临时目录
+	// 准备临时目录：复制新 exe + 释放 helper
+	tmpDir, err := os.MkdirTemp("", "ysm-update")
+	if err != nil {
+		return fmt.Errorf("创建临时目录失败: %w", err)
+	}
+	newPath := filepath.Join(tmpDir, "YSM-Model-Manager.exe")
+	if err := copyFile(exePath, newPath); err != nil {
+		os.RemoveAll(tmpDir)
+		return fmt.Errorf("准备新 exe 失败: %w", err)
+	}
 	helperPath := filepath.Join(tmpDir, "ysm-updater-helper.exe")
 	if err := extractEmbeddedHelper(helperPath); err != nil {
 		os.RemoveAll(tmpDir)
 		return fmt.Errorf("释放更新助手失败: %w", err)
 	}
 
-	// 4. 启动 helper（传入 新exe路径 目标exe路径 主进程PID）
+	// 启动 helper（传入 新exe路径 目标exe路径 主进程PID）
 	pid := strconv.Itoa(os.Getpid())
 	cmd := exec.Command(helperPath, newPath, exe, pid)
 	cmd.Dir = tmpDir
@@ -474,56 +433,32 @@ func InstallUpdate(zipPath string) error {
 		return fmt.Errorf("启动更新助手失败: %w", err)
 	}
 
-	// 5. 清理临时下载文件
-	if err := os.Remove(zipPath); err != nil {
+	// 清理临时下载文件
+	if err := os.Remove(exePath); err != nil {
 		log.Printf("[updater] 清理临时文件失败: %v", err)
 	}
 
-	// 6. 主进程退出（Wails 前端应在此之前显示提示）
+	// 主进程退出（Wails 前端应在此之前显示提示）
 	os.Exit(0)
 	return nil
 }
 
-// extractZipFile 解压 zip 中的单个文件到目标路径（限制解压大小 200MB，超限报错不静默截断）
-func extractZipFile(f *zip.File, dest string) error {
-	rc, err := f.Open()
+// copyFile 复制文件（更新 exe 直装场景：下载临时文件 → 临时目录新路径）
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
-
-	out, err := os.Create(dest)
+	defer in.Close()
+	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
-	ok := false
-	defer func() {
-		out.Close()
-		if !ok {
-			// 解压失败/超限时清理半成品（必须先 Close 再 Remove——Windows 上删除打开的文件会失败）
-			// Remove 失败（文件锁 / Defender 实时扫描窗口）时短暂重试，避免半成品残留
-			if err := os.Remove(dest); err != nil && !os.IsNotExist(err) {
-				time.Sleep(200 * time.Millisecond)
-				_ = os.Remove(dest)
-			}
-		}
-	}()
-
-	const maxExtract = 200 << 20
-	n, err := io.Copy(out, io.LimitReader(rc, maxExtract))
-	if err != nil {
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
 		return err
 	}
-	// 截断检测：读到上限后再读 1 字节，仍有数据说明文件超限被截断——报错并清理目标，
-	// 防止损坏的 exe/配置文件被静默装盘（与 Download 截断检测同款语义）
-	if n >= maxExtract {
-		one := make([]byte, 1)
-		if extra, _ := rc.Read(one); extra > 0 {
-			return fmt.Errorf("zip 内文件 %s 超过 %d 字节上限", f.Name, maxExtract)
-		}
-	}
-	ok = true
-	return nil
+	return out.Close()
 }
 
 // ===== semver 比较 =====

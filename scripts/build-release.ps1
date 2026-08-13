@@ -20,9 +20,8 @@ if (-not $ProjectRoot) {
     $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
 $OutputDir = "$ProjectRoot\build\release"
-$ExeName = "YSM-Model-Manager.exe"
-$ZipName = "YSM-Model-Manager_windows_amd64.zip"
-$ZipPath = "$OutputDir\$ZipName"
+$ExeName = "YSM-Model-Manager_windows_amd64.exe"
+$ExePath = "$OutputDir\$ExeName"
 
 # GitHub 仓库信息
 $GitHubOwner = "eghrhegpe"
@@ -87,50 +86,33 @@ if (!(Test-Path "$OutputDir\$ExeName")) {
 }
 Write-Host "   ✅ 主程序已编译到 $OutputDir\$ExeName" -ForegroundColor Green
 
-# 2b. 构建 CLI 工具
-Write-Host "🔧 构建 CLI 工具 ysm-cli.exe ..." -ForegroundColor Yellow
-Set-Location $ProjectRoot
-go build -tags cli -ldflags "-X ysm-model-manager/go/version.Version=$VerTag" -o "$OutputDir\ysm-cli.exe" . 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "⚠️ CLI 构建失败（不影响主程序）" -ForegroundColor Yellow
-} else {
-    Write-Host "   ✅ ysm-cli.exe 已构建" -ForegroundColor Green
-}
+# 3. 纯 exe 发布（v1.13.0 起）：主程序编译期内嵌全部数据（resource_types/creators/
+#    workshop 系列）与前端/WASM 资产，用户可编辑数据在用户目录
+#    （%APPDATA%/YSM-Model-Manager）——Release 资产直接为裸 exe，不再打包 zip。
+#    注意：OutputDir 每次构建前已清理重建，不会混入旧产物。
 
-# 3. 纯 exe 发布：数据 JSON（resource_types/creators/workshop 系列）编译期内嵌，
-#    用户可编辑数据在用户目录（%APPDATA%/YSM-Model-Manager），zip 不再附带——
-#    下载单个 exe 即具备全部数据能力。
-#    注意：Compress-Archive 用 $OutputDir\*，若 OutputDir 混入旧 JSON 会误打包，
-#    发布前确保 OutputDir 干净（建议删旧目录重建）。
-
-# 4. 打包 zip
-Write-Host "📦 打包 $ZipName ..." -ForegroundColor Yellow
+# 4. 校验产物（无 zip 打包环节）
+Write-Host "✅ 校验产物 $ExeName ..." -ForegroundColor Yellow
 if (!(Test-Path "$OutputDir\$ExeName")) {
-    Write-Host "❌ 缺少主 exe，无法打包" -ForegroundColor Red
-    exit 1
-}
-Set-Location $OutputDir
-Compress-Archive -Path "$OutputDir\*" -DestinationPath "$OutputDir\$ZipName" -Force
-if (!(Test-Path "$ZipPath")) {
-    Write-Host "❌ ZIP 打包失败" -ForegroundColor Red
+    Write-Host "❌ 缺少主 exe，构建失败" -ForegroundColor Red
     exit 1
 }
 
 # 4b. 生成 SHA256SUMS（用于下载后校验，防 MITM 攻击）
 Write-Host "🔐 生成 SHA256SUMS ..." -ForegroundColor Yellow
 $ShaSumsPath = "$OutputDir\SHA256SUMS"
-$zipHash = (Get-FileHash -Path "$ZipPath" -Algorithm SHA256).Hash.ToLower()
-"$zipHash  $ZipName" | Out-File -FilePath $ShaSumsPath -Encoding ascii
-Write-Host "   SHA256: $zipHash" -ForegroundColor Gray
+$exeHash = (Get-FileHash -Path "$ExePath" -Algorithm SHA256).Hash.ToLower()
+"$exeHash  $ExeName" | Out-File -FilePath $ShaSumsPath -Encoding ascii
+Write-Host "   SHA256: $exeHash" -ForegroundColor Gray
 
 # 5. 输出结果
-$FileSize = (Get-Item "$OutputDir\$ZipName").Length / 1MB
+$FileSize = (Get-Item "$ExePath").Length / 1MB
 Write-Host "✅ 构建完成!" -ForegroundColor Green
 Write-Host "   版本: $VerTag" -ForegroundColor Cyan
-Write-Host "   输出: $OutputDir\$ZipName" -ForegroundColor Cyan
+Write-Host "   输出: $ExePath" -ForegroundColor Cyan
 Write-Host "   大小: $("{0:N1}" -f $FileSize) MB" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "下一步: 在 GitHub Releases 上传 $ZipName 和 SHA256SUMS" -ForegroundColor Magenta
+Write-Host "下一步: 在 GitHub Releases 上传 $ExeName 和 SHA256SUMS" -ForegroundColor Magenta
 Write-Host "       或添加 -SkipUpload 参数跳过上传" -ForegroundColor Magenta
 
 # ===== GitHub Release 上传 =====
@@ -170,13 +152,13 @@ if (-not $SkipUpload) {
             --repo "$GitHubOwner/$GitHubRepo" `
             --title "$VerTag" `
             --notes-file "$notesTmp" `
-            "$ZipPath" "$ShaSumsPath" 2>&1
+            "$ExePath" "$ShaSumsPath" 2>&1
         Remove-Item $notesTmp -Force -ErrorAction SilentlyContinue
         if ($LASTEXITCODE -eq 0) {
             Write-Host "   ✅ Release 已发布: https://github.com/$GitHubOwner/$GitHubRepo/releases/tag/$VerTag" -ForegroundColor Green
         } else {
             Write-Host "   ❌ gh release create 失败: $ghOutput" -ForegroundColor Red
-            Write-Host "   请手动上传 $ZipPath" -ForegroundColor Yellow
+            Write-Host "   请手动上传 $ExePath" -ForegroundColor Yellow
         }
     } else {
         # ---- 方案 B: GitHub API (需要 GH_TOKEN 环境变量) ----
@@ -192,7 +174,7 @@ if (-not $SkipUpload) {
             Write-Host "   ⚠️ 未设置 GH_TOKEN 环境变量，跳过 GitHub 上传" -ForegroundColor Yellow
             Write-Host "   设置方法: `$env:GH_TOKEN = 'ghp_xxxx'" -ForegroundColor Gray
             Write-Host "   或写到 $env:USERPROFILE\.ysm-release\token.txt" -ForegroundColor Gray
-            Write-Host "   手动上传: $ZipPath" -ForegroundColor Magenta
+            Write-Host "   手动上传: $ExePath" -ForegroundColor Magenta
         } else {
             $apiBase = "https://api.github.com"
             $authHeader = @{ Authorization = "Bearer $token" }
@@ -219,13 +201,13 @@ if (-not $SkipUpload) {
                 $uploadUrl = $createResult.upload_url -replace '\{.*',''
                 Write-Host "   ✅ Release 已创建，上传中..." -ForegroundColor Green
 
-                # 上传 zip 资产
-                $zipBytes = [System.IO.File]::ReadAllBytes($ZipPath)
-                $uploadResult = Invoke-RestMethod -Uri "$uploadUrl?name=$ZipName" `
+                # 上传 exe 资产（裸 exe 发布）
+                $exeBytes = [System.IO.File]::ReadAllBytes($ExePath)
+                $uploadResult = Invoke-RestMethod -Uri "$uploadUrl?name=$ExeName" `
                     -Method Post `
                     -Headers $authHeader `
                     -ContentType "application/octet-stream" `
-                    -Body $zipBytes
+                    -Body $exeBytes
 
                 # 上传 SHA256SUMS
                 $sumsBytes = [System.IO.File]::ReadAllBytes($ShaSumsPath)
@@ -238,7 +220,7 @@ if (-not $SkipUpload) {
                 Write-Host "   🌐 $createResult.html_url" -ForegroundColor Cyan
             } catch {
                 Write-Host "   ❌ 上传失败: $_" -ForegroundColor Red
-                Write-Host "   请手动上传: $ZipPath" -ForegroundColor Yellow
+                Write-Host "   请手动上传: $ExePath" -ForegroundColor Yellow
             }
         }
     }

@@ -66,23 +66,23 @@ func TestInstallUpdate_NonWindows_PlatformGuard(t *testing.T) {
 	}
 }
 
-func TestInstallUpdate_BadZip_Windows(t *testing.T) {
-	// Windows 专属：验证传入无效 zip 时报错信息不含 extract 相关字样
+func TestInstallUpdate_NotPE_Windows(t *testing.T) {
+	// Windows 专属：验证传入非 PE 更新包时报错信息不含 helper 释放相关字样
 	if runtime.GOOS != "windows" {
 		t.Skip("仅 Windows")
 	}
 	dir := t.TempDir()
-	badZip := filepath.Join(dir, "bad.zip")
-	if err := os.WriteFile(badZip, []byte("not a zip"), 0644); err != nil {
+	badExe := filepath.Join(dir, "YSM-Model-Manager_windows_amd64.exe")
+	if err := os.WriteFile(badExe, []byte("not a PE binary"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	err := InstallUpdate(badZip)
+	err := InstallUpdate(badExe)
 	if err == nil {
-		t.Fatal("坏 zip 应报错")
+		t.Fatal("非 PE 更新包应报错")
 	}
-	// 应报 zip 打开失败，而非 helper 释放失败
+	// 应报 PE 校验失败，而非 helper 释放失败（校验先行）
 	if strings.Contains(err.Error(), "释放更新助手") {
-		t.Errorf("错误信息不应包含'释放更新助手'，说明未先校验 zip: %v", err)
+		t.Errorf("错误信息不应包含'释放更新助手'，说明未先校验 PE: %v", err)
 	}
 }
 

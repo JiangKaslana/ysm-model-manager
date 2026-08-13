@@ -84,7 +84,7 @@ jobs:
       - name: 安装前端依赖
         working-directory: frontend
         run: npm ci
-      - name: 打包（build-release.ps1 → build/release zip + SHA256SUMS）
+      - name: 打包（build-release.ps1 → build/release 裸 exe + SHA256SUMS）
         run: |
           & .\scripts\build-release.ps1 -Version "${{ needs.prepare.outputs.version }}" -SkipUpload
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -93,7 +93,7 @@ jobs:
         with:
           name: windows-amd64
           path: |
-            build/release/*.zip
+            build/release/*.exe
             build/release/SHA256SUMS
           if-no-files-found: error
 

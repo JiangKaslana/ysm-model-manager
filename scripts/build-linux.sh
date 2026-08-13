@@ -93,15 +93,7 @@ if ! go build -ldflags "-X ysm-model-manager/go/version.Version=$VER_TAG" -o "$B
   exit 1
 fi
 
-# 4. 构建 CLI 工具（可选，失败不阻断）
-echo "[build-linux] 🔧 构建 CLI 工具 ysm-cli ..."
-if go build -tags cli -ldflags "-X ysm-model-manager/go/version.Version=$VER_TAG" -o "$BIN_DIR/ysm-cli" . 2>&1; then
-  echo "   ✅ ysm-cli 已构建"
-else
-  echo "⚠️ CLI 构建失败（不影响主程序）"
-fi
-
-# 5. 复制配置文件
+# 4. 复制配置文件
 echo "[build-linux] 📋 复制资源配置..."
 for f in workshop_sites.json creators.json workshop-github.json resource_types.json; do
   [ -f "$PROJECT_ROOT/$f" ] && cp "$PROJECT_ROOT/$f" "$BIN_DIR/" || true

@@ -1,14 +1,12 @@
 package updater
 
 import (
-	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -117,8 +115,8 @@ func TestSplitVer(t *testing.T) {
 
 func TestFetchExpectedHash(t *testing.T) {
 	// 模拟 SHA256SUMS 文件内容
-	sumsContent := `abc123def456  YSM-Model-Manager_windows_amd64.zip
-fed789cba012 *YSM-Model-Manager_windows_arm64.zip
+	sumsContent := `abc123def456  YSM-Model-Manager_windows_amd64.exe
+fed789cba012 *YSM-Model-Manager_windows_arm64.exe
 000000000000  other-file.tar.gz`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -132,8 +130,8 @@ fed789cba012 *YSM-Model-Manager_windows_arm64.zip
 		fileName string
 		expected string
 	}{
-		{"YSM-Model-Manager_windows_amd64.zip", "abc123def456"},
-		{"YSM-Model-Manager_windows_arm64.zip", "fed789cba012"},
+		{"YSM-Model-Manager_windows_amd64.exe", "abc123def456"},
+		{"YSM-Model-Manager_windows_arm64.exe", "fed789cba012"},
 		{"YSM-Model-Manager_linux_amd64.tar.gz", ""},
 		{"other-file.tar.gz", "000000000000"},
 	}
@@ -157,7 +155,7 @@ func TestFetchExpectedHash_EmptyResponse(t *testing.T) {
 	defer server.Close()
 
 	// P2 修复后签名返回 (string, error)：空响应（未找到 hash）应返回 error
-	_, err := fetchExpectedHash(server.URL+"/sums", "YSM-Model-Manager_windows_amd64.zip")
+	_, err := fetchExpectedHash(server.URL+"/sums", "YSM-Model-Manager_windows_amd64.exe")
 	if err == nil {
 		t.Error("空响应（未找到 hash）应返回错误")
 	}
@@ -170,7 +168,7 @@ func TestFetchExpectedHash_ServerError(t *testing.T) {
 	defer server.Close()
 
 	// P2 修复后签名返回 (string, error)：服务器 500 应返回 error
-	_, err := fetchExpectedHash(server.URL+"/sums", "YSM-Model-Manager_windows_amd64.zip")
+	_, err := fetchExpectedHash(server.URL+"/sums", "YSM-Model-Manager_windows_amd64.exe")
 	if err == nil {
 		t.Error("服务器错误应返回错误")
 	}
@@ -541,73 +539,5 @@ func TestCheck_APIError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "rate limit") {
 		t.Errorf("错误信息应包含 GitHub message, got %v", err)
-	}
-}
-
-func TestExtractZipFile_OK(t *testing.T) {
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
-	fw, err := zw.Create("ok.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := fw.Write([]byte("hello")); err != nil {
-		t.Fatal(err)
-	}
-	if err := zw.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	dest := filepath.Join(t.TempDir(), "ok.txt")
-	if err := extractZipFile(zr.File[0], dest); err != nil {
-		t.Fatalf("extractZipFile() = %v", err)
-	}
-	data, err := os.ReadFile(dest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != "hello" {
-		t.Errorf("内容 = %q, 期望 hello", string(data))
-	}
-}
-
-// TestExtractZipFile_Truncate 验证超过 200MB 上限的 zip 条目被拒绝且目标文件被清理
-func TestExtractZipFile_Truncate(t *testing.T) {
-	// 构造 >200MB 的 zip 条目（全零，deflate 压缩后 zip 文件本身很小）
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
-	fw, err := zw.Create("big.bin")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := fw.Write(bytes.Repeat([]byte{0}, (200<<20)+1)); err != nil {
-		t.Fatal(err)
-	}
-	if err := zw.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(zr.File) != 1 {
-		t.Fatalf("期望 1 个条目, got %d", len(zr.File))
-	}
-
-	dest := filepath.Join(t.TempDir(), "big.bin")
-	err = extractZipFile(zr.File[0], dest)
-	if err == nil {
-		t.Fatal("超过 200MB 应返回错误")
-	}
-	if !strings.Contains(err.Error(), "200") {
-		t.Errorf("错误信息应包含上限, got %v", err)
-	}
-	if _, statErr := os.Stat(dest); !os.IsNotExist(statErr) {
-		t.Errorf("截断失败后目标文件应被删除, stat=%v", statErr)
 	}
 }
