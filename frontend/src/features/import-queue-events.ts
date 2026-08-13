@@ -283,12 +283,11 @@ export function bindButtonEvents(
   currentFileNameRef: { current: string | null },
   currentRelPathRef: { current: string },
   fileQueue: QueueItem[],
-  repoFilesRef: { current: Set<string> | null },
   isImportingRef: { current: boolean },
   renderImportedList: () => void,
   advanceQueue: () => void,
   toggleForm: (visible: boolean) => void,
-  loadRepoFiles: (ref: { current: Set<string> | null }) => Promise<void>,
+  loadRepoFiles: () => Promise<void>,
   cleanups: Array<() => void>,
 ): void {
   if (importBtn) {
@@ -366,8 +365,7 @@ export function bindButtonEvents(
             duration: 3000,
             type: "success",
           });
-          repoFilesRef.current = null;
-          await loadRepoFiles(repoFilesRef);
+          await loadRepoFiles();
 
           ImportHistory.push({
             name: finalName,
@@ -411,8 +409,7 @@ export function bindButtonEvents(
                   duration: 2000,
                   type: "success",
                 });
-                repoFilesRef.current = null;
-                await loadRepoFiles(repoFilesRef);
+                await loadRepoFiles();
                 const { ImportHistory } = await import("./import-executor.ts");
                 ImportHistory.push({
                   name: finalName,

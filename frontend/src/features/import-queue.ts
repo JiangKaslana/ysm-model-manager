@@ -61,7 +61,6 @@ export function initImportQueue(app: ImportQueueHost): () => void {
     { current: state.currentFileName },
     { current: state.currentRelPath },
     state.fileQueue,
-    { current: state.repoFiles },
     { current: state.isImporting },
     renderImportedListFn,
     actions.advanceQueue,

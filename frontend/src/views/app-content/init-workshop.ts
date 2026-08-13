@@ -489,6 +489,16 @@ export function initWorkshopPage(host: AppContentHost): void {
   }; // end showRepoModels
 }
 
-/** 防止 avatar:config-loaded 事件重复注册（模块级状态，与 index.ts 共享） */
+/** 防止 avatar:config-loaded 事件重复注册（模块级状态，经 reset 函数与 index.ts 协作） */
 let _avatarConfigLoadedRegistered = false;
 let _avatarConfigLoadedUnsub: (() => void) | null = null;
+
+/** 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag，
+ *  组件销毁后新实例可重新注册（拆分后模块级状态隔离，必须经导出函数访问） */
+export function resetAvatarConfigLoaded(): void {
+  if (_avatarConfigLoadedUnsub) {
+    _avatarConfigLoadedUnsub();
+    _avatarConfigLoadedUnsub = null;
+  }
+  _avatarConfigLoadedRegistered = false;
+}

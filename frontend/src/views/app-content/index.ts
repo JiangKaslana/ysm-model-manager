@@ -19,6 +19,7 @@ import {
   initGithubPage,
   initSettingsPage,
 } from "./init-pages.ts";
+import { resetAvatarConfigLoaded } from "./init-workshop.ts";
 import {
   repositoryHTML,
   instancesHTML,
@@ -28,10 +29,6 @@ import {
   githubHTML,
 } from "./tpl.ts";
 
-/** 防止 avatar:config-loaded 事件重复注册（unsub 随组件销毁回收并复位 flag） */
-let _avatarConfigLoadedRegistered = false;
-let _avatarConfigLoadedUnsub: (() => void) | null = null;
-import { Events } from "@wailsio/runtime";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { t } from "../../core/i18n/t.ts";
 import type { WorkshopModel } from "../../features/community/render.ts";
@@ -126,12 +123,9 @@ class AppContent extends HTMLElement {
     this._resizeUp = null;
     this._avatarRefreshRegistered = false;
     this._insListenerReg = false;
-    // config-loaded Wails 订阅回收 + flag 复位（组件重建后新实例可重新注册）
-    if (_avatarConfigLoadedUnsub) {
-      _avatarConfigLoadedUnsub();
-      _avatarConfigLoadedUnsub = null;
-    }
-    _avatarConfigLoadedRegistered = false;
+    // config-loaded Wails 订阅回收 + flag 复位（init-workshop.ts 模块级状态，
+    // 经导出函数访问——组件重建后新实例可重新注册）
+    resetAvatarConfigLoaded();
     // 清理 _unsubs（dedup 等页面的事件订阅）
     if (this._unsubs && Array.isArray(this._unsubs)) {
       this._unsubs.forEach((fn) => {
