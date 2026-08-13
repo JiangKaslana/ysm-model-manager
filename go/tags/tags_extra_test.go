@@ -266,3 +266,27 @@ func TestTrimTag_ControlCharsAndTruncate(t *testing.T) {
 		t.Errorf("超长标签应截断到 %d rune, got %d", maxTagLen, len([]rune(got)))
 	}
 }
+
+func TestStoreMemoryModeRetainsWrites(t *testing.T) {
+	// 内存态（configDir 为空，Android 沙盒不可用场景）：SetTags/AddTag 写入
+	// 应会话内保留——修复前 load() 在内存态分支每次重建空 map，写入被清空
+	// （注释「load no-op」与实际行为矛盾，子代理审计发现）
+	s := NewStore("")
+	if err := s.SetTags("/models/a.ysm", []string{"主角"}); err != nil {
+		t.Fatalf("内存态 SetTags 不应报错: %v", err)
+	}
+	got, err := s.GetTags("/models/a.ysm")
+	if err != nil {
+		t.Fatalf("内存态 GetTags 不应报错: %v", err)
+	}
+	if len(got) != 1 || got[0] != "主角" {
+		t.Fatalf("内存态标签应会话内保留, 得到 %v", got)
+	}
+	if err := s.AddTag("/models/a.ysm", "配件"); err != nil {
+		t.Fatalf("内存态 AddTag 不应报错: %v", err)
+	}
+	got, _ = s.GetTags("/models/a.ysm")
+	if len(got) != 2 {
+		t.Fatalf("AddTag 后应有 2 个标签, 得到 %v", got)
+	}
+}

@@ -38,12 +38,12 @@ func NewStore(configDir string) *Store {
 func (s *Store) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.path == "" {
-		s.data = make(map[string][]string) // 内存态：空数据，load no-op
-		return nil
-	}
 	if s.data != nil {
-		return nil // 已加载
+		return nil // 已加载（内存态与磁盘态统一：仅首次调用初始化）
+	}
+	if s.path == "" {
+		s.data = make(map[string][]string) // 内存态：首次初始化，后续 SetTags 写入会话内保留
+		return nil
 	}
 	// data 的初始化移到读取成功之后——原实现在 ReadFile/Unmarshal 之前
 	// 就 `s.data = make(...)`，tags.json 损坏或不可读时 load 返回 error 但 data 已非 nil，
