@@ -39,9 +39,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 51 | 187 |
-| frontend/views | 76 | 208 |
+| frontend/views | 77 | 209 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **258** | **1075** |
+| **合计** | **259** | **1076** |
 
 ## Go·头像
 
@@ -1131,15 +1131,16 @@
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:6` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl:89` | — |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `GH_RELEASES()` | `frontend/src/views/app-content/tpl:11` | — |
-| `repositoryHTML()` | `frontend/src/views/app-content/tpl:14` | — |
-| `instancesHTML()` | `frontend/src/views/app-content/tpl:65` | — |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl:86` | — |
-| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:508` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:572` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:603` | — |
+| `repositoryHTML()` | `frontend/src/views/app-content/tpl:17` | — |
+| `instancesHTML()` | `frontend/src/views/app-content/tpl:68` | — |
+| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:511` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:575` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:606` | — |
 | `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:8` | 创作者身份识别结果 |
 | `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:15` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
 | `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:22` | — |

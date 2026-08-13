@@ -235,20 +235,25 @@ export const contentCreatorCSS: string = `
   padding:48px 20px;color:var(--muted);font-size:var(--fs-md);
   text-align:center;gap:8px;
 }
-.cr-empty-site .cr-site-link { color:var(--accent);font-size:var(--fs-sm); }
-
-/* ===== 编辑模式卡片 ===== */
+/* ===== 编辑模式卡片（合并 base + override：cascade 后置覆盖，此处合并为单一块） ===== */
 .cr-edit-card {
-  padding:6px 10px;border-radius:var(--radius-lg);
-  border:1px solid var(--bd);background:var(--card);
-  margin-bottom:4px;transition:box-shadow var(--tr-normal);
+  padding:4px 8px 6px;
+  border-radius:var(--radius-lg);
+  border:1px solid var(--bd);
+  background:var(--surf);
+  margin:4px 12px;
+  overflow:hidden;
+  cursor:default;
+  transition:box-shadow var(--tr-normal), border-color var(--tr-normal), margin-top var(--tr-normal), margin-bottom var(--tr-normal);
 }
 .cr-edit-card:hover { box-shadow:0 0 0 1px var(--accent); }
-.cr-edit-card-head { display:flex;align-items:center;gap:6px; }
-.cr-edit-card-body { padding-top:4px;display:flex;flex-direction:column;gap:4px; }
-.cr-edit-card-row { display:flex;align-items:center;gap:4px; }
-.cr-drag-handle { cursor:grab;color:var(--muted);font-size:14px;user-select:none; }
-.cr-edit-card-avatar { font-size:16px;width:24px;text-align:center;flex-shrink:0; }
+.cr-edit-card:active { cursor:grabbing; }
+.cr-edit-card-head { display:flex; align-items:center; gap:4px; padding:6px 8px; border-bottom:1px solid var(--bd); background:var(--bg); }
+.cr-edit-card-body { padding:4px 8px 6px; display:flex; flex-direction:column; gap:4px; }
+.cr-edit-card-row { display:flex; align-items:center; gap:4px; margin:2px 0; }
+.cr-edit-card-row select { flex:1; }
+.cr-drag-handle { cursor:grab; color:var(--muted); font-size:14px; user-select:none; line-height:1; }
+.cr-edit-card-avatar { width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--surf); font-size:11px; flex-shrink:0; }
 .cr-input {
   flex:1;min-width:60px;border:none;background:transparent;
   color:var(--txt);font-size:var(--fs-sm);font-family:inherit;outline:none;
@@ -364,16 +369,6 @@ export const contentCreatorCSS: string = `
 .cr-local-btn { padding:2px 8px;border-radius:var(--radius-sm);border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:var(--fs-xs);font-family:inherit;transition:background-color var(--tr-fast),color var(--tr-fast); }
 .cr-local-btn:hover { background:var(--accent);color:var(--bg); }
 .cr-local-count { font-size:var(--fs-xs);color:var(--muted);align-self:center; }
-
-/* ===== 创作者编辑卡片（独立样式块，与上方 .cr-edit-card 列表版区分） ===== */
-.cr-edit-card { margin:4px 12px; border-radius:var(--radius-lg); border:1px solid var(--bd); background:var(--surf); overflow:hidden; cursor:default; transition:box-shadow var(--tr-normal),border-color var(--tr-normal),margin-top var(--tr-normal),margin-bottom var(--tr-normal); }
-.cr-edit-card:active { cursor:grabbing; }
-.cr-edit-card-head { display:flex; align-items:center; gap:4px; padding:6px 8px; border-bottom:1px solid var(--bd); background:var(--bg); }
-.cr-drag-handle { font-size:14px; color:var(--muted); cursor:grab; user-select:none; line-height:1; }
-.cr-edit-card-avatar { width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--surf); font-size:11px; flex-shrink:0; }
-.cr-edit-card-body { padding:4px 8px 6px; }
-.cr-edit-card-row { display:flex; align-items:center; gap:4px; margin:2px 0; }
-.cr-edit-card-row select { flex:1; }
 
 .cr-error-page .cr-back-repo { margin-bottom:12px; }
 `;
