@@ -85,7 +85,7 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `HideWindow()` | `go/executil/hidewindow_other:8` | HideWindow 非 Windows no-op（Unix 无控制台窗口概念）。 |
-| `HideWindow()` | `go/executil/hidewindow_windows:14` | HideWindow 隐藏子进程控制台窗口（Windows 专属）。 |
+| `HideWindow()` | `go/executil/hidewindow_windows:15` | HideWindow 隐藏子进程控制台窗口（Windows 专属）。 |
 
 ## go/fileops
 
