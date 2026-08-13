@@ -58,7 +58,7 @@ export const contentCreatorCSS: string = `
 .cr-back:hover { background:var(--hover); }
 .cr-url { flex:1;font-size:var(--fs-sm);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 
-/* 创作者卡片（.cr-creator-card 两种上下文：列表行 / 网格卡片） */
+/* 创作者卡片：.cr-creator-card 基础（列表行） + .cr-creator-card--grid 网格变体（BEM 修饰符，替代后置 cascade 覆盖） */
 .cr-creator-card { display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-md);border:1px solid var(--bd);background:var(--bg);cursor:pointer;transition:var(--tr-fast); }
 .cr-creator-card:hover { border-color:var(--accent);background:var(--hover); }
 .cr-creator-card.cr-has-repo { border-left:3px solid var(--accent); }
@@ -75,7 +75,8 @@ export const contentCreatorCSS: string = `
   width:100%;
   padding:4px 0 8px;
 }
-.cr-creator-card {
+/* 网格卡片变体：.cr-creator-card--grid —— 显式 BEM 修饰符，替代后置 cascade 覆盖 */
+.cr-creator-card--grid {
   min-width:200px;max-width:280px;
   flex:1 1 200px;
   cursor:pointer;
@@ -91,20 +92,20 @@ export const contentCreatorCSS: string = `
   position:relative;
   overflow:hidden;
 }
-.cr-creator-card:hover {
+.cr-creator-card--grid:hover {
   border-color:var(--accent);
   background:var(--hover);
   box-shadow:0 2px 12px rgba(0,0,0,.1);
   transform:translateY(-1px);
 }
-.cr-creator-card:focus-visible {
+.cr-creator-card--grid:focus-visible {
   box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
   outline:none;
 }
-.cr-creator-card:hover .cr-card-tier-bar { opacity:1; }
-.cr-creator-card:hover .cr-avatar { transform:rotate(-8deg) scale(1.05); }
+.cr-creator-card--grid:hover .cr-card-tier-bar { opacity:1; }
+.cr-creator-card--grid:hover .cr-avatar { transform:rotate(-8deg) scale(1.05); }
 /* 筛选隐藏态：淡出 + 折叠 */
-.cr-creator-card.cr-card-hidden {
+.cr-creator-card--grid.cr-card-hidden {
   opacity:0;
   transform:scale(.95);
   max-height:0;
@@ -121,17 +122,17 @@ export const contentCreatorCSS: string = `
 .cr-card-tier-bar {
   position:absolute;top:0;left:0;right:0;height:2px;opacity:.6;transition:opacity var(--tr-normal);
 }
-.cr-creator-card[data-tier="gold"] .cr-card-tier-bar { background:var(--sm-optional); }
-.cr-creator-card[data-tier="silver"] .cr-card-tier-bar { background:var(--muted); }
-.cr-creator-card[data-tier="gold"] .cr-avatar-ring {
+.cr-creator-card--grid[data-tier="gold"] .cr-card-tier-bar { background:var(--sm-optional); }
+.cr-creator-card--grid[data-tier="silver"] .cr-card-tier-bar { background:var(--muted); }
+.cr-creator-card--grid[data-tier="gold"] .cr-avatar-ring {
   background:conic-gradient(from var(--grad-rot,0deg),#D4A017,transparent 60%,#D4A017);
   box-shadow:0 0 6px rgba(212,160,23,.4);
 }
-.cr-creator-card[data-tier="silver"] .cr-avatar-ring {
+.cr-creator-card--grid[data-tier="silver"] .cr-avatar-ring {
   background:conic-gradient(from var(--grad-rot,0deg),#9E9E9E,transparent 60%,#9E9E9E);
   box-shadow:0 0 6px rgba(158,158,158,.25);
 }
-.cr-creator-card[data-tier=""] .cr-avatar-ring {
+.cr-creator-card--grid[data-tier=""] .cr-avatar-ring {
   background:conic-gradient(from var(--grad-rot,0deg),#6B9FFF,transparent 60%,#6B9FFF);
   box-shadow:none;
 }

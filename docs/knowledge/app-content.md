@@ -16,6 +16,7 @@ source_files:
   - frontend/src/views/app-content/content-creator.ts
   - frontend/src/views/app-content/content-diag.ts
   - frontend/src/views/app-content/content-util.ts
+  - frontend/src/views/app-content/site/render.ts
   - frontend/src/views/app-content/community-data.ts
   - frontend/src/views/app-content/diagnostics/init.ts
   - frontend/src/views/app-content/diagnostics/logs.ts
@@ -73,7 +74,7 @@ invariant_anchors:
 - `content-css.ts` — 样式组合层：`[layout, repo, creator, diag, util].join("\n")` 输出单一 CSS 字符串，入口 `index.ts` 通过 `adoptedStyleSheets[0].replaceSync(contentCSS)` 注入 Shadow DOM；CSS 全走 CSS 变量
 - `content-layout.ts` — 基础层：`::host` 变量（`--tag-*` / `--badge-*` / `--hm-*` / `--sidebar-w` / `--diag-left-w` / `--touch-min`）+ 通用 keyframes（`pageIn` / `ring-spin` / `card-in` / `detail-in` / `fade-in` / `dl-slide-up`）+ 骨架（`.page` / `.stat-card` / `.placeholder-box`）+ 通用卡片系统（`.model-card` / `.model-card-sm` / `.rec-card` / `.health-ring`）+ 旧按钮兼容层（`.btn` / `.hdr-btn`）
 - `content-repo.ts` — 仓库/实例/站点骨架（`.repo-*` / `.ins-*` / `.batch-*`）+ 资历页（`.oldest-*`）+ 热力图（`.hm-*` / `.pick-card`）+ 通用标签（`.tag-author` / `.tag-work` / `.tag-date` / `.link-badge-*`）
-- `content-creator.ts` — 创作者 `.cr-*` 全族：标签（`.cr-tag*`）/ 频道（`.cr-page` / `.cr-left` / `.cr-right`）/ 卡片（`.cr-creator-card` / `.cr-card-*` / `.cr-creator-grid`）/ 详情浮层（`.cr-detail-*`）/ 编辑（`.cr-edit-*` / `.cr-input*` / `.cr-drop-zone` / drag states）；含头像 `.cr-avatar` / `.cr-avatar-ring` 供 gh-card 复用
+- `content-creator.ts` — 创作者 `.cr-*` 全族：标签（`.cr-tag*`）/ 频道（`.cr-page` / `.cr-left` / `.cr-right`）/ 卡片（`.cr-creator-card` 基础列表行 + `.cr-creator-card--grid` BEM 修饰符网格变体 + `.cr-card-*` / `.cr-creator-grid`）/ 详情浮层（`.cr-detail-*`）/ 编辑（`.cr-edit-*` / `.cr-input*` / `.cr-drop-zone` / drag states）；含头像 `.cr-avatar` / `.cr-avatar-ring` 供 gh-card 复用
 - `content-diag.ts` — 诊断页（`.diag-*` / `.log-row` / `.conflict-row` / scan 动画）+ 设置页（`.settings-group` / `.stg-*` / `#set-advanced-panel`）+ GitHub 工坊（`.gh-*` 全族：仓库列表 / 模型行 / 二级菜单 / 下载队列 / 错误页）
 - `content-util.ts` — 杂项：回收站动画（`.recy-*`）/ 资源管理器（`.rm-*`）/ 预览拖拽（`.preview-resize-handle`）/ 主题选择器（`.theme-*`）/ 响应式 `@media (max-width:768px)`
 - `community-data.ts` — 社区数据层：`loadCommunityData`（并发 `App.LoadWorkshopSites` / `LoadWorkshopCreators` / `ListModelAuthors` / `ScanLocalAuthors`）、`fetchCommunityCreators` / `mergeCommunityCreators` / `fetchCommunitySites` / `mergeCommunitySites` / `fillSearch` / `DEFAULT_COMMUNITY_URL`

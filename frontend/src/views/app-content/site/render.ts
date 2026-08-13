@@ -54,7 +54,7 @@ export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement 
   const hasAvatar = avatarCache && avatarCache[cr.name];
 
   const card = document.createElement("div");
-  card.className = "gh-card cr-creator-card";
+  card.className = "gh-card cr-creator-card cr-creator-card--grid";
   card.tabIndex = 0;
   card.style.animationDelay = idx * 0.03 + "s";
   card.dataset.name = cr.name;
