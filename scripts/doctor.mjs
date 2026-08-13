@@ -8,6 +8,8 @@
  * 用法：
  *   node scripts/doctor.mjs                 # 默认行为（全量：编译+构建+文件+红线+Git）
  *   node scripts/doctor.mjs --docs   # 文档模式（轻量：仅文档/ADR/索引检查，跳过 Go/前端编译与测试）
+ *   node scripts/doctor.mjs --gate       # 门禁模式（域感知，对齐 pre-push-gate，不触发 push）
+ *   node scripts/doctor.mjs --gate <ref> # 指定 ref（默认 HEAD，用于预检未提交的改动）
  *   node scripts/doctor.mjs --check  # 启用 check
  *   node scripts/doctor.mjs --strict # 启用 strict
  * 退出码：任何非零检查([FAIL])均置 process.exitCode=1 阻断；仅 WARN/skip 不阻断
@@ -484,8 +486,214 @@ function checkDocExtra() {
 }
 
 const DOCS_MODE = process.argv.includes('--docs');
+const GATE_MODE = process.argv.includes('--gate');
 
-if (DOCS_MODE) {
+if (GATE_MODE) {
+  // --gate 模式：域感知门禁，对齐 pre-push-gate（不触发 push）
+  // 用法：node scripts/doctor.mjs --gate [ref]
+  //   ref 默认 HEAD（预检未提交改动）；也可传具体 commit oid。
+  //   与 pre-push-gate 共享同一套域分类 + 检查链，不做 gofmt amend（只读校验）。
+  const GATE_SKIP = process.env.YSM_SKIP_GATE;
+  if (GATE_SKIP === '1') {
+    console.log('[--gate] YSM_SKIP_GATE=1, 跳过');
+    process.exit(0);
+  }
+
+  const DATA_FILES = new Set([
+    'resource_types.json', 'creators.json', 'workshop_sites.json', 'workshop-github.json',
+  ]);
+  function classify(f) {
+    if (f.endsWith('.go')) return 'go';
+    if (f === 'go.mod' || f === 'go.sum') return 'go';
+    if (f === 'wails.json') return 'frontend';
+    if (f.startsWith('frontend/')) return 'frontend';
+    if (DATA_FILES.has(f)) return 'data';
+    if (f.startsWith('docs/') || f.endsWith('.md')) return 'docs';
+    if (f.startsWith('tests/') || f.startsWith('scripts/')) return 'tests';
+    return 'other';
+  }
+
+  // 解析 ref → oid，再算变更集
+  const refArgIdx = process.argv.indexOf('--gate') + 1;
+  const refArg = process.argv[refArgIdx];
+  const baseRef = refArg || 'HEAD';
+  const { rc, out: oidOut } = run(['git', 'rev-parse', '--verify', baseRef]);
+  if (rc !== 0) {
+    console.log(`[--gate] 无法解析 ref "${baseRef}"，退化为全量`);
+    console.log('========== YSM Doctor (gate fallback: bad ref) ==========');
+    buildUpdaterHelper();
+    checkGoBuild();
+    checkGoVet();
+    checkGoTest();
+    checkContractTests();
+    checkFrontendBuild();
+    checkFrontendTest();
+    checkTypeScript();
+    checkKeyFiles();
+    checkGovernance();
+    checkConfig();
+    checkStaticAnalysis();
+    checkGit();
+    console.log('\n========== Done ==========');
+    process.exit(process.exitCode ?? 0);
+  }
+  const localOid = oidOut.trim();
+
+  // 找远端基准：origin/<branch> / origin/HEAD / origin/main / origin/master
+  const { rc: rcBranch, out: branchOut } = run(['git', 'branch', '--show-current']);
+  const branch = rcBranch === 0 && branchOut.trim() ? branchOut.trim() : null;
+  const candidates = branch ? [`origin/${branch}`, 'origin/HEAD', 'origin/main', 'origin/master'] : ['origin/HEAD', 'origin/main', 'origin/master'];
+  let mergeBase = null;
+  for (const c of candidates) {
+    const { rc: rcMb, out: outMb } = run(['git', 'merge-base', localOid, c]);
+    if (rcMb === 0 && outMb.trim()) { mergeBase = outMb.trim(); break; }
+  }
+  // 无基准（新分支/新仓库）→ 取上一个 commit 作为 diff 起点
+  const diffBase = mergeBase || `${localOid}~1`;
+  const { rc: rcDiff, out: diffOut } = run(['git', 'diff', '--name-only', `${diffBase}..${localOid}`]);
+  const files = rcDiff === 0 ? diffOut.trim().split('\n').filter(Boolean) : [];
+  const plan = { go: false, frontend: false, data: false, docs: false, adr: false, contractTests: false, redlines: false };
+  for (const f of files) {
+    const d = classify(f);
+    if (d === 'go') plan.go = true;
+    if (d === 'frontend') { plan.frontend = true; plan.redlines = true; }
+    if (d === 'data') plan.data = true;
+    if (d === 'docs') { plan.docs = true; plan.adr = true; }
+    if (d === 'tests') plan.contractTests = true;
+    if (f.startsWith('docs/adr/') || f.startsWith('docs/architecture/adr/')) plan.adr = true;
+  }
+  // Go 变更也触发红线（红线覆盖 go 与 frontend）
+  if (plan.go) plan.redlines = true;
+
+  const domainSummary = Object.entries(plan)
+    .filter(([, v]) => v)
+    .map(([k]) => k)
+    .join(', ') || '无变更';
+  console.log(`========== YSM Doctor (--gate mode) ==========`);
+  console.log(`ref: ${baseRef} (oid ${localOid.slice(0, 7)})  diffBase: ${mergeBase ? mergeBase.slice(0, 7) : 'root'}  files: ${files.length}`);
+  console.log(`变更域: ${domainSummary}`);
+  console.log('');
+
+  let blocked = false;
+  const results = [];
+  function record(label, ok, note) {
+    results.push({ label, ok, note });
+    if (!ok) blocked = true;
+  }
+
+  // --- Go 域 ---
+  if (plan.go) {
+    const t0 = Date.now();
+    const gb = run(['go', 'build', './go/...']);
+    record('go build', gb.rc === 0, gb.rc ? gb.out.trim().split('\n').slice(-3).join(' | ') : '');
+    const t1 = Date.now();
+    const gt = run(['go', 'test', './go/...', '-count=1']);
+    record('go test', gt.rc === 0, gt.rc ? gt.out.trim().split('\n').slice(-3).join(' | ') : `${(t1 - t0) / 1000}s`);
+    const t2 = Date.now();
+    const bc = run(['node', path.join('scripts', 'binding-check.mjs'), '--json']);
+    record('binding-check', bc.rc === 0, bc.rc ? bc.out.trim().split('\n').slice(-2).join(' | ') : '');
+  }
+
+  // --- 前端域 ---
+  if (plan.frontend) {
+    const tL = Date.now();
+    const ll = run(['node', path.join('scripts', 'check-layering.mjs'), '--json']);
+    let lz = null;
+    try { lz = JSON.parse(ll.out || '{}')._summary; } catch { /* ignore */ }
+    const lOk = ll.rc === 0;
+    record('check-layering', lOk, lz ? `零容忍 ${lz.zero_tolerance} / 回归 ${lz.regressions}` : '');
+    const t0 = Date.now();
+    // 对齐 pre-push-gate：用 npx + shell:true（Windows .cmd shim 需 cmd.exe）
+    const fb = run(['npx', 'vite', 'build'], path.join(ROOT, 'frontend'), { shell: true });
+    record('vite build', fb.rc === 0, fb.rc ? fb.out.trim().split('\n').slice(-3).join(' | ') : `${(Date.now() - t0) / 1000}s`);
+    const t1 = Date.now();
+    // 对齐 pre-push-gate：统一用 npx + shell:true（Windows 下 .cmd shim 需 cmd.exe 承载）
+    const ft = run(['npx', 'vitest', 'run', '--maxWorkers', '8'], path.join(ROOT, 'frontend'), { shell: true });
+    record('vitest run', ft.rc === 0, ft.rc ? ft.out.trim().split('\n').slice(-3).join(' | ') : `${(Date.now() - t1) / 1000}s`);
+  }
+
+  // --- 数据域 ---
+  if (plan.data) {
+    const t0 = Date.now();
+    const tc = run(['node', path.join('scripts', 'type-consistency.mjs'), '--json']);
+    let issues = null;
+    try { issues = JSON.parse(tc.out || '{}')._summary?.issues ?? 0; } catch { /* ignore */ }
+    const ok = issues === 0;
+    record('type-consistency', ok, ok ? '一致' : `${issues} 个不一致`);
+  }
+
+  // --- 文档域 ---
+  if (plan.docs) {
+    const t0 = Date.now();
+    const lc = run(['node', path.join('scripts', 'link-checker.mjs'), '--json']);
+    let broken = null;
+    try { broken = JSON.parse(lc.out || '{}')._summary?.links_broken ?? 0; } catch { /* ignore */ }
+    record('link-checker', broken === 0, broken === null ? '' : `${broken} 条断链`);
+    const t1 = Date.now();
+    const rn = run(['node', path.join('scripts', 'release-notes-gen.mjs'), '--check']);
+    record('release-notes', rn.rc === 0, rn.rc ? rn.out.trim().split('\n').slice(-3).join(' | ') : '');
+    const t2 = Date.now();
+    const gd = run(['node', path.join('scripts', 'gen-docs-index.mjs'), '--check']);
+    record('gen-docs-index', gd.rc === 0, gd.rc ? gd.out.trim().split('\n').slice(-2).join(' | ') : '');
+  }
+
+  // --- 红线 ---
+  if (plan.redlines) {
+    const t0 = Date.now();
+    const rl = run(['node', path.join('scripts', 'check-redlines.mjs'), '--json', '--baseline']);
+    let newV = null, ok = false, baseCount = 0;
+    try {
+      const parsed = JSON.parse(rl.out || '{}');
+      const s = parsed._summary;
+      newV = s.newViolations ?? null;
+      baseCount = s.baselineViolations ?? 0;
+      ok = s.ok === true;
+    } catch { ok = false; }
+    record('check-redlines', ok, newV === null ? '' : `${newV} 条新增（基线 ${baseCount} 条）`);
+  }
+
+  // --- ADR ---
+  if (plan.adr) {
+    const t0 = Date.now();
+    const ac = run(['node', path.join('scripts', 'adr-check.mjs')]);
+    record('adr-check', ac.rc === 0, ac.rc ? ac.out.trim().split('\n').slice(-3).join(' | ') : '');
+  }
+
+  // --- 契约测试 ---
+  if (plan.contractTests) {
+    const t0 = Date.now();
+    const testsDir = path.join(ROOT, 'tests');
+    if (fs.existsSync(testsDir)) {
+      const testFiles = fs.readdirSync(testsDir).filter((f) => f.endsWith('.mjs')).sort();
+      let failed = 0;
+      for (const f of testFiles) {
+        const r = run(['node', path.join('tests', f)]);
+        if (r.rc !== 0) failed++;
+      }
+      record(`contract-tests (${testFiles.length})`, failed === 0, failed ? `${failed} 失败` : '全部通过');
+    } else {
+      record('contract-tests', true, '无 tests/ 目录，跳过');
+    }
+  }
+
+  // --- 聚合摘要 ---
+  console.log('------------------- 结果 -------------------');
+  for (const r of results) {
+    const status = r.ok ? PASS : FAIL;
+    console.log(`${status} ${r.label.padEnd(20)} ${r.note || ''}`);
+  }
+  console.log('');
+  if (!results.length) {
+    console.log(`${WARN} 无相关域变更（${domainSummary}），无需检查`);
+    process.exit(0);
+  }
+  if (!blocked) {
+    console.log(`结论: PASS ✅ ${results.filter((r) => r.ok).length}/${results.length} 项通过`);
+    process.exit(0);
+  }
+  console.log(`结论: FAIL ❌ ${results.filter((r) => r.ok).length}/${results.length} 项通过`);
+  process.exit(1);
+} else if (DOCS_MODE) {
   // —— 文档模式：轻量，跳过一切 Go / 前端编译与测试 ——
   console.log('========== YSM Doctor (docs mode) ==========');
   console.log('跳过：Updater Helper / Go Build / Go Vet / Go Test / Contract Tests');
