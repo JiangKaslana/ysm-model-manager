@@ -226,6 +226,10 @@ export const autoSidebar = [
         "link": "/releases/v1.11.1"
       },
       {
+        "text": "v1.12.0 — 纯 exe 发布 + WASM 引擎 + 红线清零 + 跨平台加固",
+        "link": "/releases/v1.12.0"
+      },
+      {
         "text": "v1.2.0 — 开发者对比（技术细节）",
         "link": "/releases/v1.2.0-compare"
       },
