@@ -115,12 +115,11 @@ jobs:
       - name: Go 覆盖率报告（非阻断，趋势可见）
         shell: pwsh
         run: |
-          # -coverpkg 聚合全部 go/ 包，避免多包时 coverprofile 仅含首个测试包的碎片数据
-          go test ./go/... -coverpkg=./go/... -coverprofile=go-cover.out -count=1 | Out-String -Width 200
+          # -p 1 串行：多包并行跑 coverprofile 时 go/scanner 测试存在隔离冲突（flaky），
+          # 串行可复现通过（本地已验证）。本步骤仅作覆盖率趋势展示，不构成测试门禁。
+          go test ./go/... -coverprofile=go-cover.out -count=1 -p 1 | Out-String -Width 200
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # 无测试包 / 空 profile 时 cover -func 报错；此处仅作趋势展示，容忍空文件（非阻断非门禁）
-          go tool cover -func=go-cover.out 2>$null | Select-String 'total:'
-          if ($LASTEXITCODE -ne 0) { Write-Output "（无覆盖率数据，跳过）" }
+          go tool cover -func=go-cover.out | Select-String 'total:'
 
       - name: 前端类型检查（ADR-014 门槛）
         working-directory: frontend
@@ -174,8 +173,6 @@ jobs:
 
       - name: E2E 测试（7min 总限 / 15s 每项 / maxFailures=5）
         working-directory: frontend
-        env:
-          DEBUG: pw:webserver
         run: npx playwright test --reporter=line
 
       - name: 上传 E2E 报告（失败时保留现场）

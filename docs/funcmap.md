@@ -267,7 +267,7 @@
 | `ComputeFileHash()` | `go/scanner/scanner:246` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
 | `ListModelAuthors()` | `go/scanner/scanner:270` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
 | `ScanLocalAuthors()` | `go/scanner/scanner:302` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:361` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:370` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
