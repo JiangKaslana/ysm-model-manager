@@ -83,7 +83,7 @@ invariant_anchors:
 ## 对外 API / 入口
 
 - `idb.ts`: `openDB()`, `idbGet<T>(store, key)`, `idbSet(store, key, value)`, `idbDel(store, key)`, `idbKeys(store, prefix)`, `_resetDBForTest()`
-- `app.ts`: `getApp()` (Promise<AppBindings>), `AppBindings` 类型
+- `app.ts`: `getApp()` 返回 `Promise<AppBindings>`，`AppBindings` 类型定义
 - `browser-adapter.ts`: `browserAdapter` (AppBindings), `importWebFiles(files, type)`, `selectLocalRepo()`, `arrayBufferToBase64(buf)`, `WebUnsupportedError`
 - `platform.ts`: `resolveWebMode()`, `isWebEntryMode()`, `readDeclaredBackend()`
 - `types.ts`: `AppBindings` 类型定义
