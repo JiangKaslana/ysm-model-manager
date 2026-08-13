@@ -11,18 +11,11 @@
 
 // P1 修复（ADR-040）：立方体几何/UV/旋转工具已拆至 cube-mesh.ts，此处 re-export 兼容
 export { buildCubeMeshData, mergeCubes, parseUV, eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./cube-mesh.ts";
-import { buildCubeMeshData, mergeCubes, parseUV, eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./cube-mesh.ts";
 // P1 修复（ADR-040）：buildModelGroup 已拆至 model-group-builder.ts，此处 re-export 兼容
 export { buildModelGroup } from "./model-group-builder.ts";
 import { buildModelGroup } from "./model-group-builder.ts";
 
 // ===== 常量（对齐 Go spec.go / parse.go）=====
-
-/** 零厚度面修正值（避免 Three.js 渲染零面积面）— thicknessEpsilon */
-const THICKNESS_EPSILON = 0.001;
-
-/** 同名骨骼 cube 合并的浮点 epsilon — cubeEpsilon */
-const CUBE_EPSILON = 0.001;
 
 /** parseBedrockGeometry 接受的最大输入大小 — maxParseSize */
 const MAX_PARSE_SIZE = 100 << 20; // 100MB

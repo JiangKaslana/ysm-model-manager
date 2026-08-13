@@ -10,6 +10,9 @@ source_files:
   - frontend/src/utils/3d/debug-render.ts
   - frontend/src/utils/3d/camera-control.ts
   - frontend/src/utils/3d/bone-raycast.ts
+  - frontend/src/utils/3d/cube-mesh.ts
+  - frontend/src/utils/3d/model-group-builder.ts
+  - frontend/src/utils/3d/quaternion.ts
   - frontend/src/utils/3d/spec-builder.ts
   - frontend/src/views/app-preview/model3d-loader.ts
   - frontend/src/utils/3d/model3d-spec.ts

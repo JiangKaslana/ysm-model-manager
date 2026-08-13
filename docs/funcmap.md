@@ -38,10 +38,10 @@
 | 前端·特性 | 18 | 88 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 52 | 190 |
+| 前端·工具 | 53 | 193 |
 | frontend/views | 78 | 209 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **262** | **1092** |
+| **合计** | **263** | **1095** |
 
 ## Go·头像
 
@@ -905,12 +905,12 @@
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:38` | 遍历 scene 释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:53` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
-| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:19` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
-| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:194` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
-| `parseUV()` | `frontend/src/utils/3d/cube-mesh:222` | 解析 UV：faceUV 优先、失败回退 expandBoxUV、c.UV 回退。 |
-| `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh:254` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
-| `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh:316` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
-| `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh:327` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
+| `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh` | — |
+| `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
+| `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
+| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:24` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
+| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:199` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
+| `parseUV()` | `frontend/src/utils/3d/cube-mesh:227` | 解析 UV：faceUV 优先、失败回退 expandBoxUV、c.UV 回退。 |
 | `DebugBoneData()` | `frontend/src/utils/3d/debug-render:7` | — |
 | `makeTextTexture()` | `frontend/src/utils/3d/debug-render:14` | 生成骨骼名 Canvas 纹理（Sprite 标签用） |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:43` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
@@ -950,6 +950,9 @@
 | `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:66` | renderModel3D 返回的渲染句柄 |
 | `renderModel3D()` | `frontend/src/utils/3d/model3d:101` | 渲染 3D 模型到容器，返回控制句柄 |
 | `screenshotPreview()` | `frontend/src/utils/3d/model3d:404` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `eulerToQuaternion()` | `frontend/src/utils/3d/quaternion:13` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
+| `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
+| `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
 | `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:7` | setupRenderer 返回的组件 |
