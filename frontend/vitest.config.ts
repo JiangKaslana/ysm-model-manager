@@ -28,15 +28,14 @@ export default defineConfig({
         "src/views/app-preview/wasm.ts",
       ],
       thresholds: {
-        // 2026-08-09 校准：ADR-023 §2.4 的 85/70/82/85 基于旧 js/** 布局；
-        // src/ 迁移 + community/site/dialogs 等组件文件并入 include 后实际跌至
-        // stmts 42.68 / branches 36.19 / funcs 43.75 / lines 43.8（大批组件级
-        // 文件按决策不硬补单测，见 coverage exclude 注释）。照旧例降至实际-5pt
-        // 作防回退基准，覆盖提升后可上调。
-        statements: 40,
-        branches: 31,
-        functions: 40,
-        lines: 40,
+        // 2026-08-13 校准：8-09 校准（40/31/40/40）后 src/** 单测大规模补强
+        // （122 测试文件 / 1493 用例），实测升至 stmts 77.31 / branches 61.3 /
+        // funcs 73.94 / lines 80.21。照旧例取实际-5pt 作防回退基准（72/56/68/75），
+        // 覆盖提升后可上调。
+        statements: 72,
+        branches: 56,
+        functions: 68,
+        lines: 75,
       },
     },
   },
