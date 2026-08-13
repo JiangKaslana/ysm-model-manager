@@ -1,5 +1,6 @@
 // ===== 统一模态弹窗测试（modal.ts）=====
 // 覆盖：closeDlg / registerDlg / modalConfirm / modalPrompt / modalSelect
+//       + trapFocus / fmtMB / modalProgress / 键盘与遮罩交互
 // 注意：_activeOverlay/_closeActive 是模块级单例，每个用例必须把弹窗关干净，
 // 否则残留的 _closeActive 会在下一个用例 registerDlg 时触发（脏状态）。
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -10,6 +11,9 @@ import {
   modalConfirm,
   modalPrompt,
   modalSelect,
+  modalProgress,
+  trapFocus,
+  fmtMB,
 } from "./modal.ts";
 
 // 统一清理：恢复真实定时器（防 fake timers 泄漏到下一用例）+ 移除残留 overlay
@@ -171,6 +175,282 @@ describe("modalConfirm — 确认框", () => {
     expect(titleEl.querySelector("img")).toBeNull(); // 未生成 img 元素
     expect(titleEl.innerHTML).toContain("&lt;img"); // 原文以转义形式保留
     closeActiveDlg();
+  });
+});
+
+describe("modalConfirm — Enter 守卫（P3/P2 修复：按钮目标与 IME 组合态不抢先确认）", () => {
+  it("焦点在取消按钮上按 Enter → 由按钮原生 click 处理，box 不抢先确认", async () => {
+    const promise = modalConfirm({ title: "确认?", message: "继续?" });
+    const cancelBtn = document.querySelector("#mc-cancel") as HTMLElement;
+    cancelBtn.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    await new Promise((r) => setTimeout(r, 30));
+    // promise 未被结算（未被抢先确认）
+    let settled = false;
+    promise.then(() => (settled = true));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(settled).toBe(false);
+    closeActiveDlg();
+  });
+
+  it("IME 组合态按 Enter → 不确认", async () => {
+    const promise = modalConfirm({ title: "确认?", message: "继续?" });
+    const box = document.querySelector(".dlg-box") as HTMLElement;
+    box.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, isComposing: true }),
+    );
+    let settled = false;
+    promise.then(() => (settled = true));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(settled).toBe(false);
+    closeActiveDlg();
+  });
+});
+
+describe("modalConfirm / modalPrompt / modalSelect — overlay 级 Escape", () => {
+  it("confirm：Escape 点在遮罩（overlay）上返回 false", async () => {
+    const promise = modalConfirm({ title: "确认?", message: "继续?" });
+    const overlay = document.querySelector(".dlg-overlay") as HTMLElement;
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await expect(promise).resolves.toBe(false);
+  });
+
+  it("prompt：Escape 点在遮罩上返回 null", async () => {
+    const promise = modalPrompt({ title: "命名" });
+    const overlay = document.querySelector(".dlg-overlay") as HTMLElement;
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await expect(promise).resolves.toBeNull();
+  });
+
+  it("prompt：点击遮罩背景返回 null", async () => {
+    const promise = modalPrompt({ title: "命名" });
+    const overlay = document.querySelector(".dlg-overlay") as HTMLElement;
+    overlay.click();
+    await expect(promise).resolves.toBeNull();
+  });
+
+  it("select：Escape 点在遮罩上返回 null", async () => {
+    const promise = modalSelect({ title: "选择", items: ["A"] });
+    const overlay = document.querySelector(".dlg-overlay") as HTMLElement;
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await expect(promise).resolves.toBeNull();
+  });
+
+  it("select：点击遮罩背景返回 null", async () => {
+    const promise = modalSelect({ title: "选择", items: ["A"] });
+    const overlay = document.querySelector(".dlg-overlay") as HTMLElement;
+    overlay.click();
+    await expect(promise).resolves.toBeNull();
+  });
+});
+
+describe("modalPrompt — 输入框键盘交互", () => {
+  it("Enter 提交输入值", async () => {
+    const promise = modalPrompt({ title: "命名" });
+    const input = document.querySelector("#mp-input") as HTMLInputElement;
+    input.value = "新名字";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    await expect(promise).resolves.toBe("新名字");
+  });
+
+  it("Enter 空输入 → 错误提示且不关闭", async () => {
+    const promise = modalPrompt({ title: "命名" });
+    const input = document.querySelector("#mp-input") as HTMLInputElement;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    const errEl = document.querySelector("#mp-err") as HTMLElement;
+    expect(errEl?.textContent).toContain("不能为空");
+    closeActiveDlg();
+  });
+
+  it("Escape 在输入框上返回 null", async () => {
+    const promise = modalPrompt({ title: "命名" });
+    const input = document.querySelector("#mp-input") as HTMLInputElement;
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await expect(promise).resolves.toBeNull();
+  });
+});
+
+describe("modalSelect — 下拉框键盘交互", () => {
+  it("Enter 提交当前选中项", async () => {
+    const promise = modalSelect({ title: "选择", items: ["A", "B"] });
+    const select = document.querySelector("#ms-select") as HTMLSelectElement;
+    select.value = "B";
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    await expect(promise).resolves.toBe("B");
+  });
+
+  it("Escape 在 select 上返回 null", async () => {
+    const promise = modalSelect({ title: "选择", items: ["A"] });
+    const select = document.querySelector("#ms-select") as HTMLSelectElement;
+    select.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await expect(promise).resolves.toBeNull();
+  });
+
+  it("select 开启期间新弹窗注册 → 旧 select 经 registerDlg 抢占的 cancelClose 结算为 null", async () => {
+    const promise = modalSelect({ title: "选择", items: ["A"] });
+    const cancelBtn = document.querySelector("#ms-cancel") as HTMLElement;
+    expect(cancelBtn).not.toBeNull();
+    // 新弹窗注册会调 _closeActive() → 旧 select 的 cancelClose（modal.ts:247）被触发
+    modalConfirm({ title: "新弹窗", message: "抢占旧弹窗" });
+    await expect(promise).resolves.toBeNull();
+  });
+});
+
+describe("trapFocus — 焦点陷阱", () => {
+  const makeOverlay = (): { overlay: HTMLElement; btn1: HTMLButtonElement; btn2: HTMLButtonElement } => {
+    const overlay = document.createElement("div");
+    const btn1 = document.createElement("button");
+    btn1.id = "f1";
+    const btn2 = document.createElement("button");
+    btn2.id = "f2";
+    overlay.append(btn1, btn2);
+    document.body.appendChild(overlay);
+    return { overlay, btn1, btn2 };
+  };
+
+  it("Shift+Tab 在首元素 → 跳到末元素；Tab 在末元素 → 跳回首元素", () => {
+    const { overlay, btn1, btn2 } = makeOverlay();
+    const cleanup = trapFocus(overlay);
+    btn1.focus();
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, shiftKey: true }));
+    expect(document.activeElement).toBe(btn2);
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    expect(document.activeElement).toBe(btn1);
+    cleanup();
+    overlay.remove();
+  });
+
+  it("焦点在 overlay 本身 → Tab 跳首元素、Shift+Tab 跳末元素", () => {
+    const { overlay, btn1, btn2 } = makeOverlay();
+    const cleanup = trapFocus(overlay);
+    overlay.focus();
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    expect(document.activeElement).toBe(btn1);
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, shiftKey: true }));
+    expect(document.activeElement).toBe(btn2);
+    cleanup();
+    overlay.remove();
+  });
+
+  it("非 Tab 键不拦截；无可聚焦元素直接返回", () => {
+    const empty = document.createElement("div");
+    document.body.appendChild(empty);
+    const cleanup = trapFocus(empty);
+    expect(() =>
+      empty.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true })),
+    ).not.toThrow();
+    expect(() =>
+      empty.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true })),
+    ).not.toThrow();
+    cleanup();
+    empty.remove();
+  });
+
+  it("cleanup 后移除监听器（不再拦截 Tab）", () => {
+    const { overlay, btn1, btn2 } = makeOverlay();
+    const cleanup = trapFocus(overlay);
+    cleanup();
+    btn1.focus();
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, shiftKey: true }));
+    expect(document.activeElement).toBe(btn1);
+    overlay.remove();
+  });
+});
+
+describe("fmtMB — 字节格式化", () => {
+  it("正常值 → x.x MB", () => {
+    expect(fmtMB(5 * 1024 * 1024)).toBe("5.0 MB");
+    expect(fmtMB(1024 * 1024 * 1.25)).toBe("1.3 MB");
+  });
+
+  it("非有限数/负数 → 0.0 MB（ADR-044 ② 数值守卫）", () => {
+    expect(fmtMB(NaN)).toBe("0.0 MB");
+    expect(fmtMB(Infinity)).toBe("0.0 MB");
+    expect(fmtMB(-1)).toBe("0.0 MB");
+    expect(fmtMB(0)).toBe("0.0 MB");
+  });
+});
+
+describe("modalProgress — 进度弹窗", () => {
+  it("update 已知总大小 → 百分比/字节文案与条幅宽度", () => {
+    vi.useFakeTimers();
+    const h = modalProgress({ title: "下载" });
+    h.update(25 * 1024 * 1024, 100 * 1024 * 1024);
+    const fill = document.querySelector(".dlg-box > div:nth-child(2) > div") as HTMLElement;
+    expect(fill.style.width).toBe("25%");
+    const pctEl = document.querySelector(".dlg-box > div:nth-child(3)") as HTMLElement;
+    expect(pctEl.textContent).toContain("25%");
+    expect(pctEl.textContent).toContain("25.0 MB / 100.0 MB");
+    // 超 100 钳制
+    h.update(200 * 1024 * 1024, 100 * 1024 * 1024);
+    expect(fill.style.width).toBe("100%");
+  });
+
+  it("update 未知大小（total<=0）→ 不确定态 60% + 已下载文案", () => {
+    vi.useFakeTimers();
+    const h = modalProgress({ title: "下载" });
+    h.update(7 * 1024 * 1024, 0);
+    const fill = document.querySelector(".dlg-box > div:nth-child(2) > div") as HTMLElement;
+    expect(fill.style.width).toBe("60%");
+    const pctEl = document.querySelector(".dlg-box > div:nth-child(3)") as HTMLElement;
+    expect(pctEl.textContent).toContain("7.0 MB");
+  });
+
+  it("update 非有限数值 → 忽略不写样式（NaN% 防注入）", () => {
+    vi.useFakeTimers();
+    const h = modalProgress({ title: "下载" });
+    h.update(50, 100);
+    const fill = document.querySelector(".dlg-box > div:nth-child(2) > div") as HTMLElement;
+    fill.style.width = "50%";
+    h.update(NaN, 100);
+    h.update(50, NaN);
+    expect(fill.style.width).toBe("50%");
+  });
+
+  it("closable=true（默认）Esc/点遮罩均可关闭；关闭后 update 无副作用", async () => {
+    vi.useFakeTimers();
+    const h = modalProgress({ title: "下载" });
+    const overlay = document.querySelector(".dlg-overlay") as HTMLElement;
+    overlay.click();
+    // _closing 防重复：Escape 再触发也不会双重移除/结算
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await vi.advanceTimersByTimeAsync(120);
+    expect(document.body.contains(overlay)).toBe(false);
+    // 关闭后 update 静默忽略（不抛错、不复活）
+    expect(() => h.update(10, 100)).not.toThrow();
+  });
+
+  it("自定义 width 应用在弹窗盒子上", () => {
+    vi.useFakeTimers();
+    modalProgress({ title: "下载", width: "420px" });
+    const box = document.querySelector(".dlg-box") as HTMLElement;
+    expect(box.style.width).toBe("420px");
+    closeActiveDlg();
+  });
+
+  it("closable=false 进度弹窗 → Esc/点遮罩/back 均不关闭", () => {
+    vi.useFakeTimers();
+    const h = modalProgress({ title: "下载", closable: false });
+    const overlay = document.querySelector(".dlg-overlay") as HTMLElement;
+    overlay.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    overlay.click();
+    expect(closeActiveDialog()).toBe(false);
+    expect(document.body.contains(overlay)).toBe(true);
+    // 显式 close() 仍可关
+    h.close();
+    vi.advanceTimersByTime(120);
+    expect(document.body.contains(overlay)).toBe(false);
+  });
+
+  it("close() 幂等：重复调用只关闭一次", () => {
+    vi.useFakeTimers();
+    const h = modalProgress({ title: "下载" });
+    const overlay = document.querySelector(".dlg-overlay") as HTMLElement;
+    h.close();
+    h.close();
+    vi.advanceTimersByTime(120);
+    expect(document.body.contains(overlay)).toBe(false);
   });
 });
 
