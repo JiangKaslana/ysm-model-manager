@@ -271,12 +271,6 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 // SyncResources 对比两个目录的资源文件差异，按文件名匹配
 // 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步
 // 只统计模型/资源相关扩展名的文件，忽略无关文件
-
-// isResourcePackFolder 检查目录是否是资源包文件夹（内含 pack.mcmeta）——统一走 fsutil 收敛实现
-
-// SyncResources 对比两个目录的资源文件差异，按文件名匹配
-// 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步
-// 只统计模型/资源相关扩展名的文件，忽略无关文件
 func SyncResources(globalDir, instanceDir string) types.ResourceSyncResult {
 	result := types.ResourceSyncResult{}
 

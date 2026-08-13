@@ -290,9 +290,9 @@
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
 | `GetInstanceStatusWith()` | `go/sync/sync:31` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
 | `SyncToggleStatus()` | `go/sync/sync:147` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:280` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
-| `SortEntries()` | `go/sync/sync:374` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:382` | getLinkType 判断文件的链接类型 GetLinkType 判断文件的链接类型 |
+| `SyncResources()` | `go/sync/sync:274` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
+| `SortEntries()` | `go/sync/sync:368` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:376` | getLinkType 判断文件的链接类型 GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
