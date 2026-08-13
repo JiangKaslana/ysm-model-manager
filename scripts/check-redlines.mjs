@@ -97,8 +97,13 @@ function runChecks() {
   // R8 只报「非纯字符串字面量赋值 + 行内无 esc(」的 innerHTML：
   // 纯静态模板（= "..." / = `...` 开头）与已转义插值不计入（历史 149 处噪声多来自它们）；
   // 变量/拼接赋值仍保留待人工确认
+  // 豁免：空字符串清场（= "" 无 XSS）与项目内常量（= ICONS. 非用户输入）——2026-08-13 溯源
   const r8Inner = rg('innerHTML\\s*=\\s*[^\'"`\\n]', 'frontend/src', ['*.js', '*.ts']).filter(
-    (l) => !/esc\(/.test(l),
+    (l) =>
+      !/esc\(/.test(l) &&
+      !/innerHTML\s*=\s*""/.test(l) &&
+      !/innerHTML\s*=\s*''/.test(l) &&
+      !/innerHTML\s*=\s*ICONS\./.test(l),
   );
   add('R8', 'innerHTML concat (non-literal)',
     r8Inner,
