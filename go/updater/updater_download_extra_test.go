@@ -1,11 +1,7 @@
-//go:build !short
-// +build !short
-
 // ===== go/updater downloadOnce 错误分支补测 =====
 // 覆盖：NewRequest 失败、传输层连接失败、响应被截断（io.Copy 错误）、
-// 分块传输超过 500MB 上限的截断探测拒绝。全部走本地 httptest，零真实网络。
-// 该文件含 TestDownloadOnce_TruncationProbe（回环实发 500MB+），耗时 1-3s。
-// 用 !short 标记，go test -short（CI/快速验证）跳过，本地全量 go test 仍跑。
+// 分块传输超过上限的截断探测拒绝。全部走本地 httptest，零真实网络。
+// TruncationProbe 测试覆盖 maxDownloadSize 为 1MB，回环传输 1MB 秒级完成。
 package updater
 
 import (
@@ -74,13 +70,17 @@ func TestDownloadOnce_TruncatedResponse(t *testing.T) {
 	}
 }
 
-// TestDownloadOnce_TruncationProbe 覆盖分块传输（无 Content-Length）超过 500MB
-// 上限的截断探测分支：读到上限后再读 1 字节仍有数据 → 拒绝
-// 说明：该分支在 httptest 本地回环上传输 500MB（零压缩全零数据，单次用例约 1-3 秒）
+// TestDownloadOnce_TruncationProbe 覆盖分块传输（无 Content-Length）超过上限的截断探测分支：
+// 读到上限后再读 1 字节仍有数据 → 拒绝。测试覆盖 maxDownloadSize 为 1MB，回环传输秒级完成。
 func TestDownloadOnce_TruncationProbe(t *testing.T) {
 	isolateProxy(t)
+	// 覆盖上限为 1MB，避免回环传输 500MB 拖慢测试
+	old := maxDownloadSize
+	maxDownloadSize = 1 << 20
+	t.Cleanup(func() { maxDownloadSize = old })
+
 	chunk := make([]byte, 256<<10) // 256KB 复用缓冲，避免大分配
-	const maxBody = int64(500 << 20)
+	maxBody := int64(maxDownloadSize)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.(http.Flusher).Flush() // 先发 header → chunked，绕过 Content-Length 预检分支
@@ -94,7 +94,7 @@ func TestDownloadOnce_TruncationProbe(t *testing.T) {
 
 	_, err := Download(server.URL+"/pkg.zip", "")
 	if err == nil {
-		t.Fatal("超过 500MB 上限应返回错误")
+		t.Fatal("超过上限应返回错误")
 	}
 	if !strings.Contains(err.Error(), "上限") {
 		t.Errorf("错误信息应包含大小上限, got %v", err)

@@ -11,6 +11,10 @@ import (
 	"ysm-model-manager/go/types"
 )
 
+func init() {
+	debounceDelay = 50 * time.Millisecond
+}
+
 func mockScanFunc(dir string) []types.ModelEntry { return nil }
 
 // setupMinecraftRoot 创建一个伪 mcRoot，含 versions/{name}/config/yes_steve_model/custom/ 结构

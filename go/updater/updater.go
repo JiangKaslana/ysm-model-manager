@@ -28,7 +28,8 @@ const (
 var updateLock sync.Mutex
 
 // maxDownloadSize 更新包下载大小上限（500MB）
-const maxDownloadSize = 500 << 20
+// 测试可覆盖为更小值以加速
+var maxDownloadSize int64 = 500 << 20
 
 // ghProxyPrefixes GitHub Release 下载加速代理前缀（第三方公开服务，域名可能变动）。
 // 更新包多源回退：直连 asset URL 失败/超时后按序拼接重试；测试可整体替换为本地 server。

@@ -18,7 +18,8 @@ import (
 type ScanFunc = mdsync.ScanFunc
 
 // debounceDelay 防抖延迟 — 仓库文件变更后等待多久再触发同步（合并批量操作）
-const debounceDelay = 800 * time.Millisecond
+// 测试可覆盖为更小值以加速
+var debounceDelay = 800 * time.Millisecond
 
 // Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包
 type Watcher struct {
