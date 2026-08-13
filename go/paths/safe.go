@@ -21,6 +21,24 @@ func (e *ErrPathEscalation) Error() string {
 // 注意：本函数不追踪符号链接。若 baseDir 或 path 中包含指向外部目录的符号链接，
 // 可能错误地判定为安全。调用方应在必要时先用 filepath.EvalSymlinks 解析。
 func IsInside(baseDir, path string) error {
+	// BUG-2 修复：空路径无意义——filepath.Abs("") 返回 CWD，
+	// 若 CWD 恰等于 baseDir 会误判通过，必须显式拒绝。
+	if path == "" {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "空路径无意义"}
+	}
+	// BUG-5 修复：NUL 字节注入——Linux filepath.Abs 会静默截断 NUL 后内容
+	// （如 "normal\x00../../etc" → "normal"），绕过后续 prefix 检查。
+	// Windows filepath.Abs 虽然会报错，但报错类型不可控（err != ErrPathEscalation），
+	// 且在 Clean 后可能漏过。主动拒绝，跨平台一致。
+	if strings.Contains(path, "\x00") {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "路径含 NUL 字节"}
+	}
+	if baseDir == "" {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "空基准目录无意义"}
+	}
+	if strings.Contains(baseDir, "\x00") {
+		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "基准路径含 NUL 字节"}
+	}
 	absBase, err := filepath.Abs(filepath.Clean(baseDir))
 	if err != nil {
 		return &ErrPathEscalation{Path: path, BaseDir: baseDir, Reason: "无法解析基准路径: " + err.Error()}

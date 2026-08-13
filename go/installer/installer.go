@@ -261,12 +261,18 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 
 	isAllowed := func(name string) bool {
 		low := strings.ToLower(name)
+		ext := filepath.Ext(low)
+		// BUG-3 修复：default 分支不再通吃所有文件——
+		// 可执行文件（.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi）
+		// 即使 rtype="" 也应被拒绝，防止模型目录内嵌的 .exe 被拷贝进 .minecraft。
+		switch ext {
+		case ".exe", ".bat", ".dll", ".cmd", ".scr", ".pif", ".com", ".msi", ".ps1", ".vbs":
+			return false
+		}
 		switch rtype {
 		case "mmd-skin":
-			ext := filepath.Ext(low)
 			return ext == ".pmx" || ext == ".pmd" || ext == ".png" || ext == ".tga" || ext == ".spa" || ext == ".sph"
 		case "ysm":
-			ext := filepath.Ext(low)
 			return ext == ".json" || ext == ".png" || ext == ".jpg" || ext == ".jpeg"
 		default:
 			return true
