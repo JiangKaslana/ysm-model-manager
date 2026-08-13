@@ -41,6 +41,7 @@ invariant_anchors:
 - 封装 `getApp()` 异步获取后端 App 实例（Wails Go 绑定 / browser adapter 二选一）
 - **平台路由判定**（`platform.ts`，同步判定，ADR-049 Phase 1）：Tier 0 = 入口 HTML 显式声明 `globalThis.__YSM_BACKEND__`（`'go' | 'browser'`，权威信号，web.html 置 `'browser'` 后即便误嵌进 WebView 也强制走 browserAdapter）；Tier 1 = `__YSM_WEB__ === true` 或 `import.meta.env.MODE === "web"`；Tier 2 = 运行时探测 `window.go`（Wails 桌面）或 `window.wails`（Android 桥）——纯浏览器两者都不存在。`import.meta.env.MODE` 必须直接书写（vite define 是文本替换，中间变量/可选链会失效）
 - **browser adapter**（`browser-adapter.ts`，ADR-049 Phase 1 骨架 + Phase 2 IndexedDB 模型库）：Proxy 生成与 Wails AppBindings 同形状的后端；已实现 binding 走真实数据（IndexedDB 模型库 + localStorage 配置，`idb.ts`），未实现 binding **fail-fast 抛 `WebUnsupportedError`**（杜绝 undefined 穿透静默失败）；虚拟根 `/web` 让前端路径语义（GetRepoRoot → ScanModelEntries → ReadFileBytes）与桌面一致；导入白名单复用 `dnd-shared`（.json 仅放行 ysm.json，其余须 ALL_EXTS 成员）
+- **Proxy has trap 契约**（第七轮修复）：`has` 用 `Object.prototype.hasOwnProperty.call(webImpls, name)` 仅看自有键——`'toString' in adapter` 等原型成员返回 false（原沿原型链恒 true，与 get trap 的 PROTOTYPE_MEMBERS 豁免不对称，Phase 3 能力门控误报）；`webImpls` 键集加类型级对账（`satisfies Record` 保留字面量键 + `AssertSubset<keyof AppBindings>`），拼错键/漏实现编译期暴露
 - 处理调用异常并转为 Promise rejection
 
 ## 使用方式
