@@ -51,4 +51,4 @@ features:
 
 **技术栈**：Go (Wails v3) + 原生 HTML/CSS/TS (Web Components + Shadow DOM) + Three.js + YSMParser WASM
 **平台支持**：✅ Windows (amd64) · ⚠️ macOS (实验性) · ✅ Linux (amd64) · ✅ Android (arm64，查看器模式)
-**网页版**：🕸️ 部署于本 GitHub Pages 的 [/app/ 子路径](./app/)（ADR-049：纯浏览器托管，IndexedDB 模型库，拖拽导入 + 树浏览 + 3D 预览，无需安装）
+**网页版**：🕸️ 部署于本 GitHub Pages 的 [/app/ 子路径](https://eghrhegpe.github.io/ysm-model-manager/app/)（ADR-049：纯浏览器托管，IndexedDB 模型库，拖拽导入 + 树浏览 + 3D 预览，无需安装）
