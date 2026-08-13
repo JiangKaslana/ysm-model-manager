@@ -35,13 +35,13 @@
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 9 | 56 |
 | 前端·核心 | 14 | 28 |
-| 前端·特性 | 16 | 72 |
+| 前端·特性 | 18 | 88 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 50 | 180 |
-| frontend/views | 70 | 199 |
+| 前端·工具 | 51 | 182 |
+| frontend/views | 75 | 204 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **249** | **1043** |
+| **合计** | **257** | **1066** |
 
 ## Go·头像
 
@@ -736,17 +736,33 @@
 | `showProgress()` | `frontend/src/features/community/data:7` | 创建进度条 UI（插入到 searchResults 容器） |
 | `FetchModelsResult()` | `frontend/src/features/community/data:36` | 抓取结果 |
 | `tryFetchModels()` | `frontend/src/features/community/data:49` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
-| `DownloadTask()` | `frontend/src/features/community/download-queue:24` | 下载任务 |
-| `QueueError()` | `frontend/src/features/community/download-queue:32` | 队列错误项 |
-| `DownloadState()` | `frontend/src/features/community/download-queue:38` | 队列状态快照 |
-| `subscribe()` | `frontend/src/features/community/download-queue:77` | 订阅 STATE 变更。返回取消订阅函数。 |
-| `getState()` | `frontend/src/features/community/download-queue:89` | 当前状态的只读快照 |
-| `resume()` | `frontend/src/features/community/download-queue:98` | 页面切回时调用，从 Go 端恢复当前队列状态。 |
-| `enqueueDownloads()` | `frontend/src/features/community/download-queue:145` | 模块级入队 — 纯粹的 Go 调用，不涉及 DOM。 |
-| `cancelDownloads()` | `frontend/src/features/community/download-queue:201` | 模块级取消 — 纯粹的 Go 调用。 |
-| `QueueControllerOptions()` | `frontend/src/features/community/download-queue:308` | createDownloadQueue 选项 |
-| `QueueController()` | `frontend/src/features/community/download-queue:317` | 队列控制器 |
-| `createDownloadQueue()` | `frontend/src/features/community/download-queue:342` | 创建一个下载队列 UI 控制器。 |
+| `PctEl()` | `frontend/src/features/community/download-queue-progress:10` | 进度条元素的自定义属性（点动画） |
+| `ProgressGuardHooks()` | `frontend/src/features/community/download-queue-progress:16` | createProgressGuard 依赖注入（controller 提供查找与收口回调） |
+| `ProgressGuard()` | `frontend/src/features/community/download-queue-progress:24` | 进度条守卫控制器 |
+| `createProgressGuard()` | `frontend/src/features/community/download-queue-progress:40` | — |
+| `DownloadTask()` | `frontend/src/features/community/download-queue-store:27` | 下载任务 |
+| `QueueError()` | `frontend/src/features/community/download-queue-store:35` | 队列错误项 |
+| `DownloadState()` | `frontend/src/features/community/download-queue-store:41` | 队列状态快照 |
+| `STATE()` | `frontend/src/features/community/download-queue-store:53` | 模块级共享状态（progress guard / UI 控制器 import 协作，不对外 re-export） |
+| `subscribe()` | `frontend/src/features/community/download-queue-store:75` | 订阅 STATE 变更。返回取消订阅函数。 |
+| `notify()` | `frontend/src/features/community/download-queue-store:83` | 广播 STATE 变更（UI 控制器 enqueue 失败回滚等场景也经此通知） |
+| `getState()` | `frontend/src/features/community/download-queue-store:88` | 当前状态的只读快照 |
+| `resume()` | `frontend/src/features/community/download-queue-store:97` | 页面切回时调用，从 Go 端恢复当前队列状态。 |
+| `isActiveStatus()` | `frontend/src/features/community/download-queue-store:136` | 队列是否处于活跃下载中（downloading 或 enqueued）。 |
+| `enqueueDownloads()` | `frontend/src/features/community/download-queue-store:144` | 模块级入队 — 纯粹的 Go 调用，不涉及 DOM。 |
+| `cancelDownloads()` | `frontend/src/features/community/download-queue-store:200` | 模块级取消 — 纯粹的 Go 调用。 |
+| `subscribe()` | `frontend/src/features/community/download-queue` | — |
+| `getState()` | `frontend/src/features/community/download-queue` | — |
+| `resume()` | `frontend/src/features/community/download-queue` | — |
+| `enqueueDownloads()` | `frontend/src/features/community/download-queue` | — |
+| `cancelDownloads()` | `frontend/src/features/community/download-queue` | — |
+| `isActiveStatus()` | `frontend/src/features/community/download-queue` | — |
+| `DownloadTask()` | `frontend/src/features/community/download-queue` | — |
+| `DownloadState()` | `frontend/src/features/community/download-queue` | — |
+| `QueueError()` | `frontend/src/features/community/download-queue` | — |
+| `QueueControllerOptions()` | `frontend/src/features/community/download-queue:43` | createDownloadQueue 选项 |
+| `QueueController()` | `frontend/src/features/community/download-queue:52` | 队列控制器 |
+| `createDownloadQueue()` | `frontend/src/features/community/download-queue:77` | 创建一个下载队列 UI 控制器。 |
 | `DOWNLOAD_CONFIRM_BYTES()` | `frontend/src/features/community/download-tasks:7` | 超过该大小需弹窗确认（含边界值本身直接下载） |
 | `DOWNLOAD_REJECT_BYTES()` | `frontend/src/features/community/download-tasks:9` | 超过该大小直接拒绝（含边界值本身需确认） |
 | `DownloadSizeDecision()` | `frontend/src/features/community/download-tasks:11` | — |
@@ -895,6 +911,7 @@
 | `MaterialWithMap()` | `frontend/src/utils/3d/mesh:18` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:23` | 释放材质（含位图 .map），null/undefined 安全。 |
 | `buildSceneMesh()` | `frontend/src/utils/3d/mesh:31` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
+| `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:19` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
 | `BedrockModel()` | `frontend/src/utils/3d/model2d:31` | BedrockModel（AnalyzeBedrockModel 返回） |
@@ -933,10 +950,11 @@
 | `eulerToQuaternion()` | `frontend/src/utils/3d/spec-builder` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/spec-builder` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/spec-builder` | — |
+| `buildModelGroup()` | `frontend/src/utils/3d/spec-builder:293` | 单组件 spec 构建核心（Build 与 BuildMulti 共用）。 |
 | `Vec3()` | `frontend/src/utils/3d/spec-builder:30` | vec3 — Go threejs/spec.go L55 |
 | `Cube2D()` | `frontend/src/utils/3d/spec-builder:37` | Cube2D — Go types/bedrock.go Cube2D |
 | `MeshData()` | `frontend/src/utils/3d/spec-builder:101` | MeshData — Go threejs/spec.go MeshData |
-| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:120` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:127` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:12` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:9` | 三维向量 [x, y, z] |
 | `Keyframe()` | `frontend/src/utils/animation/animation:12` | 关键帧 |
@@ -1054,7 +1072,12 @@
 | `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:253` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
 | `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:277` | 合并社区站点到本地 workshop_sites.json |
 | `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:298` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
-| `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
+| `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
+| `contentCSS()` | `frontend/src/views/app-content/content-css:12` | — |
+| `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:2` | — |
+| `contentLayoutCSS()` | `frontend/src/views/app-content/content-layout:5` | — |
+| `contentRepoCSS()` | `frontend/src/views/app-content/content-repo:2` | — |
+| `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
