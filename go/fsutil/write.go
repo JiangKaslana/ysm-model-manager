@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // ErrTempCreateFailed 标记「创建临时文件」阶段失败（目录只读/磁盘满/配额）。
@@ -62,6 +63,12 @@ func ReadLimitedEntry(rc io.ReadCloser, limit int64) []byte {
 // 防多用户/共享目录下导入/日志文件不可读）；任一失败分支删除临时文件，不留残渣。
 // 返回普通 error（本包不依赖 go/types 的结构化错误契约，调用方按需包装）。
 func WriteFileAtomic(destPath string, data []byte) error {
+	// 跨平台 NUL 字节防御——Windows OS 自然拒绝（"invalid argument"），
+	// 但 Linux filepath.Abs 会静默截断 NUL 后内容（"safe.ysm\x00.exe" → "safe.ysm"），
+	// 导致写入非预期文件。在 Go 层显式拒绝，跨平台行为一致。
+	if strings.Contains(destPath, "\x00") {
+		return fmt.Errorf("%w: destPath 含 NUL 字节", ErrTempCreateFailed)
+	}
 	destDir := filepath.Dir(destPath)
 	tmp, err := createTempFile(destDir, ".atomic-*.tmp")
 	if err != nil {
