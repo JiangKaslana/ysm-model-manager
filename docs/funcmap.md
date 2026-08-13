@@ -51,12 +51,12 @@
 | `ReadCachedAvatar()` | `go/avatar/avatar:145` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
 | `SaveAvatarData()` | `go/avatar/avatar:171` | SaveAvatarData 将头像数据写入缓存。 |
 | `ExtractAvatarURI()` | `go/avatar/avatar:192` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
-| `CacheAvatarsFromJSON()` | `go/avatar/avatar:356` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
-| `CacheAvatarsFromModel()` | `go/avatar/avatar:421` | CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。 |
-| `ReadFileFromZip()` | `go/avatar/avatar:520` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
-| `SetNodeJS()` | `go/avatar/avatar:582` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
-| `limitedBuffer.Write()` | `go/avatar/avatar:597` | — |
-| `DecodeYSMFiles()` | `go/avatar/avatar:606` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
+| `CacheAvatarsFromJSON()` | `go/avatar/avatar:361` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
+| `CacheAvatarsFromModel()` | `go/avatar/avatar:431` | CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。 |
+| `ReadFileFromZip()` | `go/avatar/avatar:530` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
+| `SetNodeJS()` | `go/avatar/avatar:601` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
+| `limitedBuffer.Write()` | `go/avatar/avatar:616` | — |
+| `DecodeYSMFiles()` | `go/avatar/avatar:625` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
 
 ## Go·去重
 
@@ -129,10 +129,10 @@
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:58` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:79` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
 | `ParseFromZip()` | `go/geometry/archive:300` | — |
-| `ParseFrom7z()` | `go/geometry/archive:606` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理 |
-| `IsMainModelName()` | `go/geometry/archive:892` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:904` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1002` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
+| `ParseFrom7z()` | `go/geometry/archive:610` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理 |
+| `IsMainModelName()` | `go/geometry/archive:902` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:914` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1012` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
 | `ParseBedrockGeometry()` | `go/geometry/parse:25` | ParseBedrockGeometry 解析标准 Bedrock geometry JSON（minecraft:geometry 格式） 注意：data 大小不应超过 maxP |
 
 ## Go·导入
@@ -140,8 +140,8 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `ImportFromBase64()` | `go/importer/importer_file:30` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
-| `WriteFileAtomic()` | `go/importer/importer_file:106` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
-| `DetectZipType()` | `go/importer/importer_file:117` | DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型 |
+| `WriteFileAtomic()` | `go/importer/importer_file:112` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
+| `DetectZipType()` | `go/importer/importer_file:123` | DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型 |
 | `ImportOptions()` | `go/importer/importer_file:20` | ImportOptions 导入选项 |
 | `ImportLogger()` | `go/importer/importer_file:26` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
 | `Register()` | `go/importer/importer:31` | Register 注册导入策略 |
@@ -149,12 +149,12 @@
 | `NewSimpleCopy()` | `go/importer/importer:62` | NewSimpleCopy 创建简单文件复制导入器 |
 | `SimpleCopyImporter.Type()` | `go/importer/importer:66` | — |
 | `SimpleCopyImporter.Import()` | `go/importer/importer:68` | — |
-| `NewDirectoryCopy()` | `go/importer/importer:218` | NewDirectoryCopy 创建文件夹复制导入器 |
-| `DirectoryCopyImporter.Type()` | `go/importer/importer:222` | — |
-| `DirectoryCopyImporter.Import()` | `go/importer/importer:227` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
+| `NewDirectoryCopy()` | `go/importer/importer:246` | NewDirectoryCopy 创建文件夹复制导入器 |
+| `DirectoryCopyImporter.Type()` | `go/importer/importer:250` | — |
+| `DirectoryCopyImporter.Import()` | `go/importer/importer:255` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
 | `Handler()` | `go/importer/importer:21` | Handler 资源导入策略接口 |
 | `SimpleCopyImporter()` | `go/importer/importer:57` | — |
-| `DirectoryCopyImporter()` | `go/importer/importer:213` | — |
+| `DirectoryCopyImporter()` | `go/importer/importer:241` | — |
 
 ## Go·安装
 

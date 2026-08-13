@@ -93,3 +93,151 @@ func TestParseBedrockGeometry_TooLarge(t *testing.T) {
 		t.Fatalf("超过 100MB 上限应返回 nil")
 	}
 }
+
+// ====== ParseBedrockGeometry 边界 / 畸形输入补测 ======
+
+func TestParseBedrockGeometry_TexSizeClamp(t *testing.T) {
+	// texture_width/height 无有限性校验（ADR-011 修复）：溢出/负数/超上限钳到 0，
+	// 合法上限 65536 保留（防止 1e100 → int 溢出为负 → UV 归一化除垃圾值）
+	cases := []struct {
+		name       string
+		texW, texH string
+		wantW      int
+		wantH      int
+	}{
+		{"巨大数字溢出", "1e100", "64", 0, 64},
+		{"负数", "-5", "32", 0, 32},
+		{"超上限 1", "65537", "32", 0, 32},
+		{"上限边界", "65536", "65536", 65536, 65536},
+		{"宽合法高溢出", "64", "1e100", 64, 0},
+		{"宽合法高负数", "64", "-3", 64, 0},
+		{"宽合法高超上限", "64", "70000", 64, 0},
+	}
+	for _, c := range cases {
+		desc := `{"identifier":"t","texture_width":` + c.texW + `,"texture_height":` + c.texH + `}`
+		geom := `{"format_version":"1.16.0","minecraft:geometry":[{"description":` + desc + `,"bones":[]}]}`
+		m := ParseBedrockGeometry([]byte(geom))
+		if m == nil {
+			t.Fatalf("[%s] 应解析成功", c.name)
+		}
+		if m.TexWidth != c.wantW || m.TexHeight != c.wantH {
+			t.Errorf("[%s] TexWidth/TexHeight = %d/%d, 期望 %d/%d（钳制到 [0,65536]）",
+				c.name, m.TexWidth, m.TexHeight, c.wantW, c.wantH)
+		}
+	}
+	// 缺失（description 无 texture 字段）→ 零值
+	m := ParseBedrockGeometry([]byte(`{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"t"},"bones":[]}]}`))
+	if m == nil {
+		t.Fatal("[缺失] 应解析成功")
+	}
+	if m.TexWidth != 0 || m.TexHeight != 0 {
+		t.Errorf("[缺失] TexWidth/TexHeight = %d/%d, 期望 0/0", m.TexWidth, m.TexHeight)
+	}
+}
+
+func TestParseBedrockGeometry_InvalidCubeUV(t *testing.T) {
+	// cube uv 无法解析（非数组形态）→ 记日志、UV 归零，cube 仍保留
+	geom := `{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"t"},"bones":[{"name":"b","cubes":[{"origin":[0,0,0],"size":[1,1,1],"uv":"oops"}]}]}]}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("应解析成功（UV 失败不丢弃 cube）")
+	}
+	if m.CubeCount != 1 || len(m.Bones[0].Cubes) != 1 {
+		t.Fatalf("CubeCount = %d, 期望 1", m.CubeCount)
+	}
+	if m.Bones[0].Cubes[0].UV != [2]float64{} {
+		t.Errorf("UV = %v, 期望零值", m.Bones[0].Cubes[0].UV)
+	}
+}
+
+func TestParseBedrockGeometry_InvalidRotations(t *testing.T) {
+	// cube/bone rotation 无法解析 → 记日志、归零，不 panic
+	geom := `{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"t"},"bones":[{"name":"b","rotation":"bad","cubes":[{"origin":[0,0,0],"size":[1,1,1],"rotation":"oops"}]}]}]}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("应解析成功（rotation 失败不丢弃）")
+	}
+	if m.Bones[0].Rotation != [3]float64{} {
+		t.Errorf("bone Rotation = %v, 期望零值", m.Bones[0].Rotation)
+	}
+	if m.Bones[0].Cubes[0].Rotation != [3]float64{} {
+		t.Errorf("cube Rotation = %v, 期望零值", m.Bones[0].Cubes[0].Rotation)
+	}
+}
+
+func TestParseBedrockGeometry_PivotAbsentVsExplicit(t *testing.T) {
+	// pivot 缺席（nil）→ PivotSet=false 且 Pivot 零值；显式 [0,0,0] → PivotSet=true
+	geom := `{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"t"},"bones":[{"name":"b","cubes":[{"origin":[0,0,0],"size":[1,1,1],"pivot":[0,0,0]},{"origin":[1,1,1],"size":[1,1,1]}]}]}]}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("应解析成功")
+	}
+	c0, c1 := m.Bones[0].Cubes[0], m.Bones[0].Cubes[1]
+	if !c0.PivotSet || c0.Pivot != [3]float64{} {
+		t.Errorf("显式 [0,0,0] pivot: PivotSet=%v Pivot=%v, 期望 true/[0,0,0]", c0.PivotSet, c0.Pivot)
+	}
+	if c1.PivotSet {
+		t.Errorf("缺席 pivot 的 PivotSet = %v, 期望 false", c1.PivotSet)
+	}
+	if c1.Pivot != [3]float64{} {
+		t.Errorf("缺席 pivot = %v, 期望零值", c1.Pivot)
+	}
+}
+
+func TestParseBedrockGeometry_CubeAttrs(t *testing.T) {
+	// texture/inflate/mirror 字段透传
+	geom := `{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"t"},"bones":[{"name":"b","cubes":[{"origin":[0,0,0],"size":[1,1,1],"texture":2,"inflate":0.5,"mirror":true}]}]}]}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("应解析成功")
+	}
+	c := m.Bones[0].Cubes[0]
+	if c.TexSlot != 2 || c.Inflate != 0.5 || !c.Mirror {
+		t.Errorf("TexSlot/Inflate/Mirror = %d/%v/%v, 期望 2/0.5/true", c.TexSlot, c.Inflate, c.Mirror)
+	}
+}
+
+func TestParseBedrockGeometry_NoBones(t *testing.T) {
+	// bones 缺失 → 模型非 nil、BoneCount=0
+	geom := `{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"t"}}]}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("无 bones 也应返回非 nil 模型")
+	}
+	if m.BoneCount != 0 || m.CubeCount != 0 {
+		t.Errorf("BoneCount/CubeCount = %d/%d, 期望 0/0", m.BoneCount, m.CubeCount)
+	}
+}
+
+func TestParseBedrockGeometry_MultipleGeometryFirstOnly(t *testing.T) {
+	// 多个 minecraft:geometry 条目 → 仅首个生效（既有一致口径）
+	geom := `{"format_version":"1.16.0","minecraft:geometry":[
+		{"description":{"identifier":"first","texture_width":16,"texture_height":16},"bones":[{"name":"a","cubes":[]}]},
+		{"description":{"identifier":"second","texture_width":128,"texture_height":128},"bones":[{"name":"b","cubes":[]}]}
+	]}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("应解析成功")
+	}
+	if m.BoneCount != 1 || m.Bones[0].Name != "a" {
+		t.Errorf("应取首个条目, BoneCount=%d Bones=%+v", m.BoneCount, m.Bones)
+	}
+	if m.TexWidth != 16 {
+		t.Errorf("TexWidth = %d, 期望 16（首个条目）", m.TexWidth)
+	}
+}
+
+func TestParseBedrockGeometry_NoDescription(t *testing.T) {
+	// description 缺失 → TexWidth/Height 零值、骨骼仍解析
+	geom := `{"format_version":"1.16.0","minecraft:geometry":[{"bones":[{"name":"b","cubes":[{"origin":[0,0,0],"size":[1,1,1]}]}]}]}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("无 description 也应解析成功")
+	}
+	if m.TexWidth != 0 || m.TexHeight != 0 {
+		t.Errorf("TexWidth/TexHeight = %d/%d, 期望 0/0", m.TexWidth, m.TexHeight)
+	}
+	if m.BoneCount != 1 {
+		t.Errorf("BoneCount = %d, 期望 1", m.BoneCount)
+	}
+}

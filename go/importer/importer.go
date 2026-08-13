@@ -108,7 +108,9 @@ func (s *SimpleCopyImporter) Import(srcPath, dstDir string) string {
 		return ""
 	}
 
-	// 文件导入：单文件复制
+	// 文件导入：先复制到临时文件再原子改名，避免复制中断时
+	// 破坏已存在的目标文件（原 os.Create 直接截断目标，半截数据覆盖原文件后失败即丢数据；
+	// 对齐 copyDir 的 ADR-028 原子替换模式，CreateTemp 保证并发导入互不干扰）
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
 		return fmt.Sprintf("打开源文件失败: %v", err)
@@ -116,17 +118,38 @@ func (s *SimpleCopyImporter) Import(srcPath, dstDir string) string {
 	defer srcFile.Close()
 
 	dstPath := filepath.Join(dstDir, filepath.Base(srcPath))
-	dstFile, err := os.Create(dstPath)
+	tmpFile, err := os.CreateTemp(dstDir, ".import-*.tmp")
 	if err != nil {
-		return fmt.Sprintf("创建目标文件失败: %v", err)
+		return fmt.Sprintf("创建临时文件失败: %v", err)
 	}
-	defer dstFile.Close()
-
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		// 复制中断/失败时清理半截目标文件，避免损坏文件留盘误导用户
-		dstFile.Close()
-		os.Remove(dstPath)
+	tmpName := tmpFile.Name()
+	// 任一失败分支清理临时文件，不留残渣
+	cleanup := func() {
+		tmpFile.Close()
+		os.Remove(tmpName)
+	}
+	if _, err := io.Copy(tmpFile, srcFile); err != nil {
+		cleanup()
 		return fmt.Sprintf("复制文件失败: %v", err)
+	}
+	// Sync + 显式 Close 检查——defer 吞掉 Close 错误时，
+	// ENOSPC/EIO 落盘失败被误判成功，损坏文件留盘（与 recycle/installer 同款反模式）
+	if err := tmpFile.Sync(); err != nil {
+		cleanup()
+		return fmt.Sprintf("复制文件失败: %v", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpName)
+		return fmt.Sprintf("复制文件失败: %v", err)
+	}
+	if err := os.Chmod(tmpName, 0644); err != nil {
+		log.Printf("[importer] 设置权限失败 %s: %v", tmpName, err)
+	}
+	// 原子替换：os.Rename 在 Windows 上可覆盖已存在文件（MOVEFILE_REPLACE_EXISTING）；
+	// 目标已存在为目录时失败，此时清理临时文件
+	if err := os.Rename(tmpName, dstPath); err != nil {
+		os.Remove(tmpName)
+		return fmt.Sprintf("移动目标文件失败: %v", err)
 	}
 	return ""
 }
@@ -183,6 +206,11 @@ func copyDirContents(src, dst string) error {
 					return sErr
 				}
 				continue
+			}
+			// 必须先建目录再递归——否则源中的空子目录会整体丢失
+			// （copyFile 仅在复制文件时 MkdirAll 父目录，空目录无人创建）
+			if err := os.MkdirAll(dstPath, 0755); err != nil {
+				return err
 			}
 			if err := copyDirContents(srcPath, dstPath); err != nil {
 				return err

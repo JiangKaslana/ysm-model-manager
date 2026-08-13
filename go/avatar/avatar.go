@@ -209,7 +209,7 @@ func ExtractAvatarURI(modelPath, safeName string) string {
 		}
 		// 找 ysm.json
 		for _, f := range files {
-			if strings.HasSuffix(strings.ToLower(f.Path), "ysm.json") {
+			if isYSMJSONPath(f.Path) {
 				data := toBytes(f.Data)
 				var root struct {
 					Meta struct {
@@ -334,17 +334,22 @@ func ExtractAvatarURI(modelPath, safeName string) string {
 				if !isSafeAvatarPath(ap) {
 					continue
 				}
-				avatarPath := filepath.Join(dir, au.Avatar)
-				// 落盘前 Rel 复查：Join 后必须仍在模型目录内
-				if rel, err := filepath.Rel(dir, avatarPath); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-					continue
-				}
-				if avatarData, _ := readLimitedAvatar(avatarPath); avatarData != nil {
-					mime := "image/png"
-					if strings.HasSuffix(strings.ToLower(au.Avatar), ".jpg") {
-						mime = "image/jpeg"
+				// 候选列表（含裸文件名补 avatar/ 前缀与标准扩展名变体）逐个尝试——
+				// 原实现直接 Join(dir, au.Avatar) 使裸文件名声明（"sdf"）读 dir/sdf 而非
+				// dir/avatar/sdf.png，与 .ysm/.zip 分支 avatarCandidates 口径不一致（修复）
+				for _, c := range avatarCandidates(au.Avatar) {
+					avatarPath := filepath.Join(dir, c)
+					// 落盘前 Rel 复查：Join 后必须仍在模型目录内
+					if rel, err := filepath.Rel(dir, avatarPath); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+						continue
 					}
-					return SaveAvatarData(safeName, avatarData, mime)
+					if avatarData, _ := readLimitedAvatar(avatarPath); avatarData != nil {
+						mime := "image/png"
+						if strings.HasSuffix(strings.ToLower(c), ".jpg") {
+							mime = "image/jpeg"
+						}
+						return SaveAvatarData(safeName, avatarData, mime)
+					}
 				}
 			}
 		}
@@ -402,14 +407,19 @@ func CacheAvatarsFromJSON(modelPath string) {
 		if !isSafeAvatarPath(ap) {
 			continue
 		}
-		avatarPath := filepath.Join(dir, ap)
-		// Rel 复查：Join 后必须仍在模型目录内
-		if rel, err := filepath.Rel(dir, avatarPath); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			continue
-		}
-		if avatarData, _ := readLimitedAvatar(avatarPath); avatarData != nil {
-			if err := fsutil.WriteFileAtomic(cachedPath, avatarData); err != nil {
-				log.Printf("[avatar] 缓存写入失败 %s: %v", cachedPath, err)
+		// 候选列表逐个尝试（同 ExtractAvatarURI .json 分支口径）：裸文件名声明
+		// （"sdf"）解析到 dir/avatar/sdf.png 而非 dir/sdf（修复）
+		for _, c := range avatarCandidates(ap) {
+			avatarPath := filepath.Join(dir, c)
+			// Rel 复查：Join 后必须仍在模型目录内
+			if rel, err := filepath.Rel(dir, avatarPath); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				continue
+			}
+			if avatarData, _ := readLimitedAvatar(avatarPath); avatarData != nil {
+				if err := fsutil.WriteFileAtomic(cachedPath, avatarData); err != nil {
+					log.Printf("[avatar] 缓存写入失败 %s: %v", cachedPath, err)
+				}
+				break // 一个作者只落一张头像
 			}
 		}
 	}
@@ -487,7 +497,7 @@ func modelAuthorNames(modelPath string) []string {
 		}
 		files := DecodeYSMFiles(data)
 		for _, f := range files {
-			if strings.HasSuffix(strings.ToLower(f.Path), "ysm.json") {
+			if isYSMJSONPath(f.Path) {
 				raw = toBytes(f.Data)
 				break
 			}
@@ -569,6 +579,15 @@ func matchZipEntry(p, targetLower string) bool {
 		return strings.HasSuffix(low, "/"+targetLower)
 	}
 	return false
+}
+
+// isYSMJSONPath 判断解码产物路径是否为 ysm.json 清单：精确名或任意目录下的 ysm.json。
+// 原 HasSuffix(low, "ysm.json") 会把 "notysm.json"/"myysm.json" 等误判为清单——若该文件
+// 先于真实 ysm.json 出现在文件列表，元数据解析会取到错误内容；zip 分支 matchZipEntry
+// 裸名匹配仅认 "/ysm.json" 后缀，两分支口径不一致（本次对齐）。
+func isYSMJSONPath(p string) bool {
+	low := strings.ToLower(strings.ReplaceAll(p, "\\", "/"))
+	return low == "ysm.json" || strings.HasSuffix(low, "/ysm.json")
 }
 
 // DecodeYSMFiles 通过 Node.js + WASM 解码 YSM 文件。
