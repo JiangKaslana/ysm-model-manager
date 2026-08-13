@@ -13,7 +13,7 @@ export type EscFn = (s: unknown) => string;
 let diagLoadSeq = 0;
 
 /** 绑定 ImportLog（仅用到的字段） */
-export interface ImportLogLike {
+interface ImportLogLike {
   Status?: string;
   Timestamp?: string | number;
   ModelName?: string;
@@ -155,7 +155,7 @@ export async function loadDiagnosticsLogs(root: ShadowRoot, esc: EscFn): Promise
 }
 
 /** 运行时日志条目（仅用到的字段） */
-export interface RuntimeLogLike {
+interface RuntimeLogLike {
   Message?: string;
   Timestamp?: string | number;
 }

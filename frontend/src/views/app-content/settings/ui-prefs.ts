@@ -4,51 +4,50 @@
 import { bus } from "../../../bus.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 
+/** 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） */
+export function applyUIPrefs(): void {
+  const fontSize = safeGet("ui-font-size") || "normal";
+  const displayFont = safeGet("ui-display-font") || "kaiti";
+  const density = safeGet("ui-card-density") || "compact";
+  const anim = safeGet("ui-animations") !== "off";
+
+  // 基准字号 — 通过 --fs-scale 控制，CSS 自动缩放所有 --fs-* 和 --space-*
+  // 先清除旧版直接设 --fs-* 的内联值（避免覆盖 calc()）
+  [
+    "--fs-base",
+    "--fs-xs",
+    "--fs-sm",
+    "--fs-md",
+    "--fs-lg",
+    "--fs-tiny",
+    "--fs-xl",
+  ].forEach((v) => document.documentElement.style.removeProperty(v));
+  // 小=-1px, 标准=0px, 大=+2px
+  const scaleMap: Record<string, string> = { small: "-1px", normal: "0px", large: "2px" };
+  document.documentElement.style.setProperty("--fs-scale", scaleMap[fontSize] || "0px");
+  // 同步更新 --fs-base-size（保持各字号参考基准一致）
+  document.documentElement.style.setProperty("--fs-base-size", "12px");
+
+  // 创作者名字字体
+  document.documentElement.style.setProperty(
+    "--font-display",
+    displayFont === "system" ? "var(--font-ui)" : "'STKaiti','KaiTi','楷体',serif",
+  );
+
+  // 卡片密度
+  const padding = density === "compact" ? "6px 10px" : "10px 14px";
+  document.documentElement.style.setProperty("--card-padding", padding);
+  const cardGap = density === "compact" ? "6px" : "10px";
+  document.documentElement.style.setProperty("--card-gap", cardGap);
+
+  // 动画
+  document.documentElement.classList.toggle("no-animations", !anim);
+}
+
 /** 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 */
 export function initUiPrefs(root: ShadowRoot): void {
   const applyUIPref = (): void => {
-    const fontSize = safeGet("ui-font-size") || "normal";
-    const displayFont = safeGet("ui-display-font") || "kaiti";
-    const density = safeGet("ui-card-density") || "compact";
-    const anim = safeGet("ui-animations") !== "off";
-
-    // 基准字号 — 通过 --fs-scale 控制，CSS 自动缩放所有 --fs-* 和 --space-*
-    // 先清除旧版直接设 --fs-* 的内联值（避免覆盖 calc()）
-    [
-      "--fs-base",
-      "--fs-xs",
-      "--fs-sm",
-      "--fs-md",
-      "--fs-lg",
-      "--fs-tiny",
-      "--fs-xl",
-    ].forEach((v) => document.documentElement.style.removeProperty(v));
-    // 小=-1px, 标准=0px, 大=+2px
-    const scaleMap: Record<string, string> = { small: "-1px", normal: "0px", large: "2px" };
-    document.documentElement.style.setProperty(
-      "--fs-scale",
-      scaleMap[fontSize] || "0px",
-    );
-    // 同步更新 --fs-base-size（保持各字号参考基准一致）
-    document.documentElement.style.setProperty("--fs-base-size", "12px");
-
-    // 创作者名字字体
-    document.documentElement.style.setProperty(
-      "--font-display",
-      displayFont === "system"
-        ? "var(--font-ui)"
-        : "'STKaiti','KaiTi','楷体',serif",
-    );
-
-    // 卡片密度
-    const padding = density === "compact" ? "6px 10px" : "10px 14px";
-    document.documentElement.style.setProperty("--card-padding", padding);
-    const cardGap = density === "compact" ? "6px" : "10px";
-    document.documentElement.style.setProperty("--card-gap", cardGap);
-
-    // 动画
-    document.documentElement.classList.toggle("no-animations", !anim);
-
+    applyUIPrefs();
     // 更新字号预览值
     updateSizePreview();
   };

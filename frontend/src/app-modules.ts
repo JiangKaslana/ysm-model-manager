@@ -8,6 +8,7 @@ import { registerErrorDiary } from "./core/error-diary.ts";
 import { initI18n } from "./core/i18n/locale.ts";
 import { friendlyError } from "./utils/dom/errors.ts";
 import { checkUpdateSilent } from "./features/version-updater.ts";
+import { applyUIPrefs } from "./views/app-content/settings/ui-prefs.ts";
 
 // bus 已在 bus.ts 中挂载 window.bus，此处不再重复赋值
 
@@ -105,57 +106,6 @@ export async function initTheme() {
     safeSet("theme", theme);
     applyTheme(theme);
   }
-}
-
-/** 应用 UI 偏好（字号/字体/密度/动画），不依赖设置页打开 */
-export function applyUIPrefs() {
-  // P3 修复：隐私模式 localStorage 抛错不得中断启动链（与 initTheme 的 safeGet 同口径）
-  let fontSize = "normal";
-  let displayFont = "kaiti";
-  let density = "compact";
-  let anim = true;
-  try {
-    fontSize = localStorage.getItem("ui-font-size") || "normal";
-    displayFont = localStorage.getItem("ui-display-font") || "kaiti";
-    density = localStorage.getItem("ui-card-density") || "compact";
-    anim = localStorage.getItem("ui-animations") !== "off";
-  } catch {
-    /* 隐私模式：全部走默认值 */
-  }
-
-  // 清除旧版直接设 --fs-* 的内联值（避免覆盖 calc()）
-  [
-    "--fs-base",
-    "--fs-xs",
-    "--fs-sm",
-    "--fs-md",
-    "--fs-lg",
-    "--fs-tiny",
-    "--fs-xl",
-  ].forEach((v) => document.documentElement.style.removeProperty(v));
-  // 通过 --fs-scale 控制字号缩放（与设置页 community-settings.js 一致）
-  const scaleMap: Record<string, string> = { small: "-1px", normal: "0px", large: "2px" };
-  document.documentElement.style.setProperty(
-    "--fs-scale",
-    scaleMap[fontSize] || "0px",
-  );
-  document.documentElement.style.setProperty("--fs-base-size", "12px");
-
-  document.documentElement.style.setProperty(
-    "--font-display",
-    displayFont === "system"
-      ? "var(--font-ui)"
-      : "'STKaiti','KaiTi','楷体',serif",
-  );
-  document.documentElement.style.setProperty(
-    "--card-padding",
-    density === "compact" ? "6px 10px" : "10px 14px",
-  );
-  document.documentElement.style.setProperty(
-    "--card-gap",
-    density === "compact" ? "6px" : "10px",
-  );
-  document.documentElement.classList.toggle("no-animations", !anim);
 }
 
 // 启动初始化

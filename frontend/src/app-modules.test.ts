@@ -9,8 +9,8 @@ import {
   normalizeTheme,
   applyTheme,
   initTheme,
-  applyUIPrefs,
 } from "./app-modules.ts";
+import { applyUIPrefs } from "./views/app-content/settings/ui-prefs.ts";
 import { safeGet, safeSet } from "./utils/dom/storage.ts";
 
 /** 隐私模式模拟：让 localStorage 读写抛错（happy-dom 的 localStorage 是 getter 保护，必须 vi.spyOn） */

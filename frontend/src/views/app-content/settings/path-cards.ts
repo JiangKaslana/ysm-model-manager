@@ -12,7 +12,7 @@ import type { ResourceTypeEntry } from "../../../utils/resource/registry.ts";
 import { cfg, cardRefreshers, isBusy, setBusy, toastError } from "./store.ts";
 
 /** HTML 转义（高级面板路径/路径选择器/扫描提示共用） */
-export function escHtml(s: unknown): string {
+function escHtml(s: unknown): string {
   return esc(String(s ?? ""));
 }
 
@@ -91,7 +91,7 @@ export function bindPathClick(
 }
 
 /** 多路径选择器：弹出路径列表让用户挑选（返回 null 表示取消） */
-export function showPathPicker(root: ShadowRoot, paths: string[]): Promise<string | null> {
+function showPathPicker(root: ShadowRoot, paths: string[]): Promise<string | null> {
   return new Promise(function (resolve) {
     const overlay = document.createElement("div");
     overlay.style.cssText =
@@ -139,7 +139,7 @@ export function showPathPicker(root: ShadowRoot, paths: string[]): Promise<strin
 }
 
 /** 扫描提示气泡：hover 时显示扫描到的所有路径 + 搜索范围 */
-export function showScanTooltip(
+function showScanTooltip(
   root: ShadowRoot,
   anchor: HTMLElement,
   paths: string[],

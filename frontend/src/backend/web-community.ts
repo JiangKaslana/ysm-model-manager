@@ -20,7 +20,7 @@ const WEB_CREATORS_KEY = "web:workshop-creators";
 const WEB_SITES_KEY = "web:workshop-sites";
 const WEB_GITHUB_KEY = "web:github-repos";
 
-export function cloneJson<T>(v: T): T {
+function cloneJson<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
@@ -79,13 +79,6 @@ export function loadWebGitHubRepos(): WorkshopCreator[] {
   return cloneJson(workshopGithubJson as unknown as WorkshopCreator[]);
 }
 
-export function saveWebGitHubRepos(list: WorkshopCreator[] | null): void {
-  if (list === null) {
-    localStorage.removeItem(WEB_GITHUB_KEY);
-    return;
-  }
-  localStorage.setItem(WEB_GITHUB_KEY, JSON.stringify(list));
-}
 
 // --- 网页版创作者头像批量提取（替代 Go BatchExtractCreatorAvatars）---
 // 复用已桥的 ScanModelEntries + ReadFileBytes + 前端 ysm-parser 解包，从 IndexedDB 模型库
