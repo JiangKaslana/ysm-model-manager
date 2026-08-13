@@ -2,6 +2,7 @@
 export const previewCSS: string = `
 :host {
   display: flex; flex-direction: column;
+  position: relative;
   background: var(--bg);
   border-left: 1px solid var(--bd);
   width: 200px;
@@ -64,4 +65,13 @@ h3 { font-size: var(--fs-base); font-weight: 600; color: var(--txt); text-transf
 .ysm-loading-bar { height:60px;border-radius:var(--radius-md);background:rgba(0,0,0,.08); }
 .ysm-error-title { font-size:var(--fs-sm);font-weight:600;margin-bottom:4px; }
 .ysm-error-body { font-size:var(--fs-xs);color:var(--muted);padding:8px 0; }
+
+/* === 3D 悬浮触发 FAB（ADR-057 §2.3，Shadow DOM 内面板右下角） === */
+.ysm-fab{position:absolute;right:12px;bottom:12px;width:44px;height:44px;border-radius:50%;border:1px solid var(--bd);background:var(--accent);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:20;transition:filter .12s ease}
+.ysm-fab:hover{filter:brightness(1.1)}
+.ysm-fab:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent)}
+.ysm-fab .ysm-ic{line-height:1}
+@media (max-width:480px){ .ysm-fab{width:52px;height:52px;right:10px;bottom:10px;font-size:24px} }
+/* 触控热区 44px（Apple HIG） */
+@media (pointer:coarse){ .ysm-fab{min-width:44px;min-height:44px} }
 `;

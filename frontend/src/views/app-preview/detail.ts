@@ -25,11 +25,11 @@ export async function showModelDetail(
   <div class="ysm-tab-row">
     <button class="preview-tab ysm-tab ${savedTab === "detail" ? "ysm-tab-active" : "ysm-tab-inactive"}" data-tab="detail">📄 ${t("preview.detailTab")}</button>
     <button class="preview-tab ysm-tab ${savedTab === "skeleton" ? "ysm-tab-active" : "ysm-tab-inactive"}" data-tab="skeleton">🏗️ ${t("preview.skeletonTab")}</button>
-    <button class="ysm-tab ysm-tab-inactive" id="btn-3d-preview" title="${t("preview.title3d")}">🎨 3D</button>
   </div>
   <div id="preview-detail"${savedTab !== "detail" ? ' style="display:none"' : ""}><h3>📄 ${t("preview.modelInfo")}</h3><div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsing")}...</div></div></div>
   <div id="preview-skeleton"${savedTab !== "skeleton" ? ' style="display:none"' : ""}></div>
-</div>`;
+</div>
+<button class="ysm-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}">🎨</button>`;
 
   const switchTab = (tab: string): void => {
     safeSet("ysm_previewTab", tab);

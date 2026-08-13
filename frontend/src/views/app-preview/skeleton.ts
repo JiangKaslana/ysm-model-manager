@@ -14,6 +14,8 @@ import { friendlyError } from "../../utils/dom/errors.ts";
 import { statsCardHTML } from "./tpl.ts";
 import { buildBoneNamesText } from "./bone-names.ts";
 import { screenshotPreview, renderModel3D } from "../../utils/3d/model3d.ts";
+import { ensureFabStyles, createIconButton } from "../../utils/dom/fab.ts";
+import { registerAndroidBackHandler } from "../../utils/dom/android-bridge.ts";
 import { renderMultiAngle } from "./screenshot-renderer.ts";
 import { preloadModel } from "./model3d-loader.ts";
 import { t } from "../../core/i18n/t.ts";
@@ -309,22 +311,19 @@ export async function loadModel2D(
       setPrefer3D(_prefer3D);
 
       if (_is3D) {
+        ensureFabStyles();
         _loading3D = true;
         const gen = ++_model3dGen;
         const overlay = document.createElement("div");
         overlay.id = "ysm-overlay-3d";
-        overlay.style.cssText =
-          "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#1a1b2e;display:flex;flex-direction:column";
+        overlay.className = "ysm-ovl-root";
         _overlay3d = overlay;
 
         const topBar = document.createElement("div");
         topBar.id = "ysm-topbar-3d";
-        topBar.style.cssText =
-          "display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(0,0,0,0.3);flex-shrink:0;pointer-events:auto;position:relative;z-index:10";
-        const closeBtn = document.createElement("button");
+        topBar.className = "ysm-ovl-bar";
+        const closeBtn = createIconButton({ icon: "✕", label: t("preview.close3d") });
         closeBtn.id = "ysm-close-3d";
-        closeBtn.textContent = "✕ " + t("preview.close3d");
-        closeBtn.style.cssText = "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
         closeBtn.onclick = (): void => {
           close3D();
         };
@@ -333,7 +332,7 @@ export async function loadModel2D(
         let _texIdx = 0;
         if ((model.textures?.length ?? 0) > 1) {
           const texSel = document.createElement("select");
-          texSel.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
+          texSel.className = "ysm-ovl-select";
           model.textures!.forEach((_, i) => {
             const opt = document.createElement("option");
             opt.value = String(i);
@@ -349,16 +348,16 @@ export async function loadModel2D(
         }
 
         const spacer = document.createElement("div");
-        spacer.style.cssText = "flex:1";
+        spacer.className = "ysm-ovl-spacer";
         topBar.appendChild(spacer);
 
         const shotWrap = document.createElement("div");
-        shotWrap.style.cssText = "position:relative;display:inline-block;margin-right:8px";
+        shotWrap.className = "ysm-ovl-shotwrap";
         const shotBtn = document.createElement("button");
         shotBtn.textContent = "📷 " + t("preview.screenshot") + " ▾";
-        shotBtn.style.cssText = "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
+        shotBtn.className = "ysm-ovl-btn";
         const shotMenu = document.createElement("div");
-        shotMenu.style.cssText = "display:none;position:absolute;top:100%;left:0;z-index:100;background:#2a2b3e;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 0;min-width:120px;box-shadow:0 4px 16px rgba(0,0,0,0.4)";
+        shotMenu.className = "ysm-ovl-shotmenu";
         const items = [
           { label: "📷 当前视角", key: "current" },
           { label: "👤 正面", key: "front" },
@@ -426,13 +425,7 @@ export async function loadModel2D(
         items.forEach((item) => {
           const el = document.createElement("div");
           el.textContent = item.label;
-          el.style.cssText = "padding:4px 12px;font-size:11px;color:rgba(255,255,255,0.85);cursor:pointer;white-space:nowrap";
-          el.addEventListener("pointerenter", () => {
-            el.style.background = "rgba(124,131,255,0.3)";
-          });
-          el.addEventListener("pointerleave", () => {
-            el.style.background = "transparent";
-          });
+          el.className = "ysm-ovl-shotitem";
           el.onclick = (): void => {
             shotMenu.style.display = "none";
             saveShot(item.key);
@@ -454,26 +447,28 @@ export async function loadModel2D(
         shotWrap.appendChild(shotMenu);
         topBar.appendChild(shotWrap);
 
-        // 重置视角按钮
-        const resetBtn = document.createElement("button");
-        resetBtn.textContent = "⟲ " + t("preview.resetView");
-        resetBtn.style.cssText = "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
-        resetBtn.title = "重置相机视角到初始位置";
+        // 重置视角按钮（图标按钮工厂统一创建，见 ADR-057 §2.6）
+        const resetBtn = createIconButton({
+          icon: "⟲",
+          label: t("preview.resetView"),
+          title: "重置相机视角到初始位置",
+        });
         topBar.appendChild(resetBtn);
 
         // 模型选择下拉（多 section 时显示）
         const modelSel = document.createElement("select");
-        modelSel.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;margin-right:4px";
+        modelSel.className = "ysm-ovl-select";
         modelSel.style.display = "none";
         topBar.appendChild(modelSel);
 
         const rotLabel = document.createElement("span");
-        rotLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
+        rotLabel.className = "ysm-ovl-label";
         rotLabel.textContent = t("preview.cameraRotation") + ":";
         topBar.appendChild(rotLabel);
 
         const rotSel = document.createElement("select");
-        rotSel.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;margin-right:8px";
+        rotSel.className = "ysm-ovl-select";
+        rotSel.style.marginRight = "8px";
         [{ v: true, t: "环绕" }, { v: false, t: "自身" }].forEach((m) => {
           const opt = document.createElement("option");
           opt.value = String(m.v);
@@ -484,7 +479,7 @@ export async function loadModel2D(
         topBar.appendChild(rotSel);
 
         const spdLabel = document.createElement("span");
-        spdLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
+        spdLabel.className = "ysm-ovl-label";
         spdLabel.textContent = t("preview.cameraSpeed") + ":";
         topBar.appendChild(spdLabel);
 
@@ -493,11 +488,11 @@ export async function loadModel2D(
         spdSlider.min = "2";
         spdSlider.max = "200";
         spdSlider.value = safeGet("td-cam-speed") || "20";
-        spdSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+        spdSlider.className = "ysm-ovl-slider";
         topBar.appendChild(spdSlider);
 
         const spdVal = document.createElement("span");
-        spdVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:20px";
+        spdVal.className = "ysm-ovl-val";
         spdVal.textContent = safeGet("td-cam-speed") || "20";
         topBar.appendChild(spdVal);
 
@@ -512,7 +507,7 @@ export async function loadModel2D(
 
         const panel = document.createElement("div");
         panel.id = "ysm-3d-panel";
-        panel.style.cssText = "position:absolute;top:0;right:0;bottom:0;width:260px;background:rgba(0,0,0,0.4);border-left:1px solid rgba(255,255,255,0.1);overflow-y:auto;padding:10px 12px;font-size:11px;color:rgba(255,255,255,0.75);z-index:5";
+        panel.className = "ysm-3d-panel";
 
         // 面板宽度拖拽柄
         const resizeHandle = document.createElement("div");
@@ -543,6 +538,8 @@ export async function loadModel2D(
         // 拖拽柄挂入 body（此前为孤儿节点，不可见不可拖）
         body.appendChild(resizeHandle);
 
+        // ADR-057 §2.5：安卓返回键注销槽（overlay 打开时注册，close3D 内统一清理）
+        let _backUnreg: (() => void) | null = null;
         // 统一关闭 3D：移除 resize/keydown 监听器 + 清理渲染资源（关闭按钮/ESC/切换纹理三条路径共用）
         const close3D = (keepPrefer = false): void => {
           // P3 修复（code_review）：正常关闭时把本次 push 的 close3D 从 unsubs 移除——
@@ -553,6 +550,9 @@ export async function loadModel2D(
           if (unsubIdx !== undefined && unsubIdx > -1) ctx.unsubs?.splice(unsubIdx, 1);
           // P2 修复（审核）：任何关闭路径都同步清模块级钩子（模块级 3D 单例，关闭即失效）
           _active3DClose = null;
+          // ADR-057 §2.5：overlay 关闭即注销返回键处理器，避免残留消费后续 back
+          _backUnreg?.();
+          _backUnreg = null;
           document.removeEventListener("pointermove", onResizeMove);
           document.removeEventListener("pointerup", onResizeUp);
           if (_model3d) {
@@ -582,6 +582,11 @@ export async function loadModel2D(
         // 新模型 loadModel2D 仍自动弹 3D，符合 skeleton.ts:64 设计意图）。
         // 用户主动关闭/ESC/组件销毁（走 close3D）会无条件清掉本引用，避免残留。
         _active3DClose = () => close3D(true);
+        // ADR-057 §2.5：3D overlay 打开时消费安卓返回键关层（原生 onBackPressed 转发 emitAndroidBack 时生效；否则透传）
+        _backUnreg = registerAndroidBackHandler(() => {
+          close3D();
+          return true;
+        });
 
         // 辅助函数
         const sec = (text: string, gap = true): HTMLDivElement => {
@@ -605,7 +610,7 @@ export async function loadModel2D(
         let _panelVisible = true;
         panelToggle.textContent = t("preview.hidePanel");
         panelToggle.title = t("preview.hidePanel");
-        panelToggle.style.cssText = "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;white-space:nowrap";
+        panelToggle.className = "ysm-ovl-btn";
         panelToggle.onclick = (): void => {
           _panelVisible = !_panelVisible;
           panel.style.display = _panelVisible ? "" : "none";
@@ -901,7 +906,11 @@ export async function loadModel2D(
           const tip = document.createElement("div");
           tip.style.cssText =
             "padding:6px 12px;background:rgba(124,131,255,0.2);color:#fff;font-size:12px;text-align:center;flex-shrink:0;font-weight:500";
-          tip.textContent = "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
+          // ADR-057 §2.4：触屏隐藏键盘提示，改为手势说明（与 ADR-036 键位可配置同源）
+          const _isTouch = window.matchMedia?.("(pointer:coarse)").matches ?? false;
+          tip.textContent = _isTouch
+            ? "👆 拖拽旋转 · 双指缩放 · ✕ 关闭"
+            : "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
           overlay.insertBefore(tip, overlay.children[1]);
           setTimeout(() => {
             if (tip.parentNode) tip.remove();
