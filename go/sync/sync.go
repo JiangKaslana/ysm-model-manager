@@ -36,6 +36,9 @@ func GetInstanceStatusWith(mcRoot, repoDir string, scanFn ScanFunc, listFn ListV
 	if mcRoot == "" || repoDir == "" {
 		return []types.InstanceStatus{}
 	}
+	if scanFn == nil || listFn == nil {
+		return []types.InstanceStatus{}
+	}
 
 	repoEntries := scanFn(repoDir)
 	repoByHash := make(map[string][]types.ModelEntry)

@@ -29,6 +29,9 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 	if customDir == "" || repoRoot == "" {
 		return 0, fmt.Errorf("参数为空")
 	}
+	if scanFn == nil {
+		return 0, fmt.Errorf("scanFn 为空")
+	}
 	repoEntries := scanFn(repoRoot)
 	repoByHash := make(map[string]string)
 	for _, e := range repoEntries {
@@ -74,7 +77,9 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 				// 会装到 <customDir>/<subdir>/<base> 而平铺位置 <customDir>/<base> 残留陈旧副本
 				//（报告成功但游戏实际加载的文件未重链）。CopyFile 直接落地到平铺目录。
 				if _, err := installer.CopyFileLocked(srcPath, customDir); err != nil {
-					logger(ce.Name, ce.Path, customDir, 0, "failed", "relink 失败: "+err.Error())
+					if logger != nil {
+						logger(ce.Name, ce.Path, customDir, 0, "failed", "relink 失败: "+err.Error())
+					}
 					continue
 				}
 				count++
@@ -88,7 +93,9 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 			backup := dstParent + ".relink-bak"
 			_ = os.RemoveAll(backup)
 			if err := os.Rename(dstParent, backup); err != nil {
-				logger(ce.Name, ce.Path, dstParent, 0, "failed", "relink 备份目录失败: "+err.Error())
+				if logger != nil {
+					logger(ce.Name, ce.Path, dstParent, 0, "failed", "relink 备份目录失败: "+err.Error())
+				}
 				continue
 			}
 			if err := installer.InstallDirLocked(srcDir, dstBase, repoRoot, linkMode, rtype); err != nil {
@@ -98,10 +105,14 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 				// 原目录滞留 .relink-bak、实例目录缺失且函数继续执行（静默数据不可达）；
 				// 记 logger 供用户排查（不 return——目录已损坏，继续无意义）
 				if rbErr := os.Rename(backup, dstParent); rbErr != nil {
-					logger(ce.Name, ce.Path, dstParent, 0, "failed",
-						"relink 失败且回滚失败，原目录滞留 "+filepath.Base(backup)+": "+rbErr.Error())
+					if logger != nil {
+						logger(ce.Name, ce.Path, dstParent, 0, "failed",
+							"relink 失败且回滚失败，原目录滞留 "+filepath.Base(backup)+": "+rbErr.Error())
+					}
 				}
-				logger(ce.Name, ce.Path, dstParent, 0, "failed", "relink 失败: "+err.Error())
+				if logger != nil {
+					logger(ce.Name, ce.Path, dstParent, 0, "failed", "relink 失败: "+err.Error())
+				}
 				continue
 			}
 			_ = os.RemoveAll(backup)
@@ -111,7 +122,9 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 		// 传入基础 customDir，让 installer.Install 自行计算相对路径。
 		// Install 内部对已存在的旧文件做原子替换（临时链接 + rename），失败不破坏原文件
 		if err := installer.InstallLocked(srcPath, customDir, repoRoot, linkMode); err != nil {
-			logger(ce.Name, ce.Path, customDir, 0, "failed", "relink 失败: "+err.Error())
+			if logger != nil {
+				logger(ce.Name, ce.Path, customDir, 0, "failed", "relink 失败: "+err.Error())
+			}
 			continue
 		}
 		count++

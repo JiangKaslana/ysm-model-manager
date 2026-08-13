@@ -180,29 +180,48 @@ func SyncCustomToRepo(customDir, repoDir string, scanFn func(string) []types.Mod
 	count := 0
 	for _, e := range srcEntries {
 		if e.Hash != "" && repoHashes[e.Hash] {
-			logger(e.Name, e.Path, repoDir, 0, "skipped", "仓库已存在同哈希文件，跳过")
+			if logger != nil {
+				logger(e.Name, e.Path, repoDir, 0, "skipped", "仓库已存在同哈希文件，跳过")
+			}
 			continue
 		}
 		if repoNames[e.Name] {
-			logger(e.Name, e.Path, repoDir, 0, "skipped", "仓库已存在同名文件，跳过")
+			if logger != nil {
+				logger(e.Name, e.Path, repoDir, 0, "skipped", "仓库已存在同名文件，跳过")
+			}
 			continue
 		}
-		rel, _ := filepath.Rel(customDir, e.Path)
+		rel, err := filepath.Rel(customDir, e.Path)
+		if err != nil || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+			// P0 修复：防路径穿越——e.Path 不在 customDir 下时，丢弃 err 会生成 "..\\leaked\\m.ysm"
+			// 并 MkdirAll 到 customDir 外部。显式拒绝越界条目。
+			if logger != nil {
+				logger(e.Name, e.Path, repoDir, 0, "failed",
+					"跳过越界路径（不在 customDir 下）: "+e.Path)
+			}
+			continue
+		}
 		if rel == "" {
 			rel = e.Name
 		}
 		dstPath := filepath.Join(repoDir, rel)
 		dstDir := filepath.Dir(dstPath)
 		if err := os.MkdirAll(dstDir, 0755); err != nil {
-			logger(e.Name, e.Path, repoDir, 0, "failed", "创建目录失败: "+err.Error())
+			if logger != nil {
+				logger(e.Name, e.Path, repoDir, 0, "failed", "创建目录失败: "+err.Error())
+			}
 			continue
 		}
 		if _, err := installer.CopyFile(e.Path, dstDir); err != nil {
-			logger(e.Name, e.Path, repoDir, 0, "failed", "复制失败: "+err.Error())
+			if logger != nil {
+				logger(e.Name, e.Path, repoDir, 0, "failed", "复制失败: "+err.Error())
+			}
 			continue
 		}
 		count++
-		logger(e.Name, e.Path, repoDir, 0, "success", "已复制到仓库")
+		if logger != nil {
+			logger(e.Name, e.Path, repoDir, 0, "success", "已复制到仓库")
+		}
 	}
 	return count, nil
 }
