@@ -17,7 +17,7 @@ import (
 	"ysm-model-manager/go/ysm"
 )
 
-// 锁统一（ADR：共享单锁）：同步与安装并发操作同一 custom 目录文件（Rename 竞态），
+// 锁统一（ADR-056 共享单锁）：同步与安装并发操作同一 custom 目录文件（Rename 竞态），
 // 原两包各自定义 installLock/syncLock 互不感知——现统一复用 installer.InstallLock
 
 // ScanFunc 扫描模型（函数类型，由 app.go 注入）

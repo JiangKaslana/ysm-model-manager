@@ -18,7 +18,7 @@ import (
 
 // InstallLock 防止安装操作与后台同步并发（sync 包复用同一把锁，见 sync.go——
 // 原两包各自定义 installLock/syncLock 互不感知，watcher 同步与用户安装可并发
-// Rename 同一 custom 目录文件 → 竞态/丢更新；ADR 统一为共享单锁）
+// Rename 同一 custom 目录文件 → 竞态/丢更新；ADR-056 统一为共享单锁）
 var InstallLock sync.Mutex
 
 // cleanAbs 封装 filepath.Abs(filepath.Clean(path))
