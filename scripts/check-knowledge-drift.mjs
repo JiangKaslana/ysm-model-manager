@@ -259,9 +259,9 @@ function checkAgentsNoHandcraftedIndex() {
 // 未覆盖 = 代码有模块、知识库无卡片 → WARN 提醒补登，不阻断 CI。
 
 const SOURCE_ROOTS = ['frontend/src', 'go'];
-// 排除：node_modules / dist / bindings / test 目录 / .test. / _test.（Go *_test.go） / .spec.
+// 排除：node_modules / dist / bindings / test 目录 / .test. / _test.（Go *_test.go） / .spec. / web-spike（ADR-049 Phase 0 spike，ephemeral 验证入口，非生产代码）
 // 同时匹配 / 与 \（Windows 下 path.join 产反斜杠路径，仅正斜杠会漏排除——code_review P3）
-const WALK_EXCLUDE_RE = /(node_modules|[\\/]dist[\\/]|[\\/]bindings[\\/]|[\\/]test[\\/]|\.test\.|_test\.|\.spec\.)/;
+const WALK_EXCLUDE_RE = /(node_modules|[\\/]dist[\\/]|[\\/]bindings[\\/]|[\\/]test[\\/]|web-spike[\\/]|\.test\.|_test\.|\.spec\.)/;
 
 function walkSources(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
