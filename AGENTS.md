@@ -131,7 +131,7 @@ http://localhost:9222/json # 实际网页一览
 | 场景 | 处置 |
 |------|------|
 | 测试失败且 1 轮修复未通过 | **停下来报告**，不要继续改 |
-| 不确定影响范围 | `npm run check:consumers -- <符号>` 查消费者，**先问再做** |
+| 不确定影响范围 | Grep 搜 `<符号>` 查消费者（`frontend/src/`、`go/`），**先问再做** |
 | 误删/误移函数 | `git diff HEAD` 确认 → `git checkout -- <file>` 恢复单文件 |
 | pre-push 门禁失败 | 读失败输出的最后 10 行，按 check 名称定位 `.githooks/pre-push` 中的脚本修复 |
 | 子代理改动冲突 | 以锁文件制预防；若仍冲突，主模型读双方 diff 仲裁 |

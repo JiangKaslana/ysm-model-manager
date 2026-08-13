@@ -141,6 +141,7 @@ class AppContent extends HTMLElement {
     this._resizeMove = null;
     this._resizeUp = null;
     this._avatarRefreshRegistered = false;
+    this._insListenerReg = false;
     // config-loaded Wails 订阅回收 + flag 复位（组件重建后新实例可重新注册）
     if (_avatarConfigLoadedUnsub) {
       _avatarConfigLoadedUnsub();

@@ -115,7 +115,7 @@ fi
 
 # 4. 复制配置文件
 echo -e "\033[33m📋 复制资源配置...\033[0m"
-for f in workshop_sites.json creator.json workshop-github.json resource_types.json; do
+for f in workshop_sites.json creators.json workshop-github.json resource_types.json; do
   [ -f "$PROJECT_ROOT/$f" ] && cp "$PROJECT_ROOT/$f" "$OUTPUT_DIR/" || true
 done
 
