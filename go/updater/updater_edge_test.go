@@ -136,7 +136,11 @@ func TestExtractZipFile_NULInName(t *testing.T) {
 	// 检查是否写出了非预期文件：extractZipFile 只写调用方传入的 dest（output），
 	// NUL 名条目不应产生额外文件——若未来实现改用 f.Name 构建路径，NUL 截断
 	// 会写出 safe.exe 等额外文件而触发 Errorf 变红（3-1 修复：断言真实守门）
-	entries, _ := os.ReadDir(tmpDir)
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		// 守门枚举失败必须显式报错，否则循环零次执行、守门假绿（code_review P3）
+		t.Fatalf("os.ReadDir(%s) = %v", tmpDir, err)
+	}
 	for _, e := range entries {
 		if e.Name() != "output" {
 			t.Errorf("BUG(INFO-NUL-ZIP): NUL 名称条目写出了非预期文件 %q", e.Name())
