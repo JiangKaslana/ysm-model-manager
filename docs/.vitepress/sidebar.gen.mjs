@@ -656,6 +656,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-058：纯 exe 发布模型：数据编译期内嵌",
+        "link": "/adr/ADR-058-standalone-exe-embedded-data"
+      },
+      {
         "text": "ADR-057：3D 预览悬浮触发按钮与双端响应式控制层",
         "link": "/adr/ADR-057-3d-preview-fab-responsive"
       },

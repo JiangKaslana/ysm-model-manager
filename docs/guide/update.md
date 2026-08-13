@@ -32,12 +32,11 @@ outline: [2, 3]
 
 ### 2. 更新时数据会怎样
 
-| 文件 | 更新行为 |
+| 数据 | 更新行为 |
 |------|---------|
-| `ysm_config.json`（配置） | 不动，位于 `%APPDATA%\YSM-Model-Manager\` |
+| 配置与用户可编辑数据（`%APPDATA%\YSM-Model-Manager\`） | 不动，升级不覆盖 |
 | 模型仓库文件 | 不动，在你设置的存储路径 |
-| `resource_types.json` | 总是覆盖为新版 |
-| `creators.json` / `workshop_sites.json` / `workshop-github.json` | 仅在缺失时创建，已有不覆盖 |
+| 内置社区数据（资源类型 / 创作者 / 工坊站点） | 编译期内嵌于 exe（v1.12.0 起纯 exe 交付，ZIP 不再附带数据文件），随新版程序自动更新；你在用户目录下保存的副本不会被覆盖 |
 
 ### 3. 手动更新
 
