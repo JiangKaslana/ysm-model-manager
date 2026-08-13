@@ -38,10 +38,10 @@
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 48 | 164 |
+| 前端·工具 | 49 | 165 |
 | frontend/views | 70 | 199 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **247** | **1027** |
+| **合计** | **248** | **1028** |
 
 ## Go·头像
 
@@ -884,6 +884,7 @@
 | `loadTdKeymap()` | `frontend/src/utils/3d/keymap:27` | 读取用户自定义键位（无/非法时回退默认） |
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/keymap:45` | 相机移动速度（2–200），默认 20 |
 | `loadTdRotMode()` | `frontend/src/utils/3d/keymap:52` | true = 环绕（orbit），false = 自身（free） |
+| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:14` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
 | `compKey()` | `frontend/src/utils/3d/mesh:13` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
 | `MaterialWithMap()` | `frontend/src/utils/3d/mesh:18` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:23` | 释放材质（含位图 .map），null/undefined 安全。 |
@@ -905,14 +906,14 @@
 | `loadTdKeymap()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdRotMode()` | `frontend/src/utils/3d/model3d` | — |
-| `SpecBone3D()` | `frontend/src/utils/3d/model3d:18` | — |
-| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:26` | — |
-| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:38` | — |
-| `Spec3D()` | `frontend/src/utils/3d/model3d:46` | — |
-| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:51` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:65` | renderModel3D 返回的渲染句柄 |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:100` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:465` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `SpecBone3D()` | `frontend/src/utils/3d/model3d:19` | — |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:27` | — |
+| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:39` | — |
+| `Spec3D()` | `frontend/src/utils/3d/model3d:47` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:52` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:66` | renderModel3D 返回的渲染句柄 |
+| `renderModel3D()` | `frontend/src/utils/3d/model3d:101` | 渲染 3D 模型到容器，返回控制句柄 |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:399` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:31` | 启动渲染循环并立即渲染一帧。 |
 | `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:7` | setupRenderer 返回的组件 |

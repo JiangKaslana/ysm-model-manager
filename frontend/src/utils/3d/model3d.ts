@@ -13,6 +13,7 @@ import { getBoneList } from "./bone-list.ts"; // 骨骼列表（已拆）
 import { setBoneVisible as _setBoneVisible, toggleBone as _toggleBone, showModelGroup as _showModelGroup } from "./bone-visibility.ts"; // 骨骼可见性（已拆）
 import { resetRendererState, detachRendererCanvas } from "./session-state.ts"; // 会话状态重置（已拆）
 import { setupRenderer } from "./renderer-setup.ts"; // renderer 场景初始化（已拆）
+import { addMeshToBoneGroup } from "./mesh-builder.ts"; // 单个网格构建（已拆）
 // ── Spec 结构（Go 返回的 models 结构）────────────────
 
 export interface SpecBone3D {
@@ -193,77 +194,10 @@ export async function renderModel3D(
     for (const md of mg.meshGroups) {
       const bg = boneGroupMap.get(compKey(mi, md.boneId));
       if (!bg) continue;
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(md.positions, 3),
-      );
-      geo.setAttribute(
-        "normal",
-        new THREE.Float32BufferAttribute(md.normals, 3),
-      );
-      geo.setAttribute("uv", new THREE.Float32BufferAttribute(md.uvs, 2));
-      geo.setIndex(md.indices);
-      // 多组件：md.texIdx 是 Go 端全局组件槽位（组件序 0,1,2...），必须用；
-      // 单组件：Go 端恒输出 texIdx 字段（无 omitempty，单组件=0），若用 ?? 则
-      // 纹理选择器（调用方 texIdx 参数）被架空——永远贴第 0 张（P2）。
-      // ?? 0 仅作防御：Go 端 BuildMulti/Build 恒输出 texIdx，缺失即契约破坏（R4），
-      // 不应静默——warn 让错误可见。
       if (md.texIdx === undefined) {
         console.warn("[model3d] mesh 缺 texIdx（spec 契约破坏），回退 0", spec.models?.length);
       }
-      const mti = (spec.models?.length ?? 1) > 1 ? (md.texIdx ?? 0) : (texIdx ?? 0);
-      // 错误可见化：texIdx 越界/缺图时不再静默顶替 texArr[0]（主纹理），否则箭矢等
-      // 组件会永远伪装成正常渲染、材质错位不可见（P1）。缺失即 warn + 品红错误材质。
-      let mt: THREE.Texture | null = null;
-      let texIdxMismatch = false;
-      if (texArr.length > 0) {
-        if (mti >= 0 && mti < texArr.length && texArr[mti]) {
-          mt = texArr[mti];
-        } else {
-          texIdxMismatch = true;
-          console.warn(
-            `[model3d] texIdx=${mti} 越界或缺图（texArr 长=${texArr.length}），` +
-              `组件 boneId=${md.boneId ?? "?"} 无法定位纹理，改用品红错误材质`,
-            { multiModel: (spec.models?.length ?? 1) > 1, mdTexIdx: md.texIdx, callerTexIdx: texIdx },
-          );
-        }
-      }
-      // ysmview 风格材质：统一 FrontSide + transparent + alphaTest 0.1 + depthWrite。
-      // alphaTest 把 <0.1 alpha 像素直接裁剪（硬透明，边缘干净）；
-      // depthWrite: true 让不透明像素写深度，避免透明面穿透后方网格（YSMViewer 同款）。
-      // 历史：曾仅 transparent: true（alpha 混合 + 不写深度）→ 材质边缘虚化/内部穿帮。
-      const mat = mt
-        ? new THREE.MeshBasicMaterial({
-            map: mt,
-            side: THREE.FrontSide,
-            transparent: true,
-            alphaTest: 0.1,
-            depthWrite: true,
-          })
-        : new THREE.MeshBasicMaterial({
-            color: texIdxMismatch ? 0xff00ff : 0xcccccc,
-            side: THREE.FrontSide,
-          });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(
-        md.localPosition?.[0] ?? 0,
-        md.localPosition?.[1] ?? 0,
-        md.localPosition?.[2] ?? 0,
-      );
-      if (
-        md.localRotation?.[3] !== 1 ||
-        md.localRotation?.[0] !== 0 ||
-        md.localRotation?.[1] !== 0 ||
-        md.localRotation?.[2] !== 0
-      )
-        mesh.quaternion.set(
-          md.localRotation?.[0] ?? 0,
-          md.localRotation?.[1] ?? 0,
-          md.localRotation?.[2] ?? 0,
-          md.localRotation?.[3] ?? 1,
-        );
-      bg.add(mesh);
+      addMeshToBoneGroup(bg, md, texArr, texIdx, (spec.models?.length ?? 1) > 1);
     }
   }
 
