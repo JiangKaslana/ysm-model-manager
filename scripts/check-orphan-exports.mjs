@@ -138,6 +138,28 @@ function extractImports(file, text, moduleSet) {
       out.push([target, u[1]]);
     }
   }
+  // 转发别名盲区修复（ADR-241 实证）：const x = mod.foo 把 foo 赋给局部变量 x 后，
+  // 下游 x() / x.zzz 调用无法回溯到 mod.foo 所属模块的符号，导致活代码误判孤儿
+  // （download-queue.ts 的 subscribe/getState/resume/... 即此情形）。
+  // 修复：记录 x→{target,foo}，再全文扫 x 的用法计入 foo 消费（排除定义行自身）。
+  for (const [alias, target] of nsAliases) {
+    if (!moduleSet.has(target)) continue;
+    const fwdDefRe = new RegExp(
+      `(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*${alias}\\.([A-Za-z_$][\\w$]*)`,
+      'g',
+    );
+    for (const fm of text.matchAll(fwdDefRe)) {
+      const x = fm[1];
+      const foo = fm[2];
+      const defLine = text.slice(0, fm.index ?? 0).split('\n').length;
+      const xUseRe = new RegExp(`\\b${x}\\b`, 'g');
+      for (const xm of text.matchAll(xUseRe)) {
+        const useLine = text.slice(0, xm.index ?? 0).split('\n').length;
+        if (useLine === defLine) continue; // 跳过 const x = ... 定义行本身
+        out.push([target, foo]);
+      }
+    }
+  }
   // 命名空间导入 import * as ns：扫描 ns.<symbol> 用法对齐具体符号
   for (const m of text.matchAll(/\bimport\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*['"]([^'"]+)['"]/g)) {
     const target = resolveImport(file, m[2], moduleSet);
