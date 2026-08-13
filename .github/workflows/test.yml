@@ -44,11 +44,22 @@ jobs:
             go-mod-${{ runner.os }}-
 
       # winget 安装的 app 链接不会刷新当前 runner 进程 PATH，导致后续步骤找不到 rg；
-      # 改用官方 ripgrep-action，它会将 rg 正确写入 GITHUB_PATH（跨平台生效）。
+      # 第三方 ripgrep-action 在 workflow_call 中静态解析失败（startup_failure）。
+      # 改为直接从 GitHub 官方 release 下载 -gnu 二进制 zip，解压出 rg.exe 并用 GITHUB_PATH 注入 PATH（跨平台生效）。
       - name: 安装 ripgrep（契约测试依赖 rg 二进制）
-        uses: BurntSushi/ripgrep-action@master
-        with:
-          version: 14.1.0
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $v = "14.1.0"
+          $zip = "$env:RUNNER_TEMP\rg.zip"
+          $dir = "$env:RUNNER_TEMP\rg-$v"
+          Invoke-WebRequest -Uri "https://github.com/BurntSushi/ripgrep/releases/download/$v/ripgrep-$v-x86_64-pc-windows-gnu.zip" -OutFile $zip -UseBasicParsing
+          Expand-Archive -LiteralPath $zip -DestinationPath $dir -Force
+          $rg = Get-ChildItem -Path $dir -Recurse -Filter rg.exe | Select-Object -First 1
+          $bin = $rg.Directory.FullName
+          Write-Host "rg.exe at: $bin"
+          Add-Content -Path "$env:GITHUB_PATH" -Value $bin
+          & "$bin\rg.exe" --version
 
       - name: 契约测试（tests/，Node .mjs，禁止修改测试文件）
         shell: pwsh
