@@ -394,10 +394,10 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `New()` | `go/watcher/watcher:40` | New 创建文件监听器 |
-| `Watcher.Start()` | `go/watcher/watcher:55` | Start 开始监听 |
-| `Watcher.Stop()` | `go/watcher/watcher:102` | Stop 停止监听 |
-| `Watcher.IsRunning()` | `go/watcher/watcher:129` | IsRunning 返回是否正在运行 |
+| `New()` | `go/watcher/watcher:41` | New 创建文件监听器 |
+| `Watcher.Start()` | `go/watcher/watcher:57` | Start 开始监听 |
+| `Watcher.Stop()` | `go/watcher/watcher:105` | Stop 停止监听 |
+| `Watcher.IsRunning()` | `go/watcher/watcher:140` | IsRunning 返回是否正在运行 |
 | `ScanFunc()` | `go/watcher/watcher:18` | ScanFunc matches mdsync.ScanFunc |
 | `Watcher()` | `go/watcher/watcher:24` | Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包 |
 
