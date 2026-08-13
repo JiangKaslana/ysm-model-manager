@@ -43,6 +43,13 @@ jobs:
             go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-
             go-mod-${{ runner.os }}-
 
+      - name: 安装 ripgrep（契约测试依赖 rg 二进制）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          winget install -e --id BurntSushi.ripgrep.MSVC --accept-package-agreements --accept-source-agreements
+          rg --version
+
       - name: 契约测试（tests/，Node .mjs，禁止修改测试文件）
         shell: pwsh
         run: |
