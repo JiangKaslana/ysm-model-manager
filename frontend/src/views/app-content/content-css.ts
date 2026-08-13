@@ -459,6 +459,8 @@ ${focusVisibleCSS}
   border:1px solid var(--bd);border-radius:var(--radius-lg);
   padding:0 5px;line-height:14px;
 }
+.cr-card-local-jump { cursor:pointer;transition:color var(--tr-fast),border-color var(--tr-fast); }
+.cr-card-local-jump:hover { color:var(--accent);border-color:var(--accent); }
 /* 描述文本 */
 .cr-card-desc {
   font-size:var(--fs-xs);color:var(--muted);line-height:1.5;

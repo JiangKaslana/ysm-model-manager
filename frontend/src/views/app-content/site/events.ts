@@ -101,11 +101,25 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
     });
   });
 
-  // 📂 本地模型快捷按钮（阻止冒泡，不触发详情浮层）——直达仓库页搜索该创作者
+  // 🔍 搜索快捷按钮（阻止冒泡，不触发详情浮层）——联网搜索创作者
   searchResults.querySelectorAll(".cr-card-search").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const name = (btn as HTMLElement).dataset.searchCreator || "";
+      if (site.searchUrl && openUrl) {
+        openUrl(fillSearch(site.searchUrl, name));
+      } else if (openUrl) {
+        // 无 searchUrl（如分类索引站）→ 直接打开站点首页
+        openUrl(site.url);
+      }
+    });
+  });
+
+  // 📁 本地模型徽章（阻止冒泡，不触发详情浮层）——直达仓库页搜索该创作者
+  searchResults.querySelectorAll(".cr-card-local-jump").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = (el as HTMLElement).dataset.localCreator || "";
       busRef.emit("repo:search-creator", name);
     });
   });
@@ -130,7 +144,12 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
   searchResults.querySelectorAll(".gh-card[data-name]").forEach((card) => {
     card.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
-      if (target.closest(".cr-star-btn") || target.closest(".cr-card-search")) return;
+      if (
+        target.closest(".cr-star-btn") ||
+        target.closest(".cr-card-search") ||
+        target.closest(".cr-card-local-jump")
+      )
+        return;
       const name = (card as HTMLElement).dataset.name;
       const cr = creators.find((c) => c.name === name);
       if (!cr) return;
