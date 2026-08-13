@@ -76,7 +76,7 @@
 | `NewWithClient()` | `go/download/download:49` | NewWithClient 使用指定 HTTP client。 |
 | `Downloader.File()` | `go/download/download:193` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
 | `Downloader.FromGitHubAPI()` | `go/download/download:198` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `ResolveSavePath()` | `go/download/download:203` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `ResolveSavePath()` | `go/download/download:227` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
 | `ProgressFn()` | `go/download/download:35` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
 | `Downloader()` | `go/download/download:38` | Downloader 文件下载器。 |
 
