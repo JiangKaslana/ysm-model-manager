@@ -599,23 +599,23 @@
 | `App.ReadLitematicMeta()` | `internal/app/resource_bindings:116` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
 | `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:127` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
 | `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:132` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
-| `App.DetectResourceType()` | `internal/app/resource_bindings:139` | DetectResourceType 检测指定文件的资源类型 |
-| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:160` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
-| `App.GetRepoRoot()` | `internal/app/resource_bindings:175` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
-| `App.ToggleResourcePack()` | `internal/app/resource_bindings:246` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
-| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:293` | IsResourcePackEnabled 检查资源包是否启用 |
-| `App.SelectImportZip()` | `internal/app/resource_bindings:298` | SelectImportZip 打开文件选择器选取 .zip 文件 |
-| `App.SelectImportFile()` | `internal/app/resource_bindings:311` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
-| `App.SetResourceRoot()` | `internal/app/resource_bindings:334` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） 非空入参经 filepath.Abs(filepath.Clean()) 规范化，防止含 .. |
-| `App.ResetResourceRoot()` | `internal/app/resource_bindings:356` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
-| `App.ImportResourcePack()` | `internal/app/resource_bindings:387` | ImportResourcePack 使用策略模式导入资源包 |
-| `App.ImportByType()` | `internal/app/resource_bindings:400` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:417` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
-| `App.DeleteModelDir()` | `internal/app/resource_bindings:428` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:458` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:475` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:489` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:495` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.DetectResourceType()` | `internal/app/resource_bindings:142` | DetectResourceType 检测指定文件的资源类型 |
+| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:163` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
+| `App.GetRepoRoot()` | `internal/app/resource_bindings:178` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
+| `App.ToggleResourcePack()` | `internal/app/resource_bindings:249` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
+| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:296` | IsResourcePackEnabled 检查资源包是否启用 |
+| `App.SelectImportZip()` | `internal/app/resource_bindings:301` | SelectImportZip 打开文件选择器选取 .zip 文件 |
+| `App.SelectImportFile()` | `internal/app/resource_bindings:314` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
+| `App.SetResourceRoot()` | `internal/app/resource_bindings:337` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） 非空入参经 filepath.Abs(filepath.Clean()) 规范化，防止含 .. |
+| `App.ResetResourceRoot()` | `internal/app/resource_bindings:359` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
+| `App.ImportResourcePack()` | `internal/app/resource_bindings:390` | ImportResourcePack 使用策略模式导入资源包 |
+| `App.ImportByType()` | `internal/app/resource_bindings:403` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:420` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
+| `App.DeleteModelDir()` | `internal/app/resource_bindings:431` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:461` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:478` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:492` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:498` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |
 | `App.GetWasmBinary()` | `internal/app/wasm_embed:5` | GetWasmBinary 返回内嵌的 YSMParser.wasm 字节（供前端 WebView2 使用）。 |
 
@@ -971,12 +971,12 @@
 | `renderSiteView()` | `frontend/src/views/app-content/site-view:49` | 站点视图渲染主入口 — 编排壳：构造数据 → 构 HTML → 绑事件 → 聚 cleanup。 |
 | `bindDragEvents()` | `frontend/src/views/app-content/site/drag:14` | 绑定拖拽 JSON 导入事件：创作者 JSON / 站点 JSON 识别 + 合并。 |
 | `bindEditEvents()` | `frontend/src/views/app-content/site/edit:17` | 绑定编辑模式事件：编辑入口 / 拉取配置 / 取消 / 保存 / 行内编辑 / 删除创作者 / 拖拽排序 / 增删搜索词 / 搜索过滤。 |
-| `bindBrowseEvents()` | `frontend/src/views/app-content/site/events:28` | 绑定浏览态事件：空状态按钮 / 创作者卡片网格 / 预设搜索 / 收藏 / 头像调试 / 卡片点击详情浮层 / 键盘导航 / storage 同步 / 浏览仓库模型。 |
+| `bindBrowseEvents()` | `frontend/src/views/app-content/site/events:26` | 绑定浏览态事件：空状态按钮 / 创作者卡片网格 / 预设搜索 / 收藏 / 头像调试 / 卡片点击详情浮层 / 键盘导航 / storage 同步。 |
 | `CrCardCtx()` | `frontend/src/views/app-content/site/render:13` | 创作者卡片工厂上下文 |
 | `BuildSiteHtmlCtx()` | `frontend/src/views/app-content/site/render:24` | buildSiteHtml 依赖的渲染上下文 |
 | `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |
 | `SiteViewState()` | `frontend/src/views/app-content/site/types:12` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
-| `CleanupFn()` | `frontend/src/views/app-content/site/types:43` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
+| `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
 | `GH_RELEASES()` | `frontend/src/views/app-content/tpl:12` | — |
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:15` | — |
 | `instancesHTML()` | `frontend/src/views/app-content/tpl:66` | — |

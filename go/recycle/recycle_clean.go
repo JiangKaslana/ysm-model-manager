@@ -19,15 +19,15 @@ type CleanOpLogger func(name, src, dst string, size int64, status, msg string)
 
 // RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件：
 // 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推）
-func RemoveRepoDuplicates(dir, repoRoot, recycleRoot string) int {
+func RemoveRepoDuplicates(dir, filesRoot, recycleRoot string) int {
 	targets := fsutil.WalkAllFiles(dir, true)
-	if repoRoot == "" {
+	if filesRoot == "" {
 		// 没有仓库根目录时不做处理
 		return 0
 	}
 	// 预加载仓库文件列表（仅文件名，用于判断是否在仓库中）
 	repoFiles := make(map[string]bool)
-	for _, p := range fsutil.WalkAllFiles(repoRoot, true) {
+	for _, p := range fsutil.WalkAllFiles(filesRoot, true) {
 		repoFiles[strings.ToLower(filepath.Base(p))] = true
 	}
 	count := 0

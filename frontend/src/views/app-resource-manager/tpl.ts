@@ -14,19 +14,19 @@ export interface PackMetaDetail extends PackMeta {
 
 /**
  * 侧栏布局（路径 + 操作栏 + 列表）
- * @param repoRoot - 资源包目录路径
+ * @param filesRoot - 资源包目录路径
  * @param actions - 可用操作列表
  * @param label - 资源类型名称
  */
 export function sidebarHTML(
-  repoRoot: string,
+  filesRoot: string,
   actions: string[],
   label: string,
 ): string {
   let html =
     '<div class="rm-sidebar" style="width:220px;overflow-y:auto;padding:8px;border-right:1px solid var(--bd);display:flex;flex-direction:column">' +
     '<div style="font-size:var(--fs-sm);color:var(--muted);padding:4px;word-break:break-all">📂 ' +
-    esc(repoRoot) +
+    esc(filesRoot) +
     "</div>";
   let btns = "";
   if (actions.includes("import")) {

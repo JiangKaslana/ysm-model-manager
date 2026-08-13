@@ -23,7 +23,7 @@ const debounceDelay = 800 * time.Millisecond
 // Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包
 type Watcher struct {
 	w            *fsnotify.Watcher
-	repoRoot     string
+	filesRoot    string
 	mcRoot       string
 	scanFn       ScanFunc
 	clearCacheFn func() // 扫描缓存失效回调（可选）
@@ -38,13 +38,13 @@ type Watcher struct {
 }
 
 // New 创建文件监听器
-func New(repoRoot, mcRoot string, scanFn ScanFunc, clearCacheFn ...func()) *Watcher {
+func New(filesRoot, mcRoot string, scanFn ScanFunc, clearCacheFn ...func()) *Watcher {
 	var ccf func()
 	if len(clearCacheFn) > 0 {
 		ccf = clearCacheFn[0]
 	}
 	return &Watcher{
-		repoRoot:     repoRoot,
+		filesRoot:    filesRoot,
 		mcRoot:       mcRoot,
 		scanFn:       scanFn,
 		clearCacheFn: ccf,
@@ -72,7 +72,7 @@ func (w *Watcher) Start() error {
 	w.running = true
 
 	// 递归添加子目录
-	filepath.WalkDir(w.repoRoot, func(path string, d os.DirEntry, err error) error {
+	filepath.WalkDir(w.filesRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			log.Printf("[watcher] WalkDir 跳过 %s: %v", path, err)
 			return nil
@@ -97,7 +97,7 @@ func (w *Watcher) Start() error {
 	// 事件可能不完整），仓库根变更可能漏报；Android 上以手动刷新/重扫为准，不做轮询兜底。
 
 	go w.loop()
-	log.Printf("[watcher] 已启动: %s", w.repoRoot)
+	log.Printf("[watcher] 已启动: %s", w.filesRoot)
 	return nil
 }
 
@@ -269,7 +269,7 @@ func (w *Watcher) syncAll() {
 		w.clearCacheFn()
 	}
 	// 空仓库短路：仓库无模型文件时无需同步状态，避免每个实例重复空扫
-	if len(w.scanFn(w.repoRoot)) == 0 {
+	if len(w.scanFn(w.filesRoot)) == 0 {
 		return
 	}
 	totalDisable := 0
@@ -278,7 +278,7 @@ func (w *Watcher) syncAll() {
 		if !ins.Exists {
 			continue
 		}
-		d, e, err := mdsync.SyncToggleStatus(ins.CustomDir, w.repoRoot, w.scanFn)
+		d, e, err := mdsync.SyncToggleStatus(ins.CustomDir, w.filesRoot, w.scanFn)
 		if err != nil {
 			log.Printf("[watcher] %s 同步失败: %v", ins.Name, err)
 			continue

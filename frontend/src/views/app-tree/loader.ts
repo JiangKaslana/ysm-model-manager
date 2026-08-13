@@ -63,14 +63,14 @@ function maybePromptAndroidStorage(): void {
 /** 从 Go 后端加载仓库文件列表，返回格式化的 entries */
 export async function loadEntries(
   rtype: string,
-): Promise<{ repoRoot: string; entries: TreeEntry[] }> {
+): Promise<{ filesRoot: string; entries: TreeEntry[] }> {
   try {
     const { GetRepoRoot, ScanModelEntriesWithLabel, IsFileBanned } = await getApp();
-    const repoRoot = await GetRepoRoot(rtype || "");
-    if (!repoRoot) return { repoRoot: "", entries: [] };
+    const filesRoot = await GetRepoRoot(rtype || "");
+    if (!filesRoot) return { filesRoot: "", entries: [] };
 
-    const raw = await ScanModelEntriesWithLabel(repoRoot, RESOURCE_TYPE_LABELS[rtype] || rtype);
-    if (!raw || !raw.length) return { repoRoot, entries: [] };
+    const raw = await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[rtype] || rtype);
+    if (!raw || !raw.length) return { filesRoot, entries: [] };
 
     // 按类型过滤扩展名（防止共享仓库中混入其他类型的文件）
     const exts = getExts(rtype);
@@ -90,7 +90,7 @@ export async function loadEntries(
 
     const entries: TreeEntry[] = filtered.map((e, i) => {
       let relPath = e.Path;
-      const normRoot = repoRoot ? repoRoot.replace(/\\/g, "/") : "";
+      const normRoot = filesRoot ? filesRoot.replace(/\\/g, "/") : "";
       const normPath = e.Path.replace(/\\/g, "/");
       if (normRoot && normPath.startsWith(normRoot)) {
         relPath = normPath.slice(normRoot.length).replace(/^[/\\]+/, "");
@@ -105,12 +105,12 @@ export async function loadEntries(
         type: "",
       };
     });
-    return { repoRoot, entries };
+    return { filesRoot, entries };
   } catch (err) {
     // 失败不静默：自动重载场景用户看不到报错，明确 toast 提示（带节流防刷屏）
     toastLoadError(err);
     // Android 未授权时引导开启"所有文件访问"（Java 弹窗跳设置页）
     maybePromptAndroidStorage();
-    return { repoRoot: "", entries: [] };
+    return { filesRoot: "", entries: [] };
   }
 }

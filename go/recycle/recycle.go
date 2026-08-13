@@ -356,28 +356,28 @@ func (tm *TrashManager) Empty() (int, error) {
 
 // ===== 向后兼容的包级函数 =====
 
-func Move(src, repoRoot string) error {
-	return New(repoRoot).Move(src)
+func Move(src, filesRoot string) error {
+	return New(filesRoot).Move(src)
 }
 
-func MoveEx(src, repoRoot string) *MoveResult {
-	return New(repoRoot).MoveEx(src)
+func MoveEx(src, filesRoot string) *MoveResult {
+	return New(filesRoot).MoveEx(src)
 }
 
-func List(repoRoot string) []types.ModelEntry {
-	return New(repoRoot).List()
+func List(filesRoot string) []types.ModelEntry {
+	return New(filesRoot).List()
 }
 
-func Restore(src, repoRoot string) error {
-	return New(repoRoot).Restore(src)
+func Restore(src, filesRoot string) error {
+	return New(filesRoot).Restore(src)
 }
 
-func Delete(src, repoRoot string) error {
-	return New(repoRoot).Delete(src)
+func Delete(src, filesRoot string) error {
+	return New(filesRoot).Delete(src)
 }
 
-func Empty(repoRoot string) (int, error) {
-	return New(repoRoot).Empty()
+func Empty(filesRoot string) (int, error) {
+	return New(filesRoot).Empty()
 }
 
 // copyFile 复制文件（跨分区兼容）

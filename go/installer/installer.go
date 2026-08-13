@@ -41,15 +41,15 @@ func isSupportedModelExt(src string) bool {
 }
 
 // Install 安装模型到目标目录（支持链接模式）
-func Install(src, customDir, repoRoot, linkMode string) error {
+func Install(src, customDir, filesRoot, linkMode string) error {
 	InstallLock.Lock()
 	defer InstallLock.Unlock()
-	return InstallLocked(src, customDir, repoRoot, linkMode)
+	return InstallLocked(src, customDir, filesRoot, linkMode)
 }
 
 // InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。
 // 语义与 Install 一致，但不重复加锁——供 sync.RelinkDir 等已持锁调用方使用（防重入死锁）。
-func InstallLocked(src, customDir, repoRoot, linkMode string) error {
+func InstallLocked(src, customDir, filesRoot, linkMode string) error {
 	src = strings.TrimSpace(src)
 	customDir = strings.TrimSpace(customDir)
 	if src == "" || customDir == "" {
@@ -75,8 +75,8 @@ func InstallLocked(src, customDir, repoRoot, linkMode string) error {
 	}
 
 	// 验证 src 在仓库目录内（防任意文件写入）
-	if repoRoot != "" {
-		if err := paths.IsInside(repoRoot, srcClean); err != nil {
+	if filesRoot != "" {
+		if err := paths.IsInside(filesRoot, srcClean); err != nil {
 			return types.AppError{Code: "INVALID_PATH", Operation: "安装模型", SourcePath: src, Reason: "源文件不在仓库目录内", Suggestion: "请确保模型文件位于已选择的仓库目录中"}
 		}
 		// 防符号链接段绕过字符串守卫——IsInside 不追踪 symlink
@@ -85,8 +85,8 @@ func InstallLocked(src, customDir, repoRoot, linkMode string) error {
 		// （如 ZHUJIE~1）而 EvalSymlinks 归一化为长名，短/长名混比会让 IsInside 误判越权。
 		// 任一侧 EvalSymlinks 失败（路径不存在）时保持原校验结果不放宽不放窄
 		if resolvedSrc, err := filepath.EvalSymlinks(srcClean); err == nil {
-			if resolvedRepo, err := filepath.EvalSymlinks(repoRoot); err == nil {
-				if err := paths.IsInside(resolvedRepo, resolvedSrc); err != nil {
+			if resolvedFiles, err := filepath.EvalSymlinks(filesRoot); err == nil {
+				if err := paths.IsInside(resolvedFiles, resolvedSrc); err != nil {
 					return types.AppError{Code: "INVALID_PATH", Operation: "安装模型", SourcePath: src, Reason: "源文件不在仓库目录内", Suggestion: "请确保模型文件位于已选择的仓库目录中"}
 				}
 			}
@@ -101,9 +101,9 @@ func InstallLocked(src, customDir, repoRoot, linkMode string) error {
 	// 上方 IsInside 已 fail-fast 保证 srcClean 在仓库内，此处直接用 Clean 后路径算 rel，
 	// 不用 HasPrefix 二次判断（无分隔符边界校验，/repo 会误匹配 /repository）
 	targetDir := customDir
-	if repoRoot != "" {
-		absRepo := cleanAbs(repoRoot)
-		rel, err := filepath.Rel(absRepo, srcClean)
+	if filesRoot != "" {
+		absFiles := cleanAbs(filesRoot)
+		rel, err := filepath.Rel(absFiles, srcClean)
 		if err == nil {
 			relDir := filepath.Dir(rel)
 			if relDir != "." {
@@ -142,16 +142,16 @@ func evalSymlinksOrKeep(p string) string {
 // InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式）
 // 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件
 // rtype 用于过滤文件类型（如 MMD 排除 .vrm）
-func InstallDir(srcDir, dstDir, repoRoot, linkMode, rtype string) error {
+func InstallDir(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 	InstallLock.Lock()
 	defer InstallLock.Unlock()
-	return InstallDirLocked(srcDir, dstDir, repoRoot, linkMode, rtype)
+	return InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype)
 }
 
 // InstallDirLocked 安装整个目录下的所有文件到目标目录（调用方须已持有 InstallLock，
 // 禁止直接调用）。语义与 InstallDir 一致，但不重复加锁——供 sync.RelinkDir 等
 // 已持锁调用方使用（防重入死锁）。
-func InstallDirLocked(srcDir, dstDir, repoRoot, linkMode, rtype string) error {
+func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 	srcDir = strings.TrimSpace(srcDir)
 	dstDir = strings.TrimSpace(dstDir)
 	if srcDir == "" || dstDir == "" {
@@ -166,8 +166,8 @@ func InstallDirLocked(srcDir, dstDir, repoRoot, linkMode, rtype string) error {
 	// 存在的路径解析到目标，不存在的路径保留原样（目标目录尚未创建时 EvalSymlinks 失败属正常）
 	srcDir = evalSymlinksOrKeep(srcDir)
 	dstDir = evalSymlinksOrKeep(dstDir)
-	if repoRoot != "" {
-		repoRoot = evalSymlinksOrKeep(repoRoot)
+	if filesRoot != "" {
+		filesRoot = evalSymlinksOrKeep(filesRoot)
 	}
 
 	// 死递归守卫——srcDir==dstDir 时 finalDst 成为 srcDir 的
@@ -182,8 +182,8 @@ func InstallDirLocked(srcDir, dstDir, repoRoot, linkMode, rtype string) error {
 		return types.AppError{Code: "INVALID_PATH", Operation: "安装目录", SourcePath: dstDir, Reason: "目标目录不在 .minecraft 路径内"}
 	}
 	// 验证 srcDir 在仓库目录内
-	if repoRoot != "" {
-		if err := paths.IsInside(repoRoot, srcDir); err != nil {
+	if filesRoot != "" {
+		if err := paths.IsInside(filesRoot, srcDir); err != nil {
 			return types.AppError{Code: "INVALID_PATH", Operation: "安装目录", SourcePath: srcDir, Reason: "源目录不在仓库目录内"}
 		}
 	}
@@ -205,7 +205,7 @@ func InstallDirLocked(srcDir, dstDir, repoRoot, linkMode, rtype string) error {
 	} else if !os.IsNotExist(err) {
 		log.Printf("[installer] 检查目标目录状态失败 %s: %v", finalDst, err)
 	}
-	if err := installDirRecursive(srcDir, finalDst, linkMode, rtype, repoRoot); err != nil {
+	if err := installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot); err != nil {
 		// 仅本次新建目录才回滚删除；回滚失败时记录明确警告并返回复合错误，
 		// 让调用方能区分「安装失败」与「安装失败 + 回滚失败留残渣」两种状态
 		if !dstExisted {
@@ -242,7 +242,7 @@ func checkDstSymlinkSegments(finalDst string) error {
 }
 
 // installDirRecursive 递归安装目录树
-func installDirRecursive(srcDir, finalDst, linkMode, rtype, repoRoot string) error {
+func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) error {
 	// 目标侧符号链接段校验——必须放在 MkdirAll 之前：MkdirAll 会跟随 symlink
 	// 在真实位置建目录，若 finalDst 父链含指向 .minecraft 外的 symlink 段，
 	// 先校验拒绝、避免写入穿透
@@ -284,7 +284,7 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, repoRoot string) err
 			// 递归处理子目录（MMD 的 spa/textures/toon 等深层子文件夹）
 			subSrc := filepath.Join(srcDir, entry.Name())
 			subDst := filepath.Join(finalDst, entry.Name())
-			if err := installDirRecursive(subSrc, subDst, linkMode, rtype, repoRoot); err != nil {
+			if err := installDirRecursive(subSrc, subDst, linkMode, rtype, filesRoot); err != nil {
 				log.Printf("[installer] 递归安装 %s 失败: %v (继续)", subSrc, err)
 				errs = append(errs, fmt.Sprintf("%s: %v", entry.Name(), err))
 			}
@@ -297,12 +297,12 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, repoRoot string) err
 		// 条目级符号链接逃逸——仓库内若存在指向仓库外的 symlink
 		// （DirEntry.IsDir 对 symlink 恒为 false，指向仓库外目录的 symlink 也会落到本分支），
 		// linkMode=symlink 时会把指向仓库外的链接直接落进游戏目录。解析真实路径后按
-		// paths.IsInside(repoRoot, …) 校验（与 Install 的 src 守卫同口径），越权则跳过并记录；
+		// paths.IsInside(filesRoot, …) 校验（与 Install 的 src 守卫同口径），越权则跳过并记录；
 		// EvalSymlinks 失败（断链/不存在）时保持放行，交给下方落地逻辑按原语义处理
 		if fi, err := os.Lstat(srcFile); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 			if resolved, err := filepath.EvalSymlinks(srcFile); err == nil {
-				if repoRoot != "" {
-					if err := paths.IsInside(repoRoot, resolved); err != nil {
+				if filesRoot != "" {
+					if err := paths.IsInside(filesRoot, resolved); err != nil {
 						log.Printf("[installer] 跳过越权符号链接条目 %s (真实目标 %s 不在仓库内): %v", srcFile, resolved, err)
 						continue
 					}

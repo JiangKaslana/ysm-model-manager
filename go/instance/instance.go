@@ -21,7 +21,7 @@ type ResourceTypeInfo struct {
 }
 
 // BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入）
-func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, repoRoots map[string]string) []types.ResourceSyncItem {
+func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, filesRoots map[string]string) []types.ResourceSyncItem {
 	// 导出函数无 nil 守卫——直接解引用 ins.VersionDir 会 panic。
 	// 当前唯一调用方保证非 nil，但防御范式（ADR-044②）要求导出入口自守卫
 	if ins == nil {
@@ -64,7 +64,7 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, repoR
 			continue
 		}
 		// 全局目录
-		globalDir := repoRoots[rt.ID]
+		globalDir := filesRoots[rt.ID]
 		if globalDir == "" {
 			continue
 		}

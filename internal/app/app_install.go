@@ -331,11 +331,11 @@ func (a *App) CountInstanceResources(insName, rtype string) (int, error) {
 			continue
 		}
 		dir := types.FindInstDir(target.VersionDir, d.SubDir, d.RType)
-		repoRoot, _ := a.GetRepoRoot(d.RType)
-		if repoRoot == "" {
+		filesRoot, _ := a.GetRepoRoot(d.RType)
+		if filesRoot == "" {
 			continue
 		}
-		total += a.countMatchingInDir(dir, repoRoot)
+		total += a.countMatchingInDir(dir, filesRoot)
 	}
 	return total, nil
 }
@@ -389,8 +389,8 @@ func (a *App) ClearInstanceResources(insName, rtype string) (int, error) {
 			continue
 		}
 		dir := types.FindInstDir(target.VersionDir, d.SubDir, d.RType)
-		repoRoot, _ := a.GetRepoRoot(d.RType)
-		removed += a.clearInstanceDir(dir, d.RType, repoRoot)
+		filesRoot, _ := a.GetRepoRoot(d.RType)
+		removed += a.clearInstanceDir(dir, d.RType, filesRoot)
 	}
 	scanner.InvalidateCache()
 	return removed, nil
@@ -402,9 +402,9 @@ func (a *App) countInstanceDir(dir string) int {
 }
 
 // countMatchingInDir 统计实例目录中与仓库同名的文件数（仅用于清空提示）
-func (a *App) countMatchingInDir(instDir, repoRoot string) int {
+func (a *App) countMatchingInDir(instDir, filesRoot string) int {
 	repoFiles := make(map[string]bool)
-	for _, p := range fsutil.WalkAllFiles(repoRoot, true) {
+	for _, p := range fsutil.WalkAllFiles(filesRoot, true) {
 		repoFiles[strings.ToLower(filepath.Base(p))] = true
 	}
 	count := 0
@@ -425,8 +425,8 @@ func isResourcePackFolder(path string) bool {
 // clearInstanceDir 只删除仓库中已有的文件，跳过整合包自带的资源
 // 整合包的 resourcepacks/ 等子目录中可能有用户自己安装的、仓库没有的资源包，保留不动
 // clearInstanceDir 清理整合包子目录中仓库已有的文件（执行逻辑下沉 go/recycle）
-func (a *App) clearInstanceDir(dir string, rtype string, repoRoot string) int {
-	return recycle.RemoveRepoDuplicates(dir, repoRoot, a.ysmRoot())
+func (a *App) clearInstanceDir(dir string, rtype string, filesRoot string) int {
+	return recycle.RemoveRepoDuplicates(dir, filesRoot, a.ysmRoot())
 }
 
 // DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle）
@@ -489,7 +489,7 @@ func (a *App) ListRecycleBin(recyclePath string) []types.ModelEntry {
 	return all
 }
 
-func (a *App) RestoreFromRecycle(src, repoRoot string) error {
+func (a *App) RestoreFromRecycle(src, filesRoot string) error {
 	// 尝试所有根目录恢复
 	cfg := a.LoadAppConfig()
 	for _, r := range a.allRecycleRoots(cfg) {
@@ -502,7 +502,7 @@ func (a *App) RestoreFromRecycle(src, repoRoot string) error {
 			return nil // 找到正确的根目录并恢复
 		}
 	}
-	if err := recycle.Restore(src, repoRoot); err != nil {
+	if err := recycle.Restore(src, filesRoot); err != nil {
 		return err
 	}
 	// fallback 恢复成功同样失效缓存
@@ -538,6 +538,7 @@ func (a *App) EmptyRecycleBin(src string) (int, error) {
 		}
 		total += n
 	}
+	scanner.InvalidateCache()
 	if len(failed) > 0 {
 		return total, fmt.Errorf("%d 个资源目录清空失败: %s", len(failed), strings.Join(failed, ", "))
 	}
@@ -618,13 +619,13 @@ func (a *App) GetResourceInstanceStatus(rtype, mcRoot, repoDir string) []types.I
 		func(modsDir string) bool { return ysm.HasModInDir(modsDir, rtype) })
 }
 
-func (a *App) SyncModelToggleStatus(instanceCustomDir, repoRoot string) (int, int, error) {
-	return ysmsync.SyncToggleStatus(instanceCustomDir, repoRoot, a.ScanModelEntries)
+func (a *App) SyncModelToggleStatus(instanceCustomDir, filesRoot string) (int, int, error) {
+	return ysmsync.SyncToggleStatus(instanceCustomDir, filesRoot, a.ScanModelEntries)
 }
 
 // RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版）
-func (a *App) RelinkCustomDir(customDir, repoRoot string) (int, error) {
-	// 尝试从 repoRoot 推断 rtype
+func (a *App) RelinkCustomDir(customDir, filesRoot string) (int, error) {
+	// 尝试从 filesRoot 推断 rtype
 	rtype := "ysm"
 	for _, d := range types.AllSubDirs() {
 		if strings.Contains(strings.ToLower(customDir), strings.ToLower(d.SubDir)) {
@@ -632,14 +633,14 @@ func (a *App) RelinkCustomDir(customDir, repoRoot string) (int, error) {
 			break
 		}
 	}
-	return a.relinkDir(customDir, repoRoot, rtype)
+	return a.relinkDir(customDir, filesRoot, rtype)
 }
 
 // relinkDir 重新应用链接模式到单个目录
 // rtype 用于需要文件夹级重新链接的类型（ysm/mmd-skin 等）
 // relinkDir 按哈希比对重链接实例目录（执行逻辑下沉 go/sync）
-func (a *App) relinkDir(customDir, repoRoot, rtype string) (int, error) {
-	return ysmsync.RelinkDir(customDir, repoRoot, rtype, a.getLinkMode(), a.ScanModelEntries, a.logger.Add)
+func (a *App) relinkDir(customDir, filesRoot, rtype string) (int, error) {
+	return ysmsync.RelinkDir(customDir, filesRoot, rtype, a.getLinkMode(), a.ScanModelEntries, a.logger.Add)
 }
 
 // RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录

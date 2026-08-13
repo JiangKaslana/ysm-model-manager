@@ -130,6 +130,9 @@ func (a *App) GetLitematicVoxelData(path string) string {
 
 // SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000
 func (a *App) SetVoxelMaxBlocks(limit int) error {
+	if limit < 0 || limit > 5_000_000 {
+		limit = 0 // 恢复默认；防超大值导致体素全量产出卡顿
+	}
 	cfg := a.LoadAppConfig()
 	cfg.VoxelMaxBlocks = limit
 	return a.saveConfig(cfg)

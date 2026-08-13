@@ -45,8 +45,8 @@ export function registerSync(unsubs: Array<() => void>): void {
           let totalFail = 0;
 
           const rtypeActual = rtype || RESOURCE_TYPES.YSM;
-          const repoRoot = await GetRepoRoot(rtypeActual);
-          if (!repoRoot) {
+          const filesRoot = await GetRepoRoot(rtypeActual);
+          if (!filesRoot) {
             failed = true;
             bus.emit("toast:show", {
               msg: "请先配置该资源类型目录",
@@ -59,11 +59,10 @@ export function registerSync(unsubs: Array<() => void>): void {
           const targets = instanceName
             ? instances.filter((i) => i.Name === instanceName)
             : instances;
-          // 提前获取一次状态列表（避免循环内重复调用）
           const allStatuses = await GetResourceInstanceStatus(
             rtypeActual,
             mcRoot,
-            repoRoot,
+            filesRoot,
           );
           for (const ins of targets) {
             const st = (allStatuses || []).find((s) => s.Name === ins.Name);
@@ -149,9 +148,9 @@ export function registerSync(unsubs: Array<() => void>): void {
           AddImportLog,
           GetRepoRoot,
         } = await getApp();
-        const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+        const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
         const mcRoot = await requireMcRoot();
-        if (!repoRoot || !mcRoot) {
+        if (!filesRoot || !mcRoot) {
           bus.emit("toast:show", {
             msg: "请先配置目录",
             duration: 3000,
@@ -174,7 +173,7 @@ export function registerSync(unsubs: Array<() => void>): void {
         for (const ins of instances) {
           if (!ins.Exists) continue;
           try {
-            const res = await SyncModelToggleStatus(ins.CustomDir, repoRoot);
+            const res = await SyncModelToggleStatus(ins.CustomDir, filesRoot);
             totalDisable += res?.[0] ?? 0;
             totalEnable += res?.[1] ?? 0;
           } catch (e) {
@@ -184,7 +183,7 @@ export function registerSync(unsubs: Array<() => void>): void {
         await AddImportLog(
           "sync-status",
           `同步状态 (${instances.filter((i) => i.Exists).length} 个整合包)`,
-          repoRoot,
+          filesRoot,
           0,
           errors.length ? "failed" : "success",
           `禁用 ${totalDisable} 启用 ${totalEnable}${errors.length ? ` | 错误: ${errors.join("; ")}` : ""}`,

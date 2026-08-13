@@ -45,8 +45,8 @@ export function bindBusEvents(vm: AppTree): Array<() => void> {
         const { RenameDir, GetRepoRoot } =
           await getApp();
         const rtype = vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM;
-        const repoRoot = await GetRepoRoot(rtype);
-        const absDir = repoRoot ? repoRoot + "/" + dir : dir;
+        const filesRoot = await GetRepoRoot(rtype);
+        const absDir = filesRoot ? filesRoot + "/" + dir : dir;
         await RenameDir(absDir, name.trim());
         // P3 修复（code_review）：dir:rename 同样清空选中态——文件夹重命名后
         // 旧路径失效，滞留 keys 会让 Delete 误删新文件或显示陈旧「已选 N 个文件」
@@ -77,9 +77,9 @@ export function bindBusEvents(vm: AppTree): Array<() => void> {
         const { CreateDir, GetRepoRoot } =
           await getApp();
         const rtype = vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM;
-        const repoRoot = await GetRepoRoot(rtype);
-        const absDir = repoRoot
-          ? repoRoot + "/" + dir + "/" + name.trim()
+        const filesRoot = await GetRepoRoot(rtype);
+        const absDir = filesRoot
+          ? filesRoot + "/" + dir + "/" + name.trim()
           : dir + "/" + name.trim();
         await CreateDir(absDir);
         await reload(vm);
@@ -108,8 +108,8 @@ export function bindBusEvents(vm: AppTree): Array<() => void> {
         const { ListAllFilePaths, MoveToRecycle, RemoveDir, GetRepoRoot } =
           await getApp();
         const rtype = vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM;
-        const repoRoot = await GetRepoRoot(rtype);
-        const absDir = repoRoot ? repoRoot + "/" + dir : dir;
+        const filesRoot = await GetRepoRoot(rtype);
+        const absDir = filesRoot ? filesRoot + "/" + dir : dir;
         const allFiles = await ListAllFilePaths(absDir);
         let count = 0;
         const errors: string[] = [];
@@ -161,8 +161,8 @@ export function bindBusEvents(vm: AppTree): Array<() => void> {
         const { ScanModelEntries, GetRepoRoot } =
           await getApp();
         const rtype = vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM;
-        const repoRoot = await GetRepoRoot(rtype);
-        const absDir = repoRoot ? repoRoot + "/" + dir : dir;
+        const filesRoot = await GetRepoRoot(rtype);
+        const absDir = filesRoot ? filesRoot + "/" + dir : dir;
         const entries = (await ScanModelEntries(absDir)) || [];
         if (!entries || !entries.length) {
           bus.emit("toast:show", {
@@ -278,7 +278,7 @@ async function reload(vm: AppTree): Promise<void> {
     const r = await get<typeof loadEntries>("loadEntries")(rtype);
     if (gen !== vm._gen) return; // P2-1 root 切换/新加载已发起 → 丢弃过期结果
     if (r) {
-      vm._repoRoot = r.repoRoot;
+      vm._filesRoot = r.filesRoot;
       vm._entries = r.entries;
     } else {
       vm._entries = [];

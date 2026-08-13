@@ -48,7 +48,7 @@ export class AppTree extends HTMLElement {
   _typeFilter = "";
   _rootAttr = ""; // 由 root 属性指定，覆盖 _typeFilter 加载用
   _dirOpen: Record<string, boolean> = {};
-  _repoRoot = "";
+  _filesRoot = "";
   _authors: Array<AuthorInfo | string> = [];
   _filterPaths: Set<string> | null = null; // Set 或 null，来自 SearchModels 结果
   _renderMode: RenderMode = getRenderMode(); // 'grid' | 'list'
@@ -203,7 +203,7 @@ export class AppTree extends HTMLElement {
       const rtype = this._rootAttr || this._typeFilter;
       const r = await get<typeof loadEntries>("loadEntries")(rtype);
       if (r && r.entries) {
-        this._repoRoot = r.repoRoot;
+        this._filesRoot = r.filesRoot;
         this._entries = r.entries;
       } else {
         this._entries = [];
@@ -262,8 +262,8 @@ export class AppTree extends HTMLElement {
     // 仓库路径显示在按钮上
     const repoBtn = this._root.getElementById("btn-repo");
     if (repoBtn)
-      repoBtn.textContent = this._repoRoot
-        ? `📁 ${this._repoRoot}`
+      repoBtn.textContent = this._filesRoot
+        ? `📁 ${this._filesRoot}`
         : t("tree.repoNotSet");
     // 存到 root 上供需要时访问
     this._root._treeAuthors = this._authors;

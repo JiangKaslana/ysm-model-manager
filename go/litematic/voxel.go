@@ -426,11 +426,20 @@ func BuildSchematicVoxelData(path string, maxBlocks int) (*types.LitematicVoxelD
 				if c, ok := paletteMap[blockID]; ok {
 					color = c
 				}
+				// int16 坐标守卫：Width/Height/Length 来自 NBT int32（可达 2^31-1），
+				// 坐标由索引反推（范围 [0, size-1]），超出 int16 表示范围直接转换会
+				// 静默回绕——与 buildRegionInfo 的 int16 口径一致，越界跳过该方块
+				x := (i - 1) % w
+				y := (i - 1) / (w * l)
+				z := ((i - 1) / w) % l
+				if x < -32768 || x > 32767 || y < -32768 || y > 32767 || z < -32768 || z > 32767 {
+					continue
+				}
 				return voxelBlock{
 					Color: color,
-					X:     int16((i - 1) % w),
-					Y:     int16((i - 1) / (w * l)),
-					Z:     int16(((i - 1) / w) % l),
+					X:     int16(x),
+					Y:     int16(y),
+					Z:     int16(z),
 				}, true
 			}
 			return voxelBlock{}, false
@@ -456,11 +465,18 @@ func BuildSchematicVoxelData(path string, maxBlocks int) (*types.LitematicVoxelD
 					color = MapColor(name)
 				}
 			}
+			// int16 坐标守卫：与 v2 路径一致（见 v2 注释），越界跳过该方块
+			x := (i - 1) % w
+			y := (i - 1) / (w * l)
+			z := ((i - 1) / w) % l
+			if x < -32768 || x > 32767 || y < -32768 || y > 32767 || z < -32768 || z > 32767 {
+				continue
+			}
 			return voxelBlock{
 				Color: color,
-				X:     int16((i - 1) % w),
-				Y:     int16((i - 1) / (w * l)),
-				Z:     int16(((i - 1) / w) % l),
+				X:     int16(x),
+				Y:     int16(y),
+				Z:     int16(z),
 			}, true
 		}
 		return voxelBlock{}, false

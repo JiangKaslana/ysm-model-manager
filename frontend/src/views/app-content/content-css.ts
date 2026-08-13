@@ -476,19 +476,6 @@ ${focusVisibleCSS}
   background:var(--surf);color:var(--muted);border:1px solid var(--bd);gap:2px;
 }
 .cr-card-footer .cr-tag { font-size:9px;margin-left:auto; }
-/* 仓库按钮 */
-.cr-card-repo-btn {
-  width:100%;margin-top:2px;
-  padding:3px 0;border-radius:var(--radius-md);
-  border:1px solid var(--bd);
-  background:transparent;color:var(--accent);
-  cursor:pointer;font-size:var(--fs-xs);font-family:inherit;
-  text-align:center;transition:var(--tr-fast);
-}
-.cr-card-repo-btn:hover {
-  border-color:var(--accent);
-  background:color-mix(in srgb, var(--accent) 10%, transparent);
-}
 
 /* ===== 预设搜索 ===== */
 .cr-preset-area { display:flex;gap:6px;flex-wrap:wrap;padding:4px 0 12px; }

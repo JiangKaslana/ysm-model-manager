@@ -28,7 +28,7 @@ async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
   // 分析能力，由后端降级为仅关键词匹配（在 rv 确定后于下方提示，不阻断调用）。
   // 降级提示仅限网页版（resolveWebMode）：Android 的 isViewerMode 恒 true，但其走
   // 真实 Go 后端、SearchModels 支持数值范围，误提示会与后端行为不符。
-  dbg("adv-filter", "open:start", { repoRoot: vm._repoRoot });
+  dbg("adv-filter", "open:start", { filesRoot: vm._filesRoot });
   // 输入框值都是字符串形态（弹窗内部转数字）；AdvFilterValue 为 number|null，
   // 此处是「当前输入框值」表示，类型上放宽转换
   const $v = (id: string): string => ($(id) as HTMLInputElement | null)?.value || "";
@@ -138,8 +138,8 @@ async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
 
   let modelPaths: Set<string> | null = null;
   if (hasRange) {
-    const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-    if (!repoRoot) {
+    const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+    if (!filesRoot) {
       bus.emit("toast:show", {
         msg: "请先配置仓库目录",
         duration: 2000,
@@ -150,7 +150,7 @@ async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
     const n = (v: unknown): number => (v == null ? 0 : parseInt(String(v), 10) || 0);
     try {
       const results = await SearchModels(
-        repoRoot,
+        filesRoot,
         kw,
         n(rv.minBones),
         n(rv.maxBones),
@@ -276,8 +276,8 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
       }
       const { ExportBoneStructures, GetRepoRoot } =
         await getApp();
-      const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-      if (!repoRoot) {
+      const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+      if (!filesRoot) {
         bus.emit("toast:show", {
           msg: "请先配置存储路径",
           duration: 2000,
@@ -285,7 +285,7 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         });
         return;
       }
-      const text = await ExportBoneStructures(repoRoot);
+      const text = await ExportBoneStructures(filesRoot);
       const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
       const a = document.createElement("a");
       a.download = `bone-structures-${new Date().toISOString().slice(0, 10)}.txt`;
@@ -418,9 +418,9 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
           await resolveAndroidRepoDir();
           return;
         }
-        if (!vm._repoRoot) return;
+        if (!vm._filesRoot) return;
         const { OpenFolder } = await getApp();
-        await OpenFolder(vm._repoRoot);
+        await OpenFolder(vm._filesRoot);
       } else if (action === "import-file") {
         const rtype = vm._rootAttr || RESOURCE_TYPES.YSM;
         // 查看器模式（Android/网页版）：Wails 原生文件对话框不可用（dialogs_android.go /
@@ -517,8 +517,8 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         try {
           const { GenerateRepoIndex, GetRepoRoot } =
             await getApp();
-          const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-          if (!repoRoot) {
+          const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+          if (!filesRoot) {
             bus.emit("toast:show", {
               msg: "请先配置存储路径",
               duration: 2000,
@@ -526,7 +526,7 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
             });
             return;
           }
-          const idx = await GenerateRepoIndex(repoRoot);
+          const idx = await GenerateRepoIndex(filesRoot);
           if (resolveWebMode() && typeof idx === "string") {
             const blob = new Blob([idx], { type: "application/json;charset=utf-8" });
             const a = document.createElement("a");

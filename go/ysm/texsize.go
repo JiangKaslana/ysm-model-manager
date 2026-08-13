@@ -177,9 +177,9 @@ func extractTexSizeFromGeometryBytes(data []byte) (w, h int) {
 }
 
 // ScanFiles 读取目录下所有支持的文件条目（供 ScanModelTexSizes 使用）
-func ScanFiles(repoRoot string) []ModelEntry {
+func ScanFiles(filesRoot string) []ModelEntry {
 	var entries []ModelEntry
-	filepath.Walk(repoRoot, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(filesRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("[ysm] Walk 错误 (忽略): %v", err)
 			return nil

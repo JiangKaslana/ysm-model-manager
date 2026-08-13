@@ -810,11 +810,10 @@ class AppContent extends HTMLElement {
         const AppM = await getApp();
         const cfg = await AppM.LoadAppConfig();
         mirror = cfg.mirror || "";
-        const repoRoot = AppM.GetRepoRoot ? await AppM.GetRepoRoot(RESOURCE_TYPES.YSM) : "";
-        if (repoRoot) {
-          // 先清缓存再扫描，确保新下载的文件立即可见
+        const filesRoot = AppM.GetRepoRoot ? await AppM.GetRepoRoot(RESOURCE_TYPES.YSM) : "";
+        if (filesRoot) {
           if (AppM.ClearScanCache) await AppM.ClearScanCache();
-          const entries = (await AppM.ScanModelEntriesWithLabel(repoRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+          const entries = (await AppM.ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
           entries.forEach((e) => {
             let n = e.Name || "";
             if (n.endsWith(".ban")) n = n.slice(0, -4);
@@ -981,11 +980,10 @@ class AppContent extends HTMLElement {
           await getApp();
         const cfg = await LoadAppConfig();
         mirror = cfg.mirror || "";
-        const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-        // 预先加载本地映射
+        const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
         const localMap = new Map<string, string>();
-        if (repoRoot) {
-          const entries = (await ScanModelEntriesWithLabel(repoRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+        if (filesRoot) {
+          const entries = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
           entries.forEach((e) => {
             let n = e.Name || "";
             if (n.endsWith(".ban")) n = n.slice(0, -4);

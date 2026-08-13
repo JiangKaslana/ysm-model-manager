@@ -766,8 +766,8 @@ export function createDownloadQueue({
       // P2 修复：getApp/GetRepoRoot 移入 try 内——原实现前置 await 在 try 外，
       // 任一 reject 时按钮永久卡禁用且无 toast（陷阱 #3 变体）
       const { GetRepoRoot } = await getApp();
-      const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-      if (!repoRoot) {
+      const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+      if (!filesRoot) {
         bus.emit("toast:show", {
           msg: t("workshop.configureRepo"),
           duration: 3000,
@@ -775,7 +775,7 @@ export function createDownloadQueue({
         });
         return;
       }
-      tasks.forEach((t) => (t.saveDir = repoRoot));
+      tasks.forEach((t) => (t.saveDir = filesRoot));
 
       const btn = dlBtn();
       if (btn) btn.disabled = true;

@@ -258,15 +258,22 @@ export const MOCK_DATA = {
 export type MockData = typeof MOCK_DATA;
 export type MockKey = keyof MockData;
 
-// ===== 契约守卫：mock 键必须覆盖 binding 全部导出（防 binding 新增/改名后 e2e mock 漂移，批次4 P2）=====
+// ===== 契约守卫：mock 键与 binding 导出双向对齐（防 e2e mock 漂移，批次4 P2 / P3）=====
 // binding 产物由 npm run generate:bindings（-ts 契约）生成并 git 跟踪。
-// binding 每导出一个函数，mock 必须提供对应键；出现缺失键时下方条件类型退化为 false → 赋值编译错。
-// tsc 报错后到 MOCK_DATA 里补键即可（未被 e2e 触达的函数补 undefined 最安全）。
+// 正向：binding 每导出一个函数，mock 必须提供对应键；出现缺失键时下方条件类型退化为 false → 赋值编译错。
+// 反向：binding 删除导出后 mock 旧键成死代码（仍注入 window.go 无消费方）——knip project 仅
+// src/**（e2e 不在扫描范围），且 generateMockBridgeScript 迭代全部键使任何键都被视为"已用"，
+// 无现成死代码工具覆盖，故在此显式断言 mock 键 ⊆ binding 导出。
+// tsc 报错后到 MOCK_DATA 里补/删键即可（未被 e2e 触达的函数补 undefined 最安全）。
 import type * as Bindings from "../bindings/ysm-model-manager/internal/app/app.ts";
 type BindingExportName = keyof typeof Bindings;
 type MissingMockKeys = Exclude<BindingExportName, MockKey>;
 const __mockBindingContract: [MissingMockKeys] extends [never] ? true : false = true;
 void __mockBindingContract;
+// 反向断言：mock 键必须仍存在于 binding 导出，防 binding 删除后 mock 旧键成为死代码
+type StaleMockKeys = Exclude<MockKey, BindingExportName>;
+const __mockBindingReverseContract: [StaleMockKeys] extends [never] ? true : false = true;
+void __mockBindingReverseContract;
 
 /**
  * 生成可注入 page.addInitScript 的 mock bridge 代码字符串。

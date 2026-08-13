@@ -22,15 +22,15 @@ import (
 )
 
 // ========== 批量导出骨骼结构 ==========
-func (a *App) ExportBoneStructures(repoRoot string) (string, error) {
-	entries := a.ScanModelEntries(repoRoot)
+func (a *App) ExportBoneStructures(filesRoot string) (string, error) {
+	entries := a.ScanModelEntries(filesRoot)
 	if len(entries) == 0 {
 		return "", fmt.Errorf("仓库中没有模型文件")
 	}
 
 	var lines []string
 	lines = append(lines, "YSM Model Manager — 骨骼结构批量导出")
-	lines = append(lines, fmt.Sprintf("仓库: %s", repoRoot))
+	lines = append(lines, fmt.Sprintf("仓库: %s", filesRoot))
 	lines = append(lines, fmt.Sprintf("文件总数: %d", len(entries)))
 	lines = append(lines, fmt.Sprintf("导出时间: %s", time.Now().Format("2006-01-02 15:04:05")))
 	lines = append(lines, "")
@@ -115,8 +115,8 @@ func (a *App) ExportModelStructureJSON(modelPath string) string {
 }
 
 // ========== 高级搜索 ==========
-func (a *App) SearchModels(repoRoot string, keyword string, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) []types.SearchResult {
-	entries := a.ScanModelEntries(repoRoot)
+func (a *App) SearchModels(filesRoot string, keyword string, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) []types.SearchResult {
+	entries := a.ScanModelEntries(filesRoot)
 	if len(entries) == 0 {
 		return nil
 	}

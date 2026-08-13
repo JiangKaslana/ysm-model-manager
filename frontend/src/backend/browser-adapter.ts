@@ -378,10 +378,10 @@ async function toggleWebEnable(path: string): Promise<boolean> {
 
 // --- 搜索（关键词匹配；数值范围条件浏览器端无几何分析，降级忽略）---
 async function searchWebModels(
-  repoRoot: string,
+  filesRoot: string,
   keyword: string,
 ): Promise<Array<{ name: string; path: string; boneCount: number; cubeCount: number; texWidth: number; texHeight: number; hasError: boolean }>> {
-  const type = typeFromWebDir(repoRoot);
+  const type = typeFromWebDir(filesRoot);
   const entries = await scanWebModels(`${WEB_ROOT}/${type}`);
   // 对齐桌面 app_scan.go SearchModels：kw = strings.ToLower(strings.TrimSpace(keyword))
   const kw = (keyword || "").trim().toLowerCase();
@@ -742,7 +742,7 @@ const webImpls = {
   SelectLocalRepo: () => selectLocalRepo(),
   // ===== ADR-049 桥接增强 Batch 1：纯前端可复现绑定 =====
   // 搜索：关键词匹配（数值范围条件浏览器端无几何分析，降级忽略，如实标注）
-  SearchModels: (repoRoot: string, keyword: string, ..._rest: number[]) => searchWebModels(repoRoot, keyword),
+  SearchModels: (filesRoot: string, keyword: string, ..._rest: number[]) => searchWebModels(filesRoot, keyword),
   // 启用开关：ban 标记翻转，返回新「已启用」态（对齐桌面 ToggleModelEnable 语义）
   IsFileBanned: (path: string) => isWebBanned(path),
   ToggleModelEnable: (path: string) => toggleWebEnable(path),

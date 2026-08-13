@@ -87,6 +87,8 @@ function runChecks() {
   // R2 repoRoot 命名：测试文件豁免、Wails bindings 自动生成文件豁免
   // 注释行豁免（// 开头）、JSDoc 块注释（* 开头、@param 等）
   // 去重：同一文件在 '.' 和 'frontend/src' 双路径下会重复命中（路径前缀不同）
+  // JSON 旧版兼容字段（cfg.RepoRoot）豁免
+  // 字符串字面量 map key（"repoRoot"）豁免
   add('R2', 'repoRoot name',
     (() => {
       const raw = rg('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json'])
@@ -95,7 +97,11 @@ function runChecks() {
         .filter((l) => { const [f] = parseRgLine(l); return !f.includes('bindings/'); })
         .filter((l) => !/:\d+:\s*\/\//.test(l))
         .filter((l) => !/:\d+:\s*\*/.test(l))
-        .filter((l) => !/:\d+:\s*@param/.test(l));
+        .filter((l) => !/:\d+:\s*@param/.test(l))
+        // JSON tag 中的 repoRoot（JSON 反序列化旧版字段，如 `json:"repoRoot"`）
+        .filter((l) => !/json:"repoRoot"/.test(l))
+        // map key / 字符串字面量 "repoRoot"（如调试日志字段名）
+        .filter((l) => !/"repoRoot"/.test(l));
       const seen = new Set();
       return raw.filter((l) => {
         const norm = l.replace(/^\.\\/, '').replace(/^\.\//, '');
@@ -332,7 +338,10 @@ function collectViolationKeys(results) {
       // // @vitest-environment node 触发 91 条存量违规"假新增"阻断推送）；
       // 只有行内容真正变化或出现新行才算新增。行号仍保留在 violations 中供定位。
       const content = (v.snippet || '').trim();
-      const key = `${f}:${r.rule_id}:${content}`;
+      // 阻断规则禁用内容去重：重复行也计入（基线比对时新增重复行仍按新键处理）
+      const key = WARN_RULES.has(r.rule_id)
+        ? `${f}:${r.rule_id}:${content}:${v.line}`
+        : `${f}:${r.rule_id}:${v.line}`;
       (WARN_RULES.has(r.rule_id) ? advisory : blocking).push(key);
     }
   }

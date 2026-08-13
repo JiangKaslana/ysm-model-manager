@@ -1,7 +1,5 @@
 // ===== 站点视图浏览态事件绑定（从 site-view.ts 拆出，ADR-034 方向①）=====
-import { bus } from "../../../bus.ts";
 import { dbg } from "../../../utils/debug/debug.ts";
-import { showProgress, tryFetchModels } from "../../../features/community/data.ts";
 import {
   getCreatorIdentity,
   getTagFromRole,
@@ -22,19 +20,19 @@ let _storageSyncFn: ((e: StorageEvent) => void) | null = null;
 
 /**
  * 绑定浏览态事件：空状态按钮 / 创作者卡片网格 / 预设搜索 / 收藏 / 头像调试 /
- * 卡片点击详情浮层 / 键盘导航 / storage 同步 / 浏览仓库模型。
+ * 卡片点击详情浮层 / 键盘导航 / storage 同步。
  * 返回 cleanup：移除 storage 监听，供主入口在切页/重渲染时统一调用。
  */
 export function bindBrowseEvents(state: SiteViewState, refreshView: () => void): CleanupFn {
   const {
     esc, searchResults, allCreators, wsEditModeRef, avatarCache,
-    site, creators, authorCountMap, repoModelCache, showRepoModels,
-    fillSearch, openUrl, backToSite, bus: busRef,
+    site, creators, authorCountMap,
+    fillSearch, openUrl, bus: busRef,
   } = state;
 
   // P3 修复（子代理审计，问题 B）：代际守卫——fetch 在途时用户切站点/切 tab
   // （index.ts showSiteView 重渲染同一 searchResults），await 续体仍会执行
-  // showProgress（清空 searchResults.innerHTML）/showRepoModels（覆写视图），把新站点
+  // showProgress（清空 searchResults.innerHTML），把新站点
   // 视图冲掉（community/events.ts:56-58 的 disposed 同款修复）；cleanup 置位后
   // 所有 await 续体检查并提前返回
   let disposed = false;
@@ -123,11 +121,7 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
   searchResults.querySelectorAll(".gh-card[data-name]").forEach((card) => {
     card.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
-      if (
-        target.closest(".gh-card-external[data-repo]") ||
-        target.closest(".cr-star-btn")
-      )
-        return;
+      if (target.closest(".cr-star-btn")) return;
       const name = (card as HTMLElement).dataset.name;
       const cr = creators.find((c) => c.name === name);
       if (!cr) return;
@@ -306,110 +300,6 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
     }
   };
   window.addEventListener("storage", _storageSyncFn);
-
-  // 📦 浏览 GitHub 仓库模型
-  searchResults
-    .querySelectorAll(".gh-card-external[data-repo]")
-    .forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const repo = (btn as HTMLElement).dataset.repo || "";
-        btn.textContent = "⏳";
-
-        let mirror = "";
-        try {
-          const { LoadAppConfig } = await getApp();
-          const cfg = await LoadAppConfig();
-          mirror = cfg.mirror || "";
-        } catch (_) {}
-        if (disposed) return; // 切页后丢弃在途加载（不覆写新站点视图）
-
-        showProgress(searchResults, 10, t("content.preparing"));
-        try {
-          if (repoModelCache.has(repo)) {
-            const cached = repoModelCache.get(repo);
-            if (cached) {
-              showProgress(searchResults, 100, t("content.loadedCached"));
-              await new Promise((r) => setTimeout(r, 100));
-              if (disposed) return;
-              await showRepoModels(repo, cached.models, cached.source);
-              btn.textContent = t("content.browseRepo");
-              return;
-            }
-          }
-          const { models, source } = await tryFetchModels(
-            repo,
-            (mirror || "") as "" | "jsdelivr" | "githubapi",
-            // P2 修复（code review）：onProgress 回调加 disposed 守卫——tryFetchModels
-            // 的 30/50/100 进度回调在 fetch 解析后仍会触发（约 2s/4s/结束时），切站点
-            // 后 stale 回调会覆写新渲染的 searchResults 视图；回调内检查而非等 await 续体
-            (pct, label) => {
-              if (disposed) return;
-              showProgress(searchResults, pct, label);
-            },
-          );
-          if (disposed) return;
-          repoModelCache.set(repo, { models, source });
-          showProgress(searchResults, 100, t("content.loaded"));
-          await new Promise((r) => setTimeout(r, 200));
-          if (disposed) return;
-          await showRepoModels(repo, models, source);
-        } catch (e) {
-          if (disposed) return; // 切页后失败也不覆写新站点视图
-          const err = e as Error;
-          const isTimeout = err?.name === "AbortError";
-          const isNoIndex = err?.message === "NoIndex";
-          const isOffline = err?.message === "NetworkOffline";
-          const isRateLimited = err?.message === "RateLimited";
-          const isAllFailed = err?.message === "AllFailed";
-          let errMsg: string, btnLabel: string;
-          if (isNoIndex) {
-            errMsg =
-              t("content.errNoIndex") +
-              t("content.errNoIndexDesc") +
-              '<span class="cr-error-hint">' + t("content.errNoIndexHint") + "</span>";
-            btnLabel = t("content.btnNoIndex");
-          } else if (isOffline) {
-            errMsg = t("content.errOffline");
-            btnLabel = t("content.btnOffline");
-          } else if (isTimeout) {
-            errMsg = t("content.errTimeout");
-            btnLabel = t("content.btnTimeout");
-          } else if (isRateLimited) {
-            errMsg = t("content.errRateLimited");
-            btnLabel = t("content.btnRateLimited");
-          } else if (isAllFailed) {
-            errMsg = t("content.errLoadRetry");
-            btnLabel = t("content.btnFailed");
-          } else {
-            errMsg = t("content.errLoad");
-            btnLabel = t("content.btnFailed");
-          }
-          btn.textContent = btnLabel;
-          btn.classList.add("cr-fetch-failed");
-          searchResults.innerHTML =
-            '<div class="cr-error-page">' +
-            '<button class="btn-base sm cr-back-repo">' + t("content.backArrow") + "</button>" +
-            '<div class="cr-error-msg">' +
-            errMsg +
-            "</div></div>";
-          searchResults
-            .querySelector(".cr-back-repo")
-            ?.addEventListener("click", backToSite);
-          const msg = isTimeout
-            ? t("content.toastRepoTimeout", { repo })
-            : t("content.toastRepoNoIndex", { repo });
-          busRef.emit("toast:show", { msg, duration: 6000, type: "warn" });
-          // P3 修复（子代理审计）：getApp().then 无 .catch——getApp reject（bindings
-          // 缺失/加载失败）会成 unhandled rejection；与 index.ts:720-722 的
-          // .catch(()=>{}) 模式对齐（打开浏览器失败无需提示，toast 已报超时）
-          getApp()
-            .then(({ OpenInBrowser }) =>
-              OpenInBrowser("https://github.com/" + repo),
-            )
-            .catch(() => {});
-        }
-      });
-    });
 
   // cleanup：移除 storage 监听
   return () => {

@@ -215,8 +215,8 @@ export function initImportQueue(app: ImportQueueHost): () => void {
       const gen = ++conflictCheckGen;
       try {
         const { CheckFileExists, GetRepoRoot } = await getApp();
-        const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-        const fullPath = (repoRoot || "") + "/" + name;
+        const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+        const fullPath = (filesRoot || "") + "/" + name;
         const exists = await CheckFileExists(fullPath);
         if (gen !== conflictCheckGen) return; // 新请求已发出，丢弃过期结果
         const el = root.getElementById("dl-conflict") as HTMLElement | null;
@@ -697,9 +697,9 @@ export function initImportQueue(app: ImportQueueHost): () => void {
   const loadRepoFiles = async (): Promise<void> => {
     try {
       const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
-      const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-      if (!repoRoot) return;
-      const entries = (await ScanModelEntriesWithLabel(repoRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+      const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+      if (!filesRoot) return;
+      const entries = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
       // P2 修复：键统一存「去扩展名」形态（与 :761 预警查询 fq.name.replace(/\.\w+$/,"") 对齐）——
       // 先剥 `.ban` 再剥扩展名（顺序不可反）：banned 条目 `foo.ysm.ban` 需归一化为 `foo`，
       // 原 `replace(/\.\w+$/i,"").replace(/\.ban$/i,"")` 先剥扩展名得到 `foo.ysm`（.ban 已是死代码），
@@ -950,8 +950,8 @@ export function initImportQueue(app: ImportQueueHost): () => void {
           const name = (btn as HTMLElement).dataset.name || "";
           const { RenameFile, LoadAppConfig, GetRepoRoot } = await getApp();
           void LoadAppConfig;
-          const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-          const fullPath = repoRoot + "/" + name;
+          const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+          const fullPath = filesRoot + "/" + name;
           const newName = await showRenameDialog(fullPath, name);
           if (!newName) return;
           try {

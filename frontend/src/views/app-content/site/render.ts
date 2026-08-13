@@ -43,9 +43,6 @@ export interface BuildSiteHtmlCtx {
 /** 创作者卡片工厂 */
 export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement {
   const { esc, isFaved, authorCountMap, avatarCache, creators } = ctx;
-  const isGitHub = cr.type && cr.type.includes("github");
-  const repoParts = isGitHub ? cr.name.split("/") : null;
-  const hasRepo = isGitHub && repoParts && repoParts.length >= 2;
   const authorCount = authorCountMap[cr.name] || 0;
   const sorted = [...creators].sort(
     (a, b) => (authorCountMap[b.name] || 0) - (authorCountMap[a.name] || 0),
@@ -83,10 +80,6 @@ export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement 
     .map((platform: string) => '<span class="cr-platform-badge">' + esc(platform) + "</span>")
     .join("");
 
-  const repoBtn = hasRepo
-    ? '<button class="cr-card-repo-btn gh-card-external" data-repo="' + esc(cr.name) + '">' + t("content.browseRepoFull") + "</button>"
-    : "";
-
   card.innerHTML =
     (tierRank ? '<div class="cr-card-tier-bar"></div>' : "") +
     '<div class="cr-card-header">' +
@@ -106,8 +99,7 @@ export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement 
     '<span class="cr-tag cr-tag-' + esc(getTagFromRole(cr.role)) + '">' +
     getTagIconFromRole(cr.role) + " <span>" + esc(getTagFromRole(cr.role)) + "</span>" +
     "</span>" +
-    "</div>" +
-    repoBtn;
+    "</div>";
   return card;
 }
 

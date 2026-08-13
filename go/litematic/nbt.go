@@ -161,7 +161,17 @@ func probeNbtDepth(data []byte) (int, bool) {
 				if childType == 0 {
 					return true
 				}
-				if !skipName() {
+				if !read(2) {
+					return false
+				}
+				nameLen := int(binary.BigEndian.Uint16(data[off-2:]))
+				// P2：物化体积预算——compound 键名同样计入（list 分支已按元素计费，
+				// compound 分支漏掉键名，畸形文件可借海量长键名绕过 512MB 预算）。
+				// 值物化估计：键长 + 每键 16 字节映射槽开销（与 list 元素 16B 口径一致）
+				if !charge(nameLen + 16) {
+					return false
+				}
+				if !read(nameLen) {
 					return false
 				}
 				if !walkPayload(childType, depth+1) {

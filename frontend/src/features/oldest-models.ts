@@ -50,15 +50,15 @@ export async function loadOldestModel(
       '<div style="padding:12px;color:var(--muted);font-size:var(--fs-base)">⏳ ' + t("oldest.scanning") + '</div>';
     try {
       const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
-      const repoRoot = await GetRepoRoot(currentType);
-      if (gen !== _loadGen) return; // 已切换类型，丢弃过期结果
-      if (!repoRoot) {
+      const filesRoot = await GetRepoRoot(currentType);
+      if (gen !== _loadGen) return;
+      if (!filesRoot) {
         container.innerHTML =
           '<div style="padding:12px;color:var(--status-error);font-size:var(--fs-base)">' + t("oldest.configTypeDir") + '</div>';
         return;
       }
 
-      const entries: ModelEntry[] = (await ScanModelEntriesWithLabel(repoRoot, RESOURCE_TYPE_LABELS[currentType] ?? RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+      const entries: ModelEntry[] = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[currentType] ?? RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
       if (gen !== _loadGen) return; // 已切换类型，丢弃过期结果
       if (!entries || !entries.length) {
         container.innerHTML =

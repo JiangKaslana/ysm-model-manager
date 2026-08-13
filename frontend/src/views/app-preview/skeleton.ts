@@ -342,6 +342,8 @@ export async function loadModel2D(
           texSel.onchange = (): void => {
             _texIdx = parseInt(texSel.value, 10);
             close3D();
+            // 加载未完成时 close3D 不重置 _loading3D，需显式复位后重开
+            _loading3D = false;
             _toggle3D();
           };
           topBar.appendChild(texSel);

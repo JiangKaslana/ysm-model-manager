@@ -17,12 +17,12 @@ import (
 // WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。
 // folderName 为仓库中的文件夹名（= 模型名）；files 为相对路径 → base64 内容，保留子目录层级。
 // 校验：至少含 1 个支持文件（.ysm/.zip/.7z/ysm.json 等，防杂物文件夹入仓）；防覆盖；路径安全（拒绝 .. / 绝对路径 / 逃逸）。
-func WriteModelFolder(repoRoot, subpath, folderName string, files []types.ImportFileItem) error {
+func WriteModelFolder(filesRoot, subpath, folderName string, files []types.ImportFileItem) error {
 	opMu.Lock()
 	defer opMu.Unlock()
-	repoRoot = strings.TrimSpace(repoRoot)
+	filesRoot = strings.TrimSpace(filesRoot)
 	folderName = strings.TrimSpace(folderName)
-	if repoRoot == "" || folderName == "" {
+	if filesRoot == "" || folderName == "" {
 		return fmt.Errorf("参数空")
 	}
 	if strings.ContainsAny(folderName, `\/:*?"<>|`) {
@@ -40,7 +40,7 @@ func WriteModelFolder(repoRoot, subpath, folderName string, files []types.Import
 			return fmt.Errorf("子路径非法: %s", subpath)
 		}
 	}
-	dstRoot := filepath.Join(repoRoot, subpath, folderName)
+	dstRoot := filepath.Join(filesRoot, subpath, folderName)
 	// 防覆盖（与单文件导入 FILE_EXISTS 语义一致）
 	if _, err := os.Stat(dstRoot); err == nil {
 		return fmt.Errorf("目标已存在: %s", dstRoot)
@@ -49,7 +49,7 @@ func WriteModelFolder(repoRoot, subpath, folderName string, files []types.Import
 	// symlink 指向仓库外，os.Stat(dstRoot) 因外部目标不存在而放行，MkdirAll 穿透
 	// symlink 建到外部、WriteFileAtomic 遂写入仓库外（写入前逐组件 Lstat 校验）。
 	// folderName 已由调用方保证非 symlink（新目录），subpath 各段是唯一风险面
-	if err := checkNoSymlinkInPath(repoRoot, subpath); err != nil {
+	if err := checkNoSymlinkInPath(filesRoot, subpath); err != nil {
 		return err
 	}
 	if len(files) == 0 {

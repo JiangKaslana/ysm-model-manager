@@ -42,8 +42,8 @@ func TestNew(t *testing.T) {
 	if w == nil {
 		t.Fatal("New() = nil")
 	}
-	if w.repoRoot != "/tmp/repo" {
-		t.Errorf("repoRoot = %q", w.repoRoot)
+	if w.filesRoot != "/tmp/repo" {
+		t.Errorf("filesRoot = %q", w.filesRoot)
 	}
 	if w.mcRoot != "/tmp/mc" {
 		t.Errorf("mcRoot = %q", w.mcRoot)

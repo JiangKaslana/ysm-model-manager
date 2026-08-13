@@ -71,8 +71,8 @@ async function resolveDstDir(opts: {
     return null;
   }
   const { GetRepoRoot } = await getApp();
-  const repoRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-  if (!repoRoot) {
+  const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+  if (!filesRoot) {
     bus.emit("toast:show", {
       msg: opts.emptyMsg,
       duration: 3000,
@@ -80,7 +80,7 @@ async function resolveDstDir(opts: {
     });
     return null;
   }
-  return { folder, dstDir: repoRoot + "/" + folder.replace(/\\/g, "/") };
+  return { folder, dstDir: filesRoot + "/" + folder.replace(/\\/g, "/") };
 }
 
 /**

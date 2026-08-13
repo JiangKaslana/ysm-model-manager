@@ -148,19 +148,19 @@ func GetInstanceStatusWith(mcRoot, repoDir string, scanFn ScanFunc, listFn ListV
 }
 
 // SyncToggleStatus 同步启用/禁用状态
-func SyncToggleStatus(instanceCustomDir, repoRoot string, scanFn ScanFunc) (int, int, error) {
+func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int, int, error) {
 	installer.InstallLock.Lock()
 	defer installer.InstallLock.Unlock()
-	repoEntries := scanFn(repoRoot)
+	repoEntries := scanFn(filesRoot)
 	repoHash := make(map[string]bool) // hash → banned
 	repoName := make(map[string]bool) // relPath(去.ban) → banned，用于同名不同文件夹的文件
-	repoRootClean := strings.ToLower(filepath.Clean(repoRoot)) + string(filepath.Separator)
+	filesRootClean := strings.ToLower(filepath.Clean(filesRoot)) + string(filepath.Separator)
 	for _, e := range repoEntries {
 		banned := strings.HasSuffix(strings.ToLower(e.Name), ".ban")
 		// 用路径前缀限定：relPath 带至少一级父文件夹，避免跨文件夹撞名
 		ePath := strings.ToLower(e.Path)
-		if strings.HasPrefix(ePath, repoRootClean) {
-			rel := strings.TrimPrefix(ePath, repoRootClean)
+		if strings.HasPrefix(ePath, filesRootClean) {
+			rel := strings.TrimPrefix(ePath, filesRootClean)
 			rel = strings.TrimSuffix(rel, ".ban")
 			repoName[rel] = banned
 		} else {

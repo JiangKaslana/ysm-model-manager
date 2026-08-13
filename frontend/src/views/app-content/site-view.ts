@@ -55,11 +55,8 @@ export function renderSiteView(site: WorkshopSite, ctx: RenderSiteViewCtx): Clea
     allSites,
     repoAuthors,
     wsEditModeRef,
-    showRepoModels,
     fillSearch,
-    repoModelCache,
     openUrl,
-    backToSite,
     avatarCache,
     browseMode,
     activeTag,
@@ -101,8 +98,8 @@ export function renderSiteView(site: WorkshopSite, ctx: RenderSiteViewCtx): Clea
   };
   const state: SiteViewState = {
     esc, searchResults, creatorView, allSites, allCreators, repoAuthors,
-    wsEditModeRef, showRepoModels, fillSearch, repoModelCache, openUrl,
-    backToSite, avatarCache, site, creators, authorCountMap, bus, ctx,
+    wsEditModeRef, fillSearch, openUrl,
+    avatarCache, site, creators, authorCountMap, bus, ctx,
     activeTag, searchKw,
   };
   const unsubs: CleanupFn[] = [];

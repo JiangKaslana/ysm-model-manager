@@ -3,7 +3,6 @@
 //  - 空状态按钮导航 / 创作者网格创建 / 预设搜索
 //  - 收藏点击（阻止冒泡 + 排序 + toast）/ 头像调试 / 详情浮层（关闭/搜索/查看本地）
 //  - 键盘导航 ←↑↓→ / storage 跨标签同步 + cleanup
-//  - 浏览 GitHub 仓库模型：缓存命中 / 拉取成功 / AbortError 失败兜底
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { waitFor } from "../../../test-utils/index.ts";
 
@@ -11,8 +10,6 @@ const {
   busEmit,
   busOn,
   dbg,
-  showProgress,
-  tryFetchModels,
   getCreatorIdentity,
   getTagFromRole,
   parseDescTags,
@@ -27,8 +24,6 @@ const {
   busEmit: vi.fn(),
   busOn: vi.fn(() => () => {}),
   dbg: vi.fn(),
-  showProgress: vi.fn(),
-  tryFetchModels: vi.fn(),
   getCreatorIdentity: vi.fn((cr) => ({ icon: "🎭", label: cr.name + "(id)" })),
   getTagFromRole: vi.fn(() => "模型"),
   parseDescTags: vi.fn(() => []),
@@ -43,10 +38,6 @@ const {
 
 vi.mock("../../../bus.ts", () => ({ bus: { emit: busEmit, on: busOn } }));
 vi.mock("../../../utils/debug/debug.ts", () => ({ dbg }));
-vi.mock("../../../features/community/data.ts", () => ({
-  showProgress,
-  tryFetchModels,
-}));
 vi.mock("../workshop-data.ts", () => ({
   getCreatorIdentity,
   getTagFromRole,
@@ -81,7 +72,6 @@ function makeState(overrides: Record<string, unknown> = {}): {
       <div class="cr-star-btn" data-star="A">☆</div>
     </div>
     <img data-debug-avatar="A" alt="avatar">
-    <div class="gh-card-external" data-repo="user/repo">📦 浏览</div>
   `;
   const state = {
     esc,
@@ -92,12 +82,9 @@ function makeState(overrides: Record<string, unknown> = {}): {
     site: { searchUrl: "https://s/search?q={q}", url: "https://s", name: "S" },
     creators: [{ name: "A", role: "modeler", desc: "好模型", type: "github" }],
     authorCountMap: { A: 3 },
-    repoModelCache: new Map(),
-    showRepoModels: vi.fn(),
     fillSearch: (url: string, q: string) =>
       url.replace("{q}", encodeURIComponent(q)),
     openUrl: vi.fn(),
-    backToSite: vi.fn(),
     bus: { emit: busEmit, on: busOn },
     ...overrides,
   } as unknown as SiteViewState;
@@ -109,11 +96,7 @@ beforeEach(() => {
   document.body.innerHTML = "";
   getApp.mockResolvedValue({
     DebugExtractCreatorAvatar: vi.fn(() => ({ ok: true })),
-    LoadAppConfig: vi.fn(() => ({ mirror: "" })),
-    OpenInBrowser: vi.fn(),
   });
-  showProgress.mockImplementation(() => {});
-  tryFetchModels.mockResolvedValue({ models: [], source: "githubapi" });
   toggleFav.mockReturnValue(true);
 });
 
@@ -276,94 +259,5 @@ describe("bindBrowseEvents — 键盘导航", () => {
     );
     expect(clickSpy).toHaveBeenCalled();
     clickSpy.mockRestore();
-  });
-});
-
-describe("bindBrowseEvents — 浏览仓库模型", () => {
-  it("缓存命中 → showRepoModels（缓存）+ 按钮恢复", async () => {
-    const cache = new Map([["user/repo", { models: ["m"], source: "githubapi" }]]);
-    const showRepoModels = vi.fn();
-    const { state, searchResults } = makeState({
-      repoModelCache: cache,
-      showRepoModels,
-    });
-    bindBrowseEvents(state, () => {});
-    (searchResults.querySelector(".gh-card-external") as HTMLElement).click();
-    await waitFor(() => showRepoModels.mock.calls.length > 0);
-    expect(showProgress).toHaveBeenCalledWith(searchResults, 100, expect.stringContaining("缓存"));
-    expect(tryFetchModels).not.toHaveBeenCalled();
-    expect(cache.size).toBe(1);
-  });
-
-  it("未命中 → tryFetchModels + 写入缓存 + showRepoModels", async () => {
-    const showRepoModels = vi.fn();
-    tryFetchModels.mockResolvedValue({ models: ["m1"], source: "jsdelivr" });
-    const { state, searchResults } = makeState({ showRepoModels });
-    bindBrowseEvents(state, () => {});
-    (searchResults.querySelector(".gh-card-external") as HTMLElement).click();
-    await waitFor(() => showRepoModels.mock.calls.length > 0);
-    expect(tryFetchModels).toHaveBeenCalledWith(
-      "user/repo",
-      "",
-      expect.any(Function),
-    );
-    expect(state.repoModelCache.has("user/repo")).toBe(true);
-    expect(showRepoModels).toHaveBeenCalledWith("user/repo", ["m1"], "jsdelivr");
-  });
-
-  it("AbortError → 超时 toast + 浏览器打开 + 错误页", async () => {
-    tryFetchModels.mockRejectedValue(
-      Object.assign(new Error("timeout"), { name: "AbortError" }),
-    );
-    const { state, searchResults } = makeState();
-    bindBrowseEvents(state, () => {});
-    (searchResults.querySelector(".gh-card-external") as HTMLElement).click();
-    await waitFor(() => busEmit.mock.calls.some((c) => c[0] === "toast:show"));
-    expect(searchResults.querySelector(".cr-error-page")).toBeTruthy();
-    expect(getApp).toHaveBeenCalled();
-    const app = await getApp();
-    expect(app.OpenInBrowser).toHaveBeenCalledWith(
-      "https://github.com/user/repo",
-    );
-    // 返回按钮 → backToSite
-    (searchResults.querySelector(".cr-back-repo") as HTMLElement).click();
-    expect(state.backToSite).toHaveBeenCalled();
-  });
-
-  it("NoIndex → 无索引错误页", async () => {
-    tryFetchModels.mockRejectedValue(new Error("NoIndex"));
-    const { state, searchResults } = makeState();
-    bindBrowseEvents(state, () => {});
-    (searchResults.querySelector(".gh-card-external") as HTMLElement).click();
-    await waitFor(() => searchResults.querySelector(".cr-error-msg"));
-    expect(searchResults.querySelector(".cr-error-msg")!.textContent).toContain(
-      "无 index.json",
-    );
-  });
-
-  it("cleanup 置位（切站点）→ 在途 fetch 续体/onProgress 不再写 searchResults（P3 code review）", async () => {
-    // 受控 promise：fetch 挂起，cleanup 之后才 resolve —— 验证 disposed 代际守卫
-    // 拦截 stale 续体（showRepoModels）与 stale onProgress（showProgress）
-    let resolveFetch: (v: unknown) => void = () => {};
-    tryFetchModels.mockReturnValue(
-      new Promise((r) => {
-        resolveFetch = r;
-      }),
-    );
-    const showRepoModels = vi.fn();
-    const { state, searchResults } = makeState({ showRepoModels });
-    const cleanup = bindBrowseEvents(state, () => {});
-    (searchResults.querySelector(".gh-card-external") as HTMLElement).click();
-    await waitFor(() => tryFetchModels.mock.calls.length > 0);
-    // 模拟用户切站点 → cleanup 置 disposed
-    cleanup();
-    showProgress.mockClear();
-    showRepoModels.mockClear();
-    // stale 续体在 cleanup 后 resolve
-    resolveFetch({ models: ["m"], source: "githubapi" });
-    await new Promise((r) => setTimeout(r, 30));
-    expect(showRepoModels).not.toHaveBeenCalled();
-    expect(showProgress).not.toHaveBeenCalled();
-    expect(state.repoModelCache.has("user/repo")).toBe(false); // 续体被拦截，未写缓存
   });
 });

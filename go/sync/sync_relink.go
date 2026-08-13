@@ -15,7 +15,7 @@ import (
 )
 
 // RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚）
-func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) []types.ModelEntry, logger Logger) (int, error) {
+func RelinkDir(customDir, filesRoot, rtype, linkMode string, scanFn func(string) []types.ModelEntry, logger Logger) (int, error) {
 	// 整段持 installer.InstallLock：RelinkDir 自身对 custom 目录做 os.Rename/os.RemoveAll
 	//（目录级分支的备份/回滚/清理）——ADR-056 要求同步与安装并发操作同一 custom 目录文件时
 	// 互斥，这些目录级写操作不能只靠 installer 内部文件级锁覆盖。内部对
@@ -25,14 +25,14 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 	defer installer.InstallLock.Unlock()
 
 	customDir = strings.TrimSpace(customDir)
-	repoRoot = strings.TrimSpace(repoRoot)
-	if customDir == "" || repoRoot == "" {
+	filesRoot = strings.TrimSpace(filesRoot)
+	if customDir == "" || filesRoot == "" {
 		return 0, fmt.Errorf("参数为空")
 	}
 	if scanFn == nil {
 		return 0, fmt.Errorf("scanFn 为空")
 	}
-	repoEntries := scanFn(repoRoot)
+	repoEntries := scanFn(filesRoot)
 	repoByHash := make(map[string]string)
 	for _, e := range repoEntries {
 		if e.Hash != "" {
@@ -98,7 +98,7 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 				}
 				continue
 			}
-			if err := installer.InstallDirLocked(srcDir, dstBase, repoRoot, linkMode, rtype); err != nil {
+			if err := installer.InstallDirLocked(srcDir, dstBase, filesRoot, linkMode, rtype); err != nil {
 				// 回滚：删除半成品，恢复原目录
 				_ = os.RemoveAll(filepath.Join(dstBase, filepath.Base(srcDir)))
 				// 回滚 rename 失败不再静默吞——原 `_ =` 吞错，
@@ -121,7 +121,7 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 		}
 		// 传入基础 customDir，让 installer.Install 自行计算相对路径。
 		// Install 内部对已存在的旧文件做原子替换（临时链接 + rename），失败不破坏原文件
-		if err := installer.InstallLocked(srcPath, customDir, repoRoot, linkMode); err != nil {
+		if err := installer.InstallLocked(srcPath, customDir, filesRoot, linkMode); err != nil {
 			if logger != nil {
 				logger(ce.Name, ce.Path, customDir, 0, "failed", "relink 失败: "+err.Error())
 			}

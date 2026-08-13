@@ -18,11 +18,8 @@ export interface SiteViewState {
   allCreators: LocalCreatorLike[];
   repoAuthors: RepoAuthorLike[];
   wsEditModeRef: { v: boolean };
-  showRepoModels: (repo: string, models: unknown[], source: string) => Promise<void>;
   fillSearch: (tpl: string, q: string) => string;
-  repoModelCache: Map<string, { models: unknown[]; source: string }>;
   openUrl: (url: string) => void;
-  backToSite: () => void;
   avatarCache: Record<string, string>;
 
   // renderSiteView 内部构造的派生状态

@@ -46,11 +46,11 @@ export async function loadInstances(
 
     // 只按当前资源类型查询同步状态
     const rtypeActual = rtype || RESOURCE_TYPES.YSM;
-    const repoRoot = await GetRepoRoot(rtypeActual);
+    const filesRoot = await GetRepoRoot(rtypeActual);
     const statusList = await GetResourceInstanceStatus(
       rtypeActual,
       mcRoot,
-      repoRoot,
+      filesRoot,
     );
     const statusMap: Record<string, InstanceStatusView> = {};
     (statusList || []).forEach((s) => {

@@ -208,15 +208,15 @@ func (a *App) SetDownloadMirror(mirror string) error {
 	return a.saveConfig(cfg)
 }
 
-func (a *App) restartWatcher(repoRoot, mcRoot string) error {
+func (a *App) restartWatcher(filesRoot, mcRoot string) error {
 	a.watcherMu.Lock()
 	defer a.watcherMu.Unlock()
 	if a.watcher != nil {
 		a.watcher.Stop()
 		a.watcher = nil
 	}
-	if repoRoot != "" && mcRoot != "" {
-		a.watcher = watcher.New(repoRoot, mcRoot, a.scanModelEntries, a.ClearScanCache)
+	if filesRoot != "" && mcRoot != "" {
+		a.watcher = watcher.New(filesRoot, mcRoot, a.scanModelEntries, a.ClearScanCache)
 		if err := a.watcher.Start(); err != nil {
 			// Start 失败必须向上传播——原 println 静默 + SaveAppConfig
 			// 返回 nil，旧 watcher 已停而新 watcher 未起 → 自动同步静默永久丢失（假成功）

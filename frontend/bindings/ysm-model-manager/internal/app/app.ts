@@ -254,8 +254,8 @@ export function EnqueueDownloads(tasks: $models.DownloadTask[] | null): $Cancell
 /**
  * ========== 批量导出骨骼结构 ==========
  */
-export function ExportBoneStructures(repoRoot: string): $CancellablePromise<string> {
-    return $Call.ByID(2854573701, repoRoot);
+export function ExportBoneStructures(filesRoot: string): $CancellablePromise<string> {
+    return $Call.ByID(2854573701, filesRoot);
 }
 
 /**
@@ -397,8 +397,8 @@ export function GetModelTags(modelPath: string): $CancellablePromise<string[] | 
 /**
  * GetModelTexSizes 扫描仓库文件提取纹理尺寸（轻量级，不解析完整模型）
  */
-export function GetModelTexSizes(repoRoot: string): $CancellablePromise<ysm$0.TexInfo[] | null> {
-    return $Call.ByID(1273620259, repoRoot);
+export function GetModelTexSizes(filesRoot: string): $CancellablePromise<ysm$0.TexInfo[] | null> {
+    return $Call.ByID(1273620259, filesRoot);
 }
 
 /**
@@ -583,8 +583,8 @@ export function ListModelAuthors(): $CancellablePromise<types$0.AuthorInfo[] | n
     return $Call.ByID(2783678748);
 }
 
-export function ListRecycleBin($0: string): $CancellablePromise<types$0.ModelEntry[] | null> {
-    return $Call.ByID(3420025601, $0);
+export function ListRecycleBin(recyclePath: string): $CancellablePromise<types$0.ModelEntry[] | null> {
+    return $Call.ByID(3420025601, recyclePath);
 }
 
 export function ListVersionInstances(mcRoot: string): $CancellablePromise<types$0.VersionInstance[] | null> {
@@ -762,8 +762,8 @@ export function RelinkAllInstanceResources(instanceName: string): $CancellablePr
 /**
  * RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版）
  */
-export function RelinkCustomDir(customDir: string, repoRoot: string): $CancellablePromise<number> {
-    return $Call.ByID(3736551740, customDir, repoRoot);
+export function RelinkCustomDir(customDir: string, filesRoot: string): $CancellablePromise<number> {
+    return $Call.ByID(3736551740, customDir, filesRoot);
 }
 
 export function RemoveDir(dir: string): $CancellablePromise<void> {
@@ -797,8 +797,8 @@ export function RestartApplication(): $CancellablePromise<void> {
     return $Call.ByID(143393668);
 }
 
-export function RestoreFromRecycle(src: string, repoRoot: string): $CancellablePromise<void> {
-    return $Call.ByID(983517996, src, repoRoot);
+export function RestoreFromRecycle(src: string, filesRoot: string): $CancellablePromise<void> {
+    return $Call.ByID(983517996, src, filesRoot);
 }
 
 /**
@@ -880,8 +880,8 @@ export function ScanModelEntriesWithLabel(dir: string, label: string): $Cancella
 /**
  * ========== 高级搜索 ==========
  */
-export function SearchModels(repoRoot: string, keyword: string, minBones: number, maxBones: number, minCubes: number, maxCubes: number, minTex: number, maxTex: number): $CancellablePromise<types$0.SearchResult[] | null> {
-    return $Call.ByID(652244789, repoRoot, keyword, minBones, maxBones, minCubes, maxCubes, minTex, maxTex);
+export function SearchModels(filesRoot: string, keyword: string, minBones: number, maxBones: number, minCubes: number, maxCubes: number, minTex: number, maxTex: number): $CancellablePromise<types$0.SearchResult[] | null> {
+    return $Call.ByID(652244789, filesRoot, keyword, minBones, maxBones, minCubes, maxCubes, minTex, maxTex);
 }
 
 /**
@@ -964,8 +964,8 @@ export function SyncCustomToRepo(customDir: string, repoDir: string): $Cancellab
     return $Call.ByID(1317956650, customDir, repoDir);
 }
 
-export function SyncModelToggleStatus(instanceCustomDir: string, repoRoot: string): $CancellablePromise<[number, number]> {
-    return $Call.ByID(933155543, instanceCustomDir, repoRoot);
+export function SyncModelToggleStatus(instanceCustomDir: string, filesRoot: string): $CancellablePromise<[number, number]> {
+    return $Call.ByID(933155543, instanceCustomDir, filesRoot);
 }
 
 /**
