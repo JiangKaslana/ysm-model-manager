@@ -34,20 +34,43 @@ invariant_anchors:
 - 渲染模型资源目录树
 - 节点选择与多选
 - 右键菜单触发
-- 节点悬停快捷操作（ha-preview 🔍：解析模型名作者并在 B站搜索）
+- 节点悬停快捷操作（ha-preview 🔍：解析模型名作者并在 B 站搜索；ha-copy 📋：`navigator.clipboard.writeText` 复制文件名）
 
 ## 对外 API / 入口
 
-- `AppTree` 生命周期：`connectedCallback`（绑定事件 + `_unsubs` 收集订阅）→ `disconnectedCallback`（清理订阅 / keydown / 虚拟滚动）
+- `AppTree` 生命周期：`connectedCallback`（渲染布局 → 绑定工具栏/事件委托/键盘 → `_unsubs` 收集 bus 订阅）→ `disconnectedCallback`（清理订阅 / keydown / 虚拟滚动）
+  - `_unsubs` 仅收集 bus 订阅（`bindBusEvents` 返回的 unsub 数组 + `bus.on("tree:set-search")`），DOM 委托事件（click/contextmenu，通过 `addEventListener` 绑定于 `#tree` 等容器）随 ShadowRoot detach 自动清理，不进入 `_unsubs`
 - `_load` — 加载条目数据；`_renderTree` — 渲染树（grid/list 双模式）
 - `_initKeyboardShortcuts` / `_deleteSelected` — 键盘快捷键 / 批量删除
-- 子模块：`bus-handlers.ts`（事件处理）/ `events.ts`（委托）/ `virtual-scroll.ts`（虚拟滚动）
+- 子模块：`bus-handlers.ts`（事件处理）/ `events.ts`（委托）/ `virtual-scroll.ts`（虚拟滚动）/ `loader.ts`（数据加载抽象层）/ `authors.ts`（作者列表加载）/ `toolbar-events.ts`（工具栏 UI 绑定）
+
+## 响应式属性与代际守卫
+
+- `observedAttributes` 仅声明 `root` 属性，`attributeChangedCallback`（index.ts:154-179）响应 root 值变更，触发 `_load` → `_renderTree` 重新加载并渲染
+- 挂载时序保护：`_ready` 标志区分首次挂载与后续属性变更——`attributeChangedCallback` 在 `_ready=false` 时不启动加载，改为置 `_pendingRoot=true`，`connectedCallback` 的 `_load` 完成后检测并补加载最新 root（防「树停在 spinner」）
+- 代际守卫 `_gen`（index.ts:66）：`connectedCallback` 入口和 `attributeChangedCallback` 内均 `++_gen` 生成代际号；异步 `_load` 完成后用 `gen === this._gen` 校验，若期间 root 已切换则丢弃本次过期加载的渲染（防旧类型数据覆盖新类型树），是 app-tree 多资源类型快速切换的核心机制
+
+## 工具栏功能（toolbar-events.ts）
+
+`bindToolbarEvents`（toolbar-events.ts:240-442）绑定工具栏所有 UI 入口，对外功能清单：
+
+| 功能 | 触发元素 | 说明 |
+|------|----------|------|
+| 高级筛选弹窗 | `#btn-adv-filter` 点击 → `openAdvFilterDialog`（:25-204） | 弹窗输入关键词/标签/骨骼/立方体/纹理数值范围，回填 inline 面板并调用后端 SearchModels |
+| 排序下拉 | `#sort` change（:322） | name/size/date 排序 |
+| 视图模式切换 | `#btn-view-mode` click（:328-339） | grid ⇄ list 切换，持久化到 localStorage |
+| 作者下拉菜单 | `#menu-authors` pointerenter/click（:376-388）→ `fillAuthorMenu`（:207-237） | 点击作者名自动填入搜索框并触发搜索 |
+| 全选 / 反选 | `#sel-all` click（:243-263） | 基于当前可见行切换 `selectState.keys` |
+| 导出骨骼名 | `#repo-export` click（:265-309） | 调用 Go `ExportBoneStructures`，Blob 下载 |
+| 生成仓库索引 | `data-more="genindex"`（:511-555） | 调用 Go `GenerateRepoIndex`，网页版触发下载，桌面端写盘 |
+
+`_loadAuthorsAsync`（index.ts:193-199）在 `connectedCallback` 内延迟调用 `loadAuthors` 加载作者列表至 `_authors`，供 `fillAuthorMenu` 填充下拉。
 
 ## 与其他子系统关系
 
 - `app-content/`: 选中节点内容在 content 区域渲染
 - `app-sidebar/`: 侧栏面板状态联动
-- `context-menu.ts`: 右键菜单事件路由
+- `core/context-menus.ts`: 右键菜单事件路由
 - 通过 bus 发出节点选择事件
 
 ## 不变量

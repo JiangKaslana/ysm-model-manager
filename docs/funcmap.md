@@ -38,10 +38,10 @@
 | 前端·特性 | 13 | 60 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 36 | 127 |
+| 前端·工具 | 37 | 131 |
 | frontend/views | 54 | 155 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **201** | **898** |
+| **合计** | **202** | **902** |
 
 ## Go·头像
 
@@ -903,6 +903,10 @@
 | `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:188` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:104` | — |
+| `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:6` | — |
+| `ensureFabStyles()` | `frontend/src/utils/dom/fab:45` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
+| `IconButtonOpts()` | `frontend/src/utils/dom/fab:60` | — |
+| `createIconButton()` | `frontend/src/utils/dom/fab:68` | 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 |
 | `formatBytes()` | `frontend/src/utils/dom/format:11` | 字节数 → 可读大小（B/KB/MB/GB），非法值或 0 返回空串 |
 | `sizeColor()` | `frontend/src/utils/dom/format:23` | 文件大小颜色 class：&lt;1MB 绿色，1-3MB 正常，≥3MB 红色 |
 | `fmtDate()` | `frontend/src/utils/dom/format:35` | 时间戳 → 友好日期：今天显时间，今年显 M月D日，往年显 YYYY/M/D |
@@ -1013,8 +1017,8 @@
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
-| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:37` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
-| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:53` | 加载模型 2D 骨骼线条图 + 统计面板 ctx = 组件实例（提供 this.root, this.appendDebug 等） |
+| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:38` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
+| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:54` | 加载模型 2D 骨骼线条图 + 统计面板 ctx = 组件实例（提供 this.root, this.appendDebug 等） |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |
 | `buildOrderedTexKeys()` | `frontend/src/views/app-preview/texture-order:21` | 计算 3D 渲染/纹理选择器用的有序纹理名列表 |
 | `ModelDetailMeta()` | `frontend/src/views/app-preview/tpl:6` | 模型统计元数据（modelDetailHTML 入参） |
