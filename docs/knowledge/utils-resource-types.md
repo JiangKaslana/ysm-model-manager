@@ -58,4 +58,4 @@ invariant_anchors:
 - [resource_registry](./resource-registry.md) — 单一事实源 + services/registry.ts
 - [utils_extensions](./utils-extensions.md) — 扩展名映射
 - [wails_bridge](./wails-bridge.md) — getApp() 桥接
-- `frontend/src/utils/resource/resource-types.test.js` — 单元测试（验证入口）
+- `frontend/src/utils/resource/resource-types.test.ts` — 单元测试（验证入口）

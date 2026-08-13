@@ -53,4 +53,4 @@ use_when:
 
 - [utils_display](./utils-display.md) — 文件名 § 着色消费方
 - [go_packs](./go-packs.md) — 包元数据数据源
-- `frontend/src/utils/format/mc-format.test.js` — 单元测试（验证入口）
+- `frontend/src/utils/format/mc-format.test.ts` — 单元测试（验证入口）

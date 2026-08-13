@@ -82,10 +82,8 @@
 | `cli_export.go` | CLI 模式构建入口（build tag: cli） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
-| `link-checker-out.json` | 链接检查器输出产物（不入库） |
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
-| `opencode.json` | opencode 配置 |
 | `resource_types.json` | 资源类型单一事实来源（注册表优先） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |

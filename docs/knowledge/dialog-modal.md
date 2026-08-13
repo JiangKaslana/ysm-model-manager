@@ -32,6 +32,7 @@ use_when:
 - `modalPrompt(opts)`：输入框弹窗，空值校验（`#mp-err` 提示），Enter 确认 / Esc 取消，返回输入值或 null
 - `modalSelect(opts)`：下拉选择弹窗，返回选中项或 null
 - `modalConfirm(opts)`：确认弹窗，`danger` 选项切换 `dlg-btn-danger` 红样式，overlay 可聚焦并响应 Esc，返回 boolean
+- `modalProgress(opts)`：长时间操作进度弹窗（`ModalProgressOptions` / `ModalProgressHandle`），暴露 `update(title, text)` / `resolve()` / `close()`；`registerDlg` 的 `closable` 参数支持用户取消
 
 ## 对外 API / 入口
 
