@@ -108,9 +108,9 @@ export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement 
     "</div>" +
     '<div class="cr-card-name-row">' +
     '<span class="cr-card-name">' + esc(cr.name) + "</span>" +
-    searchBtn +
-    '<span class="cr-star-btn" data-star="' + esc(cr.name) + '">' + (isFaved(cr.name) ? "⭐" : "☆") + "</span>" +
     localBadge +
+    '<span class="cr-star-btn" data-star="' + esc(cr.name) + '">' + (isFaved(cr.name) ? "⭐" : "☆") + "</span>" +
+    searchBtn +
     "</div>" +
     "</div>" +
     '<div class="cr-card-desc">' + esc(cr.desc) + "</div>" +
