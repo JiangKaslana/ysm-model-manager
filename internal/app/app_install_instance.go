@@ -1,0 +1,504 @@
+// ========== 实例管理（拆分自 app_install.go）==========
+// 从 app_install.go 拆分：实例相关函数
+package app
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/installer"
+	"ysm-model-manager/go/instance"
+	"ysm-model-manager/go/recycle"
+	"ysm-model-manager/go/scanner"
+	ysmsync "ysm-model-manager/go/sync"
+	"ysm-model-manager/go/types"
+	"ysm-model-manager/go/ysm"
+)
+
+// CountInstanceResources 统计指定整合包中可清空的资源文件数
+// 只统计仓库中已有的文件（同 clearInstanceDir 逻辑）
+// rtype 为空时统计全部类型，否则只统计指定类型
+func (a *App) CountInstanceResources(insName, rtype string) (int, error) {
+	insName = strings.TrimSpace(insName)
+	if insName == "" {
+		return 0, fmt.Errorf("整合包名为空")
+	}
+	cfg := a.LoadAppConfig()
+	mcRoot := cfg.McRoot
+	if mcRoot == "" {
+		return 0, fmt.Errorf("游戏根目录未设置")
+	}
+	instances := a.ListVersionInstances(mcRoot)
+	var target *types.VersionInstance
+	for i, ins := range instances {
+		if ins.Name == insName {
+			target = &instances[i]
+			break
+		}
+	}
+	if target == nil {
+		return 0, fmt.Errorf("未找到整合包: %s", insName)
+	}
+	total := 0
+	for _, d := range types.AllSubDirs() {
+		if rtype != "" && d.RType != rtype {
+			continue
+		}
+		dir := types.FindInstDir(target.VersionDir, d.SubDir, d.RType)
+		filesRoot, _ := a.GetRepoRoot(d.RType)
+		if filesRoot == "" {
+			continue
+		}
+		total += a.countMatchingInDir(dir, filesRoot)
+	}
+	return total, nil
+}
+
+// ClearInstanceResources 清空指定整合包中已同步的文件
+// insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型）
+// 返回清除的文件数量。整合包文件是仓库的副本/链接，删除后可从仓库重新推送恢复；
+// 实例文件在仓库根内才移回收站，其余直接删除（见 clearInstanceDir）
+func (a *App) ClearInstanceResources(insName, rtype string) (int, error) {
+	// 删除/回收整合包子目录文件 = 对实例目录做 Rename/Remove，与安装、同步
+	// （SyncToggleStatus 阶段 2）并发操作同一批文件 → 统一纳入 InstallLock 互斥（共享单锁闭环）
+	installer.InstallLock.Lock()
+	defer installer.InstallLock.Unlock()
+	insName = strings.TrimSpace(insName)
+	if insName == "" {
+		return 0, fmt.Errorf("整合包名为空")
+	}
+	cfg := a.LoadAppConfig()
+	mcRoot := cfg.McRoot
+	if mcRoot == "" {
+		return 0, fmt.Errorf("游戏根目录未设置")
+	}
+	instances := a.ListVersionInstances(mcRoot)
+	var target *types.VersionInstance
+	for i, ins := range instances {
+		if ins.Name == insName {
+			target = &instances[i]
+			break
+		}
+	}
+	if target == nil {
+		return 0, fmt.Errorf("未找到整合包: %s", insName)
+	}
+
+	// 先统计数量
+	scanned := 0
+	for _, d := range types.AllSubDirs() {
+		if rtype != "" && d.RType != rtype {
+			continue
+		}
+		dir := types.FindInstDir(target.VersionDir, d.SubDir, d.RType)
+		scanned += a.countInstanceDir(dir)
+	}
+	if scanned == 0 {
+		return 0, nil
+	}
+	// 实际删除——每种类型传入对应的仓库根目录用于比对
+	removed := 0
+	for _, d := range types.AllSubDirs() {
+		if rtype != "" && d.RType != rtype {
+			continue
+		}
+		dir := types.FindInstDir(target.VersionDir, d.SubDir, d.RType)
+		filesRoot, _ := a.GetRepoRoot(d.RType)
+		removed += a.clearInstanceDir(dir, d.RType, filesRoot)
+	}
+	scanner.InvalidateCache()
+	return removed, nil
+}
+
+// countInstanceDir 递归统计指定目录中的文件数（不限扩展名）
+func (a *App) countInstanceDir(dir string) int {
+	return fsutil.CountFiles(dir, true)
+}
+
+// countMatchingInDir 统计实例目录中与仓库同名的文件数（仅用于清空提示）
+func (a *App) countMatchingInDir(instDir, filesRoot string) int {
+	repoFiles := make(map[string]bool)
+	for _, p := range fsutil.WalkAllFiles(filesRoot, true) {
+		repoFiles[strings.ToLower(filepath.Base(p))] = true
+	}
+	count := 0
+	for _, p := range fsutil.WalkAllFiles(instDir, true) {
+		if repoFiles[strings.ToLower(filepath.Base(p))] {
+			count++
+		}
+	}
+	return count
+}
+
+// isResourcePackFolder 检查目录是否是资源包文件夹（内含 pack.mcmeta）
+func isResourcePackFolder(path string) bool {
+	_, err := os.Stat(filepath.Join(path, "pack.mcmeta"))
+	return err == nil
+}
+
+// clearInstanceDir 只删除仓库中已有的文件，跳过整合包自带的资源
+// 整合包的 resourcepacks/ 等子目录中可能有用户自己安装的、仓库没有的资源包，保留不动
+// clearInstanceDir 清理整合包子目录中仓库已有的文件（执行逻辑下沉 go/recycle）
+func (a *App) clearInstanceDir(dir string, rtype string, filesRoot string) int {
+	return recycle.RemoveRepoDuplicates(dir, filesRoot, a.ysmRoot())
+}
+
+// DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle）
+func (a *App) DeduplicateCustomDir(customDir string) (int, int, error) {
+	// 去重 Move 与安装/同步并发 Rename 同一 custom 目录文件 → 统一纳入 InstallLock 互斥（共享单锁闭环）
+	installer.InstallLock.Lock()
+	defer installer.InstallLock.Unlock()
+	customDir = strings.TrimSpace(customDir)
+	if customDir == "" {
+		return 0, 0, fmt.Errorf("目录为空")
+	}
+	// 入口绝对化——与 dedup.go:41-43 对齐；相对路径下
+	// ScanModelEntries 产出相对 Path，recycle.Move 按 CWD 解析会移到错误位置
+	if abs, err := filepath.Abs(customDir); err == nil {
+		customDir = abs
+	}
+	// 根级守卫：isPathInRoot 对 rel==. 拒绝，防止把整个仓库当自定义目录去重；
+	// 仓库外路径显式报错而非静默 (0,0,nil)
+	if !a.isPathInRoot(customDir) {
+		return 0, 0, fmt.Errorf("路径超出仓库目录")
+	}
+
+	entries := a.ScanModelEntries(customDir)
+	if len(entries) == 0 {
+		return 0, 0, nil
+	}
+
+	// 过滤空文件——与检测侧 dedup.go:76-79（Size==0 跳过）
+	// 口径统一：空文件（占位符、空 .animation 等）不是重复文件，去重两侧结论一致
+	nonEmpty := entries[:0]
+	for _, e := range entries {
+		if e.Size == 0 {
+			continue
+		}
+		nonEmpty = append(nonEmpty, e)
+	}
+	if len(nonEmpty) == 0 {
+		return 0, 0, nil
+	}
+
+	removed, kept := recycle.DeduplicateEntries(nonEmpty, a.ysmRoot(), a.logger.Add)
+	scanner.InvalidateCache()
+	return removed, kept, nil
+}
+
+// ========== 状态同步 ==========
+func (a *App) GetInstanceStatus(mcRoot, repoDir string) []types.InstanceStatus {
+	// 扫描日志带类型标签（YSM），与前端术语一致
+	label := "模型"
+	if rt := types.RegistryType("ysm"); rt != nil {
+		label = rt.Name
+	}
+	scanFn := func(dir string) []types.ModelEntry { return a.ScanModelEntriesWithLabel(dir, label) }
+	return ysmsync.GetInstanceStatus(mcRoot, repoDir, scanFn)
+}
+
+// GetResourceInstanceStatus 按资源类型获取整合包同步状态
+// repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导）
+func (a *App) GetResourceInstanceStatus(rtype, mcRoot, repoDir string) []types.InstanceStatus {
+	if mcRoot == "" || rtype == "" {
+		return []types.InstanceStatus{}
+	}
+	// 扫描日志带类型标签，与前端术语一致
+	label := ""
+	if rt := types.RegistryType(rtype); rt != nil {
+		label = rt.Name
+	}
+	scanFn := func(dir string) []types.ModelEntry { return a.ScanModelEntriesWithLabel(dir, label) }
+	// YSM 走原有逻辑（对比 repo 和 custom 目录）
+	if rtype == "ysm" {
+		if repoDir == "" {
+			repoDir, _ = a.GetRepoRoot("ysm")
+		}
+		if repoDir == "" {
+			return []types.InstanceStatus{}
+		}
+		results := ysmsync.GetInstanceStatus(mcRoot, repoDir, scanFn)
+		for i := range results {
+			modsDir := filepath.Join(results[i].CustomDir, "..", "..", "..", "mods")
+			results[i].HasMod = ysm.HasModInDir(modsDir, rtype)
+		}
+		return results
+	}
+
+	// 其他资源类型：使用下沉的哈希对比逻辑
+	globalDir, _ := a.GetRepoRoot(rtype)
+	if globalDir == "" {
+		return []types.InstanceStatus{}
+	}
+	subDir := types.SubDirMap(rtype)
+	if subDir == "" {
+		return []types.InstanceStatus{}
+	}
+	return ysmsync.CompareGlobalInstanceHashes(mcRoot, globalDir, subDir, rtype,
+		scanFn, ysmsync.ListVersions,
+		func(modsDir string) bool { return ysm.HasModInDir(modsDir, rtype) })
+}
+
+func (a *App) SyncModelToggleStatus(instanceCustomDir, filesRoot string) (int, int, error) {
+	return ysmsync.SyncToggleStatus(instanceCustomDir, filesRoot, a.ScanModelEntries)
+}
+
+// RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版）
+func (a *App) RelinkCustomDir(customDir, filesRoot string) (int, error) {
+	// 尝试从 filesRoot 推断 rtype
+	rtype := "ysm"
+	for _, d := range types.AllSubDirs() {
+		if strings.Contains(strings.ToLower(customDir), strings.ToLower(d.SubDir)) {
+			rtype = d.RType
+			break
+		}
+	}
+	return a.relinkDir(customDir, filesRoot, rtype)
+}
+
+// relinkDir 重新应用链接模式到单个目录
+// rtype 用于需要文件夹级重新链接的类型（ysm/mmd-skin 等）
+// relinkDir 按哈希比对重链接实例目录（执行逻辑下沉 go/sync）
+func (a *App) relinkDir(customDir, filesRoot, rtype string) (int, error) {
+	return ysmsync.RelinkDir(customDir, filesRoot, rtype, a.getLinkMode(), a.ScanModelEntries, a.logger.Add)
+}
+
+// RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录
+func (a *App) RelinkAllInstanceResources(instanceName string) (int, error) {
+	cfg := a.LoadAppConfig()
+	if cfg.McRoot == "" {
+		return 0, fmt.Errorf("请先设置游戏根目录")
+	}
+	instances := a.ListVersionInstances(cfg.McRoot)
+	var target *types.VersionInstance
+	for i, ins := range instances {
+		if ins.Name == instanceName {
+			target = &instances[i]
+			break
+		}
+	}
+	if target == nil {
+		return 0, fmt.Errorf("未找到整合包: %s", instanceName)
+	}
+	total := 0
+	for _, d := range types.AllSubDirs() {
+		instanceDir := filepath.Join(target.VersionDir, d.SubDir)
+		if _, err := os.Stat(instanceDir); os.IsNotExist(err) {
+			continue
+		}
+		globalDir, _ := a.GetRepoRoot(d.RType)
+		if globalDir == "" {
+			continue
+		}
+		n, err := a.relinkDir(instanceDir, globalDir, d.RType)
+		if err != nil {
+			// 部分目录已重链接——同样需失效缓存，防陈旧缓存"复活"
+			scanner.InvalidateCache()
+			return total, fmt.Errorf("重链接 %s 失败: %w", d.RType, err)
+		}
+		total += n
+	}
+	// 重链接会增删实例目录文件——失效扫描缓存（实例目录在扫描范围内，GetInstanceStatus 走扫描）
+	scanner.InvalidateCache()
+	return total, nil
+}
+
+// ========== 资源同步 ==========
+
+// SyncResources 获取全局 ↔ 整合包的资源同步状态
+func (a *App) SyncResources(rtype, instanceName string) string {
+	cfg := a.LoadAppConfig()
+	if cfg.McRoot == "" {
+		return `{"synced":[],"missing":[],"extra":[]}`
+	}
+	globalDir, _ := a.GetRepoRoot(rtype)
+	if globalDir == "" {
+		return `{"synced":[],"missing":[],"extra":[]}`
+	}
+
+	// 找整合包
+	instances := a.ListVersionInstances(cfg.McRoot)
+	var targetDir string
+	for _, ins := range instances {
+		if ins.Name == instanceName {
+			subDir := types.SubDirMap(rtype)
+			if subDir == "" {
+				return `{"synced":[],"missing":[],"extra":[]}`
+			}
+			targetDir = filepath.Join(ins.VersionDir, subDir)
+			break
+		}
+	}
+	if targetDir == "" {
+		return `{"synced":[],"missing":[],"extra":[]}`
+	}
+
+	result := ysmsync.SyncResources(globalDir, targetDir)
+	data, _ := json.Marshal(result)
+	return string(data)
+}
+
+// PushResourceToInstance 将全局中缺失的资源推送到整合包
+// PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync）
+func (a *App) PushResourceToInstance(rtype, instanceName string) (int, error) {
+	cfg := a.LoadAppConfig()
+	if cfg.McRoot == "" {
+		return 0, fmt.Errorf("请先设置游戏根目录")
+	}
+	globalDir, _ := a.GetRepoRoot(rtype)
+	if globalDir == "" {
+		return 0, fmt.Errorf("未设置%s目录", rtype)
+	}
+
+	targetDir, err := a.findInstanceDir(rtype, instanceName, cfg.McRoot)
+	if err != nil {
+		return 0, err
+	}
+	return ysmsync.PushResources(rtype, globalDir, targetDir, a.getLinkMode(), a.logger.Add)
+}
+
+// PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync）
+func (a *App) PullResourceFromInstance(rtype, instanceName string) (int, error) {
+	cfg := a.LoadAppConfig()
+	if cfg.McRoot == "" {
+		return 0, fmt.Errorf("请先设置游戏根目录")
+	}
+	globalDir, _ := a.GetRepoRoot(rtype)
+	if globalDir == "" {
+		return 0, fmt.Errorf("未设置%s目录", rtype)
+	}
+
+	targetDir, err := a.findInstanceDir(rtype, instanceName, cfg.McRoot)
+	if err != nil {
+		return 0, err
+	}
+	return ysmsync.PullResources(rtype, globalDir, targetDir, a.logger.Add)
+}
+
+// findInstanceDir 解析整合包实例的资源类型子目录（Push/Pull 共用）
+func (a *App) findInstanceDir(rtype, instanceName, mcRoot string) (string, error) {
+	instances := a.ListVersionInstances(mcRoot)
+	for _, ins := range instances {
+		if ins.Name == instanceName {
+			subDir := types.SubDirMap(rtype)
+			if subDir == "" {
+				return "", fmt.Errorf("未知资源类型: %s", rtype)
+			}
+			return filepath.Join(ins.VersionDir, subDir), nil
+		}
+	}
+	return "", fmt.Errorf("未找到整合包: %s", instanceName)
+}
+
+// PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库
+// PullSingleResourceFromInstance 从整合包拉取单个资源（复制核心下沉 go/sync）
+func (a *App) PullSingleResourceFromInstance(rtype, srcPath, instanceName string) error {
+	cfg := a.LoadAppConfig()
+	if cfg.McRoot == "" {
+		return fmt.Errorf("请先设置游戏根目录")
+	}
+	globalDir, _ := a.GetRepoRoot(rtype)
+	if globalDir == "" {
+		return fmt.Errorf("未设置目录")
+	}
+	targetDir, err := a.findInstanceDir(rtype, instanceName, cfg.McRoot)
+	if err != nil {
+		return err
+	}
+	return ysmsync.PullSingleResource(globalDir, targetDir, srcPath)
+}
+
+// PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync）
+func (a *App) PushSingleResourceToInstance(rtype, instanceName, filePath string) error {
+	cfg := a.LoadAppConfig()
+	if cfg.McRoot == "" {
+		return fmt.Errorf("请先设置游戏根目录")
+	}
+	globalDir, _ := a.GetRepoRoot(rtype)
+	if globalDir == "" {
+		return fmt.Errorf("未设置 %s 类型的仓库目录", rtype)
+	}
+	customDir, err := a.findInstanceDir(rtype, instanceName, cfg.McRoot)
+	if err != nil {
+		return err
+	}
+	return ysmsync.PushSingleResource(filePath, customDir, globalDir, a.getLinkMode(), rtype)
+}
+
+// ========== 整合包全类型同步状态 ==========
+
+// GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表）
+// GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/instance，此处仅注入依赖）
+func (a *App) GetInstanceSyncStatus(instanceName string) string {
+	cfg := a.LoadAppConfig()
+	if cfg.McRoot == "" {
+		return "[]"
+	}
+
+	// 加载资源类型注册表
+	var registry struct {
+		ResourceTypes []instance.ResourceTypeInfo `json:"resourceTypes"`
+	}
+	if data, err := loadBundledData("resource_types.json"); err == nil {
+		// json.Unmarshal 忽略 err——外部 resource_types.json
+		// 损坏时 registry 为空、同步页静默显示空（旁路解析绕过 types.LoadRegistry 的
+		// 嵌入基线回退）；显式 log + 回退嵌入基线，与 Go 其它路径行为一致
+		if uerr := json.Unmarshal(data, &registry); uerr != nil {
+			log.Printf("[app] resource_types.json 解析失败: %v, 回退嵌入基线", uerr)
+			if rt := types.LoadRegistry(); rt != nil {
+				registry.ResourceTypes = make([]instance.ResourceTypeInfo, 0, len(rt.ResourceTypes))
+				for _, r := range rt.ResourceTypes {
+					registry.ResourceTypes = append(registry.ResourceTypes, instance.ResourceTypeInfo{
+						ID: r.ID, Name: r.Name, Icon: r.Icon,
+					})
+				}
+			}
+		}
+	}
+
+	// 找整合包目录
+	instances := a.ListVersionInstances(cfg.McRoot)
+	var targetIns *types.VersionInstance
+	for i, ins := range instances {
+		if ins.Name == instanceName {
+			targetIns = &instances[i]
+			break
+		}
+	}
+	if targetIns == nil {
+		return "[]"
+	}
+
+	// 收集各资源类型的仓库根目录
+	roots := map[string]string{}
+	for _, rt := range registry.ResourceTypes {
+		roots[rt.ID], _ = a.GetRepoRoot(rt.ID)
+	}
+
+	items := instance.BuildSyncItems(targetIns, registry.ResourceTypes, roots)
+	data, _ := json.Marshal(items)
+	return string(data)
+}
+
+// ========== YSM 检测 ==========
+func (a *App) HasYSMMod(modsDir string) bool {
+	entries, err := os.ReadDir(modsDir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		low := strings.ToLower(e.Name())
+		if strings.Contains(low, "yes_steve_model") || strings.Contains(low, "ysm") {
+			return true
+		}
+	}
+	return false
+}
