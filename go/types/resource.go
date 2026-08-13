@@ -76,6 +76,38 @@ func LoadRegistry() *ResourceTypeRegistry {
 		}
 		reg = baseline
 	}
+	// BUG-1/4 修复：外部文件合法但语义为空（`resourceTypes: []` 或 `null`）→
+	// 视为与解析失败同等级，回退嵌入基线。
+	// 否则 IsSupportedExt / StorageSubDir 等下游全线静默失效，用户只能重启进程。
+	if len(reg.ResourceTypes) == 0 {
+		log.Printf("[types] 外部注册表为空（%d 条目），回退嵌入基线", len(reg.ResourceTypes))
+		var baseline ResourceTypeRegistry
+		if err := json.Unmarshal(embeddedRegistryJSON, &baseline); err != nil {
+			registry = &ResourceTypeRegistry{}
+			return registry
+		}
+		reg = baseline
+	}
+	// BUG-3 修复：重复 id 去重，保留最后一次出现的条目（last-wins），
+	// 避免 RegistryType 与 ExtBelongsTo 对同一 id 语义不一致（前者 first-wins、后者 all-wins）。
+	if len(reg.ResourceTypes) > 1 {
+		seen := make(map[string]int, len(reg.ResourceTypes))
+		deduped := make([]ResourceType, 0, len(reg.ResourceTypes))
+		dupCount := 0
+		for i, rt := range reg.ResourceTypes {
+			if j, ok := seen[rt.ID]; ok {
+				deduped[j] = rt
+				dupCount++
+			} else {
+				seen[rt.ID] = i
+				deduped = append(deduped, rt)
+			}
+		}
+		if dupCount > 0 {
+			log.Printf("[types] 注册表含 %d 个重复 id，已去重（保留最后出现条目）", dupCount)
+			reg.ResourceTypes = deduped
+		}
+	}
 	registry = &reg
 	return registry
 }
