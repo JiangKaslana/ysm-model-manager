@@ -152,8 +152,8 @@ export function scanSourceGraph(srcDir, { scope = null, localOnly = false } = {}
  * 提取 JS/TS 文件中的 export 符号列表。
  * 覆盖：export function/const/let/class/interface/type/enum/default、export { a, b }。
  */
-export function getExportedSymbols(filePath) {
-  const text = fs.readFileSync(filePath, 'utf8');
+export function getExportedSymbols(filePath, textOverride) {
+  const text = textOverride ?? fs.readFileSync(filePath, 'utf8');
   const syms = new Set();
 
   // export async function / function / const / let / class / interface / type / enum
@@ -186,8 +186,8 @@ export function getExportedSymbols(filePath) {
  * 提取 Go 文件中的导出符号（首字母大写顶层声明）：
  * func / type / const / var，含 `func (r *X) Method` 方法（方法名即导出点）。
  */
-export function getGoExportedSymbols(filePath) {
-  const text = fs.readFileSync(filePath, 'utf8');
+export function getGoExportedSymbols(filePath, textOverride) {
+  const text = textOverride ?? fs.readFileSync(filePath, 'utf8');
   const syms = new Set();
   const isExport = (name) => name && /^[A-Z]/.test(name);
 
@@ -242,7 +242,7 @@ export function getGoExportedSymbols(filePath) {
 }
 
 /** 按扩展名分发：.go → Go 提取；其余 → JS/TS 提取。 */
-export function getExportedSymbolsAny(filePath) {
-  if (filePath.toLowerCase().endsWith('.go')) return getGoExportedSymbols(filePath);
-  return getExportedSymbols(filePath);
+export function getExportedSymbolsAny(filePath, textOverride) {
+  if (filePath.toLowerCase().endsWith('.go')) return getGoExportedSymbols(filePath, textOverride);
+  return getExportedSymbols(filePath, textOverride);
 }
