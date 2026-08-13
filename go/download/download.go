@@ -264,6 +264,14 @@ func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL st
 	// BUG-B-8 修复：剔除 .git/ 前缀，防止下载 .git/config 泄露仓库 token/远端配置。
 	relPath = strings.TrimPrefix(relPath, ".git"+string(filepath.Separator))
 	relPath = strings.TrimPrefix(relPath, ".recycle"+string(filepath.Separator))
+	// NUL 字节跨平台差异修复——Windows filepath.Abs 遇到 NUL 直接报错（攻击失效），
+	// Linux/macOS filepath.Abs 放行，但 os.Create("file.ysm\x00.exe") 实际创建的是 "file.ysm"
+	// （C 字符串以 NUL 截断，后缀被剥离），攻击者可绕过前端扩展名校验。
+	// 主动剔除，跨平台一致行为。
+	if strings.Contains(relPath, "\x00") {
+		log.Printf("[download] 拒绝含 NUL 字节的路径: %s", rawURL)
+		return "", "", ""
+	}
 	savePath = filepath.Join(saveDir, relPath)
 
 	// 路径遍历防护——确保 savePath 经 Clean 后仍在 saveDir 下

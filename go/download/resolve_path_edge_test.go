@@ -87,35 +87,28 @@ func TestResolveSavePath_NonGitHub(t *testing.T) {
 
 // ---------- 5. URL 含 %2f 混合编码的伪穿越 ----------
 func TestResolveSavePath_PctEncodedTraversal(t *testing.T) {
-	// %2f 不会被 filepath.Clean 视为路径分隔符 —— 可能绕过 ../ 检查
+	// neturl.Parse 会解码 %2f → /，filepath.Clean 随后解析 .. 上溯目录，
+	// prefix 检查拦截越界——跨平台一致。
 	url := "https://raw.githubusercontent.com/user/repo/main/a/..%2f..%2fetc/passwd"
 	savePath, _, _ := ResolveSavePath(url, t.TempDir())
-	if savePath == "" {
-		t.Log("INFO(5): %2f 穿越被拒绝（返回空）")
-		return
+	if savePath != "" {
+		t.Fatalf("FIXED(跨平台): %%2f 编码穿越应被拒绝，实际 savePath=%q", savePath)
 	}
-	// 如果 savePath 包含 "../" 或 "etc/passwd"，则穿越保护失效
-	if strings.Contains(savePath, "etc/passwd") {
-		t.Log("TODO(BUG-5): %2f 编码的 '..' 未被识别为穿越路径，savePath 落地:", savePath)
-		return
-	}
-	t.Log("INFO(5): 未解码，savePath 保留字面量 %2f: " + savePath + "（穿越未成功，但文件名异常）")
+	t.Log("FIXED(跨平台): 编码穿越被 neturl.Parse+prefix 检查拦截")
 }
 
 // ---------- 6. URL 含 NUL 字节 (%00) ----------
 func TestResolveSavePath_NUL(t *testing.T) {
-	// filepath.Clean 会在 NUL 处截断 —— 攻击者可剥离 .exe 后缀
+	// 跨平台差异：Windows filepath.Abs 遇 NUL 报错（攻击失效）；
+	// Linux/macOS filepath.Abs 放行，但 os.Create("file.ysm\x00.exe") 创建的是 "file.ysm"
+	// （C 字符串以 NUL 截断），攻击者剥离任意后缀绕过前端扩展名校验。
+	// ResolveSavePath 主动剔除 NUL，跨平台一致拒绝。
 	url := "https://raw.githubusercontent.com/user/repo/main/file.ysm%00.exe"
 	savePath, _, _ := ResolveSavePath(url, t.TempDir())
-	if savePath == "" {
-		t.Log("INFO(6): NUL 注入返回空")
-		return
+	if savePath != "" {
+		t.Fatalf("FIXED(BUG-6, 跨平台): NUL 字节 URL 应返回空，实际 savePath=%q", savePath)
 	}
-	if strings.HasSuffix(savePath, "file.ysm") && !strings.HasSuffix(savePath, ".exe") {
-		t.Log("TODO(BUG-6): NUL 字节截断文件名后缀 —— '.exe' 被 filepath.Clean 剥离:", savePath)
-		return
-	}
-	t.Logf("INFO(6): savePath=%q", savePath)
+	t.Log("FIXED(BUG-6, 跨平台): NUL 注入被拒绝（跨平台一致行为）")
 }
 
 // ---------- 7. Unicode 同形字符 (Cyrillic 'і' 代替 'i') ----------
