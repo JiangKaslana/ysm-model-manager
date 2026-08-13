@@ -30,11 +30,12 @@ export default defineConfig({
   },
   // 内置 webServer：自动启动/关闭 vite dev
   webServer: {
-    command: "npx vite --port 5173",
+    command: "npx vite --port 5173 --host 127.0.0.1",
     url: "http://127.0.0.1:5173",
     reuseExistingServer: !process.env.CI,
     cwd: ".",
-    // CI（ubuntu runner）首次 npm ci 后 vite 冷启动常超 30s，放宽到 120s
+    // 显式 --host 127.0.0.1 与 url 保持一致：CI 上 vite 默认绑定 localhost（可能解析为 ::1），
+    // 而探测用 127.0.0.1 会一直连不上导致超时。CI（ubuntu runner）冷启动放宽到 120s。
     timeout: 120000,
   },
   projects: [
