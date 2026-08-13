@@ -3,7 +3,7 @@ import { TextDecoder as NodeTextDecoder } from "node:util";
 import { showProgress, tryFetchModels } from "./data.ts";
 
 if (typeof globalThis.TextDecoder === "undefined")
-  globalThis.TextDecoder = NodeTextDecoder;
+  globalThis.TextDecoder = NodeTextDecoder as typeof TextDecoder;
 
 globalThis.atob = (b64) => Buffer.from(b64, "base64").toString("binary");
 
