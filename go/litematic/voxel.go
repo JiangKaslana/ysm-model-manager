@@ -115,17 +115,29 @@ func BuildVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, erro
 		return &types.LitematicVoxelData{Size: encSize}, nil
 	}
 
+	var firstErr error
 	var regionInfos []regionInfo
 	for _, regionTag := range regions {
 		region, ok := regionTag.(map[string]any)
 		if !ok {
 			continue
 		}
-		info := buildRegionInfo(region)
+		info, err := buildRegionInfo(region)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
 		if info == nil {
 			continue
 		}
 		regionInfos = append(regionInfos, *info)
+	}
+
+	// 所有 region 均损坏 → 显式报错，不再静默返回空数据
+	if len(regionInfos) == 0 && len(regions) > 0 && firstErr != nil {
+		return nil, fmt.Errorf("所有 region 数据损坏: %w", firstErr)
 	}
 
 	// 方块生成器：跨 region 顺序推进，跳过 air/invalid（状态由闭包捕获）
@@ -158,11 +170,16 @@ func BuildVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, erro
 	return finalizeVoxelData(encSize, colorGroups, truncated, maxBlocks), nil
 }
 
-// buildRegionInfo 标准化一个 region 的遍历信息
-func buildRegionInfo(region map[string]any) *regionInfo {
+// buildRegionInfo 标准化一个 region 的遍历信息。
+// 返回 (*regionInfo, error)：
+//
+//	(nil, nil)    — 合法空 region（无 palette、零尺寸、单一空气 palette），跳过即可
+//	(nil, err)    — 数据损坏（缺少必填字段、BlockStates 长度不匹配声明尺寸等）
+//	(info, nil)   — 有效 region
+func buildRegionInfo(region map[string]any) (*regionInfo, error) {
 	paletteList := getList(region, "BlockStatePalette")
 	if paletteList == nil || len(paletteList) <= 1 {
-		return nil
+		return nil, nil
 	}
 
 	palette := make([]string, len(paletteList))
@@ -181,7 +198,7 @@ func buildRegionInfo(region map[string]any) *regionInfo {
 
 	sizeCompound := getCompound(region, "Size")
 	if sizeCompound == nil {
-		return nil
+		return nil, fmt.Errorf("region 缺少 Size compound")
 	}
 	sx, _ := getInt(sizeCompound, "x")
 	sy, _ := getInt(sizeCompound, "y")
@@ -209,14 +226,20 @@ func buildRegionInfo(region map[string]any) *regionInfo {
 		sz = -sz
 	}
 
+	// 零尺寸 = 合法空 region（无内容需渲染），静默跳过
+	if sx == 0 || sy == 0 || sz == 0 {
+		return nil, nil
+	}
+
 	longs, ok := getLongArray(region, "BlockStates")
 	if !ok || len(longs) == 0 {
-		return nil
+		return nil, fmt.Errorf("region 缺少 BlockStates（尺寸 %d×%d×%d 非空）", sx, sy, sz)
 	}
 
 	bpe := bitsPerEntry(len(palette))
 	if bpe == 0 {
-		return nil
+		// 单条目 palette（仅空气），无需读取 BlockStates
+		return nil, nil
 	}
 
 	// 先按维度上限拒绝离谱声明，再做容量交叉校验——
@@ -227,7 +250,7 @@ func buildRegionInfo(region map[string]any) *regionInfo {
 	const maxCoord = 32767 // int16 表示上限（体素输出坐标 [3]int16 的容纳范围）
 	if sx > maxRegionAxis || sy > maxRegionAxis || sz > maxRegionAxis {
 		log.Printf("[litematic] region Size 超出合理范围，跳过: %d×%d×%d", sx, sy, sz)
-		return nil
+		return nil, fmt.Errorf("region Size 超出合理范围: %d×%d×%d", sx, sy, sz)
 	}
 	// origin+size 超出 int16 表示范围的 region 丢弃——坐标源是 int32（origin/px/py/pz），
 	// 体素输出 `[3]int16`（voxel.go:30 / types.VoxelGroup.Positions）会静默回绕
@@ -242,13 +265,13 @@ func buildRegionInfo(region map[string]any) *regionInfo {
 		oy < minCoord || oy+sy-1 > maxCoord ||
 		oz < minCoord || oz+sz-1 > maxCoord {
 		log.Printf("[litematic] region 坐标超出 int16 表示范围，跳过: origin=(%d,%d,%d) size=%d×%d×%d", ox, oy, oz, sx, sy, sz)
-		return nil
+		return nil, fmt.Errorf("region 坐标超出 int16 表示范围: origin=(%d,%d,%d) size=%d×%d×%d", ox, oy, oz, sx, sy, sz)
 	}
 	total := int64(sx) * int64(sy) * int64(sz)
 	capacity := int64(len(longs)) * 64 / int64(bpe)
 	if total > capacity {
-		log.Printf("[litematic] region Size 与 BlockStates 容量不符，跳过: size=%d capacity=%d", total, capacity)
-		return nil
+		log.Printf("[litematic] region BlockStates 容量不足（截断）: size=%d 需 %d 位，实际 %d longs (%d 位)", total, total, len(longs), capacity)
+		return nil, fmt.Errorf("region BlockStates 容量不足: size=%d 需 %d 位，实际 %d 位", total, total, capacity)
 	}
 
 	return &regionInfo{
@@ -257,7 +280,7 @@ func buildRegionInfo(region map[string]any) *regionInfo {
 		palette: palette,
 		longs:   longs,
 		bpe:     bpe,
-	}
+	}, nil
 }
 
 func BuildNbtVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, error) {

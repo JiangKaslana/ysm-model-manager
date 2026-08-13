@@ -29,7 +29,10 @@ func makeMockRegion(t *testing.T, sx, sy, sz int, paletteNames []string, longs [
 
 func TestBuildRegionInfo_Valid(t *testing.T) {
 	region := makeMockRegion(t, 3, 3, 3, []string{"air", "minecraft:stone"}, []int64{0, 0})
-	info := buildRegionInfo(region)
+	info, err := buildRegionInfo(region)
+	if err != nil {
+		t.Fatalf("合法 region 不应 error: %v", err)
+	}
 	if info == nil {
 		t.Fatal("期望非 nil")
 	}
@@ -49,9 +52,12 @@ func TestBuildRegionInfo_NilPalette(t *testing.T) {
 		"Size":        map[string]any{"x": int32(1), "y": int32(1), "z": int32(1)},
 		"BlockStates": []int64{0},
 	}
-	info := buildRegionInfo(region)
+	info, err := buildRegionInfo(region)
 	if info != nil {
 		t.Errorf("无 palette 应返回 nil, 得到 %+v", info)
+	}
+	if err != nil {
+		t.Errorf("无 palette 应为合法空，不应 error: %v", err)
 	}
 }
 
@@ -60,9 +66,12 @@ func TestBuildRegionInfo_NoSize(t *testing.T) {
 		"BlockStatePalette": []any{map[string]any{"Name": "air"}, map[string]any{"Name": "stone"}},
 		"BlockStates":       []int64{0},
 	}
-	info := buildRegionInfo(region)
+	info, err := buildRegionInfo(region)
 	if info != nil {
 		t.Errorf("无 Size 应返回 nil, 得到 %+v", info)
+	}
+	if err == nil {
+		t.Errorf("无 Size 应返回 error")
 	}
 }
 
@@ -71,9 +80,12 @@ func TestBuildRegionInfo_NoBlockStates(t *testing.T) {
 		"BlockStatePalette": []any{map[string]any{"Name": "air"}, map[string]any{"Name": "stone"}},
 		"Size":              map[string]any{"x": int32(1), "y": int32(1), "z": int32(1)},
 	}
-	info := buildRegionInfo(region)
+	info, err := buildRegionInfo(region)
 	if info != nil {
 		t.Errorf("无 BlockStates 应返回 nil, 得到 %+v", info)
+	}
+	if err == nil {
+		t.Errorf("非空尺寸缺 BlockStates 应返回 error")
 	}
 }
 
@@ -85,7 +97,10 @@ func TestBuildRegionInfo_NegativeSize(t *testing.T) {
 		"Position":          map[string]any{"x": int32(5), "y": int32(5), "z": int32(5)},
 		"BlockStates":       []int64{0, 0},
 	}
-	info := buildRegionInfo(region)
+	info, err := buildRegionInfo(region)
+	if err != nil {
+		t.Fatalf("负 size 应标准化成功, 实际 error: %v", err)
+	}
 	if info == nil {
 		t.Fatal("期望非 nil")
 	}
@@ -99,11 +114,14 @@ func TestBuildRegionInfo_NegativeSize(t *testing.T) {
 }
 
 func TestBuildRegionInfo_SinglePalette(t *testing.T) {
-	// palette 只有 1 个元素（仅 air）→ 返回 nil
+	// palette 只有 1 个元素（仅 air）→ 返回 nil, nil（合法空）
 	region := makeMockRegion(t, 1, 1, 1, []string{"air"}, []int64{0})
-	info := buildRegionInfo(region)
+	info, err := buildRegionInfo(region)
 	if info != nil {
 		t.Errorf("单元素 palette 应返回 nil, 得到 %+v", info)
+	}
+	if err != nil {
+		t.Errorf("单元素 palette 应为合法空，不应返回 error: %v", err)
 	}
 }
 

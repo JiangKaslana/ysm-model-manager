@@ -143,7 +143,7 @@ func TestReadRootCompound_LongArrayNegativeLength(t *testing.T) {
 
 func TestBuildVoxelData_BlockStatesShort(t *testing.T) {
 	// size 4x4x4 = 64 blocks, bpe=2, 需要 128 bits = 2 longs
-	// 只给 1 long（64 bits）→ total(64) > capacity(32) → region 被跳过
+	// 只给 1 long（64 bits）→ total(64) > capacity(32) → buildRegionInfo 返回 error
 	palette := nbtList("BlockStatePalette", 0x0A,
 		nbtCompoundBody(nbtString("Name", "minecraft:air")),
 		nbtCompoundBody(nbtString("Name", "minecraft:stone")),
@@ -161,17 +161,14 @@ func TestBuildVoxelData_BlockStatesShort(t *testing.T) {
 	)
 	path := writeGzNbt(t, root)
 	result, err := BuildVoxelData(path, 1000)
-	if err != nil {
-		t.Fatalf("不应 panic: %v", err)
+	if err == nil {
+		t.Fatalf("BlockStates 截断应返回错误，实际 nil（返回 %d 组）", len(result.Groups))
 	}
-	// buildRegionInfo 在 voxel.go:249 total > capacity 时返回 nil，region 被跳过
-	if len(result.Groups) != 0 {
-		t.Errorf("BlockStates 不足应跳过 region，得到 %d 组", len(result.Groups))
-	}
+	t.Logf("BlockStates 截断错误: %v", err)
 }
 
 func TestBuildVoxelData_BlockStatesEmpty(t *testing.T) {
-	// BlockStates 长度=0 → voxel.go:213 len(longs)==0 返回 nil
+	// size 1x1x1 = 1 block, 但 BlockStates 长度=0 → buildRegionInfo 返回 error（非空尺寸缺数据）
 	palette := nbtList("BlockStatePalette", 0x0A,
 		nbtCompoundBody(nbtString("Name", "minecraft:air")),
 		nbtCompoundBody(nbtString("Name", "minecraft:stone")),
@@ -189,12 +186,10 @@ func TestBuildVoxelData_BlockStatesEmpty(t *testing.T) {
 	)
 	path := writeGzNbt(t, root)
 	result, err := BuildVoxelData(path, 100)
-	if err != nil {
-		t.Fatalf("不应 panic: %v", err)
+	if err == nil {
+		t.Fatalf("非空尺寸缺 BlockStates 应返回错误，实际 nil（%d 组）", len(result.Groups))
 	}
-	if len(result.Groups) != 0 {
-		t.Errorf("空 BlockStates 应无方块, 得到 %d 组", len(result.Groups))
-	}
+	t.Logf("缺 BlockStates 错误: %v", err)
 }
 
 func TestBuildVoxelData_BlockStatesExtra(t *testing.T) {

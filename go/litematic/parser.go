@@ -100,7 +100,7 @@ func aggregateBlockStatsFromPalette(regions map[string]any) []types.LitematicBlo
 			}
 		}
 
-		info := buildRegionInfo(region)
+		info, _ := buildRegionInfo(region)
 		if info == nil {
 			continue
 		}
