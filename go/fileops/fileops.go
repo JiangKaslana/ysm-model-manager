@@ -1,12 +1,10 @@
-// ===== 文件操作 + 预览提取 + 包信息（ADR-003 P3 Logic Sinking）=====
+// ===== 文件操作核心（CRUD + 移动/复制/删除，ADR-003 P3 Logic Sinking）=====
 // 从 internal/app/app_files.go 下沉：文件 CRUD、预览图/纹理提取、包信息、启用/禁用。
 // 纯 Go 逻辑，无 Wails runtime 依赖；root 参数由薄壳注入（原 a.ysmRoot()）。
+// ADR-040 按职责拆分：预览/元数据提取 → fileops_preview.go；启用/禁用 → fileops_enable.go。
 package fileops
 
 import (
-	"bytes"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -16,9 +14,7 @@ import (
 	"sync"
 
 	"ysm-model-manager/go/fsutil"
-	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/types"
-	"ysm-model-manager/go/ysm"
 )
 
 // maxPreviewRead 预览/元数据整读上限（P2 审计：原 os.ReadFile 无界，超大/畸形
@@ -115,182 +111,6 @@ func RenameFile(oldPath, newName string) error {
 		return fmt.Errorf("目标已存在: %s", newPath)
 	}
 	return os.Rename(oldPath, newPath)
-}
-
-// ========== 预览提取 ==========
-
-// FindPreviewImage 查找模型同目录的预览图并转 data URI
-func FindPreviewImage(modelPath string) string {
-	dir := filepath.Dir(modelPath)
-	base := strings.TrimSuffix(filepath.Base(modelPath), filepath.Ext(modelPath))
-	candidates := []string{
-		filepath.Join(dir, base+".png"),
-		filepath.Join(dir, base+".jpg"),
-		filepath.Join(dir, "preview.png"),
-		filepath.Join(dir, "cover.png"),
-		filepath.Join(dir, "thumbnail.png"),
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			data := readLimitedFile(c)
-			if len(data) > 0 {
-				mime := "image/png"
-				if strings.HasSuffix(strings.ToLower(c), ".jpg") {
-					mime = "image/jpeg"
-				}
-				return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
-			}
-		}
-	}
-	return ""
-}
-
-// ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json）
-func ExtractPreviewTexture(modelPath string) string {
-	// 剥禁用后缀（.ban/.disabled），与 scanner 口径一致——禁用条目也应能预览
-	for _, suffix := range []string{".ban", ".disabled"} {
-		if strings.HasSuffix(strings.ToLower(modelPath), suffix) {
-			modelPath = modelPath[:len(modelPath)-len(suffix)]
-			break
-		}
-	}
-	ext := strings.ToLower(filepath.Ext(modelPath))
-	var png []byte
-
-	if ext == ".zip" {
-		data := readLimitedFile(modelPath)
-		if data == nil {
-			return ""
-		}
-		png = extractFirstPNGFromZip(data, int64(len(data)))
-	} else if ext == ".7z" {
-		data := readLimitedFile(modelPath)
-		if data == nil {
-			return ""
-		}
-		png = extractFirstPNGFrom7z(data, int64(len(data)))
-	} else if ext == ".ysm" {
-		if r, err := extractTextureViaYSM(modelPath); err == nil {
-			png = r
-		}
-	} else if ext == ".json" {
-		// 解压后的 YSM 模型：查找 textures/ 子目录中的 PNG
-		dir := filepath.Dir(modelPath)
-		texDir := filepath.Join(dir, "textures")
-		if d, err := os.Stat(texDir); err == nil && d.IsDir() {
-			entries, _ := os.ReadDir(texDir)
-			for _, e := range entries {
-				if e.IsDir() {
-					continue
-				}
-				if strings.HasSuffix(strings.ToLower(e.Name()), ".png") {
-					texPath := filepath.Join(texDir, e.Name())
-					png = readLimitedFile(texPath)
-					if len(png) > 0 {
-						break
-					}
-				}
-			}
-		}
-		// 也搜同目录 PNG
-		if len(png) == 0 {
-			entries, _ := os.ReadDir(dir)
-			for _, e := range entries {
-				if e.IsDir() {
-					continue
-				}
-				if strings.HasSuffix(strings.ToLower(e.Name()), ".png") {
-					texPath := filepath.Join(dir, e.Name())
-					png = readLimitedFile(texPath)
-					if len(png) > 0 {
-						break
-					}
-				}
-			}
-		}
-	}
-
-	if len(png) == 0 {
-		return ""
-	}
-	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
-}
-
-// extractTextureViaYSM 从 .ysm 提取预览纹理。
-// 走注入的 YSM 解码器（internal/app 以 Node+WASM 实现注入，取代已停发的 YSMParser.exe
-// sidecar——2026-08-08 架构决策）；解码器未注入/解码失败按不可用静默降级。
-func extractTextureViaYSM(modelPath string) ([]byte, error) {
-	data := readLimitedFile(modelPath)
-	if data == nil {
-		return nil, fmt.Errorf("读取模型失败")
-	}
-	files := ysm.DecodeYSM(data)
-	if files == nil {
-		return nil, fmt.Errorf("YSM 解码器未注入或解码失败")
-	}
-	// 解码产物中找纹理（.png/.jpg，遍历顺序即输出目录序）
-	for _, f := range files {
-		low := strings.ToLower(f.Path)
-		if strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg") {
-			return f.Data, nil
-		}
-	}
-	return nil, fmt.Errorf("模型内未找到纹理")
-}
-
-func extractFirstPNGFromZip(data []byte, size int64) []byte {
-	return geometry.ExtractFirstPNGFromZip(data, size)
-}
-
-func extractFirstPNGFrom7z(data []byte, size int64) []byte {
-	return geometry.ExtractFirstPNGFrom7z(data, size)
-}
-
-// ========== 包信息 ==========
-
-// GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理）
-func GetPackInfo(root, dirPath string) types.PackInfo {
-	dirPath = strings.TrimSpace(dirPath)
-	if !filepath.IsAbs(dirPath) && root != "" {
-		dirPath = filepath.Join(root, dirPath)
-	}
-	absPath, err := filepath.Abs(filepath.FromSlash(dirPath))
-	if err != nil {
-		return types.PackInfo{}
-	}
-	jsonPath := filepath.Join(absPath, "ysm-pack.json")
-	data := readLimitedFile(jsonPath)
-	if data == nil {
-		return types.PackInfo{}
-	}
-	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
-	var raw struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Lang        map[string]struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-		} `json:"lang"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return types.PackInfo{}
-	}
-	info := types.PackInfo{Name: raw.Name, Description: raw.Description}
-	if raw.Lang != nil {
-		for _, l := range raw.Lang {
-			if l.Name != "" {
-				info.Name = l.Name
-			}
-			if l.Description != "" {
-				info.Description = l.Description
-			}
-		}
-	}
-	imgPath := filepath.Join(absPath, "ysm-pack.png")
-	if imgData := readLimitedFile(imgPath); imgData != nil {
-		info.ImageBase64 = "data:image/png;base64," + base64.StdEncoding.EncodeToString(imgData)
-	}
-	return info
 }
 
 // ========== 模型移动/复制 ==========
@@ -500,7 +320,7 @@ func copyDirRecursiveInner(srcDir, dstDir string) error {
 	})
 }
 
-// ========== 启用/禁用 ==========
+// ========== 模型删除 ==========
 
 // DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）：
 // src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animation/语言资源随目录一起删）；
@@ -556,138 +376,6 @@ func DeleteModelFile(root, path string) error {
 		}
 	}
 	return os.Remove(path)
-}
-
-// ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理）
-// ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 .ban——文件夹模型整组禁用，
-// 目录重命名为 `父目录.ban`，几何/动画/语言资源随目录一起被隔离。
-// root 为资源仓库根（可选，空则跳过守卫）：防止根级 ysm.json 把整个仓库根重命名成 .ban。
-func ToggleModelEnable(root, path string) (bool, error) {
-	opMu.Lock()
-	defer opMu.Unlock()
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return false, fmt.Errorf("参数为空")
-	}
-	// path 等于仓库根本身时拒绝——原 root 守卫仅覆盖 ysm.json
-	// 提升分支，非 ysm.json 输入（普通文件/目录禁用段 os.Rename(path, path+".ban")）无守卫，
-	// path==root 时整个仓库根被改名成 ysm.ban 隔离（与 MoveToRecycle/DeleteModelFile 根拒绝对齐）。
-	// ① Abs 错误必须传播（对齐 DeleteModelFile 的 return err 模式——
-	// 原 if err==nil 静默跳过守卫 = fail-open，Abs 失败时根保护静默丢失）；
-	// ② 比较用 EqualFold 大小写不敏感（对齐 paths.IsInside 的 Windows 语义，防大小写绕过）
-	if root != "" {
-		absRoot, err := filepath.Abs(root)
-		if err != nil {
-			return false, err
-		}
-		absPath, err := filepath.Abs(path)
-		if err != nil {
-			return false, err
-		}
-		// 从「仅拒绝等于根」升级为「严格内部包含」判定——
-		// 原 EqualFold 只防 path==root，仓库外路径（如 C:\Windows\...\x）可被改名 .ban
-		if strings.EqualFold(filepath.Clean(absPath), filepath.Clean(absRoot)) {
-			return false, fmt.Errorf("不能对资源根目录执行启用/禁用操作")
-		}
-		rel, err := filepath.Rel(absRoot, absPath)
-		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			return false, fmt.Errorf("拒绝操作仓库外路径: %s", path)
-		}
-	}
-	// 目录级 .ban 识别（与 IsFileBanned 对称）：父目录名以 .ban 结尾 = 整组禁用态。
-	// 启用方向：还原父目录名（去 .ban）；禁用方向：目录已在 .ban 内，幂等返回。
-	parentBase := filepath.Base(filepath.Dir(path))
-	if strings.HasSuffix(strings.ToLower(parentBase), ".ban") {
-		bannedParent := filepath.Dir(path)
-		// 根目录自身以 .ban 结尾时禁止整组操作（防静默改名仓库根）
-		if root != "" {
-			absRoot, err := filepath.Abs(root)
-			if err != nil {
-				return false, err
-			}
-			if strings.EqualFold(filepath.Clean(bannedParent), filepath.Clean(absRoot)) {
-				return false, fmt.Errorf("不能对资源根目录执行启用/禁用操作")
-			}
-		}
-		if strings.HasSuffix(strings.ToLower(path), ".ban") {
-			// 文件自身也带 .ban（旧状态残留）：优先还原父目录再还原文件
-			fileNew := path[:len(path)-len(".ban")]
-			if _, err := os.Stat(fileNew); err == nil {
-				return false, fmt.Errorf("目标已存在: %s", fileNew)
-			}
-			if err := os.Rename(path, fileNew); err != nil {
-				return false, err
-			}
-		}
-		// 大小写不敏感去 .ban 后缀（Windows 上 .BAN 目录也能还原）
-		dirNew := bannedParent[:len(bannedParent)-len(".ban")]
-		if _, err := os.Stat(dirNew); err == nil {
-			return false, fmt.Errorf("目标已存在: %s", dirNew)
-		}
-		if err := os.Rename(bannedParent, dirNew); err != nil {
-			return false, err
-		}
-		return true, nil // 整组启用
-	}
-	// ysm.json 是模型目录清单：.ban 作用于整个模型目录（整组语义）
-	if types.IsYsmEntryJSON(filepath.Base(path)) {
-		parent := filepath.Dir(path)
-		// 目录提升守卫：父目录必须严格深于仓库根（防根级 ysm.json 重命名仓库根）
-		if root != "" {
-			absRoot, err := filepath.Abs(root)
-			if err != nil {
-				return false, err
-			}
-			absParent, err := filepath.Abs(parent)
-			if err != nil {
-				return false, err
-			}
-			rel, err := filepath.Rel(absRoot, absParent)
-			if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-				// 根级 ysm.json：回退到文件级 .ban（不整组提升）
-				path = parent + string(filepath.Separator) + filepath.Base(path)
-			} else {
-				path = parent
-			}
-		} else {
-			path = filepath.Dir(path)
-		}
-	}
-	if strings.HasSuffix(strings.ToLower(path), ".ban") {
-		// 用长度切片去 .ban 后缀（大小写不敏感，与目录级 L421 一致）。
-		// 原 TrimSuffix 大小写敏感，`x.ysm.BAN` 触发检测后不剥离 → os.Rename(path,path) 空转假启用
-		newPath := path[:len(path)-len(".ban")]
-		if _, err := os.Stat(newPath); err == nil {
-			return false, fmt.Errorf("目标已存在: %s", newPath)
-		}
-		if err := os.Rename(path, newPath); err != nil {
-			return false, err
-		}
-		return true, nil // 启用
-	}
-	// 禁用
-	newPath := path + ".ban"
-	if _, err := os.Stat(newPath); err == nil {
-		return false, fmt.Errorf("目标文件已存在: %s", newPath)
-	}
-	if err := os.Rename(path, newPath); err != nil {
-		return false, err
-	}
-	return false, nil // 已禁用
-}
-
-// IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7）
-func IsFileBanned(path string) bool {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return false
-	}
-	if strings.HasSuffix(strings.ToLower(path), ".ban") {
-		return true
-	}
-	// 目录级 .ban：父目录名以 .ban 结尾（文件夹模型整组禁用）
-	parent := filepath.Base(filepath.Dir(path))
-	return strings.HasSuffix(strings.ToLower(parent), ".ban")
 }
 
 // ========== 内部工具 ==========
