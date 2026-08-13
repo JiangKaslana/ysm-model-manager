@@ -3,16 +3,8 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { t } from "../../core/i18n/t.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 
-// P3 修复（审核）：GitHub 仓库 URL 集中为常量——原 repo/releases/docs 三形态
-// 散落于 tpl.ts 与 settings/init.ts 四处，仓库迁移时遗漏一处即漂移
-// 注：仅 GH_RELEASES 被包外（settings/init.ts）引用，其余为 tpl.ts 内部使用，
-// 不导出（deadcode 门禁：无外部消费者的导出会被标死代码）
-const GH_REPO = "https://github.com/eghrhegpe/ysm-model-manager";
-export const GH_RELEASES = GH_REPO + "/releases";
-const GH_DOCS = GH_REPO + "/tree/main/docs";
 // P1 修复（ADR-040）：settingsHTML 已拆至 tpl-settings.ts，此处 re-export 兼容
 export { settingsHTML } from "./tpl-settings.ts";
-import { settingsHTML } from "./tpl-settings.ts";
 
 export function repositoryHTML(): string {
   // 查看器模式（Android/网页版 ADR-049）：回收站/查重/最旧模型依赖本地文件系统

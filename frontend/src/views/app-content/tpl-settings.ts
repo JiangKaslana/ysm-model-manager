@@ -1,11 +1,7 @@
 // ===== tpl-settings.ts — settingsHTML 页面模板（从 tpl.ts 拆出，ADR-040 P1）=====
 import { t } from "../../core/i18n/t.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
-
-// P3 修复（审核）：GitHub 仓库 URL 集中为常量
-const GH_REPO = "https://github.com/eghrhegpe/ysm-model-manager";
-const GH_RELEASES = GH_REPO + "/releases";
-const GH_DOCS = GH_REPO + "/tree/main/docs";
+import { GH_DOCS, GH_RELEASES, GH_REPO } from "../../utils/gh-links.ts";
 
 export function settingsHTML(): string {
   // 查看器模式守卫（ADR-046/049）：Android 与网页版均无 Minecraft Java 版/
@@ -146,7 +142,7 @@ export function settingsHTML(): string {
       <div class="theme-card" data-theme="mint">
         <div style="display:flex;gap:2px;margin-bottom:2px">
           <span style="width:8px;height:8px;border-radius:50%;background:#D5F5E3"></span>
-          <span style="width:8px;height:8px.border-radius:50%;background:#A2D9CE"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#A2D9CE"></span>
           <span style="width:8px;height:8px;border-radius:50%;background:#76D7C4"></span>
         </div>
         <span style="font-size:10px;font-weight:600;color:#2c3e3a">🍃 ${t("settings.theme.mint")}</span>
@@ -162,16 +158,16 @@ export function settingsHTML(): string {
       <div class="theme-card" data-theme="cyber">
         <div style="display:flex;gap:2px;margin-bottom:2px">
           <span style="width:8px;height:8px;border-radius:50%;background:#9575cd"></span>
-          <span style="width:8px;height:8px.border-radius:50%;background:#66d9ef"></span>
-          <span style="width:8px;height:8px.border-radius:50%;background:#f1fa8c"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#66d9ef"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#f1fa8c"></span>
         </div>
         <span style="font-size:10px;font-weight:600;color:#e0d5f5">🌙 ${t("settings.theme.cyber")}</span>
       </div>
       <div class="theme-card" data-theme="ocean">
         <div style="display:flex;gap:2px;margin-bottom:2px">
           <span style="width:8px;height:8px;border-radius:50%;background:#5c6bc0"></span>
-          <span style="width:8px;height:8px.border-radius:50%;background:#7986cb"></span>
-          <span style="width:8px;height:8px.border-radius:50%;background:#9fa8da"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#7986cb"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#9fa8da"></span>
         </div>
         <span style="font-size:10px;font-weight:600;color:#c5d8e8">🌊 ${t("settings.theme.ocean")}</span>
       </div>

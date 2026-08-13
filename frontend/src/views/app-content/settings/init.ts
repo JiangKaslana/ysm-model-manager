@@ -12,7 +12,7 @@ import { t } from "../../../core/i18n/t.ts";
 import { selectLocalRepo } from "../../../backend/browser-adapter.ts";
 import { RESOURCE_TYPES } from "../../../utils/resource/types.ts";
 import { initVersionUpdater } from "../../../features/version-updater.ts";
-import { GH_RELEASES } from "../tpl.ts";
+import { GH_RELEASES } from "../../../utils/gh-links.ts";
 import { bindPathClick, saveCfg, initAdvancedGrid, initMcDetect } from "./path-cards.ts";
 import { initTheme } from "./theme.ts";
 import { initUiPrefs } from "./ui-prefs.ts";
@@ -259,7 +259,7 @@ export async function initSettings(root: ShadowRoot): Promise<void> {
 
   // 打开发布页
   root.getElementById("set-releases")?.addEventListener("click", () => {
-    const url = GH_RELEASES; // P3 修复：集中常量（tpl.ts 导出），防仓库迁移漂移
+    const url = GH_RELEASES; // P3 修复：集中常量（utils/gh-links.ts），防仓库迁移漂移
     // 网页版（ADR-049）：OpenInBrowser 桌面专属未实现，用 window.open 开新标签
     if (isViewerMode()) {
       window.open(url, "_blank", "noopener");
