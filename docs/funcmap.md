@@ -39,9 +39,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 37 | 133 |
-| frontend/views | 54 | 155 |
+| frontend/views | 57 | 162 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **206** | **906** |
+| **合计** | **209** | **913** |
 
 ## Go·头像
 
@@ -964,6 +964,10 @@
 | `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:35` | 初始化诊断页所有功能 |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init:406` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `AppContentHost()` | `frontend/src/views/app-content/init-pages:16` | app-content 组件接口（供页面初始化函数访问） |
+| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
+| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
+| `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:24` | 初始化设置页所有事件绑定 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
@@ -1021,6 +1025,9 @@
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
+| `sec()` | `frontend/src/views/app-preview/skeleton-utils:8` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
+| `iRow()` | `frontend/src/views/app-preview/skeleton-utils:17` | 信息行：标签 | 值 |
+| `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:28` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
 | `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:39` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
 | `loadModel2D()` | `frontend/src/views/app-preview/skeleton:55` | 加载模型 2D 骨骼线条图 + 统计面板 ctx = 组件实例（提供 this.root, this.appendDebug 等） |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |

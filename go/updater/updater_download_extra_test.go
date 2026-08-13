@@ -1,6 +1,11 @@
+//go:build !short
+// +build !short
+
 // ===== go/updater downloadOnce 错误分支补测 =====
 // 覆盖：NewRequest 失败、传输层连接失败、响应被截断（io.Copy 错误）、
 // 分块传输超过 500MB 上限的截断探测拒绝。全部走本地 httptest，零真实网络。
+// 该文件含 TestDownloadOnce_TruncationProbe（回环实发 500MB+），耗时 1-3s。
+// 用 !short 标记，go test -short（CI/快速验证）跳过，本地全量 go test 仍跑。
 package updater
 
 import (
