@@ -56,6 +56,9 @@ func TestGetInstanceStatus_MissingModels(t *testing.T) {
 	if len(ins1.Extra) != 0 {
 		t.Errorf("expected 0 extra, got %d", len(ins1.Extra))
 	}
+	if ins1.Synced != 0 {
+		t.Errorf("expected Synced=0 (custom 为空，无命中仓库哈希), got %d", ins1.Synced)
+	}
 }
 
 func TestGetInstanceStatus_AllSynced(t *testing.T) {
@@ -78,6 +81,9 @@ func TestGetInstanceStatus_AllSynced(t *testing.T) {
 	if len(ins1.Extra) != 0 {
 		t.Errorf("expected 0 extra, got %d", len(ins1.Extra))
 	}
+	if ins1.Synced != 3 {
+		t.Errorf("expected Synced=3 (a/b/c 均命中仓库哈希), got %d", ins1.Synced)
+	}
 }
 
 func TestGetInstanceStatus_ExtraModels(t *testing.T) {
@@ -95,6 +101,9 @@ func TestGetInstanceStatus_ExtraModels(t *testing.T) {
 	}
 	if len(ins1.Missing) != 2 {
 		t.Errorf("expected 2 missing (hash_b, hash_c), got %d: %v", len(ins1.Missing), ins1.Missing)
+	}
+	if ins1.Synced != 1 {
+		t.Errorf("expected Synced=1 (仅 hash_a 命中仓库), got %d", ins1.Synced)
 	}
 }
 
@@ -123,6 +132,10 @@ func TestGetInstanceStatus_BannedModelsSkipped(t *testing.T) {
 		if m == "/repo/model_d.ysm.ban" {
 			t.Error("model_d.ban should not appear in Missing")
 		}
+	}
+	// 命中仓库哈希仅 hash_a（hash_d 对应仓库 .ban，不计入 synced）
+	if ins1.Synced != 1 {
+		t.Errorf("expected Synced=1 (仅 hash_a 命中活跃仓库), got %d", ins1.Synced)
 	}
 }
 
@@ -307,6 +320,49 @@ func TestCompareGlobalInstanceHashes_Empty(t *testing.T) {
 	results := CompareGlobalInstanceHashes("", "/global", "subdir", "resourcepack", nil, nil, nil)
 	if len(results) != 0 {
 		t.Errorf("expected 0 for empty mcRoot, got %d", len(results))
+	}
+}
+
+// TestCompareGlobalInstanceHashes_NoHashMatchesByNameSize 修复回归：MMD（.pmx/.pmd）
+// 不计算 SHA256，旧哈希比对对无哈希条目全部跳过 → 侧栏 MMD 恒 0。
+// 现按「文件名 + 大小」匹配，无哈希也能得到正确 synced/missing/extra。
+func TestCompareGlobalInstanceHashes_NoHashMatchesByNameSize(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	global := []types.ModelEntry{
+		{Name: "model_a.pmx", Path: "/global/model_a.pmx", Size: 1000, Hash: ""},
+		{Name: "model_b.pmx", Path: "/global/model_b.pmx", Size: 2000, Hash: ""},
+		{Name: "model_c.pmx", Path: "/global/model_c.pmx", Size: 3000, Hash: ""},
+	}
+	instEntries := []types.ModelEntry{
+		{Name: "model_a.pmx", Path: "/inst/model_a.pmx", Size: 1000, Hash: ""},
+		{Name: "model_b.pmx", Path: "/inst/model_b.pmx", Size: 2500, Hash: ""}, // 大小不同 → missing
+		{Name: "extra.pmx", Path: "/inst/extra.pmx", Size: 500, Hash: ""},
+	}
+	scanFn := func(dir string) []types.ModelEntry {
+		if dir == globalDir {
+			return global
+		}
+		return instEntries
+	}
+	listFn := func(mcRoot string) []types.VersionInstance {
+		return []types.VersionInstance{{Name: "ins", VersionDir: instDir}}
+	}
+
+	results := CompareGlobalInstanceHashes("mcRoot", globalDir, ".", "mmd-skin", scanFn, listFn, nil)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 instance, got %d", len(results))
+	}
+	r := results[0]
+	if r.Synced != 1 {
+		t.Errorf("expected Synced=1 (model_a 同名同大小), got %d", r.Synced)
+	}
+	if len(r.Missing) != 2 || r.Missing[0] != "/global/model_b.pmx" || r.Missing[1] != "/global/model_c.pmx" {
+		t.Errorf("expected Missing=[model_b.pmx(尺寸变), model_c.pmx], got %v", r.Missing)
+	}
+	if len(r.Extra) != 1 || r.Extra[0] != "/inst/extra.pmx" {
+		t.Errorf("expected Extra=[extra.pmx], got %v", r.Extra)
 	}
 }
 

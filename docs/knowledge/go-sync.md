@@ -72,7 +72,7 @@ invariant_anchors:
 - 哈希全量计算（`scanner.ComputeFileHash`，`sync.go computeHash` 委托）；文件 >500MB（`types.MaxImportSize`）返回空串跳过哈希（同步对空哈希跳过匹配），读错误同样返回空
 - **所有扫描路径都必须排除 `.recycle`**，与 `scanner.ScanEntries` 口径对齐：`SyncResources` 的全局侧（`sync.go:400`）与实例侧（`sync.go:428`）Walk、`SyncResourcesDirLevel` 的 `collectEntries`（`sync.go:539`）均按 `strings.EqualFold(info.Name(), ".recycle")` 返回 `filepath.SkipDir`；`SyncToggleStatus` 用 `strings.Contains(strings.ToLower(p), ".recycle")` 检查整个路径（sync.go:181），非路径前缀匹配——漏排会把回收站里的模型当成仓库活跃模型，同步管理器显示 missing 且可被推送回实例（回归测试 `sync_test.go:349` `TestSyncResources_IgnoresRecycleDir`）
 - 前两处 SkipDir 带 `path != 根目录` 守卫：若用户把仓库根/实例根本身命名为 `.recycle` 则不跳过，否则整次扫描会直接空掉；`SyncResourcesDirLevel` 一侧无此守卫因为它已先排除 `path == rootDir`
-- 哈希对比类入口（`GetInstanceStatus` / `CompareGlobalInstanceHashes`）自身不 Walk 仓库，`.recycle` 的排除依赖注入的 `scanFn`（即 `scanner.ScanEntries`）——换用不排 `.recycle` 的 scanFn 会重新引入误判
+- 状态对比类入口（`GetInstanceStatus` / `CompareGlobalInstanceHashes`）自身不 Walk 仓库，`.recycle` 的排除依赖注入的 `scanFn`（即 `scanner.ScanEntries`）——换用不排 `.recycle` 的 scanFn 会重新引入误判
 - `SyncResources` 同名文件按**大小**判定内容是否变化（复制会改 mtime，mtime 不可靠），大小不同归入 Missing 视为待更新；三个结果列表返回前均 `sort.Strings` 排序
 - `isSyncAllowed` 只放行 `types.AllExts()` 的扩展名，`.json` 中仅 `ysm.json` 例外——动画/控制器等散装 JSON 不单独推送
 - **两阶段遍历-执行模式**（`SyncToggleStatus`，`sync.go:162-231`）：`filepath.WalkDir` 回调中**不直接执行** `os.Rename`，而是先收集 `[]renameOp`（含源路径、目标路径、操作类型），遍历完成后再批量执行。原因：`filepath.WalkDir` 在遍历过程中修改目录结构（如重命名文件）会导致后续条目被跳过或重复处理——文件丢失/重复/损坏风险。这是本包最重要的设计模式，所有在 WalkDir 回调中修改文件系统的操作都必须遵循此模式
