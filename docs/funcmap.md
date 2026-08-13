@@ -34,14 +34,14 @@
 | Go(internal)·应用入口 | 22 | 181 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 9 | 56 |
-| 前端·核心 | 15 | 41 |
+| 前端·核心 | 17 | 43 |
 | 前端·特性 | 18 | 88 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 53 | 193 |
-| frontend/views | 78 | 209 |
+| frontend/views | 79 | 211 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **263** | **1095** |
+| **合计** | **266** | **1099** |
 
 ## Go·头像
 
@@ -700,13 +700,15 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `refreshUI()` | `frontend/src/core/context-menu-handlers:13` | 通知树组件和统计面板刷新 |
-| `toast()` | `frontend/src/core/context-menu-handlers:19` | 显示 toast 通知 |
-| `isUnsafeFolderName()` | `frontend/src/core/context-menu-handlers:24` | 路径安全过滤：禁止逃逸段（. |
-| `resolveDstDir()` | `frontend/src/core/context-menu-handlers:35` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
-| `runBatchFileOp()` | `frontend/src/core/context-menu-handlers:74` | — |
-| `MenuCtx()` | `frontend/src/core/context-menu-handlers:125` | — |
-| `HANDLERS()` | `frontend/src/core/context-menu-handlers:128` | 行为 handler 表 |
+| `DIR_HANDLERS()` | `frontend/src/core/context-menu-dir-handlers:9` | dir 类 handler 子表 |
+| `FILE_HANDLERS()` | `frontend/src/core/context-menu-file-handlers:12` | file 类 handler 子表 |
+| `refreshUI()` | `frontend/src/core/context-menu-handlers:17` | 通知树组件和统计面板刷新 |
+| `toast()` | `frontend/src/core/context-menu-handlers:23` | 显示 toast 通知 |
+| `isUnsafeFolderName()` | `frontend/src/core/context-menu-handlers:28` | 路径安全过滤：禁止逃逸段（. |
+| `resolveDstDir()` | `frontend/src/core/context-menu-handlers:39` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
+| `runBatchFileOp()` | `frontend/src/core/context-menu-handlers:78` | — |
+| `MenuCtx()` | `frontend/src/core/context-menu-handlers:129` | — |
+| `HANDLERS()` | `frontend/src/core/context-menu-handlers:132` | 行为 handler 表（instance + batch + merge file/dir） |
 | `refreshUI()` | `frontend/src/core/context-menus` | — |
 | `toast()` | `frontend/src/core/context-menus` | — |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menus` | — |
@@ -1150,7 +1152,9 @@
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:6` | — |
+| `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |
+| `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:84` | Credits 标签页（灵感来源/特别感谢） |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:7` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
