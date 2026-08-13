@@ -6,6 +6,10 @@ import { loadTdKeymap, loadTdCamSpeed, loadTdRotMode, type TdKeyAction, DEFAULT_
 import { rebuildDebug } from "./debug-render.ts"; // debug 叠加层（已拆）
 import { registerFreeCameraDrag } from "./camera-control.ts"; // free 相机 pointer drag（已拆）
 import { buildBoneHierarchy, registerBoneRaycast } from "./bone-raycast.ts"; // 骨骼拾取（已拆）
+import { disposeDebugGroup, disposeSceneMeshes, safeDisposeRenderer } from "./cleanup-helper.ts"; // 资源清理（已拆）
+import { startRenderLoop } from "./render-loop.ts"; // 主渲染循环（已拆）
+
+// ── 入口守卫：复用 cleanup（已在 cleanup-helper.ts 中定义 dispose 函数）────────────
 
 // ── Spec 结构（Go 返回的 models 结构）────────────────
 
@@ -106,19 +110,9 @@ export async function renderModel3D(
     _sessionCleanups.forEach((fn) => fn());
     _sessionCleanups = [];
     if (_scene3d) {
-      _scene3d.traverse((c) => {
-        const mesh = c as THREE.Mesh;
-        if (mesh.isMesh) {
-          mesh.geometry?.dispose();
-          if (Array.isArray(mesh.material))
-            mesh.material.forEach((m) => disposeMaterial(m));
-          else disposeMaterial(mesh.material);
-        }
-      });
+      disposeSceneMeshes(_scene3d);
     }
-    try {
-      _renderer3d.dispose();
-    } catch { /* renderer 已被 dispose 则忽略 */ }
+    safeDisposeRenderer(_renderer3d!);
     if (_renderer3d.domElement.parentNode) {
       _renderer3d.domElement.parentNode.removeChild(_renderer3d.domElement);
     }
@@ -416,44 +410,8 @@ export async function renderModel3D(
   _sessionCleanups.push(_freeDragCleanup);
   // P2-1 修复：free 模式禁用 controls 旋转，避免与自定义 pointer 拖拽双重旋转（仅 orbit 生效）
   controls.enableRotate = state.orbitMode;
-  const loop = (): void => {
-    state.rafId = requestAnimationFrame(loop);
-    _rafIdGuard = state.rafId;
-    const dt = Math.min((performance.now() - state.lastTime) / 1000, 0.1);
-    state.lastTime = performance.now();
-    const cd = new THREE.Vector3();
-    camera.getWorldDirection(cd);
-    const fwd = new THREE.Vector3(cd.x, 0, cd.z).normalize();
-    const right = new THREE.Vector3()
-      .crossVectors(fwd, new THREE.Vector3(0, 1, 0))
-      .normalize();
-    const mv = new THREE.Vector3();
-    if (state.keys[_keymap.forward] || state.keys["ArrowUp"]) mv.add(fwd);
-    if (state.keys[_keymap.back] || state.keys["ArrowDown"]) mv.sub(fwd);
-    if (state.keys[_keymap.left] || state.keys["ArrowLeft"]) mv.sub(right);
-    if (state.keys[_keymap.right] || state.keys["ArrowRight"]) mv.add(right);
-    if (state.keys[_keymap.up]) mv.y += 1;
-    if (state.keys[_keymap.down]) mv.y -= 1;
-    if (mv.length() > 0) {
-      mv.normalize().multiplyScalar(state.camSpeed * dt);
-      camera.position.add(mv);
-      if (state.orbitMode) _orbitTarget.add(mv);
-    }
-    if (state.orbitMode) {
-      controls.target.copy(_orbitTarget);
-      controls.update();
-      _orbitTarget.copy(controls.target);
-    } else {
-      controls.target.copy(camera.position).addScaledVector(cd, 10);
-      controls.update();
-    }
-    renderer.render(scene, camera);
-  };
-  state.rafId = requestAnimationFrame(loop);
-  // P3 修复（审核反推）：调度后同步记录 guard——loop 首帧执行前 _rafIdGuard 仍为旧值，
-  // 若此时复用入口触发，guard != null 为假会漏 cancel 首帧 pending → 僵尸循环
-  _rafIdGuard = state.rafId;
-  renderer.render(scene, camera);
+  // ===== 渲染循环（已拆至 render-loop.ts）=====
+  startRenderLoop({ camera, renderer, scene, controls, state, _keymap, _orbitTarget, _euler });
 
   // ===== 骨骼射线拾取（已拆至 bone-raycast.ts）=====
   const { nameMap: _boneNameMap, parentMap: _boneParentMap, childrenMap: _boneChildrenMap } = buildBoneHierarchy(spec);
@@ -549,35 +507,12 @@ export async function renderModel3D(
       document.removeEventListener("webkitfullscreenchange", _onFSChange);
       // 先移除 debug 组，再逐层 dispose 所有场景资源（含纹理），最后 dispose renderer
       if (state.debugGroup) {
-        state.debugGroup.traverse((c) => {
-          const obj = c as THREE.Mesh | THREE.Line | THREE.Sprite;
-          if ((obj as THREE.Mesh).isMesh) {
-            (obj as THREE.Mesh).geometry?.dispose();
-            const m = (obj as THREE.Mesh).material;
-            if (Array.isArray(m)) m.forEach((x) => disposeMaterial(x));
-            else disposeMaterial(m);
-          } else if ((obj as THREE.Line).isLine) {
-            (obj as THREE.Line).geometry?.dispose();
-            const lm = (obj as THREE.Line).material;
-            if (Array.isArray(lm)) lm.forEach((x) => x.dispose());
-            else lm?.dispose();
-          } else if ((obj as THREE.Sprite).isSprite) {
-            disposeMaterial((obj as THREE.Sprite).material);
-          }
-        });
+        disposeDebugGroup(state.debugGroup);
         scene.remove(state.debugGroup);
         state.debugGroup = null;
       }
-      scene.traverse((c) => {
-        const mesh = c as THREE.Mesh;
-        if (mesh.isMesh) {
-          mesh.geometry?.dispose();
-          if (Array.isArray(mesh.material))
-            mesh.material.forEach((m) => disposeMaterial(m));
-          else disposeMaterial(mesh.material);
-        }
-      });
-      renderer.dispose();
+      disposeSceneMeshes(scene);
+      safeDisposeRenderer(renderer);
       _renderer3d = null;
       _scene3d = null;
       _camera3d = null;

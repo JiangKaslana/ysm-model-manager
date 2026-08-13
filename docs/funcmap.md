@@ -38,10 +38,10 @@
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 41 | 147 |
+| 前端·工具 | 43 | 152 |
 | frontend/views | 70 | 199 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **240** | **1010** |
+| **合计** | **242** | **1015** |
 
 ## Go·头像
 
@@ -866,6 +866,9 @@
 | `assembleBoneSelectInfo()` | `frontend/src/utils/3d/bone-raycast:62` | 骨骼选中信息组装。 |
 | `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:123` | 注册 pointermove / click 骨骼拾取监听器。 |
 | `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:14` | 注册 free 模式 pointer drag 监听器。 |
+| `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
+| `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:38` | 遍历 scene 释放所有 Mesh 的 geometry 和 material。 |
+| `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:53` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
 | `DebugBoneData()` | `frontend/src/utils/3d/debug-render:7` | — |
 | `makeTextTexture()` | `frontend/src/utils/3d/debug-render:14` | 生成骨骼名 Canvas 纹理（Sprite 标签用） |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:43` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
@@ -895,14 +898,16 @@
 | `loadTdKeymap()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdRotMode()` | `frontend/src/utils/3d/model3d` | — |
-| `SpecBone3D()` | `frontend/src/utils/3d/model3d:12` | — |
-| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:20` | — |
-| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:32` | — |
-| `Spec3D()` | `frontend/src/utils/3d/model3d:40` | — |
-| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:45` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:59` | renderModel3D 返回的渲染句柄 |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:94` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:609` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `SpecBone3D()` | `frontend/src/utils/3d/model3d:16` | — |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:24` | — |
+| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:36` | — |
+| `Spec3D()` | `frontend/src/utils/3d/model3d:44` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:49` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:63` | renderModel3D 返回的渲染句柄 |
+| `renderModel3D()` | `frontend/src/utils/3d/model3d:98` | 渲染 3D 模型到容器，返回控制句柄 |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:544` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
+| `startRenderLoop()` | `frontend/src/utils/3d/render-loop:31` | 启动渲染循环并立即渲染一帧。 |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:116` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:12` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:9` | 三维向量 [x, y, z] |
