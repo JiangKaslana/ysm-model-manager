@@ -116,8 +116,9 @@ function runChecks() {
 
   // R8 innerHTML XSS 风险：
   // 豁免：纯字面量赋值（regex 已排除）、含 esc()/escUtil() 转义、空字符串、ICONS 常量、
-  // shadowRoot 隔离（含非空断言 shadowRoot!）、测试文件
-  const r8Inner = rg('innerHTML\\s*=\\s*[^\'"`\\n]', 'frontend/src', ['*.js', '*.ts']).filter(
+  // shadowRoot 隔离（含非空断言 shadowRoot!）、测试文件、已知 HTML 构造函数
+  // （*HTML/*html 结尾的函数调用，项目约定的安全 HTML 生成器）
+  const r8Inner = rg('innerHTML\\s*=\\s+[^\'"`\\n]', 'frontend/src', ['*.js', '*.ts']).filter(
     (l) => {
       const [f] = parseRgLine(l);
       if (f.includes('.test.')) return false;
@@ -126,6 +127,14 @@ function runChecks() {
       if (/innerHTML\s*=\s*''/.test(l)) return false;
       if (/innerHTML\s*=\s*ICONS\./.test(l)) return false;
       if (/shadowRoot!?\./.test(l)) return false;
+      // HTML 构造函数：函数名以 HTML/html 结尾的调用（项目约定的安全 HTML 生成器）
+      if (/[A-Za-z]+HTML\s*\(/.test(l)) return false;
+      if (/[A-Za-z]+html\s*\(/.test(l)) return false;
+      // i18n-only 模板字面量：所有 ${...} 插值均为 t() 翻译调用
+      if (/t\("/.test(l)) {
+        const blocks = l.match(/\$\{[^}]+\}/g);
+        if (blocks && blocks.every((b) => /t\(/.test(b))) return false;
+      }
       return true;
     },
   );

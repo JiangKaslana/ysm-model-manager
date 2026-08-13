@@ -5,6 +5,7 @@ tier: architecture
 category: ui
 source_files:
   - frontend/src/utils/dom/dialogs/batch-rename.ts
+  - frontend/src/utils/dom/dialogs/batch-rename-util.ts
 tests:
   - frontend/src/utils/dom/dialogs/batch-rename.test.ts
 use_when:

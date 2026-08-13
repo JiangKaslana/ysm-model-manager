@@ -5,6 +5,7 @@ tier: leaf
 category: ui
 source_files:
   - frontend/src/utils/dom/dialogs/rename.ts
+  - frontend/src/utils/dom/dialogs/rename-format.ts
 use_when:
   - 重命名
   - 改名

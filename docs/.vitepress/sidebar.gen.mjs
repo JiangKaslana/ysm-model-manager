@@ -919,6 +919,10 @@ export const autoSidebar = [
             "link": "/knowledge/wails-bridge"
           },
           {
+            "text": "纯浏览器 WASM 解码验证入口 frontend/src/web-spike",
+            "link": "/knowledge/web-spike"
+          },
+          {
             "text": "YSM 烘焙与几何反推",
             "link": "/knowledge/ysm-baked"
           }
@@ -943,6 +947,10 @@ export const autoSidebar = [
           {
             "text": "下载器 go/download",
             "link": "/knowledge/go-download"
+          },
+          {
+            "text": "进程隐藏窗口 go/executil",
+            "link": "/knowledge/go-executil"
           },
           {
             "text": "文件操作 go/fileops",
@@ -999,6 +1007,10 @@ export const autoSidebar = [
           {
             "text": "标签系统 go/tags",
             "link": "/knowledge/go-tags"
+          },
+          {
+            "text": "测试辅助函数 go/internal/testutil",
+            "link": "/knowledge/go-testutil"
           },
           {
             "text": "3D 骨骼 spec go/threejs",

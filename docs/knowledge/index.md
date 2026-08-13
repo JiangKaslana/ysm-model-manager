@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 73 张知识卡
+> 总计: 76 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -18,7 +18,7 @@
 
 - **resource-registry**（资源注册表 registry）：`resource_types.json` 是 YSM 资源类型定义的单一事实来源（Single Source of Truth）。所有资源类型、子目录、扩展名的定义均以此处为准。
 
-## core（9 张）
+## core（10 张）
 
 *核心基础设施（事件总线、页面状态、Wails 桥接）*
 
@@ -32,6 +32,7 @@
 | 🏗 pointer-events | Pointer Events 统一交互（触屏 + 桌面） | architecture | pointerdown, pointermove, pointerup, setPointerCapture, touch-action, 触屏, 拖拽, 旋转, hover, mouseenter, 全窗预览 |
 | 🍃 theme | 主题系统 theme | leaf | 主题, 换肤, 深色, 浅色, 跟随系统, 动画开关, 字号, 界面偏好 |
 | 🏗 wails-bridge | Wails 桥接 app.ts | architecture | Wails, 桥接, getApp, Go 调用, Binding, window.go.main.App, 网页版, browser adapter, 浏览器后端 |
+| 🍃 web-spike | 纯浏览器 WASM 解码验证入口 frontend/src/web-spike | leaf | ADR-049 Phase 0, 无 Wails 壳的 WASM 解码验证, base64 内嵌 YSMParser 浏览器测试 |
 | 🏗 ysm-baked | YSM 烘焙与几何反推 | architecture | 烘焙, 几何反推, pivot, 骨骼错位, 模型错位, UV 对不上, 贴图错位, RawYsmModel, RawFace, YSM 导出, BlockBench |
 
 ### 摘要
@@ -44,6 +45,7 @@
 - **pointer-events**（Pointer Events 统一交互（触屏 + 桌面））：ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事件统一迁移 **Pointer Events**（`pointerdown/move/up` + `setPointerCapture` + CSS `…
 - **theme**（主题系统 theme）：主题系统的实现在组件入口 `app-modules.ts`（无独立 theme.ts 文件）：提供 6 套主题皮肤（cyber/warm/pro/sakura/ocean/mint）+ `system` 跟随系统模式，全部通过在 `<bod…
 - **wails-bridge**（Wails 桥接 app.ts）：`backend/app.ts` 是前端调用后端 Binding 的唯一入口。所有 Go 端方法通过 `getApp()` 获取，禁止直接通过 `window.go.main.App` 访问。**ADR-049 平台双路由**：网页版（无 …
+- **web-spike**（纯浏览器 WASM 解码验证入口 frontend/src/web-spike）：`frontend/src/web-spike/` 是 ADR-049 Phase 0 的独立验证入口（`web.html`），用于在无 Wails 壳的纯浏览器环境中验证 YSMParser WASM 解码能力。走 `decodeYsmF…
 - **ysm-baked**（YSM 烘焙与几何反推）：YSM 作者导出模型时，**cube 的语义参数（origin/size/uv/rotation）在导出时被烘焙为纯顶点面**，`RawYsmModel.RawCube.faces` 只保留「每面 4 顶点 + 法线 + 4 组 u/v」。…
 
 ## feature（6 张）
@@ -68,7 +70,7 @@
 - **resource-packs**（资源包功能 resource-packs）：`resource-packs.ts` 是一个薄 wrapper：把仓库页的各类资源包 tab（资源包/光影包/蓝图/MMD/VRC/投影）统一委托给 `<app-resource-manager>` 组件渲染。文件本身不含业务逻辑，仅负责…
 - **version-updater**（版本更新 version-updater）：`version-updater.ts` 是应用自更新的前端入口：启动时静默检查（受 6 小时频次限制）→ 发现新版本以可点击 toast 通知；设置页按钮手动检查 → 弹出带更新日志的 `modalConfirm` → 调 `DoUpda…
 
-## go（25 张）
+## go（27 张）
 
 *Go 后端包（安装、下载、回收站、YSM 解析等）*
 
@@ -78,6 +80,7 @@
 | 🏗 go-avatar | 头像 go/avatar | architecture | 头像, 作者, 创作者, avatar, 缓存, 缩略图 |
 | 🏗 go-dedup | 去重 go/dedup | architecture | 去重, 重复检测, dedup |
 | 🏗 go-download | 下载器 go/download | architecture | 下载, 进度, download, 进度条, 下载进度 |
+| 🏗 go-executil | 进程隐藏窗口 go/executil | architecture | 子进程隐藏控制台窗口, 跨平台 HideWindow, 外部进程启动 |
 | 🏗 go-fileops | 文件操作 go/fileops | architecture | 移动, 复制, 重命名, 删除, fileops, 启用禁用, .ban, ysm.json 整组操作 |
 | 🍃 go-fsutil | 文件遍历 go/fsutil | leaf | 遍历, 目录, walk, 空目录, 文件数 |
 | 🏗 go-geometry | Geometry 存档 go/geometry | architecture | geometry, 基岩版, bedrock, 模型解析, zip, 7z, 纹理, 动画 |
@@ -92,6 +95,7 @@
 | 🏗 go-scanner | 扫描核心 go/scanner | architecture | 扫描, 扫描条目, 文件树, 哈希, 缓存, 作者提取, ScanEntries, 索引生成 |
 | 🏗 go-sync | 整合包同步 go/sync | architecture | 整合包, 同步, 实例, 硬链接, 符号链接, 缺失, 多余, .ban, PrismLauncher |
 | 🏗 go-tags | 标签系统 go/tags | architecture | 标签, tag, 分类, 筛选, tag-editor |
+| 🍃 go-testutil | 测试辅助函数 go/internal/testutil | leaf | 跨包复用测试 helper, 创建测试文件, 构造内存 ZIP |
 | 🏗 go-threejs | 3D 骨骼 spec go/threejs | architecture | 3D 预览, 骨骼, three.js, spec, 顶点, UV, 四元数, 模型渲染 |
 | 🏗 go-types | 共享类型 go/types | architecture | 共享类型, AppConfig, 配置, 注册表, 扩展名, LinkType, BedrockModel |
 | 🏗 go-updater | 自动更新 go/updater | architecture | 更新, 自动更新, 版本升级, updater |
@@ -106,6 +110,7 @@
 - **go-avatar**（头像 go/avatar）：`go/avatar/` 包负责创作者头像的提取与缓存：从模型文件（.ysm 二进制 / .zip / 解压目录 .json）的 `metadata.authors[].avatar` 声明中取出头像图片，缓存到**平台配置根 `os.Us…
 - **go-dedup**（去重 go/dedup）：`go/dedup/` 包提供资源去重检测，避免重复导入相同资源。
 - **go-download**（下载器 go/download）：`go/download/` 包负责模型资源的纯 HTTP 下载（不依赖 Wails runtime），支持 ctx 取消中断、进度回调与失败半文件清理。镜像回退策略（raw/jsd/api 排序）在 `internal/app/app_d…
+- **go-executil**（进程隐藏窗口 go/executil）：`go/executil/` 包提供跨平台的外部进程执行工具，当前唯一功能是 **HideWindow**：在 Windows 上隐藏子进程控制台窗口，其他平台为 no-op。
 - **go-fileops**（文件操作 go/fileops）：`go/fileops/` 包实现文件 CRUD + 移动/复制/删除 + 文件夹整组导入 + 预览提取 + 启用禁用（ADR-003 P3 下沉，薄壳 `internal/app/app_files.go` 仅转发）。
 - **go-fsutil**（文件遍历 go/fsutil）：`go/fsutil/` 是纯工具小包，集中管理 `WalkDir` 逻辑：递归收集文件/目录路径、统计文件数、清理空目录，并内置对 `.recycle` 回收站目录的跳过开关。
 - **go-geometry**（Geometry 存档 go/geometry）：`go/geometry/` 包解析 Bedrock（基岩版）`minecraft:geometry` 模型：既支持单个 geometry JSON，也支持从 ZIP/7z 存档中按 `ysm.json` 清单合并多个模型文件、提取纹理与动…
@@ -120,6 +125,7 @@
 - **go-scanner**（扫描核心 go/scanner）：`go/scanner/` 包实现仓库文件扫描、哈希计算、缓存失效、作者提取、索引生成（ADR-003 P2 下沉，薄壳 `internal/app/app_scan.go` 仅保留依赖 App 的方法）。
 - **go-sync**（整合包同步 go/sync）：`go/sync/` 包负责模型库（全局仓库）与 Minecraft 整合包实例之间的同步：发现实例（原版 / PrismLauncher 布局）、按 SHA256 哈希对比出缺失/多余/禁用文件、按文件名或文件夹对比资源包差异、检测目标文…
 - **go-tags**（标签系统 go/tags）：`go/tags/` 包提供模型标签的线程安全持久化存储，是前端 tag-editor 弹窗的后端。标签存放在配置目录的 `tags.json`，以文件绝对路径为 key、标签列表为 value，与模型文件本身解耦（移动/链接模型不污染文件…
+- **go-testutil**（测试辅助函数 go/internal/testutil）：`go/internal/testutil/` 包提供跨包复用的 Go 单元测试辅助函数，解决原先各包各自实现同名 helper 导致的重复维护问题。
 - **go-threejs**（3D 骨骼 spec go/threejs）：`go/threejs/` 包根据 YSMViewer 的 `ThreeJsPayloadBuilder.cs` 移植，把已解析的 `types.BedrockModel` 转换为 Three.js 可直接消费的 JSON spec：顶点、…
 - **go-types**（共享类型 go/types）：`go/types/` 包是全应用的共享类型层：应用配置（AppConfig）、各子系统交换的数据结构（模型条目/实例状态/同步结果/日志/投影元数据等）、以及资源类型注册表的 Go 端加载与扩展名查询。与 [resource_regist…
 - **go-updater**（自动更新 go/updater）：`go/updater/` 包负责 YSM 应用的自动更新机制。
