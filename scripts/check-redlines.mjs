@@ -34,6 +34,40 @@ function hasContext(file, line, pattern, radius = 8) {
   }
 }
 
+// 判断指定行是否处于块注释（/* ... */）区间内：从文件头扫描注释开闭状态。
+// 用于 R3 续行豁免——只豁免真正在块注释内的行，避免「* 开头正则」误豁免
+// 真实代码续行（乘法链等，R3 是阻断规则，豁免不得宽于意图）。与 rg 口径一致，
+// 不处理字符串字面量内的 /*（红线扫描本身是启发式，足够）。
+function inBlockComment(file, lineno) {
+  try {
+    const abs = path.resolve(ROOT, file.replace(/^\.?\//, ''));
+    const lines = fs.readFileSync(abs, 'utf-8').split('\n');
+    let inBlock = false;
+    // 扫描到 lineno-1 行（不含当前行）：当前行若以 /* 开头已被前一 filter 豁免
+    const max = Math.min(lines.length, lineno - 1);
+    for (let i = 0; i < max; i++) {
+      const line = lines[i];
+      let idx = 0;
+      while (idx < line.length) {
+        if (!inBlock) {
+          const open = line.indexOf('/*', idx);
+          if (open === -1) break;
+          inBlock = true;
+          idx = open + 2;
+        } else {
+          const close = line.indexOf('*/', idx);
+          if (close === -1) { idx = line.length; break; }
+          inBlock = false;
+          idx = close + 2;
+        }
+      }
+    }
+    return inBlock;
+  } catch {
+    return false;
+  }
+}
+
 // rg 健康标志 + 本地包装：rgStrict 抛错（rg 缺失/坏正则/执行失败）时置 false 并返回 []，
 // 保留「规则扫描不中断」，但 runBaseline 比对前会检查该标志——
 // 扫描不可用即 fail-closed 拒绝放行，避免 rgSafe 失败返回 [] 使 --baseline newV=[] 退 0 假绿。
@@ -117,9 +151,14 @@ function runChecks() {
       .filter((l) => !/:\d+:\s*\/\//.test(l))
       // 行注释与块注释内出现 .file( 属文档描述，豁免（2026-08-13：测试夹具注释曾误报阻断推送）
       .filter((l) => !/:\d+:\s*(?:\/\/|\/\*)/.test(l))
-      // 块注释续行（* 开头）同样豁免——与 R2/W7 的续行豁免口径对齐
-      // （多行块注释中间行以 * 开头，此前续行描述 .file( 仍误报）
-      .filter((l) => !/:\d+:\s*\*/.test(l))
+      // 块注释续行豁免：仅当行真正处于块注释区间内（inBlockComment 扫描注释开闭），
+      // 不用「* 开头正则」——真实代码续行（乘法链 `a\n  * b.file(`）也会以 * 开头，
+      // 正则豁免会把真违规静默放行（code_review P3）
+      .filter((l) => {
+        const [f, line] = parseRgLine(l);
+        if (inBlockComment(f, line)) return false;
+        return true;
+      })
       .filter((l) => {
         const [f, line] = parseRgLine(l);
         // 若 .file( 在 new Promise(...) 附近（±8 行内），说明已 Promise 化，豁免

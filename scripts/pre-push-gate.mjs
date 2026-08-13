@@ -355,8 +355,10 @@ function main() {
       }
     } catch { /* parse fail */ ok = false; scanHealthy = false; }
     results.push({ label: 'check-redlines', ok, time: Date.now() - t0,
-      note: !scanHealthy ? '扫描不可用（rg 缺失/执行失败）——fail-closed 阻断，红线门禁未执行'
-        : (newV === null ? '输出解析失败'
+      // note 顺序：newV===null 唯一标识 JSON parse 失败（rg 不可用时 newViolations
+      // 非 null——runBaseline fail-closed 返回 allKeys），必须先于 scanHealthy 判定
+      note: newV === null ? '输出解析失败——fail-closed 阻断，红线门禁未执行'
+        : (!scanHealthy ? '扫描不可用（rg 缺失/执行失败）——fail-closed 阻断，红线门禁未执行'
           : (ok ? `红线零新增（基线 ${baseCount} 条）`
             : `${newV} 条新增红线违规（基线 ${baseCount} 条）——债务项，推送后处理`)),
       tail: rlTail });

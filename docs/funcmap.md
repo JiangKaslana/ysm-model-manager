@@ -7,11 +7,11 @@
 
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
-| Go·头像 | 1 | 10 |
+| Go·头像 | 1 | 1 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 7 |
 | go/executil | 2 | 2 |
-| go/fileops | 2 | 13 |
+| go/fileops | 4 | 13 |
 | Go·文件系统 | 6 | 12 |
 | Go·几何 | 2 | 8 |
 | Go·导入 | 2 | 16 |
@@ -33,30 +33,21 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 23 | 183 |
 | 前端·根 (app-modules/bus) | 2 | 14 |
-| frontend/backend | 5 | 19 |
+| frontend/backend | 6 | 23 |
 | 前端·核心 | 14 | 28 |
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 37 | 133 |
-| frontend/views | 60 | 177 |
+| frontend/views | 63 | 184 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **215** | **940** |
+| **合计** | **221** | **942** |
 
 ## Go·头像
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `SafeName()` | `go/avatar/avatar:51` | SafeName 将非法文件名字符替换为下划线。 |
-| `ReadCachedAvatar()` | `go/avatar/avatar:145` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
-| `SaveAvatarData()` | `go/avatar/avatar:171` | SaveAvatarData 将头像数据写入缓存。 |
-| `ExtractAvatarURI()` | `go/avatar/avatar:192` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
-| `CacheAvatarsFromJSON()` | `go/avatar/avatar:361` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
-| `CacheAvatarsFromModel()` | `go/avatar/avatar:431` | CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。 |
-| `ReadFileFromZip()` | `go/avatar/avatar:530` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
-| `SetNodeJS()` | `go/avatar/avatar:601` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
-| `limitedBuffer.Write()` | `go/avatar/avatar:616` | — |
-| `DecodeYSMFiles()` | `go/avatar/avatar:625` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
 
 ## Go·去重
 
@@ -91,18 +82,18 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `CreateDir()` | `go/fileops/fileops:47` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
-| `RenameDir()` | `go/fileops/fileops:65` | RenameDir 重命名目录（仅改末段，保持父目录） |
-| `RemoveDir()` | `go/fileops/fileops:90` | RemoveDir 递归删除目录 |
-| `RenameFile()` | `go/fileops/fileops:97` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
-| `FindPreviewImage()` | `go/fileops/fileops:123` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
-| `ExtractPreviewTexture()` | `go/fileops/fileops:149` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
-| `GetPackInfo()` | `go/fileops/fileops:252` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
-| `MoveModelFile()` | `go/fileops/fileops:301` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:378` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:510` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
-| `ToggleModelEnable()` | `go/fileops/fileops:565` | ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 . |
-| `IsFileBanned()` | `go/fileops/fileops:680` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
+| `ToggleModelEnable()` | `go/fileops/fileops_enable:22` | ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 . |
+| `IsFileBanned()` | `go/fileops/fileops_enable:137` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
+| `FindPreviewImage()` | `go/fileops/fileops_preview:24` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
+| `ExtractPreviewTexture()` | `go/fileops/fileops_preview:50` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
+| `GetPackInfo()` | `go/fileops/fileops_preview:153` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
+| `CreateDir()` | `go/fileops/fileops:43` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
+| `RenameDir()` | `go/fileops/fileops:61` | RenameDir 重命名目录（仅改末段，保持父目录） |
+| `RemoveDir()` | `go/fileops/fileops:86` | RemoveDir 递归删除目录 |
+| `RenameFile()` | `go/fileops/fileops:93` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
+| `MoveModelFile()` | `go/fileops/fileops:121` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
+| `CopyModelFile()` | `go/fileops/fileops:198` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:330` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
 | `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
@@ -661,6 +652,10 @@
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
 | `AppBindings()` | `frontend/src/backend/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
+| `WebUnsupportedError()` | `frontend/src/backend/web-common:8` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
+| `WEB_ROOT()` | `frontend/src/backend/web-common:16` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
+| `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:19` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
+| `arrayBufferToBase64()` | `frontend/src/backend/web-common:22` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 
 ## 前端·核心
 
@@ -974,8 +969,15 @@
 | `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:277` | 合并社区站点到本地 workshop_sites.json |
 | `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:298` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:35` | 初始化诊断页所有功能 |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/init:406` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:20` | 初始化诊断页所有功能 |
+| `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
+| `ImportLogLike()` | `frontend/src/views/app-content/diagnostics/logs:16` | 绑定 ImportLog（仅用到的字段） |
+| `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:43` | — |
+| `RuntimeLogLike()` | `frontend/src/views/app-content/diagnostics/logs:158` | 运行时日志条目（仅用到的字段） |
+| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:164` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
