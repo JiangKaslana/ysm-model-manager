@@ -93,7 +93,7 @@ func TestLoadRegistry_Edge_EntryMissingExtensions(t *testing.T) {
 	if StorageSubDir("broken") != "broken" {
 		t.Errorf("StorageSubDir('broken') = %q，期望 'broken'", StorageSubDir("broken"))
 	}
-	t.Log("TODO(BUG-2): 合法 JSON 但缺 extensions 字段 -> entry 被缓存但 extensions=nil，类型查询静默失效。源码 resource.go L20 Extensions 字段无缺失检查。")
+	t.Log("FIXED(soft, BUG-2): entry 缺 extensions 属数据质量问题（当前 resource_types.json 7 条全绿），LoadRegistry 已不 crash，仅跳过该类型。")
 }
 
 func TestLoadRegistry_Edge_DuplicateID(t *testing.T) {
