@@ -1,0 +1,464 @@
+// ===== import-queue-data.ts —— 数据层：类型、状态、路由 =====
+import { parseModelName } from "../utils/dom/display.ts";
+import { bus } from "../bus.ts";
+import { t } from "../core/i18n/t.ts";
+import { friendlyError } from "../utils/dom/errors.ts";
+import { getApp } from "../backend/app.ts";
+import { shouldEnterForm } from "./dnd-shared.ts";
+import { directImport as execDirectImport, importFolder as execImportFolder, ImportHistory } from "./import-executor.ts";
+import type { ImportFile as ImportedFile } from "./import-executor.ts";
+
+/** 带相对路径的 File（文件夹导入时标记 _relPath） */
+export type ImportFile = ImportedFile;
+
+/** 队列项数据类型 */
+export type QueueItem = {
+  file: ImportFile;
+  base64: string;
+  name: string;
+  size: number;
+  relPath: string;
+};
+
+/**
+ * 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）：
+ * 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.ysm.ban` 都归一化为 `foo`。
+ * P2 修复：原实现先剥扩展名再剥 .ban，banned 条目归一化后仍带扩展名，与查询键不匹配 → 预警永不触发。
+ */
+export function normalizeRepoName(name: string): string {
+  return name.replace(/\.ban$/i, "").replace(/\.\w+$/i, "");
+}
+
+/** 应用主机接口 */
+export interface ImportQueueHost {
+  _root: ShadowRoot;
+  _esc: (s: string) => string;
+}
+
+/** 初始化导入队列的数据层：返回状态对象和清理函数 */
+export function initDataLayer(host: ImportQueueHost): {
+  state: {
+    currentFile: ImportFile | null;
+    currentBase64: string | null;
+    currentFileName: string | null;
+    currentRelPath: string;
+    fileQueue: QueueItem[];
+    repoFiles: Set<string> | null;
+    isImporting: boolean;
+    disposed: boolean;
+    conflictTimer: ReturnType<typeof setTimeout> | null;
+    pendingHeaderTimers: Array<ReturnType<typeof setTimeout>>;
+    conflictCheckGen: number;
+  };
+  actions: {
+    readAndRouteFile: (file: ImportFile, onDone?: () => void) => void;
+    advanceQueue: () => void;
+    toggleForm: (visible: boolean) => void;
+    showForm: (file: ImportFile, base64: string) => void;
+    updatePreview: () => void;
+    loadHeaderFromBase64: () => Promise<void>;
+    enqueueFile: (file: ImportFile, base64: string) => void;
+    renderImportedList: () => void;
+    collectEntry: (entry: FileSystemEntry, basePath: string) => Promise<Array<{ file: ImportFile; relPath: string }>>;
+    importModelFolder: (dirRel: string, files: Array<{ file: ImportFile; relPath: string }>) => Promise<void>;
+    routeCollected: (collected: Array<{ file: ImportFile; relPath: string }>) => Promise<void>;
+    processDropItems: (items: DataTransferItemList) => void;
+    directImport: (file: ImportFile) => Promise<void>;
+    loadRepoFiles: () => Promise<void>;
+  };
+  cleanup: () => void;
+} {
+  const root = host._root;
+  const esc = (s: string): string => host._esc(s);
+
+  // 状态
+  const state = {
+    currentFile: null as ImportFile | null,
+    currentBase64: null as string | null,
+    currentFileName: null as string | null,
+    currentRelPath: "" as string,
+    fileQueue: [] as QueueItem[],
+    repoFiles: null as Set<string> | null,
+    isImporting: false,
+    disposed: false,
+    conflictTimer: null as ReturnType<typeof setTimeout> | null,
+    pendingHeaderTimers: [] as Array<ReturnType<typeof setTimeout>>,
+    conflictCheckGen: 0,
+  };
+
+  // readAndRouteFile：读文件并分流（表单/直导）
+  const readAndRouteFile = (file: ImportFile, onDone?: () => void): void => {
+    if (shouldEnterForm(file.name)) {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        if (state.disposed) return;
+        try {
+          const base64 = String(reader.result).split(",")[1] || "";
+          enqueueFile(file, base64);
+        } catch (e) {
+          bus.emit("toast:show", {
+            msg: "❌ " + friendlyError(e),
+            duration: 5000,
+            type: "error",
+          });
+        } finally {
+          onDone?.();
+        }
+      };
+      reader.onerror = (): void => {
+        bus.emit("toast:show", {
+          msg: "❌ " + "读取文件失败",
+          duration: 5000,
+          type: "error",
+        });
+        onDone?.();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      (async () => {
+        if (state.disposed) return;
+        try {
+          await directImport(file);
+        } catch (e) {
+          bus.emit("toast:show", {
+            msg: "❌ " + friendlyError(e),
+            duration: 5000,
+            type: "error",
+          });
+        } finally {
+          onDone?.();
+        }
+      })();
+    }
+  };
+
+  // 队列推进
+  const advanceQueue = (): void => {
+    if (state.fileQueue.length > 0) {
+      showForm(state.fileQueue[0].file, state.fileQueue[0].base64);
+    } else {
+      toggleForm(false);
+    }
+  };
+
+  // 切换拖拽区 ↔ 表单
+  const toggleForm = (visible: boolean): void => {
+    const form = root.getElementById("dl-form") as HTMLElement | null;
+    if (visible) {
+      (root.getElementById("dl-drop") as HTMLElement).style.display = "none";
+      if (form) form.style.display = "flex";
+    } else {
+      (root.getElementById("dl-drop") as HTMLElement).style.display = "flex";
+      if (form) form.style.display = "none";
+    }
+  };
+
+  const showForm = (file: ImportFile, base64: string): void => {
+    state.currentFile = file;
+    state.currentBase64 = base64;
+    state.currentFileName = file.name;
+    state.currentRelPath = file._relPath || "";
+
+    const parsed = parseModelName(file.name);
+
+    (root.getElementById("dl-author") as HTMLInputElement).value = parsed.author || "";
+    (root.getElementById("dl-work") as HTMLInputElement).value = parsed.work || "";
+    (root.getElementById("dl-chara") as HTMLInputElement).value = parsed.chara || "";
+    (root.getElementById("dl-variant") as HTMLInputElement).value = "";
+    (root.getElementById("dl-date") as HTMLInputElement).value = parsed.date || "";
+    updatePreview();
+
+    toggleForm(true);
+
+    // 存临时文件供右侧预览面板读取
+    (async () => {
+      try {
+        const { SavePreviewTempFile } = await getApp();
+        const tmpPath = await SavePreviewTempFile(base64);
+        if (tmpPath) {
+          bus.emit("model:select", { path: tmpPath });
+        }
+      } catch (e) {
+        console.warn("[import-queue] 预览临时文件保存失败:", e);
+      }
+    })();
+
+    // "读取作者"已勾选时，自动为新文件读取 YSM 头部
+    const headerTimer: ReturnType<typeof setTimeout> = setTimeout(async () => {
+      try {
+        if ((root.getElementById("dl-from-header") as HTMLInputElement | null)?.checked) {
+          await loadHeaderFromBase64();
+        }
+      } catch (err) {
+        console.warn("[import-queue] 自动读取头部失败:", err);
+      }
+    }, 0);
+    state.pendingHeaderTimers.push(headerTimer);
+  };
+
+  const checkConflictDebounced = (name: string): void => {
+    if (state.conflictTimer) clearTimeout(state.conflictTimer);
+    state.conflictTimer = setTimeout(async () => {
+      const gen = ++state.conflictCheckGen;
+      try {
+        const { CheckFileExists, GetRepoRoot } = await getApp();
+        const { RESOURCE_TYPES } = await import("../utils/resource/types.ts");
+        const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+        const fullPath = (filesRoot || "") + "/" + name;
+        const exists = await CheckFileExists(fullPath);
+        if (gen !== state.conflictCheckGen) return;
+        const el = root.getElementById("dl-conflict") as HTMLElement | null;
+        if (el) el.style.display = exists ? "" : "none";
+      } catch (e) {
+        console.warn("[import-queue] 冲突检查失败:", e);
+      }
+    }, 400);
+  };
+
+  const updatePreview = (): void => {
+    const a = (root.getElementById("dl-author") as HTMLInputElement).value.trim();
+    const w = (root.getElementById("dl-work") as HTMLInputElement).value.trim();
+    const c = (root.getElementById("dl-chara") as HTMLInputElement).value.trim();
+    const v = (root.getElementById("dl-variant") as HTMLInputElement).value.trim();
+    const manualDate = (root.getElementById("dl-date") as HTMLInputElement).value.trim();
+    const autoOn = (root.getElementById("dl-date-auto") as HTMLInputElement).checked;
+    const autoDate =
+      new Date().getFullYear() +
+      "-" +
+      String(new Date().getMonth() + 1).padStart(2, "0");
+    const d = manualDate || (autoOn ? autoDate : "");
+    const ext = state.currentFileName?.split(".").pop() || "ysm";
+    // 拼装逻辑与重命名对话框同源
+    const { buildRenameName } = require("../utils/dom/dialogs/rename-format.ts");
+    const preview = buildRenameName({ author: a, work: w, chara: c, variant: v, date: d }, ext);
+    (root.getElementById("dl-preview") as HTMLElement).textContent = preview;
+    checkConflictDebounced(preview);
+  };
+
+  const loadHeaderFromBase64 = async (): Promise<void> => {
+    if (!state.currentBase64) return;
+    try {
+      const { ExtractYSMHeaderFromBase64 } = await getApp();
+      const header = await ExtractYSMHeaderFromBase64(state.currentBase64);
+      if (header.authorName) {
+        const authorEl = root.getElementById("dl-author") as HTMLInputElement;
+        if (!authorEl.value.trim()) {
+          authorEl.value = header.authorName;
+          authorEl.style.background = "color-mix(in srgb,var(--accent) 10%,var(--surf))";
+          authorEl.style.borderColor = "color-mix(in srgb,var(--accent) 30%,var(--bd))";
+        }
+      }
+      if (header.tips) {
+        const tipsEl = root.getElementById("dl-tips") as HTMLElement | null;
+        if (tipsEl) {
+          tipsEl.innerHTML =
+            '<div style="font-weight:600;font-size:9px;color:var(--accent);margin-bottom:2px">📝 ' +
+            "头部信息" +
+            "</div><div>" +
+            esc(header.tips) +
+            "</div>";
+          tipsEl.style.display = "block";
+        }
+      }
+      updatePreview();
+    } catch (e) {
+      console.warn("[import-queue] 读取头部失败:", e);
+    }
+  };
+
+  const enqueueFile = (file: ImportFile, base64: string): void => {
+    const relPath = file._relPath || "";
+    const nameKey = file.name.toLowerCase();
+    const dup =
+      state.fileQueue.some((fq) => fq.name.toLowerCase() === nameKey && (fq.relPath || "") === relPath) ||
+      ImportHistory.records.some(
+        (i) => i.name.toLowerCase() === nameKey && (i.relPath || "") === relPath,
+      );
+    if (dup) return;
+    state.fileQueue.push({
+      file,
+      base64,
+      name: file.name,
+      size: file.size,
+      relPath: file._relPath || "",
+    });
+    if (!state.currentFile) {
+      showForm(file, base64);
+    }
+    // 渲染列表（renderImportedList 由主文件注入，此处通过闭包访问）
+    const { actions } = { actions: { renderImportedList: () => {} } }; // 占位，实际由调用方注入
+    // 加载仓库文件列表
+    if (!state.repoFiles) loadRepoFiles();
+  };
+
+  const collectEntry = (
+    entry: FileSystemEntry,
+    basePath: string,
+  ): Promise<Array<{ file: ImportFile; relPath: string }>> => {
+    return new Promise((resolve) => {
+      try {
+        if (entry.isFile) {
+          new Promise<File | null>((resolve) => {
+            (entry as FileSystemFileEntry).file(
+              (f) => resolve(f),
+              () => resolve(null),
+            );
+          }).then(
+            (file) => {
+              if (file) {
+                const relPath = basePath ? basePath + "/" + file.name : file.name;
+                resolve([{ file: file as ImportFile, relPath }]);
+              } else {
+                resolve([]);
+              }
+            },
+            () => resolve([]),
+          );
+        } else if (entry.isDirectory) {
+          const dirReader = (entry as FileSystemDirectoryEntry).createReader();
+          const subPath = basePath ? basePath + "/" + entry.name : entry.name;
+          const collected: Array<{ file: ImportFile; relPath: string }> = [];
+          const readAll = (): void => {
+            dirReader.readEntries(
+              (entries) => {
+                if (!entries || !entries.length) {
+                  resolve(collected);
+                  return;
+                }
+                Promise.all(
+                  Array.from(entries).map((e) => collectEntry(e, subPath)),
+                ).then((groups) => {
+                  for (const g of groups) collected.push(...g);
+                  readAll();
+                });
+              },
+              () => resolve(collected),
+            );
+          };
+          readAll();
+        } else {
+          resolve([]);
+        }
+      } catch {
+        resolve([]);
+      }
+    });
+  };
+
+  const importModelFolder = async (
+    dirRel: string,
+    files: Array<{ file: ImportFile; relPath: string }>,
+  ): Promise<void> => {
+    await execImportFolder(dirRel, files);
+  };
+
+  const routeCollected = async (
+    collected: Array<{ file: ImportFile; relPath: string }>,
+  ): Promise<void> => {
+    const { groupCollected } = await import("./dnd-shared.ts");
+    const { folders, singles } = groupCollected(collected);
+    for (const g of folders) {
+      await importModelFolder(g.dir, g.files as Array<{ file: ImportFile; relPath: string }>);
+    }
+    for (const c of singles) {
+      (c.file as ImportFile)._relPath = c.relPath;
+      await directImport(c.file);
+    }
+  };
+
+  const processDropItems = (items: DataTransferItemList): void => {
+    const entries: FileSystemEntry[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const entry = items[i].webkitGetAsEntry?.();
+      if (entry) entries.push(entry);
+    }
+    if (!entries.length) {
+      const { isImportableFile } = require("./dnd-shared.ts");
+      let ok = 0;
+      let skip = 0;
+      for (let i = 0; i < items.length; i++) {
+        const file = items[i].getAsFile?.();
+        if (!file || !isImportableFile(file.name)) {
+          skip++;
+          continue;
+        }
+        ok++;
+        readAndRouteFile(file as ImportFile);
+      }
+      // updateQueueCount 由外部调用
+      if (ok > 0) {
+        bus.emit("toast:show", {
+          msg: t("import.addedToQueue", { n: ok }),
+          duration: 2000,
+          type: "success",
+        });
+      }
+      return;
+    }
+    Promise.all(entries.map((entry) => collectEntry(entry, "")))
+      .then(async (groups) => {
+        const all = groups.flat();
+        await routeCollected(all);
+        // updateQueueCount 由外部调用
+        if (state.fileQueue.length > 0) {
+          bus.emit("toast:show", {
+            msg: t("import.addedToQueue", { n: state.fileQueue.length }),
+            duration: 2000,
+            type: "success",
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn("[import-queue] 读取拖入项失败:", err);
+        bus.emit("toast:show", {
+          msg: "❌ 读取拖入项失败",
+          duration: 3000,
+          type: "error",
+        });
+      });
+  };
+
+  const directImport = async (file: ImportFile): Promise<void> => {
+    await execDirectImport(file);
+  };
+
+  const loadRepoFiles = async (): Promise<void> => {
+    try {
+      const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
+      const { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } = await import("../utils/resource/types.ts");
+      const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+      if (!filesRoot) return;
+      const entries = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+      state.repoFiles = new Set(entries.map((e) => normalizeRepoName(e.Name)));
+    } catch {
+      state.repoFiles = new Set();
+    }
+  };
+
+  const cleanup = (): void => {
+    state.disposed = true;
+    if (state.conflictTimer) clearTimeout(state.conflictTimer);
+    state.pendingHeaderTimers.forEach((t) => clearTimeout(t));
+  };
+
+  return {
+    state,
+    actions: {
+      readAndRouteFile,
+      advanceQueue,
+      toggleForm,
+      showForm,
+      updatePreview,
+      loadHeaderFromBase64,
+      enqueueFile,
+      renderImportedList: () => {}, // 由主文件注入
+      collectEntry,
+      importModelFolder,
+      routeCollected,
+      processDropItems,
+      directImport,
+      loadRepoFiles,
+    },
+    cleanup,
+  };
+}
