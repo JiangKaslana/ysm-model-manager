@@ -43,7 +43,7 @@ git reset HEAD~1                      # 撤销最近一条 commit，把改动放
 
 | 口令 | 执行 |
 |------|------|
-| `doctor` | `node scripts/doctor.mjs`（全量闸门） |
+| `doctor` | `node scripts/doctor.mjs`（1分钟的全量闸门,push失败时再用） |
 | `check-redlines` | 治理红线扫描（W6/R10 等） |
 | `bug-search` | Bug 历史关键词搜索 |
 | `type-consistency` | 类型一致性检查 |
