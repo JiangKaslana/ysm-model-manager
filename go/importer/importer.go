@@ -132,6 +132,14 @@ func (s *SimpleCopyImporter) Import(srcPath, dstDir string) string {
 		cleanup()
 		return fmt.Sprintf("复制文件失败: %v", err)
 	}
+	// BUG(INFO-SAME-DIR) 修复：在 rename 前显式关闭 srcFile——
+	// Windows 上文件被进程持有句柄时 os.Rename 无法覆盖（Access is denied），
+	// src==dst 场景（同目录自拷贝）尤其会触发。defer Close 在函数退出时才执行，
+	// 太晚了。读取完成后立即关闭。
+	if err := srcFile.Close(); err != nil {
+		cleanup()
+		return fmt.Sprintf("关闭源文件失败: %v", err)
+	}
 	// Sync + 显式 Close 检查——defer 吞掉 Close 错误时，
 	// ENOSPC/EIO 落盘失败被误判成功，损坏文件留盘（与 recycle/installer 同款反模式）
 	if err := tmpFile.Sync(); err != nil {
@@ -156,6 +164,25 @@ func (s *SimpleCopyImporter) Import(srcPath, dstDir string) string {
 
 // copyDirRecursive 递归复制目录（先复制到临时目录再 rename，保证原子性）
 func copyDirRecursive(src, dst string) error {
+	// BUG(INFO-ROOT-SRC) 修复：检测 src 包含 dst 的情况——
+	// 若 src 是 dst 的祖先目录（如 src=tmpDir, dst=tmpDir/dest/xxx），
+	// 递归复制时会将 dst 自身包含在遍历中，导致 src/dst/src/dst/... 死循环。
+	absSrc, err := filepath.Abs(src)
+	if err != nil {
+		return fmt.Errorf("解析源路径失败: %w", err)
+	}
+	absDst, err := filepath.Abs(dst)
+	if err != nil {
+		return fmt.Errorf("解析目标路径失败: %w", err)
+	}
+	if absSrc == absDst {
+		return fmt.Errorf("源目录与目标目录相同: %s", absSrc)
+	}
+	// 检查 src 是否为 dst 的祖先（src 包含 dst）
+	rel, err := filepath.Rel(absSrc, absDst)
+	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("目标目录 %s 位于源目录 %s 内，递归复制会死循环", absDst, absSrc)
+	}
 	// 用 MkdirTemp 创建临时目录（自动生成唯一名称，避免并发冲突）
 	tmpDir, err := os.MkdirTemp(filepath.Dir(dst), ".tmp_import_")
 	if err != nil {

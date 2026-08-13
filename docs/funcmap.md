@@ -149,12 +149,12 @@
 | `NewSimpleCopy()` | `go/importer/importer:62` | NewSimpleCopy 创建简单文件复制导入器 |
 | `SimpleCopyImporter.Type()` | `go/importer/importer:66` | — |
 | `SimpleCopyImporter.Import()` | `go/importer/importer:68` | — |
-| `NewDirectoryCopy()` | `go/importer/importer:246` | NewDirectoryCopy 创建文件夹复制导入器 |
-| `DirectoryCopyImporter.Type()` | `go/importer/importer:250` | — |
-| `DirectoryCopyImporter.Import()` | `go/importer/importer:255` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
+| `NewDirectoryCopy()` | `go/importer/importer:273` | NewDirectoryCopy 创建文件夹复制导入器 |
+| `DirectoryCopyImporter.Type()` | `go/importer/importer:277` | — |
+| `DirectoryCopyImporter.Import()` | `go/importer/importer:282` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
 | `Handler()` | `go/importer/importer:21` | Handler 资源导入策略接口 |
 | `SimpleCopyImporter()` | `go/importer/importer:57` | — |
-| `DirectoryCopyImporter()` | `go/importer/importer:241` | — |
+| `DirectoryCopyImporter()` | `go/importer/importer:268` | — |
 
 ## Go·安装
 
