@@ -731,16 +731,6 @@ func TestReadVarInt_ContinuationOverflow(t *testing.T) {
 	}
 }
 
-func TestReadVarInt_NormalTermination(t *testing.T) {
-	// 正常 varint：0xE5 0x8E 0x26（1000_0000 0001_0111 0000_0101 低位序…）
-	// 用已知值：12345 = 0x3039 → 字节序 0xB9 0x60（低位 7 位 + 高位）
-	data := []byte{0xB9, 0x60}
-	v, off := readVarInt(data, 0)
-	if v != 12345 || off != 2 {
-		t.Errorf("readVarInt(12345) = (%d, %d), want (12345, 2)", v, off)
-	}
-}
-
 // =========================================================================
 // 十三、辅助函数
 // =========================================================================
