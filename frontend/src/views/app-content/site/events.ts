@@ -101,17 +101,12 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
     });
   });
 
-  // 🔍 搜索快捷按钮（阻止冒泡，不触发详情浮层）——直达站点搜索创作者
+  // 📂 本地模型快捷按钮（阻止冒泡，不触发详情浮层）——直达仓库页搜索该创作者
   searchResults.querySelectorAll(".cr-card-search").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const name = (btn as HTMLElement).dataset.searchCreator || "";
-      if (site.searchUrl && openUrl) {
-        openUrl(fillSearch(site.searchUrl, name));
-      } else if (openUrl) {
-        // 无 searchUrl（如分类索引站）→ 直接打开站点首页
-        openUrl(site.url);
-      }
+      busRef.emit("repo:search-creator", name);
     });
   });
 

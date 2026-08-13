@@ -349,6 +349,7 @@
   "content.settingsInitFailed": "设置页初始化失败",
   "content.downloadedModels": "已下载 {n} 个模型",
   "content.viewArrow": "查看 →",
+  "content.viewLocalModels": "查看本地模型",
   "content.searchMoreModels": "🔍 搜索更多模型",
   "content.favAdded": "⭐ 已收藏",
   "content.favRemoved": "取消收藏",

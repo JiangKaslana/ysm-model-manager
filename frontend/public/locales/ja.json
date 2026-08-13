@@ -349,6 +349,7 @@
   "content.settingsInitFailed": "設定ページの初期化に失敗しました",
   "content.downloadedModels": "{n} 個のモデルをダウンロード済み",
   "content.viewArrow": "表示 →",
+  "content.viewLocalModels": "ローカルモデルを表示",
   "content.searchMoreModels": "🔍 モデルをもっと検索",
   "content.favAdded": "⭐ お気に入りに追加しました",
   "content.favRemoved": "お気に入りから削除しました",

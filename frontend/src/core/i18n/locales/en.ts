@@ -384,6 +384,7 @@ export const en: Record<string, string> = {
   "content.settingsInitFailed": "Settings page initialization failed",
   "content.downloadedModels": "{n} models downloaded",
   "content.viewArrow": "View →",
+  "content.viewLocalModels": "View local models",
   "content.searchMoreModels": "🔍 Search More Models",
   "content.favAdded": "⭐ Added to Favorites",
   "content.favRemoved": "Removed from Favorites",

@@ -42,7 +42,7 @@ export interface BuildSiteHtmlCtx {
 
 /** 创作者卡片工厂 */
 export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement {
-  const { esc, isFaved, authorCountMap, avatarCache, creators, site } = ctx;
+  const { esc, isFaved, authorCountMap, avatarCache, creators } = ctx;
   const authorCount = authorCountMap[cr.name] || 0;
   const sorted = [...creators].sort(
     (a, b) => (authorCountMap[b.name] || 0) - (authorCountMap[a.name] || 0),
@@ -80,13 +80,13 @@ export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement 
     .map((platform: string) => '<span class="cr-platform-badge">' + esc(platform) + "</span>")
     .join("");
 
-  // 搜索快捷按钮（与星标对称）：有站点搜索能力才渲染，点击直达站点搜索创作者，免进详情
-  const searchBtn = site.searchUrl
+  // 本地模型快捷按钮（与星标对称）：有本地模型才渲染，点击直达仓库页搜索该创作者，免进详情
+  const searchBtn = cr._fromLocal
     ? '<span class="cr-card-search" data-search-creator="' +
       esc(cr.name) +
       '" title="' +
-      t("content.searchMoreModels") +
-      '">🔍</span>'
+      t("content.viewLocalModels") +
+      '">📂</span>'
     : "";
 
   card.innerHTML =
