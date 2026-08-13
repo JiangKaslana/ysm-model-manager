@@ -264,6 +264,23 @@ func downloadOnce(assetURL string, expectedHash string, onProgress func(done, to
 		return "", fmt.Errorf("更新包下载失败: HTTP %d（%s）", resp.StatusCode, assetURL)
 	}
 
+	// BUG(INFO-CT) 修复：Content-Type 非二进制拒绝——
+	// 攻击者返回 text/html 错误页（含恶意内容），downloadOnce 无 Content-Type 校验会将其当作更新包写入。
+	// 与 go/download HTTP-5 同源问题，对齐防御口径。
+	if ct := resp.Header.Get("Content-Type"); ct != "" {
+		low := strings.ToLower(ct)
+		if strings.Contains(low, "text/") || strings.Contains(low, "application/xhtml+xml") || strings.Contains(low, "application/xml") || strings.Contains(low, "text/xml") {
+			return "", fmt.Errorf("更新包 Content-Type 非二进制: %s", ct)
+		}
+	}
+
+	// BUG(INFO-RANGE) 修复：Content-Range 部分响应拒绝——
+	// 攻击者返回 200+Content-Range 截断更新包，导致安装后版本不完整。
+	// 与 go/download HTTP-2 同源问题，对齐防御口径。
+	if resp.Header.Get("Content-Range") != "" {
+		return "", fmt.Errorf("更新包部分响应（Content-Range）: %s", resp.Header.Get("Content-Range"))
+	}
+
 	// 固定可预测临时名（filepath.Base(assetURL)）有 TOCTOU/
 	// 多实例同名冲突/非法文件名风险——改 os.CreateTemp 唯一名
 	f, err := os.CreateTemp("", "ysm-update-*.tmp")

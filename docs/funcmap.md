@@ -384,8 +384,8 @@
 | `CheckWithClient()` | `go/updater/updater:114` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
 | `Download()` | `go/updater/updater:217` | Download 下载更新包到临时目录，返回 zip 路径（无进度回调，兼容旧调用方）。 |
 | `DownloadWithProgress()` | `go/updater/updater:226` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
-| `CleanupOldVersion()` | `go/updater/updater:340` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
-| `InstallUpdate()` | `go/updater/updater:363` | InstallUpdate 解压更新包并通过 helper 进程替换当前 exe。 |
+| `CleanupOldVersion()` | `go/updater/updater:357` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
+| `InstallUpdate()` | `go/updater/updater:380` | InstallUpdate 解压更新包并通过 helper 进程替换当前 exe。 |
 | `ReleaseAsset()` | `go/updater/updater:70` | ReleaseAsset GitHub Release 中的文件 |
 | `Release()` | `go/updater/updater:76` | Release GitHub Release 信息 |
 | `UpdateInfo()` | `go/updater/updater:85` | UpdateInfo 更新信息（序列化给前端） |
