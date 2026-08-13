@@ -188,7 +188,8 @@ export function diffTree(older, newer, dir = '') {
 
 /**
  * 检测两个 ref 之间的路径 rename 配对。
- * - 用 `git diff --name-status -M -- <older> <newer>`；
+ * - 用 `git diff --name-status -M<sim> <older> <newer>`（refs 前不放 `--`，
+ *   `--` 只能在 refs 之后作路径分隔，放前面会把 refs 当 pathspec 解析失败）；
  * - R 开头的行格式：`R<similarity> old-path\tnew-path`；
  * - 输出 [[oldPath, newPath], ...] 的配对数组，供 api-break 判断"文件搬家"。
  * @param {string} older
@@ -197,7 +198,7 @@ export function diffTree(older, newer, dir = '') {
  * @returns {{oldPath:string, newPath:string, similarity:number}[]}
  */
 export function renamePairs(older, newer, similarityThreshold = 50) {
-  const out = gitMaybe(['diff', `--name-status=-M${similarityThreshold}`, '--', older, newer]);
+  const out = gitMaybe(['diff', '--name-status', '-M' + similarityThreshold, older, newer]);
   if (!out) return [];
   const pairs = [];
   for (const line of out.trim().split('\n')) {

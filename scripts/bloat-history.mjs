@@ -83,19 +83,23 @@ function collect(path, limit) {
   const commits = logPathDetail(path, { limit, follow: true });
   if (!commits.length) return null;
   const records = [];
+  let nullSnapshotCount = 0;
   for (const c of commits) {
     const thisText = showAt(c.hash, path);
     const prevRef = c.hash + '^';
     let prevExists = false;
     try { execFileSync('git', ['rev-parse', '--verify', prevRef + '^{commit}'], { cwd: ROOT, stdio: 'ignore' }); prevExists = true; } catch { /* root commit */ }
     const prevText = prevExists ? showAt(prevRef, path) : null;
+    // --follow 下 rename 前的 commit 用当前路径读不到快照（showAt 返回 null），
+    // 该段曲线会显示 `-`；统计缺失量供输出提示，避免静默吞掉（code_review P3）
+    if (thisText === null || prevText === null) nullSnapshotCount++;
     records.push({
       commit: c,
       thisSig: sigAny(path, thisText),
       prevSig: sigAny(path, prevText),
     });
   }
-  return { path, commits: commits.length, records };
+  return { path, commits: commits.length, records, nullSnapshotCount };
 }
 
 // ── 输出 ──
@@ -105,6 +109,10 @@ function human(report, firstN) {
   L.push('\u2550'.repeat(66));
   L.push(' bloat-history -- ' + report.path);
   L.push(' ' + records.length + ' 次触及（共 ' + report.commits + ' 条历史）');
+  if (report.nullSnapshotCount > 0) {
+    // --follow rename 前 commit 无当前路径快照，如实提示避免误导（code_review P3）
+    L.push(' ⚠️  ' + report.nullSnapshotCount + ' 条 commit 快照缺失（rename 前路径不同，显示为 -）');
+  }
   L.push('\u2550'.repeat(66));
   if (!records.length) { L.push('   （无记录）'); return L.join('\n'); }
 
@@ -144,7 +152,8 @@ function human(report, firstN) {
   }
 
   L.push('');
-  L.push('③ 时间线（旧 → 新）');
+  // records 按 git log 顺序（新 → 旧），标题如实标注（code_review P3）
+  L.push('③ 时间线（新 → 旧）');
   for (const r of records) {
     const prevL = r.prevSig.lines;
     const thisL = r.thisSig.lines;
@@ -185,7 +194,14 @@ const argv = process.argv.slice(2);
 const JSON_OUT = argv.includes('--json');
 const LIMIT = Number(argv[argv.indexOf('--limit') + 1] || 30) || 30;
 const FIRST_N = argv.includes('--first') ? (Number(argv[argv.indexOf('--first') + 1]) || null) : null;
-const pathArg = argv.find((a) => !a.startsWith('--'));
+// 路径解析需跳过取值选项的值（--limit N / --first N 后跟数字），
+// 否则 `--limit 60 src/foo.ts` 会把 "60" 误当路径（code_review P2）
+let pathArg = null;
+for (let i = 0; i < argv.length; i++) {
+  const a = argv[i];
+  if (a === '--limit' || a === '--first') { i++; continue; }
+  if (!a.startsWith('--')) { pathArg = a; break; }
+}
 if (!pathArg) {
   console.error('用法: node scripts/bloat-history.mjs <path> [--json|--limit N|--first N]');
   process.exit(2);
