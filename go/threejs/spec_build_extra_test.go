@@ -1,0 +1,274 @@
+// ===== go/threejs 补充单测：parseUV 回退链 + buildModelGroup 边界分支 =====
+package threejs
+
+import (
+	"encoding/json"
+	"math"
+	"testing"
+
+	"ysm-model-manager/go/types"
+)
+
+// ====== parseUV / parseFaceUV ======
+
+// FaceUV 解析失败但存在 box UV → 回退 expandBoxUV（保留纹理，不全零塌色块）
+func TestParseUV_FaceUVFailFallsBackToBoxUV(t *testing.T) {
+	var faces [6][8]float64
+	c := types.Cube2D{FaceUV: "{not valid json", UV: [2]float64{0, 0}}
+	ok := parseUV(c, &faces, 8, 8, 8, 64, 64)
+	if !ok {
+		t.Fatal("FaceUV 失败 + box UV 存在 → 应回退 expandBoxUV 并返回 true")
+	}
+	// east face: u0 = 0/64, v0 = (0+8)/64 = 0.125
+	if faces[0][0] != 0 || faces[0][1] != 0.125 {
+		t.Errorf("回退后 east face u0,v0 = %f,%f, 期望 0,0.125", faces[0][0], faces[0][1])
+	}
+}
+
+// parseFaceUV 的 texW/texH ≤ 0 守卫：除零产生 +Inf UV，应显式拒绝
+func TestParseFaceUV_ZeroTexGuard(t *testing.T) {
+	var faces [6][8]float64
+	uv := `{"east":{"uv":[0,0],"uv_size":[8,8]}}`
+	if ok := parseFaceUV(uv, &faces, 0, 64); ok {
+		t.Error("texW=0 应返回 false")
+	}
+	if ok := parseFaceUV(uv, &faces, 64, -1); ok {
+		t.Error("texH<0 应返回 false")
+	}
+}
+
+// ====== buildModelGroup ======
+
+// TexWidth/TexHeight 缺失（0）→ 默认 64（上游兜底口径，防止除零 UV）
+func TestBuildModelGroup_ZeroTexDimDefaults(t *testing.T) {
+	model := types.BedrockModel{
+		Bones: []types.Bone2D{{
+			Name:  "b1",
+			Pivot: [3]float64{0, 0, 0},
+			Cubes: []types.Cube2D{{Origin: [3]float64{0, 0, 0}, Size: [3]float64{8, 8, 8}, UV: [2]float64{0, 0}}},
+		}},
+	}
+	mg, err := buildModelGroup(model, "main", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mg.TextureWidth != 64 || mg.TextureHeight != 64 {
+		t.Fatalf("TexWidth/Height 为 0 应默认 64, got %v x %v", mg.TextureWidth, mg.TextureHeight)
+	}
+}
+
+// 骨骼 parent 指向 model.Bones 中不存在的骨骼（纯 parent 引用）：
+// localPos 走「父无 pivot → 世界坐标」分支；缺失骨骼被补充挂 root；
+// 断裂父子链修复后子骨骼也挂 root（parentID 归 nil）
+func TestBuildModelGroup_PureParentReference(t *testing.T) {
+	model := types.BedrockModel{
+		TexWidth:  64,
+		TexHeight: 64,
+		Bones: []types.Bone2D{{
+			Name:   "b1",
+			Parent: "ghost",
+			Pivot:  [3]float64{5, 2, -3},
+			Cubes:  []types.Cube2D{{Origin: [3]float64{0, 0, 0}, Size: [3]float64{2, 2, 2}, UV: [2]float64{0, 0}}},
+		}},
+	}
+	mg, err := buildModelGroup(model, "main", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 补充缺失骨骼：ghost 进 bones，无 pivot → 挂 root
+	foundGhost := false
+	for _, b := range mg.Bones {
+		switch b.Name {
+		case "ghost":
+			foundGhost = true
+			if b.ParentID != nil {
+				t.Fatalf("纯 parent 引用骨骼应挂 root（无 parent）: %v", *b.ParentID)
+			}
+		case "b1":
+			if b.ParentID != nil {
+				t.Fatalf("断裂父子链应修复为挂 root: %v", *b.ParentID)
+			}
+			if b.LocalPosition != [3]float64{-5, 2, -3} {
+				t.Fatalf("b1 localPosition = %v, want [-5 2 -3]（父无 pivot 走世界坐标）", b.LocalPosition)
+			}
+		}
+	}
+	if !foundGhost {
+		t.Fatal("ghost 骨骼应被补充进 bones 列表")
+	}
+}
+
+// 同名骨骼且不满足 overwrite（均无 parent）→ mergeCubes 合并 cube 列表
+// （非替换：不重叠 cube 全部保留），骨骼条目只留一条
+func TestBuildModelGroup_DuplicateNameMergeNoOverwrite(t *testing.T) {
+	cubeA := types.Cube2D{Origin: [3]float64{0, 0, 0}, Size: [3]float64{2, 2, 2}, Pivot: [3]float64{1, 1, 1}, UV: [2]float64{0, 0}}
+	cubeB := types.Cube2D{Origin: [3]float64{10, 0, 0}, Size: [3]float64{2, 2, 2}, Pivot: [3]float64{11, 1, 1}, UV: [2]float64{0, 0}}
+	model := types.BedrockModel{
+		TexWidth:  64,
+		TexHeight: 64,
+		Bones: []types.Bone2D{
+			{Name: "dup", Pivot: [3]float64{0, 0, 0}, Cubes: []types.Cube2D{cubeA}},
+			{Name: "dup", Pivot: [3]float64{0, 0, 0}, Cubes: []types.Cube2D{cubeB}},
+		},
+	}
+	mg, err := buildModelGroup(model, "main", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	boneCount := 0
+	for _, b := range mg.Bones {
+		if b.Name == "dup" {
+			boneCount++
+		}
+	}
+	if boneCount != 1 {
+		t.Fatalf("同名骨骼应合并为 1 条, got %d", boneCount)
+	}
+	// 两个 cube 空间不重叠 → mergeCubes 追加 → 2 个 mesh
+	if len(mg.MeshGroups) != 2 {
+		t.Fatalf("非重叠 cube 应合并为 2 个 mesh, got %d", len(mg.MeshGroups))
+	}
+}
+
+// RightArm/LeftArm 无 parent 且存在带 parent 的 Arm → 挂到 Arm 下面
+// （YSMParser 解码 .ysm 后丢失的层级修复）
+func TestBuildModelGroup_ArmAttach(t *testing.T) {
+	model := types.BedrockModel{
+		TexWidth:  64,
+		TexHeight: 64,
+		Bones: []types.Bone2D{
+			{Name: "root", Pivot: [3]float64{0, 0, 0}},
+			{Name: "Arm", Parent: "root", Pivot: [3]float64{0, 10, 0}},
+			{Name: "RightArm", Pivot: [3]float64{4, 10, 0}},
+			{Name: "LeftArm", Pivot: [3]float64{-4, 10, 0}},
+		},
+	}
+	mg, err := buildModelGroup(model, "main", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parents := map[string]string{}
+	for _, b := range mg.Bones {
+		if b.ParentID != nil {
+			parents[b.Name] = *b.ParentID
+		}
+	}
+	if parents["RightArm"] != "Arm" || parents["LeftArm"] != "Arm" {
+		t.Fatalf("RightArm/LeftArm 应挂到 Arm: parents = %v", parents)
+	}
+}
+
+// ====== buildCubeMeshData 守卫分支 ======
+
+// 入口有限性守卫：输入含 NaN → 跳过该 cube（返回 nil，防 NaN 穿透 JSON）
+func TestBuildCubeMeshData_EntryNaNGuard(t *testing.T) {
+	c := types.Cube2D{Origin: [3]float64{math.NaN(), 0, 0}, Size: [3]float64{8, 8, 8}}
+	if md := buildCubeMeshData(c, vec3{}, 64, 64, "b1", 0); md != nil {
+		t.Fatal("NaN 输入应返回 nil")
+	}
+}
+
+// 顶点相对 pivot 运算溢出（origin=-1e308, pivot=1e308 → lx=-2e308 为 -Inf）→ 跳过
+func TestBuildCubeMeshData_VertexRelPivotOverflow(t *testing.T) {
+	c := types.Cube2D{
+		Origin:   [3]float64{-1e308, 0, 0},
+		Size:     [3]float64{8, 8, 8},
+		Pivot:    [3]float64{1e308, 0, 0},
+		PivotSet: true,
+	}
+	if md := buildCubeMeshData(c, vec3{}, 64, 64, "b1", 0); md != nil {
+		t.Fatal("顶点相对 pivot 溢出应返回 nil")
+	}
+}
+
+// 零厚度面修正：巨大 origin + 微小 size 时 ox+sx 浮点舍入回退（tx==fx → hx2==0）
+// → lx==hx 命中 thicknessEpsilon 修正分支（三轴分别验证）
+func TestBuildCubeMeshData_ZeroThicknessFloatRounding(t *testing.T) {
+	cubes := []types.Cube2D{
+		{Origin: [3]float64{1e15, 0, 0}, Size: [3]float64{0.001, 8, 8}}, // X 轴零厚度
+		{Origin: [3]float64{0, 1e15, 0}, Size: [3]float64{8, 0.001, 8}}, // Y 轴零厚度
+		{Origin: [3]float64{0, 0, 1e15}, Size: [3]float64{8, 8, 0.001}}, // Z 轴零厚度
+	}
+	for i, c := range cubes {
+		md := buildCubeMeshData(c, vec3{}, 64, 64, "b1", i)
+		if md == nil {
+			t.Fatalf("cube %d 应保留（零厚度面被 thicknessEpsilon 修正）", i)
+		}
+		// 修正后顶点不得含 NaN/Inf
+		for _, v := range md.Positions {
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				t.Fatalf("cube %d 顶点含非法值 %f", i, v)
+			}
+		}
+	}
+}
+
+// hasUV=false 分支：texW=0 → expandBoxUV 拒绝 → UV 全零填充（不产出 NaN）
+func TestBuildCubeMeshData_NoUVZeroFill(t *testing.T) {
+	c := types.Cube2D{Origin: [3]float64{0, 0, 0}, Size: [3]float64{8, 8, 8}, UV: [2]float64{0, 0}}
+	md := buildCubeMeshData(c, vec3{}, 0, 64, "b1", 0) // texW=0
+	if md == nil {
+		t.Fatal("texW=0 时 cube 仍应构建（UV 降级全零）")
+	}
+	for _, u := range md.Uvs {
+		if u != 0 {
+			t.Fatalf("texW=0 时 UV 应全零填充, got %f", u)
+		}
+	}
+}
+
+// mesh localPos 运算溢出（bonePivot=1e308 - cp=-1e308 → 2e308 为 +Inf）→ 跳过
+func TestBuildCubeMeshData_LocalPosOverflow(t *testing.T) {
+	c := types.Cube2D{
+		Origin:   [3]float64{0, 0, 0},
+		Size:     [3]float64{8, 8, 8},
+		Pivot:    [3]float64{-1e308, 0, 0},
+		PivotSet: true,
+	}
+	if md := buildCubeMeshData(c, vec3{1e308, 0, 0}, 64, 64, "b1", 0); md != nil {
+		t.Fatal("mesh localPos 溢出应返回 nil")
+	}
+}
+
+// ====== BuildMulti 空组件 ======
+
+// 组件无骨骼 → 跳过该组件（不产出空 models 条目）
+func TestBuildMulti_SkipEmptyComponent(t *testing.T) {
+	empty := types.BedrockModel{TexWidth: 64}
+	valid := types.BedrockModel{
+		TexWidth:  64,
+		TexHeight: 64,
+		Bones: []types.Bone2D{{
+			Name:  "b1",
+			Pivot: [3]float64{0, 0, 0},
+			Cubes: []types.Cube2D{{Origin: [3]float64{0, 0, 0}, Size: [3]float64{8, 8, 8}, UV: [2]float64{0, 0}}},
+		}},
+	}
+	out, err := BuildMulti([]types.BedrockModel{empty, valid}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var spec Model3DSpec
+	if err := json.Unmarshal([]byte(out), &spec); err != nil {
+		t.Fatal(err)
+	}
+	if len(spec.Models) != 1 || spec.Models[0].ID != "comp_1" {
+		t.Fatalf("空组件应被跳过, models = %d (ID=%q)", len(spec.Models), func() string {
+			if len(spec.Models) > 0 {
+				return spec.Models[0].ID
+			}
+			return ""
+		}())
+	}
+}
+
+// 全部组件为空 → 空 spec
+func TestBuildMulti_AllEmpty(t *testing.T) {
+	out, err := BuildMulti([]types.BedrockModel{{}, {}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "{}" {
+		t.Fatalf("全空组件应返回 {}, got %q", out)
+	}
+}
