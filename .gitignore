@@ -11,7 +11,6 @@ build/bin/
 bin/
 build/release/
 build/ysmparser-cache/
-cmd/*/genindex.exe
 cmd/*/*.exe
 *.exe
 node_modules/

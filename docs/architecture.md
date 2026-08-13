@@ -226,7 +226,7 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 
 ### 3.4 命令行
 
-`cmd/`：`updater/`（编译为 `go/updater/ysm-updater-helper.exe` 被 embed）、`genindex/`、`modelscope/`、`diag/`；构建脚本在 `scripts/`（`build-release.ps1`/`build-release.sh`、`build-darwin.sh`、`build-linux.sh`、`build-android.ps1` / `build-android-so.ps1`）。
+`cmd/`：`updater/`（编译为 `go/updater/ysm-updater-helper.exe` 被 embed）；构建脚本在 `scripts/`（`build-release.ps1`/`build-release.sh`、`build-darwin.sh`、`build-linux.sh`、`build-android.ps1` / `build-android-so.ps1`）。
 
 ---
 
@@ -516,7 +516,6 @@ ysm-model-manager/
 │   ├── build-android.ps1        # Android 构建链路 (NDK + Gradle)
 │   ├── build-android-so.ps1     # Android Go shared lib 编译
 │   ├── updater/                 # 编译为 ysm-updater-helper.exe (embed)
-│   ├── genindex/ modelscope/ diag/
 ├── internal/
 │   └── app/                    # ★ 绑定门面层 (29 文件, ~5700 行)
 │       ├── app.go               # App 结构体 + 生命周期 + Android watcher 守卫
