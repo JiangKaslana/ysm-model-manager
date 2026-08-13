@@ -70,6 +70,7 @@ function makeState(overrides: Record<string, unknown> = {}): {
     <button class="cr-preset-btn" data-q="dog">dog</button>
     <div class="gh-card" data-name="A">
       <div class="cr-star-btn" data-star="A">☆</div>
+      <span class="cr-card-search" data-search-creator="A">🔍</span>
     </div>
     <img data-debug-avatar="A" alt="avatar">
   `;
@@ -155,6 +156,24 @@ describe("bindBrowseEvents — 基础绑定", () => {
       "toast:show",
       expect.objectContaining({ msg: expect.stringContaining("已收藏") }),
     );
+  });
+
+  it("搜索快捷按钮 → openUrl(fillSearch(site.searchUrl, 名))，且不触发详情", () => {
+    const { state, searchResults } = makeState();
+    const openUrl = state.openUrl as ReturnType<typeof vi.fn>;
+    bindBrowseEvents(state, () => {});
+    (searchResults.querySelector(".cr-card-search") as HTMLElement).click();
+    expect(openUrl).toHaveBeenCalledWith("https://s/search?q=A");
+    // 未弹出详情浮层
+    expect(searchResults.querySelector(".cr-detail-overlay")).toBeNull();
+  });
+
+  it("搜索快捷按钮（无 searchUrl）→ openUrl(site.url) 兜底", () => {
+    const s2 = makeState({ site: { url: "https://s", name: "S" } });
+    const open2 = s2.state.openUrl as ReturnType<typeof vi.fn>;
+    bindBrowseEvents(s2.state, () => {});
+    (s2.searchResults.querySelector(".cr-card-search") as HTMLElement).click();
+    expect(open2).toHaveBeenCalledWith("https://s");
   });
 
   it("头像调试点击 → getApp DebugExtractCreatorAvatar + dbg", async () => {

@@ -42,7 +42,7 @@ export interface BuildSiteHtmlCtx {
 
 /** 创作者卡片工厂 */
 export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement {
-  const { esc, isFaved, authorCountMap, avatarCache, creators } = ctx;
+  const { esc, isFaved, authorCountMap, avatarCache, creators, site } = ctx;
   const authorCount = authorCountMap[cr.name] || 0;
   const sorted = [...creators].sort(
     (a, b) => (authorCountMap[b.name] || 0) - (authorCountMap[a.name] || 0),
@@ -80,6 +80,15 @@ export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement 
     .map((platform: string) => '<span class="cr-platform-badge">' + esc(platform) + "</span>")
     .join("");
 
+  // 搜索快捷按钮（与星标对称）：有站点搜索能力才渲染，点击直达站点搜索创作者，免进详情
+  const searchBtn = site.searchUrl
+    ? '<span class="cr-card-search" data-search-creator="' +
+      esc(cr.name) +
+      '" title="' +
+      t("content.searchMoreModels") +
+      '">🔍</span>'
+    : "";
+
   card.innerHTML =
     (tierRank ? '<div class="cr-card-tier-bar"></div>' : "") +
     '<div class="cr-card-header">' +
@@ -89,6 +98,7 @@ export function createCrCard(cr: LocalCreatorLike, ctx: CrCardCtx): HTMLElement 
     "</div>" +
     '<div class="cr-card-name-row">' +
     '<span class="cr-card-name">' + esc(cr.name) + "</span>" +
+    searchBtn +
     '<span class="cr-star-btn" data-star="' + esc(cr.name) + '">' + (isFaved(cr.name) ? "⭐" : "☆") + "</span>" +
     localBadge +
     "</div>" +

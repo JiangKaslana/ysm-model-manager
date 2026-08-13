@@ -101,6 +101,20 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
     });
   });
 
+  // 🔍 搜索快捷按钮（阻止冒泡，不触发详情浮层）——直达站点搜索创作者
+  searchResults.querySelectorAll(".cr-card-search").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = (btn as HTMLElement).dataset.searchCreator || "";
+      if (site.searchUrl && openUrl) {
+        openUrl(fillSearch(site.searchUrl, name));
+      } else if (openUrl) {
+        // 无 searchUrl（如分类索引站）→ 直接打开站点首页
+        openUrl(site.url);
+      }
+    });
+  });
+
   // 头像调试点击 → 控制台输出调试信息
   searchResults.querySelectorAll("[data-debug-avatar]").forEach((img) => {
     img.addEventListener("click", async (e) => {
@@ -121,7 +135,7 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
   searchResults.querySelectorAll(".gh-card[data-name]").forEach((card) => {
     card.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
-      if (target.closest(".cr-star-btn")) return;
+      if (target.closest(".cr-star-btn") || target.closest(".cr-card-search")) return;
       const name = (card as HTMLElement).dataset.name;
       const cr = creators.find((c) => c.name === name);
       if (!cr) return;

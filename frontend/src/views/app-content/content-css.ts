@@ -642,6 +642,8 @@ ${focusVisibleCSS}
 .cr-model-count { font-size:var(--fs-xs);color:var(--muted);display:inline-flex;align-items:center;gap:2px; }
 .cr-star-btn { cursor:pointer;font-size:11px;transition:transform var(--tr-normal);flex-shrink:0; }
 .cr-star-btn:hover { transform:scale(1.15); }
+.cr-card-search { cursor:pointer;font-size:11px;transition:transform var(--tr-normal);flex-shrink:0; }
+.cr-card-search:hover { transform:scale(1.15); }
 .cr-detail-box .cr-star-btn { position:absolute;top:16px;right:16px;font-size:18px; }
 .cr-local-btn { padding:2px 8px;border-radius:var(--radius-sm);border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:var(--fs-xs);font-family:inherit;transition:background-color var(--tr-fast),color var(--tr-fast); }
 .cr-local-btn:hover { background:var(--accent);color:var(--bg); }
