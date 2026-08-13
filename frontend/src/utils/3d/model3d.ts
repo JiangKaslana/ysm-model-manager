@@ -8,6 +8,9 @@ import { registerFreeCameraDrag } from "./camera-control.ts"; // free 相机 poi
 import { buildBoneHierarchy, registerBoneRaycast } from "./bone-raycast.ts"; // 骨骼拾取（已拆）
 import { disposeDebugGroup, disposeSceneMeshes, safeDisposeRenderer } from "./cleanup-helper.ts"; // 资源清理（已拆）
 import { startRenderLoop } from "./render-loop.ts"; // 主渲染循环（已拆）
+import { fitCameraToScene } from "./camera-setup.ts"; // 相机初始化（已拆）
+import { getBoneList } from "./bone-list.ts"; // 骨骼列表（已拆）
+import { setBoneVisible as _setBoneVisible, toggleBone as _toggleBone, showModelGroup as _showModelGroup } from "./bone-visibility.ts"; // 骨骼可见性（已拆）
 
 // ── 入口守卫：复用 cleanup（已在 cleanup-helper.ts 中定义 dispose 函数）────────────
 
@@ -305,31 +308,8 @@ export async function renderModel3D(
     }
   }
 
-  // ysmview 风格相机定位：从 mesh 包围盒计算
-  scene.updateMatrixWorld();
-  const box = new THREE.Box3();
-  scene.traverse((child) => {
-    if ((child as THREE.Mesh).isMesh) box.expandByObject(child);
-  });
-  let centerY = 0;
-  if (!box.isEmpty()) {
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    centerY = center.y;
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const dist = Math.max(size.x, size.y, size.z) * 1.5 + 2;
-    // 模型包围盒适配：相机放 Z- 侧（模型正面）
-    camera.position.set(center.x, center.y, center.z - dist);
-    camera.lookAt(center);
-    controls.target.copy(center);
-  } else {
-    camera.position.set(0, 80, -120);
-    controls.target.set(0, 80, 0);
-  }
-  controls.update();
-  const _initCamPos = camera.position.clone();
-  const _initCamTarget = controls.target.clone();
+  // ysmview 风格相机定位：从 mesh 包围盒计算（已拆至 camera-setup.ts）
+  const { initCamPos: _initCamPos, initCamTarget: _initCamTarget } = fitCameraToScene(scene, camera, controls);
 
   // RenderSession 状态对象（对象化第一阶段：8 个可变交互状态 + 第二阶段 3 个悬停/调试状态收敛，行为不变）
   const state = {
@@ -424,6 +404,13 @@ export async function renderModel3D(
 
   // ===== 可视化模式切换 =====（rebuildDebug 已拆至 debug-render.ts）
 
+  // 辅助：free 模式下更新 controls.target 跟随相机前方 10 单位
+  const _applyFreeCamTarget = (): void => {
+    const d = new THREE.Vector3();
+    camera.getWorldDirection(d);
+    controls.target.copy(camera.position).addScaledVector(d, 10);
+  };
+
   const handle: RenderModel3DHandle = {
     resetCamera: () => {
       camera.position.copy(_initCamPos);
@@ -432,9 +419,7 @@ export async function renderModel3D(
       if (state.orbitMode) controls.enableRotate = true;
       else {
         controls.enableRotate = false;
-        const d = new THREE.Vector3();
-        camera.getWorldDirection(d);
-        controls.target.copy(camera.position).addScaledVector(d, 10);
+        _applyFreeCamTarget();
       }
       camera.quaternion.set(0, 0, 0, 1);
       _euler.set(0, 0, 0);
@@ -455,34 +440,15 @@ export async function renderModel3D(
       } else {
         _euler.setFromQuaternion(camera.quaternion);
         controls.enableRotate = false;
-        const d = new THREE.Vector3();
-        camera.getWorldDirection(d);
-        controls.target.copy(camera.position).addScaledVector(d, 10);
+        _applyFreeCamTarget();
         controls.update();
         state.mouseDown = false;
       }
     },
-    setBoneVisible: (name: string, visible: boolean) => {
-      const g = boneGroupMap.get(name);
-      if (g) g.traverse((c) => (c.visible = visible));
-    },
-    getBoneList: () =>
-      spec.models?.[0]?.bones?.map((b) => ({
-        id: b.id,
-        name: b.name,
-        parentId: b.parentId,
-      })) || [],
-    toggleBone: (name: string) => {
-      const g = boneGroupMap.get(name);
-      if (g) g.traverse((c) => (c.visible = !c.visible));
-    },
-    showModelGroup: (idx: number) => {
-      // 组件级控制（YSMViewer modelGroup.visible 式）：整组件显隐，不受同名骨骼冲突影响。
-      // idx < 0（如 -1）= 全部显示（默认态，对应 UI「全部组件」选项）；
-      // NaN 防御：parseInt 空值/异常输入按全部显示处理（P3）。
-      if (Number.isNaN(idx)) idx = -1;
-      modelGroups.forEach((g, i) => (g.visible = i === idx || idx < 0));
-    },
+    setBoneVisible: (name, visible) => _setBoneVisible(boneGroupMap, name, visible),
+    getBoneList: () => getBoneList(spec),
+    toggleBone: (name) => _toggleBone(boneGroupMap, name),
+    showModelGroup: (idx) => _showModelGroup(modelGroups, idx),
     getModelGroupCount: () => spec.models?.length || 0,
     onBoneSelect: null as ((info: BoneSelectInfo) => void) | null, // 外部设置的回调: (boneInfo) => void
     setDebugMode: (mode: "normal" | "pivot" | "bone") => {

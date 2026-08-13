@@ -38,10 +38,10 @@
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 43 | 152 |
+| 前端·工具 | 46 | 159 |
 | frontend/views | 70 | 199 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **242** | **1015** |
+| **合计** | **245** | **1022** |
 
 ## Go·头像
 
@@ -860,12 +860,19 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
+| `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:10` | 构建骨骼层级路径映射（name/id/parent/children）。 |
 | `getBonePath()` | `frontend/src/utils/3d/bone-raycast:35` | 骨骼名 → 全路径（如 "root / spine / head"）。 |
 | `getMeshBoneId()` | `frontend/src/utils/3d/bone-raycast:48` | Mesh → 所属骨骼名（沿父链向上查找 has isGroup 且 name 在 nameMap 中的节点）。 |
 | `assembleBoneSelectInfo()` | `frontend/src/utils/3d/bone-raycast:62` | 骨骼选中信息组装。 |
 | `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:123` | 注册 pointermove / click 骨骼拾取监听器。 |
+| `BoneGroupMap()` | `frontend/src/utils/3d/bone-visibility:6` | BoneGroupMap 类型别名：骨骼 id → THREE.Group |
+| `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
+| `toggleBone()` | `frontend/src/utils/3d/bone-visibility:19` | 切换指定骨骼组的可见性（取反）。 |
+| `showModelGroup()` | `frontend/src/utils/3d/bone-visibility:29` | 按索引显示单个模型组件（idx &lt; 0 = 全部显示，NaN 防御）。 |
 | `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:14` | 注册 free 模式 pointer drag 监听器。 |
+| `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:38` | 遍历 scene 释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:53` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
@@ -898,14 +905,14 @@
 | `loadTdKeymap()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdRotMode()` | `frontend/src/utils/3d/model3d` | — |
-| `SpecBone3D()` | `frontend/src/utils/3d/model3d:16` | — |
-| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:24` | — |
-| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:36` | — |
-| `Spec3D()` | `frontend/src/utils/3d/model3d:44` | — |
-| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:49` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:63` | renderModel3D 返回的渲染句柄 |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:98` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:544` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `SpecBone3D()` | `frontend/src/utils/3d/model3d:19` | — |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:27` | — |
+| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:39` | — |
+| `Spec3D()` | `frontend/src/utils/3d/model3d:47` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:52` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:66` | renderModel3D 返回的渲染句柄 |
+| `renderModel3D()` | `frontend/src/utils/3d/model3d:101` | 渲染 3D 模型到容器，返回控制句柄 |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:510` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:31` | 启动渲染循环并立即渲染一帧。 |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:116` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
