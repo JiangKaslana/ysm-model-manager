@@ -39,9 +39,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 51 | 187 |
-| frontend/views | 75 | 204 |
+| frontend/views | 76 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **257** | **1071** |
+| **合计** | **258** | **1075** |
 
 ## Go·头像
 
@@ -1262,7 +1262,11 @@
 | `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:25` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
+| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-events` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-events` | — |
 | `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:240` | — |
+| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:16` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:192` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |

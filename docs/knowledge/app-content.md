@@ -11,6 +11,11 @@ source_files:
   - frontend/src/views/app-content/init-workshop.ts
   - frontend/src/views/app-content/tpl.ts
   - frontend/src/views/app-content/content-css.ts
+  - frontend/src/views/app-content/content-layout.ts
+  - frontend/src/views/app-content/content-repo.ts
+  - frontend/src/views/app-content/content-creator.ts
+  - frontend/src/views/app-content/content-diag.ts
+  - frontend/src/views/app-content/content-util.ts
   - frontend/src/views/app-content/community-data.ts
   - frontend/src/views/app-content/diagnostics/init.ts
   - frontend/src/views/app-content/diagnostics/logs.ts
@@ -65,7 +70,12 @@ invariant_anchors:
 
 - `index.ts` — `<app-content>` 生命周期编排：构造器 `resolveInitialPage()` 定初始页、`nav:change` 切页、`_render()` 按 `_current` 选择模板并重渲染、`_bindTabs` 懒初始化子 tab、预览面板拖拽调宽（localStorage `preview-width`，范围 160–500）。`<app-preview>` 改为顶部副作用静态导入 `import "../app-preview/index.ts"`（替代原动态 import 预加载）
 - `tpl.ts` — 页面布局模板：`repositoryHTML` / `instancesHTML` / `settingsHTML` / `diagnosticsHTML` / `workshopHTML` / `githubHTML` / `downloadsHTML` / `recycleHTML`
-- `content-css.ts` — Shadow DOM 样式表（CSS 字符串，全走 CSS 变量）
+- `content-css.ts` — 样式组合层：`[layout, repo, creator, diag, util].join("\n")` 输出单一 CSS 字符串，入口 `index.ts` 通过 `adoptedStyleSheets[0].replaceSync(contentCSS)` 注入 Shadow DOM；CSS 全走 CSS 变量
+- `content-layout.ts` — 基础层：`::host` 变量（`--tag-*` / `--badge-*` / `--hm-*` / `--sidebar-w` / `--diag-left-w` / `--touch-min`）+ 通用 keyframes（`pageIn` / `ring-spin` / `card-in` / `detail-in` / `fade-in` / `dl-slide-up`）+ 骨架（`.page` / `.stat-card` / `.placeholder-box`）+ 通用卡片系统（`.model-card` / `.model-card-sm` / `.rec-card` / `.health-ring`）+ 旧按钮兼容层（`.btn` / `.hdr-btn`）
+- `content-repo.ts` — 仓库/实例/站点骨架（`.repo-*` / `.ins-*` / `.batch-*`）+ 资历页（`.oldest-*`）+ 热力图（`.hm-*` / `.pick-card`）+ 通用标签（`.tag-author` / `.tag-work` / `.tag-date` / `.link-badge-*`）
+- `content-creator.ts` — 创作者 `.cr-*` 全族：标签（`.cr-tag*`）/ 频道（`.cr-page` / `.cr-left` / `.cr-right`）/ 卡片（`.cr-creator-card` / `.cr-card-*` / `.cr-creator-grid`）/ 详情浮层（`.cr-detail-*`）/ 编辑（`.cr-edit-*` / `.cr-input*` / `.cr-drop-zone` / drag states）；含头像 `.cr-avatar` / `.cr-avatar-ring` 供 gh-card 复用
+- `content-diag.ts` — 诊断页（`.diag-*` / `.log-row` / `.conflict-row` / scan 动画）+ 设置页（`.settings-group` / `.stg-*` / `#set-advanced-panel`）+ GitHub 工坊（`.gh-*` 全族：仓库列表 / 模型行 / 二级菜单 / 下载队列 / 错误页）
+- `content-util.ts` — 杂项：回收站动画（`.recy-*`）/ 资源管理器（`.rm-*`）/ 预览拖拽（`.preview-resize-handle`）/ 主题选择器（`.theme-*`）/ 响应式 `@media (max-width:768px)`
 - `community-data.ts` — 社区数据层：`loadCommunityData`（并发 `App.LoadWorkshopSites` / `LoadWorkshopCreators` / `ListModelAuthors` / `ScanLocalAuthors`）、`fetchCommunityCreators` / `mergeCommunityCreators` / `fetchCommunitySites` / `mergeCommunitySites` / `fillSearch` / `DEFAULT_COMMUNITY_URL`
 - `diagnostics/init.ts` — 诊断页 `initDiagnostics` 与 `startDedup` 去重流程（派发 `model:select` / `stats:refresh` / `tree:reload`）
 - `settings/init.ts` — 设置页 `initSettings`：直接解构 bindings（`LoadAppConfig` / `SaveAppConfig` / `SelectDirectory` / `GetMinecraftPaths` / `SetLinkMode`），配置变更派发 `config:updated` / `stats:refresh` / `toast:show`，并接入 `initVersionUpdater`；「启动默认页面」下拉读写 localStorage `ui-default-page`，显示值兜底 `repository`（与 `resolveInitialPage` 的兜底一致）
