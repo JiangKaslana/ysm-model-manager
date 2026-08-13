@@ -2,6 +2,7 @@
 import { vcHeaderHTML } from "./tpl.ts";
 import type { SidebarInstance } from "./data.ts";
 import { t } from "../../core/i18n/t.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
 // 渲染所有整合包卡片到容器
 export function renderVersionCards(
@@ -27,7 +28,7 @@ export function renderVersionCards(
       ins.status,
       idx,
       ins.hasMod,
-      ins.rtype || "ysm",
+      ins.rtype || RESOURCE_TYPES.YSM,
     );
     container.appendChild(vc);
   });

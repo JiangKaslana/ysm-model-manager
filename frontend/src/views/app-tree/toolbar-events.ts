@@ -422,7 +422,7 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         const { OpenFolder } = await getApp();
         await OpenFolder(vm._repoRoot);
       } else if (action === "import-file") {
-        const rtype = vm._rootAttr || "ysm";
+        const rtype = vm._rootAttr || RESOURCE_TYPES.YSM;
         // 查看器模式（Android/网页版）：Wails 原生文件对话框不可用（dialogs_android.go /
         // browser adapter）→ 改走浏览器文件选择器 + importWebFiles 直写 IndexedDB
         // （与全局拖拽 import-dnd 同一入口）。P2 修复（审核发现）：此前用 resolveWebMode()
@@ -462,7 +462,7 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
           type: "success",
         });
       } else if (action === "import-dir") {
-        const rtype = vm._rootAttr || "ysm";
+        const rtype = vm._rootAttr || RESOURCE_TYPES.YSM;
         // 网页版（P3 修复，审核发现）：resolveAndroidRepoDir 仅定位虚拟根 /web 并刷新树，
         // 不实际导入任何文件（网页版模型库在 IndexedDB，无「放入公共目录」概念）→
         // 改走浏览器文件选择器 + importWebFiles 直写 IndexedDB，与 import-file 同语义。

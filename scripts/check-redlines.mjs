@@ -66,23 +66,34 @@ function runChecks() {
     rg('window\\.__', 'frontend/src', ['*.js', '*.ts']),
     'let + getter, PageStore');
 
+  // R2 repoRoot 命名：测试文件豁免（.test.ts / _test.go 中 repoRoot 是合理的测试参数名）
   add('R2', 'repoRoot name',
-    rg('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json']),
+    rg('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json'])
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('_test.go'); }),
     'cfg.FilesRoot / filesRoot');
 
   add('R3', 'callback .file() API',
     rg('\\.file\\s*\\(', 'frontend/src', ['*.js', '*.ts']),
     'new Promise(...)');
 
+  // R4 display none/block：CSS 文件豁免（合法 CSS 规则）；
+  // 行注释豁免（如 diagnostics/init.ts 中解释为什么不用 display:none 子串匹配）
   add('R4', 'display none/block',
-    rg('display:\\s*(none|block)', 'frontend', ['*.js', '*.ts', '*.css']),
+    rg('display:\\s*(none|block)', 'frontend', ['*.js', '*.ts', '*.css'])
+      .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.css'); })
+      .filter((l) => !/:\d+:\s*\/\//.test(l)),
     'opacity/transform');
 
+  // R5 硬编码颜色：variables.css 豁免（这是颜色变量的源头定义）；
+  // 测试文件豁免（测试 fixture 中的颜色值合理）
   add('R5', 'hardcoded colors',
     rg('#[0-9a-f]{6}\\b', 'frontend', ['*.js', '*.ts', '*.css'])
       .concat(rg('#[0-9a-f]{3}\\b', 'frontend', ['*.js', '*.ts', '*.css']))
       .concat(rg('rgba?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
-      .concat(rg('hsla?\\(', 'frontend', ['*.js', '*.ts', '*.css'])),
+      .concat(rg('hsla?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('variables.css'); })
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); }),
     'CSS vars');
 
   add('R6', 'JS in public/',
@@ -90,8 +101,14 @@ function runChecks() {
       .filter((l) => !l.includes('public/wasm/')), // WASM 胶水 JS 必须放 public/ 才能被 import，非手写业务 JS（2026-08-13 豁免）
     'ESM import');
 
+  // R7 资源类型魔法字符串：测试代码中的字面量豁免（合理的 mock/fixture）；
+  // 常量定义文件 types.ts 豁免（这是常量的声明位置）；
+  // 注释中的字符串豁免（如 rename.ts 中描述扩展名提取逻辑）。
   add('R7', 'rtype magic strings',
-    rg('"ysm"|"mmd-skin"|"vrchat-avatar"', 'frontend/src', ['*.js', '*.ts']),
+    rg('"ysm"|"mmd-skin"|"vrchat-avatar"', 'frontend/src', ['*.js', '*.ts'])
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('utils/resource/types'); })
+      .filter((l) => !/:\d+:\s*(?:\/\/|\/\*|\*)/.test(l)),
     'RESOURCE_TYPES');
 
   // R8 只报「非纯字符串字面量赋值 + 行内无 esc(」的 innerHTML：
@@ -119,6 +136,7 @@ function runChecks() {
 
   // W1 排除正则/转义误报：[/\] 字符类、replace(/\\/g 归一化、\n \t \. \w \d \s \b 等
   // （历史 148 处噪声几乎全来自它们）；真实路径拼接（"\\" 双反斜杠字符串字面量）仍保留
+  // 额外豁免：i18n 语言包（locales/）内容字符串中的反斜杠；测试文件
   add('W1', 'backslash paths',
     rg('\\\\', 'frontend/src', ['*.js', '*.ts']).filter(
       (l) =>
@@ -126,7 +144,10 @@ function runChecks() {
         !l.includes('bus.js') &&
         !l.includes('bus.ts') &&
         !l.includes('font-display') &&
-        !/\[?\/\\\\|\\[ntr]|\\[.wWdDsSb]/.test(l),
+        !/\[?\/\\\\|\\[ntr]|\\[.wWdDsSb]/.test(l) &&
+        !l.includes('locales/'),
+    ).filter(
+      (l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); },
     ),
     '/ instead of \\');
 

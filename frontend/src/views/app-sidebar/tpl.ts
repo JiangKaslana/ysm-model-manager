@@ -7,9 +7,9 @@ import { t } from "../../core/i18n/t.ts";
 // 注：与 types.ts 的 RESOURCE_TYPE_LABELS 非全等（ysm「YSM」vs「模型」、litematic
 // 「投影文件」vs「投影」），徽章语义不同，不复用
 const RTYPE_LABELS: Record<string, string> = {
-  ysm: "YSM",
-  "mmd-skin": "MMD",
-  "vrchat-avatar": "VRC",
+  [RESOURCE_TYPES.YSM]: "YSM",
+  [RESOURCE_TYPES.MMD]: "MMD",
+  [RESOURCE_TYPES.VRC]: "VRC",
   resourcepack: "资源包",
   shaderpack: "光影包",
   "create-blueprint": "蓝图",
@@ -107,7 +107,7 @@ export function vcHeaderHTML(
   status: string,
   idx = -1,
   hasMod = true,
-  rtype = "ysm",
+  rtype = RESOURCE_TYPES.YSM,
 ): string {
   const allZero = synced === 0 && missing === 0 && extra === 0;
   const chips =

@@ -79,7 +79,7 @@ export class AppSyncManager extends HTMLElement {
       this._instance = newVal || "";
       if (this._instance) this._init();
     } else if (name === "default-type") {
-      this._defaultType = newVal || "ysm";
+      this._defaultType = newVal || RESOURCE_TYPES.YSM;
     }
   }
 
@@ -214,9 +214,9 @@ export class AppSyncManager extends HTMLElement {
     const modelTypes = [RESOURCE_TYPES.YSM, RESOURCE_TYPES.MMD, RESOURCE_TYPES.VRC];
     const resourceTypes = [RESOURCE_TYPES.PACK, RESOURCE_TYPES.SHADER, RESOURCE_TYPES.BLUEPRINT, RESOURCE_TYPES.LITEMATIC];
     const shortLabel: Record<string, string> = {
-      ysm: "YSM",
-      "mmd-skin": "MMD",
-      "vrchat-avatar": "VRC",
+      [RESOURCE_TYPES.YSM]: "YSM",
+      [RESOURCE_TYPES.MMD]: "MMD",
+      [RESOURCE_TYPES.VRC]: "VRC",
       resourcepack: t("rtype.pack"),
       shaderpack: t("rtype.shader"),
       "create-blueprint": t("rtype.blueprint"),

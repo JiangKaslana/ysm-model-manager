@@ -340,7 +340,7 @@ export function initImportQueue(app: ImportQueueHost): () => void {
       // 任何未来 throw 都不该变 unhandled rejection）
       void (async () => {
         try {
-          const r = await importWebFiles(Array.from(files), "ysm");
+          const r = await importWebFiles(Array.from(files), RESOURCE_TYPES.YSM);
           bus.emit("toast:show", {
             msg:
               r.failed > 0
@@ -411,7 +411,7 @@ export function initImportQueue(app: ImportQueueHost): () => void {
     if (resolveWebMode()) {
       void (async () => {
         try {
-          const r = await importWebFiles(Array.from(files), "ysm");
+          const r = await importWebFiles(Array.from(files), RESOURCE_TYPES.YSM);
           bus.emit("toast:show", {
             msg:
               r.failed > 0
@@ -463,7 +463,7 @@ export function initImportQueue(app: ImportQueueHost): () => void {
     if (resolveWebMode()) {
       void (async () => {
         try {
-          const r = await importWebFiles(Array.from(files), "ysm");
+          const r = await importWebFiles(Array.from(files), RESOURCE_TYPES.YSM);
           bus.emit("toast:show", {
             msg:
               r.failed > 0

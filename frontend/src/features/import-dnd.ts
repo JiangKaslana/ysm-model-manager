@@ -147,7 +147,7 @@ const onDrop = async (e: DragEvent): Promise<void> => {
       });
       return;
     }
-    const r = await importWebFiles(files, "ysm");
+    const r = await importWebFiles(files, RESOURCE_TYPES.YSM);
     bus.emit("toast:show", {
       msg:
         r.failed > 0

@@ -318,7 +318,7 @@ export class AppTree extends HTMLElement {
           danger: true,
         })))
           return;
-        const rtype = this._rootAttr || "ysm";
+        const rtype = this._rootAttr || RESOURCE_TYPES.YSM;
         const isDirModel = [RESOURCE_TYPES.MMD, RESOURCE_TYPES.VRC].includes(rtype);
         this._deleteSelected(paths, isDirModel);
       }

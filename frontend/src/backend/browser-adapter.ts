@@ -41,7 +41,7 @@ const fileKey = (type: string, name: string, rel: string): string =>
 
 /** 从 /web/<type>/... 提取类型段（ScanModelEntries 参数语义） */
 function typeFromWebDir(dir: string): string {
-  return dir.replace(/^\/web\//, "").split("/")[0] || "ysm";
+  return dir.replace(/^\/web\//, "").split("/")[0] || RESOURCE_TYPES.YSM;
 }
 
 // --- 主文件优先级（scanWebModels / importWebFiles 共用）---
