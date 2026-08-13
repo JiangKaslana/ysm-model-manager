@@ -13,6 +13,7 @@
  *   node scripts/audit-split.mjs <commit>            # 审计单次提交（人读文本）
  *   node scripts/audit-split.mjs <commit> --json     # 机读 JSON（供子代理/CI 消费）
  *   node scripts/audit-split.mjs <commit> --redline  # 仅红线 ≤400 校验（违反退出码 1）
+ *   node scripts/audit-split.mjs <commit> --compact  # 摘要模式：迁移/新文件明细折叠为计数 + 头部若干条
  * 退出码：0 审计成功；--redline 且存在 >400 行文件 → 1；缺参/commit 无效 → 2（其余 0）。
  */
 import fs from 'node:fs';
@@ -171,7 +172,7 @@ function funcMigration(commit, mainPath, allPaths) {
 
 // ── 输出──
 
-function human(report) {
+function human(report, compact = false) {
   const c = report.commit;
   const L = [];
   L.push('═'.repeat(66));
@@ -199,10 +200,12 @@ function human(report) {
     const mg = report.migrations[m.path];
     const mv = Object.entries(mg.moved);
     L.push(`   ▸ ${m.path}  顶层声明 ${mg.oldAll}（导出 ${mg.oldExports}）→ 保留 ${mg.kept.length} · 搬家 ${mv.length} · 真删 ${mg.deleted.length}`);
-    for (const [sym, info] of mv) {
+    const mvShown = compact ? mv.slice(0, 5) : mv;
+    for (const [sym, info] of mvShown) {
       const tag = info.exported ? '导出' : '私有';
       L.push(`       ↳ [${tag}] ${sym}  →  ${info.to}`);
     }
+    if (compact && mv.length > 5) L.push(`       …其余 ${mv.length - 5} 条去向（--json 全量）`);
     for (const d of mg.deleted) {
       const tag = d.wasExport ? '导出' : '私有';
       L.push(`       ✗ [${tag}] ${d.name}  （彻底删除）`);
@@ -211,10 +214,14 @@ function human(report) {
   const cleans = Object.entries(report.cleans);
   if (cleans.length) {
     L.push('');
-    L.push('②′ 修改文件清理洞察（本文件内真删的顶层声明）');
+    L.push('②b 修改文件清理洞察（本文件内真删的顶层声明）');
     for (const [p, list] of cleans) {
-      const tags = list.map((d) => `[${d.wasExport ? '导出' : '私有'}] ${d.name}`);
-      L.push(`   ▸ ${p}  真删 ${list.length} 个 — ${tags.join(', ')}`);
+      if (compact) {
+        L.push(`   ▸ ${p}  真删 ${list.length} 个（--json 全量）`);
+      } else {
+        const tags = list.map((d) => `[${d.wasExport ? '导出' : '私有'}] ${d.name}`);
+        L.push(`   ▸ ${p}  真删 ${list.length} 个 — ${tags.join(', ')}`);
+      }
     }
   }
 
@@ -224,14 +231,18 @@ function human(report) {
     L.push('③ 新文件入口（导出符号）');
     for (const n of newFiles) {
       const ex = report.newExports[n.path] || [];
-      L.push(`   ▸ ${n.path}  (${n.linesAtCommit}行) 导出: ${ex.length ? ex.join(', ') : '—'}`);
+      const detail = compact ? `导出 ${ex.length} 个` : (ex.length ? ex.join(', ') : '—');
+      L.push(`   ▸ ${n.path}  (${n.linesAtCommit}行) ${detail}`);
     }
   }
 
   L.push('');
   L.push('④ 红线 ADR-040（拆分后 ≤400 行）');
   if (report.redline.over.length) {
-    for (const o of report.redline.over) L.push(`   ✗ ${o.path}  ${o.lines} 行 > 400`);
+    for (const o of report.redline.over) {
+      const note = o.kind === 'split-main' ? '（[拆]主文件残留，ADR-040 目标为拆分后新文件 ≤400，残留属下一轮瘦身待办）' : '';
+      L.push(`   ✗ ${o.path}  ${o.lines} 行 > 400 ${note}`);
+    }
   } else {
     L.push(`   ✅ 全部合规（本提交涉及文件最大 ${report.redline.max} 行）`);
   }
@@ -266,7 +277,7 @@ function audit(commit) {
     f.linesAtCommit = f.binary ? null : countLines(showAt(commit, f.path));
     if (!f.binary && f.linesAtCommit !== null) {
       max = Math.max(max, f.linesAtCommit);
-      if (f.linesAtCommit > REDLINE) over.push({ path: f.path, lines: f.linesAtCommit });
+      if (f.linesAtCommit > REDLINE) over.push({ path: f.path, lines: f.linesAtCommit, kind: f.kind });
     }
     if (f.kind === 'split-main') migrations[f.path] = funcMigration(commit, f.path, paths);
     else if (f.kind === 'modified') {
@@ -302,6 +313,7 @@ function audit(commit) {
 const argv = process.argv.slice(2);
 const json = argv.includes('--json');
 const redlineOnly = argv.includes('--redline');
+const compact = argv.includes('--compact');
 const commitArg = argv.find((a) => !a.startsWith('--') && !a.endsWith('..') && !a.startsWith('..'));
 
 if (!commitArg) {
@@ -318,7 +330,7 @@ if (report.error) {
 if (json) {
   console.log(JSON.stringify(report, null, 2));
 } else {
-  console.log(human(report));
+  console.log(human(report, compact));
 }
 if (redlineOnly && report.redline.over.length) process.exit(1);
 process.exit(0);
