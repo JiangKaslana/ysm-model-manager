@@ -1,0 +1,97 @@
+// ===== go/updater downloadOnce 错误分支补测 =====
+// 覆盖：NewRequest 失败、传输层连接失败、响应被截断（io.Copy 错误）、
+// 分块传输超过 500MB 上限的截断探测拒绝。全部走本地 httptest，零真实网络。
+package updater
+
+import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+// isolateProxy 将 ghProxyPrefixes 置空——错误路径不得回退到真实代理（避免真实网络）
+func isolateProxy(t *testing.T) {
+	t.Helper()
+	old := ghProxyPrefixes
+	ghProxyPrefixes = []string{}
+	t.Cleanup(func() { ghProxyPrefixes = old })
+}
+
+// TestDownloadOnce_InvalidURL 覆盖 http.NewRequest 失败分支（非法 URL 不触发网络）
+func TestDownloadOnce_InvalidURL(t *testing.T) {
+	isolateProxy(t)
+	path, err := Download("://bad-url/pkg.zip", "")
+	if err == nil {
+		t.Fatal("非法 URL 应返回错误")
+	}
+	if path != "" {
+		t.Errorf("失败时不应返回路径, got %q", path)
+	}
+}
+
+// TestDownloadOnce_ConnectionRefused 覆盖 client.Do 传输层错误分支
+// （server 已关闭 → 本地连接被拒，即时失败）
+func TestDownloadOnce_ConnectionRefused(t *testing.T) {
+	isolateProxy(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	deadURL := server.URL
+	server.Close() // 端口立即释放，后续连接必然被拒
+
+	_, err := Download(deadURL+"/pkg.zip", "")
+	if err == nil {
+		t.Fatal("连接被拒应返回错误")
+	}
+	if !strings.Contains(err.Error(), "个源均失败") {
+		t.Errorf("应聚合源错误信息, got %v", err)
+	}
+}
+
+// TestDownloadOnce_TruncatedResponse 覆盖 io.Copy 读错误分支：
+// 声明 Content-Length 大于实际发送量 → 客户端读到 unexpected EOF → 拒绝并清理临时文件
+func TestDownloadOnce_TruncatedResponse(t *testing.T) {
+	isolateProxy(t)
+	body := bytes.Repeat([]byte("x"), 100)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", strconv.Itoa(1024)) // 声明 1024，实际只发 100
+		w.Write(body)
+	}))
+	defer server.Close()
+
+	path, err := Download(server.URL+"/pkg.zip", "")
+	if err == nil {
+		t.Fatal("截断响应应返回错误")
+	}
+	if path != "" {
+		t.Errorf("失败时不应返回路径, got %q", path)
+	}
+}
+
+// TestDownloadOnce_TruncationProbe 覆盖分块传输（无 Content-Length）超过 500MB
+// 上限的截断探测分支：读到上限后再读 1 字节仍有数据 → 拒绝
+// 说明：该分支在 httptest 本地回环上传输 500MB（零压缩全零数据，单次用例约 1-3 秒）
+func TestDownloadOnce_TruncationProbe(t *testing.T) {
+	isolateProxy(t)
+	chunk := make([]byte, 256<<10) // 256KB 复用缓冲，避免大分配
+	const maxBody = int64(500 << 20)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush() // 先发 header → chunked，绕过 Content-Length 预检分支
+		for sent := int64(0); sent <= maxBody; sent += int64(len(chunk)) {
+			if _, err := w.Write(chunk); err != nil {
+				return
+			}
+		}
+	}))
+	defer server.Close()
+
+	_, err := Download(server.URL+"/pkg.zip", "")
+	if err == nil {
+		t.Fatal("超过 500MB 上限应返回错误")
+	}
+	if !strings.Contains(err.Error(), "上限") {
+		t.Errorf("错误信息应包含大小上限, got %v", err)
+	}
+}
