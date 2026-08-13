@@ -5,6 +5,8 @@
  * 设计目标：CI 红之前，本地先红。按变更域（Go / 前端 / 数据 / 文档）只跑相关检查；
  * gofmt 修复下沉 pre-commit（提交时自动 -w 修复 + stage）；pre-push 对未格式化只读检出并阻断；
  * 需人工的（构建失败、断链、契约失败）同样阻断推送。
+ * 分层哲学（2026-08-13）：硬错误（编译/测试/契约/链接）阻断推送；基线债务
+ * （红线新增、死代码等"没有报错"的治理欠账）只报告不阻断——推送后修，发布前全量 doctor 兜底。
  *
  * 用法（由 .githooks/pre-push 调用）：
  *   node scripts/pre-push-gate.mjs <remote-name> <remote-url>
@@ -256,8 +258,9 @@ function main() {
     results.push({ label: 'gofmt', ok: unformatted.length === 0, time: Date.now() - t2,
       note: unformatted.length
         ? `检出 ${unformatted.length} 个未格式化文件（pre-commit 应已自动修复；疑似 --no-verify 绕过）`
-        : '无未格式化文件' });
-    if (unformatted.length) blocked = true;
+        : '无未格式化文件',
+      tail: unformatted.length ? unformatted.join('\n') : '' });
+    // 格式类债务不阻断推送（2026-08-13 决策：与红线一致，推送后修；pre-commit 正常已自动 gofmt -w）
 
     const t3 = Date.now();
     const bc = sh('node scripts/binding-check.mjs --json');
@@ -331,19 +334,28 @@ function main() {
   if (plan.redlines) {
     const t0 = Date.now();
     const rl = sh('node scripts/check-redlines.mjs --json --baseline');
-    let newV = null, ok = false, baseCount = 0;
+    let newV = null, ok = false, baseCount = 0, rlTail = '';
     try {
       const parsed = JSON.parse(rl.out);
       const s = parsed._summary;
       newV = s.newViolations ?? null;
       baseCount = s.baselineViolations ?? 0;
       ok = s.ok === true;
+      // 违规详情（供 tail 展示方向，不阻断推送）
+      if (!ok && Array.isArray(parsed.results)) {
+        rlTail = parsed.results
+          .filter((r) => r.count > 0)
+          .map((r) => `[${r.rule_id} ${r.name}] ` + r.violations.map((v) => `${v.file}:${v.line}`).join(', '))
+          .join('\n');
+      }
     } catch { /* parse fail */ ok = false; }
     results.push({ label: 'check-redlines', ok, time: Date.now() - t0,
       note: newV === null ? '输出解析失败'
         : (ok ? `红线零新增（基线 ${baseCount} 条）`
-          : `${newV} 条新增红线违规（基线 ${baseCount} 条）`) });
-    if (!ok) blocked = true;
+          : `${newV} 条新增红线违规（基线 ${baseCount} 条）——债务项，推送后处理`),
+      tail: rlTail });
+    // 基线债务（红线新增）不阻断推送：推送后修；发布前全量 doctor 仍会报告（2026-08-13 决策）
+    // if (!ok) blocked = true;
   }
   if (plan.adr) {
     const t0 = Date.now();

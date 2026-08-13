@@ -115,6 +115,8 @@ function runChecks() {
   add('R3', 'callback .file() API',
     rg('\\.file\\s*\\(', 'frontend/src', ['*.js', '*.ts'])
       .filter((l) => !/:\d+:\s*\/\//.test(l))
+      // 行注释与块注释内出现 .file( 属文档描述，豁免（2026-08-13：测试夹具注释曾误报阻断推送）
+      .filter((l) => !/:\d+:\s*(?:\/\/|\/\*)/.test(l))
       .filter((l) => {
         const [f, line] = parseRgLine(l);
         // 若 .file( 在 new Promise(...) 附近（±8 行内），说明已 Promise 化，豁免
