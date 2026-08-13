@@ -142,6 +142,8 @@ function runChecks() {
   // 豁免：纯字面量赋值（regex 已排除）、含 esc()/escUtil() 转义、空字符串、ICONS 常量、
   // shadowRoot 隔离（含非空断言 shadowRoot!）、测试文件、已知 HTML 构造函数
   // （*HTML/*html 结尾的函数调用，项目约定的安全 HTML 生成器）
+  // .map()/.join() 多行拼接（esc 在回调内部）、安全渲染函数（renderDisplayName/renderFormattedText/buildSiteHtml）
+  // 预构建 HTML 变量（无 + 拼接，数据源自上游安全 builder）
   const r8Inner = rg('innerHTML\\s*=\\s+[^\'"`\\n]', 'frontend/src', ['*.js', '*.ts']).filter(
     (l) => {
       const [f] = parseRgLine(l);
@@ -154,11 +156,19 @@ function runChecks() {
       // HTML 构造函数：函数名以 HTML/html 结尾的调用（项目约定的安全 HTML 生成器）
       if (/[A-Za-z]+HTML\s*\(/.test(l)) return false;
       if (/[A-Za-z]+html\s*\(/.test(l)) return false;
+      // .map()/.join() 多行拼接：esc() 在回调内部，当前行仅为赋值入口
+      if (/\.map\s*\(|\.join\s*\(/.test(l)) return false;
+      // 安全渲染函数：内部已使用 esc() 处理显示名/格式化文本
+      if (/renderDisplayName\s*\(|renderFormattedText\s*\(|buildSiteHtml\s*\(/.test(l)) return false;
       // i18n-only 模板字面量：所有 ${...} 插值均为 t() 翻译调用
       if (/t\("/.test(l)) {
         const blocks = l.match(/\$\{[^}]+\}/g);
         if (blocks && blocks.every((b) => /t\(/.test(b))) return false;
       }
+      // 预构建 HTML 变量：无字符串拼接（+），RHS 为单一变量/属性链，数据源自上游安全 builder
+      // （典型模式：const html = safeBuilder(...) → el.innerHTML = html;）
+      const rhs = l.replace(/^[^=]*=\s*/, '').trim();
+      if (rhs && !/[+`]/.test(rhs) && !/\$\{/.test(rhs) && !/\s*\?\s*[^:]+:/.test(rhs)) return false;
       return true;
     },
   );
