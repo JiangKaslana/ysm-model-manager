@@ -656,6 +656,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-059：CLI 移除与裸 exe 发布",
+        "link": "/adr/ADR-059-cli-removal-standalone-exe"
+      },
+      {
         "text": "ADR-058：纯 exe 发布模型：数据编译期内嵌",
         "link": "/adr/ADR-058-standalone-exe-embedded-data"
       },

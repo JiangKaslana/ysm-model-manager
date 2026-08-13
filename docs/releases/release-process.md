@@ -49,7 +49,7 @@
 | 本地自检 | `.\cmd\build-release.ps1 vX.Y.Z [-SkipUpload]` | 本地 8 步构建产物到 `build\release\`；`-SkipUpload` 只构建不上传 |
 | 写发版说明 | `node scripts/release-notes-gen.mjs` | 收集 git 提交数据，供写 `docs/releases/vX.Y.Z.md` 参考 |
 
-产物：`build/release/YSM-Model-Manager_windows_amd64.zip`（纯 exe：主程序 + `ysm-cli.exe`）+ `SHA256SUMS`。数据（resource_types/creators/workshop 系列）编译期内嵌，zip 不再附带 JSON——下载单个 exe 即具备全部数据能力；用户可编辑数据与配置在 `%APPDATA%/YSM-Model-Manager`（自动生成/迁移）。
+产物：`build/release/YSM-Model-Manager_windows_amd64.exe`（裸 exe，v1.13.0 起不再打包 zip）+ `SHA256SUMS`。数据（resource_types/creators/workshop 系列）编译期内嵌，下载单个 exe 即具备全部数据能力；用户可编辑数据与配置在 `%APPDATA%/YSM-Model-Manager`（自动生成/迁移）。
 
 ---
 

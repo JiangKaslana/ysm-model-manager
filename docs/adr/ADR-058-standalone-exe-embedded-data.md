@@ -22,7 +22,7 @@ ZIP 发布包长期附带 4 份社区数据文件（`creators.json` / `resource_
 - **内嵌**：仓库根 `embed.go` 以 `//go:embed` 编译期内嵌 4 份数据 JSON（`creators.json` / `resource_types.json` / `workshop_sites.json` / `workshop-github.json`），随 exe 版本走；`internal/app/bundled_data.go` 的 `loadBundledData` 为唯一读取入口。
 - **用户数据分离**：用户可编辑数据（creators / workshop 系列）落点迁移到用户配置根 `%APPDATA%\YSM-Model-Manager\`（`internal/app/app_workshop.go` 的 `workshopConfigPath`），加载顺序为**用户目录优先 + 内嵌 fallback**；旧位置数据自动迁移（`migrateWorkshopConfig`）。
 - **不再读取 exe 旁/上级目录**：updater 不再覆盖 exe 旁数据文件，消除「覆盖 vs 保留」双轨策略。
-- **CLI 共享**：`ysm-cli.exe` 与主程序打包，共享同一份内嵌数据。
+- **CLI 随包**：`ysm-cli.exe` 与主程序打包，共享同一份内嵌数据（v1.13.0 起移除，见 ADR-059）。
 
 ## 3. 后果（Consequences）
 

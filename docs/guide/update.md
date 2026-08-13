@@ -14,7 +14,7 @@ outline: [2, 3]
 
 - **自动**：启动程序时静默检查，发现新版本在界面**底部**弹出可点击提示「📦 发现新版本 vX.Y.Z（当前 vA.B.C）— 点击查看」，停留 10 秒
 - **手动检查**：「⚙️ 设置」→「ℹ️ 关于」→「🔄 检查更新」（检查中显示「⏳ 检查中...」；已是最新提示「✅ 已是最新版本 (vX)」）
-- **手动下载**：从 [GitHub Releases](https://github.com/eghrhegpe/ysm-model-manager/releases) 下载最新 ZIP，解压覆盖旧文件
+- **手动下载**：从 [GitHub Releases](https://github.com/eghrhegpe/ysm-model-manager/releases) 下载最新 exe（v1.13.0 起为裸 exe，无需解压），覆盖旧文件
 
 ## 操作步骤
 
@@ -36,13 +36,13 @@ outline: [2, 3]
 |------|---------|
 | 配置与用户可编辑数据（`%APPDATA%\YSM-Model-Manager\`） | 不动，升级不覆盖 |
 | 模型仓库文件 | 不动，在你设置的存储路径 |
-| 内置社区数据（资源类型 / 创作者 / 工坊站点） | 编译期内嵌于 exe（v1.12.0 起纯 exe 交付，ZIP 不再附带数据文件），随新版程序自动更新；你在用户目录下保存的副本不会被覆盖 |
+| 内置社区数据（资源类型 / 创作者 / 工坊站点） | 编译期内嵌于 exe，随新版程序自动更新；你在用户目录下保存的副本不会被覆盖 |
 
 ### 3. 手动更新
 
-1. 下载最新 `YSM-Model-Manager_windows_amd64.zip`
+1. 下载最新 `YSM-Model-Manager_windows_amd64.exe`（v1.13.0 起为裸 exe，无需解压）
 2. 退出正在运行的程序（若提示文件占用，先在任务管理器结束 `YSM-Model-Manager.exe` 进程）
-3. 解压覆盖旧目录
+3. 用新 exe 覆盖旧文件
 
 ## 常见问题
 

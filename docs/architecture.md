@@ -87,7 +87,6 @@ Web 版 (GitHub Pages):
   - 窗口 **1280×800**，URL `/`（:30-35）。
 - **Android 入口**：Wails v3 自动生成 Android 工程资产（`build/android/`），Go 以 `-buildmode=c-shared -tags android` 编译 `libwails.so` → `build/android/app/src/main/jniLibs/{arm64-v8a,x86_64}/libwails.so`，Gradle `assembleDebug`/`assembleRelease` 打包 APK。Java 宿主层详见 §2.2。
 - **Web 版入口**：`frontend/web.html`（Tier 0 声明 `globalThis.__YSM_BACKEND__ = "browser"`） + `frontend/vite.web.config.ts`（`mode: "web"`, 输出 `dist-web`）。纯静态托管，无 Go 编译、无 Wails 壳，所有 binding 走 `browserAdapter` Proxy。详见 §6.6。
-- **CLI 入口** `cli_export.go`（`//go:build cli`）：薄壳，仅调 `app.CLIMain()`（供 `go build -tags cli` 产出 `ysm-cli.exe`）。
 - **资源注入** `embed.go`（`//go:build` 无限制，双构建均编译）：`//go:embed creators.json resource_types.json workshop-github.json workshop_sites.json` + `frontend/dist/wasm/YSMParser.wasm` + `frontend/public/wasm/YSMParser.js`，经 `init()` → `app.SetEmbedded(...)`（:21-23）。
 
 ### 绑定模式
@@ -137,7 +136,7 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 
 ## 3. Go 后端架构
 
-后端分两层：**`internal/app/` 绑定门面层**（编排 Wails 生命周期、参数校验、调用业务包）+ **`go/` 业务逻辑包**（纯逻辑，可单测、可 CLI 复用）。
+后端分两层：**`internal/app/` 绑定门面层**（编排 Wails 生命周期、参数校验、调用业务包）+ **`go/` 业务逻辑包**（纯逻辑，可单测）。
 
 ### 3.1 `internal/app/`（29 文件，~5700 行）— 绑定门面
 
@@ -145,7 +144,6 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 |------|------|----------------|
 | `app.go` | 135 | `App` 结构体、`ServiceStartup`/`ServiceShutdown` 生命周期（含 Android watcher 守卫）、`OpenInBrowser`、`GetAppVersion` |
 | `app_install.go` | 1255 | 最大文件。导入/安装/同步：`ImportModelFile*`、`SyncResources`、`Push/PullResourceFromInstance`、`RelinkCustomDir`、回收站 `MoveToRecycle*`/`RestoreFromRecycle` |
-| `cli.go` | 728 | `CLIMain`、`runExport`/`runDoctor`/`runStats`、HTML/文本报告 |
 | `app_scan.go` | 578 | `ScanModelEntries`、`SearchModels`、`GenerateRepoIndex`、`ListVersionInstances`、`ScanLocalAuthors` |
 | `app_config.go` | 462 | `LoadAppConfig`/`SaveAppConfig`、窗口位置、`CheckUpdate`/`DoUpdate`、`SelectDirectory` |
 | `resource_bindings.go` | 405 | `LoadResourceTypes`（读 `resource_types.json`，:21）、`GetRepoRoot`、`DetectResourceType`、`ImportByType`、litematic/nbt voxel 读取 |
@@ -477,7 +475,7 @@ index.ts（编排：constructor → shadow → connected→disconnected）
 ### 10.2 发布流水线
 
 **桌面（Windows）**：`scripts/build-release.ps1`：
-1. `wails3 generate bindings` → 2. `npm run build`（vite）→ 3. 构建 `ysm-updater-helper.exe`（embed 前置）→ 4. `go generate`（litematic block_ids）→ 5. `go build -ldflags "-X ysm-model-manager/go/version.Version=$VerTag"` → 6. `go build -tags cli -o ysm-cli.exe` → GitHub Release 上传。
+1. `wails3 generate bindings` → 2. `npm run build`（vite）→ 3. 构建 `ysm-updater-helper.exe`（embed 前置）→ 4. `go generate`（litematic block_ids）→ 5. `go build -ldflags "-X ysm-model-manager/go/version.Version=$VerTag"` → 6. 生成 SHA256SUMS → GitHub Release 上传裸 exe（v1.13.0 起，不再打包 zip）。
 
 **桌面（macOS/Linux）**：`scripts/build-release.sh` → `scripts/build-darwin.sh` / `scripts/build-linux.sh`（NSIS/fpm 打包）。
 
@@ -500,9 +498,8 @@ index.ts（编排：constructor → shadow → connected→disconnected）
 
 ```
 ysm-model-manager/
-├── main.go                      # ★ Wails 入口 (!cli)
-├── cli_export.go                # CLI 入口 (//go:build cli)
-├── embed.go                     # 嵌入前端 + 数据 JSON + WASM (双构建)
+├── main.go                      # ★ Wails 入口
+├── embed.go                     # 嵌入前端 + 数据 JSON + WASM
 ├── go.mod / go.sum              # Go 依赖 (模块 ysm-model-manager, Go 1.25)
 ├── wails.json                   # Wails v3 配置
 ├── Taskfile.yml / reasonix.toml

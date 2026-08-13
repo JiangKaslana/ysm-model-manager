@@ -14,8 +14,8 @@ outline: [2, 3]
 
 1. 打开 [GitHub Releases 页面](https://github.com/eghrhegpe/ysm-model-manager/releases)
 2. 找到最新版本（如 `v1.12.0`）
-3. 下载 `YSM-Model-Manager_windows_amd64.zip`——v1.12.0 起为**单 exe 交付**：资源类型 / 创作者 / 工坊站点等社区数据编译期内嵌于程序，ZIP 内不再附带数据文件，下载单个 exe 即具备全部能力
-4. 解压到任意目录（建议 `D:\YSM-Model-Manager\` 或其它非系统盘位置）
+3. 下载 `YSM-Model-Manager_windows_amd64.exe`（v1.13.0 起为**裸 exe**：资源类型 / 创作者 / 工坊站点等社区数据编译期内嵌于程序，无需解压，下载单个 exe 即具备全部能力）
+4. 放入任意目录（建议 `D:\YSM-Model-Manager\` 或其它非系统盘位置）
 5. 双击 `YSM-Model-Manager.exe` 启动
 
 ## 操作步骤

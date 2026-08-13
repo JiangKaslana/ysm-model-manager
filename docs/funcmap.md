@@ -32,16 +32,16 @@
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 181 |
-| 前端·根 (app-modules/bus) | 2 | 14 |
-| frontend/backend | 9 | 58 |
+| 前端·根 (app-modules/bus) | 2 | 13 |
+| frontend/backend | 9 | 56 |
 | 前端·核心 | 14 | 28 |
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 37 | 133 |
-| frontend/views | 68 | 201 |
+| frontend/views | 68 | 197 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **234** | **1001** |
+| **合计** | **234** | **994** |
 
 ## Go·头像
 
@@ -621,10 +621,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `normalizeTheme()` | `frontend/src/app-modules:63` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
-| `applyTheme()` | `frontend/src/app-modules:67` | — |
-| `initTheme()` | `frontend/src/app-modules:92` | — |
-| `applyUIPrefs()` | `frontend/src/app-modules:111` | 应用 UI 偏好（字号/字体/密度/动画），不依赖设置页打开 |
+| `normalizeTheme()` | `frontend/src/app-modules:64` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
+| `applyTheme()` | `frontend/src/app-modules:68` | — |
+| `initTheme()` | `frontend/src/app-modules:93` | — |
 | `bus()` | `frontend/src/bus:187` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
@@ -665,17 +664,15 @@
 | `WEB_ROOT()` | `frontend/src/backend/web-common:16` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
 | `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:19` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:22` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
-| `cloneJson()` | `frontend/src/backend/web-community:23` | — |
 | `loadWebCreators()` | `frontend/src/backend/web-community:27` | — |
 | `saveWebCreators()` | `frontend/src/backend/web-community:39` | — |
 | `loadWebSites()` | `frontend/src/backend/web-community:48` | — |
 | `saveWebSites()` | `frontend/src/backend/web-community:60` | — |
 | `loadWebGitHubRepos()` | `frontend/src/backend/web-community:70` | — |
-| `saveWebGitHubRepos()` | `frontend/src/backend/web-community:82` | — |
-| `batchExtractCreatorAvatars()` | `frontend/src/backend/web-community:93` | — |
-| `listWebAuthors()` | `frontend/src/backend/web-community:153` | ListModelAuthors 网页版：从模型名 [作者] 前缀统计（计数降序），对齐 scanner.go:265 |
-| `scanWebLocalAuthors()` | `frontend/src/backend/web-community:173` | ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 |
-| `generateWebRepoIndex()` | `frontend/src/backend/web-community:197` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
+| `batchExtractCreatorAvatars()` | `frontend/src/backend/web-community:86` | — |
+| `listWebAuthors()` | `frontend/src/backend/web-community:146` | ListModelAuthors 网页版：从模型名 [作者] 前缀统计（计数降序），对齐 scanner.go:265 |
+| `scanWebLocalAuthors()` | `frontend/src/backend/web-community:166` | ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 |
+| `generateWebRepoIndex()` | `frontend/src/backend/web-community:190` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
 | `typeFromWebDir()` | `frontend/src/backend/web-fs:22` | 从 /web/&lt;type&gt;/... |
 | `selectLocalRepo()` | `frontend/src/backend/web-fs:76` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
 | `scanWebModels()` | `frontend/src/backend/web-fs:88` | — |
@@ -1016,9 +1013,7 @@
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:20` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
-| `ImportLogLike()` | `frontend/src/views/app-content/diagnostics/logs:16` | 绑定 ImportLog（仅用到的字段） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:43` | — |
-| `RuntimeLogLike()` | `frontend/src/views/app-content/diagnostics/logs:158` | 运行时日志条目（仅用到的字段） |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:164` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
@@ -1033,11 +1028,8 @@
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:498` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:26` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:122` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
-| `escHtml()` | `frontend/src/views/app-content/settings/path-cards:15` | HTML 转义（高级面板路径/路径选择器/扫描提示共用） |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |
 | `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:51` | — |
-| `showPathPicker()` | `frontend/src/views/app-content/settings/path-cards:94` | 多路径选择器：弹出路径列表让用户挑选（返回 null 表示取消） |
-| `showScanTooltip()` | `frontend/src/views/app-content/settings/path-cards:142` | 扫描提示气泡：hover 时显示扫描到的所有路径 + 搜索范围 |
 | `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:193` | — |
 | `initMcDetect()` | `frontend/src/views/app-content/settings/path-cards:320` | — |
 | `SettingsCfg()` | `frontend/src/views/app-content/settings/store:10` | 设置页当前配置类型（LoadAppConfig 返回值，经 Wails $CancellablePromise 解包） |
@@ -1048,7 +1040,8 @@
 | `toastError()` | `frontend/src/views/app-content/settings/store:26` | — |
 | `resetSettingsStore()` | `frontend/src/views/app-content/settings/store:35` | 重置模块级状态（initSettings 开头调用；重复执行时清空上次残留） |
 | `initTheme()` | `frontend/src/views/app-content/settings/theme:19` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
-| `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:8` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
+| `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:8` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
+| `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:48` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:38` | 本地创作者（绑定 + 运行时附加字段） |
