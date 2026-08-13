@@ -360,7 +360,9 @@ func (a *App) runYSMParserOnFile(modelPath string) types.BedrockModel {
 			if strings.HasPrefix(filepath.Base(low), "avatar") || strings.Contains(low, "avatar/") {
 				return nil
 			}
-			if data, rErr := os.ReadFile(p); rErr == nil && len(data) > 0 {
+			// P2 修复：受限整读（上限 50MB，对齐同函数 JSON 受限读 readLimitedFileBedrock 口径），
+			// 防 YSMParser 被篡改输出 GB 级 PNG/JPG 撑爆内存
+			if data := readLimitedFileBedrock(p); len(data) > 0 {
 				mime := "image/png"
 				if strings.HasSuffix(low, ".jpg") {
 					mime = "image/jpeg"

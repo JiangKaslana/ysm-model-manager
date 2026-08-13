@@ -132,6 +132,19 @@ describe("契约 B1 — ClearImportLogs/ClearRuntimeLogs 双环分离对齐 Go a
     await browserAdapter.ClearRuntimeLogs();
     expect((await browserAdapter.GetRuntimeLogs()) as unknown[]).toHaveLength(0);
   });
+
+  it("条目形状对齐 Go types.ImportLog/RuntimeLog json tag（ErrorMsg/Timestamp/Operation、Message/Timestamp）", async () => {
+    await browserAdapter.AddImportLog("m", "s", "t", 1, "ok", "err");
+    const [imp] = (await browserAdapter.GetImportLogs()) as unknown as Array<Record<string, unknown>>;
+    expect(imp).toMatchObject({
+      ModelName: "m", SourcePath: "s", TargetDir: "t", FileSize: 1,
+      Status: "ok", ErrorMsg: "err", Operation: "import",
+      Timestamp: expect.any(Number),
+    });
+    await browserAdapter.AddOpLog("scan", "msg", "", "", 0, "ok", "");
+    const [run] = (await browserAdapter.GetRuntimeLogs()) as unknown as Array<Record<string, unknown>>;
+    expect(Object.keys(run)).toEqual(expect.arrayContaining(["Message", "Timestamp"]));
+  });
 });
 
 describe("契约 B1 — DeleteModelDir 标记清理对齐 Go resource_bindings.go:428", () => {

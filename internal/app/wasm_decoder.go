@@ -152,18 +152,22 @@ main().catch(e=>{console.error(e);process.exit(1)});
 	executil.HideWindow(cmd)
 	cmd.Dir = tmpDir
 	// 输出护栏：stdout 流式截断（防解压炸弹在 Node/WASM 内膨胀到数百 MB~GB 级峰值内存），
-	// stderr 独立缓冲用于失败诊断
-	var errBuf bytes.Buffer
+	// stderr 同样受限缓冲（8MB 封顶），仅用于失败诊断
 	outLimited := &limitedBuffer{max: ysmDecodeMaxOutput}
+	errLimited := &limitedBuffer{max: 8 << 20} // stderr 仅诊断用，8MB 封顶
 	cmd.Stdout = outLimited
-	cmd.Stderr = &errBuf
+	cmd.Stderr = errLimited
 	err = cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			fmt.Fprintf(os.Stderr, "[ysm-node] 解码超时 %v\n", ysmNodeDecodeTimeout)
 			return nil
 		}
-		fmt.Fprintln(os.Stderr, "[ysm-node] 解码失败:", errBuf.String())
+		if errLimited.exceeded {
+			fmt.Fprintln(os.Stderr, "[ysm-node] 解码失败(stderr 超限):", errLimited.buf.String()[:512])
+		} else {
+			fmt.Fprintln(os.Stderr, "[ysm-node] 解码失败:", errLimited.buf.String())
+		}
 		return nil
 	}
 	if outLimited.exceeded {
@@ -190,7 +194,7 @@ main().catch(e=>{console.error(e);process.exit(1)});
 		if len(snippet) > 200 {
 			snippet = snippet[:200]
 		}
-		fmt.Fprintf(os.Stderr, "[ysm-node] JSON 解析失败: %v\n输出前200字节: %s\nstderr: %s\n", err, snippet, errBuf.String())
+		fmt.Fprintf(os.Stderr, "[ysm-node] JSON 解析失败: %v\n输出前200字节: %s\nstderr: %s\n", err, snippet, errLimited.buf.String())
 		return nil
 	}
 	files := make([]decodedYSMExtra, 0, len(rawFiles))

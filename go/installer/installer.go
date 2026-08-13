@@ -44,7 +44,12 @@ func isSupportedModelExt(src string) bool {
 func Install(src, customDir, repoRoot, linkMode string) error {
 	InstallLock.Lock()
 	defer InstallLock.Unlock()
+	return InstallLocked(src, customDir, repoRoot, linkMode)
+}
 
+// InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。
+// 语义与 Install 一致，但不重复加锁——供 sync.RelinkDir 等已持锁调用方使用（防重入死锁）。
+func InstallLocked(src, customDir, repoRoot, linkMode string) error {
 	src = strings.TrimSpace(src)
 	customDir = strings.TrimSpace(customDir)
 	if src == "" || customDir == "" {
@@ -140,7 +145,13 @@ func evalSymlinksOrKeep(p string) string {
 func InstallDir(srcDir, dstDir, repoRoot, linkMode, rtype string) error {
 	InstallLock.Lock()
 	defer InstallLock.Unlock()
+	return InstallDirLocked(srcDir, dstDir, repoRoot, linkMode, rtype)
+}
 
+// InstallDirLocked 安装整个目录下的所有文件到目标目录（调用方须已持有 InstallLock，
+// 禁止直接调用）。语义与 InstallDir 一致，但不重复加锁——供 sync.RelinkDir 等
+// 已持锁调用方使用（防重入死锁）。
+func InstallDirLocked(srcDir, dstDir, repoRoot, linkMode, rtype string) error {
 	srcDir = strings.TrimSpace(srcDir)
 	dstDir = strings.TrimSpace(dstDir)
 	if srcDir == "" || dstDir == "" {
@@ -432,6 +443,12 @@ func copyFileLocked(src, dstDir string) (string, error) {
 func CopyFile(src, dstDir string) (string, error) {
 	InstallLock.Lock()
 	defer InstallLock.Unlock()
+	return CopyFileLocked(src, dstDir)
+}
+
+// CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。
+// 语义与 CopyFile 一致，但不重复加锁——供 sync.RelinkDir 等已持锁调用方使用（防重入死锁）。
+func CopyFileLocked(src, dstDir string) (string, error) {
 	return copyFileLocked(src, dstDir)
 }
 

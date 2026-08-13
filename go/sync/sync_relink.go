@@ -16,10 +16,14 @@ import (
 
 // RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚）
 func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) []types.ModelEntry, logger Logger) (int, error) {
-	// 注：此处不再整段持 installer.InstallLock——installer.Install/InstallDir 内部
-	// 已各自持锁（installer.go 公开函数包装 *Locked 内部实现），外层再锁会
-	// 同一 goroutine 重入非重入 mutex 死锁（sync 测试挂起定位）。写操作级互斥
-	// 已由 installer 内部锁覆盖；整段互斥需 installer 暴露带锁回调，超出本轮范围。
+	// 整段持 installer.InstallLock：RelinkDir 自身对 custom 目录做 os.Rename/os.RemoveAll
+	//（目录级分支的备份/回滚/清理）——ADR-056 要求同步与安装并发操作同一 custom 目录文件时
+	// 互斥，这些目录级写操作不能只靠 installer 内部文件级锁覆盖。内部对
+	// installer.Install/InstallDir/CopyFile 的调用改用对应 *Locked 变体，避免同一
+	// goroutine 重入非重入 mutex 死锁（第六轮整段持锁 + 调用公开函数的死锁回归）。
+	installer.InstallLock.Lock()
+	defer installer.InstallLock.Unlock()
+
 	customDir = strings.TrimSpace(customDir)
 	repoRoot = strings.TrimSpace(repoRoot)
 	if customDir == "" || repoRoot == "" {
@@ -69,7 +73,7 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 				// installer.Install 按 rel(srcPath, repoRoot) 推导目标，仓库侧文件在子目录时
 				// 会装到 <customDir>/<subdir>/<base> 而平铺位置 <customDir>/<base> 残留陈旧副本
 				//（报告成功但游戏实际加载的文件未重链）。CopyFile 直接落地到平铺目录。
-				if _, err := installer.CopyFile(srcPath, customDir); err != nil {
+				if _, err := installer.CopyFileLocked(srcPath, customDir); err != nil {
 					logger(ce.Name, ce.Path, customDir, 0, "failed", "relink 失败: "+err.Error())
 					continue
 				}
@@ -87,7 +91,7 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 				logger(ce.Name, ce.Path, dstParent, 0, "failed", "relink 备份目录失败: "+err.Error())
 				continue
 			}
-			if err := installer.InstallDir(srcDir, dstBase, repoRoot, linkMode, rtype); err != nil {
+			if err := installer.InstallDirLocked(srcDir, dstBase, repoRoot, linkMode, rtype); err != nil {
 				// 回滚：删除半成品，恢复原目录
 				_ = os.RemoveAll(filepath.Join(dstBase, filepath.Base(srcDir)))
 				// 回滚 rename 失败不再静默吞——原 `_ =` 吞错，
@@ -106,7 +110,7 @@ func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) 
 		}
 		// 传入基础 customDir，让 installer.Install 自行计算相对路径。
 		// Install 内部对已存在的旧文件做原子替换（临时链接 + rename），失败不破坏原文件
-		if err := installer.Install(srcPath, customDir, repoRoot, linkMode); err != nil {
+		if err := installer.InstallLocked(srcPath, customDir, repoRoot, linkMode); err != nil {
 			logger(ce.Name, ce.Path, customDir, 0, "failed", "relink 失败: "+err.Error())
 			continue
 		}

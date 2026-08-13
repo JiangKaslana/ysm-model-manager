@@ -791,9 +791,17 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   },
   LoadGitHubRepos: () => Promise.resolve(loadWebGitHubRepos()),
   DefaultWorkshopSites: () => Promise.resolve(loadWebSites()),
-  // 网页版系统浏览器即当前浏览器：等价 Go Browser.OpenURL
+  // 网页版系统浏览器即当前浏览器：等价 Go Browser.OpenURL。
+  // 不用 noopener 特性串（其下 window.open 恒返回 null 无法检测拦截）；
+  // 成功后显式置 opener=null 保留 noopener 安全性
   OpenInBrowser: (url: string) => {
-    window.open(url, "_blank", "noopener");
+    const w = window.open(url, "_blank");
+    if (w) {
+      w.opener = null;
+    } else {
+      // 被弹窗拦截/iframe sandbox 无 allow-popups：留痕不静默
+      console.warn("[web] OpenInBrowser 被浏览器拦截，无法打开:", url);
+    }
     return Promise.resolve();
   },
   SaveWorkshopSites: (sites: WorkshopSite[] | null) => {
@@ -862,6 +870,15 @@ export async function importWebFiles(
         failed += group.length;
         continue;
       }
+      // 主文件前置校验：存在主文件但全部超限 → 整组失败且不写任何文件
+      // （防孤儿辅助文件残留 + 防重导入时部分覆盖既有模型 → 新旧混合状态）
+      const mainUsable = group.some(
+        (f) => mainFileRank(f.name) >= MAIN_FILE_RANK_JSON && f.size <= MAX_IMPORT_BYTES,
+      );
+      if (!mainUsable) {
+        failed += group.length;
+        continue;
+      }
       let wrote = false;
       let fileFails = 0;
       for (const f of group) {
@@ -880,19 +897,6 @@ export async function importWebFiles(
         });
         writtenKeys.push({ key: k, preExisted });
         wrote = true;
-      }
-      // P2-5 修复：主文件若因超限（> MAX_IMPORT_BYTES）被跳过，整组失败——辅助文件
-      // 已写入但不建 dir key（无主文件模型不可解码，对齐「组内须有主文件」语义）
-      let wroteMain = false;
-      for (const f of group) {
-        if (mainFileRank(f.name) >= MAIN_FILE_RANK_JSON && f.size <= MAX_IMPORT_BYTES) {
-          wroteMain = true;
-          break;
-        }
-      }
-      if (!wroteMain) {
-        failed += group.length;
-        continue;
       }
       if (!wrote) {
         // 全部文件超限/写失败 → 整组失败（按文件数计，避免与 fileFails 重复）
