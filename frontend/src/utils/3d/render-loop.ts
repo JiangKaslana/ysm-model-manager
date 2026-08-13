@@ -21,6 +21,8 @@ export interface LoopContext {
   _keymap: ReturnType<typeof loadTdKeymap>;
   _orbitTarget: THREE.Vector3;
   _euler: THREE.Euler;
+  /** 每帧上报最新 RAF id（供调用方入口守卫跟随活跃 id，防快照过期——code_review P2） */
+  onRafId?: (id: number) => void;
 }
 
 /**
@@ -31,6 +33,7 @@ export interface LoopContext {
 export function startRenderLoop(ctx: LoopContext): () => void {
   const loop = (): void => {
     ctx.state.rafId = requestAnimationFrame(loop);
+    ctx.onRafId?.(ctx.state.rafId); // 上报最新 id，调用方守卫跟随（防快照过期）
     const dt = Math.min((performance.now() - ctx.state.lastTime) / 1000, 0.1);
     ctx.state.lastTime = performance.now();
     const cd = new THREE.Vector3();
@@ -63,6 +66,7 @@ export function startRenderLoop(ctx: LoopContext): () => void {
   };
 
   ctx.state.rafId = requestAnimationFrame(loop);
+  ctx.onRafId?.(ctx.state.rafId);
   ctx.renderer.render(ctx.scene, ctx.camera);
 
   // 返回 cleanup 后，调用方在 handle.cleanup 中清零 rafId

@@ -284,11 +284,12 @@ export async function renderModel3D(
   // P2-1 修复：free 模式禁用 controls 旋转，避免与自定义 pointer 拖拽双重旋转（仅 orbit 生效）
   controls.enableRotate = state.orbitMode;
   // ===== 渲染循环（已拆至 render-loop.ts）=====
-  startRenderLoop({ camera, renderer, scene, controls, state, _keymap, _orbitTarget, _euler });
-  // P0 修复：startRenderLoop 内部只写 state.rafId，入口复用守卫读模块级
-  // _rafIdGuard——拆分后同步丢失，守卫 cancelAnimationFrame 永远空转（僵尸
-  // RAF 无法清理）。此处与拆分前（_rafIdGuard = state.rafId）口径对齐。
-  _rafIdGuard = state.rafId;
+  startRenderLoop({
+    camera, renderer, scene, controls, state, _keymap, _orbitTarget, _euler,
+    // P0 修复：守卫须跟随每帧活跃 RAF id——只快照一次会过期（code_review P2），
+    // 入口复用守卫 cancelAnimationFrame 会变成空转，僵尸 RAF 无法清理。
+    onRafId: (id) => { _rafIdGuard = id; },
+  });
 
   // ===== 骨骼射线拾取（已拆至 bone-raycast.ts）=====
   const { nameMap: _boneNameMap, parentMap: _boneParentMap, childrenMap: _boneChildrenMap } = buildBoneHierarchy(spec);

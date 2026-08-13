@@ -452,6 +452,33 @@ describe("renderModel3D", () => {
     h2.cleanup();
   });
 
+  it("入口守卫回归：推进一帧后二次渲染——cancel 的是活跃 RAF id（code_review P2）", async () => {
+    // 回归场景：onRafId 每帧上报后，_rafIdGuard 跟随活跃 id；若只快照一次
+    // 首帧 id，推进帧后守卫 cancel 的是过期 id（空转），僵尸 RAF 无法清理。
+    const rafCbs: Array<(t: number) => void> = [];
+    let nextId = 1;
+    const cancelled: number[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: (t: number) => void) => {
+      rafCbs.push(cb);
+      return nextId++;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => { cancelled.push(id); });
+    try {
+      const h2 = await renderModel3D(makeContainer(), [], renderSpec);
+      // 推进一帧：执行已注册回调 → loop 内再注册新 id 并 onRafId 上报
+      rafCbs.splice(0).forEach((cb) => cb(0));
+      const activeIdAfterFrame = nextId - 1; // h2 会话当前活跃 id（应被入口守卫 cancel）
+      // 第三次渲染（不 cleanup h2）→ 入口守卫应 cancel 最近上报的活跃 id
+      const h3 = await renderModel3D(makeContainer(), [], renderSpec);
+      expect(cancelled).toContain(activeIdAfterFrame);
+      expect(cancelled).not.toContain(nextId - 1); // h3 自己的新 id 不应被误 cancel
+      h2.cleanup();
+      h3.cleanup();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("cleanup：清空容器 + 事件解绑（再次 cleanup 幂等）", () => {
     handle.cleanup();
     handle.cleanup();

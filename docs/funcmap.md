@@ -913,9 +913,9 @@
 | `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:52` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
 | `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:66` | renderModel3D 返回的渲染句柄 |
 | `renderModel3D()` | `frontend/src/utils/3d/model3d:101` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:403` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:404` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
-| `startRenderLoop()` | `frontend/src/utils/3d/render-loop:31` | 启动渲染循环并立即渲染一帧。 |
+| `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
 | `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:7` | setupRenderer 返回的组件 |
 | `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:18` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
 | `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
