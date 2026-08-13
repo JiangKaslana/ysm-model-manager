@@ -48,6 +48,8 @@ reasonix.toml
 tests/python/__pycache__/
 
 # IDE / AI 工具缓存
+.vs/
+*.vsix
 .reasonix/
 .atomcode/
 .rg-test-tmp/
