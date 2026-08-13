@@ -80,7 +80,9 @@ func (s *Store) load() error {
 // save 将内存数据写入磁盘
 func (s *Store) save() error {
 	if s.path == "" {
-		return nil // 内存态：save no-op（平台数据根缺失，绝不写相对路径）
+		// P1 修复：内存态显式返回错误，让调用方感知持久化不可用，
+		// 避免进程崩溃后标签静默丢失
+		return fmt.Errorf("tags 存储不可用：平台数据根未就绪，标签仅保留在会话内存中")
 	}
 	data, err := json.MarshalIndent(s.data, "", "  ")
 	if err != nil {

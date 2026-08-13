@@ -300,12 +300,12 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `NewStore()` | `go/tags/tags:26` | NewStore 创建标签存储（懒加载：首次 Get/Set 时自动读取） |
-| `Store.GetTags()` | `go/tags/tags:103` | GetTags 返回指定路径的所有标签（已排序） |
-| `Store.SetTags()` | `go/tags/tags:120` | SetTags 设置指定路径的标签列表（覆盖写入） |
-| `Store.AddTag()` | `go/tags/tags:159` | AddTag 追加单个标签（不会重复） |
-| `Store.RemoveTag()` | `go/tags/tags:182` | RemoveTag 移除单个标签 |
-| `Store.ListByTag()` | `go/tags/tags:211` | ListByTag 返回所有打了指定标签的文件路径列表 |
-| `Store.AllTags()` | `go/tags/tags:235` | AllTags 返回所有被使用的标签（按使用次数降序） |
+| `Store.GetTags()` | `go/tags/tags:105` | GetTags 返回指定路径的所有标签（已排序） |
+| `Store.SetTags()` | `go/tags/tags:122` | SetTags 设置指定路径的标签列表（覆盖写入） |
+| `Store.AddTag()` | `go/tags/tags:161` | AddTag 追加单个标签（不会重复） |
+| `Store.RemoveTag()` | `go/tags/tags:184` | RemoveTag 移除单个标签 |
+| `Store.ListByTag()` | `go/tags/tags:213` | ListByTag 返回所有打了指定标签的文件路径列表 |
+| `Store.AllTags()` | `go/tags/tags:237` | AllTags 返回所有被使用的标签（按使用次数降序） |
 | `Store()` | `go/tags/tags:19` | Store 是标签存储，线程安全 |
 
 ## Go·Three.js
@@ -413,8 +413,8 @@
 | `AnalyzeYSMHeader()` | `go/ysm/header:167` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
 | `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:320` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
 | `YSMHeader()` | `go/ysm/header:12` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
-| `AnalyzeYSMModel()` | `go/ysm/parse:44` | AnalyzeYSMModel 解析 .ysm 文件，提取模型元数据 |
-| `YSMModelMeta()` | `go/ysm/parse:14` | YSMModelMeta 模型元数据（从 model.json 提取） |
+| `AnalyzeYSMModel()` | `go/ysm/parse:45` | AnalyzeYSMModel 解析 .ysm 文件，提取模型元数据 |
+| `YSMModelMeta()` | `go/ysm/parse:15` | YSMModelMeta 模型元数据（从 model.json 提取） |
 | `ExtractYsmSummary()` | `go/ysm/summary:135` | ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要 |
 | `Author()` | `go/ysm/summary:16` | — |
 | `Link()` | `go/ysm/summary:22` | — |
