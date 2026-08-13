@@ -43,8 +43,8 @@ fi
 
 OUTPUT_DIR="$PROJECT_ROOT/build/release"
 EXE_NAME="YSM-Model-Manager.exe"
-ZIP_NAME="YSM-Model-Manager_windows_amd64.zip"
-ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
+EXE_PATH="$OUTPUT_DIR/$EXE_NAME"
+ASSET_NAME="YSM-Model-Manager_windows_amd64.exe"
 
 # GitHub 仓库信息
 GITHUB_OWNER="eghrhegpe"
@@ -110,40 +110,29 @@ for f in workshop_sites.json creators.json workshop-github.json resource_types.j
   [ -f "$PROJECT_ROOT/$f" ] && cp "$PROJECT_ROOT/$f" "$OUTPUT_DIR/" || true
 done
 
-# 5. 打包 zip
-echo -e "\033[33m📦 打包 $ZIP_NAME ...\033[0m"
+# 5. 裸 exe 发布（2026-08 起不再打 zip——updater assetPattern 直配 .exe，
+#    与 build-release.ps1 / release.yml 口径一致；SHA256SUMS 针对 exe 计算）
+echo -e "\033[33m📦 裸 exe 就绪（无 zip 打包）...\033[0m"
 if [ ! -f "$OUTPUT_DIR/$EXE_NAME" ]; then
-  echo -e "\033[31m❌ 缺少主 exe，无法打包\033[0m" >&2
-  exit 1
-fi
-cd "$OUTPUT_DIR"
-if command -v zip >/dev/null 2>&1; then
-  zip -r "$ZIP_NAME" . >/dev/null
-else
-  # 无 zip 命令时用 tar 生成 .zip 兼容包（或提示安装）
-  echo -e "\033[31m❌ 未找到 zip 命令，请安装 zip（Debian/Ubuntu: sudo apt install zip）\033[0m" >&2
-  exit 1
-fi
-if [ ! -f "$ZIP_PATH" ]; then
-  echo -e "\033[31m❌ ZIP 打包失败\033[0m" >&2
+  echo -e "\033[31m❌ 缺少主 exe，无法发布\033[0m" >&2
   exit 1
 fi
 
-# 5b. 生成 SHA256SUMS（用于下载后校验，防 MITM 攻击）
+# 5b. 生成 SHA256SUMS（用于下载后校验，防 MITM 攻击；与 assetPattern 同名）
 echo -e "\033[33m🔐 生成 SHA256SUMS ...\033[0m"
 SHA_SUMS_PATH="$OUTPUT_DIR/SHA256SUMS"
-ZIP_HASH="$(sha256sum "$ZIP_PATH" | awk '{print $1}')"
-echo "$ZIP_HASH  $ZIP_NAME" > "$SHA_SUMS_PATH"
-echo -e "\033[90m   SHA256: $ZIP_HASH\033[0m"
+EXE_HASH="$(sha256sum "$OUTPUT_DIR/$EXE_NAME" | awk '{print $1}')"
+echo "$EXE_HASH  $ASSET_NAME" > "$SHA_SUMS_PATH"
+echo -e "\033[90m   SHA256: $EXE_HASH\033[0m"
 
 # 6. 输出结果
-FILE_SIZE_MB="$(du -m "$ZIP_PATH" | awk '{printf "%.1f", $1}')"
+FILE_SIZE_MB="$(du -m "$OUTPUT_DIR/$EXE_NAME" | awk '{printf "%.1f", $1}')"
 echo -e "\033[32m✅ 构建完成!\033[0m"
 echo -e "\033[36m   版本: $VER_TAG\033[0m"
-echo -e "\033[36m   输出: $ZIP_PATH\033[0m"
+echo -e "\033[36m   输出: $OUTPUT_DIR/$ASSET_NAME\033[0m"
 echo -e "\033[36m   大小: $FILE_SIZE_MB MB\033[0m"
 echo ""
-echo -e "\033[35m下一步: 在 GitHub Releases 上传 $ZIP_NAME 和 SHA256SUMS\033[0m"
+echo -e "\033[35m下一步: 在 GitHub Releases 上传 $ASSET_NAME 和 SHA256SUMS\033[0m"
 echo -e "\033[35m       或添加 -skip-upload 参数跳过上传\033[0m"
 
 # 方案 B: GitHub API（需要 GH_TOKEN 环境变量）
@@ -184,16 +173,16 @@ upload_via_api() {
 
   if [ -z "$UPLOAD_URL" ]; then
     echo -e "\033[31m   ❌ 创建 Release 失败: $CREATE_RESP\033[0m" >&2
-    echo -e "\033[33m   请手动上传: $ZIP_PATH\033[0m" >&2
+    echo -e "\033[33m   请手动上传: $OUTPUT_DIR/$ASSET_NAME\033[0m" >&2
     return
   fi
   echo -e "\033[32m   ✅ Release 已创建，上传中...\033[0m"
 
-  # 上传 zip 资产
-  curl -sS -X POST "$UPLOAD_URL?name=$ZIP_NAME" \
+  # 上传 exe 资产（裸 exe 发布，assetPattern 直配 .exe）
+  curl -sS -X POST "$UPLOAD_URL?name=$ASSET_NAME" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/octet-stream" \
-    --data-binary "@$ZIP_PATH" >/dev/null
+    --data-binary "@$OUTPUT_DIR/$EXE_NAME" >/dev/null
 
   # 上传 SHA256SUMS
   curl -sS -X POST "$UPLOAD_URL?name=SHA256SUMS" \
@@ -236,11 +225,11 @@ if [ "$SKIP_UPLOAD" = false ]; then
           --repo "$GITHUB_OWNER/$GITHUB_REPO" \
           --title "$VER_TAG" \
           --notes-file "$NOTES_TMP" \
-          "$ZIP_PATH" "$SHA_SUMS_PATH" 2>&1; then
+          "$OUTPUT_DIR/$EXE_NAME" "$SHA_SUMS_PATH" 2>&1; then
         echo -e "\033[32m   ✅ Release 已发布: https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases/tag/$VER_TAG\033[0m"
       else
         echo -e "\033[31m   ❌ gh release create 失败\033[0m" >&2
-        echo -e "\033[33m   请手动上传 $ZIP_PATH\033[0m" >&2
+        echo -e "\033[33m   请手动上传 $OUTPUT_DIR/$EXE_NAME\033[0m" >&2
       fi
       rm -f "$NOTES_TMP"
     else

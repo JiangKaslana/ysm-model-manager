@@ -56,7 +56,6 @@ declare global {
 }
 
 const THEME_DARK = "cyber";
-const THEME_LIGHT = "warm";
 // 主题白名单（applyTheme 与 initTheme 共用，防两处口径漂移）
 const THEME_VALID = ["cyber", "warm", "pro", "sakura", "ocean", "mint", "system"];
 
