@@ -3,9 +3,12 @@ package importer
 
 import (
 	"encoding/base64"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"ysm-model-manager/go/types"
 )
 
 func TestImportFromBase64_Success(t *testing.T) {
@@ -123,24 +126,31 @@ func TestImportFromBase64_WriteFailureCleanup(t *testing.T) {
 	logFn := func(name, src, dst string, size int64, status, msg string) {}
 	b64 := base64.StdEncoding.EncodeToString([]byte("modeldata"))
 
-	// 制造落地失败：destPath 的父目录是已存在文件（Rename 到文件内部必然失败）
-	blocker := filepath.Join(root, "blocker")
-	if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
+	// 制造落地失败：destPath（root/blocker.ysm）已存在为目录 → CreateTemp 成功后
+	// Rename 到目录必然失败（Windows 上 os.Rename 不覆盖已存在目录）
+	blocker := filepath.Join(root, "blocker.ysm")
+	if err := os.MkdirAll(blocker, 0755); err != nil {
 		t.Fatal(err)
 	}
-	// 直接测 WriteFileAtomic：destPath 的 dir 是普通文件 → CreateTemp 失败（应报错且无 tmp 残留）
-	err := ImportFromBase64("blocker", b64, ImportOptions{Overwrite: true}, rootFn, logFn)
+	err := ImportFromBase64("blocker.ysm", b64, ImportOptions{Overwrite: true}, rootFn, logFn)
 	if err == nil {
-		t.Fatal("目标为文件时导入应失败")
+		t.Fatal("目标为目录时导入应失败")
 	}
-	// 目标目录下不应有 .import-*.tmp 残渣（WriteFileAtomic 清理验证）
-	matches, _ := filepath.Glob(filepath.Join(root, ".import-*.tmp"))
+	// 结构化错误码：落地阶段失败 → WRITE_FAILED
+	var ae types.AppError
+	if !errors.As(err, &ae) {
+		t.Fatalf("错误应为 AppError，实际: %v", err)
+	}
+	if ae.Code != "WRITE_FAILED" {
+		t.Fatalf("错误码 = %q, 期望 WRITE_FAILED", ae.Code)
+	}
+	// 目标目录下不应有 .atomic-*.tmp 残渣（WriteFileAtomic 清理验证）
+	matches, _ := filepath.Glob(filepath.Join(root, ".atomic-*.tmp"))
 	if len(matches) != 0 {
-		t.Fatalf("失败后不应有 .import-*.tmp 残留: %v", matches)
+		t.Fatalf("失败后不应有 .atomic-*.tmp 残留: %v", matches)
 	}
-	// 正常路径无半截文件：目标存在（overwrite 前内容不变）
-	data, err := os.ReadFile(blocker)
-	if err != nil || string(data) != "x" {
-		t.Fatalf("阻塞文件不应被半截写入: %q %v", string(data), err)
+	// 原目标未被破坏：阻塞目录仍在
+	if info, err := os.Stat(blocker); err != nil || !info.IsDir() {
+		t.Fatalf("阻塞目录应原样保留: %v", err)
 	}
 }

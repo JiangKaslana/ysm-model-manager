@@ -34,6 +34,7 @@ type Watcher struct {
 	syncRunning  bool           // 同步执行中标志（防并发重入）
 	syncPending  bool           // 执行期间积累的新事件，完成后需再跑一轮
 	wg           sync.WaitGroup // 等待 in-flight 同步完成（Stop 阻塞）
+	loopDone     chan struct{}  // loop 退出信号（Stop 等待后再返回，保证重启无竞态）
 }
 
 // New 创建文件监听器
@@ -48,6 +49,7 @@ func New(repoRoot, mcRoot string, scanFn ScanFunc, clearCacheFn ...func()) *Watc
 		scanFn:       scanFn,
 		clearCacheFn: ccf,
 		done:         make(chan struct{}),
+		loopDone:     make(chan struct{}),
 	}
 }
 
@@ -64,8 +66,9 @@ func (w *Watcher) Start() error {
 		return err
 	}
 	w.w = fw
-	// 每次 Start 重建 done：支持 Stop 后再 Start（已关闭的 channel 不可复用）
+	// 每次 Start 重建 done 与 loopDone：支持 Stop 后再 Start（已关闭的 channel 不可复用）
 	w.done = make(chan struct{})
+	w.loopDone = make(chan struct{})
 	w.running = true
 
 	// 递归添加子目录
@@ -114,6 +117,14 @@ func (w *Watcher) Stop() {
 		w.w.Close()
 	}
 	w.mu.Unlock()
+	// 等待 loop 退出（上限防挂起）——close(done) 后 loop 退出是异步的，
+	// 不等待就返回会让「Stop→立即 Start」重启时旧 loop 与新 Start 的字段写读竞争
+	// （go test -race 检出 TestStartStopRestart），旧 loop 的 recover 还可能误关新 watcher
+	select {
+	case <-w.loopDone:
+	case <-time.After(5 * time.Second):
+		log.Printf("[watcher] 等待 loop 退出超时，强制停止")
+	}
 	// 等待正在执行的同步完成（上限，避免网络盘挂起阻塞退出/重启）
 	done := make(chan struct{})
 	go func() { w.wg.Wait(); close(done) }()
@@ -147,6 +158,7 @@ func (w *Watcher) loop() {
 			}
 			w.mu.Unlock()
 		}
+		close(w.loopDone) // 通知 Stop：本 loop 已完全退出（panic 恢复路径同样需要）
 	}()
 	// loop 入口一次性捕获本地 channel 引用——原 select 每轮读共享字段
 	// w.w.Events/w.w.Errors/w.done，Stop→立即 Start（restartWatcher 正是此序列）后

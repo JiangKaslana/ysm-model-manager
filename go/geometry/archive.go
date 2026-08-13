@@ -497,8 +497,10 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 			orderMap[strings.ReplaceAll(p, "\\", "/")] = i
 		}
 		sort.SliceStable(geoFiles, func(i, j int) bool {
-			ai, oki := orderMap[geoFiles[i].name]
-			aj, okj := orderMap[geoFiles[j].name]
+			// 查询键须与 orderMap 键同口径（"\\"→"/" 归一化）：Windows 工具
+			// 产出的归档条目名可能含反斜杠，原实现未归一化导致声明序排序失效
+			ai, oki := orderMap[strings.ReplaceAll(geoFiles[i].name, "\\", "/")]
+			aj, okj := orderMap[strings.ReplaceAll(geoFiles[j].name, "\\", "/")]
 			if oki && okj {
 				return ai < aj
 			}
@@ -539,7 +541,9 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 			}
 		}
 		// 按模型文件位置设置 cube 纹理索引
-		geoName := gf.name
+		// geoName 须先归一化 "\\"→"/" 再取 basename：条目名含反斜杠时
+		// 原实现取不到 basename → texIdxMap 永不命中 → TexSlot 绑定失效
+		geoName := strings.ReplaceAll(gf.name, "\\", "/")
 		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
 			geoName = geoName[idx+1:]
 		}
@@ -740,6 +744,10 @@ func ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte) {
 	for _, f := range reader.File {
 		low := strings.ToLower(f.Name)
 		if strings.HasSuffix(low, ".json") && !strings.Contains(low, "ysm.json") && !f.FileInfo().IsDir() {
+			// 动画/控制器 JSON 不参与几何解析（与 ZIP 路径同口径；7z 签名无动画回传）
+			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
+				continue
+			}
 			rc, err := f.Open()
 			if err != nil {
 				continue
@@ -761,8 +769,10 @@ func ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte) {
 			orderMap[strings.ReplaceAll(p, "\\", "/")] = i
 		}
 		sort.SliceStable(geoFiles, func(i, j int) bool {
-			ai, oki := orderMap[geoFiles[i].name]
-			aj, okj := orderMap[geoFiles[j].name]
+			// 查询键须与 orderMap 键同口径（"\\"→"/" 归一化）：Windows 工具
+			// 产出的归档条目名可能含反斜杠，原实现未归一化导致声明序排序失效
+			ai, oki := orderMap[strings.ReplaceAll(geoFiles[i].name, "\\", "/")]
+			aj, okj := orderMap[strings.ReplaceAll(geoFiles[j].name, "\\", "/")]
 			if oki && okj {
 				return ai < aj
 			}
@@ -800,7 +810,7 @@ func ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte) {
 				g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
 			}
 		}
-		geoName := gf.name
+		geoName := strings.ReplaceAll(gf.name, "\\", "/")
 		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
 			geoName = geoName[idx+1:]
 		}

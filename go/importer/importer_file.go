@@ -75,13 +75,19 @@ func ImportFromBase64(fileName, base64Data string, opts ImportOptions, rootFn fu
 
 	// 魔数校验
 	if !opts.SkipCheck && len(data) >= 4 {
+		// logger 为薄壳注入，可能为 nil（如测试/嵌入式调用），nil 时跳过日志不影响导入
+		warn := func(msg string) {
+			if logger != nil {
+				logger(fileName, fileName, targetRoot, 0, "warn", msg)
+			}
+		}
 		if ext == ".zip" || ext == ".ysm" {
 			if data[0] != 0x50 || data[1] != 0x4B || data[2] != 0x03 || data[3] != 0x04 {
-				logger(fileName, fileName, targetRoot, 0, "warn", "文件头不匹配标准ZIP格式，可能为旧版或非标准YSM文件，已导入")
+				warn("文件头不匹配标准ZIP格式，可能为旧版或非标准YSM文件，已导入")
 			}
 		} else if ext == ".7z" {
 			if data[0] != 0x37 || data[1] != 0x7A || data[2] != 0xBC || data[3] != 0xAF {
-				logger(fileName, fileName, targetRoot, 0, "warn", "文件头不匹配标准7z格式，已导入")
+				warn("文件头不匹配标准7z格式，已导入")
 			}
 		}
 	}
