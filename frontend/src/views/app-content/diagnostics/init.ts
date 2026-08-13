@@ -21,6 +21,11 @@ let diagLoadSeq = 0;
 let diagScanning = false;
 let diagExecBusy = false;
 
+// P2-4 修复（重入守卫）：startDedup 重入标志——去重扫描大量 await（逐目录
+// FindDuplicateFiles），快速连点会并发扫描同一 list 互相覆盖 innerHTML 且重复进
+// 移入回收站流程；busy 命中直接返回（与 scanConflicts / dedup-exec 同一范式）
+let _dedupBusy = false;
+
 /**
  * 初始化诊断页所有功能
  * @param root - 组件 shadow root
@@ -402,6 +407,9 @@ export async function startDedup(
   esc: EscFn,
   rtype?: string,
 ): Promise<void> {
+  // P2-4 修复（重入守卫）：在途去重扫描时丢弃重复点击（快速连点防并发覆盖）
+  if (_dedupBusy) return;
+  _dedupBusy = true;
   // P3 修复（子代理审计）：loadResourceRegistry 移入 try——原在 try（L404）之外，
   // reject（注册表加载失败）时 unhandledrejection、DOM 无占位、用户零反馈。
   // reg/typeLabel/typeIcon 声明提升到函数顶部：第二个 try（L441 目标目录收集）
@@ -428,6 +436,7 @@ export async function startDedup(
       '<div class="stat-row diag-stat diag-stat-muted">❌ ' +
       esc(friendlyError(e, "加载资源类型失败")) +
       "</div>";
+    _dedupBusy = false; // P2-4：复位（早退路径）
     return;
   }
 
@@ -461,6 +470,7 @@ export async function startDedup(
     if (!targets.length) {
       list.innerHTML =
         '<div class="stat-row diag-msg diag-msg-error">' + t("diagnostics.configResourceDir") + "</div>";
+      _dedupBusy = false; // P2-4：复位（早退路径）
       return;
     }
 
@@ -507,6 +517,7 @@ export async function startDedup(
           // t() 不转义，插值前 esc 防元素上下文注入
           t("diagnostics.scanFailed", { reason: esc(parsed.error) }) +
           "</div>";
+        _dedupBusy = false; // P2-4：复位（早退路径）
         return;
       }
       const groups = (parsed as DedupGroup[]) || [];
@@ -525,6 +536,7 @@ export async function startDedup(
         '<div class="stat-row diag-msg diag-msg-success" style="justify-content:center">✅ ' +
         t("diagnostics.noDups") +
         "</div>";
+      _dedupBusy = false; // P2-4：复位（早退路径）
       return;
     }
 
@@ -670,6 +682,7 @@ ${isDefault ? '<span class="diag-dedup-recommend">' + t("diagnostics.recommended
       esc(String(err)) +
       "</div>";
   }
+  _dedupBusy = false; // P2-4：复位（含 catch 异常路径）
 }
 
 async function scanConflicts(root: ShadowRoot, esc: EscFn): Promise<void> {

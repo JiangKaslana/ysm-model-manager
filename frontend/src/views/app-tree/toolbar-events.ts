@@ -452,7 +452,9 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
           });
           return;
         }
+        const gen = vm._gen; // 代际守卫：导入耗时期间 root 切换后丢弃过期渲染
         await vm._load();
+        if (gen !== vm._gen) return;
         vm._renderTree();
         bus.emit("toast:show", {
           msg: "✅ 导入成功",
@@ -474,7 +476,9 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         if (isViewerMode()) {
           const dir = await resolveAndroidRepoDir();
           if (!dir) return; // 未授权：已引导授权页
+          const gen = vm._gen; // 代际守卫：授权跳转耗时期间 root 切换后丢弃过期渲染
           await vm._load();
+          if (gen !== vm._gen) return;
           vm._renderTree();
           return;
         }

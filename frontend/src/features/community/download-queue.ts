@@ -355,6 +355,9 @@ export function createDownloadQueue({
   let _stuckLocked = false;
   let _stuckTimer: ReturnType<typeof setTimeout> | null = null;
   let completeTimer: ReturnType<typeof setTimeout> | null = null;
+  // P1 修复：completeTimer 与 handleQueueEnded 双路收口互斥——timer 先触发后
+  // queue:status done 再到达时不得重复 onAllDone/cleanupProgressUI（防双回调/双清理）
+  let _doneNotified = false;
 
   const qsEl = (): HTMLElement | null => sr.querySelector("#gh-queue-status");
   const dlBtn = (): HTMLButtonElement | null =>
@@ -560,6 +563,10 @@ export function createDownloadQueue({
         // remaining>0 说明还有文件排队，放弃本次清理，等下一个进度/start 事件重设 timer。
         if (STATE.remaining > 0) return;
         if (STATE._lastDoneSeq > 0 && STATE.status !== "downloading") return; // 已完成，等 status done 收口
+        // P1 修复：收口互斥——若 handleQueueEnded 已先收口（status done 已到），
+        // 本 timer 不得再触发 onAllDone/cleanupProgressUI
+        if (_doneNotified) return;
+        _doneNotified = true;
         let summary: string | undefined;
         if (STATE.errorList.length > 0) {
           summary =
@@ -598,6 +605,12 @@ export function createDownloadQueue({
           pctEl._dotTimer = null;
         }
         if (fillEl) fillEl.style.width = "100%";
+      }
+      // P3 修复：ok 分支与 fail 分支对齐——清理 _stuckTimer，防锁定期间到达的
+      // 2s 补写 timer（若尚未触发）把 100% 覆盖回 99%/⏳
+      if (_stuckTimer) {
+        clearTimeout(_stuckTimer);
+        _stuckTimer = null;
       }
       if (done.name) getLocalMap().set(done.name, "");
       uncheckByName(done.name);
@@ -650,6 +663,10 @@ export function createDownloadQueue({
 
   /** 队列结束 → 显示错误摘要 / 清理 UI / 通知外部 */
   function handleQueueEnded(s: DownloadState): void {
+    // P1 修复：收口互斥——若 completeTimer 已先触发过 onAllDone/cleanupProgressUI，
+    // status done 迟到时不得重复收口
+    if (_doneNotified) return;
+    _doneNotified = true;
     const cancelled = s.status === "cancelled";
     let summary = "";
     if (s.errorList.length > 0) {
@@ -707,6 +724,8 @@ export function createDownloadQueue({
         clearCompleteTimer(); // 强制清掉进度条 3s timer，防止 "100% → done" 间隙
         handleQueueEnded(s);
       } else if (s.status === "downloading") {
+        // 状态变 active（新批次或 resume 恢复）——复位收口互斥标志（P1 修复）
+        _doneNotified = false;
         // 队列启动或 resume 恢复 — 确保 UI 就绪
         const qs = qsEl();
         const btn = dlBtn();
@@ -774,6 +793,8 @@ export function createDownloadQueue({
       // 新批次前 N 个 file-done 会因 seq > prev 判假被静默丢弃（勾选不复位/localMap
       // 不更新/头像不提取）。同一控制器实例内连续两批下载即触发。
       _prevLastDoneSeq = 0;
+      // P1 修复：新批次入队前复位收口互斥标志，允许本批次正常触发 onAllDone
+      _doneNotified = false;
       await enqueueDownloads(tasks);
     } catch (e) {
       // Go 入队失败（含 getApp/GetRepoRoot reject）：恢复状态与 UI，防止按钮/进度条卡死（陷阱 #3）

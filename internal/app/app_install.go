@@ -28,7 +28,7 @@ func (a *App) InstallModelFile(src, mcRoot string) (string, error) {
 }
 
 func (a *App) InstallModelTo(src, customDir string) error {
-	err := installer.Install(src, customDir, a.ysmRoot(), a.LinkMode)
+	err := installer.Install(src, customDir, a.ysmRoot(), a.getLinkMode())
 	if err != nil {
 		a.logger.Add(filepath.Base(src), src, customDir, 0, "failed", err.Error())
 	} else {
@@ -639,7 +639,7 @@ func (a *App) RelinkCustomDir(customDir, repoRoot string) (int, error) {
 // rtype 用于需要文件夹级重新链接的类型（ysm/mmd-skin 等）
 // relinkDir 按哈希比对重链接实例目录（执行逻辑下沉 go/sync）
 func (a *App) relinkDir(customDir, repoRoot, rtype string) (int, error) {
-	return ysmsync.RelinkDir(customDir, repoRoot, rtype, a.LinkMode, a.ScanModelEntries, a.logger.Add)
+	return ysmsync.RelinkDir(customDir, repoRoot, rtype, a.getLinkMode(), a.ScanModelEntries, a.logger.Add)
 }
 
 // RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录
@@ -733,7 +733,7 @@ func (a *App) PushResourceToInstance(rtype, instanceName string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return ysmsync.PushResources(rtype, globalDir, targetDir, a.LinkMode, a.logger.Add)
+	return ysmsync.PushResources(rtype, globalDir, targetDir, a.getLinkMode(), a.logger.Add)
 }
 
 // PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync）
@@ -801,7 +801,7 @@ func (a *App) PushSingleResourceToInstance(rtype, instanceName, filePath string)
 	if err != nil {
 		return err
 	}
-	return ysmsync.PushSingleResource(filePath, customDir, globalDir, a.LinkMode, rtype)
+	return ysmsync.PushSingleResource(filePath, customDir, globalDir, a.getLinkMode(), rtype)
 }
 
 // ========== 整合包全类型同步状态 ==========
@@ -891,12 +891,22 @@ func (a *App) SetLinkMode(mode string) error {
 	if err := a.saveConfig(cfg); err != nil {
 		return err
 	}
+	a.linkModeMu.Lock()
 	a.LinkMode = mode
+	a.linkModeMu.Unlock()
 	return nil
 }
 
-func (a *App) GetLinkMode() string {
+// getLinkMode 带锁读取 LinkMode（P1 修复：SetLinkMode/SaveAppConfig 与
+// 各安装/同步读点并发访问，无锁读写存在数据竞争）
+func (a *App) getLinkMode() string {
+	a.linkModeMu.RLock()
+	defer a.linkModeMu.RUnlock()
 	return a.LinkMode
+}
+
+func (a *App) GetLinkMode() string {
+	return a.getLinkMode()
 }
 
 // ========== 日志 ==========

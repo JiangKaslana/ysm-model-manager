@@ -527,7 +527,7 @@ func (a *App) InstallResourceToInstance(rtype, srcPath, instanceName string) err
 	srcParent := filepath.Dir(srcPath)
 
 	if globalRoot == "" {
-		return installer.Install(srcPath, dstDir, globalRoot, a.LinkMode)
+		return installer.Install(srcPath, dstDir, globalRoot, a.getLinkMode())
 	}
 
 	cleanParent := filepath.Clean(srcParent)
@@ -544,12 +544,12 @@ func (a *App) InstallResourceToInstance(rtype, srcPath, instanceName string) err
 	needsFolder := rt != nil && (rt.IsDir || rtype == "ysm")
 
 	if cleanParent != cleanRoot && hasPrefix && needsFolder {
-		if err := installer.InstallDir(srcParent, dstDir, globalRoot, a.LinkMode, rtype); err != nil {
+		if err := installer.InstallDir(srcParent, dstDir, globalRoot, a.getLinkMode(), rtype); err != nil {
 			// 文件夹级安装失败直接报错：静默降级为单文件会丢配套文件且用户无感知
 			return fmt.Errorf("安装目录失败: %w", err)
 		}
 		return nil
 	}
 
-	return installer.Install(srcPath, dstDir, globalRoot, a.LinkMode)
+	return installer.Install(srcPath, dstDir, globalRoot, a.getLinkMode())
 }

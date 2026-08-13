@@ -259,12 +259,12 @@
 |------|--------|------|
 | `InvalidateCache()` | `go/scanner/scanner:59` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
 | `InvalidatePath()` | `go/scanner/scanner:74` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:100` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:107` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:241` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:265` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:297` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:356` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ScanEntries()` | `go/scanner/scanner:105` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:112` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:246` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:270` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:302` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:361` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -505,13 +505,13 @@
 | `App.GetInstanceSyncStatus()` | `internal/app/app_install:811` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
 | `App.HasYSMMod()` | `internal/app/app_install:863` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install:881` | ========== 链接模式 ========== |
-| `App.GetLinkMode()` | `internal/app/app_install:898` | — |
-| `App.AddImportLog()` | `internal/app/app_install:903` | ========== 日志 ========== |
-| `App.AddOpLog()` | `internal/app/app_install:907` | — |
-| `App.GetImportLogs()` | `internal/app/app_install:911` | — |
-| `App.ClearImportLogs()` | `internal/app/app_install:915` | — |
-| `App.GetRuntimeLogs()` | `internal/app/app_install:920` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
-| `App.ClearRuntimeLogs()` | `internal/app/app_install:925` | ClearRuntimeLogs 清空运行时日志缓冲 |
+| `App.GetLinkMode()` | `internal/app/app_install:908` | — |
+| `App.AddImportLog()` | `internal/app/app_install:913` | ========== 日志 ========== |
+| `App.AddOpLog()` | `internal/app/app_install:917` | — |
+| `App.GetImportLogs()` | `internal/app/app_install:921` | — |
+| `App.ClearImportLogs()` | `internal/app/app_install:925` | — |
+| `App.GetRuntimeLogs()` | `internal/app/app_install:930` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
+| `App.ClearRuntimeLogs()` | `internal/app/app_install:935` | ClearRuntimeLogs 清空运行时日志缓冲 |
 | `App.AnalyzeYSMModel()` | `internal/app/app_model:40` | — |
 | `App.ExtractYsmSummary()` | `internal/app/app_model:44` | — |
 | `App.ExtractYSMHeader()` | `internal/app/app_model:58` | — |
@@ -671,12 +671,12 @@
 | `registerSync()` | `frontend/src/core/handlers/sync:10` | 注册同步 handler，push 返回的取消订阅函数到 unsubs |
 | `SUPPORTED_LANGS()` | `frontend/src/core/i18n/locale:11` | 支持的语言列表（规划清单） |
 | `LangCode()` | `frontend/src/core/i18n/locale:17` | — |
-| `warnedKeys()` | `frontend/src/core/i18n/locale:28` | 缺失 key 告警节流（每 key 只告警一次；跨模块共享给 t.ts 用，故不带 _ 私有前缀） |
-| `loadLocale()` | `frontend/src/core/i18n/locale:37` | 加载指定语言的 JSON 包（幂等：已加载不重复 fetch）。 |
-| `getBundle()` | `frontend/src/core/i18n/locale:57` | 获取指定语言的翻译包（已加载时直接读缓存，空包/未加载回落非空基准 zh-CN）。 |
-| `getLang()` | `frontend/src/core/i18n/locale:71` | 读取当前语言代码 |
-| `setLang()` | `frontend/src/core/i18n/locale:76` | 切换语言（异步加载语言包后触发事件） |
-| `initI18n()` | `frontend/src/core/i18n/locale:122` | 启动时调用：读取持久化/系统语言 → 预加载语言包 → 同步 HTML 属性。 |
+| `warnedKeys()` | `frontend/src/core/i18n/locale:31` | 缺失 key 告警节流（每 key 只告警一次；跨模块共享给 t.ts 用，故不带 _ 私有前缀） |
+| `loadLocale()` | `frontend/src/core/i18n/locale:40` | 加载指定语言的 JSON 包（幂等：已加载不重复 fetch）。 |
+| `getBundle()` | `frontend/src/core/i18n/locale:60` | 获取指定语言的翻译包（已加载时直接读缓存，空包/未加载回落非空基准 zh-CN）。 |
+| `getLang()` | `frontend/src/core/i18n/locale:74` | 读取当前语言代码 |
+| `setLang()` | `frontend/src/core/i18n/locale:79` | 切换语言（异步加载语言包后触发事件） |
+| `initI18n()` | `frontend/src/core/i18n/locale:127` | 启动时调用：读取持久化/系统语言 → 预加载语言包 → 同步 HTML 属性。 |
 | `en()` | `frontend/src/core/i18n/locales/en:4` | — |
 | `ja()` | `frontend/src/core/i18n/locales/ja:5` | — |
 | `zhCN()` | `frontend/src/core/i18n/locales/zh-CN:6` | — |
@@ -951,8 +951,8 @@
 | `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:277` | 合并社区站点到本地 workshop_sites.json |
 | `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:298` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:29` | 初始化诊断页所有功能 |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/init:400` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:34` | 初始化诊断页所有功能 |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/init:405` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:24` | 初始化设置页所有事件绑定 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |

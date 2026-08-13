@@ -121,7 +121,9 @@ func (a *App) loadAppConfig() {
 	}
 	// repoRoot 从 FilesRoot 动态推导，无需手动赋值
 	if cfg.LinkMode != "" {
+		a.linkModeMu.Lock()
 		a.LinkMode = cfg.LinkMode
+		a.linkModeMu.Unlock()
 	}
 	// populate config cache
 	a.configMu.Lock()
@@ -176,7 +178,9 @@ func (a *App) SaveAppConfig(filesRoot, rpRoot, mcRoot, linkMode, theme string) e
 	}
 	// 技术债 #4：保存成功后同步内存 LinkMode（与 SetLinkMode 同模式）——
 	// 原实现写盘后 installer 安装仍用旧链接模式直到重启（GetLinkMode 读 a.LinkMode）
+	a.linkModeMu.Lock()
 	a.LinkMode = cfg.LinkMode
+	a.linkModeMu.Unlock()
 	// 技术债 #4：FilesRoot/McRoot 变化后重启 watcher——原 restartWatcher 是无调用点死代码，
 	// 保存后 watcher 仍监听旧目录（文件变更不再触发自动同步）；saveConfig 已更新 configCache，
 	// 故 GetRepoRoot 返回新 FilesRoot 推导的 ysm 根。
@@ -205,6 +209,8 @@ func (a *App) SetDownloadMirror(mirror string) error {
 }
 
 func (a *App) restartWatcher(repoRoot, mcRoot string) error {
+	a.watcherMu.Lock()
+	defer a.watcherMu.Unlock()
 	if a.watcher != nil {
 		a.watcher.Stop()
 		a.watcher = nil

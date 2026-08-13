@@ -33,6 +33,8 @@ type App struct {
 	configCache   types.AppConfig
 	configLoaded  bool
 	configMu      sync.RWMutex
+	linkModeMu    sync.RWMutex
+	watcherMu     sync.Mutex
 	app           *application.App
 	mainWindow    *application.WebviewWindow
 
@@ -151,10 +153,12 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	// Android 守卫：fsnotify 经 sdcardfs/FUSE 事件不完整（ADR-047 明示），
 	// fw.Add 逐目录失败后 loop 空转 = running=true 静默假活 → 直接跳过，以手动刷新/重扫为准
 	if runtime.GOOS != "android" && ysmRoot != "" && cfg.McRoot != "" {
+		a.watcherMu.Lock()
 		a.watcher = watcher.New(ysmRoot, cfg.McRoot, a.scanModelEntries, a.ClearScanCache)
 		if err := a.watcher.Start(); err != nil {
 			log.Printf("[startup] 文件监听器启动失败: %v", err)
 		}
+		a.watcherMu.Unlock()
 	}
 	return nil
 }
@@ -167,9 +171,11 @@ func (a *App) ServiceShutdown() error {
 			println("[shutdown] 退出时异常:", fmt.Sprint(r))
 		}
 	}()
+	a.watcherMu.Lock()
 	if a.watcher != nil {
 		a.watcher.Stop()
 	}
+	a.watcherMu.Unlock()
 	// 关闭广场反向代理（ADR-050）——currentPlazaTarget 与导航/关闭并发读写，须持 plazaWinMu
 	a.plazaWinMu.Lock()
 	plazaTarget := a.currentPlazaTarget

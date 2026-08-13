@@ -16,6 +16,10 @@ import (
 
 // RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚）
 func RelinkDir(customDir, repoRoot, rtype, linkMode string, scanFn func(string) []types.ModelEntry, logger Logger) (int, error) {
+	// 注：此处不再整段持 installer.InstallLock——installer.Install/InstallDir 内部
+	// 已各自持锁（installer.go 公开函数包装 *Locked 内部实现），外层再锁会
+	// 同一 goroutine 重入非重入 mutex 死锁（sync 测试挂起定位）。写操作级互斥
+	// 已由 installer 内部锁覆盖；整段互斥需 installer 暴露带锁回调，超出本轮范围。
 	customDir = strings.TrimSpace(customDir)
 	repoRoot = strings.TrimSpace(repoRoot)
 	if customDir == "" || repoRoot == "" {

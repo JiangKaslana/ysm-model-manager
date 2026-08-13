@@ -77,21 +77,26 @@ func InvalidatePath(dir string) {
 		return
 	}
 	sep := string(filepath.Separator)
-	scanCache.Range(func(k, _ interface{}) bool {
+	// 遍历 keyVersions（含在途扫描的 key）：递增所有相关 key 版本，拦截在途 Store
+	keyVersions.Range(func(k, v interface{}) bool {
 		kstr := k.(string)
-		related := kstr == key ||
-			strings.HasPrefix(key, kstr+sep) || // 祖先 key（本 key 在其下）
-			strings.HasPrefix(kstr, key+sep) // 后代 key（其在本地 key 下）
-		if related {
-			scanCache.Delete(kstr)
-			// P1 修复（审核）：原子递增 key 版本，拦截在途 Store
-			invalidateKeyVersion(kstr)
+		if kstr == key || strings.HasPrefix(key, kstr+sep) || strings.HasPrefix(kstr, key+sep) {
+			kv := v.(*atomic.Uint64)
+			kv.Add(1)
 		}
 		return true
 	})
-	// 自身 key 版本也递增
-	invalidateKeyVersion(key)
-	scanCache.Delete(key)
+	// 自身 key 版本兜底递增（可能从未被扫描过）
+	kv, _ := keyVersions.LoadOrStore(key, &atomic.Uint64{})
+	kv.(*atomic.Uint64).Add(1)
+	// 遍历 scanCache 删除相关条目
+	scanCache.Range(func(k, _ interface{}) bool {
+		kstr := k.(string)
+		if kstr == key || strings.HasPrefix(key, kstr+sep) || strings.HasPrefix(kstr, key+sep) {
+			scanCache.Delete(kstr)
+		}
+		return true
+	})
 }
 
 // ========== 模型扫描 ==========

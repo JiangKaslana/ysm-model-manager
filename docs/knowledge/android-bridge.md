@@ -60,3 +60,26 @@ Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 
 
 - ADR-046（全平台化可行性）、ADR-047（Android 可用性落地规划）
 - `docs/knowledge/android-events.md`、`docs/knowledge/go-android-platform-guard.md`、`docs/knowledge/pathmgr`（若存在）
+
+---
+
+## 调研快照：安卓 MC 启动器游戏目录适配（2026-08-13）
+
+> 缘起：设想「走获取已安装应用列表自动发现游戏目录」以适配安卓 MC 启动器。结论：**此路线不成立**，记录以备后续取用。
+
+### 关键结论（三前提两不成立一不稳固）
+1. **Wails v3 不暴露查询已安装应用的 Go API** —— 已查 `application_android.go`（master/v3）全量函数：Java 桥仅转发 `isDarkMode`/生命周期/`executeJavaScript` 等通用方法；系统事件白名单仅 `BatteryChanged`/`NetworkChanged`/`ThemeChanged`/`ScreenLocked`/`ScreenUnlocked`；无 `getInstalledPackages`/PackageManager 接口。要支持须**自改 wails Java 层 `WailsBridge`** 新增方法再经 `androidBridgeString` 暴露，非前端 binding 可绕。
+2. **启动器游戏目录碎片化且高版本在私有沙盒** ——
+   - PojavLauncher：Android 9- 为 `/storage/emulated/0/games/PojavLauncher/.minecraft`；Android 10+ scoped storage 后该目录被应用私有沙盒吞掉，跨应用读需 Shizuku/ZArchiver。
+   - HMCL-PE / Zalith：游戏目录在各自应用内部存储，不落公共 sdcard 根，**跨应用不可读**。
+3. **`MANAGE_EXTERNAL_STORAGE` 仍读不到别的包** —— Android 11+ 彻底封锁 `/Android/data/<pkg>/` 跨包访问，即便持有全盘权限也无效（除非 Shizuku/root）。
+
+### 推荐适配路线（最小正确，非自动发现）
+- **放弃 PackageManager 自动发现**（wails 不支持 + scoped storage 锁死）。
+- 放开设置页 `mcRoot` 卡片：安卓 `getAndroidBridge()` 存在时重新显示（当前被刻意隐藏，见 android-dev.md 坑点表「设置页游戏根目录卡片 已修」），复用 `resolveAndroidRepoDir` 授权引导让用户指向**公共可写目录**。
+- 强约定：引导用户把启动器游戏目录经其自身设置「迁移/指向」到 `/storage/emulated/0/YSM-Model-Manager/minecraft` 等公共路径，Go 端授权后 `os.*` 直读直写。
+- 适配量 ≈ 数百行前端（放开卡片 + 引导文案 + 路径校验），**零 Java/wails 改动**。
+
+### 待办（未实施）
+- [ ] 查 `settings/init.ts` 与 `app_config_android.go` 中 mcRoot 卡片的 Android 隐藏守卫，出最小放开方案。
+- [ ] 评估引导文案 i18n（zh-CN/en/ja）新增键。

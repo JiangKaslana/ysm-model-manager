@@ -272,9 +272,11 @@ async function reload(vm: AppTree): Promise<void> {
     const App = await getApp();
     if (App.ClearScanCache) await App.ClearScanCache();
   } catch (_) {}
+  const gen = vm._gen; // P2-1 代际捕获（不 ++，避免打断 connected 初始渲染）
   try {
     const rtype = vm._rootAttr || vm._typeFilter || "";
     const r = await get<typeof loadEntries>("loadEntries")(rtype);
+    if (gen !== vm._gen) return; // P2-1 root 切换/新加载已发起 → 丢弃过期结果
     if (r) {
       vm._repoRoot = r.repoRoot;
       vm._entries = r.entries;
@@ -282,10 +284,12 @@ async function reload(vm: AppTree): Promise<void> {
       vm._entries = [];
     }
   } catch (err) {
+    if (gen !== vm._gen) return;
     console.warn("[bus] reload 失败:", err);
     vm._entries = [];
     bus.emit("toast:show", { msg: "❌ " + friendlyError(err, t("tree.reloadFailed")), duration: 5000, type: "error" });
   }
+  if (gen !== vm._gen) return;
   vm._renderTree();
 }
 

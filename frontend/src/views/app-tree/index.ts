@@ -63,7 +63,7 @@ export class AppTree extends HTMLElement {
   /** 已完成 connectedCallback 初始化（用于区分首次挂载与后续属性变更） */
   private _ready = false;
   /** root 属性切换代际计数：快速切换时丢弃过期加载的渲染 */
-  private _gen = 0;
+  _gen = 0;
   /** P2 修复（审核）：挂载期间 root 变更标记——_ready 前不吞掉变更，connected 补加载 */
   private _pendingRoot = false;
 
@@ -330,6 +330,7 @@ export class AppTree extends HTMLElement {
   async _deleteSelected(paths: string[], isDirModel: boolean): Promise<void> {
     if (this._deleting) return; // 并发守卫：连点 Delete 只执行第一次
     this._deleting = true;
+    const gen = this._gen; // P2-1 代际捕获：删除期间 root 切换/新加载 → 丢弃过期渲染
     try {
       let ok = 0,
         fail = 0;
@@ -356,6 +357,7 @@ export class AppTree extends HTMLElement {
         /* 清缓存失败不影响删除结果，_load 仍会执行 */
       }
       await this._load();
+      if (gen !== this._gen) return; // P2-1 root 切换/新加载已发起 → 丢弃过期渲染
       this._renderTree();
       bus.emit("toast:show", {
         msg: `✅ ${t("tree.deleted", { ok, fail: fail || 0 })}`,

@@ -488,6 +488,14 @@ export function initImportQueue(app: ImportQueueHost): () => void {
     on(importBtn, "click", async () => {
       if (_importing) return; // 并发守卫：防连点弹出多个重命名对话框/重复导入
       _importing = true;
+      // P1 修复（TOCTOU）：多处 await 期间队列行点击/其他路径可能换掉 current*，
+      // 在途导入一律改用本次点击时的编辑快照，防 relPath/base64 错配、误移队列
+      const editing = {
+        file: currentFile,
+        base64: currentBase64,
+        name: currentFileName,
+        relPath: currentRelPath,
+      };
     try {
     const a = (root.getElementById("dl-author") as HTMLInputElement).value.trim();
     const w = (root.getElementById("dl-work") as HTMLInputElement).value.trim();
@@ -503,7 +511,7 @@ export function initImportQueue(app: ImportQueueHost): () => void {
           "-" +
           String(new Date().getMonth() + 1).padStart(2, "0")
         : "");
-    const ext = currentFileName?.split(".").pop() || RESOURCE_TYPES.YSM;
+    const ext = editing.name?.split(".").pop() || RESOURCE_TYPES.YSM;
 
     let newName: string;
     if (c) {
@@ -513,7 +521,7 @@ export function initImportQueue(app: ImportQueueHost): () => void {
       );
     } else {
       // 未填写角色名 → 使用原文件名
-      newName = currentFileName || "untitled." + ext;
+      newName = editing.name || "untitled." + ext;
     }
 
     // 覆盖分支（catch 内）也要用 finalName，提升到 try 外声明
@@ -530,8 +538,8 @@ export function initImportQueue(app: ImportQueueHost): () => void {
         return;
       }
       // 从 relPath 提取子目录，如 "folder/sub/model.ysm" → "folder/sub"
-      const subpath = currentRelPath
-        ? currentRelPath.substring(0, currentRelPath.lastIndexOf("/"))
+      const subpath = editing.relPath
+        ? editing.relPath.substring(0, editing.relPath.lastIndexOf("/"))
         : "";
       // 先弹出重命名确认对话框，确认后再导入
       const renameTo = await showRenameDialog(null, newName);
@@ -545,7 +553,7 @@ export function initImportQueue(app: ImportQueueHost): () => void {
       }
       finalName = renameTo;
 
-      await ImportModelFileTo(finalName, subpath, currentBase64 || "");
+      await ImportModelFileTo(finalName, subpath, editing.base64 || "");
       bus.emit("stats:refresh");
       bus.emit("tree:reload");
 
@@ -563,10 +571,10 @@ export function initImportQueue(app: ImportQueueHost): () => void {
         name: finalName,
         time: new Date().toLocaleTimeString(),
         isYsm: true,
-        relPath: currentRelPath,
+        relPath: editing.relPath,
       });
       // 从队列中移除已导入的文件
-      const importedIdx = fileQueue.findIndex((fq) => fq.file === currentFile);
+      const importedIdx = fileQueue.findIndex((fq) => fq.file === editing.file);
       if (importedIdx >= 0) fileQueue.splice(importedIdx, 1);
       renderImportedList();
 
@@ -591,10 +599,10 @@ export function initImportQueue(app: ImportQueueHost): () => void {
         if (confirmed) {
           try {
             const { ImportModelFileOverwriteTo } = await getApp();
-            const subpath2 = currentRelPath
-              ? currentRelPath.substring(0, currentRelPath.lastIndexOf("/"))
+            const subpath2 = editing.relPath
+              ? editing.relPath.substring(0, editing.relPath.lastIndexOf("/"))
               : "";
-            await ImportModelFileOverwriteTo(finalName, subpath2, currentBase64 || "");
+            await ImportModelFileOverwriteTo(finalName, subpath2, editing.base64 || "");
             bus.emit("stats:refresh");
             bus.emit("tree:reload");
             bus.emit("toast:show", {
@@ -610,10 +618,10 @@ export function initImportQueue(app: ImportQueueHost): () => void {
               name: finalName,
               time: new Date().toLocaleTimeString(),
               isYsm: true,
-              relPath: currentRelPath,
+              relPath: editing.relPath,
             });
             const importedIdx = fileQueue.findIndex(
-              (fq) => fq.file === currentFile,
+              (fq) => fq.file === editing.file,
             );
             if (importedIdx >= 0) fileQueue.splice(importedIdx, 1);
             renderImportedList();
@@ -648,6 +656,8 @@ export function initImportQueue(app: ImportQueueHost): () => void {
   const cancelBtn = root.getElementById("dl-cancel");
   if (cancelBtn)
     on(cancelBtn, "click", () => {
+      // P1 修复：在途导入期间禁止取消/重置表单（防 current* 被清掉影响在途导入）
+      if (_importing) return;
       currentFile = null;
       currentBase64 = null;
       currentFileName = null;
@@ -948,6 +958,8 @@ export function initImportQueue(app: ImportQueueHost): () => void {
     importedList.querySelectorAll(".dl-q-item").forEach((rowEl) => {
       const row = rowEl as HTMLElement;
       row.addEventListener("click", (e: MouseEvent) => {
+        // P1 修复：在途导入期间禁止切换编辑项（防 showForm(B) 换掉 current* 造成 TOCTOU）
+        if (_importing) return;
         if ((e.target as Element).closest(".dl-remove-q")) return;
         const qi = parseInt((row as HTMLElement).dataset.idx || "", 10);
         const fq = fileQueue[qi];

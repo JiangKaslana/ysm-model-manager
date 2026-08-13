@@ -163,7 +163,14 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
         return;
       }
       // 并发守卫：与批量 toggle 共用槽位，防连点翻转状态 + reload 竞态
-      if (vm._toggleBusy || vm._batchBusy) return;
+      if (vm._toggleBusy || vm._batchBusy) {
+        bus.emit("toast:show", {
+          msg: "⏳ 操作进行中，请稍候",
+          duration: 1500,
+          type: "info",
+        });
+        return;
+      }
       vm._toggleBusy = true;
       const fullPath = flCk.dataset.fullpath || flCk.dataset.path;
       const fl = flCk.closest(".fl, .fl-list") as HTMLElement | null;
@@ -172,7 +179,9 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
       getApp()
         .then(({ ToggleModelEnable }) => ToggleModelEnable(fullPath || ""))
         .then(async () => {
+          const gen = vm._gen; // P2-1 代际捕获：_load 期间 root 切换/新加载 → 丢弃过期渲染
           await vm._load();
+          if (gen !== vm._gen) return;
           vm._renderTree();
           bus.emit("sync:toggle:status");
           bus.emit("stats:refresh");

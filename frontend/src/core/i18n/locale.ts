@@ -21,6 +21,9 @@ type Bundle = Record<string, string>;
 
 let _currentLang: LangCode = "zh-CN";
 
+/** setLang 请求代际计数：并发切换时慢请求后到可覆盖后选，据此丢弃过期写入 */
+let _langReqGen = 0;
+
 /** 已加载的语言包缓存 */
 const bundles: Record<string, Bundle> = {};
 
@@ -76,8 +79,10 @@ export function getLang(): LangCode {
 export async function setLang(code: LangCode): Promise<void> {
   if (code === _currentLang) return;
   if (!SUPPORTED_LANGS.some((l) => l.code === code)) return; // 运行时收窄，防 .js 调用方注入
+  const gen = ++_langReqGen;
   await loadLocale(code);
-  if (code === _currentLang) return; // 代际守卫：并发切换时放弃过期写入
+  if (gen !== _langReqGen) return; // 已有更新的切换请求 → 放弃过期写入
+  if (code === _currentLang) return;
   _currentLang = code;
   safeSet(STORAGE_KEY, code);
   applyHtmlLang(code);
