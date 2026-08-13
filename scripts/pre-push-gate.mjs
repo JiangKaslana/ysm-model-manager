@@ -239,10 +239,16 @@ function main() {
     if (goBuild.rc !== 0) blocked = true;
 
     const t1 = Date.now();
-    const goTest = sh('go test ./go/... -count=1');
+    const goTest = sh('go test -race ./go/... -count=1 -timeout 10m');
     results.push({ label: 'go test', ok: goTest.rc === 0, time: Date.now() - t1,
       tail: goTest.rc ? goTest.out.trim().split('\n').slice(-4).join('\n') : '' });
     if (goTest.rc !== 0) blocked = true;
+
+    const tV = Date.now();
+    const goVet = sh('go vet ./go/... ./internal/app/...');
+    results.push({ label: 'go vet', ok: goVet.rc === 0, time: Date.now() - tV,
+      tail: goVet.rc ? goVet.out.trim().split('\n').slice(-4).join('\n') : '' });
+    if (goVet.rc !== 0) blocked = true;
 
     // gofmt：只读校验（修复已下沉 pre-commit；此处检出即阻断，防止绕过提交）
     const t2 = Date.now();

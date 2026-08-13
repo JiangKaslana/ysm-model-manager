@@ -29,7 +29,7 @@ test.describe("右键菜单", () => {
     // 轮询等待 tree-file 渲染
     const hasTreeFile = await waitForTreeFile(page);
     if (!hasTreeFile) {
-      test.skip("tree-file 未在 Shadow DOM 中渲染");
+      test.skip(true, "tree-file 未在 Shadow DOM 中渲染");
       return;
     }
     await rightClickTree(page, "tree-file");
@@ -42,7 +42,7 @@ test.describe("右键菜单", () => {
   test("右键菜单项可点击", async ({ page }) => {
     const hasTreeFile = await waitForTreeFile(page);
     if (!hasTreeFile) {
-      test.skip("tree-file 未在 Shadow DOM 中渲染");
+      test.skip(true, "tree-file 未在 Shadow DOM 中渲染");
       return;
     }
     await rightClickTree(page, "tree-file");
@@ -50,7 +50,7 @@ test.describe("右键菜单", () => {
     const ctxItems = page.locator('[data-testid="ctx-item"]');
     const itemCount = await ctxItems.count();
     if (itemCount === 0) {
-      test.skip("右键菜单未渲染菜单项");
+      test.skip(true, "右键菜单未渲染菜单项");
       return;
     }
     await ctxItems.first().click();
@@ -61,7 +61,7 @@ test.describe("右键菜单", () => {
   test("右键 → 点击「Copy File Path」→ action 执行 + toast 反馈", async ({ page }) => {
     const hasTreeFile = await waitForTreeFile(page);
     if (!hasTreeFile) {
-      test.skip("tree-file 未在 Shadow DOM 中渲染");
+      test.skip(true, "tree-file 未在 Shadow DOM 中渲染");
       return;
     }
     await rightClickTree(page, "tree-file");
@@ -72,7 +72,7 @@ test.describe("右键菜单", () => {
       .filter({ hasText: "Copy File Path" });
     const copyCount = await copyItem.count();
     if (copyCount === 0) {
-      test.skip("右键菜单未渲染 Copy File Path 项");
+      test.skip(true, "右键菜单未渲染 Copy File Path 项");
       return;
     }
     await copyItem.click();

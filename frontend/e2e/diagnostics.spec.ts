@@ -18,7 +18,7 @@ async function diagBtnCount(page: Page): Promise<number> {
 /** 查询某诊断面板是否可见（面板 id 为 #diag-log / #diag-runtime / #diag-conflict，
  *  按钮的 data-diag 属性只是切换钮，不能用来断言面板 display） */
 async function panelVisible(page: Page, name: string): Promise<boolean> {
-  return page.evaluate((n) => {
+  return page.evaluate((n: string) => {
     const content = document.querySelector("app-content");
     const panel = content?.shadowRoot?.getElementById(`diag-${n}`) as HTMLElement | null;
     return Boolean(panel && getComputedStyle(panel).display !== "none");

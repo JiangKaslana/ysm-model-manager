@@ -20,7 +20,7 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"], ["html", { outputFolder: "e2e-report" }]],
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://127.0.0.1:5173",
     // retries:0 下 on-first-retry 永不触发 → 失败即留 trace（batch1 审核 P3-2）
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
@@ -30,8 +30,8 @@ export default defineConfig({
   },
   // 内置 webServer：自动启动/关闭 vite dev
   webServer: {
-    command: "npx vite --port 5173 --host 127.0.0.1",
-    url: "http://localhost:5173",
+    command: "npx vite --port 5173",
+    url: "http://127.0.0.1:5173",
     reuseExistingServer: !process.env.CI,
     cwd: ".",
     timeout: 30000,

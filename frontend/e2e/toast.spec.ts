@@ -54,7 +54,9 @@ test.describe("Toast 通知", () => {
       window.bus?.emit("toast:show", {
         msg: "可撤销",
         duration: 5000,
-        undo: () => (window as unknown as Record<string, unknown>).e2eUndoCallback(),
+        undo: () => {
+          (window as unknown as { e2eUndoCallback: () => void }).e2eUndoCallback();
+        },
       });
     });
     const toast = page

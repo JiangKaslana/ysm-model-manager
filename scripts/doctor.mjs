@@ -96,7 +96,7 @@ function checkGoBuild() {
 function checkGoTest() {
   // 原 ultrawork 独有步骤，并入 doctor（ultrawork.mjs 已废弃）
   console.log('\n=== Go Test ===');
-  const { rc, out } = run(['go', 'test', './go/...', '-count=1']);
+  const { rc, out } = run(['go', 'test', '-race', './go/...', './internal/app/', '-count=1', '-timeout', '10m']);
   if (rc === 0) {
     console.log(`  ${PASS} Go test passed`);
   } else {
@@ -127,7 +127,7 @@ function buildUpdaterHelper() {
 
 function checkGoVet() {
   console.log('\n=== Go Vet ===');
-  const { rc, out } = run(['go', 'vet', './go/...']);
+  const { rc, out } = run(['go', 'vet', './go/...', './internal/app/...']);
   if (rc === 0) {
     console.log(`  ${PASS} go vet passed`);
   } else {
@@ -590,8 +590,11 @@ if (GATE_MODE) {
     const gb = run(['go', 'build', './go/...']);
     record('go build', gb.rc === 0, gb.rc ? gb.out.trim().split('\n').slice(-3).join(' | ') : '');
     const t1 = Date.now();
-    const gt = run(['go', 'test', './go/...', '-count=1']);
+    const gt = run(['go', 'test', '-race', './go/...', './internal/app/', '-count=1', '-timeout', '10m']);
     record('go test', gt.rc === 0, gt.rc ? gt.out.trim().split('\n').slice(-3).join(' | ') : `${(t1 - t0) / 1000}s`);
+    const tV = Date.now();
+    const gv = run(['go', 'vet', './go/...', './internal/app/...']);
+    record('go vet', gv.rc === 0, gv.rc ? gv.out.trim().split('\n').slice(-3).join(' | ') : `${(Date.now() - tV) / 1000}s`);
     const t2 = Date.now();
     const bc = run(['node', path.join('scripts', 'binding-check.mjs'), '--json']);
     record('binding-check', bc.rc === 0, bc.rc ? bc.out.trim().split('\n').slice(-2).join(' | ') : '');

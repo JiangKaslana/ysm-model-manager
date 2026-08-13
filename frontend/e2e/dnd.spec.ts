@@ -16,7 +16,7 @@ import { gotoApp } from "./helpers.ts";
 /** 在页面构造 DataTransfer + File，dispatch 拖拽三事件（dataTransfer 强制注入） */
 async function dispatchFileDrag(page: Page, fileName: string, dragenterOnly = false): Promise<void> {
   await page.evaluate(
-    async ({ name, only }) => {
+    async ({ name, only }: { name: string; only: boolean }) => {
       const dt = new DataTransfer();
       dt.items.add(new File(["e2e-content"], name, { type: "" }));
       const fire = (type: string): void => {

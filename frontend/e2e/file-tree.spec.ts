@@ -34,7 +34,7 @@ test.describe("文件树交互", () => {
     // 假绿（正是冒烟测试要防的 skip 掩盖路径）；改 waitForTreeCount 轮询
     const dirCount = await waitForTreeCount(page, "tree-dir");
     if (dirCount === 0) {
-      test.skip("文件树目录元素未在 Shadow DOM 中渲染");
+      test.skip(true, "文件树目录元素未在 Shadow DOM 中渲染");
       return;
     }
     // 记录展开前 tree-file 计数（mock 含 subdir/subdir-model.ysm，展开后应增加）

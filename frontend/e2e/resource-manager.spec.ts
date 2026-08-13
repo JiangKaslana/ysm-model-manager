@@ -49,7 +49,7 @@ test.describe("资源管理器", () => {
     const items = page.locator('[data-testid="rm-item"]');
     const count = await items.count();
     if (count === 0) {
-      test.skip("列表项未渲染");
+      test.skip(true, "列表项未渲染");
       return;
     }
     // 点击第一个列表项
