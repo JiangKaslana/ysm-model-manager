@@ -1131,7 +1131,7 @@
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:6` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:10` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
