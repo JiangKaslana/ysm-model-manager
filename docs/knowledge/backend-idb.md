@@ -10,6 +10,10 @@ source_files:
   - frontend/src/backend/types.ts
   - frontend/src/backend/app.ts
   - frontend/src/backend/browser-adapter.ts
+  - frontend/src/backend/web-common.ts
+  - frontend/src/backend/web-fs.ts
+  - frontend/src/backend/web-store.ts
+  - frontend/src/backend/web-community.ts
   - frontend/src/backend/platform.ts
 tests:
   - frontend/src/app-modules.test.ts
@@ -61,15 +65,15 @@ invariant_anchors:
 - **并发保护**: `_appPromise` 复用，多个并发调用不会重复 import
 - **Mock bridge 兼容**: 检测 `window.go.main.App`（E2E/dev 注入点），空对象不缓存（防类型造假穿透）
 
-### browser-adapter.ts — 网页版后端实现
+### browser-adapter.ts — 网页版后端实现（编排壳，ADR-040 按职责拆分）
 - **虚拟根 `/web`**: 路径语义与桌面一致（`/web/<type>/<name>/<rel>`），业务调用零改动
-- **文件导入**: `importWebFiles(files, type)` — File API 拖拽 → 分组（按 stem） → IDB 落库；主文件优先级 `.ysm > ysm.json > 其他`；超出 100MB 跳过
-- **模型库扫描**: `scanWebModels(dir)` — IDB `dir:` 前缀 → `ModelEntry[]`，自动推导主文件
-- **标签/ban 管理**: config store 中 `tags:<path>` / `ban:<path>` 键值对
-- **社区/工坊数据**: bundled JSON（默认）+ localStorage 覆盖层（用户修改优先）
-- **日志环**: 内存环形缓冲（500 条导入日志 / 300 条运行时日志），替代 Go 侧日志
 - **fail-fast Proxy**: 未实现的 binding 一律抛 `WebUnsupportedError`，杜绝 undefined 静默穿透
 - **能力门控**: `'Foo' in browserAdapter` 探测，Phase 3 隐藏未实现功能的 UI
+- **拆分子模块**（实现函数/状态迁移，browser-adapter 仅 import 组装 `webImpls`）:
+  - `web-common.ts`: 共享原语（`WebUnsupportedError` / `WEB_ROOT` / `MAX_IMPORT_BYTES` / `arrayBufferToBase64`）
+  - `web-fs.ts`: 文件系统——`importWebFiles`（File 拖拽 → stem 分组 → IDB 落库；主文件优先级 `.ysm > ysm.json > 其他`；超 100MB 跳过）、`scanWebModels`（IDB `dir:` 前缀 → `ModelEntry[]`，自动推导主文件）、`selectLocalRepo`（FSA 授权本地仓库）、删除/重命名/子目录映射
+  - `web-store.ts`: 配置（localStorage）、日志环（500 条导入 / 300 条运行时，替代 Go 侧日志）、标签/ban（config store `tags:<path>` / `ban:<path>`）
+  - `web-community.ts`: 社区/工坊数据（bundled JSON 默认 + localStorage 覆盖层）、头像批量提取、作者扫描/仓库索引
 
 ### platform.ts — 平台环境判定
 - **Tier 0**: `globalThis.__YSM_BACKEND__`（入口 HTML 显式声明，权威）

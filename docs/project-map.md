@@ -79,7 +79,6 @@
 |------|------|
 | `AGENTS.md` | AI 入口手册（硬约束 + 导航） |
 | `README.md` | 项目说明（面向用户） |
-| `cli_export.go` | CLI 模式构建入口（build tag: cli） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
 | `link-checker-out.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |

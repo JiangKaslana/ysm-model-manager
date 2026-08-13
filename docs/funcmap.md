@@ -7,7 +7,7 @@
 
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
-| Go·头像 | 1 | 1 |
+| Go·头像 | 4 | 10 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 7 |
 | go/executil | 2 | 2 |
@@ -24,30 +24,39 @@
 | Go·路径 | 1 | 4 |
 | Go·回收站 | 2 | 19 |
 | go/scanner | 1 | 8 |
-| Go·同步 | 3 | 21 |
+| Go·同步 | 6 | 21 |
 | Go·标签 | 1 | 8 |
 | Go·Three.js | 1 | 6 |
 | Go·类型 | 5 | 51 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
-| Go(internal)·应用入口 | 23 | 183 |
+| Go(internal)·应用入口 | 22 | 181 |
 | 前端·根 (app-modules/bus) | 2 | 14 |
-| frontend/backend | 6 | 23 |
+| frontend/backend | 9 | 58 |
 | 前端·核心 | 14 | 28 |
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 37 | 133 |
-| frontend/views | 63 | 184 |
+| frontend/views | 68 | 201 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **221** | **942** |
+| **合计** | **234** | **1001** |
 
 ## Go·头像
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SafeName()` | `go/avatar/avatar:51` | SafeName 将非法文件名字符替换为下划线。 |
+| `SetNodeJS()` | `go/avatar/avatar_decode:38` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
+| `limitedBuffer.Write()` | `go/avatar/avatar_decode:53` | — |
+| `DecodeYSMFiles()` | `go/avatar/avatar_decode:62` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
+| `ExtractAvatarURI()` | `go/avatar/avatar_extract:24` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
+| `CacheAvatarsFromJSON()` | `go/avatar/avatar_extract:193` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
+| `CacheAvatarsFromModel()` | `go/avatar/avatar_extract:263` | CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。 |
+| `ReadFileFromZip()` | `go/avatar/avatar_zip:16` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
+| `SafeName()` | `go/avatar/avatar:43` | SafeName 将非法文件名字符替换为下划线。 |
+| `ReadCachedAvatar()` | `go/avatar/avatar:137` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
+| `SaveAvatarData()` | `go/avatar/avatar:163` | SaveAvatarData 将头像数据写入缓存。 |
 
 ## Go·去重
 
@@ -264,6 +273,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:53` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `ListVersions()` | `go/sync/sync_discovery:15` | — |
+| `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
+| `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
+| `ListVersionsFunc()` | `go/sync/sync_discovery:13` | ListVersionsFunc 列出版本实例（函数类型，测试时可注入 mock） |
+| `CompareGlobalInstanceHashes()` | `go/sync/sync_hash:47` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录，返回每个实例的 Missing / Extra / Synced 状态。 |
+| `HasModInDirFn()` | `go/sync/sync_hash:38` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
 | `PushResources()` | `go/sync/sync_push:23` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
 | `PullResources()` | `go/sync/sync_push:62` | PullResources 拉取整合包多余资源回仓库 |
 | `PullSingleResource()` | `go/sync/sync_push:124` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
@@ -271,20 +287,13 @@
 | `SyncCustomToRepo()` | `go/sync/sync_push:159` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:20` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
-| `GetInstanceStatus()` | `go/sync/sync:30` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
-| `GetInstanceStatusWith()` | `go/sync/sync:35` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
-| `SyncToggleStatus()` | `go/sync/sync:151` | SyncToggleStatus 同步启用/禁用状态 |
-| `ListVersions()` | `go/sync/sync:275` | — |
-| `HasDotMinecraftSubdirs()` | `go/sync/sync:290` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
-| `FindMinecraftDir()` | `go/sync/sync:307` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
-| `SyncResources()` | `go/sync/sync:410` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
-| `SyncResourcesDirLevel()` | `go/sync/sync:540` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
-| `SortEntries()` | `go/sync/sync:610` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:618` | getLinkType 判断文件的链接类型 GetLinkType 判断文件的链接类型 |
-| `CompareGlobalInstanceHashes()` | `go/sync/sync:679` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录，返回每个实例的 Missing / Extra / Synced 状态。 |
-| `ScanFunc()` | `go/sync/sync:24` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
-| `ListVersionsFunc()` | `go/sync/sync:27` | ListVersionsFunc 列出版本实例（函数类型，测试时可注入 mock） |
-| `HasModInDirFn()` | `go/sync/sync:670` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
+| `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
+| `GetInstanceStatusWith()` | `go/sync/sync:31` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
+| `SyncToggleStatus()` | `go/sync/sync:147` | SyncToggleStatus 同步启用/禁用状态 |
+| `SyncResources()` | `go/sync/sync:280` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
+| `SortEntries()` | `go/sync/sync:374` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:382` | getLinkType 判断文件的链接类型 GetLinkType 判断文件的链接类型 |
+| `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
 
@@ -370,16 +379,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `progressWriter.Write()` | `go/updater/updater:51` | — |
+| `progressWriter.Write()` | `go/updater/updater:50` | — |
 | `Check()` | `go/updater/updater:109` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
 | `CheckWithClient()` | `go/updater/updater:115` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
-| `Download()` | `go/updater/updater:218` | Download 下载更新包到临时目录，返回 zip 路径（无进度回调，兼容旧调用方）。 |
+| `Download()` | `go/updater/updater:218` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
 | `DownloadWithProgress()` | `go/updater/updater:227` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
 | `CleanupOldVersion()` | `go/updater/updater:360` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
-| `InstallUpdate()` | `go/updater/updater:383` | InstallUpdate 解压更新包并通过 helper 进程替换当前 exe。 |
-| `ReleaseAsset()` | `go/updater/updater:71` | ReleaseAsset GitHub Release 中的文件 |
-| `Release()` | `go/updater/updater:77` | Release GitHub Release 信息 |
-| `UpdateInfo()` | `go/updater/updater:86` | UpdateInfo 更新信息（序列化给前端） |
+| `InstallUpdate()` | `go/updater/updater:384` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
+| `ReleaseAsset()` | `go/updater/updater:70` | ReleaseAsset GitHub Release 中的文件 |
+| `Release()` | `go/updater/updater:76` | Release GitHub Release 信息 |
+| `UpdateInfo()` | `go/updater/updater:85` | UpdateInfo 更新信息（序列化给前端） |
 
 ## Go·监听
 
@@ -564,8 +573,6 @@
 | `App.GetAppVersion()` | `internal/app/app:207` | GetAppVersion 返回当前版本号 |
 | `App()` | `internal/app/app:25` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
-| `CLIMain()` | `internal/app/cli:19` | — |
-| `Issue()` | `internal/app/cli:187` | — |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
 | `desktopPathManager.AppDataRoot()` | `internal/app/pathmgr_desktop:10` | — |
@@ -635,11 +642,13 @@
 |------|--------|------|
 | `AppBindings()` | `frontend/src/backend/app` | — |
 | `getApp()` | `frontend/src/backend/app:18` | 获取 Go App 绑定的缓存引用，避免重复动态 import |
-| `WebUnsupportedError()` | `frontend/src/backend/browser-adapter:24` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
-| `WEB_ROOT()` | `frontend/src/backend/browser-adapter:32` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
-| `MAX_IMPORT_BYTES()` | `frontend/src/backend/browser-adapter:35` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
-| `arrayBufferToBase64()` | `frontend/src/backend/browser-adapter:65` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
-| `selectLocalRepo()` | `frontend/src/backend/browser-adapter:127` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `WebUnsupportedError()` | `frontend/src/backend/browser-adapter` | — |
+| `WEB_ROOT()` | `frontend/src/backend/browser-adapter` | — |
+| `MAX_IMPORT_BYTES()` | `frontend/src/backend/browser-adapter` | — |
+| `arrayBufferToBase64()` | `frontend/src/backend/browser-adapter` | — |
+| `importWebFiles()` | `frontend/src/backend/browser-adapter` | — |
+| `selectLocalRepo()` | `frontend/src/backend/browser-adapter` | — |
+| `browserAdapter()` | `frontend/src/backend/browser-adapter:212` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |
@@ -656,6 +665,39 @@
 | `WEB_ROOT()` | `frontend/src/backend/web-common:16` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
 | `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:19` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:22` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
+| `cloneJson()` | `frontend/src/backend/web-community:23` | — |
+| `loadWebCreators()` | `frontend/src/backend/web-community:27` | — |
+| `saveWebCreators()` | `frontend/src/backend/web-community:39` | — |
+| `loadWebSites()` | `frontend/src/backend/web-community:48` | — |
+| `saveWebSites()` | `frontend/src/backend/web-community:60` | — |
+| `loadWebGitHubRepos()` | `frontend/src/backend/web-community:70` | — |
+| `saveWebGitHubRepos()` | `frontend/src/backend/web-community:82` | — |
+| `batchExtractCreatorAvatars()` | `frontend/src/backend/web-community:93` | — |
+| `listWebAuthors()` | `frontend/src/backend/web-community:153` | ListModelAuthors 网页版：从模型名 [作者] 前缀统计（计数降序），对齐 scanner.go:265 |
+| `scanWebLocalAuthors()` | `frontend/src/backend/web-community:173` | ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 |
+| `generateWebRepoIndex()` | `frontend/src/backend/web-community:197` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:22` | 从 /web/&lt;type&gt;/... |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:76` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:88` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:136` | 读文件（/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → IDB → base64；wasm.ts 解码链零改动复用） |
+| `parseWebModelPath()` | `frontend/src/backend/web-fs:146` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析 |
+| `parseWebModelDir()` | `frontend/src/backend/web-fs:152` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态） |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:159` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:173` | — |
+| `loadWebConfig()` | `frontend/src/backend/web-store:11` | — |
+| `saveWebConfig()` | `frontend/src/backend/web-store:19` | — |
+| `getWebImportLogs()` | `frontend/src/backend/web-store:43` | — |
+| `getWebRuntimeLogs()` | `frontend/src/backend/web-store:46` | — |
+| `addWebImportLog()` | `frontend/src/backend/web-store:49` | — |
+| `addWebOpLog()` | `frontend/src/backend/web-store:57` | — |
+| `clearWebImportLogs()` | `frontend/src/backend/web-store:69` | 清空导入日志环（webImpls.ClearImportLogs 调用；状态封装在 web-store 内部） |
+| `clearWebRuntimeLogs()` | `frontend/src/backend/web-store:73` | 清空运行时日志环（webImpls.ClearRuntimeLogs 调用；状态封装在 web-store 内部） |
+| `getWebTags()` | `frontend/src/backend/web-store:79` | — |
+| `setWebTags()` | `frontend/src/backend/web-store:83` | — |
+| `listByTagWeb()` | `frontend/src/backend/web-store:106` | — |
+| `allTagsWeb()` | `frontend/src/backend/web-store:117` | — |
+| `isWebBanned()` | `frontend/src/backend/web-store:131` | — |
+| `toggleWebEnable()` | `frontend/src/backend/web-store:134` | — |
 
 ## 前端·核心
 
@@ -989,7 +1031,24 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:23` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:47` | 初始化创意工坊页 |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:498` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
-| `initSettings()` | `frontend/src/views/app-content/settings/init:24` | 初始化设置页所有事件绑定 |
+| `initSettings()` | `frontend/src/views/app-content/settings/init:26` | 初始化设置页所有事件绑定 |
+| `initKeymap()` | `frontend/src/views/app-content/settings/keymap:122` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
+| `escHtml()` | `frontend/src/views/app-content/settings/path-cards:15` | HTML 转义（高级面板路径/路径选择器/扫描提示共用） |
+| `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |
+| `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:51` | — |
+| `showPathPicker()` | `frontend/src/views/app-content/settings/path-cards:94` | 多路径选择器：弹出路径列表让用户挑选（返回 null 表示取消） |
+| `showScanTooltip()` | `frontend/src/views/app-content/settings/path-cards:142` | 扫描提示气泡：hover 时显示扫描到的所有路径 + 搜索范围 |
+| `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:193` | — |
+| `initMcDetect()` | `frontend/src/views/app-content/settings/path-cards:320` | — |
+| `SettingsCfg()` | `frontend/src/views/app-content/settings/store:10` | 设置页当前配置类型（LoadAppConfig 返回值，经 Wails $CancellablePromise 解包） |
+| `cfg()` | `frontend/src/views/app-content/settings/store:13` | 当前配置：initSettings 加载后注入，各模块就地更新字段（saveCfg/检测/主题/链接模式） |
+| `cardRefreshers()` | `frontend/src/views/app-content/settings/store:16` | 所有路径卡片的刷新函数列表（绑定后收集，重排/重置时统一调用） |
+| `isBusy()` | `frontend/src/views/app-content/settings/store:20` | — |
+| `setBusy()` | `frontend/src/views/app-content/settings/store:21` | — |
+| `toastError()` | `frontend/src/views/app-content/settings/store:26` | — |
+| `resetSettingsStore()` | `frontend/src/views/app-content/settings/store:35` | 重置模块级状态（initSettings 开头调用；重复执行时清空上次残留） |
+| `initTheme()` | `frontend/src/views/app-content/settings/theme:19` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
+| `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:8` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:38` | 本地创作者（绑定 + 运行时附加字段） |
