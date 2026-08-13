@@ -71,6 +71,11 @@ class AppContent extends HTMLElement {
   _resizeUp: ((e: PointerEvent) => void) | null = null;
   _insListenerReg = false;
   _avatarRefreshRegistered = false;
+  /** _initWorkshop 当前浏览站点——实例字段：avatar:refresh/config-loaded 订阅只注册一次（F6），
+   *  闭包需读最新副本，避免锁死首访的 currentSite/avatarCache */
+  _currentSite: WorkshopSite | null = null;
+  /** _initWorkshop 创作者头像缓存（同上，防单次注册订阅读到首访陈旧闭包） */
+  _avatarCache: Record<string, string> = {};
   _workshopCache: Map<string, RepoCacheEntry> | null = null;
   _githubCache: Map<string, RepoCacheEntry> | null = null;
   /** _initWorkshop 的默认站点定时器（切页销毁时清理，防空跑网络请求） */
@@ -450,7 +455,7 @@ class AppContent extends HTMLElement {
     const creatorView = root.getElementById("ws-creator-view") as HTMLElement | null;
     const creatorList = root.getElementById("ws-cr-list") as HTMLElement | null;
     const creatorTitle = root.getElementById("ws-cr-title") as HTMLElement | null;
-    let currentSite: WorkshopSite | null = null;
+    this._currentSite = null;
     let allSites: WorkshopSite[] = [];
     let allCreators: LocalCreator[] = [];
     let repoAuthors: RepoAuthorLike[] = [];
@@ -479,14 +484,14 @@ class AppContent extends HTMLElement {
         repoAuthors = (authors || []) as RepoAuthorLike[];
         const site = sites.find((s) => s.id === siteType);
         if (!site) return;
-        currentSite = site;
+        this._currentSite = site;
         safeSet("ysm-ws-last-tab", site.id);
         // tab 切换高亮
         root
           .querySelectorAll(".repo-tab")
           .forEach((t) => t.classList.remove("active"));
         root.querySelector(`[data-tab="${siteType}"]`)?.classList.add("active");
-        showSiteView(currentSite);
+        showSiteView(this._currentSite);
       } catch (e) {
         // P2 修复（审核）：async handler 最外层 catch 出口（ADR-044 ①）——
         // loadCommunityData/showSiteView 抛错原逸出为 unhandled rejection
@@ -533,7 +538,7 @@ class AppContent extends HTMLElement {
     }, 100);
 
     // 后台批量提取创作者头像（仅首次完成后刷新）
-    let avatarCache: Record<string, string> = {};
+    this._avatarCache = {};
     const extractAvatars = async (): Promise<void> => {
       try {
         const { BatchExtractCreatorAvatars } =
@@ -543,8 +548,8 @@ class AppContent extends HTMLElement {
         const keys = Object.keys(avatars);
         if (keys.length > 0) {
           dbg("avatar", "提取了 " + keys.length + " 个头像: " + keys.join(", "));
-          avatarCache = avatars;
-          if (currentSite) showSiteView(currentSite);
+          this._avatarCache = avatars;
+          if (this._currentSite) showSiteView(this._currentSite);
         } else {
           dbg("avatar", "无头像可提取（无 .ysm 文件或无 avatar/ 目录）");
         }
@@ -609,7 +614,7 @@ class AppContent extends HTMLElement {
       window.clearTimeout(wsLoadTimer);
     });
     const openCurrent = (): void => {
-      const cs = currentSite;
+      const cs = this._currentSite;
       if (cs) {
         getApp().then(({ OpenInBrowser }) =>
           OpenInBrowser(cs.url),
@@ -623,7 +628,7 @@ class AppContent extends HTMLElement {
 
     // 🖥️ 窗口模式：在预热 WebView2 窗口中直连打开（ADR-050）
     root.getElementById("ws-win-open")?.addEventListener("click", () => {
-      const cs = currentSite;
+      const cs = this._currentSite;
       if (cs) {
         getApp().then(({ NavigatePlazaWindow }) =>
           NavigatePlazaWindow(cs.url, true),
@@ -704,8 +709,8 @@ class AppContent extends HTMLElement {
       }
       const openUrl = (url: string): void => {
         if (browseMode === "embed") {
-          currentSite = { url } as unknown as WorkshopSite;
-          openEmbedded(currentSite);
+          this._currentSite = { url } as unknown as WorkshopSite;
+          openEmbedded(this._currentSite);
         } else if (browseMode === "window") {
           // 窗口模式直连
           getApp().then(({ NavigatePlazaWindow }) =>
@@ -732,12 +737,12 @@ class AppContent extends HTMLElement {
         fillSearch,
         repoModelCache,
         openUrl,
-        avatarCache,
+        avatarCache: this._avatarCache,
         browseMode,
         activeTag: safeGet("ysm-ws-active-tag") || "",
         searchKw: safeGet("ysm-ws-search-kw") || "",
         backToSite: () => {
-          if (currentSite) showSiteView(currentSite);
+          if (this._currentSite) showSiteView(this._currentSite);
         },
       };
       siteViewCleanup = renderSiteView(site, ctx);
@@ -779,8 +784,8 @@ class AppContent extends HTMLElement {
       this._avatarRefreshRegistered = true;
       this._globalUnsubs.push(
         bus.on("avatar:refresh", ({ author, dataUri }) => {
-          if (avatarCache[author] === dataUri) return;
-          avatarCache[author] = dataUri;
+          if (this._avatarCache[author] === dataUri) return;
+          this._avatarCache[author] = dataUri;
           // 单卡片定点更新，避免整页重渲染
           let found = false;
           root.querySelectorAll(".cr-creator-card").forEach((c) => {
@@ -790,7 +795,7 @@ class AppContent extends HTMLElement {
               found = true;
             }
           });
-          if (!found && currentSite) showSiteView(currentSite);
+          if (!found && this._currentSite) showSiteView(this._currentSite);
         }),
       );
     }
@@ -873,7 +878,7 @@ class AppContent extends HTMLElement {
           source,
           showRepoModels: () => showRepoModels(repo, models, source),
           backToSite: () => {
-            if (currentSite) showSiteView(currentSite);
+            if (this._currentSite) showSiteView(this._currentSite);
           },
           localMap,
         });
