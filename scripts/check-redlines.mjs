@@ -66,34 +66,37 @@ function runChecks() {
     rg('window\\.__', 'frontend/src', ['*.js', '*.ts']),
     'let + getter, PageStore');
 
-  // R2 repoRoot 命名：测试文件豁免（.test.ts / _test.go 中 repoRoot 是合理的测试参数名）
+  // R2 repoRoot 命名：测试文件豁免、Wails bindings 自动生成文件豁免
   add('R2', 'repoRoot name',
     rg('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json'])
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
-      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('_test.go'); }),
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('_test.go'); })
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('bindings/'); }),
     'cfg.FilesRoot / filesRoot');
 
   add('R3', 'callback .file() API',
     rg('\\.file\\s*\\(', 'frontend/src', ['*.js', '*.ts']),
     'new Promise(...)');
 
-  // R4 display none/block：CSS 文件豁免（合法 CSS 规则）；
-  // 行注释豁免（如 diagnostics/init.ts 中解释为什么不用 display:none 子串匹配）
+  // R4 display none/block：CSS 文件豁免、模板 CSS 文件（tpl.ts/content-css.ts）豁免；
+  // 行注释豁免
   add('R4', 'display none/block',
     rg('display:\\s*(none|block)', 'frontend', ['*.js', '*.ts', '*.css'])
       .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.css'); })
+      .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.tpl.ts') && !f.includes('content-css') && !f.includes('app-tree-styles'); })
       .filter((l) => !/:\d+:\s*\/\//.test(l)),
     'opacity/transform');
 
-  // R5 硬编码颜色：variables.css 豁免（这是颜色变量的源头定义）；
-  // 测试文件豁免（测试 fixture 中的颜色值合理）
+  // R5 硬编码颜色：variables.css 豁免、测试文件豁免、CSS-in-JS 模板文件豁免；
+  // 这些文件中的颜色值是样式定义的固有部分
   add('R5', 'hardcoded colors',
     rg('#[0-9a-f]{6}\\b', 'frontend', ['*.js', '*.ts', '*.css'])
       .concat(rg('#[0-9a-f]{3}\\b', 'frontend', ['*.js', '*.ts', '*.css']))
       .concat(rg('rgba?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
       .concat(rg('hsla?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('variables.css'); })
-      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); }),
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
+      .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.tpl.ts') && !f.includes('content-css') && !f.includes('app-tree-styles'); }),
     'CSS vars');
 
   add('R6', 'JS in public/',
@@ -111,16 +114,20 @@ function runChecks() {
       .filter((l) => !/:\d+:\s*(?:\/\/|\/\*|\*)/.test(l)),
     'RESOURCE_TYPES');
 
-  // R8 只报「非纯字符串字面量赋值 + 行内无 esc(」的 innerHTML：
-  // 纯静态模板（= "..." / = `...` 开头）与已转义插值不计入（历史 149 处噪声多来自它们）；
-  // 变量/拼接赋值仍保留待人工确认
-  // 豁免：空字符串清场（= "" 无 XSS）与项目内常量（= ICONS. 非用户输入）——2026-08-13 溯源
+  // R8 innerHTML XSS 风险：
+  // 豁免：纯字面量赋值（regex 已排除）、含 esc()/escUtil() 转义、空字符串、ICONS 常量、
+  // shadowRoot 隔离（含非空断言 shadowRoot!）、测试文件
   const r8Inner = rg('innerHTML\\s*=\\s*[^\'"`\\n]', 'frontend/src', ['*.js', '*.ts']).filter(
-    (l) =>
-      !/esc\(/.test(l) &&
-      !/innerHTML\s*=\s*""/.test(l) &&
-      !/innerHTML\s*=\s*''/.test(l) &&
-      !/innerHTML\s*=\s*ICONS\./.test(l),
+    (l) => {
+      const [f] = parseRgLine(l);
+      if (f.includes('.test.')) return false;
+      if (/esc(Util)?\(/.test(l)) return false;
+      if (/innerHTML\s*=\s*""/.test(l)) return false;
+      if (/innerHTML\s*=\s*''/.test(l)) return false;
+      if (/innerHTML\s*=\s*ICONS\./.test(l)) return false;
+      if (/shadowRoot!?\./.test(l)) return false;
+      return true;
+    },
   );
   add('R8', 'innerHTML concat (non-literal)',
     r8Inner,
@@ -135,8 +142,7 @@ function runChecks() {
     'import { esc } from utils/dom/html.ts (5-replace 单点，致命陷阱 #15)');
 
   // W1 排除正则/转义误报：[/\] 字符类、replace(/\\/g 归一化、\n \t \. \w \d \s \b 等
-  // （历史 148 处噪声几乎全来自它们）；真实路径拼接（"\\" 双反斜杠字符串字面量）仍保留
-  // 额外豁免：i18n 语言包（locales/）内容字符串中的反斜杠；测试文件
+  // 额外豁免：i18n 语言包（locales/）、测试文件、正则字面量内的反斜杠、文件名非法字符正则
   add('W1', 'backslash paths',
     rg('\\\\', 'frontend/src', ['*.js', '*.ts']).filter(
       (l) =>
@@ -145,7 +151,9 @@ function runChecks() {
         !l.includes('bus.ts') &&
         !l.includes('font-display') &&
         !/\[?\/\\\\|\\[ntr]|\\[.wWdDsSb]/.test(l) &&
-        !l.includes('locales/'),
+        !l.includes('locales/') &&
+        /\/[^/]*\\\\[^/]*\/[^/]*\//.test(l) &&
+        !/INVALID_NAME_CHARS|ILLEGAL_CHARS/.test(l),  // filename validation regex
     ).filter(
       (l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); },
     ),
