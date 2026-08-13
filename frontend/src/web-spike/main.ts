@@ -4,7 +4,7 @@
 import { initYSMParser, decodeYsmFileFromMemory } from "../wasm/ysm-parser.ts";
 import { initI18n } from "../core/i18n/locale.ts";
 import { t } from "../core/i18n/t.ts";
-import { summarize } from "./spike-logic.ts";
+import { summarizeDecoded } from "../utils/format/summarize.ts";
 
 // 本页是独立入口（web.html），不经主 UI 的启动链——需自行加载语言包，
 // 否则 t() 拿到空 bundle 会回落显示裸 key
@@ -56,7 +56,7 @@ async function handle(file: File): Promise<void> {
       append(t("web.decodeNoOutput"));
       return;
     }
-    const { bones, cubes, texCount } = summarize(files);
+    const { bones, cubes, texCount } = summarizeDecoded(files);
     append(t("web.decodeSuccess", { n: files.length }));
     append(`<table><tr><th>${t("web.metric")}</th><th>${t("web.value")}</th></tr>
       <tr><td>${t("web.outputFileCount")}</td><td>${files.length}</td></tr>

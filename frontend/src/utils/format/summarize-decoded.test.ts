@@ -1,9 +1,9 @@
 // @vitest-environment node
-// ===== web-spike 纯逻辑单测（ADR-049 Phase 0）=====
-// 镜像 main.ts 原 summarize/findBones 统计口径：骨骼数、立方体数、纹理数。
+// ===== 解码统计纯逻辑单测（收敛自 web-spike，ADR-049 Phase 0）=====
+// 镜像 web 预览 summarizeDecoded/findBones 统计口径：骨骼数、立方体数、纹理数。
 import { describe, expect, it } from "vitest";
-import { findBones, summarize } from "./spike-logic.ts";
-import type { YsmDecodedFile } from "../wasm/ysm-parser.ts";
+import { findBones, summarizeDecoded } from "./summarize.ts";
+import type { YsmDecodedFile } from "../../wasm/ysm-parser.ts";
 
 function file(path: string, content: string | Uint8Array): YsmDecodedFile {
   const data =
@@ -43,7 +43,7 @@ describe("findBones", () => {
   });
 });
 
-describe("summarize", () => {
+describe("summarizeDecoded", () => {
   it("统计 model/main.json 的骨骼/立方体数与纹理文件数", () => {
     const files: YsmDecodedFile[] = [
       file(
@@ -61,11 +61,11 @@ describe("summarize", () => {
       file("textures/face.png", new Uint8Array([1, 2, 3])),
       file("textures/body.png", new Uint8Array([4, 5, 6])),
     ];
-    expect(summarize(files)).toEqual({ bones: 2, cubes: 2, texCount: 2 });
+    expect(summarizeDecoded(files)).toEqual({ bones: 2, cubes: 2, texCount: 2 });
   });
 
   it("空文件列表返回全 0", () => {
-    expect(summarize([])).toEqual({ bones: 0, cubes: 0, texCount: 0 });
+    expect(summarizeDecoded([])).toEqual({ bones: 0, cubes: 0, texCount: 0 });
   });
 
   it("非 main/model 的 json 跳过（不计骨骼/立方体）", () => {
@@ -73,12 +73,12 @@ describe("summarize", () => {
       file("animation.json", JSON.stringify({ bones: ["a"], cubes: [] })),
       file("model/readme.txt", "hello"),
     ];
-    expect(summarize(files)).toEqual({ bones: 0, cubes: 0, texCount: 0 });
+    expect(summarizeDecoded(files)).toEqual({ bones: 0, cubes: 0, texCount: 0 });
   });
 
   it("损坏的 model json 被跳过而非抛错", () => {
     const files: YsmDecodedFile[] = [file("model/main.json", "{ not valid json !!")];
-    expect(summarize(files)).toEqual({ bones: 0, cubes: 0, texCount: 0 });
+    expect(summarizeDecoded(files)).toEqual({ bones: 0, cubes: 0, texCount: 0 });
   });
 
   it("纹理按路径匹配（texture(s)/ 或 .png，大小写不敏感）", () => {
@@ -89,7 +89,7 @@ describe("summarize", () => {
       file("model.png", new Uint8Array([4])),
       file("sound/click.mp3", new Uint8Array([5])),
     ];
-    expect(summarize(files)).toEqual({ bones: 0, cubes: 0, texCount: 4 });
+    expect(summarizeDecoded(files)).toEqual({ bones: 0, cubes: 0, texCount: 4 });
   });
 
   it("多个 model json 时取最后一份统计（与原 main.ts 循环行为一致）", () => {
@@ -97,7 +97,7 @@ describe("summarize", () => {
       file("model/a.json", JSON.stringify({ bones: ["a"] })),
       file("model/main.json", JSON.stringify({ bones: ["x", "y", "z"] })),
     ];
-    expect(summarize(files)).toEqual({ bones: 3, cubes: 0, texCount: 0 });
+    expect(summarizeDecoded(files)).toEqual({ bones: 3, cubes: 0, texCount: 0 });
   });
 
   it("立方体统计为 JSON 字符串中 \"cubes\": [ 的出现次数", () => {
@@ -111,6 +111,6 @@ describe("summarize", () => {
         }),
       ),
     ];
-    expect(summarize(files).cubes).toBe(3);
+    expect(summarizeDecoded(files).cubes).toBe(3);
   });
 });

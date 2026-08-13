@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-13T01:10:55.955Z",
+  "generated": "2026-08-13T01:34:50.403Z",
   "knip": [
     "e2e/modal.spec.ts|unresolved|/src/utils/dom/dialogs/modal.ts",
     "package.json|binaries|wails3",

@@ -38,11 +38,10 @@
 | 前端·特性 | 13 | 60 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 36 | 124 |
+| 前端·工具 | 36 | 127 |
 | frontend/views | 54 | 155 |
 | 前端·WASM | 3 | 6 |
-| frontend/web-spike | 1 | 3 |
-| **合计** | **199** | **891** |
+| **合计** | **198** | **891** |
 
 ## Go·头像
 
@@ -907,12 +906,15 @@
 | `renderFormattedText()` | `frontend/src/utils/format/mc-format:45` | 将含 Minecraft § 分节符的文本渲染为带颜色的 HTML。 |
 | `PackMeta()` | `frontend/src/utils/format/pack-format:92` | ReadPackMeta 返回的 JSON 对象（仅覆盖用到的字段） |
 | `describeVersionRange()` | `frontend/src/utils/format/pack-format:105` | 根据 meta 对象生成格式号 + 版本号描述 拼接用「 / 」作分隔符，避免出现 "1.9 ~ 1.10.2 ~ 1.11" 的四段歧义串。 |
-| `SummaryAuthor()` | `frontend/src/utils/format/summarize:9` | — |
-| `SummaryAnimGroup()` | `frontend/src/utils/format/summarize:15` | — |
-| `SummaryConfigMenu()` | `frontend/src/utils/format/summarize:21` | — |
-| `YsmSummary()` | `frontend/src/utils/format/summarize:26` | — |
-| `YSMHeader()` | `frontend/src/utils/format/summarize:51` | — |
-| `summaryCardHTML()` | `frontend/src/utils/format/summarize:155` | 从 YsmSummary + YSMHeader 渲染为精简摘要卡片 |
+| `SummaryAuthor()` | `frontend/src/utils/format/summarize:10` | — |
+| `SummaryAnimGroup()` | `frontend/src/utils/format/summarize:16` | — |
+| `SummaryConfigMenu()` | `frontend/src/utils/format/summarize:22` | — |
+| `YsmSummary()` | `frontend/src/utils/format/summarize:27` | — |
+| `YSMHeader()` | `frontend/src/utils/format/summarize:52` | — |
+| `summaryCardHTML()` | `frontend/src/utils/format/summarize:156` | 从 YsmSummary + YSMHeader 渲染为精简摘要卡片 |
+| `DecodedStats()` | `frontend/src/utils/format/summarize:283` | 解码统计结果（原 spike 侧 YsmSummary，改名避免与上方元数据接口撞名） |
+| `findBones()` | `frontend/src/utils/format/summarize:295` | 递归找第一个数组（骨骼列表通常嵌在 model/bones 等层级）。 |
+| `summarizeDecoded()` | `frontend/src/utils/format/summarize:313` | 解析 main.json 提取骨骼/几何摘要（只做统计，不渲染） |
 | `YsmProperties()` | `frontend/src/utils/format/ysm-anim-config:14` | WASM 解码产物 ysm.json 的 properties 相关字段（仅取本模块需要的部分） |
 | `extractAnimGroupsAndConfigs()` | `frontend/src/utils/format/ysm-anim-config:34` | 从 ysm.json properties 提取动画分组与配置菜单。 |
 | `fileIcon()` | `frontend/src/utils/icon/icon:40` | 按扩展名返回图标 emoji |
@@ -1101,14 +1103,6 @@
 | `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:148` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
 | `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:187` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
-
-## frontend/web-spike
-
-| 符号 | 文件:行 | 说明 |
-|------|--------|------|
-| `YsmSummary()` | `frontend/src/web-spike/spike-logic:6` | — |
-| `findBones()` | `frontend/src/web-spike/spike-logic:18` | 递归找第一个数组（骨骼列表通常嵌在 model/bones 等层级）。 |
-| `summarize()` | `frontend/src/web-spike/spike-logic:36` | 解析 main.json 提取骨骼/几何摘要（Spike 只做统计，不渲染） |
 
 ---
 

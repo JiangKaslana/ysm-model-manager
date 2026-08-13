@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-13T01:10:52.983Z",
+  "generated": "2026-08-13T01:34:47.445Z",
   "count": 995,
   "violations": [
     "./docs/adr/ADR-029-ysmparser-wasm-embed.md:R6:> **实现现状（2026-08-08 核实，不改决策）**：Go 端解码已演进为 **Node.js 子进程 + 内嵌 WASM `callMain`**（`internal/app/wasm_decoder.go` `decodeYSM",
@@ -665,6 +665,7 @@
     "frontend/src/utils/dom/errors.ts:W1:if (/[\\u4e00-\\u9fff]/.test(msg)) return stripPathSegments(msg);",
     "frontend/src/utils/format/mc-format.ts:R5:\"0\": \"#000000\",",
     "frontend/src/utils/format/mc-format.ts:R5:\"8\": \"#555555\",",
+    "frontend/src/utils/format/summarize-decoded.test.ts:W1:it(\"立方体统计为 JSON 字符串中 \\\"cubes\\\": [ 的出现次数\", () => {",
     "frontend/src/utils/format/summarize.ts:R5:: `<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;background:color-mix(in srgb,var(",
     "frontend/src/utils/format/summarize.ts:R5:`<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;background:color-mix(in srgb,var(--a",
     "frontend/src/utils/format/summarize.ts:W1:${header.linkHome ? `<div class=\"md-row\"><span class=\"md-label\">${t(\"format.homepage\")}</span><span class=\"md-value\"><a",
@@ -995,7 +996,6 @@
     "frontend/src/views/app-tree/tpl.ts:R4:<div class=\"adv-filter\" id=\"adv-filter\" style=\"display:none\">",
     "frontend/src/views/context-menu/index.ts:R4:display: none;",
     "frontend/src/views/context-menu/index.ts:R5:.item.danger:hover { background: var(--paid); color: #fff; }",
-    "frontend/src/views/context-menu/index.ts:R5:box-shadow: 0 8px 24px rgba(0,0,0,.5);",
-    "frontend/src/web-spike/spike-logic.test.ts:W1:it(\"立方体统计为 JSON 字符串中 \\\"cubes\\\": [ 的出现次数\", () => {"
+    "frontend/src/views/context-menu/index.ts:R5:box-shadow: 0 8px 24px rgba(0,0,0,.5);"
   ]
 }
