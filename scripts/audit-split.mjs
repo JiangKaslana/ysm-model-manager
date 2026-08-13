@@ -129,6 +129,18 @@ function topDeclsAny(path, text) {
   return path.toLowerCase().endsWith('.go') ? goTopFuncs(text) : tsTopDecls(text);
 }
 
+/** 单文件真删洞察：旧顶层声明 - 新顶层声明（死代码清理/改名收敛场景），无被拆主文件也可用。 */
+function deletedSyms(commit, path) {
+  const oldText = showAt(`${commit}^`, path);
+  const newText = showAt(commit, path);
+  if (oldText === null || newText === null) return [];
+  const oldAll = new Set(topDeclsAny(path, oldText));
+  const newAll = new Set(topDeclsAny(path, newText));
+  const oldExp = getExportedSymbolsAny(path, oldText);
+  return [...oldAll].filter((s) => !newAll.has(s))
+    .map((s) => ({ name: s, wasExport: oldExp.includes(s) }));
+}
+
 function funcMigration(commit, mainPath, allPaths) {
   const oldText = showAt(`${commit}^`, mainPath);
   const oldAll = oldText ? topDeclsAny(mainPath, oldText) : [];
@@ -196,6 +208,15 @@ function human(report) {
       L.push(`       ✗ [${tag}] ${d.name}  （彻底删除）`);
     }
   }
+  const cleans = Object.entries(report.cleans);
+  if (cleans.length) {
+    L.push('');
+    L.push('②′ 修改文件清理洞察（本文件内真删的顶层声明）');
+    for (const [p, list] of cleans) {
+      const tags = list.map((d) => `[${d.wasExport ? '导出' : '私有'}] ${d.name}`);
+      L.push(`   ▸ ${p}  真删 ${list.length} 个 — ${tags.join(', ')}`);
+    }
+  }
 
   const newFiles = report.files.filter((f) => f.kind === 'new');
   if (newFiles.length) {
@@ -236,6 +257,7 @@ function audit(commit) {
   const paths = files.map((f) => f.path);
 
   const migrations = {};
+  const cleans = {};
   const newExports = {};
   const history = {};
   const over = [];
@@ -247,6 +269,10 @@ function audit(commit) {
       if (f.linesAtCommit > REDLINE) over.push({ path: f.path, lines: f.linesAtCommit });
     }
     if (f.kind === 'split-main') migrations[f.path] = funcMigration(commit, f.path, paths);
+    else if (f.kind === 'modified') {
+      const d = deletedSyms(commit, f.path);
+      if (d.length) cleans[f.path] = d;
+    }
     if (f.kind === 'new') {
       const t = showAt(commit, f.path);
       newExports[f.path] = t ? getExportedSymbolsAny(f.path, t) : [];
@@ -264,6 +290,7 @@ function audit(commit) {
     totalIns,
     totalDel,
     migrations,
+    cleans,
     newExports,
     redline: { limit: REDLINE, max, over },
     history,
