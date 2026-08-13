@@ -106,18 +106,6 @@ export class AppTree extends HTMLElement {
       // 也能经 disconnectedCallback 正常移除，避免 keydown 监听泄漏）
       this._initKeyboardShortcuts();
 
-      // 监听高级筛选结果
-      this._unsubs.push(
-        bus.on("filter:results", (results) => {
-          if (results && results.length) {
-            this._filterPaths = new Set(results.map((r) => r.path));
-          } else {
-            this._filterPaths = null;
-          }
-          this._renderTree();
-        }),
-      );
-
       // 监听创作者详情→搜索本地模型
       this._unsubs.push(
         bus.on("tree:set-search", (name) => {

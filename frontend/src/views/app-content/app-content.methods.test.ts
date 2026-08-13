@@ -1,7 +1,7 @@
 // ===== app-content 方法级补测 =====
 // 覆盖：_render 各页面分支、_bindTabs 懒初始化（import/recycle/dedup/oldest）、
 // _initRepository subtab 切换、_initPreviewResize 拖拽宽度、_initInstances、
-// 事件订阅（repo:switch-tab / repo:search-creator / lang:changed / package:selected）、
+// 事件订阅（repo:search-creator / lang:changed / package:selected）、
 // _fmtSize / _esc 纯函数。
 // heavy feature 模块全 mock（副作用 import 断开），页面 HTML 用真实 tpl。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -288,19 +288,6 @@ describe("_initPreviewResize — 拖拽调宽", () => {
 });
 
 describe("事件订阅", () => {
-  it("repo:switch-tab → 点击对应 tab", async () => {
-    const el = mountContent();
-    await sleep(50);
-    el._current = "repository";
-    el._render();
-    const importBtn = el.shadowRoot.querySelector('.repo-tab[data-tab="import"]') as HTMLElement;
-    const clickSpy = vi.spyOn(importBtn, "click");
-    bus.emit("repo:switch-tab", { tab: "import" });
-    await sleep(10);
-    expect(clickSpy).toHaveBeenCalled();
-    unmountElement(el);
-  });
-
   it("repo:search-creator → 发射 tree:set-search + 切仓库页", async () => {
     const el = mountContent();
     await sleep(50);

@@ -602,7 +602,7 @@ disconnectedCallback() {
 | D3 | ~~**`app-resource-manager` 走 DOM 事件而非 bus**~~ | ✅ **已修复**：`app-resource-manager/index.ts` 的 `_toast()` 改为直接 `bus.emit("toast:show", {msg,type,duration})`；同步删除 `features/resource-packs.ts` 中的 DOM 事件桥接（原 :26-43），`initResourcePacks` 保留空清理函数以兼容调用契约 | 已闭环 |
 | D4 | ~~**`app-tree` 的 `root` 非响应式**~~ | ✅ **已修复**：新增 `static observedAttributes = ["root"]` 与 `attributeChangedCallback`，变更后 `_load()` + `_renderTree()`；以 `_ready` 标志位隔离首次挂载，避免与 `connectedCallback` 重复加载 | 已闭环 |
 | D5 | **AGENTS.md 目录规范偏差** | 扩展名 `.js`→`.ts`；`tree-styles.ts` 位置；`app-content/community/` 子目录未记载 | 以本文 §11 / §14.2 为准 |
-| D6 | **部分 bus 事件仅订阅无发射** | `tree:set-search` / `filter:results` / `entry:toggle` / `entries:dedup` 在 `BusEvents` 中有定义、有订阅方，但未定位到发射方 | 补全发射或移出契约 |
+| D6 | **部分 bus 事件仅订阅无发射** | `entry:toggle` / `entries:dedup` 在 `BusEvents` 中有定义、有订阅方，但未定位到发射方（`tree:set-search` 已有发射方 app-content:117；`filter:results`/`repo:switch-tab` 已清理移出契约） | 补全发射或移出契约 |
 
 ---
 
@@ -640,7 +640,7 @@ disconnectedCallback() {
 - **observedAttributes**：无。
 - **公共属性/方法**：无对外（内部 `_root`/`_current`/`_unsubs`）。
 - **bus**：
-  - 订阅 `nav:change`（:71 → 同步 `nav:changed` + 重渲染）、`repo:switch-tab`（:84）、`repo:search-creator`（:91）、`package:selected`（:232）、`avatar:refresh`（:666）。
+  - 订阅 `nav:change`（:71 → 同步 `nav:changed` + 重渲染）、`repo:search-creator`（:91）、`package:selected`（:232）、`avatar:refresh`（:666）。
   - 发射 `nav:changed`（:79）、`nav:change`（:95）、`repo:rtype-changed`（:277）、`toast:show`（:581/587/602/608）。
 - **子组件**：`<app-tree root="...">`（:271/tpl.ts:30）、`<app-preview>`（tpl.ts:38）、`<app-sidebar class="ins-sidebar">`（tpl.ts:52）、`<app-sync-manager instance="...">`（:238-242，动态 import 懒加载）。
 - **DOM 事件**：无。**插槽/部件**：无。
@@ -664,7 +664,7 @@ disconnectedCallback() {
 - **公共属性**：`root`（消费属性，非 observed）。
 - **公共方法（模块级导出，跨组件契约）**：`setPendingTreeSearch(name)`（:17）、`takePendingTreeSearch()`（:20）—— app-content 写入、app-tree 挂载消费。
 - **bus**：
-  - 订阅 `filter:results`（:99）、`tree:set-search`（:111），以及 `bus-handlers.ts` 大量：`entry:toggle`/`dir:select-repo`/`entries:dedup`/`recycle:open`/`batch:*`/`dir:*`/`tree:reload`。
+  - 订阅 `tree:set-search`（:111），以及 `bus-handlers.ts` 大量：`entry:toggle`/`dir:select-repo`/`entries:dedup`/`recycle:open`/`batch:*`/`dir:*`/`tree:reload`。
   - 发射（经 `events.ts`/`bus-handlers.ts`/`toolbar-events.ts`/`instance-actions.ts`）：`model:select`、`ctx:show`、`sync:toggle:status`、`toast:show`、`stats:refresh`、`tree:reload`、`nav:change` 等。
 - **DOM 事件**：内部对搜索框派发 `input`（实现细节）。**插槽/部件**：无。
 
@@ -734,7 +734,6 @@ disconnectedCallback() {
 | `package:selected` | `{name:string; rtype?:string}` | 模型/选择 |
 | `menu:show` | `{x:number; y:number; items:MenuItem[]}` | 菜单/上下文 |
 | `ctx:show` | `CtxShowPayload` | 菜单/上下文 |
-| `repo:switch-tab` | `{tab:string}` | 仓库/同步 |
 | `repo:rtype-changed` | `string` | 仓库/同步 |
 | `repo:search-creator` | `string` | 仓库/同步 |
 | `sync:toggle:status` | `void` | 仓库/同步 |
@@ -762,7 +761,6 @@ disconnectedCallback() {
 | `loading:start` | `void` | 加载/杂项 |
 | `loading:end` | `void` | 加载/杂项 |
 | `recycle:open` | `void` | 加载/杂项 |
-| `filter:results` | `Array<{path:string}>` | 加载/杂项 |
 | `entry:toggle` | `{path:string}` | 加载/杂项 |
 | `entries:dedup` | `void` | 加载/杂项 |
 

@@ -106,13 +106,6 @@ class AppContent extends HTMLElement {
       // 仍是旧页（#13「状态变、内容不渲染」契约违反）；渲染成功后广播才真正收敛
       bus.emit("nav:changed", { page });
     });
-    // DnD 导入等请求切换到仓库页的某个标签
-    this._globalUnsubs.push(
-      bus.on("repo:switch-tab", ({ tab }) => {
-        const btn = this._root?.querySelector(`.repo-tab[data-tab="${tab}"]`) as HTMLElement | null;
-        if (btn) btn.click();
-      }),
-    );
     // 创作者详情浮层→搜索本地模型
     this._globalUnsubs.push(
       bus.on("repo:search-creator", (name) => {

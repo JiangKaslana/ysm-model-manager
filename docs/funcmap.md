@@ -71,13 +71,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `New()` | `go/download/download:42` | New 创建 Downloader，默认 5 分钟超时。 |
-| `NewWithClient()` | `go/download/download:47` | NewWithClient 使用指定 HTTP client。 |
-| `Downloader.File()` | `go/download/download:181` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
-| `Downloader.FromGitHubAPI()` | `go/download/download:186` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `ResolveSavePath()` | `go/download/download:191` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
-| `ProgressFn()` | `go/download/download:33` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
-| `Downloader()` | `go/download/download:36` | Downloader 文件下载器。 |
+| `New()` | `go/download/download:44` | New 创建 Downloader，默认 5 分钟超时。 |
+| `NewWithClient()` | `go/download/download:49` | NewWithClient 使用指定 HTTP client。 |
+| `Downloader.File()` | `go/download/download:182` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
+| `Downloader.FromGitHubAPI()` | `go/download/download:187` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
+| `ResolveSavePath()` | `go/download/download:192` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `ProgressFn()` | `go/download/download:35` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
+| `Downloader()` | `go/download/download:38` | Downloader 文件下载器。 |
 
 ## go/executil
 
@@ -486,31 +486,31 @@
 | `App.ClearCustomDir()` | `internal/app/app_install:224` | — |
 | `App.CountInstanceResources()` | `internal/app/app_install:307` | CountInstanceResources 统计指定整合包中可清空的资源文件数 只统计仓库中已有的文件（同 clearInstanceDir 逻辑） rtype 为空时统计全部类 |
 | `App.ClearInstanceResources()` | `internal/app/app_install:347` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
-| `App.DeduplicateCustomDir()` | `internal/app/app_install:429` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
-| `App.ListRecycleBin()` | `internal/app/app_install:468` | — |
-| `App.RestoreFromRecycle()` | `internal/app/app_install:485` | — |
-| `App.DeleteFromRecycle()` | `internal/app/app_install:506` | — |
-| `App.EmptyRecycleBin()` | `internal/app/app_install:522` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
-| `App.GetInstanceStatus()` | `internal/app/app_install:562` | ========== 状态同步 ========== |
-| `App.GetResourceInstanceStatus()` | `internal/app/app_install:574` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
-| `App.SyncModelToggleStatus()` | `internal/app/app_install:614` | — |
-| `App.RelinkCustomDir()` | `internal/app/app_install:619` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
-| `App.RelinkAllInstanceResources()` | `internal/app/app_install:639` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
-| `App.SyncResources()` | `internal/app/app_install:681` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install:715` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install:733` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install:767` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install:784` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install:804` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
-| `App.HasYSMMod()` | `internal/app/app_install:856` | ========== YSM 检测 ========== |
-| `App.SetLinkMode()` | `internal/app/app_install:874` | ========== 链接模式 ========== |
-| `App.GetLinkMode()` | `internal/app/app_install:891` | — |
-| `App.AddImportLog()` | `internal/app/app_install:896` | ========== 日志 ========== |
-| `App.AddOpLog()` | `internal/app/app_install:900` | — |
-| `App.GetImportLogs()` | `internal/app/app_install:904` | — |
-| `App.ClearImportLogs()` | `internal/app/app_install:908` | — |
-| `App.GetRuntimeLogs()` | `internal/app/app_install:913` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
-| `App.ClearRuntimeLogs()` | `internal/app/app_install:918` | ClearRuntimeLogs 清空运行时日志缓冲 |
+| `App.DeduplicateCustomDir()` | `internal/app/app_install:433` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
+| `App.ListRecycleBin()` | `internal/app/app_install:475` | — |
+| `App.RestoreFromRecycle()` | `internal/app/app_install:492` | — |
+| `App.DeleteFromRecycle()` | `internal/app/app_install:513` | — |
+| `App.EmptyRecycleBin()` | `internal/app/app_install:529` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
+| `App.GetInstanceStatus()` | `internal/app/app_install:569` | ========== 状态同步 ========== |
+| `App.GetResourceInstanceStatus()` | `internal/app/app_install:581` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
+| `App.SyncModelToggleStatus()` | `internal/app/app_install:621` | — |
+| `App.RelinkCustomDir()` | `internal/app/app_install:626` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
+| `App.RelinkAllInstanceResources()` | `internal/app/app_install:646` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
+| `App.SyncResources()` | `internal/app/app_install:688` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
+| `App.PushResourceToInstance()` | `internal/app/app_install:722` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install:740` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install:774` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install:791` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install:811` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
+| `App.HasYSMMod()` | `internal/app/app_install:863` | ========== YSM 检测 ========== |
+| `App.SetLinkMode()` | `internal/app/app_install:881` | ========== 链接模式 ========== |
+| `App.GetLinkMode()` | `internal/app/app_install:898` | — |
+| `App.AddImportLog()` | `internal/app/app_install:903` | ========== 日志 ========== |
+| `App.AddOpLog()` | `internal/app/app_install:907` | — |
+| `App.GetImportLogs()` | `internal/app/app_install:911` | — |
+| `App.ClearImportLogs()` | `internal/app/app_install:915` | — |
+| `App.GetRuntimeLogs()` | `internal/app/app_install:920` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
+| `App.ClearRuntimeLogs()` | `internal/app/app_install:925` | ClearRuntimeLogs 清空运行时日志缓冲 |
 | `App.AnalyzeYSMModel()` | `internal/app/app_model:25` | — |
 | `App.ExtractYsmSummary()` | `internal/app/app_model:29` | — |
 | `App.ExtractYSMHeader()` | `internal/app/app_model:43` | — |
@@ -620,7 +620,7 @@
 | `applyTheme()` | `frontend/src/app-modules:67` | — |
 | `initTheme()` | `frontend/src/app-modules:92` | — |
 | `applyUIPrefs()` | `frontend/src/app-modules:111` | 应用 UI 偏好（字号/字体/密度/动画），不依赖设置页打开 |
-| `bus()` | `frontend/src/bus:189` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:187` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
@@ -628,8 +628,8 @@
 | `ModelSelectPayload()` | `frontend/src/bus:42` | — |
 | `CtxShowPayload()` | `frontend/src/bus:47` | — |
 | `BusEvents()` | `frontend/src/bus:64` | — |
-| `BusEventName()` | `frontend/src/bus:115` | — |
-| `Bus()` | `frontend/src/bus:117` | — |
+| `BusEventName()` | `frontend/src/bus:113` | — |
+| `Bus()` | `frontend/src/bus:115` | — |
 
 ## frontend/backend
 
@@ -659,7 +659,7 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `registerContextMenus()` | `frontend/src/core/context-menus:550` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
+| `registerContextMenus()` | `frontend/src/core/context-menus:527` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:30` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:52` | 注册 UI 报错落日记功能。 |
 | `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:16` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |

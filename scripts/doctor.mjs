@@ -373,6 +373,8 @@ const STATIC_TOOLS = [
   { tool: 'build-novel-index.mjs', args: ['--check'] },
   // 脚本卫生：退出码失效 / 共享层内联 / --json 契约（WARN 不阻断，默认 rc=0）
   'check-script-hygiene.mjs',
+  // 工作流引用完整性：.github/workflows/*.yml 的 run: 路径引用必须存在（防迁移类死引用）
+  'check-workflow-refs.mjs',
   // i18n key 契约：parity/占位符/漏译/语言清单漂移（warning 模式，缺口不阻断；--strict 留给 CI）
   'i18n-check.mjs',
   // i18n UI 漂移：组件源码硬写中文且零 t() 调用（治本，堵"动态菜单漏译"盲区；
@@ -392,6 +394,7 @@ const DOC_RELEVANT = new Set([
   'gen-project-map.mjs',
   'build-novel-index.mjs',
   'check-script-hygiene.mjs',
+  'check-workflow-refs.mjs',
 ]);
 const toolName = (entry) => (typeof entry === 'string' ? entry : entry.tool);
 const DOC_STATIC_TOOLS = STATIC_TOOLS.filter((e) => DOC_RELEVANT.has(toolName(e)));

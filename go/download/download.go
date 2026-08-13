@@ -27,6 +27,8 @@ const (
 
 // fileLocks 按目标路径互斥，防止并发（DownloadFromGitHub 与队列）下载同一 savePath
 // 时交错截断；配合临时文件 + rename 保证最终文件来自单次完整下载。
+// 锁条目常驻不删除：条目数 = 下载过的目标路径数（仓库内文件集合，有自然上限），
+// 删除会引入 Unlock→Delete 竞态窗口——等待者持旧锁与新锁并发下载同一路径，互斥承诺失效。
 var fileLocks sync.Map
 
 // ProgressFn 下载进度回调。downloaded / total 为字节数。
@@ -67,8 +69,7 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 	mu, _ := fileLocks.LoadOrStore(savePath, &sync.Mutex{})
 	m := mu.(*sync.Mutex)
 	m.Lock()
-	// 下载完成即移除锁条目，防无界增长；Unlock 必须在 Delete 之前（同一 defer 内保证顺序）
-	defer func() { m.Unlock(); fileLocks.Delete(savePath) }()
+	defer m.Unlock()
 
 	if err := os.MkdirAll(filepath.Dir(savePath), 0755); err != nil {
 		return err

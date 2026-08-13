@@ -345,6 +345,10 @@ func (a *App) CountInstanceResources(insName, rtype string) (int, error) {
 // 返回清除的文件数量。整合包文件是仓库的副本/链接，删除后可从仓库重新推送恢复；
 // 实例文件在仓库根内才移回收站，其余直接删除（见 clearInstanceDir）
 func (a *App) ClearInstanceResources(insName, rtype string) (int, error) {
+	// 删除/回收整合包子目录文件 = 对实例目录做 Rename/Remove，与安装、同步
+	// （SyncToggleStatus 阶段 2）并发操作同一批文件 → 统一纳入 InstallLock 互斥（共享单锁闭环）
+	installer.InstallLock.Lock()
+	defer installer.InstallLock.Unlock()
 	insName = strings.TrimSpace(insName)
 	if insName == "" {
 		return 0, fmt.Errorf("整合包名为空")
@@ -427,6 +431,9 @@ func (a *App) clearInstanceDir(dir string, rtype string, repoRoot string) int {
 
 // DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle）
 func (a *App) DeduplicateCustomDir(customDir string) (int, int, error) {
+	// 去重 Move 与安装/同步并发 Rename 同一 custom 目录文件 → 统一纳入 InstallLock 互斥（共享单锁闭环）
+	installer.InstallLock.Lock()
+	defer installer.InstallLock.Unlock()
 	customDir = strings.TrimSpace(customDir)
 	if customDir == "" {
 		return 0, 0, fmt.Errorf("目录为空")

@@ -81,7 +81,6 @@ export interface BusEvents {
   "menu:show": { x: number; y: number; items: MenuItem[] };
   "ctx:show": CtxShowPayload;
   // 仓库 / 同步
-  "repo:switch-tab": { tab: string };
   "repo:rtype-changed": string;
   "repo:search-creator": string;
   "sync:toggle:status": void;
@@ -109,7 +108,6 @@ export interface BusEvents {
   // 其他
   "loading:start": void;
   "loading:end": void;
-  "filter:results": Array<{ path: string }>;
 }
 
 export type BusEventName = keyof BusEvents;

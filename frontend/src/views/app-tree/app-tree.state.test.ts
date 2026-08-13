@@ -157,13 +157,6 @@ describe("app-tree 组件（testid 钩子 + 交互路径）", () => {
     expect(selectState.keys.size).toBe(0);
   });
 
-  it("9. bus filter:results 驱动过滤（_filterPaths 设置）", async () => {
-    const el = await mountTree();
-    bus.emit("filter:results", [{ path: "/repo/a.ysm" }]);
-    await waitFor(() => el._filterPaths !== null);
-    expect(el._filterPaths!.has("/repo/a.ysm")).toBe(true);
-  });
-
   it("10. bus tree:set-search 驱动搜索框", async () => {
     const el = await mountTree();
     bus.emit("tree:set-search", "hello");

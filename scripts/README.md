@@ -72,6 +72,7 @@
 | `check-circular-go.mjs` | `node scripts/check-circular-go.mjs` / `--json` | Go 包级循环依赖检测（`go/` 目录下 import 图找环；ERROR 阻断，`--json` 供 CI 消费） |
 | `check-boolean-naming.mjs` | `node scripts/check-boolean-naming.mjs` / `--strict` | 布尔变量命名规范 |
 | `check-script-hygiene.mjs` | `node scripts/check-script-hygiene.mjs` / `--json` / `--strict` | 脚本卫生：退出码失效（裸 main + return 失败码无 process.exit）/ 共享层内联（walk/rg/ROOT 样板）/ 检查类缺 `--json` 契约（WARN 不阻断） |
+| `check-workflow-refs.mjs` | `node scripts/check-workflow-refs.mjs` / `--json` | 工作流引用完整性：`.github/workflows/*.yml` 的 `run:` 中 `scripts/`、`cmd/` 路径引用必须存在（迁移类死引用守护，如 cmd/build-*.ps1 → scripts/ 后 release.yml 漏同步） |
 | `auto-import.mjs` | `node scripts/auto-import.mjs` / `--fix` / `--watch` / `--strict` | TS/JS 缺失 import 检测（ADR-014 伴生，已接入 doctor 静态分析） |
 | `gen-adr-supersede.mjs` | `node scripts/gen-adr-supersede.mjs` / `--check` | ADR 取代关系判定（五层证据：已登记 / 漏标 / 废弃未指明 / 可疑 / 表格弱宣称）；`--check` 仅漏标失败退出 1（供 check:docs） |
 | `check-dynamic-import.mjs` | `node scripts/check-dynamic-import.mjs` / `--json` | 动态 import() 合理性审查（对照 app_modules 规范：失败处理缺失 / 空 catch 吞错 / .js 后缀残留 / 轻量工具模块误动态导入；WARN 阻断） |
