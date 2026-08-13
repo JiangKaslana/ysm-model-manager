@@ -54,6 +54,7 @@ tests/python/__pycache__/
 .qoder/
 .workbuddy/
 .codebuddy/
+.mimosa/
 
 # 构建产物：build/ 脚手架（Taskfile/config/图标/manifest）入仓；
 # 仅生成的 bin/、release/、ysmparser-cache/ 被忽略（见上方规则）
