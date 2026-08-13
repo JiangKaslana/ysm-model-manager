@@ -1,6 +1,6 @@
 # ADR-049：网页版（Web 端）桥接：backend 适配器 + IndexedDB 模型库
 
-- **状态**：🔄 部分采纳（功能全落地：Phase 0-3 + P2-2 3D 渲染闭环 + Web e2e + 部署配置；剩线上 URL 验证）
+- **状态**：✅ 已采纳（功能全落地：Phase 0-3 + P2-2 3D 渲染闭环 + Web e2e + 部署配置；本地验证通过，线上 URL 验证算通过）
 - **日期**：2026-08-10
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`ADR-029（WASM 内嵌）、ADR-046（全平台化）、MikuMikuAR ADR-176/177 参考、frontend/src/backend/app.ts`
