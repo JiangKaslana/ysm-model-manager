@@ -6,6 +6,10 @@ category: utils
 source_files:
   - frontend/src/utils/3d/model3d.ts
   - frontend/src/utils/3d/mesh.ts
+  - frontend/src/utils/3d/keymap.ts
+  - frontend/src/utils/3d/debug-render.ts
+  - frontend/src/utils/3d/camera-control.ts
+  - frontend/src/utils/3d/bone-raycast.ts
   - frontend/src/utils/3d/spec-builder.ts
   - frontend/src/views/app-preview/model3d-loader.ts
   - frontend/src/utils/3d/model3d-spec.ts
@@ -30,7 +34,7 @@ invariant_anchors:
 
 ## 概览
 
-前端 Three.js 3D 渲染层，由四个文件组成：`model3d.ts` 负责场景搭建/相机/渲染循环，`mesh.ts` 承载场景网格构建与材质释放（buildSceneMesh / compKey / disposeMaterial / modelScale），`model3d-loader.ts` 负责纹理与 spec 加载（**Go binding 为桌面通道事实来源；Android/网页 viewer 模式保留 WASM 解码兜底** `fetchSpecViaWasmFallback`），`model3d-spec.ts` 是历史 JS 端兜底 spec 构建算法（已废弃、无消费方，仅测试保留作口径参考）。几何数据（顶点/法线/UV/骨骼四元数）全部由 Go 端 [go_threejs](./go-threejs.md) 预计算，本层只渲染、不做几何计算。
+前端 Three.js 3D 渲染层，由八个文件组成：`model3d.ts` 负责场景搭建/相机/渲染循环（**ADR-040 P1 进行中**，关键逻辑已拆至独立模块），`mesh.ts` 承载场景网格构建与材质释放（buildSceneMesh / compKey / disposeMaterial / modelScale），`keymap.ts` 承载 3D 操作键位/相机偏好持久化（loadTdKeymap / loadTdCamSpeed / loadTdRotMode），`debug-render.ts` 承载 debug 叠加层渲染（rebuildDebug / makeTextTexture），`camera-control.ts` 承载 free 模式 pointer drag 控制（registerFreeCameraDrag），`bone-raycast.ts` 承载骨骼层级映射与射线拾取（buildBoneHierarchy / registerBoneRaycast / assembleBoneSelectInfo），`model3d-loader.ts` 负责纹理与 spec 加载（**Go binding 为桌面通道事实来源；Android/网页 viewer 模式保留 WASM 解码兜底** `fetchSpecViaWasmFallback`），`model3d-spec.ts` 是历史 JS 端兜底 spec 构建算法（已废弃、无消费方，仅测试保留作口径参考）。几何数据（顶点/法线/UV/骨骼四元数）全部由 Go 端 [go_threejs](./go-threejs.md) 预计算，本层只渲染、不做几何计算。
 
 ## 核心职责
 
