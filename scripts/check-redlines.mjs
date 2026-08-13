@@ -85,12 +85,25 @@ function runChecks() {
     'let + getter, PageStore');
 
   // R2 repoRoot 命名：测试文件豁免、Wails bindings 自动生成文件豁免
+  // 注释行豁免（// 开头）、JSDoc 块注释（* 开头、@param 等）
+  // 去重：同一文件在 '.' 和 'frontend/src' 双路径下会重复命中（路径前缀不同）
   add('R2', 'repoRoot name',
-    rg('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json'])
-      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
-      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('_test.go'); })
-      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('bindings/'); })
-      .filter((l) => !/:\d+:\s*\/\//.test(l)),
+    (() => {
+      const raw = rg('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json'])
+        .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
+        .filter((l) => { const [f] = parseRgLine(l); return !f.includes('_test.go'); })
+        .filter((l) => { const [f] = parseRgLine(l); return !f.includes('bindings/'); })
+        .filter((l) => !/:\d+:\s*\/\//.test(l))
+        .filter((l) => !/:\d+:\s*\*/.test(l))
+        .filter((l) => !/:\d+:\s*@param/.test(l));
+      const seen = new Set();
+      return raw.filter((l) => {
+        const norm = l.replace(/^\.\\/, '').replace(/^\.\//, '');
+        if (seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      });
+    })(),
     'cfg.FilesRoot / filesRoot');
 
   add('R3', 'callback .file() API',
@@ -265,9 +278,12 @@ function runChecks() {
       .filter((l) => !/:\d+:\s*\/\//.test(l))
       .filter((l) => {
         const [f, line] = parseRgLine(l);
-        // 若所在函数附近已配缓存失效（scanner.InvalidateCache/InvalidatePath），豁免
-        // 函数级别的缓存失效通常写在写操作后 5-15 行，或在调用链的上游
+        // 已配缓存失效（scanner.InvalidateCache/InvalidatePath），豁免
         if (hasContext(f, line, /scanner\.Invalidate(Cache|Path)/, 20)) return false;
+        // 启动期迁移/探测代码（非绑定层），豁免
+        if (hasContext(f, line, /migrate|probe\./, 15)) return false;
+        // 配置/工具文件操作（非模型资源缓存相关），豁免
+        if (hasContext(f, line, /workshopSitesPath|creatorsPath|configPath\(\)/, 10)) return false;
         return true;
       }),
     '确认所在函数已配 scanner.InvalidateCache/InvalidatePath（防 30s 陈旧缓存"复活"）');
