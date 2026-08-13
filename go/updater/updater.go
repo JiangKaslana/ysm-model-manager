@@ -264,12 +264,14 @@ func downloadOnce(assetURL string, expectedHash string, onProgress func(done, to
 		return "", fmt.Errorf("更新包下载失败: HTTP %d（%s）", resp.StatusCode, assetURL)
 	}
 
-	// BUG(INFO-CT) 修复：Content-Type 非二进制拒绝——
+	// BUG(INFO-CT) 修复：Content-Type 为 HTML/XML 时拒绝——
 	// 攻击者返回 text/html 错误页（含恶意内容），downloadOnce 无 Content-Type 校验会将其当作更新包写入。
-	// 与 go/download HTTP-5 同源问题，对齐防御口径。
+	// 与 go/download HTTP-5 同源问题，对齐防御口径（仅拒绝 HTML/XML，保留 text/plain 等）。
 	if ct := resp.Header.Get("Content-Type"); ct != "" {
 		low := strings.ToLower(ct)
-		if strings.Contains(low, "text/") || strings.Contains(low, "application/xhtml+xml") || strings.Contains(low, "application/xml") || strings.Contains(low, "text/xml") {
+		isTextHTML := strings.Contains(low, "text/html") || strings.Contains(low, "application/xhtml+xml")
+		isXML := strings.Contains(low, "application/xml") || strings.Contains(low, "text/xml")
+		if isTextHTML || isXML {
 			return "", fmt.Errorf("更新包 Content-Type 非二进制: %s", ct)
 		}
 	}

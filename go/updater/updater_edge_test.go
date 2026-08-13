@@ -96,6 +96,9 @@ func TestExtractZipFile_SymlinkDest(t *testing.T) {
 		return
 	}
 
+	// 保持 INFO 记录而非 Errorf：extractZipFile 的 dest 由调用方传入（InstallUpdate 中
+	// 是 MkdirTemp 新目录 / exeDir 固定路径，zip 条目名经 filepath.Base 后仅用于拼接），
+	// symlink 攻击需攻击者预置 symlink 到 exeDir——本地攻击者场景，属 POSIX 常规语义。
 	data, _ := os.ReadFile(realTarget)
 	if string(data) == "OVERWRITTEN" {
 		t.Logf("BUG(INFO-SYMLINK): extractZipFile os.Create 跟随 symlink，覆盖了 real_target: %s", string(data))
@@ -130,8 +133,15 @@ func TestExtractZipFile_NULInName(t *testing.T) {
 		t.Logf("FIXED(INFO-NUL-ZIP): extractZipFile NUL 名称被拒绝: %v", err)
 		return
 	}
-	// 检查是否写出了非预期文件
+	// 检查是否写出了非预期文件：extractZipFile 只写调用方传入的 dest（output），
+	// NUL 名条目不应产生额外文件——若未来实现改用 f.Name 构建路径，NUL 截断
+	// 会写出 safe.exe 等额外文件而触发 Errorf 变红（3-1 修复：断言真实守门）
 	entries, _ := os.ReadDir(tmpDir)
+	for _, e := range entries {
+		if e.Name() != "output" {
+			t.Errorf("BUG(INFO-NUL-ZIP): NUL 名称条目写出了非预期文件 %q", e.Name())
+		}
+	}
 	t.Logf("INFO(INFO-NUL-ZIP): extractZipFile NUL 名称条目, entries=%v", entries)
 }
 
@@ -219,8 +229,12 @@ func TestDownloadOnce_RedirectFollowing(t *testing.T) {
 		t.Logf("INFO(INFO-REDIRECT): downloadOnce 拒绝重定向: %v", err)
 		return
 	}
-	os.Remove(path)
+	// 先读后删（3-3 修复）：原实现先 os.Remove 再 ReadFile，检测分支读到的恒为空文件，
+	// BUG 探测永不触发。302 跟随是 GitHub CDN 下载的必需行为（BrowserDownloadURL
+	// 普遍 302 到 objects.githubusercontent.com），安全防线是 expectedHash 哈希校验
+	// 而非拒绝重定向——故保持 INFO 记录而非断言失败（拒绝会破坏真实更新下载）。
 	data, _ := os.ReadFile(path)
+	os.Remove(path)
 	if string(data) == "target-content" {
 		t.Logf("BUG(INFO-REDIRECT): downloadOnce 跟随 302 重定向，写入了目标内容——攻击者可通过恶意源将更新包替换为任意文件")
 	}
@@ -239,7 +253,7 @@ func TestDownloadOnce_HTMLContentType(t *testing.T) {
 		t.Logf("FIXED(BUG-INFO-CT): downloadOnce 拒绝 HTML Content-Type: %v", err)
 		return
 	}
-	t.Log("BUG(INFO-CT): downloadOnce 接受 HTML Content-Type——未修复")
+	t.Error("BUG(INFO-CT): downloadOnce 接受 HTML Content-Type——未修复")
 }
 
 // ---------- 7. Content-Range 部分响应 ----------
@@ -262,7 +276,7 @@ func TestDownloadOnce_PartialContent(t *testing.T) {
 		}
 		return
 	}
-	t.Log("BUG(INFO-RANGE): downloadOnce 接受 200+Content-Range 部分响应——未修复")
+	t.Error("BUG(INFO-RANGE): downloadOnce 接受 200+Content-Range 部分响应——未修复")
 }
 
 // =====================================================================
@@ -445,7 +459,7 @@ func TestDownloadOnce_EmptyBody(t *testing.T) {
 	fi, _ := os.Stat(path)
 	os.Remove(path)
 	if fi.Size() != 0 {
-		t.Logf("BUG(INFO-EMPTY-BODY): downloadOnce 空 body 写出 %d 字节", fi.Size())
+		t.Errorf("BUG(INFO-EMPTY-BODY): downloadOnce 空 body 写出 %d 字节", fi.Size())
 	} else {
 		t.Log("FIXED/INFO(INFO-EMPTY-BODY): downloadOnce 空 body 写出 0 字节文件（无错误，但可能不应静默成功）")
 	}
