@@ -118,7 +118,7 @@ grep -E '\.dispose\(|\bremove\w+\b|\bdelete\w+\b' <文件路径> # 释放点
 | ❌ 禁止 | ✅ 替代 |
 |---------|--------|
 | `window.__currentPage` | `PageStore.currentPage` (`core/page-store.ts`) |
-| `window.go.main.App.*` | `getApp()` (`wails/app.ts`) |
+| `window.go.main.App.*` | `getApp()` (`backend/app.ts`) |
 
 ## 3.2 Wails 调用统一走 `getApp()`
 

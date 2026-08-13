@@ -5,12 +5,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
 
-const { getAppMock, specMock, buildSpecMock, getAndroidBridgeMock, decodeWasmMock, tsSpecBuilderMock } = vi.hoisted(() => ({
+const { getAppMock, specMock, buildSpecMock, isViewerModeMock, decodeWasmMock, tsSpecBuilderMock } = vi.hoisted(() => ({
   getAppMock: vi.fn(),
   specMock: vi.fn(),
   buildSpecMock: vi.fn(),
-  // Android 双端桥 + WASM 解码（fetchSpec 兜底路径，ADR-049/046）
-  getAndroidBridgeMock: vi.fn().mockReturnValue(null), // 默认桌面
+  // 查看器模式守卫（Android 双端桥 + 网页版，fetchSpec 兜底路径，ADR-049/046）
+  isViewerModeMock: vi.fn().mockReturnValue(false), // 默认桌面
   decodeWasmMock: vi.fn(),
   // 网页版纯 TS 移植（ADR-049 P2-2）：fetchSpecViaWasmFallback 的 resolveWebMode 分支
   tsSpecBuilderMock: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock("../../backend/app.ts", () => ({
   getApp: getAppMock,
 }));
 vi.mock("../../utils/dom/android-bridge.ts", () => ({
-  getAndroidBridge: getAndroidBridgeMock,
+  isViewerMode: isViewerModeMock,
 }));
 vi.mock("./wasm.ts", () => ({
   decodeYsmViaWasm: decodeWasmMock,
@@ -206,7 +206,7 @@ describe("preloadModel / fetchSpec", () => {
   });
 
   it("Android spec 空 → WASM 兜底成功（fetchSpecViaWasmFallback 构建 spec）", async () => {
-    getAndroidBridgeMock.mockReturnValue({} as never);
+    isViewerModeMock.mockReturnValue(true);
     specMock.mockResolvedValue(JSON.stringify({ models: [] })); // Go 恒空（无 Node 通道）
     buildSpecMock.mockResolvedValue(
       JSON.stringify({ models: [{ meshGroups: [{ boneId: "root", positions: [0, 0, 0], normals: [], uvs: [], indices: [] }] }] }),
@@ -224,7 +224,7 @@ describe("preloadModel / fetchSpec", () => {
   });
 
   it("Android WASM 兜底解码失败 → 仍抛 3D spec 为空（不吞错）", async () => {
-    getAndroidBridgeMock.mockReturnValue({} as never);
+    isViewerModeMock.mockReturnValue(true);
     specMock.mockResolvedValue(JSON.stringify({ models: [] }));
     decodeWasmMock.mockResolvedValue(null); // 解码失败
     await expect(
@@ -233,7 +233,7 @@ describe("preloadModel / fetchSpec", () => {
   });
 
   it("Android Go binding 返回 {}（无数据）→ 兜底 null → 抛 3D spec 为空", async () => {
-    getAndroidBridgeMock.mockReturnValue({} as never);
+    isViewerModeMock.mockReturnValue(true);
     specMock.mockResolvedValue(JSON.stringify({ models: [] }));
     decodeWasmMock.mockResolvedValue({ geometryRaw: '{"geometry":"x"}' });
     buildSpecMock.mockResolvedValue("{}"); // Go binding 无数据

@@ -5,7 +5,7 @@
  * 设计意图：把「三层解耦职责边界（逻辑层不碰 UI）」固化为 CI 可执行规则。
  * ysm 前端分层公理（自上而下，允许上层 import 下层，反向即违规）：
  *   views/ → features/ → services/ → utils/ → core/
- *   wasm/ / wails/ 为胶水与绑定产物，不参与分层判定（import 它们不违规）。
+ *   wasm/ / backend/ 为胶水与绑定产物，不参与分层判定（import 它们不违规）。
  * 骨架源自 MikuMikuAR scripts/check-layering.mjs（ADR-242 分层守护），适配本仓库目录。
  *
  * 规则：
@@ -37,7 +37,7 @@ const SRC_ROOT = resolve(REPO_ROOT, 'frontend', 'src');
 const BASELINE_FILE = resolve(REPO_ROOT, 'docs', '.layering-baseline.json');
 
 // 分层（自上而下）：views → features → services → utils → core
-// wasm / wails 不入层（胶水/绑定产物），layerOf 返回 null → 天然跳过
+// wasm / backend 不入层（胶水/绑定产物），layerOf 返回 null → 天然跳过
 const LAYER_ORDER = ['views', 'features', 'services', 'utils', 'core'];
 
 // R1/R2 零容忍：from 层不得 import to 层（当前已满足，防回退）

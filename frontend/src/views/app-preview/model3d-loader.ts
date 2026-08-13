@@ -1,7 +1,7 @@
 // ===== 3D 模型加载器（类型化版 — ADR-014 P2）=====
 import * as THREE from "three";
 import { getApp } from "../../backend/app.ts";
-import { getAndroidBridge } from "../../utils/dom/android-bridge.ts";
+import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { buildSpecFromGeometryJSON } from "../../utils/3d/spec-builder.ts";
@@ -94,7 +94,7 @@ async function fetchSpec(model: ModelLike): Promise<ModelSpec> {
     // GetModel3DSpec 恒空）走前端 WASM 解码兜底；桌面 Go 有 Node 通道，spec 空是
     // 异常而非常态——保持 ADR-004「Go 为唯一事实来源」快速报错语义，避免桌面端
     // 每个空 spec 模型都被拖进完整 WASM 解码（加载变慢）。
-    if (getAndroidBridge() || resolveWebMode()) {
+    if (isViewerMode()) {
       const spec = await fetchSpecViaWasmFallback(model);
       if (spec) return spec;
     }

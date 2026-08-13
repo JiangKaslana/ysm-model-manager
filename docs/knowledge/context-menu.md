@@ -47,7 +47,7 @@ use_when:
 - 导出函数：`registerContextMenus(unsubs: Array<() => void>)`（core/context-menus.ts，由 `core/handlers/global.ts` 的 `registerGlobalHandlers()` 调用一次）、`MENU_DEFS` / `getMenuDef`（core/menu-defs.ts）、`registerInstanceOps(unsubs)`（core/handlers/instance-ops.ts）
 - 监听 bus：`ctx:show`（core/context-menus.ts）、`menu:show`（views/context-menu/index.ts）、`instance:export-list` / `instance:clear`（core/handlers/instance-ops.ts）
 - 派发 bus：`menu:show`；行为 handler 内再派发 `instance:export-list` / `instance:clear` / `batch:rename` / `dir:rename` / `dir:batch-rename` / `dir:mkdir` / `dir:recycle` / `toast:show` / `tree:reload` / `stats:refresh`
-- Go 调用（handler 内经 `getApp()`（wails/app.ts）取 bindings，不再逐处动态 import）：`OpenInstanceFolder`、`MoveModelFile`、`CopyModelFile`、`GetRepoRoot(rtype)`、`MoveToRecycle`、`RenameFile`、`InstallModelTo`、`ListVersionInstances`、`LoadAppConfig`、`RevealInExplorer`；instance-ops 侧另有 `ListFileNames`、`GetSubDirMap`、`CountInstanceResources`、`ClearInstanceResources`
+- Go 调用（handler 内经 `getApp()`（backend/app.ts）取 bindings，不再逐处动态 import）：`OpenInstanceFolder`、`MoveModelFile`、`CopyModelFile`、`GetRepoRoot(rtype)`、`MoveToRecycle`、`RenameFile`、`InstallModelTo`、`ListVersionInstances`、`LoadAppConfig`、`RevealInExplorer`；instance-ops 侧另有 `ListFileNames`、`GetSubDirMap`、`CountInstanceResources`、`ClearInstanceResources`
 - `ctx:show` 派发方：`app-tree`（file/dir/batch）、`app-sidebar`（instance）
 
 ## 与其他子系统关系
