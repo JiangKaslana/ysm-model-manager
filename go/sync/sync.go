@@ -750,6 +750,10 @@ func CompareGlobalInstanceHashes(mcRoot, globalDir, subDir, rtype string,
 				status.Extra = append(status.Extra, i.path)
 			}
 		}
+		// Missing/Extra 由 map 归并产生（迭代序随机）——排序保证输出确定性，
+		// 否则同输入不同输出（flaky 测试/UI 展示不稳定，scanner 同款修复）
+		sort.Strings(status.Missing)
+		sort.Strings(status.Extra)
 		if len(status.Missing) == 0 && len(status.Extra) == 0 {
 			status.Status = "complete"
 		} else if len(status.Extra) > 0 {
