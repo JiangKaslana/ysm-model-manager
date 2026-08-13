@@ -303,7 +303,16 @@ func ScanLocalAuthors(roots map[string]string) []types.WorkshopCreator {
 	seen := map[string]bool{}
 	var result []types.WorkshopCreator
 
-	for rtype, root := range roots {
+	// roots 为 map，迭代序随机会导致跨类型合并的 Type 拼接顺序不稳定
+	// （同输入不同输出，flaky 测试/缓存/UI 展示均受影响）——按 rtype 字典序遍历保证确定性
+	rtypes := make([]string, 0, len(roots))
+	for rtype := range roots {
+		rtypes = append(rtypes, rtype)
+	}
+	sort.Strings(rtypes)
+
+	for _, rtype := range rtypes {
+		root := roots[rtype]
 		if root == "" {
 			continue
 		}

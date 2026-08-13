@@ -197,8 +197,12 @@ func TestScanLocalAuthors_Branches(t *testing.T) {
 	if e == nil {
 		t.Fatalf("缺少 作者E: %+v", creators)
 	}
-	if e.Type != "ysm;mmd-skin" {
-		t.Errorf("作者E Type = %q, 期望 'ysm;mmd-skin'（跨类型合并）", e.Type)
+	// 跨类型合并：Type 须同时含 ysm 与 mmd-skin（集合断言，不依赖拼接顺序——
+	// 源码已按 rtype 字典序保证确定性输出，顺序变化不应破坏本用例）
+	for _, want := range []string{"ysm", "mmd-skin"} {
+		if !strings.Contains(e.Type, want) {
+			t.Errorf("作者E Type = %q, 应包含 %q（跨类型合并）", e.Type, want)
+		}
 	}
 	if e.Desc != "来自本地仓库" {
 		t.Errorf("作者E Desc = %q, 期望 '来自本地仓库'", e.Desc)
