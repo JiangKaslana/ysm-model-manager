@@ -9,6 +9,8 @@ source_files:
   - frontend/src/views/app-preview/loader.ts
   - frontend/src/views/app-preview/detail.ts
   - frontend/src/views/app-preview/skeleton.ts
+  - frontend/src/views/app-preview/skeleton-render.ts
+  - frontend/src/views/app-preview/skeleton-utils.ts
   - frontend/src/views/app-preview/zoom.ts
   - frontend/src/views/app-preview/wasm.ts
   - frontend/src/views/app-preview/litematic-3d.ts

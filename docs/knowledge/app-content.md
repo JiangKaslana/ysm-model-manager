@@ -5,6 +5,10 @@ tier: architecture
 category: ui
 source_files:
   - frontend/src/views/app-content/index.ts
+  - frontend/src/views/app-content/init-github.ts
+  - frontend/src/views/app-content/init-pages.ts
+  - frontend/src/views/app-content/init-preview.ts
+  - frontend/src/views/app-content/init-workshop.ts
   - frontend/src/views/app-content/tpl.ts
   - frontend/src/views/app-content/content-css.ts
   - frontend/src/views/app-content/community-data.ts
