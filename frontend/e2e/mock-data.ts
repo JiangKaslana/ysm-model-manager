@@ -44,9 +44,11 @@ export const MOCK_DATA = {
   ],
   GetResourceInstanceStatus: [
     // 对齐 models.ts 必填字段（CustomDir/Status/Disabled/HasYSM/Files）——
-    // 缺字段会让依赖排序/状态分支的 e2e 掩盖真实现问题（子代理审计 P2）
-    { Name: "1.20.1-Fabric", VersionDir: "/e2e/mc/1.20.1-Fabric", CustomDir: "", Status: "ok", Disabled: [], HasYSM: true, Files: 0, Missing: [], Extra: [], Synced: 0, HasMod: false },
-    { Name: "1.21-NeoForge", VersionDir: "/e2e/mc/1.21-NeoForge", CustomDir: "", Status: "ok", Disabled: [], HasYSM: true, Files: 0, Missing: [], Extra: [], Synced: 0, HasMod: false },
+    // 缺字段会让依赖排序/状态分支的 e2e 掩盖真实现问题（子代理审计 P2）。
+    // Status 契约值域："complete" | "missing" | "extra"（models.ts 注释），
+    // Files 契约：CustomFileInfo[] | null——"ok"/0 属漂移值，E2E 会命中生产不存在的状态
+    { Name: "1.20.1-Fabric", VersionDir: "/e2e/mc/1.20.1-Fabric", CustomDir: "", Status: "complete", Disabled: [], HasYSM: true, Files: [], Missing: [], Extra: [], Synced: 0, HasMod: false },
+    { Name: "1.21-NeoForge", VersionDir: "/e2e/mc/1.21-NeoForge", CustomDir: "", Status: "complete", Disabled: [], HasYSM: true, Files: [], Missing: [], Extra: [], Synced: 0, HasMod: false },
   ],
   LoadResourceTypes: JSON.stringify({
     resourceTypes: [

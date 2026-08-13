@@ -537,11 +537,12 @@ describe("browserAdapter — 作者扫描/仓库索引（ADR-049 Batch 3：基�
   it("GenerateRepoIndex 返回 index.json 内容（相对路径正斜杠）", async () => {
     await importWebFiles([new File([enc.encode("YY")], "赵六.ysm")], "ysm");
     const idx = (await browserAdapter.GenerateRepoIndex("/web/ysm")) as string;
-    const parsed = JSON.parse(idx) as Array<{ Name: string; Path: string; Size: number }>;
+    // 对齐 go/scanner/scanner.go indexEntry json tag：小写 name/path/size（契约测试 B3 锁定）
+    const parsed = JSON.parse(idx) as Array<{ name: string; path: string; size: number }>;
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].Name).toBe("赵六.ysm");
-    expect(parsed[0].Path).toBe("赵六/赵六.ysm"); // 相对 /web/ysm
-    expect(parsed[0].Size).toBe(2);
+    expect(parsed[0].name).toBe("赵六.ysm");
+    expect(parsed[0].path).toBe("赵六/赵六.ysm"); // 相对 /web/ysm
+    expect(parsed[0].size).toBe(2);
   });
 
   it("空库时 ListModelAuthors/ScanLocalAuthors 返回 []（非 null，不抛错）", async () => {
@@ -595,10 +596,11 @@ describe("browserAdapter — 桥接增强边界/异常分支补全（审核补�
   it("GenerateRepoIndex 全库（repoPath 非 /web 开头）→ 跨类型相对 WEB_ROOT 路径", async () => {
     await importWebFiles([new File([enc3.encode("YY")], "赵六.ysm")], "ysm");
     const idx = (await browserAdapter.GenerateRepoIndex("not-a-web-root")) as string;
-    const parsed = JSON.parse(idx) as Array<{ Name: string; Path: string }>;
+    // 对齐 Go indexEntry json tag：小写 name/path（契约测试 B3 锁定）
+    const parsed = JSON.parse(idx) as Array<{ name: string; path: string }>;
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].Name).toBe("赵六.ysm");
-    expect(parsed[0].Path).toBe("ysm/赵六/赵六.ysm"); // 相对 WEB_ROOT=/web
+    expect(parsed[0].name).toBe("赵六.ysm");
+    expect(parsed[0].path).toBe("ysm/赵六/赵六.ysm"); // 相对 WEB_ROOT=/web
   });
 
   it("ScanLocalAuthors 跨类型同作者 → type 用 ; 合并（来自本地仓库）", async () => {
@@ -701,11 +703,11 @@ describe("browserAdapter — 三向一致性/边界补测（审核补充）", ()
     expect(hit[0].name).toBe("狐狸.ysm");
   });
 
-  it("SetModelTags(path, []) 空数组 ≠ null：key 保留空数组，GetModelTags 返回 []", async () => {
+  it("SetModelTags(path, []) 空数组等同删除 key（对齐 go/tags/tags.go len==0 → delete）", async () => {
     await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
     const p = "/web/ysm/狐狸/狐狸.ysm";
     await browserAdapter.SetModelTags(p, []);
-    expect(idbMock._store.has(`tags:${p}`)).toBe(true); // 空数组也落 key（与 null 删除语义区分）
+    expect(idbMock._store.has(`tags:${p}`)).toBe(false); // Go 契约：空数组删除 key，不残留
     expect((await browserAdapter.GetModelTags(p)) as string[]).toEqual([]);
   });
 

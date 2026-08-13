@@ -325,14 +325,31 @@ async function setWebTags(path: string, tags: string[] | null): Promise<void> {
     await idbDel("config", tagKeyOf(path));
     return;
   }
-  await idbSet("config", tagKeyOf(path), tags);
+  // 对齐 go/tags/tags.go SetTags：trimTag（去空白/控制符）+ 去重 + sort.Strings；
+  // 空数组等同删除（len(tags)==0 → delete），避免残留空 key
+  const seen = new Set<string>();
+  const norm: string[] = [];
+  for (const t of tags) {
+    const trimmed = (t ?? "").trim();
+    if (trimmed === "" || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    norm.push(trimmed);
+  }
+  norm.sort();
+  if (norm.length === 0) {
+    await idbDel("config", tagKeyOf(path));
+    return;
+  }
+  await idbSet("config", tagKeyOf(path), norm);
 }
 async function listByTagWeb(tag: string): Promise<string[]> {
   const models = await scanAllWebModels();
   const out: string[] = [];
+  // 对齐 go/tags/tags.go ListByTag：tag = trimTag(tag) 后再匹配
+  const trimmed = (tag ?? "").trim();
   for (const m of models) {
     const tags = await getWebTags(m.path);
-    if (tags.includes(tag)) out.push(m.path);
+    if (tags.includes(trimmed)) out.push(m.path);
   }
   return out.sort(); // 对齐桌面 tags.Store.ListByTag 的 sort.Strings（稳定输出）
 }
@@ -366,7 +383,8 @@ async function searchWebModels(
 ): Promise<Array<{ name: string; path: string; boneCount: number; cubeCount: number; texWidth: number; texHeight: number; hasError: boolean }>> {
   const type = typeFromWebDir(repoRoot);
   const entries = await scanWebModels(`${WEB_ROOT}/${type}`);
-  const kw = (keyword || "").toLowerCase();
+  // 对齐桌面 app_scan.go SearchModels：kw = strings.ToLower(strings.TrimSpace(keyword))
+  const kw = (keyword || "").trim().toLowerCase();
   return entries
     // 对齐桌面 app_scan.go SearchModels：匹配 name OR path（搜索目录名/作者路径段可命中）
     .filter((e) => !kw || e.Name.toLowerCase().includes(kw) || e.Path.toLowerCase().includes(kw))
@@ -481,11 +499,13 @@ async function renameWebFile(oldPath: string, newName: string): Promise<void> {
   }
 }
 
-// --- 子目录映射（resource_types.json → {id: storageSubDir}）---
+// --- 子目录映射（resource_types.json → {id: scanDir}）---
 async function getWebSubDirMap(): Promise<Record<string, string>> {
-  const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string; storageSubDir?: string }> }).resourceTypes ?? [];
+  // 对齐 go/types/extensions.go SubDirAll：返回 rt.ScanDir（整合包实例版本目录扫描子目录），
+  // 非 storageSubDir（仓库存储子目录）——B1 契约测试暴露的字段错用
+  const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string; scanDir?: string }> }).resourceTypes ?? [];
   const map: Record<string, string> = {};
-  for (const r of rts) map[r.id] = r.storageSubDir ?? "";
+  for (const r of rts) map[r.id] = r.scanDir ?? "";
   return map;
 }
 
@@ -495,6 +515,7 @@ async function getWebSubDirMap(): Promise<Record<string, string>> {
 // （覆盖优先于默认，对齐桌面 Save→Load 语义）。GitHub 仓库列表为只读 bundled。
 const WEB_CREATORS_KEY = "web:workshop-creators";
 const WEB_SITES_KEY = "web:workshop-sites";
+const WEB_GITHUB_KEY = "web:github-repos";
 
 function cloneJson<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
@@ -539,6 +560,28 @@ function saveWebSites(sites: WorkshopSite[] | null): void {
     return;
   }
   localStorage.setItem(WEB_SITES_KEY, JSON.stringify(sites));
+}
+
+// B2 契约修复：网页版 GitHub 仓库列表补覆盖层（对齐 Go workshop-github.json 用户覆盖语义）。
+// 此前为纯 bundled 只读，与 Go「用户配置优先」契约不一致（contract-b2 测试暴露）。
+function loadWebGitHubRepos(): WorkshopCreator[] {
+  const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_GITHUB_KEY) : null;
+  if (ov !== null) {
+    try {
+      return JSON.parse(ov) as WorkshopCreator[];
+    } catch {
+      // 覆盖数据损坏则回退默认 bundled
+    }
+  }
+  return cloneJson(workshopGithubJson as unknown as WorkshopCreator[]);
+}
+
+function saveWebGitHubRepos(list: WorkshopCreator[] | null): void {
+  if (list === null) {
+    localStorage.removeItem(WEB_GITHUB_KEY);
+    return;
+  }
+  localStorage.setItem(WEB_GITHUB_KEY, JSON.stringify(list));
 }
 
 // --- 作者扫描 / 仓库索引（ADR-049 桥接增强 Batch 3）---
@@ -623,7 +666,14 @@ async function generateWebRepoIndex(repoPath: string): Promise<string> {
     } else if (e.Path.startsWith(WEB_ROOT)) {
       rel = e.Path.slice(WEB_ROOT.length).replace(/^[/\\]/, "");
     }
-    return { Name: e.Name, Path: rel.replace(/\\/g, "/"), Size: e.Size, Hash: e.Hash ?? "" };
+    // 对齐 go/scanner/scanner.go indexEntry json tag：小写 name/path/size + hash,omitempty
+    const entry: { name: string; path: string; size: number; hash?: string } = {
+      name: e.Name,
+      path: rel.replace(/\\/g, "/"),
+      size: e.Size,
+    };
+    if (e.Hash) entry.hash = e.Hash;
+    return entry;
   });
   return JSON.stringify(list, null, 2);
 }
@@ -726,8 +776,11 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
     saveWebCreators(list);
     return Promise.resolve();
   },
-  LoadGitHubRepos: () =>
-    Promise.resolve(cloneJson(workshopGithubJson as unknown as WorkshopCreator[])),
+  LoadGitHubRepos: () => Promise.resolve(loadWebGitHubRepos()),
+  SaveGitHubRepos: (list: WorkshopCreator[] | null) => {
+    saveWebGitHubRepos(list);
+    return Promise.resolve();
+  },
   DefaultWorkshopSites: () => Promise.resolve(loadWebSites()),
   SaveWorkshopSites: (sites: WorkshopSite[] | null) => {
     saveWebSites(sites);

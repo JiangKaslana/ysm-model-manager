@@ -465,7 +465,7 @@ func (a *App) DeduplicateCustomDir(customDir string) (int, int, error) {
 	return removed, kept, nil
 }
 
-func (a *App) ListRecycleBin(_ string) []types.ModelEntry {
+func (a *App) ListRecycleBin(recyclePath string) []types.ModelEntry {
 	cfg := a.LoadAppConfig()
 	roots := a.allRecycleRoots(cfg)
 	all := []types.ModelEntry{}
