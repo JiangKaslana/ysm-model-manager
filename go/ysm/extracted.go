@@ -289,8 +289,10 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 		})
 	}
 
-	// 裸 geometry 元素兜底
-	if geoJSON == nil {
+	// 裸 geometry 元素兜底：仅当 ysm.json 本身疑似几何 JSON（含 geometry 元素特征键）
+	// 才包裹解析——任意合法 JSON（如 {"files":{...}}）包裹后会被解析为
+	// 非 nil 的零骨骼模型，与「未找到几何」无法区分（子代理审计 P 级发现）
+	if geoJSON == nil && looksLikeGeometry(data) {
 		wrapped := append([]byte(`{"format_version":"1.12.0","minecraft:geometry":[`), data...)
 		wrapped = append(wrapped, ']', '}')
 		geoJSON = geometry.ParseBedrockGeometry(wrapped)
@@ -620,4 +622,20 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 		}
 	}
 	return comps, texNames
+}
+
+// looksLikeGeometry 判断字节流是否疑似裸几何元素（含 Bedrock geometry 特征键）。
+// 裸几何兜底只应包裹真正的几何 JSON——任意合法 JSON（如 {"files":{...}}）包裹后
+// 会被解析为「零骨骼空模型」，与「未找到几何」无法区分（子代理审计 P 级发现）
+func looksLikeGeometry(data []byte) bool {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return false
+	}
+	for _, key := range []string{"minecraft:geometry", "description", "bones"} {
+		if _, ok := obj[key]; ok {
+			return true
+		}
+	}
+	return false
 }

@@ -119,8 +119,8 @@
 | `CleanEmptyDirs()` | `go/fsutil/walk:75` | CleanEmptyDirs 递归删除空子目录，返回删除数 |
 | `IsRecycleDir()` | `go/fsutil/walk:91` | IsRecycleDir 判断路径是否指向 .recycle 回收站目录（大小写不敏感，ADR-044 策略 A 统一口径）—— dedup / scanner / sync 的回 |
 | `IsResourcePackFolder()` | `go/fsutil/walk:99` | IsResourcePackFolder 检查目录是否为资源包文件夹（内含 pack.mcmeta）。 |
-| `ReadLimitedEntry()` | `go/fsutil/write:44` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
-| `WriteFileAtomic()` | `go/fsutil/write:64` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
+| `ReadLimitedEntry()` | `go/fsutil/write:45` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
+| `WriteFileAtomic()` | `go/fsutil/write:65` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
 
 ## Go·几何
 
@@ -409,7 +409,7 @@
 | `DecodeYSM()` | `go/ysm/decode_inject:23` | DecodeYSM 解码 .ysm 字节；解码器未注入或解码失败返回 nil |
 | `DecodedFile()` | `go/ysm/decode_inject:9` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
 | `FindGeometryInExtractedYSM()` | `go/ysm/extracted:50` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
-| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:390` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
+| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:392` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
 | `AnalyzeYSMHeader()` | `go/ysm/header:167` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
 | `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:320` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
 | `YSMHeader()` | `go/ysm/header:12` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |

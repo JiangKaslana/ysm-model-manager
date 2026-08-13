@@ -295,16 +295,14 @@ func TestFindGeometryInExtractedYSM_ModelMapExtraKeyMergeAndClamp(t *testing.T) 
 
 func TestFindGeometryInExtractedYSM_PlayerKeySkipAndParseError(t *testing.T) {
 	// files 含非 player 键（跳过）+ player 值非对象（解析失败跳过）——
-	// 两分支均走 continue，不 panic；裸几何兜底产出零骨骼模型
+	// 两分支均走 continue，不 panic；任意 JSON 不再被裸几何兜底包成
+	// 零骨骼假模型（extracted.go looksLikeGeometry 守卫，P 级修复）→ 返回 nil
 	ysmPath := writeExtractedFixture(t, map[string]string{
 		"ysm.json": `{"files":{"player":42,"weapon":{"model":"models/w.geo.json"}}}`,
 	})
 	model, tex := FindGeometryInExtractedYSM(ysmPath)
-	if model == nil {
-		t.Fatal("裸几何兜底应产出非 nil 模型（零骨骼）")
-	}
-	if len(model.Bones) != 0 {
-		t.Errorf("player/weapon 均不可解析, 应无骨骼, 得到 %d", len(model.Bones))
+	if model != nil {
+		t.Fatalf("非几何 JSON 不应产出模型（修复后 nil）, 得到 %+v", model)
 	}
 	if tex != nil {
 		t.Errorf("无纹理场景 texData 应为 nil, 得到 %v", tex)
@@ -356,16 +354,14 @@ func TestFindGeometryInExtractedYSM_TextureBackslashAndPartialOrder(t *testing.T
 
 func TestFindGeometryInExtractedYSM_WalkDirDepthLimit(t *testing.T) {
 	// 递归搜索深度上限 10 层（extracted.go:266-268）：第 11 层起 SkipDir，
-	// 深度 12 的几何不会被发现 → 裸几何兜底产出零骨骼模型
+	// 深度 12 的几何不会被发现；{"files":{}} 非几何 JSON 不再被裸几何兜底
+	// 包成假模型（looksLikeGeometry 守卫）→ 返回 nil
 	files := map[string]string{"ysm.json": `{"files":{}}`}
 	deep := "d1/d2/d3/d4/d5/d6/d7/d8/d9/d10/d11/d12/model.geo.json"
 	files[deep] = geometryJSON("deep")
 	ysmPath := writeExtractedFixture(t, files)
 	model, _ := FindGeometryInExtractedYSM(ysmPath)
-	if model == nil {
-		t.Fatal("裸几何兜底应产出非 nil 模型")
-	}
-	if len(model.Bones) != 0 {
-		t.Errorf("深度 12 的几何应被深度限制跳过, 得到 %d 根骨骼", len(model.Bones))
+	if model != nil {
+		t.Fatalf("深度受限 + 非几何 ysm.json 应返回 nil, 得到 %+v", model)
 	}
 }
