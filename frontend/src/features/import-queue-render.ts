@@ -85,6 +85,7 @@ export function bindQueueEvents(
   advanceQueue: () => void,
   renderImportedListFn: () => void,
   isImportingRef: { current: boolean },
+  toggleForm: (visible: boolean) => void,
 ): Array<() => void> {
   const cleanups: Array<() => void> = [];
 
@@ -155,6 +156,9 @@ export function bindQueueEvents(
       if (fileQueue.length === 0) {
         currentFileRef.current = null;
         currentBase64Ref.current = null;
+        // 修复：队列清空后恢复拖拽区（拆分时 toggleForm 联动丢失——
+        // 用户清空队列后停留在表单视图，drop 区永不恢复）
+        toggleForm(false);
       } else if (
         currentFileRef.current &&
         fileQueue.every((fq) => fq.file !== currentFileRef.current)

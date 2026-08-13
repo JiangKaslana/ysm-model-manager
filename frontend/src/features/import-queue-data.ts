@@ -285,8 +285,9 @@ export function initDataLayer(host: ImportQueueHost): {
     if (!state.currentFile) {
       showForm(file, base64);
     }
-    // 渲染列表——通过 actions 回调（主文件注入）
-    // 注意：actions 在此处尚未声明，使用延迟绑定模式
+    // 渲染列表——通过 actions 回调（主文件注入，延迟绑定）
+    // 修复：拆分时渲染调用遗漏（注释在、调用没了）——入队后不渲染，队列 UI 恒空
+    actions.renderImportedList?.();
     // 加载仓库文件列表
     if (!state.repoFiles) loadRepoFiles();
   };
@@ -441,24 +442,26 @@ export function initDataLayer(host: ImportQueueHost): {
     state.pendingHeaderTimers.forEach((t) => clearTimeout(t));
   };
 
+  const actions = {
+    readAndRouteFile,
+    advanceQueue,
+    toggleForm,
+    showForm,
+    updatePreview,
+    loadHeaderFromBase64,
+    enqueueFile,
+    renderImportedList: () => {}, // 由主文件注入（薄壳 initImportQueue 覆盖）
+    collectEntry,
+    importModelFolder,
+    routeCollected,
+    processDropItems,
+    directImport,
+    loadRepoFiles,
+  };
+
   return {
     state,
-    actions: {
-      readAndRouteFile,
-      advanceQueue,
-      toggleForm,
-      showForm,
-      updatePreview,
-      loadHeaderFromBase64,
-      enqueueFile,
-      renderImportedList: () => {}, // 由主文件注入
-      collectEntry,
-      importModelFolder,
-      routeCollected,
-      processDropItems,
-      directImport,
-      loadRepoFiles,
-    },
+    actions,
     cleanup,
   };
 }

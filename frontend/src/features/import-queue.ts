@@ -3,9 +3,9 @@ import { bus } from "../bus.ts";
 import { initDataLayer } from "./import-queue-data.ts";
 import { renderImportedList, bindQueueEvents, updateQueueCount } from "./import-queue-render.ts";
 import { bindFormEvents, bindDragEvents, bindInputEvents, bindButtonEvents } from "./import-queue-events.ts";
-import type { ImportFile, ImportQueueHost } from "./import-queue-data.ts";
+import type { ImportQueueHost } from "./import-queue-data.ts";
 
-export { normalizeRepoName, type ImportFile, type ImportQueueHost } from "./import-queue-data.ts";
+export { normalizeRepoName, type ImportQueueHost } from "./import-queue-data.ts";
 
 /** 初始化导入队列，返回清理函数 */
 export function initImportQueue(app: ImportQueueHost): () => void {
@@ -24,11 +24,13 @@ export function initImportQueue(app: ImportQueueHost): () => void {
   const { state, actions, cleanup: dataCleanup } = initDataLayer(app);
 
   // 渲染
+  let queueCleanups: Array<() => void> = [];
   const renderImportedListFn = (): void => {
     renderImportedList(root, importedList, app._esc, state.currentFile, state.fileQueue, state.repoFiles);
     updateQueueCount(dlQueueCount, dlCount, state.fileQueue);
-    // 绑定队列事件
-    const queueCleanups = bindQueueEvents(
+    // 先清理上一轮的事件绑定，再绑定新一轮（防重复绑定/泄漏）
+    queueCleanups.forEach(fn => fn());
+    queueCleanups = bindQueueEvents(
       importedList,
       state.fileQueue,
       { current: state.currentFile },
@@ -36,9 +38,8 @@ export function initImportQueue(app: ImportQueueHost): () => void {
       actions.advanceQueue,
       renderImportedListFn,
       { current: state.isImporting },
+      actions.toggleForm,
     );
-    // 清理旧的事件绑定
-    queueCleanups.forEach(fn => fn());
   };
 
   // 注入渲染函数到数据层

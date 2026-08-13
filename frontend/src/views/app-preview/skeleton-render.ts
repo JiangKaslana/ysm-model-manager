@@ -6,10 +6,9 @@ import { esc } from "../../utils/dom/html.ts";
 import { getApp } from "../../backend/app.ts";
 import { statsCardHTML } from "./tpl.ts";
 import { buildBoneNamesText } from "./bone-names.ts";
-import { screenshotPreview, renderModel3D } from "../../utils/3d/model3d.ts";
+import { screenshotPreview } from "../../utils/3d/model3d.ts";
 import { createIconButton } from "../../utils/dom/fab.ts";
 import { renderMultiAngle } from "./screenshot-renderer.ts";
-import { preloadModel } from "./model3d-loader.ts";
 import { t } from "../../core/i18n/t.ts";
 import { sec, iRow, buildDepthMap } from "./skeleton-utils.ts";
 import type { PreviewRoot, YsmDecoder, PreviewDebugger } from "./utils.ts";
@@ -546,22 +545,4 @@ export function fill3DPanel(
   return { boneContainer, boneDetailText };
 }
 
-/**
- * 异步加载 3D 模型并渲染到 viewContainer
- * 返回 handle 供事件层接线
- */
-export async function load3DModel(
-  viewContainer: HTMLDivElement,
-  model: BedrockGeometry & { textures?: string[] | null; _modelPath?: string },
-  _texIdx: number,
-  gen: number,
-  _model3dGenRef: { current: number },
-): Promise<Model3DHandleX | null> {
-  const { texArr, spec } = await preloadModel(model as import("./model3d-loader.ts").ModelLike);
-  const handle3d = (await renderModel3D(viewContainer, texArr, spec as import("../../utils/3d/model3d.ts").Spec3D, _texIdx)) as Model3DHandleX;
-  if (gen !== _model3dGenRef.current) {
-    handle3d.cleanup();
-    return null;
-  }
-  return handle3d;
-}
+

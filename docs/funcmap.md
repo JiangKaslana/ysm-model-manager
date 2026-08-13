@@ -35,13 +35,13 @@
 | 前端·根 (app-modules/bus) | 2 | 14 |
 | frontend/backend | 5 | 19 |
 | 前端·核心 | 14 | 28 |
-| 前端·特性 | 16 | 73 |
+| 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 37 | 133 |
-| frontend/views | 60 | 177 |
+| frontend/views | 60 | 176 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **215** | **941** |
+| **合计** | **215** | **939** |
 
 ## Go·头像
 
@@ -759,9 +759,8 @@
 | `bindButtonEvents()` | `frontend/src/features/import-queue-events:276` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
-| `updateQueueCount()` | `frontend/src/features/import-queue-render:177` | 更新队列计数显示 |
+| `updateQueueCount()` | `frontend/src/features/import-queue-render:181` | 更新队列计数显示 |
 | `normalizeRepoName()` | `frontend/src/features/import-queue` | — |
-| `ImportFile()` | `frontend/src/features/import-queue` | — |
 | `ImportQueueHost()` | `frontend/src/features/import-queue` | — |
 | `initImportQueue()` | `frontend/src/features/import-queue:11` | 初始化导入队列，返回清理函数 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:28` | 加载资历最深、仓库评分、热力图和每日推荐 |
@@ -1044,15 +1043,14 @@
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
-| `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:18` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
-| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:27` | 创建 2D 骨骼画布并异步加载纹理 |
-| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:52` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
-| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:92` | 构建统计卡片（含作者列表） |
-| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:141` | 构建导出骨骼名按钮行 |
-| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:174` | 截图保存内部逻辑（供 3D overlay 使用） |
-| `build3DOverlay()` | `frontend/src/views/app-preview/skeleton-render:210` | 构建 3D overlay 完整 DOM 结构 返回所有关键节点引用及 state holder |
-| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render:400` | 填充 3D 信息面板：统计 + 纹理 + 模型选择 + 骨骼列表 + 详情框 |
-| `load3DModel()` | `frontend/src/views/app-preview/skeleton-render:553` | 异步加载 3D 模型并渲染到 viewContainer 返回 handle 供事件层接线 |
+| `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:17` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
+| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:26` | 创建 2D 骨骼画布并异步加载纹理 |
+| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:51` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
+| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:91` | 构建统计卡片（含作者列表） |
+| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:140` | 构建导出骨骼名按钮行 |
+| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:173` | 截图保存内部逻辑（供 3D overlay 使用） |
+| `build3DOverlay()` | `frontend/src/views/app-preview/skeleton-render:209` | 构建 3D overlay 完整 DOM 结构 返回所有关键节点引用及 state holder |
+| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render:399` | 填充 3D 信息面板：统计 + 纹理 + 模型选择 + 骨骼列表 + 详情框 |
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |

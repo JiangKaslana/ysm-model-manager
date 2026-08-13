@@ -100,7 +100,7 @@ export function initRepositoryPage(host: AppContentHost): void {
  * 绑定 tab 按钮切换。按钮选择器与内容卡前缀解耦（样式类可复用，语义前缀独立）：
  *   bindTabs(host, ".repo-tab", "ins", ["versions"]) —— 按钮用 repo-tab 样式类，内容卡 id 为 ins-tab-versions
  */
-export function bindTabs(
+function bindTabs(
   host: AppContentHost,
   tabSelector: string,
   prefix: string,
