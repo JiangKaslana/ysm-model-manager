@@ -56,6 +56,14 @@ let waiters: Array<(ok: boolean) => void> = [];
 // 无销毁场景——曾提供 destroyYSMParser() 但 _free(0) 无法真正释放 HEAP，
 // 且销毁后重新 init 有加载成本，已移除（knip 死代码基线）
 
+// 硬崩溃（内存越界/栈溢出等不可捕获 trap）后重置单例，下次调用可重新 init
+export function resetYSMParser(): void {
+  wasmModule = null;
+  loading = false;
+  // @ts-expect-error 清理 Emscripten 全局注入点（MODULARIZE 挂载）
+  delete (window as Record<string, unknown>).Module;
+}
+
 export async function initYSMParser(): Promise<boolean> {
   if (wasmModule) return true;
   if (loading) return new Promise<boolean>((r) => waiters.push(r));
@@ -115,6 +123,9 @@ export async function initYSMParser(): Promise<boolean> {
     waiters.forEach((r) => r(false));
     waiters = [];
     loading = false;
+    // P3-10：init 失败时清理 Module 注入点，避免残留 wasmBinary 配置影响未来模块
+    // @ts-expect-error 清理 Emscripten 全局注入点（MODULARIZE 挂载）
+    delete (window as Record<string, unknown>).Module;
     throw e;
   }
 }
@@ -175,8 +186,17 @@ export async function decodeYsmFileFromMemory(
 
     if (!success) return null;
     return collectOutputFiles(FS, "/output");
+  } catch (err) {
+    // P2 硬崩溃恢复：内存越界/栈溢出等不可捕获 trap 后实例死透，
+    // 重置单例供下次调用重新 init（否则 wasmModule 恒非空 → 永久失败）
+    const errStr = String((err as { name?: string })?.name || err);
+    if (errStr.includes("ExitStatus") || /abort|trap|out of memory/i.test(errStr)) {
+      resetYSMParser();
+    }
+    throw err;
   } finally {
-    wasmModule!._free(ptr);
+    // 崩溃恢复已置空 wasmModule —— 判空后再 _free，避免 null 掩盖原始错误
+    wasmModule?._free(ptr);
   }
 }
 
@@ -218,6 +238,10 @@ export async function decodeYsmFile(
         throw new Error("YSMParser exit code " + errObj.status);
       }
     } else {
+      // P2 硬崩溃恢复：abort/trap/out of memory 等不可捕获信号 → 重置单例
+      if (/abort|trap|out of memory/i.test(errStr)) {
+        resetYSMParser();
+      }
       throw err;
     }
   }

@@ -24,6 +24,9 @@ import (
 // WASM 解码子进程超时上限
 const decodeTimeout = 60 * time.Second
 
+// decodeMaxOutput 解码子进程 stdout 上限（防恶意模型输出膨胀拖垮内存；对齐 internal/app ysmDecodeMaxOutput 口径）
+const decodeMaxOutput = 200 << 20
+
 // CacheDir 返回头像缓存目录。
 // 默认走 os.UserConfigDir()/YSM-Model-Manager/creators_cache（与 configDir() 桌面根同口径，ADR-046 P2）：
 // avatar 包为叶包、不依赖 Wails runtime，无法复用 pathMgr，故直接取系统配置根。
@@ -582,6 +585,23 @@ func SetNodeJS(nodePath string, glueFn func() string, wasmFn func() []byte) {
 	getWasmBinary = wasmFn
 }
 
+// limitedBuffer 流式输出护栏：写满 max 后丢弃超限部分并置 exceeded，保持内存有界
+// （与 internal/app wasm_decoder.go 同款，跨包无法共享故本地复制最小实现；
+// 防解压炸弹在 Node/WASM 内膨胀到数百 MB~GB 级峰值内存）。
+type limitedBuffer struct {
+	buf      bytes.Buffer
+	max      int
+	exceeded bool
+}
+
+func (l *limitedBuffer) Write(p []byte) (int, error) {
+	if l.buf.Len()+len(p) > l.max {
+		l.exceeded = true
+		return len(p), nil // 丢弃超限部分，保持内存有界
+	}
+	return l.buf.Write(p)
+}
+
 // DecodeYSMFiles 底层解码，返回完整文件列表。
 func DecodeYSMFiles(ysmData []byte) []struct {
 	Path string `json:"path"`
@@ -648,15 +668,25 @@ main().catch(e=>{console.error(e);process.exit(1)});
 	cmd := exec.CommandContext(ctx, nodeJSPath, scriptPath)
 	executil.HideWindow(cmd)
 	cmd.Dir = tmpDir
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	// 输出护栏：stdout 流式截断（防解压炸弹在 Node/WASM 内膨胀到数百 MB~GB 级峰值内存），
+	// stderr 独立缓冲用于失败诊断
+	var errBuf bytes.Buffer
+	outLimited := &limitedBuffer{max: decodeMaxOutput}
+	cmd.Stdout = outLimited
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			fmt.Fprintf(os.Stderr, "[ysm-avatar] decode timed out after %v\n", decodeTimeout)
 			return nil
 		}
-		fmt.Fprintln(os.Stderr, "[ysm-avatar] decode failed:", string(output))
+		fmt.Fprintln(os.Stderr, "[ysm-avatar] decode failed:", errBuf.String())
 		return nil
 	}
+	if outLimited.exceeded {
+		log.Printf("[avatar] 解码输出过大 (上限 %d)", decodeMaxOutput)
+		return nil
+	}
+	output := outLimited.buf.Bytes()
 	outStr := string(output)
 	idx := strings.Index(outStr, "FILES_JSON:")
 	if idx < 0 {

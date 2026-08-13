@@ -113,7 +113,8 @@ if (!SKIP_BUILD) {
   const args = [
     "-std=c++20", "-O3", "-DNDEBUG", "-fexceptions",
     `-DYSM_PARSER_VERSION="${version}"`,
-    "-sFORCE_FILESYSTEM=1", "-sALLOW_MEMORY_GROWTH=1", "-sEXIT_RUNTIME=0", "-sINVOKE_RUN=0",
+    "-sFORCE_FILESYSTEM=1", "-sALLOW_MEMORY_GROWTH=1", "-sMAXIMUM_MEMORY=536870912",
+    "-sEXIT_RUNTIME=0", "-sINVOKE_RUN=0",
     "-sENVIRONMENT=web", "-sMODULARIZE=1", "-sEXPORT_NAME=YSMParserModule",
     "-sEXPORTED_RUNTIME_METHODS=['FS','callMain','ccall','cwrap']",
     "-sEXPORTED_FUNCTIONS=['_main','_ysm_decode_from_memory','_ysm_detect_version','_ysm_diag_header','_malloc','_free']",
@@ -121,11 +122,16 @@ if (!SKIP_BUILD) {
     ...src, ...inc, ...libs,
   ];
   console.log("[build] em++ 编译中...");
-  execFileSync(EMXX, args, {
-    cwd: UPSTREAM,
-    stdio: "inherit",
-    env: { ...process.env, PATH: `${EMCC_DIR}${PATH_DELIM}${process.env.PATH}`, EMSDK },
-  });
+  try {
+    execFileSync(EMXX, args, {
+      cwd: UPSTREAM,
+      stdio: "inherit",
+      env: { ...process.env, PATH: `${EMCC_DIR}${PATH_DELIM}${process.env.PATH}`, EMSDK },
+    });
+  } catch (e) {
+    console.error("[build] ❌ em++ 编译失败:", e?.stderr || e?.message || e);
+    process.exit(1);
+  }
   console.log(`[build] ✅ 编译完成: ${OUT_DIR}`);
 } else {
   if (!existsSync(join(OUT_DIR, "YSMParser.js"))) {
@@ -176,9 +182,14 @@ atomicWrite(join(FRONT_SRC, "ysm-wasm-data.js"), wasmData);
 atomicWrite(join(FRONT_SRC, "ysm-glue-data.js"), glueData);
 console.log(`[pack] ✅ 前端 data: ${statSync(join(FRONT_SRC, "ysm-wasm-data.js")).size}B / ${statSync(join(FRONT_SRC, "ysm-glue-data.js")).size}B`);
 
-// Go embed 拷贝
-copyFileSync(join(OUT_DIR, "YSMParser.js"), join(FRONT_PUBLIC, "YSMParser.js"));
-copyFileSync(join(OUT_DIR, "YSMParser.wasm"), join(FRONT_PUBLIC, "YSMParser.wasm"));
+// Go embed 拷贝（temp+rename 原子写，防中途留半截产物）
+const atomicCopy = (src, dst) => {
+  const tmp = `${dst}.tmp`;
+  copyFileSync(src, tmp);
+  renameSync(tmp, dst);
+};
+atomicCopy(join(OUT_DIR, "YSMParser.js"), join(FRONT_PUBLIC, "YSMParser.js"));
+atomicCopy(join(OUT_DIR, "YSMParser.wasm"), join(FRONT_PUBLIC, "YSMParser.wasm"));
 console.log(`[pack] ✅ Go 拷贝: ${statSync(join(FRONT_PUBLIC, "YSMParser.wasm")).size}B / ${statSync(join(FRONT_PUBLIC, "YSMParser.js")).size}B`);
 
 // P3-4（code_review）：Go embed 实际嵌入 frontend/dist/wasm/（embed.go:12 是
@@ -187,6 +198,6 @@ console.log(`[pack] ✅ Go 拷贝: ${statSync(join(FRONT_PUBLIC, "YSMParser.wasm
 // 显式同步 dist，保证「上游更新后重跑一次」的承诺成立。
 const FRONT_DIST_WASM = join(ROOT, "frontend", "dist", "wasm");
 mkdirSync(FRONT_DIST_WASM, { recursive: true });
-copyFileSync(join(OUT_DIR, "YSMParser.wasm"), join(FRONT_DIST_WASM, "YSMParser.wasm"));
+atomicCopy(join(OUT_DIR, "YSMParser.wasm"), join(FRONT_DIST_WASM, "YSMParser.wasm"));
 console.log(`[pack] ✅ Go embed 源已同步: frontend/dist/wasm/YSMParser.wasm`);
 console.log("[done] 建议跑 node scripts/test-decode-from-memory.mjs 实测解码");

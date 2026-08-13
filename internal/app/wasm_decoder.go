@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -58,6 +59,22 @@ func findNodeJS() string {
 type decodedYSMExtra struct {
 	Path string
 	Data []byte
+}
+
+// limitedBuffer 流式输出护栏：写满 max 后丢弃超限部分并置 exceeded，保持内存有界
+// （防解压炸弹在 Node/WASM 内膨胀到数百 MB~GB 级峰值内存）。
+type limitedBuffer struct {
+	buf      bytes.Buffer
+	max      int
+	exceeded bool
+}
+
+func (l *limitedBuffer) Write(p []byte) (int, error) {
+	if l.buf.Len()+len(p) > l.max {
+		l.exceeded = true
+		return len(p), nil // 丢弃超限部分，保持内存有界
+	}
+	return l.buf.Write(p)
 }
 
 // runYSMNodeJSDecode 用 Node.js + WASM 解码 .ysm，返回解出的全部文件（Path/Data）。
@@ -134,24 +151,29 @@ main().catch(e=>{console.error(e);process.exit(1)});
 	cmd := exec.CommandContext(ctx, nodeJSPath, scriptPath)
 	executil.HideWindow(cmd)
 	cmd.Dir = tmpDir
-	output, err := cmd.CombinedOutput()
+	// 输出护栏：stdout 流式截断（防解压炸弹在 Node/WASM 内膨胀到数百 MB~GB 级峰值内存），
+	// stderr 独立缓冲用于失败诊断
+	var errBuf bytes.Buffer
+	outLimited := &limitedBuffer{max: ysmDecodeMaxOutput}
+	cmd.Stdout = outLimited
+	cmd.Stderr = &errBuf
+	err = cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			fmt.Fprintf(os.Stderr, "[ysm-node] 解码超时 %v\n", ysmNodeDecodeTimeout)
 			return nil
 		}
-		fmt.Fprintln(os.Stderr, "[ysm-node] 解码失败:", string(output))
+		fmt.Fprintln(os.Stderr, "[ysm-node] 解码失败:", errBuf.String())
 		return nil
 	}
-
-	// 输出大小护栏：防恶意模型输出膨胀拖垮内存
-	if len(output) > ysmDecodeMaxOutput {
-		fmt.Fprintf(os.Stderr, "[ysm-node] 解码输出过大: %d bytes (上限 %d)\n", len(output), ysmDecodeMaxOutput)
+	if outLimited.exceeded {
+		fmt.Fprintf(os.Stderr, "[ysm-node] 解码输出过大 (上限 %d)\n", ysmDecodeMaxOutput)
 		return nil
 	}
+	output := outLimited.buf.Bytes()
 
 	// 解析输出：找 FILES_JSON: 标记行
-	outStr := string(output)
+	outStr := string(bytes.TrimSpace(output))
 	idx := strings.Index(outStr, "FILES_JSON:")
 	if idx < 0 {
 		fmt.Fprintln(os.Stderr, "[ysm-node] 未找到输出标记")
@@ -164,7 +186,11 @@ main().catch(e=>{console.error(e);process.exit(1)});
 		Data []int  `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(jsonStr), &rawFiles); err != nil {
-		fmt.Fprintln(os.Stderr, "[ysm-node] JSON 解析失败:", err)
+		snippet := outStr
+		if len(snippet) > 200 {
+			snippet = snippet[:200]
+		}
+		fmt.Fprintf(os.Stderr, "[ysm-node] JSON 解析失败: %v\n输出前200字节: %s\nstderr: %s\n", err, snippet, errBuf.String())
 		return nil
 	}
 	files := make([]decodedYSMExtra, 0, len(rawFiles))
@@ -206,6 +232,13 @@ func decodeYSMViaNodeJS(ysmData []byte) *types.BedrockModel {
 				merged.Bones = append(merged.Bones, g.Bones...)
 				merged.BoneCount += g.BoneCount
 				merged.CubeCount += g.CubeCount
+				// 合并 TexWidth/TexHeight 取 max（对齐 CLI exe 路径 app_model.go 口径）
+				if g.TexWidth > merged.TexWidth {
+					merged.TexWidth = g.TexWidth
+				}
+				if g.TexHeight > merged.TexHeight {
+					merged.TexHeight = g.TexHeight
+				}
 			}
 		}
 	}

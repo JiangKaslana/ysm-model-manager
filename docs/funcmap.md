@@ -7,7 +7,7 @@
 
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
-| Go·头像 | 1 | 9 |
+| Go·头像 | 1 | 10 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 7 |
 | go/executil | 2 | 2 |
@@ -31,7 +31,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 23 |
-| Go(internal)·应用入口 | 18 | 182 |
+| Go(internal)·应用入口 | 19 | 183 |
 | 前端·根 (app-modules/bus) | 2 | 14 |
 | frontend/backend | 5 | 19 |
 | 前端·核心 | 14 | 28 |
@@ -40,22 +40,23 @@
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 36 | 127 |
 | frontend/views | 54 | 155 |
-| 前端·WASM | 3 | 6 |
-| **合计** | **200** | **893** |
+| 前端·WASM | 3 | 7 |
+| **合计** | **201** | **896** |
 
 ## Go·头像
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SafeName()` | `go/avatar/avatar:48` | SafeName 将非法文件名字符替换为下划线。 |
-| `ReadCachedAvatar()` | `go/avatar/avatar:142` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
-| `SaveAvatarData()` | `go/avatar/avatar:168` | SaveAvatarData 将头像数据写入缓存。 |
-| `ExtractAvatarURI()` | `go/avatar/avatar:189` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
-| `CacheAvatarsFromJSON()` | `go/avatar/avatar:353` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
-| `CacheAvatarsFromModel()` | `go/avatar/avatar:418` | CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。 |
-| `ReadFileFromZip()` | `go/avatar/avatar:517` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
-| `SetNodeJS()` | `go/avatar/avatar:579` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
-| `DecodeYSMFiles()` | `go/avatar/avatar:586` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
+| `SafeName()` | `go/avatar/avatar:51` | SafeName 将非法文件名字符替换为下划线。 |
+| `ReadCachedAvatar()` | `go/avatar/avatar:145` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
+| `SaveAvatarData()` | `go/avatar/avatar:171` | SaveAvatarData 将头像数据写入缓存。 |
+| `ExtractAvatarURI()` | `go/avatar/avatar:192` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
+| `CacheAvatarsFromJSON()` | `go/avatar/avatar:356` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
+| `CacheAvatarsFromModel()` | `go/avatar/avatar:421` | CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。 |
+| `ReadFileFromZip()` | `go/avatar/avatar:520` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
+| `SetNodeJS()` | `go/avatar/avatar:582` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
+| `limitedBuffer.Write()` | `go/avatar/avatar:597` | — |
+| `DecodeYSMFiles()` | `go/avatar/avatar:606` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
 
 ## Go·去重
 
@@ -610,6 +611,7 @@
 | `App.CountDuplicateFiles()` | `internal/app/resource_bindings:475` | CountDuplicateFiles 快速统计重复文件数量。 |
 | `App.InvalidateScanCache()` | `internal/app/resource_bindings:489` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
 | `App.InstallResourceToInstance()` | `internal/app/resource_bindings:495` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `limitedBuffer.Write()` | `internal/app/wasm_decoder:72` | — |
 | `App.GetWasmBinary()` | `internal/app/wasm_embed:5` | GetWasmBinary 返回内嵌的 YSMParser.wasm 字节（供前端 WebView2 使用）。 |
 
 ## 前端·根 (app-modules/bus)
@@ -1101,9 +1103,10 @@
 |------|--------|------|
 | `_getGlueCode()` | `frontend/src/wasm/ysm-glue-data:3` | — |
 | `YsmDecodedFile()` | `frontend/src/wasm/ysm-parser:46` | 解码输出文件 |
-| `initYSMParser()` | `frontend/src/wasm/ysm-parser:59` | — |
-| `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:148` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
-| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:187` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
+| `resetYSMParser()` | `frontend/src/wasm/ysm-parser:60` | — |
+| `initYSMParser()` | `frontend/src/wasm/ysm-parser:67` | — |
+| `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:159` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
+| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:207` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
 
 ---
