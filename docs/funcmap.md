@@ -35,13 +35,13 @@
 | 前端·根 (app-modules/bus) | 2 | 14 |
 | frontend/backend | 5 | 19 |
 | 前端·核心 | 14 | 28 |
-| 前端·特性 | 13 | 60 |
+| 前端·特性 | 16 | 73 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 37 | 133 |
-| frontend/views | 57 | 162 |
+| frontend/views | 60 | 177 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **209** | **913** |
+| **合计** | **215** | **941** |
 
 ## Go·头像
 
@@ -379,27 +379,27 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `progressWriter.Write()` | `go/updater/updater:50` | — |
-| `Check()` | `go/updater/updater:108` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
-| `CheckWithClient()` | `go/updater/updater:114` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
-| `Download()` | `go/updater/updater:217` | Download 下载更新包到临时目录，返回 zip 路径（无进度回调，兼容旧调用方）。 |
-| `DownloadWithProgress()` | `go/updater/updater:226` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
-| `CleanupOldVersion()` | `go/updater/updater:359` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
-| `InstallUpdate()` | `go/updater/updater:382` | InstallUpdate 解压更新包并通过 helper 进程替换当前 exe。 |
-| `ReleaseAsset()` | `go/updater/updater:70` | ReleaseAsset GitHub Release 中的文件 |
-| `Release()` | `go/updater/updater:76` | Release GitHub Release 信息 |
-| `UpdateInfo()` | `go/updater/updater:85` | UpdateInfo 更新信息（序列化给前端） |
+| `progressWriter.Write()` | `go/updater/updater:51` | — |
+| `Check()` | `go/updater/updater:109` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
+| `CheckWithClient()` | `go/updater/updater:115` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
+| `Download()` | `go/updater/updater:218` | Download 下载更新包到临时目录，返回 zip 路径（无进度回调，兼容旧调用方）。 |
+| `DownloadWithProgress()` | `go/updater/updater:227` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
+| `CleanupOldVersion()` | `go/updater/updater:360` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
+| `InstallUpdate()` | `go/updater/updater:383` | InstallUpdate 解压更新包并通过 helper 进程替换当前 exe。 |
+| `ReleaseAsset()` | `go/updater/updater:71` | ReleaseAsset GitHub Release 中的文件 |
+| `Release()` | `go/updater/updater:77` | Release GitHub Release 信息 |
+| `UpdateInfo()` | `go/updater/updater:86` | UpdateInfo 更新信息（序列化给前端） |
 
 ## Go·监听
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `New()` | `go/watcher/watcher:41` | New 创建文件监听器 |
-| `Watcher.Start()` | `go/watcher/watcher:57` | Start 开始监听 |
-| `Watcher.Stop()` | `go/watcher/watcher:105` | Stop 停止监听 |
-| `Watcher.IsRunning()` | `go/watcher/watcher:140` | IsRunning 返回是否正在运行 |
+| `New()` | `go/watcher/watcher:42` | New 创建文件监听器 |
+| `Watcher.Start()` | `go/watcher/watcher:58` | Start 开始监听 |
+| `Watcher.Stop()` | `go/watcher/watcher:106` | Stop 停止监听 |
+| `Watcher.IsRunning()` | `go/watcher/watcher:141` | IsRunning 返回是否正在运行 |
 | `ScanFunc()` | `go/watcher/watcher:18` | ScanFunc matches mdsync.ScanFunc |
-| `Watcher()` | `go/watcher/watcher:24` | Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包 |
+| `Watcher()` | `go/watcher/watcher:25` | Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包 |
 
 ## Go·YSM 核心
 
@@ -748,9 +748,22 @@
 | `directImport()` | `frontend/src/features/import-executor:92` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
 | `importFolder()` | `frontend/src/features/import-executor:133` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
 | `executeCollected()` | `frontend/src/features/import-executor:197` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue:29` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
-| `ImportQueueHost()` | `frontend/src/features/import-queue:37` | app-content 组件实例（initImportQueue 依赖的成员） |
-| `initImportQueue()` | `frontend/src/features/import-queue:43` | 初始化导入队列，返回清理函数 |
+| `ImportFile()` | `frontend/src/features/import-queue-data:12` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `QueueItem()` | `frontend/src/features/import-queue-data:15` | 队列项数据类型 |
+| `normalizeRepoName()` | `frontend/src/features/import-queue-data:28` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
+| `ImportQueueHost()` | `frontend/src/features/import-queue-data:33` | 应用主机接口 |
+| `initDataLayer()` | `frontend/src/features/import-queue-data:39` | 初始化导入队列的数据层：返回状态对象和清理函数 |
+| `bindFormEvents()` | `frontend/src/features/import-queue-events:23` | 表单输入事件绑定 |
+| `bindDragEvents()` | `frontend/src/features/import-queue-events:54` | 拖拽事件绑定 |
+| `bindInputEvents()` | `frontend/src/features/import-queue-events:159` | 文件输入框事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:275` | 按钮事件绑定 |
+| `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
+| `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
+| `updateQueueCount()` | `frontend/src/features/import-queue-render:177` | 更新队列计数显示 |
+| `normalizeRepoName()` | `frontend/src/features/import-queue` | — |
+| `ImportFile()` | `frontend/src/features/import-queue` | — |
+| `ImportQueueHost()` | `frontend/src/features/import-queue` | — |
+| `initImportQueue()` | `frontend/src/features/import-queue:11` | 初始化导入队列，返回清理函数 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:28` | 加载资历最深、仓库评分、热力图和每日推荐 |
 | `RecycleHost()` | `frontend/src/features/recycle-bin:13` | app-content 组件实例（initRecycleBin 依赖的成员） |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:24` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
@@ -964,10 +977,16 @@
 | `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:35` | 初始化诊断页所有功能 |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init:406` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
-| `AppContentHost()` | `frontend/src/views/app-content/init-pages:16` | app-content 组件接口（供页面初始化函数访问） |
-| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
-| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
+| `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
+| `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
+| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:26` | 初始化诊断页 |
+| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:33` | 初始化实例页 |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:201` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:208` | 初始化 GitHub 页（委托到 init-github.ts） |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:23` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:47` | 初始化创意工坊页 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:24` | 初始化设置页所有事件绑定 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
@@ -1025,6 +1044,15 @@
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
+| `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:17` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
+| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:26` | 创建 2D 骨骼画布并异步加载纹理 |
+| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:51` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
+| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:91` | 构建统计卡片（含作者列表） |
+| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:140` | 构建导出骨骼名按钮行 |
+| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:173` | 截图保存内部逻辑（供 3D overlay 使用） |
+| `build3DOverlay()` | `frontend/src/views/app-preview/skeleton-render:209` | 构建 3D overlay 完整 DOM 结构 返回所有关键节点引用及 state holder |
+| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render:399` | 填充 3D 信息面板：统计 + 纹理 + 模型选择 + 骨骼列表 + 详情框 |
+| `load3DModel()` | `frontend/src/views/app-preview/skeleton-render:552` | 异步加载 3D 模型并渲染到 viewContainer 返回 handle 供事件层接线 |
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:8` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:17` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:28` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
