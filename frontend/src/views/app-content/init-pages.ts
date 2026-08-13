@@ -123,13 +123,13 @@ function bindTabs(
         const container = host._root.getElementById(prefix + "-tab-" + tab);
         if (!container) return;
         if (tab === "import") {
-          const { downloadsHTML } = await import("./tpl.ts");
+          const { downloadsHTML } = await import("./tpl-downloads.ts");
           container.innerHTML = downloadsHTML();
           const importCleanup = initImportQueue(host as never);
           host._unsubs = host._unsubs || [];
           if (importCleanup) host._unsubs.push(importCleanup);
         } else if (tab === "recycle") {
-          const { recycleHTML } = await import("./tpl.ts");
+          const { recycleHTML } = await import("./tpl-recycle.ts");
           container.innerHTML = recycleHTML();
           const recycleCleanup = initRecycleBin(host as never);
           host._unsubs = host._unsubs || [];
