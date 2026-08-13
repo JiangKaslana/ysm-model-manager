@@ -234,37 +234,35 @@ func TestDownloadOnce_HTMLContentType(t *testing.T) {
 	}))
 	defer server.Close()
 
-	path, err := downloadOnce(server.URL, "", nil)
+	_, err := downloadOnce(server.URL, "", nil)
 	if err != nil {
-		t.Logf("FIXED(INFO-CT): downloadOnce 拒绝 HTML Content-Type: %v", err)
+		t.Logf("FIXED(BUG-INFO-CT): downloadOnce 拒绝 HTML Content-Type: %v", err)
 		return
 	}
-	data, _ := os.ReadFile(path)
-	os.Remove(path)
-	if strings.Contains(string(data), "Error 404") {
-		t.Logf("BUG(INFO-CT): downloadOnce 接受 HTML Content-Type——HTTP 404 错误页被当作更新包写入（与 go/download HTTP-5 同类问题）")
-	}
+	t.Log("BUG(INFO-CT): downloadOnce 接受 HTML Content-Type——未修复")
 }
 
 // ---------- 7. Content-Range 部分响应 ----------
 func TestDownloadOnce_PartialContent(t *testing.T) {
+	// httptest 自动设 Content-Type: text/plain（会被 HTML 检查先行拦截）。
+	// 用 application/octet-stream 绕过 HTML 检查，专门触发 Content-Range 分支。
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Range", "bytes 0-9/1000")
 		w.Write([]byte("partial-data"))
 	}))
 	defer server.Close()
 
-	path, err := downloadOnce(server.URL, "", nil)
+	_, err := downloadOnce(server.URL, "", nil)
 	if err != nil {
-		t.Logf("FIXED(INFO-RANGE): downloadOnce 拒绝 Content-Range: %v", err)
+		if strings.Contains(err.Error(), "Content-Range") || strings.Contains(err.Error(), "部分响应") {
+			t.Logf("FIXED(BUG-INFO-RANGE): downloadOnce 拒绝 Content-Range: %v", err)
+		} else {
+			t.Logf("FIXED/INFO(INFO-RANGE): downloadOnce 拒绝: %v", err)
+		}
 		return
 	}
-	data, _ := os.ReadFile(path)
-	os.Remove(path)
-	if len(data) == 12 {
-		t.Logf("BUG(INFO-RANGE): downloadOnce 接受 200+Content-Range 部分响应（与 go/download HTTP-2 同类问题）")
-	}
+	t.Log("BUG(INFO-RANGE): downloadOnce 接受 200+Content-Range 部分响应——未修复")
 }
 
 // =====================================================================

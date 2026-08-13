@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/types"
 )
 
 // YSMModelMeta 模型元数据（从 model.json 提取）
@@ -72,6 +73,17 @@ func AnalyzeYSMModel(path string) YSMModelMeta {
 		return meta
 	}
 	defer r.Close()
+
+	// P1 修复：检查 ZIP 总大小，防止恶意构造的多文件 ZIP 撑爆内存
+	var totalSize int64
+	for _, f := range r.File {
+		totalSize += int64(f.UncompressedSize64)
+		if totalSize > int64(types.MaxImportSize) {
+			meta.HasError = true
+			meta.ErrorMsg = fmt.Sprintf("ZIP 包过大（%d MB），超过 %d MB 上限", totalSize/(1024*1024), types.MaxImportSizeMB)
+			return meta
+		}
+	}
 
 	// 查找 model.json
 	var modelFile *zip.File

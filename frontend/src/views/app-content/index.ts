@@ -244,6 +244,12 @@ class AppContent extends HTMLElement {
       duration: 5000,
       type: "error",
     });
+    // 重置页面状态为仓库页，防止 nav 高亮与内容脱节；
+    // 已在 repository 页时跳过，避免无效 nav:change 触发链
+    if (this._current !== "repository") {
+      this._current = "repository";
+      bus.emit("nav:change", { page: "repository" });
+    }
   }
 
   _initPreviewResize(): void {

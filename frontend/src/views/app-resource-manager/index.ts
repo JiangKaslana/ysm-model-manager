@@ -306,12 +306,10 @@ export class AppResourceManager extends HTMLElement {
           if (this._opBusy) return;
           this._opBusy = true;
           try {
-            // P2 修复：检查 ToggleResourcePack 返回值——失败信号不再被吞掉，
-            // 失败时 toast 反馈并中止（不刷新列表），成功后统一 _loadList
+            // P1 修复：无论成功失败都刷新列表，保持 UI 同步
             const ok = await ToggleResourcePack((item as HTMLElement).dataset.path || "");
             if (!ok) {
               this._toast("error", t("rm.toggleFailed") || "切换失败");
-              return;
             }
             await this._loadList();
           } finally {
