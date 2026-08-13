@@ -51,6 +51,7 @@ git reset HEAD~1                      # 撤销最近一条 commit，把改动放
 | `audit-split` | `node scripts/audit-split.mjs <commit>` refactor/拆分提交主动审计（函数去向/红线/历史，情报型，替代手打 40+ 条审计指令） |
 | `rollback-impact` | `node scripts/rollback-impact.mjs <commit>` revert 影响面分析（audit-split 逆向镜像：找被删顶层声明 + 当前 HEAD 潜在断链调用方） |
 | `bloat-history` | `node scripts/bloat-history.mjs <path>` 单文件膨胀轨迹（遍历 git log 中每次触及该文件的 commit，标出 +30 行跳点） |
+| `api-break` | `node scripts/api-break.mjs <older> <newer>` 任意两 ref 破坏性变更检测（导出符号消失/新增 + 断链调用方 + ADR-040 红线，合分支/发版前检查） |
 | `check-redlines` | 治理红线扫描（W6/R10 等） |
 | `bug-search` | Bug 历史关键词搜索 |
 | `type-consistency` | 类型一致性检查 |

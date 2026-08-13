@@ -40,6 +40,7 @@
 | `bug-search.mjs` | `node scripts/bug-search.mjs <关键词>` / `--json` | 搜索 bug-chronicle.md |
 | `rollback-impact.mjs` | `node scripts/rollback-impact.mjs <commit>` / `--json` / `--quiet` / `--scope <dir>` | revert 影响面分析（audit-split 逆向镜像）：给定 commit，逆向跑一遍 funcMigration 找被删顶层声明 → 扫描当前 HEAD 引用 → 报潜在断链（⚠️ 或 ✅），情报型不阻断 |
 | `bloat-history.mjs` | `node scripts/bloat-history.mjs <path>` / `--json` / `--limit N` / `--first N` | 单文件膨胀轨迹：遍历 git log 中每次触及该文件的 commit，记录行数/导出符号数/顶层声明数，标出单次 +30 行跳点（author + subject + 前后行数/符号数），前置 ADR-040 红线的事前情报 |
+| `api-break.mjs` | `node scripts/api-break.mjs <older> <newer>` / `--json` / `--quiet` / `--scope <dir>` / `--redline` / `--compact` | 任意两 ref 间破坏性变更检测（audit-split 通用化）：git diff --name-only 拿变更文件清单 → 对源码文件对比新旧顶层声明 → 报被删导出符号 + 当前 HEAD 潜在断链 + 新增导出入口 + ADR-040 红线；可跨分支/标签比对，用于合分支前或发版前检查 |
 
 ### 实用级
 

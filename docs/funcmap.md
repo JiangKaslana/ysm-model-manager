@@ -38,10 +38,10 @@
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 37 | 133 |
+| 前端·工具 | 41 | 147 |
 | frontend/views | 70 | 199 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **236** | **996** |
+| **合计** | **240** | **1010** |
 
 ## Go·头像
 
@@ -860,6 +860,20 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:10` | 构建骨骼层级路径映射（name/id/parent/children）。 |
+| `getBonePath()` | `frontend/src/utils/3d/bone-raycast:35` | 骨骼名 → 全路径（如 "root / spine / head"）。 |
+| `getMeshBoneId()` | `frontend/src/utils/3d/bone-raycast:48` | Mesh → 所属骨骼名（沿父链向上查找 has isGroup 且 name 在 nameMap 中的节点）。 |
+| `assembleBoneSelectInfo()` | `frontend/src/utils/3d/bone-raycast:62` | 骨骼选中信息组装。 |
+| `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:123` | 注册 pointermove / click 骨骼拾取监听器。 |
+| `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:14` | 注册 free 模式 pointer drag 监听器。 |
+| `DebugBoneData()` | `frontend/src/utils/3d/debug-render:7` | — |
+| `makeTextTexture()` | `frontend/src/utils/3d/debug-render:14` | 生成骨骼名 Canvas 纹理（Sprite 标签用） |
+| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:43` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
+| `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
+| `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
+| `loadTdKeymap()` | `frontend/src/utils/3d/keymap:27` | 读取用户自定义键位（无/非法时回退默认） |
+| `loadTdCamSpeed()` | `frontend/src/utils/3d/keymap:45` | 相机移动速度（2–200），默认 20 |
+| `loadTdRotMode()` | `frontend/src/utils/3d/keymap:52` | true = 环绕（orbit），false = 自身（free） |
 | `compKey()` | `frontend/src/utils/3d/mesh:13` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
 | `MaterialWithMap()` | `frontend/src/utils/3d/mesh:18` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:23` | 释放材质（含位图 .map），null/undefined 安全。 |
