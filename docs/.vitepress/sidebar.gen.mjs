@@ -1540,6 +1540,10 @@ export const autoSidebar = [
           {
             "text": "附录 · 跨模块重构 · 第 2 章 · 四条通往真相的路",
             "link": "/novel/appendix/跨模块重构/02-四条通往真相的路"
+          },
+          {
+            "text": "附录 · 跨模块重构 · 第 3 章 · 背上的城",
+            "link": "/novel/appendix/跨模块重构/03-背上的城"
           }
         ]
       },
