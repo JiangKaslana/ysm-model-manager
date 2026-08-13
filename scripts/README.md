@@ -56,7 +56,7 @@
 | `android-install.mjs` | `node scripts/android-install.mjs` / `--no-launch` | 一键编译安装 Android debug 版到已连接设备（gradle installDebug + 自动拉起应用；签名不兼容时自动卸载旧版重装；依赖 ANDROID_HOME + JDK） |
 | `android-check.mjs` | `node scripts/android-check.mjs` / `--full` | Android Java 语法/API 编译检测（gradle compileDebugJavaWithJavac，无需设备；`--full` 完整 assembleDebug） |
 | `line-counter.mjs` | `node scripts/line-counter.mjs` | 代码行数统计与文件健康度分析（由 line-counter.py 迁移，含 package_lines 按文件计数行为） |
-| `pre-push-gate.mjs` | `node scripts/pre-push-gate.mjs <remote> <url>`（.githooks/pre-push 调度器）/ `--dry-run` | 本地质量门禁：按变更域（Go/前端/数据/文档）只跑相关检查；前端域含 **check-layering 分层硬门禁**（反向依赖阻断）；gofmt 修复在 pre-commit 自动完成，pre-push 只读校验（检出未格式化即阻断）；构建/断链/契约失败阻断推送 |
+| `pre-push-gate.mjs` | `node scripts/pre-push-gate.mjs <remote> <url>`（.githooks/pre-push 调度器）/ `--dry-run` | 本地质量门禁：按变更域（Go/前端/数据/文档）只跑相关检查；前端域含 **check-layering 分层硬门禁**（反向依赖阻断）；gofmt 修复在 pre-commit 自动完成，pre-push 只读检出不阻断（格式类债务，2026-08-13 决策）；构建/断链/契约失败/红线扫描不可用（fail-closed）阻断推送 |
 | `.githooks/pre-commit`（薄壳） | commit 时自动执行（无需手打） | 秒级文档/索引自动同步：跑 10 个 gen（docs 分区索引 / funcmap / 知识卡 index+字段 / novel 索引 / project-map / vitepress sidebar）后 `git add docs/`（幂等：无漂移零副作用）；失败仅提示不阻断；输出走 stderr；逃生阀 `YSM_SKIP_GEN=1` |
 
 ### 治理检查（check-* 系列；唯一登记处，AGENTS.md §1.2 仅作指针）

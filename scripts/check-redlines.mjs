@@ -117,6 +117,9 @@ function runChecks() {
       .filter((l) => !/:\d+:\s*\/\//.test(l))
       // 行注释与块注释内出现 .file( 属文档描述，豁免（2026-08-13：测试夹具注释曾误报阻断推送）
       .filter((l) => !/:\d+:\s*(?:\/\/|\/\*)/.test(l))
+      // 块注释续行（* 开头）同样豁免——与 R2/W7 的续行豁免口径对齐
+      // （多行块注释中间行以 * 开头，此前续行描述 .file( 仍误报）
+      .filter((l) => !/:\d+:\s*\*/.test(l))
       .filter((l) => {
         const [f, line] = parseRgLine(l);
         // 若 .file( 在 new Promise(...) 附近（±8 行内），说明已 Promise 化，豁免
@@ -483,6 +486,7 @@ if (baselineMode) {
       advisoryViolations: r.advisoryViolations?.length ?? null,
       goneCount: r.goneCount ?? null,
       ok: r.ok,
+      scanHealthy: rgHealthy,
       notice: r.note,
     });
   } else {

@@ -3,10 +3,12 @@
  * pre-push-gate.mjs — 本地质量门禁核心（.githooks/pre-push 的调度器）。
  *
  * 设计目标：CI 红之前，本地先红。按变更域（Go / 前端 / 数据 / 文档）只跑相关检查；
- * gofmt 修复下沉 pre-commit（提交时自动 -w 修复 + stage）；pre-push 对未格式化只读检出并阻断；
- * 需人工的（构建失败、断链、契约失败）同样阻断推送。
+ * gofmt 修复下沉 pre-commit（提交时自动 -w 修复 + stage）；pre-push 对未格式化只读检出不阻断
+ * （格式类债务，2026-08-13 决策）；
+ * 需人工的（构建失败、断链、契约失败、红线扫描不可用）同样阻断推送。
  * 分层哲学（2026-08-13）：硬错误（编译/测试/契约/链接）阻断推送；基线债务
  * （红线新增、死代码等"没有报错"的治理欠账）只报告不阻断——推送后修，发布前全量 doctor 兜底。
+ * 例外：红线扫描本身不可用（rg 缺失/fail-closed）必须阻断，扫描没跑成不等于债务。
  *
  * 用法（由 .githooks/pre-push 调用）：
  *   node scripts/pre-push-gate.mjs <remote-name> <remote-url>
@@ -334,13 +336,16 @@ function main() {
   if (plan.redlines) {
     const t0 = Date.now();
     const rl = sh('node scripts/check-redlines.mjs --json --baseline');
-    let newV = null, ok = false, baseCount = 0, rlTail = '';
+    let newV = null, ok = false, scanHealthy = false, baseCount = 0, rlTail = '';
     try {
       const parsed = JSON.parse(rl.out);
       const s = parsed._summary;
       newV = s.newViolations ?? null;
       baseCount = s.baselineViolations ?? 0;
       ok = s.ok === true;
+      // 扫描健康门（fail-closed）：rg 缺失/执行失败时 check-redlines 输出
+      // scanHealthy:false——必须阻断推送，否则红线门禁静默放行（P1 修复）
+      scanHealthy = s.scanHealthy === true;
       // 违规详情（供 tail 展示方向，不阻断推送）
       if (!ok && Array.isArray(parsed.results)) {
         rlTail = parsed.results
@@ -348,14 +353,16 @@ function main() {
           .map((r) => `[${r.rule_id} ${r.name}] ` + r.violations.map((v) => `${v.file}:${v.line}`).join(', '))
           .join('\n');
       }
-    } catch { /* parse fail */ ok = false; }
+    } catch { /* parse fail */ ok = false; scanHealthy = false; }
     results.push({ label: 'check-redlines', ok, time: Date.now() - t0,
-      note: newV === null ? '输出解析失败'
-        : (ok ? `红线零新增（基线 ${baseCount} 条）`
-          : `${newV} 条新增红线违规（基线 ${baseCount} 条）——债务项，推送后处理`),
+      note: !scanHealthy ? '扫描不可用（rg 缺失/执行失败）——fail-closed 阻断，红线门禁未执行'
+        : (newV === null ? '输出解析失败'
+          : (ok ? `红线零新增（基线 ${baseCount} 条）`
+            : `${newV} 条新增红线违规（基线 ${baseCount} 条）——债务项，推送后处理`)),
       tail: rlTail });
     // 基线债务（红线新增）不阻断推送：推送后修；发布前全量 doctor 仍会报告（2026-08-13 决策）
-    // if (!ok) blocked = true;
+    // 但扫描不可用（fail-closed）必须阻断——扫描本身没跑成，不能当作「债务」放行
+    if (!scanHealthy) blocked = true;
   }
   if (plan.adr) {
     const t0 = Date.now();
