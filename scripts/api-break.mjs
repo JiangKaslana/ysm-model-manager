@@ -131,6 +131,19 @@ function compare(older, newer, scope) {
     }
   }
 
+  // 4.5 redline 集合：modified 超红线（mods 内） + added 超红线（新增文件也查，
+  // 否则 6d05f12c 新增的 web-fs.ts 447 行这类超红线新文件会漏报）
+  const redlineFiles = [];
+  for (const m of mods) {
+    if (m.redline) redlineFiles.push({ path: m.path, lines: m.newLines });
+  }
+  for (const p of finalAdded) {
+    if (!isSourceFile(p)) continue;
+    const newText = showAt(newer, p);
+    const lines = countLines(newText);
+    if (lines !== null && lines > REDLINE) redlineFiles.push({ path: p, lines });
+  }
+
   // 5. 对 removed 文件整体视为"全部符号消失"（仅源码文件）
   const removedTraces = [];
   for (const p of finalRemoved) {
@@ -148,6 +161,7 @@ function compare(older, newer, scope) {
     mods, removedTraces,
     addedFiles: finalAdded, removedFiles: finalRemoved,
     modifiedCount: modifiedFiles.length,
+    redlineFiles,
   };
 }
 
@@ -271,7 +285,7 @@ function human(report, callers, compact) {
     }
   }
 
-  const redlineFiles = report.mods.filter((m) => m.redline);
+  const redlineFiles = report.redlineFiles;
   if (redlineFiles.length) {
     L.push('');
     L.push('④ 红线 ADR-040（单文件 > ' + REDLINE + ' 行）');
@@ -305,7 +319,7 @@ function toJ(report, callers) {
     report.removedTraces.flatMap((r) => [...r.exp])
   );
   const allAddedExp = report.mods.flatMap((m) => m.addedExp);
-  const redlineFiles = report.mods.filter((m) => m.redline);
+  const redlineFiles = report.redlineFiles;
   let totalCalls = 0;
   for (const sym of allDeletedExp) totalCalls += (callers.get(sym) || []).length;
   return {
@@ -334,7 +348,7 @@ function toJ(report, callers) {
     redline: {
       limit: REDLINE,
       over: redlineFiles.length,
-      files: redlineFiles.map((m) => ({ path: m.path, lines: m.newLines })),
+      files: redlineFiles,
     },
     safe: allDeletedExp.length === 0 && totalCalls === 0,
   };
@@ -355,6 +369,15 @@ if (nonOpts.length < 2) {
 }
 const [older, newer] = nonOpts;
 
+// ref 有效性校验：git diff 失败会被 gitMaybe 吞成空清单 → 无效 ref 会得到
+// 静默的「兼容」假结论（门禁工具危险信号）；先 rev-parse 验证两个 ref，无效退出 2
+for (const ref of [older, newer]) {
+  if (!gitMaybe(['rev-parse', '--verify', '--quiet', ref + '^{commit}'])) {
+    console.error(`无效 ref: ${ref}`);
+    process.exit(2);
+  }
+}
+
 const report = compare(older, newer, SCOPE);
 const allDeletedExp = report.mods.flatMap((m) => m.deletedExp).concat(
   report.removedTraces.flatMap((r) => [...r.exp])
@@ -365,14 +388,14 @@ const callers = allDeletedExp.length
 
 if (JSON_OUT) {
   console.log(JSON.stringify(toJ(report, callers), null, 2));
-} else if (QUIET && allDeletedExp.length === 0 && !report.mods.some((m) => m.redline)) {
+} else if (QUIET && allDeletedExp.length === 0 && report.redlineFiles.length === 0) {
   // 静默模式（--quiet）：无破坏性变更且无红线文件时只输出一行结论（Q1 实现；
   // 与 --redline 退出码一致——有红线时走下方 ⚠️ 行并 exit 1）
   console.log('✅ 无破坏性变更');
 } else if (QUIET && allDeletedExp.length === 0) {
-  console.log(`⚠️ ${report.mods.filter((m) => m.redline).length} 个超红线文件（ADR-040）`);
+  console.log(`⚠️ ${report.redlineFiles.length} 个超红线文件（ADR-040）`);
 } else {
   console.log(human(report, callers, COMPACT));
 }
-if (REDLINE_ONLY && report.mods.some((m) => m.redline)) process.exit(1);
+if (REDLINE_ONLY && report.redlineFiles.length > 0) process.exit(1);
 process.exit(0);

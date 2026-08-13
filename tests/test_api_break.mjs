@@ -77,24 +77,26 @@ function run(args, timeoutMs = 120000) {
   }
 }
 
-// ── 4. 中文路径 ref 对（docs 同步提交）─────────────
+// ── 4. 中文路径 ref 对（novel 章节提交，diff 含 03-UI器官/06-幽灵的渲染.md）──
 {
-  const r = run(['0eb76456^', '0eb76456']);
+  const r = run(['036d8f77^', '036d8f77']);
   assert(r.status === 0, `中文路径 ref 对应退出 0，实际 ${r.status}（stderr=${(r.stderr || '').slice(0, 200)}）`);
   assert(!(r.stderr || '').includes('fatal:'), `中文路径不应触发 fatal（quotepath 修复）：${(r.stderr || '').slice(0, 200)}`);
   assert((r.stdout || '').includes('api-break ——'), '应有报告头');
   assert((r.stdout || '').includes('②'), '应有破坏性变更小节');
 }
 
-// ── 5. --redline 模式：超红线文件 → 退出码 1 ───────
+// ── 5. --redline 模式：新增文件超红线 → 退出码 1 ───
 {
+  // 6d05f12c 新增了 web-fs.ts（446 行 > 400 红线）：redline 应真实触发 exit 1
   const r = run(['6d05f12c^', '6d05f12c', '--redline', '--json']);
-  assert(r.status === 0 || r.status === 1, `--redline 模式退出码应 ∈ {0,1}，实际 ${r.status}（stderr=${(r.stderr || '').slice(0, 200)}）`);
+  assert(r.status === 1, `新增超红线文件时 --redline 应退出 1，实际 ${r.status}（stderr=${(r.stderr || '').slice(0, 200)}）`);
   let j = null;
-  try { j = JSON.parse(r.stdout); } catch { /* 允许无 redline 文件时输出 human 模式 */ }
-  if (j && j.redline) {
-    assert(typeof j.redline.limit === 'number' && j.redline.limit > 0, 'redline.limit 应为正数');
-    assert(Array.isArray(j.redline.files), 'redline.files 应为数组');
+  try { j = JSON.parse(r.stdout); } catch { /* 下方断言兜底 */ }
+  assert(j !== null, '--redline --json 应输出合法 JSON');
+  if (j) {
+    assert(j.redline && j.redline.over > 0, `redline.over 应 > 0，实际 ${j.redline && j.redline.over}`);
+    assert(j.redline.files.some((f) => f.path.includes('web-fs.ts')), 'redline.files 应含新增的 web-fs.ts');
   }
 }
 
