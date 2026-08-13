@@ -13,7 +13,15 @@ source_files:
   - frontend/src/views/app-content/content-css.ts
   - frontend/src/views/app-content/community-data.ts
   - frontend/src/views/app-content/diagnostics/init.ts
+  - frontend/src/views/app-content/diagnostics/logs.ts
+  - frontend/src/views/app-content/diagnostics/dedup.ts
+  - frontend/src/views/app-content/diagnostics/conflicts.ts
   - frontend/src/views/app-content/settings/init.ts
+  - frontend/src/views/app-content/settings/store.ts
+  - frontend/src/views/app-content/settings/path-cards.ts
+  - frontend/src/views/app-content/settings/theme.ts
+  - frontend/src/views/app-content/settings/ui-prefs.ts
+  - frontend/src/views/app-content/settings/keymap.ts
   - frontend/src/views/app-content/site-view.ts
   - frontend/src/views/app-content/site/drag.ts
   - frontend/src/views/app-content/site/edit.ts
