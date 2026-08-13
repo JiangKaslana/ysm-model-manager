@@ -34,14 +34,14 @@
 | Go(internal)·应用入口 | 22 | 181 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 9 | 56 |
-| 前端·核心 | 14 | 28 |
+| 前端·核心 | 15 | 41 |
 | 前端·特性 | 18 | 88 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 51 | 187 |
-| frontend/views | 77 | 209 |
+| frontend/views | 78 | 210 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **259** | **1076** |
+| **合计** | **261** | **1090** |
 
 ## Go·头像
 
@@ -700,7 +700,20 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `registerContextMenus()` | `frontend/src/core/context-menus:527` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
+| `refreshUI()` | `frontend/src/core/context-menu-handlers:13` | 通知树组件和统计面板刷新 |
+| `toast()` | `frontend/src/core/context-menu-handlers:19` | 显示 toast 通知 |
+| `isUnsafeFolderName()` | `frontend/src/core/context-menu-handlers:24` | 路径安全过滤：禁止逃逸段（. |
+| `resolveDstDir()` | `frontend/src/core/context-menu-handlers:35` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
+| `runBatchFileOp()` | `frontend/src/core/context-menu-handlers:74` | — |
+| `MenuCtx()` | `frontend/src/core/context-menu-handlers:125` | — |
+| `HANDLERS()` | `frontend/src/core/context-menu-handlers:128` | 行为 handler 表 |
+| `refreshUI()` | `frontend/src/core/context-menus` | — |
+| `toast()` | `frontend/src/core/context-menus` | — |
+| `isUnsafeFolderName()` | `frontend/src/core/context-menus` | — |
+| `resolveDstDir()` | `frontend/src/core/context-menus` | — |
+| `runBatchFileOp()` | `frontend/src/core/context-menus` | — |
+| `HANDLERS()` | `frontend/src/core/context-menus` | — |
+| `registerContextMenus()` | `frontend/src/core/context-menus:56` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:30` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:52` | 注册 UI 报错落日记功能。 |
 | `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:17` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |
@@ -1176,14 +1189,15 @@
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
-| `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:17` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
-| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:26` | 创建 2D 骨骼画布并异步加载纹理 |
-| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:51` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
-| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:91` | 构建统计卡片（含作者列表） |
-| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:140` | 构建导出骨骼名按钮行 |
-| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:173` | 截图保存内部逻辑（供 3D overlay 使用） |
-| `build3DOverlay()` | `frontend/src/views/app-preview/skeleton-render:209` | 构建 3D overlay 完整 DOM 结构 返回所有关键节点引用及 state holder |
-| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render:399` | 填充 3D 信息面板：统计 + 纹理 + 模型选择 + 骨骼列表 + 详情框 |
+| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:8` | — |
+| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
+| `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:19` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
+| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:28` | 创建 2D 骨骼画布并异步加载纹理 |
+| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:53` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
+| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:93` | 构建统计卡片（含作者列表） |
+| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:142` | 构建导出骨骼名按钮行 |
+| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:175` | 截图保存内部逻辑（供 3D overlay 使用） |
+| `build3DOverlay()` | `frontend/src/views/app-preview/skeleton-render:211` | 构建 3D overlay 完整 DOM 结构 返回所有关键节点引用及 state holder |
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
