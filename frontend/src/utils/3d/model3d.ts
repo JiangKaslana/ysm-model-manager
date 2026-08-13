@@ -1,8 +1,11 @@
-// ===== 3D 模型渲染器（类型化版 — ADR-014 P2 大件收尾）=====
+// ===== 3D 模型渲染器（类型化版 — ADR-014 P2 大件收尾，ADR-040 P1 增量拆分）=====
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { buildSceneMesh, disposeMaterial, compKey } from "./mesh.ts"; // 网格构建/材质释放（拆分）
-import { safeGet } from "../dom/storage.ts";
+import { buildSceneMesh, disposeMaterial, compKey } from "./mesh.ts"; // 网格构建/材质释放
+import { loadTdKeymap, loadTdCamSpeed, loadTdRotMode, type TdKeyAction, DEFAULT_TD_KEYMAP } from "./keymap.ts"; // 键位/相机偏好（已拆）
+import { rebuildDebug } from "./debug-render.ts"; // debug 叠加层（已拆）
+import { registerFreeCameraDrag } from "./camera-control.ts"; // free 相机 pointer drag（已拆）
+import { buildBoneHierarchy, registerBoneRaycast } from "./bone-raycast.ts"; // 骨骼拾取（已拆）
 
 // ── Spec 结构（Go 返回的 models 结构）────────────────
 
@@ -67,52 +70,9 @@ export interface RenderModel3DHandle {
   cleanup: () => void;
 }
 
-// ── 3D 操作键位 / 偏好（持久化于 localStorage，与界面设置同源）──
-export type TdKeyAction = "forward" | "back" | "left" | "right" | "up" | "down";
-
-/** 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） */
-export const DEFAULT_TD_KEYMAP: Record<TdKeyAction, string> = {
-  forward: "KeyW",
-  back: "KeyS",
-  left: "KeyA",
-  right: "KeyD",
-  up: "Space",
-  down: "ShiftLeft",
-};
-
-const TD_KEYMAP_KEY = "td-keymap";
-const TD_CAMSPEED_KEY = "td-cam-speed";
-const TD_ROTMODE_KEY = "td-rot-mode";
-
-/** 读取用户自定义键位（无/非法时回退默认） */
-export function loadTdKeymap(): Record<TdKeyAction, string> {
-  try {
-    const raw = localStorage.getItem(TD_KEYMAP_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<Record<TdKeyAction, string>>;
-      const merged: Record<TdKeyAction, string> = { ...DEFAULT_TD_KEYMAP };
-      (Object.keys(DEFAULT_TD_KEYMAP) as TdKeyAction[]).forEach((k) => {
-        if (typeof parsed[k] === "string" && parsed[k]!.length > 0) merged[k] = parsed[k]!;
-      });
-      return merged;
-    }
-  } catch {
-    /* 解析失败回退默认 */
-  }
-  return { ...DEFAULT_TD_KEYMAP };
-}
-
-/** 相机移动速度（2–200），默认 20 */
-export function loadTdCamSpeed(): number {
-  // P3 修复（审核）：裸调改 safeGet——隐私模式降级 null → Number(null)=0 → 回退 20
-  const v = Number(safeGet(TD_CAMSPEED_KEY));
-  return Number.isFinite(v) && v >= 2 && v <= 200 ? v : 20;
-}
-
-/** true = 环绕（orbit），false = 自身（free） */
-export function loadTdRotMode(): boolean {
-  return safeGet(TD_ROTMODE_KEY) !== "free";
-}
+// P1 修复（ADR-040）：键位/相机偏好已拆至 keymap.ts，此处 re-export 兼容
+export type { TdKeyAction } from "./keymap.ts";
+export { DEFAULT_TD_KEYMAP, loadTdKeymap, loadTdCamSpeed, loadTdRotMode } from "./keymap.ts";
 
 // 模块级 3D 渲染状态（治理红线 R1：零全局调试变量）
 let _scene3d: THREE.Scene | null = null;
@@ -127,12 +87,6 @@ let _rafIdGuard: number | null = null;
  * 守卫统一执行，否则旧会话的 document/window 监听器（keydown preventDefault 等）永久泄漏。
  */
 let _sessionCleanups: Array<() => void> = [];
-
-/** 组件作用域骨骼 key（YSMViewer 式多组件：同名骨骼跨组件不冲突）。 */
-// （已迁至 ./mesh.ts，model3d.ts 经 import 复用，防 key 口径漂移）
-
-/** 构建骨骼层级场景（bone group 树），返回组映射与根节点 */
-// （已迁至 ./mesh.ts，model3d.ts 经 import 复用）
 
 // ── 渲染器状态 / 会话 ─────────────────────────────
 
@@ -397,6 +351,9 @@ export async function renderModel3D(
     hoveredBone: null as string | null,
     hoveredMesh: null as THREE.Object3D | null,
     debugGroup: null as THREE.Group | null,
+    setHoveredBone: (v: string | null) => { state.hoveredBone = v; },
+    setHoveredMesh: (v: THREE.Object3D | null) => { state.hoveredMesh = v; },
+    onBoneSelectCallback: null as ((info: BoneSelectInfo) => void) | null,
   };
   const _onResize = (): void => {
     const w = container.clientWidth;
@@ -438,7 +395,7 @@ export async function renderModel3D(
       const modes: Array<"normal" | "pivot" | "bone"> = ["normal", "pivot", "bone"];
       const next = (modes.indexOf(state.debugMode) + 1) % modes.length;
       state.debugMode = modes[next];
-      rebuildDebug();
+      rebuildDebug(scene, rootGroup, boneGroupMap, spec, state);
     }
   };
   const _onKeyUp = (e: KeyboardEvent): void => {
@@ -451,35 +408,12 @@ export async function renderModel3D(
   const _orbitTarget = controls.target.clone();
   const _euler = new THREE.Euler(0, 0, 0, "YXZ");
   // Pointer Events（ADR-047）：拖拽旋转统一 pointer 事件，触屏可拖；
-  // 桌面零回归（pointer 事件兼容 mouse，ADR-047 决策）
-  const onDragPointerDown = (e: PointerEvent): void => {
-    if (!state.orbitMode && e.button === 0) {
-      state.mouseDown = true;
-      state.lastMouse = { x: e.clientX, y: e.clientY };
-      renderer.domElement.setPointerCapture(e.pointerId);
-    }
-  };
-  const onDragPointerUp = (e: PointerEvent): void => {
-    state.mouseDown = false;
-    if (renderer.domElement.hasPointerCapture(e.pointerId)) {
-      renderer.domElement.releasePointerCapture(e.pointerId);
-    }
-  };
-  const onDragPointerMove = (e: PointerEvent): void => {
-    if (state.orbitMode || !state.mouseDown) return;
-    _euler.setFromQuaternion(camera.quaternion);
-    _euler.y -= (e.clientX - state.lastMouse.x) * 0.003;
-    _euler.x -= (e.clientY - state.lastMouse.y) * 0.003;
-    _euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, _euler.x));
-    camera.quaternion.setFromEuler(_euler);
-    state.lastMouse = { x: e.clientX, y: e.clientY };
-  };
-  renderer.domElement.addEventListener("pointerdown", onDragPointerDown);
-  _sessionCleanups.push(() => renderer.domElement.removeEventListener("pointerdown", onDragPointerDown));
-  window.addEventListener("pointerup", onDragPointerUp);
-  _sessionCleanups.push(() => window.removeEventListener("pointerup", onDragPointerUp));
-  window.addEventListener("pointermove", onDragPointerMove);
-  _sessionCleanups.push(() => window.removeEventListener("pointermove", onDragPointerMove));
+  // 桌面零回归（pointer 事件兼容 mouse，ADR-047 决策）——已拆至 camera-control.ts
+  const _freeDragCleanup = registerFreeCameraDrag(
+    renderer, camera, controls,
+    { get current() { return state.orbitMode; } },
+  );
+  _sessionCleanups.push(_freeDragCleanup);
   // P2-1 修复：free 模式禁用 controls 旋转，避免与自定义 pointer 拖拽双重旋转（仅 orbit 生效）
   controls.enableRotate = state.orbitMode;
   const loop = (): void => {
@@ -521,261 +455,16 @@ export async function renderModel3D(
   _rafIdGuard = state.rafId;
   renderer.render(scene, camera);
 
-  // ===== 鼠标悬停骨骼名 + 点击复制层级 =====
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
+  // ===== 骨骼射线拾取（已拆至 bone-raycast.ts）=====
+  const { nameMap: _boneNameMap, parentMap: _boneParentMap, childrenMap: _boneChildrenMap } = buildBoneHierarchy(spec);
+  const _boneRaycastCleanup = registerBoneRaycast(
+    renderer, camera, scene, boneGroupMap,
+    _boneNameMap, _boneParentMap, _boneChildrenMap,
+    state,
+  );
+  _sessionCleanups.push(_boneRaycastCleanup);
 
-  // 构建骨骼层级路径映射
-  const _boneParentMap = new Map<string, string | null>();
-  const _boneNameMap = new Map<string, string>();
-  const _boneChildrenMap = new Map<string, string[]>();
-  for (const mg of spec.models || []) {
-    for (const bd of mg.bones || []) {
-      _boneNameMap.set(bd.id, bd.name);
-      _boneParentMap.set(bd.id, bd.parentId || null);
-      if (!_boneChildrenMap.has(bd.parentId || "__root__")) {
-        _boneChildrenMap.set(bd.parentId || "__root__", []);
-      }
-      _boneChildrenMap.get(bd.parentId || "__root__")!.push(bd.id);
-    }
-  }
-
-  // 工具：骨骼名 → 全路径
-  const getBonePath = (boneId: string): string => {
-    const parts: string[] = [];
-    let current: string | null | undefined = boneId;
-    while (current && _boneNameMap.has(current)) {
-      parts.unshift(_boneNameMap.get(current)!);
-      current = _boneParentMap.get(current);
-    }
-    return parts.join(" / ");
-  };
-
-  // 工具：骨骼名 → 第一个子骨骼名（用于区分同层骨骼）
-  const getMeshBoneId = (mesh: THREE.Object3D): string | null => {
-    // mesh 属于一个 boneGroup，boneGroup 的 parent 链指向根
-    let obj: THREE.Object3D | null = mesh;
-    while (obj) {
-      if ((obj as THREE.Group).isGroup && obj.name && _boneNameMap.has(obj.name)) {
-        return obj.name;
-      }
-      obj = obj.parent;
-    }
-    return null;
-  };
-
-  const onPointerMove = (e: PointerEvent): void => {
-    const rect = renderer.domElement.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
-    let foundBone: string | null = null;
-    let foundMesh: THREE.Object3D | null = null;
-    for (const hit of intersects) {
-      // THREE Raycaster 不检查 visible（仅按 layers 过滤），需手动沿父链跳过
-      // 已隐藏的骨骼/网格（setBoneVisible / showModelGroup 均通过 visible 控制）。
-      let node: THREE.Object3D | null = hit.object;
-      let hidden = false;
-      while (node) {
-        if (!node.visible) {
-          hidden = true;
-          break;
-        }
-        node = node.parent;
-      }
-      if (hidden) continue;
-      const boneId = getMeshBoneId(hit.object);
-      if (boneId) {
-        foundBone = boneId;
-        foundMesh = hit.object;
-        break;
-      }
-    }
-    if (foundBone !== state.hoveredBone) {
-      state.hoveredBone = foundBone;
-      state.hoveredMesh = foundMesh;
-      if (foundBone) {
-        renderer.domElement.style.cursor = "pointer";
-      } else {
-        renderer.domElement.style.cursor = "default";
-      }
-    }
-  };
-
-  const onPointerClick = (e: MouseEvent): void => {
-    if (!state.hoveredBone) return;
-    const boneId = state.hoveredBone; // 局部收窄（闭包捕获变量 TS 不做控制流收窄）
-    if (handle.onBoneSelect) {
-      const bg = boneGroupMap.get(boneId);
-      const wp = new THREE.Vector3();
-      if (bg) bg.getWorldPosition(wp);
-      const lp = bg ? bg.position : new THREE.Vector3();
-      const lq = bg ? bg.quaternion : new THREE.Quaternion();
-      let lr: number[] | null = null;
-      if (lq.x !== 0 || lq.y !== 0 || lq.z !== 0 || lq.w !== 1)
-        lr = [lq.x, lq.y, lq.z, lq.w];
-      // Cube（mesh）级数据
-      let cq: number[] | null = null;
-      let cp: number[] | null = null;
-      if (state.hoveredMesh && (state.hoveredMesh as THREE.Mesh).isMesh) {
-        cq = [
-          state.hoveredMesh.quaternion.x,
-          state.hoveredMesh.quaternion.y,
-          state.hoveredMesh.quaternion.z,
-          state.hoveredMesh.quaternion.w,
-        ];
-        cp = [
-          state.hoveredMesh.position.x,
-          state.hoveredMesh.position.y,
-          state.hoveredMesh.position.z,
-        ];
-      }
-      handle.onBoneSelect({
-        name: _boneNameMap.get(boneId) || boneId,
-        path: getBonePath(boneId),
-        parent: _boneParentMap.get(boneId) ?? null,
-        children: _boneChildrenMap.get(boneId) || [],
-        meshCount: (function () {
-          const bg2 = boneGroupMap.get(boneId);
-          let mc = 0;
-          if (bg2)
-            bg2.traverse(function (c) {
-              if ((c as THREE.Mesh).isMesh) mc++;
-            });
-          return mc;
-        })(),
-        localPos: [lp.x, lp.y, lp.z],
-        worldPos: [wp.x, wp.y, wp.z],
-        localRot: lr,
-        cubeRot: cq,
-        cubePos: cp,
-      });
-    }
-  };
-
-  renderer.domElement.addEventListener("pointermove", onPointerMove);
-  _sessionCleanups.push(() => renderer.domElement.removeEventListener("pointermove", onPointerMove));
-  renderer.domElement.addEventListener("click", onPointerClick);
-  _sessionCleanups.push(() => renderer.domElement.removeEventListener("click", onPointerClick));
-
-  // ===== 可视化模式切换 =====
-  const rebuildDebug = (): void => {
-    if (state.debugGroup) {
-      // 释放旧 debug 组内的几何体/材质/纹理，防止内存泄漏
-      state.debugGroup.traverse((c) => {
-        const obj = c as THREE.Mesh | THREE.Line | THREE.Sprite;
-        if ((obj as THREE.Mesh).isMesh) {
-          (obj as THREE.Mesh).geometry?.dispose();
-          const m = (obj as THREE.Mesh).material;
-          if (Array.isArray(m)) m.forEach((x) => x.dispose());
-          else m?.dispose();
-        } else if ((obj as THREE.Line).isLine) {
-          (obj as THREE.Line).geometry?.dispose();
-          const lm = (obj as THREE.Line).material;
-          if (Array.isArray(lm)) lm.forEach((x) => x.dispose());
-          else lm?.dispose();
-        } else if ((obj as THREE.Sprite).isSprite) {
-          (obj as THREE.Sprite).material.map?.dispose();
-          (obj as THREE.Sprite).material?.dispose();
-        }
-      });
-      scene.remove(state.debugGroup);
-      state.debugGroup = null;
-    }
-    if (state.debugMode === "normal") return;
-    state.debugGroup = new THREE.Group();
-    scene.add(state.debugGroup);
-
-    // 获取骨骼世界坐标
-    rootGroup.updateMatrixWorld(true);
-    const boneWorldPositions = new Map<
-      string,
-      { pos: THREE.Vector3; name: string; parentId?: string }
-    >();
-    // v1：boneWorldPositions 只收集 main 组件（spec.models[0]，全局 key 即 main），
-    // 动画驱动 main 骨骼；arm 等组件独立树静止（跨组件骨骼绑定留 v2）
-    for (const bd of spec.models?.[0]?.bones || []) {
-      const bg = boneGroupMap.get(bd.id);
-      if (!bg) continue;
-      const wp = new THREE.Vector3();
-      bg.getWorldPosition(wp);
-      boneWorldPositions.set(bd.id, {
-        pos: wp,
-        name: bd.name,
-        parentId: bd.parentId,
-      });
-    }
-
-    if (state.debugMode === "pivot") {
-      for (const [, data] of boneWorldPositions) {
-        const top = data.pos.clone();
-        top.y += 4;
-        const lineGeo = new THREE.BufferGeometry().setFromPoints([
-          data.pos,
-          top,
-        ]);
-        const line = new THREE.Line(
-          lineGeo,
-          new THREE.LineBasicMaterial({
-            color: 0x00ff88,
-            transparent: true,
-            opacity: 0.25,
-          }),
-        );
-        state.debugGroup.add(line);
-        // 骨骼名标签（固定像素大小，不影响缩放）
-        const tex = makeTextTexture(data.name, "#88ffaa");
-        const mat = new THREE.SpriteMaterial({
-          map: tex,
-          depthTest: false,
-          sizeAttenuation: false,
-          transparent: true,
-        });
-        const label = new THREE.Sprite(mat);
-        label.position.copy(top);
-        label.scale.set(120, 24, 1);
-        state.debugGroup.add(label);
-      }
-    } else if (state.debugMode === "bone") {
-      for (const [, data] of boneWorldPositions) {
-        const parentPos = data.parentId
-          ? boneWorldPositions.get(data.parentId)?.pos
-          : null;
-        if (!parentPos) continue;
-        const points = [data.pos.clone(), parentPos.clone()];
-        const geo = new THREE.BufferGeometry().setFromPoints(points);
-        const line = new THREE.Line(
-          geo,
-          new THREE.LineBasicMaterial({ color: 0x44aaff }),
-        );
-        state.debugGroup.add(line);
-      }
-    }
-  };
-
-  // 文字纹理生成
-  function makeTextTexture(text: string, color?: string): THREE.CanvasTexture {
-    const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 64;
-    const ctx = canvas.getContext("2d");
-    // 显式设为透明黑色背景
-    if (ctx) {
-      ctx.fillStyle = "rgba(0,0,0,0)";
-      ctx.fillRect(0, 0, 256, 64);
-      ctx.fillStyle = color || "#ffffff";
-      ctx.font = "24px sans-serif";
-      ctx.textBaseline = "bottom";
-      ctx.shadowColor = "rgba(0,0,0,0.8)";
-      ctx.shadowBlur = 3;
-      ctx.fillText(text, 4, 58);
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.minFilter = THREE.LinearFilter;
-    tex.premultiplyAlpha = true;
-    return tex;
-  }
+  // ===== 可视化模式切换 =====（rebuildDebug 已拆至 debug-render.ts）
 
   const handle: RenderModel3DHandle = {
     resetCamera: () => {
@@ -837,10 +526,10 @@ export async function renderModel3D(
       modelGroups.forEach((g, i) => (g.visible = i === idx || idx < 0));
     },
     getModelGroupCount: () => spec.models?.length || 0,
-    onBoneSelect: null, // 外部设置的回调: (boneInfo) => void
+    onBoneSelect: null as ((info: BoneSelectInfo) => void) | null, // 外部设置的回调: (boneInfo) => void
     setDebugMode: (mode: "normal" | "pivot" | "bone") => {
       state.debugMode = mode;
-      rebuildDebug();
+      rebuildDebug(scene, rootGroup, boneGroupMap, spec, state);
     },
     cleanup: () => {
       if (state.rafId != null) cancelAnimationFrame(state.rafId);
@@ -852,11 +541,8 @@ export async function renderModel3D(
       _sessionCleanups = [];
       document.removeEventListener("keydown", _onKeyDown);
       document.removeEventListener("keyup", _onKeyUp);
-      renderer.domElement.removeEventListener("pointerdown", onDragPointerDown);
-      window.removeEventListener("pointerup", onDragPointerUp);
-      window.removeEventListener("pointermove", onDragPointerMove);
-      renderer.domElement.removeEventListener("pointermove", onPointerMove);
-      renderer.domElement.removeEventListener("click", onPointerClick);
+      // free camera drag cleanup 由 _freeDragCleanup 统一处理（camera-control.ts）
+      // bone raycast cleanup 由 _boneRaycastCleanup 统一处理（bone-raycast.ts）
       controls.dispose();
       window.removeEventListener("resize", _onResize);
       document.removeEventListener("fullscreenchange", _onFSChange);
@@ -899,6 +585,15 @@ export async function renderModel3D(
       container.innerHTML = "";
     },
   };
+  // 外部设置 handle.onBoneSelect 时同步到 state.onBoneSelectCallback
+  let _currentOnBoneSelect: ((info: BoneSelectInfo) => void) | null = null;
+  Object.defineProperty(handle, "onBoneSelect", {
+    set(v: ((info: BoneSelectInfo) => void) | null) {
+      _currentOnBoneSelect = v;
+      state.onBoneSelectCallback = v;
+    },
+    get() { return _currentOnBoneSelect; },
+  });
   return handle;
   // P2-4 修复：异常路径执行部分清理后 rethrow（见下方 catch）
   } catch (e) {
