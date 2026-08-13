@@ -1,6 +1,7 @@
 // ===== skeleton-fill-panel.ts — fill3DPanel（从 skeleton-render.ts 拆出，ADR-040 P1）=====
 // 填充 3D 信息面板：统计 + 纹理 + 模型选择 + 骨骼列表 + 详情框
 import { t } from "../../core/i18n/t.ts";
+import { esc } from "../../utils/dom/html.ts";
 import { buildDepthMap } from "./skeleton-utils.ts";
 import type { Model3DHandleX } from "./skeleton-render.ts";
 import type { BedrockGeometry } from "./geometry.ts";
@@ -166,7 +167,4 @@ function iRow(k: string, v: string): HTMLDivElement {
   d.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0";
   d.innerHTML = `<span>${k}</span><span style="color:rgba(255,255,255,0.9)">${v}</span>`;
   return d;
-}
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

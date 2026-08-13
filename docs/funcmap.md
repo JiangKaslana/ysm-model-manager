@@ -38,10 +38,10 @@
 | 前端·特性 | 18 | 88 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 51 | 187 |
-| frontend/views | 78 | 210 |
+| 前端·工具 | 52 | 190 |
+| frontend/views | 78 | 209 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **261** | **1090** |
+| **合计** | **262** | **1092** |
 
 ## Go·头像
 
@@ -1061,6 +1061,9 @@
 | `summarizeDecoded()` | `frontend/src/utils/format/summarize:313` | 解析 main.json 提取骨骼/几何摘要（只做统计，不渲染） |
 | `YsmProperties()` | `frontend/src/utils/format/ysm-anim-config:14` | WASM 解码产物 ysm.json 的 properties 相关字段（仅取本模块需要的部分） |
 | `extractAnimGroupsAndConfigs()` | `frontend/src/utils/format/ysm-anim-config:34` | 从 ysm.json properties 提取动画分组与配置菜单。 |
+| `GH_REPO()` | `frontend/src/utils/gh-links:5` | — |
+| `GH_RELEASES()` | `frontend/src/utils/gh-links:6` | — |
+| `GH_DOCS()` | `frontend/src/utils/gh-links:7` | — |
 | `fileIcon()` | `frontend/src/utils/icon/icon:40` | 按扩展名返回图标 emoji |
 | `isYsmName()` | `frontend/src/utils/icon/icon:56` | 是否为 YSM 文件 |
 | `ICONS()` | `frontend/src/utils/icon/workshop-icons:3` | — |
@@ -1144,16 +1147,15 @@
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:10` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:6` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
-| `GH_RELEASES()` | `frontend/src/views/app-content/tpl:11` | — |
-| `repositoryHTML()` | `frontend/src/views/app-content/tpl:17` | — |
-| `instancesHTML()` | `frontend/src/views/app-content/tpl:68` | — |
-| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:93` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:157` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:188` | — |
+| `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |
+| `instancesHTML()` | `frontend/src/views/app-content/tpl:60` | — |
+| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:85` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:149` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:180` | — |
 | `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:8` | 创作者身份识别结果 |
 | `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:15` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
 | `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:22` | — |
@@ -1189,7 +1191,7 @@
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
-| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:8` | — |
+| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:9` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
 | `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:19` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
 | `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:28` | 创建 2D 骨骼画布并异步加载纹理 |
