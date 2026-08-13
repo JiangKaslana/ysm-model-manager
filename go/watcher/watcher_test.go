@@ -238,7 +238,21 @@ func TestStartStopRestart(t *testing.T) {
 // TestSyncAllSerialized 并发触发多次同步应串行执行（防抖合并调度，syncAll 合并执行）
 func TestSyncAllSerialized(t *testing.T) {
 	repoDir := t.TempDir()
+	// 仓库放真实模型文件 + custom 目录放同名文件（状态一致，SyncToggleStatus 不产生
+	// rename 副作用）：scanFn 返回非空条目使空仓库短路不触发，SyncToggleStatus 循环
+	// 真实执行、scanFn 被多次调用——修复前 scanFn 恒返 nil，短路路径只串行调 1 次，
+	// maxConcurrent 恒为 1，断言从未被挑战（空断言，watcher 子代理审计发现）
+	if err := os.WriteFile(filepath.Join(repoDir, "bar.ysm"), []byte("bar"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	mcDir := setupMinecraftRoot(t)
+	customDir := filepath.Join(mcDir, "versions", "1.20.1-Fabric", "config", "yes_steve_model", "custom")
+	if err := os.MkdirAll(customDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(customDir, "bar.ysm"), []byte("bar"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	var concurrent atomic.Int32
 	var maxConcurrent atomic.Int32
@@ -252,7 +266,9 @@ func TestSyncAllSerialized(t *testing.T) {
 		}
 		time.Sleep(150 * time.Millisecond)
 		concurrent.Add(-1)
-		return nil
+		return []types.ModelEntry{
+			{Name: "bar.ysm", Path: filepath.Join(repoDir, "bar.ysm")},
+		}
 	}
 
 	w := New(repoDir, mcDir, scanFn)
