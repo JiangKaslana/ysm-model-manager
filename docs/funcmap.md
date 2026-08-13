@@ -39,9 +39,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 37 | 133 |
-| frontend/views | 68 | 197 |
+| frontend/views | 70 | 199 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **234** | **994** |
+| **合计** | **236** | **996** |
 
 ## Go·头像
 
@@ -1054,15 +1054,17 @@
 | `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |
 | `SiteViewState()` | `frontend/src/views/app-content/site/types:12` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
-| `GH_RELEASES()` | `frontend/src/views/app-content/tpl:12` | — |
-| `repositoryHTML()` | `frontend/src/views/app-content/tpl:15` | — |
-| `instancesHTML()` | `frontend/src/views/app-content/tpl:66` | — |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl:87` | — |
-| `downloadsHTML()` | `frontend/src/views/app-content/tpl:504` | — |
-| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:555` | — |
-| `recycleHTML()` | `frontend/src/views/app-content/tpl:617` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:630` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:661` | — |
+| `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
+| `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
+| `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
+| `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
+| `GH_RELEASES()` | `frontend/src/views/app-content/tpl:11` | — |
+| `repositoryHTML()` | `frontend/src/views/app-content/tpl:14` | — |
+| `instancesHTML()` | `frontend/src/views/app-content/tpl:65` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl:86` | — |
+| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:508` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:572` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:603` | — |
 | `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:8` | 创作者身份识别结果 |
 | `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:15` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
 | `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:22` | — |

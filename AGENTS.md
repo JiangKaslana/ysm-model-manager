@@ -10,6 +10,7 @@
 > 有失败就修复，超出职责的就报告；通过则直接 `git status --short` 抓清单 → 提交对应的文件夹，无需询问。先提交 `docs/`，捎带了无关文件也别怕。
 > 放弃低效的 `git stash` / `git stash push` / `git stash pop` 指令（`list` / `show` 只读不受限）。需要临时回退时用 `git commit` + `git reset --soft HEAD~1`。
 > 查日志/排查卡顿：往**环形日志面板**塞日志，而非死盯 console。
+> 连续修改时，从下往上修改可避免行号变化的影响。
 > 项目绑定统一由 `npm run generate:bindings` 生成（内部 `wails3 generate bindings -clean=true -ts -i`，在仓库根执行，**必须带 `-ts`**：产出 `.ts`，前端以 `.js` 后缀 import、由 vite `wailsBindingsResolve` 重定向；无 `-ts` 生成会产出 `.js` 并清掉 git 跟踪的 `.ts`，属回归红线。契约见 `docs/architecture.md` §绑定模式）。
 > 前端看（`docs/Design.md` §12 文档命名与归属规范）。
 
