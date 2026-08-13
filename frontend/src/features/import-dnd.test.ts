@@ -287,7 +287,7 @@ describe("DnD 桌面收集层 — 文件夹递归与单文件路径", () => {
   const pageUnsubs: Array<() => void> = [];
   const dndUnsubs: Array<() => void> = [];
 
-  /** 假文件条目：entry.file(cb, ecb) 回调式（可注入自定义实现） */
+  /** 假文件条目：entry 的 file 方法（回调式签名，可注入自定义实现） */
   const fileEntry = (
     name: string,
     file: File,
