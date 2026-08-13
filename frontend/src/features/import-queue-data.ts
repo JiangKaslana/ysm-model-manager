@@ -285,8 +285,8 @@ export function initDataLayer(host: ImportQueueHost): {
     if (!state.currentFile) {
       showForm(file, base64);
     }
-    // 渲染列表（renderImportedList 由主文件注入，此处通过闭包访问）
-    const { actions } = { actions: { renderImportedList: () => {} } }; // 占位，实际由调用方注入
+    // 渲染列表——通过 actions 回调（主文件注入）
+    // 注意：actions 在此处尚未声明，使用延迟绑定模式
     // 加载仓库文件列表
     if (!state.repoFiles) loadRepoFiles();
   };
