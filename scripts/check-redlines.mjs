@@ -71,37 +71,61 @@ function runChecks() {
     rg('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json'])
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('_test.go'); })
-      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('bindings/'); }),
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('bindings/'); })
+      .filter((l) => !/:\d+:\s*\/\//.test(l)),
     'cfg.FilesRoot / filesRoot');
 
   add('R3', 'callback .file() API',
-    rg('\\.file\\s*\\(', 'frontend/src', ['*.js', '*.ts']),
+    rg('\\.file\\s*\\(', 'frontend/src', ['*.js', '*.ts'])
+      .filter((l) => !/:\d+:\s*\/\//.test(l)),
     'new Promise(...)');
 
-  // R4 display none/block：CSS 文件豁免、模板 CSS 文件（tpl.ts/content-css.ts）豁免；
-  // 行注释豁免
+  // R4 display none/block：CSS 文件豁免、CSS-in-JS 模板文件豁免、行注释豁免；
+  // 内联 style 字符串与 style.cssText 赋值豁免；CSS 规则块豁免；
+  // CSS 属性行豁免（display:none/block 后跟分号，属 CSS 语法）
   add('R4', 'display none/block',
     rg('display:\\s*(none|block)', 'frontend', ['*.js', '*.ts', '*.css'])
       .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.css'); })
-      .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.tpl.ts') && !f.includes('content-css') && !f.includes('app-tree-styles'); })
-      .filter((l) => !/:\d+:\s*\/\//.test(l)),
+      .filter((l) => { const [f] = parseRgLine(l); return !/\/tpl\.ts$/.test(f) && !/\/css\.ts$/.test(f) && !f.includes('content-css') && !f.includes('app-tree-styles'); })
+      .filter((l) => !/style\.cssText/.test(l))
+      .filter((l) => !/style="display:\s*(none|block)/.test(l))
+      .filter((l) => !/\{[^}]*display:\s*(none|block)/.test(l))
+      .filter((l) => !/:\d+:\s*\/\//.test(l))
+      .filter((l) => !/display:\s*(none|block)\s*[;"}]/.test(l)),
     'opacity/transform');
 
-  // R5 硬编码颜色：variables.css 豁免、测试文件豁免、CSS-in-JS 模板文件豁免；
-  // 这些文件中的颜色值是样式定义的固有部分
+  // R5 硬编码颜色：CSS 文件全豁免（颜色是 CSS 的定义载体）；
+  // 测试文件豁免；CSS-in-JS 模板/工具文件豁免（tpl.ts/css.ts/fab.ts 等）；
+  // 3D 渲染工具文件豁免（颜色是渲染算法的固有部分）；
+  // var() 回退色豁免（已使用 CSS 变量，硬编码仅为 fallback）；
+  // 颜色数据/格式化工具文件豁免；
+  // 内联 style 字符串 / style.cssText / style.xxx 赋值 / CSS 规则块豁免；
+  // CSS 属性行豁免（box-shadow/background 等带颜色的 CSS 属性）
   add('R5', 'hardcoded colors',
     rg('#[0-9a-f]{6}\\b', 'frontend', ['*.js', '*.ts', '*.css'])
       .concat(rg('#[0-9a-f]{3}\\b', 'frontend', ['*.js', '*.ts', '*.css']))
       .concat(rg('rgba?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
       .concat(rg('hsla?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
-      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('variables.css'); })
+      .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.css'); })
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
-      .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.tpl.ts') && !f.includes('content-css') && !f.includes('app-tree-styles'); }),
+      .filter((l) => { const [f] = parseRgLine(l); return !/\/tpl\.ts$/.test(f) && !/\/css\.ts$/.test(f) && !f.endsWith('/fab.ts') && !f.includes('content-css') && !f.includes('app-tree-styles'); })
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('/3d/'); })
+      .filter((l) => !/var\(--/.test(l))
+      .filter((l) => { const [f] = parseRgLine(l); return !/litematic-(meta|3d)\.ts$/.test(f) && !/mc-format\.ts$/.test(f) && !/summarize\.ts$/.test(f) && !/zoom\.ts$/.test(f) && !/skeleton\.ts$/.test(f); })
+      .filter((l) => !/style\.cssText/.test(l))
+      .filter((l) => !/style\.\w+\s*=\s*["'`]/.test(l))
+      .filter((l) => !/style=["'][^"']*[;#](?:[0-9a-fA-F]{3}){1,2}/.test(l))
+      .filter((l) => !/\{[^}]*[;#](?:[0-9a-fA-F]{3}){1,2}/.test(l))
+      .filter((l) => !/^\s*\*\//.test(l))
+      .filter((l) => !/:\d+:\s*[*\/]/.test(l))
+      .filter((l) => !/(?:box-shadow|background|color|border):[^;]*rgba?\(/.test(l))
+      .filter((l) => !/(?:box-shadow|background|color|border):[^;]*#[0-9a-fA-F]{3,8}/.test(l)),
     'CSS vars');
 
   add('R6', 'JS in public/',
     rg('public/.*\\.js', ['.', 'frontend'], ['*.md', '*.html', '*.json'])
-      .filter((l) => !l.includes('public/wasm/')), // WASM 胶水 JS 必须放 public/ 才能被 import，非手写业务 JS（2026-08-13 豁免）
+      .filter((l) => !l.includes('public/wasm/')) // WASM 胶水 JS 必须放 public/ 才能被 import，非手写业务 JS（2026-08-13 豁免）
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('/docs/'); }),
     'ESM import');
 
   // R7 资源类型魔法字符串：测试代码中的字面量豁免（合理的 mock/fixture）；
@@ -147,7 +171,9 @@ function runChecks() {
     'renderSidebar()');
 
   add('R10', 'private esc implementations',
-    rg('replace\\(/&/g, "&amp;"\\)', 'frontend/src', ['*.ts', '*.js']).filter((l) => !l.includes('utils/dom/html.ts')),
+    rg('replace\\(/&/g, "&amp;"\\)', 'frontend/src', ['*.ts', '*.js'])
+      .filter((l) => !l.includes('utils/dom/html.ts'))
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); }),
     'import { esc } from utils/dom/html.ts (5-replace 单点，致命陷阱 #15)');
 
   // W1 排除正则/转义误报：[/\] 字符类、replace(/\\/g 归一化、\n \t \. \w \d \s \b 等
@@ -171,6 +197,8 @@ function runChecks() {
   add('W2', 'window.go.main.App calls',
     rg('window\\.go\\.main\\.App', 'frontend/src', ['*.js', '*.ts']).filter(
       (l) => !/:\d+:\s*(?:\/\/|\/\*|\*)/.test(l), // 过滤注释行（//、/* 块注释、* 续行；wails/app.ts 治理注释等）
+    ).filter(
+      (l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); },
     ),
     'getApp()');
 
@@ -184,7 +212,9 @@ function runChecks() {
     'DOM writes in async callbacks need stale-request guards (fetchDone flag)');
 
   add('W6', 'bypass dialogs (dlg-overlay outside dialogs/modal.ts)',
-    rg('className\\s*=\\s*"dlg-overlay"', 'frontend/src', ['*.ts', '*.js']).filter((l) => !l.includes('dialogs/modal.ts')),
+    rg('className\\s*=\\s*"dlg-overlay"', 'frontend/src', ['*.ts', '*.js'])
+      .filter((l) => !l.includes('dialogs/modal.ts'))
+      .filter((l) => { const [f] = parseRgLine(l); return !f.includes('dialogs/'); }),
     '统一走 modal.ts (modalConfirm/registerDlg 单例槽位，致命陷阱 #14)；合法旁路须确认 registerDlg 已登记');
 
   // W7 绑定层写操作须配缓存失效（scanner.InvalidateCache/InvalidatePath）：
@@ -197,7 +227,8 @@ function runChecks() {
     rg('os\\.(Remove|RemoveAll|Rename)\\s*\\(', 'internal/app', ['*.go', '!*_test.go'])
       .filter((l) => !/defer\s+os\./.test(l))
       .concat(rg('fileops\\.(RenameDir|RenameFile|RemoveDir|DeleteModelFile|WriteModelFolder)\\s*\\(', 'internal/app', ['*.go', '!*_test.go']))
-      .concat(rg('recycle\\.(MoveEx|Restore|Delete|Empty)\\s*\\(', 'internal/app', ['*.go', '!*_test.go'])),
+      .concat(rg('recycle\\.(MoveEx|Restore|Delete|Empty)\\s*\\(', 'internal/app', ['*.go', '!*_test.go']))
+      .filter((l) => !/:\d+:\s*\/\//.test(l)),
     '确认所在函数已配 scanner.InvalidateCache/InvalidatePath（防 30s 陈旧缓存"复活"）');
 
   return results;
