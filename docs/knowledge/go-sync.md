@@ -70,7 +70,7 @@ invariant_anchors:
 
 - `.ban` 后缀 = 禁用模型：仓库侧 `.ban` 文件不进缺失列表；实例中对应哈希的文件标记 Disabled 而非 Extra
 - 哈希全量计算（`scanner.ComputeFileHash`，`sync.go computeHash` 委托）；文件 >500MB（`types.MaxImportSize`）返回空串跳过哈希（同步对空哈希跳过匹配），读错误同样返回空
-- **所有扫描路径都必须排除 `.recycle`**，与 `scanner.ScanEntries` 口径对齐：`SyncResources` 的全局侧（`sync.go:400`）与实例侧（`sync.go:428`）Walk、`SyncResourcesDirLevel` 的 `collectEntries`（`sync.go:539`）均按 `strings.EqualFold(info.Name(), ".recycle")` 返回 `filepath.SkipDir`，`SyncToggleStatus` 用路径子串排除（`sync.go:170`）。漏排会把回收站里的模型当成仓库活跃模型，同步管理器显示 missing 且可被推送回实例（回归测试 `sync_test.go:349` `TestSyncResources_IgnoresRecycleDir`）
+- **所有扫描路径都必须排除 `.recycle`**，与 `scanner.ScanEntries` 口径对齐：`SyncResources` 的全局侧（`sync.go:400`）与实例侧（`sync.go:428`）Walk、`SyncResourcesDirLevel` 的 `collectEntries`（`sync.go:539`）均按 `strings.EqualFold(info.Name(), ".recycle")` 返回 `filepath.SkipDir`；`SyncToggleStatus` 用 `strings.Contains(strings.ToLower(p), ".recycle")` 检查整个路径（sync.go:181），非路径前缀匹配——漏排会把回收站里的模型当成仓库活跃模型，同步管理器显示 missing 且可被推送回实例（回归测试 `sync_test.go:349` `TestSyncResources_IgnoresRecycleDir`）
 - 前两处 SkipDir 带 `path != 根目录` 守卫：若用户把仓库根/实例根本身命名为 `.recycle` 则不跳过，否则整次扫描会直接空掉；`SyncResourcesDirLevel` 一侧无此守卫因为它已先排除 `path == rootDir`
 - 哈希对比类入口（`GetInstanceStatus` / `CompareGlobalInstanceHashes`）自身不 Walk 仓库，`.recycle` 的排除依赖注入的 `scanFn`（即 `scanner.ScanEntries`）——换用不排 `.recycle` 的 scanFn 会重新引入误判
 - `SyncResources` 同名文件按**大小**判定内容是否变化（复制会改 mtime，mtime 不可靠），大小不同归入 Missing 视为待更新；三个结果列表返回前均 `sort.Strings` 排序
@@ -81,7 +81,7 @@ invariant_anchors:
 - `RelinkDir` 处理文件夹级类型时先把旧目录 rename 成 `.relink-bak`，重建成功才删备份、失败则回滚恢复——不能先 `RemoveAll` 再重建，否则失败即整目录丢失。**根层平铺的 ysm.json/.pmx 退化为 `installer.Install` 单文件路径**（P1 修复：`dstParent == customDir` 时原逻辑会把整个实例目录 rename 走、同目录其他模型随备份 RemoveAll 丢失）
 - 硬链接检测跨平台分实现，系统调用失败一律降级 `LinkCopy`；`GetLinkType` 必须先 `os.Lstat` 判 `os.ModeSymlink`（`sync.go:602-614`）——用 `os.Stat` 会跟随链接、把符号链接误判成普通文件，进而按「复制」策略走回收站
 - 链接类型是删除策略依据：硬链接(nlink>1)/符号链接直接删，普通文件才移回收站（致命陷阱 #8）
-- 拉取侧 `copyFile`（`sync_push.go:221`）是**跟随符号链接**的裸复制：`os.Open` + `io.Copy`，不保留链接语义、不 chmod、失败不清理半截目标文件。`PullResources` / `PullSingleResource` 遍历文件夹时按 `e.IsDir()` 跳过子目录，而指向目录的符号链接 `IsDir()` 为 false 不被跳过，会走进 `copyFile` 并在 `io.Copy` 阶段报错（EISDIR 类）——该条目计 failed 但循环继续，不会中断整组拉取。这与 [go_recycle](./go-recycle.md) 的 `copyDirRecursive` 已改用 `os.Readlink` + `os.Symlink` 保留链接的做法不同，本包尚未对齐
+- 拉取侧 `copyFile`（`sync_push.go:228`）已修复为 **tmp+rename 原子落地**（P3 修复）：带 defer 清理半截文件，失败不清理残留；`copyDirRecursive`（`sync_push.go:271`）递归复制时保留符号链接语义（`os.Readlink` + `os.Symlink`），不跟随复制——与 [go_recycle](./go-recycle.md) 的 `copyDirRecursive` 口径已对齐
 - 实例 custom 目录固定为 `config/yes_steve_model/custom`
 
 ## 相关
