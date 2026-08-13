@@ -5,8 +5,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // 阻断 Wails runtime（drag.js 在模块加载时访问 window）
+// On 返回 vi.fn() 供断言 unsub 被调用（config-loaded 生命周期 P1 回归）
 vi.mock("@wailsio/runtime", () => ({
-  Events: { On: vi.fn().mockReturnValue(() => {}) },
+  Events: { On: vi.fn().mockReturnValue(vi.fn()) },
 }));
 
 // getApp 全绑定 mock（组件多处从 getApp() 解构绑定，缺导出会 "not a function"）
@@ -105,5 +106,36 @@ describe("app-content 生命周期配对", () => {
     // 未知值应回退 repository（仓库页渲染，且绑定正常）
     expect(el.shadowRoot?.querySelector(".repo-tab")).toBeTruthy();
     unmountElement(el);
+  });
+
+  it("config-loaded 订阅生命周期：disconnected 退订 → 重建后重新注册（P1 回归）", async () => {
+    // 子代理审核发现的 P1：index.ts 与 init-workshop.ts 各自持有同名模块级
+    // _avatarConfigLoaded*，disconnectedCallback 清理的是自己的死拷贝，真实
+    // unsub 永不执行。修复后经 resetAvatarConfigLoaded() 协作，此处锁回归。
+    const { Events } = await import("@wailsio/runtime");
+    const onMock = vi.mocked(Events.On);
+
+    // 第一次 mount + 切 workshop 页 → 注册 config-loaded 订阅
+    onMock.mockClear();
+    const el = mountCustomElement("app-content");
+    await sleep(150);
+    bus.emit("nav:change", { page: "workshop" });
+    await sleep(250);
+    expect(onMock).toHaveBeenCalledWith("config-loaded", expect.any(Function));
+    const unsub = onMock.mock.results[0]?.value as ReturnType<typeof vi.fn>;
+    expect(typeof unsub).toBe("function");
+
+    // disconnected → 真实 unsub 被调用（旧订阅退订）
+    unmountElement(el);
+    expect(unsub).toHaveBeenCalled();
+
+    // 重建 + 再切 workshop → 重新注册（flag 已复位，新实例可注册）
+    onMock.mockClear();
+    const el2 = mountCustomElement("app-content");
+    await sleep(150);
+    bus.emit("nav:change", { page: "workshop" });
+    await sleep(250);
+    expect(onMock).toHaveBeenCalledWith("config-loaded", expect.any(Function));
+    unmountElement(el2);
   });
 });
