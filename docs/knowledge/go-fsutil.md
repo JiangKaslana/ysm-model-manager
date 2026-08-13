@@ -50,3 +50,4 @@ invariant_anchors:
 
 - [go_recycle](./go-recycle.md) — `.recycle` 目录语义
 - [go_sync](./go-sync.md) — 同步扫描的底层遍历补充（sync 内部另有局部 Walk）
+- **Windows 共享锁情报（2026-08 子代理实测）**：Go 的 `os.Open`/`syscall.Open` 读打开恒带 `FILE_FLAG_BACKUP_SEMANTICS`，可完全绕过 share-mode-0（独占共享锁）的冲突检查——依赖 share-mode 锁判定「文件被占用」的代码（如 installer 的 copyFileLocked 系）对 Go 自身 os.Open **无效**，锁只能拦外部进程；同进程直接 `CreateFile(share=0)` 反而会被拦。做锁相关功能前先知悉此行为
