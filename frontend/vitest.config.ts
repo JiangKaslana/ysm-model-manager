@@ -26,6 +26,8 @@ export default defineConfig({
         // IO 胶水，单测成本高价值低；可测的纯解析逻辑已抽到 parse-ysm-json.ts。
         // 与 ADR-023 排除 wasm 层的本意一致（该文件从 src/wasm 迁出后需在此补挂）。
         "src/views/app-preview/wasm.ts",
+        // 实验/spike 入口（非生产代码，无导出符号；知识卡侧已由 7cb1a0da 排除）
+        "src/web-spike/**",
       ],
       thresholds: {
         // 2026-08-13 校准：8-09 校准（40/31/40/40）后 src/** 单测大规模补强
