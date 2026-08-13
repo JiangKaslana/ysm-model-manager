@@ -16,11 +16,26 @@ import (
 	"time"
 
 	"ysm-model-manager/go/executil"
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/threejs"
 	"ysm-model-manager/go/types"
 	"ysm-model-manager/go/ysm"
 )
+
+// bedrockReadMax 受限整读上限（对齐 fileops maxPreviewRead 50MB 口径，
+// 防 YSMParser 被篡改输出 GB 级 JSON 撑爆内存）
+const bedrockReadMax = 50 << 20
+
+// readLimitedFileBedrock 受限整读 JSON 文件（仅用于 parseBedrockGeometry 输入）
+// 返回 nil 表示读失败或超限（对齐 fileops readLimitedFile 风格）
+func readLimitedFileBedrock(path string) []byte {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	return fsutil.ReadLimitedEntry(f, bedrockReadMax)
+}
 
 func (a *App) AnalyzeYSMModel(path string) ysm.YSMModelMeta {
 	return ysm.AnalyzeYSMModel(path)
@@ -298,8 +313,11 @@ func (a *App) runYSMParserOnFile(modelPath string) types.BedrockModel {
 		if strings.HasSuffix(p, "ysm.json") {
 			return nil
 		}
-		data, rErr := os.ReadFile(p)
-		if rErr != nil {
+		// P2 修复：受限整读（上限 50MB，对齐 geometry maxExtractSize 口径）
+		// 防 YSMParser 被篡改输出 GB 级 JSON 撑爆内存
+		data := readLimitedFileBedrock(p)
+		if data == nil {
+			log.Printf("[app-model] 几何 JSON 读取失败或超限: %s", p)
 			return nil
 		}
 		if g := parseBedrockGeometry(data); g != nil {

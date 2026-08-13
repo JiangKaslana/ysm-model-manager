@@ -168,14 +168,15 @@ export async function decodeYsmFileFromMemory(
   const ccall = wasmModule!.ccall;
   if (!ccall) throw new Error("ccall 不可用，请重新编译 WASM");
 
-  // 准备输出目录
-  wipeDir(FS, "/output");
-  ensureDir(FS, "/output");
-
-  // 使用辅助函数分配内存并写入数据
-  const ptr = _writeHeap(bytes);
-
+  let ptr = 0;
   try {
+    // 准备输出目录
+    wipeDir(FS, "/output");
+    ensureDir(FS, "/output");
+
+    // 使用辅助函数分配内存并写入数据
+    ptr = _writeHeap(bytes);
+
     const len = bytes.byteLength || bytes.length;
     const success = ccall(
       "ysm_decode_from_memory",
@@ -187,8 +188,8 @@ export async function decodeYsmFileFromMemory(
     if (!success) return null;
     return collectOutputFiles(FS, "/output");
   } catch (err) {
-    // P2 硬崩溃恢复：内存越界/栈溢出等不可捕获 trap 后实例死透，
-    // 重置单例供下次调用重新 init（否则 wasmModule 恒非空 → 永久失败）
+    // P2 硬崩溃恢复：_malloc/FS 操作同样可能触发 trap，
+    // 一并纳入 catch 确保重置单例（否则 wasmModule 恒非空 → 永久失败）
     const errStr = String((err as { name?: string })?.name || err);
     if (errStr.includes("ExitStatus") || /abort|trap|out of memory/i.test(errStr)) {
       resetYSMParser();
@@ -196,7 +197,7 @@ export async function decodeYsmFileFromMemory(
     throw err;
   } finally {
     // 崩溃恢复已置空 wasmModule —— 判空后再 _free，避免 null 掩盖原始错误
-    wasmModule?._free(ptr);
+    if (ptr) wasmModule?._free(ptr);
   }
 }
 
@@ -214,19 +215,20 @@ export async function decodeYsmFile(
   const FS = wasmModule!.FS;
   if (!FS) throw new Error("YSMParser FS 不可用");
 
-  wipeDir(FS, "/input");
-  wipeDir(FS, "/output");
-  ensureDir(FS, "/input");
-  ensureDir(FS, "/output");
-
-  FS.writeFile("/input/model.ysm", bytes);
-
-  const hasCallMain = typeof wasmModule!.callMain === "function";
-  if (!hasCallMain) {
-    console.warn("[YSM] WASM 无 callMain，MEMFS 路径不可用");
-  }
-
   try {
+    // 这些 FS 操作同样可能触发 trap，纳入 catch 确保重置单例
+    wipeDir(FS, "/input");
+    wipeDir(FS, "/output");
+    ensureDir(FS, "/input");
+    ensureDir(FS, "/output");
+
+    FS.writeFile("/input/model.ysm", bytes);
+
+    const hasCallMain = typeof wasmModule!.callMain === "function";
+    if (!hasCallMain) {
+      console.warn("[YSM] WASM 无 callMain，MEMFS 路径不可用");
+    }
+
     if (hasCallMain) {
       wasmModule!.callMain!(["-i", "/input", "-o", "/output"]);
     }

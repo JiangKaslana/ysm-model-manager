@@ -435,21 +435,21 @@
 | `App.DebugExtractCreatorAvatar()` | `internal/app/app_avatar:73` | DebugExtractCreatorAvatar 调试版：提取指定作者头像 |
 | `App.CacheModelAvatars()` | `internal/app/app_avatar:128` | CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式） |
 | `App.GetConfigPath()` | `internal/app/app_config:59` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
-| `App.SaveAppConfig()` | `internal/app/app_config:133` | — |
-| `App.SetDownloadMirror()` | `internal/app/app_config:201` | — |
-| `App.LoadAppConfig()` | `internal/app/app_config:230` | — |
-| `App.GetSubDirMap()` | `internal/app/app_config:251` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
-| `App.CurrentVersion()` | `internal/app/app_config:255` | — |
-| `App.CheckUpdate()` | `internal/app/app_config:257` | — |
-| `App.DownloadUpdate()` | `internal/app/app_config:261` | — |
-| `App.ApplyUpdate()` | `internal/app/app_config:268` | — |
-| `App.DoUpdate()` | `internal/app/app_config:306` | — |
-| `App.RestartApplication()` | `internal/app/app_config:324` | — |
-| `App.SaveWindowPosition()` | `internal/app/app_config:359` | — |
-| `App.GetWindowPosition()` | `internal/app/app_config:373` | — |
-| `App.SelectDirectory()` | `internal/app/app_config:406` | ========== 目录选择 ========== |
-| `App.GetMinecraftPaths()` | `internal/app/app_config:469` | — |
-| `App.ValidateMinecraftDir()` | `internal/app/app_config:471` | — |
+| `App.SaveAppConfig()` | `internal/app/app_config:135` | — |
+| `App.SetDownloadMirror()` | `internal/app/app_config:205` | — |
+| `App.LoadAppConfig()` | `internal/app/app_config:236` | — |
+| `App.GetSubDirMap()` | `internal/app/app_config:257` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
+| `App.CurrentVersion()` | `internal/app/app_config:261` | — |
+| `App.CheckUpdate()` | `internal/app/app_config:263` | — |
+| `App.DownloadUpdate()` | `internal/app/app_config:267` | — |
+| `App.ApplyUpdate()` | `internal/app/app_config:274` | — |
+| `App.DoUpdate()` | `internal/app/app_config:312` | — |
+| `App.RestartApplication()` | `internal/app/app_config:330` | — |
+| `App.SaveWindowPosition()` | `internal/app/app_config:365` | — |
+| `App.GetWindowPosition()` | `internal/app/app_config:379` | — |
+| `App.SelectDirectory()` | `internal/app/app_config:412` | ========== 目录选择 ========== |
+| `App.GetMinecraftPaths()` | `internal/app/app_config:475` | — |
+| `App.ValidateMinecraftDir()` | `internal/app/app_config:477` | — |
 | `NewDownloadQueue()` | `internal/app/app_download:51` | NewDownloadQueue 创建串行下载队列（回调由 App 初始化时注入） |
 | `App.EnqueueDownloads()` | `internal/app/app_download:56` | — |
 | `App.CancelQueue()` | `internal/app/app_download:86` | — |
@@ -512,16 +512,16 @@
 | `App.ClearImportLogs()` | `internal/app/app_install:915` | — |
 | `App.GetRuntimeLogs()` | `internal/app/app_install:920` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
 | `App.ClearRuntimeLogs()` | `internal/app/app_install:925` | ClearRuntimeLogs 清空运行时日志缓冲 |
-| `App.AnalyzeYSMModel()` | `internal/app/app_model:25` | — |
-| `App.ExtractYsmSummary()` | `internal/app/app_model:29` | — |
-| `App.ExtractYSMHeader()` | `internal/app/app_model:43` | — |
-| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:47` | — |
-| `App.SavePreviewTempFile()` | `internal/app/app_model:55` | — |
-| `App.ReadFileBytes()` | `internal/app/app_model:74` | — |
-| `App.AnalyzeBedrockModel()` | `internal/app/app_model:88` | — |
-| `App.GetModel3DSpec()` | `internal/app/app_model:140` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:176` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:238` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.AnalyzeYSMModel()` | `internal/app/app_model:40` | — |
+| `App.ExtractYsmSummary()` | `internal/app/app_model:44` | — |
+| `App.ExtractYSMHeader()` | `internal/app/app_model:58` | — |
+| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:62` | — |
+| `App.SavePreviewTempFile()` | `internal/app/app_model:70` | — |
+| `App.ReadFileBytes()` | `internal/app/app_model:89` | — |
+| `App.AnalyzeBedrockModel()` | `internal/app/app_model:103` | — |
+| `App.GetModel3DSpec()` | `internal/app/app_model:155` | — |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:191` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:253` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `App.ExportBoneStructures()` | `internal/app/app_scan:25` | ========== 批量导出骨骼结构 ========== |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:81` | ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:118` | ========== 高级搜索 ========== |
@@ -559,13 +559,13 @@
 | `App.BackupWorkshopCreators()` | `internal/app/app_workshop:309` | — |
 | `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:322` | — |
 | `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:364` | — |
-| `NewApp()` | `internal/app/app:51` | — |
-| `App.SetApp()` | `internal/app/app:77` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
-| `App.SetMainWindow()` | `internal/app/app:82` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
-| `App.ServiceStartup()` | `internal/app/app:85` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:163` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:196` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:201` | GetAppVersion 返回当前版本号 |
+| `NewApp()` | `internal/app/app:53` | — |
+| `App.SetApp()` | `internal/app/app:79` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
+| `App.SetMainWindow()` | `internal/app/app:84` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
+| `App.ServiceStartup()` | `internal/app/app:87` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
+| `App.ServiceShutdown()` | `internal/app/app:167` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:202` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:207` | GetAppVersion 返回当前版本号 |
 | `App()` | `internal/app/app:25` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
 | `CLIMain()` | `internal/app/cli:19` | — |
@@ -1106,7 +1106,7 @@
 | `resetYSMParser()` | `frontend/src/wasm/ysm-parser:60` | — |
 | `initYSMParser()` | `frontend/src/wasm/ysm-parser:67` | — |
 | `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:159` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
-| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:207` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
+| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:208` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
 
 ---
