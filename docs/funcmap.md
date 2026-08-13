@@ -951,15 +951,15 @@
 | `isIdentityQuat()` | `frontend/src/utils/3d/spec-builder` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/spec-builder` | — |
 | `buildModelGroup()` | `frontend/src/utils/3d/spec-builder` | — |
-| `Vec3()` | `frontend/src/utils/3d/spec-builder:33` | vec3 — Go threejs/spec.go L55 |
-| `Cube2D()` | `frontend/src/utils/3d/spec-builder:40` | Cube2D — Go types/bedrock.go Cube2D |
-| `Bone2D()` | `frontend/src/utils/3d/spec-builder:56` | Bone2D — Go types/bedrock.go Bone2D |
-| `BedrockModel()` | `frontend/src/utils/3d/spec-builder:66` | BedrockModel — Go types/bedrock.go BedrockModel |
-| `Model3DSpec()` | `frontend/src/utils/3d/spec-builder:77` | Model3DSpec — Go threejs/spec.go Model3DSpec |
-| `ModelGroup()` | `frontend/src/utils/3d/spec-builder:82` | ModelGroup — Go threejs/spec.go ModelGroup |
-| `BoneData()` | `frontend/src/utils/3d/spec-builder:94` | BoneData — Go threejs/spec.go BoneData |
-| `MeshData()` | `frontend/src/utils/3d/spec-builder:104` | MeshData — Go threejs/spec.go MeshData |
-| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:123` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `Vec3()` | `frontend/src/utils/3d/spec-builder:26` | vec3 — Go threejs/spec.go L55 |
+| `Cube2D()` | `frontend/src/utils/3d/spec-builder:33` | Cube2D — Go types/bedrock.go Cube2D |
+| `Bone2D()` | `frontend/src/utils/3d/spec-builder:49` | Bone2D — Go types/bedrock.go Bone2D |
+| `BedrockModel()` | `frontend/src/utils/3d/spec-builder:59` | BedrockModel — Go types/bedrock.go BedrockModel |
+| `Model3DSpec()` | `frontend/src/utils/3d/spec-builder:70` | Model3DSpec — Go threejs/spec.go Model3DSpec |
+| `ModelGroup()` | `frontend/src/utils/3d/spec-builder:75` | ModelGroup — Go threejs/spec.go ModelGroup |
+| `BoneData()` | `frontend/src/utils/3d/spec-builder:87` | BoneData — Go threejs/spec.go BoneData |
+| `MeshData()` | `frontend/src/utils/3d/spec-builder:97` | MeshData — Go threejs/spec.go MeshData |
+| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:116` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:12` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:9` | 三维向量 [x, y, z] |
 | `Keyframe()` | `frontend/src/utils/animation/animation:12` | 关键帧 |
@@ -1132,15 +1132,15 @@
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:6` | — |
-| `settingsHTML()` | `frontend/src/views/app-content/tpl:89` | — |
+| `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `GH_RELEASES()` | `frontend/src/views/app-content/tpl:11` | — |
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:17` | — |
 | `instancesHTML()` | `frontend/src/views/app-content/tpl:68` | — |
-| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:511` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:575` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:606` | — |
+| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:93` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:157` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:188` | — |
 | `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:8` | 创作者身份识别结果 |
 | `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:15` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
 | `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:22` | — |
