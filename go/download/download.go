@@ -104,6 +104,17 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
+	// BUG-HTTP-2 修复：Content-Range 头存在 = 服务端返回的是 partial 响应（206 或 200+Range 变体），
+	// 即使 StatusCode=200 也属数据不完整——不能装盘。
+	// 服务端可能用 200 OK + Content-Range 头伪装完整响应（SSRF 中间人场景），此处强制拒绝。
+	if cr := resp.Header.Get("Content-Range"); cr != "" {
+		return fmt.Errorf("拒绝 partial 响应 Content-Range: %q", cr)
+	}
+	// BUG-HTTP-5 修复：二进制文件下载时校验 Content-Type，避免服务端返回 HTML 错误页当文件装盘。
+	// HTML/text/JSON 错误页常见于反向代理 502/503 或 GitHub 404 页面。
+	if ct := resp.Header.Get("Content-Type"); ct != "" && !isBinaryContentType(ct) {
+		return fmt.Errorf("拒绝非二进制响应 Content-Type: %q", ct)
+	}
 
 	// P1：原子写入——同目录临时文件 + Sync/Close/Rename，失败清理与崩溃残留只影响
 	// 临时文件，不再触碰最终路径上的旧完好文件
@@ -188,19 +199,51 @@ func (d *Downloader) FromGitHubAPI(ctx context.Context, apiURL, savePath string,
 	return d.downloadTo(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress)
 }
 
+// isBinaryContentType 判断 Content-Type 是否非"HTML 错误页"。
+// 真实风险：服务端 502/503/404 返回 `text/html` 错误页被当文件装盘。
+// 策略：仅明确拒绝 HTML 类型，其余全部放行——避免误伤文本文件（.json / .ysm 配置等）与未知类型。
+// 空 Content-Type（HTTP/1.0 常见）放行。
+func isBinaryContentType(ct string) bool {
+	if ct == "" {
+		return true
+	}
+	ct = strings.ToLower(strings.TrimSpace(strings.SplitN(ct, ";", 2)[0]))
+	// 仅拒绝 HTML/XHTML 错误页——这是唯一会伪装成"完整响应"的危险文本类型
+	nonFileTypes := map[string]bool{
+		"text/html":             true,
+		"application/xhtml+xml": true,
+		"application/xml":       true, // 纯 XML 错误页常见于反向代理
+		"text/xml":              true,
+	}
+	return !nonFileTypes[ct]
+}
+
 // ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。
 func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL string) {
 	if err := os.MkdirAll(saveDir, 0755); err != nil {
 		log.Printf("[download] 创建保存目录失败 %s: %v", saveDir, err)
 		return "", "", ""
 	}
+	// BUG-B-1/2/13 修复：用 neturl.Parse 分离 path/query/fragment，
+	// 分支标记（/main/ /master/）只在 URL path 段查找，避免 query 中的 "/main/" 误识别为分支；
+	// 提取的 relPath 不携带 query/fragment，避免 savePath/jsdURL/apiURL 污染。
+	u, err := neturl.Parse(rawURL)
+	if err != nil {
+		log.Printf("[download] URL 解析失败 %s: %v", rawURL, err)
+		return "", "", ""
+	}
+	urlPath := u.Path
+	if urlPath == "" {
+		urlPath = rawURL // 降级：无法解析时使用原始 URL
+	}
+
 	relPath := ""
 	repoPath := ""
 	branch := ""
 	// 支持 main 与 master 默认分支（默认分支非 main 的仓库不再解析失败）
 	for _, b := range []string{"/main/", "/master/"} {
-		if idx := strings.Index(rawURL, b); idx > 0 {
-			relPath = rawURL[idx+len(b):]
+		if idx := strings.Index(urlPath, b); idx > 0 {
+			relPath = urlPath[idx+len(b):]
 			branch = b[1 : len(b)-1]
 			break
 		}
@@ -212,9 +255,14 @@ func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL st
 		}
 	}
 	if relPath == "" {
-		relPath = filepath.Base(rawURL)
+		relPath = filepath.Base(u.Path)
+		if relPath == "" {
+			relPath = filepath.Base(rawURL)
+		}
 	}
 	relPath = strings.ReplaceAll(relPath, "/", string(filepath.Separator))
+	// BUG-B-8 修复：剔除 .git/ 前缀，防止下载 .git/config 泄露仓库 token/远端配置。
+	relPath = strings.TrimPrefix(relPath, ".git"+string(filepath.Separator))
 	relPath = strings.TrimPrefix(relPath, ".recycle"+string(filepath.Separator))
 	savePath = filepath.Join(saveDir, relPath)
 
