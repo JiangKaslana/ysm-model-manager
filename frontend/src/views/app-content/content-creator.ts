@@ -61,7 +61,6 @@ export const contentCreatorCSS: string = `
 /* 创作者卡片：.cr-creator-card 基础（列表行） + .cr-creator-card--grid 网格变体（BEM 修饰符，替代后置 cascade 覆盖） */
 .cr-creator-card { display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-md);border:1px solid var(--bd);background:var(--bg);cursor:pointer;transition:var(--tr-fast); }
 .cr-creator-card:hover { border-color:var(--accent);background:var(--hover); }
-.cr-creator-card.cr-has-repo { border-left:3px solid var(--accent); }
 .cr-creator-icon { font-size:18px;width:28px;text-align:center;flex-shrink:0; }
 .cr-creator-body { flex:1;min-width:0; }
 .cr-creator-name { font-size:var(--fs-md);font-weight:600;color:var(--txt); }
@@ -132,7 +131,7 @@ export const contentCreatorCSS: string = `
   background:conic-gradient(from var(--grad-rot,0deg),#9E9E9E,transparent 60%,#9E9E9E);
   box-shadow:0 0 6px rgba(158,158,158,.25);
 }
-.cr-creator-card--grid[data-tier=""] .cr-avatar-ring {
+.cr-creator-card--grid:not([data-tier]) .cr-avatar-ring {
   background:conic-gradient(from var(--grad-rot,0deg),#6B9FFF,transparent 60%,#6B9FFF);
   box-shadow:none;
 }

@@ -313,7 +313,7 @@
 /* 导入队列项目滑入 */
 .no-animations #dl-imported-list > div { animation: none !important; }
 /* 创作者卡片筛选淡出 */
-.no-animations .cr-creator-card.cr-card-hidden { transition: none !important; }
+.no-animations .cr-creator-card--grid.cr-card-hidden { transition: none !important; }
 /* 批量重命名行入场 */
 .no-animations .br-row { animation: none !important; }
 /* 诊断面板切换 */
