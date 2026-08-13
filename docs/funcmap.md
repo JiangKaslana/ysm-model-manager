@@ -38,10 +38,10 @@
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 46 | 159 |
+| 前端·工具 | 47 | 162 |
 | frontend/views | 70 | 199 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **245** | **1022** |
+| **合计** | **246** | **1025** |
 
 ## Go·头像
 
@@ -905,16 +905,19 @@
 | `loadTdKeymap()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdRotMode()` | `frontend/src/utils/3d/model3d` | — |
-| `SpecBone3D()` | `frontend/src/utils/3d/model3d:19` | — |
-| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:27` | — |
-| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:39` | — |
-| `Spec3D()` | `frontend/src/utils/3d/model3d:47` | — |
-| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:52` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:66` | renderModel3D 返回的渲染句柄 |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:101` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:510` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `SpecBone3D()` | `frontend/src/utils/3d/model3d:18` | — |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:26` | — |
+| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:38` | — |
+| `Spec3D()` | `frontend/src/utils/3d/model3d:46` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:51` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:65` | renderModel3D 返回的渲染句柄 |
+| `renderModel3D()` | `frontend/src/utils/3d/model3d:100` | 渲染 3D 模型到容器，返回控制句柄 |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:501` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:31` | 启动渲染循环并立即渲染一帧。 |
+| `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
+| `resetRendererState()` | `frontend/src/utils/3d/session-state:18` | 复位所有模块级渲染器引用为 null。 |
+| `detachRendererCanvas()` | `frontend/src/utils/3d/session-state:28` | 从 DOM 中移除 renderer 的 canvas 元素（安全，已 detached 时不操作）。 |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:116` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:12` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:9` | 三维向量 [x, y, z] |

@@ -11,8 +11,7 @@ import { startRenderLoop } from "./render-loop.ts"; // 主渲染循环（已拆�
 import { fitCameraToScene } from "./camera-setup.ts"; // 相机初始化（已拆）
 import { getBoneList } from "./bone-list.ts"; // 骨骼列表（已拆）
 import { setBoneVisible as _setBoneVisible, toggleBone as _toggleBone, showModelGroup as _showModelGroup } from "./bone-visibility.ts"; // 骨骼可见性（已拆）
-
-// ── 入口守卫：复用 cleanup（已在 cleanup-helper.ts 中定义 dispose 函数）────────────
+import { resetRendererState, detachRendererCanvas } from "./session-state.ts"; // 会话状态重置（已拆）
 
 // ── Spec 结构（Go 返回的 models 结构）────────────────
 
@@ -116,13 +115,8 @@ export async function renderModel3D(
       disposeSceneMeshes(_scene3d);
     }
     safeDisposeRenderer(_renderer3d!);
-    if (_renderer3d.domElement.parentNode) {
-      _renderer3d.domElement.parentNode.removeChild(_renderer3d.domElement);
-    }
-    _renderer3d = null;
-    _scene3d = null;
-    _camera3d = null;
-    _rootGroup3d = null;
+    detachRendererCanvas(_renderer3d!);
+    resetRendererState({ _renderer3d, _scene3d, _camera3d, _rootGroup3d });
   }
 
   const scene = new THREE.Scene();
@@ -479,10 +473,7 @@ export async function renderModel3D(
       }
       disposeSceneMeshes(scene);
       safeDisposeRenderer(renderer);
-      _renderer3d = null;
-      _scene3d = null;
-      _camera3d = null;
-      _rootGroup3d = null;
+      resetRendererState({ _renderer3d, _scene3d, _camera3d, _rootGroup3d });
       container.innerHTML = "";
     },
   };
@@ -501,7 +492,7 @@ export async function renderModel3D(
     _sessionCleanups.forEach((fn) => fn());
     _sessionCleanups = [];
     try { renderer.dispose(); } catch { /* ignore */ }
-    _renderer3d = null; _scene3d = null; _camera3d = null; _rootGroup3d = null;
+    resetRendererState({ _renderer3d, _scene3d, _camera3d, _rootGroup3d });
     throw e;
   }
 }
