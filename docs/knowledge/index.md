@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 76 张知识卡
+> 总计: 82 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -18,7 +18,7 @@
 
 - **resource-registry**（资源注册表 registry）：`resource_types.json` 是 YSM 资源类型定义的单一事实来源（Single Source of Truth）。所有资源类型、子目录、扩展名的定义均以此处为准。
 
-## core（10 张）
+## core（12 张）
 
 *核心基础设施（事件总线、页面状态、Wails 桥接）*
 
@@ -26,8 +26,10 @@
 |------|------|------|--------|
 | 🏗 android-bridge | Android 桥接层：存储授权 + 目录选择器 | architecture | Android, 存储授权, 目录选择, MANAGE_EXTERNAL_STORAGE, 权限, 选择目录, SAF, android-bridge, pickDirectory |
 | 🏗 android-events | Android 系统事件消费（back/网络/存储授权） | architecture | android:back, 返回键, 弹窗, 退出, 系统事件, ScreenLocked, NetworkChanged, permissionGranted, closeActiveDialog, registerAndroidEvents |
+| 🏗 backend-idb | 浏览器后端 IndexedDB 封装 | architecture | IndexedDB, 网页版, backend, 模型库, browser adapter, web mode |
 | 🏗 event-bus | 事件总线 bus.ts | architecture | 事件, 事件总线, 通信, emit, 跨组件通信, bus |
 | 🏗 global-handlers | 全局事件处理 global-handlers | architecture | 全局事件, 拖拽导入, 拖拽遮罩, 同步缺失, 清空整合包, 导出清单 |
+| 🏗 i18n | 国际化 i18n 模块 | architecture | 翻译, 多语言, i18n, t(), 语言切换, lang:changed |
 | 🏗 page-store | 页面状态管理 page-store.ts | architecture | 页面, 当前页, 状态管理, page store, currentPage |
 | 🏗 pointer-events | Pointer Events 统一交互（触屏 + 桌面） | architecture | pointerdown, pointermove, pointerup, setPointerCapture, touch-action, 触屏, 拖拽, 旋转, hover, mouseenter, 全窗预览 |
 | 🍃 theme | 主题系统 theme | leaf | 主题, 换肤, 深色, 浅色, 跟随系统, 动画开关, 字号, 界面偏好 |
@@ -39,8 +41,10 @@
 
 - **android-bridge**（Android 桥接层：存储授权 + 目录选择器）：Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 WebView，桌面端无此桥返回 `null`）与跨平台目录选择器。解决 Android 上 Wails 官方**拒绝目录选择**（…
 - **android-events**（Android 系统事件消费（back/网络/存储授权））：前端消费 Java 层经 Wails 事件总线转发的 `android:*` 系统事件（ADR-046 P2，参照 MikuMikuAR ADR-017 A3-04）。桌面端无 Java 层，这些事件永不触发，注册无害。生命周期由 `reg…
+- **backend-idb**（浏览器后端 IndexedDB 封装）：`backend/` 目录是 YSM 网页版的后端抽象层（ADR-049 Phase 1-2），在桌面/Android 走 Wails Go 绑定、网页版走 `browser-adapter.ts` + `idb.ts` 的同一接口。`id…
 - **event-bus**（事件总线 bus.ts）：`bus.ts` 是 YSM 前端的唯一事件中枢，基于发布/订阅模式。所有跨组件、跨页面的异步通信都经过此总线，避免组件间直接耦合。
 - **global-handlers**（全局事件处理 global-handlers）：`core/handlers/global.ts` 是全应用唯一的全局 handler 注册入口（致命陷阱 #2 的解法）：app-content 的 `connectedCallback` 调一次 `registerGlobalHandl…
+- **i18n**（国际化 i18n 模块）：`i18n` 模块是 YSM 前端的唯一翻译层，基于 ADR-045 设计。`t.ts` 提供纯函数式翻译（按 key 查表），`locale.ts` 管理语言状态、持久化与异步加载。支持简体中文（基准）、英语、日语三种语言，语言偏好持久化…
 - **page-store**（页面状态管理 page-store.ts）：`page-store.ts` 管理 YSM 的前端页面导航状态，是 `PageStore.currentPage` 的唯一数据源，替代了旧版 `window.__currentPage`。核心职责是维护只读当前页状态与启动初始页解析——*…
 - **pointer-events**（Pointer Events 统一交互（触屏 + 桌面））：ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事件统一迁移 **Pointer Events**（`pointerdown/move/up` + `setPointerCapture` + CSS `…
 - **theme**（主题系统 theme）：主题系统的实现在组件入口 `app-modules.ts`（无独立 theme.ts 文件）：提供 6 套主题皮肤（cyber/warm/pro/sakura/ocean/mint）+ `system` 跟随系统模式，全部通过在 `<bod…
@@ -134,7 +138,7 @@
 - **go-ysm-parser**（YSM 解析 go/ysm）：`go/ysm/` 包负责解析 YSM（Yuan's Sketch Model）格式文件，提取模型元数据并生成结构化摘要。
 - **wails-bindings**（Wails Binding API 总览 internal/app）：`internal/app/` 是 Go 端唯一的 Wails Binding 入口层：所有导出给前端的方法都定义在 `*App` 上，业务逻辑下沉到 `go/*` 包，本层只做参数转发与窗口/事件/对话框编排。前端统一经 `getApp(…
 
-## ui（17 张）
+## ui（18 张）
 
 *前端 UI 组件（tree、sidebar、preview、content）*
 
@@ -155,6 +159,7 @@
 | 🏗 dialog-modal | 弹窗基座 modal | architecture | 弹窗, 对话框, 确认框, 输入框弹窗, 下拉选择弹窗, modal, prompt, confirm |
 | 🍃 dialog-rename | 重命名弹窗 rename | leaf | 重命名, 改名, 命名规范, 作者 品牌 角色, rename, 读取头部 |
 | 🏗 dialog-tag-editor | 标签编辑器 tag-editor | architecture | 标签, 打标签, 编辑标签, tag, 标签弹窗, 分类标记 |
+| 🏗 dom-fab | 3D 预览悬浮 FAB 控制层 | architecture | FAB, 悬浮按钮, 3D 预览, overlay, ADR-057 |
 | 🍃 shared-styles | 共享样式 shared-styles | leaf | 共享样式, 按钮样式, btn-base, focus-visible, tree 样式, Shadow DOM 样式, CSS 变量 |
 | 🏗 test-utils | 测试工具 test-utils（G-1 抗脆弱测试基础设施） | architecture | 测试工具, testid, getByTestId, waitFor, 组件测试, mock, G-1 |
 
@@ -175,18 +180,22 @@
 - **dialog-modal**（弹窗基座 modal）：`modal.ts` 是全应用统一的模态弹窗基座：提供 prompt（带输入框）、select（下拉选择）、confirm（确认）三种 Promise 化弹窗，以及共享的转义、关闭动画、活动弹窗单例管理。所有业务弹窗（rename/batc…
 - **dialog-rename**（重命名弹窗 rename）：`rename.ts` 提供单个模型的结构化重命名弹窗：把文件名按 `[作者]【品牌】角色-变体 (年月).ext` 规范拆成五个输入框，实时预览新文件名，可选「📖 读取头部」从 YSM 文件头提取作者/介绍。弹窗只负责产出新文件名，实际落…
 - **dialog-tag-editor**（标签编辑器 tag-editor）：`tag-editor.ts` 提供单个模型的标签编辑弹窗：加载该模型已有标签与全库已有标签，支持手工输入新标签（Enter 或「+ 添加」）与从建议列表点选，删除标签用标签内 ✕ 按钮。保存时把最终标签列表写回后端 go/tags Sto…
+- **dom-fab**（3D 预览悬浮 FAB 控制层）：3D 预览悬浮控制层组件（ADR-057），替代 `skeleton.ts` 内联 `style.cssText` 控制栏，集中治理样式 + 双端响应式。FAB 挂载在 document.body（light DOM），样式通过 `ensu…
 - **shared-styles**（共享样式 shared-styles）：两个样式模块为 Shadow DOM 组件提供可复用的 CSS 字符串：`utils/dom/css.ts` 导出全应用统一的按钮体系 `.btn-base` 与通用 focus-visible 规则；`views/app-tree/app…
 - **test-utils**（测试工具 test-utils（G-1 抗脆弱测试基础设施））：`frontend/src/test-utils/` 是组件测试统一工具层（ADR-035 G-1 / Design.md §19.1）。查询走 `data-testid` 稳定钩子（不绑定 CSS 类/文案），等待走轮询（替代固定 sle…
 
-## utils（15 张）
+## utils（18 张）
 
 *工具函数（display、fmt、dom、animation）*
 
 | 标识 | 名称 | tier | 关键词 |
 |------|------|------|--------|
 | 🏗 animation-system | 动画系统 animation | architecture | 动画, 骨骼动画, 关键帧, 动画播放, Molang, 数字滚动, stagger 入场, 关闭动画 |
+| 🍃 dom-storage | localStorage 安全读写 safeGet/safeSet | leaf | localStorage, 隐私模式, safeGet, safeSet, storage |
+| 🍃 format-ysm-anim-config | YSM 动画分组与配置菜单提取 | leaf | 动画分组, 配置菜单, ysm.json, extra_animation, summarize |
 | 🏗 model2d | 2D 预览渲染 model2d | architecture | 2D 预览, 骨骼图, Canvas 渲染, 前视图, 骨骼热区, 鼠标拾取, 线框图 |
 | 🏗 model3d | 3D 预览渲染 model3d | architecture | 3D 预览, Three.js, 相机, 骨骼渲染, 自由相机, 3D 截图, 纹理加载, spec 兜底, OrbitControls |
+| 🍃 utils-array | 数组工具 moveItem | leaf | 数组排序, 拖拽排序, moveItem, 列表 reorder |
 | 🍃 utils-display | 文件名显示 display | leaf | 文件名, 文件名显示, 美化文件名, renderDisplayName, 作者标签, 作品标签, 文件名着色, 搜索高亮, ban 文件 |
 | 🍃 utils-dom | DOM 工具 dom | leaf | esc, HTML 转义, innerHTML, 搜索高亮, mark, XSS |
 | 🍃 utils-errors | 错误处理 errors | leaf | 错误提示, 友好错误, friendlyError, toast 文案, 报错翻译, 网络错误, 文件被占用 |
@@ -203,8 +212,11 @@
 ### 摘要
 
 - **animation-system**（动画系统 animation）：前端动画体系分两层：**模型骨骼动画**（基岩版 animation.json 解析 + 关键帧插值求值）与 **UI 动效**（数字里程表滚动、stagger 入场延迟）。UI 层的 CSS 动画可被全局 `no-animations` …
+- **dom-storage**（localStorage 安全读写 safeGet/safeSet）：`localStorage` 安全读写工具层（ADR-044 策略 A），收敛项目内所有 `localStorage` 调用，避免隐私模式/存储禁用下裸调抛错中断启动链（`initTheme`/`applyUIPrefs`/`setting…
+- **format-ysm-anim-config**（YSM 动画分组与配置菜单提取）：前端镜像 Go 端 `appendAnimGroupsAndConfigs` 逻辑的纯函数模块（`summary.go`）。加密 `.ysm` 经 WASM 解码后，`ysm.json` 的 `properties` 字段可读，但原 `wa…
 - **model2d**（2D 预览渲染 model2d）：Canvas 2D 渲染基岩版模型骨骼的线框/正交投影图（前视图 + 可选 Y 轴旋转），是预览面板的轻量视图；与 [model3d](./model3d.md) 共享同一套 Bedrock 几何口径。
 - **model3d**（3D 预览渲染 model3d）：前端 Three.js 3D 渲染层，由四个文件组成：`model3d.ts` 负责场景搭建/相机/渲染循环，`mesh.ts` 承载场景网格构建与材质释放（buildSceneMesh / compKey / disposeMateria…
+- **utils-array**（数组工具 moveItem）：纯函数层数组操作工具，从 `site/edit.ts` 的拖拽排序 drop 逻辑抽出，供单测覆盖（ADR-023 L3）。
 - **utils-display**（文件名显示 display）：模型文件名解析 + 美化显示管线。YSM 社区文件名遵循 `[作者]【作品】角色 日期.ext` 命名约定，本模块把它解析为结构化字段，并在原文件名上原位着色（作者/作品/日期各自样式），是 UI 侧文件名展示的唯一入口。
 - **utils-dom**（DOM 工具 dom）：HTML 转义与搜索高亮工具。`esc()` 是全前端 HTML 转义的统一入口，也是治理红线指定的转义函数。
 - **utils-errors**（错误处理 errors）：把 Go 端/运行时返回的原始错误转换为用户可读的中文提示，是异常路径 toast 文案的统一入口（治理红线：所有异常路径必须有 toast 反馈）。

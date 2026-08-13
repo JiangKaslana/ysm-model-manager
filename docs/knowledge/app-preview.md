@@ -19,6 +19,9 @@ source_files:
   - frontend/src/views/app-preview/geometry.ts
   - frontend/src/views/app-preview/utils.ts
   - frontend/src/views/app-preview/css.ts
+  - frontend/src/views/app-preview/bone-names.ts
+  - frontend/src/views/app-preview/parse-ysm-json.ts
+  - frontend/src/views/app-preview/texture-order.ts
 tests:
   - frontend/src/views/app-nav/index.test.ts
   - frontend/src/views/app-preview/utils.test.ts
@@ -65,6 +68,9 @@ invariant_anchors:
 - `cache.ts` — 模块级预览缓存：`cacheGet` / `cacheSet` / `cacheSetEvictHandler` + `CacheValue`
 - `tpl.ts` — `modelDetailHTML`（详情面板）/ `statsCardHTML`（模型概览卡片）
 - `css.ts` — Shadow DOM 样式表 `previewCSS`（adoptedStyleSheets）
+- `bone-names.ts` — `buildBoneNamesText(modelPath, boneCount, bones)`：构建「📋 导出骨骼名」文本行；`interface BoneEntry` 兼容 `DecodedYsm.bones` 元素（纯函数层，ADR-023 L3）
+- `parse-ysm-json.ts` — `parseYsmJsonDirect(json)`：解压后 YSM 的 `ysm.json` 直接解析，不依赖 WASM/IO；双格式分支——YSM 专属格式（`spec`+`files`）提取模型/纹理清单并将 `default_texture` 置首（R1 契约），标准 Bedrock 格式映射 bones/cubes 字段；向量/数值守卫防畸形 JSON（ADR-044 ②）
+- `texture-order.ts` — `buildOrderedTexKeys(input)`：纹理有序列表计算；有 `ysmTexOrder` 按声明序匹配 `matchTexKey`，`ysmDefaultTex` 置首；无声明序按 `areaOf` 降序；三处消费方（本文件、`wasm.ts orderedTexKeys`、Go `AnalyzeBedrockModel`），口径与 `internal/app/texture_order.go` 严格对称
 
 ## 对外 API / 入口
 
@@ -92,6 +98,7 @@ invariant_anchors:
 - 预览缓存淘汰时必须 `URL.revokeObjectURL` 释放 blob URL（`cacheSetEvictHandler`）
 - Three.js 现为静态依赖（`litematic-3d.ts` / `model3d-loader.ts` / `screenshot-renderer.ts` / `utils/3d/model3d.ts` 均 `import * as THREE from "three"`），且 `app-preview` 已被 `app-content` 静态导入，因此 three 进入主 chunk；vite 未配 `manualChunks`，若要恢复懒加载需同时改回动态 import 与分包配置
 - 坐标变换遵循 ysmview 口径（陷阱 #11：改 model2d/model3d 前先 grep bug-chronicle）
+- **纹理口径对称**：`texture-order.ts` 与 Go `internal/app/texture_order.go` 口径严格对称，改一侧须同步另一侧；`default_texture` 置首逻辑在 `parse-ysm-json.ts`（返回 `_ysmMeta.defaultTexture`）与 `texture-order.ts`（实际排序）两处协同处理
 - **3D 预览布局**：渲染器全屏（`viewContainer` `position:absolute;inset:0`），信息面板为右侧浮层（`panel` `absolute;right:0;top:0;bottom:0`，`z-index:5`），顶部栏「◀ 隐藏 / ▶ 显示」切换显隐、左缘拖拽柄（`resizeHandle` 挂 body，`z-index:6`，`right` 随宽同步）调宽——浮层不占 flex 位，隐藏时渲染器天然填满，竖屏/窄窗口友好
 - **3D overlay 单例钩子**（skeleton.ts 模块级 `_active3DClose`）：全局同时只允许一个活跃 3D overlay——新开 3D 前先调上一份的 `_active3DClose`（`keepPrefer=true` 保留 `_prefer3D`，仅切换模型路径）；用户主动关闭/ESC/组件销毁（走 `close3D` 默认 `keepPrefer=false`）才清 `_prefer3D` 并置空引用，防残留。**`model:select` 切换前同样先关闭活跃 3D overlay**（2026-08-12 修复：切模型时旧 3D 不关闭会与新渲染叠加冲突）
 

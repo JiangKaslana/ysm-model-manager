@@ -895,12 +895,20 @@ export const autoSidebar = [
             "link": "/knowledge/android-events"
           },
           {
+            "text": "浏览器后端 IndexedDB 封装",
+            "link": "/knowledge/backend-idb"
+          },
+          {
             "text": "事件总线 bus.ts",
             "link": "/knowledge/event-bus"
           },
           {
             "text": "全局事件处理 global-handlers",
             "link": "/knowledge/global-handlers"
+          },
+          {
+            "text": "国际化 i18n 模块",
+            "link": "/knowledge/i18n"
           },
           {
             "text": "页面状态管理 page-store.ts",
@@ -1107,6 +1115,10 @@ export const autoSidebar = [
             "link": "/knowledge/dialog-tag-editor"
           },
           {
+            "text": "3D 预览悬浮 FAB 控制层",
+            "link": "/knowledge/dom-fab"
+          },
+          {
             "text": "共享样式 shared-styles",
             "link": "/knowledge/shared-styles"
           },
@@ -1155,12 +1167,24 @@ export const autoSidebar = [
             "link": "/knowledge/animation-system"
           },
           {
+            "text": "localStorage 安全读写 safeGet/safeSet",
+            "link": "/knowledge/dom-storage"
+          },
+          {
+            "text": "YSM 动画分组与配置菜单提取",
+            "link": "/knowledge/format-ysm-anim-config"
+          },
+          {
             "text": "2D 预览渲染 model2d",
             "link": "/knowledge/model2d"
           },
           {
             "text": "3D 预览渲染 model3d",
             "link": "/knowledge/model3d"
+          },
+          {
+            "text": "数组工具 moveItem",
+            "link": "/knowledge/utils-array"
           },
           {
             "text": "文件名显示 display",
