@@ -152,7 +152,9 @@ func (w *Watcher) loop() {
 	// w.w.Events/w.w.Errors/w.done，Stop→立即 Start（restartWatcher 正是此序列）后
 	// 旧 loop 回到 select 会读到新 watcher → 双 loop 双倍触发防抖 + -race 数据竞争，
 	// 且旧 loop 的 recover 可能误关新 watcher
+	w.mu.Lock()
 	evs, errs, done := w.w.Events, w.w.Errors, w.done
+	w.mu.Unlock()
 	for {
 		select {
 		case ev, ok := <-evs:

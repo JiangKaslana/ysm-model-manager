@@ -38,10 +38,10 @@
 | 前端·特性 | 13 | 60 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 37 | 131 |
+| 前端·工具 | 37 | 133 |
 | frontend/views | 54 | 155 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **202** | **902** |
+| **合计** | **202** | **904** |
 
 ## Go·头像
 
@@ -859,6 +859,8 @@
 | `WailsAndroidBridge()` | `frontend/src/utils/dom/android-bridge:7` | — |
 | `getAndroidBridge()` | `frontend/src/utils/dom/android-bridge:13` | 返回 Android Java 桥（桌面端为 null），类型安全断言（无 as any） |
 | `isViewerMode()` | `frontend/src/utils/dom/android-bridge:24` | 查看器模式判定（ADR-049 Phase 3 能力门控统一入口）： Android（双端桥存在）或网页版（browser adapter）——均无本地文件系统写能力、 无桌面专属 |
+| `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:39` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
+| `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:54` | 原生侧（MainActivity 系统 back）调用入口：依次从栈顶触发已注册处理器。 |
 | `btnBaseCSS()` | `frontend/src/utils/dom/css:1` | — |
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter-util:6` | 筛选条件 |
@@ -1017,8 +1019,8 @@
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
-| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:38` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
-| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:54` | 加载模型 2D 骨骼线条图 + 统计面板 ctx = 组件实例（提供 this.root, this.appendDebug 等） |
+| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:39` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
+| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:55` | 加载模型 2D 骨骼线条图 + 统计面板 ctx = 组件实例（提供 this.root, this.appendDebug 等） |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |
 | `buildOrderedTexKeys()` | `frontend/src/views/app-preview/texture-order:21` | 计算 3D 渲染/纹理选择器用的有序纹理名列表 |
 | `ModelDetailMeta()` | `frontend/src/views/app-preview/tpl:6` | 模型统计元数据（modelDetailHTML 入参） |

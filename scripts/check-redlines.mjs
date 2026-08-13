@@ -86,7 +86,8 @@ function runChecks() {
     'CSS vars');
 
   add('R6', 'JS in public/',
-    rg('public/.*\\.js', ['.', 'frontend'], ['*.md', '*.html', '*.json']),
+    rg('public/.*\\.js', ['.', 'frontend'], ['*.md', '*.html', '*.json'])
+      .filter((l) => !l.includes('public/wasm/')), // WASM 胶水 JS 必须放 public/ 才能被 import，非手写业务 JS（2026-08-13 豁免）
     'ESM import');
 
   add('R7', 'rtype magic strings',
