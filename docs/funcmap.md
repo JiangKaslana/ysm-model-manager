@@ -38,10 +38,10 @@
 | 前端·特性 | 18 | 88 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 51 | 182 |
+| 前端·工具 | 51 | 187 |
 | frontend/views | 75 | 204 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **257** | **1066** |
+| **合计** | **257** | **1071** |
 
 ## Go·头像
 
@@ -950,9 +950,14 @@
 | `eulerToQuaternion()` | `frontend/src/utils/3d/spec-builder` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/spec-builder` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/spec-builder` | — |
-| `buildModelGroup()` | `frontend/src/utils/3d/spec-builder:289` | 单组件 spec 构建核心（Build 与 BuildMulti 共用）。 |
+| `buildModelGroup()` | `frontend/src/utils/3d/spec-builder` | — |
 | `Vec3()` | `frontend/src/utils/3d/spec-builder:33` | vec3 — Go threejs/spec.go L55 |
 | `Cube2D()` | `frontend/src/utils/3d/spec-builder:40` | Cube2D — Go types/bedrock.go Cube2D |
+| `Bone2D()` | `frontend/src/utils/3d/spec-builder:56` | Bone2D — Go types/bedrock.go Bone2D |
+| `BedrockModel()` | `frontend/src/utils/3d/spec-builder:66` | BedrockModel — Go types/bedrock.go BedrockModel |
+| `Model3DSpec()` | `frontend/src/utils/3d/spec-builder:77` | Model3DSpec — Go threejs/spec.go Model3DSpec |
+| `ModelGroup()` | `frontend/src/utils/3d/spec-builder:82` | ModelGroup — Go threejs/spec.go ModelGroup |
+| `BoneData()` | `frontend/src/utils/3d/spec-builder:94` | BoneData — Go threejs/spec.go BoneData |
 | `MeshData()` | `frontend/src/utils/3d/spec-builder:104` | MeshData — Go threejs/spec.go MeshData |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:123` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:12` | 里程表滚动进位动画 |
