@@ -30,7 +30,7 @@
 | Go·类型 | 5 | 51 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
-| Go·YSM 核心 | 7 | 23 |
+| Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 19 | 183 |
 | 前端·根 (app-modules/bus) | 2 | 14 |
 | frontend/backend | 5 | 19 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 37 | 133 |
 | frontend/views | 54 | 155 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **202** | **904** |
+| **合计** | **202** | **906** |
 
 ## Go·头像
 
@@ -91,18 +91,18 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `CreateDir()` | `go/fileops/fileops:51` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
-| `RenameDir()` | `go/fileops/fileops:69` | RenameDir 重命名目录（仅改末段，保持父目录） |
-| `RemoveDir()` | `go/fileops/fileops:94` | RemoveDir 递归删除目录 |
-| `RenameFile()` | `go/fileops/fileops:101` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
-| `FindPreviewImage()` | `go/fileops/fileops:127` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
-| `ExtractPreviewTexture()` | `go/fileops/fileops:153` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
-| `GetPackInfo()` | `go/fileops/fileops:283` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
-| `MoveModelFile()` | `go/fileops/fileops:332` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:409` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:541` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
-| `ToggleModelEnable()` | `go/fileops/fileops:596` | ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 . |
-| `IsFileBanned()` | `go/fileops/fileops:711` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
+| `CreateDir()` | `go/fileops/fileops:47` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
+| `RenameDir()` | `go/fileops/fileops:65` | RenameDir 重命名目录（仅改末段，保持父目录） |
+| `RemoveDir()` | `go/fileops/fileops:90` | RemoveDir 递归删除目录 |
+| `RenameFile()` | `go/fileops/fileops:97` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
+| `FindPreviewImage()` | `go/fileops/fileops:123` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
+| `ExtractPreviewTexture()` | `go/fileops/fileops:149` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
+| `GetPackInfo()` | `go/fileops/fileops:252` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
+| `MoveModelFile()` | `go/fileops/fileops:301` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
+| `CopyModelFile()` | `go/fileops/fileops:378` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:510` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `ToggleModelEnable()` | `go/fileops/fileops:565` | ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 . |
+| `IsFileBanned()` | `go/fileops/fileops:680` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
 | `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
@@ -290,7 +290,7 @@
 | `SyncResourcesDirLevel()` | `go/sync/sync:540` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
 | `SortEntries()` | `go/sync/sync:610` | SortEntries 按名称排序模型条目 |
 | `GetLinkType()` | `go/sync/sync:618` | getLinkType 判断文件的链接类型 GetLinkType 判断文件的链接类型 |
-| `CompareGlobalInstanceHashes()` | `go/sync/sync:675` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录的哈希， 返回每个实例的 Missing / Extra / Synced 状态。 |
+| `CompareGlobalInstanceHashes()` | `go/sync/sync:679` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录，返回每个实例的 Missing / Extra / Synced 状态。 |
 | `ScanFunc()` | `go/sync/sync:24` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 | `ListVersionsFunc()` | `go/sync/sync:27` | ListVersionsFunc 列出版本实例（函数类型，测试时可注入 mock） |
 | `HasModInDirFn()` | `go/sync/sync:670` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
@@ -405,7 +405,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `FindCLI()` | `go/ysm/cli:11` | FindCLI 查找 YSMParser.exe 可执行文件路径 |
+| `SetDecoder()` | `go/ysm/decode_inject:18` | SetDecoder 注入 .ysm 解码器（internal/app init 阶段调用，替换 FindCLI 模式） |
+| `DecodeYSM()` | `go/ysm/decode_inject:23` | DecodeYSM 解码 .ysm 字节；解码器未注入或解码失败返回 nil |
+| `DecodedFile()` | `go/ysm/decode_inject:9` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
 | `FindGeometryInExtractedYSM()` | `go/ysm/extracted:50` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
 | `FindComponentsInExtractedYSM()` | `go/ysm/extracted:390` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
 | `AnalyzeYSMHeader()` | `go/ysm/header:167` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
@@ -515,16 +517,16 @@
 | `App.ClearImportLogs()` | `internal/app/app_install:925` | — |
 | `App.GetRuntimeLogs()` | `internal/app/app_install:930` | GetRuntimeLogs 获取运行时日志（watcher/sync 等标准库 log 输出） |
 | `App.ClearRuntimeLogs()` | `internal/app/app_install:935` | ClearRuntimeLogs 清空运行时日志缓冲 |
-| `App.AnalyzeYSMModel()` | `internal/app/app_model:40` | — |
-| `App.ExtractYsmSummary()` | `internal/app/app_model:44` | — |
-| `App.ExtractYSMHeader()` | `internal/app/app_model:58` | — |
-| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:62` | — |
-| `App.SavePreviewTempFile()` | `internal/app/app_model:70` | — |
-| `App.ReadFileBytes()` | `internal/app/app_model:89` | — |
-| `App.AnalyzeBedrockModel()` | `internal/app/app_model:103` | — |
-| `App.GetModel3DSpec()` | `internal/app/app_model:155` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:191` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:253` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.AnalyzeYSMModel()` | `internal/app/app_model:37` | — |
+| `App.ExtractYsmSummary()` | `internal/app/app_model:41` | — |
+| `App.ExtractYSMHeader()` | `internal/app/app_model:55` | — |
+| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:59` | — |
+| `App.SavePreviewTempFile()` | `internal/app/app_model:67` | — |
+| `App.ReadFileBytes()` | `internal/app/app_model:86` | — |
+| `App.AnalyzeBedrockModel()` | `internal/app/app_model:100` | — |
+| `App.GetModel3DSpec()` | `internal/app/app_model:152` | — |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:188` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:250` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `App.ExportBoneStructures()` | `internal/app/app_scan:25` | ========== 批量导出骨骼结构 ========== |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:81` | ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:118` | ========== 高级搜索 ========== |
@@ -614,7 +616,7 @@
 | `App.CountDuplicateFiles()` | `internal/app/resource_bindings:475` | CountDuplicateFiles 快速统计重复文件数量。 |
 | `App.InvalidateScanCache()` | `internal/app/resource_bindings:489` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
 | `App.InstallResourceToInstance()` | `internal/app/resource_bindings:495` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
-| `limitedBuffer.Write()` | `internal/app/wasm_decoder:72` | — |
+| `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |
 | `App.GetWasmBinary()` | `internal/app/wasm_embed:5` | GetWasmBinary 返回内嵌的 YSMParser.wasm 字节（供前端 WebView2 使用）。 |
 
 ## 前端·根 (app-modules/bus)
@@ -906,9 +908,9 @@
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:6` | — |
-| `ensureFabStyles()` | `frontend/src/utils/dom/fab:45` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
-| `IconButtonOpts()` | `frontend/src/utils/dom/fab:60` | — |
-| `createIconButton()` | `frontend/src/utils/dom/fab:68` | 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 |
+| `ensureFabStyles()` | `frontend/src/utils/dom/fab:53` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
+| `IconButtonOpts()` | `frontend/src/utils/dom/fab:68` | — |
+| `createIconButton()` | `frontend/src/utils/dom/fab:80` | 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 |
 | `formatBytes()` | `frontend/src/utils/dom/format:11` | 字节数 → 可读大小（B/KB/MB/GB），非法值或 0 返回空串 |
 | `sizeColor()` | `frontend/src/utils/dom/format:23` | 文件大小颜色 class：&lt;1MB 绿色，1-3MB 正常，≥3MB 红色 |
 | `fmtDate()` | `frontend/src/utils/dom/format:35` | 时间戳 → 友好日期：今天显时间，今年显 M月D日，往年显 YYYY/M/D |

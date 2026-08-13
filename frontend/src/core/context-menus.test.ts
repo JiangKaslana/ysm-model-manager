@@ -403,7 +403,8 @@ describe("异步 handler（batch / file 动态 import 分支）", () => {
     showRenameDialogMock.mockResolvedValue("新.ysm");
     RenameFileMock.mockRejectedValue(new Error("EACCES: permission denied"));
     await clickAsync("file", "file.rename", { path: "/dir/旧.ysm" });
-    expect(toasts().some((t) => t.type === "error" && t.msg.includes("权限不足"))).toBe(true);
+    // ADR-051：裸 JS Error 无 AppError.Code → 走 fallback（不再按文本映射"权限不足"）
+    expect(toasts().some((t) => t.type === "error" && t.msg.includes("重命名失败"))).toBe(true);
   });
 
   // ── file.move ──
@@ -538,7 +539,8 @@ describe("异步 handler（batch / file 动态 import 分支）", () => {
   it("file.reveal 后端报错 → friendlyError toast", async () => {
     RevealInExplorerMock.mockRejectedValue(new Error("ENOENT: no such file"));
     await clickAsync("file", "file.reveal", { path: "/a.ysm" });
-    expect(toasts().some((t) => t.type === "error" && t.msg.includes("文件或目录不存在"))).toBe(true);
+    // ADR-051：裸 JS Error 无 AppError.Code → 走 fallback（不再按文本映射"文件或目录不存在"）
+    expect(toasts().some((t) => t.type === "error")).toBe(true);
   });
 
   // ── file.copy-path ──

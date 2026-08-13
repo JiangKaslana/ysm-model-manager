@@ -94,6 +94,13 @@ jobs:
           go test -race ./go/... ./internal/app/ -count=1 -timeout 10m | Out-String -Width 400
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Go 覆盖率报告（非阻断，趋势可见）
+        shell: pwsh
+        run: |
+          go test ./go/... -coverprofile=go-cover.out -count=1 | Out-String -Width 200
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go tool cover -func=go-cover.out | Select-String 'total:'
+
       - name: 前端类型检查（ADR-014 门槛）
         working-directory: frontend
         shell: pwsh
@@ -103,7 +110,7 @@ jobs:
         working-directory: frontend
         shell: pwsh
         run: |
-          npx vitest run | Out-String -Width 200
+          npx vitest run --coverage | Out-String -Width 200
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: 前端构建

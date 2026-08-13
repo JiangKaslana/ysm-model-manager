@@ -48,7 +48,7 @@ invariant_anchors:
 - `HasDotMinecraftSubdirs(path string) bool` / `FindMinecraftDir(parentDir string) string` — 实例布局探测辅助
 - `SyncResources(globalDir, instanceDir string) types.ResourceSyncResult` — 按文件名对比全局 ↔ 整合包资源（资源包/光影包等）；含 `pack.mcmeta` 的文件夹作为整体单元、不递归
 - `SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceSyncResult` — 按文件夹名对比（YSM 的 ysm.json 文件夹 / MMD 的 .pmx/.pmd 文件夹），同名时文件夹优先于平铺文件
-- `CompareGlobalInstanceHashes(mcRoot, globalDir, subDir, rtype string, scanFn ScanFunc, listFn ListVersionsFunc, hasModFn HasModInDirFn) []types.InstanceStatus` — 非 YSM 资源类型的通用实例哈希对比
+- `CompareGlobalInstanceHashes(mcRoot, globalDir, subDir, rtype string, scanFn ScanFunc, listFn ListVersionsFunc, hasModFn HasModInDirFn) []types.InstanceStatus` — 非 YSM 资源类型的通用实例状态对比，匹配口径为「文件名（去 `.disabled`/`.ban`，小写）+ 大小」（与 `SyncResources` 一致）；实例目录经 `types.FindInstDir` 解析（标准目录不存在时兜底扫描）。修复 MMD（`.pmx/.pmd` 不计算 SHA256，旧哈希比对恒 0）与蓝图（实例目录非标准路径）在侧栏不显示的问题
 - `GetLinkType(path string) types.LinkType` — 判定 `symlink` / `hardlink` / `copy` / `unknown`
 - `SortEntries(entries []types.ModelEntry)` — 按名称排序
 - `PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) (int, error)` — 推送缺失资源；`ysm` / `mmd-skin` 走文件夹级（`SyncResourcesDirLevel` + `installer.InstallDir`），其余走文件级（`SyncResources` + `installer.Install`）

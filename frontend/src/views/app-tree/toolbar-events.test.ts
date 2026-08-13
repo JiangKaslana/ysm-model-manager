@@ -800,7 +800,8 @@ describe("bindToolbarEvents — 批量与更多菜单", () => {
     btn.click();
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(toasts.some((t) => t.type === "error" && t.msg.includes("权限不足"))).toBe(true);
+    // ADR-051：裸 JS Error 无 AppError.Code → 走默认 fallback（不依赖具体文案）
+    expect(toasts.some((t) => t.type === "error")).toBe(true);
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 });
