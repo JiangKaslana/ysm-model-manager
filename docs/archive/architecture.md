@@ -293,5 +293,4 @@ CI 在 GitHub Actions 中运行（`.github/workflows/release.yml`）：
 - 事件总线：`frontend/src/bus.ts`（ESM 导出 + `window.bus` 兼容）
 - Vite 构建：`frontend/vite.config.js`
 - 发版脚本：`build-release.ps1`
-- 集成测试：`scripts/smoke-test.ps1`
 - 事故复盘：`docs/postmortem-*.md`（已归档至 `docs/archive/`）
