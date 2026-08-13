@@ -136,3 +136,24 @@ http://localhost:9222/json # 实际网页一览
 | pre-push 门禁失败 | 读失败输出的最后 10 行，按 check 名称定位 `.githooks/pre-push` 中的脚本修复 |
 | 子代理改动冲突 | 以锁文件制预防；若仍冲突，主模型读双方 diff 仲裁 |
 | 整体改崩了 | `git reset HEAD~1` 回退到上一个 commit（改动保留在工作区） |
+
+# 工作树同步速查
+各 wt 继续干活前
+
+bash
+# 在任意 wt 窗口
+git fetch ../ysm-model-manager
+git rebase ../ysm-model-manager/main
+合成果实回 main
+
+bash
+# 回到主工作区
+git checkout main
+git merge parallel/model-1  # 有冲突就处理
+git merge parallel/model-2
+git merge parallel/model-3
+git push
+
+# 共享 node_modules
+已经用 symlink 搞定了，3 个 wt 共用一份，装一次管全部。
+不够继续说
