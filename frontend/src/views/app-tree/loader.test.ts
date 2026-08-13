@@ -69,7 +69,7 @@ describe("loadEntries", () => {
     mocks.GetRepoRoot.mockResolvedValue("");
     const { loadEntries } = await import("./loader.ts");
     const r = await loadEntries("ysm");
-    expect(r).toEqual({ repoRoot: "", entries: [] });
+    expect(r).toEqual({ filesRoot: "", entries: [] });
     expect(mocks.ScanModelEntriesWithLabel).not.toHaveBeenCalled();
   });
 
@@ -77,7 +77,7 @@ describe("loadEntries", () => {
     mocks.ScanModelEntriesWithLabel.mockResolvedValue([]);
     const { loadEntries } = await import("./loader.ts");
     const r = await loadEntries("ysm");
-    expect(r).toEqual({ repoRoot: MOCK_DATA.GetRepoRoot, entries: [] });
+    expect(r).toEqual({ filesRoot: MOCK_DATA.GetRepoRoot, entries: [] });
   });
 
   it("按扩展名过滤（.ban 后缀先剥离）并计算相对路径、并入 banned 状态", async () => {
@@ -131,7 +131,7 @@ describe("loadEntries", () => {
     const toasts = spyToasts();
     const { loadEntries } = await import("./loader.ts");
     const r = await loadEntries("ysm");
-    expect(r).toEqual({ repoRoot: "", entries: [] });
+    expect(r).toEqual({ filesRoot: "", entries: [] });
     expect(toasts.some((t) => t.type === "error" && t.msg.includes("boom"))).toBe(true);
   });
 });

@@ -118,7 +118,7 @@ function makeRoot(): { root: ShadowRoot; get: (id: string) => HTMLElement | null
 
 interface VM {
   _root: ShadowRoot;
-  _repoRoot: string | null;
+  _filesRoot: string | null;
   _search: string;
   _sort: string;
   _renderMode: string;
@@ -132,7 +132,7 @@ interface VM {
 function makeVM(root: ShadowRoot): VM {
   const vm: VM = {
     _root: root,
-    _repoRoot: "/repo",
+    _filesRoot: "/repo",
     _search: "",
     _sort: "name",
     _renderMode: "list",
@@ -476,7 +476,7 @@ describe("bindToolbarEvents — 导出/导航/搜索/排序/视图", () => {
   it("repo-export 未配置存储路径 → warn toast", async () => {
     const { root, get, getByTestId } = makeRoot();
     const vm = makeVM(root);
-    vm._repoRoot = null;
+    vm._filesRoot = null;
     GetRepoRootMock.mockResolvedValue("");
     bindToolbarEvents(root, vm as never);
 
@@ -642,7 +642,7 @@ describe("bindToolbarEvents — 批量与更多菜单", () => {
   it("menu-more open-folder 未配置仓库 → 不调后端", async () => {
     const { root, get, getByTestId } = makeRoot();
     const vm = makeVM(root);
-    vm._repoRoot = null;
+    vm._filesRoot = null;
     bindToolbarEvents(root, vm as never);
 
     const btn = getByTestId("tree-more-open-folder") as HTMLElement;

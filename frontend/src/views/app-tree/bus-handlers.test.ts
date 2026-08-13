@@ -96,7 +96,7 @@ interface VM {
   _batchBusy: boolean;
   _toggleBusy: boolean;
   _entries: TreeEntry[];
-  _repoRoot: string | null;
+  _filesRoot: string | null;
   _renderTree: ReturnType<typeof vi.fn>;
   _load: ReturnType<typeof vi.fn>;
 }
@@ -108,7 +108,7 @@ function makeVM(entries: TreeEntry[] = []): VM {
     _batchBusy: false,
     _toggleBusy: false,
     _entries: entries,
-    _repoRoot: null,
+    _filesRoot: null,
     _renderTree: vi.fn(),
     _load: vi.fn().mockResolvedValue(undefined),
   };
@@ -146,7 +146,7 @@ beforeEach(() => {
   showBatchRenameDialogMock.mockResolvedValue(undefined);
   getRegistryMock.mockImplementation((name: string) =>
     name === "loadEntries"
-      ? async () => ({ repoRoot: "/repo", entries: [] as TreeEntry[] })
+      ? async () => ({ filesRoot: "/repo", entries: [] as TreeEntry[] })
       : undefined,
   );
   selectState.keys.clear();
@@ -438,7 +438,7 @@ describe("bindBusEvents — 树刷新", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(ClearScanCacheMock).toHaveBeenCalled();
-    expect(vm._repoRoot).toBe("/repo");
+    expect(vm._filesRoot).toBe("/repo");
     expect(vm._renderTree).toHaveBeenCalled();
   });
 });
