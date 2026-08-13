@@ -12,7 +12,7 @@ use_when:
   - recycle
   - 软删除
 invariant_anchors:
-  - go/recycle/recycle.go|isCrossDeviceErr
+  - go/fsutil/crossdevice_other.go|IsCrossDeviceErr
   - go/recycle/recycle.go|deleted_link
 ---
 
@@ -44,10 +44,10 @@ invariant_anchors:
 1. `paths.IsInside(rootDir, src)` 越权校验 → `os.Lstat` 判链接类型（符号链接/硬链接直接 `os.Remove`）
 2. 按相对路径在 `.recycle` 下构造 `dst`，重名自动加 `(1)`/`(2)`…；每次构造后复查 `dst` 仍在 `.recycle` 内（防越权）；`os.Stat` 返回的非 "不存在" 错误（权限等）直接报错，不静默跳过冲突检测
 3. `tm.renameForMove(src, dst)` 成功即返回 `recycled`
-4. rename 失败时 **`isCrossDeviceErr(err)` 判定**：不是跨设备（权限/占用等）→ 直接返回错误，**不做复制**（避免大模型无谓全量复制，也避免「副本已入站、源未删」的重试堆积）
+4. rename 失败时 **`fsutil.IsCrossDeviceErr(err)` 判定**：不是跨设备（权限/占用等）→ 直接返回错误，**不做复制**（避免大模型无谓全量复制，也避免「副本已入站、源未删」的重试堆积）
 5. 确为跨设备才回退：目录走 `tm.copyDirForMove`（`copyDirRecursive` 递归整棵树）、文件走 `copyFile`；复制失败清理半截 `dst`（`RemoveAll`/`Remove`，清理失败仅记日志）；复制成功后删源，删源失败返回「副本已入站但源删除失败」的明确错误并提示副本位置
 
-`isCrossDeviceErr` 按平台隔离：`crossdevice_other.go` 判 `syscall.EXDEV`；`crossdevice_windows.go` 额外判 `ERROR_NOT_SAME_DEVICE(17)`（Windows 跨卷错误码与 POSIX EXDEV 不同，必须分平台）。
+`fsutil.IsCrossDeviceErr` 按平台隔离：`go/fsutil/crossdevice_other.go` 判 `syscall.EXDEV`；`crossdevice_windows.go` 额外判 `ERROR_NOT_SAME_DEVICE(17)`（Windows 跨卷错误码与 POSIX EXDEV 不同，必须分平台）。统一收敛自 recycle 与 installer（installer 的 errnoIs 跨设备分支已复用该原语）。
 
 ## 对外 API / 入口
 

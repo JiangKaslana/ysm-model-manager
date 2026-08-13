@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/paths"
 	"ysm-model-manager/go/types"
 )
@@ -546,13 +547,14 @@ func errnoIs(err error, unix, win int) bool {
 func linkErr(src, dst string, err error) error {
 	// errno 优先：跨设备（Unix EXDEV=18 / Win ERROR_NOT_SAME_DEVICE=17）、
 	// 权限（Unix EACCES=13 / EPERM=1，Win ERROR_ACCESS_DENIED=5）
-	if errnoIs(err, 18, 17) {
+	if fsutil.IsCrossDeviceErr(err) {
 		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "仓库与游戏目录在不同分区，不支持硬链接", Suggestion: "请在设置中切换为复制模式"}
 	}
 	if errnoIs(err, 13, 5) || errnoIs(err, 1, 5) {
 		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "权限不足，无法创建硬链接", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
 	}
-	// 文本兜底（非 errno 包装的异常错误）——注意避免过宽子串："different" 会误伤无关错误，只匹配跨设备特征短语
+	// 文本兜底（非 errno 包装的异常错误）——注意避免过宽子串："different" 会误伤无关错误，只匹配跨设备特征短语；
+	// 仅兜底非 errno 包装的文本错误，errno 判定统一走 fsutil.IsCrossDeviceErr（含 Windows 错误码 17）
 	errStr := strings.ToLower(err.Error())
 	if strings.Contains(errStr, "cross-device") || strings.Contains(errStr, "different device") || strings.Contains(errStr, "not same device") {
 		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "仓库与游戏目录在不同分区，不支持硬链接", Suggestion: "请在设置中切换为复制模式"}

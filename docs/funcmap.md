@@ -12,7 +12,7 @@
 | Go·下载 | 1 | 7 |
 | go/executil | 2 | 2 |
 | go/fileops | 2 | 13 |
-| Go·文件系统 | 4 | 10 |
+| Go·文件系统 | 6 | 12 |
 | Go·几何 | 2 | 8 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 6 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 36 | 127 |
 | frontend/views | 54 | 155 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **198** | **891** |
+| **合计** | **200** | **893** |
 
 ## Go·头像
 
@@ -108,6 +108,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `IsCrossDeviceErr()` | `go/fsutil/crossdevice_other:14` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
+| `IsCrossDeviceErr()` | `go/fsutil/crossdevice_windows:18` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsHardLink()` | `go/fsutil/hardlink_other:15` | IsHardLink 判断路径是否为硬链接（nlink &gt; 1）。 |
 | `IsHardLink()` | `go/fsutil/hardlink_windows:14` | IsHardLink 判断路径是否为硬链接（NumberOfLinks &gt; 1）。 |
 | `WalkAllFiles()` | `go/fsutil/walk:13` | WalkAllFiles 递归遍历目录返回所有文件的完整路径（不限制扩展名） skipRecycle 为 true 时跳过 .recycle 子目录 |
@@ -157,12 +159,12 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Install()` | `go/installer/installer:43` | Install 安装模型到目标目录（支持链接模式） |
-| `InstallDir()` | `go/installer/installer:139` | InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式） 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件 rtype 用于过滤文件 |
-| `InstallToGlobal()` | `go/installer/installer:325` | InstallToGlobal 安装到全局 custom 目录 |
-| `InstallWithOverlay()` | `go/installer/installer:350` | InstallWithOverlay 带冲突检查的安装 |
-| `CopyFile()` | `go/installer/installer:431` | CopyFile 复制文件到目标目录（带互斥锁） |
-| `IsValidRepoRoot()` | `go/installer/installer:582` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
+| `Install()` | `go/installer/installer:44` | Install 安装模型到目标目录（支持链接模式） |
+| `InstallDir()` | `go/installer/installer:140` | InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式） 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件 rtype 用于过滤文件 |
+| `InstallToGlobal()` | `go/installer/installer:326` | InstallToGlobal 安装到全局 custom 目录 |
+| `InstallWithOverlay()` | `go/installer/installer:351` | InstallWithOverlay 带冲突检查的安装 |
+| `CopyFile()` | `go/installer/installer:432` | CopyFile 复制文件到目标目录（带互斥锁） |
+| `IsValidRepoRoot()` | `go/installer/installer:584` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
 
 ## go/instance
 

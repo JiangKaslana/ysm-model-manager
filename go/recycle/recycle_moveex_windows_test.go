@@ -10,7 +10,7 @@ import (
 )
 
 // TestMoveEx_WindowsCrossVolumeErrno 注入真实跨卷错误码 ERROR_NOT_SAME_DEVICE(17)，
-// 验证 isCrossDeviceErr 能触发复制回退。
+// 验证 fsutil.IsCrossDeviceErr 能触发复制回退。
 // 测试注入的 syscall.EXDEV 在 Windows 是虚构常量（zerrors_windows.go 中为
 // APPLICATION_ERROR+iota），OS 调用不会返回；真实跨卷移动返回 Errno(17)，
 // 必须走 errNotSameDevice 分支，本测试是该分支的唯一覆盖。

@@ -124,7 +124,7 @@ func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 	}
 	if err := tm.renameForMove(src, dst); err == nil {
 		return &MoveResult{Action: "recycled", Reason: ""}, nil
-	} else if !isCrossDeviceErr(err) {
+	} else if !fsutil.IsCrossDeviceErr(err) {
 		return nil, err
 	}
 	// 跨设备回退：目录（文件夹型模型）递归复制整棵树；文件走 copyFile
@@ -257,7 +257,7 @@ func (tm *TrashManager) Restore(src string) error {
 	// 优先瞬时移动（同分区原子操作）；跨设备时回退复制后删，语义不变
 	if err := os.Rename(src, dst); err == nil {
 		return nil
-	} else if !isCrossDeviceErr(err) {
+	} else if !fsutil.IsCrossDeviceErr(err) {
 		return err // 权限/占用等非跨设备错误直接返回，不尝试复制
 	}
 	// 目录（整组合并条目）跨设备：递归复制整棵树；文件走 copyFile

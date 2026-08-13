@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-13T01:34:50.403Z",
+  "generated": "2026-08-13T02:27:19.899Z",
   "knip": [
     "e2e/modal.spec.ts|unresolved|/src/utils/dom/dialogs/modal.ts",
     "package.json|binaries|wails3",
@@ -34,11 +34,14 @@
     "src/views/app-preview/geometry.ts|types|BedrockBone",
     "src/views/app-preview/geometry.ts|types|BedrockCube",
     "src/views/app-preview/utils.ts|types|PreviewImageLoader",
-    "src/views/app-preview/wasm.ts|exports|doDecodeYsmViaWasm",
-    "src/web-spike/main.ts|file|src/web-spike/main.ts"
+    "src/views/app-preview/wasm.ts|exports|doDecodeYsmViaWasm"
   ],
   "jscpd": [
     "src/app-modules.ts#src/views/app-content/settings/init.ts",
+    "src/backend/browser-adapter.contract-b1.test.ts#src/backend/browser-adapter.contract-b2.test.ts",
+    "src/backend/browser-adapter.contract-b1.test.ts#src/backend/browser-adapter.contract-b3.test.ts",
+    "src/backend/browser-adapter.contract-b1.test.ts#src/backend/browser-adapter.test.ts",
+    "src/backend/browser-adapter.contract-b2.test.ts#src/backend/browser-adapter.test.ts",
     "src/core/context-menus.ts#src/core/context-menus.ts",
     "src/core/handlers/instance-ops.test.ts#src/core/handlers/sync.test.ts",
     "src/features/community/download-queue.test.ts#src/features/community/download-queue.test.ts",

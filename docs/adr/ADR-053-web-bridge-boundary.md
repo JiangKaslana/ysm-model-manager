@@ -3,7 +3,7 @@
 - **状态**：✅ 已采纳（Accepted）
 - **日期**：2026-08-12
 - **决策人**：Jieling（人类首席架构师）、AI 代理（Riku）
-- **相关**：`ADR-049 网页版桥接`；`frontend/src/wails/browser-adapter.ts`；`frontend/src/views/app-content/community-data.ts`；`frontend/src/views/app-nav/index.ts`；`frontend/src/views/app-tree/toolbar-events.ts`
+- **相关**：`ADR-049 网页版桥接`；`frontend/src/backend/browser-adapter.ts`；`frontend/src/views/app-content/community-data.ts`；`frontend/src/views/app-nav/index.ts`；`frontend/src/views/app-tree/toolbar-events.ts`
 
 ---
 

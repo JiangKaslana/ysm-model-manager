@@ -47,7 +47,7 @@ ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事
 - **拖拽旋转**（3D/2D 预览）：`pointerdown`（左键 `button===0`）起手 + `setPointerCapture(pointerId)` 捕获，`pointermove` 旋转，`pointerup` 释放捕获——model3d.ts、litematic-3d.ts、zoom.ts、skeleton.ts
 - **面板 resize**：`pointerdown` 起手 + document 级 `pointermove/up`——app-content/index.ts（预览宽度）、skeleton.ts（3D 面板宽度）
 - **2D hover**（骨骼名高亮）：`pointermove` + `pointerleave`——model2d.ts
-- **菜单 hover**：`pointerenter/pointerleave`（替代 `mouseenter/mouseleave`）——community.ts（扫描 tooltip）、skeleton.ts（截图菜单）、toolbar-events.ts（作者菜单）
+- **菜单 hover**：`pointerenter/pointerleave`（替代 `mouseenter/mouseleave`）——settings/init.ts（扫描 tooltip）、skeleton.ts（截图菜单）、toolbar-events.ts（作者菜单）
 - **tap 兜底**：触屏无 hover，hover 菜单补 `click` 切换展开/收起——skeleton.ts 截图菜单、toolbar-events.ts 作者菜单（原有 click 保留）
 - **`touch-action: none`**：所有可拖拽元素（3D/2D canvas、resize handle）禁浏览器手势默认（滚动/缩放），pointer 事件才完整
 
