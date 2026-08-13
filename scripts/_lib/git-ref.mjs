@@ -26,12 +26,14 @@ import { ROOT, toPosix } from './scan-files.mjs';
  * Windows 安全 git 命令执行器。
  * - execFileSync 无 shell 展开，避免 `commit:path` 被 cmd/pwsh 路径展开吞掉；
  * - maxBuffer 128 MB（大文件 diff 可能超默认）；
- * - 路径参数统一归一化为正斜杠，git 内部路径格式。
+ * - 路径参数统一归一化为正斜杠，git 内部路径格式；
+ * - `-c core.quotepath=false`：ls-tree/diff 输出非 ASCII（中文）路径时不做八进制
+ *   转义（否则 \345\220\204 串经 toPosix 归一化后路径损坏，git show 报 does not exist）。
  * @param {string[]} args  git 命令参数数组
  * @returns {string}       stdout 文本
  */
 function git(args) {
-  return execFileSync('git', args, {
+  return execFileSync('git', ['-c', 'core.quotepath=false', ...args], {
     cwd: ROOT,
     encoding: 'utf8',
     maxBuffer: 128 * 1024 * 1024,
