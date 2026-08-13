@@ -1,34 +1,5 @@
-// ===== YSMParser CLI 工具查找与调用 =====
+// ===== .ysm 解码能力 =====
+// 2026-08-08 架构决策（docs/architecture.md §4.1）：YSMParser 统一为内嵌 WASM，
+// 取代 exe sidecar——本文件原为 YSMParser.exe 查找（FindCLI），已停用删除，
+// 解码入口见 decode_inject.go（SetDecoder 注入，internal/app 以 Node+WASM 实现）。
 package ysm
-
-import (
-	"os"
-	"os/exec"
-	"path/filepath"
-)
-
-// FindCLI 查找 YSMParser.exe 可执行文件路径
-func FindCLI() string {
-	if exe, err := os.Executable(); err == nil {
-		if p := filepath.Join(filepath.Dir(exe), "YSMParser.exe"); fileExists(p) {
-			return p
-		}
-	}
-	if wd, err := os.Getwd(); err == nil {
-		if p := filepath.Join(wd, "YSMParser.exe"); fileExists(p) {
-			return p
-		}
-	}
-	if p, err := exec.LookPath("YSMParser.exe"); err == nil {
-		return p
-	}
-	if p, err := exec.LookPath("YSMParser"); err == nil {
-		return p
-	}
-	return ""
-}
-
-func fileExists(p string) bool {
-	_, err := os.Stat(p)
-	return err == nil
-}

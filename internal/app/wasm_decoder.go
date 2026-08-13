@@ -19,6 +19,7 @@ import (
 	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/types"
+	"ysm-model-manager/go/ysm"
 )
 
 // ysmNodeDecodeTimeout 子进程解码超时上限（对齐 go/avatar decodeTimeout 模式：
@@ -36,6 +37,18 @@ var nodeJSPath = findNodeJS()
 
 func init() {
 	avatar.SetNodeJS(nodeJSPath, getGlueCode, getWasmBinary)
+	// 注入 .ysm 解码器（fileops 封面提取等 go/ 层消费端；取代已停发的 YSMParser.exe sidecar）
+	ysm.SetDecoder(func(data []byte) []ysm.DecodedFile {
+		out := runYSMNodeJSDecode(data)
+		if out == nil {
+			return nil
+		}
+		files := make([]ysm.DecodedFile, len(out))
+		for i, f := range out {
+			files[i] = ysm.DecodedFile{Path: f.Path, Data: f.Data}
+		}
+		return files
+	})
 }
 
 func findNodeJS() string {

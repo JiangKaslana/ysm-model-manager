@@ -5,20 +5,16 @@ package fileops
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
-	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/types"
@@ -220,53 +216,26 @@ func ExtractPreviewTexture(modelPath string) string {
 	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
 }
 
-// extractTextureViaYSM 调 YSM CLI 解析器提取纹理
+// extractTextureViaYSM 从 .ysm 提取预览纹理。
+// 走注入的 YSM 解码器（internal/app 以 Node+WASM 实现注入，取代已停发的 YSMParser.exe
+// sidecar——2026-08-08 架构决策）；解码器未注入/解码失败按不可用静默降级。
 func extractTextureViaYSM(modelPath string) ([]byte, error) {
-	parserPath := ysm.FindCLI()
-	if parserPath == "" {
-		return nil, fmt.Errorf("YSM CLI 解析器未找到")
+	data := readLimitedFile(modelPath)
+	if data == nil {
+		return nil, fmt.Errorf("读取模型失败")
 	}
-	tmpDir, err := os.MkdirTemp("", "ysm-tex-*")
-	if err != nil {
-		return nil, err
+	files := ysm.DecodeYSM(data)
+	if files == nil {
+		return nil, fmt.Errorf("YSM 解码器未注入或解码失败")
 	}
-	defer os.RemoveAll(tmpDir)
-
-	inDir := filepath.Join(tmpDir, "input")
-	outDir := filepath.Join(tmpDir, "output")
-	if err := os.MkdirAll(inDir, 0755); err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		return nil, err
-	}
-
-	ysmCopy := filepath.Join(inDir, filepath.Base(modelPath))
-	if err := copyFile(modelPath, ysmCopy); err != nil {
-		return nil, err
-	}
-
-	// 超时护栏：YSMParser 若挂起则 goroutine 永久阻塞，故加 30s 硬上限（ADR 审计 P2 #7）
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, parserPath, "-i", inDir, "-o", outDir)
-	executil.HideWindow(cmd)
-	if err := cmd.Run(); err != nil {
-		return nil, err
-	}
-
-	var png []byte
-	_ = filepath.WalkDir(outDir, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || png != nil {
-			return nil
-		}
-		low := strings.ToLower(p)
+	// 解码产物中找纹理（.png/.jpg，遍历顺序即输出目录序）
+	for _, f := range files {
+		low := strings.ToLower(f.Path)
 		if strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg") {
-			png = readLimitedFile(p)
+			return f.Data, nil
 		}
-		return nil
-	})
-	return png, nil
+	}
+	return nil, fmt.Errorf("模型内未找到纹理")
 }
 
 func extractFirstPNGFromZip(data []byte, size int64) []byte {

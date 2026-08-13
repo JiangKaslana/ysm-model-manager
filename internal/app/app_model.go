@@ -1,21 +1,18 @@
 // ========== YSM 模型解析 ==========
-// 从 app.go 拆分：模型文件分析、几何体解析、CLI fallback
+// 从 app.go 拆分：模型文件分析、几何体解析（.ysm 解码统一走内嵌 WASM，
+// 2026-08-08 架构决策，exe sidecar 已停发）
 package app
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/threejs"
@@ -270,126 +267,14 @@ func (a *App) SaveScreenshotFile(filename string, base64Data string) error {
 }
 
 func (a *App) runYSMParserOnFile(modelPath string) types.BedrockModel {
-	parserPath := ysm.FindCLI()
-	if parserPath == "" {
-		if data, err := os.ReadFile(modelPath); err == nil {
-			if m := decodeYSMViaNodeJS(data); m != nil {
-				return *m
-			}
+	// 2026-08-08 架构决策：YSMParser.exe sidecar 已停发（FindCLI 恒空已删除），
+	// 统一走内嵌 WASM 解码（decodeYSMViaNodeJS：Node 子进程 + WASM，无 Node 时返回 nil）
+	if data, err := os.ReadFile(modelPath); err == nil {
+		if m := decodeYSMViaNodeJS(data); m != nil {
+			return *m
 		}
-		return types.BedrockModel{}
 	}
-
-	tmpDir, err := os.MkdirTemp("", "ysm-parser-*")
-	if err != nil {
-		return types.BedrockModel{}
-	}
-	defer os.RemoveAll(tmpDir)
-
-	inDir := filepath.Join(tmpDir, "input")
-	outDir := filepath.Join(tmpDir, "output")
-	os.MkdirAll(inDir, 0755)
-	os.MkdirAll(outDir, 0755)
-
-	ysmCopy := filepath.Join(inDir, filepath.Base(modelPath))
-	if err := copyFile(modelPath, ysmCopy); err != nil {
-		return types.BedrockModel{}
-	}
-
-	// 超时护栏：YSMParser 若挂起则 goroutine 永久阻塞，故加 30s 硬上限（对齐 fileops.extractTextureViaYSM 既有修复）
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, parserPath, "-i", inDir, "-o", outDir)
-	executil.HideWindow(cmd)
-	if err := cmd.Run(); err != nil {
-		return types.BedrockModel{}
-	}
-
-	var merged *types.BedrockModel
-	filepath.WalkDir(outDir, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(strings.ToLower(p), ".json") {
-			return nil
-		}
-		if strings.HasSuffix(p, "ysm.json") {
-			return nil
-		}
-		// P2 修复：受限整读（上限 50MB，对齐 geometry maxExtractSize 口径）
-		// 防 YSMParser 被篡改输出 GB 级 JSON 撑爆内存
-		data := readLimitedFileBedrock(p)
-		if data == nil {
-			log.Printf("[app-model] 几何 JSON 读取失败或超限: %s", p)
-			return nil
-		}
-		if g := parseBedrockGeometry(data); g != nil {
-			for bi := range g.Bones {
-				for ci := range g.Bones[bi].Cubes {
-					g.Bones[bi].Cubes[ci].CubeTexW = g.TexWidth
-					g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
-				}
-			}
-			if merged == nil {
-				merged = g
-			} else {
-				merged.Bones = append(merged.Bones, g.Bones...)
-				merged.BoneCount += g.BoneCount
-				merged.CubeCount += g.CubeCount
-				if g.TexWidth > merged.TexWidth {
-					merged.TexWidth = g.TexWidth
-				}
-				if g.TexHeight > merged.TexHeight {
-					merged.TexHeight = g.TexHeight
-				}
-			}
-		}
-		return nil
-	})
-	if merged == nil {
-		return types.BedrockModel{}
-	}
-
-	// 收集全部纹理（Textures 数组 + 名字，供多纹理/3D texArr；Texture 取第一张兼容单纹理）
-	var texItems []ysmTexItem
-	filepath.WalkDir(outDir, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		low := strings.ToLower(p)
-		if strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg") {
-			// 排除头像/预览图（与 wasm_decoder.go / 前端 wasm.ts 口径一致）；
-			// 不过滤 <4KB 小图——64×64 真实纹理（如芙宁娜 arrow.png ~2KB）是合法贴图
-			if strings.HasPrefix(filepath.Base(low), "avatar") || strings.Contains(low, "avatar/") {
-				return nil
-			}
-			// P2 修复：受限整读（上限 50MB，对齐同函数 JSON 受限读 readLimitedFileBedrock 口径），
-			// 防 YSMParser 被篡改输出 GB 级 PNG/JPG 撑爆内存
-			if data := readLimitedFileBedrock(p); len(data) > 0 {
-				mime := "image/png"
-				if strings.HasSuffix(low, ".jpg") {
-					mime = "image/jpeg"
-				}
-				tn := filepath.Base(p)
-				tn = strings.TrimSuffix(strings.TrimSuffix(tn, ".png"), ".jpg")
-				texItems = append(texItems, ysmTexItem{name: tn, raw: data, mime: mime})
-			}
-		}
-		return nil
-	})
-	if len(texItems) > 0 {
-		// 纹理序口径统一（texture_order.go）：有 ysm.json 声明序 → 声明序 + default_texture 置首；
-		// 无（加密模型等 ysm.json 不可解）→ 纹理尺寸降序（主纹理通常最大）。与前端 wasm.ts 对称。
-		var ysmJSON []byte
-		if d, err := os.ReadFile(filepath.Join(outDir, "ysm.json")); err == nil {
-			ysmJSON = d
-		}
-		names, datas := orderTexItems(texItems, ysmJSON)
-		if len(datas) == 0 {
-			return *merged
-		}
-		merged.Texture = datas[0]
-		merged.Textures = datas
-		merged.TextureNames = names
-	}
-	return *merged
+	return types.BedrockModel{}
 }
 
 func copyFile(src, dst string) error {
