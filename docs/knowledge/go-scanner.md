@@ -29,7 +29,7 @@ invariant_anchors:
 
 - `ScanEntries` 递归扫描目录产出 `ModelEntry[]`（支持 `.ban` 后缀还原扩展名）
 - `.json` 白名单：仅 `ysm.json` 作为模型条目（ADR-038 D2，几何/动画/语言 json 不单独扫描）
-- 30s 扫描缓存 + 路径级失效：`scanCache` 为 `sync.Map`（`string → *atomic.Uint64`），`keyVersions` 用 `(*atomic.Uint64).Add(1)` 原子递增，防并发 `InvalidatePath` 竞态——P1 修复；单全局 `cacheGen atomic.Uint64` 仅作短路标记，实际路径级计数走 sync.Map
+- 30s 扫描缓存 + 路径级失效：`scanCache` 为 `sync.Map`（`string → scanCacheEntry{entries []ModelEntry, expiresAt time.Time}`），记录扫描条目与过期时刻；`keyVersions` 为另一份 `sync.Map`（`string → *atomic.Uint64`），用 `(*atomic.Uint64).Add(1)` 原子递增 per-key 版本戳，防并发 `InvalidatePath` 竞态——P1 修复；单全局 `cacheGen atomic.Uint64` 仅作全量失效的代际短路标记
 - SHA256 哈希（同步系统文件匹配用）
 - 作者提取（`[作者]` 前缀统计）、本地作者扫描、`index.json` 生成
 
@@ -45,7 +45,8 @@ invariant_anchors:
 
 ## 对外 API / 入口
 
-- `ScanEntries(dir)` — 扫描核心（缓存 30s，`.recycle` 跳过）
+- `ScanEntries(dir)` — 单返回值薄壳：内部 `ScanEntriesWithHit(dir)` 丢弃 `bool` 后返回条目
+- `ScanEntriesWithHit(dir)` — 扫描核心（缓存 30s，`.recycle` 跳过），返回 `(entries []ModelEntry, hit bool)`，调用方据此决定是否记录扫描日志，避免 30s 内重复访问同一目录时刷屏操作日志面板
 - `InvalidateCache()` / `InvalidatePath(dir)` — 缓存失效（导入/启用禁用后调用）
 - `ComputeFileHash(path)` — SHA256
 - `ListModelAuthors` / `ScanLocalAuthors` — 作者统计
@@ -53,7 +54,9 @@ invariant_anchors:
 
 ## 与其他子系统关系
 
-- `go/fileops/`：`ToggleModelEnable` 成功后代调用 `InvalidatePath`（薄壳层）
+- `go/fileops/`：`ToggleModelEnable` 只切换 `.ban` 文件名状态（包内不调用 InvalidatePath）；缓存失效由 `internal/app/app_files.go` 的 `App.ToggleModelEnable` 包装层在调用成功后执行 `scanner.InvalidatePath(filepath.Dir(path))`
+- `go/sync/`：`computeHash` 直接委托 `scanner.ComputeFileHash`（sync.go:368），并声明 >500MB 空串、读错空串等口径与 scanner 一致；sync.go:415 / 556 的回收站过滤亦与 `ScanEntries` 对齐
+- `internal/app/resource_bindings.go`：资源包启用/禁用切换成功后同样调 `scanner.InvalidatePath`（resource_bindings.go:288），与 ToggleModelEnable 口径对齐防 30s 陈旧缓存
 - `go/types/`：`ModelEntry` / `IsSupportedExt` / `IsYsmEntryJSON`
 - `internal/app/app_scan.go`：薄壳转发（`AnalyzeBedrockModel` / `tagsStore` / `AddOpLog` 保留在薄壳）
 
