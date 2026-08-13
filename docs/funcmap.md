@@ -38,10 +38,10 @@
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 47 | 162 |
+| 前端·工具 | 48 | 164 |
 | frontend/views | 70 | 199 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **246** | **1025** |
+| **合计** | **247** | **1027** |
 
 ## Go·头像
 
@@ -912,9 +912,11 @@
 | `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:51` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
 | `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:65` | renderModel3D 返回的渲染句柄 |
 | `renderModel3D()` | `frontend/src/utils/3d/model3d:100` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:501` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:463` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:31` | 启动渲染循环并立即渲染一帧。 |
+| `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:7` | setupRenderer 返回的组件 |
+| `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:18` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
 | `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
 | `resetRendererState()` | `frontend/src/utils/3d/session-state:18` | 复位所有模块级渲染器引用为 null。 |
 | `detachRendererCanvas()` | `frontend/src/utils/3d/session-state:28` | 从 DOM 中移除 renderer 的 canvas 元素（安全，已 detached 时不操作）。 |

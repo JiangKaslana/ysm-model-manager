@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  showAt, existsAt, renamePairs, gitMaybe,
+  showAt, existsAt, renamePairs, gitMaybe, lsTree,
 } from './_lib/git-ref.mjs';
 import { getExportedSymbolsAny } from './_lib/source-graph.mjs';
 import { walk, ROOT, toPosix } from './_lib/scan-files.mjs';
@@ -184,6 +184,12 @@ function scanCallersInRef(terms, newer, scope) {
     if (fs.existsSync(goDir)) scanRoots.push(goDir);
     if (fs.existsSync(srcDir)) scanRoots.push(srcDir);
   }
+  // 性能（审核 P3）：逐文件 existsAt 是 477 次 cat-file -e spawn（33-36s）；
+  // 改用 lsTree 一次性取 newer ref 下 go/+frontend/src 的存在集合，1 次 spawn 替代逐文件探测
+  const refFiles = new Set();
+  for (const root of scanRoots) {
+    for (const p of lsTree(newer, toPosix(path.relative(ROOT, root)))) refFiles.add(p);
+  }
   for (const dir of scanRoots) {
     try {
       const files = walk(dir, { exts, skipFile: (n) => skipFileRe.test(n) });
@@ -192,9 +198,9 @@ function scanCallersInRef(terms, newer, scope) {
         const rel = toPosix(path.relative(ROOT, f));
         // 跳过二进制 / 不存在于 newer 的文件（避免 git show 噪声）
         if (rel.endsWith('.png') || rel.endsWith('.gif') || rel.endsWith('.jpg')) continue;
-        // R5 修复：existsAt/showAt 的 toGitPath 假设绝对路径（path.relative(ROOT, p)），
+        // R5 修复：showAt 的 toGitPath 假设绝对路径（path.relative(ROOT, p)），
         // 传相对路径 rel 在 cwd≠ROOT 时解析错位 → 漏报断链调用方；walk 返回绝对路径 f
-        if (!existsAt(newer, f)) continue; // 磁盘有但 newer ref 无（并行拆分的在建文件）→ 跳过，否则 git show 报 fatal 噪声
+        if (!refFiles.has(rel)) continue; // 磁盘有但 newer ref 无（并行拆分的在建文件）→ 跳过，否则 git show 报 fatal 噪声
         const text = showAt(newer, f);
         if (!text) continue;
         for (const sym of terms) {
