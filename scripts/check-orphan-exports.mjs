@@ -12,6 +12,12 @@
  *
  * 排除：export default（匿名单例惯用）、export ... from（re-export）。
  * 命名空间导入 import * as：按 ns.<symbol> 用法对齐具体符号（不排除）。
+ * 消费者覆盖三类真实用法（避免活代码误判孤儿，ADR-043 扫描完整性）：
+ *   - 跨文件 import { a } / 动态 import 解构 / import * as ns 取属性；
+ *   - 动态 import 先存命名空间别名后取属性：const mod = await import("./x"); mod.foo
+ *     （download-queue.test.ts 第 78-83 行真实写法，文本解析盲区已补）；
+ *   - 同文件内部自调用（如 download-queue.ts 第 735/738/777/792 行 subscribe/resume/
+ *     enqueueDownloads/cancelDownloads 自引用），按自引用计数并入消费者（排除 export 声明行）。
  *
  * 注：与联邦 MikuMikuAR 的 check-consumers（符号反向查询 / 重构影响面）同名异实，
  * 故独立命名为 check-orphan-exports 以消除歧义（ADR-241 §Phase 2）。
@@ -61,6 +67,11 @@ function extractExports(file, text) {
 // 动态导入：await import("...") 的两种命名解构形式
 const DYN_DESTRUCT_RE = /(?:const|let|var)\s*\{\s*([^}]*?)\s*\}\s*=\s*await\s+import\(\s*['"]([^'"]+)['"]\s*\)/g;
 const THEN_DESTRUCT_RE = /import\(\s*['"]([^'"]+)['"]\s*\)\.then\(\s*\(\s*\{\s*([^}]*?)\s*\}\s*\)/g;
+// 动态导入：先存命名空间别名、后取属性（download-queue.test.ts 第 78-83 行真实用法）
+//   const mod = await import("./x.ts");  mod.foo;  mod.bar();
+//   import("./x.ts").then((mod) => { mod.foo });
+const DYN_NS_ALIAS_RE = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+import\(\s*['"]([^'"]+)['"]\s*\)/g;
+const THEN_NS_ALIAS_RE = /import\(\s*['"]([^'"]+)['"]\s*\)\.then\(\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/g;
 
 /**
  * 解析动态导入规格（同 resolveImport，多一次 .js → .ts 回退）。
@@ -107,6 +118,26 @@ function extractImports(file, text, moduleSet) {
     if (!target || target === file) continue;
     pushNamed(target, m[2]);
   }
+  // 动态导入：先存命名空间别名、后取属性（如 download-queue.test.ts 第 78-83 行）
+  //   const mod = await import("./x.ts");  mod.foo;  mod.bar();
+  const nsAliases = []; // [alias, target]
+  for (const m of text.matchAll(DYN_NS_ALIAS_RE)) {
+    const target = resolveDynImport(file, m[2], moduleSet);
+    if (!target) continue;
+    nsAliases.push([m[1], target]);
+  }
+  for (const m of text.matchAll(THEN_NS_ALIAS_RE)) {
+    const target = resolveDynImport(file, m[1], moduleSet);
+    if (!target) continue;
+    nsAliases.push([m[2], target]);
+  }
+  for (const [alias, target] of nsAliases) {
+    const useRe = new RegExp(`\\b${alias}\\.([A-Za-z_$][\\w$]*)\\b`, 'g');
+    for (const u of text.matchAll(useRe)) {
+      if (u[1] === 'default') continue;
+      out.push([target, u[1]]);
+    }
+  }
   // 命名空间导入 import * as ns：扫描 ns.<symbol> 用法对齐具体符号
   for (const m of text.matchAll(/\bimport\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*['"]([^'"]+)['"]/g)) {
     const target = resolveImport(file, m[2], moduleSet);
@@ -149,6 +180,30 @@ function main() {
     for (const [target, sym] of extractImports(f, text, moduleSet)) {
       const key = `${sym}@${target}`;
       consumed.set(key, (consumed.get(key) || 0) + 1);
+    }
+  }
+
+  // 同文件自引用计数：导出符号在自身文件内被调用/引用（非 export 声明行）。
+  // 例：download-queue.ts 第 735 行 subscribe(handleStateChange)、738 void resume()
+  // 等内部自调用——脚本仅扫 import 语句会漏掉，导致活代码被误判孤儿（ADR-241 实证）。
+  for (const [sym, owners] of symbolOwners) {
+    for (const { file, line } of owners) {
+      const text = fs.readFileSync(file, 'utf-8');
+      const lines = text.split('\n');
+      let selfCount = 0;
+      const useRe = new RegExp(`\\b${sym}\\b`, 'g');
+      const namedRe = /export\s+(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/;
+      const blockRe = /export\s*\{([^}]*)\}(?!\s*from)/;
+      for (let i = 0; i < lines.length; i++) {
+        if (i + 1 === line) continue; // 跳过 export 声明行本身
+        const ln = lines[i];
+        if (namedRe.test(ln) || blockRe.test(ln)) continue;
+        if (useRe.test(ln)) selfCount++;
+      }
+      if (selfCount > 0) {
+        const key = `${sym}@${file}`;
+        consumed.set(key, (consumed.get(key) || 0) + selfCount);
+      }
     }
   }
 
