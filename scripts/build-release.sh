@@ -42,9 +42,8 @@ if [ -z "$PROJECT_ROOT" ]; then
 fi
 
 OUTPUT_DIR="$PROJECT_ROOT/build/release"
-EXE_NAME="YSM-Model-Manager.exe"
-EXE_PATH="$OUTPUT_DIR/$EXE_NAME"
-ASSET_NAME="YSM-Model-Manager_windows_amd64.exe"
+# 资产名 = 平台后缀 exe（与 updater assetPattern 直配，build-release.ps1 同口径）
+EXE_NAME="YSM-Model-Manager_windows_amd64.exe"
 
 # GitHub 仓库信息
 GITHUB_OWNER="eghrhegpe"
@@ -122,17 +121,17 @@ fi
 echo -e "\033[33m🔐 生成 SHA256SUMS ...\033[0m"
 SHA_SUMS_PATH="$OUTPUT_DIR/SHA256SUMS"
 EXE_HASH="$(sha256sum "$OUTPUT_DIR/$EXE_NAME" | awk '{print $1}')"
-echo "$EXE_HASH  $ASSET_NAME" > "$SHA_SUMS_PATH"
+echo "$EXE_HASH  $EXE_NAME" > "$SHA_SUMS_PATH"
 echo -e "\033[90m   SHA256: $EXE_HASH\033[0m"
 
 # 6. 输出结果
 FILE_SIZE_MB="$(du -m "$OUTPUT_DIR/$EXE_NAME" | awk '{printf "%.1f", $1}')"
 echo -e "\033[32m✅ 构建完成!\033[0m"
 echo -e "\033[36m   版本: $VER_TAG\033[0m"
-echo -e "\033[36m   输出: $OUTPUT_DIR/$ASSET_NAME\033[0m"
+echo -e "\033[36m   输出: $OUTPUT_DIR/$EXE_NAME\033[0m"
 echo -e "\033[36m   大小: $FILE_SIZE_MB MB\033[0m"
 echo ""
-echo -e "\033[35m下一步: 在 GitHub Releases 上传 $ASSET_NAME 和 SHA256SUMS\033[0m"
+echo -e "\033[35m下一步: 在 GitHub Releases 上传 $EXE_NAME 和 SHA256SUMS\033[0m"
 echo -e "\033[35m       或添加 -skip-upload 参数跳过上传\033[0m"
 
 # 方案 B: GitHub API（需要 GH_TOKEN 环境变量）
@@ -145,7 +144,7 @@ upload_via_api() {
     echo -e "\033[33m   ⚠️ 未设置 GH_TOKEN 环境变量，跳过 GitHub 上传\033[0m" >&2
     echo -e "\033[90m   设置方法: export GH_TOKEN='ghp_xxxx'\033[0m" >&2
     echo -e "\033[90m   或写到 $HOME/.ysm-release/token.txt\033[0m" >&2
-    echo -e "\033[35m   手动上传: $ZIP_PATH\033[0m" >&2
+    echo -e "\033[35m   手动上传: $OUTPUT_DIR/$EXE_NAME\033[0m" >&2
     return
   fi
 
@@ -173,13 +172,13 @@ upload_via_api() {
 
   if [ -z "$UPLOAD_URL" ]; then
     echo -e "\033[31m   ❌ 创建 Release 失败: $CREATE_RESP\033[0m" >&2
-    echo -e "\033[33m   请手动上传: $OUTPUT_DIR/$ASSET_NAME\033[0m" >&2
+    echo -e "\033[33m   请手动上传: $OUTPUT_DIR/$EXE_NAME\033[0m" >&2
     return
   fi
   echo -e "\033[32m   ✅ Release 已创建，上传中...\033[0m"
 
   # 上传 exe 资产（裸 exe 发布，assetPattern 直配 .exe）
-  curl -sS -X POST "$UPLOAD_URL?name=$ASSET_NAME" \
+  curl -sS -X POST "$UPLOAD_URL?name=$EXE_NAME" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/octet-stream" \
     --data-binary "@$OUTPUT_DIR/$EXE_NAME" >/dev/null
