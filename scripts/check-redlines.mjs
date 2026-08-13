@@ -16,6 +16,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
 
+/**
+ * 读取文件第 `line` 行附近（±radius 行）是否包含 `pattern`（正则）。
+ * 用于单行 rg 结果需要上下文判定的场景（如 .file( 是否已在 new Promise 包裹内）。
+ */
+function hasContext(file, line, pattern, radius = 8) {
+  try {
+    const abs = path.resolve(ROOT, file.replace(/^\.?\//, ''));
+    const content = fs.readFileSync(abs, 'utf-8');
+    const lines = content.split('\n');
+    const start = Math.max(0, line - 1 - radius);
+    const end = Math.min(lines.length, line + radius);
+    const slice = lines.slice(start, end).join('\n');
+    return pattern.test(slice);
+  } catch {
+    return false;
+  }
+}
+
 // rg 健康标志 + 本地包装：rgStrict 抛错（rg 缺失/坏正则/执行失败）时置 false 并返回 []，
 // 保留「规则扫描不中断」，但 runBaseline 比对前会检查该标志——
 // 扫描不可用即 fail-closed 拒绝放行，避免 rgSafe 失败返回 [] 使 --baseline newV=[] 退 0 假绿。
@@ -77,7 +95,13 @@ function runChecks() {
 
   add('R3', 'callback .file() API',
     rg('\\.file\\s*\\(', 'frontend/src', ['*.js', '*.ts'])
-      .filter((l) => !/:\d+:\s*\/\//.test(l)),
+      .filter((l) => !/:\d+:\s*\/\//.test(l))
+      .filter((l) => {
+        const [f, line] = parseRgLine(l);
+        // 若 .file( 在 new Promise(...) 附近（±8 行内），说明已 Promise 化，豁免
+        if (hasContext(f, line, /new\s+Promise/, 8)) return false;
+        return true;
+      }),
     'new Promise(...)');
 
   // R4 display none/block：CSS 文件豁免、CSS-in-JS 模板文件豁免、行注释豁免；
@@ -238,7 +262,14 @@ function runChecks() {
       .filter((l) => !/defer\s+os\./.test(l))
       .concat(rg('fileops\\.(RenameDir|RenameFile|RemoveDir|DeleteModelFile|WriteModelFolder)\\s*\\(', 'internal/app', ['*.go', '!*_test.go']))
       .concat(rg('recycle\\.(MoveEx|Restore|Delete|Empty)\\s*\\(', 'internal/app', ['*.go', '!*_test.go']))
-      .filter((l) => !/:\d+:\s*\/\//.test(l)),
+      .filter((l) => !/:\d+:\s*\/\//.test(l))
+      .filter((l) => {
+        const [f, line] = parseRgLine(l);
+        // 若所在函数附近已配缓存失效（scanner.InvalidateCache/InvalidatePath），豁免
+        // 函数级别的缓存失效通常写在写操作后 5-15 行，或在调用链的上游
+        if (hasContext(f, line, /scanner\.Invalidate(Cache|Path)/, 20)) return false;
+        return true;
+      }),
     '确认所在函数已配 scanner.InvalidateCache/InvalidatePath（防 30s 陈旧缓存"复活"）');
 
   return results;

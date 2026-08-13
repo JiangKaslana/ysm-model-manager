@@ -162,3 +162,15 @@ jobs:
           name: e2e-report
           path: frontend/test-results/
           if-no-files-found: ignore
+
+      - name: E2E 覆盖广度采集（ADR-035 G-4，可选非门禁）
+        working-directory: frontend
+        run: |
+          npx playwright test --config playwright.coverage.config.ts
+          node ../scripts/e2e-coverage-report.mjs --json
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: e2e-coverage-report
+          path: frontend/e2e-coverage/
+          if-no-files-found: ignore
