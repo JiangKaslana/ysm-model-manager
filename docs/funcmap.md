@@ -38,10 +38,10 @@
 | 前端·特性 | 16 | 72 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 49 | 165 |
+| 前端·工具 | 50 | 180 |
 | frontend/views | 70 | 199 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **248** | **1028** |
+| **合计** | **249** | **1043** |
 
 ## Go·头像
 
@@ -876,6 +876,12 @@
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:38` | 遍历 scene 释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:53` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
+| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:19` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
+| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:194` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
+| `parseUV()` | `frontend/src/utils/3d/cube-mesh:222` | 解析 UV：faceUV 优先、失败回退 expandBoxUV、c.UV 回退。 |
+| `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh:254` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
+| `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh:316` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
+| `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh:327` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `DebugBoneData()` | `frontend/src/utils/3d/debug-render:7` | — |
 | `makeTextTexture()` | `frontend/src/utils/3d/debug-render:14` | 生成骨骼名 Canvas 纹理（Sprite 标签用） |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:43` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
@@ -921,7 +927,16 @@
 | `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
 | `resetRendererState()` | `frontend/src/utils/3d/session-state:18` | 复位所有模块级渲染器引用为 null。 |
 | `detachRendererCanvas()` | `frontend/src/utils/3d/session-state:28` | 从 DOM 中移除 renderer 的 canvas 元素（安全，已 detached 时不操作）。 |
-| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:116` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `buildCubeMeshData()` | `frontend/src/utils/3d/spec-builder` | — |
+| `mergeCubes()` | `frontend/src/utils/3d/spec-builder` | — |
+| `parseUV()` | `frontend/src/utils/3d/spec-builder` | — |
+| `eulerToQuaternion()` | `frontend/src/utils/3d/spec-builder` | — |
+| `isIdentityQuat()` | `frontend/src/utils/3d/spec-builder` | — |
+| `hasBoneRotation()` | `frontend/src/utils/3d/spec-builder` | — |
+| `Vec3()` | `frontend/src/utils/3d/spec-builder:30` | vec3 — Go threejs/spec.go L55 |
+| `Cube2D()` | `frontend/src/utils/3d/spec-builder:37` | Cube2D — Go types/bedrock.go Cube2D |
+| `MeshData()` | `frontend/src/utils/3d/spec-builder:101` | MeshData — Go threejs/spec.go MeshData |
+| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:120` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:12` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:9` | 三维向量 [x, y, z] |
 | `Keyframe()` | `frontend/src/utils/animation/animation:12` | 关键帧 |
