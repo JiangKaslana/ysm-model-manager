@@ -31,7 +31,7 @@ function breakLocalStorage() {
 const { LoadAppConfigMock } = vi.hoisted(() => ({
   LoadAppConfigMock: vi.fn(),
 }));
-vi.mock("./wails/app.ts", () => ({
+vi.mock("./backend/app.ts", () => ({
   getApp: () => Promise.resolve({ LoadAppConfig: LoadAppConfigMock }),
 }));
 // Window（@wailsio/runtime）仅 devtools 分支用到，mock 防未定义

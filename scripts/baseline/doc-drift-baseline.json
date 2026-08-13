@@ -7,7 +7,7 @@
     "frontend/src/test-utils",
     "frontend/src/utils",
     "frontend/src/views",
-    "frontend/src/wails",
+    "frontend/src/backend",
     "frontend/src/wasm",
     "frontend/src/widgets",
     "go/avatar",

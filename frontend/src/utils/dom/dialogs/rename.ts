@@ -2,7 +2,7 @@
 // 用法: showRenameDialog(filePath, currentName) → 确认后调用 RenameFile
 import { parseModelName } from "../../../utils/dom/display.ts";
 import { closeDlg, registerDlg, esc } from "./modal.ts";
-import { getApp } from "../../../wails/app.ts";
+import { getApp } from "../../../backend/app.ts";
 import { RESOURCE_TYPES } from "../../../utils/resource/types.ts";
 import { buildRenameName, validateRenameFields, type RenameFields } from "./rename-format.ts";
 import { t } from "../../../core/i18n/t.ts";

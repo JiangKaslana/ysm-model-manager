@@ -120,9 +120,9 @@
 - **版本注入路径**：
   | 产物 | 注入方式 | 代码位置 |
   |------|----------|----------|
-  | 主程序 | `go build -ldflags "-X ysm-model-manager/go/version.Version=$VerTag"` | `cmd/build-release.ps1:79`（CI 经 `release.yml` 调 `build-release.ps1`） |
-  | CLI 工具 | 同上，`-tags cli` | `cmd/build-release.ps1:93` |
-  | 更新助手 | 同上，编译到 `go/updater/ysm-updater-helper.exe` | `cmd/build-release.ps1:57` |
+  | 主程序 | `go build -ldflags "-X ysm-model-manager/go/version.Version=$VerTag"` | `scripts/build-release.ps1:79`（CI 经 `release.yml` 调 `build-release.ps1`） |
+  | CLI 工具 | 同上，`-tags cli` | `scripts/build-release.ps1:93` |
+  | 更新助手 | 同上，编译到 `go/updater/ysm-updater-helper.exe` | `scripts/build-release.ps1:57` |
 - **默认值**：未注入时 `go/version.Version = "dev"`（`go/version/version.go:6`）。若应用内显示 `dev`，说明 ldflags 注入失败。
 
 ---

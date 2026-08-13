@@ -19,7 +19,7 @@ vi.mock("./cache.ts", () => ({
   cacheSet: cacheSetMock,
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({ AnalyzeBedrockModel: AnalyzeMock }),
 }));
 

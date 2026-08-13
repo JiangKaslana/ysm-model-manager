@@ -5,7 +5,7 @@ import { selectState, toggleSelect, selectSingle } from "./data.ts";
 import type { AppTree } from "./index.ts";
 import { safeSet } from "../../utils/dom/storage.ts";
 import type { TreeEntry } from "./loader.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 

@@ -1,6 +1,6 @@
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import type { PreviewRoot } from "./utils.ts";
 import { createLitematic3D, cleanupVoxel3D } from "./litematic-3d.ts";

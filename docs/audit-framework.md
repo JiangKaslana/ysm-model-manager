@@ -124,7 +124,7 @@ grep -E '\.dispose\(|\bremove\w+\b|\bdelete\w+\b' <文件路径> # 释放点
 
 ```js
 // ✅ 正确
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 const App = await getApp();
 const result = await App.SomeBinding();
 

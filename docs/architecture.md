@@ -31,7 +31,7 @@ YSM 模型管理器是一个跨平台桌面 + 移动 + 网页应用，用于管�
 | 前端 | **Vite + TypeScript**（Web Components + Shadow DOM） | `frontend/index.html` → `js/app-modules.ts`；源码全 `.ts`，仅 `*.test.js` 与生成态 `wasm/*-data.js` 为 `.js` |
 | 3D 渲染 | **Three.js** + 内嵌 **YSMParser WASM** | WebView/浏览器/Android WebView 内内存直解 `.ysm`，无 exe sidecar |
 | 平台抽象 | **build tags** + PathManager | `pathmgr_{desktop,android}.go`、`screen_{windows,other}.go`、`app_config_{windows,other,android}.go` 等 |
-| Web 后端 | **backend adapter** | `wails/browser-adapter.ts` Proxy 同形状绑定；`wails/platform.ts` Tier 分层判定 |
+| Web 后端 | **backend adapter** | `backend/browser-adapter.ts` Proxy 同形状绑定；`backend/platform.ts` Tier 分层判定 |
 | 数据 | `resource_types.json` 单一事实来源 + `creators.json` / `workshop_sites.json` / `workshop-github.json` | 资源类型/创作者/工坊站点/镜像仓库 |
 | 脚本 | Node（`.mjs` 零依赖治理工具链） | `scripts/` 下 40+ 个校验/生成脚本 |
 | 测试 | Go 单测 + Node 契约测试（`tests/*.mjs`）+ Vitest | 三层防护 |
@@ -43,7 +43,7 @@ YSM 模型管理器是一个跨平台桌面 + 移动 + 网页应用，用于管�
 ┌────────────────────────────────────┐    ┌────────────────────────────────────┐
 │  前端 (Vite/TS Web Components)       │    │  前端 (WebView + JS Bridge)          │
 │   components/ · core/ · features/    │    │   components/ · android-bridge.ts    │
-│   utils/ · wails/{app,platform}      │    │   features/android-events.ts          │
+│   utils/ · backend/{app,platform}      │    │   features/android-events.ts          │
 └────────┬──────────────────────────┘    └──────┬───────────────────────────────┘
          │ Wails Service 反射绑定                │  Java↔JS (WailsJSBridge)
          │ EventsOn / Event.Emit (反向)           │  System events (back/network/battery)
@@ -92,15 +92,15 @@ Web 版 (GitHub Pages):
 
 ### 绑定模式
 
-Wails v3 **Service 反射绑定**：`*app.App` 的所有导出方法自动暴露给前端，**无 `//export` 注解**。`wails3 generate bindings` 产出 `frontend/bindings/ysm-model-manager/internal/app/app.ts`（`cmd/build-release.ps1:37-46`）；Android 构建时加 `-tags android`（`build/android/Taskfile.yml:198`），前端以 `.js` 后缀 import，由 `vite.config.js` 的 `wailsBindingsResolve` 插件重定向到 `.ts`。
+Wails v3 **Service 反射绑定**：`*app.App` 的所有导出方法自动暴露给前端，**无 `//export` 注解**。`wails3 generate bindings` 产出 `frontend/bindings/ysm-model-manager/internal/app/app.ts`（`scripts/build-release.ps1:37-46`）；Android 构建时加 `-tags android`（`build/android/Taskfile.yml:198`），前端以 `.js` 后缀 import，由 `vite.config.js` 的 `wailsBindingsResolve` 插件重定向到 `.ts`。
 
-> **🔒 硬性契约（2026-08-05 回归后固化）**：bindings **必须**以 TypeScript 生成（`-ts`，产出 `.ts`）；**禁止**无 `-ts` 调用——会生成 `.js` 并 `-clean` 清掉跟踪的 `.ts`，破坏上方 import 重定向契约。**统一入口**：`npm run generate:bindings`（`frontend/package.json`，内部 `cd .. && wails3 generate bindings -clean=true -ts -i`，在仓库根执行）；`cmd/build-release.ps1` / `cmd/build-release.sh` 均调该脚本；`build/Taskfile.yml:160` 的 `generate:bindings` 任务保留 `-f`/`-obfuscated` 透传且带 `-ts`（默认 flags 下与 npm 脚本等效）。若误跑无 `-ts` 生成导致 `.ts` 被删，立即 `npm run generate:bindings` 恢复。
+> **🔒 硬性契约（2026-08-05 回归后固化）**：bindings **必须**以 TypeScript 生成（`-ts`，产出 `.ts`）；**禁止**无 `-ts` 调用——会生成 `.js` 并 `-clean` 清掉跟踪的 `.ts`，破坏上方 import 重定向契约。**统一入口**：`npm run generate:bindings`（`frontend/package.json`，内部 `cd .. && wails3 generate bindings -clean=true -ts -i`，在仓库根执行）；`scripts/build-release.ps1` / `scripts/build-release.sh` 均调该脚本；`build/Taskfile.yml:160` 的 `generate:bindings` 任务保留 `-f`/`-obfuscated` 透传且带 `-ts`（默认 flags 下与 npm 脚本等效）。若误跑无 `-ts` 生成导致 `.ts` 被删，立即 `npm run generate:bindings` 恢复。
 
 反向通道（Go → 前端事件）：`a.app.Event.Emit(...)`，例如 `app.go:101` 的 `config-loaded`、`app_download.go:62` 的 `queue:status`。
 
 ### 2.1 平台判定与能力门控
 
-前端通过 `wails/platform.ts` Tier 分层判定运行环境：
+前端通过 `backend/platform.ts` Tier 分层判定运行环境：
 
 | Tier | 判定 | 说明 |
 |------|------|------|
@@ -125,7 +125,7 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 
 ### 2.3 Web 版 backend adapter
 
-`frontend/src/wails/browser-adapter.ts`：Proxy 生成与 `AppBindings` 同形状的浏览器后端。Phase 2 实现了 `ScanModelEntries`/`ScanModelEntriesWithLabel`/`ReadFileBytes`/`GetRepoRoot`/`GetDefaultRepoRoot`/`LoadAppConfig`/`SaveAppConfig`/`GetModel3DSpec`/`Build3DSpecFromGeometryJSON`，数据层为 IndexedDB（`idb.ts`，`dir:`/`file:` 前缀模拟目录）+ localStorage（配置）。
+`frontend/src/backend/browser-adapter.ts`：Proxy 生成与 `AppBindings` 同形状的浏览器后端。Phase 2 实现了 `ScanModelEntries`/`ScanModelEntriesWithLabel`/`ReadFileBytes`/`GetRepoRoot`/`GetDefaultRepoRoot`/`LoadAppConfig`/`SaveAppConfig`/`GetModel3DSpec`/`Build3DSpecFromGeometryJSON`，数据层为 IndexedDB（`idb.ts`，`dir:`/`file:` 前缀模拟目录）+ localStorage（配置）。
 
 - 虚拟根 `/web`：路径语义与桌面一致，业务调用零改动
 - 未实现 binding → `WebUnsupportedError` (fail-fast，禁止 undefined 穿透)
@@ -226,7 +226,7 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 
 ### 3.4 命令行
 
-`cmd/`：`build-release.ps1`/`build-release.sh`（Windows 发布脚本）、`build-darwin.sh`（macOS）、`build-linux.sh`（Linux）、`build-android.ps1` / `build-android-so.ps1`（Android NDK 编译 + Gradle 打包）、`updater/`（编译为 `go/updater/ysm-updater-helper.exe` 被 embed）、`genindex/`、`modelscope/`、`diag/`。
+`cmd/`：`updater/`（编译为 `go/updater/ysm-updater-helper.exe` 被 embed）、`genindex/`、`modelscope/`、`diag/`；构建脚本在 `scripts/`（`build-release.ps1`/`build-release.sh`、`build-darwin.sh`、`build-linux.sh`、`build-android.ps1` / `build-android-so.ps1`）。
 
 ---
 
@@ -400,7 +400,7 @@ index.ts（编排：constructor → shadow → connected→disconnected）
 
 ### 6.5 其他前端目录
 
-`core/`（context-menus 13.7KB、handler-dnd 10.6KB、handler-sync 10.8KB、handler-upload、theme、page-store、menu-defs）、`features/`（import-queue 30.8KB、community/download-queue 21.4KB、oldest-models、recycle-bin、version-updater、dnd-state）、`utils/`（3d/model3d 25.8KB、model2d 19.4KB、animation、summarize、display、extensions、resource-types 等 20+ 模块）、`utils/dom/`（android-bridge、directory-picker、esc、dom 等）、`dialogs/`（modal/rename/batch-rename/tag-editor/adv-filter）、`services/registry.ts`、`wails/`（app.ts / platform.ts / browser-adapter.ts / idb.ts / types.ts）、`wasm/`、`css/`、`web-spike/`（ADR-049 Phase 0 调试页）、`views/`（app-content/app-preview/app-tree/app-sidebar/app-resource-manager/app-sync-manager/app-nav/app-toast）。
+`core/`（context-menus 13.7KB、handler-dnd 10.6KB、handler-sync 10.8KB、handler-upload、theme、page-store、menu-defs）、`features/`（import-queue 30.8KB、community/download-queue 21.4KB、oldest-models、recycle-bin、version-updater、dnd-state）、`utils/`（3d/model3d 25.8KB、model2d 19.4KB、animation、summarize、display、extensions、resource-types 等 20+ 模块）、`utils/dom/`（android-bridge、directory-picker、esc、dom 等）、`dialogs/`（modal/rename/batch-rename/tag-editor/adv-filter）、`services/registry.ts`、`backend/`（app.ts / platform.ts / browser-adapter.ts / idb.ts / types.ts）、`wasm/`、`css/`、`web-spike/`（ADR-049 Phase 0 调试页）、`views/`（app-content/app-preview/app-tree/app-sidebar/app-resource-manager/app-sync-manager/app-nav/app-toast）。
 
 ### 6.6 网页版架构（Web Edition / 查看器模式）
 
@@ -409,16 +409,16 @@ index.ts（编排：constructor → shadow → connected→disconnected）
 **入口与判定**：
 - `frontend/web.html` — Spike 调试页，声明 `globalThis.__YSM_BACKEND__ = "browser"`（Tier 0 权威信号）
 - `frontend/vite.web.config.ts` — `mode: "web"`, 输出 `dist-web`；复用 `wails-bindings-resolve` 插件
-- `frontend/src/wails/platform.ts` — Tier 分层判定：Tier 0 `__YSM_BACKEND__` > Tier 1 `MODE=web` > Tier 2 `window.go`/`window.wails`
-- `frontend/src/wails/app.ts:22` — `resolveWebMode()` 为真 → 返回 `browserAdapter`（跳过 Wails binding import）
+- `frontend/src/backend/platform.ts` — Tier 分层判定：Tier 0 `__YSM_BACKEND__` > Tier 1 `MODE=web` > Tier 2 `window.go`/`window.wails`
+- `frontend/src/backend/app.ts:22` — `resolveWebMode()` 为真 → 返回 `browserAdapter`（跳过 Wails binding import）
 
-**backend adapter**（`frontend/src/wails/browser-adapter.ts`）：
+**backend adapter**（`frontend/src/backend/browser-adapter.ts`）：
 - Proxy 生成与 `AppBindings` 同形状后端
 - Phase 2 实现：`ScanModelEntries`/`ScanModelEntriesWithLabel`（IDB `dir:` 前缀 → `ModelEntry`）、`ReadFileBytes`（`/web/` 路由 → IDB → base64）、`GetRepoRoot`/`GetDefaultRepoRoot`（虚拟根 `/web`）、`LoadAppConfig`/`SaveAppConfig`（localStorage）、`GetModel3DSpec`（`"{}"`，走 WASM 兜底）、`Build3DSpecFromGeometryJSON`（`"{}"` 桩，P2-2 遗留）
 - 未实现 binding → `WebUnsupportedError`（fail-fast，`isViewerMode()` 隐藏对应 UI）
 - `importWebFiles(files, type)`：File API/拖拽 → IndexedDB，UI 入口由 Phase 3 接入
 
-**数据层**（`frontend/src/wails/idb.ts`）：
+**数据层**（`frontend/src/backend/idb.ts`）：
 - `openDB()` 惰性单例，`idbGet`/`idbSet`/`idbDel`/`idbKeys` 前缀扫描
 - key 规约（对齐 MikuMikuAR ADR-177）：`dir:<type>/<name>:`（目录标记）、`file:<type>/<name>/<rel>`（文件内容）、`cfg:<key>`（配置）
 - IndexedDB 不可用（非浏览器/隐私模式/open 失败） → 自动降级内存 Map，应用不崩
@@ -476,10 +476,10 @@ index.ts（编排：constructor → shadow → connected→disconnected）
 
 ### 10.2 发布流水线
 
-**桌面（Windows）**：`cmd/build-release.ps1`：
+**桌面（Windows）**：`scripts/build-release.ps1`：
 1. `wails3 generate bindings` → 2. `npm run build`（vite）→ 3. 构建 `ysm-updater-helper.exe`（embed 前置）→ 4. `go generate`（litematic block_ids）→ 5. `go build -ldflags "-X ysm-model-manager/go/version.Version=$VerTag"` → 6. `go build -tags cli -o ysm-cli.exe` → GitHub Release 上传。
 
-**桌面（macOS/Linux）**：`cmd/build-release.sh` → `cmd/build-darwin.sh` / `cmd/build-linux.sh`（NSIS/fpm 打包）。
+**桌面（macOS/Linux）**：`scripts/build-release.sh` → `scripts/build-darwin.sh` / `scripts/build-linux.sh`（NSIS/fpm 打包）。
 
 **Android**：`node scripts/android-build.mjs`（一键）或 `Taskfile.yml` `android` include：
 1. `wails3 android overlay:gen` → 2. `npm run build` → 3. `go build -buildmode=c-shared -tags android -overlay overlay.json` → 4. Gradle `assembleRelease` → APK（keystore 经 GitHub Secrets 注入）。
@@ -554,7 +554,7 @@ ysm-model-manager/
 │   └── js/
 │       ├── app-modules.ts       # 组件注册 + 初始化
 │       ├── bus.ts               # 事件总线 (~50 事件)
-│       ├── wails/               # ★ 跨平台桥接层
+│       ├── backend/               # ★ 跨平台桥接层
 │       │   ├── app.ts           # getApp() + resolveWebMode 路由
 │       │   ├── platform.ts      # Tier 分层判定 (Tier 0/1/2)
 │       │   ├── browser-adapter.ts  # ★ Web 版 backend adapter (Proxy + IndexedDB)
@@ -673,7 +673,7 @@ app-content/community/core.ts:35-36
 
 - 事件总线：`frontend/src/bus.ts`（类型化，`window.bus` 兼容）
 - Vite 构建：`frontend/vite.config.js` / `frontend/vite.web.config.ts`（Web 版）
-- 发版脚本：`cmd/build-release.ps1` / `cmd/build-release.sh` / `cmd/build-darwin.sh` / `cmd/build-linux.sh` / `cmd/build-android.ps1`
+- 发版脚本：`scripts/build-release.ps1` / `scripts/build-release.sh` / `scripts/build-darwin.sh` / `scripts/build-linux.sh` / `scripts/build-android.ps1`
 - Android 开发手册：`docs/android-dev.md`
 - 治理自检：`scripts/doctor.mjs`、`scripts/link-checker.mjs`
 - 组件规范（冻结快照）：`docs/archive/architecture.md`

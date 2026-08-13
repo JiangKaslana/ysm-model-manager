@@ -16,7 +16,7 @@ const { getAppMock, specMock, buildSpecMock, getAndroidBridgeMock, decodeWasmMoc
   tsSpecBuilderMock: vi.fn(),
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: getAppMock,
 }));
 vi.mock("../../utils/dom/android-bridge.ts", () => ({

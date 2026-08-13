@@ -5,7 +5,7 @@ import { esc, modalConfirm, modalProgress, fmtMB } from "../utils/dom/dialogs/mo
 import { friendlyError } from "../utils/dom/errors.ts";
 import { safeGet, safeSet } from "../utils/dom/storage.ts";
 import { getAndroidBridge, isViewerMode } from "../utils/dom/android-bridge.ts";
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 import { Events, Window } from "@wailsio/runtime";
 
 /** 更新信息（CheckUpdate 返回） */

@@ -1,8 +1,8 @@
 // ===== 3D 模型加载器（类型化版 — ADR-014 P2）=====
 import * as THREE from "three";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { getAndroidBridge } from "../../utils/dom/android-bridge.ts";
-import { resolveWebMode } from "../../wails/platform.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { buildSpecFromGeometryJSON } from "../../utils/3d/spec-builder.ts";
 

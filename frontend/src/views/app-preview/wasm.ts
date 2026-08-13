@@ -9,7 +9,7 @@ import { initYSMParser, decodeYsmFileFromMemory, decodeYsmFile } from "../../was
 import { parseYsmJsonDirect } from "./parse-ysm-json.ts";
 import { extractAnimGroupsAndConfigs } from "../../utils/format/ysm-anim-config.ts";
 import { buildOrderedTexKeys } from "./texture-order.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 
 /** 并发去重：同一路径在途解码共享（Android 兜底与纹理并行触发时只解一次）。
  *  无此守卫时 preloadModel 并行发起的两次 decodeYsmViaWasm 会各自完整解码

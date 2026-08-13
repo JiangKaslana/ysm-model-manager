@@ -2,7 +2,7 @@
 // 抽自 5 处重复的「const cfg = await LoadAppConfig(); mcRoot = cfg.mcRoot || "";
 //   if (!mcRoot) { bus.emit("toast:show", {...}) }」模板。
 import { bus } from "../../bus.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 
 /**
  * 读取游戏根目录（mcRoot），空时发 warn toast 并返回 null。

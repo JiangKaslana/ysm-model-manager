@@ -7,7 +7,7 @@ const { extractHeaderMock } = vi.hoisted(() => ({
   extractHeaderMock: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock("../../../wails/app.ts", () => ({
+vi.mock("../../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({ ExtractYSMHeader: extractHeaderMock }),
 }));
 

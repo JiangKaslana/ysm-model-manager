@@ -98,7 +98,7 @@ tasks:
   # 构建内嵌的更新助手 helper。
   # go/updater/updater.go 用 //go:embed ysm-updater-helper.exe 内嵌该二进制，
   # 它由 cmd/updater/main.go 编译生成，且被 .gitignore(*.exe) 忽略、不入库。
-  # 因此任何 go build/go vet 之前都必须先构建它（见 cmd/build-release.ps1 步骤 1b）。
+  # 因此任何 go build/go vet 之前都必须先构建它（见 scripts/build-release.ps1 步骤 1b）。
   build:helper:
     summary: Builds the embedded updater helper (go/updater requires //go:embed ysm-updater-helper.exe)
     internal: true

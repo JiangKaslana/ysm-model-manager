@@ -2,8 +2,8 @@
 // error/warn toast 自动写入 ImportLog（op="ui"），诊断页可回溯
 
 import { bus, type ToastPayload } from "../bus.ts";
-import { getApp } from "../wails/app.ts";
-import { resolveWebMode } from "../wails/platform.ts";
+import { getApp } from "../backend/app.ts";
+import { resolveWebMode } from "../backend/platform.ts";
 import { stripPathSegments } from "../utils/dom/errors.ts";
 
 let _registered = false;

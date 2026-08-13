@@ -10,10 +10,10 @@ import {
   groupCollected,
   type CollectedEntry,
 } from "./dnd-shared.ts";
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 
 // mock getApp 以隔离 Wails 调用
-vi.mock("../wails/app.ts", () => ({
+vi.mock("../backend/app.ts", () => ({
   getApp: vi.fn(),
 }));
 

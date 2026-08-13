@@ -22,7 +22,7 @@ const { readShaderpackLangMock, scanEntriesWithLabelMock, getAndroidBridgeMock, 
   resolveAndroidRepoDirMock: vi.fn().mockResolvedValue("/storage/emulated/0/YSM-Model-Manager"),
   openFolderMock: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     GetRepoRoot: vi.fn().mockResolvedValue("/repo/resourcepack"),
     ReadPackMeta: vi.fn().mockResolvedValue(JSON.stringify({

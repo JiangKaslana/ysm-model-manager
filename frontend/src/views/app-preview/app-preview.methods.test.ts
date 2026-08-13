@@ -15,7 +15,7 @@ const appObj = vi.hoisted(() => ({
   GetPackInfo: vi.fn(),
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn(() => appObj),
 }));
 

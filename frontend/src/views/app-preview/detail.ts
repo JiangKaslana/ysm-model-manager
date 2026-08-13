@@ -3,7 +3,7 @@
 import { summaryCardHTML, type YsmSummary } from "../../utils/format/summarize.ts";
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import type { PreviewCtx } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";

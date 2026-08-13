@@ -17,7 +17,7 @@ vi.mock("./modal.ts", () => ({
   esc: (s: unknown): string => String(s),
 }));
 
-vi.mock("../../../wails/app.ts", () => ({
+vi.mock("../../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({ AllTags: AllTagsMock }),
 }));
 

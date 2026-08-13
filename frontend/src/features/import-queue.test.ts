@@ -55,7 +55,7 @@ vi.mock("../core/i18n/t.ts", () => ({
 }));
 vi.mock("../utils/dom/errors.ts", () => ({ friendlyError }));
 vi.mock("../utils/dom/dialogs/modal.ts", () => ({ modalConfirm }));
-vi.mock("../wails/app.ts", () => ({ getApp }));
+vi.mock("../backend/app.ts", () => ({ getApp }));
 vi.mock("../utils/dom/dialogs/rename.ts", () => ({ showRenameDialog }));
 vi.mock("./import-executor.ts", async (importOriginal) => {
   const mod = await importOriginal<typeof import("./import-executor.ts")>();

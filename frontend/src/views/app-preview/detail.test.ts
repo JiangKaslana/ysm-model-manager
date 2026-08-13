@@ -10,7 +10,7 @@ const { summaryMock, headerMock, readPackMock } = vi.hoisted(() => ({
   readPackMock: vi.fn(),
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     ExtractYsmSummary: summaryMock,
     ExtractYSMHeader: headerMock,

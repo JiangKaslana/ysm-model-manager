@@ -7,7 +7,7 @@ import { friendlyError } from "../utils/dom/errors.ts";
 import { safeGet } from "../utils/dom/storage.ts";
 import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 
 /** app-content 组件实例（initRecycleBin 依赖的成员） */
 export interface RecycleHost {

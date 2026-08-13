@@ -9,17 +9,17 @@ const { addOpLogMock } = vi.hoisted(() => ({
   addOpLogMock: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../wails/app.ts", () => ({
+vi.mock("../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({ AddOpLog: addOpLogMock }),
 }));
 
 // P3（code_review）：网页版早退测试需要可控的 resolveWebMode——默认 false（桌面），
 // 特定用例 mockReturnValue(true)
-vi.mock("../wails/platform.ts", () => ({
+vi.mock("../backend/platform.ts", () => ({
   resolveWebMode: vi.fn(() => false),
 }));
 
-import { resolveWebMode } from "../wails/platform.ts";
+import { resolveWebMode } from "../backend/platform.ts";
 
 beforeEach(() => {
   addOpLogMock.mockClear();

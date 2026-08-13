@@ -40,7 +40,7 @@ vi.mock("../utils/resource/types.ts", () => ({
   RESOURCE_TYPES: { YSM: "ysm", PACK: "resourcepack" },
 }));
 
-vi.mock("../wails/app.ts", () => ({
+vi.mock("../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     GetRepoRoot: mocks.GetRepoRoot,
     ListRecycleBin: mocks.ListRecycleBin,

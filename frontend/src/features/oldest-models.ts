@@ -6,7 +6,7 @@ import { renderDisplayName } from "../utils/dom/display.ts";
 import { formatBytes } from "../utils/dom/format.ts";
 import { safeGet } from "../utils/dom/storage.ts";
 import { loadResourceRegistry } from "../utils/resource/registry.ts";
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../utils/resource/types.ts";
 
 /** ScanModelEntries 返回的条目 */

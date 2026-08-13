@@ -1,7 +1,7 @@
 // ===== 站点视图编辑模式事件（从 site-view.ts 拆出，ADR-034 方向①）=====
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { bus } from "../../../bus.ts";
-import { getApp } from "../../../wails/app.ts";
+import { getApp } from "../../../backend/app.ts";
 import { moveItem } from "../../../utils/array.ts";
 import { safeSet } from "../../../utils/dom/storage.ts";
 import type { WorkshopPresetSearch } from "../../../../bindings/ysm-model-manager/go/types/models.ts";

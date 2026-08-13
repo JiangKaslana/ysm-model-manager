@@ -5,8 +5,8 @@
 //   → 改为「授权检查 → 自动定位公共仓库目录」（查看器模式：固定路径
 //   /storage/emulated/0/YSM-Model-Manager，授权 MANAGE_EXTERNAL_STORAGE 后 Go os.*
 //   直读，用户把模型放入该目录即可使用，无需选择器）。
-import { getApp } from "../../wails/app.ts";
-import { resolveWebMode } from "../../wails/platform.ts";
+import { getApp } from "../../backend/app.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
 import { bus } from "../../bus.ts";
 import { t } from "../../core/i18n/t.ts";
 import { getAndroidBridge, isViewerMode } from "./android-bridge.ts";

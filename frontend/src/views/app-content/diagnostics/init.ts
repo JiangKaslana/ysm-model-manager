@@ -2,7 +2,7 @@
 import { t } from "../../../core/i18n/t.ts";
 import { bus } from "../../../bus.ts";
 import { renderDisplayName } from "../../../utils/dom/display.ts";
-import { getApp } from "../../../wails/app.ts";
+import { getApp } from "../../../backend/app.ts";
 import { loadResourceRegistry } from "../../../utils/resource/registry.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../../utils/resource/types.ts";
 import { isViewerMode } from "../../../utils/dom/android-bridge.ts";

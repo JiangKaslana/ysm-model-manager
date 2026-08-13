@@ -39,7 +39,7 @@ invariant_anchors:
 
 - 导出：`checkUpdateSilent(): Promise<void>`、`initVersionUpdater(root: Document | ShadowRoot): void`、`interface UpdateInfo`（available/latest/current/url/expectedHash/releaseNotes）
 - 派发 bus：`toast:show`（静默通知带 `click` 回调；失败/已是最新用对应 type）
-- Wails binding（经 `getApp()`，frontend/src/wails/app.ts 统一入口）：`CheckUpdate`、`DoUpdate`、`RestartApplication`
+- Wails binding（经 `getApp()`，frontend/src/backend/app.ts 统一入口）：`CheckUpdate`、`DoUpdate`、`RestartApplication`
 - 依赖：`modalConfirm`/`modalProgress`/`fmtMB`/`esc`（utils/dom/dialogs/modal.ts）、`Events`/`Window`（@wailsio/runtime——update:progress 瞬态监听 + SetTitle 标题进度）、`friendlyError`（utils/dom/errors.ts）、`bus`
 - 调用方：`frontend/src/app-modules.ts:135` 启动序列（`checkUpdateSilent().catch(console.warn)`，fire-and-forget 不阻塞界面）；`frontend/src/views/app-content/settings/init.ts:607`（`initVersionUpdater(root)`）
 

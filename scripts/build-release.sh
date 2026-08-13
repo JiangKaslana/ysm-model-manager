@@ -34,7 +34,7 @@ else
 fi
 VER_NUM="${VER_TAG#v}"
 
-# 仓库根（脚本已迁入 cmd/，通过 git 解析；无 git 时退回 cmd/ 的上级目录）
+# 仓库根（脚本位于 scripts/，通过 git 解析；无 git 时退回 scripts/ 的上级目录）
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -z "$PROJECT_ROOT" ]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

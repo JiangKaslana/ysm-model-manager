@@ -8,7 +8,7 @@ import { registerContextMenus } from "./context-menus.ts";
 import { MENU_DEFS, getMenuDef } from "./menu-defs.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 
-// getApp 是动态 import（wails/app.ts），测试用 mock 替代
+// getApp 是动态 import（backend/app.ts），测试用 mock 替代
 // P4（审核发现）：此处曾被重复声明两次——第一个 vi.mock 被下方完整 mock（含全部
 // bindings）覆盖为死代码；若误删下方完整 mock 所有异步 handler 测试静默失效，故删除冗余
 const { openFolderMock } = vi.hoisted(() => ({
@@ -56,7 +56,7 @@ vi.mock("../utils/dom/dialogs/modal.ts", () => ({
 vi.mock("../utils/dom/dialogs/rename.ts", () => ({ showRenameDialog: showRenameDialogMock }));
 vi.mock("../utils/dom/dialogs/tag-editor.ts", () => ({ modalTagEditor: modalTagEditorMock }));
 // handler 统一走 getApp()（ADR-012）：mock getApp 返回 bindings mock 对象
-vi.mock("../wails/app.ts", () => ({
+vi.mock("../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     OpenInstanceFolder: openFolderMock,
     GetRepoRoot: GetRepoRootMock,
@@ -588,7 +588,7 @@ describe("失败路径补强（batch.move 部分失败 / getApp reject 兜底）
 
   it("batch.move getApp 拒绝 → error toast 且 handler 不抛（P2 兜底）", async () => {
     modalPromptMock.mockResolvedValue("作者A");
-    const { getApp } = await import("../wails/app.ts");
+    const { getApp } = await import("../backend/app.ts");
     vi.mocked(getApp).mockRejectedValueOnce(new Error("boom"));
     await clickMove(["/a.ysm"]);
     expect(allToasts().some((m) => m.includes("❌"))).toBe(true);

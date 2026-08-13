@@ -12,8 +12,8 @@ import { t } from "../../core/i18n/t.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { renderDisplayName } from "../../utils/dom/display.ts";
 import { dbg } from "../../utils/debug/debug.ts";
-import { getApp } from "../../wails/app.ts";
-import { resolveWebMode } from "../../wails/platform.ts";
+import { getApp } from "../../backend/app.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
 import { Events } from "@wailsio/runtime";
 
 // ============================================================

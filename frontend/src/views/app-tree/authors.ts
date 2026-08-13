@@ -1,5 +1,5 @@
 // ===== 作者标签模块 =====
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 
 /** 作者统计（Go ListModelAuthors 返回） */
 export interface AuthorInfo {

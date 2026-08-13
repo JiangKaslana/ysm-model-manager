@@ -14,7 +14,7 @@ const { mocks } = vi.hoisted(() => {
   return { mocks };
 });
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     DefaultWorkshopSites: mocks.DefaultWorkshopSites,
     LoadWorkshopCreators: mocks.LoadWorkshopCreators,
@@ -24,7 +24,7 @@ vi.mock("../../wails/app.ts", () => ({
   }),
 }));
 
-vi.mock("../../wails/platform.ts", () => ({
+vi.mock("../../backend/platform.ts", () => ({
   resolveWebMode: mocks.resolveWebMode,
 }));
 

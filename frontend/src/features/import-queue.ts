@@ -1,6 +1,6 @@
 // ===== 导入队列 + 拖拽 + 重命名流程（类型化版 — ADR-014 P3 features 收官）=====
-import { resolveWebMode } from "../wails/platform.ts";
-import { importWebFiles } from "../wails/browser-adapter.ts";
+import { resolveWebMode } from "../backend/platform.ts";
+import { importWebFiles } from "../backend/browser-adapter.ts";
 import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
@@ -8,7 +8,7 @@ import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../utils/resource/types.ts
 import { parseModelName, renderDisplayName } from "../utils/dom/display.ts";
 import { renderFormattedText } from "../utils/format/mc-format.ts";
 import { modalConfirm } from "../utils/dom/dialogs/modal.ts";
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { isImportableFile, shouldEnterForm, groupCollected } from "./dnd-shared.ts";
 import {

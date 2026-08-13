@@ -11,9 +11,9 @@ import { modalAdvFilter, type AdvFilterValue } from "../../utils/dom/dialogs/adv
 import { updateSelectCount } from "./events.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { setRenderMode, type RenderMode } from "./render.ts";
-import { getApp } from "../../wails/app.ts";
-import { resolveWebMode } from "../../wails/platform.ts";
-import { importWebFiles } from "../../wails/browser-adapter.ts";
+import { getApp } from "../../backend/app.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
+import { importWebFiles } from "../../backend/browser-adapter.ts";
 import { getAndroidBridge, isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { resolveAndroidRepoDir } from "../../utils/dom/directory-picker.ts";
 import type { AppTree } from "./index.ts";

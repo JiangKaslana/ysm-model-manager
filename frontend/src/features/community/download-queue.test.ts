@@ -41,7 +41,7 @@ const {
   resolveWebModeMock: vi.fn().mockReturnValue(false), // 默认桌面
 }));
 
-vi.mock("../../wails/platform.ts", () => ({
+vi.mock("../../backend/platform.ts", () => ({
   resolveWebMode: resolveWebModeMock,
 }));
 vi.mock("@wailsio/runtime", () => ({ Events: { On: onMock } }));

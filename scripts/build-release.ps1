@@ -12,9 +12,9 @@ param(
 $VerTag = if ($Version -match '^v') { $Version } else { "v$Version" }
 $VerNum = $VerTag -replace '^v', ''
 
-# 脚本已迁入 cmd/，故 $MyInvocation 路径为 cmd/ 而非仓库根。
+# 脚本位于 scripts/，故 $MyInvocation 路径为 scripts/ 而非仓库根。
 # 通过 git 解析仓库根，确保 $ProjectRoot 始终指向仓库根
-# （JSON / 前端 / go 子包均相对仓库根）。无 git 时退回 cmd/ 的上级目录。
+# （JSON / 前端 / go 子包均相对仓库根）。无 git 时退回 scripts/ 的上级目录。
 $ProjectRoot = (git rev-parse --show-toplevel 2>$null).Trim()
 if (-not $ProjectRoot) {
     $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)

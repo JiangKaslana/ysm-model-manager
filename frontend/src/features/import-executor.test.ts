@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   ImportModelFile: vi.fn().mockResolvedValue(undefined),
   ImportModelFolder: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("../wails/app.ts", () => ({
+vi.mock("../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     ImportModelFile: mocks.ImportModelFile,
     ImportModelFolder: mocks.ImportModelFolder,

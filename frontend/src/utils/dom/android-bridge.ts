@@ -2,7 +2,7 @@
 // WailsJSBridge 以 "wails" 名注册到 WebView（MainActivity addJavascriptInterface），
 // 暴露 Android 专属 API；桌面端无此桥（返回 null）。
 // 共享模块：loader.ts 授权引导 / directory-picker.ts 目录选择均引用，避免重复实现。
-import { readDeclaredBackend, resolveWebMode } from "../../wails/platform.ts";
+import { readDeclaredBackend, resolveWebMode } from "../../backend/platform.ts";
 
 export interface WailsAndroidBridge {
   hasStoragePermission?: () => boolean;

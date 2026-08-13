@@ -3,7 +3,7 @@ import { bus } from "./bus.ts";
 import { PAGE_WHITELIST } from "./core/page-store.ts";
 import { register } from "./services/registry.ts";
 import { Window } from "@wailsio/runtime";
-import { getApp } from "./wails/app.ts";
+import { getApp } from "./backend/app.ts";
 import { registerErrorDiary } from "./core/error-diary.ts";
 import { initI18n } from "./core/i18n/locale.ts";
 import { friendlyError } from "./utils/dom/errors.ts";

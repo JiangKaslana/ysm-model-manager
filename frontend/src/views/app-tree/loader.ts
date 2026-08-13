@@ -2,7 +2,7 @@
 import { t } from "../../core/i18n/t.ts";
 import { getExts } from "../../utils/resource/extensions.ts";
 import { RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { getAndroidBridge } from "../../utils/dom/android-bridge.ts";

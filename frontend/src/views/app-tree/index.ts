@@ -14,7 +14,7 @@ import { loadAuthors, type AuthorInfo } from "./authors.ts";
 import { bus } from "../../bus.ts";
 import { selectState } from "./data.ts";
 import { dbg } from "../../utils/debug/debug.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 

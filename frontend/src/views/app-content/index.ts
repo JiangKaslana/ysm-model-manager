@@ -7,8 +7,8 @@ import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types
 import { dbg } from "../../utils/debug/debug.ts";
 import { contentCSS } from "./content-css.ts";
 import { stagger } from "../../utils/animation/stagger.ts";
-import { getApp } from "../../wails/app.ts";
-import { resolveWebMode } from "../../wails/platform.ts";
+import { getApp } from "../../backend/app.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { Events } from "@wailsio/runtime";
 import {

@@ -26,7 +26,7 @@ vi.mock("../../utils/resource/types.ts", () => ({
   RESOURCE_TYPE_LABELS: { ysm: "YSM模型", pack: "资源包" },
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     GetRepoRoot: mocks.GetRepoRoot,
     ScanModelEntriesWithLabel: mocks.ScanModelEntriesWithLabel,

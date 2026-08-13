@@ -33,13 +33,13 @@
 | Go·YSM 核心 | 7 | 23 |
 | Go(internal)·应用入口 | 18 | 182 |
 | 前端·根 (app-modules/bus) | 2 | 14 |
+| frontend/backend | 5 | 19 |
 | 前端·核心 | 14 | 28 |
 | 前端·特性 | 13 | 60 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 36 | 124 |
 | frontend/views | 54 | 155 |
-| 前端·Wails 桥接 | 5 | 19 |
 | 前端·WASM | 3 | 6 |
 | frontend/web-spike | 1 | 3 |
 | **合计** | **199** | **891** |
@@ -630,6 +630,30 @@
 | `BusEventName()` | `frontend/src/bus:115` | — |
 | `Bus()` | `frontend/src/bus:117` | — |
 
+## frontend/backend
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `AppBindings()` | `frontend/src/backend/app` | — |
+| `getApp()` | `frontend/src/backend/app:18` | 获取 Go App 绑定的缓存引用，避免重复动态 import |
+| `WebUnsupportedError()` | `frontend/src/backend/browser-adapter:24` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
+| `WEB_ROOT()` | `frontend/src/backend/browser-adapter:32` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
+| `MAX_IMPORT_BYTES()` | `frontend/src/backend/browser-adapter:35` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
+| `arrayBufferToBase64()` | `frontend/src/backend/browser-adapter:65` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
+| `selectLocalRepo()` | `frontend/src/backend/browser-adapter:127` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `STORES()` | `frontend/src/backend/idb:16` | — |
+| `Store()` | `frontend/src/backend/idb:17` | — |
+| `openDB()` | `frontend/src/backend/idb:21` | — |
+| `_resetDBForTest()` | `frontend/src/backend/idb:139` | 仅测试用：重置单例连接 + 降级标志（避免用例间共享状态） |
+| `idbGet()` | `frontend/src/backend/idb:156` | 读取单 key |
+| `idbSet()` | `frontend/src/backend/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
+| `idbDel()` | `frontend/src/backend/idb:184` | 删除单 key |
+| `idbKeys()` | `frontend/src/backend/idb:200` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） |
+| `readDeclaredBackend()` | `frontend/src/backend/platform:13` | 读取入口 HTML 声明的适配器身份（'go' | 'browser'），未声明返回 undefined |
+| `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
+| `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
+| `AppBindings()` | `frontend/src/backend/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
+
 ## 前端·核心
 
 | 符号 | 文件:行 | 说明 |
@@ -1066,30 +1090,6 @@
 | `ROW_H_LIST()` | `frontend/src/views/app-tree/virtual-scroll:4` | — |
 | `calcVisibleRange()` | `frontend/src/views/app-tree/virtual-scroll:14` | 根据滚动位置计算可见行范围（支持动态行高） |
 | `installScrollSync()` | `frontend/src/views/app-tree/virtual-scroll:31` | 在容器上安装滚动监听，当滚动到新范围时自动重新渲染可见行 |
-
-## 前端·Wails 桥接
-
-| 符号 | 文件:行 | 说明 |
-|------|--------|------|
-| `AppBindings()` | `frontend/src/wails/app` | — |
-| `getApp()` | `frontend/src/wails/app:18` | 获取 Go App 绑定的缓存引用，避免重复动态 import |
-| `WebUnsupportedError()` | `frontend/src/wails/browser-adapter:24` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
-| `WEB_ROOT()` | `frontend/src/wails/browser-adapter:32` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
-| `MAX_IMPORT_BYTES()` | `frontend/src/wails/browser-adapter:35` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
-| `arrayBufferToBase64()` | `frontend/src/wails/browser-adapter:65` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
-| `selectLocalRepo()` | `frontend/src/wails/browser-adapter:127` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `STORES()` | `frontend/src/wails/idb:16` | — |
-| `Store()` | `frontend/src/wails/idb:17` | — |
-| `openDB()` | `frontend/src/wails/idb:21` | — |
-| `_resetDBForTest()` | `frontend/src/wails/idb:139` | 仅测试用：重置单例连接 + 降级标志（避免用例间共享状态） |
-| `idbGet()` | `frontend/src/wails/idb:156` | 读取单 key |
-| `idbSet()` | `frontend/src/wails/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
-| `idbDel()` | `frontend/src/wails/idb:184` | 删除单 key |
-| `idbKeys()` | `frontend/src/wails/idb:200` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） |
-| `readDeclaredBackend()` | `frontend/src/wails/platform:13` | 读取入口 HTML 声明的适配器身份（'go' | 'browser'），未声明返回 undefined |
-| `isWebEntryMode()` | `frontend/src/wails/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
-| `resolveWebMode()` | `frontend/src/wails/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
-| `AppBindings()` | `frontend/src/wails/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
 
 ## 前端·WASM
 

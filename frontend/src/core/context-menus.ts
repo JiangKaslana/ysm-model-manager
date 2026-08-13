@@ -4,7 +4,7 @@
 import { bus, type ToastPayload, type CtxShowPayload, type MenuItem } from "../bus.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 import { getMenuDef } from "./menu-defs";
 import { modalPrompt, modalConfirm, modalSelect } from "../utils/dom/dialogs/modal.ts";
 import { showRenameDialog } from "../utils/dom/dialogs/rename.ts";

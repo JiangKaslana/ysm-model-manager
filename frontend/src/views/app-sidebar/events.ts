@@ -4,7 +4,7 @@ import { animateNumber } from "../../utils/animation/animate.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import type { SidebarInstance } from "./data.ts";
 import { safeGet } from "../../utils/dom/storage.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 
 // 绑定每个卡片展开/折叠
 // 返回清理函数，组件销毁时移除事件监听

@@ -8,7 +8,7 @@ import {
   cacheSet,
   cacheSetEvictHandler,
 } from "./cache.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { type PreviewCtx, type DecodedYsm } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { showModelDetail, showResourcePack, showSimplePreview } from "./detail.ts";

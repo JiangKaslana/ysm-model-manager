@@ -10,7 +10,7 @@ vi.mock("@wailsio/runtime", () => ({
   Events: { On: vi.fn().mockReturnValue(() => {}) },
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     LoadAppConfig: vi.fn().mockResolvedValue({}),
     GetRepoRoot: vi.fn().mockResolvedValue(""),
@@ -362,7 +362,7 @@ describe("_initGithub / _initWorkshop 真实路径", () => {
   it("github 有仓库 → 卡片渲染 + 点击走 showRepo（未找到模型列表）", async () => {
     const el = mountCustomElement("app-content") as unknown as ContentEl;
     await sleep(50);
-    const appMock = (await import("../../wails/app.ts")).getApp as unknown as ReturnType<typeof vi.fn>;
+    const appMock = (await import("../../backend/app.ts")).getApp as unknown as ReturnType<typeof vi.fn>;
     appMock.mockResolvedValue({
       LoadAppConfig: vi.fn().mockResolvedValue({}),
       GetRepoRoot: vi.fn().mockResolvedValue("/repo"),

@@ -5,7 +5,7 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { bus } from "../../bus.ts";
 import { get } from "../../services/registry.ts";
 import type { loadEntries } from "./loader.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import type { AppTree } from "./index.ts";
 import { modalPrompt, modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 import { showBatchRenameDialog } from "../../utils/dom/dialogs/batch-rename.ts";

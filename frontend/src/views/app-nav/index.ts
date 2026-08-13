@@ -4,7 +4,7 @@ import { bus, type PageName } from "../../bus.ts";
 import { resolveInitialPage, sanitizePage } from "../../core/page-store.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { t } from "../../core/i18n/t.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 
 class AppNav extends HTMLElement {

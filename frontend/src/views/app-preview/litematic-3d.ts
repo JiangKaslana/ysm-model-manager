@@ -1,7 +1,7 @@
 // ===== Litematic 体素 3D 预览 =====
 
 import { esc } from "../../utils/dom/html.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { t } from "../../core/i18n/t.ts";

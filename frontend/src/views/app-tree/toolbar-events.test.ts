@@ -37,7 +37,7 @@ const {
   resolveAndroidRepoDirMock: vi.fn(),
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     SearchModels: SearchModelsMock,
     ListByTag: ListByTagMock,

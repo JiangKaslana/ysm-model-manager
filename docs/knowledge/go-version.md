@@ -36,7 +36,7 @@ invariant_anchors:
 ## 不变量
 
 - 只允许构建期注入，运行时不得改写（`Version` 为导出可变全局，防写仅靠约定，P4 文档级）
-- 发版流程（`cmd/build-release.ps1` / `docs/releases/`）必须注入版本号，否则更新检查会以 `"dev"` 比较；dev 语义下 `splitVer("dev")` 归零 → 更新检查恒提示有新版（P3 观察：无代码兜底，updater 无 dev 特判测试）
+- 发版流程（`scripts/build-release.ps1` / `docs/releases/`）必须注入版本号，否则更新检查会以 `"dev"` 比较；dev 语义下 `splitVer("dev")` 归零 → 更新检查恒提示有新版（P3 观察：无代码兜底，updater 无 dev 特判测试）
 
 ## 相关
 

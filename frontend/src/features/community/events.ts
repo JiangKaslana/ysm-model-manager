@@ -9,7 +9,7 @@ import { buildDownloadTasks, classifyDownloadSize } from "./download-tasks.ts";
 import { ICONS } from "../../utils/icon/workshop-icons.ts";
 import { parseModelName } from "../../utils/dom/display.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 
 /** bindRepoEvents 上下文 */
 export interface RepoEventsContext {

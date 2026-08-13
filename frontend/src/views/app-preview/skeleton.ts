@@ -8,7 +8,7 @@ import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import type { BoneSelectInfo } from "../../utils/3d/model3d.ts";
 import { esc } from "../../utils/dom/html.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { statsCardHTML } from "./tpl.ts";

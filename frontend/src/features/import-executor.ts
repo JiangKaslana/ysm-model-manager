@@ -6,7 +6,7 @@
 // 与 go/importer + go/fileops.WriteModelFolder 后端对齐。
 import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
 

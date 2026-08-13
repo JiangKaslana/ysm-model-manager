@@ -1,7 +1,7 @@
 // ===== 模型数据加载（唯一入口）=====
 // 供给 skeleton.ts 和 screenshot-renderer.ts 使用
 import { cacheGet, cacheSet } from "./cache.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { parseBedrockAnimationJSON } from "../../utils/animation/animation.ts";
 import type { YsmDecoder, PreviewDebugger } from "./utils.ts";
 import type { BedrockGeometry } from "./geometry.ts";

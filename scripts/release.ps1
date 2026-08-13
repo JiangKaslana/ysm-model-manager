@@ -6,7 +6,7 @@
 #   1. 每步前打印 [release] step N: <desc>，失败即 throw，不吞错。
 #   2. tag 已存在则中止（防 §5 重推同名 tag 覆盖 body）。
 #   3. 不替你写 docs/releases/vX.Y.Z.md——只校验文件存在。
-#   4. 不做本地构建——那是 cmd/build-release.ps1 的职责；本脚本只走 tag → CI → 核对。
+#   4. 不做本地构建——那是 scripts/build-release.ps1 的职责；本脚本只走 tag → CI → 核对。
 #
 # 未实现的占位（标 # TODO）：应用内版本核对（需启动应用读「关于」页）。
 

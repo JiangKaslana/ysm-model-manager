@@ -9,7 +9,7 @@ import { bindCardEvents, bindFooter, resetSelectedEmit } from "./events.ts";
 import { get } from "../../services/registry.ts";
 import type { loadInstances } from "./loader.ts";
 import type { SidebarInstance } from "./data.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 
 // 持久化勾选状态（跨重新渲染保持），按 rtype 隔离避免类型切换串扰
 const _checkedSets = new Map<string, Set<string>>();

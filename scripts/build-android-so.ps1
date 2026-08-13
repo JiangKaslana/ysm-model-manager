@@ -1,4 +1,4 @@
-﻿# YSM Model Manager Android .so 编译脚本 (Windows PowerShell)
+# YSM Model Manager Android .so 编译脚本 (Windows PowerShell)
 # 用法: .\cmd\build-android-so.ps1 v1.0.0 [-Arch arm64|amd64|x86_64] [-Production]
 # 结构参照 MikuMikuAR scripts/build-android-so.ps1（已验证的 NDK 交叉编译链路），
 # 适配 ysm：版本传参、无 MPR tag、version 包注入。
@@ -12,7 +12,7 @@ param(
 
 $VerTag = if ($Version -match '^v') { $Version } else { "v$Version" }
 
-# 解析项目目录（脚本位于仓库根的 cmd/ 下）
+# 解析项目目录（脚本位于仓库根的 scripts/ 下）
 $scriptsDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (git rev-parse --show-toplevel 2>$null).Trim()
 if (-not $repoRoot) { $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path) }

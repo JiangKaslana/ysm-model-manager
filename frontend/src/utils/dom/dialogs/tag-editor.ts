@@ -2,7 +2,7 @@
 // 读取/写入模型标签，支持输入新标签和选择已有标签
 import { esc } from "../../../utils/dom/html.ts";
 import { closeDlg, registerDlg } from "./modal.ts";
-import { getApp } from "../../../wails/app.ts";
+import { getApp } from "../../../backend/app.ts";
 import { addTagToSet } from "./tag-set.ts";
 import { t } from "../../../core/i18n/t.ts";
 

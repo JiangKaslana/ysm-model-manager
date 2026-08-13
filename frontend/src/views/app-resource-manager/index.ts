@@ -6,7 +6,7 @@ import { sidebarHTML, itemHTML, detailHTML, placeholderHTML, type PackMetaDetail
 import { t } from "../../core/i18n/t.ts";
 import { bus } from "../../bus.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { resolveAndroidRepoDir } from "../../utils/dom/directory-picker.ts";
 import { esc } from "../../utils/dom/html.ts";

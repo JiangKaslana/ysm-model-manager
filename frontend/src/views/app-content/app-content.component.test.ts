@@ -1,7 +1,7 @@
 // ===== app-content 组件编排测试（组件级测试样板 4）=====
 // 生命周期：connectedCallback 订阅 nav:change → disconnectedCallback 清理
 // 验证：mount 渲染默认仓库页 / nav:change 切页渲染 / disconnected 后不再重写 detached DOM
-// 依赖：@wailsio/runtime（Events）+ wails/app.ts（getApp）+ bindings 三层 mock
+// 依赖：@wailsio/runtime（Events）+ backend/app.ts（getApp）+ bindings 三层 mock
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // 阻断 Wails runtime（drag.js 在模块加载时访问 window）
@@ -10,7 +10,7 @@ vi.mock("@wailsio/runtime", () => ({
 }));
 
 // getApp 全绑定 mock（组件多处从 getApp() 解构绑定，缺导出会 "not a function"）
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     ClearScanCache: vi.fn().mockResolvedValue(undefined),
     LoadAppConfig: vi.fn().mockResolvedValue({}),

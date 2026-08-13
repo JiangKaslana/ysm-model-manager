@@ -6,9 +6,9 @@ adr:
   - ADR-049
 category: core
 source_files:
-  - frontend/src/wails/app.ts
-  - frontend/src/wails/platform.ts
-  - frontend/src/wails/browser-adapter.ts
+  - frontend/src/backend/app.ts
+  - frontend/src/backend/platform.ts
+  - frontend/src/backend/browser-adapter.ts
 tests:
   - frontend/src/views/app-content/app-content.component.test.ts
   - frontend/src/views/app-preview/app-preview.component.test.ts
@@ -26,15 +26,15 @@ use_when:
   - browser adapter
   - 浏览器后端
 invariant_anchors:
-  - frontend/src/wails/app.ts|_appPromise = null
-  - frontend/src/wails/platform.ts|resolveWebMode
+  - frontend/src/backend/app.ts|_appPromise = null
+  - frontend/src/backend/platform.ts|resolveWebMode
 ---
 
 # Wails 桥接 app.ts
 
 ## 概览
 
-`wails/app.ts` 是前端调用后端 Binding 的唯一入口。所有 Go 端方法通过 `getApp()` 获取，禁止直接通过 `window.go.main.App` 访问。**ADR-049 平台双路由**：网页版（无 Wails 壳的纯浏览器）由 `platform.ts` 的 `resolveWebMode()` 判定后路由到 `browserAdapter`（`browser-adapter.ts`），桌面/Android 走 Wails 原逻辑——业务调用零改动。
+`backend/app.ts` 是前端调用后端 Binding 的唯一入口。所有 Go 端方法通过 `getApp()` 获取，禁止直接通过 `window.go.main.App` 访问。**ADR-049 平台双路由**：网页版（无 Wails 壳的纯浏览器）由 `platform.ts` 的 `resolveWebMode()` 判定后路由到 `browserAdapter`（`browser-adapter.ts`），桌面/Android 走 Wails 原逻辑——业务调用零改动。
 
 ## 核心职责
 
@@ -46,7 +46,7 @@ invariant_anchors:
 ## 使用方式
 
 ```js
-import { getApp } from "../wails/app.ts";
+import { getApp } from "../backend/app.ts";
 const App = await getApp();
 const result = await App.SomeBinding();
 ```
@@ -67,7 +67,7 @@ const result = await App.SomeBinding();
 - Binding 函数名写错会返回 undefined（致命陷阱 #5）——import 路径下 TS 类型约束编译期报错；`window.go` 回退路径的 mock bridge 形态与生成模块不同（类型造假风险已加注释，缺失方法穿透到运行时 undefined）
 - `getApp` 缓存语义：`_App` 命中直返；并发首调复用 in-flight `_appPromise`；**import 失败重置 `_appPromise` 并 rethrow**（下次调用可重试并重新检查 window.go 回退，防失败永久毒化，P2 修复）
 - **window.go 空对象 `{}` 视为未注入**（P3 修复：原守卫仅检查 truthiness，空对象被缓存为 `_App` 后缺失方法运行时穿透 undefined 且粘滞整个会话——现空对象回退动态 import）
-- **核心语义已有直接测试**（P2 补测：`wails/app.test.ts` 覆盖缓存命中/window.go 回退/空对象回退/并发复用/失败重试——原 wails/ 目录仅 app.ts 一个文件、84 个消费方测试全部 vi.mock 掉本模块，P2/P3 修复无回归护栏）
+- **核心语义已有直接测试**（P2 补测：`backend/app.test.ts` 覆盖缓存命中/window.go 回退/空对象回退/并发复用/失败重试——原 backend/ 目录仅 app.ts 一个文件、84 个消费方测试全部 vi.mock 掉本模块，P2/P3 修复无回归护栏）
 
 ## 相关
 

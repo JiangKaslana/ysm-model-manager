@@ -1,6 +1,6 @@
 // ===== 3D 多角度截图渲染器（类型化版 — ADR-014 P2）=====
 import * as THREE from "three";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { loadTextures } from "./model3d-loader.ts";
 import { buildSceneMesh, compKey, disposeMaterial } from "../../utils/3d/mesh.ts";
 import { type Spec3D } from "../../utils/3d/model3d.ts";

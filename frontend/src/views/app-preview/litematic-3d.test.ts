@@ -124,9 +124,9 @@ vi.mock("three/addons/controls/OrbitControls.js", () => ({
   },
 }));
 
-vi.mock("../../wails/app.ts", () => ({ getApp: vi.fn() }));
+vi.mock("../../backend/app.ts", () => ({ getApp: vi.fn() }));
 
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
 import { cleanupVoxel3D, createLitematic3D } from "./litematic-3d.ts";
 import { sleep } from "../../test-utils/index.ts";

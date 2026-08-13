@@ -170,7 +170,7 @@
 | 06 | `06-创作者社区/` | `go/avatar` `creators.json` `workshop_sites.json` `workshop-github.json` `community` | 创作者库、头像、工坊站点、社区索引 |
 | 07 | `07-文件与路径/` | `go/fileops` `fsutil` `paths` `recycle` `watcher` `litematic` `internal/embedded` | 硬链接/复制、路径安全、回收站、监听、嵌入资源 |
 | 08 | `08-配置与状态/` | `go/version` `logs` `errors` `tags` `settings` `page-store` | 版本、日志、错误、标签、设置持久化 |
-| 09 | `09-工具链/` | `scripts` `Taskfile.yml` `wails.json` `cmd/build-release.ps1` `doctor` `funcmap` `codemod` | 自检/审计、构建发布、代码迁移工具 |
+| 09 | `09-工具链/` | `scripts` `Taskfile.yml` `wails.json` `scripts/build-release.ps1` `doctor` `funcmap` `codemod` | 自检/审计、构建发布、代码迁移工具 |
 | 10 | `10-文档治理/` | `AGENTS.md` `docs/knowledge` `docs/adr` `docs/archive/bug-chronicle.md` `audits` | 文档宪法、知识卡、ADR、审计 |
 
 `appendix/` 下分 4 组，收纳非代码目录锚定的章节：

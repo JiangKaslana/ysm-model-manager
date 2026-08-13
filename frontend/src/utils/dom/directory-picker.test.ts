@@ -18,7 +18,7 @@ const { mocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     SelectDirectory: mocks.SelectDirectory,
     GetDefaultRepoRoot: mocks.GetDefaultRepoRoot,

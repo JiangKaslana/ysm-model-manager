@@ -3,9 +3,9 @@ import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { PageStore } from "../core/page-store.ts";
-import { getApp } from "../wails/app.ts";
-import { resolveWebMode } from "../wails/platform.ts";
-import { importWebFiles, MAX_IMPORT_BYTES } from "../wails/browser-adapter.ts";
+import { getApp } from "../backend/app.ts";
+import { resolveWebMode } from "../backend/platform.ts";
+import { importWebFiles, MAX_IMPORT_BYTES } from "../backend/browser-adapter.ts";
 import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { executeCollected } from "./import-executor.ts";
 

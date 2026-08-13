@@ -54,13 +54,13 @@
 
 | 路径 | 用途 |
 |------|------|
+| `backend/` | 后端适配层：Wails 绑定入口（app.ts）+ 平台判定（platform.ts）+ 浏览器适配（browser-adapter.ts）+ IndexedDB 模型库（idb.ts） |
 | `core/` | 基础设施（buttons / global-handlers / theme / context-menus） |
 | `features/` | 业务功能（import-queue / recycle-bin / version-updater / community） |
 | `services/` | 服务注册（registry.ts） |
 | `test-utils/` | 测试工具（G-1 抗脆弱测试基础设施 — ADR-035 §19.1：getByTestId / getAllByTestId / waitFor） |
 | `utils/` | 工具函数（display / fmt / dom / icon / summarize / model3d） |
 | `views/` | 页面级视图组件（app-content / app-tree / app-preview 等） |
-| `wails/` | Wails 桥接（app.ts） |
 | `wasm/` | WASM 生成数据（base64 豁免文件） |
 | `web-spike/` | 网页版 spike 入口（main.ts，构建/冒烟验证） |
 | `app-modules.test.ts` | app-modules 主题/隐私模式启动链测试（normalizeTheme / safeGet / initTheme / applyUIPrefs） |

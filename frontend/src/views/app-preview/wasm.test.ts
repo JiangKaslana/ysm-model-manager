@@ -18,7 +18,7 @@ vi.mock("../../wasm/ysm-parser.ts", () => ({
   decodeYsmFile: vi.fn(),
 }));
 
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({ ReadFileBytes: readFileBytesMock }),
 }));
 

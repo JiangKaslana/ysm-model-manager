@@ -14,7 +14,7 @@ const queueMock = vi.hoisted(() => ({
 }));
 
 // mock bindings（阻断 Wails runtime 加载链）
-vi.mock("../../wails/app.ts", () => ({
+vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({ OpenInBrowser: vi.fn() }),
 }));
 vi.mock("./download-queue.ts", () => ({
@@ -24,7 +24,7 @@ vi.mock("../../utils/dom/dialogs/modal.ts", () => ({
   modalConfirm: vi.fn().mockResolvedValue(true),
 }));
 
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { bindRepoEvents, type RepoEventsContext } from "./events.ts";
 import { renderModelList, type WorkshopModel } from "./render.ts";
 import { fireClick, fireInput } from "../../test-utils/events.ts";

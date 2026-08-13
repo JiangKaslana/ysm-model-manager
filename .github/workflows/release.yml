@@ -150,7 +150,7 @@ jobs:
         run: npm ci
       - name: 打包（build-linux.sh → dist/ 二进制）
         run: |
-          bash ./cmd/build-linux.sh "${{ needs.prepare.outputs.version }}"
+          bash ./scripts/build-linux.sh "${{ needs.prepare.outputs.version }}"
       - name: 上传产物
         uses: actions/upload-artifact@v6
         with:
@@ -198,7 +198,7 @@ jobs:
         run: npm ci
       - name: 打包（build-darwin.sh → dist/ 二进制）
         run: |
-          bash ./cmd/build-darwin.sh "${{ needs.prepare.outputs.version }}"
+          bash ./scripts/build-darwin.sh "${{ needs.prepare.outputs.version }}"
       - name: 上传产物
         uses: actions/upload-artifact@v6
         with:

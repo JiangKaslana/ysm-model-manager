@@ -5,7 +5,7 @@
 //   - 可通过 URL ?nodebug=1 关闭（默认开启）
 //   - 可通过 window._DBG_RING 取最近 200 条（用于复盘）
 //   - 写完调试后请删除调用（调试日志用完即删，见 frontend/AGENTS.md）
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { safeGet } from "../dom/storage.ts";
 
 interface RingEntry {

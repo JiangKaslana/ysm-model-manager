@@ -1,8 +1,8 @@
 // ===== 创意工坊纯数据层 =====
 import { t } from "../../core/i18n/t.ts";
 import { dbg } from "../../utils/debug/debug.ts";
-import { getApp } from "../../wails/app.ts";
-import { resolveWebMode } from "../../wails/platform.ts";
+import { getApp } from "../../backend/app.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
 import type { WorkshopSite, WorkshopCreator } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 
 /** 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） */

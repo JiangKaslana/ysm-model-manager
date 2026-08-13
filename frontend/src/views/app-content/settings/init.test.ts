@@ -28,7 +28,7 @@ const {
 }));
 
 vi.mock("../../../bus.ts", () => ({ bus: { emit: busEmit, on: busOn } }));
-vi.mock("../../../wails/app.ts", () => ({ getApp }));
+vi.mock("../../../backend/app.ts", () => ({ getApp }));
 vi.mock("../../../utils/resource/registry.ts", () => ({ loadResourceRegistry }));
 vi.mock("../../../utils/3d/model3d.ts", () => ({ loadTdKeymap }));
 vi.mock("../../../features/version-updater.ts", () => ({ initVersionUpdater }));

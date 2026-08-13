@@ -13,7 +13,7 @@ import {
 } from "../workshop-data.ts";
 import { getSiteIcon, getTagIconFromRole } from "../../../utils/icon/workshop-icons.ts";
 import { createCrCard, type CrCardCtx } from "./render.ts";
-import { getApp } from "../../../wails/app.ts";
+import { getApp } from "../../../backend/app.ts";
 import { t } from "../../../core/i18n/t.ts";
 import type { SiteViewState, CleanupFn } from "./types.ts";
 

@@ -16,7 +16,7 @@ const { busEmit, busOn, getApp, loadResourceRegistry } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../bus.ts", () => ({ bus: { emit: busEmit, on: busOn } }));
-vi.mock("../../../wails/app.ts", () => ({ getApp }));
+vi.mock("../../../backend/app.ts", () => ({ getApp }));
 vi.mock("../../../utils/resource/registry.ts", () => ({ loadResourceRegistry }));
 
 const esc = (s: unknown): string =>

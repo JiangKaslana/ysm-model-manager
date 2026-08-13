@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { bus } from "../../../bus.ts";
 
 // mock bindings（阻断 Wails runtime 加载链）
-vi.mock("../../../wails/app.ts", () => ({
+vi.mock("../../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     MergeWorkshopCreatorsFromJSON: vi.fn(async () => [2, 1]),
     LoadWorkshopCreators: vi.fn(async () => [{ name: "新A" }, { name: "新B" }]),
@@ -13,7 +13,7 @@ vi.mock("../../../wails/app.ts", () => ({
   }),
 }));
 
-import { getApp } from "../../../wails/app.ts";
+import { getApp } from "../../../backend/app.ts";
 import { bindDragEvents } from "./drag.ts";
 import type { SiteViewState } from "./types.ts";
 import type { LocalCreatorLike } from "../site-view.ts";

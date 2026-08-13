@@ -2,7 +2,7 @@
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import { requireMcRoot } from "./require-mcroot.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 

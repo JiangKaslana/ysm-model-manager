@@ -9,7 +9,7 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
-import { getApp } from "../../wails/app.ts";
+import { getApp } from "../../backend/app.ts";
 import {
   containerHTML,
   itemHTML,

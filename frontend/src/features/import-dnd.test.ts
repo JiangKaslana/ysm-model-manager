@@ -7,7 +7,7 @@ import { registerPageStore } from "../core/page-store.ts";
 import { registerDnD } from "./import-dnd.ts";
 import { fireDrop } from "../test-utils/events.ts";
 
-vi.mock("../wails/app.ts", () => ({
+vi.mock("../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     ImportModelFile: vi.fn().mockResolvedValue(undefined),
     DetectZipType: vi.fn().mockResolvedValue("ysm"),
@@ -18,15 +18,15 @@ vi.mock("../wails/app.ts", () => ({
 const { importWebFilesMock } = vi.hoisted(() => ({
   importWebFilesMock: vi.fn().mockResolvedValue({ imported: 1, failed: 0 }),
 }));
-vi.mock("../wails/browser-adapter.ts", () => ({
+vi.mock("../backend/browser-adapter.ts", () => ({
   importWebFiles: importWebFilesMock,
   // P3 修复（审核）：mock 缺 MAX_IMPORT_BYTES 导出——import-dnd.ts:273 的 oversize
   // 过滤读取它，缺导出时 onDrop 抛错、getApp 从未被调用（守卫层 3 项测试假失败）
   MAX_IMPORT_BYTES: 100 * 1024 * 1024,
 }));
 
-import { getApp } from "../wails/app.ts";
-import { importWebFiles } from "../wails/browser-adapter.ts";
+import { getApp } from "../backend/app.ts";
+import { importWebFiles } from "../backend/browser-adapter.ts";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
@@ -167,7 +167,7 @@ describe("网页版 DnD（ADR-049 Phase 3：browserAdapter 分支）", () => {
 
   it("resolveWebMode → importWebFiles 入库 + toast + tree:reload + getApp 零调用", async () => {
     (globalThis as unknown as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
-    const { resolveWebMode } = await import("../wails/platform.ts");
+    const { resolveWebMode } = await import("../backend/platform.ts");
     expect(resolveWebMode()).toBe(true);
     bus.emit("nav:changed", { page: "repository" });
     const toastSpy = vi.fn();

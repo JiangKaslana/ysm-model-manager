@@ -1,9 +1,11 @@
 {
-  "generated": "2026-08-12T15:50:51.000Z",
+  "generated": "2026-08-13T01:10:55.955Z",
   "knip": [
     "e2e/modal.spec.ts|unresolved|/src/utils/dom/dialogs/modal.ts",
     "package.json|binaries|wails3",
     "package.json|devDependencies|jscpd",
+    "src/backend/browser-adapter.ts|exports|arrayBufferToBase64",
+    "src/backend/idb.ts|exports|STORES",
     "src/core/i18n/locale.ts|exports|loadLocale",
     "src/features/community/download-queue.ts|types|QueueError",
     "src/features/community/render.ts|exports|SITE_GROUP_ORDER",
@@ -33,8 +35,6 @@
     "src/views/app-preview/geometry.ts|types|BedrockCube",
     "src/views/app-preview/utils.ts|types|PreviewImageLoader",
     "src/views/app-preview/wasm.ts|exports|doDecodeYsmViaWasm",
-    "src/wails/browser-adapter.ts|exports|arrayBufferToBase64",
-    "src/wails/idb.ts|exports|STORES",
     "src/web-spike/main.ts|file|src/web-spike/main.ts"
   ],
   "jscpd": [
