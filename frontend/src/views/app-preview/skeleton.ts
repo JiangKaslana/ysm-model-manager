@@ -367,14 +367,13 @@ export async function loadModel2D(
         shotBtn.appendChild(arrowSpan);
         const shotMenu = document.createElement("div");
         shotMenu.className = "ysm-ovl-shotmenu";
-        // 使用已有 i18n key + 固定文字；不引入新 key 避免超范围
         const items = [
-          { label: "\u{1F4F7} " + t("preview.currentView") || "Current view", key: "current" },
-          { label: "\u{1F464} Front", key: "front" },
-          { label: "\u2197 45\u00B0", key: "45" },
-          { label: "\u{1F449} Side", key: "side" },
-          { label: "\u2198 Back 45\u00B0", key: "back45" },
-          { label: "\u{1F4F8} All", key: "all" },
+          { label: t("preview.screenshotCurrent"), key: "current" },
+          { label: t("preview.screenshotFront"),    key: "front" },
+          { label: t("preview.screenshot45"),       key: "45" },
+          { label: t("preview.screenshotSide"),     key: "side" },
+          { label: t("preview.screenshotBack45"),   key: "back45" },
+          { label: t("preview.screenshotAll"),      key: "all" },
         ];
         // 截图入口带守卫：连点/多菜单触发时忽略并发（防重复保存文件）
         let _saving = false;
@@ -440,6 +439,7 @@ export async function loadModel2D(
           const el = document.createElement("div");
           el.textContent = item.label;
           el.className = "ysm-ovl-shotitem";
+          el.setAttribute("aria-label", t("preview.screenshot") + " — " + item.label);
           el.onclick = (): void => {
             shotMenu.style.display = "none";
             saveShot(item.key);
@@ -620,16 +620,24 @@ export async function loadModel2D(
 
         // 折叠按钮
         // 信息面板显隐按钮（直观文字：◀ 隐藏信息 / ▶ 显示信息）
-        const panelToggle = document.createElement("button");
         let _panelVisible = true;
-        panelToggle.textContent = t("preview.hidePanel");
-        panelToggle.title = t("preview.hidePanel");
-        panelToggle.className = "ysm-ovl-btn";
+        const panelToggle = createIconButton({
+          icon: "panel-hide",
+          label: t("preview.hidePanel"),
+          title: t("preview.hidePanel"),
+        });
         panelToggle.onclick = (): void => {
           _panelVisible = !_panelVisible;
           panel.style.display = _panelVisible ? "" : "none";
-          panelToggle.textContent = _panelVisible ? t("preview.hidePanel") : t("preview.showPanel");
+          panelToggle.className = "ysm-ovl-btn" + (_panelVisible ? " ysm-ovl-panelbtn" : "");
+          panelToggle.setAttribute("aria-label", _panelVisible ? t("preview.hidePanel") : t("preview.showPanel"));
           panelToggle.title = _panelVisible ? t("preview.hidePanel") : t("preview.showPanel");
+          // 切换图标类
+          const ic = panelToggle.querySelector<HTMLElement>(".ysm-ic");
+          if (ic) {
+            ic.classList.remove("ysm-ic--panel-hide", "ysm-ic--panel-show");
+            ic.classList.add(_panelVisible ? "ysm-ic--panel-hide" : "ysm-ic--panel-show");
+          }
         };
         // 置于顶部栏最右（相机速度数字之后），信息面板在右侧
         topBar.appendChild(panelToggle);

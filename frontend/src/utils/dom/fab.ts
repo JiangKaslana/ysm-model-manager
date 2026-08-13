@@ -26,6 +26,14 @@ export const YSW_FAB_CSS = `
 /* ===== 3D 信息面板（原内联布局，移入 CSS 以便响应式覆盖宽度） ===== */
 .ysm-3d-panel{position:absolute;top:0;right:0;bottom:0;width:260px;background:rgba(0,0,0,.4);border-left:1px solid rgba(255,255,255,.1);overflow-y:auto;padding:10px 12px;font-size:11px;color:rgba(255,255,255,.75);z-index:5}
 
+/* ===== 图标语义类（light DOM + Shadow DOM 均生效；shadow DOM 内由父级 .ysm-fab .ysm-ic 兜底）===== */
+.ysm-ic{display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0}
+.ysm-ic--cam::before{content:"📷"}
+.ysm-ic--rot::before{content:"⟲"}
+.ysm-ic--close::before{content:"✕"}
+.ysm-ic--panel-hide::before{content:"◀"}
+.ysm-ic--panel-show::before{content:"▶"}
+
 /* ===== 双端响应式：复用 MikuMikuAR 断点（ADR-057 §2.4） ===== */
 @media (max-width:480px){
   .ysm-ovl-bar{padding:4px 8px;gap:4px;flex-wrap:wrap}
@@ -64,7 +72,11 @@ export interface IconButtonOpts {
   className?: string;
   onClick?: () => void;
 }
-/** 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 */
+/** 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。
+ * icon 支持两种形态：
+ *   - Unicode 文本字面量（如 "✕" "\u{1F4F7}"）→ 直接写入 .ysm-ic span
+ *   - CSS 类名字符串（如 "cam" "rot" "close"）→ 注入 .ysm-ic--{name} class 到 .ysm-ic span
+ */
 export function createIconButton(opts: IconButtonOpts): HTMLButtonElement {
   const btn = document.createElement("button");
   btn.className = opts.className || "ysm-ovl-btn";
@@ -75,7 +87,13 @@ export function createIconButton(opts: IconButtonOpts): HTMLButtonElement {
   if (opts.icon) {
     const ic = document.createElement("span");
     ic.className = "ysm-ic";
-    ic.textContent = opts.icon;
+    if (/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(opts.icon)) {
+      // CSS class name form: match ysm-ic-{name} rule in YSW_FAB_CSS
+      ic.classList.add("ysm-ic", `ysm-ic--${opts.icon}`);
+    } else {
+      // Unicode emoji form
+      ic.textContent = opts.icon;
+    }
     btn.appendChild(ic);
   }
   if (opts.label) {
