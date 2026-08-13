@@ -124,29 +124,26 @@ func TestFindComponentsEmptyUv(t *testing.T) {
 }
 
 // 构造 player.model 为 map，但 value 类型不是字符串（数组/对象/数字），
-// 让 json.Decoder 走 Token 保序分支。源码根因：dec.Decode(&val) 遇非字符串报错 → break，
-// 若 map 写入序中该坏键排在好键之前，好键（main）会**永远收不到**——模型声明序错位，
-// texSlot 被污染成按名段下标。
+// 让 json.Decoder 走 Token 保序分支。源码根因（已修复）：dec.Decode(&val) 遇非字符串
+// 报错后原为 break，若 map 写入序中坏键排在好键之前，好键（main）会**永远收不到**——
+// 模型声明序错位，texSlot 被污染成按名段下标；改为 continue 跳过坏值继续遍历。
 func TestFindComponentsNonStringModelValue(t *testing.T) {
 	dir := t.TempDir()
 	modelsDir := filepath.Join(dir, "models")
 	os.MkdirAll(modelsDir, 0o755)
-	// 故意让 extra 排在 main 前面：dec.Decode 遇到 12345 报错并 break。
-	// 副作用：main 不在 modelNames 中 → declPos 查不到 → texSlot = len(texOrderNames)+undeclSeq = 1
-	// （应为 0，即主模型应贴第一张声明纹理 skin）。
+	// 故意让 extra 排在 main 前面：dec.Decode 遇到 12345 报错（已消费该值），
+	// continue 后 main 必须仍被解析到 → declPos 正常 → texSlot = 0（第一张声明纹理 skin）
 	ysmJSON := `{"files":{"player":{"model":{"extra":12345,"main":"models/main.json"},"texture":["textures/skin.png"]}}}`
 	os.WriteFile(filepath.Join(dir, "ysm.json"), []byte(ysmJSON), 0o644)
 	os.WriteFile(filepath.Join(modelsDir, "main.json"), []byte(geoWithBone("mainBone")), 0o644)
 
 	comps, texNames := FindComponentsInExtractedYSM(filepath.Join(dir, "ysm.json"))
 	if len(comps) == 0 {
-		t.Fatalf("[暴露脆弱点] 非字符串 value 排在 main 之前 → 组件完全丢失")
+		t.Fatalf("非字符串 value 排在 main 之前 → 组件完全丢失")
 	}
-	// 断言：texSlot 应为 0；若拿到 1（按名段），说明 declPos 查找因 token 早断失败
-	if comps[0].Bones[0].Cubes[0].TexSlot != 0 {
-		t.Logf("[暴露脆弱点] main texSlot = %d（期望 0）——非字符串 value 早断 Token 循环使 declPos 缺 main 键 → texSlot 错为按名段下标；"+
-			"源码 extracted.go FindComponentsInExtractedYSM Token 遍历遇到非字符串 value 直接 break，不跳过该键继续解析后续键；texNames=%v",
-			comps[0].Bones[0].Cubes[0].TexSlot, texNames)
+	// 修复后硬断言：texSlot 必须为 0（修复前 break 导致 declPos 缺 main 键 → 错为按名段下标 1）
+	if got := comps[0].Bones[0].Cubes[0].TexSlot; got != 0 {
+		t.Errorf("main texSlot = %d（期望 0）——坏值未跳过导致 declPos 缺 main 键；texNames=%v", got, texNames)
 	}
 }
 
@@ -155,16 +152,11 @@ func TestFindComponentsNonStringModelValue(t *testing.T) {
 // 空 player、动画分组为数组而非对象
 // ---------------------------------------------------------------------------
 
-// 场景 1：properties.extra_animation 是数组（合法 JSON 但类型不符 map[string]interface{}），
-// 源码根因：summary.go 中 ysmProperties.ExtraAnimation 声明为 map，json.Unmarshal 会失败
-// 导致整个 properties 分支静默跳过；appendAnimGroupsAndConfigs 中 extractDisplayValues
-// 期望 map，数组输入返回 nil，AnimGroups 缺失。
+// 场景 1：properties.extra_animation 是数组（合法 JSON 但类型不符 map[string]interface{}）。
+// 源码根因（已修复）：ysmProperties.ExtraAnimation 原为 map 类型，数组输入让整个
+// json.Unmarshal 失败、metadata.Name 连带丢失；改为 json.RawMessage 承载后，
+// 畸形形态只跳过该特性，不再拖垮整文件解析。
 func TestExtractYsmSummary_MalformedExtraAnim(t *testing.T) {
-	// 场景：properties.extra_animation 是数组（合法 JSON 但类型不符 map[string]interface{}）
-	// 源码根因（已暴露）：summary.go ysmProperties.ExtraAnimation 声明为 map，
-	// 当该字段为数组时，整个 json.Unmarshal 失败 → 返回结构化错误，前端 toast 能接到，
-	// 但副作用是整个 properties 元数据（含 author/link/config）全部丢失。
-	// TODO: 用 json.RawMessage 承载 ExtraAnimation，允许 map 或数组并存。
 	payload := `{
 		"spec": 2,
 		"metadata": {"name": "mal"},
@@ -179,13 +171,17 @@ func TestExtractYsmSummary_MalformedExtraAnim(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "mal.json")
 	os.WriteFile(path, []byte(payload), 0o644)
 	sum, err := ExtractYsmSummary(path)
-	if err == nil {
-		t.Fatalf("Malformed extra_animation 应报错，实际静默成功——源码脆弱：类型错导致整文件解析失败")
+	if err != nil {
+		t.Fatalf("畸形 extra_animation 不应再让整文件解析失败: %v", err)
 	}
-	// 关键脆弱点断言：extra_animation 一个字段类型错，metadata.Name（"mal"）
-	// 也跟着一起丢失——整个 Unmarshal 失败，前端得到的 summary 是空白壳子。
-	// 对比：合法文件会拿到 name="mal"。用 t.Log 记录，不阻断，方便后续修复后反查。
-	t.Logf("[暴露脆弱点] %s  → metadata.Name 丢失: %q（应为 \"mal\"）", err.Error(), sum.Name)
+	// 修复后：metadata.Name 必须保留（修复前随整个 Unmarshal 一起丢失）
+	if sum.Name != "mal" {
+		t.Errorf("metadata.Name 应保留 = \"mal\", 实际 = %q", sum.Name)
+	}
+	// 数组形态的 extra_animation 应被静默跳过（不产生 AnimGroups）
+	if len(sum.AnimGroups) != 1 {
+		t.Logf("AnimGroups = %d（期望 1：仅 classify 的组1 生效，数组形态被跳过）", len(sum.AnimGroups))
+	}
 }
 
 // 场景 2：files.player.model 为空数组 + texture 为空数组 —— 统计应得 0

@@ -107,12 +107,14 @@ type ysmLink struct {
 }
 
 type ysmProperties struct {
-	DefaultTexture    string                 `json:"default_texture,omitempty"`
-	HeightScale       float64                `json:"height_scale,omitempty"`
-	WidthScale        float64                `json:"width_scale,omitempty"`
-	ExtraAnimation    map[string]interface{} `json:"extra_animation,omitempty"`
-	ExtraAnimClassify []ysmAnimClassify      `json:"extra_animation_classify,omitempty"`
-	ExtraAnimButtons  []ysmConfigButton      `json:"extra_animation_buttons,omitempty"`
+	DefaultTexture string  `json:"default_texture,omitempty"`
+	HeightScale    float64 `json:"height_scale,omitempty"`
+	WidthScale     float64 `json:"width_scale,omitempty"`
+	// 用 RawMessage 承载：畸形输入（数组/字符串等）不会让整个文件 Unmarshal 失败、
+	// 连带 metadata.Name 等全部丢失；使用时按需解析，非法形态跳过该特性
+	ExtraAnimation    json.RawMessage   `json:"extra_animation,omitempty"`
+	ExtraAnimClassify []ysmAnimClassify `json:"extra_animation_classify,omitempty"`
+	ExtraAnimButtons  []ysmConfigButton `json:"extra_animation_buttons,omitempty"`
 }
 
 type ysmAnimClassify struct {
@@ -379,10 +381,13 @@ func appendAnimGroupsAndConfigs(root *ysmRoot, summary *YsmSummary) {
 	for _, g := range root.Properties.ExtraAnimClassify {
 		name := g.Name
 		// 如果 name 为空，从 properties.extra_animation 中按 #id 查找名称
-		if name == "" && root.Properties.ExtraAnimation != nil {
-			if v, ok := root.Properties.ExtraAnimation["#"+g.ID]; ok {
-				if s, ok2 := v.(string); ok2 {
-					name = s
+		if name == "" && len(root.Properties.ExtraAnimation) > 0 {
+			var eaMap map[string]interface{}
+			if json.Unmarshal(root.Properties.ExtraAnimation, &eaMap) == nil {
+				if v, ok := eaMap["#"+g.ID]; ok {
+					if s, ok2 := v.(string); ok2 {
+						name = s
+					}
 				}
 			}
 		}
@@ -403,7 +408,9 @@ func appendAnimGroupsAndConfigs(root *ysmRoot, summary *YsmSummary) {
 	}
 
 	// 兜底：extra_animation 中未被分类的直接动画（非 # 开头的值）
-	if root.Properties.ExtraAnimation != nil {
+	if len(root.Properties.ExtraAnimation) > 0 {
+		var eaMap map[string]interface{}
+		_ = json.Unmarshal(root.Properties.ExtraAnimation, &eaMap) // 非法形态 → nil map，range 零次迭代安全跳过
 		classifiedItems := make(map[string]bool)
 		for _, g := range root.Properties.ExtraAnimClassify {
 			if len(g.ExtraAnimation) > 0 {
@@ -413,7 +420,7 @@ func appendAnimGroupsAndConfigs(root *ysmRoot, summary *YsmSummary) {
 			}
 		}
 		var looseAnims []string
-		for k, v := range root.Properties.ExtraAnimation {
+		for k, v := range eaMap {
 			if s, ok := v.(string); ok && s != "" && !strings.HasPrefix(s, "#") {
 				if strings.HasPrefix(k, "#") {
 					continue // 组名跳过

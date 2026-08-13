@@ -714,7 +714,35 @@ func TestParseNbtStructure_TruncatedGzip(t *testing.T) {
 }
 
 // =========================================================================
-// 十二、辅助函数
+// 十二、readVarInt 溢出守卫（voxel.go）
+// =========================================================================
+
+func TestReadVarInt_ContinuationOverflow(t *testing.T) {
+	// 15 字节全 0xFF（无终止位）：单次调用内 shift 累加 0→63→70，
+	// 守卫在 shift>=64 处截断——第 11 字节不再左移（防 int 溢出 wrap 假值），
+	// 返回已消费 10 字节；v 为累积值（-1），不 panic
+	data := bytes.Repeat([]byte{0xFF}, 15)
+	v, off := readVarInt(data, 0)
+	if off != 10 {
+		t.Errorf("守卫应截断在 10 字节处, 实际 offset = %d", off)
+	}
+	if v == 0 {
+		t.Errorf("截断值不应为 0（应保留已累积位）")
+	}
+}
+
+func TestReadVarInt_NormalTermination(t *testing.T) {
+	// 正常 varint：0xE5 0x8E 0x26（1000_0000 0001_0111 0000_0101 低位序…）
+	// 用已知值：12345 = 0x3039 → 字节序 0xB9 0x60（低位 7 位 + 高位）
+	data := []byte{0xB9, 0x60}
+	v, off := readVarInt(data, 0)
+	if v != 12345 || off != 2 {
+		t.Errorf("readVarInt(12345) = (%d, %d), want (12345, 2)", v, off)
+	}
+}
+
+// =========================================================================
+// 十三、辅助函数
 // =========================================================================
 
 // writeGzNbt 将 NBT 字节流 gzip 压缩后写入临时文件

@@ -407,13 +407,13 @@
 |------|--------|------|
 | `FindCLI()` | `go/ysm/cli:11` | FindCLI 查找 YSMParser.exe 可执行文件路径 |
 | `FindGeometryInExtractedYSM()` | `go/ysm/extracted:50` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
-| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:388` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
+| `FindComponentsInExtractedYSM()` | `go/ysm/extracted:390` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
 | `AnalyzeYSMHeader()` | `go/ysm/header:167` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
 | `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:320` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
 | `YSMHeader()` | `go/ysm/header:12` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
 | `AnalyzeYSMModel()` | `go/ysm/parse:44` | AnalyzeYSMModel 解析 .ysm 文件，提取模型元数据 |
 | `YSMModelMeta()` | `go/ysm/parse:14` | YSMModelMeta 模型元数据（从 model.json 提取） |
-| `ExtractYsmSummary()` | `go/ysm/summary:133` | ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要 |
+| `ExtractYsmSummary()` | `go/ysm/summary:135` | ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要 |
 | `Author()` | `go/ysm/summary:16` | — |
 | `Link()` | `go/ysm/summary:22` | — |
 | `AnimGroup()` | `go/ysm/summary:27` | — |
@@ -667,7 +667,7 @@
 | `registerContextMenus()` | `frontend/src/core/context-menus:527` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:30` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:52` | 注册 UI 报错落日记功能。 |
-| `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:16` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |
+| `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:17` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |
 | `registerGlobalHandlers()` | `frontend/src/core/handlers/global:12` | 注册所有 core 全局 handler，返回 unsub 函数数组（features/views 层注册由 app-content 编排） |
 | `registerInstanceOps()` | `frontend/src/core/handlers/instance-ops:10` | 注册整合包操作 handler，push 返回的取消订阅函数到 unsubs |
 | `requireMcRoot()` | `frontend/src/core/handlers/require-mcroot:12` | 读取游戏根目录（mcRoot），空时发 warn toast 并返回 null。 |
@@ -903,8 +903,8 @@
 | `renderDisplayName()` | `frontend/src/utils/dom/display:88` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
 | `renderModelName()` | `frontend/src/utils/dom/display:179` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
 | `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:188` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
-| `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
-| `stripPathSegments()` | `frontend/src/utils/dom/errors:104` | — |
+| `friendlyError()` | `frontend/src/utils/dom/errors:42` | 将 Go 错误转换为友好提示 |
+| `stripPathSegments()` | `frontend/src/utils/dom/errors:70` | — |
 | `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:6` | — |
 | `ensureFabStyles()` | `frontend/src/utils/dom/fab:45` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
 | `IconButtonOpts()` | `frontend/src/utils/dom/fab:60` | — |

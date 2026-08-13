@@ -93,8 +93,10 @@ func FindGeometryInExtractedYSM(ysmJsonPath string) (*types.BedrockModel, [][]by
 								}
 								key, _ := keyTok.(string)
 								var val string
+								// 非字符串 value（数字/对象/数组）Decode 报错且已消费完该值；
+								// 若 break 则后续好键（main 等）全部丢失 → 跳过继续（declPos 保序）
 								if err := dec.Decode(&val); err != nil {
-									break
+									continue
 								}
 								if val != "" {
 									modelNames = append(modelNames, val)
@@ -430,8 +432,10 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 								}
 								key, _ := keyTok.(string)
 								var val string
+								// 非字符串 value（数字/对象/数组）Decode 报错且已消费完该值；
+								// 若 break 则后续好键（main 等）全部丢失 → 跳过继续（declPos 保序）
 								if err := dec.Decode(&val); err != nil {
-									break
+									continue
 								}
 								if val != "" {
 									modelNames = append(modelNames, val)

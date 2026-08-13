@@ -488,6 +488,11 @@ func readVarInt(data []byte, offset int) (int, int) {
 	result := 0
 	shift := 0
 	for offset < len(data) {
+		// 畸形 varint（连续 continuation bit 无终止）会让 shift 无界累加，
+		// int 左移溢出静默 wrap 出假值（损坏文件产出假方块）；shift 越过 64 位即截断返回
+		if shift >= 64 {
+			break
+		}
 		b := int(data[offset])
 		offset++
 		result |= (b & 0x7F) << shift
