@@ -38,6 +38,8 @@
 | `link-checker.mjs` | `node scripts/link-checker.mjs` / `--json` | 所有 md 内部链接断链检测 |
 | `release-notes-gen.mjs` | `node scripts/release-notes-gen.mjs` | git diff + commit 归类 → 结构化 JSON |
 | `bug-search.mjs` | `node scripts/bug-search.mjs <关键词>` / `--json` | 搜索 bug-chronicle.md |
+| `rollback-impact.mjs` | `node scripts/rollback-impact.mjs <commit>` / `--json` / `--quiet` / `--scope <dir>` | revert 影响面分析（audit-split 逆向镜像）：给定 commit，逆向跑一遍 funcMigration 找被删顶层声明 → 扫描当前 HEAD 引用 → 报潜在断链（⚠️ 或 ✅），情报型不阻断 |
+| `bloat-history.mjs` | `node scripts/bloat-history.mjs <path>` / `--json` / `--limit N` / `--first N` | 单文件膨胀轨迹：遍历 git log 中每次触及该文件的 commit，记录行数/导出符号数/顶层声明数，标出单次 +30 行跳点（author + subject + 前后行数/符号数），前置 ADR-040 红线的事前情报 |
 
 ### 实用级
 
@@ -197,6 +199,8 @@
 | `_lib/scan-files.mjs` | `walk`（.js/.ts 双扩展名）、`resolveImport`（.ts/.js/index 补全）、`toPosix`/`relPosix`、`readText`（BOM/CRLF 容错）、`getRoot` | 扫描 frontend/src 源码、解析 import、路径输出 |
 | `_lib/ripgrep.mjs` | `rg`（严格：exit 1 → []；rg 缺失/坏正则 → 抛错）、`rgSafe`（容错：抛错 → WARN + []） | 需要 ripgrep 扫描的任何脚本（恒 exit 0 提示工具用 `rgSafe`） |
 | `_lib/frontmatter.mjs` | frontmatter 解析 | 读取 md 文档 frontmatter |
+| `_lib/git-ref.mjs` | `showAt`（跨 ref 读文本）、`existsAt`、`gitMaybe`、`logPath`/`logPathDetail`（路径提交历史）、`lsTree`/`diffTree`（ref 间文件清单对比）、`renamePairs`（rename 检测）、`lineCountAt`（跨 ref 行数）、`showAllAt`（批量快照） | git 历史任意 ref 下的源码读取；与 `source-graph.mjs` 的 `textOverride` 参数对接，避免把历史 blob 落盘再读盘的双重开销 |
+| `_lib/source-graph.mjs` | `getExportedSymbols`（JS/TS）、`getGoExportedSymbols`（Go）、`getExportedSymbolsAny`（自动分发，支持 `textOverride` 传历史文本直接入参）、`walkSourceFiles`/`scanSourceGraph` | 源码导出符号提取；`textOverride` 是"拿历史某版本源码文本做符号分析"的统一接口，供 rollback-impact / bloat-history / api-break 等复用 |
 
 违规形态：内联「通用」 `walk`（即 scan-files.walk 的等价递归、无扩展名/跳过定制）/ 内联 `rg(...)` / 内联 `path.resolve(path.dirname(fileURLToPath(import.meta.url)))`。带显式过滤的领域专用收集器（如 `endsWith('.md')` / `EXCLUDE` / `symbolExclude` / `onFile`）为合法内联，不计入违规；doctor/静态检查不会自动拦截（脚本是自由 Node），靠 code review 约定 + `comment-checker` 抽查。
 

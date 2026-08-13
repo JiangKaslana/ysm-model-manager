@@ -82,17 +82,57 @@ function fileList(commit) {
   }).filter(Boolean);
 }
 
-// ── 分类：被拆主文件 / 新子文件 / 边角修改 ──
+// ── 分类：被拆主文件 / 新子文件 / 被移文件 / 边角修改 ──
 
-function classify(files, commit) {
+/** 重命名检测：--find-renames 输出形如 `0\t0\tfrontend/src/{wails => backend}/app.ts`。 */
+function detectRenames(commit) {
+  const out = git(['show', '--numstat', '--format=', '--find-renames', commit]);
+  const renames = [];
+  for (const line of out.split('\n')) {
+    const m = line.match(/^\d+\t\d+\t(.+)$/);
+    if (!m) continue;
+    const rm = m[1].match(/\{(.+?) => (.+?)\}/);
+    if (rm) renames.push({ from: rm[1], to: rm[2] });
+  }
+  return renames;
+}
+
+function classify(files, commit, renameFroms) {
   const mainThreshold = 80; // 删除 ≥80 行才视为「被拆主文件」
   for (const f of files) {
     if (f.binary) { f.kind = 'binary'; continue; }
+    const after = existsAt(commit, f.path);
+    if (!after && f.deletions > 0) {
+      // 提交后不存在：纯删除文件；若同时在 rename from 侧则是改名（0 0 纯改名
+      // 不会进 removed——insertions/deletions 均 0，但 --no-renames 下可能列出，用 from 集排除）
+      f.kind = renameFroms.has(f.path) ? 'renamed-away' : 'removed';
+      continue;
+    }
     const before = existsAt(`${commit}^`, f.path);
     if (!before) { f.kind = 'new'; continue; }
     f.kind = (f.deletions >= mainThreshold && f.deletions > f.insertions) ? 'split-main' : 'modified';
   }
   return files;
+}
+
+/** 被移除文件的符号去向追踪：旧顶层声明 → 合入哪个文件 / 彻底删除。 */
+function removedFileTrace(commit, rmPath, allPaths) {
+  const oldText = showAt(`${commit}^`, rmPath);
+  if (oldText === null) return { syms: [], merged: {}, gone: [] };
+  const oldAll = topDeclsAny(rmPath, oldText);
+  const fileSyms = new Map();
+  for (const p of allPaths) {
+    const t = showAt(commit, p);
+    fileSyms.set(p, t === null ? new Set() : new Set(topDeclsAny(p, t)));
+  }
+  const merged = {}, gone = [];
+  for (const sym of oldAll) {
+    let where = null;
+    for (const [p, s] of fileSyms) if (s.has(sym)) { where = p; break; }
+    if (where) merged[sym] = where;
+    else gone.push(sym);
+  }
+  return { syms: oldAll, merged, gone };
 }
 
 // ── 函数级迁移：旧导出符号 → 保留/搬家/真删 ──
@@ -184,7 +224,7 @@ function human(report, compact = false) {
   L.push('① 文件清单与分类');
   for (const f of report.files) {
     const ins = f.insertions ?? 'Bin', del = f.deletions ?? 'Bin';
-    const tag = f.kind === 'split-main' ? '拆' : f.kind === 'new' ? '新' : f.kind === 'binary' ? '二' : '改';
+    const tag = f.kind === 'split-main' ? '拆' : f.kind === 'new' ? '新' : f.kind === 'removed' ? '删' : f.kind === 'renamed-away' ? '名' : f.kind === 'binary' ? '二' : '改';
     const lines = f.linesAtCommit ?? '-';
     const col = f.path.length > 45 ? f.path : f.path.padEnd(45);
     L.push(`   [${tag}] ${col}  ${String(ins).padStart(4)}+/${String(del).padStart(4)}-  ${String(lines).padStart(4)}行`);
@@ -236,6 +276,27 @@ function human(report, compact = false) {
     }
   }
 
+  const removedEntries = Object.entries(report.removals);
+  if (removedEntries.length) {
+    L.push('');
+    L.push('②c 删除文件追踪（本次移除的文件 — 符号合入去向）');
+    for (const [p, tr] of removedEntries) {
+      const mergedN = Object.keys(tr.merged).length;
+      L.push(`   ▸ ${p}  顶层声明 ${tr.syms.length} → 合入 ${mergedN} · 彻底删除 ${tr.gone.length}`);
+      if (!compact) {
+        for (const [sym, to] of Object.entries(tr.merged)) L.push(`       ↳ ${sym}  →  ${to}`);
+        for (const sym of tr.gone) L.push(`       ✗ ${sym}  （彻底删除）`);
+      }
+    }
+  }
+  if (report.renames.length) {
+    L.push('');
+    L.push(`②d 重命名检测（${report.renames.length} 对）`);
+    const shown = compact ? report.renames.slice(0, 10) : report.renames;
+    for (const r of shown) L.push(`   ▸ ${r.from}  →  ${r.to}`);
+    if (compact && report.renames.length > 10) L.push(`   …其余 ${report.renames.length - 10} 对（--json 全量）`);
+  }
+
   L.push('');
   L.push('④ 红线 ADR-040（拆分后 ≤400 行）');
   if (report.redline.over.length) {
@@ -248,8 +309,9 @@ function human(report, compact = false) {
   }
 
   L.push('');
-  L.push('⑤ 受影响文件历史提交（拆/新文件，各至多 5 条）');
-  for (const f of [...mains, ...newFiles]) {
+  L.push('⑤ 受影响文件历史提交（拆/新/移除文件，各至多 5 条）');
+  const auditFiles = [...mains, ...newFiles, ...report.files.filter((f) => f.kind === 'removed' || f.kind === 'renamed-away')];
+  for (const f of auditFiles) {
     const h = report.history[f.path] || [];
     L.push(`   ▸ ${f.path}`);
     for (const line of h) L.push(`       ${line}`);
@@ -262,13 +324,16 @@ function human(report, compact = false) {
 function audit(commit) {
   const meta = commitMeta(commit);
   if (!meta) return { error: `commit 无效: ${commit}` };
-  const files = classify(fileList(commit), commit);
+  const renames = detectRenames(commit);
+  const renameFroms = new Set(renames.map((r) => r.from));
+  const files = classify(fileList(commit), commit, renameFroms);
   const totalIns = files.reduce((s, f) => s + (f.insertions ?? 0), 0);
   const totalDel = files.reduce((s, f) => s + (f.deletions ?? 0), 0);
   const paths = files.map((f) => f.path);
 
   const migrations = {};
   const cleans = {};
+  const removals = {};
   const newExports = {};
   const history = {};
   const over = [];
@@ -284,6 +349,7 @@ function audit(commit) {
       const d = deletedSyms(commit, f.path);
       if (d.length) cleans[f.path] = d;
     }
+    if (f.kind === 'removed') removals[f.path] = removedFileTrace(commit, f.path, paths);
     if (f.kind === 'new') {
       const t = showAt(commit, f.path);
       newExports[f.path] = t ? getExportedSymbolsAny(f.path, t) : [];
@@ -300,8 +366,10 @@ function audit(commit) {
     files,
     totalIns,
     totalDel,
+    renames,
     migrations,
     cleans,
+    removals,
     newExports,
     redline: { limit: REDLINE, max, over },
     history,
