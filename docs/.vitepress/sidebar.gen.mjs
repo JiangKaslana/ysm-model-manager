@@ -1316,6 +1316,10 @@ export const autoSidebar = [
           {
             "text": "第 03 区域 · 第 5 章 · 裸奔的边界",
             "link": "/novel/03-UI器官/05-裸奔的边界"
+          },
+          {
+            "text": "第 03 区域 · 第 6 章 · 幽灵的渲染",
+            "link": "/novel/03-UI器官/06-幽灵的渲染"
           }
         ]
       },
