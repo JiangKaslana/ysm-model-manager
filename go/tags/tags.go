@@ -118,6 +118,13 @@ func (s *Store) GetTags(modelPath string) ([]string, error) {
 
 // SetTags 设置指定路径的标签列表（覆盖写入）
 func (s *Store) SetTags(modelPath string, tags []string) error {
+	// BUG(NUL-1) 修复：modelPath 含 NUL 字节时写入 tags.json 会破坏 JSON key
+	// （Go json.Marshal 允许 \x00 出现在字符串值中，但 Linux 路径截断导致
+	// modelPath 被截断后写入，下次 load 时 key 不匹配）。
+	// fsutil.WriteFileAtomic 已校验 s.path 的 NUL，但 modelPath 作为 JSON key 需独立校验。
+	if strings.Contains(modelPath, "\x00") {
+		return fmt.Errorf("modelPath 含 NUL 字节")
+	}
 	if err := s.load(); err != nil {
 		return err
 	}

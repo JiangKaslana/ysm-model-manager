@@ -302,10 +302,10 @@
 | `NewStore()` | `go/tags/tags:26` | NewStore 创建标签存储（懒加载：首次 Get/Set 时自动读取） |
 | `Store.GetTags()` | `go/tags/tags:103` | GetTags 返回指定路径的所有标签（已排序） |
 | `Store.SetTags()` | `go/tags/tags:120` | SetTags 设置指定路径的标签列表（覆盖写入） |
-| `Store.AddTag()` | `go/tags/tags:152` | AddTag 追加单个标签（不会重复） |
-| `Store.RemoveTag()` | `go/tags/tags:175` | RemoveTag 移除单个标签 |
-| `Store.ListByTag()` | `go/tags/tags:204` | ListByTag 返回所有打了指定标签的文件路径列表 |
-| `Store.AllTags()` | `go/tags/tags:228` | AllTags 返回所有被使用的标签（按使用次数降序） |
+| `Store.AddTag()` | `go/tags/tags:159` | AddTag 追加单个标签（不会重复） |
+| `Store.RemoveTag()` | `go/tags/tags:182` | RemoveTag 移除单个标签 |
+| `Store.ListByTag()` | `go/tags/tags:211` | ListByTag 返回所有打了指定标签的文件路径列表 |
+| `Store.AllTags()` | `go/tags/tags:235` | AllTags 返回所有被使用的标签（按使用次数降序） |
 | `Store()` | `go/tags/tags:19` | Store 是标签存储，线程安全 |
 
 ## Go·Three.js
