@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-13T02:27:19.899Z",
+  "generated": "2026-08-13T03:11:07.043Z",
   "knip": [
     "e2e/modal.spec.ts|unresolved|/src/utils/dom/dialogs/modal.ts",
     "package.json|binaries|wails3",
@@ -42,12 +42,10 @@
     "src/backend/browser-adapter.contract-b1.test.ts#src/backend/browser-adapter.contract-b3.test.ts",
     "src/backend/browser-adapter.contract-b1.test.ts#src/backend/browser-adapter.test.ts",
     "src/backend/browser-adapter.contract-b2.test.ts#src/backend/browser-adapter.test.ts",
-    "src/core/context-menus.ts#src/core/context-menus.ts",
     "src/core/handlers/instance-ops.test.ts#src/core/handlers/sync.test.ts",
     "src/features/community/download-queue.test.ts#src/features/community/download-queue.test.ts",
     "src/features/import-dnd.ts#src/features/import-queue.ts",
     "src/features/import-queue.ts#src/features/import-queue.ts",
-    "src/features/recycle-bin.ts#src/features/recycle-bin.ts",
     "src/features/version-updater.test.ts#src/features/version-updater.test.ts",
     "src/utils/3d/model2d.ts#src/utils/3d/model2d.ts",
     "src/utils/3d/model3d-spec.test.ts#src/utils/3d/model3d-spec.test.ts",

@@ -83,6 +83,64 @@ async function resolveDstDir(opts: {
   return { folder, dstDir: repoRoot + "/" + folder.replace(/\\/g, "/") };
 }
 
+/**
+ * batch.move / batch.copy 共用模板（消除孪生 handler）：仅 verb、binding、弹窗文案、toast 文案不同。
+ * 保留两处各自 P2/P3 修复语义：
+ *  - busy 命中发 toast 提示而非静默吞（P3, ADR-044）
+ *  - 最外层 catch 防止 resolveDstDir/getApp reject 逸出为 unhandledrejection（P2）
+ *  - 部分失败时同时报告成功与失败数（P3 对齐）
+ */
+async function runBatchFileOp(
+  ctx: MenuCtx,
+  op: {
+    verb: string; // "移动" / "复制"
+    binding: "MoveModelFile" | "CopyModelFile";
+    dialog: { title: string; icon: string; okText: string; emptyMsg: string };
+    partialFailMsg: string; // 部分失败文案（如 copy 的「可能目标已存在」）
+    allFailMsg: string; // 全失败 toast
+  },
+): Promise<void> {
+  if (_batchBusy) {
+    toast("⏳ 操作进行中，请稍候", 1500, "info");
+    return;
+  }
+  _batchBusy = true;
+  try {
+    const resolved = await resolveDstDir(op.dialog);
+    if (!resolved) return;
+    const { folder, dstDir } = resolved;
+    const app = await getApp();
+    const fn = app[op.binding];
+    toast(`📦 正在${op.verb} ${ctx.paths.length} 个文件到 ${folder}...`, 3000);
+    let ok = 0;
+    let fail = 0;
+    for (const p of ctx.paths) {
+      try {
+        await fn(p, dstDir);
+        ok++;
+      } catch (e) {
+        fail++;
+        console.error(`${op.verb}失败:`, p, e);
+      }
+    }
+    if (ok > 0) {
+      toast(
+        fail > 0
+          ? `✅ ${ok} 个已${op.verb} / ❌ ${fail} 失败${op.partialFailMsg ? `（${op.partialFailMsg}）` : ""}`
+          : `✅ ${ok} 个文件已${op.verb}到 ${folder}`,
+        4000,
+      );
+    } else {
+      toast(`❌ ${op.allFailMsg}`, 4000, "error");
+    }
+    refreshUI();
+  } catch (e) {
+    toast(`❌ ${friendlyError(e)}`, 4000, "error");
+  } finally {
+    _batchBusy = false;
+  }
+}
+
 // ── 行为 handler 表：action id → (ctx) => void ──────────
 // 与 menu-defs.ts 的 MenuItemDef.action 一一对应；测试遍历声明断言完整性。
 // MenuCtx 保证 paths 已归一化为数组（buildMenuItems 兜底）。
@@ -117,103 +175,22 @@ const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
 
   // ── batch ──
   "batch.rename": (ctx) => bus.emit("batch:rename", { paths: ctx.paths }),
-  "batch.move": async (ctx) => {
-    if (_batchBusy) {
-      // P3 修复（审核发现）：busy 命中不再静默吞事件（ADR-044）——用户连点第二次
-      // 菜单动作无任何反馈，发 toast 提示操作在途
-      toast("⏳ 操作进行中，请稍候", 1500, "info");
-      return;
-    }
-    _batchBusy = true;
-    try {
-      const resolved = await resolveDstDir({
-        title: "移动到文件夹",
-        icon: "📂",
-        okText: "移动",
-        emptyMsg: "❌ 请先配置存储路径",
-      });
-      if (!resolved) return;
-      const { folder, dstDir } = resolved;
-      const { MoveModelFile } = await getApp();
-      toast(`📦 正在移动 ${ctx.paths.length} 个文件到 ${folder}...`, 3000);
-      let ok = 0;
-      let fail = 0;
-      for (const p of ctx.paths) {
-        try {
-          await MoveModelFile(p, dstDir);
-          ok++;
-        } catch (e) {
-          fail++;
-          console.error("移动失败:", p, e);
-        }
-      }
-      if (ok > 0) {
-        // P3 对齐 batch.copy：部分失败时 toast 同时报告成功与失败数
-        toast(
-          fail > 0
-            ? `✅ ${ok} 个已移动 / ❌ ${fail} 失败`
-            : `✅ ${ok} 个文件已移动到 ${folder}`,
-          4000,
-        );
-      } else {
-        toast("❌ 移动失败", 4000, "error");
-      }
-      refreshUI();
-    } catch (e) {
-      // P2 修复：最外层补 catch——resolveDstDir/getApp 可 reject（getApp import 失败会
-      // rethrow），原 try/finally 无 catch 使 rejection 逸出 → unhandledrejection、用户无反馈
-      toast(`❌ ${friendlyError(e)}`, 4000, "error");
-    } finally {
-      _batchBusy = false;
-    }
-  },
-  "batch.copy": async (ctx) => {
-    if (_batchBusy) {
-      toast("⏳ 操作进行中，请稍候", 1500, "info");
-      return;
-    }
-    _batchBusy = true;
-    try {
-      const resolved = await resolveDstDir({
-        title: "复制到文件夹",
-        icon: "📋",
-        okText: "复制",
-        emptyMsg: "❌ 请先配置仓库目录",
-      });
-      if (!resolved) return;
-      const { folder, dstDir } = resolved;
-      const { CopyModelFile } = await getApp();
-      toast(`📦 正在复制 ${ctx.paths.length} 个文件到 ${folder}...`, 3000);
-      let ok = 0;
-      let fail = 0;
-      for (const p of ctx.paths) {
-        try {
-          await CopyModelFile(p, dstDir);
-          ok++;
-        } catch (e) {
-          fail++;
-          console.error("复制失败:", p, e);
-        }
-      }
-      if (ok > 0) {
-        toast(
-          fail > 0
-            ? `✅ ${ok} 复制成功 / ❌ ${fail} 失败（可能目标已存在）`
-            : `✅ ${ok} 个文件已复制到 ${folder}`,
-          4000,
-        );
-      } else {
-        toast("❌ 复制失败（可能目标已存在）", 4000, "error");
-      }
-      refreshUI();
-    } catch (e) {
-      // P2 修复：最外层补 catch（同 batch.move）——resolveDstDir/getApp reject 时
-      // 原 try/finally 无 catch 使 rejection 逸出 → unhandledrejection
-      toast(`❌ ${friendlyError(e)}`, 4000, "error");
-    } finally {
-      _batchBusy = false;
-    }
-  },
+  "batch.move": (ctx) =>
+    runBatchFileOp(ctx, {
+      verb: "移动",
+      binding: "MoveModelFile",
+      dialog: { title: "移动到文件夹", icon: "📂", okText: "移动", emptyMsg: "❌ 请先配置存储路径" },
+      partialFailMsg: "",
+      allFailMsg: "移动失败",
+    }),
+  "batch.copy": (ctx) =>
+    runBatchFileOp(ctx, {
+      verb: "复制",
+      binding: "CopyModelFile",
+      dialog: { title: "复制到文件夹", icon: "📋", okText: "复制", emptyMsg: "❌ 请先配置仓库目录" },
+      partialFailMsg: "可能目标已存在",
+      allFailMsg: "复制失败（可能目标已存在）",
+    }),
   "batch.recycle": async (ctx) => {
     if (_batchBusy) {
       toast("⏳ 操作进行中，请稍候", 1500, "info");

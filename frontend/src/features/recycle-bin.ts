@@ -153,79 +153,67 @@ export function initRecycleBin(app: RecycleHost): () => void {
         })
         .join("");
 
-      // 恢复按钮
-      list.querySelectorAll(".recy-restore").forEach((btnEl) => {
-        const btn = btnEl as HTMLButtonElement;
-        btn.onclick = async (): Promise<void> => {
-          if (btn.disabled) return;
-          btn.disabled = true;
-          const item = btn.closest(".recy-item");
-          if (item) {
-            item.classList.add("leaving");
-            await new Promise((r) => setTimeout(r, 150));
-          }
-          try {
-            await RestoreFromRecycle(btn.dataset.path || "", "");
-            bus.emit("toast:show", {
-              msg: t("recycle.restored"),
-              duration: 2000,
-              type: "success",
-            });
-            loadRecycleBin();
-            bus.emit("stats:refresh");
-            bus.emit("tree:reload");
-          } catch (e) {
-            if (item) item.classList.remove("leaving");
-            btn.disabled = false;
-            bus.emit("toast:show", {
-              msg: `❌ ${friendlyError(e)}`,
-              duration: 3000,
-              type: "error",
-            });
-          }
-        };
-      });
+      // 回收站列表项的「恢复 / 删除」按钮共用绑定（消除孪生 handler）：
+      // 仅 binding、成功 toast key、是否先弹确认框不同。删除后联动统计与资源树刷新
+      // （P2 修复：与 restore/empty 对齐）。
+      const bindRecycleAction = (
+        selector: string,
+        opt: {
+          confirm?: { title: string; icon: string; message: string; okText: string };
+          binding: (path: string) => Promise<unknown>;
+          toastKey: string;
+        },
+      ): void => {
+        list.querySelectorAll(selector).forEach((btnEl) => {
+          const btn = btnEl as HTMLButtonElement;
+          btn.onclick = async (): Promise<void> => {
+            if (btn.disabled) return;
+            if (opt.confirm) {
+              const confirmed = await modalConfirm({ ...opt.confirm, danger: true });
+              if (!confirmed) return;
+            }
+            btn.disabled = true;
+            const item = btn.closest(".recy-item");
+            if (item) {
+              item.classList.add("leaving");
+              await new Promise((r) => setTimeout(r, 150));
+            }
+            try {
+              await opt.binding(btn.dataset.path || "");
+              loadRecycleBin();
+              bus.emit("stats:refresh");
+              bus.emit("tree:reload");
+              bus.emit("toast:show", {
+                msg: t(opt.toastKey),
+                duration: 2000,
+                type: "success",
+              });
+            } catch (e) {
+              if (item) item.classList.remove("leaving");
+              btn.disabled = false;
+              bus.emit("toast:show", {
+                msg: `❌ ${friendlyError(e)}`,
+                duration: 3000,
+                type: "error",
+              });
+            }
+          };
+        });
+      };
 
-      // 删除按钮
-      list.querySelectorAll(".recy-del").forEach((btnEl) => {
-        const btn = btnEl as HTMLButtonElement;
-        btn.onclick = async (): Promise<void> => {
-          if (btn.disabled) return;
-          const confirmed = await modalConfirm({
-            title: "删除文件",
-            icon: "🗑️",
-            message: "确定永久删除此文件？",
-            okText: "🗑️ 删除",
-            danger: true,
-          });
-          if (!confirmed) return;
-          btn.disabled = true;
-          const item = btn.closest(".recy-item");
-          if (item) {
-            item.classList.add("leaving");
-            await new Promise((r) => setTimeout(r, 150));
-          }
-          try {
-            await DeleteFromRecycle(btn.dataset.path || "");
-            loadRecycleBin();
-            // P2 修复：与 restore/empty 对齐，删除后联动统计与资源树刷新
-            bus.emit("stats:refresh");
-            bus.emit("tree:reload");
-            bus.emit("toast:show", {
-              msg: t("recycle.deleted"),
-              duration: 2000,
-              type: "success",
-            });
-          } catch (e) {
-            if (item) item.classList.remove("leaving");
-            btn.disabled = false;
-            bus.emit("toast:show", {
-              msg: `❌ ${friendlyError(e)}`,
-              duration: 3000,
-              type: "error",
-            });
-          }
-        };
+      bindRecycleAction(".recy-restore", {
+        binding: (p) => RestoreFromRecycle(p, ""),
+        toastKey: "recycle.restored",
+      });
+      bindRecycleAction(".recy-del", {
+        confirm: {
+          title: "删除文件",
+          icon: "🗑️",
+          message: "确定永久删除此文件？",
+          okText: "🗑️ 删除",
+        },
+        binding: (p) => DeleteFromRecycle(p),
+        toastKey: "recycle.deleted",
       });
 
       // 文件名点击 → 模型详情：已在 init 用事件委托统一绑定（onListClick），此处无需逐元素绑定
