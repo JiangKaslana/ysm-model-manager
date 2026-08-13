@@ -34,7 +34,8 @@ export default defineConfig({
     url: "http://127.0.0.1:5173",
     reuseExistingServer: !process.env.CI,
     cwd: ".",
-    timeout: 30000,
+    // CI（ubuntu runner）首次 npm ci 后 vite 冷启动常超 30s，放宽到 120s
+    timeout: 120000,
   },
   projects: [
     {

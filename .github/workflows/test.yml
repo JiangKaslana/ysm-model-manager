@@ -43,12 +43,12 @@ jobs:
             go-mod-${{ runner.os }}-${{ env.WAILS_VERSION }}-
             go-mod-${{ runner.os }}-
 
+      # winget 安装的 app 链接不会刷新当前 runner 进程 PATH，导致后续步骤找不到 rg；
+      # 改用官方 ripgrep-action，它会将 rg 正确写入 GITHUB_PATH（跨平台生效）。
       - name: 安装 ripgrep（契约测试依赖 rg 二进制）
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          winget install -e --id BurntSushi.ripgrep.MSVC --accept-package-agreements --accept-source-agreements
-          rg --version
+        uses: BurntSushi/ripgrep-action@master
+        with:
+          version: 14.1.0
 
       - name: 契约测试（tests/，Node .mjs，禁止修改测试文件）
         shell: pwsh
