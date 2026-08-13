@@ -119,8 +119,8 @@
 | `CleanEmptyDirs()` | `go/fsutil/walk:75` | CleanEmptyDirs 递归删除空子目录，返回删除数 |
 | `IsRecycleDir()` | `go/fsutil/walk:91` | IsRecycleDir 判断路径是否指向 .recycle 回收站目录（大小写不敏感，ADR-044 策略 A 统一口径）—— dedup / scanner / sync 的回 |
 | `IsResourcePackFolder()` | `go/fsutil/walk:99` | IsResourcePackFolder 检查目录是否为资源包文件夹（内含 pack.mcmeta）。 |
-| `ReadLimitedEntry()` | `go/fsutil/write:28` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
-| `WriteFileAtomic()` | `go/fsutil/write:48` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
+| `ReadLimitedEntry()` | `go/fsutil/write:44` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
+| `WriteFileAtomic()` | `go/fsutil/write:64` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
 
 ## Go·几何
 

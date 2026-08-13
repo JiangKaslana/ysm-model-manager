@@ -20,6 +20,22 @@ import (
 // 不同的错误码（如 MKDIR_FAILED），维持既有结构化错误契约（code_review）。
 var ErrTempCreateFailed = errors.New("创建临时文件失败")
 
+// 可注入故障点（包级函数变量，仅测试替换用）——OS 级失败（ENOSPC/EIO/只读目录等）
+// 无法在测试中低成本真实构造，故收敛为包级变量供测试 swap；生产代码零改动语义，
+// 失败清理（Remove 临时文件）保持真实执行，测试即可断言「无残渣」不变量。
+// 不引入公共 API / 注入接口，维持 ADR-044 收敛口径。
+var (
+	createTempFile = os.CreateTemp
+	writeToFile    = func(w io.Writer, data []byte) error {
+		_, err := w.Write(data)
+		return err
+	}
+	syncFile   = func(f *os.File) error { return f.Sync() }
+	closeFile  = func(f *os.File) error { return f.Close() }
+	chmodFile  = os.Chmod
+	renameFile = os.Rename
+)
+
 // ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）——
 // 原 `io.ReadAll(io.LimitReader(rc, limit))` 截断后 err==nil 静默，超限数据会被截断后继续使用
 // （损坏数据装盘，项目头号反模式）。本函数读 limit+1 字节，len 超 limit 即判超限返回 nil；
@@ -47,32 +63,32 @@ func ReadLimitedEntry(rc io.ReadCloser, limit int64) []byte {
 // 返回普通 error（本包不依赖 go/types 的结构化错误契约，调用方按需包装）。
 func WriteFileAtomic(destPath string, data []byte) error {
 	destDir := filepath.Dir(destPath)
-	tmp, err := os.CreateTemp(destDir, ".atomic-*.tmp")
+	tmp, err := createTempFile(destDir, ".atomic-*.tmp")
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrTempCreateFailed, err)
 	}
 	tmpName := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
+	if err := writeToFile(tmp, data); err != nil {
 		tmp.Close()
 		os.Remove(tmpName)
 		return fmt.Errorf("写入失败: %w", err)
 	}
 	// Sync 确保数据落盘后再 Close+Rename——与 installer/recycle/importer 的
 	// copyFile 落盘检查对齐（ADR-033 截断静默反模式：不 Sync 时崩溃可能零长度文件装盘）
-	if err := tmp.Sync(); err != nil {
+	if err := syncFile(tmp); err != nil {
 		tmp.Close()
 		os.Remove(tmpName)
 		return fmt.Errorf("落盘失败: %w", err)
 	}
-	if err := tmp.Close(); err != nil {
+	if err := closeFile(tmp); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("关闭临时文件失败: %w", err)
 	}
-	if err := os.Chmod(tmpName, 0644); err != nil {
+	if err := chmodFile(tmpName, 0644); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("设置权限失败: %w", err)
 	}
-	if err := os.Rename(tmpName, destPath); err != nil {
+	if err := renameFile(tmpName, destPath); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("落地失败: %w", err)
 	}
