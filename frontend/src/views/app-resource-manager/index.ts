@@ -34,9 +34,6 @@ const STORE: { _config: ResourceTypeConfig[] | null } = {
   _config: null,
 }; // 模块级缓存（rtype → config）
 
-// P2 修复：config:updated 同 tick 连发合并为一次刷新（防全量重载风暴）
-let _configRefreshScheduled = false;
-
 async function _loadConfig(forceRefresh?: boolean): Promise<ResourceTypeConfig[]> {
   if (!forceRefresh && STORE._config) return STORE._config;
   const { LoadResourceTypes } = await getApp();
@@ -53,21 +50,14 @@ async function _loadConfig(forceRefresh?: boolean): Promise<ResourceTypeConfig[]
 /**
  * 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub
  * （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛）
+ * F8 修复：仅清模块缓存——组件生产零实例（initResourcePacks 调用点已删），且
+ * document.querySelectorAll 不穿透 Shadow DOM，原「刷新所有实例」恒空转；
+ * 缓存清空后实例下次 _init（_loadConfig 走缓存）自动重新拉取。
  */
 export function registerResourceManagerGlobal(unsubs: Array<() => void>): void {
   unsubs.push(
     bus.on("config:updated", () => {
       STORE._config = null;
-      // P2 修复：同 tick 连发合并为一次刷新（防全量重载风暴）
-      //（_init 内部已闭环永不 reject，无需 .catch）
-      if (_configRefreshScheduled) return; // 同 tick 合并为一次刷新
-      _configRefreshScheduled = true;
-      queueMicrotask(() => {
-        _configRefreshScheduled = false;
-        document.querySelectorAll("app-resource-manager").forEach((el) => {
-          void (el as AppResourceManager)._init();
-        });
-      });
     }),
   );
 }

@@ -10,12 +10,21 @@ const mockScanResult = vi.hoisted(() => [
     { Name: "pack2.zip", Path: "/repo/resourcepack/pack2.zip", enabled: false },
   ]);
 // P2 修复：mock 提为 vi.hoisted 可引用，供恒真断言改为精确断言（rtype 切换验证 ReadShaderpackLang）
-const { readShaderpackLangMock, scanEntriesWithLabelMock, getAndroidBridgeMock, resolveAndroidRepoDirMock, openFolderMock, isViewerModeMock } = vi.hoisted(() => ({
+const { readShaderpackLangMock, scanEntriesWithLabelMock, loadResourceTypesMock, getAndroidBridgeMock, resolveAndroidRepoDirMock, openFolderMock, isViewerModeMock } = vi.hoisted(() => ({
   readShaderpackLangMock: vi.fn().mockResolvedValue(
     JSON.stringify({ name: "光影包测试", entries: {} }),
   ),
   // 默认返回列表数据（与 ScanModelEntries 同源），config:updated 用例内可临时改值
   scanEntriesWithLabelMock: vi.fn().mockResolvedValue(mockScanResult),
+  // 资源类型配置（_loadConfig 走 getApp().LoadResourceTypes），config:updated 用例改值验证缓存失效
+  loadResourceTypesMock: vi.fn().mockResolvedValue(
+    JSON.stringify({
+      resourceTypes: [
+        { id: "resourcepack", name: "资源包", icon: "🎨", actions: ["import", "toggle", "delete", "openFolder"] },
+        { id: "shaderpack", name: "光影包", icon: "☀️", actions: ["import", "openFolder"] },
+      ],
+    }),
+  ),
   // Android 双端桥（openFolder 分支）：默认桌面（无桥/非查看器），Android 用例内 override
   getAndroidBridgeMock: vi.fn().mockReturnValue(null),
   isViewerModeMock: vi.fn().mockReturnValue(false),
@@ -42,12 +51,7 @@ vi.mock("../../backend/app.ts", () => ({
     LoadAppConfig: vi.fn().mockResolvedValue({}),
     ListVersionInstances: vi.fn().mockResolvedValue([]),
     ReadShaderpackLang: readShaderpackLangMock,
-    LoadResourceTypes: vi.fn().mockResolvedValue(JSON.stringify({
-      resourceTypes: [
-        { id: "resourcepack", name: "资源包", icon: "🎨", actions: ["import", "toggle", "delete", "openFolder"] },
-        { id: "shaderpack", name: "光影包", icon: "☀️", actions: ["import", "openFolder"] },
-      ],
-    })),
+    LoadResourceTypes: loadResourceTypesMock,
   }),
 }));
 
@@ -150,25 +154,22 @@ describe("app-resource-manager（testid 钩子 + 资源管理交互）", () => {
     expect(document.querySelector("app-resource-manager")).toBeNull();
   });
 
-  it("config:updated → 全局刷新触发实例重载（P2 修复：registerResourceManagerGlobal 零测试）", async () => {
-    // 挂载实例 → 注册全局 handler → 发 config:updated → 断言实例 _init 被再次触发
-    //（ScanModelEntriesWithLabel 调用次数增加，STORE._config 重置后重载）
-    scanEntriesWithLabelMock.mockResolvedValue(mockScanResult);
-    scanEntriesWithLabelMock.mockClear();
-    const el = mountCustomElement("app-resource-manager");
-    await waitFor(() => el.querySelector('[data-testid="rm-item"]') !== null, 5000);
-    const callsBefore = scanEntriesWithLabelMock.mock.calls.length;
-
+  it("config:updated → 缓存失效，下次 _init 重新拉取配置（F8：仅清缓存，不空转刷新实例）", async () => {
+    // 模块级 STORE 缓存可能被前序用例污染 → 先注册订阅 emit 清缓存，确保本次挂载走真实拉取
     const unsubs: Array<() => void> = [];
     registerResourceManagerGlobal(unsubs);
     bus.emit("config:updated");
-    await waitFor(
-      () => scanEntriesWithLabelMock.mock.calls.length > callsBefore,
-      5000,
-    );
-    // 配置刷新后实例仍渲染列表（重载成功，未落错误态）
-    expect(el.querySelector('[data-testid="rm-item"]')).not.toBeNull();
+    loadResourceTypesMock.mockClear();
+    const el = mountCustomElement("app-resource-manager");
+    await waitFor(() => el.querySelector('[data-testid="rm-item"]') !== null, 5000);
+    expect(loadResourceTypesMock.mock.calls.length).toBeGreaterThan(0);
+
+    bus.emit("config:updated"); // 仅清 STORE._config 缓存，不直接刷新实例
     unsubs.forEach((fn) => fn());
+
+    const callsBefore = loadResourceTypesMock.mock.calls.length;
+    await (el as unknown as { _init(): Promise<void> })._init(); // 缓存已清 → 重新拉取配置
+    expect(loadResourceTypesMock.mock.calls.length).toBe(callsBefore + 1);
     unmountElement(el);
   });
 });
