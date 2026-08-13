@@ -890,19 +890,19 @@
 | `SpecBuildResult()` | `frontend/src/utils/3d/model3d-spec:37` | 构建产物：mesh data + bones |
 | `SpecMeshData()` | `frontend/src/utils/3d/model3d-spec:45` | 单 mesh 数据（Go spec meshGroups 结构近似） |
 | `buildSpecFromModel()` | `frontend/src/utils/3d/model3d-spec:66` | 构建 Three.js 可消费的 spec 结构 { bones[], meshes[] } |
-| `SpecBone3D()` | `frontend/src/utils/3d/model3d:9` | — |
-| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:17` | — |
-| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:29` | — |
-| `Spec3D()` | `frontend/src/utils/3d/model3d:37` | — |
-| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:42` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:56` | renderModel3D 返回的渲染句柄 |
-| `TdKeyAction()` | `frontend/src/utils/3d/model3d:71` | — |
-| `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/model3d:74` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
-| `loadTdKeymap()` | `frontend/src/utils/3d/model3d:88` | 读取用户自定义键位（无/非法时回退默认） |
-| `loadTdCamSpeed()` | `frontend/src/utils/3d/model3d:106` | 相机移动速度（2–200），默认 20 |
-| `loadTdRotMode()` | `frontend/src/utils/3d/model3d:113` | true = 环绕（orbit），false = 自身（free） |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:140` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:914` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `TdKeyAction()` | `frontend/src/utils/3d/model3d` | — |
+| `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/model3d` | — |
+| `loadTdKeymap()` | `frontend/src/utils/3d/model3d` | — |
+| `loadTdCamSpeed()` | `frontend/src/utils/3d/model3d` | — |
+| `loadTdRotMode()` | `frontend/src/utils/3d/model3d` | — |
+| `SpecBone3D()` | `frontend/src/utils/3d/model3d:12` | — |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:20` | — |
+| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:32` | — |
+| `Spec3D()` | `frontend/src/utils/3d/model3d:40` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:45` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:59` | renderModel3D 返回的渲染句柄 |
+| `renderModel3D()` | `frontend/src/utils/3d/model3d:100` | 渲染 3D 模型到容器，返回控制句柄 |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:607` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:116` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:12` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:9` | 三维向量 [x, y, z] |

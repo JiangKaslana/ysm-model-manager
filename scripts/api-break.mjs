@@ -178,8 +178,10 @@ function scanCallersInRef(terms, newer, scope) {
         const rel = toPosix(path.relative(ROOT, f));
         // 跳过二进制 / 不存在于 newer 的文件（避免 git show 噪声）
         if (rel.endsWith('.png') || rel.endsWith('.gif') || rel.endsWith('.jpg')) continue;
-        if (!existsAt(newer, rel)) continue; // 磁盘有但 newer ref 无（并行拆分的在建文件）→ 跳过，否则 git show 报 fatal 噪声
-        const text = showAt(newer, rel);
+        // R5 修复：existsAt/showAt 的 toGitPath 假设绝对路径（path.relative(ROOT, p)），
+        // 传相对路径 rel 在 cwd≠ROOT 时解析错位 → 漏报断链调用方；walk 返回绝对路径 f
+        if (!existsAt(newer, f)) continue; // 磁盘有但 newer ref 无（并行拆分的在建文件）→ 跳过，否则 git show 报 fatal 噪声
+        const text = showAt(newer, f);
         if (!text) continue;
         for (const sym of terms) {
           const nm = searchName(sym);
@@ -363,6 +365,9 @@ const callers = allDeletedExp.length
 
 if (JSON_OUT) {
   console.log(JSON.stringify(toJ(report, callers), null, 2));
+} else if (QUIET && allDeletedExp.length === 0) {
+  // 静默模式（--quiet）：无破坏性变更时只输出一行结论，供 CI/脚本消费（Q1 实现）
+  console.log('✅ 无破坏性变更');
 } else {
   console.log(human(report, callers, COMPACT));
 }
