@@ -1,6 +1,8 @@
 // ===== 3D 多角度截图渲染器（类型化版 — ADR-014 P2）=====
 import * as THREE from "three";
+import { bus } from "../../bus.ts";
 import { getApp } from "../../backend/app.ts";
+import { resolveWebMode } from "../../backend/platform.ts";
 import { loadTextures } from "./model3d-loader.ts";
 import { buildSceneMesh, compKey, disposeMaterial } from "../../utils/3d/mesh.ts";
 import { type Spec3D } from "../../utils/3d/model3d.ts";
@@ -16,6 +18,17 @@ export async function renderMultiAngle(
   texUrls: string[],
   opts: { size?: number } = {},
 ): Promise<AngleShot[] | null> {
+  // P2-3 修复（web 门控）：GetModel3DSpec 在网页版 browser adapter 恒 "{}" 桩 → spec 为空
+  // 静默返回 null，预览「保存截图」在 web 模式必败且零反馈；web 模式入口直接提示返回
+  // （对齐同目录 model3d-loader 的 resolveWebMode 门控范式 + litematic-3d 的 toast 写法）
+  if (resolveWebMode()) {
+    bus.emit("toast:show", {
+      msg: "网页版暂不支持 3D 截图",
+      duration: 3000,
+      type: "warn",
+    });
+    return null;
+  }
   const size = opts.size || 512;
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;

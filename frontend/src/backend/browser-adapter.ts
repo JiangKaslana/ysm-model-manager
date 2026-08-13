@@ -684,7 +684,9 @@ async function generateWebRepoIndex(repoPath: string): Promise<string> {
   return JSON.stringify(list, null, 2);
 }
 
-const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
+// 不加 Record<string, ...> 注解：让 typeof webImpls 保留字面量键（供下方类型级对账校验），
+// 用 satisfies 兜住原注解契约（每个实现都是 (...args: never[]) => Promise<unknown>）
+const webImpls = {
   ScanModelEntries: (dir: string) => scanWebModels(dir),
   // 真实列表入口（loader/import-queue/resource-manager 等 6 处均调 WithLabel 版本）
   ScanModelEntriesWithLabel: (dir: string, _label: string) => scanWebModels(dir),
@@ -808,7 +810,13 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
     saveWebSites(sites);
     return Promise.resolve();
   },
-};
+} satisfies Record<string, (...args: never[]) => Promise<unknown>>;
+
+// 类型级对账：webImpls 的键（排除网页版专属扩展白名单）必须 ⊆ AppBindings 导出键。
+// 拼错键 / 漏实现（webImpls 没有但调用方误以为有）会在编译期暴露 TS2344。
+type WebImplGoKeys = Exclude<keyof typeof webImpls, "SelectLocalRepo">;
+type AssertSubset<T extends keyof AppBindings> = T;
+type _WebImplKeyCheck = AssertSubset<WebImplGoKeys>;
 
 /**
  * 网页版导入：File API/拖拽 → IndexedDB（ADR-049 Phase 2 数据层）。
@@ -964,12 +972,19 @@ export const browserAdapter = new Proxy({} as Record<string, unknown>, {
     // fail-fast：`String(adapter)` / adapter.toString() 会拿到 rejected Promise，
     // 交由 target 原型链的正常实现（Reflect.get 沿原型找函数）
     if (PROTOTYPE_MEMBERS.has(name)) return Reflect.get(_target, prop);
-    if (name in webImpls) return webImpls[name];
+    // 仅自有键命中（与下方 has trap 的 hasOwnProperty 口径对称，避免沿原型链误命中）
+    if (Object.prototype.hasOwnProperty.call(webImpls, name)) return webImpls[name as keyof typeof webImpls];
     return makeFailFast(name);
   },
   // Phase 3 能力门控探测：`'Foo' in browserAdapter` 应反映是否真实现
   has(_target, prop) {
-    return String(prop) in webImpls;
+    if (typeof prop === "symbol") return false;
+    const name = String(prop);
+    // 原型成员沿原型链命中 Object.prototype（toString/constructor 等 8 个恒 true），
+    // 与 get trap 的 PROTOTYPE_MEMBERS 豁免对称：门控契约只看自有实现
+    if (PROTOTYPE_MEMBERS.has(name)) return false;
+    // 仅自有键（webImpls 上的实现）；未实现 binding → false → 能力门控隐藏对应 UI（fail-fast 兜底）
+    return Object.prototype.hasOwnProperty.call(webImpls, name);
   },
 }) as unknown as AppBindings;
 

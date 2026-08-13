@@ -652,6 +652,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-057：3D 预览悬浮触发按钮与双端响应式控制层",
+        "link": "/adr/ADR-057-3d-preview-fab-responsive"
+      },
+      {
         "text": "ADR-056：共享单锁：安装/同步/回收去重并发互斥",
         "link": "/adr/ADR-056-shared-install-lock"
       },

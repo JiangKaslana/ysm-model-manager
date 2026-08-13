@@ -445,6 +445,13 @@ describe("browserAdapter — Proxy 原型成员（P3：Object 原型成员不路
     // 走原型链 → "[object Object]"
     expect(String(browserAdapter)).toBe("[object Object]");
   });
+
+  it("has trap：原型成员与未实现绑定返回 false，已实现绑定返回 true", () => {
+    expect("toString" in browserAdapter).toBe(false);
+    expect("constructor" in browserAdapter).toBe(false);
+    expect("ScanModelEntries" in browserAdapter).toBe(true);
+    expect("CreateDir" in browserAdapter).toBe(false); // 未实现 → fail-fast
+  });
 });
 
 describe("browserAdapter — 社区/工坊桥接（ADR-049 Batch 2：bundled 默认 + localStorage 覆盖）", () => {

@@ -457,6 +457,33 @@ export function initImportQueue(app: ImportQueueHost): () => void {
   on(folderInput, "change", () => {
     const files = folderInput.files;
     if (!files || !files.length) return;
+    // 网页版（ADR-049 Phase 3）：无本地文件系统 → 文件夹选择直接写入 IDB 模型库
+    // （与拖放路径同款门控；缺此门控时 routeCollected → ImportModelFileTo 在
+    // web 模式 fail-fast 抛错，文件夹导入功能断裂）
+    if (resolveWebMode()) {
+      void (async () => {
+        try {
+          const r = await importWebFiles(Array.from(files), "ysm");
+          bus.emit("toast:show", {
+            msg:
+              r.failed > 0
+                ? `✅ ${r.imported} 个导入成功，${r.failed} 个失败`
+                : `✅ ${r.imported} 个模型已导入浏览器模型库`,
+            duration: 4000,
+            type: r.failed > 0 ? "warn" : "success",
+          });
+          bus.emit("tree:reload");
+        } catch (err) {
+          bus.emit("toast:show", {
+            msg: "❌ 网页版导入失败: " + String(err),
+            duration: 4000,
+            type: "error",
+          });
+        }
+      })();
+      folderInput.value = "";
+      return;
+    }
     // webkitdirectory 的 File 带 webkitRelativePath（保留层级），构造 relPath 后走统一路由
     const byRel = Array.from(files).map((file) => ({
       file: file as ImportFile,

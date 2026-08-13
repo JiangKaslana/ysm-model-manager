@@ -6,6 +6,7 @@ import { getApp } from "../../../backend/app.ts";
 import { loadResourceRegistry } from "../../../utils/resource/registry.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../../utils/resource/types.ts";
 import { isViewerMode } from "../../../utils/dom/android-bridge.ts";
+import { resolveWebMode } from "../../../backend/platform.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 
 /** 转义函数签名（与组件 _esc 一致） */
@@ -686,6 +687,17 @@ ${isDefault ? '<span class="diag-dedup-recommend">' + t("diagnostics.recommended
 }
 
 async function scanConflicts(root: ShadowRoot, esc: EscFn): Promise<void> {
+  // P2-2 修复（web 门控）：冲突扫描依赖 ListVersionInstances/ScanModelEntriesWithLabel 等
+  // 桌面绑定（网页版 browser adapter 未实现 → fail-fast 抛错），web 模式 UI 显示但点击必败——
+  // 入口直接提示返回（对齐同文件 diag-clear 的 isViewerMode 门控 toast 写法）
+  if (resolveWebMode()) {
+    bus.emit("toast:show", {
+      msg: "网页版不支持冲突扫描",
+      duration: 3000,
+      type: "warn",
+    });
+    return;
+  }
   const list = root.getElementById("diag-conflict-list");
   if (!list) return;
   // P3 修复（子代理审计，重入守卫）：在途扫描时丢弃重复点击（快速 3 连点防并发）

@@ -954,8 +954,8 @@
 | `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:277` | 合并社区站点到本地 workshop_sites.json |
 | `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:298` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:2` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:34` | 初始化诊断页所有功能 |
-| `startDedup()` | `frontend/src/views/app-content/diagnostics/init:405` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:35` | 初始化诊断页所有功能 |
+| `startDedup()` | `frontend/src/views/app-content/diagnostics/init:406` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:24` | 初始化设置页所有事件绑定 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
@@ -1011,8 +1011,8 @@
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
 | `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:137` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
-| `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:8` | — |
-| `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:14` | — |
+| `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
+| `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
 | `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:37` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
 | `loadModel2D()` | `frontend/src/views/app-preview/skeleton:53` | 加载模型 2D 骨骼线条图 + 统计面板 ctx = 组件实例（提供 this.root, this.appendDebug 等） |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |
