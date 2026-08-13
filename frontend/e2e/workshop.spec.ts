@@ -88,6 +88,16 @@ test.describe("创意工坊页", () => {
       return buttons.length > 1 ? buttons[1].classList.contains("active") : false;
     });
     expect(secondActive).toBe(true);
+    // GitHub 站点带 searchUrl → 应渲染搜索视图（fillSearch 分支）
+    await page.waitForFunction(
+      () => {
+        const c = document.querySelector("app-content")?.shadowRoot;
+        const results = c?.getElementById("ws-search-results");
+        return Boolean(results && results.querySelectorAll("input,button,a").length > 0);
+      },
+      undefined,
+      { timeout: 5000, polling: 200 },
+    );
   });
 
   test("创意工坊 → 创作者卡片渲染（mock LoadWorkshopCreators）", async ({ page }) => {

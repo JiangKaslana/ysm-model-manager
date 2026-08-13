@@ -3,6 +3,8 @@
 // 使用 data-testid 稳定钩子定位（Design.md §19.1）。
 // 注意：tree-file 在 app-content → app-tree 两层 Shadow DOM 内，
 // 穿透查询/坐标获取复用 e2e/helpers.ts（消除内联重复实现）。
+// 文案定位说明（P3-8 子代理审计）：本文件断言「Copy File Path」等文案来自
+// en.ts 的 menu.copyFilePath，调整文案需同步本 spec（文案定位较脆弱）。
 import { test, expect } from "./fixture.ts";
 import { gotoApp, waitForTreeCount, getTreeFileBox, rightClickTree } from "./helpers.ts";
 

@@ -19,6 +19,11 @@ const OUT_FILE = path.join(OUT_DIR, "coverage.json");
 
 test.describe("E2E 覆盖广度采集（G-4）", () => {
   test("核心交互路径 → 采集 V8 coverage", async ({ page }) => {
+    // P2 修复（子代理审计）：采集器从不启动——原只调 stopJSCoverage() 从未
+    // startJSCoverage()，JSCoverage.stop 在未 start 时返回空数组不抛错 →
+    // coverage.json 恒为 [] 假绿。导航前必须先启动采集。
+    await page.coverage.startJSCoverage();
+
     // ① 导航全切换
     await gotoApp(page);
     const navItems = page.locator('[data-testid="nav-item"]');
@@ -41,6 +46,8 @@ test.describe("E2E 覆盖广度采集（G-4）", () => {
 
     // 采集 V8 coverage（page.coverage 为 Chromium 专属，playwright.config 已固定 chromium）
     const coverage = await page.coverage.stopJSCoverage();
+    // 防假绿：采集到 0 条目即为失败，避免空报告静默通过
+    expect(coverage.length).toBeGreaterThan(0);
     if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
     fs.writeFileSync(OUT_FILE, JSON.stringify(coverage, null, 2));
     console.log(`[e2e-coverage] 已采集 ${coverage.length} 个条目 → ${path.relative(process.cwd(), OUT_FILE)}`);

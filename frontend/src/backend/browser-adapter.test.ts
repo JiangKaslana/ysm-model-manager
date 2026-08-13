@@ -675,12 +675,12 @@ describe("browserAdapter — 三向一致性/边界补测（审核补充）", ()
     expect((await browserAdapter.GetModelTags(newP)) as string[]).toEqual(["联动"]);
   });
 
-  it("错误路径：非 /web/ 路径的删除/重命名静默 no-op（不抛错、不污染 IDB）", async () => {
+  it("错误路径：非 /web/ 路径的删除/重命名 → reject（无效路径拒绝，模型不受影响）", async () => {
     await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
-    await expect(browserAdapter.DeleteModelDir("/repo/ysm/狐狸/狐狸.ysm")).resolves.toBeUndefined();
-    await expect(browserAdapter.RemoveDir("/repo/ysm/狐狸")).resolves.toBeUndefined();
-    await expect(browserAdapter.RenameDir("/repo/ysm/狐狸", "猫")).resolves.toBeUndefined();
-    await expect(browserAdapter.RenameFile("/repo/ysm/狐狸/狐狸.ysm", "猫.ysm")).resolves.toBeUndefined();
+    await expect(browserAdapter.DeleteModelDir("/repo/ysm/狐狸/狐狸.ysm")).rejects.toThrow("无效路径");
+    await expect(browserAdapter.RemoveDir("/repo/ysm/狐狸")).rejects.toThrow("无效路径");
+    await expect(browserAdapter.RenameDir("/repo/ysm/狐狸", "猫")).rejects.toThrow("无效路径");
+    await expect(browserAdapter.RenameFile("/repo/ysm/狐狸/狐狸.ysm", "猫.ysm")).rejects.toThrow("无效路径");
     // 模型组未受影响（dir + file 仍在）
     expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(1);
     expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);

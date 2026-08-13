@@ -21,7 +21,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { outputFolder: "e2e-report" }]],
   use: {
     baseURL: "http://localhost:5173",
-    trace: "on-first-retry",
+    // retries:0 下 on-first-retry 永不触发 → 失败即留 trace（batch1 审核 P3-2）
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
     // 显式固定语言环境：settings.spec 断言 "Path updated" 等英文文案依赖 en-US，
     // 若不固定，CI 系统语言/locale 变化即翻车（context-menu 已踩过 Copy File Path）

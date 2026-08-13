@@ -220,7 +220,7 @@ async function addWebImportLog(
 ): Promise<void> {
   pushWebLog(webImportLogs, WEB_IMPORT_LOG_CAP, {
     ModelName: modelName, SourcePath: sourcePath, TargetDir: targetDir,
-    FileSize: fileSize, Status: status, ErrMsg: errMsg, Time: new Date().toISOString(),
+    FileSize: fileSize, Status: status, ErrorMsg: errMsg, Timestamp: Date.now(), Operation: "import",
   });
 }
 async function addWebOpLog(
@@ -229,8 +229,8 @@ async function addWebOpLog(
   // 操作日志归入运行时环（webRuntimeLogs），与导入日志环（webImportLogs）分离，
   // 否则 GetRuntimeLogs 恒空、ClearRuntimeLogs 形同虚设（原实现误写入导入环）
   pushWebLog(webRuntimeLogs, WEB_RUNTIME_LOG_CAP, {
-    Op: op, ModelName: modelName, SourcePath: sourcePath, TargetDir: targetDir,
-    FileSize: fileSize, Status: status, ErrMsg: errMsg, Time: new Date().toISOString(),
+    Message: `${op} ${modelName}${errMsg ? " " + errMsg : ""}`.trim(),
+    Timestamp: Date.now(),
   });
 }
 
@@ -420,7 +420,7 @@ async function deleteWebModel(type: string, name: string): Promise<void> {
 // --- 重命名模型目录（dir + file + 标记整组 rekey）---
 async function renameWebDir(oldPath: string, newName: string): Promise<void> {
   const di = parseWebModelDir(oldPath);
-  if (!di) return;
+  if (!di) throw new Error(`重命名失败：无效路径: ${oldPath}`);
   const { type, name } = di;
   assertValidRenameName(newName, "目录");
   const finalName = newName.trim();
@@ -430,6 +430,9 @@ async function renameWebDir(oldPath: string, newName: string): Promise<void> {
   if ((await idbGet("files", newDirKey)) !== undefined) {
     throw new Error(`重命名失败：目标已存在: ${WEB_ROOT}/${type}/${finalName}`);
   }
+  // 旧模型必须存在（对齐桌面 os.Rename 源不存在报错，拒绝静默 no-op）
+  const exists = await idbGet("files", oldDirKey);
+  if (!exists) throw new Error(`重命名失败：模型不存在: ${oldPath}`);
   const dv = await idbGet("files", oldDirKey);
   if (dv !== undefined) {
     // 同步更新 dir 条目的 name 字段：scanWebModels 用 meta.name 推导文件查找前缀，
@@ -464,7 +467,7 @@ async function renameWebDir(oldPath: string, newName: string): Promise<void> {
 // --- 重命名单个文件（模型组内某文件 rekey，保留 .ban 后缀语义由调用方负责）---
 async function renameWebFile(oldPath: string, newName: string): Promise<void> {
   const pm = parseWebModelPath(oldPath);
-  if (!pm) return;
+  if (!pm) throw new Error(`重命名失败：无效路径: ${oldPath}`);
   const { type, name, rel } = pm;
   assertValidRenameName(newName, "文件");
   const finalName = newName.trim();
@@ -481,6 +484,9 @@ async function renameWebFile(oldPath: string, newName: string): Promise<void> {
   if ((await idbGet("files", newKey)) !== undefined) {
     throw new Error(`重命名失败：目标已存在: ${WEB_ROOT}/${type}/${name}/${finalName}`);
   }
+  // 旧文件必须存在（对齐桌面 RenameFile 源不存在报错，拒绝静默 no-op）
+  const exists = await idbGet("files", oldKey);
+  if (!exists) throw new Error(`重命名失败：模型不存在: ${oldPath}`);
   const val = await idbGet("files", oldKey);
   if (val !== undefined) {
     await idbSet("files", newKey, val);
@@ -729,7 +735,8 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
     addWebOpLog(op, modelName, sourcePath, targetDir, fileSize, status, errMsg),
   // 网页版创作者头像批量提取（复用 ScanModelEntries + ReadFileBytes + ysm-parser）
   BatchExtractCreatorAvatars: () => batchExtractCreatorAvatars(),
-  // 网页版 FSA 授权本地仓库目录（替代 Go 本地文件系统扫描，作为模型库文件来源）
+  // SelectLocalRepo 为网页版专属扩展（Go AppBindings 无此函数，Phase 3 能力探测不会误报）；
+  // 用 FSA 授权本地仓库目录，替代 Go 本地文件系统扫描作为模型库文件来源
   SelectLocalRepo: () => selectLocalRepo(),
   // ===== ADR-049 桥接增强 Batch 1：纯前端可复现绑定 =====
   // 搜索：关键词匹配（数值范围条件浏览器端无几何分析，降级忽略，如实标注）
@@ -745,11 +752,13 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   // 删除模型组（dir + file + 标记）
   DeleteModelDir: (path: string) => {
     const pm = parseWebModelPath(path);
-    return pm ? deleteWebModel(pm.type, pm.name) : Promise.resolve();
+    if (!pm) return Promise.reject(new Error(`删除失败：无效路径: ${path}`));
+    return deleteWebModel(pm.type, pm.name);
   },
   RemoveDir: (dir: string) => {
     const di = parseWebModelDir(dir);
-    return di ? deleteWebModel(di.type, di.name) : Promise.resolve();
+    if (!di) return Promise.reject(new Error(`删除失败：无效路径: ${dir}`));
+    return deleteWebModel(di.type, di.name);
   },
   // 重命名：模型目录整组 rekey / 组内单文件 rekey
   RenameDir: (oldPath: string, newName: string) => renameWebDir(oldPath, newName),
@@ -765,6 +774,10 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
   },
   // 子目录映射（resource_types.json 派生）
   GetSubDirMap: () => getWebSubDirMap(),
+  // 网页版无扫描缓存（scanWebModels 直读 IDB）：清缓存为 no-op。
+  // 缺此实现会让 app-tree 切换 root 时（index.ts:170）fail-fast 抛错跳过 _load，树卡死。
+  ClearScanCache: () => Promise.resolve(),
+  InvalidateScanCache: () => Promise.resolve(),
   // ===== ADR-049 桥接增强 Batch 3：作者扫描 / 仓库索引（基于 IDB 模型库）=====
   ListModelAuthors: () => Promise.resolve(listWebAuthors()),
   ScanLocalAuthors: () => Promise.resolve(scanWebLocalAuthors()),
@@ -777,11 +790,12 @@ const webImpls: Record<string, (...args: never[]) => Promise<unknown>> = {
     return Promise.resolve();
   },
   LoadGitHubRepos: () => Promise.resolve(loadWebGitHubRepos()),
-  SaveGitHubRepos: (list: WorkshopCreator[] | null) => {
-    saveWebGitHubRepos(list);
+  DefaultWorkshopSites: () => Promise.resolve(loadWebSites()),
+  // 网页版系统浏览器即当前浏览器：等价 Go Browser.OpenURL
+  OpenInBrowser: (url: string) => {
+    window.open(url, "_blank", "noopener");
     return Promise.resolve();
   },
-  DefaultWorkshopSites: () => Promise.resolve(loadWebSites()),
   SaveWorkshopSites: (sites: WorkshopSite[] | null) => {
     saveWebSites(sites);
     return Promise.resolve();
@@ -866,6 +880,19 @@ export async function importWebFiles(
         });
         writtenKeys.push({ key: k, preExisted });
         wrote = true;
+      }
+      // P2-5 修复：主文件若因超限（> MAX_IMPORT_BYTES）被跳过，整组失败——辅助文件
+      // 已写入但不建 dir key（无主文件模型不可解码，对齐「组内须有主文件」语义）
+      let wroteMain = false;
+      for (const f of group) {
+        if (mainFileRank(f.name) >= MAIN_FILE_RANK_JSON && f.size <= MAX_IMPORT_BYTES) {
+          wroteMain = true;
+          break;
+        }
+      }
+      if (!wroteMain) {
+        failed += group.length;
+        continue;
       }
       if (!wrote) {
         // 全部文件超限/写失败 → 整组失败（按文件数计，避免与 fileFails 重复）

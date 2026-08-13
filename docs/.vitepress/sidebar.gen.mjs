@@ -652,6 +652,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-056：共享单锁：安装/同步/回收去重并发互斥",
+        "link": "/adr/ADR-056-shared-install-lock"
+      },
+      {
         "text": "ADR-055：红线门禁行号不敏感比对",
         "link": "/adr/ADR-055-redlines-content-baseline"
       },
