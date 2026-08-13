@@ -5,6 +5,8 @@ tier: leaf
 category: go
 source_files:
   - go/internal/testutil/testutil.go
+tests:
+  - go/internal/testutil/testutil_test.go
 use_when:
   - 跨包复用测试 helper
   - 创建测试文件

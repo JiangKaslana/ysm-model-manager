@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 82 张知识卡
+> 总计: 81 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -18,7 +18,7 @@
 
 - **resource-registry**（资源注册表 registry）：`resource_types.json` 是 YSM 资源类型定义的单一事实来源（Single Source of Truth）。所有资源类型、子目录、扩展名的定义均以此处为准。
 
-## core（12 张）
+## core（11 张）
 
 *核心基础设施（事件总线、页面状态、Wails 桥接）*
 
@@ -34,7 +34,6 @@
 | 🏗 pointer-events | Pointer Events 统一交互（触屏 + 桌面） | architecture | pointerdown, pointermove, pointerup, setPointerCapture, touch-action, 触屏, 拖拽, 旋转, hover, mouseenter, 全窗预览 |
 | 🍃 theme | 主题系统 theme | leaf | 主题, 换肤, 深色, 浅色, 跟随系统, 动画开关, 字号, 界面偏好 |
 | 🏗 wails-bridge | Wails 桥接 app.ts | architecture | Wails, 桥接, getApp, Go 调用, Binding, window.go.main.App, 网页版, browser adapter, 浏览器后端 |
-| 🍃 web-spike | 纯浏览器 WASM 解码验证入口 frontend/src/web-spike | leaf | ADR-049 Phase 0, 无 Wails 壳的 WASM 解码验证, base64 内嵌 YSMParser 浏览器测试 |
 | 🏗 ysm-baked | YSM 烘焙与几何反推 | architecture | 烘焙, 几何反推, pivot, 骨骼错位, 模型错位, UV 对不上, 贴图错位, RawYsmModel, RawFace, YSM 导出, BlockBench |
 
 ### 摘要
@@ -49,7 +48,6 @@
 - **pointer-events**（Pointer Events 统一交互（触屏 + 桌面））：ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事件统一迁移 **Pointer Events**（`pointerdown/move/up` + `setPointerCapture` + CSS `…
 - **theme**（主题系统 theme）：主题系统的实现在组件入口 `app-modules.ts`（无独立 theme.ts 文件）：提供 6 套主题皮肤（cyber/warm/pro/sakura/ocean/mint）+ `system` 跟随系统模式，全部通过在 `<bod…
 - **wails-bridge**（Wails 桥接 app.ts）：`backend/app.ts` 是前端调用后端 Binding 的唯一入口。所有 Go 端方法通过 `getApp()` 获取，禁止直接通过 `window.go.main.App` 访问。**ADR-049 平台双路由**：网页版（无 …
-- **web-spike**（纯浏览器 WASM 解码验证入口 frontend/src/web-spike）：`frontend/src/web-spike/` 是 ADR-049 Phase 0 的独立验证入口（`web.html`），用于在无 Wails 壳的纯浏览器环境中验证 YSMParser WASM 解码能力。走 `decodeYsmF…
 - **ysm-baked**（YSM 烘焙与几何反推）：YSM 作者导出模型时，**cube 的语义参数（origin/size/uv/rotation）在导出时被烘焙为纯顶点面**，`RawYsmModel.RawCube.faces` 只保留「每面 4 顶点 + 法线 + 4 组 u/v」。…
 
 ## feature（6 张）

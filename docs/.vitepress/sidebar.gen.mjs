@@ -927,10 +927,6 @@ export const autoSidebar = [
             "link": "/knowledge/wails-bridge"
           },
           {
-            "text": "纯浏览器 WASM 解码验证入口 frontend/src/web-spike",
-            "link": "/knowledge/web-spike"
-          },
-          {
             "text": "YSM 烘焙与几何反推",
             "link": "/knowledge/ysm-baked"
           }
