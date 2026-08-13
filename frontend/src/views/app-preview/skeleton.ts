@@ -353,28 +353,42 @@ export async function loadModel2D(
 
         const shotWrap = document.createElement("div");
         shotWrap.className = "ysm-ovl-shotwrap";
-        const shotBtn = document.createElement("button");
-        shotBtn.textContent = "📷 " + t("preview.screenshot") + " ▾";
-        shotBtn.className = "ysm-ovl-btn";
+        const shotBtn = createIconButton({
+          icon: "\u{1F4F7}",
+          label: t("preview.screenshot"),
+          title: t("preview.screenshot"),
+        });
+        shotBtn.className = "ysm-ovl-btn ysm-ovl-shotbtn";
+        shotBtn.setAttribute("aria-label", t("preview.screenshot") + " menu");
+        // 添加下拉箭头指示
+        const arrowSpan = document.createElement("span");
+        arrowSpan.style.marginLeft = "4px";
+        arrowSpan.textContent = " ▾";
+        shotBtn.appendChild(arrowSpan);
         const shotMenu = document.createElement("div");
         shotMenu.className = "ysm-ovl-shotmenu";
+        // 使用已有 i18n key + 固定文字；不引入新 key 避免超范围
         const items = [
-          { label: "📷 当前视角", key: "current" },
-          { label: "👤 正面", key: "front" },
-          { label: "↗ 45°", key: "45" },
-          { label: "👉 侧面", key: "side" },
-          { label: "↘ 后45°", key: "back45" },
-          { label: "📸 全套", key: "all" },
+          { label: "\u{1F4F7} " + t("preview.currentView") || "Current view", key: "current" },
+          { label: "\u{1F464} Front", key: "front" },
+          { label: "\u2197 45\u00B0", key: "45" },
+          { label: "\u{1F449} Side", key: "side" },
+          { label: "\u2198 Back 45\u00B0", key: "back45" },
+          { label: "\u{1F4F8} All", key: "all" },
         ];
         // 截图入口带守卫：连点/多菜单触发时忽略并发（防重复保存文件）
         let _saving = false;
+        const setShotState = (icon: string): void => {
+          const ic = shotBtn.querySelector<HTMLElement>(".ysm-ic");
+          if (ic) ic.textContent = icon;
+        };
         const saveShot = async (key: string): Promise<void> => {
           if (_saving) return;
           _saving = true;
           try {
             await saveShotInner(key);
           } catch (e) {
-            shotBtn.textContent = "❌";
+            setShotState("\u274C"); // ❌
             console.error("[3D 截图]", e);
             bus.emit("toast:show", {
               msg: "截图保存失败：" + friendlyError(e),
@@ -392,7 +406,7 @@ export async function loadModel2D(
           if (key === "current") {
             const b64 = screenshotPreview();
             if (!b64) {
-              shotBtn.textContent = "❌";
+              setShotState("\u274C");
               return;
             }
             const ts = new Date().toISOString().replace(/[:.]/g, "-");
@@ -417,9 +431,9 @@ export async function loadModel2D(
                 hit.base64,
               );
           }
-          shotBtn.textContent = "✅";
+          setShotState("\u2705"); // ✅
           setTimeout(() => {
-            shotBtn.textContent = "📷 " + t("preview.screenshot") + " ▾";
+            setShotState("\u{1F4F7}");
           }, 2000);
         };
         items.forEach((item) => {

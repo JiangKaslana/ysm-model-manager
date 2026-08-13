@@ -34,7 +34,12 @@ vi.mock("../../utils/dom/dialogs/modal.ts", () => ({
   closeActiveDialog: vi.fn().mockReturnValue(false),
 }));
 
+vi.mock("../../utils/dom/android-bridge.ts", () => ({
+  emitAndroidBack: vi.fn().mockReturnValue(false),
+}));
+
 import { closeActiveDialog } from "../../utils/dom/dialogs/modal.ts";
+import { emitAndroidBack } from "../../utils/dom/android-bridge.ts";
 
 let cleanups: Array<() => void> = [];
 

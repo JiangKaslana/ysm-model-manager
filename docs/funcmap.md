@@ -282,18 +282,18 @@
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:30` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
 | `GetInstanceStatusWith()` | `go/sync/sync:35` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
-| `SyncToggleStatus()` | `go/sync/sync:138` | SyncToggleStatus 同步启用/禁用状态 |
-| `ListVersions()` | `go/sync/sync:262` | — |
-| `HasDotMinecraftSubdirs()` | `go/sync/sync:277` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
-| `FindMinecraftDir()` | `go/sync/sync:294` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
-| `SyncResources()` | `go/sync/sync:397` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
-| `SyncResourcesDirLevel()` | `go/sync/sync:527` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
-| `SortEntries()` | `go/sync/sync:597` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:605` | getLinkType 判断文件的链接类型 GetLinkType 判断文件的链接类型 |
-| `CompareGlobalInstanceHashes()` | `go/sync/sync:662` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录的哈希， 返回每个实例的 Missing / Extra / Synced 状态。 |
+| `SyncToggleStatus()` | `go/sync/sync:141` | SyncToggleStatus 同步启用/禁用状态 |
+| `ListVersions()` | `go/sync/sync:265` | — |
+| `HasDotMinecraftSubdirs()` | `go/sync/sync:280` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
+| `FindMinecraftDir()` | `go/sync/sync:297` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
+| `SyncResources()` | `go/sync/sync:400` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
+| `SyncResourcesDirLevel()` | `go/sync/sync:530` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `SortEntries()` | `go/sync/sync:600` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:608` | getLinkType 判断文件的链接类型 GetLinkType 判断文件的链接类型 |
+| `CompareGlobalInstanceHashes()` | `go/sync/sync:665` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录的哈希， 返回每个实例的 Missing / Extra / Synced 状态。 |
 | `ScanFunc()` | `go/sync/sync:24` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 | `ListVersionsFunc()` | `go/sync/sync:27` | ListVersionsFunc 列出版本实例（函数类型，测试时可注入 mock） |
-| `HasModInDirFn()` | `go/sync/sync:657` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
+| `HasModInDirFn()` | `go/sync/sync:660` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
 
 ## Go·标签
 
@@ -903,8 +903,8 @@
 | `renderDisplayName()` | `frontend/src/utils/dom/display:88` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
 | `renderModelName()` | `frontend/src/utils/dom/display:179` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
 | `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:188` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
-| `friendlyError()` | `frontend/src/utils/dom/errors:42` | 将 Go 错误转换为友好提示 |
-| `stripPathSegments()` | `frontend/src/utils/dom/errors:70` | — |
+| `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
+| `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:6` | — |
 | `ensureFabStyles()` | `frontend/src/utils/dom/fab:45` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
 | `IconButtonOpts()` | `frontend/src/utils/dom/fab:60` | — |

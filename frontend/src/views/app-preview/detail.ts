@@ -29,7 +29,7 @@ export async function showModelDetail(
   <div id="preview-detail"${savedTab !== "detail" ? ' style="display:none"' : ""}><h3>📄 ${t("preview.modelInfo")}</h3><div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsing")}...</div></div></div>
   <div id="preview-skeleton"${savedTab !== "skeleton" ? ' style="display:none"' : ""}></div>
 </div>
-<button class="ysm-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}">🎨</button>`;
+<button class="ysm-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="ysm-ic">&#x1F3A8;</span></button>`;
 
   const switchTab = (tab: string): void => {
     safeSet("ysm_previewTab", tab);

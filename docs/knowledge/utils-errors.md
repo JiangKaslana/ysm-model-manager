@@ -23,17 +23,18 @@ use_when:
 
 ## 核心职责
 
-- Go 英文错误消息 → 中文友好提示（正则模式匹配）
+- Go 结构化 AppError.Code → i18n key 映射（单一事实来源，ADR-051 完成）
+- 未列出的 Code：透传 Reason 中文（Go 端已在 Reason 中填写用户可读文案），含内部路径段经 `stripPathSegments` 剥离
+- 非 AppError（纯字符串/JS Error）：含汉字直接透传；英文兜底拼接可配置前缀
 - 已含中文的消息直接透传（Go 端已友好化/已翻译）
-- 未匹配时拼接可配置的前缀兜底
 
 ## 对外 API / 入口
 
 - `friendlyError(err: unknown, fallback = "操作失败"): string`
   - 空值 → `"未知错误"`；err 可为 Error 对象或字符串
-  - 消息含汉字 → 原样返回
-  - 模式库（按优先级）：**社区功能高频错误**（429/rate limit → GitHub API 频率受限、abort → 已取消、parse error → 数据格式异常、DNS → 域名解析失败、ECONNREFUSED/socket → 连接中断、SSL/TLS → 证书错误）**> 通用错误**（权限不足、文件不存在、文件被占用、目录为空、超时、网络异常、参数无效、文件已存在、磁盘空间不足、不支持的格式、操作过于频繁、目录类型错误）
-  - 未命中 → `"${fallback}: ${原始消息}"`
+  - 优先级：**① 结构化 AppError.Code**（CODE_KEYS 映射 → i18n key）→ **② 未列出 Code 含中文 Reason**（透传，剥离路径段）→ **③ 含汉字消息**（透传）→ **④ 英文兜底**（`${fallback}: ${message}`）
+  - CODE_KEYS 覆盖：FILE_EXISTS/ALREADY_EXISTS → alreadyExists；INVALID_PARAM/INVALID_PATH/FILENAME_INVALID → invalidArg；FILE_TYPE_UNSUPPORTED/UNSUPPORTED_FORMAT → unsupported；DECODE_FAILED → dataFormat
+  - 未列出 Code（IO_ERROR/MKDIR_FAILED/WRITE_FAILED/FILE_EMPTY/FILE_TOO_LARGE/LINK_FAILED）靠 Reason 中文透传，不武断归类
 
 ## 与其他子系统关系
 
@@ -44,14 +45,14 @@ use_when:
 ## 不变量
 
 - 治理红线：**所有异常路径必须有 toast 反馈**（AGENTS.md §3.3），禁止静默 `catch {}`；catch 后消息一律经 friendlyError 再给用户
-- 模式匹配有顺序依赖：社区错误在前、通用错误在后，新增模式注意不要覆盖更具体的规则。**子串匹配已加词边界/语境限定**（P3 修复：`\b429\b` 防路径误伤、`resolve` 仅 DNS 语境、裸 `refused` 移除改 `access refused` 归权限组——防 `permission refused` 被网络组抢走）
 - 不把技术栈细节（堆栈/英文原文）直接暴露给用户，仅在 fallback 分支附原文以便排查
+- ADR-051 完成后：正则表已删除，分类单一事实来源为 Go `AppError.Code`；前端只消费结构化字段做 i18n
 
 ## 审计遗留备案（2026-08-11）
 
-> 以下为多轮子代理审计确认的已知遗留，均属 ADR-051 收尾范畴，不阻塞当前功能；落地前先 Grep `docs/adr` 确认无重复实现。
+> 以下为多轮子代理审计确认的已知遗留，部分已随 ADR-051 收尾解决。
 
-- **正则表整体保留（ADR-051「已知遗留」）**：前端 friendlyError 的正则模式表（L64-88）应在 Go 端结构化错误码（Code/errno）改造完成后删除——当前是「Code 优先 + 正则兜底」混合态。若未来 Go 端继续收窄错误子串（如 EMFILE/ELOOP），前端表将漂移。删除时需同步更新 errors.test.ts 的 16 类正则断言（errors.test.ts:118 已断言 `"too many open files" → 操作过于频繁`，与 Go 端收窄口径不一致）。
+- ~~**正则表整体保留**~~：✅ ADR-051 已完成——前端正则模式表已删除，单一事实来源为 Go `AppError.Code`。errors.test.ts 中的 16 类正则断言已同步更新为结构化 Code 断言。
 - **`!err` 分支忽略 fallback 参数（低）**：`friendlyError(null, "重命名失败")` 返回「未知错误」而非带上下文前缀；测试仅覆盖无 fallback 情形。若需统一语义，应改为 `fallback` 兜底（与 L94 一致）。
 - **透传剥离路径段（P2 已修复，2026-08-11）**：Go 端 `AppError.Error()` 拼入 `源路径：/目标路径：` 内部绝对路径，friendlyError 中文透传/兜底前经 `stripPathSegments` 剥离（ADR-051「透传截断」）；新增模式注意勿重新引入原文拼接。
 

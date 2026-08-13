@@ -11,13 +11,16 @@ import { Events } from "@wailsio/runtime";
 import { bus } from "../../bus.ts";
 import { t } from "../../core/i18n/t.ts";
 import { closeActiveDialog } from "../../utils/dom/dialogs/modal.ts";
+import { emitAndroidBack } from "../../utils/dom/android-bridge.ts";
 
 /** 注册 Android 系统事件消费，push 取消订阅函数到 unsubs */
 export function registerAndroidEvents(unsubs: Array<() => void>): void {
-  // 返回键：先关活动弹窗（触屏无 Esc，ADR-047 桥接），无弹窗时提示"再按一次退出"
+  // 返回键：优先消费已注册的 UI handler（如 3D overlay 关层，ADR-057 §2.5），
+  // 未消费时再走弹窗关闭 / "再按一次退出" 旧逻辑，保持双端行为一致。
   unsubs.push(
     Events.On("android:back", () => {
-      if (closeActiveDialog()) return; // 已关闭弹窗，本次返回被消费，不触发退出提示
+      if (emitAndroidBack()) return; // 3D overlay 等 handler 已消费，不触发后续逻辑
+      if (closeActiveDialog()) return; // 触屏无 Esc，关弹窗（ADR-047）
       bus.emit("toast:show", {
         msg: t("android.backExit"),
         duration: 2000,
