@@ -6,8 +6,8 @@ require (
 	github.com/Tnze/go-mc v1.20.2
 	github.com/bodgit/sevenzip v1.6.4
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/tetratelabs/wazero v1.12.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.105
+	golang.org/x/net v0.57.0
 )
 
 require (
@@ -30,7 +30,6 @@ require (
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/wailsapp/wails/webview2 v1.0.24 // indirect
 	go4.org v0.0.0-20260112195520-a5071408f32f // indirect
-	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )
