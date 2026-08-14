@@ -15,6 +15,7 @@
  *   node scripts/android-build.mjs --skip-frontend   # 跳过前端构建（仅重编 Go + gradle）
  *   node scripts/android-build.mjs --help
  * 退出码：0 成功；1 环境缺失/构建失败（错误信息直通）。
+ * 设计意图：一键构建 Android APK，补齐 android-install.mjs 的缺口（只做 installDebug，不重编 libwails.so）。
  */
 import fs from 'node:fs';
 import os from 'node:os';

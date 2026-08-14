@@ -19,6 +19,7 @@
  *   - 依赖：先跑 `npx playwright test coverage-breadth` 采集产物。
  *
  * 退出码：0（正常）；1（产物缺失）。
+ * 设计意图：端到端广度覆盖率报告，读取 Playwright V8 coverage 产物，输出「哪些源文件被真实交互走到」。
  */
 import fs from 'node:fs';
 import path from 'node:path';

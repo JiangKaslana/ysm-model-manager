@@ -13,13 +13,8 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getRoot } from './scan-files.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-/** 仓库根目录。 */
-export function getRoot() {
-  return path.resolve(__dirname, '..', '..');
-}
 // 注：ROOT 由 execFileSync 的 cwd 选项使用（见 rg()），不再单独存模块级常量
 
 /**

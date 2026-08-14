@@ -78,11 +78,6 @@ export function runSafe(bin, args, opts = {}) {
   return '';
 }
 
-/** 相对仓库根的路径解析（供调用方统一构造 cwd/target）。 */
-export function resolveRoot(cwd = process.cwd()) {
-  return path.resolve(cwd);
-}
-
 /** Windows 兼容的文件名转义（cmd.exe 双引号包裹；POSIX 用单引号）。 */
 export function shq(s) {
   const str = String(s);

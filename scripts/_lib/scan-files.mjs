@@ -27,13 +27,8 @@ export function getRoot() {
   return path.resolve(__dirname, '..', '..');
 }
 
-/** 前端源码根目录（frontend/src）。 */
-export function getSrcDir() {
-  return path.join(getRoot(), 'frontend/src');
-}
-
 export const ROOT = getRoot();
-export const SRC_DIR = getSrcDir();
+export const SRC_DIR = path.join(ROOT, 'frontend/src');
 
 /** 可扫描的前端源码扩展名。 */
 export const SRC_EXTS = ['.js', '.ts'];

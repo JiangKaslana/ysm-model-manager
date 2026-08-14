@@ -9,6 +9,7 @@
  *   node scripts/android-check.mjs --full   # 完整 assembleDebug（含 dex/打包/签名）
  *   node scripts/android-check.mjs --help
  * 退出码：0 编译通过；1 失败（gradle 输出尾部直通）。
+ * 设计意图：Android Java 语法/API 编译检测，改 build/android 下的 Java 后做验证，无需连接设备。
  */
 import fs from 'node:fs';
 import os from 'node:os';

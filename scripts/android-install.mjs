@@ -9,6 +9,7 @@
  *   node scripts/android-install.mjs --no-launch # 只安装，不拉起
  *   node scripts/android-install.mjs --help
  * 退出码：0 成功；1 无设备/未授权/编译或安装失败（错误信息直通）。
+ * 设计意图：一键编译安装 Android 调试版到已连接设备，解决「打指令装安卓版折腾」。
  */
 import fs from 'node:fs';
 import os from 'node:os';

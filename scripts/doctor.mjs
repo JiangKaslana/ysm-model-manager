@@ -19,6 +19,14 @@ import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
 
 const JSON_MODE = process.argv.includes('--json');
+const DOCS_MODE = process.argv.includes('--docs');
+const GATE_MODE = process.argv.includes('--gate');
+
+// 顶层兜底：spawnSync 异常（ENOENT/git 缺失等）避免裸栈追踪
+process.on('uncaughtException', (e) => {
+  console.error(`[doctor] 异常: ${e.message}`);
+  process.exit(1);
+});
 
 /** 委托 pre-push-gate.mjs 并透传退出码（stdin 可选，供 --gate 传 ref 行）。 */
 function delegate(gateArgs, { stdin } = {}) {
@@ -34,9 +42,6 @@ function delegate(gateArgs, { stdin } = {}) {
   if (gateResult.stderr) process.stderr.write(gateResult.stderr);
   process.exit(gateResult.status ?? 1);
 }
-
-const DOCS_MODE = process.argv.includes('--docs');
-const GATE_MODE = process.argv.includes('--gate');
 
 if (GATE_MODE) {
   // --gate 模式：委托 pre-push-gate.mjs --dry-run（单一实现，避免双端漂移）。
