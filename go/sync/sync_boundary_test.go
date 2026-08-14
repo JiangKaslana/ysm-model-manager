@@ -479,3 +479,265 @@ func TestGetInstanceStatusWith_EmptyRepoDir(t *testing.T) {
 }
 
 func nilLogger(name, src, dst string, size int64, status, msg string) {}
+
+// =====================================================================
+// 十六、PushResources / PullResources nil logger 不应 panic
+// =====================================================================
+
+// TestPushResources_NilLogger_NoPanicOnFailure 推送 + nil logger 不应 panic
+// （原 logger() 调用未 nil 守卫——已补 if logger != nil）
+func TestPushResources_NilLogger_NoPanicOnFailure(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	targetDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	_ = os.MkdirAll(globalDir, 0755)
+	_ = os.MkdirAll(targetDir, 0755)
+	_ = os.WriteFile(filepath.Join(globalDir, "pack.zip"), []byte("x"), 0644)
+	// 成功或失败路径均不应 panic（nil logger 守卫覆盖两者）
+	_, _ = PushResources("resourcepack", globalDir, targetDir, "copy", nil)
+}
+
+// TestPullResources_NilLogger_NoPanicOnFailure 拉取失败 + nil logger 不应 panic
+func TestPullResources_NilLogger_NoPanicOnFailure(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	targetDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	_ = os.MkdirAll(targetDir, 0755)
+	_ = os.WriteFile(filepath.Join(targetDir, "extra.zip"), []byte("e"), 0644)
+	// global 侧同名路径用目录占位 → copyFile 失败
+	_ = os.MkdirAll(filepath.Join(globalDir, "extra.zip"), 0755)
+
+	var panicked bool
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				panicked = true
+			}
+		}()
+		_, _ = PullResources("resourcepack", globalDir, targetDir, nil)
+	}()
+	if panicked {
+		t.Fatal("nil logger + 拉取失败不应 panic")
+	}
+}
+
+// =====================================================================
+// 十一、PushSingleResource 分支覆盖
+// =====================================================================
+
+// TestPushSingleResource_Dir 文件夹级单文件推送：filePath 为目录 → InstallDir 分支
+func TestPushSingleResource_Dir(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	customDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	_ = os.MkdirAll(globalDir, 0755)
+	_ = os.MkdirAll(customDir, 0755)
+	// 源目录含模型文件
+	srcDir := filepath.Join(globalDir, "myPack")
+	_ = os.MkdirAll(srcDir, 0755)
+	_ = os.WriteFile(filepath.Join(srcDir, "ysm.json"), []byte("{}"), 0644)
+
+	if err := PushSingleResource(srcDir, customDir, globalDir, "copy", "ysm"); err != nil {
+		t.Fatalf("推送目录失败: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(customDir, "myPack", "ysm.json")); err != nil {
+		t.Fatalf("目标文件夹应存在: %v", err)
+	}
+}
+
+// TestPushSingleResource_JsonExt .json 扩展名走 InstallDir（filePath.Dir 作源目录）
+func TestPushSingleResource_JsonExt(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	customDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	_ = os.MkdirAll(globalDir, 0755)
+	_ = os.MkdirAll(customDir, 0755)
+	srcDir := filepath.Join(globalDir, "jsonPack")
+	_ = os.MkdirAll(srcDir, 0755)
+	srcFile := filepath.Join(srcDir, "ysm.json")
+	_ = os.WriteFile(srcFile, []byte("{}"), 0644)
+
+	if err := PushSingleResource(srcFile, customDir, globalDir, "copy", "ysm"); err != nil {
+		t.Fatalf("推送 .json 失败: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(customDir, "jsonPack", "ysm.json")); err != nil {
+		t.Fatalf("目标应存在: %v", err)
+	}
+}
+
+// =====================================================================
+// 十二、SyncToggleStatus 启用分支「存在即跳过」
+// =====================================================================
+
+// TestSyncToggleStatus_NilScanFn 对 nil scanFn 应返回错误而非 panic
+// （原 repoEntries = scanFn(filesRoot) 调 nil 函数值会 panic——已补 nil 守卫）
+func TestSyncToggleStatus_NilScanFn(t *testing.T) {
+	base := t.TempDir()
+	repoDir := filepath.Join(base, "repo")
+	customDir := filepath.Join(base, "custom")
+	_ = os.MkdirAll(repoDir, 0755)
+	_ = os.MkdirAll(customDir, 0755)
+	var panicked bool
+	var err error
+	var disable, enable int
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				panicked = true
+			}
+		}()
+		disable, enable, err = SyncToggleStatus(customDir, repoDir, nil)
+	}()
+	if panicked {
+		t.Fatal("nil scanFn 不应 panic，应返回错误")
+	}
+	if err == nil {
+		t.Fatal("nil scanFn 应返回错误")
+	}
+	if disable != 0 || enable != 0 {
+		t.Errorf("nil scanFn 计数应 = 0，实际 disable=%d enable=%d", disable, enable)
+	}
+}
+
+// TestSyncToggleStatus_EnableTargetExistsSkipped 启用分支：.ban 文件需启用但同名非 .ban
+// 已存在 → 跳过（防 Rename 覆盖丢数据），enableCount=0，不报错
+func TestSyncToggleStatus_EnableTargetExistsSkipped(t *testing.T) {
+	base := t.TempDir()
+	repoDir := filepath.Join(base, "repo")
+	customDir := filepath.Join(base, "custom")
+	_ = os.MkdirAll(repoDir, 0755)
+	_ = os.MkdirAll(customDir, 0755)
+
+	// repo: model_a 正常（非 .ban）→ custom 的 model_a.ysm.ban 应启用，
+	// 但 custom 同时已有 model_a.ysm（非 .ban，可能是旧版本）→ 跳过防覆盖
+	_ = os.WriteFile(filepath.Join(repoDir, "model_a.ysm"), []byte("repo"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "model_a.ysm"), []byte("existing"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "model_a.ysm.ban"), []byte("disabled"), 0644)
+
+	scanFn := func(dir string) []types.ModelEntry {
+		return []types.ModelEntry{
+			{Name: "model_a.ysm", Path: filepath.Join(repoDir, "model_a.ysm"), Hash: "hash_a"},
+		}
+	}
+
+	disable, enable, err := SyncToggleStatus(customDir, repoDir, scanFn)
+	if err != nil {
+		t.Fatalf("不应报错: %v", err)
+	}
+	if disable != 0 {
+		t.Errorf("禁用应 = 0，实际 %d", disable)
+	}
+	if enable != 0 {
+		t.Errorf("启用应 = 0（目标已存在跳过），实际 %d", enable)
+	}
+	// 已存在的非 .ban 文件保留（未被覆盖）
+	data, _ := os.ReadFile(filepath.Join(customDir, "model_a.ysm"))
+	if string(data) != "existing" {
+		t.Errorf("既有文件不应被覆盖: %q", string(data))
+	}
+	// .ban 文件保留（未被删除）
+	if _, err := os.Stat(filepath.Join(customDir, "model_a.ysm.ban")); err != nil {
+		t.Errorf(".ban 文件应保留: %v", err)
+	}
+}
+
+// =====================================================================
+// 十三、SyncToggleStatus 禁用分支「存在即跳过」
+// =====================================================================
+
+// TestSyncToggleStatus_DisableTargetExistsSkipped 禁用分支：文件需禁用但 .ban 已存在 → 跳过
+func TestSyncToggleStatus_DisableTargetExistsSkipped(t *testing.T) {
+	base := t.TempDir()
+	repoDir := filepath.Join(base, "repo")
+	customDir := filepath.Join(base, "custom")
+	_ = os.MkdirAll(repoDir, 0755)
+	_ = os.MkdirAll(customDir, 0755)
+
+	// repo: model_a.ban → custom 的 model_a.ysm 应禁用，
+	// 但 custom 同时已有 model_a.ysm.ban → 跳过
+	_ = os.WriteFile(filepath.Join(repoDir, "model_a.ysm.ban"), []byte("repo"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "model_a.ysm"), []byte("active"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "model_a.ysm.ban"), []byte("existing-ban"), 0644)
+
+	scanFn := func(dir string) []types.ModelEntry {
+		return []types.ModelEntry{
+			{Name: "model_a.ysm.ban", Path: filepath.Join(repoDir, "model_a.ysm.ban"), Hash: "hash_a"},
+		}
+	}
+
+	disable, enable, err := SyncToggleStatus(customDir, repoDir, scanFn)
+	if err != nil {
+		t.Fatalf("不应报错: %v", err)
+	}
+	if disable != 0 {
+		t.Errorf("禁用应 = 0（.ban 已存在跳过），实际 %d", disable)
+	}
+	if enable != 0 {
+		t.Errorf("启用应 = 0，实际 %d", enable)
+	}
+	// 活跃文件保留（未被 rename）
+	data, _ := os.ReadFile(filepath.Join(customDir, "model_a.ysm"))
+	if string(data) != "active" {
+		t.Errorf("活跃文件不应被移动: %q", string(data))
+	}
+}
+
+// =====================================================================
+// 十四、copyDirRecursive 符号链接目标已存在
+// =====================================================================
+
+// TestCopyDirRecursive_SymlinkOverwritesExisting 复制符号链接到已存在目标路径：
+// 应替换为符号链接（保留语义）——源码先 Remove(target) 再 Symlink，兼容 Windows
+func TestCopyDirRecursive_SymlinkOverwritesExisting(t *testing.T) {
+	base := t.TempDir()
+	src := filepath.Join(base, "src")
+	_ = os.MkdirAll(src, 0755)
+	_ = os.WriteFile(filepath.Join(src, "real.txt"), []byte("r"), 0644)
+	if err := os.Symlink(filepath.Join(src, "real.txt"), filepath.Join(src, "link")); err != nil {
+		t.Skipf("环境不支持符号链接: %v", err)
+	}
+	dst := filepath.Join(base, "dst")
+	_ = os.MkdirAll(dst, 0755)
+	// 目标位置已有普通文件 → 复制链接应替换它（源码 Remove + Symlink）
+	_ = os.WriteFile(filepath.Join(dst, "link"), []byte("placeholder"), 0644)
+	if err := copyDirRecursive(src, dst); err != nil {
+		t.Fatalf("复制失败: %v", err)
+	}
+	info, err := os.Lstat(filepath.Join(dst, "link"))
+	if err != nil {
+		t.Fatalf("链接应存在: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("应为符号链接，实际 %v", info.Mode())
+	}
+}
+
+// =====================================================================
+// 十五、SyncCustomToRepo nil scanFn
+// =====================================================================
+
+// TestSyncCustomToRepo_NilScanFn 对 nil scanFn 应返回错误而非 panic
+// （原 srcEntries = scanFn(customDir) 调 nil 函数值会 panic——已补 nil 守卫）
+func TestSyncCustomToRepo_NilScanFn(t *testing.T) {
+	base := t.TempDir()
+	customDir := filepath.Join(base, "custom")
+	repoDir := filepath.Join(base, "repo")
+	_ = os.MkdirAll(customDir, 0755)
+	_ = os.MkdirAll(repoDir, 0755)
+	var panicked bool
+	var err error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				panicked = true
+			}
+		}()
+		_, err = SyncCustomToRepo(customDir, repoDir, nil, nil)
+	}()
+	if panicked {
+		t.Fatal("nil scanFn 不应 panic，应返回错误")
+	}
+	if err == nil {
+		t.Fatal("nil scanFn 应返回错误")
+	}
+}

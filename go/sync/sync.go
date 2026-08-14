@@ -147,6 +147,9 @@ func GetInstanceStatusWith(mcRoot, repoDir string, scanFn ScanFunc, listFn ListV
 func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int, int, error) {
 	installer.InstallLock.Lock()
 	defer installer.InstallLock.Unlock()
+	if scanFn == nil {
+		return 0, 0, fmt.Errorf("scanFn 为空")
+	}
 	repoEntries := scanFn(filesRoot)
 	repoHash := make(map[string]bool) // hash → banned
 	repoName := make(map[string]bool) // relPath(去.ban) → banned，用于同名不同文件夹的文件
@@ -371,7 +374,6 @@ func SortEntries(entries []types.ModelEntry) {
 	})
 }
 
-// getLinkType 判断文件的链接类型
 // GetLinkType 判断文件的链接类型
 func GetLinkType(path string) types.LinkType {
 	info, err := os.Lstat(path)

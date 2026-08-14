@@ -10,7 +10,7 @@ const mockScanResult = vi.hoisted(() => [
     { Name: "pack2.zip", Path: "/repo/resourcepack/pack2.zip", enabled: false },
   ]);
 // P2 修复：mock 提为 vi.hoisted 可引用，供恒真断言改为精确断言（rtype 切换验证 ReadShaderpackLang）
-const { readShaderpackLangMock, scanEntriesWithLabelMock, loadResourceTypesMock, getAndroidBridgeMock, resolveAndroidRepoDirMock, openFolderMock, isViewerModeMock } = vi.hoisted(() => ({
+const { readShaderpackLangMock, scanEntriesWithLabelMock, loadResourceTypesMock, getAndroidBridgeMock, resolveAndroidRepoDirMock, openFolderMock, isViewerModeMock, toggleMock, importByTypeMock, selectImportZipMock } = vi.hoisted(() => ({
   readShaderpackLangMock: vi.fn().mockResolvedValue(
     JSON.stringify({ name: "光影包测试", entries: {} }),
   ),
@@ -30,6 +30,12 @@ const { readShaderpackLangMock, scanEntriesWithLabelMock, loadResourceTypesMock,
   isViewerModeMock: vi.fn().mockReturnValue(false),
   resolveAndroidRepoDirMock: vi.fn().mockResolvedValue("/storage/emulated/0/YSM-Model-Manager"),
   openFolderMock: vi.fn().mockResolvedValue(undefined),
+  // P3 审核新增（覆盖 toggle/import 未测分支）：默认 toggle 成功（Go 端返回 bool）
+  toggleMock: vi.fn().mockResolvedValue(true),
+  // 默认导入成功（ImportByType 返回空串=成功）；错误路径用例内 override 为非空串
+  importByTypeMock: vi.fn().mockResolvedValue(""),
+  // 默认取消（返空串）；导入错误路径用例内 override 为真实路径以触达 ImportByType
+  selectImportZipMock: vi.fn().mockResolvedValue(""),
 }));
 vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
@@ -41,11 +47,11 @@ vi.mock("../../backend/app.ts", () => ({
     })),
     ScanModelEntries: vi.fn().mockResolvedValue(mockScanResult),
     ScanModelEntriesWithLabel: scanEntriesWithLabelMock,
-    ToggleResourcePack: vi.fn().mockResolvedValue(undefined),
+    ToggleResourcePack: toggleMock,
     IsResourcePackEnabled: vi.fn().mockResolvedValue(true),
-    SelectImportZip: vi.fn().mockResolvedValue(""),
+    SelectImportZip: selectImportZipMock,
     SelectImportFile: vi.fn().mockResolvedValue(""),
-    ImportByType: vi.fn().mockResolvedValue(undefined),
+    ImportByType: importByTypeMock,
     DeleteResourcePack: vi.fn().mockResolvedValue(undefined),
     OpenFolder: openFolderMock,
     LoadAppConfig: vi.fn().mockResolvedValue({}),
@@ -170,6 +176,74 @@ describe("app-resource-manager（testid 钩子 + 资源管理交互）", () => {
     const callsBefore = loadResourceTypesMock.mock.calls.length;
     await (el as unknown as { _init(): Promise<void> })._init(); // 缓存已清 → 重新拉取配置
     expect(loadResourceTypesMock.mock.calls.length).toBe(callsBefore + 1);
+    unmountElement(el);
+  });
+
+  // P3 审核新增：覆盖 toggle/import/搜索/未知 rtype 未测分支（原测试仅验按钮存在，操作路径全裸）
+
+  it("点击 rm-toggle → 调 ToggleResourcePack 并刷新列表（toggle 操作路径）", async () => {
+    toggleMock.mockClear();
+    const el = mountCustomElement("app-resource-manager");
+    await waitFor(() => el.querySelector('[data-testid="rm-item"]') !== null, 5000);
+    const toggleEl = el.querySelector(".rm-toggle") as HTMLElement | null;
+    expect(toggleEl).not.toBeNull();
+    scanEntriesWithLabelMock.mockClear();
+    toggleEl!.click();
+    await waitFor(() => toggleMock.mock.calls.length === 1, 5000);
+    expect(toggleMock).toHaveBeenCalledTimes(1);
+    // _loadList 刷新（ScanModelEntriesWithLabel 被再次调用）
+    await waitFor(() => scanEntriesWithLabelMock.mock.calls.length > 0, 5000);
+    unmountElement(el);
+  });
+
+  it("导入 SelectImportZip 返回空 → 不调 ImportByType（取消路径）", async () => {
+    importByTypeMock.mockClear();
+    const el = mountCustomElement("app-resource-manager");
+    await waitFor(() => el.querySelector('[data-testid="rm-import"]') !== null, 5000);
+    (el.querySelector('[data-testid="rm-import"]') as HTMLElement).click();
+    // await 一段让 click 的 async handler 跑完（SelectImportZip resolve "" → 早退）
+    await sleep(150);
+    expect(importByTypeMock).not.toHaveBeenCalled();
+    unmountElement(el);
+  });
+
+  it("导入 ImportByType 返回非空错误 → 走 toast 失败分支（错误路径）", async () => {
+    importByTypeMock.mockClear();
+    // SelectImportZip 返回真实路径 → 不在 `if (!filePath) return` 早退
+    // ImportByType 返回非空错误串 → 走 `if (errMsg)` 分支 → _toast("error")
+    selectImportZipMock.mockResolvedValueOnce("/fake/pack.zip");
+    importByTypeMock.mockResolvedValueOnce("文件已存在");
+    const el = mountCustomElement("app-resource-manager");
+    await waitFor(() => el.querySelector('[data-testid="rm-import"]') !== null, 5000);
+    (el.querySelector('[data-testid="rm-import"]') as HTMLElement).click();
+    await waitFor(() => importByTypeMock.mock.calls.length === 1, 5000);
+    expect(importByTypeMock).toHaveBeenCalledTimes(1);
+    unmountElement(el);
+  });
+
+  it("搜索输入 → _applyFilter 过滤列表（仅匹配项显示）", async () => {
+    const el = mountCustomElement("app-resource-manager");
+    await waitFor(() => el.querySelector('[data-testid="rm-item"]') !== null, 5000);
+    const before = getAllByTestId(el, "rm-item").length;
+    expect(before).toBeGreaterThanOrEqual(2); // mockScanResult 含 2 项
+    const search = el.querySelector(".rm-search") as HTMLInputElement | null;
+    expect(search).not.toBeNull();
+    search!.value = "pack1";
+    search!.dispatchEvent(new Event("input", { bubbles: true }));
+    await waitFor(() => getAllByTestId(el, "rm-item").length === 1, 5000);
+    expect(getAllByTestId(el, "rm-item").length).toBe(1);
+    unmountElement(el);
+  });
+
+  it("未知 rtype → 渲染错误占态（_findType 返 undefined 分支）", async () => {
+    const el = mountCustomElement("app-resource-manager");
+    el.setAttribute("rtype", "nonexistent-type");
+    await waitFor(
+      () => el.querySelector('[data-testid="rm-item"]') === null &&
+        (el.textContent || "").includes("⚠️"),
+      5000,
+    );
+    expect(el.querySelector('[data-testid="rm-item"]')).toBeNull();
     unmountElement(el);
   });
 });

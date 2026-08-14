@@ -169,4 +169,82 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     });
     unmountElement(el);
   });
+
+  // P4 审计新增（陷阱 #3）：异步在途时按钮须灰掉，finally 复位——防用户误判没响应连点
+  it("推送在途 → 按钮禁用，完成后复位（陷阱 #3 视觉反馈）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector('[data-testid="sm-push"]') !== null, 5000);
+    const pushBtn = el.querySelector('[data-testid="sm-push"]') as HTMLButtonElement;
+    expect(pushBtn.disabled).toBe(false);
+    // 让 getApp() await 期间检查禁用态：mock 推迟一拍 resolves
+    mocks.PushSingleResourceToInstance.mockImplementationOnce(() =>
+      new Promise((r) => setTimeout(() => r(undefined), 100)),
+    );
+    pushBtn.click();
+    // 在途：按钮 disabled=true、opacity=0.55、cursor=wait
+    await waitFor(() => (el.querySelector('[data-testid="sm-push"]') as HTMLButtonElement)?.disabled === true, 3000);
+    const busyBtn = el.querySelector('[data-testid="sm-push"]') as HTMLButtonElement;
+    expect(busyBtn.style.opacity).toBe("0.55");
+    expect(busyBtn.style.cursor).toBe("wait");
+    // 完成：复位（注意 _render 会重建 DOM，故按钮引用须重取；delta 守卫）
+    await waitFor(() => {
+      const b = el.querySelector('[data-testid="sm-push"]') as HTMLButtonElement | null;
+      return b !== null && b.disabled === false;
+    }, 5000);
+    const finalBtn = el.querySelector('[data-testid="sm-push"]') as HTMLButtonElement;
+    expect(finalBtn.style.opacity).toBe("");
+    expect(finalBtn.style.cursor).toBe("");
+    unmountElement(el);
+  });
+
+  // P4 审计新增（陷阱 #31）：快速连点 3 次 → _singleBusy 重入守卫，仅执行 1 次
+  it("快速连点推送 3 次 → 重入守卫，仅执行 1 次（陷阱 #31 重入守卫）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector('[data-testid="sm-push"]') !== null, 5000);
+    const pushBtn = el.querySelector('[data-testid="sm-push"]') as HTMLButtonElement;
+    // 推迟 resolves 制造在途窗口
+    mocks.PushSingleResourceToInstance.mockImplementation(() =>
+      new Promise((r) => setTimeout(() => r(undefined), 150)),
+    );
+    // 用 delta 断言：mock.calls.length 跨用例累积（vi.hoisted 单例），取差值隔离
+    const callsBefore = mocks.PushSingleResourceToInstance.mock.calls.length;
+    pushBtn.click();
+    pushBtn.click();
+    pushBtn.click();
+    await sleep(400);
+    // 重入守卫：3 次点击仅 1 次真正调到底层 API（delta=1）
+    const delta = mocks.PushSingleResourceToInstance.mock.calls.length - callsBefore;
+    expect(delta).toBe(1);
+    unmountElement(el);
+  });
+
+  // P4 审计新增（错误路径）：推送失败 → toast error + 按钮复位（不卡死）
+  it("推送失败 → 错误 toast + 按钮复位（陷阱 #3 失败不卡死）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector('[data-testid="sm-push"]') !== null, 5000);
+    const pushBtn = el.querySelector('[data-testid="sm-push"]') as HTMLButtonElement;
+    const toastCalls: Array<{ msg: string; type?: string }> = [];
+    // P2 修复（codereview）：bus 是模块级单例，bus.on 返回的 unsub 必须调用，
+    // 否则监听器泄漏跨测试文件（后续每个 toast:show 都会推入已卸载组件的 toastCalls）
+    const offToast = bus.on("toast:show", (payload: { msg: string; type?: string }) => {
+      toastCalls.push(payload);
+    });
+    mocks.PushSingleResourceToInstance.mockRejectedValueOnce(new Error("boom"));
+    pushBtn.click();
+    await waitFor(() => pushBtn.disabled === false, 5000);
+    // 失败也复位按钮（finally），不卡死
+    expect(pushBtn.disabled).toBe(false);
+    // 至少一条 error 类型 toast
+    const errToast = toastCalls.find((c) => c.type === "error");
+    expect(errToast).toBeTruthy();
+    expect(errToast!.msg).toContain("boom");
+    offToast(); // 卸载监听器，防跨测试文件泄漏
+    unmountElement(el);
+  });
 });

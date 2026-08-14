@@ -42,6 +42,11 @@ const LAST_TYPE_KEY = "ysm_syncLastType";
 // 整个模块 import 失败（customElements.define 永不执行，组件不可用）；改 safeGet
 let _lastSelectedType = safeGet(LAST_TYPE_KEY) || RESOURCE_TYPES.YSM;
 
+// P4 审计（陷阱 #3）：toast 显示时长原散落为裸字面量 2000/3000/5000，集中为常量便于维护
+const TOAST_MS_SHORT = 2000;
+const TOAST_MS_NORMAL = 3000;
+const TOAST_MS_LONG = 5000;
+
 export class AppSyncManager extends HTMLElement {
   static get observedAttributes(): string[] {
     return ["instance", "default-type"];
@@ -60,6 +65,20 @@ export class AppSyncManager extends HTMLElement {
   private _unsubs: Array<() => void> = [];
   /** 单文件推送/拉取在途守卫：防连点并发（同 preview-skeleton _saving 模式） */
   private _singleBusy = false;
+
+  /**
+   * 切换所有单行按钮的禁用态与视觉反馈（陷阱 #3：异步在途时按钮须灰掉，
+   * 否则用户误判为没响应而连点；finally 复位防按钮永久卡死）。
+   * 守卫：DOM 查询失败静默跳过（卸载后按钮已不存在）。
+   */
+  private _setButtonsBusy(busy: boolean): void {
+    this.querySelectorAll(".sm-item-btn").forEach((btn) => {
+      const htmlBtn = btn as HTMLButtonElement;
+      htmlBtn.disabled = busy;
+      htmlBtn.style.opacity = busy ? "0.55" : "";
+      htmlBtn.style.cursor = busy ? "wait" : "pointer";
+    });
+  }
 
   connectedCallback(): void {
     this._instance = this.getAttribute("instance") || "";
@@ -115,7 +134,7 @@ export class AppSyncManager extends HTMLElement {
         t("sync.renderFailed") + ": " +
         esc(String(e)) +
         "</div>";
-      bus.emit("toast:show", { msg: "❌ " + friendlyError(e, t("sync.renderFailed")), duration: 5000, type: "error" });
+      bus.emit("toast:show", { msg: "❌ " + friendlyError(e, t("sync.renderFailed")), duration: TOAST_MS_LONG, type: "error" });
     }
 
     const unsub = bus.on("stats:refresh", () => {
@@ -175,7 +194,7 @@ export class AppSyncManager extends HTMLElement {
       // P3 修复（审核发现）：静默降级（类型标签全消失无反馈）与 _loadData 的 toast 不一致
       bus.emit("toast:show", {
         msg: "⚠️ 资源类型配置加载失败",
-        duration: 3000,
+        duration: TOAST_MS_NORMAL,
         type: "warn",
       });
     }
@@ -197,7 +216,7 @@ export class AppSyncManager extends HTMLElement {
       // 失败不静默：避免界面显示「暂无资源文件」误导（坑史同款静默路径）
       bus.emit("toast:show", {
         msg: "⚠️ 同步状态加载失败",
-        duration: 3000,
+        duration: TOAST_MS_NORMAL,
         type: "warn",
       });
     }
@@ -401,6 +420,7 @@ export class AppSyncManager extends HTMLElement {
   async _pushSingleFile(path: string): Promise<void> {
     if (this._singleBusy) return;
     this._singleBusy = true;
+    this._setButtonsBusy(true);
     // P3 修复（子代理审计）：入口同步捕获 instance/type——原实现 await getApp() 之后
     // 才读 this._instance/this._selectedType，await 期间同元素 attributeChangedCallback
     // 触发 _init() 复用元素时会把旧实例列表的 path 推入新实例（TOCTOU）；
@@ -415,26 +435,31 @@ export class AppSyncManager extends HTMLElement {
         targetInstance,
         path,
       );
-      bus.emit("toast:show", { msg: "✅ 已推送", duration: 2000 });
+      // P4 审计（陷阱 #3）：卸载守卫——await 期间组件被移除则不再 toast/render
+      if (!this.isConnected) return;
+      bus.emit("toast:show", { msg: "✅ 已推送", duration: TOAST_MS_SHORT });
       const gen = this._gen; // P2：捕获代际，防 await 期间 instance 切换后旧代际重渲染
       await this._loadData();
-      if (gen !== this._gen) return;
+      if (gen !== this._gen || !this.isConnected) return;
       this._render();
       bus.emit("stats:refresh");
     } catch (e) {
+      if (!this.isConnected) return;
       bus.emit("toast:show", {
         msg: "❌ " + friendlyError(e),
-        duration: 3000,
+        duration: TOAST_MS_NORMAL,
         type: "error",
       });
     } finally {
       this._singleBusy = false;
+      this._setButtonsBusy(false);
     }
   }
 
   async _pullSingleFile(path: string): Promise<void> {
     if (this._singleBusy) return;
     this._singleBusy = true;
+    this._setButtonsBusy(true);
     // P3 修复（子代理审计）：入口捕获 rtype 与 instance（await 期间属性切换不再
     // 打到错误目标，与 _pushSingleFile 对称）
     const rtype = this._selectedType;
@@ -443,20 +468,24 @@ export class AppSyncManager extends HTMLElement {
       const { PullSingleResourceFromInstance } =
         await getApp();
       await PullSingleResourceFromInstance(rtype, path, targetInstance);
-      bus.emit("toast:show", { msg: "✅ 已拉取", duration: 2000 });
+      // P4 审计（陷阱 #3）：卸载守卫——await 期间组件被移除则不再 toast/render
+      if (!this.isConnected) return;
+      bus.emit("toast:show", { msg: "✅ 已拉取", duration: TOAST_MS_SHORT });
       const gen = this._gen; // P2：捕获代际，防 await 期间 instance 切换后旧代际重渲染
       await this._loadData();
-      if (gen !== this._gen) return;
+      if (gen !== this._gen || !this.isConnected) return;
       this._render();
       bus.emit("stats:refresh");
     } catch (e) {
+      if (!this.isConnected) return;
       bus.emit("toast:show", {
         msg: "❌ " + friendlyError(e),
-        duration: 3000,
+        duration: TOAST_MS_NORMAL,
         type: "error",
       });
     } finally {
       this._singleBusy = false;
+      this._setButtonsBusy(false);
     }
   }
 }

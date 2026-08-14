@@ -33,7 +33,9 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 				count++
 			} else {
 				failed++
-				logger(filepath.Base(missingDir), missingDir, targetDir, 0, "failed", "推送失败: "+err.Error())
+				if logger != nil {
+					logger(filepath.Base(missingDir), missingDir, targetDir, 0, "failed", "推送失败: "+err.Error())
+				}
 			}
 		}
 		if failed > 0 {
@@ -49,7 +51,9 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 			count++
 		} else {
 			failed++
-			logger(filepath.Base(src), src, targetDir, 0, "failed", "推送失败: "+err.Error())
+			if logger != nil {
+				logger(filepath.Base(src), src, targetDir, 0, "failed", "推送失败: "+err.Error())
+			}
 		}
 	}
 	if failed > 0 {
@@ -81,14 +85,18 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 				// （textures/toon 等）不能丢弃；失败时 copyDirRecursive 已回滚清理
 				if err := copyDirRecursive(src, dstDir); err != nil {
 					failed++
-					logger(folderName, src, dstDir, 0, "failed", "拉取失败: "+err.Error())
+					if logger != nil {
+						logger(folderName, src, dstDir, 0, "failed", "拉取失败: "+err.Error())
+					}
 					continue
 				}
 				count++
 			} else {
 				if err := copyFile(src, filepath.Join(globalDir, filepath.Base(src))); err != nil {
 					failed++
-					logger(filepath.Base(src), src, globalDir, 0, "failed", "拉取失败: "+err.Error())
+					if logger != nil {
+						logger(filepath.Base(src), src, globalDir, 0, "failed", "拉取失败: "+err.Error())
+					}
 					continue
 				}
 				count++
@@ -98,18 +106,24 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 		mapped, mapErr := mapSrcToGlobal(src, targetDir, globalDir)
 		if mapErr != nil {
 			failed++
-			logger(filepath.Base(src), src, globalDir, 0, "failed", "路径映射失败: "+mapErr.Error())
+			if logger != nil {
+				logger(filepath.Base(src), src, globalDir, 0, "failed", "路径映射失败: "+mapErr.Error())
+			}
 			continue
 		}
 		dstDir := filepath.Dir(mapped)
 		if err := os.MkdirAll(dstDir, 0755); err != nil {
 			failed++
-			logger(filepath.Base(src), src, dstDir, 0, "failed", "拉取失败: "+err.Error())
+			if logger != nil {
+				logger(filepath.Base(src), src, dstDir, 0, "failed", "拉取失败: "+err.Error())
+			}
 			continue
 		}
 		if err := copyFile(src, filepath.Join(dstDir, filepath.Base(src))); err != nil {
 			failed++
-			logger(filepath.Base(src), src, dstDir, 0, "failed", "拉取失败: "+err.Error())
+			if logger != nil {
+				logger(filepath.Base(src), src, dstDir, 0, "failed", "拉取失败: "+err.Error())
+			}
 			continue
 		}
 		count++
@@ -161,6 +175,9 @@ func SyncCustomToRepo(customDir, repoDir string, scanFn func(string) []types.Mod
 	repoDir = strings.TrimSpace(repoDir)
 	if customDir == "" || repoDir == "" {
 		return 0, fmt.Errorf("参数空")
+	}
+	if scanFn == nil {
+		return 0, fmt.Errorf("scanFn 为空")
 	}
 	srcEntries := scanFn(customDir)
 	if len(srcEntries) == 0 {
@@ -314,6 +331,9 @@ func copyDirRecursive(src, dstDir string) error {
 			if lerr != nil {
 				return lerr
 			}
+			// 目标已存在时 Symlink 在 Windows 上失败（Cannot create a file when that file already exists）；
+			// 先清目标再建链接，与 copyFile 的 tmp+rename 原子替换口径对齐
+			_ = os.Remove(target)
 			return os.Symlink(linkTarget, target)
 		}
 		return copyFile(p, target)
