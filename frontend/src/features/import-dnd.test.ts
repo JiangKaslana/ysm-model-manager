@@ -84,6 +84,31 @@ describe("bindTreeDnD 绑定与清理", () => {
     addSpy.mockRestore();
     removeSpy.mockRestore();
   });
+
+  it("hint 与容器同为 shadow root 子节点 → 拖拽显示 / drop 隐藏（getRootNode 查找）", () => {
+    // <app-tree> 中 #tree 与 .tree-drop-hint 都是 shadow root 直接子节点，
+    // 旧 parentElement 查找返回 null → hint 永不显示；此用例锁死修复行为。
+    const host = document.createElement("div");
+    const sr = host.attachShadow({ mode: "open" });
+    sr.innerHTML = '<div id="tree"></div><div class="tree-drop-hint"></div>';
+    document.body.appendChild(host);
+    const tree = sr.getElementById("tree") as HTMLElement;
+    const hint = sr.querySelector(".tree-drop-hint") as HTMLElement;
+    const cleanup = bindTreeDnD(tree);
+
+    const over = makeDragEvent("dragover", { types: ["Files"] });
+    Object.defineProperty(over, "target", { value: tree, configurable: true });
+    tree.dispatchEvent(over);
+    expect(hint.style.display).toBe("flex");
+
+    const drop = makeDragEvent("drop", { types: ["Files"] });
+    Object.defineProperty(drop, "target", { value: tree, configurable: true });
+    tree.dispatchEvent(drop);
+    expect(hint.style.display).toBe("none");
+
+    cleanup();
+    host.remove();
+  });
 });
 
 // ===== dragover 行为 =====
@@ -152,6 +177,24 @@ describe("handleTreeDrop — 网页版（ADR-049）", () => {
     expect(String(toastSpy.mock.calls[0][0])).toContain("暂不支持文件夹");
     unsub();
   });
+
+  it("网页版 importWebFiles reject → onDrop 兜底：console.error + error toast，busy 复位", async () => {
+    (globalThis as unknown as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    importWebFilesMock.mockRejectedValueOnce(new Error("boom"));
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const toastSpy = vi.fn();
+    const unsub = bus.on("toast:show", (p) => toastSpy(p.msg));
+    const file = new File(["ysm"], "m.ysm");
+    bindTreeDnD(container);
+    fireDrop(container, { items: [], files: [file], types: ["Files"] });
+    await flush();
+    await flush();
+    expect(importWebFiles).toHaveBeenCalledTimes(1);
+    expect(errSpy).toHaveBeenCalled();
+    expect(toastSpy.mock.calls.some((c) => String(c[0]).includes("出错"))).toBe(true);
+    errSpy.mockRestore();
+    unsub();
+  });
 });
 
 // ===== handleTreeDrop：桌面版 busy 互斥 =====
@@ -189,6 +232,35 @@ describe("handleTreeDrop — 错误兜底", () => {
     await flush();
     // 无异常即成功（null 守卫让 collectFiles 安全跳过 null 项）
     errSpy.mockRestore();
+    unsub();
+  });
+});
+
+// ===== handleTreeDrop：桌面版空 drop / 可编辑目标 =====
+
+describe("handleTreeDrop — 空 drop / 可编辑目标", () => {
+  it("无 items 无 files 的桌面版 drop → 无支持文件 toast，不调 execute", async () => {
+    const toastSpy = vi.fn();
+    const unsub = bus.on("toast:show", (p) => toastSpy(p.msg));
+    const [isBusy, setBusy] = makeBusyPair();
+    await handleTreeDrop(makeDragEvent("drop", { types: ["Files"] }), isBusy, setBusy);
+    expect(toastSpy.mock.calls.some((c) => String(c[0]).includes("未检测到"))).toBe(true);
+    unsub();
+  });
+
+  it("drop 目标为 input → 直接 return，不导入不 toast", async () => {
+    (globalThis as unknown as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    const toastSpy = vi.fn();
+    const unsub = bus.on("toast:show", (p) => toastSpy(p.msg));
+    const input = document.createElement("input");
+    container.appendChild(input);
+    const [isBusy, setBusy] = makeBusyPair();
+    const ev = makeDragEvent("drop", { files: [new File(["x"], "m.ysm")], types: ["Files"] });
+    Object.defineProperty(ev, "target", { value: input, configurable: true });
+    await handleTreeDrop(ev, isBusy, setBusy);
+    expect(importWebFiles).not.toHaveBeenCalled();
+    expect(toastSpy).not.toHaveBeenCalled();
+    input.remove();
     unsub();
   });
 });

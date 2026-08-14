@@ -142,7 +142,10 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   const isBusy = () => _dropBusy;
   const setBusy = (v: boolean) => { _dropBusy = v; };
 
-  const hintEl = container.parentElement?.querySelector<HTMLElement>(".tree-drop-hint");
+  // hint 与 #tree 同为 <app-tree> shadow root 的直接子节点：parentElement 对
+  // shadow root 子节点返回 null（ShadowRoot 非 Element），必须从 getRootNode()
+  // 查找，否则 hint 永远不显示（ADR-060 组件化回归）。
+  const hintEl = (container.getRootNode() as ParentNode).querySelector<HTMLElement>(".tree-drop-hint");
 
   const onDragOver = (e: DragEvent): void => {
     if (isEditable(e.target)) return;

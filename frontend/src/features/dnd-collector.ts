@@ -29,12 +29,14 @@ function getFileFromEntry(entry: FileSystemFileEntry): Promise<File> {
  * 递归收集 DataTransferItem[] 或 FileSystemEntry[] 中的文件。
  * - isEntryArray=true 时 items 为 FileSystemEntry[]（递归子目录场景）
  * - isEntryArray=false 时 items 为 DataTransferItem[]（顶层 drop 场景）
- * depth > MAX_DEPTH 时停止递归防卡顿；readEntries 3s 超时防 WebView2 卡死。
+ * - depth 为当前目录深度，depth >= MAX_DEPTH 时停止递归防卡顿
+ * - readEntries 3s 超时防 WebView2 卡死（settle 后立即 clearTimeout，不滞留定时器）
  */
 export async function collectFiles(
   items: DataTransferItem[] | FileSystemEntry[],
   isEntryArray: boolean,
   basePath = "",
+  depth = 0,
 ): Promise<CollectedFile[]> {
   const result: CollectedFile[] = [];
   for (const item of items) {
@@ -48,9 +50,11 @@ export async function collectFiles(
       const reader = (entry as FileSystemDirectoryEntry).createReader();
       const batch = await new Promise<FileSystemEntry[]>((resolve) => {
         let settled = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
         const done = (v: FileSystemEntry[]): void => {
           if (settled) return;
           settled = true;
+          if (timer) clearTimeout(timer);
           resolve(v);
         };
         reader.readEntries(
@@ -60,10 +64,11 @@ export async function collectFiles(
             done([]);
           },
         );
-        setTimeout(() => done([]), READ_ENTRIES_TIMEOUT);
+        // 兜底定时器：settle 后由 done 清理；readEntries 永不回调时兜住 WebView2
+        timer = setTimeout(() => done([]), READ_ENTRIES_TIMEOUT);
       });
-      if (batch.length && basePath.length < MAX_DEPTH * 100) {
-        const deeper = await collectFiles(batch, true, subPath);
+      if (batch.length && depth < MAX_DEPTH) {
+        const deeper = await collectFiles(batch, true, subPath, depth + 1);
         result.push(...deeper);
       }
     } else if (entry?.isFile) {
@@ -84,10 +89,3 @@ export async function collectFiles(
   }
   return result;
 }
-
-/**
- * 从 DropEvent 聚合 collected 条目：
- * 1. 先走 webkitGetAsEntry 路径（支持文件夹递归）；
- * 2. 合并 dataTransfer.files 兜底（WebView2 受限场景），按 name+size+lastModified 去重；
- * 3. 若最终仍为空，回退到纯 files 列表。
- */

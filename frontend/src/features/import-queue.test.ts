@@ -160,6 +160,21 @@ class FakeFileReader {
   }
 }
 
+/** 进入表单：init + drop ysm.json → FileReader → enqueueFile → showForm */
+async function enterFormWithFile(host: ReturnType<typeof makeHost>["host"]) {
+  initImportQueue(host);
+  const drop = host._root.querySelector("#dl-drop") as HTMLElement;
+  dispatchDrop(drop, {
+    items: undefined,
+    files: [makeFile("ysm.json")],
+  });
+  await waitFor(
+    () =>
+      (host._root.querySelector("#dl-form") as HTMLElement).style.display ===
+      "flex",
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   __resetBus();
@@ -272,21 +287,6 @@ describe("initImportQueue — 输入框路由", () => {
 });
 
 describe("initImportQueue — 导入按钮全链路", () => {
-  async function enterFormWithFile(host: ReturnType<typeof makeHost>["host"]) {
-    initImportQueue(host);
-    // 触发 ysm.json 进入表单：drop files 路径 → shouldEnterForm true → FileReader → enqueueFile → showForm
-    const drop = host._root.querySelector("#dl-drop") as HTMLElement;
-    dispatchDrop(drop, {
-      items: undefined,
-      files: [makeFile("ysm.json")],
-    });
-    await waitFor(
-      () =>
-        (host._root.querySelector("#dl-form") as HTMLElement).style.display ===
-        "flex",
-    );
-  }
-
   it("无 filesRoot → warn toast 提示先配置存储", async () => {
     mockApp({ LoadAppConfig: vi.fn(() => ({ filesRoot: "" })) });
     const { host, root } = makeHost();
@@ -408,6 +408,94 @@ describe("initImportQueue — 表单/队列 UI", () => {
       () => (root.querySelector("#dl-drop") as HTMLElement).style.display === "flex",
     );
     expect(root.querySelectorAll(".dl-q-item").length).toBe(0);
+  });
+
+  it("移除当前编辑项（队列非空）→ 表单切到下一项，导入用新项 relPath（幽灵状态回归）", async () => {
+    const { host, root } = makeHost();
+    initImportQueue(host);
+    const drop = root.querySelector("#dl-drop") as HTMLElement;
+    dispatchDrop(drop, {
+      items: undefined,
+      files: [
+        makeFile("ysm.json", { _relPath: "a/ysm.json" }),
+        makeFile("ysm.json", { _relPath: "b/ysm.json" }),
+      ],
+    });
+    await waitFor(() => root.querySelectorAll(".dl-q-item").length === 2);
+    // 移除当前编辑项（第一项 a/ysm.json）
+    (root.querySelectorAll(".dl-remove-q")[0] as HTMLButtonElement).click();
+    await waitFor(() => root.querySelectorAll(".dl-q-item").length === 1);
+    // currentFileName/currentRelPath 必须已切到 b/ysm.json：导入子路径应为 "b"
+    (root.querySelector("#dl-import") as HTMLButtonElement).click();
+    await waitFor(() =>
+      busEmit.mock.calls.some(
+        (c) => c[0] === "toast:show" && String(c[1]?.msg ?? "").includes("imported"),
+      ),
+    );
+    expect(appObj.ImportModelFileTo).toHaveBeenCalledWith(
+      "新名.ysm",
+      "b",
+      expect.any(String),
+    );
+  });
+
+  it("导入失败 → 错误 toast + 在途复位（再次点击可重试成功）", async () => {
+    const { host, root } = makeHost();
+    await enterFormWithFile(host);
+    appObj.ImportModelFileTo.mockRejectedValueOnce(new Error("磁盘错误"));
+    const btn = root.querySelector("#dl-import") as HTMLButtonElement;
+    btn.click();
+    await waitFor(() =>
+      busEmit.mock.calls.some(
+        (c) => c[0] === "toast:show" && String(c[1]?.msg ?? "").includes("import.failed"),
+      ),
+    );
+    // 若 isImporting 未在 finally 复位，二次点击会被并发守卫拦截 → ImportModelFileTo 仍 1 次
+    btn.click();
+    await waitFor(() => appObj.ImportModelFileTo.mock.calls.length >= 2);
+  });
+
+  it("repoFiles 加载完成 → 队列重名预警 ⚠️ 自动出现（陷阱 #13 幽灵路径）", async () => {
+    mockApp({
+      ScanModelEntriesWithLabel: vi.fn(() => [{ Name: "ysm" }]),
+    });
+    const { host, root } = makeHost();
+    initImportQueue(host);
+    const drop = root.querySelector("#dl-drop") as HTMLElement;
+    // 两个 ysm.json（不同 relPath 不去重）：当前编辑项显示 ✏️，另一项应显示 ⚠️
+    dispatchDrop(drop, {
+      items: undefined,
+      files: [
+        makeFile("ysm.json", { _relPath: "a/ysm.json" }),
+        makeFile("ysm.json", { _relPath: "b/ysm.json" }),
+      ],
+    });
+    await waitFor(() => appObj.ScanModelEntriesWithLabel.mock.calls.length > 0);
+    await waitFor(() => {
+      const q = root.querySelectorAll(".dl-q-item")[1];
+      return q?.textContent?.includes("⚠️") === true;
+    });
+  });
+
+  it("FileReader 读取失败 → 错误 toast", async () => {
+    class ErrReader {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      result = "";
+      readAsDataURL() {
+        this.onerror?.();
+      }
+    }
+    vi.stubGlobal("FileReader", ErrReader as never);
+    const { host, root } = makeHost();
+    initImportQueue(host);
+    const drop = root.querySelector("#dl-drop") as HTMLElement;
+    dispatchDrop(drop, { items: undefined, files: [makeFile("ysm.json")] });
+    await waitFor(() =>
+      busEmit.mock.calls.some(
+        (c) => c[0] === "toast:show" && String(c[1]?.msg ?? "").includes("读取文件失败"),
+      ),
+    );
   });
 
   it("clear list → ImportHistory.clear + 列表渲染为空", () => {

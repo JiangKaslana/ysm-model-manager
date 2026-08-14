@@ -132,7 +132,66 @@ func TestDirectoryCopyImporter_FileInsideDir(t *testing.T) {
 	t.Log("FIXED(INFO-FILE-SUB): DirectoryCopyImporter 从子文件取父目录导入成功")
 }
 
-// ---------- 9. DirectoryCopy dstDir 与 src 同目录（触发死递归——删除）----------
+// ---------- 9. DirectoryCopy src 与目标相同（回归：src==dst 守卫）----------
 // copyDir(modelDir, tmpDir) → targetDir = filepath.Join(tmpDir, "model") = modelDir
-// 此时 src == targetDir，copyDir 递归自身造成死递归
-// 本用例删除，改在 importer.go copyDir 入口加 src==dst 守卫
+// 即 src == targetDir。若无 copyDir 入口守卫，源模型文件夹会被静默替换为自身副本
+// （备份 rename → 删除备份，源 inode 被销毁）。修复后应返回错误。
+func TestDirectoryCopyImporter_Import_SrcEqualsDst(t *testing.T) {
+	tmpDir := t.TempDir()
+	modelDir := filepath.Join(tmpDir, "model")
+	if err := os.MkdirAll(modelDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelDir, "model.pmx"), []byte("pmx"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	importer := NewDirectoryCopy("mmd-skin")
+	// dstDir 为 modelDir 的父目录 → dstPath == srcDir
+	result := importer.Import(modelDir, tmpDir)
+	if result == "" {
+		t.Fatal("DirectoryCopyImporter 应拒绝 src==dst（源与目标相同）")
+	}
+	// 源模型文件夹不得被破坏/替换
+	if data, err := os.ReadFile(filepath.Join(modelDir, "model.pmx")); err != nil || string(data) != "pmx" {
+		t.Fatalf("源模型目录不应被破坏: %v %q", err, string(data))
+	}
+	t.Logf("FIXED(BUG-SRC-DST): DirectoryCopyImporter 拒绝 src==dst: %s", result)
+}
+
+// ---------- 10. DirectoryCopy 目标位于源文件夹内（dst 是 src 的后代）----------
+// dstDir 在模型文件夹内 → dstPath 是 srcDir 的子路径，复制会递归进自身 → 拒绝
+func TestDirectoryCopyImporter_Import_DstInsideSrc(t *testing.T) {
+	tmpDir := t.TempDir()
+	modelDir := filepath.Join(tmpDir, "model")
+	if err := os.MkdirAll(modelDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelDir, "model.pmx"), []byte("pmx"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	importer := NewDirectoryCopy("mmd-skin")
+	dstDir := filepath.Join(modelDir, "imports")
+	result := importer.Import(modelDir, dstDir)
+	if result == "" {
+		t.Fatal("DirectoryCopyImporter 应拒绝目标位于源文件夹内")
+	}
+	if data, err := os.ReadFile(filepath.Join(modelDir, "model.pmx")); err != nil || string(data) != "pmx" {
+		t.Fatalf("源模型目录不应被破坏: %v %q", err, string(data))
+	}
+}
+
+// ---------- 11. copyDir 直调 src==dst 守卫 ----------
+func TestCopyDir_SrcEqualsDst(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "a.txt"), []byte("aaa"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyDir(src, src); err == nil {
+		t.Fatal("copyDir(src, src) 应拒绝")
+	}
+	if data, err := os.ReadFile(filepath.Join(src, "a.txt")); err != nil || string(data) != "aaa" {
+		t.Fatalf("源目录不应被替换/破坏: %v %q", err, string(data))
+	}
+}

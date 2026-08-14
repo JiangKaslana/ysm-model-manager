@@ -33,6 +33,13 @@ describe("getExt — 扩展名提取", () => {
   it("大写扩展名转小写", () => {
     expect(getExt("Model.YSM")).toBe(".ysm");
   });
+
+  it("边界：点开头 / 尾点 / 空串 / 含路径", () => {
+    expect(getExt(".ysm")).toBe(".ysm");
+    expect(getExt("foo.")).toBe(".");
+    expect(getExt("")).toBe(".");
+    expect(getExt("a/b/model.ysm")).toBe(".ysm");
+  });
 });
 
 describe("isSupportedFile — 扩展名支持检查", () => {

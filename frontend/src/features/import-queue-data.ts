@@ -4,7 +4,8 @@ import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { getApp } from "../backend/app.ts";
-import { shouldEnterForm } from "./dnd-shared.ts";
+import { isImportableFile, shouldEnterForm } from "./dnd-shared.ts";
+import { buildRenameName } from "../utils/dom/dialogs/rename-format.ts";
 import { directImport as execDirectImport, importFolder as execImportFolder, ImportHistory } from "./import-executor.ts";
 import type { ImportFile as ImportedFile } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
@@ -229,7 +230,6 @@ export function initDataLayer(host: ImportQueueHost): {
     const d = manualDate || (autoOn ? autoDate : "");
     const ext = state.currentFileName?.split(".").pop() || "ysm";
     // 拼装逻辑与重命名对话框同源
-    const { buildRenameName } = require("../utils/dom/dialogs/rename-format.ts");
     const preview = buildRenameName({ author: a, work: w, chara: c, variant: v, date: d }, ext);
     (root.getElementById("dl-preview") as HTMLElement).textContent = preview;
     checkConflictDebounced(preview);
@@ -320,7 +320,6 @@ export function initDataLayer(host: ImportQueueHost): {
       if (entry) entries.push(entry);
     }
     if (!entries.length) {
-      const { isImportableFile } = require("./dnd-shared.ts");
       let ok = 0;
       let skip = 0;
       for (let i = 0; i < items.length; i++) {
@@ -374,12 +373,16 @@ export function initDataLayer(host: ImportQueueHost): {
       const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
       const { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } = await import("../utils/resource/types.ts");
       const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-      if (!filesRoot) return;
-      const entries = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
-      state.repoFiles = new Set(entries.map((e) => normalizeRepoName(e.Name)));
+      if (filesRoot) {
+        const entries = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+        state.repoFiles = new Set(entries.map((e) => normalizeRepoName(e.Name)));
+      }
     } catch {
       state.repoFiles = new Set();
     }
+    // 陷阱 #13 修复：repoFiles 变化后必须触发重渲染，否则队列「⚠️ 重名预警」永不出
+    // 现（状态变了但 UI 不刷新的幽灵路径）
+    actions.renderImportedList?.();
   };
 
   const cleanup = (): void => {

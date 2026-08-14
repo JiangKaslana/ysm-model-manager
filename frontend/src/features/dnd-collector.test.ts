@@ -70,10 +70,8 @@ describe("collectFiles — 目录递归", () => {
     expect(result[0].relPath).toBe("pkg/sub/f.ysm");
   });
 
-  it("深度守卫：超过 MAX_DEPTH 时停止递归", async () => {
-    const leaf = fileEntry("f.ysm", new File(["x"], "f.ysm"));
-    // 每层只返回自己，递归 12 层
-    let depth = 0;
+  it("深度守卫：超过 MAX_DEPTH 层时停止递归，深层文件不收集", async () => {
+    // 每层目录含 1 个文件 + 1 个子目录，构造 12 层嵌套
     const makeDeepDir = (n: number): FileSystemDirectoryEntry => {
       const self: FileSystemDirectoryEntry = {
         isFile: false,
@@ -81,8 +79,11 @@ describe("collectFiles — 目录递归", () => {
         name: `d${n}`,
         createReader: () => ({
           readEntries: (cb: (e: FileSystemEntry[]) => void) => {
-            if (n < 12) cb([makeDeepDir(n + 1)]);
-            else cb([]);
+            if (n < 12) {
+              cb([fileEntry(`f${n}.ysm`, new File(["x"], `f${n}.ysm`)), makeDeepDir(n + 1)]);
+            } else {
+              cb([]);
+            }
           },
         }),
       } as unknown as FileSystemDirectoryEntry;
@@ -90,8 +91,20 @@ describe("collectFiles — 目录递归", () => {
     };
     const root = makeDeepDir(0);
     const result = await collectFiles([dndItem(root)], false);
-    // 每层产生一个 leaf（depth 0..10 共 11 层有内容，depth 11 截断返回空）
-    expect(result.length).toBeLessThanOrEqual(11);
+    // MAX_DEPTH=10：目录深度 0..9 的文件被收集（10 个），depth=10 起截断（f10 不应出现）
+    expect(result).toHaveLength(10);
+    expect(result.map((c) => c.relPath.split("/").pop()).sort()).toEqual(
+      ["f0.ysm", "f1.ysm", "f2.ysm", "f3.ysm", "f4.ysm", "f5.ysm", "f6.ysm", "f7.ysm", "f8.ysm", "f9.ysm"],
+    );
+    expect(result.some((c) => c.relPath.includes("/f10.ysm"))).toBe(false);
+  });
+
+  it("isEntryArray=true：直接传 FileSystemEntry[] 顶层递归，未知条目跳过", async () => {
+    const f = new File(["x"], "m.ysm");
+    const unknown = { isFile: false, isDirectory: false, name: "unk" } as unknown as FileSystemEntry;
+    const result = await collectFiles([fileEntry("m.ysm", f), unknown], true);
+    expect(result).toHaveLength(1);
+    expect(result[0].relPath).toBe("m.ysm");
   });
 });
 
@@ -125,5 +138,42 @@ describe("collectFiles — 错误处理", () => {
     expect(result).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it("readEntries 永不回调 → 3s 超时兜底，不卡死", async () => {
+    vi.useFakeTimers();
+    try {
+      const hungDir = {
+        isFile: false,
+        isDirectory: true,
+        name: "hung",
+        createReader: () => ({ readEntries: () => {} }),
+      } as unknown as FileSystemDirectoryEntry;
+      const p = collectFiles([dndItem(hungDir)], false);
+      await vi.advanceTimersByTimeAsync(3000); // READ_ENTRIES_TIMEOUT
+      expect(await p).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("entry.file 永不回调 → 5s 超时兜底，该文件跳过", async () => {
+    vi.useFakeTimers();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const silent = {
+        isFile: true,
+        isDirectory: false,
+        name: "silent.ysm",
+        file: () => {},
+      } as unknown as FileSystemFileEntry;
+      const p = collectFiles([dndItem(silent)], false);
+      await vi.advanceTimersByTimeAsync(5000); // FILE_ENTRY_TIMEOUT
+      expect(await p).toHaveLength(0);
+      expect(warnSpy).toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });

@@ -318,6 +318,26 @@ func (d *DirectoryCopyImporter) Import(srcPath, dstDir string) string {
 }
 
 func copyDir(src, dst string) error {
+	// BUG(SRC-DST) 修复：对齐 copyDirRecursive 的 src/dst 祖先守卫——
+	// DirectoryCopyImporter.Import(modelDir, 其父目录) 时 dstPath == srcDir（src==dst），
+	// 或 dstDir 位于模型文件夹内时 dst 是 src 的后代；无守卫时 copyDir 会把源目录
+	// 整体备份再移除，静默替换源文件夹为自身副本（源 inode 被销毁）。
+	absSrc, err := filepath.Abs(src)
+	if err != nil {
+		return fmt.Errorf("解析源路径失败: %w", err)
+	}
+	absDst, err := filepath.Abs(dst)
+	if err != nil {
+		return fmt.Errorf("解析目标路径失败: %w", err)
+	}
+	if absSrc == absDst {
+		return fmt.Errorf("源目录与目标目录相同: %s", absSrc)
+	}
+	rel, err := filepath.Rel(absSrc, absDst)
+	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("目标目录 %s 位于源目录 %s 内，递归复制会死循环", absDst, absSrc)
+	}
+
 	// 用 MkdirTemp 创建临时目录，避免并发冲突
 	tmpDir, err := os.MkdirTemp(filepath.Dir(dst), ".tmp_import_")
 	if err != nil {

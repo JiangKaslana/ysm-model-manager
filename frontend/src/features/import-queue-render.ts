@@ -163,8 +163,11 @@ export function bindQueueEvents(
         currentFileRef.current &&
         fileQueue.every((fq) => fq.file !== currentFileRef.current)
       ) {
-        currentFileRef.current = fileQueue[0].file;
-        currentBase64Ref.current = fileQueue[0].base64;
+        // 陷阱 #13 修复（幽灵状态）：当前编辑项被移除且队列非空 → 走 advanceQueue
+        // （内部 showForm 统一刷新 currentFile*/currentFileName/currentRelPath 与表单字段）。
+        // 原实现只刷 currentFile/currentBase64，currentFileName/currentRelPath 残留被删文件
+        // 的旧值——再点导入会用错文件名/子路径提交新文件
+        advanceQueue();
       }
       renderImportedListFn();
     };

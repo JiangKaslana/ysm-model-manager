@@ -3,7 +3,7 @@ import { bus } from "../bus.ts";
 import { initDataLayer } from "./import-queue-data.ts";
 import { renderImportedList, bindQueueEvents, updateQueueCount } from "./import-queue-render.ts";
 import { bindFormEvents, bindDragEvents, bindInputEvents, bindButtonEvents } from "./import-queue-events.ts";
-import type { ImportQueueHost } from "./import-queue-data.ts";
+import type { ImportFile, ImportQueueHost } from "./import-queue-data.ts";
 
 export { normalizeRepoName, type ImportQueueHost } from "./import-queue-data.ts";
 
@@ -23,6 +23,31 @@ export function initImportQueue(app: ImportQueueHost): () => void {
   // 初始化数据层
   const { state, actions, cleanup: dataCleanup } = initDataLayer(app);
 
+  // 共享 live ref：getter/setter 直连数据层 state —— 按钮/队列事件读取的必须永远是
+  // 最新 currentFile/base64/name/relPath/isImporting。原实现为 init 时一次性快照
+  // { current: state.currentX }，showForm 改 state 后 ref 不刷新 → 导入按钮永远读到
+  // null：表单导入的 base64/relPath 恒为空、队列项导入后永不弹出（陷阱 #13 幽灵状态）
+  const currentFileRef = {
+    get current(): ImportFile | null { return state.currentFile; },
+    set current(v: ImportFile | null) { state.currentFile = v; },
+  };
+  const currentBase64Ref = {
+    get current(): string | null { return state.currentBase64; },
+    set current(v: string | null) { state.currentBase64 = v; },
+  };
+  const currentFileNameRef = {
+    get current(): string | null { return state.currentFileName; },
+    set current(v: string | null) { state.currentFileName = v; },
+  };
+  const currentRelPathRef = {
+    get current(): string { return state.currentRelPath; },
+    set current(v: string) { state.currentRelPath = v; },
+  };
+  const isImportingRef = {
+    get current(): boolean { return state.isImporting; },
+    set current(v: boolean) { state.isImporting = v; },
+  };
+
   // 渲染
   let queueCleanups: Array<() => void> = [];
   const renderImportedListFn = (): void => {
@@ -33,11 +58,11 @@ export function initImportQueue(app: ImportQueueHost): () => void {
     queueCleanups = bindQueueEvents(
       importedList,
       state.fileQueue,
-      { current: state.currentFile },
-      { current: state.currentBase64 },
+      currentFileRef,
+      currentBase64Ref,
       actions.advanceQueue,
       renderImportedListFn,
-      { current: state.isImporting },
+      isImportingRef,
       actions.toggleForm,
     );
   };
@@ -56,12 +81,12 @@ export function initImportQueue(app: ImportQueueHost): () => void {
     importBtn,
     cancelBtn,
     clearListBtn,
-    { current: state.currentFile },
-    { current: state.currentBase64 },
-    { current: state.currentFileName },
-    { current: state.currentRelPath },
+    currentFileRef,
+    currentBase64Ref,
+    currentFileNameRef,
+    currentRelPathRef,
     state.fileQueue,
-    { current: state.isImporting },
+    isImportingRef,
     renderImportedListFn,
     actions.advanceQueue,
     actions.toggleForm,
