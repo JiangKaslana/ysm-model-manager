@@ -17,7 +17,7 @@ const VALID_ACTIONS = new Set(['import', 'toggle', 'delete', 'openFolder', 'view
 const VALID_CONFIG_FIELDS = new Set([
   'YsmRoot', 'ResourcepackRoot', 'ShaderpackRoot', 'SchematicRoot', 'LitematicRoot', 'MmdRoot', 'VrcRoot',
 ]);
-const REQUIRED_FIELDS = ['id', 'name', 'icon', 'extensions', 'installDir', 'instanceLevel', 'preview', 'detector', 'actions'];
+const REQUIRED_FIELDS = ['id', 'name', 'icon', 'extensions', 'installDir', 'instanceLevel', 'preview', 'detector', 'actions', 'storageSubDir', 'scanDir'];
 
 function validate() {
   const errors = [];
