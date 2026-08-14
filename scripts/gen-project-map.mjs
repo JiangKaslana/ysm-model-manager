@@ -90,19 +90,56 @@ function row(label, usage, drift, kind, tail = '') {
 
 /** 目录形态自动标注：〔文件 N · 子目录 M: a/ b/〕。
  *  结构变化后重跑脚本即更新（--check 接入 doctor 防漂移），形态描述不再靠手写。 */
+/** 测试文件判定（TS/JS 的 .test. / .spec.，Go 的 _test.）。 */
+function isTestFile(name) {
+  return /.(test|spec)./i.test(name) || /_test./.test(name);
+}
+
+/** 源码文件判定（语言扩展名且非测试）。 */
+function isSourceFile(name) {
+  return /.(ts|js|mjs|cjs|tsx|jsx|go)$/.test(name) && !isTestFile(name);
+}
+
+/** 目录形态扫描：{ source: [], test: [], other: [], dirs: [] }（直接子项，字节序排序）。 */
+function scanShape(dir) {
+  const shape = { source: [], test: [], other: [], dirs: [] };
+  if (!fs.existsSync(dir)) return shape;
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (e.name.startsWith('.')) continue;
+    if (e.isDirectory()) {
+      shape.dirs.push(e.name);
+    } else if (isTestFile(e.name)) {
+      shape.test.push(e.name);
+    } else if (isSourceFile(e.name)) {
+      shape.source.push(e.name);
+    } else {
+      shape.other.push(e.name);
+    }
+  }
+  for (const k of Object.keys(shape)) shape[k].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return shape;
+}
+
+/** 平铺源码名列表展示阈值：≤12 个列全名（防 AI 猜路径抓空），更长只显数字。 */
+const SOURCE_LIST_MAX = 12;
+const SOURCE_LIST_CHARS = 100;
+
+/** 目录形态自动标注：〔源码 N: a.ts b.ts … · 测试 M · 子目录 K: x/ y/〕。
+ *  结构变化后重跑脚本即更新（--check 接入 doctor 防漂移），形态描述不再靠手写。 */
 function shapeTail(dir) {
-  if (!fs.existsSync(dir)) return '';
-  const entries = fs.readdirSync(dir, { withFileTypes: true }).filter((e) => !e.name.startsWith('.'));
-  const files = entries.filter((e) => e.isFile()).length;
-  const dirs = entries
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  if (files === 0 && dirs.length === 0) return '';
+  const sh = scanShape(dir);
   const parts = [];
-  if (files > 0) parts.push(`文件 ${files}`);
-  if (dirs.length > 0) parts.push(`子目录 ${dirs.length}: ${dirs.map((d) => d + '/').join(' ')}`);
-  return ` 〔${parts.join(' · ')}〕`;
+  if (sh.source.length > 0) {
+    if (sh.source.length <= SOURCE_LIST_MAX) {
+      const list = sh.source.join(' ');
+      parts.push(`源码 ${sh.source.length}: ${list.length <= SOURCE_LIST_CHARS ? list : list.slice(0, SOURCE_LIST_CHARS - 3) + '…'}`);
+    } else {
+      parts.push(`源码 ${sh.source.length}`);
+    }
+  }
+  if (sh.test.length > 0) parts.push(`测试 ${sh.test.length}`);
+  if (sh.dirs.length > 0) parts.push(`子目录 ${sh.dirs.length}: ${sh.dirs.map((d) => d + '/').join(' ')}`);
+  return parts.length > 0 ? ` 〔${parts.join(' · ')}〕` : '';
 }
 
 /** 生成完整 markdown（内存态，不落盘）。 */
@@ -182,10 +219,15 @@ ${rootRows}
 <!-- /GEN: root-files -->
 `;
 
-  return { md, drift };
+  return {
+    md,
+    drift,
+    usage,
+    zones: { go: goDirs, internal: internalDirs, frontend: feDirs, frontendFiles: feFiles, root: rootFiles },
+  };
 }
 
-const { md, drift } = build();
+const { md, drift, usage, zones } = build();
 
 // ── 输出 ──
 let rc = 0;
@@ -210,11 +252,26 @@ if (CHECK) {
 }
 
 if (JSON_OUT) {
+  // 结构化输出：目录形态（源码/测试/其他/子目录）+ 用途——fast worker 程序化消费，
+  // 绕开 markdown 表格解析（根治「猜路径抓空」）。
+  const structure = {};
+  for (const zone of ['go', 'internal', 'frontend']) {
+    structure[zone] = {};
+    for (const d of zones[zone]) {
+      const key = d + '/';
+      structure[zone][key] = { usage: usage[key] || null, ...scanShape(path.join(ROOT, zone === 'frontend' ? 'frontend/src' : zone, d)) };
+    }
+  }
+  structure.frontendFiles = {};
+  for (const f of zones.frontendFiles) structure.frontendFiles[f] = { usage: usage[f] || null };
+  structure.root = {};
+  for (const f of zones.root) structure.root[f] = { usage: usage[f] || null };
   console.log(JSON.stringify({
     ok: rc === 0,
     check: CHECK,
     generated: !CHECK,
     drift: { unregistered: drift.unregistered },
+    structure,
   }));
 }
 
