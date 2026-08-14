@@ -34,14 +34,14 @@
 | Go(internal)·应用入口 | 22 | 179 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 9 | 56 |
-| 前端·核心 | 18 | 41 |
-| 前端·特性 | 19 | 92 |
+| 前端·核心 | 18 | 36 |
+| 前端·特性 | 19 | 89 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 54 | 196 |
-| frontend/views | 78 | 210 |
+| 前端·工具 | 54 | 181 |
+| frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **268** | **1106** |
+| **合计** | **268** | **1081** |
 
 ## Go·头像
 
@@ -705,13 +705,8 @@
 |------|--------|------|
 | `DIR_HANDLERS()` | `frontend/src/core/context-menu-dir-handlers:9` | dir 类 handler 子表 |
 | `FILE_HANDLERS()` | `frontend/src/core/context-menu-file-handlers:12` | file 类 handler 子表 |
-| `refreshUI()` | `frontend/src/core/context-menu-handlers` | — |
-| `toast()` | `frontend/src/core/context-menu-handlers` | — |
-| `isUnsafeFolderName()` | `frontend/src/core/context-menu-handlers` | — |
-| `resolveDstDir()` | `frontend/src/core/context-menu-handlers` | — |
-| `runBatchFileOp()` | `frontend/src/core/context-menu-handlers:23` | — |
-| `MenuCtx()` | `frontend/src/core/context-menu-handlers:74` | — |
-| `HANDLERS()` | `frontend/src/core/context-menu-handlers:77` | 行为 handler 表（instance + batch + merge file/dir） |
+| `MenuCtx()` | `frontend/src/core/context-menu-handlers:73` | — |
+| `HANDLERS()` | `frontend/src/core/context-menu-handlers:76` | 行为 handler 表（instance + batch + merge file/dir） |
 | `refreshUI()` | `frontend/src/core/context-menu-shared:14` | 通知树组件和统计面板刷新 |
 | `toast()` | `frontend/src/core/context-menu-shared:20` | 显示 toast 通知 |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:25` | 路径安全过滤：禁止逃逸段（. |
@@ -752,7 +747,6 @@
 | `showProgress()` | `frontend/src/features/community/data:7` | 创建进度条 UI（插入到 searchResults 容器） |
 | `FetchModelsResult()` | `frontend/src/features/community/data:36` | 抓取结果 |
 | `tryFetchModels()` | `frontend/src/features/community/data:49` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
-| `PctEl()` | `frontend/src/features/community/download-queue-progress:10` | 进度条元素的自定义属性（点动画） |
 | `ProgressGuardHooks()` | `frontend/src/features/community/download-queue-progress:16` | createProgressGuard 依赖注入（controller 提供查找与收口回调） |
 | `ProgressGuard()` | `frontend/src/features/community/download-queue-progress:24` | 进度条守卫控制器 |
 | `createProgressGuard()` | `frontend/src/features/community/download-queue-progress:40` | — |
@@ -772,13 +766,12 @@
 | `resume()` | `frontend/src/features/community/download-queue` | — |
 | `enqueueDownloads()` | `frontend/src/features/community/download-queue` | — |
 | `cancelDownloads()` | `frontend/src/features/community/download-queue` | — |
-| `isActiveStatus()` | `frontend/src/features/community/download-queue` | — |
 | `DownloadTask()` | `frontend/src/features/community/download-queue` | — |
 | `DownloadState()` | `frontend/src/features/community/download-queue` | — |
 | `QueueError()` | `frontend/src/features/community/download-queue` | — |
-| `QueueControllerOptions()` | `frontend/src/features/community/download-queue:43` | createDownloadQueue 选项 |
-| `QueueController()` | `frontend/src/features/community/download-queue:52` | 队列控制器 |
-| `createDownloadQueue()` | `frontend/src/features/community/download-queue:77` | 创建一个下载队列 UI 控制器。 |
+| `QueueControllerOptions()` | `frontend/src/features/community/download-queue:42` | createDownloadQueue 选项 |
+| `QueueController()` | `frontend/src/features/community/download-queue:51` | 队列控制器 |
+| `createDownloadQueue()` | `frontend/src/features/community/download-queue:76` | 创建一个下载队列 UI 控制器。 |
 | `DOWNLOAD_CONFIRM_BYTES()` | `frontend/src/features/community/download-tasks:7` | 超过该大小需弹窗确认（含边界值本身直接下载） |
 | `DOWNLOAD_REJECT_BYTES()` | `frontend/src/features/community/download-tasks:9` | 超过该大小直接拒绝（含边界值本身需确认） |
 | `DownloadSizeDecision()` | `frontend/src/features/community/download-tasks:11` | — |
@@ -800,7 +793,6 @@
 | `renderRepoHeaderHTML()` | `frontend/src/features/community/render:267` | 生成仓库模型页面的头部 HTML（含返回按钮、计数、筛选按钮等） |
 | `CollectedFile()` | `frontend/src/features/dnd-collector:6` | 收集结果条目 |
 | `collectFiles()` | `frontend/src/features/dnd-collector:34` | 递归收集 DataTransferItem[] 或 FileSystemEntry[] 中的文件。 |
-| `mergeDropFiles()` | `frontend/src/features/dnd-collector:94` | 从 DropEvent 聚合 collected 条目： 1. |
 | `getExt()` | `frontend/src/features/dnd-shared:4` | — |
 | `isSupportedFile()` | `frontend/src/features/dnd-shared:8` | 扩展名是否在支持列表 |
 | `isImportableFile()` | `frontend/src/features/dnd-shared:14` | 是否可作为独立文件导入：.json 仅放行 ysm.json 入口清单 包内 geometry/animation/语言 json（main.json / *.animation. |
@@ -899,9 +891,6 @@
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:10` | 构建骨骼层级路径映射（name/id/parent/children）。 |
-| `getBonePath()` | `frontend/src/utils/3d/bone-raycast:35` | 骨骼名 → 全路径（如 "root / spine / head"）。 |
-| `getMeshBoneId()` | `frontend/src/utils/3d/bone-raycast:48` | Mesh → 所属骨骼名（沿父链向上查找 has isGroup 且 name 在 nameMap 中的节点）。 |
-| `assembleBoneSelectInfo()` | `frontend/src/utils/3d/bone-raycast:62` | 骨骼选中信息组装。 |
 | `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:123` | 注册 pointermove / click 骨骼拾取监听器。 |
 | `BoneGroupMap()` | `frontend/src/utils/3d/bone-visibility:6` | BoneGroupMap 类型别名：骨骼 id → THREE.Group |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
@@ -917,10 +906,7 @@
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:24` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:199` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
-| `parseUV()` | `frontend/src/utils/3d/cube-mesh:227` | 解析 UV：faceUV 优先、失败回退 expandBoxUV、c.UV 回退。 |
-| `DebugBoneData()` | `frontend/src/utils/3d/debug-render:7` | — |
-| `makeTextTexture()` | `frontend/src/utils/3d/debug-render:14` | 生成骨骼名 Canvas 纹理（Sprite 标签用） |
-| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:43` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
+| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:37` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
 | `loadTdKeymap()` | `frontend/src/utils/3d/keymap:27` | 读取用户自定义键位（无/非法时回退默认） |
@@ -967,22 +953,13 @@
 | `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
 | `resetRendererState()` | `frontend/src/utils/3d/session-state:18` | 复位所有模块级渲染器引用为 null。 |
 | `detachRendererCanvas()` | `frontend/src/utils/3d/session-state:28` | 从 DOM 中移除 renderer 的 canvas 元素（安全，已 detached 时不操作）。 |
-| `buildCubeMeshData()` | `frontend/src/utils/3d/spec-builder` | — |
-| `mergeCubes()` | `frontend/src/utils/3d/spec-builder` | — |
-| `parseUV()` | `frontend/src/utils/3d/spec-builder` | — |
-| `eulerToQuaternion()` | `frontend/src/utils/3d/spec-builder` | — |
-| `isIdentityQuat()` | `frontend/src/utils/3d/spec-builder` | — |
-| `hasBoneRotation()` | `frontend/src/utils/3d/spec-builder` | — |
-| `buildModelGroup()` | `frontend/src/utils/3d/spec-builder` | — |
-| `Vec3()` | `frontend/src/utils/3d/spec-builder:26` | vec3 — Go threejs/spec.go L55 |
-| `Cube2D()` | `frontend/src/utils/3d/spec-builder:33` | Cube2D — Go types/bedrock.go Cube2D |
-| `Bone2D()` | `frontend/src/utils/3d/spec-builder:49` | Bone2D — Go types/bedrock.go Bone2D |
-| `BedrockModel()` | `frontend/src/utils/3d/spec-builder:59` | BedrockModel — Go types/bedrock.go BedrockModel |
-| `Model3DSpec()` | `frontend/src/utils/3d/spec-builder:70` | Model3DSpec — Go threejs/spec.go Model3DSpec |
-| `ModelGroup()` | `frontend/src/utils/3d/spec-builder:75` | ModelGroup — Go threejs/spec.go ModelGroup |
-| `BoneData()` | `frontend/src/utils/3d/spec-builder:87` | BoneData — Go threejs/spec.go BoneData |
-| `MeshData()` | `frontend/src/utils/3d/spec-builder:97` | MeshData — Go threejs/spec.go MeshData |
-| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:116` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `Vec3()` | `frontend/src/utils/3d/spec-builder:23` | vec3 — Go threejs/spec.go L55 |
+| `Cube2D()` | `frontend/src/utils/3d/spec-builder:30` | Cube2D — Go types/bedrock.go Cube2D |
+| `BedrockModel()` | `frontend/src/utils/3d/spec-builder:56` | BedrockModel — Go types/bedrock.go BedrockModel |
+| `ModelGroup()` | `frontend/src/utils/3d/spec-builder:72` | ModelGroup — Go threejs/spec.go ModelGroup |
+| `BoneData()` | `frontend/src/utils/3d/spec-builder:84` | BoneData — Go threejs/spec.go BoneData |
+| `MeshData()` | `frontend/src/utils/3d/spec-builder:94` | MeshData — Go threejs/spec.go MeshData |
+| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:113` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:12` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:9` | 三维向量 [x, y, z] |
 | `Keyframe()` | `frontend/src/utils/animation/animation:12` | 关键帧 |
@@ -1294,9 +1271,7 @@
 | `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:25` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
-| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-events` | — |
-| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-events` | — |
-| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:60` | — |
+| `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:59` | — |
 | `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:17` | — |
 | `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:193` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |

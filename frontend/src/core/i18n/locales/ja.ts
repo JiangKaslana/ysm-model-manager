@@ -869,6 +869,7 @@ export const ja: Record<string, string> = {
   "tree.authorsEmpty": "作者なし",
   "tree.treeLoadFailed": "<div class=\"empty\"><div class=\"big\">⚠️</div>読み込み失敗</div>",
   "tree.scanning": "<div class=\"empty\"><div class=\"big\">⏳</div><div>スキャン中...</div></div>",
+  "tree.dropHint": "モデルファイルをドロップしてインポート",
 
   // ── モデル詳細の整形（summarize）──
   "format.modelDetail": "モデル詳細",

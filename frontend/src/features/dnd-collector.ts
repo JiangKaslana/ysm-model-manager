@@ -91,13 +91,3 @@ export async function collectFiles(
  * 2. 合并 dataTransfer.files 兜底（WebView2 受限场景），按 name+size+lastModified 去重；
  * 3. 若最终仍为空，回退到纯 files 列表。
  */
-export async function mergeDropFiles(e: DragEvent): Promise<CollectedFile[]> {
-  let collected: CollectedFile[] = [];
-  const items = Array.from(e.dataTransfer?.items || []);
-  if (items.length > 0) {
-    collected = await collectFiles(items, false);
-  }
-  // 等待异步收集完成后再合并 files
-  // 注意：此函数在 async collectFiles 完成后调用，调用方需 await
-  return collected;
-}

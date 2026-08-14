@@ -224,7 +224,11 @@ export class AppTree extends HTMLElement {
       '<div class="list" id="tree">' +
       spinnerHTML() +
       "</div>" +
+      '<div class="tree-drop-hint" id="tree-drop-hint"><span class="dot"></span><span id="tree-drop-text"></span></div>' +
       footerHTML();
+    // 注入拖拽提示文案（i18n）
+    const hintEl = this._root.getElementById("tree-drop-text");
+    if (hintEl) hintEl.textContent = t("tree.dropHint");
   }
 
   _renderTree(): void {

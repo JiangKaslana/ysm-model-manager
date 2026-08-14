@@ -871,6 +871,7 @@ export const zhCN: Record<string, string> = {
   "tree.authorsEmpty": "暂无作者",
   "tree.treeLoadFailed": "<div class=\"empty\"><div class=\"big\">⚠️</div>加载失败</div>",
   "tree.scanning": "<div class=\"empty\"><div class=\"big\">⏳</div><div>扫描中...</div></div>",
+  "tree.dropHint": "拖入模型文件快速导入",
 
   // ── 模型详情格式化（summarize）──
   "format.modelDetail": "模型详情",

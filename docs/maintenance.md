@@ -90,7 +90,7 @@ node scripts/check-deadcode-baseline.mjs  # 死代码/重复代码门禁
 
 | # | 立项项 | 内容 | 来源 |
 |---|--------|------|------|
-| 1 | ~~**dnd 两套收集器收敛**~~ | 🔄 ADR-060 记录（方向已定，待立项）：`import-dnd.ts` 的 `collectFiles` vs `import-queue-data.ts` 的 `collectEntry` 统一到 `features/dnd-collector.ts`；同时 `registerDnD` 从 `document` 级改为各组件容器节点绑定，删除 `#global-drop-overlay` 全局遮罩与 `app-modules.ts` capture 阶段补丁。决策：仓库页改为显式 drop zone（类似 `#dl-drop`），消除隐式触发与引导成本问题 | ~~2026-08-11 dnd 审计~~ → ADR-060 |
+| 1 | ~~**dnd 两套收集器收敛**~~ | ✅ 已落地（2026-08-14，ADR-060）：`import-dnd.ts` 从 `document` 级 `registerDnD` 收敛为 `bindTreeDnD` 组件内绑定；`collectEntry`/`collectFiles` 统一到 `features/dnd-collector.ts`；`#global-drop-overlay` 全局遮罩 + `app-modules.ts` capture 补丁一并删除；仓库页底部新增显式 drop hint 条（`tree-drop-hint`） | ~~2026-08-11 dnd 审计~~ → ADR-060 ✅ |
 | 2 | **oversize 判定下沉 executor** | 导入页 drop 路径（import-queue routeCollected）无 100MB 过滤，与 import-dnd（已逐文件过滤）/ browser-adapter（MAX_IMPORT_BYTES）不一致；下沉到 import-executor 的 directImport/importFolder 统一执行，两入口自然对齐 | 2026-08-11 dnd 审计 |
 | 3 | **resource_types embed↔JSON 一致性守护** | `go/types/resource_types_embed.go` 与根 `resource_types.json` 无自动化比对（历史曾漂移：create-blueprint.name「蓝图」vs「蓝图 / 结构」，靠人工同步）；新增 Go 测试或 Node 契约脚本逐字段比对（尤其 name） | 2026-08-11 resource 审计 |
 | 4 | **schema 补 storageSubDir 必填** | `tests/test_resource_schema.mjs` 的 REQUIRED_FIELDS 缺 `storageSubDir`/`scanDir`——新类型缺此字段可通过 schema，Go `StorageSubDir` 静默回退 rtype | 2026-08-11 resource 审计 |

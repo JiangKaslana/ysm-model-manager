@@ -142,14 +142,24 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   const isBusy = () => _dropBusy;
   const setBusy = (v: boolean) => { _dropBusy = v; };
 
+  const hintEl = container.parentElement?.querySelector<HTMLElement>(".tree-drop-hint");
+
   const onDragOver = (e: DragEvent): void => {
     if (isEditable(e.target)) return;
     if (!e.dataTransfer?.types?.includes("Files")) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
+    if (hintEl && !_dropBusy) hintEl.style.display = "flex";
+  };
+
+  const onDragLeave = (e: DragEvent): void => {
+    // 仅在真正离开容器时隐藏（不是移到子元素）
+    if (!(e.currentTarget === e.relatedTarget || (e.relatedTarget as HTMLElement | null)?.closest?.(container.tagName === "APP-TREE" ? "app-tree" : ".list"))) return;
+    if (hintEl) hintEl.style.display = "none";
   };
 
   const onDrop = (e: DragEvent): void => {
+    if (hintEl) hintEl.style.display = "none";
     void handleTreeDrop(e, isBusy, setBusy).catch((err) => {
       console.error("[tree-dnd] 拖放处理失败:", err);
       bus.emit("toast:show", {
@@ -161,9 +171,11 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   };
 
   container.addEventListener("dragover", onDragOver);
+  container.addEventListener("dragleave", onDragLeave);
   container.addEventListener("drop", onDrop);
   return () => {
     container.removeEventListener("dragover", onDragOver);
+    container.removeEventListener("dragleave", onDragLeave);
     container.removeEventListener("drop", onDrop);
   };
 }

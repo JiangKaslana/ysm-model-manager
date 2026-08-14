@@ -868,6 +868,7 @@ export const en: Record<string, string> = {
   "tree.authorsEmpty": "No authors",
   "tree.treeLoadFailed": "<div class=\"empty\"><div class=\"big\">⚠️</div>Load failed</div>",
   "tree.scanning": "<div class=\"empty\"><div class=\"big\">⏳</div><div>Scanning...</div></div>",
+  "tree.dropHint": "Drop model files here to import",
 
   // ── Model detail formatting (summarize) ──
   "format.modelDetail": "Model Details",
