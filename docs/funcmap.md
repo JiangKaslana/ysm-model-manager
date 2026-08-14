@@ -33,7 +33,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 179 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 9 | 56 |
+| frontend/backend | 9 | 57 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 19 | 89 |
 | 前端·服务 | 1 | 6 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 54 | 181 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **268** | **1081** |
+| **合计** | **268** | **1082** |
 
 ## Go·头像
 
@@ -650,7 +650,7 @@
 | `arrayBufferToBase64()` | `frontend/src/backend/browser-adapter` | — |
 | `importWebFiles()` | `frontend/src/backend/browser-adapter` | — |
 | `selectLocalRepo()` | `frontend/src/backend/browser-adapter` | — |
-| `browserAdapter()` | `frontend/src/backend/browser-adapter:216` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `browserAdapter()` | `frontend/src/backend/browser-adapter:220` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |
@@ -682,8 +682,9 @@
 | `readWebFile()` | `frontend/src/backend/web-fs:141` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
 | `parseWebModelPath()` | `frontend/src/backend/web-fs:156` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
 | `parseWebModelDir()` | `frontend/src/backend/web-fs:173` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:180` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:194` | — |
+| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:186` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:205` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:219` | — |
 | `loadWebConfig()` | `frontend/src/backend/web-store:11` | — |
 | `saveWebConfig()` | `frontend/src/backend/web-store:19` | — |
 | `getWebImportLogs()` | `frontend/src/backend/web-store:43` | — |

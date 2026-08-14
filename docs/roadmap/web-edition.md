@@ -64,6 +64,8 @@
 
 **P-A 改造点（四处约定）**：`dirKey` 多段化 → `scanWebModels` 按段递归枚举 → `importWebFiles` 保留相对路径落库 → `parseWebModelDir` 正则放开多段。
 
+**P-A 已落地（2026-08-14）**：四处约定全部改造完成（web-fs.ts），R1 契约测试 73 项闭环（browser-adapter.test.ts「R1 文件层级读取」块）；`ListAllFilePaths` 桥接补上（`listWebModelDirFiles` 递归列目录下全部文件，含组内子目录 rel；bus-handlers 删除目录移回收站联动随之解冻）。
+
 **P-A 有现成镜像可抄（MikuMikuAR，2026-08-14 隔壁核实）**：其 `ListDirRecursive`（`MikuMikuAR/frontend/src/core/backend/browser-adapter.ts:2181-2210`）已实现同一思路：
 - key 规约 `dir:<stem>:<relPath>`，relPath 保留子目录（`tex/face.png`）——与 YSM `file:<type>/<name>/<rel>` 同构，`<rel>` 本就可含 `/`
 - 层级扫描 = `idbKeys` 全键 `startsWith(prefix)` 过滤 + 返回 `{name, relativePath}`；**两轮匹配：精确前缀 miss → bare stem fallback**（取路径末段再扫，解决 FSA 类别前缀 `web://model/分类1/Miku` 兼容）
@@ -113,12 +115,14 @@ ADR-053 将 `MoveModelFile` / `CopyModelFile` 归 C 类（理由：「依赖桌�
 
 ## 4. 阶段路线图
 
-### R1 · 文件层级读取（数据层，P-A 定案）
+### R1 · 文件层级读取（数据层，P-A 定案）✅ 已闭环
 
 - **目标**：网页版获得递归目录读取能力；`ListAllFilePaths` 可复刻，树/筛选/搜索数值条件解锁
 - **任务**：四处约定改造（dir key 多段化、递归枚举、导入保留 rel 路径、parse 放开多段，**参照 MikuMikuAR `ListDirRecursive` 镜像，见 §2.2**）→ 存量两段 key 迁移 → `ListAllFilePaths`/`ListFileNames` 桥接 + 契约测试（模板 `backend.virtual-dir.test.ts`）
 - **验收**：树视图子目录可展开；`SearchModels` 数值条件不再静默忽略；万级 key 前缀扫描性能达标
 - **风险**：存量 IDB 数据迁移兼容（`data` 版本升级 or 惰性迁移）；重命名/删除的递归联动
+
+> **落地记录（2026-08-14）**：四处约定改造完成 + `ListAllFilePaths` 桥接落地（`listWebModelDirFiles`），契约测试 73 项闭环。`ListFileNames` 属 C 类（整合包/实例 16 项，明确不做，见 §2.1）。存量 key 迁移与 SearchModels 数值条件解锁留待后续（R1 数据层主体已闭环）。
 
 ### R2 · 数据互通（数据层）
 
