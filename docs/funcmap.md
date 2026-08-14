@@ -269,10 +269,10 @@
 | `InvalidatePath()` | `go/scanner/scanner:74` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
 | `ScanEntries()` | `go/scanner/scanner:105` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:112` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:246` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:299` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:329` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:392` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ComputeFileHash()` | `go/scanner/scanner:242` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:295` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:325` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:388` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -825,18 +825,18 @@
 | `directImport()` | `frontend/src/features/import-executor:92` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
 | `importFolder()` | `frontend/src/features/import-executor:133` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
 | `executeCollected()` | `frontend/src/features/import-executor:197` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `ImportFile()` | `frontend/src/features/import-queue-data:13` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `QueueItem()` | `frontend/src/features/import-queue-data:16` | 队列项数据类型 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue-data:29` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
-| `ImportQueueHost()` | `frontend/src/features/import-queue-data:34` | 应用主机接口 |
-| `initDataLayer()` | `frontend/src/features/import-queue-data:40` | 初始化导入队列的数据层：返回状态对象和清理函数 |
+| `ImportFile()` | `frontend/src/features/import-queue-data:14` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `QueueItem()` | `frontend/src/features/import-queue-data:17` | 队列项数据类型 |
+| `normalizeRepoName()` | `frontend/src/features/import-queue-data:30` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
+| `ImportQueueHost()` | `frontend/src/features/import-queue-data:35` | 应用主机接口 |
+| `initDataLayer()` | `frontend/src/features/import-queue-data:41` | 初始化导入队列的数据层：返回状态对象和清理函数 |
 | `bindFormEvents()` | `frontend/src/features/import-queue-events:24` | 表单输入事件绑定 |
 | `bindDragEvents()` | `frontend/src/features/import-queue-events:55` | 拖拽事件绑定 |
 | `bindInputEvents()` | `frontend/src/features/import-queue-events:160` | 文件输入框事件绑定 |
 | `bindButtonEvents()` | `frontend/src/features/import-queue-events:276` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
-| `updateQueueCount()` | `frontend/src/features/import-queue-render:181` | 更新队列计数显示 |
+| `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
 | `normalizeRepoName()` | `frontend/src/features/import-queue` | — |
 | `ImportQueueHost()` | `frontend/src/features/import-queue` | — |
 | `initImportQueue()` | `frontend/src/features/import-queue:11` | 初始化导入队列，返回清理函数 |

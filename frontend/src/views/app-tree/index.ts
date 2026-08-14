@@ -179,6 +179,13 @@ export class AppTree extends HTMLElement {
         this._renderTree();
       } catch (e) {
         console.error("[Tree root change Error]", e);
+        // 防御范式①：async handler 最外层必有 catch 出口——root 切换失败时
+        // 树停在空/旧状态用户零反馈，转 toast（与 reload/_deleteSelected 同出口）
+        bus.emit("toast:show", {
+          msg: "❌ " + friendlyError(e),
+          duration: 4000,
+          type: "error",
+        });
       }
     })();
   }

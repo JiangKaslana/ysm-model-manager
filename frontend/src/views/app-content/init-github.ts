@@ -222,7 +222,15 @@ export function initGithubPage(host: AppContentHost): void {
         missingCount,
       });
       // 清理前一次绑定
-      if (host._repoEventsCleanup) await host._repoEventsCleanup();
+      if (host._repoEventsCleanup) {
+        try {
+          await host._repoEventsCleanup();
+        } catch (e) {
+          // 与 init-workshop 同模式（c7cd6363 漏修此处）：cleanup（含 queue.cancel）
+          // 失败不阻断新仓库绑定——裸 await 会把 reject 逸出成 unhandled rejection
+          dbg("repo-events", "清理旧仓库事件失败:", (e as Error)?.message);
+        }
+      }
       const { renderList, cleanup } = bindRepoEvents(resultsBody, {
         esc: (s) => host._esc(s),
         models,

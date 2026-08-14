@@ -171,6 +171,13 @@ class AppContent extends HTMLElement {
       // 注册，不会重复监听）。
       this._insListenerReg = false;
     }
+    // P2 修复（审核）：切页/语言热切换时同样清理 workshop 延迟加载定时器——
+    // 原仅 disconnectedCallback 清理，切离 workshop 后定时器仍在失效 DOM 上
+    // 触发全量加载 + 网络拉取；lang:changed 时新旧双定时器叠加
+    if (this._workshopTimer) {
+      clearTimeout(this._workshopTimer);
+      this._workshopTimer = null;
+    }
     try {
       let inner = "";
       switch (this._current) {

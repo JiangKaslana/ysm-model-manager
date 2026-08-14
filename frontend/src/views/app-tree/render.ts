@@ -333,6 +333,9 @@ export function renderTree(
   }
 }
 
+// 元素 → 在途统计动画句柄（连续搜索/过滤重渲染时取消旧动画与旧定时器，防堆积）
+const statAnim = new WeakMap<HTMLElement, { cancel: () => void; timer: ReturnType<typeof setTimeout> }>();
+
 // ——— 选中计数用（兼容旧接口） ———
 export function updateStat(el: HTMLElement | null, entries: TreeEntry[]): void {
   if (!el) return;
@@ -346,13 +349,22 @@ export function updateStat(el: HTMLElement | null, entries: TreeEntry[]): void {
     totalSize += e.size || 0;
   });
   const newText = t("tree.statSummary", { total, enabled, size: formatBytes(totalSize) });
+  // 先取消在途动画与定时器：连续触发时旧动画中间值会干扰下一次 textContent 判断，定时器堆积
+  const prev = statAnim.get(el);
+  if (prev) {
+    prev.cancel();
+    clearTimeout(prev.timer);
+    statAnim.delete(el);
+  }
   if (el.textContent !== newText) {
     const oldTotal = parseInt(el.textContent.match(/(\d+)\s*项/)?.[1] || "", 10) || 0;
     if (oldTotal > 0 && oldTotal !== total && total > 0) {
-      animateNumber(el, total, 700);
-      setTimeout(() => {
+      const cancel = animateNumber(el, total, 700);
+      const timer = setTimeout(() => {
         el.textContent = newText;
+        statAnim.delete(el);
       }, 700);
+      statAnim.set(el, { cancel, timer });
     } else {
       el.textContent = newText;
     }

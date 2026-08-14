@@ -42,7 +42,15 @@ function collectDirEntries(
 }
 
 async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> {
-  if (vm._batchBusy || vm._toggleBusy) return; // 并发守卫：与单文件/批量 toggle 共用槽位，防重叠循环
+  if (vm._batchBusy || vm._toggleBusy) {
+    // 防御范式①：busy 命中必回提示，禁止静默吞事件（与单文件/批量 toggle 一致）
+    bus.emit("toast:show", {
+      msg: "⏳ 操作进行中，请稍候",
+      duration: 1500,
+      type: "info",
+    });
+    return;
+  }
   // 查看器模式（Android/网页版 ADR-049）：无本地文件系统写能力，启用/禁用开关不可用
   if (isViewerMode()) {
     bus.emit("toast:show", {

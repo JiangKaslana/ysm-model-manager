@@ -40,15 +40,20 @@ export function flashBtn(el: HTMLElement | null, opts?: FlashOptions): void {
   const toneCls = tone === "warn" || tone === "error" ? "flash--" + tone : "";
 
   const prev = flashTimers.get(el);
-  if (prev !== undefined) clearTimeout(prev);
+  if (prev !== undefined) window.clearTimeout(prev);
 
+  // 跨 tone 连点防残留：旧定时器被清后无人移除旧修饰符（如 warn→success），
+  // add 前统一清除全部 tone 修饰符；回调也统一移除，保证 classList 收敛
+  el.classList.remove("flash--warn");
+  el.classList.remove("flash--error");
   el.classList.add("flash");
   if (toneCls) el.classList.add(toneCls);
   flashTimers.set(
     el,
     window.setTimeout(() => {
       el.classList.remove("flash");
-      if (toneCls) el.classList.remove(toneCls);
+      el.classList.remove("flash--warn");
+      el.classList.remove("flash--error");
       flashTimers.delete(el);
     }, duration),
   );

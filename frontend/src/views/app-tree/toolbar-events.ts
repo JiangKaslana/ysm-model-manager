@@ -286,7 +286,14 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         // 不实际导入任何文件（网页版模型库在 IndexedDB，无「放入公共目录」概念）→
         // 改走浏览器文件选择器 + importWebFiles 直写 IndexedDB，与 import-file 同语义。
         if (resolveWebMode()) {
-          await pickWebFilesAndImport(rtype, () => vm._load(), () => vm._renderTree());
+          const gen = vm._gen; // 代际守卫：IndexedDB 写入耗时期间 root 切换后丢弃过期渲染
+          await pickWebFilesAndImport(
+            rtype,
+            () => vm._load(),
+            () => {
+              if (vm._gen === gen) vm._renderTree();
+            },
+          );
           return;
         }
         // 查看器模式（Android）：Wails 目录选择不可用（dialogs_android.go）→
@@ -303,6 +310,7 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
         }
         const { SelectDirectory, ImportByType } =
           await getApp();
+        const gen = vm._gen; // 代际守卫：目录选择/导入耗时期间 root 切换后丢弃过期渲染
         const dirPath = await SelectDirectory();
         if (!dirPath) return;
         // 后端 ImportByType → SimpleCopyImporter / DirectoryCopyImporter 都判 info.IsDir()，目录/文件都支持
@@ -316,6 +324,7 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
           return;
         }
         await vm._load();
+        if (gen !== vm._gen) return;
         vm._renderTree();
         bus.emit("toast:show", {
           msg: "✅ 文件夹导入成功",
@@ -325,7 +334,9 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
       } else if (action === "refresh") {
         const tree = $("tree");
         if (tree) tree.innerHTML = spinnerHTML();
+        const gen = vm._gen; // 代际守卫：刷新加载期间 root 切换后丢弃过期渲染
         await vm._load();
+        if (gen !== vm._gen) return;
         vm._renderTree();
       } else if (action === "genindex") {
         const btn = item as HTMLButtonElement;

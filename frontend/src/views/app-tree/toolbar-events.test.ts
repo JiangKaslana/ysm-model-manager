@@ -439,6 +439,8 @@ describe("bindToolbarEvents — 全选/反选", () => {
     expect(selectState.keys.has("/r/b.ysm")).toBe(true);
     // 文件夹行不参与全选
     expect(selectState.keys.has("/r/dir")).toBe(false);
+    // 使用点接线：flashBtn 同步加 flash class（审核回归锁）
+    expect(getByTestId("tree-sel-all")!.classList.contains("flash")).toBe(true);
   });
 
   it("再次点击 → 全部反选", () => {
@@ -533,6 +535,8 @@ describe("bindToolbarEvents — 导出/导航/搜索/排序/视图", () => {
 
     expect(vm._renderMode).toBe("grid");
     expect(setRenderModeMock).toHaveBeenCalledWith("grid");
+    // 使用点接线：flashBtn 同步加 flash class（审核回归锁）
+    expect(getByTestId("tree-view-mode")!.classList.contains("flash")).toBe(true);
 
     getByTestId("tree-view-mode")!.click();
     expect(vm._renderMode).toBe("list");

@@ -178,14 +178,10 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 		}
 		ext := strings.ToLower(filepath.Ext(p))
 		originalExt := ext
-		lower := strings.ToLower(p)
-		var restored string
-		if strings.HasSuffix(lower, ".ban") {
-			restored = p[:len(p)-4]
-		} else if strings.HasSuffix(lower, ".disabled") {
-			restored = p[:len(p)-9] // len(".disabled") == 9
-		}
-		if restored != "" {
+		// 目录级 .ban 已在上方 SkipDir；文件级 .ban/.disabled 恢复原扩展名判断
+		// （stripDisableSuffix 与作者提取共用同口径）
+		restored := stripDisableSuffix(p)
+		if restored != p {
 			originalExt = strings.ToLower(filepath.Ext(restored))
 		}
 		if !types.IsSupportedExt(originalExt) {
@@ -266,6 +262,35 @@ func ComputeFileHash(path string) string {
 
 // ========== 作者提取 ==========
 
+// stripDisableSuffix 剥离 .ban/.disabled 禁用后缀（口径与 ScanEntries 一致，三处共用防漂移）
+func stripDisableSuffix(name string) string {
+	lower := strings.ToLower(name)
+	if strings.HasSuffix(lower, ".ban") {
+		return name[:len(name)-4]
+	}
+	if strings.HasSuffix(lower, ".disabled") {
+		return name[:len(name)-len(".disabled")]
+	}
+	return name
+}
+
+// extractAuthor 从文件名提取 [作者] 前缀（无前缀或格式非法返回空串）
+func extractAuthor(name string) string {
+	name = stripDisableSuffix(name)
+	if !strings.HasPrefix(name, "[") {
+		return ""
+	}
+	idx := strings.Index(name, "]")
+	if idx <= 0 {
+		return ""
+	}
+	author := name[1:idx]
+	if author == "" {
+		return ""
+	}
+	return author
+}
+
 // ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序）
 func ListModelAuthors(entries []types.ModelEntry) []types.AuthorInfo {
 	type authorData struct {
@@ -274,27 +299,25 @@ func ListModelAuthors(entries []types.ModelEntry) []types.AuthorInfo {
 	}
 	authors := map[string]*authorData{}
 	for _, e := range entries {
-		name := e.Name
-		if strings.HasSuffix(strings.ToLower(name), ".ban") {
-			name = name[:len(name)-4]
-		}
-		if strings.HasPrefix(name, "[") {
-			if idx := strings.Index(name, "]"); idx > 0 {
-				author := name[1:idx]
-				if author != "" {
-					if _, ok := authors[author]; !ok {
-						authors[author] = &authorData{SampleFile: e.Path}
-					}
-					authors[author].Count++
-				}
+		if author := extractAuthor(e.Name); author != "" {
+			if _, ok := authors[author]; !ok {
+				authors[author] = &authorData{SampleFile: e.Path}
 			}
+			authors[author].Count++
 		}
 	}
 	var result []types.AuthorInfo
 	for name, ad := range authors {
 		result = append(result, types.AuthorInfo{Name: name, Count: ad.Count, SampleFile: ad.SampleFile})
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Count > result[j].Count })
+	// SliceStable + Name 兜底：count 并列时输出顺序确定（与 ScanLocalAuthors 的
+	// rtype 字典序遍历口径一致，防同输入不同输出）
+	sort.SliceStable(result, func(i, j int) bool {
+		if result[i].Count != result[j].Count {
+			return result[i].Count > result[j].Count
+		}
+		return result[i].Name < result[j].Name
+	})
 	return result
 }
 
@@ -318,19 +341,7 @@ func ScanLocalAuthors(roots map[string]string) []types.WorkshopCreator {
 		}
 		entries := ScanEntries(root)
 		for _, e := range entries {
-			name := e.Name
-			if strings.HasSuffix(strings.ToLower(name), ".ban") {
-				name = name[:len(name)-4]
-			}
-			// 提取 [作者]
-			if !strings.HasPrefix(name, "[") {
-				continue
-			}
-			idx := strings.Index(name, "]")
-			if idx <= 0 {
-				continue
-			}
-			author := name[1:idx]
+			author := extractAuthor(e.Name)
 			if author == "" {
 				continue
 			}
@@ -348,8 +359,15 @@ func ScanLocalAuthors(roots map[string]string) []types.WorkshopCreator {
 				}
 			}
 			if existing >= 0 {
-				// 追加类型标签
-				if !strings.Contains(result[existing].Type, rtype) {
+				// 追加类型标签（按 ";" 分段精确比较，防 rtype 子串关系误判，防御范式③）
+				merged := false
+				for _, seg := range strings.Split(result[existing].Type, ";") {
+					if seg == rtype {
+						merged = true
+						break
+					}
+				}
+				if !merged {
 					result[existing].Type += ";" + rtype
 				}
 			} else {
@@ -409,10 +427,17 @@ func GenerateRepoIndex(repoPath string) (string, error) {
 	}
 
 	workflowDir := filepath.Join(repoPath, ".github", "workflows")
-	if err := os.MkdirAll(workflowDir, 0755); err == nil {
+	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+		// index.json 已成功生成，workflow 属附带能力：失败留痕不阻断（排障盲区补齐）
+		log.Printf("[scanner] 创建 workflow 目录失败 %s: %v", workflowDir, err)
+	} else {
 		workflowPath := filepath.Join(workflowDir, "generate-index.yml")
 		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-			_ = os.WriteFile(workflowPath, []byte(generateIndexWorkflow), 0644)
+			if err := os.WriteFile(workflowPath, []byte(generateIndexWorkflow), 0644); err != nil {
+				// 与同文件 151/208/223 行纪律一致：写入失败留痕（静默失败会让
+				// CI 自动重生成 index 静默失效，用户无感知）
+				log.Printf("[scanner] 写入 workflow %s 失败: %v", workflowPath, err)
+			}
 		}
 	}
 	return indexPath, nil
@@ -451,8 +476,20 @@ jobs:
             var list []entry
             filepath.WalkDir(".", func(p string, d os.DirEntry, err error) error {
               if err != nil || d.IsDir() { return nil }
+              // 扩展名口径与 Go 侧 scanner.ScanEntries 对齐（含 .ban/.disabled 恢复、
+              // .json 仅收 ysm.json）；扩展清单与 go/types 注册表（resource_types.json）同步
+              lower := strings.ToLower(p)
+              restored := ""
+              if strings.HasSuffix(lower, ".ban") { restored = p[:len(p)-4] } else if strings.HasSuffix(lower, ".disabled") { restored = p[:len(p)-9] }
               ext := strings.ToLower(filepath.Ext(p))
-              if ext != ".ysm" && ext != ".zip" && ext != ".7z" { return nil }
+              if restored != "" { ext = strings.ToLower(filepath.Ext(restored)) }
+              if ext == ".json" {
+                base := strings.ToLower(filepath.Base(restored))
+                base = strings.TrimSuffix(base, ".ban")
+                base = strings.TrimSuffix(base, ".disabled")
+                if base != "ysm.json" { return nil }
+              }
+              if ext != ".ysm" && ext != ".zip" && ext != ".7z" && ext != ".nbt" && ext != ".schematic" && ext != ".litematic" { return nil }
               if strings.Contains(p, "/.github") { return nil }
               rel, _ := filepath.Rel(".", p)
               rel = strings.ReplaceAll(rel, "\\", "/")

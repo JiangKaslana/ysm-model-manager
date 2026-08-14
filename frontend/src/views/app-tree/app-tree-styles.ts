@@ -38,7 +38,10 @@ ${focusVisibleCSS}
 /* 主题特判收口：warm 主题 --accent 即 #8b4513（冗余行已删）；pro 主题浅色文字走 --txt */
 :host-context(.theme-pro) .hdr-btn.accent { color: var(--txt); }
 .hdr-btn.accent:hover { background: color-mix(in srgb, var(--accent) 33%, transparent); }
-.hdr-btn.flash { background: color-mix(in srgb, var(--status-success) 20%, transparent); border-color: color-mix(in srgb, var(--status-success) 33%, transparent); }
+/* flash 反馈样式（feedback.ts 全局原语）：.hdr-btn 已无实际元素（tpl 用 btn-base），
+   实际使用点为 .dd-item（sel-all 全选）/ .btn-base（btn-view-mode 视图切换） */
+.dd-item.flash { background: color-mix(in srgb, var(--status-success) 20%, transparent); border-color: color-mix(in srgb, var(--status-success) 33%, transparent); }
+.btn-base.flash { background: color-mix(in srgb, var(--status-success) 20%, transparent); border-color: color-mix(in srgb, var(--status-success) 33%, transparent); }
 .dd-wrap { position:relative;display:inline-block; }
 .dd-wrap:hover .dd-menu { display:block; }
 .dd-menu { position:absolute;top:100%;left:0;z-index:100;background:var(--surf);border:1px solid var(--bd);border-radius:6px;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none;min-width:130px;max-height:220px;overflow-y:auto; }
@@ -88,6 +91,7 @@ ${focusVisibleCSS}
 .fl { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 4px; font-size: var(--fs-base); transition: all var(--tr-normal); cursor: default; user-select: none; -webkit-user-select: none; }
 .fl:hover { background: var(--hover); }
 .fl.flash { background: color-mix(in srgb, var(--status-success) 13%, transparent); }
+.fl-list.flash { background: color-mix(in srgb, var(--status-success) 13%, transparent); }
 .fl.selected { background: color-mix(in srgb, var(--accent) 28%, transparent); border-left: 3px solid var(--accent); padding-left: 1px; }
 .fl.selected:hover { background: color-mix(in srgb, var(--accent) 38%, transparent); }
 .fh.selected { background: color-mix(in srgb, var(--accent) 28%, transparent); border-left: 3px solid var(--accent); padding-left: 1px; }
