@@ -171,6 +171,8 @@ export const zhCN: Record<string, string> = {
   "settings.webRepo.unsupported": "当前浏览器不支持 File System Access API，无法授权本地目录",
   "settings.webRepo.scanning": "正在扫描 .ysm 模型并导入…",
   "settings.webRepo.done": "已授权「{dir}」：导入 {imported} 个，失败 {failed} 个",
+  "settings.webRepo.restored": "已恢复本地仓库：{imported} 个模型已同步",
+  "settings.webRepo.revoked": "上次授权已失效，请重新授权目录以同步模型库。",
 
   // ── 设置 - 外观 ──
   "settings.theme.title": "主题与外观",

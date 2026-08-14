@@ -9,7 +9,7 @@ import { safeGet } from "../../../utils/dom/storage.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { isViewerMode } from "../../../utils/dom/android-bridge.ts";
 import { t } from "../../../core/i18n/t.ts";
-import { selectLocalRepo } from "../../../backend/browser-adapter.ts";
+import { selectLocalRepo, getFsaAuthState, rescanFsaRoot } from "../../../backend/browser-adapter.ts";
 import { RESOURCE_TYPES } from "../../../utils/resource/types.ts";
 import { initVersionUpdater } from "../../../features/version-updater.ts";
 import { GH_RELEASES } from "../../../utils/gh-links.ts";
@@ -301,10 +301,30 @@ export async function initSettings(root: ShadowRoot): Promise<void> {
     });
   }
 
-  // ── 网页版 FSA 授权本地仓库（ADR-049 能力门控缺口补齐）──
+  // ── 网页版 FSA 授权本地仓库（ADR-049 能力门控缺口补齐；R2 数据互通：句柄持久化 + 启动自愈）──
   const webRepoBtn = root.getElementById("web-repo-auth-btn") as HTMLButtonElement | null;
   const webRepoStatus = root.getElementById("web-repo-auth-status");
   if (webRepoBtn && isViewerMode()) {
+    // R2 启动自愈：恢复持久化 FSA 句柄并重扫（仅 queryPermission，无手势），
+    // 免用户每次重新选目录；已撤销则提示用户重新授权
+    const applyFsaState = async (): Promise<void> => {
+      try {
+        const state = await getFsaAuthState();
+        if (state === "revoked") {
+          if (webRepoStatus) webRepoStatus.textContent = t("settings.webRepo.revoked");
+        } else if (state === "granted") {
+          const r = await rescanFsaRoot();
+          if (webRepoStatus) {
+            webRepoStatus.textContent = t("settings.webRepo.restored").replace("{imported}", String(r.imported));
+          }
+          bus.emit("repo:rtype-changed", RESOURCE_TYPES.YSM);
+        }
+        // state === "none" / "unsupported"：留空，由用户点按钮触发授权
+      } catch {
+        // 自愈失败静默：不打断设置页渲染，用户可手动点按钮授权
+      }
+    };
+    void applyFsaState();
     webRepoBtn.addEventListener("click", async () => {
       if (typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker !== "function") {
         if (webRepoStatus) webRepoStatus.textContent = t("settings.webRepo.unsupported");

@@ -169,6 +169,8 @@ export const ja: Record<string, string> = {
   "settings.webRepo.unsupported": "このブラウザは File System Access API 非対応のため、ローカルフォルダを認可できません",
   "settings.webRepo.scanning": ".ysm モデルをスキャンして取り込み中…",
   "settings.webRepo.done": "「{dir}」を認可：{imported} 件取り込み、{failed} 件失敗",
+  "settings.webRepo.restored": "ローカルリポジトリを復元：{imported} 件のモデルを同期",
+  "settings.webRepo.revoked": "前回の認可が失効しました。モデルライブラリを同期するにはフォルダを再認可してください。",
 
   // ── Settings - Appearance ──
   "settings.theme.title": "テーマと外観",

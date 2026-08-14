@@ -168,6 +168,8 @@ export const en: Record<string, string> = {
   "settings.webRepo.unsupported": "This browser does not support the File System Access API; cannot authorize a local folder",
   "settings.webRepo.scanning": "Scanning .ysm models and importing…",
   "settings.webRepo.done": "Authorized \"{dir}\": {imported} imported, {failed} failed",
+  "settings.webRepo.restored": "Local repo restored: {imported} models up to date",
+  "settings.webRepo.revoked": "Previous authorization expired. Please re-authorize the folder to sync.",
 
   // ── Settings - Appearance ──
   "settings.theme.title": "Theme & Appearance",

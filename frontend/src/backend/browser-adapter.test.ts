@@ -7,6 +7,9 @@ import {
   selectLocalRepo,
   WEB_ROOT,
   arrayBufferToBase64,
+  getFsaAuthState,
+  rescanFsaRoot,
+  reauthorizeFsaRoot,
 } from "./browser-adapter.ts";
 
 // idb 层内存实现（真实 indexedDB 仅在浏览器存在，测试注入 Map 语义）
@@ -323,6 +326,87 @@ describe("selectLocalRepo — FSA 授权本地仓库（ADR-049 能力门控缺�
   it("环境无 showDirectoryPicker → reject WebUnsupportedError（fail-fast 明确报错）", async () => {
     delete (window as { showDirectoryPicker?: unknown }).showDirectoryPicker;
     await expect(selectLocalRepo()).rejects.toBeInstanceOf(WebUnsupportedError);
+  });
+});
+
+describe("R2 FSA 句柄持久化（蓝图 docs/roadmap/web-edition.md §R2，参照 MikuMikuAR ADR-180/183）", () => {
+  // 可持久化句柄桩：带 queryPermission/requestPermission 的目录句柄（对齐 FileSystemDirectoryHandle）
+  function permDirHandle(name: string, perm: PermissionState, children: unknown[] = []): unknown {
+    return {
+      kind: "directory",
+      name,
+      queryPermission: vi.fn(async () => perm),
+      requestPermission: vi.fn(async () => perm),
+      async *values(): AsyncIterableIterator<unknown> {
+        for (const c of children) yield c;
+      },
+    };
+  }
+  function fileHandle(name: string, content: string): unknown {
+    return {
+      kind: "file",
+      name,
+      getFile: async () => new File([enc.encode(content)], name),
+    };
+  }
+  function setPicker(handle: unknown): void {
+    Object.defineProperty(window, "showDirectoryPicker", {
+      value: vi.fn(async () => handle),
+      writable: true,
+      configurable: true,
+    });
+  }
+
+  it("selectLocalRepo 持久化句柄到 config store（供下次启动恢复）", async () => {
+    setPicker(permDirHandle("模型库", "granted", [fileHandle("狐狸.ysm", "YSM")]));
+    await selectLocalRepo();
+    // 句柄已结构化克隆落库（key = fsaRootHandle）
+    expect(idbMock._store.has("fsaRootHandle")).toBe(true);
+    // 授权状态从持久化句柄可判定为 granted
+    expect(await getFsaAuthState()).toBe("granted");
+  });
+
+  it("getFsaAuthState：无句柄 → none；不支持 FSA → unsupported", async () => {
+    expect(await getFsaAuthState()).toBe("none");
+    delete (window as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+    expect(await getFsaAuthState()).toBe("unsupported");
+  });
+
+  it("getFsaAuthState：持久化句柄 permission revoked → revoked", async () => {
+    setPicker(permDirHandle("模型库", "granted"));
+    await selectLocalRepo();
+    // 模拟权限被撤销：改写句柄 queryPermission 返回 prompt
+    const h = idbMock._store.get("fsaRootHandle") as { queryPermission: () => Promise<PermissionState> };
+    h.queryPermission = async () => "prompt" as PermissionState;
+    expect(await getFsaAuthState()).toBe("revoked");
+  });
+
+  it("rescanFsaRoot：启动自愈恢复句柄并重扫入库", async () => {
+    // 模拟上次会话已授权：句柄已持久化，无 picker 调用（启动期无手势）
+    idbMock.idbSet("config", "fsaRootHandle", permDirHandle("模型库", "granted", [fileHandle("小猫.ysm", "cat")]));
+    delete (window as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+    const r = await rescanFsaRoot();
+    expect(r).toEqual({ ok: true, imported: 1, failed: 0, dir: "模型库" });
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Name: string }>;
+    expect(entries.find((e) => e.Name === "小猫.ysm")).toBeDefined();
+  });
+
+  it("rescanFsaRoot：句柄权限失效（revoked）→ 降级不扫描（返回 ok:false）", async () => {
+    idbMock.idbSet("config", "fsaRootHandle", permDirHandle("模型库", "prompt"));
+    const r = await rescanFsaRoot();
+    expect(r).toEqual({ ok: false, imported: 0, failed: 0, dir: "" });
+    expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
+  });
+
+  it("reauthorizeFsaRoot：requestPermission granted → 重授权成功", async () => {
+    idbMock.idbSet("config", "fsaRootHandle", permDirHandle("模型库", "granted"));
+    expect(await reauthorizeFsaRoot()).toBe(true);
+  });
+
+  it("reauthorizeFsaRoot：无句柄 → false；requestPermission 拒绝 → false", async () => {
+    expect(await reauthorizeFsaRoot()).toBe(false);
+    idbMock.idbSet("config", "fsaRootHandle", permDirHandle("模型库", "prompt"));
+    expect(await reauthorizeFsaRoot()).toBe(false);
   });
 });
 

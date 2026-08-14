@@ -16,10 +16,13 @@ export { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64 } 
 import { WebUnsupportedError, WEB_ROOT } from "./web-common.ts";
 // 文件系统类实现（web-fs.ts）；importWebFiles/selectLocalRepo 同时对外 re-export
 export { importWebFiles, selectLocalRepo } from "./web-fs.ts";
+// R2 FSA 持久化原语对外暴露（含授权状态查询，供 settings UI 启动引导）
+export { getFsaAuthState, reauthorizeFsaRoot, rescanFsaRoot } from "./web-fs.ts";
 import {
   scanWebModels,
   readWebFile,
   selectLocalRepo,
+  getFsaAuthState,
   parseWebModelPath,
   parseWebModelDir,
   searchWebModels,
@@ -117,6 +120,8 @@ const webImpls = {
   // SelectLocalRepo 为网页版专属扩展（Go AppBindings 无此函数，Phase 3 能力探测不会误报）；
   // 用 FSA 授权本地仓库目录，替代 Go 本地文件系统扫描作为模型库文件来源
   SelectLocalRepo: () => selectLocalRepo(),
+  // R2 FSA 授权状态查询（供 settings UI 启动引导；不触发权限弹窗）
+  GetFsaAuthState: () => getFsaAuthState(),
   // ===== ADR-049 桥接增强 Batch 1：纯前端可复现绑定 =====
   // 搜索：关键词匹配（数值范围条件浏览器端无几何分析，降级忽略，如实标注）
   SearchModels: (filesRoot: string, keyword: string, ..._rest: number[]) => searchWebModels(filesRoot, keyword),
@@ -198,7 +203,7 @@ const webImpls = {
 
 // 类型级对账：webImpls 的键（排除网页版专属扩展白名单）必须 ⊆ AppBindings 导出键。
 // 拼错键 / 漏实现（webImpls 没有但调用方误以为有）会在编译期暴露 TS2344。
-type WebImplGoKeys = Exclude<keyof typeof webImpls, "SelectLocalRepo">;
+type WebImplGoKeys = Exclude<keyof typeof webImpls, "SelectLocalRepo" | "GetFsaAuthState">;
 type AssertSubset<T extends keyof AppBindings> = T;
 type _WebImplKeyCheck = AssertSubset<WebImplGoKeys>;
 
