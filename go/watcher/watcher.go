@@ -126,6 +126,15 @@ func (w *Watcher) Stop() {
 	case <-time.After(5 * time.Second):
 		log.Printf("[watcher] 等待 loop 退出超时，强制停止")
 	}
+	// loop 退出后不可能再武装计时器（debounceSync 带 running 守卫），清掉已停止的
+	// 计时器引用：防「Stop→立即 Start」后旧代计时器 firing 产生一次多余同步
+	// （syncAll 读到新 running=true 会误触发），同时让重启后的 w.debounce 状态干净
+	w.mu.Lock()
+	if w.debounce != nil {
+		w.debounce.Stop()
+		w.debounce = nil
+	}
+	w.mu.Unlock()
 	// 等待正在执行的同步完成（上限，避免网络盘挂起阻塞退出/重启）
 	done := make(chan struct{})
 	go func() { w.wg.Wait(); close(done) }()
@@ -213,6 +222,12 @@ func isNoiseEvent(name string) bool {
 func (w *Watcher) debounceSync() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	// running 守卫：Stop 已置 running=false 后（done 已关闭，loop 仍在消费队列里
+	// 最后几个事件）不再武装计时器，否则「Stop→立即 Start」后旧代计时器 firing
+	// 会读到新 running=true 而误触发一次多余同步（假活/跨代事件）
+	if !w.running {
+		return
+	}
 	if w.debounce != nil {
 		w.debounce.Stop()
 	}

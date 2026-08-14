@@ -11,9 +11,17 @@ vi.mock("../../bus.ts", () => ({ bus: { emit: emitMock, on: vi.fn() } }));
 vi.mock("./tpl.ts", () => ({
   vcHeaderHTML: () => '<div class="vc-header"><div class="name"></div></div>',
 }));
+// bindFooter 的 btn-mc 检测走 getApp → 动态 import bindings：mock 阻断
+// Wails runtime（getApp 在 node/jsdom 下 window.go 不存在 → 走动态 import 路径）
+vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
+  LoadAppConfig: vi.fn().mockResolvedValue({ mcRoot: "/mc", filesRoot: "", resourcepackRoot: "", linkMode: "copy" }),
+  GetMinecraftPaths: vi.fn().mockResolvedValue([]),
+  SaveAppConfig: vi.fn().mockResolvedValue(undefined),
+}));
 
-import { bindCardEvents, resetSelectedEmit } from "./events.ts";
+import { bindCardEvents, bindFooter, resetSelectedEmit } from "./events.ts";
 import { renderVersionCards } from "./render.ts";
+import { waitFor } from "../../test-utils/index.ts";
 import type { SidebarInstance } from "./data.ts";
 
 function instance(name: string): SidebarInstance {
@@ -145,5 +153,96 @@ describe("restoreSelectedCard 去重状态机（P2 复核修复回归护栏）",
     await flushRaf();
     expect(emitMock).toHaveBeenCalledTimes(2);
     void container;
+  });
+});
+
+// P3 补测（审核）：原绑定状态为模块级共享变量（_lastList/_clickHandler/currentInstances），
+// 多实例并存时 A 重绑会移除 B 的监听、点击数据被 B 覆盖（幽灵状态）。修复后状态收敛到
+// 每 ShadowRoot 的 WeakMap，实例间互不干扰。
+describe("bindCardEvents — 多实例并存互不干扰（模块级状态收敛回归）", () => {
+  it("A 重绑不移除 B 的监听，B 点击仍 emit 自己的数据", () => {
+    const A = mount([instance("A1")]);
+    const B = mount([instance("B1")]);
+    // 模拟 A 的 _reload：同一容器重渲染 + 重新绑定
+    renderVersionCards(A.container, [instance("A2")]);
+    bindCardEvents(A.container.getRootNode() as ShadowRoot, [instance("A2")]);
+    // B 的监听必须仍然有效，且点击读到的是 B 的实例数据
+    (B.container.querySelector(".vc-header") as HTMLElement).click();
+    expect(emitMock).toHaveBeenLastCalledWith("package:selected", instance("B1"));
+  });
+});
+
+// P4 补测（审核）：bindFooter（底部统计 + MC 根目录检测）此前零测试覆盖
+describe("bindFooter", () => {
+  function mountFooter() {
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+    root.innerHTML =
+      '<div class="footer-stats"><span class="stat-item" id="stat-sync">完全同步 -/-</span></div>' +
+      '<button class="btn-mc-dir" id="btn-mc">🎮 未设置</button>';
+    return { root };
+  }
+
+  it("部分同步 → stat-sync 显示 synced/total", () => {
+    const { root } = mountFooter();
+    const partial = instance("A");
+    partial.missing = 1;
+    const full = instance("B");
+    bindFooter(root, [partial, full]);
+    expect(root.getElementById("stat-sync")!.textContent).toBe("完全同步 1/2");
+  });
+
+  it("全部同步 → stat-sync 显示 total/total", () => {
+    const { root } = mountFooter();
+    bindFooter(root, [instance("A"), instance("B")]);
+    expect(root.getElementById("stat-sync")!.textContent).toBe("完全同步 2/2");
+  });
+
+  it("空实例 → stat-sync 保持占位不动（不写 -/-）", () => {
+    const { root } = mountFooter();
+    bindFooter(root, []);
+    expect(root.getElementById("stat-sync")!.textContent).toBe("完全同步 -/-");
+  });
+
+  it("mcRoot 已配置 → 按钮显示路径", async () => {
+    const app = await import("../../../bindings/ysm-model-manager/internal/app/app.js");
+    (app.LoadAppConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      mcRoot: "/mc/root",
+      filesRoot: "/f",
+      resourcepackRoot: "/r",
+      linkMode: "copy",
+    });
+    const { root } = mountFooter();
+    bindFooter(root, []);
+    await waitFor(() =>
+      expect((root.getElementById("btn-mc") as HTMLElement).textContent).toBe("🎮 /mc/root"),
+    );
+  });
+
+  it("未配置且无检测路径 → 按钮保持未设置", async () => {
+    const app = await import("../../../bindings/ysm-model-manager/internal/app/app.js");
+    (app.LoadAppConfig as ReturnType<typeof vi.fn>).mockResolvedValue({ mcRoot: "" });
+    (app.GetMinecraftPaths as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    const { root } = mountFooter();
+    bindFooter(root, []);
+    await waitFor(() => expect(app.GetMinecraftPaths).toHaveBeenCalled());
+    expect((root.getElementById("btn-mc") as HTMLElement).textContent).toBe("🎮 未设置");
+  });
+
+  it("未配置但有检测路径 → 自动使用第一个路径并保存配置", async () => {
+    const app = await import("../../../bindings/ysm-model-manager/internal/app/app.js");
+    (app.LoadAppConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      mcRoot: "",
+      filesRoot: "/f",
+      resourcepackRoot: "/r",
+      linkMode: "copy",
+    });
+    (app.GetMinecraftPaths as ReturnType<typeof vi.fn>).mockResolvedValue(["/detected"]);
+    const { root } = mountFooter();
+    bindFooter(root, []);
+    await waitFor(() =>
+      expect((root.getElementById("btn-mc") as HTMLElement).textContent).toBe("🎮 /detected"),
+    );
+    expect(app.SaveAppConfig).toHaveBeenCalled();
   });
 });

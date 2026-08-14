@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -25,6 +26,21 @@ const (
 
 // updateLock 防止并发更新（多次调用 InstallUpdate/Download）
 var updateLock sync.Mutex
+
+// 错误哨兵：供调用方用 errors.Is / errors.As 做错误分类，
+// 替代按错误文本 strings.Contains 匹配（陷阱 #11 文本匹配错误分类）。
+var (
+	// ErrNotWindows 非 Windows 平台触发（InstallUpdate 平台守卫）
+	ErrNotWindows = errors.New("自动更新仅支持 Windows 平台")
+	// ErrInvalidPackage 更新包不是有效 Windows PE 程序（MZ 魔数校验失败）
+	ErrInvalidPackage = errors.New("更新包不是有效 Windows 程序")
+	// ErrDownloadTooBig 更新包超过大小上限
+	ErrDownloadTooBig = errors.New("更新包超过大小上限")
+	// ErrDownloadIncomplete 更新包下载不完整（Content-Length 与实收字节不符）
+	ErrDownloadIncomplete = errors.New("更新包下载不完整")
+	// ErrHashMismatch 更新包 SHA256 校验失败
+	ErrHashMismatch = errors.New("SHA256 校验失败")
+)
 
 // maxDownloadSize 更新包下载大小上限（500MB）
 // 测试可覆盖为更小值以加速
@@ -232,15 +248,24 @@ func DownloadWithProgress(assetURL string, expectedHash string, onProgress func(
 	for _, prefix := range ghProxyPrefixes {
 		sources = append(sources, prefix+assetURL)
 	}
-	var errs []string
+	// 用 errors.Join 聚合各源错误而非 strings.Join + %s——
+	// %s 会丢失 %w 包装的错误链，调用方 errors.Is/As 无法穿透聚合层做分类
+	// （陷阱 #11 文本匹配错误分类：错误链截断迫使调用方退回字符串匹配）
+	var errs []error
 	for _, src := range sources {
 		path, err := downloadOnce(src, expectedHash, onProgress)
 		if err == nil {
 			return path, nil
 		}
-		errs = append(errs, fmt.Sprintf("%s: %v", src, err))
+		errs = append(errs, fmt.Errorf("%s: %w", src, err))
 	}
-	return "", fmt.Errorf("更新包下载失败（%d 个源均失败）：\n%s", len(sources), strings.Join(errs, "\n"))
+	return "", fmt.Errorf("更新包下载失败（%d 个源均失败）：\n%w", len(sources), errors.Join(errs...))
+}
+
+// newDownloadClient 构建下载用 HTTP 客户端（每源独立 90s 超时：直连慢/卡时快速切镜像）。
+// 包级变量便于测试注入自定义 RoundTripper 覆盖完整性校验等不可由真实网络触达的分支。
+var newDownloadClient = func() *http.Client {
+	return &http.Client{Timeout: 90 * time.Second}
 }
 
 // downloadOnce 单源下载尝试：HTTP GET + 大小截断防护 + SHA256 校验
@@ -250,8 +275,7 @@ func downloadOnce(assetURL string, expectedHash string, onProgress func(done, to
 		return "", err
 	}
 	req.Header.Set("User-Agent", "YSM-Model-Manager/")
-	// 每源独立 90s 超时：直连慢/卡时快速切镜像，避免「硬卡 7 分钟」
-	client := &http.Client{Timeout: 90 * time.Second}
+	client := newDownloadClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -300,7 +324,7 @@ func downloadOnce(assetURL string, expectedHash string, onProgress func(done, to
 		// 且 f 句柄泄漏（该路径无任何 Close）
 		f.Close()
 		os.Remove(tmp)
-		return "", fmt.Errorf("更新包过大（%d 字节），超过 %d 字节上限", resp.ContentLength, maxDownloadSize)
+		return "", fmt.Errorf("更新包过大（%d 字节），超过 %d 字节上限: %w", resp.ContentLength, maxDownloadSize, ErrDownloadTooBig)
 	}
 	total := resp.ContentLength
 	if total < 0 {
@@ -323,7 +347,7 @@ func downloadOnce(assetURL string, expectedHash string, onProgress func(done, to
 		if extra > 0 || (probeErr != nil && probeErr != io.EOF) {
 			f.Close()
 			os.Remove(tmp)
-			return "", fmt.Errorf("更新包超过 %d 字节上限（截断探测失败: %v）", maxDownloadSize, probeErr)
+			return "", fmt.Errorf("更新包超过 %d 字节上限（截断探测失败: %v）: %w", maxDownloadSize, probeErr, ErrDownloadTooBig)
 		}
 	}
 	closeErr := f.Close()
@@ -334,6 +358,15 @@ func downloadOnce(assetURL string, expectedHash string, onProgress func(done, to
 	if closeErr != nil {
 		os.Remove(tmp)
 		return "", closeErr
+	}
+
+	// BUG(INFO-CL) 修复：完整性校验——Content-Length 已知时实收字节必须一致，
+	// 防限流器/代理在「干净 EOF」下静默截断（陷阱 #11 限流器截断静默）。
+	// 标准 http client 对提前关闭的 CL 响应返回 unexpected EOF（由上面 err 分支拒绝），
+	// 此检查为纵深防御，兜底自定义传输层返回「n<total 且 err==nil」的异常场景。
+	if total > 0 && n != total {
+		os.Remove(tmp)
+		return "", fmt.Errorf("%w：期望 %d 字节，实际收到 %d 字节", ErrDownloadIncomplete, total, n)
 	}
 
 	// 未知长度（chunked）下载的尾块补发——progressWriter 按
@@ -349,7 +382,7 @@ func downloadOnce(assetURL string, expectedHash string, onProgress func(done, to
 		actual := hex.EncodeToString(hasher.Sum(nil))
 		if !strings.EqualFold(actual, expectedHash) {
 			os.Remove(tmp)
-			return "", fmt.Errorf("SHA256 校验失败：\n期望 %s\n实际 %s\n文件可能被篡改或下载不完整", expectedHash, actual)
+			return "", fmt.Errorf("%w：\n期望 %s\n实际 %s\n文件可能被篡改或下载不完整", ErrHashMismatch, expectedHash, actual)
 		}
 	}
 
@@ -388,7 +421,7 @@ func InstallUpdate(exePath string) error {
 	// 平台守卫：非 Windows asset 为 .tar.gz，自动更新仅支持 Windows——
 	// 明确拒绝而非静默下载后在装包时给误导性错误
 	if runtime.GOOS != "windows" {
-		return fmt.Errorf("自动更新当前仅支持 Windows 平台，请手动下载更新")
+		return fmt.Errorf("%w，请手动下载更新", ErrNotWindows)
 	}
 
 	exe, err := os.Executable()
@@ -405,7 +438,7 @@ func InstallUpdate(exePath string) error {
 	_, err = io.ReadFull(f, magic[:])
 	f.Close()
 	if err != nil || string(magic[:]) != "MZ" {
-		return fmt.Errorf("更新包不是有效 Windows 程序")
+		return ErrInvalidPackage
 	}
 
 	// 准备临时目录：复制新 exe + 释放 helper

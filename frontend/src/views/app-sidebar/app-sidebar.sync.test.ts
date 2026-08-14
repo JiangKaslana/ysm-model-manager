@@ -304,3 +304,30 @@ describe("app-sidebar — _reload 失败分支", () => {
     unmountElement(el);
   });
 });
+
+describe("app-sidebar — _reload 并发（pending 补跑防 rtype 错配）", () => {
+  it("reload 进行中 rtype 切换 → 不直接执行，完成后用最新 rtype 补跑", async () => {
+    const calls: string[] = [];
+    let resolvers: Array<(v: SidebarInstance[]) => void> = [];
+    register("loadInstances", vi.fn((rtype: string) => {
+      calls.push(rtype);
+      return new Promise<SidebarInstance[]>((res) => resolvers.push(res));
+    }));
+    const el = mountCustomElement("app-sidebar");
+    // 初始 reload 挂起（connectedCallback 50ms 防抖）
+    await waitFor(() => calls.length === 1);
+    expect(calls).toEqual(["ysm"]);
+    // rtype 切换 → attributeChangedCallback → _reload，但 _loading 中 → 仅标记 pending，
+    // 不产生第二次 loadInstances 调用（防止旧 rtype 数据覆盖新 rtype）
+    el.setAttribute("rtype", "ysm-test-pending");
+    await waitFor(() => resolvers.length === 1);
+    expect(calls).toEqual(["ysm"]);
+    // 放行首次 → 完成后检测到 pending → 用最新 rtype 补跑
+    resolvers.shift()!([makeInstances()[0]]);
+    await waitFor(() => calls.length === 2);
+    expect(calls[1]).toBe("ysm-test-pending");
+    // 放行补跑 → 最终渲染新 rtype 的卡片
+    resolvers.shift()!([makeInstances()[0]]);
+    await waitFor(() => el.shadowRoot!.querySelector(".chk"));
+  });
+});

@@ -193,6 +193,81 @@ func TestSyncAllSyncError(t *testing.T) {
 	}
 }
 
+// TestDebounceSyncAfterStopDoesNotArm Stop 后 loop 消费残余事件时不再武装计时器
+// （running 守卫）——否则「Stop→立即 Start」后旧代计时器 firing 会读到新 running=true
+// 而误触发一次多余同步（跨代事件/假活）
+func TestDebounceSyncAfterStopDoesNotArm(t *testing.T) {
+	var calls atomic.Int32
+	scanFn := func(string) []types.ModelEntry { calls.Add(1); return nil }
+	w := New(t.TempDir(), setupMinecraftRoot(t), scanFn)
+	w.running = false // 模拟 Stop 完成后的状态
+	w.debounceSync()
+	w.mu.Lock()
+	armed := w.debounce != nil
+	w.mu.Unlock()
+	if armed {
+		t.Fatal("Stop 后 debounceSync 仍武装了计时器（running 守卫缺失）")
+	}
+	time.Sleep(debounceDelay + 100*time.Millisecond)
+	if calls.Load() != 0 {
+		t.Fatalf("Stop 后不应触发任何同步，实际 scanFn 被调用 %d 次", calls.Load())
+	}
+}
+
+// TestStopClearsDebounceTimer Stop 必须清掉已武装的防抖计时器引用，
+// 避免「Stop→立即 Start」后旧代计时器在新代存活期间 firing
+func TestStopClearsDebounceTimer(t *testing.T) {
+	w := New(t.TempDir(), setupMinecraftRoot(t), mockScanFunc)
+	if err := w.Start(); err != nil {
+		t.Fatalf("Start() = %v", err)
+	}
+	w.debounceSync() // 直接武装计时器（running=true）
+	w.mu.Lock()
+	armed := w.debounce != nil
+	w.mu.Unlock()
+	if !armed {
+		t.Fatal("前置条件失败：debounceSync 未武装计时器")
+	}
+	w.Stop()
+	w.mu.Lock()
+	left := w.debounce
+	w.mu.Unlock()
+	if left != nil {
+		t.Fatal("Stop 后 debounce 计时器引用未清理")
+	}
+}
+
+// TestSyncAllEmptyRepoShortCircuit 有整合包但仓库扫描为空 → 短路返回，不进入
+// SyncToggleStatus 循环（scanFn 仅被短路检查调用 1 次）
+func TestSyncAllEmptyRepoShortCircuit(t *testing.T) {
+	var calls atomic.Int32
+	scanFn := func(string) []types.ModelEntry {
+		calls.Add(1)
+		return nil // 空仓库
+	}
+	w := New(t.TempDir(), setupMinecraftRoot(t), scanFn) // 仓库为空 + 有 1 个实例
+	w.running = true
+	w.syncAll()
+	if calls.Load() != 1 {
+		t.Fatalf("空仓库短路应只调用 scanFn 1 次（短路检查），实际 %d", calls.Load())
+	}
+	if w.syncRunning {
+		t.Fatal("syncAll 返回后 syncRunning 仍为 true")
+	}
+}
+
+// TestSyncAllNoClearCacheWithoutInstances 无整合包（versions/ 缺失）时不应清空缓存
+// （回归：clearCacheFn 调用被正确放在 ListVersions/len==0 判断之后）
+func TestSyncAllNoClearCacheWithoutInstances(t *testing.T) {
+	var cacheClears atomic.Int32
+	w := New(t.TempDir(), t.TempDir(), mockScanFunc, func() { cacheClears.Add(1) })
+	w.running = true
+	w.syncAll()
+	if cacheClears.Load() != 0 {
+		t.Fatalf("无整合包时 clearCacheFn 不应被调用，实际 %d 次", cacheClears.Load())
+	}
+}
+
 // —— loop 直接注入（真实 fsnotify.Watcher 提供 channel，避免长等待） ——
 
 // TestLoopErrorEvent loop 收到错误事件时记录日志并继续运行

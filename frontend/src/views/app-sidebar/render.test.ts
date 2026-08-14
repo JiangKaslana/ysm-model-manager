@@ -1,14 +1,19 @@
 // ===== sidebar 渲染层测试 =====
-// 覆盖：renderVersionCards 空/非空、vcHeaderHTML 各 chips 分支
+// 覆盖：renderVersionCards 空/非空、vcHeaderHTML 各 chips 分支（真实实现——
+// mock 用 spy 包装真实 vcHeaderHTML，既记录调用又产出真实 HTML，修复此前
+// 「注释声称覆盖 chips 分支、实际整模块被替换」的假覆盖）
 import { describe, it, expect, vi } from "vitest";
 
-const { vcHeaderHTML } = vi.hoisted(() => ({
-  vcHeaderHTML: vi.fn(() => '<div class="vc-header"></div>'),
-}));
+const { vcHeaderHTMLMock } = vi.hoisted(() => ({ vcHeaderHTMLMock: vi.fn() }));
 
-vi.mock("./tpl.ts", () => ({ vcHeaderHTML }));
+vi.mock("./tpl.ts", async () => {
+  const actual = await vi.importActual<typeof import("./tpl.ts")>("./tpl.ts");
+  vcHeaderHTMLMock.mockImplementation(actual.vcHeaderHTML);
+  return { ...actual, vcHeaderHTML: vcHeaderHTMLMock };
+});
 
 import { renderVersionCards } from "./render.ts";
+import { vcHeaderHTML } from "./tpl.ts";
 import type { SidebarInstance } from "./data.ts";
 
 function instance(over: Partial<SidebarInstance>): SidebarInstance {
@@ -54,5 +59,57 @@ describe("renderVersionCards", () => {
     expect(cards[1].style.animationDelay).toBe("40ms");
     expect(vcHeaderHTML).toHaveBeenNthCalledWith(1, "P1", 3, 2, 1, "missing", 0, false, "pack");
     expect(vcHeaderHTML).toHaveBeenNthCalledWith(2, "P2", 2, 1, 0, "complete", 1, true, "ysm");
+  });
+});
+
+describe("vcHeaderHTML 徽章 chips（真实实现）", () => {
+  it("synced>0 → green 标签；extra>0 → orange 标签", () => {
+    const html = vcHeaderHTML("P", 3, 0, 2, "extra");
+    expect(html).toContain('<span class="tag green">3</span>');
+    expect(html).toContain('<span class="tag orange">2</span>');
+  });
+
+  it("missing>0 && hasMod → red 标签", () => {
+    const html = vcHeaderHTML("P", 0, 5, 0, "missing", 0, true);
+    expect(html).toContain('<span class="tag red">5</span>');
+  });
+
+  it("missing>0 && !hasMod → 不显示 red 标签，改显 noMods 灰标签（带 rtype 标签）", () => {
+    const html = vcHeaderHTML("P", 0, 5, 0, "missing", 0, false, "ysm");
+    expect(html).not.toContain('class="tag red"');
+    expect(html).toContain('<span class="tag gray">🚫 无YSM</span>');
+  });
+
+  it("rtype 无展示配置 → noMods 灰标签回落为 rtype 原始 id", () => {
+    const html = vcHeaderHTML("P", 0, 5, 0, "missing", 0, false, "custom-type");
+    expect(html).toContain('<span class="tag gray">🚫 无custom-type</span>');
+  });
+
+  it("hasMod && 全零 → 显 '0' 标签", () => {
+    const html = vcHeaderHTML("P", 0, 0, 0, "complete");
+    expect(html).toContain('<span class="tag">0</span>');
+  });
+
+  it("hasMod && 非全零 → 不显 '0' 标签", () => {
+    const html = vcHeaderHTML("P", 1, 0, 0, "complete");
+    expect(html).not.toContain('<span class="tag">0</span>');
+  });
+
+  it("!hasMod && 全零 → 灰标签优先于 '0' 标签", () => {
+    const html = vcHeaderHTML("P", 0, 0, 0, "complete", 0, false);
+    expect(html).toContain('<span class="tag gray">');
+    expect(html).not.toContain('<span class="tag">0</span>');
+    expect(html).not.toContain('class="tag red"');
+  });
+
+  it("name 经 esc 转义（防 XSS）", () => {
+    const html = vcHeaderHTML('<script>alert(1)</script>', 1, 0, 0, "complete");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).not.toContain("<script>");
+  });
+
+  it("data-idx 透传（卡片展开/安装按钮定位用）", () => {
+    const html = vcHeaderHTML("P", 0, 0, 0, "complete", 7);
+    expect(html).toContain('data-idx="7"');
   });
 });

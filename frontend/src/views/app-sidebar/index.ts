@@ -22,6 +22,9 @@ function checkedSetFor(rtype: string): Set<string> {
   return s;
 }
 
+/** 推送等待/兜底超时（陷阱 #3：任何 await 必须有兜底，按钮才不会永久卡死） */
+const SYNC_TIMEOUT_MS = 30_000;
+
 class AppSidebar extends HTMLElement {
   static get observedAttributes(): string[] {
     return ["rtype"];
@@ -229,7 +232,7 @@ class AppSidebar extends HTMLElement {
                   const err = new Error(`推送超时: ${insName}/${rt}`);
                   (err as Error & { kind?: string }).kind = "timeout";
                   reject(err);
-                }, 30000);
+                }, SYNC_TIMEOUT_MS);
                 bus.emit("sync:download:missing", { instanceName: insName, rtype: rt, token });
               });
             } catch (e) {
@@ -255,7 +258,7 @@ class AppSidebar extends HTMLElement {
                   setTimeout(() => {
                     waitUnsub();
                     resolve();
-                  }, 30000);
+                  }, SYNC_TIMEOUT_MS);
                 });
               }
             }
