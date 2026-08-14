@@ -72,7 +72,7 @@ function inBlockComment(file, lineno) {
 // 保留「规则扫描不中断」，但 runBaseline 比对前会检查该标志——
 // 扫描不可用即 fail-closed 拒绝放行，避免 rgSafe 失败返回 [] 使 --baseline newV=[] 退 0 假绿。
 let rgHealthy = true;
-function rg(pattern, paths, globs) {
+function rgTracked(pattern, paths, globs) {
   try { return rgStrict(pattern, paths, globs); }
   catch (e) { rgHealthy = false; console.error('[warn] ' + e.message); return []; }
 }
@@ -115,7 +115,7 @@ function runChecks() {
   };
 
   add('R1', 'window.__ vars',
-    rg('window\\.__', 'frontend/src', ['*.js', '*.ts']),
+    rgTracked('window\\.__', 'frontend/src', ['*.js', '*.ts']),
     'let + getter, PageStore');
 
   // R2 repoRoot 命名：测试文件豁免、Wails bindings 自动生成文件豁免
@@ -125,7 +125,7 @@ function runChecks() {
   // 字符串字面量 map key（"repoRoot"）豁免
   add('R2', 'repoRoot name',
     (() => {
-      const raw = rg('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json'])
+      const raw = rgTracked('repoRoot', ['.', 'frontend/src'], ['*.go', '*.js', '*.ts', '*.json'])
         .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
         .filter((l) => { const [f] = parseRgLine(l); return !f.includes('_test.go'); })
         .filter((l) => { const [f] = parseRgLine(l); return !f.includes('bindings/'); })
@@ -147,7 +147,7 @@ function runChecks() {
     'cfg.FilesRoot / filesRoot');
 
   add('R3', 'callback .file() API',
-    rg('\\.file\\s*\\(', 'frontend/src', ['*.js', '*.ts'])
+    rgTracked('\\.file\\s*\\(', 'frontend/src', ['*.js', '*.ts'])
       .filter((l) => !/:\d+:\s*\/\//.test(l))
       // 行注释与块注释内出现 .file( 属文档描述，豁免（2026-08-13：测试夹具注释曾误报阻断推送）
       .filter((l) => !/:\d+:\s*(?:\/\/|\/\*)/.test(l))
@@ -171,7 +171,7 @@ function runChecks() {
   // 内联 style 字符串与 style.cssText 赋值豁免；CSS 规则块豁免；
   // CSS 属性行豁免（display:none/block 后跟分号，属 CSS 语法）
   add('R4', 'display none/block',
-    rg('display:\\s*(none|block)', 'frontend', ['*.js', '*.ts', '*.css'])
+    rgTracked('display:\\s*(none|block)', 'frontend', ['*.js', '*.ts', '*.css'])
       .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.css'); })
       .filter((l) => { const [f] = parseRgLine(l); return !/\/tpl\.ts$/.test(f) && !/\/css\.ts$/.test(f) && !f.includes('content-css') && !f.includes('app-tree-styles'); })
       .filter((l) => !/style\.cssText/.test(l))
@@ -189,10 +189,10 @@ function runChecks() {
   // 内联 style 字符串 / style.cssText / style.xxx 赋值 / CSS 规则块豁免；
   // CSS 属性行豁免（box-shadow/background 等带颜色的 CSS 属性）
   add('R5', 'hardcoded colors',
-    rg('#[0-9a-f]{6}\\b', 'frontend', ['*.js', '*.ts', '*.css'])
-      .concat(rg('#[0-9a-f]{3}\\b', 'frontend', ['*.js', '*.ts', '*.css']))
-      .concat(rg('rgba?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
-      .concat(rg('hsla?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
+    rgTracked('#[0-9a-f]{6}\\b', 'frontend', ['*.js', '*.ts', '*.css'])
+      .concat(rgTracked('#[0-9a-f]{3}\\b', 'frontend', ['*.js', '*.ts', '*.css']))
+      .concat(rgTracked('rgba?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
+      .concat(rgTracked('hsla?\\(', 'frontend', ['*.js', '*.ts', '*.css']))
       .filter((l) => { const [f] = parseRgLine(l); return !f.endsWith('.css'); })
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
       .filter((l) => { const [f] = parseRgLine(l); return !/\/tpl\.ts$/.test(f) && !/\/css\.ts$/.test(f) && !f.endsWith('/fab.ts') && !f.includes('content-css') && !f.includes('app-tree-styles'); })
@@ -210,7 +210,7 @@ function runChecks() {
     'CSS vars');
 
   add('R6', 'JS in public/',
-    rg('public/.*\\.js', ['.', 'frontend'], ['*.md', '*.html', '*.json'])
+    rgTracked('public/.*\\.js', ['.', 'frontend'], ['*.md', '*.html', '*.json'])
       .filter((l) => !l.includes('public/wasm/')) // WASM 胶水 JS 必须放 public/ 才能被 import，非手写业务 JS（2026-08-13 豁免）
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('/docs/'); }),
     'ESM import');
@@ -219,7 +219,7 @@ function runChecks() {
   // 常量定义文件 types.ts 豁免（这是常量的声明位置）；
   // 注释中的字符串豁免（如 rename.ts 中描述扩展名提取逻辑）。
   add('R7', 'rtype magic strings',
-    rg('"ysm"|"mmd-skin"|"vrchat-avatar"', 'frontend/src', ['*.js', '*.ts'])
+    rgTracked('"ysm"|"mmd-skin"|"vrchat-avatar"', 'frontend/src', ['*.js', '*.ts'])
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('utils/resource/types'); })
       .filter((l) => !/:\d+:\s*(?:\/\/|\/\*|\*)/.test(l)),
@@ -231,7 +231,7 @@ function runChecks() {
   // （*HTML/*html 结尾的函数调用，项目约定的安全 HTML 生成器）
   // .map()/.join() 多行拼接（esc 在回调内部）、安全渲染函数（renderDisplayName/renderFormattedText/buildSiteHtml）
   // 预构建 HTML 变量（无 + 拼接，数据源自上游安全 builder）
-  const r8Inner = rg('innerHTML\\s*=\\s+[^\'"`\\n]', 'frontend/src', ['*.js', '*.ts']).filter(
+  const r8Inner = rgTracked('innerHTML\\s*=\\s+[^\'"`\\n]', 'frontend/src', ['*.js', '*.ts']).filter(
     (l) => {
       const [f] = parseRgLine(l);
       if (f.includes('.test.')) return false;
@@ -264,11 +264,11 @@ function runChecks() {
     'esc()');
 
   add('R9', 'manual sidebar',
-    rg('sidebarItem|tb-btn.*title=', 'frontend', ['*.js', '*.ts']),
+    rgTracked('sidebarItem|tb-btn.*title=', 'frontend', ['*.js', '*.ts']),
     'renderSidebar()');
 
   add('R10', 'private esc implementations',
-    rg('replace\\(/&/g, "&amp;"\\)', 'frontend/src', ['*.ts', '*.js'])
+    rgTracked('replace\\(/&/g, "&amp;"\\)', 'frontend/src', ['*.ts', '*.js'])
       .filter((l) => !l.includes('utils/dom/html.ts'))
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); }),
     'import { esc } from utils/dom/html.ts (5-replace 单点，致命陷阱 #15)');
@@ -276,7 +276,7 @@ function runChecks() {
   // W1 排除正则/转义误报：[/\] 字符类、replace(/\\/g 归一化、\n \t \. \w \d \s \b 等
   // 额外豁免：i18n 语言包（locales/）、测试文件、正则字面量内的反斜杠、文件名非法字符正则
   add('W1', 'backslash paths',
-    rg('\\\\', 'frontend/src', ['*.js', '*.ts']).filter(
+    rgTracked('\\\\', 'frontend/src', ['*.js', '*.ts']).filter(
       (l) =>
         !l.includes('node_modules') &&
         !l.includes('bus.js') &&
@@ -292,7 +292,7 @@ function runChecks() {
     '/ instead of \\');
 
   add('W2', 'window.go.main.App calls',
-    rg('window\\.go\\.main\\.App', 'frontend/src', ['*.js', '*.ts']).filter(
+    rgTracked('window\\.go\\.main\\.App', 'frontend/src', ['*.js', '*.ts']).filter(
       (l) => !/:\d+:\s*(?:\/\/|\/\*|\*)/.test(l), // 过滤注释行（//、/* 块注释、* 续行；wails/app.ts 治理注释等）
     ).filter(
       (l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); },
@@ -303,13 +303,13 @@ function runChecks() {
   // W4 覆盖 go+frontend，避免双重扫描），此处不再重复。
 
   add('W5', 'async DOM race (callback sets innerHTML without stale guard)',
-    rg('=>\\s*\\{[^}]*innerHTML\\s*=', 'frontend/src', ['*.js', '*.ts'])
-      .concat(rg('\\.(then|finally)\\s*\\(.*innerHTML\\s*=', 'frontend/src', ['*.js', '*.ts']))
-      .concat(rg('setTimeout\\s*\\(.*innerHTML\\s*=', 'frontend/src', ['*.js', '*.ts'])),
+    rgTracked('=>\\s*\\{[^}]*innerHTML\\s*=', 'frontend/src', ['*.js', '*.ts'])
+      .concat(rgTracked('\\.(then|finally)\\s*\\(.*innerHTML\\s*=', 'frontend/src', ['*.js', '*.ts']))
+      .concat(rgTracked('setTimeout\\s*\\(.*innerHTML\\s*=', 'frontend/src', ['*.js', '*.ts'])),
     'DOM writes in async callbacks need stale-request guards (fetchDone flag)');
 
   add('W6', 'bypass dialogs (dlg-overlay outside dialogs/modal.ts)',
-    rg('className\\s*=\\s*"dlg-overlay"', 'frontend/src', ['*.ts', '*.js'])
+    rgTracked('className\\s*=\\s*"dlg-overlay"', 'frontend/src', ['*.ts', '*.js'])
       .filter((l) => !l.includes('dialogs/modal.ts'))
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('dialogs/'); }),
     '统一走 modal.ts (modalConfirm/registerDlg 单例槽位，致命陷阱 #14)；合法旁路须确认 registerDlg 已登记');
@@ -321,10 +321,10 @@ function runChecks() {
   // 注意：候选清单含已配失效的调用点（如 DeleteResourcePack），需人工核对函数体；
   // 基线记录当前全部调用点，新增写操作调用点将被 pre-push 阻断。
   add('W7', 'binding-layer write ops (need cache invalidation)',
-    rg('os\\.(Remove|RemoveAll|Rename)\\s*\\(', 'internal/app', ['*.go', '!*_test.go'])
+    rgTracked('os\\.(Remove|RemoveAll|Rename)\\s*\\(', 'internal/app', ['*.go', '!*_test.go'])
       .filter((l) => !/defer\s+os\./.test(l))
-      .concat(rg('fileops\\.(RenameDir|RenameFile|RemoveDir|DeleteModelFile|WriteModelFolder)\\s*\\(', 'internal/app', ['*.go', '!*_test.go']))
-      .concat(rg('recycle\\.(MoveEx|Restore|Delete|Empty)\\s*\\(', 'internal/app', ['*.go', '!*_test.go']))
+      .concat(rgTracked('fileops\\.(RenameDir|RenameFile|RemoveDir|DeleteModelFile|WriteModelFolder)\\s*\\(', 'internal/app', ['*.go', '!*_test.go']))
+      .concat(rgTracked('recycle\\.(MoveEx|Restore|Delete|Empty)\\s*\\(', 'internal/app', ['*.go', '!*_test.go']))
       .filter((l) => !/:\d+:\s*\/\//.test(l))
       .filter((l) => {
         const [f, line] = parseRgLine(l);
@@ -399,7 +399,7 @@ function collectViolationKeys(results) {
 function runBaseline(results) {
   const current = collectViolationKeys(results);
   const allKeys = [...current.blocking, ...current.advisory];
-  // 扫描健康门（fail-closed，比对前）：rg 缺失/执行失败时上方 rg() 已返回 []，
+  // 扫描健康门（fail-closed，比对前）：rg 缺失/执行失败时上方 rgTracked() 已返回 []，
   // 若不拦截，--baseline 模式 newV=[] 会退 0 假绿放行（code_review P1）。
   if (!rgHealthy) {
     return { ok: false,
@@ -540,3 +540,4 @@ if (baselineMode) {
 } else {
   outputText(results);
 }
+

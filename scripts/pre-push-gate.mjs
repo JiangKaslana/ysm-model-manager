@@ -42,6 +42,7 @@ import { run as procRun } from './_lib/proc.mjs';
 import { classify, planFromFiles } from './_lib/domain-classify.mjs';
 import { runContractTestsParallel } from './_lib/contract-tests.mjs';
 import { logPush } from './_lib/log-push.mjs';
+import { shq } from './_lib/proc.mjs';
 
 
 const B = { OK: '[OK]', FAIL: '[FAIL]', FIX: '[FIX]', SKIP: '[SKIP]' };
@@ -58,17 +59,6 @@ function sh(cmd, { cwd = ROOT, timeout = TIMEOUT } = {}) {
    * out 回退 err：ENOENT/超时诊断在 r.err，空 out 时保留原因（P3 复核）。 */
   const r = procRun(cmd, [], { cwd, timeout, shell: true });
   return { rc: r.rc, out: r.out || r.err || '' };
-}
-
-/**
- * shell 参数转义：文件名等动态值拼入命令字符串前必须包裹，防止含空格/元字符
- * 的路径被 shell 拆词或注入（code_review P1）。win32 走 cmd.exe 用双引号（"→""），
- * 其余平台走 /bin/sh 用单引号（'→'\''）。
- */
-function shq(s) {
-  const str = String(s);
-  if (process.platform === 'win32') return `"${str.replace(/"/g, '""')}"`;
-  return `'${str.replace(/'/g, `'\\''`)}'`;
 }
 
 function git(args, { cwd = ROOT } = {}) {
