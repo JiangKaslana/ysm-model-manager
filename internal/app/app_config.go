@@ -264,28 +264,6 @@ func (a *App) CheckUpdate() (*updater.UpdateInfo, error) {
 	return updater.Check(version.Version)
 }
 
-func (a *App) DownloadUpdate(url string, expectedHash string) (string, error) {
-	if !validUpdateURL(url) {
-		return "", fmt.Errorf("非法的更新地址")
-	}
-	return updater.Download(url, expectedHash)
-}
-
-func (a *App) ApplyUpdate(exePath string) error {
-	// 入口白名单：exePath 必须存在、非空且不超过 200MB（防任意路径 / 超大文件）
-	fi, err := os.Stat(exePath)
-	if err != nil {
-		return fmt.Errorf("更新包不可用: %w", err)
-	}
-	if fi.Size() <= 0 {
-		return fmt.Errorf("更新包为空")
-	}
-	if fi.Size() > 200<<20 {
-		return fmt.Errorf("更新包过大（超过 200MB）")
-	}
-	return updater.InstallUpdate(exePath)
-}
-
 // validUpdateURL 更新下载地址白名单校验（DoUpdate 是 Wails binding，
 // 任意 webview JS 可传入任意 URL → 内网 SSRF / 恶意 exe 装盘；
 // 仅放行 https + GitHub 系域名。

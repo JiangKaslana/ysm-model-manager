@@ -38,24 +38,11 @@ func main() {
 	}
 
 	// 1. 等待主进程退出（最多等待 30 秒）
-	mainProc, err := os.FindProcess(pid)
-	if err == nil && mainProc != nil {
-		// 等待进程退出，轮询间隔 200ms
-		for i := 0; i < 150; i++ {
-			p, err := os.FindProcess(pid)
-			if err != nil || p == nil {
-				break
-			}
-			// FindProcess 在 Windows 上总是成功，需要尝试发送信号 0
-			// 用 Signal(nil) 来检测进程是否存在
-			if err := p.Signal(os.Kill); err != nil {
-				break // 进程不存在或无法访问
-			}
-			time.Sleep(200 * time.Millisecond)
-		}
-	}
-	// 额外等待 500ms 确保文件锁释放
-	time.Sleep(500 * time.Millisecond)
+	// 注意：Windows 不支持 Signal(0) 检测存活，也不应对目标进程发 Signal(os.Kill)
+	// （那会直接杀死仍在运行的主进程）。用 os.FindProcess + 定期轮询检查线程数/句柄
+	// 变化不可行，改为固定等待：主进程 os.Exit(0) 后系统回收 PE 文件锁需 ~500ms，
+	// 直接 sleep 足够（与下方 500ms 合并）。
+	time.Sleep(2 * time.Second)
 
 	// 2. 复制新 exe 到目标位置（原子替换：同目录临时文件 + .old 备份 + 失败回滚）
 	if err := replaceExe(newPath, targetPath); err != nil {

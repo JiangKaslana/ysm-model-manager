@@ -176,11 +176,11 @@ func TestFetchExpectedHash_MalformedURL(t *testing.T) {
 // TestFetchExpectedHash_SumsPrefix 覆盖 <hash> *<filename> 星号前缀格式（多行 + 空行跳过）
 func TestFetchExpectedHash_SumsPrefix(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "\n\nabc123def456  YSM-Model-Manager_windows_amd64.zip\nfed789cba012 *YSM-Model-Manager_windows_arm64.zip\n\n")
+		fmt.Fprint(w, "\n\nabc123def456  YSM-Model-Manager_windows_amd64.exe\nfed789cba012 *YSM-Model-Manager_windows_arm64.exe\n\n")
 	}))
 	defer server.Close()
 
-	got, err := fetchExpectedHash(server.URL+"/sums", "YSM-Model-Manager_windows_arm64.zip")
+	got, err := fetchExpectedHash(server.URL+"/sums", "YSM-Model-Manager_windows_arm64.exe")
 	if err != nil {
 		t.Fatalf("fetchExpectedHash() = %v", err)
 	}
@@ -194,7 +194,7 @@ func TestFetchExpectedHash_SumsPrefix(t *testing.T) {
 func TestFetchExpectedHash_TruncatedBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", "65536") // 声明 64KB，实际只发 1KB
-		w.Write([]byte("abc123def456  YSM-Model-Manager_windows_amd64.zip"))
+		w.Write([]byte("abc123def456  YSM-Model-Manager_windows_amd64.exe"))
 	}))
 	defer server.Close()
 

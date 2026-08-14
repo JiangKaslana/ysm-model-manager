@@ -260,7 +260,7 @@ func downloadOnce(assetURL string, expectedHash string, onProgress func(done, to
 
 	// 非 200 直接拒绝——原实现不检查状态码，asset URL 返回 404 时
 	// 在 expectedHash=="" 场景下错误页 HTML 会被当更新包写入 tmp 并返回成功
-	// （随后 InstallUpdate 才报 zip 打开失败，用户被误导为已下载成功）
+	// （随后 InstallUpdate 才报 exe 打开失败，用户被误导为已下载成功）
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("更新包下载失败: HTTP %d（%s）", resp.StatusCode, assetURL)
 	}

@@ -48,10 +48,6 @@ export function AnalyzeYSMModel(path: string): $CancellablePromise<ysm$0.YSMMode
     return $Call.ByID(87919393, path);
 }
 
-export function ApplyUpdate(zipPath: string): $CancellablePromise<void> {
-    return $Call.ByID(3688265704, zipPath);
-}
-
 export function BackupWorkshopCreators(): $CancellablePromise<string> {
     return $Call.ByID(3964989829);
 }
@@ -232,10 +228,6 @@ export function DoUpdate(url: string, expectedHash: string): $CancellablePromise
 
 export function DownloadFromGitHub(rawURL: string, saveDir: string): $CancellablePromise<string> {
     return $Call.ByID(960385788, rawURL, saveDir);
-}
-
-export function DownloadUpdate(url: string, expectedHash: string): $CancellablePromise<string> {
-    return $Call.ByID(2886098546, url, expectedHash);
 }
 
 /**

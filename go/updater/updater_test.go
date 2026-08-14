@@ -134,6 +134,8 @@ fed789cba012 *YSM-Model-Manager_windows_arm64.exe
 		{"YSM-Model-Manager_windows_arm64.exe", "fed789cba012"},
 		{"YSM-Model-Manager_linux_amd64.tar.gz", ""},
 		{"other-file.tar.gz", "000000000000"},
+		// 非本平台 .tar.gz 占位资产：hash 可解析但 UpdateInfo.URL 为空 → Available=false
+		// （测试验证 fetchExpectedHash 的通用解析能力，不依赖 platform 匹配逻辑）
 	}
 
 	for _, tt := range tests {

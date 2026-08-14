@@ -78,17 +78,17 @@ func TestInstallUpdate_NonWindows(t *testing.T) {
 	}
 }
 
-func TestInstallUpdate_BadZip(t *testing.T) {
+func TestInstallUpdate_BadExe(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("仅 Windows")
 	}
 	dir := t.TempDir()
-	badZip := filepath.Join(dir, "bad.zip")
-	if err := os.WriteFile(badZip, []byte("notzip"), 0644); err != nil {
+	badExe := filepath.Join(dir, "bad.exe")
+	if err := os.WriteFile(badExe, []byte("not a PE binary"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	err := InstallUpdate(badZip)
+	err := InstallUpdate(badExe)
 	if err == nil {
-		t.Fatal("坏 zip 应报错")
+		t.Fatal("坏 exe 应报错")
 	}
 }
