@@ -124,14 +124,16 @@ ADR-053 将 `MoveModelFile` / `CopyModelFile` 归 C 类（理由：「依赖桌�
 
 > **落地记录（2026-08-14）**：四处约定改造完成 + `ListAllFilePaths` 桥接落地（`listWebModelDirFiles`），契约测试 73 项闭环。`ListFileNames` 属 C 类（整合包/实例 16 项，明确不做，见 §2.1）。存量 key 迁移与 SearchModels 数值条件解锁留待后续（R1 数据层主体已闭环）。
 
-### R2 · 数据互通（数据层）🔄 进行中
+### R2 · 导入增强（数据层）✅ 已重定位 + 主体落地
 
-- **目标**：模型库不困在浏览器
-- **任务**：① 模型库打包导出（zip：清单 + 文件，参照 `GenerateRepoIndex` 下载范式）+ 桌面端导入入口【跨端，需桌面侧配合，双边契约测试锁定】② FSA 持久挂载双向同步（**参照 MikuMikuAR FSA 权限持久化全套**：`_fsaRootHandle` 存句柄 + `queryPermission` 恢复授权——绝不 `requestPermission`，须用户手势启动期会被拦截——+ 权限三态 granted/prompt/revoked 判定 + 手势内才 requestPermission；配套 `backend.fsa.test.ts` + `web-fsa-auth.spec.ts` e2e）
-- **验收**：网页版导出的模型库可在桌面端导入还原
-- **风险**：跨端格式契约；FSA 仅 Chromium 系，需降级提示
+> **定位修订（2026-08-14）**：原「数据互通」命题不成立——网页版模型库内容用户本地都有原始文件（FSA 授权的是本地目录、社区下载 `<a download>` 直存本地），「导出 zip」是重复劳动，已砍。R2 重定位为「导入增强」：让用户拖 zip 进来能解压成模型组。
 
-> **落地记录（2026-08-14）**：任务② FSA 持久化主体已落地——`web-fs.ts` 新增句柄持久化原语（`saveFsaRootHandle`/`restoreFsaRootHandle`/`getFsaAuthState`/`reauthorizeFsaRoot`/`rescanFsaRoot` 启动自愈双扫描），`selectLocalRepo` 授权后句柄落库；settings 接入启动自愈 + 已撤销提示；契约测试 7 项（browser-adapter.test.ts「R2 FSA 句柄持久化」块）。任务① zip 导出 + 桌面端导入留待跨端配合。
+- **目标**：网页版导入能力对齐桌面（zip 解压、目录分组、中文文件名）
+- **任务**：① **zip 解压导入**（extract.ts：`parseZipCentralDir` 预解析 + `extractZip` 解压 + ZIP 炸弹防护 + `gbkDecodeEntry` 中文名还原；`importWebFiles` 入口 `expandZipFiles` 展平 zip 成目录模型组）② **FSA 持久挂载**（句柄落库 + 启动自愈双扫描，已落地）
+- **验收**：拖入模型 zip → 解压成目录模型组（含子目录 rel），中文名正确；FSA 授权目录重启自动恢复
+- **风险**：ZIP 炸弹防护阈值；FSA 仅 Chromium 系，需降级提示
+
+> **落地记录（2026-08-14）**：任务① zip 解压导入已接通——extract.ts 三件套（central dir 预解析 / 解压 / 类型检测）+ `expandZipFiles` 在 `importWebFiles` 入口展平 zip（.ysm 保持整体走 WASM）；契约测试 15（extract）+ 2（browser-adapter zip 展平）项。任务② FSA 持久化已落地（上轮）。
 
 ### R3 · 能力补齐（能力层，A 类 64 项三批）
 

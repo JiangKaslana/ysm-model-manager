@@ -686,19 +686,19 @@
 | `listWebAuthors()` | `frontend/src/backend/web-community:146` | ListModelAuthors 网页版：从模型名 [作者] 前缀统计（计数降序），对齐 scanner.go:265 |
 | `scanWebLocalAuthors()` | `frontend/src/backend/web-community:166` | ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 |
 | `generateWebRepoIndex()` | `frontend/src/backend/web-community:190` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:22` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:66` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:100` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:122` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:141` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:178` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:189` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:242` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `parseWebModelPath()` | `frontend/src/backend/web-fs:257` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
-| `parseWebModelDir()` | `frontend/src/backend/web-fs:274` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
-| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:287` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:306` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:320` | — |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:24` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:68` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:102` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:124` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:143` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:180` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:191` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:244` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `parseWebModelPath()` | `frontend/src/backend/web-fs:259` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
+| `parseWebModelDir()` | `frontend/src/backend/web-fs:276` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
+| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:289` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:308` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:322` | — |
 | `loadWebConfig()` | `frontend/src/backend/web-store:11` | — |
 | `saveWebConfig()` | `frontend/src/backend/web-store:19` | — |
 | `getWebImportLogs()` | `frontend/src/backend/web-store:43` | — |

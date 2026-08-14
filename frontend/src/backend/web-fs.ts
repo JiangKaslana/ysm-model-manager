@@ -12,6 +12,8 @@ import resourceTypesJson from "../../../resource_types.json" with { type: "json"
 // rtype 魔法字符串统一走 RESOURCE_TYPES 常量（治理红线 R7）
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64 } from "./web-common.ts";
+// R2 导入增强：ZIP 解压（extractZip 解出文件 + gbkDecodeEntry 还原中文名）
+import { extractZip, gbkDecodeEntry } from "./extract.ts";
 
 // --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
 const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
@@ -485,18 +487,67 @@ export async function collectAllWebEntries(): Promise<ModelEntry[]> {
  * - .zip 视为模型主文件（与 .ysm 同属 ZIP 容器，WASM 解码器直接处理），不拒绝
  * - 超出 100MB 跳过（对齐 import-dnd oversize 过滤）
  */
+
+/**
+ * R2 导入增强：把输入里的 .zip 文件解压展平成目录文件，返回新的 File[]。
+ * - .zip → extractZip 解出 entries（带相对路径），转成带 webkitRelativePath 的 File[]，
+ *   复用文件夹拖入的「同 stem 分组 + 主文件目录收敛」语义，rel 保留子目录层级
+ * - 非 .zip / .ysm → 原样透传（.ysm 保持整体，WASM 解码器直接处理）
+ * - 解压失败（非标准 zip / 超限）→ 保留原 zip 单个文件（走「zip 当主文件」兜底），不阻断
+ */
+async function expandZipFiles(files: File[]): Promise<File[]> {
+  const out: File[] = [];
+  for (const f of files) {
+    if (!/\.zip$/i.test(f.name) || f.size > MAX_IMPORT_BYTES) {
+      out.push(f);
+      continue;
+    }
+    try {
+      const data = new Uint8Array(await f.arrayBuffer());
+      const { entries, metas } = extractZip(data);
+      if (!metas.length) {
+        out.push(f);
+        continue;
+      }
+      let any = false;
+      for (const m of metas) {
+        const raw = entries[m.fflateKey];
+        if (!raw) continue;
+        // gbkDecodeEntry 还原中文名（gpfUtf8 时即真名）；防目录项（名以 / 结尾）
+        const { realName } = gbkDecodeEntry(m);
+        if (!realName || realName.endsWith("/")) continue;
+        // webkitRelativePath = zip 内相对路径（含子目录），供既有分组逻辑消费
+        const nf = new File([raw.slice()], realName.split("/").pop() || realName, {
+          type: "application/octet-stream",
+        });
+        Object.defineProperty(nf, "webkitRelativePath", { value: realName });
+        out.push(nf);
+        any = true;
+      }
+      if (!any) out.push(f); // 解压空/无有效文件 → 保留原 zip
+    } catch {
+      out.push(f); // 解压失败 → 降级为整体入库，不阻断
+    }
+  }
+  return out;
+}
+
 export async function importWebFiles(
   files: File[],
   type: string,
 ): Promise<{ imported: number; failed: number }> {
   let imported = 0;
   let failed = 0;
+  // R2 导入增强：先把 .zip 解压展平成目录文件（.ysm 保持整体，WASM 解码器处理）。
+  // extractZip 解出的 entries 带相对路径（含子目录），转成带 webkitRelativePath 的 File[]，
+  // 与文件夹拖入语义一致——解压失败（非标准 zip）则保留原 zip 单个文件，不阻断。
+  const expanded = await expandZipFiles(files);
   // 单模型分组（两阶段，P-A 目录树）：
   // 阶段1 粗分组按 webkitRelativePath 首段（或去扩展名 basename），隔离跨目录干扰；
   // 阶段2 组内按「主文件所在目录」收敛为最终组名（模型目录 = 含主文件的目录，可多段），
   // 子目录辅助文件（如 tex/face.png）归属到包含它的主文件目录，rel 保留子目录层级。
   const rough = new Map<string, File[]>();
-  for (const f of files) {
+  for (const f of expanded) {
     try {
       const key = roughStemOf(f);
       if (!key) {

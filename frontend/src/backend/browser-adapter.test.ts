@@ -1,5 +1,6 @@
 // ===== 浏览器后端适配器测试（ADR-049 Phase 1 骨架 + Phase 2 IndexedDB 模型库）=====
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { zipSync, strToU8 } from "fflate";
 import {
   browserAdapter,
   WebUnsupportedError,
@@ -218,6 +219,34 @@ describe("importWebFiles — Phase 2 数据层", () => {
     const big = new File([new Uint8Array(100 * 1024 * 1024 + 1)], "超大.ysm");
     const r = await importWebFiles([big], "ysm");
     expect(r).toEqual({ imported: 0, failed: 1 });
+  });
+
+  it("R2 导入增强：.zip 解压展平成目录模型组（含子目录 rel）", async () => {
+    // fflate zipSync 构造标准 zip：内含 ysm.json + models/ + textures/（带子目录）
+    const zipBytes = zipSync({
+      "狐狸/狐狸.ysm": strToU8("YSM"),
+      "狐狸/ysm.json": strToU8("{}"),
+      "狐狸/models/main.json": strToU8("{\"bones\":[]}"),
+      "狐狸/textures/skin.png": strToU8("PNG"),
+    });
+    const zipFile = new File([zipBytes], "狐狸.zip");
+    const r = await importWebFiles([zipFile], "ysm");
+    // 解压后按 zip 内路径分组：模型组名 = 首段「狐狸」，组内 rel 保留子目录
+    expect(r).toEqual({ imported: 1, failed: 0 });
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/ysm.json")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/models/main.json")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/textures/skin.png")).toBe(true);
+  });
+
+  it("R2 导入增强：.zip 解压空 / 非标准 → 保留原 zip 整体入库（降级不阻断）", async () => {
+    // 非标准 zip（无中央目录）→ extractZip 抛错 → 保留单文件，走「zip 当主文件」兜底
+    const fake = new File([enc.encode("not a zip")], "坏.zip");
+    const r = await importWebFiles([fake], "ysm");
+    expect(r).toEqual({ imported: 1, failed: 0 });
+    expect(idbMock._store.has("dir:ysm/坏:")).toBe(true);
+    expect(idbMock._store.has("file:ysm/坏/坏.zip")).toBe(true);
   });
 
   it("ysm.json 可作主文件（桌面 IsYsmEntryJSON 白名单）；Ext 小写化 + 无点号保护", async () => {
