@@ -1,6 +1,6 @@
 // Package avatar 创作者头像提取与缓存，不依赖 Wails runtime。
 //
-// 本文件（avatar_extract.go）：头像提取编排——从模型文件（.ysm/.zip/.7z/.json）
+// 本文件（avatar_extract.go）：头像提取编排——从模型文件（.ysm/.zip/.json）
 // 提取作者头像（ExtractAvatarURI）、批量缓存（CacheAvatarsFromJSON/CacheAvatarsFromModel）、
 // 作者名清单（modelAuthorNames）与模型受限读取（readLimitedModel）。拆分自原 avatar.go
 // （ADR-040 文件行数治理）。
@@ -20,7 +20,7 @@ import (
 )
 
 // ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。
-// modelPath 支持 .ysm / .zip / .7z / .json（解压目录）。
+// modelPath 支持 .ysm / .zip / .json（解压目录）。
 func ExtractAvatarURI(modelPath, safeName string) string {
 	ext := strings.ToLower(filepath.Ext(modelPath))
 	var authors []authorEntry
@@ -259,7 +259,7 @@ func CacheAvatarsFromJSON(modelPath string) {
 	}
 }
 
-// CacheAvatarsFromModel 从 .ysm/.zip/.7z/.json 模型缓存所有作者头像。
+// CacheAvatarsFromModel 从 .ysm/.zip/.json 模型缓存所有作者头像。
 // 覆盖 CacheAvatarsFromJSON 仅处理解压目录（.json）的局限，使创作者视图头像
 // 对压缩包/二进制模型（.ysm/.zip）同样生效。
 func CacheAvatarsFromModel(modelPath string) {
@@ -267,7 +267,7 @@ func CacheAvatarsFromModel(modelPath string) {
 	switch ext {
 	case ".json":
 		CacheAvatarsFromJSON(modelPath)
-	case ".ysm", ".zip", ".7z":
+	case ".ysm", ".zip":
 		names := modelAuthorNames(modelPath)
 		cacheDir := CacheDir()
 		if cacheDir == "" {
@@ -320,7 +320,7 @@ func modelAuthorNames(modelPath string) []string {
 			return nil
 		}
 		raw = ReadFileFromZip(zr, "ysm.json")
-	case ".ysm", ".7z":
+	case ".ysm":
 		data, err := readLimitedModel(modelPath)
 		if err != nil {
 			// 真 IO 错误补日志（IsNotExist 静默）
@@ -360,7 +360,7 @@ func modelAuthorNames(modelPath string) []string {
 	return names
 }
 
-// readLimitedModel 受限读取模型文件（.ysm/.zip/.7z/.json 可达数百 MB——头像/作者
+// readLimitedModel 受限读取模型文件（.ysm/.zip/.json 可达数百 MB——头像/作者
 // 提取只需扫描内容，全量整读内存膨胀；50MB 上限对齐 geometry maxExtractSize 口径，
 // 超限返回 error 由调用方按读取失败处理）。
 func readLimitedModel(path string) ([]byte, error) {

@@ -760,36 +760,6 @@ func makeZip(t *testing.T, entries map[string]string) []byte {
 	return buf.Bytes()
 }
 
-// ===== .7z 分支补测（审核盲区）=====
-
-// TestCacheAvatarsFromModel_7z 分支：.7z 落到 modelAuthorNames → DecodeYSMFiles
-// （node 未设 → nil）→ 不 panic 静默返回。验证 .ysm/.7z 合并 case 的非 .ysm 半边。
-func TestCacheAvatarsFromModel_7z(t *testing.T) {
-	old := CacheDir
-	CacheDir = func() string { return t.TempDir() }
-	defer func() { CacheDir = old }()
-
-	tmp := t.TempDir()
-	fake7z := filepath.Join(tmp, "model.7z")
-	if err := os.WriteFile(fake7z, []byte("fake-7z-bytes"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	// nodeJSPath 未设 → DecodeYSMFiles 返回 nil → modelAuthorNames nil → 不缓存不 panic
-	CacheAvatarsFromModel(fake7z)
-}
-
-// TestModelAuthorNames_7z 分支：.7z 落到 DecodeYSMFiles，node 未设 → nil。
-func TestModelAuthorNames_7z(t *testing.T) {
-	tmp := t.TempDir()
-	fake7z := filepath.Join(tmp, "model.7z")
-	if err := os.WriteFile(fake7z, []byte("fake-7z-bytes"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if got := modelAuthorNames(fake7z); got != nil {
-		t.Fatalf(".7z 无解码器应返回 nil, 得到 %v", got)
-	}
-}
-
 // ===== 并发缓存写入补测（WriteFileAtomic 原子性，-race 验证不竞态截断）=====
 
 // TestSaveAvatarData_Concurrent 并发 SaveAvatarData 同作者：WriteFileAtomic 原子替换
