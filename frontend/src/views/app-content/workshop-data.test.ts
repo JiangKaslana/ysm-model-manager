@@ -53,6 +53,24 @@ describe("getCreatorIdentity", () => {
       label: "YSM 创作者", icon: ICONS.CREATOR, tag: "creator",
     });
   });
+
+  it("role 优先于 tag（两者同时存在时按 role 判定）", () => {
+    // role=official + tag=vup → role 分支命中，tag 不参与
+    expect(getCreatorIdentity({ role: "official", tag: "vup" })).toEqual({
+      label: "官方IP模型库", icon: ICONS.OFFICIAL, tag: "official",
+    });
+    // tag 无 role 时走 tag 推断
+    expect(getCreatorIdentity({ tag: "official" })).toEqual({
+      label: "官方IP模型库", icon: ICONS.OFFICIAL, tag: "official",
+    });
+  });
+
+  it("tag=creator 不在显式推断分支 → 回退 YSM 创作者", () => {
+    // tag 推断只覆盖 official/vup/oc/repo；creator 属默认回退（非 creator 分支）
+    expect(getCreatorIdentity({ tag: "creator" })).toEqual({
+      label: "YSM 创作者", icon: ICONS.CREATOR, tag: "creator",
+    });
+  });
 });
 
 describe("getTagFromRole", () => {

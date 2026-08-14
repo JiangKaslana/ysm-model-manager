@@ -83,8 +83,14 @@ class AppContent extends HTMLElement {
       this._render();
       // P2 修复（审核）：nav:changed 是「渲染完成后」的完成事件——原在 _render() 之前发射，
       // _render 的 HTML 装配段（switch+innerHTML）若抛错，PageStore/导航高亮已是新页而 DOM
-      // 仍是旧页（#13「状态变、内容不渲染」契约违反）；渲染成功后广播才真正收敛
-      bus.emit("nav:changed", { page });
+      // 仍是旧页（#13「状态变、内容不渲染」契约违反）；渲染成功后广播才真正收敛。
+      // P3 修复（审核）：_render 失败时 _pageInitFailed 会把 _current 重定向回 repository 并
+      // 同步重发 nav:change（其 handler 已广播 nav:changed{repository}）；此处若仍按原 page
+      // 广播，会把 PageStore/导航高亮写回失败页（幽灵路径）。仅当 _current 仍是目标页
+      // （渲染未被重定向）才广播完成事件。
+      if (this._current === page) {
+        bus.emit("nav:changed", { page });
+      }
     });
     // 创作者详情浮层→搜索本地模型
     this._globalUnsubs.push(
@@ -158,6 +164,12 @@ class AppContent extends HTMLElement {
         if (typeof fn === "function") fn();
       });
       this._unsubs = [];
+      // P3 修复（审核，陷阱 #2）：_unsubs 每次重渲染清空会把 initInstancesPage 注册的
+      // package:selected 订阅一并退订；若 _insListenerReg 不复位，再次进入 instances 页时
+      // initInstancesPage 因 flag=true 提前 return，订阅永久丢失（切页后 handler 消失）。
+      // 与 _unsubs 生命周期对齐：清空即复位，重进页面重新注册（重复渲染同一页也会先退订再
+      // 注册，不会重复监听）。
+      this._insListenerReg = false;
     }
     try {
       let inner = "";

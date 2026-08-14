@@ -19,6 +19,11 @@ import { t } from "../../core/i18n/t.ts";
 import type { WorkshopModel } from "../../features/community/render.ts";
 import type { WorkshopSite } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 
+/** 创意工坊 Tab 延迟加载毫秒数（等首帧渲染后再异步拉数据） */
+const WS_TAB_LOAD_DELAY_MS = 100;
+/** 内嵌浏览加载超时（15s 未完成加载 → 提示此站点不允许内嵌浏览） */
+const WS_EMBED_TIMEOUT_MS = 15000;
+
 /** app-content 组件完整接口（供 workshop/github 初始化函数访问） */
 export interface AppContentHost {
   _root: ShadowRoot;
@@ -134,7 +139,7 @@ export function initWorkshopPage(host: AppContentHost): void {
         t("workshop.exportSite") +
         "</span>";
     }
-  }, 100));
+  }, WS_TAB_LOAD_DELAY_MS));
 
   // 后台批量提取创作者头像（仅首次完成后刷新）
   host._setAvatarCache({});
@@ -202,7 +207,7 @@ export function initWorkshopPage(host: AppContentHost): void {
       window.clearTimeout(wsLoadTimer);
       wsLoadTimer = window.setTimeout(() => {
         if (blockedEl) blockedEl.style.display = "flex";
-      }, 15000);
+      }, WS_EMBED_TIMEOUT_MS);
       iframe.onload = () => window.clearTimeout(wsLoadTimer);
     }
   };
@@ -463,7 +468,15 @@ export function initWorkshopPage(host: AppContentHost): void {
     }
 
     // 清理前一次绑定
-    if (host._repoEventsCleanup) await host._repoEventsCleanup();
+    if (host._repoEventsCleanup) {
+      try {
+        await host._repoEventsCleanup();
+      } catch (e) {
+        // P3 修复（审核）：cleanup（含 queue.cancel）失败不阻断新仓库绑定——
+        // 原裸 await 会把 reject 逸出成 unhandled rejection，且中断 showRepoModels
+        dbg("repo-events", "清理旧仓库事件失败:", (e as Error)?.message);
+      }
+    }
     if (_currentRepo !== repo) return; // 清理期间已切换，丢弃
 
     // 委托 bindRepoEvents 管理所有事件 + 内部状态 (showAll/selectedSet/renderList)

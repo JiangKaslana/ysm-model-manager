@@ -196,6 +196,22 @@ func TestListModelAuthors(t *testing.T) {
 	}
 }
 
+func TestListModelAuthors_BracketEdges(t *testing.T) {
+	// 有 [ 无 ]（idx=-1）→ 跳过；[] 空作者 → 跳过；正常 [作者] 正常统计
+	entries := []types.ModelEntry{
+		{Name: "[无右括号.ysm"},
+		{Name: "[]空作者.ysm"},
+		{Name: "[正常]作者.ysm"},
+	}
+	authors := ListModelAuthors(entries)
+	if len(authors) != 1 {
+		t.Fatalf("应只统计到 [正常], got %+v", authors)
+	}
+	if authors[0].Name != "正常" || authors[0].Count != 1 {
+		t.Fatalf("作者解析失败: %+v", authors[0])
+	}
+}
+
 func TestScanLocalAuthors(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, "[作者C]模型.ysm"), []byte("x"), 0644)

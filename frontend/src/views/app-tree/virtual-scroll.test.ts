@@ -66,4 +66,17 @@ describe("installScrollSync", () => {
 
     expect(renderVisible).not.toHaveBeenCalled();
   });
+
+  it("清理时取消已排队的 rAF（滚动后立即清理 → 不再触发）", async () => {
+    const container = document.createElement("div");
+    const renderVisible = vi.fn();
+    const cleanup = installScrollSync(container, renderVisible);
+
+    // 滚动已调度 rAF，尚未触发
+    container.dispatchEvent(new Event("scroll"));
+    cleanup(); // 应取消 pending rAF
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(renderVisible).not.toHaveBeenCalled();
+  });
 });

@@ -393,17 +393,19 @@ func GenerateRepoIndex(repoPath string) (string, error) {
 	}
 	data, err := json.MarshalIndent(list, "", "  ")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("序列化 index 条目失败: %w", err)
 	}
 	indexPath := filepath.Join(repoPath, "index.json")
 	// 临时文件 + rename 原子替换，避免崩溃/中断留下半截 index.json（陷阱 #8 变体）
+	// 失败路径统一清理 .tmp：WriteFile 半写残留与 rename 失败残留都 Remove，不留孤儿临时文件
 	tmpPath := indexPath + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
-		return "", err
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("写入 index.json.tmp 失败: %w", err)
 	}
 	if err := os.Rename(tmpPath, indexPath); err != nil {
 		_ = os.Remove(tmpPath)
-		return "", err
+		return "", fmt.Errorf("原子替换 index.json 失败: %w", err)
 	}
 
 	workflowDir := filepath.Join(repoPath, ".github", "workflows")

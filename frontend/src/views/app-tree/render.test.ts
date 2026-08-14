@@ -3,7 +3,9 @@
 // buildTree：排序（name/size/date）/ search 过滤 / filterPaths 交集 / Windows 路径归一。
 // flattenVisible：目录展开/折叠 / 搜索自动展开 / 文件行 key 用 fullPath。
 import { describe, it, expect, beforeEach } from "vitest";
-import { buildTree, flattenVisible } from "./render.ts";
+import { buildTree, flattenVisible, getRenderMode, setRenderMode } from "./render.ts";
+import { fileRowCommon, folderRowCommon } from "./row-common.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { selectState } from "./data.ts";
 import type { TreeEntry } from "./loader.ts";
 
@@ -145,6 +147,25 @@ describe("flattenVisible", () => {
     expect(fileRow?.key).toBe("folder/target.ysm");
   });
 
+  it("搜索命中目录名 → 保留子文件行（按路径过滤，不丢文件行）", () => {
+    const root = buildTree(
+      [entry("a.ysm", "hero/char/a.ysm"), entry("b.ysm", "other/b.ysm")],
+      "name",
+      "hero",
+      null,
+    );
+    const rows = flattenVisible(root, "", "hero", "name", {}, 0, "grid");
+    const fileRows = rows.filter((r) => r.type === "file");
+    expect(fileRows).toHaveLength(1);
+    expect(fileRows[0].key).toBe("hero/char/a.ysm");
+  });
+
+  it("搜索带首尾空白 → trim 后仍能匹配（与 buildTree 一致）", () => {
+    const root = buildTree([entry("a.ysm", "hero/a.ysm")], "name", "", null);
+    const rows = flattenVisible(root, "", "  hero  ", "name", {}, 0, "grid");
+    expect(rows.some((r) => r.type === "file")).toBe(true);
+  });
+
   it("文件行 key 用 fullPath（选中匹配依据）", () => {
     const root = buildTree(
       [entry("a.ysm", "folder/a.ysm", 0, 0, "/repo/folder/a.ysm")],
@@ -155,5 +176,64 @@ describe("flattenVisible", () => {
     const rows = flattenVisible(root, "", "", "name", { "folder": true }, 0, "grid");
     const fileRow = rows.find((r) => r.type === "file");
     expect(fileRow?.key).toBe("/repo/folder/a.ysm");
+  });
+});
+
+describe("getRenderMode / setRenderMode（node 环境无 localStorage 的降级路径）", () => {
+  it("getRenderMode 在存储不可用时降级为 grid", () => {
+    expect(getRenderMode()).toBe("grid");
+  });
+
+  it("setRenderMode 在存储不可用时静默降级（不抛错）", () => {
+    expect(() => setRenderMode("list")).not.toThrow();
+  });
+});
+
+describe("row-common 公共行计算", () => {
+  it("fileRowCommon：banned / 类型图标 / 缩进 / fullPath 兜底", () => {
+    const normal = fileRowCommon(
+      { path: "a.ysm", fullPath: "/r/a.ysm", banned: false, name: "a", size: 1, modTime: 0, type: RESOURCE_TYPES.YSM },
+      "icon",
+      null,
+    );
+    expect(normal.checked).toBe(" on");
+    expect(normal.ban).toBe("");
+    expect(normal.typeIcon).toBe("💎");
+    expect(normal.pad).toBe("");
+
+    const banned = fileRowCommon(
+      { path: "b.ysm", fullPath: "/r/b.ysm", banned: true, name: "b", size: 1, modTime: 0, type: RESOURCE_TYPES.PACK },
+      "icon",
+      20,
+    );
+    expect(banned.checked).toBe("");
+    expect(banned.ban).toBe(" ban");
+    expect(banned.typeIcon).toBe("🎨");
+    expect(banned.pad).toContain("20px");
+
+    const noFullPath = fileRowCommon(
+      { path: "c.ysm", fullPath: "", banned: false, name: "c", size: 1, modTime: 0, type: "other" },
+      "icon",
+      null,
+    );
+    expect(noFullPath.fp).toContain("c.ysm");
+  });
+
+  it("folderRowCommon：锁定 / 展开 / 部分选中 / 缩进", () => {
+    const open = folderRowCommon("dir", "dir", true, false, true, false, 10);
+    expect(open.fi).toBe("📁");
+    expect(open.ar).toBe("▾");
+    expect(open.ac).toBe(" open");
+    expect(open.ckCls).toBe(" on");
+    expect(open.pad).toContain("10px");
+
+    const locked = folderRowCommon("dir", "dir", false, true, false, false, null);
+    expect(locked.fi).toBe("🔒");
+    expect(locked.lk).toBe(" locked");
+    expect(locked.ar).toBe("▸");
+    expect(locked.ckCls).toBe("");
+
+    const partial = folderRowCommon("dir", "dir", false, false, true, true, null);
+    expect(partial.ckCls).toBe(" on partial");
   });
 });

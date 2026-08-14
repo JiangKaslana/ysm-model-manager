@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNormalizeScanKey(t *testing.T) {
@@ -84,6 +85,44 @@ func TestScanEntries_CacheGenInvalidateDuringScan(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Errorf("空目录应返回空, got %d", len(entries))
+	}
+}
+
+// TestScanEntries_ExpiredCacheLazyEviction 过期缓存条目惰性淘汰：
+// Load 命中过期 entry 时顺手 Delete，不返回陈旧结果且重新扫描
+func TestScanEntries_ExpiredCacheLazyEviction(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.ysm"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, hit := ScanEntriesWithHit(dir); hit {
+		t.Fatal("首次扫描不应命中缓存")
+	}
+	if _, hit := ScanEntriesWithHit(dir); !hit {
+		t.Fatal("30s 内二次扫描应命中缓存")
+	}
+	// 白盒：把缓存条目 expiresAt 改为过去 → 触发惰性淘汰分支
+	if v, ok := scanCache.Load(dir); ok {
+		e := v.(scanCacheEntry)
+		e.expiresAt = time.Now().Add(-time.Second)
+		scanCache.Store(dir, e)
+	} else {
+		t.Fatal("扫描后缓存应有条目")
+	}
+	// 新增文件后扫描：过期条目应被淘汰并重新扫描（拿到最新结果且不命中）
+	if err := os.WriteFile(filepath.Join(dir, "b.ysm"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	entries, hit := ScanEntriesWithHit(dir)
+	if hit {
+		t.Error("过期缓存应视为未命中并惰性淘汰")
+	}
+	if len(entries) != 2 {
+		t.Fatalf("淘汰过期缓存后应扫到 2 个（a+b），实际 %d", len(entries))
+	}
+	// 新结果已重新缓存
+	if _, hit := ScanEntriesWithHit(dir); !hit {
+		t.Error("重新扫描应命中缓存")
 	}
 }
 

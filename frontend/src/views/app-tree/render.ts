@@ -8,7 +8,6 @@ import { fileRowHTML, folderRowHTML } from "./row-tpl.ts";
 import { listFileRowHTML, listFolderRowHTML } from "./row-tpl-list.ts";
 import { renderDisplayName } from "../../utils/dom/display.ts";
 import { animateNumber } from "../../utils/animation/animate.ts";
-import { dbg } from "../../utils/debug/debug.ts";
 import { selectState } from "./data.ts";
 import type { TreeEntry } from "./loader.ts";
 import {
@@ -80,27 +79,7 @@ export function buildTree(
     }
     return 0;
   });
-  // [DBG] 诊断：打印 filterPaths 状态 + 首条 entry 路径形式（用于排查 Windows 路径分隔符）
-  (() => {
-    const fpSize = filterPaths ? filterPaths.size : 0;
-    const fpSample = filterPaths
-      ? Array.from(filterPaths).slice(0, 2)
-      : [];
-    const eSample = sorted.slice(0, 2).map((e) => ({
-      name: e.name,
-      path: e.path,
-      fullPath: e.fullPath,
-    }));
-    const hit =
-      filterPaths &&
-      sorted[0] &&
-      filterPaths.has(sorted[0].fullPath || sorted[0].path);
-    dbg(
-      "buildTree",
-      "entries=" + sorted.length + " filterPaths=" + fpSize,
-      { fpSample, eSample, firstHit: hit, query },
-    );
-  })();
+  // 筛选 + 建树：search（trim 后按路径匹配）/ filterPaths（按 fullPath 取交集）
   sorted.forEach((e) => {
     if (!e || !e.path) return;
     const relPath = e.path;
@@ -146,7 +125,9 @@ export function flattenVisible(
   mode: RenderMode,
 ): TreeRow[] {
   const hasSearch = !!(search || "").trim();
-  const query = (search || "").toLowerCase();
+  // 与 buildTree 保持一致：query 必须 trim（首尾空白不破坏匹配），且按路径而非文件名过滤
+  //（搜索命中目录名时保留子文件行，避免「文件夹展开但无子行」的幽灵状态）
+  const query = (search || "").trim().toLowerCase();
   const keys = Object.keys(node).sort((a, b) => {
     const aIsDir = !(node[a] as TreeNode)._e,
       bIsDir = !(node[b] as TreeNode)._e;
@@ -169,8 +150,10 @@ export function flattenVisible(
     if (v._e) {
       // — 文件行 —
       const e = v._e;
-      if (hasSearch && !e.name.toLowerCase().includes(query)) return;
-      const nmHtml = hasSearch ? hl(e.name, search) : renderDisplayName(e.name);
+      // 与 buildTree 一致：按完整路径匹配（含目录段），避免「搜目录名 → 文件行被丢、目录空开」
+      // 复用 full 避免重复计算（codereview P3）；hl 也须用 trimmed search，否则过滤匹配但高亮失效（codereview P2）
+      if (hasSearch && !full.toLowerCase().includes(query)) return;
+      const nmHtml = hasSearch ? hl(e.name, (search || "").trim()) : renderDisplayName(e.name);
       const dateStr = e.modTime ? fmtDate(e.modTime) : "";
       // selectState.keys 存的是 data-fullpath（绝对路径），必须用 e.fullPath 匹配
       const entryKey = e.fullPath || e.path;

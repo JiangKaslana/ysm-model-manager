@@ -84,6 +84,27 @@ describe("app-content 模板", () => {
     expect(html).toContain("set-lang");
   });
 
+  it("settingsHTML 查看器模式显示网页版文件来源 FSA 授权卡片（ADR-049 能力门控补齐）", () => {
+    isViewerModeMock.mockReturnValue(true);
+    const html = settingsHTML();
+    // 查看器模式隐藏本地文件路径配置后，改显 FSA 授权卡片
+    expect(html).toContain("stg-web-repo-card");
+    expect(html).toContain("web-repo-auth-btn");
+    expect(html).toContain("web-repo-auth-status");
+    isViewerModeMock.mockReturnValue(false);
+  });
+
+  it("settingsHTML 桌面模式包含主题选择/默认页/高级设置网格", () => {
+    const html = settingsHTML();
+    // 桌面模式展示完整偏好：主题选择器、动画开关、默认启动页、文件存储高级网格
+    expect(html).toContain("theme-picker");
+    expect(html).toContain("set-animations");
+    expect(html).toContain("set-default-page");
+    expect(html).toContain("set-advanced-grid");
+    // 桌面模式不显示网页版 FSA 授权卡片
+    expect(html).not.toContain("web-repo-auth-btn");
+  });
+
   it("downloadsHTML 包含导入表单与拖拽区", () => {
     const html = downloadsHTML();
     expect(html).toContain('id="dl-import"');

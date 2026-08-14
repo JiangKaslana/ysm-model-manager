@@ -113,4 +113,25 @@ describe("renderSiteView 编排壳", () => {
     };
     expect(received.creators.map((c) => c.name)).toEqual(["高产甲", "低产乙"]);
   });
+
+  it("7. repoAuthors 为字符串数组（旧数据兼容）→ 计数 0，顺序稳定", () => {
+    const { ctx } = makeCtx({
+      repoAuthors: ["高产甲", "低产乙"] as unknown as Partial<RenderSiteViewCtx>["repoAuthors"],
+    });
+    renderSiteView(site, ctx);
+    const received = binds.bindBrowseEvents.mock.calls[0][0] as unknown as {
+      creators: LocalCreatorLike[];
+    };
+    // 无 Count 信息 → 全部按 0 计，稳定排序保持过滤后原顺序（高产甲、低产乙）
+    expect(received.creators.map((c) => c.name)).toEqual(["高产甲", "低产乙"]);
+  });
+
+  it("8. repoAuthors 为空数组 → 计数全部 0，顺序稳定", () => {
+    const { ctx } = makeCtx({ repoAuthors: [] });
+    renderSiteView(site, ctx);
+    const received = binds.bindBrowseEvents.mock.calls[0][0] as unknown as {
+      creators: LocalCreatorLike[];
+    };
+    expect(received.creators.map((c) => c.name)).toEqual(["高产甲", "低产乙"]);
+  });
 });

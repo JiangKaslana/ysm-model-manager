@@ -1126,9 +1126,9 @@
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:201` | 初始化创意工坊页（委托到 init-workshop.ts） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-pages:208` | 初始化 GitHub 页（委托到 init-github.ts） |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
-| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:23` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:47` | 初始化创意工坊页 |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:498` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:28` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:52` | 初始化创意工坊页 |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:511` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:26` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:122` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |
@@ -1277,16 +1277,16 @@
 | `AppTree()` | `frontend/src/views/app-tree/index:44` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
-| `TreeRow()` | `frontend/src/views/app-tree/render:22` | 扁平化行（虚拟滚动数据单元） |
-| `TreeNode()` | `frontend/src/views/app-tree/render:32` | buildTree 嵌套节点（文件夹 = 子节点对象，文件 = { _e: entry }） |
-| `RenderMode()` | `frontend/src/views/app-tree/render:38` | 渲染模式 |
-| `getRenderMode()` | `frontend/src/views/app-tree/render:44` | Get render mode from localStorage, default to 'grid' |
-| `setRenderMode()` | `frontend/src/views/app-tree/render:54` | Set render mode to localStorage |
-| `buildTree()` | `frontend/src/views/app-tree/render:61` | — |
-| `flattenVisible()` | `frontend/src/views/app-tree/render:139` | — |
-| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:281` | 断开虚拟滚动相关监听 |
-| `renderTree()` | `frontend/src/views/app-tree/render:290` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:354` | — |
+| `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |
+| `TreeNode()` | `frontend/src/views/app-tree/render:31` | buildTree 嵌套节点（文件夹 = 子节点对象，文件 = { _e: entry }） |
+| `RenderMode()` | `frontend/src/views/app-tree/render:37` | 渲染模式 |
+| `getRenderMode()` | `frontend/src/views/app-tree/render:43` | Get render mode from localStorage, default to 'grid' |
+| `setRenderMode()` | `frontend/src/views/app-tree/render:53` | Set render mode to localStorage |
+| `buildTree()` | `frontend/src/views/app-tree/render:60` | — |
+| `flattenVisible()` | `frontend/src/views/app-tree/render:118` | — |
+| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:264` | 断开虚拟滚动相关监听 |
+| `renderTree()` | `frontend/src/views/app-tree/render:273` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:337` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |

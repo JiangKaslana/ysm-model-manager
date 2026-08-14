@@ -41,5 +41,10 @@ export function installScrollSync(
     });
   };
   container.addEventListener("scroll", handler, { passive: true });
-  return () => container.removeEventListener("scroll", handler);
+  return () => {
+    // 清理时同步取消已排队的 rAF，避免清理后仍触发一次 renderVisible（幽灵渲染）
+    if (rafId != null) cancelAnimationFrame(rafId);
+    rafId = null;
+    container.removeEventListener("scroll", handler);
+  };
 }
