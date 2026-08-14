@@ -287,9 +287,9 @@
 | `HasModInDirFn()` | `go/sync/sync_hash:38` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
 | `PushResources()` | `go/sync/sync_push:23` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
 | `PullResources()` | `go/sync/sync_push:66` | PullResources 拉取整合包多余资源回仓库 |
-| `PullSingleResource()` | `go/sync/sync_push:134` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
-| `PushSingleResource()` | `go/sync/sync_push:156` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install |
-| `SyncCustomToRepo()` | `go/sync/sync_push:169` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
+| `PullSingleResource()` | `go/sync/sync_push:138` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
+| `PushSingleResource()` | `go/sync/sync_push:160` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install |
+| `SyncCustomToRepo()` | `go/sync/sync_push:173` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:20` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
@@ -650,7 +650,7 @@
 | `arrayBufferToBase64()` | `frontend/src/backend/browser-adapter` | — |
 | `importWebFiles()` | `frontend/src/backend/browser-adapter` | — |
 | `selectLocalRepo()` | `frontend/src/backend/browser-adapter` | — |
-| `browserAdapter()` | `frontend/src/backend/browser-adapter:212` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `browserAdapter()` | `frontend/src/backend/browser-adapter:216` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |

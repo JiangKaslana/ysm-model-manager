@@ -105,7 +105,9 @@ export async function scanWebModels(dir: string): Promise<ModelEntry[]> {
       const f = await idbGet<{ size: number }>("files", fk);
       size += f?.size ?? 0;
       const rel = fk.slice(`file:${type}/${name}/`.length);
-      const rank = mainFileRank(rel);
+      // 嵌套 rel（含 /，如 tex/face.png）不参与主文件竞争：主文件必须在模型组根层
+      // （对齐桌面目录模型：组根放 ysm.json/main.json，子目录为纹理/附属资源）
+      const rank = rel.includes("/") ? MAIN_FILE_RANK_NONE : mainFileRank(rel);
       if (rank > mainRank) {
         mainRank = rank;
         mainRel = rel;
@@ -132,25 +134,44 @@ export async function scanWebModels(dir: string): Promise<ModelEntry[]> {
   return entries;
 }
 
-/** 读文件（/web/<type>/<name>/<rel> → IDB → base64；wasm.ts 解码链零改动复用） */
+/** 读文件（/web/<type>/<rest> → IDB → base64；wasm.ts 解码链零改动复用）
+ *  模型组 name 与组内 rel 在 file key 中无缝拼接（file:<type>/<name>/<rel>），
+ *  多段 name（目录树，如 /web/ysm/分类1/狐狸/狐狸.ysm）无需拆分边界：
+ *  直接以 <type> 后全部路径段作 key（对齐 MikuMikuAR dir key 匹配模式）。 */
 export async function readWebFile(path: string): Promise<string | null> {
-  const m = path.match(/^\/web\/([^/]+)\/([^/]+)\/(.+)$/);
+  const m = path.match(/^\/web\/([^/]+)\/(.+)$/);
   if (!m) return null;
-  const [, type, name, rel] = m;
-  const f = await idbGet<{ data: ArrayBuffer }>("files", fileKey(type, name, rel));
+  const [, type, rest] = m;
+  const f = await idbGet<{ data: ArrayBuffer }>("files", `file:${type}/${rest}`);
   if (!f) return null;
   return arrayBufferToBase64(f.data);
 }
 
-/** /web/<type>/<name>/<rel> → 三段解析 */
-export function parseWebModelPath(p: string): { type: string; name: string; rel: string } | null {
-  const m = p.match(/^\/web\/([^/]+)\/([^/]+)\/(.+)$/);
+/**
+ * /web/<type>/<name>/<rel> → 三段解析（多段 name 支持）。
+ * name 与 rel 均可含 /，边界无法靠正则无歧义拆分——枚举 dir:<type>/ 前缀
+ * 反向匹配「最长 dir name 前缀」（MikuMikuAR ListDirRecursive 两轮匹配模式）。
+ * rel 允许为空串（目录形态路径，如删除整组）。非 /web/ 前缀直接 null。
+ */
+export async function parseWebModelPath(p: string): Promise<{ type: string; name: string; rel: string } | null> {
+  const m = p.match(/^\/web\/([^/]+)\/(.+)$/);
   if (!m) return null;
-  return { type: m[1], name: m[2], rel: m[3] };
+  const [, type, rest] = m;
+  const prefix = `dir:${type}/`;
+  const dirKeys = await idbKeys("files", prefix);
+  let best = "";
+  for (const dk of dirKeys) {
+    const name = dk.slice(prefix.length, -1); // 去尾 ':'
+    if (name && (rest === name || rest.startsWith(`${name}/`)) && name.length > best.length) {
+      best = name;
+    }
+  }
+  if (!best) return null;
+  return { type, name: best, rel: rest.slice(best.length + 1) };
 }
-/** /web/<type>/<name> → 类型+模型名（目录形态） */
+/** /web/<type>/<name> → 类型+模型名（目录形态；name 可含多段路径） */
 export function parseWebModelDir(p: string): { type: string; name: string } | null {
-  const m = p.match(/^\/web\/([^/]+)\/([^/]+)\/?$/);
+  const m = p.match(/^\/web\/([^/]+)\/(.+?)\/?$/);
   if (!m) return null;
   return { type: m[1], name: m[2] };
 }
@@ -162,7 +183,7 @@ export async function scanAllWebModels(): Promise<Array<{ type: string; name: st
   for (const r of rts) {
     const entries = await scanWebModels(`${WEB_ROOT}/${r.id}`);
     for (const e of entries) {
-      const pm = parseWebModelPath(e.Path);
+      const pm = await parseWebModelPath(e.Path);
       out.push({ type: pm?.type ?? r.id, name: pm?.name ?? e.Name, path: e.Path });
     }
   }
@@ -217,11 +238,14 @@ export async function renameWebDir(oldPath: string, newName: string): Promise<vo
   const { type, name } = di;
   assertValidRenameName(newName, "目录");
   const finalName = newName.trim();
+  // P-A 多段 name：重命名只替换末段，保留父路径（分类1/狐狸 → 分类1/大猫）
+  const parent = name.includes("/") ? name.slice(0, name.lastIndexOf("/") + 1) : "";
+  const newNameFull = parent + finalName;
   const oldDirKey = dirKey(type, name);
-  const newDirKey = dirKey(type, finalName);
+  const newDirKey = dirKey(type, newNameFull);
   // 目标已存在（含重命名为同名）：对齐桌面「目标已存在」拒绝，防静默覆盖合并两模型数据
   if ((await idbGet("files", newDirKey)) !== undefined) {
-    throw new Error(`重命名失败：目标已存在: ${WEB_ROOT}/${type}/${finalName}`);
+    throw new Error(`重命名失败：目标已存在: ${WEB_ROOT}/${type}/${newNameFull}`);
   }
   // 旧模型必须存在（对齐桌面 os.Rename 源不存在报错，拒绝静默 no-op）
   const exists = await idbGet("files", oldDirKey);
@@ -230,7 +254,7 @@ export async function renameWebDir(oldPath: string, newName: string): Promise<vo
   if (dv !== undefined) {
     // 同步更新 dir 条目的 name 字段：scanWebModels 用 meta.name 推导文件查找前缀，
     // 若沿用旧名会在重命名后的 file:<type>/<newName>/ 下扫不到模型（列表变空）
-    await idbSet("files", newDirKey, { ...(dv as Record<string, unknown>), name: finalName });
+    await idbSet("files", newDirKey, { ...(dv as Record<string, unknown>), name: newNameFull });
     await idbDel("files", oldDirKey);
   }
   const fks = await idbKeys("files", `file:${type}/${name}/`);
@@ -238,7 +262,7 @@ export async function renameWebDir(oldPath: string, newName: string): Promise<vo
     const rel = k.slice(`file:${type}/${name}/`.length);
     const val = await idbGet("files", k);
     if (val !== undefined) {
-      await idbSet("files", fileKey(type, finalName, rel), val);
+      await idbSet("files", fileKey(type, newNameFull, rel), val);
       await idbDel("files", k);
     }
   }
@@ -250,7 +274,7 @@ export async function renameWebDir(oldPath: string, newName: string): Promise<vo
       const suffix = k.slice(scanPrefix.length); // 含原 rel（含前导斜杠），拼接新路径即正确
       const val = await idbGet("config", k);
       if (val !== undefined) {
-        await idbSet("config", `${prefix}/web/${type}/${finalName}/${suffix}`, val);
+        await idbSet("config", `${prefix}/web/${type}/${newNameFull}/${suffix}`, val);
         await idbDel("config", k);
       }
     }
@@ -259,7 +283,7 @@ export async function renameWebDir(oldPath: string, newName: string): Promise<vo
 
 // --- 重命名单个文件（模型组内某文件 rekey，保留 .ban 后缀语义由调用方负责）---
 export async function renameWebFile(oldPath: string, newName: string): Promise<void> {
-  const pm = parseWebModelPath(oldPath);
+  const pm = await parseWebModelPath(oldPath);
   if (!pm) throw new Error(`重命名失败：无效路径: ${oldPath}`);
   const { type, name, rel } = pm;
   assertValidRenameName(newName, "文件");
@@ -270,7 +294,9 @@ export async function renameWebFile(oldPath: string, newName: string): Promise<v
     throw new Error("ysm.json 是模型目录清单，请重命名所在文件夹（整组操作）");
   }
   const oldKey = fileKey(type, name, rel);
-  const newKey = fileKey(type, name, finalName);
+  // P-A 组内 rel 可含子目录：重命名只替换 rel 末段文件名，保留目录前缀（tex/face.png → tex/eye.png）
+  const relDir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/") + 1) : "";
+  const newKey = fileKey(type, name, `${relDir}${finalName}`);
   // 同名（含 trim 归一后）：无事可做，直接返回——不得走下方 idbSet+idbDel（同 key 自删 = 数据丢失回归）
   if (newKey === oldKey) return;
   // 目标已存在：对齐桌面「目标已存在」拒绝，防静默覆盖目标文件内容
@@ -340,20 +366,52 @@ export async function importWebFiles(
 ): Promise<{ imported: number; failed: number }> {
   let imported = 0;
   let failed = 0;
-  // 单模型分组：stem → 组内文件（先归组再统一落库，保证 dir/file 原子性）
-  const groups = new Map<string, File[]>();
+  // 单模型分组（两阶段，P-A 目录树）：
+  // 阶段1 粗分组按 webkitRelativePath 首段（或去扩展名 basename），隔离跨目录干扰；
+  // 阶段2 组内按「主文件所在目录」收敛为最终组名（模型目录 = 含主文件的目录，可多段），
+  // 子目录辅助文件（如 tex/face.png）归属到包含它的主文件目录，rel 保留子目录层级。
+  const rough = new Map<string, File[]>();
   for (const f of files) {
     try {
-      const stem = stemOf(f);
-      if (!stem) {
+      const key = roughStemOf(f);
+      if (!key) {
         failed++;
         continue;
       }
+      const arr = rough.get(key);
+      if (arr) arr.push(f);
+      else rough.set(key, [f]);
+    } catch {
+      failed++;
+    }
+  }
+  const groups = new Map<string, File[]>();
+  for (const [, rg] of rough) {
+    // 主文件目录集合（rank>=JSON 且未超限，超限主文件不参与定组）
+    const mainDirs = new Set<string>();
+    for (const f of rg) {
+      if (mainFileRank(f.name) >= MAIN_FILE_RANK_JSON && f.size <= MAX_IMPORT_BYTES) {
+        const d = fsaDirOf(f);
+        if (d) mainDirs.add(d);
+      }
+    }
+    if (mainDirs.size === 0) {
+      // 无目录主文件（纯 basename 拖入 / 顶层文件）：退化单文件分组，组名 = 去扩展名 basename
+      for (const f of rg) {
+        const stem = basenameStem(f);
+        const arr = groups.get(stem);
+        if (arr) arr.push(f);
+        else groups.set(stem, [f]);
+      }
+      continue;
+    }
+    for (const f of rg) {
+      // 归属：文件所在目录包含于某主文件目录 → 归该组（最长者胜）；否则回退首段粗组名
+      const d = assignMainDir(f, mainDirs);
+      const stem = d ?? roughStemOf(f);
       const arr = groups.get(stem);
       if (arr) arr.push(f);
       else groups.set(stem, [f]);
-    } catch {
-      failed++;
     }
   }
   for (const [stem, group] of groups) {
@@ -397,7 +455,9 @@ export async function importWebFiles(
           continue;
         }
         const data = await f.arrayBuffer();
-        const k = fileKey(type, stem, f.name);
+        // rel 保留子目录层级（webkitRelativePath 相对模型目录的路径），
+        // 嵌套导入不再拍平为 basename——P-A 文件层级读取的基础（对齐 MikuMikuAR dir:<stem>:<rel>）
+        const k = fileKey(type, stem, relOf(f, stem));
         const preExisted = (await idbGet("files", k)) !== undefined;
         await idbSet("files", k, {
           data,
@@ -435,12 +495,47 @@ export async function importWebFiles(
   return { imported, failed };
 }
 
-/** 单个 File 的模型 stem：webkitRelativePath 首段（文件夹拖入）或去扩展名 basename */
-function stemOf(f: File): string {
+/**
+ * 粗分组键（阶段1）：webkitRelativePath 首段（文件夹拖入）或去扩展名 basename（单文件拖入）。
+ */
+function roughStemOf(f: File): string {
   const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
   if (rel) {
     const top = rel.split("/")[0];
     if (top) return top;
   }
+  return basenameStem(f);
+}
+
+/** 去扩展名 basename（纯 basename 分组 / 单文件拖入场景的组名） */
+function basenameStem(f: File): string {
   return f.name.replace(/\.\w+$/, "");
+}
+
+/** 文件所在目录（webkitRelativePath 去文件名，可多段）；无相对路径或顶层文件 → null */
+function fsaDirOf(f: File): string | null {
+  const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
+  if (!rel) return null;
+  const dir = rel.split("/").slice(0, -1).join("/");
+  return dir || null;
+}
+
+/** 归属判定（阶段2）：文件所在目录包含于某主文件目录 → 归该组（最长者胜）；否则 null */
+function assignMainDir(f: File, mainDirs: Set<string>): string | null {
+  const d = fsaDirOf(f);
+  if (!d) return null;
+  let best: string | null = null;
+  for (const m of mainDirs) {
+    if (d === m || d.startsWith(`${m}/`)) {
+      if (!best || m.length > best.length) best = m;
+    }
+  }
+  return best;
+}
+
+/** 组内文件相对模型目录的路径：webkitRelativePath 去掉 stem 前缀（保留子目录层级）；无相对路径时用 basename */
+function relOf(f: File, stem: string): string {
+  const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
+  if (rel && rel.startsWith(`${stem}/`)) return rel.slice(stem.length + 1);
+  return f.name;
 }

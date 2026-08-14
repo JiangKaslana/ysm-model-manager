@@ -6,6 +6,7 @@ import {
   importWebFiles,
   selectLocalRepo,
   WEB_ROOT,
+  arrayBufferToBase64,
 } from "./browser-adapter.ts";
 
 // idb 层内存实现（真实 indexedDB 仅在浏览器存在，测试注入 Map 语义）
@@ -757,5 +758,88 @@ describe("browserAdapter — 三向一致性/边界补测（审核补充）", ()
     await browserAdapter.RenameFile("/web/ysm/狐狸/狐狸.ysm", "狐狸.ysm"); // 同名重命名
     expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
     expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(1);
+  });
+});
+
+describe("R1 文件层级读取（P-A 多段路径，蓝图 docs/roadmap/web-edition.md §R1）", () => {
+  // 多段目录导入：分类1/狐狸 作为组名（目录树模型组），组内 rel 保留子目录（tex/face.png）
+  it("多段目录导入：组名含路径，组内 rel 保留子目录层级", async () => {
+    const fMain = new File([enc.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fMain, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
+    const fTex = new File([enc.encode("PNG")], "face.png");
+    Object.defineProperty(fTex, "webkitRelativePath", { value: "分类1/狐狸/tex/face.png" });
+    const fJson = new File([enc.encode("{}")], "main.json");
+    Object.defineProperty(fJson, "webkitRelativePath", { value: "分类1/狐狸/main.json" });
+    const r = await importWebFiles([fMain, fTex, fJson], "ysm");
+    expect(r).toEqual({ imported: 1, failed: 0 });
+    // dir key 组名含多段
+    expect(idbMock._store.has("dir:ysm/分类1/狐狸:")).toBe(true);
+    // 组内 rel 保留子目录层级（不再拍平为 basename）
+    expect(idbMock._store.has("file:ysm/分类1/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/分类1/狐狸/main.json")).toBe(true);
+    expect(idbMock._store.has("file:ysm/分类1/狐狸/tex/face.png")).toBe(true);
+    // scanWebModels：Path 含多段组名；主文件 = 组根 .ysm（嵌套 tex 不参与竞争）
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Name: string; Path: string }>;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].Name).toBe("狐狸.ysm");
+    expect(entries[0].Path).toBe("/web/ysm/分类1/狐狸/狐狸.ysm");
+  });
+
+  it("多段组：读文件 /web/<type>/<name>/<rel> 直达（不拆 name 边界）", async () => {
+    const fMain = new File([enc.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fMain, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
+    await importWebFiles([fMain], "ysm");
+    const bytes = enc.encode("YSM");
+    const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    expect(await browserAdapter.ReadFileBytes("/web/ysm/分类1/狐狸/狐狸.ysm")).toBe(arrayBufferToBase64(ab));
+    expect(await browserAdapter.ReadFileBytes("/web/ysm/分类1/狐狸/missing.json")).toBeNull();
+  });
+
+  it("多段组：RenameDir 整组 rekey 保持层级", async () => {
+    const fMain = new File([enc.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fMain, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
+    await importWebFiles([fMain], "ysm");
+    await browserAdapter.RenameDir("/web/ysm/分类1/狐狸", "大猫");
+    expect(idbMock._store.has("dir:ysm/分类1/大猫:")).toBe(true);
+    expect(idbMock._store.has("dir:ysm/分类1/狐狸:")).toBe(false);
+    expect(idbMock._store.has("file:ysm/分类1/大猫/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/分类1/狐狸/狐狸.ysm")).toBe(false);
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Path: string }>;
+    expect(entries[0].Path).toBe("/web/ysm/分类1/大猫/狐狸.ysm");
+  });
+
+  it("多段组：DeleteModelDir 整组删除 + 幂等", async () => {
+    const fMain = new File([enc.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fMain, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
+    await importWebFiles([fMain], "ysm");
+    await browserAdapter.DeleteModelDir("/web/ysm/分类1/狐狸/狐狸.ysm");
+    expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
+    expect(idbMock._store.has("dir:ysm/分类1/狐狸:")).toBe(false);
+    // 幂等：重复删除不抛错（组已删 → 格式合法但 dir 无匹配 → 静默通过）
+    await expect(browserAdapter.DeleteModelDir("/web/ysm/分类1/狐狸/狐狸.ysm")).resolves.toBeUndefined();
+  });
+
+  it("多段组：RenameFile 组内文件（含子目录 rel）rekey", async () => {
+    const fMain = new File([enc.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fMain, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
+    const fTex = new File([enc.encode("PNG")], "face.png");
+    Object.defineProperty(fTex, "webkitRelativePath", { value: "分类1/狐狸/tex/face.png" });
+    await importWebFiles([fMain, fTex], "ysm");
+    await browserAdapter.RenameFile("/web/ysm/分类1/狐狸/tex/face.png", "eye.png");
+    expect(idbMock._store.has("file:ysm/分类1/狐狸/tex/eye.png")).toBe(true);
+    expect(idbMock._store.has("file:ysm/分类1/狐狸/tex/face.png")).toBe(false);
+  });
+
+  // 存量兼容：单层 webkitRelativePath（首段 = 组名）行为不变，不破坏既有库
+  it("存量兼容：单层目录导入仍以目录为组名", async () => {
+    const fMain = new File([enc.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fMain, "webkitRelativePath", { value: "狐狸/狐狸.ysm" });
+    const fAux = new File([enc.encode("{}")], "main.json");
+    Object.defineProperty(fAux, "webkitRelativePath", { value: "狐狸/main.json" });
+    const r = await importWebFiles([fMain, fAux], "ysm");
+    expect(r).toEqual({ imported: 1, failed: 0 });
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/main.json")).toBe(true);
   });
 });
