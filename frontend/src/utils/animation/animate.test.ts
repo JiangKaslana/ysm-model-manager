@@ -71,6 +71,20 @@ describe("animateNumber", () => {
     expect(el.textContent).toBe("141");
   });
 
+  it("重复调用同一元素：新动画先取消旧动画，旧定时器不再写回（P4 反推修复）", () => {
+    const el = document.createElement("div");
+    el.textContent = "0";
+    const cancel1 = animateNumber(el, 21, 100); // 0→21: 帧 [1, 21]
+    expect(el.textContent).toBe("1");
+    // 新一轮动画（0→2 单帧立即落地）应取消旧动画的后续定时器
+    animateNumber(el, 2, 100);
+    expect(el.textContent).toBe("2");
+    vi.advanceTimersByTime(300);
+    // 旧动画第 2 帧定时器已被取消，不得覆盖为 21
+    expect(el.textContent).toBe("2");
+    cancel1(); // 已取消的 cancel 幂等，不抛错
+  });
+
   it("取消函数：调用后停止后续帧更新", () => {
     const el = document.createElement("div");
     el.textContent = "0";

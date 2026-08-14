@@ -113,7 +113,7 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       const ok2 = await modalConfirm({
         title: "移入回收站",
         icon: "♻️",
-        message: `确定将 ${(ctx.path || "").split("/").pop()} 移入回收站？`,
+        message: `确定将 ${(ctx.path || "").split(/[/\\]/).pop()} 移入回收站？`,
         okText: "♻️ 移入",
         danger: true,
       });

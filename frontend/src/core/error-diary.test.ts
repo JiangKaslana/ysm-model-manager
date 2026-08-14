@@ -92,6 +92,30 @@ describe("registerErrorDiary", () => {
     }
   });
 
+  it("P4 写路径兜底：getApp 拒绝 → console.warn 留痕且无未处理拒绝逸出", async () => {
+    // logUiMsg 外层 try/catch 截断 getApp() 拒绝——浮空 Promise 不得触发
+    // onRejection 死循环（与 AddOpLog .catch 截断同理）
+    const { getApp } = await import("../backend/app.ts");
+    vi.mocked(getApp).mockRejectedValueOnce(new Error("bridge down"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const rejectionSpy = vi.fn();
+    const onRejection = (e: PromiseRejectionEvent): void => rejectionSpy(e.reason);
+    window.addEventListener("unhandledrejection", onRejection);
+    try {
+      registerErrorDiary();
+      bus.emit("toast:show", { msg: "❌ getApp 失败", type: "error" });
+      await flush();
+      await flush();
+      expect(addOpLogMock).not.toHaveBeenCalled();
+      expect(rejectionSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalled();
+    } finally {
+      window.removeEventListener("unhandledrejection", onRejection);
+      warnSpy.mockRestore();
+      __TEST__resetDiary();
+    }
+  });
+
   it("success toast → AddOpLog NOT called", async () => {
     registerErrorDiary();
     bus.emit("toast:show", {

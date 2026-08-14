@@ -31,6 +31,7 @@ const {
   ListVersionInstancesMock,
   InstallModelToMock,
   RevealInExplorerMock,
+  isViewerModeMock,
 } = vi.hoisted(() => ({
   modalPromptMock: vi.fn(),
   modalConfirmMock: vi.fn(),
@@ -46,6 +47,8 @@ const {
   ListVersionInstancesMock: vi.fn(),
   InstallModelToMock: vi.fn(),
   RevealInExplorerMock: vi.fn(),
+  // P4（审核）：mock 查看器模式判定——默认桌面（false），查看器过滤用例 mockReturnValue(true)
+  isViewerModeMock: vi.fn(() => false),
 }));
 
 vi.mock("../utils/dom/dialogs/modal.ts", () => ({
@@ -80,6 +83,11 @@ vi.mock("../../bindings/ysm-model-manager/internal/app/app.js", () => ({
   ListVersionInstances: ListVersionInstancesMock,
   InstallModelTo: InstallModelToMock,
   RevealInExplorer: RevealInExplorerMock,
+}));
+// P4（审核）：mock 查看器模式（android-bridge）——context-menus.ts 的 VIEWER_OK_ACTIONS
+// 过滤分支此前零覆盖；默认 false 保持既有桌面用例行为不变
+vi.mock("../utils/dom/android-bridge.ts", () => ({
+  isViewerMode: isViewerModeMock,
 }));
 
 // 收集 menu:show 与 handler 发出的业务事件
@@ -180,6 +188,43 @@ describe("registerContextMenus 四类菜单声明", () => {
     const types = MENU_DEFS.map((d) => d.type);
     expect(types.sort()).toEqual(["batch", "dir", "file", "instance"]);
   });
+
+  it("MENU_DEFS 全部 action 均注册 handler（零失配警告）", () => {
+    // context-menus.ts 注释承诺「测试应断言零警告」——防新增菜单项忘挂 HANDLERS
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      MENU_DEFS.forEach((def) => {
+        menuShows.length = 0; // showMenu 断言每次触发恰好 1 条 menu:show
+        const payload = showMenu(def.type, payloadCtx(def.type));
+        expect(payload.items).toHaveLength(def.items.length);
+      });
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("查看器模式 → 仅保留纯前端动作（file 菜单只留 copy-path）", () => {
+    isViewerModeMock.mockReturnValue(true);
+    try {
+      const payload = showMenu("file", payloadCtx("file"));
+      const actions = payload.items.filter((i) => i.action).map((i) => i.action);
+      expect(actions).toEqual(["file.copy-path"]);
+    } finally {
+      isViewerModeMock.mockReturnValue(false);
+    }
+  });
+
+  it("查看器模式 → batch 菜单剔除调 Wails binding 的动作", () => {
+    isViewerModeMock.mockReturnValue(true);
+    try {
+      const payload = showMenu("batch", payloadCtx("batch"));
+      const actions = payload.items.filter((i) => i.action).map((i) => i.action);
+      expect(actions).toEqual(["noop", "batch.copy-paths", "batch.export-list"]);
+    } finally {
+      isViewerModeMock.mockReturnValue(false);
+    }
+  });
 });
 
 describe("菜单项点击行为", () => {
@@ -243,6 +288,24 @@ describe("菜单项点击行为", () => {
     const item = clickItem("dir", "dir.recycle", { dir: "/packs/x" });
     expect(item.danger).toBe(true);
     expect(emitted).toContainEqual({ e: "dir:recycle", p: { dir: "/packs/x" } });
+  });
+
+  it("dir 批量重命名 → dir:batch-rename", () => {
+    clickItem("dir", "dir.batch-rename", { dir: "/packs/x" });
+    expect(emitted).toContainEqual({ e: "dir:batch-rename", p: { dir: "/packs/x" } });
+  });
+
+  it("instance 打开文件夹 无 path → error toast 且不调后端", () => {
+    clickItem("instance", "instance.open-folder");
+    expect(openFolderMock).not.toHaveBeenCalled();
+    expect(
+      emitted.some(
+        (e) =>
+          e.e === "toast:show" &&
+          (e.p as ToastPayload).type === "error" &&
+          (e.p as ToastPayload).msg.includes("整合包目录未找到"),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -363,12 +426,28 @@ describe("异步 handler（batch / file 动态 import 分支）", () => {
     expect(MoveToRecycleMock).not.toHaveBeenCalled();
   });
 
+  it("batch.recycle 部分失败 → error toast 报告失败数", async () => {
+    modalConfirmMock.mockResolvedValue(true);
+    MoveToRecycleMock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("EACCES"));
+    await clickAsync("batch", "batch.recycle", { paths: ["/a.ysm", "/b.ysm"], count: 2 });
+    expect(MoveToRecycleMock).toHaveBeenCalledTimes(2);
+    expect(
+      toasts().some((t) => t.type === "error" && t.msg.includes("1 个文件移入回收站失败")),
+    ).toBe(true);
+  });
+
   // ── batch.copy-paths ──
   it("batch.copy-paths 剪贴板成功 → toast", async () => {
     stubClipboard(() => Promise.resolve());
     await clickAsync("batch", "batch.copy-paths", { paths: ["/a.ysm", "/b.ysm"] });
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("/a.ysm\n/b.ysm");
     expect(toasts().some((t) => t.msg.includes("已复制"))).toBe(true);
+  });
+
+  it("batch.copy-paths 剪贴板被拒 → 兜底失败 toast（不抛）", async () => {
+    stubClipboard(() => Promise.reject(new Error("denied")));
+    await clickAsync("batch", "batch.copy-paths", { paths: ["/a.ysm"] });
+    expect(toasts().some((t) => t.type === "error" && t.msg.includes("复制失败"))).toBe(true);
   });
 
   // ── batch.export-list ──
@@ -506,6 +585,17 @@ describe("异步 handler（batch / file 动态 import 分支）", () => {
     expect(toasts().some((t) => t.msg.includes("已推送"))).toBe(true);
   });
 
+  it("file.push-to-pack 推送失败 → error toast", async () => {
+    LoadAppConfigMock.mockResolvedValue({ mcRoot: "/mc" });
+    ListVersionInstancesMock.mockResolvedValue([
+      { Name: "包A", CustomDir: "/mc/versions/包A" },
+    ]);
+    modalSelectMock.mockResolvedValue("包A");
+    InstallModelToMock.mockRejectedValue(new Error("disk full"));
+    await clickAsync("file", "file.push-to-pack", { path: "/dir/a.ysm" });
+    expect(toasts().some((t) => t.type === "error" && t.msg.includes("推送失败"))).toBe(true);
+  });
+
   // ── file.edit-tags ──
   it("file.edit-tags 保存 → toast 显示标签数", async () => {
     modalTagEditorMock.mockResolvedValue(["tag1", "tag2"]);
@@ -529,6 +619,17 @@ describe("异步 handler（batch / file 动态 import 分支）", () => {
     expect(MoveToRecycleMock).not.toHaveBeenCalled();
   });
 
+  it("file.recycle 确认文案对 Windows 反斜杠路径取 basename（P4 修复）", async () => {
+    modalConfirmMock.mockResolvedValue(true);
+    MoveToRecycleMock.mockResolvedValue(undefined);
+    await clickAsync("file", "file.recycle", {
+      path: "C:\\Users\\me\\模型A\\foo.ysm",
+    });
+    const msg = (modalConfirmMock.mock.calls[0][0] as { message: string }).message;
+    expect(msg).toContain("foo.ysm");
+    expect(msg).not.toContain("Users");
+  });
+
   // ── file.reveal ──
   it("file.reveal 成功 → RevealInExplorer", async () => {
     RevealInExplorerMock.mockResolvedValue(undefined);
@@ -549,6 +650,12 @@ describe("异步 handler（batch / file 动态 import 分支）", () => {
     await clickAsync("file", "file.copy-path", { path: "/a.ysm" });
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("/a.ysm");
     expect(toasts().some((t) => t.msg.includes("路径已复制"))).toBe(true);
+  });
+
+  it("file.copy-path 剪贴板被拒 → 兜底失败 toast（不抛）", async () => {
+    stubClipboard(() => Promise.reject(new Error("denied")));
+    await clickAsync("file", "file.copy-path", { path: "/a.ysm" });
+    expect(toasts().some((t) => t.type === "error" && t.msg.includes("复制失败"))).toBe(true);
   });
 });
 

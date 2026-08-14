@@ -88,6 +88,15 @@ describe("summaryCardHTML 完整摘要", () => {
     );
     expect(html).toContain("1.50 × 2.00");
   });
+
+  it("只提供 texWidth 无 texHeight → 不渲染纹理行，输出无 undefined（P4 修复）", () => {
+    const html = summaryCardHTML(
+      { name: "x", stats: { textures: 1, texWidth: 128 } },
+      {},
+    );
+    expect(html).not.toContain("undefined");
+    expect(html).not.toContain("128 ×");
+  });
 });
 
 describe("summaryCardHTML 徽章与转义", () => {

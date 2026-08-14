@@ -20,6 +20,12 @@ describe("getSiteIcon", () => {
     expect(getSiteIcon("unknown-site")).toBe(ICONS.CREATOR);
     expect(getSiteIcon("")).toBe(ICONS.CREATOR);
   });
+
+  it("原型链键（toString/constructor/__proto__）回退 CREATOR，不穿透（P3 修复补测）", () => {
+    expect(getSiteIcon("toString")).toBe(ICONS.CREATOR);
+    expect(getSiteIcon("constructor")).toBe(ICONS.CREATOR);
+    expect(getSiteIcon("__proto__")).toBe(ICONS.CREATOR);
+  });
 });
 
 describe("getTagIconFromRole", () => {

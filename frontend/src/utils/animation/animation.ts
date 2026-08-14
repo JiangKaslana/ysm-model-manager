@@ -54,13 +54,6 @@ interface RawKeyframeObject {
 
 // ── 工具函数 ────────────────────────────────────────
 
-/** 判断值是否为 Molang 字符串（非纯数字） */
-function isMolang(v: unknown): boolean {
-  return (
-    typeof v === "string" || (typeof v === "number" && isNaN(v))
-  );
-}
-
 /**
  * 常量折叠：尝试从 Molang 字符串中提取纯数字。
  * 处理 "q.life_time * 0 + 30" → 30, "math.sin(0) * 0 + 45" → 45
@@ -156,17 +149,24 @@ function extractKeyframe(kv: unknown): {
 /** 解析单个 channel（rotation/position/scale）的数据 */
 function parseChannel(channelData: unknown): Keyframe[] {
   if (!channelData || typeof channelData !== "object") return [];
-  const times = Object.keys(channelData)
-    .map(Number)
+  // P4 修复（审核）：原实现 `Object.keys().map(Number)` 后拿数字下标回查
+  // `channelData[t]`——JS 数字下标会转回规范字符串，非规范时间键（"0.0"/"1.50"）
+  // 查不到对应 key 而整帧静默丢失；改为 entries 配对，时间值直接携带原始 raw。
+  // 重复数值时间（"0" 与 "0.0"）去重保留排序后首个，与原「仅规范键生效」契约一致。
+  const seen = new Set<number>();
+  return Object.entries(channelData as Record<string, unknown>)
+    .map(([k, raw]) => [Number(k), raw] as const)
     // P2 修复（审核，NaN/Infinity 守卫）：原仅 !isNaN——Infinity 时间键通过后
     // 排序/插值区间异常（dt=Infinity → frac=0 恒等）；统一 Number.isFinite
-    .filter((t) => Number.isFinite(t))
-    .sort((a, b) => a - b);
-  return times
-    .map((t) => {
-      const kf = extractKeyframe(
-        (channelData as Record<string, unknown>)[t],
-      );
+    .filter(([t]) => Number.isFinite(t))
+    .sort(([a], [b]) => a - b)
+    .filter(([t]) => {
+      if (seen.has(t)) return false;
+      seen.add(t);
+      return true;
+    })
+    .map(([t, raw]) => {
+      const kf = extractKeyframe(raw);
       if (!kf) return null;
       return { time: t, post: kf.post, pre: kf.pre, lerp: kf.lerp };
     })

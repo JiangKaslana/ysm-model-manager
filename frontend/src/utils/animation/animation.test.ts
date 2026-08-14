@@ -126,6 +126,29 @@ describe("parseBedrockAnimationJSON 解析", () => {
     expect(r.clips).toHaveLength(1);
     expect(r.clips[0].hasMolang).toBe(true);
   });
+
+  it("非规范时间键（0.0 / 1.50）也能解析，不静默丢帧（P4 反推修复）", () => {
+    // 原 parseChannel 用数字下标回查 channelData[t]，JS 数字转规范字符串后
+    // "0.0"/"1.50" 键查不到 → 整帧丢弃；修复后按 entries 配对求值
+    const json = JSON.stringify({
+      animations: {
+        a: {
+          bones: {
+            b: {
+              rotation: { "0.0": [0, 0, 0], "1.50": [0, 30, 0] },
+            },
+          },
+        },
+      },
+    });
+    const r = parseBedrockAnimationJSON(json);
+    expect(r.errors).toEqual([]);
+    const kfs = r.clips[0].bones.b!.rotation!;
+    expect(kfs).toHaveLength(2);
+    expect(kfs[0].time).toBe(0);
+    expect(kfs[1].time).toBe(1.5);
+    expect(kfs[1].post).toEqual([0, 30, 0]);
+  });
 });
 
 describe("evaluateClip 变换传播", () => {

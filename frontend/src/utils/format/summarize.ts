@@ -265,7 +265,7 @@ ${authorHtml ? `<div class="md-row"><span class="md-label">${t("preview.authorLa
 <div class="md-divider"></div>
 
 <div class="md-row"><span class="md-label">📦 ${t("format.resources")}</span><span class="md-value">${t("format.resourceStats", { tex: stats.textures || 0, models: stats.models || 0, anims: stats.animations || 0 })}</span></div>
-${stats.texWidth ? `<div class="md-row"><span class="md-label">🖼️ ${t("tree.afTex")}</span><span class="md-value">${stats.texWidth} × ${stats.texHeight} px</span></div>` : ""}
+${stats.texWidth && stats.texHeight ? `<div class="md-row"><span class="md-label">🖼️ ${t("tree.afTex")}</span><span class="md-value">${stats.texWidth} × ${stats.texHeight} px</span></div>` : ""}
 
 ${preview.heightScale || preview.widthScale ? `<div class="md-row"><span class="md-label">📐 ${t("format.scale")}</span><span class="md-value">${(preview.heightScale ?? 1).toFixed(2)} × ${(preview.widthScale || 1).toFixed(2)}</span></div>` : ""}
 
