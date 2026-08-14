@@ -12,7 +12,6 @@ import { FILE_HANDLERS } from "./context-menu-file-handlers.ts";
 import { DIR_HANDLERS } from "./context-menu-dir-handlers.ts";
 // 共享原语（toast/refreshUI/isUnsafeFolderName/resolveDstDir）下沉至
 // context-menu-shared.ts，破除 handlers ↔ {file,dir}-handlers 循环依赖
-export { refreshUI, toast, isUnsafeFolderName, resolveDstDir } from "./context-menu-shared.ts";
 import { refreshUI, toast, isUnsafeFolderName, resolveDstDir } from "./context-menu-shared.ts";
 
 /**
@@ -20,7 +19,7 @@ import { refreshUI, toast, isUnsafeFolderName, resolveDstDir } from "./context-m
  */
 let _batchBusy = false;
 
-export async function runBatchFileOp(
+async function runBatchFileOp(
   ctx: MenuCtx,
   op: {
     verb: string;

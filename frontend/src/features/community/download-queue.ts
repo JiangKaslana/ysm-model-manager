@@ -31,7 +31,6 @@ export {
   resume,
   enqueueDownloads,
   cancelDownloads,
-  isActiveStatus,
 } from "./download-queue-store.ts";
 export type { DownloadTask, DownloadState, QueueError } from "./download-queue-store.ts";
 

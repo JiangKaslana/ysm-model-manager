@@ -224,7 +224,7 @@ export function mergeCubes(oldCubes: Cube2D[], newCubes: Cube2D[]): Cube2D[] {
  * 解析 UV：faceUV 优先、失败回退 expandBoxUV、c.UV 回退。
  * 对齐 Go threejs/spec.go parseUV（L639-656）。
  */
-export function parseUV(
+function parseUV(
   c: Cube2D,
   faces: [number, number, number, number, number, number, number, number][],
   sx: number,

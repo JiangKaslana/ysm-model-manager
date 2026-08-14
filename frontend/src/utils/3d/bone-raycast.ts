@@ -32,7 +32,7 @@ export function buildBoneHierarchy(
 /**
  * 骨骼名 → 全路径（如 "root / spine / head"）。
  */
-export function getBonePath(boneId: string, nameMap: Map<string, string>, parentMap: Map<string, string | null>): string {
+function getBonePath(boneId: string, nameMap: Map<string, string>, parentMap: Map<string, string | null>): string {
   const parts: string[] = [];
   let current: string | null | undefined = boneId;
   while (current && nameMap.has(current)) {
@@ -45,7 +45,7 @@ export function getBonePath(boneId: string, nameMap: Map<string, string>, parent
 /**
  * Mesh → 所属骨骼名（沿父链向上查找 has isGroup 且 name 在 nameMap 中的节点）。
  */
-export function getMeshBoneId(mesh: THREE.Object3D, nameMap: Map<string, string>): string | null {
+function getMeshBoneId(mesh: THREE.Object3D, nameMap: Map<string, string>): string | null {
   let obj: THREE.Object3D | null = mesh;
   while (obj) {
     if ((obj as THREE.Group).isGroup && obj.name && nameMap.has(obj.name)) {
@@ -59,7 +59,7 @@ export function getMeshBoneId(mesh: THREE.Object3D, nameMap: Map<string, string>
 /**
  * 骨骼选中信息组装。
  */
-export function assembleBoneSelectInfo(
+function assembleBoneSelectInfo(
   boneId: string,
   boneGroupMap: Map<string, THREE.Group>,
   nameMap: Map<string, string>,

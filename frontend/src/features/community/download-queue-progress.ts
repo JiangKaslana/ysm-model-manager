@@ -7,7 +7,7 @@ import { t } from "../../core/i18n/t.ts";
 import { isActiveStatus, STATE, type DownloadState } from "./download-queue-store.ts";
 
 /** 进度条元素的自定义属性（点动画） */
-export type PctEl = HTMLElement & {
+type PctEl = HTMLElement & {
   _dotTimer?: ReturnType<typeof setInterval> | null;
   _dots?: number;
 };

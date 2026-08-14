@@ -2,16 +2,10 @@
 // rebuildDebug / makeTextTexture：pivot 标记 + 骨骼线框 + 文字标签叠加层。
 // 频繁切换 debug 模式时每骨骼一个标签，注意 dispose 防 GPU 内存泄漏（致命陷阱 #11）。
 import * as THREE from "three";
-import { disposeMaterial } from "./mesh.ts";
-
-export interface DebugBoneData {
-  pos: THREE.Vector3;
-  name: string;
-  parentId?: string;
-}
+import { disposeDebugGroup } from "./cleanup-helper.ts";
 
 /** 生成骨骼名 Canvas 纹理（Sprite 标签用） */
-export function makeTextTexture(text: string, color?: string): THREE.CanvasTexture {
+function makeTextTexture(text: string, color?: string): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 64;
@@ -49,23 +43,8 @@ export function rebuildDebug(
 ): void {
   if (state.debugGroup) {
     // 释放旧 debug 组内的几何体/材质/纹理，防止内存泄漏
-    state.debugGroup.traverse((c) => {
-      const obj = c as THREE.Mesh | THREE.Line | THREE.Sprite;
-      if ((obj as THREE.Mesh).isMesh) {
-        (obj as THREE.Mesh).geometry?.dispose();
-        const m = (obj as THREE.Mesh).material;
-        if (Array.isArray(m)) m.forEach((x) => disposeMaterial(x));
-        else disposeMaterial(m);
-      } else if ((obj as THREE.Line).isLine) {
-        (obj as THREE.Line).geometry?.dispose();
-        const lm = (obj as THREE.Line).material;
-        if (Array.isArray(lm)) lm.forEach((x) => x.dispose());
-        else lm?.dispose();
-      } else if ((obj as THREE.Sprite).isSprite) {
-        (obj as THREE.Sprite).material.map?.dispose();
-        (obj as THREE.Sprite).material?.dispose();
-      }
-    });
+    // （dispose 逻辑与 cleanup-helper.ts 共享，2026-08-14 去重）
+    disposeDebugGroup(state.debugGroup);
     scene.remove(state.debugGroup);
     state.debugGroup = null;
   }

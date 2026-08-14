@@ -18,7 +18,6 @@ import { resolveAndroidRepoDir } from "../../utils/dom/directory-picker.ts";
 import type { AppTree } from "./index.ts";
 import type { AuthorInfo } from "./authors.ts";
 // P1 修复（ADR-040）：搜索/筛选/导入逻辑已拆至 toolbar-search.ts
-export { openAdvFilterDialog, pickWebFilesAndImport } from "./toolbar-search.ts";
 import { openAdvFilterDialog, pickWebFilesAndImport } from "./toolbar-search.ts";
 
 type $Id = (id: string) => HTMLElement | null;

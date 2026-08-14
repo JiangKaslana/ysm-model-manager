@@ -9,10 +9,7 @@
 // - go/threejs/spec.go 全量算法
 // - go/types/bedrock.go 结构定义
 
-// P1 修复（ADR-040）：立方体几何/UV/旋转工具已拆至 cube-mesh.ts，此处 re-export 兼容
-export { buildCubeMeshData, mergeCubes, parseUV, eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./cube-mesh.ts";
-// P1 修复（ADR-040）：buildModelGroup 已拆至 model-group-builder.ts，此处 re-export 兼容
-export { buildModelGroup } from "./model-group-builder.ts";
+// 消费方直接从 cube-mesh.ts / model-group-builder.ts import（2026-08-14 清理死 re-export）
 import { buildModelGroup } from "./model-group-builder.ts";
 
 // ===== 常量（对齐 Go spec.go / parse.go）=====
@@ -46,7 +43,7 @@ export interface Cube2D {
 }
 
 /** Bone2D — Go types/bedrock.go Bone2D */
-export interface Bone2D {
+interface Bone2D {
   name: string;
   parent: string;
   pivot: [number, number, number];
@@ -67,7 +64,7 @@ export interface BedrockModel {
 }
 
 /** Model3DSpec — Go threejs/spec.go Model3DSpec */
-export interface Model3DSpec {
+interface Model3DSpec {
   models: ModelGroup[];
 }
 
