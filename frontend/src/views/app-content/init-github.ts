@@ -201,49 +201,56 @@ export function initGithubPage(host: AppContentHost): void {
     source: string,
     localMap: Map<string, string>,
   ): Promise<void> => {
-    // 同上：下载 URL 统一 raw，镜像优先级由 Go 端 mirror 配置统一重排
-    const dlPrefix =
-      "https://raw.githubusercontent.com/" + repo + "/main/";
-    const sourceLabel =
-      source === "raw"
-        ? '<span class="link-badge link-badge-raw">raw</span>'
-        : source === "jsd"
-          ? '<span class="link-badge link-badge-jsd">⚡jsd</span>'
-          : source === "api"
-            ? '<span class="link-badge link-badge-api">API</span>'
-            : "";
-    const missingCount = countMissing(models, localMap);
-    if (resultsBody) {
-      resultsBody.innerHTML = renderRepoHeaderHTML({
-        esc: (s) => host._esc(s),
-        repo,
-        sourceLabel,
-        modelsLength: models.length,
-        missingCount,
-      });
-      // 清理前一次绑定
-      if (host._repoEventsCleanup) {
-        try {
-          await host._repoEventsCleanup();
-        } catch (e) {
-          // 与 init-workshop 同模式（c7cd6363 漏修此处）：cleanup（含 queue.cancel）
-          // 失败不阻断新仓库绑定——裸 await 会把 reject 逸出成 unhandled rejection
-          dbg("repo-events", "清理旧仓库事件失败:", (e as Error)?.message);
+    try {
+      // 同上：下载 URL 统一 raw，镜像优先级由 Go 端 mirror 配置统一重排
+      const dlPrefix =
+        "https://raw.githubusercontent.com/" + repo + "/main/";
+      const sourceLabel =
+        source === "raw"
+          ? '<span class="link-badge link-badge-raw">raw</span>'
+          : source === "jsd"
+            ? '<span class="link-badge link-badge-jsd">⚡jsd</span>'
+            : source === "api"
+              ? '<span class="link-badge link-badge-api">API</span>'
+              : "";
+      const missingCount = countMissing(models, localMap);
+      if (resultsBody) {
+        resultsBody.innerHTML = renderRepoHeaderHTML({
+          esc: (s) => host._esc(s),
+          repo,
+          sourceLabel,
+          modelsLength: models.length,
+          missingCount,
+        });
+        // 清理前一次绑定
+        if (host._repoEventsCleanup) {
+          try {
+            await host._repoEventsCleanup();
+          } catch (e) {
+            // 与 init-workshop 同模式（c7cd6363 漏修此处）：cleanup（含 queue.cancel）
+            // 失败不阻断新仓库绑定——裸 await 会把 reject 逸出成 unhandled rejection
+            dbg("repo-events", "清理旧仓库事件失败:", (e as Error)?.message);
+          }
         }
+        const { renderList, cleanup } = bindRepoEvents(resultsBody, {
+          esc: (s) => host._esc(s),
+          models,
+          dlPrefix,
+          repo,
+          source,
+          showRepoModels: () => showRepo(repo),
+          backToSite: () => loadRepos(),
+          localMap,
+        });
+        host._setRepoEventsCleanup(cleanup);
+        const listContainer = resultsBody.querySelector("#gh-repo-list");
+        if (listContainer) listContainer.appendChild(renderList());
       }
-      const { renderList, cleanup } = bindRepoEvents(resultsBody, {
-        esc: (s) => host._esc(s),
-        models,
-        dlPrefix,
-        repo,
-        source,
-        showRepoModels: () => showRepo(repo),
-        backToSite: () => loadRepos(),
-        localMap,
-      });
-      host._setRepoEventsCleanup(cleanup);
-      const listContainer = resultsBody.querySelector("#gh-repo-list");
-      if (listContainer) listContainer.appendChild(renderList());
+    } catch (e) {
+      // P3 修复（审核）：renderModels 是 fire-and-forget async（showRepo 不 await），
+      // bindRepoEvents/renderList 同步抛错会逸出成 unhandled rejection 且用户零反馈；
+      // 统一 catch 出口留痕（dbg），不阻断页面其余功能
+      dbg("github-render", "渲染仓库模型失败:", (e as Error)?.message);
     }
   };
 

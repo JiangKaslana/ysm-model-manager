@@ -63,8 +63,8 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `FindDuplicateFiles()` | `go/dedup/dedup:40` | FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 |
-| `CountDuplicates()` | `go/dedup/dedup:144` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） |
-| `CleanEmptyDirs()` | `go/dedup/dedup:209` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
+| `CountDuplicates()` | `go/dedup/dedup:149` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） |
+| `CleanEmptyDirs()` | `go/dedup/dedup:215` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
 | `FileEntry()` | `go/dedup/dedup:24` | FileEntry 文件条目 |
 | `Group()` | `go/dedup/dedup:32` | Group 重复文件分组 |
 
@@ -1117,14 +1117,14 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:26` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:33` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:201` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:208` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:214` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:221` | 初始化 GitHub 页（委托到 init-github.ts） |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:28` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:52` | 初始化创意工坊页 |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:522` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
-| `initSettings()` | `frontend/src/views/app-content/settings/init:26` | 初始化设置页所有事件绑定 |
-| `initKeymap()` | `frontend/src/views/app-content/settings/keymap:122` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
+| `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
+| `initKeymap()` | `frontend/src/views/app-content/settings/keymap:126` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |
 | `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:51` | — |
 | `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:193` | — |
@@ -1136,7 +1136,7 @@
 | `setBusy()` | `frontend/src/views/app-content/settings/store:21` | — |
 | `toastError()` | `frontend/src/views/app-content/settings/store:26` | — |
 | `resetSettingsStore()` | `frontend/src/views/app-content/settings/store:35` | 重置模块级状态（initSettings 开头调用；重复执行时清空上次残留） |
-| `initTheme()` | `frontend/src/views/app-content/settings/theme:19` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
+| `initTheme()` | `frontend/src/views/app-content/settings/theme:23` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
 | `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:8` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
 | `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:48` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |

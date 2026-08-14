@@ -19,6 +19,9 @@ import { initUiPrefs } from "./ui-prefs.ts";
 import { initKeymap } from "./keymap.ts";
 import { resetSettingsStore, cfg, isBusy, setBusy, toastError } from "./store.ts";
 
+// 高级面板折叠动画时长（ms）——与 CSS 过渡时长一致（魔法数值收敛）
+const ADV_COLLAPSE_MS = 200;
+
 /**
  * 初始化设置页所有事件绑定
  * @param root - 组件 shadow root
@@ -76,7 +79,7 @@ export async function initSettings(root: ShadowRoot): Promise<void> {
         setTimeout(() => {
           panel.classList.remove("adv-closing");
           panel.style.display = "none";
-        }, 200);
+        }, ADV_COLLAPSE_MS);
       } else {
         await refreshAdvanced();
         panel.style.display = "block";

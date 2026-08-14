@@ -44,15 +44,20 @@ func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 	}
 	// 入口绝对化——原实现保留入参形态，相对路径下 FileEntry.Path
 	// 为相对路径，下游 recycle.Move 按 CWD 解析可能移到错误位置（与 CleanEmptyDirs 对齐）
-	if abs, err := filepath.Abs(dir); err == nil {
-		dir = abs
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		// 不可解析的根（如 Windows 上含 NUL 字节的路径）必须显式报错，不能静默
+		// 退回入参形态：WalkDir→Lstat 失败会被 log 吞掉并返回「无重复」= 假绿，
+		// 与 ErrSymlinkRoot 同类的静默漏扫。CleanEmptyDirs 已对齐该行为。
+		return nil, fmt.Errorf("dedup: 无法解析扫描目录 %q: %w", dir, err)
 	}
+	dir = abs
 
 	hashGroups := make(map[string]*Group)
 	// 使用 map 保持插入顺序
 	var orderedKeys []string
 
-	err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			log.Printf("[dedup] 访问 %s 失败: %v", p, err)
 			return nil
@@ -91,13 +96,13 @@ func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 			log.Printf("[dedup] 打开文件失败 %s: %v", p, err)
 			return nil
 		}
+		// WalkDir 回调是独立函数作用域，defer 在每次回调返回时执行，不跨文件堆积
+		defer f.Close()
 		h := sha256.New()
 		if _, err := io.Copy(h, f); err != nil {
-			f.Close()
 			log.Printf("[dedup] 读取文件失败 %s: %v", p, err)
 			return nil
 		}
-		f.Close()
 		hash := fmt.Sprintf("%x", h.Sum(nil))
 
 		if g, ok := hashGroups[hash]; ok {
@@ -180,9 +185,10 @@ func CountDuplicates(dir string, skipRecycle bool) (groups int, extraFiles int, 
 			log.Printf("[dedup] 打开文件失败 %s: %v", p, err)
 			return nil
 		}
+		// WalkDir 回调是独立函数作用域，defer 在每次回调返回时执行，不跨文件堆积
+		defer f.Close()
 		h := sha256.New()
 		_, copyErr := io.Copy(h, f)
-		f.Close()
 		if copyErr != nil {
 			log.Printf("[dedup] 读取文件失败 %s: %v", p, copyErr)
 			return nil

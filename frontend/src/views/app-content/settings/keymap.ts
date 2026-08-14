@@ -9,6 +9,10 @@ import { safeGet, safeSet, safeRemove } from "../../../utils/dom/storage.ts";
 // 单一捕获守卫：同一时刻仅允许一个键位捕获，且设置页卸载后自动失效，杜绝全局 keydown 劫持
 let _activeCapture: ((e: KeyboardEvent) => void) | null = null;
 
+// 魔法数值收敛：相机速度默认值（与 utils/3d/keymap.ts loadTdCamSpeed 默认 20 同源）、键位按钮最小宽度
+const DEFAULT_CAM_SPEED = "20";
+const KEY_BTN_MIN_WIDTH = "64px";
+
 const TD_ACTIONS: Array<{ key: TdKeyAction; label: string }> = [
   { key: "forward", label: "前移" },
   { key: "back", label: "后移" },
@@ -66,7 +70,7 @@ function tdRenderKeymap(root: ShadowRoot): void {
     const btn = document.createElement("button");
     btn.className = "btn-base sm";
     btn.textContent = tdKeyLabel(km[key]);
-    btn.style.minWidth = "64px";
+    btn.style.minWidth = KEY_BTN_MIN_WIDTH;
     btn.addEventListener("click", () => {
       // 取消上一次未完成的捕获，保证同一时刻仅一个
       if (_activeCapture) {
@@ -135,7 +139,7 @@ export function initKeymap(root: ShadowRoot): void {
   const csEl = root.getElementById("td-camspeed") as HTMLInputElement | null;
   const csVal = root.getElementById("td-camspeed-val");
   if (csEl) {
-    csEl.value = safeGet("td-cam-speed") || "20";
+    csEl.value = safeGet("td-cam-speed") || DEFAULT_CAM_SPEED;
     if (csVal) csVal.textContent = csEl.value;
     csEl.addEventListener("input", () => {
       if (csVal) csVal.textContent = csEl!.value;

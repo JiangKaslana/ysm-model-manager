@@ -6,10 +6,14 @@ import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 import { getApp } from "../../../backend/app.ts";
 import { cfg } from "./store.ts";
 
-// 时间段主题切换：返回实际应用的主题名（warm 白天 / cyber 夜晚）
+// 时间段主题边界（魔法数值收敛）：6:00–18:00 白天 warm，其余夜晚 cyber
+const DAY_START_HOUR = 6;
+const DAY_END_HOUR = 18;
+
+/** 时间段主题切换：返回实际应用的主题名（warm 白天 / cyber 夜晚） */
 function applyTimeTheme(): string {
   const hour = new Date().getHours();
-  const isDay = hour >= 6 && hour < 18;
+  const isDay = hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
   const themeName = isDay ? "warm" : "cyber";
   window.applyTheme?.(themeName);
   return themeName;

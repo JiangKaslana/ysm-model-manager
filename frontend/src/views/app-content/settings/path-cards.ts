@@ -368,13 +368,18 @@ export function initMcDetect(root: ShadowRoot): void {
   // hover 时预加载并显示扫描到的所有路径 + 搜索范围
   let _scanTooltip: HTMLElement | null = null;
   let _scanPaths: string[] | null = null;
+  let _scanHovered = false; // P2 修复（审核）：await 竞态守卫——GetMinecraftPaths 完成前鼠标已移出时不再挂气泡
   detectBtn?.addEventListener("pointerenter", async () => {
+    _scanHovered = true;
     if (_scanTooltip) return;
     try {
       if (!_scanPaths) {
         const { GetMinecraftPaths } = await getApp();
         _scanPaths = await GetMinecraftPaths();
       }
+      // P2 修复（审核，资源泄漏）：原实现先 await 再无条件挂气泡——鼠标快速移出后
+      // 工具提示仍出现在 pointerleave 之后并滞留可见；仅当仍悬停时才挂载
+      if (!_scanHovered) return;
       _scanTooltip = showScanTooltip(root, detectBtn, _scanPaths || []);
     } catch (e) {
       // P3 修复（审核）：hover 预加载失败有出口——原裸 await 逸出 unhandled rejection
@@ -384,6 +389,7 @@ export function initMcDetect(root: ShadowRoot): void {
     }
   });
   detectBtn?.addEventListener("pointerleave", () => {
+    _scanHovered = false;
     if (_scanTooltip) {
       _scanTooltip.remove();
       _scanTooltip = null;

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -223,5 +224,110 @@ func TestCountDuplicates_SymlinkRootErrorIsClassifiable(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), link) {
 		t.Fatalf("错误信息应含路径 %s, got %v", link, err)
+	}
+}
+
+// ====== 剩余未覆盖分支（dedup.go） ======
+
+// filepath.Abs 失败时（Windows 上含 NUL 字节的路径）必须显式报错：
+// 静默退回入参形态会让 WalkDir→Lstat 失败被 log 吞掉、返回「无重复」= 假绿，
+// 与 ErrSymlinkRoot 同类的静默漏扫。Linux 上 Abs 不校验 NUL，分支不可达 → 跳过。
+func TestFindDuplicateFiles_UnparseableRootError(t *testing.T) {
+	badPath := t.TempDir() + "\x00" + "suffix"
+	if abs, err := filepath.Abs(badPath); err == nil {
+		t.Logf("当前平台 filepath.Abs 不拒绝 NUL 路径（Abs=%q），分支不可达，跳过", abs)
+		return
+	}
+	if _, err := FindDuplicateFiles(badPath, true); err == nil {
+		t.Fatal("filepath.Abs 失败时必须显式报错，不得静默返回「无重复」假绿")
+	}
+}
+
+// TrimSpace 后为空串的路径（全空白）应等价于空目录报错
+func TestFindDuplicateFiles_WhitespacePathError(t *testing.T) {
+	if _, err := FindDuplicateFiles("   ", true); err == nil {
+		t.Fatal("全空白目录应报错（TrimSpace 后为空）")
+	}
+}
+
+// os.Open 失败分支（FindDuplicateFiles）：不可读文件被 log+跳过，扫描不报错、
+// 不进入结果。Windows 上 chmod 0000 不阻止读取、root 下 0000 仍可读 → 跳过。
+func TestFindDuplicateFiles_UnreadableFileSkipped(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 上 chmod 0000 不阻止读取，无法构造不可读文件")
+	}
+	dir := t.TempDir()
+	_ = testutil.CreateTestFile(t, dir, "a.txt", "same content")
+	b := testutil.CreateTestFile(t, dir, "b.txt", "same content")
+	if err := os.Chmod(b, 0000); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(b, 0644)
+	if f, err := os.Open(b); err == nil {
+		f.Close()
+		t.Skip("当前以 root 运行，0000 权限文件仍可读，无法覆盖 os.Open 失败分支")
+	}
+
+	groups, err := FindDuplicateFiles(dir, true)
+	if err != nil {
+		t.Fatalf("不可读文件应被跳过（log+continue），不得返回错误: %v", err)
+	}
+	// a.txt 可读、b.txt 打开失败被跳过 → 只有 1 个文件被哈希 → 0 组重复
+	if len(groups) != 0 {
+		t.Fatalf("期望 0 组重复（b.txt 打开失败被跳过），got %d 组", len(groups))
+	}
+}
+
+// os.Open 失败分支（CountDuplicates 同源）：不可读文件跳过，计数不受影响
+func TestCountDuplicates_UnreadableFileSkipped(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 上 chmod 0000 不阻止读取，无法构造不可读文件")
+	}
+	dir := t.TempDir()
+	_ = testutil.CreateTestFile(t, dir, "a.txt", "same content")
+	b := testutil.CreateTestFile(t, dir, "b.txt", "same content")
+	if err := os.Chmod(b, 0000); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(b, 0644)
+	if f, err := os.Open(b); err == nil {
+		f.Close()
+		t.Skip("当前以 root 运行，0000 权限文件仍可读，无法覆盖 os.Open 失败分支")
+	}
+
+	g, e, err := CountDuplicates(dir, true)
+	if err != nil {
+		t.Fatalf("不可读文件应被跳过，不得返回错误: %v", err)
+	}
+	if g != 0 || e != 0 {
+		t.Fatalf("期望 0 组 0 多余（b.txt 打开失败被跳过），got groups=%d extra=%d", g, e)
+	}
+}
+
+// os.Remove 失败分支：removeEmptyDirs 吞掉删除错误——失败的空目录不计数、不报错。
+// Windows 上目录只读位不阻止删除、root 下 0555 不阻止删除 → 跳过。
+func TestCleanEmptyDirs_RemoveFailureSkipped(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 上目录只读位不阻止删除，无法构造删除失败分支")
+	}
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "sub")
+	if err := os.MkdirAll(sub, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(dir, 0700)
+	if err := os.Remove(sub); err == nil {
+		t.Skip("当前以 root 运行，只读目录仍可删除，无法覆盖 os.Remove 失败分支")
+	}
+
+	removed, err := CleanEmptyDirs(dir)
+	if err != nil {
+		t.Fatalf("删除失败不得向上报错（removeEmptyDirs 吞掉删除错误）: %v", err)
+	}
+	if removed != 0 {
+		t.Fatalf("删除失败的空目录不应计数，got %d", removed)
 	}
 }

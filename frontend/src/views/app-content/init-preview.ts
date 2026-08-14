@@ -12,9 +12,20 @@ export function initPreviewResize(host: {
   _setResizeMove(fn: ((e: PointerEvent) => void) | null): void;
   _setResizeUp(fn: ((e: PointerEvent) => void) | null): void;
 }): void {
+  // 先移除上一轮 _render 遗留的 document 监听器，防止切页累积泄漏——
+  // 必须在 handle/preview 缺失的 early-return 之前执行：否则切到无预览页时
+  // 上一轮监听器（闭包引用已卸载 DOM）会残留到下一次带预览的渲染（陷阱 #2）
+  if (host._resizeMove) document.removeEventListener("pointermove", host._resizeMove);
+  if (host._resizeUp) document.removeEventListener("pointerup", host._resizeUp);
+
   const handle = host._root.getElementById("preview-resize-handle");
   const preview = host._root.getElementById("app-preview") as HTMLElement | null;
-  if (!handle || !preview) return;
+  if (!handle || !preview) {
+    // 同步清空存储的处理器，避免陈旧闭包被后续 render 重复移除/误用
+    host._setResizeMove(null);
+    host._setResizeUp(null);
+    return;
+  }
 
   // 从 localStorage 恢复宽度
   const savedWidth = safeGet("preview-width");
@@ -22,10 +33,6 @@ export function initPreviewResize(host: {
     const w = Math.max(160, Math.min(500, parseInt(savedWidth, 10)));
     preview.style.width = w + "px";
   }
-
-  // 先移除上一轮 _render 遗留的 document 监听器，防止切页累积泄漏
-  if (host._resizeMove) document.removeEventListener("pointermove", host._resizeMove);
-  if (host._resizeUp) document.removeEventListener("pointerup", host._resizeUp);
 
   let resizing = false;
   handle.addEventListener("pointerdown", (e) => {

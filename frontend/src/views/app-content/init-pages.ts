@@ -119,59 +119,72 @@ function bindTabs(
       });
       // 首次切换到非默认 tab 时初始化内容
       if (!inited[tab] && tab !== ids[0]) {
-        inited[tab] = true;
         const container = host._root.getElementById(prefix + "-tab-" + tab);
         if (!container) return;
-        if (tab === "import") {
-          const { downloadsHTML } = await import("./tpl-downloads.ts");
-          container.innerHTML = downloadsHTML();
-          const importCleanup = initImportQueue(host as never);
-          host._unsubs = host._unsubs || [];
-          if (importCleanup) host._unsubs.push(importCleanup);
-        } else if (tab === "recycle") {
-          const { recycleHTML } = await import("./tpl-recycle.ts");
-          container.innerHTML = recycleHTML();
-          const recycleCleanup = initRecycleBin(host as never);
-          host._unsubs = host._unsubs || [];
-          if (recycleCleanup) host._unsubs.push(recycleCleanup);
-        } else if (tab === "dedup") {
-          let dedupType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-          container.innerHTML =
-            '<div style="display:flex;flex-direction:column;height:100%">' +
-            '<div style="display:flex;align-items:center;gap:8px;padding:4px 12px;border-bottom:1px solid var(--bd)">' +
-            '<span style="flex:1;font-size:var(--fs-sm);color:var(--muted)">📌 ' + t("dedup.sha256Hint") + '</span>' +
-            '<button class="btn-base accent" id="dedup-start-btn">🔗 ' + t("dedup.startDedup") + '</button>' +
-            "</div>" +
-            '<div id="dedup-result-list" style="flex:1;overflow-y:auto;padding:8px 0"></div>' +
-            "</div>";
-          const doDedup = (): void => {
-            const list = container.querySelector("#dedup-result-list");
-            if (list)
-              startDedup(
-                list as HTMLElement,
-                (s: unknown) => host._esc(s),
-                dedupType,
-              );
-          };
-          container
-            .querySelector("#dedup-start-btn")
-            ?.addEventListener("click", doDedup);
-          // 全局类型切换时自动重复
-          const _unsub = bus.on("repo:rtype-changed", (rt) => {
-            if (rt !== dedupType) {
-              dedupType = rt;
-              doDedup();
-            }
+        // P3 修复（审核，陷阱 #3）：懒初始化是 async 链（动态 import / 业务 init），
+        // 原在 await 前就置 inited=true 且无 try/catch——动态导入失败或 init 抛错时
+        // tab 永久卡死（重试被 inited 拦截）且无用户反馈。先置位防并发重复初始化，
+        // catch 中复位以允许重试并 toast 提示（ADR-044 ①：async handler 最外层必有 catch）。
+        inited[tab] = true;
+        try {
+          if (tab === "import") {
+            const { downloadsHTML } = await import("./tpl-downloads.ts");
+            container.innerHTML = downloadsHTML();
+            const importCleanup = initImportQueue(host as never);
+            host._unsubs = host._unsubs || [];
+            if (importCleanup) host._unsubs.push(importCleanup);
+          } else if (tab === "recycle") {
+            const { recycleHTML } = await import("./tpl-recycle.ts");
+            container.innerHTML = recycleHTML();
+            const recycleCleanup = initRecycleBin(host as never);
+            host._unsubs = host._unsubs || [];
+            if (recycleCleanup) host._unsubs.push(recycleCleanup);
+          } else if (tab === "dedup") {
+            let dedupType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+            container.innerHTML =
+              '<div style="display:flex;flex-direction:column;height:100%">' +
+              '<div style="display:flex;align-items:center;gap:8px;padding:4px 12px;border-bottom:1px solid var(--bd)">' +
+              '<span style="flex:1;font-size:var(--fs-sm);color:var(--muted)">📌 ' + t("dedup.sha256Hint") + '</span>' +
+              '<button class="btn-base accent" id="dedup-start-btn">🔗 ' + t("dedup.startDedup") + '</button>' +
+              "</div>" +
+              '<div id="dedup-result-list" style="flex:1;overflow-y:auto;padding:8px 0"></div>' +
+              "</div>";
+            const doDedup = (): void => {
+              const list = container.querySelector("#dedup-result-list");
+              if (list)
+                startDedup(
+                  list as HTMLElement,
+                  (s: unknown) => host._esc(s),
+                  dedupType,
+                );
+            };
+            container
+              .querySelector("#dedup-start-btn")
+              ?.addEventListener("click", doDedup);
+            // 全局类型切换时自动重复
+            const _unsub = bus.on("repo:rtype-changed", (rt) => {
+              if (rt !== dedupType) {
+                dedupType = rt;
+                doDedup();
+              }
+            });
+            // 组件卸载时清理
+            host._unsubs = host._unsubs || [];
+            host._unsubs.push(_unsub);
+          } else if (tab === "oldest") {
+            const oldestCleanup = await loadOldestModel(container, (s) =>
+              host._esc(s),
+            );
+            host._unsubs = host._unsubs || [];
+            if (oldestCleanup) host._unsubs.push(oldestCleanup);
+          }
+        } catch (e) {
+          inited[tab] = false;
+          bus.emit("toast:show", {
+            msg: "❌ " + friendlyError(e, t("common.loadFailed")),
+            duration: 4000,
+            type: "error",
           });
-          // 组件卸载时清理
-          host._unsubs = host._unsubs || [];
-          host._unsubs.push(_unsub);
-        } else if (tab === "oldest") {
-          const oldestCleanup = await loadOldestModel(container, (s) =>
-            host._esc(s),
-          );
-          host._unsubs = host._unsubs || [];
-          if (oldestCleanup) host._unsubs.push(oldestCleanup);
         }
         // 注意：resourcepacks/shaderpacks/blueprint/MMD/VRC/LITEMATIC 六个
         // initResourcePacks 分支已删除（P2 审计：tpl 无对应 repo-tab 按钮与容器 id，
