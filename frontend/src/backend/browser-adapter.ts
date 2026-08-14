@@ -27,6 +27,7 @@ import {
   renameWebDir,
   renameWebFile,
   getWebSubDirMap,
+  listWebModelDirFiles,
 } from "./web-fs.ts";
 // 配置/日志/标签/ban（web-store.ts）
 import {
@@ -156,6 +157,9 @@ const webImpls = {
   },
   // 子目录映射（resource_types.json 派生）
   GetSubDirMap: () => getWebSubDirMap(),
+  // R1 文件层级读取：递归列出 /web 目录下全部文件完整路径（对齐桌面 ListAllFilePaths，
+  // 递归完整路径、不限制扩展名；bus-handlers 删除目录移入回收站联动依赖）
+  ListAllFilePaths: (dir: string) => listWebModelDirFiles(dir),
   // 网页版无扫描缓存（scanWebModels 直读 IDB）：清缓存为 no-op。
   // 缺此实现会让 app-tree 切换 root 时（index.ts:170）fail-fast 抛错跳过 _load，树卡死。
   ClearScanCache: () => Promise.resolve(),

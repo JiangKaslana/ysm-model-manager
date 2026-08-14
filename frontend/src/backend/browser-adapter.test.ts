@@ -830,6 +830,31 @@ describe("R1 文件层级读取（P-A 多段路径，蓝图 docs/roadmap/web-edi
     expect(idbMock._store.has("file:ysm/分类1/狐狸/tex/face.png")).toBe(false);
   });
 
+  it("ListAllFilePaths：递归列目录下全部文件完整路径（R1 桥接）", async () => {
+    const fMain = new File([enc.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fMain, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
+    const fTex = new File([enc.encode("PNG")], "face.png");
+    Object.defineProperty(fTex, "webkitRelativePath", { value: "分类1/狐狸/tex/face.png" });
+    const fJson = new File([enc.encode("{}")], "main.json");
+    Object.defineProperty(fJson, "webkitRelativePath", { value: "分类1/狐狸/main.json" });
+    await importWebFiles([fMain, fTex, fJson], "ysm");
+    // 目录 = 模型组 → 递归取全部文件（含组内子目录 rel）
+    const all = await browserAdapter.ListAllFilePaths("/web/ysm/分类1/狐狸");
+    expect(all).toEqual(
+      expect.arrayContaining([
+        "/web/ysm/分类1/狐狸/狐狸.ysm",
+        "/web/ysm/分类1/狐狸/main.json",
+        "/web/ysm/分类1/狐狸/tex/face.png",
+      ]),
+    );
+    expect(all).toHaveLength(3);
+    // 子目录形态路径 → 只取该子树
+    const sub = await browserAdapter.ListAllFilePaths("/web/ysm/分类1/狐狸/tex");
+    expect(sub).toEqual(["/web/ysm/分类1/狐狸/tex/face.png"]);
+    // 非 /web 路径 → 空数组（不抛错）
+    expect(await browserAdapter.ListAllFilePaths("/repo/abc")).toEqual([]);
+  });
+
   // 存量兼容：单层 webkitRelativePath（首段 = 组名）行为不变，不破坏既有库
   it("存量兼容：单层目录导入仍以目录为组名", async () => {
     const fMain = new File([enc.encode("YSM")], "狐狸.ysm");

@@ -176,6 +176,31 @@ export function parseWebModelDir(p: string): { type: string; name: string } | nu
   return { type: m[1], name: m[2] };
 }
 
+/**
+ * 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths：
+ * 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 /）。
+ * 目录形态路径（/web/<type>/<name> 或 /web/<type>/<name>/<subdir>）经
+ * parseWebModelPath 反解出 {type, name, rel}，再枚举 file:<type>/<name>/ 前缀，
+ * 过滤 rel.startsWith(目录rel + "/") 归入该子树。非 /web 路径返回 []。
+ */
+export async function listWebModelDirFiles(p: string): Promise<string[]> {
+  const pm = await parseWebModelPath(p);
+  if (!pm) return [];
+  const { type, name, rel } = pm;
+  const prefix = `file:${type}/${name}/`;
+  const keys = await idbKeys("files", prefix);
+  const out: string[] = [];
+  // 目录 rel 为空 = 整个模型组；否则只取 rel 子树（rel 或其子目录）
+  const dirPrefix = rel ? `${rel}/` : "";
+  for (const k of keys) {
+    const fileRel = k.slice(prefix.length);
+    if (!dirPrefix || fileRel === rel || fileRel.startsWith(dirPrefix)) {
+      out.push(`${WEB_ROOT}/${type}/${name}/${fileRel}`);
+    }
+  }
+  return out;
+}
+
 /** 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） */
 export async function scanAllWebModels(): Promise<Array<{ type: string; name: string; path: string }>> {
   const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string }> }).resourceTypes ?? [];
