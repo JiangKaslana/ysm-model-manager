@@ -56,7 +56,7 @@
 |------|------|
 | `backend/` | 后端适配层：Wails 绑定入口（app.ts）+ 平台判定（platform.ts）+ 浏览器适配（browser-adapter.ts）+ IndexedDB 模型库（idb.ts） |
 | `core/` | 基础设施（buttons / global-handlers / theme / context-menus） |
-| `features/` | 业务功能（import-queue / recycle-bin / version-updater / community） |
+| `features/` | 业务功能（import-queue / recycle-bin / version-updater / community）——**平铺单文件**：`import-dnd.ts`、`recycle-bin.ts`、`import-queue.ts` 等均为文件非子目录，仅 `community/` 是子目录 |
 | `services/` | 服务注册（registry.ts） |
 | `test-utils/` | 测试工具（G-1 抗脆弱测试基础设施 — ADR-035 §19.1：getByTestId / getAllByTestId / waitFor） |
 | `utils/` | 工具函数（display / fmt / dom / icon / summarize / model3d） |
