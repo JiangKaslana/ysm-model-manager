@@ -9,7 +9,7 @@
 |------|--------|-----------|
 | Go·头像 | 4 | 10 |
 | Go·去重 | 1 | 5 |
-| Go·下载 | 1 | 7 |
+| Go·下载 | 1 | 11 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 13 |
 | Go·文件系统 | 6 | 12 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 53 | 193 |
 | frontend/views | 79 | 211 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **266** | **1099** |
+| **合计** | **266** | **1103** |
 
 ## Go·头像
 
@@ -72,13 +72,17 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `New()` | `go/download/download:44` | New 创建 Downloader，默认 5 分钟超时。 |
-| `NewWithClient()` | `go/download/download:49` | NewWithClient 使用指定 HTTP client。 |
-| `Downloader.File()` | `go/download/download:193` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
-| `Downloader.FromGitHubAPI()` | `go/download/download:198` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `ResolveSavePath()` | `go/download/download:222` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
-| `ProgressFn()` | `go/download/download:35` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
-| `Downloader()` | `go/download/download:38` | Downloader 文件下载器。 |
+| `HTTPStatusError.Error()` | `go/download/download:63` | — |
+| `TruncationError.Error()` | `go/download/download:71` | — |
+| `New()` | `go/download/download:85` | New 创建 Downloader，默认 5 分钟超时。 |
+| `NewWithClient()` | `go/download/download:90` | NewWithClient 使用指定 HTTP client。 |
+| `Downloader.File()` | `go/download/download:254` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
+| `Downloader.FromGitHubAPI()` | `go/download/download:259` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
+| `ResolveSavePath()` | `go/download/download:283` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `HTTPStatusError()` | `go/download/download:59` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
+| `TruncationError()` | `go/download/download:66` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
+| `ProgressFn()` | `go/download/download:76` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
+| `Downloader()` | `go/download/download:79` | Downloader 文件下载器。 |
 
 ## go/executil
 
@@ -949,9 +953,9 @@
 | `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:39` | — |
 | `Spec3D()` | `frontend/src/utils/3d/model3d:47` | — |
 | `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:52` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:66` | renderModel3D 返回的渲染句柄 |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:101` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:404` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:74` | renderModel3D 返回的渲染句柄 |
+| `renderModel3D()` | `frontend/src/utils/3d/model3d:109` | 渲染 3D 模型到容器，返回控制句柄 |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:412` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/quaternion:13` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |

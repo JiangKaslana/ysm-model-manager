@@ -47,7 +47,7 @@
 | 脚本 | 调用方式 | 说明 |
 |------|---------|------|
 | `funcmap.mjs` | `node scripts/funcmap.mjs -o funcmap.md` | 提取 Go/JS/TS 导出符号映射表（按模块分组，参考 MikuMikuAR 风格） |
-| `doctor.mjs` | `node scripts/doctor.mjs` | Go 编译 + 单测 + 前端构建 + **前端单测（vitest，ADR-023 P3）** + tsc + 文件 + 红线 + 静态分析（含 check-layering 分层守护）+ Git（原 ultrawork 一键三连已并入，ultrawork.mjs 删除） |
+| `doctor.mjs` | `node scripts/doctor.mjs` | Go 编译 + 单测 + 前端构建 + **前端单测（vitest，ADR-023 P3）** + tsc + 文件 + 红线 + 静态分析（含 check-layering 分层守护）+ Git（原 ultrawork 一键三连已并入，ultrawork.mjs 删除）；`--docs` 轻量模式 / `--gate [ref]` 委托 pre-push-gate.mjs --dry-run（域感知门禁，单一实现避免双端漂移） |
 | `comment-checker.mjs` | `node scripts/comment-checker.mjs` / `--json` / `--full` | 注释质量（废话/JSDoc/TODO/调试日志）；`--json` 默认每类截断 50 条 + `_summary` 分类计数，`--full` 全量（防 wasm base64 超长行误报/爆炸） |
 | `event-audit.mjs` | `node scripts/event-audit.mjs` / `--json` | EventsOn/bus.on 注册位置检查 |
 | `binding-check.mjs` | `node scripts/binding-check.mjs` | Go 导出函数 vs v3 bindings 产物（`-ts` 契约 app.ts）一致性 |

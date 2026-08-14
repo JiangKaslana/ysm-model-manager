@@ -33,6 +33,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
 import { run as procRun } from './_lib/proc.mjs';
+import { classify, planFromFiles } from './_lib/domain-classify.mjs';
 
 
 const B = { OK: '[OK]', FAIL: '[FAIL]', FIX: '[FIX]', SKIP: '[SKIP]' };
@@ -72,22 +73,6 @@ function git(args, { cwd = ROOT } = {}) {
 
 /* ---------------- 变更域分析 ---------------- */
 
-const DATA_FILES = new Set([
-  'resource_types.json', 'creators.json', 'workshop_sites.json', 'workshop-github.json',
-]);
-
-function classify(f) {
-  /** 文件路径 → 域。返回 'go' | 'frontend' | 'data' | 'docs' | 'tests' | 'other'。 */
-  if (f.endsWith('.go')) return 'go';
-  if (f === 'go.mod' || f === 'go.sum') return 'go';
-  if (f === 'wails.json') return 'frontend';
-  if (f.startsWith('frontend/')) return 'frontend';
-  if (DATA_FILES.has(f)) return 'data';
-  if (f.startsWith('docs/') || f.endsWith('.md')) return 'docs';
-  if (f.startsWith('tests/') || f.startsWith('scripts/')) return 'tests';
-  return 'other';
-}
-
 function resolveChanges(localRef, localOid, remoteOid) {
   /**
    * 计算本次 push 的变更文件集（相对被推送的 localOid，而非当前检出 HEAD——
@@ -122,25 +107,6 @@ function resolveChanges(localRef, localOid, remoteOid) {
   // 首个提交（diff-tree 对 root commit 默认忽略，须用 git show）
   const t = git(['show', '--name-only', '--format=', localOid]);
   return t.rc === 0 && t.out.trim() ? t.out.trim().split('\n').filter(Boolean) : null;
-}
-
-function planFromFiles(files) {
-  /** 文件集 → 需要跑的检查计划 { go, frontend, data, docs, adr, contractTests }。 */
-  const p = { go: false, frontend: false, data: false, docs: false, adr: false, contractTests: false };
-  for (const f of files) {
-    const d = classify(f);
-    if (d === 'go') p.go = true;
-    if (d === 'frontend') p.frontend = true;
-    if (d === 'data') p.data = true;
-    if (d === 'docs') p.docs = true;
-    if (d === 'tests') p.contractTests = true;
-    if (f.startsWith('docs/adr/') || f.startsWith('docs/architecture/adr/')) p.adr = true;
-  }
-  // redlines 门禁：任意非纯文档/纯测试变更都触发——红线规则覆盖 go 与 frontend，
-  // 纯 docs/contracts 变更无代码面无需跑（code_review F 落地：把 R1-R10/W1-W6 从运动式
-  // 子代理走查升级为 pre-push 强制门禁，不再靠"出问题 → 开批走查"脉冲修复）
-  p.redlines = p.go || p.frontend;
-  return p;
 }
 
 /* ---------------- 检查执行 ---------------- */
