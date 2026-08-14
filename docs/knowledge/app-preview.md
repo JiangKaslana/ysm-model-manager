@@ -32,7 +32,7 @@ tests:
   - frontend/src/views/app-sidebar/loader.test.ts
   - frontend/src/views/app-sync-manager/index.test.ts
   - frontend/src/views/app-toast/index.test.ts
-  - frontend/src/views/app-tree/utils.test.ts
+  - frontend/src/utils/dom/feedback.test.ts
   - frontend/src/views/context-menu/index.test.ts
 use_when:
   - 预览

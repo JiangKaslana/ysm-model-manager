@@ -8,6 +8,7 @@ import type { TreeEntry } from "./loader.ts";
 import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
+import { flashBtn } from "../../utils/dom/feedback.ts";
 
 const ENABLE_MULTI_SELECT = true;
 
@@ -174,8 +175,7 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
       vm._toggleBusy = true;
       const fullPath = flCk.dataset.fullpath || flCk.dataset.path;
       const fl = flCk.closest(".fl, .fl-list") as HTMLElement | null;
-      if (fl) fl.classList.add("flash");
-      setTimeout(() => fl?.classList.remove("flash"), 400);
+      flashBtn(fl);
       getApp()
         .then(({ ToggleModelEnable }) => ToggleModelEnable(fullPath || ""))
         .then(async () => {

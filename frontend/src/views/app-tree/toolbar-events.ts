@@ -3,7 +3,7 @@ import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { bus } from "../../bus.ts";
-import { flashBtn } from "./utils.ts";
+import { flashBtn } from "../../utils/dom/feedback.ts";
 import { spinnerHTML } from "./tpl.ts";
 import { selectState } from "./data.ts";
 import { modalAdvFilter, type AdvFilterValue } from "../../utils/dom/dialogs/adv-filter.ts";

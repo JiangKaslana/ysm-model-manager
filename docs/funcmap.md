@@ -38,10 +38,10 @@
 | 前端·特性 | 19 | 92 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 53 | 193 |
-| frontend/views | 79 | 211 |
+| 前端·工具 | 54 | 196 |
+| frontend/views | 78 | 210 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **267** | **1106** |
+| **合计** | **267** | **1108** |
 
 ## Go·头像
 
@@ -1052,6 +1052,9 @@
 | `ensureFabStyles()` | `frontend/src/utils/dom/fab:53` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
 | `IconButtonOpts()` | `frontend/src/utils/dom/fab:68` | — |
 | `createIconButton()` | `frontend/src/utils/dom/fab:80` | 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 |
+| `FLASH_DURATION_MS()` | `frontend/src/utils/dom/feedback:10` | 默认闪烁时长（ms） |
+| `FlashOptions()` | `frontend/src/utils/dom/feedback:13` | 闪烁反馈配置 |
+| `flashBtn()` | `frontend/src/utils/dom/feedback:28` | 按钮/行闪烁反馈：加 flash class，duration 后移除。 |
 | `formatBytes()` | `frontend/src/utils/dom/format:11` | 字节数 → 可读大小（B/KB/MB/GB），非法值或 0 返回空串 |
 | `sizeColor()` | `frontend/src/utils/dom/format:23` | 文件大小颜色 class：&lt;1MB 绿色，1-3MB 正常，≥3MB 红色 |
 | `fmtDate()` | `frontend/src/utils/dom/format:35` | 时间戳 → 友好日期：今天显时间，今年显 M月D日，往年显 YYYY/M/D |
@@ -1302,7 +1305,6 @@
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |
 | `spinnerHTML()` | `frontend/src/views/app-tree/tpl:41` | — |
-| `flashBtn()` | `frontend/src/views/app-tree/utils:4` | — |
 | `ROW_H_GRID()` | `frontend/src/views/app-tree/virtual-scroll:3` | — |
 | `ROW_H_LIST()` | `frontend/src/views/app-tree/virtual-scroll:4` | — |
 | `calcVisibleRange()` | `frontend/src/views/app-tree/virtual-scroll:14` | 根据滚动位置计算可见行范围（支持动态行高） |
