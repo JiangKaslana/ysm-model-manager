@@ -167,11 +167,11 @@ const DOC_STATIC_TOOLS = [
   'check-workflow-refs.mjs',
 ];
 
-/** 文档额外检查（--all / --docs 模式，doctor DOC_EXTRA_SCRIPTS 迁入） */
+/** 文档额外检查（--all / --docs 模式，doctor DOC_EXTRA_SCRIPTS 迁入）。
+ * 仅保留未被域检查覆盖的项：link-checker（docs 域 --json 已判定断链）、
+ * adr-check（adr 域已跑）不在此重复执行（2026-08-14 审核去重）。 */
 const DOC_EXTRA_SCRIPTS = [
-  { tool: 'link-checker.mjs', args: ['--strict'] },
   'check-knowledge-drift.mjs',
-  'adr-check.mjs',
 ];
 
 /* ---------------- 主流程 ---------------- */
