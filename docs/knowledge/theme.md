@@ -53,6 +53,7 @@ invariant_anchors:
 ## 不变量
 
 - 主题切换只允许经 body 的 `theme-*` class，全部视觉值走 CSS 变量，禁止组件内硬编码主题颜色（治理红线 §3.3；主题卡片预览 swatch 的硬编码 hex 属装饰豁免，表述已加限定）
+- 变量取值口径（`variables.css` 头注释已同步）：**亮色主题 `--accent` 取深色系**（文字对比度 ≥4.5:1 on `--bg`/`--act`）；**深色主题取亮色系**；`--txt`/`--muted` 的色相必须与 `--accent` 同色系（禁止冷灰混入暖色主题等色相脱节）；`--bd` 一律 `color-mix` 派生自 `--accent`（改 accent 无需同步边框）
 - 合法模式仅 6 套皮肤 + `system`，非法值一律回落 `system`，不产生无主题状态
 - `LoadAppConfig` 失败必须回退 localStorage/默认值，主题初始化失败不得阻塞启动序列
 - 系统偏好监听只在 `system` 模式下生效，手动选定主题不被系统变化覆盖
