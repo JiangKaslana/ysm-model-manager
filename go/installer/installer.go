@@ -173,7 +173,12 @@ func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 	// 死递归守卫——srcDir==dstDir 时 finalDst 成为 srcDir 的
 	// 子目录，os.ReadDir(srcDir) 会列到它 → 递归建 …/repo/repo/… 无限下钻直到路径
 	// 超长报错（当前调用方不触发，但属无守卫的定时炸弹）。src/dst 同目录直接拒绝。
-	if strings.EqualFold(srcDir, dstDir) {
+	// 用 sameDir（SameFile 判定真实同目录）而非 strings.EqualFold：
+	// EqualFold 在大小写敏感 FS（Linux）上会把 /repo/SRC 与 /repo/src 两个不同目录
+	// 误判为相同而拒绝合法安装（adversarial BUG-4）；大小写不敏感 FS（Windows/macOS）
+	// 由 SameFile 正确识别同目录。dstDir 尚不存在（全新安装）时 Lstat 失败 →
+	// 与已存在的 srcDir 必不同，仅字符串完全相同时拒绝。
+	if sameDir(srcDir, dstDir) {
 		return types.AppError{Code: "INVALID_PARAM", Operation: "安装目录", SourcePath: srcDir, Reason: "源目录与目标目录相同"}
 	}
 
@@ -217,6 +222,20 @@ func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 		return err
 	}
 	return nil
+}
+
+// sameDir 判断 srcDir 与 dstDir 是否指向同一目录。
+// SameFile（dev+inode 比较）优先，避免 strings.EqualFold 在大小写敏感 FS 上的
+// 假阳性（/repo/SRC 与 /repo/src 是不同目录却被 EqualFold 判同）。
+// 任一侧不存在时退化为字符串相等比较——目录存在性不一致时二者必不同目录。
+func sameDir(srcDir, dstDir string) bool {
+	if si, err := os.Lstat(srcDir); err == nil {
+		if di, err := os.Lstat(dstDir); err == nil {
+			return os.SameFile(si, di)
+		}
+		return srcDir == dstDir
+	}
+	return srcDir == dstDir
 }
 
 // checkDstSymlinkSegments 校验目标路径父链中已存在的符号链接段不越出 .minecraft。

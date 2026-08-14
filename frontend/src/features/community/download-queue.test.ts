@@ -146,6 +146,13 @@ describe("enqueueDownloads", () => {
     expect(enqueueMock).not.toHaveBeenCalled();
   });
 
+  it("并发 3 次 enqueueDownloads 只入队一次（重入守卫：状态置位先于首个 await）", async () => {
+    const tasks = [{ url: "u", saveDir: "", name: "a", size: 1 }];
+    await Promise.all([enqueueDownloads(tasks), enqueueDownloads(tasks), enqueueDownloads(tasks)]);
+    expect(enqueueMock).toHaveBeenCalledTimes(1);
+    expect(getState().total).toBe(1); // 首次调用设置的批次参数不被后续忽略调用覆盖
+  });
+
   it("enqueued 状态同样防重入（P1：Go 入队后只发 enqueued 不发 downloading）", async () => {
     emit("queue:status", ["enqueued", 2, 1]);
     expect(getState().status).toBe("enqueued");
@@ -217,6 +224,15 @@ describe("后端事件处理", () => {
   it("download:progress 更新进度", () => {
     emit("download:progress", [50, 100]);
     expect(getState().progress).toEqual({ dl: 50, total: 100 });
+  });
+
+  it("download:progress 收到非法数值归一为 0（NaN/负数/Content-Length=-1 哨兵不污染进度）", () => {
+    emit("download:progress", [Number.NaN, 100]);
+    expect(getState().progress.dl).toBe(0);
+    emit("download:progress", [50, -1]); // Content-Length=-1 哨兵 → 与 total=0 等价
+    expect(getState().progress.total).toBe(0);
+    emit("download:progress", [Infinity, 1]);
+    expect(getState().progress.dl).toBe(0);
   });
 
   it("queue:status done 清空当前文件与进度", () => {
@@ -519,6 +535,50 @@ describe("createDownloadQueue UI 层", () => {
     ctrl.destroy();
   });
 
+  it("GetRepoRoot reject → 按钮恢复 + error toast（陷阱 #3 getApp/GetRepoRoot reject 变体）", async () => {
+    loadConfigMock.mockResolvedValue({});
+    repoRootMock.mockRejectedValue(new Error("fs down"));
+    const { sr, ctrl } = createCtrl();
+    await Promise.resolve();
+    const toasts: ToastPayload[] = [];
+    const off = bus.on("toast:show", (p) => toasts.push(p));
+    await ctrl.enqueue([{ url: "u", saveDir: "", name: "a.ysm", size: 1 }]);
+    expect(ctrl.isDownloading()).toBe(false);
+    expect(enqueueMock).not.toHaveBeenCalled();
+    expect((sr.querySelector(".gh-dl-selected") as HTMLButtonElement).disabled).toBe(false);
+    expect(toasts.some((t) => t.type === "error" && t.msg.includes("fs down"))).toBe(true);
+    off();
+    ctrl.destroy();
+  });
+
+  it("快速连点 3 次 enqueue 只入队一次（并发重入：store 守卫兜底）", async () => {
+    loadConfigMock.mockResolvedValue({});
+    repoRootMock.mockResolvedValue("/repo");
+    const { ctrl } = createCtrl();
+    await Promise.resolve();
+    const tasks = [{ url: "u", saveDir: "", name: "a.ysm", size: 1 }];
+    await Promise.all([ctrl.enqueue(tasks), ctrl.enqueue(tasks), ctrl.enqueue(tasks)]);
+    expect(enqueueMock).toHaveBeenCalledTimes(1);
+    ctrl.destroy();
+  });
+
+  it("网页版直链下载完成后按钮复位 + 状态隐藏（陷阱 #3 web 变体：无 done 事件流不卡死）", async () => {
+    resolveWebModeMock.mockReturnValue(true);
+    loadConfigMock.mockResolvedValue({});
+    repoRootMock.mockResolvedValue("/repo");
+    const { sr, ctrl } = createCtrl();
+    await Promise.resolve();
+    const btn = sr.querySelector(".gh-dl-selected") as HTMLButtonElement;
+    const qs = sr.querySelector("#gh-queue-status")!;
+    const tasks = [{ url: "https://x/a.ysm", saveDir: "", name: "a.ysm", size: 1 }];
+    await ctrl.enqueue(tasks);
+    // store web 分支置 idle 无 done 事件——控制器必须自行复位，否则按钮永久卡禁用
+    expect(btn.disabled).toBe(false);
+    expect(qs.classList.contains("show")).toBe(false);
+    expect(ctrl.isDownloading()).toBe(false);
+    ctrl.destroy();
+  });
+
   it("destroy 后不再响应状态变更", async () => {
     const { sr, ctrl } = createCtrl();
     await Promise.resolve();
@@ -630,6 +690,34 @@ describe("createDownloadQueue 99% 锁定状态机（陷阱 #6）", () => {
     const { pctEl, fillEl } = progressEls(sr);
     expect(pctEl!.textContent).toBe("50%");
     expect(fillEl!.style.width).toBe("50%");
+    ctrl.destroy();
+  });
+
+  it("total 恰为 100KB 边界（≤100KB 含边界）→ 仍按小文件锁定", async () => {
+    const { sr, ctrl } = createCtrl();
+    await Promise.resolve();
+    emit("queue:file-start", ["f.ysm", 1, 1]);
+    emit("download:progress", [0, 100 * 1024]);
+    emit("download:progress", [99 * 1024, 100 * 1024]); // pct=99 → 小文件锁定
+    const { pctEl, fillEl } = progressEls(sr);
+    expect(fillEl!.style.width).toBe("99%");
+    vi.advanceTimersByTime(300);
+    expect(pctEl!.textContent).toBe("100%");
+    ctrl.destroy();
+  });
+
+  it("中尺寸文件（100KB–1MB 空档）99% 不锁定、直显 100%，file-done ok 兜底复位", async () => {
+    const { sr, ctrl } = createCtrl();
+    await Promise.resolve();
+    emit("queue:file-start", ["f.ysm", 1, 1]);
+    const total = 500 * 1024;
+    emit("download:progress", [0, total]);
+    emit("download:progress", [total - 1024, total]); // pct≈100 → 非锁定分支直显 100%
+    const { pctEl, fillEl } = progressEls(sr);
+    expect(pctEl!.textContent).toBe("100%");
+    expect(fillEl!.style.width).toBe("100%");
+    emit("queue:file-done", ["f.ysm", "ok", ""]); // file-done 仍强制 100%（不留残余）
+    expect(pctEl!.textContent).toBe("100%");
     ctrl.destroy();
   });
 

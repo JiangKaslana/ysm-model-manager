@@ -9,6 +9,21 @@ import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { getApp } from "../backend/app.ts";
 
+// ===== 常量（魔法数值集中管理 — code_review P3）=====
+/** 恢复/删除前的 leaving 滑出动画时长（ms），与 content-util.css 的 .leaving 过渡对齐 */
+const LEAVE_ANIM_MS = 150;
+/** 列表入场动画错峰步进（ms）：i*STAGGER_STEP_MS，封顶 STAGGER_MAX_MS */
+const STAGGER_STEP_MS = 25;
+const STAGGER_MAX_MS = 400;
+/** 恢复/删除成功 toast 时长（ms） */
+const TOAST_ACTION_OK_MS = 2000;
+/** 恢复/删除失败 toast 时长（ms） */
+const TOAST_ACTION_ERR_MS = 3000;
+/** 清空（批量）成功 toast 时长（ms） */
+const TOAST_EMPTY_OK_MS = 3000;
+/** 清空（批量）失败 toast 时长（ms） */
+const TOAST_EMPTY_ERR_MS = 5000;
+
 /** app-content 组件实例（initRecycleBin 依赖的成员） */
 export interface RecycleHost {
   _root: ShadowRoot;
@@ -60,7 +75,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
       const n = await EmptyRecycleBin("");
       bus.emit("toast:show", {
         msg: `♻️ ${t("recycle.cleared", { n })}`,
-        duration: 3000,
+        duration: TOAST_EMPTY_OK_MS,
         type: "success",
       });
       loadRecycleBin();
@@ -69,7 +84,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
     } catch (e) {
       bus.emit("toast:show", {
         msg: `❌ ${friendlyError(e)}`,
-        duration: 5000,
+        duration: TOAST_EMPTY_ERR_MS,
         type: "error",
       });
     } finally {
@@ -141,7 +156,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
         .map((e, i) => {
           const name = e.Name.replace(/\.(ysm|zip|7z)\.ban$/i, ".$1");
           const size = Number.isFinite(e.Size) ? fmtSize(e.Size as number) : "?";
-          return `<div class="recy-item" data-testid="recy-item" style="animation-delay:${Math.min(i * 25, 400)}ms;display:flex;flex-direction:column;gap:2px;padding:5px 8px;border-radius:5px;background:var(--bg);font-size:var(--fs-sm)">
+          return `<div class="recy-item" data-testid="recy-item" style="animation-delay:${Math.min(i * STAGGER_STEP_MS, STAGGER_MAX_MS)}ms;display:flex;flex-direction:column;gap:2px;padding:5px 8px;border-radius:5px;background:var(--bg);font-size:var(--fs-sm)">
 <div style="display:flex;align-items:center;gap:6px">
 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt);cursor:pointer" title="${t("oldest.clickDetail", { name: esc(e.Path) })}" data-path="${esc(e.Path)}">${renderDisplayName(name)}</span>
 <span style="font-size:var(--fs-xs);color:var(--muted)">${size}</span>
@@ -176,7 +191,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
             const item = btn.closest(".recy-item");
             if (item) {
               item.classList.add("leaving");
-              await new Promise((r) => setTimeout(r, 150));
+              await new Promise((r) => setTimeout(r, LEAVE_ANIM_MS));
             }
             try {
               await opt.binding(btn.dataset.path || "");
@@ -185,7 +200,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
               bus.emit("tree:reload");
               bus.emit("toast:show", {
                 msg: t(opt.toastKey),
-                duration: 2000,
+                duration: TOAST_ACTION_OK_MS,
                 type: "success",
               });
             } catch (e) {
@@ -193,7 +208,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
               btn.disabled = false;
               bus.emit("toast:show", {
                 msg: `❌ ${friendlyError(e)}`,
-                duration: 3000,
+                duration: TOAST_ACTION_ERR_MS,
                 type: "error",
               });
             }
@@ -236,5 +251,9 @@ export function initRecycleBin(app: RecycleHost): () => void {
       .getElementById("recy-refresh")
       ?.removeEventListener("click", onRefreshClick);
     root.getElementById("recy-empty")?.removeEventListener("click", onEmptyClick);
+    // P3（审核发现）：条目「恢复/删除」按钮的 onclick 直接绑在元素上（bindRecycleAction），
+    // cleanup 未移除时组件销毁后按钮仍可触发后端调用 + toast。清空列表即移除全部条目按钮
+    // （在途异步已有 _loadGen 守卫兜底，不会迟到重绘）。
+    if (listEl) listEl.innerHTML = "";
   };
 }

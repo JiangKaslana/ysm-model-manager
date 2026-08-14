@@ -907,3 +907,182 @@ func TestCleanAbs_Normal(t *testing.T) {
 		t.Errorf("cleanAbs(\".\") 应为绝对路径, got %q", got)
 	}
 }
+
+// ====== P5 补测：io.Copy 失败分支 / errno 穿透 / BUG-3 硬断言 / BUG-4 回归 ======
+
+// TestCopyFileLocked_ReadDirAsSourceFails 以目录作源触发 io.Copy 读失败
+// （os.Open 目录在 Unix/Windows 均成功，Read 报错）→ 应返回 IO_ERROR，
+// 且失败后不得残留目标文件与 .copy-tmp 临时文件。
+func TestCopyFileLocked_ReadDirAsSourceFails(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "srcdir")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	dstDir := filepath.Join(dir, "dst")
+	_, err := copyFileLocked(srcDir, dstDir)
+	var ae types.AppError
+	if !errors.As(err, &ae) || ae.Code != "IO_ERROR" {
+		t.Fatalf("目录作源复制应返回 IO_ERROR, got %v", err)
+	}
+	base := filepath.Base(srcDir)
+	if _, statErr := os.Stat(filepath.Join(dstDir, base)); !os.IsNotExist(statErr) {
+		t.Fatalf("失败后目标不应存在: %v", statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(dstDir, base+".copy-tmp")); !os.IsNotExist(statErr) {
+		t.Fatalf("失败后临时文件不应残留: %v", statErr)
+	}
+}
+
+// 真实 os.Link/os.Symlink 返回 *LinkError→*PathError→syscall.Errno 链，
+// linkErr/symlinkErr 的 errno 分类必须经 errors.Is 穿透包裹层（sentinel 语义）。
+func TestLinkErr_WrappedErrno(t *testing.T) {
+	var cross syscall.Errno
+	if runtime.GOOS == "windows" {
+		cross = 17 // ERROR_NOT_SAME_DEVICE
+	} else {
+		cross = 18 // EXDEV
+	}
+	wrapped := fmt.Errorf("link /a/x.ysm /b/x.ysm: %w", cross)
+	if e := linkErr("/a/x.ysm", "/b/x.ysm", wrapped); !strings.Contains(e.Error(), "不同分区") {
+		t.Errorf("fmt.Errorf(%%w) 包裹的跨设备 errno 应被 errors.Is 穿透分类, got %v", e)
+	}
+}
+
+func TestSymlinkErr_WrappedErrno(t *testing.T) {
+	var perm syscall.Errno
+	if runtime.GOOS == "windows" {
+		perm = 1314 // ERROR_PRIVILEGE_NOT_HELD
+	} else {
+		perm = 1 // EPERM
+	}
+	wrapped := fmt.Errorf("symlink /a/x.ysm /b/x.ysm: %w", perm)
+	if e := symlinkErr("/a/x.ysm", "/b/x.ysm", wrapped); !strings.Contains(e.Error(), "管理员权限") {
+		t.Errorf("fmt.Errorf(%%w) 包裹的权限 errno 应被 errors.Is 穿透分类, got %v", e)
+	}
+}
+
+// TestInstallDir_DenyExecutablesWithEmptyRtype BUG-3 硬断言：
+// rtype="" 时 deny-list 仍须拦截可执行文件（adversarial 测试仅日志记录，此处断言）。
+func TestInstallDir_DenyExecutablesWithEmptyRtype(t *testing.T) {
+	repo, custom, _, _ := setupTestDirs(t)
+	srcDir := filepath.Join(repo, "troll_model")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "model.ysm"), []byte("ysm"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	denied := []string{
+		"payload.exe", "exploit.bat", "evil.dll", "script.cmd",
+		"screen.scr", "p.pif", "cmd.com", "pkg.msi", "run.ps1", "v.vbs",
+	}
+	for _, name := range denied {
+		if err := os.WriteFile(filepath.Join(srcDir, name), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := InstallDir(srcDir, custom, repo, "copy", ""); err != nil {
+		t.Fatalf("InstallDir(rtype='') = %v", err)
+	}
+	finalDst := filepath.Join(custom, filepath.Base(srcDir))
+	if _, err := os.Stat(filepath.Join(finalDst, "model.ysm")); err != nil {
+		t.Fatal("正常模型文件应被安装")
+	}
+	for _, name := range denied {
+		if _, err := os.Stat(filepath.Join(finalDst, name)); err == nil {
+			t.Errorf("rtype=\"\" 时 %s 应被 deny-list 拒绝（BUG-3）", name)
+		}
+	}
+}
+
+// TestInstallDir_DeadRecursionGuard_CaseSensitiveFS BUG-4 回归：
+// 大小写敏感 FS（Linux/macOS）上 srcDir 与 dstDir 仅大小写不同是不同目录，
+// 旧 strings.EqualFold 守卫会误拒；sameDir（SameFile）应放行并正常安装。
+func TestInstallDir_DeadRecursionGuard_CaseSensitiveFS(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 大小写不敏感 FS：不同大小写路径是同一目录")
+	}
+	repo := filepath.Join(t.TempDir(), ".minecraft", "versions", "1.20")
+	if err := os.MkdirAll(repo, 0755); err != nil {
+		t.Fatal(err)
+	}
+	srcDir := filepath.Join(repo, "SRC")
+	dstDir := filepath.Join(repo, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "model.ysm"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	si, _ := os.Lstat(srcDir)
+	di, _ := os.Lstat(dstDir)
+	if os.SameFile(si, di) {
+		t.Skip("当前 FS 大小写不敏感，无法构造不同目录")
+	}
+	err := InstallDir(srcDir, dstDir, repo, "copy", "")
+	if err != nil {
+		t.Fatalf("大小写敏感 FS 上不同大小写目录应可安装（非死递归）, got %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(dstDir, "SRC", "model.ysm")); statErr != nil {
+		t.Fatalf("目标应被安装: %v", statErr)
+	}
+}
+
+// ====== sameDir 单元测试 ======
+
+func TestSameDir(t *testing.T) {
+	base := t.TempDir()
+	a := filepath.Join(base, "a")
+	b := filepath.Join(base, "b")
+	if err := os.MkdirAll(a, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(b, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if !sameDir(a, a) {
+		t.Error("sameDir(a,a) 应为 true")
+	}
+	if sameDir(a, b) {
+		t.Error("sameDir(a,b) 应为 false")
+	}
+	// 不存在的路径退化为字符串相等比较
+	missing := filepath.Join(base, "missing")
+	if !sameDir(missing, missing) {
+		t.Error("sameDir(missing,missing) 应为 true")
+	}
+	if sameDir(a, missing) {
+		t.Error("存在与不存在的目录应判不同")
+	}
+}
+
+// ====== IsValidRepoRoot 补充分支 ======
+
+// Unix 系统关键目录 / 根目录应被拒绝（此前仅 Windows 分支有覆盖）
+func TestIsValidRepoRoot_SystemDirs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("系统目录禁列按平台分支，本测试面向 Unix")
+	}
+	for _, p := range []string{"/", "/etc", "/usr", "/bin", "/sbin", "/var", "/dev", "/proc", "/sys", "/System", "/private"} {
+		if IsValidRepoRoot(p) {
+			t.Errorf("IsValidRepoRoot(%q) = true, 期望 false（系统/根目录）", p)
+		}
+	}
+	if !IsValidRepoRoot(t.TempDir()) {
+		t.Error("临时目录应返回 true")
+	}
+}
+
+// 非法路径（含 NUL）触发 filepath.Abs 错误 → 返回 false（Windows 的 Abs 校验 NUL）
+func TestIsValidRepoRoot_InvalidPath(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Unix 上 filepath.Abs 不校验 NUL，行为不同")
+	}
+	if IsValidRepoRoot("x\x00y") {
+		t.Error("含 NUL 的非法路径应返回 false")
+	}
+}

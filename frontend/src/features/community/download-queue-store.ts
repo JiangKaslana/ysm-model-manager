@@ -294,7 +294,16 @@ if (!_registered) {
   Events.On("download:progress", (e: { data: unknown[] }) => {
     const [dl, total] = e.data as [number, number];
     dbg("event:download:progress", dl, total, typeof dl, typeof total);
-    STATE.progress = { dl, total };
+    // P3 修复（审核）：进度回调边界守卫——非法数值（NaN/±Infinity/负数）归一为 0。
+    // 否则 dl=NaN 会渲染成 "NaNMB"（幽灵数值），total 非法会让 pct 计算污染进度条。
+    // Content-Length=-1 哨兵（负数）与 total=0 在 render 的 MB 分支语义等价，归一不改变行为。
+    STATE.progress = {
+      dl: typeof dl === "number" && Number.isFinite(dl) && dl >= 0 ? dl : 0,
+      total:
+        typeof total === "number" && Number.isFinite(total) && total >= 0
+          ? total
+          : 0,
+    };
     notify();
   });
 }

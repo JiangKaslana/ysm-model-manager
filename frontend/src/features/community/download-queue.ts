@@ -271,6 +271,14 @@ export function createDownloadQueue({
               t("downloadQueue.downloadingRemain", { n: s.remaining || "?" });
           }
         }
+      } else if (s.status === "idle" && _prevStatus === "downloading") {
+        // P3 修复（审核）：网页版（resolveWebMode）直链下载完成后 store 置 idle，
+        // 无后端 done 事件流——原实现按钮永久卡禁用、「准备下载」一直挂屏（陷阱 #3 变体）。
+        // store 入队失败回滚也经 idle 过渡（enqueue catch 另有 cleanupProgressUI 兜底，双保险无害）。
+        const btn = dlBtn();
+        if (btn) btn.disabled = false;
+        const qs = qsEl();
+        if (qs) qs.classList.remove("show");
       }
     }
 
