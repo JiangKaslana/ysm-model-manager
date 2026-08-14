@@ -46,4 +46,13 @@ use_when:
 
 ## 决策记录
 
-2026-08-14 摸排后决定不修复（"折腾"），仅留知识卡存档。未来若双端漂移导致实际漏检，再统一委托。
+2026-08-14 摸排后曾决定不修复（"折腾"），仅留知识卡存档。
+**2026-08-14 已实施合并（方案 A）**：doctor.mjs 缩为薄派发器（603→68 行），三模式全部委托 pre-push-gate.mjs（`--all` / `--docs` / `--dry-run`）。4 个缺口全部修复：
+- `go test` 范围对齐（含 `./internal/app/`）
+- `tsc --noEmit` 补入前端域
+- updater helper 前置构建补入 Go 域
+- `checkGovernance` 手写规则废弃（由 check-redlines R1/R5/R8/W2 覆盖）
+
+顺带修复：`cmd/updater/main.go:35` 存量编译错误（`pid` 声明未使用，807c81a5 引入）——由新 gate 的 updater helper 检查暴露。
+
+存量债务（与本次重构无关）：`check-circular.mjs`（context-menu-handlers 循环依赖）与 `check-deadcode-baseline.mjs`（baseline 过期，25b31fed 改源码未更新基线）在 --all 全量模式下仍 FAIL，需单独处理。

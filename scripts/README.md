@@ -47,7 +47,7 @@
 | 脚本 | 调用方式 | 说明 |
 |------|---------|------|
 | `funcmap.mjs` | `node scripts/funcmap.mjs -o funcmap.md` | 提取 Go/JS/TS 导出符号映射表（按模块分组，参考 MikuMikuAR 风格） |
-| `doctor.mjs` | `node scripts/doctor.mjs` | Go 编译 + 单测 + 前端构建 + **前端单测（vitest，ADR-023 P3）** + tsc + 文件 + 红线 + 静态分析（含 check-layering 分层守护）+ Git（原 ultrawork 一键三连已并入，ultrawork.mjs 删除）；`--docs` 轻量模式 / `--gate [ref]` 委托 pre-push-gate.mjs --dry-run（域感知门禁，单一实现避免双端漂移） |
+| `doctor.mjs` | `node scripts/doctor.mjs` | **薄派发器**：三模式全部委托 pre-push-gate.mjs（单一实现源头，2026-08-14 合并消除双端漂移）——默认 = `--all --dry-run`（Go 编译/单测/vet + 前端构建/vitest/tsc + 文件 + 红线 + 静态分析 + Git，含 check-layering 分层守护）；`--docs` = `--docs --dry-run`（轻量文档检查）；`--gate [ref]` = `--dry-run`（域感知门禁，不触发 push）；`--json` 透传 |
 | `comment-checker.mjs` | `node scripts/comment-checker.mjs` / `--json` / `--full` | 注释质量（废话/JSDoc/TODO/调试日志）；`--json` 默认每类截断 50 条 + `_summary` 分类计数，`--full` 全量（防 wasm base64 超长行误报/爆炸） |
 | `event-audit.mjs` | `node scripts/event-audit.mjs` / `--json` | EventsOn/bus.on 注册位置检查 |
 | `binding-check.mjs` | `node scripts/binding-check.mjs` | Go 导出函数 vs v3 bindings 产物（`-ts` 契约 app.ts）一致性 |
@@ -60,7 +60,7 @@
 | `android-check.mjs` | `node scripts/android-check.mjs` / `--full` | Android Java 语法/API 编译检测（gradle compileDebugJavaWithJavac，无需设备；`--full` 完整 assembleDebug） |
 | `line-counter.mjs` | `node scripts/line-counter.mjs` | 代码行数统计与文件健康度分析（由 line-counter.py 迁移，含 package_lines 按文件计数行为） |
 | `audit-split.mjs` | `node scripts/audit-split.mjs <commit>` / `--json` / `--redline` / `--compact` | refactor 提交主动审计（**情报型**，与防御 check-* 互补）：文件清单/±行数/分类（拆·新·改）+ 函数级迁移（顶层声明去向：保留/搬家/真删，导出+私有双口径）+ 新文件导出入口 + ADR-040 ≤400 红线校验 + 受影响文件历史提交；把手工审计拆分的 40+ 条 pwsh 指令合成一条口令，自动暴露红线违规 |
-| `pre-push-gate.mjs` | `node scripts/pre-push-gate.mjs <remote> <url>`（.githooks/pre-push 调度器）/ `--dry-run` | 本地质量门禁：按变更域（Go/前端/数据/文档）只跑相关检查；前端域含 **check-layering 分层硬门禁**（反向依赖阻断）；gofmt 修复在 pre-commit 自动完成，pre-push 只读检出不阻断（格式类债务，2026-08-13 决策）；构建/断链/契约失败/红线扫描不可用（fail-closed）阻断推送 |
+| `pre-push-gate.mjs` | `node scripts/pre-push-gate.mjs <remote> <url>`（.githooks/pre-push 调度器）/ `--dry-run` / `--all` / `--docs` | 本地质量门禁（doctor 全部模式的单一实现源头）：按变更域（Go/前端/数据/文档）只跑相关检查；Go 域含 updater helper 前置构建 + `./internal/app/` 测试；前端域含 **check-layering 分层硬门禁** + vitest + **tsc --noEmit**；gofmt 修复在 pre-commit 自动完成，pre-push 只读检出不阻断（格式类债务，2026-08-13 决策）；构建/断链/契约失败/红线扫描不可用（fail-closed）阻断推送；`--all` = 全量体检（含静态分析工具 + 关键文件），`--docs` = 轻量文档检查 |
 | `.githooks/pre-commit`（薄壳） | commit 时自动执行（无需手打） | 秒级文档/索引自动同步：跑 10 个 gen（docs 分区索引 / funcmap / 知识卡 index+字段 / novel 索引 / project-map / vitepress sidebar）后 `git add docs/`（幂等：无漂移零副作用）；失败仅提示不阻断；输出走 stderr；逃生阀 `YSM_SKIP_GEN=1` |
 
 ### 治理检查（check-* 系列；唯一登记处，AGENTS.md §1.2 仅作指针）

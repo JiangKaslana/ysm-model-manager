@@ -384,16 +384,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `progressWriter.Write()` | `go/updater/updater:50` | — |
-| `Check()` | `go/updater/updater:109` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
-| `CheckWithClient()` | `go/updater/updater:115` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
-| `Download()` | `go/updater/updater:218` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
-| `DownloadWithProgress()` | `go/updater/updater:227` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
-| `CleanupOldVersion()` | `go/updater/updater:360` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
-| `InstallUpdate()` | `go/updater/updater:384` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
-| `ReleaseAsset()` | `go/updater/updater:70` | ReleaseAsset GitHub Release 中的文件 |
-| `Release()` | `go/updater/updater:76` | Release GitHub Release 信息 |
-| `UpdateInfo()` | `go/updater/updater:85` | UpdateInfo 更新信息（序列化给前端） |
+| `progressWriter.Write()` | `go/updater/updater:66` | — |
+| `Check()` | `go/updater/updater:125` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
+| `CheckWithClient()` | `go/updater/updater:131` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
+| `Download()` | `go/updater/updater:234` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
+| `DownloadWithProgress()` | `go/updater/updater:243` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
+| `CleanupOldVersion()` | `go/updater/updater:393` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
+| `InstallUpdate()` | `go/updater/updater:417` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
+| `ReleaseAsset()` | `go/updater/updater:86` | ReleaseAsset GitHub Release 中的文件 |
+| `Release()` | `go/updater/updater:92` | Release GitHub Release 信息 |
+| `UpdateInfo()` | `go/updater/updater:101` | UpdateInfo 更新信息（序列化给前端） |
 
 ## Go·监听
 
@@ -402,7 +402,7 @@
 | `New()` | `go/watcher/watcher:42` | New 创建文件监听器 |
 | `Watcher.Start()` | `go/watcher/watcher:58` | Start 开始监听 |
 | `Watcher.Stop()` | `go/watcher/watcher:106` | Stop 停止监听 |
-| `Watcher.IsRunning()` | `go/watcher/watcher:141` | IsRunning 返回是否正在运行 |
+| `Watcher.IsRunning()` | `go/watcher/watcher:150` | IsRunning 返回是否正在运行 |
 | `ScanFunc()` | `go/watcher/watcher:18` | ScanFunc matches mdsync.ScanFunc |
 | `Watcher()` | `go/watcher/watcher:25` | Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包 |
 
@@ -810,7 +810,7 @@
 | `CollectedEntry()` | `frontend/src/features/dnd-shared:33` | 收集条目（文件 + 相对路径） |
 | `FolderGroup()` | `frontend/src/features/dnd-shared:39` | 文件夹组：dir 为顶层目录名（可能含多级嵌套，组内文件保留完整 relPath） |
 | `groupCollected()` | `frontend/src/features/dnd-shared:51` | 将收集到的条目分组： - 有目录前缀的条目 → 按「顶层目录」整组（dir = 第一段路径），组内保留完整 relPath（支持多层嵌套） - 无目录前缀的散落文件 → 单文件队列 |
-| `handleTreeDrop()` | `frontend/src/features/import-dnd:34` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
+| `handleTreeDrop()` | `frontend/src/features/import-dnd:31` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
 | `bindTreeDnD()` | `frontend/src/features/import-dnd:138` | 在目标容器上注册仓库页 DnD 事件。 |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
 | `ImportFile()` | `frontend/src/features/import-executor:14` | 带相对路径的 File（文件夹导入时标记 _relPath） |
@@ -1246,9 +1246,9 @@
 | `detailHTML()` | `frontend/src/views/app-resource-manager/tpl:100` | 详情面板 HTML |
 | `placeholderHTML()` | `frontend/src/views/app-resource-manager/tpl:159` | 空状态占位 |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
-| `bindCardEvents()` | `frontend/src/views/app-sidebar/events:21` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:138` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:171` | — |
+| `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:147` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:180` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
 | `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:150` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
@@ -1272,8 +1272,8 @@
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:15` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:114` | — |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:16` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:115` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:44` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |

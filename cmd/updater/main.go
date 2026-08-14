@@ -32,7 +32,8 @@ func main() {
 	targetPath := os.Args[2]
 	pidStr := os.Args[3]
 
-	pid, err := strconv.Atoi(pidStr)
+	// pid 仅用于校验参数合法性（等待改为固定 sleep，轮询逻辑 807c81a5 已删）
+	_, err := strconv.Atoi(pidStr)
 	if err != nil {
 		log.Fatalf("无效的 PID: %s", pidStr)
 	}
