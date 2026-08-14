@@ -19,9 +19,9 @@ export const sidebarCSS: string = `
   padding: 5px 10px; cursor: pointer; transition: background var(--tr-fast);
 }
 .vc-header:hover { background: var(--hover); }
-/* 高亮对齐导航栏选中态口径：--act 主题变量背景（各主题预置，随主题适配）+ 指示边框 + 名称着色 */
+/* 高亮对齐导航栏选中态口径：--act 主题变量背景（各主题预置，随主题适配）+ 指示边框，文字保持 --txt */
 .vc-header.active { background: var(--act); border-left: 3px solid var(--menu-indicator, var(--accent)); padding-left: 7px; }
-.vc-header.active .name { color: var(--accent); }
+.vc-header.active .name { color: var(--txt); }
 /* 涟漪选中效果 */
 .vc-header { position: relative; overflow: hidden; }
 .vc-header::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), var(--accent) 0%, transparent 70%); opacity: 0; transition: opacity .4s; pointer-events: none; }
