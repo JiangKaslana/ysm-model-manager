@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-14T13:41:46.833Z",
+  "generated": "2026-08-14T13:59:24.690Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|jscpd",
@@ -34,6 +34,7 @@
     "src/backend/browser-adapter.contract-b1.test.ts#src/backend/browser-adapter.contract-b3.test.ts",
     "src/backend/browser-adapter.contract-b1.test.ts#src/backend/browser-adapter.test.ts",
     "src/backend/browser-adapter.contract-b2.test.ts#src/backend/browser-adapter.test.ts",
+    "src/backend/browser-adapter.test.ts#src/backend/browser-adapter.test.ts",
     "src/core/handlers/instance-ops.test.ts#src/core/handlers/sync.test.ts",
     "src/features/community/download-queue.test.ts#src/features/community/download-queue.test.ts",
     "src/features/import-dnd.ts#src/features/import-queue-events.ts",

@@ -65,7 +65,7 @@ let _fsaRootHandle: unknown = null;
 export type FsaAuthState = "unsupported" | "none" | "granted" | "revoked";
 
 /** 持久化根目录句柄（用户手势内调用，showDirectoryPicker 后落库） */
-export async function saveFsaRootHandle(h: unknown): Promise<void> {
+async function saveFsaRootHandle(h: unknown): Promise<void> {
   _fsaRootHandle = h;
   try {
     await idbSet("config", FSA_ROOT_KEY, h);
@@ -75,7 +75,7 @@ export async function saveFsaRootHandle(h: unknown): Promise<void> {
 }
 
 /** 从 IndexedDB 恢复持久化句柄（仅 queryPermission，启动自愈；失败/null → 降级手动重选） */
-export async function restoreFsaRootHandle(): Promise<unknown> {
+async function restoreFsaRootHandle(): Promise<unknown> {
   const h = await idbGet<unknown>("config", FSA_ROOT_KEY);
   if (!h) return null;
   const permHandle = h as FileSystemDirectoryHandle & {

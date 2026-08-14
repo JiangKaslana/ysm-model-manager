@@ -33,7 +33,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 179 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 9 | 66 |
+| frontend/backend | 9 | 64 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 19 | 89 |
 | 前端·服务 | 1 | 6 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 54 | 181 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **268** | **1091** |
+| **合计** | **268** | **1089** |
 
 ## Go·头像
 
@@ -681,8 +681,6 @@
 | `generateWebRepoIndex()` | `frontend/src/backend/web-community:190` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
 | `typeFromWebDir()` | `frontend/src/backend/web-fs:22` | 从 /web/&lt;type&gt;/... |
 | `FsaAuthState()` | `frontend/src/backend/web-fs:65` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `saveFsaRootHandle()` | `frontend/src/backend/web-fs:68` | 持久化根目录句柄（用户手势内调用，showDirectoryPicker 后落库） |
-| `restoreFsaRootHandle()` | `frontend/src/backend/web-fs:78` | 从 IndexedDB 恢复持久化句柄（仅 queryPermission，启动自愈；失败/null → 降级手动重选） |
 | `getFsaAuthState()` | `frontend/src/backend/web-fs:99` | 查询根目录授权状态（不触发权限弹窗） |
 | `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:121` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
 | `rescanFsaRoot()` | `frontend/src/backend/web-fs:140` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
