@@ -103,7 +103,8 @@
   --surf: #fbe8ee;
   --card: #fff0f4;
   --hover: #fce0e8;
-  --act: #f48fb1;
+  /* 亮色主题 --act 取值口径：比 --hover 深一档的同类低饱和色（选中底），禁止 accent 级饱和值 */
+  --act: #f5b8cc;
   --accent: #d81b60;
   --txt: #37474f;
   --muted: #78909c;
@@ -151,7 +152,7 @@
   --surf: #e6f5ec;
   --card: #f5fdf9;
   --hover: #dceede;
-  --act: #a5d6a7;
+  --act: #c0e2ca;
   --accent: #4db6ac;
   --txt: #2c3e3a;
   --muted: #6d8a7e;
