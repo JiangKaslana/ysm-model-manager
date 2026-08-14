@@ -34,6 +34,7 @@ import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
 import { run as procRun } from './_lib/proc.mjs';
 import { classify, planFromFiles } from './_lib/domain-classify.mjs';
+import { runContractTestsParallel } from './_lib/contract-tests.mjs';
 
 
 const B = { OK: '[OK]', FAIL: '[FAIL]', FIX: '[FIX]', SKIP: '[SKIP]' };
@@ -111,18 +112,9 @@ function resolveChanges(localRef, localOid, remoteOid) {
 
 /* ---------------- 检查执行 ---------------- */
 
-function runContractTests() {
-  /** tests/*.mjs 全量契约测试（宪法基石，退出码可信）。 */
-  const testsDir = path.join(ROOT, 'tests');
-  if (!fs.existsSync(testsDir)) return [];
-  const testFiles = fs.readdirSync(testsDir)
-    .filter((f) => f.endsWith('.mjs')).sort();
-  const results = [];
-  for (const f of testFiles) {
-    const { rc, out } = sh(`node ${path.join('tests', f)}`);
-    results.push({ name: f, ok: rc === 0, out: rc === 0 ? '' : out.trim().split('\n').slice(-4).join('\n') });
-  }
-  return results;
+async function runContractTests() {
+  /** tests/*.mjs 全量契约测试（宪法基石，退出码可信）。并行执行。 */
+  return runContractTestsParallel();
 }
 
 /* ---------------- gofmt 只读校验 ---------------- */
@@ -140,7 +132,7 @@ function parseStdin() {
   try { return fs.readFileSync(0, 'utf-8').trim(); } catch { return ''; }
 }
 
-function main() {
+async function main() {
   const dryRun = process.argv[2] === '--dry-run';
   const argBase = dryRun ? 3 : 2;
   const remoteName = process.argv[argBase];
@@ -352,7 +344,7 @@ function main() {
   /* --- 契约测试 --- */
   if (plan.contractTests) {
     const t0 = Date.now();
-    const tests = runContractTests();
+    const tests = await runContractTests();
     const ok = tests.length === 0 || tests.every((t) => t.ok);
     results.push({ label: `contract tests (${tests.length})`, ok, time: Date.now() - t0,
       note: tests.length === 0 ? '无 tests/*.mjs，跳过'
@@ -390,20 +382,19 @@ function main() {
   return 1;
 }
 
-const GATE_CODE = main();
-
 // ── 文档待补地图：仅门禁 PASS 时刷新（非阻断），供文档类 AI 定位「哪块城邦失修、该补哪里」──
 // 失败/用法错误时跳过：失败推送无地图消费方，且 gen-doc-next-steps 内部会重跑
 // check-knowledge-drift / link-checker / adr-check 三个重型检查，会延迟失败回执（2026-08-12 排查）。
-if (GATE_CODE === 0) {
-  try {
-    execFileSync('node', ['scripts/gen-doc-next-steps.mjs'], {
-      cwd: ROOT, stdio: 'ignore', shell: true, timeout: 300_000,
-    });
-    console.log('[MAP] 已刷新 docs/.doc-next-steps.md（AI 待补地图，非阻断）');
-  } catch {
-    /* 非阻断：地图生成失败不影响推送 */
+main().then(async (code) => {
+  if (code === 0) {
+    try {
+      execFileSync('node', ['scripts/gen-doc-next-steps.mjs'], {
+        cwd: ROOT, stdio: 'ignore', shell: true, timeout: 300_000,
+      });
+      console.log('[MAP] 已刷新 docs/.doc-next-steps.md（AI 待补地图，非阻断）');
+    } catch {
+      /* 非阻断：地图生成失败不影响推送 */
+    }
   }
-}
-
-process.exit(GATE_CODE);
+  process.exit(code ?? 0);
+}).catch((e) => { console.error(e); process.exit(1); });

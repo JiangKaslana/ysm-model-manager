@@ -9,7 +9,7 @@
 |------|--------|-----------|
 | Go·头像 | 4 | 10 |
 | Go·去重 | 1 | 5 |
-| Go·下载 | 1 | 11 |
+| Go·下载 | 1 | 12 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 13 |
 | Go·文件系统 | 6 | 12 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 53 | 193 |
 | frontend/views | 79 | 211 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **266** | **1103** |
+| **合计** | **266** | **1104** |
 
 ## Go·头像
 
@@ -74,15 +74,16 @@
 |------|--------|------|
 | `HTTPStatusError.Error()` | `go/download/download:63` | — |
 | `TruncationError.Error()` | `go/download/download:71` | — |
-| `New()` | `go/download/download:85` | New 创建 Downloader，默认 5 分钟超时。 |
-| `NewWithClient()` | `go/download/download:90` | NewWithClient 使用指定 HTTP client。 |
-| `Downloader.File()` | `go/download/download:254` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
-| `Downloader.FromGitHubAPI()` | `go/download/download:259` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `ResolveSavePath()` | `go/download/download:283` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `TruncationError.Unwrap()` | `go/download/download:77` | Unwrap 让 errors.Is(err, ErrTruncated) 成立——调用方既可判断类别（errors.Is）， 又可提取数值（errors.As），无需文本匹配（# |
+| `New()` | `go/download/download:89` | New 创建 Downloader，默认 5 分钟超时。 |
+| `NewWithClient()` | `go/download/download:94` | NewWithClient 使用指定 HTTP client。 |
+| `Downloader.File()` | `go/download/download:258` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
+| `Downloader.FromGitHubAPI()` | `go/download/download:263` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
+| `ResolveSavePath()` | `go/download/download:287` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
 | `HTTPStatusError()` | `go/download/download:59` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
 | `TruncationError()` | `go/download/download:66` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
-| `ProgressFn()` | `go/download/download:76` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
-| `Downloader()` | `go/download/download:79` | Downloader 文件下载器。 |
+| `ProgressFn()` | `go/download/download:80` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
+| `Downloader()` | `go/download/download:83` | Downloader 文件下载器。 |
 
 ## go/executil
 

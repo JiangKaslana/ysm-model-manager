@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
 import { run as procRun } from './_lib/proc.mjs';
+import { runContractTestsParallel, collectContractTests } from './_lib/contract-tests.mjs';
 
 const PASS = '[OK]';
 const FAIL = '[FAIL]';
@@ -158,27 +159,20 @@ function checkGoVet() {
   }
 }
 
-function checkContractTests() {
+async function checkContractTests() {
   // 契约测试为宪法基石，禁止修改（AGENTS.md 红线）。失败即阻断。
+  // 并行执行（~10s vs 串行 ~43s），共享层 _lib/contract-tests.mjs 集中管理。
   console.log('\n=== Contract Tests (tests/*.mjs) ===');
-  const dir = path.join(ROOT, 'tests');
-  if (!fs.existsSync(dir)) {
-    console.log(`  ${WARN} tests/ not found — skip`);
-    return;
-  }
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.mjs'));
+  const files = collectContractTests();
   if (files.length === 0) {
     console.log(`  ${WARN} no .mjs contract tests`);
     return;
   }
+  const results = await runContractTestsParallel();
   let failed = 0;
-  for (const f of files) {
-    const { rc } = run(['node', path.join('tests', f)]);
-    if (rc === 0) console.log(`  ${PASS} ${f}`);
-    else {
-      failed += 1;
-      console.log(`  ${FAIL} ${f}`);
-    }
+  for (const r of results) {
+    if (r.ok) console.log(`  ${PASS} ${r.name}`);
+    else { failed += 1; console.log(`  ${FAIL} ${r.name}`); }
   }
   if (failed === 0) console.log(`  ${PASS} all contract tests passed`);
   else {
@@ -420,6 +414,10 @@ const DOC_RELEVANT = new Set([
 const toolName = (entry) => (typeof entry === 'string' ? entry : entry.tool);
 const DOC_STATIC_TOOLS = STATIC_TOOLS.filter((e) => DOC_RELEVANT.has(toolName(e)));
 const CODE_STATIC_TOOLS = STATIC_TOOLS.filter((e) => !DOC_RELEVANT.has(toolName(e)));
+// 门禁核心子集：排除慢工具（auto-import 1.7s / deadcode-baseline 1.4s），
+// 门模式下跑核心即可，全量 doctor 仍跑全部 19 个。
+const SLOW_TOOLS = new Set(['auto-import.mjs', 'check-deadcode-baseline.mjs']);
+const CORE_STATIC_TOOLS = STATIC_TOOLS.filter((e) => !SLOW_TOOLS.has(toolName(e)));
 
 function runStaticTools(tools, label) {
   console.log(`\n=== Static Analysis: ${label} (${tools.length} tools) ===`);
@@ -512,6 +510,8 @@ function checkDocExtra() {
 const DOCS_MODE = process.argv.includes('--docs');
 const GATE_MODE = process.argv.includes('--gate');
 
+// 顶层 async IIFE：checkContractTests 已改为并行 async，需 await 调用点兜底。
+async function main() {
 if (GATE_MODE) {
   // --gate 模式：委托 pre-push-gate.mjs --dry-run（单一实现，避免双端漂移）。
   // 用法：node scripts/doctor.mjs --gate [ref]
@@ -535,7 +535,7 @@ if (GATE_MODE) {
     checkGoBuild();
     checkGoVet();
     checkGoTest();
-    checkContractTests();
+    await checkContractTests();
     checkFrontendBuild();
     checkFrontendTest();
     checkTypeScript();
@@ -583,7 +583,7 @@ if (GATE_MODE) {
   checkGoBuild();
   checkGoVet();
   checkGoTest();
-  checkContractTests();
+  await checkContractTests();
   checkFrontendBuild();
   checkFrontendTest();
   checkTypeScript();
@@ -594,3 +594,6 @@ if (GATE_MODE) {
   checkGit();
   console.log('\n========== Done ==========');
 }
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });
