@@ -124,12 +124,14 @@ ADR-053 将 `MoveModelFile` / `CopyModelFile` 归 C 类（理由：「依赖桌�
 
 > **落地记录（2026-08-14）**：四处约定改造完成 + `ListAllFilePaths` 桥接落地（`listWebModelDirFiles`），契约测试 73 项闭环。`ListFileNames` 属 C 类（整合包/实例 16 项，明确不做，见 §2.1）。存量 key 迁移与 SearchModels 数值条件解锁留待后续（R1 数据层主体已闭环）。
 
-### R2 · 数据互通（数据层）
+### R2 · 数据互通（数据层）🔄 进行中
 
 - **目标**：模型库不困在浏览器
 - **任务**：① 模型库打包导出（zip：清单 + 文件，参照 `GenerateRepoIndex` 下载范式）+ 桌面端导入入口【跨端，需桌面侧配合，双边契约测试锁定】② FSA 持久挂载双向同步（**参照 MikuMikuAR FSA 权限持久化全套**：`_fsaRootHandle` 存句柄 + `queryPermission` 恢复授权——绝不 `requestPermission`，须用户手势启动期会被拦截——+ 权限三态 granted/prompt/revoked 判定 + 手势内才 requestPermission；配套 `backend.fsa.test.ts` + `web-fsa-auth.spec.ts` e2e）
 - **验收**：网页版导出的模型库可在桌面端导入还原
 - **风险**：跨端格式契约；FSA 仅 Chromium 系，需降级提示
+
+> **落地记录（2026-08-14）**：任务② FSA 持久化主体已落地——`web-fs.ts` 新增句柄持久化原语（`saveFsaRootHandle`/`restoreFsaRootHandle`/`getFsaAuthState`/`reauthorizeFsaRoot`/`rescanFsaRoot` 启动自愈双扫描），`selectLocalRepo` 授权后句柄落库；settings 接入启动自愈 + 已撤销提示；契约测试 7 项（browser-adapter.test.ts「R2 FSA 句柄持久化」块）。任务① zip 导出 + 桌面端导入留待跨端配合。
 
 ### R3 · 能力补齐（能力层，A 类 64 项三批）
 

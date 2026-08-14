@@ -153,6 +153,8 @@
   "settings.webRepo.unsupported": "This browser does not support the File System Access API; cannot authorize a local folder",
   "settings.webRepo.scanning": "Scanning .ysm models and importing…",
   "settings.webRepo.done": "Authorized \"{dir}\": {imported} imported, {failed} failed",
+  "settings.webRepo.restored": "Local repo restored: {imported} models up to date",
+  "settings.webRepo.revoked": "Previous authorization expired. Please re-authorize the folder to sync.",
   "settings.theme.title": "Theme & Appearance",
   "settings.theme.warm": "Warm Wood",
   "settings.theme.sakura": "Sakura Story",

@@ -71,7 +71,7 @@ invariant_anchors:
 - **能力门控**: `'Foo' in browserAdapter` 探测，Phase 3 隐藏未实现功能的 UI
 - **拆分子模块**（实现函数/状态迁移，browser-adapter 仅 import 组装 `webImpls`）:
   - `web-common.ts`: 共享原语（`WebUnsupportedError` / `WEB_ROOT` / `MAX_IMPORT_BYTES` / `arrayBufferToBase64`）
-  - `web-fs.ts`: 文件系统——`importWebFiles`（File 拖拽 → 两阶段分组：首段粗分组 + 主文件目录收敛 → IDB 落库；多段目录组名（如 `分类1/狐狸`）+ 组内 rel 保留子目录（`tex/face.png`）；主文件优先级 `.ysm > ysm.json > 其他`；超 100MB 跳过）、`scanWebModels`（IDB `dir:` 前缀 → `ModelEntry[]`，自动推导主文件，主文件限组根层、嵌套 rel 不参与竞争）、`readWebFile`/`parseWebModelPath`（多段路径直达 `file:type/rest` / dir key 反向最长前缀匹配，R1 文件层级读取）、`listWebModelDirFiles`（R1 递归列目录下全部文件，对齐桌面 `ListAllFilePaths`，含组内子目录，网页版删除目录移回收站联动依赖）、`selectLocalRepo`（FSA 授权本地仓库）、删除/重命名/子目录映射
+  - `web-fs.ts`: 文件系统——`importWebFiles`（File 拖拽 → 两阶段分组：首段粗分组 + 主文件目录收敛 → IDB 落库；多段目录组名（如 `分类1/狐狸`）+ 组内 rel 保留子目录（`tex/face.png`）；主文件优先级 `.ysm > ysm.json > 其他`；超 100MB 跳过）、`scanWebModels`（IDB `dir:` 前缀 → `ModelEntry[]`，自动推导主文件，主文件限组根层、嵌套 rel 不参与竞争）、`readWebFile`/`parseWebModelPath`（多段路径直达 `file:type/rest` / dir key 反向最长前缀匹配，R1 文件层级读取）、`listWebModelDirFiles`（R1 递归列目录下全部文件，对齐桌面 `ListAllFilePaths`，含组内子目录，网页版删除目录移回收站联动依赖）、`selectLocalRepo`（FSA 授权本地仓库）、**FSA 句柄持久化（R2，参照 MikuMikuAR ADR-180/183）**：`saveFsaRootHandle`（句柄结构化克隆落 config store `fsaRootHandle`）、`restoreFsaRootHandle`（仅 queryPermission 恢复，绝不 requestPermission——启动期无手势会被拦截）、`getFsaAuthState`（权限三态 unsupported/none/granted/revoked，供 UI 引导）、`reauthorizeFsaRoot`（须手势内 requestPermission）、`rescanFsaRoot`（启动自愈恢复句柄 + 重扫入库）、删除/重命名/子目录映射
   - `web-store.ts`: 配置（localStorage）、日志环（500 条导入 / 300 条运行时，替代 Go 侧日志）、标签/ban（config store `tags:<path>` / `ban:<path>`）
   - `web-community.ts`: 社区/工坊数据（bundled JSON 默认 + localStorage 覆盖层）、头像批量提取、作者扫描/仓库索引
 
