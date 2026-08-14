@@ -100,14 +100,14 @@
 | `IsFileBanned()` | `go/fileops/fileops_enable:137` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
 | `FindPreviewImage()` | `go/fileops/fileops_preview:24` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
 | `ExtractPreviewTexture()` | `go/fileops/fileops_preview:50` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
-| `GetPackInfo()` | `go/fileops/fileops_preview:153` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
+| `GetPackInfo()` | `go/fileops/fileops_preview:157` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
 | `CreateDir()` | `go/fileops/fileops:43` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
 | `RenameDir()` | `go/fileops/fileops:61` | RenameDir 重命名目录（仅改末段，保持父目录） |
 | `RemoveDir()` | `go/fileops/fileops:86` | RemoveDir 递归删除目录 |
 | `RenameFile()` | `go/fileops/fileops:93` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
 | `MoveModelFile()` | `go/fileops/fileops:121` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:198` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:330` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `CopyModelFile()` | `go/fileops/fileops:203` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:335` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
 | `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
@@ -306,12 +306,12 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `NewStore()` | `go/tags/tags:26` | NewStore 创建标签存储（懒加载：首次 Get/Set 时自动读取） |
-| `Store.GetTags()` | `go/tags/tags:105` | GetTags 返回指定路径的所有标签（已排序） |
-| `Store.SetTags()` | `go/tags/tags:122` | SetTags 设置指定路径的标签列表（覆盖写入） |
-| `Store.AddTag()` | `go/tags/tags:161` | AddTag 追加单个标签（不会重复） |
-| `Store.RemoveTag()` | `go/tags/tags:184` | RemoveTag 移除单个标签 |
-| `Store.ListByTag()` | `go/tags/tags:213` | ListByTag 返回所有打了指定标签的文件路径列表 |
-| `Store.AllTags()` | `go/tags/tags:237` | AllTags 返回所有被使用的标签（按使用次数降序） |
+| `Store.GetTags()` | `go/tags/tags:107` | GetTags 返回指定路径的所有标签（已排序） |
+| `Store.SetTags()` | `go/tags/tags:135` | SetTags 设置指定路径的标签列表（覆盖写入） |
+| `Store.AddTag()` | `go/tags/tags:170` | AddTag 追加单个标签（不会重复） |
+| `Store.RemoveTag()` | `go/tags/tags:196` | RemoveTag 移除单个标签 |
+| `Store.ListByTag()` | `go/tags/tags:228` | ListByTag 返回所有打了指定标签的文件路径列表 |
+| `Store.AllTags()` | `go/tags/tags:252` | AllTags 返回所有被使用的标签（按使用次数降序） |
 | `Store()` | `go/tags/tags:19` | Store 是标签存储，线程安全 |
 
 ## Go·Three.js

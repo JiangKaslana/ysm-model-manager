@@ -48,35 +48,39 @@ func FindPreviewImage(modelPath string) string {
 
 // ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json）
 func ExtractPreviewTexture(modelPath string) string {
-	// 剥禁用后缀（.ban/.disabled），与 scanner 口径一致——禁用条目也应能预览
+	// 剥禁用后缀（.ban/.disabled），与 scanner 口径一致——禁用条目也应能预览。
+	// 剥离仅用于扩展名判定：磁盘上文件名仍带 .ban，读取必须用原始路径，
+	// 否则 readLimitedFile(剥离后路径) 命中不存在文件（陷阱：先改路径后读原文件）。
+	readPath := modelPath
+	extPath := modelPath
 	for _, suffix := range []string{".ban", ".disabled"} {
-		if strings.HasSuffix(strings.ToLower(modelPath), suffix) {
-			modelPath = modelPath[:len(modelPath)-len(suffix)]
+		if strings.HasSuffix(strings.ToLower(extPath), suffix) {
+			extPath = extPath[:len(extPath)-len(suffix)]
 			break
 		}
 	}
-	ext := strings.ToLower(filepath.Ext(modelPath))
+	ext := strings.ToLower(filepath.Ext(extPath))
 	var png []byte
 
 	if ext == ".zip" {
-		data := readLimitedFile(modelPath)
+		data := readLimitedFile(readPath)
 		if data == nil {
 			return ""
 		}
 		png = extractFirstPNGFromZip(data, int64(len(data)))
 	} else if ext == ".7z" {
-		data := readLimitedFile(modelPath)
+		data := readLimitedFile(readPath)
 		if data == nil {
 			return ""
 		}
 		png = extractFirstPNGFrom7z(data, int64(len(data)))
 	} else if ext == ".ysm" {
-		if r, err := extractTextureViaYSM(modelPath); err == nil {
+		if r, err := extractTextureViaYSM(readPath); err == nil {
 			png = r
 		}
 	} else if ext == ".json" {
-		// 解压后的 YSM 模型：查找 textures/ 子目录中的 PNG
-		dir := filepath.Dir(modelPath)
+		// 解压后的 YSM 模型：查找 textures/ 子目录中的 PNG（目录取实际文件所在目录）
+		dir := filepath.Dir(readPath)
 		texDir := filepath.Join(dir, "textures")
 		if d, err := os.Stat(texDir); err == nil && d.IsDir() {
 			entries, _ := os.ReadDir(texDir)

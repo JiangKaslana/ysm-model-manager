@@ -34,6 +34,42 @@ func TestStore_SetTags_NULInPath(t *testing.T) {
 	t.Log("INFO(NUL-1): SetTags 未崩溃但 tags 内不存在该 key")
 }
 
+// ---------- 1b. NUL 字节在 modelPath 中（AddTag/RemoveTag 同 SetTags 安全边界）----------
+func TestStore_AddTag_NULInPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+	path := filepath.Join(tmpDir, "safe.ysm") + "\x00" + "..\\evil.json"
+	if err := store.AddTag(path, "test"); err == nil {
+		t.Fatal("AddTag 应拒绝含 NUL 的 modelPath（与 SetTags 同一安全边界）")
+	}
+	// 拒绝后不写入内存数据，避免后续 save 落盘 NUL key
+	store.mu.RLock()
+	_, exists := store.data[path]
+	store.mu.RUnlock()
+	if exists {
+		t.Fatal("AddTag 含 NUL 路径不应写入存储")
+	}
+}
+
+func TestStore_RemoveTag_NULInPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewStore(tmpDir)
+	if err := store.SetTags("/m", []string{"x"}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(tmpDir, "safe.ysm") + "\x00" + "..\\evil.json"
+	if err := store.RemoveTag(path, "x"); err == nil {
+		t.Fatal("RemoveTag 应拒绝含 NUL 的 modelPath（与 SetTags 同一安全边界）")
+	}
+	// 拒绝后原数据不受影响
+	store.mu.RLock()
+	tags := store.data["/m"]
+	store.mu.RUnlock()
+	if len(tags) != 1 || tags[0] != "x" {
+		t.Fatalf("RemoveTag 拒绝 NUL 路径后原数据被破坏: %v", tags)
+	}
+}
+
 // ---------- 2. NUL 字节在 tag 中 ----------
 func TestStore_SetTags_NULInTag(t *testing.T) {
 	tmpDir := t.TempDir()

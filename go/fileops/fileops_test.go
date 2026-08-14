@@ -950,3 +950,184 @@ func TestMoveCopyModelFile_SymlinkMiddleSegmentRejected(t *testing.T) {
 		t.Fatalf("仓库外不应有穿透写入: %v", err)
 	}
 }
+
+// ====== 审核补测（审计）=====
+// 覆盖此前未测分支：Move/Copy 自嵌套拒绝（含 ysm.json 提升后自嵌套——修复的陷阱：
+// 提升判定原先在自嵌套检查之后，dstDir 位于模型目录内部时穿透检查并在目录内留
+// 空 junk 目录）、无 root 时 Move ysm.json 提升、FindPreviewImage 的 .jpg MIME
+// 与 preview/cover/thumbnail 回退候选、RenameFile/RenameDir 目标已存在、
+// ExtractPreviewTexture 的 .ban 后缀剥离与 textures/ 空目录回退同目录 PNG。
+
+// 修复回归：ysm.json 提升为父目录后，dstDir 位于模型目录内部必须被拒绝，
+// 且不得在模型目录内留下空 junk 目录。
+func TestMoveModelFile_YsmJsonLiftSelfNestingRejected(t *testing.T) {
+	base := t.TempDir()
+	modelDir := makeYsmModelDir(base, "模型A")
+	dstDir := filepath.Join(modelDir, "sub")
+	err := MoveModelFile(base, filepath.Join(modelDir, "ysm.json"), dstDir)
+	if err == nil {
+		t.Fatal("ysm.json 提升后 dstDir 位于模型目录内部应被拒绝")
+	}
+	if _, serr := os.Stat(dstDir); !os.IsNotExist(serr) {
+		t.Fatalf("被拒移动不得在 src 内留下空 junk 目录: %v", serr)
+	}
+	if _, serr := os.Stat(filepath.Join(modelDir, "ysm.json")); serr != nil {
+		t.Fatalf("模型目录应原样保留: %v", serr)
+	}
+}
+
+// 目录整组移动：dstDir 位于 src 子树内 → 拒绝且无 junk 残留
+func TestMoveModelFile_SelfNestingRejected(t *testing.T) {
+	base := t.TempDir()
+	modelDir := makeYsmModelDir(base, "模型A")
+	dstDir := filepath.Join(modelDir, "inner", "deeper")
+	if err := MoveModelFile(base, modelDir, dstDir); err == nil {
+		t.Fatal("dstDir 位于 src 子树内应被拒绝")
+	}
+	if _, serr := os.Stat(dstDir); !os.IsNotExist(serr) {
+		t.Fatalf("被拒移动不得在 src 内留下空 junk 目录: %v", serr)
+	}
+}
+
+// 目录递归复制：dstDir 位于 src 子树内 → 拒绝且无 junk 残留
+func TestCopyModelFile_SelfNestingRejected(t *testing.T) {
+	base := t.TempDir()
+	modelDir := makeYsmModelDir(base, "模型A")
+	dstDir := filepath.Join(modelDir, "inner")
+	if err := CopyModelFile(base, modelDir, dstDir); err == nil {
+		t.Fatal("dstDir 位于 src 子树内应被拒绝")
+	}
+	if _, serr := os.Stat(dstDir); !os.IsNotExist(serr) {
+		t.Fatalf("被拒复制不得在 src 内留下空 junk 目录: %v", serr)
+	}
+}
+
+// 无 root（root==""）：Move 的 ysm.json 仍应整组提升移动父目录
+func TestMoveModelFile_YsmJsonLiftWithoutRoot(t *testing.T) {
+	base := t.TempDir()
+	modelDir := makeYsmModelDir(base, "模型A")
+	dstDir := filepath.Join(base, "dst")
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := MoveModelFile("", filepath.Join(modelDir, "ysm.json"), dstDir); err != nil {
+		t.Fatalf("无 root 时 ysm.json 也应整组移动: %v", err)
+	}
+	if _, serr := os.Stat(filepath.Join(dstDir, "模型A", "ysm.json")); serr != nil {
+		t.Fatalf("模型目录应整组移动: %v", serr)
+	}
+	if _, serr := os.Stat(modelDir); !os.IsNotExist(serr) {
+		t.Fatal("原模型目录应不存在")
+	}
+}
+
+// 同目录 .jpg → image/jpeg MIME（原仅测 .png 分支）
+func TestFindPreviewImage_JpgMime(t *testing.T) {
+	dir := t.TempDir()
+	model := filepath.Join(dir, "m.ysm")
+	if err := os.WriteFile(filepath.Join(dir, "m.jpg"), []byte("JPGDATA"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got := FindPreviewImage(model)
+	if !strings.HasPrefix(got, "data:image/jpeg;base64,") {
+		t.Fatalf(".jpg 应返回 image/jpeg data URI: %q", got)
+	}
+}
+
+// 无同名图时回退 preview.png / cover.png / thumbnail.png 候选（原仅测同名 png）
+func TestFindPreviewImage_FallbackCandidates(t *testing.T) {
+	dir := t.TempDir()
+	model := filepath.Join(dir, "m.ysm")
+
+	for _, candidate := range []string{"preview.png", "cover.png", "thumbnail.png"} {
+		_ = os.Remove(filepath.Join(dir, "preview.png"))
+		_ = os.Remove(filepath.Join(dir, "cover.png"))
+		_ = os.Remove(filepath.Join(dir, "thumbnail.png"))
+		if err := os.WriteFile(filepath.Join(dir, candidate), []byte(candidate), 0644); err != nil {
+			t.Fatal(err)
+		}
+		got := FindPreviewImage(model)
+		if !strings.HasPrefix(got, "data:image/png;base64,") {
+			t.Fatalf("候选 %s 应命中: %q", candidate, got)
+		}
+	}
+}
+
+func TestRenameFile_TargetExists(t *testing.T) {
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a.ysm")
+	b := filepath.Join(dir, "b.ysm")
+	if err := os.WriteFile(a, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(b, []byte("y"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := RenameFile(a, "b.ysm"); err == nil {
+		t.Fatal("目标已存在应报错")
+	}
+	// 原文件应保留（POSIX rename 本会静默覆盖，检查须先行拦截）
+	if _, serr := os.Stat(a); serr != nil {
+		t.Fatalf("原文件应保留: %v", serr)
+	}
+	if data, _ := os.ReadFile(b); string(data) != "y" {
+		t.Fatalf("目标文件不应被覆盖: %q", data)
+	}
+}
+
+func TestRenameDir_TargetExists(t *testing.T) {
+	dir := t.TempDir()
+	old := filepath.Join(dir, "old")
+	existing := filepath.Join(dir, "new")
+	if err := os.MkdirAll(old, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(existing, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := RenameDir(old, "new"); err == nil {
+		t.Fatal("目标已存在应报错")
+	}
+	if _, serr := os.Stat(old); serr != nil {
+		t.Fatalf("原目录应保留: %v", serr)
+	}
+}
+
+// 禁用后缀 .ban 剥离后再按扩展名提取（禁用条目也应能预览）
+func TestExtractPreviewTexture_BanSuffixStripped(t *testing.T) {
+	dir := t.TempDir()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	f, _ := w.Create("preview.png")
+	_, _ = f.Write([]byte("PNGDATA123"))
+	_ = w.Close()
+
+	zipPath := filepath.Join(dir, "model.zip.ban")
+	if err := os.WriteFile(zipPath, buf.Bytes(), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got := ExtractPreviewTexture(zipPath)
+	if !strings.HasPrefix(got, "data:image/png;base64,") {
+		t.Errorf(".ban 后缀应剥离后按 .zip 提取, 得到 %q", got)
+	}
+}
+
+// textures/ 目录存在但无 PNG → 回退同目录 PNG 搜索
+func TestExtractPreviewTexture_JsonEmptyTexturesFallback(t *testing.T) {
+	dir := t.TempDir()
+	jsonPath := filepath.Join(dir, "model.json")
+	if err := os.WriteFile(jsonPath, []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// 空 textures 目录（存在但无 PNG）
+	if err := os.MkdirAll(filepath.Join(dir, "textures"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "tex.png"), []byte("FALLBACK"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got := ExtractPreviewTexture(jsonPath)
+	if !strings.HasPrefix(got, "data:image/png;base64,") {
+		t.Errorf("textures/ 空目录应回退同目录 PNG, 得到 %q", got)
+	}
+}

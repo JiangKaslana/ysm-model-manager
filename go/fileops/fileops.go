@@ -153,8 +153,30 @@ func MoveModelFile(root, src, dstDir string) error {
 			return err
 		}
 	}
+	// ysm.json 是模型目录清单：整组移动父目录（包内 geometry/animation/语言资源随目录一起走）。
+	// 提升判定须在自嵌套检查之前执行——自嵌套检查必须用提升后的 src（目录）判定，
+	// 否则 dstDir 位于模型目录内部时会穿透检查、MkdirAll 后在模型目录内留下空 junk 目录
+	// 再 rename 失败（对齐 CopyModelFile 的「先提升、后自嵌套检查」顺序）。
+	// 根级 ysm.json（父目录 == 仓库根）：不整组提升，回退单文件移动（防移走整个仓库）。
+	liftToParent := false
+	if types.IsYsmEntryJSON(filepath.Base(src)) {
+		if root != "" {
+			absRoot, _ := filepath.Abs(root)
+			absSrc, _ := filepath.Abs(src)
+			if rel, err := filepath.Rel(absRoot, filepath.Dir(absSrc)); err == nil && rel == "." {
+				liftToParent = false // 根级 ysm.json：单文件移动（走下方通用路径）
+			} else {
+				liftToParent = true
+			}
+		} else {
+			liftToParent = true
+		}
+	}
+	if liftToParent {
+		src = filepath.Dir(src)
+	}
 	// 自嵌套检查须在 MkdirAll 之前执行——被拒移动不得在 src 内
-	// 留下空 junk 目录（自 CopyModelFile 移植，dstDir 位于 src 子树内时拒绝，
+	// 留下空 junk 目录（dstDir 位于 src 子树内时拒绝，
 	// 含 dstDir == src 等值情形：dst=Join(src,Base(src)) 仍是 src 严格子目录）。
 	if absSrc, err := filepath.Abs(src); err == nil {
 		if absDstDir, err := filepath.Abs(dstDir); err == nil {
@@ -166,23 +188,6 @@ func MoveModelFile(root, src, dstDir string) error {
 	}
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
 		return err
-	}
-	// ysm.json 是模型目录清单：整组移动父目录（包内 geometry/animation/语言资源随目录一起走）
-	if types.IsYsmEntryJSON(filepath.Base(src)) {
-		// 根级 ysm.json（父目录 == 仓库根）：回退单文件移动，不整组提升（防移走整个仓库）
-		if root != "" {
-			absRoot, _ := filepath.Abs(root)
-			absSrc, _ := filepath.Abs(src)
-			if rel, err := filepath.Rel(absRoot, filepath.Dir(absSrc)); err == nil && rel == "." {
-				// 与下方普通路径同口径：移动前防覆盖检查（POSIX rename 会静默覆盖）
-				fallbackDst := filepath.Join(dstDir, filepath.Base(src))
-				if _, err := os.Stat(fallbackDst); err == nil {
-					return fmt.Errorf("目标已存在: %s", fallbackDst)
-				}
-				return os.Rename(src, fallbackDst)
-			}
-		}
-		src = filepath.Dir(src)
 	}
 	dst := filepath.Join(dstDir, filepath.Base(src))
 	// 移动前防覆盖检查，与 CopyModelFile 语义对齐——

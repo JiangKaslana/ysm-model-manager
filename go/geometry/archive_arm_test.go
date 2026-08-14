@@ -60,3 +60,25 @@ func TestIsArmModelName(t *testing.T) {
 		}
 	}
 }
+
+// TestIsMainModelName 覆盖 IsMainModelName 判定规则（导出，wasm 多组件路径与
+// buildComponents main 优先排序共用，与 isArmModelName 同口径）
+func TestIsMainModelName(t *testing.T) {
+	cases := []struct {
+		name string
+		want bool
+	}{
+		{"models/main.json", true},
+		{"main.geo.json", true},
+		{"main.json", true},
+		{"models/arm.json", false},
+		{"models/arrow.json", false},
+		{"fp.main.animation.json", false},
+		{"models/main.json.bak", false},
+	}
+	for _, c := range cases {
+		if got := IsMainModelName(c.name); got != c.want {
+			t.Errorf("IsMainModelName(%q) = %v, want %v", c.name, got, c.want)
+		}
+	}
+}

@@ -63,7 +63,9 @@ func (s *Store) load() error {
 		// 备份保留现场供人工排查；重建后 SetTags 可写回全新文件完成自我修复。
 		corrupt := s.path + ".corrupt"
 		if renErr := os.Rename(s.path, corrupt); renErr != nil {
-			return fmt.Errorf("解析标签文件失败: %w（备份失败: %v）", err, renErr)
+			// 双 %w 链式包装（Go 1.20+）：解析错误与备份失败均可经 errors.Is 分类，
+			// 禁止调用方对错误文本做 strings.Contains 匹配（陷阱 #11）
+			return fmt.Errorf("解析标签文件失败: %w（备份失败: %w）", err, renErr)
 		}
 		s.data = make(map[string][]string)
 		return nil
@@ -118,14 +120,21 @@ func (s *Store) GetTags(modelPath string) ([]string, error) {
 	return cp, nil
 }
 
-// SetTags 设置指定路径的标签列表（覆盖写入）
-func (s *Store) SetTags(modelPath string, tags []string) error {
-	// BUG(NUL-1) 修复：modelPath 含 NUL 字节时写入 tags.json 会破坏 JSON key
-	// （Go json.Marshal 允许 \x00 出现在字符串值中，但 Linux 路径截断导致
-	// modelPath 被截断后写入，下次 load 时 key 不匹配）。
-	// fsutil.WriteFileAtomic 已校验 s.path 的 NUL，但 modelPath 作为 JSON key 需独立校验。
+// checkModelPath 拒绝含 NUL 字节的 modelPath（BUG(NUL-1) 安全边界，SetTags/AddTag/RemoveTag 共用）：
+// 含 NUL 的 key 写入 tags.json 后，Linux 路径操作会静默截断 NUL 后内容
+// （"safe.ysm\x00..\evil.json" → "safe.ysm"），可能指向非预期文件。
+// fsutil.WriteFileAtomic 已校验 s.path 的 NUL，但 modelPath 作为 JSON key 需独立校验。
+func checkModelPath(modelPath string) error {
 	if strings.Contains(modelPath, "\x00") {
 		return fmt.Errorf("modelPath 含 NUL 字节")
+	}
+	return nil
+}
+
+// SetTags 设置指定路径的标签列表（覆盖写入）
+func (s *Store) SetTags(modelPath string, tags []string) error {
+	if err := checkModelPath(modelPath); err != nil {
+		return err
 	}
 	if err := s.load(); err != nil {
 		return err
@@ -163,6 +172,9 @@ func (s *Store) AddTag(modelPath, tag string) error {
 	if tag == "" {
 		return nil
 	}
+	if err := checkModelPath(modelPath); err != nil {
+		return err
+	}
 	if err := s.load(); err != nil {
 		return err
 	}
@@ -185,6 +197,9 @@ func (s *Store) RemoveTag(modelPath, tag string) error {
 	tag = trimTag(tag)
 	if tag == "" {
 		return nil
+	}
+	if err := checkModelPath(modelPath); err != nil {
+		return err
 	}
 	if err := s.load(); err != nil {
 		return err
