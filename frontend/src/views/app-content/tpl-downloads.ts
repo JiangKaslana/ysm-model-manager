@@ -26,7 +26,7 @@ export function downloadsHTML(): string {
   <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:4px;background:var(--surf);overflow:hidden">
     <span style="color:var(--muted);font-size:9px;white-space:nowrap">${t("import.preview")}</span>
     <span id="dl-preview" style="font-weight:600;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</span>
-    <span id="dl-conflict" style="display:none;font-size:9px;color:#f9a826;white-space:nowrap">⚠️</span>
+    <span id="dl-conflict" style="display:none;font-size:9px;color:var(--sm-optional);white-space:nowrap">⚠️</span>
     <button class="btn-base accent sm" id="dl-import" style="white-space:nowrap">📥 ${t("import.importBtn")}</button>
     <span style="font-size:9px;color:var(--muted);white-space:nowrap">${t("import.queue")} <span id="dl-queue-count">0</span></span>
     <button class="btn-base sm" id="dl-cancel" style="white-space:nowrap">✕</button>

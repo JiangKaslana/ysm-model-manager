@@ -5,7 +5,7 @@ import { t } from "../../core/i18n/t.ts";
 export function recycleHTML(): string {
   return `<div class="recy-page" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding:12px">
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-<span id="recy-count" style="font-size:11px;color:#6c7086">${t("common.loading")}</span>
+<span id="recy-count" style="font-size:11px;color:var(--muted)">${t("common.loading")}</span>
 <button class="btn-base sm" id="recy-refresh" style="margin-left:auto">🔄 ${t("common.refresh")}</button>
 <button class="btn-base danger sm" id="recy-empty">♻️ ${t("recycle.empty")}</button>
 </div>

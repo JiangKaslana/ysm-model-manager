@@ -44,7 +44,7 @@ export const contentRepoCSS: string = `
 .tag-work { color:var(--meta-work,#bd93f9);background:color-mix(in srgb,var(--meta-work,#bd93f9) 12%,transparent); }
 .tag-date { color:var(--meta-date,#f1fa8c);background:color-mix(in srgb,var(--meta-date,#f1fa8c) 12%,transparent); }
 .link-badge { display:inline-block; padding:0 5px; border-radius:var(--radius-xs); font-size:var(--fs-xs); font-weight:600; }
-.link-badge-raw { color:var(--status-success); background:rgba(166,227,161,.12); }
+.link-badge-raw { color:var(--status-success); background:color-mix(in srgb,var(--status-success) 12%,transparent); }
 .link-badge-jsd { color:var(--badge-jsd); background:var(--badge-jsd-bg); }
 .link-badge-api { color:var(--badge-api); background:var(--badge-api-bg); }
 .link-badge-cdn { color:var(--badge-cdn); background:var(--badge-cdn-bg); }

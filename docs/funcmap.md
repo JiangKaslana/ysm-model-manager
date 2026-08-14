@@ -840,11 +840,11 @@
 | `normalizeRepoName()` | `frontend/src/features/import-queue` | — |
 | `ImportQueueHost()` | `frontend/src/features/import-queue` | — |
 | `initImportQueue()` | `frontend/src/features/import-queue:11` | 初始化导入队列，返回清理函数 |
-| `loadOldestModel()` | `frontend/src/features/oldest-models:28` | 加载资历最深、仓库评分、热力图和每日推荐 |
+| `loadOldestModel()` | `frontend/src/features/oldest-models:42` | 加载资历最深、仓库评分、热力图和每日推荐 |
 | `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
 | `initRecycleBin()` | `frontend/src/features/recycle-bin:49` | 初始化回收站管理，返回清理函数 |
-| `initResourcePacks()` | `frontend/src/features/resource-packs:13` | 初始化资源包 tab |
+| `initResourcePacks()` | `frontend/src/features/resource-packs:14` | 初始化资源包 tab |
 | `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
 | `checkUpdateSilent()` | `frontend/src/features/version-updater:154` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
 | `initVersionUpdater()` | `frontend/src/features/version-updater:193` | 手动检查更新（设置页按钮） |

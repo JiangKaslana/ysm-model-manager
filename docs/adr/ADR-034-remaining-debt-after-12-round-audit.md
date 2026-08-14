@@ -186,4 +186,27 @@ P2 功能缺失级（app_config 启动器路径跨平台、构建脚本 bash 等
 | `grep navigator.platform\|process.platform` 前端 | 0 处平台判断 | 方向五前端零平台假设，跨平台基础好 |
 | audit-summary-2026-08-04.md | 12 轮审计 P1×4/P2×14/P3×17 全修复 | 审计线封顶，本 ADR 接力 |
 
+---
+
+## 5. 方向六：第 8 批审核新增技术债（2026-08-15 补登）
+
+> 来源：第 8 批 `59d5c4f4` 审核（recycle-bin 资源泄漏修复）深挖发现。本批修复本身正确、测试充分、零回归，已纳入 main；但暴露 1 条 P2 结构性技术债。
+
+### 5.1 recycle-bin 按钮「双绑定范式并存」→ cleanup 泄漏根因（P2）
+
+**现象**：`recycle-bin.ts` 列表容器在第 119 行用**事件委托** `onListClick`（正确范式，cleanup 只撤一个监听）；
+但条目内「恢复/删除」按钮在第 184 行仍用 `btn.onclick = async` **逐元素直接绑定**（委托范式未贯彻）。
+
+**根因**：cleanup 仅撤 `onListClick` 委托监听，**未撤第 184 行的 `btn.onclick`**。
+组件销毁后若 DOM 未清空，悬空按钮仍可触发后端 `RestoreFromRecycle` / `DeleteFromRecycle`。
+
+**第 8 批修复定位**：`listEl.innerHTML = ""` 是**对症止血**（物理移除按钮），非根因修复（架构上仍双范式并存）。
+
+**根治方向**：把第 184 行 `btn.onclick` 收编进 `onListClick` 委托，按 `e.target.closest(".recy-restore") / ".recy-del"` 分发；
+cleanup 只需撤一个委托监听，按钮泄漏从架构消失，`innerHTML=""` 降级为纯防御性兜底。
+
+**优先级**：P2。**不阻塞第 8 批纳入**；建议独立 commit，契合项目「通用化、长治久安」导向。
+
+**关联**：[recycle-bin 知识卡](../knowledge/recycle-bin.md) §不变量（第 63 行已记录现象，本债为根因补全）。
+
 <!-- 文件名: remaining-debt-after-12-round-audit.md → 实际文件 ADR-034-remaining-debt-after-12-round-audit.md -->

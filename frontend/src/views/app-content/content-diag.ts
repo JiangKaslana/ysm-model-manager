@@ -126,7 +126,7 @@ export const contentDiagCSS: string = `
 .gh-repo-name { font-size:var(--fs-md);font-weight:600;color:var(--txt);flex:1; }
 .gh-model-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 20px; font-size: var(--fs-xs); font-weight: 600; }
 .gh-model-badge-total { background: var(--surf); color: var(--txt); }
-.gh-model-badge-missing { background: rgba(243,139,168,.12); color: var(--status-error); }
+.gh-model-badge-missing { background: color-mix(in srgb, var(--status-error) 12%, transparent); color: var(--status-error); }
 .gh-empty { padding:24px;text-align:center;color:var(--muted);font-size:var(--fs-base); }
 /* toggle-missing 激活态 */
 .gh-toggle-missing.active { border-color:var(--accent);color:var(--accent); }
@@ -165,17 +165,17 @@ export const contentDiagCSS: string = `
 .gh-row:hover { background: var(--hover); }
 .gh-row-exists { border-left-color: var(--status-success); background: transparent; }
 .gh-row-exists .gh-name { color: var(--muted); }
-.gh-row-missing { border-left-color: var(--status-error); background: rgba(243,139,168,.04); }
+.gh-row-missing { border-left-color: var(--status-error); background: color-mix(in srgb, var(--status-error) 4%, transparent); }
 .gh-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--txt); font-size: var(--fs-sm); }
 .gh-icon-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-md); border: 1px solid transparent; background: transparent; cursor: pointer; transition: var(--tr-fast); }
 .gh-icon-btn:hover { background: var(--hover); border-color: var(--bd); }
 .gh-icon-btn:disabled { opacity: .5; cursor: not-allowed; }
 .gh-icon-btn .ws-icon { width: 14px; height: 14px; }
 .gh-dl-btn { border-color: var(--accent); color: var(--accent); }
-.gh-dl-btn:hover { background: var(--accent); color: #fff; }
+.gh-dl-btn:hover { background: var(--accent); color: var(--bg); }
 .gh-dl-btn:disabled { border-color: var(--bd); color: var(--muted); }
 .gh-cb { accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
-.gh-badge { padding:2px 8px; border-radius:var(--radius-sm); font-size:var(--fs-sm); color:var(--success,#4caf50); flex-shrink:0; }
+.gh-badge { padding:2px 8px; border-radius:var(--radius-sm); font-size:var(--fs-sm); color:var(--status-success); flex-shrink:0; }
 .gh-size { font-size:var(--fs-sm); color:var(--muted); }
 .gh-meta { display:flex; align-items:center; gap:6px; }
 .gh-actions { display:flex; align-items:center; justify-content:flex-end; }

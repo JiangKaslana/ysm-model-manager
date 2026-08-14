@@ -60,7 +60,7 @@ export function renderImportedList(
       "</span>" +
       '<button class="dl-remove-q" data-idx="' +
       qi +
-      '" style="padding:1px 6px;border-radius:3px;border:1px solid #e5534b44;background:transparent;color:#e5534b;cursor:pointer;font-size:9px;flex-shrink:0">' +
+      '" style="padding:1px 6px;border-radius:3px;border:1px solid color-mix(in srgb, var(--status-error) 27%, transparent);background:transparent;color:var(--status-error);cursor:pointer;font-size:9px;flex-shrink:0">' +
       "🗑" +
       "</button>" +
       "</div>";

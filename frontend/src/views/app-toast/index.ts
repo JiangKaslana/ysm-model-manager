@@ -31,7 +31,7 @@ class AppToast extends HTMLElement {
         }
         .toast.error { border-left: 3px solid var(--paid); }
         .toast.success { border-left: 3px solid var(--free); }
-        .toast.warn { border-left: 3px solid #f38ba8; }
+        .toast.warn { border-left: 3px solid var(--status-error); }
         .toast.info { border-left: 3px solid var(--accent); }
         .toast .msg { flex: 1; white-space: pre-line; }
         .toast .undo-btn { padding: 4px 10px; border-radius: 5px; border: none; background: var(--hover); color: var(--accent); cursor: pointer; font-size: var(--fs-sm); font-family: inherit; transition: background var(--tr-fast); }
