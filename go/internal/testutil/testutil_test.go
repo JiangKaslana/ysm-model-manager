@@ -3,10 +3,11 @@ package testutil
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -73,9 +74,93 @@ func TestCreateTestFile_EmptyName(t *testing.T) {
 	if err == nil {
 		t.Fatal("期望写入目录时报错（is a directory）")
 	}
-	wantSub := "is a directory"
-	if !strings.Contains(err.Error(), wantSub) {
-		t.Fatalf("错误应包含 %q，得到: %v", wantSub, err)
+	// 用 sentinel 判断错误类别（写入目录 → EISDIR），避免依赖平台错误文本。
+	if !errors.Is(err, syscall.EISDIR) {
+		t.Fatalf("期望 EISDIR 错误（写入目录），得到: %v", err)
+	}
+}
+
+// TestCreateTestFile_Overwrite 验证对已存在文件再次创建是原地覆盖（先删后建的反面）：
+// 文件不会被删除重建（失败无回滚窗口），内容被截断替换。
+func TestCreateTestFile_Overwrite(t *testing.T) {
+	dir := t.TempDir()
+	name := "cfg.txt"
+	CreateTestFile(t, dir, name, "v1")
+	CreateTestFile(t, dir, name, "v2-longer")
+
+	path := filepath.Join(dir, name)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "v2-longer" {
+		t.Errorf("期望覆盖后内容 %q，得到 %q", "v2-longer", got)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Mode().IsRegular() {
+		t.Fatalf("期望普通文件，得到 mode %v", info.Mode())
+	}
+}
+
+// TestCreateTestFile_EmptyContent 验证空内容可创建零字节文件。
+func TestCreateTestFile_EmptyContent(t *testing.T) {
+	dir := t.TempDir()
+	path := CreateTestFile(t, dir, "empty.txt", "")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() != 0 {
+		t.Errorf("期望零字节文件，得到 %d 字节", info.Size())
+	}
+}
+
+// TestMakeZipBytes_NestedEntries 验证带目录前缀的条目名（如 "dir/sub/file.txt"）可正确写入。
+func TestMakeZipBytes_NestedEntries(t *testing.T) {
+	b := MakeZipBytes(t, map[string]string{"dir/sub/file.txt": "deep"})
+
+	r, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
+	if err != nil {
+		t.Fatalf("期望合法 zip: %v", err)
+	}
+	found := false
+	for _, f := range r.File {
+		if f.Name != "dir/sub/file.txt" {
+			continue
+		}
+		found = true
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := string(data); got != "deep" {
+			t.Errorf("期望内容 deep，得到 %q", got)
+		}
+	}
+	if !found {
+		t.Fatal("未找到条目 dir/sub/file.txt")
+	}
+}
+
+// TestWriteZipFile_EmptyEntries 验证空条目也能写出合法 zip。
+func TestWriteZipFile_EmptyEntries(t *testing.T) {
+	path := WriteZipFile(t, "empty.zip", map[string]string{})
+
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		t.Fatalf("期望能打开 zip: %v", err)
+	}
+	defer r.Close()
+	if got := len(r.File); got != 0 {
+		t.Fatalf("期望 0 个条目，得到 %d", got)
 	}
 }
 

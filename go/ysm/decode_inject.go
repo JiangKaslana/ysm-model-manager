@@ -5,24 +5,36 @@
 // 调用方按「解码不可用」静默降级（与 Android 无 Node 时口径一致）。
 package ysm
 
+import "sync"
+
 // DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径）
 type DecodedFile struct {
 	Path string
 	Data []byte
 }
 
-// ysmDecoder 注入的 .ysm 解码器：输入 .ysm 字节，输出解出的全部文件
-var ysmDecoder func(ysmData []byte) []DecodedFile
+// ysmDecoder 注入的 .ysm 解码器：输入 .ysm 字节，输出解出的全部文件。
+// SetDecoder（init 阶段注入）与 DecodeYSM（运行时读取）可能被并发调用
+// （如测试并行 / 上层多协程首次调用），包级裸变量存在数据竞争，用 RWMutex 保护。
+var (
+	ysmDecoderMu sync.RWMutex
+	ysmDecoder   func(ysmData []byte) []DecodedFile
+)
 
 // SetDecoder 注入 .ysm 解码器（internal/app init 阶段调用，替换 FindCLI 模式）
 func SetDecoder(fn func(ysmData []byte) []DecodedFile) {
+	ysmDecoderMu.Lock()
+	defer ysmDecoderMu.Unlock()
 	ysmDecoder = fn
 }
 
 // DecodeYSM 解码 .ysm 字节；解码器未注入或解码失败返回 nil
 func DecodeYSM(ysmData []byte) []DecodedFile {
-	if ysmDecoder == nil {
+	ysmDecoderMu.RLock()
+	fn := ysmDecoder
+	ysmDecoderMu.RUnlock()
+	if fn == nil {
 		return nil
 	}
-	return ysmDecoder(ysmData)
+	return fn(ysmData)
 }

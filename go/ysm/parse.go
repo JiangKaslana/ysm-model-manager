@@ -77,6 +77,14 @@ func AnalyzeYSMModel(path string) YSMModelMeta {
 	// P1 修复：检查 ZIP 总大小，防止恶意构造的多文件 ZIP 撑爆内存
 	var totalSize int64
 	for _, f := range r.File {
+		// int64 溢出防线：单条目 UncompressedSize64 > MaxInt64 时 int64() 转换会回绕为负，
+		// 使 totalSize 累加后绕过 500MB 上限（zip 中央目录可声明伪造巨型未压缩大小）。
+		// 先按 uint64 逐条比较（无符号比较不会回绕），再累加 int64 总量。
+		if f.UncompressedSize64 > uint64(types.MaxImportSize) {
+			meta.HasError = true
+			meta.ErrorMsg = fmt.Sprintf("ZIP 包过大（%d MB），超过 %d MB 上限", f.UncompressedSize64/(1024*1024), types.MaxImportSizeMB)
+			return meta
+		}
 		totalSize += int64(f.UncompressedSize64)
 		if totalSize > int64(types.MaxImportSize) {
 			meta.HasError = true

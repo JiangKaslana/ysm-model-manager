@@ -70,35 +70,20 @@ func readTexFromZip(path string) (int, int) {
 	}
 	defer r.Close()
 
+	// 遍历所有 .json 条目（含非标准命名）找含 minecraft:geometry 的几何 JSON。
+	// 原实现为两个逐字节相同的循环（首循环注释误标「查找 geometry JSON」却未按名过滤，
+	// 与次循环完全等价），每个 JSON 条目被打开读取两次——合并为单循环，行为不变
+	// （首命中即返回，两循环合起来同样是首命中返回）。
 	for _, f := range r.File {
 		name := strings.ToLower(f.Name)
 		if !strings.HasSuffix(name, ".json") {
 			continue
 		}
-		// 查找 geometry JSON（含 minecraft:geometry 字段）
 		rc, err := f.Open()
 		if err != nil {
 			continue
 		}
 		// ADR-044 策略 A：统一走 fsutil.ReadLimitedEntry（超限/错误返回 nil → 跳过）
-		data := fsutil.ReadLimitedEntry(rc, int64(maxTexJSON))
-		if data == nil {
-			continue
-		}
-		if w, h := extractTexSizeFromGeometryBytes(data); w > 0 && h > 0 {
-			return w, h
-		}
-	}
-	// 尝试从任何 JSON 中查找（非标准命名也行）
-	for _, f := range r.File {
-		name := strings.ToLower(f.Name)
-		if !strings.HasSuffix(name, ".json") {
-			continue
-		}
-		rc, err := f.Open()
-		if err != nil {
-			continue
-		}
 		data := fsutil.ReadLimitedEntry(rc, int64(maxTexJSON))
 		if data == nil {
 			continue

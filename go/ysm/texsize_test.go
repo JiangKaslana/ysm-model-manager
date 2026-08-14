@@ -2,6 +2,7 @@
 package ysm
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,6 +41,33 @@ func TestExtractTexSizeFromGeometryBytes_EmptyGeometry(t *testing.T) {
 	w, h := extractTexSizeFromGeometryBytes(data)
 	if w != 0 || h != 0 {
 		t.Errorf("空 geometry 数组应返回 0,0, 得到 %d,%d", w, h)
+	}
+}
+
+// ====== clampTexDim 边界（texsize.go:150-161）=====
+
+func TestClampTexDim_Edges(t *testing.T) {
+	cases := []struct {
+		in   float64
+		want int
+	}{
+		{math.NaN(), 0},
+		{math.Inf(1), 0},
+		{math.Inf(-1), 0},
+		{-1e100, 0},
+		{-1, 0},
+		{0, 0},
+		{0.5, 0}, // 正小数截断为 0（float→int 向下取整，与 geometry/parse.go 口径一致）
+		{1, 1},
+		{65535, 65535},
+		{65536, 65536},
+		{65537, 65536}, // 超上限钳制
+		{1e100, 65536},
+	}
+	for _, tc := range cases {
+		if got := clampTexDim(tc.in); got != tc.want {
+			t.Errorf("clampTexDim(%v) = %d, 期望 %d", tc.in, got, tc.want)
+		}
 	}
 }
 

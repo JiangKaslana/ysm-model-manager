@@ -229,6 +229,42 @@ func TestBuildVoxelData_MaxBlocksTruncate(t *testing.T) {
 	}
 }
 
+func TestBuildVoxelData_MultiRegion(t *testing.T) {
+	// 两个 region 各 1 个 stone 方块 → 同一颜色组内合并为 2 个方块
+	palette := nbtList("BlockStatePalette", 0x0A,
+		nbtCompoundBody(nbtString("Name", "minecraft:air")),
+		nbtCompoundBody(nbtString("Name", "minecraft:stone")),
+	)
+	region1 := nbtCompound("0,0",
+		palette,
+		nbtCompound("Size", nbtInt("x", 1), nbtInt("y", 1), nbtInt("z", 1)),
+		nbtCompound("Position", nbtInt("x", 0), nbtInt("y", 0), nbtInt("z", 0)),
+		nbtLongArray("BlockStates", []int64{1}),
+	)
+	region2 := nbtCompound("1,0",
+		palette,
+		nbtCompound("Size", nbtInt("x", 1), nbtInt("y", 1), nbtInt("z", 1)),
+		nbtCompound("Position", nbtInt("x", 1), nbtInt("y", 0), nbtInt("z", 0)),
+		nbtLongArray("BlockStates", []int64{1}),
+	)
+	regions := nbtCompound("Regions", region1, region2)
+	metadata := nbtCompound("Metadata",
+		nbtCompound("EnclosingSize", nbtInt("x", 2), nbtInt("y", 1), nbtInt("z", 1)),
+	)
+	root := nbtCompound("", nbtInt("Version", 5), metadata, regions)
+	path := writeGzNbt(t, root)
+	result, err := BuildVoxelData(path, 100)
+	if err != nil {
+		t.Fatalf("BuildVoxelData 失败: %v", err)
+	}
+	if len(result.Groups) != 1 {
+		t.Fatalf("两 region 同一颜色应合并为 1 组, Groups = %+v", result.Groups)
+	}
+	if len(result.Groups[0].Positions) != 2 {
+		t.Errorf("应有 2 个方块, 得到 %d: %+v", len(result.Groups[0].Positions), result.Groups[0].Positions)
+	}
+}
+
 func TestBuildVoxelData_NoRegions(t *testing.T) {
 	// 无 Regions → 只返回 Size
 	metadata := nbtCompound("Metadata",
@@ -297,6 +333,56 @@ func TestBuildNbtVoxelData_State0(t *testing.T) {
 	}
 	if len(result.Groups) != 0 {
 		t.Errorf("air 应被跳过, Groups = %+v", result.Groups)
+	}
+}
+
+func TestBuildNbtVoxelData_State0NonAirPalette(t *testing.T) {
+	// structure NBT 的 palette 索引 0 不保证是 air：palette[0]=stone、方块 state=0
+	// → 应保留该方块（原实现按 `state == 0` 一律当 air 丢弃，真实方块整批丢失）
+	palette := nbtList("palette", 0x0A,
+		nbtCompoundBody(nbtString("Name", "minecraft:stone")),
+		nbtCompoundBody(nbtString("Name", "minecraft:dirt")),
+	)
+	size := nbtList("size", 0x03, nbtIntBody(1), nbtIntBody(1), nbtIntBody(1))
+	block := nbtList("blocks", 0x0A,
+		nbtCompoundBody(
+			nbtList("pos", 0x03, nbtIntBody(0), nbtIntBody(0), nbtIntBody(0)),
+			nbtInt("state", int32(0)),
+		),
+	)
+	root := nbtCompound("", size, palette, block)
+	path := writeGzNbt(t, root)
+	result, err := BuildNbtVoxelData(path, 100)
+	if err != nil {
+		t.Fatalf("BuildNbtVoxelData 失败: %v", err)
+	}
+	if len(result.Groups) != 1 || len(result.Groups[0].Positions) != 1 {
+		t.Fatalf("palette[0]=stone 且 state=0 应保留 1 组 1 方块, Groups = %+v", result.Groups)
+	}
+}
+
+func TestBuildNbtVoxelData_AirAtNonZeroIndex(t *testing.T) {
+	// air 位于 palette 非 0 索引：palette[1]=air、方块 state=1
+	// → 应跳过（原实现仅跳过 state==0，会把 air 保留为空颜色 group）
+	palette := nbtList("palette", 0x0A,
+		nbtCompoundBody(nbtString("Name", "minecraft:stone")),
+		nbtCompoundBody(nbtString("Name", "minecraft:air")),
+	)
+	size := nbtList("size", 0x03, nbtIntBody(1), nbtIntBody(1), nbtIntBody(1))
+	block := nbtList("blocks", 0x0A,
+		nbtCompoundBody(
+			nbtList("pos", 0x03, nbtIntBody(0), nbtIntBody(0), nbtIntBody(0)),
+			nbtInt("state", int32(1)),
+		),
+	)
+	root := nbtCompound("", size, palette, block)
+	path := writeGzNbt(t, root)
+	result, err := BuildNbtVoxelData(path, 100)
+	if err != nil {
+		t.Fatalf("BuildNbtVoxelData 失败: %v", err)
+	}
+	if len(result.Groups) != 0 {
+		t.Errorf("palette[1]=air 且 state=1 应跳过, Groups = %+v", result.Groups)
 	}
 }
 

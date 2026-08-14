@@ -344,8 +344,13 @@ func BuildNbtVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, e
 				continue
 			}
 			state, ok := stateTag.(int32)
-			if !ok || int(state) < 0 || int(state) >= len(paletteColors) || state == 0 {
-				continue // air or invalid（与 BuildVoxelData/BuildSchematicVoxelData 一致）
+			// 空气判定按 palette 条目实际颜色（MapColor 对 air/cave_air/void_air 返回 ""），
+			// 而非 `state == 0`——structure NBT 的 palette 索引 0 不保证是 air
+			// （structure_block 保存时常不含 air 条目，palette[0] 即首个非空气方块，
+			// 原实现会把 state=0 的真实方块整批丢弃；反过来 air 位于非 0 索引时
+			// 原实现会保留一个空颜色 group）
+			if !ok || int(state) < 0 || int(state) >= len(paletteColors) || paletteColors[state] == "" {
+				continue // air（空颜色）或 invalid
 			}
 			// ADR-039 P3：comma-ok 防畸形 NBT 的 pos 元素非 int32 时裸断言 panic（与 sizeList 一致）
 			px, ok := posList[0].(int32)

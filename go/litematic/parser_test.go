@@ -125,6 +125,57 @@ func TestBuildRegionInfo_SinglePalette(t *testing.T) {
 	}
 }
 
+func TestBuildRegionInfo_SizeTooLarge(t *testing.T) {
+	// 单轴超过 maxRegionAxis (2^21) → 拒绝（防 int32 尺寸乘积回绕 + DoS 扫描上界）
+	region := map[string]any{
+		"BlockStatePalette": []any{map[string]any{"Name": "air"}, map[string]any{"Name": "stone"}},
+		"Size":              map[string]any{"x": int32(1<<21 + 1), "y": int32(1), "z": int32(1)},
+		"Position":          map[string]any{"x": int32(0), "y": int32(0), "z": int32(0)},
+		"BlockStates":       []int64{0},
+	}
+	info, err := buildRegionInfo(region)
+	if info != nil {
+		t.Errorf("超轴上限应返回 nil, 得到 %+v", info)
+	}
+	if err == nil {
+		t.Errorf("超轴上限应返回 error")
+	}
+}
+
+func TestBuildRegionInfo_OriginOutOfInt16(t *testing.T) {
+	// origin=40000 超出 int16 正上限 32767 → 拒绝（防 int16 坐标静默回绕）
+	region := map[string]any{
+		"BlockStatePalette": []any{map[string]any{"Name": "air"}, map[string]any{"Name": "stone"}},
+		"Size":              map[string]any{"x": int32(1), "y": int32(1), "z": int32(1)},
+		"Position":          map[string]any{"x": int32(40000), "y": int32(0), "z": int32(0)},
+		"BlockStates":       []int64{0},
+	}
+	info, err := buildRegionInfo(region)
+	if info != nil {
+		t.Errorf("origin 超 int16 应返回 nil, 得到 %+v", info)
+	}
+	if err == nil {
+		t.Errorf("origin 超 int16 应返回 error")
+	}
+}
+
+func TestBuildRegionInfo_NegativeOriginOutOfInt16(t *testing.T) {
+	// origin=-40000 低于 int16 负下限 -32768 → 拒绝（负 origin 曾回绕成 25536 产生错误渲染位）
+	region := map[string]any{
+		"BlockStatePalette": []any{map[string]any{"Name": "air"}, map[string]any{"Name": "stone"}},
+		"Size":              map[string]any{"x": int32(1), "y": int32(1), "z": int32(1)},
+		"Position":          map[string]any{"x": int32(-40000), "y": int32(0), "z": int32(0)},
+		"BlockStates":       []int64{0},
+	}
+	info, err := buildRegionInfo(region)
+	if info != nil {
+		t.Errorf("负 origin 超 int16 应返回 nil, 得到 %+v", info)
+	}
+	if err == nil {
+		t.Errorf("负 origin 超 int16 应返回 error")
+	}
+}
+
 // ====== aggregateBlockStatsFromPalette ======
 
 func TestAggregateBlockStatsFromPalette_Valid(t *testing.T) {

@@ -202,7 +202,7 @@
 | `ParseNbtStructure()` | `go/litematic/parser:267` | — |
 | `BuildVoxelData()` | `go/litematic/voxel:92` | BuildVoxelData 构建体素渲染数据（按颜色分组） |
 | `BuildNbtVoxelData()` | `go/litematic/voxel:286` | — |
-| `BuildSchematicVoxelData()` | `go/litematic/voxel:379` | — |
+| `BuildSchematicVoxelData()` | `go/litematic/voxel:384` | — |
 
 ## Go·日志
 
@@ -411,9 +411,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetDecoder()` | `go/ysm/decode_inject:18` | SetDecoder 注入 .ysm 解码器（internal/app init 阶段调用，替换 FindCLI 模式） |
-| `DecodeYSM()` | `go/ysm/decode_inject:23` | DecodeYSM 解码 .ysm 字节；解码器未注入或解码失败返回 nil |
-| `DecodedFile()` | `go/ysm/decode_inject:9` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
+| `SetDecoder()` | `go/ysm/decode_inject:25` | SetDecoder 注入 .ysm 解码器（internal/app init 阶段调用，替换 FindCLI 模式） |
+| `DecodeYSM()` | `go/ysm/decode_inject:32` | DecodeYSM 解码 .ysm 字节；解码器未注入或解码失败返回 nil |
+| `DecodedFile()` | `go/ysm/decode_inject:11` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
 | `FindGeometryInExtractedYSM()` | `go/ysm/extracted:50` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
 | `FindComponentsInExtractedYSM()` | `go/ysm/extracted:392` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
 | `AnalyzeYSMHeader()` | `go/ysm/header:167` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
@@ -430,7 +430,7 @@
 | `YsmSummary()` | `go/ysm/summary:47` | YsmSummary 是前端右侧面板和 AI 搜索消费的标准摘要 |
 | `Stats()` | `go/ysm/summary:64` | — |
 | `ScanModelTexSizes()` | `go/ysm/texsize:29` | ScanModelTexSizes 扫描仓库文件读取纹理尺寸，不调用 YSMParser/WASM 仅支持 zip/7z 格式（未加密模型），加密 .ysm 返回 0,0 |
-| `ScanFiles()` | `go/ysm/texsize:180` | ScanFiles 读取目录下所有支持的文件条目（供 ScanModelTexSizes 使用） |
+| `ScanFiles()` | `go/ysm/texsize:165` | ScanFiles 读取目录下所有支持的文件条目（供 ScanModelTexSizes 使用） |
 | `TexInfo()` | `go/ysm/texsize:21` | TexInfo 轻量级纹理尺寸（不解析完整模型） |
 | `ModelEntry()` | `go/ysm/texsize:44` | ModelEntry 轻量级条目（仅用于纹理扫描签名，调用方传入完整路径） |
 | `IsYSMJar()` | `go/ysm/ysm:13` | IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml） |

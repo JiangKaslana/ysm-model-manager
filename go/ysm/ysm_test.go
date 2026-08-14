@@ -55,6 +55,37 @@ func TestIsYSMJar_ModsTomlOverLimit(t *testing.T) {
 	}
 }
 
+// 覆盖 ysm.go:60-66 的空格分隔变体 `key = "value"`（默认测试只覆盖 `key="value"`）
+func TestIsYSMJar_SpaceVariants(t *testing.T) {
+	jar := testutil.WriteZipFile(t, "mod.jar", map[string]string{"META-INF/mods.toml": `modLoader="javafml"
+[[mods]]
+modId = "yes_steve_model"
+displayName = "Yes Steve Model"
+`})
+	if !IsYSMJar(jar) {
+		t.Fatal("空格分隔 key/value 的 mods.toml 也应识别为 YSM")
+	}
+	// 仅 modId 匹配、displayName 缺失 → 不应识别（两字段都需命中）
+	jar2 := testutil.WriteZipFile(t, "mod.jar", map[string]string{"META-INF/mods.toml": `[[mods]]
+modId="yes_steve_model"
+displayName="Other Name"
+`})
+	if IsYSMJar(jar2) {
+		t.Fatal("displayName 不匹配不应识别")
+	}
+	// 多 [[mods]] 块：第二块才命中 → 应识别
+	jar3 := testutil.WriteZipFile(t, "mod.jar", map[string]string{"META-INF/mods.toml": `[[mods]]
+modId="other_mod"
+displayName="Other"
+[[mods]]
+modId="yes_steve_model"
+displayName="Yes Steve Model"
+`})
+	if !IsYSMJar(jar3) {
+		t.Fatal("第二 [[mods]] 块命中应识别")
+	}
+}
+
 func TestHasYSMMod(t *testing.T) {
 	modsDir := t.TempDir()
 	jar := testutil.WriteZipFile(t, "mod.jar", map[string]string{"META-INF/mods.toml": ysmModToml})
