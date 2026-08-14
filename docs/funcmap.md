@@ -270,9 +270,9 @@
 | `ScanEntries()` | `go/scanner/scanner:105` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:112` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
 | `ComputeFileHash()` | `go/scanner/scanner:246` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:270` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:302` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:370` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ListModelAuthors()` | `go/scanner/scanner:299` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:329` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:392` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -658,9 +658,9 @@
 | `ExtractResult()` | `frontend/src/backend/extract:48` | extractZip 返回值 |
 | `ZipType()` | `frontend/src/backend/extract:56` | detectZipType 返回值 |
 | `parseZipCentralDir()` | `frontend/src/backend/extract:61` | 解析 ZIP 中央目录，返回每个 entry 的 fflateKey + 原始文件名字节 |
-| `extractZip()` | `frontend/src/backend/extract:139` | 解压 ZIP 数据，返回 {entries, metas}。 |
-| `gbkDecodeEntry()` | `frontend/src/backend/extract:175` | 尝试 GBK 解码 fflateKey 的原始字节（当 gpf bit 11 未设时）。 |
-| `detectZipType()` | `frontend/src/backend/extract:190` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
+| `extractZip()` | `frontend/src/backend/extract:140` | 解压 ZIP 数据，返回 {entries, metas}。 |
+| `gbkDecodeEntry()` | `frontend/src/backend/extract:176` | 尝试 GBK 解码 fflateKey 的原始字节（当 gpf bit 11 未设时）。 |
+| `detectZipType()` | `frontend/src/backend/extract:191` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
 | `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |
@@ -807,7 +807,7 @@
 | `renderCardsHTML()` | `frontend/src/features/community/render:217` | 生成左栏站点卡片 HTML |
 | `renderRepoHeaderHTML()` | `frontend/src/features/community/render:267` | 生成仓库模型页面的头部 HTML（含返回按钮、计数、筛选按钮等） |
 | `CollectedFile()` | `frontend/src/features/dnd-collector:6` | 收集结果条目 |
-| `collectFiles()` | `frontend/src/features/dnd-collector:34` | 递归收集 DataTransferItem[] 或 FileSystemEntry[] 中的文件。 |
+| `collectFiles()` | `frontend/src/features/dnd-collector:35` | 递归收集 DataTransferItem[] 或 FileSystemEntry[] 中的文件。 |
 | `getExt()` | `frontend/src/features/dnd-shared:4` | — |
 | `isSupportedFile()` | `frontend/src/features/dnd-shared:8` | 扩展名是否在支持列表 |
 | `isImportableFile()` | `frontend/src/features/dnd-shared:14` | 是否可作为独立文件导入：.json 仅放行 ysm.json 入口清单 包内 geometry/animation/语言 json（main.json / *.animation. |
@@ -1266,7 +1266,7 @@
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:16` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:115` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:123` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:44` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
@@ -1279,7 +1279,7 @@
 | `flattenVisible()` | `frontend/src/views/app-tree/render:118` | — |
 | `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:264` | 断开虚拟滚动相关监听 |
 | `renderTree()` | `frontend/src/views/app-tree/render:273` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:337` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:340` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |

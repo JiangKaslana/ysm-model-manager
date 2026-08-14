@@ -49,7 +49,9 @@ function loadUsageFromDoc() {
     const rest = line.slice(closeBar + 1).replace(/^\s*\|\s*/, '');
     const lastBar = rest.lastIndexOf('|');
     const desc = lastBar === -1 ? rest.trim() : rest.slice(0, lastBar).trim();
-    if (label && desc && !desc.startsWith('⚠️')) usage[label] = desc;
+    // 剥离自动形态尾巴（〔...〕，由脚本生成并读回，避免二次追加）
+    const bare = desc.replace(/\s*〔[^〕]*〕$/, '');
+    if (label && bare && !bare.startsWith('⚠️')) usage[label] = bare;
   }
   return usage;
 }
@@ -78,12 +80,29 @@ function topFiles(dir, exts) {
 }
 
 /** 渲染一行表格；文档未登记用途的条目显示占位并计入漂移提示。 */
-function row(label, usage, drift, kind) {
+function row(label, usage, drift, kind, tail = '') {
   if (!usage) {
     drift.unregistered.push(`${kind}:${label}`);
-    return `| \`${label}\` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |`;
+    return `| \`${label}\` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句）${tail} |`;
   }
-  return `| \`${label}\` | ${usage} |`;
+  return `| \`${label}\` | ${usage}${tail} |`;
+}
+
+/** 目录形态自动标注：〔文件 N · 子目录 M: a/ b/〕。
+ *  结构变化后重跑脚本即更新（--check 接入 doctor 防漂移），形态描述不再靠手写。 */
+function shapeTail(dir) {
+  if (!fs.existsSync(dir)) return '';
+  const entries = fs.readdirSync(dir, { withFileTypes: true }).filter((e) => !e.name.startsWith('.'));
+  const files = entries.filter((e) => e.isFile()).length;
+  const dirs = entries
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  if (files === 0 && dirs.length === 0) return '';
+  const parts = [];
+  if (files > 0) parts.push(`文件 ${files}`);
+  if (dirs.length > 0) parts.push(`子目录 ${dirs.length}: ${dirs.map((d) => d + '/').join(' ')}`);
+  return ` 〔${parts.join(' · ')}〕`;
 }
 
 /** 生成完整 markdown（内存态，不落盘）。 */
@@ -98,15 +117,18 @@ function build() {
   const rootFiles = topFiles(ROOT, ['.go', '.json', '.md']);
 
   const goRows = goDirs
-    .map((d) => row(d + '/', usage[d + '/'], drift, 'go'))
+    .map((d) => row(d + '/', usage[d + '/'], drift, 'go', shapeTail(path.join(ROOT, 'go', d))))
     .join('\n');
   const intRows = internalDirs
-    .map((d) => row(d + '/', usage[d + '/'], drift, 'internal'))
+    .map((d) => row(d + '/', usage[d + '/'], drift, 'internal', shapeTail(path.join(ROOT, 'internal', d))))
     .join('\n');
   const feRows = [...feDirs, ...feFiles]
     .map((n) => {
-      const key = n.endsWith('/') || !n.includes('.') ? n + '/' : n;
-      return row(key, usage[key], drift, 'frontend');
+      // subdirs/topFiles 返回不带斜杠的名字：目录判定用「无扩展名」与 key 同源
+      const isDir = !n.includes('.');
+      const key = isDir ? n + '/' : n;
+      const tail = isDir ? shapeTail(path.join(ROOT, 'frontend', 'src', n)) : '';
+      return row(key, usage[key], drift, 'frontend', tail);
     })
     .join('\n');
   const rootRows = rootFiles
