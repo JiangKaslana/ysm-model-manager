@@ -23,6 +23,10 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          # 契约测试（test_api_break.mjs）用真实历史 ref 对做端到端断言，
+          # 浅克隆（默认 depth=1）拿不到历史提交会报「无效 ref」——拉全量历史
+          fetch-depth: 0
 
       - uses: actions/setup-go@v6
         with:
