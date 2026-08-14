@@ -20,6 +20,16 @@ interface Voxel3DHandle {
   cleanup: () => void;
 }
 
+// 提取魔法数值常量（体素尺寸 / 默认色 / chunk 维 / 截断上限 / 相机参数）
+const CHUNK_SIZE = 32; // 空间分块维：每 chunk 持一个 InstancedMesh，32³ ≈ 32k 方块上限
+const DEFAULT_VOXEL_COLOR = "#7F7F7F"; // group 缺色时兜底色
+const FALLBACK_MAX_BLOCKS = 200000; // data.maxBlocks 缺席时的展示上限
+const TIP_AUTO_DISMISS_MS = 6000; // 操作提示条自动消失延时
+const DRAG_ROTATE_SENSITIVITY = 0.003; // 自身旋转模式拖拽灵敏度（rad/px）
+const MIN_CAM_SPEED = 2; // 速度滑块下限
+const MAX_CAM_SPEED = 200; // 速度滑块上限
+const DEFAULT_CAM_SPEED = 20; // 速度滑块默认
+
 let _voxel3d: Voxel3DHandle | null = null;
 
 /** 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */
@@ -77,9 +87,9 @@ export async function createLitematic3D(
 
   const spdSlider = document.createElement("input");
   spdSlider.type = "range";
-  spdSlider.min = "2";
-  spdSlider.max = "200";
-  spdSlider.value = "20";
+  spdSlider.min = String(MIN_CAM_SPEED);
+  spdSlider.max = String(MAX_CAM_SPEED);
+  spdSlider.value = String(DEFAULT_CAM_SPEED);
   spdSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
   topBar.appendChild(spdSlider);
 
@@ -234,7 +244,8 @@ export async function createLitematic3D(
     controls.maxDistance = maxDim * 8;
     controls.update();
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambient);
     const dl1 = new THREE.DirectionalLight(0xffffff, 0.5);
     dl1.position.set(sizeX, sizeY * 2, sizeZ);
     scene.add(dl1);
@@ -247,7 +258,10 @@ export async function createLitematic3D(
     grid.position.set(centerX, 0, centerZ);
     scene.add(grid);
 
-    const CHUNK = 32;
+    // 常值哨兵陷阱（#17）：体素原点 [0,0,0] 是合法坐标，不可用 `|| 0` 把"缺失/undefined"
+    // 当作 0——那样缺字段的位置会被静默地聚到原点生成幽灵方块。此处显式校验每条 position
+    // 的三维坐标为有限数，非法条目整条丢弃。0 坐标照常保留。
+    const CHUNK = CHUNK_SIZE;
     const xChunks = Math.ceil(sizeX / CHUNK);
     const yChunks = Math.ceil(sizeY / CHUNK);
     const zChunks = Math.ceil(sizeZ / CHUNK);
@@ -260,6 +274,10 @@ export async function createLitematic3D(
     // 可写超 chunk 容量触发 GPU 越界读）。groupMeshes 与 data.groups 平行：空 group 占空数组
     // 保持对齐，chunk 网格携带自身 chunk key 供 applyLayer 精确过滤。
     const groupMeshes: Array<Array<{ mesh: import("three").InstancedMesh; ck: number }>> = [];
+    /** 坐标变换口径（陷阱 #11）：voxel 网格坐标 = 世界坐标（boxGeo 为单位立方、pivot 在原点），
+     *  无 voxel offset / cube pivot 偏移。build 与 applyLayer 共用此 helper，杜绝两处口径漂移。 */
+    const isValidPos = (p: number[]): boolean =>
+      Array.isArray(p) && p.length >= 3 && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2]);
     for (const group of data.groups) {
       const gMeshes: Array<{ mesh: import("three").InstancedMesh; ck: number }> = [];
       groupMeshes.push(gMeshes); // 空 group 也占位（对齐 rawGroups 索引）
@@ -268,9 +286,10 @@ export async function createLitematic3D(
       const chunkMap = new Map<number, number[][]>();
       for (let i = 0; i < group.positions.length; i++) {
         const p = group.positions[i];
-        const cx = Math.floor((p[0] || 0) / CHUNK);
-        const cy = Math.floor((p[1] || 0) / CHUNK);
-        const cz = Math.floor((p[2] || 0) / CHUNK);
+        if (!isValidPos(p)) continue; // 非法条目丢弃，不聚到原点造幻方
+        const cx = Math.floor(p[0] / CHUNK);
+        const cy = Math.floor(p[1] / CHUNK);
+        const cz = Math.floor(p[2] / CHUNK);
         const ck = cx + cy * xChunks + cz * xChunks * yChunks;
         let arr = chunkMap.get(ck);
         if (!arr) {
@@ -279,14 +298,14 @@ export async function createLitematic3D(
         }
         arr.push(p);
       }
-      const mat = new THREE.MeshLambertMaterial({ color: group.color || "#7F7F7F" });
+      const mat = new THREE.MeshLambertMaterial({ color: group.color || DEFAULT_VOXEL_COLOR });
       materials.push(mat);
       const dummy = new THREE.Object3D();
       for (const [ck, chunkPositions] of chunkMap) {
         const mesh = new THREE.InstancedMesh(boxGeo, mat, chunkPositions.length);
         for (let i = 0; i < chunkPositions.length; i++) {
           const p = chunkPositions[i];
-          dummy.position.set(p[0] || 0, p[1] || 0, p[2] || 0);
+          dummy.position.set(p[0], p[1], p[2]);
           dummy.updateMatrix();
           mesh.setMatrixAt(i, dummy.matrix);
         }
@@ -377,9 +396,11 @@ export async function createLitematic3D(
           let count = 0;
           for (let i = 0; i < positions.length; i++) {
             const p = positions[i];
-            const cx = Math.floor((p[0] || 0) / CHUNK);
-            const cy = Math.floor((p[1] || 0) / CHUNK);
-            const cz = Math.floor((p[2] || 0) / CHUNK);
+            // 坐标变换口径与 build 一致（陷阱 #11/#17）：非法条目丢弃、0 坐标保留
+            if (!isValidPos(p)) continue;
+            const cx = Math.floor(p[0] / CHUNK);
+            const cy = Math.floor(p[1] / CHUNK);
+            const cz = Math.floor(p[2] / CHUNK);
             if (cx + cy * xChunks + cz * xChunks * yChunks !== ck) continue;
             if (m === "single" && p[layerAxis] !== target) continue;
             if (m !== "all" && m !== "single" && !(p[layerAxis] >= lo && p[layerAxis] < hi)) continue;
@@ -403,7 +424,7 @@ export async function createLitematic3D(
     if (data.truncated) {
       const w = document.createElement("div");
       w.style.cssText = "padding:6px 12px;background:rgba(207,83,0,0.3);color:#ffa64d;font-size:12px;text-align:center;flex-shrink:0";
-      const max = data.maxBlocks || 200000;
+      const max = data.maxBlocks || FALLBACK_MAX_BLOCKS;
       w.textContent = "⚠️ " + t("preview.blockLimit", { max: max.toLocaleString() });
       overlay.insertBefore(w, overlay.children[1]);
     }
@@ -414,11 +435,11 @@ export async function createLitematic3D(
     overlay.insertBefore(tip, overlay.children[1]);
     setTimeout(() => {
       if (tip.parentNode) tip.remove();
-    }, 6000);
+    }, TIP_AUTO_DISMISS_MS);
 
     const isDisposed = { v: false };
     const keys: Record<string, boolean> = {};
-    let camSpeed = 20;
+    let camSpeed = DEFAULT_CAM_SPEED;
     let orbitMode = true;
     const orbitTarget = controls.target.clone();
     const euler = new THREE.Euler(0, 0, 0, "YXZ");
@@ -462,8 +483,8 @@ export async function createLitematic3D(
       lastMouse.x = e.clientX;
       lastMouse.y = e.clientY;
       euler.setFromQuaternion(camera.quaternion);
-      euler.y -= dx * 0.003;
-      euler.x -= dy * 0.003;
+      euler.y -= dx * DRAG_ROTATE_SENSITIVITY;
+      euler.x -= dy * DRAG_ROTATE_SENSITIVITY;
       euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
       camera.quaternion.setFromEuler(euler);
     }
@@ -558,6 +579,15 @@ export async function createLitematic3D(
         } catch (_) {}
       });
       boxGeo.dispose();
+      // 光源 / 网格 helper 同属 GPU 资源，清理以防上下文残留
+      for (const l of [ambient, dl1, dl2]) {
+        try {
+          l.dispose();
+        } catch (_) {}
+      }
+      try {
+        grid.dispose();
+      } catch (_) {}
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("pointerup", onDragPointerUp);

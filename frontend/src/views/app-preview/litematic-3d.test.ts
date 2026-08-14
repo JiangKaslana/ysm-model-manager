@@ -50,12 +50,16 @@ vi.mock("three", () => {
     updateMatrix = vi.fn();
     matrix = {};
   }
+  // 记录每个被创建的 InstancedMesh 实例，供测试断言 count / setMatrixAt 调用
+  const instancedMeshInstances: InstancedMesh[] = [];
   class InstancedMesh {
     instanceMatrix = { needsUpdate: false };
     count = 0;
     setMatrixAt = vi.fn();
     dispose = vi.fn();
-    constructor(..._a: unknown[]) {}
+    constructor(..._a: unknown[]) {
+      instancedMeshInstances.push(this);
+    }
   }
   class Euler {
     setFromQuaternion = vi.fn();
@@ -104,6 +108,7 @@ vi.mock("three", () => {
     InstancedMesh,
     Euler,
     Vector3,
+    _instancedMeshInstances: instancedMeshInstances,
   };
 });
 
@@ -128,8 +133,17 @@ vi.mock("../../backend/app.ts", () => ({ getApp: vi.fn() }));
 
 import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
+import * as THREE from "three";
 import { cleanupVoxel3D, createLitematic3D } from "./litematic-3d.ts";
 import { sleep } from "../../test-utils/index.ts";
+
+/** 访问 mock 暴露的 InstancedMesh 实例列表，供 count / setMatrixAt 断言 */
+const meshInstances = (THREE as unknown as {
+  _instancedMeshInstances: Array<{
+    count: number;
+    setMatrixAt: ReturnType<typeof vi.fn>;
+  }>;
+})._instancedMeshInstances;
 
 /** 最近创建的 overlay（createLitematic3D append 到 body） */
 function lastOverlay(): HTMLElement {
@@ -149,6 +163,7 @@ const VALID_JSON = JSON.stringify({
 beforeEach(() => {
   document.body.innerHTML = "";
   vi.clearAllMocks();
+  meshInstances.length = 0;
   vi.mocked(getApp).mockResolvedValue({
     GetLitematicVoxelData: voxelFn(VALID_JSON),
   } as never);
@@ -290,6 +305,116 @@ describe("控件交互", () => {
     // 范围模式 → 双滑块
     layerMode.value = "range";
     layerMode.dispatchEvent(new Event("change"));
+    unmountOverlay(overlay);
+  });
+});
+
+describe("陷阱 #11 坐标对齐 + #17 零值哨兵", () => {
+  it("原点体素 [0,0,0] 保留：0 坐标不被当成缺失丢弃", async () => {
+    vi.mocked(getApp).mockResolvedValue({
+      GetLitematicVoxelData: voxelFn(
+        JSON.stringify({
+          groups: [{ positions: [[0, 0, 0], [0, 0, 5]], color: "#00ff00" }],
+          size: [16, 16, 16],
+        }),
+      ),
+    } as never);
+    await createLitematic3D("/origin.litematic", "GetLitematicVoxelData");
+    // 至少创建一个 InstancedMesh，且 applyLayer 触发后 count > 0（原点方块仍在）
+    expect(meshInstances.length).toBeGreaterThanOrEqual(1);
+    // 切到 single 并触发 applyLayer，使 mesh.count 被显式写入
+    const overlay = lastOverlay();
+    const selects = overlay.querySelectorAll("select");
+    const layerMode = selects[selects.length - 1] as HTMLSelectElement;
+    layerMode.value = "all";
+    layerMode.dispatchEvent(new Event("change"));
+    const total = meshInstances.reduce((s, m) => s + m.count, 0);
+    expect(total).toBe(2); // 两个合法方块都保留
+    unmountOverlay(overlay);
+  });
+
+  it("缺失/NaN 坐标整条丢弃，不聚到原点造幽灵方块（#17）", async () => {
+    vi.mocked(getApp).mockResolvedValue({
+      GetLitematicVoxelData: voxelFn(
+        JSON.stringify({
+          groups: [
+            {
+              positions: [
+                [1, 2, 3], // 合法
+                [0, 0, 0], // 合法原点
+                [5, undefined, 1], // 非法 → 丢弃
+                [NaN, 0, 0], // 非法 → 丢弃
+                [9, 9, 9], // 合法
+              ],
+              color: "#ff0000",
+            },
+          ],
+          size: [16, 16, 16],
+        }),
+      ),
+    } as never);
+    await createLitematic3D("/mixed.litematic", "GetLitematicVoxelData");
+    const overlay = lastOverlay();
+    const selects = overlay.querySelectorAll("select");
+    const layerMode = selects[selects.length - 1] as HTMLSelectElement;
+    layerMode.value = "all";
+    layerMode.dispatchEvent(new Event("change"));
+    // 5 条 → 3 条合法（1 个原点 + 2 个），2 条非法被丢弃
+    const total = meshInstances.reduce((s, m) => s + m.count, 0);
+    expect(total).toBe(3);
+    unmountOverlay(overlay);
+  });
+
+  it("边界体素 [size-1] 渲染：chunk 索引不越界", async () => {
+    vi.mocked(getApp).mockResolvedValue({
+      GetLitematicVoxelData: voxelFn(
+        JSON.stringify({
+          groups: [{ positions: [[15, 15, 15], [0, 0, 0]], color: "#0000ff" }],
+          size: [16, 16, 16],
+        }),
+      ),
+    } as never);
+    await createLitematic3D("/edge.litematic", "GetLitematicVoxelData");
+    expect(meshInstances.length).toBeGreaterThanOrEqual(1);
+    const overlay = lastOverlay();
+    const selects = overlay.querySelectorAll("select");
+    const layerMode = selects[selects.length - 1] as HTMLSelectElement;
+    layerMode.value = "all";
+    layerMode.dispatchEvent(new Event("change"));
+    const total = meshInstances.reduce((s, m) => s + m.count, 0);
+    expect(total).toBe(2); // 边界 + 原点都在
+    unmountOverlay(overlay);
+  });
+
+  it("applyLayer single 模式：只保留目标层方块，count 过滤正确", async () => {
+    vi.mocked(getApp).mockResolvedValue({
+      GetLitematicVoxelData: voxelFn(
+        JSON.stringify({
+          groups: [
+            { positions: [[0, 0, 0], [1, 0, 0], [2, 5, 2]], color: "#abcdef" },
+          ],
+          size: [16, 16, 16],
+        }),
+      ),
+    } as never);
+    await createLitematic3D("/layer.litematic", "GetLitematicVoxelData");
+    const overlay = lastOverlay();
+    const selects = overlay.querySelectorAll("select");
+    const layerMode = selects[selects.length - 1] as HTMLSelectElement;
+    // 切到 single 后，把 layerVal 调到 1（target 层 0）
+    layerMode.value = "single";
+    layerMode.dispatchEvent(new Event("change"));
+    const layerSlider = overlay.querySelectorAll<HTMLInputElement>(
+      'input[type="range"]',
+    );
+    // single 模式下第一个可见 layer slider（非速度滑块）控制 layerVal
+    const ls = [...layerSlider].find(
+      (el) => el.style.display !== "none" && el.min === "1",
+    ) as HTMLInputElement;
+    ls.value = "1";
+    ls.dispatchEvent(new Event("input"));
+    const total = meshInstances.reduce((s, m) => s + m.count, 0);
+    expect(total).toBe(2); // [0,0,0] 和 [1,0,0] 在 Y=0 层；[2,5,2] 被过滤
     unmountOverlay(overlay);
   });
 });

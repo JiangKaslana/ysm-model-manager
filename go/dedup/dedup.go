@@ -3,6 +3,7 @@ package dedup
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,6 +14,11 @@ import (
 
 	"ysm-model-manager/go/fsutil"
 )
+
+// ErrSymlinkRoot 扫描根目录自身是符号链接——去重只处理实际文件，符号链接根
+// 会导致「假绿」（静默返回无重复但实际未扫描到目标树）。调用方应以 errors.Is 判定，
+// 禁止 strings.Contains(err.Error(), ...) 文本匹配（陷阱 #11 错误分类）。
+var ErrSymlinkRoot = errors.New("dedup: 扫描根目录是符号链接")
 
 // FileEntry 文件条目
 type FileEntry struct {
@@ -55,8 +61,9 @@ func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 		if d.Type()&os.ModeSymlink != 0 {
 			// root 本身是符号链接时静默返回「无重复」= 假绿——
 			// 显式报错，避免用户以为全扫到了而实际未扫描
+			// 陷阱 #11：用 sentinel ErrSymlinkRoot + errors.Is 判定，禁文本匹配
 			if p == dir {
-				return fmt.Errorf("扫描根目录是符号链接: %s", dir)
+				return fmt.Errorf("%w: %s", ErrSymlinkRoot, dir)
 			}
 			return nil
 		}
@@ -147,8 +154,9 @@ func CountDuplicates(dir string, skipRecycle bool) (groups int, extraFiles int, 
 		if d.Type()&os.ModeSymlink != 0 {
 			// root 本身是符号链接时静默返回「无重复」= 假绿（与
 			// FindDuplicateFiles 对齐）——显式报错，避免用户以为全扫到了而实际未扫描
+			// 陷阱 #11：用 sentinel ErrSymlinkRoot + errors.Is 判定，禁文本匹配
 			if p == dir {
-				return fmt.Errorf("扫描根目录是符号链接: %s", dir)
+				return fmt.Errorf("%w: %s", ErrSymlinkRoot, dir)
 			}
 			return nil
 		}

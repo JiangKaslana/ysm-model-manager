@@ -2,6 +2,8 @@
 package dedup
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,7 +63,7 @@ func TestCountDuplicates_SymlinkRootError(t *testing.T) {
 		t.Skipf("os.Symlink 不可用（需权限）: %v", err)
 	}
 	if _, _, err := CountDuplicates(link, true); err == nil ||
-		!strings.Contains(err.Error(), "符号链接") {
+		!errors.Is(err, ErrSymlinkRoot) {
 		t.Fatalf("根目录为符号链接应显式报错, got %v", err)
 	}
 }
@@ -113,7 +115,7 @@ func TestFindDuplicateFiles_SymlinkRootError(t *testing.T) {
 		t.Skipf("os.Symlink 不可用（需权限）: %v", err)
 	}
 	if _, err := FindDuplicateFiles(link, true); err == nil ||
-		!strings.Contains(err.Error(), "符号链接") {
+		!errors.Is(err, ErrSymlinkRoot) {
 		t.Fatalf("根目录为符号链接应显式报错, got %v", err)
 	}
 }
@@ -157,5 +159,69 @@ func TestFindDuplicateFiles_NonexistentRootNoError(t *testing.T) {
 	}
 	if len(groups) != 0 {
 		t.Fatalf("不存在的根目录应返回 0 组, got %d", len(groups))
+	}
+}
+
+// ====== sentinel 错误分类契约（陷阱 #11）======
+// FindDuplicateFiles / CountDuplicates 的符号链接根错误必须以 errors.Is 判定，
+// 禁止 strings.Contains(err.Error(), ...) 文本匹配——易碎、误分类。
+// 本组测试覆盖「错误分类」分支，验证 sentinel ErrSymlinkRoot 经 fmt.Errorf("%w") 包裹后仍可被 errors.Is 识别。
+
+func TestErrSymlinkRoot_SentinelIdentity(t *testing.T) {
+	// sentinel 自身 errors.Is 成立
+	if !errors.Is(ErrSymlinkRoot, ErrSymlinkRoot) {
+		t.Fatal("errors.Is(ErrSymlinkRoot, ErrSymlinkRoot) 应为 true")
+	}
+	// 经 fmt.Errorf("%w") 包裹后仍可识别（wrap 不丢失链）
+	wrapped := fmt.Errorf("%w: /path/to/link", ErrSymlinkRoot)
+	if !errors.Is(wrapped, ErrSymlinkRoot) {
+		t.Fatalf("fmt.Errorf %%w 包裹后 errors.Is 应仍成立, got %v", wrapped)
+	}
+	// 非符号链接错误不得误判为 ErrSymlinkRoot
+	other := errors.New("dedup: 目录为空")
+	if errors.Is(other, ErrSymlinkRoot) {
+		t.Fatal("无关错误不得误判为 ErrSymlinkRoot")
+	}
+}
+
+func TestFindDuplicateFiles_SymlinkRootErrorIsClassifiable(t *testing.T) {
+	realDir := t.TempDir()
+	testutil.CreateTestFile(t, realDir, "a.txt", "same")
+	testutil.CreateTestFile(t, realDir, "b.txt", "same")
+	link := filepath.Join(t.TempDir(), "rootlink")
+	if err := os.Symlink(realDir, link); err != nil {
+		t.Skipf("os.Symlink 不可用（需权限）: %v", err)
+	}
+	_, err := FindDuplicateFiles(link, true)
+	if err == nil {
+		t.Fatal("符号链接根应报错")
+	}
+	// 陷阱 #11 修复验证：errors.Is 可判定（不依赖错误文本内容）
+	if !errors.Is(err, ErrSymlinkRoot) {
+		t.Fatalf("FindDuplicateFiles 符号链接根错误应 errors.Is(ErrSymlinkRoot), got %v", err)
+	}
+	// 且错误信息仍含路径（人类可读）
+	if !strings.Contains(err.Error(), link) {
+		t.Fatalf("错误信息应含路径 %s, got %v", link, err)
+	}
+}
+
+func TestCountDuplicates_SymlinkRootErrorIsClassifiable(t *testing.T) {
+	realDir := t.TempDir()
+	testutil.CreateTestFile(t, realDir, "a.txt", "same")
+	testutil.CreateTestFile(t, realDir, "b.txt", "same")
+	link := filepath.Join(t.TempDir(), "rootlink")
+	if err := os.Symlink(realDir, link); err != nil {
+		t.Skipf("os.Symlink 不可用（需权限）: %v", err)
+	}
+	_, _, err := CountDuplicates(link, true)
+	if err == nil {
+		t.Fatal("符号链接根应报错")
+	}
+	if !errors.Is(err, ErrSymlinkRoot) {
+		t.Fatalf("CountDuplicates 符号链接根错误应 errors.Is(ErrSymlinkRoot), got %v", err)
+	}
+	if !strings.Contains(err.Error(), link) {
+		t.Fatalf("错误信息应含路径 %s, got %v", link, err)
 	}
 }
