@@ -90,12 +90,12 @@ function row(label, usage, drift, kind, tail = '') {
 
 /** 测试文件判定（TS/JS 的 .test. / .spec.，Go 的 _test.）。 */
 function isTestFile(name) {
-  return /.(test|spec)./i.test(name) || /_test./.test(name);
+  return /[.](test|spec)[.]/i.test(name) || /_test[.]/.test(name);
 }
 
 /** 源码文件判定（语言扩展名且非测试）。 */
 function isSourceFile(name) {
-  return /.(ts|js|mjs|cjs|tsx|jsx|go)$/.test(name) && !isTestFile(name);
+  return /[.](ts|js|mjs|cjs|tsx|jsx|go)$/.test(name) && !isTestFile(name);
 }
 
 /** 目录形态扫描：{ source: [], test: [], other: [], dirs: [] }（直接子项，字节序排序）。 */
