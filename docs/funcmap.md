@@ -286,18 +286,18 @@
 | `CompareGlobalInstanceHashes()` | `go/sync/sync_hash:47` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录，返回每个实例的 Missing / Extra / Synced 状态。 |
 | `HasModInDirFn()` | `go/sync/sync_hash:38` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
 | `PushResources()` | `go/sync/sync_push:23` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
-| `PullResources()` | `go/sync/sync_push:62` | PullResources 拉取整合包多余资源回仓库 |
-| `PullSingleResource()` | `go/sync/sync_push:124` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
-| `PushSingleResource()` | `go/sync/sync_push:146` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install |
-| `SyncCustomToRepo()` | `go/sync/sync_push:159` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
+| `PullResources()` | `go/sync/sync_push:66` | PullResources 拉取整合包多余资源回仓库 |
+| `PullSingleResource()` | `go/sync/sync_push:134` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
+| `PushSingleResource()` | `go/sync/sync_push:156` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install |
+| `SyncCustomToRepo()` | `go/sync/sync_push:169` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:20` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
 | `GetInstanceStatusWith()` | `go/sync/sync:31` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
 | `SyncToggleStatus()` | `go/sync/sync:147` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:274` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
-| `SortEntries()` | `go/sync/sync:368` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:375` | GetLinkType 判断文件的链接类型 |
+| `SyncResources()` | `go/sync/sync:277` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
+| `SortEntries()` | `go/sync/sync:371` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:378` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
@@ -679,11 +679,11 @@
 | `typeFromWebDir()` | `frontend/src/backend/web-fs:22` | 从 /web/&lt;type&gt;/... |
 | `selectLocalRepo()` | `frontend/src/backend/web-fs:76` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
 | `scanWebModels()` | `frontend/src/backend/web-fs:88` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:136` | 读文件（/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → IDB → base64；wasm.ts 解码链零改动复用） |
-| `parseWebModelPath()` | `frontend/src/backend/web-fs:146` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析 |
-| `parseWebModelDir()` | `frontend/src/backend/web-fs:152` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态） |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:159` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:173` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:141` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `parseWebModelPath()` | `frontend/src/backend/web-fs:156` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
+| `parseWebModelDir()` | `frontend/src/backend/web-fs:173` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:180` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:194` | — |
 | `loadWebConfig()` | `frontend/src/backend/web-store:11` | — |
 | `saveWebConfig()` | `frontend/src/backend/web-store:19` | — |
 | `getWebImportLogs()` | `frontend/src/backend/web-store:43` | — |
@@ -1254,7 +1254,7 @@
 | `footerHTML()` | `frontend/src/views/app-sidebar/tpl:38` | — |
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:83` | — |
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:102` | 单个整合包卡片头部。 |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:45` | — |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:50` | — |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:21` | 容器骨架 |
 | `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:60` | 状态筛选标签 HTML |

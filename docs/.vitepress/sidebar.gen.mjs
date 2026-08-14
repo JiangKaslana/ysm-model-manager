@@ -656,6 +656,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-060：拖拽导入收敛：按组件域注册，去掉全局遮罩",
+        "link": "/adr/ADR-060-dnd-component-scoped-registration"
+      },
+      {
         "text": "ADR-059：CLI 移除与裸 exe 发布",
         "link": "/adr/ADR-059-cli-removal-standalone-exe"
       },
