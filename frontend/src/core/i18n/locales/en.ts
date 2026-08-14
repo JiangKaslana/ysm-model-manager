@@ -324,7 +324,7 @@ export const en: Record<string, string> = {
   "about.features": "What Is This?",
   "about.appName": "YSM Model Manager",
   "about.intro": "is a model management tool for the Minecraft YSM mod, letting you manage your model collection like a Steam Workshop.",
-  "about.f1": "Drag & drop import .ysm / .zip / .7z model files",
+  "about.f1": "Drag & drop import .ysm / .zip model files",
   "about.f2": "Smart sorting by author, character, and work",
   "about.f3": "2D/3D model preview without launching the game",
   "about.f4": "SHA256 deduplication to save disk space",

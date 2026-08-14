@@ -87,15 +87,153 @@ export async function doDecodeYsmViaWasm(
       return null;
     }
 
-    // .json 文件直接解析，不需要 WASM
+    // .json 文件直接解析（ysm.json spec 格式或 minecraft.geometry 格式）
     if (/\.json$/i.test(modelPath)) {
       const text = new TextDecoder("utf-8").decode(bytes);
       const json = JSON.parse(text);
       const result = parseYsmJsonDirect(json);
       if (result) {
+        // 提取 baseDir（用于 ReadFileBytes 拼接相对路径）
+        const dir = modelPath.replace(/\\/g, "/");
+        const baseDir = dir.includes("/") ? dir.substring(0, dir.lastIndexOf("/")) : ".";
+
+        // ysm.json spec 格式：parseYsmJsonDirect 返回 _ysmMeta，需读取 modelFiles + texFiles 合并
+        const ysmMeta = (result.geometry as { _ysmMeta?: {
+          modelFiles?: unknown[];
+          texFiles?: unknown[];
+          defaultTexture?: string | null;
+        } })?._ysmMeta;
+        if (ysmMeta?.modelFiles?.length) {
+          // 守卫：占位 geometry 可能为 null（parseYsmJsonDirect 返回 DecodedYsm | null，
+          // 合并前须断言非空，避免 TS18049 与运行时解构 null）
+          if (!result.geometry) return result;
+          try {
+            const allBones: BedrockGeometry["bones"] = [];
+            let boneCount = 0, cubeCount = 0;
+            let firstGeoRaw: string | null = null;
+            const processed = new Set<string>();
+
+            // 读取模型文件，合并骨骼
+            for (const mf of ysmMeta.modelFiles) {
+              const mfStr = typeof mf === "string" ? mf : (mf as { path?: string })?.path || "";
+              if (!mfStr || processed.has(mfStr)) continue;
+              processed.add(mfStr);
+
+              // 路径归一化：ysm.json 中 modelFiles 可能是相对路径或带 models/ 前缀
+              let modelRel = mfStr;
+              if (!modelRel.startsWith("models/") && !modelRel.startsWith("models\\")) {
+                // 尝试补 models/ 前缀
+                modelRel = "models/" + mfStr;
+              }
+              const rawModel = await ReadFileBytes(baseDir + "/" + modelRel);
+              if (!rawModel) {
+                // 补前缀失败，尝试原始路径
+                const rawModel2 = await ReadFileBytes(baseDir + "/" + mfStr);
+                if (!rawModel2) continue;
+                // 继续用 rawModel2
+                const rawStr2 = atob(rawModel2);
+                const len2 = rawStr2.length;
+                const arr2 = new Uint8Array(len2);
+                for (let i = 0; i < len2; i++) arr2[i] = rawStr2.charCodeAt(i);
+                const jsonStr2 = new TextDecoder().decode(arr2);
+                const parsed2 = parseBedrockGeometryFromJSON(jsonStr2);
+                if (parsed2?.bones?.length) {
+                  if (!firstGeoRaw) firstGeoRaw = jsonStr2;
+                  allBones.push(...parsed2.bones);
+                  boneCount += parsed2.boneCount;
+                  cubeCount += parsed2.cubeCount;
+                }
+                continue;
+              }
+
+              const rawStr = atob(rawModel);
+              const len = rawStr.length;
+              const arr = new Uint8Array(len);
+              for (let i = 0; i < len; i++) arr[i] = rawStr.charCodeAt(i);
+              const jsonStr = new TextDecoder().decode(arr);
+              const parsed = parseBedrockGeometryFromJSON(jsonStr);
+              if (parsed?.bones?.length) {
+                if (!firstGeoRaw) firstGeoRaw = jsonStr;
+                allBones.push(...parsed.bones);
+                boneCount += parsed.boneCount;
+                cubeCount += parsed.cubeCount;
+              }
+            }
+
+            // 读取纹理文件
+            const textures: Record<string, string> = {};
+            const texDimensions: Record<string, { w: number; h: number }> = {};
+            const texKeys: string[] = [];
+            let maxTexW = 0, maxTexH = 0;
+
+            for (const tf of ysmMeta.texFiles || []) {
+              const tfStr = typeof tf === "string" ? tf : (tf as { uv?: string })?.uv || "";
+              if (!tfStr) continue;
+              const texRel = tfStr.startsWith("textures/") || tfStr.startsWith("textures\\")
+                ? tfStr
+                : "textures/" + tfStr;
+              const rawTex = await ReadFileBytes(baseDir + "/" + texRel);
+              if (!rawTex) continue;
+
+              const rawStr = atob(rawTex);
+              const len = rawStr.length;
+              const arr = new Uint8Array(len);
+              for (let i = 0; i < len; i++) arr[i] = rawStr.charCodeAt(i);
+
+              const blob = new Blob([arr.buffer as ArrayBuffer], {
+                type: tfStr.toLowerCase().endsWith(".jpg") || tfStr.toLowerCase().endsWith(".jpeg")
+                  ? "image/jpeg"
+                  : "image/png",
+              });
+              const key = tfStr.split(/[/\\]/).pop()?.replace(/\.\w+$/, "") || "";
+              textures[key] = URL.createObjectURL(blob);
+              texKeys.push(key);
+
+              // 尺寸嗅探
+              let texW = 0, texH = 0;
+              if (arr[0] === PNG_SIG[0] && arr[1] === PNG_SIG[1] && arr[2] === PNG_SIG[2]) {
+                texW = (arr[16] << 24) | (arr[17] << 16) | (arr[18] << 8) | arr[19];
+                texH = (arr[20] << 24) | (arr[21] << 16) | (arr[22] << 8) | arr[23];
+              }
+              if (texW > 0 && texH > 0) {
+                texDimensions[key] = { w: texW, h: texH };
+                if (texW > maxTexW) maxTexW = texW;
+                if (texH > maxTexH) maxTexH = texH;
+              }
+            }
+
+            if (allBones.length > 0 && result.geometry) {
+              // 合并骨骼：每个 bone 补 _texWidth/_texHeight
+              const geo = result.geometry;
+              const boneTexW = Math.max(maxTexW, geo.texWidth) || 64;
+              const boneTexH = Math.max(maxTexH, geo.texHeight) || 64;
+              for (const b of allBones) {
+                b._texWidth = boneTexW;
+                b._texHeight = boneTexH;
+              }
+
+              result.geometry = {
+                ...geo,
+                bones: allBones,
+                boneCount,
+                cubeCount,
+                texWidth: Math.max(boneTexW, geo.texWidth),
+                texHeight: Math.max(boneTexH, geo.texHeight),
+                textures: texKeys.map((k) => textures[k]).filter(Boolean),
+                texture: texKeys.length > 0 ? textures[texKeys[0]] : null,
+                textureNames: texKeys,
+              };
+              if (firstGeoRaw) {
+                (result as { geometryRaw?: string }).geometryRaw = firstGeoRaw;
+              }
+            }
+          } catch (e) {
+            devLog(`[YSM] JSON 合并几何失败: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+
+        // 头像读取（保留原有逻辑）
         if (result.authors?.length) {
-          const dir = modelPath.replace(/\\/g, "/");
-          const baseDir = dir.includes("/") ? dir.substring(0, dir.lastIndexOf("/")) : ".";
           for (const au of result.authors) {
             if (!au.avatarPath) continue;
             try {

@@ -16,9 +16,9 @@ export async function loadModelData(
 ): Promise<{ model: BedrockGeometry | null; decodedBy: string }> {
   let model: BedrockGeometry | null = null;
   let _decodedBy = "";
-  // .ysm（WASM 解码）与 .json 解压目录（parseYsmJsonDirect 直读）都走前端解码路径。
-  // 修复前仅认 .ysm：.json 被 Go 兜底吞掉，authors 元数据（Go 不返回）永久缺失。
-  const isWasmCapable = /\.(ysm|json)$/i.test(modelPath);
+  // .ysm / .zip（同属 ZIP 容器）/ .json（WASM 解码）都走前端解码路径。
+  // .zip 内含 ysm.json + models/ + textures/，WASM 解码器 decodeYsmFileFromMemory 直接处理（与 .ysm 同格式）。
+  const isWasmCapable = /\.(ysm|zip|json)$/i.test(modelPath);
   let _wasmAuthors: BedrockGeometry["_authors"] = [];
   let _wasmAvatars: Record<string, string> = {};
 
@@ -52,7 +52,7 @@ export async function loadModelData(
     }
   }
 
-  // 非 YSM/JSON 或 WASM 失败/空骨骼 → 走 Go
+  // 非 YSM/ZIP/JSON 或 WASM 失败/空骨骼 → 走 Go
   if (!model?.bones?.length) {
     const { AnalyzeBedrockModel } =
       await getApp();

@@ -77,7 +77,7 @@ export function statsCardHTML(
       ? ".json (解压目录)"
       : modelPath.endsWith(".zip")
         ? ".zip"
-        : ".7z";
+        : "其他";
   const badge = decodedBy ? `<span class="ysm-badge">${decodedBy}</span>` : "";
   // 多纹理概要（仅当存在额外纹理时）
   let texMapHtml = "";

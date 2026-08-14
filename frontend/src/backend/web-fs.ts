@@ -25,8 +25,8 @@ export function typeFromWebDir(dir: string): string {
 
 // --- 主文件优先级（scanWebModels / importWebFiles 共用）---
 // 桌面 scanner 主文件为 .ysm 扩展名（IsYsmEntryJSON 白名单仅 ysm.json）。
-// 网页版多文件模型（zip 解包后）可能含 a.json 动作文件 / tex_*.png 纹理 /
-// ysm.json 清单，须明确优先级：.ysm > ysm.json > 其他非 json > json/压缩包。
+// .zip 与 .ysm 同属 ZIP 容器格式（.ysm 本身即 PK 头 ZIP），一并视为模型主文件。
+// 多文件模型（已解压目录）可能含 ysm.json 清单，优先级：.ysm=.zip > ysm.json > 其他。
 const MAIN_FILE_RANK_YSM = 3;
 const MAIN_FILE_RANK_JSON = 2;
 const MAIN_FILE_RANK_OTHER = 1;
@@ -34,9 +34,10 @@ const MAIN_FILE_RANK_NONE = 0;
 
 /** 主文件优先级打分（用于选取模型主文件，rank 高者胜） */
 function mainFileRank(rel: string): number {
-  if (/\.ysm$/i.test(rel)) return MAIN_FILE_RANK_YSM;
-  if (rel.toLowerCase() === "ysm.json") return MAIN_FILE_RANK_JSON;
-  if (/\.(json|zip|7z)$/i.test(rel)) return MAIN_FILE_RANK_NONE;
+  const low = rel.toLowerCase();
+  if (/\.ysm$/i.test(low) || /\.zip$/i.test(low)) return MAIN_FILE_RANK_YSM;
+  if (low === "ysm.json") return MAIN_FILE_RANK_JSON;
+  if (/\.json$/i.test(low)) return MAIN_FILE_RANK_NONE;
   return MAIN_FILE_RANK_OTHER;
 }
 
@@ -195,7 +196,7 @@ export async function scanWebModels(dir: string): Promise<ModelEntry[]> {
     // 汇总该模型全部文件大小；Path/Name 指向主文件（含扩展名，与桌面
     // scanner.go:136 Name=filepath.Base(p) 含扩展名、Ext=原扩展名一致——
     // 否则 loader.ts 的 name.endsWith(ext) 过滤会恒失败使列表为空）。
-    // 主文件优先选 .ysm/.json，避免多文件模型（zip 解包后）误选首文件（如 a_tex.png）
+    // 主文件优先选 .ysm/.zip/.json，避免多文件模型误选首文件（如 a_tex.png）
     // 导致解码失败；孤儿 dir key（文件被删）无主文件则跳过，避免 Path 以 / 结尾。
     const fileKeys = await idbKeys("files", `file:${type}/${name}/`);
     let size = 0;
@@ -481,8 +482,7 @@ export async function collectAllWebEntries(): Promise<ModelEntry[]> {
  *   仅主文件建 dir 条目 → 消灭「每文件独立成模型」的碎片化
  * - 组内须存在主文件（.ysm / ysm.json），否则整组失败（散落 .txt/.png/任意 json
  *   无主文件 → 明确 failed 提示，而非假成功入库）
- * - .zip/.7z 组内无 .ysm/ysm.json 主文件 → 整组失败（网页版无解包通道，明确降级，
- *   绝不假成功入库）
+ * - .zip 视为模型主文件（与 .ysm 同属 ZIP 容器，WASM 解码器直接处理），不拒绝
  * - 超出 100MB 跳过（对齐 import-dnd oversize 过滤）
  */
 export async function importWebFiles(
@@ -549,8 +549,8 @@ export async function importWebFiles(
     // 写入前记录 preExisted，回滚跳过既有 key，保留先前成功导入的数据。
     const writtenKeys: Array<{ key: string; preExisted: boolean }> = [];
     try {
-      // 组内须存在主文件（.ysm / ysm.json），否则整组失败，每个文件各计一次 failed
-      // （散落 .txt/.png/任意 .json / 未解包的 .zip/.7z 无主文件 → failed，防杂物独立成模型）
+      // 组内须存在主文件（.ysm / .zip / ysm.json），否则整组失败
+      // （散落 .txt/.png/任意 .json 无主文件 → failed，防杂物独立成模型）
       let hasMain = false;
       for (const f of group) {
         if (mainFileRank(f.name) >= MAIN_FILE_RANK_JSON) {

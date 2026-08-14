@@ -321,7 +321,7 @@ export const ja: Record<string, string> = {
   "about.title": "YSMモデルマネージャーについて",
   "about.appName": "YSM モデルマネージャー",
   "about.intro": "は Minecraft YSM モッド向けのモデル管理ツールで、Steam Workshop のようにモデルコレクションを管理できます。",
-  "about.f1": ".ysm / .zip / .7z モデルファイルをドラッグ＆ドロップでインポート",
+  "about.f1": ".ysm / .zip モデルファイルをドラッグ＆ドロップでインポート",
   "about.f2": "作者・キャラクター・作品ごとにスマート分類",
   "about.f3": "ゲームを起動せずに 2D/3D プレビュー",
   "about.f4": "SHA256 で重複排除し、ディスク容量を節約",

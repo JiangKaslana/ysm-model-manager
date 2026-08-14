@@ -56,9 +56,10 @@ describe("statsCardHTML", () => {
     expect(html).toContain(".json (解压目录)");
   });
 
-  it(".zip 路径 → .zip；其他 → .7z", () => {
+  it(".zip 路径 → .zip；其他格式 → 其他", () => {
     expect(statsCardHTML(base, "/repo/a.zip", "")).toContain(".zip");
-    expect(statsCardHTML(base, "/repo/a.7z", "")).toContain(".7z");
+    // .7z 不再支持（网页版），预览不会遇到，显示「其他」
+    expect(statsCardHTML(base, "/repo/a.7z", "")).toContain("其他");
   });
 
   it("多纹理 → 额外纹理概要行", () => {

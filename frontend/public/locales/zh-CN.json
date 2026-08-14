@@ -295,7 +295,7 @@
   "about.features": "这是什么？",
   "about.appName": "YSM 模型管理器",
   "about.intro": "是一款面向 Minecraft YSM 模组的模型管理工具，帮你像 Steam 创意工坊一样管理你的模型收藏。",
-  "about.f1": "拖拽导入 .ysm / .zip / .7z 模型文件",
+  "about.f1": "拖拽导入 .ysm / .zip 模型文件",
   "about.f2": "按作者、角色、作品智能归类",
   "about.f3": "2D/3D 模型预览，不必进游戏确认",
   "about.f4": "按 SHA256 去重，节省磁盘空间",

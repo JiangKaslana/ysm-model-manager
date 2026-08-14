@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@wailsio/runtime": "^3.0.0-alpha.97",
+    "fflate": "~0.8.2",
     "three": "^0.185.1"
   },
   "knip": {
