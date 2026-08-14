@@ -256,20 +256,6 @@ export async function doDecodeYsmViaWasm(
         const animCfg = extractAnimGroupsAndConfigs(json?.properties);
         ysmAnimGroups = animCfg.animGroups;
         ysmConfigMenus = animCfg.configMenus;
-        // 解析作者信息
-        if (json?.metadata?.authors) {
-          for (const au of json.metadata.authors) {
-            if (!au.name) continue;
-            const avatarPath = au.avatar || "";
-            const avatarKey = avatarPath.split(/[/\\]/).pop()?.replace(/\.\w+$/, "") || "";
-            ysmAuthors.push({
-              name: au.name,
-              role: au.role || "",
-              avatarUrl: avatars[avatarKey] || null,
-              avatarPath: avatarPath,
-            });
-          }
-        }
       } catch (e) {
         /* ignore */
       }
@@ -285,7 +271,10 @@ export async function doDecodeYsmViaWasm(
     for (const f of files) {
       if (!(f.path.endsWith(".png") || f.path.endsWith(".jpg"))) continue;
       if (f.path.startsWith("avatar/") || f.path.startsWith("avatar\\")) {
-        const blob = new Blob([f.data.buffer as ArrayBuffer]);
+        const mime = f.path.toLowerCase().endsWith(".jpg") || f.path.toLowerCase().endsWith(".jpeg")
+          ? "image/jpeg"
+          : "image/png";
+        const blob = new Blob([f.data.buffer as ArrayBuffer], { type: mime });
         const name = f.path.split(/[/\\]/).pop()?.replace(/\.\w+$/, "") || "";
         avatars[name] = URL.createObjectURL(blob);
         continue;
@@ -327,6 +316,30 @@ export async function doDecodeYsmViaWasm(
           td ? ` (${td.w}×${td.h})` : ""
         }`,
       );
+    }
+
+    // 解析作者信息（在纹理循环之后：avatars map 已填充，avatarUrl 回填才有意义）
+    if (ysmMeta) {
+      try {
+        const authorJson = JSON.parse(new TextDecoder().decode(ysmMeta.data)) as {
+          metadata?: { authors?: Array<{ name?: string; role?: string; avatar?: string }> };
+        };
+        if (authorJson?.metadata?.authors) {
+          for (const au of authorJson.metadata.authors) {
+            if (!au.name) continue;
+            const avatarPath = au.avatar || "";
+            const avatarKey = avatarPath.split(/[/\\]/).pop()?.replace(/\.\w+$/, "") || "";
+            ysmAuthors.push({
+              name: au.name,
+              role: au.role || "",
+              avatarUrl: avatars[avatarKey] || null,
+              avatarPath: avatarPath,
+            });
+          }
+        }
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     const matchTexKey = (tn: string): string | null => {
@@ -566,6 +579,10 @@ export async function doDecodeYsmViaWasm(
       configMenus: ysmConfigMenus,
     };
     cacheSet(modelPath, { ...result, _decodedBy: "🧠 WASM 内置解码" });
+    // 异步缓存头像到 creators_cache/ 供创作者界面使用（JSON 路径已有，此处对齐）
+    getApp()
+      .then(({ CacheModelAvatars }) => CacheModelAvatars(modelPath))
+      .catch(() => {});
     return result;
   } catch (e) {
     devLog(`[YSM] ❌ ${e instanceof Error ? e.message : String(e)}`);

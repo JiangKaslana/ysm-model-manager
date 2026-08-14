@@ -62,11 +62,11 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `FindDuplicateFiles()` | `go/dedup/dedup:34` | FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 |
-| `CountDuplicates()` | `go/dedup/dedup:137` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） |
-| `CleanEmptyDirs()` | `go/dedup/dedup:201` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
-| `FileEntry()` | `go/dedup/dedup:18` | FileEntry 文件条目 |
-| `Group()` | `go/dedup/dedup:26` | Group 重复文件分组 |
+| `FindDuplicateFiles()` | `go/dedup/dedup:40` | FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 |
+| `CountDuplicates()` | `go/dedup/dedup:144` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） |
+| `CleanEmptyDirs()` | `go/dedup/dedup:209` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
+| `FileEntry()` | `go/dedup/dedup:24` | FileEntry 文件条目 |
+| `Group()` | `go/dedup/dedup:32` | Group 重复文件分组 |
 
 ## Go·下载
 
@@ -1190,8 +1190,8 @@
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
-| `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:26` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:33` | — |
+| `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:36` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:43` | — |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:26` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:107` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:235` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
@@ -1211,7 +1211,7 @@
 | `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:93` | 构建统计卡片（含作者列表） |
 | `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:142` | 构建导出骨骼名按钮行 |
 | `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:175` | 截图保存内部逻辑（供 3D overlay 使用） |
-| `build3DOverlay()` | `frontend/src/views/app-preview/skeleton-render:211` | 构建 3D overlay 完整 DOM 结构 返回所有关键节点引用及 state holder |
+| `build3DOverlay()` | `frontend/src/views/app-preview/skeleton-render:212` | 构建 3D overlay 完整 DOM 结构 返回所有关键节点引用及 state holder |
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
