@@ -187,6 +187,9 @@ export function gbkDecodeEntry(m: ZipEntryMeta): { realName: string; fflateKey: 
  * （go/importer/importer_file.go:122-151）。
  * 只读 local file header 区（每 entry 约 30+nameLen 字节），
  * 不读压缩数据，O(n) 遍历 local headers 即可。
+ *
+ * ⚠️ 当前无生产消费方：web-fs.ts 导入流程按调用方传入的 type 入库，
+ * 不依赖本函数。保留用于与 Go 的 1:1 契约测试，及未来网页版 .zip 类型路由场景。
  */
 export function detectZipType(data: Uint8Array): ZipType {
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);

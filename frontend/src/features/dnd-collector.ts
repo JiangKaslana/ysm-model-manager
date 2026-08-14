@@ -57,6 +57,9 @@ export async function collectFiles(
           if (timer) clearTimeout(timer);
           resolve(v);
         };
+        // 兜底定时器：先武装再调 readEntries，防 readEntries 同步回调 done 时 timer 仍为
+        // undefined（clearTimeout 空操作）→ 3s 兜底定时器滞留为 no-op（codereview P3）
+        timer = setTimeout(() => done([]), READ_ENTRIES_TIMEOUT);
         reader.readEntries(
           (entries) => done(entries || []),
           () => {
@@ -64,8 +67,6 @@ export async function collectFiles(
             done([]);
           },
         );
-        // 兜底定时器：settle 后由 done 清理；readEntries 永不回调时兜住 WebView2
-        timer = setTimeout(() => done([]), READ_ENTRIES_TIMEOUT);
       });
       if (batch.length && depth < MAX_DEPTH) {
         const deeper = await collectFiles(batch, true, subPath, depth + 1);

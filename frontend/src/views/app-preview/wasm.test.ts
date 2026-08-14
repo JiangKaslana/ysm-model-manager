@@ -141,3 +141,107 @@ describe("decodeYsmViaWasm 并发去重", () => {
     expect(memfsMock).toHaveBeenCalledTimes(1); // 回退链触发 MEMFS
   });
 });
+
+describe("decodeYsmViaWasm .json 路径几何合并（ysm.json spec 格式）", () => {
+  const encoder = new TextEncoder();
+
+  /** 构造一个含 bones 的 minecraft:geometry JSON，返回 base64 编码 */
+  function geoB64(boneName: string, cubeCount: number = 1): string {
+    const cubes = Array.from({ length: cubeCount }, (_, i) => ({
+      origin: [i, 0, 0], size: [1, 1, 1], uv: [0, 0],
+    }));
+    const geo = JSON.stringify({
+      format_version: "1.16.0",
+      "minecraft:geometry": [{
+        description: { identifier: `geometry.${boneName}` },
+        bones: [{ name: boneName, cubes }],
+      }],
+    });
+    // JSON 全 ASCII，TextDecoder 安全
+    return btoa(new TextDecoder().decode(encoder.encode(geo)));
+  }
+
+  /** 构造一个最简 PNG（8x8）的 base64 */
+  function pngB64(): string {
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0xAD, 0x6E, 0x96,
+      0x9D, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+      0x54, 0x08, 0xD7, 0x63, 0xF8, 0xFF, 0xFF, 0xFF,
+      0x00, 0x05, 0xFE, 0x02, 0xFB, 0xA0, 0x32, 0x00,
+      0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+      0x42, 0x60, 0x82,
+    ]);
+    // 二进制 → base64（不可经 TextDecoder，含 >127 字节）
+    let binary = "";
+    for (let i = 0; i < png.length; i++) binary += String.fromCharCode(png[i]);
+    return btoa(binary);
+  }
+
+  it(".json 路径读取 modelFiles + texFiles 合并几何", async () => {
+    // 构造 ysm.json spec 格式，含 modelFiles=[main.json] 和 texFiles=[{uv:"body.png"}]
+    const ysmJson = {
+      spec: { version: "1.0.0" },
+      files: { player: { model: "main.json", texture: "body.png" } },
+      metadata: { authors: [] },
+      properties: { texture_width: 64, texture_height: 64 },
+      minecraft: { geometry: [] },
+    };
+
+    const ysmJsonB64 = btoa(new TextDecoder().decode(encoder.encode(JSON.stringify(ysmJson))));
+    const modelJsonB64 = geoB64("root", 2); // 2 cubes → boneCount=1, cubeCount=2
+    const texB64 = pngB64();
+
+    // ReadFileBytes 需返回 base64：ysm.json 本体、modelFiles、texFiles
+    const calls = new Map<string, string>();
+    calls.set("/repo/ysm.json", ysmJsonB64);
+    calls.set("/repo/models/main.json", modelJsonB64);
+    calls.set("/repo/main.json", modelJsonB64); // 兜底路径
+    calls.set("/repo/textures/body.png", texB64);
+    calls.set("/repo/avatar/sdf", "");
+
+    readFileBytesMock.mockImplementation(async (path: string) => {
+      return calls.get(path) || null;
+    });
+
+    const result = await decodeYsmViaWasm("/repo/ysm.json");
+    expect(result).not.toBeNull();
+    // 合并后骨骼数 = 1（modelFiles 中只有 main.json）
+    expect(result?.geometry?.bones?.length).toBe(1);
+    // 骨名 "root" 带 _texWidth/_texHeight
+    expect(result?.geometry?.bones?.[0]?._texWidth).toBeGreaterThan(0);
+    // cubeCount = 2（main.json 中有 2 个 cube）
+    expect(result?.geometry?.cubeCount).toBe(2);
+    // boneCount = 1
+    expect(result?.geometry?.boneCount).toBe(1);
+    // 纹理已加载
+    expect(result?.geometry?.textures?.length).toBe(1);
+  });
+
+  it(".json 路径 modelFiles 不存在时走原始解析（不合并）", async () => {
+    // 构造 minecraft:geometry 格式 JSON（非 ysm.json spec），parseYsmJsonDirect 走第 2 分支，返回无 _ysmMeta
+    // 注意：parseYsmJsonDirect 检查 obj.minecraft.geometry[0]，需用嵌套结构
+    const directJson = JSON.stringify({
+      format_version: "1.16.0",
+      minecraft: {
+        geometry: [{
+          description: { identifier: "geometry.direct" },
+          bones: [{ name: "direct", cubes: [{ origin: [0, 0, 0], size: [2, 2, 2] }] }],
+        }],
+      },
+    });
+    const b64 = btoa(new TextDecoder().decode(encoder.encode(directJson)));
+
+    readFileBytesMock.mockResolvedValue(b64);
+    const result = await decodeYsmViaWasm("/repo/direct.json");
+    expect(result).not.toBeNull();
+    // minecraft:geometry 格式：直接解析，不触发合并
+    expect(result?.geometry?.bones?.length).toBe(1);
+    expect(result?.geometry?.bones?.[0]?.name).toBe("direct");
+    expect(result?.geometry?.boneCount).toBe(1);
+    // 无 _ysmMeta 时不读 modelFiles
+    expect(readFileBytesMock).toHaveBeenCalledTimes(1); // 只读 JSON 本体
+  });
+});

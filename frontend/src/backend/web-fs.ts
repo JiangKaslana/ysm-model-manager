@@ -535,6 +535,8 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
         const { realName } = gbkDecodeEntry(m);
         if (!realName || realName.endsWith("/")) continue;
         // webkitRelativePath：有公共前缀则保留原样；扁平 zip 用 zipStem 作公共前缀
+        // slice() 两用：① TS 泛型 Uint8Array<ArrayBufferLike>→Uint8Array<ArrayBuffer> 过 BlobPart 类型关；
+        // ② 隔离 entries[m.fflateKey] 底层 buffer，防 File 与 entries 共享后被改写（内容竞态）
         const wf = new File([raw.slice()], realName.split("/").pop() || realName, {
           type: "application/octet-stream",
         });
@@ -543,6 +545,11 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
         any = true;
       }
       if (!any) out.push(f); // 解压空/无有效文件 → 保留原 zip
+      // GBK 中文名降级提示：gpf 未设时 fflateKey 为 Latin-1 乱码，
+      // 前端无 GBK 码表无法解码真名——仅 dev 日志，用户端用 modelPath 不影响预览
+      if (metas.length > 0 && metas.some((m) => !m.gpfUtf8)) {
+        console.warn("[web] ZIP 含非 UTF-8 文件名（可能为 GBK），解压后文件名以 fflateKey 原值入库（中文可能乱码）");
+      }
     } catch {
       out.push(f); // 解压失败 → 降级为整体入库，不阻断
     }

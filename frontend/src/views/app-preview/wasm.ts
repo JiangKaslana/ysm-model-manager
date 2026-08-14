@@ -205,8 +205,20 @@ export async function doDecodeYsmViaWasm(
             if (allBones.length > 0 && result.geometry) {
               // 合并骨骼：每个 bone 补 _texWidth/_texHeight
               const geo = result.geometry;
-              const boneTexW = Math.max(maxTexW, geo.texWidth) || 64;
-              const boneTexH = Math.max(maxTexH, geo.texHeight) || 64;
+              // 计算 UV 最大范围（与 .ysm WASM 路径 boneTexW 一致，见 wasm.ts:547-583）
+              let uvMaxW = 2,
+                uvMaxH = 2;
+              for (const b of allBones) {
+                for (const c of b.cubes || []) {
+                  if (Array.isArray(c.uv) && c.uv.length >= 2) {
+                    const [u, v] = c.uv;
+                    if (u > uvMaxW) uvMaxW = u;
+                    if (v > uvMaxH) uvMaxH = v;
+                  }
+                }
+              }
+              const boneTexW = Math.max(maxTexW, geo.texWidth, uvMaxW) || 64;
+              const boneTexH = Math.max(maxTexH, geo.texHeight, uvMaxH) || 64;
               for (const b of allBones) {
                 b._texWidth = boneTexW;
                 b._texHeight = boneTexH;

@@ -312,6 +312,117 @@ describe("extractZip", () => {
 
     expect(() => extractZip(zip)).toThrow("解压后总大小");
   });
+  it("UTF-8 中文文件名 → parseZipCentralDir 正确解码", () => {
+    // 构造含 UTF-8 中文文件名 "模型.json" 的 ZIP（gpf bit 11 设）
+    const utf8Name = new TextEncoder().encode("模型.json");
+    const data = new Uint8Array([0x7b, 0x7d]);
+
+    // LFH
+    const lfh = new Uint8Array(30);
+    const lfhDv = new DataView(lfh.buffer);
+    lfhDv.setUint32(0, 0x04034b50, true);
+    lfhDv.setUint16(6, 0x800, true); // gpf: UTF-8 flag
+    lfhDv.setUint16(8, 0, true); // STORE
+    lfhDv.setUint32(18, data.length, true);
+    lfhDv.setUint32(22, data.length, true);
+    lfhDv.setUint16(26, utf8Name.length, true);
+
+    // CDE
+    const cde = new Uint8Array(46);
+    const cdeDv = new DataView(cde.buffer);
+    cdeDv.setUint32(0, 0x02014b50, true);
+    cdeDv.setUint16(8, 0x800, true); // gpf: UTF-8
+    cdeDv.setUint16(10, 0, true); // STORE
+    cdeDv.setUint32(20, data.length, true);
+    cdeDv.setUint32(24, data.length, true);
+    cdeDv.setUint16(28, utf8Name.length, true);
+
+    // EOCD
+    const eocd = new Uint8Array(22);
+    const eocdDv = new DataView(eocd.buffer);
+    eocdDv.setUint32(0, 0x06054b50, true);
+    eocdDv.setUint16(8, 1, true);
+    eocdDv.setUint16(10, 1, true);
+    eocdDv.setUint32(12, 46 + utf8Name.length, true);
+    eocdDv.setUint32(16, 30 + utf8Name.length + data.length, true);
+
+    const total = 30 + utf8Name.length + data.length + 46 + utf8Name.length + 22;
+    const zip = new Uint8Array(total);
+    let off = 0;
+    zip.set(lfh, off); off += 30;
+    zip.set(utf8Name, off); off += utf8Name.length;
+    zip.set(data, off); off += data.length;
+    zip.set(cde, off); off += 46;
+    zip.set(utf8Name, off); off += utf8Name.length;
+    zip.set(eocd, off);
+
+    const metas = parseZipCentralDir(zip);
+    expect(metas).toHaveLength(1);
+    expect(metas[0].fflateKey).toBe("模型.json");
+    expect(metas[0].gpfUtf8).toBe(true);
+    expect(metas[0].nameBytes).toEqual(utf8Name);
+  });
+
+  it("ZIP64：CD 偏移 0xFFFFFFFF → 降级返回空数组", () => {
+    // 构造 EOCD 中 centralDirOffset=0xFFFFFFFF（ZIP64 标记）
+    // parseZipCentralDir 读到该值后判断 centralDirOffset >= data.length → 返回 []
+    const eocd = new Uint8Array(22);
+    const dv = new DataView(eocd.buffer);
+    dv.setUint32(0, 0x06054b50, true);
+    dv.setUint16(10, 1, true);
+    dv.setUint32(16, 0xFFFFFFFF, true);
+    const result = parseZipCentralDir(eocd);
+    expect(result).toHaveLength(0);
+  });
+
+  it("ZIP 炸弹防护：条目数超限（构造 10001 个 entry 的合法 ZIP）", () => {
+    // 构造 10001 个 STORE entry 的合法 ZIP，触发条目数上限
+    const nameBytes = new Uint8Array([0x78]); // "x"
+    const data = new Uint8Array([0x01]);
+    const entryCount = 10001;
+
+    const lfh = new Uint8Array(30);
+    const lfhDv = new DataView(lfh.buffer);
+    lfhDv.setUint32(0, 0x04034b50, true);
+    lfhDv.setUint16(8, 0, true); // STORE
+    lfhDv.setUint32(18, 1, true);
+    lfhDv.setUint32(22, 1, true);
+    lfhDv.setUint16(26, 1, true);
+
+    const cde = new Uint8Array(46);
+    const cdeDv = new DataView(cde.buffer);
+    cdeDv.setUint32(0, 0x02014b50, true);
+    cdeDv.setUint16(10, 0, true);
+    cdeDv.setUint32(20, 1, true);
+    cdeDv.setUint32(24, 1, true);
+    cdeDv.setUint16(28, 1, true);
+
+    const lfhSize = 30 + 1 + 1; // LFH + name + data
+    const cdeSize = 46 + 1; // CDE + name
+    const cdeStart = entryCount * lfhSize;
+    const cdeLength = entryCount * cdeSize;
+    const total = cdeStart + cdeLength + 22;
+    const zip = new Uint8Array(total);
+    let off = 0;
+    for (let i = 0; i < entryCount; i++) {
+      zip.set(lfh, off); off += 30;
+      zip.set(nameBytes, off); off += 1;
+      zip.set(data, off); off += 1;
+    }
+    for (let i = 0; i < entryCount; i++) {
+      zip.set(cde, off); off += 46;
+      zip.set(nameBytes, off); off += 1;
+    }
+    const eocd = new Uint8Array(22);
+    const eocdDv = new DataView(eocd.buffer);
+    eocdDv.setUint32(0, 0x06054b50, true);
+    eocdDv.setUint16(10, entryCount, true);
+    eocdDv.setUint32(12, cdeLength, true);
+    eocdDv.setUint32(16, cdeStart, true);
+    zip.set(eocd, off);
+
+    expect(() => extractZip(zip)).toThrow("条目数");
+  });
 });
 
 // --- gbkDecodeEntry ---
