@@ -13,3 +13,80 @@
   --vp-font-family-base: 'Inter', 'Source Han Sans SC', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
   --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
 }
+
+/* ===== 细边框润色（P1 · 借鉴 Reasonix 的 --line 细描边语言）=====
+ * 复用 VitePress 自带令牌（--vp-c-divider / --vp-c-border / --vp-c-bg-soft），
+ * 明暗主题自动和谐，不引入新颜色、不破坏默认布局与组件结构。
+ * 三级圆角：大卡片 12px / 小卡片·按钮 9px / 徽章 5px。 */
+
+/* 顶部导航：滚动后底部加 1px 细线（对标 reasonix 的 box-shadow:0 1px 0 var(--line)） */
+.VPNavBar:not(.home).has-sidebar,
+.VPNavBar:not(.home):not(.has-sidebar) {
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+/* 文档主卡片区块（自定义容器、首页特性卡）加细描边 */
+.vp-doc .custom-block,
+.VPHero .VPImage,
+.VPFeatures .VPFeature,
+.vp-doc .contains-task-list,
+.vp-doc .table-of-contents,
+.aside .vp-doc-on-this-page {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+.vp-doc .custom-block {
+  padding: 16px 20px;
+  background-color: var(--vp-c-bg-soft);
+}
+
+/* 提示框（tip/warning/danger）沿用细描边，仅左侧强调色保留 */
+.vp-doc .custom-block.tip,
+.vp-doc .custom-block.warning,
+.vp-doc .custom-block.danger,
+.vp-doc .custom-block.info {
+  border-left-width: 1px;
+}
+
+/* 代码块：外圈 1px 细线（对标 reasonix 的 inset 0 0 0 1px var(--line)） */
+.vp-doc div[class*='language-'] {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+/* 行内代码：细描边 + 圆角（默认仅底色，缺边框） */
+.vp-doc :not(pre) > code {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  padding: 1px 5px;
+  background-color: var(--vp-c-bg-soft);
+}
+
+/* 表格：表头底部细线 + 单元格细线（对标 reasonix 的分隔线语言） */
+.vp-doc table {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.vp-doc th,
+.vp-doc td {
+  border: 1px solid var(--vp-c-divider);
+}
+.vp-doc thead th {
+  background-color: var(--vp-c-bg-soft);
+}
+
+/* 徽章 / 标签（如 ADR 状态、文档分类）细描边圆角 */
+.vp-doc .badge,
+.badge,
+.vp-tag {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+}
+
+/* 侧边栏分组、页脚分隔细线强化（复用 divider，不新增值） */
+.VPSidebarGroup,
+.VPDocFooter {
+  border-color: var(--vp-c-divider);
+}

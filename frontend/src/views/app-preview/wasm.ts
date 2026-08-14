@@ -205,7 +205,10 @@ export async function doDecodeYsmViaWasm(
             if (allBones.length > 0 && result.geometry) {
               // 合并骨骼：每个 bone 补 _texWidth/_texHeight
               const geo = result.geometry;
-              // 计算 UV 最大范围（与 .ysm WASM 路径 boneTexW 一致，见 wasm.ts:547-583）
+              // 合并骨骼路径的 UV 范围估算：与 processModelFile 的 boneTexW 计算同源，
+              // 但此处为简化版——仅取 c.uv 的 max(u,v) 兜底，未含 cube.size 2×偏移与
+              // faceUV/uv_size 分面计算（processModelFile 内为完整口径，见其函数体）。
+              // 这里是多模型合并的兜底估算，取 max 与原值取大即可，无需精确边界。
               let uvMaxW = 2,
                 uvMaxH = 2;
               for (const b of allBones) {
