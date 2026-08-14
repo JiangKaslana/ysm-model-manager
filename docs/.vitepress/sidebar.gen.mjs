@@ -4,119 +4,155 @@ export const autoSidebar = [
   {
     "text": "用户指南",
     "link": "/guide/",
-    "collapsed": true,
+    "collapsed": false,
     "items": [
       {
-        "text": "3D 与 2D 预览",
-        "link": "/guide/3d-preview"
+        "text": "🚀 入门",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "下载与安装",
+            "link": "/guide/install"
+          },
+          {
+            "text": "首次配置",
+            "link": "/guide/first-setup"
+          }
+        ]
       },
       {
-        "text": "YSM 模型管理器 — 项目意义",
-        "link": "/guide/项目意义"
+        "text": "📚 核心功能",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "模型仓库",
+            "link": "/guide/repository"
+          },
+          {
+            "text": "模型导入",
+            "link": "/guide/import-model"
+          },
+          {
+            "text": "导入队列与命名表单",
+            "link": "/guide/import-queue"
+          },
+          {
+            "text": "3D 与 2D 预览",
+            "link": "/guide/3d-preview"
+          },
+          {
+            "text": "整合包同步",
+            "link": "/guide/pack-sync"
+          },
+          {
+            "text": "资源包管理",
+            "link": "/guide/resource-packs"
+          },
+          {
+            "text": "创作者频道",
+            "link": "/guide/creators"
+          },
+          {
+            "text": "创意工坊",
+            "link": "/guide/workshop"
+          },
+          {
+            "text": "下载队列",
+            "link": "/guide/download-queue"
+          },
+          {
+            "text": "整合包蓝图预览",
+            "link": "/guide/blueprint-preview"
+          }
+        ]
       },
       {
-        "text": "🧱 YSM 模型管理器 — 用户指南",
-        "link": "/guide/用户指南"
+        "text": "🧹 整理与维护",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "标签管理",
+            "link": "/guide/tags"
+          },
+          {
+            "text": "批量重命名",
+            "link": "/guide/batch-rename"
+          },
+          {
+            "text": "模型去重",
+            "link": "/guide/model-dedup"
+          },
+          {
+            "text": "仓库健康度",
+            "link": "/guide/repo-health"
+          },
+          {
+            "text": "仓库元老",
+            "link": "/guide/oldest-models"
+          },
+          {
+            "text": "回收站",
+            "link": "/guide/recycle-bin"
+          }
+        ]
       },
       {
-        "text": "高级筛选",
-        "link": "/guide/advanced-filter"
+        "text": "⚙️ 设置与体验",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "设置",
+            "link": "/guide/settings"
+          },
+          {
+            "text": "主题外观",
+            "link": "/guide/themes"
+          },
+          {
+            "text": "高级筛选",
+            "link": "/guide/advanced-filter"
+          },
+          {
+            "text": "键盘快捷键",
+            "link": "/guide/keyboard-shortcuts"
+          },
+          {
+            "text": "版本更新",
+            "link": "/guide/update"
+          },
+          {
+            "text": "备份与迁移",
+            "link": "/guide/backup-migration"
+          }
+        ]
       },
       {
-        "text": "备份与迁移",
-        "link": "/guide/backup-migration"
+        "text": "🩺 疑难排查",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "常见问题（FAQ）",
+            "link": "/guide/faq"
+          },
+          {
+            "text": "诊断与去重",
+            "link": "/guide/diagnostics"
+          }
+        ]
       },
       {
-        "text": "批量重命名",
-        "link": "/guide/batch-rename"
-      },
-      {
-        "text": "整合包蓝图预览",
-        "link": "/guide/blueprint-preview"
-      },
-      {
-        "text": "创作者频道",
-        "link": "/guide/creators"
-      },
-      {
-        "text": "诊断与去重",
-        "link": "/guide/diagnostics"
-      },
-      {
-        "text": "下载队列",
-        "link": "/guide/download-queue"
-      },
-      {
-        "text": "常见问题（FAQ）",
-        "link": "/guide/faq"
-      },
-      {
-        "text": "首次配置",
-        "link": "/guide/first-setup"
-      },
-      {
-        "text": "模型导入",
-        "link": "/guide/import-model"
-      },
-      {
-        "text": "导入队列与命名表单",
-        "link": "/guide/import-queue"
-      },
-      {
-        "text": "下载与安装",
-        "link": "/guide/install"
-      },
-      {
-        "text": "键盘快捷键",
-        "link": "/guide/keyboard-shortcuts"
-      },
-      {
-        "text": "模型去重",
-        "link": "/guide/model-dedup"
-      },
-      {
-        "text": "仓库元老",
-        "link": "/guide/oldest-models"
-      },
-      {
-        "text": "整合包同步",
-        "link": "/guide/pack-sync"
-      },
-      {
-        "text": "回收站",
-        "link": "/guide/recycle-bin"
-      },
-      {
-        "text": "仓库健康度",
-        "link": "/guide/repo-health"
-      },
-      {
-        "text": "模型仓库",
-        "link": "/guide/repository"
-      },
-      {
-        "text": "资源包管理",
-        "link": "/guide/resource-packs"
-      },
-      {
-        "text": "设置",
-        "link": "/guide/settings"
-      },
-      {
-        "text": "标签管理",
-        "link": "/guide/tags"
-      },
-      {
-        "text": "主题外观",
-        "link": "/guide/themes"
-      },
-      {
-        "text": "版本更新",
-        "link": "/guide/update"
-      },
-      {
-        "text": "创意工坊",
-        "link": "/guide/workshop"
+        "text": "其他",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "YSM 模型管理器 — 项目意义",
+            "link": "/guide/项目意义"
+          },
+          {
+            "text": "🧱 YSM 模型管理器 — 用户指南",
+            "link": "/guide/用户指南"
+          }
+        ]
       }
     ]
   },

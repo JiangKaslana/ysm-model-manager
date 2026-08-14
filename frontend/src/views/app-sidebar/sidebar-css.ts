@@ -19,12 +19,12 @@ export const sidebarCSS: string = `
   padding: 5px 10px; cursor: pointer; transition: background var(--tr-fast);
 }
 .vc-header:hover { background: var(--hover); }
-/* 高亮对齐导航栏选中态口径：--act 主题变量背景（各主题预置，随主题适配）+ 指示边框，文字保持 --txt */
-.vc-header.active { background: var(--act); border-left: 3px solid var(--menu-indicator, var(--accent)); padding-left: 7px; }
+/* 高亮对齐导航栏选中态口径：--hover 淡底（与文件树悬停同口径，亮色主题不加深）+ 指示边框，文字保持 --txt */
+.vc-header.active { background: var(--hover); border-left: 3px solid var(--menu-indicator, var(--accent)); padding-left: 7px; }
 .vc-header.active .name { color: var(--txt); }
-/* 涟漪选中效果 */
+/* 涟漪选中效果：与选中底同口径（--hover），避免 accent 强调色 */
 .vc-header { position: relative; overflow: hidden; }
-.vc-header::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), var(--act) 0%, transparent 70%); opacity: 0; transition: opacity .4s; pointer-events: none; }
+.vc-header::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), var(--hover) 0%, transparent 70%); opacity: 0; transition: opacity .4s; pointer-events: none; }
 .vc-header.ripple::after { opacity: 0.12; }
 /* 交错瀑布流入场动画 */
 .vc { animation: fadeSlideLeft .35s cubic-bezier(.34,1.56,.64,1) both; }
