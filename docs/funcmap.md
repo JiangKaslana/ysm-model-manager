@@ -31,7 +31,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
-| Go(internal)·应用入口 | 22 | 181 |
+| Go(internal)·应用入口 | 22 | 179 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 9 | 56 |
 | 前端·核心 | 17 | 43 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 53 | 193 |
 | frontend/views | 79 | 211 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **266** | **1104** |
+| **合计** | **266** | **1102** |
 
 ## Go·头像
 
@@ -451,15 +451,13 @@
 | `App.GetSubDirMap()` | `internal/app/app_config:257` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
 | `App.CurrentVersion()` | `internal/app/app_config:261` | — |
 | `App.CheckUpdate()` | `internal/app/app_config:263` | — |
-| `App.DownloadUpdate()` | `internal/app/app_config:267` | — |
-| `App.ApplyUpdate()` | `internal/app/app_config:274` | — |
-| `App.DoUpdate()` | `internal/app/app_config:312` | — |
-| `App.RestartApplication()` | `internal/app/app_config:330` | — |
-| `App.SaveWindowPosition()` | `internal/app/app_config:365` | — |
-| `App.GetWindowPosition()` | `internal/app/app_config:379` | — |
-| `App.SelectDirectory()` | `internal/app/app_config:412` | ========== 目录选择 ========== |
-| `App.GetMinecraftPaths()` | `internal/app/app_config:475` | — |
-| `App.ValidateMinecraftDir()` | `internal/app/app_config:477` | — |
+| `App.DoUpdate()` | `internal/app/app_config:290` | — |
+| `App.RestartApplication()` | `internal/app/app_config:308` | — |
+| `App.SaveWindowPosition()` | `internal/app/app_config:343` | — |
+| `App.GetWindowPosition()` | `internal/app/app_config:357` | — |
+| `App.SelectDirectory()` | `internal/app/app_config:390` | ========== 目录选择 ========== |
+| `App.GetMinecraftPaths()` | `internal/app/app_config:453` | — |
+| `App.ValidateMinecraftDir()` | `internal/app/app_config:455` | — |
 | `NewDownloadQueue()` | `internal/app/app_download:51` | NewDownloadQueue 创建串行下载队列（回调由 App 初始化时注入） |
 | `App.EnqueueDownloads()` | `internal/app/app_download:56` | — |
 | `App.CancelQueue()` | `internal/app/app_download:86` | — |
