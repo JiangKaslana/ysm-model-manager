@@ -72,7 +72,8 @@ export function parseZipCentralDir(data: Uint8Array): ZipEntryMeta[] {
     }
     eocd--;
   }
-  if (dv.getUint32(eocd, true) !== EOCD_SIG) {
+  // 未找到 EOCD：eocd 已递减到 searchStart 以下（甚至 -1），dv 读取抛 RangeError → 提前返回
+  if (eocd < searchStart || dv.getUint32(eocd, true) !== EOCD_SIG) {
     return metas; // 非标准 ZIP，无中央目录
   }
 

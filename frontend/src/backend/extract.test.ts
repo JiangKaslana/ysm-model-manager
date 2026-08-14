@@ -221,9 +221,28 @@ describe("parseZipCentralDir", () => {
     expect(metas[2].fflateKey).toBe("textures/skin.png");
   });
 
-  it("无效 ZIP → 空数组", () => {
+  it("无效 ZIP → 空数组（过短）", () => {
     const metas = parseZipCentralDir(new Uint8Array([0, 1, 2, 3]));
     expect(metas).toHaveLength(0);
+  });
+
+  it("无效 ZIP → 空数组（≥22B 但无 EOCD 签名，不抛 RangeError）", () => {
+    // 60000 字节的垃圾数据，无 0x06054b50 签名 → eocd 递减到 searchStart 以下
+    // 修复前：dv.getUint32(-1) 抛 RangeError；修复后：提前返回空数组
+    const garbage = new Uint8Array(60000);
+    for (let i = 0; i < 60000; i++) garbage[i] = i & 0xff;
+    const metas = parseZipCentralDir(garbage);
+    expect(metas).toHaveLength(0);
+  });
+
+  it("detectZipType 非 LFH 魔数 → break 终止循环", () => {
+    // 构造含非 LFH 魔数的数据：PK\x03\x04 后跟着垃圾字节，第二次读取时签名不匹配
+    const data = new Uint8Array(60);
+    data[0] = 0x50; data[1] = 0x4b; data[2] = 0x03; data[3] = 0x04;
+    // local file header 需要 30 字节 + 文件名，这里故意不填全，第 4 字节后直接垃圾
+    for (let i = 4; i < 60; i++) data[i] = 0xff;
+    // 第一个 LFH 签名有效，读取 nameLen(0xff00) 后发现 nameStart+nameLen 超出范围 → break
+    expect(detectZipType(data)).toBe("ysm");
   });
 });
 

@@ -489,6 +489,21 @@ export async function collectAllWebEntries(): Promise<ModelEntry[]> {
  */
 
 /**
+ * 检测 ZIP entries 是否共享公共顶层目录。
+ * 例：["狐狸/ysm.json", "狐狸/models/main.json"] → "狐狸"
+ *     ["ysm.json", "models/main.json"] → null（扁平，无公共顶层）
+ */
+function findCommonTopDir(metas: Array<{ fflateKey: string }>): string | null {
+  const firstDir = metas[0]?.fflateKey.split("/")[0];
+  if (!firstDir) return null;
+  for (const m of metas) {
+    const d = m.fflateKey.split("/")[0];
+    if (d !== firstDir) return null;
+  }
+  return firstDir;
+}
+
+/**
  * R2 导入增强：把输入里的 .zip 文件解压展平成目录文件，返回新的 File[]。
  * - .zip → extractZip 解出 entries（带相对路径），转成带 webkitRelativePath 的 File[]，
  *   复用文件夹拖入的「同 stem 分组 + 主文件目录收敛」语义，rel 保留子目录层级
@@ -509,19 +524,22 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
         out.push(f);
         continue;
       }
+      // 检测 zip 内是否有公共顶层目录（如 "狐狸/ysm.json" → 公共前缀 "狐狸/"）
+      // 扁平 zip（"ysm.json" + "models/main.json"）无公共前缀 → 用 zipStem 防碎片化
+      const topLevelDir = findCommonTopDir(metas);
+      const prefix = topLevelDir ? "" : f.name.replace(/\.(zip|7z)$/i, "");
       let any = false;
       for (const m of metas) {
         const raw = entries[m.fflateKey];
         if (!raw) continue;
-        // gbkDecodeEntry 还原中文名（gpfUtf8 时即真名）；防目录项（名以 / 结尾）
         const { realName } = gbkDecodeEntry(m);
         if (!realName || realName.endsWith("/")) continue;
-        // webkitRelativePath = zip 内相对路径（含子目录），供既有分组逻辑消费
-        const nf = new File([raw.slice()], realName.split("/").pop() || realName, {
+        // webkitRelativePath：有公共前缀则保留原样；扁平 zip 用 zipStem 作公共前缀
+        const wf = new File([raw.slice()], realName.split("/").pop() || realName, {
           type: "application/octet-stream",
         });
-        Object.defineProperty(nf, "webkitRelativePath", { value: realName });
-        out.push(nf);
+        Object.defineProperty(wf, "webkitRelativePath", { value: prefix ? `${prefix}/${realName}` : realName });
+        out.push(wf);
         any = true;
       }
       if (!any) out.push(f); // 解压空/无有效文件 → 保留原 zip

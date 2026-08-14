@@ -224,7 +224,7 @@ export async function doDecodeYsmViaWasm(
                 textureNames: texKeys,
               };
               if (firstGeoRaw) {
-                (result as { geometryRaw?: string }).geometryRaw = firstGeoRaw;
+                result.geometryRaw = firstGeoRaw;
               }
             }
           } catch (e) {

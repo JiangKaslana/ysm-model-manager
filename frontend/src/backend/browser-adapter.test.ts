@@ -249,6 +249,25 @@ describe("importWebFiles — Phase 2 数据层", () => {
     expect(idbMock._store.has("file:ysm/坏/坏.zip")).toBe(true);
   });
 
+   it("R2 导入增强：扁平 .zip 无顶层目录 → zipStem 防碎片化（Blockbench 导出形态）", async () => {
+    // 扁平 zip：ysm.json 在根目录，无公共顶层目录
+    // 无此修复：ysm.json → group "ysm"，models/main.json → group "models"，
+    //           textures/skin.png → group "textures" → 三组碎片化，坏模型 + 假失败
+    const zipBytes = zipSync({
+      "ysm.json": strToU8("{}"),
+      "models/main.json": strToU8("{\"bones\":[]}"),
+      "textures/skin.png": strToU8("PNG"),
+    });
+    const zipFile = new File([zipBytes], "角色.zip");
+    const r = await importWebFiles([zipFile], "ysm");
+    // 所有 entry 归入同一组（组名 = zipStem "角色"）
+    expect(r).toEqual({ imported: 1, failed: 0 });
+    expect(idbMock._store.has("dir:ysm/角色:")).toBe(true);
+    expect(idbMock._store.has("file:ysm/角色/ysm.json")).toBe(true);
+    expect(idbMock._store.has("file:ysm/角色/models/main.json")).toBe(true);
+    expect(idbMock._store.has("file:ysm/角色/textures/skin.png")).toBe(true);
+  });
+
   it("ysm.json 可作主文件（桌面 IsYsmEntryJSON 白名单）；Ext 小写化 + 无点号保护", async () => {
     await importWebFiles([new File([enc.encode("{}")], "ysm.json")], "ysm");
     const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Name: string; Ext: string }>;

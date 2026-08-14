@@ -126,8 +126,8 @@ export async function loadModelData(
     }
   }
 
-  // 作者/头像兜底补全（覆盖 .zip 等非 WASM 格式 + .ysm 裸文件名头像缺失）
-  // - .zip 被 isWasmCapable 排除，Go AnalyzeBedrockModel 不返回 authors → 用 ExtractYsmSummary 补齐
+  // 作者/头像兜底补全（覆盖 .zip 解压目录 + .ysm 裸文件名头像缺失）
+  // - .zip 走 WASM 解码路径（isWasmCapable 包含 .zip），WASM 解析出的作者已挂上 model
   // - .ysm 经 WASM 解析出的头像常因 ysm.json 用裸文件名（如 "sdf"）声明而匹配失败 → 用 Go 后端兜底
   if (model) {
     if (!model._authors) model._authors = [];
