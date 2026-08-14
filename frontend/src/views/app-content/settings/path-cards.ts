@@ -259,10 +259,10 @@ export function initAdvancedGrid(
     grid.querySelectorAll(".stg-adv-set").forEach((el) => {
       el.addEventListener("click", async () => {
         const rtype = (el as HTMLElement).dataset.rtype || "";
-        // 平台分支：桌面 Wails Dialog / Android 授权检查+路径输入（ADR-046 P2）
-        const dir = await pickDirectory();
-        if (!dir) return;
         try {
+          // 平台分支：桌面 Wails Dialog / Android 授权检查+路径输入（ADR-046 P2）
+          const dir = await pickDirectory();
+          if (!dir) return;
           const { SetResourceRoot } =
             await getApp();
           await SetResourceRoot(rtype, dir);
@@ -370,11 +370,18 @@ export function initMcDetect(root: ShadowRoot): void {
   let _scanPaths: string[] | null = null;
   detectBtn?.addEventListener("pointerenter", async () => {
     if (_scanTooltip) return;
-    if (!_scanPaths) {
-      const { GetMinecraftPaths } = await getApp();
-      _scanPaths = await GetMinecraftPaths();
+    try {
+      if (!_scanPaths) {
+        const { GetMinecraftPaths } = await getApp();
+        _scanPaths = await GetMinecraftPaths();
+      }
+      _scanTooltip = showScanTooltip(root, detectBtn, _scanPaths || []);
+    } catch (e) {
+      // P3 修复（审核）：hover 预加载失败有出口——原裸 await 逸出 unhandled rejection
+      // （hover 非用户主动操作，静默降级不 toast，避免打扰）
+      console.warn("[scan-tooltip] 预加载路径失败:", e);
+      _scanPaths = [];
     }
-    _scanTooltip = showScanTooltip(root, detectBtn, _scanPaths || []);
   });
   detectBtn?.addEventListener("pointerleave", () => {
     if (_scanTooltip) {

@@ -1121,7 +1121,7 @@
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:28` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:52` | 初始化创意工坊页 |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:511` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:522` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:26` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:122` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |

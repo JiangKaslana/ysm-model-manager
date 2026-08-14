@@ -9,7 +9,7 @@ import { esc as escUtil } from "../../utils/dom/html.ts";
 import { stagger } from "../../utils/animation/stagger.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 import { getSiteIcon } from "../../utils/icon/workshop-icons.ts";
-import { loadCommunityData, fillSearch, type LocalCreator } from "./community-data.ts";
+import { loadCommunityData, fillSearch, type LocalCreator, type CommunityData } from "./community-data.ts";
 import { renderSiteView, type RenderSiteViewCtx, type RepoAuthorLike } from "./site-view.ts";
 import { countMissing, renderRepoHeaderHTML } from "../../features/community/render.ts";
 import { bindRepoEvents } from "../../features/community/events.ts";
@@ -80,9 +80,10 @@ export function initWorkshopPage(host: AppContentHost): void {
   let browseMode: BrowseMode = loadMode();
 
   // B站/爱发电 tab 点击 → 在右侧显示对应站点的创作者（不打开网站）
-  const showCreatorsBySite = async (siteType: string): Promise<void> => {
+  // data 可选：定时器首次加载复用同一份数据，避免进页双重 loadCommunityData
+  const showCreatorsBySite = async (siteType: string, data?: CommunityData): Promise<void> => {
     try {
-      const { sites, creators, authors } = await loadCommunityData();
+      const { sites, creators, authors } = data ?? (await loadCommunityData());
       allSites = sites;
       allCreators = creators;
       repoAuthors = (authors || []) as RepoAuthorLike[];
@@ -108,36 +109,46 @@ export function initWorkshopPage(host: AppContentHost): void {
   };
   // 默认显示第一个站点
   host._setWorkshopTimer(setTimeout(async () => {
-    const { sites } = await loadCommunityData();
-    allSites = sites;
-    // 动态生成 Tab
-    const tabsEl = root.getElementById("ws-tabs");
-    if (tabsEl && sites.length) {
-      tabsEl.innerHTML = "";
-      sites.forEach((s, i) => {
-        const btn = document.createElement("button");
-        btn.className = "repo-tab" + (i === 0 ? " active" : "");
-        btn.dataset.tab = s.id;
-        btn.innerHTML = getSiteIcon(s.id) + " " + escUtil(s.label);
-        btn.addEventListener("click", () => showCreatorsBySite(s.id));
-        tabsEl.appendChild(btn);
-      });
-      // 默认显示第一个
-      if (sites[0]) {
-        // 恢复上次选中的 tab
-        const last = safeGet("ysm-ws-last-tab") || sites[0].id;
-        const target = sites.find((s) => s.id === last) || sites[0];
-        showCreatorsBySite(target.id);
+    try {
+      const data = await loadCommunityData();
+      allSites = data.sites;
+      // 动态生成 Tab
+      const tabsEl = root.getElementById("ws-tabs");
+      if (tabsEl && data.sites.length) {
+        tabsEl.innerHTML = "";
+        data.sites.forEach((s, i) => {
+          const btn = document.createElement("button");
+          btn.className = "repo-tab" + (i === 0 ? " active" : "");
+          btn.dataset.tab = s.id;
+          btn.innerHTML = getSiteIcon(s.id) + " " + escUtil(s.label);
+          btn.addEventListener("click", () => showCreatorsBySite(s.id));
+          tabsEl.appendChild(btn);
+        });
+        // 默认显示第一个（复用本次已加载数据，避免 showCreatorsBySite 二次拉取）
+        if (data.sites[0]) {
+          // 恢复上次选中的 tab
+          const last = safeGet("ysm-ws-last-tab") || data.sites[0].id;
+          const target = data.sites.find((s) => s.id === last) || data.sites[0];
+          await showCreatorsBySite(target.id, data);
+        }
+      } else if (tabsEl) {
+        // 空态提示（e2e 反推）：原实现 sites 为空时永久停留 loading 占位，
+        // 加载失败/无配置用户无感知——显示「暂无数据」并允许手动导入站点配置
+        tabsEl.innerHTML =
+          '<span style="padding:4px 12px;font-size:var(--fs-sm);color:var(--muted)">' +
+          t("common.empty") +
+          " 📤 " +
+          t("workshop.exportSite") +
+          "</span>";
       }
-    } else if (tabsEl) {
-      // 空态提示（e2e 反推）：原实现 sites 为空时永久停留 loading 占位，
-      // 加载失败/无配置用户无感知——显示「暂无数据」并允许手动导入站点配置
-      tabsEl.innerHTML =
-        '<span style="padding:4px 12px;font-size:var(--fs-sm);color:var(--muted)">' +
-        t("common.empty") +
-        " 📤 " +
-        t("workshop.exportSite") +
-        "</span>";
+    } catch (e) {
+      // P3 修复（审核）：定时器回调最外层 catch 出口——原 loadCommunityData 在 try 外，
+      // getApp 失败逸出 unhandled rejection（与 showCreatorsBySite 同出口）
+      bus.emit("toast:show", {
+        msg: "❌ " + friendlyError(e, "加载社区数据失败"),
+        duration: 3000,
+        type: "error",
+      });
     }
   }, WS_TAB_LOAD_DELAY_MS));
 
