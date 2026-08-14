@@ -949,6 +949,10 @@ export const autoSidebar = [
         "collapsed": true,
         "items": [
           {
+            "text": "质量闸门双调度器重叠审计",
+            "link": "/knowledge/doctor_gate_overlap"
+          },
+          {
             "text": "Android 平台守卫（Go 侧）",
             "link": "/knowledge/go-android-platform-guard"
           },

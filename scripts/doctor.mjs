@@ -20,6 +20,7 @@ import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
 import { run as procRun } from './_lib/proc.mjs';
 import { runContractTestsParallel, collectContractTests } from './_lib/contract-tests.mjs';
+import { logPush } from './_lib/log-push.mjs';
 
 const PASS = '[OK]';
 const FAIL = '[FAIL]';
@@ -545,6 +546,7 @@ if (GATE_MODE) {
     checkStaticAnalysis();
     checkGit();
     console.log('\n========== Done ==========');
+    logPush('========== Done ==========');
     process.exit(process.exitCode ?? 0);
   }
   const localOid = oidOut.trim();
@@ -575,6 +577,7 @@ if (GATE_MODE) {
   runStaticTools(DOC_STATIC_TOOLS, 'docs');
   checkGit();
   console.log('\n========== Done (docs mode) ==========');
+  logPush('========== Done (docs mode) ==========');
 } else {
   // —— 全量模式：编译 + 构建 + 文件 + 红线 + Git ——
   console.log('========== YSM Doctor ==========');
@@ -593,6 +596,7 @@ if (GATE_MODE) {
   checkStaticAnalysis();
   checkGit();
   console.log('\n========== Done ==========');
+  logPush('========== Done ==========');
 }
 }
 

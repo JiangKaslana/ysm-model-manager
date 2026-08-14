@@ -35,6 +35,7 @@ import { ROOT } from './_lib/scan-files.mjs';
 import { run as procRun } from './_lib/proc.mjs';
 import { classify, planFromFiles } from './_lib/domain-classify.mjs';
 import { runContractTestsParallel } from './_lib/contract-tests.mjs';
+import { logPush } from './_lib/log-push.mjs';
 
 
 const B = { OK: '[OK]', FAIL: '[FAIL]', FIX: '[FIX]', SKIP: '[SKIP]' };
@@ -353,32 +354,32 @@ async function main() {
   }
 
   /* --- 聚合摘要 --- */
-  console.log('------------------- 结果 -------------------');
+  logPush('------------------- 结果 -------------------');
   for (const r of results) {
     const status = r.ok ? B.OK : B.FAIL;
-    console.log(`${status} ${r.label.padEnd(20)} ${(r.time / 1000).toFixed(1)}s  ${r.note || ''}`);
+    logPush(`${status} ${r.label.padEnd(20)} ${(r.time / 1000).toFixed(1)}s  ${r.note || ''}`);
     if (r.tail) {
-      for (const line of r.tail.split('\n')) console.log(`       ${line}`);
+      for (const line of r.tail.split('\n')) logPush(`       ${line}`);
     }
   }
-  console.log('');
+  logPush('');
   if (!results.length) {
-    console.log(`${B.SKIP} 无相关域变更（${domainSummary}），无需检查`);
+    logPush(`${B.SKIP} 无相关域变更（${domainSummary}），无需检查`);
     return 0;
   }
   if (!blocked) {
-    console.log(`结论: PASS ✅ ${dryRun ? '（DRY-RUN）' : '放行推送'} ${results.filter((r) => r.ok).length}/${results.length} 项通过`);
+    logPush(`结论: PASS ✅ ${dryRun ? '（DRY-RUN）' : '放行推送'} ${results.filter((r) => r.ok).length}/${results.length} 项通过`);
     return 0;
   }
-  console.log(`结论: FAIL ❌ ${results.filter((r) => r.ok).length}/${results.length} 项通过，推送已${dryRun ? '将被' : ''}阻断`);
+  logPush(`结论: FAIL ❌ ${results.filter((r) => r.ok).length}/${results.length} 项通过，推送已${dryRun ? '将被' : ''}阻断`);
   // 修复指引：gofmt 检出未格式化（疑似 --no-verify 绕过 pre-commit）→ 手动修复后重推
   const gofmt = results.find((r) => r.label === 'gofmt');
   let gofmtHint = '';
   if (gofmt && !gofmt.ok) {
     gofmtHint = 'gofmt 检出未格式化——gofmt -w 修复后 git add + git commit 重推。';
   }
-  console.log(`修复指引: 按上方 [FAIL] 项处理；${gofmtHint}紧急绕过: git push --no-verify`);
-  console.log(PULL_HINT);
+  logPush(`修复指引: 按上方 [FAIL] 项处理；${gofmtHint}紧急绕过: git push --no-verify`);
+  logPush(PULL_HINT);
   return 1;
 }
 
