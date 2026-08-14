@@ -123,6 +123,8 @@ ADR-053 将 `MoveModelFile` / `CopyModelFile` 归 C 类（理由：「依赖桌�
 - **风险**：存量 IDB 数据迁移兼容（`data` 版本升级 or 惰性迁移）；重命名/删除的递归联动
 
 > **落地记录（2026-08-14）**：四处约定改造完成 + `ListAllFilePaths` 桥接落地（`listWebModelDirFiles`），契约测试 73 项闭环。`ListFileNames` 属 C 类（整合包/实例 16 项，明确不做，见 §2.1）。存量 key 迁移与 SearchModels 数值条件解锁留待后续（R1 数据层主体已闭环）。
+>
+> **验收补充（R3，2026-08-14）**：**「树视图子目录可展开」已闭环验证**——链路为 web `scanWebModels` 多段组名（`Path=/web/<type>/<name>/<mainRel>`，name 含 `/`）→ loader `relPath` 多段化 → `buildTree` 按段建嵌套节点 → `flattenVisible` 递归展开（`_dirOpen` 逐层持久化）。已在 `render.test.ts` 新增 R3 块（web 多段组形态）锁定：折叠只出顶层 / 逐层展开按 depth 递归 / 组内多文件同组正确归位。R1 三验收项剩「SearchModels 数值条件」与「万级 key 性能」未闭环。
 
 ### R2 · 导入增强（数据层）✅ 已重定位 + 主体落地
 

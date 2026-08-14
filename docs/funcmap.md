@@ -660,7 +660,7 @@
 | `parseZipCentralDir()` | `frontend/src/backend/extract:61` | 解析 ZIP 中央目录，返回每个 entry 的 fflateKey + 原始文件名字节 |
 | `extractZip()` | `frontend/src/backend/extract:140` | 解压 ZIP 数据，返回 {entries, metas}。 |
 | `gbkDecodeEntry()` | `frontend/src/backend/extract:176` | 尝试 GBK 解码 fflateKey 的原始字节（当 gpf bit 11 未设时）。 |
-| `detectZipType()` | `frontend/src/backend/extract:191` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
+| `detectZipType()` | `frontend/src/backend/extract:194` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
 | `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |

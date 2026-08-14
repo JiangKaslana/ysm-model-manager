@@ -179,6 +179,92 @@ describe("flattenVisible", () => {
   });
 });
 
+// ===== R3 验收：web 多段组（P-A IDB 路径化）→ 子目录树可展开 =====
+// scanWebModels 对多段组名返回 Path=/web/<type>/<name>/<mainRel>（name 含 /），
+// loader 剪掉 /web/<type> 得到多段 relPath（分类1/狐狸/狐狸.ysm），buildTree 按段
+// 建嵌套节点、flattenVisible 递归展开——本组用例锁定「树视图子目录可展开」闭环。
+describe("R3 子目录展开（web 多段组形态）", () => {
+  beforeEach(() => {
+    selectState.keys.clear();
+    selectState.lastKey = null;
+  });
+
+  // 模拟 loader 对 web entry 的 relPath 计算结果（多段组名 + 组内主文件）
+  function webEntry(mainRel: string, grpPath: string): TreeEntry {
+    const rel = grpPath.replace(/^\//, "");
+    return entry(mainRel, `${rel}/${mainRel}`, 10, 1, `${grpPath}/${mainRel}`);
+  }
+
+  it("多段组名 → 折叠时只出顶层文件夹行", () => {
+    const root = buildTree(
+      [webEntry("狐狸.ysm", "/分类1/狐狸"), webEntry("猫咪.ysm", "/分类1/猫咪")],
+      "name",
+      "",
+      null,
+    );
+    expect(treeKeys(root)).toEqual(["分类1"]);
+    const rows = flattenVisible(root, "", "", "name", {}, 0, "grid");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].type).toBe("folder");
+    expect(rows[0].key).toBe("分类1");
+    expect(rows[0].isOpen).toBe(false);
+  });
+
+  it("逐层展开 → 子目录与文件行按深度递归出现", () => {
+    const root = buildTree(
+      [webEntry("狐狸.ysm", "/分类1/狐狸"), webEntry("猫咪.ysm", "/分类1/猫咪")],
+      "name",
+      "",
+      null,
+    );
+    const rows = flattenVisible(
+      root,
+      "",
+      "",
+      "name",
+      { "分类1": true, "分类1/狐狸": true, "分类1/猫咪": true },
+      0,
+      "grid",
+    );
+    const keys = rows.map((r) => r.key);
+    expect(rows[0]).toMatchObject({ type: "folder", key: "分类1", depth: 0 });
+    // 两个模型组文件夹（depth 1）各自展开出主文件行（depth 2）
+    expect(rows.filter((r) => r.type === "folder")).toHaveLength(3);
+    expect(keys).toContain("分类1");
+    expect(keys).toContain("分类1/狐狸");
+    expect(keys).toContain("分类1/猫咪");
+    // 文件行 key 用 fullPath（带前导 /，对齐选中匹配依据）
+    expect(keys).toContain("/分类1/狐狸/狐狸.ysm");
+    expect(keys).toContain("/分类1/猫咪/猫咪.ysm");
+    const fileRows = rows.filter((r) => r.type === "file");
+    expect(fileRows.every((r) => r.depth === 2)).toBe(true);
+  });
+
+  it("组名含多段 + 组内子目录文件 → 更深层级正确展开（桌面 WalkDir 同构）", () => {
+    const root = buildTree(
+      [webEntry("狐狸.ysm", "/分类1/狐狸"), webEntry("main.json", "/分类1/狐狸")],
+      "name",
+      "",
+      null,
+    );
+    const rows = flattenVisible(
+      root,
+      "",
+      "",
+      "name",
+      { "分类1": true, "分类1/狐狸": true },
+      0,
+      "grid",
+    );
+    const fileRows = rows.filter((r) => r.type === "file");
+    expect(fileRows).toHaveLength(2);
+    // 文件行 key = fullPath；顺序不敏感（含中文排序），用成员断言
+    expect(fileRows.map((r) => r.key)).toEqual(
+      expect.arrayContaining(["/分类1/狐狸/狐狸.ysm", "/分类1/狐狸/main.json"]),
+    );
+  });
+});
+
 describe("getRenderMode / setRenderMode（node 环境无 localStorage 的降级路径）", () => {
   it("getRenderMode 在存储不可用时降级为 grid", () => {
     expect(getRenderMode()).toBe("grid");
