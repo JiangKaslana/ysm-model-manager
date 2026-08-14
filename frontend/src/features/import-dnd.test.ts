@@ -116,6 +116,12 @@ describe("dragover 事件", () => {
   });
 });
 
+// 为 handleTreeDrop 提供 busy 闭包（与 bindTreeDnD 同结构）
+function makeBusyPair(): [() => boolean, (v: boolean) => void] {
+  let busy = false;
+  return [() => busy, (v) => { busy = v; }];
+}
+
 // ===== handleTreeDrop：网页版分支 =====
 
 describe("handleTreeDrop — 网页版（ADR-049）", () => {
@@ -126,7 +132,8 @@ describe("handleTreeDrop — 网页版（ADR-049）", () => {
     const unsubReload = bus.on("tree:reload", () => reloadSpy());
     const unsubStats = bus.on("stats:refresh", () => statsSpy());
     const file = new File(["ysm"], "m.ysm", { type: "application/octet-stream" });
-    await handleTreeDrop(makeDragEvent("drop", { files: [file], types: ["Files"] }));
+    const [isBusy, setBusy] = makeBusyPair();
+    await handleTreeDrop(makeDragEvent("drop", { files: [file], types: ["Files"] }), isBusy, setBusy);
     expect(importWebFiles).toHaveBeenCalledTimes(1);
     expect(reloadSpy).toHaveBeenCalled();
     expect(statsSpy).toHaveBeenCalled();
@@ -138,7 +145,8 @@ describe("handleTreeDrop — 网页版（ADR-049）", () => {
     (globalThis as unknown as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
     const toastSpy = vi.fn();
     const unsub = bus.on("toast:show", (p) => toastSpy(p.msg));
-    await handleTreeDrop(makeDragEvent("drop", { files: [], types: ["Files"] }));
+    const [isBusy, setBusy] = makeBusyPair();
+    await handleTreeDrop(makeDragEvent("drop", { files: [], types: ["Files"] }), isBusy, setBusy);
     expect(importWebFiles).not.toHaveBeenCalled();
     expect(toastSpy).toHaveBeenCalled();
     expect(String(toastSpy.mock.calls[0][0])).toContain("暂不支持文件夹");
@@ -153,10 +161,11 @@ describe("handleTreeDrop — busy 互斥守卫", () => {
     const toastSpy = vi.fn();
     const unsub = bus.on("toast:show", (p) => toastSpy(p.msg));
     const file = new File(["ysm"], "m.ysm");
-    // 第一次 drop：同步触发 handleTreeDrop，_dropBusy=true，executeCollected 异步执行
-    const p1 = handleTreeDrop(makeDragEvent("drop", { files: [file], types: ["Files"] }));
-    // 第二次 drop：_dropBusy 仍为 true
-    handleTreeDrop(makeDragEvent("drop", { files: [file], types: ["Files"] }));
+    const [isBusy, setBusy] = makeBusyPair();
+    // 第一次 drop：同步触发 handleTreeDrop，setBusy(true)，executeCollected 异步执行
+    const p1 = handleTreeDrop(makeDragEvent("drop", { files: [file], types: ["Files"] }), isBusy, setBusy);
+    // 第二次 drop：isBusy() 仍为 true
+    handleTreeDrop(makeDragEvent("drop", { files: [file], types: ["Files"] }), isBusy, setBusy);
     await p1;
     await flush();
     await flush();
@@ -175,7 +184,8 @@ describe("handleTreeDrop — 错误兜底", () => {
     const unsub = bus.on("toast:show", (p) => toastSpy(p.msg));
     // items 含 null 触发 collectFiles 的 null 守卫（不再崩溃）
     const ev = makeDragEvent("drop", { items: [null as never], files: [], types: ["Files"] });
-    await handleTreeDrop(ev);
+    const [isBusy, setBusy] = makeBusyPair();
+    await handleTreeDrop(ev, isBusy, setBusy);
     await flush();
     // 无异常即成功（null 守卫让 collectFiles 安全跳过 null 项）
     errSpy.mockRestore();

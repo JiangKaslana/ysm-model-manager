@@ -24,18 +24,19 @@ const isEditable = (el: EventTarget | null): boolean => {
   );
 };
 
-/** drop 级互斥守卫，防止连续快速 drop 并发导入 */
-let _dropBusy = false;
-
 /**
  * 处理 drop 事件：收集文件 → 过滤 → 执行导入。
- * 由 <app-tree> 容器上的 drop listener 调用。
+ * busy 状态由调用方（bindTreeDnD 闭包）传入，避免模块级状态跨实例污染。
  */
-export async function handleTreeDrop(e: DragEvent): Promise<void> {
+export async function handleTreeDrop(
+  e: DragEvent,
+  isBusy: () => boolean,
+  setBusy: (v: boolean) => void,
+): Promise<void> {
   e.preventDefault();
   if (isEditable(e.target)) return;
 
-  if (_dropBusy) {
+  if (isBusy()) {
     bus.emit("toast:show", {
       msg: "⏳ " + t("import.busyImporting"),
       duration: 2000,
@@ -43,7 +44,7 @@ export async function handleTreeDrop(e: DragEvent): Promise<void> {
     });
     return;
   }
-  _dropBusy = true;
+  setBusy(true);
   try {
     // 网页版：无本地文件系统 → 拖入文件直接写入 IndexedDB 模型库
     if (resolveWebMode()) {
@@ -127,15 +128,20 @@ export async function handleTreeDrop(e: DragEvent): Promise<void> {
       });
     }
   } finally {
-    _dropBusy = false;
+    setBusy(false);
   }
 }
 
 /**
  * 在目标容器上注册仓库页 DnD 事件。
  * 由 <app-tree> connectedCallback 调用，返回 cleanup 函数。
+ * busy 状态随闭包隔离，每个 <app-tree> 实例独立守卫。
  */
 export function bindTreeDnD(container: HTMLElement): () => void {
+  let _dropBusy = false;
+  const isBusy = () => _dropBusy;
+  const setBusy = (v: boolean) => { _dropBusy = v; };
+
   const onDragOver = (e: DragEvent): void => {
     if (isEditable(e.target)) return;
     if (!e.dataTransfer?.types?.includes("Files")) return;
@@ -144,7 +150,7 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   };
 
   const onDrop = (e: DragEvent): void => {
-    void handleTreeDrop(e).catch((err) => {
+    void handleTreeDrop(e, isBusy, setBusy).catch((err) => {
       console.error("[tree-dnd] 拖放处理失败:", err);
       bus.emit("toast:show", {
         msg: `❌ ${t("import.processError")}`,
