@@ -27,6 +27,11 @@ const flashTimers = new WeakMap<HTMLElement, number>();
  */
 export function flashBtn(el: HTMLElement | null, opts?: FlashOptions): void {
   if (!el) return;
+  // no-animations 偏好（ui-prefs 切换，documentElement 挂类，各组件 :host-context 关 CSS 动画）：
+  // 闪烁是 classList+setTimeout 的瞬态变色，不在 CSS animation 体系内、现有规则管不到，
+  // 此处显式跳过——对光敏/眩晕用户同样构成视觉干扰；操作本身的反馈
+  // （toast/状态变化/树刷新）不受影响
+  if (document.documentElement.classList.contains("no-animations")) return;
   // 数值守卫范式：NaN/Infinity/非正数一律回退默认时长
   const raw = opts?.duration;
   const duration =

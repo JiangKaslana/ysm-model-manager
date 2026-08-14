@@ -1,10 +1,12 @@
 // ===== utils/dom/feedback 测试（ADR-021 扩展）=====
-// flashBtn：加 flash class、duration 后移除、null 安全、连点防重入、tone 修饰符、非法 duration 回退。
+// flashBtn：加 flash class、duration 后移除、null 安全、连点防重入、tone 修饰符、非法 duration 回退、
+// no-animations 偏好跳过。
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { flashBtn, FLASH_DURATION_MS } from "./feedback.ts";
 
 afterEach(() => {
   vi.useRealTimers();
+  document.documentElement.classList.remove("no-animations");
 });
 
 function makeEl() {
@@ -86,5 +88,18 @@ describe("flashBtn", () => {
     vi.advanceTimersByTime(FLASH_DURATION_MS); // t=800，第二次已到期
     expect(el.classList.remove).toHaveBeenCalledTimes(1);
     expect(el.classList.remove).toHaveBeenCalledWith("flash");
+  });
+
+  it("no-animations 开启时跳过闪烁（不添加 class）", () => {
+    document.documentElement.classList.add("no-animations");
+    const el = makeEl();
+    flashBtn(el);
+    expect(el.classList.add).not.toHaveBeenCalled();
+  });
+
+  it("no-animations 关闭后恢复闪烁", () => {
+    const el = makeEl();
+    flashBtn(el);
+    expect(el.classList.add).toHaveBeenCalledWith("flash");
   });
 });
