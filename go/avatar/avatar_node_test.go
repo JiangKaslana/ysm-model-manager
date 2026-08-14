@@ -410,3 +410,24 @@ func TestCacheAvatarsFromModel_YSM(t *testing.T) {
 		t.Fatalf(".ysm 模型应缓存作者头像, 测试用户.png 缺失: %v", err)
 	}
 }
+
+// TestExtractAvatarURI_FromYSM_FallbackJPEG 回归：降级路径 .jpeg 扩展名兼容
+// （原漏 .jpeg 使 avatar/face.jpeg 声明的头像在不走作者匹配的降级路径下被跳过；
+// avatarCandidates 含 .jpeg，但降级扫描的 HasSuffix 只认 .png/.jpg——口径对齐）。
+func TestExtractAvatarURI_FromYSM_FallbackJPEG(t *testing.T) {
+	requireNode(t)
+	old := CacheDir
+	CacheDir = func() string { return t.TempDir() }
+	defer func() { CacheDir = old }()
+
+	// 无 ysm.json（authors 为空）→ 降级取 avatar/ 首图，文件为 .jpeg
+	glue := fakeGlueModule([][2]string{
+		{"/output/avatar/face.jpeg", "jpeg-data"},
+	}, "function () {}")
+	withFakeNode(t, glue, []byte{1})
+
+	result := ExtractAvatarURI(writeYSM(t, "fake-ysm"), "测试用户")
+	if !strings.HasPrefix(result, "data:image/jpeg;base64,") {
+		t.Fatalf("降级取 .jpeg 应返回 JPEG URI, 得到 %q", result)
+	}
+}

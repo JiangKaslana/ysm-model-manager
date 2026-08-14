@@ -6,16 +6,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { decodeYsmViaWasm } from "./wasm.ts";
 
-const { initMock, decodeMemoryMock, readFileBytesMock } = vi.hoisted(() => ({
+const { initMock, decodeMemoryMock, readFileBytesMock, memfsMock } = vi.hoisted(() => ({
   initMock: vi.fn().mockResolvedValue(true),
   decodeMemoryMock: vi.fn(),
   readFileBytesMock: vi.fn(),
+  memfsMock: vi.fn(),
 }));
 
 vi.mock("../../wasm/ysm-parser.ts", () => ({
   initYSMParser: initMock,
   decodeYsmFileFromMemory: decodeMemoryMock,
-  decodeYsmFile: vi.fn(),
+  decodeYsmFile: memfsMock,
 }));
 
 vi.mock("../../backend/app.ts", () => ({
@@ -64,6 +65,7 @@ beforeEach(() => {
   URL.revokeObjectURL = URL.revokeObjectURL || (() => {});
   readFileBytesMock.mockResolvedValue(FAKE_B64);
   decodeMemoryMock.mockResolvedValue(fakeDecodedFiles());
+  memfsMock.mockResolvedValue([]); // 默认无 MEMFS 输出（快路径成功时不触发）
 });
 
 describe("decodeYsmViaWasm 并发去重", () => {
@@ -97,5 +99,45 @@ describe("decodeYsmViaWasm 并发去重", () => {
     expect(second).toBeNull();
     expect(readFileBytesMock).toHaveBeenCalledTimes(1);
     expect(decodeMemoryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("3 次同路径并发合并：只解码一次，三者引用相等", async () => {
+    // 3+ 次并发是 preloadModel + 纹理 + Android spec 兜底的真实并发强度，
+    // 去重 Map 必须合并所有在途调用（而非仅首个），否则第 3 次会重复解码
+    const [a, b, c] = await Promise.all([
+      decodeYsmViaWasm("/repo/e.ysm"),
+      decodeYsmViaWasm("/repo/e.ysm"),
+      decodeYsmViaWasm("/repo/e.ysm"),
+    ]);
+    expect(readFileBytesMock).toHaveBeenCalledTimes(1);
+    expect(decodeMemoryMock).toHaveBeenCalledTimes(1);
+    expect(a).toBe(b);
+    expect(b).toBe(c); // 共享同一结果对象
+  });
+
+  it("缓存命中 geometry 快路径：不再读文件/解码", async () => {
+    // 首次解码成功后缓存含 geometry.bones，二次调用走 L51 快路径直接返回缓存
+    const first = await decodeYsmViaWasm("/repo/f.ysm");
+    expect(first?.geometryRaw).toBeTruthy();
+    const calls0 = readFileBytesMock.mock.calls.length;
+    const decodes0 = decodeMemoryMock.mock.calls.length;
+    // 二次走快路径：断言不重读/重解码（核心目的），且结果几何一致
+    const second = await decodeYsmViaWasm("/repo/f.ysm");
+    expect(second?.geometryRaw).toBe(first?.geometryRaw);
+    expect(readFileBytesMock.mock.calls.length).toBe(calls0); // 不重读
+    expect(decodeMemoryMock.mock.calls.length).toBe(decodes0); // 不重解码
+  });
+
+  it("原始字节解码抛 abort 后回退 MEMFS 成功（硬崩溃不阻断回退链）", async () => {
+    // 模拟 WASM 硬崩溃（abort/trap）：decodeYsmFileFromMemory reject，
+    // wasm.ts 的 catch 不静默吞错且不中断——继续走 MEMFS 回退路径。
+    // ysm-parser 内部的 resetYSMParser 由单例 mock 替身，此处只验 wasm.ts 层行为：
+    // 崩溃信号被吞后 MEMFS 仍能产出有效结果（非 null）。
+    decodeMemoryMock.mockRejectedValueOnce(new Error("abort"));
+    memfsMock.mockResolvedValueOnce(fakeDecodedFiles());
+    const result = await decodeYsmViaWasm("/repo/g.ysm");
+    expect(result?.geometryRaw).toBeTruthy(); // MEMFS 回退成功输出几何
+    expect(decodeMemoryMock).toHaveBeenCalledTimes(1); // 快路径崩溃一次
+    expect(memfsMock).toHaveBeenCalledTimes(1); // 回退链触发 MEMFS
   });
 });

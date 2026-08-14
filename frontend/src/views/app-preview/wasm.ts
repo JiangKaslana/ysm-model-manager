@@ -23,7 +23,10 @@ export function decodeYsmViaWasm(modelPath: string): Promise<DecodedYsm | null> 
   _decodeInFlight.set(modelPath, p);
   // 防御：finally 的派生 Promise 显式挂 catch，防未来 doDecode 新增 reject 路径
   // 时产生 unhandled rejection（当前 doDecode 外层 catch 返回 null，不 reject）
-  void p.finally(() => _decodeInFlight.delete(modelPath)).catch(() => {});
+  // 不吞错：记录便于排查（devLog 仅 DEV 输出，零运行时开销）
+  void p.finally(() => _decodeInFlight.delete(modelPath)).catch((e) =>
+    devLog(`[YSM] in-flight 守卫异常: ${e instanceof Error ? e.message : String(e)}`),
+  );
   return p;
 }
 
@@ -38,6 +41,17 @@ interface TexDim {
   w: number;
   h: number;
 }
+
+// --- 纹理头魔数（与 Go 端 imagePixelArea 守部一致，勿单独改）---
+/** PNG 8 字头签名前 3 字节（89 50 4E，后接 47 0A 16 0A） */
+const PNG_SIG = [0x89, 0x50, 0x4e];
+/** JPEG SOI(0xD8) 标记——段起始 0xFF */
+const JPEG_MARKER = 0xff;
+/** JPEG SOF0-15 段携带尺寸；排除无尺寸的 DHT(0xC4)/JPG(0xC8)/DAC(0xCC) */
+const JPEG_SOF_MASK = 0xc0;
+const JPEG_SOF_EXCLUDE = [0xc4, 0xc8, 0xcc];
+/** JPEG 头部扫描上限（足够覆盖 SOI 后首个 SOF，与 Go 端一致） */
+const JPEG_HEADER_SCAN_LIMIT = 4096;
 
 /**
  * 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations }
@@ -139,7 +153,11 @@ export async function doDecodeYsmViaWasm(
       if (files?.length) {
         console.log(`[YSM] ✅ 原始字节解码成功: ${files.length} 文件`);
       }
-    } catch (_) {}
+    } catch (e) {
+      // 不静默吞错：abort/trap/out of memory 等硬崩溃信号需留痕便于排查
+      // （ysm-parser 内部已对硬崩溃 resetYSMParser 重置单例，此处仅记录）
+      devLog(`[YSM] 原始字节解码异常: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     // 快路径失败 → 尝试 MEMFS（callMain，能处理 V3 文本头部等特殊格式）
     if (!files?.length) {
@@ -280,14 +298,18 @@ export async function doDecodeYsmViaWasm(
       const arr = new Uint8Array(f.data);
       let texW = 0,
         texH = 0;
-      if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4e) {
+      if (arr[0] === PNG_SIG[0] && arr[1] === PNG_SIG[1] && arr[2] === PNG_SIG[2]) {
         texW = (arr[16] << 24) | (arr[17] << 16) | (arr[18] << 8) | arr[19];
         texH = (arr[20] << 24) | (arr[21] << 16) | (arr[22] << 8) | arr[23];
-      } else if (arr[0] === 0xff && arr[1] === 0xd8) {
-        for (let i = 2; i < Math.min(arr.length - 8, 4096); i++) {
+      } else if (arr[0] === JPEG_MARKER && arr[1] === 0xd8) {
+        for (let i = 2; i < Math.min(arr.length - 8, JPEG_HEADER_SCAN_LIMIT); i++) {
           const m = arr[i + 1];
-          // SOF0-15，排除无尺寸的 DHT(0xC4)/JPG(0xC8)/DAC(0xCC)（与 Go 端 imagePixelArea 一致）
-          if (arr[i] === 0xff && (m & 0xf0) === 0xc0 && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
+          // SOF0-15，排除无尺寸的 DHT/JPG/DAC（与 Go 端 imagePixelArea 一致）
+          if (
+            arr[i] === JPEG_MARKER &&
+            (m & 0xf0) === JPEG_SOF_MASK &&
+            !JPEG_SOF_EXCLUDE.includes(m)
+          ) {
             texH = (arr[i + 5] << 8) | arr[i + 6];
             texW = (arr[i + 7] << 8) | arr[i + 8];
             break;

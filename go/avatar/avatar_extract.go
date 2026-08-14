@@ -56,16 +56,18 @@ func ExtractAvatarURI(modelPath, safeName string) string {
 		}
 		if len(authors) == 0 {
 			// 降级：取 avatar/ 目录第一张
+			// 扩展名口径与 avatarCandidates 对齐：.png/.jpg/.jpeg 均认（原漏 .jpeg
+			// 使 avatar/face.jpeg 声明的头像在不走作者匹配的降级路径下被跳过）
 			for _, f := range files {
 				low := strings.ToLower(f.Path)
-				if !strings.HasSuffix(low, ".png") && !strings.HasSuffix(low, ".jpg") {
+				if !strings.HasSuffix(low, ".png") && !strings.HasSuffix(low, ".jpg") && !strings.HasSuffix(low, ".jpeg") {
 					continue
 				}
 				if !strings.HasPrefix(low, "avatar/") && !strings.Contains(low, "/avatar/") {
 					continue
 				}
 				mime := "image/png"
-				if strings.HasSuffix(low, ".jpg") {
+				if strings.HasSuffix(low, ".jpg") || strings.HasSuffix(low, ".jpeg") {
 					mime = "image/jpeg"
 				}
 				return SaveAvatarData(safeName, toBytes(f.Data), mime)
