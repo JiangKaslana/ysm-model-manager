@@ -88,8 +88,6 @@ function row(label, usage, drift, kind, tail = '') {
   return `| \`${label}\` | ${usage}${tail} |`;
 }
 
-/** 目录形态自动标注：〔文件 N · 子目录 M: a/ b/〕。
- *  结构变化后重跑脚本即更新（--check 接入 doctor 防漂移），形态描述不再靠手写。 */
 /** 测试文件判定（TS/JS 的 .test. / .spec.，Go 的 _test.）。 */
 function isTestFile(name) {
   return /.(test|spec)./i.test(name) || /_test./.test(name);
@@ -120,6 +118,13 @@ function scanShape(dir) {
   return shape;
 }
 
+/** 形态缓存：同一目录只扫一次磁盘（shapeTail 生成 markdown 与 --json 输出共用）。 */
+const shapeCache = new Map();
+function scanShapeCached(dir) {
+  if (!shapeCache.has(dir)) shapeCache.set(dir, scanShape(dir));
+  return shapeCache.get(dir);
+}
+
 /** 平铺源码名列表展示阈值：≤12 个列全名（防 AI 猜路径抓空），更长只显数字。 */
 const SOURCE_LIST_MAX = 12;
 const SOURCE_LIST_CHARS = 100;
@@ -127,7 +132,7 @@ const SOURCE_LIST_CHARS = 100;
 /** 目录形态自动标注：〔源码 N: a.ts b.ts … · 测试 M · 子目录 K: x/ y/〕。
  *  结构变化后重跑脚本即更新（--check 接入 doctor 防漂移），形态描述不再靠手写。 */
 function shapeTail(dir) {
-  const sh = scanShape(dir);
+  const sh = scanShapeCached(dir);
   const parts = [];
   if (sh.source.length > 0) {
     if (sh.source.length <= SOURCE_LIST_MAX) {
@@ -259,7 +264,7 @@ if (JSON_OUT) {
     structure[zone] = {};
     for (const d of zones[zone]) {
       const key = d + '/';
-      structure[zone][key] = { usage: usage[key] || null, ...scanShape(path.join(ROOT, zone === 'frontend' ? 'frontend/src' : zone, d)) };
+      structure[zone][key] = { usage: usage[key] || null, ...scanShapeCached(path.join(ROOT, zone === 'frontend' ? 'frontend/src' : zone, d)) };
     }
   }
   structure.frontendFiles = {};
