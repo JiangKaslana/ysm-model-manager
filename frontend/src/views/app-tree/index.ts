@@ -17,6 +17,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../backend/app.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
+import { bindTreeDnD } from "../../features/import-dnd.ts";
 
 
 
@@ -105,6 +106,10 @@ export class AppTree extends HTMLElement {
       // 键盘快捷键（只用 document + this._root，提前注册——异步 _load 期间 disconnect
       // 也能经 disconnectedCallback 正常移除，避免 keydown 监听泄漏）
       this._initKeyboardShortcuts();
+
+      // 仓库页 DnD 绑定（组件级，ADR-060）
+      const treeDnDEl = this._root.getElementById("tree");
+      if (treeDnDEl) this._unsubs.push(bindTreeDnD(treeDnDEl));
 
       // 监听创作者详情→搜索本地模型
       this._unsubs.push(

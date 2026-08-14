@@ -7,6 +7,7 @@ import { getApp } from "../backend/app.ts";
 import { shouldEnterForm } from "./dnd-shared.ts";
 import { directImport as execDirectImport, importFolder as execImportFolder, ImportHistory } from "./import-executor.ts";
 import type { ImportFile as ImportedFile } from "./import-executor.ts";
+import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
 
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = ImportedFile;
@@ -59,7 +60,6 @@ export function initDataLayer(host: ImportQueueHost): {
     loadHeaderFromBase64: () => Promise<void>;
     enqueueFile: (file: ImportFile, base64: string) => void;
     renderImportedList: () => void;
-    collectEntry: (entry: FileSystemEntry, basePath: string) => Promise<Array<{ file: ImportFile; relPath: string }>>;
     importModelFolder: (dirRel: string, files: Array<{ file: ImportFile; relPath: string }>) => Promise<void>;
     routeCollected: (collected: Array<{ file: ImportFile; relPath: string }>) => Promise<void>;
     processDropItems: (items: DataTransferItemList) => void;
@@ -292,60 +292,6 @@ export function initDataLayer(host: ImportQueueHost): {
     if (!state.repoFiles) loadRepoFiles();
   };
 
-  const collectEntry = (
-    entry: FileSystemEntry,
-    basePath: string,
-  ): Promise<Array<{ file: ImportFile; relPath: string }>> => {
-    return new Promise((resolve) => {
-      try {
-        if (entry.isFile) {
-          new Promise<File | null>((resolve) => {
-            (entry as FileSystemFileEntry).file(
-              (f) => resolve(f),
-              () => resolve(null),
-            );
-          }).then(
-            (file) => {
-              if (file) {
-                const relPath = basePath ? basePath + "/" + file.name : file.name;
-                resolve([{ file: file as ImportFile, relPath }]);
-              } else {
-                resolve([]);
-              }
-            },
-            () => resolve([]),
-          );
-        } else if (entry.isDirectory) {
-          const dirReader = (entry as FileSystemDirectoryEntry).createReader();
-          const subPath = basePath ? basePath + "/" + entry.name : entry.name;
-          const collected: Array<{ file: ImportFile; relPath: string }> = [];
-          const readAll = (): void => {
-            dirReader.readEntries(
-              (entries) => {
-                if (!entries || !entries.length) {
-                  resolve(collected);
-                  return;
-                }
-                Promise.all(
-                  Array.from(entries).map((e) => collectEntry(e, subPath)),
-                ).then((groups) => {
-                  for (const g of groups) collected.push(...g);
-                  readAll();
-                });
-              },
-              () => resolve(collected),
-            );
-          };
-          readAll();
-        } else {
-          resolve([]);
-        }
-      } catch {
-        resolve([]);
-      }
-    });
-  };
-
   const importModelFolder = async (
     dirRel: string,
     files: Array<{ file: ImportFile; relPath: string }>,
@@ -396,9 +342,9 @@ export function initDataLayer(host: ImportQueueHost): {
       }
       return;
     }
-    Promise.all(entries.map((entry) => collectEntry(entry, "")))
+    Promise.all(entries.map((entry) => collectFiles([entry], true, "")))
       .then(async (groups) => {
-        const all = groups.flat();
+        const all: CollectedFile[] = groups.flat() as CollectedFile[];
         await routeCollected(all);
         // updateQueueCount 由外部调用
         if (state.fileQueue.length > 0) {
@@ -451,7 +397,6 @@ export function initDataLayer(host: ImportQueueHost): {
     loadHeaderFromBase64,
     enqueueFile,
     renderImportedList: () => {}, // 由主文件注入（薄壳 initImportQueue 覆盖）
-    collectEntry,
     importModelFolder,
     routeCollected,
     processDropItems,

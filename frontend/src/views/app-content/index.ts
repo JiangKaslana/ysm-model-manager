@@ -6,7 +6,6 @@ import { formatBytes } from "../../utils/dom/format.ts";
 import { contentCSS } from "./content-css.ts";
 import { getApp } from "../../backend/app.ts";
 import { registerGlobalHandlers } from "../../core/handlers/global.ts";
-import { registerDnD } from "../../features/import-dnd.ts";
 import { registerResourceManagerGlobal } from "../app-resource-manager/index.ts";
 // 副作用导入：注册 <app-preview> 组件
 import "../app-preview/index.ts";
@@ -106,7 +105,6 @@ class AppContent extends HTMLElement {
     this._render();
     this._globalUnsubs.push(...registerGlobalHandlers());
     // features/views 层注册归位（core handler 不依赖上层；分层债务清理）
-    registerDnD(this._globalUnsubs);
     registerResourceManagerGlobal(this._globalUnsubs);
   }
 

@@ -35,13 +35,13 @@
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 9 | 56 |
 | 前端·核心 | 17 | 43 |
-| 前端·特性 | 18 | 88 |
+| 前端·特性 | 19 | 92 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 53 | 193 |
 | frontend/views | 79 | 211 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **266** | **1102** |
+| **合计** | **267** | **1106** |
 
 ## Go·头像
 
@@ -800,6 +800,9 @@
 | `groupSites()` | `frontend/src/features/community/render:200` | 按 group 分组站点（缺省 browse）。纯函数，供单测覆盖（ADR-023 L3）。 |
 | `renderCardsHTML()` | `frontend/src/features/community/render:217` | 生成左栏站点卡片 HTML |
 | `renderRepoHeaderHTML()` | `frontend/src/features/community/render:267` | 生成仓库模型页面的头部 HTML（含返回按钮、计数、筛选按钮等） |
+| `CollectedFile()` | `frontend/src/features/dnd-collector:6` | 收集结果条目 |
+| `collectFiles()` | `frontend/src/features/dnd-collector:34` | 递归收集 DataTransferItem[] 或 FileSystemEntry[] 中的文件。 |
+| `mergeDropFiles()` | `frontend/src/features/dnd-collector:94` | 从 DropEvent 聚合 collected 条目： 1. |
 | `getExt()` | `frontend/src/features/dnd-shared:4` | — |
 | `isSupportedFile()` | `frontend/src/features/dnd-shared:8` | 扩展名是否在支持列表 |
 | `isImportableFile()` | `frontend/src/features/dnd-shared:14` | 是否可作为独立文件导入：.json 仅放行 ysm.json 入口清单 包内 geometry/animation/语言 json（main.json / *.animation. |
@@ -807,7 +810,8 @@
 | `CollectedEntry()` | `frontend/src/features/dnd-shared:33` | 收集条目（文件 + 相对路径） |
 | `FolderGroup()` | `frontend/src/features/dnd-shared:39` | 文件夹组：dir 为顶层目录名（可能含多级嵌套，组内文件保留完整 relPath） |
 | `groupCollected()` | `frontend/src/features/dnd-shared:51` | 将收集到的条目分组： - 有目录前缀的条目 → 按「顶层目录」整组（dir = 第一段路径），组内保留完整 relPath（支持多层嵌套） - 无目录前缀的散落文件 → 单文件队列 |
-| `registerDnD()` | `frontend/src/features/import-dnd:333` | 注册 DnD 全局事件，push 返回的取消订阅函数到 unsubs |
+| `handleTreeDrop()` | `frontend/src/features/import-dnd:34` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
+| `bindTreeDnD()` | `frontend/src/features/import-dnd:138` | 在目标容器上注册仓库页 DnD 事件。 |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
 | `ImportFile()` | `frontend/src/features/import-executor:14` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `ImportRecord()` | `frontend/src/features/import-executor:17` | 已导入历史条目（导入 tab「已导入」列表数据源） |
@@ -816,11 +820,11 @@
 | `directImport()` | `frontend/src/features/import-executor:92` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
 | `importFolder()` | `frontend/src/features/import-executor:133` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
 | `executeCollected()` | `frontend/src/features/import-executor:197` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `ImportFile()` | `frontend/src/features/import-queue-data:12` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `QueueItem()` | `frontend/src/features/import-queue-data:15` | 队列项数据类型 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue-data:28` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
-| `ImportQueueHost()` | `frontend/src/features/import-queue-data:33` | 应用主机接口 |
-| `initDataLayer()` | `frontend/src/features/import-queue-data:39` | 初始化导入队列的数据层：返回状态对象和清理函数 |
+| `ImportFile()` | `frontend/src/features/import-queue-data:13` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `QueueItem()` | `frontend/src/features/import-queue-data:16` | 队列项数据类型 |
+| `normalizeRepoName()` | `frontend/src/features/import-queue-data:29` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
+| `ImportQueueHost()` | `frontend/src/features/import-queue-data:34` | 应用主机接口 |
+| `initDataLayer()` | `frontend/src/features/import-queue-data:40` | 初始化导入队列的数据层：返回状态对象和清理函数 |
 | `bindFormEvents()` | `frontend/src/features/import-queue-events:24` | 表单输入事件绑定 |
 | `bindDragEvents()` | `frontend/src/features/import-queue-events:55` | 拖拽事件绑定 |
 | `bindInputEvents()` | `frontend/src/features/import-queue-events:160` | 文件输入框事件绑定 |
@@ -1270,7 +1274,7 @@
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:15` | — |
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:114` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:43` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:44` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
 | `TreeRow()` | `frontend/src/views/app-tree/render:22` | 扁平化行（虚拟滚动数据单元） |

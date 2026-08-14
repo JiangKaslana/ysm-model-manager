@@ -125,28 +125,6 @@ export async function initTheme() {
   checkUpdateSilent().catch((e) => console.warn("[updater] 静默检查失败:", e));
 })();
 
-// ===== 禁用旧版 document 拖拽处理器（新版组件已接管）=====
-// 仅 preventDefault 阻止浏览器默认行为，不 stopPropagation，
-// 避免阻断 DnD handler（dnd.ts）的冒泡触发
-document.addEventListener(
-  "dragover",
-  (e) => {
-    if ((e.target as HTMLElement | null)?.closest?.("#ws-page, #dl-drop, .ws-page")) {
-      e.preventDefault();
-    }
-  },
-  true,
-);
-document.addEventListener(
-  "drop",
-  (e) => {
-    if ((e.target as HTMLElement | null)?.closest?.("#ws-page, #dl-drop, .ws-page")) {
-      e.preventDefault();
-    }
-  },
-  true,
-);
-
 window
   .matchMedia("(prefers-color-scheme: dark)")
   .addEventListener("change", (e) => {
