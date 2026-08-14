@@ -25,16 +25,19 @@ export function iRow(l: string, v: string): HTMLDivElement {
  */
 export function buildDepthMap(boneList: Array<{ id: string; name: string; parentId?: string }>): Record<string, number> {
   const depthMap: Record<string, number> = {};
-  const calcDepth = (name: string): number => {
+  // 修复：parentId 环（A→B→A）会无限递归撑爆调用栈。seen 记录当前解析链，
+  // 命中环即按 0 深度截断（非法数据兜底，不崩面板）。
+  const calcDepth = (name: string, seen: Set<string>): number => {
     if (depthMap[name] !== undefined) return depthMap[name];
     const b = boneList.find((x) => x.id === name);
-    if (!b || !b.parentId) {
+    if (!b || !b.parentId || seen.has(name)) {
       depthMap[name] = 0;
       return 0;
     }
-    depthMap[name] = calcDepth(b.parentId) + 1;
+    seen.add(name);
+    depthMap[name] = calcDepth(b.parentId, seen) + 1;
     return depthMap[name];
   };
-  boneList.forEach((b) => calcDepth(b.id));
+  boneList.forEach((b) => calcDepth(b.id, new Set()));
   return depthMap;
 }

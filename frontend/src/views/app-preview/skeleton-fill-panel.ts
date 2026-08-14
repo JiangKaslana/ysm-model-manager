@@ -64,7 +64,9 @@ export function fill3DPanel(
     allOpt.selected = true;
     modelSel.appendChild(allOpt);
     for (let i = 0; i < mgCount; i++) {
-      const mgItem = (spec.models || [])[i] as { name?: string; id?: string; bones?: unknown[] };
+      // 防御：spec.models 与 getModelGroupCount 偶发不一致（数据损坏/版本错配）
+      // 时不得因 undefined 访问崩溃整个 3D 面板
+      const mgItem = (spec.models?.[i] ?? {}) as { name?: string; id?: string; bones?: unknown[] };
       const opt = document.createElement("option");
       opt.value = String(i);
       opt.textContent = (mgItem.name || mgItem.id || "model") + " (" + (mgItem.bones?.length || 0) + ")";

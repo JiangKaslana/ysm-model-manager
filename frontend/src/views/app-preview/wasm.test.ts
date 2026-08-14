@@ -245,3 +245,197 @@ describe("decodeYsmViaWasm .json 路径几何合并（ysm.json spec 格式）", 
     expect(readFileBytesMock).toHaveBeenCalledTimes(1); // 只读 JSON 本体
   });
 });
+
+describe("decodeYsmViaWasm 未覆盖分支补测", () => {
+  const encoder = new TextEncoder();
+
+  /** 构造含 bones 的 minecraft:geometry JSON（本 describe 局部副本） */
+  function geoB64(boneName: string, cubeCount: number = 1): string {
+    const cubes = Array.from({ length: cubeCount }, (_, i) => ({
+      origin: [i, 0, 0], size: [1, 1, 1], uv: [0, 0],
+    }));
+    const geo = JSON.stringify({
+      format_version: "1.16.0",
+      "minecraft:geometry": [{
+        description: { identifier: `geometry.${boneName}` },
+        bones: [{ name: boneName, cubes }],
+      }],
+    });
+    return btoa(new TextDecoder().decode(encoder.encode(geo)));
+  }
+
+  /** 最简 PNG（8×8）base64（本 describe 局部副本） */
+  function pngB64(): string {
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0xad, 0x6e, 0x96,
+      0x9d, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41,
+      0x54, 0x08, 0xd7, 0x63, 0xf8, 0xff, 0xff, 0xff,
+      0x00, 0x05, 0xfe, 0x02, 0xfb, 0xa0, 0x32, 0x00,
+      0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+      0x42, 0x60, 0x82,
+    ]);
+    let binary = "";
+    for (let i = 0; i < png.length; i++) binary += String.fromCharCode(png[i]);
+    return btoa(binary);
+  }
+
+  it("ReadFileBytes 返回空 → 缓存 _wasmFailed，二次不再读", async () => {
+    readFileBytesMock.mockResolvedValue(null); // 文件不存在 → 空字节守卫
+    const first = await decodeYsmViaWasm("/repo/nofile.ysm");
+    expect(first).toBeNull();
+    const second = await decodeYsmViaWasm("/repo/nofile.ysm");
+    expect(second).toBeNull();
+    expect(readFileBytesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it(".json 路径非法 JSON → 外层 catch 缓存 _wasmFailed", async () => {
+    readFileBytesMock.mockResolvedValue(btoa("{not valid json")); // JSON.parse 抛错
+    const first = await decodeYsmViaWasm("/repo/bad.json");
+    expect(first).toBeNull();
+    const second = await decodeYsmViaWasm("/repo/bad.json");
+    expect(second).toBeNull();
+    expect(readFileBytesMock).toHaveBeenCalledTimes(1); // 失败已缓存，二次不重读
+  });
+
+  it("WASM init 失败 → 缓存 _wasmFailed，二次不再读/解码", async () => {
+    initMock.mockResolvedValueOnce(false);
+    const first = await decodeYsmViaWasm("/repo/initfail.ysm");
+    expect(first).toBeNull();
+    expect(decodeMemoryMock).not.toHaveBeenCalled();
+    const second = await decodeYsmViaWasm("/repo/initfail.ysm");
+    expect(second).toBeNull();
+    expect(readFileBytesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("WASM 解码有文件但几何体解析为空 → 回退 Go（缓存 _wasmFailed）", async () => {
+    // ysm.json 存在但 models/main.json 的 bones 为空 → processModelFile 无产出 → geometry null
+    decodeMemoryMock.mockResolvedValueOnce([
+      {
+        path: "ysm.json",
+        data: encoder.encode(JSON.stringify({
+          spec: {},
+          files: { player: { model: "models/main.json", texture: "textures/body.png" } },
+          metadata: { authors: [] },
+          properties: {},
+          minecraft: { geometry: [] },
+        })),
+      },
+      {
+        path: "models/main.json",
+        data: encoder.encode(JSON.stringify({
+          format_version: "1.16.0",
+          "minecraft:geometry": [{
+            description: { identifier: "geometry.x" },
+            bones: [], // 无骨骼 → parseBedrockGeometryFromJSON 返回 null
+          }],
+        })),
+      },
+      { path: "textures/body.png", data: encoder.encode("PNGDATA") },
+    ]);
+    const first = await decodeYsmViaWasm("/repo/nogeo.ysm");
+    expect(first).toBeNull();
+    const second = await decodeYsmViaWasm("/repo/nogeo.ysm");
+    expect(second).toBeNull();
+    expect(readFileBytesMock).toHaveBeenCalledTimes(1); // 失败已缓存
+  });
+
+  it("WASM 路径 JPEG 纹理 SOF 尺寸嗅探（bone 补 _texWidth/_texHeight）", async () => {
+    // 手工构造 JPEG：SOI + APP0 + SOF0(8×8) + EOI；sniffTexSize 需在 SOF 段读宽高
+    const jpeg = new Uint8Array([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+      0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+      0xff, 0xc0, 0x00, 0x10, 0x08, 0x00, 0x08, 0x00, 0x08, 0x03, 0x01, 0x22,
+      0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
+      0xff, 0xd9,
+    ]);
+    decodeMemoryMock.mockResolvedValueOnce([
+      {
+        path: "ysm.json",
+        data: encoder.encode(JSON.stringify({
+          spec: {},
+          files: { player: { model: "models/main.json", texture: "textures/body.jpg" } },
+          metadata: { authors: [] },
+          properties: { default_texture: "textures/body.jpg" },
+          minecraft: { geometry: [] },
+        })),
+      },
+      { path: "models/main.json", data: encoder.encode(MAIN_JSON) },
+      { path: "textures/body.jpg", data: jpeg },
+    ]);
+    const result = await decodeYsmViaWasm("/repo/jpeg.ysm");
+    expect(result).not.toBeNull();
+    // JPEG 宽高来自 SOF 嗅探（无 PNG 签名时不走 PNG 分支）
+    expect(result?.geometry?.bones?.[0]?._texWidth).toBe(8);
+    expect(result?.geometry?.bones?.[0]?._texHeight).toBe(8);
+  });
+
+  it(".json 合并 modelFiles 补 models/ 前缀失败 → 回退原始路径", async () => {
+    const ysmJson = {
+      spec: { version: "1.0.0" },
+      files: { player: { model: "main.json", texture: "body.png" } },
+      metadata: { authors: [] },
+      properties: { texture_width: 64, texture_height: 64 },
+      minecraft: { geometry: [] },
+    };
+    const ysmJsonB64 = btoa(new TextDecoder().decode(encoder.encode(JSON.stringify(ysmJson))));
+    const modelJsonB64 = geoB64("root", 1);
+    const texB64 = pngB64();
+
+    // 补前缀路径 models/main.json 不存在 → 走 L131 原始路径回退
+    const calls = new Map<string, string>();
+    calls.set("/repo/ysm.json", ysmJsonB64);
+    calls.set("/repo/main.json", modelJsonB64);
+    calls.set("/repo/textures/body.png", texB64);
+    readFileBytesMock.mockImplementation(async (path: string) => calls.get(path) || null);
+
+    const result = await decodeYsmViaWasm("/repo/ysm.json");
+    expect(result).not.toBeNull();
+    expect(result?.geometry?.bones?.length).toBe(1); // 原始路径回退解析成功
+    expect(result?.geometry?.boneCount).toBe(1);
+  });
+
+  it(".json 路径作者头像读取（avatarUrl 回填）", async () => {
+    const ysmJson = {
+      spec: { version: "1.0.0" },
+      files: { player: { model: null } },
+      metadata: { authors: [{ name: "alice", role: "author", avatar: "avatar/a.png" }] },
+      properties: {},
+      minecraft: { geometry: [] },
+    };
+    const ysmJsonB64 = btoa(new TextDecoder().decode(encoder.encode(JSON.stringify(ysmJson))));
+    const calls = new Map<string, string>();
+    calls.set("/repo/avatar.json", ysmJsonB64);
+    calls.set("/repo/avatar/a.png", pngB64());
+    readFileBytesMock.mockImplementation(async (path: string) => calls.get(path) || null);
+
+    const result = await decodeYsmViaWasm("/repo/avatar.json");
+    expect(result).not.toBeNull();
+    expect(result?.authors?.[0]?.name).toBe("alice");
+    expect(result?.authors?.[0]?.avatarUrl).toMatch(/^blob:/); // avatarUrl 已回填
+  });
+
+  it("WASM 路径解析 animations/ 动画文件", async () => {
+    const animJson = JSON.stringify({
+      format_version: "1.8.0",
+      animations: {
+        walk: {
+          loop: true,
+          animation_length: 1.0,
+          // 注意：parseChannel 以数值 t 查 key（channelData[t]），键须为整数形式
+          bones: { arm: { rotation: { "0": [0, 0, 0], "1": [0, 30, 0] } } },
+        },
+      },
+    });
+    decodeMemoryMock.mockResolvedValueOnce([
+      ...fakeDecodedFiles(),
+      { path: "animations/walk.json", data: encoder.encode(animJson) },
+    ]);
+    const result = await decodeYsmViaWasm("/repo/anim.ysm");
+    expect(result).not.toBeNull();
+    expect(result?.animations?.length).toBe(1);
+    expect((result?.animations?.[0] as { name?: string } | undefined)?.name).toBe("walk");
+  });
+});

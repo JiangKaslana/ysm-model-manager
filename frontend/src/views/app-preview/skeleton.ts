@@ -178,7 +178,12 @@ export async function loadModel2D(
         modelSel.onchange = (): void => { _model3d?.showModelGroup(parseInt(modelSel.value, 10)); };
         const onKey = (e: KeyboardEvent): void => { if (e.key !== "Escape") return; close3D(); };
         document.addEventListener("keydown", onKey); if (_model3d) _model3d._keyHandler = onKey;
-      } catch (e) { console.error("[3D] 加载失败:", e); loadingEl.remove(); viewContainer.innerHTML = `<div style="padding:40px;color:#ff6b6b;font-size:14px">⚠️ ${t("preview.preview3dLoadFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`; bus.emit("toast:show", { msg: "❌ " + friendlyError(e, t("preview.preview3dLoadFailed")), duration: 5000, type: "error" }); }
+      } catch (e) {
+        _loading3D = false;
+        // P2 修复：用户已关闭 3D（ESC/切模型）后迟到的加载失败不得再弹错——
+        // 否则关闭后 1~2s 突然冒「加载失败」toast，掩盖用户主动关闭的意图。
+        if (gen !== _model3dGen) return;
+        console.error("[3D] 加载失败:", e); loadingEl.remove(); viewContainer.innerHTML = `<div style="padding:40px;color:#ff6b6b;font-size:14px">⚠️ ${t("preview.preview3dLoadFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`; bus.emit("toast:show", { msg: "❌ " + friendlyError(e, t("preview.preview3dLoadFailed")), duration: 5000, type: "error" }); }
       _loading3D = false;
     };
     const btn3d = ctx.root.getElementById("btn-3d-preview");

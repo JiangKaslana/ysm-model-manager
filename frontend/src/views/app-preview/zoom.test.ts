@@ -113,4 +113,51 @@ describe("openFullPreview", () => {
     overlay.click();
     expect(findOverlay()).toBeNull();
   });
+
+  it("缩放有界 [0.2, 10]：猛缩/猛放不越界", async () => {
+    const src = document.createElement("canvas");
+    await openFullPreview(src, model, null, false);
+    const big = findOverlay()!.querySelector("canvas")!;
+
+    // 猛缩小（deltaY 巨大正值 → factor → 0）
+    for (let i = 0; i < 30; i++) {
+      big.dispatchEvent(new WheelEvent("wheel", { deltaY: 5000, cancelable: true }));
+    }
+    let last = renderModel2D.mock.calls.at(-1)![3].zoom;
+    expect(last).toBeGreaterThanOrEqual(0.1999);
+    expect(last).toBeLessThan(0.3);
+
+    // 猛放大
+    for (let i = 0; i < 30; i++) {
+      big.dispatchEvent(new WheelEvent("wheel", { deltaY: -5000, cancelable: true }));
+    }
+    last = renderModel2D.mock.calls.at(-1)![3].zoom;
+    expect(last).toBeLessThanOrEqual(10);
+    expect(last).toBeGreaterThan(9);
+  });
+
+  it("pointercancel → dragging 复位，后续 pointermove 不再旋转", async () => {
+    const src = document.createElement("canvas");
+    await openFullPreview(src, model, null, false);
+    const big = findOverlay()!.querySelector("canvas")!;
+
+    big.dispatchEvent(new PointerEvent("pointerdown", { clientX: 100 }));
+    window.dispatchEvent(new PointerEvent("pointercancel"));
+    renderModel2D.mockClear(); // 清初始渲染
+    window.dispatchEvent(new PointerEvent("pointermove", { clientX: 300 }));
+    // pointercancel 已复位 dragging → pointermove 不触发渲染
+    expect(renderModel2D).not.toHaveBeenCalled();
+  });
+
+  it("非左键 pointerdown → 不进入拖拽（右键守卫）", async () => {
+    const src = document.createElement("canvas");
+    await openFullPreview(src, model, null, false);
+    const big = findOverlay()!.querySelector("canvas")!;
+
+    big.dispatchEvent(new PointerEvent("pointerdown", { button: 2, clientX: 100 }));
+    renderModel2D.mockClear(); // 清初始渲染
+    window.dispatchEvent(new PointerEvent("pointermove", { clientX: 400 }));
+    // 右键不置 dragging → pointermove 不触发渲染
+    expect(renderModel2D).not.toHaveBeenCalled();
+  });
 });

@@ -362,7 +362,10 @@ export async function createLitematic3D(
       applyLayer();
     };
     layerInput.onchange = (): void => {
-      const v = Math.max(1, Math.min(layerMax, Number(layerInput.value) || layerMax));
+      // 修复：`Number(v) || layerMax` 会把合法输入 0 误判为"缺失"跳到上限——
+      // 与 Math.max(1,…) 的下限意图矛盾。0 应钳到 1，仅 NaN/空输入回落 layerMax。
+      const n = Number(layerInput.value);
+      const v = Number.isFinite(n) ? Math.max(1, Math.min(layerMax, n)) : layerMax;
       layerInput.value = String(v);
       layerSlider.value = String(v);
       layerVal = v;
@@ -374,7 +377,9 @@ export async function createLitematic3D(
       applyLayer();
     };
     layerInput2.onchange = (): void => {
-      const v = Math.max(1, Math.min(layerMax, Number(layerInput2.value) || layerMax));
+      // 同 layerInput：0 是合法输入应钳到 1，仅 NaN/空输入回落 layerMax
+      const n = Number(layerInput2.value);
+      const v = Number.isFinite(n) ? Math.max(1, Math.min(layerMax, n)) : layerMax;
       layerInput2.value = String(v);
       layerSlider2.value = String(v);
       layerVal2 = v;
@@ -420,6 +425,11 @@ export async function createLitematic3D(
     layerInput.value = String(layerMax);
     layerSlider2.value = String(layerMax);
     layerInput2.value = String(layerMax);
+    // 修复：layerVal/layerVal2 必须在 setupRange 后同步到当前轴的 layerMax——
+    // 否则非立方体模型（如 size=[16,8,16] 默认 Y 轴 layerMax=8）初始 layerVal 仍是
+    // 三轴最大值 16，切到单层模式 target=15 > sizeY，整屏空白而滑块却显示 8。
+    layerVal = layerMax;
+    layerVal2 = layerMax;
 
     if (data.truncated) {
       const w = document.createElement("div");

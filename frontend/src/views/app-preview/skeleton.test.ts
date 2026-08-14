@@ -62,6 +62,7 @@ vi.mock("./screenshot-renderer.ts", () => ({ renderMultiAngle }));
 vi.mock("./model3d-loader.ts", () => ({ preloadModel }));
 
 import { loadModel2D } from "./skeleton.ts";
+import { fill3DPanel } from "./skeleton-render.ts";
 
 /** 可控 Image：src setter 同步 onload（happy-dom 无真实网络） */
 class FakeImage {
@@ -116,10 +117,12 @@ function make3DHandle() {
     getModelGroupCount: vi.fn(() => 1),
     getBoneList: vi.fn(() => []),
     setBoneVisible: vi.fn(),
+    toggleBone: vi.fn(),
+    setDebugMode: vi.fn(),
     setRotationMode: vi.fn(),
     setSpeed: vi.fn(),
     showModelGroup: vi.fn(),
-    _timeTimer: null as null | ReturnType<typeof setInterval>,
+    _timeTimer: undefined as undefined | ReturnType<typeof setInterval>,
     _keyHandler: null as null | ((e: KeyboardEvent) => void),
     _boneDetailEl: null as null | HTMLElement,
   };
@@ -416,5 +419,181 @@ describe("loadModel2D — 3D 切换", () => {
 
     expect(handle.cleanup).toHaveBeenCalledTimes(1);
     expect(document.getElementById("ysm-overlay-3d")).toBeNull();
+  });
+
+  it("3D 加载期间用户关闭 → 迟到的加载失败不再弹错（gen 守卫）", async () => {
+    preloadModel.mockRejectedValue(new Error("迟到的失败"));
+    const ctx = makeCtx();
+    const container = document.createElement("div");
+    document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
+    await loadModel2D(ctx, "/m/a.ysm", container);
+
+    (ctx.root.querySelector("#btn-3d-preview") as HTMLButtonElement).click();
+    // 在 preloadModel reject 之前先关闭 → _model3dGen++，使在途失败过期
+    const closeFn = ctx.unsubs.at(-1)!;
+    closeFn();
+    await new Promise((r) => setTimeout(r, 0));
+
+    // 修复前：关闭后仍弹「加载失败」toast；修复后：gen 不匹配 → 静默丢弃
+    expect(busEmit).not.toHaveBeenCalled();
+    expect(friendlyError).not.toHaveBeenCalled();
+  });
+});
+
+// ── fill3DPanel（skeleton-fill-panel.ts，审核盲区补建）────────────
+describe("fill3DPanel", () => {
+  const makeFakeTex = (over: Record<string, unknown> = {}): unknown => ({
+    userData: { imgWidth: 64, imgHeight: 32 },
+    image: null, // happy-dom drawImage 不接受普通对象，置空跳过绘制分支
+    ...over,
+  });
+
+  function setup(over: {
+    bones?: Array<{ id: string; name: string; parentId: string | null }>;
+    groupCount?: number;
+    cubeCounts?: number[];
+    textures?: string[] | null;
+    textureNames?: string[];
+  } = {}) {
+    const panel = document.createElement("div");
+    panel.id = "ysm-3d-panel";
+    document.body.appendChild(panel);
+    const model = makeModel({
+      textures: over.textures ?? ["t1.png", "t2.png"],
+      textureNames: over.textureNames ?? ["skin", "tail"],
+    }) as unknown as Parameters<typeof fill3DPanel>[1];
+    const count = over.groupCount ?? 1;
+    const spec = {
+      models: Array.from({ length: Math.max(count, 1) }, () => ({
+        bones: (over.cubeCounts ?? [2, 3]).map((c) => ({ _cubeCount: c })),
+        textureWidth: 64,
+        textureHeight: 32,
+      })),
+    } as never;
+    const handle = make3DHandle();
+    handle.getModelGroupCount = vi.fn(() => count) as typeof handle.getModelGroupCount;
+    handle.getBoneList = vi.fn(() => over.bones ?? []) as typeof handle.getBoneList;
+    const modelSel = document.createElement("select");
+    return { panel, model, handle, modelSel, spec };
+  }
+
+  it("统计 + 纹理列表 + 多组件选择器 + 骨骼列表缩进 + 详情框", () => {
+    const { panel, model, handle, modelSel, spec } = setup({
+      groupCount: 2,
+      bones: [
+        { id: "root", name: "根", parentId: null },
+        { id: "arm", name: "手臂", parentId: "root" },
+      ],
+    });
+    const texArr = [
+      makeFakeTex(),
+      makeFakeTex({ userData: {}, image: null }), // 无尺寸信息 → 0×0
+    ] as unknown as import("three").Texture[];
+
+    const r = fill3DPanel(panel, model, texArr, spec, handle, modelSel);
+
+    // 统计
+    expect(panel.textContent).toContain("2 根");
+    expect(panel.textContent).toContain("5 个");
+    expect(panel.textContent).toContain("64×32");
+    // 纹理列表：名 + 尺寸（第二张无 userData → 0×0）
+    expect(panel.textContent).toContain("纹理 (2)");
+    expect(panel.textContent).toContain("skin");
+    expect(panel.textContent).toContain("tail");
+    expect(panel.textContent).toContain("64×32");
+    expect(panel.textContent).toContain("0×0");
+    // 多组件：选择器显示 + all 选项 + 2 个组件
+    expect(modelSel.style.display).not.toBe("none");
+    expect(modelSel.options.length).toBe(3);
+    expect(modelSel.options[0]!.textContent).toContain("preview.allComponents");
+    // 骨骼列表：根无缩进，手臂缩进 12px（depth=1）
+    expect(r.boneContainer).not.toBeNull();
+    const labels = r.boneContainer!.querySelectorAll("label");
+    expect(labels.length).toBe(2);
+    const armSpan = [...r.boneContainer!.querySelectorAll("label")]
+      .find((l) => l.textContent === "手臂")!
+      .querySelector("span")!;
+    expect(armSpan.style.marginLeft).toBe("12px");
+    // 详情框绑定
+    expect(handle._boneDetailEl).toBeTruthy();
+    document.body.removeChild(panel);
+  });
+
+  it("无骨骼 → boneContainer 为 null，无骨骼列表", () => {
+    const { panel, model, handle, modelSel, spec } = setup();
+    const r = fill3DPanel(panel, model, [], spec, handle, modelSel);
+    expect(r.boneContainer).toBeNull();
+    expect(panel.querySelector("input[type=checkbox]")).toBeNull();
+    document.body.removeChild(panel);
+  });
+
+  it("搜索过滤：输入关键词后仅保留命中骨骼", () => {
+    const { panel, model, handle, modelSel, spec } = setup({
+      bones: [
+        { id: "head", name: "头", parentId: null },
+        { id: "arm", name: "手臂", parentId: "head" },
+        { id: "leg", name: "腿", parentId: "head" },
+      ],
+    });
+    fill3DPanel(panel, model, [], spec, handle, modelSel);
+    const search = panel.querySelector('input[type="text"]') as HTMLInputElement;
+    expect(search).toBeTruthy();
+    search.value = "手";
+    search.dispatchEvent(new Event("input"));
+    const labels = panel.querySelectorAll("label");
+    expect(labels.length).toBe(1);
+    expect(labels[0]!.textContent).toBe("手臂");
+    document.body.removeChild(panel);
+  });
+
+  it("显示/隐藏全部按钮：setBoneVisible 调用 + 复选框同步", () => {
+    const { panel, model, handle, modelSel, spec } = setup({
+      bones: [
+        { id: "head", name: "头", parentId: null },
+        { id: "arm", name: "手臂", parentId: "head" },
+      ],
+    });
+    fill3DPanel(panel, model, [], spec, handle, modelSel);
+    const btns = [...panel.querySelectorAll("button")].map((b) => b.textContent);
+    // 按钮序：👁（显示全部）→ ⊘（隐藏全部）→ 详情复制
+    expect(btns[0]).toBe("👁");
+    expect(btns[1]).toBe("⊘");
+    const hideAll = [...panel.querySelectorAll("button")].find((b) => b.textContent === "⊘")!;
+    hideAll.click();
+    expect(handle.setBoneVisible).toHaveBeenCalledTimes(2);
+    expect(handle.setBoneVisible).toHaveBeenCalledWith("head", false);
+    expect(handle.setBoneVisible).toHaveBeenCalledWith("arm", false);
+    // 复选框同步为未选中
+    const boxes = [...panel.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[];
+    expect(boxes.every((c) => c.checked === false)).toBe(true);
+    // 显示全部 → 复选框恢复选中
+    const showAll = [...panel.querySelectorAll("button")].find((b) => b.textContent === "👁")!;
+    showAll.click();
+    expect(handle.setBoneVisible).toHaveBeenCalledWith("head", true);
+    expect(boxes.every((c) => c.checked === true)).toBe(true);
+    document.body.removeChild(panel);
+  });
+
+  it("骨骼详情复制按钮：成功 → ✅ + 2s 恢复；失败 → 直接恢复", async () => {
+    const { panel, model, handle, modelSel, spec } = setup();
+    fill3DPanel(panel, model, [], spec, handle, modelSel);
+    const copyBtn = [...panel.querySelectorAll("button")].find(
+      (b) => b.textContent === "📋 common.copy",
+    )!;
+    // 成功路径
+    vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+    vi.useFakeTimers();
+    try {
+      copyBtn.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("");
+      expect(copyBtn.textContent).toContain("preview.copied");
+      vi.advanceTimersByTime(1500);
+      expect(copyBtn.textContent).toBe("📋 common.copy");
+    } finally {
+      vi.useRealTimers();
+    }
+    document.body.removeChild(panel);
   });
 });

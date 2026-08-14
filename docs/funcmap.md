@@ -1230,7 +1230,7 @@
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
 | `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
-| `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:60` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
+| `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
 | `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |

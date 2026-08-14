@@ -54,6 +54,37 @@ const JPEG_SOF_EXCLUDE = [0xc4, 0xc8, 0xcc];
 const JPEG_HEADER_SCAN_LIMIT = 4096;
 
 /**
+ * 从纹理字节嗅探像素尺寸（PNG：8 字签名 + IHDR 后 4 字节宽/4 字节高大端；
+ * JPEG：SOI 后首个 SOF 段高度/宽度）。失败返回 null。
+ * 与 Go 端 imagePixelArea 口径一致，勿单独改。
+ */
+function sniffTexSize(arr: Uint8Array): { w: number; h: number } | null {
+  if (!arr?.length) return null;
+  if (arr[0] === PNG_SIG[0] && arr[1] === PNG_SIG[1] && arr[2] === PNG_SIG[2]) {
+    if (arr.length < 24) return null;
+    const w = (arr[16] << 24) | (arr[17] << 16) | (arr[18] << 8) | arr[19];
+    const h = (arr[20] << 24) | (arr[21] << 16) | (arr[22] << 8) | arr[23];
+    return w > 0 && h > 0 ? { w, h } : null;
+  }
+  if (arr[0] === JPEG_MARKER && arr[1] === 0xd8) {
+    for (let i = 2; i < Math.min(arr.length - 8, JPEG_HEADER_SCAN_LIMIT); i++) {
+      const m = arr[i + 1];
+      // SOF0-15，排除无尺寸的 DHT/JPG/DAC（与 Go 端 imagePixelArea 一致）
+      if (
+        arr[i] === JPEG_MARKER &&
+        (m & 0xf0) === JPEG_SOF_MASK &&
+        !JPEG_SOF_EXCLUDE.includes(m)
+      ) {
+        const h = (arr[i + 5] << 8) | arr[i + 6];
+        const w = (arr[i + 7] << 8) | arr[i + 8];
+        return w > 0 && h > 0 ? { w, h } : null;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations }
  * 不依赖组件实例（无 this 引用），可独立调用
  */
@@ -189,16 +220,12 @@ export async function doDecodeYsmViaWasm(
               textures[key] = URL.createObjectURL(blob);
               texKeys.push(key);
 
-              // 尺寸嗅探
-              let texW = 0, texH = 0;
-              if (arr[0] === PNG_SIG[0] && arr[1] === PNG_SIG[1] && arr[2] === PNG_SIG[2]) {
-                texW = (arr[16] << 24) | (arr[17] << 16) | (arr[18] << 8) | arr[19];
-                texH = (arr[20] << 24) | (arr[21] << 16) | (arr[22] << 8) | arr[23];
-              }
-              if (texW > 0 && texH > 0) {
-                texDimensions[key] = { w: texW, h: texH };
-                if (texW > maxTexW) maxTexW = texW;
-                if (texH > maxTexH) maxTexH = texH;
+              // 尺寸嗅探（PNG/JPEG，与 WASM 路径同源 sniffTexSize）
+              const sniffed = sniffTexSize(arr);
+              if (sniffed) {
+                texDimensions[key] = sniffed;
+                if (sniffed.w > maxTexW) maxTexW = sniffed.w;
+                if (sniffed.h > maxTexH) maxTexH = sniffed.h;
               }
             }
 
@@ -269,7 +296,9 @@ export async function doDecodeYsmViaWasm(
                 const blob = new Blob([avatarBytes.buffer as ArrayBuffer]);
                 au.avatarUrl = URL.createObjectURL(blob);
               }
-            } catch (_e) {}
+            } catch (e) {
+              devLog(`[YSM] 头像读取失败: ${e instanceof Error ? e.message : String(e)}`);
+            }
           }
         }
         cacheSet(modelPath, { ...result, _decodedBy: "🧠 JSON 直接解析" });
@@ -410,7 +439,9 @@ export async function doDecodeYsmViaWasm(
         ysmAnimGroups = animCfg.animGroups;
         ysmConfigMenus = animCfg.configMenus;
       } catch (e) {
-        /* ignore */
+        // 不静默吞错：ysm.json 结构异常时留痕（纹理顺序/动画分组解析失败会被下面的
+        // 默认值兜底，devLog 仅 DEV 输出）
+        devLog(`[YSM] ysm.json 元信息解析失败: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
@@ -438,30 +469,11 @@ export async function doDecodeYsmViaWasm(
       texNameMap[key] = f.path;
       texLowerMap[key.toLowerCase()] = key;
       const arr = new Uint8Array(f.data);
-      let texW = 0,
-        texH = 0;
-      if (arr[0] === PNG_SIG[0] && arr[1] === PNG_SIG[1] && arr[2] === PNG_SIG[2]) {
-        texW = (arr[16] << 24) | (arr[17] << 16) | (arr[18] << 8) | arr[19];
-        texH = (arr[20] << 24) | (arr[21] << 16) | (arr[22] << 8) | arr[23];
-      } else if (arr[0] === JPEG_MARKER && arr[1] === 0xd8) {
-        for (let i = 2; i < Math.min(arr.length - 8, JPEG_HEADER_SCAN_LIMIT); i++) {
-          const m = arr[i + 1];
-          // SOF0-15，排除无尺寸的 DHT/JPG/DAC（与 Go 端 imagePixelArea 一致）
-          if (
-            arr[i] === JPEG_MARKER &&
-            (m & 0xf0) === JPEG_SOF_MASK &&
-            !JPEG_SOF_EXCLUDE.includes(m)
-          ) {
-            texH = (arr[i + 5] << 8) | arr[i + 6];
-            texW = (arr[i + 7] << 8) | arr[i + 8];
-            break;
-          }
-        }
-      }
-      if (texW > 0 && texH > 0) {
-        texDimensions[key] = { w: texW, h: texH };
-        if (texW > maxTexW) maxTexW = texW;
-        if (texH > maxTexH) maxTexH = texH;
+      const sniffed = sniffTexSize(arr);
+      if (sniffed) {
+        texDimensions[key] = sniffed;
+        if (sniffed.w > maxTexW) maxTexW = sniffed.w;
+        if (sniffed.h > maxTexH) maxTexH = sniffed.h;
       }
       const td = texDimensions[key];
       devLog(
@@ -491,7 +503,7 @@ export async function doDecodeYsmViaWasm(
           }
         }
       } catch (e) {
-        /* ignore */
+        devLog(`[YSM] ysm.json 作者信息解析失败: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
@@ -509,27 +521,6 @@ export async function doDecodeYsmViaWasm(
       ysmDefaultTex,
       matchTexKey,
     });
-
-    // 构建模型文件→纹理索引映射
-    const modelTexIdxMap = new Map<string, number>();
-    if (ysmModelOrder) {
-      for (let i = 0; i < ysmModelOrder.length; i++) {
-        const mp = ysmModelOrder[i];
-        const mn =
-          (
-            typeof mp === "string"
-              ? mp
-              : (mp as { path?: string; name?: string })?.path ||
-                (mp as { name?: string })?.name ||
-                ""
-          )
-            .split(/[/\\]/)
-            .pop() || "";
-        if (mn) {
-          modelTexIdxMap.set(mn, Math.min(i, orderedTexKeys.length - 1));
-        }
-      }
-    }
 
     // 解析模型文件，合并骨骼
     let geometry: BedrockGeometry | null = null;
@@ -586,7 +577,9 @@ export async function doDecodeYsmViaWasm(
                   if (uEnd > uvMaxW) uvMaxW = uEnd;
                   if (vEnd > uvMaxH) uvMaxH = vEnd;
                 }
-              } catch {}
+              } catch (e) {
+                devLog(`[YSM] ${f.path} faceUV 解析失败: ${e instanceof Error ? e.message : String(e)}`);
+              }
             }
           }
         }

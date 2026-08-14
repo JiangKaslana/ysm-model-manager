@@ -19,6 +19,9 @@ vi.mock("three", () => {
     aspect = 0;
     updateProjectionMatrix = vi.fn();
     getWorldDirection = vi.fn(() => ({ x: 0, y: 0, z: 1 }));
+    constructor(..._a: unknown[]) {
+      cameraInstances.push(this);
+    }
   }
   class WebGLRenderer {
     domElement = document.createElement("div");
@@ -52,6 +55,8 @@ vi.mock("three", () => {
   }
   // 记录每个被创建的 InstancedMesh 实例，供测试断言 count / setMatrixAt 调用
   const instancedMeshInstances: InstancedMesh[] = [];
+  // 记录 PerspectiveCamera 实例（自身旋转拖拽断言用）
+  const cameraInstances: PerspectiveCamera[] = [];
   class InstancedMesh {
     instanceMatrix = { needsUpdate: false };
     count = 0;
@@ -109,6 +114,7 @@ vi.mock("three", () => {
     Euler,
     Vector3,
     _instancedMeshInstances: instancedMeshInstances,
+    _cameraInstances: cameraInstances,
   };
 });
 
@@ -145,6 +151,11 @@ const meshInstances = (THREE as unknown as {
   }>;
 })._instancedMeshInstances;
 
+/** 访问 mock 暴露的 PerspectiveCamera 实例列表（自身旋转拖拽断言用） */
+const cameraInstances = (THREE as unknown as {
+  _cameraInstances: Array<{ quaternion: { setFromEuler: ReturnType<typeof vi.fn> } }>;
+})._cameraInstances;
+
 /** 最近创建的 overlay（createLitematic3D append 到 body） */
 function lastOverlay(): HTMLElement {
   const kids = document.body.children;
@@ -164,6 +175,7 @@ beforeEach(() => {
   document.body.innerHTML = "";
   vi.clearAllMocks();
   meshInstances.length = 0;
+  cameraInstances.length = 0;
   vi.mocked(getApp).mockResolvedValue({
     GetLitematicVoxelData: voxelFn(VALID_JSON),
   } as never);
@@ -415,6 +427,130 @@ describe("陷阱 #11 坐标对齐 + #17 零值哨兵", () => {
     ls.dispatchEvent(new Event("input"));
     const total = meshInstances.reduce((s, m) => s + m.count, 0);
     expect(total).toBe(2); // [0,0,0] 和 [1,0,0] 在 Y=0 层；[2,5,2] 被过滤
+    unmountOverlay(overlay);
+  });
+});
+
+describe("审核补充：边界与异步路径", () => {
+  it("truncated 且无 maxBlocks → 使用兜底上限 200,000", async () => {
+    vi.mocked(getApp).mockResolvedValue({
+      GetLitematicVoxelData: voxelFn(
+        JSON.stringify({
+          groups: [{ positions: [[0, 0, 0]] }],
+          size: [10, 10, 10],
+          truncated: true, // 无 maxBlocks 字段
+        }),
+      ),
+    } as never);
+    await createLitematic3D("/trunc-fallback.litematic", "GetLitematicVoxelData");
+    const overlay = lastOverlay();
+    expect(overlay.textContent).toContain("200,000");
+    unmountOverlay(overlay);
+  });
+
+  it("加载期间 ESC 关闭 → aborted 守卫：迟到的数据不重建 overlay", async () => {
+    let resolveFn: (v: string) => void = () => {};
+    vi.mocked(getApp).mockResolvedValue({
+      GetLitematicVoxelData: (() =>
+        new Promise<string>((r) => {
+          resolveFn = r;
+        })) as never,
+    } as never);
+    const p = createLitematic3D("/slow.litematic", "GetLitematicVoxelData");
+    const overlay = lastOverlay(); // overlay 同步已挂载（首个 await 之前）
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(document.body.contains(overlay)).toBe(false);
+    resolveFn(VALID_JSON);
+    await p;
+    expect(document.body.contains(overlay)).toBe(false); // 迟到数据不复活
+  });
+
+  it("非立方体模型切单层：layerVal 在 setupRange 后同步（原 bug：整屏空白）", async () => {
+    // size=[16,8,16]，默认 Y 轴 layerMax=8；[0,7,0] 在 Y=7 层
+    vi.mocked(getApp).mockResolvedValue({
+      GetLitematicVoxelData: voxelFn(
+        JSON.stringify({
+          groups: [{ positions: [[0, 7, 0], [0, 5, 0]], color: "#ffffff" }],
+          size: [16, 8, 16],
+        }),
+      ),
+    } as never);
+    await createLitematic3D("/noncube.litematic", "GetLitematicVoxelData");
+    const overlay = lastOverlay();
+    const selects = overlay.querySelectorAll("select");
+    const layerMode = selects[selects.length - 1] as HTMLSelectElement;
+    layerMode.value = "single";
+    layerMode.dispatchEvent(new Event("change"));
+    // 修复前 layerVal=16 → target=15 → 全部过滤（count=0）；修复后 target=7 → 只留 Y=7
+    const total = meshInstances.reduce((s, m) => s + m.count, 0);
+    expect(total).toBe(1);
+    unmountOverlay(overlay);
+  });
+
+  it("layerInput 输入越界值 → 钳到 [1, layerMax]", async () => {
+    await createLitematic3D("/clamp.litematic", "GetLitematicVoxelData");
+    const overlay = lastOverlay();
+    const selects = overlay.querySelectorAll("select");
+    const layerMode = selects[selects.length - 1] as HTMLSelectElement;
+    layerMode.value = "single";
+    layerMode.dispatchEvent(new Event("change"));
+    const numInput = overlay.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(numInput.style.display).not.toBe("none"); // single 模式下数字输入可见
+    numInput.value = "999";
+    numInput.dispatchEvent(new Event("change"));
+    expect(numInput.value).toBe("16"); // size=16 → layerMax=16，越界钳回
+    numInput.value = "0";
+    numInput.dispatchEvent(new Event("change"));
+    expect(numInput.value).toBe("1"); // 低于下限钳到 1
+    unmountOverlay(overlay);
+  });
+
+  it("范围模式双滑块：slider2 决定区间上界，过滤正确", async () => {
+    vi.mocked(getApp).mockResolvedValue({
+      GetLitematicVoxelData: voxelFn(
+        JSON.stringify({
+          groups: [{ positions: [[0, 0, 0], [1, 1, 1], [2, 2, 2]], color: "#ffffff" }],
+          size: [16, 16, 16],
+        }),
+      ),
+    } as never);
+    await createLitematic3D("/range.litematic", "GetLitematicVoxelData");
+    const overlay = lastOverlay();
+    const selects = overlay.querySelectorAll("select");
+    const layerMode = selects[selects.length - 1] as HTMLSelectElement;
+    layerMode.value = "range";
+    layerMode.dispatchEvent(new Event("change"));
+    // range 模式：layerSlider 设 1（lo=0），slider2 设 2（hi=2）→ 区间 [0,2) 保留 Y=0/1
+    const ranges = overlay.querySelectorAll<HTMLInputElement>('input[type="range"]');
+    ranges[1].value = "1"; // layerSlider
+    ranges[1].dispatchEvent(new Event("input"));
+    ranges[2].value = "2"; // layerSlider2
+    ranges[2].dispatchEvent(new Event("input"));
+    const total = meshInstances.reduce((s, m) => s + m.count, 0);
+    expect(total).toBe(2);
+    unmountOverlay(overlay);
+  });
+
+  it("自身旋转模式拖拽：pointerdown + pointermove → quaternion 更新", async () => {
+    await createLitematic3D("/drag.litematic", "GetLitematicVoxelData");
+    const overlay = lastOverlay();
+    const sel = overlay.querySelector("select") as HTMLSelectElement;
+    sel.value = "false"; // 自身模式（非 orbit）
+    sel.dispatchEvent(new Event("change"));
+    const rendererEl = Array.from(overlay.querySelectorAll("div")).find(
+      (d) => d.style.touchAction === "none",
+    ) as HTMLElement;
+    expect(rendererEl).toBeTruthy();
+    const cam = cameraInstances.at(-1)!;
+    rendererEl.dispatchEvent(new PointerEvent("pointerdown", { button: 0, clientX: 10, bubbles: true }));
+    window.dispatchEvent(new PointerEvent("pointermove", { clientX: 40 }));
+    expect(cam.quaternion.setFromEuler).toHaveBeenCalled();
+    // 松开指针后右键不触发自身旋转
+    window.dispatchEvent(new PointerEvent("pointerup"));
+    cam.quaternion.setFromEuler.mockClear();
+    rendererEl.dispatchEvent(new PointerEvent("pointerdown", { button: 2, clientX: 10, bubbles: true }));
+    window.dispatchEvent(new PointerEvent("pointermove", { clientX: 40 }));
+    expect(cam.quaternion.setFromEuler).not.toHaveBeenCalled();
     unmountOverlay(overlay);
   });
 });
