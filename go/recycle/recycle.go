@@ -23,18 +23,21 @@ type MoveResult struct {
 // TrashManager 可配置的回收站管理器
 type TrashManager struct {
 	recycleDir string
-	// 跨设备回退的 rename/目录复制实现（测试注入点：模拟 EXDEV 与复制中途失败），
-	// 生产恒为真实实现（New 中初始化）
-	renameForMove  func(src, dst string) error
-	copyDirForMove func(src, dst string) error
+	// 跨设备回退的 rename/目录复制/文件复制实现（测试注入点：模拟 EXDEV 与复制中途失败），
+	// 生产恒为真实实现（New 中初始化）；moveEx 与 Restore 共用同一组注入点，
+	// 保证跨设备回退分支（含复制失败清理）在单测中可确定性覆盖
+	renameForMove   func(src, dst string) error
+	copyDirForMove  func(src, dst string) error
+	copyFileForMove func(src, dst string) error
 }
 
 // New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle
 func New(root string) *TrashManager {
 	return &TrashManager{
-		recycleDir:     filepath.Join(root, ".recycle"),
-		renameForMove:  os.Rename,
-		copyDirForMove: copyDirRecursive,
+		recycleDir:      filepath.Join(root, ".recycle"),
+		renameForMove:   os.Rename,
+		copyDirForMove:  copyDirRecursive,
+		copyFileForMove: copyFile,
 	}
 }
 
@@ -141,7 +144,7 @@ func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 		}
 		return &MoveResult{Action: "recycled", Reason: ""}, nil
 	}
-	if err := copyFile(src, dst); err != nil {
+	if err := tm.copyFileForMove(src, dst); err != nil {
 		// 复制中断/失败时清理半截文件，避免回收站残留损坏文件
 		if rerr := os.Remove(dst); rerr != nil {
 			log.Printf("[recycle] 清理半截文件失败 %s: %v", dst, rerr)
@@ -255,14 +258,16 @@ func (tm *TrashManager) Restore(src string) error {
 		}
 	}
 	// 优先瞬时移动（同分区原子操作）；跨设备时回退复制后删，语义不变
-	if err := os.Rename(src, dst); err == nil {
+	// 与 moveEx 共用 renameForMove/copyDirForMove/copyFileForMove 注入点，
+	// 跨设备回退分支可被单测确定性覆盖（EXDEV 在单机不可稳定复现）
+	if err := tm.renameForMove(src, dst); err == nil {
 		return nil
 	} else if !fsutil.IsCrossDeviceErr(err) {
 		return err // 权限/占用等非跨设备错误直接返回，不尝试复制
 	}
 	// 目录（整组合并条目）跨设备：递归复制整棵树；文件走 copyFile
 	if info, statErr := os.Lstat(src); statErr == nil && info.IsDir() {
-		if err := copyDirRecursive(src, dst); err != nil {
+		if err := tm.copyDirForMove(src, dst); err != nil {
 			// 清理失败记录日志，与 moveEx 的清理分支对齐（原 _ 静默）
 			if rerr := os.RemoveAll(dst); rerr != nil {
 				log.Printf("[recycle] Restore 清理半截目录失败 %s: %v", dst, rerr)
@@ -271,7 +276,7 @@ func (tm *TrashManager) Restore(src string) error {
 		}
 		return os.RemoveAll(src)
 	}
-	if err := copyFile(src, dst); err != nil {
+	if err := tm.copyFileForMove(src, dst); err != nil {
 		// 复制中断/失败时清理半截恢复文件，避免目标目录残留损坏文件
 		// 清理失败记录日志（原 _ 静默）
 		if rerr := os.Remove(dst); rerr != nil {

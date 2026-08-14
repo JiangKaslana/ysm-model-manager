@@ -126,3 +126,31 @@ func TestMoveEx_CrossDeviceCopyFails_CleansDst(t *testing.T) {
 		t.Fatalf("源目录应完好: %v", err)
 	}
 }
+
+// moveEx 文件跨设备回退时复制中途失败：半截文件应被清理，源文件保留
+func TestMoveEx_CrossDeviceFileCopyFails_CleansDst(t *testing.T) {
+	dir := t.TempDir()
+	src := testutil.CreateTestFile(t, dir, "single.ysm", "content")
+	tm := newTMWithRenameErr(t, dir, syscall.EXDEV)
+	// 模拟文件复制中途失败：先写入半截文件再报错，验证半截文件被清理
+	tm.copyFileForMove = func(s, d string) error {
+		if err := os.WriteFile(d, []byte("partial"), 0644); err != nil {
+			return err
+		}
+		return os.ErrPermission
+	}
+
+	res := tm.MoveEx(src)
+	if res.Action != "error" {
+		t.Fatalf("复制失败应报 error, 得到 %s/%s", res.Action, res.Reason)
+	}
+	// 半截副本应被清理
+	recycleDir := filepath.Join(dir, ".recycle")
+	if _, err := os.Stat(filepath.Join(recycleDir, "single.ysm")); !os.IsNotExist(err) {
+		t.Fatal("半截副本文件应被清理")
+	}
+	// 源文件应完好
+	if _, err := os.Stat(src); err != nil {
+		t.Fatalf("源文件应完好: %v", err)
+	}
+}

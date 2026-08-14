@@ -54,9 +54,9 @@
 | `CacheAvatarsFromJSON()` | `go/avatar/avatar_extract:195` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
 | `CacheAvatarsFromModel()` | `go/avatar/avatar_extract:265` | CacheAvatarsFromModel 从 .ysm/.zip/.json 模型缓存所有作者头像。 |
 | `ReadFileFromZip()` | `go/avatar/avatar_zip:16` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
-| `SafeName()` | `go/avatar/avatar:43` | SafeName 将非法文件名字符替换为下划线。 |
-| `ReadCachedAvatar()` | `go/avatar/avatar:137` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
-| `SaveAvatarData()` | `go/avatar/avatar:163` | SaveAvatarData 将头像数据写入缓存。 |
+| `SafeName()` | `go/avatar/avatar:45` | SafeName 将非法文件名字符替换为下划线。 |
+| `ReadCachedAvatar()` | `go/avatar/avatar:139` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
+| `SaveAvatarData()` | `go/avatar/avatar:165` | SaveAvatarData 将头像数据写入缓存。 |
 
 ## Go·去重
 
@@ -124,8 +124,8 @@
 | `CleanEmptyDirs()` | `go/fsutil/walk:75` | CleanEmptyDirs 递归删除空子目录，返回删除数 |
 | `IsRecycleDir()` | `go/fsutil/walk:91` | IsRecycleDir 判断路径是否指向 .recycle 回收站目录（大小写不敏感，ADR-044 策略 A 统一口径）—— dedup / scanner / sync 的回 |
 | `IsResourcePackFolder()` | `go/fsutil/walk:99` | IsResourcePackFolder 检查目录是否为资源包文件夹（内含 pack.mcmeta）。 |
-| `ReadLimitedEntry()` | `go/fsutil/write:45` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
-| `WriteFileAtomic()` | `go/fsutil/write:65` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
+| `ReadLimitedEntry()` | `go/fsutil/write:58` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
+| `WriteFileAtomic()` | `go/fsutil/write:78` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
 
 ## Go·几何
 
@@ -244,20 +244,20 @@
 | `RemoveRepoDuplicates()` | `go/recycle/recycle_clean:22` | RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件： 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推） |
 | `DeduplicateEntries()` | `go/recycle/recycle_clean:59` | DeduplicateEntries 按 SHA256 哈希分组去重：每组显式按路径排序保留第一个，其余移入回收站 |
 | `CleanOpLogger()` | `go/recycle/recycle_clean:18` | CleanOpLogger 清理操作日志回调（薄壳注入 App.logger.Add） |
-| `New()` | `go/recycle/recycle:33` | New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle |
-| `TrashManager.RecycleDir()` | `go/recycle/recycle:42` | RecycleDir 返回回收站目录路径 |
-| `TrashManager.Move()` | `go/recycle/recycle:47` | Move 移动文件到回收站 |
-| `TrashManager.MoveEx()` | `go/recycle/recycle:53` | MoveEx 移动文件到回收站，返回操作详情 |
-| `TrashManager.List()` | `go/recycle/recycle:160` | List 列出回收站中的文件。 |
-| `TrashManager.Restore()` | `go/recycle/recycle:220` | Restore 从回收站恢复到原目录 |
-| `TrashManager.Delete()` | `go/recycle/recycle:317` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `TrashManager.Empty()` | `go/recycle/recycle:337` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
-| `Move()` | `go/recycle/recycle:47` | Move 移动文件到回收站 |
-| `MoveEx()` | `go/recycle/recycle:53` | MoveEx 移动文件到回收站，返回操作详情 |
-| `List()` | `go/recycle/recycle:160` | List 列出回收站中的文件。 |
-| `Restore()` | `go/recycle/recycle:220` | Restore 从回收站恢复到原目录 |
-| `Delete()` | `go/recycle/recycle:317` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `Empty()` | `go/recycle/recycle:337` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `New()` | `go/recycle/recycle:35` | New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle |
+| `TrashManager.RecycleDir()` | `go/recycle/recycle:45` | RecycleDir 返回回收站目录路径 |
+| `TrashManager.Move()` | `go/recycle/recycle:50` | Move 移动文件到回收站 |
+| `TrashManager.MoveEx()` | `go/recycle/recycle:56` | MoveEx 移动文件到回收站，返回操作详情 |
+| `TrashManager.List()` | `go/recycle/recycle:163` | List 列出回收站中的文件。 |
+| `TrashManager.Restore()` | `go/recycle/recycle:223` | Restore 从回收站恢复到原目录 |
+| `TrashManager.Delete()` | `go/recycle/recycle:322` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `TrashManager.Empty()` | `go/recycle/recycle:342` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `Move()` | `go/recycle/recycle:50` | Move 移动文件到回收站 |
+| `MoveEx()` | `go/recycle/recycle:56` | MoveEx 移动文件到回收站，返回操作详情 |
+| `List()` | `go/recycle/recycle:163` | List 列出回收站中的文件。 |
+| `Restore()` | `go/recycle/recycle:223` | Restore 从回收站恢复到原目录 |
+| `Delete()` | `go/recycle/recycle:322` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `Empty()` | `go/recycle/recycle:342` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
 | `MoveResult()` | `go/recycle/recycle:18` | MoveResult 回收操作结果 |
 | `TrashManager()` | `go/recycle/recycle:24` | TrashManager 可配置的回收站管理器 |
 

@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -35,8 +34,8 @@ func TestWriteFileAtomic_WriteFail(t *testing.T) {
 
 	dst := filepath.Join(dir, "data.json")
 	err := WriteFileAtomic(dst, []byte("x"))
-	if err == nil || !strings.Contains(err.Error(), "写入失败") {
-		t.Fatalf("应报写入失败，实际 %v", err)
+	if err == nil || !errors.Is(err, ErrWriteFailed) {
+		t.Fatalf("应报 ErrWriteFailed，实际 %v", err)
 	}
 	if _, statErr := os.Stat(dst); !os.IsNotExist(statErr) {
 		t.Fatalf("写入失败后目标文件不应存在（半截数据装盘）")
@@ -51,8 +50,8 @@ func TestWriteFileAtomic_SyncFail(t *testing.T) {
 	t.Cleanup(func() { syncFile = orig })
 
 	err := WriteFileAtomic(filepath.Join(dir, "data.json"), []byte("x"))
-	if err == nil || !strings.Contains(err.Error(), "落盘失败") {
-		t.Fatalf("应报落盘失败，实际 %v", err)
+	if err == nil || !errors.Is(err, ErrSyncFailed) {
+		t.Fatalf("应报 ErrSyncFailed，实际 %v", err)
 	}
 	noAtomicResidue(t, dir)
 }
@@ -68,8 +67,8 @@ func TestWriteFileAtomic_CloseFail(t *testing.T) {
 	t.Cleanup(func() { closeFile = orig })
 
 	err := WriteFileAtomic(filepath.Join(dir, "data.json"), []byte("x"))
-	if err == nil || !strings.Contains(err.Error(), "关闭临时文件失败") {
-		t.Fatalf("应报关闭失败，实际 %v", err)
+	if err == nil || !errors.Is(err, ErrCloseFailed) {
+		t.Fatalf("应报 ErrCloseFailed，实际 %v", err)
 	}
 	noAtomicResidue(t, dir)
 }
@@ -83,8 +82,8 @@ func TestWriteFileAtomic_ChmodFail(t *testing.T) {
 	t.Cleanup(func() { chmodFile = orig })
 
 	err := WriteFileAtomic(filepath.Join(dir, "data.json"), []byte("x"))
-	if err == nil || !strings.Contains(err.Error(), "设置权限失败") {
-		t.Fatalf("应报设置权限失败，实际 %v", err)
+	if err == nil || !errors.Is(err, ErrChmodFailed) {
+		t.Fatalf("应报 ErrChmodFailed，实际 %v", err)
 	}
 	noAtomicResidue(t, dir)
 }
@@ -99,8 +98,8 @@ func TestWriteFileAtomic_RenameFail(t *testing.T) {
 
 	dst := filepath.Join(dir, "data.json")
 	err := WriteFileAtomic(dst, []byte("x"))
-	if err == nil || !strings.Contains(err.Error(), "落地失败") {
-		t.Fatalf("应报落地失败，实际 %v", err)
+	if err == nil || !errors.Is(err, ErrRenameFailed) {
+		t.Fatalf("应报 ErrRenameFailed，实际 %v", err)
 	}
 	if _, statErr := os.Stat(dst); !os.IsNotExist(statErr) {
 		t.Fatalf("落地失败后目标文件不应存在")

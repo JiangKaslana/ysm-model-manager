@@ -30,6 +30,19 @@ func TestMoveEx_OutsideRoot(t *testing.T) {
 	}
 }
 
+// moveEx 根级守卫：src == 资源根目录自身应被拒绝（IsInside 相等放行 → 敀显式 Clean 相等拒绝）
+func TestMoveEx_SrcIsRootDir(t *testing.T) {
+	dir := t.TempDir()
+	tm := New(dir)
+	if err := tm.Move(dir); err == nil {
+		t.Fatal("移动资源根目录自身应被拒绝")
+	}
+	// 回收站目录不应被创建（守卫在 MkdirAll 之前）
+	if _, err := os.Stat(tm.RecycleDir()); !os.IsNotExist(err) {
+		t.Fatal("守卫拒绝后回收站目录不应被创建")
+	}
+}
+
 // moveEx 源缺失：Lstat 失败直接返回错误
 func TestMoveEx_SourceMissing(t *testing.T) {
 	dir := t.TempDir()

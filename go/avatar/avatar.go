@@ -9,7 +9,9 @@ package avatar
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -144,7 +146,7 @@ func ReadCachedAvatar(authorName string) (string, error) {
 	// 缓存文件整读内存膨胀（与模型读取同口径）
 	data, err := readLimitedAvatar(cachedPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return "", nil // 缓存未命中，非错误
 		}
 		return "", err // IO 错误（权限/磁盘故障等）

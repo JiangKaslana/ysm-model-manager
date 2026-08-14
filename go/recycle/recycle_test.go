@@ -334,6 +334,40 @@ func TestList_FolderModelNotGrouped(t *testing.T) {
 	}
 }
 
+// List 扩展名过滤：不支持扩展名的文件不列出；.ban（禁用标记）与支持扩展名列出——
+// 被禁用的模型在回收站中仅以 `x.ysm.ban` 存在（禁用 = 改名 .ban），必须可见才可恢复。
+func TestList_FiltersUnsupportedAndBan(t *testing.T) {
+	dir := t.TempDir()
+	tm := New(dir)
+
+	// 三个文件都进回收站：支持的 .ysm、禁用标记 .ban、不支持扩展 .xyz
+	if err := tm.Move(testutil.CreateTestFile(t, dir, "keep.ysm", "x")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tm.Move(testutil.CreateTestFile(t, dir, "disabled.ban", "x")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tm.Move(testutil.CreateTestFile(t, dir, "notes.xyz", "x")); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := tm.List()
+	// .ban 与 .ysm 均列出（共 2 条），.xyz 被过滤
+	if len(entries) != 2 {
+		t.Fatalf("应列出 keep.ysm + disabled.ban（.xyz 过滤）, 实际 %d 条: %v", len(entries), entries)
+	}
+	names := map[string]bool{}
+	for _, e := range entries {
+		names[e.Name] = true
+	}
+	if !names["keep.ysm"] || !names["disabled.ban"] {
+		t.Fatalf("应同时列出 keep.ysm 与 disabled.ban, 实际 %v", names)
+	}
+	if names["notes.xyz"] {
+		t.Fatal("不支持扩展名 notes.xyz 不应列出")
+	}
+}
+
 func TestDelete_FolderModelGrouped(t *testing.T) {
 	// ADR-038 D3.4：永久删除整组合并条目（Path 指向目录）应成功（os.RemoveAll 目录）
 	dir := t.TempDir()

@@ -16,10 +16,23 @@ import (
 	"strings"
 )
 
-// ErrTempCreateFailed 标记「创建临时文件」阶段失败（目录只读/磁盘满/配额）。
-// 调用方（如 go/importer 的 AppError 包装）可用 errors.Is 区分该阶段并映射
+// 陷阱 #11：各阶段失败必须经 sentinel + errors.Is 判定，禁止文本匹配（strings.Contains
+// 错误消息）。调用方（如 go/importer 的 AppError 包装）可用 errors.Is 区分阶段并映射
 // 不同的错误码（如 MKDIR_FAILED），维持既有结构化错误契约（code_review）。
-var ErrTempCreateFailed = errors.New("创建临时文件失败")
+var (
+	// ErrTempCreateFailed 标记「创建临时文件」阶段失败（目录只读/磁盘满/配额/NUL 路径）。
+	ErrTempCreateFailed = errors.New("创建临时文件失败")
+	// ErrWriteFailed 标记写入临时文件阶段失败（ENOSPC/EIO）。
+	ErrWriteFailed = errors.New("写入失败")
+	// ErrSyncFailed 标记 fsync 落盘阶段失败。
+	ErrSyncFailed = errors.New("落盘失败")
+	// ErrCloseFailed 标记关闭临时文件阶段失败。
+	ErrCloseFailed = errors.New("关闭临时文件失败")
+	// ErrChmodFailed 标记设置权限阶段失败。
+	ErrChmodFailed = errors.New("设置权限失败")
+	// ErrRenameFailed 标记 rename 落地阶段失败。
+	ErrRenameFailed = errors.New("落地失败")
+)
 
 // 可注入故障点（包级函数变量，仅测试替换用）——OS 级失败（ENOSPC/EIO/只读目录等）
 // 无法在测试中低成本真实构造，故收敛为包级变量供测试 swap；生产代码零改动语义，
@@ -78,26 +91,26 @@ func WriteFileAtomic(destPath string, data []byte) error {
 	if err := writeToFile(tmp, data); err != nil {
 		tmp.Close()
 		os.Remove(tmpName)
-		return fmt.Errorf("写入失败: %w", err)
+		return fmt.Errorf("%w: %w", ErrWriteFailed, err)
 	}
 	// Sync 确保数据落盘后再 Close+Rename——与 installer/recycle/importer 的
 	// copyFile 落盘检查对齐（ADR-033 截断静默反模式：不 Sync 时崩溃可能零长度文件装盘）
 	if err := syncFile(tmp); err != nil {
 		tmp.Close()
 		os.Remove(tmpName)
-		return fmt.Errorf("落盘失败: %w", err)
+		return fmt.Errorf("%w: %w", ErrSyncFailed, err)
 	}
 	if err := closeFile(tmp); err != nil {
 		os.Remove(tmpName)
-		return fmt.Errorf("关闭临时文件失败: %w", err)
+		return fmt.Errorf("%w: %w", ErrCloseFailed, err)
 	}
 	if err := chmodFile(tmpName, 0644); err != nil {
 		os.Remove(tmpName)
-		return fmt.Errorf("设置权限失败: %w", err)
+		return fmt.Errorf("%w: %w", ErrChmodFailed, err)
 	}
 	if err := renameFile(tmpName, destPath); err != nil {
 		os.Remove(tmpName)
-		return fmt.Errorf("落地失败: %w", err)
+		return fmt.Errorf("%w: %w", ErrRenameFailed, err)
 	}
 	return nil
 }

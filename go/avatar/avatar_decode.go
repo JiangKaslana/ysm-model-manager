@@ -136,7 +136,13 @@ main().catch(e=>{console.error(e);process.exit(1)});
 			return nil
 		}
 		if errLimited.exceeded {
-			fmt.Fprintln(os.Stderr, "[ysm-avatar] decode failed (stderr too large):", errLimited.buf.String()[:512])
+			// limitedBuffer 超限时整段丢弃，buf 可能短于 512——先取长度再切片，
+			// 防诊断输出自身 panic（[:512] 越界）
+			diag := errLimited.buf.String()
+			if len(diag) > 512 {
+				diag = diag[:512]
+			}
+			fmt.Fprintln(os.Stderr, "[ysm-avatar] decode failed (stderr too large):", diag)
 		} else {
 			fmt.Fprintln(os.Stderr, "[ysm-avatar] decode failed:", errLimited.buf.String())
 		}

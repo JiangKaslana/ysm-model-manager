@@ -219,6 +219,21 @@ func TestDecodeYSMFiles_ExitError(t *testing.T) {
 	}
 }
 
+// TestDecodeYSMFiles_StderrTooLarge 覆盖「解码失败 + stderr 超 8MB」分支（errLimited.exceeded）：
+// 假胶水在 require 阶段向 stderr 倾倒 >8MB 数据（单次大写入），随后 callMain 抛错退出码 1。
+// 修复前该分支 `buf.String()[:512]` 在 buf<512 时越界 panic；修复后应返回 nil 且不 panic。
+func TestDecodeYSMFiles_StderrTooLarge(t *testing.T) {
+	requireNode(t)
+	big := strings.Repeat("x", 9<<20)
+	glue := "process.stderr.write(" + strconv.Quote(big) + ");\n" +
+		`module.exports = function () { throw new Error('boom'); };`
+	withFakeNode(t, glue, []byte{1})
+
+	if got := DecodeYSMFiles([]byte("x")); got != nil {
+		t.Fatalf("stderr 超限 + 解码失败应返回 nil, 得到 %v", got)
+	}
+}
+
 // ===== ExtractAvatarURI .ysm 分支补测（假胶水管线）=====
 
 func TestExtractAvatarURI_FromYSM_Happy(t *testing.T) {
