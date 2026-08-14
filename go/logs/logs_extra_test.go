@@ -156,6 +156,20 @@ func TestLogger_Load_Over500Trim(t *testing.T) {
 	}
 }
 
+// TestLogger_Load_MemoryLogger 内存态 logger（path==""）直接调 load 应为 no-op：
+// 不 panic、不创建 .corrupt、日志保持为空（cleanupStaleCorrupt 的 path=="" 早退 + ReadFile("") 的 NotExist 分支）
+func TestLogger_Load_MemoryLogger(t *testing.T) {
+	l := NewLogger("")
+	l.load() // 不 panic
+	if got := l.GetAll(); len(got) != 0 {
+		t.Errorf("内存态 load 后应为空, got %d", len(got))
+	}
+	(&Logger{}).load() // 裸结构体 load 同样 no-op
+	if _, err := os.Stat(corruptSuffix); !os.IsNotExist(err) {
+		t.Fatalf("内存态 load 不应落盘 .corrupt: %v", err)
+	}
+}
+
 // ====== cleanupStaleCorrupt ======
 
 func TestLogger_CleanupStaleCorrupt(t *testing.T) {
@@ -281,6 +295,25 @@ func TestLogger_AddOp_Truncate(t *testing.T) {
 	l2.Add(short, "s", "d", 0, "ok", "")
 	if got := l2.GetAll(); got[0].ModelName != short {
 		t.Errorf("短字段应原样保留, got %q", got[0].ModelName)
+	}
+}
+
+// TestLogger_AddOp_FieldLenExactBoundary 字段长度恰为 maxFieldLen 时不应截断
+// （截断条件为 len(r) > maxFieldLen 严格大于，等号边界走原样保留分支）
+func TestLogger_AddOp_FieldLenExactBoundary(t *testing.T) {
+	dir := t.TempDir()
+	l := &Logger{path: filepath.Join(dir, "logs.json")}
+	exact := strings.Repeat("界", maxFieldLen) // 恰为上限
+	l.AddOp("import", exact, "s", "d", 0, "ok", "")
+	got := l.GetAll()
+	if len(got) != 1 {
+		t.Fatalf("应 1 条, got %d", len(got))
+	}
+	if n := len([]rune(got[0].ModelName)); n != maxFieldLen {
+		t.Errorf("恰为 maxFieldLen 的字段不应截断, got %d rune", n)
+	}
+	if got[0].ModelName != exact {
+		t.Error("恰为 maxFieldLen 的字段应原样保留")
 	}
 }
 

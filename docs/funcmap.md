@@ -208,12 +208,12 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `NewLogger()` | `go/logs/logs:39` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
-| `Logger.Add()` | `go/logs/logs:143` | Add 添加一条导入日志（兼容旧调用） |
-| `Logger.AddOp()` | `go/logs/logs:148` | AddOp 添加一条指定操作类型的日志 |
-| `Logger.GetAll()` | `go/logs/logs:188` | GetAll 获取所有日志 |
-| `Logger.Clear()` | `go/logs/logs:197` | Clear 清空日志 |
-| `Logger()` | `go/logs/logs:29` | Logger 导入日志管理器 |
+| `NewLogger()` | `go/logs/logs:40` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
+| `Logger.Add()` | `go/logs/logs:146` | Add 添加一条导入日志（兼容旧调用） |
+| `Logger.AddOp()` | `go/logs/logs:151` | AddOp 添加一条指定操作类型的日志 |
+| `Logger.GetAll()` | `go/logs/logs:191` | GetAll 获取所有日志 |
+| `Logger.Clear()` | `go/logs/logs:200` | Clear 清空日志 |
+| `Logger()` | `go/logs/logs:30` | Logger 导入日志管理器 |
 | `NewRuntimeBuffer()` | `go/logs/runtime:22` | NewRuntimeBuffer 创建环形缓冲 |
 | `RuntimeBuffer.Write()` | `go/logs/runtime:30` | Write 实现 io.Writer：每次调用记录一条运行时日志（标准库 log 一行即一次 Write） |
 | `RuntimeBuffer.GetAll()` | `go/logs/runtime:50` | GetAll 返回全部日志的副本 |
@@ -224,9 +224,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ReadPackMeta()` | `go/packs/mcmeta:25` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
-| `DetectResourceType()` | `go/packs/mcmeta:123` | DetectResourceType 检测文件属于哪种资源类型 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:229` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `ReadPackMeta()` | `go/packs/mcmeta:34` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
+| `DetectResourceType()` | `go/packs/mcmeta:138` | DetectResourceType 检测文件属于哪种资源类型 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:257` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 

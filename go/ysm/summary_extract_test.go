@@ -214,3 +214,48 @@ func TestExtractYsmSummary_NotExist(t *testing.T) {
 		t.Fatal("不存在的文件应报错")
 	}
 }
+
+// 裸 ysm.json 内容为非法 JSON → 必须返回结构化错误（summary.go L170-175），
+// 不得静默降级为「文件名摘要」。
+func TestExtractYsmSummary_PlainJSONInvalidContent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "model.json")
+	if err := os.WriteFile(path, []byte("{not valid json"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExtractYsmSummary(path); err == nil {
+		t.Fatal("非法 JSON 内容的裸 ysm.json 应返回错误，实际返回 nil 错误")
+	}
+}
+
+// ZIP 内 ysm.json 内容为非法 JSON → 同样必须返回错误（summary.go L291-293）。
+func TestExtractYsmSummary_ZipYsmJSONInvalidContent(t *testing.T) {
+	path := testutil.WriteZipFile(t, "model.ysm", map[string]string{
+		"ysm.json": "{not valid json",
+	})
+	if _, err := ExtractYsmSummary(path); err == nil {
+		t.Fatal("zip 内 ysm.json 非法 JSON 应返回错误，实际返回 nil 错误")
+	}
+}
+
+// ZIP 分支：properties 存在时从几何体文件提取纹理尺寸（summary.go L339-365）——
+// geo/main.json 含 texture_width/height 时应写入 Stats.TexWidth/TexHeight。
+func TestExtractYsmSummary_ZipTexSizeFromGeometry(t *testing.T) {
+	ysmJSON := `{
+	  "spec": 2,
+	  "metadata": {"name": "tex模型"},
+	  "properties": {"default_texture": "tex/default.png"},
+	  "files": {"player": {"model": [{"path": "geo/main.json"}], "texture": [{"path": "tex/default.png"}]}}
+	}`
+	path := testutil.WriteZipFile(t, "model.ysm", map[string]string{
+		"ysm.json":        ysmJSON,
+		"geo/main.json":   `{"minecraft:geometry":[{"description":{"texture_width":128,"texture_height":64}}]}`,
+		"tex/default.png": "png",
+	})
+	summary, err := ExtractYsmSummary(path)
+	if err != nil {
+		t.Fatalf("ZIP 分支不应报错: %v", err)
+	}
+	if summary.Stats.TexWidth != 128 || summary.Stats.TexHeight != 64 {
+		t.Errorf("TexWidth/TexHeight = %d/%d, want 128/64", summary.Stats.TexWidth, summary.Stats.TexHeight)
+	}
+}

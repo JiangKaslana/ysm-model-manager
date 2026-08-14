@@ -3,8 +3,10 @@ package packs
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"ysm-model-manager/go/internal/testutil"
@@ -294,5 +296,245 @@ func TestReadShaderpackLang_ZipOverLimit(t *testing.T) {
 	}
 	if name, _ := result["name"].(string); name != "" {
 		t.Errorf(">1MB zip lang 应置空 name，实际 %q", name)
+	}
+}
+
+// ====== 审核补测：sentinel 错误 / 大小写归一 / .json YSM / 未测分支 ======
+
+// 空目录 → ErrPackMetaNotFound（errors.Is 可判定，禁止调用方 strings.Contains 文本匹配）
+func TestReadPackMeta_NotFoundIsSentinel(t *testing.T) {
+	_, _, err := ReadPackMeta(t.TempDir())
+	if !errors.Is(err, ErrPackMetaNotFound) {
+		t.Fatalf("空目录错误 = %v, 期望 errors.Is(err, ErrPackMetaNotFound)", err)
+	}
+}
+
+// 目录 pack.mcmeta > 1MB → ErrPackMetaTooLarge
+func TestReadPackMeta_DirMcmetaOverLimitIsSentinel(t *testing.T) {
+	dir := t.TempDir()
+	big := bytes.Repeat([]byte{'a'}, (1<<20)+1)
+	if err := os.WriteFile(filepath.Join(dir, "pack.mcmeta"), big, 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := ReadPackMeta(dir)
+	if !errors.Is(err, ErrPackMetaTooLarge) {
+		t.Fatalf("超限错误 = %v, 期望 errors.Is(err, ErrPackMetaTooLarge)", err)
+	}
+}
+
+// ZIP 内 pack.mcmeta > 1MB → ErrPackMetaTooLarge（与 dir 分支口径一致，
+// 而非误导性的「未找到」）
+func TestReadPackMeta_ZipMcmetaOverLimit(t *testing.T) {
+	big := strings.Repeat("a", (1<<20)+1)
+	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{"pack.mcmeta": big})
+	_, _, err := ReadPackMeta(path)
+	if !errors.Is(err, ErrPackMetaTooLarge) {
+		t.Fatalf("zip 超限 mcmeta 错误 = %v, 期望 errors.Is(err, ErrPackMetaTooLarge)", err)
+	}
+}
+
+// 目录 pack.mcmeta 恰好 1MB 仍应解析成功
+func TestReadPackMeta_DirMcmetaExactLimit(t *testing.T) {
+	dir := t.TempDir()
+	prefix := `{"pack":{"pack_format":15}}`
+	exact := make([]byte, (1<<20)-len(prefix))
+	copy(exact, prefix)
+	for i := len(prefix); i < len(exact); i++ {
+		exact[i] = ' '
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pack.mcmeta"), exact, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ReadPackMeta(dir); err != nil {
+		t.Fatalf("恰好 1MB pack.mcmeta 应成功: %v", err)
+	}
+}
+
+// UTF-8 BOM 前缀（PowerShell 写入）应被剥离后正常解析
+func TestReadPackMeta_ZipBom(t *testing.T) {
+	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{
+		"pack.mcmeta": "\xEF\xBB\xBF{\"pack\":{\"pack_format\":9,\"description\":\"bom\"}}",
+	})
+	meta, _, err := ReadPackMeta(path)
+	if err != nil {
+		t.Fatalf("BOM 前缀应解析成功: %v", err)
+	}
+	if meta.Pack.PackFormat != 9 {
+		t.Errorf("pack_format = %d, want 9", meta.Pack.PackFormat)
+	}
+}
+
+// 目录 pack.mcmeta 带 BOM 前缀也应解析成功
+func TestReadPackMeta_DirBom(t *testing.T) {
+	dir := t.TempDir()
+	content := "\xEF\xBB\xBF{\"pack\":{\"pack_format\":6,\"description\":\"dir bom\"}}"
+	if err := os.WriteFile(filepath.Join(dir, "pack.mcmeta"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	meta, _, err := ReadPackMeta(dir)
+	if err != nil {
+		t.Fatalf("dir BOM 前缀应解析成功: %v", err)
+	}
+	if meta.Pack.PackFormat != 6 {
+		t.Errorf("pack_format = %d, want 6", meta.Pack.PackFormat)
+	}
+}
+
+// 非目录非 zip（如 .jar）→ 不 panic，返回 ErrPackMetaNotFound
+func TestReadPackMeta_NotZipNoMcmeta(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "lib.jar")
+	if err := os.WriteFile(path, []byte("jar"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := ReadPackMeta(path)
+	if !errors.Is(err, ErrPackMetaNotFound) {
+		t.Fatalf(".jar 文件错误 = %v, 期望 errors.Is(err, ErrPackMetaNotFound)", err)
+	}
+}
+
+// 不存在的路径 → 错误经 %w 包裹，errors.Is(err, os.ErrNotExist) 成立
+func TestReadPackMeta_StatErrorWrapped(t *testing.T) {
+	_, _, err := ReadPackMeta(filepath.Join(t.TempDir(), "missing.zip"))
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stat 错误应保留 %%w 链: %v", err)
+	}
+}
+
+// ====== DetectResourceType 鲁棒性 ======
+
+func TestDetectResourceType_NilRegistry(t *testing.T) {
+	if got := DetectResourceType("/path/file.zip", nil); got != "" {
+		t.Fatalf("nil registry 应返回 '', 得到 %q", got)
+	}
+}
+
+func TestDetectResourceType_EmptyRegistry(t *testing.T) {
+	reg := &types.ResourceTypeRegistry{}
+	if got := DetectResourceType("/path/file.zip", reg); got != "" {
+		t.Fatalf("空 registry 应返回 '', 得到 %q", got)
+	}
+}
+
+// 外部 registry 扩展名大写（.ZIP）不应导致检测静默失效（hasExt 大小写归一）
+func TestDetectResourceType_UppercaseRegistryExt(t *testing.T) {
+	reg := &types.ResourceTypeRegistry{
+		ResourceTypes: []types.ResourceType{
+			{ID: "resourcepack", Extensions: []string{".ZIP"}, Detector: "extension"},
+		},
+	}
+	if got := DetectResourceType("/path/pack.zip", reg); got != "resourcepack" {
+		t.Fatalf("registry 大写扩展名应匹配, 得到 %q", got)
+	}
+}
+
+// detector 大写（YSM）不应导致内容型检测被跳过
+func TestDetectResourceType_UppercaseDetector(t *testing.T) {
+	reg := &types.ResourceTypeRegistry{
+		ResourceTypes: []types.ResourceType{
+			{ID: "ysm-model", Extensions: []string{".ysm"}, Detector: "YSM"},
+		},
+	}
+	if got := DetectResourceType("/path/model.ysm", reg); got != "ysm-model" {
+		t.Fatalf("大写 detector 应匹配, 得到 %q", got)
+	}
+}
+
+// ====== hasExt 大小写归一 ======
+
+func TestHasExt_CaseInsensitive(t *testing.T) {
+	if !hasExt(".zip", []string{".ZIP", ".JAR"}) {
+		t.Error("hasExt('.zip', ['.ZIP']) 应为 true（registry 大写扩展名）")
+	}
+	if hasExt(".exe", []string{".Zip"}) {
+		t.Error("hasExt('.exe', ['.Zip']) 应为 false")
+	}
+}
+
+// ====== isYsmFile .json 分支 ======
+
+func TestIsYsmFile_YsmJsonFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ysm.json")
+	if err := os.WriteFile(path, []byte(`{"spec":2}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if !isYsmFile(path) {
+		t.Error("ysm.json 应返回 true（注册表声明 .json 为 YSM 扩展）")
+	}
+}
+
+func TestIsYsmFile_OtherJsonNotYsm(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "animation.json")
+	if err := os.WriteFile(path, []byte(`{}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if isYsmFile(path) {
+		t.Error("非 ysm.json 的 .json 不应判为 YSM（scanner 同口径）")
+	}
+}
+
+// .json 扩展经 DetectResourceType（ysm detector）应正确分类 ysm.json
+func TestDetectResourceType_YsmJsonFile(t *testing.T) {
+	reg := &types.ResourceTypeRegistry{
+		ResourceTypes: []types.ResourceType{
+			{ID: "ysm-model", Extensions: []string{".ysm", ".zip", ".json"}, Detector: "ysm"},
+		},
+	}
+	path := filepath.Join(t.TempDir(), "ysm.json")
+	if err := os.WriteFile(path, []byte(`{"spec":2}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := DetectResourceType(path, reg); got != "ysm-model" {
+		t.Fatalf("ysm.json 应分类为 ysm-model, 得到 %q", got)
+	}
+}
+
+// ====== ReadShaderpackLang 未测分支 ======
+
+// zip 内小写 lang/en_us.lang 也应提取显示名
+func TestReadShaderpackLang_ZipLowercaseEnUs(t *testing.T) {
+	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{
+		"lang/en_us.lang": "pack.name=小写路径光影",
+	})
+	resultStr := ReadShaderpackLang(path)
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
+		t.Fatalf("返回数据非 JSON: %v", err)
+	}
+	if name, _ := result["name"].(string); name == "" {
+		t.Error("小写 en_us.lang 应提取到 name")
+	}
+}
+
+// zip 内 lang 恰好 1MB 仍应解析（dir 分支已有同型测试，zip 分支补齐）
+func TestReadShaderpackLang_ZipExactLimit(t *testing.T) {
+	prefix := "title=ok\n"
+	exact := make([]byte, (1<<20)-len(prefix))
+	copy(exact, prefix)
+	for i := len(prefix); i < len(exact); i++ {
+		exact[i] = 'c'
+	}
+	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{"lang/en_US.lang": string(exact)})
+	resultStr := ReadShaderpackLang(path)
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
+		t.Fatalf("返回数据非 JSON: %v", err)
+	}
+	if name, _ := result["name"].(string); name == "" {
+		t.Error("恰好 1MB zip lang 应解析出 name")
+	}
+}
+
+// zip 内无 lang/en_US.lang（有 lang/zh_CN.lang）→ name 为空
+func TestReadShaderpackLang_ZipOnlyZhLang(t *testing.T) {
+	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{
+		"lang/zh_cn.lang": "pack.name=中文",
+	})
+	resultStr := ReadShaderpackLang(path)
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
+		t.Fatalf("返回数据非 JSON: %v", err)
+	}
+	if name, _ := result["name"].(string); name != "" {
+		t.Errorf("仅 zh_CN.lang 时 name 应为空, 得到 %q", name)
 	}
 }

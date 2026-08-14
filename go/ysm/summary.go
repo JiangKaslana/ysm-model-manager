@@ -161,7 +161,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return summary, fmt.Errorf("无法读取 JSON: %v", err)
+			return summary, fmt.Errorf("无法读取 JSON: %w", err)
 		}
 		summary.Format = "ysm"
 
@@ -171,7 +171,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 			// 解析失败必须返回结构化错误——原实现 `err == nil && root.Metadata != nil`
 			// 使 Unmarshal 失败时整个 if 跳过、静默降级为「文件名摘要」（返回 nil error），
 			// 违反「解析错误必须返回结构化错误信息」不变量，前端 toast 链路无法触发
-			return summary, fmt.Errorf("ysm.json 解析失败: %v", err)
+			return summary, fmt.Errorf("ysm.json 解析失败: %w", err)
 		}
 		// 原 `summary.Spec = 2` 硬编码——spec 1 的裸 ysm.json 会被
 		// 报成 2（zip 分支正确用 root.Spec）；统一为解析后的 root.Spec
@@ -211,7 +211,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 	// 打开 ZIP
 	r, err := zip.OpenReader(path)
 	if err != nil {
-		return summary, fmt.Errorf("无法打开文件: %v", err)
+		return summary, fmt.Errorf("无法打开文件: %w", err)
 	}
 	defer r.Close()
 
@@ -271,7 +271,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 	// 读取并解析
 	rc, err := ysmFile.Open()
 	if err != nil {
-		return summary, fmt.Errorf("读取 ysm.json 失败: %v", err)
+		return summary, fmt.Errorf("读取 ysm.json 失败: %w", err)
 	}
 	defer rc.Close()
 
@@ -281,7 +281,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 	const maxYsmJSON = 50 << 20
 	data, err := io.ReadAll(io.LimitReader(rc, maxYsmJSON+1))
 	if err != nil {
-		return summary, fmt.Errorf("读取 ysm.json 失败: %v", err)
+		return summary, fmt.Errorf("读取 ysm.json 失败: %w", err)
 	}
 	if len(data) > maxYsmJSON {
 		return summary, fmt.Errorf("ysm.json 超过 %dMB 上限，已拒绝解析", maxYsmJSON>>20)
@@ -289,7 +289,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 
 	var root ysmRoot
 	if err := json.Unmarshal(data, &root); err != nil {
-		return summary, fmt.Errorf("解析 ysm.json 失败: %v", err)
+		return summary, fmt.Errorf("解析 ysm.json 失败: %w", err)
 	}
 
 	summary.Spec = root.Spec

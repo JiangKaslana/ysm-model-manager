@@ -2,6 +2,7 @@ package logs
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -63,7 +64,9 @@ func (l *Logger) load() {
 	l.cleanupStaleCorrupt()
 	data, err := os.ReadFile(l.path)
 	if err != nil {
-		if !os.IsNotExist(err) {
+		// 陷阱 #11：错误分类用 sentinel + errors.Is，不做文本匹配——
+		// os.IsNotExist 语义一致但显式 errors.Is(err, os.ErrNotExist) 更直白
+		if !errors.Is(err, os.ErrNotExist) {
 			// 读取失败（权限/IO）时原实现直接置空——
 			// 旧日志既不备份也不保留，静默丢失；解析失败反而有 .corrupt 备份（L56-61），
 			// 读取失败却无。对齐备份模式：先备份原文件再置空

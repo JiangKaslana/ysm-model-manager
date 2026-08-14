@@ -365,3 +365,78 @@ func TestFindGeometryInExtractedYSM_WalkDirDepthLimit(t *testing.T) {
 		t.Fatalf("深度受限 + 非几何 ysm.json 应返回 nil, 得到 %+v", model)
 	}
 }
+
+// isArmModelName 直测：arm.json / arm.geo.json（含路径前缀、大写变体）→ true，
+// 其余（main.json、army.json 等）→ false（extracted.go:38-45）
+func TestIsArmModelName(t *testing.T) {
+	cases := []struct {
+		name string
+		want bool
+	}{
+		{"arm.json", true},
+		{"arm.geo.json", true},
+		{"models/arm.json", true},
+		{"models\\arm.geo.json", true},
+		{"ARM.JSON", true},
+		{"Arm.Geo.Json", true},
+		{"main.json", false},
+		{"army.json", false},
+		{"arm_geo.json", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		if got := isArmModelName(tc.name); got != tc.want {
+			t.Errorf("isArmModelName(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// FindComponentsInExtractedYSM 对非法 ysm.json 应容错：解析跳过 → 空组件、
+// 空纹理名，不 panic（extracted.go:406 json.Unmarshal 失败分支）
+func TestFindComponentsInExtractedYSM_InvalidYsmJson(t *testing.T) {
+	ysmPath := writeExtractedFixture(t, map[string]string{
+		"ysm.json": `{bad json`,
+	})
+	comps, texNames := FindComponentsInExtractedYSM(ysmPath)
+	if len(comps) != 0 {
+		t.Errorf("非法 ysm.json 应解析出 0 组件, 得到 %d", len(comps))
+	}
+	if len(texNames) != 0 {
+		t.Errorf("非法 ysm.json 应解析出空纹理名, 得到 %v", texNames)
+	}
+}
+
+// FindComponentsInExtractedYSM 字符串 model 格式 + 补扫 models/ 目录：
+// player.model 单字符串 → 组件 0 = main；models/ 未声明的 arm/arrow 作为补扫组件，
+// texNames = [声明纹理名(skin), 未声明组件 basename(arm, arrow)]（extracted.go:449-456, 538-553）
+func TestFindComponentsInExtractedYSM_StringModelPlusModelsDir(t *testing.T) {
+	ysmPath := writeExtractedFixture(t, map[string]string{
+		"ysm.json":           `{"files":{"player":{"model":"models/main.json","texture":["textures/skin.png"]}}}`,
+		"models/main.json":   geometryJSON("main"),
+		"models/arm.json":    geometryJSON("arm"),
+		"models/arrow.json":  geometryJSON("arrow"),
+		"textures/skin.png":  "SKINDATA",
+		"textures/arrow.png": "ARROWDATA",
+		"textures/arm.png":   "ARMDATA",
+	})
+	comps, texNames := FindComponentsInExtractedYSM(ysmPath)
+	if len(comps) != 3 {
+		t.Fatalf("应解析 3 组件（main + 补扫 arm/arrow）, 得到 %d", len(comps))
+	}
+	if comps[0].SourceName != "main" {
+		t.Errorf("组件 0 应为 main, got %q", comps[0].SourceName)
+	}
+	// main 已声明 → 贴声明纹理 skin（texSlot=0）；arm/arrow 未声明 → 按名段 basename
+	wantNames := []string{"skin", "arm", "arrow"}
+	for i, w := range wantNames {
+		if texNames[i] != w {
+			t.Fatalf("texNames[%d] = %q, 期望 %q", i, texNames[i], w)
+		}
+	}
+	// 组件 TexSlot：main=0（声明序）、arm=1、arrow=2（按名段）
+	for i, slot := range []int{0, 1, 2} {
+		if got := comps[i].Bones[0].Cubes[0].TexSlot; got != slot {
+			t.Errorf("组件 %d (%s) cube TexSlot = %d, 期望 %d", i, comps[i].SourceName, got, slot)
+		}
+	}
+}

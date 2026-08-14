@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -21,14 +22,23 @@ const (
 	maxLangSize   = 1 << 20  // lang 文件 1MB（合法文件通常 < 10KB）
 )
 
+// sentinel 错误——调用方用 errors.Is 判断，禁止 strings.Contains(err.Error()) 文本匹配
+var (
+	// ErrPackMetaNotFound 资源包内没有 pack.mcmeta
+	ErrPackMetaNotFound = errors.New("未找到 pack.mcmeta")
+	// ErrPackMetaTooLarge pack.mcmeta 超过 1MB 上限
+	ErrPackMetaTooLarge = errors.New("pack.mcmeta 超过 1MB 上限")
+)
+
 // ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图
 func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 	var data []byte
 	var packPng []byte
+	var metaTooLarge bool // zip 分支超限 pack.mcmeta 标记（与 dir 分支一致报 ErrPackMetaTooLarge）
 
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("stat 资源包 %s: %w", path, err)
 	}
 
 	if info.IsDir() {
@@ -44,7 +54,7 @@ func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 				data, _ = io.ReadAll(io.LimitReader(meta, maxMcmetaSize+1))
 				meta.Close()
 				if len(data) > maxMcmetaSize {
-					return nil, "", fmt.Errorf("pack.mcmeta 超过 %d 字节上限", maxMcmetaSize)
+					return nil, "", fmt.Errorf("%w（实际 %d 字节）", ErrPackMetaTooLarge, len(data))
 				}
 			}
 		}
@@ -65,7 +75,7 @@ func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 		// ZIP 格式资源包
 		r, err := zip.OpenReader(path)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("打开资源包 %s: %w", path, err)
 		}
 		defer r.Close()
 		for _, f := range r.File {
@@ -81,6 +91,8 @@ func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 				rc.Close()
 				if readErr == nil && len(readData) <= maxMcmetaSize {
 					data = readData
+				} else if readErr == nil {
+					metaTooLarge = true // 超限（截断探测到 >1MB），文件存在但不可用
 				}
 			}
 			if low == "pack.png" {
@@ -99,8 +111,11 @@ func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 		}
 	}
 
+	if metaTooLarge && len(data) == 0 {
+		return nil, "", fmt.Errorf("%w（zip 内 pack.mcmeta 超过 1MB）", ErrPackMetaTooLarge)
+	}
 	if len(data) == 0 {
-		return nil, "", fmt.Errorf("未找到 pack.mcmeta")
+		return nil, "", ErrPackMetaNotFound
 	}
 
 	var meta types.PackMeta
@@ -121,13 +136,17 @@ func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 
 // DetectResourceType 检测文件属于哪种资源类型
 func DetectResourceType(path string, registry *types.ResourceTypeRegistry) string {
+	if registry == nil || len(registry.ResourceTypes) == 0 {
+		return ""
+	}
 	ext := strings.ToLower(filepath.Ext(path))
 
 	for _, rt := range registry.ResourceTypes {
 		if !hasExt(ext, rt.Extensions) {
 			continue
 		}
-		switch rt.Detector {
+		// detector 小写归一（外部 registry 可能写 "YSM"），防 #11 误分类
+		switch strings.ToLower(rt.Detector) {
 		case "ysm":
 			if isYsmFile(path) {
 				return rt.ID
@@ -140,7 +159,10 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 			if hasShaders(path) {
 				return rt.ID
 			}
+		case "", "extension":
+			return rt.ID
 		default:
+			// 未知 detector 值：按扩展名兜底（保持与旧行为一致，不把文件错误归入内容型）
 			return rt.ID
 		}
 	}
@@ -149,7 +171,8 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 
 func hasExt(ext string, exts []string) bool {
 	for _, e := range exts {
-		if ext == e {
+		// 注册表扩展名大小写归一（与 types.IsSupportedExt 口径一致）
+		if ext == strings.ToLower(e) {
 			return true
 		}
 	}
@@ -157,12 +180,17 @@ func hasExt(ext string, exts []string) bool {
 }
 
 // isYsmFile 检查文件是否为 YSM 模型
-// .ysm → 直接返回 true；.zip → 检查内部是否有 ysm.json 或 models/
+// .ysm → 直接返回 true；.json → 仅 ysm.json 入口清单算模型（scanner 同口径，动画/动作 json 不算）；
+// .zip → 检查内部是否有 ysm.json 或 models/；
 // .7z → zip.OpenReader 会失败，跳过内容检测直接返回 true（靠扩展名兜底）
 func isYsmFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".ysm" {
 		return true
+	}
+	if ext == ".json" {
+		// 注册表声明 .json 为 YSM 扩展，但只有 ysm.json 算独立模型文件
+		return strings.EqualFold(filepath.Base(path), "ysm.json")
 	}
 	if ext != ".zip" && ext != ".7z" {
 		return false
