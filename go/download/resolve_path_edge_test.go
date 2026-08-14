@@ -5,6 +5,8 @@
 package download
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"unicode"
@@ -219,4 +221,95 @@ func TestResolveSavePath_MainInQuery(t *testing.T) {
 		t.Fatalf("relPath 含 query 片段: %s", savePath)
 	}
 	t.Logf("FIXED(BUG-13): query 中 '/main/' 未误判分支: savePath=%q", savePath)
+}
+
+// ---------- 14. #8 回收站：.recycle 段剔除（含嵌套 + 大小写变体） ----------
+func TestResolveSavePath_RecycleStrip(t *testing.T) {
+	cases := []struct {
+		url  string
+		name string // 期望最终文件名（不含 .recycle 段）
+	}{
+		{"https://raw.githubusercontent.com/user/repo/main/.recycle/foo.ysm", "foo.ysm"},
+		{"https://raw.githubusercontent.com/user/repo/main/models/.recycle/foo.ysm", "foo.ysm"},
+		{"https://raw.githubusercontent.com/user/repo/main/models/.Recycle/foo.ysm", "foo.ysm"},
+		{"https://raw.githubusercontent.com/user/repo/main/.RECYCLE/sub/foo.ysm", "foo.ysm"},
+	}
+	for _, c := range cases {
+		savePath, _, _ := ResolveSavePath(c.url, t.TempDir())
+		if savePath == "" {
+			t.Fatalf("URL %q 应解析出非空 savePath", c.url)
+		}
+		// 下载文件不得落盘到 .recycle 子树（scanner/dedup/sync 视其为回收站，
+		// Empty() 会 RemoveAll 清除——#8 回收站误删同类风险）
+		if strings.EqualFold(filepath.Base(savePath), ".recycle") ||
+			strings.Contains(strings.ToLower(savePath), ".recycle") {
+			t.Fatalf("savePath 仍含 .recycle 段: %q (URL %q)", savePath, c.url)
+		}
+		if filepath.Base(savePath) != c.name {
+			t.Fatalf("savePath 基名 = %q, want %q (URL %q)", filepath.Base(savePath), c.name, c.url)
+		}
+	}
+}
+
+// TestResolveSavePath_RecycleOnlyPath_Rejected
+// URL 路径整体是 .recycle（无实际文件）→ 剔除后为空 → 拒绝返回空。
+func TestResolveSavePath_RecycleOnlyPath_Rejected(t *testing.T) {
+	savePath, _, _ := ResolveSavePath(
+		"https://raw.githubusercontent.com/user/repo/main/.recycle", t.TempDir())
+	if savePath != "" {
+		t.Fatalf("纯 .recycle 路径应被拒绝，实际 savePath=%q", savePath)
+	}
+}
+
+// ---------- 15. ResolveSavePath 错误分支 ----------
+func TestResolveSavePath_SaveDirIsFile(t *testing.T) {
+	// MkdirAll 失败分支：saveDir 是普通文件 → 返回全空
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "not-a-dir")
+	if err := os.WriteFile(filePath, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	savePath, jsd, api := ResolveSavePath(
+		"https://raw.githubusercontent.com/user/repo/main/a.ysm", filePath)
+	if savePath != "" || jsd != "" || api != "" {
+		t.Fatalf("saveDir 是普通文件时应返回全空，实际 savePath=%q jsd=%q api=%q",
+			savePath, jsd, api)
+	}
+}
+
+func TestResolveSavePath_InvalidURL(t *testing.T) {
+	// neturl.Parse 失败分支：非法 % 转义 → 返回全空
+	savePath, jsd, api := ResolveSavePath(
+		"https://raw.githubusercontent.com/%zz", t.TempDir())
+	if savePath != "" || jsd != "" || api != "" {
+		t.Fatalf("非法 URL 应返回全空，实际 savePath=%q jsd=%q api=%q",
+			savePath, jsd, api)
+	}
+}
+
+// ---------- 16. isBinaryContentType 纯函数表驱动 ----------
+func TestIsBinaryContentType_Table(t *testing.T) {
+	cases := []struct {
+		ct   string
+		want bool
+	}{
+		{"", true},                                       // 空 Content-Type（HTTP/1.0）放行
+		{"text/html", false},                             // 404 错误页
+		{"text/html; charset=utf-8", false},              // 带参数的 HTML
+		{"TEXT/HTML; CHARSET=UTF-8", false},              // 大小写不敏感
+		{"application/xhtml+xml", false},                 // XHTML 错误页
+		{"application/xml", false},                       // 反向代理 XML 错误页
+		{"text/xml", false},                              // 纯 XML 错误页
+		{"text/plain", true},                             // 文本文件放行（.ysm 配置等）
+		{"application/json", true},                       // JSON 放行
+		{"application/octet-stream", true},               // 二进制放行
+		{"image/png", true},                              // 图片放行
+		{"Application/Json", true},                       // 大小写不敏感放行
+		{" application/octet-stream ; charset=x ", true}, // 首尾空白 + 参数剥离
+	}
+	for _, c := range cases {
+		if got := isBinaryContentType(c.ct); got != c.want {
+			t.Errorf("isBinaryContentType(%q) = %v, want %v", c.ct, got, c.want)
+		}
+	}
 }

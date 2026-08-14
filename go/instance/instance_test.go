@@ -139,3 +139,169 @@ func TestBuildSyncItems_FallbackWalk(t *testing.T) {
 		t.Errorf("instDir 独有文件应标 optional, got %q", items[0].Status)
 	}
 }
+
+// TestBuildSyncItems_NilInstance 导出入口 nil 守卫（L27-29）——nil 不应 panic
+func TestBuildSyncItems_NilInstance(t *testing.T) {
+	if items := BuildSyncItems(nil, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": "/x"}); items != nil {
+		t.Fatalf("nil instance 应返回 nil，实际 %v", items)
+	}
+}
+
+// TestBuildSyncItems_UnknownTypeSkip SubDirMap 返回空 → 该类型直接跳过（L63-65）
+func TestBuildSyncItems_UnknownTypeSkip(t *testing.T) {
+	ins := &types.VersionInstance{Name: "t", VersionDir: t.TempDir()}
+	if items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "no-such-type", Icon: "x"}}, map[string]string{"no-such-type": "/x"}); len(items) != 0 {
+		t.Fatalf("未知类型无 ScanDir 应跳过，实际 %d 条", len(items))
+	}
+}
+
+// TestBuildSyncItems_DisabledThreeBranches 三分支口径一致：
+// Synced .disabled / Missing .ban / Extra .ban（L85-88/L105-108/新增 Extra 分支）均应标 Disabled ⛔
+func TestBuildSyncItems_DisabledThreeBranches(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 ScanDir 配置，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(filepath.Join(base, "inst"), sub)
+	if err := os.MkdirAll(globalDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(instDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Synced + disabled：两处一致
+	_ = os.WriteFile(filepath.Join(globalDir, "synced.ysm.disabled"), []byte("x"), 0644)
+	_ = os.WriteFile(filepath.Join(instDir, "synced.ysm.disabled"), []byte("x"), 0644)
+	// Missing + ban：全局有、整合包没有
+	_ = os.WriteFile(filepath.Join(globalDir, "missing.ysm.ban"), []byte("x"), 0644)
+	// Extra + ban：整合包有、全局没有（isDisabled 检测新增覆盖）
+	_ = os.WriteFile(filepath.Join(instDir, "extra.ysm.ban"), []byte("x"), 0644)
+	// 对照组：正常 Synced 不受影响
+	_ = os.WriteFile(filepath.Join(globalDir, "active.ysm"), []byte("x"), 0644)
+	_ = os.WriteFile(filepath.Join(instDir, "active.ysm"), []byte("x"), 0644)
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir})
+	byName := map[string]types.ResourceSyncItem{}
+	for _, it := range items {
+		byName[it.Name] = it
+	}
+	for _, name := range []string{"synced.ysm.disabled", "missing.ysm.ban", "extra.ysm.ban"} {
+		it, ok := byName[name]
+		if !ok {
+			t.Fatalf("%s 应产出条目（三分支 disabled 口径一致），实际缺失", name)
+		}
+		if it.Status != types.SyncStatusDisabled {
+			t.Errorf("%s 应 Disabled，实际 %q", name, it.Status)
+		}
+		if it.Icon != "⛔" {
+			t.Errorf("%s 应 ⛔ 图标，实际 %q", name, it.Icon)
+		}
+	}
+	if it, ok := byName["active.ysm"]; !ok || it.Status != types.SyncStatusSynced {
+		t.Fatalf("active.ysm 应 Synced: %+v", it)
+	}
+}
+
+// TestBuildSyncItems_ExtraHardLinkLegacy Extra 硬链接（nlink>1）→ SyncStatusLegacy（L121-124 分支）
+func TestBuildSyncItems_ExtraHardLinkLegacy(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 ScanDir 配置，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(filepath.Join(base, "inst"), sub)
+	if err := os.MkdirAll(globalDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(instDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	legacy := filepath.Join(instDir, "legacy.ysm")
+	if err := os.WriteFile(legacy, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// 建立真实硬链接使 nlink=2（跨平台 os.Link，Windows NTFS 亦支持）
+	if err := os.Link(legacy, filepath.Join(instDir, "legacy2.ysm")); err != nil {
+		t.Skipf("无法创建硬链接（文件系统不支持）: %v", err)
+	}
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir})
+	found := 0
+	for _, it := range items {
+		if it.Name == "legacy.ysm" && it.Status == types.SyncStatusLegacy {
+			found++
+		}
+	}
+	if found != 1 {
+		t.Fatalf("硬链接 Extra 文件应恰好 1 条 Legacy，实际 %d（全部: %+v）", found, items)
+	}
+}
+
+// TestBuildSyncItems_YsmJSONEntryOnly ysm 的 .json 仅放行 ysm.json：
+// anim.json 不展示，ysm.json（含缺失态）正常展示（L41-43 分支）
+func TestBuildSyncItems_YsmJSONEntryOnly(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 ScanDir 配置，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(filepath.Join(base, "inst"), sub)
+	if err := os.MkdirAll(globalDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(instDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// ysm.json：全局有、实例缺 → Missing 展示
+	_ = os.WriteFile(filepath.Join(globalDir, "ysm.json"), []byte("{}"), 0644)
+	// anim.json：全局有、实例缺 → 不应展示（非 ysm.json 的 .json 不单独展示）
+	_ = os.WriteFile(filepath.Join(globalDir, "anim.json"), []byte("{}"), 0644)
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir})
+	byName := map[string]types.ResourceSyncItem{}
+	for _, it := range items {
+		byName[it.Name] = it
+	}
+	if it, ok := byName["ysm.json"]; !ok || it.Status != types.SyncStatusMissing {
+		t.Fatalf("ysm.json 应 Missing 展示: %+v", it)
+	}
+	if _, ok := byName["anim.json"]; ok {
+		t.Fatalf("anim.json 不应单独展示（仅 ysm.json 放行）: %+v", byName["anim.json"])
+	}
+}
+
+// TestBuildSyncItems_SyncedFileDedupWalk 同名文件同时命中主循环与兜底 Walk 时去重：
+// resourcepack 下 global+inst 各一份 pack.zip → Synced 恰好 1 条（seenNames 命中，不重复 Optional）
+func TestBuildSyncItems_SyncedFileDedupWalk(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(base, "inst")
+	if err := os.MkdirAll(globalDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(instDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(globalDir, "pack.zip"), []byte("zip"), 0644)
+	_ = os.WriteFile(filepath.Join(instDir, "pack.zip"), []byte("zip"), 0644)
+	ins := &types.VersionInstance{VersionDir: base}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "resourcepack", Icon: "🎨"}}, map[string]string{"resourcepack": globalDir})
+	count := 0
+	for _, it := range items {
+		if it.Name == "pack.zip" {
+			count++
+			if it.Status != types.SyncStatusSynced {
+				t.Errorf("pack.zip 应 Synced（主循环），兜底 Walk 不应重复添加为 Optional，实际 %q", it.Status)
+			}
+		}
+	}
+	if count != 1 {
+		t.Fatalf("pack.zip 应恰好 1 条，实际 %d 条: %+v", count, items)
+	}
+}

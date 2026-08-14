@@ -115,10 +115,16 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 			if !extMatch(filepath.Base(p), rt.ID) && !fsutil.IsResourcePackFolder(p) {
 				continue
 			}
-			// 检测是否为硬链接（来自旧仓库的遗留文件）
+			// 三分支口径一致（与 Synced/Missing 同）：先识别 .disabled/.ban 禁用标记，
+			// 实例侧遗留的禁用文件不应显示为可推送的 Optional；再检测硬链接（旧仓库遗留）
+			lowName := strings.ToLower(filepath.Base(p))
+			isDisabled := strings.HasSuffix(lowName, ".disabled") || strings.HasSuffix(lowName, ".ban")
 			status := types.SyncStatusOptional
 			icon := rt.Icon
-			if ysmsync.GetLinkType(p) == types.LinkHard {
+			if isDisabled {
+				status = types.SyncStatusDisabled
+				icon = "⛔"
+			} else if ysmsync.GetLinkType(p) == types.LinkHard {
 				status = types.SyncStatusLegacy
 				icon = "🔗"
 			}

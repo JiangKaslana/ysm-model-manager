@@ -177,12 +177,15 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 	ok := false
 	defer func() {
 		if !ok {
-			// 下载中断/失败时清理半截临时文件，避免残留损坏文件被扫描/预览
+			// 下载中断/失败时清理半截临时文件，避免残留损坏文件被扫描/预览。
+			// 必须先 Close 再 Remove：Windows 无法删除仍被打开的句柄（POSIX 可 unlink
+			// 已打开文件）——原顺序 Remove→Close 在 Windows 上必然失败，残留 .part 文件。
+			// Close 对已关闭文件返回 error 但无害（成功路径 ok=true 短路本分支，不重复 Close）。
+			tmp.Close()
 			if err := os.Remove(tmpName); err != nil {
 				// 删除失败（权限/占用）时记录日志，避免半截文件残留无痕迹
 				log.Printf("[download] 清理半截临时文件失败 %s: %v", tmpName, err)
 			}
-			tmp.Close()
 		}
 	}()
 
@@ -328,7 +331,16 @@ func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL st
 	relPath = strings.ReplaceAll(relPath, "/", string(filepath.Separator))
 	// BUG-B-8 修复：剔除 .git/ 前缀，防止下载 .git/config 泄露仓库 token/远端配置。
 	relPath = strings.TrimPrefix(relPath, ".git"+string(filepath.Separator))
-	relPath = strings.TrimPrefix(relPath, ".recycle"+string(filepath.Separator))
+	// #8 回收站目录隔离：剔除 relPath 中所有名为 .recycle 的目录段（大小写不敏感，
+	// 对齐 fsutil.IsRecycleDir 的 EqualFold 口径——dedup/scanner/sync 把任意层级的 .recycle
+	// 视为回收站）。若下载落到 saveDir 下任意 .recycle 子树：扫描器会跳过该文件（不可见）、
+	// 回收站 Empty() 会 RemoveAll 整目录（下载文件被静默清除），Windows 大小写不敏感下
+	// .Recycle/.RECYCLE 亦指向同一目录。逐段剔除保证下载不落入任何回收站目录。
+	relPath = stripRecycleSegments(relPath)
+	if relPath == "" {
+		log.Printf("[download] 拒绝空路径（URL 路径仅含 .recycle/.git 段）: %s", rawURL)
+		return "", "", ""
+	}
 	// NUL 字节跨平台差异修复——Windows filepath.Abs 遇到 NUL 直接报错（攻击失效），
 	// Linux/macOS filepath.Abs 放行，但 os.Create("file.ysm\x00.exe") 实际创建的是 "file.ysm"
 	// （C 字符串以 NUL 截断，后缀被剥离），攻击者可绕过前端扩展名校验。
@@ -365,4 +377,20 @@ func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL st
 		apiURL = "https://api.github.com/repos/" + repoPath + "/contents/" + normalized
 	}
 	return
+}
+
+// stripRecycleSegments 移除 relPath 中所有名为 .recycle 的目录段（大小写不敏感，
+// 与 fsutil.IsRecycleDir 的 EqualFold 语义一致）。返回空串时由调用方拒绝该 URL
+// （见 ResolveSavePath 的 relPath=="" 守卫），不会落盘到回收站目录。
+func stripRecycleSegments(relPath string) string {
+	sep := string(filepath.Separator)
+	segs := strings.Split(relPath, sep)
+	out := make([]string, 0, len(segs))
+	for _, seg := range segs {
+		if strings.EqualFold(seg, ".recycle") {
+			continue
+		}
+		out = append(out, seg)
+	}
+	return strings.Join(out, sep)
 }

@@ -757,3 +757,187 @@ func TestHTTP_ErrorClassification_RedirectToUnsafeScheme(t *testing.T) {
 	}
 	t.Logf("OK: file:// 重定向错误可通过 errors.Is(err, ErrRedirectToUnsafeScheme) 分类")
 }
+
+// ============================================================================
+// 剩余审核补充：未覆盖分支（#11 先删后建 / 失败回滚 / rename/MkdirAll/网络错误）
+// ============================================================================
+
+// hasPartResidue 检查 dir 下是否有 .part 临时文件残留。
+func hasPartResidue(t *testing.T, dir string) []string {
+	t.Helper()
+	var residue []string
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir(%s): %v", dir, err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".part") {
+			residue = append(residue, e.Name())
+		}
+	}
+	return residue
+}
+
+// TestAudit_DownloadFail_PreservesOldFile_NoTempResidue
+// #11 先删后建 / 失败回滚：savePath 上已有旧文件，下载截断失败后——
+// 旧文件必须原样保留（原子替换，绝不先删后建），且无 .part 临时文件残留。
+func TestAudit_DownloadFail_PreservesOldFile_NoTempResidue(t *testing.T) {
+	url, cleanup := startTruncatingServer(t, 1000, 7)
+	defer cleanup()
+
+	saveDir := t.TempDir()
+	savePath := filepath.Join(saveDir, "model.ysm")
+	if err := os.WriteFile(savePath, []byte("OLD-VALUE"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dl := New()
+	err := dl.File(context.Background(), url, savePath, nil)
+	if err == nil {
+		t.Fatal("截断下载应失败")
+	}
+
+	// 旧文件必须原样保留
+	data, rErr := os.ReadFile(savePath)
+	if rErr != nil {
+		t.Fatalf("失败后旧文件丢失: %v", rErr)
+	}
+	if string(data) != "OLD-VALUE" {
+		t.Fatalf("失败后旧文件被改写: got %q, want %q", string(data), "OLD-VALUE")
+	}
+
+	// 无 .part 残留
+	if residue := hasPartResidue(t, saveDir); len(residue) > 0 {
+		t.Fatalf("失败后 .part 临时文件残留: %v", residue)
+	}
+}
+
+// TestAudit_DownloadSuccess_AtomicallyReplacesOldFile
+// 成功下载必须原子覆盖旧文件（tmp+rename，先建后删语义），且无 .part 残留。
+func TestAudit_DownloadSuccess_AtomicallyReplacesOldFile(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "11")
+		w.Write([]byte("hello world"))
+	}))
+	defer ts.Close()
+
+	saveDir := t.TempDir()
+	savePath := filepath.Join(saveDir, "model.ysm")
+	if err := os.WriteFile(savePath, []byte("OLD-VALUE-OLD"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dl := New()
+	if err := dl.File(context.Background(), ts.URL, savePath, nil); err != nil {
+		t.Fatalf("下载失败: %v", err)
+	}
+	data, err := os.ReadFile(savePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "hello world" {
+		t.Fatalf("成功覆盖失败: got %q, want %q", string(data), "hello world")
+	}
+	if residue := hasPartResidue(t, saveDir); len(residue) > 0 {
+		t.Fatalf("成功下载后 .part 残留: %v", residue)
+	}
+}
+
+// TestAudit_RenameFailure_SavePathIsDirectory
+// os.Rename 失败分支：savePath 已存在且是目录（rename 文件→目录跨平台必然失败）。
+// 目录必须原样保留，temp 必须清理，错误非 nil。
+func TestAudit_RenameFailure_SavePathIsDirectory(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("data"))
+	}))
+	defer ts.Close()
+
+	saveDir := t.TempDir()
+	savePath := filepath.Join(saveDir, "target")
+	if err := os.MkdirAll(savePath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	dl := New()
+	err := dl.File(context.Background(), ts.URL, savePath, nil)
+	if err == nil {
+		t.Fatal("savePath 是目录时 rename 应失败")
+	}
+
+	// 目录必须保留
+	info, sErr := os.Stat(savePath)
+	if sErr != nil {
+		t.Fatalf("失败后目录丢失: %v", sErr)
+	}
+	if !info.IsDir() {
+		t.Fatalf("savePath 不再是目录: %v", info.Mode())
+	}
+	if residue := hasPartResidue(t, saveDir); len(residue) > 0 {
+		t.Fatalf("rename 失败后 .part 残留: %v", residue)
+	}
+}
+
+// TestAudit_MkdirAllFailure_ParentIsFile
+// downloadTo 的 MkdirAll 失败分支：savePath 父级某段是普通文件。
+func TestAudit_MkdirAllFailure_ParentIsFile(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("data"))
+	}))
+	defer ts.Close()
+
+	saveDir := t.TempDir()
+	blocker := filepath.Join(saveDir, "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	savePath := filepath.Join(blocker, "sub", "x.ysm")
+
+	dl := New()
+	err := dl.File(context.Background(), ts.URL, savePath, nil)
+	if err == nil {
+		t.Fatal("父级是普通文件时 MkdirAll 应失败")
+	}
+}
+
+// TestAudit_NetworkError_RequestFailed
+// client.Do 网络错误分支（连接被拒），与 ctx 取消区分——错误非 nil 且不是 context.Canceled。
+func TestAudit_NetworkError_RequestFailed(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	ln.Close() // 立即关闭，保证后续连接被拒
+
+	dl := New()
+	err = dl.File(context.Background(), "http://"+addr+"/x",
+		filepath.Join(t.TempDir(), "net.txt"), nil)
+	if err == nil {
+		t.Fatal("连接被拒应返回错误")
+	}
+	if errors.Is(err, context.Canceled) {
+		t.Fatalf("网络错误被误判为 ctx 取消: %v", err)
+	}
+}
+
+// TestAudit_DownloadFailed_FileNeverCreated
+// 下载失败（HTTP 404）时 savePath 必须不存在（无半截文件装盘）。
+func TestAudit_DownloadFailed_FileNeverCreated(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	saveDir := t.TempDir()
+	savePath := filepath.Join(saveDir, "missing.ysm")
+	dl := New()
+	if err := dl.File(context.Background(), ts.URL, savePath, nil); err == nil {
+		t.Fatal("404 应返回错误")
+	}
+	if _, err := os.Stat(savePath); !os.IsNotExist(err) {
+		t.Fatalf("404 失败后 savePath 不应存在: %v", err)
+	}
+	if residue := hasPartResidue(t, saveDir); len(residue) > 0 {
+		t.Fatalf("404 失败后 .part 残留: %v", residue)
+	}
+}

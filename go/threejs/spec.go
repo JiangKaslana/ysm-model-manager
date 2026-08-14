@@ -65,7 +65,10 @@ func Build(model types.BedrockModel) (string, error) {
 	}
 	spec := Model3DSpec{Models: []ModelGroup{mg}}
 	data, err := json.Marshal(spec)
-	return string(data), err
+	if err != nil {
+		return "{}", fmt.Errorf("threejs.Build marshal spec: %w", err)
+	}
+	return string(data), nil
 }
 
 // BuildMulti 多组件 spec：每个组件独立构建为 spec.models 元素（YSMViewer 式多组件同屏）。
@@ -95,7 +98,10 @@ func BuildMulti(models []types.BedrockModel, texIdxBase []int) (string, error) {
 	}
 	spec := Model3DSpec{Models: groups}
 	data, err := json.Marshal(spec)
-	return string(data), err
+	if err != nil {
+		return "{}", fmt.Errorf("threejs.BuildMulti marshal spec: %w", err)
+	}
+	return string(data), nil
 }
 
 // buildModelGroup 单组件 spec 构建核心（Build 与 BuildMulti 共用）。
@@ -736,6 +742,7 @@ func parseFaceUV(faceUVStr string, faces *[6][8]float64, texW, texH float64) boo
 
 	// face order in JSON: east, west, up, down, south, north
 	faceNames := []string{"east", "west", "up", "down", "south", "north"}
+	parsed := false
 	for fi, name := range faceNames {
 		fd, ok := faceData[name]
 		if !ok || len(fd.Uv) < 2 {
@@ -762,8 +769,11 @@ func parseFaceUV(faceUVStr string, faces *[6][8]float64, texW, texH float64) boo
 		v1 := (fv + fh) / texH
 
 		faces[fi] = [8]float64{u0, v0, u1, v0, u0, v1, u1, v1}
+		parsed = true
 	}
-	return true
+	// 合法 JSON 但无可识别面（如 {"foo":{...}}）不得伪成功——返回 true 会让 parseUV
+	// 跳过 expandBoxUV 回退，整面 UV 归零（静默贴图塌色块）。至少写入一面的值才算成功。
+	return parsed
 }
 
 // ===== 四元数 =====

@@ -37,6 +37,36 @@ func TestParseFaceUV_ZeroTexGuard(t *testing.T) {
 	}
 }
 
+// FaceUV 为合法 JSON 但无可识别面（{"foo":...}）→ parseFaceUV 不得伪成功
+// （此前恒 return true → parseUV 跳过 expandBoxUV 回退，整面 UV 归零塌色块）
+func TestParseFaceUV_ValidButNoFaces(t *testing.T) {
+	var faces [6][8]float64
+	uv := `{"unknown":{"uv":[0,0],"uv_size":[8,8]}}`
+	if ok := parseFaceUV(uv, &faces, 64, 64); ok {
+		t.Error("合法 JSON 但无可识别面应返回 false（触发 box UV 回退）")
+	}
+	// 拒绝路径不得写入任何 face 值
+	for fi, face := range faces {
+		if face != [8]float64{} {
+			t.Errorf("face[%d] 在拒绝路径被写入: %v", fi, face)
+		}
+	}
+}
+
+// FaceUV 合法但无可识别面 + 存在 box UV → parseUV 回退 expandBoxUV（保留纹理，不全零）
+func TestParseUV_FaceUVNoFacesFallsBackToBoxUV(t *testing.T) {
+	var faces [6][8]float64
+	c := types.Cube2D{FaceUV: `{"unknown":{"uv":[0,0]}}`, UV: [2]float64{0, 0}}
+	ok := parseUV(c, &faces, 8, 8, 8, 64, 64)
+	if !ok {
+		t.Fatal("FaceUV 无可识别面 + box UV 存在 → 应回退 expandBoxUV 并返回 true")
+	}
+	// east face（expandBoxUV 口径）: u0 = 0/64, v0 = (0+8)/64 = 0.125
+	if faces[0][0] != 0 || faces[0][1] != 0.125 {
+		t.Errorf("回退后 east face u0,v0 = %f,%f, 期望 0,0.125", faces[0][0], faces[0][1])
+	}
+}
+
 // ====== buildModelGroup ======
 
 // TexWidth/TexHeight 缺失（0）→ 默认 64（上游兜底口径，防止除零 UV）
