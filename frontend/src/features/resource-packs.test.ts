@@ -37,4 +37,23 @@ describe("initResourcePacks", () => {
     const cleanup = await initResourcePacks(container, {});
     expect(() => cleanup()).not.toThrow();
   });
+
+  it("容器为空 → 返回清理函数且不抛错", async () => {
+    const { initResourcePacks } = await import("./resource-packs.ts");
+
+    const cleanup = await initResourcePacks(null as unknown as HTMLElement, {});
+    expect(typeof cleanup).toBe("function");
+  });
+
+  it("rtype 含引号/尖括号 → 属性原样保留，不注入 HTML", async () => {
+    const container = document.createElement("div");
+    const { initResourcePacks } = await import("./resource-packs.ts");
+
+    await initResourcePacks(container, {}, 'x"><script>alert(1)</script>');
+
+    const el = container.querySelector("app-resource-manager");
+    expect(el?.getAttribute("rtype")).toBe('x"><script>alert(1)</script>');
+    expect(el?.children.length).toBe(0);
+    expect(container.querySelector("script")).toBeNull();
+  });
 });

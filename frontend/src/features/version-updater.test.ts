@@ -145,6 +145,18 @@ describe("checkUpdateSilent", () => {
     const { checkUpdateSilent } = await import("./version-updater.ts");
     await expect(checkUpdateSilent()).resolves.toBeUndefined();
     expect(toasts).toHaveLength(0);
+    // 检查失败不记频次：下次启动仍会重试（不能因一次失败永久跳过）
+    expect(localStorage.getItem(CHECK_KEY)).toBe("0");
+  });
+
+  it("CheckUpdate 返回 null（绑定契约允许）→ 无 toast 不崩溃，且记录检查时间", async () => {
+    mocks.CheckUpdate.mockResolvedValue(null);
+    const toasts = spyToasts();
+    const { checkUpdateSilent } = await import("./version-updater.ts");
+    await expect(checkUpdateSilent()).resolves.toBeUndefined();
+    expect(toasts).toHaveLength(0);
+    // 检查成功（返回 null 视为无更新）仍计入频次
+    expect(localStorage.getItem(CHECK_KEY)).not.toBe("0");
   });
 
   it("localStorage 损坏为非数字 → 视为未检查过，不永久禁用", async () => {
@@ -348,5 +360,63 @@ describe("initVersionUpdater（手动检查）", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(toasts.some((t) => t.type === "error" && t.msg.includes("API 500"))).toBe(true);
+  });
+
+  it("CheckUpdate 挂起（Go 端网络黑洞）→ 30s 超时 error toast + 按钮恢复（#3 超时兜底）", async () => {
+    // CheckUpdate 永不 resolve：模拟 Go 端 HTTP 挂起，验证前端超时护栏兜底
+    mocks.CheckUpdate.mockImplementation(() => new Promise(() => {}));
+    vi.useFakeTimers();
+    try {
+      const toasts = spyToasts();
+      const { btn } = await setupRoot();
+
+      btn.click();
+      // 冲刷微任务直到 race 建立、超时计时器注册
+      await vi.advanceTimersByTimeAsync(0);
+      expect(btn.textContent).toBe("⏳ 检查中...");
+      expect(btn.disabled).toBe(true);
+
+      // 推进 30s → 超时 reject → catch toast + finally 恢复按钮
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      expect(toasts.some((t) => t.type === "error" && t.msg.includes("检查更新超时"))).toBe(true);
+      expect(btn.textContent).toBe("🔄 检查更新");
+      expect(btn.disabled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("update:progress done 超过 total（进度越界）→ 标题钳制 100%，不渲染越界值", async () => {
+    let captured: ((e: { data: unknown[] }) => void) | null = null;
+    let resolveDoUpdate!: (v: string) => void;
+    mocks.DoUpdate.mockImplementation(
+      () => new Promise<string>((r) => { resolveDoUpdate = r; }),
+    );
+    mocks.eventsOn.mockImplementation(
+      (_name: string, cb: (e: { data: unknown[] }) => void) => {
+        captured = cb;
+        return unsubSpy;
+      },
+    );
+    spyToasts();
+    const { btn } = await setupRoot();
+
+    btn.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    // done=150 > total=100：标题百分比钳到 100%（防 150% 幽灵显示，#6 越界守卫）
+    captured!({ data: [150, 100] });
+    expect(mocks.windowSetTitle).toHaveBeenLastCalledWith("⬇️ 100% YSM 模型管理器");
+    // 负值同样被钳到 0
+    captured!({ data: [-5, 100] });
+    expect(mocks.windowSetTitle).toHaveBeenLastCalledWith("⬇️ 0% YSM 模型管理器");
+    // modal 收到原始 done/total，由 modal 内部自行钳制（本模块不篡改 payload）
+    expect(mocks.progressHandle.update).toHaveBeenLastCalledWith(-5, 100);
+
+    resolveDoUpdate("success");
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mocks.windowSetTitle).toHaveBeenLastCalledWith("YSM 模型管理器");
   });
 });

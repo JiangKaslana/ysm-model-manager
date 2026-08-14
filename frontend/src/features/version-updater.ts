@@ -209,6 +209,10 @@ export function initVersionUpdater(root: Document | ShadowRoot): void {
       if (btn.disabled) return;
       btn.textContent = "⏳ 检查中...";
       btn.disabled = true;
+      // P3（审核，资源）：超时计时器句柄——CheckUpdate 先返回时若不清理，计时器会
+      // 悬挂 30s 才空转（reject 已 settled 的 Promise 虽无害但属资源泄漏）；
+      // finally 统一 clearTimeout 回收（Timeout 挂起则 reject 后清掉是幂等 no-op）
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
         const { CheckUpdate } = await getApp();
         // P2 修复（审核，超时护栏）：手动路径原无前端超时——CheckUpdate 网络请求挂起
@@ -217,9 +221,12 @@ export function initVersionUpdater(root: Document | ShadowRoot): void {
         // 与静默路径（启动检查失败静默）语义对齐：手动路径必须给用户明确反馈
         const info = (await Promise.race([
           CheckUpdate(),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(t("update.timeout"))), CHECK_TIMEOUT),
-          ),
+          new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(
+              () => reject(new Error(t("update.timeout"))),
+              CHECK_TIMEOUT,
+            );
+          }),
         ])) as UpdateInfo | null;
         markChecked();
         if (!info?.available) {
@@ -239,6 +246,7 @@ export function initVersionUpdater(root: Document | ShadowRoot): void {
           type: "error",
         });
       } finally {
+        clearTimeout(timeoutId);
         btn.textContent = "🔄 检查更新";
         btn.disabled = false;
       }

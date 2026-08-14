@@ -9,6 +9,20 @@ import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { getApp } from "../backend/app.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../utils/resource/types.ts";
 
+// ===== 业务常量（审核：魔法数值集中化，数值与既有行为完全一致）=====
+const MS_PER_DAY = 86400000;
+const SCORE_BAN_PENALTY = 40; // 每 1% ban 占比的扣分权重
+const SCORE_DUP_PENALTY = 5; // 每个多余副本扣分
+const SCORE_DUP_PENALTY_CAP = 55; // 重复扣分上限
+const SCORE_HEALTH_GOOD = 80; // >=80 健康
+const SCORE_HEALTH_OK = 50; // >=50 亚健康，否则需整理
+const HEATMAP_BASE_HT = 4; // 热力图最低柱高 px
+const HEATMAP_MAX_EXTRA = 44; // 热力图最高柱额外高度 px
+const HEATMAP_STRONG = 0.66; // 热度占比 >66% 绿色
+const HEATMAP_MID = 0.33; // 热度占比 >33% 琥珀
+const OLDEST_CARD_COUNT = 4; // 资历最深卡片数
+const DAILY_PICK_COUNT = 3; // 每日推荐条数
+
 /** ScanModelEntries 返回的条目 */
 interface ModelEntry {
   Name: string;
@@ -84,20 +98,20 @@ export async function loadOldestModel(
       // 仓库评分评分
       let score = 100;
       if (entries.length > 0) {
-        const banPenalty = Math.round((banned / entries.length) * 40);
-        const dupPenalty = Math.min(dupTotal * 5, 55);
+        const banPenalty = Math.round((banned / entries.length) * SCORE_BAN_PENALTY);
+        const dupPenalty = Math.min(dupTotal * SCORE_DUP_PENALTY, SCORE_DUP_PENALTY_CAP);
         score = Math.max(0, 100 - banPenalty - dupPenalty);
       }
       const healthColor =
-        score >= 80
+        score >= SCORE_HEALTH_GOOD
           ? "var(--free)"
-          : score >= 50
+          : score >= SCORE_HEALTH_OK
             ? "var(--tag-amber)"
             : "var(--paid)";
       const healthLabel =
-        score >= 80 ? t("oldest.health.good") : score >= 50 ? t("oldest.health.ok") : t("oldest.health.bad");
+        score >= SCORE_HEALTH_GOOD ? t("oldest.health.good") : score >= SCORE_HEALTH_OK ? t("oldest.health.ok") : t("oldest.health.bad");
       const healthTagClass =
-        score >= 80 ? "good" : score >= 50 ? "ok" : "bad";
+        score >= SCORE_HEALTH_GOOD ? "good" : score >= SCORE_HEALTH_OK ? "ok" : "bad";
 
       // 热力图
       const monthCounts = buildMonthHeatmap(entries);
@@ -107,13 +121,13 @@ export async function loadOldestModel(
         monthCounts
           .map((c, i) => {
             const pct = c / maxMonth;
-            const ht = 4 + Math.round(pct * 44);
+            const ht = HEATMAP_BASE_HT + Math.round(pct * HEATMAP_MAX_EXTRA);
             const color =
               c === 0
                 ? "var(--bd)"
-                : pct > 0.66
+                : pct > HEATMAP_STRONG
                   ? "var(--free)"
-                  : pct > 0.33
+                  : pct > HEATMAP_MID
                     ? "var(--tag-amber)"
                     : "var(--paid)";
             const nowYear = new Date().getFullYear();
@@ -145,14 +159,14 @@ export async function loadOldestModel(
         // 与 NaN 一并剔出资历最深——显式守卫，语义与热力图/推荐分支一致
         .filter((e) => Number.isFinite(e.ModTime) && e.ModTime > 0)
         .sort((a, b) => a.ModTime - b.ModTime);
-      const oldest4 = sorted.slice(0, 4);
+      const oldest4 = sorted.slice(0, OLDEST_CARD_COUNT);
       let oldestHtml = "";
       if (oldest4.length) {
         oldestHtml =
           '<div class="oldest-cards-row">' +
           oldest4
             .map((e) => {
-              const ageDays = Math.floor((Date.now() - e.ModTime) / 86400000);
+              const ageDays = Math.floor((Date.now() - e.ModTime) / MS_PER_DAY);
               const dateStr = new Date(e.ModTime).toLocaleDateString("zh-CN", {
                 year: "numeric",
                 month: "short",
@@ -190,7 +204,7 @@ export async function loadOldestModel(
           const j = Math.floor(Math.random() * (i + 1));
           [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
-        const total = Math.min(3, shuffled.length);
+        const total = Math.min(DAILY_PICK_COUNT, shuffled.length);
         const picks: string[] = [];
         for (let i = 0; i < total; i++) {
           const p = shuffled[i];

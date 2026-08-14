@@ -158,4 +158,123 @@ describe("loadOldestModel", () => {
     expect(container.textContent).toContain("scan crashed");
     cleanup();
   });
+
+  it("GetRepoRoot 失败 → 显示错误信息", async () => {
+    mocks.ScanModelEntries.mockResolvedValue(sampleEntries);
+    mocks.GetRepoRoot.mockRejectedValue(new Error("root boom"));
+    const { loadOldestModel } = await import("./oldest-models.ts");
+    const container = document.createElement("div");
+    const cleanup = await loadOldestModel(container, (s) => s);
+    await flush();
+    await flush();
+    expect(container.textContent).toContain("加载失败");
+    expect(container.textContent).toContain("root boom");
+    cleanup();
+  });
+
+  it("慢请求过期（幽灵路径防护）→ 结果丢弃，新类型正常渲染", async () => {
+    let resolveFirst!: (v: string) => void;
+    const firstRoot = new Promise<string>((r) => (resolveFirst = r));
+    mocks.ScanModelEntries.mockResolvedValue(sampleEntries);
+    mocks.GetRepoRoot.mockImplementationOnce(() => firstRoot); // 首次 render 挂起
+    const { loadOldestModel } = await import("./oldest-models.ts");
+    const container = document.createElement("div");
+    const loadPromise = loadOldestModel(container, (s) => s); // 不 await：render#1 阻塞在 GetRepoRoot
+
+    // 挂起期间切换类型 → render#2 用新类型 root 走完整渲染
+    bus.emit("repo:rtype-changed", "mmd");
+    await flush();
+    await flush();
+    expect(mocks.GetRepoRoot).toHaveBeenLastCalledWith("mmd");
+    expect(container.textContent).toContain("仓库评分");
+
+    // 旧请求此刻才返回 → gen 已过期必须丢弃（不得再走 ScanModelEntries）
+    resolveFirst("/stale-root");
+    const cleanup = await loadPromise;
+    await flush();
+
+    expect(mocks.ScanModelEntries).toHaveBeenCalledTimes(1);
+    expect(container.textContent).not.toContain("/stale-root");
+    cleanup();
+  });
+
+  it("过期加载失败 → 错误不覆盖新类型内容", async () => {
+    let rejectFirst!: (e: Error) => void;
+    const firstRoot = new Promise<string>((_, rej) => (rejectFirst = rej));
+    mocks.ScanModelEntries.mockResolvedValue(sampleEntries);
+    mocks.GetRepoRoot.mockImplementationOnce(() => firstRoot);
+    const { loadOldestModel } = await import("./oldest-models.ts");
+    const container = document.createElement("div");
+    const loadPromise = loadOldestModel(container, (s) => s);
+
+    bus.emit("repo:rtype-changed", "mmd");
+    await flush();
+    await flush();
+    expect(container.textContent).toContain("仓库评分"); // render#2 已渲染
+
+    rejectFirst(new Error("stale boom"));
+    const cleanup = await loadPromise;
+    await flush();
+
+    // 过期错误被 gen 守卫丢弃，不得覆盖新内容
+    expect(container.textContent).toContain("仓库评分");
+    expect(container.textContent).not.toContain("stale boom");
+    cleanup();
+  });
+
+  it("低评分健康 + 重复分组：分数/徽章/重复统计正确", async () => {
+    const now = Date.now();
+    const dupEntries = [
+      { Name: "a.ysm.ban", Size: 10, Path: "/r/a.ysm.ban", Ext: ".ban", Hash: "hdup", ModTime: now - 1000 },
+      { Name: "b.ysm.ban", Size: 10, Path: "/r/b.ysm.ban", Ext: ".ban", Hash: "hdup", ModTime: now - 2000 },
+      { Name: "c.ysm.ban", Size: 10, Path: "/r/c.ysm.ban", Ext: ".ban", Hash: "hdup", ModTime: now - 3000 },
+      { Name: "d.ysm.ban", Size: 10, Path: "/r/d.ysm.ban", Ext: ".ban", Hash: "hdup", ModTime: now - 4000 },
+    ];
+    mocks.ScanModelEntries.mockResolvedValue(dupEntries);
+    const { loadOldestModel } = await import("./oldest-models.ts");
+    const container = document.createElement("div");
+    const cleanup = await loadOldestModel(container, (s) => s);
+    await flush();
+    await flush();
+
+    const html = container.innerHTML;
+    // 4 ban → round(4/4*40)=40；1 组重复 3 个多余副本 → min(3*5,55)=15 → 100-55=45
+    expect(html).toContain('oldest-health-ring-num">45<');
+    expect(html).toContain('health-tag bad');
+    expect(html).toContain("🔗 1");
+    cleanup();
+  });
+
+  it("全部条目 ModTime 无效 → 资历最深区为空但不报错", async () => {
+    const badEntries = [
+      { Name: "x.ysm", Size: 10, Path: "/r/x.ysm", Ext: ".ysm", Hash: "h1", ModTime: 0 },
+      { Name: "y.ysm", Size: 10, Path: "/r/y.ysm", Ext: ".ysm", Hash: "h2", ModTime: NaN },
+    ];
+    mocks.ScanModelEntries.mockResolvedValue(badEntries);
+    const { loadOldestModel } = await import("./oldest-models.ts");
+    const container = document.createElement("div");
+    const cleanup = await loadOldestModel(container, (s) => s);
+    await flush();
+    await flush();
+
+    expect(container.querySelectorAll(".model-card-sm").length).toBe(0);
+    expect(container.querySelectorAll(".oldest-cards-row").length).toBe(0);
+    expect(container.textContent).toContain("仓库评分");
+    cleanup();
+  });
+
+  it("rtype 相同 → 不触发重新渲染", async () => {
+    mocks.ScanModelEntries.mockResolvedValue(sampleEntries);
+    const { loadOldestModel } = await import("./oldest-models.ts");
+    const container = document.createElement("div");
+    const cleanup = await loadOldestModel(container, (s) => s);
+    await flush();
+    await flush();
+
+    const callsBefore = mocks.ScanModelEntries.mock.calls.length;
+    bus.emit("repo:rtype-changed", "ysm"); // 当前即 ysm
+    await flush();
+    expect(mocks.ScanModelEntries.mock.calls.length).toBe(callsBefore);
+    cleanup();
+  });
 });

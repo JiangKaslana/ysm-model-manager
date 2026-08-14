@@ -2,6 +2,7 @@
 // 薄 wrapper，由 app-resource-manager 组件驱动
 // 组件注册由 app-modules.ts 动态 import 保证，此处不再副作用导入（分层债务清理）
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+import { esc } from "../utils/dom/html.ts";
 
 /**
  * 初始化资源包 tab
@@ -15,9 +16,11 @@ export async function initResourcePacks(
   host: object,
   rtype?: string,
 ): Promise<() => void> {
+  // 与 loadOldestModel 对齐：容器为空时返回空清理函数，避免向上抛错
+  if (!container) return () => {};
   container.innerHTML =
     '<app-resource-manager rtype="' +
-    (rtype || RESOURCE_TYPES.PACK) +
+    esc(rtype || RESOURCE_TYPES.PACK) +
     '"></app-resource-manager>';
 
   // Toast 由 app-resource-manager 内部直接 bus.emit("toast:show") 发出，
