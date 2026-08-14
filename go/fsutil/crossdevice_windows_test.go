@@ -103,3 +103,21 @@ func TestIsHardLink_HardLink(t *testing.T) {
 		t.Error("硬链接文件应返回 true")
 	}
 }
+
+// TestIsHardLink_Symlink：IsHardLink 经 os.Stat/CreateFile 跟随符号链接——
+// 指向普通文件（NumberOfLinks==1）的 symlink 应返回 false。
+// 调用方（recycle.moveEx / sync.GetLinkType）先用 Lstat 判 symlink 再调本函数。
+func TestIsHardLink_Symlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.txt")
+	link := filepath.Join(dir, "link.txt")
+	if err := os.WriteFile(target, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("Windows: symlink 创建需管理员/开发者模式，跳过：%v", err)
+	}
+	if IsHardLink(link) {
+		t.Error("指向普通文件的 symlink 应返回 false（目标 NumberOfLinks==1）")
+	}
+}

@@ -21,7 +21,7 @@
 | Go·Litematic | 4 | 9 |
 | Go·日志 | 2 | 11 |
 | Go·包管理 | 1 | 3 |
-| Go·路径 | 1 | 4 |
+| Go·路径 | 1 | 5 |
 | Go·回收站 | 2 | 19 |
 | go/scanner | 1 | 8 |
 | Go·同步 | 6 | 21 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 54 | 181 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **269** | **1096** |
+| **合计** | **269** | **1097** |
 
 ## Go·头像
 
@@ -120,10 +120,10 @@
 | `IsHardLink()` | `go/fsutil/hardlink_windows:14` | IsHardLink 判断路径是否为硬链接（NumberOfLinks &gt; 1）。 |
 | `WalkAllFiles()` | `go/fsutil/walk:13` | WalkAllFiles 递归遍历目录返回所有文件的完整路径（不限制扩展名） skipRecycle 为 true 时跳过 .recycle 子目录 |
 | `WalkAllDirs()` | `go/fsutil/walk:38` | WalkAllDirs 递归遍历目录，返回所有子目录路径（深度优先后序：子目录在前，父目录在后） 不包含根目录本身。后序便于删除类操作（先删深目录，父目录变空后可被继续删除）。 |
-| `CountFiles()` | `go/fsutil/walk:70` | CountFiles 统计目录中的文件数（不限制扩展名） |
-| `CleanEmptyDirs()` | `go/fsutil/walk:75` | CleanEmptyDirs 递归删除空子目录，返回删除数 |
-| `IsRecycleDir()` | `go/fsutil/walk:91` | IsRecycleDir 判断路径是否指向 .recycle 回收站目录（大小写不敏感，ADR-044 策略 A 统一口径）—— dedup / scanner / sync 的回 |
-| `IsResourcePackFolder()` | `go/fsutil/walk:99` | IsResourcePackFolder 检查目录是否为资源包文件夹（内含 pack.mcmeta）。 |
+| `CountFiles()` | `go/fsutil/walk:72` | CountFiles 统计目录中的文件数（不限制扩展名） 流式计数：不构造完整 []string，避免大目录下为取 len 白白物化整棵文件树 （遍历语义与 WalkAllFile |
+| `CleanEmptyDirs()` | `go/fsutil/walk:96` | CleanEmptyDirs 递归删除空子目录，返回删除数 |
+| `IsRecycleDir()` | `go/fsutil/walk:112` | IsRecycleDir 判断路径是否指向 .recycle 回收站目录（大小写不敏感，ADR-044 策略 A 统一口径）—— dedup / scanner / sync 的回 |
+| `IsResourcePackFolder()` | `go/fsutil/walk:120` | IsResourcePackFolder 检查目录是否为资源包文件夹（内含 pack.mcmeta）。 |
 | `ReadLimitedEntry()` | `go/fsutil/write:58` | ReadLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复，ADR-044 策略 A 统一口径）—— 原 `io.ReadAll( |
 | `WriteFileAtomic()` | `go/fsutil/write:78` | WriteFileAtomic 临时文件 + rename 原子落地目标文件。 |
 
@@ -232,10 +232,11 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ErrPathEscalation.Error()` | `go/paths/safe:16` | — |
-| `IsInside()` | `go/paths/safe:23` | IsInside 检查 path 是否在 baseDir 下，防止路径遍历。 |
-| `ContainsMinecraftMarker()` | `go/paths/safe:71` | ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记 PrismLauncher 实例目录下可能是 minecra |
-| `ErrPathEscalation()` | `go/paths/safe:10` | ErrPathEscalation 路径越权错误 |
+| `ErrPathEscalation.Error()` | `go/paths/safe:40` | — |
+| `ErrPathEscalation.Unwrap()` | `go/paths/safe:46` | Unwrap 暴露分类哨兵：errors.Is(err, ErrNotInside) 等可直接判断， 无需文本匹配错误文案。 |
+| `IsInside()` | `go/paths/safe:51` | IsInside 检查 path 是否在 baseDir 下，防止路径遍历。 |
+| `ContainsMinecraftMarker()` | `go/paths/safe:108` | ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记 PrismLauncher 实例目录下可能是 minecra |
+| `ErrPathEscalation()` | `go/paths/safe:32` | ErrPathEscalation 路径越权错误 |
 
 ## Go·回收站
 
@@ -350,17 +351,17 @@
 | `SubDirEntry()` | `go/types/extensions:152` | SubDirEntry 资源类型的版本子目录信息 |
 | `SetRegistryPath()` | `go/types/resource:42` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
 | `LoadRegistry()` | `go/types/resource:53` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
-| `RegistryType()` | `go/types/resource:142` | RegistryType 按 id 查找资源类型，不存在时返回 nil |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:160` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:256` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `RegistryType()` | `go/types/resource:144` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:163` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:259` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:13` | ResourceTypeRegistry 资源类型注册表 |
 | `ResourceType()` | `go/types/resource:18` | ResourceType 一种受支持的资源类型定义 |
-| `FormatRange()` | `go/types/resource:154` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:245` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:263` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:280` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:286` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:294` | VoxelGroup 同一颜色的方块组 |
+| `FormatRange()` | `go/types/resource:157` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:248` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:266` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:283` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:289` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:297` | VoxelGroup 同一颜色的方块组 |
 | `AppError.WithCause()` | `go/types/types:117` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:123` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
 | `AppError.Error()` | `go/types/types:125` | — |

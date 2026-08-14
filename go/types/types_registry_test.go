@@ -4,6 +4,8 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -51,6 +53,47 @@ func TestRegistryType_ReturnCopy(t *testing.T) {
 	}
 	if rt2.IsDir != origIsDir {
 		t.Errorf("修改拷贝后再次查询 IsDir = %v, 期望 %v（应为原始值）", rt2.IsDir, origIsDir)
+	}
+}
+
+// TestRegistryType_ExtensionsDeepCopy 返回值的 Extensions 切片必须与缓存解耦：
+// 结构体按值拷贝只保护标量字段，切片共享底层数组时调用方篡改会污染进程级注册表缓存。
+func TestRegistryType_ExtensionsDeepCopy(t *testing.T) {
+	// 使用临时文件注册表，避免依赖 embedded 基线内容
+	dir := t.TempDir()
+	p := filepath.Join(dir, "ext.json")
+	payload := `{"resourceTypes":[
+		{"id":"ysm","name":"YSM","extensions":[".ysm",".zip"],"storageSubDir":"ysm"}
+	]}`
+	if err := os.WriteFile(p, []byte(payload), 0644); err != nil {
+		t.Fatal(err)
+	}
+	SetRegistryPath(p)
+	defer SetRegistryPath("")
+
+	rt := RegistryType("ysm")
+	if rt == nil {
+		t.Fatal("RegistryType('ysm') = nil")
+	}
+	if len(rt.Extensions) < 1 {
+		t.Fatal("ysm 应有扩展名")
+	}
+	// 篡改返回值切片元素
+	rt.Extensions[0] = ".hacked"
+
+	// 再次查询必须拿到未污染的原始扩展名（深拷贝语义）
+	rt2 := RegistryType("ysm")
+	if rt2 == nil {
+		t.Fatal("第二次 RegistryType('ysm') = nil")
+	}
+	if rt2.Extensions[0] != ".ysm" {
+		t.Errorf("RegistryType 返回的 Extensions 应深拷贝，缓存被篡改为 %q", rt2.Extensions[0])
+	}
+	if IsSupportedExt(".hacked") {
+		t.Error("篡改返回值后 .hacked 不应成为受支持扩展名（缓存被污染）")
+	}
+	if !IsSupportedExt(".ysm") {
+		t.Error("篡改返回值后 .ysm 应仍受支持")
 	}
 }
 

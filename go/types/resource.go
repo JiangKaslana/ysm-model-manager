@@ -139,11 +139,14 @@ func loadRegistryBytes() []byte {
 }
 
 // RegistryType 按 id 查找资源类型，不存在时返回 nil
+// 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存
+// 底层数组——调用方修改 rt.Extensions 会污染进程级注册表缓存，因此必须深拷贝切片。
 func RegistryType(id string) *ResourceType {
 	reg := LoadRegistry()
 	for i := range reg.ResourceTypes {
 		if reg.ResourceTypes[i].ID == id {
 			rt := reg.ResourceTypes[i] // 拷贝，防外部篡改进程级缓存
+			rt.Extensions = append([]string(nil), rt.Extensions...)
 			return &rt
 		}
 	}

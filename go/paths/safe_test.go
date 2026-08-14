@@ -117,3 +117,82 @@ func TestErrPathEscalation_Error(t *testing.T) {
 		t.Errorf("错误文案应含「路径越权」, got %q", e.Error())
 	}
 }
+
+// ===== Trap #11 补测：sentinel 分类（errors.Is，禁止文本匹配）=====
+
+// 未覆盖分支补测：空基准目录必须显式拒绝（ErrEmptyBase）
+func TestIsInside_EmptyBaseDir(t *testing.T) {
+	err := IsInside("", "model.ysm")
+	if err == nil {
+		t.Fatal("空基准目录应被拒绝, got nil")
+	}
+	if !errors.Is(err, ErrEmptyBase) {
+		t.Fatalf("期望分类 ErrEmptyBase, got %v", err)
+	}
+	var esc *ErrPathEscalation
+	if !errors.As(err, &esc) {
+		t.Fatalf("期望 errors.As 命中 ErrPathEscalation, got %T: %v", err, err)
+	}
+}
+
+// 未覆盖分支补测：基准目录含 NUL 字节必须拒绝（ErrNULByte，与路径侧同哨兵）
+func TestIsInside_NULInBaseDir(t *testing.T) {
+	err := IsInside("repo\x00base", "model.ysm")
+	if err == nil {
+		t.Fatal("含 NUL 的基准目录应被拒绝, got nil")
+	}
+	if !errors.Is(err, ErrNULByte) {
+		t.Fatalf("期望分类 ErrNULByte, got %v", err)
+	}
+}
+
+// 各失败分支的 sentinel 分类正确性（errors.Is 程序化契约，不依赖文案）
+func TestIsInside_SentinelClassification(t *testing.T) {
+	base := filepath.Join(t.TempDir(), "repo")
+
+	// 空路径 → ErrEmptyPath
+	if err := IsInside(base, ""); !errors.Is(err, ErrEmptyPath) {
+		t.Fatalf("空路径应分类 ErrEmptyPath, got %v", err)
+	}
+	// 路径含 NUL → ErrNULByte
+	if err := IsInside(base, filepath.Join(base, "a")+"\x00../../etc"); !errors.Is(err, ErrNULByte) {
+		t.Fatalf("NUL 路径应分类 ErrNULByte, got %v", err)
+	}
+	// 目录外（.. 穿越）→ ErrNotInside
+	if err := IsInside(base, filepath.Join(base, "..", "evil.ysm")); !errors.Is(err, ErrNotInside) {
+		t.Fatalf("越权应分类 ErrNotInside, got %v", err)
+	}
+	// 目录外（前缀相似兄弟目录 /repo2，防 /repo 误匹配）→ ErrNotInside
+	if err := IsInside(base, filepath.Join(filepath.Dir(base), "repo2", "x.ysm")); !errors.Is(err, ErrNotInside) {
+		t.Fatalf("兄弟目录应分类 ErrNotInside, got %v", err)
+	}
+	// 正常放行 → nil（且不被任何哨兵命中）
+	if err := IsInside(base, filepath.Join(base, "sub", "model.ysm")); err != nil {
+		t.Fatalf("目录内应放行, got %v", err)
+	}
+	// 目录内路径 errors.Is(ErrNotInside) 必须为 false（反向验证分类无误伤）
+	if err := IsInside(base, filepath.Join(base, "sub", "model.ysm")); errors.Is(err, ErrNotInside) {
+		t.Fatal("目录内路径不得命中 ErrNotInside")
+	}
+}
+
+// Windows 专属：跨驱动器触发 filepath.Rel 错误分支 → ErrRelFailed，
+// 且底层 Rel 错误需经 Unwrap 链保留（具体类型随 Go 版本而异——新版本返回
+// errors.New 而非 *PathError，故不按具体类型断言，只验证链结构）
+func TestIsInside_RelFailureSentinel_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows only: 跨驱动器 Rel 错误是 Windows 特性")
+	}
+	err := IsInside(`C:\repo`, `D:\evil\file.ysm`)
+	if err == nil {
+		t.Fatal("跨驱动器应被拒绝, got nil")
+	}
+	if !errors.Is(err, ErrRelFailed) {
+		t.Fatalf("期望分类 ErrRelFailed, got %v", err)
+	}
+	u1 := errors.Unwrap(err) // *fmt.wrapError（ErrRelFailed + 底层 Rel 错误）
+	u2 := errors.Unwrap(u1)  // 底层 Rel 错误
+	if u1 == nil || u2 == nil {
+		t.Fatalf("期望 Unwrap 链 [ErrPathEscalation → wrapError → Rel 错误], got %v", err)
+	}
+}

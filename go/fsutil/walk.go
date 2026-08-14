@@ -67,8 +67,29 @@ func walkAllDirs(dir string, skipRecycle bool, out *[]string) {
 }
 
 // CountFiles 统计目录中的文件数（不限制扩展名）
+// 流式计数：不构造完整 []string，避免大目录下为取 len 白白物化整棵文件树
+// （遍历语义与 WalkAllFiles 完全一致：不跟随子目录符号链接、skipRecycle 同口径）。
 func CountFiles(dir string, skipRecycle bool) int {
-	return len(WalkAllFiles(dir, skipRecycle))
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return 0
+	}
+	count := 0
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			log.Printf("[fsutil] WalkDir 访问 %s 失败: %v", p, err)
+			return nil
+		}
+		if d.IsDir() {
+			if skipRecycle && IsRecycleDir(p) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		count++
+		return nil
+	})
+	return count
 }
 
 // CleanEmptyDirs 递归删除空子目录，返回删除数

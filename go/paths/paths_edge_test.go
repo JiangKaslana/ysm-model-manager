@@ -3,13 +3,14 @@
 // ===== go/paths 安全对抗测试 =====
 // 探测 IsInside / ContainsMinecraftMarker 的攻击面与潜在缺陷。
 // 每个测试均可在 Windows CI 上运行；Linux 专属分支用 t.Skip 跳过。
+// 错误分类统一用 errors.As/errors.Is（Trap #11：禁止 strings.Contains 文本匹配）
 package paths
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -39,8 +40,9 @@ func TestIsInside_SymlinkEscape(t *testing.T) {
 	if err == nil {
 		t.Fatal("BUG-1: 符号链接逃逸成功——IsInside 未解析 symlink，外部文件被判定为安全")
 	}
-	if strings.Contains(err.Error(), "路径越权") {
-		t.Logf("FIXED/INFO(BUG-1): symlink 未逃逸, reason=%v", err)
+	var esc *ErrPathEscalation
+	if errors.As(err, &esc) {
+		t.Logf("FIXED/INFO(BUG-1): symlink 未逃逸, reason=%v", esc.Reason)
 	} else {
 		t.Logf("INFO(BUG-1): IsInside 返回非 ErrPathEscalation 错误, err=%v", err)
 	}
@@ -65,10 +67,10 @@ func TestIsInside_EmptyPathCWDMatch(t *testing.T) {
 	if err == nil {
 		t.Fatal("FIXED(BUG-2): 空路径应被拒绝")
 	}
-	if strings.Contains(err.Error(), "空路径无意义") {
-		t.Logf("FIXED(BUG-2): 空路径已拒绝, err=%v", err)
+	if errors.Is(err, ErrEmptyPath) {
+		t.Logf("FIXED(BUG-2): 空路径已拒绝（ErrEmptyPath）, err=%v", err)
 	} else {
-		t.Fatalf("FIXED(BUG-2): 期望 '空路径无意义', 实际 err=%v", err)
+		t.Fatalf("FIXED(BUG-2): 期望分类 ErrEmptyPath, 实际 err=%v", err)
 	}
 }
 
@@ -85,8 +87,13 @@ func TestIsInside_CrossDriveWindows(t *testing.T) {
 	if err == nil {
 		t.Fatal("BUG-3: 跨驱动器路径未被拒绝")
 	}
-	if strings.Contains(err.Error(), "路径越权") {
-		t.Logf("FIXED/INFO(BUG-3): 跨驱动器已拒绝: err=%v", err)
+	var esc *ErrPathEscalation
+	if errors.As(err, &esc) {
+		if errors.Is(err, ErrRelFailed) {
+			t.Logf("FIXED/INFO(BUG-3): 跨驱动器已拒绝（ErrRelFailed）: err=%v", err)
+		} else {
+			t.Logf("FIXED/INFO(BUG-3): 跨驱动器已拒绝: err=%v", err)
+		}
 	} else {
 		t.Logf("INFO(BUG-3): 跨驱动器被拒绝但非 ErrPathEscalation, err=%v", err)
 	}
@@ -138,8 +145,8 @@ func TestIsInside_NULByte(t *testing.T) {
 		if err == nil {
 			t.Fatalf("BUG-5: Linux 上 NUL 字节路径被接受——filepath.Abs 截断后 IsInside 无法察觉原始逃逸")
 		}
-		if strings.Contains(err.Error(), "NUL") {
-			t.Logf("FIXED(BUG-5, Linux): NUL 字节已拒绝, err=%v", err)
+		if errors.Is(err, ErrNULByte) {
+			t.Logf("FIXED(BUG-5, Linux): NUL 字节已拒绝（ErrNULByte）, err=%v", err)
 		} else {
 			t.Logf("FIXED(BUG-5, Linux): NUL 字节被 filepath.Abs 截断后产生异常, err=%v", err)
 		}
@@ -148,8 +155,8 @@ func TestIsInside_NULByte(t *testing.T) {
 		if err == nil {
 			t.Fatal("FIXED(BUG-5): Windows 上 NUL 字节路径应被拒绝")
 		}
-		if strings.Contains(err.Error(), "NUL") {
-			t.Logf("FIXED(BUG-5, Windows): NUL 字节已拒绝, err=%v", err)
+		if errors.Is(err, ErrNULByte) {
+			t.Logf("FIXED(BUG-5, Windows): NUL 字节已拒绝（ErrNULByte）, err=%v", err)
 		} else {
 			t.Logf("FIXED(BUG-5, Windows): NUL 字节被 filepath.Abs 直接拒绝, err=%v", err)
 		}

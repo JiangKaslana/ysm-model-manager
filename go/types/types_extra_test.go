@@ -132,3 +132,82 @@ func TestFormatRange_UnmarshalJSON(t *testing.T) {
 		t.Fatal("无效格式应报错")
 	}
 }
+
+// ====== FormatRange 未覆盖分支 ======
+
+// TestFormatRange_EmptyArray 空数组长度不足应报错（len 0 走 else 分支）
+func TestFormatRange_EmptyArray(t *testing.T) {
+	var fr FormatRange
+	if err := json.Unmarshal([]byte(`[]`), &fr); err == nil {
+		t.Fatal("空数组应报错，实际 nil")
+	}
+}
+
+// TestFormatRange_Null null 走单 int 分支成功（置零值），返回 0/0——钉住现有行为
+func TestFormatRange_Null(t *testing.T) {
+	var fr FormatRange
+	if err := json.Unmarshal([]byte(`null`), &fr); err != nil {
+		t.Fatalf("null 不应报错: %v", err)
+	}
+	if fr.Min != 0 || fr.Max != 0 {
+		t.Errorf("null 解析为 %d/%d, 期望 0/0", fr.Min, fr.Max)
+	}
+}
+
+// TestFormatRange_ObjectMissingFields 对象缺 min_inclusive/max_inclusive 字段 → 零值 0/0
+func TestFormatRange_ObjectMissingFields(t *testing.T) {
+	var fr FormatRange
+	if err := json.Unmarshal([]byte(`{}`), &fr); err != nil {
+		t.Fatalf("{} 不应报错: %v", err)
+	}
+	if fr.Min != 0 || fr.Max != 0 {
+		t.Errorf("{} 解析为 %d/%d, 期望 0/0", fr.Min, fr.Max)
+	}
+}
+
+// ====== descString 未覆盖分支 ======
+
+// TestDescString_ObjectEmptyText 对象缺 text 或 text 为空 → 空字符串
+func TestDescString_ObjectEmptyText(t *testing.T) {
+	if got := descString(json.RawMessage(`{"color":"red"}`)); got != "" {
+		t.Errorf("对象无 text 字段应返回空, 得到 %q", got)
+	}
+	if got := descString(json.RawMessage(`{"text":""}`)); got != "" {
+		t.Errorf("空 text 应返回空, 得到 %q", got)
+	}
+}
+
+// TestDescString_ArrayEmptyComponents 数组组件无 text 时跳过，仅拼接非空 text/extra.text
+func TestDescString_ArrayEmptyComponents(t *testing.T) {
+	got := descString(json.RawMessage(`[{"color":"red"},{"text":"B"},{"extra":[{"text":"C"}]}]`))
+	if got != "BC" {
+		t.Errorf("数组应跳过无 text 组件并拼接 extra, 得到 %q", got)
+	}
+	if got := descString(json.RawMessage(`[]`)); got != "" {
+		t.Errorf("空数组应返回空, 得到 %q", got)
+	}
+}
+
+// ====== FindInstDir 未覆盖分支 ======
+
+// TestFindInstDir_StandardIsFile 标准路径存在但是文件（非目录）→ 走兜底扫描，无匹配返回标准路径
+func TestFindInstDir_StandardIsFile(t *testing.T) {
+	versionDir := t.TempDir()
+	standard := filepath.Join(versionDir, "resourcepacks")
+	if err := os.WriteFile(standard, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got := FindInstDir(versionDir, "resourcepacks", "resourcepack")
+	if got != standard {
+		t.Fatalf("标准路径为文件时应兜底后返回标准路径: %s vs %s", got, standard)
+	}
+}
+
+// TestFindInstDir_UnknownType 未知类型无扩展名信息 → 直接返回标准路径
+func TestFindInstDir_UnknownType(t *testing.T) {
+	versionDir := t.TempDir()
+	got := FindInstDir(versionDir, "resourcepacks", "nonexistent-type")
+	if got != filepath.Join(versionDir, "resourcepacks") {
+		t.Fatalf("未知类型应返回标准路径: %s", got)
+	}
+}
