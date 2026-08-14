@@ -99,6 +99,21 @@ describe("resolveAndroidRepoDir — 桌面（无 Android 桥）", () => {
     expect(mocks.SelectDirectory).not.toHaveBeenCalled();
     delete (globalThis as Record<string, unknown>)["__YSM_BACKEND__"];
   });
+
+  // P3 补测（审核）：网页版定位失败（虚拟根为空）→ 返回 null 且不发成功 toast
+  it("网页版 GetDefaultRepoRoot 返回空 → null 且无 info toast", async () => {
+    mocks.getAndroidBridge.mockReturnValue(null);
+    mocks.GetDefaultRepoRoot.mockResolvedValue("");
+    (globalThis as Record<string, unknown>)["__YSM_BACKEND__"] = "browser";
+    const dir = await resolveAndroidRepoDir();
+    expect(dir).toBeNull();
+    expect(mocks.GetDefaultRepoRoot).toHaveBeenCalledTimes(1);
+    expect(mocks.busEmit).not.toHaveBeenCalledWith(
+      "toast:show",
+      expect.objectContaining({ type: "info" }),
+    );
+    delete (globalThis as Record<string, unknown>)["__YSM_BACKEND__"];
+  });
 });
 
 describe("pickDirectory — Android 未授权", () => {

@@ -49,6 +49,7 @@ const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, threeStub } 
       }
     }
     class FakeBox3 {
+      static sizeValue = [2, 2, 2];
       setFromObject() {
         return this;
       }
@@ -56,7 +57,7 @@ const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, threeStub } 
         return v.set(0, 0, 0);
       }
       getSize(v: FakeVec) {
-        return v.set(2, 2, 2);
+        return v.set(FakeBox3.sizeValue[0], FakeBox3.sizeValue[1], FakeBox3.sizeValue[2]);
       }
     }
     class FakeLight {
@@ -173,6 +174,7 @@ beforeEach(() => {
   loadTexturesMock.mockResolvedValue([{}]);
   stubSceneGraph();
   threeStub.WebGLRenderer.toDataURLValue = "data:image/png;base64,QUFB";
+  threeStub.Box3.sizeValue = [2, 2, 2];
 });
 
 describe("renderMultiAngle — 防御路径", () => {
@@ -213,6 +215,11 @@ describe("renderMultiAngle — 防御路径", () => {
     buildSceneMeshMock.mockImplementation(() => {
       throw new Error("mesh boom");
     });
+    expect(await renderMultiAngle("/m/a.ysm", [])).toBeNull();
+  });
+
+  it("场景包围盒尺寸为 0（无实际 mesh）→ 返回 null（防 NaN 相机脏截图）", async () => {
+    threeStub.Box3.sizeValue = [0, 0, 0];
     expect(await renderMultiAngle("/m/a.ysm", [])).toBeNull();
   });
 });

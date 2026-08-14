@@ -150,3 +150,88 @@ describe("renderDisplayName — 日期括号重叠守卫", () => {
     expect(html).toContain('<span class="tag-date">2023</span>');
   });
 });
+
+// P3 补测（审核）：日期分隔符三态 / 无分隔 YYYYMM / 尾随 0 防畸形——parseModelName
+// 归一化路径（2023.05/2023_05/202305 → 2023-05，20230 → 仅年份）
+describe("parseModelName — 日期分隔符与畸形回退", () => {
+  it("点分隔 2023.05 → 2023-05", () => {
+    const r = parseModelName("角色2023.05.ysm");
+    expect(r.date).toBe("2023-05");
+    expect(r.chara).toBe("角色");
+  });
+
+  it("下划线分隔 2023_05 → 2023-05", () => {
+    const r = parseModelName("角色2023_05.ysm");
+    expect(r.date).toBe("2023-05");
+  });
+
+  it("无分隔 YYYYMM 202305 → 2023-05（恢复月份）", () => {
+    const r = parseModelName("角色202305.ysm");
+    expect(r.date).toBe("2023-05");
+  });
+
+  it("尾随 0 20230 → 仅年份 2023（0 非合法月份，防畸形回退）", () => {
+    const r = parseModelName("角色20230.ysm");
+    expect(r.date).toBe("2023");
+    expect(r.chara).toBe("角色");
+  });
+
+  it("非法月份 2023-13 → 仅年份 2023", () => {
+    const r = parseModelName("角色2023-13.ysm");
+    expect(r.date).toBe("2023");
+  });
+
+  it("无扩展名 → ext 空串", () => {
+    const r = parseModelName("[作者]角色2023");
+    expect(r.ext).toBe("");
+    expect(r.date).toBe("2023");
+  });
+
+  it(".ban 文件 ext 取 .ban 前的扩展名", () => {
+    const r = parseModelName("[A]b.ysm.ban");
+    expect(r.isBanned).toBe(true);
+    expect(r.ext).toBe("ysm");
+    expect(r.chara).toBe("b");
+  });
+});
+
+// P3 补测（审核）：占位符 token 与文件名碰撞回归——原实现用 %%TOKEN%% 占位，
+// 文件名恰含 %%TOKEN%% 时静默丢字；修复后字面量必须保留
+describe("renderDisplayName — 占位符碰撞（%%TOKEN%% 字面量保留）", () => {
+  it("文件名含 %%TOKEN%% 时原样保留", () => {
+    const html = renderDisplayName("角色%%TOKEN%%2023.ysm");
+    expect(html).toBe('角色%%TOKEN%%<span class="tag-date">2023</span>');
+  });
+
+  it("含 %%TOKEN%% 且带标记段时同样保留", () => {
+    const html = renderDisplayName("[A]%%TOKEN%%2023.ysm");
+    expect(html).toBe(
+      '<span class="tag-author">[A]</span>%%TOKEN%%<span class="tag-date">2023</span>',
+    );
+  });
+
+  it("《》内日期同样受重叠守卫约束", () => {
+    const html = renderDisplayName("《2023》角色.ysm");
+    expect(html).toBe('<span class="tag-work">《2023》</span>角色');
+    expect(html).not.toContain("tag-date");
+  });
+});
+
+// P3 补测（审核）：高亮版 XSS 转义 + showExt 组合
+describe("renderModelNameWithHighlight — XSS 与 showExt", () => {
+  it("文件名含 HTML 时高亮段与正文均转义（不注入标签）", () => {
+    const html = renderModelNameWithHighlight("<img src=x onerror=alert(1)>模型", "模型");
+    expect(html).toBe("&lt;img src=x onerror=alert(1)&gt;<mark>模型</mark>");
+    // 关键不变量：原始 <img> 标签不得以未转义形式出现（否则 onerror 会执行）
+    expect(html).not.toContain("<img");
+  });
+
+  it("keyword 未命中 → 纯转义输出", () => {
+    expect(renderModelNameWithHighlight("角色<脚本>", "不存在")).toBe("角色&lt;脚本&gt;");
+  });
+
+  it("showExt 与高亮组合", () => {
+    const html = renderModelNameWithHighlight("角色模型.ysm", "模型", { showExt: true });
+    expect(html).toBe('角色<mark>模型</mark><span class="tag-ext">.ysm</span>');
+  });
+});

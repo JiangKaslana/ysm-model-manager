@@ -4,7 +4,7 @@
 // 实现：vi.stubGlobal 注入受控 fake indexedDB（open 可触发 onsuccess/onerror/onblocked），
 // 不依赖 fake-indexeddb 库（零依赖原则）。
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetDBForTest, idbGet, idbKeys, idbSet, openDB } from "./idb.ts";
+import { _resetDBForTest, idbDel, idbGet, idbKeys, idbSet, openDB } from "./idb.ts";
 
 // MEMORY_MAX_KEYS=200 / MEMORY_MAX_BYTES=64MB（与 idb.ts 常量保持一致——此处验证驱逐行为）
 const MEMORY_MAX_KEYS = 200;
@@ -107,5 +107,196 @@ describe("idb 故障路径", () => {
     expect(fake.openCount).toBeGreaterThan(firstCount);
     // 重开后返回的是新连接对象（同一 fakeDB 实例，此处验证不再走已关闭路径）
     expect(db2).toBe(db1);
+  });
+});
+
+// ===== IDB 事务路径测试（此前 open 生命周期有测，transaction 读写路径零覆盖）=====
+// fake DB 实现最小 IDB 事务语义：get/put/delete 基于内存 Map，openCursor 升序遍历；
+// 可注入 writeError 模拟 put 失败 → 事务 abort → idbSet reject（对齐真实 QuotaExceeded）
+function makeFakeIDBWithTx(opts: { writeError?: Error } = {}): {
+  store: Map<string, unknown>;
+  openCount: number;
+  triggerVersionChange: () => void;
+} {
+  const store = new Map<string, unknown>();
+  let openCount = 0;
+  let vcHandler: (() => void) | null = null;
+  let writeFailed = false;
+
+  /** 构造一个可异步触发 onsuccess/onerror 的 IDBRequest */
+  const reqOf = (result: unknown, error?: Error) => {
+    const req = {
+      result,
+      error,
+      onsuccess: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+    };
+    if (error) setTimeout(() => req.onerror?.(), 0);
+    else setTimeout(() => req.onsuccess?.(), 0);
+    return req;
+  };
+
+  const fakeDB = {
+    close: vi.fn(),
+    objectStoreNames: { contains: () => false },
+    createObjectStore: vi.fn(),
+    transaction: vi.fn((_storeName: string, _mode: string) => {
+      let txError: Error | null = null;
+      const os = {
+        get: (key: string) => reqOf(store.has(key) ? store.get(key) : undefined),
+        put: (value: unknown, key: string) => {
+          if (opts.writeError && !writeFailed) {
+            writeFailed = true;
+            txError = opts.writeError;
+            return reqOf(undefined, opts.writeError);
+          }
+          store.set(key, value);
+          return reqOf(undefined);
+        },
+        delete: (key: string) => {
+          store.delete(key);
+          return reqOf(undefined);
+        },
+        openCursor: () => {
+          const keys = [...store.keys()].sort();
+          let i = 0;
+          const req = {
+            result: null as unknown,
+            onsuccess: null as (() => void) | null,
+            onerror: null as (() => void) | null,
+          };
+          const next = () => {
+            req.result = i < keys.length ? { key: keys[i++], continue: () => setTimeout(next, 0) } : null;
+            req.onsuccess?.();
+          };
+          setTimeout(next, 0);
+          return req;
+        },
+      };
+      const tx = {
+        oncomplete: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+        onabort: null as (() => void) | null,
+        objectStore: () => os,
+        // codereview P2：真实 IDB 事务契约暴露 tx.error（DOMException/Error），
+        // idb.ts 的 idbSet/idbDel 拒拒路径读 tx.error（reject(tx.error)）。
+        // fake 缺此字段 → QuotaExceeded 测试 reject(undefined) 无法匹配文案。
+        error: null as Error | null,
+      };
+      // 真实 IDB：请求失败 → 事务 abort；全部成功 → complete
+      setTimeout(() => {
+        if (txError) {
+          tx.error = txError; // 同步暴露拒绝原因，供 idbSet/idbDel 的 reject(tx.error) 穿透
+          tx.onerror?.();
+          tx.onabort?.();
+        } else {
+          tx.oncomplete?.();
+        }
+      }, 0);
+      return tx;
+    }),
+  };
+  Object.defineProperty(fakeDB, "onversionchange", {
+    configurable: true,
+    get: () => vcHandler,
+    set: (fn: (() => void) | null) => {
+      vcHandler = fn;
+    },
+  });
+  const open = vi.fn(() => {
+    openCount++;
+    const req = {
+      result: fakeDB,
+      error: new Error("indexedDB open failed"),
+      onsuccess: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+      onblocked: null as (() => void) | null,
+      onupgradeneeded: null as (() => void) | null,
+    };
+    setTimeout(() => req.onsuccess?.(), 0);
+    return req;
+  });
+  vi.stubGlobal("indexedDB", { open });
+  return {
+    store,
+    get openCount() {
+      return openCount;
+    },
+    triggerVersionChange: () => vcHandler?.(),
+  };
+}
+
+describe("idb IDB 事务路径", () => {
+  beforeEach(() => {
+    _resetDBForTest();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    _resetDBForTest();
+  });
+
+  it("idbSet → idbGet 经真实 transaction 读写（非内存降级）", async () => {
+    const fake = makeFakeIDBWithTx();
+    await idbSet("files", "dir:a", { name: "a", addedAt: 1 });
+    // 写入走了 IDB 分支（数据在 fake 的 store 而非内存 memoryStore）
+    expect(fake.store.has("dir:a")).toBe(true);
+    expect((await idbGet<{ name: string }>("files", "dir:a"))?.name).toBe("a");
+  });
+
+  it("idbGet 缺 key → undefined（不抛错）", async () => {
+    makeFakeIDBWithTx();
+    expect(await idbGet("files", "missing")).toBeUndefined();
+  });
+
+  it("idbDel 经 transaction 删除后读回 undefined", async () => {
+    const fake = makeFakeIDBWithTx();
+    await idbSet("files", "file:x", { data: new ArrayBuffer(4) });
+    await idbDel("files", "file:x");
+    expect(fake.store.has("file:x")).toBe(false);
+    expect(await idbGet("files", "file:x")).toBeUndefined();
+  });
+
+  it("idbKeys 经 openCursor 升序前缀扫描", async () => {
+    makeFakeIDBWithTx();
+    await idbSet("files", "dir:b:", { name: "b" });
+    await idbSet("files", "dir:a:", { name: "a" });
+    await idbSet("files", "cfg:x", {});
+    const keys = await idbKeys("files", "dir:");
+    expect(keys).toEqual(["dir:a:", "dir:b:"]); // cursor 升序 + 前缀过滤
+  });
+
+  it("put 失败（QuotaExceeded）→ 事务 abort → idbSet reject（不静默吞错）", async () => {
+    makeFakeIDBWithTx({ writeError: new Error("QuotaExceededError") });
+    await expect(idbSet("files", "dir:big", { data: new ArrayBuffer(8) })).rejects.toThrow("QuotaExceededError");
+  });
+});
+
+// ===== 内存降级模式补充（字节上限驱逐 / idbDel）=====
+describe("idb 内存降级补充", () => {
+  beforeEach(() => {
+    _resetDBForTest();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    _resetDBForTest();
+  });
+
+  it("字节上限驱逐：totalBytes 超 64MB 时按 FIFO 淘汰最旧（保留单条超大值不驱逐）", async () => {
+    // 无 indexedDB（未 stub）→ 纯内存模式
+    await idbSet("files", "big1", { data: new ArrayBuffer(50 * 1024 * 1024) });
+    // 第二条 20MB 使总估算 70MB > 64MB → 驱逐最旧 big1，保留 big2（m.size 回到 1）
+    await idbSet("files", "big2", { data: new ArrayBuffer(20 * 1024 * 1024) });
+    const keys = await idbKeys("files", "");
+    expect(keys).toEqual(["big2"]);
+    expect(keys).not.toContain("big1");
+  });
+
+  it("idbDel 内存模式：删除后 key 消失、其余保留", async () => {
+    await idbSet("files", "k1", { n: 1 });
+    await idbSet("files", "k2", { n: 2 });
+    await idbDel("files", "k1");
+    const keys = await idbKeys("files", "");
+    expect(keys).toEqual(["k2"]);
+    expect(await idbGet("files", "k1")).toBeUndefined();
   });
 });

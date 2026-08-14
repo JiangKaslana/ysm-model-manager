@@ -688,18 +688,18 @@
 | `scanWebLocalAuthors()` | `frontend/src/backend/web-community:166` | ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 |
 | `generateWebRepoIndex()` | `frontend/src/backend/web-community:190` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
 | `typeFromWebDir()` | `frontend/src/backend/web-fs:24` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:68` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:102` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:124` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:143` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:180` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:191` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:244` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `parseWebModelPath()` | `frontend/src/backend/web-fs:259` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
-| `parseWebModelDir()` | `frontend/src/backend/web-fs:276` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
-| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:289` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:308` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:322` | — |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:67` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:99` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:121` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:139` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:176` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:187` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:240` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `parseWebModelPath()` | `frontend/src/backend/web-fs:255` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
+| `parseWebModelDir()` | `frontend/src/backend/web-fs:272` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
+| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:285` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:304` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:318` | — |
 | `loadWebConfig()` | `frontend/src/backend/web-store:11` | — |
 | `saveWebConfig()` | `frontend/src/backend/web-store:19` | — |
 | `getWebImportLogs()` | `frontend/src/backend/web-store:43` | — |
@@ -1035,8 +1035,8 @@
 | `ParsedModelName()` | `frontend/src/utils/dom/display:6` | 解析后的模型文件名字段 |
 | `parseModelName()` | `frontend/src/utils/dom/display:27` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
 | `renderDisplayName()` | `frontend/src/utils/dom/display:88` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
-| `renderModelName()` | `frontend/src/utils/dom/display:179` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
-| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:188` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
+| `renderModelName()` | `frontend/src/utils/dom/display:177` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
+| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:186` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:6` | — |
@@ -1190,7 +1190,7 @@
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:43` | — |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:26` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:107` | 显示投影文件详情面板（tab 布局） |
-| `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:235` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
+| `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:238` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:13` | 加载模型几何数据 + 纹理 + 作者信息 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底 |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
@@ -1228,7 +1228,7 @@
 | `PreviewCtx()` | `frontend/src/views/app-preview/utils:56` | 组合接口：实现方（AppPreview）与兼容旧调用方的完整视图。 |
 | `getPrefer3D()` | `frontend/src/views/app-preview/utils:60` | — |
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
-| `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:130` | 剥离 YSGP 文本头部，返回标准二进制格式 |
+| `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:60` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |

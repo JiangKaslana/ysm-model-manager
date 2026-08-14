@@ -157,20 +157,18 @@ export function renderDisplayName(raw: string, opts?: unknown): string {
   // 按文件中出现的顺序排序
   matches.sort((a, b) => a.idx - b.idx);
 
-  // 从后往前替换，避免 idx 偏移
-  let marked = name;
-  for (let i = matches.length - 1; i >= 0; i--) {
-    const m = matches[i];
-    marked = marked.slice(0, m.idx) + "%%TOKEN%%" + marked.slice(m.idx + m.len);
-  }
-
-  // 拆分后对非 token 部分渲染 § 分节符颜色 + 转义，再拼回 token 的 HTML
-  const parts = marked.split("%%TOKEN%%");
+  // P3 修复（审核）：光标式重组替换原占位符 token 方案——原 `%%TOKEN%%` 占位串
+  // 与文件名内文字面量碰撞时（文件名恰含 %%TOKEN%%）会静默丢字（实测
+  // "角色%%TOKEN%%2023.ysm" 输出丢失 %%TOKEN%%）。改为按匹配区间直接切分原文：
+  // 每段原文过 renderFormattedText（§ 分节符色 + 转义），区间处插入匹配 span。
+  let cursor = 0;
   let html = "";
-  for (let i = 0; i < parts.length; i++) {
-    html += renderFormattedText(parts[i]);
-    if (i < matches.length) html += matches[i].html;
+  for (const m of matches) {
+    html += renderFormattedText(name.slice(cursor, m.idx));
+    html += m.html;
+    cursor = m.idx + m.len;
   }
+  html += renderFormattedText(name.slice(cursor));
 
   return html;
 }

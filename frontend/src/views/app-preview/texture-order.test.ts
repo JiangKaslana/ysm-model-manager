@@ -98,6 +98,17 @@ describe("buildOrderedTexKeys 无声明序（加密模型）按尺寸降序", ()
     expect(keys).toEqual(["texture", "arrow"]);
   });
 
+  it("声明元素为 {path} 对象时同样匹配", () => {
+    const keys = buildOrderedTexKeys({
+      texKeys: ["arrow", "texture"],
+      areaOf: () => 0,
+      ysmTexOrder: [{ path: "arrow.png" }, { path: "texture.png" }],
+      ysmDefaultTex: "texture.png",
+      matchTexKey: match,
+    });
+    expect(keys).toEqual(["texture", "arrow"]);
+  });
+
   it("matchTexKey 全不命中时返回空列表（不崩）", () => {
     const keys = buildOrderedTexKeys({
       texKeys: ["arrow", "texture"],

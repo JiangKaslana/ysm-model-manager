@@ -115,6 +115,10 @@ export async function renderMultiAngle(
     const box = new THREE.Box3().setFromObject(rootGroup);
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(...box.getSize(new THREE.Vector3()).toArray());
+    // P3 修复（审核反推）：meshGroups 空/骨骼组不匹配时 Box3 为空 → getSize 为
+    // NaN/0，maxDim 非有限或 ≤0，相机 position 落入 NaN → 截图脏数据甚至渲染异常。
+    // 防御性提前返回（调用方按 null 处理，不写脏 PNG）。
+    if (!Number.isFinite(maxDim) || maxDim <= 0) return null;
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
     const dist = ((maxDim / (2 * Math.tan((45 * Math.PI) / 360)) / 0.85) * 1.2);

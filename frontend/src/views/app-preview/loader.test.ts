@@ -5,14 +5,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { BedrockGeometry } from "./geometry.ts";
 
-const { cacheGetMock, cacheSetMock, AnalyzeMock, parseAnimMock } = vi.hoisted(
-  () => ({
+const { cacheGetMock, cacheSetMock, AnalyzeMock, parseAnimMock, ExtractSummaryMock, CacheAvatarsMock, CachedAvatarMock } =
+  vi.hoisted(() => ({
     cacheGetMock: vi.fn(),
     cacheSetMock: vi.fn(),
     AnalyzeMock: vi.fn(),
     parseAnimMock: vi.fn(),
-  }),
-);
+    ExtractSummaryMock: vi.fn(),
+    CacheAvatarsMock: vi.fn(),
+    CachedAvatarMock: vi.fn(),
+  }));
 
 vi.mock("./cache.ts", () => ({
   cacheGet: cacheGetMock,
@@ -20,7 +22,12 @@ vi.mock("./cache.ts", () => ({
 }));
 
 vi.mock("../../backend/app.ts", () => ({
-  getApp: vi.fn().mockResolvedValue({ AnalyzeBedrockModel: AnalyzeMock }),
+  getApp: vi.fn().mockResolvedValue({
+    AnalyzeBedrockModel: AnalyzeMock,
+    ExtractYsmSummary: ExtractSummaryMock,
+    CacheModelAvatars: CacheAvatarsMock,
+    CachedCreatorAvatar: CachedAvatarMock,
+  }),
 }));
 
 vi.mock("../../utils/animation/animation.ts", () => ({
@@ -54,6 +61,9 @@ beforeEach(() => {
   cacheSetMock.mockImplementation(() => {});
   AnalyzeMock.mockResolvedValue(null);
   parseAnimMock.mockReturnValue({ clips: [], errors: [] });
+  ExtractSummaryMock.mockResolvedValue(null);
+  CacheAvatarsMock.mockResolvedValue(undefined);
+  CachedAvatarMock.mockResolvedValue(null);
 });
 
 describe("loadModelData — 缓存命中", () => {
@@ -251,5 +261,59 @@ describe("loadModelData — authors 填补", () => {
     const r = await loadModelData("/m/e.bedrock", ctx());
 
     expect(r.model?._authors).toEqual([{ name: "对象作者" }]);
+  });
+
+  it("model 无 authors → ExtractYsmSummary 补齐作者名（Go 摘要兜底）", async () => {
+    const goModel = geo();
+    AnalyzeMock.mockResolvedValue(goModel);
+    ExtractSummaryMock.mockResolvedValue({
+      authors: [{ name: "作者X", roles: "模型" }],
+    });
+
+    const r = await loadModelData("/m/f.ysm", ctx());
+
+    expect(ExtractSummaryMock).toHaveBeenCalledWith("/m/f.ysm");
+    expect(r.model?._authors).toEqual([
+      { name: "作者X", role: "模型", avatarUrl: null, avatarPath: "" },
+    ]);
+  });
+
+  it("作者缺头像 → CacheModelAvatars + CachedCreatorAvatar 回填 avatarUrl", async () => {
+    const goModel = geo();
+    AnalyzeMock.mockResolvedValue(goModel);
+    ExtractSummaryMock.mockResolvedValue({
+      authors: [{ name: "作者X", roles: "模型" }],
+    });
+    CachedAvatarMock.mockResolvedValue("blob:avatar");
+
+    const r = await loadModelData("/m/g.ysm", ctx());
+
+    expect(CacheAvatarsMock).toHaveBeenCalledWith("/m/g.ysm");
+    expect(CachedAvatarMock).toHaveBeenCalledWith("作者X");
+    expect(r.model?._authors?.[0].avatarUrl).toBe("blob:avatar");
+  });
+
+  it("ExtractYsmSummary 抛错 → 静默吞掉，不影响几何渲染", async () => {
+    const goModel = geo();
+    AnalyzeMock.mockResolvedValue(goModel);
+    ExtractSummaryMock.mockRejectedValue(new Error("go summary boom"));
+
+    const r = await loadModelData("/m/h.ysm", ctx());
+
+    expect(r.model).toBe(goModel);
+    expect(r.model?._authors).toEqual([]);
+  });
+
+  it("CacheModelAvatars 抛错 → 静默吞掉，avatarUrl 保持空", async () => {
+    const goModel = geo();
+    AnalyzeMock.mockResolvedValue(goModel);
+    ExtractSummaryMock.mockResolvedValue({
+      authors: [{ name: "作者X", roles: "模型" }],
+    });
+    CacheAvatarsMock.mockRejectedValue(new Error("avatar boom"));
+
+    const r = await loadModelData("/m/i.ysm", ctx());
+
+    expect(r.model?._authors?.[0]).toMatchObject({ name: "作者X", avatarUrl: null });
   });
 });

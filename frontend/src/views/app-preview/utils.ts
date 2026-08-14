@@ -81,16 +81,28 @@ function buildStdYsgpFromTextVariant(
   if (!hashMatch) return null;
   const fileHash = hashMatch[1];
 
-  // 找到文本头部结束位置（从 "> 文件内容" 或 "</ysm>" 后）
-  const tagMatch = prefix.match(
-    /(?:<\/ysm>|<\/ysmp>|<\/file>|<\/data>|<\/ysm_data>|>)\s*$/,
-  );
+  // 找到文本头部结束位置。实际 YSGP 文本变体是「行式文本头 + 二进制加密数据」
+  // （与 Go 端 header.go scanHeader 同口径）：
+  //   - `===` 行终止当前节（header.go:73-74）
+  //   - 连续 `---`（无 `[`，≥10 字符）分隔行后即二进制数据（header.go:76-85）
+  // P2 修复（审核反推）：原 regex 用 `(?:<\/ysm>|...|>)\s*$` 在解码文本上找闭合标签，
+  // 要求标签后至 EOF 仅剩空白——但变体是文本头后紧跟二进制数据，`\s*$` 永不命中，
+  // dataStart 落回 3（BOM 后），V2 重建时把整个文本头拼进加密载荷（payload 污染，
+  // 解密产物错位）。用 Latin1 视图做字节级正则（1 字节=1 码位），索引直接映射回字节偏移。
+  const ascii = String.fromCharCode(...bytes.slice(0, 4096));
+  const eqM = ascii.match(/\n===[^\n]*\n/);
+  const eqEnd = eqM && typeof eqM.index === "number" ? eqM.index + eqM[0].length : -1;
+  const dashM = ascii.match(/\n-{10,}[^\[\n]*\n/);
+  const dashEnd =
+    dashM && typeof dashM.index === "number" ? dashM.index + dashM[0].length : -1;
   let dataStart = 3; // skip BOM
-  if (tagMatch) {
-    dataStart = 3 + (tagMatch.index ?? 0) + tagMatch[0].length;
+  if (eqEnd !== -1 && (dashEnd === -1 || eqEnd <= dashEnd)) {
+    dataStart = eqEnd;
+  } else if (dashEnd !== -1) {
+    dataStart = dashEnd;
   } else {
-    // 尝试找二进制数据起始（非文本、非空白字符）
-    for (let i = 100; i < bytes.length; i++) {
+    // 无终止标记：尝试找二进制数据起始（非文本、非空白字符）
+    for (let i = 3; i < bytes.length; i++) {
       if (
         bytes[i] < 0x20 &&
         bytes[i] !== 0x09 &&
@@ -101,9 +113,14 @@ function buildStdYsgpFromTextVariant(
         break;
       }
     }
+    // 全程无控制字节 → 纯文本文件（非文本变体），不重建
+    if (dataStart === 3) return null;
   }
 
-  if (dataStart < 0 || dataStart >= bytes.length - 20) return null;
+  // P2 修复：guard 放宽——原 `bytes.length - 20` 会把「V2 16B hash 区 + 少量加密数据」
+  // 的短变体误判为无载荷而原样返回（dataStart == length-20 恰好等于阈值）。
+  // 改为要求闭合标记后至少剩 16B（V2 hash 区）+ 1B 加密数据。
+  if (dataStart < 0 || dataStart >= bytes.length - 16) return null;
 
   const verNum = forceVer || 2;
 

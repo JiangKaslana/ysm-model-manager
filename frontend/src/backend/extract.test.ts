@@ -244,6 +244,81 @@ describe("parseZipCentralDir", () => {
     // 第一个 LFH 签名有效，读取 nameLen(0xff00) 后发现 nameStart+nameLen 超出范围 → break
     expect(detectZipType(data)).toBe("ysm");
   });
+
+  it("文件名为 shaders（目录形态）→ shaderpack", () => {
+    const zip = buildMinimalZip("shaders", new Uint8Array(0));
+    expect(detectZipType(zip)).toBe("shaderpack");
+  });
+});
+
+// --- parseZipCentralDir 边界分支补测 ---
+
+describe("parseZipCentralDir 边界分支", () => {
+  it("EOCD 有效但 totalEntries === 0 → 空数组（空 ZIP）", () => {
+    const eocd = new Uint8Array(22);
+    const dv = new DataView(eocd.buffer);
+    dv.setUint32(0, 0x06054b50, true); // EOCD 签名
+    dv.setUint16(10, 0, true); // totalEntries = 0
+    dv.setUint32(16, 0, true); // centralDirOffset = 0（即使偏移合法，0 条目也应短路）
+    expect(parseZipCentralDir(eocd)).toHaveLength(0);
+  });
+
+  it("EOCD 有效但 CD 偏移处非 CDE 签名 → break 终止，返回 []", () => {
+    // EOCD 指向的中央目录偏移处是垃圾（非 0x02014b50）→ 循环立即 break
+    const bytes = new Uint8Array(30);
+    const dv = new DataView(bytes.buffer);
+    dv.setUint32(0, 0x06054b50, true); // EOCD 签名
+    dv.setUint16(10, 1, true); // totalEntries = 1
+    dv.setUint32(16, 0, true); // centralDirOffset = 0（此处是 EOCD 而非 CDE）
+    expect(parseZipCentralDir(bytes)).toHaveLength(0);
+  });
+
+  it("gpf bit 11 设但文件名为非法 UTF-8 → 降级非致命解码（不抛 RangeError/解码错误）", () => {
+    // 构造 gpf=0x800（UTF-8 标志）但文件名是非法 UTF-8 字节 [0xff, 0xfe, 0x41]
+    const nameBytes = new Uint8Array([0xff, 0xfe, 0x41]);
+    const data = new Uint8Array([0x7b, 0x7d]);
+
+    const lfh = new Uint8Array(30);
+    const lfhDv = new DataView(lfh.buffer);
+    lfhDv.setUint32(0, 0x04034b50, true);
+    lfhDv.setUint16(6, 0x800, true); // gpf: UTF-8
+    lfhDv.setUint16(8, 0, true); // STORE
+    lfhDv.setUint32(18, data.length, true);
+    lfhDv.setUint32(22, data.length, true);
+    lfhDv.setUint16(26, nameBytes.length, true);
+
+    const cde = new Uint8Array(46);
+    const cdeDv = new DataView(cde.buffer);
+    cdeDv.setUint32(0, 0x02014b50, true);
+    cdeDv.setUint16(8, 0x800, true); // gpf: UTF-8
+    cdeDv.setUint16(10, 0, true);
+    cdeDv.setUint32(20, data.length, true);
+    cdeDv.setUint32(24, data.length, true);
+    cdeDv.setUint16(28, nameBytes.length, true);
+
+    const eocd = new Uint8Array(22);
+    const eocdDv = new DataView(eocd.buffer);
+    eocdDv.setUint32(0, 0x06054b50, true);
+    eocdDv.setUint16(10, 1, true);
+    eocdDv.setUint32(12, 46 + nameBytes.length, true);
+    eocdDv.setUint32(16, 30 + nameBytes.length + data.length, true);
+
+    const total = 30 + nameBytes.length + data.length + 46 + nameBytes.length + 22;
+    const zip = new Uint8Array(total);
+    let off = 0;
+    zip.set(lfh, off); off += 30;
+    zip.set(nameBytes, off); off += nameBytes.length;
+    zip.set(data, off); off += data.length;
+    zip.set(cde, off); off += 46;
+    zip.set(nameBytes, off); off += nameBytes.length;
+    zip.set(eocd, off);
+
+    const metas = parseZipCentralDir(zip);
+    expect(metas).toHaveLength(1);
+    expect(metas[0].gpfUtf8).toBe(true);
+    // 0xff / 0xfe 各替换为 U+FFFD，0x41 = "A"（不抛错即达降级分支）
+    expect(metas[0].fflateKey).toBe("\uFFFD\uFFFDA");
+  });
 });
 
 // --- extractZip ---

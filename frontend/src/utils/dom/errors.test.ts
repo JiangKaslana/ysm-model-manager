@@ -3,7 +3,7 @@
 // Go 原始错误 → 友好提示；覆盖空值/中文直通/结构化 Code/兜底四类路径。
 // ADR-051：删除正则兜底表，只消费结构化 AppError.Code。
 import { describe, it, expect, vi } from "vitest";
-import { friendlyError } from "./errors.ts";
+import { friendlyError, stripPathSegments } from "./errors.ts";
 
 // 本地 mock t() —— 返回 key 本身（与 test-setup.ts 全局 mock 行为一致，
 // 但此文件必须显式 mock，否则 node 环境下路径不匹配导致 t is not defined）
@@ -98,5 +98,43 @@ describe("friendlyError 兜底与非结构化输入", () => {
 
   it("含中文的 Error.message → 直接透传", () => {
     expect(friendlyError(new Error("网络超时，请重试"))).toBe("网络超时，请重试");
+  });
+});
+
+// P3 补测（审核）：非对象 truthy/falsy 输入 + cause.Code 嵌套对象 + stripPathSegments 直测
+describe("friendlyError — 边界输入与嵌套 cause", () => {
+  it("0 / false 等 falsy 值 → 未知错误", () => {
+    expect(friendlyError(0)).toBe("error.unknown");
+    expect(friendlyError(false)).toBe("error.unknown");
+  });
+
+  it("纯对象 cause.Code 已知 → 映射 i18n", () => {
+    expect(friendlyError({ cause: { Code: "FILE_EXISTS" } })).toBe("error.alreadyExists");
+  });
+
+  it("cause.Code 未知 + 外层英文 message → fallback", () => {
+    const err = new Error("boom: io error");
+    (err as { cause?: unknown }).cause = { Code: "IO_ERROR" };
+    expect(friendlyError(err)).toBe("error.fallback: boom: io error");
+  });
+
+  it("Code 为空串 + 中文 message → 透传中文", () => {
+    expect(friendlyError({ Code: "", message: "网络超时，请重试" })).toBe("网络超时，请重试");
+  });
+});
+
+describe("stripPathSegments — 内部路径剥离（导出直测）", () => {
+  it("源路径+目标路径整段剥离，保留解决建议", () => {
+    expect(stripPathSegments("无法创建目标目录 源路径：C:\\a 目标路径：D:\\b 解决建议：重试")).toBe(
+      "无法创建目标目录 解决建议：重试",
+    );
+  });
+
+  it("仅源路径且无后续标记 → 剥到行尾", () => {
+    expect(stripPathSegments("无法创建 源路径：C:\\a 无后续")).toBe("无法创建");
+  });
+
+  it("无路径标记的文案原样保留", () => {
+    expect(stripPathSegments("文件内容为空")).toBe("文件内容为空");
   });
 });

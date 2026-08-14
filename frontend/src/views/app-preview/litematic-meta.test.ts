@@ -140,6 +140,19 @@ describe("showLitematic", () => {
     expect(btn.textContent).toBe("🎨 3D");
   });
 
+  it("3D tab 按钮：createLitematic3D 拒绝 → 按钮恢复（不卡死、无 unhandled rejection）", async () => {
+    mocks.createLitematic3D.mockRejectedValue(new Error("voxel boom"));
+    await showLitematic(ctx, "/mc/a.litematic");
+    await flush();
+
+    const btn = root.getElementById("btn-lt-3d-tab") as HTMLButtonElement;
+    btn.click();
+    await flush();
+    await flush();
+    expect(btn.disabled).toBe(false);
+    expect(btn.textContent).toBe("🎨 3D");
+  });
+
   it("Tab 切换更新 localStorage 与显示状态", async () => {
     await showLitematic(ctx, "/mc/a.litematic");
     await flush();

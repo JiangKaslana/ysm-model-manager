@@ -5,7 +5,8 @@ tier: architecture
 category: ui
 source_files:
   - frontend/src/utils/dom/fab.ts
-tests: []
+tests:
+  - frontend/src/utils/dom/fab.test.ts
 use_when:
   - FAB
   - 悬浮按钮

@@ -215,6 +215,9 @@ export async function showLitematic(
         btn3dTab.disabled = true;
         try {
           await createLitematic3D(path, voxelFn);
+        } catch {
+          // createLitematic3D 内部已渲染错误占位 + toast，这里仅兜底
+          // 防 unhandled rejection（陷阱 #3：异步后按钮不得卡死，finally 兜底恢复）
         } finally {
           btn3dTab.textContent = "🎨 3D";
           btn3dTab.disabled = false;

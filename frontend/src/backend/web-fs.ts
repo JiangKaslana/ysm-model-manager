@@ -62,18 +62,16 @@ interface _FsaDirHandle {
 //   - getFsaAuthState：权限三态判定（unsupported/none/granted/revoked），供 UI 引导
 //   - reauthorizeFsaRoot：须在用户手势内调用（confirm 点击），主动 requestPermission
 const FSA_ROOT_KEY = "fsaRootHandle";
-let _fsaRootHandle: unknown = null;
 
 /** FSA 授权状态（供 UI 启动引导，不触发权限弹窗） */
 export type FsaAuthState = "unsupported" | "none" | "granted" | "revoked";
 
 /** 持久化根目录句柄（用户手势内调用，showDirectoryPicker 后落库） */
 async function saveFsaRootHandle(h: unknown): Promise<void> {
-  _fsaRootHandle = h;
   try {
     await idbSet("config", FSA_ROOT_KEY, h);
   } catch {
-    // 句柄结构化克隆失败（罕见）→ 内存句柄仍可用，本次会话有效
+    // 句柄结构化克隆失败（罕见）→ 仅本次调用用局部 handle，后续会话需重新授权
   }
 }
 
@@ -87,7 +85,6 @@ async function restoreFsaRootHandle(): Promise<unknown> {
   if (typeof permHandle.queryPermission === "function") {
     try {
       if ((await permHandle.queryPermission({ mode: "readwrite" })) === "granted") {
-        _fsaRootHandle = h;
         return h;
       }
     } catch {
@@ -130,7 +127,6 @@ export async function reauthorizeFsaRoot(): Promise<boolean> {
   if (typeof permHandle.requestPermission !== "function") return false;
   try {
     if ((await permHandle.requestPermission({ mode: "readwrite" })) === "granted") {
-      _fsaRootHandle = h;
       return true;
     }
   } catch {

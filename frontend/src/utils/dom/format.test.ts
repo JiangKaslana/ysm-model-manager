@@ -98,6 +98,13 @@ describe("fmtDate — 友好日期", () => {
     expect(fmtDate(Number.POSITIVE_INFINITY)).toBe("");
   });
 
+  // P3 补测（审核）：负时间戳与 formatBytes「非法输入一律空串」对齐——原实现把
+  // -1000 渲染成 "1970/1/1" 静默错值
+  it("负时间戳 → 空串（P3 修复）", () => {
+    expect(fmtDate(-1000)).toBe("");
+    expect(fmtDate(-1)).toBe("");
+  });
+
   it("今天 → 显示 HH:mm 时间", () => {
     const now = new Date();
     now.setHours(10, 30, 0, 0);
