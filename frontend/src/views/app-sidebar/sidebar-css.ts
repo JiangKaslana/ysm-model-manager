@@ -24,7 +24,7 @@ export const sidebarCSS: string = `
 .vc-header.active .name { color: var(--txt); }
 /* 涟漪选中效果 */
 .vc-header { position: relative; overflow: hidden; }
-.vc-header::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), var(--accent) 0%, transparent 70%); opacity: 0; transition: opacity .4s; pointer-events: none; }
+.vc-header::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), var(--act) 0%, transparent 70%); opacity: 0; transition: opacity .4s; pointer-events: none; }
 .vc-header.ripple::after { opacity: 0.12; }
 /* 交错瀑布流入场动画 */
 .vc { animation: fadeSlideLeft .35s cubic-bezier(.34,1.56,.64,1) both; }
