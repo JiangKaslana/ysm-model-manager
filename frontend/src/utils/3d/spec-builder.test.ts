@@ -234,4 +234,44 @@ describe("buildSpecFromGeometryJSON 契约（对齐 Go TestBuild3DSpecFromGeomet
     };
     expect(spec.models[0].bones[0].localPosition).toEqual([-5, 2, -3]);
   });
+
+  // ===== 契约对齐边界用例（cubes 字段缺席/null/非数组）=====
+
+  // 契约对齐 Go parse.go：骨骼缺 cubes 字段 → 视为空数组，骨骼保留、meshGroups 空
+  it("骨骼缺 cubes 字段 → 骨骼保留、meshGroups=[]", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.nocube",
+      '{ "name": "b", "pivot": [0,0,0] }'))) as {
+      models: { bones: unknown[]; meshGroups: unknown[] }[];
+    };
+    expect(spec.models[0].bones.length).toBe(1);
+    expect(spec.models[0].meshGroups).toEqual([]);
+  });
+
+  // 契约对齐 Go parse.go：cubes=null → 视为空数组（与缺字段同语义）
+  it("骨骼 cubes=null → 视为空数组，骨骼保留", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.nullcubes",
+      '{ "name": "b", "pivot": [0,0,0], "cubes": null }'))) as {
+      models: { bones: unknown[]; meshGroups: unknown[] }[];
+    };
+    expect(spec.models[0].bones.length).toBe(1);
+    expect(spec.models[0].meshGroups).toEqual([]);
+  });
+
+  // 契约对齐 Go parse.go：cubes 为非数组（字符串）→ 畸形输入，返回 {}
+  it("骨骼 cubes 非数组（字符串）→ {} 拒绝", () => {
+    const spec = buildSpecFromGeometryJSON(geo("geometry.badcubes",
+      '{ "name": "b", "pivot": [0,0,0], "cubes": "not-an-array" }'));
+    expect(spec).toBe("{}");
+  });
+
+  // 契约对齐：混合骨骼（有 cube 的 b1 + 无 cube 的 b2）→ 两者保留，仅 b1 产生 mesh
+  it("混合骨骼（有 cube + 无 cube）→ bones=2，meshGroups=1", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.mix",
+      '{ "name": "b1", "pivot": [0,0,0], "cubes": [{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }] }, ' +
+      '{ "name": "b2", "pivot": [4,0,0] }'))) as {
+      models: { bones: { name: string }[]; meshGroups: unknown[] }[];
+    };
+    expect(spec.models[0].bones.length).toBe(2);
+    expect(spec.models[0].meshGroups.length).toBe(1);
+  });
 });

@@ -168,10 +168,14 @@ function parseBedrockGeometry(data: string): BedrockModel | null {
 
   let cubeTotal = 0;
   for (const b of g.bones) {
-    // P2-6 修复：畸形输入防护——骨骼缺失/无 cubes 数组时返回 null（契约外输入不抛 TypeError）
-    if (!b || !Array.isArray(b.cubes)) return null;
+    // P2-6 修复：畸形输入防护——骨骼缺失/cubes 非 null 非数组时返回 null（契约外输入不抛 TypeError）
+    // 契约对齐 Go parse.go：cubes 缺席（undefined）或 null → 视为空数组（无 cube 的纯父骨骼合法），
+    // 仅 cubes 存在但非数组（如字符串）才视为畸形输入拒绝。
+    if (!b) return null;
+    const boneCubes = b.cubes ?? [];
+    if (!Array.isArray(boneCubes)) return null;
     const cubes: Cube2D[] = [];
-    for (const c of b.cubes) {
+    for (const c of boneCubes) {
       // P2-6 修复：cube 缺 origin/size 数组时返回 null（契约外输入不抛 TypeError）
       if (!Array.isArray(c.origin) || !Array.isArray(c.size)) return null;
       let uv: [number, number] = [0, 0];
@@ -288,16 +292,16 @@ interface RawGeometryJSON {
       parent?: string;
       pivot?: [number, number, number];
       rotation?: [number, number, number] | null;
-      cubes: {
+      cubes?: {
         origin: [number, number, number];
         size: [number, number, number];
         pivot?: [number, number, number];
         uv?: [number, number] | string | null;
         rotation?: [number, number, number] | null;
-        texture: number;
+        texture?: number;
         inflate?: number;
         mirror?: boolean;
-      }[];
+      }[] | null;
     }[];
   }[];
 }

@@ -484,5 +484,187 @@ describe("renderModel3D", () => {
     handle.cleanup();
     expect(container.innerHTML).toBe("");
   });
+
+  // ===== 合并逻辑（陷阱 #11 高危区：顶点数据完整性）=====
+  // model3d.ts L140-198：同 boneId:texIdx 且单位旋转的 mesh → 合并为单个 mesh，
+  // 顶点预偏移 +localPosition，合并后 localPosition=[0,0,0]、localRotation=单位。
+  // 非单位旋转 mesh → 走 standalone 分支不合并。
+  // 合并逻辑原位改写 mg.meshGroups（L193），renderModel3D 后直接检查 spec 即可。
+
+  it("合并：2 个同 boneId:texIdx 单位旋转 mesh → 合并为 1 个 mesh，顶点预偏移", async () => {
+    const mergeSpec: Spec3D = {
+      models: [
+        {
+          id: "main",
+          bones: [
+            { id: "root", name: "root", localPosition: [0, 0, 0], localRotation: [0, 0, 0, 1] },
+          ],
+          meshGroups: [
+            {
+              boneId: "root",
+              positions: [1, 2, 3, 4, 5, 6],
+              normals: [0, 0, 1, 0, 0, 1],
+              uvs: [0, 0, 1, 1],
+              indices: [0, 1],
+              texIdx: 0,
+              localPosition: [10, 20, 30],
+              localRotation: [0, 0, 0, 1],
+            },
+            {
+              boneId: "root",
+              positions: [7, 8, 9, 10, 11, 12],
+              normals: [0, 0, 1, 0, 0, 1],
+              uvs: [0, 0, 1, 1],
+              indices: [0, 1],
+              texIdx: 0,
+              localPosition: [100, 200, 300],
+              localRotation: [0, 0, 0, 1],
+            },
+          ],
+        },
+      ],
+    };
+    const h = await renderModel3D(makeContainer(), [], mergeSpec);
+    const mgs = mergeSpec.models![0]!.meshGroups!;
+    // 合并后应只有 1 个 mesh（2 个同 boneId:texIdx 单位旋转 mesh 合并为 1）
+    expect(mgs).toHaveLength(1);
+    const merged = mgs[0]!;
+    // 合并 mesh 的 localPosition 应为 [0,0,0]（顶点已预偏移）
+    expect(merged.localPosition).toEqual([0, 0, 0]);
+    // 合并 mesh 的 localRotation 应为单位四元数
+    expect(merged.localRotation).toEqual([0, 0, 0, 1]);
+    // 顶点 = mesh1.positions + mesh1.localPosition ++ mesh2.positions + mesh2.localPosition
+    // mesh1: [1+10, 2+20, 3+30, 4+10, 5+20, 6+30] = [11,22,33,14,25,36]
+    // mesh2: [7+100, 8+200, 9+300, 10+100, 11+200, 12+300] = [107,208,309,110,211,312]
+    expect(merged.positions).toEqual([11, 22, 33, 14, 25, 36, 107, 208, 309, 110, 211, 312]);
+    // 索引偏移：mesh1 索引 [0,1] 不变，mesh2 索引 [0,1] + 2（mesh1 有 2 个顶点）= [2,3]
+    expect(merged.indices).toEqual([0, 1, 2, 3]);
+    // 法线和 UV 拼接
+    expect(merged.normals).toEqual([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]);
+    expect(merged.uvs).toEqual([0, 0, 1, 1, 0, 0, 1, 1]);
+    h.cleanup();
+  });
+
+  it("standalone：非单位旋转 mesh 不合并 → 原位保留独立 mesh", async () => {
+    const standaloneSpec: Spec3D = {
+      models: [
+        {
+          id: "main",
+          bones: [
+            { id: "root", name: "root", localPosition: [0, 0, 0], localRotation: [0, 0, 0, 1] },
+          ],
+          meshGroups: [
+            {
+              boneId: "root",
+              positions: [0, 0, 0, 1, 1, 1],
+              normals: [0, 0, 1, 0, 0, 1],
+              uvs: [0, 0, 1, 1],
+              indices: [0, 1],
+              texIdx: 0,
+              localPosition: [0, 0, 0],
+              localRotation: [0, 0, 0, 1], // 单位旋转
+            },
+            {
+              boneId: "root",
+              positions: [0, 0, 0, 1, 1, 1],
+              normals: [0, 0, 1, 0, 0, 1],
+              uvs: [0, 0, 1, 1],
+              indices: [0, 1],
+              texIdx: 0,
+              localPosition: [0, 0, 0],
+              localRotation: [0.1, 0, 0, 0.9], // 非单位旋转 → standalone
+            },
+          ],
+        },
+      ],
+    };
+    const h = await renderModel3D(makeContainer(), [], standaloneSpec);
+    const mgs = standaloneSpec.models![0]!.meshGroups!;
+    // 单位旋转 mesh + 非单位旋转 mesh：单位旋转 mesh 无合并对象（g.length===1 → 不合并），
+    // 非单位旋转 mesh 走 standalone → 2 个 mesh 保留
+    expect(mgs).toHaveLength(2);
+    h.cleanup();
+  });
+
+  it("缺 texIdx → 回退 0 且不抛", async () => {
+    const noTexSpec: Spec3D = {
+      models: [
+        {
+          id: "main",
+          bones: [
+            { id: "root", name: "root", localPosition: [0, 0, 0], localRotation: [0, 0, 0, 1] },
+          ],
+          meshGroups: [
+            {
+              boneId: "root",
+              positions: [0, 0, 0, 1, 1, 1],
+              normals: [0, 0, 1, 0, 0, 1],
+              uvs: [0, 0, 1, 1],
+              indices: [0, 1],
+              // texIdx 缺失 → 回退 0，触发 warn
+            },
+          ],
+        },
+      ],
+    };
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = await renderModel3D(makeContainer(), [], noTexSpec);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("缺 texIdx"),
+        expect.anything(),
+      );
+      h.cleanup();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("合并后顶点世界位置 = 原始 mesh 世界位置（坐标一致性，陷阱 #11）", async () => {
+    // 陷阱 #11 回归：合并 mesh 的 localPosition=[0,0,0] + 预偏移顶点
+    // 与原始 mesh 的 localPosition + 原始顶点，世界位置必须一致
+    const consistSpec: Spec3D = {
+      models: [
+        {
+          id: "main",
+          bones: [
+            { id: "root", name: "root", localPosition: [0, 0, 0], localRotation: [0, 0, 0, 1] },
+          ],
+          meshGroups: [
+            {
+              boneId: "root",
+              positions: [1, 2, 3],
+              normals: [0, 0, 1],
+              uvs: [0, 0],
+              indices: [0],
+              texIdx: 0,
+              localPosition: [5, 6, 7],
+              localRotation: [0, 0, 0, 1],
+            },
+            {
+              boneId: "root",
+              positions: [10, 20, 30],
+              normals: [0, 0, 1],
+              uvs: [0, 0],
+              indices: [0],
+              texIdx: 0,
+              localPosition: [50, 60, 70],
+              localRotation: [0, 0, 0, 1],
+            },
+          ],
+        },
+      ],
+    };
+    const h = await renderModel3D(makeContainer(), [], consistSpec);
+    const mgs = consistSpec.models![0]!.meshGroups!;
+    expect(mgs).toHaveLength(1);
+    const merged = mgs[0]!;
+    // 原始 mesh1 世界顶点 = positions + localPosition = [1+5, 2+6, 3+7] = [6,8,10]
+    // 原始 mesh2 世界顶点 = positions + localPosition = [10+50, 20+60, 30+70] = [60,80,100]
+    // 合并后：localPosition=[0,0,0]，positions = [6,8,10, 60,80,100]
+    expect(merged.localPosition).toEqual([0, 0, 0]);
+    expect(merged.positions).toEqual([6, 8, 10, 60, 80, 100]);
+    h.cleanup();
+  });
 });
 

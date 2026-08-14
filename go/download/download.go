@@ -3,6 +3,7 @@ package download
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -31,6 +32,50 @@ const (
 // 删除会引入 Unlock→Delete 竞态窗口——等待者持旧锁与新锁并发下载同一路径，互斥承诺失效。
 var fileLocks sync.Map
 
+// ============================================================================
+// #11 错误分类——sentinel + 类型化错误，替代脆弱的英文子串 contains 匹配。
+// 调用方应使用 errors.Is(err, ErrTruncated) / errors.As(err, &httpErr) 分类，
+// 不要靠 strings.Contains(err.Error(), "truncated") 这种跨平台/跨版本失效的文本匹配。
+// ============================================================================
+
+// 下载错误类别——调用方用 errors.Is 判断，避免依赖错误消息文本（#11 文本匹配反模式）。
+var (
+	// ErrUnsupportedScheme URL scheme 非 http/https。
+	ErrUnsupportedScheme = errors.New("不支持的 URL scheme")
+	// ErrRedirectChainTooLong 重定向链超过 10 跳。
+	ErrRedirectChainTooLong = errors.New("重定向次数过多")
+	// ErrRedirectToUnsafeScheme 重定向到非 http(s) scheme（file/ftp 等，SSRF 风险）。
+	ErrRedirectToUnsafeScheme = errors.New("禁止重定向到非 http(s)")
+	// ErrPartialResponse 服务端返回 partial 响应（Content-Range 头存在），数据不完整。
+	ErrPartialResponse = errors.New("拒绝 partial 响应")
+	// ErrNonBinaryContentType 服务端返回 HTML/text 错误页（非二进制 Content-Type）。
+	ErrNonBinaryContentType = errors.New("拒绝非二进制响应 Content-Type")
+	// ErrTruncated 下载截断——服务端声明 Content-Length 但实际字节数不足（#11 截断静默反模式）。
+	ErrTruncated = errors.New("下载截断")
+)
+
+// HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值，
+// 替代 strings.Contains(err.Error(), "404") 等脆弱匹配。
+type HTTPStatusError struct {
+	Code int
+}
+
+func (e *HTTPStatusError) Error() string { return fmt.Sprintf("HTTP %d", e.Code) }
+
+// TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。
+type TruncationError struct {
+	Expected int64
+	Actual   int64
+}
+
+func (e *TruncationError) Error() string {
+	return fmt.Sprintf("%s: 期望 %d 字节, 实际 %d 字节", ErrTruncated, e.Expected, e.Actual)
+}
+
+// Unwrap 让 errors.Is(err, ErrTruncated) 成立——调用方既可判断类别（errors.Is），
+// 又可提取数值（errors.As），无需文本匹配（#11 错误分类）。
+func (e *TruncationError) Unwrap() error { return ErrTruncated }
+
 // ProgressFn 下载进度回调。downloaded / total 为字节数。
 type ProgressFn func(downloaded, total int64)
 
@@ -57,12 +102,14 @@ func (d *Downloader) httpClient() *http.Client {
 	return &http.Client{Timeout: d.timeout}
 }
 
-// downloadTo 下载到 savePath，支持 Accept 头与进度回调；失败/中断时清理半截临时文件
+// downloadTo 下载到 savePath，支持 Accept 头与进度回调；失败/中断时清理半截临时文件。
+// 错误分类用 sentinel（ErrTruncated 等）+ 类型化（HTTPStatusError / TruncationError），
+// 调用方用 errors.Is / errors.As 判断类别，不要靠英文子串 contains 匹配（#11 反模式）。
 func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept string, onProgress ProgressFn) error {
 	// P2-2：URL scheme 校验——仅允许 http/https，拒绝 file/ftp 等本地读取源
 	u, err := neturl.Parse(url)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
-		return fmt.Errorf("不支持的 URL scheme: %q（仅支持 http/https）", url)
+		return fmt.Errorf("%w: %q（仅支持 http/https）", ErrUnsupportedScheme, url)
 	}
 
 	// P2-1：同目标路径互斥，防并发下载同一 savePath 交错截断
@@ -72,7 +119,7 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 	defer m.Unlock()
 
 	if err := os.MkdirAll(filepath.Dir(savePath), 0755); err != nil {
-		return err
+		return fmt.Errorf("创建目录失败 %s: %w", filepath.Dir(savePath), err)
 	}
 
 	client := d.httpClient()
@@ -80,47 +127,51 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 	c := *client
 	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		if req.URL.Scheme != "https" && req.URL.Scheme != "http" {
-			return fmt.Errorf("禁止重定向到非 http(s): %s", req.URL)
+			return fmt.Errorf("%w: %s", ErrRedirectToUnsafeScheme, req.URL)
 		}
 		if len(via) >= 10 {
-			return fmt.Errorf("重定向次数过多")
+			return ErrRedirectChainTooLong
 		}
 		return nil
 	}
 	client = &c
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("构造请求失败 %s: %w", url, err)
 	}
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		// 区分 ctx 取消与网络错误，供调用方分类（#11 错误分类）
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("下载被取消 %s: %w", url, ctxErr)
+		}
+		return fmt.Errorf("请求失败 %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP %d", resp.StatusCode)
+		return &HTTPStatusError{Code: resp.StatusCode}
 	}
 	// BUG-HTTP-2 修复：Content-Range 头存在 = 服务端返回的是 partial 响应（206 或 200+Range 变体），
 	// 即使 StatusCode=200 也属数据不完整——不能装盘。
 	// 服务端可能用 200 OK + Content-Range 头伪装完整响应（SSRF 中间人场景），此处强制拒绝。
 	if cr := resp.Header.Get("Content-Range"); cr != "" {
-		return fmt.Errorf("拒绝 partial 响应 Content-Range: %q", cr)
+		return fmt.Errorf("%w: Content-Range: %q", ErrPartialResponse, cr)
 	}
 	// BUG-HTTP-5 修复：二进制文件下载时校验 Content-Type，避免服务端返回 HTML 错误页当文件装盘。
 	// HTML/text/JSON 错误页常见于反向代理 502/503 或 GitHub 404 页面。
 	if ct := resp.Header.Get("Content-Type"); ct != "" && !isBinaryContentType(ct) {
-		return fmt.Errorf("拒绝非二进制响应 Content-Type: %q", ct)
+		return fmt.Errorf("%w: %q", ErrNonBinaryContentType, ct)
 	}
 
 	// P1：原子写入——同目录临时文件 + Sync/Close/Rename，失败清理与崩溃残留只影响
 	// 临时文件，不再触碰最终路径上的旧完好文件
 	tmp, err := os.CreateTemp(filepath.Dir(savePath), filepath.Base(savePath)+".part-*")
 	if err != nil {
-		return err
+		return fmt.Errorf("创建临时文件失败: %w", err)
 	}
 	tmpName := tmp.Name()
 	ok := false
@@ -136,6 +187,9 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 	}()
 
 	total := resp.ContentLength
+	// contentLengthKnown 标记服务端是否声明了 Content-Length。
+	// 声明了就必须严格校验；未声明（chunked / HTTP/1.0）时只能信任 io.EOF 语义。
+	contentLengthKnown := total >= 0
 	var downloaded int64
 	buf := make([]byte, readBufferSize)
 	lastEmit := time.Now()
@@ -143,13 +197,13 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return fmt.Errorf("下载被取消: %w", ctx.Err())
 		default:
 		}
 		n, rErr := resp.Body.Read(buf)
 		if n > 0 {
 			if _, wErr := tmp.Write(buf[:n]); wErr != nil {
-				return wErr
+				return fmt.Errorf("写入临时文件失败 %s: %w", tmpName, wErr)
 			}
 			downloaded += int64(n)
 			if onProgress != nil && time.Since(lastEmit) > progressEmitInterval {
@@ -161,13 +215,24 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 			break
 		}
 		if rErr != nil {
-			return rErr
+			// 区分 ctx 取消与底层 IO 错误（#11 错误分类）
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return fmt.Errorf("下载被取消: %w", ctxErr)
+			}
+			return fmt.Errorf("读取响应体失败 %s: %w", url, rErr)
 		}
 	}
 	// 截断检测——服务端声明 Content-Length 但提前断流（EOF）
-	// 时，半截文件不得被当作完整文件装盘（ADR-033 截断静默反模式同类）
-	if total > 0 && downloaded < total {
-		return fmt.Errorf("下载截断: 期望 %d 字节, 实际 %d 字节", total, downloaded)
+	// 时，半截文件不得被当作完整文件装盘（ADR-033 截断静默反模式同类）。
+	// 返回 TruncationError 携带期望/实际字节数，调用方用 errors.As 提取做诊断（#11 错误分类）。
+	if contentLengthKnown {
+		if downloaded < total {
+			return &TruncationError{Expected: total, Actual: downloaded}
+		}
+		if downloaded > total {
+			// 服务端发了比声明更多的字节——异常，拒绝装盘
+			return &TruncationError{Expected: total, Actual: downloaded}
+		}
 	}
 	if total <= 0 {
 		total = downloaded

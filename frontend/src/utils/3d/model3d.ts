@@ -62,6 +62,14 @@ export interface BoneSelectInfo {
   cubePos: number[] | null;
 }
 
+// ── 魔法数值提取为常量（治理红线 R2：可维护性）──────────
+/** free 模式下 controls.target 跟随相机前方距离（ysmview 口径） */
+const FREE_CAM_TARGET_DIST = 10;
+/** resetCamera 时相机速度重置值 */
+const RESET_CAM_SPEED = 20;
+/** fullscreenchange 防抖延迟（ms） */
+const FS_RESIZE_DEBOUNCE_MS = 50;
+
 /** renderModel3D 返回的渲染句柄 */
 export interface RenderModel3DHandle {
   resetCamera: () => void;
@@ -236,7 +244,7 @@ export async function renderModel3D(
   const _onFSChange = (): void => {
     // P2-3 修复：timer 纳入会话清理（防全屏切换后旧会话 setTimeout 残留触发已释放渲染器）
     if (state.fsTimer != null) clearTimeout(state.fsTimer);
-    state.fsTimer = setTimeout(_onResize, 50);
+    state.fsTimer = setTimeout(_onResize, FS_RESIZE_DEBOUNCE_MS);
   };
   document.addEventListener("fullscreenchange", _onFSChange);
   _sessionCleanups.push(() => document.removeEventListener("fullscreenchange", _onFSChange));
@@ -306,7 +314,7 @@ export async function renderModel3D(
   const _applyFreeCamTarget = (): void => {
     const d = new THREE.Vector3();
     camera.getWorldDirection(d);
-    controls.target.copy(camera.position).addScaledVector(d, 10);
+    controls.target.copy(camera.position).addScaledVector(d, FREE_CAM_TARGET_DIST);
   };
 
   const handle: RenderModel3DHandle = {
@@ -321,7 +329,7 @@ export async function renderModel3D(
       }
       camera.quaternion.set(0, 0, 0, 1);
       _euler.set(0, 0, 0);
-      state.camSpeed = 20;
+      state.camSpeed = RESET_CAM_SPEED;
       state.mouseDown = false;
       Object.keys(state.keys).forEach((k) => (state.keys[k] = false));
       controls.update();
