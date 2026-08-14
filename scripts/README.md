@@ -60,7 +60,7 @@
 | `android-check.mjs` | `node scripts/android-check.mjs` / `--full` | Android Java 语法/API 编译检测（gradle compileDebugJavaWithJavac，无需设备；`--full` 完整 assembleDebug） |
 | `line-counter.mjs` | `node scripts/line-counter.mjs` | 代码行数统计与文件健康度分析（由 line-counter.py 迁移，含 package_lines 按文件计数行为） |
 | `audit-split.mjs` | `node scripts/audit-split.mjs <commit>` / `--json` / `--redline` / `--compact` | refactor 提交主动审计（**情报型**，与防御 check-* 互补）：文件清单/±行数/分类（拆·新·改）+ 函数级迁移（顶层声明去向：保留/搬家/真删，导出+私有双口径）+ 新文件导出入口 + ADR-040 ≤400 红线校验 + 受影响文件历史提交；把手工审计拆分的 40+ 条 pwsh 指令合成一条口令，自动暴露红线违规 |
-| `pre-push-gate.mjs` | `node scripts/pre-push-gate.mjs <remote> <url>`（.githooks/pre-push 调度器）/ `--dry-run` / `--all` / `--docs` | 本地质量门禁（doctor 全部模式的单一实现源头）：按变更域（Go/前端/数据/文档）只跑相关检查；Go 域含 updater helper 前置构建 + `./internal/app/` 测试；前端域含 **check-layering 分层硬门禁** + vitest + **tsc --noEmit**；gofmt 修复在 pre-commit 自动完成，pre-push 只读检出不阻断（格式类债务，2026-08-13 决策）；构建/断链/契约失败/红线扫描不可用（fail-closed）阻断推送；`--all` = 全量体检（含静态分析工具 + 关键文件），`--docs` = 轻量文档检查 |
+| `pre-push-gate.mjs` | `node scripts/pre-push-gate.mjs <remote> <url>`（.githooks/pre-push 调度器）/ `--dry-run` / `--all` / `--docs` | 本地质量门禁（doctor 全部模式的单一实现源头）：按变更域（Go/前端/数据/文档）只跑相关检查；Go 域含 updater helper 前置构建 + `./internal/app/` 测试；前端域含 **check-layering 分层硬门禁** + vitest + **tsc --noEmit**；gofmt 修复在 pre-commit 自动完成，pre-push 只读检出不阻断（格式类债务，2026-08-13 决策）；构建/断链/契约失败/红线扫描不可用（fail-closed）阻断推送；契约测试并行执行（~31s vs 串行 ~43s）；结果双写 stderr + `.git/push-log`（带 ISO 时间戳，持久可查）；`--all` = 全量体检（含静态分析工具 + 关键文件），`--docs` = 轻量文档检查 |
 | `.githooks/pre-commit`（薄壳） | commit 时自动执行（无需手打） | 秒级文档/索引自动同步：跑 10 个 gen（docs 分区索引 / funcmap / 知识卡 index+字段 / novel 索引 / project-map / vitepress sidebar）后 `git add docs/`（幂等：无漂移零副作用）；失败仅提示不阻断；输出走 stderr；逃生阀 `YSM_SKIP_GEN=1` |
 
 ### 治理检查（check-* 系列；唯一登记处，AGENTS.md §1.2 仅作指针）
@@ -202,6 +202,9 @@
 | `_lib/frontmatter.mjs` | frontmatter 解析 | 读取 md 文档 frontmatter |
 | `_lib/git-ref.mjs` | `showAt`（跨 ref 读文本）、`existsAt`、`gitMaybe`、`logPath`/`logPathDetail`（路径提交历史）、`lsTree`/`diffTree`（ref 间文件清单对比）、`renamePairs`（rename 检测）、`lineCountAt`（跨 ref 行数）、`showAllAt`（批量快照） | git 历史任意 ref 下的源码读取；与 `source-graph.mjs` 的 `textOverride` 参数对接，避免把历史 blob 落盘再读盘的双重开销 |
 | `_lib/source-graph.mjs` | `getExportedSymbols`（JS/TS）、`getGoExportedSymbols`（Go）、`getExportedSymbolsAny`（自动分发，支持 `textOverride` 传历史文本直接入参）、`walkSourceFiles`/`scanSourceGraph` | 源码导出符号提取；`textOverride` 是"拿历史某版本源码文本做符号分析"的统一接口，供 rollback-impact / bloat-history / api-break 等复用 |
+| `_lib/domain-classify.mjs` | `classify()`（文件→域）、`planFromFiles()`（文件集→检查计划）、`DATA_FILES` | 变更域分类共享层，pre-push-gate / doctor --gate 共用，消除双端漂移 |
+| `_lib/contract-tests.mjs` | `collectContractTests()`（列出测试文件）、`runContractTestsParallel()`（并行执行，spawn + Promise.all） | 契约测试并行执行共享层，doctor / pre-push-gate 共用，~31s vs 串行 ~43s |
+| `_lib/log-push.mjs` | `logPush()`（双写 stderr + .git/push-log）、`clearPushLog()` | 推送门禁日志共享层，解决 git pre-push 钩子 stdout 被吞问题，日志带 ISO 时间戳 |
 
 违规形态：内联「通用」 `walk`（即 scan-files.walk 的等价递归、无扩展名/跳过定制）/ 内联 `rg(...)` / 内联 `path.resolve(path.dirname(fileURLToPath(import.meta.url)))`。带显式过滤的领域专用收集器（如 `endsWith('.md')` / `EXCLUDE` / `symbolExclude` / `onFile`）为合法内联，不计入违规；doctor/静态检查不会自动拦截（脚本是自由 Node），靠 code review 约定 + `comment-checker` 抽查。
 
