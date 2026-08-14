@@ -4,6 +4,15 @@
  * - theme-cyber: 赛博霓虹（默认深色，科技感）
  * - theme-warm: 温暖木纹（明亮模式，自然感）
  * - theme-pro: 极简深邃（专业向深色，高对比度）
+ * - theme-sakura: 樱花物语（亮色/粉色系）
+ * - theme-ocean: 深海探秘（暗色/蓝色系）
+ * - theme-mint: 薄荷物语（亮色/绿色系）
+ *
+ * 取值规范：
+ * - 亮色主题 --accent 取深色系（文字对比度 ≥4.5:1 on --bg/--act）；深色主题取亮色系
+ * - --txt/--muted 的色相必须与 --accent 同色系（禁止冷灰混入暖色主题等脱节）
+ * - --bd 一律 color-mix 派生自 --accent（改 accent 无需同步边框）
+ * - 新增变量时在对应主题中同步定义
  *
  * 变量分类：
  * - 颜色变量：--bg, --surf, --card, --accent, --txt, --muted, --bd
@@ -31,7 +40,7 @@
   --accent: #9575cd;
   --txt: #e0d5f5;
   --muted: #8b7fad;
-  --bd: rgba(149, 117, 205, 0.1);
+  --bd: color-mix(in srgb, var(--accent) 10%, transparent);
   --menu-indicator: #9575cd;
   --meta-author: #66d9ef;
   --meta-work: #bd93f9;
@@ -57,7 +66,7 @@
   --accent: #8b4513;
   --txt: #3e2723;
   --muted: #8b7355;
-  --bd: rgba(139, 69, 19, 0.12);
+  --bd: color-mix(in srgb, var(--accent) 12%, transparent);
   --card-shadow: var(--shadow-sm);
   --card-shadow-hover: var(--shadow-md);
   --menu-indicator: #8b4513;
@@ -83,7 +92,7 @@
   --accent: #ff8a65;
   --txt: #f0e6e0;
   --muted: #a09080;
-  --bd: rgba(255, 138, 101, 0.1);
+  --bd: color-mix(in srgb, var(--accent) 10%, transparent);
   --menu-indicator: #ff8a65;
   --meta-author: #ff8a65;
   --meta-work: #b0bec5;
@@ -106,9 +115,10 @@
   /* 亮色主题 --act 取值口径：比 --hover 深一档的同类低饱和色（选中底），禁止 accent 级饱和值 */
   --act: #f5b8cc;
   --accent: #d81b60;
-  --txt: #37474f;
-  --muted: #78909c;
-  --bd: rgba(216, 27, 96, 0.12);
+  --txt: #45313c;
+  /* --muted 色相须属 accent 粉色系（子代理审计 2026-08-15：原 #78909c 冷蓝灰 WCAG 3.06:1 + 色系脱节） */
+  --muted: #7d5a6b;
+  --bd: color-mix(in srgb, var(--accent) 12%, transparent);
   --menu-indicator: #d81b60;
   --meta-author: #d81b60;
   --meta-work: #7b1fa2;
@@ -129,11 +139,11 @@
   --card: #15334a;
   --hover: #1a3d55;
   --act: #1f4a65;
-  --accent: #5c6bc0;
+  --accent: #9fa8da;
   --txt: #c5d8e8;
   --muted: #5f8a87;
-  --bd: rgba(92, 107, 192, 0.12);
-  --menu-indicator: #5c6bc0;
+  --bd: color-mix(in srgb, var(--accent) 12%, transparent);
+  --menu-indicator: #9fa8da;
   --meta-author: #42a5f5;
   --meta-work: #7e57c2;
   --meta-date: #ffb74d;
@@ -153,11 +163,12 @@
   --card: #f5fdf9;
   --hover: #dceede;
   --act: #c0e2ca;
-  --accent: #4db6ac;
+  /* 亮色主题 --accent 取深色系：子代理审计 WCAG 实测（2026-08-15）原 #4db6ac on --act 仅 1.74:1（全站最差） */
+  --accent: #00695c;
   --txt: #2c3e3a;
-  --muted: #6d8a7e;
-  --bd: rgba(77, 182, 172, 0.12);
-  --menu-indicator: #4db6ac;
+  --muted: #4d7163;
+  --bd: color-mix(in srgb, var(--accent) 12%, transparent);
+  --menu-indicator: #00695c;
   --meta-author: #4db6ac;
   --meta-work: #7986cb;
   --meta-date: #ffb74d;

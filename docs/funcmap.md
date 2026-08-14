@@ -169,11 +169,11 @@
 | `InstallLocked()` | `go/installer/installer:52` | InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
 | `InstallDir()` | `go/installer/installer:145` | InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式） 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件 rtype 用于过滤文件 |
 | `InstallDirLocked()` | `go/installer/installer:154` | InstallDirLocked 安装整个目录下的所有文件到目标目录（调用方须已持有 InstallLock， 禁止直接调用）。语义与 InstallDir 一致，但不重复加锁—— |
-| `InstallToGlobal()` | `go/installer/installer:343` | InstallToGlobal 安装到全局 custom 目录 |
-| `InstallWithOverlay()` | `go/installer/installer:368` | InstallWithOverlay 带冲突检查的安装 |
-| `CopyFile()` | `go/installer/installer:449` | CopyFile 复制文件到目标目录（带互斥锁） |
-| `CopyFileLocked()` | `go/installer/installer:457` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `IsValidRepoRoot()` | `go/installer/installer:607` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
+| `InstallToGlobal()` | `go/installer/installer:362` | InstallToGlobal 安装到全局 custom 目录 |
+| `InstallWithOverlay()` | `go/installer/installer:387` | InstallWithOverlay 带冲突检查的安装 |
+| `CopyFile()` | `go/installer/installer:468` | CopyFile 复制文件到目标目录（带互斥锁） |
+| `CopyFileLocked()` | `go/installer/installer:476` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
+| `IsValidRepoRoot()` | `go/installer/installer:626` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
 
 ## go/instance
 
@@ -841,9 +841,9 @@
 | `ImportQueueHost()` | `frontend/src/features/import-queue` | — |
 | `initImportQueue()` | `frontend/src/features/import-queue:11` | 初始化导入队列，返回清理函数 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:28` | 加载资历最深、仓库评分、热力图和每日推荐 |
-| `RecycleHost()` | `frontend/src/features/recycle-bin:13` | app-content 组件实例（initRecycleBin 依赖的成员） |
-| `isPathInRoot()` | `frontend/src/features/recycle-bin:24` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
-| `initRecycleBin()` | `frontend/src/features/recycle-bin:34` | 初始化回收站管理，返回清理函数 |
+| `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
+| `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
+| `initRecycleBin()` | `frontend/src/features/recycle-bin:49` | 初始化回收站管理，返回清理函数 |
 | `initResourcePacks()` | `frontend/src/features/resource-packs:13` | 初始化资源包 tab |
 | `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
 | `checkUpdateSilent()` | `frontend/src/features/version-updater:154` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |

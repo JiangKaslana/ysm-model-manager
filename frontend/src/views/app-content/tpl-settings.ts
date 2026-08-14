@@ -135,7 +135,7 @@ export function settingsHTML(): string {
       <div class="theme-card" data-theme="sakura">
         <div style="display:flex;gap:2px;margin-bottom:2px">
           <span style="width:8px;height:8px;border-radius:50%;background:#d81b60"></span>
-          <span style="width:8px;height:8px;border-radius:50%;background:#f48fb1"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#f5b8cc"></span>
           <span style="width:8px;height:8px;border-radius:50%;background:#fce4ec"></span>
         </div>
         <span style="font-size:10px;font-weight:600;color:#5d4037">🌸 ${t("settings.theme.sakura")}</span>
