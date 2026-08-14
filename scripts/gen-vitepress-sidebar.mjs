@@ -7,7 +7,8 @@
  * 输出：docs/.vitepress/sidebar.gen.mjs（自动生成，勿手改）。
  *
  * 分组：用户指南 / 发版记录 / 架构与规范 / 决策记录(ADR) / 知识卡 / 小说
- *   - guide/releases/adr：自动扫描目录，标题取页面 H1/frontmatter title（中文）
+ *   - guide：按 GUIDE_GROUPS 收纳分组（入门/核心/整理/设置/疑难），组内新手高频在前（_lib/guide-order.mjs）
+ *   - releases/adr：自动扫描目录，标题取页面 H1/frontmatter title（中文）
  *   - 架构与规范：docs 根散 md，ARCH_ORDER 语义排序（核心规范置顶，表外沉底）
  *   - 决策记录：按编号数字倒序（最新决策置顶）
  *   - 知识卡：按 category 聚合分组折叠（表外分类归「其他」并告警，不静默丢卡）
@@ -22,6 +23,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toPosix } from './_lib/to-posix.mjs';
 import { parseFrontmatter, getScalar } from './_lib/frontmatter.mjs';
+import { GUIDE_GROUPS } from './_lib/guide-order.mjs';
 
 const DOCS = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'docs');
 const OUT = join(DOCS, '.vitepress', 'sidebar.gen.mjs');
@@ -84,8 +86,37 @@ function scanItems(relDir, exclude = []) {
     });
 }
 
-// ---------- 1. 用户指南（guide/，自动扫描） ----------
-const guideItems = scanItems('guide', ['index.md']);
+// ---------- 1. 用户指南（guide/，按 GUIDE_GROUPS 收纳分组，组内语义序） ----------
+// 复用 _lib/guide-order.mjs（与 gen-docs-index 同一事实来源）：分组收纳 + 新手高频在前；
+// 表外页面（如旧总览、项目意义）归「其他」并告警，不静默丢页。
+function guideItemsBuilder() {
+  const mdFiles = new Set(mdNames('guide').filter((f) => !['index.md'].includes(f)));
+  const items = [];
+  const assigned = new Set();
+  for (const g of GUIDE_GROUPS) {
+    const children = g.items
+      .filter((f) => mdFiles.has(f))
+      .map((f) => {
+        assigned.add(f);
+        const rel = join('guide', f).replace(/\\/g, '/');
+        return { text: readTitle(rel) || f.replace(/\.md$/, ''), link: linkify(rel) };
+      });
+    if (children.length) items.push({ text: g.key, collapsed: true, items: children });
+  }
+  const rest = [...mdFiles].filter((f) => !assigned.has(f)).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  if (rest.length) {
+    console.warn(`[sidebar] 用户指南存在表外页面，已归「其他」组（${rest.length} 篇：${rest.join(', ')}）`);
+    items.push({
+      text: '其他',
+      collapsed: true,
+      items: rest.map((f) => {
+        const rel = join('guide', f).replace(/\\/g, '/');
+        return { text: readTitle(rel) || f.replace(/\.md$/, ''), link: linkify(rel) };
+      }),
+    });
+  }
+  return items;
+}
 
 // ---------- 2. 发版记录（releases/，折叠） ----------
 const releasesItems = scanItems('releases', ['index.md']);
@@ -185,9 +216,10 @@ function novelItemsBuilder() {
 }
 
 // ---------- 组装 ----------
-// 全部分组统一 collapsed: true（侧边栏只导航，浏览交给分组主站页 /xxx/）
+// 全部分组统一 collapsed: true（侧边栏只导航，浏览交给分组主站页 /xxx/）；
+// 唯一例外：用户指南置顶展开，让新手一眼看到功能分类（子分组仍折叠保持整洁）。
 const sidebar = [
-  { text: '用户指南', link: '/guide/', collapsed: true, items: guideItems },
+  { text: '用户指南', link: '/guide/', collapsed: false, items: guideItemsBuilder() },
   { text: '发版记录', link: '/releases/', collapsed: true, items: releasesItems },
   { text: '架构与规范', link: '/architecture', collapsed: true, items: archItems },
   { text: '决策记录 (ADR)', link: '/adr/', collapsed: true, items: adrItems },

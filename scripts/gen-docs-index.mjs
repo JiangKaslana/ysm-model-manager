@@ -25,6 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, readText, writeText } from './_lib/scan-files.mjs';
 import { spawnSync } from 'node:child_process';
+import { GUIDE_ORDER, GUIDE_GROUPS } from './_lib/guide-order.mjs';
 
 const ADR_DIR = path.join(ROOT, 'docs', 'adr');
 const ADR_INDEX_FILE = path.join(ADR_DIR, 'index.md');
@@ -238,13 +239,7 @@ function buildAdrIndex(list) {
 
 /** 非功能指南页（不进表格）。 */
 const GUIDE_SKIP = new Set(['index.md', '用户指南.md', '项目意义.md']);
-/** 语义顺序（与 guide/index.md 现有表格一致）；未列出的按字母序追加。 */
-const GUIDE_ORDER = [
-  'install.md', 'first-setup.md', 'repository.md', 'import-model.md',
-  '3d-preview.md', 'pack-sync.md', 'resource-packs.md', 'creators.md',
-  'workshop.md', 'oldest-models.md', 'recycle-bin.md', 'diagnostics.md',
-  'themes.md', 'settings.md', 'update.md', 'faq.md',
-];
+// 顺序与分组见 _lib/guide-order.mjs（单一事实来源，与 gen-vitepress-sidebar 共用）
 
 function parseGuidePages() {
   if (!fs.existsSync(GUIDE_DIR)) return [];
@@ -274,11 +269,23 @@ function parseGuidePages() {
 
 function buildGuideIndex() {
   const pages = parseGuidePages();
+  const byFile = new Map(pages.map((p) => [p.file, p]));
   let out = `> 按功能讲解入口路径与操作步骤，共 **${pages.length}** 篇。新功能持续建档；索引由 gen-docs-index.mjs 自动生成，断链由 link-checker 兜底。\n\n`;
   out += '| 指南页 | 说明 |\n';
   out += '|--------|------|\n';
-  for (const p of pages) {
-    out += `| [${escCell(p.title)}](./${p.file}) | ${escCell(p.desc)} |\n`;
+  // 分组表头（与侧边栏 GUIDE_GROUPS 同源）：组内按 GUIDE_ORDER 语义序，新手高频在前
+  const assigned = new Set();
+  for (const g of GUIDE_GROUPS) {
+    const rows = g.items.map((f) => byFile.get(f)).filter(Boolean);
+    if (!rows.length) continue;
+    for (const p of rows) assigned.add(p.file);
+    out += `| **${g.key}** |  |\n`;
+    for (const p of rows) out += `| [${escCell(p.title)}](./${p.file}) | ${escCell(p.desc)} |\n`;
+  }
+  const rest = pages.filter((p) => !assigned.has(p.file));
+  if (rest.length) {
+    console.warn(`[guide-index] 表外指南页未分组，沉底：${rest.map((p) => p.file).join(', ')}`);
+    for (const p of rest) out += `| [${escCell(p.title)}](./${p.file}) | ${escCell(p.desc)} |\n`;
   }
   return out;
 }
