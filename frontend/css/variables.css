@@ -9,7 +9,7 @@
  * - theme-mint: 薄荷物语（亮色/绿色系）
  *
  * 取值规范：
- * - 亮色主题 --accent 取深色系（文字对比度 ≥4.5:1 on --bg/--act）；深色主题取亮色系
+ * - 亮色主题 --accent 取深色系（文字对比度 ≥4.5:1 on --bg）；深色主题取亮色系
  * - --txt/--muted 的色相必须与 --accent 同色系（禁止冷灰混入暖色主题等脱节）
  * - --bd 一律 color-mix 派生自 --accent（改 accent 无需同步边框）
  * - 新增变量时在对应主题中同步定义
@@ -112,7 +112,6 @@
   --surf: #fbe8ee;
   --card: #fff0f4;
   --hover: #fce0e8;
-  /* 亮色主题 --act 取值口径：比 --hover 深一档的同类低饱和色（选中底），禁止 accent 级饱和值 */
   --act: #f5b8cc;
   --accent: #d81b60;
   --txt: #45313c;
