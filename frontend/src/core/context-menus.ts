@@ -4,9 +4,9 @@
 import { bus, type CtxShowPayload, type MenuItem } from "../bus.ts";
 import { isViewerMode } from "../utils/dom/android-bridge.ts";
 import { getMenuDef } from "./menu-defs";
-// P1 修复（ADR-040）：handler 表已拆至 context-menu-handlers.ts，此处 re-export 兼容
-export { refreshUI, toast, isUnsafeFolderName, resolveDstDir, runBatchFileOp, HANDLERS } from "./context-menu-handlers.ts";
-import { refreshUI, toast, isUnsafeFolderName, resolveDstDir, runBatchFileOp, HANDLERS } from "./context-menu-handlers.ts";
+// P1 修复（ADR-040）：handler 表已拆至 context-menu-handlers.ts；此处仅消费 HANDLERS，
+// 不再 re-export 其余共享符号（无外部消费者，消除死代码）
+import { HANDLERS } from "./context-menu-handlers.ts";
 type MenuCtx = import("./context-menu-handlers.ts").MenuCtx;
 
 // 查看器模式（Android/网页版 ADR-049）下仍可用的纯前端右键菜单动作：

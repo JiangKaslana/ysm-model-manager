@@ -1,74 +1,19 @@
 // ===== context-menu-handlers.ts — instance/batch handler 表（ADR-040 P1 第2轮拆分）=====
 // file/dir handler 已拆至 context-menu-file-handlers.ts / context-menu-dir-handlers.ts
-import { bus, type ToastPayload } from "../bus.ts";
+import { bus } from "../bus.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { getApp } from "../backend/app.ts";
-import { modalPrompt, modalConfirm, modalSelect } from "../utils/dom/dialogs/modal.ts";
+import { modalConfirm, modalSelect } from "../utils/dom/dialogs/modal.ts";
 import { showRenameDialog } from "../utils/dom/dialogs/rename.ts";
 import { modalTagEditor } from "../utils/dom/dialogs/tag-editor.ts";
 // P1 修复（ADR-040）：file/dir handler 已拆出，此处合并
 import { FILE_HANDLERS } from "./context-menu-file-handlers.ts";
 import { DIR_HANDLERS } from "./context-menu-dir-handlers.ts";
-
-type ToastType = NonNullable<ToastPayload["type"]>;
-
-/** 通知树组件和统计面板刷新 */
-export function refreshUI(): void {
-  bus.emit("tree:reload");
-  bus.emit("stats:refresh");
-}
-
-/** 显示 toast 通知 */
-export function toast(msg: string, duration = 3000, type: ToastType = "success"): void {
-  bus.emit("toast:show", { msg, duration, type });
-}
-
-/** 路径安全过滤：禁止逃逸段（. / ..）与绝对路径 */
-export function isUnsafeFolderName(folder: string): boolean {
-  const trimmed = folder.trim();
-  if (!trimmed) return true;
-  if (/^[/\\]/.test(trimmed) || /^[A-Za-z]:/.test(trimmed)) return true;
-  return trimmed.split(/[/\\]/).some((seg) => seg === "." || seg === "..");
-}
-
-/**
- * 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。
- * 用户取消或校验失败时返回 null（已 toast 告知）。
- */
-export async function resolveDstDir(opts: {
-  title: string;
-  icon: string;
-  okText: string;
-  emptyMsg: string;
-}): Promise<{ folder: string; dstDir: string } | null> {
-  const folder = await modalPrompt({
-    title: opts.title,
-    icon: opts.icon,
-    placeholder: "输入目标文件夹名，如 [作者名]",
-    okText: opts.okText,
-  });
-  if (!folder) return null;
-  if (isUnsafeFolderName(folder)) {
-    bus.emit("toast:show", {
-      msg: "❌ 文件夹名包含非法字符",
-      duration: 3000,
-      type: "error",
-    });
-    return null;
-  }
-  const { GetRepoRoot } = await getApp();
-  const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-  if (!filesRoot) {
-    bus.emit("toast:show", {
-      msg: opts.emptyMsg,
-      duration: 3000,
-      type: "error",
-    });
-    return null;
-  }
-  return { folder, dstDir: filesRoot + "/" + folder.replace(/\\/g, "/") };
-}
+// 共享原语（toast/refreshUI/isUnsafeFolderName/resolveDstDir）下沉至
+// context-menu-shared.ts，破除 handlers ↔ {file,dir}-handlers 循环依赖
+export { refreshUI, toast, isUnsafeFolderName, resolveDstDir } from "./context-menu-shared.ts";
+import { refreshUI, toast, isUnsafeFolderName, resolveDstDir } from "./context-menu-shared.ts";
 
 /**
  * batch.move / batch.copy 共用模板。

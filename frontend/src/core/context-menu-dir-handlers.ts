@@ -2,7 +2,7 @@
 import { bus } from "../bus.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { getApp } from "../backend/app.ts";
-import { refreshUI, toast } from "./context-menu-handlers.ts";
+import { refreshUI, toast, resolveDstDir } from "./context-menu-shared.ts";
 import type { MenuCtx } from "./context-menu-handlers.ts";
 
 /** dir 类 handler 子表 */
@@ -12,7 +12,6 @@ export const DIR_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
     bus.emit("dir:batch-rename", { dir: ctx.dir || "" }),
   "dir.move": async (ctx) => {
     try {
-      const { resolveDstDir } = await import("./context-menu-handlers.ts");
       const resolved = await resolveDstDir({
         title: "移动文件夹到",
         icon: "📂",
@@ -31,7 +30,6 @@ export const DIR_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
   },
   "dir.copy": async (ctx) => {
     try {
-      const { resolveDstDir } = await import("./context-menu-handlers.ts");
       const resolved = await resolveDstDir({
         title: "复制文件夹到",
         icon: "📋",

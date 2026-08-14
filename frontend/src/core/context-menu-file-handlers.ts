@@ -5,7 +5,7 @@ import { getApp } from "../backend/app.ts";
 import { modalConfirm, modalSelect } from "../utils/dom/dialogs/modal.ts";
 import { showRenameDialog } from "../utils/dom/dialogs/rename.ts";
 import { modalTagEditor } from "../utils/dom/dialogs/tag-editor.ts";
-import { refreshUI, toast } from "./context-menu-handlers.ts";
+import { refreshUI, toast, resolveDstDir } from "./context-menu-shared.ts";
 import type { MenuCtx } from "./context-menu-handlers.ts";
 
 /** file 类 handler 子表 */
@@ -32,7 +32,6 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
   },
   "file.move": async (ctx) => {
     try {
-      const { resolveDstDir } = await import("./context-menu-handlers.ts");
       const resolved = await resolveDstDir({
         title: "移动到文件夹",
         icon: "📂",
@@ -51,7 +50,6 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
   },
   "file.copy": async (ctx) => {
     try {
-      const { resolveDstDir } = await import("./context-menu-handlers.ts");
       const resolved = await resolveDstDir({
         title: "复制到文件夹",
         icon: "📋",

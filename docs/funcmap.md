@@ -34,14 +34,14 @@
 | Go(internal)·应用入口 | 22 | 179 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 9 | 56 |
-| 前端·核心 | 17 | 43 |
+| 前端·核心 | 18 | 41 |
 | 前端·特性 | 19 | 92 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 54 | 196 |
 | frontend/views | 78 | 210 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **267** | **1108** |
+| **合计** | **268** | **1106** |
 
 ## Go·头像
 
@@ -705,19 +705,17 @@
 |------|--------|------|
 | `DIR_HANDLERS()` | `frontend/src/core/context-menu-dir-handlers:9` | dir 类 handler 子表 |
 | `FILE_HANDLERS()` | `frontend/src/core/context-menu-file-handlers:12` | file 类 handler 子表 |
-| `refreshUI()` | `frontend/src/core/context-menu-handlers:17` | 通知树组件和统计面板刷新 |
-| `toast()` | `frontend/src/core/context-menu-handlers:23` | 显示 toast 通知 |
-| `isUnsafeFolderName()` | `frontend/src/core/context-menu-handlers:28` | 路径安全过滤：禁止逃逸段（. |
-| `resolveDstDir()` | `frontend/src/core/context-menu-handlers:39` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
-| `runBatchFileOp()` | `frontend/src/core/context-menu-handlers:78` | — |
-| `MenuCtx()` | `frontend/src/core/context-menu-handlers:129` | — |
-| `HANDLERS()` | `frontend/src/core/context-menu-handlers:132` | 行为 handler 表（instance + batch + merge file/dir） |
-| `refreshUI()` | `frontend/src/core/context-menus` | — |
-| `toast()` | `frontend/src/core/context-menus` | — |
-| `isUnsafeFolderName()` | `frontend/src/core/context-menus` | — |
-| `resolveDstDir()` | `frontend/src/core/context-menus` | — |
-| `runBatchFileOp()` | `frontend/src/core/context-menus` | — |
-| `HANDLERS()` | `frontend/src/core/context-menus` | — |
+| `refreshUI()` | `frontend/src/core/context-menu-handlers` | — |
+| `toast()` | `frontend/src/core/context-menu-handlers` | — |
+| `isUnsafeFolderName()` | `frontend/src/core/context-menu-handlers` | — |
+| `resolveDstDir()` | `frontend/src/core/context-menu-handlers` | — |
+| `runBatchFileOp()` | `frontend/src/core/context-menu-handlers:23` | — |
+| `MenuCtx()` | `frontend/src/core/context-menu-handlers:74` | — |
+| `HANDLERS()` | `frontend/src/core/context-menu-handlers:77` | 行为 handler 表（instance + batch + merge file/dir） |
+| `refreshUI()` | `frontend/src/core/context-menu-shared:14` | 通知树组件和统计面板刷新 |
+| `toast()` | `frontend/src/core/context-menu-shared:20` | 显示 toast 通知 |
+| `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:25` | 路径安全过滤：禁止逃逸段（. |
+| `resolveDstDir()` | `frontend/src/core/context-menu-shared:36` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
 | `registerContextMenus()` | `frontend/src/core/context-menus:56` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:30` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:52` | 注册 UI 报错落日记功能。 |
