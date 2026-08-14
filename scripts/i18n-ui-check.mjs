@@ -1,31 +1,39 @@
-// i18n-ui-check.mjs — i18n UI 漂移检查（治本：堵住"动态菜单漏译"盲区）
-//
-// 背景：
-//   既有 i18n-check.mjs 只查 语言包(key parity/占位符/zh-CN 漏译/语言清单漂移)，
-//   对「组件源码里硬写中文、且完全没调 t()」的 UI 完全失明——这类串切语言永远是
-//   中文，但 key 检查器永远不报错（假绿）。典型：tpl.ts / render.ts / dialogs 里
-//   用模板字符串拼的中文按钮、下拉项、placeholder、空状态文案。
-//
-//   本脚本专门抓这一类：扫描 frontend/src 下所有 .ts（排除 *.test.ts 与语言包源），
-//   命中「含 HTML 标记 + 含中文 + 未包 t()」的字符串即判为漂移。
-//
-// 判定（精确、低误报）：
-//   1. 先遮罩注释（行/块注释 → 同长空格，保留换行与偏移，行号才准）；
-//   2. 抽所有字符串字面量（单/双/反引号，反引号可跨行）；
-//   3. 字面量同时含 [汉字] + [HTML 信号] → 候选；
-//   4. 若该字面量是 `t("...")` 直接参数（前缀 `\bt(\s*`）→ 已翻译，跳过；
-//   5. 排除：语言选择器原生名（value="zh-CN"/"en"/"ja" 的 option 文本，标准 UX 刻意不翻）。
-//
-// HTML 信号 = 含 `<字母|/|!` 标签，或 class=/data-testid/placeholder=/title=/id=/</
-//             /<option/<button 之一。只抓「渲染到 DOM 的用户可见文本」，避开标识符/数据映射。
-//
-// 用法：
-//   node scripts/i18n-ui-check.mjs            # 文本报告（warning，不阻断）
-//   node scripts/i18n-ui-check.mjs --json     # JSON（doctor/CI 消费）
-//   node scripts/i18n-ui-check.mjs --strict   # 有漂移则 exit 1（CI 强阻断）
-// 退出码：warning 模式恒 0（靠 doctor 侧 WARN 渲染）；--strict 且有漂移 → 1；干净 → 0。
-//
-// 零依赖（仅 node:fs / node:path / node:url / node:url）。
+#!/usr/bin/env node
+/**
+ * i18n-ui-check.mjs — i18n UI 漂移检查（治本：堵住"动态菜单漏译"盲区）
+ *
+ * 背景：
+ *   既有 i18n-check.mjs 只查语言包(key parity/占位符/zh-CN 漏译/语言清单漂移)，
+ *   对「组件源码里硬写中文、且完全没调 t()」的 UI 完全失明——这类字符串切语言永远是
+ *   中文，但 key 检查器永远不报错（假绿）。典型：tpl.ts / render.ts / dialogs 里
+ *   用模板字符串拼的中文按钮、下拉项、placeholder、空状态文案。
+ *
+ *   本脚本专门抓这一类：扫描 frontend/src 下所有 .ts（排除 *.test.ts 与语言包源），
+ *   命中「含 HTML 标记 + 含中文 + 未包 t()」的字符串即判为漂移。
+ *
+ * 判定（精确、低误报）：
+ *   1. 先遮罩注释（行/块注释 → 同长空格，保留换行与偏移，行号才准）；
+ *   2. 抽所有字符串字面量（单/双/反引号，反引号可跨行）；
+ *   3. 字面量同时含 [汉字] + [HTML 信号] → 候选；
+ *   4. 若该字面量是 `t("...")` 直接参数（前缀 `\bt(\s*`）→ 已翻译，跳过；
+ *   5. 排除：语言选择器原生名（value="zh-CN"/"en"/"ja" 的 option 文本，标准 UX 刻意不翻）。
+ *
+ * HTML 信号 = 含 `<字母|/|!` 标签，或 class=/data-testid/placeholder=/title=/id=/</
+ *             /<option/<button 之一。只抓「渲染到 DOM 的用户可见文本」，避开标识符/数据映射。
+ *
+ * 设计意图：i18n 化后 UI 组件硬写中文且零 t() 调用，是"动态菜单漏译"盲区——
+ * key 检查器只看语言包文件，对组件源码里的硬编码中文完全失明。
+ * 本脚本补全这道防线，从源头堵住硬编码中文。
+ *
+ * 依赖：node:fs / node:path / node:url
+ *
+ * 用法：
+ *   node scripts/i18n-ui-check.mjs            # 文本报告（warning，不阻断）
+ *   node scripts/i18n-ui-check.mjs --json     # JSON（doctor/CI 消费）
+ *   node scripts/i18n-ui-check.mjs --strict   # 有漂移则 exit 1（CI 强阻断）
+ *
+ * 退出码：warning 模式恒 0（靠 doctor 侧 WARN 渲染）；--strict 且有漂移 → 1；干净 → 0。
+ */
 
 import fs from "node:fs";
 import path from "node:path";

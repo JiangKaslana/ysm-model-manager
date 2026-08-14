@@ -31,6 +31,8 @@
  *     gofmt 修复因此下沉 pre-commit，此处只读校验。
  * 设计意图：pre-push-gate 工具脚本（doctor --gate/--all/--docs 的单一实现源头，2026-08-14 合并）
  * 依赖：node:child_process / node:fs / node:path / node:url
+ *
+ * 退出码：0 = 门禁通过（放行推送）；1 = 门禁失败（阻断推送）；2 = 用法错误。
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';

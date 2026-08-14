@@ -3,7 +3,7 @@
  * contract-tests.mjs — 契约测试并行执行共享层。
  *
  * 解决 doctor.mjs / pre-push-gate.mjs 各自内联串行循环跑 tests/*.mjs 的问题。
- * 此前逐个 execFileSync（总耗时 ~43s），集中到本层后支持 Promise.all 并行（~10s），
+ * 此前逐个 execFileSync（总耗时 ~43s），集中到本层后支持 Promise.all 并行（~31s），
  * 同时消除双端重复代码。
  *
  * 使用 spawn + Promise 而非 execFile：Node 24 的 execFile Promise API 返回的
