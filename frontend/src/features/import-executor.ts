@@ -1,6 +1,6 @@
 // ===== 全局导入执行器（2026-08-05：静默导入改造）=====
 // 拖拽导入不再依赖导入 tab 挂载（initImportQueue 懒加载），由本模块全局执行：
-// - directImport：单文件直导（.ysm/.zip/.7z 保留原名，后端自动路由）
+// - directImport：单文件直导（.ysm/.zip 保留原名，后端自动路由）
 // - importFolder：文件夹整组导入（含 ysm.json 或普通文件夹，组内至少 1 个支持文件）
 // - 内存历史（导入 tab 渲染数据源）+ inFlight 去重 + toast/stats/tree 广播
 // 与 go/importer + go/fileops.WriteModelFolder 后端对齐。

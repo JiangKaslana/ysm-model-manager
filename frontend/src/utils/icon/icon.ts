@@ -27,7 +27,7 @@ const REGISTRY_EXT_ICONS: Record<string, string> = (() => {
     if (!icon) continue;
     for (const e of exts) {
       const key = e.replace(/^\./, "");
-      // ysm 的 .zip/.7z/.json 是归档/清单容器（且 .zip 与资源包/光影包共享），
+      // ysm 的 .zip/.json 是归档/清单容器（且 .zip 与资源包/光影包共享），
       // 语义归下方超集分支兜底，不由 ysm 特征图标 💎 覆盖
       if (rt === RESOURCE_TYPES.YSM && key !== RESOURCE_TYPES.YSM) continue;
       m[key] = icon;

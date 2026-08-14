@@ -45,7 +45,7 @@ export interface FolderGroup {
  * 将收集到的条目分组：
  * - 有目录前缀的条目 → 按「顶层目录」整组（dir = 第一段路径），组内保留完整 relPath（支持多层嵌套）
  * - 无目录前缀的散落文件 → 单文件队列（isImportableFile 过滤）
- * - 组内至少含 1 个支持文件（.ysm/.zip/.7z/ysm.json 等）才作为整组导入，否则整组丢弃（防杂物）
+ * - 组内至少含 1 个支持文件（.ysm/.zip/ysm.json 等）才作为整组导入，否则整组丢弃（防杂物）
  *   与 go/fileops.WriteModelFolder 的 isSupportedEntryFile 判定对齐
  */
 export const groupCollected = (

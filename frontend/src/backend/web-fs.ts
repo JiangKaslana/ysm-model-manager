@@ -527,7 +527,7 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
       // 检测 zip 内是否有公共顶层目录（如 "狐狸/ysm.json" → 公共前缀 "狐狸/"）
       // 扁平 zip（"ysm.json" + "models/main.json"）无公共前缀 → 用 zipStem 防碎片化
       const topLevelDir = findCommonTopDir(metas);
-      const prefix = topLevelDir ? "" : f.name.replace(/\.(zip|7z)$/i, "");
+      const prefix = topLevelDir ? "" : f.name.replace(/\.zip$/i, "");
       let any = false;
       for (const m of metas) {
         const raw = entries[m.fflateKey];
