@@ -34,7 +34,7 @@ git reset HEAD~1                      # 撤销最近一条 commit，把改动放
 |-----------|--------|---------|
 | UI 文案/按钮文字/菜单名 | `Grep` 搜 `frontend/src/core/i18n/` 定位翻译键 → 再跳源码 | 别直接看代码猜意图 |
 | 陌生函数/类/模块 | 先读 `docs/knowledge/index.md` 找知识卡 → grep 卡正文 → 跳 source_files | |
-| 3D 渲染/动画/坐标变换 | 知识卡 + 源码；YSMViewer 算法口径 | 改 model2d/model3d/spec.go 坐标前先 grep `bug-chronicle`，改完用自由相机近距验证 |
+| 文件/目录路径不确认（怕抓空） | `node scripts/gen-project-map.mjs --json` 拿真实路径（源码/测试/子目录结构化，防猜路径） | 别直接 `ls 路径猜`；别把平铺文件当子目录 |
 | Wails Go↔TS 绑定 | `npm run generate:bindings`（必须 -ts）自动生成 | 别手写绑定 |
 | Go Binding 函数名写错 | 先用 grep 在 `internal/app/` 确认函数名 | |
 | 误删/误移函数 | `git diff HEAD` 确认 → `git checkout -- <file>` 恢复单文件 | |
