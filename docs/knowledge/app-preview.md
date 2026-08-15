@@ -121,3 +121,4 @@ invariant_anchors:
 - `frontend/src/wasm/` — WASM 生成数据（base64 豁免文件）
 - 知识卡：`app_content`、`app_tree`、`go_ysm_parser`、`go_litematic`、`event_bus`、`pointer-events`（双端响应式触控热区）
 - ADR-057（3D 预览悬浮触发按钮与双端响应式控制层）；`frontend/src/utils/dom/fab.ts` — FloatingActionButton 组件与全局样式注入
+- ADR-072（3D 归置，编码待立项）：3D 适配器层（`*-adapter.ts`/`*-3d.ts`/`mount-preview-core.ts`）将下沉 `utils/3d/adapters/`（保持 0 backend import 纯渲染边界），`app-preview` 只留 UI 壳 + WASM 胶水；`index.ts` 的 `_showModelDetail` if 链（172-217 行）将改 `RESOURCE_CAPS` + `PREVIEW_HANDLERS` 映射表；`detail.ts` 6 个 show 函数（21/132/169/187/233/292 行）按资源域拆分。落地方案见 ADR-072

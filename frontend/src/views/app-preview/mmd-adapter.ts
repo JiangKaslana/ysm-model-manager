@@ -65,17 +65,20 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
       const name = (e.Name || "").toLowerCase();
       return name !== modelBase && TEXTURE_EXTS.some((ext) => name.endsWith(ext));
     });
-    for (const e of texs) {
-      const texB64 = await readFn(e.Path || dirPath + "/" + e.Name);
-      if (!texB64) continue;
-      const blob = new Blob([bytesToArrayBuffer(b64ToBytes(texB64))]);
-      const url = URL.createObjectURL(blob);
-      blobUrls.push(url);
-      const name = (e.Name || "").toLowerCase();
-      texMap.set(name, url);
-      // PMX 内纹理路径可能带子目录（如 "sub/face.tga"），URLModifier 按 basename 兜底匹配
-      texMap.set(name.split(/[/\\]/).pop() || "", url);
-    }
+    // 并行预读纹理（避免 N 次串行 RPC 拖慢预览打开；单张失败降级不影响整体）
+    await Promise.all(
+      texs.map(async (e) => {
+        const texB64 = await readFn(e.Path || dirPath + "/" + e.Name);
+        if (!texB64) return;
+        const blob = new Blob([bytesToArrayBuffer(b64ToBytes(texB64))]);
+        const url = URL.createObjectURL(blob);
+        blobUrls.push(url);
+        const name = (e.Name || "").toLowerCase();
+        texMap.set(name, url);
+        // PMX 内纹理路径可能带子目录（如 "sub/face.tga"），注册目录相对路径键
+        texMap.set(name.split(/[/\\]/).pop() || "", url);
+      }),
+    );
   } catch {
     /* 纹理缺失/目录不可扫 → 白模降级，不阻断模型渲染 */
   }
@@ -83,12 +86,28 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   // ---- URLModifier：模型自身 + 纹理 URL → blob URL（未命中原样返回，toon 内置 dataURL 天然放行）----
   const manager = new THREE.LoadingManager();
   manager.setURLModifier((url: string): string => {
-    const key = url.split(/[/\\]/).pop()?.toLowerCase() || "";
-    return texMap.get(key) ?? texMap.get(url.toLowerCase()) ?? url;
+    const lower = url.toLowerCase();
+    // 最长路径后缀匹配（保留目录上下文：同名纹理在不同子目录时各归其位，basename 冲突兜底）
+    let best: string | undefined;
+    let bestLen = -1;
+    for (const [key, blobUrl] of texMap) {
+      if (key.length > bestLen && lower.endsWith(key)) {
+        best = blobUrl;
+        bestLen = key.length;
+      }
+    }
+    return best ?? url;
   });
 
   const loader = new MMDLoader(manager);
-  const mmd = await loader.loadAsync(path);
+  let mmd;
+  try {
+    mmd = await loader.loadAsync(path);
+  } catch (e) {
+    // 加载失败：回收已建 blob（模型 + 已读纹理），避免 WebView2 会话期内泄漏内存
+    for (const url of blobUrls) URL.revokeObjectURL(url);
+    throw e;
+  }
   const mesh = mmd.mesh;
 
   ctx.scene!.add(mesh);
@@ -122,10 +141,10 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
     update: (dt: number): void => {
       mmd.update(dt, { ik: true, grant: true });
     },
-    // 释放 MMD 几何/材质/纹理 + 回收 blob URL，避免 GPU 缓冲与内存泄漏
+    // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
-      mmd.dispose();
       for (const url of blobUrls) URL.revokeObjectURL(url);
+      mmd.dispose();
     },
   };
 }

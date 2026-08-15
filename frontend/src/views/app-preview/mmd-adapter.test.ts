@@ -151,6 +151,35 @@ describe("buildMmdScene 主路径", () => {
       revokeURL.mockRestore();
     }
   });
+
+  it("同名纹理在不同子目录 → 最长后缀匹配各归其位（不串贴图）", async () => {
+    let counter = 0;
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation(() => `blob:t${++counter}`);
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      hoisted.readBytesMock.mockImplementation((p: string) =>
+        Promise.resolve(btoa("PNG-" + p)),
+      );
+      hoisted.scanEntriesMock.mockResolvedValue([
+        { Name: "a/body.png", Path: "/mmd/miku/a/body.png", Size: 5 },
+        { Name: "b/body.png", Path: "/mmd/miku/b/body.png", Size: 5 },
+      ]);
+      const { ctx } = makeCtx();
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
+      const mgr = hoisted.managerInstances[0]!;
+      // 模型 blob 第 1 个（t1）；纹理按 entries 顺序 a→t2、b→t3
+      expect(mgr.resolveURL("/mmd/miku/miku.pmx")).toBe("blob:t1");
+      expect(mgr.resolveURL("/mmd/miku/a/body.png")).toBe("blob:t2");
+      expect(mgr.resolveURL("/mmd/miku/b/body.png")).toBe("blob:t3");
+      built.dispose();
+      expect(revokeURL).toHaveBeenCalledTimes(3); // 模型 + 2 纹理
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
+  });
 });
 
 describe("buildMmdScene 错误路径", () => {
@@ -160,11 +189,25 @@ describe("buildMmdScene 错误路径", () => {
     await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx")).rejects.toThrow("ReadFileBytes 返回空");
   });
 
-  it("MMDLoader.loadAsync 失败 → 抛错穿透", async () => {
-    hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
-    hoisted.loaderLoadAsyncMock.mockRejectedValue(new Error("parse fail"));
-    const { ctx } = makeCtx();
-    await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx")).rejects.toThrow("parse fail");
+  it("MMDLoader.loadAsync 失败 → 抛错穿透 + 已建 blob 全部回收", async () => {
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+      hoisted.scanEntriesMock.mockResolvedValue([
+        { Name: "tex.png", Path: "/mmd/miku/tex.png", Size: 5 },
+      ]);
+      hoisted.loaderLoadAsyncMock.mockRejectedValue(new Error("parse fail"));
+      const { ctx } = makeCtx();
+      await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx")).rejects.toThrow("parse fail");
+      // 模型 blob + 已读纹理 blob 均回收，不随会话泄漏
+      expect(revokeURL).toHaveBeenCalledTimes(2);
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
   });
 });
 
