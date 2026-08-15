@@ -1,6 +1,6 @@
 # ADR-066：全资源预览器：统一预览契约与注册表驱动分发
 
-- **状态**：🔄 部分采纳（统一契约方向已定；**P0「硬编码派发墙」已于 `0615b21d` 落地**；**P1 `VrmAdapter` 已于 `04ed819e` 落地**，D2–D5 待后续阶段）
+- **状态**：🔄 部分采纳（统一契约方向已定；**P0「硬编码派发墙」已于 `0615b21d` 落地**；**P1 `VrmAdapter` 已于 `04ed819e` 落地**；**P3 统一 `mountPreview` 渲染核心已于 `be237aa0` 落地**，P3-E（YSM 入 core）与 P2（MmdAdapter）待后续立项）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/views/app-preview/loader.ts`、`frontend/src/views/app-preview/index.ts`、`frontend/src/views/app-preview/litematic-meta.ts`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`frontend/src/utils/3d/model3d.ts`、`frontend/src/views/app-preview/litematic-3d.ts`、`ADR-061`、`ADR-064`、`ADR-065`、`ADR-067`（zip 化资源识别，P0.x 硬前置）
