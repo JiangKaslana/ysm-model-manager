@@ -78,6 +78,7 @@ var embeddedRegistryJSON = []byte(`{
       "detector": "extension",
       "hashable": true,
       "scanInstance": true,
+      "dirLevelSync": true,
       "actions": ["import", "delete", "openFolder"]
     },
     {
@@ -93,6 +94,7 @@ var embeddedRegistryJSON = []byte(`{
       "preview": "3d",
       "detector": "extension",
       "hashable": true,
+      "dirLevelSync": true,
       "actions": ["import", "delete", "openFolder"]
     },
     {
