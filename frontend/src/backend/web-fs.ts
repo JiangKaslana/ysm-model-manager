@@ -24,6 +24,10 @@ import { extractZip, gbkDecodeEntry, detectZipType } from "./extract.ts";
 import { resolveTypeSafe } from "../utils/resource/types.ts";
 // ADR-070 M1：蓝图/投影 meta 读取（NBT 解析 + 三个视图提取，TS 平移 go/litematic/parser.go）
 import { parseNbtRoot, litematicMetaView, nbtStructureView, schematicSummaryView } from "./nbt-parse.ts";
+// ADR-070 M2：蓝图/投影 voxel 读取（TS 平移 go/litematic/voxel.go；parseNbtRootExact 提供
+// LongArray 精确 64 位——BlockStates 打包位解码必需，number 归一会丢低 10 位）
+import { parseNbtRootExact } from "./nbt-parse.ts";
+import { litematicVoxelView, nbtVoxelView, schematicVoxelView, type VoxelData } from "./voxel-parse.ts";
 
 // --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
 const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
@@ -268,6 +272,35 @@ export async function readWebFile(path: string): Promise<string | null> {
   const f = await idbGet<{ data: ArrayBuffer }>("files", `file:${pm.type}/${pm.rest}`);
   if (!f) return null;
   return arrayBufferToBase64(f.data);
+}
+
+/**
+ * ADR-070 M2：蓝图/投影 voxel binding 公共读取骨架（TS 平移 go/litematic/voxel.go 的
+ * openGzRoot + BuildVoxelData/BuildNbtVoxelData/BuildSchematicVoxelData + internal/app
+ * marshalVoxelData）。读 IDB → base64 → 字节 → parseNbtRootExact → voxelView → JSON 字符串。
+ * 任何一步失败（文件缺失 / 畸形 NBT / 视图判定无效）→ "{}"（对齐 Go binding 契约：
+ * marshalVoxelData error → "{}"）。
+ * 体素渲染上限对齐 internal/app/resource_bindings.go voxelMaxBlocks 默认 200000
+ * （网页版无 AppConfig，直接用默认值）。
+ */
+const VOXEL_MAX_BLOCKS = 200000;
+
+async function readVoxelJson(
+  path: string,
+  view: (root: Record<string, unknown>, maxBlocks: number) => VoxelData | null,
+): Promise<string> {
+  try {
+    const b64 = await readWebFile(path);
+    if (!b64) return "{}";
+    const bytes = base64ToBytes(b64);
+    if (!bytes) return "{}";
+    const root = parseNbtRootExact(bytes);
+    const data = view(root, VOXEL_MAX_BLOCKS);
+    if (!data) return "{}";
+    return JSON.stringify(data);
+  } catch {
+    return "{}";
+  }
 }
 
 /**
@@ -817,6 +850,12 @@ export const webFsBindings = {
   ReadLitematicMeta: (path: string) => readNbtMetaJson(path, litematicMetaView),
   ReadNbtStructure: (path: string) => readNbtMetaJson(path, nbtStructureView),
   ReadSchematic: (path: string) => readNbtMetaJson(path, schematicSummaryView),
+  // ADR-070 M2：蓝图/投影 voxel 3D 数据（litematic-adapter.ts:34 经 VOXEL_RPC_BY_EXT
+  // 分发调用；TS 平移 go/litematic/voxel.go 三构建函数 + internal/app marshalVoxelData，
+  // 失败返回 "{}" 对齐 Go binding 契约）
+  GetNbtVoxelData: (path: string) => readVoxelJson(path, nbtVoxelView),
+  GetSchematicVoxelData: (path: string) => readVoxelJson(path, schematicVoxelView),
+  GetLitematicVoxelData: (path: string) => readVoxelJson(path, litematicVoxelView),
   // DetectResourceType：扩展名判定（resolveTypeSafe，歧义 .zip/.7z 返回 null）→
   // 歧义容器读内容指纹（detectZipType）。ADR-066 web 识别层对齐 Go：
   // 一处补上后非 YSM 类型（pack/shader/蓝图/投影/MMD/VRC）的预览路由不再误入

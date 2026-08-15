@@ -44,9 +44,15 @@ const MAX_NBT_DEPTH = 256;
 class NbtReader {
   private readonly data: Uint8Array;
   private off = 0;
+  // ADR-070 M2：LongArray 精确解码开关——M1 的 number 归一（hi*2^32+lo）对
+  // 值 > 2^53 的 long 有精度损失（低 10 位被舍入归零），而 .litematic 的
+  // BlockStates 正是 LongArray 打包位（如 0x5555555555555555），位解码必须
+  // 拿到精确 64 位。true 时 LongArray 输出 bigint[]（voxel 路径专用）。
+  private readonly longsExact: boolean;
 
-  constructor(data: Uint8Array) {
+  constructor(data: Uint8Array, longsExact = false) {
     this.data = data;
+    this.longsExact = longsExact;
   }
 
   private take(n: number): Uint8Array {
@@ -163,6 +169,16 @@ class NbtReader {
         const n = this.i32();
         if (n < 0 || n > Math.floor((this.data.length - this.off) / 8)) throw new Error("nbt longArray 长度异常");
         const b = this.take(n * 8);
+        if (this.longsExact) {
+          // 精确 64 位：每 8 字节大端拼成 bigint（voxel 位解码口径，见类注释）
+          const out: bigint[] = new Array(n);
+          for (let i = 0; i < n; i++) {
+            let v = 0n;
+            for (let j = 0; j < 8; j++) v = (v << 8n) | BigInt(b[i * 8 + j]);
+            out[i] = v;
+          }
+          return out;
+        }
         const out: number[] = new Array(n);
         for (let i = 0; i < n; i++) {
           const hi = ((b[i * 8] << 24) | (b[i * 8 + 1] << 16) | (b[i * 8 + 2] << 8) | b[i * 8 + 3]) | 0;
@@ -189,6 +205,24 @@ export function parseNbtRoot(bytes: Uint8Array): Record<string, unknown> {
     if (data.length > MAX_NBT_BYTES) throw new Error(`nbt 解压后超过 ${MAX_NBT_BYTES} 字节上限`);
   }
   const r = new NbtReader(data);
+  const { type } = r.namedTag();
+  if (type !== TAG_COMPOUND) throw new Error(`根标签不是 compound（${type}）`);
+  return r.payload(TAG_COMPOUND, 0) as Record<string, unknown>;
+}
+
+/**
+ * ADR-070 M2：精确 LongArray 变体——LongArray 输出 bigint[]（精确 64 位），
+ * 供 voxel 打包位解码（BlockStates）使用。其余标签映射与 parseNbtRoot 完全一致
+ * （LongArray 的 number 归一对 > 2^53 的值有精度损失，见 NbtReader.longsExact）。
+ * gzip/解压/畸形判定行为不变。
+ */
+export function parseNbtRootExact(bytes: Uint8Array): Record<string, unknown> {
+  let data = bytes;
+  if (data.length >= 2 && data[0] === GZIP_MAGIC_0 && data[1] === GZIP_MAGIC_1) {
+    data = gunzipSync(data);
+    if (data.length > MAX_NBT_BYTES) throw new Error(`nbt 解压后超过 ${MAX_NBT_BYTES} 字节上限`);
+  }
+  const r = new NbtReader(data, true);
   const { type } = r.namedTag();
   if (type !== TAG_COMPOUND) throw new Error(`根标签不是 compound（${type}）`);
   return r.payload(TAG_COMPOUND, 0) as Record<string, unknown>;
