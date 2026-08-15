@@ -1,6 +1,6 @@
 # ADR-064：同步层对比收敛：scanner 单一扫描源，对比实现单点化
 
-- **状态**：🔄 部分采纳（方向已定，编码待立项落地）
+- **状态**：✅ 已采纳（阶段一 + 阶段二均已落地：d05afa3e）
 - **日期**：2026-08-15
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/knowledge/go-sync.md`、`go/sync/sync.go`、`go/sync/sync_hash.go`、`go/sync/sync_dirlevel.go`、`go/sync/sync_push.go`、`go/scanner/scanner.go`、`go/instance/instance.go`
