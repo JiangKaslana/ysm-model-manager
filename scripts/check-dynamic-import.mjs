@@ -50,6 +50,12 @@ function isAwaitImport(text, start) {
   return /await\s*$/.test(before);
 }
 
+/** 是否为 loadView 包装器内的动态导入（loadView 内部统一 .catch + toast，不算裸导入）。 */
+function isLoadViewWrapped(text, start) {
+  const before = text.slice(Math.max(0, start - 240), start + 1);
+  return /loadView\s*\(\s*['"][^'"]*['"]\s*,\s*(?:async\s*)?\([^)]*\)\s*=>\s*$/.test(before);
+}
+
 /** 是否为裸 import(...) 且无 .catch（fire-and-forget，失败静默）。 */
 function isBareImport(text, start) {
   // 不是 await import，且向后 240 字符内无 .catch( / try{ → 无失败处理。
@@ -111,8 +117,9 @@ function main() {
       }
 
       // 3. 失败处理缺失（裸 import(...) 无 .catch 才是 fire-and-forget；
-      //    await import(...) 失败沿 async 链传播，由调用方处理）
-      if (!isAwaitImport(text, m.index) && isBareImport(text, m.index)) {
+      //    await import(...) 失败沿 async 链传播，由调用方处理；
+      //    loadView 包装器内统一 .catch + toast，不算裸导入）
+      if (!isLoadViewWrapped(text, m.index) && !isAwaitImport(text, m.index) && isBareImport(text, m.index)) {
         warns.push({ file: rel, line, spec, kind: 'no_error_handling', msg: '裸动态导入无 .catch（fire-and-forget，失败静默）' });
       }
       // 4. 空 catch 吞错（await import 或裸 import 均适用）
