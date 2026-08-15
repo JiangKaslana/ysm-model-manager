@@ -365,6 +365,8 @@ describe("loadModel2D — 3D 切换", () => {
     expect(preloadModel).toHaveBeenCalledTimes(1);
     expect(renderModel3D).toHaveBeenCalledTimes(1);
     expect(handle.cleanup).not.toHaveBeenCalled();
+    // 打开 3D → 持久化偏好（跨模型自动弹 3D 的开关）
+    expect(setPrefer3D).toHaveBeenCalledWith(true);
     const panel = document.getElementById("ysm-3d-panel") as HTMLElement;
     expect(panel.textContent).toContain("1 根");
     expect(panel.textContent).toContain("2 个");
@@ -374,6 +376,8 @@ describe("loadModel2D — 3D 切换", () => {
     for (const fn of [...ctx.unsubs]) fn();
     expect(handle.cleanup).toHaveBeenCalledTimes(1);
     expect(document.getElementById("ysm-overlay-3d")).toBeNull();
+    // 关闭 3D → 清除偏好（用户退出 3D 后不再自动弹全屏，ADR-057 §2.5 口径）
+    expect(setPrefer3D).toHaveBeenCalledWith(false);
   });
 
   it("overlay ✕ closeBtn 点击 → close3D 清理 + overlay 移除（2667f142 拆分回归）", async () => {

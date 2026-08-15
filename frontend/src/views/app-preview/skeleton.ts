@@ -130,11 +130,18 @@ export async function loadModel2D(
         }
       };
       // core 关闭（ESC / 关闭按钮 / 切模型 cleanup）时复位骨架层状态 + 注销 android-back。
-      // 注意：此处不再清 _prefer3D（原 close3D 默认 keepPrefer=false 会清），改为统一保留偏好，
-      // 与「prefer = 用户长期偏好」语义一致，避免 ESC 关 3D 后误清导致切模型不再自动预览。
+      // 区分用户主动关闭与切模型自动关层：切模型路径（closeActive3DOverlay）会先置
+      // _active3DClose = null，onClose 据此判断——用户主动关闭（ESC/✕/返回键）清 _prefer3D，
+      // 切模型保留（ADR-057 §2.5 + 知识卡口径：用户主动关闭才清偏好；P3 误改统一保留，
+      // 导致退出 3D 后点资源仍自动弹全屏）。
       const onClose = (): void => {
+        const userClosed = _active3DClose !== null;
         _is3D = false;
         _active3DClose = null;
+        if (userClosed) {
+          _prefer3D = false;
+          setPrefer3D(false);
+        }
         if (unsubAndroidBack) {
           unsubAndroidBack();
           unsubAndroidBack = null;
