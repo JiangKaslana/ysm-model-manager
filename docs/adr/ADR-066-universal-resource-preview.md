@@ -298,4 +298,14 @@ M 留待 P3-E 经注册表单点派发。
 - **边界**：不新增动作/场景/表情等渲染器级悬浮按钮（动画价值后续独立立项，ADR-066 §不纳入本次范围 同口径）；MMD 动画（`MmdAdapter` P2）不动此入口。
 - **与既有语义的关系**：切模型由「偏好自动弹」改为「3D 内显式切换」后，`_prefer3D` 自动弹语义可逐步淡出（用户主动打开 3D 才进全屏），但保留「切模型保留偏好」不回归（`b2fafea6` 口径）。
 
+**文件层级归置（用户拍板方案 A，2026-08-16）——3D 菜单控件代码归层**：
+
+- **背景**：YSM 3D 控件盘点发现「散装回潮点」——相机控件（旋转/速度）在 core shared 模式（`mount-preview-core.ts:118-168`）与 YSM self 模式（`ysm-adapter.ts:214-258`）**双份实现**；`ysm-adapter.ts` 的 `extraControls` 已膨胀至 162 行（截图/纹理/模型组/相机全塞 topBar 构建），`extraPanel` 52 行，adapter 单文件 330 行控件与内容构建混在一起；旧 `skeleton-render.ts` 的 `build3DOverlay`（~190 行）在 YSM 切走 `createYsm3D` 后将成为死代码。
+- **归置（方案 A）**：
+  - **相机控件下沉 core**：旋转/速度/重置（⟲）统一进 `mount-preview-core.ts` 通用层，shared/self 双模式复用，消灭双份实现；
+  - **YSM 专属控件拆独立文件**：截图菜单（6 项）/纹理选择/模型组选择从 `ysm-adapter.ts` 拆至新增 `ysm-controls.ts`（`extraControls`/`extraPanel` 移出 adapter），骨骼面板保持独立文件（`skeleton-fill-panel.ts` 现状不动）；
+  - **adapter 瘦身**：`ysm-adapter.ts` 回归「内容构建 + 装配控件」单一职责（~100 行内），与 ADR-066「适配器 = 格式差异」定位一致；
+  - **删除死代码**：P3-E 完成后移除 `skeleton-render.ts` 的 `build3DOverlay`（YSM 已走 `createYsm3D` → `mount3D`）。
+- **验证口径**：与 P3-E 主立项同——`npm run typecheck` + `npx vite build` + app-preview 全量单测；陷阱 #11 坐标口径改完须近距渲染验证。
+
 <!-- 文件名: universal-resource-preview.md → 实际文件 ADR-066-universal-resource-preview.md -->
