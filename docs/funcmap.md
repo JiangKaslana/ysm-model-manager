@@ -12,7 +12,7 @@
 | Go·下载 | 1 | 12 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 13 |
-| Go·文件系统 | 7 | 15 |
+| Go·文件系统 | 8 | 16 |
 | Go·几何 | 2 | 8 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 9 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 54 | 183 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **270** | **1116** |
+| **合计** | **271** | **1117** |
 
 ## Go·头像
 
@@ -62,9 +62,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `FindDuplicateFiles()` | `go/dedup/dedup:40` | FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 |
-| `CountDuplicates()` | `go/dedup/dedup:149` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） |
-| `CleanEmptyDirs()` | `go/dedup/dedup:215` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
+| `FindDuplicateFiles()` | `go/dedup/dedup:98` | FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组 skipRecycle 为 true 时跳过 .recycle 子目录 |
+| `CountDuplicates()` | `go/dedup/dedup:160` | CountDuplicates 统计重复文件数量（比 FindDuplicateFiles 轻量，只计数） |
+| `CleanEmptyDirs()` | `go/dedup/dedup:184` | CleanEmptyDirs 递归删除指定目录下的所有空子目录（不含 dir 自身）。 |
 | `FileEntry()` | `go/dedup/dedup:24` | FileEntry 文件条目 |
 | `Group()` | `go/dedup/dedup:32` | Group 重复文件分组 |
 
@@ -114,6 +114,7 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `StripBOM()` | `go/fsutil/bom:12` | StripBOM 移除 data 前缀的 UTF-8 BOM；无 BOM 时原样返回（bytes.TrimPrefix 语义）。 |
 | `CopyFile()` | `go/fsutil/copy:27` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
 | `CopyDirRecursive()` | `go/fsutil/copy:90` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
 | `CopyDirOptions()` | `go/fsutil/copy:72` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
@@ -252,16 +253,16 @@
 | `TrashManager.RecycleDir()` | `go/recycle/recycle:44` | RecycleDir 返回回收站目录路径 |
 | `TrashManager.Move()` | `go/recycle/recycle:49` | Move 移动文件到回收站 |
 | `TrashManager.MoveEx()` | `go/recycle/recycle:55` | MoveEx 移动文件到回收站，返回操作详情 |
-| `TrashManager.List()` | `go/recycle/recycle:162` | List 列出回收站中的文件。 |
-| `TrashManager.Restore()` | `go/recycle/recycle:222` | Restore 从回收站恢复到原目录 |
-| `TrashManager.Delete()` | `go/recycle/recycle:301` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `TrashManager.Empty()` | `go/recycle/recycle:321` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `TrashManager.List()` | `go/recycle/recycle:182` | List 列出回收站中的文件。 |
+| `TrashManager.Restore()` | `go/recycle/recycle:242` | Restore 从回收站恢复到原目录 |
+| `TrashManager.Delete()` | `go/recycle/recycle:311` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `TrashManager.Empty()` | `go/recycle/recycle:331` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
 | `Move()` | `go/recycle/recycle:49` | Move 移动文件到回收站 |
 | `MoveEx()` | `go/recycle/recycle:55` | MoveEx 移动文件到回收站，返回操作详情 |
-| `List()` | `go/recycle/recycle:162` | List 列出回收站中的文件。 |
-| `Restore()` | `go/recycle/recycle:222` | Restore 从回收站恢复到原目录 |
-| `Delete()` | `go/recycle/recycle:301` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `Empty()` | `go/recycle/recycle:321` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `List()` | `go/recycle/recycle:182` | List 列出回收站中的文件。 |
+| `Restore()` | `go/recycle/recycle:242` | Restore 从回收站恢复到原目录 |
+| `Delete()` | `go/recycle/recycle:311` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `Empty()` | `go/recycle/recycle:331` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
 | `MoveResult()` | `go/recycle/recycle:17` | MoveResult 回收操作结果 |
 | `TrashManager()` | `go/recycle/recycle:23` | TrashManager 可配置的回收站管理器 |
 
@@ -425,9 +426,9 @@
 | `DecodedFile()` | `go/ysm/decode_inject:11` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
 | `FindGeometryInExtractedYSM()` | `go/ysm/extracted:50` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
 | `FindComponentsInExtractedYSM()` | `go/ysm/extracted:392` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
-| `AnalyzeYSMHeader()` | `go/ysm/header:170` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
-| `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:323` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
-| `YSMHeader()` | `go/ysm/header:15` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
+| `AnalyzeYSMHeader()` | `go/ysm/header:172` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
+| `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:325` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
+| `YSMHeader()` | `go/ysm/header:17` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
 | `AnalyzeYSMModel()` | `go/ysm/parse:45` | AnalyzeYSMModel 解析 .ysm 文件，提取模型元数据 |
 | `YSMModelMeta()` | `go/ysm/parse:15` | YSMModelMeta 模型元数据（从 model.json 提取） |
 | `ExtractYsmSummary()` | `go/ysm/summary:135` | ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要 |
@@ -561,22 +562,22 @@
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
 | `App.AllTags()` | `internal/app/app_tags:32` | AllTags 返回所有被使用的标签（按使用次数降序） |
-| `App.DefaultWorkshopSites()` | `internal/app/app_workshop:104` | — |
-| `App.SaveWorkshopSites()` | `internal/app/app_workshop:115` | — |
-| `App.LoadWorkshopCreators()` | `internal/app/app_workshop:157` | — |
-| `App.SaveWorkshopCreators()` | `internal/app/app_workshop:168` | — |
-| `App.SaveWorkshopCreatorsBySite()` | `internal/app/app_workshop:177` | SaveWorkshopCreatorsBySite 只替换指定站点的创作者，其他站点不动 |
-| `App.SaveWorkshopPresetsBySite()` | `internal/app/app_workshop:193` | SaveWorkshopPresetsBySite 只替换指定站点的搜索词，其他站点不动 |
-| `App.LoadGitHubRepos()` | `internal/app/app_workshop:206` | — |
-| `App.ResetWorkshopConfigs()` | `internal/app/app_workshop:217` | — |
-| `App.ExportWorkshopSitesCSV()` | `internal/app/app_workshop:235` | ========== CSV 导出/导入 ========== |
-| `App.ExportWorkshopSitesJSONFile()` | `internal/app/app_workshop:247` | — |
-| `App.ValidateWorkshopSites()` | `internal/app/app_workshop:260` | — |
-| `App.ImportWorkshopSitesCSV()` | `internal/app/app_workshop:276` | — |
-| `App.ExportWorkshopCreatorsJSONFile()` | `internal/app/app_workshop:302` | — |
-| `App.BackupWorkshopCreators()` | `internal/app/app_workshop:309` | — |
-| `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:322` | — |
-| `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:364` | — |
+| `App.DefaultWorkshopSites()` | `internal/app/app_workshop:103` | — |
+| `App.SaveWorkshopSites()` | `internal/app/app_workshop:114` | — |
+| `App.LoadWorkshopCreators()` | `internal/app/app_workshop:156` | — |
+| `App.SaveWorkshopCreators()` | `internal/app/app_workshop:167` | — |
+| `App.SaveWorkshopCreatorsBySite()` | `internal/app/app_workshop:176` | SaveWorkshopCreatorsBySite 只替换指定站点的创作者，其他站点不动 |
+| `App.SaveWorkshopPresetsBySite()` | `internal/app/app_workshop:192` | SaveWorkshopPresetsBySite 只替换指定站点的搜索词，其他站点不动 |
+| `App.LoadGitHubRepos()` | `internal/app/app_workshop:205` | — |
+| `App.ResetWorkshopConfigs()` | `internal/app/app_workshop:216` | — |
+| `App.ExportWorkshopSitesCSV()` | `internal/app/app_workshop:234` | ========== CSV 导出/导入 ========== |
+| `App.ExportWorkshopSitesJSONFile()` | `internal/app/app_workshop:246` | — |
+| `App.ValidateWorkshopSites()` | `internal/app/app_workshop:259` | — |
+| `App.ImportWorkshopSitesCSV()` | `internal/app/app_workshop:275` | — |
+| `App.ExportWorkshopCreatorsJSONFile()` | `internal/app/app_workshop:301` | — |
+| `App.BackupWorkshopCreators()` | `internal/app/app_workshop:308` | — |
+| `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:321` | — |
+| `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:363` | — |
 | `NewApp()` | `internal/app/app:53` | — |
 | `App.SetApp()` | `internal/app/app:79` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
 | `App.SetMainWindow()` | `internal/app/app:84` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
