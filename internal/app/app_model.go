@@ -84,10 +84,11 @@ func (a *App) SavePreviewTempFile(base64Data string) (string, error) {
 }
 
 func (a *App) ReadFileBytes(path string) []byte {
-	// 路径守卫：限制在 FilesRoot 内，防止读取系统任意文件。
-	// 技术债 #5：改用 isPathInRoot 统一口径（rel=="." 拒绝 + 精确段比较）——
-	// 原内联 Rel 裸 HasPrefix(rel,"..") 对 rel=="." 放行（可读仓库根本身）、..foo 误拒
-	if !a.isPathInRoot(path) {
+	// 路径守卫：限制在任一合法扫描根（FilesRoot/McRoot/VrcRoot/…）内，防止读取系统任意文件。
+	// 2026-08-16 修复：原用 isPathInRoot（只认 ysm 根），导致 VRM/MMD 等兄弟类型根（VrcRoot 等）
+	// 下的文件被误拒 → 前端 vrm-adapter 报「ReadFileBytes 返回空」。改用 isPathInRootOrSelf，
+	// 与 ScanModelEntries 等扫描口径一致：扫描能列出的文件就能读；仍拒绝 .. 越权/根外路径。
+	if !a.isPathInRootOrSelf(path) {
 		return nil
 	}
 	data, err := os.ReadFile(path)

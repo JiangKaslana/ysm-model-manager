@@ -583,10 +583,10 @@
 | `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:59` | — |
 | `App.SavePreviewTempFile()` | `internal/app/app_model:67` | — |
 | `App.ReadFileBytes()` | `internal/app/app_model:86` | — |
-| `App.AnalyzeBedrockModel()` | `internal/app/app_model:100` | — |
-| `App.GetModel3DSpec()` | `internal/app/app_model:152` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:188` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:250` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.AnalyzeBedrockModel()` | `internal/app/app_model:101` | — |
+| `App.GetModel3DSpec()` | `internal/app/app_model:153` | — |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:189` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:251` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `App.ExportBoneStructures()` | `internal/app/app_scan:25` | ========== 批量导出骨骼结构 ========== |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:81` | ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:118` | ========== 高级搜索 ========== |
