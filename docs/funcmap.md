@@ -9,9 +9,9 @@
 |------|--------|-----------|
 | Go·头像 | 4 | 10 |
 | Go·去重 | 1 | 5 |
-| Go·下载 | 1 | 12 |
+| Go·下载 | 1 | 13 |
 | go/executil | 2 | 2 |
-| go/fileops | 4 | 13 |
+| go/fileops | 4 | 14 |
 | Go·文件系统 | 8 | 16 |
 | Go·几何 | 2 | 8 |
 | Go·导入 | 2 | 16 |
@@ -19,11 +19,11 @@
 | go/instance | 1 | 2 |
 | go/internal | 1 | 3 |
 | Go·Litematic | 4 | 9 |
-| Go·日志 | 2 | 11 |
+| Go·日志 | 2 | 12 |
 | Go·包管理 | 1 | 3 |
 | Go·路径 | 1 | 5 |
 | Go·回收站 | 2 | 19 |
-| go/scanner | 1 | 8 |
+| go/scanner | 1 | 9 |
 | Go·同步 | 6 | 21 |
 | Go·标签 | 1 | 8 |
 | Go·Three.js | 1 | 6 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 55 | 189 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **273** | **1129** |
+| **合计** | **273** | **1133** |
 
 ## Go·头像
 
@@ -72,18 +72,19 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `HTTPStatusError.Error()` | `go/download/download:63` | — |
-| `TruncationError.Error()` | `go/download/download:71` | — |
-| `TruncationError.Unwrap()` | `go/download/download:77` | Unwrap 让 errors.Is(err, ErrTruncated) 成立——调用方既可判断类别（errors.Is）， 又可提取数值（errors.As），无需文本匹配（# |
-| `New()` | `go/download/download:89` | New 创建 Downloader，默认 5 分钟超时。 |
-| `NewWithClient()` | `go/download/download:94` | NewWithClient 使用指定 HTTP client。 |
-| `Downloader.File()` | `go/download/download:261` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
-| `Downloader.FromGitHubAPI()` | `go/download/download:266` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `ResolveSavePath()` | `go/download/download:290` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
-| `HTTPStatusError()` | `go/download/download:59` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
-| `TruncationError()` | `go/download/download:66` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
-| `ProgressFn()` | `go/download/download:80` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
-| `Downloader()` | `go/download/download:83` | Downloader 文件下载器。 |
+| `SetConfigFunc()` | `go/download/download:36` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `HTTPStatusError.Error()` | `go/download/download:84` | — |
+| `TruncationError.Error()` | `go/download/download:92` | — |
+| `TruncationError.Unwrap()` | `go/download/download:98` | Unwrap 让 errors.Is(err, ErrTruncated) 成立——调用方既可判断类别（errors.Is）， 又可提取数值（errors.As），无需文本匹配（# |
+| `New()` | `go/download/download:110` | New 创建 Downloader，默认 5 分钟超时（可被 AppConfig.DownloadTimeoutSec 覆盖，ADR-062）。 |
+| `NewWithClient()` | `go/download/download:115` | NewWithClient 使用指定 HTTP client。 |
+| `Downloader.File()` | `go/download/download:282` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
+| `Downloader.FromGitHubAPI()` | `go/download/download:287` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
+| `ResolveSavePath()` | `go/download/download:311` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `HTTPStatusError()` | `go/download/download:80` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
+| `TruncationError()` | `go/download/download:87` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
+| `ProgressFn()` | `go/download/download:101` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
+| `Downloader()` | `go/download/download:104` | Downloader 文件下载器。 |
 
 ## go/executil
 
@@ -101,13 +102,14 @@
 | `FindPreviewImage()` | `go/fileops/fileops_preview:24` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
 | `ExtractPreviewTexture()` | `go/fileops/fileops_preview:50` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
 | `GetPackInfo()` | `go/fileops/fileops_preview:157` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
-| `CreateDir()` | `go/fileops/fileops:41` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
-| `RenameDir()` | `go/fileops/fileops:59` | RenameDir 重命名目录（仅改末段，保持父目录） |
-| `RemoveDir()` | `go/fileops/fileops:84` | RemoveDir 递归删除目录 |
-| `RenameFile()` | `go/fileops/fileops:91` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
-| `MoveModelFile()` | `go/fileops/fileops:119` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:201` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:305` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `SetConfigFunc()` | `go/fileops/fileops:27` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `CreateDir()` | `go/fileops/fileops:60` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
+| `RenameDir()` | `go/fileops/fileops:78` | RenameDir 重命名目录（仅改末段，保持父目录） |
+| `RemoveDir()` | `go/fileops/fileops:103` | RemoveDir 递归删除目录 |
+| `RenameFile()` | `go/fileops/fileops:110` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
+| `MoveModelFile()` | `go/fileops/fileops:138` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
+| `CopyModelFile()` | `go/fileops/fileops:220` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:324` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
 | `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
@@ -212,12 +214,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `NewLogger()` | `go/logs/logs:40` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
-| `Logger.Add()` | `go/logs/logs:146` | Add 添加一条导入日志（兼容旧调用） |
-| `Logger.AddOp()` | `go/logs/logs:151` | AddOp 添加一条指定操作类型的日志 |
-| `Logger.GetAll()` | `go/logs/logs:192` | GetAll 获取所有日志 |
-| `Logger.Clear()` | `go/logs/logs:201` | Clear 清空日志 |
-| `Logger()` | `go/logs/logs:30` | Logger 导入日志管理器 |
+| `SetConfigFunc()` | `go/logs/logs:34` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `NewLogger()` | `go/logs/logs:79` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
+| `Logger.Add()` | `go/logs/logs:185` | Add 添加一条导入日志（兼容旧调用） |
+| `Logger.AddOp()` | `go/logs/logs:190` | AddOp 添加一条指定操作类型的日志 |
+| `Logger.GetAll()` | `go/logs/logs:232` | GetAll 获取所有日志 |
+| `Logger.Clear()` | `go/logs/logs:241` | Clear 清空日志 |
+| `Logger()` | `go/logs/logs:69` | Logger 导入日志管理器 |
 | `NewRuntimeBuffer()` | `go/logs/runtime:22` | NewRuntimeBuffer 创建环形缓冲 |
 | `RuntimeBuffer.Write()` | `go/logs/runtime:30` | Write 实现 io.Writer：每次调用记录一条运行时日志（标准库 log 一行即一次 Write） |
 | `RuntimeBuffer.GetAll()` | `go/logs/runtime:51` | GetAll 返回全部日志的副本 |
@@ -270,14 +273,15 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `InvalidateCache()` | `go/scanner/scanner:59` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
-| `InvalidatePath()` | `go/scanner/scanner:74` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:105` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:112` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:242` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:295` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:325` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:388` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `SetConfigFunc()` | `go/scanner/scanner:53` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `InvalidateCache()` | `go/scanner/scanner:78` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
+| `InvalidatePath()` | `go/scanner/scanner:93` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
+| `ScanEntries()` | `go/scanner/scanner:124` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:131` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:261` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:314` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:344` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:407` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -337,10 +341,10 @@
 | `Bone2D()` | `go/types/bedrock:19` | Bone2D 骨骼简化信息（只用于 2D 线条图） |
 | `Cube2D()` | `go/types/bedrock:29` | Cube2D 立方体信息 |
 | `AppConfig()` | `go/types/config:4` | AppConfig 应用持久化配置 |
-| `PackInfo()` | `go/types/config:31` | PackInfo 模型整合包信息（ysm-pack.json） |
-| `WorkshopPresetSearch()` | `go/types/config:38` | WorkshopPresetSearch 预设搜索词 |
-| `WorkshopSite()` | `go/types/config:44` | WorkshopSite 创意工坊站点配置 |
-| `WorkshopCreator()` | `go/types/config:57` | WorkshopCreator 创作者条目 Type 是平台标签，分号分隔，如 "bilibili;afdian" |
+| `PackInfo()` | `go/types/config:40` | PackInfo 模型整合包信息（ysm-pack.json） |
+| `WorkshopPresetSearch()` | `go/types/config:47` | WorkshopPresetSearch 预设搜索词 |
+| `WorkshopSite()` | `go/types/config:53` | WorkshopSite 创意工坊站点配置 |
+| `WorkshopCreator()` | `go/types/config:66` | WorkshopCreator 创作者条目 Type 是平台标签，分号分隔，如 "bilibili;afdian" |
 | `AllExts()` | `go/types/extensions:28` | AllExts 返回所有支持的扩展名（去重后） |
 | `IsSupportedExt()` | `go/types/extensions:44` | IsSupportedExt 检查扩展名是否被任何资源类型支持 |
 | `IsYsmEntryJSON()` | `go/types/extensions:60` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
@@ -581,14 +585,14 @@
 | `App.BackupWorkshopCreators()` | `internal/app/app_workshop:308` | — |
 | `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:321` | — |
 | `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:363` | — |
-| `NewApp()` | `internal/app/app:53` | — |
-| `App.SetApp()` | `internal/app/app:79` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
-| `App.SetMainWindow()` | `internal/app/app:84` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
-| `App.ServiceStartup()` | `internal/app/app:87` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:167` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:202` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:207` | GetAppVersion 返回当前版本号 |
-| `App()` | `internal/app/app:25` | — |
+| `NewApp()` | `internal/app/app:56` | — |
+| `App.SetApp()` | `internal/app/app:82` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
+| `App.SetMainWindow()` | `internal/app/app:87` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
+| `App.ServiceStartup()` | `internal/app/app:90` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
+| `App.ServiceShutdown()` | `internal/app/app:176` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:211` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:216` | GetAppVersion 返回当前版本号 |
+| `App()` | `internal/app/app:28` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |

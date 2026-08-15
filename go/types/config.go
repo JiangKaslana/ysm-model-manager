@@ -16,6 +16,15 @@ type AppConfig struct {
 	Theme            string `json:"theme"`
 	Mirror           string `json:"mirror"`
 	VoxelMaxBlocks   int    `json:"voxelMaxBlocks"` // 3D 体素渲染上限，0=使用默认 200000
+	// 运行阈值（ADR-062 可配置化下沉：0=使用各包默认常量，行为零漂移）
+	ScanCacheTTLMs          int `json:"scanCacheTtlMs"`          // 扫描缓存 TTL 毫秒，0=默认 30s（scanner.scanCacheTTL）
+	DownloadTimeoutSec      int `json:"downloadTimeoutSec"`      // 下载超时秒，0=默认 300s（download.defaultTimeout）
+	LogMaxEntries           int `json:"logMaxEntries"`           // 日志条数上限，0=默认 500（logs.maxLogEntries）
+	LogMaxFieldLen          int `json:"logMaxFieldLen"`          // 日志单字段长度上限，0=默认 1024（logs.maxFieldLen）
+	LogCorruptRetentionDays int `json:"logCorruptRetentionDays"` // .corrupt 备份保留天数，0=默认 7（logs.corruptRetentionDays）
+	PreviewReadLimitMB      int `json:"previewReadLimitMb"`      // 预览/元数据整读上限 MB，0=默认 50（fileops.maxPreviewRead）
+	UpdateCheckIntervalMs   int `json:"updateCheckIntervalMs"`   // 版本检查间隔毫秒，0=默认 6h（前端 version-updater CHECK_INTERVAL）
+	UpdateCheckTimeoutMs    int `json:"updateCheckTimeoutMs"`    // 版本检查超时毫秒，0=默认 30s（前端 version-updater CHECK_TIMEOUT）
 	// 窗口状态（合并到主配置，避免 window_state.json 散落）
 	WinX    int `json:"winX"`
 	WinY    int `json:"winY"`

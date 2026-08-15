@@ -45,6 +45,25 @@ type scanCacheEntry struct {
 
 const scanCacheTTL = 30 * time.Second
 
+// configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
+// nil 或字段 0 时回退包级默认常量，行为零漂移）
+var configFunc func() types.AppConfig
+
+// SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
+func SetConfigFunc(fn func() types.AppConfig) {
+	configFunc = fn
+}
+
+// scanTTL 扫描缓存 TTL：AppConfig.ScanCacheTTLMs > 0 用之，否则默认 30s
+func scanTTL() time.Duration {
+	if configFunc != nil {
+		if ms := configFunc().ScanCacheTTLMs; ms > 0 {
+			return time.Duration(ms) * time.Millisecond
+		}
+	}
+	return scanCacheTTL
+}
+
 // normalizeScanKey 统一缓存 key：TrimSpace + filepath.Clean（去尾部分隔符/相对路径归一）。
 // ScanEntries 与 InvalidatePath 必须共用同一规整，否则失效 key 与扫描 key 字节级不一致会脱靶（P2 修复）。
 func normalizeScanKey(dir string) string {
@@ -233,7 +252,7 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 	// P1 修复：keyVersions 值类型改为 *atomic.Uint64
 	kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
 	if !walkFailed && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
-		scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanCacheTTL)})
+		scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
 	}
 	return entries, false
 }

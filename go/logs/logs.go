@@ -26,6 +26,45 @@ const corruptSuffix = ".corrupt"
 // corruptRetentionDays .corrupt 备份保留天数（启动 load 时清理更早的现场）
 const corruptRetentionDays = 7
 
+// configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
+// nil 或字段 0 时回退包级默认常量，行为零漂移）
+var configFunc func() types.AppConfig
+
+// SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
+func SetConfigFunc(fn func() types.AppConfig) {
+	configFunc = fn
+}
+
+// logMaxEntries 日志条数上限：AppConfig.LogMaxEntries > 0 用之，否则默认 500
+func logMaxEntries() int {
+	if configFunc != nil {
+		if n := configFunc().LogMaxEntries; n > 0 {
+			return n
+		}
+	}
+	return maxLogEntries
+}
+
+// logMaxFieldLen 单字段长度上限：AppConfig.LogMaxFieldLen > 0 用之，否则默认 1024
+func logMaxFieldLen() int {
+	if configFunc != nil {
+		if n := configFunc().LogMaxFieldLen; n > 0 {
+			return n
+		}
+	}
+	return maxFieldLen
+}
+
+// logCorruptRetentionDays .corrupt 保留天数：AppConfig.LogCorruptRetentionDays > 0 用之，否则默认 7
+func logCorruptRetentionDays() int {
+	if configFunc != nil {
+		if n := configFunc().LogCorruptRetentionDays; n > 0 {
+			return n
+		}
+	}
+	return corruptRetentionDays
+}
+
 // Logger 导入日志管理器
 type Logger struct {
 	mu   sync.Mutex
@@ -93,8 +132,8 @@ func (l *Logger) load() {
 		l.logs = []types.ImportLog{}
 	}
 	// 合法但超 500 条的旧文件 load 后也裁到上限（与写入路径口径一致）
-	if len(l.logs) > maxLogEntries {
-		l.logs = l.logs[len(l.logs)-maxLogEntries:]
+	if len(l.logs) > logMaxEntries() {
+		l.logs = l.logs[len(l.logs)-logMaxEntries():]
 	}
 }
 
@@ -109,7 +148,7 @@ func (l *Logger) cleanupStaleCorrupt() {
 		return // 不存在（正常情况）或 Stat 失败：跳过
 	}
 	age := time.Since(fi.ModTime())
-	if age > corruptRetentionDays*24*time.Hour {
+	if age > time.Duration(logCorruptRetentionDays())*24*time.Hour {
 		if rmErr := os.Remove(corrupt); rmErr != nil {
 			log.Printf("[logs] 清理过期 .corrupt 备份失败 %s: %v", corrupt, rmErr)
 		}
@@ -157,11 +196,12 @@ func (l *Logger) addOp(op, modelName, sourcePath, targetDir string, fileSize int
 	defer l.mu.Unlock()
 	// 字段字节级截断——errMsg/modelName 无上限时 500 条 ×
 	// 大字段可到数十 MB（前端 UI 截 500/200 只是展示层，Go 侧直接拼接 err.Error()）。
-	// 截断到 maxFieldLen（rune 计），防日志文件无界膨胀（常量定义见文件头）
+	// 截断到 logMaxFieldLen()（rune 计），防日志文件无界膨胀（默认见文件头）
 	trunc := func(s string) string {
 		r := []rune(s)
-		if len(r) > maxFieldLen {
-			return string(r[:maxFieldLen])
+		limit := logMaxFieldLen()
+		if len(r) > limit {
+			return string(r[:limit])
 		}
 		return s
 	}
@@ -176,10 +216,10 @@ func (l *Logger) addOp(op, modelName, sourcePath, targetDir string, fileSize int
 		Operation:  op,
 		Level:      types.StatusToLevel(status),
 	})
-	if len(l.logs) > maxLogEntries {
-		l.logs = l.logs[len(l.logs)-maxLogEntries:]
+	if len(l.logs) > logMaxEntries() {
+		l.logs = l.logs[len(l.logs)-logMaxEntries():]
 		// 底层数组远大于容量时重分配，释放突发峰值占用
-		if cap(l.logs) > maxLogEntries*4 {
+		if cap(l.logs) > logMaxEntries()*4 {
 			nb := make([]types.ImportLog, len(l.logs))
 			copy(nb, l.logs)
 			l.logs = nb

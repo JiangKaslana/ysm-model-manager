@@ -19,14 +19,33 @@ import (
 // 文件可致内存膨胀——共享 types.MaxReadLimit 与 geometry/ysm 的 50MB 口径，索引 6.7+5.2）
 const maxPreviewRead = types.MaxReadLimit
 
-// readLimitedFile 受限整读文件：上限 maxPreviewRead，超限/读失败返回 nil。
+// configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
+// nil 或字段 0 时回退包级默认常量，行为零漂移）
+var configFunc func() types.AppConfig
+
+// SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
+func SetConfigFunc(fn func() types.AppConfig) {
+	configFunc = fn
+}
+
+// previewReadLimit 预览整读上限：AppConfig.PreviewReadLimitMB > 0 用之，否则默认 50MB
+func previewReadLimit() int64 {
+	if configFunc != nil {
+		if mb := configFunc().PreviewReadLimitMB; mb > 0 {
+			return int64(mb) << 20
+		}
+	}
+	return maxPreviewRead
+}
+
+// readLimitedFile 受限整读文件：上限 previewReadLimit()，超限/读失败返回 nil。
 // 预览/元数据读取统一套上限，防超大文件整体拖入内存。
 func readLimitedFile(path string) []byte {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil
 	}
-	return fsutil.ReadLimitedEntry(f, maxPreviewRead)
+	return fsutil.ReadLimitedEntry(f, previewReadLimit())
 }
 
 // opMu 写类操作互斥锁（P2-3 修复，审核发现 TOCTOU）：

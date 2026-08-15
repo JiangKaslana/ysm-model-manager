@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"ysm-model-manager/go/types"
 )
 
 // 下载参数常量
@@ -25,6 +27,25 @@ const (
 	// defaultTimeout 默认下载超时（5分钟）
 	defaultTimeout = 300 * time.Second
 )
+
+// configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
+// nil 或字段 0 时回退包级默认常量，行为零漂移）
+var configFunc func() types.AppConfig
+
+// SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
+func SetConfigFunc(fn func() types.AppConfig) {
+	configFunc = fn
+}
+
+// downloadTimeout 下载超时：AppConfig.DownloadTimeoutSec > 0 用之，否则默认 300s
+func downloadTimeout() time.Duration {
+	if configFunc != nil {
+		if sec := configFunc().DownloadTimeoutSec; sec > 0 {
+			return time.Duration(sec) * time.Second
+		}
+	}
+	return defaultTimeout
+}
 
 // fileLocks 按目标路径互斥，防止并发（DownloadFromGitHub 与队列）下载同一 savePath
 // 时交错截断；配合临时文件 + rename 保证最终文件来自单次完整下载。
@@ -85,9 +106,9 @@ type Downloader struct {
 	timeout time.Duration
 }
 
-// New 创建 Downloader，默认 5 分钟超时。
+// New 创建 Downloader，默认 5 分钟超时（可被 AppConfig.DownloadTimeoutSec 覆盖，ADR-062）。
 func New() *Downloader {
-	return &Downloader{timeout: defaultTimeout}
+	return &Downloader{timeout: downloadTimeout()}
 }
 
 // NewWithClient 使用指定 HTTP client。

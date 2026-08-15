@@ -12,7 +12,10 @@ import (
 	"sync"
 
 	"ysm-model-manager/go/avatar"
+	"ysm-model-manager/go/download"
+	"ysm-model-manager/go/fileops"
 	"ysm-model-manager/go/logs"
+	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/tags"
 	"ysm-model-manager/go/types"
 	"ysm-model-manager/go/updater"
@@ -93,6 +96,12 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 
 	// 启动时自动加载配置
 	a.loadAppConfig()
+
+	// 运行阈值配置注入（ADR-062：各包 configFunc ← LoadAppConfig；字段 0=用包内默认常量）
+	scanner.SetConfigFunc(a.LoadAppConfig)
+	download.SetConfigFunc(a.LoadAppConfig)
+	logs.SetConfigFunc(a.LoadAppConfig)
+	fileops.SetConfigFunc(a.LoadAppConfig)
 
 	// 恢复窗口位置
 	pos := a.GetWindowPosition()
