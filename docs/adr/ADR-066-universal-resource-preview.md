@@ -1,6 +1,6 @@
 # ADR-066：全资源预览器：统一预览契约与注册表驱动分发
 
-- **状态**：🔄 部分采纳（统一契约方向已定；**P0「硬编码派发墙」已于 `0615b21d` 落地**，D2–D5 待后续阶段）
+- **状态**：🔄 部分采纳（统一契约方向已定；**P0「硬编码派发墙」已于 `0615b21d` 落地**；**P1 `VrmAdapter` 已于 `04ed819e` 落地**，D2–D5 待后续阶段）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/views/app-preview/loader.ts`、`frontend/src/views/app-preview/index.ts`、`frontend/src/views/app-preview/litematic-meta.ts`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`frontend/src/utils/3d/model3d.ts`、`frontend/src/views/app-preview/litematic-3d.ts`、`ADR-061`、`ADR-064`、`ADR-065`、`ADR-067`（zip 化资源识别，P0.x 硬前置）
@@ -238,5 +238,22 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
 
 - `model3d-loader.ts:84-89` 的 `_modelPath` 透传未纳入 P0（属 D1 后续项，不影响 VRM/MMD 路线 B 接入点）；
 - 单元测试断言迁移（§4 必做 diff 第 4 项）已补 ✅：扩展名→类型解析、AMBIGUOUS_EXTS 歧义契约（`frontend/src/utils/resource/types.test.ts`，`6e504851`）；voxelFn 映射对账契约（同文件 VOXEL_RPC_BY_EXT 3 例，2026-08-16 补）。
+
+### 5.4 P1 — `VrmAdapter` 落地面（`04ed819e`）
+
+**`frontend/src/views/app-preview/vrm-3d.ts`**（新增，模式对齐 `litematic-3d.ts`）：
+- 模块级 `vrmGen` + `invalidateVrmPreview()` 守卫，避免快速切换模型时的旧生成器回调竞态；
+- `createVrm3D(ctx, path, opts)`：`.vrm` 经 `ReadFileBytes` 取 base64 → `GLTFLoader.parse` + `VRMLoaderPlugin` 实时渲染；VRM0.0 经 `VRMUtils.rotateVRM0` 摆正；动画循环里 `vrm.update(delta)` 驱动 springbone；
+- `.vrca` / `.zip` 包裹态回退 `showSimplePreview`（内容级预览属 P2 解包后处理，见 ADR-067/068）。
+
+**`frontend/src/views/app-preview/index.ts`**（接入路由）：
+- `_showModelDetail` 按 `matchTypeByExt` 分流：`.vrm` → `createVrm3D`，`.vrca`/`.zip` → `showSimplePreview`；
+- `model:select` 注入 `invalidateVrmPreview()`，`disconnectedCallback` 注入 `cleanupVrm3D()`，杜绝跨实例泄漏。
+
+**`resource_types.json` / `go/types/resource_types_embed.go`**：`vrchat-avatar.preview` `none` → `3d` 双向同步（Go 一致性测试 `TestResourceTypesEmbedJSONConsistency` 守卫，已 ✅）。
+
+**依赖**：`frontend/package.json` 新增 `@pixiv/three-vrm ^3.5.5`。
+
+**验证**：`npm run typecheck` ✅；`npx vite build` ✅；`go test ./go/types/...` ✅；`go build ./go/...` ✅。
 
 <!-- 文件名: universal-resource-preview.md → 实际文件 ADR-066-universal-resource-preview.md -->
