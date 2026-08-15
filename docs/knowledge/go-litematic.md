@@ -38,7 +38,7 @@ invariant_anchors:
 
 - `ParseMeta(path string) (*types.LitematicMeta, error)` — `.litematic` 元数据（含 region 数、方块统计、预览图）
 - `ParseSchematic(path string) map[string]interface{}` — `.schematic` 摘要（尺寸/作者/方块统计，v1 数字 ID 经 `ResolveBlockName` 转注册名）
-- `ParseNbtStructure(path string) map[string]interface{}` — 原版结构 `.nbt` 摘要
+- `ParseNbtStructure(path string) map[string]interface{}` — 原版结构 `.nbt` 摘要；**双格式支持**：Java 版（`size`/`blocks`/`palette` 顶层）+ 基岩版 1.21+（`origin`/`sub_levels` 多子结构，size 取全局包围盒、blockCount/paletteStats 跨子结构聚合，paletteStats 按 blocks.palette_id 引用 block_palette.Name 统计真实方块数）
 - `BuildVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, error)` — `.litematic` 体素数据（按颜色分组，只保留表面方块）；无 `Regions` 时返回只含 `Size` 的空结果而非报错
 - `BuildNbtVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, error)` / `BuildSchematicVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, error)` — `.nbt` / `.schematic` 的体素数据，与上者共用同一条管线
 - `ResolveBlockName(id int, data byte) string` — 旧版数字 ID→注册名
