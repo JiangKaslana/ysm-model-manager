@@ -110,7 +110,7 @@ invariant_anchors:
 - **纹理口径对称**：`texture-order.ts` 与 Go `internal/app/texture_order.go` 口径严格对称，改一侧须同步另一侧；`default_texture` 置首逻辑在 `parse-ysm-json.ts`（返回 `_ysmMeta.defaultTexture`）与 `texture-order.ts`（实际排序）两处协同处理
 - **3D 预览布局**：渲染器全屏（`viewContainer` `position:absolute;inset:0`），信息面板为右侧浮层（`panel` `absolute;right:0;top:0;bottom:0`，`z-index:5`），顶部栏「◀ 隐藏 / ▶ 显示」切换显隐、左缘拖拽柄（`resizeHandle` 挂 body，`z-index:6`，`right` 随宽同步）调宽——浮层不占 flex 位，隐藏时渲染器天然填满，竖屏/窄窗口友好
 - **3D overlay 单例钩子**（skeleton.ts 模块级 `_active3DClose`）：全局同时只允许一个活跃 3D overlay——新开 3D 前先调上一份的 `_active3DClose`（`keepPrefer=true` 保留 `_prefer3D`，仅切换模型路径）；用户主动关闭/ESC/组件销毁（走 `close3D` 默认 `keepPrefer=false`）才清 `_prefer3D` 并置空引用，防残留。**`model:select` 切换前同样先关闭活跃 3D overlay**（2026-08-12 修复：切模型时旧 3D 不关闭会与新渲染叠加冲突）。**onClose 区分主动关闭与切模型**（2026-08-16 回归 `b2fafea6`）：切模型路径先置 `_active3DClose=null`，onClose 据此判断——用户主动关闭（ESC/✕/返回键）清 `_prefer3D`，切模型保留（P3 曾误改统一保留导致退出 3D 后点资源仍自动弹全屏）
-- **overlay ✕ 关闭按钮必须绑定 `close3D`**（2026-08-16 回归修复 `af260361`）：`build3DOverlay`（skeleton-render.ts）只创建按钮，onclick 依赖骨架闭包——ADR-040 拆分（2667f142）时绑定丢失，点 ✕ 无响应（仅 ESC/Android 返回键可关）；绑定须在 `close3D` 定义后补（skeleton.ts `_toggle3D` 内），`skeleton.test.ts` 已有「✕ 点击 → cleanup + overlay 移除」回归用例钉住
+- **3D 控件文件层级（ADR-066 §5.6 方案 A，`66160cb0`）**：相机控件（旋转/速度/重置）统一下沉 `mount-preview-core.ts` 的 `buildCameraControls`（shared/self 双模式复用，消灭 ysm-adapter 双份实现）；YSM 专属控件（截图菜单/纹理选择/模型组选择/骨骼面板接线）拆至 `ysm-controls.ts`（`buildYsmTopBarControls` / `buildYsmPanel`），`ysm-adapter.ts` 瘦身为「内容构建 + 装配」；旧 `skeleton-render.ts` 的 `build3DOverlay` 死代码已删（YSM 3D 走 `createYsm3D` → `mount3D`）。**overlay ✕ 关闭按钮绑定 `close3D`** 的历史修复（2026-08-16 `af260361`）仍有效——该绑定在 skeleton.ts `_toggle3D` 内，与 build3DOverlay 删除无关
 
 ## 相关
 
