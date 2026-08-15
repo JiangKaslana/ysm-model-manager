@@ -5,6 +5,7 @@
 package importer
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -14,6 +15,12 @@ import (
 
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
+)
+
+// ZIP/7z 容器魔数（文件头签名）：importFromBuffer 魔数校验与 DetectZipType 扫描共用
+var (
+	zipLocalHeaderSig = []byte{0x50, 0x4B, 0x03, 0x04} // ZIP local file header（PK\x03\x04）
+	sevenZipSig       = []byte{0x37, 0x7A, 0xBC, 0xAF} // 7z 签名（7z\xBC\xAF）
 )
 
 // ImportOptions 导入选项
@@ -82,11 +89,11 @@ func ImportFromBase64(fileName, base64Data string, opts ImportOptions, rootFn fu
 			}
 		}
 		if ext == ".zip" || ext == ".ysm" {
-			if data[0] != 0x50 || data[1] != 0x4B || data[2] != 0x03 || data[3] != 0x04 {
+			if !bytes.HasPrefix(data, zipLocalHeaderSig) {
 				warn("文件头不匹配标准ZIP格式，可能为旧版或非标准YSM文件，已导入")
 			}
 		} else if ext == ".7z" {
-			if data[0] != 0x37 || data[1] != 0x7A || data[2] != 0xBC || data[3] != 0xAF {
+			if !bytes.HasPrefix(data, sevenZipSig) {
 				warn("文件头不匹配标准7z格式，已导入")
 			}
 		}
@@ -125,7 +132,7 @@ func WriteFileAtomic(destPath string, data []byte) error {
 func DetectZipType(data []byte) string {
 	idx := 0
 	for idx+30 <= len(data) {
-		if data[idx] != 0x50 || data[idx+1] != 0x4B || data[idx+2] != 0x03 || data[idx+3] != 0x04 {
+		if !bytes.HasPrefix(data[idx:idx+4], zipLocalHeaderSig) {
 			break
 		}
 		nameLen := int(data[idx+26]) | int(data[idx+27])<<8

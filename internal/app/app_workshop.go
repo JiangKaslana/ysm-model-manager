@@ -3,7 +3,6 @@
 package app
 
 import (
-	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -86,7 +85,7 @@ func readJSONFile(path string, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
+	data = fsutil.StripBOM(data)
 	return json.Unmarshal(data, v)
 }
 
@@ -97,7 +96,7 @@ func loadBundledJSON(name string, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
+	data = fsutil.StripBOM(data)
 	return json.Unmarshal(data, v)
 }
 

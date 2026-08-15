@@ -661,7 +661,7 @@ func isYSGP(path string) bool {
 	data := buf[:n]
 	// 跳过 UTF-8 BOM
 	offset := 0
-	if n >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
+	if bytes.HasPrefix(data, fsutil.UTF8BOM) {
 		offset = 3
 	}
 	return n >= offset+4 && string(data[offset:offset+4]) == ysgpMagic

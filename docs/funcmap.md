@@ -148,11 +148,11 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ImportFromBase64()` | `go/importer/importer_file:30` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
-| `WriteFileAtomic()` | `go/importer/importer_file:112` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
-| `DetectZipType()` | `go/importer/importer_file:125` | DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json |
-| `ImportOptions()` | `go/importer/importer_file:20` | ImportOptions 导入选项 |
-| `ImportLogger()` | `go/importer/importer_file:26` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
+| `ImportFromBase64()` | `go/importer/importer_file:37` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
+| `WriteFileAtomic()` | `go/importer/importer_file:119` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
+| `DetectZipType()` | `go/importer/importer_file:132` | DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json |
+| `ImportOptions()` | `go/importer/importer_file:27` | ImportOptions 导入选项 |
+| `ImportLogger()` | `go/importer/importer_file:33` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
 | `Register()` | `go/importer/importer:33` | Register 注册导入策略 |
 | `Get()` | `go/importer/importer:38` | Get 获取指定类型的导入策略 |
 | `NewSimpleCopy()` | `go/importer/importer:64` | NewSimpleCopy 创建简单文件复制导入器 |
@@ -395,16 +395,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `progressWriter.Write()` | `go/updater/updater:66` | — |
-| `Check()` | `go/updater/updater:125` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
-| `CheckWithClient()` | `go/updater/updater:131` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
-| `Download()` | `go/updater/updater:234` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
-| `DownloadWithProgress()` | `go/updater/updater:243` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
-| `CleanupOldVersion()` | `go/updater/updater:393` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
-| `InstallUpdate()` | `go/updater/updater:417` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
-| `ReleaseAsset()` | `go/updater/updater:86` | ReleaseAsset GitHub Release 中的文件 |
-| `Release()` | `go/updater/updater:92` | Release GitHub Release 信息 |
-| `UpdateInfo()` | `go/updater/updater:101` | UpdateInfo 更新信息（序列化给前端） |
+| `progressWriter.Write()` | `go/updater/updater:71` | — |
+| `Check()` | `go/updater/updater:130` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
+| `CheckWithClient()` | `go/updater/updater:136` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
+| `Download()` | `go/updater/updater:239` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
+| `DownloadWithProgress()` | `go/updater/updater:248` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
+| `CleanupOldVersion()` | `go/updater/updater:398` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
+| `InstallUpdate()` | `go/updater/updater:422` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
+| `ReleaseAsset()` | `go/updater/updater:91` | ReleaseAsset GitHub Release 中的文件 |
+| `Release()` | `go/updater/updater:97` | Release GitHub Release 信息 |
+| `UpdateInfo()` | `go/updater/updater:106` | UpdateInfo 更新信息（序列化给前端） |
 
 ## Go·监听
 
@@ -1033,16 +1033,16 @@
 | `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:54` | 带退场动画关闭对话框 |
 | `registerDlg()` | `frontend/src/utils/dom/dialogs/modal:81` | 弹窗 append 到 body 后调用，登记为当前活动弹窗 |
 | `closeActiveDialog()` | `frontend/src/utils/dom/dialogs/modal:97` | 关闭当前活动弹窗（按取消值结算）。返回是否关闭了弹窗。 |
-| `ModalPromptOptions()` | `frontend/src/utils/dom/dialogs/modal:108` | modalPrompt 选项 |
-| `modalPrompt()` | `frontend/src/utils/dom/dialogs/modal:121` | 弹出带输入框的模态框，类似 styled prompt() |
-| `ModalSelectOptions()` | `frontend/src/utils/dom/dialogs/modal:191` | modalSelect 选项 |
-| `modalSelect()` | `frontend/src/utils/dom/dialogs/modal:204` | 弹出下拉选择框 |
-| `ModalConfirmOptions()` | `frontend/src/utils/dom/dialogs/modal:270` | modalConfirm 选项 |
-| `modalConfirm()` | `frontend/src/utils/dom/dialogs/modal:286` | 弹出确认对话框 |
-| `ModalProgressOptions()` | `frontend/src/utils/dom/dialogs/modal:346` | — |
-| `ModalProgressHandle()` | `frontend/src/utils/dom/dialogs/modal:354` | — |
-| `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:361` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
-| `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:371` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
+| `ModalPromptOptions()` | `frontend/src/utils/dom/dialogs/modal:156` | modalPrompt 选项 |
+| `modalPrompt()` | `frontend/src/utils/dom/dialogs/modal:169` | 弹出带输入框的模态框，类似 styled prompt() |
+| `ModalSelectOptions()` | `frontend/src/utils/dom/dialogs/modal:226` | modalSelect 选项 |
+| `modalSelect()` | `frontend/src/utils/dom/dialogs/modal:239` | 弹出下拉选择框 |
+| `ModalConfirmOptions()` | `frontend/src/utils/dom/dialogs/modal:291` | modalConfirm 选项 |
+| `modalConfirm()` | `frontend/src/utils/dom/dialogs/modal:307` | 弹出确认对话框 |
+| `ModalProgressOptions()` | `frontend/src/utils/dom/dialogs/modal:353` | — |
+| `ModalProgressHandle()` | `frontend/src/utils/dom/dialogs/modal:361` | — |
+| `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:368` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
+| `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:378` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
 | `RenameFields()` | `frontend/src/utils/dom/dialogs/rename-format:7` | 重命名字段（调用方已 trim） |
 | `buildRenameName()` | `frontend/src/utils/dom/dialogs/rename-format:19` | 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext` 品牌缺省「未知」、角色缺省「?」，与预览一致。 |
 | `showRenameDialog()` | `frontend/src/utils/dom/dialogs/rename:16` | 弹出重命名对话框 |

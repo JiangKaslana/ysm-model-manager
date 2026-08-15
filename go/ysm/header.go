@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"ysm-model-manager/go/fsutil"
 )
 
 // ysgpMagic YSM 文件魔数（收敛 header.go:53/246/282 与 summary.go:667 四处手写字面量）
@@ -241,7 +243,7 @@ func hasTextHeader(path string) bool {
 	}
 	data := buf[:n]
 	// 跳过 BOM
-	if n >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
+	if bytes.HasPrefix(data, fsutil.UTF8BOM) {
 		data = data[3:]
 	}
 	// 跳过 YSGP 和后续空行
@@ -277,7 +279,7 @@ func detectYSGPHeader(path string) *YSMHeader {
 
 	// 跳过可能的 UTF-8 BOM
 	offset := 0
-	if n >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
+	if bytes.HasPrefix(data, fsutil.UTF8BOM) {
 		offset = 3
 	}
 

@@ -5,7 +5,6 @@
 package fileops
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/types"
 	"ysm-model-manager/go/ysm"
@@ -168,7 +168,7 @@ func GetPackInfo(root, dirPath string) types.PackInfo {
 	if data == nil {
 		return types.PackInfo{}
 	}
-	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
+	data = fsutil.StripBOM(data)
 	var raw struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`

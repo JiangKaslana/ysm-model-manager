@@ -22,6 +22,11 @@ import (
 const (
 	repoOwner = "eghrhegpe"
 	repoName  = "ysm-model-manager"
+
+	// apiTimeout GitHub API 轻量请求超时（Check / fetchExpectedHash 共用）
+	apiTimeout = 10 * time.Second
+	// downloadTimeout 更新包下载超时（每源独立 90s：直连慢/卡时快速切镜像）
+	downloadTimeout = 90 * time.Second
 )
 
 // updateLock 防止并发更新（多次调用 InstallUpdate/Download）
@@ -124,7 +129,7 @@ func assetPattern() string {
 // Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志）
 func Check(current string) (*UpdateInfo, error) {
 	api := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases?per_page=10", repoOwner, repoName)
-	return CheckWithClient(&http.Client{Timeout: 10 * time.Second}, api, current)
+	return CheckWithClient(&http.Client{Timeout: apiTimeout}, api, current)
 }
 
 // CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现）
@@ -265,7 +270,7 @@ func DownloadWithProgress(assetURL string, expectedHash string, onProgress func(
 // newDownloadClient 构建下载用 HTTP 客户端（每源独立 90s 超时：直连慢/卡时快速切镜像）。
 // 包级变量便于测试注入自定义 RoundTripper 覆盖完整性校验等不可由真实网络触达的分支。
 var newDownloadClient = func() *http.Client {
-	return &http.Client{Timeout: 90 * time.Second}
+	return &http.Client{Timeout: downloadTimeout}
 }
 
 // downloadOnce 单源下载尝试：HTTP GET + 大小截断防护 + SHA256 校验
@@ -535,7 +540,7 @@ func splitVer(s string) []int {
 // 404/403 错误体按行解析不到返回 ""，Download 侧 `expectedHash==""` 门控使哈希校验整体
 // 静默跳过（更新包无校验装盘）。现非 200 返回显式错误，调用方 CheckWithClient 记录告警。
 func fetchExpectedHash(sumsURL string, fileName string) (string, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: apiTimeout}
 	req, err := http.NewRequest("GET", sumsURL, nil)
 	if err != nil {
 		return "", err
