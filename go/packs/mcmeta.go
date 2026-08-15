@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
@@ -199,12 +200,21 @@ func zipEntryMatch(path string, match func(name string) bool) bool {
 	return false
 }
 
-// matchZipArchive 打开容器（.zip）并按 rt.ZipEntries 内容指纹匹配（ADR-067）。
-// .7z 非 ZIP 格式，zip.OpenReader 不可用；.7z 包裹的 mmd/vrc 等内容检测不在本 ADR 范围（见 §3 遗留）。
+// matchZipArchive 打开容器（.zip/.7z）并按 rt.ZipEntries 内容指纹匹配（ADR-067/068）：
+// 走 container 统一打开——.7z 也参与内容指纹（ADR-067 §3 遗留，原仅 zip；
+// sevenzip 只读但可枚举条目）。条目名统一 lowercase（与 MatchZipEntry 内部 ToLower 幂等）。
 func matchZipArchive(path string, rt *types.ResourceType) bool {
-	return zipEntryMatch(path, func(name string) bool {
-		return rt.MatchZipEntry(name)
-	})
+	r, err := container.Open(path)
+	if err != nil {
+		return false
+	}
+	defer r.Close()
+	for _, e := range r.Entries() {
+		if rt.MatchZipEntry(e.Name()) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasExt(ext string, exts []string) bool {

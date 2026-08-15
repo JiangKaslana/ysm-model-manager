@@ -144,8 +144,9 @@ func TestDetectResourceType_ZipEntry_NoMatch(t *testing.T) {
 	}
 }
 
-// .7z 遗留固化：zip.OpenReader 打不开 .7z → zipentry 内容指纹不执行（ADR-067 §3 已知遗留）；
-// ysm 声明了 .7z 扩展名且 isYsmFile 对 .7z 靠扩展名兜底 → 判 ysm，与现状一致。
+// .7z 内容指纹已接入（ADR-068 后 container.Open7zPath 可枚举 7z 条目）：坏/伪造 .7z
+// 打开失败 → zipentry 指纹不命中 → ysm 扩展名兜底（与改动前一致）。合法 .7z 含
+// 匹配条目时走内容指纹（正向构造需 7-Zip CLI 预生成 fixture，见 geometry testdata）。
 func TestDetectResourceType_ZipEntry_SevenZipFallbackToYsm(t *testing.T) {
 	reg := zipentryReg()
 	dir := t.TempDir()
@@ -154,6 +155,6 @@ func TestDetectResourceType_ZipEntry_SevenZipFallbackToYsm(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := DetectResourceType(sevenPath, reg); got != "ysm" {
-		t.Fatalf(".7z 应靠 ysm 扩展名兜底判 ysm（ADR-067 §3 遗留），实际 %q", got)
+		t.Fatalf("坏 .7z 应靠 ysm 扩展名兜底判 ysm，实际 %q", got)
 	}
 }
