@@ -692,6 +692,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-065：整合包侧资源类型语义收敛：rtype 分支注册表驱动单点",
+        "link": "/adr/ADR-065-instance-rtype-registry-single-source"
+      },
+      {
         "text": "ADR-064：同步层对比收敛：scanner 单一扫描源，对比实现单点化",
         "link": "/adr/ADR-064-sync-convergence-scanner-single-source"
       },
