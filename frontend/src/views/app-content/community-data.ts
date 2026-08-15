@@ -103,9 +103,14 @@ async function tryAutoMergeCommunity(creators: LocalCreator[]): Promise<void> {
   const { added } = mergeCommunityCreators(creators, community);
   if (added > 0) {
     try {
-      const { SaveWorkshopCreatorsBySite } =
+      const { LoadWorkshopCreators, SaveWorkshopCreators } =
         await getApp();
-      // 按站点分组，逐站点原子保存
+      // 数据安全（审核 2026-08-16）：原逐站点循环调 SaveWorkshopCreatorsBySite
+      // （每次 load 全部→过滤当前站点→save 全部），中途失败会部分提交——
+      // 前站点已保存、后站点未保存，覆盖层混合新旧数据。改为前端一次合并 +
+      // 单次整体保存（localStorage setItem / 文件原子写 = 原子，无部分提交）。
+      const all = (await LoadWorkshopCreators()) || [];
+      // 按站点分组（type 分号段），对齐原 SaveWorkshopCreatorsBySite 语义
       const siteMap: Record<string, LocalCreator[]> = {};
       creators.forEach((c) => {
         const types = (c.type || "").split(";");
@@ -115,9 +120,14 @@ async function tryAutoMergeCommunity(creators: LocalCreator[]): Promise<void> {
           siteMap[t].push(c);
         });
       });
-      for (const [siteId, siteCreators] of Object.entries(siteMap)) {
-        await SaveWorkshopCreatorsBySite(siteId, siteCreators);
-      }
+      const siteIDs = Object.keys(siteMap);
+      // 移除所有被更新站点的旧条目（type 精确/分号段匹配）
+      const kept = all.filter((c) => {
+        const t = c.type || "";
+        return !siteIDs.some((sid) => t === sid || t.includes(sid + ";") || t.endsWith(";" + sid));
+      });
+      const merged = [...kept, ...Object.values(siteMap).flat()];
+      await SaveWorkshopCreators(merged as WorkshopCreator[]);
     } catch (e) { dbg("SaveWorkshopCreators failed", e); }
   }
 }

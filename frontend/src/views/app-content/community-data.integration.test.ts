@@ -9,6 +9,7 @@ const { mocks } = vi.hoisted(() => {
     LoadWorkshopCreators: vi.fn(),
     ListModelAuthors: vi.fn(),
     ScanLocalAuthors: vi.fn(),
+    SaveWorkshopCreators: vi.fn(),
     resolveWebMode: vi.fn().mockReturnValue(false), // 默认桌面
   };
   return { mocks };
@@ -20,7 +21,7 @@ vi.mock("../../backend/app.ts", () => ({
     LoadWorkshopCreators: mocks.LoadWorkshopCreators,
     ListModelAuthors: mocks.ListModelAuthors,
     ScanLocalAuthors: mocks.ScanLocalAuthors,
-    SaveWorkshopCreatorsBySite: vi.fn(),
+    SaveWorkshopCreators: mocks.SaveWorkshopCreators,
   }),
 }));
 
@@ -127,5 +128,35 @@ describe("loadCommunityData", () => {
     expect(mocks.LoadWorkshopCreators).toHaveBeenCalled();
     expect(data.sites).toEqual([{ id: "bilibili", url: "https://bili.test", label: "B站" }]);
     expect(data.creators.find((c) => c.name === "A")).toBeDefined();
+  });
+
+  it("自动合并触发时单次 SaveWorkshopCreators 原子保存（数据安全：无部分提交）", async () => {
+    // 社区索引返回新增作者 → 触发 tryAutoMergeCommunity 合并 + 保存
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({ ok: true, json: async () => [{ name: "社区新作者", desc: "c", type: "bilibili" }] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "老作者", type: "bilibili" }]);
+
+    const { fetchCommunityCreators, mergeCommunityCreators } = await import("./community-data.ts");
+    const community = await fetchCommunityCreators("https://raw.githubusercontent.com/x/y/main/creators.json");
+    // eslint-disable-next-line no-console
+    console.log("DBG community:", JSON.stringify(community));
+    const { added } = mergeCommunityCreators(
+      [{ name: "老作者", type: "bilibili", desc: "" }],
+      community,
+    );
+    // eslint-disable-next-line no-console
+    console.log("DBG added:", added);
+
+    await loadCommunityData();
+    await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalled());
+
+    const saved = mocks.SaveWorkshopCreators.mock.calls[0][0] as Array<{ name: string; type: string }>;
+    // 单次调用（原子），且结果 = 保留其他站点 + 按站点分组重写
+    expect(mocks.SaveWorkshopCreators).toHaveBeenCalledTimes(1);
+    const names = saved.map((c) => c.name);
+    expect(names).toContain("社区新作者");
+    expect(names).toContain("老作者");
   });
 });
