@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 87 | 237 |
+| frontend/views | 87 | 239 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **284** | **1174** |
+| **合计** | **284** | **1176** |
 
 ## Go·头像
 
@@ -740,15 +740,15 @@
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:76` | — |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:216` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:29` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:87` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:119` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:141` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:159` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:196` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:207` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:260` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:321` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:31` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:89` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:121` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:143` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:161` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:198` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:209` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:262` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:323` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
 | `webStoreBindings()` | `frontend/src/backend/web-store:150` | — |
 
 ## 前端·核心
@@ -1256,13 +1256,15 @@
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
 | `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:137` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
-| `PreviewBuildCtx()` | `frontend/src/views/app-preview/mount-preview-core:21` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/views/app-preview/mount-preview-core:32` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/views/app-preview/mount-preview-core:48` | — |
-| `PreviewHandle()` | `frontend/src/views/app-preview/mount-preview-core:58` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/views/app-preview/mount-preview-core:78` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/views/app-preview/mount-preview-core:83` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:91` | — |
+| `PreviewBuildCtx()` | `frontend/src/views/app-preview/mount-preview-core:23` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/views/app-preview/mount-preview-core:34` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/views/app-preview/mount-preview-core:50` | — |
+| `PreviewHandle()` | `frontend/src/views/app-preview/mount-preview-core:60` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `CameraControlBridge()` | `frontend/src/views/app-preview/mount-preview-core:77` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
+| `buildCameraControls()` | `frontend/src/views/app-preview/mount-preview-core:91` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
+| `invalidatePreview()` | `frontend/src/views/app-preview/mount-preview-core:153` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/views/app-preview/mount-preview-core:158` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:166` | — |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:11` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:17` | — |

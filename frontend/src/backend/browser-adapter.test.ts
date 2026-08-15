@@ -93,6 +93,15 @@ describe("browserAdapter — Phase 2 模型库（IndexedDB）", () => {
     expect(entries[0].Size).toBe(3); // "YSM" = 3 bytes
   });
 
+  it("DetectResourceType：扩展名直判（单归属）+ 已导入模型判定（ADR-066 web 识别层）", async () => {
+    expect(await browserAdapter.DetectResourceType("/web/create-blueprint/建筑/建筑.nbt")).toBe("create-blueprint");
+    expect(await browserAdapter.DetectResourceType("/web/litematic/投影/a.litematic")).toBe("litematic");
+    expect(await browserAdapter.DetectResourceType("/web/mmd-skin/角色/a.pmx")).toBe("mmd-skin");
+    expect(await browserAdapter.DetectResourceType("/web/vrchat-avatar/角色/a.vrm")).toBe("vrchat-avatar");
+    expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.ysm")).toBe("ysm");
+    expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.png")).toBe(""); // 辅助文件无类型
+  });
+
   it("ScanModelEntriesWithLabel 同 ScanModelEntries（真实列表入口）", async () => {
     await importWebFiles([new File([enc.encode("YSM")], "狐狸.ysm")], "ysm");
     const entries = (await browserAdapter.ScanModelEntriesWithLabel("/web/ysm", "模型")) as Array<{

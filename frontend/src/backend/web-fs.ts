@@ -17,8 +17,10 @@ import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 // 不再 YSM 单类型硬编码（原 mainFileRank 只认 .ysm/.zip/ysm.json）
 import { RESOURCE_EXTS } from "../utils/resource/extensions.ts";
 import { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64, parseWebPath, parseWebDirPath, webDirType, isWebPath } from "./web-common.ts";
-// R2 导入增强：ZIP 解压（extractZip 解出文件 + gbkDecodeEntry 还原中文名）
-import { extractZip, gbkDecodeEntry } from "./extract.ts";
+// R2 导入增强：ZIP 解压（extractZip 解出文件 + gbkDecodeEntry 还原中文名）；
+// detectZipType 供 DetectResourceType 歧义容器内容指纹（ADR-066 web 识别层）
+import { extractZip, gbkDecodeEntry, detectZipType } from "./extract.ts";
+import { resolveTypeSafe } from "../utils/resource/types.ts";
 
 // --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
 const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
@@ -764,6 +766,20 @@ export const webFsBindings = {
   // 真实列表入口（loader/import-queue/resource-manager 等 6 处均调 WithLabel 版本）
   ScanModelEntriesWithLabel: (dir: string, _label: string) => scanWebModels(dir),
   ReadFileBytes: (path: string) => readWebFile(path),
+  // DetectResourceType：扩展名判定（resolveTypeSafe，歧义 .zip/.7z 返回 null）→
+  // 歧义容器读内容指纹（detectZipType）。ADR-066 web 识别层对齐 Go：
+  // 一处补上后非 YSM 类型（pack/shader/蓝图/投影/MMD/VRC）的预览路由不再误入
+  // YSM 路径（原 fail-fast 导致 rtype="" 全落 YSM 解析报"无法解析"）
+  DetectResourceType: async (path: string) => {
+    const byExt = resolveTypeSafe(path);
+    if (byExt) return byExt;
+    const b64 = await readWebFile(path);
+    if (!b64) return "";
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return detectZipType(bytes);
+  },
   // rtype 含 / 时替换为 _，避免 /web/a/b 破坏 readWebFile 三段解析
   GetRepoRoot: (rtype: string) => Promise.resolve(`${WEB_ROOT}/${rtype.replace(/\//g, "_")}`),
   GetDefaultRepoRoot: () => Promise.resolve(WEB_ROOT),

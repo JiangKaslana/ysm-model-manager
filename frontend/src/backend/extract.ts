@@ -53,7 +53,7 @@ export interface ExtractResult {
 }
 
 /** detectZipType 返回值 */
-export type ZipType = "ysm" | "resourcepack" | "shaderpack" | null;
+export type ZipType = "ysm" | "resourcepack" | "shaderpack" | "create-blueprint" | "litematic" | "mmd-skin" | "vrchat-avatar" | null;
 
 // --- 中央目录预解析（fflateKey 对齐，处理 gpf bit 11 / 中文文件名）---
 
@@ -188,8 +188,8 @@ export function gbkDecodeEntry(m: ZipEntryMeta): { realName: string; fflateKey: 
  * 只读 local file header 区（每 entry 约 30+nameLen 字节），
  * 不读压缩数据，O(n) 遍历 local headers 即可。
  *
- * ⚠️ 当前无生产消费方：web-fs.ts 导入流程按调用方传入的 type 入库，
- * 不依赖本函数。保留用于与 Go 的 1:1 契约测试，及未来网页版 .zip 类型路由场景。
+ * 消费方：web-fs.ts DetectResourceType（歧义 .zip/.7z 容器路由到内容指纹）——
+ * 与 Go DetectResourceType/zipEntries 同语义（pack.mcmeta/shaders/ysm.json/类型后缀）。
  */
 export function detectZipType(data: Uint8Array): ZipType {
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
@@ -213,6 +213,11 @@ export function detectZipType(data: Uint8Array): ZipType {
     if (nameLow === "pack.mcmeta") return "resourcepack";
     if (nameLow.startsWith("shaders/") || nameLow === "shaders") return "shaderpack";
     if (nameLow.endsWith("ysm.json") || nameLow.startsWith("models/")) return "ysm";
+    // ADR-066 web 识别层：蓝图/投影/MMD/VRC 的 zip 条目后缀指纹（与 Go zipEntries suffix 同语义）
+    if (nameLow.endsWith(".nbt") || nameLow.endsWith(".schematic")) return "create-blueprint";
+    if (nameLow.endsWith(".litematic")) return "litematic";
+    if (nameLow.endsWith(".pmx") || nameLow.endsWith(".pmd")) return "mmd-skin";
+    if (nameLow.endsWith(".vrca") || nameLow.endsWith(".vrm")) return "vrchat-avatar";
 
     // 跳到下一个 entry（跳过压缩数据）
     const compSize = dv.getUint32(idx + 18, true);
