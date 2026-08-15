@@ -181,20 +181,30 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 	return ""
 }
 
-// matchZipArchive 打开容器（.zip）并按 rt.ZipEntries 内容指纹匹配（ADR-067）。
-// .7z 非 ZIP 格式，zip.OpenReader 不可用；.7z 包裹的 mmd/vrc 等内容检测不在本 ADR 范围（见 §3 遗留）。
-func matchZipArchive(path string, rt *types.ResourceType) bool {
+// zipEntryMatch 打开 .zip 容器遍历条目，谓词命中即返回 true（ADR-067 S5：
+// 收敛 matchZipArchive/isYsmFile/hasMcmeta/hasShaders 四处独立 zip.OpenReader
+// 模板——统一"打开容器→找条目"桥接；.7z 不在容器遍历范围，由调用方按扩展名兜底）。
+// 条目名统一 lowercase 传入谓词（与 MatchZipEntry 内部 ToLower 幂等）。
+func zipEntryMatch(path string, match func(name string) bool) bool {
 	r, err := zip.OpenReader(path)
 	if err != nil {
 		return false
 	}
 	defer r.Close()
 	for _, f := range r.File {
-		if rt.MatchZipEntry(f.Name) {
+		if match(strings.ToLower(f.Name)) {
 			return true
 		}
 	}
 	return false
+}
+
+// matchZipArchive 打开容器（.zip）并按 rt.ZipEntries 内容指纹匹配（ADR-067）。
+// .7z 非 ZIP 格式，zip.OpenReader 不可用；.7z 包裹的 mmd/vrc 等内容检测不在本 ADR 范围（见 §3 遗留）。
+func matchZipArchive(path string, rt *types.ResourceType) bool {
+	return zipEntryMatch(path, func(name string) bool {
+		return rt.MatchZipEntry(name)
+	})
 }
 
 func hasExt(ext string, exts []string) bool {
@@ -227,18 +237,9 @@ func isYsmFile(path string) bool {
 	if ext == ".7z" {
 		return true
 	}
-	r, err := zip.OpenReader(path)
-	if err != nil {
-		return false
-	}
-	defer r.Close()
-	for _, f := range r.File {
-		low := strings.ToLower(f.Name)
-		if strings.HasSuffix(low, "ysm.json") || strings.HasPrefix(low, "models/") {
-			return true
-		}
-	}
-	return false
+	return zipEntryMatch(path, func(name string) bool {
+		return strings.HasSuffix(name, "ysm.json") || strings.HasPrefix(name, "models/")
+	})
 }
 
 // hasMcmeta 检查 zip 内是否有 pack.mcmeta（区分 ZIP 资源包/模型）
@@ -247,17 +248,9 @@ func hasMcmeta(path string) bool {
 	if ext != ".zip" {
 		return false
 	}
-	r, err := zip.OpenReader(path)
-	if err != nil {
-		return false
-	}
-	defer r.Close()
-	for _, f := range r.File {
-		if strings.ToLower(f.Name) == "pack.mcmeta" {
-			return true
-		}
-	}
-	return false
+	return zipEntryMatch(path, func(name string) bool {
+		return name == "pack.mcmeta"
+	})
 }
 
 // hasShaders 检查 zip 内是否有 shaders/ 目录（光影包特征）
@@ -266,18 +259,9 @@ func hasShaders(path string) bool {
 	if ext != ".zip" {
 		return false
 	}
-	r, err := zip.OpenReader(path)
-	if err != nil {
-		return false
-	}
-	defer r.Close()
-	for _, f := range r.File {
-		low := strings.ToLower(f.Name)
-		if strings.HasPrefix(low, "shaders/") || low == "shaders" {
-			return true
-		}
-	}
-	return false
+	return zipEntryMatch(path, func(name string) bool {
+		return strings.HasPrefix(name, "shaders/") || name == "shaders"
+	})
 }
 
 // ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名

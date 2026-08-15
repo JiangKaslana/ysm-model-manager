@@ -692,6 +692,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-068：统一容器桥接层：ContainerReader 抽象收敛 ysm/geometry/avatar 解包重复",
+        "link": "/adr/ADR-068-container-reader-abstraction"
+      },
+      {
         "text": "ADR-067：zip 化资源识别：扩展名歧义消解与内容指纹覆盖",
         "link": "/adr/ADR-067-zip-packaged-resource-detection"
       },
