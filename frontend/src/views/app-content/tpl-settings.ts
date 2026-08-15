@@ -70,6 +70,22 @@ export function settingsHTML(): string {
       </div>
     </div>
     `}
+    ${isViewer ? "" : `
+    <div class="stg-card" style="animation-delay:160ms">
+      <div class="stg-card-hdr">
+        <span class="label" style="font-size:13px;font-weight:600">🔄 ${t("settings.updateCheck.title")}</span>
+      </div>
+      <div class="stg-card-body">
+        <select id="set-update-check" class="stg-select" style="width:100%;margin-bottom:6px">
+          <option value="21600000">6 小时</option>
+          <option value="43200000">12 小时</option>
+          <option value="86400000">24 小时</option>
+          <option value="0">🛑 ${t("settings.updateCheck.off")}</option>
+        </select>
+        <div style="font-size:var(--fs-sm);color:var(--muted);padding:2px 0;line-height:1.5">${t("settings.updateCheck.desc")}</div>
+      </div>
+    </div>
+    `}
   </div>
 
   <!-- Row 2: 文件存储路径（桌面）/ 网页版文件来源（viewer）——查看器模式隐藏本地路径配置，改为 FSA 授权（ADR-049 能力门控缺口补齐） -->

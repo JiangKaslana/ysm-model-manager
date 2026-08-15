@@ -664,6 +664,10 @@ export const ja: Record<string, string> = {
 
   // ── Settings - Mirror ──
   "settings.mirror.changed": "✅ ダウンロードミラーを {mirror} に切り替えました",
+  "settings.updateCheck.title": "更新確認の間隔",
+  "settings.updateCheck.off": "自動確認を無効化",
+  "settings.updateCheck.desc": "起動時に新バージョンを静かに確認する頻度（既定 6 時間）",
+  "settings.updateCheck.saved": "更新確認の間隔を保存しました",
   "settings.mirror.direct": "直接接続",
 
   // ── Settings - Relink ──

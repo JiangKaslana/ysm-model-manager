@@ -208,6 +208,16 @@ func (a *App) SetDownloadMirror(mirror string) error {
 	return a.saveConfig(cfg)
 }
 
+// SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。
+// 仅更新传入的阈值字段，其余字段从旧配置保留（与 SaveAppConfig 的 orDefault 语义一致）。
+// checkIntervalMs / logMaxEntries 传 0 = 重置为各包默认常量（scanner/logs 读取 0=默认）。
+func (a *App) SaveThresholds(checkIntervalMs int, logMaxEntries int) error {
+	cfg := a.LoadAppConfig()
+	cfg.UpdateCheckIntervalMs = checkIntervalMs
+	cfg.LogMaxEntries = logMaxEntries
+	return a.saveConfig(cfg)
+}
+
 func (a *App) restartWatcher(filesRoot, mcRoot string) error {
 	a.watcherMu.Lock()
 	defer a.watcherMu.Unlock()

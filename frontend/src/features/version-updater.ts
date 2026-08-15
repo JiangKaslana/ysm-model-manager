@@ -20,19 +20,32 @@ export interface UpdateInfo {
 
 /** 频次限制 key */
 const CHECK_KEY = "ysm_lastUpdateCheck";
-/** 最短检查间隔（6 小时） */
+/** 最短检查间隔（6 小时）——配置缺省回退值（ADR-062 §2.3：设置页可写 updateCheckIntervalMs） */
 const CHECK_INTERVAL = 6 * 60 * 60 * 1000;
 /** 手动检查超时（30s，防 Go 端 CheckUpdate 网络挂起时按钮永久「检查中」） */
 const CHECK_TIMEOUT = 30 * 1000;
 
+/** 当前检查间隔：读取配置 updateCheckIntervalMs（>0 用之；0=关闭自动检查；缺省回退 6h） */
+async function currentCheckInterval(): Promise<number> {
+  try {
+    const { LoadAppConfig } = await getApp();
+    const cfg = await LoadAppConfig();
+    const ms = cfg.updateCheckIntervalMs;
+    return typeof ms === "number" && ms > 0 ? ms : CHECK_INTERVAL;
+  } catch {
+    return CHECK_INTERVAL; // 配置读取失败回退默认（不阻塞启动静默检查）
+  }
+}
+
 /** 检查是否超过频次限制 */
-function canCheck(): boolean {
+async function canCheck(): Promise<boolean> {
+  const interval = await currentCheckInterval();
   // P3（审核发现）：裸调 localStorage 改 safeGet——隐私模式/存储禁用下 getItem 抛错
   // 会中断启动链（ADR-044 策略 A：统一收敛至 utils/dom/storage.ts）
   const raw = parseInt(safeGet(CHECK_KEY) || "0", 10);
   // 守卫：存储值损坏为非数字时 parseInt→NaN，NaN 比较恒 false 会永久禁用更新检查
   const last = Number.isNaN(raw) ? 0 : raw;
-  return Date.now() - last > CHECK_INTERVAL;
+  return Date.now() - last > interval;
 }
 
 /** 记录本次检查时间 */
@@ -158,7 +171,7 @@ export async function checkUpdateSilent(): Promise<void> {
   // P3 修复：canCheck 移入 try——原实现位于 try 之外，隐私模式 localStorage.getItem 抛错时
   // promise 会 reject（靠调用方 .catch 兜底而非模块内静默），违反「静默路径绝不向启动流程抛错」
   try {
-    if (!canCheck()) return;
+    if (!(await canCheck())) return;
     const { CheckUpdate } = await getApp();
     const info = (await CheckUpdate()) as UpdateInfo | null;
     // 检查成功才计入频次：失败（网络/API）不阻塞下次启动重试

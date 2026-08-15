@@ -137,6 +137,27 @@ export async function initSettings(root: ShadowRoot): Promise<void> {
     });
   }
 
+  // 版本检查间隔（ADR-062 §2.3：设置页写入 UpdateCheckIntervalMs，0=关闭检查）
+  const updateCheckSelect = root.getElementById("set-update-check") as HTMLSelectElement | null;
+  if (updateCheckSelect) {
+    // 初值取配置（0=关闭；缺省 6h 对应 21600000）
+    updateCheckSelect.value = String(cfg.updateCheckIntervalMs || 21600000);
+    updateCheckSelect.addEventListener("change", async () => {
+      try {
+        const { SaveThresholds } = await getApp();
+        await SaveThresholds(Number(updateCheckSelect.value), cfg.logMaxEntries || 500);
+        cfg.updateCheckIntervalMs = Number(updateCheckSelect.value);
+        bus.emit("toast:show", {
+          msg: "✅ " + t("settings.updateCheck.saved"),
+          duration: 2000,
+          type: "success",
+        });
+      } catch (e) {
+        toastError(e);
+      }
+    });
+  }
+
   // ===== 以下代码保持原样（链接模式/主题切换/关于等） =====
   // 链接模式提示切换
   const updateLinkHint = (mode: string): void => {

@@ -816,6 +816,15 @@ export function SaveScreenshotFile(filename: string, base64Data: string): $Cance
     return $Call.ByID(1822573792, filename, base64Data);
 }
 
+/**
+ * SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。
+ * 仅更新传入的阈值字段，其余字段从旧配置保留（与 SaveAppConfig 的 orDefault 语义一致）。
+ * checkIntervalMs / logMaxEntries 传 0 = 重置为各包默认常量（scanner/logs 读取 0=默认）。
+ */
+export function SaveThresholds(checkIntervalMs: number, logMaxEntries: number): $CancellablePromise<void> {
+    return $Call.ByID(2817934378, checkIntervalMs, logMaxEntries);
+}
+
 export function SaveWindowPosition(x: number, y: number, width: number, height: number): $CancellablePromise<void> {
     return $Call.ByID(469886297, x, y, width, height);
 }

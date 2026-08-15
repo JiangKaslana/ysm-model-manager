@@ -33,6 +33,12 @@ function saveWebConfig(cfg: Record<string, unknown>): void {
 // 诊断页显示「空日志」而非报错，行为等价于桌面无操作记录场景。
 const WEB_IMPORT_LOG_CAP = 500;
 const WEB_RUNTIME_LOG_CAP = 300;
+
+/** 导入日志环容量：读配置 logMaxEntries（>0 用之，ADR-062 §2.3），缺省回退 500 */
+function importLogCap(): number {
+  const v = loadWebConfig().logMaxEntries;
+  return typeof v === "number" && v > 0 ? v : WEB_IMPORT_LOG_CAP;
+}
 const webImportLogs: Array<Record<string, unknown>> = [];
 const webRuntimeLogs: Array<Record<string, unknown>> = [];
 
@@ -50,7 +56,7 @@ async function getWebRuntimeLogs(): Promise<unknown> {
 async function addWebImportLog(
   modelName: string, sourcePath: string, targetDir: string, fileSize: number, status: string, errMsg: string,
 ): Promise<void> {
-  pushWebLog(webImportLogs, WEB_IMPORT_LOG_CAP, {
+  pushWebLog(webImportLogs, importLogCap(), {
     ModelName: modelName, SourcePath: sourcePath, TargetDir: targetDir,
     FileSize: fileSize, Status: status, ErrorMsg: errMsg, Timestamp: Date.now(), Operation: "import",
   });
@@ -154,6 +160,17 @@ export const webStoreBindings = {
       mcRoot: mcRoot || prev.mcRoot,
       linkMode: linkMode || prev.linkMode,
       theme: theme || prev.theme,
+    });
+    return Promise.resolve();
+  },
+  // ADR-062 §2.3 web 实现：阈值写入 localStorage 覆盖层（与桌面 SaveThresholds 语义对齐，
+  // version-updater 读 updateCheckIntervalMs、日志环容量读 logMaxEntries，缺省回退常量）
+  SaveThresholds: (checkIntervalMs: number, logMaxEntries: number) => {
+    const prev = loadWebConfig();
+    saveWebConfig({
+      ...prev,
+      updateCheckIntervalMs: checkIntervalMs,
+      logMaxEntries: logMaxEntries,
     });
     return Promise.resolve();
   },
