@@ -692,6 +692,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-067：zip 化资源识别：扩展名歧义消解与内容指纹覆盖",
+        "link": "/adr/ADR-067-zip-packaged-resource-detection"
+      },
+      {
         "text": "ADR-066：全资源预览器：统一预览契约与注册表驱动分发",
         "link": "/adr/ADR-066-universal-resource-preview"
       },

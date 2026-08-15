@@ -10,6 +10,16 @@ import { safeGet } from "../utils/dom/storage.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 
 /**
+ * 读取当前仓库资源类型（时刻值）。
+ * 权威源 = localStorage `repo_rtype`（由 app-nav 写入），缺省 YSM。
+ * 适用于"操作时读取当前类型"的一次性场景（下载落库、导入冲突检查等）；
+ * 需要响应类型切换并重载的组件请用 useCurrentResourceType。
+ */
+export function currentRepoType(): string {
+  return safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+}
+
+/**
  * 订阅当前仓库资源类型。
  * @param onChange 类型变化回调（组件重载入口，如 render / loadRecycleBin）
  * @returns { get, cleanup } — get() 读当前类型（初值 + 事件更新后的最新值）；
@@ -19,7 +29,7 @@ export function useCurrentResourceType(onChange: () => void): {
   get: () => string;
   cleanup: () => void;
 } {
-  let currentType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+  let currentType = currentRepoType();
   const unsub = bus.on("repo:rtype-changed", (rt) => {
     if (rt && rt !== currentType) {
       currentType = rt;

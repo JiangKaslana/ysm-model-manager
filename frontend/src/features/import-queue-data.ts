@@ -9,6 +9,7 @@ import { buildRenameName } from "../utils/dom/dialogs/rename-format.ts";
 import { directImport as execDirectImport, importFolder as execImportFolder, ImportHistory } from "./import-executor.ts";
 import type { ImportFile as ImportedFile } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
+import { currentRepoType } from "./repo-rtype.ts";
 
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = ImportedFile;
@@ -241,8 +242,8 @@ export function initDataLayer(host: ImportQueueHost): {
       const gen = ++state.conflictCheckGen;
       try {
         const { CheckFileExists, GetRepoRoot } = await getApp();
-        const { RESOURCE_TYPES } = await import("../utils/resource/types.ts");
-        const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+        // ADR-064 锚定：冲突检查随当前仓库类型（原锁 YSM，其他类型导入误报/漏报重名）
+        const filesRoot = await GetRepoRoot(currentRepoType());
         const fullPath = (filesRoot || "") + "/" + name;
         const exists = await CheckFileExists(fullPath);
         if (gen !== state.conflictCheckGen) return;
@@ -406,10 +407,12 @@ export function initDataLayer(host: ImportQueueHost): {
   const loadRepoFiles = async (): Promise<void> => {
     try {
       const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
-      const { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } = await import("../utils/resource/types.ts");
-      const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+      const { RESOURCE_TYPE_LABELS } = await import("../utils/resource/types.ts");
+      // ADR-064 锚定：仓库文件加载随当前仓库类型（原锁 YSM，其他类型重名预警失效）
+      const rtype = currentRepoType();
+      const filesRoot = await GetRepoRoot(rtype);
       if (filesRoot) {
-        const entries = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+        const entries = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[rtype])) || [];
         state.repoFiles = new Set(entries.map((e) => normalizeRepoName(e.Name)));
       }
     } catch {

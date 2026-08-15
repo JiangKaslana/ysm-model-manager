@@ -6,7 +6,7 @@
 //   均从本文件取符号，契约零改动）
 import { bus } from "../../bus.ts";
 import { t } from "../../core/i18n/t.ts";
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { currentRepoType } from "../repo-rtype.ts";
 import { renderDisplayName } from "../../utils/dom/display.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../backend/app.ts";
@@ -304,7 +304,9 @@ export function createDownloadQueue({
       // P2 修复：getApp/GetRepoRoot 移入 try 内——原实现前置 await 在 try 外，
       // 任一 reject 时按钮永久卡禁用且无 toast（陷阱 #3 变体）
       const { GetRepoRoot } = await getApp();
-      const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+      // ADR-064 锚定：落库目录随当前仓库类型（原锁 RESOURCE_TYPES.YSM，
+      // 未来其他类型下载会错库落盘）
+      const filesRoot = await GetRepoRoot(currentRepoType());
       if (!filesRoot) {
         bus.emit("toast:show", {
           msg: t("workshop.configureRepo"),

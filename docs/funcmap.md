@@ -35,13 +35,13 @@
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 10 | 51 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 20 | 93 |
+| 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 55 | 195 |
+| 前端·工具 | 55 | 197 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **274** | **1118** |
+| **合计** | **274** | **1121** |
 
 ## Go·头像
 
@@ -830,13 +830,13 @@
 | `importFolder()` | `frontend/src/features/import-executor:136` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
 | `executeCollected()` | `frontend/src/features/import-executor:201` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
 | `importWebFilesWithToast()` | `frontend/src/features/import-executor:221` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
-| `ImportFile()` | `frontend/src/features/import-queue-data:14` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `QueueItem()` | `frontend/src/features/import-queue-data:17` | 队列项数据类型 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue-data:30` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
-| `ImportQueueHost()` | `frontend/src/features/import-queue-data:35` | 应用主机接口 |
-| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:45` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
-| `readFormFields()` | `frontend/src/features/import-queue-data:54` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
-| `initDataLayer()` | `frontend/src/features/import-queue-data:73` | 初始化导入队列的数据层：返回状态对象和清理函数 |
+| `ImportFile()` | `frontend/src/features/import-queue-data:15` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `QueueItem()` | `frontend/src/features/import-queue-data:18` | 队列项数据类型 |
+| `normalizeRepoName()` | `frontend/src/features/import-queue-data:31` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
+| `ImportQueueHost()` | `frontend/src/features/import-queue-data:36` | 应用主机接口 |
+| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:46` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
+| `readFormFields()` | `frontend/src/features/import-queue-data:55` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
+| `initDataLayer()` | `frontend/src/features/import-queue-data:74` | 初始化导入队列的数据层：返回状态对象和清理函数 |
 | `bindFormEvents()` | `frontend/src/features/import-queue-events:24` | 表单输入事件绑定 |
 | `bindDragEvents()` | `frontend/src/features/import-queue-events:55` | 拖拽事件绑定 |
 | `bindInputEvents()` | `frontend/src/features/import-queue-events:142` | 文件输入框事件绑定 |
@@ -851,7 +851,8 @@
 | `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
 | `initRecycleBin()` | `frontend/src/features/recycle-bin:49` | 初始化回收站管理，返回清理函数 |
-| `useCurrentResourceType()` | `frontend/src/features/repo-rtype:18` | 订阅当前仓库资源类型。 |
+| `currentRepoType()` | `frontend/src/features/repo-rtype:18` | 读取当前仓库资源类型（时刻值）。 |
+| `useCurrentResourceType()` | `frontend/src/features/repo-rtype:28` | 订阅当前仓库资源类型。 |
 | `initResourcePacks()` | `frontend/src/features/resource-packs:14` | 初始化资源包 tab |
 | `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
 | `checkUpdateSilent()` | `frontend/src/features/version-updater:168` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
@@ -1106,6 +1107,8 @@
 | `resolveTypeByExt()` | `frontend/src/utils/resource/types:104` | 按扩展名反解资源类型。歧义扩展名（如 .zip 同时归属 ysm/resourcepack/shaderpack） 返回 null，调用方应回退到内容检测（Go DetectRes |
 | `isYsmWasmPreview()` | `frontend/src/utils/resource/types:115` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
 | `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:121` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:132` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:145` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
 
 ## frontend/views
 
