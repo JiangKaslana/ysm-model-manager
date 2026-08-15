@@ -1,0 +1,174 @@
+// ===== MMD 适配器测试 =====
+// 覆盖：buildMmdScene 主路径（ReadFileBytes + ScanModelEntries 同目录纹理预读 →
+// URLModifier 映射 → 挂场景/灯光/取景）、update/dispose 契约（blob URL 回收）、
+// 错误路径（空字节/加载失败/目录扫描失败降级）。
+// @moeru/three-mmd 全 mock（MMDLoader 捕获 LoadingManager 断言 URLModifier 行为）；
+// three 用真实实现（Box3/Vector3/Light/LoadingManager 为纯 JS，无 WebGL 依赖）。
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as THREE from "three";
+import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const hoisted = vi.hoisted(() => {
+  const managerInstances: Array<{ resolveURL: (url: string) => string }> = [];
+  return {
+    readBytesMock: vi.fn(),
+    scanEntriesMock: vi.fn(),
+    loaderLoadAsyncMock: vi.fn(),
+    mmdUpdateMock: vi.fn(),
+    mmdDisposeMock: vi.fn(),
+    managerInstances,
+  };
+});
+
+vi.mock("../../backend/app.ts", () => ({
+  getApp: vi.fn().mockResolvedValue({
+    ReadFileBytes: hoisted.readBytesMock,
+    ScanModelEntries: hoisted.scanEntriesMock,
+  }),
+}));
+vi.mock("@moeru/three-mmd", () => ({
+  MMDLoader: class {
+    loadAsync = hoisted.loaderLoadAsyncMock;
+    constructor(manager: { resolveURL: (url: string) => string }) {
+      hoisted.managerInstances.push(manager);
+    }
+  },
+}));
+
+import { buildMmdScene } from "./mmd-adapter.ts";
+
+function makeCtx() {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera();
+  const loadingEl = document.createElement("div");
+  return {
+    ctx: {
+      scene,
+      camera,
+      controls: {
+        target: new THREE.Vector3(),
+        minDistance: 0,
+        maxDistance: 0,
+        update: vi.fn(),
+      } as unknown as OrbitControls,
+      viewContainer: document.createElement("div"),
+      loadingEl,
+      overlay: document.createElement("div"),
+    },
+    scene,
+    camera,
+    loadingEl,
+  };
+}
+
+/** 构造一个可用的 fake MMD（mesh 挂进 scene 需真实 Object3D 供 Box3 计算） */
+function fakeMmd() {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial());
+  return { mesh, update: hoisted.mmdUpdateMock, dispose: hoisted.mmdDisposeMock };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  hoisted.managerInstances.length = 0;
+  hoisted.loaderLoadAsyncMock.mockReset();
+  hoisted.loaderLoadAsyncMock.mockImplementation(() => Promise.resolve(fakeMmd()));
+});
+
+describe("buildMmdScene 主路径", () => {
+  it("读模型字节 + 预读同目录纹理 → URLModifier 命中模型/纹理/放行未知", async () => {
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      hoisted.readBytesMock.mockImplementation((p: string) =>
+        Promise.resolve(p.endsWith(".pmx") ? btoa("PMX") : btoa("PNG")),
+      );
+      hoisted.scanEntriesMock.mockResolvedValue([
+        { Name: "miku.pmx", Path: "/mmd/miku/miku.pmx", Size: 10 },
+        { Name: "tex.png", Path: "/mmd/miku/tex.png", Size: 5 },
+        { Name: "sub/face.tga", Path: "/mmd/miku/sub/face.tga", Size: 5 },
+        { Name: "readme.txt", Path: "/mmd/miku/readme.txt", Size: 1 },
+      ]);
+      const { ctx, scene, camera, loadingEl } = makeCtx();
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
+
+      // 目录扫描 + 模型/纹理读取
+      expect(hoisted.scanEntriesMock).toHaveBeenCalledWith("/mmd/miku");
+      expect(hoisted.readBytesMock).toHaveBeenCalledWith("/mmd/miku/miku.pmx");
+      expect(hoisted.readBytesMock).toHaveBeenCalledWith("/mmd/miku/tex.png");
+      expect(hoisted.readBytesMock).toHaveBeenCalledWith("/mmd/miku/sub/face.tga");
+      // readme.txt 不是纹理候选，不读
+      expect(hoisted.readBytesMock).not.toHaveBeenCalledWith("/mmd/miku/readme.txt");
+
+      // loader 收到模型路径
+      expect(hoisted.loaderLoadAsyncMock).toHaveBeenCalledWith("/mmd/miku/miku.pmx");
+
+      // URLModifier：模型本体 + 纹理（含子目录 basename）→ blob；未知/toon dataURL 放行
+      // （LoadingManager.resolveURL 实例方法内部走 setURLModifier 注册的闭包 modifier）
+      const mgr = hoisted.managerInstances[0];
+      expect(mgr).toBeDefined();
+      expect(mgr!.resolveURL("/mmd/miku/miku.pmx")).toBe("blob:mock-url");
+      expect(mgr!.resolveURL("/mmd/miku/tex.png")).toBe("blob:mock-url");
+      expect(mgr!.resolveURL("/mmd/miku/sub/face.tga")).toBe("blob:mock-url");
+      expect(mgr!.resolveURL("/mmd/miku/unknown.png")).toBe("/mmd/miku/unknown.png");
+      expect(mgr!.resolveURL("data:image/png;base64,AAA")).toBe("data:image/png;base64,AAA");
+
+      // 挂场景 + 灯光 + 取景（包围盒中心定相机）
+      expect(scene.children).toContain(fakeMmdMeshRef(scene));
+      expect(camera.near).toBe(0.05);
+      expect(camera.position.z).toBeGreaterThan(0);
+
+      // loading 占位已移除
+      expect(loadingEl.parentNode).toBeNull();
+
+      // update 契约：驱动 IK/追加变换姿态
+      built.update!(0.016);
+      expect(hoisted.mmdUpdateMock).toHaveBeenCalledWith(0.016, { ik: true, grant: true });
+
+      // dispose 契约：释放 GPU + 回收 blob URL
+      built.dispose();
+      expect(hoisted.mmdDisposeMock).toHaveBeenCalled();
+      expect(revokeURL).toHaveBeenCalledWith("blob:mock-url");
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
+  });
+
+  it("目录扫描失败 → 白模降级不阻断（无纹理映射，模型仍加载）", async () => {
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+      hoisted.scanEntriesMock.mockRejectedValue(new Error("no dir"));
+      const { ctx, scene } = makeCtx();
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
+      expect(scene.children.length).toBeGreaterThan(0);
+      built.dispose();
+      // 无纹理 → 仅回收模型本体 blob
+      expect(revokeURL).toHaveBeenCalledTimes(1);
+    } finally {
+      revokeURL.mockRestore();
+    }
+  });
+});
+
+describe("buildMmdScene 错误路径", () => {
+  it("ReadFileBytes 返回空 → 抛错", async () => {
+    hoisted.readBytesMock.mockResolvedValue(null);
+    const { ctx } = makeCtx();
+    await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx")).rejects.toThrow("ReadFileBytes 返回空");
+  });
+
+  it("MMDLoader.loadAsync 失败 → 抛错穿透", async () => {
+    hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+    hoisted.loaderLoadAsyncMock.mockRejectedValue(new Error("parse fail"));
+    const { ctx } = makeCtx();
+    await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx")).rejects.toThrow("parse fail");
+  });
+});
+
+/** 从 scene.children 取 mesh（fakeMmd 每次调用新建实例，断言用内容而非引用） */
+function fakeMmdMeshRef(scene: THREE.Scene): THREE.Object3D {
+  return scene.children.find((c) => c instanceof THREE.Mesh) as THREE.Object3D;
+}

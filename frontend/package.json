@@ -32,6 +32,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "@moeru/three-mmd": "^0.1.1",
     "@pixiv/three-vrm": "^3.5.5",
     "@wailsio/runtime": "^3.0.0-alpha.97",
     "fflate": "~0.8.2",

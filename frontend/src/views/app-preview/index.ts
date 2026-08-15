@@ -15,9 +15,10 @@ import {
 import { getApp } from "../../backend/app.ts";
 import { type PreviewCtx, type DecodedYsm } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
-import { showModelDetail, showResourcePack, showShaderpack, showSimplePreview, showVrmMeta } from "./detail.ts";
+import { showModelDetail, showResourcePack, showShaderpack, showSimplePreview, showVrmMeta, showMmdPreview } from "./detail.ts";
 import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from "./litematic-meta.ts";
 import { cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
+import { cleanupMmd3D, invalidateMmdPreview } from "./mmd-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
 import { esc } from "../../utils/dom/html.ts";
 import type { BedrockGeometry } from "./geometry.ts";
@@ -74,6 +75,7 @@ class AppPreview extends HTMLElement implements PreviewCtx {
         // 不触碰它，litematic A 迟到会写进 B 的 #preview-detail（跨类型污染）
         invalidateLitematicPreview();
         invalidateVrmPreview();
+        invalidateMmdPreview();
         try {
           if (isDir) {
             await this._showPackInfo(path);
@@ -96,6 +98,7 @@ class AppPreview extends HTMLElement implements PreviewCtx {
     // 清理体素 3D（WebGL renderer + rAF 循环）：防切页后 GPU 资源残留
     cleanupLitematic3D();
     cleanupVrm3D();
+    cleanupMmd3D();
   }
 
   private _render(): void {
@@ -204,7 +207,12 @@ class AppPreview extends HTMLElement implements PreviewCtx {
       showShaderpack(this, path, this._typeMeta(rtype));
       return;
     }
-    // 其他已知类型（mmd-skin）
+    // MMD 模型：文件名 + FAB 进 3D（@moeru/three-mmd 直引，ADR-066 P2）
+    if (rtype === RESOURCE_TYPES.MMD) {
+      showMmdPreview(this, path, this._typeMeta(rtype));
+      return;
+    }
+    // 其他已知类型
     showSimplePreview(this, path, this._typeMeta(rtype));
   }
 

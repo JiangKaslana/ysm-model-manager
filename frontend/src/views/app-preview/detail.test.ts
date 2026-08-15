@@ -4,12 +4,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PreviewCtx } from "./utils.ts";
 
-const { summaryMock, headerMock, readPackMock, vrmMetaMock, createVrm3DMock } = vi.hoisted(() => ({
+const { summaryMock, headerMock, readPackMock, vrmMetaMock, createVrm3DMock, createMmd3DMock } = vi.hoisted(() => ({
   summaryMock: vi.fn(),
   headerMock: vi.fn(),
   readPackMock: vi.fn(),
   vrmMetaMock: vi.fn(),
   createVrm3DMock: vi.fn(),
+  createMmd3DMock: vi.fn(),
 }));
 
 vi.mock("../../backend/app.ts", () => ({
@@ -29,8 +30,11 @@ vi.mock("./vrm-adapter.ts", () => ({
 vi.mock("./vrm-3d.ts", () => ({
   createVrm3D: createVrm3DMock,
 }));
+vi.mock("./mmd-3d.ts", () => ({
+  createMmd3D: createMmd3DMock,
+}));
 
-import { showModelDetail, showResourcePack, showSimplePreview, showVrmMeta } from "./detail.ts";
+import { showModelDetail, showResourcePack, showSimplePreview, showVrmMeta, showMmdPreview } from "./detail.ts";
 
 function makeCtx(): PreviewCtx {
   const host = document.createElement("div");
@@ -165,5 +169,26 @@ describe("showVrmMeta VRM meta 卡", () => {
     const ctx = makeCtx();
     await showVrmMeta(ctx, "/repo/bad.vrm");
     expect(ctx.root.innerHTML).toContain("读取失败");
+  });
+});
+
+describe("showMmdPreview MMD 预览卡", () => {
+  it("渲染标签 + 文件名 + FAB，点击 → createMmd3D", async () => {
+    const ctx = makeCtx();
+    await showMmdPreview(ctx, "/repo/miku.pmx");
+    const html = ctx.root.innerHTML;
+    expect(html).toContain("miku.pmx");
+    expect(html).toContain("btn-mmd-3d");
+    const fab = ctx.root.querySelector<HTMLElement>("#btn-mmd-3d");
+    expect(fab).not.toBeNull();
+    fab?.click();
+    expect(createMmd3DMock).toHaveBeenCalledWith("/repo/miku.pmx");
+  });
+
+  it("自定义 opts → 使用传入图标与标签", async () => {
+    const ctx = makeCtx();
+    await showMmdPreview(ctx, "/repo/模型.pmd", { icon: "🎭", label: "MMD 角色模型" });
+    expect(ctx.root.innerHTML).toContain("🎭 MMD 角色模型");
+    expect(ctx.root.innerHTML).toContain("模型.pmd");
   });
 });

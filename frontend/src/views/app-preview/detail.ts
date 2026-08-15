@@ -10,6 +10,7 @@ import { decodeYsmViaWasm } from "./wasm.ts";
 import { loadModel2D } from "./skeleton.ts";
 import { readVrmMeta } from "./vrm-adapter.ts";
 import { createVrm3D } from "./vrm-3d.ts";
+import { createMmd3D } from "./mmd-3d.ts";
 import { describeVersionRange } from "../../utils/format/pack-format.ts";
 import { t } from "../../core/i18n/t.ts";
 
@@ -284,5 +285,30 @@ export async function showVrmMeta(
   <h3>${icon} ${label}</h3>
   <div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div></div>
 </div>`;
+  }
+}
+
+/** 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） */
+export async function showMmdPreview(
+  ctx: PreviewCtx,
+  path: string,
+  opts?: { icon?: string; label?: string },
+): Promise<void> {
+  ++_detailGen; // 无 await 也要作废在途的慢请求回写
+  const icon = (opts && opts.icon) || "🎭";
+  const label = (opts && opts.label) || t("preview.mmdSkin");
+  const basename = path.split(/[/\\]/).pop() || "";
+  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
+    <div><strong>${renderFormattedText(basename || "")}</strong></div>
+    <button class="ysm-fab" id="btn-mmd-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="ysm-ic">🎨</span></button>
+  </div>
+</div>`;
+  const fab = ctx.root.querySelector<HTMLElement>("#btn-mmd-3d");
+  if (fab) {
+    fab.onclick = (): void => {
+      void createMmd3D(path);
+    };
   }
 }

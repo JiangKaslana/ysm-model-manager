@@ -114,7 +114,7 @@ var embeddedRegistryJSON = []byte(`{
       "installDir": "3d-skin/EntityPlayer/",
       "scanDir": "3d-skin/EntityPlayer",
       "instanceLevel": false,
-      "preview": "none",
+      "preview": "3d",
       "detector": "zipentry",
       "zipEntries": [
         { "name": ".pmx", "match": "suffix" },

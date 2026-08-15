@@ -28,6 +28,7 @@ const detailSpies = vi.hoisted(() => ({
   showShaderpack: vi.fn(),
   showSimplePreview: vi.fn(),
   showVrmMeta: vi.fn(),
+  showMmdPreview: vi.fn(),
 }));
 vi.mock("./detail.ts", () => detailSpies);
 
@@ -158,15 +159,16 @@ describe("_showModelDetail — 类型分流", () => {
     unmountElement(el);
   });
 
-  it("mmd-skin 等其他已知类型 → showSimplePreview", async () => {
+  it("mmd-skin → showMmdPreview（文件名 + FAB 进 3D）", async () => {
     const el = mountPreview();
     appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.MMD);
     await el._showModelDetail("/repo/m.pmx");
-    expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
+    expect(detailSpies.showMmdPreview).toHaveBeenCalledWith(
       el,
       "/repo/m.pmx",
       expect.objectContaining({ icon: "📦", label: "mmd-skin" }),
     );
+    expect(detailSpies.showSimplePreview).not.toHaveBeenCalled();
     unmountElement(el);
   });
 

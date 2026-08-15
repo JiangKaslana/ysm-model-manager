@@ -956,8 +956,8 @@
 | `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:19` | 注册 free 模式 pointer drag 监听器。 |
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
-| `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:38` | 遍历 scene 释放所有 Mesh 的 geometry 和 material。 |
-| `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:53` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
+| `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
+| `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:55` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
@@ -1000,7 +1000,7 @@
 | `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:50` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
 | `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:72` | renderModel3D 返回的渲染句柄 |
 | `renderModel3D()` | `frontend/src/utils/3d/model3d:107` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:341` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:342` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/quaternion:13` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
@@ -1149,12 +1149,12 @@
 | `LocalCreator()` | `frontend/src/views/app-content/community-data:9` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
 | `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
 | `loadCommunityData()` | `frontend/src/views/app-content/community-data:35` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:133` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:187` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:216` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:253` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:277` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:298` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:129` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:183` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:212` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:249` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:273` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:294` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:12` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:2` | — |
