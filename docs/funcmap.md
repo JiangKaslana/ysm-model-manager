@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 197 |
-| frontend/views | 78 | 208 |
+| frontend/views | 81 | 212 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **275** | **1148** |
+| **合计** | **278** | **1152** |
 
 ## Go·头像
 
@@ -1169,6 +1169,7 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
+| `appContentStyle()` | `frontend/src/views/app-content/index:8` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
@@ -1243,6 +1244,7 @@
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
+| `appPreviewStyle()` | `frontend/src/views/app-preview/index:5` | — |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:36` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:43` | — |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:27` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
@@ -1300,6 +1302,7 @@
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
 | `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:147` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
 | `bindFooter()` | `frontend/src/views/app-sidebar/events:180` | — |
+| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:7` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
 | `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:150` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
@@ -1325,7 +1328,8 @@
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:16` | — |
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:123` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:44` | — |
+| `appTreeStyle()` | `frontend/src/views/app-tree/index:6` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:48` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
 | `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |

@@ -3,6 +3,10 @@ import { bus } from "../../bus.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS, ALL_RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { sidebarCSS } from "./sidebar-css.ts";
+// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）
+const appSidebarStyle = new CSSStyleSheet();
+appSidebarStyle.replaceSync(sidebarCSS);
+export { appSidebarStyle };
 import { headerHTML, footerHTML, listContainerHTML } from "./tpl.ts";
 import { renderVersionCards } from "./render.ts";
 import { bindCardEvents, bindFooter, resetSelectedEmit } from "./events.ts";
@@ -47,8 +51,7 @@ class AppSidebar extends HTMLElement {
   constructor() {
     super();
     this._root = this.attachShadow({ mode: "open" });
-    this._root.adoptedStyleSheets = [new CSSStyleSheet()];
-    this._root.adoptedStyleSheets[0].replaceSync(sidebarCSS);
+    this._root.adoptedStyleSheets = [appSidebarStyle];
     this._rtype = this.getAttribute("rtype") || RESOURCE_TYPES.YSM;
   }
 
@@ -427,3 +430,11 @@ class AppSidebar extends HTMLElement {
 if (!customElements.get("app-sidebar")) {
   customElements.define("app-sidebar", AppSidebar);
 }
+// HMR 热更新：sidebarCSS 变更时，将新样式表重新挂载到已存在的 shadow root
+import.meta.hot?.accept((newModule) => {
+  const style = (newModule as any).appSidebarStyle;
+  document.querySelectorAll("app-sidebar").forEach((el: any) => {
+    const root = el.shadowRoot;
+    if (root) root.adoptedStyleSheets = [style];
+  });
+});

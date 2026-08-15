@@ -1,6 +1,10 @@
 // ===== <app-preview> 入口 =====
 import { bus } from "../../bus.ts";
 import { previewCSS } from "./css.ts";
+// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）
+const appPreviewStyle = new CSSStyleSheet();
+appPreviewStyle.replaceSync(previewCSS);
+export { appPreviewStyle };
 import { RESOURCE_TYPES, isYsmWasmPreview } from "../../utils/resource/types.ts";
 import { modelDetailHTML } from "./tpl.ts";
 import {
@@ -49,8 +53,7 @@ class AppPreview extends HTMLElement implements PreviewCtx {
   constructor() {
     super();
     this.root = this.attachShadow({ mode: "open" });
-    this.root.adoptedStyleSheets = [new CSSStyleSheet()];
-    this.root.adoptedStyleSheets[0].replaceSync(previewCSS);
+    this.root.adoptedStyleSheets = [appPreviewStyle];
   }
 
   connectedCallback(): void {
@@ -225,4 +228,15 @@ ${pack.description ? `<div style="font-size:11px;color:var(--txt);margin-top:6px
   }
 
 }
-customElements.define("app-preview", AppPreview);
+// 注册组件（防 HMR/重复 import 时重复 define）
+if (!customElements.get("app-preview")) {
+  customElements.define("app-preview", AppPreview);
+}
+// HMR 热更新：previewCSS 变更时，将新样式表重新挂载到已存在的 shadow root
+import.meta.hot?.accept((newModule) => {
+  const style = (newModule as any).appPreviewStyle;
+  document.querySelectorAll("app-preview").forEach((el: any) => {
+    const root = el.shadowRoot;
+    if (root) root.adoptedStyleSheets = [style];
+  });
+});

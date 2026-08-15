@@ -169,4 +169,7 @@ class AppToast extends HTMLElement {
     return esc(s);
   }
 }
-customElements.define("app-toast", AppToast);
+// 注册组件（防 HMR/重复 import 时重复 define）
+if (!customElements.get("app-toast")) {
+  customElements.define("app-toast", AppToast);
+}

@@ -2,6 +2,10 @@
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { treeCSS } from "./app-tree-styles.ts";
+// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）
+const appTreeStyle = new CSSStyleSheet();
+appTreeStyle.replaceSync(treeCSS);
+export { appTreeStyle };
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { headerHTML, footerHTML, spinnerHTML } from "./tpl.ts";
 import { renderTree, updateStat, getRenderMode, setRenderMode, cleanupVirtualScroll, type RenderMode, type TreeRow } from "./render.ts";
@@ -76,8 +80,7 @@ export class AppTree extends HTMLElement {
   constructor() {
     super();
     this._root = this.attachShadow({ mode: "open" });
-    this._root.adoptedStyleSheets = [new CSSStyleSheet()];
-    this._root.adoptedStyleSheets[0].replaceSync(treeCSS);
+    this._root.adoptedStyleSheets = [appTreeStyle];
   }
 
   async connectedCallback(): Promise<void> {
@@ -393,4 +396,15 @@ export class AppTree extends HTMLElement {
   }
 }
 
-customElements.define("app-tree", AppTree);
+// 注册组件（防 HMR/重复 import 时重复 define）
+if (!customElements.get("app-tree")) {
+  customElements.define("app-tree", AppTree);
+}
+// HMR 热更新：treeCSS 变更时，将新样式表重新挂载到已存在的 shadow root
+import.meta.hot?.accept((newModule) => {
+  const style = (newModule as any).appTreeStyle;
+  document.querySelectorAll("app-tree").forEach((el: any) => {
+    const root = el.shadowRoot;
+    if (root) root.adoptedStyleSheets = [style];
+  });
+});

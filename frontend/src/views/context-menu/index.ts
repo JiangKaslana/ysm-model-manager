@@ -147,4 +147,7 @@ class ContextMenu extends HTMLElement {
     document.removeEventListener("keydown", this._docKeydown);
   }
 }
-customElements.define("context-menu", ContextMenu);
+// 注册组件（防 HMR/重复 import 时重复 define）
+if (!customElements.get("context-menu")) {
+  customElements.define("context-menu", ContextMenu);
+}

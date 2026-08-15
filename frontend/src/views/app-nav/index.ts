@@ -222,4 +222,7 @@ class AppNav extends HTMLElement {
     this.render();
   }
 }
-customElements.define("app-nav", AppNav);
+// 注册组件（防 HMR/重复 import 时重复 define）
+if (!customElements.get("app-nav")) {
+  customElements.define("app-nav", AppNav);
+}

@@ -4,6 +4,10 @@ import { resolveInitialPage } from "../../core/page-store.ts";
 import { esc as escUtil } from "../../utils/dom/html.ts";
 import { formatBytes } from "../../utils/dom/format.ts";
 import { contentCSS } from "./content-css.ts";
+// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）
+const appContentStyle = new CSSStyleSheet();
+appContentStyle.replaceSync(contentCSS);
+export { appContentStyle };
 import { getApp } from "../../backend/app.ts";
 import { registerGlobalHandlers } from "../../core/handlers/global.ts";
 import { registerResourceManagerGlobal } from "../app-resource-manager/index.ts";
@@ -64,8 +68,7 @@ class AppContent extends HTMLElement {
   constructor() {
     super();
     this._root = this.attachShadow({ mode: "open" });
-    this._root.adoptedStyleSheets = [new CSSStyleSheet()];
-    this._root.adoptedStyleSheets[0].replaceSync(contentCSS);
+    this._root.adoptedStyleSheets = [appContentStyle];
     // 与 PageStore 同源初始化：app-nav 的初始 nav:change 在 app-content 动态
     // import 完成前可能被吞（app-modules.ts 动态加载），此时若硬编码 "repository"
     // 会导致 UI 渲染与 PageStore 脱节（守卫误拦 DnD 遮罩）。统一走
@@ -331,4 +334,15 @@ class AppContent extends HTMLElement {
   }
 }
 
-customElements.define("app-content", AppContent);
+// 注册组件（防 HMR/重复 import 时重复 define）
+if (!customElements.get("app-content")) {
+  customElements.define("app-content", AppContent);
+}
+// HMR 热更新：contentCSS 变更时，将新样式表重新挂载到已存在的 shadow root
+import.meta.hot?.accept((newModule) => {
+  const style = (newModule as any).appContentStyle;
+  document.querySelectorAll("app-content").forEach((el: any) => {
+    const root = el.shadowRoot;
+    if (root) root.adoptedStyleSheets = [style];
+  });
+});
