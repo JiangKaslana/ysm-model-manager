@@ -820,6 +820,7 @@ export const ja: Record<string, string> = {
   "preview.allComponents": "すべてのコンポーネント",
   "preview.copied": "コピーしました",
   "preview.blueprintDetail": "設計図の詳細",
+  "preview.webVoxelUnsupported": "Web版では設計図/投影の3Dプレビューは未対応（デスクトップ版をご利用ください）",
   "preview.nonAirBlocks": "非空ブロック",
   "preview.totalVolume": "総体積",
   "preview.boundingBox": "バウンディングボックス",

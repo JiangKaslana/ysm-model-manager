@@ -752,6 +752,7 @@
   "preview.allComponents": "全部组件",
   "preview.copied": "已复制",
   "preview.blueprintDetail": "蓝图详情",
+  "preview.webVoxelUnsupported": "网页版暂不支持蓝图/投影 3D 预览（桌面版可用）",
   "preview.nonAirBlocks": "非空气方块",
   "preview.totalVolume": "总体积",
   "preview.boundingBox": "包围盒",
