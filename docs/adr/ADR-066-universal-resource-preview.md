@@ -286,4 +286,16 @@ M 留待 P3-E 经注册表单点派发。
 
 **验证**：`npm run typecheck` ✅；`npx vite build` ✅；`vitest src/views/app-preview/`（235 tests）全绿（含修复后的 ESC 异步守卫用例）。
 
+### 5.6 P3-E — YSM 入 core 立项范围（2026-08-16 用户拍板补充）
+
+**范围**：YSM 3D（`skeleton.ts`/`skeleton-render.ts`/`model3d.ts` 链路）经注册表单点派发接入 `mountPreview` 单一核心，与 RenderSession 对象化合并立项（记忆裁决：独立立项、勿 rush、陷阱 #11 高危改完须近距渲染验证）。
+
+**新增范围（用户拍板，2026-08-16）——「3D 内模型切换悬浮按钮」**：
+
+- **背景/动机**：`_prefer3D` 偏好语义回归修复（`b2fafea6`）后，用户主动关闭 3D 不再自动弹全屏；但用户指出「想看多个模型时更妥当的办法是在 3D 界面内加载模型」——退出 3D → 回列表 → 点下一个 → 再进 3D 的来回跳转不是正解，应在渲染器内直接切换。
+- **范围**：`mount-preview-core` 的 topBar（或 overlay 内）新增模型切换入口（前/后/下拉列表），在当前 3D 会话内直接卸载旧模型、挂载新模型，复用同一 renderer/rAF/controls/灯光，不重建外壳。
+- **实现位点**：`mount3D` 外壳提供切换 API（如 `mount3D` 返回的 `PreviewHandle` 增 `switchTo?(path)`，或 core 暴露 `setAdapterPath`）；各适配器 `build()` 已可复用（`PreviewAdapter` 契约天然支持换 path 重建内容层）。
+- **边界**：不新增动作/场景/表情等渲染器级悬浮按钮（动画价值后续独立立项，ADR-066 §不纳入本次范围 同口径）；MMD 动画（`MmdAdapter` P2）不动此入口。
+- **与既有语义的关系**：切模型由「偏好自动弹」改为「3D 内显式切换」后，`_prefer3D` 自动弹语义可逐步淡出（用户主动打开 3D 才进全屏），但保留「切模型保留偏好」不回归（`b2fafea6` 口径）。
+
 <!-- 文件名: universal-resource-preview.md → 实际文件 ADR-066-universal-resource-preview.md -->
