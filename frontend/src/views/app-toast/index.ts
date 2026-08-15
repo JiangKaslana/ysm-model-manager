@@ -10,6 +10,13 @@ type ToastEl = HTMLElement & {
   _timer?: ReturnType<typeof setTimeout>;
 };
 
+// ── 魔法数值收敛 ──────────────────────────────────
+const MAX_TOASTS = 5;        // 同时显示上限，超出同步移除最早的
+const DEFAULT_DURATION = 4000; // 默认展示时长 ms
+const SLIDE_OUT_MS = 200;    // 退出动画时长 ms（与 CSS slideOut 同步）
+const OK_TOAST_MS = 2000;    // 成功反馈 toast 展示时长 ms
+const ERR_TOAST_MS = 3000;   // 失败反馈 toast 展示时长 ms
+
 class AppToast extends HTMLElement {
   _unsub: (() => void) | undefined;
 
@@ -57,7 +64,7 @@ class AppToast extends HTMLElement {
     // 原实现仅退订 bus，已 show 的 toast 各自 _timer 在 disconnected 后仍会在
     // 脱离 DOM 的容器上触发 _remove（无害但泄漏；重连后旧 timer 还可能与新 toast 竞争）
     // P3 修复（code review）：只清 timer 不删元素 → disconnect→reconnect 循环后
-    // 陈旧 toast 复活且无 timer 永不自动消失，占用 show() 的 5 槽位挤掉新 toast；
+    // 陈旧 toast 复活且无 timer 永不自动消失，占用 show() 的 MAX_TOASTS 槽位挤掉新 toast；
     // clearTimeout 后必须 t.remove()（slide-out 移除 timer 存于 _remove 闭包无法
     // 追踪，直接同步移除最稳妥）
     const c = this.shadowRoot?.getElementById("c") as HTMLElement | null;
@@ -73,13 +80,13 @@ class AppToast extends HTMLElement {
   show(
     msg: string,
     undoCallback: (() => void) | null,
-    duration = 4000,
+    duration = DEFAULT_DURATION,
     type = "",
     clickCallback?: () => void,
   ): void {
     const c = this.shadowRoot!.getElementById("c") as HTMLElement;
-    // 限制最多 5 个同时显示，超出直接同步移除最早的（_remove 含动画异步，会死循环）
-    while (c.children.length >= 5) {
+    // 限制最多 MAX_TOASTS 个同时显示，超出直接同步移除最早的（_remove 含动画异步，会死循环）
+    while (c.children.length >= MAX_TOASTS) {
       const oldest = c.children[0] as ToastEl;
       if (oldest) {
         if (oldest._timer) clearTimeout(oldest._timer);
@@ -108,7 +115,7 @@ class AppToast extends HTMLElement {
           console.error("[toast] 点击回调失败:", e);
           bus.emit("toast:show", {
             msg: "❌ " + tr("error.fallback"),
-            duration: 3000,
+            duration: ERR_TOAST_MS,
             type: "error",
           });
         } finally {
@@ -127,7 +134,7 @@ class AppToast extends HTMLElement {
           // error-diary 的 toast:show 监听收不到（用户可见错误漏出日记链）
           bus.emit("toast:show", {
             msg: "✅ " + tr("toast.undone"),
-            duration: 2000,
+            duration: OK_TOAST_MS,
             type: "success",
           });
         } catch (e) {
@@ -136,7 +143,7 @@ class AppToast extends HTMLElement {
           console.error("[toast] 撤销回调失败:", e);
           bus.emit("toast:show", {
             msg: "❌ " + tr("toast.undoFailed"),
-            duration: 3000,
+            duration: ERR_TOAST_MS,
             type: "error",
           });
         } finally {
@@ -155,7 +162,7 @@ class AppToast extends HTMLElement {
     if (t._timer) clearTimeout(t._timer);
     if (!t.parentNode) return;
     t.style.animation = "slideOut .2s ease forwards";
-    setTimeout(() => t.remove(), 200);
+    setTimeout(() => t.remove(), SLIDE_OUT_MS);
   }
 
   _esc(s: string): string {

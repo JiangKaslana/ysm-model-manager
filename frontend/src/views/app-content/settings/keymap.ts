@@ -9,9 +9,12 @@ import { safeGet, safeSet, safeRemove } from "../../../utils/dom/storage.ts";
 // 单一捕获守卫：同一时刻仅允许一个键位捕获，且设置页卸载后自动失效，杜绝全局 keydown 劫持
 let _activeCapture: ((e: KeyboardEvent) => void) | null = null;
 
-// 魔法数值收敛：相机速度默认值（与 utils/3d/keymap.ts loadTdCamSpeed 默认 20 同源）、键位按钮最小宽度
+// 魔法数值收敛：相机速度默认值（与 utils/3d/keymap.ts loadTdCamSpeed 默认 20 同源）、键位按钮最小宽度、
+// 成功/冲突提示 toast 时长（ms）
 const DEFAULT_CAM_SPEED = "20";
 const KEY_BTN_MIN_WIDTH = "64px";
+const TOAST_SUCCESS_MS = 1500;
+const TOAST_WARN_MS = 2500;
 
 const TD_ACTIONS: Array<{ key: TdKeyAction; label: string }> = [
   { key: "forward", label: "前移" },
@@ -47,7 +50,7 @@ const tdKeyLabel = (code: string): string => {
 };
 
 const tdSaveKeymap = (km: Record<TdKeyAction, string>): void => {
-safeSet("td-keymap", JSON.stringify(km));
+  safeSet("td-keymap", JSON.stringify(km));
 };
 
 function tdRenderKeymap(root: ShadowRoot): void {
@@ -98,7 +101,7 @@ function tdRenderKeymap(root: ShadowRoot): void {
         if (conflict) {
           bus.emit("toast:show", {
             msg: `⚠️ ${tdKeyLabel(ev.code)} 已被「${conflict.label}」占用`,
-            duration: 2500,
+            duration: TOAST_WARN_MS,
             type: "warn",
           });
           tdRenderKeymap(root);
@@ -107,11 +110,11 @@ function tdRenderKeymap(root: ShadowRoot): void {
         cur[key] = ev.code;
         tdSaveKeymap(cur);
         tdRenderKeymap(root);
-          bus.emit("toast:show", {
-            msg: `✅ ${label} → ${tdKeyLabel(ev.code)}`,
-            duration: 1500,
-            type: "success",
-          });
+        bus.emit("toast:show", {
+          msg: `✅ ${label} → ${tdKeyLabel(ev.code)}`,
+          duration: TOAST_SUCCESS_MS,
+          type: "success",
+        });
       };
       _activeCapture = onKey;
       document.addEventListener("keydown", onKey, true);
@@ -130,7 +133,7 @@ export function initKeymap(root: ShadowRoot): void {
     tdRenderKeymap(root);
     bus.emit("toast:show", {
       msg: "↩️ 已恢复默认键位",
-      duration: 1500,
+      duration: TOAST_SUCCESS_MS,
       type: "success",
     });
   });
@@ -143,7 +146,7 @@ export function initKeymap(root: ShadowRoot): void {
     if (csVal) csVal.textContent = csEl.value;
     csEl.addEventListener("input", () => {
       if (csVal) csVal.textContent = csEl!.value;
-safeSet("td-cam-speed", csEl!.value);
+      safeSet("td-cam-speed", csEl!.value);
     });
   }
   // 默认旋转模式
@@ -151,7 +154,7 @@ safeSet("td-cam-speed", csEl!.value);
   if (rmEl) {
     rmEl.value = safeGet("td-rot-mode") === "free" ? "free" : "orbit";
     rmEl.addEventListener("change", () => {
-safeSet("td-rot-mode", rmEl.value);
+      safeSet("td-rot-mode", rmEl.value);
     });
   }
 }

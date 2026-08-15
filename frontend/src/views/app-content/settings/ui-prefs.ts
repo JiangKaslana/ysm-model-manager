@@ -4,6 +4,9 @@
 import { bus } from "../../../bus.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 
+// 魔法数值收敛：偏好变更成功 toast 展示时长（ms）
+const TOAST_DURATION_MS = 1500;
+
 /** 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） */
 export function applyUIPrefs(): void {
   const fontSize = safeGet("ui-font-size") || "normal";
@@ -117,7 +120,7 @@ export function initUiPrefs(root: ShadowRoot): void {
     applyUIPref();
     bus.emit("toast:show", {
       msg: "✅ 字号已更新",
-      duration: 1500,
+      duration: TOAST_DURATION_MS,
       type: "success",
     });
   });
@@ -128,7 +131,7 @@ export function initUiPrefs(root: ShadowRoot): void {
     applyUIPref();
     bus.emit("toast:show", {
       msg: "✅ 字体已更新",
-      duration: 1500,
+      duration: TOAST_DURATION_MS,
       type: "success",
     });
   });
@@ -139,7 +142,7 @@ export function initUiPrefs(root: ShadowRoot): void {
     applyUIPref();
     bus.emit("toast:show", {
       msg: "✅ 卡片密度已更新",
-      duration: 1500,
+      duration: TOAST_DURATION_MS,
       type: "success",
     });
   });
@@ -151,7 +154,7 @@ export function initUiPrefs(root: ShadowRoot): void {
     applyUIPref();
     bus.emit("toast:show", {
       msg: checked ? "✅ 动画已开启" : "✅ 动画已关闭",
-      duration: 1500,
+      duration: TOAST_DURATION_MS,
       type: "success",
     });
   });
@@ -161,7 +164,7 @@ export function initUiPrefs(root: ShadowRoot): void {
     safeSet("ui-default-page", (e.target as HTMLSelectElement).value);
     bus.emit("toast:show", {
       msg: "✅ 默认页面已保存",
-      duration: 1500,
+      duration: TOAST_DURATION_MS,
       type: "success",
     });
   });

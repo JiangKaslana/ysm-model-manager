@@ -87,7 +87,10 @@ class ContextMenu extends HTMLElement {
 
   show(x: number, y: number, items: MenuItem[]): void {
     const menu = this.shadowRoot!.getElementById("menu") as HTMLElement;
-    menu.innerHTML = items
+    // 防御：遗留 .js/内联调用方可能缺 items emit——直接 .map 会崩在 bus handler
+    // 里（被 bus try/catch 吞成「menu:show 处理出错」，菜单无内容也不给位置）；
+    // 回退空数组保持「空菜单 + 定位 + 可关闭」行为一致，不静默
+    menu.innerHTML = (items || [])
       .map((item, i) => {
         if (item.divider) return '<hr class="divider">';
         const label = this._esc(item.label || "");
