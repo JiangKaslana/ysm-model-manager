@@ -21,6 +21,9 @@ type ScanFunc = mdsync.ScanFunc
 // 测试可覆盖为更小值以加速
 var debounceDelay = 800 * time.Millisecond
 
+// stopWaitTimeout Stop 等待 loop/同步退出的上限（防挂起）
+const stopWaitTimeout = 5 * time.Second
+
 // Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包
 type Watcher struct {
 	w            *fsnotify.Watcher
@@ -123,7 +126,7 @@ func (w *Watcher) Stop() {
 	// （go test -race 检出 TestStartStopRestart），旧 loop 的 recover 还可能误关新 watcher
 	select {
 	case <-w.loopDone:
-	case <-time.After(5 * time.Second):
+	case <-time.After(stopWaitTimeout):
 		log.Printf("[watcher] 等待 loop 退出超时，强制停止")
 	}
 	// loop 退出后不可能再武装计时器（debounceSync 带 running 守卫），清掉已停止的
@@ -140,7 +143,7 @@ func (w *Watcher) Stop() {
 	go func() { w.wg.Wait(); close(done) }()
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(stopWaitTimeout):
 		log.Printf("[watcher] 等待同步超时，强制停止")
 	}
 	log.Println("[watcher] 已停止")

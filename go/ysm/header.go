@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// ysgpMagic YSM 文件魔数（收敛 header.go:53/246/282 与 summary.go:667 四处手写字面量）
+const ysgpMagic = "YSGP"
+
 // YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型）
 type YSMHeader struct {
 	// 文件类型
@@ -50,7 +53,7 @@ func scanHeader(scanner *bufio.Scanner) YSMHeader {
 		limit++
 		line := strings.TrimLeft(scanner.Text(), "\uFEFF")
 
-		if line == "YSGP" {
+		if line == ysgpMagic {
 			h.IsYSM = true
 			continue
 		}
@@ -243,7 +246,7 @@ func hasTextHeader(path string) bool {
 	}
 	// 跳过 YSGP 和后续空行
 	start := 0
-	if len(data) >= 4 && string(data[:4]) == "YSGP" {
+	if len(data) >= 4 && string(data[:4]) == ysgpMagic {
 		start = 4
 	}
 	// 在剩余数据中查找文本头部特征
@@ -279,7 +282,7 @@ func detectYSGPHeader(path string) *YSMHeader {
 	}
 
 	// 检查 YSGP 魔数
-	if n < offset+4 || string(data[offset:offset+4]) != "YSGP" {
+	if n < offset+4 || string(data[offset:offset+4]) != ysgpMagic {
 		return nil
 	}
 

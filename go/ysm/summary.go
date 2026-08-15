@@ -664,5 +664,5 @@ func isYSGP(path string) bool {
 	if n >= 3 && data[0] == 0xef && data[1] == 0xbb && data[2] == 0xbf {
 		offset = 3
 	}
-	return n >= offset+4 && string(data[offset:offset+4]) == "YSGP"
+	return n >= offset+4 && string(data[offset:offset+4]) == ysgpMagic
 }

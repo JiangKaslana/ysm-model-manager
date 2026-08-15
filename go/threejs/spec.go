@@ -12,6 +12,9 @@ import (
 	"ysm-model-manager/go/types"
 )
 
+// defaultTexSize 纹理尺寸缺失（texW/texH==0）时的默认值（对齐 YSMViewer 兜底）
+const defaultTexSize = 64
+
 // ===== JSON 数据模型 =====
 
 type Model3DSpec struct {
@@ -112,11 +115,11 @@ func buildModelGroup(model types.BedrockModel, compID string, texIdxBase int) (M
 	}
 	texW := float64(model.TexWidth)
 	if texW == 0 {
-		texW = 64
+		texW = defaultTexSize
 	}
 	texH := float64(model.TexHeight)
 	if texH == 0 {
-		texH = 64
+		texH = defaultTexSize
 	}
 
 	// 收集 bone pivots 用于层级计算。
