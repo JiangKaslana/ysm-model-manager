@@ -45,6 +45,13 @@ async function mmdDiag(
 /** 同目录纹理候选扩展名（PMX/PMD 引用的贴图；.spa/.sph 特殊格式 Image 解不了，命中后降级无贴图） */
 const TEXTURE_EXTS = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".webp"];
 
+/** 假 TGA 检测：合法 TGA 头部第 3 字节（图像类型）∈ {1,2,3,9,10,11}；MMD 素材常有扩展名 .tga 但内容非法的占位文件，跳过避免 TGALoader 刷错 */
+function isLikelyTga(bytes: Uint8Array): boolean {
+  if (bytes.length < 18) return false;
+  const type = bytes[2];
+  return type === 1 || type === 2 || type === 3 || type === 9 || type === 10 || type === 11;
+}
+
 /**
  * MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。
  * 成功路径自行移除 loadingEl（对齐 vrm/litematic 既有口径）。
@@ -82,7 +89,10 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
         .map(async (p) => {
           const texB64 = await readFn(p);
           if (!texB64) return;
-          const blob = new Blob([bytesToArrayBuffer(b64ToBytes(texB64))]);
+          const texBytes = b64ToBytes(texB64);
+          // 假 TGA（扩展名 .tga 但头部类型非法）：不注册 blob → TGALoader 不会加载它 → 无刷屏错误
+          if (p.toLowerCase().endsWith(".tga") && !isLikelyTga(texBytes)) return;
+          const blob = new Blob([bytesToArrayBuffer(texBytes)]);
           const url = URL.createObjectURL(blob);
           blobUrls.push(url);
           const lower = p.toLowerCase().replace(/\\/g, "/");

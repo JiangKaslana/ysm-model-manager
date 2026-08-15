@@ -767,7 +767,7 @@
 | `selectLocalRepo()` | `frontend/src/backend/web-fs:205` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
 | `scanWebModels()` | `frontend/src/backend/web-fs:216` | — |
 | `readWebFile()` | `frontend/src/backend/web-fs:269` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:394` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:383` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
 | `webStoreBindings()` | `frontend/src/backend/web-store:150` | — |
 
 ## 前端·核心
@@ -1278,7 +1278,7 @@
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:11` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:16` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:21` | 任意新预览派发时调用，作废在途 MMD 加载 |
-| `buildMmdScene()` | `frontend/src/views/app-preview/mmd-adapter:52` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
+| `buildMmdScene()` | `frontend/src/views/app-preview/mmd-adapter:59` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |

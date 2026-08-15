@@ -92,9 +92,16 @@ describe("buildMmdScene 主路径", () => {
       .mockImplementation(() => "blob:mock-url");
     const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     try {
-      hoisted.readBytesMock.mockImplementation((p: string) =>
-        Promise.resolve(p.endsWith(".pmx") ? btoa("PMX") : btoa("PNG")),
-      );
+      hoisted.readBytesMock.mockImplementation((p: string) => {
+        if (p.endsWith(".pmx")) return Promise.resolve(btoa("PMX"));
+        if (p.toLowerCase().endsWith(".tga")) {
+          // 合法 TGA 头：18 字节 + 图像类型 2（未压缩真彩）——通过假 TGA 魔数检测
+          const tga = new Uint8Array(18);
+          tga[2] = 2;
+          return Promise.resolve(btoa(String.fromCharCode(...tga)));
+        }
+        return Promise.resolve(btoa("PNG"));
+      });
       hoisted.listPathsMock.mockResolvedValue([
         "/mmd/miku/miku.pmx",
         "/mmd/miku/tex.png",
@@ -190,6 +197,39 @@ describe("buildMmdScene 主路径", () => {
       expect(mgr.resolveURL("/mmd/miku/b/body.png")).toBe("blob:t3");
       built.dispose();
       expect(revokeURL).toHaveBeenCalledTimes(3); // 模型 + 2 纹理
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
+  });
+
+  it("假 TGA（头部类型非法）→ 跳过不注册，TGALoader 不会收到它", async () => {
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      // 假 TGA：18 字节头部 + 第 3 字节（索引 2）图像类型 = 100（非法，合法仅 1/2/3/9/10/11）
+      const fakeTga = new Uint8Array(18);
+      fakeTga[2] = 100;
+      hoisted.readBytesMock.mockImplementation((p: string) => {
+        if (p.toLowerCase().endsWith(".tga")) {
+          return Promise.resolve(btoa(String.fromCharCode(...fakeTga)));
+        }
+        return Promise.resolve(btoa("PNG"));
+      });
+      hoisted.listPathsMock.mockResolvedValue([
+        "/mmd/miku/tex.png",
+        "/mmd/miku/fake.tga",
+      ]);
+      const { ctx } = makeCtx();
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
+      const mgr = hoisted.managerInstances[0]!;
+      // 合法 PNG 命中 blob
+      expect(mgr.resolveURL("/mmd/miku/tex.png")).toBe("blob:mock-url");
+      // 假 TGA 不注册 → 放行原路径（不触发 TGALoader 解析错误）
+      expect(mgr.resolveURL("/mmd/miku/fake.tga")).toBe("/mmd/miku/fake.tga");
+      built.dispose();
     } finally {
       createURL.mockRestore();
       revokeURL.mockRestore();
