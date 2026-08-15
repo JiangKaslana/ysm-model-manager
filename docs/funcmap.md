@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 85 | 225 |
+| frontend/views | 87 | 234 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **282** | **1162** |
+| **合计** | **284** | **1171** |
 
 ## Go·头像
 
@@ -1237,6 +1237,7 @@
 | `showModelDetail()` | `frontend/src/views/app-preview/detail:18` | 显示模型详情（YSM 模型） |
 | `showResourcePack()` | `frontend/src/views/app-preview/detail:129` | 显示资源包信息（pack.mcmeta + pack.png） |
 | `showSimplePreview()` | `frontend/src/views/app-preview/detail:166` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
+| `showShaderpack()` | `frontend/src/views/app-preview/detail:184` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:4` | Bedrock 方块 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
@@ -1257,10 +1258,10 @@
 | `PreviewBuildCtx()` | `frontend/src/views/app-preview/mount-preview-core:21` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/views/app-preview/mount-preview-core:32` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/views/app-preview/mount-preview-core:48` | — |
-| `PreviewHandle()` | `frontend/src/views/app-preview/mount-preview-core:56` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/views/app-preview/mount-preview-core:76` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/views/app-preview/mount-preview-core:81` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:89` | — |
+| `PreviewHandle()` | `frontend/src/views/app-preview/mount-preview-core:58` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `invalidatePreview()` | `frontend/src/views/app-preview/mount-preview-core:78` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/views/app-preview/mount-preview-core:83` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:91` | — |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:11` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:17` | — |
@@ -1300,6 +1301,14 @@
 | `buildVrmScene()` | `frontend/src/views/app-preview/vrm-adapter:23` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
+| `YsmModel()` | `frontend/src/views/app-preview/ysm-3d:11` | YSM 模型对象（对齐 ysm-adapter 字段需求） |
+| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:19` | — |
+| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:28` | 打开 YSM 3D 预览（统一外壳 self 模式）。 |
+| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:48` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
+| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:53` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
+| `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:27` | 适配器可选项：纹理切换重建 / 关闭回调由外层（ysm-3d.ts）负责 |
+| `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:69` | 构建 YSM 3D 内容场景并挂载到统一外壳（self 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:317` | 工厂：构造统一 PreviewAdapter（self 模式） |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
 | `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |

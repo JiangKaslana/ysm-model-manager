@@ -25,6 +25,7 @@ vi.mock("./wasm.ts", () => ({ decodeYsmViaWasm }));
 const detailSpies = vi.hoisted(() => ({
   showModelDetail: vi.fn(),
   showResourcePack: vi.fn(),
+  showShaderpack: vi.fn(),
   showSimplePreview: vi.fn(),
 }));
 vi.mock("./detail.ts", () => detailSpies);
@@ -143,14 +144,27 @@ describe("_showModelDetail — 类型分流", () => {
     unmountElement(el);
   });
 
-  it("其他已知类型（shaderpack）→ showSimplePreview", async () => {
+  it("shaderpack → showShaderpack（lang 提取显示名）", async () => {
     const el = mountPreview();
     appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.SHADER);
     await el._showModelDetail("/repo/s.zip");
-    expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
+    expect(detailSpies.showShaderpack).toHaveBeenCalledWith(
       el,
       "/repo/s.zip",
       expect.objectContaining({ icon: "📦", label: "shaderpack" }),
+    );
+    expect(detailSpies.showSimplePreview).not.toHaveBeenCalled();
+    unmountElement(el);
+  });
+
+  it("mmd-skin 等其他已知类型 → showSimplePreview", async () => {
+    const el = mountPreview();
+    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.MMD);
+    await el._showModelDetail("/repo/m.pmx");
+    expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
+      el,
+      "/repo/m.pmx",
+      expect.objectContaining({ icon: "📦", label: "mmd-skin" }),
     );
     unmountElement(el);
   });

@@ -179,3 +179,49 @@ export async function showSimplePreview(
   </div>
 </div>`;
 }
+
+/** 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 */
+export async function showShaderpack(
+  ctx: PreviewCtx,
+  path: string,
+  opts?: { icon?: string; label?: string },
+): Promise<void> {
+  const gen = ++_detailGen;
+  const icon = (opts && opts.icon) || "☀️";
+  const label = (opts && opts.label) || t("preview.shaderPack");
+  const basename = path.split(/[/\\]/).pop() || "";
+  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsing")}...</div></div>
+</div>`;
+  try {
+    const { ReadShaderpackLang } = await getApp();
+    const jsonStr = await ReadShaderpackLang(path);
+    if (gen !== _detailGen) return; // 过期守卫：await 期间用户已切走
+    const spMeta = JSON.parse(jsonStr || "{}") as { name?: string; entries?: Record<string, string> };
+    const displayName = spMeta.name || basename;
+    const entries = spMeta.entries || {};
+    // 取前几条 option 描述作为简介（与 app-resource-manager 同口径，去 § 格式码）
+    const descs = Object.entries(entries)
+      .filter(([k]) => k.includes(".comment"))
+      .slice(0, 3)
+      .map(([, v]) => v.replace(/§[0-9a-fklmnor]/g, ""))
+      .filter(Boolean);
+    const desc = descs.length
+      ? descs.join("\n")
+      : `📦 光影包 (${Object.keys(entries).length} 项配置)`;
+    ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
+    <div><strong>${renderFormattedText(displayName)}</strong></div>
+    <div style="color:var(--muted);line-height:1.6;white-space:pre-wrap">${esc(desc)}</div>
+  </div>
+</div>`;
+  } catch (e) {
+    if (gen !== _detailGen) return;
+    ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div></div>
+</div>`;
+  }
+}

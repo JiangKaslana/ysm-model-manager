@@ -17,12 +17,15 @@ vi.mock("../../backend/app.ts", () => ({
     FindPreviewImage: vi.fn().mockResolvedValue(""),
     ExtractPreviewTexture: vi.fn().mockResolvedValue(""),
     LoadResourceTypes: vi.fn().mockResolvedValue("{}"),
+    ReadShaderpackLang: vi.fn().mockResolvedValue(
+      JSON.stringify({ name: "光影包测试", entries: { "option.A.comment": "配置说明" } }),
+    ),
   }),
 }));
 
 // mock bindings（app-preview 全部动态 import）：DetectResourceType 用于分流断言。
-// 返回 "shaderpack"（RESOURCE_TYPES.SHADER）→ _showModelDetail 走 showSimplePreview
-// （仅渲染图标+名称，无 bindings 深链），避免 showModelDetail 链的 ReadFileBytes 等
+// 返回 "shaderpack"（RESOURCE_TYPES.SHADER）→ _showModelDetail 走 showShaderpack
+// （lang 提取显示名渲染），避免 showModelDetail 链的 ReadFileBytes 等
 vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
   DetectResourceType: vi.fn().mockResolvedValue("shaderpack"),
   ReadFileBytes: vi.fn().mockResolvedValue(new Uint8Array()),
@@ -34,6 +37,9 @@ vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
   GetPackInfo: vi.fn().mockResolvedValue(null),
   LoadAppConfig: vi.fn().mockResolvedValue({}),
   GetRepoRoot: vi.fn().mockResolvedValue(""),
+  ReadShaderpackLang: vi.fn().mockResolvedValue(
+    JSON.stringify({ name: "光影包测试", entries: {} }),
+  ),
 }));
 
 import { bus } from "../../bus.ts";

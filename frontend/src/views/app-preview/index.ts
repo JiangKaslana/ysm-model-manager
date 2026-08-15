@@ -15,7 +15,7 @@ import {
 import { getApp } from "../../backend/app.ts";
 import { type PreviewCtx, type DecodedYsm } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
-import { showModelDetail, showResourcePack, showSimplePreview } from "./detail.ts";
+import { showModelDetail, showResourcePack, showShaderpack, showSimplePreview } from "./detail.ts";
 import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from "./litematic-meta.ts";
 import { createVrm3D, cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
@@ -198,7 +198,12 @@ class AppPreview extends HTMLElement implements PreviewCtx {
       }
       return;
     }
-    // 其他已知类型（shaderpack / mmd-skin）
+    // 光影包：从 lang/en_US.lang 提取显示名 + 配置项简介（对齐资源管理器口径）
+    if (rtype === RESOURCE_TYPES.SHADER) {
+      showShaderpack(this, path, this._typeMeta(rtype));
+      return;
+    }
+    // 其他已知类型（mmd-skin）
     showSimplePreview(this, path, this._typeMeta(rtype));
   }
 
