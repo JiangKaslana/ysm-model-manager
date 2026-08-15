@@ -65,17 +65,20 @@ node scripts/check-knowledge-drift.mjs --affected <f>…  # 主动：源码变�
 > `--affected --quiet` 仅吐 card stem（每行一个），供钩子机读消费。
 
 **提交期自动提示（非阻断）**：仓库已启用 `prepare-commit-msg` 钩子（`.githooks/prepare-commit-msg` →
-`scripts/hooks/knowledge-affected-hint.mjs`）。提交时自动把受影响卡写入 commit message body，随 commit 进 PR：
+`scripts/hooks/knowledge-affected-hint.mjs`）。提交时自动把受影响卡以**终端 stderr** 提醒（不写入 commit message body，因为 code review 不核验文档，写入 body 无受益方）：
 
 ```text
-📚 受影响知识卡（建议同步复核 docs/knowledge）：
-- docs/knowledge/resource-registry.md
-📚 ──END──
+[prepare-commit-msg] 📚 2 张知识卡受影响，建议复核：
+  - docs/knowledge/resource-registry.md
+  - docs/knowledge/go-avatar.md ⚠️ 疑似过时（本次 diff 已引入新写法）:
+      L23 mouseDown handler（仍用 mousedown，建议 pointerdown）
+（仅终端提醒）
 ```
 
-- 非阻断：`exit 0` 永不作为；`--amend` 幂等（自动剥离旧区块再重写）；merge/squash 提交跳过。
-- 逃生阀：`YSM_SKIP_KNOWLEDGE_HINT=1 git commit`（与 `YSM_SKIP_GATE` 并列）。
-- 设计取舍：放在 `prepare-commit-msg` 而非 `pre-push`——push 处于流程末端、阻断体验差、diff 范围过大（整分支累积），不适合做 advisory。
+- 非阻断：`exit 0` 永不作为；merge/squash 提交跳过
+- 疑似过时句检测：diff 新增行引入新关键词（如 `pointerdown`）而卡正文仍写旧词（如 `mousedown`），精确指行
+- 逃生阀：`YSM_SKIP_KNOWLEDGE_HINT=1 git commit`
+- 设计取舍：放在 `prepare-commit-msg` 而非 `pre-push`——push 处于流程末端、阻断体验差、diff 范围过大（整分支累积），不适合做 advisory
 
 **索引/生成物同步（pre-commit）**：`.githooks/pre-commit` 在 commit 时自动跑秒级 gen（含 `gen-knowledge-index` / `gen-knowledge-h1/symbols/adr/tests`）并 `git add docs/`，失败仅提示不阻断；逃生阀 `YSM_SKIP_GEN=1`。知识卡 index/字段同步无需手动跑。
 
