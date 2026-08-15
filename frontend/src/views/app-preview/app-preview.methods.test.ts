@@ -27,6 +27,7 @@ const detailSpies = vi.hoisted(() => ({
   showResourcePack: vi.fn(),
   showShaderpack: vi.fn(),
   showSimplePreview: vi.fn(),
+  showVrmMeta: vi.fn(),
 }));
 vi.mock("./detail.ts", () => detailSpies);
 
@@ -166,6 +167,19 @@ describe("_showModelDetail — 类型分流", () => {
       "/repo/m.pmx",
       expect.objectContaining({ icon: "📦", label: "mmd-skin" }),
     );
+    unmountElement(el);
+  });
+
+  it("VRC .vrm → showVrmMeta（meta 卡）", async () => {
+    const el = mountPreview();
+    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.VRC);
+    await el._showModelDetail("/repo/avatar.vrm");
+    expect(detailSpies.showVrmMeta).toHaveBeenCalledWith(
+      el,
+      "/repo/avatar.vrm",
+      expect.objectContaining({ icon: "📦", label: "vrchat-avatar" }),
+    );
+    expect(detailSpies.showSimplePreview).not.toHaveBeenCalled();
     unmountElement(el);
   });
 

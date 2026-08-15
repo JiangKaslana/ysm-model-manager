@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 87 | 234 |
+| frontend/views | 87 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **284** | **1171** |
+| **合计** | **284** | **1174** |
 
 ## Go·头像
 
@@ -1234,10 +1234,11 @@
 | `cacheGet()` | `frontend/src/views/app-preview/cache:43` | — |
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
-| `showModelDetail()` | `frontend/src/views/app-preview/detail:18` | 显示模型详情（YSM 模型） |
-| `showResourcePack()` | `frontend/src/views/app-preview/detail:129` | 显示资源包信息（pack.mcmeta + pack.png） |
-| `showSimplePreview()` | `frontend/src/views/app-preview/detail:166` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
-| `showShaderpack()` | `frontend/src/views/app-preview/detail:184` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
+| `showModelDetail()` | `frontend/src/views/app-preview/detail:20` | 显示模型详情（YSM 模型） |
+| `showResourcePack()` | `frontend/src/views/app-preview/detail:131` | 显示资源包信息（pack.mcmeta + pack.png） |
+| `showSimplePreview()` | `frontend/src/views/app-preview/detail:168` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
+| `showShaderpack()` | `frontend/src/views/app-preview/detail:186` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
+| `showVrmMeta()` | `frontend/src/views/app-preview/detail:232` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:4` | Bedrock 方块 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
@@ -1298,7 +1299,9 @@
 | `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:12` | 打开 VRM 3D 预览（.vrm 直引 three-vrm） |
 | `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:17` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:22` | 任意新预览派发时调用，作废在途 VRM 加载 |
-| `buildVrmScene()` | `frontend/src/views/app-preview/vrm-adapter:23` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
+| `VrmMetaInfo()` | `frontend/src/views/app-preview/vrm-adapter:52` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/views/app-preview/vrm-adapter:63` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `buildVrmScene()` | `frontend/src/views/app-preview/vrm-adapter:111` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
 | `YsmModel()` | `frontend/src/views/app-preview/ysm-3d:11` | YSM 模型对象（对齐 ysm-adapter 字段需求） |

@@ -19,6 +19,94 @@ function b64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
+/** 把 THREE.Texture / HTMLImageElement 转 dataURL（meta 卡缩略图） */
+function imageToDataURL(img: unknown): string {
+  try {
+    // VRM0 meta.texture 是 THREE.Texture（取 .image）；VRM1 meta.thumbnailImage 直接是 HTMLImageElement
+    const holder = img as { image?: unknown } | null;
+    const raw = holder && typeof holder.image !== "undefined" ? holder.image : img;
+    const source = raw as HTMLImageElement | HTMLCanvasElement | ImageBitmap | null;
+    if (!source) return "";
+    const w =
+      source instanceof HTMLImageElement
+        ? source.naturalWidth
+        : (source as HTMLCanvasElement | ImageBitmap).width;
+    const h =
+      source instanceof HTMLImageElement
+        ? source.naturalHeight
+        : (source as HTMLCanvasElement | ImageBitmap).height;
+    if (!w || !h) return "";
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext("2d");
+    if (!g) return "";
+    g.drawImage(source as CanvasImageSource, 0, 0);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return "";
+  }
+}
+
+/** VRM meta 归一化信息（meta 卡展示用） */
+export interface VrmMetaInfo {
+  name: string;
+  authors: string[];
+  version?: string;
+  license?: string;
+  contact?: string;
+  thumbnail?: string; // dataURL，空串表示无缩略图
+  metaVersion: "0" | "1";
+}
+
+/** 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null */
+export async function readVrmMeta(path: string): Promise<VrmMetaInfo | null> {
+  try {
+    const App = await getApp();
+    const readFn = (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"];
+    const b64 = await readFn(path);
+    if (!b64) return null;
+
+    const bytes = b64ToBytes(b64);
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+    const gltf = await new Promise<GLTF>((resolve, reject) => {
+      loader.parse(buffer, "", resolve, reject);
+    });
+    const vrm = (gltf.userData as { vrm?: VRM }).vrm;
+    if (!vrm) return null;
+    const meta = vrm.meta;
+    let info: VrmMetaInfo;
+    if (meta.metaVersion === "0") {
+      info = {
+        metaVersion: "0",
+        name: meta.title || "",
+        authors: meta.author ? [meta.author] : [],
+        version: meta.version,
+        license: meta.licenseName ? meta.licenseName + (meta.otherLicenseUrl ? " · " + meta.otherLicenseUrl : "") : undefined,
+        contact: meta.contactInformation,
+        thumbnail: meta.texture ? imageToDataURL(meta.texture) : "",
+      };
+    } else {
+      info = {
+        metaVersion: "1",
+        name: meta.name || "",
+        authors: meta.authors || [],
+        version: meta.version,
+        license: meta.licenseUrl,
+        contact: meta.contactInformation,
+        thumbnail: meta.thumbnailImage ? imageToDataURL(meta.thumbnailImage) : "",
+      };
+    }
+    VRMUtils.deepDispose(vrm.scene); // 仅取 meta，释放 parse 出的 GPU 资源
+    return info;
+  } catch {
+    return null;
+  }
+}
+
 /** VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose */
 export async function buildVrmScene(ctx: PreviewBuildCtx, path: string): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =

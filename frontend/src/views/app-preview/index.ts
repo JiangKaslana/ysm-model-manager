@@ -15,9 +15,9 @@ import {
 import { getApp } from "../../backend/app.ts";
 import { type PreviewCtx, type DecodedYsm } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
-import { showModelDetail, showResourcePack, showShaderpack, showSimplePreview } from "./detail.ts";
+import { showModelDetail, showResourcePack, showShaderpack, showSimplePreview, showVrmMeta } from "./detail.ts";
 import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from "./litematic-meta.ts";
-import { createVrm3D, cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
+import { cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
 import { esc } from "../../utils/dom/html.ts";
 import type { BedrockGeometry } from "./geometry.ts";
@@ -189,10 +189,11 @@ class AppPreview extends HTMLElement implements PreviewCtx {
       showLitematic(this, path);
       return;
     }
-    // VRChat 模型：.vrm 直引 three-vrm 3D 预览；.vrca/.zip 暂不直接加载
+    // VRChat 模型：.vrm 先显示 meta 卡（名称/作者/许可 + FAB 进 3D，对齐 YSM 模式）；
+    // .vrca/.zip 暂不直接加载
     if (rtype === RESOURCE_TYPES.VRC) {
       if (extOf(path) === ".vrm") {
-        void createVrm3D(path);
+        showVrmMeta(this, path, this._typeMeta(rtype));
       } else {
         showSimplePreview(this, path, this._typeMeta(rtype));
       }

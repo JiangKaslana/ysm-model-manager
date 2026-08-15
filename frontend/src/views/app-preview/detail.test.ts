@@ -4,10 +4,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PreviewCtx } from "./utils.ts";
 
-const { summaryMock, headerMock, readPackMock } = vi.hoisted(() => ({
+const { summaryMock, headerMock, readPackMock, vrmMetaMock, createVrm3DMock } = vi.hoisted(() => ({
   summaryMock: vi.fn(),
   headerMock: vi.fn(),
   readPackMock: vi.fn(),
+  vrmMetaMock: vi.fn(),
+  createVrm3DMock: vi.fn(),
 }));
 
 vi.mock("../../backend/app.ts", () => ({
@@ -20,8 +22,15 @@ vi.mock("../../backend/app.ts", () => ({
 vi.mock("./skeleton.ts", () => ({
   loadModel2D: vi.fn().mockResolvedValue(undefined),
 }));
+// VRM meta 卡依赖 three-vrm 解析，测试环境 mock（showVrmMeta 单测直接喂数据）
+vi.mock("./vrm-adapter.ts", () => ({
+  readVrmMeta: vrmMetaMock,
+}));
+vi.mock("./vrm-3d.ts", () => ({
+  createVrm3D: createVrm3DMock,
+}));
 
-import { showModelDetail, showResourcePack, showSimplePreview } from "./detail.ts";
+import { showModelDetail, showResourcePack, showSimplePreview, showVrmMeta } from "./detail.ts";
 
 function makeCtx(): PreviewCtx {
   const host = document.createElement("div");
@@ -112,5 +121,49 @@ describe("showModelDetail YSM 详情", () => {
     const ctx = makeCtx();
     await showModelDetail(ctx, "/repo/err.ysm");
     expect(ctx.root.innerHTML).toContain("解析失败");
+  });
+});
+
+describe("showVrmMeta VRM meta 卡", () => {
+  it("有 meta → 渲染名称/作者/许可/版本 + FAB 进 3D", async () => {
+    vrmMetaMock.mockResolvedValue({
+      name: "测试模型",
+      authors: ["作者A", "作者B"],
+      version: "1.0",
+      license: "CC_BY",
+      contact: "contact@example.com",
+      thumbnail: "data:image/png;base64,AAA",
+      metaVersion: "1",
+    });
+    const ctx = makeCtx();
+    await showVrmMeta(ctx, "/repo/avatar.vrm");
+    const html = ctx.root.innerHTML;
+    expect(html).toContain("测试模型");
+    expect(html).toContain("作者A");
+    expect(html).toContain("CC_BY");
+    expect(html).toContain("btn-vrm-3d");
+    // FAB 点击 → createVrm3D
+    const fab = ctx.root.querySelector<HTMLElement>("#btn-vrm-3d");
+    expect(fab).not.toBeNull();
+    fab?.click();
+    expect(createVrm3DMock).toHaveBeenCalledWith("/repo/avatar.vrm");
+  });
+
+  it("无 meta（非标准 VRM）→ 仅文件名 + FAB 仍可进 3D", async () => {
+    vrmMetaMock.mockResolvedValue(null);
+    const ctx = makeCtx();
+    await showVrmMeta(ctx, "/repo/avatar.vrm");
+    const html = ctx.root.innerHTML;
+    expect(html).toContain("avatar.vrm");
+    expect(html).toContain("btn-vrm-3d");
+    // 不应渲染作者/许可空行
+    expect(html).not.toContain("作者");
+  });
+
+  it("readVrmMeta 抛错 → 错误占位（gen 一致时不静默）", async () => {
+    vrmMetaMock.mockRejectedValue(new Error("parse fail"));
+    const ctx = makeCtx();
+    await showVrmMeta(ctx, "/repo/bad.vrm");
+    expect(ctx.root.innerHTML).toContain("读取失败");
   });
 });

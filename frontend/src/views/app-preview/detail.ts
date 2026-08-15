@@ -8,6 +8,8 @@ import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import type { PreviewCtx } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { loadModel2D } from "./skeleton.ts";
+import { readVrmMeta } from "./vrm-adapter.ts";
+import { createVrm3D } from "./vrm-3d.ts";
 import { describeVersionRange } from "../../utils/format/pack-format.ts";
 import { t } from "../../core/i18n/t.ts";
 
@@ -217,6 +219,65 @@ export async function showShaderpack(
     <div style="color:var(--muted);line-height:1.6;white-space:pre-wrap">${esc(desc)}</div>
   </div>
 </div>`;
+  } catch (e) {
+    if (gen !== _detailGen) return;
+    ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div></div>
+</div>`;
+  }
+}
+
+/** 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） */
+export async function showVrmMeta(
+  ctx: PreviewCtx,
+  path: string,
+  opts?: { icon?: string; label?: string },
+): Promise<void> {
+  const gen = ++_detailGen;
+  const icon = (opts && opts.icon) || "🥽";
+  const label = (opts && opts.label) || t("preview.vrcAvatar");
+  const basename = path.split(/[/\\]/).pop() || "";
+  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsing")}...</div></div>
+</div>`;
+  try {
+    const meta = await readVrmMeta(path);
+    if (gen !== _detailGen) return; // 过期守卫：await 期间用户已切走
+    if (!meta || (!meta.name && !meta.authors?.length)) {
+      // 无 meta（非标准 VRM 或解析失败）→ 仅名称 + FAB
+      ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
+    <div><strong>${renderFormattedText(basename)}</strong></div>
+    <button class="ysm-fab" id="btn-vrm-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="ysm-ic">🎨</span></button>
+  </div>
+</div>`;
+    } else {
+      const authors = meta.authors.filter(Boolean).join("、");
+      const thumb = meta.thumbnail
+        ? `<img src="${esc(meta.thumbnail)}" alt="thumbnail" style="width:128px;height:128px;object-fit:contain;border-radius:6px;border:1px solid var(--bd);align-self:center;image-rendering:pixelated">`
+        : "";
+      ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
+    ${thumb}
+    <div><strong>${renderFormattedText(meta.name || basename)}</strong></div>
+    ${authors ? `<div style="color:var(--muted)">👤 ${esc(authors)}</div>` : ""}
+    ${meta.version ? `<div style="color:var(--muted);font-size:var(--fs-xs)">版本: ${esc(meta.version)}</div>` : ""}
+    ${meta.contact ? `<div style="color:var(--muted);font-size:var(--fs-xs)">📮 ${esc(meta.contact)}</div>` : ""}
+    ${meta.license ? `<div style="color:var(--muted);font-size:var(--fs-xs)">📜 ${esc(meta.license)}</div>` : ""}
+    <button class="ysm-fab" id="btn-vrm-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="ysm-ic">🎨</span></button>
+  </div>
+</div>`;
+    }
+    const fab = ctx.root.querySelector<HTMLElement>("#btn-vrm-3d");
+    if (fab) {
+      fab.onclick = (): void => {
+        void createVrm3D(path);
+      };
+    }
   } catch (e) {
     if (gen !== _detailGen) return;
     ctx.root.innerHTML = `<div class="content" id="preview-content">
