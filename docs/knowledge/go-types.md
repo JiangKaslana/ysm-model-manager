@@ -45,6 +45,30 @@ use_when:
 - `(pm *PackMeta) Desc() string` — description 可读文本（兼容 string / JSON text component 对象 / 数组）
 - 关键常量：`LinkCopy` / `LinkHard` / `LinkSym` / `LinkUnknown`（LinkType）；`SyncStatusSynced/Missing/Optional/Disabled/Legacy`；`ErrorCode` 系列（`ErrFileExists` / `ErrInvalidParam` / `ErrIO` / `ErrLinkFailed` 等 15 个，见下方）；`LogLevel` 系列（`LevelDebug/Info/Warn/Error/Fatal`）；`statusToLevel(status string) LogLevel`（将 ImportLog.Status 映射为日志级别，由 `addOp` 自动调用）
 
+### ErrorCode + LogLevel（ADR-051 落地）
+
+`AppError.Code` 字段类型为 `ErrorCode`（而非 `string`），强制只收常量枚举，消除前后端双份分类表漂移。
+
+| 常量 | Code 值 | 语义 |
+|------|---------|------|
+| `ErrFileExists` | `FILE_EXISTS` | 导入时目标文件已存在 |
+| `ErrAlreadyExists` | `ALREADY_EXISTS` | 安装时目标已存在（需覆盖检查） |
+| `ErrInvalidParam` | `INVALID_PARAM` | 参数为空/无效 |
+| `ErrInvalidPath` | `INVALID_PATH` | 路径不在 `.minecraft` / 仓库内 |
+| `ErrFileNameInvalid` | `FILENAME_INVALID` | 文件名含 `..` 或非法分隔符 |
+| `ErrUnsupportedType` | `FILE_TYPE_UNSUPPORTED` | 扩展名不在白名单 |
+| `ErrUnsupportedFmt` | `UNSUPPORTED_FORMAT` | 格式不支持 |
+| `ErrDecodeFailed` | `DECODE_FAILED` | base64 解码失败 |
+| `ErrFileTooLarge` | `FILE_TOO_LARGE` | 超过 500MB 限制 |
+| `ErrFileEmpty` | `FILE_EMPTY` | 文件内容为空 |
+| `ErrMkdirFailed` | `MKDIR_FAILED` | 无法创建目录 |
+| `ErrWriteFailed` | `WRITE_FAILED` | 写入失败 |
+| `ErrIO` | `IO_ERROR` | 通用 IO 错误 |
+| `ErrLinkFailed` | `LINK_FAILED` | 硬链接/符号链接失败 |
+| `ErrUnknown` | `UNKNOWN` | 未知兜底 |
+
+`LogLevel`（`LevelDebug/Info/Warn/Error/Fatal`）由 `ImportLog` / `RuntimeLog` 的 `Level` 字段携带，供诊断页按级别过滤；`ImportLog` 由 `addOp` 通过 `statusToLevel` 自动派生（`success`→info, `failed`→error, `warn`→warn, `skipped`→debug），`RuntimeLog` 默认 `LevelInfo`。
+
 ## 与其他子系统关系
 
 - 被几乎所有 `go/` 包与 `internal/app/` 引用（数据交换的公共语言）
@@ -58,6 +82,7 @@ use_when:
 - `RepoRoot` 为旧版字段（v1.6.4+ 弃用），仅用于配置迁移，新功能不得使用
 - `resource_types_embed.go` 由脚本从 `resource_types.json` 生成（头部有 DO NOT EDIT 标记），手改会被覆盖（**2026-08-09 发现生成文件与源漂移一处**：`create-blueprint.name` 生成侧 `"蓝图"` vs 源 `"蓝图 / 结构"`——生成脚本不在仓库内，已手动同步；后续源改 name 需注意 embed 同步，建议一致性测试覆盖 Name 字段）
 - 新增资源类型只改 `resource_types.json`，Go 端不手写 StorageSubDir/扩展名条目（治理红线：注册表优先）。`ShouldHashExt` 是已知例外：硬编码 `.ysm/.zip/.7z/.json/.nbt/.schematic/.litematic`（MMD/VRC 大文件跳过哈希的性能决策，注册表无 hash 开关字段），已有测试钉住清单（`TestShouldHashExt_PinnedList`），若注册表新增 hash 字段应改注册表驱动
+- **ADR-051 单一事实来源**：`AppError.Code` 类型是 `ErrorCode` 枚举（不是 `string`），强制所有错误码必须从 15 个常量中选取；前端 `friendlyError`（`utils/dom/errors.ts`）直接消费 Code 做 i18n 映射，不再维护独立正则分类表；前端 `CODE_KEYS` 表必须与本卡的 ErrorCode 表同步，任一新增/改名须两处同时更新
 
 ## 相关
 
