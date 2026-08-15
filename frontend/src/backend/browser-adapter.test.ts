@@ -294,6 +294,20 @@ describe("importWebFiles — Phase 2 数据层", () => {
     expect(idbMock._store.has("file:ysm/角色/textures/skin.png")).toBe(true);
   });
 
+  it("资源包 zip（解压后无主文件）→ 保留原 zip 当主文件（ADR-066 审计缺口 #3）", async () => {
+    // pack.mcmeta + data/ 均非主文件扩展名——原实现解包后无主文件整组 failed imported=0
+    const zipBytes = zipSync({
+      "pack.mcmeta": strToU8("{}"),
+      "data/minecraft/tags/blocks/x.json": strToU8("{}"),
+    });
+    const zipFile = new File([zipBytes], "材质包.zip");
+    const r = await importWebFiles([zipFile], "resourcepack");
+    expect(r).toEqual({ imported: 1, failed: 0 });
+    // 原 zip 整体当主文件入库并显示
+    const entries = (await browserAdapter.ScanModelEntries("/web/resourcepack")) as Array<{ Name: string }>;
+    expect(entries.map((e) => e.Name)).toContain("材质包.zip");
+  });
+
   it("ysm.json 可作主文件（桌面 IsYsmEntryJSON 白名单）；Ext 小写化 + 无点号保护", async () => {
     await importWebFiles([new File([enc.encode("{}")], "ysm.json")], "ysm");
     const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Name: string; Ext: string }>;

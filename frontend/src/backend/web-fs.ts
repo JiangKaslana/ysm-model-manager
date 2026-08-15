@@ -525,6 +525,9 @@ function findCommonTopDir(metas: Array<{ fflateKey: string }>): string | null {
  *   复用文件夹拖入的「同 stem 分组 + 主文件目录收敛」语义，rel 保留子目录层级
  * - 非 .zip / .ysm → 原样透传（.ysm 保持整体，WASM 解码器直接处理）
  * - 解压失败（非标准 zip / 超限）→ 保留原 zip 单个文件（走「zip 当主文件」兜底），不阻断
+ * - ADR-066 审计缺口 #3：解压后**无主文件**（如资源包 zip 解出 pack.mcmeta + data/，
+ *   均非主文件扩展名）→ 保留原 zip 整体当主文件（救回 resourcepack/shaderpack 导入，
+ *   原实现整组 failed imported=0）
  */
 async function expandZipFiles(files: File[]): Promise<File[]> {
   const out: File[] = [];
@@ -544,7 +547,7 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
       // 扁平 zip（"ysm.json" + "models/main.json"）无公共前缀 → 用 zipStem 防碎片化
       const topLevelDir = findCommonTopDir(metas);
       const prefix = topLevelDir ? "" : f.name.replace(/\.zip$/i, "");
-      let any = false;
+      const expanded: File[] = [];
       for (const m of metas) {
         const raw = entries[m.fflateKey];
         if (!raw) continue;
@@ -557,10 +560,14 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
           type: "application/octet-stream",
         });
         Object.defineProperty(wf, "webkitRelativePath", { value: prefix ? `${prefix}/${realName}` : realName });
-        out.push(wf);
-        any = true;
+        expanded.push(wf);
       }
-      if (!any) out.push(f); // 解压空/无有效文件 → 保留原 zip
+      // 解压空/无有效文件，或解压后无主文件（资源包/光影包 zip）→ 保留原 zip 整体当主文件
+      if (expanded.length === 0 || !expanded.some((wf) => mainFileRank(wf.name) >= MAIN_FILE_RANK_TYPE)) {
+        out.push(f);
+      } else {
+        out.push(...expanded);
+      }
       // GBK 中文名降级提示：gpf 未设时 fflateKey 为 Latin-1 乱码，
       // 前端无 GBK 码表无法解码真名——仅 dev 日志，用户端用 modelPath 不影响预览
       if (metas.length > 0 && metas.some((m) => !m.gpfUtf8)) {

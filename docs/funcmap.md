@@ -1311,9 +1311,9 @@
 | `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:28` | 打开 YSM 3D 预览（统一外壳 self 模式）。 |
 | `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:48` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
 | `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:53` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
-| `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:27` | 适配器可选项：纹理切换重建 / 关闭回调由外层（ysm-3d.ts）负责 |
-| `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:69` | 构建 YSM 3D 内容场景并挂载到统一外壳（self 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:317` | 工厂：构造统一 PreviewAdapter（self 模式） |
+| `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:28` | 适配器可选项：纹理切换重建 / 关闭回调由外层（ysm-3d.ts）负责 |
+| `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:70` | 构建 YSM 3D 内容场景并挂载到统一外壳（self 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:274` | 工厂：构造统一 PreviewAdapter（self 模式） |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
 | `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |
