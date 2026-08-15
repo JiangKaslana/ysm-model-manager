@@ -44,7 +44,7 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 	}
 
 	// 非文件夹级类型：文件级同步
-	result := SyncResources(globalDir, targetDir)
+	result := SyncResources(globalDir, targetDir, rtype)
 	for _, src := range result.Missing {
 		if err := installer.Install(src, targetDir, globalDir, linkMode); err == nil {
 			count++
@@ -69,7 +69,7 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 	if types.IsDirLevelSync(rtype) {
 		result = SyncResourcesDirLevel(globalDir, targetDir, rtype)
 	} else {
-		result = SyncResources(globalDir, targetDir)
+		result = SyncResources(globalDir, targetDir, rtype)
 	}
 	count := 0
 	failed := 0

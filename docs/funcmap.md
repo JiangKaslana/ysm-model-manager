@@ -31,7 +31,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
-| Go(internal)·应用入口 | 22 | 179 |
+| Go(internal)·应用入口 | 22 | 180 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 10 | 51 |
 | 前端·核心 | 18 | 36 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 55 | 188 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **273** | **1105** |
+| **合计** | **273** | **1106** |
 
 ## Go·头像
 
@@ -304,9 +304,9 @@
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
 | `GetInstanceStatusWith()` | `go/sync/sync:31` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
 | `SyncToggleStatus()` | `go/sync/sync:147` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:277` | SyncResources 对比两个目录的资源文件差异，按文件名匹配 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步 只统计模型/资源相关扩展名的文件，忽略无关文件 |
-| `SortEntries()` | `go/sync/sync:371` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:378` | GetLinkType 判断文件的链接类型 |
+| `SyncResources()` | `go/sync/sync:283` | 文件级同步深度上限：SyncResources 仅收集 scanDir 顶层文件，不递归进入嵌套子目录。 |
+| `SortEntries()` | `go/sync/sync:413` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:420` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
@@ -465,17 +465,18 @@
 | `App.GetConfigPath()` | `internal/app/app_config:59` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
 | `App.SaveAppConfig()` | `internal/app/app_config:135` | — |
 | `App.SetDownloadMirror()` | `internal/app/app_config:205` | — |
-| `App.LoadAppConfig()` | `internal/app/app_config:236` | — |
-| `App.GetSubDirMap()` | `internal/app/app_config:257` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
-| `App.CurrentVersion()` | `internal/app/app_config:261` | — |
-| `App.CheckUpdate()` | `internal/app/app_config:263` | — |
-| `App.DoUpdate()` | `internal/app/app_config:290` | — |
-| `App.RestartApplication()` | `internal/app/app_config:308` | — |
-| `App.SaveWindowPosition()` | `internal/app/app_config:343` | — |
-| `App.GetWindowPosition()` | `internal/app/app_config:357` | — |
-| `App.SelectDirectory()` | `internal/app/app_config:390` | ========== 目录选择 ========== |
-| `App.GetMinecraftPaths()` | `internal/app/app_config:453` | — |
-| `App.ValidateMinecraftDir()` | `internal/app/app_config:455` | — |
+| `App.SaveThresholds()` | `internal/app/app_config:214` | SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。 |
+| `App.LoadAppConfig()` | `internal/app/app_config:246` | — |
+| `App.GetSubDirMap()` | `internal/app/app_config:267` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
+| `App.CurrentVersion()` | `internal/app/app_config:271` | — |
+| `App.CheckUpdate()` | `internal/app/app_config:273` | — |
+| `App.DoUpdate()` | `internal/app/app_config:300` | — |
+| `App.RestartApplication()` | `internal/app/app_config:318` | — |
+| `App.SaveWindowPosition()` | `internal/app/app_config:353` | — |
+| `App.GetWindowPosition()` | `internal/app/app_config:367` | — |
+| `App.SelectDirectory()` | `internal/app/app_config:400` | ========== 目录选择 ========== |
+| `App.GetMinecraftPaths()` | `internal/app/app_config:463` | — |
+| `App.ValidateMinecraftDir()` | `internal/app/app_config:465` | — |
 | `NewDownloadQueue()` | `internal/app/app_download:51` | NewDownloadQueue 创建串行下载队列（回调由 App 初始化时注入） |
 | `App.EnqueueDownloads()` | `internal/app/app_download:56` | — |
 | `App.CancelQueue()` | `internal/app/app_download:86` | — |

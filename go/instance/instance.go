@@ -71,7 +71,7 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		// 整合包子目录——先试标准目录，再兜底扫描
 		instDir := types.FindInstDir(ins.VersionDir, subDir, rt.ID)
 		// 展示用文件级同步（推送时再用文件夹级推送）
-		result := ysmsync.SyncResources(globalDir, instDir)
+		result := ysmsync.SyncResources(globalDir, instDir, rt.ID)
 
 		// appendItem 组装同步条目：extMatch/资源包文件夹过滤 + .disabled/.ban 禁用判定 +
 		// icon 选择，收敛 Synced/Missing/Extra 三分支逐字重复（索引 6.8c）。

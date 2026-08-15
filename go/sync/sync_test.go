@@ -380,7 +380,7 @@ func TestSyncResources_SizeMismatch(t *testing.T) {
 	// 实例独有 → Extra
 	os.WriteFile(filepath.Join(instDir, "only-instance.zip"), []byte("z"), 10)
 
-	result := SyncResources(globalDir, instDir)
+	result := SyncResources(globalDir, instDir, "")
 
 	found := func(list []string, name string) bool {
 		for _, p := range list {
@@ -418,7 +418,7 @@ func TestSyncResources_IgnoresRecycleDir(t *testing.T) {
 	// 整合包目录（无任何模型）
 	_ = os.MkdirAll(instDir, 0755)
 
-	result := SyncResources(globalDir, instDir)
+	result := SyncResources(globalDir, instDir, "")
 
 	found := func(list []string, name string) bool {
 		for _, p := range list {

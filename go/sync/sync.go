@@ -271,10 +271,25 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 	return disableCount, enableCount, nil
 }
 
+// 文件级同步深度上限：SyncResources 仅收集 scanDir 顶层文件，不递归进入嵌套子目录。
+// 文件夹级类型（YSM/MMD 等）仍全树递归，由 SyncResourcesDirLevel 按文件夹名对比。
 // SyncResources 对比两个目录的资源文件差异，按文件名匹配
 // 用于资源库（资源包/光影包等）的全局 ↔ 整合包同步
 // 只统计模型/资源相关扩展名的文件，忽略无关文件
-func SyncResources(globalDir, instanceDir string) types.ResourceSyncResult {
+// rtype 指定资源类型 ID：文件级类型（!dirLevelSync）仅在目标目录顶层收集文件（depth 1），
+// 不递归进嵌套子目录；文件夹级类型仍全树递归。空 rtype 保持旧的全树递归行为（测试/兼容）。
+// P3 修复：原实现无论类型一律全递归——Sable Schematics 等生成 .nbt 于嵌套子目录时，
+// mapSrcToGlobal（顶层语义）算出相对路径以 ".." 开头误判越界 → 拉取报"不在目标目录内"。
+func SyncResources(globalDir, instanceDir string, rtype ...string) types.ResourceSyncResult {
+	// absClean 取绝对路径并规整；解析失败回退到 clean（不阻塞同步流程）
+	absClean := func(p string) (string, error) {
+		abs, err := filepath.Abs(p)
+		return filepath.Clean(abs), err
+	}
+	rtypeID := ""
+	if len(rtype) > 0 {
+		rtypeID = rtype[0]
+	}
 	result := types.ResourceSyncResult{}
 
 	// 文件信息：size 用于同名文件的内容差异检测（mtime 因复制会变，不可靠）
@@ -284,6 +299,16 @@ func SyncResources(globalDir, instanceDir string) types.ResourceSyncResult {
 		isDir bool
 	}
 
+	// 全局目录扫描根路径（abs+clean 一次，供文件级深度守卫比较）
+	globalDirAbs, err := absClean(globalDir)
+	if err != nil {
+		log.Printf("[sync] 全局目录 abs 解析失败: %v", err)
+		globalDirAbs = filepath.Clean(globalDir)
+	}
+	// 文件级同步（!dirLevelSync）仅在目标目录顶层收集文件——不递归进嵌套子目录。
+	// 文件夹级类型（YSM/MMD 等）仍全树递归，由 SyncResourcesDirLevel 按文件夹名对比。
+	// 空 rtype 保持旧的全树递归行为（测试/兼容）。
+	isFileLevel := rtypeID != "" && !types.IsDirLevelSync(rtypeID)
 	// 扫描全局目录，收集文件名
 	globalFiles := make(map[string]fileInfo) // name → fileInfo
 	filepath.Walk(globalDir, func(path string, info os.FileInfo, err error) error {
@@ -303,6 +328,12 @@ func SyncResources(globalDir, instanceDir string) types.ResourceSyncResult {
 			}
 			return nil
 		}
+		if isFileLevel {
+			cleanPath, _ := absClean(path)
+			if filepath.Dir(cleanPath) != globalDirAbs {
+				return nil // 嵌套子目录内文件跳过（文件级同步仅保留顶层）
+			}
+		}
 		if !isSyncAllowed(info.Name()) {
 			return nil
 		}
@@ -313,7 +344,12 @@ func SyncResources(globalDir, instanceDir string) types.ResourceSyncResult {
 		return nil
 	})
 
-	// 扫描整合包目录
+	// 整合包目录扫描根路径
+	instanceDirAbs, err := absClean(instanceDir)
+	if err != nil {
+		log.Printf("[sync] 整合包目录 abs 解析失败: %v", err)
+		instanceDirAbs = filepath.Clean(instanceDir)
+	}
 	instanceFiles := make(map[string]fileInfo)
 	filepath.Walk(instanceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -331,6 +367,12 @@ func SyncResources(globalDir, instanceDir string) types.ResourceSyncResult {
 				instanceFiles[name] = fileInfo{path: path, isDir: true}
 			}
 			return nil
+		}
+		if isFileLevel {
+			cleanPath, _ := absClean(path)
+			if filepath.Dir(cleanPath) != instanceDirAbs {
+				return nil // 嵌套子目录内文件跳过（文件级同步仅保留顶层）
+			}
 		}
 		if !isSyncAllowed(info.Name()) {
 			return nil
