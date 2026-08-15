@@ -39,10 +39,10 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 55 | 197 |
+| 前端·工具 | 55 | 194 |
 | frontend/views | 81 | 212 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **278** | **1152** |
+| **合计** | **278** | **1149** |
 
 ## Go·头像
 
@@ -1118,8 +1118,8 @@
 | `GH_REPO()` | `frontend/src/utils/gh-links:5` | — |
 | `GH_RELEASES()` | `frontend/src/utils/gh-links:6` | — |
 | `GH_DOCS()` | `frontend/src/utils/gh-links:7` | — |
-| `fileIcon()` | `frontend/src/utils/icon/icon:40` | 按扩展名返回图标 emoji |
-| `isYsmName()` | `frontend/src/utils/icon/icon:56` | 是否为 YSM 文件 |
+| `fileIcon()` | `frontend/src/utils/icon/icon:44` | 按扩展名返回图标 emoji |
+| `isYsmName()` | `frontend/src/utils/icon/icon:60` | 是否为 YSM 文件 |
 | `ICONS()` | `frontend/src/utils/icon/workshop-icons:3` | — |
 | `getSiteIcon()` | `frontend/src/utils/icon/workshop-icons:46` | — |
 | `getTagIconFromRole()` | `frontend/src/utils/icon/workshop-icons:54` | — |
@@ -1134,14 +1134,11 @@
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:20` | 资源类型显示标签（内部 ID → 中文名） |
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:43` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
 | `extOf()` | `frontend/src/utils/resource/types:52` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `ResourceCap()` | `frontend/src/utils/resource/types:59` | 单一资源类型的能力视图（派生自 resource_types.json + 短标签映射） |
-| `RESOURCE_CAPS()` | `frontend/src/utils/resource/types:80` | 全部资源类型能力，从 resource_types.json 派生（单一事实来源） |
 | `matchTypeByExt()` | `frontend/src/utils/resource/types:94` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `resolveTypeByExt()` | `frontend/src/utils/resource/types:104` | 按扩展名反解资源类型。歧义扩展名（如 .zip 同时归属 ysm/resourcepack/shaderpack） 返回 null，调用方应回退到内容检测（Go DetectRes |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:115` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:121` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:132` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:145` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:116` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:122` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:133` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:146` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
 
 ## frontend/views
 

@@ -1,6 +1,6 @@
 # ADR-067：zip 化资源识别：扩展名歧义消解与内容指纹覆盖
 
-- **状态**：🔄 部分采纳（S4 前端契约本批落地；S1/S2 改动 Go 检测核心，待架构师确认后执行）
+- **状态**：✅ 已采纳（S1+S2+S4 原子落地 `6e504851`，S5 检测层收敛落地 `9f1a20e1`；.7z 内容检测遗留见 §3）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`go/packs/mcmeta.go, go/types/extensions.go, go/importer/importer_file.go, go/types/resource_types_embed.go, resource_types.json, frontend/src/utils/resource/types.ts, ADR-066`
@@ -144,10 +144,11 @@ func matchZipArchive(path string, rt *types.ResourceType) bool {
 
 | 阶段 | 内容 | 状态 | 落点 |
 |------|------|------|------|
-| S4 | 前端 `AMBIGUOUS_EXTS` + `resolveTypeSafe` | ✅ 已落地 | `frontend/src/utils/resource/types.ts`（本 ADR 同批 commit） |
-| S1 | 4 类 `extensions`+`.zip` / `detector:zipentry` / `zipEntries`（双文件同步） | 🔴 待确认执行 | `resource_types.json` + `go/types/resource_types_embed.go` |
-| S2 | `mcmeta.go` 新增 `zipentry` case + `matchZipArchive` helper | 🔴 待确认执行 | `go/packs/mcmeta.go` |
-| S3 | 冲突优先级 = 注册表顺序 | 🟢 设计确认，零代码 | 沿用现有遍历逻辑 |
+| S4 | 前端 `AMBIGUOUS_EXTS` + `resolveTypeSafe` | ✅ 已落地 | `frontend/src/utils/resource/types.ts`（`6e504851`，含 15 例单测 `types.test.ts`） |
+| S1 | 4 类 `extensions`+`.zip` / `detector:zipentry` / `zipEntries`（双文件同步） | ✅ 已落地 | `resource_types.json` + `go/types/resource_types_embed.go`（`6e504851`） |
+| S2 | `mcmeta.go` 新增 `zipentry` case + `matchZipArchive` helper | ✅ 已落地 | `go/packs/mcmeta.go`（`6e504851`，zipentry 单测补于 `mcmeta_detect_test.go`） |
+| S3 | 冲突优先级 = 注册表顺序 | 🟢 设计确认，零代码 | 沿用现有遍历逻辑（zipentry 优先级用例已固化进单测） |
+| S5 | 检测层收敛 `zipEntryMatch` 轻量 helper | ✅ 已落地 | `go/packs/mcmeta.go`（`9f1a20e1`） |
 
 ### 4.3 回归验证清单（S1/S2 执行前必跑）
 1. `go test ./go/types/...`（embed 与 JSON 一致性）

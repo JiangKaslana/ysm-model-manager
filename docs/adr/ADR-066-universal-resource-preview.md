@@ -60,7 +60,7 @@
 
 预览层的 `loader.ts:21` / `index.ts:108` / `litematic-meta.ts:212` 正是 ADR-065 之后**下一个尚未收敛的消费端**。治理语言应与其一致：**扩展名/加载链判定收敛到 `types` 单点，从 `resource_types.json` 派生**。
 
-### 1.6 渲染分层认知：ysm 全链路 4 层与网页断裂点（关键澄清）
+### 1.6 渲染分层认知：ysm 全链路 4 层与网页闭环（关键澄清）
 
 全资源预览器的「难度」常被误读为「三份重复的基岩版模型解析代码」。实测 ysm 从文件到出图是一条 **4 层链路**，各层收敛状态不同——桌面端早已长治久安，**真正的 gap 在 D 层的网页断裂**：
 
@@ -71,16 +71,15 @@ flowchart TD
     B --> C["C 解包<br/>容器 → 条目<br/>ContainerReader<br/>🔄 ADR-068 待编码"]
     C --> D["D 解析 + 渲染<br/>文件树 → AnalyzeBedrockModel<br/>→ go/threejs.Build → Spec3D"]
     D --> DESK["桌面端：直接 Go 渲染<br/>✅ 长治久安"]
-    D --> WEB["网页端：Spec3D 在 Go 侧生成"]
-    WEB --> RT["❌ 断裂：round-trip 回 Go AnalyzeBedrockModel"]
-    RT --> FE["前端 renderModel3D(Spec3D)<br/>只吃 Spec3D，不自产"]
+    D --> WEB["网页端：WASM 解码 → 纯 TS 构建 Spec3D"]
+    WEB --> FE["前端 buildSpecFromGeometryJSON<br/>→ renderModel3D(Spec3D)<br/>✅ 闭环（ADR-049 P2-2，TS 移植）"]
 
     style A fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
     style B fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
     style C fill:#3d341f,stroke:#ffcc66,color:#f5ecd8
     style DESK fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
-    style RT fill:#3d1f1f,stroke:#ff6b6b,color:#f5e8e8
-    style FE fill:#3d1f1f,stroke:#ff6b6b,color:#f5e8e8
+    style WEB fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
+    style FE fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
 ```
 
 | 层 | 干什么 | 收敛状态 | 归属 ADR |
@@ -88,14 +87,14 @@ flowchart TD
 | **A 识别** | 这是 ysm 吗？ | ✅ 已收敛 | ADR-067 / 069 |
 | **B 解密** | 加密 .ysm → zip 文件树 | ✅ 已收敛（YSMParser WASM 单一解码器，前端 `ysm-parser.ts` 与 Go `decode_inject.go` 同调一个 wasm） | — |
 | **C 解包** | 容器 → 条目 | 🔄 部分（ADR-068 ContainerReader 待编码，desktop 侧去重） | ADR-068 |
-| **D 解析 + 渲染** | 文件树 → 基岩模型 → Spec3D → Three.js | ⚠️ **桌面收敛、网页断裂** | 路线 B（P4） |
+| **D 解析 + 渲染** | 文件树 → 基岩模型 → Spec3D → Three.js | ✅ **桌面 Go 直渲 + 网页 TS 移植双闭环**（ADR-049 P2-2；WASM 路线已弃） | 路线 B 暂缓（ROI 负，见 ADR-066-routeB-research） |
 
 **澄清两点（避免误判「三份重复」）**：
 
 1. **桌面端没有三份重复的基岩解析**：`summary.go` 注释已自陈「供 .zip 分支与裸 ysm.json 分支共用，消除格式不对称」（`summary.go:375`），`collectArchiveFiles`（`archive.go:633/728`）的 zip/7z 收集共用同一内核，前端 `parseYsmJsonDirect` 仅轻量提取作者元数据。Go 侧「识别→解包→摘要→收集」早已是单一解码器 + 收敛分支。
-2. **ADR-069（ysm 解密产物进指纹匹配）动不到渲染层**：它只收敛 **A 层（识别）** 的 `.ysm` 扩展名直判为 `zipEntries` 指纹，对 B/C/D 零影响。ysm 渲染的瓶颈在 **D 层网页断裂**——`go/threejs.Build`（`spec.go:61`）无 `//go:build wasm` / `syscall/js`，Spec3D 只能在 Go 侧生成，网页端即使能 WASM 解码、能抽元数据，也**必须 round-trip 回 Go** 才能 `renderModel3D(spec)`。这正是 `spec-portability-assessment.md` 路线 B 钉死的硬债（`go/threejs` → WASM）。
+2. **ADR-069（ysm 解密产物进指纹匹配）动不到渲染层**：它只收敛 **A 层（识别）** 的 `.ysm` 扩展名直判为 `zipEntries` 指纹，对 B/C/D 零影响。**D 层网页已闭环（ADR-049 P2-2，2026-08-12）**：`go/threejs.Build` 的「几何 JSON → Spec3D」变换以**纯 TS 移植**到 `frontend/src/utils/3d/spec-builder.ts`（契约镜像 `internal/app/app_model.go`，双边测试锁定：`spec-builder.test.ts` ↔ `app_model_test.go`），网页端 WASM 解码 → TS 构建 Spec3D → `renderModel3D`，不再 round-trip 回 Go。Go/TS 双实现靠双边测试维持口径（原 WASM 化路线 B 已判 ROI 负，暂缓，见 `docs/roadmap/routeB-research.md`）。
 
-> 结论：ysm 的桌面渲染早已长治久安；你感觉到的「三份重复」是**网页 gap 的影子，不是真重复**。真正的仗在把 Spec3D 生成搬上网页（路线 B），而非再写一份解析器。ADR-069 收敛的是识别层、动不到渲染层，其边际价值有限，建议降级/暂缓、与 ADR-068 边界划清。
+> 结论：ysm 的桌面渲染早已长治久安，**网页端也由 ADR-049 P2-2 纯 TS 移植闭环**（spec-builder.ts 双边测试锁定，非"三份重复"——Go 与 TS 是镜像实现非散装）。原「D 层网页断裂」表述为过时认知（未反映 P2-2），已修正。ADR-069 收敛的是识别层、动不到渲染层，其边际价值有限，建议降级/暂缓、与 ADR-068 边界划清。
 
 ---
 
@@ -159,7 +158,7 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
 
 - 动画播放：默认静态预览（`architecture.md §4.3` 明写「不需要动画」）；VRM/MMD 动画价值后续独立立项。
 - 缩略图类型（resourcepack/shaderpack）是否进统一入口：维持独立缩略图卡片，仅 5 个 3D 类型纳入 `mountPreview`（待用户拍板）。
-- `go/threejs.Build` 跨平台硬债：路线 B WASM 化归入 P4，不影响 P0–P3。
+- `go/threejs.Build` 跨平台：已由 ADR-049 P2-2 纯 TS 移植解决（`spec-builder.ts` 双边测试锁定），原 WASM 化路线 B 暂缓（ROI 负，见 `docs/roadmap/routeB-research.md`）。
 
 ---
 
@@ -178,7 +177,7 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
 - 🟡 **D1 迁移面**：`loader.ts`/`index.ts`/`litematic-meta.ts` 三处散硬判断须迁移到 `types` 单点，含对应测试断言迁移。
 
 **已知遗留**：
-- `go/threejs.Build` 跨平台硬债（`spec-portability-assessment.md` 路线 B：编 WASM，让 Spec3D 生成脱离 Wails 桌面壳进浏览器）——仅约束 YSM 路径，不阻碍 VRM/MMD 前端直引。
+- `go/threejs.Build` 跨平台：已由 ADR-049 P2-2 纯 TS 移植闭环（`spec-builder.ts` 双边测试锁定），原 WASM 化路线暂缓（ROI 负，`docs/roadmap/routeB-research.md`）——不阻碍 VRM/MMD 前端直引。
 - `RESOURCE_TYPES` 短标签≠JSON 全名（`types.ts:2-4` 注释），`resolveTypeByExt` 须基于 `extensions` 而非 label，避免与 Go 端 `ScanModelEntriesWithLabel` 语义混淆。
 
 ---
@@ -206,7 +205,7 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
   - **P1**：`VrmAdapter`（three-vrm，最干净，价值最高）；
   - **P2**：`MmdAdapter`（three-mmd / 或 babylon-mmd 直桥，标实验态）；
   - **P3**：ysm/blueprint/litematic 包成适配器接入 `mountPreview` 单一核心，消灭双 renderer；
-  - **P4**：跨平台——ysm 的 `go/threejs.Build` 硬债（WASM 化）；VRM/MMD 天然纯前端。
+  - **P4**：跨平台——ysm 的 `go/threejs.Build` 已由 ADR-049 P2-2 TS 移植闭环（WASM 化暂缓，`docs/roadmap/routeB-research.md`）；VRM/MMD 天然纯前端。
 
 ---
 
@@ -238,6 +237,6 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
 ### 5.3 遗留
 
 - `model3d-loader.ts:84-89` 的 `_modelPath` 透传未纳入 P0（属 D1 后续项，不影响 VRM/MMD 路线 B 接入点）；
-- 单元测试断言迁移（§4 必做 diff 第 4 项）待补：扩展名→类型解析、voxelFn 映射的契约测试。
+- 单元测试断言迁移（§4 必做 diff 第 4 项）已补 ✅：扩展名→类型解析、AMBIGUOUS_EXTS 歧义契约（`frontend/src/utils/resource/types.test.ts`，`6e504851`）；voxelFn 映射对账契约（同文件 VOXEL_RPC_BY_EXT 3 例，2026-08-16 补）。
 
 <!-- 文件名: universal-resource-preview.md → 实际文件 ADR-066-universal-resource-preview.md -->
