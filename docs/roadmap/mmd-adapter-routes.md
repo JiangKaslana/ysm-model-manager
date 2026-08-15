@@ -85,6 +85,18 @@
 - 并行开发 → `mount-preview-core.ts` / `index.ts` 共享文件撞车 + 契约变动返工（陷阱 #11 同类风险）。
 - **顺序执行**：ysm3d 收敛落地 → 契约稳定 → `MmdAdapter` 一次做对。这符合项目「长治久安」偏好：新增格式 = 加适配器 + 注册表一条目，不污染既有渲染逻辑（ADR-066 D1/D2）。
 
+### 4.1 进展注记（2026-08-16 对面 A2「外壳模式」已落工作区）
+
+对面按 A2 方案改造 `mount-preview-core.ts`（在途未提交），**验证全绿**（typecheck ✅ / vite build ✅ / app-preview 235 测试 ✅）：
+
+- `PreviewAdapter` 新增 `mode?: "shared" | "self"`；`PreviewBuildCtx.scene/camera/controls` 改为可选（self 模式为 undefined）；`PreviewScene` 新增 `extraPanel?(panel)` 侧栏钩子；
+- `mount3D` 按 mode 分支：**shared**（默认，现有 vrm/litematic 行为不变）建 renderer/scene/controls/WASD/rAF；**self** 只建外壳（overlay/topBar/body/panel/loading/ESC/resize/close/代际守卫/cleanup 编排），跳过一切 3D 基建与键盘监听（防双重劫持）；
+- `mount-preview-core.ts` 新增 body(flex row) 容器 + panel 折叠/拖拽柄（`panelToggle`/`resizeHandle`）；`vrm-adapter.ts` / `litematic-adapter.ts` 仅做 `ctx.scene!` 等可选链机械适配。
+
+**对 MmdAdapter 排期的影响**：
+- core 契约已含 mode 字段 → MMD 适配器未来**两种模式都可用**：静态预览走 shared（复用核心 renderer），若有自驱需求（three-mmd 的 IK/physics 需独立 update）可走 self——与 YSM 单例同构，正好印证「core 双模式」的通用性收益；
+- 但 **P3-E 尚未完整落地**：`skeleton.ts` 的 `_toggle3D` 退化接线、`ysm-adapter.ts` / `ysm-3d.ts` 新文件均未出现在工作区（对面只完成了 core 与 adapter 适配）。**故 §0 排期结论不变**：等 ysm3d 收敛完整落地（含 skeleton 接线与回归）后再启动 P2，MmdAdapter 一次做对。
+
 ---
 
 ## 5. 数据溯源
