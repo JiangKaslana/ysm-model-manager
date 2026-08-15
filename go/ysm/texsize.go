@@ -12,6 +12,7 @@ import (
 	"github.com/bodgit/sevenzip"
 
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/types"
 )
 
 // 7z 文件前缀扫描上限（仅读取头部判断格式）
@@ -63,7 +64,7 @@ func readTexSizeFromFile(path string) (int, int) {
 // readTexFromZip 从 zip 中提取 geometry JSON 读取纹理尺寸
 func readTexFromZip(path string) (int, int) {
 	// limit+1 探测截断（ADR-033 陷阱），两个循环共用
-	const maxTexJSON = 50 << 20
+	const maxTexJSON = types.MaxReadLimit
 	r, err := zip.OpenReader(path)
 	if err != nil {
 		return 0, 0
@@ -101,7 +102,7 @@ func readTexFromZip(path string) (int, int) {
 // 子代理审计 P3：真实 .7z 的纹理尺寸一直缺失）。
 func readTexFrom7z(path string) (int, int) {
 	// 与 readTexFromZip 同上限（50MB/条目，ADR-033 截断防线）
-	const maxTexJSON = 50 << 20
+	const maxTexJSON = types.MaxReadLimit
 	zr, err := sevenzip.OpenReader(path)
 	if err != nil {
 		return 0, 0

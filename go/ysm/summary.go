@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/types"
 )
 
 type Author struct {
@@ -156,8 +157,8 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 	// 裸 ysm.json（解压后的 YSM 模型文件），直接读取 JSON
 	if strings.HasSuffix(strings.ToLower(path), ".json") {
 		// 裸 ysm.json 也设大小上限（与 zip 分支 50MB 对齐），防超大文件整读内存
-		if fi, err := os.Stat(path); err == nil && fi.Size() > (50<<20) {
-			return summary, fmt.Errorf("ysm.json 超过 50MB 上限，已拒绝解析")
+		if fi, err := os.Stat(path); err == nil && fi.Size() > types.MaxReadLimit {
+			return summary, fmt.Errorf("ysm.json 超过 %dMB 上限，已拒绝解析", types.MaxReadLimit/(1<<20))
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -278,7 +279,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 	// limit+1 探测截断（ADR-033 陷阱）——截断数据 JSON 解析会失败且报错信息误导。
 	// 注：本处保留手写实现（未接入 fsutil.ReadLimitedEntry）——调用点需区分「读取失败」与
 	// 「超限」两种错误消息返回调用方，而 fsutil 版对两者统一返回 nil（ADR-044 策略 A 例外说明）
-	const maxYsmJSON = 50 << 20
+	const maxYsmJSON = types.MaxReadLimit
 	data, err := io.ReadAll(io.LimitReader(rc, maxYsmJSON+1))
 	if err != nil {
 		return summary, fmt.Errorf("读取 ysm.json 失败: %w", err)
@@ -347,7 +348,7 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 					}
 					// limit+1 探测截断 + 不丢弃 ReadAll 错误（ADR-033 陷阱）。
 					// ADR-044 策略 A：统一走 fsutil.ReadLimitedEntry（超限/错误返回 nil → 跳过）
-					const maxTexGeo = 50 << 20
+					const maxTexGeo = types.MaxReadLimit
 					data := fsutil.ReadLimitedEntry(rc, int64(maxTexGeo))
 					if data == nil {
 						continue

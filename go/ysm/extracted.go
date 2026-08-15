@@ -21,7 +21,7 @@ import (
 // 防超大 ysm.json/geometry/纹理整体拖入内存（P2 审计：原 os.ReadFile 无界，
 // 与 zip 路径 50MB 口径不一致；geometry.ParseBedrockGeometry 的 100MB 上限是
 // 整文件读入后才检查，防不了分配）
-const maxReadSize = 50 << 20
+const maxReadSize = types.MaxReadLimit
 
 // readFileLimited 受限读取：超限/失败返回 nil（+1 探测，不静默截断）
 func readFileLimited(path string) []byte {

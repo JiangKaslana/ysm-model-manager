@@ -18,6 +18,12 @@ const MaxImportSize = 500 * 1024 * 1024
 // MaxImportSizeMB MaxImportSize 的 MB 整数表示（错误文案格式化用，防 500MB 字面量漂移）
 const MaxImportSizeMB = MaxImportSize / (1024 * 1024)
 
+// MaxReadLimit 单文件/条目读取上限（50MB）——共享常量（索引 6.7+5.2）：
+// 收敛 geometry maxExtractSize（ZIP/7z 条目防炸弹）、fileops maxPreviewRead（预览整读）、
+// ysm maxReadSize/maxYsmJSON/maxTexGeo/maxTexJSON（解析整读）三包 9 处独立声明的
+// `50 << 20` 为单一事实来源，任一包调整上限只改本常量。
+const MaxReadLimit = 50 << 20
+
 // AllExts 返回所有支持的扩展名（去重后）
 func AllExts() []string {
 	reg := LoadRegistry()

@@ -19,7 +19,8 @@ import (
 )
 
 // maxExtractSize 单个文件最大读取大小（ZIP/7z 内文件），防止 ZIP 炸弹
-const maxExtractSize = 50 << 20 // 50MB
+// 共享 types.MaxReadLimit（索引 6.7+5.2，与 fileops/ysm 的 50MB 上限单点）
+const maxExtractSize = types.MaxReadLimit
 
 // readLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复）——
 // 原 `io.ReadAll(io.LimitReader(rc, maxExtractSize))` 截断后 err==nil 静默，
