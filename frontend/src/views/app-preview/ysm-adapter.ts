@@ -148,8 +148,10 @@ export function makeYsmAdapter(path: string, opts: YsmAdapterOptions): PreviewAd
     id: "ysm",
     // shared 模式（§5.7）：核心提供 renderer/scene/camera/controls/rAF，适配器只注入内容
     onClose: opts.onClose,
-    build(ctx: PreviewBuildCtx): Promise<PreviewScene> {
-      return buildYsmScene(ctx, path, opts);
+    // 审核修复：必须用 build 传入的 path（switchTo(newPath) 重建内容层的换模型入口），
+    // 闭包 path 仅是首次挂载的初始值——否则 switchTo 对 YSM 加载同一旧模型（假切换）。
+    build(ctx: PreviewBuildCtx, buildPath: string): Promise<PreviewScene> {
+      return buildYsmScene(ctx, buildPath, opts);
     },
   };
 }

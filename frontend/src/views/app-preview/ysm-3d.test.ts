@@ -107,12 +107,14 @@ describe("buildYsmScene（shared 装配）", () => {
     expect(mocks.registerBoneRaycast).toHaveBeenCalled();
   });
 
-  it("makeYsmAdapter 闭包 path + loader（switchTo 重建内容层同 path 语义）", async () => {
+  it("makeYsmAdapter：build 用传入 path（switchTo 换模型语义，闭包 path 仅初始值）", async () => {
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
     const adapter = makeYsmAdapter("/m/a.ysm", { loader });
     expect(adapter.id).toBe("ysm");
+    // switchTo 语义：core 调 build(ctx, newPath) 重建内容层——必须加载 newPath 而非闭包旧 path
     await expect(
-      adapter.build(makeCtx() as never, "/m/a.ysm"),
+      adapter.build(makeCtx() as never, "/m/b.ysm"),
     ).resolves.toBeTruthy();
+    expect(loader).toHaveBeenCalledWith("/m/b.ysm");
   });
 });
