@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/Tnze/go-mc/nbt"
+
+	"ysm-model-manager/go/types"
 )
 
 // ====== buildRegionInfo ======
@@ -394,5 +396,135 @@ func TestParseNbtStructure_NoSizeOrBlocks(t *testing.T) {
 	result := ParseNbtStructure(path)
 	if result != nil {
 		t.Errorf("缺 size/blocks/palette 应返回 nil, 得到 %v", result)
+	}
+}
+
+// ====== ParseNbtStructure 基岩版 1.21+（sub_levels 多子结构）======
+
+// makeBedrockSubLevel 构造基岩版 1.21+ sub_level（TAG_List 内 compound 元素，无 type/name）。
+// palette: block_palette 的 Name 列表（与 blocks.palette_id 下标对应）；
+// bounds: [minX,minY,minZ,maxX,maxY,maxZ]；blockPIDs: blocks 的 palette_id 序列。
+func makeBedrockSubLevel(palette []string, bounds []int32, blockPIDs ...int32) []byte {
+	var paletteElems [][]byte
+	for _, name := range palette {
+		paletteElems = append(paletteElems, nbtCompoundBody(nbtString("Name", name)))
+	}
+	var blockElems [][]byte
+	for _, pid := range blockPIDs {
+		blockElems = append(blockElems, nbtCompoundBody(
+			nbtCompound("local_pos", nbtInt("x", 0), nbtInt("y", 0), nbtInt("z", 0)),
+			nbtInt("palette_id", pid),
+		))
+	}
+	return nbtCompoundBody(
+		nbtList("block_palette", 0x0A, paletteElems...),
+		nbtList("blocks", 0x0A, blockElems...),
+		nbtCompound("local_bounds",
+			nbtInt("min_x", bounds[0]), nbtInt("min_y", bounds[1]), nbtInt("min_z", bounds[2]),
+			nbtInt("max_x", bounds[3]), nbtInt("max_y", bounds[4]), nbtInt("max_z", bounds[5]),
+		),
+	)
+}
+
+// makeBedrockStructure 构造基岩版 1.21+ structure（根含 version + sub_levels）。
+func makeBedrockStructure(t *testing.T, subLevels ...[]byte) string {
+	t.Helper()
+	root := nbtCompound("",
+		nbtInt("version", 2),
+		nbtList("sub_levels", 0x0A, subLevels...),
+	)
+	return writeGzNbt(t, root)
+}
+
+func TestParseNbtStructure_BedrockSubLevels(t *testing.T) {
+	// 两个 sub_level：尺寸聚合取全局包围盒、方块数跨子结构求和、
+	// paletteStats 按 blocks.palette_id 引用 block_palette.Name 统计真实方块数
+	sub1 := makeBedrockSubLevel(
+		[]string{"minecraft:stone", "minecraft:dirt"},
+		[]int32{0, 0, 0, 2, 3, 4},
+		0, 0, 1, // stone×2 + dirt×1
+	)
+	sub2 := makeBedrockSubLevel(
+		[]string{"minecraft:dirt", "minecraft:oak_log"},
+		[]int32{1, 1, 1, 5, 6, 7},
+		1, 0, 1, // oak_log×2 + dirt×1
+	)
+	path := makeBedrockStructure(t, sub1, sub2)
+
+	result := ParseNbtStructure(path)
+	if result == nil {
+		t.Fatal("基岩版 sub_levels 结构应解析成功，得到 nil")
+	}
+	// 全局包围盒：min 取各子结构最小、max 取最大 → size = (max-min+1)
+	size, ok := result["size"].([]int)
+	if !ok {
+		t.Fatalf("size 缺失或类型错误: %v", result["size"])
+	}
+	wantSize := []int{5 - 0 + 1, 6 - 0 + 1, 7 - 0 + 1} // [6, 7, 8]
+	for i := range wantSize {
+		if size[i] != wantSize[i] {
+			t.Errorf("size[%d] = %d, 期望 %d", i, size[i], wantSize[i])
+		}
+	}
+	if result["blockCount"] != 6 {
+		t.Errorf("blockCount = %v, 期望 6", result["blockCount"])
+	}
+	stats, ok := result["paletteStats"].([]types.LitematicBlockStat)
+	if !ok {
+		t.Fatalf("paletteStats 缺失或类型错误: %v", result["paletteStats"])
+	}
+	// 期望按真实方块数降序：dirt×2, oak_log×2, stone×2（Count 相同按名）
+	if len(stats) != 3 {
+		t.Fatalf("paletteStats 长度 = %d, 期望 3（%v）", len(stats), stats)
+	}
+	for _, s := range stats {
+		if s.Count != 2 {
+			t.Errorf("paletteStats 条目 %q Count = %d, 期望 2", s.Name, s.Count)
+		}
+	}
+}
+
+func TestParseNbtStructure_BedrockEmptyBlocks(t *testing.T) {
+	// sub_levels 存在但 blocks 为空：size 仍推导，blockCount=0 不写入（前端以 size 判定通过）
+	sub := makeBedrockSubLevel(
+		[]string{"minecraft:stone"},
+		[]int32{0, 0, 0, 3, 3, 3},
+	)
+	path := makeBedrockStructure(t, sub)
+
+	result := ParseNbtStructure(path)
+	if result == nil {
+		t.Fatal("含 local_bounds 的 sub_levels 应解析成功，得到 nil")
+	}
+	if _, ok := result["size"]; !ok {
+		t.Errorf("size 缺失（local_bounds 应推导包围盒）: %v", result)
+	}
+	if _, ok := result["blockCount"]; ok {
+		t.Errorf("blocks 为空不应写入 blockCount: %v", result)
+	}
+}
+
+func TestParseNbtStructure_BedrockPaletteIdOutOfRange(t *testing.T) {
+	// palette_id 越界（超出 block_palette 长度）：跳过不计，不 panic
+	sub := makeBedrockSubLevel(
+		[]string{"minecraft:stone"},
+		[]int32{0, 0, 0, 1, 1, 1},
+		0, 5, // palette_id=5 越界（palette 仅 1 项）
+	)
+	path := makeBedrockStructure(t, sub)
+
+	result := ParseNbtStructure(path)
+	if result == nil {
+		t.Fatal("越界 palette_id 不应使解析失败")
+	}
+	stats, ok := result["paletteStats"].([]types.LitematicBlockStat)
+	if !ok {
+		t.Fatalf("paletteStats 缺失: %v", result)
+	}
+	if len(stats) != 1 || stats[0].Count != 1 {
+		t.Errorf("越界 palette_id 应跳过，仅统计合法引用: %v", stats)
+	}
+	if result["blockCount"] != 2 {
+		t.Errorf("blockCount 应含越界条目（blocks 长度 2）: %v", result["blockCount"])
 	}
 }
