@@ -135,7 +135,7 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		}
 		// 对于非模型类型（光影包/蓝图/资源包），额外扫描整合包目录中所有未被 SyncResources 覆盖的文件
 		// （SyncResources 的 map 去重会丢失同名文件）
-		if rt.ID == "shaderpack" || rt.ID == "create-blueprint" || rt.ID == "resourcepack" {
+		if types.IsScanInstance(rt.ID) {
 			// 已由 result 覆盖的文件名集合（避免额外扫描重复添加）。
 			// 只记录「确实展示」的条目名（extMatch 通过者），
 			// 否则资源包文件夹名已被 result 记录 → seenNames 命中 → 兜底 Walk 的

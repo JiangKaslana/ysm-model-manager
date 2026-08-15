@@ -8,10 +8,28 @@ package sync
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // ===== copyFile 错误分支 =====
+
+// assertNoFsutilTmp 断言 dir 下无 fsutil.CopyFile 的临时文件残留（.copy-* 前缀）
+func assertNoFsutilTmp(t *testing.T, dir string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".copy-") {
+			t.Fatalf("失败后不应残留 .copy-* 临时文件: %s", e.Name())
+		}
+	}
+}
 
 func TestCopyFile_OpenSrcError(t *testing.T) {
 	base := t.TempDir()
@@ -35,22 +53,27 @@ func TestCopyFile_MkdirAllError(t *testing.T) {
 	}
 }
 
-func TestCopyFile_CreateTmpError(t *testing.T) {
-	// 目标 dst+".copy-tmp" 被目录占位 → os.Create(tmp) 失败
+func TestCopyFile_TmpNameRandomized(t *testing.T) {
+	// 旧实现固定 tmp 名 dst+".copy-tmp"，被外部目录占位会阻塞复制（CreateTmpError）。
+	// 收敛至 fsutil.CopyFile（os.CreateTemp 随机名）后该占位被天然规避——复制应成功。
 	base := t.TempDir()
 	src := filepath.Join(base, "src.txt")
 	_ = os.WriteFile(src, []byte("data"), 0644)
 	dst := filepath.Join(base, "out", "f.txt")
-	// 注意：copyFile 先 os.Remove(tmp) 清场——空目录会被清掉，须用非空目录占位
 	if err := os.MkdirAll(dst+".copy-tmp", 0755); err != nil {
 		t.Fatal(err)
 	}
 	_ = os.WriteFile(filepath.Join(dst+".copy-tmp", "guard"), []byte("g"), 0644)
-	if err := copyFile(src, dst); err == nil {
-		t.Fatal("tmp 被非空目录占位时应报错")
+	if err := copyFile(src, dst); err != nil {
+		t.Fatalf("随机 tmp 名应规避占位冲突，实际报错: %v", err)
 	}
-	if _, err := os.Stat(dst); !os.IsNotExist(err) {
-		t.Fatalf("失败后不应留下目标文件: %v", err)
+	data, _ := os.ReadFile(dst)
+	if string(data) != "data" {
+		t.Fatalf("目标内容 = %q", string(data))
+	}
+	// 占位目录应原样保留（未被误清）
+	if _, err := os.Stat(filepath.Join(dst+".copy-tmp", "guard")); err != nil {
+		t.Fatalf("占位目录不应被清理: %v", err)
 	}
 }
 
@@ -64,10 +87,7 @@ func TestCopyFile_IOCopyError(t *testing.T) {
 	if err := copyFile(srcDir, dst); err == nil {
 		t.Fatal("复制目录句柄应报错")
 	}
-	residue, _ := filepath.Glob(filepath.Join(base, "out", "*.copy-tmp"))
-	if len(residue) != 0 {
-		t.Fatalf("失败后不应残留 tmp 文件: %v", residue)
-	}
+	assertNoFsutilTmp(t, filepath.Join(base, "out"))
 }
 
 func TestCopyFile_RenameError(t *testing.T) {
@@ -82,10 +102,7 @@ func TestCopyFile_RenameError(t *testing.T) {
 	if err := copyFile(src, dst); err == nil {
 		t.Fatal("目标为目录时应报错")
 	}
-	residue, _ := filepath.Glob(filepath.Join(base, "out", "*.copy-tmp"))
-	if len(residue) != 0 {
-		t.Fatalf("失败后不应残留 tmp 文件: %v", residue)
-	}
+	assertNoFsutilTmp(t, filepath.Join(base, "out"))
 }
 
 // ===== copyDirRecursive 基本分支 =====

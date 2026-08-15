@@ -6,12 +6,11 @@ package sync
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/installer"
 	"ysm-model-manager/go/types"
 )
@@ -26,7 +25,7 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 
 	// YSM(.json) 和 MMD(.pmx/.pmd) 位于子目录中，需文件夹推送
 	// 用文件夹级同步检测 missing，然后完整复制整个文件夹（含纹理等配套文件）
-	if rtype == "mmd-skin" || rtype == "ysm" {
+	if types.IsDirLevelSync(rtype) {
 		dirResult := SyncResourcesDirLevel(globalDir, targetDir, rtype)
 		for _, missingDir := range dirResult.Missing {
 			if err := installer.InstallDir(missingDir, targetDir, globalDir, linkMode, rtype); err == nil {
@@ -67,7 +66,7 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 	// 找出 extra 的文件并复制到全局
 	// 对 YSM/MMD 使用文件夹级同步
 	var result types.ResourceSyncResult
-	if rtype == "ysm" || rtype == "mmd-skin" {
+	if types.IsDirLevelSync(rtype) {
 		result = SyncResourcesDirLevel(globalDir, targetDir, rtype)
 	} else {
 		result = SyncResources(globalDir, targetDir)
@@ -258,95 +257,26 @@ func mapSrcToGlobal(src, targetDir, globalDir string) (string, error) {
 	return filepath.Join(globalDir, rel), nil
 }
 
-// copyFile 复制文件到目标路径（P3 修复（子代理审计）：原 os.Create+io.Copy 直写目标，
-// 拉取中断/磁盘满会留半截文件进仓库，被扫描成「截断哈希」进入同步匹配。改 tmp+rename
-// 原子落地，对齐 installer.copyFileLocked/fsutil.WriteFileAtomic 口径）。
+// copyFile 复制文件到目标路径（已收敛至 fsutil.CopyFile 的 tmp+rename 原子落地——
+// 原 os.Create+io.Copy 直写目标，拉取中断/磁盘满会留半截文件进仓库，被扫描成
+// 「截断哈希」进入同步匹配；fsutil 补 Sync 落盘检查 + Chmod 0644，与 installer/
+// fileops/recycle/importer 全部统一，ADR-044 策略 A）。
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return err
-	}
-	tmp := dst + ".copy-tmp"
-	_ = os.Remove(tmp)
-	ok := false
-	defer func() {
-		if !ok {
-			os.Remove(tmp)
-		}
-	}()
-	out, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-	if _, err = io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	if err = out.Sync(); err != nil {
-		out.Close()
-		return err
-	}
-	if err = out.Close(); err != nil {
-		return err
-	}
-	if err = os.Rename(tmp, dst); err != nil {
-		return err
-	}
-	ok = true
-	return nil
+	return fsutil.CopyFile(src, dst)
 }
 
 // copyDirRecursive 递归复制目录树到 dstDir（保留相对路径）：
-// 递归 MkdirAll + copyFile，失败回滚清理已复制的部分，避免半截目录进入仓库。
-// 仅当 dstDir 为本次新建时才回滚删除——重拉/刷新场景 dstDir 可能是用户既有
-// 模型文件夹，误删旧内容即数据丢失（对齐 installer.InstallDir 的 dstExisted 语义）。
+// 已收敛至 fsutil.CopyDirRecursive（ADR-044 策略 A）。仅当 dstDir 为本次新建时才回滚
+// 删除——重拉/刷新场景 dstDir 可能是用户既有模型文件夹，误删旧内容即数据丢失
+// （对齐 installer.InstallDir 的 dstExisted 语义）。
 func copyDirRecursive(src, dstDir string) error {
 	dstExisted := false
 	if _, err := os.Stat(dstDir); err == nil {
 		dstExisted = true
 	}
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
-		return err
-	}
-	err := filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, rerr := filepath.Rel(src, p)
-		if rerr != nil {
-			return rerr
-		}
-		target := filepath.Join(dstDir, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0755)
-		}
-		// 符号链接：复制链接本身（保留语义），不跟随复制——symlink-to-dir 走
-		// copyFile 会 os.Open(目录)+io.Copy → EISDIR 中断整棵树复制
-		if d.Type()&os.ModeSymlink != 0 {
-			linkTarget, lerr := os.Readlink(p)
-			if lerr != nil {
-				return lerr
-			}
-			// 目标已存在时 Symlink 在 Windows 上失败（Cannot create a file when that file already exists）；
-			// 先清目标再建链接，与 copyFile 的 tmp+rename 原子替换口径对齐
-			_ = os.Remove(target)
-			return os.Symlink(linkTarget, target)
-		}
-		return copyFile(p, target)
+	return fsutil.CopyDirRecursive(src, dstDir, fsutil.CopyDirOptions{
+		RejectSymlink: false,       // 保留 symlink 链接本身（不跟随复制）
+		Overwrite:     true,        // 重拉/刷新场景允许覆盖既有文件
+		Rollback:      !dstExisted, // 仅本次新建目录才整树回滚，防误删用户既有数据
 	})
-	if err != nil {
-		// 失败回滚：仅本次新建目录才整树清理，防止半截目录被扫成「截断模型」
-		// 进入同步匹配；已存在目录保留旧内容，避免误删用户既有数据
-		if !dstExisted {
-			if rmErr := os.RemoveAll(dstDir); rmErr != nil {
-				log.Printf("[sync] 回滚清理失败 %s: %v", dstDir, rmErr)
-			}
-		}
-		return err
-	}
-	return nil
 }

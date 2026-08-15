@@ -288,14 +288,19 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 		case ".exe", ".bat", ".dll", ".cmd", ".scr", ".pif", ".com", ".msi", ".ps1", ".vbs":
 			return false
 		}
-		switch rtype {
-		case "mmd-skin":
-			return ext == ".pmx" || ext == ".pmd" || ext == ".png" || ext == ".tga" || ext == ".spa" || ext == ".sph"
-		case "ysm":
-			return ext == ".json" || ext == ".png" || ext == ".jpg" || ext == ".jpeg"
-		default:
+		// 注册表驱动（Top 3）：安装白名单来自 resource_types.json 的 installExts
+		// （mmd-skin/ysm 声明模型+纹理配套扩展名；空=全部放行，仅可执行文件黑名单除外）。
+		// 新增类型只需改 JSON，无需改本函数。
+		installExts := types.InstallExtsFor(rtype)
+		if len(installExts) == 0 {
 			return true
 		}
+		for _, e := range installExts {
+			if ext == e {
+				return true
+			}
+		}
+		return false
 	}
 
 	entries, err := os.ReadDir(srcDir)
