@@ -768,6 +768,8 @@
   "preview.clickFileHint": "点击左侧仓库文件查看详情",
   "preview.ysmModel": "YSM 模型",
   "preview.mmdSkin": "MMD 皮肤",
+  "preview.mmdPlay": "播放",
+  "preview.mmdPause": "暂停",
   "preview.vrcAvatar": "VRC 头像",
   "preview.unknownError": "未知错误",
   "preview.nameLabel": "名称",

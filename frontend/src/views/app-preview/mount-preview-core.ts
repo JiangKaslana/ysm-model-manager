@@ -185,6 +185,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   const myGen = ++_gen;
   const selfMode = adapter.mode === "self";
   const siblings = opts.siblings?.filter((p) => p !== path) ?? [];
+  /** 3D 内切换后的当前模型路径（审核 #4：切换成功后「当前」项须指向新模型，原 path 移回候选） */
+  let currentPath = path;
 
   // ---- shared 模式相机状态（提前声明：buildCameraControls 的 bridge 闭包需在此后引用）----
   // self 模式由适配器（如 ysm 的 renderModel3D 单例）自行驱动这些，核心只提供外壳，
@@ -226,33 +228,39 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
   topBar.appendChild(closeBtn);
 
-  // 3D 内模型切换下拉（ADR-066 §5.6）：siblings ≥2 时显示；onchange 经 _handle.switchTo 换模型
+  // 3D 内模型切换下拉（ADR-066 §5.6）：siblings ≥2 时显示；onchange 经 _handle.switchTo 换模型。
+  // 审核 #4：选项动态重建——「当前」项始终指向 currentPath（切换后跟随新模型），原 path 移回候选可切回。
   if (siblings.length > 0) {
     const switchSel = document.createElement("select");
     switchSel.style.cssText =
       "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;max-width:220px";
-    const curOpt = document.createElement("option");
-    curOpt.value = path;
-    curOpt.textContent = "当前: " + (path.split(/[/\\]/).pop() || path);
-    switchSel.appendChild(curOpt);
-    siblings.forEach((p) => {
-      const opt = document.createElement("option");
-      opt.value = p;
-      opt.textContent = p.split(/[/\\]/).pop() || p;
-      switchSel.appendChild(opt);
-    });
+    const renderOptions = (): void => {
+      switchSel.innerHTML = "";
+      const curOpt = document.createElement("option");
+      curOpt.value = currentPath;
+      curOpt.textContent = "当前: " + (currentPath.split(/[/\\]/).pop() || currentPath);
+      switchSel.appendChild(curOpt);
+      // 候选 = siblings + 原 path（切换后原 path 移回可选，保证可切回）；当前项不重复入列
+      const candidates = [...siblings];
+      if (path !== currentPath) candidates.unshift(path);
+      candidates.forEach((p) => {
+        if (p === currentPath) return;
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p.split(/[/\\]/).pop() || p;
+        switchSel.appendChild(opt);
+      });
+      switchSel.value = currentPath;
+    };
+    renderOptions();
     switchSel.onchange = (): void => {
       const target = switchSel.value;
-      if (target === path) return;
+      if (target === currentPath) return;
       switchSel.disabled = true; // 切换期间防连点
       void _handle?.switchTo?.(target)?.finally(() => {
         switchSel.disabled = false;
-        // 切换成功后更新「当前」项
-        const cur = switchSel.querySelector<HTMLOptionElement>("option[value='" + path + "']");
-        if (cur) {
-          cur.textContent = (path.split(/[/\\]/).pop() || path);
-        }
-        switchSel.value = path;
+        currentPath = target; // 切换成功：「当前」项跟随新模型
+        renderOptions();
       });
     };
     topBar.appendChild(switchSel);
