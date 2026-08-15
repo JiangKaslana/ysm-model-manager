@@ -7,8 +7,8 @@
 
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
-| Go·头像 | 4 | 10 |
-| go/container | 1 | 23 |
+| Go·头像 | 4 | 11 |
+| go/container | 1 | 25 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 13 |
 | go/executil | 2 | 2 |
@@ -42,7 +42,7 @@
 | 前端·工具 | 55 | 197 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **275** | **1144** |
+| **合计** | **275** | **1147** |
 
 ## Go·头像
 
@@ -51,10 +51,11 @@
 | `SetNodeJS()` | `go/avatar/avatar_decode:39` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
 | `limitedBuffer.Write()` | `go/avatar/avatar_decode:54` | — |
 | `DecodeYSMFiles()` | `go/avatar/avatar_decode:63` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
-| `ExtractAvatarURI()` | `go/avatar/avatar_extract:24` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
+| `ExtractAvatarURI()` | `go/avatar/avatar_extract:23` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
 | `CacheAvatarsFromJSON()` | `go/avatar/avatar_extract:195` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
 | `CacheAvatarsFromModel()` | `go/avatar/avatar_extract:265` | CacheAvatarsFromModel 从 .ysm/.zip/.json 模型缓存所有作者头像。 |
-| `ReadFileFromZip()` | `go/avatar/avatar_zip:16` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
+| `ReadFileFromZip()` | `go/avatar/avatar_zip:18` | ReadFileFromZip 从 ZIP 读取指定路径的文件。 |
+| `ReadFileFromContainer()` | `go/avatar/avatar_zip:54` | ReadFileFromContainer 从统一容器读取指定路径的文件（ADR-068： 容器打开统一走 container，替代 zip.NewReader + ReadFil |
 | `SafeName()` | `go/avatar/avatar:45` | SafeName 将非法文件名字符替换为下划线。 |
 | `ReadCachedAvatar()` | `go/avatar/avatar:139` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
 | `SaveAvatarData()` | `go/avatar/avatar:165` | SaveAvatarData 将头像数据写入缓存。 |
@@ -63,29 +64,31 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `zipEntry.Name()` | `go/container/container:43` | — |
-| `zipEntry.IsDir()` | `go/container/container:44` | — |
-| `zipEntry.Open()` | `go/container/container:45` | — |
-| `zipContainer.Entries()` | `go/container/container:54` | — |
-| `zipContainer.Close()` | `go/container/container:66` | — |
-| `sevenzipEntry.Name()` | `go/container/container:78` | — |
-| `sevenzipEntry.IsDir()` | `go/container/container:79` | — |
-| `sevenzipEntry.Open()` | `go/container/container:80` | — |
-| `sevenzipContainer.Entries()` | `go/container/container:89` | — |
-| `sevenzipContainer.Close()` | `go/container/container:97` | — |
-| `dirEntry.Name()` | `go/container/container:113` | — |
-| `dirEntry.IsDir()` | `go/container/container:114` | — |
-| `dirEntry.Open()` | `go/container/container:115` | — |
-| `Open()` | `go/container/container:45` | — |
-| `OpenZipPath()` | `go/container/container:141` | OpenZipPath 按路径打开 zip 容器。 |
-| `OpenZipBytes()` | `go/container/container:150` | OpenZipBytes 从内存打开 zip 容器。 |
-| `Open7zPath()` | `go/container/container:159` | Open7zPath 按路径打开 7z 容器。 |
-| `Open7zBytes()` | `go/container/container:168` | Open7zBytes 从内存打开 7z 容器。 |
-| `dirContainer.Entries()` | `go/container/container:213` | — |
-| `dirContainer.Close()` | `go/container/container:214` | — |
-| `OpenDir()` | `go/container/container:217` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
+| `zipEntry.Name()` | `go/container/container:44` | — |
+| `zipEntry.IsDir()` | `go/container/container:45` | — |
+| `zipEntry.UncompressedSize64()` | `go/container/container:46` | — |
+| `zipEntry.Open()` | `go/container/container:47` | — |
+| `zipContainer.Entries()` | `go/container/container:56` | — |
+| `zipContainer.Close()` | `go/container/container:68` | — |
+| `sevenzipEntry.Name()` | `go/container/container:80` | — |
+| `sevenzipEntry.IsDir()` | `go/container/container:81` | — |
+| `sevenzipEntry.UncompressedSize64()` | `go/container/container:82` | — |
+| `sevenzipEntry.Open()` | `go/container/container:83` | — |
+| `sevenzipContainer.Entries()` | `go/container/container:92` | — |
+| `sevenzipContainer.Close()` | `go/container/container:100` | — |
+| `dirEntry.Name()` | `go/container/container:116` | — |
+| `dirEntry.IsDir()` | `go/container/container:117` | — |
+| `dirEntry.Open()` | `go/container/container:118` | — |
+| `Open()` | `go/container/container:47` | — |
+| `OpenZipPath()` | `go/container/container:144` | OpenZipPath 按路径打开 zip 容器。 |
+| `OpenZipBytes()` | `go/container/container:153` | OpenZipBytes 从内存打开 zip 容器。 |
+| `Open7zPath()` | `go/container/container:162` | Open7zPath 按路径打开 7z 容器。 |
+| `Open7zBytes()` | `go/container/container:171` | Open7zBytes 从内存打开 7z 容器。 |
+| `dirContainer.Entries()` | `go/container/container:216` | — |
+| `dirContainer.Close()` | `go/container/container:217` | — |
+| `OpenDir()` | `go/container/container:220` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
 | `Entry()` | `go/container/container:26` | Entry 统一容器条目（zip.File / sevenzip.File / 目录文件）。 |
-| `Reader()` | `go/container/container:33` | Reader 容器读取器。 |
+| `Reader()` | `go/container/container:34` | Reader 容器读取器。 |
 
 ## Go·去重
 
@@ -166,13 +169,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ExtractFirstPNGFromZip()` | `go/geometry/archive:59` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
-| `ExtractFirstPNGFrom7z()` | `go/geometry/archive:80` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:301` | — |
-| `ParseFrom7z()` | `go/geometry/archive:611` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理 |
-| `IsMainModelName()` | `go/geometry/archive:903` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:915` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1013` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
+| `ExtractFirstPNGFromZip()` | `go/geometry/archive:73` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
+| `ExtractFirstPNGFrom7z()` | `go/geometry/archive:83` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
+| `ParseFromZip()` | `go/geometry/archive:592` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:602` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `IsMainModelName()` | `go/geometry/archive:615` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:627` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:722` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
 | `ParseBedrockGeometry()` | `go/geometry/parse:25` | ParseBedrockGeometry 解析标准 Bedrock geometry JSON（minecraft:geometry 格式） 注意：data 大小不应超过 maxP |
 
 ## Go·导入
@@ -480,10 +483,10 @@
 | `PreviewInfo()` | `go/ysm/summary:40` | — |
 | `YsmSummary()` | `go/ysm/summary:48` | YsmSummary 是前端右侧面板和 AI 搜索消费的标准摘要 |
 | `Stats()` | `go/ysm/summary:65` | — |
-| `ScanModelTexSizes()` | `go/ysm/texsize:30` | ScanModelTexSizes 扫描仓库文件读取纹理尺寸，不调用 YSMParser/WASM 仅支持 zip/7z 格式（未加密模型），加密 .ysm 返回 0,0 |
-| `ScanFiles()` | `go/ysm/texsize:166` | ScanFiles 读取目录下所有支持的文件条目（供 ScanModelTexSizes 使用） |
-| `TexInfo()` | `go/ysm/texsize:22` | TexInfo 轻量级纹理尺寸（不解析完整模型） |
-| `ModelEntry()` | `go/ysm/texsize:45` | ModelEntry 轻量级条目（仅用于纹理扫描签名，调用方传入完整路径） |
+| `ScanModelTexSizes()` | `go/ysm/texsize:28` | ScanModelTexSizes 扫描仓库文件读取纹理尺寸，不调用 YSMParser/WASM 仅支持 zip/7z 格式（未加密模型），加密 .ysm 返回 0,0 |
+| `ScanFiles()` | `go/ysm/texsize:164` | ScanFiles 读取目录下所有支持的文件条目（供 ScanModelTexSizes 使用） |
+| `TexInfo()` | `go/ysm/texsize:20` | TexInfo 轻量级纹理尺寸（不解析完整模型） |
+| `ModelEntry()` | `go/ysm/texsize:43` | ModelEntry 轻量级条目（仅用于纹理扫描签名，调用方传入完整路径） |
 | `IsYSMJar()` | `go/ysm/ysm:14` | IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml） |
 | `HasYSMMod()` | `go/ysm/ysm:79` | HasYSMMod 检查 mods 目录是否有 YSM 模组（先做文件名过滤避免对每个 JAR 打开 ZIP） |
 | `HasModInDir()` | `go/ysm/ysm:108` | HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar |
