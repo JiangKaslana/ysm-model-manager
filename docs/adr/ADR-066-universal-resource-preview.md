@@ -256,7 +256,7 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
 
 **验证**：`npm run typecheck` ✅；`npx vite build` ✅；`go test ./go/types/...` ✅；`go build ./go/...` ✅。
 
-### 5.5 P3 — 统一 `mountPreview` 单一渲染核心（收缴 vrm/litematic 复制脚手架，`<待填 commit>`）
+### 5.5 P3 — 统一 `mountPreview` 单一渲染核心（收缴 vrm/litematic 复制脚手架，`be237aa0`）
 
 **范围决策**（用户拍板「vrm+litematic 先入 core」）：YS
 
