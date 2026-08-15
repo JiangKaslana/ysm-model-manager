@@ -383,6 +383,10 @@ func (a *App) PullResourceFromInstance(rtype, instanceName string) (int, error) 
 }
 
 // findInstanceDir 解析整合包实例的资源类型子目录（Push/Pull 共用）
+// ADR-064 审核修复：原 filepath.Join 直拼标准子目录，与展示层 BuildSyncItems
+// 的 types.FindInstDir（标准目录无该类型文件时兜底扫描）口径不一致——
+// Sable-Schematics 场景下展示显示 Sable-Schematics 条目、操作却指向空 schematics，
+// mapSrcToGlobal 报"路径不在目标目录内"。统一走 FindInstDir。
 func (a *App) findInstanceDir(rtype, instanceName, mcRoot string) (string, error) {
 	instances := a.ListVersionInstances(mcRoot)
 	for _, ins := range instances {
@@ -391,7 +395,7 @@ func (a *App) findInstanceDir(rtype, instanceName, mcRoot string) (string, error
 			if subDir == "" {
 				return "", fmt.Errorf("未知资源类型: %s", rtype)
 			}
-			return filepath.Join(ins.VersionDir, subDir), nil
+			return types.FindInstDir(ins.VersionDir, subDir, rtype), nil
 		}
 	}
 	return "", fmt.Errorf("未找到整合包: %s", instanceName)
