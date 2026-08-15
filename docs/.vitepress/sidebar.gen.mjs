@@ -669,6 +669,10 @@ export const autoSidebar = [
         "link": "/audit-report-2026-08-06"
       },
       {
+        "text": "MikuMikuAR — DESIGN.md（视觉 / 品牌规范）",
+        "link": "/3d-ui-DESIGN"
+      },
+      {
         "text": "Android 适配代码审核汇总报告",
         "link": "/android-audit-report-2026-08-10"
       },
