@@ -56,9 +56,9 @@ invariant_anchors:
 
 ## 核心职责
 
-- `index.ts` — `<app-preview>` 生命周期编排：监听 `model:select`（回调开头 `++this._previewGen`）、目录走 `_showPackInfo`、文件走 `_showModelDetail` 并按 `DetectResourceType` 结果分流（pack → `showResourcePack`；ysm/空 → `showModelDetail`；litematic/blueprint → `showLitematic`；其他 → `showShaderPack`，类型元信息经 `_typeMeta` 查 `LoadResourceTypes` 预载表）、`_loadPreviewImage` 缩略图三级加载、`cacheSetEvictHandler` 注册缓存淘汰时回收 blob URL（含 `geometry.textures` / `authors[].avatarUrl` / `avatars` 去重后 revoke）
+- `index.ts` — `<app-preview>` 生命周期编排：监听 `model:select`（回调开头 `++this._previewGen`）、目录走 `_showPackInfo`、文件走 `_showModelDetail` 并按 `DetectResourceType` 结果分流（pack → `showResourcePack`；ysm/空 → `showModelDetail`；litematic/blueprint → `showLitematic`；shaderpack → `showShaderpack`（`ReadShaderpackLang` 提显示名+配置简介）；mmd-skin 等其他已知类型 → `showSimplePreview`；类型元信息经 `_typeMeta` 查 `LoadResourceTypes` 预载表）、`_loadPreviewImage` 缩略图三级加载、`cacheSetEvictHandler` 注册缓存淘汰时回收 blob URL（含 `geometry.textures` / `authors[].avatarUrl` / `avatars` 去重后 revoke）
 - `loader.ts` — `loadModelData`：统一模型加载（缓存 → WASM → Go `AnalyzeBedrockModel` 兜底）
-- `detail.ts` — `showModelDetail` / `showResourcePack` / `showShaderPack`：详情面板渲染（Go 侧 `ExtractYsmSummary` / `ExtractYSMHeader` / `ReadPackMeta`）
+- `detail.ts` — `showModelDetail` / `showResourcePack` / `showShaderpack` / `showSimplePreview`：详情面板渲染（Go 侧 `ExtractYsmSummary` / `ExtractYSMHeader` / `ReadPackMeta` / `ReadShaderpackLang`）
 - `skeleton.ts` — `loadModel2D`：2D/3D 骨骼渲染编排，委托 `utils/3d/model2d.ts` 的 `renderModel2D` 与 `utils/3d/model3d.ts` 的 `renderModel3D`；window 级拖拽监听存模块级 `_prevWindowMove` / `_prevWindowUp` 槽位（`skeleton.ts:20`、`:193`），先移除上一轮再绑定并把移除逻辑 push 进 `ctx._unsubs`（`skeleton.ts:211`）；`_model3dGen` 作废在途 3D 渲染；截图走 `SaveScreenshotFile`。**ADR-057 控制层重构**：3D overlay 顶/底控制栏原内联 `style.cssText` 抽为全局 CSS 类（`utils/dom/fab.ts` 的 `ensureFabStyles()` 注入 head——overlay 挂 `document.body` 为 light DOM，全局 CSS 直接生效）；触发键 `🎨3D` 由面板内普通 tab 改为右下角悬浮 FAB（`.ysm-fab`，Shadow DOM 内样式在 `css.ts`，隔离不继承 head）；并接入 `registerAndroidBackHandler` 在 overlay 打开时消费安卓返回键关层。**async 窗口期守卫约定**（P2 修复）：每个 `await` 前后及 DOM 创建后立即检查 `container.isConnected`，防组件卸载后异步回调写入已卸载 DOM（`skeleton.ts:82`、`:112`、`:631` 三处）
 - `zoom.ts` — `openFullPreview`：全屏放大预览
 - `wasm.ts` — `decodeYsmViaWasm`：前端 WASM 解码 .ysm（经 Go `ReadFileBytes` 取字节，走 `cache.ts` 缓存）；**加密模型详情增强**（P2 修复链：`decodeYsmViaWasm` 解码后把 `properties.extra_animation*` 经 `utils/format/ysm-anim-config.ts` 的 `extractAnimGroupsAndConfigs` 抽出「其他动画 / 模型配置 / 自定义表情」，与 Go `summary.go:appendAnimGroupsAndConfigs` 口径对齐，供详情卡渲染；`.zip`/裸 `ysm.json` 共用同一提取逻辑）
@@ -79,8 +79,8 @@ invariant_anchors:
 - 自定义元素：`<app-preview>`
 - 监听 bus：`model:select`（`{ path, isDir }`；目录走整合包信息 `GetPackInfo`，文件走类型分流）
 - 派发 bus：`toast:show`（仅子模块的加载失败路径：`litematic-3d.ts:580` 体素 3D 加载失败、`skeleton.ts:812` 3D 预览加载失败）；`index.ts` 本身不 emit
-- Go 调用（经 `getApp()`）：`index.ts` 的 `DetectResourceType` / `FindPreviewImage` / `ExtractPreviewTexture` / `LoadResourceTypes` / `GetPackInfo`；子模块的 `AnalyzeBedrockModel`（loader）、`ExtractYsmSummary` / `ExtractYSMHeader` / `ReadPackMeta`（detail）、`ReadFileBytes`（wasm）、`ReadLitematicMeta` / `ReadNbtStructure` / `ReadSchematic`（litematic-meta）、`GetLitematicVoxelData` 等体素函数（litematic-3d）、`GetModel3DSpec`（model3d-loader / screenshot-renderer）、`SaveScreenshotFile`（skeleton）
-- 子模块入口：`loadModelData` / `loadModel2D` / `openFullPreview` / `decodeYsmViaWasm` / `createLitematic3D` / `cleanupVoxel3D` / `showLitematic` / `cleanupLitematic3D` / `showModelDetail` / `showResourcePack` / `showShaderPack` / `preloadModel` / `renderMultiAngle`
+- Go 调用（经 `getApp()`）：`index.ts` 的 `DetectResourceType` / `FindPreviewImage` / `ExtractPreviewTexture` / `LoadResourceTypes` / `GetPackInfo`；子模块的 `AnalyzeBedrockModel`（loader）、`ExtractYsmSummary` / `ExtractYSMHeader` / `ReadPackMeta` / `ReadShaderpackLang`（detail）、`ReadFileBytes`（wasm）、`ReadLitematicMeta` / `ReadNbtStructure` / `ReadSchematic`（litematic-meta）、`GetLitematicVoxelData` 等体素函数（litematic-3d）、`GetModel3DSpec`（model3d-loader / screenshot-renderer）、`SaveScreenshotFile`（skeleton）
+- 子模块入口：`loadModelData` / `loadModel2D` / `openFullPreview` / `decodeYsmViaWasm` / `createLitematic3D` / `cleanupVoxel3D` / `showLitematic` / `cleanupLitematic3D` / `showModelDetail` / `showResourcePack` / `showShaderpack` / `showSimplePreview` / `preloadModel` / `renderMultiAngle`
 
 ## 与其他子系统关系
 
