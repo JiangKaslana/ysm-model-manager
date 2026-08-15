@@ -20,10 +20,10 @@ func TestFindInstDir_StandardDir(t *testing.T) {
 	}
 }
 
-// TestShouldHashExt_PinnedList 钉住 ShouldHashExt 的硬编码扩展名清单：
-// 该函数手写扩展名（违反「注册表优先」理想，但注册表无 hash 开关字段，
-// 且 MMD/VRC 大文件跳过哈希是性能决策），测试钉住防止清单意外漂移。
-// 若未来注册表新增 hash 字段，应改注册表驱动并删除本测试的「钉住」断言。
+// TestShouldHashExt_PinnedList 钉住 ShouldHashExt 的哈希扩展名清单：
+// ShouldHashExt 已注册表驱动（resource_types.json 的 hashable 字段，ysm/
+// create-blueprint/litematic 标 true），本测试钉住其行为结果，防注册表
+// 扩展名调整时哈希口径意外漂移（大文件跳过哈希是性能决策）。
 func TestShouldHashExt_PinnedList(t *testing.T) {
 	hashable := []string{".ysm", ".zip", ".7z", ".json", ".nbt", ".schematic", ".litematic"}
 	nonHashable := []string{".mmd", ".pmx", ".pmd", ".vrc", ".png", ".txt", ".ban"}

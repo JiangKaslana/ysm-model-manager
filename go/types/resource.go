@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -16,19 +17,53 @@ type ResourceTypeRegistry struct {
 
 // ResourceType 一种受支持的资源类型定义
 type ResourceType struct {
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	Icon           string   `json:"icon"`
-	Extensions     []string `json:"extensions"`
-	StorageSubDir  string   `json:"storageSubDir"`
-	InstallDir     string   `json:"installDir"`
-	ScanDir        string   `json:"scanDir"`
-	InstanceLevel  bool     `json:"instanceLevel"`
-	Preview        string   `json:"preview"`        // "3d" / "thumbnail" / "none"
-	Detector       string   `json:"detector"`       // "ysm" / "mcmeta" / ""
-	ConfigField    string   `json:"configField"`    // AppConfig 字段名（如 YsmRoot）
-	ConfigFallback string   `json:"configFallback"` // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
-	IsDir          bool     `json:"isDir"`          // 目录型资源（删除/同步整目录）
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Icon           string          `json:"icon"`
+	Extensions     []string        `json:"extensions"`
+	StorageSubDir  string          `json:"storageSubDir"`
+	InstallDir     string          `json:"installDir"`
+	ScanDir        string          `json:"scanDir"`
+	InstanceLevel  bool            `json:"instanceLevel"`
+	Preview        string          `json:"preview"`        // "3d" / "thumbnail" / "none"
+	Detector       string          `json:"detector"`       // "ysm" / "mcmeta" / "shader" / "extension"
+	ConfigField    string          `json:"configField"`    // AppConfig 字段名（如 YsmRoot）
+	ConfigFallback string          `json:"configFallback"` // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
+	IsDir          bool            `json:"isDir"`          // 目录型资源（删除/同步整目录）
+	Hashable       bool            `json:"hashable"`       // 扩展名参与 SHA256 哈希（ShouldHashExt 注册表驱动）
+	DirLevelSync   bool            `json:"dirLevelSync"`   // 文件夹级资源同步（sync.SyncResourcesDirLevel）
+	ScanInstance   bool            `json:"scanInstance"`   // instance 视图额外扫描整合包目录（非模型类型兜底）
+	InstallExts    []string        `json:"installExts"`    // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
+	ZipEntries     []ZipEntryMatch `json:"zipEntries"`     // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
+}
+
+// ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名
+type ZipEntryMatch struct {
+	Name  string `json:"name"`  // 条目名（小写比较）
+	Match string `json:"match"` // "exact" / "prefix" / "suffix"
+}
+
+// MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感）
+func (rt *ResourceType) MatchZipEntry(name string) bool {
+	low := strings.ToLower(name)
+	for _, m := range rt.ZipEntries {
+		mlow := strings.ToLower(m.Name)
+		switch m.Match {
+		case "prefix":
+			if strings.HasPrefix(low, mlow) {
+				return true
+			}
+		case "suffix":
+			if strings.HasSuffix(low, mlow) {
+				return true
+			}
+		default: // "exact"
+			if low == mlow {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 var (
@@ -147,6 +182,8 @@ func RegistryType(id string) *ResourceType {
 		if reg.ResourceTypes[i].ID == id {
 			rt := reg.ResourceTypes[i] // 拷贝，防外部篡改进程级缓存
 			rt.Extensions = append([]string(nil), rt.Extensions...)
+			rt.InstallExts = append([]string(nil), rt.InstallExts...)
+			rt.ZipEntries = append([]ZipEntryMatch(nil), rt.ZipEntries...)
 			return &rt
 		}
 	}

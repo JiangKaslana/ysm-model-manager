@@ -56,14 +56,68 @@ func IsYsmEntryJSON(baseName string) bool {
 }
 
 // ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配）
-// 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）
-// 蓝图文件（.nbt/.schematic/.litematic）通常较小，计入哈希以支持同步对比
+// 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。
+// 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）；
+// 蓝图/投影文件（.nbt/.schematic/.litematic）通常较小，计入哈希以支持同步对比。
+// 新增类型只需在 resource_types.json 标 hashable:true，无需改本函数。
 func ShouldHashExt(ext string) bool {
-	switch strings.ToLower(ext) {
-	case ".ysm", ".zip", ".7z", ".json", ".nbt", ".schematic", ".litematic":
-		return true
+	ext = strings.ToLower(ext)
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		if !rt.Hashable {
+			continue
+		}
+		for _, e := range rt.Extensions {
+			if strings.ToLower(e) == ext {
+				return true
+			}
+		}
 	}
 	return false
+}
+
+// IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型
+// （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync 驱动，新增类型只需改 JSON）
+func IsDirLevelSync(rtype string) bool {
+	if rt := RegistryType(rtype); rt != nil {
+		return rt.DirLevelSync
+	}
+	return false
+}
+
+// IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录
+// （非模型类型兜底：SyncResources 的 map 去重会丢失同名文件，注册表 scanInstance 驱动）
+func IsScanInstance(rtype string) bool {
+	if rt := RegistryType(rtype); rt != nil {
+		return rt.ScanInstance
+	}
+	return false
+}
+
+// InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
+// installer.installDirRecursive 的 isAllowed 注册表驱动；新增类型只需改 JSON。
+func InstallExtsFor(rtype string) []string {
+	if rt := RegistryType(rtype); rt != nil {
+		return append([]string(nil), rt.InstallExts...)
+	}
+	return nil
+}
+
+// MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。
+// importer.DetectZipType 注册表驱动（Top 2）：新增类型只需在 JSON 中声明
+// zipEntries（exact/prefix/suffix），无需修改检测器代码。
+// 按注册表顺序优先匹配（resourcepack → shaderpack → ysm → …），无命中返回空串。
+func MatchZipEntry(name string) string {
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		if len(rt.ZipEntries) == 0 {
+			continue
+		}
+		if rt.MatchZipEntry(name) {
+			return rt.ID
+		}
+	}
+	return ""
 }
 
 // ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个）

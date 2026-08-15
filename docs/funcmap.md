@@ -12,7 +12,7 @@
 | Go·下载 | 1 | 12 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 13 |
-| Go·文件系统 | 6 | 12 |
+| Go·文件系统 | 7 | 15 |
 | Go·几何 | 2 | 8 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 9 |
@@ -27,7 +27,7 @@
 | Go·同步 | 6 | 21 |
 | Go·标签 | 1 | 8 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 5 | 51 |
+| Go·类型 | 5 | 57 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 54 | 182 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **269** | **1099** |
+| **合计** | **270** | **1108** |
 
 ## Go·头像
 
@@ -101,19 +101,22 @@
 | `FindPreviewImage()` | `go/fileops/fileops_preview:24` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
 | `ExtractPreviewTexture()` | `go/fileops/fileops_preview:50` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
 | `GetPackInfo()` | `go/fileops/fileops_preview:157` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
-| `CreateDir()` | `go/fileops/fileops:43` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
-| `RenameDir()` | `go/fileops/fileops:61` | RenameDir 重命名目录（仅改末段，保持父目录） |
-| `RemoveDir()` | `go/fileops/fileops:86` | RemoveDir 递归删除目录 |
-| `RenameFile()` | `go/fileops/fileops:93` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
-| `MoveModelFile()` | `go/fileops/fileops:121` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:203` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:335` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `CreateDir()` | `go/fileops/fileops:41` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
+| `RenameDir()` | `go/fileops/fileops:59` | RenameDir 重命名目录（仅改末段，保持父目录） |
+| `RemoveDir()` | `go/fileops/fileops:84` | RemoveDir 递归删除目录 |
+| `RenameFile()` | `go/fileops/fileops:91` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
+| `MoveModelFile()` | `go/fileops/fileops:119` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
+| `CopyModelFile()` | `go/fileops/fileops:201` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:305` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
 | `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `CopyFile()` | `go/fsutil/copy:26` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
+| `CopyDirRecursive()` | `go/fsutil/copy:89` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
+| `CopyDirOptions()` | `go/fsutil/copy:71` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_other:14` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_windows:18` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsHardLink()` | `go/fsutil/hardlink_other:15` | IsHardLink 判断路径是否为硬链接（nlink &gt; 1）。 |
@@ -146,20 +149,20 @@
 |------|--------|------|
 | `ImportFromBase64()` | `go/importer/importer_file:30` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
 | `WriteFileAtomic()` | `go/importer/importer_file:112` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
-| `DetectZipType()` | `go/importer/importer_file:123` | DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型 |
+| `DetectZipType()` | `go/importer/importer_file:125` | DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json |
 | `ImportOptions()` | `go/importer/importer_file:20` | ImportOptions 导入选项 |
 | `ImportLogger()` | `go/importer/importer_file:26` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
-| `Register()` | `go/importer/importer:31` | Register 注册导入策略 |
-| `Get()` | `go/importer/importer:36` | Get 获取指定类型的导入策略 |
-| `NewSimpleCopy()` | `go/importer/importer:62` | NewSimpleCopy 创建简单文件复制导入器 |
-| `SimpleCopyImporter.Type()` | `go/importer/importer:66` | — |
-| `SimpleCopyImporter.Import()` | `go/importer/importer:68` | — |
-| `NewDirectoryCopy()` | `go/importer/importer:263` | NewDirectoryCopy 创建文件夹复制导入器 |
-| `DirectoryCopyImporter.Type()` | `go/importer/importer:267` | — |
-| `DirectoryCopyImporter.Import()` | `go/importer/importer:272` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
-| `Handler()` | `go/importer/importer:21` | Handler 资源导入策略接口 |
-| `SimpleCopyImporter()` | `go/importer/importer:57` | — |
-| `DirectoryCopyImporter()` | `go/importer/importer:258` | — |
+| `Register()` | `go/importer/importer:33` | Register 注册导入策略 |
+| `Get()` | `go/importer/importer:38` | Get 获取指定类型的导入策略 |
+| `NewSimpleCopy()` | `go/importer/importer:64` | NewSimpleCopy 创建简单文件复制导入器 |
+| `SimpleCopyImporter.Type()` | `go/importer/importer:68` | — |
+| `SimpleCopyImporter.Import()` | `go/importer/importer:70` | — |
+| `NewDirectoryCopy()` | `go/importer/importer:265` | NewDirectoryCopy 创建文件夹复制导入器 |
+| `DirectoryCopyImporter.Type()` | `go/importer/importer:269` | — |
+| `DirectoryCopyImporter.Import()` | `go/importer/importer:274` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
+| `Handler()` | `go/importer/importer:23` | Handler 资源导入策略接口 |
+| `SimpleCopyImporter()` | `go/importer/importer:59` | — |
+| `DirectoryCopyImporter()` | `go/importer/importer:260` | — |
 
 ## Go·安装
 
@@ -169,11 +172,11 @@
 | `InstallLocked()` | `go/installer/installer:52` | InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
 | `InstallDir()` | `go/installer/installer:145` | InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式） 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件 rtype 用于过滤文件 |
 | `InstallDirLocked()` | `go/installer/installer:154` | InstallDirLocked 安装整个目录下的所有文件到目标目录（调用方须已持有 InstallLock， 禁止直接调用）。语义与 InstallDir 一致，但不重复加锁—— |
-| `InstallToGlobal()` | `go/installer/installer:362` | InstallToGlobal 安装到全局 custom 目录 |
-| `InstallWithOverlay()` | `go/installer/installer:387` | InstallWithOverlay 带冲突检查的安装 |
-| `CopyFile()` | `go/installer/installer:468` | CopyFile 复制文件到目标目录（带互斥锁） |
-| `CopyFileLocked()` | `go/installer/installer:476` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `IsValidRepoRoot()` | `go/installer/installer:626` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
+| `InstallToGlobal()` | `go/installer/installer:367` | InstallToGlobal 安装到全局 custom 目录 |
+| `InstallWithOverlay()` | `go/installer/installer:392` | InstallWithOverlay 带冲突检查的安装 |
+| `CopyFile()` | `go/installer/installer:473` | CopyFile 复制文件到目标目录（带互斥锁） |
+| `CopyFileLocked()` | `go/installer/installer:481` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
+| `IsValidRepoRoot()` | `go/installer/installer:631` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
 
 ## go/instance
 
@@ -245,22 +248,22 @@
 | `RemoveRepoDuplicates()` | `go/recycle/recycle_clean:22` | RemoveRepoDuplicates 清理整合包子目录中仓库已有的文件： 在 recycleRoot 内的移入回收站（可恢复），否则直接删除（仓库侧无损可重推） |
 | `DeduplicateEntries()` | `go/recycle/recycle_clean:59` | DeduplicateEntries 按 SHA256 哈希分组去重：每组显式按路径排序保留第一个，其余移入回收站 |
 | `CleanOpLogger()` | `go/recycle/recycle_clean:18` | CleanOpLogger 清理操作日志回调（薄壳注入 App.logger.Add） |
-| `New()` | `go/recycle/recycle:35` | New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle |
-| `TrashManager.RecycleDir()` | `go/recycle/recycle:45` | RecycleDir 返回回收站目录路径 |
-| `TrashManager.Move()` | `go/recycle/recycle:50` | Move 移动文件到回收站 |
-| `TrashManager.MoveEx()` | `go/recycle/recycle:56` | MoveEx 移动文件到回收站，返回操作详情 |
-| `TrashManager.List()` | `go/recycle/recycle:163` | List 列出回收站中的文件。 |
-| `TrashManager.Restore()` | `go/recycle/recycle:223` | Restore 从回收站恢复到原目录 |
-| `TrashManager.Delete()` | `go/recycle/recycle:322` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `TrashManager.Empty()` | `go/recycle/recycle:342` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
-| `Move()` | `go/recycle/recycle:50` | Move 移动文件到回收站 |
-| `MoveEx()` | `go/recycle/recycle:56` | MoveEx 移动文件到回收站，返回操作详情 |
-| `List()` | `go/recycle/recycle:163` | List 列出回收站中的文件。 |
-| `Restore()` | `go/recycle/recycle:223` | Restore 从回收站恢复到原目录 |
-| `Delete()` | `go/recycle/recycle:322` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `Empty()` | `go/recycle/recycle:342` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
-| `MoveResult()` | `go/recycle/recycle:18` | MoveResult 回收操作结果 |
-| `TrashManager()` | `go/recycle/recycle:24` | TrashManager 可配置的回收站管理器 |
+| `New()` | `go/recycle/recycle:34` | New 创建回收站管理器，root 是资源根目录，回收站为 root/.recycle |
+| `TrashManager.RecycleDir()` | `go/recycle/recycle:44` | RecycleDir 返回回收站目录路径 |
+| `TrashManager.Move()` | `go/recycle/recycle:49` | Move 移动文件到回收站 |
+| `TrashManager.MoveEx()` | `go/recycle/recycle:55` | MoveEx 移动文件到回收站，返回操作详情 |
+| `TrashManager.List()` | `go/recycle/recycle:162` | List 列出回收站中的文件。 |
+| `TrashManager.Restore()` | `go/recycle/recycle:222` | Restore 从回收站恢复到原目录 |
+| `TrashManager.Delete()` | `go/recycle/recycle:301` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `TrashManager.Empty()` | `go/recycle/recycle:321` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `Move()` | `go/recycle/recycle:49` | Move 移动文件到回收站 |
+| `MoveEx()` | `go/recycle/recycle:55` | MoveEx 移动文件到回收站，返回操作详情 |
+| `List()` | `go/recycle/recycle:162` | List 列出回收站中的文件。 |
+| `Restore()` | `go/recycle/recycle:222` | Restore 从回收站恢复到原目录 |
+| `Delete()` | `go/recycle/recycle:301` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `Empty()` | `go/recycle/recycle:321` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `MoveResult()` | `go/recycle/recycle:17` | MoveResult 回收操作结果 |
+| `TrashManager()` | `go/recycle/recycle:23` | TrashManager 可配置的回收站管理器 |
 
 ## go/scanner
 
@@ -279,19 +282,19 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:53` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:58` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
 | `ListVersionsFunc()` | `go/sync/sync_discovery:13` | ListVersionsFunc 列出版本实例（函数类型，测试时可注入 mock） |
 | `CompareGlobalInstanceHashes()` | `go/sync/sync_hash:47` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录，返回每个实例的 Missing / Extra / Synced 状态。 |
 | `HasModInDirFn()` | `go/sync/sync_hash:38` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
-| `PushResources()` | `go/sync/sync_push:23` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
-| `PullResources()` | `go/sync/sync_push:66` | PullResources 拉取整合包多余资源回仓库 |
-| `PullSingleResource()` | `go/sync/sync_push:138` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
-| `PushSingleResource()` | `go/sync/sync_push:160` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install |
-| `SyncCustomToRepo()` | `go/sync/sync_push:173` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
-| `Logger()` | `go/sync/sync_push:20` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
+| `PushResources()` | `go/sync/sync_push:22` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
+| `PullResources()` | `go/sync/sync_push:65` | PullResources 拉取整合包多余资源回仓库 |
+| `PullSingleResource()` | `go/sync/sync_push:137` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
+| `PushSingleResource()` | `go/sync/sync_push:159` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install |
+| `SyncCustomToRepo()` | `go/sync/sync_push:172` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
+| `Logger()` | `go/sync/sync_push:19` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
 | `GetInstanceStatusWith()` | `go/sync/sync:31` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
@@ -340,28 +343,34 @@
 | `AllExts()` | `go/types/extensions:22` | AllExts 返回所有支持的扩展名（去重后） |
 | `IsSupportedExt()` | `go/types/extensions:38` | IsSupportedExt 检查扩展名是否被任何资源类型支持 |
 | `IsYsmEntryJSON()` | `go/types/extensions:54` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
-| `ShouldHashExt()` | `go/types/extensions:61` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配） 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢） 蓝 |
-| `ExtBelongsTo()` | `go/types/extensions:70` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
-| `SupportedExtsForType()` | `go/types/extensions:85` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
-| `FindInstDir()` | `go/types/extensions:99` | FindInstDir 查找整合包中指定资源类型的子目录： 1. |
-| `StorageSubDir()` | `go/types/extensions:144` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
-| `SubDirMap()` | `go/types/extensions:158` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
-| `SubDirAll()` | `go/types/extensions:170` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:182` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:152` | SubDirEntry 资源类型的版本子目录信息 |
-| `SetRegistryPath()` | `go/types/resource:42` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
-| `LoadRegistry()` | `go/types/resource:53` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
-| `RegistryType()` | `go/types/resource:144` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:163` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:259` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
-| `ResourceTypeRegistry()` | `go/types/resource:13` | ResourceTypeRegistry 资源类型注册表 |
-| `ResourceType()` | `go/types/resource:18` | ResourceType 一种受支持的资源类型定义 |
-| `FormatRange()` | `go/types/resource:157` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:248` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:266` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:283` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:289` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:297` | VoxelGroup 同一颜色的方块组 |
+| `ShouldHashExt()` | `go/types/extensions:63` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配） 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。 |
+| `IsDirLevelSync()` | `go/types/extensions:81` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
+| `IsScanInstance()` | `go/types/extensions:90` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录 （非模型类型兜底：SyncResources 的 map 去重会丢失同名文件，注 |
+| `InstallExtsFor()` | `go/types/extensions:99` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
+| `MatchZipEntry()` | `go/types/extensions:110` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
+| `ExtBelongsTo()` | `go/types/extensions:124` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
+| `SupportedExtsForType()` | `go/types/extensions:139` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
+| `FindInstDir()` | `go/types/extensions:153` | FindInstDir 查找整合包中指定资源类型的子目录： 1. |
+| `StorageSubDir()` | `go/types/extensions:198` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
+| `SubDirMap()` | `go/types/extensions:212` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
+| `SubDirAll()` | `go/types/extensions:224` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:236` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:206` | SubDirEntry 资源类型的版本子目录信息 |
+| `ResourceType.MatchZipEntry()` | `go/types/resource:47` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） |
+| `SetRegistryPath()` | `go/types/resource:77` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
+| `LoadRegistry()` | `go/types/resource:88` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
+| `RegistryType()` | `go/types/resource:179` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:200` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:296` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `ResourceTypeRegistry()` | `go/types/resource:14` | ResourceTypeRegistry 资源类型注册表 |
+| `ResourceType()` | `go/types/resource:19` | ResourceType 一种受支持的资源类型定义 |
+| `ZipEntryMatch()` | `go/types/resource:41` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
+| `FormatRange()` | `go/types/resource:194` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:285` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:303` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:320` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:326` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:334` | VoxelGroup 同一颜色的方块组 |
 | `AppError.WithCause()` | `go/types/types:117` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:123` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
 | `AppError.Error()` | `go/types/types:125` | — |

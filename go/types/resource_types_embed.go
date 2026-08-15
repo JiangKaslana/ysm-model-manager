@@ -18,6 +18,10 @@ var embeddedRegistryJSON = []byte(`{
       "instanceLevel": false,
       "preview": "thumbnail",
       "detector": "mcmeta",
+      "scanInstance": true,
+      "zipEntries": [
+        { "name": "pack.mcmeta", "match": "exact" }
+      ],
       "actions": ["import", "toggle", "delete", "openFolder"]
     },
     {
@@ -32,6 +36,11 @@ var embeddedRegistryJSON = []byte(`{
       "instanceLevel": false,
       "preview": "thumbnail",
       "detector": "shader",
+      "scanInstance": true,
+      "zipEntries": [
+        { "name": "shaders/", "match": "prefix" },
+        { "name": "shaders", "match": "exact" }
+      ],
       "actions": ["import", "toggle", "delete", "openFolder"]
     },
     {
@@ -46,6 +55,13 @@ var embeddedRegistryJSON = []byte(`{
       "instanceLevel": true,
       "preview": "3d",
       "detector": "ysm",
+      "hashable": true,
+      "dirLevelSync": true,
+      "installExts": [".json", ".png", ".jpg", ".jpeg"],
+      "zipEntries": [
+        { "name": "ysm.json", "match": "suffix" },
+        { "name": "models/", "match": "prefix" }
+      ],
       "actions": ["view", "import", "delete"]
     },
     {
@@ -60,6 +76,8 @@ var embeddedRegistryJSON = []byte(`{
       "instanceLevel": false,
       "preview": "3d",
       "detector": "extension",
+      "hashable": true,
+      "scanInstance": true,
       "actions": ["import", "delete", "openFolder"]
     },
     {
@@ -74,6 +92,7 @@ var embeddedRegistryJSON = []byte(`{
       "instanceLevel": false,
       "preview": "3d",
       "detector": "extension",
+      "hashable": true,
       "actions": ["import", "delete", "openFolder"]
     },
     {
@@ -89,6 +108,8 @@ var embeddedRegistryJSON = []byte(`{
       "preview": "none",
       "detector": "extension",
       "isDir": true,
+      "dirLevelSync": true,
+      "installExts": [".pmx", ".pmd", ".png", ".tga", ".spa", ".sph"],
       "actions": ["import", "delete", "openFolder"]
     },
     {
