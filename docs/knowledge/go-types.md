@@ -29,7 +29,7 @@ use_when:
 
 ## 核心职责
 
-- `types.go` — 跨包数据结构：ModelEntry、VersionInstance、InstanceStatus、ResourceSyncResult、SyncStatus、ImportLog、LinkType、AppError、CustomFileInfo、WindowState、AuthorInfo、SearchResult
+- `types.go` — 跨包数据结构：ModelEntry、VersionInstance、InstanceStatus、ResourceSyncResult、SyncStatus、ImportLog、LinkType、AppError、CustomFileInfo、WindowState、AuthorInfo、SearchResult、**ErrorCode（结构化错误码，ADR-051 落地）**、**LogLevel（日志级别）**
 - `config.go` — AppConfig（FilesRoot/各类型 Root/LinkMode/Theme/Mirror/VoxelMaxBlocks/窗口状态）、PackInfo、WorkshopSite、WorkshopCreator
 - `resource.go` — 注册表加载（LoadRegistry）、PackMeta/FormatRange、LitematicMeta/LitematicVoxelData/VoxelGroup
 - `extensions.go` — 注册表驱动的扩展名与子目录查询
@@ -43,7 +43,7 @@ use_when:
 - `SetRegistryPath(path string)` — 仅测试用，重置单例
 - 扩展名/目录查询：`AllExts()`、`IsSupportedExt(ext)`、`ExtBelongsTo(ext)`、`SupportedExtsForType(rtype)`、`StorageSubDir(rtype)`、`SubDirMap(rtype)`、`SubDirAll()`、`AllSubDirs()`、`FindInstDir(versionDir, subDir, rtype)`（标准子目录不存在时按扩展名兜底扫描）
 - `(pm *PackMeta) Desc() string` — description 可读文本（兼容 string / JSON text component 对象 / 数组）
-- 关键常量：`LinkCopy` / `LinkHard` / `LinkSym` / `LinkUnknown`（LinkType）；`SyncStatusSynced/Missing/Optional/Disabled/Legacy`
+- 关键常量：`LinkCopy` / `LinkHard` / `LinkSym` / `LinkUnknown`（LinkType）；`SyncStatusSynced/Missing/Optional/Disabled/Legacy`；`ErrorCode` 系列（`ErrFileExists` / `ErrInvalidParam` / `ErrIO` / `ErrLinkFailed` 等 15 个，见下方）；`LogLevel` 系列（`LevelDebug/Info/Warn/Error/Fatal`）；`statusToLevel(status string) LogLevel`（将 ImportLog.Status 映射为日志级别，由 `addOp` 自动调用）
 
 ## 与其他子系统关系
 

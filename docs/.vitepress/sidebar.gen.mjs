@@ -692,6 +692,14 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-063：updater 版本比较语义化：semver 库接入替代手写比较",
+        "link": "/adr/ADR-063-updater-semver-semantics"
+      },
+      {
+        "text": "ADR-062：AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项",
+        "link": "/adr/ADR-062-appconfig-configurable-thresholds"
+      },
+      {
         "text": "ADR-061：3D 渲染器能力边界与后续方向",
         "link": "/adr/ADR-061-3d"
       },

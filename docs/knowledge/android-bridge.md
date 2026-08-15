@@ -34,7 +34,7 @@ Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 
 - **`resolveAndroidRepoDir()`**（directory-picker.ts）：Android 目录路径解析专用入口——未授权时 warn toast + `requestStoragePermission` 引导授权并返回 `null`；已授权时 `GetDefaultRepoRoot` 定位公共仓库目录 + info toast 返回路径。设置页路径卡片与树「导入文件夹」统一复用。
 - **`pickDirectory()`**（directory-picker.ts）：跨平台统一入口——桌面走 Wails Dialog（`SelectDirectory`）；Android 有桥时委托 `resolveAndroidRepoDir()`。
 - **共享复用**：`loader.ts` 库加载失败引导授权、`version-updater.ts` 平台门控、`toolbar-events.ts` 导入文件夹均引用此桥，避免重复实现。
-- **`registerBackHandler` / `unregisterBackHandler`**（android-bridge.ts，ADR-057 新增）：返回键注册表，对齐 MikuMikuAR `handleAndroidBack`。原生 `MainActivity.onBackPressed` 转发到 `window.__ysmAndroidBridge?.onBack?.()`；注册时记录 `{handler, priority}`，返回键触发按优先级调用首个返回 `true`（已消费）的 handler 并短路。3D 预览 overlay 打开时注册消费返回键关层，否则透传。
+- **`registerAndroidBackHandler`**（android-bridge.ts，ADR-057 新增）：返回键注册表，对齐 MikuMikuAR `handleAndroidBack`。实际链路：`MainActivity.handleBackPressed()` → `bridge.emitEvent("android:back")` → `android-events.ts` 的 `Events.On("android:back")` → `emitAndroidBack()`；注册的 handler 按栈顶优先询问，返回 `true`（已消费）即短路。3D 预览 overlay 打开时注册消费返回键关层，否则透传。
 
 ## 对外 API / 入口
 
@@ -42,8 +42,8 @@ Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 
 - `WailsAndroidBridge` — `hasStoragePermission?()` / `requestStoragePermission?()` 可选方法（桌面端不存在）
 - `resolveAndroidRepoDir(): Promise<string | null>` — Android 目录解析：授权引导 → 定位公共仓库目录（未授权返回 null）
 - `pickDirectory(): Promise<string | null>` — 跨平台选择目录；桌面 Wails Dialog，Android 委托 resolveAndroidRepoDir
-- `registerBackHandler(handler: () => boolean, priority = 0): () => void` — 注册返回键消费回调，返回注销函数（ADR-057）
-- `unregisterBackHandler(fn: () => boolean): void` — 显式注销返回键回调（优先用 registerBackHandler 返回的注销函数）
+- `registerAndroidBackHandler(handler: () => boolean | void): () => void` — 注册返回键消费回调，返回注销函数（ADR-057）
+- `emitAndroidBack(): boolean` — 触发返回键处理链，返回是否已被消费（由 android-events.ts 在收到 `android:back` 事件时调用）
 
 ## 与其他子系统关系
 
@@ -58,7 +58,7 @@ Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 
 - **不碰 SAF**：禁止引入 `DocumentFile` / `content://` URI 读写（历史踩坑，MikuMikuAR ADR-194 废弃）
 - **类型安全**：桥访问不得用 `as any`（用 `unknown` 收窄）
 - **目录解析唯一入口**：Android「需要目录路径」场景统一走 `resolveAndroidRepoDir`，禁止各调用方自行实现授权引导
-- **返回键注册表（ADR-057）**：多个 handler 按 priority 排序，高优先级先被询问；返回 `true` 即视为已消费并短路后续；桌面端 `window.__ysmAndroidBridge` 为空，返回键逻辑恒不触发（零影响）；原 `MainActivity` 尚未转发 `onBackPressed` 时，注册表静默无操作，不报错
+- **返回键注册表（ADR-057）**：handler 按栈顶优先（后注册先询问）；返回 `true` 即视为已消费并短路后续；桌面端无 `android:back` 事件，返回键逻辑恒不触发（零影响）；Android 端由 `MainActivity → android:back → emitAndroidBack()` 接通，注册表不再依赖原生桥直接调用
 
 ## 相关
 

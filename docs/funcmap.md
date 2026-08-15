@@ -1021,8 +1021,8 @@
 | `WailsAndroidBridge()` | `frontend/src/utils/dom/android-bridge:7` | — |
 | `getAndroidBridge()` | `frontend/src/utils/dom/android-bridge:13` | 返回 Android Java 桥（桌面端为 null），类型安全断言（无 as any） |
 | `isViewerMode()` | `frontend/src/utils/dom/android-bridge:24` | 查看器模式判定（ADR-049 Phase 3 能力门控统一入口）： Android（双端桥存在）或网页版（browser adapter）——均无本地文件系统写能力、 无桌面专属 |
-| `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:39` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
-| `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:54` | 原生侧（MainActivity 系统 back）调用入口：依次从栈顶触发已注册处理器。 |
+| `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:40` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
+| `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:53` | 系统返回键的前端触发入口：依次从栈顶触发已注册处理器。 |
 | `btnBaseCSS()` | `frontend/src/utils/dom/css:1` | — |
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter-util:6` | 筛选条件 |
