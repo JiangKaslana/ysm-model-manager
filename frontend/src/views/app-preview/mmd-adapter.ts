@@ -25,6 +25,23 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
+/** 环形日志面板诊断（AGENTS.md：排查卡顿往环形日志塞日志而非死盯 console）；失败静默不阻断 */
+async function mmdDiag(
+  App: unknown,
+  op: string,
+  msg: string,
+  status: "ok" | "fail",
+  err?: string,
+): Promise<void> {
+  try {
+    const addFn = (App as unknown as Record<string, (a: string, b: string, c: string, d: string, e: number, f: string, g: string) => Promise<unknown>>)["AddOpLog"];
+    if (typeof addFn !== "function") return;
+    await addFn("mmd-preview", op, msg, "", 0, status, err || "");
+  } catch {
+    /* 诊断不阻断加载 */
+  }
+}
+
 /** 同目录纹理候选扩展名（PMX/PMD 引用的贴图；.spa/.sph 特殊格式 Image 解不了，命中后降级无贴图） */
 const TEXTURE_EXTS = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".webp"];
 
@@ -39,6 +56,7 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   const App = await getApp();
   const readFn = (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"];
   const b64 = await readFn(path);
+  await mmdDiag(App, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
   if (!b64) throw new Error("ReadFileBytes 返回空");
   const bytes = b64ToBytes(b64);
   const modelBase = (path.split(/[/\\]/).pop() || "").toLowerCase();
@@ -81,7 +99,15 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
     );
     // 同目录 VMD 动作文件（模型加载后逐个解析）
     vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
-  } catch {
+    await mmdDiag(
+      App,
+      "list-files",
+      dirPath,
+      "ok",
+      `files=${files.length} tex=${files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext))).length} vmd=${vmdPaths.length}`,
+    );
+  } catch (e) {
+    await mmdDiag(App, "list-files", dirPath, "fail", e instanceof Error ? e.message : String(e));
     /* 目录不可列 → 白模降级，不阻断模型渲染 */
   }
 
@@ -108,8 +134,16 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   } catch (e) {
     // 加载失败：回收已建 blob（模型 + 已读纹理），避免 WebView2 会话期内泄漏内存
     for (const url of blobUrls) URL.revokeObjectURL(url);
+    await mmdDiag(App, "parse", path, "fail", e instanceof Error ? e.message : String(e));
     throw e;
   }
+  await mmdDiag(
+    App,
+    "parse",
+    path,
+    "ok",
+    `bones=${mmd.pmx?.bones?.length ?? 0} mats=${mmd.pmx?.materials?.length ?? 0} morphs=${mmd.pmx?.morphs?.length ?? 0}`,
+  );
   const mesh = mmd.mesh;
 
   ctx.scene!.add(mesh);

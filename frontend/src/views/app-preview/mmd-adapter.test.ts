@@ -66,11 +66,12 @@ function makeCtx() {
   };
 }
 
-/** 构造一个可用的 fake MMD（mesh 挂进 scene 需真实 Object3D 供 Box3 计算） */
+/** 构造一个可用的 fake MMD（mesh 挂进 scene 需真实 Object3D 供 Box3 计算；pmx 对齐真实 MMD 类形态） */
 function fakeMmd() {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial());
   return {
     mesh,
+    pmx: { bones: [], materials: [], morphs: [] },
     update: hoisted.mmdUpdateMock,
     updateWithMixer: hoisted.mmdUpdateWithMixerMock,
     dispose: hoisted.mmdDisposeMock,

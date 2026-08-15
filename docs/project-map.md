@@ -57,7 +57,7 @@
 
 | 路径 | 用途 |
 |------|------|
-| `backend/` | 后端适配层：Wails 绑定入口（app.ts）+ 平台判定（platform.ts）+ 浏览器适配（browser-adapter.ts）+ IndexedDB 模型库（idb.ts） 〔源码 11: app.ts browser-adapter.ts extract.ts idb.ts nbt-parse.ts platform.ts types.ts web-common.ts web-c… · 测试 9〕 |
+| `backend/` | 后端适配层：Wails 绑定入口（app.ts）+ 平台判定（platform.ts）+ 浏览器适配（browser-adapter.ts）+ IndexedDB 模型库（idb.ts） 〔源码 14 · 测试 9〕 |
 | `core/` | 基础设施（buttons / global-handlers / theme / context-menus） 〔源码 8: context-menu-dir-handlers.ts context-menu-file-handlers.ts context-menu-handlers.ts context-menu-… · 测试 3 · 子目录 2: handlers/ i18n/〕 |
 | `features/` | 业务功能（import-queue / recycle-bin / version-updater / community） 〔源码 13 · 测试 10 · 子目录 1: community/〕 |
 | `services/` | 服务注册（registry.ts） 〔源码 1: registry.ts · 测试 1〕 |
