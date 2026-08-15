@@ -3,5 +3,5 @@
   "install": "npm install",
   "build": "npm run build",
   "dev:watcher": "npm run dev",
-  "dev:serverUrl": "http://localhost:5173"
+  "dev:serverUrl": "http://localhost:9245"
 }

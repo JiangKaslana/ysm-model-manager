@@ -465,7 +465,7 @@ index.ts（编排：constructor → shadow → connected→disconnected）
 
 ### 10.1 配置
 
-- `wails.json` — frontend dir `./frontend`，devServerUrl `:5173`。
+- `wails.json` — frontend dir `./frontend`，devServerUrl `:9245`（与 `Taskfile.yml` 的 VITE_PORT 默认值统一，消除历史残留的 `:5173` 占位）。
 - `frontend/vite.config.js` — `wailsBindingsResolve` 插件；`frontend/vitest.config.ts` — Vitest（happy-dom，`src/**/*.test.{js,ts}`，`setupFiles: ./test-setup.ts`，覆盖率阈值 **statements 40 / branches 31 / functions 40 / lines 40**，排除 `src/wasm/**`）。
 - `frontend/vite.web.config.ts` — Web 版独立构建配置（`mode: "web"`, 输出 `dist-web`），复用 `wailsBindingsResolve`。
 - `Taskfile.yml` — 委派 `build/Taskfile.yml` + `build/{windows,darwin,linux,android}/Taskfile.yml`（ADR-046 P1/P2，四平台矩阵）；`task dev` = `wails3 dev -port 9245`；版本经 `APP_VERSION` 变量注入。
