@@ -5,7 +5,7 @@ import { previewCSS } from "./css.ts";
 const appPreviewStyle = new CSSStyleSheet();
 appPreviewStyle.replaceSync(previewCSS);
 export { appPreviewStyle };
-import { RESOURCE_TYPES, isYsmWasmPreview } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, isYsmWasmPreview, extOf } from "../../utils/resource/types.ts";
 import { modelDetailHTML } from "./tpl.ts";
 import {
   cacheGet,
@@ -17,6 +17,7 @@ import { type PreviewCtx, type DecodedYsm } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { showModelDetail, showResourcePack, showSimplePreview } from "./detail.ts";
 import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from "./litematic-meta.ts";
+import { createVrm3D, cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
 import { esc } from "../../utils/dom/html.ts";
 import type { BedrockGeometry } from "./geometry.ts";
@@ -72,6 +73,7 @@ class AppPreview extends HTMLElement implements PreviewCtx {
         // litematicGen 只在 showLitematic 自身递增，切到 YSM/资源包（走 _detailGen）
         // 不触碰它，litematic A 迟到会写进 B 的 #preview-detail（跨类型污染）
         invalidateLitematicPreview();
+        invalidateVrmPreview();
         try {
           if (isDir) {
             await this._showPackInfo(path);
@@ -93,6 +95,7 @@ class AppPreview extends HTMLElement implements PreviewCtx {
     this.unsubs.slice().forEach((fn) => fn());
     // 清理体素 3D（WebGL renderer + rAF 循环）：防切页后 GPU 资源残留
     cleanupLitematic3D();
+    cleanupVrm3D();
   }
 
   private _render(): void {
@@ -186,7 +189,16 @@ class AppPreview extends HTMLElement implements PreviewCtx {
       showLitematic(this, path);
       return;
     }
-    // 其他已知类型（shaderpack / mmd-skin / vrchat-avatar）
+    // VRChat 模型：.vrm 直引 three-vrm 3D 预览；.vrca/.zip 暂不直接加载
+    if (rtype === RESOURCE_TYPES.VRC) {
+      if (extOf(path) === ".vrm") {
+        void createVrm3D(path);
+      } else {
+        showSimplePreview(this, path, this._typeMeta(rtype));
+      }
+      return;
+    }
+    // 其他已知类型（shaderpack / mmd-skin）
     showSimplePreview(this, path, this._typeMeta(rtype));
   }
 
