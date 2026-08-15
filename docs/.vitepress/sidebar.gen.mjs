@@ -692,6 +692,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-069：内容识别统一：ysm 作为解密容器参与 zip/7z 指纹匹配",
+        "link": "/adr/ADR-069-container-archive-unification"
+      },
+      {
         "text": "ADR-068：统一容器桥接层：ContainerReader 抽象收敛 ysm/geometry/avatar 解包重复",
         "link": "/adr/ADR-068-container-reader-abstraction"
       },

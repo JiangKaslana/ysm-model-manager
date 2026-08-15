@@ -8,6 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 10 |
+| go/container | 1 | 23 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 13 |
 | go/executil | 2 | 2 |
@@ -41,7 +42,7 @@
 | 前端·工具 | 55 | 197 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **274** | **1121** |
+| **合计** | **275** | **1144** |
 
 ## Go·头像
 
@@ -57,6 +58,34 @@
 | `SafeName()` | `go/avatar/avatar:45` | SafeName 将非法文件名字符替换为下划线。 |
 | `ReadCachedAvatar()` | `go/avatar/avatar:139` | ReadCachedAvatar 读取缓存中的头像，返回 data URI。 |
 | `SaveAvatarData()` | `go/avatar/avatar:165` | SaveAvatarData 将头像数据写入缓存。 |
+
+## go/container
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `zipEntry.Name()` | `go/container/container:43` | — |
+| `zipEntry.IsDir()` | `go/container/container:44` | — |
+| `zipEntry.Open()` | `go/container/container:45` | — |
+| `zipContainer.Entries()` | `go/container/container:54` | — |
+| `zipContainer.Close()` | `go/container/container:66` | — |
+| `sevenzipEntry.Name()` | `go/container/container:78` | — |
+| `sevenzipEntry.IsDir()` | `go/container/container:79` | — |
+| `sevenzipEntry.Open()` | `go/container/container:80` | — |
+| `sevenzipContainer.Entries()` | `go/container/container:89` | — |
+| `sevenzipContainer.Close()` | `go/container/container:97` | — |
+| `dirEntry.Name()` | `go/container/container:113` | — |
+| `dirEntry.IsDir()` | `go/container/container:114` | — |
+| `dirEntry.Open()` | `go/container/container:115` | — |
+| `Open()` | `go/container/container:45` | — |
+| `OpenZipPath()` | `go/container/container:141` | OpenZipPath 按路径打开 zip 容器。 |
+| `OpenZipBytes()` | `go/container/container:150` | OpenZipBytes 从内存打开 zip 容器。 |
+| `Open7zPath()` | `go/container/container:159` | Open7zPath 按路径打开 7z 容器。 |
+| `Open7zBytes()` | `go/container/container:168` | Open7zBytes 从内存打开 7z 容器。 |
+| `dirContainer.Entries()` | `go/container/container:213` | — |
+| `dirContainer.Close()` | `go/container/container:214` | — |
+| `OpenDir()` | `go/container/container:217` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
+| `Entry()` | `go/container/container:26` | Entry 统一容器条目（zip.File / sevenzip.File / 目录文件）。 |
+| `Reader()` | `go/container/container:33` | Reader 容器读取器。 |
 
 ## Go·去重
 

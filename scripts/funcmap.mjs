@@ -341,8 +341,10 @@ function renderMarkdown(groups, sortedKeys) {
 
 function main() {
   const args = process.argv.slice(2);
+  const CHECK = args.includes('--check');
   if (args.includes('-h') || args.includes('--help')) {
-    console.error('用法: node scripts/funcmap.mjs [-o|--output <path>]\n默认输出 docs/funcmap.md');
+    console.error('用法: node scripts/funcmap.mjs [--check] [-o|--output <path>]\n默认输出 docs/funcmap.md');
+    console.error('  --check  只对比不写盘（pre-push gate 守护，防止导出符号变化后 funcmap 静默失效）');
     process.exit(0);
   }
   const outIdx = args.indexOf('-o') >= 0 ? args.indexOf('-o') : args.indexOf('--output');
@@ -399,8 +401,19 @@ function main() {
   console.error(`📦 扫描到 ${totalFiles} 个含导出符号的文件，共 ${totalSyms} 个符号，分 ${sortedKeys.length} 个模块`);
 
   const output = renderMarkdown(groups, sortedKeys);
-  fs.writeFileSync(path.join(ROOT, outputFile), output, 'utf-8');
-  console.log(`✅ 已写入 ${outputFile}（${totalSyms} 符号 / ${totalFiles} 文件）`);
+
+  if (CHECK) {
+    const onDisk = fs.existsSync(path.join(ROOT, outputFile)) ? fs.readFileSync(path.join(ROOT, outputFile), 'utf-8') : '';
+    const normalized = onDisk.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+    if (normalized !== output) {
+      console.error(`✖ docs/funcmap.md 过期（导出符号已变化），运行 \`node scripts/funcmap.mjs\` 刷新。`);
+      process.exit(1);
+    }
+    console.log(`✅ docs/funcmap.md 最新（${totalSyms} 符号 / ${totalFiles} 文件）。`);
+  } else {
+    fs.writeFileSync(path.join(ROOT, outputFile), output, 'utf-8');
+    console.log(`✅ 已写入 ${outputFile}（${totalSyms} 符号 / ${totalFiles} 文件）`);
+  }
 }
 
 main();
