@@ -168,7 +168,7 @@ func SaveAvatarData(safeName string, data []byte, mime string) string {
 		// 平台数据根缺失：不写磁盘（no-op），仍返回 data URI（即时显示依赖内存）
 		return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
 	}
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, fsutil.DirPerms); err != nil {
 		log.Printf("[avatar] 缓存目录创建失败: %v", err)
 	}
 	// 缓存写收敛 fsutil.WriteFileAtomic（CreateTemp + rename

@@ -269,7 +269,7 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 		return err
 	}
 	// 目标子目录名 = 源文件夹名
-	if err := os.MkdirAll(finalDst, 0755); err != nil {
+	if err := os.MkdirAll(finalDst, fsutil.DirPerms); err != nil {
 		return types.AppError{Code: "IO_ERROR", Operation: "安装目录", TargetPath: finalDst, Reason: "无法创建目标目录"}
 	}
 	// 校验目标也在 .minecraft 内
@@ -382,7 +382,7 @@ func InstallToGlobal(src, mcRoot string) (string, error) {
 	// 固定布局约定：YSM mod 的全局模型目录固定在 config/yes_steve_model/custom（mod 加载约定），
 	// 非用户可配置项；多实例根场景由上层传入具体 mcRoot，此处仅拼接布局
 	customDir := filepath.Join(mcRoot, "config", "yes_steve_model", "custom")
-	if err := os.MkdirAll(customDir, 0755); err != nil {
+	if err := os.MkdirAll(customDir, fsutil.DirPerms); err != nil {
 		return "", types.AppError{Code: "IO_ERROR", Operation: "安装到全局", TargetPath: customDir, Reason: "无法创建安装目录", Suggestion: "请检查磁盘权限或空间"}
 	}
 	return copyFileLocked(src, customDir)
@@ -404,7 +404,7 @@ func InstallWithOverlay(src, customDir string) (string, error) {
 	if !isSupportedModelExt(src) {
 		return "", types.AppError{Code: "UNSUPPORTED_FORMAT", Operation: "安装模型（覆盖检查）", SourcePath: src, Reason: "不支持的文件格式", Suggestion: "仅支持 " + strings.Join(types.AllExts(), " / ") + " 格式"}
 	}
-	if err := os.MkdirAll(customDir, 0755); err != nil {
+	if err := os.MkdirAll(customDir, fsutil.DirPerms); err != nil {
 		return "", types.AppError{Code: "IO_ERROR", Operation: "安装模型（覆盖检查）", TargetPath: customDir, Reason: "无法创建目录", Suggestion: "请检查磁盘权限或空间"}
 	}
 	// 防覆盖检查：在 InstallLock 临界区内先检查后写入（同一锁内天然原子，无 TOCTOU 窗口）。
@@ -422,7 +422,7 @@ func InstallWithOverlay(src, customDir string) (string, error) {
 func copyFileLocked(src, dstDir string) (string, error) {
 	src = cleanAbs(src)
 	dstDir = cleanAbs(dstDir)
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return "", err
 	}
 	dst := filepath.Join(dstDir, filepath.Base(src))
@@ -489,7 +489,7 @@ func CopyFileLocked(src, dstDir string) (string, error) {
 func linkOrCopyLocked(src, dstDir string) error {
 	src = cleanAbs(src)
 	dstDir = cleanAbs(dstDir)
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return err
 	}
 	dst := filepath.Join(dstDir, filepath.Base(src))
@@ -521,7 +521,7 @@ func linkOrCopy(src, dstDir string) error {
 func symlinkOrCopyLocked(src, dstDir string) error {
 	src = cleanAbs(src)
 	dstDir = cleanAbs(dstDir)
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return err
 	}
 	// os.Symlink 不要求目标存在，src 缺失时会创建悬空链接并静默返回 nil——

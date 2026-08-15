@@ -101,7 +101,7 @@ func ImportFromBase64(fileName, base64Data string, opts ImportOptions, rootFn fu
 
 	destPath := filepath.Join(targetRoot, fileName)
 	destDir := filepath.Dir(destPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, fsutil.DirPerms); err != nil {
 		return types.AppError{Code: "MKDIR_FAILED", Operation: "导入模型", TargetPath: destDir, Reason: "无法创建目标目录", Suggestion: "请检查磁盘权限或空间"}
 	}
 	if !opts.Overwrite {

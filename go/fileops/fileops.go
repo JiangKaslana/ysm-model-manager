@@ -16,8 +16,8 @@ import (
 )
 
 // maxPreviewRead 预览/元数据整读上限（P2 审计：原 os.ReadFile 无界，超大/畸形
-// 文件可致内存膨胀——对齐 geometry maxExtractSize 50MB 口径）
-const maxPreviewRead = 50 << 20
+// 文件可致内存膨胀——共享 types.MaxReadLimit 与 geometry/ysm 的 50MB 口径，索引 6.7+5.2）
+const maxPreviewRead = types.MaxReadLimit
 
 // readLimitedFile 受限整读文件：上限 maxPreviewRead，超限/读失败返回 nil。
 // 预览/元数据读取统一套上限，防超大文件整体拖入内存。
@@ -52,7 +52,7 @@ func CreateDir(root, dir string) error {
 		return fmt.Errorf("目录名包含非法路径段")
 	}
 	fullPath := filepath.Join(root, dir)
-	return os.MkdirAll(fullPath, 0755)
+	return os.MkdirAll(fullPath, fsutil.DirPerms)
 }
 
 // RenameDir 重命名目录（仅改末段，保持父目录）
@@ -184,7 +184,7 @@ func MoveModelFile(root, src, dstDir string) error {
 			}
 		}
 	}
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return err
 	}
 	dst := filepath.Join(dstDir, filepath.Base(src))
@@ -254,7 +254,7 @@ func CopyModelFile(root, src, dstDir string) error {
 			}
 		}
 	}
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return err
 	}
 	dst := filepath.Join(dstDir, filepath.Base(src))

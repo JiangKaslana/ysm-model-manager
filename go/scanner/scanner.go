@@ -427,7 +427,7 @@ func GenerateRepoIndex(repoPath string) (string, error) {
 	}
 
 	workflowDir := filepath.Join(repoPath, ".github", "workflows")
-	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+	if err := os.MkdirAll(workflowDir, fsutil.DirPerms); err != nil {
 		// index.json 已成功生成，workflow 属附带能力：失败留痕不阻断（排障盲区补齐）
 		log.Printf("[scanner] 创建 workflow 目录失败 %s: %v", workflowDir, err)
 	} else {

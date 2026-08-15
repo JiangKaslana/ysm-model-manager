@@ -97,7 +97,7 @@ func writeModelFolderFiles(dstRoot string, files []types.ImportFileItem) error {
 		if err != nil || relDst == ".." || strings.HasPrefix(relDst, ".."+string(filepath.Separator)) {
 			return fmt.Errorf("路径越权: %s", f.RelPath)
 		}
-		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dst), fsutil.DirPerms); err != nil {
 			return err
 		}
 		// 写入前检查目标父目录不是符号链接——仓库内若预置

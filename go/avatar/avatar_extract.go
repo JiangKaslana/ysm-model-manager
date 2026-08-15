@@ -223,7 +223,7 @@ func CacheAvatarsFromJSON(modelPath string) {
 	}
 	// MkdirAll 错误不再忽略——与 SaveAvatarData 的
 	// log 口径一致（原失败静默，后续 WriteFile 报错被 .corrupt 备份掩盖）
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, fsutil.DirPerms); err != nil {
 		log.Printf("[avatar] 创建缓存目录失败: %v", err)
 		return
 	}
@@ -274,7 +274,7 @@ func CacheAvatarsFromModel(modelPath string) {
 			return // 平台数据根缺失：no-op
 		}
 		// MkdirAll 错误不再忽略（同上方 CacheAvatarsFromModel）
-		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		if err := os.MkdirAll(cacheDir, fsutil.DirPerms); err != nil {
 			log.Printf("[avatar] 创建缓存目录失败: %v", err)
 			return
 		}

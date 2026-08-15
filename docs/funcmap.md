@@ -38,10 +38,10 @@
 | 前端·特性 | 20 | 93 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 54 | 184 |
+| 前端·工具 | 54 | 187 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **272** | **1121** |
+| **合计** | **272** | **1124** |
 
 ## Go·头像
 
@@ -135,13 +135,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ExtractFirstPNGFromZip()` | `go/geometry/archive:58` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
-| `ExtractFirstPNGFrom7z()` | `go/geometry/archive:79` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:300` | — |
-| `ParseFrom7z()` | `go/geometry/archive:610` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理 |
-| `IsMainModelName()` | `go/geometry/archive:902` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:914` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1012` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
+| `ExtractFirstPNGFromZip()` | `go/geometry/archive:59` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
+| `ExtractFirstPNGFrom7z()` | `go/geometry/archive:80` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
+| `ParseFromZip()` | `go/geometry/archive:301` | — |
+| `ParseFrom7z()` | `go/geometry/archive:611` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理 |
+| `IsMainModelName()` | `go/geometry/archive:903` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:915` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1013` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
 | `ParseBedrockGeometry()` | `go/geometry/parse:25` | ParseBedrockGeometry 解析标准 Bedrock geometry JSON（minecraft:geometry 格式） 注意：data 大小不应超过 maxP |
 
 ## Go·导入
@@ -341,22 +341,22 @@
 | `WorkshopPresetSearch()` | `go/types/config:38` | WorkshopPresetSearch 预设搜索词 |
 | `WorkshopSite()` | `go/types/config:44` | WorkshopSite 创意工坊站点配置 |
 | `WorkshopCreator()` | `go/types/config:57` | WorkshopCreator 创作者条目 Type 是平台标签，分号分隔，如 "bilibili;afdian" |
-| `AllExts()` | `go/types/extensions:22` | AllExts 返回所有支持的扩展名（去重后） |
-| `IsSupportedExt()` | `go/types/extensions:38` | IsSupportedExt 检查扩展名是否被任何资源类型支持 |
-| `IsYsmEntryJSON()` | `go/types/extensions:54` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
-| `ShouldHashExt()` | `go/types/extensions:63` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配） 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。 |
-| `IsDirLevelSync()` | `go/types/extensions:81` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
-| `IsScanInstance()` | `go/types/extensions:90` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录 （非模型类型兜底：SyncResources 的 map 去重会丢失同名文件，注 |
-| `InstallExtsFor()` | `go/types/extensions:99` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
-| `MatchZipEntry()` | `go/types/extensions:110` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
-| `ExtBelongsTo()` | `go/types/extensions:124` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
-| `SupportedExtsForType()` | `go/types/extensions:139` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
-| `FindInstDir()` | `go/types/extensions:153` | FindInstDir 查找整合包中指定资源类型的子目录： 1. |
-| `StorageSubDir()` | `go/types/extensions:198` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
-| `SubDirMap()` | `go/types/extensions:212` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
-| `SubDirAll()` | `go/types/extensions:224` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:236` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:206` | SubDirEntry 资源类型的版本子目录信息 |
+| `AllExts()` | `go/types/extensions:28` | AllExts 返回所有支持的扩展名（去重后） |
+| `IsSupportedExt()` | `go/types/extensions:44` | IsSupportedExt 检查扩展名是否被任何资源类型支持 |
+| `IsYsmEntryJSON()` | `go/types/extensions:60` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
+| `ShouldHashExt()` | `go/types/extensions:69` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配） 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。 |
+| `IsDirLevelSync()` | `go/types/extensions:87` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
+| `IsScanInstance()` | `go/types/extensions:96` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录 （非模型类型兜底：SyncResources 的 map 去重会丢失同名文件，注 |
+| `InstallExtsFor()` | `go/types/extensions:105` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
+| `MatchZipEntry()` | `go/types/extensions:116` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
+| `ExtBelongsTo()` | `go/types/extensions:130` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
+| `SupportedExtsForType()` | `go/types/extensions:145` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
+| `FindInstDir()` | `go/types/extensions:159` | FindInstDir 查找整合包中指定资源类型的子目录： 1. |
+| `StorageSubDir()` | `go/types/extensions:204` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
+| `SubDirMap()` | `go/types/extensions:218` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
+| `SubDirAll()` | `go/types/extensions:230` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:242` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:212` | SubDirEntry 资源类型的版本子目录信息 |
 | `ResourceType.MatchZipEntry()` | `go/types/resource:47` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） |
 | `SetRegistryPath()` | `go/types/resource:77` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
 | `LoadRegistry()` | `go/types/resource:88` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
@@ -431,18 +431,18 @@
 | `YSMHeader()` | `go/ysm/header:17` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
 | `AnalyzeYSMModel()` | `go/ysm/parse:45` | AnalyzeYSMModel 解析 .ysm 文件，提取模型元数据 |
 | `YSMModelMeta()` | `go/ysm/parse:15` | YSMModelMeta 模型元数据（从 model.json 提取） |
-| `ExtractYsmSummary()` | `go/ysm/summary:135` | ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要 |
-| `Author()` | `go/ysm/summary:16` | — |
-| `Link()` | `go/ysm/summary:22` | — |
-| `AnimGroup()` | `go/ysm/summary:27` | — |
-| `ConfigMenu()` | `go/ysm/summary:33` | — |
-| `PreviewInfo()` | `go/ysm/summary:39` | — |
-| `YsmSummary()` | `go/ysm/summary:47` | YsmSummary 是前端右侧面板和 AI 搜索消费的标准摘要 |
-| `Stats()` | `go/ysm/summary:64` | — |
-| `ScanModelTexSizes()` | `go/ysm/texsize:29` | ScanModelTexSizes 扫描仓库文件读取纹理尺寸，不调用 YSMParser/WASM 仅支持 zip/7z 格式（未加密模型），加密 .ysm 返回 0,0 |
-| `ScanFiles()` | `go/ysm/texsize:165` | ScanFiles 读取目录下所有支持的文件条目（供 ScanModelTexSizes 使用） |
-| `TexInfo()` | `go/ysm/texsize:21` | TexInfo 轻量级纹理尺寸（不解析完整模型） |
-| `ModelEntry()` | `go/ysm/texsize:44` | ModelEntry 轻量级条目（仅用于纹理扫描签名，调用方传入完整路径） |
+| `ExtractYsmSummary()` | `go/ysm/summary:136` | ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要 |
+| `Author()` | `go/ysm/summary:17` | — |
+| `Link()` | `go/ysm/summary:23` | — |
+| `AnimGroup()` | `go/ysm/summary:28` | — |
+| `ConfigMenu()` | `go/ysm/summary:34` | — |
+| `PreviewInfo()` | `go/ysm/summary:40` | — |
+| `YsmSummary()` | `go/ysm/summary:48` | YsmSummary 是前端右侧面板和 AI 搜索消费的标准摘要 |
+| `Stats()` | `go/ysm/summary:65` | — |
+| `ScanModelTexSizes()` | `go/ysm/texsize:30` | ScanModelTexSizes 扫描仓库文件读取纹理尺寸，不调用 YSMParser/WASM 仅支持 zip/7z 格式（未加密模型），加密 .ysm 返回 0,0 |
+| `ScanFiles()` | `go/ysm/texsize:166` | ScanFiles 读取目录下所有支持的文件条目（供 ScanModelTexSizes 使用） |
+| `TexInfo()` | `go/ysm/texsize:22` | TexInfo 轻量级纹理尺寸（不解析完整模型） |
+| `ModelEntry()` | `go/ysm/texsize:45` | ModelEntry 轻量级条目（仅用于纹理扫描签名，调用方传入完整路径） |
 | `IsYSMJar()` | `go/ysm/ysm:13` | IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml） |
 | `HasYSMMod()` | `go/ysm/ysm:78` | HasYSMMod 检查 mods 目录是否有 YSM 模组（先做文件名过滤避免对每个 JAR 打开 ZIP） |
 | `HasModInDir()` | `go/ysm/ysm:107` | HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar |
@@ -1026,9 +1026,9 @@
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter` | — |
 | `AdvFilterResult()` | `frontend/src/utils/dom/dialogs/adv-filter:18` | — |
 | `modalAdvFilter()` | `frontend/src/utils/dom/dialogs/adv-filter:25` | 弹出高级筛选弹窗 |
-| `rebuildParsedName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:14` | 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.ban)` - 作者/作品空值跳过；角色缺省回退到「剥 .ban 与扩展名后的文件名」； - 扩展名取原 |
-| `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:34` | — |
-| `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:44` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
+| `rebuildParsedName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:16` | 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.ban)` - 作者/作品空值跳过；角色缺省回退到「剥 .ban 与扩展名后的文件名」； - 扩展名取原 |
+| `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
+| `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
 | `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:19` | 应用变更载荷 |
 | `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:48` | 弹出批量重命名对话框 重复打开时先结算上一个 Promise，调用方 await 不会永远悬挂 |
 | `esc()` | `frontend/src/utils/dom/dialogs/modal` | — |
@@ -1047,7 +1047,10 @@
 | `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:368` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
 | `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:378` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
 | `RenameFields()` | `frontend/src/utils/dom/dialogs/rename-format:7` | 重命名字段（调用方已 trim） |
-| `buildRenameName()` | `frontend/src/utils/dom/dialogs/rename-format:19` | 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext` 品牌缺省「未知」、角色缺省「?」，与预览一致。 |
+| `BuildModelNameOptions()` | `frontend/src/utils/dom/dialogs/rename-format:21` | 命名模板引擎选项（索引 4.9 收敛 buildRenameName / rebuildParsedName 两套手工拼接）： - fillDefaults=true：空作品补「未 |
+| `ModelNameFields()` | `frontend/src/utils/dom/dialogs/rename-format:27` | 命名模板输入字段（variant 可选：单重命名有、批量重建无） |
+| `buildModelName()` | `frontend/src/utils/dom/dialogs/rename-format:40` | 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.ban]` 单一模板引擎——buildRenameName（缺省填充）与 rebuildPar |
+| `buildRenameName()` | `frontend/src/utils/dom/dialogs/rename-format:60` | 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext` 品牌缺省「未知」、角色缺省「?」，与预览一致（收敛自 buildModelName，索引 4.9 |
 | `showRenameDialog()` | `frontend/src/utils/dom/dialogs/rename:16` | 弹出重命名对话框 |
 | `modalTagEditor()` | `frontend/src/utils/dom/dialogs/tag-editor:14` | 弹出标签编辑弹窗 |
 | `TagSetResult()` | `frontend/src/utils/dom/dialogs/tag-set:6` | — |
@@ -1056,10 +1059,10 @@
 | `resolveAndroidRepoDir()` | `frontend/src/utils/dom/directory-picker:25` | Android 共享仓库目录解析（双端桥接：授权引导 + 定位公共目录）。 |
 | `pickDirectory()` | `frontend/src/utils/dom/directory-picker:65` | 选择目录：桌面走系统对话框；查看器模式（Android/网页版）走授权检查 + 自动定位公共目录 |
 | `ParsedModelName()` | `frontend/src/utils/dom/display:6` | 解析后的模型文件名字段 |
-| `parseModelName()` | `frontend/src/utils/dom/display:27` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
-| `renderDisplayName()` | `frontend/src/utils/dom/display:88` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
-| `renderModelName()` | `frontend/src/utils/dom/display:177` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
-| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:186` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
+| `parseModelName()` | `frontend/src/utils/dom/display:45` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
+| `renderDisplayName()` | `frontend/src/utils/dom/display:114` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
+| `renderModelName()` | `frontend/src/utils/dom/display:183` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
+| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:192` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `isFileExistsError()` | `frontend/src/utils/dom/errors:87` | 判断错误消息是否为「文件已存在」冲突（索引 4.2 收敛）。 |

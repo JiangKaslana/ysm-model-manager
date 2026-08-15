@@ -113,7 +113,7 @@ func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 		}
 		return &MoveResult{Action: "deleted_link", Reason: "硬链接，已直接删除"}, nil
 	}
-	if err := os.MkdirAll(tm.recycleDir, 0755); err != nil {
+	if err := os.MkdirAll(tm.recycleDir, fsutil.DirPerms); err != nil {
 		return nil, err // fail-fast：回收站目录创建失败（权限/磁盘满）提前暴露，避免后续 rename 报无关错误
 	}
 	rel, err := filepath.Rel(rootDir, src)
@@ -141,7 +141,7 @@ func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 	// 优先瞬时移动（同分区原子操作，避免大模型文件全量复制）；
 	// 仅跨设备（EXDEV）回退复制后删；权限/占用等其他失败直接报错，
 	// 避免无谓全量复制，以及「副本已入站、源未删」的重试堆积（审核 P2）
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), fsutil.DirPerms); err != nil {
 		return nil, err
 	}
 	if err := tm.renameForMove(src, dst); err == nil {
@@ -256,7 +256,7 @@ func (tm *TrashManager) Restore(src string) error {
 		return err
 	}
 	dstDir := filepath.Dir(dst)
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return err
 	}
 	// 冲突后缀循环（与 moveEx 共用 uniqueDest，索引 6.8b）；guard 保持越权校验
@@ -342,7 +342,7 @@ func (tm *TrashManager) Empty() (int, error) {
 		return 0, fmt.Errorf("清空回收站失败: %w", err)
 	}
 	// 重建空目录
-	if err := os.MkdirAll(tm.recycleDir, 0755); err != nil {
+	if err := os.MkdirAll(tm.recycleDir, fsutil.DirPerms); err != nil {
 		return 0, fmt.Errorf("重建回收站目录失败: %w", err)
 	}
 	return count, nil

@@ -45,7 +45,7 @@ func NewLogger(configDir string) *Logger {
 		return l
 	}
 	dir := configDir
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, fsutil.DirPerms); err != nil {
 		// 原 `dir = "."` 降级相对路径与上方注释「绝不降级相对路径」
 		// 自相矛盾——CWD=/（Android/守护进程）时 save 落根目录失败、日志静默丢弃；
 		// 与 configDir=="" 分支一致改为内存态 logger（save no-op，不降级）
@@ -129,7 +129,7 @@ func (l *Logger) save() {
 	}
 	// 确保日志目录存在
 	if dir := filepath.Dir(l.path); dir != "" {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, fsutil.DirPerms); err != nil {
 			log.Printf("[logs] 创建日志目录失败: %v", err)
 			return
 		}

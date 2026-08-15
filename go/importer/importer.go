@@ -85,7 +85,7 @@ func (s *SimpleCopyImporter) Import(srcPath, dstDir string) string {
 		return err.Error()
 	}
 
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return fmt.Sprintf("创建目标目录失败: %v", err)
 	}
 
@@ -228,7 +228,7 @@ func copyDirContents(src, dst string) error {
 			// 必须先建目录再递归——否则源中的空子目录会整体丢失
 			// （copyFile 仅在复制文件时 MkdirAll 父目录，空目录无人创建）
 			// 注：目录符号链接/junction 的 IsDir() 恒 false，走 else 分支复制链接本身
-			if err := os.MkdirAll(dstPath, 0755); err != nil {
+			if err := os.MkdirAll(dstPath, fsutil.DirPerms); err != nil {
 				return err
 			}
 			if err := copyDirContents(srcPath, dstPath); err != nil {
@@ -309,7 +309,7 @@ func (d *DirectoryCopyImporter) Import(srcPath, dstDir string) string {
 	dstPath := filepath.Join(dstDir, folderName)
 
 	// 确保目标父目录存在
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return fmt.Sprintf("创建目标目录失败: %v", err)
 	}
 	// 复制整个文件夹
