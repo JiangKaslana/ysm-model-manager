@@ -3,7 +3,7 @@
 - **状态**：🔄 部分采纳（统一契约方向已定；**P0「硬编码派发墙」已于 `0615b21d` 落地**，D2–D5 待后续阶段）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
-- **相关**：`frontend/src/views/app-preview/loader.ts`、`frontend/src/views/app-preview/index.ts`、`frontend/src/views/app-preview/litematic-meta.ts`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`frontend/src/utils/3d/model3d.ts`、`frontend/src/views/app-preview/litematic-3d.ts`、`ADR-061`、`ADR-064`、`ADR-065`
+- **相关**：`frontend/src/views/app-preview/loader.ts`、`frontend/src/views/app-preview/index.ts`、`frontend/src/views/app-preview/litematic-meta.ts`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`frontend/src/utils/3d/model3d.ts`、`frontend/src/views/app-preview/litematic-3d.ts`、`ADR-061`、`ADR-064`、`ADR-065`、`ADR-067`（zip 化资源识别，P0.x 硬前置）
 
 ---
 
@@ -38,6 +38,8 @@
 | `model3d-loader.ts:84-89` | `getCachedSpec(model._modelPath)` / `GetModel3DSpec(model._modelPath)` | 依赖缓存里写死的 `_modelPath` 字符串 |
 
 同一语义（「这个扩展名属于哪个类型、该走哪条加载链」）在 3+ 处各写一遍，无单一口径——新增 VRM/MMD 时，若不在 each 处补分支，预览就会静默漏掉。
+
+> **延伸墙（`.zip` 化资源识别）已拆为独立 ADR-067**：P0 解的是「前端硬编码派发」，但 `.zip` 可被任意资源包裹（mmd/vrc/蓝图/投影的 `.zip` 当前 Go 端 `DetectResourceType` 完全识别不了），该难题落在 Go 检测核心的扩展名门槛 + 内容指纹覆盖，且 S1/S2 改动有回归风险。ADR-067 已给出 S1–S4 精确方案（S4 前端契约本批已落地），是 P1 VRM / P2 MMD 接入的硬前置。
 
 ### 1.4 根因：注册表已建，但消费端未暴露能力元数据
 

@@ -123,3 +123,27 @@ export const VOXEL_RPC_BY_EXT: Record<string, string> = {
   ".schematic": "GetSchematicVoxelData",
   ".litematic": "GetLitematicVoxelData",
 };
+
+/**
+ * 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。
+ * 根因（ADR-067）：所有资源都能被 .zip / .7z 包裹，扩展名不可信，必须回退内容检测。
+ * 从 RESOURCE_CAPS 派生，新增类型自动纳入，无需手维护。
+ */
+export const AMBIGUOUS_EXTS: Set<string> = (() => {
+  const count: Record<string, number> = {};
+  for (const cap of Object.values(RESOURCE_CAPS)) {
+    for (const e of cap.extensions) count[e] = (count[e] || 0) + 1;
+  }
+  return new Set(Object.keys(count).filter((e) => count[e] > 1));
+})();
+
+/**
+ * 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源）
+ * 返回 null，调用方必须回退到 Go DetectResourceType 内容检测。
+ * 新分发器（P1 VRM / P2 MMD 适配器）统一使用此函数，避免重蹈硬编码扩展名派发的覆辙。
+ */
+export function resolveTypeSafe(path: string): string | null {
+  const ext = extOf(path);
+  if (!ext) return null;
+  return AMBIGUOUS_EXTS.has(ext) ? null : resolveTypeByExt(path);
+}
