@@ -39,6 +39,9 @@ export interface BoneTransform {
   scale?: Vec3;
 }
 
+/** 骨骼动画三通道名单点（收敛 4 处字面量重复，防通道名拼写漂移） */
+const BONE_CHANNELS = ["rotation", "position", "scale"] as const;
+
 /** 骨骼层级节点 */
 export interface BoneHierarchyNode {
   name: string;
@@ -249,7 +252,7 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
 
       // 检测 Molang：原始数据中是否含字符串值（非数字）
       if (!clip.hasMolang) {
-        for (const ch of ["rotation", "position", "scale"]) {
+        for (const ch of BONE_CHANNELS) {
           if (hasMolangInChannelData(boneObj[ch])) {
             clip.hasMolang = true;
             break;
@@ -258,7 +261,7 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
       }
 
       const channels: BoneChannels = {};
-      for (const ch of ["rotation", "position", "scale"] as const) {
+      for (const ch of BONE_CHANNELS) {
         const kfs = parseChannel(boneObj[ch]);
         if (kfs.length > 0) {
           channels[ch] = kfs;
@@ -275,7 +278,7 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
       // 计算实际长度（取最大关键帧时间）
       let maxT = 0;
       for (const chs of Object.values(clip.bones)) {
-        for (const ch of ["rotation", "position", "scale"] as const) {
+        for (const ch of BONE_CHANNELS) {
           const kfs = chs[ch];
           if (kfs?.length) {
             const last = kfs[kfs.length - 1];
@@ -364,7 +367,7 @@ export function evaluateClip(
   const local = new Map<string, BoneTransform>();
   for (const [boneName, channels] of Object.entries(clip.bones)) {
     const transform: BoneTransform = {};
-    for (const ch of ["rotation", "position", "scale"] as const) {
+    for (const ch of BONE_CHANNELS) {
       const val = evaluateKeyframes(channels[ch] ?? [], t);
       if (val) transform[ch] = val;
     }

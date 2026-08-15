@@ -2,7 +2,8 @@
 // 从 model3d.js 拆分：Go spec 不可用时 JS 端兜底算法
 // 算法逻辑与 Go threejs.Build() 一致
 
-const CUBE_EPS = 0.001;
+/** 立方体几何 epsilon（0.001）——单点导出，cube-mesh.ts 的 THICKNESS_EPSILON/CUBE_EPSILON 同值收敛于此 */
+export const CUBE_EPS = 0.001;
 
 // ── 结构接口 ────────────────────────────────────────
 

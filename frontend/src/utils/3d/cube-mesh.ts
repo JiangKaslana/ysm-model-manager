@@ -5,12 +5,13 @@
 
 import type { Cube2D, MeshData, Vec3 } from "./spec-builder.ts";
 import { eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./quaternion.ts";
+import { CUBE_EPS } from "./model3d-spec.ts";
 
 // 旋转工具 re-export（spec-builder.ts / model-group-builder.ts 仍自本文件取，消费方零改动）
 export { eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./quaternion.ts";
 
-/** 零厚度面修正值（避免 Three.js 渲染零面积面） */
-const THICKNESS_EPSILON = 0.001;
+/** 零厚度面修正值（避免 Three.js 渲染零面积面）——收敛于 model3d-spec.ts 的 CUBE_EPS 单点 */
+const THICKNESS_EPSILON = CUBE_EPS;
 
 /**
  * 有限性守卫：任一值为 NaN/±Infinity 则 warn 并返回 false。
@@ -30,8 +31,8 @@ function assertFinite(vals: number[], label: string): boolean {
   return true;
 }
 
-/** 同名骨骼 cube 合并的浮点 epsilon */
-const CUBE_EPSILON = 0.001;
+/** 同名骨骼 cube 合并的浮点 epsilon ——收敛于 model3d-spec.ts 的 CUBE_EPS 单点 */
+const CUBE_EPSILON = CUBE_EPS;
 
 // ===== 公开导出 =====
 

@@ -38,10 +38,10 @@
 | 前端·特性 | 19 | 90 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 54 | 182 |
+| 前端·工具 | 54 | 183 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **270** | **1115** |
+| **合计** | **270** | **1116** |
 
 ## Go·头像
 
@@ -321,12 +321,12 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Build()` | `go/threejs/spec:58` | Build 接收已解析的 BedrockModel，生成 Three.js 可直接消费的 JSON spec |
-| `BuildMulti()` | `go/threejs/spec:77` | BuildMulti 多组件 spec：每个组件独立构建为 spec.models 元素（YSMViewer 式多组件同屏）。 |
-| `Model3DSpec()` | `go/threejs/spec:17` | — |
-| `ModelGroup()` | `go/threejs/spec:21` | — |
-| `BoneData()` | `go/threejs/spec:32` | — |
-| `MeshData()` | `go/threejs/spec:41` | — |
+| `Build()` | `go/threejs/spec:61` | Build 接收已解析的 BedrockModel，生成 Three.js 可直接消费的 JSON spec |
+| `BuildMulti()` | `go/threejs/spec:80` | BuildMulti 多组件 spec：每个组件独立构建为 spec.models 元素（YSMViewer 式多组件同屏）。 |
+| `Model3DSpec()` | `go/threejs/spec:20` | — |
+| `ModelGroup()` | `go/threejs/spec:24` | — |
+| `BoneData()` | `go/threejs/spec:35` | — |
+| `MeshData()` | `go/threejs/spec:44` | — |
 
 ## Go·类型
 
@@ -409,12 +409,12 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `New()` | `go/watcher/watcher:42` | New 创建文件监听器 |
-| `Watcher.Start()` | `go/watcher/watcher:58` | Start 开始监听 |
-| `Watcher.Stop()` | `go/watcher/watcher:106` | Stop 停止监听 |
-| `Watcher.IsRunning()` | `go/watcher/watcher:150` | IsRunning 返回是否正在运行 |
+| `New()` | `go/watcher/watcher:45` | New 创建文件监听器 |
+| `Watcher.Start()` | `go/watcher/watcher:61` | Start 开始监听 |
+| `Watcher.Stop()` | `go/watcher/watcher:109` | Stop 停止监听 |
+| `Watcher.IsRunning()` | `go/watcher/watcher:153` | IsRunning 返回是否正在运行 |
 | `ScanFunc()` | `go/watcher/watcher:18` | ScanFunc matches mdsync.ScanFunc |
-| `Watcher()` | `go/watcher/watcher:25` | Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包 |
+| `Watcher()` | `go/watcher/watcher:28` | Watcher 监听仓库目录的文件变更，自动同步 .ban 状态到所有整合包 |
 
 ## Go·YSM 核心
 
@@ -425,9 +425,9 @@
 | `DecodedFile()` | `go/ysm/decode_inject:11` | DecodedFile 解码 .ysm 产出的一个文件（Path 为输出目录内相对路径） |
 | `FindGeometryInExtractedYSM()` | `go/ysm/extracted:50` | FindGeometryInExtractedYSM 在解压后的 YSM 模型目录中查找 geometry 和纹理 ysmJsonPath: ysm.json 的完整路径 返回: |
 | `FindComponentsInExtractedYSM()` | `go/ysm/extracted:392` | FindComponentsInExtractedYSM 多组件解析（YSMViewer 式）：解压目录内每个模型文件独立组件， **不合并 bones、不排除 arm**（arm |
-| `AnalyzeYSMHeader()` | `go/ysm/header:167` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
-| `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:320` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
-| `YSMHeader()` | `go/ysm/header:12` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
+| `AnalyzeYSMHeader()` | `go/ysm/header:170` | AnalyzeYSMHeader 读取 YSM 文件的文本头部，提取元数据 |
+| `AnalyzeYSMHeaderFromBytes()` | `go/ysm/header:323` | AnalyzeYSMHeaderFromBytes 从字节数据解析 YSM 头部（适用于 base64 导入场景） |
+| `YSMHeader()` | `go/ysm/header:15` | YSMHeader 从 YSM 文件文本头部提取的元数据（适用于加密和非加密模型） |
 | `AnalyzeYSMModel()` | `go/ysm/parse:45` | AnalyzeYSMModel 解析 .ysm 文件，提取模型元数据 |
 | `YSMModelMeta()` | `go/ysm/parse:15` | YSMModelMeta 模型元数据（从 model.json 提取） |
 | `ExtractYsmSummary()` | `go/ysm/summary:135` | ExtractYsmSummary 从 .ysm / .zip 文件中提取摘要 |
@@ -923,8 +923,8 @@
 |------|--------|------|
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
-| `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:10` | 构建骨骼层级路径映射（name/id/parent/children）。 |
-| `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:123` | 注册 pointermove / click 骨骼拾取监听器。 |
+| `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:11` | 构建骨骼层级路径映射（name/id/parent/children）。 |
+| `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:125` | 注册 pointermove / click 骨骼拾取监听器。 |
 | `BoneGroupMap()` | `frontend/src/utils/3d/bone-visibility:6` | BoneGroupMap 类型别名：骨骼 id → THREE.Group |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
 | `toggleBone()` | `frontend/src/utils/3d/bone-visibility:19` | 切换指定骨骼组的可见性（取反）。 |
@@ -937,8 +937,8 @@
 | `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
-| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:42` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
-| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:198` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
+| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:43` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
+| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:199` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:37` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
@@ -957,12 +957,13 @@
 | `Model2DOptions()` | `frontend/src/utils/3d/model2d:36` | renderModel2D 选项 |
 | `renderModel2D()` | `frontend/src/utils/3d/model2d:66` | 在 Canvas 上绘制模型骨骼的 2D 正交投影（前视图，支持 Y 轴旋转） |
 | `calcBoneHitZones()` | `frontend/src/utils/3d/model2d:259` | 计算骨骼在屏幕上的命中热区（2D 正交投影，供鼠标拾取；导出供测试） |
-| `SpecCube()` | `frontend/src/utils/3d/model3d-spec:10` | 立方体（骨骼上的 box 元素） |
-| `SpecBone()` | `frontend/src/utils/3d/model3d-spec:22` | 骨骼 |
-| `SpecModelInput()` | `frontend/src/utils/3d/model3d-spec:30` | 模型输入（buildSpecFromModel 参数） |
-| `SpecBuildResult()` | `frontend/src/utils/3d/model3d-spec:37` | 构建产物：mesh data + bones |
-| `SpecMeshData()` | `frontend/src/utils/3d/model3d-spec:45` | 单 mesh 数据（Go spec meshGroups 结构近似） |
-| `buildSpecFromModel()` | `frontend/src/utils/3d/model3d-spec:66` | 构建 Three.js 可消费的 spec 结构 { bones[], meshes[] } |
+| `CUBE_EPS()` | `frontend/src/utils/3d/model3d-spec:6` | 立方体几何 epsilon（0.001）——单点导出，cube-mesh.ts 的 THICKNESS_EPSILON/CUBE_EPSILON 同值收敛于此 |
+| `SpecCube()` | `frontend/src/utils/3d/model3d-spec:11` | 立方体（骨骼上的 box 元素） |
+| `SpecBone()` | `frontend/src/utils/3d/model3d-spec:23` | 骨骼 |
+| `SpecModelInput()` | `frontend/src/utils/3d/model3d-spec:31` | 模型输入（buildSpecFromModel 参数） |
+| `SpecBuildResult()` | `frontend/src/utils/3d/model3d-spec:38` | 构建产物：mesh data + bones |
+| `SpecMeshData()` | `frontend/src/utils/3d/model3d-spec:46` | 单 mesh 数据（Go spec meshGroups 结构近似） |
+| `buildSpecFromModel()` | `frontend/src/utils/3d/model3d-spec:67` | 构建 Three.js 可消费的 spec 结构 { bones[], meshes[] } |
 | `TdKeyAction()` | `frontend/src/utils/3d/model3d` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdKeymap()` | `frontend/src/utils/3d/model3d` | — |
@@ -1000,10 +1001,10 @@
 | `BoneChannels()` | `frontend/src/utils/animation/animation:20` | 单骨骼三通道 |
 | `AnimationClip()` | `frontend/src/utils/animation/animation:27` | 动画剪辑 |
 | `BoneTransform()` | `frontend/src/utils/animation/animation:36` | 骨骼变换（evaluateClip 结果值） |
-| `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:43` | 骨骼层级节点 |
-| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:204` | 解析完整的基岩版动画 JSON 字符串 |
-| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:301` | 在指定时间 t 对一组关键帧求值 |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:347` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:46` | 骨骼层级节点 |
+| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:207` | 解析完整的基岩版动画 JSON 字符串 |
+| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:304` | 在指定时间 t 对一组关键帧求值 |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:350` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
 | `dbg()` | `frontend/src/utils/debug/debug:38` | 输出调试日志（保留 tag 用于过滤） |

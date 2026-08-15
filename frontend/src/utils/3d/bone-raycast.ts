@@ -2,6 +2,7 @@
 // 骨骼层级映射 + raycaster 拾取 + click 回调组装 BoneSelectInfo。
 import * as THREE from "three";
 import type { BoneSelectInfo } from "./model3d.ts";
+import { isIdentityQuat } from "./quaternion.ts";
 
 /**
  * 构建骨骼层级路径映射（name/id/parent/children）。
@@ -73,7 +74,8 @@ function assembleBoneSelectInfo(
   const lp = bg ? bg.position : new THREE.Vector3();
   const lq = bg ? bg.quaternion : new THREE.Quaternion();
   let lr: number[] | null = null;
-  if (lq.x !== 0 || lq.y !== 0 || lq.z !== 0 || lq.w !== 1)
+  // 单位四元数判定复用 quaternion.ts 现成工具（epsilon 1e-9 口径，与 Go threejs 一致）
+  if (!isIdentityQuat([lq.x, lq.y, lq.z, lq.w]))
     lr = [lq.x, lq.y, lq.z, lq.w];
 
   // Cube（mesh）级数据
