@@ -46,7 +46,7 @@ invariant_anchors:
 
 ## 不变量
 
-- 存档内单文件读取上限 50MB（`readLimitedEntry`：`LimitReader(limit+1)` 探测截断，超限/读错拒绝并跳过，ADR-033 修复——不再静默截断装盘）
+- 存档内单文件读取上限走 `types.MaxReadLimit`（50MB，全仓单点常量：`geometry/archive.go` 的 `readLimitedEntry`、`ysm/*` 的解析入口均引用同值）：`LimitReader(limit+1)` 探测截断，超限/读错拒绝并跳过，ADR-033 修复——不再静默截断装盘
 - `ParseBedrockGeometry` 输入上限 100MB（`maxParseSize`），超限拒绝并记日志
 - **cube 字段覆盖**：解析 origin/size/pivot/uv（数组或 per-face 对象）/rotation/texture/inflate/mirror。`inflate`（Blockbench 膨胀）与 `mirror`（镜像）2026-08-09 补齐（P2）——此前 .ysm 走 wasm 解码时 YSMParser 已把 inflate 烘焙进几何尺寸，Go 原生解析 zip/7z/json 却丢弃字段导致老模型（1.10+ 导出）尺寸偏小/纹理方向错；现在两条路径口径一致
 - `ysm.json` 是清单不是模型文件，不参与 geometry 解析；文件名含 animation/controller 的 JSON 归入动画而非模型（仅 ZIP 路径分流）

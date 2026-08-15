@@ -174,6 +174,7 @@ func (l *Logger) addOp(op, modelName, sourcePath, targetDir string, fileSize int
 		ErrorMsg:   trunc(errMsg),
 		Timestamp:  time.Now().UnixMilli(),
 		Operation:  op,
+		Level:      types.StatusToLevel(status),
 	})
 	if len(l.logs) > maxLogEntries {
 		l.logs = l.logs[len(l.logs)-maxLogEntries:]

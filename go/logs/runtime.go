@@ -33,6 +33,7 @@ func (b *RuntimeBuffer) Write(p []byte) (int, error) {
 	b.logs = append(b.logs, types.RuntimeLog{
 		Message:   string(p),
 		Timestamp: time.Now().UnixMilli(),
+		Level:     types.LevelInfo, // 标准库 log 无级别，统一标记为 info
 	})
 	if len(b.logs) > b.cap {
 		b.logs = b.logs[len(b.logs)-b.cap:]

@@ -21,6 +21,7 @@ interface ImportLogLike {
   SourcePath?: string;
   ErrorMsg?: string;
   Operation?: string;
+  Level?: "debug" | "info" | "warn" | "error" | "fatal";
 }
 
 /** 操作类型 → 中文标签 + 图标（分组标题与行内徽标共用） */
@@ -95,16 +96,10 @@ export async function loadDiagnosticsLogs(root: ShadowRoot, esc: EscFn): Promise
 <span>${meta.icon} ${meta.label}</span><span style="margin-left:auto">${t("diagnostics.itemsCount", { n: items.length })}</span></div>`,
       );
       items.forEach((l, i) => {
-        // P3 修复（子代理审计）：warn 被误标为 ⏭️（跳过）——success/failed 之外
-        // 全部归 ⏭️ 掩盖了 warn（同步被跳过等警示）；warn 显式标 ⚠️，仅 skipped 用 ⏭️
-        const statusLabel =
-          l.Status === "success"
-            ? "✅"
-            : l.Status === "failed"
-              ? "❌"
-              : l.Status === "warn"
-                ? "⚠️"
-                : "⏭️";
+        // Level 优先（P1-2 新增字段，新日志带级别标签），旧日志按 Status 兜底
+        const statusLabel = l.Level
+          ? (l.Level === "error" ? "❌" : l.Level === "warn" ? "⚠️" : l.Level === "debug" ? "🔍" : l.Level === "fatal" ? "💀" : "✅")
+          : l.Status === "success" ? "✅" : l.Status === "failed" ? "❌" : l.Status === "warn" ? "⚠️" : "⏭️";
         const timeStr = l.Timestamp
           ? new Date(l.Timestamp).toLocaleTimeString([], {
               hour: "2-digit",

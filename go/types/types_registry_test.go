@@ -104,7 +104,7 @@ var errTestSentinel = errors.New("哨兵错误")
 
 // TestWithCause_Basic WithCause 后 Unwrap 应返回 cause
 func TestWithCause_Basic(t *testing.T) {
-	e := AppError{Code: "E001", Operation: "导入", Reason: "失败"}
+	e := AppError{Code: ErrorCode("E001"), Operation: "导入", Reason: "失败"}
 	w := e.WithCause(errTestSentinel)
 	unwrapped := errors.Unwrap(w)
 	if unwrapped != errTestSentinel {
@@ -114,7 +114,7 @@ func TestWithCause_Basic(t *testing.T) {
 
 // TestWithCause_ErrorStringContainsBase 原错误消息仍存在于 Error() 中（cause 通过 Unwrap/errors.Is 暴露，不拼入 Error 字符串）
 func TestWithCause_ErrorStringContainsBase(t *testing.T) {
-	e := AppError{Code: "E002", Operation: "删除", Reason: "操作失败"}
+	e := AppError{Code: ErrorCode("E002"), Operation: "删除", Reason: "操作失败"}
 	cause := errors.New("disk full")
 	w := e.WithCause(cause)
 	msg := w.Error()
@@ -133,7 +133,7 @@ func TestWithCause_ErrorStringContainsBase(t *testing.T) {
 
 // TestWithCause_ErrorsIs 穿透 errors.Is 到哨兵错误
 func TestWithCause_ErrorsIs(t *testing.T) {
-	e := AppError{Code: "E003", Reason: "操作失败"}
+	e := AppError{Code: ErrorCode("E003"), Reason: "操作失败"}
 	w := e.WithCause(errTestSentinel)
 	if !errors.Is(w, errTestSentinel) {
 		t.Error("errors.Is(AppError.WithCause(sentinel), sentinel) = false, 期望 true")
@@ -142,7 +142,7 @@ func TestWithCause_ErrorsIs(t *testing.T) {
 
 // TestWithCause_Immutable 值语义：WithCause 返回新实例，原实例 cause 不变
 func TestWithCause_Immutable(t *testing.T) {
-	e := AppError{Code: "E004", Reason: "原错误"}
+	e := AppError{Code: ErrorCode("E004"), Reason: "原错误"}
 	if errors.Unwrap(e) != nil {
 		t.Fatal("原 AppError.Unwrap() 不应已有 cause")
 	}

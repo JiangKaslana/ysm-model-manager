@@ -1142,8 +1142,8 @@
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:20` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
-| `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:43` | — |
-| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:158` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
+| `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
+| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |

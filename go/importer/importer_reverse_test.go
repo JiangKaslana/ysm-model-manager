@@ -30,7 +30,7 @@ func volRoot(t *testing.T) string {
 }
 
 // appErrCode 提取 AppError.Code；非 AppError 直接失败
-func appErrCode(t *testing.T, err error) string {
+func appErrCode(t *testing.T, err error) types.ErrorCode {
 	t.Helper()
 	var ae types.AppError
 	if !errors.As(err, &ae) {
@@ -444,7 +444,7 @@ func TestImportFromBase64_Validation(t *testing.T) {
 		fileName string
 		b64      string
 		opts     ImportOptions
-		wantCode string
+		wantCode types.ErrorCode
 	}{
 		{"路径穿越 ../", "../evil.ysm", base64.StdEncoding.EncodeToString([]byte("x")), ImportOptions{}, "FILENAME_INVALID"},
 		{"路径穿越 ..\\", "..\\evil.ysm", base64.StdEncoding.EncodeToString([]byte("x")), ImportOptions{}, "FILENAME_INVALID"},

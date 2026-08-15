@@ -53,7 +53,7 @@ func InstallLocked(src, customDir, filesRoot, linkMode string) error {
 	src = strings.TrimSpace(src)
 	customDir = strings.TrimSpace(customDir)
 	if src == "" || customDir == "" {
-		return types.AppError{Code: "INVALID_PARAM", Operation: "安装模型", Reason: "参数为空", Suggestion: "请检查输入"}
+		return types.AppError{Code: types.ErrInvalidParam, Operation: "安装模型", Reason: "参数为空", Suggestion: "请检查输入"}
 	}
 
 	// 🔒 路径清理与安全校验
@@ -62,7 +62,7 @@ func InstallLocked(src, customDir, filesRoot, linkMode string) error {
 
 	// 验证 customDir 在 .minecraft 内（防路径穿越）
 	if !paths.ContainsMinecraftMarker(customClean) {
-		return types.AppError{Code: "INVALID_PATH", Operation: "安装模型", SourcePath: customDir, Reason: "目标目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
+		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型", SourcePath: customDir, Reason: "目标目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
 	}
 	// 防符号链接段绕过字符串守卫——ContainsMinecraftMarker 不追踪
 	// symlink（safe.go:52 注释要求调用方解析），customDir 若含指向 .minecraft 外的符号链接段，
@@ -70,14 +70,14 @@ func InstallLocked(src, customDir, filesRoot, linkMode string) error {
 	// 保持原校验结果不放宽不放窄（原守卫已通过则继续）
 	if resolvedCustom, err := filepath.EvalSymlinks(customClean); err == nil {
 		if !paths.ContainsMinecraftMarker(resolvedCustom) {
-			return types.AppError{Code: "INVALID_PATH", Operation: "安装模型", SourcePath: customDir, Reason: "目标目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
+			return types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型", SourcePath: customDir, Reason: "目标目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
 		}
 	}
 
 	// 验证 src 在仓库目录内（防任意文件写入）
 	if filesRoot != "" {
 		if err := paths.IsInside(filesRoot, srcClean); err != nil {
-			return types.AppError{Code: "INVALID_PATH", Operation: "安装模型", SourcePath: src, Reason: "源文件不在仓库目录内", Suggestion: "请确保模型文件位于已选择的仓库目录中"}
+			return types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型", SourcePath: src, Reason: "源文件不在仓库目录内", Suggestion: "请确保模型文件位于已选择的仓库目录中"}
 		}
 		// 防符号链接段绕过字符串守卫——IsInside 不追踪 symlink
 		// （safe.go:21 注释要求调用方解析），src 若含指向仓库外的符号链接段会误判安全。
@@ -87,14 +87,14 @@ func InstallLocked(src, customDir, filesRoot, linkMode string) error {
 		if resolvedSrc, err := filepath.EvalSymlinks(srcClean); err == nil {
 			if resolvedFiles, err := filepath.EvalSymlinks(filesRoot); err == nil {
 				if err := paths.IsInside(resolvedFiles, resolvedSrc); err != nil {
-					return types.AppError{Code: "INVALID_PATH", Operation: "安装模型", SourcePath: src, Reason: "源文件不在仓库目录内", Suggestion: "请确保模型文件位于已选择的仓库目录中"}
+					return types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型", SourcePath: src, Reason: "源文件不在仓库目录内", Suggestion: "请确保模型文件位于已选择的仓库目录中"}
 				}
 			}
 		}
 	}
 
 	if !isSupportedModelExt(src) {
-		return types.AppError{Code: "UNSUPPORTED_FORMAT", Operation: "安装模型", SourcePath: src, Reason: "不支持的文件类型", Suggestion: "支持格式: " + strings.Join(types.AllExts(), " / ")}
+		return types.AppError{Code: types.ErrUnsupportedFmt, Operation: "安装模型", SourcePath: src, Reason: "不支持的文件类型", Suggestion: "支持格式: " + strings.Join(types.AllExts(), " / ")}
 	}
 
 	// 计算相对路径，保持目录结构
@@ -111,7 +111,7 @@ func InstallLocked(src, customDir, filesRoot, linkMode string) error {
 				// 再次校验子目录也在 .minecraft 内
 				targetDir = cleanAbs(targetDir)
 				if !paths.ContainsMinecraftMarker(targetDir) {
-					return types.AppError{Code: "INVALID_PATH", Operation: "安装模型", SourcePath: targetDir, Reason: "子目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
+					return types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型", SourcePath: targetDir, Reason: "子目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
 				}
 			}
 		}
@@ -155,7 +155,7 @@ func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 	srcDir = strings.TrimSpace(srcDir)
 	dstDir = strings.TrimSpace(dstDir)
 	if srcDir == "" || dstDir == "" {
-		return types.AppError{Code: "INVALID_PARAM", Operation: "安装目录", Reason: "参数为空", Suggestion: "请检查输入"}
+		return types.AppError{Code: types.ErrInvalidParam, Operation: "安装目录", Reason: "参数为空", Suggestion: "请检查输入"}
 	}
 	srcDir = cleanAbs(srcDir)
 	dstDir = cleanAbs(dstDir)
@@ -179,17 +179,17 @@ func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 	// 由 SameFile 正确识别同目录。dstDir 尚不存在（全新安装）时 Lstat 失败 →
 	// 与已存在的 srcDir 必不同，仅字符串完全相同时拒绝。
 	if sameDir(srcDir, dstDir) {
-		return types.AppError{Code: "INVALID_PARAM", Operation: "安装目录", SourcePath: srcDir, Reason: "源目录与目标目录相同"}
+		return types.AppError{Code: types.ErrInvalidParam, Operation: "安装目录", SourcePath: srcDir, Reason: "源目录与目标目录相同"}
 	}
 
 	// 验证 dstDir 在 .minecraft 内
 	if !paths.ContainsMinecraftMarker(dstDir) {
-		return types.AppError{Code: "INVALID_PATH", Operation: "安装目录", SourcePath: dstDir, Reason: "目标目录不在 .minecraft 路径内"}
+		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: dstDir, Reason: "目标目录不在 .minecraft 路径内"}
 	}
 	// 验证 srcDir 在仓库目录内
 	if filesRoot != "" {
 		if err := paths.IsInside(filesRoot, srcDir); err != nil {
-			return types.AppError{Code: "INVALID_PATH", Operation: "安装目录", SourcePath: srcDir, Reason: "源目录不在仓库目录内"}
+			return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: srcDir, Reason: "源目录不在仓库目录内"}
 		}
 	}
 
@@ -197,7 +197,7 @@ func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 	// finalDst 落在 srcDir 内同样死递归（srcDir 与 dstDir
 	// 不同但嵌套时，如 dstDir 是 srcDir 的子目录）——在递归入口再守一道
 	if paths.IsInside(srcDir, finalDst) == nil {
-		return types.AppError{Code: "INVALID_PATH", Operation: "安装目录", SourcePath: finalDst, Reason: "目标目录位于源目录内（潜在死递归）"}
+		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: finalDst, Reason: "目标目录位于源目录内（潜在死递归）"}
 	}
 	// 失败回滚——installDirRecursive 部分失败时删除整树，
 	// 防新旧混合状态残留（对齐 go/fileops/fileops.go:412-419 copyDirRecursive 的
@@ -249,7 +249,7 @@ func checkDstSymlinkSegments(finalDst string) error {
 	for {
 		if fi, err := os.Lstat(p); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 			if resolved, err := filepath.EvalSymlinks(p); err == nil && !paths.ContainsMinecraftMarker(resolved) {
-				return types.AppError{Code: "INVALID_PATH", Operation: "安装目录", SourcePath: p, Reason: "目标父链符号链接指向 .minecraft 外", Suggestion: "请移除指向外部目录的符号链接"}
+				return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: p, Reason: "目标父链符号链接指向 .minecraft 外", Suggestion: "请移除指向外部目录的符号链接"}
 			}
 		}
 		parent := filepath.Dir(p)
@@ -270,12 +270,12 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 	}
 	// 目标子目录名 = 源文件夹名
 	if err := os.MkdirAll(finalDst, fsutil.DirPerms); err != nil {
-		return types.AppError{Code: "IO_ERROR", Operation: "安装目录", TargetPath: finalDst, Reason: "无法创建目标目录"}
+		return types.AppError{Code: types.ErrIO, Operation: "安装目录", TargetPath: finalDst, Reason: "无法创建目标目录"}
 	}
 	// 校验目标也在 .minecraft 内
 	finalDst = cleanAbs(finalDst)
 	if !paths.ContainsMinecraftMarker(finalDst) {
-		return types.AppError{Code: "INVALID_PATH", Operation: "安装目录", SourcePath: finalDst, Reason: "目标子目录不在 .minecraft 路径内"}
+		return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: finalDst, Reason: "目标子目录不在 .minecraft 路径内"}
 	}
 
 	isAllowed := func(name string) bool {
@@ -369,21 +369,21 @@ func InstallToGlobal(src, mcRoot string) (string, error) {
 	defer InstallLock.Unlock()
 
 	if src == "" || mcRoot == "" {
-		return "", types.AppError{Code: "INVALID_PARAM", Operation: "安装到全局", Reason: "参数为空", Suggestion: "请检查输入"}
+		return "", types.AppError{Code: types.ErrInvalidParam, Operation: "安装到全局", Reason: "参数为空", Suggestion: "请检查输入"}
 	}
 	mcRoot = cleanAbs(mcRoot)
 	if !paths.ContainsMinecraftMarker(mcRoot) {
-		return "", types.AppError{Code: "INVALID_PATH", Operation: "安装到全局", SourcePath: mcRoot, Reason: "目标不在 .minecraft 路径内", Suggestion: "请确保 .minecraft 目录路径正确"}
+		return "", types.AppError{Code: types.ErrInvalidPath, Operation: "安装到全局", SourcePath: mcRoot, Reason: "目标不在 .minecraft 路径内", Suggestion: "请确保 .minecraft 目录路径正确"}
 	}
 	src = cleanAbs(src)
 	if !isSupportedModelExt(src) {
-		return "", types.AppError{Code: "UNSUPPORTED_FORMAT", Operation: "安装到全局", SourcePath: src, Reason: "不支持的文件类型", Suggestion: "支持格式: " + strings.Join(types.AllExts(), " / ")}
+		return "", types.AppError{Code: types.ErrUnsupportedFmt, Operation: "安装到全局", SourcePath: src, Reason: "不支持的文件类型", Suggestion: "支持格式: " + strings.Join(types.AllExts(), " / ")}
 	}
 	// 固定布局约定：YSM mod 的全局模型目录固定在 config/yes_steve_model/custom（mod 加载约定），
 	// 非用户可配置项；多实例根场景由上层传入具体 mcRoot，此处仅拼接布局
 	customDir := filepath.Join(mcRoot, "config", "yes_steve_model", "custom")
 	if err := os.MkdirAll(customDir, fsutil.DirPerms); err != nil {
-		return "", types.AppError{Code: "IO_ERROR", Operation: "安装到全局", TargetPath: customDir, Reason: "无法创建安装目录", Suggestion: "请检查磁盘权限或空间"}
+		return "", types.AppError{Code: types.ErrIO, Operation: "安装到全局", TargetPath: customDir, Reason: "无法创建安装目录", Suggestion: "请检查磁盘权限或空间"}
 	}
 	return copyFileLocked(src, customDir)
 }
@@ -394,24 +394,24 @@ func InstallWithOverlay(src, customDir string) (string, error) {
 	defer InstallLock.Unlock()
 
 	if src == "" || customDir == "" {
-		return "", types.AppError{Code: "INVALID_PARAM", Operation: "安装模型（覆盖检查）", Reason: "参数为空", Suggestion: "请检查输入"}
+		return "", types.AppError{Code: types.ErrInvalidParam, Operation: "安装模型（覆盖检查）", Reason: "参数为空", Suggestion: "请检查输入"}
 	}
 	src = cleanAbs(src)
 	customDir = cleanAbs(customDir)
 	if !paths.ContainsMinecraftMarker(customDir) {
-		return "", types.AppError{Code: "INVALID_PATH", Operation: "安装模型（覆盖检查）", SourcePath: customDir, Reason: "目标目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
+		return "", types.AppError{Code: types.ErrInvalidPath, Operation: "安装模型（覆盖检查）", SourcePath: customDir, Reason: "目标目录不在 .minecraft 路径内", Suggestion: "请确保整合包的 custom 目录位于 .minecraft 内"}
 	}
 	if !isSupportedModelExt(src) {
-		return "", types.AppError{Code: "UNSUPPORTED_FORMAT", Operation: "安装模型（覆盖检查）", SourcePath: src, Reason: "不支持的文件格式", Suggestion: "仅支持 " + strings.Join(types.AllExts(), " / ") + " 格式"}
+		return "", types.AppError{Code: types.ErrUnsupportedFmt, Operation: "安装模型（覆盖检查）", SourcePath: src, Reason: "不支持的文件格式", Suggestion: "仅支持 " + strings.Join(types.AllExts(), " / ") + " 格式"}
 	}
 	if err := os.MkdirAll(customDir, fsutil.DirPerms); err != nil {
-		return "", types.AppError{Code: "IO_ERROR", Operation: "安装模型（覆盖检查）", TargetPath: customDir, Reason: "无法创建目录", Suggestion: "请检查磁盘权限或空间"}
+		return "", types.AppError{Code: types.ErrIO, Operation: "安装模型（覆盖检查）", TargetPath: customDir, Reason: "无法创建目录", Suggestion: "请检查磁盘权限或空间"}
 	}
 	// 防覆盖检查：在 InstallLock 临界区内先检查后写入（同一锁内天然原子，无 TOCTOU 窗口）。
 	// 不能把检查下沉到 copyFileLocked —— 那会破坏 Install/RelinkDir 的覆盖替换语义
 	dst := filepath.Join(customDir, filepath.Base(src))
 	if _, err := os.Stat(dst); err == nil {
-		return "CONFLICT:" + dst, types.AppError{Code: "ALREADY_EXISTS", Operation: "安装模型（覆盖检查）", TargetPath: dst, Reason: "文件已存在", Suggestion: "如需覆盖请先删除原文件"}
+		return "CONFLICT:" + dst, types.AppError{Code: types.ErrAlreadyExists, Operation: "安装模型（覆盖检查）", TargetPath: dst, Reason: "文件已存在", Suggestion: "如需覆盖请先删除原文件"}
 	}
 	return copyFileLocked(src, customDir)
 }
@@ -440,30 +440,30 @@ func copyFileLocked(src, dstDir string) (string, error) {
 	}()
 	in, err := os.Open(src)
 	if err != nil {
-		return "", types.AppError{Code: "IO_ERROR", Operation: "复制文件", SourcePath: src, Reason: "无法读取源文件", Suggestion: "请检查文件是否被占用或已删除"}
+		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", SourcePath: src, Reason: "无法读取源文件", Suggestion: "请检查文件是否被占用或已删除"}
 	}
 	defer in.Close()
 	out, err := os.Create(tmp)
 	if err != nil {
-		return "", types.AppError{Code: "IO_ERROR", Operation: "复制文件", TargetPath: dst, Reason: "无法创建临时文件", Suggestion: "请检查磁盘空间或权限"}
+		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", TargetPath: dst, Reason: "无法创建临时文件", Suggestion: "请检查磁盘空间或权限"}
 	}
 	if _, err := io.Copy(out, in); err != nil {
 		out.Close() // 错误路径显式关闭（成功路径在下方 Sync+Close，避免双重关闭）
-		return "", types.AppError{Code: "IO_ERROR", Operation: "复制文件", TargetPath: dst, Reason: "写入临时文件失败", Suggestion: "请检查磁盘空间或权限"}
+		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", TargetPath: dst, Reason: "写入临时文件失败", Suggestion: "请检查磁盘空间或权限"}
 	}
 	// Sync 确保数据落盘后再 Close+Rename（注释原承诺 Sync 但未调用，崩溃时可能零长度文件装盘）
 	if err := out.Sync(); err != nil {
 		out.Close()
-		return "", types.AppError{Code: "IO_ERROR", Operation: "复制文件", TargetPath: dst, Reason: "临时文件落盘失败", Suggestion: "请检查磁盘空间或权限"}
+		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", TargetPath: dst, Reason: "临时文件落盘失败", Suggestion: "请检查磁盘空间或权限"}
 	}
 	if err := out.Close(); err != nil {
-		return "", types.AppError{Code: "IO_ERROR", Operation: "复制文件", TargetPath: dst, Reason: "临时文件写入未完成", Suggestion: "请检查磁盘空间或权限"}
+		return "", types.AppError{Code: types.ErrIO, Operation: "复制文件", TargetPath: dst, Reason: "临时文件写入未完成", Suggestion: "请检查磁盘空间或权限"}
 	}
 	if err := os.Chmod(tmp, fsutil.FilePerms); err != nil {
 		log.Printf("[installer] 设置临时文件权限失败 %s: %v", tmp, err)
 	}
 	if err := os.Rename(tmp, dst); err != nil {
-		return "", types.AppError{Code: "IO_ERROR", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "替换目标文件失败", Suggestion: "请检查目标文件是否被占用或为只读"}
+		return "", types.AppError{Code: types.ErrIO, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "替换目标文件失败", Suggestion: "请检查目标文件是否被占用或为只读"}
 	}
 	ok = true
 	return dst, nil
@@ -504,7 +504,7 @@ func linkOrCopyLocked(src, dstDir string) error {
 	}
 	if err := os.Rename(tmp, dst); err != nil {
 		_ = os.Remove(tmp)
-		return types.AppError{Code: "IO_ERROR", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "替换目标文件失败", Suggestion: "请检查目标文件是否被占用或为只读"}
+		return types.AppError{Code: types.ErrIO, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "替换目标文件失败", Suggestion: "请检查目标文件是否被占用或为只读"}
 	}
 	return nil
 }
@@ -527,7 +527,7 @@ func symlinkOrCopyLocked(src, dstDir string) error {
 	// os.Symlink 不要求目标存在，src 缺失时会创建悬空链接并静默返回 nil——
 	// 先显式校验 src 存在，缺失时报错而非留下悬空链接
 	if _, err := os.Stat(src); err != nil {
-		return types.AppError{Code: "IO_ERROR", Operation: "创建符号链接",
+		return types.AppError{Code: types.ErrIO, Operation: "创建符号链接",
 			SourcePath: src, Reason: "源文件不存在", Suggestion: "请检查模型文件是否已被删除"}
 	}
 	dst := filepath.Join(dstDir, filepath.Base(src))
@@ -542,7 +542,7 @@ func symlinkOrCopyLocked(src, dstDir string) error {
 	}
 	if err := os.Rename(tmp, dst); err != nil {
 		_ = os.Remove(tmp)
-		return types.AppError{Code: "IO_ERROR", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "替换目标文件失败", Suggestion: "请检查目标文件是否被占用或为只读"}
+		return types.AppError{Code: types.ErrIO, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "替换目标文件失败", Suggestion: "请检查目标文件是否被占用或为只读"}
 	}
 	return nil
 }
@@ -595,35 +595,35 @@ func linkErr(src, dst string, err error) error {
 	// errno 优先：跨设备（Unix EXDEV=18 / Win ERROR_NOT_SAME_DEVICE=17）、
 	// 权限（Unix EACCES=13 / EPERM=1，Win ERROR_ACCESS_DENIED=5）
 	if fsutil.IsCrossDeviceErr(err) {
-		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "仓库与游戏目录在不同分区，不支持硬链接", Suggestion: "请在设置中切换为复制模式"}
+		return types.AppError{Code: types.ErrLinkFailed, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "仓库与游戏目录在不同分区，不支持硬链接", Suggestion: "请在设置中切换为复制模式"}
 	}
 	if errnoIs(err, 13, 5) || errnoIs(err, 1, 5) {
-		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "权限不足，无法创建硬链接", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
+		return types.AppError{Code: types.ErrLinkFailed, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "权限不足，无法创建硬链接", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
 	}
 	// 文本兜底（非 errno 包装的异常错误）——注意避免过宽子串："different" 会误伤无关错误，只匹配跨设备特征短语；
 	// 仅兜底非 errno 包装的文本错误，errno 判定统一走 fsutil.IsCrossDeviceErr（含 Windows 错误码 17）
 	errStr := strings.ToLower(err.Error())
 	if strings.Contains(errStr, "cross-device") || strings.Contains(errStr, "different device") || strings.Contains(errStr, "not same device") {
-		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "仓库与游戏目录在不同分区，不支持硬链接", Suggestion: "请在设置中切换为复制模式"}
+		return types.AppError{Code: types.ErrLinkFailed, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "仓库与游戏目录在不同分区，不支持硬链接", Suggestion: "请在设置中切换为复制模式"}
 	}
 	if strings.Contains(errStr, "access") || strings.Contains(errStr, "permission") {
-		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "权限不足，无法创建硬链接", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
+		return types.AppError{Code: types.ErrLinkFailed, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "权限不足，无法创建硬链接", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
 	}
-	return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "硬链接失败", Suggestion: "请在设置中切换为复制模式"}
+	return types.AppError{Code: types.ErrLinkFailed, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "硬链接失败", Suggestion: "请在设置中切换为复制模式"}
 }
 
 // symlinkErr 将符号链接错误分类为可操作的提示
 func symlinkErr(src, dst string, err error) error {
 	// errno 优先：权限（Unix EPERM=1 / EACCES=13，Win ERROR_PRIVILEGE_NOT_HELD=1314 / ERROR_ACCESS_DENIED=5）
 	if errnoIs(err, 1, 1314) || errnoIs(err, 13, 5) {
-		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "创建符号链接需要管理员权限", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
+		return types.AppError{Code: types.ErrLinkFailed, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "创建符号链接需要管理员权限", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
 	}
 	// 文本兜底（非 errno 包装的异常错误）
 	errStr := strings.ToLower(err.Error())
 	if strings.Contains(errStr, "access") || strings.Contains(errStr, "privilege") || strings.Contains(errStr, "permission") {
-		return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "创建符号链接需要管理员权限", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
+		return types.AppError{Code: types.ErrLinkFailed, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "创建符号链接需要管理员权限", Suggestion: "请以管理员身份运行，或在设置中切换为复制模式"}
 	}
-	return types.AppError{Code: "LINK_FAILED", Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "符号链接失败", Suggestion: "请在设置中切换为复制模式"}
+	return types.AppError{Code: types.ErrLinkFailed, Operation: "安装模型", SourcePath: src, TargetPath: dst, Reason: "符号链接失败", Suggestion: "请在设置中切换为复制模式"}
 }
 
 // IsValidRepoRoot 禁止选择系统敏感目录作为仓库

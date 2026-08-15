@@ -55,20 +55,22 @@ type SearchResult struct {
 
 // ImportLog 应用操作日志（导入、扫描、下载、同步等）
 type ImportLog struct {
-	ModelName  string `json:"ModelName"`
-	SourcePath string `json:"SourcePath"`
-	TargetDir  string `json:"TargetDir"`
-	FileSize   int64  `json:"FileSize"`
-	Status     string `json:"Status"`
-	ErrorMsg   string `json:"ErrorMsg,omitempty"`
-	Timestamp  int64  `json:"Timestamp"`
-	Operation  string `json:"Operation,omitempty"` // import / scan / download / sync / rename / delete
+	ModelName  string   `json:"ModelName"`
+	SourcePath string   `json:"SourcePath"`
+	TargetDir  string   `json:"TargetDir"`
+	FileSize   int64    `json:"FileSize"`
+	Status     string   `json:"Status"`
+	ErrorMsg   string   `json:"ErrorMsg,omitempty"`
+	Timestamp  int64    `json:"Timestamp"`
+	Operation  string   `json:"Operation,omitempty"` // import / scan / download / sync / rename / delete
+	Level      LogLevel `json:"Level,omitempty"`     // debug/info/warn/error/fatal
 }
 
 // RuntimeLog 运行时日志（watcher/sync 等标准库 log 输出，诊断页可见）
 type RuntimeLog struct {
-	Message   string `json:"Message"`
-	Timestamp int64  `json:"Timestamp"`
+	Message   string   `json:"Message"`
+	Timestamp int64    `json:"Timestamp"`
+	Level     LogLevel `json:"Level,omitempty"` // 默认 info（标准库 log 无级别）
 }
 
 // LinkType 链接类型
@@ -80,6 +82,56 @@ const (
 	LinkSym     LinkType = "symlink"
 	LinkUnknown LinkType = "unknown"
 )
+
+// ErrorCode 结构化错误码（ADR-051 落地：替代裸字符串拼接，消除前后端双份分类表漂移）。
+// 所有错误构造点统一使用此处的常量，前端 friendlyError 消费 Code 字段做 i18n 映射。
+type ErrorCode string
+
+const (
+	ErrFileExists      ErrorCode = "FILE_EXISTS"
+	ErrAlreadyExists   ErrorCode = "ALREADY_EXISTS"
+	ErrInvalidParam    ErrorCode = "INVALID_PARAM"
+	ErrInvalidPath     ErrorCode = "INVALID_PATH"
+	ErrFileNameInvalid ErrorCode = "FILENAME_INVALID"
+	ErrUnsupportedType ErrorCode = "FILE_TYPE_UNSUPPORTED"
+	ErrUnsupportedFmt  ErrorCode = "UNSUPPORTED_FORMAT"
+	ErrDecodeFailed    ErrorCode = "DECODE_FAILED"
+	ErrFileTooLarge    ErrorCode = "FILE_TOO_LARGE"
+	ErrFileEmpty       ErrorCode = "FILE_EMPTY"
+	ErrMkdirFailed     ErrorCode = "MKDIR_FAILED"
+	ErrWriteFailed     ErrorCode = "WRITE_FAILED"
+	ErrIO              ErrorCode = "IO_ERROR"
+	ErrLinkFailed      ErrorCode = "LINK_FAILED"
+	ErrUnknown         ErrorCode = "UNKNOWN"
+)
+
+// LogLevel 日志级别（诊断页按 Level 过滤；向后兼容——旧日志无此字段时前端按 Status 兜底）
+type LogLevel string
+
+const (
+	LevelDebug LogLevel = "debug"
+	LevelInfo  LogLevel = "info"
+	LevelWarn  LogLevel = "warn"
+	LevelError LogLevel = "error"
+	LevelFatal LogLevel = "fatal"
+)
+
+// StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。
+// 调用方（go/logs 跨包）在 addOp 时传入，保证新旧日志字段一致。
+func StatusToLevel(status string) LogLevel {
+	switch status {
+	case "success":
+		return LevelInfo
+	case "failed":
+		return LevelError
+	case "warn":
+		return LevelWarn
+	case "skipped":
+		return LevelDebug
+	default:
+		return LevelInfo
+	}
+}
 
 // CustomFileInfo custom 目录下的文件信息
 type CustomFileInfo struct {
@@ -102,12 +154,12 @@ type InstanceStatus struct {
 }
 
 type AppError struct {
-	Code       string `json:"Code"`
-	Operation  string `json:"Operation"`
-	SourcePath string `json:"SourcePath,omitempty"`
-	TargetPath string `json:"TargetPath,omitempty"`
-	Reason     string `json:"Reason"`
-	Suggestion string `json:"Suggestion"`
+	Code       ErrorCode `json:"Code"`
+	Operation  string    `json:"Operation"`
+	SourcePath string    `json:"SourcePath,omitempty"`
+	TargetPath string    `json:"TargetPath,omitempty"`
+	Reason     string    `json:"Reason"`
+	Suggestion string    `json:"Suggestion"`
 	// cause 底层错误链（ADR-051：不序列化，仅供 errors.Is/As 穿透——
 	// 原实现把底层 errno 压成字符串，errors.Is(err, fs.ErrPermission) 从此失效）
 	cause error

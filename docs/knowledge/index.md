@@ -85,7 +85,7 @@
 | 🏗 go-download | 下载器 go/download | architecture | 下载, 进度, download, 进度条, 下载进度 |
 | 🏗 go-executil | 进程隐藏窗口 go/executil | architecture | 子进程隐藏控制台窗口, 跨平台 HideWindow, 外部进程启动 |
 | 🏗 go-fileops | 文件操作 go/fileops | architecture | 移动, 复制, 重命名, 删除, fileops, 启用禁用, .ban, ysm.json 整组操作 |
-| 🍃 go-fsutil | 文件遍历 go/fsutil | leaf | 遍历, 目录, walk, 空目录, 文件数 |
+| 🍃 go-fsutil | 文件基础设施 go/fsutil | leaf | 遍历, walk, 空目录, 文件数, 原子写, 复制, 权限常量, 硬链接, 跨设备, BOM, 读取上限 |
 | 🏗 go-geometry | Geometry 存档 go/geometry | architecture | geometry, 基岩版, bedrock, 模型解析, zip, 7z, 纹理, 动画 |
 | 🏗 go-importer | 导入策略 go/importer | architecture | 导入, 策略, 导入队列, importer |
 | 🏗 go-installer | 模型安装 go/installer | architecture | 安装, installer, 模型导入, 下载模型 |
@@ -116,7 +116,7 @@
 - **go-download**（下载器 go/download）：`go/download/` 包负责模型资源的纯 HTTP 下载（不依赖 Wails runtime），支持 ctx 取消中断、进度回调与失败半文件清理。镜像回退策略（raw/jsd/api 排序）在 `internal/app/app_d…
 - **go-executil**（进程隐藏窗口 go/executil）：`go/executil/` 包提供跨平台的外部进程执行工具，当前唯一功能是 **HideWindow**：在 Windows 上隐藏子进程控制台窗口，其他平台为 no-op。
 - **go-fileops**（文件操作 go/fileops）：`go/fileops/` 包实现文件 CRUD + 移动/复制/删除 + 文件夹整组导入 + 预览提取 + 启用禁用（ADR-003 P3 下沉，薄壳 `internal/app/app_files.go` 仅转发）。
-- **go-fsutil**（文件遍历 go/fsutil）：`go/fsutil/` 是纯工具小包，集中管理 `WalkDir` 逻辑：递归收集文件/目录路径、统计文件数、清理空目录，并内置对 `.recycle` 回收站目录的跳过开关。
+- **go-fsutil**（文件基础设施 go/fsutil）：`go/fsutil/` 是 Go 侧文件系统基础设施包，按 ADR-044 策略 A 收敛自多包重复实现。覆盖 7 大职能：文件/目录遍历、原子写入、原子复制、权限常量、硬链接判定、跨设备错误判定、UTF-8 BOM 剥离、zip/7z …
 - **go-geometry**（Geometry 存档 go/geometry）：`go/geometry/` 包解析 Bedrock（基岩版）`minecraft:geometry` 模型：既支持单个 geometry JSON，也支持从 ZIP/7z 存档中按 `ysm.json` 清单合并多个模型文件、提取纹理与动…
 - **go-importer**（导入策略 go/importer）：`go/importer/` 包分两块：`importer.go` 的**按资源类型注册的复制策略表**（`Handler` 接口，供本地路径导入/安装复用），以及 `importer_file.go` 的 **base64 单文件导入核心…
 - **go-installer**（模型安装 go/installer）：`go/installer/`（单文件 `installer.go`）负责把仓库中的模型/资源文件**落地**到 Minecraft 整合包实例目录：按 `LinkMode`（`copy` / `hardlink` / `symlink`）…

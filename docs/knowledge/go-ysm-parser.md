@@ -39,7 +39,7 @@ use_when:
 ## 不变量
 
 - 解析错误必须返回结构化错误信息，前端做 toast 提示（绑定层 `ExtractYsmSummary` 失败时记日志 + 空摘要，前端 detail.ts 有 `hasRealSummary` 兜底）。**裸 ysm.json 解析失败同样返回错误**（P2 修复：原实现 `err == nil && root.Metadata != nil` 使 Unmarshal 失败时整个 if 跳过、静默降级为「文件名摘要」返回 nil error——违反不变量，前端 toast 链路无法触发）
-- 解析入口设大小上限（zip 内 mods.toml 1MB / geoJSON 5MB / ysm.json 50MB，limit+1 探测截断拒绝，ADR-033）；裸 ysm.json 同 50MB 上限
+- 解析入口设大小上限（zip 内 mods.toml 1MB / geoJSON 5MB / ysm.json 50MB，limit+1 探测截断拒绝，ADR-033；`ysm.json` 50MB 走 `types.MaxReadLimit` 全仓单点）；裸 ysm.json 同 50MB 上限
 - **解压目录加载模型排除第一人称手臂 arm.json**（`extracted.go` `isArmModelName`：arm.json / arm.geo.json）：arm 与 main 手臂重叠，合并会渲染出两对手臂；且 arm.json 占据 texIdx 槽位会导致 main 纹理错位——加载时剔除并移除其占位（2026-08 提交 63644b40，zip 路径同款在 [go_geometry](./go-geometry.md) 的 `archive.go`）
 - 注意：YSM 解析绑定（AnalyzeYSMModel/ExtractYsmSummary/ExtractYSMHeader）**不强制 go/paths 校验**——预览链路的临时文件（`SavePreviewTempFile` → os.TempDir）不在仓库根内，加 `IsInside(ysmRoot)` 守卫会破坏预览链路（与 `ReadFileBytes` 的守卫语义不同，撤修）
 

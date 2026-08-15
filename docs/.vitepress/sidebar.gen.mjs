@@ -1021,7 +1021,7 @@ export const autoSidebar = [
             "link": "/knowledge/go-fileops"
           },
           {
-            "text": "文件遍历 go/fsutil",
+            "text": "文件基础设施 go/fsutil",
             "link": "/knowledge/go-fsutil"
           },
           {
