@@ -440,22 +440,22 @@ func TestPullSingleResource_Dir_SiblingOutside(t *testing.T) {
 // =====================================================================
 
 func TestIsSyncAllowed_EmptyAndWeird(t *testing.T) {
-	if isSyncAllowed("") {
+	if types.IsResourceAllowed("") {
 		t.Error("空字符串应被拒绝")
 	}
-	if isSyncAllowed(".") {
+	if types.IsResourceAllowed(".") {
 		t.Error(". 应被拒绝")
 	}
-	if isSyncAllowed("...") {
+	if types.IsResourceAllowed("...") {
 		t.Error("... 应被拒绝")
 	}
-	if isSyncAllowed("model.ysm.bak") {
+	if types.IsResourceAllowed("model.ysm.bak") {
 		t.Error("model.ysm.bak 应被拒绝")
 	}
-	if !isSyncAllowed("ysm.json.ban") {
+	if !types.IsResourceAllowed("ysm.json.ban") {
 		t.Error("ysm.json.ban 应被允许")
 	}
-	if isSyncAllowed("animation.json.ban") {
+	if types.IsResourceAllowed("animation.json.ban") {
 		t.Error("animation.json.ban 应被拒绝")
 	}
 }

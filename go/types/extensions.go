@@ -61,6 +61,54 @@ func IsYsmEntryJSON(baseName string) bool {
 	return strings.EqualFold(strings.TrimSpace(baseName), "ysm.json")
 }
 
+// NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）：
+// 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyncAllowed/syncNameKey/
+// instance.extMatch/scanner.stripDisableSuffix 四处内联同义实现收敛于此。
+func NormalizeResourceName(name string) string {
+	low := strings.ToLower(name)
+	low = strings.TrimSuffix(low, ".disabled")
+	low = strings.TrimSuffix(low, ".ban")
+	return low
+}
+
+// IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）：
+// 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json。
+// 原 sync.isSyncAllowed 收敛于此；scanner 内联过滤语义一致（scanner 另有
+// .ban 目录跳过等展示层逻辑，保持独立）。
+func IsResourceAllowed(name string) bool {
+	base := NormalizeResourceName(name)
+	// .json 只允许 ysm.json（其余为动作/动画/模型引用文件，不应单独同步）
+	if strings.HasSuffix(base, ".json") {
+		return base == "ysm.json"
+	}
+	for _, ext := range AllExts() {
+		if strings.HasSuffix(base, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsTypeModelFile 判断文件名是否为指定资源类型的模型文件（ADR-064 收敛）：
+// 扩展名命中该类型注册表扩展集（SupportedExtsForType），.json 仅放行 ysm.json。
+// 原 sync.isModelFile 与 instance.extMatch 收敛于此（差异：空扩展集返回 false，
+// 与 isModelFile 严格语义一致；extMatch 的空集放行分支在 BuildSyncItems 中
+// 不会触发——未知类型早被 SubDirMap 空拦截跳过）。
+func IsTypeModelFile(name, rtype string) bool {
+	base := NormalizeResourceName(name)
+	// ysm.json 特判（.json 扩展名在注册表中但只有 ysm.json 算模型文件）
+	if IsYsmEntryJSON(base) {
+		return true
+	}
+	ext := strings.ToLower(filepath.Ext(base))
+	for _, e := range SupportedExtsForType(rtype) {
+		if ext == strings.ToLower(e) && !strings.EqualFold(e, ".json") {
+			return true
+		}
+	}
+	return false
+}
+
 // ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配）
 // 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。
 // 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）；

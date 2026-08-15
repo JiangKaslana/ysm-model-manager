@@ -288,138 +288,69 @@ func isMcmetaDetectorType(rtype string) bool {
 	return rt != nil && rt.Detector == "mcmeta"
 }
 
-func SyncResources(globalDir, instanceDir string, rtype ...string) types.ResourceSyncResult {
-	// absClean 取绝对路径并规整；解析失败回退到 clean（不阻塞同步流程）
-	absClean := func(p string) (string, error) {
-		abs, err := filepath.Abs(p)
-		return filepath.Clean(abs), err
+// relKey 计算文件相对 root 的规范化同步 key（小写、正斜杠、去 .disabled/.ban 尾部）。
+// ADR-064 阶段二：文件级对比从「文件名」升级为「相对路径」——嵌套文件天然区分、
+// 无同名冲突、与仓库树树状语义一致（原"只扫顶层"深度守卫随之取消）。
+func relKey(root, path string) string {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return ""
 	}
+	rel = filepath.ToSlash(rel)
+	rel = strings.ToLower(rel)
+	rel = strings.TrimSuffix(rel, ".disabled")
+	rel = strings.TrimSuffix(rel, ".ban")
+	return rel
+}
+
+func SyncResources(globalDir, instanceDir string, rtype ...string) types.ResourceSyncResult {
 	rtypeID := ""
 	if len(rtype) > 0 {
 		rtypeID = rtype[0]
 	}
-	result := types.ResourceSyncResult{}
-
-	// 文件信息：size 用于同名文件的内容差异检测（mtime 因复制会变，不可靠）
-	type fileInfo struct {
-		path  string
-		size  int64
-		isDir bool
-	}
-
-	// 全局目录扫描根路径（abs+clean 一次，供文件级深度守卫比较）
-	globalDirAbs, err := absClean(globalDir)
-	if err != nil {
-		log.Printf("[sync] 全局目录 abs 解析失败: %v", err)
-		globalDirAbs = filepath.Clean(globalDir)
-	}
-	// 文件级同步（!dirLevelSync）仅在目标目录顶层收集文件——不递归进嵌套子目录。
-	// 文件夹级类型（YSM/MMD 等）仍全树递归，由 SyncResourcesDirLevel 按文件夹名对比。
-	// 空 rtype 保持旧的全树递归行为（测试/兼容）。
-	isFileLevel := rtypeID != "" && !types.IsDirLevelSync(rtypeID)
 	// 资源包文件夹（含 pack.mcmeta）作为同步单元——仅资源包类型（detector=mcmeta）
 	// 或空 rtype（旧行为兼容）收集。P5 修复：原实现不分类型一律收集，蓝图仓库
 	// （create-blueprint）里误放的资源包文件夹被当成蓝图 missing 显示"推送"，
 	// 而该目录实际没有任何 .nbt/.schematic（识别错文件）。
 	isPackFolderType := rtypeID == "" || isMcmetaDetectorType(rtypeID)
-	// 扫描全局目录，收集文件名
-	globalFiles := make(map[string]fileInfo) // name → fileInfo
-	filepath.Walk(globalDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			log.Printf("[sync] Walk 错误 %s: %v", path, err)
-			return nil
-		}
-		if info.IsDir() {
-			// 跳过回收站目录（与 scanner.ScanEntries 对齐）：回收站内模型不是仓库活跃模型
-			if path != globalDir && fsutil.IsRecycleDir(path) {
-				return filepath.SkipDir
-			}
-			// 资源包文件夹：扫描其本身但不递归（仅资源包类型收集）
-			if path != globalDir && isPackFolderType && fsutil.IsResourcePackFolder(path) {
-				name := strings.ToLower(info.Name())
-				globalFiles[name] = fileInfo{path: path, isDir: true}
-			}
-			return nil
-		}
-		if isFileLevel {
-			cleanPath, _ := absClean(path)
-			if filepath.Dir(cleanPath) != globalDirAbs {
-				return nil // 嵌套子目录内文件跳过（文件级同步仅保留顶层）
-			}
-		}
-		if !isSyncAllowed(info.Name()) {
-			return nil
-		}
-		name := strings.ToLower(info.Name())
-		name = strings.TrimSuffix(name, ".disabled")
-		name = strings.TrimSuffix(name, ".ban")
-		globalFiles[name] = fileInfo{path: path, size: info.Size()}
-		return nil
-	})
 
-	// 整合包目录扫描根路径
-	instanceDirAbs, err := absClean(instanceDir)
-	if err != nil {
-		log.Printf("[sync] 整合包目录 abs 解析失败: %v", err)
-		instanceDirAbs = filepath.Clean(instanceDir)
-	}
-	instanceFiles := make(map[string]fileInfo)
-	filepath.Walk(instanceDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			log.Printf("[sync] Walk 错误 %s: %v", path, err)
+	// collect 全树递归扫描一侧目录：文件条目 + 资源包文件夹条目。
+	// key 为相对路径（relKey），过滤与归一化统一走 types，对比归并统一走
+	// ResourceDiff（ADR-064：scanner 口径 + 单点对比，消除手工对齐漂移）。
+	collect := func(rootDir string) map[string]DiffEntry {
+		entries := make(map[string]DiffEntry)
+		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				log.Printf("[sync] Walk 错误 %s: %v", path, err)
+				return nil
+			}
+			if info.IsDir() {
+				// 跳过回收站目录（与 scanner.ScanEntries 对齐）：回收站内模型不是仓库活跃模型
+				if path != rootDir && fsutil.IsRecycleDir(path) {
+					return filepath.SkipDir
+				}
+				// 资源包文件夹：扫描其本身但不递归（仅资源包类型收集）
+				if path != rootDir && isPackFolderType && fsutil.IsResourcePackFolder(path) {
+					if key := relKey(rootDir, path); key != "" {
+						entries[key] = DiffEntry{Path: path, IsDir: true}
+					}
+				}
+				return nil
+			}
+			if !types.IsResourceAllowed(info.Name()) {
+				return nil
+			}
+			if key := relKey(rootDir, path); key != "" {
+				entries[key] = DiffEntry{Path: path, Size: info.Size()}
+			}
 			return nil
-		}
-		if info.IsDir() {
-			// 跳过回收站目录（防御：整合包路径下历史遗留 .recycle 不应参与同步）
-			if path != instanceDir && fsutil.IsRecycleDir(path) {
-				return filepath.SkipDir
-			}
-			// 资源包文件夹：扫描其本身但不递归（仅资源包类型收集）
-			if path != instanceDir && isPackFolderType && fsutil.IsResourcePackFolder(path) {
-				name := strings.ToLower(info.Name())
-				instanceFiles[name] = fileInfo{path: path, isDir: true}
-			}
-			return nil
-		}
-		if isFileLevel {
-			cleanPath, _ := absClean(path)
-			if filepath.Dir(cleanPath) != instanceDirAbs {
-				return nil // 嵌套子目录内文件跳过（文件级同步仅保留顶层）
-			}
-		}
-		if !isSyncAllowed(info.Name()) {
-			return nil
-		}
-		name := strings.ToLower(info.Name())
-		name = strings.TrimSuffix(name, ".disabled")
-		name = strings.TrimSuffix(name, ".ban")
-		instanceFiles[name] = fileInfo{path: path, size: info.Size()}
-		return nil
-	})
-
-	// 找出 synced / missing / extra
-	// 同名文件若大小不同（内容已变化）视为待推送更新，归入 Missing
-	for name, g := range globalFiles {
-		if i, exists := instanceFiles[name]; exists {
-			if !g.isDir && !i.isDir && g.size != i.size {
-				result.Missing = append(result.Missing, g.path)
-			} else {
-				result.Synced = append(result.Synced, g.path)
-			}
-		} else {
-			result.Missing = append(result.Missing, g.path)
-		}
-	}
-	for name, i := range instanceFiles {
-		if _, exists := globalFiles[name]; !exists {
-			result.Extra = append(result.Extra, i.path)
-		}
+		})
+		return entries
 	}
 
-	sort.Strings(result.Synced)
-	sort.Strings(result.Missing)
-	sort.Strings(result.Extra)
-	return result
+	globalFiles := collect(globalDir)
+	instanceFiles := collect(instanceDir)
+	return ResourceDiff(globalFiles, instanceFiles)
 }
 
 // SortEntries 按名称排序模型条目

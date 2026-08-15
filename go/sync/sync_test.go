@@ -275,17 +275,16 @@ func TestListVersions_EmptyDir(t *testing.T) {
 }
 
 func TestCompareGlobalInstanceHashes(t *testing.T) {
-	global := []types.ModelEntry{
-		{Name: "a.ysm", Path: "/global/a.ysm", Hash: "hash_a"},
-		{Name: "b.ysm", Path: "/global/b.ysm", Hash: "hash_b"},
-	}
-	instEntries := []types.ModelEntry{
-		{Name: "a.ysm", Path: "/inst/a.ysm", Hash: "hash_a"},
-		{Name: "c.ysm", Path: "/inst/c.ysm", Hash: "hash_c"},
-	}
-	// Use temp dir pattern like existing mockScanDir
 	globalDir := t.TempDir()
 	instDir := t.TempDir()
+	global := []types.ModelEntry{
+		{Name: "a.ysm", Path: filepath.Join(globalDir, "a.ysm"), Hash: "hash_a"},
+		{Name: "b.ysm", Path: filepath.Join(globalDir, "b.ysm"), Hash: "hash_b"},
+	}
+	instEntries := []types.ModelEntry{
+		{Name: "a.ysm", Path: filepath.Join(instDir, "a.ysm"), Hash: "hash_a"},
+		{Name: "c.ysm", Path: filepath.Join(instDir, "c.ysm"), Hash: "hash_c"},
+	}
 
 	scanFn := func(dir string) []types.ModelEntry {
 		if dir == globalDir {
@@ -305,10 +304,10 @@ func TestCompareGlobalInstanceHashes(t *testing.T) {
 		t.Fatalf("expected 1 instance, got %d", len(results))
 	}
 	r := results[0]
-	if len(r.Missing) != 1 || r.Missing[0] != "/global/b.ysm" {
+	if len(r.Missing) != 1 || r.Missing[0] != filepath.Join(globalDir, "b.ysm") {
 		t.Errorf("expected Missing=[b.ysm], got %v", r.Missing)
 	}
-	if len(r.Extra) != 1 || r.Extra[0] != "/inst/c.ysm" {
+	if len(r.Extra) != 1 || r.Extra[0] != filepath.Join(instDir, "c.ysm") {
 		t.Errorf("expected Extra=[c.ysm], got %v", r.Extra)
 	}
 	if r.Synced != 1 {
@@ -331,14 +330,14 @@ func TestCompareGlobalInstanceHashes_NoHashMatchesByNameSize(t *testing.T) {
 	instDir := t.TempDir()
 
 	global := []types.ModelEntry{
-		{Name: "model_a.pmx", Path: "/global/model_a.pmx", Size: 1000, Hash: ""},
-		{Name: "model_b.pmx", Path: "/global/model_b.pmx", Size: 2000, Hash: ""},
-		{Name: "model_c.pmx", Path: "/global/model_c.pmx", Size: 3000, Hash: ""},
+		{Name: "model_a.pmx", Path: filepath.Join(globalDir, "model_a.pmx"), Size: 1000, Hash: ""},
+		{Name: "model_b.pmx", Path: filepath.Join(globalDir, "model_b.pmx"), Size: 2000, Hash: ""},
+		{Name: "model_c.pmx", Path: filepath.Join(globalDir, "model_c.pmx"), Size: 3000, Hash: ""},
 	}
 	instEntries := []types.ModelEntry{
-		{Name: "model_a.pmx", Path: "/inst/model_a.pmx", Size: 1000, Hash: ""},
-		{Name: "model_b.pmx", Path: "/inst/model_b.pmx", Size: 2500, Hash: ""}, // 大小不同 → missing
-		{Name: "extra.pmx", Path: "/inst/extra.pmx", Size: 500, Hash: ""},
+		{Name: "model_a.pmx", Path: filepath.Join(instDir, "model_a.pmx"), Size: 1000, Hash: ""},
+		{Name: "model_b.pmx", Path: filepath.Join(instDir, "model_b.pmx"), Size: 2500, Hash: ""}, // 大小不同 → missing
+		{Name: "extra.pmx", Path: filepath.Join(instDir, "extra.pmx"), Size: 500, Hash: ""},
 	}
 	scanFn := func(dir string) []types.ModelEntry {
 		if dir == globalDir {
@@ -358,10 +357,10 @@ func TestCompareGlobalInstanceHashes_NoHashMatchesByNameSize(t *testing.T) {
 	if r.Synced != 1 {
 		t.Errorf("expected Synced=1 (model_a 同名同大小), got %d", r.Synced)
 	}
-	if len(r.Missing) != 2 || r.Missing[0] != "/global/model_b.pmx" || r.Missing[1] != "/global/model_c.pmx" {
+	if len(r.Missing) != 2 || r.Missing[0] != filepath.Join(globalDir, "model_b.pmx") || r.Missing[1] != filepath.Join(globalDir, "model_c.pmx") {
 		t.Errorf("expected Missing=[model_b.pmx(尺寸变), model_c.pmx], got %v", r.Missing)
 	}
-	if len(r.Extra) != 1 || r.Extra[0] != "/inst/extra.pmx" {
+	if len(r.Extra) != 1 || r.Extra[0] != filepath.Join(instDir, "extra.pmx") {
 		t.Errorf("expected Extra=[extra.pmx], got %v", r.Extra)
 	}
 }
@@ -446,14 +445,17 @@ func TestSyncResources_IgnoresRecycleDir(t *testing.T) {
 // 嵌套子目录内文件跳过；dir-level 类型（ysm）与空 rtype 保持全树递归。
 // 背景：Sable Schematics 生成 .nbt 于嵌套子目录，顶层语义下相对路径以 ".." 开头
 // 误判越界 → 拉取报「不在目标目录内」（sync.go:280-282 注释）。
-func TestSyncResources_FileLevelDepthGuard(t *testing.T) {
+// TestSyncResources_RelPathCompare ADR-064 阶段二：文件级对比升级为相对路径——
+// 全树递归 + rel key 区分嵌套文件（原"只扫顶层"深度守卫取消），嵌套文件
+// 参与同步（仅单侧时归 Missing/Extra），同名不同目录不再互相覆盖。
+func TestSyncResources_RelPathCompare(t *testing.T) {
 	setup := func(t *testing.T) (string, string) {
 		globalDir := t.TempDir()
 		instDir := t.TempDir()
 		// 顶层文件（两侧同 size → Synced）
 		os.WriteFile(filepath.Join(globalDir, "top.nbt"), []byte("top"), 0644)
 		os.WriteFile(filepath.Join(instDir, "top.nbt"), []byte("top"), 0644)
-		// 嵌套子目录文件（仅 global 侧 → 若被收集则归 Missing）
+		// 嵌套子目录文件（仅 global 侧 → 相对路径对比下归 Missing）
 		os.MkdirAll(filepath.Join(globalDir, "sub"), 0755)
 		os.WriteFile(filepath.Join(globalDir, "sub", "nested.nbt"), []byte("nested"), 0644)
 		return globalDir, instDir
@@ -467,23 +469,20 @@ func TestSyncResources_FileLevelDepthGuard(t *testing.T) {
 		return false
 	}
 
-	t.Run("file-level 排除嵌套", func(t *testing.T) {
+	t.Run("file-level 嵌套文件按相对路径收集", func(t *testing.T) {
 		globalDir, instDir := setup(t)
-		// ysm 是文件级类型（实际没有！ysm 是 dir-level）→ 改选 resourcepack（文件级）验证嵌套跳过
 		result := SyncResources(globalDir, instDir, "resourcepack")
-		for _, list := range [][]string{result.Synced, result.Missing, result.Extra} {
-			if hasName(list, "nested.nbt") {
-				t.Errorf("file-level 同步不应收集嵌套文件 nested.nbt: %v", list)
-			}
+		if !hasName(result.Missing, "nested.nbt") {
+			t.Errorf("相对路径对比应收集嵌套文件 nested.nbt 到 Missing: %v", result.Missing)
+		}
+		if !hasName(result.Synced, "top.nbt") {
+			t.Errorf("顶层同 size 文件应 Synced: %v", result.Synced)
 		}
 	})
 
-	t.Run("create-blueprint/dir-level 全树递归", func(t *testing.T) {
+	t.Run("dir-level 全树递归", func(t *testing.T) {
 		globalDir, instDir := setup(t)
-		// create-blueprint 已设为 dir-level（dirLevelSync: true）→ 走 SyncResourcesDirLevel，
-		// 嵌套文件仍被 SyncResources（此处测试其非文件级行为）
 		result := SyncResources(globalDir, instDir, "create-blueprint")
-		// dir-level 时 isFileLevel=false，仍全树递归，嵌套文件归 Missing
 		if !hasName(result.Missing, "nested.nbt") {
 			t.Errorf("dir-level 同步应收集嵌套文件 nested.nbt 到 Missing: %v", result.Missing)
 		}
@@ -491,10 +490,30 @@ func TestSyncResources_FileLevelDepthGuard(t *testing.T) {
 
 	t.Run("空 rtype 保持全递归基线", func(t *testing.T) {
 		globalDir, instDir := setup(t)
-		// 空 rtype = 旧行为（全树递归），嵌套文件归 Missing
 		result := SyncResources(globalDir, instDir, "")
 		if !hasName(result.Missing, "nested.nbt") {
 			t.Errorf("空 rtype 应保持全递归（nested.nbt 归 Missing）: %v", result.Missing)
+		}
+	})
+
+	t.Run("同名不同目录不冲突", func(t *testing.T) {
+		globalDir := t.TempDir()
+		instDir := t.TempDir()
+		// 两侧各有两个同名不同目录的 .nbt——rel 对比下各自匹配（Synced），
+		// 文件名对比会把同名目录互相覆盖（map 去重）导致 Synced 缺失
+		for _, side := range []struct{ root, dir string }{
+			{globalDir, "a"}, {globalDir, "b"}, {instDir, "a"}, {instDir, "b"},
+		} {
+			os.MkdirAll(filepath.Join(side.root, side.dir), 0755)
+			os.WriteFile(filepath.Join(side.root, side.dir, "x.nbt"), []byte("x"), 0644)
+		}
+		result := SyncResources(globalDir, instDir, "resourcepack")
+		// 4 个文件全部 Synced（两侧 a/x.nbt 与 b/x.nbt 各自成对）
+		if len(result.Synced) != 2 {
+			t.Errorf("同名不同目录应各自 Synced（2 条），实际 %d: %v", len(result.Synced), result.Synced)
+		}
+		if len(result.Missing) != 0 || len(result.Extra) != 0 {
+			t.Errorf("两侧对称时不应有 Missing/Extra: %v / %v", result.Missing, result.Extra)
 		}
 	})
 }

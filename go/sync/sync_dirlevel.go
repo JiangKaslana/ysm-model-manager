@@ -24,27 +24,7 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 		if e.IsDir() {
 			continue
 		}
-		low := strings.ToLower(e.Name())
-		base := strings.TrimSuffix(low, ".ban")
-		if isModelFile(base, rtype) {
-			return true
-		}
-	}
-	return false
-}
-
-// isModelFile 检查文件名（已 lowercase，去 .ban）是否为对应类型的模型文件
-// 注册表驱动（Top 3）：扩展名清单来自 resource_types.json（SupportedExtsForType），
-// 新增类型只需改 JSON。.json 特判：仅 ysm.json 入口清单算模型文件
-// （与 scanner/IsYsmEntryJSON 口径一致，动作/动画 json 不单独成模型）。
-func isModelFile(base string, rtype string) bool {
-	// ysm.json 特判（.json 扩展名在注册表中但只有 ysm.json 算模型文件）
-	if types.IsYsmEntryJSON(base) {
-		return true
-	}
-	ext := strings.ToLower(filepath.Ext(base))
-	for _, e := range types.SupportedExtsForType(rtype) {
-		if ext == strings.ToLower(e) && !strings.EqualFold(e, ".json") {
+		if types.IsTypeModelFile(e.Name(), rtype) {
 			return true
 		}
 	}
@@ -69,7 +49,7 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 				}
 				low := strings.ToLower(e.Name())
 				base := strings.TrimSuffix(low, ".ban")
-				if isModelFile(base, rtype) {
+				if types.IsTypeModelFile(base, rtype) {
 					key := strings.TrimSuffix(low, filepath.Ext(low))
 					entries[key] = filepath.Join(rootDir, e.Name())
 				}

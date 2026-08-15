@@ -27,27 +27,9 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 	if ins == nil {
 		return nil
 	}
-	// 各资源类型允许的扩展名（防止跨类型混入如 .pmx 出现在 VRC 中）
-	extMatch := func(name, rtype string) bool {
-		exts := types.SupportedExtsForType(rtype)
-		if len(exts) == 0 {
-			return true
-		}
-		low := strings.ToLower(name)
-		// 去掉 .disabled/.ban 后缀后再匹配
-		base := strings.TrimSuffix(low, ".disabled")
-		base = strings.TrimSuffix(base, ".ban")
-		// YSM 的 .json 仅允许 ysm.json（其他是动作/动画文件，不应单独展示）
-		if rtype == "ysm" && strings.HasSuffix(base, ".json") && base != "ysm.json" {
-			return false
-		}
-		for _, e := range exts {
-			if strings.HasSuffix(base, e) {
-				return true
-			}
-		}
-		return false
-	}
+	// 各资源类型允许的扩展名过滤统一走 types.IsTypeModelFile（ADR-064 收敛：
+	// 原 extMatch 内联同义实现；差异仅空扩展集分支——BuildSyncItems 的类型均有
+	// ScanDir 与扩展名，不会触发，语义等价）
 	sizeOf := func(path string) int64 {
 		fi, err := os.Stat(path)
 		if err != nil {
@@ -77,7 +59,7 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		// icon 选择，收敛 Synced/Missing/Extra 三分支逐字重复（索引 6.8c）。
 		// defaultStatus 为分支默认状态；isLegacy 仅 Extra 分支传（旧仓库硬链接检测），其余传 nil。
 		appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool) {
-			if !extMatch(filepath.Base(p), rt.ID) && !fsutil.IsResourcePackFolder(p) {
+			if !types.IsTypeModelFile(filepath.Base(p), rt.ID) && !fsutil.IsResourcePackFolder(p) {
 				return
 			}
 			// 三分支口径一致：先识别 .disabled/.ban 禁用标记（实例侧遗留的禁用文件不应显示
@@ -113,60 +95,9 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 				return ysmsync.GetLinkType(p) == types.LinkHard
 			})
 		}
-		// 对于非模型类型（光影包/蓝图/资源包），额外扫描整合包目录中所有未被 SyncResources 覆盖的文件
-		// （SyncResources 的 map 去重会丢失同名文件）
-		if types.IsScanInstance(rt.ID) {
-			// 已由 result 覆盖的文件名集合（避免额外扫描重复添加）。
-			// 只记录「确实展示」的条目名（extMatch 通过者），
-			// 否则资源包文件夹名已被 result 记录 → seenNames 命中 → 兜底 Walk 的
-			// 文件夹分支被跳过，导致「未解压资源包文件夹」永远不出现在同步列表
-			seenNames := map[string]bool{}
-			for _, p := range result.Extra {
-				if extMatch(filepath.Base(p), rt.ID) {
-					seenNames[strings.ToLower(filepath.Base(p))] = true
-				}
-			}
-			for _, p := range result.Synced {
-				if extMatch(filepath.Base(p), rt.ID) {
-					seenNames[strings.ToLower(filepath.Base(p))] = true
-				}
-			}
-			for _, p := range result.Missing {
-				if extMatch(filepath.Base(p), rt.ID) {
-					seenNames[strings.ToLower(filepath.Base(p))] = true
-				}
-			}
-			_ = filepath.Walk(instDir, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return nil
-				}
-				if info.IsDir() {
-					// 文件夹分支已删除——SyncResources 已把实例目录中
-					// 所有含 pack.mcmeta 的文件夹放入 result.Synced/Missing/Extra（sync.go
-					// 按 isDir 判定），主循环（含 !isResourcePackFolder 放行）是文件夹唯一来源；
-					// 原兜底 Walk 文件夹分支会重复添加（seenNames 只记录 extMatch 通过的
-					// 文件，文件夹名不记录 → 同一 pack.mcmeta 文件夹被主循环 + 兜底各加一次，
-					// UI 显示同包双状态 Synced+Optional）
-					return nil
-				}
-				low := strings.ToLower(info.Name())
-				// 兜底过滤改用 extMatch（注册表驱动）而非硬编码后缀清单——
-				// 原硬编码含 .litematic（蓝图与 litematic 共享 schematics 目录时，
-				// .litematic 文件被蓝图兜底重复加为 optional，且 litematic 类型又产出一条）；
-				// 注册表蓝图扩展名不含 .litematic，extMatch 天然排除跨类型重复
-				if !extMatch(info.Name(), rt.ID) {
-					return nil
-				}
-				if seenNames[low] {
-					return nil
-				}
-				items = append(items, types.ResourceSyncItem{
-					Path: path, Name: info.Name(),
-					Status: types.SyncStatusOptional, Type: rt.ID, Icon: rt.Icon, Size: info.Size(),
-				})
-				return nil
-			})
-		}
+		// 兜底 Walk（IsScanInstance）已移除——ADR-064 阶段二：SyncResources 相对路径
+		// 对比全树递归收集所有受支持文件（含嵌套），同名不同目录不再 map 去重丢失，
+		// 原兜底（SyncResources 丢同名文件时补全）已无新增条目可补，删除防重复列示。
 	}
 	return items
 }

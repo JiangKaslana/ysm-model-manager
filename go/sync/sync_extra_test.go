@@ -48,49 +48,49 @@ func TestComputeHash_EmptyFile(t *testing.T) {
 // ====== isSyncAllowed ======
 
 func TestIsSyncAllowed_Ysm(t *testing.T) {
-	if !isSyncAllowed("model.ysm") {
+	if !types.IsResourceAllowed("model.ysm") {
 		t.Error("model.ysm should be allowed")
 	}
-	if !isSyncAllowed("model.ysm.ban") {
+	if !types.IsResourceAllowed("model.ysm.ban") {
 		t.Error("model.ysm.ban should be allowed")
 	}
-	if !isSyncAllowed("model.ysm.disabled") {
+	if !types.IsResourceAllowed("model.ysm.disabled") {
 		t.Error("model.ysm.disabled should be allowed")
 	}
 }
 
 func TestIsSyncAllowed_Zip7z(t *testing.T) {
-	if !isSyncAllowed("model.zip") {
+	if !types.IsResourceAllowed("model.zip") {
 		t.Error("model.zip should be allowed")
 	}
-	if !isSyncAllowed("model.7z") {
+	if !types.IsResourceAllowed("model.7z") {
 		t.Error("model.7z should be allowed")
 	}
 }
 
 func TestIsSyncAllowed_YsmJson(t *testing.T) {
-	if !isSyncAllowed("ysm.json") {
+	if !types.IsResourceAllowed("ysm.json") {
 		t.Error("ysm.json should be allowed")
 	}
 }
 
 func TestIsSyncAllowed_OtherJson(t *testing.T) {
-	if isSyncAllowed("animation.json") {
+	if types.IsResourceAllowed("animation.json") {
 		t.Error("animation.json should NOT be allowed")
 	}
-	if isSyncAllowed("model.geo.json") {
+	if types.IsResourceAllowed("model.geo.json") {
 		t.Error("model.geo.json should NOT be allowed")
 	}
-	if isSyncAllowed("controller.json") {
+	if types.IsResourceAllowed("controller.json") {
 		t.Error("controller.json should NOT be allowed")
 	}
 }
 
 func TestIsSyncAllowed_UnsupportedExt(t *testing.T) {
-	if isSyncAllowed("readme.txt") {
+	if types.IsResourceAllowed("readme.txt") {
 		t.Error(".txt should NOT be allowed")
 	}
-	if isSyncAllowed("") {
+	if types.IsResourceAllowed("") {
 		t.Error("empty string should NOT be allowed")
 	}
 }
@@ -100,46 +100,46 @@ func TestIsSyncAllowed_UnsupportedExt(t *testing.T) {
 // ====== isModelFile ======
 
 func TestIsModelFile_Ysm(t *testing.T) {
-	if !isModelFile("model.ysm", "ysm") {
+	if !types.IsTypeModelFile("model.ysm", "ysm") {
 		t.Error("model.ysm should be ysm model")
 	}
-	if !isModelFile("model.zip", "ysm") {
+	if !types.IsTypeModelFile("model.zip", "ysm") {
 		t.Error("model.zip should be ysm model")
 	}
-	if !isModelFile("model.7z", "ysm") {
+	if !types.IsTypeModelFile("model.7z", "ysm") {
 		t.Error("model.7z should be ysm model")
 	}
-	if !isModelFile("ysm.json", "ysm") {
+	if !types.IsTypeModelFile("ysm.json", "ysm") {
 		t.Error("ysm.json should be ysm model")
 	}
 }
 
 func TestIsModelFile_YsmNegative(t *testing.T) {
-	if isModelFile("readme.txt", "ysm") {
+	if types.IsTypeModelFile("readme.txt", "ysm") {
 		t.Error(".txt should NOT be ysm model")
 	}
-	if isModelFile("model.pmx", "ysm") {
+	if types.IsTypeModelFile("model.pmx", "ysm") {
 		t.Error(".pmx should NOT be ysm model")
 	}
 }
 
 func TestIsModelFile_MmdSkin(t *testing.T) {
-	if !isModelFile("model.pmx", "mmd-skin") {
+	if !types.IsTypeModelFile("model.pmx", "mmd-skin") {
 		t.Error(".pmx should be mmd-skin model")
 	}
-	if !isModelFile("model.pmd", "mmd-skin") {
+	if !types.IsTypeModelFile("model.pmd", "mmd-skin") {
 		t.Error(".pmd should be mmd-skin model")
 	}
 }
 
 func TestIsModelFile_MmdSkinNegative(t *testing.T) {
-	if isModelFile("model.ysm", "mmd-skin") {
+	if types.IsTypeModelFile("model.ysm", "mmd-skin") {
 		t.Error(".ysm should NOT be mmd-skin model")
 	}
 }
 
 func TestIsModelFile_UnknownType(t *testing.T) {
-	if isModelFile("model.ysm", "unknown") {
+	if types.IsTypeModelFile("model.ysm", "unknown") {
 		t.Error("unknown type should return false")
 	}
 }
