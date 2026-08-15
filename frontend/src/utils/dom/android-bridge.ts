@@ -29,8 +29,9 @@ export function isViewerMode(): boolean {
 
 /**
  * 安卓系统返回键处理器注册表（ADR-057 §2.5，对齐 MikuMikuAR handleAndroidBack）。
- * 栈顶优先：原生 MainActivity 把系统 back 转发到 emitAndroidBack() 时，从栈顶向下调用，
- * 处理器返回 true 表示已消费（如 3D overlay 打开时关层），否则透传上层。
+ * 栈顶优先：android-events.ts 收到 MainActivity 的 android:back 事件后调用
+ * emitAndroidBack()，从栈顶向下询问已注册处理器；返回 true 表示已消费
+ * （如 3D overlay 打开时关层），否则透传上层。
  */
 type AndroidBackHandler = () => boolean | void;
 const _androidBackHandlers: AndroidBackHandler[] = [];
@@ -45,11 +46,9 @@ export function registerAndroidBackHandler(fn: AndroidBackHandler): () => void {
 }
 
 /**
- * 原生侧（MainActivity 系统 back）调用入口：依次从栈顶触发已注册处理器。
+ * 系统返回键的前端触发入口：依次从栈顶触发已注册处理器。
+ * 当前由 android-events.ts 在收到 MainActivity 的 android:back 事件时调用；
  * 返回 true 表示已被消费（阻止原生默认返回/退出）。
- * TODO(Android 联调)：原生需在 onBackPressed 转发到本函数，例如 wails 桥暴露
- *   (window as any).wails?.emitAndroidBack?.() 或挂全局 window.emitAndroidBack；
- *   YSM 当前桥缺此通道，属跨端联调项（ADR-057 §2.5）。
  */
 export function emitAndroidBack(): boolean {
   for (let i = _androidBackHandlers.length - 1; i >= 0; i--) {

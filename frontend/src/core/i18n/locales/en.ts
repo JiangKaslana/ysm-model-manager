@@ -934,4 +934,17 @@ export const en: Record<string, string> = {
   "downloads.noRepos": "No GitHub repositories",
   "downloads.noModelList": "No model list found",
   "downloads.openInGithub": "Open in GitHub",
+
+  // ── Web file system ──
+  "webFs.kindDir": "directory",
+  "webFs.kindFile": "file",
+  "webFs.fsaUnsupported": "SelectLocalRepo: File System Access API is not supported in this environment",
+  "webFs.renameEmptyName": "Rename failed: {kind} name is empty",
+  "webFs.renameInvalidChars": "Rename failed: {kind} name contains invalid characters",
+  "webFs.renameInvalidPathSegment": "Rename failed: {kind} name contains an invalid path segment",
+  "webFs.renameInvalidPath": "Rename failed: invalid path: {path}",
+  "webFs.renameTargetExists": "Rename failed: target already exists: {path}",
+  "webFs.renameModelMissing": "Rename failed: model not found: {path}",
+  "webFs.renameYsmJsonForbidden": "ysm.json is the model folder manifest; rename the containing folder instead (group operation)",
+  "webFs.deleteInvalidPath": "Delete failed: invalid path: {path}",
 };

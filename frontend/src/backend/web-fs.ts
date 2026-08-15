@@ -5,6 +5,7 @@
 // 共享原语（WebUnsupportedError / WEB_ROOT / MAX_IMPORT_BYTES / arrayBufferToBase64）
 // 见 web-common.ts。
 import { idbGet, idbSet, idbKeys, idbDel } from "./idb.ts";
+import { t } from "../core/i18n/t.ts";
 import type { ModelEntry } from "../../bindings/ysm-model-manager/go/types/models.ts";
 // 复用 dnd-shared 的导入白名单（.json 仅放行 ysm.json，其余须 ALL_EXTS 成员），
 // 避免 browser-adapter 另起一套扩展名校验导致漂移
@@ -175,7 +176,7 @@ async function _collectYsmFiles(
  */
 export async function selectLocalRepo(): Promise<{ ok: boolean; imported: number; failed: number; dir: string }> {
   if (typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker !== "function") {
-    throw new WebUnsupportedError("SelectLocalRepo: 当前环境不支持 File System Access API");
+    throw new WebUnsupportedError(t("webFs.fsaUnsupported"));
   }
   const handle = (await (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker());
   // R2 持久化：句柄结构化克隆落库，下次启动无手势 queryPermission 自愈免重选
@@ -334,10 +335,11 @@ const INVALID_NAME_CHARS = /[\\/:*?"<>|]/;
 
 /** 校验重命名目标名（对齐桌面 fileops.go 非法字符 + 空名 + 路径段校验，非法则抛错） */
 function assertValidRenameName(newName: string, kind: "目录" | "文件"): void {
+  const kindLabel = kind === "目录" ? t("webFs.kindDir") : t("webFs.kindFile");
   const n = (newName || "").trim();
-  if (!n) throw new Error(`重命名失败：${kind}名称为空`);
-  if (INVALID_NAME_CHARS.test(n)) throw new Error(`重命名失败：${kind}名称包含非法字符`);
-  if (n === "." || n === "..") throw new Error(`重命名失败：${kind}名称包含非法路径段`);
+  if (!n) throw new Error(t("webFs.renameEmptyName", { kind: kindLabel }));
+  if (INVALID_NAME_CHARS.test(n)) throw new Error(t("webFs.renameInvalidChars", { kind: kindLabel }));
+  if (n === "." || n === "..") throw new Error(t("webFs.renameInvalidPathSegment", { kind: kindLabel }));
 }
 
 // --- 删除模型组（dir + 所有 file + 元数据标记）---
@@ -355,7 +357,7 @@ export async function deleteWebModel(type: string, name: string): Promise<void> 
 // --- 重命名模型目录（dir + file + 标记整组 rekey）---
 export async function renameWebDir(oldPath: string, newName: string): Promise<void> {
   const di = parseWebModelDir(oldPath);
-  if (!di) throw new Error(`重命名失败：无效路径: ${oldPath}`);
+  if (!di) throw new Error(t("webFs.renameInvalidPath", { path: oldPath }));
   const { type, name } = di;
   assertValidRenameName(newName, "目录");
   const finalName = newName.trim();
@@ -366,11 +368,11 @@ export async function renameWebDir(oldPath: string, newName: string): Promise<vo
   const newDirKey = dirKey(type, newNameFull);
   // 目标已存在（含重命名为同名）：对齐桌面「目标已存在」拒绝，防静默覆盖合并两模型数据
   if ((await idbGet("files", newDirKey)) !== undefined) {
-    throw new Error(`重命名失败：目标已存在: ${WEB_ROOT}/${type}/${newNameFull}`);
+    throw new Error(t("webFs.renameTargetExists", { path: `${WEB_ROOT}/${type}/${newNameFull}` }));
   }
   // 旧模型必须存在（对齐桌面 os.Rename 源不存在报错，拒绝静默 no-op）
   const exists = await idbGet("files", oldDirKey);
-  if (!exists) throw new Error(`重命名失败：模型不存在: ${oldPath}`);
+  if (!exists) throw new Error(t("webFs.renameModelMissing", { path: oldPath }));
   const dv = await idbGet("files", oldDirKey);
   if (dv !== undefined) {
     // 同步更新 dir 条目的 name 字段：scanWebModels 用 meta.name 推导文件查找前缀，
@@ -405,14 +407,14 @@ export async function renameWebDir(oldPath: string, newName: string): Promise<vo
 // --- 重命名单个文件（模型组内某文件 rekey，保留 .ban 后缀语义由调用方负责）---
 export async function renameWebFile(oldPath: string, newName: string): Promise<void> {
   const pm = await parseWebModelPath(oldPath);
-  if (!pm) throw new Error(`重命名失败：无效路径: ${oldPath}`);
+  if (!pm) throw new Error(t("webFs.renameInvalidPath", { path: oldPath }));
   const { type, name, rel } = pm;
   assertValidRenameName(newName, "文件");
   const finalName = newName.trim();
   // ysm.json 是模型目录清单（游戏按目录名识别模型）：禁止单文件改名，
   // 否则 scanWebModels 主文件 rank 从 2 掉到 0 → 模型从列表中消失（对齐桌面 fileops.RenameFile ADR-038 D3）
   if (rel.toLowerCase() === "ysm.json") {
-    throw new Error("ysm.json 是模型目录清单，请重命名所在文件夹（整组操作）");
+    throw new Error(t("webFs.renameYsmJsonForbidden"));
   }
   const oldKey = fileKey(type, name, rel);
   // P-A 组内 rel 可含子目录：重命名只替换 rel 末段文件名，保留目录前缀（tex/face.png → tex/eye.png）
@@ -422,11 +424,11 @@ export async function renameWebFile(oldPath: string, newName: string): Promise<v
   if (newKey === oldKey) return;
   // 目标已存在：对齐桌面「目标已存在」拒绝，防静默覆盖目标文件内容
   if ((await idbGet("files", newKey)) !== undefined) {
-    throw new Error(`重命名失败：目标已存在: ${WEB_ROOT}/${type}/${name}/${finalName}`);
+    throw new Error(t("webFs.renameTargetExists", { path: `${WEB_ROOT}/${type}/${name}/${finalName}` }));
   }
   // 旧文件必须存在（对齐桌面 RenameFile 源不存在报错，拒绝静默 no-op）
   const exists = await idbGet("files", oldKey);
-  if (!exists) throw new Error(`重命名失败：模型不存在: ${oldPath}`);
+  if (!exists) throw new Error(t("webFs.renameModelMissing", { path: oldPath }));
   const val = await idbGet("files", oldKey);
   if (val !== undefined) {
     await idbSet("files", newKey, val);
@@ -753,14 +755,14 @@ export const webFsBindings = {
     // 格式校验区分「非法路径」（reject）与「合法但组已删」（幂等通过，对齐桌面重复删除不报错）：
     // dir 反向匹配依赖 dir key 存在性，组删除后解析为 null——此时不得误报无效路径
     if (!isWebPath(path)) {
-      return Promise.reject(new Error(`删除失败：无效路径: ${path}`));
+      return Promise.reject(new Error(t("webFs.deleteInvalidPath", { path })));
     }
     const pm = await parseWebModelPath(path);
     if (pm) await deleteWebModel(pm.type, pm.name);
   },
   RemoveDir: (dir: string) => {
     const di = parseWebModelDir(dir);
-    if (!di) return Promise.reject(new Error(`删除失败：无效路径: ${dir}`));
+    if (!di) return Promise.reject(new Error(t("webFs.deleteInvalidPath", { path: dir })));
     return deleteWebModel(di.type, di.name);
   },
   // 重命名：模型目录整组 rekey / 组内单文件 rekey

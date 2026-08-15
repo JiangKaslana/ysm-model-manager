@@ -935,4 +935,17 @@ export const ja: Record<string, string> = {
   "downloads.noRepos": "GitHub リポジトリがありません",
   "downloads.noModelList": "モデルリストが見つかりません",
   "downloads.openInGithub": "GitHub で開く",
+
+  // ── Web ファイルシステム ──
+  "webFs.kindDir": "ディレクトリ",
+  "webFs.kindFile": "ファイル",
+  "webFs.fsaUnsupported": "SelectLocalRepo: この環境では File System Access API はサポートされていません",
+  "webFs.renameEmptyName": "名前の変更に失敗しました：{kind}名が空です",
+  "webFs.renameInvalidChars": "名前の変更に失敗しました：{kind}名に無効な文字が含まれています",
+  "webFs.renameInvalidPathSegment": "名前の変更に失敗しました：{kind}名に無効なパスセグメントが含まれています",
+  "webFs.renameInvalidPath": "名前の変更に失敗しました：無効なパス: {path}",
+  "webFs.renameTargetExists": "名前の変更に失敗しました：対象が既に存在します: {path}",
+  "webFs.renameModelMissing": "名前の変更に失敗しました：モデルが存在しません: {path}",
+  "webFs.renameYsmJsonForbidden": "ysm.json はモデルフォルダのマニフェストです。フォルダごと名前を変更してください（グループ操作）",
+  "webFs.deleteInvalidPath": "削除に失敗しました：無効なパス: {path}",
 };
