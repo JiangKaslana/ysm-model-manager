@@ -97,9 +97,17 @@ func IsResourceAllowed(name string) bool {
 // 不会触发——未知类型早被 SubDirMap 空拦截跳过）。
 func IsTypeModelFile(name, rtype string) bool {
 	base := NormalizeResourceName(name)
-	// ysm.json 特判（.json 扩展名在注册表中但只有 ysm.json 算模型文件）
+	// ysm.json 特判（.json 扩展名在注册表中但只有 ysm.json 算模型文件）：
+	// 仅当该类型扩展集含 .json（ysm）时放行——resourcepack/shaderpack 扩展集
+	// 只有 .zip，整合包目录散落的 ysm.json 不得作为其独立同步条目（P3 修复：
+	// 整合包推送/拉取列表被 ysm.json 刷屏）。
 	if IsYsmEntryJSON(base) {
-		return true
+		for _, e := range SupportedExtsForType(rtype) {
+			if strings.EqualFold(e, ".json") {
+				return true
+			}
+		}
+		return false
 	}
 	ext := strings.ToLower(filepath.Ext(base))
 	for _, e := range SupportedExtsForType(rtype) {

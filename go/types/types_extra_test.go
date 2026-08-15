@@ -58,6 +58,31 @@ func TestIsTypeModelFile_EmptyExts(t *testing.T) {
 	}
 }
 
+// TestIsTypeModelFile_YsmJsonScopedByType ysm.json 仅对扩展集含 .json 的类型
+// （ysm）放行；resourcepack/shaderpack 扩展集只有 .zip，整合包目录散落的
+// ysm.json 不得作为其独立同步条目（P3 修复：整合包推送/拉取列表被 ysm.json 刷屏）。
+func TestIsTypeModelFile_YsmJsonScopedByType(t *testing.T) {
+	if !IsTypeModelFile("ysm.json", "ysm") {
+		t.Error("ysm 类型（扩展集含 .json）应放行 ysm.json")
+	}
+	if !IsTypeModelFile("YSM.JSON", "ysm") {
+		t.Error("ysm 类型对大小写变体 ysm.json 应放行")
+	}
+	if IsTypeModelFile("ysm.json", "resourcepack") {
+		t.Error("resourcepack（扩展集仅 .zip）不应放行 ysm.json")
+	}
+	if IsTypeModelFile("ysm.json", "shaderpack") {
+		t.Error("shaderpack（扩展集仅 .zip）不应放行 ysm.json")
+	}
+	if IsTypeModelFile("ysm.json", "mmd-skin") {
+		t.Error("mmd-skin（扩展集无 .json）不应放行 ysm.json")
+	}
+	// 非 ysm.json 的其余 .json 仍一律不放行（ADR-038 D2 不变）
+	if IsTypeModelFile("geometry.json", "ysm") {
+		t.Error("geometry.json 不应作为 ysm 模型文件")
+	}
+}
+
 func TestFindInstDir_StandardDir(t *testing.T) {
 	versionDir := t.TempDir()
 	standard := filepath.Join(versionDir, "resourcepacks")
