@@ -62,6 +62,18 @@ export function arrayBufferToBase64(buf: ArrayBuffer): string {
   return btoa(binary);
 }
 
+/** base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） */
+export function base64ToBytes(b64: string): Uint8Array | null {
+  try {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
 // ===== 基础 binding 片段（Top 6 注册表驱动：browser-adapter.ts 只做 {...} 装配）=====
 // 网页版无 Go 侧版本/3D 通道，这些 binding 为占位或常量实现；LoadResourceTypes
 // 依赖 resource_types.json（vite 构建期内联，与 extensions.ts 同源），放本文件避免

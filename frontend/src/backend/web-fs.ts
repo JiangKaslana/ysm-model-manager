@@ -17,11 +17,13 @@ import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 // 让网页版模型库显示全类型（.nbt/.schematic/.litematic/.pmx/.pmd/.vrca/.vrm），
 // 不再 YSM 单类型硬编码（原 mainFileRank 只认 .ysm/.zip/ysm.json）
 import { RESOURCE_EXTS } from "../utils/resource/extensions.ts";
-import { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64, parseWebPath, parseWebDirPath, webDirType, isWebPath } from "./web-common.ts";
+import { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64, base64ToBytes, parseWebPath, parseWebDirPath, webDirType, isWebPath } from "./web-common.ts";
 // R2 导入增强：ZIP 解压（extractZip 解出文件 + gbkDecodeEntry 还原中文名）；
 // detectZipType 供 DetectResourceType 歧义容器内容指纹（ADR-066 web 识别层）
 import { extractZip, gbkDecodeEntry, detectZipType } from "./extract.ts";
 import { resolveTypeSafe } from "../utils/resource/types.ts";
+// ADR-070 M1：蓝图/投影 meta 读取（NBT 解析 + 三个视图提取，TS 平移 go/litematic/parser.go）
+import { parseNbtRoot, litematicMetaView, nbtStructureView, schematicSummaryView } from "./nbt-parse.ts";
 
 // --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
 const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
@@ -266,6 +268,30 @@ export async function readWebFile(path: string): Promise<string | null> {
   const f = await idbGet<{ data: ArrayBuffer }>("files", `file:${pm.type}/${pm.rest}`);
   if (!f) return null;
   return arrayBufferToBase64(f.data);
+}
+
+/**
+ * ADR-070 M1：蓝图/投影 meta binding 公共读取骨架（TS 平移 go/litematic/parser.go 的
+ * openGzRoot + 视图提取）。读 IDB → base64 → 字节 → parseNbtRoot → 视图提取 → JSON 字符串。
+ * 任何一步失败（文件缺失 / 非 gzip / 畸形 NBT / 视图判定无效）→ "{}"（对齐 Go binding
+ * 契约：ParseMeta error / ParseSchematicSummary|ParseNbtStructure nil → "{}"）。
+ */
+async function readNbtMetaJson(
+  path: string,
+  extract: (root: Record<string, unknown>) => Record<string, unknown> | null,
+): Promise<string> {
+  try {
+    const b64 = await readWebFile(path);
+    if (!b64) return "{}";
+    const bytes = base64ToBytes(b64);
+    if (!bytes) return "{}";
+    const root = parseNbtRoot(bytes);
+    const view = extract(root);
+    if (!view) return "{}";
+    return JSON.stringify(view);
+  } catch {
+    return "{}";
+  }
 }
 
 /**
@@ -785,6 +811,12 @@ export const webFsBindings = {
   // 真实列表入口（loader/import-queue/resource-manager 等 6 处均调 WithLabel 版本）
   ScanModelEntriesWithLabel: (dir: string, _label: string) => scanWebModels(dir),
   ReadFileBytes: (path: string) => readWebFile(path),
+  // ADR-070 M1：蓝图/投影详情面板恢复（原 fail-fast 报「读取失败」）。
+  // TS 平移 go/litematic/parser.go 三函数（ParseMeta/ParseSchematicSummary/ParseNbtStructure），
+  // 只读 meta（不做 voxel，M2）；失败返回 "{}" 对齐 Go binding 契约
+  ReadLitematicMeta: (path: string) => readNbtMetaJson(path, litematicMetaView),
+  ReadNbtStructure: (path: string) => readNbtMetaJson(path, nbtStructureView),
+  ReadSchematic: (path: string) => readNbtMetaJson(path, schematicSummaryView),
   // DetectResourceType：扩展名判定（resolveTypeSafe，歧义 .zip/.7z 返回 null）→
   // 歧义容器读内容指纹（detectZipType）。ADR-066 web 识别层对齐 Go：
   // 一处补上后非 YSM 类型（pack/shader/蓝图/投影/MMD/VRC）的预览路由不再误入
@@ -794,9 +826,8 @@ export const webFsBindings = {
     if (byExt) return byExt;
     const b64 = await readWebFile(path);
     if (!b64) return "";
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const bytes = base64ToBytes(b64);
+    if (!bytes) return "";
     return detectZipType(bytes);
   },
   // rtype 含 / 时替换为 _，避免 /web/a/b 破坏 readWebFile 三段解析

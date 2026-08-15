@@ -726,10 +726,10 @@
 | `idbSet()` | `frontend/src/backend/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
 | `idbDel()` | `frontend/src/backend/idb:184` | 删除单 key |
 | `idbKeys()` | `frontend/src/backend/idb:200` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） |
-| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:183` | 解析 NBT 根 compound，返回全部顶层标签。 |
-| `litematicMetaView()` | `frontend/src/backend/nbt-parse:230` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
-| `nbtStructureView()` | `frontend/src/backend/nbt-parse:264` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
-| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:383` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
+| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:185` | 解析 NBT 根 compound，返回全部顶层标签。 |
+| `litematicMetaView()` | `frontend/src/backend/nbt-parse:232` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
+| `nbtStructureView()` | `frontend/src/backend/nbt-parse:266` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
+| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:387` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
 | `readDeclaredBackend()` | `frontend/src/backend/platform:13` | 读取入口 HTML 声明的适配器身份（'go' | 'browser'），未声明返回 undefined |
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
