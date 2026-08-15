@@ -27,7 +27,7 @@
 | Go·同步 | 6 | 21 |
 | Go·标签 | 1 | 8 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 5 | 57 |
+| Go·类型 | 5 | 60 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 55 | 189 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **273** | **1126** |
+| **合计** | **273** | **1129** |
 
 ## Go·头像
 
@@ -215,13 +215,13 @@
 | `NewLogger()` | `go/logs/logs:40` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
 | `Logger.Add()` | `go/logs/logs:146` | Add 添加一条导入日志（兼容旧调用） |
 | `Logger.AddOp()` | `go/logs/logs:151` | AddOp 添加一条指定操作类型的日志 |
-| `Logger.GetAll()` | `go/logs/logs:191` | GetAll 获取所有日志 |
-| `Logger.Clear()` | `go/logs/logs:200` | Clear 清空日志 |
+| `Logger.GetAll()` | `go/logs/logs:192` | GetAll 获取所有日志 |
+| `Logger.Clear()` | `go/logs/logs:201` | Clear 清空日志 |
 | `Logger()` | `go/logs/logs:30` | Logger 导入日志管理器 |
 | `NewRuntimeBuffer()` | `go/logs/runtime:22` | NewRuntimeBuffer 创建环形缓冲 |
 | `RuntimeBuffer.Write()` | `go/logs/runtime:30` | Write 实现 io.Writer：每次调用记录一条运行时日志（标准库 log 一行即一次 Write） |
-| `RuntimeBuffer.GetAll()` | `go/logs/runtime:50` | GetAll 返回全部日志的副本 |
-| `RuntimeBuffer.Clear()` | `go/logs/runtime:59` | Clear 清空缓冲 |
+| `RuntimeBuffer.GetAll()` | `go/logs/runtime:51` | GetAll 返回全部日志的副本 |
+| `RuntimeBuffer.Clear()` | `go/logs/runtime:60` | Clear 清空缓冲 |
 | `RuntimeBuffer()` | `go/logs/runtime:15` | RuntimeBuffer 运行时日志环形缓冲：捕获标准库 log 输出（watcher/sync 等），供诊断页展示。 |
 
 ## Go·包管理
@@ -372,9 +372,10 @@
 | `LitematicBlockStat()` | `go/types/resource:320` | LitematicBlockStat 方块类型统计 |
 | `LitematicVoxelData()` | `go/types/resource:326` | LitematicVoxelData 体素渲染数据 |
 | `VoxelGroup()` | `go/types/resource:334` | VoxelGroup 同一颜色的方块组 |
-| `AppError.WithCause()` | `go/types/types:117` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
-| `AppError.Unwrap()` | `go/types/types:123` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
-| `AppError.Error()` | `go/types/types:125` | — |
+| `StatusToLevel()` | `go/types/types:121` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
+| `AppError.WithCause()` | `go/types/types:169` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
+| `AppError.Unwrap()` | `go/types/types:175` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
+| `AppError.Error()` | `go/types/types:177` | — |
 | `WindowState()` | `go/types/types:6` | WindowState 窗口位置 |
 | `AuthorInfo()` | `go/types/types:14` | AuthorInfo 作者信息（含模型计数） |
 | `ModelEntry()` | `go/types/types:21` | ModelEntry 模型文件条目 |
@@ -382,14 +383,16 @@
 | `VersionInstance()` | `go/types/types:38` | VersionInstance 整合包信息 |
 | `SearchResult()` | `go/types/types:46` | SearchResult 模型搜索结果 |
 | `ImportLog()` | `go/types/types:57` | ImportLog 应用操作日志（导入、扫描、下载、同步等） |
-| `RuntimeLog()` | `go/types/types:69` | RuntimeLog 运行时日志（watcher/sync 等标准库 log 输出，诊断页可见） |
-| `LinkType()` | `go/types/types:75` | LinkType 链接类型 |
-| `CustomFileInfo()` | `go/types/types:85` | CustomFileInfo custom 目录下的文件信息 |
-| `InstanceStatus()` | `go/types/types:91` | InstanceStatus 整合包状态 |
-| `AppError()` | `go/types/types:104` | — |
-| `ResourceSyncResult()` | `go/types/types:138` | ResourceSyncResult 资源同步结果 |
-| `SyncStatus()` | `go/types/types:145` | SyncStatus 资源文件同步状态 |
-| `ResourceSyncItem()` | `go/types/types:156` | ResourceSyncItem 单个资源文件的同步状态 |
+| `RuntimeLog()` | `go/types/types:70` | RuntimeLog 运行时日志（watcher/sync 等标准库 log 输出，诊断页可见） |
+| `LinkType()` | `go/types/types:77` | LinkType 链接类型 |
+| `ErrorCode()` | `go/types/types:88` | ErrorCode 结构化错误码（ADR-051 落地：替代裸字符串拼接，消除前后端双份分类表漂移）。 |
+| `LogLevel()` | `go/types/types:109` | LogLevel 日志级别（诊断页按 Level 过滤；向后兼容——旧日志无此字段时前端按 Status 兜底） |
+| `CustomFileInfo()` | `go/types/types:137` | CustomFileInfo custom 目录下的文件信息 |
+| `InstanceStatus()` | `go/types/types:143` | InstanceStatus 整合包状态 |
+| `AppError()` | `go/types/types:156` | — |
+| `ResourceSyncResult()` | `go/types/types:190` | ResourceSyncResult 资源同步结果 |
+| `SyncStatus()` | `go/types/types:197` | SyncStatus 资源文件同步状态 |
+| `ResourceSyncItem()` | `go/types/types:208` | ResourceSyncItem 单个资源文件的同步状态 |
 
 ## Go·更新器
 
@@ -692,7 +695,7 @@
 | `webDirType()` | `frontend/src/backend/web-common:46` | /web/ 之后的类型段（/web/ysm/xxx → "ysm"）；非 /web/ 前缀返回 null |
 | `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:52` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
-| `webCommonBindings()` | `frontend/src/backend/web-common:71` | — |
+| `webCommonBindings()` | `frontend/src/backend/web-common:76` | — |
 | `loadWebCreators()` | `frontend/src/backend/web-community:27` | — |
 | `saveWebCreators()` | `frontend/src/backend/web-community:39` | — |
 | `loadWebSites()` | `frontend/src/backend/web-community:48` | — |
@@ -703,34 +706,34 @@
 | `scanWebLocalAuthors()` | `frontend/src/backend/web-community:166` | ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 |
 | `generateWebRepoIndex()` | `frontend/src/backend/web-community:190` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:216` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:24` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:67` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:99` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:121` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:139` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:176` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:187` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:240` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `parseWebModelPath()` | `frontend/src/backend/web-fs:254` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
-| `parseWebModelDir()` | `frontend/src/backend/web-fs:271` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
-| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:282` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:301` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:315` | — |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:25` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:68` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:100` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:122` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:140` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:177` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:188` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:241` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `parseWebModelPath()` | `frontend/src/backend/web-fs:255` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
+| `parseWebModelDir()` | `frontend/src/backend/web-fs:272` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
+| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:283` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:302` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:316` | — |
 | `loadWebConfig()` | `frontend/src/backend/web-store:11` | — |
 | `saveWebConfig()` | `frontend/src/backend/web-store:19` | — |
-| `getWebImportLogs()` | `frontend/src/backend/web-store:43` | — |
-| `getWebRuntimeLogs()` | `frontend/src/backend/web-store:46` | — |
-| `addWebImportLog()` | `frontend/src/backend/web-store:49` | — |
-| `addWebOpLog()` | `frontend/src/backend/web-store:57` | — |
-| `clearWebImportLogs()` | `frontend/src/backend/web-store:69` | 清空导入日志环（webImpls.ClearImportLogs 调用；状态封装在 web-store 内部） |
-| `clearWebRuntimeLogs()` | `frontend/src/backend/web-store:73` | 清空运行时日志环（webImpls.ClearRuntimeLogs 调用；状态封装在 web-store 内部） |
-| `getWebTags()` | `frontend/src/backend/web-store:79` | — |
-| `setWebTags()` | `frontend/src/backend/web-store:83` | — |
-| `listByTagWeb()` | `frontend/src/backend/web-store:106` | — |
-| `allTagsWeb()` | `frontend/src/backend/web-store:117` | — |
-| `isWebBanned()` | `frontend/src/backend/web-store:131` | — |
-| `toggleWebEnable()` | `frontend/src/backend/web-store:134` | — |
-| `webStoreBindings()` | `frontend/src/backend/web-store:143` | — |
+| `getWebImportLogs()` | `frontend/src/backend/web-store:44` | — |
+| `getWebRuntimeLogs()` | `frontend/src/backend/web-store:47` | — |
+| `addWebImportLog()` | `frontend/src/backend/web-store:50` | — |
+| `addWebOpLog()` | `frontend/src/backend/web-store:58` | — |
+| `clearWebImportLogs()` | `frontend/src/backend/web-store:70` | 清空导入日志环（webImpls.ClearImportLogs 调用；状态封装在 web-store 内部） |
+| `clearWebRuntimeLogs()` | `frontend/src/backend/web-store:74` | 清空运行时日志环（webImpls.ClearRuntimeLogs 调用；状态封装在 web-store 内部） |
+| `getWebTags()` | `frontend/src/backend/web-store:80` | — |
+| `setWebTags()` | `frontend/src/backend/web-store:84` | — |
+| `listByTagWeb()` | `frontend/src/backend/web-store:107` | — |
+| `allTagsWeb()` | `frontend/src/backend/web-store:118` | — |
+| `isWebBanned()` | `frontend/src/backend/web-store:132` | — |
+| `toggleWebEnable()` | `frontend/src/backend/web-store:135` | — |
+| `webStoreBindings()` | `frontend/src/backend/web-store:144` | — |
 
 ## 前端·核心
 
@@ -1140,7 +1143,7 @@
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:20` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:43` | — |
-| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:164` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
+| `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:158` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |

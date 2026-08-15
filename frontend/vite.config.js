@@ -22,6 +22,11 @@ const wailsBindingsResolve = {
 
 export default defineConfig({
   root: ".",
+  // 索引 1.6：版本号构建注入（与 vite.web.config.ts 同源，__APP_VERSION__ ← WEB_VERSION
+  // 环境变量；web-common.ts 的 webCommonBindings 引用，桌面构建也需定义防 ReferenceError）
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.WEB_VERSION || "web"),
+  },
   build: {
     outDir: "dist",
   },

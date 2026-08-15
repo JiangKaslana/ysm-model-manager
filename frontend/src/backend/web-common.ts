@@ -68,15 +68,21 @@ export function arrayBufferToBase64(buf: ArrayBuffer): string {
 // web-fs/web-store/web-community 各自引入 JSON import。
 import resourceTypesJson from "../../../resource_types.json" with { type: "json" };
 
+// __APP_VERSION__ 由 vite define 注入（vite.web.config.ts / vite.config.js：
+// `process.env.WEB_VERSION || "web"`，索引 1.6 构建注入，与桌面 Go version.Version
+// 同源通道——发版脚本传 WEB_VERSION 即与桌面版本号一致；未注入时回退 "web" 保持现状）。
+declare const __APP_VERSION__: string;
+
 export const webCommonBindings = {
   // 注册表驱动视图（recycle-bin/oldest-models/community/app-resource-manager）依赖
   // LoadResourceTypes；直接返回同形状 JSON 字符串，消除 registry.ts 静默降级为空
   LoadResourceTypes: () => Promise.resolve(JSON.stringify(resourceTypesJson)),
   // P2 修复（审核）：网页版无 Go 侧 version.Version，补版本 binding 让导航/设置页
   // 不再触发 fail-fast（原缺失导致 app-nav catch 兜底硬编码 "v1.0.0"、设置页版本
-  // 卡「加载中」）；返回 "web" 语义版本，与桌面版本号区分
-  GetAppVersion: () => Promise.resolve("web"),
-  CurrentVersion: () => Promise.resolve("web"),
+  // 卡「加载中」）；版本号由构建注入（__APP_VERSION__，发版脚本传 WEB_VERSION），
+  // 未注入时回退 "web" 语义版本，与桌面版本号区分
+  GetAppVersion: () => Promise.resolve(__APP_VERSION__),
+  CurrentVersion: () => Promise.resolve(__APP_VERSION__),
   // 网页版无 Go 侧 Node 解码通道：GetModel3DSpec 恒空让 model3d-loader 的 WASM 兜底
   // 守卫可达。P2-2 已闭环（2026-08-12）：网页版渲染走 model3d-loader web 分支的
   // buildSpecFromGeometryJSON（spec-builder.ts 纯 TS 移植，Go app_model.go 同契约），

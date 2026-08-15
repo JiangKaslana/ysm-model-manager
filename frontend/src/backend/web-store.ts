@@ -26,8 +26,9 @@ export function saveWebConfig(cfg: Record<string, unknown>): void {
 
 // --- 网页版内存日志环（替代 Go 侧 ImportLog / runtimeLogs）---
 // 桌面由 Go 进程内环形缓冲 + 落盘；网页版无 Go 进程，用同形内存环兜底。
-// 容量对齐 Go（maxLogEntries=500 / runtimeLogs.DefaultRuntimeCap=300），避免诊断页
-// 因 GetImportLogs/GetRuntimeLogs 未实现而 fail-fast 红错（ADR-049 能力门控缺口）。
+// 容量与 Go 侧差异为有意为之：import 环对齐 Go maxLogEntries=500（go/logs/logs.go:18）；
+// runtime 环 300 高于 Go DefaultRuntimeCap=200（go/logs/runtime.go:11）——网页版日志纯内存
+// 无落盘成本，多留诊断上下文；Go 侧 200 含落盘 IO 权衡。调整任一侧容量互不影响。
 // 注：error-diary.ts 网页版刻意早退不调 AddOpLog（日记不落盘），故 web 环默认空——
 // 诊断页显示「空日志」而非报错，行为等价于桌面无操作记录场景。
 const WEB_IMPORT_LOG_CAP = 500;

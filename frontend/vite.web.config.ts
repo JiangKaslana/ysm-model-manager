@@ -37,6 +37,11 @@ export default defineConfig({
   // Tier 1 环境判定：web 构建固定 MODE=web（import.meta.env.MODE==="web" → resolveWebMode true，
   // 主 UI 无需改 index.html/不加全局标记；桌面/Android 构建 MODE=production 不受影响）
   mode: "web",
+  // 索引 1.6：web 版本号构建注入（__APP_VERSION__ ← WEB_VERSION 环境变量，发版脚本
+  // 传 WEB_VERSION=vX.Y.Z 即与桌面 Go version.Version 同源；未注入回退 "web"）
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.WEB_VERSION || "web"),
+  },
   build: {
     outDir: "dist-web",
     rollupOptions: {
