@@ -355,12 +355,12 @@
 | `MatchZipEntry()` | `go/types/extensions:116` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
 | `ExtBelongsTo()` | `go/types/extensions:130` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
 | `SupportedExtsForType()` | `go/types/extensions:145` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
-| `FindInstDir()` | `go/types/extensions:159` | FindInstDir 查找整合包中指定资源类型的子目录： 1. |
-| `StorageSubDir()` | `go/types/extensions:204` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
-| `SubDirMap()` | `go/types/extensions:218` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
-| `SubDirAll()` | `go/types/extensions:230` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:242` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:212` | SubDirEntry 资源类型的版本子目录信息 |
+| `FindInstDir()` | `go/types/extensions:180` | FindInstDir 查找整合包中指定资源类型的子目录： 1. |
+| `StorageSubDir()` | `go/types/extensions:218` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
+| `SubDirMap()` | `go/types/extensions:232` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
+| `SubDirAll()` | `go/types/extensions:244` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:256` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:226` | SubDirEntry 资源类型的版本子目录信息 |
 | `ResourceType.MatchZipEntry()` | `go/types/resource:47` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） |
 | `SetRegistryPath()` | `go/types/resource:77` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
 | `LoadRegistry()` | `go/types/resource:88` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
@@ -497,8 +497,8 @@
 | `App.CopyModelFile()` | `internal/app/app_files:84` | CopyModelFile 复制（root 传 FilesRoot 做路径安全校验） |
 | `App.ImportModelFolder()` | `internal/app/app_files:91` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模型名）；files = |
 | `App.RevealInExplorer()` | `internal/app/app_files:104` | ========== 在资源管理器中显示 ========== |
-| `App.ToggleModelEnable()` | `internal/app/app_files:130` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
-| `App.IsFileBanned()` | `internal/app/app_files:138` | — |
+| `App.ToggleModelEnable()` | `internal/app/app_files:133` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
+| `App.IsFileBanned()` | `internal/app/app_files:141` | — |
 | `App.InstallModelFile()` | `internal/app/app_install_import:19` | ========== 安装 ========== |
 | `App.InstallModelTo()` | `internal/app/app_install_import:23` | — |
 | `App.InstallModelWithOverlay()` | `internal/app/app_install_import:33` | — |
@@ -564,8 +564,8 @@
 | `App.ListAllFilePaths()` | `internal/app/app_scan:278` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
 | `App.CheckFileExists()` | `internal/app/app_scan:285` | — |
 | `App.OpenFolder()` | `internal/app/app_scan:359` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:381` | OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录 |
-| `progressReader.Read()` | `internal/app/app_scan:404` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:390` | OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录 |
+| `progressReader.Read()` | `internal/app/app_scan:413` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |

@@ -110,9 +110,12 @@ func (a *App) RevealInExplorer(path string) error {
 	switch runtime.GOOS {
 	case "windows":
 		cmd = exec.Command("explorer", "/select,", filepath.FromSlash(path))
+		// 不设 HideWindow：explorer 是 GUI 程序，CREATE_NO_WINDOW 干扰单实例
+		// DDE 转发 → 资源管理器打不开/无反应（与 OpenFolder 同源坑，P5 修复）
 	case "darwin":
 		// macOS: Finder 中选中并显示文件
 		cmd = exec.Command("open", "-R", filepath.FromSlash(path))
+		executil.HideWindow(cmd)
 	case "android":
 		// ADR-047 平台守卫：Android 无桌面资源管理器，SAF 打开需要 content:// URI 桥
 		// （MikuMikuAR ADR-194 已弃用 SAF），明确返回不支持避免 xdg-open 静默失败
@@ -120,8 +123,8 @@ func (a *App) RevealInExplorer(path string) error {
 	default:
 		// Linux: 无"选中文件"命令，退化为打开所在目录
 		cmd = exec.Command("xdg-open", filepath.Dir(filepath.FromSlash(path)))
+		executil.HideWindow(cmd)
 	}
-	executil.HideWindow(cmd)
 	return cmd.Start()
 }
 

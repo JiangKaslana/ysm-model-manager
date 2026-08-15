@@ -65,6 +65,41 @@ func TestFindInstDir_NoMatch(t *testing.T) {
 	}
 }
 
+// TestFindInstDir_StandardEmptyFallback P5 修复：标准目录存在但为空/无该类型文件时，
+// 应继续兜底扫描非标准目录（Sable Schematics 把蓝图放 Sable-Schematics/ 的场景——
+// 标准 schematics 目录存在但空，原实现直接返回空目录导致蓝图识别不到）
+func TestFindInstDir_StandardEmptyFallback(t *testing.T) {
+	versionDir := t.TempDir()
+	// 标准 schematics 目录存在但为空
+	if err := os.MkdirAll(filepath.Join(versionDir, "schematics"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Sable-Schematics 目录含嵌套 .nbt（Sable 模组实际存放蓝图的位置）
+	sable := filepath.Join(versionDir, "Sable-Schematics", "hello_new_generation_core")
+	if err := os.MkdirAll(sable, 0755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(sable, "c1.nbt"), []byte("nbt"), 0644)
+	got := FindInstDir(versionDir, "schematics", "create-blueprint")
+	if got != filepath.Join(versionDir, "Sable-Schematics") {
+		t.Fatalf("标准目录空时应兜底到 Sable-Schematics: %s", got)
+	}
+}
+
+// TestFindInstDir_StandardNonEmptyStays 标准目录包含该类型文件 → 仍返回标准目录（标准优先，行为不变）
+func TestFindInstDir_StandardNonEmptyStays(t *testing.T) {
+	versionDir := t.TempDir()
+	std := filepath.Join(versionDir, "schematics")
+	if err := os.MkdirAll(std, 0755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(std, "top.nbt"), []byte("nbt"), 0644)
+	got := FindInstDir(versionDir, "schematics", "create-blueprint")
+	if got != std {
+		t.Fatalf("标准目录含 .nbt 应返回标准目录: %s vs %s", got, std)
+	}
+}
+
 // ====== IsYsmEntryJSON（ADR-038 D2 白名单）======
 
 func TestIsYsmEntryJSON(t *testing.T) {

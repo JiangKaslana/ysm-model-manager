@@ -153,46 +153,60 @@ func SupportedExtsForType(rtype string) []string {
 	return nil
 }
 
+// dirContainsExt 判断目录树内是否存在扩展名命中 extSet 的文件（找到即停，避免全树扫）
+func dirContainsExt(root string, extSet map[string]bool) bool {
+	found := false
+	if werr := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil || found {
+			return err
+		}
+		if !d.IsDir() && extSet[strings.ToLower(filepath.Ext(p))] {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	}); werr != nil && !errors.Is(werr, filepath.SkipAll) {
+		log.Printf("[types] FindInstDir 扫描失败 %s: %v", root, werr)
+	}
+	return found
+}
+
 // FindInstDir 查找整合包中指定资源类型的子目录：
-// 1. 优先使用标准子目录名（如 schematics）
-// 2. 如果标准目录不存在，扫描整合包版本目录下所有子目录，找包含该类型文件的目录
+//  1. 优先使用标准子目录名（如 schematics）——但仅当其中确实包含该类型文件
+//  2. 标准目录不存在 / 存在但无该类型文件 → 扫描整合包版本目录下所有子目录，
+//     找包含该类型文件的目录（P5 修复：Sable Schematics 等模组把蓝图放在
+//     Sable-Schematics/ 等非标准目录，标准 schematics 目录存在但为空时原实现
+//     直接返回空目录 → 蓝图识别不到；现改为无文件时继续兜底）
 func FindInstDir(versionDir, subDir, rtype string) string {
 	standard := filepath.Join(versionDir, subDir)
-	if info, err := os.Stat(standard); err == nil && info.IsDir() {
-		return standard
-	}
-	// 标准目录不存在，兜底扫描
 	exts := SupportedExtsForType(rtype)
-	if len(exts) == 0 {
-		return standard // 没有扩展名信息，返回标准路径
-	}
-	entries, err := os.ReadDir(versionDir)
-	if err != nil {
-		return standard
-	}
 	extSet := make(map[string]bool)
 	for _, e := range exts {
 		extSet[strings.ToLower(e)] = true
+	}
+	// 标准目录存在且包含该类型文件 → 标准优先返回（行为不变）
+	if info, err := os.Stat(standard); err == nil && info.IsDir() &&
+		len(extSet) > 0 && dirContainsExt(standard, extSet) {
+		return standard
+	}
+	if len(extSet) == 0 {
+		return standard // 没有扩展名信息，返回标准路径
+	}
+	// 标准目录不存在 / 存在但无该类型文件 → 兜底扫描其他子目录
+	entries, err := os.ReadDir(versionDir)
+	if err != nil {
+		return standard
 	}
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
 		sub := filepath.Join(versionDir, e.Name())
-		found := false
-		if werr := filepath.WalkDir(sub, func(p string, d os.DirEntry, err error) error {
-			if err != nil || found {
-				return err
-			}
-			if !d.IsDir() && extSet[strings.ToLower(filepath.Ext(p))] {
-				found = true
-				return filepath.SkipAll
-			}
-			return nil
-		}); werr != nil && !errors.Is(werr, filepath.SkipAll) {
-			log.Printf("[types] FindInstDir 兜底扫描失败 %s: %v", sub, werr)
+		// 跳过标准目录本身（已确认无该类型文件，避免重复扫描）
+		if strings.EqualFold(sub, standard) {
+			continue
 		}
-		if found {
+		if dirContainsExt(sub, extSet) {
 			return sub
 		}
 	}

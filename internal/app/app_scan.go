@@ -359,6 +359,11 @@ func (a *App) isPathInRoot(path string) bool {
 func (a *App) OpenFolder(dir string) error {
 	// 统一路径分隔符（Windows explorer 不接受混合斜杠）
 	dir = filepath.Clean(dir)
+	// 目录存在性检查（v1.5.9 曾加、重构中丢失）：explorer 打开不存在的路径
+	// 会静默无反应或弹不可见错误框——前置校验给前端明确错误
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		return fmt.Errorf("OpenFolder: 目录不存在: %s", dir)
+	}
 	// ADR-047 平台守卫：Android 无 xdg-open，SAF 打开需 content:// URI 桥
 	// （MikuMikuAR ADR-194 已弃用 SAF），明确返回不支持避免命令静默失败
 	if runtime.GOOS == "android" {
@@ -368,12 +373,16 @@ func (a *App) OpenFolder(dir string) error {
 	switch runtime.GOOS {
 	case "windows":
 		cmd = exec.Command("explorer", dir)
+		// 不设 HideWindow：explorer 是 GUI 程序（无控制台窗口），
+		// CREATE_NO_WINDOW 会干扰其单实例 DDE 转发——文件夹打不开、
+		// 表现为应用窗口呆住约 1 秒后无反应（P5 实测坑）
 	case "darwin":
 		cmd = exec.Command("open", dir)
+		executil.HideWindow(cmd)
 	default:
 		cmd = exec.Command("xdg-open", dir)
+		executil.HideWindow(cmd)
 	}
-	executil.HideWindow(cmd)
 	return cmd.Start()
 }
 
