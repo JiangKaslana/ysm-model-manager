@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 82 | 215 |
+| frontend/views | 85 | 225 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **279** | **1152** |
+| **合计** | **282** | **1162** |
 
 ## Go·头像
 
@@ -1242,8 +1242,10 @@
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
 | `appPreviewStyle()` | `frontend/src/views/app-preview/index:5` | — |
-| `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:36` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:43` | — |
+| `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:14` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析） |
+| `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:19` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:24` | 任意新预览派发时调用，作废在途体素加载 |
+| `buildLitematicScene()` | `frontend/src/views/app-preview/litematic-adapter:25` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子 |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:27` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:108` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:238` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
@@ -1252,6 +1254,13 @@
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
 | `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:137` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
+| `PreviewBuildCtx()` | `frontend/src/views/app-preview/mount-preview-core:21` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/views/app-preview/mount-preview-core:31` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/views/app-preview/mount-preview-core:45` | — |
+| `PreviewHandle()` | `frontend/src/views/app-preview/mount-preview-core:51` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `invalidatePreview()` | `frontend/src/views/app-preview/mount-preview-core:71` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/views/app-preview/mount-preview-core:76` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:84` | — |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:11` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:17` | — |
@@ -1285,9 +1294,10 @@
 | `getPrefer3D()` | `frontend/src/views/app-preview/utils:60` | — |
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
 | `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
-| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:27` | 任意新预览派发时调用，作废在途 VRM 加载（对齐 invalidateLitematicPreview） |
-| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:32` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:54` | — |
+| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:12` | 打开 VRM 3D 预览（.vrm 直引 three-vrm） |
+| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:17` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:22` | 任意新预览派发时调用，作废在途 VRM 加载 |
+| `buildVrmScene()` | `frontend/src/views/app-preview/vrm-adapter:23` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |

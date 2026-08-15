@@ -149,6 +149,10 @@ export async function loadModel2D(
       let unsubAndroidBack: (() => void) | null = null;
       const close3D = (keepPrefer = false): void => { const idx = ctx.unsubs?.indexOf(close3D); if (idx !== undefined && idx > -1) ctx.unsubs?.splice(idx, 1); _active3DClose = null; if (unsubAndroidBack) { unsubAndroidBack(); unsubAndroidBack = null; } document.removeEventListener("pointermove", onResizeMove); document.removeEventListener("pointerup", onResizeUp); if (_model3d) { if (_model3d._timeTimer) clearInterval(_model3d._timeTimer); if (_model3d._keyHandler) document.removeEventListener("keydown", _model3d._keyHandler); _model3d.cleanup(); _model3d = null; } _model3dGen++; if (_overlay3d?.parentNode) _overlay3d.parentNode.removeChild(_overlay3d); _overlay3d = null; _is3D = false; if (!keepPrefer) { _prefer3D = false; setPrefer3D(false); } };
       ctx.unsubs?.push(close3D); _active3DClose = () => close3D(true);
+      // P3 修复（2667f142 拆分 ADR-040 时绑定丢失）：build3DOverlay 只创建 closeBtn，
+      // onclick 依赖本作用域 close3D 闭包，拆分后未重新挂接——overlay 的 ✕ 点击无响应。
+      // 须在 close3D 定义后（本行）补绑定；close3D 已入 ctx.unsubs，与 ESC/关闭/切模型同路径。
+      closeBtn.onclick = (): void => { close3D(); };
       // P2 修复（TS 深层扫描）：注销函数必须保存并挂 close3D——原丢弃返回值导致每次
       // 开关 3D 都向 android-bridge 返回键栈 push 一个恒 return true 的 handler 且永不
       // 注销：① 打开过一次 3D 后 Android 返回键被陈旧 handler 恒消费（应用无法退出）；

@@ -376,6 +376,25 @@ describe("loadModel2D — 3D 切换", () => {
     expect(document.getElementById("ysm-overlay-3d")).toBeNull();
   });
 
+  it("overlay ✕ closeBtn 点击 → close3D 清理 + overlay 移除（2667f142 拆分回归）", async () => {
+    const handle = make3DHandle();
+    renderModel3D.mockResolvedValue(handle);
+    preloadModel.mockResolvedValue({ texArr: [], spec: { models: [] } });
+    const ctx = makeCtx();
+    const container = document.createElement("div");
+    document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
+    await loadModel2D(ctx, "/m/a.ysm", container);
+
+    (ctx.root.querySelector("#btn-3d-preview") as HTMLButtonElement).click();
+    await waitFor(() => document.getElementById("ysm-overlay-3d"));
+
+    const closeBtn = document.getElementById("ysm-close-3d") as HTMLElement;
+    expect(closeBtn).toBeTruthy();
+    closeBtn.click();
+    expect(handle.cleanup).toHaveBeenCalledTimes(1);
+    expect(document.getElementById("ysm-overlay-3d")).toBeNull();
+  });
+
   it("3D 加载失败 → error toast + 错误占位", async () => {
     preloadModel.mockRejectedValue(new Error("wasm 崩了"));
     const ctx = makeCtx();
