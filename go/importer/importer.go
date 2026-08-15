@@ -152,7 +152,7 @@ func (s *SimpleCopyImporter) Import(srcPath, dstDir string) string {
 		os.Remove(tmpName)
 		return fmt.Sprintf("复制文件失败: %v", err)
 	}
-	if err := os.Chmod(tmpName, 0644); err != nil {
+	if err := os.Chmod(tmpName, fsutil.FilePerms); err != nil {
 		log.Printf("[importer] 设置权限失败 %s: %v", tmpName, err)
 	}
 	// 原子替换：os.Rename 在 Windows 上可覆盖已存在文件（MOVEFILE_REPLACE_EXISTING）；

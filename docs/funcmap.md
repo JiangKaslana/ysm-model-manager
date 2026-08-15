@@ -47,9 +47,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetNodeJS()` | `go/avatar/avatar_decode:38` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
-| `limitedBuffer.Write()` | `go/avatar/avatar_decode:53` | — |
-| `DecodeYSMFiles()` | `go/avatar/avatar_decode:62` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
+| `SetNodeJS()` | `go/avatar/avatar_decode:39` | SetNodeJS 设置 Node.js 路径和 WASM/胶水代码加载函数。 |
+| `limitedBuffer.Write()` | `go/avatar/avatar_decode:54` | — |
+| `DecodeYSMFiles()` | `go/avatar/avatar_decode:63` | DecodeYSMFiles 底层解码，返回完整文件列表。 |
 | `ExtractAvatarURI()` | `go/avatar/avatar_extract:24` | ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。 |
 | `CacheAvatarsFromJSON()` | `go/avatar/avatar_extract:195` | CacheAvatarsFromJSON 从解压目录的 ysm.json 缓存所有作者头像。 |
 | `CacheAvatarsFromModel()` | `go/avatar/avatar_extract:265` | CacheAvatarsFromModel 从 .ysm/.zip/.json 模型缓存所有作者头像。 |

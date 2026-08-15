@@ -104,7 +104,7 @@ func WriteFileAtomic(destPath string, data []byte) error {
 		os.Remove(tmpName)
 		return fmt.Errorf("%w: %w", ErrCloseFailed, err)
 	}
-	if err := chmodFile(tmpName, 0644); err != nil {
+	if err := chmodFile(tmpName, FilePerms); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("%w: %w", ErrChmodFailed, err)
 	}

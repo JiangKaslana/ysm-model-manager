@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"ysm-model-manager/go/fsutil"
 )
 
 type prBlock struct {
@@ -111,7 +113,7 @@ func main() {
 	sb.WriteString("}\n")
 
 	// 4. 写入输出文件
-	if err := os.WriteFile(outPath, []byte(sb.String()), 0644); err != nil {
+	if err := os.WriteFile(outPath, []byte(sb.String()), fsutil.FilePerms); err != nil {
 		fmt.Fprintf(os.Stderr, "写入 %s 失败: %v\n", outPath, err)
 		os.Exit(1)
 	}

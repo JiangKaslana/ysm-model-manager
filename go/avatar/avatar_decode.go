@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"ysm-model-manager/go/executil"
+	"ysm-model-manager/go/fsutil"
 )
 
 // WASM 解码子进程超时上限
@@ -83,7 +84,7 @@ func DecodeYSMFiles(ysmData []byte) []struct {
 	defer os.RemoveAll(tmpDir)
 
 	glueFile := filepath.Join(tmpDir, "YSMParser_patched.js")
-	if err := os.WriteFile(glueFile, []byte(gluePatched), 0644); err != nil {
+	if err := os.WriteFile(glueFile, []byte(gluePatched), fsutil.FilePerms); err != nil {
 		log.Printf("[avatar] 写入 glue 脚本失败: %v", err)
 		return nil
 	}
@@ -114,7 +115,7 @@ main().catch(e=>{console.error(e);process.exit(1)});
 `, glueFile, wasmB64, ysmB64)
 
 	scriptPath := filepath.Join(tmpDir, "decode.cjs")
-	if err := os.WriteFile(scriptPath, []byte(script), 0644); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(script), fsutil.FilePerms); err != nil {
 		log.Printf("[avatar] 写入 decode 脚本失败: %v", err)
 		return nil
 	}

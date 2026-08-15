@@ -417,7 +417,7 @@ func GenerateRepoIndex(repoPath string) (string, error) {
 	// 临时文件 + rename 原子替换，避免崩溃/中断留下半截 index.json（陷阱 #8 变体）
 	// 失败路径统一清理 .tmp：WriteFile 半写残留与 rename 失败残留都 Remove，不留孤儿临时文件
 	tmpPath := indexPath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	if err := os.WriteFile(tmpPath, data, fsutil.FilePerms); err != nil {
 		_ = os.Remove(tmpPath)
 		return "", fmt.Errorf("写入 index.json.tmp 失败: %w", err)
 	}
@@ -433,7 +433,7 @@ func GenerateRepoIndex(repoPath string) (string, error) {
 	} else {
 		workflowPath := filepath.Join(workflowDir, "generate-index.yml")
 		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-			if err := os.WriteFile(workflowPath, []byte(generateIndexWorkflow), 0644); err != nil {
+			if err := os.WriteFile(workflowPath, []byte(generateIndexWorkflow), fsutil.FilePerms); err != nil {
 				// 与同文件 151/208/223 行纪律一致：写入失败留痕（静默失败会让
 				// CI 自动重生成 index 静默失效，用户无感知）
 				log.Printf("[scanner] 写入 workflow %s 失败: %v", workflowPath, err)

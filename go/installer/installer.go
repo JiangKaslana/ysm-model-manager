@@ -459,7 +459,7 @@ func copyFileLocked(src, dstDir string) (string, error) {
 	if err := out.Close(); err != nil {
 		return "", types.AppError{Code: "IO_ERROR", Operation: "复制文件", TargetPath: dst, Reason: "临时文件写入未完成", Suggestion: "请检查磁盘空间或权限"}
 	}
-	if err := os.Chmod(tmp, 0644); err != nil {
+	if err := os.Chmod(tmp, fsutil.FilePerms); err != nil {
 		log.Printf("[installer] 设置临时文件权限失败 %s: %v", tmp, err)
 	}
 	if err := os.Rename(tmp, dst); err != nil {
