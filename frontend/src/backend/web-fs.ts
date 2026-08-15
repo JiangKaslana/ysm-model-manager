@@ -252,7 +252,7 @@ export async function readWebFile(path: string): Promise<string | null> {
  * 反向匹配「最长 dir name 前缀」（MikuMikuAR ListDirRecursive 两轮匹配模式）。
  * rel 允许为空串（目录形态路径，如删除整组）。非 /web/ 前缀直接 null。
  */
-export async function parseWebModelPath(p: string): Promise<{ type: string; name: string; rel: string } | null> {
+async function parseWebModelPath(p: string): Promise<{ type: string; name: string; rel: string } | null> {
   const pm = parseWebPath(p);
   if (!pm) return null;
   const { type, rest } = pm;
@@ -269,7 +269,7 @@ export async function parseWebModelPath(p: string): Promise<{ type: string; name
   return { type, name: best, rel: rest.slice(best.length + 1) };
 }
 /** /web/<type>/<name> → 类型+模型名（目录形态；name 可含多段路径） */
-export function parseWebModelDir(p: string): { type: string; name: string } | null {
+function parseWebModelDir(p: string): { type: string; name: string } | null {
   return parseWebDirPath(p);
 }
 
@@ -280,7 +280,7 @@ export function parseWebModelDir(p: string): { type: string; name: string } | nu
  * parseWebModelPath 反解出 {type, name, rel}，再枚举 file:<type>/<name>/ 前缀，
  * 过滤 rel.startsWith(目录rel + "/") 归入该子树。非 /web 路径返回 []。
  */
-export async function listWebModelDirFiles(p: string): Promise<string[]> {
+async function listWebModelDirFiles(p: string): Promise<string[]> {
   const pm = await parseWebModelPath(p);
   if (!pm) return [];
   const { type, name, rel } = pm;
@@ -313,7 +313,7 @@ export async function scanAllWebModels(): Promise<Array<{ type: string; name: st
 }
 
 // --- 搜索（关键词匹配；数值范围条件浏览器端无几何分析，降级忽略）---
-export async function searchWebModels(
+async function searchWebModels(
   filesRoot: string,
   keyword: string,
 ): Promise<Array<{ name: string; path: string; boneCount: number; cubeCount: number; texWidth: number; texHeight: number; hasError: boolean }>> {
@@ -343,7 +343,7 @@ function assertValidRenameName(newName: string, kind: "目录" | "文件"): void
 }
 
 // --- 删除模型组（dir + 所有 file + 元数据标记）---
-export async function deleteWebModel(type: string, name: string): Promise<void> {
+async function deleteWebModel(type: string, name: string): Promise<void> {
   await idbDel("files", dirKey(type, name));
   const fks = await idbKeys("files", `file:${type}/${name}/`);
   for (const k of fks) await idbDel("files", k);
@@ -355,7 +355,7 @@ export async function deleteWebModel(type: string, name: string): Promise<void> 
 }
 
 // --- 重命名模型目录（dir + file + 标记整组 rekey）---
-export async function renameWebDir(oldPath: string, newName: string): Promise<void> {
+async function renameWebDir(oldPath: string, newName: string): Promise<void> {
   const di = parseWebModelDir(oldPath);
   if (!di) throw new Error(t("webFs.renameInvalidPath", { path: oldPath }));
   const { type, name } = di;
@@ -405,7 +405,7 @@ export async function renameWebDir(oldPath: string, newName: string): Promise<vo
 }
 
 // --- 重命名单个文件（模型组内某文件 rekey，保留 .ban 后缀语义由调用方负责）---
-export async function renameWebFile(oldPath: string, newName: string): Promise<void> {
+async function renameWebFile(oldPath: string, newName: string): Promise<void> {
   const pm = await parseWebModelPath(oldPath);
   if (!pm) throw new Error(t("webFs.renameInvalidPath", { path: oldPath }));
   const { type, name, rel } = pm;
@@ -448,7 +448,7 @@ export async function renameWebFile(oldPath: string, newName: string): Promise<v
 }
 
 // --- 子目录映射（resource_types.json → {id: scanDir}）---
-export async function getWebSubDirMap(): Promise<Record<string, string>> {
+async function getWebSubDirMap(): Promise<Record<string, string>> {
   // 对齐 go/types/extensions.go SubDirAll：返回 rt.ScanDir（整合包实例版本目录扫描子目录），
   // 非 storageSubDir（仓库存储子目录）——B1 契约测试暴露的字段错用
   const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string; scanDir?: string }> }).resourceTypes ?? [];

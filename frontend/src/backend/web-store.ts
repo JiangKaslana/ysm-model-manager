@@ -8,7 +8,7 @@ import { scanAllWebModels } from "./web-fs.ts";
 // --- 配置（localStorage，缺省返回 {} 让主应用可启动）---
 const CFG_KEY = "ysm:config";
 
-export function loadWebConfig(): Record<string, unknown> {
+function loadWebConfig(): Record<string, unknown> {
   try {
     return JSON.parse(localStorage.getItem(CFG_KEY) ?? "{}") as Record<string, unknown>;
   } catch {
@@ -16,7 +16,7 @@ export function loadWebConfig(): Record<string, unknown> {
   }
 }
 
-export function saveWebConfig(cfg: Record<string, unknown>): void {
+function saveWebConfig(cfg: Record<string, unknown>): void {
   try {
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
   } catch {
@@ -41,13 +41,13 @@ function pushWebLog(ring: Array<Record<string, unknown>>, cap: number, entry: Re
   if (ring.length > cap) ring.splice(0, ring.length - cap); // 仅保留最近 cap 条（环形截断）
 }
 
-export async function getWebImportLogs(): Promise<unknown> {
+async function getWebImportLogs(): Promise<unknown> {
   return webImportLogs.slice(); // 返回副本，防外部篡改内部环
 }
-export async function getWebRuntimeLogs(): Promise<unknown> {
+async function getWebRuntimeLogs(): Promise<unknown> {
   return webRuntimeLogs.slice();
 }
-export async function addWebImportLog(
+async function addWebImportLog(
   modelName: string, sourcePath: string, targetDir: string, fileSize: number, status: string, errMsg: string,
 ): Promise<void> {
   pushWebLog(webImportLogs, WEB_IMPORT_LOG_CAP, {
@@ -55,7 +55,7 @@ export async function addWebImportLog(
     FileSize: fileSize, Status: status, ErrorMsg: errMsg, Timestamp: Date.now(), Operation: "import",
   });
 }
-export async function addWebOpLog(
+async function addWebOpLog(
   op: string, modelName: string, sourcePath: string, targetDir: string, fileSize: number, status: string, errMsg: string,
 ): Promise<void> {
   // 操作日志归入运行时环（webRuntimeLogs），与导入日志环（webImportLogs）分离，
@@ -67,21 +67,21 @@ export async function addWebOpLog(
 }
 
 /** 清空导入日志环（webImpls.ClearImportLogs 调用；状态封装在 web-store 内部） */
-export function clearWebImportLogs(): void {
+function clearWebImportLogs(): void {
   webImportLogs.length = 0;
 }
 /** 清空运行时日志环（webImpls.ClearRuntimeLogs 调用；状态封装在 web-store 内部） */
-export function clearWebRuntimeLogs(): void {
+function clearWebRuntimeLogs(): void {
   webRuntimeLogs.length = 0;
 }
 
 // --- 标签（config store: tags:<path> = string[]）---
 const tagKeyOf = (path: string): string => `tags:${path}`;
-export async function getWebTags(path: string): Promise<string[]> {
+async function getWebTags(path: string): Promise<string[]> {
   const v = await idbGet<string[]>("config", tagKeyOf(path));
   return Array.isArray(v) ? v : [];
 }
-export async function setWebTags(path: string, tags: string[] | null): Promise<void> {
+async function setWebTags(path: string, tags: string[] | null): Promise<void> {
   // null → 清除标签（对齐桌面 SetModelTags(path, null) 删除语义），而非残留空数组 key
   if (tags === null) {
     await idbDel("config", tagKeyOf(path));
@@ -104,7 +104,7 @@ export async function setWebTags(path: string, tags: string[] | null): Promise<v
   }
   await idbSet("config", tagKeyOf(path), norm);
 }
-export async function listByTagWeb(tag: string): Promise<string[]> {
+async function listByTagWeb(tag: string): Promise<string[]> {
   const models = await scanAllWebModels();
   const out: string[] = [];
   // 对齐 go/tags/tags.go ListByTag：tag = trimTag(tag) 后再匹配
@@ -115,7 +115,7 @@ export async function listByTagWeb(tag: string): Promise<string[]> {
   }
   return out.sort(); // 对齐桌面 tags.Store.ListByTag 的 sort.Strings（稳定输出）
 }
-export async function allTagsWeb(): Promise<string[]> {
+async function allTagsWeb(): Promise<string[]> {
   const models = await scanAllWebModels();
   const counts = new Map<string, number>();
   for (const m of models) {
@@ -129,10 +129,10 @@ export async function allTagsWeb(): Promise<string[]> {
 
 // --- 启用开关（config store: ban:<path> = boolean）---
 const banKeyOf = (path: string): string => `ban:${path}`;
-export async function isWebBanned(path: string): Promise<boolean> {
+async function isWebBanned(path: string): Promise<boolean> {
   return (await idbGet<boolean>("config", banKeyOf(path))) === true;
 }
-export async function toggleWebEnable(path: string): Promise<boolean> {
+async function toggleWebEnable(path: string): Promise<boolean> {
   const nextBanned = !(await isWebBanned(path));
   await idbSet("config", banKeyOf(path), nextBanned);
   return !nextBanned; // 返回新的「已启用」状态（对齐桌面 ToggleModelEnable 语义）

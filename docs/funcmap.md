@@ -33,7 +33,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 179 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 10 | 78 |
+| frontend/backend | 10 | 51 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 93 |
 | 前端·服务 | 1 | 6 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 55 | 188 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **273** | **1132** |
+| **合计** | **273** | **1105** |
 
 ## Go·头像
 
@@ -700,15 +700,6 @@
 | `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:52` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:76` | — |
-| `loadWebCreators()` | `frontend/src/backend/web-community:27` | — |
-| `saveWebCreators()` | `frontend/src/backend/web-community:39` | — |
-| `loadWebSites()` | `frontend/src/backend/web-community:48` | — |
-| `saveWebSites()` | `frontend/src/backend/web-community:60` | — |
-| `loadWebGitHubRepos()` | `frontend/src/backend/web-community:70` | — |
-| `batchExtractCreatorAvatars()` | `frontend/src/backend/web-community:86` | — |
-| `listWebAuthors()` | `frontend/src/backend/web-community:146` | ListModelAuthors 网页版：从模型名 [作者] 前缀统计（计数降序），对齐 scanner.go:265 |
-| `scanWebLocalAuthors()` | `frontend/src/backend/web-community:166` | ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 |
-| `generateWebRepoIndex()` | `frontend/src/backend/web-community:190` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:216` | — |
 | `typeFromWebDir()` | `frontend/src/backend/web-fs:25` | 从 /web/&lt;type&gt;/... |
 | `FsaAuthState()` | `frontend/src/backend/web-fs:68` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
@@ -718,25 +709,7 @@
 | `selectLocalRepo()` | `frontend/src/backend/web-fs:177` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
 | `scanWebModels()` | `frontend/src/backend/web-fs:188` | — |
 | `readWebFile()` | `frontend/src/backend/web-fs:241` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `parseWebModelPath()` | `frontend/src/backend/web-fs:255` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
-| `parseWebModelDir()` | `frontend/src/backend/web-fs:272` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
-| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:283` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
 | `scanAllWebModels()` | `frontend/src/backend/web-fs:302` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:316` | — |
-| `loadWebConfig()` | `frontend/src/backend/web-store:11` | — |
-| `saveWebConfig()` | `frontend/src/backend/web-store:19` | — |
-| `getWebImportLogs()` | `frontend/src/backend/web-store:44` | — |
-| `getWebRuntimeLogs()` | `frontend/src/backend/web-store:47` | — |
-| `addWebImportLog()` | `frontend/src/backend/web-store:50` | — |
-| `addWebOpLog()` | `frontend/src/backend/web-store:58` | — |
-| `clearWebImportLogs()` | `frontend/src/backend/web-store:70` | 清空导入日志环（webImpls.ClearImportLogs 调用；状态封装在 web-store 内部） |
-| `clearWebRuntimeLogs()` | `frontend/src/backend/web-store:74` | 清空运行时日志环（webImpls.ClearRuntimeLogs 调用；状态封装在 web-store 内部） |
-| `getWebTags()` | `frontend/src/backend/web-store:80` | — |
-| `setWebTags()` | `frontend/src/backend/web-store:84` | — |
-| `listByTagWeb()` | `frontend/src/backend/web-store:107` | — |
-| `allTagsWeb()` | `frontend/src/backend/web-store:118` | — |
-| `isWebBanned()` | `frontend/src/backend/web-store:132` | — |
-| `toggleWebEnable()` | `frontend/src/backend/web-store:135` | — |
 | `webStoreBindings()` | `frontend/src/backend/web-store:144` | — |
 
 ## 前端·核心

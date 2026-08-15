@@ -24,7 +24,7 @@ function cloneJson<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
-export function loadWebCreators(): WorkshopCreator[] {
+function loadWebCreators(): WorkshopCreator[] {
   const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_CREATORS_KEY) : null;
   if (ov !== null) {
     try {
@@ -36,7 +36,7 @@ export function loadWebCreators(): WorkshopCreator[] {
   return cloneJson(creatorsJson as unknown as WorkshopCreator[]);
 }
 
-export function saveWebCreators(list: WorkshopCreator[] | null): void {
+function saveWebCreators(list: WorkshopCreator[] | null): void {
   // null → 清除覆盖层，下次 Load 回退默认（对齐桌面 Save(null) 重置语义）
   if (list === null) {
     localStorage.removeItem(WEB_CREATORS_KEY);
@@ -45,7 +45,7 @@ export function saveWebCreators(list: WorkshopCreator[] | null): void {
   localStorage.setItem(WEB_CREATORS_KEY, JSON.stringify(list));
 }
 
-export function loadWebSites(): WorkshopSite[] {
+function loadWebSites(): WorkshopSite[] {
   const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_SITES_KEY) : null;
   if (ov !== null) {
     try {
@@ -57,7 +57,7 @@ export function loadWebSites(): WorkshopSite[] {
   return cloneJson(workshopSitesJson as unknown as WorkshopSite[]);
 }
 
-export function saveWebSites(sites: WorkshopSite[] | null): void {
+function saveWebSites(sites: WorkshopSite[] | null): void {
   if (sites === null) {
     localStorage.removeItem(WEB_SITES_KEY);
     return;
@@ -67,7 +67,7 @@ export function saveWebSites(sites: WorkshopSite[] | null): void {
 
 // B2 契约修复：网页版 GitHub 仓库列表补覆盖层（对齐 Go workshop-github.json 用户覆盖语义）。
 // 此前为纯 bundled 只读，与 Go「用户配置优先」契约不一致（contract-b2 测试暴露）。
-export function loadWebGitHubRepos(): WorkshopCreator[] {
+function loadWebGitHubRepos(): WorkshopCreator[] {
   const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_GITHUB_KEY) : null;
   if (ov !== null) {
     try {
@@ -83,7 +83,7 @@ export function loadWebGitHubRepos(): WorkshopCreator[] {
 // --- 网页版创作者头像批量提取（替代 Go BatchExtractCreatorAvatars）---
 // 复用已桥的 ScanModelEntries + ReadFileBytes + 前端 ysm-parser 解包，从 IndexedDB 模型库
 // 真实提取头像（ADR-049 能力门控缺口补齐）。单模型失败不中断、返回可能为空 map。
-export async function batchExtractCreatorAvatars(): Promise<Record<string, string>> {
+async function batchExtractCreatorAvatars(): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   try {
     const entries = await scanWebModels(`${WEB_ROOT}/ysm`);
@@ -143,7 +143,7 @@ function extractBracketAuthor(name: string): string | null {
 }
 
 /** ListModelAuthors 网页版：从模型名 [作者] 前缀统计（计数降序），对齐 scanner.go:265 */
-export async function listWebAuthors(): Promise<AuthorInfo[]> {
+async function listWebAuthors(): Promise<AuthorInfo[]> {
   const entries = await collectAllWebEntries();
   const m = new Map<string, { count: number; sample: string }>();
   for (const e of entries) {
@@ -163,7 +163,7 @@ export async function listWebAuthors(): Promise<AuthorInfo[]> {
 }
 
 /** ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 */
-export async function scanWebLocalAuthors(): Promise<WorkshopCreator[]> {
+async function scanWebLocalAuthors(): Promise<WorkshopCreator[]> {
   const entries = await collectAllWebEntries();
   const seen = new Set<string>();
   const result: WorkshopCreator[] = [];
@@ -187,7 +187,7 @@ export async function scanWebLocalAuthors(): Promise<WorkshopCreator[]> {
 }
 
 /** GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） */
-export async function generateWebRepoIndex(repoPath: string): Promise<string> {
+async function generateWebRepoIndex(repoPath: string): Promise<string> {
   const entries = repoPath && repoPath.startsWith(WEB_ROOT)
     ? await scanWebModels(repoPath)
     : await collectAllWebEntries();
