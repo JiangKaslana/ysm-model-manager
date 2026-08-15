@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/mod/semver"
 )
 
 // repoOwner/repoName GitHub 仓库定位（测试可覆盖为本地镜像/自定义仓库，
@@ -512,7 +514,23 @@ func normalize(tag string) string {
 	return strings.TrimPrefix(strings.TrimSpace(tag), "v")
 }
 
+// preReleaseSemantics 预发布语义开关（ADR-063 门控）：默认关闭=剥离 -+ 后缀比较，
+// 维持现状判定（v1.0.0 与 v1.0.0-beta 视为相等）；未来发布 rc/beta 预发布 tag 时
+// 开启，走标准 semver 预发布排序（正式版新于预发布版）。
+var preReleaseSemantics = false
+
+// isNewer 版本比较：合法 SemVer 走 x/mod/semver 标准比较；脏 tag/多段/dev 等
+// 非标准版本回退手写 splitVer（防御语义，测试钉住：异常版本恒旧，绝不误触发更新）。
 func isNewer(a, b string) bool {
+	ca, cb := a, b
+	if !preReleaseSemantics {
+		ca = stripMeta(ca)
+		cb = stripMeta(cb)
+	}
+	va, vb := "v"+ca, "v"+cb
+	if semver.IsValid(va) && semver.IsValid(vb) {
+		return semver.Compare(va, vb) > 0
+	}
 	pa := splitVer(a)
 	pb := splitVer(b)
 	for i := 0; i < len(pa) && i < len(pb); i++ {
@@ -521,6 +539,14 @@ func isNewer(a, b string) bool {
 		}
 	}
 	return len(pa) > len(pb)
+}
+
+// stripMeta 剥离预发布/构建元数据后缀（-beta / +build），与 splitVer 内联剥离口径一致
+func stripMeta(s string) string {
+	if idx := strings.IndexAny(s, "-+"); idx >= 0 {
+		return s[:idx]
+	}
+	return s
 }
 
 func splitVer(s string) []int {

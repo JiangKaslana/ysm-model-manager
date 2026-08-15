@@ -30,6 +30,7 @@ require (
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/wailsapp/wails/webview2 v1.0.24 // indirect
 	go4.org v0.0.0-20260112195520-a5071408f32f // indirect
+	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )

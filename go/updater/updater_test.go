@@ -53,6 +53,17 @@ func TestIsNewer(t *testing.T) {
 		{"1.10.0", "1.9.0", true},
 		{"1.2.10", "1.2.9", true},
 		{"1.2.0", "1.2.0", false},
+		// ADR-063 边界用例（x/mod/semver 库比较钉住）：
+		// 大版本号跨段（1.10 > 1.9 语义，非字典序）
+		{"1.10.0", "1.9.9", true},
+		{"1.9.9", "1.10.0", false},
+		// 预发布语义默认关闭：v1.0.0 与 v1.0.0-beta.1 视为相等（stripMeta 剥离 - 后缀，
+		// 维持现状判定；preReleaseSemantics 开启后 beta 判旧）
+		{"1.0.0", "1.0.0-beta.1", false},
+		{"1.0.0-beta.1", "1.0.0", false},
+		// 构建元数据 +build 不参与比较（stripMeta 剥离 + 后缀，与 semver 规范一致）
+		{"1.2.3+build.7", "1.2.3", false},
+		{"1.2.3", "1.2.3+build.7", false},
 		// 脏 tag 防御：vv1.1.0 normalize 后首段 "v1" 非数字 → splitVer 按 0 处理，
 		// 恒小于正常版本，绝不误触发更新
 		{"v1.1.0", "1.9.3", false},

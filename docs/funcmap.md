@@ -402,16 +402,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `progressWriter.Write()` | `go/updater/updater:80` | — |
-| `Check()` | `go/updater/updater:137` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
-| `CheckWithClient()` | `go/updater/updater:143` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
-| `Download()` | `go/updater/updater:246` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
-| `DownloadWithProgress()` | `go/updater/updater:255` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
-| `CleanupOldVersion()` | `go/updater/updater:405` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
-| `InstallUpdate()` | `go/updater/updater:429` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
-| `ReleaseAsset()` | `go/updater/updater:100` | ReleaseAsset GitHub Release 中的文件 |
-| `Release()` | `go/updater/updater:106` | Release GitHub Release 信息 |
-| `UpdateInfo()` | `go/updater/updater:115` | UpdateInfo 更新信息（序列化给前端） |
+| `progressWriter.Write()` | `go/updater/updater:82` | — |
+| `Check()` | `go/updater/updater:139` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
+| `CheckWithClient()` | `go/updater/updater:145` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
+| `Download()` | `go/updater/updater:248` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
+| `DownloadWithProgress()` | `go/updater/updater:257` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
+| `CleanupOldVersion()` | `go/updater/updater:407` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
+| `InstallUpdate()` | `go/updater/updater:431` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
+| `ReleaseAsset()` | `go/updater/updater:102` | ReleaseAsset GitHub Release 中的文件 |
+| `Release()` | `go/updater/updater:108` | Release GitHub Release 信息 |
+| `UpdateInfo()` | `go/updater/updater:117` | UpdateInfo 更新信息（序列化给前端） |
 
 ## Go·监听
 
