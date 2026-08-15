@@ -304,9 +304,9 @@
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
 | `GetInstanceStatusWith()` | `go/sync/sync:31` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
 | `SyncToggleStatus()` | `go/sync/sync:147` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:283` | 文件级同步深度上限：SyncResources 仅收集 scanDir 顶层文件，不递归进入嵌套子目录。 |
-| `SortEntries()` | `go/sync/sync:413` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:420` | GetLinkType 判断文件的链接类型 |
+| `SyncResources()` | `go/sync/sync:291` | — |
+| `SortEntries()` | `go/sync/sync:426` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:433` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签

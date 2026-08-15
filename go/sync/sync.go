@@ -280,6 +280,14 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 // 不递归进嵌套子目录；文件夹级类型仍全树递归。空 rtype 保持旧的全树递归行为（测试/兼容）。
 // P3 修复：原实现无论类型一律全递归——Sable Schematics 等生成 .nbt 于嵌套子目录时，
 // mapSrcToGlobal（顶层语义）算出相对路径以 ".." 开头误判越界 → 拉取报"不在目标目录内"。
+// isMcmetaDetectorType 判断资源类型是否为资源包文件夹型（detector=mcmeta）。
+// SyncResources 的 pack.mcmeta 文件夹收集仅对此类（及空 rtype 兼容）生效，
+// 避免蓝图/YSM 等类型的仓库中误放的资源包文件夹被当成本类型同步单元。
+func isMcmetaDetectorType(rtype string) bool {
+	rt := types.RegistryType(rtype)
+	return rt != nil && rt.Detector == "mcmeta"
+}
+
 func SyncResources(globalDir, instanceDir string, rtype ...string) types.ResourceSyncResult {
 	// absClean 取绝对路径并规整；解析失败回退到 clean（不阻塞同步流程）
 	absClean := func(p string) (string, error) {
@@ -309,6 +317,11 @@ func SyncResources(globalDir, instanceDir string, rtype ...string) types.Resourc
 	// 文件夹级类型（YSM/MMD 等）仍全树递归，由 SyncResourcesDirLevel 按文件夹名对比。
 	// 空 rtype 保持旧的全树递归行为（测试/兼容）。
 	isFileLevel := rtypeID != "" && !types.IsDirLevelSync(rtypeID)
+	// 资源包文件夹（含 pack.mcmeta）作为同步单元——仅资源包类型（detector=mcmeta）
+	// 或空 rtype（旧行为兼容）收集。P5 修复：原实现不分类型一律收集，蓝图仓库
+	// （create-blueprint）里误放的资源包文件夹被当成蓝图 missing 显示"推送"，
+	// 而该目录实际没有任何 .nbt/.schematic（识别错文件）。
+	isPackFolderType := rtypeID == "" || isMcmetaDetectorType(rtypeID)
 	// 扫描全局目录，收集文件名
 	globalFiles := make(map[string]fileInfo) // name → fileInfo
 	filepath.Walk(globalDir, func(path string, info os.FileInfo, err error) error {
@@ -321,8 +334,8 @@ func SyncResources(globalDir, instanceDir string, rtype ...string) types.Resourc
 			if path != globalDir && fsutil.IsRecycleDir(path) {
 				return filepath.SkipDir
 			}
-			// 资源包文件夹：扫描其本身但不递归
-			if path != globalDir && fsutil.IsResourcePackFolder(path) {
+			// 资源包文件夹：扫描其本身但不递归（仅资源包类型收集）
+			if path != globalDir && isPackFolderType && fsutil.IsResourcePackFolder(path) {
 				name := strings.ToLower(info.Name())
 				globalFiles[name] = fileInfo{path: path, isDir: true}
 			}
@@ -361,8 +374,8 @@ func SyncResources(globalDir, instanceDir string, rtype ...string) types.Resourc
 			if path != instanceDir && fsutil.IsRecycleDir(path) {
 				return filepath.SkipDir
 			}
-			// 资源包文件夹：扫描其本身但不递归
-			if path != instanceDir && fsutil.IsResourcePackFolder(path) {
+			// 资源包文件夹：扫描其本身但不递归（仅资源包类型收集）
+			if path != instanceDir && isPackFolderType && fsutil.IsResourcePackFolder(path) {
 				name := strings.ToLower(info.Name())
 				instanceFiles[name] = fileInfo{path: path, isDir: true}
 			}

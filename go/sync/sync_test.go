@@ -499,6 +499,48 @@ func TestSyncResources_FileLevelDepthGuard(t *testing.T) {
 	})
 }
 
+// TestSyncResources_PackFolderOnlyForPackType P5 修复：pack.mcmeta 文件夹收集
+// 仅对资源包类型（detector=mcmeta）生效——蓝图仓库（create-blueprint）里误放的
+// 资源包文件夹不应被当成蓝图同步单元（否则 UI 显示"推送"但目录里没有 .nbt）。
+func TestSyncResources_PackFolderOnlyForPackType(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+	// 含 pack.mcmeta 的资源包文件夹
+	pack := filepath.Join(globalDir, "my-pack")
+	if err := os.MkdirAll(pack, 0755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(pack, "pack.mcmeta"), []byte("{}"), 0644)
+	hasPack := func(list []string) bool {
+		for _, p := range list {
+			if filepath.Base(p) == "my-pack" {
+				return true
+			}
+		}
+		return false
+	}
+
+	// create-blueprint：不收集资源包文件夹
+	bp := SyncResources(globalDir, instDir, "create-blueprint")
+	for _, list := range [][]string{bp.Synced, bp.Missing, bp.Extra} {
+		if hasPack(list) {
+			t.Errorf("create-blueprint 不应收集资源包文件夹 my-pack: %v", list)
+		}
+	}
+	// ysm（dir-level）：同样不收集
+	ysm := SyncResources(globalDir, instDir, "ysm")
+	for _, list := range [][]string{ysm.Synced, ysm.Missing, ysm.Extra} {
+		if hasPack(list) {
+			t.Errorf("ysm 不应收集资源包文件夹 my-pack: %v", list)
+		}
+	}
+	// resourcepack：应收集（Missing）
+	rp := SyncResources(globalDir, instDir, "resourcepack")
+	if !hasPack(rp.Missing) {
+		t.Errorf("resourcepack 应收集资源包文件夹 my-pack 到 Missing: %v", rp)
+	}
+}
+
 // ===== SyncToggleStatus =====
 
 func TestSyncToggleStatus_EnableDisable(t *testing.T) {
