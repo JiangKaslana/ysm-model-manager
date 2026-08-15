@@ -6,6 +6,8 @@ import {
   RESOURCE_TYPES,
   RESOURCE_TYPE_LABELS,
   ALL_RESOURCE_TYPES,
+  AMBIGUOUS_EXTS,
+  resolveTypeSafe,
 } from "./types.ts";
 import resourceTypesJson from "../../../../resource_types.json";
 
@@ -67,3 +69,66 @@ describe("与 resource_types.json 对账（单一事实来源）", () => {
     expect(new Set(ALL_RESOURCE_TYPES).size).toBe(ALL_RESOURCE_TYPES.length);
   });
 });
+
+// ===== ADR-067 S4：歧义扩展名安全契约 =====
+// resolveTypeSafe 强制歧义扩展名（.zip/.7z 归属 ≥2 类型）返回 null，
+// 调用方必须回退 Go DetectResourceType 内容检测——从入口杜绝硬编码扩展名派发。
+
+describe("AMBIGUOUS_EXTS 歧义扩展名集合", () => {
+  it("容器扩展名 .zip 恒歧义（归属 ≥2 类型）", () => {
+    expect(AMBIGUOUS_EXTS.has(".zip")).toBe(true);
+  });
+
+  it(".7z 单归属（仅 ysm 声明，S1 未给其他类型加 .7z）", () => {
+    // 注册表现状：.7z 仅 ysm.extensions 含（resourcepack/shaderpack 只有 .zip，
+    // S1 新增 zipentry 类型也只加 .zip）→ .7z 单归属不歧义，resolveTypeSafe 可直判
+    expect(AMBIGUOUS_EXTS.has(".7z")).toBe(false);
+  });
+
+  it("单归属扩展名不歧义", () => {
+    // ysm 独有 / resourcepack 独有——S1 后 4 类加了 .zip 但 .pmx/.vrca/.nbt 仍单归属
+    expect(AMBIGUOUS_EXTS.has(".ysm")).toBe(false);
+    expect(AMBIGUOUS_EXTS.has(".pmx")).toBe(false);
+    expect(AMBIGUOUS_EXTS.has(".vrca")).toBe(false);
+    expect(AMBIGUOUS_EXTS.has(".nbt")).toBe(false);
+  });
+
+  it("与 resource_types.json 派生一致（新增类型自动纳入）", () => {
+    // 对账：AMBIGUOUS_EXTS 应从 JSON 的 extensions 归属计数 ≥2 推导
+    const counts: Record<string, number> = {};
+    for (const rt of resourceTypesJson.resourceTypes) {
+      for (const e of rt.extensions || []) {
+        counts[e.toLowerCase()] = (counts[e.toLowerCase()] || 0) + 1;
+      }
+    }
+    const expected = new Set(
+      Object.keys(counts).filter((e) => counts[e] > 1),
+    );
+    expect([...AMBIGUOUS_EXTS].sort()).toEqual([...expected].sort());
+  });
+});
+
+describe("resolveTypeSafe 安全解析", () => {
+  it("单归属扩展名直接命中", () => {
+    expect(resolveTypeSafe("model.ysm")).toBe("ysm");
+    expect(resolveTypeSafe("avatar.pmx")).toBe("mmd-skin");
+    expect(resolveTypeSafe("build.nbt")).toBe("create-blueprint");
+    expect(resolveTypeSafe("proj.litematic")).toBe("litematic");
+  });
+
+  it("歧义扩展名返回 null（强制回退 Go 内容检测）", () => {
+    expect(resolveTypeSafe("pack.zip")).toBeNull();
+    // .7z 单归属 ysm（见 AMBIGUOUS_EXTS 用例），直接命中——与注册表现状一致
+    expect(resolveTypeSafe("pack.7z")).toBe("ysm");
+  });
+
+  it("未知/无扩展名返回 null", () => {
+    expect(resolveTypeSafe("readme.txt")).toBeNull();
+    expect(resolveTypeSafe("noext")).toBeNull();
+  });
+
+  it("大小写不敏感（与注册表口径一致）", () => {
+    expect(resolveTypeSafe("MODEL.YSM")).toBe("ysm");
+  });
+});
+

@@ -87,7 +87,8 @@
       "icon": "⚙️",
       "extensions": [
         ".nbt",
-        ".schematic"
+        ".schematic",
+        ".zip"
       ],
       "storageSubDir": "create-blueprint",
       "configField": "SchematicRoot",
@@ -95,7 +96,11 @@
       "scanDir": "schematics",
       "instanceLevel": false,
       "preview": "3d",
-      "detector": "extension",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".nbt", "match": "suffix" },
+        { "name": ".schematic", "match": "suffix" }
+      ],
       "hashable": true,
       "scanInstance": true,
       "dirLevelSync": true,
@@ -110,7 +115,8 @@
       "name": "投影",
       "icon": "📐",
       "extensions": [
-        ".litematic"
+        ".litematic",
+        ".zip"
       ],
       "storageSubDir": "litematics",
       "configField": "LitematicRoot",
@@ -118,7 +124,10 @@
       "scanDir": "schematics",
       "instanceLevel": false,
       "preview": "3d",
-      "detector": "extension",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".litematic", "match": "suffix" }
+      ],
       "hashable": true,
       "dirLevelSync": true,
       "actions": [
@@ -133,7 +142,8 @@
       "icon": "🎭",
       "extensions": [
         ".pmx",
-        ".pmd"
+        ".pmd",
+        ".zip"
       ],
       "storageSubDir": "mmd",
       "configField": "MmdRoot",
@@ -141,7 +151,11 @@
       "scanDir": "3d-skin/EntityPlayer",
       "instanceLevel": false,
       "preview": "none",
-      "detector": "extension",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".pmx", "match": "suffix" },
+        { "name": ".pmd", "match": "suffix" }
+      ],
       "isDir": true,
       "dirLevelSync": true,
       "installExts": [".pmx", ".pmd", ".png", ".tga", ".spa", ".sph"],
@@ -157,7 +171,8 @@
       "icon": "🥽",
       "extensions": [
         ".vrca",
-        ".vrm"
+        ".vrm",
+        ".zip"
       ],
       "storageSubDir": "vrchat",
       "configField": "VrcRoot",
@@ -166,7 +181,11 @@
       "scanDir": "vrchat-avatars",
       "instanceLevel": false,
       "preview": "none",
-      "detector": "extension",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".vrca", "match": "suffix" },
+        { "name": ".vrm", "match": "suffix" }
+      ],
       "isDir": true,
       "actions": [
         "import",

@@ -63,27 +63,27 @@ func TestExtBelongsTo(t *testing.T) {
 	if len(ids) != 1 || ids[0] != "ysm" {
 		t.Errorf("ExtBelongsTo('.ysm') = %v, 期望 [ysm]", ids)
 	}
-	// .zip 应属于 resourcepack、shaderpack 和 ysm（yml 也支持 zip）
+	// .zip 应属于全部 7 类（S1 ADR-067：.zip 是通用容器扩展名，
+	// mmd/vrc/蓝图/投影 新增 .zip 包裹识别；前端 AMBIGUOUS_EXTS 由此派生歧义集）
 	ids = ExtBelongsTo(".zip")
-	if len(ids) != 3 {
-		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 [resourcepack shaderpack ysm]（共 3 个）", ids)
+	if len(ids) != 7 {
+		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 7 类（resourcepack shaderpack ysm create-blueprint litematic mmd-skin vrchat-avatar）", ids)
 	}
-	// 应包含三个类型（顺序不定）
-	hasYSM := false
-	hasRP := false
-	hasSP := false
+	// 应包含全部类型（顺序不定）
+	expectedAll := map[string]bool{
+		"ysm": false, "resourcepack": false, "shaderpack": false,
+		"create-blueprint": false, "litematic": false,
+		"mmd-skin": false, "vrchat-avatar": false,
+	}
 	for _, id := range ids {
-		switch id {
-		case "ysm":
-			hasYSM = true
-		case "resourcepack":
-			hasRP = true
-		case "shaderpack":
-			hasSP = true
+		if _, ok := expectedAll[id]; ok {
+			expectedAll[id] = true
 		}
 	}
-	if !hasYSM || !hasRP || !hasSP {
-		t.Errorf("ExtBelongsTo('.zip') 缺少某些类型: %v", ids)
+	for id, found := range expectedAll {
+		if !found {
+			t.Errorf("ExtBelongsTo('.zip') 缺少类型 %s，实际 %v", id, ids)
+		}
 	}
 	// 不支持扩展名
 	if ids := ExtBelongsTo(".xyz"); len(ids) != 0 {

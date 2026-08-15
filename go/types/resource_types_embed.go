@@ -68,14 +68,18 @@ var embeddedRegistryJSON = []byte(`{
       "id": "create-blueprint",
       "name": "蓝图 / 结构",
       "icon": "⚙️",
-      "extensions": [".nbt", ".schematic"],
+      "extensions": [".nbt", ".schematic", ".zip"],
       "storageSubDir": "create-blueprint",
       "configField": "SchematicRoot",
       "installDir": "schematics/",
       "scanDir": "schematics",
       "instanceLevel": false,
       "preview": "3d",
-      "detector": "extension",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".nbt", "match": "suffix" },
+        { "name": ".schematic", "match": "suffix" }
+      ],
       "hashable": true,
       "scanInstance": true,
       "dirLevelSync": true,
@@ -85,14 +89,17 @@ var embeddedRegistryJSON = []byte(`{
       "id": "litematic",
       "name": "投影",
       "icon": "📐",
-      "extensions": [".litematic"],
+      "extensions": [".litematic", ".zip"],
       "storageSubDir": "litematics",
       "configField": "LitematicRoot",
       "installDir": "schematics/",
       "scanDir": "schematics",
       "instanceLevel": false,
       "preview": "3d",
-      "detector": "extension",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".litematic", "match": "suffix" }
+      ],
       "hashable": true,
       "dirLevelSync": true,
       "actions": ["import", "delete", "openFolder"]
@@ -101,14 +108,18 @@ var embeddedRegistryJSON = []byte(`{
       "id": "mmd-skin",
       "name": "MMD 角色模型",
       "icon": "🎭",
-      "extensions": [".pmx", ".pmd"],
+      "extensions": [".pmx", ".pmd", ".zip"],
       "storageSubDir": "mmd",
       "configField": "MmdRoot",
       "installDir": "3d-skin/EntityPlayer/",
       "scanDir": "3d-skin/EntityPlayer",
       "instanceLevel": false,
       "preview": "none",
-      "detector": "extension",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".pmx", "match": "suffix" },
+        { "name": ".pmd", "match": "suffix" }
+      ],
       "isDir": true,
       "dirLevelSync": true,
       "installExts": [".pmx", ".pmd", ".png", ".tga", ".spa", ".sph"],
@@ -118,7 +129,7 @@ var embeddedRegistryJSON = []byte(`{
       "id": "vrchat-avatar",
       "name": "VRChat 模型",
       "icon": "🥽",
-      "extensions": [".vrca", ".vrm"],
+      "extensions": [".vrca", ".vrm", ".zip"],
       "storageSubDir": "vrchat",
       "configField": "VrcRoot",
       "configFallback": "MmdRoot",
@@ -126,7 +137,11 @@ var embeddedRegistryJSON = []byte(`{
       "scanDir": "vrchat-avatars",
       "instanceLevel": false,
       "preview": "none",
-      "detector": "extension",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".vrca", "match": "suffix" },
+        { "name": ".vrm", "match": "suffix" }
+      ],
       "isDir": true,
       "actions": ["import", "delete", "openFolder"]
     }

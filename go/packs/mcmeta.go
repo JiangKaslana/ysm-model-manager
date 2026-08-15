@@ -140,10 +140,14 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 		return ""
 	}
 	ext := strings.ToLower(filepath.Ext(path))
+	// ADR-067：.zip/.7z 是通用容器，任何类型都可能被包裹——
+	// zipentry detector 在 isContainer 时按 zipEntries 内容指纹判定（裸文件按扩展名）
+	isContainer := ext == ".zip" || ext == ".7z"
 
 	for _, rt := range registry.ResourceTypes {
-		if !hasExt(ext, rt.Extensions) {
-			continue
+		extOK := hasExt(ext, rt.Extensions)
+		if !extOK {
+			continue // 准入语义与改动前完全一致
 		}
 		// detector 小写归一（外部 registry 可能写 "YSM"），防 #11 误分类
 		switch strings.ToLower(rt.Detector) {
@@ -159,6 +163,14 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 			if hasShaders(path) {
 				return rt.ID
 			}
+		case "zipentry": // ADR-067：裸文件按扩展名、容器按 zipEntries 内容指纹
+			if isContainer {
+				if matchZipArchive(path, &rt) {
+					return rt.ID
+				}
+			} else if extOK {
+				return rt.ID
+			}
 		case "", "extension":
 			return rt.ID
 		default:
@@ -167,6 +179,22 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 		}
 	}
 	return ""
+}
+
+// matchZipArchive 打开容器（.zip）并按 rt.ZipEntries 内容指纹匹配（ADR-067）。
+// .7z 非 ZIP 格式，zip.OpenReader 不可用；.7z 包裹的 mmd/vrc 等内容检测不在本 ADR 范围（见 §3 遗留）。
+func matchZipArchive(path string, rt *types.ResourceType) bool {
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return false
+	}
+	defer r.Close()
+	for _, f := range r.File {
+		if rt.MatchZipEntry(f.Name) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasExt(ext string, exts []string) bool {
