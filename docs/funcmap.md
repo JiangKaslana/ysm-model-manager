@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 87 | 239 |
+| frontend/views | 88 | 242 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **284** | **1176** |
+| **合计** | **285** | **1179** |
 
 ## Go·头像
 
@@ -1270,13 +1270,12 @@
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:17` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:9` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
-| `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:19` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
-| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:28` | 创建 2D 骨骼画布并异步加载纹理 |
-| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:53` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
-| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:93` | 构建统计卡片（含作者列表） |
-| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:142` | 构建导出骨骼名按钮行 |
-| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:175` | 截图保存内部逻辑（供 3D overlay 使用） |
-| `build3DOverlay()` | `frontend/src/views/app-preview/skeleton-render:212` | 构建 3D overlay 完整 DOM 结构 返回所有关键节点引用及 state holder |
+| `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:18` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
+| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:27` | 创建 2D 骨骼画布并异步加载纹理 |
+| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:52` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
+| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:92` | 构建统计卡片（含作者列表） |
+| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:141` | 构建导出骨骼名按钮行 |
+| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:174` | 截图保存内部逻辑（供 3D overlay 使用） |
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
@@ -1311,9 +1310,13 @@
 | `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:28` | 打开 YSM 3D 预览（统一外壳 self 模式）。 |
 | `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:48` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
 | `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:53` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
-| `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:28` | 适配器可选项：纹理切换重建 / 关闭回调由外层（ysm-3d.ts）负责 |
-| `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:70` | 构建 YSM 3D 内容场景并挂载到统一外壳（self 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:274` | 工厂：构造统一 PreviewAdapter（self 模式） |
+| `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:18` | 适配器可选项：纹理切换重建 / 关闭回调由外层（ysm-3d.ts）负责 |
+| `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:29` | 构建 YSM 3D 内容场景并挂载到统一外壳（self 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:83` | 工厂：构造统一 PreviewAdapter（self 模式） |
+| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:19` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
+| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:28` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
+| `buildYsmTopBarControls()` | `frontend/src/views/app-preview/ysm-controls:67` | 在统一 topBar 追加 YSM 专属控件（纹理选择 / 截图菜单 / 模型组选择 + 通用相机控件）。 |
+| `buildYsmPanel()` | `frontend/src/views/app-preview/ysm-controls:198` | 在核心侧栏挂载 YSM 骨骼面板（fill3DPanel）+ 骨骼拾取接线。 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
 | `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |

@@ -1,8 +1,9 @@
-// ===== �骨骼渲染层 skeleton-render 纯 DOM 函数测试（审核盲区补建）=====
-// �覆盖：setup2DCanvas（canvas �尺寸 + 纹理异步）、buildToggleRow（开关状态 + 持久化）、
+// ===== 骨骼渲染层 skeleton-render 纯 DOM 函数测试（审核盲区补建）=====
+// 覆盖：setup2DCanvas（canvas 尺寸 + 纹理异步）、buildToggleRow（开关状态 + 持久化）、
 //  buildStatsCard（作者区填充）、buildBoneExportRow（Blob URL revoke 幂等）、
-//  saveScreenshot（current 空 b64 抛错 / all 递归 / 角度命中）、build3DOverlay（overlay 树结构 + 节点引用幂等）
-// 不测：loadModel2D（已在 skeleton.test.ts）、fill3DPanel（在 skeleton-fill-panel.ts scope）
+//  saveScreenshot（current 空 b64 抛错 / all 递归 / 角度命中）
+// 不测：loadModel2D（已在 skeleton.test.ts）、fill3DPanel（在 skeleton-fill-panel.ts scope）；
+//  build3DOverlay 已于 ADR-066 §5.6 方案 A 删除（YSM 3D 走 createYsm3D → mount3D）
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const { getApp, screenshotPreview, renderMultiAngle, saveFile } = vi.hoisted(() => ({
@@ -17,7 +18,7 @@ vi.mock("../../backend/app.ts", () => ({ getApp }));
 vi.mock("../../utils/3d/model3d.ts", () => ({ screenshotPreview }));
 vi.mock("./screenshot-renderer.ts", () => ({ renderMultiAngle }));
 
-import { setup2DCanvas, buildToggleRow, buildStatsCard, buildBoneExportRow, saveScreenshot, build3DOverlay } from "./skeleton-render.ts";
+import { setup2DCanvas, buildToggleRow, buildStatsCard, buildBoneExportRow, saveScreenshot } from "./skeleton-render.ts";
 import { sec, iRow, buildDepthMap } from "./skeleton-utils.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import type { PreviewRoot, YsmDecoder, PreviewDebugger } from "./utils.ts";
@@ -283,77 +284,6 @@ describe("saveScreenshot", () => {
     const setShotState = vi.fn();
     await saveScreenshot(makeModel(), "front", setShotState);
     expect(saveFile).not.toHaveBeenCalled();
-  });
-});
-
-// ── build3DOverlay ─────────────────────────────────────────────
-describe("build3DOverlay", () => {
-
-  it("overlay 挂载 body + 返回所有契约节点引用", () => {
-    const ctx = makeCtx();
-    const r = build3DOverlay(makeModel(), ctx);
-    expect(r.overlay.id).toBe("ysm-overlay-3d");
-    expect(document.body.contains(r.overlay)).toBe(true);
-    // 契约节点全部存在
-    for (const key of ["topBar", "body", "viewContainer", "panel", "shotBtn", "shotMenu", "resetBtn", "modelSel", "rotSel", "spdSlider", "spdVal", "loadingEl", "closeBtn", "panelToggle", "resizeHandle", "shotWrap"] as const) {
-      expect(r[key], `节点 ${key} 缺失`).toBeTruthy();
-    }
-    expect(r.overlay.contains(r.topBar)).toBe(true);
-    expect(r.overlay.contains(r.body)).toBe(true);
-    expect(r.body.contains(r.viewContainer)).toBe(true);
-    expect(r.body.contains(r.panel)).toBe(true);
-    expect(r.overlay.contains(r.loadingEl)).toBe(true);
-  });
-
-  it("多纹理 → topBar 含纹理选择器", () => {
-    const ctx = makeCtx();
-    const r = build3DOverlay(makeModel({ textures: ["t1", "t2", "t3"] }), ctx);
-    const texSel = r.topBar.querySelector("select") as HTMLSelectElement;
-    expect(texSel).toBeTruthy();
-    expect(texSel.options.length).toBe(3);
-  });
-
-  it("单纹理 → 无纹理选择器（modelSel 默认 display:none 仍在）", () => {
-    const ctx = makeCtx();
-    const r = build3DOverlay(makeModel({ textures: ["t1"] }), ctx);
-    // modelSel 始终建（display:none），纹理选择器条件建
-    const selects = r.topBar.querySelectorAll("select");
-    // 至少 modelSel + rotSel，无额外 texSel（单纹理跳过 texSel 分支）
-    expect(selects.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("shotMenu 含 6 项截图菜单", () => {
-    const ctx = makeCtx();
-    const r = build3DOverlay(makeModel(), ctx);
-    const items = r.shotMenu.querySelectorAll(".ysm-ovl-shotitem");
-    expect(items.length).toBe(6);
-  });
-
-  it("spdSlider 默认值取 localStorage td-cam-speed", () => {
-    localStorage.setItem("td-cam-speed", "42");
-    const ctx = makeCtx();
-    const r = build3DOverlay(makeModel(), ctx);
-    expect(r.spdSlider.value).toBe("42");
-    expect(r.spdVal.textContent).toBe("42");
-  });
-
-  it("rotSel 默认 free 模式（localStorage td-rot-mode=free → value=false）", () => {
-    localStorage.setItem("td-rot-mode", "free");
-    const ctx = makeCtx();
-    const r = build3DOverlay(makeModel(), ctx);
-    expect(r.rotSel.value).toBe("false");
-  });
-
-  it("overlay.remove → 全树清（loadingEl/progStyle 随之移除）幂等", () => {
-    const ctx = makeCtx();
-    const r = build3DOverlay(makeModel(), ctx);
-    const progStyle = r.overlay.querySelector("style");
-    expect(progStyle).toBeTruthy();
-    r.overlay.remove();
-    expect(document.body.contains(r.overlay)).toBe(false);
-    expect(document.body.contains(r.loadingEl)).toBe(false);
-    // 幂等：再 remove 不报错
-    expect(() => r.overlay.remove()).not.toThrow();
   });
 });
 

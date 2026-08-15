@@ -15,6 +15,8 @@ import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { safeGet, safeSet } from "../../utils/dom/storage.ts";
+import { createIconButton } from "../../utils/dom/fab.ts";
 import type { BoneSelectInfo } from "../../utils/3d/model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
@@ -71,6 +73,79 @@ const MAX_CAM_SPEED = 200;
 const DEFAULT_CAM_SPEED = 20;
 const TIP_AUTO_DISMISS_MS = 6000;
 
+/** 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） */
+export interface CameraControlBridge {
+  /** 当前旋转模式（true=环绕） */
+  getOrbit(): boolean;
+  /** 设置旋转模式（含 shared 模式的 controls.enableRotate / orbitTarget 同步） */
+  setOrbit(v: boolean): void;
+  /** 当前相机速度 */
+  getSpeed(): number;
+  /** 设置相机速度 */
+  setSpeed(n: number): void;
+  /** 重置视角（shared 模式经 built.resetCamera，build 前调用安全——闭包延迟求值） */
+  reset(): void;
+}
+
+/** 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 */
+export function buildCameraControls(topBar: HTMLElement, bridge: CameraControlBridge): void {
+  const rotLabel = document.createElement("span");
+  rotLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
+  rotLabel.textContent = t("preview.cameraRotation") + ":";
+  topBar.appendChild(rotLabel);
+
+  const rotSel = document.createElement("select");
+  rotSel.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;margin-right:8px";
+  [
+    { v: true, t: "环绕" },
+    { v: false, t: "自身" },
+  ].forEach((m) => {
+    const opt = document.createElement("option");
+    opt.value = String(m.v);
+    opt.textContent = m.t;
+    rotSel.appendChild(opt);
+  });
+  rotSel.value = String(bridge.getOrbit());
+  rotSel.onchange = (): void => {
+    const v = rotSel.value === "true";
+    bridge.setOrbit(v);
+    safeSet("td-rot-mode", v ? "orbit" : "free");
+  };
+  topBar.appendChild(rotSel);
+
+  const spdLabel = document.createElement("span");
+  spdLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
+  spdLabel.textContent = t("preview.cameraSpeed") + ":";
+  topBar.appendChild(spdLabel);
+
+  const spdSlider = document.createElement("input");
+  spdSlider.type = "range";
+  spdSlider.min = String(MIN_CAM_SPEED);
+  spdSlider.max = String(MAX_CAM_SPEED);
+  spdSlider.value = String(bridge.getSpeed());
+  spdSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+  topBar.appendChild(spdSlider);
+
+  const spdVal = document.createElement("span");
+  spdVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:20px";
+  spdVal.textContent = String(bridge.getSpeed());
+  topBar.appendChild(spdVal);
+
+  spdSlider.oninput = (): void => {
+    spdVal.textContent = spdSlider.value;
+    bridge.setSpeed(Number(spdSlider.value));
+    safeSet("td-cam-speed", spdSlider.value);
+  };
+
+  const resetBtn = createIconButton({
+    icon: "⟲",
+    label: t("preview.resetView"),
+    title: "重置相机视角到初始位置",
+  });
+  resetBtn.onclick = (): void => bridge.reset();
+  topBar.appendChild(resetBtn);
+}
+
 let _handle: PreviewHandle | null = null;
 let _gen = 0;
 
@@ -93,6 +168,29 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
   const myGen = ++_gen;
   const selfMode = adapter.mode === "self";
 
+  // ---- shared 模式相机状态（提前声明：buildCameraControls 的 bridge 闭包需在此后引用）----
+  // self 模式由适配器（如 ysm 的 renderModel3D 单例）自行驱动这些，核心只提供外壳，
+  // 避免与适配器自带 renderer/循环冲突（双重渲染 / 双重键盘劫持）。
+  let scene: THREE.Scene | undefined;
+  let camera: THREE.PerspectiveCamera | undefined;
+  let renderer: THREE.WebGLRenderer | undefined;
+  let controls: OrbitControls | undefined;
+  const isDisposed = { v: false };
+  const keys: Record<string, boolean> = {};
+  let camSpeed = DEFAULT_CAM_SPEED;
+  let orbitMode = true;
+  const euler = new THREE.Euler(0, 0, 0, "YXZ");
+  let mouseDown = false;
+  let lastMouse = { x: 0, y: 0 };
+  let orbitTarget: THREE.Vector3 | undefined;
+  let animId = 0;
+  let perFrame: ((dt: number) => void) | null = null;
+  let onKeyDown: (e: KeyboardEvent) => void = () => {};
+  let onKeyUp: (e: KeyboardEvent) => void = () => {};
+  let onDragPointerUp: (e: PointerEvent) => void = () => {};
+  let onDragPointerMove: (e: PointerEvent) => void = () => {};
+  let onResize: () => void = () => {};
+
   const overlay = document.createElement("div");
   overlay.id = "ysm-overlay-3d"; // 对齐旧 skeleton overlay 定位（测试/样式钩子）
   overlay.style.cssText =
@@ -114,58 +212,25 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
   spacer.style.cssText = "flex:1";
   topBar.appendChild(spacer);
 
-  // 通用相机控件（仅 shared 模式：self 模式由适配器经 extraControls 自带旋转/速度）
+  // 通用相机控件（仅 shared 模式：self 模式由适配器经 extraControls 复用同一 buildCameraControls）
   if (!selfMode) {
-    const rotLabel = document.createElement("span");
-    rotLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
-    rotLabel.textContent = t("preview.cameraRotation") + ":";
-    topBar.appendChild(rotLabel);
-
-    const rotSel = document.createElement("select");
-    rotSel.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;margin-right:8px";
-    [
-      { v: true, t: "环绕" },
-      { v: false, t: "自身" },
-    ].forEach((m) => {
-      const opt = document.createElement("option");
-      opt.value = String(m.v);
-      opt.textContent = m.t;
-      rotSel.appendChild(opt);
+    buildCameraControls(topBar, {
+      getOrbit: () => orbitMode,
+      setOrbit: (v: boolean) => {
+        orbitMode = v;
+        if (controls) controls.enableRotate = v;
+        if (v) {
+          if (orbitTarget && controls) orbitTarget.copy(controls.target);
+        } else {
+          if (camera) euler.setFromQuaternion(camera.quaternion);
+        }
+        mouseDown = false;
+      },
+      getSpeed: () => camSpeed,
+      setSpeed: (n: number) => { camSpeed = n; },
+      // built 在 try 块内声明，此处经模块级 _handle（PreviewHandle 含 resetCamera? 契约）延迟调用
+      reset: () => { _handle?.resetCamera?.(); },
     });
-    topBar.appendChild(rotSel);
-
-    const spdLabel = document.createElement("span");
-    spdLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
-    spdLabel.textContent = t("preview.cameraSpeed") + ":";
-    topBar.appendChild(spdLabel);
-
-    const spdSlider = document.createElement("input");
-    spdSlider.type = "range";
-    spdSlider.min = String(MIN_CAM_SPEED);
-    spdSlider.max = String(MAX_CAM_SPEED);
-    spdSlider.value = String(DEFAULT_CAM_SPEED);
-    spdSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-    topBar.appendChild(spdSlider);
-
-    const spdVal = document.createElement("span");
-    spdVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:20px";
-    spdVal.textContent = "20";
-    topBar.appendChild(spdVal);
-
-    rotSel.onchange = (): void => {
-      orbitMode = rotSel.value === "true";
-      if (controls) controls.enableRotate = orbitMode;
-      if (orbitMode) {
-        if (orbitTarget && controls) orbitTarget.copy(controls.target);
-      } else {
-        if (camera) euler.setFromQuaternion(camera.quaternion);
-      }
-      mouseDown = false;
-    };
-    spdSlider.oninput = (): void => {
-      camSpeed = Number(spdSlider.value);
-      spdVal.textContent = spdSlider.value;
-    };
   }
 
   overlay.appendChild(topBar);
@@ -202,29 +267,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
     else closeOverlay();
   };
   document.addEventListener("keydown", escH);
-
-  // ---- shared 模式专属：核心创建 场景/相机/renderer/控制器 + 输入 + rAF 循环 ----
-  // self 模式由适配器（如 ysm 的 renderModel3D 单例）自行驱动这些，核心只提供外壳，
-  // 避免与适配器自带 renderer/循环冲突（双重渲染 / 双重键盘劫持）。
-  let scene: THREE.Scene | undefined;
-  let camera: THREE.PerspectiveCamera | undefined;
-  let renderer: THREE.WebGLRenderer | undefined;
-  let controls: OrbitControls | undefined;
-  const isDisposed = { v: false };
-  const keys: Record<string, boolean> = {};
-  let camSpeed = DEFAULT_CAM_SPEED;
-  let orbitMode = true;
-  const euler = new THREE.Euler(0, 0, 0, "YXZ");
-  let mouseDown = false;
-  let lastMouse = { x: 0, y: 0 };
-  let orbitTarget: THREE.Vector3 | undefined;
-  let animId = 0;
-  let perFrame: ((dt: number) => void) | null = null;
-  let onKeyDown: (e: KeyboardEvent) => void = () => {};
-  let onKeyUp: (e: KeyboardEvent) => void = () => {};
-  let onDragPointerUp: (e: PointerEvent) => void = () => {};
-  let onDragPointerMove: (e: PointerEvent) => void = () => {};
-  let onResize: () => void = () => {};
 
   if (!selfMode) {
     scene = new THREE.Scene();
