@@ -38,10 +38,10 @@
 | 前端·特性 | 20 | 93 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 54 | 187 |
+| 前端·工具 | 55 | 189 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **272** | **1124** |
+| **合计** | **273** | **1126** |
 
 ## Go·头像
 
@@ -927,13 +927,13 @@
 |------|--------|------|
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
-| `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:11` | 构建骨骼层级路径映射（name/id/parent/children）。 |
-| `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:125` | 注册 pointermove / click 骨骼拾取监听器。 |
+| `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
+| `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:128` | 注册 pointermove / click 骨骼拾取监听器。 |
 | `BoneGroupMap()` | `frontend/src/utils/3d/bone-visibility:6` | BoneGroupMap 类型别名：骨骼 id → THREE.Group |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
 | `toggleBone()` | `frontend/src/utils/3d/bone-visibility:19` | 切换指定骨骼组的可见性（取反）。 |
 | `showModelGroup()` | `frontend/src/utils/3d/bone-visibility:29` | 按索引显示单个模型组件（idx &lt; 0 = 全部显示，NaN 防御）。 |
-| `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:14` | 注册 free 模式 pointer drag 监听器。 |
+| `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:19` | 注册 free 模式 pointer drag 监听器。 |
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:38` | 遍历 scene 释放所有 Mesh 的 geometry 和 material。 |
@@ -943,17 +943,18 @@
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:43` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:199` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
-| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:37` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
+| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:47` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
 | `loadTdKeymap()` | `frontend/src/utils/3d/keymap:27` | 读取用户自定义键位（无/非法时回退默认） |
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/keymap:45` | 相机移动速度（2–200），默认 20 |
 | `loadTdRotMode()` | `frontend/src/utils/3d/keymap:52` | true = 环绕（orbit），false = 自身（free） |
-| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:15` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
-| `compKey()` | `frontend/src/utils/3d/mesh:14` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
-| `MaterialWithMap()` | `frontend/src/utils/3d/mesh:19` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
-| `disposeMaterial()` | `frontend/src/utils/3d/mesh:24` | 释放材质（含位图 .map），null/undefined 安全。 |
-| `buildSceneMesh()` | `frontend/src/utils/3d/mesh:32` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
+| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:27` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
+| `MODEL_SCALE()` | `frontend/src/utils/3d/mesh:14` | 模型显示缩放（基岩标准 16px = 1m，严格对齐 YSMViewer ExportScale，索引 2.14 收敛） |
+| `compKey()` | `frontend/src/utils/3d/mesh:17` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
+| `MaterialWithMap()` | `frontend/src/utils/3d/mesh:22` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
+| `disposeMaterial()` | `frontend/src/utils/3d/mesh:27` | 释放材质（含位图 .map），null/undefined 安全。 |
+| `buildSceneMesh()` | `frontend/src/utils/3d/mesh:35` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
 | `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:33` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
@@ -987,8 +988,9 @@
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
-| `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:7` | setupRenderer 返回的组件 |
-| `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:18` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
+| `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:8` | setupRenderer 返回的组件 |
+| `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:19` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
+| `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
 | `resetRendererState()` | `frontend/src/utils/3d/session-state:18` | 复位所有模块级渲染器引用为 null。 |
 | `detachRendererCanvas()` | `frontend/src/utils/3d/session-state:28` | 从 DOM 中移除 renderer 的 canvas 元素（安全，已 detached 时不操作）。 |
@@ -1081,8 +1083,8 @@
 | `safeSet()` | `frontend/src/utils/dom/storage:16` | 安全写：存储不可用时静默忽略持久化（不中断调用方） |
 | `safeRemove()` | `frontend/src/utils/dom/storage:25` | 安全删：存储不可用时静默忽略（不中断调用方） |
 | `renderFormattedText()` | `frontend/src/utils/format/mc-format:45` | 将含 Minecraft § 分节符的文本渲染为带颜色的 HTML。 |
-| `PackMeta()` | `frontend/src/utils/format/pack-format:92` | ReadPackMeta 返回的 JSON 对象（仅覆盖用到的字段） |
-| `describeVersionRange()` | `frontend/src/utils/format/pack-format:105` | 根据 meta 对象生成格式号 + 版本号描述 拼接用「 / 」作分隔符，避免出现 "1.9 ~ 1.10.2 ~ 1.11" 的四段歧义串。 |
+| `PackMeta()` | `frontend/src/utils/format/pack-format:95` | ReadPackMeta 返回的 JSON 对象（仅覆盖用到的字段） |
+| `describeVersionRange()` | `frontend/src/utils/format/pack-format:108` | 根据 meta 对象生成格式号 + 版本号描述 拼接用「 / 」作分隔符，避免出现 "1.9 ~ 1.10.2 ~ 1.11" 的四段歧义串。 |
 | `SummaryAuthor()` | `frontend/src/utils/format/summarize:10` | — |
 | `SummaryAnimGroup()` | `frontend/src/utils/format/summarize:16` | — |
 | `SummaryConfigMenu()` | `frontend/src/utils/format/summarize:22` | — |
@@ -1224,8 +1226,8 @@
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
 | `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:137` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
-| `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:10` | — |
-| `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:16` | — |
+| `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:11` | — |
+| `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:17` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:9` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
 | `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:19` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |

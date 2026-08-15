@@ -1,5 +1,8 @@
 // ===== pack_format → Minecraft 版本号映射（类型化版 — ADR-014 P2）=====
 
+/** FORMAT_VERSION_MAP 已知最大 pack_format（超出视为「最新版本」，索引 4.11 魔数收敛） */
+const MAX_KNOWN_FORMAT = 88;
+
 const FORMAT_VERSION_MAP: Record<string, string> = {
   1: "1.6.1 ~ 1.8.9",
   2: "1.9 ~ 1.10.2",
@@ -104,7 +107,7 @@ export interface PackMeta {
  */
 export function describeVersionRange(meta: PackMeta): { format: string; version: string } {
   const fmtVer = (n: number): string =>
-    FORMAT_VERSION_MAP[n] || (n > 88 ? "最新版本" : String(n));
+    FORMAT_VERSION_MAP[n] || (n > MAX_KNOWN_FORMAT ? "最新版本" : String(n));
   // 1. supported_formats 优先
   if (
     meta.supported_formats &&

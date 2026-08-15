@@ -10,6 +10,9 @@ import * as THREE from "three";
 import { type Spec3D } from "./model3d.ts"; // 仅类型 import（编译后擦除，无运行时循环依赖）
 import { applyRotationIfNonIdentity } from "./quaternion.ts";
 
+/** 模型显示缩放（基岩标准 16px = 1m，严格对齐 YSMViewer ExportScale，索引 2.14 收敛） */
+export const MODEL_SCALE = 1 / 16;
+
 /** 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 */
 export function compKey(mi: number, id: string) {
   return mi + ":" + id;
@@ -37,7 +40,7 @@ export function buildSceneMesh(spec: Spec3D): {
 } {
   // 显示尺寸：固定 1/16（基岩标准：16 像素 = 1 米），严格对齐 YSMViewer ExportScale。
   // 历史：曾动态 scale（>32→1/16、>4→1/4、else→1）把小模型放大，渲染对齐裁决后移除。
-  const modelScale = 1 / 16;
+  const modelScale = MODEL_SCALE;
   const rootGroup = new THREE.Group();
   rootGroup.scale.set(modelScale, modelScale, modelScale);
   // 组件级 modelGroup（YSMViewer 式多组件同屏）：每个 spec.model 一个组，

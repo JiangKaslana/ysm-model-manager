@@ -4,15 +4,25 @@
 import * as THREE from "three";
 import { disposeDebugGroup } from "./cleanup-helper.ts";
 
+/** debug 叠加层主题常量（索引 2.12 魔法数值收敛：画布尺寸 / pivot 线长 / 配色） */
+const DEBUG_THEME = {
+  labelCanvas: { width: 256, height: 64 },
+  pivotLineLength: 4,
+  pivotLineColor: 0x00ff88,
+  pivotLabelColor: "#88ffaa",
+  boneLineColor: 0x44aaff,
+  labelScale: { x: 120, y: 24, z: 1 },
+} as const;
+
 /** 生成骨骼名 Canvas 纹理（Sprite 标签用） */
 function makeTextTexture(text: string, color?: string): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 64;
+  canvas.width = DEBUG_THEME.labelCanvas.width;
+  canvas.height = DEBUG_THEME.labelCanvas.height;
   const ctx = canvas.getContext("2d");
   if (ctx) {
     ctx.fillStyle = "rgba(0,0,0,0)";
-    ctx.fillRect(0, 0, 256, 64);
+    ctx.fillRect(0, 0, DEBUG_THEME.labelCanvas.width, DEBUG_THEME.labelCanvas.height);
     ctx.fillStyle = color || "#ffffff";
     ctx.font = "24px sans-serif";
     ctx.textBaseline = "bottom";
@@ -77,18 +87,18 @@ export function rebuildDebug(
   if (state.debugMode === "pivot") {
     for (const [, data] of boneWorldPositions) {
       const top = data.pos.clone();
-      top.y += 4;
+      top.y += DEBUG_THEME.pivotLineLength;
       const lineGeo = new THREE.BufferGeometry().setFromPoints([data.pos, top]);
       const line = new THREE.Line(
         lineGeo,
-        new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.25 }),
+        new THREE.LineBasicMaterial({ color: DEBUG_THEME.pivotLineColor, transparent: true, opacity: 0.25 }),
       );
       state.debugGroup.add(line);
-      const tex = makeTextTexture(data.name, "#88ffaa");
+      const tex = makeTextTexture(data.name, DEBUG_THEME.pivotLabelColor);
       const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, sizeAttenuation: false, transparent: true });
       const label = new THREE.Sprite(mat);
       label.position.copy(top);
-      label.scale.set(120, 24, 1);
+      label.scale.set(DEBUG_THEME.labelScale.x, DEBUG_THEME.labelScale.y, DEBUG_THEME.labelScale.z);
       state.debugGroup.add(label);
     }
   } else if (state.debugMode === "bone") {
@@ -98,7 +108,7 @@ export function rebuildDebug(
         : null;
       if (!parentPos) continue;
       const geo = new THREE.BufferGeometry().setFromPoints([data.pos.clone(), parentPos.clone()]);
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x44aaff }));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: DEBUG_THEME.boneLineColor }));
       state.debugGroup.add(line);
     }
   }

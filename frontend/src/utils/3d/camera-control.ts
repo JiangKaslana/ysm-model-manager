@@ -3,6 +3,11 @@
 // orbit 模式由 OrbitControls 原生处理，此处仅在 orbitMode=false 时生效。
 import * as THREE from "three";
 
+/** 拖拽旋转灵敏度（每像素弧度，索引 2.5 魔法数值收敛） */
+const DRAG_SENSITIVITY = 0.003;
+/** 俯仰角钳制范围（±π/2 防翻转，索引 2.5 魔法数值收敛） */
+const PITCH_CLAMP = Math.PI / 2;
+
 /**
  * 注册 free 模式 pointer drag 监听器。
  * @param renderer DOM renderer（提供 domElement）
@@ -38,9 +43,9 @@ export function registerFreeCameraDrag(
   const onDragPointerMove = (e: PointerEvent): void => {
     if (orbitMode.current || !mouseDown) return;
     _euler.setFromQuaternion(camera.quaternion);
-    _euler.y -= (e.clientX - lastMouse.x) * 0.003;
-    _euler.x -= (e.clientY - lastMouse.y) * 0.003;
-    _euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, _euler.x));
+    _euler.y -= (e.clientX - lastMouse.x) * DRAG_SENSITIVITY;
+    _euler.x -= (e.clientY - lastMouse.y) * DRAG_SENSITIVITY;
+    _euler.x = Math.max(-PITCH_CLAMP, Math.min(PITCH_CLAMP, _euler.x));
     camera.quaternion.setFromEuler(_euler);
     lastMouse = { x: e.clientX, y: e.clientY };
   };

@@ -4,6 +4,18 @@ import * as THREE from "three";
 import type { SpecMeshGroup3D, SpecModelGroup3D } from "./model3d.ts";
 import { applyRotationIfNonIdentity } from "./quaternion.ts";
 
+/** ysmview 风格材质配置（索引 2.16 魔法数值收敛） */
+const MATERIAL_OPTS = {
+  side: THREE.FrontSide,
+  transparent: true,
+  alphaTest: 0.1,
+  depthWrite: true,
+} as const;
+/** 纹理缺失/越界时的品红错误色（可见化兜底） */
+const ERROR_COLOR_MAGENTA = 0xff00ff;
+/** 无纹理时的占位灰 */
+const FALLBACK_COLOR_GRAY = 0xcccccc;
+
 /**
  * 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。
  * @param bg 骨骼组（添加目标）
@@ -44,17 +56,14 @@ export function addMeshToBoneGroup(
     }
   }
 
-  // ysmview 风格材质：FrontSide + transparent + alphaTest 0.1 + depthWrite
+  // ysmview 风格材质：FrontSide + transparent + alphaTest 0.1 + depthWrite（配置收敛于 MATERIAL_OPTS）
   const mat = mt
     ? new THREE.MeshBasicMaterial({
         map: mt,
-        side: THREE.FrontSide,
-        transparent: true,
-        alphaTest: 0.1,
-        depthWrite: true,
+        ...MATERIAL_OPTS,
       })
     : new THREE.MeshBasicMaterial({
-        color: texIdxMismatch ? 0xff00ff : 0xcccccc,
+        color: texIdxMismatch ? ERROR_COLOR_MAGENTA : FALLBACK_COLOR_GRAY,
         side: THREE.FrontSide,
       });
 

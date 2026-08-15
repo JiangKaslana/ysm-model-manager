@@ -4,6 +4,9 @@ import * as THREE from "three";
 import type { BoneSelectInfo } from "./model3d.ts";
 import { isIdentityQuat } from "./quaternion.ts";
 
+/** 无父级骨骼的哨兵父 id（childrenMap 根级聚合键，索引 2.2 魔数收敛） */
+const ROOT_PARENT_ID = "__root__";
+
 /**
  * 构建骨骼层级路径映射（name/id/parent/children）。
  * @returns { nameMap, parentMap, childrenMap }
@@ -22,7 +25,7 @@ export function buildBoneHierarchy(
     for (const bd of mg.bones || []) {
       nameMap.set(bd.id, bd.name);
       parentMap.set(bd.id, bd.parentId || null);
-      const parentId = bd.parentId || "__root__";
+      const parentId = bd.parentId || ROOT_PARENT_ID;
       if (!childrenMap.has(parentId)) childrenMap.set(parentId, []);
       childrenMap.get(parentId)!.push(bd.id);
     }
