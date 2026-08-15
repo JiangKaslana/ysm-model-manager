@@ -5,7 +5,6 @@
     "dir": "./frontend",
     "install": "npm install",
     "build": "npm run build",
-    "dev": "npm run dev",
     "devServerUrl": "http://localhost:9245"
   }
 }

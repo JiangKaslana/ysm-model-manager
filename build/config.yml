@@ -34,15 +34,26 @@ dev_mode:
       - "*.go"
     git_ignore: true
   executes:
-    # 1) 编译 Go 二进制（blocking，每次 *.go 变更后由 watcher 重编）
+    # 1) 编译内嵌的更新助手 helper（once，首次启动运行一次，之后不参与每轮重建）
+    #    理由：cmd/updater/ 或 go/updater/ 改动频率极低，每次 Go build 都重编
+    #    是浪费；首次运行时确保 ysm-updater-helper.exe 存在即可。
+    - name: build-helper
+      cmd: wails3 task windows:build:helper
+      type: once
+    # 2) 编译 Go 主二进制（blocking，每次 *.go 变更后由 watcher 重编）
     #    走 wails3 task windows:build:dev：不携带 -tags production，
     #    故启用 !production 构建分支，asset server 代理到 vite dev server。
-    - cmd: wails3 task windows:build:dev
+    #    注意：build:dev 不再依赖 build:helper（已上移为 once 步骤），
+    #    避免 helper 被重复编译。
+    - name: go-build
+      cmd: wails3 task windows:build:dev
       type: blocking
-    # 2) vite 开发服务器（background，热重载期间常驻）
+    # 3) vite 开发服务器（background，热重载期间常驻，退出时杀）
     #    端口取 wails3 dev 注入的 WAILS_VITE_PORT（默认 9245）。
-    - cmd: wails3 task common:dev:frontend
+    - name: vite-dev
+      cmd: wails3 task common:dev:frontend
       type: background
-    # 3) 运行应用（primary，*.go 变更时由 watcher 先杀后启）
-    - cmd: wails3 task run
+    # 4) 运行应用（primary，*.go 变更时由 watcher 先杀后启）
+    - name: run-app
+      cmd: wails3 task run
       type: primary

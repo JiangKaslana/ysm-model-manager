@@ -90,8 +90,8 @@ tasks:
     summary: Dev build (no production tag; asset server proxies to vite)
     deps:
       - task: check:deps
-      # embed 前置：go/updater/updater.go 通过 //go:embed 内嵌 ysm-updater-helper.exe
-      - task: build:helper
+      # build:helper 已上移到 build/config.yml 的 once 步骤独立执行，
+      # 此处不再作为 deps，避免每次 Go build 重复编译 helper。
     cmds:
       - go build -buildvcs=false -gcflags=all="-l" -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe" .
 
