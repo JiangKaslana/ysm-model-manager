@@ -43,3 +43,83 @@ if (registryEntries.length === 0) {
 export const ALL_RESOURCE_TYPES: string[] = registryEntries
   .map((t) => t.id)
   .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+// ===== 资源能力派生（ADR-066：解墙 — 预览/解码层统一查表）=====
+// 此前 loader.ts / index.ts / litematic-meta.ts 散落扩展名正则与 Go RPC 字符串分支，
+// 现全部从 resource_types.json 派生：新增格式只改 JSON，不散改前端代码。
+
+/** 提取路径扩展名（小写、含点；无扩展名返回空串） */
+export function extOf(path: string): string {
+  const base = path.split(/[/\\]/).pop() || "";
+  const i = base.lastIndexOf(".");
+  return i >= 0 ? base.slice(i).toLowerCase() : "";
+}
+
+/** 单一资源类型的能力视图（派生自 resource_types.json + 短标签映射） */
+export interface ResourceCap {
+  id: string;
+  name: string;    // JSON 全名（如 "YSM 模型"）
+  label: string;   // 短标签（如 "模型"，参与 Go 扫描匹配）
+  icon: string;
+  extensions: string[]; // 小写、含点，如 [".ysm",".zip",".json"]
+  preview: string; // "3d" | "thumbnail" | "none" ...
+}
+
+interface RawResourceType {
+  id?: string;
+  name?: string;
+  icon?: string;
+  extensions?: string[];
+  preview?: string;
+}
+
+const rawTypes: RawResourceType[] =
+  (resourceTypesJson as { resourceTypes?: RawResourceType[] }).resourceTypes ?? [];
+
+/** 全部资源类型能力，从 resource_types.json 派生（单一事实来源） */
+export const RESOURCE_CAPS: Record<string, ResourceCap> = {};
+for (const t of rawTypes) {
+  if (!t.id) continue;
+  RESOURCE_CAPS[t.id] = {
+    id: t.id,
+    name: t.name || t.id,
+    label: RESOURCE_TYPE_LABELS[t.id] || t.name || t.id,
+    icon: t.icon || "📦",
+    extensions: (t.extensions || []).map((e) => e.toLowerCase()),
+    preview: t.preview || "none",
+  };
+}
+
+/** 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） */
+export function matchTypeByExt(path: string, typeId: string): boolean {
+  const cap = RESOURCE_CAPS[typeId];
+  if (!cap) return false;
+  return cap.extensions.includes(extOf(path));
+}
+
+/**
+ * 按扩展名反解资源类型。歧义扩展名（如 .zip 同时归属 ysm/resourcepack/shaderpack）
+ * 返回 null，调用方应回退到内容检测（Go DetectResourceType）。
+ */
+export function resolveTypeByExt(path: string): string | null {
+  const ext = extOf(path);
+  if (!ext) return null;
+  const hits = Object.values(RESOURCE_CAPS).filter((c) => c.extensions.includes(ext));
+  return hits.length === 1 ? hits[0].id : null;
+}
+
+/** 压缩容器扩展名：走 Go 解包提取，不由前端 WASM 直接预览 */
+const CONTAINER_EXTS = new Set([".zip", ".7z"]);
+
+/** ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 */
+export function isYsmWasmPreview(path: string): boolean {
+  const ext = extOf(path);
+  return matchTypeByExt(path, RESOURCE_TYPES.YSM) && !CONTAINER_EXTS.has(ext);
+}
+
+/** 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） */
+export const VOXEL_RPC_BY_EXT: Record<string, string> = {
+  ".nbt": "GetNbtVoxelData",
+  ".schematic": "GetSchematicVoxelData",
+  ".litematic": "GetLitematicVoxelData",
+};

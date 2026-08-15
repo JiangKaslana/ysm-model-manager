@@ -1,7 +1,7 @@
 // ===== <app-preview> 入口 =====
 import { bus } from "../../bus.ts";
 import { previewCSS } from "./css.ts";
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, isYsmWasmPreview } from "../../utils/resource/types.ts";
 import { modelDetailHTML } from "./tpl.ts";
 import {
   cacheGet,
@@ -104,8 +104,8 @@ class AppPreview extends HTMLElement implements PreviewCtx {
     const cachedGeo = cached?.geometry as BedrockGeometry | undefined;
     if (cachedGeo?.texture) return cachedGeo.texture;
 
-    // .ysm 或 .json（解压的 ysm.json）都走 WASM 解码
-    if (/\.(ysm|json)$/i.test(modelPath)) {
+    // .ysm 或 .json（解压的 ysm.json）走前端 WASM 解码；.zip/.7z 容器由下方 Go 兜底（ADR-066 解墙）
+    if (isYsmWasmPreview(modelPath)) {
       const decoded = await this.decodeYsmViaWasm(modelPath);
       if (decoded?.texture) {
         cacheSet(modelPath, { ...decoded, _decodedBy: "🧠 WASM 内置解码" });

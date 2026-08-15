@@ -1,5 +1,6 @@
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { extOf, VOXEL_RPC_BY_EXT } from "../../utils/resource/types.ts";
 import { getApp } from "../../backend/app.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import type { PreviewRoot } from "./utils.ts";
@@ -143,17 +144,15 @@ export async function showLitematic(
 
   // 3D tab 按钮
   const btn3dTab = ctx.root.getElementById("btn-lt-3d-tab") as HTMLButtonElement | null;
-  const isNbt = /\.nbt$/i.test(path);
-  const isSch = /\.schematic$/i.test(path);
-  const label = isSch ? "schematic" : isNbt ? "nbt" : "litematic";
+  const ext = extOf(path);
 
   try {
     const { ReadLitematicMeta, ReadNbtStructure, ReadSchematic } = await getApp();
     let meta: LitematicMeta;
-    if (isNbt) {
+    if (ext === ".nbt") {
       meta = JSON.parse((await ReadNbtStructure(path)) || "{}") as LitematicMeta;
       if (!meta || (!meta.size && !meta.blockCount)) throw new Error("无法解析");
-    } else if (isSch) {
+    } else if (ext === ".schematic") {
       meta = JSON.parse((await ReadSchematic(path)) || "{}") as LitematicMeta;
       if (!meta || (!meta.size && !meta.blockCount)) throw new Error("无法解析");
     } else {
@@ -180,7 +179,7 @@ export async function showLitematic(
       // P2 修复：await Go 解析后比对代际——慢 litematic A 迟到不得污染已切换的 B
       if (gen !== litematicGen) return;
       let extra = "";
-      if (isNbt || isSch) {
+      if (ext === ".nbt" || ext === ".schematic") {
         extra = `${field(t("preview.dataVersion"), meta.dataVersion)}${field(t("preview.formatVersion"), meta.version)}${field(t("preview.nameLabel"), meta.name)}${field(t("preview.authorLabel"), meta.author)}`;
       } else {
         extra = `${field(t("preview.nameLabel"), meta.name)}${field(t("preview.authorLabel"), meta.author)}${field(t("preview.createdAt"), meta.timeCreated ? fmtTime(meta.timeCreated) : "")}${field(t("preview.modifiedAt"), meta.timeModified ? fmtTime(meta.timeModified) : "")}<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.formatVersion")}</span><span>Litematica v${meta.version || "?"} · MC Data v${meta.minecraftDataVersion || "?"}</span></div>${field(t("preview.description"), meta.description)}`;
@@ -194,7 +193,7 @@ export async function showLitematic(
       <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.nonAirBlocks")}</span><span>${t("preview.blockCount", { n: (meta.totalBlocks || meta.blockCount || 0).toLocaleString() })}</span></div>
       <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.totalVolume")}</span><span>${t("preview.cubeUnit", { n: (meta.totalVolume || 0).toLocaleString() })}</span></div>
       <div class="lt-meta-row"><span class="lt-meta-label">${t("preview.boundingBox")}</span><span>${sizeStr}</span></div>
-      ${!isNbt && !isSch ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.regionCount")}</span><span>${meta.regionCount || 0}</span></div>` : ""}
+      ${ext !== ".nbt" && ext !== ".schematic" ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.regionCount")}</span><span>${meta.regionCount || 0}</span></div>` : ""}
       ${meta.entityCount !== undefined ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.entityCount")}</span><span>${meta.entityCount}</span></div>` : ""}
       ${meta.tileEntityCount !== undefined ? `<div class="lt-meta-row"><span class="lt-meta-label">${t("preview.blockEntity")}</span><span>${meta.tileEntityCount}</span></div>` : ""}
     </div>`;
@@ -209,7 +208,8 @@ export async function showLitematic(
     }
 
     if (btn3dTab) {
-      const voxelFn = isNbt ? "GetNbtVoxelData" : isSch ? "GetSchematicVoxelData" : "GetLitematicVoxelData";
+      // 按扩展名单点映射 Go 体素 RPC（ADR-066 解墙，移除三元字符串分支）
+      const voxelFn = VOXEL_RPC_BY_EXT[ext] || "GetLitematicVoxelData";
       btn3dTab.onclick = async (): Promise<void> => {
         btn3dTab.textContent = "⏳";
         btn3dTab.disabled = true;

@@ -1,6 +1,7 @@
 // ===== 模型数据加载（唯一入口）=====
 // 供给 skeleton.ts 和 screenshot-renderer.ts 使用
 import { cacheGet, cacheSet } from "./cache.ts";
+import { matchTypeByExt, RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { getApp } from "../../backend/app.ts";
 import { parseBedrockAnimationJSON } from "../../utils/animation/animation.ts";
 import type { YsmDecoder, PreviewDebugger } from "./utils.ts";
@@ -16,9 +17,10 @@ export async function loadModelData(
 ): Promise<{ model: BedrockGeometry | null; decodedBy: string }> {
   let model: BedrockGeometry | null = null;
   let _decodedBy = "";
-  // .ysm / .zip（同属 ZIP 容器）/ .json（WASM 解码）都走前端解码路径。
-  // .zip 内含 ysm.json + models/ + textures/，WASM 解码器 decodeYsmFileFromMemory 直接处理（与 .ysm 同格式）。
-  const isWasmCapable = /\.(ysm|zip|json)$/i.test(modelPath);
+  // 按注册表判定 ysm 扩展名（.ysm/.zip/.7z/.json）是否前端 WASM 可解码（ADR-066 解墙，不再散硬正则）。
+  // .zip/.7z 内含 ysm.json + models/ + textures/，WASM 解码器 decodeYsmFileFromMemory 直接处理（与 .ysm 同格式）；
+  // 若 WASM 失败/空骨骼，下方回退 Go AnalyzeBedrockModel。
+  const isWasmCapable = matchTypeByExt(modelPath, RESOURCE_TYPES.YSM);
   let _wasmAuthors: BedrockGeometry["_authors"] = [];
   let _wasmAvatars: Record<string, string> = {};
 

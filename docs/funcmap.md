@@ -38,10 +38,10 @@
 | 前端·特性 | 20 | 93 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 55 | 188 |
+| 前端·工具 | 55 | 195 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **274** | **1111** |
+| **合计** | **274** | **1118** |
 
 ## Go·头像
 
@@ -465,8 +465,8 @@
 |------|--------|------|
 | `App.CachedCreatorAvatar()` | `internal/app/app_avatar:16` | CachedCreatorAvatar 检查缓存中是否有作者头像，返回 data URI |
 | `App.BatchExtractCreatorAvatars()` | `internal/app/app_avatar:21` | BatchExtractCreatorAvatars 批量提取所有有本地模型的创作者头像 |
-| `App.DebugExtractCreatorAvatar()` | `internal/app/app_avatar:73` | DebugExtractCreatorAvatar 调试版：提取指定作者头像 |
-| `App.CacheModelAvatars()` | `internal/app/app_avatar:128` | CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式） |
+| `App.DebugExtractCreatorAvatar()` | `internal/app/app_avatar:74` | DebugExtractCreatorAvatar 调试版：提取指定作者头像 |
+| `App.CacheModelAvatars()` | `internal/app/app_avatar:129` | CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式） |
 | `App.GetConfigPath()` | `internal/app/app_config:59` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
 | `App.SaveAppConfig()` | `internal/app/app_config:135` | — |
 | `App.SetDownloadMirror()` | `internal/app/app_config:205` | — |
@@ -540,10 +540,10 @@
 | `App.MoveToRecycle()` | `internal/app/app_install_recycle:17` | ========== 回收站 ========== |
 | `App.MoveToRecycleEx()` | `internal/app/app_install_recycle:38` | — |
 | `App.ClearCustomDir()` | `internal/app/app_install_recycle:85` | — |
-| `App.ListRecycleBin()` | `internal/app/app_install_recycle:165` | — |
-| `App.RestoreFromRecycle()` | `internal/app/app_install_recycle:182` | — |
-| `App.DeleteFromRecycle()` | `internal/app/app_install_recycle:203` | — |
-| `App.EmptyRecycleBin()` | `internal/app/app_install_recycle:219` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
+| `App.ListRecycleBin()` | `internal/app/app_install_recycle:157` | — |
+| `App.RestoreFromRecycle()` | `internal/app/app_install_recycle:174` | — |
+| `App.DeleteFromRecycle()` | `internal/app/app_install_recycle:195` | — |
+| `App.EmptyRecycleBin()` | `internal/app/app_install_recycle:211` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
 | `App.AnalyzeYSMModel()` | `internal/app/app_model:37` | — |
 | `App.ExtractYsmSummary()` | `internal/app/app_model:41` | — |
 | `App.ExtractYSMHeader()` | `internal/app/app_model:55` | — |
@@ -563,14 +563,14 @@
 | `App.ListModelAuthors()` | `internal/app/app_scan:232` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
 | `App.GenerateRepoIndex()` | `internal/app/app_scan:241` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
 | `App.ScanLocalAuthors()` | `internal/app/app_scan:249` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:257` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:261` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:265` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:278` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:285` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:359` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:390` | OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录 |
-| `progressReader.Read()` | `internal/app/app_scan:413` | — |
+| `App.ListVersionInstances()` | `internal/app/app_scan:258` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:262` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:268` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:281` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:288` | — |
+| `App.OpenFolder()` | `internal/app/app_scan:362` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:393` | OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录 |
+| `progressReader.Read()` | `internal/app/app_scan:416` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -1099,6 +1099,13 @@
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:20` | 资源类型显示标签（内部 ID → 中文名） |
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:43` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
+| `extOf()` | `frontend/src/utils/resource/types:52` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
+| `ResourceCap()` | `frontend/src/utils/resource/types:59` | 单一资源类型的能力视图（派生自 resource_types.json + 短标签映射） |
+| `RESOURCE_CAPS()` | `frontend/src/utils/resource/types:80` | 全部资源类型能力，从 resource_types.json 派生（单一事实来源） |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:94` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `resolveTypeByExt()` | `frontend/src/utils/resource/types:104` | 按扩展名反解资源类型。歧义扩展名（如 .zip 同时归属 ysm/resourcepack/shaderpack） 返回 null，调用方应回退到内容检测（Go DetectRes |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:115` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:121` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
 
 ## frontend/views
 
@@ -1202,10 +1209,10 @@
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:36` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:43` | — |
-| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:26` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
-| `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:107` | 显示投影文件详情面板（tab 布局） |
+| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:27` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
+| `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:108` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:238` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
-| `loadModelData()` | `frontend/src/views/app-preview/loader:13` | 加载模型几何数据 + 纹理 + 作者信息 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底 |
+| `loadModelData()` | `frontend/src/views/app-preview/loader:14` | 加载模型几何数据 + 纹理 + 作者信息 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底 |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
