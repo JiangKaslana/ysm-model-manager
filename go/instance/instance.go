@@ -73,64 +73,44 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		// 展示用文件级同步（推送时再用文件夹级推送）
 		result := ysmsync.SyncResources(globalDir, instDir)
 
-		for _, p := range result.Synced {
+		// appendItem 组装同步条目：extMatch/资源包文件夹过滤 + .disabled/.ban 禁用判定 +
+		// icon 选择，收敛 Synced/Missing/Extra 三分支逐字重复（索引 6.8c）。
+		// defaultStatus 为分支默认状态；isLegacy 仅 Extra 分支传（旧仓库硬链接检测），其余传 nil。
+		appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool) {
 			if !extMatch(filepath.Base(p), rt.ID) && !fsutil.IsResourcePackFolder(p) {
-				continue
+				return
 			}
-			// 检测是否有 .disabled/.ban 后缀标记禁用状态
+			// 三分支口径一致：先识别 .disabled/.ban 禁用标记（实例侧遗留的禁用文件不应显示
+			// 为可推送的 Optional/普通 missing），再检测硬链接（旧仓库遗留，Extra 专用）
 			lowName := strings.ToLower(filepath.Base(p))
 			isDisabled := strings.HasSuffix(lowName, ".disabled") || strings.HasSuffix(lowName, ".ban")
-			status := types.SyncStatusSynced
-			statusIcon := rt.Icon
-			if isDisabled {
-				status = types.SyncStatusDisabled
-				statusIcon = "⛔"
-			}
-			items = append(items, types.ResourceSyncItem{
-				Path: p, Name: filepath.Base(p),
-				Status: status, Type: rt.ID, Icon: statusIcon, Size: sizeOf(p),
-			})
-		}
-		for _, p := range result.Missing {
-			if !extMatch(filepath.Base(p), rt.ID) && !fsutil.IsResourcePackFolder(p) {
-				continue
-			}
-			// Missing 分支补 disabled 检测——原仅 Synced 分支
-			// 识别 .disabled/.ban，全局仓库禁用模型（m.ysm.ban）在实例缺失时显示为
-			// 普通 missing（可推送外观）而非 disabled，三分支口径不一致
-			lowName := strings.ToLower(filepath.Base(p))
-			isDisabled := strings.HasSuffix(lowName, ".disabled") || strings.HasSuffix(lowName, ".ban")
-			status := types.SyncStatusMissing
+			status := defaultStatus
 			icon := rt.Icon
 			if isDisabled {
 				status = types.SyncStatusDisabled
 				icon = "⛔"
-			}
-			items = append(items, types.ResourceSyncItem{
-				Path: p, Name: filepath.Base(p),
-				Status: status, Type: rt.ID, Icon: icon, Size: sizeOf(p),
-			})
-		}
-		for _, p := range result.Extra {
-			if !extMatch(filepath.Base(p), rt.ID) && !fsutil.IsResourcePackFolder(p) {
-				continue
-			}
-			// 三分支口径一致（与 Synced/Missing 同）：先识别 .disabled/.ban 禁用标记，
-			// 实例侧遗留的禁用文件不应显示为可推送的 Optional；再检测硬链接（旧仓库遗留）
-			lowName := strings.ToLower(filepath.Base(p))
-			isDisabled := strings.HasSuffix(lowName, ".disabled") || strings.HasSuffix(lowName, ".ban")
-			status := types.SyncStatusOptional
-			icon := rt.Icon
-			if isDisabled {
-				status = types.SyncStatusDisabled
-				icon = "⛔"
-			} else if ysmsync.GetLinkType(p) == types.LinkHard {
+			} else if isLegacy != nil && isLegacy(p) {
 				status = types.SyncStatusLegacy
 				icon = "🔗"
 			}
 			items = append(items, types.ResourceSyncItem{
 				Path: p, Name: filepath.Base(p),
 				Status: status, Type: rt.ID, Icon: icon, Size: sizeOf(p),
+			})
+		}
+
+		for _, p := range result.Synced {
+			appendItem(p, types.SyncStatusSynced, nil)
+		}
+		for _, p := range result.Missing {
+			// Missing 分支补 disabled 检测——原仅 Synced 分支
+			// 识别 .disabled/.ban，全局仓库禁用模型（m.ysm.ban）在实例缺失时显示为
+			// 普通 missing（可推送外观）而非 disabled，三分支口径已统一
+			appendItem(p, types.SyncStatusMissing, nil)
+		}
+		for _, p := range result.Extra {
+			appendItem(p, types.SyncStatusOptional, func(p string) bool {
+				return ysmsync.GetLinkType(p) == types.LinkHard
 			})
 		}
 		// 对于非模型类型（光影包/蓝图/资源包），额外扫描整合包目录中所有未被 SyncResources 覆盖的文件

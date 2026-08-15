@@ -35,38 +35,23 @@ type Group struct {
 	Files []FileEntry `json:"files"` // 文件列表
 }
 
-// FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组
-// skipRecycle 为 true 时跳过 .recycle 子目录
-func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
-	dir = strings.TrimSpace(dir)
-	if dir == "" {
-		return nil, fmt.Errorf("目录为空")
-	}
-	// 入口绝对化——原实现保留入参形态，相对路径下 FileEntry.Path
-	// 为相对路径，下游 recycle.Move 按 CWD 解析可能移到错误位置（与 CleanEmptyDirs 对齐）
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		// 不可解析的根（如 Windows 上含 NUL 字节的路径）必须显式报错，不能静默
-		// 退回入参形态：WalkDir→Lstat 失败会被 log 吞掉并返回「无重复」= 假绿，
-		// 与 ErrSymlinkRoot 同类的静默漏扫。CleanEmptyDirs 已对齐该行为。
-		return nil, fmt.Errorf("dedup: 无法解析扫描目录 %q: %w", dir, err)
-	}
-	dir = abs
-
-	hashGroups := make(map[string]*Group)
-	// 使用 map 保持插入顺序
-	var orderedKeys []string
-
-	err = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+// walkHashedFiles 遍历目录树，对每个非空普通文件计算 SHA256 后回调
+// (hash, path, size, modTime)。共用遍历（收敛 FindDuplicateFiles 与 CountDuplicates
+// 两份逐字重复的 WalkDir 逻辑，索引 6.8a）：
+//   - 跳过符号链接（根本身是符号链接时返回 ErrSymlinkRoot——静默返回「无重复」= 假绿，
+//     陷阱 #11：sentinel + errors.Is 判定，禁文本匹配）；
+//   - 跳过目录（skipRecycle 时回收站目录 SkipDir，统一走 fsutil.IsRecycleDir）；
+//   - 跳过空文件（不同用途的空文件不是重复文件）。
+//
+// 回调返回 nil 继续遍历，非 nil 中止并透传该错误。
+func walkHashedFiles(dir string, skipRecycle bool, fn func(hash, path string, size int64, modTime int64) error) error {
+	err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			log.Printf("[dedup] 访问 %s 失败: %v", p, err)
 			return nil
 		}
 		// 跳过符号链接（去重只处理实际文件）
 		if d.Type()&os.ModeSymlink != 0 {
-			// root 本身是符号链接时静默返回「无重复」= 假绿——
-			// 显式报错，避免用户以为全扫到了而实际未扫描
-			// 陷阱 #11：用 sentinel ErrSymlinkRoot + errors.Is 判定，禁文本匹配
 			if p == dir {
 				return fmt.Errorf("%w: %s", ErrSymlinkRoot, dir)
 			}
@@ -104,23 +89,50 @@ func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
 			return nil
 		}
 		hash := fmt.Sprintf("%x", h.Sum(nil))
+		return fn(hash, p, info.Size(), info.ModTime().UnixMilli())
+	})
+	return err
+}
 
+// FindDuplicateFiles 扫描目录，按 SHA256 哈希分组，返回包含重复的分组
+// skipRecycle 为 true 时跳过 .recycle 子目录
+func FindDuplicateFiles(dir string, skipRecycle bool) ([]Group, error) {
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return nil, fmt.Errorf("目录为空")
+	}
+	// 入口绝对化——原实现保留入参形态，相对路径下 FileEntry.Path
+	// 为相对路径，下游 recycle.Move 按 CWD 解析可能移到错误位置（与 CleanEmptyDirs 对齐）
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		// 不可解析的根（如 Windows 上含 NUL 字节的路径）必须显式报错，不能静默
+		// 退回入参形态：WalkDir→Lstat 失败会被 log 吞掉并返回「无重复」= 假绿，
+		// 与 ErrSymlinkRoot 同类的静默漏扫。CleanEmptyDirs 已对齐该行为。
+		return nil, fmt.Errorf("dedup: 无法解析扫描目录 %q: %w", dir, err)
+	}
+	dir = abs
+
+	hashGroups := make(map[string]*Group)
+	// 使用 map 保持插入顺序
+	var orderedKeys []string
+
+	err = walkHashedFiles(dir, skipRecycle, func(hash, path string, size int64, modTime int64) error {
 		if g, ok := hashGroups[hash]; ok {
 			g.Files = append(g.Files, FileEntry{
-				Name:    filepath.Base(p),
-				Path:    p,
-				Size:    info.Size(),
-				ModTime: info.ModTime().UnixMilli(),
+				Name:    filepath.Base(path),
+				Path:    path,
+				Size:    size,
+				ModTime: modTime,
 			})
 		} else {
 			hashGroups[hash] = &Group{
 				Hash: hash,
-				Size: info.Size(),
+				Size: size,
 				Files: []FileEntry{{
-					Name:    filepath.Base(p),
-					Path:    p,
-					Size:    info.Size(),
-					ModTime: info.ModTime().UnixMilli(),
+					Name:    filepath.Base(path),
+					Path:    path,
+					Size:    size,
+					ModTime: modTime,
 				}},
 			}
 			orderedKeys = append(orderedKeys, hash)
@@ -151,49 +163,7 @@ func CountDuplicates(dir string, skipRecycle bool) (groups int, extraFiles int, 
 	extraFiles = 0
 	hashCount := make(map[string]int)
 
-	err = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			log.Printf("[dedup] 访问 %s 失败: %v", p, err)
-			return nil
-		}
-		if d.Type()&os.ModeSymlink != 0 {
-			// root 本身是符号链接时静默返回「无重复」= 假绿（与
-			// FindDuplicateFiles 对齐）——显式报错，避免用户以为全扫到了而实际未扫描
-			// 陷阱 #11：用 sentinel ErrSymlinkRoot + errors.Is 判定，禁文本匹配
-			if p == dir {
-				return fmt.Errorf("%w: %s", ErrSymlinkRoot, dir)
-			}
-			return nil
-		}
-		if d.IsDir() {
-			// ADR-044 策略 A：回收站排除统一走 fsutil.IsRecycleDir（EqualFold 大小写不敏感）
-			if skipRecycle && fsutil.IsRecycleDir(p) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil || info == nil {
-			return nil
-		}
-		if info.Size() == 0 {
-			// 跳过空文件——不同用途的空文件不是重复文件
-			return nil
-		}
-		f, err := os.Open(p)
-		if err != nil {
-			log.Printf("[dedup] 打开文件失败 %s: %v", p, err)
-			return nil
-		}
-		// WalkDir 回调是独立函数作用域，defer 在每次回调返回时执行，不跨文件堆积
-		defer f.Close()
-		h := sha256.New()
-		_, copyErr := io.Copy(h, f)
-		if copyErr != nil {
-			log.Printf("[dedup] 读取文件失败 %s: %v", p, copyErr)
-			return nil
-		}
-		hash := fmt.Sprintf("%x", h.Sum(nil))
+	err = walkHashedFiles(dir, skipRecycle, func(hash string, _ string, _ int64, _ int64) error {
 		hashCount[hash]++
 		return nil
 	})

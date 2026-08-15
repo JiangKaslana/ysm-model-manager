@@ -60,6 +60,30 @@ func (tm *TrashManager) MoveEx(src string) *MoveResult {
 	return res
 }
 
+// uniqueDest 冲突后缀循环：目标已存在时在扩展名前追加 (1)、(2)… 重试，
+// 返回首个不存在的目标路径。每次候选（含初始 dst）先经 guard 越权校验；
+// os.Stat 非「不存在」错误（权限 EACCES 等）直接返回，避免静默跳过冲突检测。
+// 收敛 moveEx / Restore 两份逐字重复的冲突后缀循环（索引 6.8b）。
+func uniqueDest(dst string, guard func(string) error) (string, error) {
+	if err := guard(dst); err != nil {
+		return "", err
+	}
+	ext := filepath.Ext(dst)
+	base := dst[:len(dst)-len(ext)]
+	for i := 1; ; i++ {
+		if _, err := os.Stat(dst); os.IsNotExist(err) {
+			return dst, nil
+		} else if err != nil {
+			// 非「不存在」错误（权限等）直接返回，避免静默跳过冲突检测
+			return "", err
+		}
+		dst = base + "(" + strconv.Itoa(i) + ")" + ext
+		if err := guard(dst); err != nil {
+			return "", err
+		}
+	}
+}
+
 func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 	if tm.recycleDir == "" {
 		return nil, fmt.Errorf("回收站目录未设置")
@@ -103,20 +127,16 @@ func (tm *TrashManager) moveEx(src string) (*MoveResult, error) {
 	if !strings.HasPrefix(cleanDst, cleanRecycle+string(filepath.Separator)) && cleanDst != cleanRecycle {
 		return nil, fmt.Errorf("路径越权: %s 不在回收站目录下", dst)
 	}
-	for i := 1; ; i++ {
-		if _, err := os.Stat(dst); os.IsNotExist(err) {
-			break
-		} else if err != nil {
-			// 非"不存在"错误（权限等）直接返回，避免静默跳过冲突检测
-			return nil, err
+	// 冲突后缀循环（与 Restore 共用 uniqueDest，索引 6.8b）；guard 保持越权校验
+	dst, err = uniqueDest(dst, func(candidate string) error {
+		cd := filepath.Clean(candidate)
+		if !strings.HasPrefix(cd, cleanRecycle+string(filepath.Separator)) && cd != cleanRecycle {
+			return fmt.Errorf("路径越权: %s 不在回收站目录下", candidate)
 		}
-		ext := filepath.Ext(rel)
-		name := rel[:len(rel)-len(ext)]
-		dst = filepath.Join(tm.recycleDir, name+"("+strconv.Itoa(i)+")"+ext)
-		cleanDst = filepath.Clean(dst)
-		if !strings.HasPrefix(cleanDst, cleanRecycle+string(filepath.Separator)) && cleanDst != cleanRecycle {
-			return nil, fmt.Errorf("路径越权: %s 不在回收站目录下", dst)
-		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	// 优先瞬时移动（同分区原子操作，避免大模型文件全量复制）；
 	// 仅跨设备（EXDEV）回退复制后删；权限/占用等其他失败直接报错，
@@ -239,22 +259,12 @@ func (tm *TrashManager) Restore(src string) error {
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
 		return err
 	}
-	for i := 1; ; i++ {
-		if _, err := os.Stat(dst); err == nil {
-			// 目标已存在 → 加后缀重试
-		} else if os.IsNotExist(err) {
-			break
-		} else {
-			// 非 IsNotExist 错误（权限 EACCES 等）直接返回——原实现继续加后缀循环，
-			// 若错误持续（同一父目录权限问题）i 无界递增 → 死循环（moveEx 同场景已正确处理）
-			return err
-		}
-		ext := filepath.Ext(rel)
-		name := rel[:len(rel)-len(ext)]
-		dst = filepath.Join(rootDir, name+"("+strconv.Itoa(i)+")"+ext)
-		if err := paths.IsInside(rootDir, dst); err != nil {
-			return err
-		}
+	// 冲突后缀循环（与 moveEx 共用 uniqueDest，索引 6.8b）；guard 保持越权校验
+	dst, err = uniqueDest(dst, func(candidate string) error {
+		return paths.IsInside(rootDir, candidate)
+	})
+	if err != nil {
+		return err
 	}
 	// 优先瞬时移动（同分区原子操作）；跨设备时回退复制后删，语义不变
 	// 与 moveEx 共用 renameForMove/copyDirForMove/copyFileForMove 注入点，
