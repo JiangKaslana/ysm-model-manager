@@ -39,10 +39,10 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 55 | 194 |
+| 前端·工具 | 56 | 208 |
 | frontend/views | 81 | 212 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **278** | **1149** |
+| **合计** | **279** | **1163** |
 
 ## Go·头像
 
@@ -998,15 +998,29 @@
 | `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:39` | — |
 | `Spec3D()` | `frontend/src/utils/3d/model3d:47` | — |
 | `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:52` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:74` | renderModel3D 返回的渲染句柄 |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:109` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:412` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:74` | renderModel3D 返回的渲染句柄（兼容层，实际由 RenderSession 提供） |
+| `renderModel3D()` | `frontend/src/utils/3d/model3d:82` | 渲染 3D 模型到容器，返回控制句柄 |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:94` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/quaternion:13` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
+| `Spec3D()` | `frontend/src/utils/3d/render-session` | — |
+| `SpecBone3D()` | `frontend/src/utils/3d/render-session` | — |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/render-session` | — |
+| `SpecModelGroup3D()` | `frontend/src/utils/3d/render-session` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/render-session` | — |
+| `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/render-session` | — |
+| `loadTdKeymap()` | `frontend/src/utils/3d/render-session` | — |
+| `loadTdCamSpeed()` | `frontend/src/utils/3d/render-session` | — |
+| `loadTdRotMode()` | `frontend/src/utils/3d/render-session` | — |
+| `TdKeyAction()` | `frontend/src/utils/3d/render-session` | — |
+| `RenderSessionHandle()` | `frontend/src/utils/3d/render-session:43` | RenderSession 公开接口（兼容原 RenderModel3DHandle） |
+| `RenderSession()` | `frontend/src/utils/3d/render-session:68` | RenderSession：封装单次 3D 渲染会话的完整生命周期。 |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/render-session:441` | — |
+| `renderModel3D()` | `frontend/src/utils/3d/render-session:444` | — |
 | `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:8` | setupRenderer 返回的组件 |
 | `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:19` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |

@@ -112,6 +112,7 @@ function makeCtx() {
 function make3DHandle() {
   return {
     cleanup: vi.fn(),
+    dispose: vi.fn(),
     resetCamera: vi.fn(),
     onBoneSelect: null as null | ((info: unknown) => void),
     getModelGroupCount: vi.fn(() => 1),

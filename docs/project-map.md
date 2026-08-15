@@ -84,10 +84,8 @@
 | `README.md` | 项目说明（面向用户） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
-| `link-checker-out.json` | 文档链接检查输出（doctor 生成的链接检查报告文件） |
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
-| `opencode.json` | opencode AI CLI 配置（plugin：opencode-vibeguard + @tarquinen/opencode-dcp） |
 | `resource_types.json` | 资源类型单一事实来源（注册表优先） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |

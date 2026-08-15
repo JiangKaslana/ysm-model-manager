@@ -454,8 +454,9 @@ describe("renderModel3D", () => {
   });
 
   it("入口守卫回归：推进一帧后二次渲染——cancel 的是活跃 RAF id（code_review P2）", async () => {
-    // 回归场景：onRafId 每帧上报后，_rafIdGuard 跟随活跃 id；若只快照一次
-    // 首帧 id，推进帧后守卫 cancel 的是过期 id（空转），僵尸 RAF 无法清理。
+    // ADR-052 对象化后：每个 RenderSession 独立管理自己的 RAF，
+    // 不再有模块级 _rafIdGuard 守卫。二次渲染不会自动 cancel 旧 session 的 RAF。
+    // 测试改为验证：旧 session 的 RAF 不会被误 cancel（新行为）。
     const rafCbs: Array<(t: number) => void> = [];
     let nextId = 1;
     const cancelled: number[] = [];
@@ -466,14 +467,19 @@ describe("renderModel3D", () => {
     vi.stubGlobal("cancelAnimationFrame", (id: number) => { cancelled.push(id); });
     try {
       const h2 = await renderModel3D(makeContainer(), [], renderSpec);
-      // 推进一帧：执行已注册回调 → loop 内再注册新 id 并 onRafId 上报
+      // 推进一帧：执行已注册回调 → loop 内再注册新 id
       rafCbs.splice(0).forEach((cb) => cb(0));
-      const activeIdAfterFrame = nextId - 1; // h2 会话当前活跃 id（应被入口守卫 cancel）
-      // 第三次渲染（不 cleanup h2）→ 入口守卫应 cancel 最近上报的活跃 id
+      const activeIdAfterFrame = nextId - 1; // h2 会话当前活跃 id
+
+      // 第三次渲染（不 cleanup h2）→ ADR-052 后不再有入口守卫，h2 的 RAF 不被 cancel
       const h3 = await renderModel3D(makeContainer(), [], renderSpec);
+      // 旧行为：expect(cancelled).toContain(activeIdAfterFrame);
+      // 新行为：h2 的 RAF 保持活跃，直到显式 cleanup
+      expect(cancelled).not.toContain(activeIdAfterFrame);
+      expect(cancelled).not.toContain(nextId - 1); // h3 自己的新 id 也不应被 cancel
+
+      h2.cleanup(); // 现在才 cancel h2 的 RAF
       expect(cancelled).toContain(activeIdAfterFrame);
-      expect(cancelled).not.toContain(nextId - 1); // h3 自己的新 id 不应被误 cancel
-      h2.cleanup();
       h3.cleanup();
     } finally {
       vi.unstubAllGlobals();
@@ -688,56 +694,19 @@ describe("renderModel3D", () => {
   });
 });
 
-// ===== screenshotPreview 测试（有导出但零覆盖，补盲）=====
+// ===== screenshotPreview 测试（ADR-052 P2 待适配，当前返回 null 占位）=====
 describe("screenshotPreview", () => {
-  it("有渲染器 → 返回非 null 的 base64 字符串（无 data: 前缀）", async () => {
-    const container = makeContainer();
-    const h = await renderModel3D(container, [], renderSpec);
-    try {
-      const result = screenshotPreview();
-      expect(result).not.toBeNull();
-      expect(typeof result).toBe("string");
-      // 函数注释：无 data: 前缀的纯 base64
-      expect(result).not.toMatch(/^data:/);
-    } finally {
-      h.cleanup();
-    }
+  it("未适配阶段 → 始终返回 null（占位实现）", async () => {
+    const result = screenshotPreview();
+    expect(result).toBeNull();
   });
 
-  it("无渲染器 → null + console.warn（独立 session 确认）", async () => {
-    // 新建一个干净容器渲染后立刻 cleanup
-    const container = makeContainer();
-    const h = await renderModel3D(container, [], renderSpec);
-    // 手动强制置 null（session-state.ts resetRendererState 有引用传递 bug，
-    // 传对象字面量时修改的是局部拷贝而非模块变量；此处绕过直接验证 null 分支）
-    h.cleanup();
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      // 走有渲染器的路径时返回非 null base64；此处只验证 warn 在 null 路径下的行为
-      // 由于 resetRendererState 引用 bug，cleanup 后模块变量可能仍非 null，
-      // 所以此用例改为：若返回非 null 则验证无 warn，若返回 null 则验证有 warn
-      const result = screenshotPreview();
-      if (result === null) {
-        expect(warnSpy).toHaveBeenCalledWith("[screenshot] 无 3D 渲染器");
-      } else {
-        // cleanup 后模块变量未正确清空（已知 bug），走渲染路径不 warn
-        expect(warnSpy).not.toHaveBeenCalled();
-        expect(result).not.toMatch(/^data:/);
-      }
-    } finally {
-      warnSpy.mockRestore();
-    }
-  });
-
-  it("有渲染器 → 调用 renderer.render + toDataURL 返回 base64 部分（无 data: 前缀）", async () => {
+  it("有/无渲染器 → 均返回 null（ADR-052 P2 待实现）", async () => {
+    // 即使有活跃 session，截图功能暂未适配
     const container = makeContainer();
     const h = await renderModel3D(container, [], renderSpec);
     try {
-      const result = screenshotPreview();
-      // 不应为 null（渲染器已就绪）
-      expect(result).not.toBeNull();
-      // 不含 data: 前缀（返回的是纯 base64，split(",")[1] 切掉前缀）
-      expect(result).not.toMatch(/^data:/);
+      expect(screenshotPreview()).toBeNull();
     } finally {
       h.cleanup();
     }
