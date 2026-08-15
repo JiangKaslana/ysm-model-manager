@@ -71,13 +71,11 @@ func RelinkDir(customDir, filesRoot, rtype, linkMode string, scanFn func(string)
 		if srcPath == "" {
 			continue
 		}
-		// ysm.json / .pmx / .pmd：使用 InstallDir 重新链接整个文件夹
-		ext := strings.ToLower(filepath.Ext(ce.Path))
+		// 目录型模型文件判定（ADR-064 锚定）：原硬编码 ysm.json/.pmx/.pmd；
+		// 现为该类型注册表 dirLevelSync + 文件属于该类型——新增目录型类型自动生效
 		baseName := strings.ToLower(filepath.Base(ce.Path))
 		baseName = strings.TrimSuffix(baseName, ".ban")
-		// ysm.json 判定统一走注册表助手（ADR-065：与 scanner/instance 同口径，消除手写特判）
-		isDirType := types.IsYsmEntryJSON(baseName) ||
-			(ext == ".pmx" || ext == ".pmd")
+		isDirType := types.IsDirLevelSync(rtype) && types.IsTypeModelFile(baseName, rtype)
 		if isDirType {
 			srcDir := filepath.Dir(srcPath)
 			// ce.Path 已在目标子目录内，父层才是 InstallDir 要写入的基础目录

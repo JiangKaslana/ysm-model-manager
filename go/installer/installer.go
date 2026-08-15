@@ -380,8 +380,9 @@ func InstallToGlobal(src, mcRoot string) (string, error) {
 		return "", types.AppError{Code: types.ErrUnsupportedFmt, Operation: "安装到全局", SourcePath: src, Reason: "不支持的文件类型", Suggestion: "支持格式: " + strings.Join(types.AllExts(), " / ")}
 	}
 	// 固定布局约定：YSM mod 的全局模型目录固定在 config/yes_steve_model/custom（mod 加载约定），
-	// 非用户可配置项；多实例根场景由上层传入具体 mcRoot，此处仅拼接布局
-	customDir := filepath.Join(mcRoot, "config", "yes_steve_model", "custom")
+	// 非用户可配置项；多实例根场景由上层传入具体 mcRoot，此处仅拼接布局。
+	// ADR-064 锚定：路径走注册表 SubDirMap（原硬编码，YSM scanDir 变更时失联）
+	customDir := filepath.Join(mcRoot, types.SubDirMap("ysm"))
 	if err := os.MkdirAll(customDir, fsutil.DirPerms); err != nil {
 		return "", types.AppError{Code: types.ErrIO, Operation: "安装到全局", TargetPath: customDir, Reason: "无法创建安装目录", Suggestion: "请检查磁盘权限或空间"}
 	}

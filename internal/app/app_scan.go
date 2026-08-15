@@ -248,8 +248,9 @@ func (a *App) GenerateRepoIndex(repoPath string) (string, error) {
 // ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者
 func (a *App) ScanLocalAuthors() []types.WorkshopCreator {
 	roots := map[string]string{}
-	for _, rtype := range []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "create-blueprint"} {
-		roots[rtype], _ = a.GetRepoRoot(rtype)
+	// ADR-064 锚定：遍历注册表而非硬编码 6 类型数组（新增类型自动纳入作者扫描）
+	for _, rt := range types.LoadRegistry().ResourceTypes {
+		roots[rt.ID], _ = a.GetRepoRoot(rt.ID)
 	}
 	return scanner.ScanLocalAuthors(roots)
 }
@@ -259,7 +260,9 @@ func (a *App) ListVersionInstances(mcRoot string) []types.VersionInstance {
 }
 
 func (a *App) GetGlobalCustomDir(mcRoot string) string {
-	return filepath.Join(mcRoot, "config", "yes_steve_model", "custom")
+	// ADR-064 锚定：路径走注册表 SubDirMap（原硬编码 config/yes_steve_model/custom，
+	// YSM scanDir 变更时此处失联）
+	return filepath.Join(mcRoot, types.SubDirMap("ysm"))
 }
 
 func (a *App) ListFileNames(dir string) []string {

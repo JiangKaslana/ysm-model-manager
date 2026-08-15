@@ -121,21 +121,13 @@ func (a *App) ClearCustomDir(customDir string) (int, error) {
 			}
 			return nil
 		}
-		ext := strings.ToLower(filepath.Ext(p))
-		actualExt := ext
-		// 剥禁用后缀（.ban/.disabled）——与 scanner/fileops 口径统一；
-		// 原实现只认 .ban，仓库中 .disabled 同名文件永远清不掉
-		lower := strings.ToLower(p)
-		if strings.HasSuffix(lower, ".ban") {
-			actualExt = strings.ToLower(filepath.Ext(p[:len(p)-4]))
-		} else if strings.HasSuffix(lower, ".disabled") {
-			actualExt = strings.ToLower(filepath.Ext(p[:len(p)-9]))
-		}
-		if actualExt != ".ysm" && actualExt != ".zip" && actualExt != ".7z" {
+		// ADR-064 锚定：扩展名判定走注册表（原硬编码 .ysm/.zip/.7z，新增 YSM
+		// 承载格式或资源类型时清理功能失效）；IsTypeModelFile 内部剥 .ban/.disabled
+		fileName := filepath.Base(p)
+		if !types.IsTypeModelFile(fileName, "ysm") {
 			return nil
 		}
 
-		fileName := filepath.Base(p)
 		lookupName := strings.TrimSuffix(fileName, ".ban")
 		lookupName = strings.TrimSuffix(lookupName, ".disabled")
 

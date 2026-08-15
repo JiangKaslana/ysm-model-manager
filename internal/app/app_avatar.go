@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"ysm-model-manager/go/avatar"
+	"ysm-model-manager/go/types"
 )
 
 // CachedCreatorAvatar 检查缓存中是否有作者头像，返回 data URI
@@ -42,8 +43,9 @@ func (a *App) BatchExtractCreatorAvatars() (map[string]string, error) {
 					continue
 				}
 				if _, ok := seen[author]; !ok {
-					ext := strings.ToLower(filepath.Ext(e.Path))
-					if ext == ".ysm" || ext == ".zip" || ext == ".7z" || ext == ".json" {
+					// ADR-064 锚定：扩展名判定走注册表（原硬编码 .ysm/.zip/.7z/.json，
+					// 新增 YSM 承载格式或类型时头像提取失效）
+					if types.IsTypeModelFile(e.Name, "ysm") {
 						seen[author] = e.Path
 					}
 				}
@@ -92,8 +94,8 @@ func (a *App) DebugExtractCreatorAvatar(authorName string) map[string]string {
 			if idx := strings.Index(name, "]"); idx > 0 {
 				author := strings.TrimSpace(name[1:idx])
 				if author == authorName {
-					ext := strings.ToLower(filepath.Ext(e.Path))
-					if ext == ".ysm" || ext == ".zip" || ext == ".7z" || ext == ".json" {
+					// ADR-064 锚定：同上方头像提取，扩展名判定走注册表
+					if types.IsTypeModelFile(e.Name, "ysm") {
 						foundPath = e.Path
 						info["found_path"] = foundPath
 						break

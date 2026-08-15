@@ -251,9 +251,21 @@ func (a *App) ToggleResourcePack(path string) bool {
 	// FilesRoot 的兄弟子目录，相对 ysmRoot 为 ../ 被误拒，启用/禁用永远失败。
 	// 对任一根：路径等于根本身拒绝（防根被改名），在根内则放行；都不匹配返回 false。
 	cfg := a.LoadAppConfig()
-	roots := []string{
-		cfg.FilesRoot, cfg.McRoot, cfg.ResourcepackRoot,
-		cfg.ShaderpackRoot, cfg.SchematicRoot, cfg.LitematicRoot, cfg.MmdRoot, cfg.VrcRoot,
+	roots := []string{cfg.FilesRoot, cfg.McRoot}
+	// ADR-064 锚定：遍历注册表组装各类型专属仓库根（原硬编码 9 个 config 字段，
+	// 新增类型的 ConfigField 不在此数组则该类型启用/禁用永远失败）
+	v := reflect.ValueOf(cfg)
+	for _, rt := range types.LoadRegistry().ResourceTypes {
+		for _, field := range []string{rt.ConfigField, rt.ConfigFallback} {
+			if field == "" {
+				continue
+			}
+			if f := v.FieldByName(field); f.IsValid() && f.Kind() == reflect.String {
+				if s := f.String(); s != "" {
+					roots = append(roots, s)
+				}
+			}
+		}
 	}
 	allowed := false
 	for _, root := range roots {

@@ -68,7 +68,8 @@ func listVanillaInstances(mcRoot string) []types.VersionInstance {
 		}
 		name := e.Name()
 		verDir := filepath.Join(versionsDir, name)
-		custom := filepath.Join(verDir, "config", "yes_steve_model", "custom")
+		// ADR-064 锚定：路径走注册表 SubDirMap（原硬编码 config/yes_steve_model/custom）
+		custom := filepath.Join(verDir, types.SubDirMap("ysm"))
 		exists := true
 		if _, st := os.Stat(custom); os.IsNotExist(st) {
 			exists = false
@@ -100,7 +101,7 @@ func listPrismInstances(instancesDir string) []types.VersionInstance {
 		if mcDir == "" {
 			continue
 		}
-		custom := filepath.Join(mcDir, "config", "yes_steve_model", "custom")
+		custom := filepath.Join(mcDir, types.SubDirMap("ysm"))
 		exists := true
 		if _, st := os.Stat(custom); os.IsNotExist(st) {
 			exists = false
