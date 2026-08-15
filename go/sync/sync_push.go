@@ -118,6 +118,19 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 			}
 			continue
 		}
+		// 文件级类型的目录条目（如 resourcepack 的 pack.mcmeta 文件夹 Extra）：
+		// copyFile 对目录会失败——审核补丁，目录整体复制到映射目标（保留 rel）
+		if isDir {
+			if err := copyDirRecursive(src, mapped); err != nil {
+				failed++
+				if logger != nil {
+					logger(filepath.Base(src), src, mapped, 0, "failed", "拉取失败: "+err.Error())
+				}
+				continue
+			}
+			count++
+			continue
+		}
 		if err := copyFile(src, filepath.Join(dstDir, filepath.Base(src))); err != nil {
 			failed++
 			if logger != nil {

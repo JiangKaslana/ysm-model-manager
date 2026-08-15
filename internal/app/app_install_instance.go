@@ -338,7 +338,9 @@ func (a *App) SyncResources(rtype, instanceName string) string {
 		return `{"synced":[],"missing":[],"extra":[]}`
 	}
 
-	result := ysmsync.SyncResources(globalDir, targetDir)
+	// ADR-064 审核修复：原未传 rtype → IsResourceAllowed 全扩展集过滤返回跨类型条目；
+	// 传 rtype 保持与同步管理器同口径（虽然前端当前不消费此 binding，防未来埋雷）
+	result := ysmsync.SyncResources(globalDir, targetDir, rtype)
 	data, _ := json.Marshal(result)
 	return string(data)
 }

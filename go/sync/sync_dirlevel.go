@@ -48,7 +48,9 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 					continue
 				}
 				low := strings.ToLower(e.Name())
-				base := strings.TrimSuffix(low, ".ban")
+				// NormalizeResourceName 剥 .disabled/.ban（审核补：原只剥 .ban，
+				// .disabled 文件在文件夹级顶层收集时被漏掉）
+				base := types.NormalizeResourceName(low)
 				if types.IsTypeModelFile(base, rtype) {
 					key := strings.TrimSuffix(low, filepath.Ext(low))
 					entries[key] = filepath.Join(rootDir, e.Name())

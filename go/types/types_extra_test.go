@@ -9,6 +9,55 @@ import (
 	"testing"
 )
 
+// TestNormalizeResourceName_EdgeCases ADR-064 收敛函数补测：
+// 双后缀（.ban.disabled）剥序、大小写、无后缀。
+func TestNormalizeResourceName_EdgeCases(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"model.ysm", "model.ysm"},
+		{"MODEL.YSM", "model.ysm"},
+		{"model.ysm.ban", "model.ysm"},
+		{"model.ysm.disabled", "model.ysm"},
+		{"model.ban.disabled", "model"}, // 先剥 .disabled 再剥 .ban，双后缀均剥（与旧实现一致）
+		{"model.ysm.disabled.ban", "model.ysm.disabled"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := NormalizeResourceName(c.in); got != c.want {
+			t.Errorf("NormalizeResourceName(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// TestIsResourceAllowed_JsonCase 钉住 .json 特判统一走 IsYsmEntryJSON：
+// 大小写不敏感 + 前导空格 TrimSpace（与原 isSyncAllowed 手写 base=="ysm.json" 差异，
+// 审核 A 指出，已统一到 IsYsmEntryJSON 口径）。
+func TestIsResourceAllowed_JsonCase(t *testing.T) {
+	if !IsResourceAllowed("YSM.JSON") {
+		t.Error("YSM.JSON 应放行（大小写不敏感）")
+	}
+	if !IsResourceAllowed("ysm.json") {
+		t.Error("ysm.json 应放行")
+	}
+	if IsResourceAllowed("anim.json") {
+		t.Error("anim.json 不应放行")
+	}
+	if IsResourceAllowed("") {
+		t.Error("空串不应放行")
+	}
+}
+
+// TestIsTypeModelFile_EmptyExts 空扩展集类型应返回 false（与旧 isModelFile
+// 严格语义一致；extMatch 的空集放行分支在 BuildSyncItems 不会触发——未知
+// 类型早被 SubDirMap 空拦截）。
+func TestIsTypeModelFile_EmptyExts(t *testing.T) {
+	if IsTypeModelFile("x.xyz", "no-such-type") {
+		t.Error("空扩展集类型不应放行任何文件")
+	}
+	if !IsTypeModelFile("m.ysm", "ysm") {
+		t.Error("ysm 类型应放行 .ysm")
+	}
+}
+
 func TestFindInstDir_StandardDir(t *testing.T) {
 	versionDir := t.TempDir()
 	standard := filepath.Join(versionDir, "resourcepacks")

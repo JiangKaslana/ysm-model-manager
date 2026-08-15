@@ -91,5 +91,6 @@
 - 调研 B（消费方 + 前端契约）：确认 4 组入口 / 5 个前端消费点 / 4 处顶层语义约束、`mapSrcToGlobal` 已支持层级映射（瓶颈在上游过滤与落地拼法）、兜底 Walk 重复列示风险、前端结构不变则零改动。
 - 用户反馈（触发调研）：「仓库树明明是树状的，为啥同步后搞了一大堆奇葩判断，不是统一采用仓库树的扫描 lib，各环节共享吗？」
 - 结论：ADR-064 立项，编码按 §2 分两阶段（阶段一无行为变更收敛 → 阶段二相对路径语义升级门控）。
+- **实现说明（2026-08-15 审核补注）**：阶段一与阶段二在代码上**合并一次性落地**（d05afa3e），阶段一过渡态未单独提交——relKey 相对路径对比直接替换文件名对比，对顶层文件语义等价、对嵌套文件是 ADR 声明的扩展行为，无行为回归。审核后补充修复（`SyncResources` binding 补传 rtype、dir-level 展示与操作统一走 `SyncResourcesDirLevel`、`PullResources` 目录条目复制兜底、`IsScanInstance` 标记废弃、补 relKey/归一化边界测试）。
 
 <!-- 文件名: sync-convergence-scanner-single-source.md → 实际文件 ADR-064-sync-convergence-scanner-single-source.md -->

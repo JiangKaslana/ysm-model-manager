@@ -518,6 +518,28 @@ func TestSyncResources_RelPathCompare(t *testing.T) {
 	})
 }
 
+// TestRelKey_EdgeCases ADR-064 审核补测：relKey 边界——嵌套 .ban 剥离、
+// 越界路径返回空、跨平台分隔符归一。
+func TestRelKey_EdgeCases(t *testing.T) {
+	root := filepath.Join("C:", "repo")
+	// 嵌套 .ban 只剥尾部
+	if got := relKey(root, filepath.Join(root, "sub", "model.nbt.ban")); got != "sub/model.nbt" {
+		t.Errorf("嵌套 .ban 应剥尾部得 sub/model.nbt, got %q", got)
+	}
+	// 目录名含 .ban 不剥（与旧 syncNameKey 对 basename 的语义一致）
+	if got := relKey(root, filepath.Join(root, "a.ban", "x.nbt")); got != "a.ban/x.nbt" {
+		t.Errorf("目录名含 .ban 不应剥, got %q", got)
+	}
+	// root 之外路径（filepath.Rel 返回 ..）→ 返回空
+	if got := relKey(root, filepath.Join("D:", "other", "x.nbt")); got != "" {
+		t.Errorf("root 之外路径应返回空, got %q", got)
+	}
+	// 顶层文件
+	if got := relKey(root, filepath.Join(root, "top.nbt")); got != "top.nbt" {
+		t.Errorf("顶层文件 rel 应为 top.nbt, got %q", got)
+	}
+}
+
 // TestSyncResources_PackFolderOnlyForPackType P5 修复：pack.mcmeta 文件夹收集
 // 仅对资源包类型（detector=mcmeta）生效——蓝图仓库（create-blueprint）里误放的
 // 资源包文件夹不应被当成蓝图同步单元（否则 UI 显示"推送"但目录里没有 .nbt）。

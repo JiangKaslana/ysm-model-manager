@@ -104,10 +104,10 @@ func TestBuildSyncItems_SyncedPackFolderExactlyOnce(t *testing.T) {
 	}
 }
 
-// TestBuildSyncItems_FallbackWalk 兜底 Walk 分支（L153-180）：resourcepack 类型下
-// instDir 独有文件（全局侧没有）应被兜底扫描添加为 Optional（SyncResources 的
-// map 去重会丢失，兜底补全）；且 extMatch 过滤生效——非资源包扩展名不添加。
-func TestBuildSyncItems_FallbackWalk(t *testing.T) {
+// TestBuildSyncItems_InstExtraFile resourcepack 类型下 instDir 独有 .zip
+// （全局侧没有）应显示为 Optional——ADR-064 阶段二后由 SyncResources 相对路径
+// 对比的 Extra 产生（原兜底 Walk 已移除）；非资源包扩展名（.txt）仍过滤。
+func TestBuildSyncItems_InstExtraFile(t *testing.T) {
 	base := t.TempDir()
 	globalDir := filepath.Join(base, "global")
 	instDir := filepath.Join(base, "inst")
@@ -276,9 +276,10 @@ func TestBuildSyncItems_YsmJSONEntryOnly(t *testing.T) {
 	}
 }
 
-// TestBuildSyncItems_SyncedFileDedupWalk 同名文件同时命中主循环与兜底 Walk 时去重：
-// resourcepack 下 global+inst 各一份 pack.zip → Synced 恰好 1 条（seenNames 命中，不重复 Optional）
-func TestBuildSyncItems_SyncedFileDedupWalk(t *testing.T) {
+// TestBuildSyncItems_SyncedFileNoDup 同名文件两侧一致 → Synced 恰好 1 条：
+// ADR-064 阶段二后由 SyncResources 相对路径对比保证（原"主循环+兜底 Walk 去重"
+// 场景已随兜底移除自然消失）。
+func TestBuildSyncItems_SyncedFileNoDup(t *testing.T) {
 	base := t.TempDir()
 	globalDir := filepath.Join(base, "global")
 	instDir := filepath.Join(base, "inst")

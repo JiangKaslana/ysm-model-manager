@@ -72,14 +72,15 @@ func NormalizeResourceName(name string) string {
 }
 
 // IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）：
-// 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json。
+// 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json（统一走
+// IsYsmEntryJSON，含 TrimSpace/大小写不敏感）。
 // 原 sync.isSyncAllowed 收敛于此；scanner 内联过滤语义一致（scanner 另有
 // .ban 目录跳过等展示层逻辑，保持独立）。
 func IsResourceAllowed(name string) bool {
 	base := NormalizeResourceName(name)
 	// .json 只允许 ysm.json（其余为动作/动画/模型引用文件，不应单独同步）
 	if strings.HasSuffix(base, ".json") {
-		return base == "ysm.json"
+		return IsYsmEntryJSON(base)
 	}
 	for _, ext := range AllExts() {
 		if strings.HasSuffix(base, ext) {
@@ -139,8 +140,12 @@ func IsDirLevelSync(rtype string) bool {
 	return false
 }
 
-// IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录
-// （非模型类型兜底：SyncResources 的 map 去重会丢失同名文件，注册表 scanInstance 驱动）
+// IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。
+// 已废弃（ADR-064 阶段二）：SyncResources 相对路径对比全树递归收集所有受支持
+// 文件（含嵌套），同名不同目录不再 map 去重丢失，原兜底 Walk 无新增条目可补，
+// 本函数无调用方（2026-08-15 审核确认），保留定义仅为兼容资源类型注册表
+// scanInstance 字段解析；新增代码禁止使用。
+// Deprecated: 无消费方，计划随 scanInstance 字段一并移除。
 func IsScanInstance(rtype string) bool {
 	if rt := RegistryType(rtype); rt != nil {
 		return rt.ScanInstance

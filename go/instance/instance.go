@@ -52,14 +52,31 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		}
 		// 整合包子目录——先试标准目录，再兜底扫描
 		instDir := types.FindInstDir(ins.VersionDir, subDir, rt.ID)
-		// 展示用文件级同步（推送时再用文件夹级推送）
-		result := ysmsync.SyncResources(globalDir, instDir, rt.ID)
+		// ADR-064 审核修复：dir-level 类型（ysm/MMD/蓝图）展示与操作同走
+		// SyncResourcesDirLevel（文件夹粒度），否则展示文件条目、操作却是整个文件夹，
+		// UI 粒度不一致误导；file-level 类型走 SyncResources（相对路径对比）
+		var result types.ResourceSyncResult
+		if types.IsDirLevelSync(rt.ID) {
+			result = ysmsync.SyncResourcesDirLevel(globalDir, instDir, rt.ID)
+		} else {
+			result = ysmsync.SyncResources(globalDir, instDir, rt.ID)
+		}
 
-		// appendItem 组装同步条目：extMatch/资源包文件夹过滤 + .disabled/.ban 禁用判定 +
+		// appendItem 组装同步条目：类型/资源包文件夹过滤 + .disabled/.ban 禁用判定 +
 		// icon 选择，收敛 Synced/Missing/Extra 三分支逐字重复（索引 6.8c）。
 		// defaultStatus 为分支默认状态；isLegacy 仅 Extra 分支传（旧仓库硬链接检测），其余传 nil。
+		isDirLevel := types.IsDirLevelSync(rt.ID)
 		appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool) {
-			if !types.IsTypeModelFile(filepath.Base(p), rt.ID) && !fsutil.IsResourcePackFolder(p) {
+			// 目录级类型：SyncResourcesDirLevel 返回的文件夹条目（如 hello_new_generation_core）
+			// 无扩展名，需按目录放行——展示粒度与操作粒度一致
+			isDirEntry := false
+			if isDirLevel {
+				if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+					isDirEntry = true
+				}
+			}
+			if !types.IsTypeModelFile(filepath.Base(p), rt.ID) &&
+				!fsutil.IsResourcePackFolder(p) && !isDirEntry {
 				return
 			}
 			// 三分支口径一致：先识别 .disabled/.ban 禁用标记（实例侧遗留的禁用文件不应显示
