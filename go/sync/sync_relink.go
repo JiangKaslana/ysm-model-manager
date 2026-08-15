@@ -33,11 +33,16 @@ func RelinkDir(customDir, filesRoot, rtype, linkMode string, scanFn func(string)
 		return 0, fmt.Errorf("scanFn 为空")
 	}
 	repoEntries := scanFn(filesRoot)
-	repoByHash := make(map[string]string)
+	repoByHash := make(map[string][]types.ModelEntry)
 	for _, e := range repoEntries {
-		if e.Hash != "" {
-			repoByHash[e.Hash] = e.Path
+		if e.Hash == "" {
+			continue
 		}
+		// 仓库侧 .ban 只是禁用标记，不能作为重链接源（与 sync.go 对齐）
+		if strings.HasSuffix(strings.ToLower(e.Name), ".ban") {
+			continue
+		}
+		repoByHash[e.Hash] = append(repoByHash[e.Hash], e)
 	}
 	customEntries := scanFn(customDir)
 	count := 0
@@ -50,8 +55,20 @@ func RelinkDir(customDir, filesRoot, rtype, linkMode string, scanFn func(string)
 		if strings.HasSuffix(strings.ToLower(ce.Name), ".ban") {
 			continue
 		}
-		srcPath, found := repoByHash[ce.Hash]
+		entries, found := repoByHash[ce.Hash]
 		if !found {
+			continue
+		}
+		var srcPath string
+		for _, e := range entries {
+			// 防御：即使构建时已跳过，查询仍只取第一个非 .ban 条目
+			if strings.HasSuffix(strings.ToLower(e.Name), ".ban") {
+				continue
+			}
+			srcPath = e.Path
+			break
+		}
+		if srcPath == "" {
 			continue
 		}
 		// ysm.json / .pmx / .pmd：使用 InstallDir 重新链接整个文件夹

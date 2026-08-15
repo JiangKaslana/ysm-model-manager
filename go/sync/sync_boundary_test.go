@@ -160,25 +160,23 @@ func TestSyncCustomToRepo_PathTraversal_Rejected(t *testing.T) {
 }
 
 // =====================================================================
-// 三、重复/同哈希冲突（未修，保留用例+注释）
+// 三、重复/同哈希冲突（已修复：取第一个非 .ban 仓库条目）
 // =====================================================================
 
-// TODO(BUG): RelinkDir 的 repoByHash map 为 last-wins——仓库中同 hash 多条时，前面的条目被静默丢弃，
-// 重链接时只用最后一条路径作为源。若用户仓库里同 hash 存了多个版本，前面的被遗忘。
-// 源码：sync_relink.go `repoByHash[e.Hash] = e.Path` 直接覆盖。
-func TestRelinkDir_DuplicateHash_LastWins(t *testing.T) {
+// RelinkDir 的 repoByHash 现在保留同 hash 的所有仓库条目，并取扫描顺序中的
+// 第一个非 .ban 条目作为源，不再被 map 覆盖成 last-wins。
+func TestRelinkDir_DuplicateHash_FirstWins(t *testing.T) {
 	base := t.TempDir()
 	repoRoot := filepath.Join(base, "repo")
 	customDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
 	_ = os.MkdirAll(filepath.Join(repoRoot, "v1"), 0755)
 	_ = os.MkdirAll(filepath.Join(repoRoot, "v2"), 0755)
-	_ = os.MkdirAll(customDir, 0755)
+	_ = os.MkdirAll(filepath.Join(customDir, "v1"), 0755)
 
 	_ = os.WriteFile(filepath.Join(repoRoot, "v1", "m.ysm"), []byte("v1"), 0644)
 	_ = os.WriteFile(filepath.Join(repoRoot, "v2", "m.ysm"), []byte("v2"), 0644)
-	_ = os.WriteFile(filepath.Join(customDir, "m.ysm"), []byte("old"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "v1", "m.ysm"), []byte("old"), 0644)
 
-	var srcUsed string
 	scanFn := func(dir string) []types.ModelEntry {
 		if dir == repoRoot {
 			return []types.ModelEntry{
@@ -186,27 +184,30 @@ func TestRelinkDir_DuplicateHash_LastWins(t *testing.T) {
 				{Name: "m.ysm", Path: filepath.Join(dir, "v2", "m.ysm"), Hash: "h1"},
 			}
 		}
-		return []types.ModelEntry{{Name: "m.ysm", Path: filepath.Join(dir, "m.ysm"), Hash: "h1"}}
+		return []types.ModelEntry{{Name: "m.ysm", Path: filepath.Join(dir, "v1", "m.ysm"), Hash: "h1"}}
 	}
-	_, err := RelinkDir(customDir, repoRoot, "resourcepack", "copy", scanFn,
-		func(name, src, dst string, size int64, status, msg string) {
-			if status == "success" || msg == "" {
-				srcUsed = src
-			}
-		})
+	count, err := RelinkDir(customDir, repoRoot, "resourcepack", "copy", scanFn,
+		func(name, src, dst string, size int64, status, msg string) {})
 	if err != nil {
 		t.Fatalf("RelinkDir 失败: %v", err)
 	}
-	data, _ := os.ReadFile(filepath.Join(customDir, "m.ysm"))
-	if string(data) != "v2" {
-		t.Logf("结果=%q, 源=%s", string(data), srcUsed)
-	} else {
-		t.Logf("TODO(BUG): 同 hash last-wins（源码未修）：源=%s", srcUsed)
+	if count != 1 {
+		t.Fatalf("应重链接 1 个，实际 %d", count)
+	}
+	data, err := os.ReadFile(filepath.Join(customDir, "v1", "m.ysm"))
+	if err != nil {
+		t.Fatalf("实例文件应存在: %v", err)
+	}
+	if string(data) != "v1" {
+		t.Fatalf("同 hash 时应取第一个仓库条目 v1，实际内容 %q", string(data))
+	}
+	if _, err := os.Stat(filepath.Join(customDir, "v2")); !os.IsNotExist(err) {
+		t.Fatalf("不应使用 last-wins 的 v2 路径，实际状态: %v", err)
 	}
 }
 
-// TODO(BUG): RelinkDir 目录级分支同样 last-wins。
-func TestRelinkDir_DuplicateHash_DirLevel_LastWins(t *testing.T) {
+// RelinkDir 目录级分支同样应取第一个仓库条目。
+func TestRelinkDir_DuplicateHash_DirLevel_FirstWins(t *testing.T) {
 	base := t.TempDir()
 	repoRoot := filepath.Join(base, "repo")
 	customDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
@@ -226,16 +227,65 @@ func TestRelinkDir_DuplicateHash_DirLevel_LastWins(t *testing.T) {
 		}
 		return []types.ModelEntry{{Name: "ysm.json", Path: filepath.Join(dir, "old-pack", "ysm.json"), Hash: "h1"}}
 	}
-	_, err := RelinkDir(customDir, repoRoot, "ysm", "copy", scanFn,
+	count, err := RelinkDir(customDir, repoRoot, "ysm", "copy", scanFn,
 		func(name, src, dst string, size int64, status, msg string) {})
 	if err != nil {
 		t.Fatalf("RelinkDir 失败: %v", err)
 	}
-	data, _ := os.ReadFile(filepath.Join(customDir, "v2-pack", "ysm.json"))
-	if string(data) != "v2" {
-		t.Logf("结果=%q", string(data))
-	} else {
-		t.Logf("TODO(BUG): 目录级 last-wins（源码未修）")
+	if count != 1 {
+		t.Fatalf("应重链接 1 个，实际 %d", count)
+	}
+	data, err := os.ReadFile(filepath.Join(customDir, "v1-pack", "ysm.json"))
+	if err != nil {
+		t.Fatalf("目录级替换后应使用第一个仓库条目 v1-pack: %v", err)
+	}
+	if string(data) != "v1" {
+		t.Fatalf("v1-pack 内容应来自第一个仓库条目，实际 %q", string(data))
+	}
+	if _, err := os.Stat(filepath.Join(customDir, "v2-pack")); !os.IsNotExist(err) {
+		t.Fatalf("不应使用 last-wins 的 v2-pack，实际状态: %v", err)
+	}
+}
+
+// 仓库侧 .ban 只是禁用标记，即使排在扫描顺序最前也不能被当作重链接源。
+func TestRelinkDir_RepoBan_NotUsedAsSource(t *testing.T) {
+	base := t.TempDir()
+	repoRoot := filepath.Join(base, "repo")
+	customDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	_ = os.MkdirAll(filepath.Join(repoRoot, "ban-src"), 0755)
+	_ = os.MkdirAll(filepath.Join(repoRoot, "v1"), 0755)
+	_ = os.MkdirAll(filepath.Join(customDir, "v1"), 0755)
+
+	_ = os.WriteFile(filepath.Join(repoRoot, "ban-src", "m.ysm.ban"), []byte("ban"), 0644)
+	_ = os.WriteFile(filepath.Join(repoRoot, "v1", "m.ysm"), []byte("v1"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "v1", "m.ysm"), []byte("old"), 0644)
+
+	scanFn := func(dir string) []types.ModelEntry {
+		if dir == repoRoot {
+			return []types.ModelEntry{
+				{Name: "m.ysm.ban", Path: filepath.Join(dir, "ban-src", "m.ysm.ban"), Hash: "h1"},
+				{Name: "m.ysm", Path: filepath.Join(dir, "v1", "m.ysm"), Hash: "h1"},
+			}
+		}
+		return []types.ModelEntry{{Name: "m.ysm", Path: filepath.Join(dir, "v1", "m.ysm"), Hash: "h1"}}
+	}
+	count, err := RelinkDir(customDir, repoRoot, "resourcepack", "copy", scanFn,
+		func(name, src, dst string, size int64, status, msg string) {})
+	if err != nil {
+		t.Fatalf("RelinkDir 失败: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("应跳过仓库 .ban 并重链接 1 个，实际 %d", count)
+	}
+	data, err := os.ReadFile(filepath.Join(customDir, "v1", "m.ysm"))
+	if err != nil {
+		t.Fatalf("实例文件应存在: %v", err)
+	}
+	if string(data) != "v1" {
+		t.Fatalf("仓库 .ban 不应作为源，应使用第一个活跃条目 v1，实际内容 %q", string(data))
+	}
+	if _, err := os.Stat(filepath.Join(customDir, "ban-src")); !os.IsNotExist(err) {
+		t.Fatalf("仓库 .ban 不应被安装到实例目录，实际状态: %v", err)
 	}
 }
 
