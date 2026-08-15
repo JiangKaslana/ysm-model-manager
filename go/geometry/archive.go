@@ -1,21 +1,18 @@
 // ===== 从压缩包中提取并解析 Bedrock Geometry =====
-// 支持 ZIP（YSM 标准格式）和 7z 格式
+// 支持 ZIP（YSM 标准格式）和 7z 格式。容器打开统一走 go/container（ADR-068）。
 package geometry
 
 import (
-	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/fs"
 	"log"
 	"sort"
 	"strings"
 
+	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
-
-	"github.com/bodgit/sevenzip"
 )
 
 // maxExtractSize 单个文件最大读取大小（ZIP/7z 内文件），防止 ZIP 炸弹
@@ -55,15 +52,11 @@ func filterArmModels(order []string) []string {
 	return out
 }
 
-// ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览）
-func ExtractFirstPNGFromZip(data []byte, size int64) []byte {
-	reader, err := zip.NewReader(bytes.NewReader(data), size)
-	if err != nil {
-		return nil
-	}
-	for _, f := range reader.File {
-		if strings.HasSuffix(strings.ToLower(f.Name), ".png") && !f.FileInfo().IsDir() {
-			rc, err := f.Open()
+// extractFirstPNG 从容器读取器中找第一张 .png（ZIP/7z 共用）。
+func extractFirstPNG(r container.Reader) []byte {
+	for _, e := range r.Entries() {
+		if strings.HasSuffix(strings.ToLower(e.Name()), ".png") && !e.IsDir() {
+			rc, err := e.Open()
 			if err != nil {
 				continue
 			}
@@ -74,38 +67,26 @@ func ExtractFirstPNGFromZip(data []byte, size int64) []byte {
 		}
 	}
 	return nil
+}
+
+// ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览）
+func ExtractFirstPNGFromZip(data []byte, size int64) []byte {
+	r, err := container.OpenZipBytes(data, size)
+	if err != nil {
+		return nil
+	}
+	defer r.Close()
+	return extractFirstPNG(r)
 }
 
 // ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览）
 func ExtractFirstPNGFrom7z(data []byte, size int64) []byte {
-	reader, err := sevenzip.NewReader(bytes.NewReader(data), size)
+	r, err := container.Open7zBytes(data, size)
 	if err != nil {
 		return nil
 	}
-	for _, f := range reader.File {
-		if strings.HasSuffix(strings.ToLower(f.Name), ".png") && !f.FileInfo().IsDir() {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			buf := readLimitedEntry(rc)
-			if len(buf) > 0 {
-				return buf
-			}
-		}
-	}
-	return nil
-}
-
-// ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画
-// archiveEntry 统一 zip.File 与 sevenzip.File 的访问（两者 Name 均为字段而非方法，
-// 故用 struct 包装 name + file 接口，避免 Go slice 协变与字段/方法差异）。
-type archiveEntry struct {
-	name string
-	file interface {
-		FileInfo() fs.FileInfo
-		Open() (io.ReadCloser, error)
-	}
+	defer r.Close()
+	return extractFirstPNG(r)
 }
 
 type geoEntry struct {
@@ -115,13 +96,12 @@ type geoEntry struct {
 
 // collectArchiveFiles 从压缩包收集 ysm.json 映射/模型文件/纹理（合并版与组件版共用）。
 // 与 ParseFromZip 原内联逻辑等价，但 geoFiles **不排除 arm**（arm 过滤由合并版调用方
-// filterArmModels 做；组件版需要 arm 作为独立组件）。
-func collectArchiveFiles(entries []archiveEntry) (modelOrder, texOrder []string, geoFiles []geoEntry, pngs [][]byte, pngNames, animJSONs []string) {
+// filterArmModels 做；组件版需要 arm 作为独立组件）。entries 现为 container.Entry（ADR-068）。
+func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []string, geoFiles []geoEntry, pngs [][]byte, pngNames, animJSONs []string) {
 	for _, e := range entries {
-		f := e.file
-		low := strings.ToLower(e.name)
-		if strings.HasSuffix(low, "ysm.json") && !f.FileInfo().IsDir() {
-			rc, err := f.Open()
+		low := strings.ToLower(e.Name())
+		if strings.HasSuffix(low, "ysm.json") && !e.IsDir() {
+			rc, err := e.Open()
 			if err != nil {
 				continue
 			}
@@ -242,14 +222,13 @@ func collectArchiveFiles(entries []archiveEntry) (modelOrder, texOrder []string,
 	}
 
 	for _, e := range entries {
-		f := e.file
-		low := strings.ToLower(e.name)
-		if strings.HasSuffix(low, ".json") && !f.FileInfo().IsDir() {
+		low := strings.ToLower(e.Name())
+		if strings.HasSuffix(low, ".json") && !e.IsDir() {
 			if strings.Contains(low, "ysm.json") {
 				continue
 			}
 			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
-				rc, err := f.Open()
+				rc, err := e.Open()
 				if err != nil {
 					continue
 				}
@@ -264,16 +243,16 @@ func collectArchiveFiles(entries []archiveEntry) (modelOrder, texOrder []string,
 				}
 				continue
 			}
-			rc, err := f.Open()
+			rc, err := e.Open()
 			if err != nil {
 				continue
 			}
 			buf := readLimitedEntry(rc)
 			// 注意：不排除 arm（组件版需要；合并版由调用方 filterArmModels 过滤）
-			geoFiles = append(geoFiles, geoEntry{name: e.name, data: buf})
+			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
 		}
-		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !f.FileInfo().IsDir() && !strings.Contains(low, "avatar/") {
-			rc, err := f.Open()
+		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") {
+			rc, err := e.Open()
 			if err != nil {
 				continue
 			}
@@ -281,7 +260,7 @@ func collectArchiveFiles(entries []archiveEntry) (modelOrder, texOrder []string,
 			// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
 			// 头像/预览图仅由 avatar/ 路径与基名前缀排除
 			if len(pngData) > 0 {
-				name := e.name
+				name := e.Name()
 				if idx := strings.LastIndex(name, "/"); idx >= 0 {
 					name = name[idx+1:]
 				}
@@ -298,10 +277,12 @@ func collectArchiveFiles(entries []archiveEntry) (modelOrder, texOrder []string,
 	return modelOrder, texOrder, geoFiles, pngs, pngNames, animJSONs
 }
 
-func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []string) {
-	reader, err := zip.NewReader(bytes.NewReader(data), size)
-	if err != nil {
-		return nil, nil, nil
+// parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
+// 构建 BedrockModel。logTag 用于日志前缀（"zip" / "7z"）。
+func parseModelFromEntries(entries []container.Entry, logTag string) (*types.BedrockModel, [][]byte, []string) {
+	logPrefix := "[geometry]"
+	if logTag != "zip" {
+		logPrefix = logPrefix + " " + logTag
 	}
 	var geo *types.BedrockModel
 	var pngs [][]byte
@@ -310,10 +291,10 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 
 	var modelOrder []string
 	var texOrder []string
-	for _, f := range reader.File {
-		low := strings.ToLower(f.Name)
-		if strings.HasSuffix(low, "ysm.json") && !f.FileInfo().IsDir() {
-			rc, err := f.Open()
+	for _, e := range entries {
+		low := strings.ToLower(e.Name())
+		if strings.HasSuffix(low, "ysm.json") && !e.IsDir() {
+			rc, err := e.Open()
 			if err != nil {
 				continue
 			}
@@ -330,7 +311,7 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 				} `json:"files"`
 			}
 			if err := json.Unmarshal(buf, &ysm); err != nil {
-				log.Printf("[geometry] 解析 ysm.json 失败: %v", err)
+				log.Printf("%s 解析 ysm.json 失败: %v", logPrefix, err)
 			} else {
 				// 解析 texture 顺序
 				if len(ysm.Files.Player.Texture) > 0 {
@@ -433,14 +414,14 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 
 	var geoFiles []geoEntry
 
-	for _, f := range reader.File {
-		low := strings.ToLower(f.Name)
-		if strings.HasSuffix(low, ".json") && !f.FileInfo().IsDir() {
+	for _, e := range entries {
+		low := strings.ToLower(e.Name())
+		if strings.HasSuffix(low, ".json") && !e.IsDir() {
 			if strings.Contains(low, "ysm.json") {
 				continue
 			}
 			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
-				rc, err := f.Open()
+				rc, err := e.Open()
 				if err != nil {
 					continue
 				}
@@ -455,18 +436,18 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 				}
 				continue
 			}
-			rc, err := f.Open()
+			rc, err := e.Open()
 			if err != nil {
 				continue
 			}
 			buf := readLimitedEntry(rc)
-			if isArmModelName(f.Name) {
+			if isArmModelName(e.Name()) {
 				continue // 排除第一人称手臂模型 arm.json（与 main 手臂重叠 → 双手臂）
 			}
-			geoFiles = append(geoFiles, geoEntry{name: f.Name, data: buf})
+			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
 		}
-		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !f.FileInfo().IsDir() && !strings.Contains(low, "avatar/") {
-			rc, err := f.Open()
+		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") {
+			rc, err := e.Open()
 			if err != nil {
 				continue
 			}
@@ -474,7 +455,7 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 			// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
 			// 头像/预览图仅由 avatar/ 路径与基名前缀排除
 			if len(pngData) > 0 {
-				name := f.Name
+				name := e.Name()
 				if idx := strings.LastIndex(name, "/"); idx >= 0 {
 					name = name[idx+1:]
 				}
@@ -607,294 +588,25 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 	return geo, pngs, animJSONs
 }
 
-// ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理
+// ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。
+func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []string) {
+	r, err := container.OpenZipBytes(data, size)
+	if err != nil {
+		return nil, nil, nil
+	}
+	defer r.Close()
+	return parseModelFromEntries(r.Entries(), "zip")
+}
+
+// ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。
 func ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte) {
-	reader, err := sevenzip.NewReader(bytes.NewReader(data), size)
+	r, err := container.Open7zBytes(data, size)
 	if err != nil {
 		log.Printf("[geometry] 打开 7z 失败: %v", err)
 		return nil, nil
 	}
-	var geo *types.BedrockModel
-	var pngs [][]byte
-	var pngNames []string
-	var modelOrder []string
-	var texOrder []string
-
-	for _, f := range reader.File {
-		low := strings.ToLower(f.Name)
-		if strings.HasSuffix(low, "ysm.json") && !f.FileInfo().IsDir() {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			buf := readLimitedEntry(rc)
-			var ysm struct {
-				Properties struct {
-					DefaultTexture string `json:"default_texture"`
-				} `json:"properties"`
-				Files struct {
-					Player struct {
-						Model   json.RawMessage `json:"model"`
-						Texture json.RawMessage `json:"texture"`
-					} `json:"player"`
-				} `json:"files"`
-			}
-			if err := json.Unmarshal(buf, &ysm); err != nil {
-				log.Printf("[geometry] 7z 解析 ysm.json 失败: %v", err)
-			} else {
-				// 解析 texture 顺序
-				if len(ysm.Files.Player.Texture) > 0 {
-					texRaw := string(ysm.Files.Player.Texture)
-					if strings.HasPrefix(strings.TrimSpace(texRaw), `[`) {
-						var arr []json.RawMessage
-						if json.Unmarshal(ysm.Files.Player.Texture, &arr) == nil {
-							for _, item := range arr {
-								s := strings.TrimSpace(string(item))
-								if strings.HasPrefix(s, `{`) {
-									var obj struct {
-										Uv string `json:"uv"`
-									}
-									if json.Unmarshal(item, &obj) == nil && obj.Uv != "" {
-										tn := obj.Uv
-										if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										texOrder = append(texOrder, strings.ToLower(tn))
-									}
-								} else {
-									var sval string
-									if json.Unmarshal(item, &sval) == nil && sval != "" {
-										tn := sval
-										if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										texOrder = append(texOrder, strings.ToLower(tn))
-									}
-								}
-							}
-						}
-					}
-				}
-				raw := strings.TrimSpace(string(ysm.Files.Player.Model))
-				if len(raw) > 0 {
-					if raw[0] == '[' {
-						var arr []json.RawMessage
-						if json.Unmarshal(ysm.Files.Player.Model, &arr) == nil {
-							for _, item := range arr {
-								s := strings.TrimSpace(string(item))
-								if len(s) > 0 && s[0] == '{' {
-									var obj struct {
-										Path string `json:"path"`
-										Name string `json:"name"`
-									}
-									if json.Unmarshal(item, &obj) == nil {
-										n := obj.Path
-										if n == "" {
-											n = obj.Name
-										}
-										if n != "" {
-											modelOrder = append(modelOrder, n)
-										}
-									}
-								} else {
-									var sval string
-									if json.Unmarshal(item, &sval) == nil && sval != "" {
-										modelOrder = append(modelOrder, sval)
-									}
-								}
-							}
-						}
-					} else if raw[0] == '{' {
-						// map 格式：JSON 对象**写入序**即 Bedrock 声明序（main 通常最先声明）。
-						// Go map 丢失写入序，必须 json.Decoder Token 流式保序遍历——
-						// sort.Strings 键排序会把 main 排到 arm 后，导致 texSlot 绑定错位（P2 修复）。
-						dec := json.NewDecoder(bytes.NewReader(ysm.Files.Player.Model))
-						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							for dec.More() {
-								keyTok, err := dec.Token()
-								if err != nil {
-									break
-								}
-								_, _ = keyTok.(string) // 键名仅作引用，写入序即声明序
-								var val string
-								if err := dec.Decode(&val); err != nil {
-									break
-								}
-								if val != "" {
-									modelOrder = append(modelOrder, val)
-								}
-							}
-						}
-					} else {
-						var sval string
-						if json.Unmarshal(ysm.Files.Player.Model, &sval) == nil && sval != "" {
-							modelOrder = append(modelOrder, sval)
-						}
-					}
-				}
-			}
-			break
-		}
-	}
-
-	// 按 modelOrder 排序 geo 文件
-	var geoFiles []geoEntry
-	for _, f := range reader.File {
-		low := strings.ToLower(f.Name)
-		if strings.HasSuffix(low, ".json") && !strings.Contains(low, "ysm.json") && !f.FileInfo().IsDir() {
-			// 动画/控制器 JSON 不参与几何解析（与 ZIP 路径同口径；7z 签名无动画回传）
-			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
-				continue
-			}
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			buf := readLimitedEntry(rc)
-			if isArmModelName(f.Name) {
-				continue // 排除第一人称手臂模型 arm.json（与 main 手臂重叠 → 双手臂）
-			}
-			geoFiles = append(geoFiles, geoEntry{name: f.Name, data: buf})
-		}
-	}
-
-	// 移除第一人称手臂模型占位：避免 arm.json 占据 texIdx 槽位导致 main 纹理错位
-	modelOrder = filterArmModels(modelOrder)
-
-	if len(modelOrder) > 0 {
-		orderMap := make(map[string]int, len(modelOrder))
-		for i, p := range modelOrder {
-			orderMap[strings.ReplaceAll(p, "\\", "/")] = i
-		}
-		sort.SliceStable(geoFiles, func(i, j int) bool {
-			// 查询键须与 orderMap 键同口径（"\\"→"/" 归一化）：Windows 工具
-			// 产出的归档条目名可能含反斜杠，原实现未归一化导致声明序排序失效
-			ai, oki := orderMap[strings.ReplaceAll(geoFiles[i].name, "\\", "/")]
-			aj, okj := orderMap[strings.ReplaceAll(geoFiles[j].name, "\\", "/")]
-			if oki && okj {
-				return ai < aj
-			}
-			return oki
-		})
-	}
-
-	// 建立 texIdx 映射
-	texIdxMap := make(map[string]int)
-	texCount := len(texOrder)
-	if texCount == 0 {
-		texCount = len(modelOrder)
-	}
-	for i, p := range modelOrder {
-		p = strings.ReplaceAll(p, "\\", "/")
-		if idx := strings.LastIndex(p, "/"); idx >= 0 {
-			p = p[idx+1:]
-		}
-		ti := i
-		if ti >= texCount {
-			ti = texCount - 1
-		}
-		texIdxMap[strings.TrimSuffix(p, ".json")] = ti
-	}
-
-	// 解析 geometry
-	for _, gf := range geoFiles {
-		g := ParseBedrockGeometry(gf.data)
-		if g == nil || g.BoneCount == 0 {
-			continue
-		}
-		for bi := range g.Bones {
-			for ci := range g.Bones[bi].Cubes {
-				g.Bones[bi].Cubes[ci].CubeTexW = g.TexWidth
-				g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
-			}
-		}
-		geoName := strings.ReplaceAll(gf.name, "\\", "/")
-		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
-			geoName = geoName[idx+1:]
-		}
-		geoName = strings.TrimSuffix(strings.TrimSuffix(geoName, ".json"), ".geo.json")
-		if ti, hasTex := texIdxMap[geoName]; hasTex {
-			for bi := range g.Bones {
-				for ci := range g.Bones[bi].Cubes {
-					g.Bones[bi].Cubes[ci].TexSlot = ti
-				}
-			}
-		}
-		if geo == nil {
-			geo = g
-		} else {
-			geo.Bones = append(geo.Bones, g.Bones...)
-			geo.BoneCount += g.BoneCount
-			geo.CubeCount += g.CubeCount
-			if g.TexWidth > geo.TexWidth {
-				geo.TexWidth = g.TexWidth
-			}
-			if g.TexHeight > geo.TexHeight {
-				geo.TexHeight = g.TexHeight
-			}
-		}
-	}
-
-	// 提取 PNG
-	for _, f := range reader.File {
-		low := strings.ToLower(f.Name)
-		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !f.FileInfo().IsDir() && !strings.Contains(low, "avatar/") {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			pngData := readLimitedEntry(rc)
-			// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
-			// 头像/预览图仅由 avatar/ 路径与基名前缀排除
-			if len(pngData) > 0 {
-				name := f.Name
-				if idx := strings.LastIndex(name, "/"); idx >= 0 {
-					name = name[idx+1:]
-				}
-				if idx := strings.LastIndex(name, "\\"); idx >= 0 {
-					name = name[idx+1:]
-				}
-				name = strings.TrimSuffix(strings.TrimSuffix(name, ".png"), ".jpg")
-				pngNames = append(pngNames, name)
-				pngs = append(pngs, pngData)
-			}
-		}
-	}
-	if len(texOrder) > 0 {
-		// orderMap 的 key 必须与查询 key 同口径——
-		// texOrder 条目是「小写 basename 含扩展名」（如 tex1.png），而查询 key 是
-		// `strings.ToLower(pngNames[i])`（pngNames 已 TrimSuffix 去扩展名，如 tex1），
-		// 原实现 key 永不命中 → 「纹理按声明顺序排序」形同死代码，TexSlot 绑定错位。
-		orderMap := make(map[string]int, len(texOrder))
-		for i, n := range texOrder {
-			bn := strings.TrimSuffix(n, ".png")
-			bn = strings.TrimSuffix(bn, ".jpg")
-			orderMap[bn] = i
-		}
-		sort.SliceStable(pngs, func(i, j int) bool {
-			oi, hasI := orderMap[strings.ToLower(pngNames[i])]
-			oj, hasJ := orderMap[strings.ToLower(pngNames[j])]
-			if hasI && hasJ {
-				return oi < oj
-			}
-			return hasI
-		})
-		sort.SliceStable(pngNames, func(i, j int) bool {
-			oi, hasI := orderMap[strings.ToLower(pngNames[i])]
-			oj, hasJ := orderMap[strings.ToLower(pngNames[j])]
-			if hasI && hasJ {
-				return oi < oj
-			}
-			return hasI
-		})
-	}
-	// 纹理名与 pngs 同序，供前端纹理列表显示（与 ParseFromZip 同契约）
-	if geo != nil {
-		geo.TextureNames = pngNames
-	}
+	defer r.Close()
+	geo, pngs, _ := parseModelFromEntries(r.Entries(), "7z")
 	return geo, pngs
 }
 
@@ -913,15 +625,12 @@ func IsMainModelName(name string) bool {
 // 含 arm/载具等组件（不合并、不排除）；main 优先排序，TexSlot 全局化。
 // 供 threejs.BuildMulti 生成多组件 spec。
 func ParseComponentsFromZip(data []byte, size int64) ([]types.BedrockModel, []string, error) {
-	reader, err := zip.NewReader(bytes.NewReader(data), size)
+	r, err := container.OpenZipBytes(data, size)
 	if err != nil {
 		return nil, nil, err
 	}
-	files := make([]archiveEntry, 0, len(reader.File))
-	for _, f := range reader.File {
-		files = append(files, archiveEntry{name: f.Name, file: f})
-	}
-	modelOrder, texOrder, geoFiles, _, _, _ := collectArchiveFiles(files)
+	defer r.Close()
+	modelOrder, texOrder, geoFiles, _, _, _ := collectArchiveFiles(r.Entries())
 	return buildComponents(geoFiles, modelOrder, texOrder)
 }
 
@@ -1011,14 +720,11 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string) ([]type
 // ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构，
 // 复用 collectArchiveFiles/buildComponents（含 arm、main 优先、TexSlot 全局化）。
 func ParseComponentsFrom7z(data []byte, size int64) ([]types.BedrockModel, []string, error) {
-	reader, err := sevenzip.NewReader(bytes.NewReader(data), size)
+	r, err := container.Open7zBytes(data, size)
 	if err != nil {
 		return nil, nil, err
 	}
-	files := make([]archiveEntry, 0, len(reader.File))
-	for _, f := range reader.File {
-		files = append(files, archiveEntry{name: f.Name, file: f})
-	}
-	modelOrder, texOrder, geoFiles, _, _, _ := collectArchiveFiles(files)
+	defer r.Close()
+	modelOrder, texOrder, geoFiles, _, _, _ := collectArchiveFiles(r.Entries())
 	return buildComponents(geoFiles, modelOrder, texOrder)
 }

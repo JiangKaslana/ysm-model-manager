@@ -1,7 +1,6 @@
 package ysm
 
 import (
-	"archive/zip"
 	"encoding/json"
 	"log"
 	"math"
@@ -9,8 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bodgit/sevenzip"
-
+	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
@@ -65,7 +63,7 @@ func readTexSizeFromFile(path string) (int, int) {
 func readTexFromZip(path string) (int, int) {
 	// limit+1 探测截断（ADR-033 陷阱），两个循环共用
 	const maxTexJSON = types.MaxReadLimit
-	r, err := zip.OpenReader(path)
+	r, err := container.OpenZipPath(path)
 	if err != nil {
 		return 0, 0
 	}
@@ -75,8 +73,8 @@ func readTexFromZip(path string) (int, int) {
 	// 原实现为两个逐字节相同的循环（首循环注释误标「查找 geometry JSON」却未按名过滤，
 	// 与次循环完全等价），每个 JSON 条目被打开读取两次——合并为单循环，行为不变
 	// （首命中即返回，两循环合起来同样是首命中返回）。
-	for _, f := range r.File {
-		name := strings.ToLower(f.Name)
+	for _, f := range r.Entries() {
+		name := strings.ToLower(f.Name())
 		if !strings.HasSuffix(name, ".json") {
 			continue
 		}
@@ -103,14 +101,14 @@ func readTexFromZip(path string) (int, int) {
 func readTexFrom7z(path string) (int, int) {
 	// 与 readTexFromZip 同上限（50MB/条目，ADR-033 截断防线）
 	const maxTexJSON = types.MaxReadLimit
-	zr, err := sevenzip.OpenReader(path)
+	zr, err := container.Open7zPath(path)
 	if err != nil {
 		return 0, 0
 	}
 	defer zr.Close()
 	// 条目遍历模式对齐 readTexFromZip：非 .json 跳过，ys m.json 自身无 geometry 也跳过
-	for _, f := range zr.File {
-		name := strings.ToLower(f.Name)
+	for _, f := range zr.Entries() {
+		name := strings.ToLower(f.Name())
 		if !strings.HasSuffix(name, ".json") || strings.Contains(name, "ysm.json") {
 			continue
 		}

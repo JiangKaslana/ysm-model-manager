@@ -1,12 +1,12 @@
 package ysm
 
 import (
-	"archive/zip"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
 
+	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
@@ -66,7 +66,7 @@ func AnalyzeYSMModel(path string) YSMModelMeta {
 	}
 
 	// 打开 ZIP
-	r, err := zip.OpenReader(path)
+	r, err := container.OpenZipPath(path)
 	if err != nil {
 		meta.HasError = true
 		meta.ErrorMsg = fmt.Sprintf("无法打开文件: %v", err)
@@ -76,16 +76,17 @@ func AnalyzeYSMModel(path string) YSMModelMeta {
 
 	// P1 修复：检查 ZIP 总大小，防止恶意构造的多文件 ZIP 撑爆内存
 	var totalSize int64
-	for _, f := range r.File {
+	for _, f := range r.Entries() {
 		// int64 溢出防线：单条目 UncompressedSize64 > MaxInt64 时 int64() 转换会回绕为负，
 		// 使 totalSize 累加后绕过 500MB 上限（zip 中央目录可声明伪造巨型未压缩大小）。
 		// 先按 uint64 逐条比较（无符号比较不会回绕），再累加 int64 总量。
-		if f.UncompressedSize64 > uint64(types.MaxImportSize) {
+		uncomp := f.UncompressedSize64()
+		if uncomp > uint64(types.MaxImportSize) {
 			meta.HasError = true
-			meta.ErrorMsg = fmt.Sprintf("ZIP 包过大（%d MB），超过 %d MB 上限", f.UncompressedSize64/(1024*1024), types.MaxImportSizeMB)
+			meta.ErrorMsg = fmt.Sprintf("ZIP 包过大（%d MB），超过 %d MB 上限", uncomp/(1024*1024), types.MaxImportSizeMB)
 			return meta
 		}
-		totalSize += int64(f.UncompressedSize64)
+		totalSize += int64(uncomp)
 		if totalSize > int64(types.MaxImportSize) {
 			meta.HasError = true
 			meta.ErrorMsg = fmt.Sprintf("ZIP 包过大（%d MB），超过 %d MB 上限", totalSize/(1024*1024), types.MaxImportSizeMB)
@@ -94,9 +95,9 @@ func AnalyzeYSMModel(path string) YSMModelMeta {
 	}
 
 	// 查找 model.json
-	var modelFile *zip.File
-	for _, f := range r.File {
-		name := strings.ToLower(filepath.Base(f.Name))
+	var modelFile container.Entry
+	for _, f := range r.Entries() {
+		name := strings.ToLower(filepath.Base(f.Name()))
 		if name == "model.json" {
 			modelFile = f
 			break

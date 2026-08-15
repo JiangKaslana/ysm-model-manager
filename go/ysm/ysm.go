@@ -1,26 +1,26 @@
 package ysm
 
 import (
-	"archive/zip"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
 
 // IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml）
 func IsYSMJar(jarPath string) bool {
-	r, err := zip.OpenReader(jarPath)
+	r, err := container.OpenZipPath(jarPath)
 	if err != nil {
 		return false
 	}
 	defer r.Close()
 
-	for _, f := range r.File {
+	for _, f := range r.Entries() {
 		// 支持 mods.toml 和 neoforge.mods.toml
-		name := strings.ToLower(f.Name)
+		name := strings.ToLower(f.Name())
 		if name != "meta-inf/mods.toml" && name != "meta-inf/neoforge.mods.toml" {
 			continue
 		}

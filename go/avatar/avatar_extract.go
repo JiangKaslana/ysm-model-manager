@@ -7,8 +7,6 @@
 package avatar
 
 import (
-	"archive/zip"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 )
 
@@ -109,12 +108,13 @@ func ExtractAvatarURI(modelPath, safeName string) string {
 			}
 			return ""
 		}
-		zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+		zr, err := container.OpenZipBytes(data, int64(len(data)))
 		if err != nil {
 			log.Printf("[avatar] zip 解析失败 %s: %v", modelPath, err)
 			return ""
 		}
-		ysmData := ReadFileFromZip(zr, "ysm.json")
+		defer zr.Close()
+		ysmData := ReadFileFromContainer(zr, "ysm.json")
 		if ysmData != nil {
 			var root struct {
 				Meta struct {
@@ -132,7 +132,7 @@ func ExtractAvatarURI(modelPath, safeName string) string {
 					continue
 				}
 				for _, c := range avatarCandidates(ap) {
-					if avatarData := ReadFileFromZip(zr, c); avatarData != nil {
+					if avatarData := ReadFileFromContainer(zr, c); avatarData != nil {
 						mime := "image/png"
 						if strings.HasSuffix(strings.ToLower(c), ".jpg") || strings.HasSuffix(strings.ToLower(c), ".jpeg") {
 							mime = "image/jpeg"
@@ -314,12 +314,13 @@ func modelAuthorNames(modelPath string) []string {
 			}
 			return nil
 		}
-		zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+		zr, err := container.OpenZipBytes(data, int64(len(data)))
 		if err != nil {
 			log.Printf("[avatar] modelAuthorNames zip 解析失败 %s: %v", modelPath, err)
 			return nil
 		}
-		raw = ReadFileFromZip(zr, "ysm.json")
+		defer zr.Close()
+		raw = ReadFileFromContainer(zr, "ysm.json")
 	case ".ysm":
 		data, err := readLimitedModel(modelPath)
 		if err != nil {

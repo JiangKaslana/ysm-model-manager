@@ -1,7 +1,6 @@
 package ysm
 
 import (
-	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
@@ -210,16 +210,16 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 	}
 
 	// 打开 ZIP
-	r, err := zip.OpenReader(path)
+	r, err := container.OpenZipPath(path)
 	if err != nil {
 		return summary, fmt.Errorf("无法打开文件: %w", err)
 	}
 	defer r.Close()
 
 	// 查找 ysm.json / model.json
-	var ysmFile *zip.File
-	for _, f := range r.File {
-		name := strings.ToLower(filepath.Base(f.Name))
+	var ysmFile container.Entry
+	for _, f := range r.Entries() {
+		name := strings.ToLower(filepath.Base(f.Name()))
 		if name == "ysm.json" || name == "model.json" {
 			ysmFile = f
 			break
@@ -230,11 +230,11 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 		summary.Format = "zip"
 		summary.Name = strings.TrimSuffix(summary.Source, filepath.Ext(summary.Source))
 		var modelCount, texCount, animCount int
-		for _, f := range r.File {
-			if f.FileInfo().IsDir() {
+		for _, f := range r.Entries() {
+			if f.IsDir() {
 				continue
 			}
-			low := strings.ToLower(f.Name)
+			low := strings.ToLower(f.Name())
 			if strings.HasSuffix(low, ".json") {
 				// 判断是否为几何体 JSON（含 minecraft:geometry）
 				rc, err := f.Open()
@@ -340,8 +340,8 @@ func ExtractYsmSummary(path string) (YsmSummary, error) {
 	if root.Properties != nil {
 		// 从几何体文件提取纹理尺寸
 		for _, geoPath := range geoPaths {
-			for _, f := range r.File {
-				if strings.HasSuffix(strings.ToLower(f.Name), strings.ToLower(geoPath)) {
+			for _, f := range r.Entries() {
+				if strings.HasSuffix(strings.ToLower(f.Name()), strings.ToLower(geoPath)) {
 					rc, err := f.Open()
 					if err != nil {
 						continue

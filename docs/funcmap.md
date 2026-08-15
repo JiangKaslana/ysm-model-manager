@@ -8,7 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 11 |
-| go/container | 1 | 25 |
+| go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 13 |
 | go/executil | 2 | 2 |
@@ -42,7 +42,7 @@
 | 前端·工具 | 55 | 197 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **275** | **1147** |
+| **合计** | **275** | **1148** |
 
 ## Go·头像
 
@@ -78,15 +78,16 @@
 | `sevenzipContainer.Close()` | `go/container/container:100` | — |
 | `dirEntry.Name()` | `go/container/container:116` | — |
 | `dirEntry.IsDir()` | `go/container/container:117` | — |
-| `dirEntry.Open()` | `go/container/container:118` | — |
+| `dirEntry.UncompressedSize64()` | `go/container/container:118` | — |
+| `dirEntry.Open()` | `go/container/container:125` | — |
 | `Open()` | `go/container/container:47` | — |
-| `OpenZipPath()` | `go/container/container:144` | OpenZipPath 按路径打开 zip 容器。 |
-| `OpenZipBytes()` | `go/container/container:153` | OpenZipBytes 从内存打开 zip 容器。 |
-| `Open7zPath()` | `go/container/container:162` | Open7zPath 按路径打开 7z 容器。 |
-| `Open7zBytes()` | `go/container/container:171` | Open7zBytes 从内存打开 7z 容器。 |
-| `dirContainer.Entries()` | `go/container/container:216` | — |
-| `dirContainer.Close()` | `go/container/container:217` | — |
-| `OpenDir()` | `go/container/container:220` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
+| `OpenZipPath()` | `go/container/container:151` | OpenZipPath 按路径打开 zip 容器。 |
+| `OpenZipBytes()` | `go/container/container:160` | OpenZipBytes 从内存打开 zip 容器。 |
+| `Open7zPath()` | `go/container/container:169` | Open7zPath 按路径打开 7z 容器。 |
+| `Open7zBytes()` | `go/container/container:178` | Open7zBytes 从内存打开 7z 容器。 |
+| `dirContainer.Entries()` | `go/container/container:223` | — |
+| `dirContainer.Close()` | `go/container/container:224` | — |
+| `OpenDir()` | `go/container/container:227` | OpenDir 打开目录容器（导出，供已解压资源包/光影包分支）。 |
 | `Entry()` | `go/container/container:26` | Entry 统一容器条目（zip.File / sevenzip.File / 目录文件）。 |
 | `Reader()` | `go/container/container:34` | Reader 容器读取器。 |
 
