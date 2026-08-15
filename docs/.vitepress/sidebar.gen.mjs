@@ -696,6 +696,14 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-071：网页版能力边界：.7z 明确不支持 + 社区站点编辑保存补齐",
+        "link": "/adr/ADR-071-web-capability-boundary-7z-community"
+      },
+      {
+        "text": "ADR-070：网页版体素 3D：蓝图/投影预览 TS 平移 voxel 解析",
+        "link": "/adr/ADR-070-web-voxel-3d-ts-port"
+      },
+      {
         "text": "ADR-069：内容识别统一：ysm 作为解密容器参与 zip/7z 指纹匹配",
         "link": "/adr/ADR-069-container-archive-unification"
       },

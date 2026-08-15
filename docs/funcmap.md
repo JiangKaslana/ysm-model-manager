@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 88 | 241 |
+| frontend/views | 88 | 244 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **285** | **1178** |
+| **合计** | **285** | **1181** |
 
 ## Go·头像
 
@@ -1245,8 +1245,9 @@
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
 | `appPreviewStyle()` | `frontend/src/views/app-preview/index:5` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:14` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析） |
-| `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:19` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:24` | 任意新预览派发时调用，作废在途体素加载 |
+| `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:19` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
+| `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:24` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:29` | 任意新预览派发时调用，作废在途体素加载 |
 | `buildLitematicScene()` | `frontend/src/views/app-preview/litematic-adapter:25` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子 |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:27` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:108` | 显示投影文件详情面板（tab 布局） |
@@ -1260,11 +1261,12 @@
 | `PreviewScene()` | `frontend/src/views/app-preview/mount-preview-core:34` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/views/app-preview/mount-preview-core:50` | — |
 | `PreviewHandle()` | `frontend/src/views/app-preview/mount-preview-core:60` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `CameraControlBridge()` | `frontend/src/views/app-preview/mount-preview-core:77` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
-| `buildCameraControls()` | `frontend/src/views/app-preview/mount-preview-core:91` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
-| `invalidatePreview()` | `frontend/src/views/app-preview/mount-preview-core:153` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/views/app-preview/mount-preview-core:158` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:166` | — |
+| `CameraControlBridge()` | `frontend/src/views/app-preview/mount-preview-core:79` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
+| `buildCameraControls()` | `frontend/src/views/app-preview/mount-preview-core:93` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
+| `invalidatePreview()` | `frontend/src/views/app-preview/mount-preview-core:155` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/views/app-preview/mount-preview-core:160` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `switchPreview()` | `frontend/src/views/app-preview/mount-preview-core:169` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:173` | — |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:11` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:17` | — |
@@ -1298,18 +1300,19 @@
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
 | `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
 | `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:12` | 打开 VRM 3D 预览（.vrm 直引 three-vrm） |
-| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:17` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:22` | 任意新预览派发时调用，作废在途 VRM 加载 |
+| `switchVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:17` | 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
+| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:22` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:27` | 任意新预览派发时调用，作废在途 VRM 加载 |
 | `VrmMetaInfo()` | `frontend/src/views/app-preview/vrm-adapter:52` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/views/app-preview/vrm-adapter:63` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/views/app-preview/vrm-adapter:111` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
-| `YsmModel()` | `frontend/src/views/app-preview/ysm-3d:11` | YSM 模型对象（对齐 ysm-adapter 字段需求） |
-| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:19` | — |
-| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:28` | 打开 YSM 3D 预览（统一外壳 self 模式）。 |
-| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:48` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
-| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:53` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
+| `YsmModel()` | `frontend/src/views/app-preview/ysm-3d:16` | YSM 模型对象（对齐 ysm-adapter 字段需求） |
+| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:24` | — |
+| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:33` | 打开 YSM 3D 预览（统一外壳 self 模式）。 |
+| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:53` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
+| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:58` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
 | `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:18` | 适配器可选项：纹理切换重建 / 关闭回调由外层（ysm-3d.ts）负责 |
 | `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:29` | 构建 YSM 3D 内容场景并挂载到统一外壳（self 模式）。 |
 | `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:67` | 工厂：构造统一 PreviewAdapter（self 模式） |
