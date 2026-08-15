@@ -11,7 +11,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const JSON_FILE = path.join(ROOT, 'resource_types.json');
 
 const VALID_PREVIEWS = new Set(['3d', 'thumbnail', 'none']);
-const VALID_DETECTORS = new Set(['mcmeta', 'shader', 'ysm', 'extension']);
+// ADR-067：zipentry 为容器内容指纹 detector（裸文件按扩展名、.zip 容器按 zipEntries 匹配）
+const VALID_DETECTORS = new Set(['mcmeta', 'shader', 'ysm', 'extension', 'zipentry']);
+const VALID_ZIP_MATCHES = new Set(['exact', 'prefix', 'suffix']);
+const CONTAINER_EXTS = new Set(['.zip', '.7z']);
 const VALID_ACTIONS = new Set(['import', 'toggle', 'delete', 'openFolder', 'view']);
 // Go AppConfig 字段白名单（go/types/config.go）——configField 必须指向真实持久化字段
 const VALID_CONFIG_FIELDS = new Set([
@@ -113,6 +116,33 @@ function validate() {
     const detector = rt?.detector ?? '';
     if (!VALID_DETECTORS.has(detector)) {
       errors.push(`${prefix}: 'detector' must be one of ${[...VALID_DETECTORS]} (got '${detector}')`);
+    }
+
+    // zipEntries 校验（内容指纹契约，ADR-067）：元素结构 + zipentry detector 配套约束
+    const zipEntries = rt?.zipEntries ?? [];
+    if (!Array.isArray(zipEntries)) {
+      errors.push(`${prefix}: 'zipEntries' must be an array`);
+    } else {
+      for (let j = 0; j < zipEntries.length; j++) {
+        const ze = zipEntries[j];
+        if (!ze || typeof ze.name !== 'string' || !ze.name) {
+          errors.push(`${prefix}: zipEntries[${j}].name must be non-empty string`);
+        }
+        if (!ze || !VALID_ZIP_MATCHES.has(ze.match)) {
+          errors.push(`${prefix}: zipEntries[${j}].match must be one of ${[...VALID_ZIP_MATCHES]} (got '${ze?.match}')`);
+        }
+      }
+      // detector=zipentry 必须声明 zipEntries 且 extensions 含容器扩展名——
+      // 否则 DetectResourceType 容器分支（matchZipArchive）永不执行，内容识别静默失效
+      if (detector === 'zipentry') {
+        if (zipEntries.length === 0) {
+          errors.push(`${prefix}: detector 'zipentry' requires non-empty 'zipEntries'`);
+        }
+        const containerExts = exts.filter((e) => CONTAINER_EXTS.has(e.toLowerCase()));
+        if (containerExts.length === 0) {
+          errors.push(`${prefix}: detector 'zipentry' requires '.zip' or '.7z' in 'extensions'`);
+        }
+      }
     }
 
     // actions 校验

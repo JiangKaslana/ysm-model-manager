@@ -62,13 +62,13 @@
 
 ### 1.6 渲染分层认知：ysm 全链路 4 层与网页闭环（关键澄清）
 
-全资源预览器的「难度」常被误读为「三份重复的基岩版模型解析代码」。实测 ysm 从文件到出图是一条 **4 层链路**，各层收敛状态不同——桌面端早已长治久安，**真正的 gap 在 D 层的网页断裂**：
+全资源预览器的「难度」常被误读为「三份重复的基岩版模型解析代码」。实测 ysm 从文件到出图是一条 **4 层链路**，各层收敛状态不同——**4 层均已闭环**（桌面 Go 直渲 + 网页 TS 移植），所谓「三份重复」是误读：
 
 ```mermaid
 flowchart TD
     F[".ysm / .zip / .7z 文件"] --> A["A 识别<br/>DetectResourceType<br/>扩展名 + zipEntries 指纹<br/>✅ ADR-067 / 069 已收敛"]
     A --> B["B 解密<br/>加密 .ysm → zip<br/>YSMParser WASM 单一解码器<br/>✅ 已收敛"]
-    B --> C["C 解包<br/>容器 → 条目<br/>ContainerReader<br/>🔄 ADR-068 待编码"]
+    B --> C["C 解包<br/>容器 → 条目<br/>ContainerReader<br/>✅ ADR-068 已采纳 (d01a37ee)"]
     C --> D["D 解析 + 渲染<br/>文件树 → AnalyzeBedrockModel<br/>→ go/threejs.Build → Spec3D"]
     D --> DESK["桌面端：直接 Go 渲染<br/>✅ 长治久安"]
     D --> WEB["网页端：WASM 解码 → 纯 TS 构建 Spec3D"]
@@ -76,7 +76,7 @@ flowchart TD
 
     style A fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
     style B fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
-    style C fill:#3d341f,stroke:#ffcc66,color:#f5ecd8
+    style C fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
     style DESK fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
     style WEB fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
     style FE fill:#1f3d2b,stroke:#3ddc84,color:#e8f5ec
@@ -86,7 +86,7 @@ flowchart TD
 |----|--------|---------|---------|
 | **A 识别** | 这是 ysm 吗？ | ✅ 已收敛 | ADR-067 / 069 |
 | **B 解密** | 加密 .ysm → zip 文件树 | ✅ 已收敛（YSMParser WASM 单一解码器，前端 `ysm-parser.ts` 与 Go `decode_inject.go` 同调一个 wasm） | — |
-| **C 解包** | 容器 → 条目 | 🔄 部分（ADR-068 ContainerReader 待编码，desktop 侧去重） | ADR-068 |
+| **C 解包** | 容器 → 条目 | ✅ 已采纳（ADR-068 ContainerReader，d01a37ee 落地 `go/container` 包 + geometry/avatar/ysm 迁移，~294 行 7z 对称外壳删除） | ADR-068 |
 | **D 解析 + 渲染** | 文件树 → 基岩模型 → Spec3D → Three.js | ✅ **桌面 Go 直渲 + 网页 TS 移植双闭环**（ADR-049 P2-2；WASM 路线已弃） | 路线 B 暂缓（ROI 负，见 ADR-066-routeB-research） |
 
 **澄清两点（避免误判「三份重复」）**：
