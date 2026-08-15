@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"ysm-model-manager/go/fsutil"
@@ -68,7 +69,10 @@ func ImportFromBase64(fileName, base64Data string, opts ImportOptions, rootFn fu
 	if ext == ".zip" {
 		rtype = DetectZipType(data)
 	}
-	if rtype == "ysm" && ext != ".zip" && ext != ".ysm" && ext != ".7z" && ext != ".json" {
+	// DetectZipType 保守默认 ysm：扩展名不属于当前 rtype 注册表扩展名集合时，
+	// 用扩展名反查真实类型（ADR-065：扩展名列表注册表驱动，消除手写 .zip/.ysm/.7z/.json
+	// 字面量漂移；rtype=="ysm" 守卫冗余——DetectZipType 命中其他类型时其集合必含 .zip）
+	if !slices.Contains(types.SupportedExtsForType(rtype), ext) {
 		rtypes := types.ExtBelongsTo(ext)
 		if len(rtypes) > 0 && rtypes[0] != "ysm" {
 			rtype = rtypes[0]

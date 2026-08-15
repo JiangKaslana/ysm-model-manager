@@ -75,7 +75,8 @@ func RelinkDir(customDir, filesRoot, rtype, linkMode string, scanFn func(string)
 		ext := strings.ToLower(filepath.Ext(ce.Path))
 		baseName := strings.ToLower(filepath.Base(ce.Path))
 		baseName = strings.TrimSuffix(baseName, ".ban")
-		isDirType := (baseName == "ysm.json" && rtype == "ysm") ||
+		// ysm.json 判定统一走注册表助手（ADR-065：与 scanner/instance 同口径，消除手写特判）
+		isDirType := types.IsYsmEntryJSON(baseName) ||
 			(ext == ".pmx" || ext == ".pmd")
 		if isDirType {
 			srcDir := filepath.Dir(srcPath)

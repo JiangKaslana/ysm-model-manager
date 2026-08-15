@@ -76,7 +76,7 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 	for _, src := range result.Extra {
 		fi, stErr := os.Stat(src)
 		isDir := stErr == nil && fi.IsDir()
-		if rtype == "ysm" || rtype == "mmd-skin" {
+		if types.IsDirLevelSync(rtype) {
 			if isDir {
 				folderName := filepath.Base(src)
 				dstDir := filepath.Join(globalDir, folderName)

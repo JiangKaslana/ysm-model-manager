@@ -338,6 +338,15 @@ function runChecks() {
       }),
     '确认所在函数已配 scanner.InvalidateCache/InvalidatePath（防 30s 陈旧缓存"复活"）');
 
+  // W8 ADR-065：整合包侧 rtype 语义分支须注册表驱动——禁 Go 源码手写
+  // `rtype == "类型ID"` / `rt.ID == "类型ID"` 字面量分支。新增类型只改
+  // resource_types.json 一处，漏改注册表即被本规则检出（防「修蓝图坏 MMD」漂移）。
+  // 豁免：测试文件、注释行。`rtypes[0] != "ysm"`（反查排除）为 `!=` 不命中 `==` 规则。
+  add('W8', 'rtype literal branches (ADR-065 registry-driven)',
+    rgTracked('(rtype|rt\\.ID)\\s*==\\s*"[a-z][a-z0-9-]*"', 'go', ['*.go', '!*_test.go'])
+      .filter((l) => !/:\d+:\s*\/\//.test(l)),
+    'rtype 分支应消费 types 注册表查询（IsDirLevelSync/IsYsmEntryJSON/RegistryType().Detector/SupportedExtsForType）；新增类型只改 resource_types.json');
+
   return results;
 }
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/types"
 )
 
 // IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml）
@@ -131,8 +132,10 @@ func HasModInDir(modsDir, rtype string) bool {
 		if !match {
 			continue
 		}
-		// 进一步检查：对于 ysm 类型打开 ZIP 确认 mods.toml
-		if rtype == "ysm" {
+		// 进一步检查：内容检测型资源（注册表 detector=ysm）打开 ZIP 确认 mods.toml，
+		// 其余类型仅凭文件名匹配（ADR-065：rtype 分支注册表化，新增类型只需改 JSON）
+		rt := types.RegistryType(rtype)
+		if rt != nil && rt.Detector == "ysm" {
 			if IsYSMJar(filepath.Join(modsDir, f.Name())) {
 				return true
 			}
