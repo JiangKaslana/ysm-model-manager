@@ -70,7 +70,7 @@ invariant_anchors:
 - **3D 操作键位 / 相机偏好持久化**（localStorage，与界面设置同源）：键位存 `KeyboardEvent.code` 物理键（`td-keymap`，默认 WASD + Space/ShiftLeft 升降，方向键保留为通用兜底），相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）；`loadTdKeymap` / `loadTdCamSpeed` / `loadTdRotMode` 均为导出工具，非法/缺失回退默认（camSpeed 经 `safeGet` + 数值范围校验，P3 修复）
 - **骨骼拾取**：`Raycaster.setFromCamera(pointer, camera)` + `intersectObjects(scene.children, true)` 反投影；pointermove 更新 `_hoveredBone`/`_hoveredMesh` 与 cursor（命中 pointer / 未命中 default）；click 命中时经 `_boneNameMap`/`_boneParentMap`/`_boneChildrenMap` 组装 `BoneSelectInfo`（name/path/parent/children/meshCount/localPos/worldPos/localRot/cubeRot/cubePos）调 `handle.onBoneSelect`——boneId 先局部收窄再传参（TS 对闭包捕获变量不做控制流收窄）
 - **调试模式**：`setDebugMode("normal"|"pivot"|"bone")` 循环切换，`rebuildDebug()` 重建叠加层（pivot 标记 / 骨骼线框）
-- **材质为 ysmview 风格**（YSMViewer 同款）：统一 FrontSide + transparent + **alphaTest 0.1**（`<0.1` alpha 像素直接裁剪，硬透明边缘干净）+ **depthWrite: true**（不透明像素写深度，防透明面穿透后方网格）——2026-08 渲染对齐提交（2041f382）
+- **材质为 ysmview 风格**（YSMViewer 同款）：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true` 收敛为 `mesh-builder.ts` 的 `MATERIAL_OPTS` 常量（2026-08 渲染对齐提交 2041f382）；`<0.1` alpha 像素直接裁剪，硬透明边缘干净；不透明像素写深度防透明面穿透后方网格
 - **mesh 合并**：同一骨骼下按 `boneId + ":" + texIdx` 分组，同组多个 MeshGroup 合并顶点/法线/UV/索引，减少 draw call；`thicknessEpsilon` 零厚度面修正位于 spec-builder.ts 的 WASM 兜底通道（spec-builder.ts:616），不属 model3d.ts 的 mesh 合并段
 
 ## 与其他子系统关系
