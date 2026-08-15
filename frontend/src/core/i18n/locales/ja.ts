@@ -836,6 +836,8 @@ export const ja: Record<string, string> = {
   "preview.clickFileHint": "左のリポジトリからファイルをクリックして詳細を表示",
   "preview.ysmModel": "YSMモデル",
   "preview.mmdSkin": "MMDスキン",
+  "preview.mmdPlay": "再生",
+  "preview.mmdPause": "一時停止",
   "preview.vrcAvatar": "VRCアバター",
   "preview.unknownError": "不明なエラー",
   "preview.nameLabel": "名前",

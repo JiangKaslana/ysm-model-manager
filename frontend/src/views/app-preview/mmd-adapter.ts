@@ -6,7 +6,7 @@
 // 通用外壳（overlay/renderer/循环/释放）由 mount-preview-core.ts 拥有。
 
 import * as THREE from "three";
-import { MMDLoader } from "@moeru/three-mmd";
+import { MMDLoader, VmdObject, buildAnimation } from "@moeru/three-mmd";
 import { getApp } from "../../backend/app.ts";
 import { t } from "../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
@@ -53,6 +53,7 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
   const texMap = new Map<string, string>();
   const blobUrls: string[] = [];
+  const vmdEntries: MmdEntry[] = [];
   // 模型本体也注册 blob：MMDLoader 内部 FileLoader 从 URL 读字节（WebView2 读不了磁盘路径），
   // URLModifier 拦截模型 URL → blob 后才可加载。
   const modelBlobUrl = URL.createObjectURL(new Blob([bytesToArrayBuffer(bytes)]));
@@ -65,6 +66,8 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
       const name = (e.Name || "").toLowerCase();
       return name !== modelBase && TEXTURE_EXTS.some((ext) => name.endsWith(ext));
     });
+    // 同目录 VMD 动作文件（模型加载后逐个解析）
+    vmdEntries.push(...entries.filter((e) => (e.Name || "").toLowerCase().endsWith(".vmd")));
     // 并行预读纹理（避免 N 次串行 RPC 拖慢预览打开；单张失败降级不影响整体）
     await Promise.all(
       texs.map(async (e) => {
@@ -113,6 +116,32 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   ctx.scene!.add(mesh);
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 
+  // ---- VMD 动作（同目录 .vmd）：VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
+  const mixer = new THREE.AnimationMixer(mesh);
+  const clips: Array<{ label: string; clip: THREE.AnimationClip }> = [];
+  for (const v of vmdEntries) {
+    try {
+      const vmdB64 = await readFn(v.Path || dirPath + "/" + v.Name);
+      if (!vmdB64) continue;
+      // await 包装：真实库 ParseFromBuffer 同步返回（await 无害），但损坏/异步实现时
+      // reject 能被 try/catch 捕获，不会把 Promise 对象当 vmd 传给 buildAnimation
+      const vmd = await VmdObject.ParseFromBuffer(bytesToArrayBuffer(b64ToBytes(vmdB64)));
+      clips.push({
+        label: (v.Name || "").replace(/\.vmd$/i, "") || "motion",
+        clip: buildAnimation(vmd, mesh),
+      });
+    } catch {
+      /* 单个 VMD 损坏 → 跳过，其余照常 */
+    }
+  }
+  let playing = true;
+  let curIdx = 0;
+  let action: THREE.AnimationAction | null = null;
+  if (clips.length > 0) {
+    action = mixer.clipAction(clips[0].clip); // 默认 LoopRepeat 循环
+    action.play();
+  }
+
   // 包围盒定相机（MMD Y-up、单位约厘米，原点一般在脚底；尺寸差由相机距离吸收，不缩放模型）
   const box = new THREE.Box3().setFromObject(mesh);
   const size = box.getSize(new THREE.Vector3());
@@ -137,12 +166,55 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
   return {
-    // MMD 动态部分（IK/追加变换姿态解算）靠 mmd.update 驱动；静态模型也会摆正初始姿势
+    // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
     update: (dt: number): void => {
-      mmd.update(dt, { ik: true, grant: true });
+      mmd.updateWithMixer(dt, mixer, { ik: true, grant: true });
+    },
+    // topBar 播放控制（对齐 litematic extraControls 样式）：播放/暂停 + 多动作切换
+    extraControls(topBar: HTMLElement): void {
+      if (clips.length === 0) return;
+      const sep = document.createElement("span");
+      sep.style.cssText = "width:1px;height:16px;background:rgba(255,255,255,0.15);margin:0 4px";
+      topBar.appendChild(sep);
+
+      const playBtn = document.createElement("button");
+      playBtn.id = "mmd-play-btn";
+      playBtn.textContent = playing ? t("preview.mmdPause") : t("preview.mmdPlay");
+      playBtn.style.cssText =
+        "font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
+      playBtn.onclick = (): void => {
+        playing = !playing;
+        playBtn.textContent = playing ? t("preview.mmdPause") : t("preview.mmdPlay");
+        // AnimationAction 的暂停是 paused 属性（无 pause() 方法），play() 兼容重置
+        if (action) action.paused = !playing;
+      };
+      topBar.appendChild(playBtn);
+
+      if (clips.length > 1) {
+        const sel = document.createElement("select");
+        sel.id = "mmd-motion-sel";
+        sel.style.cssText =
+          "font-size:11px;padding:1px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.85);font-family:inherit;max-width:160px";
+        clips.forEach((c, i) => {
+          const opt = document.createElement("option");
+          opt.value = String(i);
+          opt.textContent = c.label;
+          sel.appendChild(opt);
+        });
+        sel.onchange = (): void => {
+          const idx = Number(sel.value) || 0;
+          if (idx === curIdx) return;
+          curIdx = idx;
+          action?.stop();
+          action = mixer.clipAction(clips[idx].clip);
+          if (playing) action.play();
+        };
+        topBar.appendChild(sel);
+      }
     },
     // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
+      mixer.stopAllAction();
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();
     },

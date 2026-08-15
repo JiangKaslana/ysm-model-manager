@@ -15,7 +15,10 @@ const hoisted = vi.hoisted(() => {
     scanEntriesMock: vi.fn(),
     loaderLoadAsyncMock: vi.fn(),
     mmdUpdateMock: vi.fn(),
+    mmdUpdateWithMixerMock: vi.fn(),
     mmdDisposeMock: vi.fn(),
+    vmdParseMock: vi.fn(),
+    buildAnimMock: vi.fn(),
     managerInstances,
   };
 });
@@ -33,6 +36,8 @@ vi.mock("@moeru/three-mmd", () => ({
       hoisted.managerInstances.push(manager);
     }
   },
+  VmdObject: { ParseFromBuffer: hoisted.vmdParseMock },
+  buildAnimation: hoisted.buildAnimMock,
 }));
 
 import { buildMmdScene } from "./mmd-adapter.ts";
@@ -64,7 +69,12 @@ function makeCtx() {
 /** 构造一个可用的 fake MMD（mesh 挂进 scene 需真实 Object3D 供 Box3 计算） */
 function fakeMmd() {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial());
-  return { mesh, update: hoisted.mmdUpdateMock, dispose: hoisted.mmdDisposeMock };
+  return {
+    mesh,
+    update: hoisted.mmdUpdateMock,
+    updateWithMixer: hoisted.mmdUpdateWithMixerMock,
+    dispose: hoisted.mmdDisposeMock,
+  };
 }
 
 beforeEach(() => {
@@ -122,9 +132,13 @@ describe("buildMmdScene 主路径", () => {
       // loading 占位已移除
       expect(loadingEl.parentNode).toBeNull();
 
-      // update 契约：驱动 IK/追加变换姿态
+      // update 契约：VMD 动画 + IK/追加变换经 updateWithMixer 驱动
       built.update!(0.016);
-      expect(hoisted.mmdUpdateMock).toHaveBeenCalledWith(0.016, { ik: true, grant: true });
+      expect(hoisted.mmdUpdateWithMixerMock).toHaveBeenCalledWith(
+        0.016,
+        expect.anything(),
+        { ik: true, grant: true },
+      );
 
       // dispose 契约：释放 GPU + 回收 blob URL
       built.dispose();
@@ -175,6 +189,117 @@ describe("buildMmdScene 主路径", () => {
       expect(mgr.resolveURL("/mmd/miku/b/body.png")).toBe("blob:t3");
       built.dispose();
       expect(revokeURL).toHaveBeenCalledTimes(3); // 模型 + 2 纹理
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
+  });
+
+  it("同目录 VMD → 自动播放 + topBar 播放/暂停按钮", async () => {
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      hoisted.readBytesMock.mockImplementation((p: string) => Promise.resolve(btoa(p)));
+      hoisted.scanEntriesMock.mockResolvedValue([
+        { Name: "miku.pmx", Path: "/mmd/miku/miku.pmx", Size: 10 },
+        { Name: "dance.vmd", Path: "/mmd/miku/dance.vmd", Size: 5 },
+      ]);
+      hoisted.vmdParseMock.mockReturnValue({});
+      hoisted.buildAnimMock.mockReturnValue(new THREE.AnimationClip("dance", -1, []));
+
+      const { ctx } = makeCtx();
+      const topBar = document.createElement("div");
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
+      // VMD 解析 + 动画构建
+      expect(hoisted.vmdParseMock).toHaveBeenCalledTimes(1);
+      expect(hoisted.buildAnimMock).toHaveBeenCalledTimes(1);
+
+      // 播放按钮（初始播放态 → 文案"暂停"）
+      built.extraControls!(topBar);
+      const playBtn = topBar.querySelector<HTMLElement>("#mmd-play-btn");
+      expect(playBtn).not.toBeNull();
+      expect(playBtn!.textContent).toBe("暂停");
+      playBtn!.click();
+      expect(playBtn!.textContent).toBe("播放");
+      playBtn!.click();
+      expect(playBtn!.textContent).toBe("暂停");
+
+      // update 契约：updateWithMixer 驱动动画 + IK
+      built.update!(0.016);
+      expect(hoisted.mmdUpdateWithMixerMock).toHaveBeenCalledWith(
+        0.016,
+        expect.anything(),
+        { ik: true, grant: true },
+      );
+
+      built.dispose();
+      expect(hoisted.mmdDisposeMock).toHaveBeenCalled();
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
+  });
+
+  it("多个 VMD → select 切换动作，坏文件跳过其余照常", async () => {
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      hoisted.readBytesMock.mockImplementation((p: string) => Promise.resolve(btoa(p)));
+      hoisted.scanEntriesMock.mockResolvedValue([
+        { Name: "miku.pmx", Path: "/mmd/miku/miku.pmx", Size: 10 },
+        { Name: "bad.vmd", Path: "/mmd/miku/bad.vmd", Size: 5 },
+        { Name: "idle.vmd", Path: "/mmd/miku/idle.vmd", Size: 5 },
+      ]);
+      // 第一个 VMD 解析失败（损坏）→ 跳过；第二个成功（按调用次数分派，不依赖 Once 链语义）
+      let vmdCall = 0;
+      hoisted.vmdParseMock.mockImplementation(() => {
+        vmdCall += 1;
+        if (vmdCall === 1) return Promise.reject(new Error("bad vmd"));
+        return Promise.resolve({});
+      });
+      hoisted.buildAnimMock.mockReturnValue(new THREE.AnimationClip("motion", -1, []));
+
+      const { ctx } = makeCtx();
+      const topBar = document.createElement("div");
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
+      // 坏 VMD 被跳过，仅 1 个动画构建成功
+      expect(hoisted.buildAnimMock).toHaveBeenCalledTimes(1);
+
+      // 仅 1 个 clip → 无 select（播放按钮仍在）
+      built.extraControls!(topBar);
+      expect(topBar.querySelector("#mmd-motion-sel")).toBeNull();
+      expect(topBar.querySelector("#mmd-play-btn")).not.toBeNull();
+      built.dispose();
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
+  });
+
+  it("无 VMD → 无播放按钮，静态渲染照常", async () => {
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+      hoisted.scanEntriesMock.mockResolvedValue([
+        { Name: "miku.pmx", Path: "/mmd/miku/miku.pmx", Size: 10 },
+      ]);
+      const { ctx } = makeCtx();
+      const topBar = document.createElement("div");
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
+      expect(hoisted.vmdParseMock).not.toHaveBeenCalled();
+      built.extraControls!(topBar);
+      expect(topBar.querySelector("#mmd-play-btn")).toBeNull();
+      // 空 mixer 的 updateWithMixer 无害
+      built.update!(0.016);
+      expect(hoisted.mmdUpdateWithMixerMock).toHaveBeenCalled();
+      built.dispose();
     } finally {
       createURL.mockRestore();
       revokeURL.mockRestore();

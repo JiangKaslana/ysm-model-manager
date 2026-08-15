@@ -835,6 +835,8 @@ export const en: Record<string, string> = {
   "preview.clickFileHint": "Click a file in the left repository to view details",
   "preview.ysmModel": "YSM Model",
   "preview.mmdSkin": "MMD Skin",
+  "preview.mmdPlay": "Play",
+  "preview.mmdPause": "Pause",
   "preview.vrcAvatar": "VRC Avatar",
   "preview.unknownError": "Unknown error",
   "preview.nameLabel": "Name",
