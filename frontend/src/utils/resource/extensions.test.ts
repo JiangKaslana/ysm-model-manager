@@ -48,7 +48,7 @@ describe("RESOURCE_EXTS ↔ resource_types.json 双向对账（P2）", () => {
 
 describe("RESOURCE_EXTS", () => {
   it("has known type ysm", () => expect(RESOURCE_EXTS.ysm).toContain(".ysm"));
-  it("has litematic type", () => expect(RESOURCE_EXTS.litematic).toEqual([".litematic"]));
+  it("has litematic type", () => expect(RESOURCE_EXTS.litematic).toContain(".litematic"));
   it("mmd has pmx", () => expect(RESOURCE_EXTS["mmd-skin"]).toContain(".pmx"));
   it("blueprint has schematic", () => expect(RESOURCE_EXTS["create-blueprint"]).toContain(".schematic"));
 });

@@ -56,7 +56,7 @@ export function extOf(path: string): string {
 }
 
 /** 单一资源类型的能力视图（派生自 resource_types.json + 短标签映射） */
-export interface ResourceCap {
+interface ResourceCap {
   id: string;
   name: string;    // JSON 全名（如 "YSM 模型"）
   label: string;   // 短标签（如 "模型"，参与 Go 扫描匹配）
@@ -76,8 +76,8 @@ interface RawResourceType {
 const rawTypes: RawResourceType[] =
   (resourceTypesJson as { resourceTypes?: RawResourceType[] }).resourceTypes ?? [];
 
-/** 全部资源类型能力，从 resource_types.json 派生（单一事实来源） */
-export const RESOURCE_CAPS: Record<string, ResourceCap> = {};
+/** 全部资源类型能力，从 resource_types.json 派生（单一事实来源）。内部派生层，外部用安全入口 resolveTypeSafe / matchTypeByExt */
+const RESOURCE_CAPS: Record<string, ResourceCap> = {};
 for (const t of rawTypes) {
   if (!t.id) continue;
   RESOURCE_CAPS[t.id] = {
@@ -100,8 +100,9 @@ export function matchTypeByExt(path: string, typeId: string): boolean {
 /**
  * 按扩展名反解资源类型。歧义扩展名（如 .zip 同时归属 ysm/resourcepack/shaderpack）
  * 返回 null，调用方应回退到内容检测（Go DetectResourceType）。
+ * 内部实现：外部统一走 resolveTypeSafe（带歧义守卫）。
  */
-export function resolveTypeByExt(path: string): string | null {
+function resolveTypeByExt(path: string): string | null {
   const ext = extOf(path);
   if (!ext) return null;
   const hits = Object.values(RESOURCE_CAPS).filter((c) => c.extensions.includes(ext));

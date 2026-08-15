@@ -30,6 +30,10 @@ const REGISTRY_EXT_ICONS: Record<string, string> = (() => {
       // ysm 的 .zip/.json 是归档/清单容器（且 .zip 与资源包/光影包共享），
       // 语义归下方超集分支兜底，不由 ysm 特征图标 💎 覆盖
       if (rt === RESOURCE_TYPES.YSM && key !== RESOURCE_TYPES.YSM) continue;
+      // ADR-067：.zip/.7z 是通用容器扩展名，可包裹任意类型（注册表 7 类共享），
+      // 不参与注册表图标覆盖——否则遍历顺序决定图标（末位类型胜出），
+      // 容器统一归下方超集分支 📦（与 ysm 跳过逻辑同构，防顺序敏感漂移）
+      if (key === "zip" || key === "7z") continue;
       m[key] = icon;
     }
   }

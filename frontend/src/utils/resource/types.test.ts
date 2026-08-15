@@ -8,6 +8,7 @@ import {
   ALL_RESOURCE_TYPES,
   AMBIGUOUS_EXTS,
   resolveTypeSafe,
+  VOXEL_RPC_BY_EXT,
 } from "./types.ts";
 import resourceTypesJson from "../../../../resource_types.json";
 
@@ -129,6 +130,40 @@ describe("resolveTypeSafe 安全解析", () => {
 
   it("大小写不敏感（与注册表口径一致）", () => {
     expect(resolveTypeSafe("MODEL.YSM")).toBe("ysm");
+  });
+});
+
+// ===== ADR-066 §5.3 遗留收尾：voxelFn 映射契约 =====
+// VOXEL_RPC_BY_EXT 是体素类（蓝图/投影）扩展名 → Go RPC 的单点映射（litematic-meta.ts:212 消费）。
+// 守护：体素类扩展名必须全部有 RPC 映射，且映射 key 不得指向非体素扩展名（防注册表扩展名漂移）。
+
+describe("VOXEL_RPC_BY_EXT voxelFn 映射", () => {
+  const voxelTypeIds = ["create-blueprint", "litematic"];
+  const voxelExts = new Set<string>();
+  for (const rt of resourceTypesJson.resourceTypes) {
+    if (voxelTypeIds.includes(rt.id)) {
+      for (const e of rt.extensions || []) voxelExts.add(e.toLowerCase());
+    }
+  }
+
+  it("体素类扩展名（.nbt/.schematic/.litematic）全部有 RPC 映射", () => {
+    for (const ext of voxelExts) {
+      // 容器扩展名不参与体素 RPC（.zip 包裹走内容检测后仍按内部条目解析）
+      if (ext === ".zip" || ext === ".7z") continue;
+      expect(VOXEL_RPC_BY_EXT[ext], `缺少 voxelFn 映射: ${ext}`).toBeTruthy();
+    }
+  });
+
+  it("映射 key 全部是体素类扩展名（无漂移）", () => {
+    for (const ext of Object.keys(VOXEL_RPC_BY_EXT)) {
+      expect(voxelExts, `非体素扩展名 ${ext} 不应出现在 VOXEL_RPC_BY_EXT`).toContain(ext);
+    }
+  });
+
+  it("RPC 名称指向 Get*VoxelData 形态", () => {
+    for (const fn of Object.values(VOXEL_RPC_BY_EXT)) {
+      expect(fn).toMatch(/^Get\w*VoxelData$/);
+    }
   });
 });
 
