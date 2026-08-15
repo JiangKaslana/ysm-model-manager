@@ -11,7 +11,7 @@ import type { ModelEntry } from "../../bindings/ysm-model-manager/go/types/model
 import resourceTypesJson from "../../../resource_types.json" with { type: "json" };
 // rtype 魔法字符串统一走 RESOURCE_TYPES 常量（治理红线 R7）
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
-import { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64 } from "./web-common.ts";
+import { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64, parseWebPath, parseWebDirPath, webDirType, isWebPath } from "./web-common.ts";
 // R2 导入增强：ZIP 解压（extractZip 解出文件 + gbkDecodeEntry 还原中文名）
 import { extractZip, gbkDecodeEntry } from "./extract.ts";
 
@@ -22,7 +22,7 @@ const fileKey = (type: string, name: string, rel: string): string =>
 
 /** 从 /web/<type>/... 提取类型段（ScanModelEntries 参数语义） */
 export function typeFromWebDir(dir: string): string {
-  return dir.replace(/^\/web\//, "").split("/")[0] || RESOURCE_TYPES.YSM;
+  return webDirType(dir) || RESOURCE_TYPES.YSM;
 }
 
 // --- 主文件优先级（scanWebModels / importWebFiles 共用）---
@@ -238,10 +238,9 @@ export async function scanWebModels(dir: string): Promise<ModelEntry[]> {
  *  多段 name（目录树，如 /web/ysm/分类1/狐狸/狐狸.ysm）无需拆分边界：
  *  直接以 <type> 后全部路径段作 key（对齐 MikuMikuAR dir key 匹配模式）。 */
 export async function readWebFile(path: string): Promise<string | null> {
-  const m = path.match(/^\/web\/([^/]+)\/(.+)$/);
-  if (!m) return null;
-  const [, type, rest] = m;
-  const f = await idbGet<{ data: ArrayBuffer }>("files", `file:${type}/${rest}`);
+  const pm = parseWebPath(path);
+  if (!pm) return null;
+  const f = await idbGet<{ data: ArrayBuffer }>("files", `file:${pm.type}/${pm.rest}`);
   if (!f) return null;
   return arrayBufferToBase64(f.data);
 }
@@ -253,9 +252,9 @@ export async function readWebFile(path: string): Promise<string | null> {
  * rel 允许为空串（目录形态路径，如删除整组）。非 /web/ 前缀直接 null。
  */
 export async function parseWebModelPath(p: string): Promise<{ type: string; name: string; rel: string } | null> {
-  const m = p.match(/^\/web\/([^/]+)\/(.+)$/);
-  if (!m) return null;
-  const [, type, rest] = m;
+  const pm = parseWebPath(p);
+  if (!pm) return null;
+  const { type, rest } = pm;
   const prefix = `dir:${type}/`;
   const dirKeys = await idbKeys("files", prefix);
   let best = "";
@@ -270,9 +269,7 @@ export async function parseWebModelPath(p: string): Promise<{ type: string; name
 }
 /** /web/<type>/<name> → 类型+模型名（目录形态；name 可含多段路径） */
 export function parseWebModelDir(p: string): { type: string; name: string } | null {
-  const m = p.match(/^\/web\/([^/]+)\/(.+?)\/?$/);
-  if (!m) return null;
-  return { type: m[1], name: m[2] };
+  return parseWebDirPath(p);
 }
 
 /**
@@ -736,3 +733,51 @@ function relOf(f: File, stem: string): string {
   if (rel && rel.startsWith(`${stem}/`)) return rel.slice(stem.length + 1);
   return f.name;
 }
+
+// ===== 文件系统类 binding 片段（Top 6 注册表驱动：browser-adapter.ts 只做 {...} 装配）=====
+// 收敛自 browser-adapter.ts webImpls 的文件系统类条目（扫描/读写/搜索/删除/重命名/
+// 子目录/清缓存/FSA 授权）；SelectLocalRepo/GetFsaAuthState 为网页版专属扩展
+// （Go AppBindings 无此函数，Phase 3 能力探测不会误报）。
+export const webFsBindings = {
+  ScanModelEntries: (dir: string) => scanWebModels(dir),
+  // 真实列表入口（loader/import-queue/resource-manager 等 6 处均调 WithLabel 版本）
+  ScanModelEntriesWithLabel: (dir: string, _label: string) => scanWebModels(dir),
+  ReadFileBytes: (path: string) => readWebFile(path),
+  // rtype 含 / 时替换为 _，避免 /web/a/b 破坏 readWebFile 三段解析
+  GetRepoRoot: (rtype: string) => Promise.resolve(`${WEB_ROOT}/${rtype.replace(/\//g, "_")}`),
+  GetDefaultRepoRoot: () => Promise.resolve(WEB_ROOT),
+  // 搜索：关键词匹配（数值范围条件浏览器端无几何分析，降级忽略，如实标注）
+  SearchModels: (filesRoot: string, keyword: string, ..._rest: number[]) => searchWebModels(filesRoot, keyword),
+  // 删除模型组（dir + file + 标记）
+  DeleteModelDir: async (path: string) => {
+    // 格式校验区分「非法路径」（reject）与「合法但组已删」（幂等通过，对齐桌面重复删除不报错）：
+    // dir 反向匹配依赖 dir key 存在性，组删除后解析为 null——此时不得误报无效路径
+    if (!isWebPath(path)) {
+      return Promise.reject(new Error(`删除失败：无效路径: ${path}`));
+    }
+    const pm = await parseWebModelPath(path);
+    if (pm) await deleteWebModel(pm.type, pm.name);
+  },
+  RemoveDir: (dir: string) => {
+    const di = parseWebModelDir(dir);
+    if (!di) return Promise.reject(new Error(`删除失败：无效路径: ${dir}`));
+    return deleteWebModel(di.type, di.name);
+  },
+  // 重命名：模型目录整组 rekey / 组内单文件 rekey
+  RenameDir: (oldPath: string, newName: string) => renameWebDir(oldPath, newName),
+  RenameFile: (oldPath: string, newName: string) => renameWebFile(oldPath, newName),
+  // 子目录映射（resource_types.json 派生）
+  GetSubDirMap: () => getWebSubDirMap(),
+  // R1 文件层级读取：递归列出 /web 目录下全部文件完整路径（对齐桌面 ListAllFilePaths，
+  // 递归完整路径、不限制扩展名；bus-handlers 删除目录移入回收站联动依赖）
+  ListAllFilePaths: (dir: string) => listWebModelDirFiles(dir),
+  // 网页版无扫描缓存（scanWebModels 直读 IDB）：清缓存为 no-op。
+  // 缺此实现会让 app-tree 切换 root 时（index.ts:170）fail-fast 抛错跳过 _load，树卡死。
+  ClearScanCache: () => Promise.resolve(),
+  InvalidateScanCache: () => Promise.resolve(),
+  // SelectLocalRepo 为网页版专属扩展（Go AppBindings 无此函数，Phase 3 能力探测不会误报）；
+  // 用 FSA 授权本地仓库目录，替代 Go 本地文件系统扫描作为模型库文件来源
+  SelectLocalRepo: () => selectLocalRepo(),
+  // R2 FSA 授权状态查询（供 settings UI 启动引导；不触发权限弹窗）
+  GetFsaAuthState: () => getFsaAuthState(),
+} satisfies Record<string, (...args: never[]) => Promise<unknown>>;

@@ -33,7 +33,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 179 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 10 | 71 |
+| frontend/backend | 10 | 78 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 19 | 90 |
 | 前端·服务 | 1 | 6 |
@@ -41,7 +41,7 @@
 | 前端·工具 | 54 | 182 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **270** | **1108** |
+| **合计** | **270** | **1115** |
 
 ## Go·头像
 
@@ -663,7 +663,7 @@
 | `getFsaAuthState()` | `frontend/src/backend/browser-adapter` | — |
 | `reauthorizeFsaRoot()` | `frontend/src/backend/browser-adapter` | — |
 | `rescanFsaRoot()` | `frontend/src/backend/browser-adapter` | — |
-| `browserAdapter()` | `frontend/src/backend/browser-adapter:225` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `browserAdapter()` | `frontend/src/backend/browser-adapter:57` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `ZipEntryMeta()` | `frontend/src/backend/extract:32` | ZIP 中央目录条目元数据（pre-parse 产物） |
 | `ExtractResult()` | `frontend/src/backend/extract:48` | extractZip 返回值 |
 | `ZipType()` | `frontend/src/backend/extract:56` | detectZipType 返回值 |
@@ -685,8 +685,13 @@
 | `AppBindings()` | `frontend/src/backend/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
 | `WebUnsupportedError()` | `frontend/src/backend/web-common:8` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
 | `WEB_ROOT()` | `frontend/src/backend/web-common:16` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
-| `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:19` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
-| `arrayBufferToBase64()` | `frontend/src/backend/web-common:22` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
+| `isWebPath()` | `frontend/src/backend/web-common:27` | 校验是否为 /web/ 虚拟仓库路径（含 type 段与至少一个后续段） |
+| `parseWebPath()` | `frontend/src/backend/web-common:32` | /web/&lt;type&gt;/&lt;rest&gt; → {type, rest}；非 /web/ 前缀或无 rest 返回 null |
+| `parseWebDirPath()` | `frontend/src/backend/web-common:39` | 目录形态 /web/&lt;type&gt;/&lt;name&gt; → {type, name}（name 可含多段路径）；非 /web/ 前缀返回 null |
+| `webDirType()` | `frontend/src/backend/web-common:46` | /web/ 之后的类型段（/web/ysm/xxx → "ysm"）；非 /web/ 前缀返回 null |
+| `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:52` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
+| `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
+| `webCommonBindings()` | `frontend/src/backend/web-common:71` | — |
 | `loadWebCreators()` | `frontend/src/backend/web-community:27` | — |
 | `saveWebCreators()` | `frontend/src/backend/web-community:39` | — |
 | `loadWebSites()` | `frontend/src/backend/web-community:48` | — |
@@ -696,6 +701,7 @@
 | `listWebAuthors()` | `frontend/src/backend/web-community:146` | ListModelAuthors 网页版：从模型名 [作者] 前缀统计（计数降序），对齐 scanner.go:265 |
 | `scanWebLocalAuthors()` | `frontend/src/backend/web-community:166` | ScanLocalAuthors 网页版：按 [作者] 提取并合并类型标签，对齐 scanner.go:297 |
 | `generateWebRepoIndex()` | `frontend/src/backend/web-community:190` | GenerateRepoIndex 网页版：扫描虚拟根生成 index.json 内容（路径相对 repoPath，正斜杠） |
+| `webCommunityBindings()` | `frontend/src/backend/web-community:216` | — |
 | `typeFromWebDir()` | `frontend/src/backend/web-fs:24` | 从 /web/&lt;type&gt;/... |
 | `FsaAuthState()` | `frontend/src/backend/web-fs:67` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
 | `getFsaAuthState()` | `frontend/src/backend/web-fs:99` | 查询根目录授权状态（不触发权限弹窗） |
@@ -704,11 +710,11 @@
 | `selectLocalRepo()` | `frontend/src/backend/web-fs:176` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
 | `scanWebModels()` | `frontend/src/backend/web-fs:187` | — |
 | `readWebFile()` | `frontend/src/backend/web-fs:240` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `parseWebModelPath()` | `frontend/src/backend/web-fs:255` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
-| `parseWebModelDir()` | `frontend/src/backend/web-fs:272` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
-| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:285` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:304` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:318` | — |
+| `parseWebModelPath()` | `frontend/src/backend/web-fs:254` | /web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt; → 三段解析（多段 name 支持）。 |
+| `parseWebModelDir()` | `frontend/src/backend/web-fs:271` | /web/&lt;type&gt;/&lt;name&gt; → 类型+模型名（目录形态；name 可含多段路径） |
+| `listWebModelDirFiles()` | `frontend/src/backend/web-fs:282` | 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths： 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:301` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:315` | — |
 | `loadWebConfig()` | `frontend/src/backend/web-store:11` | — |
 | `saveWebConfig()` | `frontend/src/backend/web-store:19` | — |
 | `getWebImportLogs()` | `frontend/src/backend/web-store:43` | — |
@@ -723,6 +729,7 @@
 | `allTagsWeb()` | `frontend/src/backend/web-store:117` | — |
 | `isWebBanned()` | `frontend/src/backend/web-store:131` | — |
 | `toggleWebEnable()` | `frontend/src/backend/web-store:134` | — |
+| `webStoreBindings()` | `frontend/src/backend/web-store:143` | — |
 
 ## 前端·核心
 

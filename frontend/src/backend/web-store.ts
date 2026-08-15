@@ -136,3 +136,48 @@ export async function toggleWebEnable(path: string): Promise<boolean> {
   await idbSet("config", banKeyOf(path), nextBanned);
   return !nextBanned; // 返回新的「已启用」状态（对齐桌面 ToggleModelEnable 语义）
 }
+
+// ===== 配置/日志/标签/ban 类 binding 片段（Top 6 注册表驱动：browser-adapter.ts 只做 {...} 装配）=====
+// 收敛自 browser-adapter.ts webImpls 的 store 类条目（配置读写/导入与运行时日志环/
+// 标签/启用开关）。
+export const webStoreBindings = {
+  LoadAppConfig: () => Promise.resolve(loadWebConfig()),
+  SaveAppConfig: (filesRoot: string, rpRoot: string, mcRoot: string, linkMode: string, theme: string) => {
+    // 字段名对齐 AppConfig（消费方读 resourcepackRoot，非 rpRoot）；spread 旧配置避免
+    // 整体覆盖丢失 ysmRoot/shaderpackRoot 等；空串保留旧值（对齐桌面 orDefault 语义）
+    const prev = loadWebConfig();
+    saveWebConfig({
+      ...prev,
+      filesRoot: filesRoot || prev.filesRoot,
+      resourcepackRoot: rpRoot || prev.resourcepackRoot,
+      mcRoot: mcRoot || prev.mcRoot,
+      linkMode: linkMode || prev.linkMode,
+      theme: theme || prev.theme,
+    });
+    return Promise.resolve();
+  },
+  // 网页版内存日志环（替代 Go ImportLog / runtimeLogs，消除诊断页 fail-fast 红错）
+  GetImportLogs: () => getWebImportLogs(),
+  GetRuntimeLogs: () => getWebRuntimeLogs(),
+  AddImportLog: (modelName: string, sourcePath: string, targetDir: string, fileSize: number, status: string, errMsg: string) =>
+    addWebImportLog(modelName, sourcePath, targetDir, fileSize, status, errMsg),
+  AddOpLog: (op: string, modelName: string, sourcePath: string, targetDir: string, fileSize: number, status: string, errMsg: string) =>
+    addWebOpLog(op, modelName, sourcePath, targetDir, fileSize, status, errMsg),
+  // 日志环清空（环状态封装在本文件）
+  ClearImportLogs: () => {
+    clearWebImportLogs();
+    return Promise.resolve();
+  },
+  ClearRuntimeLogs: () => {
+    clearWebRuntimeLogs();
+    return Promise.resolve();
+  },
+  // 启用开关：ban 标记翻转，返回新「已启用」态（对齐桌面 ToggleModelEnable 语义）
+  IsFileBanned: (path: string) => isWebBanned(path),
+  ToggleModelEnable: (path: string) => toggleWebEnable(path),
+  // 标签：config store tags:<path>
+  GetModelTags: (path: string) => getWebTags(path),
+  SetModelTags: (path: string, tags: string[] | null) => setWebTags(path, tags),
+  ListByTag: (tag: string) => listByTagWeb(tag),
+  AllTags: () => allTagsWeb(),
+} satisfies Record<string, (...args: never[]) => Promise<unknown>>;

@@ -209,3 +209,26 @@ export async function generateWebRepoIndex(repoPath: string): Promise<string> {
   });
   return JSON.stringify(list, null, 2);
 }
+
+// ===== 社区/头像/作者/仓库索引类 binding 片段（Top 6 注册表驱动：browser-adapter.ts 只做 {...} 装配）=====
+// 收敛自 browser-adapter.ts webImpls 的 community 类条目（创作者/工坊站点/GitHub 仓库/
+// 本地作者扫描/仓库索引）。
+export const webCommunityBindings = {
+  // 网页版创作者头像批量提取（复用 ScanModelEntries + ReadFileBytes + ysm-parser）
+  BatchExtractCreatorAvatars: () => batchExtractCreatorAvatars(),
+  ListModelAuthors: () => Promise.resolve(listWebAuthors()),
+  ScanLocalAuthors: () => Promise.resolve(scanWebLocalAuthors()),
+  GenerateRepoIndex: (repoPath: string) => Promise.resolve(generateWebRepoIndex(repoPath)),
+  // bundled 默认 + localStorage 覆盖（对齐桌面 Save→Load 语义）；GitHub 仓库列表只读
+  LoadWorkshopCreators: () => Promise.resolve(loadWebCreators()),
+  SaveWorkshopCreators: (list: WorkshopCreator[] | null) => {
+    saveWebCreators(list);
+    return Promise.resolve();
+  },
+  LoadGitHubRepos: () => Promise.resolve(loadWebGitHubRepos()),
+  DefaultWorkshopSites: () => Promise.resolve(loadWebSites()),
+  SaveWorkshopSites: (sites: WorkshopSite[] | null) => {
+    saveWebSites(sites);
+    return Promise.resolve();
+  },
+} satisfies Record<string, (...args: never[]) => Promise<unknown>>;
