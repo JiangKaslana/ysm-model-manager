@@ -83,6 +83,32 @@ function loadWebGitHubRepos(): WorkshopCreator[] {
 // --- 网页版创作者头像批量提取（替代 Go BatchExtractCreatorAvatars）---
 // 复用已桥的 ScanModelEntries + ReadFileBytes + 前端 ysm-parser 解包，从 IndexedDB 模型库
 // 真实提取头像（ADR-049 能力门控缺口补齐）。单模型失败不中断、返回可能为空 map。
+// ADR-066 审计缺口 #8：提取成功后落 localStorage 缓存（CachedCreatorAvatar 读），
+// 避免每次进工坊页重复 WASM 解码全模型库提取（原实现无缓存，日志反复"提取了 N 个头像"）。
+const WEB_AVATAR_KEY = (author: string) => `web:avatar:${author}`;
+
+function saveAvatarCache(author: string, dataUri: string): void {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(WEB_AVATAR_KEY(author), dataUri);
+  } catch {
+    // 隐私模式/存储满：静默降级为无缓存（下次仍重提，不阻断）
+  }
+}
+
+/** CachedCreatorAvatar：读头像缓存（Go 读 cacheDir/safe.png；web 用 localStorage，由批量提取落缓存） */
+async function cachedCreatorAvatar(authorName: string): Promise<string> {
+  if (typeof localStorage === "undefined") return "";
+  try {
+    return localStorage.getItem(WEB_AVATAR_KEY(authorName)) || "";
+  } catch {
+    return "";
+  }
+}
+
+/** CacheModelAvatars：web no-op——模型库头像已由 BatchExtractCreatorAvatars 批量覆盖，
+ *  单模型缓存无独立语义（对齐桌面提取到 cacheDir；loader.ts 回填链路依赖它先通过） */
+async function cacheModelAvatars(_path: string): Promise<void> {}
+
 async function batchExtractCreatorAvatars(): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   try {
@@ -115,6 +141,7 @@ async function batchExtractCreatorAvatars(): Promise<Record<string, string>> {
           result[author] = `data:${mime};base64,${arrayBufferToBase64(
             f.data.buffer.slice(f.data.byteOffset, f.data.byteOffset + f.data.byteLength) as ArrayBuffer,
           )}`;
+          saveAvatarCache(author, result[author]);
           break;
         }
       } catch {
@@ -216,6 +243,9 @@ async function generateWebRepoIndex(repoPath: string): Promise<string> {
 export const webCommunityBindings = {
   // 网页版创作者头像批量提取（复用 ScanModelEntries + ReadFileBytes + ysm-parser）
   BatchExtractCreatorAvatars: () => batchExtractCreatorAvatars(),
+  // ADR-066 审计缺口 #8：头像缓存读取（批量提取落 localStorage）+ 单模型缓存 no-op
+  CachedCreatorAvatar: (authorName: string) => cachedCreatorAvatar(authorName),
+  CacheModelAvatars: (path: string) => cacheModelAvatars(path),
   ListModelAuthors: () => Promise.resolve(listWebAuthors()),
   ScanLocalAuthors: () => Promise.resolve(scanWebLocalAuthors()),
   GenerateRepoIndex: (repoPath: string) => Promise.resolve(generateWebRepoIndex(repoPath)),

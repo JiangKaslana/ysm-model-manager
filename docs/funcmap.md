@@ -739,7 +739,7 @@
 | `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:52` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:76` | — |
-| `webCommunityBindings()` | `frontend/src/backend/web-community:216` | — |
+| `webCommunityBindings()` | `frontend/src/backend/web-community:243` | — |
 | `typeFromWebDir()` | `frontend/src/backend/web-fs:31` | 从 /web/&lt;type&gt;/... |
 | `FsaAuthState()` | `frontend/src/backend/web-fs:89` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
 | `getFsaAuthState()` | `frontend/src/backend/web-fs:121` | 查询根目录授权状态（不触发权限弹窗） |

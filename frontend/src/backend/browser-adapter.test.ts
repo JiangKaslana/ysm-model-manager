@@ -102,6 +102,13 @@ describe("browserAdapter — Phase 2 模型库（IndexedDB）", () => {
     expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.png")).toBe(""); // 辅助文件无类型
   });
 
+  it("CachedCreatorAvatar 读 localStorage 头像缓存（ADR-066 缺口 #8：批量提取落缓存，避免重提）", async () => {
+    localStorage.setItem("web:avatar:测试作者", "data:image/png;base64,AAA");
+    expect(await browserAdapter.CachedCreatorAvatar("测试作者")).toBe("data:image/png;base64,AAA");
+    expect(await browserAdapter.CachedCreatorAvatar("不存在作者")).toBe("");
+    localStorage.removeItem("web:avatar:测试作者");
+  });
+
   it("ScanModelEntriesWithLabel 同 ScanModelEntries（真实列表入口）", async () => {
     await importWebFiles([new File([enc.encode("YSM")], "狐狸.ysm")], "ysm");
     const entries = (await browserAdapter.ScanModelEntriesWithLabel("/web/ysm", "模型")) as Array<{
