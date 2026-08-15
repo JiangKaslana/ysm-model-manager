@@ -1,6 +1,6 @@
 # ADR-066：全资源预览器：统一预览契约与注册表驱动分发
 
-- **状态**：🔄 部分采纳（统一契约方向已定；P0「硬编码派发墙」为落地前置，待编码）
+- **状态**：🔄 部分采纳（统一契约方向已定；**P0「硬编码派发墙」已于 `0615b21d` 落地**，D2–D5 待后续阶段）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/views/app-preview/loader.ts`、`frontend/src/views/app-preview/index.ts`、`frontend/src/views/app-preview/litematic-meta.ts`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`frontend/src/utils/3d/model3d.ts`、`frontend/src/views/app-preview/litematic-3d.ts`、`ADR-061`、`ADR-064`、`ADR-065`
@@ -168,5 +168,37 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
   - **P2**：`MmdAdapter`（three-mmd / 或 babylon-mmd 直桥，标实验态）；
   - **P3**：ysm/blueprint/litematic 包成适配器接入 `mountPreview` 单一核心，消灭双 renderer；
   - **P4**：跨平台——ysm 的 `go/threejs.Build` 硬债（WASM 化）；VRM/MMD 天然纯前端。
+
+---
+
+## 5. 实现说明（审核补注）— P0 已落地 `0615b21d`
+
+### 5.1 实际代码 diff（registry-driven 改造落地面）
+
+**`frontend/src/utils/resource/types.ts`**（新增能力元数据派生层，单一事实来源）：
+- 新增 `extOf(path)`：路径→小写扩展名（含点）；
+- 新增 `RESOURCE_CAPS: Record<string, ResourceCap>`：从 `resourceTypesJson` 派生，暴露 `extensions` / `preview` / `label` / `icon`；
+- 新增 `matchTypeByExt(path, typeId)`：按注册表 extensions 判定归属（不处理歧义）；
+- 新增 `resolveTypeByExt(path)`：扩展名→类型 ID 反查，歧义扩展名（`.zip` 同时归属 ysm/resourcepack/shaderpack）返回 `null`，调用方回退 Go 内容检测；
+- 新增 `isYsmWasmPreview(path)`：ysm 单文件（`.ysm`/`.json`）走 WASM 预览，`.zip`/`.7z` 容器由 Go `FindPreviewImage` 兜底；
+- 新增 `VOXEL_RPC_BY_EXT`：`.nbt/.schematic/.litematic` → `GetNbtVoxelData/GetSchematicVoxelData/GetLitematicVoxelData` 单点映射。
+
+**`loader.ts:21`**：`/\.(ysm|zip|json)$/i` → `matchTypeByExt(modelPath, RESOURCE_TYPES.YSM)`。
+- 🟢 **附带修复**：注册表 ysm `extensions` 含 `.7z`，原正则漏判 `.7z` 的 YSM 文件（硬编码副作用），现自动覆盖。
+
+**`index.ts:108`**（`loadPreviewImage`）：`/\.(ysm|json)$/i` → `isYsmWasmPreview(modelPath)`，保留 `.zip`/`.7z` 走 Go 的语义。
+
+**`litematic-meta.ts:212`**：三元字符串分支 → `VOXEL_RPC_BY_EXT[ext]`；同时删除 `isNbt`/`isSch` 内联正则与未使用的 `label` 死变量，改以 `extOf(path)` 单点取扩展名驱动 `ReadNbtStructure`/`ReadSchematic`/`ReadLitematicMeta` 分支。
+
+### 5.2 验证
+
+- `cd frontend && npm run typecheck`（tsc --noEmit）：✅ EXIT 0；
+- `cd frontend && npx vite build`：✅ EXIT 0（chunk >500kB 警告为既有项，与本次无关）；
+- 行为保持：ysm `.ysm`/`.json`/`.zip`/`.7z` WASM 解码路径不变；`.zip`/`.7z` 预览仍走 Go；蓝图/投影体素 RPC 选择等价迁移。
+
+### 5.3 遗留
+
+- `model3d-loader.ts:84-89` 的 `_modelPath` 透传未纳入 P0（属 D1 后续项，不影响 VRM/MMD 路线 B 接入点）；
+- 单元测试断言迁移（§4 必做 diff 第 4 项）待补：扩展名→类型解析、voxelFn 映射的契约测试。
 
 <!-- 文件名: universal-resource-preview.md → 实际文件 ADR-066-universal-resource-preview.md -->
