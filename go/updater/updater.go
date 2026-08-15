@@ -19,10 +19,19 @@ import (
 	"time"
 )
 
-const (
-	repoOwner = "eghrhegpe"
-	repoName  = "ysm-model-manager"
+// repoOwner/repoName GitHub 仓库定位（测试可覆盖为本地镜像/自定义仓库，
+// 对齐 debounceDelay / maxDownloadSize 的包级 var 模式，索引 6.9a）
+var repoOwner = "eghrhegpe"
+var repoName = "ysm-model-manager"
 
+// asset 命名模板（v1.13.0 起纯 exe 发布；非 Windows 分支 .tar.gz 为占位，
+// 自动更新仅支持 Windows——InstallUpdate 平台守卫，此分支供未来扩展或手动下载参考）
+const (
+	assetWindowsFormat = "YSM-Model-Manager_windows_%s.exe"
+	assetUnixFormat    = "YSM-Model-Manager_%s_%s.tar.gz"
+)
+
+const (
 	// apiTimeout GitHub API 轻量请求超时（Check / fetchExpectedHash 共用）
 	apiTimeout = 10 * time.Second
 	// downloadTimeout 更新包下载超时（每源独立 90s：直连慢/卡时快速切镜像）
@@ -113,17 +122,15 @@ type UpdateInfo struct {
 	ReleaseNotes  string `json:"releaseNotes,omitempty"`
 }
 
-// assetPattern 返回当前系统匹配的 asset 名
-// v1.13.0 起纯 exe 发布：Windows Release 资产为裸 exe（不再打包 zip）。
-// 注意：非 Windows 分支返回 .tar.gz 为占位——自动更新仅支持 Windows
-// （InstallUpdate 平台守卫），此分支供未来扩展或手动下载参考
+// assetPattern 返回当前系统匹配的 asset 名（模板收敛于 assetWindowsFormat/assetUnixFormat，
+// 索引 6.9a）
 func assetPattern() string {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 	if goos == "windows" {
-		return fmt.Sprintf("YSM-Model-Manager_windows_%s.exe", goarch)
+		return fmt.Sprintf(assetWindowsFormat, goarch)
 	}
-	return fmt.Sprintf("YSM-Model-Manager_%s_%s.tar.gz", goos, goarch)
+	return fmt.Sprintf(assetUnixFormat, goos, goarch)
 }
 
 // Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志）
