@@ -548,6 +548,7 @@ export const ja: Record<string, string> = {
   "syncManager.status.legacy": "旧リポジトリ",
   "syncManager.emptyFiltered": "{status} のリソースファイルが見つかりません",
   "syncManager.emptyType": "この統合パックにリソースファイルはありません",
+  "syncManager.rmTitle": "リソース管理",
 
   // ── Diagnostics Operation Types ──
   "diagnostics.logsCleared": "ログをクリアしました",

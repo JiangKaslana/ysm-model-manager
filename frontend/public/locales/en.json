@@ -504,6 +504,7 @@
   "syncManager.status.legacy": "Legacy",
   "syncManager.emptyFiltered": "No {status} resource files found",
   "syncManager.emptyType": "No resource files in this modpack",
+  "syncManager.rmTitle": "Resource Manager",
   "diagnostics.logsCleared": "Logs cleared",
   "diagnostics.opImport": "Import",
   "diagnostics.opScan": "Scan",

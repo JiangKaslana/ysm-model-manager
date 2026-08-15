@@ -504,6 +504,7 @@
   "syncManager.status.legacy": "旧リポジトリ",
   "syncManager.emptyFiltered": "{status} のリソースファイルが見つかりません",
   "syncManager.emptyType": "この統合パックにリソースファイルはありません",
+  "syncManager.rmTitle": "リソース管理",
   "diagnostics.logsCleared": "ログをクリアしました",
   "diagnostics.opImport": "インポート",
   "diagnostics.opScan": "スキャン",

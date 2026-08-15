@@ -550,6 +550,7 @@ export const zhCN: Record<string, string> = {
   "syncManager.status.legacy": "旧仓库遗留",
   "syncManager.emptyFiltered": "未找到 {status} 的资源文件",
   "syncManager.emptyType": "该整合包暂无资源文件",
+  "syncManager.rmTitle": "资源管理器",
 
   // ── 诊断操作类型 ──
   "diagnostics.logsCleared": "日志已清空",

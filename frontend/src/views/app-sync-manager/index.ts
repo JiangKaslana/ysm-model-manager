@@ -65,6 +65,7 @@ export class AppSyncManager extends HTMLElement {
   private _unsubs: Array<() => void> = [];
   /** 单文件推送/拉取在途守卫：防连点并发（同 preview-skeleton _saving 模式） */
   private _singleBusy = false;
+  private _rmEl: HTMLElement | null = null;
 
   /**
    * 切换所有单行按钮的禁用态与视觉反馈（陷阱 #3：异步在途时按钮须灰掉，
@@ -168,6 +169,32 @@ export class AppSyncManager extends HTMLElement {
     });
     this._unsubs = this._unsubs || [];
     this._unsubs.push(unsub);
+
+    // 同步 app-resource-manager 的 instance/rtype 属性（打开文件夹路由到正确整合包）
+    this._syncRM();
+    // 折叠切换
+    const toggleEl = this.querySelector<HTMLElement>(".sm-rm-toggle");
+    const bodyEl = this.querySelector<HTMLElement>(".sm-rm-body");
+    if (toggleEl && bodyEl) {
+      toggleEl.addEventListener("click", () => {
+        const expanded = bodyEl.style.display !== "none";
+        bodyEl.style.display = expanded ? "none" : "";
+        toggleEl.textContent = (expanded ? "📁 " : "▸ 📁 ") + t("syncManager.rmTitle");
+        this._syncRM(); // 展开时确保 app-resource-manager 属性最新
+      });
+    }
+  }
+
+  /** 将 instance + 当前资源类型透传给 <app-resource-manager> */
+  private _syncRM(): void {
+    const el = this.querySelector<HTMLElement>(".sm-rm-el");
+    if (!el) return;
+    if (el.getAttribute("instance") !== this._instance) {
+      el.setAttribute("instance", this._instance);
+    }
+    if (el.getAttribute("rtype") !== this._selectedType) {
+      el.setAttribute("rtype", this._selectedType);
+    }
   }
 
   disconnectedCallback(): void {
@@ -175,6 +202,7 @@ export class AppSyncManager extends HTMLElement {
       this._unsubs.forEach((fn) => fn());
       this._unsubs = [];
     }
+    this._rmEl = null;
   }
 
   async _loadTypeConfig(): Promise<void> {
@@ -392,6 +420,7 @@ export class AppSyncManager extends HTMLElement {
         this._statusFilter = "all";
         bus.emit("repo:rtype-changed", this._selectedType);
         this._render();
+        this._syncRM();
       });
     });
 

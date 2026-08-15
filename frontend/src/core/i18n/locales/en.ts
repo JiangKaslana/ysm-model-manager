@@ -547,6 +547,7 @@ export const en: Record<string, string> = {
   "syncManager.status.legacy": "Legacy",
   "syncManager.emptyFiltered": "No {status} resource files found",
   "syncManager.emptyType": "No resource files in this modpack",
+  "syncManager.rmTitle": "Resource Manager",
 
   // ── Diagnostics Operation Types ──
   "diagnostics.logsCleared": "Logs cleared",
