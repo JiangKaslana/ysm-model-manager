@@ -14,9 +14,9 @@ import { safeGet } from "../../utils/dom/storage.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { t } from "../../core/i18n/t.ts";
-import { saveScreenshot, type Model3DHandleX } from "./skeleton-render.ts";
+import { saveScreenshot } from "./skeleton-render.ts";
 import { fill3DPanel } from "./skeleton-fill-panel.ts";
-import { buildCameraControls } from "./mount-preview-core.ts";
+import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
 import type { Spec3D, BoneSelectInfo } from "../../utils/3d/model3d.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 
@@ -29,6 +29,19 @@ export type YsmModel = BedrockGeometry & {
   bones?: unknown[];
 };
 
+/** YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） */
+export interface YsmContentHandle {
+  showModelGroup(i: number): void;
+  getModelGroupCount(): number;
+  setBoneVisible(name: string, visible: boolean): void;
+  toggleBone(name: string): void;
+  getBoneList(): Array<{ id: string; name: string; parentId?: string | null }>;
+  /** 骨骼拾取回调（由控件层设置，适配器转发到 raycast state） */
+  onBoneSelect: ((info: BoneSelectInfo) => void) | null;
+  /** 骨骼详情框（fill3DPanel 写入） */
+  _boneDetailEl: HTMLElement | null;
+}
+
 /** 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 */
 export interface YsmControlsContext {
   model: YsmModel;
@@ -37,8 +50,10 @@ export interface YsmControlsContext {
   /** preloadModel 返回的纹理数组（可能含 null——缺失纹理占位，fill3DPanel 内断言） */
   texArr: (THREE.Texture | null)[];
   spec: Spec3D;
-  /** renderModel3D 返回的句柄（旋转/速度/重置/模型组/骨骼拾取回调） */
-  handle: Model3DHandleX;
+  /** YSM 内容层句柄（模型组/骨骼显隐/拾取回调） */
+  handle: YsmContentHandle;
+  /** shared 模式下核心的相机控制桥（视图菜单旋转/速度/重置复用） */
+  cameraControls?: CameraControlBridge;
   /** 用户切换纹理时触发重建（旧 overlay 清理 + 按新 texIdx 重新挂载） */
   onTextureChange?: (texIdx: number) => void;
 }
@@ -171,17 +186,15 @@ export function buildYsmBottomNav(
     popupSection(t("preview.cameraRotation"), popup);
     popupRow("", popup);
 
-    // 相机控件（旋转模式 / 速度 / 重置视角）复用 core 通用构建器
+    // 相机控件（旋转模式 / 速度 / 重置视角）复用 core 通用构建器——
+    // §5.7 shared 化：bridge 操作核心 cameraControls（统一相机状态），
+    // 不再经内容句柄（内容层只管模型/骨骼）。
     buildCameraControls(popup, {
-      getOrbit: () => safeGet("td-rot-mode") !== "free",
-      setOrbit: (v: boolean) => {
-        ctx.handle.setRotationMode(v);
-      },
-      getSpeed: () => Number(safeGet("td-cam-speed") || "20"),
-      setSpeed: (n: number) => {
-        ctx.handle.setSpeed(n);
-      },
-      reset: () => ctx.handle.resetCamera(),
+      getOrbit: () => ctx.cameraControls?.getOrbit() ?? safeGet("td-rot-mode") !== "free",
+      setOrbit: (v: boolean) => ctx.cameraControls?.setOrbit(v),
+      getSpeed: () => ctx.cameraControls?.getSpeed() ?? Number(safeGet("td-cam-speed") || "20"),
+      setSpeed: (n: number) => ctx.cameraControls?.setSpeed(n),
+      reset: () => ctx.cameraControls?.reset(),
     });
 
     // 截图（视图域子项，非根菜单）

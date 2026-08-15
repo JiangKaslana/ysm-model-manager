@@ -15,7 +15,7 @@ import { sec, iRow } from "./skeleton-utils.ts";
 import {
   setup2DCanvas, buildToggleRow, buildStatsCard, buildBoneExportRow,
 } from "./skeleton-render.ts";
-import { createYsm3D, cleanupYsm3D, type YsmModel } from "./ysm-3d.ts";
+import { createYsm3D, cleanupYsm3D } from "./ysm-3d.ts";
 
 // 2D 拖拽的 window 监听器槽位：loadModel2D 每次渲染模型都会绑定，
 // 先移除上一轮处理器再绑定，防止 window 级监听器累积泄漏
@@ -156,7 +156,11 @@ export async function loadModel2D(
         return true;
       });
       try {
-        await createYsm3D(model as YsmModel, 0, { onClose });
+        // path 驱动（§5.7）：注入预览面板数据加载链，switchTo(path) 对 ysm 生效
+        await createYsm3D(modelPath, 0, {
+          onClose,
+          loader: async (p: string) => (await loadModelData(p, ctx)).model,
+        });
       } catch (e) {
         _loading3D = false;
         // P2 修复：用户已关闭 3D（ESC/切模型）后迟到的加载失败不得再弹错——

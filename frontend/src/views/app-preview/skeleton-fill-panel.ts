@@ -3,8 +3,17 @@
 import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { buildDepthMap } from "./skeleton-utils.ts";
-import type { Model3DHandleX } from "./skeleton-render.ts";
+import type { BoneSelectInfo } from "../../utils/3d/model3d.ts";
 import type { BedrockGeometry } from "./geometry.ts";
+
+/** fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） */
+export interface PanelHandle {
+  getModelGroupCount(): number;
+  getBoneList(): Array<{ id: string; name: string; parentId?: string | null }>;
+  setBoneVisible(name: string, visible: boolean): void;
+  onBoneSelect: ((info: BoneSelectInfo) => void) | null;
+  _boneDetailEl: HTMLElement | null;
+}
 
 export function fill3DPanel(
   panel: HTMLDivElement,
@@ -17,7 +26,7 @@ export function fill3DPanel(
   },
   texArr: import("three").Texture[],
   spec: import("../../utils/3d/model3d.ts").Spec3D,
-  _model3d: Model3DHandleX,
+  _model3d: PanelHandle,
   modelSel: HTMLSelectElement,
 ): { boneContainer: HTMLElement | null; boneDetailText: HTMLElement } {
   // 统计

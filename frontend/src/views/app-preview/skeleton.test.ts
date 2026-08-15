@@ -24,6 +24,9 @@ const {
   renderModel3D,
   renderMultiAngle,
   preloadModel,
+  createYsm3D,
+  cleanupYsm3D,
+  invalidateYsmPreview,
 } = vi.hoisted(() => ({
   getPrefer3D: vi.fn(() => false),
   setPrefer3D: vi.fn(),
@@ -39,6 +42,9 @@ const {
   renderModel3D: vi.fn(),
   renderMultiAngle: vi.fn(),
   preloadModel: vi.fn(),
+  createYsm3D: vi.fn(),
+  cleanupYsm3D: vi.fn(),
+  invalidateYsmPreview: vi.fn(),
 }));
 
 vi.mock("./utils.ts", () => ({ getPrefer3D, setPrefer3D }));
@@ -60,6 +66,9 @@ vi.mock("../../utils/3d/model3d.ts", () => ({
 }));
 vi.mock("./screenshot-renderer.ts", () => ({ renderMultiAngle }));
 vi.mock("./model3d-loader.ts", () => ({ preloadModel }));
+// §5.7 shared 化：3D 打开收敛到 ysm-3d（path 驱动），骨架层测试 mock 编排层——
+// shared 外壳（挂 scene/导航/raycast）集成由 ysm-3d.test.ts（three stub）覆盖
+vi.mock("./ysm-3d.ts", () => ({ createYsm3D, cleanupYsm3D, invalidateYsmPreview }));
 
 import { loadModel2D } from "./skeleton.ts";
 import { fill3DPanel } from "./skeleton-render.ts";
@@ -337,126 +346,92 @@ describe("loadModel2D — 交互", () => {
   });
 });
 
-describe("loadModel2D — 3D 切换", () => {
-  it("btn-3d-preview 点击 → overlay + preloadModel/renderModel3D + 面板统计", async () => {
-    const handle = make3DHandle();
-    renderModel3D.mockResolvedValue(handle);
-    preloadModel.mockResolvedValue({
-      texArr: [],
-      spec: {
-        models: [
-          {
-            bones: [{ _cubeCount: 2 }],
-            textureWidth: 64,
-            textureHeight: 32,
-            name: "m0",
-          },
-        ],
-      },
-    });
+describe("loadModel2D — 3D 切换（§5.7 编排层：ys m-3d 已 mock，shared 集成见 ysm-3d.test.ts）", () => {
+  async function setupCtx() {
     const ctx = makeCtx();
     const container = document.createElement("div");
     document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
     await loadModel2D(ctx, "/m/a.ysm", container);
+    return { ctx, container };
+  }
+
+  it("btn-3d-preview 点击 → createYsm3D(path, 0, { loader, onClose }) + 偏好持久化", async () => {
+    createYsm3D.mockResolvedValue(undefined);
+    const { ctx } = await setupCtx();
 
     (ctx.root.querySelector("#btn-3d-preview") as HTMLButtonElement).click();
-    await waitFor(() => document.getElementById("ysm-overlay-3d"));
+    await waitFor(() => expect(createYsm3D).toHaveBeenCalled());
 
-    expect(preloadModel).toHaveBeenCalledTimes(1);
-    expect(renderModel3D).toHaveBeenCalledTimes(1);
-    expect(handle.cleanup).not.toHaveBeenCalled();
+    expect(createYsm3D).toHaveBeenCalledWith(
+      "/m/a.ysm",
+      0,
+      expect.objectContaining({
+        loader: expect.any(Function),
+        onClose: expect.any(Function),
+      }),
+    );
     // 打开 3D → 持久化偏好（跨模型自动弹 3D 的开关）
     expect(setPrefer3D).toHaveBeenCalledWith(true);
-    // §5.7 范式：功能在底部导航弹窗内（无常驻侧栏）——点「模型」导航打开面板
-    const navBtns = document.querySelectorAll<HTMLElement>(".ysm-3d-navbtn");
-    expect(navBtns.length).toBeGreaterThan(0);
-    navBtns[0].click();
-    const panel = document.getElementById("ysm-3d-panel") as HTMLElement;
-    expect(panel.textContent).toContain("1 根");
-    expect(panel.textContent).toContain("2 个");
-    expect(panel.textContent).toContain("64×32");
 
-    // close3D 已在 unsubs（组件销毁自动清理），执行后 renderer 释放 + overlay 移除
+    // close3D 已在 unsubs（组件销毁自动清理）
     for (const fn of [...ctx.unsubs]) fn();
-    expect(handle.cleanup).toHaveBeenCalledTimes(1);
-    expect(document.getElementById("ysm-overlay-3d")).toBeNull();
+    expect(cleanupYsm3D).toHaveBeenCalledTimes(1);
     // 关闭 3D → 清除偏好（用户退出 3D 后不再自动弹全屏，ADR-057 §2.5 口径）
     expect(setPrefer3D).toHaveBeenCalledWith(false);
   });
 
-  it("overlay ✕ closeBtn 点击 → close3D 清理 + overlay 移除（2667f142 拆分回归）", async () => {
-    const handle = make3DHandle();
-    renderModel3D.mockResolvedValue(handle);
-    preloadModel.mockResolvedValue({ texArr: [], spec: { models: [] } });
-    const ctx = makeCtx();
-    const container = document.createElement("div");
-    document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
-    await loadModel2D(ctx, "/m/a.ysm", container);
+  it("unsubs 清理（切模型/组件销毁）→ cleanupYsm3D + 偏好复位", async () => {
+    createYsm3D.mockResolvedValue(undefined);
+    const { ctx } = await setupCtx();
 
     (ctx.root.querySelector("#btn-3d-preview") as HTMLButtonElement).click();
-    await waitFor(() => document.getElementById("ysm-overlay-3d"));
+    await waitFor(() => expect(createYsm3D).toHaveBeenCalled());
 
-    const closeBtn = document.getElementById("ysm-close-3d") as HTMLElement;
-    expect(closeBtn).toBeTruthy();
-    closeBtn.click();
-    expect(handle.cleanup).toHaveBeenCalledTimes(1);
-    expect(document.getElementById("ysm-overlay-3d")).toBeNull();
+    const closeFn = ctx.unsubs.at(-1)!;
+    closeFn();
+    expect(cleanupYsm3D).toHaveBeenCalledTimes(1);
+    expect(setPrefer3D).toHaveBeenCalledWith(false);
   });
 
-  it("3D 加载失败 → error toast + 错误占位", async () => {
-    preloadModel.mockRejectedValue(new Error("wasm 崩了"));
-    const ctx = makeCtx();
-    const container = document.createElement("div");
-    document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
-    await loadModel2D(ctx, "/m/a.ysm", container);
+  it("createYsm3D 失败 → 骨架层不崩、不额外弹错（core 统一处理错误）", async () => {
+    createYsm3D.mockRejectedValue(new Error("wasm 崩了"));
+    const { ctx } = await setupCtx();
 
     (ctx.root.querySelector("#btn-3d-preview") as HTMLButtonElement).click();
-    await waitFor(() => busEmit.mock.calls.length > 0);
+    await new Promise((r) => setTimeout(r, 0));
 
-    expect(busEmit).toHaveBeenCalledWith(
-      "toast:show",
-      expect.objectContaining({
-        msg: expect.stringContaining("wasm 崩了"),
-        type: "error",
-      }),
-    );
-    expect(friendlyError).toHaveBeenCalled();
+    // 骨架层只防御性日志；错误 toast 由 core（mount3D catch）统一处理
+    expect(createYsm3D).toHaveBeenCalledTimes(1);
+    expect(busEmit).not.toHaveBeenCalled();
+    // _loading3D 复位（失败路径），_is3D 保持 true（再点 = 关闭语义，与旧实现一致）
   });
 
-  it("3D 加载期间用户关闭（ESC）→ 立即 cleanup 防 WebGL 泄漏", async () => {
-    const handle = make3DHandle();
-    let resolveRender: (h: typeof handle) => void = () => {};
-    renderModel3D.mockReturnValue(
-      new Promise((r) => {
-        resolveRender = r;
+  it("3D 加载期间用户关闭 → cleanupYsm3D（防 WebGL 泄漏）", async () => {
+    let resolve3D: () => void = () => {};
+    createYsm3D.mockReturnValue(
+      new Promise<void>((r) => {
+        resolve3D = r;
       }),
     );
-    preloadModel.mockResolvedValue({ texArr: [], spec: { models: [] } });
-    const ctx = makeCtx();
-    const container = document.createElement("div");
-    document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
-    await loadModel2D(ctx, "/m/a.ysm", container);
+    const { ctx } = await setupCtx();
 
     (ctx.root.querySelector("#btn-3d-preview") as HTMLButtonElement).click();
+    await waitFor(() => expect(createYsm3D).toHaveBeenCalled());
     // 加载未完成前先关闭（触发 close3D → _model3dGen++）
     const closeFn = ctx.unsubs.at(-1)!;
     closeFn();
-    resolveRender(handle);
+    resolve3D();
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(handle.cleanup).toHaveBeenCalledTimes(1);
-    expect(document.getElementById("ysm-overlay-3d")).toBeNull();
+    expect(cleanupYsm3D).toHaveBeenCalledTimes(1);
   });
 
   it("3D 加载期间用户关闭 → 迟到的加载失败不再弹错（gen 守卫）", async () => {
-    preloadModel.mockRejectedValue(new Error("迟到的失败"));
-    const ctx = makeCtx();
-    const container = document.createElement("div");
-    document.body.appendChild(container); // 挂载以符合真实场景（loadModel2D 的 isConnected 守卫）
-    await loadModel2D(ctx, "/m/a.ysm", container);
+    createYsm3D.mockRejectedValue(new Error("迟到的失败"));
+    const { ctx } = await setupCtx();
 
     (ctx.root.querySelector("#btn-3d-preview") as HTMLButtonElement).click();
-    // 在 preloadModel reject 之前先关闭 → _model3dGen++，使在途失败过期
+    // 在 createYsm3D reject 之前先关闭 → _model3dGen++，使在途失败过期
     const closeFn = ctx.unsubs.at(-1)!;
     closeFn();
     await new Promise((r) => setTimeout(r, 0));

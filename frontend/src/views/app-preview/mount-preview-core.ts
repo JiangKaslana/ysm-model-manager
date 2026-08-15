@@ -28,6 +28,10 @@ export interface PreviewBuildCtx {
   viewContainer: HTMLElement;
   loadingEl: HTMLElement;
   overlay: HTMLElement;
+  /** shared 模式下核心创建的 renderer（适配器射线拾取 / 截图 / 内容挂载用；self 模式 undefined） */
+  renderer?: THREE.WebGLRenderer;
+  /** shared 模式下核心的相机控制桥（旋转/速度/重置，操作核心内部状态；self 模式 undefined） */
+  cameraControls?: CameraControlBridge;
 }
 
 /** 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） */
@@ -258,25 +262,29 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   spacer.style.cssText = "flex:1";
   topBar.appendChild(spacer);
 
+  // 相机控制桥（shared 模式）：core 的 topBar 控件与 PreviewBuildCtx.cameraControls
+  // 共用同一 bridge（操作核心内部 orbitMode/camSpeed/controls），适配器（如 ysm 底部
+  // 导航）经 cameraControls 复用同一套相机状态，消灭双份实现。
+  const camBridge: CameraControlBridge = {
+    getOrbit: () => orbitMode,
+    setOrbit: (v: boolean) => {
+      orbitMode = v;
+      if (controls) controls.enableRotate = v;
+      if (v) {
+        if (orbitTarget && controls) orbitTarget.copy(controls.target);
+      } else {
+        if (camera) euler.setFromQuaternion(camera.quaternion);
+      }
+      mouseDown = false;
+    },
+    getSpeed: () => camSpeed,
+    setSpeed: (n: number) => { camSpeed = n; },
+    // built 在 try 块内声明，此处经模块级 _handle（PreviewHandle 含 resetCamera? 契约）延迟调用
+    reset: () => { _handle?.resetCamera?.(); },
+  };
   // 通用相机控件（仅 shared 模式：self 模式由适配器经 extraControls 复用同一 buildCameraControls）
   if (!selfMode) {
-    buildCameraControls(topBar, {
-      getOrbit: () => orbitMode,
-      setOrbit: (v: boolean) => {
-        orbitMode = v;
-        if (controls) controls.enableRotate = v;
-        if (v) {
-          if (orbitTarget && controls) orbitTarget.copy(controls.target);
-        } else {
-          if (camera) euler.setFromQuaternion(camera.quaternion);
-        }
-        mouseDown = false;
-      },
-      getSpeed: () => camSpeed,
-      setSpeed: (n: number) => { camSpeed = n; },
-      // built 在 try 块内声明，此处经模块级 _handle（PreviewHandle 含 resetCamera? 契约）延迟调用
-      reset: () => { _handle?.resetCamera?.(); },
-    });
+    buildCameraControls(topBar, camBridge);
   }
 
   overlay.appendChild(topBar);
@@ -446,14 +454,17 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let adapterControlsStart = 0;
   /** extraPanel 容器引用（切换时清空重填） */
   let panelEl: HTMLElement | null = null;
+  /** 首次 build 前 scene 子节点快照（shared 模式）：switchTo 时移除旧内容层添加的增量，防场景累积（审核 #1） */
+  let sceneBaseline: Set<THREE.Object3D> | null = null;
 
   try {
     // 代际守卫：await 期间用户已点其他文件 / 被 invalidate，丢弃本次挂载
     if (myGen !== _gen) return;
 
+    if (scene) sceneBaseline = new Set(scene.children);
     adapterControlsStart = topBar.childElementCount;
     built = await adapter.build(
-      { scene, camera, controls, viewContainer, loadingEl, overlay },
+      { scene, camera, controls, renderer, cameraControls: selfMode ? undefined : camBridge, viewContainer, loadingEl, overlay },
       path,
     );
     if (aborted || myGen !== _gen) {
@@ -588,15 +599,38 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         while (topBar.childElementCount > adapterControlsStart) {
           topBar.lastChild?.remove();
         }
+        // 1b) 移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积——审核 #1）
+        // 适配器 dispose 只释放 GPU（deepDispose/dispose），不 detach；不移除会导致
+        // 每次切换旧模型/灯光/Grid 残留叠加（灯光过亮/鬼影/已释放几何仍被遍历）。
+        const baseline = sceneBaseline; // 局部快照：闭包内 let 窄化失效
+        if (scene && baseline) {
+          const stale = scene.children.filter((c) => !baseline.has(c));
+          for (const c of stale) scene.remove(c);
+        }
         // 2) 释放旧内容层 GPU 资源
         try {
           built?.dispose();
         } catch (_) {}
         // 3) 重建内容层（新 path）
-        const next = await adapter.build(
-          { scene, camera, controls, viewContainer, loadingEl, overlay },
-          newPath,
-        );
+        let next: PreviewScene;
+        try {
+          next = await adapter.build(
+            { scene, camera, controls, renderer, cameraControls: selfMode ? undefined : camBridge, viewContainer, loadingEl, overlay },
+            newPath,
+          );
+        } catch (e) {
+          // 切换失败（坏 PMX/VRM/读取错误）：旧内容已 dispose 无法回滚，恢复 loadingEl 错误提示 + toast
+          // （对齐 mount3D 入口 catch——不留下无提示空壳 + unhandled rejection，审核 #2）
+          console.error("[preview 3D] 切换失败:", e);
+          if (!loadingEl.parentNode) viewContainer.appendChild(loadingEl); // 成功路径已 remove，失败需重新挂回
+          loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`;
+          bus.emit("toast:show", {
+            msg: "❌ " + friendlyError(e, t("preview.loadFailed")),
+            duration: 5000,
+            type: "error",
+          });
+          return;
+        }
         if (aborted || isDisposed.v || myGen !== _gen) {
           try {
             next.dispose();
