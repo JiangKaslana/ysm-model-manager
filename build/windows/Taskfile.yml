@@ -263,6 +263,22 @@ tasks:
     preconditions:
       - sh: test -f "{{.BIN_DIR}}/{{.APP_NAME}}.exe"
         msg: "Binary not found. Run 'task build' or 'task build:dev' first."
+      - cmd: |
+          powershell -NoProfile -Command "& {
+            \$port = if (\$env:WAILS_VITE_PORT) { [int]\$env:WAILS_VITE_PORT } else { 9245 };
+            for (\$i = 0; \$i -lt 30; \$i++) {
+              try {
+                \$tcp = New-Object System.Net.Sockets.TcpClient;
+                \$tcp.Connect('127.0.0.1', \$port);
+                \$tcp.Close();
+                exit 0;
+              } catch {}
+              Start-Sleep -Milliseconds 300;
+            }
+            Write-Error ('Vite dev server not ready on 127.0.0.1:' + \$port);
+            exit 1;
+          }"
+        msg: "Waiting for Vite dev server on 127.0.0.1 (retries 10)"
     cmds:
       - '{{.BIN_DIR}}/{{.APP_NAME}}.exe'
 

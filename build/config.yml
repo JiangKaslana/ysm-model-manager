@@ -50,9 +50,11 @@ dev_mode:
       type: blocking
     # 3) vite 开发服务器（background，热重载期间常驻，退出时杀）
     #    端口取 wails3 dev 注入的 WAILS_VITE_PORT（默认 9245）。
+    #    delay_next 2000ms：给 Vite 冷启动留缓冲，避免 exe 启动时端口未 ready。
     - name: vite-dev
       cmd: wails3 task common:dev:frontend
       type: background
+      delay_next: 2000
     # 4) 运行应用（primary，*.go 变更时由 watcher 先杀后启）
     - name: run-app
       cmd: wails3 task run
