@@ -4,10 +4,10 @@ import { t } from "../core/i18n/t.ts";
 import { modalConfirm } from "../utils/dom/dialogs/modal.ts";
 import { renderDisplayName } from "../utils/dom/display.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
-import { safeGet } from "../utils/dom/storage.ts";
 import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { getApp } from "../backend/app.ts";
+import { useCurrentResourceType } from "./repo-rtype.ts";
 
 // ===== 常量（魔法数值集中管理 — code_review P3）=====
 /** 恢复/删除前的 leaving 滑出动画时长（ms），与 content-util.css 的 .leaving 过渡对齐 */
@@ -92,18 +92,14 @@ export function initRecycleBin(app: RecycleHost): () => void {
     }
   };
   root.getElementById("recy-empty")?.addEventListener("click", onEmptyClick);
-  // 监听全局类型切换
-  // currentType 初值取 localStorage（持久化权威源，由 app-nav 写入）；运行期以 repo:rtype-changed
-  // 事件载荷为准，二者一致时不会重复加载（事件是唯一运行期变更入口）
-  let currentType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-  let _loadGen = 0;
-
-  const unsubRtype = bus.on("repo:rtype-changed", (rt) => {
-    if (rt && rt !== currentType) {
-      currentType = rt;
-      loadRecycleBin();
-    }
+  // 监听全局类型切换（收敛至 useCurrentResourceType，索引 4.3）：
+  // currentType 初值取 localStorage（持久化权威源，由 app-nav 写入）；运行期以
+  // repo:rtype-changed 事件载荷为准，二者一致时不会重复加载（事件是唯一运行期变更入口）
+  const { get: getCurrentType, cleanup: cleanupRtype } = useCurrentResourceType(() => {
+    loadRecycleBin();
   });
+  // 加载代数：rtype 快速切换时丢弃过期结果（与 oldest-models 的 _loadGen 同模式）
+  let _loadGen = 0;
 
   // 文件名点击 → 模型详情：事件委托只绑一次，cleanup 成对移除（避免每次渲染累积监听）
   const listEl = root.getElementById("recy-list");
@@ -135,7 +131,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
       } = await getApp();
 
       // 获取当前类型的根目录（用于路径过滤）
-      const currentRoot = await GetRepoRoot(currentType);
+      const currentRoot = await GetRepoRoot(getCurrentType());
       const allEntries = (await ListRecycleBin("")) || [];
       if (gen !== _loadGen) return; // 已有更新的加载，丢弃过期结果
 
@@ -150,7 +146,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
       }
       const reg = await loadResourceRegistry();
       if (gen !== _loadGen) return;
-      const icon = (reg[currentType] && reg[currentType].icon) || "📦";
+      const icon = (reg[getCurrentType()] && reg[getCurrentType()].icon) || "📦";
       if (count) count.textContent = icon + " " + entries.length + " 个文件";
       list.innerHTML = entries
         .map((e, i) => {
@@ -245,7 +241,7 @@ export function initRecycleBin(app: RecycleHost): () => void {
     // （迟到响应）仍会写 innerHTML/绑监听；递增后任何在途请求的 gen 比对都会丢弃
     // 结果（对齐 oldest-models.ts:319 模式）
     _loadGen++;
-    if (unsubRtype) unsubRtype();
+    cleanupRtype();
     if (listEl) listEl.removeEventListener("click", onListClick);
     root
       .getElementById("recy-refresh")

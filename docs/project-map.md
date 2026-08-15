@@ -58,7 +58,7 @@
 |------|------|
 | `backend/` | 后端适配层：Wails 绑定入口（app.ts）+ 平台判定（platform.ts）+ 浏览器适配（browser-adapter.ts）+ IndexedDB 模型库（idb.ts） 〔源码 10: app.ts browser-adapter.ts extract.ts idb.ts platform.ts types.ts web-common.ts web-community.ts w… · 测试 8〕 |
 | `core/` | 基础设施（buttons / global-handlers / theme / context-menus） 〔源码 8: context-menu-dir-handlers.ts context-menu-file-handlers.ts context-menu-handlers.ts context-menu-… · 测试 3 · 子目录 2: handlers/ i18n/〕 |
-| `features/` | 业务功能（import-queue / recycle-bin / version-updater / community） 〔源码 12: dnd-collector.ts dnd-shared.ts import-dnd.ts import-executor.ts import-queue-data.ts import-queue… · 测试 10 · 子目录 1: community/〕 |
+| `features/` | 业务功能（import-queue / recycle-bin / version-updater / community） 〔源码 13 · 测试 10 · 子目录 1: community/〕 |
 | `services/` | 服务注册（registry.ts） 〔源码 1: registry.ts · 测试 1〕 |
 | `test-utils/` | 测试工具（G-1 抗脆弱测试基础设施 — ADR-035 §19.1：getByTestId / getAllByTestId / waitFor） 〔源码 4: events.ts index.ts query-by-testid.ts render.ts · 测试 3〕 |
 | `utils/` | 工具函数（display / fmt / dom / icon / summarize / model3d） 〔源码 2: array.ts gh-links.ts · 测试 1 · 子目录 7: 3d/ animation/ debug/ dom/ format/ icon/ resource/〕 |

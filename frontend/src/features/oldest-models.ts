@@ -4,10 +4,10 @@ import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { renderDisplayName } from "../utils/dom/display.ts";
 import { formatBytes } from "../utils/dom/format.ts";
-import { safeGet } from "../utils/dom/storage.ts";
 import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { getApp } from "../backend/app.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../utils/resource/types.ts";
+import { useCurrentResourceType } from "./repo-rtype.ts";
 
 // ===== 业务常量（审核：魔法数值集中化，数值与既有行为完全一致）=====
 const MS_PER_DAY = 86400000;
@@ -44,8 +44,6 @@ export async function loadOldestModel(
   esc: (s: string) => string,
 ): Promise<() => void> {
   if (!container) return () => {};
-  let currentType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-  let unsub: (() => void) | null = null;
   // 渲染代数：rtype 快速切换时丢弃过期结果（与 recycle-bin 的 _loadGen 同模式）
   let _loadGen = 0;
 
@@ -64,7 +62,7 @@ export async function loadOldestModel(
       '<div style="padding:12px;color:var(--muted);font-size:var(--fs-base)">⏳ ' + t("oldest.scanning") + '</div>';
     try {
       const { ScanModelEntriesWithLabel, GetRepoRoot } = await getApp();
-      const filesRoot = await GetRepoRoot(currentType);
+      const filesRoot = await GetRepoRoot(getCurrentType());
       if (gen !== _loadGen) return;
       if (!filesRoot) {
         container.innerHTML =
@@ -72,7 +70,7 @@ export async function loadOldestModel(
         return;
       }
 
-      const entries: ModelEntry[] = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[currentType] ?? RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+      const entries: ModelEntry[] = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[getCurrentType()] ?? RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
       if (gen !== _loadGen) return; // 已切换类型，丢弃过期结果
       if (!entries || !entries.length) {
         container.innerHTML =
@@ -246,7 +244,7 @@ export async function loadOldestModel(
 
       const reg = await loadResourceRegistry();
       if (gen !== _loadGen) return; // 已切换类型，丢弃过期结果
-      const curIcon = (reg[currentType] && reg[currentType].icon) || "📦";
+      const curIcon = (reg[getCurrentType()] && reg[getCurrentType()].icon) || "📦";
       container.innerHTML =
         '<div class="oldest-page">' +
         '<div class="oldest-stats-bar">' +
@@ -313,12 +311,11 @@ export async function loadOldestModel(
     }
   }
 
-  // 监听全局类型切换
-  unsub = bus.on("repo:rtype-changed", (rtype) => {
-    if (rtype && rtype !== currentType) {
-      currentType = rtype;
-      render();
-    }
+  // 监听全局类型切换（收敛至 useCurrentResourceType，索引 4.3）：
+  // currentType 初值取 localStorage（持久化权威源，由 app-nav 写入）；运行期以
+  // repo:rtype-changed 事件载荷为准，二者一致时不会重复渲染
+  const { get: getCurrentType, cleanup: cleanupRtype } = useCurrentResourceType(() => {
+    render();
   });
 
   await render();
@@ -326,7 +323,7 @@ export async function loadOldestModel(
   // 返回清理函数
   return () => {
     container.removeEventListener("click", handleContainerClick);
-    if (unsub) unsub();
+    cleanupRtype();
     // P3 修复（审核发现）：cleanup 后递增代数——若 render 在清理后完成（迟到响应），
     // 仍会向容器写 innerHTML 并重新 addEventListener；容器若被复用则残留点击监听
     // （幽灵路径/泄漏）。递增后任何在途 render 的 gen 比对都会丢弃结果。

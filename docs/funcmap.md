@@ -35,13 +35,13 @@
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 10 | 78 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 19 | 90 |
+| 前端·特性 | 20 | 93 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 54 | 183 |
+| 前端·工具 | 54 | 184 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **271** | **1117** |
+| **合计** | **272** | **1121** |
 
 ## Go·头像
 
@@ -395,16 +395,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `progressWriter.Write()` | `go/updater/updater:71` | — |
-| `Check()` | `go/updater/updater:130` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
-| `CheckWithClient()` | `go/updater/updater:136` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
-| `Download()` | `go/updater/updater:239` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
-| `DownloadWithProgress()` | `go/updater/updater:248` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
-| `CleanupOldVersion()` | `go/updater/updater:398` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
-| `InstallUpdate()` | `go/updater/updater:422` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
-| `ReleaseAsset()` | `go/updater/updater:91` | ReleaseAsset GitHub Release 中的文件 |
-| `Release()` | `go/updater/updater:97` | Release GitHub Release 信息 |
-| `UpdateInfo()` | `go/updater/updater:106` | UpdateInfo 更新信息（序列化给前端） |
+| `progressWriter.Write()` | `go/updater/updater:80` | — |
+| `Check()` | `go/updater/updater:137` | Check 检查 GitHub 是否有新版本（聚合所有未读版本的更新日志） |
+| `CheckWithClient()` | `go/updater/updater:143` | CheckWithClient 可注入 client 与 API URL 的测试变体（Check 的内部实现） |
+| `Download()` | `go/updater/updater:246` | Download 下载更新包（裸 exe）到临时目录，返回更新包路径（无进度回调，兼容旧调用方）。 |
+| `DownloadWithProgress()` | `go/updater/updater:255` | DownloadWithProgress 下载更新包；onProgress 在下载过程中节流回调 (done, total) 字节数 （total&lt;=0 表示 Content-Le |
+| `CleanupOldVersion()` | `go/updater/updater:405` | CleanupOldVersion 启动时清理上一次更新留下的 .old 文件 |
+| `InstallUpdate()` | `go/updater/updater:429` | InstallUpdate 校验下载的更新 exe 并通过 helper 进程替换当前 exe。 |
+| `ReleaseAsset()` | `go/updater/updater:100` | ReleaseAsset GitHub Release 中的文件 |
+| `Release()` | `go/updater/updater:106` | Release GitHub Release 信息 |
+| `UpdateInfo()` | `go/updater/updater:115` | UpdateInfo 更新信息（序列化给前端） |
 
 ## Go·监听
 
@@ -836,23 +836,25 @@
 | `handleTreeDrop()` | `frontend/src/features/import-dnd:30` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
 | `bindTreeDnD()` | `frontend/src/features/import-dnd:129` | 在目标容器上注册仓库页 DnD 事件。 |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
-| `ImportFile()` | `frontend/src/features/import-executor:16` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `ImportRecord()` | `frontend/src/features/import-executor:19` | 已导入历史条目（导入 tab「已导入」列表数据源） |
-| `CollectedEntry()` | `frontend/src/features/import-executor:27` | 收集条目（文件 + 相对路径） |
-| `ImportHistory()` | `frontend/src/features/import-executor:36` | — |
-| `directImport()` | `frontend/src/features/import-executor:94` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
-| `importFolder()` | `frontend/src/features/import-executor:135` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
-| `executeCollected()` | `frontend/src/features/import-executor:199` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:219` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `ImportFile()` | `frontend/src/features/import-executor:17` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `ImportRecord()` | `frontend/src/features/import-executor:20` | 已导入历史条目（导入 tab「已导入」列表数据源） |
+| `CollectedEntry()` | `frontend/src/features/import-executor:28` | 收集条目（文件 + 相对路径） |
+| `ImportHistory()` | `frontend/src/features/import-executor:37` | — |
+| `directImport()` | `frontend/src/features/import-executor:95` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
+| `importFolder()` | `frontend/src/features/import-executor:136` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
+| `executeCollected()` | `frontend/src/features/import-executor:201` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:221` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `ImportFile()` | `frontend/src/features/import-queue-data:14` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `QueueItem()` | `frontend/src/features/import-queue-data:17` | 队列项数据类型 |
 | `normalizeRepoName()` | `frontend/src/features/import-queue-data:30` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
 | `ImportQueueHost()` | `frontend/src/features/import-queue-data:35` | 应用主机接口 |
-| `initDataLayer()` | `frontend/src/features/import-queue-data:41` | 初始化导入队列的数据层：返回状态对象和清理函数 |
-| `bindFormEvents()` | `frontend/src/features/import-queue-events:22` | 表单输入事件绑定 |
-| `bindDragEvents()` | `frontend/src/features/import-queue-events:53` | 拖拽事件绑定 |
-| `bindInputEvents()` | `frontend/src/features/import-queue-events:140` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:221` | 按钮事件绑定 |
+| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:45` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
+| `readFormFields()` | `frontend/src/features/import-queue-data:54` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
+| `initDataLayer()` | `frontend/src/features/import-queue-data:73` | 初始化导入队列的数据层：返回状态对象和清理函数 |
+| `bindFormEvents()` | `frontend/src/features/import-queue-events:24` | 表单输入事件绑定 |
+| `bindDragEvents()` | `frontend/src/features/import-queue-events:55` | 拖拽事件绑定 |
+| `bindInputEvents()` | `frontend/src/features/import-queue-events:142` | 文件输入框事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:223` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
 | `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
@@ -863,6 +865,7 @@
 | `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
 | `initRecycleBin()` | `frontend/src/features/recycle-bin:49` | 初始化回收站管理，返回清理函数 |
+| `useCurrentResourceType()` | `frontend/src/features/repo-rtype:18` | 订阅当前仓库资源类型。 |
 | `initResourcePacks()` | `frontend/src/features/resource-packs:14` | 初始化资源包 tab |
 | `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
 | `checkUpdateSilent()` | `frontend/src/features/version-updater:154` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
@@ -1059,6 +1062,7 @@
 | `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:186` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
+| `isFileExistsError()` | `frontend/src/utils/dom/errors:87` | 判断错误消息是否为「文件已存在」冲突（索引 4.2 收敛）。 |
 | `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:6` | — |
 | `ensureFabStyles()` | `frontend/src/utils/dom/fab:53` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
 | `IconButtonOpts()` | `frontend/src/utils/dom/fab:68` | — |

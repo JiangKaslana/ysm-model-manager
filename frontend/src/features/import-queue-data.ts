@@ -37,6 +37,38 @@ export interface ImportQueueHost {
   _esc: (s: string) => string;
 }
 
+/**
+ * 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）：
+ * 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ 提交读取
+ * 统一走本常量 + readFormFields，新增字段只改一处。
+ */
+export const IMPORT_FORM_FIELD_IDS = [
+  "dl-author",
+  "dl-work",
+  "dl-chara",
+  "dl-variant",
+  "dl-date",
+] as const;
+
+/** 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 */
+export function readFormFields(root: ShadowRoot): {
+  author: string;
+  work: string;
+  chara: string;
+  variant: string;
+  date: string;
+} {
+  const val = (id: string): string =>
+    (root.getElementById(id) as HTMLInputElement).value.trim();
+  return {
+    author: val("dl-author"),
+    work: val("dl-work"),
+    chara: val("dl-chara"),
+    variant: val("dl-variant"),
+    date: val("dl-date"),
+  };
+}
+
 /** 初始化导入队列的数据层：返回状态对象和清理函数 */
 export function initDataLayer(host: ImportQueueHost): {
   state: {
@@ -162,11 +194,17 @@ export function initDataLayer(host: ImportQueueHost): {
 
     const parsed = parseModelName(file.name);
 
-    (root.getElementById("dl-author") as HTMLInputElement).value = parsed.author || "";
-    (root.getElementById("dl-work") as HTMLInputElement).value = parsed.work || "";
-    (root.getElementById("dl-chara") as HTMLInputElement).value = parsed.chara || "";
-    (root.getElementById("dl-variant") as HTMLInputElement).value = "";
-    (root.getElementById("dl-date") as HTMLInputElement).value = parsed.date || "";
+    // 表单填充按字段注册表收敛（索引 4.1）：author/work/chara/date 来自文件名解析，variant 恒空
+    const fieldValues: Record<string, string> = {
+      "dl-author": parsed.author || "",
+      "dl-work": parsed.work || "",
+      "dl-chara": parsed.chara || "",
+      "dl-variant": "",
+      "dl-date": parsed.date || "",
+    };
+    for (const id of IMPORT_FORM_FIELD_IDS) {
+      (root.getElementById(id) as HTMLInputElement).value = fieldValues[id];
+    }
     updatePreview();
 
     toggleForm(true);
@@ -217,11 +255,8 @@ export function initDataLayer(host: ImportQueueHost): {
   };
 
   const updatePreview = (): void => {
-    const a = (root.getElementById("dl-author") as HTMLInputElement).value.trim();
-    const w = (root.getElementById("dl-work") as HTMLInputElement).value.trim();
-    const c = (root.getElementById("dl-chara") as HTMLInputElement).value.trim();
-    const v = (root.getElementById("dl-variant") as HTMLInputElement).value.trim();
-    const manualDate = (root.getElementById("dl-date") as HTMLInputElement).value.trim();
+    // 统一走 readFormFields 读取（索引 4.1 收敛逐字段手写）
+    const { author: a, work: w, chara: c, variant: v, date: manualDate } = readFormFields(root);
     const autoOn = (root.getElementById("dl-date-auto") as HTMLInputElement).checked;
     const autoDate =
       new Date().getFullYear() +

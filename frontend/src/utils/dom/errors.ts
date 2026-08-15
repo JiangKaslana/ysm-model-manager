@@ -76,3 +76,24 @@ export function stripPathSegments(msg: string): string {
     "",
   );
 }
+
+/**
+ * 判断错误消息是否为「文件已存在」冲突（索引 4.2 收敛）。
+ * 统一消费结构化 AppError.Code 优先，字符串匹配兜底——两处调用点（import-executor/
+ * import-queue-events）原各自手写 `includes("FILE_EXISTS") || includes(中文文案)`，
+ * 且中文文案已漂移（「目标已存在」 vs 「文件已存在」），收敛后任一处新增/调整
+ * 文案只需改本函数。
+ */
+export function isFileExistsError(err: unknown): boolean {
+  const code = extractAppErrorCode(err);
+  if (code === "FILE_EXISTS" || code === "ALREADY_EXISTS") return true;
+  const msg =
+    typeof err === "string"
+      ? err
+      : String((err as { message?: unknown }).message || err);
+  return (
+    msg.includes("FILE_EXISTS") ||
+    msg.includes("目标已存在") ||
+    msg.includes("文件已存在")
+  );
+}

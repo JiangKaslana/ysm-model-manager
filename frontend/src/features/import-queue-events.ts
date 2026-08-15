@@ -6,6 +6,8 @@ import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { isImportableFile } from "./dnd-shared.ts";
 import { ImportHistory, importWebFilesWithToast } from "./import-executor.ts";
 import type { ImportFile, QueueItem } from "./import-queue-data.ts";
+import { isFileExistsError } from "../utils/dom/errors.ts";
+import { IMPORT_FORM_FIELD_IDS, readFormFields } from "./import-queue-data.ts";
 
 /** 事件绑定工具：收集 cleanup 函数 */
 function on<K extends keyof HTMLElementEventMap>(
@@ -25,7 +27,7 @@ export function bindFormEvents(
   loadHeaderFromBase64: () => Promise<void>,
   cleanups: Array<() => void>,
 ): void {
-  ["dl-author", "dl-work", "dl-chara", "dl-variant", "dl-date"].forEach(
+  IMPORT_FORM_FIELD_IDS.forEach(
     (id) => {
       const el = root.getElementById(id);
       if (el) on(el, "input", updatePreview, cleanups);
@@ -235,6 +237,29 @@ export function bindButtonEvents(
   loadRepoFiles: () => Promise<void>,
   cleanups: Array<() => void>,
 ): void {
+  // 导入成功共用收尾（索引 4.1 收敛正常/覆盖两分支 30 行近似重复）：
+  // 刷新文件列表 → 记导入历史 → 出队 → 重绘列表 → 清编辑态 → 推队列
+  const commitImportSuccess = async (
+    editing: { file: ImportFile | null; relPath: string },
+    finalName: string,
+  ): Promise<void> => {
+    await loadRepoFiles();
+    ImportHistory.push({
+      name: finalName,
+      time: new Date().toLocaleTimeString(),
+      isYsm: true,
+      relPath: editing.relPath,
+    });
+    const importedIdx = fileQueue.findIndex((fq) => fq.file === editing.file);
+    if (importedIdx >= 0) fileQueue.splice(importedIdx, 1);
+    renderImportedList();
+    currentFileRef.current = null;
+    currentBase64Ref.current = null;
+    currentFileNameRef.current = null;
+    currentRelPathRef.current = "";
+    advanceQueue();
+  };
+
   if (importBtn) {
     const handler = async () => {
       if (isImportingRef.current) return;
@@ -246,11 +271,8 @@ export function bindButtonEvents(
         relPath: currentRelPathRef.current,
       };
       try {
-        const a = (root.getElementById("dl-author") as HTMLInputElement).value.trim();
-        const w = (root.getElementById("dl-work") as HTMLInputElement).value.trim();
-        const c = (root.getElementById("dl-chara") as HTMLInputElement).value.trim();
-        const v = (root.getElementById("dl-variant") as HTMLInputElement).value.trim();
-        const manualDate = (root.getElementById("dl-date") as HTMLInputElement).value.trim();
+        // 统一走 readFormFields 读取（索引 4.1 收敛逐字段手写）
+        const { author: a, work: w, chara: c, variant: v, date: manualDate } = readFormFields(root);
         const autoOn = (root.getElementById("dl-date-auto") as HTMLInputElement).checked;
         const d =
           manualDate ||
@@ -310,26 +332,10 @@ export function bindButtonEvents(
             duration: 3000,
             type: "success",
           });
-          await loadRepoFiles();
-
-          ImportHistory.push({
-            name: finalName,
-            time: new Date().toLocaleTimeString(),
-            isYsm: true,
-            relPath: editing.relPath,
-          });
-          const importedIdx = fileQueue.findIndex((fq) => fq.file === editing.file);
-          if (importedIdx >= 0) fileQueue.splice(importedIdx, 1);
-          renderImportedList();
-
-          currentFileRef.current = null;
-          currentBase64Ref.current = null;
-          currentFileNameRef.current = null;
-          currentRelPathRef.current = "";
-          advanceQueue();
+          await commitImportSuccess(editing, finalName);
         } catch (e) {
-          const errMsg = String(e);
-          if (errMsg.includes("FILE_EXISTS") || errMsg.includes("文件已存在")) {
+          // 统一文件已存在判定（索引 4.2）：结构化 Code 优先，字符串兜底覆盖漂移文案
+          if (isFileExistsError(e)) {
             const { modalConfirm } = await import("../utils/dom/dialogs/modal.ts");
             const confirmed = await modalConfirm({
               title: "文件已存在",
@@ -354,24 +360,7 @@ export function bindButtonEvents(
                   duration: 2000,
                   type: "success",
                 });
-                await loadRepoFiles();
-                const { ImportHistory } = await import("./import-executor.ts");
-                ImportHistory.push({
-                  name: finalName,
-                  time: new Date().toLocaleTimeString(),
-                  isYsm: true,
-                  relPath: editing.relPath,
-                });
-                const importedIdx = fileQueue.findIndex(
-                  (fq) => fq.file === editing.file,
-                );
-                if (importedIdx >= 0) fileQueue.splice(importedIdx, 1);
-                renderImportedList();
-                currentFileRef.current = null;
-                currentBase64Ref.current = null;
-                currentFileNameRef.current = null;
-                currentRelPathRef.current = "";
-                advanceQueue();
+                await commitImportSuccess(editing, finalName);
                 return;
               } catch (e2) {
                 const { friendlyError } = await import("../utils/dom/errors.ts");
@@ -384,9 +373,8 @@ export function bindButtonEvents(
               }
             }
           }
-          const { friendlyError } = await import("../utils/dom/errors.ts");
           bus.emit("toast:show", {
-            msg: `❌ ${t("import.failed")}: ` + errMsg,
+            msg: `❌ ${t("import.failed")}: ` + String(e),
             duration: 5000,
             type: "error",
           });

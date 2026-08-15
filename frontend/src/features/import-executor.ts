@@ -11,6 +11,7 @@ import { importWebFiles } from "../backend/browser-adapter.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
+import { isFileExistsError } from "../utils/dom/errors.ts";
 
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = File & { _relPath?: string };
@@ -181,7 +182,8 @@ export const importFolder = async (
     toast(t("import.success") + ": " + folderName, "success", 2500);
   } catch (e) {
     const msg = String(e);
-    if (msg.includes("FILE_EXISTS") || msg.includes("目标已存在")) {
+    // 统一文件已存在判定（索引 4.2）：结构化 Code 优先，字符串兜底覆盖漂移文案
+    if (isFileExistsError(e)) {
       toast(`❌ ${folderName} ${t("import.alreadyExists")}`, "error", 4000);
     } else {
       toast("❌ " + t("import.failed") + ": " + msg, "error", 4000);
