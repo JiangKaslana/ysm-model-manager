@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 56 | 196 |
-| frontend/views | 90 | 250 |
+| frontend/views | 90 | 251 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **288** | **1189** |
+| **合计** | **288** | **1190** |
 
 ## Go·头像
 
@@ -1278,7 +1278,8 @@
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:11` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:17` | — |
-| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:9` | — |
+| `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
+| `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:18` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
 | `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:18` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
 | `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:27` | 创建 2D 骨骼画布并异步加载纹理 |
@@ -1316,17 +1317,17 @@
 | `buildVrmScene()` | `frontend/src/views/app-preview/vrm-adapter:111` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
-| `YsmModel()` | `frontend/src/views/app-preview/ysm-3d:16` | YSM 模型对象（对齐 ysm-adapter 字段需求） |
-| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:24` | — |
-| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:33` | 打开 YSM 3D 预览（统一外壳 self 模式）。 |
-| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:53` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
-| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:58` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
-| `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:23` | 适配器可选项：纹理切换重建 / 关闭回调由外层（ysm-3d.ts）负责 |
-| `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:58` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:145` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:12` | — |
+| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:25` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
+| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:48` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
+| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:53` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
+| `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:24` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:61` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:146` | 工厂：构造统一 PreviewAdapter（shared 模式） |
 | `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:24` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
-| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:33` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
-| `buildYsmBottomNav()` | `frontend/src/views/app-preview/ysm-controls:103` | 在统一外壳（overlay）挂载底部悬浮导航 + 分类弹窗（§5.7 范式）。 |
+| `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:33` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
+| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:46` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
+| `buildYsmBottomNav()` | `frontend/src/views/app-preview/ysm-controls:118` | 在统一外壳（overlay）挂载底部悬浮导航 + 分类弹窗（§5.7 范式）。 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
 | `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |

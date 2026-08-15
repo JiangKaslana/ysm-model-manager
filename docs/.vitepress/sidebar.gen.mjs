@@ -696,6 +696,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-072：3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters",
+        "link": "/adr/ADR-072-3d-organization-adapter-sink"
+      },
+      {
         "text": "ADR-071：网页版能力边界：.7z 明确不支持 + 社区站点编辑保存补齐",
         "link": "/adr/ADR-071-web-capability-boundary-7z-community"
       },

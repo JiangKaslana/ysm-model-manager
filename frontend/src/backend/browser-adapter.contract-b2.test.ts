@@ -175,6 +175,34 @@ describe("B2 契约：站点级编辑保存（R3-P0 web 补齐，镜像 Go app_w
       browserAdapter.MergeWorkshopCreatorsFromJSON(JSON.stringify([{ name: "a", desc: "" }])),
     ).rejects.toThrow();
   });
+
+  it("多站点分号 type 连续按站点保存不丢数据（累积语义，审核验证）", async () => {
+    // 逐站点 SaveWorkshopCreatorsBySite：每次 load 读到前次 save 结果（localStorage
+    // 同步事务），后一次追加不覆盖前一次——多站点分号 type 拆组保存后各站点都在
+    await browserAdapter.SaveWorkshopCreators([] as never); // 清空覆盖层
+    await browserAdapter.SaveWorkshopCreatorsBySite("siteA", [{ name: "A1", desc: "", type: "siteA" }] as never);
+    await browserAdapter.SaveWorkshopCreatorsBySite("siteB", [{ name: "B1", desc: "", type: "siteB" }] as never);
+    const got = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string }>;
+    const names = got.map((c) => c.name);
+    expect(names).toContain("A1");
+    expect(names).toContain("B1");
+  });
+
+  it("MergeWorkshopCreatorsFromJSON 合并后 <100 条回滚不保存（覆盖层保持旧值）", async () => {
+    const before = [{ name: "旧作者", desc: "old", type: "x" }];
+    await browserAdapter.SaveWorkshopCreators(before as never);
+    // 导入 30 条（<100 合并后 → reject），内存已合并但不应落盘
+    const list = Array.from({ length: 30 }, (_, i) => ({
+      name: `作者${i}`, desc: `d${i}`, type: "t",
+    }));
+    await expect(
+      browserAdapter.MergeWorkshopCreatorsFromJSON(JSON.stringify(list)),
+    ).rejects.toThrow();
+    const got = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string; desc: string }>;
+    // 覆盖层仍是旧的 1 条（合并失败未保存）
+    expect(got).toHaveLength(1);
+    expect(got[0].name).toBe("旧作者");
+  });
 });
 
 describe("B2 契约：DefaultWorkshopSites — 恒返回站点列表", () => {

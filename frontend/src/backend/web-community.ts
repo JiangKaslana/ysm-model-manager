@@ -312,6 +312,8 @@ export const webCommunityBindings = {
         added++;
       }
     }
+    // localStorage 天然事务（setItem 原子）：reject 早于 saveWebCreators → 等价回滚，
+    // 无需桌面版 BackupWorkshopCreators 式备份（审核 1d 确认，平台差异可接受）
     if (existing.length < 100) {
       return Promise.reject(new Error(`合并后数据异常: ${existing.length} 条`));
     }
