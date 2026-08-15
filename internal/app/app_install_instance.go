@@ -287,7 +287,9 @@ func (a *App) RelinkAllInstanceResources(instanceName string) (int, error) {
 	}
 	total := 0
 	for _, d := range types.AllSubDirs() {
-		instanceDir := filepath.Join(target.VersionDir, d.SubDir)
+		// ADR-064 锚定：统一走 FindInstDir（标准目录无该类型文件时兜底扫描），
+		// 否则 Sable-Schematics 等非标准目录里的蓝图不会参与重链接
+		instanceDir := types.FindInstDir(target.VersionDir, d.SubDir, d.RType)
 		if _, err := os.Stat(instanceDir); os.IsNotExist(err) {
 			continue
 		}
@@ -330,7 +332,10 @@ func (a *App) SyncResources(rtype, instanceName string) string {
 			if subDir == "" {
 				return `{"synced":[],"missing":[],"extra":[]}`
 			}
-			targetDir = filepath.Join(ins.VersionDir, subDir)
+			// 与展示层同口径：FindInstDir 标准目录无该类型文件时兜底扫描
+			// （Sable-Schematics 等非标准目录；原直拼 schematics 与此 binding
+			// 的展示结果不一致）
+			targetDir = types.FindInstDir(ins.VersionDir, subDir, rtype)
 			break
 		}
 	}

@@ -520,8 +520,10 @@ func (a *App) InstallResourceToInstance(rtype, srcPath, instanceName string) err
 		return fmt.Errorf("未知的资源类型: %s", rtype)
 	}
 
-	// 目标路径 = 整合包版本目录 + 子目录
-	dstDir := filepath.Join(target.VersionDir, subDir)
+	// 目标路径 = 整合包版本目录 + 子目录（ADR-064 锚定：统一走 FindInstDir，
+	// 标准目录无该类型文件时兜底扫描——Sable-Schematics 等非标准目录，原直拼
+	// schematics 与展示层/拉取层口径不一致）
+	dstDir := types.FindInstDir(target.VersionDir, subDir, rtype)
 
 	// 统一走 installer.Install，复用链接模式支持
 	globalRoot, _ := a.GetRepoRoot(rtype)
