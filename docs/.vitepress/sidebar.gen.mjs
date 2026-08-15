@@ -692,6 +692,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-064：同步层对比收敛：scanner 单一扫描源，对比实现单点化",
+        "link": "/adr/ADR-064-sync-convergence-scanner-single-source"
+      },
+      {
         "text": "ADR-063：updater 版本比较语义化：semver 库接入替代手写比较",
         "link": "/adr/ADR-063-updater-semver-semantics"
       },
