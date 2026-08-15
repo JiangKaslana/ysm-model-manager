@@ -53,7 +53,10 @@ vi.mock("../bus.ts", () => ({
 vi.mock("../core/i18n/t.ts", () => ({
   t: (key: string) => key,
 }));
-vi.mock("../utils/dom/errors.ts", () => ({ friendlyError }));
+vi.mock("../utils/dom/errors.ts", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("../utils/dom/errors.ts")>();
+  return { ...mod, friendlyError };
+});
 vi.mock("../utils/dom/dialogs/modal.ts", () => ({ modalConfirm }));
 vi.mock("../backend/app.ts", () => ({ getApp }));
 vi.mock("../utils/dom/dialogs/rename.ts", () => ({ showRenameDialog }));

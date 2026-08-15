@@ -11,7 +11,7 @@ import { type Spec3D } from "./model3d.ts"; // 仅类型 import（编译后擦�
 import { applyRotationIfNonIdentity } from "./quaternion.ts";
 
 /** 模型显示缩放（基岩标准 16px = 1m，严格对齐 YSMViewer ExportScale，索引 2.14 收敛） */
-export const MODEL_SCALE = 1 / 16;
+const MODEL_SCALE = 1 / 16;
 
 /** 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 */
 export function compKey(mi: number, id: string) {

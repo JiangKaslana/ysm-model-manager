@@ -38,10 +38,10 @@
 | 前端·特性 | 20 | 93 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 55 | 189 |
+| 前端·工具 | 55 | 188 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **273** | **1133** |
+| **合计** | **273** | **1132** |
 
 ## Go·头像
 
@@ -957,7 +957,6 @@
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/keymap:45` | 相机移动速度（2–200），默认 20 |
 | `loadTdRotMode()` | `frontend/src/utils/3d/keymap:52` | true = 环绕（orbit），false = 自身（free） |
 | `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:27` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
-| `MODEL_SCALE()` | `frontend/src/utils/3d/mesh:14` | 模型显示缩放（基岩标准 16px = 1m，严格对齐 YSMViewer ExportScale，索引 2.14 收敛） |
 | `compKey()` | `frontend/src/utils/3d/mesh:17` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
 | `MaterialWithMap()` | `frontend/src/utils/3d/mesh:22` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:27` | 释放材质（含位图 .map），null/undefined 安全。 |
