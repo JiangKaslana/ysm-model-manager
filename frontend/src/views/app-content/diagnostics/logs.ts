@@ -21,7 +21,7 @@ interface ImportLogLike {
   SourcePath?: string;
   ErrorMsg?: string;
   Operation?: string;
-  Level?: "debug" | "info" | "warn" | "error" | "fatal";
+  Level?: "" | "debug" | "info" | "warn" | "error" | "fatal";
 }
 
 /** 操作类型 → 中文标签 + 图标（分组标题与行内徽标共用） */

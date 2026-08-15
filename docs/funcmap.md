@@ -711,7 +711,7 @@
 | `scanWebModels()` | `frontend/src/backend/web-fs:188` | — |
 | `readWebFile()` | `frontend/src/backend/web-fs:241` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
 | `scanAllWebModels()` | `frontend/src/backend/web-fs:302` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `webStoreBindings()` | `frontend/src/backend/web-store:144` | — |
+| `webStoreBindings()` | `frontend/src/backend/web-store:150` | — |
 
 ## 前端·核心
 
@@ -849,8 +849,8 @@
 | `useCurrentResourceType()` | `frontend/src/features/repo-rtype:18` | 订阅当前仓库资源类型。 |
 | `initResourcePacks()` | `frontend/src/features/resource-packs:14` | 初始化资源包 tab |
 | `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
-| `checkUpdateSilent()` | `frontend/src/features/version-updater:154` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
-| `initVersionUpdater()` | `frontend/src/features/version-updater:193` | 手动检查更新（设置页按钮） |
+| `checkUpdateSilent()` | `frontend/src/features/version-updater:167` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
+| `initVersionUpdater()` | `frontend/src/features/version-updater:206` | 手动检查更新（设置页按钮） |
 
 ## 前端·服务
 
