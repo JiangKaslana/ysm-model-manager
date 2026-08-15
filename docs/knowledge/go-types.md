@@ -41,7 +41,8 @@ use_when:
 - `LoadRegistry() *ResourceTypeRegistry` — 单例加载注册表，解析优先级：显式路径（`SetRegistryPath`）→ exe 同级/上级 `resource_types.json` → 嵌入基线 `embeddedRegistryJSON`
 - `RegistryType(id string) *ResourceType` — 按 id 查类型，无匹配返回 nil
 - `SetRegistryPath(path string)` — 仅测试用，重置单例
-- 扩展名/目录查询：`AllExts()`、`IsSupportedExt(ext)`、`ExtBelongsTo(ext)`、`SupportedExtsForType(rtype)`、`StorageSubDir(rtype)`、`SubDirMap(rtype)`、`SubDirAll()`、`AllSubDirs()`、`FindInstDir(versionDir, subDir, rtype)`（标准子目录不存在时按扩展名兜底扫描）
+- 扩展名/目录查询：`AllExts()`、`IsSupportedExt(ext)`、`ExtBelongsTo(ext)`、`SupportedExtsForType(rtype)`、`StorageSubDir(rtype)`、`SubDirMap(rtype)`、`SubDirAll()`、`AllSubDirs()`、`FindInstDir(versionDir, subDir, rtype)`（标准子目录不存在/存在但无该类型文件时按扩展名兜底扫描）
+- **同步过滤/归一化收敛（ADR-064）**：`NormalizeResourceName(name)`（小写 + 去 `.disabled`/`.ban`）、`IsResourceAllowed(name)`（全扩展集 + `.json` 仅 `ysm.json`，原 `sync.isSyncAllowed`）、`IsTypeModelFile(name, rtype)`（单类型扩展集 + `ysm.json`，原 `sync.isModelFile` / `instance.extMatch`）——三处同义实现收敛为 types 单点
 - `(pm *PackMeta) Desc() string` — description 可读文本（兼容 string / JSON text component 对象 / 数组）
 - 关键常量：`LinkCopy` / `LinkHard` / `LinkSym` / `LinkUnknown`（LinkType）；`SyncStatusSynced/Missing/Optional/Disabled/Legacy`；`ErrorCode` 系列（`ErrFileExists` / `ErrInvalidParam` / `ErrIO` / `ErrLinkFailed` 等 15 个，见下方）；`LogLevel` 系列（`LevelDebug/Info/Warn/Error/Fatal`）；`statusToLevel(status string) LogLevel`（将 ImportLog.Status 映射为日志级别，由 `addOp` 自动调用）
 

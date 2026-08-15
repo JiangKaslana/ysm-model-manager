@@ -29,7 +29,7 @@ invariant_anchors:
 
 ## 对外 API / 入口
 
-- `BuildSyncItems(ins, rtypes, repoRoots)` — 构建实例的资源同步项（供同步管理界面展示）；内部同步比对走 `ysmsync.SyncResources`（sync.go:396），非 `CompareGlobalInstanceHashes`（知识卡旧文漂移已修正）
+- `BuildSyncItems(ins, rtypes, repoRoots)` — 构建实例的资源同步项（供同步管理界面展示）；内部同步比对走 `ysmsync.SyncResources`（ADR-064 相对路径口径），非 `CompareGlobalInstanceHashes`（知识卡旧文漂移已修正）
 
 ## 与其他子系统关系
 
@@ -39,8 +39,8 @@ invariant_anchors:
 
 ## 不变量
 
-- 兜底 Walk 的覆盖集合已改为**注册表驱动**（P2 修复：原硬编码后缀清单含 `.litematic`，蓝图与 litematic 共享 `schematics` 目录时 `.litematic` 文件被蓝图兜底重复加为 optional——现用 `extMatch` 按注册表扩展名过滤，天然排除跨类型重复）
-- 资源包文件夹条目在 Synced/Missing/Extra 三分支**放行**（P2 修复：原 `extMatch` 过滤掉无后缀文件夹名，真同步文件夹进不了 Synced、兜底 Walk 误标 Optional——现 `isResourcePackFolder(p)` 放行，保持 SyncResources 判定的真实状态）
+- 条目过滤统一走 `types.IsTypeModelFile`（ADR-064 阶段一收敛，原 `extMatch` 内联实现删除）；资源包文件夹（`pack.mcmeta`）在三分支放行（`fsutil.IsResourcePackFolder` 兜底，保持 SyncResources 判定的真实状态）
+- **兜底 Walk（IsScanInstance）已移除**（ADR-064 阶段二）：`SyncResources` 相对路径对比全树递归收集所有受支持文件（含嵌套），同名不同目录不再 map 去重丢失，原兜底已无新增条目可补，删除防重复列示——`TestBuildSyncItems_FallbackWalk` 语义由 SyncResources 的 Extra 覆盖后仍通过
 
 ## 相关
 
