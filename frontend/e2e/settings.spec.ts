@@ -42,7 +42,7 @@ test.describe("设置页", () => {
 
   test("设置页点击游戏根目录 → SelectDirectory → SaveAppConfig + toast", async ({ page }) => {
     // nav:change listener 由 app-content 挂载时注册——nav 渲染不代表已就绪，
-    // 必须先等 app-content shadowRoot（对齐 dnd.spec 的 registerDnD 时序教训）
+    // 必须先等 app-content shadowRoot（对齐 dnd.spec 的 app-content 挂载时序教训）
     await page.waitForFunction(
       () => Boolean(document.querySelector("app-content")?.shadowRoot),
       undefined,
