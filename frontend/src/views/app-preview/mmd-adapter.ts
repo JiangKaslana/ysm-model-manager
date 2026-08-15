@@ -28,12 +28,6 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 /** 同目录纹理候选扩展名（PMX/PMD 引用的贴图；.spa/.sph 特殊格式 Image 解不了，命中后降级无贴图） */
 const TEXTURE_EXTS = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".webp"];
 
-interface MmdEntry {
-  Name?: string;
-  Path?: string;
-  Size?: number;
-}
-
 /**
  * MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。
  * 成功路径自行移除 loadingEl（对齐 vrm/litematic 既有口径）。
@@ -49,47 +43,52 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   const bytes = b64ToBytes(b64);
   const modelBase = (path.split(/[/\\]/).pop() || "").toLowerCase();
 
-  // ---- 同目录纹理预读：URLModifier 同步接管，必须预先建好 blob URL ----
+  // ---- 同目录文件清单：ListAllFilePaths 递归列全部文件（不能用 ScanModelEntries——
+  // 它只返回主文件条目，纹理/VMD 拿不到，URLModifier 全放行导致纹理 502）----
   const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
   const texMap = new Map<string, string>();
   const blobUrls: string[] = [];
-  const vmdEntries: MmdEntry[] = [];
+  const vmdPaths: string[] = [];
   // 模型本体也注册 blob：MMDLoader 内部 FileLoader 从 URL 读字节（WebView2 读不了磁盘路径），
   // URLModifier 拦截模型 URL → blob 后才可加载。
   const modelBlobUrl = URL.createObjectURL(new Blob([bytesToArrayBuffer(bytes)]));
   blobUrls.push(modelBlobUrl);
   texMap.set(modelBase, modelBlobUrl);
   try {
-    const scanFn = (App as unknown as Record<string, (d: string) => Promise<MmdEntry[] | null>>)["ScanModelEntries"];
-    const entries = (await scanFn(dirPath)) || [];
-    const texs = entries.filter((e) => {
-      const name = (e.Name || "").toLowerCase();
-      return name !== modelBase && TEXTURE_EXTS.some((ext) => name.endsWith(ext));
-    });
-    // 同目录 VMD 动作文件（模型加载后逐个解析）
-    vmdEntries.push(...entries.filter((e) => (e.Name || "").toLowerCase().endsWith(".vmd")));
+    const listFn = (App as unknown as Record<string, (d: string) => Promise<string[] | null>>)["ListAllFilePaths"];
+    const files = (await listFn(dirPath)) || [];
     // 并行预读纹理（避免 N 次串行 RPC 拖慢预览打开；单张失败降级不影响整体）
     await Promise.all(
-      texs.map(async (e) => {
-        const texB64 = await readFn(e.Path || dirPath + "/" + e.Name);
-        if (!texB64) return;
-        const blob = new Blob([bytesToArrayBuffer(b64ToBytes(texB64))]);
-        const url = URL.createObjectURL(blob);
-        blobUrls.push(url);
-        const name = (e.Name || "").toLowerCase();
-        texMap.set(name, url);
-        // PMX 内纹理路径可能带子目录（如 "sub/face.tga"），注册目录相对路径键
-        texMap.set(name.split(/[/\\]/).pop() || "", url);
-      }),
+      files
+        .filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext)))
+        .map(async (p) => {
+          const texB64 = await readFn(p);
+          if (!texB64) return;
+          const blob = new Blob([bytesToArrayBuffer(b64ToBytes(texB64))]);
+          const url = URL.createObjectURL(blob);
+          blobUrls.push(url);
+          const lower = p.toLowerCase().replace(/\\/g, "/");
+          // 键1：相对目录路径（PMX 内记录如 "textures/face.png"，对齐 URLModifier 收到的 fullPath；
+          // 统一正斜杠——Go 在 Windows 返回反斜杠路径）
+          const dirNorm = dirPath.toLowerCase().replace(/\\/g, "/");
+          const rel = lower.startsWith(dirNorm + "/")
+            ? lower.slice(dirNorm.length + 1)
+            : lower;
+          texMap.set(rel, url);
+          // 键2：basename 兜底（同名不同子目录由最长后缀匹配区分）
+          texMap.set(lower.split("/").pop() || "", url);
+        }),
     );
+    // 同目录 VMD 动作文件（模型加载后逐个解析）
+    vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
   } catch {
-    /* 纹理缺失/目录不可扫 → 白模降级，不阻断模型渲染 */
+    /* 目录不可列 → 白模降级，不阻断模型渲染 */
   }
 
   // ---- URLModifier：模型自身 + 纹理 URL → blob URL（未命中原样返回，toon 内置 dataURL 天然放行）----
   const manager = new THREE.LoadingManager();
   manager.setURLModifier((url: string): string => {
-    const lower = url.toLowerCase();
+    const lower = url.toLowerCase().replace(/\\/g, "/");
     // 最长路径后缀匹配（保留目录上下文：同名纹理在不同子目录时各归其位，basename 冲突兜底）
     let best: string | undefined;
     let bestLen = -1;
@@ -119,15 +118,15 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   // ---- VMD 动作（同目录 .vmd）：VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
   const mixer = new THREE.AnimationMixer(mesh);
   const clips: Array<{ label: string; clip: THREE.AnimationClip }> = [];
-  for (const v of vmdEntries) {
+  for (const v of vmdPaths) {
     try {
-      const vmdB64 = await readFn(v.Path || dirPath + "/" + v.Name);
+      const vmdB64 = await readFn(v);
       if (!vmdB64) continue;
       // await 包装：真实库 ParseFromBuffer 同步返回（await 无害），但损坏/异步实现时
       // reject 能被 try/catch 捕获，不会把 Promise 对象当 vmd 传给 buildAnimation
       const vmd = await VmdObject.ParseFromBuffer(bytesToArrayBuffer(b64ToBytes(vmdB64)));
       clips.push({
-        label: (v.Name || "").replace(/\.vmd$/i, "") || "motion",
+        label: (v.split(/[/\\]/).pop() || "").replace(/\.vmd$/i, "") || "motion",
         clip: buildAnimation(vmd, mesh),
       });
     } catch {

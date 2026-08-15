@@ -1,5 +1,5 @@
 // ===== MMD 适配器测试 =====
-// 覆盖：buildMmdScene 主路径（ReadFileBytes + ScanModelEntries 同目录纹理预读 →
+// 覆盖：buildMmdScene 主路径（ReadFileBytes + ListAllFilePaths 同目录纹理预读 →
 // URLModifier 映射 → 挂场景/灯光/取景）、update/dispose 契约（blob URL 回收）、
 // 错误路径（空字节/加载失败/目录扫描失败降级）。
 // @moeru/three-mmd 全 mock（MMDLoader 捕获 LoadingManager 断言 URLModifier 行为）；
@@ -12,7 +12,7 @@ const hoisted = vi.hoisted(() => {
   const managerInstances: Array<{ resolveURL: (url: string) => string }> = [];
   return {
     readBytesMock: vi.fn(),
-    scanEntriesMock: vi.fn(),
+    listPathsMock: vi.fn(),
     loaderLoadAsyncMock: vi.fn(),
     mmdUpdateMock: vi.fn(),
     mmdUpdateWithMixerMock: vi.fn(),
@@ -26,7 +26,7 @@ const hoisted = vi.hoisted(() => {
 vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     ReadFileBytes: hoisted.readBytesMock,
-    ScanModelEntries: hoisted.scanEntriesMock,
+    ListAllFilePaths: hoisted.listPathsMock,
   }),
 }));
 vi.mock("@moeru/three-mmd", () => ({
@@ -94,17 +94,17 @@ describe("buildMmdScene 主路径", () => {
       hoisted.readBytesMock.mockImplementation((p: string) =>
         Promise.resolve(p.endsWith(".pmx") ? btoa("PMX") : btoa("PNG")),
       );
-      hoisted.scanEntriesMock.mockResolvedValue([
-        { Name: "miku.pmx", Path: "/mmd/miku/miku.pmx", Size: 10 },
-        { Name: "tex.png", Path: "/mmd/miku/tex.png", Size: 5 },
-        { Name: "sub/face.tga", Path: "/mmd/miku/sub/face.tga", Size: 5 },
-        { Name: "readme.txt", Path: "/mmd/miku/readme.txt", Size: 1 },
+      hoisted.listPathsMock.mockResolvedValue([
+        "/mmd/miku/miku.pmx",
+        "/mmd/miku/tex.png",
+        "/mmd/miku/sub/face.tga",
+        "/mmd/miku/readme.txt",
       ]);
       const { ctx, scene, camera, loadingEl } = makeCtx();
       const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
 
-      // 目录扫描 + 模型/纹理读取
-      expect(hoisted.scanEntriesMock).toHaveBeenCalledWith("/mmd/miku");
+      // 目录列取 + 模型/纹理读取
+      expect(hoisted.listPathsMock).toHaveBeenCalledWith("/mmd/miku");
       expect(hoisted.readBytesMock).toHaveBeenCalledWith("/mmd/miku/miku.pmx");
       expect(hoisted.readBytesMock).toHaveBeenCalledWith("/mmd/miku/tex.png");
       expect(hoisted.readBytesMock).toHaveBeenCalledWith("/mmd/miku/sub/face.tga");
@@ -154,7 +154,7 @@ describe("buildMmdScene 主路径", () => {
     const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     try {
       hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
-      hoisted.scanEntriesMock.mockRejectedValue(new Error("no dir"));
+      hoisted.listPathsMock.mockRejectedValue(new Error("no dir"));
       const { ctx, scene } = makeCtx();
       const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
       expect(scene.children.length).toBeGreaterThan(0);
@@ -176,9 +176,9 @@ describe("buildMmdScene 主路径", () => {
       hoisted.readBytesMock.mockImplementation((p: string) =>
         Promise.resolve(btoa("PNG-" + p)),
       );
-      hoisted.scanEntriesMock.mockResolvedValue([
-        { Name: "a/body.png", Path: "/mmd/miku/a/body.png", Size: 5 },
-        { Name: "b/body.png", Path: "/mmd/miku/b/body.png", Size: 5 },
+      hoisted.listPathsMock.mockResolvedValue([
+        "/mmd/miku/a/body.png",
+        "/mmd/miku/b/body.png",
       ]);
       const { ctx } = makeCtx();
       const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx");
@@ -195,6 +195,34 @@ describe("buildMmdScene 主路径", () => {
     }
   });
 
+  it("Windows 反斜杠路径形态 → 分隔符统一后纹理键仍命中", async () => {
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    try {
+      hoisted.readBytesMock.mockImplementation((p: string) => Promise.resolve(btoa(p)));
+      hoisted.listPathsMock.mockResolvedValue([
+        "C:\\mmd\\ziyan\\textures\\ziyan_head.png",
+        "C:\\mmd\\ziyan\\ziyan.pmx",
+      ]);
+      const { ctx } = makeCtx();
+      const built = await buildMmdScene(ctx, "C:\\mmd\\ziyan\\ziyan.pmx");
+      expect(hoisted.listPathsMock).toHaveBeenCalledWith("C:\\mmd\\ziyan");
+      const mgr = hoisted.managerInstances[0]!;
+      // PMX 内正斜杠相对路径（textures/ziyan_head.png）→ 命中 rel 键
+      expect(mgr.resolveURL("textures/ziyan_head.png")).toBe("blob:mock-url");
+      // 反斜杠完整路径 → 统一分隔符后同样命中
+      expect(mgr.resolveURL("C:\\mmd\\ziyan\\textures\\ziyan_head.png")).toBe("blob:mock-url");
+      // 未知路径仍放行
+      expect(mgr.resolveURL("C:\\mmd\\other\\x.png")).toBe("C:\\mmd\\other\\x.png");
+      built.dispose();
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
+  });
+
   it("同目录 VMD → 自动播放 + topBar 播放/暂停按钮", async () => {
     const createURL = vi
       .spyOn(URL, "createObjectURL")
@@ -202,9 +230,9 @@ describe("buildMmdScene 主路径", () => {
     const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     try {
       hoisted.readBytesMock.mockImplementation((p: string) => Promise.resolve(btoa(p)));
-      hoisted.scanEntriesMock.mockResolvedValue([
-        { Name: "miku.pmx", Path: "/mmd/miku/miku.pmx", Size: 10 },
-        { Name: "dance.vmd", Path: "/mmd/miku/dance.vmd", Size: 5 },
+      hoisted.listPathsMock.mockResolvedValue([
+        "/mmd/miku/miku.pmx",
+        "/mmd/miku/dance.vmd",
       ]);
       hoisted.vmdParseMock.mockReturnValue({});
       hoisted.buildAnimMock.mockReturnValue(new THREE.AnimationClip("dance", -1, []));
@@ -249,10 +277,10 @@ describe("buildMmdScene 主路径", () => {
     const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     try {
       hoisted.readBytesMock.mockImplementation((p: string) => Promise.resolve(btoa(p)));
-      hoisted.scanEntriesMock.mockResolvedValue([
-        { Name: "miku.pmx", Path: "/mmd/miku/miku.pmx", Size: 10 },
-        { Name: "bad.vmd", Path: "/mmd/miku/bad.vmd", Size: 5 },
-        { Name: "idle.vmd", Path: "/mmd/miku/idle.vmd", Size: 5 },
+      hoisted.listPathsMock.mockResolvedValue([
+        "/mmd/miku/miku.pmx",
+        "/mmd/miku/bad.vmd",
+        "/mmd/miku/idle.vmd",
       ]);
       // 第一个 VMD 解析失败（损坏）→ 跳过；第二个成功（按调用次数分派，不依赖 Once 链语义）
       let vmdCall = 0;
@@ -287,8 +315,8 @@ describe("buildMmdScene 主路径", () => {
     const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     try {
       hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
-      hoisted.scanEntriesMock.mockResolvedValue([
-        { Name: "miku.pmx", Path: "/mmd/miku/miku.pmx", Size: 10 },
+      hoisted.listPathsMock.mockResolvedValue([
+        "/mmd/miku/miku.pmx",
       ]);
       const { ctx } = makeCtx();
       const topBar = document.createElement("div");
@@ -321,8 +349,8 @@ describe("buildMmdScene 错误路径", () => {
     const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     try {
       hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
-      hoisted.scanEntriesMock.mockResolvedValue([
-        { Name: "tex.png", Path: "/mmd/miku/tex.png", Size: 5 },
+      hoisted.listPathsMock.mockResolvedValue([
+        "/mmd/miku/tex.png",
       ]);
       hoisted.loaderLoadAsyncMock.mockRejectedValue(new Error("parse fail"));
       const { ctx } = makeCtx();

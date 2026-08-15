@@ -34,7 +34,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 180 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 10 | 51 |
+| frontend/backend | 11 | 56 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
@@ -42,7 +42,7 @@
 | 前端·工具 | 56 | 196 |
 | frontend/views | 90 | 251 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **288** | **1190** |
+| **合计** | **289** | **1195** |
 
 ## Go·头像
 
@@ -726,6 +726,10 @@
 | `idbSet()` | `frontend/src/backend/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
 | `idbDel()` | `frontend/src/backend/idb:184` | 删除单 key |
 | `idbKeys()` | `frontend/src/backend/idb:200` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） |
+| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:183` | 解析 NBT 根 compound，返回全部顶层标签。 |
+| `litematicMetaView()` | `frontend/src/backend/nbt-parse:230` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
+| `nbtStructureView()` | `frontend/src/backend/nbt-parse:264` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
+| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:383` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
 | `readDeclaredBackend()` | `frontend/src/backend/platform:13` | 读取入口 HTML 声明的适配器身份（'go' | 'browser'），未声明返回 undefined |
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
@@ -738,17 +742,18 @@
 | `webDirType()` | `frontend/src/backend/web-common:46` | /web/ 之后的类型段（/web/ysm/xxx → "ysm"）；非 /web/ 前缀返回 null |
 | `MAX_IMPORT_BYTES()` | `frontend/src/backend/web-common:52` | 导入大小上限 100MB（对齐 import-dnd.ts MAX_FILE_SIZE，桌面 oversize 过滤同口径） |
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
-| `webCommonBindings()` | `frontend/src/backend/web-common:76` | — |
+| `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
+| `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:243` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:32` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:90` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:122` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:144` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:162` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:199` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:210` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:263` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:324` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:34` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:92` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:124` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:146` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:164` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:201` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:212` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:265` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:350` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
 | `webStoreBindings()` | `frontend/src/backend/web-store:150` | — |
 
 ## 前端·核心
@@ -1259,7 +1264,7 @@
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:11` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:16` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:21` | 任意新预览派发时调用，作废在途 MMD 加载 |
-| `buildMmdScene()` | `frontend/src/views/app-preview/mmd-adapter:41` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
+| `buildMmdScene()` | `frontend/src/views/app-preview/mmd-adapter:35` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
