@@ -367,6 +367,10 @@ describe("loadModel2D — 3D 切换", () => {
     expect(handle.cleanup).not.toHaveBeenCalled();
     // 打开 3D → 持久化偏好（跨模型自动弹 3D 的开关）
     expect(setPrefer3D).toHaveBeenCalledWith(true);
+    // §5.7 范式：功能在底部导航弹窗内（无常驻侧栏）——点「模型」导航打开面板
+    const navBtns = document.querySelectorAll<HTMLElement>(".ysm-3d-navbtn");
+    expect(navBtns.length).toBeGreaterThan(0);
+    navBtns[0].click();
     const panel = document.getElementById("ysm-3d-panel") as HTMLElement;
     expect(panel.textContent).toContain("1 根");
     expect(panel.textContent).toContain("2 个");

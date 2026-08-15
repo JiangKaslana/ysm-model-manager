@@ -1,16 +1,16 @@
 // ===== YSM 3D 内容适配器（ADR-066 P3-E：收敛 YSM 自驱渲染器到统一外壳）=====
 // 采用 core 的 self 外壳模式：core 提供 overlay / topBar / body / viewContainer /
 // loadingEl / closeBtn / ESC / resize / 代际守卫 / cleanup 编排；本适配器经
-// renderModel3D 自驱 3D 内部（YSM 渲染器是自带 renderer/scene/controls/rAF 的
+// renderModel3D 自驱 3D 内部（YS M 渲染器是自带 renderer/scene/controls/rAF 的
 // 单例，不能像 vrm/litematic 那样共享 ctx + update(dt)）。
 //
-// ADR-066 §5.6 方案 A：YSM 专属 UI（多纹理选择 / 截图菜单 / 模型组选择 / 骨骼面板）
-// 已拆至 ysm-controls.ts，相机控件（旋转/速度/重置）复用 core buildCameraControls；
-// 本文件保持「内容构建 + 装配」单一职责。
+// ADR-066 §5.6 方案 A + §5.7 查看器范式：YSM 专属 UI 全部集中在 ysm-controls.ts
+// 的 buildYsmBottomNav（底部悬浮导航 + 分类弹窗），相机控件复用 core
+// buildCameraControls；本文件保持「内容构建 + 装配」单一职责，无常驻侧栏。
 import { renderModel3D } from "../../utils/3d/model3d.ts";
 import type { Spec3D } from "../../utils/3d/model3d.ts";
 import { preloadModel, type ModelLike } from "./model3d-loader.ts";
-import { buildYsmTopBarControls, buildYsmPanel, type YsmModel } from "./ysm-controls.ts";
+import { buildYsmBottomNav, type YsmModel } from "./ysm-controls.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
 import type { Model3DHandleX } from "./skeleton-render.ts";
 
@@ -43,8 +43,15 @@ export async function buildYsmScene(
   // 成功路径：移除 core 提供的加载指示器（错误/空数据场景由 core 保留 loadingEl 并提示）
   ctx.loadingEl.remove();
 
-  // 闭包共享：extraControls 创建、extraPanel 消费的 YSM 模型组选择器
-  let modelSel: HTMLSelectElement | null = null;
+  // 底部悬浮导航 + 分类弹窗（§5.7 范式）：无常驻侧栏，功能按域分组按需弹出
+  buildYsmBottomNav(ctx.overlay, {
+    model,
+    texIdx,
+    texArr,
+    spec: spec as Spec3D,
+    handle: h,
+    onTextureChange: opts.onTextureChange,
+  });
 
   return {
     dispose(): void {
@@ -52,29 +59,6 @@ export async function buildYsmScene(
       if (h._timeTimer) clearInterval(h._timeTimer);
       if (h._keyHandler) document.removeEventListener("keydown", h._keyHandler);
       h.cleanup();
-    },
-
-    extraControls(topBar: HTMLElement): void {
-      const built = buildYsmTopBarControls(topBar, {
-        model,
-        texIdx,
-        texArr,
-        spec: spec as Spec3D,
-        handle: h,
-        onTextureChange: opts.onTextureChange,
-      });
-      modelSel = built.modelSel;
-    },
-
-    extraPanel(panel: HTMLElement): void {
-      if (!modelSel) return;
-      buildYsmPanel(panel, {
-        model,
-        texIdx,
-        texArr,
-        spec: spec as Spec3D,
-        handle: h,
-      }, modelSel);
     },
   };
 }

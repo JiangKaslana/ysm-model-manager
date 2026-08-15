@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 88 | 242 |
+| frontend/views | 88 | 241 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **285** | **1179** |
+| **合计** | **285** | **1178** |
 
 ## Go·头像
 
@@ -1088,9 +1088,9 @@
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `isFileExistsError()` | `frontend/src/utils/dom/errors:87` | 判断错误消息是否为「文件已存在」冲突（索引 4.2 收敛）。 |
 | `YSW_FAB_CSS()` | `frontend/src/utils/dom/fab:6` | — |
-| `ensureFabStyles()` | `frontend/src/utils/dom/fab:53` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
-| `IconButtonOpts()` | `frontend/src/utils/dom/fab:68` | — |
-| `createIconButton()` | `frontend/src/utils/dom/fab:80` | 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 |
+| `ensureFabStyles()` | `frontend/src/utils/dom/fab:75` | 幂等注入 overlay 全局样式到 head（overlay 挂 body，light DOM 需全局 CSS 生效） |
+| `IconButtonOpts()` | `frontend/src/utils/dom/fab:90` | — |
+| `createIconButton()` | `frontend/src/utils/dom/fab:102` | 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。 |
 | `FLASH_DURATION_MS()` | `frontend/src/utils/dom/feedback:10` | 默认闪烁时长（ms） |
 | `FlashOptions()` | `frontend/src/utils/dom/feedback:13` | 闪烁反馈配置 |
 | `flashBtn()` | `frontend/src/utils/dom/feedback:28` | 按钮/行闪烁反馈：加 flash class，duration 后移除。 |
@@ -1312,11 +1312,10 @@
 | `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:53` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
 | `YsmAdapterOptions()` | `frontend/src/views/app-preview/ysm-adapter:18` | 适配器可选项：纹理切换重建 / 关闭回调由外层（ysm-3d.ts）负责 |
 | `buildYsmScene()` | `frontend/src/views/app-preview/ysm-adapter:29` | 构建 YSM 3D 内容场景并挂载到统一外壳（self 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:83` | 工厂：构造统一 PreviewAdapter（self 模式） |
-| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:19` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
-| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:28` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
-| `buildYsmTopBarControls()` | `frontend/src/views/app-preview/ysm-controls:67` | 在统一 topBar 追加 YSM 专属控件（纹理选择 / 截图菜单 / 模型组选择 + 通用相机控件）。 |
-| `buildYsmPanel()` | `frontend/src/views/app-preview/ysm-controls:198` | 在核心侧栏挂载 YSM 骨骼面板（fill3DPanel）+ 骨骼拾取接线。 |
+| `makeYsmAdapter()` | `frontend/src/views/app-preview/ysm-adapter:67` | 工厂：构造统一 PreviewAdapter（self 模式） |
+| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:24` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
+| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:33` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
+| `buildYsmBottomNav()` | `frontend/src/views/app-preview/ysm-controls:103` | 在统一外壳（overlay）挂载底部悬浮导航 + 分类弹窗（§5.7 范式）。 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
 | `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |

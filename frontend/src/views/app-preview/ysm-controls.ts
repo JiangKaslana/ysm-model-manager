@@ -1,10 +1,15 @@
-// ===== YSM 3D 专属控件（ADR-066 §5.6 方案 A：从 ysm-adapter 拆出的控件层）=====
-// adapter 保持「内容构建 + 装配」单一职责；YSM 专属 UI（纹理选择 / 截图菜单 /
-// 模型组选择 / 骨骼面板接线）集中于此，相机控件（旋转/速度/重置）复用 core 的
-// buildCameraControls（shared/self 双模式单点，消灭双份实现）。
+// ===== YSM 3D 专属控件（ADR-066 §5.6 方案 A + §5.7 查看器范式）=====
+// adapter 保持「内容构建 + 装配」单一职责；YSM 专属 UI（纹理选择 / 截图 /
+// 模型组选择 / 骨骼面板接线）集中于此。
+//
+// §5.7 交互范式（对齐 MikuMikuAR 玻璃 HUD）：3D 全屏沉浸、无常驻侧栏——
+// 功能经「底部悬浮导航」按域分组，点击弹出 280px 毛玻璃弹窗，用完即关：
+//   - 模型菜单：统计 / 纹理列表 / 骨骼列表（搜索+显隐）/ 骨骼详情 / 多组件切换
+//   - 视图菜单：相机控件（旋转/速度/重置，复用 core buildCameraControls）+ 截图
+// 截图属视图域子项，不当根菜单；顶部仅保留 core 的 ✕ 关闭。
 
 import * as THREE from "three";
-import { createIconButton, ensureFabStyles } from "../../utils/dom/fab.ts";
+import { ensureFabStyles } from "../../utils/dom/fab.ts";
 import { safeGet } from "../../utils/dom/storage.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
@@ -38,17 +43,48 @@ export interface YsmControlsContext {
   onTextureChange?: (texIdx: number) => void;
 }
 
+/** 底部导航按钮 */
+function mkNavBtn(icon: string, label: string): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "ysm-3d-navbtn";
+  const ic = document.createElement("span");
+  ic.className = "ysm-ic";
+  ic.textContent = icon;
+  const lb = document.createElement("span");
+  lb.className = "ysm-3d-navlabel";
+  lb.textContent = label;
+  b.appendChild(ic);
+  b.appendChild(lb);
+  b.setAttribute("aria-label", label);
+  return b;
+}
+
+/** 弹窗区块标题（对齐 MikuMikuAR section-title 分组） */
+function popupSection(title: string, popup: HTMLElement): void {
+  const s = document.createElement("div");
+  s.className = "ysm-3d-popsec";
+  s.textContent = title;
+  popup.appendChild(s);
+}
+
+/** 弹窗行（label + 控件） */
+function popupRow(label: string, popup: HTMLElement): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "ysm-3d-poprow";
+  if (label) {
+    const lb = document.createElement("span");
+    lb.className = "ysm-3d-poplabel";
+    lb.textContent = label;
+    row.appendChild(lb);
+  }
+  popup.appendChild(row);
+  return row;
+}
+
 /** 连点/多菜单触发时忽略并发（防重复保存文件）——对齐原 skeleton.ts makeShotGuard */
-function makeShotGuard(shotBtn: HTMLElement): {
-  saving: boolean;
-  setSaving: (v: boolean) => void;
-  setIcon: (icon: string) => void;
-} {
+function makeShotGuard(): { saving: boolean; setSaving: (v: boolean) => void } {
   let _saving = false;
-  const setIcon = (icon: string): void => {
-    const ic = shotBtn.querySelector<HTMLElement>(".ysm-ic");
-    if (ic) ic.textContent = icon;
-  };
   return {
     get saving() {
       return _saving;
@@ -56,181 +92,153 @@ function makeShotGuard(shotBtn: HTMLElement): {
     setSaving: (v: boolean) => {
       _saving = v;
     },
-    setIcon,
   };
 }
 
 /**
- * 在统一 topBar 追加 YSM 专属控件（纹理选择 / 截图菜单 / 模型组选择 + 通用相机控件）。
- * 返回模型组选择器引用（extraPanel 的 fill3DPanel 消费，默认隐藏按需显示）。
+ * 在统一外壳（overlay）挂载底部悬浮导航 + 分类弹窗（§5.7 范式）。
+ * 无常驻侧栏：模型菜单（fill3DPanel 内容）与视图菜单（相机控件 + 截图）按需弹出。
+ * 弹窗容器复用 id `ysm-3d-panel`——fill3DPanel 内部「全显/全隐」选择器依赖此 id。
  */
-export function buildYsmTopBarControls(
-  topBar: HTMLElement,
+export function buildYsmBottomNav(
+  overlay: HTMLElement,
   ctx: YsmControlsContext,
-): { modelSel: HTMLSelectElement | null } {
+): void {
   ensureFabStyles();
 
-  // ── 多纹理选择器（仅多纹理模型出现）──
-  if ((ctx.model.textures?.length ?? 0) > 1) {
-    const texSel = document.createElement("select");
-    texSel.className = "ysm-ovl-select";
-    ctx.model.textures!.forEach((_, i) => {
-      const opt = document.createElement("option");
-      opt.value = String(i);
-      opt.textContent = `${t("preview.texture")} ${i + 1}`;
-      texSel.appendChild(opt);
-    });
-    texSel.value = String(ctx.texIdx);
-    texSel.onchange = (): void => {
-      const idx = parseInt(texSel.value, 10);
-      ctx.onTextureChange?.(idx);
-    };
-    topBar.appendChild(texSel);
-  }
+  const nav = document.createElement("div");
+  nav.className = "ysm-3d-nav";
+  const modelBtn = mkNavBtn("🧍", t("preview.modelInfo"));
+  const viewBtn = mkNavBtn("🎥", t("preview.cameraView"));
+  nav.appendChild(modelBtn);
+  nav.appendChild(viewBtn);
+  overlay.appendChild(nav);
 
-  const spacer = document.createElement("div");
-  spacer.className = "ysm-ovl-spacer";
-  topBar.appendChild(spacer);
+  const popup = document.createElement("div");
+  popup.id = "ysm-3d-panel"; // fill3DPanel 全显/全隐选择器依赖
+  popup.className = "ysm-3d-popup";
+  popup.style.display = "none";
+  overlay.appendChild(popup);
 
-  // ── 截图按钮 + 菜单（6 角度）──
-  const shotWrap = document.createElement("div");
-  shotWrap.className = "ysm-ovl-shotwrap";
-  const shotBtn = createIconButton({
-    icon: "\u{1F4F7}",
-    label: t("preview.screenshot"),
-    title: t("preview.screenshot"),
-  });
-  shotBtn.className = "ysm-ovl-btn ysm-ovl-shotbtn";
-  shotBtn.setAttribute("aria-label", t("preview.screenshot") + " menu");
-  const arrowSpan = document.createElement("span");
-  arrowSpan.style.marginLeft = "4px";
-  arrowSpan.textContent = " ▾";
-  shotBtn.appendChild(arrowSpan);
-  const shotMenu = document.createElement("div");
-  shotMenu.className = "ysm-ovl-shotmenu";
-  const shotItems = [
-    { label: t("preview.screenshotCurrent"), key: "current" },
-    { label: t("preview.screenshotFront"), key: "front" },
-    { label: t("preview.screenshot45"), key: "45" },
-    { label: t("preview.screenshotSide"), key: "side" },
-    { label: t("preview.screenshotBack45"), key: "back45" },
-    { label: t("preview.screenshotAll"), key: "all" },
-  ];
-  shotItems.forEach((item) => {
-    const el = document.createElement("div");
-    el.textContent = item.label;
-    el.className = "ysm-ovl-shotitem";
-    el.setAttribute("aria-label", t("preview.screenshot") + " — " + item.label);
-    shotMenu.appendChild(el);
-  });
-  shotWrap.appendChild(shotBtn);
-  shotWrap.appendChild(shotMenu);
-  topBar.appendChild(shotWrap);
-
-  const shot = makeShotGuard(shotBtn);
-  const shotKeys = ["current", "front", "45", "side", "back45", "all"];
-  const saveShot = async (key: string): Promise<void> => {
-    if (shot.saving) return;
-    shot.setSaving(true);
-    try {
-      await saveScreenshot(ctx.model, key, shot.setIcon);
-    } catch (e) {
-      shot.setIcon("❌");
-      console.error("[3D 截图]", e);
-      bus.emit("toast:show", {
-        msg: "截图保存失败：" + friendlyError(e),
-        duration: 4000,
-        type: "error",
-      });
-    } finally {
-      shot.setSaving(false);
-    }
-  };
-  shotMenu
-    .querySelectorAll<HTMLElement>(".ysm-ovl-shotitem")
-    .forEach((el, i) => {
-      el.onclick = (): void => {
-        shotMenu.style.display = "none";
-        saveShot(shotKeys[i]);
-      };
-    });
-  shotBtn.addEventListener("pointerenter", () => {
-    shotMenu.style.display = "block";
-  });
-  shotBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    shotMenu.style.display = shotMenu.style.display === "block" ? "none" : "block";
-  });
-  shotWrap.addEventListener("pointerleave", () => {
-    shotMenu.style.display = "none";
-  });
-
-  // ── 模型组选择器（fill3DPanel 内按需显示，默认隐藏）──
-  let modelSel: HTMLSelectElement | null = null;
-  modelSel = document.createElement("select");
-  modelSel.className = "ysm-ovl-select";
+  // 多模型组选择器（模型菜单内按需显示，fill3DPanel 消费）
+  const modelSel = document.createElement("select");
+  modelSel.className = "ysm-3d-popselect";
   modelSel.style.display = "none";
   modelSel.onchange = (): void => {
-    ctx.handle.showModelGroup(parseInt(modelSel!.value, 10));
+    ctx.handle.showModelGroup(parseInt(modelSel.value, 10));
   };
-  topBar.appendChild(modelSel);
 
-  // ── 相机控件（旋转模式 / 速度 / 重置视角）：复用 core 通用构建器 ──
-  buildCameraControls(topBar, {
-    getOrbit: () => safeGet("td-rot-mode") !== "free",
-    setOrbit: (v: boolean) => {
-      ctx.handle.setRotationMode(v);
-    },
-    getSpeed: () => Number(safeGet("td-cam-speed") || "20"),
-    setSpeed: (n: number) => {
-      ctx.handle.setSpeed(n);
-    },
-    reset: () => ctx.handle.resetCamera(),
-  });
+  /** 关闭弹窗（nav 激活态同步） */
+  const closePopup = (): void => {
+    popup.style.display = "none";
+    popup.innerHTML = "";
+    nav
+      .querySelectorAll<HTMLElement>(".ysm-3d-navbtn--on")
+      .forEach((b) => b.classList.remove("ysm-3d-navbtn--on"));
+  };
 
-  return { modelSel };
-}
+  /** 切换弹窗：同菜单再点收起，跨菜单切换内容 */
+  const togglePopup = (fill: () => void, btn: HTMLElement): void => {
+    const wasOpen = popup.style.display !== "none";
+    const isSame = btn.classList.contains("ysm-3d-navbtn--on");
+    closePopup();
+    if (wasOpen && isSame) return;
+    btn.classList.add("ysm-3d-navbtn--on");
+    fill();
+    popup.style.display = "flex";
+  };
 
-/**
- * 在核心侧栏挂载 YSM 骨骼面板（fill3DPanel）+ 骨骼拾取接线。
- * modelSel 由 buildYsmTopBarControls 创建传入（多组件模型 fill3DPanel 内按需显示）。
- */
-export function buildYsmPanel(
-  panel: HTMLElement,
-  ctx: YsmControlsContext,
-  modelSel: HTMLSelectElement,
-): void {
-  fill3DPanel(
-    panel as HTMLDivElement,
-    ctx.model,
-    ctx.texArr as THREE.Texture[],
-    ctx.spec as Spec3D,
-    ctx.handle,
-    modelSel,
-  );
+  // ── 模型菜单：统计 / 纹理 / 骨骼列表 / 骨骼详情 / 多组件切换 ──
+  const fillModelMenu = (): void => {
+    popup.innerHTML = "";
+    if (ctx.handle.getModelGroupCount() > 1) {
+      modelSel.style.display = "";
+      popup.appendChild(modelSel);
+    }
+    fill3DPanel(
+      popup as HTMLDivElement,
+      ctx.model,
+      ctx.texArr as THREE.Texture[],
+      ctx.spec as Spec3D,
+      ctx.handle,
+      modelSel,
+    );
+  };
+
+  // ── 视图菜单：相机控件（旋转/速度/重置）+ 截图 ──
+  const fillViewMenu = (): void => {
+    popup.innerHTML = "";
+    popupSection(t("preview.cameraRotation"), popup);
+    popupRow("", popup);
+
+    // 相机控件（旋转模式 / 速度 / 重置视角）复用 core 通用构建器
+    buildCameraControls(popup, {
+      getOrbit: () => safeGet("td-rot-mode") !== "free",
+      setOrbit: (v: boolean) => {
+        ctx.handle.setRotationMode(v);
+      },
+      getSpeed: () => Number(safeGet("td-cam-speed") || "20"),
+      setSpeed: (n: number) => {
+        ctx.handle.setSpeed(n);
+      },
+      reset: () => ctx.handle.resetCamera(),
+    });
+
+    // 截图（视图域子项，非根菜单）
+    popupSection(t("preview.screenshot"), popup);
+    const shot = makeShotGuard();
+    const shotKeys = ["current", "front", "45", "side", "back45", "all"] as const;
+    const shotLabels = [
+      t("preview.screenshotCurrent"),
+      t("preview.screenshotFront"),
+      t("preview.screenshot45"),
+      t("preview.screenshotSide"),
+      t("preview.screenshotBack45"),
+      t("preview.screenshotAll"),
+    ];
+    const saveShot = async (key: string): Promise<void> => {
+      if (shot.saving) return;
+      shot.setSaving(true);
+      try {
+        await saveScreenshot(ctx.model, key, () => {});
+      } catch (e) {
+        console.error("[3D 截图]", e);
+        bus.emit("toast:show", {
+          msg: "截图保存失败：" + friendlyError(e),
+          duration: 4000,
+          type: "error",
+        });
+      } finally {
+        shot.setSaving(false);
+      }
+    };
+    shotKeys.forEach((key, i) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "ysm-3d-popbtn ysm-3d-popbtn--row";
+      item.textContent = "📷 " + shotLabels[i];
+      item.onclick = (): void => {
+        void saveShot(key);
+      };
+      popup.appendChild(item);
+    });
+  };
+
+  modelBtn.onclick = (): void => togglePopup(fillModelMenu, modelBtn);
+  viewBtn.onclick = (): void => togglePopup(fillViewMenu, viewBtn);
+
+  // 骨骼拾取：模型菜单弹窗内的详情框联动；弹窗未开时自动打开模型菜单（检视入口）
   ctx.handle.onBoneSelect = (info: BoneSelectInfo): void => {
-    const detailEl = ctx.handle._boneDetailEl;
+    let detailEl = ctx.handle._boneDetailEl;
+    if (!detailEl) {
+      // 详情框在模型菜单弹窗内：未渲染则先打开模型菜单（幂等）
+      if (popup.style.display === "none") {
+        togglePopup(fillModelMenu, modelBtn);
+      }
+      detailEl = ctx.handle._boneDetailEl;
+    }
     if (detailEl) {
-      let txt =
-        "🦴 " +
-        info.name +
-        "\n路径: " +
-        info.path +
-        "\n父骨骼: " +
-        (info.parent || "(无)") +
-        "\n子骨骼: " +
-        info.children.length +
-        " 个\nMesh: " +
-        info.meshCount +
-        "\nlocalPos: (" +
-        info.localPos.map((v) => v.toFixed(3)).join(", ") +
-        ")\n世界坐标: (" +
-        info.worldPos.map((v) => v.toFixed(2)).join(", ") +
-        ")";
-      if (info.localRot) txt += "\nlocalRot: (" + info.localRot.map((v) => v.toFixed(4)).join(", ") + ")";
-      if (info.cubeRot) txt += "\ncubeRot: (" + info.cubeRot.map((v) => v.toFixed(4)).join(", ") + ")";
-      if (info.cubePos) txt += "\ncubePos: (" + info.cubePos.map((v) => v.toFixed(3)).join(", ") + ")";
-      detailEl.textContent = txt;
+      detailEl.textContent = formatBoneInfo(info);
       if (detailEl.parentNode) (detailEl.parentNode as HTMLElement).style.display = "block";
     }
     const bc = document.querySelector<HTMLElement>('#ysm-3d-panel [style*="max-height:300px"]');
@@ -248,4 +256,28 @@ export function buildYsmPanel(
       }
     }
   };
+}
+
+/** 骨骼信息文本（对齐原 skeleton.ts onBoneSelect 格式） */
+function formatBoneInfo(info: BoneSelectInfo): string {
+  let txt =
+    "🦴 " +
+    info.name +
+    "\n路径: " +
+    info.path +
+    "\n父骨骼: " +
+    (info.parent || "(无)") +
+    "\n子骨骼: " +
+    info.children.length +
+    " 个\nMesh: " +
+    info.meshCount +
+    "\nlocalPos: (" +
+    info.localPos.map((v) => v.toFixed(3)).join(", ") +
+    ")\n世界坐标: (" +
+    info.worldPos.map((v) => v.toFixed(2)).join(", ") +
+    ")";
+  if (info.localRot) txt += "\nlocalRot: (" + info.localRot.map((v) => v.toFixed(4)).join(", ") + ")";
+  if (info.cubeRot) txt += "\ncubeRot: (" + info.cubeRot.map((v) => v.toFixed(4)).join(", ") + ")";
+  if (info.cubePos) txt += "\ncubePos: (" + info.cubePos.map((v) => v.toFixed(3)).join(", ") + ")";
+  return txt;
 }

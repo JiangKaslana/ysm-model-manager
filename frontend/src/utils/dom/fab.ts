@@ -26,6 +26,26 @@ export const YSW_FAB_CSS = `
 /* ===== 3D 信息面板（原内联布局，移入 CSS 以便响应式覆盖宽度） ===== */
 .ysm-3d-panel{position:absolute;top:0;right:0;bottom:0;width:260px;background:rgba(0,0,0,.4);border-left:1px solid rgba(255,255,255,.1);overflow-y:auto;padding:10px 12px;font-size:11px;color:rgba(255,255,255,.75);z-index:5}
 
+/* ===== 底部悬浮导航 + 分类弹窗（MikuMikuAR 玻璃 HUD 范式，ADR-066 §5.7）=====
+   3D 全屏沉浸：无常驻侧栏，功能经底部导航按域分组、点击弹出 280px 毛玻璃弹窗 */
+.ysm-3d-nav{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:12px;background:rgba(20,20,30,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);z-index:20}
+.ysm-3d-navbtn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:56px;padding:6px 8px;border-radius:8px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;font-family:inherit;font-size:10px;line-height:1.2;transition:background .12s ease}
+.ysm-3d-navbtn .ysm-ic{font-size:17px}
+.ysm-3d-navbtn:hover{background:rgba(255,255,255,.08);color:#fff}
+.ysm-3d-navbtn--on{background:rgba(124,131,255,.28);color:#fff;border-color:rgba(124,131,255,.35)}
+.ysm-3d-navlabel{white-space:nowrap}
+.ysm-3d-popup{position:absolute;left:50%;bottom:84px;transform:translateX(-50%);width:280px;max-height:min(60vh,420px);overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;background:rgba(20,20,30,.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.12);box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:25;color:rgba(255,255,255,.85);font-size:11px;box-sizing:border-box}
+.ysm-3d-popsec{font-weight:600;font-size:11px;color:rgba(255,255,255,.9);margin:8px 0 4px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)}
+.ysm-3d-popsec:first-child{border-top:none;padding-top:0;margin-top:0}
+.ysm-3d-poprow{display:flex;align-items:center;gap:8px}
+.ysm-3d-poplabel{font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap}
+.ysm-3d-popselect{flex:1;font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.3);color:rgba(255,255,255,.85);cursor:pointer;font-family:inherit}
+.ysm-3d-popslider{flex:1;accent-color:var(--accent,#7c83ff);cursor:pointer}
+.ysm-3d-popval{font-size:11px;color:rgba(255,255,255,.7);min-width:24px;text-align:right}
+.ysm-3d-popbtn{font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.3);color:rgba(255,255,255,.8);cursor:pointer;font-family:inherit;text-align:left;transition:background .12s ease}
+.ysm-3d-popbtn:hover{background:rgba(124,131,255,.3)}
+.ysm-3d-popbtn--row{width:100%;margin:1px 0}
+
 /* ===== 图标语义类（light DOM + Shadow DOM 均生效；shadow DOM 内由父级 .ysm-fab .ysm-ic 兜底）===== */
 .ysm-ic{display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0}
 .ysm-ic--cam::before{content:"📷"}
@@ -38,6 +58,7 @@ export const YSW_FAB_CSS = `
 @media (max-width:480px){
   .ysm-ovl-bar{padding:4px 8px;gap:4px;flex-wrap:wrap}
   .ysm-3d-panel{width:min(78vw,260px)}
+  .ysm-3d-popup{width:min(86vw,280px)}
 }
 @media (orientation:landscape) and (max-height:500px){
   .ysm-ovl-bar{padding:3px 8px;gap:6px}
@@ -45,6 +66,7 @@ export const YSW_FAB_CSS = `
 /* 触控热区扩到 44px（Apple HIG），透明叠加不改视觉高度 */
 @media (pointer:coarse){
   .ysm-ovl-btn,.ysm-ovl-select,.ysm-ovl-shotitem{min-height:44px}
+  .ysm-3d-navbtn,.ysm-3d-popbtn{min-height:44px}
 }
 `;
 
