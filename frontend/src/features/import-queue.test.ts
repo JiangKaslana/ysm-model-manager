@@ -131,6 +131,13 @@ function dispatchDrop(el: HTMLElement, dt: Record<string, unknown>): void {
   el.dispatchEvent(e);
 }
 
+/** 初始化导入队列并直接 drop 指定文件（省略重复的 init/querySelector/dispatch 样板） */
+function initAndDrop(host: ImportQueueHost, root: HTMLElement, files: File[]): void {
+  initImportQueue(host);
+  const drop = root.querySelector("#dl-drop") as HTMLElement;
+  dispatchDrop(drop, { items: undefined, files });
+}
+
 /** 当前 getApp mock 返回对象（mockApp 每次调用更新；避免依赖 mock.results 调用时机） */
 let appObj: Record<string, ReturnType<typeof vi.fn>>;
 
@@ -162,12 +169,7 @@ class FakeFileReader {
 
 /** 进入表单：init + drop ysm.json → FileReader → enqueueFile → showForm */
 async function enterFormWithFile(host: ReturnType<typeof makeHost>["host"]) {
-  initImportQueue(host);
-  const drop = host._root.querySelector("#dl-drop") as HTMLElement;
-  dispatchDrop(drop, {
-    items: undefined,
-    files: [makeFile("ysm.json")],
-  });
+  initAndDrop(host, host._root as unknown as HTMLElement, [makeFile("ysm.json")]);
   await waitFor(
     () =>
       (host._root.querySelector("#dl-form") as HTMLElement).style.display ===
@@ -191,12 +193,7 @@ beforeEach(() => {
 describe("initImportQueue — drop 回退 files 路径", () => {
   it("drop 无 items → 支持文件直导 + 不支持跳过 + 队列计数", async () => {
     const { host, root } = makeHost();
-    initImportQueue(host);
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
-    dispatchDrop(drop, {
-      items: undefined,
-      files: [makeFile("a.ysm"), makeFile("b.txt"), makeFile("c.zip")],
-    });
+    initAndDrop(host, root, [makeFile("a.ysm"), makeFile("b.txt"), makeFile("c.zip")]);
     await waitFor(() => directImport.mock.calls.length === 2);
     expect(directImport).toHaveBeenNthCalledWith(1, expect.objectContaining({ name: "a.ysm" }));
     expect(directImport).toHaveBeenNthCalledWith(2, expect.objectContaining({ name: "c.zip" }));
@@ -209,12 +206,7 @@ describe("initImportQueue — drop 回退 files 路径", () => {
 
   it("drop 全部不支持 → warn toast 提示支持格式", () => {
     const { host, root } = makeHost();
-    initImportQueue(host);
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
-    dispatchDrop(drop, {
-      items: undefined,
-      files: [makeFile("a.txt"), makeFile("b.md")],
-    });
+    initAndDrop(host, root, [makeFile("a.txt"), makeFile("b.md")]);
     expect(busEmit).toHaveBeenCalledWith(
       "toast:show",
       expect.objectContaining({ type: "warn" }),
@@ -290,10 +282,8 @@ describe("initImportQueue — 导入按钮全链路", () => {
   it("无 filesRoot → warn toast 提示先配置存储", async () => {
     mockApp({ LoadAppConfig: vi.fn(() => ({ filesRoot: "" })) });
     const { host, root } = makeHost();
-    initImportQueue(host);
     // 手动进入表单（用 drop 触发 ysm.json 表单），点导入
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
-    dispatchDrop(drop, { items: undefined, files: [makeFile("ysm.json")] });
+    initAndDrop(host, root, [makeFile("ysm.json")]);
     await waitFor(() => busEmit.mock.calls.length > 0 || true);
     (root.querySelector("#dl-import") as HTMLButtonElement).click();
     await waitFor(() =>
@@ -369,9 +359,7 @@ describe("initImportQueue — 导入按钮全链路", () => {
 describe("initImportQueue — 表单/队列 UI", () => {
   it("取消按钮 → 回到拖拽区（dropZone display flex）", async () => {
     const { host, root } = makeHost();
-    initImportQueue(host);
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
-    dispatchDrop(drop, { items: undefined, files: [makeFile("ysm.json")] });
+    initAndDrop(host, root, [makeFile("ysm.json")]);
     await waitFor(
       () => (root.querySelector("#dl-form") as HTMLElement).style.display === "flex",
     );
@@ -382,13 +370,8 @@ describe("initImportQueue — 表单/队列 UI", () => {
 
   it("队列项渲染：编辑中 ✏️ + 同名去重 + repoFiles 加载", async () => {
     const { host, root } = makeHost();
-    initImportQueue(host);
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
     // 两个同名 ysm.json（同 relPath）→ 去重后仅入队 1 个
-    dispatchDrop(drop, {
-      items: undefined,
-      files: [makeFile("ysm.json"), makeFile("ysm.json")],
-    });
+    initAndDrop(host, root, [makeFile("ysm.json"), makeFile("ysm.json")]);
     await waitFor(() => root.querySelectorAll(".dl-q-item").length === 1);
     const qItems = root.querySelectorAll(".dl-q-item");
     expect(qItems.length).toBe(1);
@@ -399,9 +382,7 @@ describe("initImportQueue — 表单/队列 UI", () => {
 
   it("队列移除 → 队列空回拖拽区", async () => {
     const { host, root } = makeHost();
-    initImportQueue(host);
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
-    dispatchDrop(drop, { items: undefined, files: [makeFile("ysm.json")] });
+    initAndDrop(host, root, [makeFile("ysm.json")]);
     await waitFor(() => root.querySelectorAll(".dl-remove-q").length === 1);
     (root.querySelector(".dl-remove-q") as HTMLButtonElement).click();
     await waitFor(
@@ -412,15 +393,10 @@ describe("initImportQueue — 表单/队列 UI", () => {
 
   it("移除当前编辑项（队列非空）→ 表单切到下一项，导入用新项 relPath（幽灵状态回归）", async () => {
     const { host, root } = makeHost();
-    initImportQueue(host);
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
-    dispatchDrop(drop, {
-      items: undefined,
-      files: [
-        makeFile("ysm.json", { _relPath: "a/ysm.json" }),
-        makeFile("ysm.json", { _relPath: "b/ysm.json" }),
-      ],
-    });
+    initAndDrop(host, root, [
+      makeFile("ysm.json", { _relPath: "a/ysm.json" }),
+      makeFile("ysm.json", { _relPath: "b/ysm.json" }),
+    ]);
     await waitFor(() => root.querySelectorAll(".dl-q-item").length === 2);
     // 移除当前编辑项（第一项 a/ysm.json）
     (root.querySelectorAll(".dl-remove-q")[0] as HTMLButtonElement).click();
@@ -460,16 +436,11 @@ describe("initImportQueue — 表单/队列 UI", () => {
       ScanModelEntriesWithLabel: vi.fn(() => [{ Name: "ysm" }]),
     });
     const { host, root } = makeHost();
-    initImportQueue(host);
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
     // 两个 ysm.json（不同 relPath 不去重）：当前编辑项显示 ✏️，另一项应显示 ⚠️
-    dispatchDrop(drop, {
-      items: undefined,
-      files: [
-        makeFile("ysm.json", { _relPath: "a/ysm.json" }),
-        makeFile("ysm.json", { _relPath: "b/ysm.json" }),
-      ],
-    });
+    initAndDrop(host, root, [
+      makeFile("ysm.json", { _relPath: "a/ysm.json" }),
+      makeFile("ysm.json", { _relPath: "b/ysm.json" }),
+    ]);
     await waitFor(() => appObj.ScanModelEntriesWithLabel.mock.calls.length > 0);
     await waitFor(() => {
       const q = root.querySelectorAll(".dl-q-item")[1];
@@ -488,9 +459,7 @@ describe("initImportQueue — 表单/队列 UI", () => {
     }
     vi.stubGlobal("FileReader", ErrReader as never);
     const { host, root } = makeHost();
-    initImportQueue(host);
-    const drop = root.querySelector("#dl-drop") as HTMLElement;
-    dispatchDrop(drop, { items: undefined, files: [makeFile("ysm.json")] });
+    initAndDrop(host, root, [makeFile("ysm.json")]);
     await waitFor(() =>
       busEmit.mock.calls.some(
         (c) => c[0] === "toast:show" && String(c[1]?.msg ?? "").includes("读取文件失败"),

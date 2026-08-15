@@ -56,6 +56,27 @@ const sampleEntries = [
   { Name: "banned.ysm.ban", Size: 512, Path: "/repo/banned.ysm.ban", Ext: ".ban", Hash: "h3", ModTime: Date.now() - 5000 },
 ];
 
+/** 启动一个被 GetRepoRoot 挂起的 loadOldestModel，供“慢请求过期”类用例复用 */
+async function setupPendingRoot(): Promise<{
+  resolveFirst: (v: string) => void;
+  rejectFirst: (e: Error) => void;
+  container: HTMLDivElement;
+  loadPromise: Promise<() => void>;
+}> {
+  let resolveFirst!: (v: string) => void;
+  let rejectFirst!: (e: Error) => void;
+  const firstRoot = new Promise<string>((resolve, reject) => {
+    resolveFirst = resolve;
+    rejectFirst = reject;
+  });
+  mocks.ScanModelEntries.mockResolvedValue(sampleEntries);
+  mocks.GetRepoRoot.mockImplementationOnce(() => firstRoot);
+  const { loadOldestModel } = await import("./oldest-models.ts");
+  const container = document.createElement("div");
+  const loadPromise = loadOldestModel(container, (s) => s);
+  return { resolveFirst, rejectFirst, container, loadPromise };
+}
+
 describe("loadOldestModel", () => {
   it("container 为空 → 返回空清理函数", async () => {
     const { loadOldestModel } = await import("./oldest-models.ts");
@@ -173,13 +194,7 @@ describe("loadOldestModel", () => {
   });
 
   it("慢请求过期（幽灵路径防护）→ 结果丢弃，新类型正常渲染", async () => {
-    let resolveFirst!: (v: string) => void;
-    const firstRoot = new Promise<string>((r) => (resolveFirst = r));
-    mocks.ScanModelEntries.mockResolvedValue(sampleEntries);
-    mocks.GetRepoRoot.mockImplementationOnce(() => firstRoot); // 首次 render 挂起
-    const { loadOldestModel } = await import("./oldest-models.ts");
-    const container = document.createElement("div");
-    const loadPromise = loadOldestModel(container, (s) => s); // 不 await：render#1 阻塞在 GetRepoRoot
+    const { resolveFirst, container, loadPromise } = await setupPendingRoot();
 
     // 挂起期间切换类型 → render#2 用新类型 root 走完整渲染
     bus.emit("repo:rtype-changed", "mmd");
@@ -199,13 +214,7 @@ describe("loadOldestModel", () => {
   });
 
   it("过期加载失败 → 错误不覆盖新类型内容", async () => {
-    let rejectFirst!: (e: Error) => void;
-    const firstRoot = new Promise<string>((_, rej) => (rejectFirst = rej));
-    mocks.ScanModelEntries.mockResolvedValue(sampleEntries);
-    mocks.GetRepoRoot.mockImplementationOnce(() => firstRoot);
-    const { loadOldestModel } = await import("./oldest-models.ts");
-    const container = document.createElement("div");
-    const loadPromise = loadOldestModel(container, (s) => s);
+    const { rejectFirst, container, loadPromise } = await setupPendingRoot();
 
     bus.emit("repo:rtype-changed", "mmd");
     await flush();

@@ -12,10 +12,23 @@ import {
 
 // --- ZIP 构造工具 ---
 
-/** 构造最小 ZIP：STORE 压缩，单个 entry */
-function buildMinimalZip(name: string, data: Uint8Array, utf8Flag: boolean = false): Uint8Array {
-  const nameBytes = new TextEncoder().encode(name);
-  const gpf = utf8Flag ? 0x800 : 0;
+/** ZIP entry 的二进制段 */
+interface ZipEntryParts {
+  lfh: Uint8Array;
+  cde: Uint8Array;
+  nameBytes: Uint8Array;
+  data: Uint8Array;
+}
+
+/** 构造单个 ZIP entry 的 LFH + CDE（STORE 压缩） */
+function buildZipEntry(
+  nameBytes: Uint8Array,
+  data: Uint8Array,
+  opts: { utf8?: boolean; uncompressedSize?: number; localHeaderOffset?: number } = {},
+): ZipEntryParts {
+  const gpf = opts.utf8 ? 0x800 : 0;
+  const uncompressedSize = opts.uncompressedSize ?? data.length;
+  const localHeaderOffset = opts.localHeaderOffset ?? 0;
 
   // Local File Header (30 + nameLen + extraLen(0) + dataSize)
   const lfh = new Uint8Array(30);
@@ -27,7 +40,7 @@ function buildMinimalZip(name: string, data: Uint8Array, utf8Flag: boolean = fal
   lfhDv.setUint16(14, 0, true); // mod time
   lfhDv.setUint16(16, 0, true); // mod date
   lfhDv.setUint32(18, data.length, true); // compressed size
-  lfhDv.setUint32(22, data.length, true); // uncompressed size
+  lfhDv.setUint32(22, uncompressedSize, true); // uncompressed size
   lfhDv.setUint16(26, nameBytes.length, true); // name length
   lfhDv.setUint16(28, 0, true); // extra length
 
@@ -43,113 +56,95 @@ function buildMinimalZip(name: string, data: Uint8Array, utf8Flag: boolean = fal
   cdeDv.setUint16(14, 0, true); // mod date
   cdeDv.setUint32(16, 0, true); // crc32
   cdeDv.setUint32(20, data.length, true); // compressed size
-  cdeDv.setUint32(24, data.length, true); // uncompressed size
+  cdeDv.setUint32(24, uncompressedSize, true); // uncompressed size
   cdeDv.setUint16(28, nameBytes.length, true); // name length
   cdeDv.setUint16(30, 0, true); // extra length
   cdeDv.setUint16(32, 0, true); // comment length
   cdeDv.setUint16(34, 0, true); // disk number
   cdeDv.setUint16(36, 0, true); // internal attrs
   cdeDv.setUint32(38, 0, true); // external attrs
-  cdeDv.setUint32(42, 0, true); // local header offset
+  cdeDv.setUint32(42, localHeaderOffset, true); // local header offset
 
-  // End of Central Directory (22 bytes)
+  return { lfh, cde, nameBytes, data };
+}
+
+/** 构造 End of Central Directory（22 bytes） */
+function buildEocd(opts: { totalEntries?: number; cdeSize?: number; cdeOffset?: number } = {}): Uint8Array {
+  const totalEntries = opts.totalEntries ?? 1;
   const eocd = new Uint8Array(22);
   const eocdDv = new DataView(eocd.buffer);
   eocdDv.setUint32(0, 0x06054b50, true); // signature
   eocdDv.setUint16(4, 0, true); // disk number
   eocdDv.setUint16(6, 0, true); // start disk
-  eocdDv.setUint16(8, 1, true); // entries on disk
-  eocdDv.setUint16(10, 1, true); // total entries
-  eocdDv.setUint32(12, cde.length + nameBytes.length, true); // CDE size
-  eocdDv.setUint32(16, lfh.length + nameBytes.length + data.length, true); // CDE offset
+  eocdDv.setUint16(8, totalEntries, true); // entries on disk
+  eocdDv.setUint16(10, totalEntries, true); // total entries
+  eocdDv.setUint32(12, opts.cdeSize ?? 0, true); // CDE size
+  eocdDv.setUint32(16, opts.cdeOffset ?? 0, true); // CDE offset
   eocdDv.setUint16(20, 0, true); // comment length
+  return eocd;
+}
 
-  // Assemble: LFH + name + data + CDE + name + EOCD
-  const total = lfh.length + nameBytes.length + data.length + cde.length + nameBytes.length + eocd.length;
+/** 按 ZIP 布局组装：所有 local entries 在前，随后集中写入 central directory，最后 EOCD */
+function assembleZip(parts: ZipEntryParts[], eocd: Uint8Array): Uint8Array {
+  const total = parts.reduce(
+    (sum, p) => sum + p.lfh.length + p.nameBytes.length + p.data.length + p.cde.length + p.nameBytes.length,
+    eocd.length,
+  );
   const zip = new Uint8Array(total);
   let offset = 0;
-  zip.set(lfh, offset); offset += lfh.length;
-  zip.set(nameBytes, offset); offset += nameBytes.length;
-  zip.set(data, offset); offset += data.length;
-  zip.set(cde, offset); offset += cde.length;
-  zip.set(nameBytes, offset); offset += nameBytes.length;
+  for (const p of parts) {
+    zip.set(p.lfh, offset); offset += p.lfh.length;
+    zip.set(p.nameBytes, offset); offset += p.nameBytes.length;
+    zip.set(p.data, offset); offset += p.data.length;
+  }
+  for (const p of parts) {
+    zip.set(p.cde, offset); offset += p.cde.length;
+    zip.set(p.nameBytes, offset); offset += p.nameBytes.length;
+  }
   zip.set(eocd, offset);
-
   return zip;
+}
+
+/** 构造最小 ZIP：STORE 压缩，单个 entry */
+function buildMinimalZip(name: string, data: Uint8Array, utf8Flag: boolean = false): Uint8Array {
+  return buildZipWithNameBytes(new TextEncoder().encode(name), data, { utf8: utf8Flag });
+}
+
+/** 构造单 entry ZIP；可传原始文件名字节，或覆盖 uncompressedSize 用于边界测试 */
+function buildZipWithNameBytes(
+  nameBytes: Uint8Array,
+  data: Uint8Array,
+  opts: { utf8?: boolean; uncompressedSize?: number } = {},
+): Uint8Array {
+  const part = buildZipEntry(nameBytes, data, opts);
+  const eocd = buildEocd({
+    cdeSize: part.cde.length + part.nameBytes.length,
+    cdeOffset: part.lfh.length + part.nameBytes.length + part.data.length,
+  });
+  return assembleZip([part], eocd);
 }
 
 /** 构造含多 entry 的 ZIP */
 function buildMultiEntryZip(entries: Array<{ name: string; data: Uint8Array; utf8?: boolean }>): Uint8Array {
-  const parts: Uint8Array[] = [];
-  const cdeParts: Uint8Array[] = [];
+  const parts: ZipEntryParts[] = [];
   let localHeaderOffset = 0;
-  let totalCdeSize = 0;
 
   for (const entry of entries) {
-    const nameBytes = new TextEncoder().encode(entry.name);
-    const gpf = entry.utf8 ? 0x800 : 0;
-    const data = entry.data;
-
-    // Local File Header
-    const lfh = new Uint8Array(30);
-    const lfhDv = new DataView(lfh.buffer);
-    lfhDv.setUint32(0, 0x04034b50, true);
-    lfhDv.setUint16(4, 20, true);
-    lfhDv.setUint16(6, gpf, true);
-    lfhDv.setUint16(8, 0, true);
-    lfhDv.setUint16(14, 0, true);
-    lfhDv.setUint16(16, 0, true);
-    lfhDv.setUint32(18, data.length, true);
-    lfhDv.setUint32(22, data.length, true);
-    lfhDv.setUint16(26, nameBytes.length, true);
-    lfhDv.setUint16(28, 0, true);
-
-    // Central Directory Entry
-    const cde = new Uint8Array(46);
-    const cdeDv = new DataView(cde.buffer);
-    cdeDv.setUint32(0, 0x02014b50, true);
-    cdeDv.setUint16(4, 20, true);
-    cdeDv.setUint16(6, 20, true);
-    cdeDv.setUint16(8, gpf, true);
-    cdeDv.setUint16(10, 0, true);
-    cdeDv.setUint16(12, 0, true);
-    cdeDv.setUint16(14, 0, true);
-    cdeDv.setUint32(16, 0, true);
-    cdeDv.setUint32(20, data.length, true);
-    cdeDv.setUint32(24, data.length, true);
-    cdeDv.setUint16(28, nameBytes.length, true);
-    cdeDv.setUint16(30, 0, true);
-    cdeDv.setUint16(32, 0, true);
-    cdeDv.setUint16(34, 0, true);
-    cdeDv.setUint16(36, 0, true);
-    cdeDv.setUint32(38, 0, true);
-    cdeDv.setUint32(42, localHeaderOffset, true);
-
-    parts.push(lfh, nameBytes, data);
-    cdeParts.push(cde, nameBytes);
-    localHeaderOffset += lfh.length + nameBytes.length + data.length;
-    totalCdeSize += cde.length + nameBytes.length;
+    const part = buildZipEntry(new TextEncoder().encode(entry.name), entry.data, {
+      utf8: entry.utf8,
+      localHeaderOffset,
+    });
+    parts.push(part);
+    localHeaderOffset += part.lfh.length + part.nameBytes.length + part.data.length;
   }
 
-  // End of Central Directory
-  const eocd = new Uint8Array(22);
-  const eocdDv = new DataView(eocd.buffer);
-  eocdDv.setUint32(0, 0x06054b50, true);
-  eocdDv.setUint16(8, entries.length, true);
-  eocdDv.setUint16(10, entries.length, true);
-  eocdDv.setUint32(12, totalCdeSize, true);
-  eocdDv.setUint32(16, localHeaderOffset, true);
-  eocdDv.setUint16(20, 0, true);
-
-  const total = parts.reduce((s, p) => s + p.length, 0) +
-    cdeParts.reduce((s, p) => s + p.length, 0) + eocd.length;
-  const zip = new Uint8Array(total);
-  let offset = 0;
-  for (const p of parts) { zip.set(p, offset); offset += p.length; }
-  for (const p of cdeParts) { zip.set(p, offset); offset += p.length; }
-  zip.set(eocd, offset);
-
-  return zip;
+  const cdeSize = parts.reduce((sum, p) => sum + p.cde.length + p.nameBytes.length, 0);
+  const eocd = buildEocd({
+    totalEntries: entries.length,
+    cdeSize,
+    cdeOffset: localHeaderOffset,
+  });
+  return assembleZip(parts, eocd);
 }
 
 // --- detectZipType ---
@@ -277,41 +272,7 @@ describe("parseZipCentralDir 边界分支", () => {
     // 构造 gpf=0x800（UTF-8 标志）但文件名是非法 UTF-8 字节 [0xff, 0xfe, 0x41]
     const nameBytes = new Uint8Array([0xff, 0xfe, 0x41]);
     const data = new Uint8Array([0x7b, 0x7d]);
-
-    const lfh = new Uint8Array(30);
-    const lfhDv = new DataView(lfh.buffer);
-    lfhDv.setUint32(0, 0x04034b50, true);
-    lfhDv.setUint16(6, 0x800, true); // gpf: UTF-8
-    lfhDv.setUint16(8, 0, true); // STORE
-    lfhDv.setUint32(18, data.length, true);
-    lfhDv.setUint32(22, data.length, true);
-    lfhDv.setUint16(26, nameBytes.length, true);
-
-    const cde = new Uint8Array(46);
-    const cdeDv = new DataView(cde.buffer);
-    cdeDv.setUint32(0, 0x02014b50, true);
-    cdeDv.setUint16(8, 0x800, true); // gpf: UTF-8
-    cdeDv.setUint16(10, 0, true);
-    cdeDv.setUint32(20, data.length, true);
-    cdeDv.setUint32(24, data.length, true);
-    cdeDv.setUint16(28, nameBytes.length, true);
-
-    const eocd = new Uint8Array(22);
-    const eocdDv = new DataView(eocd.buffer);
-    eocdDv.setUint32(0, 0x06054b50, true);
-    eocdDv.setUint16(10, 1, true);
-    eocdDv.setUint32(12, 46 + nameBytes.length, true);
-    eocdDv.setUint32(16, 30 + nameBytes.length + data.length, true);
-
-    const total = 30 + nameBytes.length + data.length + 46 + nameBytes.length + 22;
-    const zip = new Uint8Array(total);
-    let off = 0;
-    zip.set(lfh, off); off += 30;
-    zip.set(nameBytes, off); off += nameBytes.length;
-    zip.set(data, off); off += data.length;
-    zip.set(cde, off); off += 46;
-    zip.set(nameBytes, off); off += nameBytes.length;
-    zip.set(eocd, off);
+    const zip = buildZipWithNameBytes(nameBytes, data, { utf8: true });
 
     const metas = parseZipCentralDir(zip);
     expect(metas).toHaveLength(1);
@@ -348,42 +309,7 @@ describe("extractZip", () => {
     const nameBytes = new TextEncoder().encode("test.txt");
     const data = new Uint8Array([0x54, 0x45, 0x53, 0x54]);
     const fakeSize = 1024 * 1024 * 1024; // 1GB
-
-    const lfh = new Uint8Array(30);
-    const lfhDv = new DataView(lfh.buffer);
-    lfhDv.setUint32(0, 0x04034b50, true);
-    lfhDv.setUint16(4, 20, true);
-    lfhDv.setUint32(18, data.length, true);
-    lfhDv.setUint32(22, data.length, true);
-    lfhDv.setUint16(26, nameBytes.length, true);
-
-    const cde = new Uint8Array(46);
-    const cdeDv = new DataView(cde.buffer);
-    cdeDv.setUint32(0, 0x02014b50, true);
-    cdeDv.setUint16(4, 20, true);
-    cdeDv.setUint16(6, 20, true);
-    cdeDv.setUint32(20, data.length, true);
-    cdeDv.setUint32(24, fakeSize, true); // 虚假超大
-    cdeDv.setUint16(28, nameBytes.length, true);
-    cdeDv.setUint32(42, 30 + nameBytes.length + data.length, true);
-
-    const eocd = new Uint8Array(22);
-    const eocdDv = new DataView(eocd.buffer);
-    eocdDv.setUint32(0, 0x06054b50, true);
-    eocdDv.setUint16(8, 1, true);
-    eocdDv.setUint16(10, 1, true);
-    eocdDv.setUint32(12, 46 + nameBytes.length, true);
-    eocdDv.setUint32(16, 30 + nameBytes.length + data.length, true);
-
-    const total = 30 + nameBytes.length + data.length + 46 + nameBytes.length + 22;
-    const zip = new Uint8Array(total);
-    let off = 0;
-    zip.set(lfh, off); off += 30;
-    zip.set(nameBytes, off); off += nameBytes.length;
-    zip.set(data, off); off += data.length;
-    zip.set(cde, off); off += 46;
-    zip.set(nameBytes, off); off += nameBytes.length;
-    zip.set(eocd, off);
+    const zip = buildZipWithNameBytes(nameBytes, data, { uncompressedSize: fakeSize });
 
     expect(() => extractZip(zip)).toThrow("解压后总大小");
   });
@@ -391,45 +317,7 @@ describe("extractZip", () => {
     // 构造含 UTF-8 中文文件名 "模型.json" 的 ZIP（gpf bit 11 设）
     const utf8Name = new TextEncoder().encode("模型.json");
     const data = new Uint8Array([0x7b, 0x7d]);
-
-    // LFH
-    const lfh = new Uint8Array(30);
-    const lfhDv = new DataView(lfh.buffer);
-    lfhDv.setUint32(0, 0x04034b50, true);
-    lfhDv.setUint16(6, 0x800, true); // gpf: UTF-8 flag
-    lfhDv.setUint16(8, 0, true); // STORE
-    lfhDv.setUint32(18, data.length, true);
-    lfhDv.setUint32(22, data.length, true);
-    lfhDv.setUint16(26, utf8Name.length, true);
-
-    // CDE
-    const cde = new Uint8Array(46);
-    const cdeDv = new DataView(cde.buffer);
-    cdeDv.setUint32(0, 0x02014b50, true);
-    cdeDv.setUint16(8, 0x800, true); // gpf: UTF-8
-    cdeDv.setUint16(10, 0, true); // STORE
-    cdeDv.setUint32(20, data.length, true);
-    cdeDv.setUint32(24, data.length, true);
-    cdeDv.setUint16(28, utf8Name.length, true);
-
-    // EOCD
-    const eocd = new Uint8Array(22);
-    const eocdDv = new DataView(eocd.buffer);
-    eocdDv.setUint32(0, 0x06054b50, true);
-    eocdDv.setUint16(8, 1, true);
-    eocdDv.setUint16(10, 1, true);
-    eocdDv.setUint32(12, 46 + utf8Name.length, true);
-    eocdDv.setUint32(16, 30 + utf8Name.length + data.length, true);
-
-    const total = 30 + utf8Name.length + data.length + 46 + utf8Name.length + 22;
-    const zip = new Uint8Array(total);
-    let off = 0;
-    zip.set(lfh, off); off += 30;
-    zip.set(utf8Name, off); off += utf8Name.length;
-    zip.set(data, off); off += data.length;
-    zip.set(cde, off); off += 46;
-    zip.set(utf8Name, off); off += utf8Name.length;
-    zip.set(eocd, off);
+    const zip = buildZipWithNameBytes(utf8Name, data, { utf8: true });
 
     const metas = parseZipCentralDir(zip);
     expect(metas).toHaveLength(1);
@@ -526,51 +414,8 @@ describe("集成：GBK 中文文件名 ZIP 解压", () => {
     // 角: 0xB1D6 (GBK)  色: 0xB4DC (GBK)  .:0x2E  p:0x70  n:0x6E  g:0x47
     const gbkBytes = new Uint8Array([0xB1, 0xD6, 0xB4, 0xDC, 0x2E, 0x70, 0x6E, 0x67]);
     const data = new Uint8Array([0x89, 0x50, 0x4E, 0x47]); // PNG 头
-
-    // 手动构造 ZIP，文件名区域直接写入 GBK 原始字节（gpf bit 11 未设）
-    const lfh = new Uint8Array(30);
-    const lfhDv = new DataView(lfh.buffer);
-    lfhDv.setUint32(0, 0x04034b50, true);
-    lfhDv.setUint16(4, 20, true);
-    lfhDv.setUint16(6, 0, true); // gpf = 0（未设 UTF-8）
-    lfhDv.setUint16(8, 0, true);
-    lfhDv.setUint32(18, data.length, true);
-    lfhDv.setUint32(22, data.length, true);
-    lfhDv.setUint16(26, gbkBytes.length, true);
-    lfhDv.setUint16(28, 0, true);
-
-    const cde = new Uint8Array(46);
-    const cdeDv = new DataView(cde.buffer);
-    cdeDv.setUint32(0, 0x02014b50, true);
-    cdeDv.setUint16(4, 20, true);
-    cdeDv.setUint16(6, 20, true);
-    cdeDv.setUint16(8, 0, true); // gpf = 0
-    cdeDv.setUint16(10, 0, true);
-    cdeDv.setUint32(20, data.length, true);
-    cdeDv.setUint32(24, data.length, true);
-    cdeDv.setUint16(28, gbkBytes.length, true);
-    cdeDv.setUint16(30, 0, true);
-    cdeDv.setUint16(32, 0, true);
-    cdeDv.setUint32(42, 30 + gbkBytes.length + data.length, true);
-
-    const eocd = new Uint8Array(22);
-    const eocdDv = new DataView(eocd.buffer);
-    eocdDv.setUint32(0, 0x06054b50, true);
-    eocdDv.setUint16(8, 1, true);
-    eocdDv.setUint16(10, 1, true);
-    eocdDv.setUint32(12, 46 + gbkBytes.length, true);
-    eocdDv.setUint32(16, 30 + gbkBytes.length + data.length, true);
-    eocdDv.setUint16(20, 0, true);
-
-    const total = 30 + gbkBytes.length + data.length + 46 + gbkBytes.length + 22;
-    const zip = new Uint8Array(total);
-    let off = 0;
-    zip.set(lfh, off); off += 30;
-    zip.set(gbkBytes, off); off += gbkBytes.length;
-    zip.set(data, off); off += data.length;
-    zip.set(cde, off); off += 46;
-    zip.set(gbkBytes, off); off += gbkBytes.length;
-    zip.set(eocd, off);
+    // 文件名区域直接写入 GBK 原始字节（gpf bit 11 未设）
+    const zip = buildZipWithNameBytes(gbkBytes, data);
 
     const metas = parseZipCentralDir(zip);
     expect(metas).toHaveLength(1);

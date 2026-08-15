@@ -1,6 +1,6 @@
 # ADR-060：拖拽导入收敛：按组件域注册，去掉全局遮罩
 
-- **状态**：🔄 部分采纳（方向已定，编码待立项落地）
+- **状态**：✅ 已采纳
 - **日期**：2026-08-14
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/features/import-dnd.ts`、`frontend/src/features/import-queue-data.ts`、`frontend/src/views/app-tree/index.ts`、`frontend/src/app-modules.ts`、`maintenance.md #1`
@@ -48,11 +48,11 @@
 
 ### D3 · 删除全局遮罩
 
-`#global-drop-overlay` 及其全部 show/hide 逻辑（`showDropOverlay` / `hideDropOverlay` / `dragDepth` / `_dropBusy`）随 `registerDnD` 废弃一并删除。`app-modules.ts` 中的 capture 阶段拦截（line 131-146）同步移除。
+`#global-drop-overlay` 及其 show/hide 逻辑（`showDropOverlay` / `hideDropOverlay` / `dragDepth`）随 `registerDnD` 废弃一并删除；`bindTreeDnD` 内保留局部 `_dropBusy` 仅作 busy 互斥，不再参与遮罩显隐。`app-modules.ts` 中的 capture 阶段拦截（line 131-146）同步移除。
 
 ### D4 · 显式提示优于隐式触发
 
-仓库页 drop zone 始终可见（空树区域或文件树容器边缘），用户在仓库页就能感知到可以拖入文件，消除"拖了才提示"的困惑。
+仓库页在 `<app-tree>` 底部提供显式 `#tree-drop-hint` 提示条：文件拖到 `#tree` 容器时显示「放开以导入」，drop/离开时隐藏；代替原来拖到窗口任意位置才出现的全局遮罩，提示时机和位置都更明确。
 
 ---
 
@@ -67,9 +67,10 @@
 
 **负面 / 注意**：
 
-- 改动涉及 `import-dnd.ts`（核心 DnD 模块）、`app-tree/index.ts`（绑定新监听）、`app-modules.ts`（删除补丁）、`import-queue-data.ts`（统一收集器）四个文件的结构重组，测试需要同步更新（`import-dnd.test.ts` 大量覆盖 `registerDnD` 全局行为，需重写为组件级测试）；
-- 网页版（ADR-049）的 `import-dnd.ts` 走 `resolveWebMode()` 分支，需确认重构后仍正确路由；
-- `import-dnd.ts` 被 `app-content/index.ts` 以 `registerDnD(unsubs)` 形式调用，改为组件内部绑定后需调整调用点。
+- 已落地：`import-dnd.ts` 重写为 `bindTreeDnD` 组件级绑定；`app-tree/index.ts` 在 `connectedCallback` 绑定并返回 cleanup；`app-modules.ts` 的 capture 阶段补丁已删除；`import-queue-data.ts` 已改为复用 `features/dnd-collector.ts` 的 `collectFiles`，`collectEntry` 已删除；
+- `import-dnd.test.ts` 已重写为组件级测试，覆盖 `bindTreeDnD` / `handleTreeDrop`；
+- 网页版（ADR-049）的 `resolveWebMode()` 分支仍在 `handleTreeDrop` 内保留，重构后继续按环境路由；
+- 调用点已从 `app-content/index.ts` 的 `registerDnD(unsubs)` 调整为 `<app-tree>` 组件内部 `bindTreeDnD(treeEl)`。
 
 **已知遗留**：
 
@@ -82,6 +83,6 @@
 
 - **来源**：用户反馈（2026-08-14）+ `maintenance.md` #1 dnd 两套收集器收敛立项；
 - **决策依据**：现有 `site/drag.ts` 与 `import-queue-events.ts` 的组件内绑定模式已被验证为正确的隔离范式；
-- **落地计划**：独立立项，暂不在常规轮次 rush；落地时需先写组件级单测再改绑定逻辑，防回归。
+- **落地情况**：已按组件级单测先行完成；`registerDnD` / `#global-drop-overlay` / `dragDepth` 已移除，仓库页 `tree-drop-hint` 显式提示已上线。
 
 <!-- 文件名: dnd-component-scoped-registration.md → 实际文件 ADR-060-dnd-component-scoped-registration.md -->

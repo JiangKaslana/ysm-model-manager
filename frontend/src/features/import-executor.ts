@@ -234,6 +234,7 @@ export const importWebFilesWithToast = async (
     bus.emit("stats:refresh");
     return r;
   } catch (e) {
+    console.error("[import-web] importWebFiles 失败:", e);
     bus.emit("toast:show", {
       msg: "❌ " + t("import.processError") + ": " + String(e),
       duration: 4000,

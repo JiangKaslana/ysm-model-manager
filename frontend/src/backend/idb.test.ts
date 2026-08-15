@@ -9,19 +9,22 @@ import { _resetDBForTest, idbDel, idbGet, idbKeys, idbSet, openDB } from "./idb.
 // MEMORY_MAX_KEYS=200 / MEMORY_MAX_BYTES=64MB（与 idb.ts 常量保持一致——此处验证驱逐行为）
 const MEMORY_MAX_KEYS = 200;
 
-/** 构造可控 fake indexedDB：open 可触发 onsuccess / onerror / onblocked */
-function makeFakeIDB(opts: { failOpen?: boolean; blocked?: boolean } = {}): {
+/** 给 fakeDB 注入 onversionchange / open 请求，并 stub 全局 indexedDB */
+function installIndexedDBStub(
+  fakeDB: {
+    close: ReturnType<typeof vi.fn>;
+    transaction: ReturnType<typeof vi.fn>;
+    objectStoreNames: { contains: () => boolean };
+    createObjectStore: ReturnType<typeof vi.fn>;
+  },
+  opts: { failOpen?: boolean; blocked?: boolean } = {},
+): {
   openCount: number;
   triggerVersionChange: () => void;
 } {
   let openCount = 0;
   let vcHandler: (() => void) | null = null;
-  const fakeDB = {
-    close: vi.fn(),
-    transaction: vi.fn(),
-    objectStoreNames: { contains: () => false },
-    createObjectStore: vi.fn(),
-  };
+
   // onversionchange 用 defineProperty 注入——idb.ts 赋值 handler，triggerVersionChange 调用
   Object.defineProperty(fakeDB, "onversionchange", {
     configurable: true,
@@ -51,12 +54,25 @@ function makeFakeIDB(opts: { failOpen?: boolean; blocked?: boolean } = {}): {
   });
   vi.stubGlobal("indexedDB", { open });
   return {
-    // 只保留 getter（TS1119：属性与访问器不能同名）
     get openCount() {
       return openCount;
     },
     triggerVersionChange: () => vcHandler?.(),
   };
+}
+
+/** 构造可控 fake indexedDB：open 可触发 onsuccess / onerror / onblocked */
+function makeFakeIDB(opts: { failOpen?: boolean; blocked?: boolean } = {}): {
+  openCount: number;
+  triggerVersionChange: () => void;
+} {
+  const fakeDB = {
+    close: vi.fn(),
+    transaction: vi.fn(),
+    objectStoreNames: { contains: () => false },
+    createObjectStore: vi.fn(),
+  };
+  return installIndexedDBStub(fakeDB, opts);
 }
 
 describe("idb 故障路径", () => {
@@ -119,8 +135,6 @@ function makeFakeIDBWithTx(opts: { writeError?: Error } = {}): {
   triggerVersionChange: () => void;
 } {
   const store = new Map<string, unknown>();
-  let openCount = 0;
-  let vcHandler: (() => void) | null = null;
   let writeFailed = false;
 
   /** 构造一个可异步触发 onsuccess/onerror 的 IDBRequest */
@@ -196,33 +210,13 @@ function makeFakeIDBWithTx(opts: { writeError?: Error } = {}): {
       return tx;
     }),
   };
-  Object.defineProperty(fakeDB, "onversionchange", {
-    configurable: true,
-    get: () => vcHandler,
-    set: (fn: (() => void) | null) => {
-      vcHandler = fn;
-    },
-  });
-  const open = vi.fn(() => {
-    openCount++;
-    const req = {
-      result: fakeDB,
-      error: new Error("indexedDB open failed"),
-      onsuccess: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-      onblocked: null as (() => void) | null,
-      onupgradeneeded: null as (() => void) | null,
-    };
-    setTimeout(() => req.onsuccess?.(), 0);
-    return req;
-  });
-  vi.stubGlobal("indexedDB", { open });
+  const fake = installIndexedDBStub(fakeDB);
   return {
     store,
     get openCount() {
-      return openCount;
+      return fake.openCount;
     },
-    triggerVersionChange: () => vcHandler?.(),
+    triggerVersionChange: fake.triggerVersionChange,
   };
 }
 

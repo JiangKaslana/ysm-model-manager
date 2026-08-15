@@ -41,7 +41,6 @@ const MAIN_JSON = JSON.stringify({
 
 /** 构造可被 parseYsmJsonDirect 引导 + parseBedrockGeometryFromJSON 解析的输出文件 */
 function fakeDecodedFiles() {
-  const encoder = new TextEncoder();
   const ysmJson = {
     spec: {},
     files: {
@@ -56,6 +55,63 @@ function fakeDecodedFiles() {
     { path: "models/main.json", data: encoder.encode(MAIN_JSON) },
     { path: "textures/body.png", data: encoder.encode("PNGDATA") },
   ];
+}
+
+const encoder = new TextEncoder();
+
+/** 构造一个含 bones 的 minecraft:geometry JSON，返回 base64 编码 */
+function geoB64(boneName: string, cubeCount: number = 1): string {
+  const cubes = Array.from({ length: cubeCount }, (_, i) => ({
+    origin: [i, 0, 0], size: [1, 1, 1], uv: [0, 0],
+  }));
+  const geo = JSON.stringify({
+    format_version: "1.16.0",
+    "minecraft:geometry": [{
+      description: { identifier: `geometry.${boneName}` },
+      bones: [{ name: boneName, cubes }],
+    }],
+  });
+  // JSON 全 ASCII，TextDecoder 安全
+  return btoa(new TextDecoder().decode(encoder.encode(geo)));
+}
+
+/** 构造一个最简 PNG（8x8）的 base64 */
+function pngB64(): string {
+  const png = new Uint8Array([
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+    0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08,
+    0x08, 0x02, 0x00, 0x00, 0x00, 0xAD, 0x6E, 0x96,
+    0x9D, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+    0x54, 0x08, 0xD7, 0x63, 0xF8, 0xFF, 0xFF, 0xFF,
+    0x00, 0x05, 0xFE, 0x02, 0xFB, 0xA0, 0x32, 0x00,
+    0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+    0x42, 0x60, 0x82,
+  ]);
+  // 二进制 → base64（不可经 TextDecoder，含 >127 字节）
+  let binary = "";
+  for (let i = 0; i < png.length; i++) binary += String.fromCharCode(png[i]);
+  return btoa(binary);
+}
+
+/** 构造 ysm.json spec 格式文件的 base64（默认含 main.json + body.png） */
+function ysmSpecB64(
+  overrides: {
+    files?: { player?: { model?: string | null; texture?: string | null } };
+    metadata?: unknown[];
+    properties?: Record<string, unknown>;
+    minecraft?: unknown;
+  } = {},
+): string {
+  const ysmJson = {
+    spec: { version: "1.0.0" },
+    files: { player: { model: "main.json", texture: "body.png" } },
+    metadata: { authors: [] },
+    properties: { texture_width: 64, texture_height: 64 },
+    minecraft: { geometry: [] },
+    ...overrides,
+  };
+  return btoa(new TextDecoder().decode(encoder.encode(JSON.stringify(ysmJson))));
 }
 
 beforeEach(() => {
@@ -143,54 +199,9 @@ describe("decodeYsmViaWasm 并发去重", () => {
 });
 
 describe("decodeYsmViaWasm .json 路径几何合并（ysm.json spec 格式）", () => {
-  const encoder = new TextEncoder();
-
-  /** 构造一个含 bones 的 minecraft:geometry JSON，返回 base64 编码 */
-  function geoB64(boneName: string, cubeCount: number = 1): string {
-    const cubes = Array.from({ length: cubeCount }, (_, i) => ({
-      origin: [i, 0, 0], size: [1, 1, 1], uv: [0, 0],
-    }));
-    const geo = JSON.stringify({
-      format_version: "1.16.0",
-      "minecraft:geometry": [{
-        description: { identifier: `geometry.${boneName}` },
-        bones: [{ name: boneName, cubes }],
-      }],
-    });
-    // JSON 全 ASCII，TextDecoder 安全
-    return btoa(new TextDecoder().decode(encoder.encode(geo)));
-  }
-
-  /** 构造一个最简 PNG（8x8）的 base64 */
-  function pngB64(): string {
-    const png = new Uint8Array([
-      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-      0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08,
-      0x08, 0x02, 0x00, 0x00, 0x00, 0xAD, 0x6E, 0x96,
-      0x9D, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
-      0x54, 0x08, 0xD7, 0x63, 0xF8, 0xFF, 0xFF, 0xFF,
-      0x00, 0x05, 0xFE, 0x02, 0xFB, 0xA0, 0x32, 0x00,
-      0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
-      0x42, 0x60, 0x82,
-    ]);
-    // 二进制 → base64（不可经 TextDecoder，含 >127 字节）
-    let binary = "";
-    for (let i = 0; i < png.length; i++) binary += String.fromCharCode(png[i]);
-    return btoa(binary);
-  }
-
   it(".json 路径读取 modelFiles + texFiles 合并几何", async () => {
     // 构造 ysm.json spec 格式，含 modelFiles=[main.json] 和 texFiles=[{uv:"body.png"}]
-    const ysmJson = {
-      spec: { version: "1.0.0" },
-      files: { player: { model: "main.json", texture: "body.png" } },
-      metadata: { authors: [] },
-      properties: { texture_width: 64, texture_height: 64 },
-      minecraft: { geometry: [] },
-    };
-
-    const ysmJsonB64 = btoa(new TextDecoder().decode(encoder.encode(JSON.stringify(ysmJson))));
+    const ysmJsonB64 = ysmSpecB64();
     const modelJsonB64 = geoB64("root", 2); // 2 cubes → boneCount=1, cubeCount=2
     const texB64 = pngB64();
 
@@ -247,41 +258,6 @@ describe("decodeYsmViaWasm .json 路径几何合并（ysm.json spec 格式）", 
 });
 
 describe("decodeYsmViaWasm 未覆盖分支补测", () => {
-  const encoder = new TextEncoder();
-
-  /** 构造含 bones 的 minecraft:geometry JSON（本 describe 局部副本） */
-  function geoB64(boneName: string, cubeCount: number = 1): string {
-    const cubes = Array.from({ length: cubeCount }, (_, i) => ({
-      origin: [i, 0, 0], size: [1, 1, 1], uv: [0, 0],
-    }));
-    const geo = JSON.stringify({
-      format_version: "1.16.0",
-      "minecraft:geometry": [{
-        description: { identifier: `geometry.${boneName}` },
-        bones: [{ name: boneName, cubes }],
-      }],
-    });
-    return btoa(new TextDecoder().decode(encoder.encode(geo)));
-  }
-
-  /** 最简 PNG（8×8）base64（本 describe 局部副本） */
-  function pngB64(): string {
-    const png = new Uint8Array([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-      0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08,
-      0x08, 0x02, 0x00, 0x00, 0x00, 0xad, 0x6e, 0x96,
-      0x9d, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41,
-      0x54, 0x08, 0xd7, 0x63, 0xf8, 0xff, 0xff, 0xff,
-      0x00, 0x05, 0xfe, 0x02, 0xfb, 0xa0, 0x32, 0x00,
-      0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
-      0x42, 0x60, 0x82,
-    ]);
-    let binary = "";
-    for (let i = 0; i < png.length; i++) binary += String.fromCharCode(png[i]);
-    return btoa(binary);
-  }
-
   it("ReadFileBytes 返回空 → 缓存 _wasmFailed，二次不再读", async () => {
     readFileBytesMock.mockResolvedValue(null); // 文件不存在 → 空字节守卫
     const first = await decodeYsmViaWasm("/repo/nofile.ysm");
@@ -373,14 +349,7 @@ describe("decodeYsmViaWasm 未覆盖分支补测", () => {
   });
 
   it(".json 合并 modelFiles 补 models/ 前缀失败 → 回退原始路径", async () => {
-    const ysmJson = {
-      spec: { version: "1.0.0" },
-      files: { player: { model: "main.json", texture: "body.png" } },
-      metadata: { authors: [] },
-      properties: { texture_width: 64, texture_height: 64 },
-      minecraft: { geometry: [] },
-    };
-    const ysmJsonB64 = btoa(new TextDecoder().decode(encoder.encode(JSON.stringify(ysmJson))));
+    const ysmJsonB64 = ysmSpecB64();
     const modelJsonB64 = geoB64("root", 1);
     const texB64 = pngB64();
 
