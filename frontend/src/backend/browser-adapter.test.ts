@@ -211,17 +211,16 @@ describe("importWebFiles — Phase 2 数据层", () => {
     expect(idbMock.idbSet).not.toHaveBeenCalled();
   });
 
-  it(".zip 当主文件入库；.7z 作辅助文件入库但不支持预览（仅占位）", async () => {
+  it("M1：.zip 入库；.7z 网页版跳过并提示（暂不支持解压，不入库）", async () => {
     const r = await importWebFiles(
       [new File([enc.encode("z")], "模型.zip"), new File([enc.encode("z")], "模型.7z")],
       "ysm",
     );
-    // .zip 作为主文件落库（imported=1）；.7z 非主文件（rank OTHER）并入同组辅助文件
-    // ——.7z 在网页端无法解压/预览，仅作为占位文件入库，不影响 .zip 模型的可用性
+    // .zip 主文件落库；.7z 被 M1 过滤（网页版无法解压），不入库
     expect(r).toEqual({ imported: 1, failed: 0 });
     expect(idbMock._store.has("dir:ysm/模型:")).toBe(true);
     expect(idbMock._store.has("file:ysm/模型/模型.zip")).toBe(true);
-    expect(idbMock._store.has("file:ysm/模型/模型.7z")).toBe(true);
+    expect(idbMock._store.has("file:ysm/模型/模型.7z")).toBe(false);
   });
 
   it("多文件模型按 stem 分组：同组非主文件并入同一 dir（消灭每文件独立成模型）", async () => {

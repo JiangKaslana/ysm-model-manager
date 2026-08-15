@@ -2,7 +2,6 @@
 import { t } from "../../core/i18n/t.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../backend/app.ts";
-import { resolveWebMode } from "../../backend/platform.ts";
 import type { WorkshopSite, WorkshopCreator } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 
 /** 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） */
@@ -85,14 +84,10 @@ export async function loadCommunityData(): Promise<CommunityData> {
     }
   }
 
-  // 自动拉取社区索引（静默，后台执行）——仅桌面/Android。网页版数据已由
-  // browser-adapter 桥接提供（bundled JSON 默认 + localStorage 覆盖，Batch 2
-  // 设计意图：不再走 GitHub 拉取旁路）；且自动合并的持久化走
-  // SaveWorkshopCreatorsBySite（网页版未桥接、恒抛 WebUnsupportedError），
-  // 若在网页版执行会造成每访必网络拉取 + 必败保存被静默吞掉（dbg 日志级别）
-  if (!resolveWebMode()) {
-    tryAutoMergeCommunity(merged).catch((e) => { dbg("tryAutoMergeCommunity failed", e); });
-  }
+  // 自动拉取社区索引（静默，后台执行）——R3-P0 后网页版已桥接
+  // SaveWorkshopCreatorsBySite（localStorage 覆盖层），门控移除：网页版也执行
+  // 自动合并（网络拉取失败静默，保存到 localStorage；原门控因未桥接必败保存）
+  tryAutoMergeCommunity(merged).catch((e) => { dbg("tryAutoMergeCommunity failed", e); });
 
   return {
     sites: sites || [],

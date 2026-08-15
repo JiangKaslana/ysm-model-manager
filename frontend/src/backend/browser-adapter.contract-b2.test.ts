@@ -123,6 +123,60 @@ describe("B2 契约：SaveWorkshopCreators / SaveWorkshopSites — 写入与重�
   // 网页版 SaveX(null) 是额外约定，非 Go 契约。属设计性偏差，非源码 bug。
 });
 
+describe("B2 契约：站点级编辑保存（R3-P0 web 补齐，镜像 Go app_workshop.go）", () => {
+  it("SaveWorkshopCreatorsBySite 只替换指定站点，其他站点保留", async () => {
+    // 先写一个多站点覆盖层
+    const base = [
+      { name: "A站作者", desc: "a", type: "siteA" },
+      { name: "B站作者", desc: "b", type: "siteB" },
+    ];
+    await browserAdapter.SaveWorkshopCreators(base as never);
+    await browserAdapter.SaveWorkshopCreatorsBySite(
+      "siteA",
+      [{ name: "A站新作者", desc: "a2", type: "siteA" }] as never,
+    );
+    const got = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string; type: string }>;
+    const names = got.map((c) => c.name);
+    expect(names).toContain("A站新作者");
+    expect(names).not.toContain("A站作者"); // 旧站点条目被替换
+    expect(names).toContain("B站作者"); // 其他站点保留
+  });
+
+  it("SaveWorkshopPresetsBySite 只改指定站点 presetSearches", async () => {
+    const site = { id: "siteA", label: "A", url: "https://a.test", presetSearches: [{ label: "旧", q: "old" }] };
+    await browserAdapter.SaveWorkshopSites([site] as never);
+    await browserAdapter.SaveWorkshopPresetsBySite(
+      "siteA",
+      [{ label: "新", q: "new" }] as never,
+    );
+    const got = (await browserAdapter.DefaultWorkshopSites()) as Array<{ id: string; presetSearches: Array<{ q: string }> }>;
+    expect(got.find((s) => s.id === "siteA")?.presetSearches?.[0]?.q).toBe("new");
+  });
+
+  it("MergeWorkshopCreatorsFromJSON 合并新增/更新并返回 [added, updated]", async () => {
+    await browserAdapter.SaveWorkshopCreators([{ name: "已存在", desc: "", type: "x" }] as never);
+    // 构造 >=100 条（Go 完整性校验：合并后 >=100 才通过）：1 条已存在（更新 desc），其余新增
+    const list = Array.from({ length: 100 }, (_, i) => ({
+      name: i === 0 ? "已存在" : `新作者${i}`,
+      desc: i === 0 ? "补充描述" : `desc${i}`,
+      type: "test",
+    }));
+    const [added, updated] = (await browserAdapter.MergeWorkshopCreatorsFromJSON(
+      JSON.stringify(list),
+    )) as [number, number];
+    expect(updated).toBe(1); // "已存在" 更新 desc
+    expect(added).toBe(99); // 其余 99 条新增
+    const got = (await browserAdapter.LoadWorkshopCreators()) as Array<{ name: string; desc: string }>;
+    expect(got.find((c) => c.name === "已存在")?.desc).toBe("补充描述");
+  });
+
+  it("MergeWorkshopCreatorsFromJSON 少于 20 条拒绝", async () => {
+    await expect(
+      browserAdapter.MergeWorkshopCreatorsFromJSON(JSON.stringify([{ name: "a", desc: "" }])),
+    ).rejects.toThrow();
+  });
+});
+
 describe("B2 契约：DefaultWorkshopSites — 恒返回站点列表", () => {
   it("默认返回 bundled 站点（含 id/url，非空）", async () => {
     const s = (await browserAdapter.DefaultWorkshopSites()) as Array<{ id: string; url: string }>;

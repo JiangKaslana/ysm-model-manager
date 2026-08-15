@@ -23,7 +23,7 @@ export function iRow(l: string, v: string): HTMLDivElement {
  * 构建骨骼层级深度映射（用于骨骼列表缩进渲染）
  * parentId 为空的骨骼深度为 0，其余递归计算
  */
-export function buildDepthMap(boneList: Array<{ id: string; name: string; parentId?: string }>): Record<string, number> {
+export function buildDepthMap(boneList: Array<{ id: string; name: string; parentId?: string | null }>): Record<string, number> {
   const depthMap: Record<string, number> = {};
   // 修复：parentId 环（A→B→A）会无限递归撑爆调用栈。seen 记录当前解析链，
   // 命中环即按 0 深度截断（非法数据兜底，不崩面板）。

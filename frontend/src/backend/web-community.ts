@@ -3,7 +3,7 @@
 // 本地作者扫描与仓库索引生成。文件系统访问（scanWebModels/readWebFile/
 // collectAllWebEntries/typeFromWebDir）复用 web-fs.ts；browser-adapter.ts 从本文件
 // import 组装 webImpls。
-import type { WorkshopCreator, WorkshopSite, AuthorInfo } from "../../bindings/ysm-model-manager/go/types/models.ts";
+import type { WorkshopCreator, WorkshopSite, WorkshopPresetSearch, AuthorInfo } from "../../bindings/ysm-model-manager/go/types/models.ts";
 // 社区/工坊默认数据源（bundled JSON，build 期内联；与 resource_types.json 同源范式）
 import creatorsJson from "../../../creators.json" with { type: "json" };
 import workshopGithubJson from "../../../workshop-github.json" with { type: "json" };
@@ -260,5 +260,62 @@ export const webCommunityBindings = {
   SaveWorkshopSites: (sites: WorkshopSite[] | null) => {
     saveWebSites(sites);
     return Promise.resolve();
+  },
+  // R3-P0（web-edition.md）：站点级编辑保存 + JSON 合并——与 Go 同语义，基于
+  // localStorage 覆盖层（"编辑站点→保存"恢复可用；原 web 未桥接恒抛
+  // WebUnsupportedError，community-data.ts 有对应门控，现已移除）
+  SaveWorkshopCreatorsBySite: (siteID: string, siteCreators: WorkshopCreator[]) => {
+    const all = loadWebCreators();
+    // 移除该站点旧条目（type 精确匹配或分号分隔段匹配，对齐 Go app_workshop.go）
+    const kept = all.filter((c) => {
+      const t = c.type || "";
+      return !(t === siteID || t.includes(siteID + ";") || t.endsWith(";" + siteID));
+    });
+    saveWebCreators([...kept, ...siteCreators]);
+    return Promise.resolve();
+  },
+  SaveWorkshopPresetsBySite: (siteID: string, presets: WorkshopPresetSearch[]) => {
+    const sites = loadWebSites();
+    const s = sites.find((x) => x.id === siteID);
+    if (s) {
+      s.presetSearches = presets;
+      saveWebSites(sites);
+    }
+    return Promise.resolve();
+  },
+  MergeWorkshopCreatorsFromJSON: (jsonContent: string): Promise<[number, number]> => {
+    let imported: WorkshopCreator[];
+    try {
+      imported = JSON.parse(jsonContent) as WorkshopCreator[];
+    } catch (e) {
+      return Promise.reject(new Error("导入 JSON 解析失败: " + String(e)));
+    }
+    if (!Array.isArray(imported) || imported.length < 20) {
+      return Promise.reject(new Error(`导入数据异常: 仅 ${imported.length} 条 (期望 >=20)`));
+    }
+    const existing = loadWebCreators();
+    const existMap = new Map<string, number>();
+    existing.forEach((c, i) => existMap.set(c.name, i));
+    let added = 0;
+    let updated = 0;
+    for (const cr of imported) {
+      const idx = existMap.get(cr.name);
+      if (idx !== undefined) {
+        const e = existing[idx];
+        if (cr.desc && !e.desc) e.desc = cr.desc;
+        if (cr.type) e.type = cr.type;
+        if (cr.role) e.role = cr.role;
+        updated++;
+      } else {
+        existing.push(cr);
+        existMap.set(cr.name, existing.length - 1);
+        added++;
+      }
+    }
+    if (existing.length < 100) {
+      return Promise.reject(new Error(`合并后数据异常: ${existing.length} 条`));
+    }
+    saveWebCreators(existing);
+    return Promise.resolve([added, updated]);
   },
 } satisfies Record<string, (...args: never[]) => Promise<unknown>>;

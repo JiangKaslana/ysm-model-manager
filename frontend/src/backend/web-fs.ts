@@ -6,6 +6,7 @@
 // 见 web-common.ts。
 import { idbGet, idbSet, idbKeys, idbDel } from "./idb.ts";
 import { t } from "../core/i18n/t.ts";
+import { bus } from "../bus.ts";
 import type { ModelEntry } from "../../bindings/ysm-model-manager/go/types/models.ts";
 // 复用 dnd-shared 的导入白名单（.json 仅放行 ysm.json，其余须 ALL_EXTS 成员），
 // 避免 browser-adapter 另起一套扩展名校验导致漂移
@@ -584,6 +585,17 @@ export async function importWebFiles(
   files: File[],
   type: string,
 ): Promise<{ imported: number; failed: number }> {
+  // M1（web-edition.md）：网页版暂不支持 .7z 解压——明确过滤并提示（不入库，
+  // 替代"看起来能用、点开报错"；7z-wasm 列为远期评估）
+  const sevenZCount = files.filter((f) => f.name.toLowerCase().endsWith(".7z")).length;
+  if (sevenZCount > 0) {
+    bus.emit("toast:show", {
+      msg: `⚠️ 网页版暂不支持 .7z 解压（${sevenZCount} 个已跳过，请用桌面版）`,
+      duration: 4000,
+      type: "warn",
+    });
+    files = files.filter((f) => !f.name.toLowerCase().endsWith(".7z"));
+  }
   let imported = 0;
   let failed = 0;
   // R2 导入增强：先把 .zip 解压展平成目录文件（.ysm 保持整体，WASM 解码器处理）。
