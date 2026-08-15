@@ -12,6 +12,10 @@ import type { ModelEntry } from "../../bindings/ysm-model-manager/go/types/model
 import resourceTypesJson from "../../../resource_types.json" with { type: "json" };
 // rtype 魔法字符串统一走 RESOURCE_TYPES 常量（治理红线 R7）
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+// ADR-066 识别层对齐：RESOURCE_EXTS（resource_types.json 派生）驱动主文件判定，
+// 让网页版模型库显示全类型（.nbt/.schematic/.litematic/.pmx/.pmd/.vrca/.vrm），
+// 不再 YSM 单类型硬编码（原 mainFileRank 只认 .ysm/.zip/ysm.json）
+import { RESOURCE_EXTS } from "../utils/resource/extensions.ts";
 import { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64, parseWebPath, parseWebDirPath, webDirType, isWebPath } from "./web-common.ts";
 // R2 导入增强：ZIP 解压（extractZip 解出文件 + gbkDecodeEntry 还原中文名）
 import { extractZip, gbkDecodeEntry } from "./extract.ts";
@@ -27,21 +31,36 @@ export function typeFromWebDir(dir: string): string {
 }
 
 // --- 主文件优先级（scanWebModels / importWebFiles 共用）---
-// 桌面 scanner 主文件为 .ysm 扩展名（IsYsmEntryJSON 白名单仅 ysm.json）。
-// .zip 与 .ysm 同属 ZIP 容器格式（.ysm 本身即 PK 头 ZIP），一并视为模型主文件。
-// 多文件模型（已解压目录）可能含 ysm.json 清单，优先级：.ysm=.zip > ysm.json > 其他。
+// ADR-066 识别层对齐 Go scanner：主文件判定注册表驱动——每类型注册表扩展名都是
+// 该类型主文件；.json 仅 ysm.json（IsYsmEntryJSON 口径）；.ysm/.zip 为 YSM 主文件
+// （多文件模型竞争时优先）。原实现只认 .ysm/.zip/ysm.json，蓝图/投影/MMD/VRC
+// 的 .nbt/.schematic/.litematic/.pmx/.pmd/.vrca/.vrm 全被归为辅助文件不显示。
 const MAIN_FILE_RANK_YSM = 3;
 const MAIN_FILE_RANK_JSON = 2;
-const MAIN_FILE_RANK_OTHER = 1;
+const MAIN_FILE_RANK_TYPE = 1; // 其他类型主文件（注册表扩展名，.json 除外）
 const MAIN_FILE_RANK_NONE = 0;
 
-/** 主文件优先级打分（用于选取模型主文件，rank 高者胜） */
+/** 注册表主文件扩展名集合（全类型，.json 除外——仅 ysm.json 是主文件） */
+const TYPE_MAIN_EXTS: Set<string> = (() => {
+  const s = new Set<string>();
+  for (const exts of Object.values(RESOURCE_EXTS)) {
+    for (const e of exts) {
+      if (e !== ".json") s.add(e.toLowerCase());
+    }
+  }
+  return s;
+})();
+
+/** 主文件优先级打分（注册表驱动：YSM .ysm/.zip > ysm.json > 其他类型主文件 > 辅助文件）。
+ * 不剥 .ban/.disabled——禁用模型在导入层即被拒（与 Go 导入层拒绝 .ban 一致）。 */
 function mainFileRank(rel: string): number {
   const low = rel.toLowerCase();
-  if (/\.ysm$/i.test(low) || /\.zip$/i.test(low)) return MAIN_FILE_RANK_YSM;
-  if (low === "ysm.json") return MAIN_FILE_RANK_JSON;
-  if (/\.json$/i.test(low)) return MAIN_FILE_RANK_NONE;
-  return MAIN_FILE_RANK_OTHER;
+  const dot = low.lastIndexOf(".");
+  const ext = dot > 0 ? low.slice(dot) : "";
+  if (ext === ".json") return low === "ysm.json" ? MAIN_FILE_RANK_JSON : MAIN_FILE_RANK_NONE;
+  if (ext === ".ysm" || ext === ".zip") return MAIN_FILE_RANK_YSM;
+  if (TYPE_MAIN_EXTS.has(ext)) return MAIN_FILE_RANK_TYPE;
+  return MAIN_FILE_RANK_NONE;
 }
 
 // --- FSA 授权本地仓库（网页版文件来源桥接，替代 Go 本地文件系统扫描）---
@@ -146,22 +165,22 @@ export async function rescanFsaRoot(): Promise<{ ok: boolean; imported: number; 
 /** 扫描 FSA 目录句柄 → importWebFiles 落库（selectLocalRepo / rescanFsaRoot 共用） */
 async function scanFsaHandle(handle: unknown): Promise<{ ok: boolean; imported: number; failed: number; dir: string }> {
   const files: File[] = [];
-  await _collectYsmFiles(handle as _FsaDirHandle, files);
+  await _collectModelFiles(handle as _FsaDirHandle, files);
   const { imported, failed } = await importWebFiles(files, RESOURCE_TYPES.YSM);
   return { ok: true, imported, failed, dir: (handle as _FsaDirHandle).name };
 }
 
 /** 递归遍历目录句柄，收集所有 .ysm 文件的 File 句柄 */
-async function _collectYsmFiles(
+async function _collectModelFiles(
   dir: _FsaDirHandle,
   out: File[],
 ): Promise<void> {
   for await (const entry of dir.values()) {
     if (entry.kind === "directory") {
-      await _collectYsmFiles(entry as unknown as _FsaDirHandle, out);
+      await _collectModelFiles(entry as unknown as _FsaDirHandle, out);
     } else if (entry.kind === "file") {
       const f = entry as FileSystemFileHandle;
-      if (/\.ysm$/i.test(f.name)) {
+      if (mainFileRank(f.name) > MAIN_FILE_RANK_NONE) {
         const file = await f.getFile();
         out.push(file);
       }
@@ -215,7 +234,7 @@ export async function scanWebModels(dir: string): Promise<ModelEntry[]> {
     }
     // 仅 .ysm / ysm.json 可作主文件（对齐桌面 IsYsmEntryJSON 白名单）；其余（如 a.json 动作文件）
     // 不得当主文件，避免多文件模型误选导致预览解码失败
-    if (mainRank < MAIN_FILE_RANK_JSON) continue;
+    if (mainRank < MAIN_FILE_RANK_TYPE) continue;
     // Ext 与桌面一致：小写化 + 无点号保护（lastIndexOf=-1 时 slice(-1) 会取 "E" 之类的字符）
     const dot = mainRel.lastIndexOf(".");
     const ext = dot > 0 ? mainRel.slice(dot).toLowerCase() : "";
@@ -586,7 +605,7 @@ export async function importWebFiles(
     // 主文件目录集合（rank>=JSON 且未超限，超限主文件不参与定组）
     const mainDirs = new Set<string>();
     for (const f of rg) {
-      if (mainFileRank(f.name) >= MAIN_FILE_RANK_JSON && f.size <= MAX_IMPORT_BYTES) {
+      if (mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE && f.size <= MAX_IMPORT_BYTES) {
         const d = fsaDirOf(f);
         if (d) mainDirs.add(d);
       }
@@ -624,7 +643,7 @@ export async function importWebFiles(
       // （散落 .txt/.png/任意 .json 无主文件 → failed，防杂物独立成模型）
       let hasMain = false;
       for (const f of group) {
-        if (mainFileRank(f.name) >= MAIN_FILE_RANK_JSON) {
+        if (mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE) {
           hasMain = true;
           break;
         }
@@ -636,7 +655,7 @@ export async function importWebFiles(
       // 主文件前置校验：存在主文件但全部超限 → 整组失败且不写任何文件
       // （防孤儿辅助文件残留 + 防重导入时部分覆盖既有模型 → 新旧混合状态）
       const mainUsable = group.some(
-        (f) => mainFileRank(f.name) >= MAIN_FILE_RANK_JSON && f.size <= MAX_IMPORT_BYTES,
+        (f) => mainFileRank(f.name) >= MAIN_FILE_RANK_TYPE && f.size <= MAX_IMPORT_BYTES,
       );
       if (!mainUsable) {
         failed += group.length;

@@ -61,6 +61,22 @@ describe("browserAdapter — Phase 2 模型库（IndexedDB）", () => {
     expect(await browserAdapter.ScanModelEntries("/web/ysm")).toEqual([]);
   });
 
+  it("非 YSM 类型主文件可识别（ADR-066 识别层：.nbt 蓝图 / .litematic 投影 / .pmx MMD）", async () => {
+    await importWebFiles([new File([enc.encode("NBT")], "建筑.nbt")], "create-blueprint");
+    await importWebFiles([new File([enc.encode("LTM")], "投影.litematic")], "litematic");
+    await importWebFiles([new File([enc.encode("PMX")], "角色.pmx")], "mmd-skin");
+    // 各类型目录都能扫到主文件条目（原实现只认 .ysm/.zip/ysm.json，非 YSM 全不显示）
+    const bp = (await browserAdapter.ScanModelEntries("/web/create-blueprint")) as Array<{ Name: string }>;
+    expect(bp.map((e) => e.Name)).toContain("建筑.nbt");
+    const lt = (await browserAdapter.ScanModelEntries("/web/litematic")) as Array<{ Name: string }>;
+    expect(lt.map((e) => e.Name)).toContain("投影.litematic");
+    const mmd = (await browserAdapter.ScanModelEntries("/web/mmd-skin")) as Array<{ Name: string }>;
+    expect(mmd.map((e) => e.Name)).toContain("角色.pmx");
+    // .ban 禁用模型导入层仍拒绝（不剥后缀当主文件）
+    const r = await importWebFiles([new File([enc.encode("X")], "禁用.ysm.ban")], "ysm");
+    expect(r).toEqual({ imported: 0, failed: 1 });
+  });
+
   it("导入后 ScanModelEntries 返回条目（Name 含扩展名 / Path / Size 与 IDB 一致）", async () => {
     await importWebFiles([new File([enc.encode("YSM")], "狐狸.ysm", { type: "application/octet-stream" })], "ysm");
     const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{
