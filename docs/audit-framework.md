@@ -40,6 +40,13 @@ grep -E 'new\s+\w+|\bcreate\w+\b|\badd\w+\b' <文件路径> # 创建点
 grep -E '\.dispose\(|\bremove\w+\b|\bdelete\w+\b' <文件路径> # 释放点
 ```
 
+Go 侧追加锚（打开即配对，读操作收敛统一入口）：
+
+```bash
+grep -E 'os\.Open|zip\.OpenReader|sevenzip\.OpenReader|resp\.Body' go/ # 打开点
+grep -E '\.Close\(' go/ # 释放点——每个打开点必须命中；ReadLimitedEntry 契约内部 Close
+```
+
 ## 异常路径推演
 
 - 如果第X行抛出异常，清理代码是否会执行？
@@ -84,6 +91,11 @@ grep -E '\.dispose\(|\bremove\w+\b|\bdelete\w+\b' <文件路径> # 释放点
 | **已关闭 channel 复用** | Stop 时 close(done)，Start 复用已关闭 channel | 重启后假活、监听失效（ADR-031） |
 | **限流器截断静默** | `io.LimitReader` 截断不报错，下游接受截断数据 | 损坏文件被装盘（Download，ADR-033） |
 | **文本匹配错误分类** | 错误分类靠英文错误子串 `contains` | 脆弱、跨平台失效（isFileLocked/linkErr） |
+| **`sync.Once` 重置/拷贝** | 需要可重置的初始化用 Once（`Do` 只执行一次），或 Once 被值拷贝/复用 | 重置场景下 `Do` 不再触发；拷贝 Once 并发 `Do` panic（vet copylocks） | 锚：`grep sync.Once`——重置场景必须 `Mutex` + 手动状态（样板 `go/types/resource.go` registryMu） |
+| **goroutine 泄漏** | `go f()` 无退出信号（无 done channel / context / WaitGroup 等待） | 后台协程永不退出，句柄/内存随操作次数累积 | 锚：`grep -E 'go (func|[a-z])'`——每个启动点必须有退出机制（样板 `go/watcher/watcher.go` loop：done channel + 超时 + panic 兜底） |
+| **defer 在循环内** | for 循环体内直接 `defer` | 资源延迟到函数退出才释放，循环 N 次堆积 N 份句柄 | 锚：循环体内 defer 需拆独立函数/回调（样板 `go/dedup/dedup.go` WalkDir 回调）；for 前的 defer 不受影响 |
+| **for 循环闭包捕获循环变量** | 经典三表达式 for（`for i := 0; …`）+ 闭包捕获 `i`——Go 1.22 仅改 for range 语义，经典 for 不变 | 闭包执行时读到循环末尾值，批量启动的 goroutine 全取末值 | 锚：`go vet ./go/...` loopclosure 零报告；闭包内显式传参 `func(idx int) {}(i)` |
+| **io.Reader 未 Close** | `os.Open` / `zip.OpenReader` / `resp.Body` 打开后无 Close 配对 | 句柄泄漏，Windows 下文件被锁无法删除/替换/更新 | 锚：读操作统一走 `fsutil.ReadLimitedEntry`（内部 `defer Close`）；打开即配对 Close（`defer` 或显式） |
 
 ## 二、致命陷阱
 
