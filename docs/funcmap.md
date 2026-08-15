@@ -355,7 +355,7 @@
 | `MatchZipEntry()` | `go/types/extensions:116` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
 | `ExtBelongsTo()` | `go/types/extensions:130` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
 | `SupportedExtsForType()` | `go/types/extensions:145` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
-| `FindInstDir()` | `go/types/extensions:180` | FindInstDir 查找整合包中指定资源类型的子目录： 1. |
+| `FindInstDir()` | `go/types/extensions:180` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `StorageSubDir()` | `go/types/extensions:218` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
 | `SubDirMap()` | `go/types/extensions:232` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
 | `SubDirAll()` | `go/types/extensions:244` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |

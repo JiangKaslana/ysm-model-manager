@@ -32,6 +32,47 @@ export interface AppConfig {
     "voxelMaxBlocks": number;
 
     /**
+     * 运行阈值（ADR-062 可配置化下沉：0=使用各包默认常量，行为零漂移）
+     * 扫描缓存 TTL 毫秒，0=默认 30s（scanner.scanCacheTTL）
+     */
+    "scanCacheTtlMs": number;
+
+    /**
+     * 下载超时秒，0=默认 300s（download.defaultTimeout）
+     */
+    "downloadTimeoutSec": number;
+
+    /**
+     * 日志条数上限，0=默认 500（logs.maxLogEntries）
+     */
+    "logMaxEntries": number;
+
+    /**
+     * 日志单字段长度上限，0=默认 1024（logs.maxFieldLen）
+     */
+    "logMaxFieldLen": number;
+
+    /**
+     * .corrupt 备份保留天数，0=默认 7（logs.corruptRetentionDays）
+     */
+    "logCorruptRetentionDays": number;
+
+    /**
+     * 预览/元数据整读上限 MB，0=默认 50（fileops.maxPreviewRead）
+     */
+    "previewReadLimitMb": number;
+
+    /**
+     * 版本检查间隔毫秒，0=默认 6h（前端 version-updater CHECK_INTERVAL）
+     */
+    "updateCheckIntervalMs": number;
+
+    /**
+     * 版本检查超时毫秒，0=默认 30s（前端 version-updater CHECK_TIMEOUT）
+     */
+    "updateCheckTimeoutMs": number;
+
+    /**
      * 窗口状态（合并到主配置，避免 window_state.json 散落）
      */
     "winX": number;
@@ -184,6 +225,11 @@ export interface ImportLog {
      * import / scan / download / sync / rename / delete
      */
     "Operation"?: string;
+
+    /**
+     * debug/info/warn/error/fatal
+     */
+    "Level"?: LogLevel;
 }
 
 /**
@@ -242,6 +288,22 @@ export enum LinkType {
 };
 
 /**
+ * LogLevel 日志级别（诊断页按 Level 过滤；向后兼容——旧日志无此字段时前端按 Status 兜底）
+ */
+export enum LogLevel {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    LevelDebug = "debug",
+    LevelInfo = "info",
+    LevelWarn = "warn",
+    LevelError = "error",
+    LevelFatal = "fatal",
+};
+
+/**
  * ModelEntry 模型文件条目
  */
 export interface ModelEntry {
@@ -285,6 +347,11 @@ export interface PackInfo {
 export interface RuntimeLog {
     "Message": string;
     "Timestamp": number;
+
+    /**
+     * 默认 info（标准库 log 无级别）
+     */
+    "Level"?: LogLevel;
 }
 
 /**

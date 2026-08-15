@@ -235,6 +235,7 @@ export const MOCK_DATA = {
   RevealInExplorer: undefined,
   SavePreviewTempFile: undefined,
   SaveScreenshotFile: undefined,
+  SaveThresholds: undefined,
   SaveWindowPosition: undefined,
   SaveWorkshopCreators: undefined,
   SaveWorkshopCreatorsBySite: undefined,
