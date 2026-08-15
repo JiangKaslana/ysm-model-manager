@@ -692,6 +692,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-066：全资源预览器：统一预览契约与注册表驱动分发",
+        "link": "/adr/ADR-066-universal-resource-preview"
+      },
+      {
         "text": "ADR-065：整合包侧资源类型语义收敛：rtype 分支注册表驱动单点",
         "link": "/adr/ADR-065-instance-rtype-registry-single-source"
       },
