@@ -35,13 +35,13 @@
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 10 | 71 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 19 | 89 |
+| 前端·特性 | 19 | 90 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 54 | 181 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **269** | **1097** |
+| **合计** | **269** | **1098** |
 
 ## Go·头像
 
@@ -625,10 +625,10 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `normalizeTheme()` | `frontend/src/app-modules:63` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
-| `applyTheme()` | `frontend/src/app-modules:67` | — |
-| `initTheme()` | `frontend/src/app-modules:92` | — |
-| `bus()` | `frontend/src/bus:187` | 默认实例（组件直接使用） |
+| `normalizeTheme()` | `frontend/src/app-modules:67` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
+| `applyTheme()` | `frontend/src/app-modules:71` | — |
+| `initTheme()` | `frontend/src/app-modules:96` | — |
+| `bus()` | `frontend/src/bus:204` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
@@ -637,7 +637,7 @@
 | `CtxShowPayload()` | `frontend/src/bus:47` | — |
 | `BusEvents()` | `frontend/src/bus:64` | — |
 | `BusEventName()` | `frontend/src/bus:113` | — |
-| `Bus()` | `frontend/src/bus:115` | — |
+| `Bus()` | `frontend/src/bus:141` | — |
 
 ## frontend/backend
 
@@ -816,25 +816,26 @@
 | `CollectedEntry()` | `frontend/src/features/dnd-shared:33` | 收集条目（文件 + 相对路径） |
 | `FolderGroup()` | `frontend/src/features/dnd-shared:39` | 文件夹组：dir 为顶层目录名（可能含多级嵌套，组内文件保留完整 relPath） |
 | `groupCollected()` | `frontend/src/features/dnd-shared:51` | 将收集到的条目分组： - 有目录前缀的条目 → 按「顶层目录」整组（dir = 第一段路径），组内保留完整 relPath（支持多层嵌套） - 无目录前缀的散落文件 → 单文件队列 |
-| `handleTreeDrop()` | `frontend/src/features/import-dnd:31` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
-| `bindTreeDnD()` | `frontend/src/features/import-dnd:140` | 在目标容器上注册仓库页 DnD 事件。 |
+| `handleTreeDrop()` | `frontend/src/features/import-dnd:30` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
+| `bindTreeDnD()` | `frontend/src/features/import-dnd:129` | 在目标容器上注册仓库页 DnD 事件。 |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
-| `ImportFile()` | `frontend/src/features/import-executor:14` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `ImportRecord()` | `frontend/src/features/import-executor:17` | 已导入历史条目（导入 tab「已导入」列表数据源） |
-| `CollectedEntry()` | `frontend/src/features/import-executor:25` | 收集条目（文件 + 相对路径） |
-| `ImportHistory()` | `frontend/src/features/import-executor:34` | — |
-| `directImport()` | `frontend/src/features/import-executor:92` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
-| `importFolder()` | `frontend/src/features/import-executor:133` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
-| `executeCollected()` | `frontend/src/features/import-executor:197` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `ImportFile()` | `frontend/src/features/import-executor:16` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `ImportRecord()` | `frontend/src/features/import-executor:19` | 已导入历史条目（导入 tab「已导入」列表数据源） |
+| `CollectedEntry()` | `frontend/src/features/import-executor:27` | 收集条目（文件 + 相对路径） |
+| `ImportHistory()` | `frontend/src/features/import-executor:36` | — |
+| `directImport()` | `frontend/src/features/import-executor:94` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
+| `importFolder()` | `frontend/src/features/import-executor:135` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
+| `executeCollected()` | `frontend/src/features/import-executor:199` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:219` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `ImportFile()` | `frontend/src/features/import-queue-data:14` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `QueueItem()` | `frontend/src/features/import-queue-data:17` | 队列项数据类型 |
 | `normalizeRepoName()` | `frontend/src/features/import-queue-data:30` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
 | `ImportQueueHost()` | `frontend/src/features/import-queue-data:35` | 应用主机接口 |
 | `initDataLayer()` | `frontend/src/features/import-queue-data:41` | 初始化导入队列的数据层：返回状态对象和清理函数 |
-| `bindFormEvents()` | `frontend/src/features/import-queue-events:24` | 表单输入事件绑定 |
-| `bindDragEvents()` | `frontend/src/features/import-queue-events:55` | 拖拽事件绑定 |
-| `bindInputEvents()` | `frontend/src/features/import-queue-events:160` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:276` | 按钮事件绑定 |
+| `bindFormEvents()` | `frontend/src/features/import-queue-events:22` | 表单输入事件绑定 |
+| `bindDragEvents()` | `frontend/src/features/import-queue-events:53` | 拖拽事件绑定 |
+| `bindInputEvents()` | `frontend/src/features/import-queue-events:140` | 文件输入框事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:221` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
 | `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
@@ -1124,7 +1125,7 @@
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:52` | 初始化创意工坊页 |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:522` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
-| `initKeymap()` | `frontend/src/views/app-content/settings/keymap:126` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
+| `initKeymap()` | `frontend/src/views/app-content/settings/keymap:129` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |
 | `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:51` | — |
 | `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:193` | — |
@@ -1137,8 +1138,8 @@
 | `toastError()` | `frontend/src/views/app-content/settings/store:26` | — |
 | `resetSettingsStore()` | `frontend/src/views/app-content/settings/store:35` | 重置模块级状态（initSettings 开头调用；重复执行时清空上次残留） |
 | `initTheme()` | `frontend/src/views/app-content/settings/theme:23` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
-| `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:8` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
-| `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:48` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
+| `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:11` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
+| `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:51` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:38` | 本地创作者（绑定 + 运行时附加字段） |

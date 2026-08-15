@@ -24,27 +24,29 @@ register("loadEntries", loadEntries);
 // 避免首帧渲染时 i18n bundle 尚未加载导致 [i18n] 缺失 key 警告。
 import "./views/context-menu/index.ts";
 import "./views/app-toast/index.ts";
+
+/**
+ * 懒加载 Web Component：统一动态 import + 加载失败 toast 反馈。
+ * 收敛 5 处 `import(...).catch` 模板（app-tree/sidebar/content/resource-manager/sync-manager）。
+ * 用字面量路径确保 Vite 构建时解析。
+ */
+const loadView = (name: string, importer: () => Promise<unknown>): void => {
+  importer().catch((e) => {
+    console.warn(`[module] 组件加载失败: ${name}`, e);
+    bus.emit("toast:show", {
+      msg: "❌ " + friendlyError(e, "组件加载失败"),
+      duration: 5000,
+      type: "error",
+    });
+  });
+};
+
 // Web Components 动态导入（使用字面量确保 Vite 能在构建时解析路径）
-import("./views/app-tree/index.ts").catch((e) => {
-  console.warn("[module] 组件加载失败: app-tree", e);
-  bus.emit("toast:show", { msg: "❌ " + friendlyError(e, "组件加载失败"), duration: 5000, type: "error" });
-});
-import("./views/app-sidebar/index.ts").catch((e) => {
-  console.warn("[module] 组件加载失败: app-sidebar", e);
-  bus.emit("toast:show", { msg: "❌ " + friendlyError(e, "组件加载失败"), duration: 5000, type: "error" });
-});
-import("./views/app-content/index.ts").catch((e) => {
-  console.warn("[module] 组件加载失败: app-content", e);
-  bus.emit("toast:show", { msg: "❌ " + friendlyError(e, "组件加载失败"), duration: 5000, type: "error" });
-});
-import("./views/app-resource-manager/index.ts").catch((e) => {
-  console.warn("[module] 组件加载失败: app-resource-manager", e);
-  bus.emit("toast:show", { msg: "❌ " + friendlyError(e, "组件加载失败"), duration: 5000, type: "error" });
-});
-import("./views/app-sync-manager/index.ts").catch((e) => {
-  console.warn("[module] 组件加载失败: app-sync-manager", e);
-  bus.emit("toast:show", { msg: "❌ " + friendlyError(e, "组件加载失败"), duration: 5000, type: "error" });
-});
+loadView("app-tree", () => import("./views/app-tree/index.ts"));
+loadView("app-sidebar", () => import("./views/app-sidebar/index.ts"));
+loadView("app-content", () => import("./views/app-content/index.ts"));
+loadView("app-resource-manager", () => import("./views/app-resource-manager/index.ts"));
+loadView("app-sync-manager", () => import("./views/app-sync-manager/index.ts"));
 
 //  窗口状态已由 Go 端 shutdown 保存，前端不再重复写入
 
@@ -58,6 +60,8 @@ declare global {
 const THEME_DARK = "cyber";
 // 主题白名单（applyTheme 与 initTheme 共用，防两处口径漂移）
 const THEME_VALID = ["cyber", "warm", "pro", "sakura", "ocean", "mint", "system"];
+// class 清理列表由 THEME_VALID 推导，新增主题无需再手抄第二份（原 applyTheme 手抄双份是漂移源）
+const THEME_CLASSES = THEME_VALID.filter((t) => t !== "system").map((t) => "theme-" + t);
 
 /** 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） */
 export function normalizeTheme(mode: string): string {
@@ -66,7 +70,7 @@ export function normalizeTheme(mode: string): string {
 
 export function applyTheme(mode: string): void {
   if (!THEME_VALID.includes(mode)) mode = "system";
-  document.body.classList.remove("theme-cyber", "theme-warm", "theme-pro", "theme-sakura", "theme-ocean", "theme-mint");
+  document.body.classList.remove(...THEME_CLASSES);
   if (mode === "system") {
     const prefersDark = window.matchMedia(
       "(prefers-color-scheme: dark)",

@@ -112,6 +112,32 @@ export interface BusEvents {
 
 export type BusEventName = keyof BusEvents;
 
+// ── void 事件契约 ─────────────────────────────────────
+// emit 缺参告警的唯一权威清单：必须与 BusEvents 里的 `: void` 标记同步。
+// 双方向都编译期兜底——新增 void 事件漏加清单（完整性校验）、或非 void 事件误入清单
+// （satisfies 元素级校验）都会报类型错误，杜绝「类型改了、告警清单没跟」的漂移。
+type VoidEventName = {
+  [K in BusEventName]: BusEvents[K] extends void ? K : never;
+}[BusEventName];
+
+const VOID_EVENTS = [
+  "stats:refresh",
+  "tree:reload",
+  "sync:toggle:status",
+  "config:updated",
+  "batch:enable-all",
+  "batch:disable-all",
+  "loading:start",
+  "loading:end",
+] as const satisfies readonly VoidEventName[];
+
+// 完整性校验：BusEvents 新增 void 事件若未登记进 VOID_EVENTS → 此处类型错误
+type _MissingVoidEvent = Exclude<VoidEventName, (typeof VOID_EVENTS)[number]>;
+const _voidEventsComplete: _MissingVoidEvent extends never ? true : never = true;
+
+const isVoidEvent = (event: BusEventName): boolean =>
+  (VOID_EVENTS as readonly string[]).includes(event);
+
 export interface Bus {
   on<K extends BusEventName>(event: K, fn: (payload: BusEvents[K]) => void): () => void;
   off<K extends BusEventName>(event: K, fn: (payload: BusEvents[K]) => void): void;
@@ -148,17 +174,8 @@ function createBus(): Bus {
     emit(event, ...args) {
       // P2 修复（审核）：非 void 事件缺参 emit 会让 handler 解构抛错（被 try/catch 吞掉
       // → 静默不触发）。dev 模式给出显式告警；.js/内联脚本存量调用方借此暴露缺参
-      if (
-        args.length === 0 &&
-        event !== "stats:refresh" &&
-        event !== "tree:reload" &&
-        event !== "sync:toggle:status" &&
-        event !== "config:updated" &&
-        event !== "batch:enable-all" &&
-        event !== "batch:disable-all" &&
-        event !== "loading:start" &&
-        event !== "loading:end"
-      ) {
+      // 原实现手抄 8 个 void 事件名第二份清单，现复用 isVoidEvent 消除漂移源
+      if (args.length === 0 && !isVoidEvent(event)) {
         console.warn(`[bus] 事件 "${event}" 声明带 payload，emit 未传参数`);
       }
       // 拷贝快照再遍历：handler 内 on/off 修改注册表不影响本次派发

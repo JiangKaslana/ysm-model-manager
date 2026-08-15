@@ -1,12 +1,10 @@
 // ===== import-queue-events.ts —— 事件绑定层 =====
 import { resolveWebMode } from "../backend/platform.ts";
-import { importWebFiles } from "../backend/browser-adapter.ts";
 import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
-import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { isImportableFile } from "./dnd-shared.ts";
-import { ImportHistory } from "./import-executor.ts";
+import { ImportHistory, importWebFilesWithToast } from "./import-executor.ts";
 import type { ImportFile, QueueItem } from "./import-queue-data.ts";
 
 /** 事件绑定工具：收集 cleanup 函数 */
@@ -91,25 +89,7 @@ export function bindDragEvents(
         return;
       }
       void (async () => {
-        try {
-          const r = await importWebFiles(Array.from(files), RESOURCE_TYPES.YSM);
-          bus.emit("toast:show", {
-            msg:
-              r.failed > 0
-                ? `✅ ${r.imported} 个导入成功，${r.failed} 个失败`
-                : `✅ ${r.imported} 个模型已导入浏览器模型库`,
-            duration: 4000,
-            type: r.failed > 0 ? "warn" : "success",
-          });
-          bus.emit("tree:reload");
-          bus.emit("stats:refresh");
-        } catch (e) {
-          bus.emit("toast:show", {
-            msg: "❌ " + t("import.processError") + ": " + String(e),
-            duration: 4000,
-            type: "error",
-          });
-        }
+        await importWebFilesWithToast(Array.from(files));
       })();
       return;
     }
@@ -173,27 +153,9 @@ export function bindInputEvents(
     // 网页版：文件选择器（点击 dropZone 触发）→ importWebFiles 直写 IndexedDB
     if (resolveWebMode()) {
       void (async () => {
-        try {
-          const r = await importWebFiles(Array.from(files), RESOURCE_TYPES.YSM);
-          bus.emit("toast:show", {
-            msg:
-              r.failed > 0
-                ? `✅ ${r.imported} 个导入成功，${r.failed} 个失败`
-                : `✅ ${r.imported} 个模型已导入浏览器模型库`,
-            duration: 4000,
-            type: r.failed > 0 ? "warn" : "success",
-          });
-          bus.emit("tree:reload");
-          bus.emit("stats:refresh");
-        } catch (e) {
-          bus.emit("toast:show", {
-            msg: "❌ " + t("import.processError") + ": " + String(e),
-            duration: 4000,
-            type: "error",
-          });
-        } finally {
+        await importWebFilesWithToast(Array.from(files), () => {
           fileInput.value = "";
-        }
+        });
       })();
       return;
     }
@@ -224,24 +186,7 @@ export function bindInputEvents(
     // 网页版（ADR-049 Phase 3）：无本地文件系统 → 文件夹选择直接写入 IDB 模型库
     if (resolveWebMode()) {
       void (async () => {
-        try {
-          const r = await importWebFiles(Array.from(files), RESOURCE_TYPES.YSM);
-          bus.emit("toast:show", {
-            msg:
-              r.failed > 0
-                ? `✅ ${r.imported} 个导入成功，${r.failed} 个失败`
-                : `✅ ${r.imported} 个模型已导入浏览器模型库`,
-            duration: 4000,
-            type: r.failed > 0 ? "warn" : "success",
-          });
-          bus.emit("tree:reload");
-        } catch (err) {
-          bus.emit("toast:show", {
-            msg: "❌ 网页版导入失败: " + String(err),
-            duration: 4000,
-            type: "error",
-          });
-        }
+        await importWebFilesWithToast(Array.from(files));
       })();
       folderInput.value = "";
       return;

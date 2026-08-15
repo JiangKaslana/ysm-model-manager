@@ -7,6 +7,8 @@
 import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { getApp } from "../backend/app.ts";
+import { importWebFiles } from "../backend/browser-adapter.ts";
+import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
 
@@ -205,6 +207,42 @@ export const executeCollected = async (
     await directImport(c.file);
   }
   return { folders: folders.length, singles: singles.length };
+};
+
+/**
+ * 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB
+ * → toast 反馈 → tree/stats 刷新。收敛 import-dnd.ts + import-queue-events.ts 三处重复。
+ * @param files 文件数组（网页版不支持文件夹，调用方已校验）
+ * @param onFinally 可选收尾（如清空 fileInput.value）
+ * @returns importWebFiles 结果 { imported, failed }
+ */
+export const importWebFilesWithToast = async (
+  files: File[],
+  onFinally?: () => void,
+): Promise<{ imported: number; failed: number }> => {
+  try {
+    const r = await importWebFiles(files, RESOURCE_TYPES.YSM);
+    bus.emit("toast:show", {
+      msg:
+        r.failed > 0
+          ? `✅ ${r.imported} 个导入成功，${r.failed} 个失败`
+          : `✅ ${r.imported} 个模型已导入浏览器模型库`,
+      duration: 4000,
+      type: r.failed > 0 ? "warn" : "success",
+    });
+    bus.emit("tree:reload");
+    bus.emit("stats:refresh");
+    return r;
+  } catch (e) {
+    bus.emit("toast:show", {
+      msg: "❌ " + t("import.processError") + ": " + String(e),
+      duration: 4000,
+      type: "error",
+    });
+    return { imported: 0, failed: files.length };
+  } finally {
+    onFinally?.();
+  }
 };
 
 /** 是否可作为独立文件导入（供外部过滤，dnd-shared 透传） */

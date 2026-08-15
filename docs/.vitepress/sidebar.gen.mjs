@@ -1301,6 +1301,16 @@ export const autoSidebar = [
             "link": "/knowledge/resource-registry"
           }
         ]
+      },
+      {
+        "text": "其他",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "可拓展点发掘索引（extensibility inventory）",
+            "link": "/knowledge/extensibility-index"
+          }
+        ]
       }
     ]
   },

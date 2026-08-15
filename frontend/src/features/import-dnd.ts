@@ -4,12 +4,11 @@
 
 import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
-import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { getApp } from "../backend/app.ts";
 import { resolveWebMode } from "../backend/platform.ts";
-import { importWebFiles, MAX_IMPORT_BYTES } from "../backend/browser-adapter.ts";
+import { MAX_IMPORT_BYTES } from "../backend/browser-adapter.ts";
 import { ALL_EXTS } from "../utils/resource/extensions.ts";
-import { executeCollected } from "./import-executor.ts";
+import { executeCollected, importWebFilesWithToast } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
 
 const DROP_EXTS_STR = ALL_EXTS.join(" ");
@@ -57,17 +56,7 @@ export async function handleTreeDrop(
         });
         return;
       }
-      const r = await importWebFiles(files, RESOURCE_TYPES.YSM);
-      bus.emit("toast:show", {
-        msg:
-          r.failed > 0
-            ? `✅ ${r.imported} 个导入成功，${r.failed} 个失败`
-            : `✅ ${r.imported} 个模型已导入浏览器模型库`,
-        duration: 4000,
-        type: r.failed > 0 ? "warn" : "success",
-      });
-      bus.emit("tree:reload");
-      bus.emit("stats:refresh");
+      await importWebFilesWithToast(files);
       return;
     }
 
