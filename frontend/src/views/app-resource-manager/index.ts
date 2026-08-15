@@ -115,6 +115,15 @@ export class AppResourceManager extends HTMLElement {
     }
   }
 
+  // P2 修复（TS 深层扫描）：生命周期成对（治理红线 frontend AGENTS.md「connected/
+  // disconnectedCallback 必须成对」）。本组件为 light DOM、无 document/window 监听与
+  // 定时器（config:updated bus 订阅走 registerResourceManagerGlobal 全局注册，由
+  // app-content 统一回收，非实例级），disconnected 无需逐项清理；递增 _initGen 使
+  // 在途 _init/_loadList 代际过期，卸载后不再向（可能被复用的）容器写回渲染结果。
+  disconnectedCallback(): void {
+    this._initGen++;
+  }
+
   async _init(): Promise<void> {
     const gen = ++this._initGen;
     // P2 修复（子代理审计）：rtype 切换/config:updated 触发的重渲染必须使在途
