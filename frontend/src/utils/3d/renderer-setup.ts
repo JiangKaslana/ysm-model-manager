@@ -2,6 +2,7 @@
 // 负责 renderer 配置 + 灯光 + 网格/轴辅助线 + 容器挂载。
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { addStandardSceneLights } from "./scene-lights.ts";
 
 /** setupRenderer 返回的组件 */
 export interface RendererComponents {
@@ -41,10 +42,7 @@ export function setupRenderer(container: HTMLElement): RendererComponents {
   // 灯光
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x1a1b2e);
-  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-  const dl = new THREE.DirectionalLight(0xffffff, 2);
-  dl.position.set(10, 30, 20);
-  scene.add(dl);
+  addStandardSceneLights(scene);
   const backLight = new THREE.DirectionalLight(0xffffff, 0.8);
   backLight.position.set(-10, 10, -20);
   scene.add(backLight);

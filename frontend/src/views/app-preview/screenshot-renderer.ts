@@ -5,6 +5,7 @@ import { getApp } from "../../backend/app.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
 import { loadTextures } from "./model3d-loader.ts";
 import { buildSceneMesh, compKey, disposeMaterial } from "../../utils/3d/mesh.ts";
+import { addStandardSceneLights } from "../../utils/3d/scene-lights.ts";
 import { type Spec3D } from "../../utils/3d/model3d.ts";
 
 export interface AngleShot {
@@ -57,10 +58,7 @@ export async function renderMultiAngle(
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     scene = new THREE.Scene();
-    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-    const dl = new THREE.DirectionalLight(0xffffff, 2);
-    dl.position.set(10, 30, 20);
-    scene.add(dl);
+    addStandardSceneLights(scene);
 
     const { boneGroupMap, rootGroup } = buildSceneMesh(spec);
     scene.add(rootGroup);
