@@ -8,6 +8,7 @@ source_files:
   - go/sync/sync_diff.go
   - go/sync/sync_hash.go
   - go/sync/sync_dirlevel.go
+  - go/sync/sync_discovery.go
   - go/sync/sync_push.go
   - go/sync/sync_relink.go
   - go/fsutil/hardlink_windows.go

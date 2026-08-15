@@ -1037,6 +1037,10 @@ export const autoSidebar = [
             "link": "/knowledge/go-avatar"
           },
           {
+            "text": "统一容器桥接层 go/container",
+            "link": "/knowledge/go-container"
+          },
+          {
             "text": "去重 go/dedup",
             "link": "/knowledge/go-dedup"
           },

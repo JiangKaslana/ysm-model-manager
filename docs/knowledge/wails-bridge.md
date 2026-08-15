@@ -8,6 +8,7 @@ category: core
 source_files:
   - frontend/src/backend/app.ts
   - frontend/src/backend/platform.ts
+  - frontend/src/backend/extract.ts
   - frontend/src/backend/browser-adapter.ts
 tests:
   - frontend/src/views/app-content/app-content.component.test.ts

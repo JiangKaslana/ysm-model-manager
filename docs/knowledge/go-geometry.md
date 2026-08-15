@@ -29,7 +29,7 @@ invariant_anchors:
 ## 核心职责
 
 - `parse.go` — 标准 geometry JSON 解析（骨骼/立方体/UV/旋转/纹理槽）
-- `archive.go` — ZIP/7z 存档解包：ysm.json 清单（model/texture 顺序）、多 geometry 文件合并、cube→texSlot 绑定、PNG 纹理与动画 JSON 收集、首张 PNG 快速缩略
+- `archive.go` — ZIP/7z 存档解包：ysm.json 清单（model/texture 顺序）、多 geometry 文件合并、cube→texSlot 绑定、PNG 纹理与动画 JSON 收集、首张 PNG 快速缩略；**容器打开统一走 `go/container`（ADR-068）**——`ExtractFirstPNGFromZip/7z` 入口经 `OpenZipBytes/Open7zBytes` + 格式无关 `extractFirstPNG`，`collectArchiveFiles` 消费 `container.Entry`，删除原 ParseFrom7z/ParseFromZip 对称外壳 ~294 行（公开签名不变）
 
 ## 对外 API / 入口
 

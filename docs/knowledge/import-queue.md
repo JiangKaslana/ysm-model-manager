@@ -9,6 +9,7 @@ source_files:
   - frontend/src/features/import-queue-events.ts
   - frontend/src/features/import-queue-render.ts
   - frontend/src/features/dnd-shared.ts
+  - frontend/src/features/dnd-collector.ts
   - frontend/src/features/import-executor.ts
 tests:
   - frontend/src/features/dnd-shared.test.ts

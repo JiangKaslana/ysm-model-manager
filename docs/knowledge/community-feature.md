@@ -11,6 +11,7 @@ source_files:
   - frontend/src/features/community/download-tasks.ts
   - frontend/src/features/community/events.ts
   - frontend/src/features/community/render.ts
+  - frontend/src/utils/gh-links.ts
 tests:
   - frontend/src/features/community/data.test.ts
   - frontend/src/features/community/download-queue.test.ts

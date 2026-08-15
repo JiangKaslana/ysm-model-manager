@@ -1277,8 +1277,8 @@
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
-| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:39` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
-| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:57` | 加载模型 2D 骨骼线条图 + 统计面板 |
+| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:35` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
+| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:53` | 加载模型 2D 骨骼线条图 + 统计面板 |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |
 | `buildOrderedTexKeys()` | `frontend/src/views/app-preview/texture-order:21` | 计算 3D 渲染/纹理选择器用的有序纹理名列表 |
 | `ModelDetailMeta()` | `frontend/src/views/app-preview/tpl:6` | 模型统计元数据（modelDetailHTML 入参） |

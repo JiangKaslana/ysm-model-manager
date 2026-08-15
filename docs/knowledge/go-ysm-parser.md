@@ -24,6 +24,7 @@ use_when:
 - 读取 .ysm 文件格式
 - 提取模型属性（尺寸、材质、骨骼信息）
 - 生成前端可用的摘要结构
+- **容器打开统一走 `go/container`（ADR-068）**：`summary.go`/`parse.go`/`texsize.go`/`ysm.go` 四处 `zip.OpenReader`/`sevenzip` → `container.OpenZipPath`/`Open7zPath`，遍历改 `Entry` 方法（summary 同一容器三次遍历收敛为 `Entries()` 单次列出）
 
 ## 对外 API / 入口
 

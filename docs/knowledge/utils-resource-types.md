@@ -6,6 +6,7 @@ category: utils
 source_files:
   - frontend/src/utils/resource/types.ts
   - frontend/src/utils/resource/registry.ts
+  - frontend/src/features/repo-rtype.ts
 use_when:
   - 资源类型
   - RESOURCE_TYPES
@@ -35,6 +36,14 @@ invariant_anchors:
 - `RESOURCE_TYPES: Record<string, string>` — 7 个 ID 常量：YSM/MMD/VRC/PACK/SHADER/BLUEPRINT/LITEMATIC → "ysm" / "mmd-skin" / "vrchat-avatar" / "resourcepack" / "shaderpack" / "create-blueprint" / "litematic"
 - `RESOURCE_TYPE_LABELS: Record<string, string>` — ID → 中文标签（模型/MMD/VRC/资源包/光影包/蓝图/投影；**与 JSON `name` 是不同文案**——LABELS 为缩写「模型」，JSON name 为「YSM 模型」，同一类型 UI 不同处显示不同，P4 观察）
 - `ALL_RESOURCE_TYPES: string[]` — 全部 ID 列表
+- **能力元数据派生层（ADR-066 P0 + ADR-067 S4，由 `resource_types.json` 派生，单一事实来源）**：
+  - `extOf(path)` — 路径→小写扩展名（含点）
+  - `matchTypeByExt(path, typeId)` — 按注册表 extensions 判定归属（不处理歧义，`loader.ts` 的 WASM 能力判定用）
+  - `isYsmWasmPreview(path)` — ysm 单文件（`.ysm`/`.json`）走前端 WASM 预览，`.zip`/`.7z` 容器由 Go `FindPreviewImage` 兜底（`index.ts` 缩略图加载用）
+  - `VOXEL_RPC_BY_EXT` — `.nbt/.schematic/.litematic` → `GetNbtVoxelData/GetSchematicVoxelData/GetLitematicVoxelData` 单点映射（`litematic-meta.ts` 用，解硬编码字符串分支）
+  - `AMBIGUOUS_EXTS` — 歧义扩展名集合（同扩展名归属 ≥2 类型，如 `.zip` 归属 7 类），从注册表派生、新增类型自动纳入
+  - `resolveTypeSafe(path)` — **安全解析入口（ADR-067 S4）**：单归属扩展名直接命中；歧义扩展名返回 `null` 强制调用方回退 Go `DetectResourceType` 内容检测；新分发器（P1 VRM / P2 MMD 适配器）统一使用
+  - 内部实现（非导出）：`RESOURCE_CAPS`（派生能力表）/`resolveTypeByExt`（反查）——外部统一走 `resolveTypeSafe`/`matchTypeByExt` 等安全入口（2026-08-16 去 export 收敛，消除死代码告警）
 
 `registry.ts`（异步加载器，知识卡旧文「resource-registry.ts」文件名漂移，实际为 `registry.ts`）：
 - `loadResourceRegistry(): Promise<Record<string, ResourceTypeEntry>>` — 经 `getApp().LoadResourceTypes()` 加载，模块级 `_registry` 缓存；**仅当拿到非空 `resourceTypes` 数组才写缓存**（P2 修复：Go 端错误路径返回 `"{}"` 时原实现会缓存空注册表、整会话降级；现失败/空结果返回 `{}` 不缓存，Go 桥瞬断后下次调用重试）
@@ -52,16 +61,12 @@ invariant_anchors:
 - 不在前端手写新的 StorageSubDir / ResourceExts 条目，新增类型从 `resource_types.json` 开始（注册表优先，AGENTS.md §4.4）
 - `RESOURCE_TYPE_LABELS` 是 UI 类型中文文案的来源，新增类型必须同步补标签（UI 文案与代码字段一致）
 - loadResourceRegistry 返回的 Map 只应读取不应改写；注册表条目查询请基于其返回值就地进行
+- **歧义扩展名（`.zip`/`.7z`）禁止用扩展名直判类型**：`.zip` 可包裹任意类型（ADR-067），必须经 `resolveTypeSafe`（返回 null）回退 Go `DetectResourceType` 内容指纹——`AMBIGUOUS_EXTS` 派生自注册表，新增类型含容器扩展名自动纳入歧义集
+- **契约测试守护**（`types.test.ts`，18 例）：RESOURCE_TYPES/LABELS 与 JSON 对账、`AMBIGUOUS_EXTS` 与注册表派生一致、`resolveTypeSafe` 单归属/歧义/大小写、`VOXEL_RPC_BY_EXT` 体素扩展名全覆盖（voxelFn 映射契约）
 
 ## 相关
 
 - [resource_registry](./resource-registry.md) — 单一事实源 + services/registry.ts
 - [utils_extensions](./utils-extensions.md) — 扩展名映射
+- [utils_icon](./utils-icon.md) — 文件图标（容器扩展名统一 📦，见 ADR-067 漂移修复）
 - [wails_bridge](./wails-bridge.md) — getApp() 桥接
-
-
-- `frontend/src/utils/resource/types.test.ts` — 单元测试（验证入口）
-
-
-- `frontend/src/utils/resource/types.test.ts` — 单元测试（验证入口）
- 2f742771 (docs(knowledge): 第七轮知识卡漂移修缮 + 断链修复)

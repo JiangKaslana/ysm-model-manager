@@ -37,7 +37,7 @@ invariant_anchors:
 - `ExtractAvatarURI(modelPath, safeName string) string` — 从 .ysm/.zip/.7z/.json 提取指定作者的头像 data URI；无 authors 声明时降级取 avatar/ 目录第一张图（仅 .ysm 分支实现）
 - `CacheAvatarsFromJSON(modelPath string)` — 从解压目录的 ysm.json 批量缓存所有作者头像（已有缓存则跳过）
 - `CacheAvatarsFromModel(modelPath string)` — 通用批量缓存（按文件扩展名分派，无 authors 声明时降级取 avatar/ 目录第一张图）
-- `ReadFileFromZip(zr *zip.Reader, target string) []byte` — 按路径后缀从 ZIP 取文件
+- `ReadFileFromZip(zr *zip.Reader, target string) []byte` — 按路径后缀从 ZIP 取文件；**ADR-068 迁移**：调用点改 `container.OpenZipBytes` + `ReadFileFromContainer(r container.Reader, target)`（`avatar_zip.go`），zip 专用路径收敛进统一容器桥
 - `SetNodeJS(nodePath string, glueFn func() string, wasmFn func() []byte)` — 注入 Node.js 路径与 WASM 胶水代码/二进制加载器（由 wasm_decoder.go 在启动时调用）
 - `DecodeYSMFiles(ysmData []byte)` — 起 Node.js 隐藏子进程执行 YSMParser WASM，把 .ysm 二进制解码为文件列表（path + 字节数组）
 

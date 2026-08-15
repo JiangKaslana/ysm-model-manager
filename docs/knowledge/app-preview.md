@@ -24,6 +24,13 @@ source_files:
   - frontend/src/views/app-preview/bone-names.ts
   - frontend/src/views/app-preview/parse-ysm-json.ts
   - frontend/src/views/app-preview/texture-order.ts
+  - frontend/src/views/app-preview/skeleton-fill-panel.ts
+  - frontend/src/views/app-preview/mount-preview-core.ts
+  - frontend/src/views/app-preview/litematic-adapter.ts
+  - frontend/src/views/app-preview/vrm-3d.ts
+  - frontend/src/views/app-preview/vrm-adapter.ts
+  - frontend/src/views/app-preview/ysm-3d.ts
+  - frontend/src/views/app-preview/ysm-adapter.ts
 tests:
   - frontend/src/views/app-nav/index.test.ts
   - frontend/src/views/app-preview/utils.test.ts
@@ -57,12 +64,12 @@ invariant_anchors:
 ## 核心职责
 
 - `index.ts` — `<app-preview>` 生命周期编排：监听 `model:select`（回调开头 `++this._previewGen`）、目录走 `_showPackInfo`、文件走 `_showModelDetail` 并按 `DetectResourceType` 结果分流（pack → `showResourcePack`；ysm/空 → `showModelDetail`；litematic/blueprint → `showLitematic`；shaderpack → `showShaderpack`（`ReadShaderpackLang` 提显示名+配置简介）；mmd-skin 等其他已知类型 → `showSimplePreview`；类型元信息经 `_typeMeta` 查 `LoadResourceTypes` 预载表）、`_loadPreviewImage` 缩略图三级加载、`cacheSetEvictHandler` 注册缓存淘汰时回收 blob URL（含 `geometry.textures` / `authors[].avatarUrl` / `avatars` 去重后 revoke）
-- `loader.ts` — `loadModelData`：统一模型加载（缓存 → WASM → Go `AnalyzeBedrockModel` 兜底）
+- `loader.ts` — `loadModelData`：统一模型加载（缓存 → WASM → Go `AnalyzeBedrockModel` 兜底）；**ADR-066 P0 解硬编码墙**：WASM 能力判定由内联正则 `/\.(ysm|zip|json)$/i` 改为 `matchTypeByExt(modelPath, RESOURCE_TYPES.YSM)`（注册表驱动，附带修复原正则漏判 `.7z`）
 - `detail.ts` — `showModelDetail` / `showResourcePack` / `showShaderpack` / `showSimplePreview`：详情面板渲染（Go 侧 `ExtractYsmSummary` / `ExtractYSMHeader` / `ReadPackMeta` / `ReadShaderpackLang`）
 - `skeleton.ts` — `loadModel2D`：2D/3D 骨骼渲染编排，委托 `utils/3d/model2d.ts` 的 `renderModel2D` 与 `utils/3d/model3d.ts` 的 `renderModel3D`；window 级拖拽监听存模块级 `_prevWindowMove` / `_prevWindowUp` 槽位（`skeleton.ts:20`、`:193`），先移除上一轮再绑定并把移除逻辑 push 进 `ctx._unsubs`（`skeleton.ts:211`）；`_model3dGen` 作废在途 3D 渲染；截图走 `SaveScreenshotFile`。**ADR-057 控制层重构**：3D overlay 顶/底控制栏原内联 `style.cssText` 抽为全局 CSS 类（`utils/dom/fab.ts` 的 `ensureFabStyles()` 注入 head——overlay 挂 `document.body` 为 light DOM，全局 CSS 直接生效）；触发键 `🎨3D` 由面板内普通 tab 改为右下角悬浮 FAB（`.ysm-fab`，Shadow DOM 内样式在 `css.ts`，隔离不继承 head）；并接入 `registerAndroidBackHandler` 在 overlay 打开时消费安卓返回键关层。**async 窗口期守卫约定**（P2 修复）：每个 `await` 前后及 DOM 创建后立即检查 `container.isConnected`，防组件卸载后异步回调写入已卸载 DOM（`skeleton.ts:82`、`:112`、`:631` 三处）
 - `zoom.ts` — `openFullPreview`：全屏放大预览
 - `wasm.ts` — `decodeYsmViaWasm`：前端 WASM 解码 .ysm（经 Go `ReadFileBytes` 取字节，走 `cache.ts` 缓存）；**加密模型详情增强**（P2 修复链：`decodeYsmViaWasm` 解码后把 `properties.extra_animation*` 经 `utils/format/ysm-anim-config.ts` 的 `extractAnimGroupsAndConfigs` 抽出「其他动画 / 模型配置 / 自定义表情」，与 Go `summary.go:appendAnimGroupsAndConfigs` 口径对齐，供详情卡渲染；`.zip`/裸 `ysm.json` 共用同一提取逻辑）
-- `litematic-3d.ts` — `createLitematic3D` / `cleanupVoxel3D`：静态 `import * as THREE from "three"` + OrbitControls，按空间分块用 InstancedMesh 渲染体素；体素数据由 `GetLitematicVoxelData` 等 Go 函数名动态派发（`voxelFn`）；失败经 `friendlyError` 派发 `toast:show`
+- `litematic-3d.ts` — `createLitematic3D` / `cleanupVoxel3D`：**ADR-066 P3 脚手架收缴**——原 627 行内联实现抽为 26 行薄包装：通用外壳（overlay/renderer/rAF 循环/相机控制/资源释放）归 `mount-preview-core.ts` 的 `mount3D(adapter, path)`（PreviewAdapter 契约），体素内容层归 `litematic-adapter.ts` 的 `buildLitematicScene`；`voxelFn` 经适配器工厂传入决定走哪条 Go RPC；vrm 预览同构迁移（`vrm-adapter.ts`）
 - `litematic-meta.ts` — `showLitematic`（Go `ReadLitematicMeta` / `ReadNbtStructure` / `ReadSchematic`）与 `cleanupLitematic3D`（转发 `cleanupVoxel3D`）
 - `utils.ts` — 共享类型与工具：`PreviewCtx` 接口、`DecodedYsm`、`getPrefer3D` / `setPrefer3D`（跨模型保留 3D 偏好）、`stripYsgpTextHeader`（YSGP 文本变体转标准头，内部私有 `buildStdYsgpFromTextVariant`）、`devLog`
 - `geometry.ts` — 纯函数层：`BedrockCube` / `BedrockBone` / `BedrockGeometry` 类型 + `parseBedrockGeometryFromJSON`
@@ -103,6 +110,7 @@ invariant_anchors:
 - **纹理口径对称**：`texture-order.ts` 与 Go `internal/app/texture_order.go` 口径严格对称，改一侧须同步另一侧；`default_texture` 置首逻辑在 `parse-ysm-json.ts`（返回 `_ysmMeta.defaultTexture`）与 `texture-order.ts`（实际排序）两处协同处理
 - **3D 预览布局**：渲染器全屏（`viewContainer` `position:absolute;inset:0`），信息面板为右侧浮层（`panel` `absolute;right:0;top:0;bottom:0`，`z-index:5`），顶部栏「◀ 隐藏 / ▶ 显示」切换显隐、左缘拖拽柄（`resizeHandle` 挂 body，`z-index:6`，`right` 随宽同步）调宽——浮层不占 flex 位，隐藏时渲染器天然填满，竖屏/窄窗口友好
 - **3D overlay 单例钩子**（skeleton.ts 模块级 `_active3DClose`）：全局同时只允许一个活跃 3D overlay——新开 3D 前先调上一份的 `_active3DClose`（`keepPrefer=true` 保留 `_prefer3D`，仅切换模型路径）；用户主动关闭/ESC/组件销毁（走 `close3D` 默认 `keepPrefer=false`）才清 `_prefer3D` 并置空引用，防残留。**`model:select` 切换前同样先关闭活跃 3D overlay**（2026-08-12 修复：切模型时旧 3D 不关闭会与新渲染叠加冲突）
+- **overlay ✕ 关闭按钮必须绑定 `close3D`**（2026-08-16 回归修复 `af260361`）：`build3DOverlay`（skeleton-render.ts）只创建按钮，onclick 依赖骨架闭包——ADR-040 拆分（2667f142）时绑定丢失，点 ✕ 无响应（仅 ESC/Android 返回键可关）；绑定须在 `close3D` 定义后补（skeleton.ts `_toggle3D` 内），`skeleton.test.ts` 已有「✕ 点击 → cleanup + overlay 移除」回归用例钉住
 
 ## 相关
 

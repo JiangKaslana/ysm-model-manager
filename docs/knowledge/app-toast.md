@@ -5,6 +5,7 @@ tier: leaf
 category: ui
 source_files:
   - frontend/src/views/app-toast/index.ts
+  - frontend/src/utils/dom/feedback.ts
 use_when:
   - toast
   - 通知

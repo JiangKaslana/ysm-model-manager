@@ -7,6 +7,10 @@ source_files:
   - frontend/src/views/context-menu/index.ts
   - frontend/src/core/context-menus.ts
   - frontend/src/core/menu-defs.ts
+  - frontend/src/core/context-menu-dir-handlers.ts
+  - frontend/src/core/context-menu-file-handlers.ts
+  - frontend/src/core/context-menu-handlers.ts
+  - frontend/src/core/context-menu-shared.ts
   - frontend/src/core/handlers/instance-ops.ts
 tests:
   - frontend/src/core/context-menus.test.ts
