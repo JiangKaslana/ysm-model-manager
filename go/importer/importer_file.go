@@ -120,6 +120,8 @@ func WriteFileAtomic(destPath string, data []byte) error {
 }
 
 // DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型
+// 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries
+// （exact/prefix/suffix 三种模式），新增类型只需改 JSON，无需改检测器。
 func DetectZipType(data []byte) string {
 	idx := 0
 	for idx+30 <= len(data) {
@@ -132,14 +134,8 @@ func DetectZipType(data []byte) string {
 			break
 		}
 		name := strings.ToLower(string(data[idx+30 : idx+30+nameLen]))
-		if name == "pack.mcmeta" {
-			return "resourcepack"
-		}
-		if strings.HasPrefix(name, "shaders/") || name == "shaders" {
-			return "shaderpack"
-		}
-		if strings.HasSuffix(name, "ysm.json") || strings.HasPrefix(name, "models/") {
-			return "ysm"
+		if rtype := types.MatchZipEntry(name); rtype != "" {
+			return rtype
 		}
 		// 跳到下一个 entry（跳过压缩数据）
 		compSize := int(data[idx+18]) | int(data[idx+19])<<8 | int(data[idx+20])<<16 | int(data[idx+21])<<24

@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"ysm-model-manager/go/fsutil"
 )
 
 // Handler 资源导入策略接口
@@ -393,40 +395,10 @@ func copyDir(src, dst string) error {
 }
 
 // copyFile 复制单文件（工具函数）
+// 已收敛至 fsutil.CopyFile（ADR-044 策略 A）：tmp+rename 原子落地 + Sync + Chmod 0644，
+// 失败自动清理临时文件，不留半截目标（原直写 os.Create + 失败 os.Remove 降级为原子模式）。
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return err
-	}
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		// 复制中断/失败时清理半截目标文件，避免损坏文件留盘误导用户
-		out.Close()
-		os.Remove(dst)
-		return err
-	}
-	// Sync + 显式 Close 检查——defer 吞掉 Close 错误时，
-	// ENOSPC/EIO 落盘失败被误判成功，损坏文件留盘（与 recycle/installer 同款反模式）
-	if err := out.Sync(); err != nil {
-		out.Close()
-		os.Remove(dst)
-		return err
-	}
-	if err := out.Close(); err != nil {
-		os.Remove(dst)
-		return err
-	}
-	if chErr := os.Chmod(dst, 0644); chErr != nil {
-		log.Printf("[importer] 设置权限失败 %s: %v", dst, chErr)
-	}
-	return nil
+	return fsutil.CopyFile(src, dst)
 }
 
 // ===== 初始化注册 =====
