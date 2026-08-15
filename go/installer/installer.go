@@ -216,7 +216,7 @@ func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 		if !dstExisted {
 			if rmErr := os.RemoveAll(finalDst); rmErr != nil {
 				log.Printf("[installer] 回滚删除失败 %s: %v（磁盘上可能留有部分文件）", finalDst, rmErr)
-				return fmt.Errorf("%w; 回滚失败: %v", err, rmErr)
+				return fmt.Errorf("%w; 回滚失败: %w", err, rmErr)
 			}
 		}
 		return err
@@ -308,7 +308,7 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 		log.Printf("[installer] readdir 失败 %s: %v", srcDir, err)
 		return err
 	}
-	var errs []string
+	var errs []error
 	for _, entry := range entries {
 		if entry.IsDir() {
 			// 递归处理子目录（MMD 的 spa/textures/toon 等深层子文件夹）
@@ -316,7 +316,7 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 			subDst := filepath.Join(finalDst, entry.Name())
 			if err := installDirRecursive(subSrc, subDst, linkMode, rtype, filesRoot); err != nil {
 				log.Printf("[installer] 递归安装 %s 失败: %v (继续)", subSrc, err)
-				errs = append(errs, fmt.Sprintf("%s: %v", entry.Name(), err))
+				errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
 			}
 			continue
 		}
@@ -343,22 +343,22 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 		case "hardlink":
 			if err := linkOrCopyLocked(srcFile, finalDst); err != nil {
 				log.Printf("[installer] linkOrCopy 失败 %s: %v (继续)", srcFile, err)
-				errs = append(errs, fmt.Sprintf("%s: %v", entry.Name(), err))
+				errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
 			}
 		case "symlink":
 			if err := symlinkOrCopyLocked(srcFile, finalDst); err != nil {
 				log.Printf("[installer] symlinkOrCopy 失败 %s: %v (继续)", srcFile, err)
-				errs = append(errs, fmt.Sprintf("%s: %v", entry.Name(), err))
+				errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
 			}
 		default:
 			if _, err := copyFileLocked(srcFile, finalDst); err != nil {
 				log.Printf("[installer] CopyFile 失败 %s: %v (继续)", srcFile, err)
-				errs = append(errs, fmt.Sprintf("%s: %v", entry.Name(), err))
+				errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
 			}
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("安装目录 %s 部分失败: %s", srcDir, strings.Join(errs, "; "))
+		return fmt.Errorf("安装目录 %s 部分失败: %w", srcDir, errors.Join(errs...))
 	}
 	return nil
 }
