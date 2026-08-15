@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 81 | 212 |
+| frontend/views | 82 | 215 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **278** | **1149** |
+| **合计** | **279** | **1152** |
 
 ## Go·头像
 
@@ -1285,6 +1285,9 @@
 | `getPrefer3D()` | `frontend/src/views/app-preview/utils:60` | — |
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
 | `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
+| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:27` | 任意新预览派发时调用，作废在途 VRM 加载（对齐 invalidateLitematicPreview） |
+| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:32` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:54` | — |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
