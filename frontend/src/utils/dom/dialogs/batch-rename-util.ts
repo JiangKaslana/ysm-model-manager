@@ -4,12 +4,14 @@
 // 批量重建空段跳过（无缺省「未知」/「?」），并保留 .ban 尾缀与「角色名回退到文件名」。
 import type { ParsedModelName } from "../../dom/display.ts";
 import { RESOURCE_TYPES } from "../../resource/types.ts";
+import { buildModelName } from "./rename-format.ts";
 
 /**
  * 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.ban)`
  * - 作者/作品空值跳过；角色缺省回退到「剥 .ban 与扩展名后的文件名」；
  * - 扩展名取原名（缺省 ysm）；banned 文件保留 `.ban` 尾缀。
  * 调用方负责比较 newName !== name 判定 changed。
+ * 拼接收敛至 rename-format 的 buildModelName 引擎（索引 4.9：空段跳过 + keepBan）。
  */
 export function rebuildParsedName(
   name: string,
@@ -23,12 +25,7 @@ export function rebuildParsedName(
   const c = p.chara || clean.replace(/\.\w+$/, "");
   const d = p.date || "";
   const ext = clean.match(/\.(\w+)$/)?.[1] || RESOURCE_TYPES.YSM;
-  const parts: string[] = [];
-  if (a) parts.push("[" + a + "]");
-  if (w) parts.push("【" + w + "】");
-  parts.push(c);
-  if (d) parts.push(" (" + d + ")");
-  return parts.join("") + "." + ext + (isBan ? ".ban" : "");
+  return buildModelName({ author: a, work: w, chara: c, date: d }, ext, { keepBan: isBan });
 }
 
 export interface ReplaceResult {

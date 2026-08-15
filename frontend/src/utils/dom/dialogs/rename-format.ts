@@ -13,17 +13,52 @@ export interface RenameFields {
 }
 
 /**
- * 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext`
- * 品牌缺省「未知」、角色缺省「?」，与预览一致。
+ * 命名模板引擎选项（索引 4.9 收敛 buildRenameName / rebuildParsedName 两套手工拼接）：
+ * - fillDefaults=true：空作品补「未知」、空角色补「?」（单重命名缺省填充语义）；
+ * - fillDefaults=false：空段跳过（批量重建语义，角色回退文件名由调用方预先算好）；
+ * - keepBan=true：保留 .ban 尾缀（批量重命名场景）。
  */
-export function buildRenameName(f: RenameFields, ext: string): string {
+export interface BuildModelNameOptions {
+  fillDefaults?: boolean;
+  keepBan?: boolean;
+}
+
+/** 命名模板输入字段（variant 可选：单重命名有、批量重建无） */
+export interface ModelNameFields {
+  author: string;
+  work: string;
+  chara: string;
+  variant?: string;
+  date: string;
+}
+
+/**
+ * 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.ban]`
+ * 单一模板引擎——buildRenameName（缺省填充）与 rebuildParsedName（空段跳过 + .ban）
+ * 共用，语义差异走选项，不再各自手写拼接（索引 4.9）。
+ */
+export function buildModelName(
+  f: ModelNameFields,
+  ext: string,
+  opts: BuildModelNameOptions = {},
+): string {
   const parts: string[] = [];
   if (f.author) parts.push("[" + f.author + "]");
-  parts.push("【" + (f.work || "未知") + "】");
-  parts.push(f.chara || "?");
+  if (f.work) parts.push("【" + f.work + "】");
+  else if (opts.fillDefaults) parts.push("【未知】");
+  if (f.chara) parts.push(f.chara);
+  else if (opts.fillDefaults) parts.push("?");
   if (f.variant) parts.push("-" + f.variant);
   if (f.date) parts.push(" (" + f.date + ")");
-  return parts.join("") + "." + ext;
+  return parts.join("") + "." + ext + (opts.keepBan ? ".ban" : "");
+}
+
+/**
+ * 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext`
+ * 品牌缺省「未知」、角色缺省「?」，与预览一致（收敛自 buildModelName，索引 4.9）。
+ */
+export function buildRenameName(f: RenameFields, ext: string): string {
+  return buildModelName(f, ext, { fillDefaults: true });
 }
 
 /** Windows 文件名非法字符（含控制字符） */

@@ -20,6 +20,24 @@ interface NameMark {
 }
 
 /**
+ * 括号风格注册表（YSM 生态核心约定，索引 4.7）：作者段 `[...]`（tag-author 青）、
+ * 作品段 `【...】`/`《...》`（tag-work 灰，Design.md §3 语义色）。
+ * parseModelName / renderDisplayName 共用，新增/调整括号风格只改本表。
+ */
+const BRACKET_STYLES = [
+  { open: "[", close: "]", tag: "tag-author" },
+  { open: "【", close: "】", tag: "tag-work" },
+  { open: "《", close: "》", tag: "tag-work" },
+] as const;
+
+/** 从注册表构建括号段匹配正则（内容捕获，非全局） */
+function bracketRe(style: (typeof BRACKET_STYLES)[number]): RegExp {
+  return new RegExp(
+    escRegex(style.open) + "([^" + escRegex(style.close) + "]+?)" + escRegex(style.close),
+  );
+}
+
+/**
  * 解析模型文件名 → 结构化字段
  * 支持格式: [作者]【作品】角色变体2023-05.ysm
  * 也兼容: [作者]《作品》角色变体2023-05.ysm
@@ -27,12 +45,20 @@ interface NameMark {
 export function parseModelName(raw: string): ParsedModelName {
   const name = /\.ban$/i.test(raw) ? raw.slice(0, -4) : raw;
   const extMatch = name.match(/\.(\w+)$/);
-  const aMatch = name.match(/\[\[([^\]]+?)\]\]/) || name.match(/\[([^\]]+?)\]/);
-  const wMatch = name.match(/【([^】]+?)】/) || name.match(/《([^》]+?)》/);
+  const aMatch = name.match(/\[\[([^\]]+?)\]\]/) || name.match(bracketRe(BRACKET_STYLES[0]));
+  const wMatch = name.match(bracketRe(BRACKET_STYLES[1])) || name.match(bracketRe(BRACKET_STYLES[2]));
   // P3 修复（子代理审计）：① 日期提取先剥括号段——`[作者]【2023】角色2024.ysm`
   // 原 dMatch 命中括号内 2023（静默取错日期）；② 修正则贪婪——`角色20230.ysm`
   // 原 `[-_.]?(\d{1,2})?` 把后随 0 当月份产出 `2023-0` 畸形日期
-  const dateName = name.replace(/\[\[[^\]]+?\]\]|\[[^\]]+?\]|【[^】]+?】|《[^》]+?》/g, "");
+  // 剥离正则由注册表拼接（双括号作者段特判 + BRACKET_STYLES 三风格），与 render 共用
+  const bracketStripRe = new RegExp(
+    "\\[\\[[^\\]]+?\\]\\]" +
+      BRACKET_STYLES.map(
+        (s) => escRegex(s.open) + "[^" + escRegex(s.close) + "]+?" + escRegex(s.close),
+      ).join("|"),
+    "g",
+  );
+  const dateName = name.replace(bracketStripRe, "");
   // P3 修复（code review）：无分隔符 YYYYMM 月份恢复——`角色202305.ysm` 原正则
   // 要求分隔符才取月份（202305 → 只 "2023" 丢月份）；补 `(\d{2})` 分支并在下方
   // 校验月份 01-12（`20230` 尾随 0 不是合法月份 → 仍只取年份，防畸形回退）
@@ -95,40 +121,20 @@ export function renderDisplayName(raw: string, opts?: unknown): string {
   // 先找到所有匹配位置，按文件中的原始顺序排序
   const matches: NameMark[] = [];
 
-  // 匹配 [xxx]
-  const re1 = /\[([^\]]+?)\]/g;
-  let m1: RegExpExecArray | null;
-  while ((m1 = re1.exec(name)) !== null) {
-    matches.push({
-      // P3 修复（子代理审计，问题 14）：`[ ]` 是作者段——原标 tag-work 与头注释
-      // 「--meta-author/--meta-work/--meta-date」及 summarize.ts:113 的 tag-author
-      // 不一致（Design.md §3 语义色：作者青 / 作品灰）；【】/《》保持 tag-work
-      idx: m1.index,
-      html: '<span class="tag-author">' + esc(m1[0]) + "</span>",
-      len: m1[0].length,
-    });
-  }
-
-  // 匹配 【xxx】
-  const re2 = /【([^】]+?)】/g;
-  let m2: RegExpExecArray | null;
-  while ((m2 = re2.exec(name)) !== null) {
-    matches.push({
-      idx: m2.index,
-      html: '<span class="tag-work">' + esc(m2[0]) + "</span>",
-      len: m2[0].length,
-    });
-  }
-
-  // 匹配 《xxx》
-  const re3 = /《([^》]+?)》/g;
-  let m3: RegExpExecArray | null;
-  while ((m3 = re3.exec(name)) !== null) {
-    matches.push({
-      idx: m3.index,
-      html: '<span class="tag-work">' + esc(m3[0]) + "</span>",
-      len: m3[0].length,
-    });
+  // 匹配括号段（注册表驱动，索引 4.7）：[作者]/【作品】/《作品》共用 BRACKET_STYLES
+  for (const style of BRACKET_STYLES) {
+    const re = new RegExp(escRegex(style.open) + "([^" + escRegex(style.close) + "]+?)" + escRegex(style.close), "g");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(name)) !== null) {
+      matches.push({
+        idx: m.index,
+        // P3 修复（子代理审计，问题 14）：`[ ]` 是作者段——原标 tag-work 与头注释
+        // 「--meta-author/--meta-work/--meta-date」及 summarize.ts:113 的 tag-author
+        // 不一致（Design.md §3 语义色：作者青 / 作品灰）；【】/《》保持 tag-work
+        html: '<span class="' + style.tag + '">' + esc(m[0]) + "</span>",
+        len: m[0].length,
+      });
+    }
   }
 
   // 匹配日期
