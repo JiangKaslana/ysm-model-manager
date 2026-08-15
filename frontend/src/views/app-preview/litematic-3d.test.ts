@@ -458,9 +458,12 @@ describe("审核补充：边界与异步路径", () => {
     } as never);
     const p = createLitematic3D("/slow.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay(); // overlay 同步已挂载（首个 await 之前）
+    // 让 build 越过首个 await getApp()、真正进入 await fn(path)：此刻 resolveFn 才被真实赋值；
+    // 必须在此微任务让出后、再发 ESC，才能命中「加载中关闭」分支（迟到的数据不重建 overlay）。
+    await Promise.resolve();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(document.body.contains(overlay)).toBe(false);
-    resolveFn(VALID_JSON);
+    resolveFn(VALID_JSON); // 此刻 resolveFn 已是 fn(path) 的真实 resolver
     await p;
     expect(document.body.contains(overlay)).toBe(false); // 迟到数据不复活
   });

@@ -256,4 +256,34 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
 
 **验证**：`npm run typecheck` ✅；`npx vite build` ✅；`go test ./go/types/...` ✅；`go build ./go/...` ✅。
 
+### 5.5 P3 — 统一 `mountPreview` 单一渲染核心（收缴 vrm/litematic 复制脚手架，`<待填 commit>`）
+
+**范围决策**（用户拍板「vrm+litematic 先入 core」）：YS
+
+M 3D（`skeleton.ts`/`skeleton-render.ts`）是更重的模型检视器且已返回统一句柄 `Model3DHandleX`，故本轮只收敛**纯复制脚手架**的 vrm 与 litematic 两套，YS
+
+M 留待 P3-E 经注册表单点派发。
+
+**`frontend/src/views/app-preview/mount-preview-core.ts`**（NEW，单一事实来源）：
+- 拥有通用外壳：overlay + topBar(关闭/旋转模式/速度) + viewContainer + loadingEl + scene/camera/renderer/OrbitControls/灯光 + WASD/拖拽自转 + resize + rAF + ESC + GPU 资源释放；
+- 导出 `mount3D(adapter, path)` / `cleanupPreview()` / `invalidatePreview()`；模块级 `_handle` + `_gen` 代际计数防快速切换竞态；
+- 定义契约 `PreviewBuildCtx` / `PreviewScene` / `PreviewAdapter` / `PreviewHandle`，**对齐 YSM 既有 `Model3DHandleX`**（方法全可选，便于纯静态渲染 + `extraControls(topBar)` 钩子挂适配器专属控件）；
+- `orbitTarget` 改用 `controls.target.clone()`（避免依赖 `THREE.Vector3` 构造，兼容测试 stub）；`scene.traverse` 释放加 `typeof === "function"` 守卫；
+- **loadingEl 移除交适配器在成功路径自行处理**（旧 vrm/litematic 即在 build 内 `loadingEl.remove()`），核心不强制移除，避免空数据/错误提示被误删。
+
+**`frontend/src/views/app-preview/vrm-adapter.ts`**（NEW）：`buildVrmScene(ctx, path)` — `ReadFileBytes` → `GLTFLoader.parse` + `VRMLoaderPlugin` → `VRMUtils.rotateVRM0` → 注入 scene/灯光/包围盒定相机；`update:(dt)=>vrm.update(dt)`；`dispose:()=>VRMUtils.deepDispose(vrm.scene)`；成功路径 `ctx.loadingEl.remove()`。
+
+**`frontend/src/views/app-preview/litematic-adapter.ts`**（NEW）：`buildLitematicScene(ctx, path, voxelFn)` — 体素 InstancedMesh + 分层 UI(axis/layer/sliders) + 灯光 + GridHelper + 定相机；分层控件经 `extraControls(topBar)` 挂入；成功路径 `ctx.loadingEl.remove()`。保留 P2/P4 修复（分层按 (group,chunk) 寻址、坐标口径陷阱 #11/#17、数字输入 0 钳到 1）。
+
+**薄包装改写（公开符号兼容，litematic-meta.ts 与既有测试无需改动）**：
+- `vrm-3d.ts`：`createVrm3D`/`cleanupVrm3D`/`invalidateVrmPreview` → 转发 `mount3D(vrmAdapter, path)`/`cleanupPreview`/`invalidatePreview`；
+- `litematic-3d.ts`：`createLitematic3D`/`cleanupVoxel3D`/`invalidateLitematicPreview` → 经 `makeLitematicAdapter(voxelFn)` 工厂转发。
+
+**ESC 异步守卫修复（原唯一失败测试「加载期间 ESC 关闭 → aborted 守卫」）**：
+- 根因：`buildLitematicScene` 首 await 为 `await getApp()`（早于 `await fn(path)`），旧测试在 `createLitematic3D` 同步返回后立即 `resolveFn(VALID_JSON)`，此时 `GetLitematicVoxelData` 尚未被调用、`resolveFn` 仍是空操作 → `await p` 永久挂起超时；
+- 真实泄漏：原 aborted 分支仅 `built.dispose()`，未停 rAF 循环、未 dispose renderer/scene（`_handle` 在 `closeOverlay` 已置 null），外壳资源泄漏；
+- 修复：aborted 分支改调 `fullCleanup()`（完整拆除外壳 + 内容层）；测试在分发 ESC 前 `await Promise.resolve()` 让出微任务，使 build 越过 `await getApp()` 真正进入 `await fn(path)`，`resolveFn` 此刻才被真实赋值。
+
+**验证**：`npm run typecheck` ✅；`npx vite build` ✅；`vitest src/views/app-preview/`（235 tests）全绿（含修复后的 ESC 异步守卫用例）。
+
 <!-- 文件名: universal-resource-preview.md → 实际文件 ADR-066-universal-resource-preview.md -->
