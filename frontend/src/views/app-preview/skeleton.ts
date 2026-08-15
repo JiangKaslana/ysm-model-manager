@@ -5,21 +5,17 @@ import { loadModelData } from "./loader.ts";
 import { renderModel2D } from "../../utils/3d/model2d.ts";
 import { openFullPreview } from "./zoom.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
-import type { BoneSelectInfo } from "../../utils/3d/model3d.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
-import { ensureFabStyles, createIconButton } from "../../utils/dom/fab.ts";
 import { registerAndroidBackHandler } from "../../utils/dom/android-bridge.ts";
-import { preloadModel } from "./model3d-loader.ts";
-import { renderModel3D } from "../../utils/3d/model3d.ts";
 import { t } from "../../core/i18n/t.ts";
 import { sec, iRow } from "./skeleton-utils.ts";
 import {
   setup2DCanvas, buildToggleRow, buildStatsCard, buildBoneExportRow,
-  build3DOverlay, fill3DPanel, saveScreenshot, type Model3DHandleX,
 } from "./skeleton-render.ts";
+import { createYsm3D, cleanupYsm3D, type YsmModel } from "./ysm-3d.ts";
 
 // 2D 拖拽的 window 监听器槽位：loadModel2D 每次渲染模型都会绑定，
 // 先移除上一轮处理器再绑定，防止 window 级监听器累积泄漏
@@ -112,88 +108,56 @@ export async function loadModel2D(
     canvas.addEventListener("wheel", (e) => { e.preventDefault(); _zoom = Math.max(0.2, Math.min(10, _zoom * Math.exp(-e.deltaY * 0.002))); doRender(); }, { passive: false });
     buildStatsCard(container, model, modelPath, _decodedBy, ctx);
     buildBoneExportRow(container, model as BedrockGeometry & { boneCount?: number; bones?: Array<{ id: string; name: string; parentId?: string }> }, modelPath);
-    let _model3d: Model3DHandleX | null = null;
-    let _overlay3d: HTMLDivElement | null = null;
     let _is3D = false, _prefer3D = getPrefer3D(), _loading3D = false, _model3dGen = 0;
     const _toggle3D = async (): Promise<void> => {
       if (_loading3D) return;
       _is3D = !_is3D; _prefer3D = _is3D; setPrefer3D(_prefer3D);
       if (!_is3D) return;
-      ensureFabStyles(); _loading3D = true;
+      _loading3D = true;
       const gen = ++_model3dGen;
-      const { overlay, topBar, body, viewContainer, panel, shotBtn, shotMenu, resetBtn, modelSel, rotSel, spdSlider, spdVal, loadingEl, closeBtn, panelToggle, resizeHandle, shotWrap } = build3DOverlay(model, ctx);
-      _overlay3d = overlay;
-      if (!container.isConnected) { loadingEl.remove(); return; }
-      const shot = makeShotGuard(shotBtn);
-      const saveShot = async (key: string): Promise<void> => {
-        if (shot.saving) return; shot.setSaving(true);
-        try { await saveScreenshot(model, key, shot.setIcon); }
-        catch (e) { shot.setIcon("\u274C"); console.error("[3D 截图]", e); bus.emit("toast:show", { msg: "截图保存失败：" + friendlyError(e), duration: 4000, type: "error" }); }
-        finally { shot.setSaving(false); }
-      };
-      const shotKeys = ["current", "front", "45", "side", "back45", "all"];
-      shotMenu.querySelectorAll<HTMLElement>(".ysm-ovl-shotitem").forEach((el, i) => { el.onclick = (): void => { shotMenu.style.display = "none"; saveShot(shotKeys[i]); }; });
-      shotBtn.addEventListener("pointerenter", () => { shotMenu.style.display = "block"; });
-      shotBtn.addEventListener("click", (e) => { e.stopPropagation(); shotMenu.style.display = shotMenu.style.display === "block" ? "none" : "block"; });
-      shotWrap.addEventListener("pointerleave", () => { shotMenu.style.display = "none"; });
-      let _texIdx = 0;
-      const texSel = topBar.querySelector<HTMLSelectElement>(".ysm-ovl-select");
-      if (texSel) texSel.onchange = (): void => { _texIdx = parseInt(texSel.value, 10); close3D(); _loading3D = false; _toggle3D(); };
-      let _resizing = false;
-      const onResizeMove = (e: PointerEvent): void => { if (!_resizing) return; const r = body.getBoundingClientRect(); panel.style.width = Math.max(160, Math.min(500, r.right - e.clientX)) + "px"; resizeHandle.style.right = panel.style.width; };
-      const onResizeUp = (e: PointerEvent): void => { _resizing = false; if (resizeHandle.hasPointerCapture(e.pointerId)) resizeHandle.releasePointerCapture(e.pointerId); };
-      resizeHandle.addEventListener("pointerdown", (e) => { if (e.button !== 0) return; _resizing = true; e.preventDefault(); resizeHandle.setPointerCapture(e.pointerId); });
-      document.addEventListener("pointermove", onResizeMove); document.addEventListener("pointerup", onResizeUp);
-      let _panelVisible = true;
-      panelToggle.onclick = (): void => { _panelVisible = !_panelVisible; panel.style.display = _panelVisible ? "" : "none"; panelToggle.className = "ysm-ovl-btn" + (_panelVisible ? " ysm-ovl-panelbtn" : ""); const ic = panelToggle.querySelector<HTMLElement>(".ysm-ic"); if (ic) { ic.classList.remove("ysm-ic--panel-hide", "ysm-ic--panel-show"); ic.classList.add(_panelVisible ? "ysm-ic--panel-hide" : "ysm-ic--panel-show"); } };
       let unsubAndroidBack: (() => void) | null = null;
-      const close3D = (keepPrefer = false): void => { const idx = ctx.unsubs?.indexOf(close3D); if (idx !== undefined && idx > -1) ctx.unsubs?.splice(idx, 1); _active3DClose = null; if (unsubAndroidBack) { unsubAndroidBack(); unsubAndroidBack = null; } document.removeEventListener("pointermove", onResizeMove); document.removeEventListener("pointerup", onResizeUp); if (_model3d) { if (_model3d._timeTimer) clearInterval(_model3d._timeTimer); if (_model3d._keyHandler) document.removeEventListener("keydown", _model3d._keyHandler); _model3d.cleanup(); _model3d = null; } _model3dGen++; if (_overlay3d?.parentNode) _overlay3d.parentNode.removeChild(_overlay3d); _overlay3d = null; _is3D = false; if (!keepPrefer) { _prefer3D = false; setPrefer3D(false); } };
-      ctx.unsubs?.push(close3D); _active3DClose = () => close3D(true);
-      // P3 修复（2667f142 拆分 ADR-040 时绑定丢失）：build3DOverlay 只创建 closeBtn，
-      // onclick 依赖本作用域 close3D 闭包，拆分后未重新挂接——overlay 的 ✕ 点击无响应。
-      // 须在 close3D 定义后（本行）补绑定；close3D 已入 ctx.unsubs，与 ESC/关闭/切模型同路径。
-      closeBtn.onclick = (): void => { close3D(); };
-      // P2 修复（TS 深层扫描）：注销函数必须保存并挂 close3D——原丢弃返回值导致每次
-      // 开关 3D 都向 android-bridge 返回键栈 push 一个恒 return true 的 handler 且永不
-      // 注销：① 打开过一次 3D 后 Android 返回键被陈旧 handler 恒消费（应用无法退出）；
-      // ② 反复开关 3D 栈无限增长。close3D 已入 ctx.unsubs，覆盖 ESC/关闭按钮/切模型/
-      // 组件卸载全部路径，此处补注销即全路径闭合。
-      unsubAndroidBack = registerAndroidBackHandler(() => { close3D(); return true; });
+      // 关闭当前 3D 会话：core 经 adapter.onClose 复位 _is3D/_active3DClose/android-back，
+      // 这里额外处理 ctx.unsubs 注销。
+      const close3D = (keepPrefer = false): void => {
+        const idx = ctx.unsubs?.indexOf(close3D);
+        if (idx !== undefined && idx > -1) ctx.unsubs?.splice(idx, 1);
+        cleanupYsm3D();
+        _model3dGen++;
+        _is3D = false;
+        if (!keepPrefer) {
+          _prefer3D = false;
+          setPrefer3D(false);
+        }
+      };
+      // core 关闭（ESC / 关闭按钮 / 切模型 cleanup）时复位骨架层状态 + 注销 android-back。
+      // 注意：此处不再清 _prefer3D（原 close3D 默认 keepPrefer=false 会清），改为统一保留偏好，
+      // 与「prefer = 用户长期偏好」语义一致，避免 ESC 关 3D 后误清导致切模型不再自动预览。
+      const onClose = (): void => {
+        _is3D = false;
+        _active3DClose = null;
+        if (unsubAndroidBack) {
+          unsubAndroidBack();
+          unsubAndroidBack = null;
+        }
+      };
+      ctx.unsubs?.push(close3D);
+      _active3DClose = () => close3D(true);
+      // P2 修复（TS 深层扫描延续）：android-back 注册须保存 unsub 并在关闭时注销，
+      // 否则反复开关 3D 向返回键栈 push 恒 return true 的 handler 且永不注销。
+      unsubAndroidBack = registerAndroidBackHandler(() => {
+        close3D();
+        return true;
+      });
       try {
-        const { texArr, spec } = await preloadModel(model as import("./model3d-loader.ts").ModelLike);
-        const h = (await renderModel3D(viewContainer, texArr, spec as import("../../utils/3d/model3d.ts").Spec3D, _texIdx)) as Model3DHandleX;
-        if (gen !== _model3dGen) { h.cleanup(); _loading3D = false; return; }
-        _model3d = h; loadingEl.remove();
-        resetBtn.onclick = (): void => { _model3d?.resetCamera(); };
-        _model3d.onBoneSelect = (info: BoneSelectInfo) => {
-          const detailEl = _model3d?._boneDetailEl;
-          if (detailEl) {
-            let txt = "🦴 " + info.name + "\n路径: " + info.path + "\n父骨骼: " + (info.parent || "(无)") + "\n子骨骼: " + info.children.length + " 个\nMesh: " + info.meshCount + "\nlocalPos: (" + info.localPos.map((v: number) => v.toFixed(3)).join(", ") + ")\n世界坐标: (" + info.worldPos.map((v: number) => v.toFixed(2)).join(", ") + ")";
-            if (info.localRot) txt += "\nlocalRot: (" + info.localRot.map((v: number) => v.toFixed(4)).join(", ") + ")";
-            if (info.cubeRot) txt += "\ncubeRot: (" + info.cubeRot.map((v: number) => v.toFixed(4)).join(", ") + ")";
-            if (info.cubePos) txt += "\ncubePos: (" + info.cubePos.map((v: number) => v.toFixed(3)).join(", ") + ")";
-            detailEl.textContent = txt;
-            if (detailEl.parentNode) (detailEl.parentNode as HTMLElement).style.display = "block";
-          }
-          const bc = document.querySelector<HTMLElement>(`#ysm-3d-panel [style*="max-height:300px"]`);
-          if (bc) { for (const lbl of bc.querySelectorAll<HTMLLabelElement>("label")) { const sp = lbl.querySelector("span"); if (sp && sp.textContent === info.name) { lbl.scrollIntoView({ block: "nearest", behavior: "smooth" }); lbl.style.background = "rgba(124,131,255,0.25)"; setTimeout(() => { lbl.style.background = ""; }, 1500); break; } } }
-        };
-        fill3DPanel(panel, model, texArr as import("three").Texture[], spec as import("../../utils/3d/model3d.ts").Spec3D, _model3d, modelSel);
-        const tip = document.createElement("div"); tip.style.cssText = "padding:6px 12px;background:rgba(124,131,255,0.2);color:#fff;font-size:12px;text-align:center;flex-shrink:0;font-weight:500";
-        const _isTouch = window.matchMedia?.("(pointer:coarse)").matches ?? false;
-        tip.textContent = _isTouch ? "👆 拖拽旋转 · 双指缩放 · ✕ 关闭" : "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
-        overlay.insertBefore(tip, overlay.children[1]); setTimeout(() => { if (tip.parentNode) tip.remove(); }, 6000);
-        rotSel.onchange = (): void => { _model3d?.setRotationMode(rotSel.value === "true"); safeSet("td-rot-mode", rotSel.value === "true" ? "orbit" : "free"); };
-        spdSlider.oninput = (): void => { spdVal.textContent = spdSlider.value; _model3d?.setSpeed(Number(spdSlider.value)); localStorage.setItem("td-cam-speed", spdSlider.value); };
-        modelSel.onchange = (): void => { _model3d?.showModelGroup(parseInt(modelSel.value, 10)); };
-        const onKey = (e: KeyboardEvent): void => { if (e.key !== "Escape") return; close3D(); };
-        document.addEventListener("keydown", onKey); if (_model3d) _model3d._keyHandler = onKey;
+        await createYsm3D(model as YsmModel, 0, { onClose });
       } catch (e) {
         _loading3D = false;
         // P2 修复：用户已关闭 3D（ESC/切模型）后迟到的加载失败不得再弹错——
         // 否则关闭后 1~2s 突然冒「加载失败」toast，掩盖用户主动关闭的意图。
         if (gen !== _model3dGen) return;
-        console.error("[3D] 加载失败:", e); loadingEl.remove(); viewContainer.innerHTML = `<div style="padding:40px;color:#ff6b6b;font-size:14px">⚠️ ${t("preview.preview3dLoadFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`; bus.emit("toast:show", { msg: "❌ " + friendlyError(e, t("preview.preview3dLoadFailed")), duration: 5000, type: "error" }); }
+        // 3D 渲染错误已由 core 统一 toast（t("preview.loadFailed")），此处仅防御性日志
+        console.error("[3D] 加载失败（core 已处理提示）:", e);
+      }
       _loading3D = false;
     };
     const btn3d = ctx.root.getElementById("btn-3d-preview");

@@ -45,7 +45,7 @@ export async function buildVrmScene(ctx: PreviewBuildCtx, path: string): Promise
 
   // VRM0.0 模型背对镜头，转正；VRM1.0 为 no-op 但调用安全
   VRMUtils.rotateVRM0(vrm);
-  ctx.scene.add(vrm.scene);
+  ctx.scene!.add(vrm.scene);
   ctx.loadingEl.remove(); // 加载完成，移除占位（旧 vrm-3d.ts:172 同款）
 
   // 包围盒定相机（VRM 原点在脚底、Y-up、面朝 +Z）
@@ -54,22 +54,22 @@ export async function buildVrmScene(ctx: PreviewBuildCtx, path: string): Promise
   const center = box.getCenter(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
 
-  ctx.camera.near = 0.05;
-  ctx.camera.far = maxDim * 50;
-  ctx.camera.position.set(center.x, center.y + size.y * 0.1, center.z + maxDim * 1.6);
-  ctx.camera.updateProjectionMatrix();
+  ctx.camera!.near = 0.05;
+  ctx.camera!.far = maxDim * 50;
+  ctx.camera!.position.set(center.x, center.y + size.y * 0.1, center.z + maxDim * 1.6);
+  ctx.camera!.updateProjectionMatrix();
 
-  ctx.controls.target.copy(center);
-  ctx.controls.minDistance = maxDim * 0.1;
-  ctx.controls.maxDistance = maxDim * 12;
-  ctx.controls.update();
+  ctx.controls!.target.copy(center);
+  ctx.controls!.minDistance = maxDim * 0.1;
+  ctx.controls!.maxDistance = maxDim * 12;
+  ctx.controls!.update();
 
   // MToon 材质对光有响应，补环境 + 主光 + 半球光
-  ctx.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  ctx.scene!.add(new THREE.AmbientLight(0xffffff, 0.7));
   const dl = new THREE.DirectionalLight(0xffffff, 1.0);
   dl.position.set(1, 2, 1);
-  ctx.scene.add(dl);
-  ctx.scene.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
+  ctx.scene!.add(dl);
+  ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
   return {
     // VRM 动态部分（SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动

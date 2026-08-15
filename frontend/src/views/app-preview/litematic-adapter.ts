@@ -49,27 +49,27 @@ export async function buildLitematicScene(
     centerZ = sizeZ / 2;
   const maxDim = Math.max(sizeX, sizeY, sizeZ, 10);
 
-  ctx.camera.position.set(centerX + maxDim * 1.5, centerY + maxDim, centerZ + maxDim * 1.5);
-  ctx.camera.lookAt(centerX, centerY, centerZ);
+  ctx.camera!.position.set(centerX + maxDim * 1.5, centerY + maxDim, centerZ + maxDim * 1.5);
+  ctx.camera!.lookAt(centerX, centerY, centerZ);
 
-  ctx.controls.target.set(centerX, centerY, centerZ);
-  ctx.controls.minDistance = 1;
-  ctx.controls.maxDistance = maxDim * 8;
-  ctx.controls.update();
+  ctx.controls!.target.set(centerX, centerY, centerZ);
+  ctx.controls!.minDistance = 1;
+  ctx.controls!.maxDistance = maxDim * 8;
+  ctx.controls!.update();
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-  ctx.scene.add(ambient);
+  ctx.scene!.add(ambient);
   const dl1 = new THREE.DirectionalLight(0xffffff, 0.5);
   dl1.position.set(sizeX, sizeY * 2, sizeZ);
-  ctx.scene.add(dl1);
+  ctx.scene!.add(dl1);
   const dl2 = new THREE.DirectionalLight(0xffffff, 0.3);
   dl2.position.set(-sizeX, sizeY, -sizeZ);
-  ctx.scene.add(dl2);
+  ctx.scene!.add(dl2);
 
   const gridSize = Math.ceil(maxDim / 10) * 10;
   const grid = new THREE.GridHelper(gridSize, Math.min(gridSize, 50), 0x6666aa, 0x444488);
   grid.position.set(centerX, 0, centerZ);
-  ctx.scene.add(grid);
+  ctx.scene!.add(grid);
 
   // 常值哨兵陷阱（#17）：体素原点 [0,0,0] 是合法坐标，不可用 `|| 0` 把"缺失/undefined"
   // 当作 0——那样缺字段的位置会被静默地聚到原点生成幽灵方块。此处显式校验每条 position
@@ -123,7 +123,7 @@ export async function buildLitematicScene(
         mesh.setMatrixAt(i, dummy.matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      ctx.scene.add(mesh);
+      ctx.scene!.add(mesh);
       instancedMeshes.push(mesh);
       gMeshes.push({ mesh, ck });
     }

@@ -19,9 +19,10 @@ import type { BoneSelectInfo } from "../../utils/3d/model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
 export interface PreviewBuildCtx {
-  scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
-  controls: OrbitControls;
+  /** shared 模式下由核心创建并传入；self 模式（适配器自驱 renderer，如 ysm 单例）为 undefined */
+  scene?: THREE.Scene;
+  camera?: THREE.PerspectiveCamera;
+  controls?: OrbitControls;
   viewContainer: HTMLElement;
   loadingEl: HTMLElement;
   overlay: HTMLElement;
@@ -40,11 +41,17 @@ export interface PreviewScene {
   onBoneSelect?(info: BoneSelectInfo): void;
   /** 在通用 topBar 之后追加适配器专属控件（litematic 分层 / ysm 侧栏按钮等） */
   extraControls?(topBar: HTMLElement): void;
+  /** 在核心侧栏（如有）挂载适配器专属面板内容（ysm 骨骼列表/详情等） */
+  extraPanel?(panel: HTMLElement): void;
 }
 
 export interface PreviewAdapter {
   id: string;
+  /** "shared"（默认）：核心创建 renderer/scene/controls 并驱循环；"self"：适配器自驱（如 ysm 单例），核心仅提供外壳 */
+  mode?: "shared" | "self";
   build(ctx: PreviewBuildCtx, path: string): Promise<PreviewScene>;
+  /** core 关闭（ESC / 关闭按钮 / 切模型 cleanup）时回调：供适配器复位调用方状态、注销平台返回键等 */
+  onClose?(): void;
 }
 
 /** 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） */
@@ -84,8 +91,10 @@ export function cleanupPreview(): void {
 export async function mount3D(adapter: PreviewAdapter, path: string): Promise<void> {
   cleanupPreview(); // 复用：再次创建先清旧的
   const myGen = ++_gen;
+  const selfMode = adapter.mode === "self";
 
   const overlay = document.createElement("div");
+  overlay.id = "ysm-overlay-3d"; // 对齐旧 skeleton overlay 定位（测试/样式钩子）
   overlay.style.cssText =
     "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#1a1b2e;display:flex;flex-direction:column";
   document.body.appendChild(overlay);
@@ -95,6 +104,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
     "display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(0,0,0,0.3);flex-shrink:0;position:relative;z-index:10;color:#fff;font-size:13px;pointer-events:auto";
 
   const closeBtn = document.createElement("button");
+  closeBtn.id = "ysm-close-3d"; // 对齐旧 skeleton-render 关闭按钮 id（测试/样式钩子）
   closeBtn.textContent = "✕ " + t("preview.close3d");
   closeBtn.style.cssText =
     "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
@@ -104,47 +114,69 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
   spacer.style.cssText = "flex:1";
   topBar.appendChild(spacer);
 
-  const rotLabel = document.createElement("span");
-  rotLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
-  rotLabel.textContent = t("preview.cameraRotation") + ":";
-  topBar.appendChild(rotLabel);
+  // 通用相机控件（仅 shared 模式：self 模式由适配器经 extraControls 自带旋转/速度）
+  if (!selfMode) {
+    const rotLabel = document.createElement("span");
+    rotLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
+    rotLabel.textContent = t("preview.cameraRotation") + ":";
+    topBar.appendChild(rotLabel);
 
-  const rotSel = document.createElement("select");
-  rotSel.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;margin-right:8px";
-  [
-    { v: true, t: "环绕" },
-    { v: false, t: "自身" },
-  ].forEach((m) => {
-    const opt = document.createElement("option");
-    opt.value = String(m.v);
-    opt.textContent = m.t;
-    rotSel.appendChild(opt);
-  });
-  topBar.appendChild(rotSel);
+    const rotSel = document.createElement("select");
+    rotSel.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;margin-right:8px";
+    [
+      { v: true, t: "环绕" },
+      { v: false, t: "自身" },
+    ].forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = String(m.v);
+      opt.textContent = m.t;
+      rotSel.appendChild(opt);
+    });
+    topBar.appendChild(rotSel);
 
-  const spdLabel = document.createElement("span");
-  spdLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
-  spdLabel.textContent = t("preview.cameraSpeed") + ":";
-  topBar.appendChild(spdLabel);
+    const spdLabel = document.createElement("span");
+    spdLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
+    spdLabel.textContent = t("preview.cameraSpeed") + ":";
+    topBar.appendChild(spdLabel);
 
-  const spdSlider = document.createElement("input");
-  spdSlider.type = "range";
-  spdSlider.min = String(MIN_CAM_SPEED);
-  spdSlider.max = String(MAX_CAM_SPEED);
-  spdSlider.value = String(DEFAULT_CAM_SPEED);
-  spdSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-  topBar.appendChild(spdSlider);
+    const spdSlider = document.createElement("input");
+    spdSlider.type = "range";
+    spdSlider.min = String(MIN_CAM_SPEED);
+    spdSlider.max = String(MAX_CAM_SPEED);
+    spdSlider.value = String(DEFAULT_CAM_SPEED);
+    spdSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+    topBar.appendChild(spdSlider);
 
-  const spdVal = document.createElement("span");
-  spdVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:20px";
-  spdVal.textContent = "20";
-  topBar.appendChild(spdVal);
+    const spdVal = document.createElement("span");
+    spdVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:20px";
+    spdVal.textContent = "20";
+    topBar.appendChild(spdVal);
+
+    rotSel.onchange = (): void => {
+      orbitMode = rotSel.value === "true";
+      if (controls) controls.enableRotate = orbitMode;
+      if (orbitMode) {
+        if (orbitTarget && controls) orbitTarget.copy(controls.target);
+      } else {
+        if (camera) euler.setFromQuaternion(camera.quaternion);
+      }
+      mouseDown = false;
+    };
+    spdSlider.oninput = (): void => {
+      camSpeed = Number(spdSlider.value);
+      spdVal.textContent = spdSlider.value;
+    };
+  }
 
   overlay.appendChild(topBar);
 
+  // 主体：body(flex row) 内放 viewContainer；self 模式适配器经 extraPanel 往 body 追加侧栏
+  const body = document.createElement("div");
+  body.style.cssText = "flex:1;display:flex;flex-direction:row;position:relative;overflow:hidden";
   const viewContainer = document.createElement("div");
-  viewContainer.style.cssText = "flex:1;position:relative";
-  overlay.appendChild(viewContainer);
+  viewContainer.style.cssText = "flex:1;position:relative;overflow:hidden";
+  body.appendChild(viewContainer);
+  overlay.appendChild(body);
 
   const loadingEl = document.createElement("div");
   loadingEl.style.cssText =
@@ -163,6 +195,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
     document.removeEventListener("keydown", escH);
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
     _handle = null;
+    adapter.onClose?.();
   }
   closeBtn.onclick = () => {
     if (cleanupFn) cleanupFn();
@@ -170,161 +203,155 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
   };
   document.addEventListener("keydown", escH);
 
-  // 通用外壳：场景 / 相机 / renderer / 控制器（灯光由适配器按内容补）
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#1a1b2e");
-
-  const camera = new THREE.PerspectiveCamera(
-    50,
-    viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1),
-    0.05,
-    5000,
-  );
-
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.domElement.style.touchAction = "none"; // ADR-047：触屏拖拽旋转需禁手势默认
-  viewContainer.appendChild(renderer.domElement);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.1;
-  controls.minDistance = 0.1;
-  controls.maxDistance = 5000;
-  controls.update();
-
-  // 通用相机状态（WASD / 环绕 vs 自身旋转 / 速度）
+  // ---- shared 模式专属：核心创建 场景/相机/renderer/控制器 + 输入 + rAF 循环 ----
+  // self 模式由适配器（如 ysm 的 renderModel3D 单例）自行驱动这些，核心只提供外壳，
+  // 避免与适配器自带 renderer/循环冲突（双重渲染 / 双重键盘劫持）。
+  let scene: THREE.Scene | undefined;
+  let camera: THREE.PerspectiveCamera | undefined;
+  let renderer: THREE.WebGLRenderer | undefined;
+  let controls: OrbitControls | undefined;
   const isDisposed = { v: false };
   const keys: Record<string, boolean> = {};
   let camSpeed = DEFAULT_CAM_SPEED;
   let orbitMode = true;
-  // 对齐旧 vrm/litematic：用 controls.target 克隆体承载环绕焦点（避免依赖 THREE.Vector3 构造）
-  const orbitTarget = controls.target.clone();
   const euler = new THREE.Euler(0, 0, 0, "YXZ");
   let mouseDown = false;
   let lastMouse = { x: 0, y: 0 };
+  let orbitTarget: THREE.Vector3 | undefined;
+  let animId = 0;
+  let perFrame: ((dt: number) => void) | null = null;
+  let onKeyDown: (e: KeyboardEvent) => void = () => {};
+  let onKeyUp: (e: KeyboardEvent) => void = () => {};
+  let onDragPointerUp: (e: PointerEvent) => void = () => {};
+  let onDragPointerMove: (e: PointerEvent) => void = () => {};
+  let onResize: () => void = () => {};
 
-  function onKeyDown(e: KeyboardEvent): void {
-    keys[e.key.toLowerCase()] = true;
-    if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(e.key.toLowerCase())) {
-      e.preventDefault();
-    }
-  }
-  function onKeyUp(e: KeyboardEvent): void {
-    keys[e.key.toLowerCase()] = false;
-  }
-  document.addEventListener("keydown", onKeyDown);
-  document.addEventListener("keyup", onKeyUp);
+  if (!selfMode) {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color("#1a1b2e");
+    camera = new THREE.PerspectiveCamera(
+      50,
+      viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1),
+      0.05,
+      5000,
+    );
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.touchAction = "none"; // ADR-047：触屏拖拽旋转需禁手势默认
+    viewContainer.appendChild(renderer.domElement);
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.minDistance = 0.1;
+    controls.maxDistance = 5000;
+    controls.update();
+    orbitTarget = (controls as OrbitControls).target.clone();
+    controls.enableRotate = true;
 
-  function onDragPointerDown(e: PointerEvent): void {
-    if (!orbitMode && e.button === 0) {
-      mouseDown = true;
+    onKeyDown = (e: KeyboardEvent): void => {
+      keys[e.key.toLowerCase()] = true;
+      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+      }
+    };
+    onKeyUp = (e: KeyboardEvent): void => { keys[e.key.toLowerCase()] = false; };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keyup", onKeyUp);
+
+    const onDragPointerDown = (e: PointerEvent): void => {
+      if (!orbitMode && e.button === 0) {
+        mouseDown = true;
+        lastMouse.x = e.clientX;
+        lastMouse.y = e.clientY;
+        (renderer as THREE.WebGLRenderer).domElement.setPointerCapture(e.pointerId);
+      }
+    };
+    onDragPointerUp = (e: PointerEvent): void => {
+      mouseDown = false;
+      const rd = renderer as THREE.WebGLRenderer;
+      if (rd.domElement.hasPointerCapture(e.pointerId)) rd.domElement.releasePointerCapture(e.pointerId);
+    };
+    onDragPointerMove = (e: PointerEvent): void => {
+      if (orbitMode || !mouseDown) return;
+      const dx = e.clientX - lastMouse.x;
+      const dy = e.clientY - lastMouse.y;
       lastMouse.x = e.clientX;
       lastMouse.y = e.clientY;
-      renderer.domElement.setPointerCapture(e.pointerId);
+      const cam = camera as THREE.PerspectiveCamera;
+      euler.setFromQuaternion(cam.quaternion);
+      euler.y -= dx * DRAG_ROTATE_SENSITIVITY;
+      euler.x -= dy * DRAG_ROTATE_SENSITIVITY;
+      euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
+      cam.quaternion.setFromEuler(euler);
+    };
+    (renderer as THREE.WebGLRenderer).domElement.addEventListener("pointerdown", onDragPointerDown);
+    window.addEventListener("pointerup", onDragPointerUp);
+    window.addEventListener("pointermove", onDragPointerMove);
+
+    onResize = (): void => {
+      if (isDisposed.v) return;
+      const cam = camera as THREE.PerspectiveCamera;
+      const rd = renderer as THREE.WebGLRenderer;
+      cam.aspect = viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1);
+      cam.updateProjectionMatrix();
+      rd.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+    };
+    window.addEventListener("resize", onResize);
+
+    let lastTime = performance.now();
+    function animate(): void {
+      if (isDisposed.v) return;
+      animId = requestAnimationFrame(animate);
+      const now = performance.now();
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+      const cam = camera as THREE.PerspectiveCamera;
+      const sc = scene as THREE.Scene;
+      const rd = renderer as THREE.WebGLRenderer;
+      const ctr = controls as OrbitControls;
+      const ot = orbitTarget as THREE.Vector3;
+      const camDir = new THREE.Vector3();
+      cam.getWorldDirection(camDir);
+      const forward = new THREE.Vector3(camDir.x, 0, camDir.z).normalize();
+      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+      const move = new THREE.Vector3();
+      if (keys["w"] || keys["arrowup"]) move.add(forward);
+      if (keys["s"] || keys["arrowdown"]) move.sub(forward);
+      if (keys["a"] || keys["arrowleft"]) move.sub(right);
+      if (keys["d"] || keys["arrowright"]) move.add(right);
+      if (keys[" "]) move.y += 1;
+      if (keys["shift"]) move.y -= 1;
+      if (move.length() > 0) {
+        move.normalize().multiplyScalar(camSpeed * dt);
+        cam.position.add(move);
+        if (orbitMode) ot.add(move);
+      }
+      if (orbitMode) {
+        ctr.target.copy(ot);
+        ctr.update();
+        ot.copy(ctr.target);
+      } else {
+        ctr.target.copy(cam.position).addScaledVector(camDir, 10);
+        ctr.update();
+      }
+      if (perFrame) perFrame(dt);
+      rd.render(sc, cam);
     }
+    animate();
   }
-  function onDragPointerUp(e: PointerEvent): void {
-    mouseDown = false;
-    if (renderer.domElement.hasPointerCapture(e.pointerId)) {
-      renderer.domElement.releasePointerCapture(e.pointerId);
-    }
-  }
-  function onDragPointerMove(e: PointerEvent): void {
-    if (orbitMode || !mouseDown) return;
-    const dx = e.clientX - lastMouse.x;
-    const dy = e.clientY - lastMouse.y;
-    lastMouse.x = e.clientX;
-    lastMouse.y = e.clientY;
-    euler.setFromQuaternion(camera.quaternion);
-    euler.y -= dx * DRAG_ROTATE_SENSITIVITY;
-    euler.x -= dy * DRAG_ROTATE_SENSITIVITY;
-    euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
-    camera.quaternion.setFromEuler(euler);
-  }
-  renderer.domElement.addEventListener("pointerdown", onDragPointerDown);
-  window.addEventListener("pointerup", onDragPointerUp);
-  window.addEventListener("pointermove", onDragPointerMove);
 
-  controls.enableRotate = true;
-
-  rotSel.onchange = (): void => {
-    orbitMode = rotSel.value === "true";
-    controls.enableRotate = orbitMode;
-    if (orbitMode) {
-      controls.target.copy(orbitTarget);
-    } else {
-      euler.setFromQuaternion(camera.quaternion);
-    }
-    mouseDown = false;
-  };
-  spdSlider.oninput = (): void => {
-    camSpeed = Number(spdSlider.value);
-    spdVal.textContent = spdSlider.value;
-  };
-
-  function onResize(): void {
-    if (isDisposed.v) return;
-    camera.aspect = viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1);
-    camera.updateProjectionMatrix();
-    renderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
-  }
-  window.addEventListener("resize", onResize);
-
-  // 操作提示条（自动消失）
+  // 操作提示条（自动消失，两种模式通用）
   const tip = document.createElement("div");
   tip.style.cssText = "padding:6px 12px;background:rgba(124,131,255,0.2);color:#fff;font-size:12px;text-align:center;flex-shrink:0;font-weight:500";
   tip.textContent = "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
-  overlay.insertBefore(tip, overlay.children[1]);
+  overlay.insertBefore(tip, body);
   setTimeout(() => {
     if (tip.parentNode) tip.remove();
   }, TIP_AUTO_DISMISS_MS);
 
-  let lastTime = performance.now();
-  let animId = 0;
-  let perFrame: ((dt: number) => void) | null = null;
-  function animate(): void {
-    if (isDisposed.v) return;
-    animId = requestAnimationFrame(animate);
-    const now = performance.now();
-    const dt = Math.min((now - lastTime) / 1000, 0.1);
-    lastTime = now;
-
-    const camDir = new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    const forward = new THREE.Vector3(camDir.x, 0, camDir.z).normalize();
-    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-    const move = new THREE.Vector3();
-
-    if (keys["w"] || keys["arrowup"]) move.add(forward);
-    if (keys["s"] || keys["arrowdown"]) move.sub(forward);
-    if (keys["a"] || keys["arrowleft"]) move.sub(right);
-    if (keys["d"] || keys["arrowright"]) move.add(right);
-    if (keys[" "]) move.y += 1;
-    if (keys["shift"]) move.y -= 1;
-
-    if (move.length() > 0) {
-      move.normalize().multiplyScalar(camSpeed * dt);
-      camera.position.add(move);
-      if (orbitMode) orbitTarget.add(move);
-    }
-
-    if (orbitMode) {
-      controls.target.copy(orbitTarget);
-      controls.update();
-      orbitTarget.copy(controls.target);
-    } else {
-      controls.target.copy(camera.position).addScaledVector(camDir, 10);
-      controls.update();
-    }
-
-    if (perFrame) perFrame(dt);
-    renderer.render(scene, camera);
-  }
-  animate();
-
   let cleanupFn: (() => void) | null = null;
+  let panelCleanup: (() => void) | null = null;
 
   try {
     // 代际守卫：await 期间用户已点其他文件 / 被 invalidate，丢弃本次挂载
@@ -344,13 +371,63 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
     // build 内 loadingEl.remove()）；空数据/错误等场景适配器会把提示写在 loadingEl
     // 并保留它，核心不在此强制移除。
 
-    // 同步通用相机状态到适配器已设定的取景（包围盒/尺寸定相机）
-    orbitTarget.copy(controls.target);
-    euler.setFromQuaternion(camera.quaternion);
+    // 同步通用相机状态到适配器已设定的取景（包围盒/尺寸定相机）——仅 shared 模式
+    if (renderer) {
+      orbitTarget!.copy((controls as OrbitControls).target);
+      euler.setFromQuaternion((camera as THREE.PerspectiveCamera).quaternion);
+    }
     perFrame = built.update ?? null;
 
     // 适配器专属控件挂入通用 topBar 之后
     built.extraControls?.(topBar);
+
+    // 适配器侧栏（ysm 骨骼列表/详情等）：核心提供 panel + 折叠/拖拽柄，内容由适配器填充
+    if (built.extraPanel) {
+      const panel = document.createElement("div");
+      panel.id = "ysm-3d-panel"; // 对齐旧 skeleton panel：fill3DPanel 内部选择器依赖此 id（全选/全不选）
+      panel.style.cssText =
+        "width:260px;flex-shrink:0;overflow:auto;background:rgba(0,0,0,0.25);color:#fff;font-size:12px;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.1)";
+      const resizeHandle = document.createElement("div");
+      resizeHandle.style.cssText =
+        "width:4px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,0.2);touch-action:none";
+      body.appendChild(resizeHandle);
+      body.appendChild(panel);
+
+      const panelToggle = document.createElement("button");
+      panelToggle.textContent = "▾";
+      panelToggle.style.cssText =
+        "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;margin-left:4px";
+      topBar.appendChild(panelToggle);
+      let panelVisible = true;
+      panelToggle.onclick = (): void => {
+        panelVisible = !panelVisible;
+        panel.style.display = panelVisible ? "flex" : "none";
+        resizeHandle.style.display = panelVisible ? "" : "none";
+        panelToggle.textContent = panelVisible ? "▾" : "▸";
+      };
+      let resizing = false;
+      const onRM = (e: PointerEvent): void => {
+        if (!resizing) return;
+        panel.style.width = Math.max(160, Math.min(500, body.getBoundingClientRect().right - e.clientX)) + "px";
+      };
+      const onRU = (e: PointerEvent): void => {
+        resizing = false;
+        if (resizeHandle.hasPointerCapture(e.pointerId)) resizeHandle.releasePointerCapture(e.pointerId);
+      };
+      resizeHandle.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        resizing = true;
+        e.preventDefault();
+        resizeHandle.setPointerCapture(e.pointerId);
+      });
+      document.addEventListener("pointermove", onRM);
+      document.addEventListener("pointerup", onRU);
+      panelCleanup = (): void => {
+        document.removeEventListener("pointermove", onRM);
+        document.removeEventListener("pointerup", onRU);
+      };
+      built.extraPanel(panel);
+    }
 
     function fullCleanup(): void {
       if (isDisposed.v) return;
@@ -362,31 +439,36 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
       window.removeEventListener("pointerup", onDragPointerUp);
       window.removeEventListener("pointermove", onDragPointerMove);
       window.removeEventListener("resize", onResize);
+      panelCleanup?.();
       // 内容层先释放自身资源，核心再回收外壳
       try {
         built.dispose();
       } catch (_) {}
       // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
       // （stub 环境 Scene 未必实现 traverse，typeof 守卫避免误崩）
-      if (typeof (scene as unknown as { traverse?: unknown }).traverse === "function") {
-        scene.traverse((obj) => {
-          const mesh = obj as THREE.Mesh;
-          if (mesh.geometry) {
-            try {
-              mesh.geometry.dispose();
-            } catch (_) {}
-          }
-          const mat = (mesh as unknown as { material?: THREE.Material | THREE.Material[] }).material;
-          if (mat) {
-            if (Array.isArray(mat)) mat.forEach((m) => safeDisposeMat(m));
-            else safeDisposeMat(mat);
-          }
-        });
+      if (renderer) {
+        const sc = scene as THREE.Scene;
+        if (typeof (sc as unknown as { traverse?: unknown }).traverse === "function") {
+          sc.traverse((obj) => {
+            const mesh = obj as THREE.Mesh;
+            if (mesh.geometry) {
+              try {
+                mesh.geometry.dispose();
+              } catch (_) {}
+            }
+            const mat = (mesh as unknown as { material?: THREE.Material | THREE.Material[] }).material;
+            if (mat) {
+              if (Array.isArray(mat)) mat.forEach((m) => safeDisposeMat(m));
+              else safeDisposeMat(mat);
+            }
+          });
+        }
+        renderer.dispose();
+        (controls as OrbitControls).dispose();
       }
-      renderer.dispose();
-      controls.dispose();
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       _handle = null;
+      adapter.onClose?.();
     }
 
     function escHandler(e: KeyboardEvent): void {
@@ -406,6 +488,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
     };
   } catch (e) {
     document.removeEventListener("keydown", escH);
+    // P2 守卫（对齐旧 skeleton close3D 语义）：加载期间被 ESC/切模型/invalidate
+    // 打断后迟到的失败不得再弹错——否则关闭后 1~2s 突然冒「加载失败」toast，
+    // 掩盖用户主动关闭的意图（旧实现 skeleton.ts 的 gen 守卫，迁移到核心统一承担）。
+    if (aborted || myGen !== _gen) return;
     console.error("[preview 3D] 加载失败:", e);
     loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`;
     bus.emit("toast:show", {
