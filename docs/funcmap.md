@@ -1146,15 +1146,15 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `LocalCreator()` | `frontend/src/views/app-content/community-data:9` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
-| `CommunityData()` | `frontend/src/views/app-content/community-data:25` | 站点 + 创作者 + 作者 数据包 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:35` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:129` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:183` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:212` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:249` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:273` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:294` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `LocalCreator()` | `frontend/src/views/app-content/community-data:8` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
+| `CommunityData()` | `frontend/src/views/app-content/community-data:24` | 站点 + 创作者 + 作者 数据包 |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:34` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:128` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:182` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:211` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:248` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:272` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:293` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:12` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:2` | — |

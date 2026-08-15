@@ -1,7 +1,7 @@
 // ===== 3D 模型渲染器（类型化版 — ADR-014 P2 大件收尾，ADR-040 P1 增量拆分）=====
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { buildSceneMesh, disposeMaterial, compKey } from "./mesh.ts"; // 网格构建/材质释放
+import { disposeMaterial } from "./mesh.ts"; // 材质释放
 import { loadTdKeymap, loadTdCamSpeed, loadTdRotMode, type TdKeyAction, DEFAULT_TD_KEYMAP } from "./keymap.ts"; // 键位/相机偏好（已拆）
 import { rebuildDebug } from "./debug-render.ts"; // debug 叠加层（已拆）
 import { registerFreeCameraDrag } from "./camera-control.ts"; // free 相机 pointer drag（已拆）
@@ -9,11 +9,9 @@ import { buildBoneHierarchy, registerBoneRaycast } from "./bone-raycast.ts"; // 
 import { disposeDebugGroup, disposeSceneMeshes, safeDisposeRenderer } from "./cleanup-helper.ts"; // 资源清理（已拆）
 import { startRenderLoop } from "./render-loop.ts"; // 主渲染循环（已拆）
 import { fitCameraToScene } from "./camera-setup.ts"; // 相机初始化（已拆）
-import { getBoneList } from "./bone-list.ts"; // 骨骼列表（已拆）
-import { setBoneVisible as _setBoneVisible, toggleBone as _toggleBone, showModelGroup as _showModelGroup } from "./bone-visibility.ts"; // 骨骼可见性（已拆）
 import { resetRendererState, detachRendererCanvas } from "./session-state.ts"; // 会话状态重置（已拆）
 import { setupRenderer } from "./renderer-setup.ts"; // renderer 场景初始化（已拆）
-import { addMeshToBoneGroup } from "./mesh-builder.ts"; // 单个网格构建（已拆）
+import { buildYsmObject } from "./ysm-object.ts"; // YSM 内容场景图构建（§5.7 shared 化，renderModel3D 复用）
 // ── Spec 结构（Go 返回的 models 结构）────────────────
 
 export interface SpecBone3D {
@@ -76,7 +74,7 @@ export interface RenderModel3DHandle {
   setSpeed: (v: number) => void;
   setRotationMode: (orbit: boolean) => void;
   setBoneVisible: (name: string, visible: boolean) => void;
-  getBoneList: () => Array<{ id: string; name: string; parentId?: string }>;
+  getBoneList: () => Array<{ id: string; name: string; parentId?: string | null }>;
   toggleBone: (name: string) => void;
   showModelGroup: (idx: number) => void;
   getModelGroupCount: () => number;
@@ -136,78 +134,10 @@ export async function renderModel3D(
   _camera3d = camera;
   _renderer3d = renderer;
 
-  const { boneGroupMap, rootGroup, modelGroups } = buildSceneMesh(spec);
+  const obj = buildYsmObject(spec, texArr, texIdx);
+  const { boneGroupMap, rootGroup, modelGroups } = obj;
   _rootGroup3d = rootGroup;
   scene.add(rootGroup);
-
-  for (const [mi, mg] of (spec.models || []).entries()) {
-    if (!mg.meshGroups?.length) continue;
-    const grouped = new Map<string, SpecMeshGroup3D[]>();
-    for (const md of mg.meshGroups) {
-      const key = md.boneId + ":" + (md.texIdx ?? 0);
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(md);
-    }
-    const merged: SpecMeshGroup3D[] = [];
-    for (const [, g] of grouped) {
-      if (g.length === 1) {
-        merged.push(g[0]);
-        continue;
-      }
-      let positions: number[] = [];
-      let normals: number[] = [];
-      let uvs: number[] = [];
-      let idx: number[] = [];
-      let idxOff = 0;
-      const standalone: SpecMeshGroup3D[] = [];
-      for (const md of g) {
-        const isId =
-          md.localRotation?.[3] === 1 &&
-          md.localRotation?.[0] === 0 &&
-          md.localRotation?.[1] === 0 &&
-          md.localRotation?.[2] === 0;
-        if (!isId) {
-          standalone.push(md);
-          continue;
-        }
-        const dx = md.localPosition?.[0] || 0;
-        const dy = md.localPosition?.[1] || 0;
-        const dz = md.localPosition?.[2] || 0;
-        for (let i = 0; i < (md.positions?.length || 0); i += 3) {
-          positions.push((md.positions[i] || 0) + dx);
-          positions.push((md.positions[i + 1] || 0) + dy);
-          positions.push((md.positions[i + 2] || 0) + dz);
-        }
-        if (md.normals) normals.push(...md.normals);
-        if (md.uvs) uvs.push(...md.uvs);
-        for (let i = 0; i < (md.indices?.length || 0); i++)
-          idx.push((md.indices[i] || 0) + idxOff);
-        idxOff += (md.positions?.length || 0) / 3;
-      }
-      if (positions.length)
-        merged.push({
-          id: g[0].boneId + "_merged",
-          boneId: g[0].boneId,
-          texIdx: g[0].texIdx,
-          localPosition: [0, 0, 0],
-          localRotation: [0, 0, 0, 1],
-          positions,
-          normals,
-          uvs,
-          indices: idx,
-        });
-      merged.push(...standalone);
-    }
-    mg.meshGroups = merged;
-    for (const md of mg.meshGroups) {
-      const bg = boneGroupMap.get(compKey(mi, md.boneId));
-      if (!bg) continue;
-      if (md.texIdx === undefined) {
-        console.warn("[model3d] mesh 缺 texIdx（spec 契约破坏），回退 0", spec.models?.length);
-      }
-      addMeshToBoneGroup(bg, md, texArr, texIdx, (spec.models?.length ?? 1) > 1);
-    }
-  }
 
   // ysmview 风格相机定位：从 mesh 包围盒计算（已拆至 camera-setup.ts）
   const { initCamPos: _initCamPos, initCamTarget: _initCamTarget } = fitCameraToScene(scene, camera, controls);
@@ -351,11 +281,11 @@ export async function renderModel3D(
         state.mouseDown = false;
       }
     },
-    setBoneVisible: (name, visible) => _setBoneVisible(boneGroupMap, name, visible),
-    getBoneList: () => getBoneList(spec),
-    toggleBone: (name) => _toggleBone(boneGroupMap, name),
-    showModelGroup: (idx) => _showModelGroup(modelGroups, idx),
-    getModelGroupCount: () => spec.models?.length || 0,
+    setBoneVisible: (name, visible) => obj.setBoneVisible(name, visible),
+    getBoneList: () => obj.getBoneList(),
+    toggleBone: (name) => obj.toggleBone(name),
+    showModelGroup: (idx) => obj.showModelGroup(idx),
+    getModelGroupCount: () => obj.getModelGroupCount(),
     onBoneSelect: null as ((info: BoneSelectInfo) => void) | null, // 外部设置的回调: (boneInfo) => void
     setDebugMode: (mode: "normal" | "pivot" | "bone") => {
       state.debugMode = mode;

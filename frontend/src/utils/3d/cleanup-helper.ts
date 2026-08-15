@@ -32,11 +32,13 @@ export function disposeDebugGroup(debugGroup: THREE.Group | null): void {
 }
 
 /**
- * 遍历 scene 释放所有 Mesh 的 geometry 和 material。
+ * 遍历场景图释放所有 Mesh 的 geometry 和 material。
+ * 接受任意 Object3D 子树（Scene / Group / 单 mesh），供统一核心 shared 模式
+ * 释放内容层（ysm-object removeFromScene）与自建壳（renderModel3D cleanup）复用。
  * 调用前需确保场景图中的 Object3D 引用已清理。
  */
-export function disposeSceneMeshes(scene: THREE.Scene): void {
-  scene.traverse((c) => {
+export function disposeSceneMeshes(root: THREE.Object3D): void {
+  root.traverse((c) => {
     const mesh = c as THREE.Mesh;
     if (mesh.isMesh) {
       mesh.geometry?.dispose();
