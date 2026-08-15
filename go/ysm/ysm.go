@@ -116,6 +116,9 @@ func HasModInDir(modsDir, rtype string) bool {
 		return false
 	}
 	lower := strings.ToLower
+	// 循环不变量提升（审核 P3）：rtype 在遍历中不变，注册表查询（mutex + 线性扫描 +
+	// 3 个切片拷贝）只执行一次，而非每个命中 jar 一次
+	rt := types.RegistryType(rtype)
 	for _, f := range files {
 		if f.IsDir() || !strings.HasSuffix(lower(f.Name()), ".jar") {
 			continue
@@ -134,7 +137,6 @@ func HasModInDir(modsDir, rtype string) bool {
 		}
 		// 进一步检查：内容检测型资源（注册表 detector=ysm）打开 ZIP 确认 mods.toml，
 		// 其余类型仅凭文件名匹配（ADR-065：rtype 分支注册表化，新增类型只需改 JSON）
-		rt := types.RegistryType(rtype)
 		if rt != nil && rt.Detector == "ysm" {
 			if IsYSMJar(filepath.Join(modsDir, f.Name())) {
 				return true

@@ -523,12 +523,12 @@
 | `App.RelinkCustomDir()` | `internal/app/app_install_instance:252` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
 | `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:272` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
 | `App.SyncResources()` | `internal/app/app_install_instance:314` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install_instance:350` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:368` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:406` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:423` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:443` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:495` | ========== YSM 检测 ========== |
+| `App.PushResourceToInstance()` | `internal/app/app_install_instance:353` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:371` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:409` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:426` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:446` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:498` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |
