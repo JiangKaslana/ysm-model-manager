@@ -26,7 +26,7 @@ type ResourceType struct {
 	ScanDir        string          `json:"scanDir"`
 	InstanceLevel  bool            `json:"instanceLevel"`
 	Preview        string          `json:"preview"`        // "3d" / "thumbnail" / "none"
-	Detector       string          `json:"detector"`       // "ysm" / "mcmeta" / "shader" / "extension"
+	Detector       string          `json:"detector"`       // "ysm" / "mcmeta" / "shader" / "zipentry" / "extension"
 	ConfigField    string          `json:"configField"`    // AppConfig 字段名（如 YsmRoot）
 	ConfigFallback string          `json:"configFallback"` // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
 	IsDir          bool            `json:"isDir"`          // 目录型资源（删除/同步整目录）

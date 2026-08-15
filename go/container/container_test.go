@@ -115,3 +115,103 @@ func TestOpenDir_Entries(t *testing.T) {
 func writeFile(p, content string) error {
 	return os.WriteFile(p, []byte(content), 0644)
 }
+
+// ===== ADR-068 补测：路径打开 / 7z 坏数据 / UncompressedSize64 / 目录条目读取 =====
+
+func TestOpenZipPath_EntriesAndSize(t *testing.T) {
+	dir := t.TempDir()
+	p := dir + "/pkg.zip"
+	zipBytes := makeTestZip(t, map[string]string{
+		"a.json": "AAAA",
+		"b.json": "BBBBBBBB",
+	})
+	if err := os.WriteFile(p, zipBytes, 0644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := OpenZipPath(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	byName := map[string]Entry{}
+	for _, e := range r.Entries() {
+		byName[e.Name()] = e
+	}
+	if len(byName) != 2 {
+		t.Fatalf("期望 2 条目, 实际 %d", len(byName))
+	}
+	// UncompressedSize64 应为条目未压缩大小（zip.File.UncompressedSize64 原值）
+	if got := byName["a.json"].UncompressedSize64(); got != 4 {
+		t.Errorf("a.json UncompressedSize64 = %d, 期望 4", got)
+	}
+	if got := byName["b.json"].UncompressedSize64(); got != 8 {
+		t.Errorf("b.json UncompressedSize64 = %d, 期望 8", got)
+	}
+	// 条目可读
+	rc, err := byName["a.json"].Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rc.Close()
+	buf := make([]byte, 4)
+	if n, _ := rc.Read(buf); n != 4 || string(buf) != "AAAA" {
+		t.Errorf("a.json 读取 = %q, 期望 AAAA", buf)
+	}
+}
+
+func TestOpen7zBytes_BadData(t *testing.T) {
+	// 7z 只读库无 Writer（ADR-068 负面），仅能覆盖坏数据路径：
+	// 非 7z 魔数 → sevenzip.NewReader 必须报错，不得 panic 或静默返回空容器
+	bad := []byte("this is definitely not a 7z archive")
+	if _, err := Open7zBytes(bad, int64(len(bad))); err == nil {
+		t.Error("非 7z 字节应报错")
+	}
+	if _, err := Open7zBytes(nil, 0); err == nil {
+		t.Error("空字节应报错")
+	}
+}
+
+func TestOpenDir_NestedDirAndRead(t *testing.T) {
+	dir := t.TempDir()
+	if err := writeFile(dir+"/root.txt", "ROOT"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir+"/sub", 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFile(dir+"/sub/nested.txt", "NESTED"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := OpenDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	byName := map[string]Entry{}
+	var dirEntry *Entry
+	for _, e := range r.Entries() {
+		byName[e.Name()] = e
+		if e.IsDir() {
+			dirEntry = &e
+		}
+	}
+	// 嵌套目录条目应存在且 IsDir=true
+	if dirEntry == nil {
+		t.Fatal("嵌套目录 sub/ 应有目录条目")
+	}
+	// 文件条目可读取内容
+	rc, err := byName["sub/nested.txt"].Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rc.Close()
+	buf := make([]byte, 16)
+	n, _ := rc.Read(buf)
+	if n != 6 || string(buf[:n]) != "NESTED" {
+		t.Errorf("sub/nested.txt 读取 = %q, 期望 NESTED", buf[:n])
+	}
+	// UncompressedSize64 = FileInfo.Size 绝对值（目录型返回 0 或负值不应出现）
+	if got := byName["root.txt"].UncompressedSize64(); got != 4 {
+		t.Errorf("root.txt UncompressedSize64 = %d, 期望 4", got)
+	}
+}
