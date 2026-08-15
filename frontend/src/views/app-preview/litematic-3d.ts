@@ -3,16 +3,21 @@
 // createLitematic3D / cleanupVoxel3D / invalidateLitematicPreview 公开符号，
 // litematic-meta.ts 与既有测试无需改动。voxelFn 经适配器工厂传入，决定走哪条 Go RPC。
 
-import { mount3D, cleanupPreview, invalidatePreview, type PreviewAdapter } from "./mount-preview-core.ts";
+import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "./mount-preview-core.ts";
 import { buildLitematicScene } from "./litematic-adapter.ts";
 
 function makeLitematicAdapter(voxelFn: string): PreviewAdapter {
   return { id: "litematic", build: (ctx, path) => buildLitematicScene(ctx, path, voxelFn) };
 }
 
-/** 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析） */
-export async function createLitematic3D(path: string, voxelFn: string): Promise<void> {
-  await mount3D(makeLitematicAdapter(voxelFn), path);
+/** 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 */
+export async function createLitematic3D(path: string, voxelFn: string, opts?: Mount3DOptions): Promise<void> {
+  await mount3D(makeLitematicAdapter(voxelFn), path, opts);
+}
+
+/** 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） */
+export async function switchLitematicPreview(path: string): Promise<void> {
+  await switchPreview(path);
 }
 
 /** 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */

@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 55 | 194 |
-| frontend/views | 88 | 244 |
+| frontend/views | 90 | 250 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **285** | **1181** |
+| **合计** | **287** | **1187** |
 
 ## Go·头像
 
@@ -1234,17 +1234,18 @@
 | `cacheGet()` | `frontend/src/views/app-preview/cache:43` | — |
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
-| `showModelDetail()` | `frontend/src/views/app-preview/detail:20` | 显示模型详情（YSM 模型） |
-| `showResourcePack()` | `frontend/src/views/app-preview/detail:131` | 显示资源包信息（pack.mcmeta + pack.png） |
-| `showSimplePreview()` | `frontend/src/views/app-preview/detail:168` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
-| `showShaderpack()` | `frontend/src/views/app-preview/detail:186` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
-| `showVrmMeta()` | `frontend/src/views/app-preview/detail:232` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
+| `showModelDetail()` | `frontend/src/views/app-preview/detail:21` | 显示模型详情（YSM 模型） |
+| `showResourcePack()` | `frontend/src/views/app-preview/detail:132` | 显示资源包信息（pack.mcmeta + pack.png） |
+| `showSimplePreview()` | `frontend/src/views/app-preview/detail:169` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
+| `showShaderpack()` | `frontend/src/views/app-preview/detail:187` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
+| `showVrmMeta()` | `frontend/src/views/app-preview/detail:233` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
+| `showMmdPreview()` | `frontend/src/views/app-preview/detail:292` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:4` | Bedrock 方块 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
 | `appPreviewStyle()` | `frontend/src/views/app-preview/index:5` | — |
-| `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:14` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析） |
+| `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:14` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:19` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:24` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:29` | 任意新预览派发时调用，作废在途体素加载 |
@@ -1253,6 +1254,10 @@
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:108` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:238` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:14` | 加载模型几何数据 + 纹理 + 作者信息 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底 |
+| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:11` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd） |
+| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:16` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:21` | 任意新预览派发时调用，作废在途 MMD 加载 |
+| `buildMmdScene()` | `frontend/src/views/app-preview/mmd-adapter:36` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
@@ -1266,7 +1271,8 @@
 | `invalidatePreview()` | `frontend/src/views/app-preview/mount-preview-core:155` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
 | `cleanupPreview()` | `frontend/src/views/app-preview/mount-preview-core:160` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `switchPreview()` | `frontend/src/views/app-preview/mount-preview-core:169` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:173` | — |
+| `Mount3DOptions()` | `frontend/src/views/app-preview/mount-preview-core:174` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/views/app-preview/mount-preview-core:179` | — |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:11` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:17` | — |
@@ -1299,7 +1305,7 @@
 | `getPrefer3D()` | `frontend/src/views/app-preview/utils:60` | — |
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
 | `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
-| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:12` | 打开 VRM 3D 预览（.vrm 直引 three-vrm） |
+| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:12` | 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 |
 | `switchVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:17` | 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
 | `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:22` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:27` | 任意新预览派发时调用，作废在途 VRM 加载 |

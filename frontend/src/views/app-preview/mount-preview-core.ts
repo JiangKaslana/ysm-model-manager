@@ -64,6 +64,8 @@ export interface PreviewHandle {
   setSpeed?(n: number): void;
   showModelGroup?(i: number): void;
   onBoneSelect?(info: BoneSelectInfo): void;
+  /** 当前会话内切换到另一模型：复用外壳（renderer/rAF/controls/灯光）重建内容层（ADR-066 §5.6） */
+  switchTo?(path: string): Promise<void>;
 }
 
 // ---- 通用相机控制常量（对齐 vrm/litematic 既有口径）----
@@ -163,10 +165,22 @@ export function cleanupPreview(): void {
   }
 }
 
-export async function mount3D(adapter: PreviewAdapter, path: string): Promise<void> {
+/** 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op */
+export async function switchPreview(path: string): Promise<void> {
+  await _handle?.switchTo?.(path);
+}
+
+/** mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） */
+export interface Mount3DOptions {
+  /** 同类型可切换的候选路径列表（≥2 时 topBar 渲染切换下拉；缺省不渲染，向后兼容） */
+  siblings?: string[];
+}
+
+export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount3DOptions = {}): Promise<void> {
   cleanupPreview(); // 复用：再次创建先清旧的
   const myGen = ++_gen;
   const selfMode = adapter.mode === "self";
+  const siblings = opts.siblings?.filter((p) => p !== path) ?? [];
 
   // ---- shared 模式相机状态（提前声明：buildCameraControls 的 bridge 闭包需在此后引用）----
   // self 模式由适配器（如 ysm 的 renderModel3D 单例）自行驱动这些，核心只提供外壳，
@@ -207,6 +221,38 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
   closeBtn.style.cssText =
     "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
   topBar.appendChild(closeBtn);
+
+  // 3D 内模型切换下拉（ADR-066 §5.6）：siblings ≥2 时显示；onchange 经 _handle.switchTo 换模型
+  if (siblings.length > 0) {
+    const switchSel = document.createElement("select");
+    switchSel.style.cssText =
+      "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;max-width:220px";
+    const curOpt = document.createElement("option");
+    curOpt.value = path;
+    curOpt.textContent = "当前: " + (path.split(/[/\\]/).pop() || path);
+    switchSel.appendChild(curOpt);
+    siblings.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = p.split(/[/\\]/).pop() || p;
+      switchSel.appendChild(opt);
+    });
+    switchSel.onchange = (): void => {
+      const target = switchSel.value;
+      if (target === path) return;
+      switchSel.disabled = true; // 切换期间防连点
+      void _handle?.switchTo?.(target)?.finally(() => {
+        switchSel.disabled = false;
+        // 切换成功后更新「当前」项
+        const cur = switchSel.querySelector<HTMLOptionElement>("option[value='" + path + "']");
+        if (cur) {
+          cur.textContent = (path.split(/[/\\]/).pop() || path);
+        }
+        switchSel.value = path;
+      });
+    };
+    topBar.appendChild(switchSel);
+  }
 
   const spacer = document.createElement("div");
   spacer.style.cssText = "flex:1";
@@ -394,12 +440,19 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
 
   let cleanupFn: (() => void) | null = null;
   let panelCleanup: (() => void) | null = null;
+  // switchTo 支持（ADR-066 §5.6）：提升 built 到 try 外，复用外壳重建内容层
+  let built: PreviewScene | null = null;
+  /** topBar 中适配器专属控件的起始 childElementCount（切换时移除其后追加的节点） */
+  let adapterControlsStart = 0;
+  /** extraPanel 容器引用（切换时清空重填） */
+  let panelEl: HTMLElement | null = null;
 
   try {
     // 代际守卫：await 期间用户已点其他文件 / 被 invalidate，丢弃本次挂载
     if (myGen !== _gen) return;
 
-    const built = await adapter.build(
+    adapterControlsStart = topBar.childElementCount;
+    built = await adapter.build(
       { scene, camera, controls, viewContainer, loadingEl, overlay },
       path,
     );
@@ -426,6 +479,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
     // 适配器侧栏（ysm 骨骼列表/详情等）：核心提供 panel + 折叠/拖拽柄，内容由适配器填充
     if (built.extraPanel) {
       const panel = document.createElement("div");
+      panelEl = panel;
       panel.id = "ysm-3d-panel"; // 对齐旧 skeleton panel：fill3DPanel 内部选择器依赖此 id（全选/全不选）
       panel.style.cssText =
         "width:260px;flex-shrink:0;overflow:auto;background:rgba(0,0,0,0.25);color:#fff;font-size:12px;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.1)";
@@ -484,7 +538,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
       panelCleanup?.();
       // 内容层先释放自身资源，核心再回收外壳
       try {
-        built.dispose();
+        built?.dispose();
       } catch (_) {}
       // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
       // （stub 环境 Scene 未必实现 traverse，typeof 守卫避免误崩）
@@ -527,6 +581,41 @@ export async function mount3D(adapter: PreviewAdapter, path: string): Promise<vo
       setSpeed: built.setSpeed,
       showModelGroup: built.showModelGroup,
       onBoneSelect: built.onBoneSelect,
+      // 当前会话内切换模型：复用外壳（renderer/rAF/controls/灯光）重建内容层（ADR-066 §5.6）
+      switchTo: async (newPath: string): Promise<void> => {
+        if (aborted || isDisposed.v || myGen !== _gen) return;
+        // 1) 移除旧适配器专属控件（topBar 中 adapterControlsStart 之后追加的节点）
+        while (topBar.childElementCount > adapterControlsStart) {
+          topBar.lastChild?.remove();
+        }
+        // 2) 释放旧内容层 GPU 资源
+        try {
+          built?.dispose();
+        } catch (_) {}
+        // 3) 重建内容层（新 path）
+        const next = await adapter.build(
+          { scene, camera, controls, viewContainer, loadingEl, overlay },
+          newPath,
+        );
+        if (aborted || isDisposed.v || myGen !== _gen) {
+          try {
+            next.dispose();
+          } catch (_) {}
+          return;
+        }
+        built = next;
+        // 4) 同步相机状态到新内容层取景 + 重挂适配器控件/侧栏
+        if (renderer) {
+          orbitTarget!.copy((controls as OrbitControls).target);
+          euler.setFromQuaternion((camera as THREE.PerspectiveCamera).quaternion);
+        }
+        perFrame = next.update ?? null;
+        next.extraControls?.(topBar);
+        if (next.extraPanel && panelEl) {
+          panelEl.innerHTML = "";
+          next.extraPanel(panelEl);
+        }
+      },
     };
   } catch (e) {
     document.removeEventListener("keydown", escH);

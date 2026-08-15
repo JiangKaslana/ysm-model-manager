@@ -3,6 +3,11 @@
 // Android 返回键注册/注销、关闭时状态复位由本层 + skeleton 编排层配合完成。
 // 旧实现 skeleton.ts._toggle3D 直接 build3DOverlay + renderModel3D 并手工接线，
 // 现统一经本包装，避免复制脚手架、与 vrm/litematic 走同一套外壳。
+//
+// 注意：与 vrm/litematic 不同，YSM 适配器是 model 闭包驱动（makeYsmAdapter(model)，
+// build(ctx) 忽略 path）——core 的 switchTo(path) 对 ysm 无换模型语义（会重建同一
+// model）。3D 内模型切换对 ysm 需走 model 维度（重建 createYsm3D(newModel)），
+// 属 ADR-066 §5.6 任务 #4「ysm 待接线」，本层不暴露 path 版 switch。
 import { mount3D, cleanupPreview, invalidatePreview } from "./mount-preview-core.ts";
 import { makeYsmAdapter } from "./ysm-adapter.ts";
 import type { BedrockGeometry } from "./geometry.ts";
