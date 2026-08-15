@@ -2,7 +2,6 @@ package recycle
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -288,32 +287,12 @@ func (tm *TrashManager) Restore(src string) error {
 }
 
 // copyDirRecursive 递归复制目录树（跨设备 Restore 整组合并条目的 fallback）
+// 已收敛至 fsutil.CopyDirRecursive（ADR-044 策略 A）：保留 symlink 链接本身、覆盖允许。
 func copyDirRecursive(src, dst string) error {
-	if err := os.MkdirAll(dst, 0755); err != nil {
-		return err
-	}
-	return filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(src, p)
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(dst, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0755)
-		}
-		// 符号链接：复制链接本身（保留语义）；不跟随复制——symlink-to-dir 走
-		// copyFile 会 os.Open(目录)+io.Copy → EISDIR 中断整棵树复制
-		if d.Type()&os.ModeSymlink != 0 {
-			linkTarget, err := os.Readlink(p)
-			if err != nil {
-				return err
-			}
-			return os.Symlink(linkTarget, target)
-		}
-		return copyFile(p, target)
+	return fsutil.CopyDirRecursive(src, dst, fsutil.CopyDirOptions{
+		RejectSymlink: false, // 保留符号链接语义（复制链接本身，不跟随）
+		Overwrite:     true,  // 恢复场景允许覆盖已存在目标
+		Rollback:      false, // 失败残留由调用方清理（Restore 有独立回滚语义）
 	})
 }
 
@@ -386,25 +365,8 @@ func Empty(filesRoot string) (int, error) {
 }
 
 // copyFile 复制文件（跨分区兼容）
-// 注意：未限制读取大小，但回收站场景目标文件来自用户本地目录，风险可控
+// 已收敛至 fsutil.CopyFile（ADR-044 策略 A）：同目录 tmp+rename 原子落地 + Sync 落盘检查。
+// 注意：fsutil.CopyFile 的 tmp 创建在目标同目录，rename 同文件系统内执行，天然跨分区兼容。
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return err
-	}
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(out, in)
-	// 显式 Close 并检查错误——defer 吞掉 Close 错误时，
-	// ENOSPC/EIO 等落盘失败会被误判为成功，随后源文件被删除 → 数据丢失
-	if cerr := out.Close(); err == nil {
-		err = cerr
-	}
-	return err
+	return fsutil.CopyFile(src, dst)
 }

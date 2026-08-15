@@ -6,8 +6,6 @@ package fileops
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -288,40 +286,12 @@ func CopyModelFile(root, src, dstDir string) error {
 }
 
 // copyDirRecursive 递归复制目录（.ban 状态文件作为普通文件随遍历自然复制；防覆盖）
+// 已收敛至 fsutil.CopyDirRecursive（ADR-044 策略 A）：拒 symlink + 防覆盖 + 失败整树回滚。
 func copyDirRecursive(srcDir, dstDir string) error {
-	// 失败时整树回滚（RemoveAll dstDir），防止半棵树残留 + 下次「目标已存在」永久卡死
-	err := copyDirRecursiveInner(srcDir, dstDir)
-	if err != nil {
-		// 回滚失败也要记录，否则残留半棵树且重试被「目标已存在」永久阻塞时无诊断线索
-		if rmErr := os.RemoveAll(dstDir); rmErr != nil {
-			log.Printf("[fileops] 复制失败回滚清理失败 %s: %v（原错误: %v）", dstDir, rmErr, err)
-		}
-	}
-	return err
-}
-
-func copyDirRecursiveInner(srcDir, dstDir string) error {
-	return filepath.WalkDir(srcDir, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		// 目录遍历不跟随符号链接（filepath.WalkDir 不递归
-		// 目录 symlink，但文件级 symlink 会被当作普通文件复制其指向内容）——显式拒绝
-		if d.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("拒绝复制符号链接: %s", p)
-		}
-		rel, relErr := filepath.Rel(srcDir, p)
-		if relErr != nil {
-			return relErr
-		}
-		target := filepath.Join(dstDir, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0755)
-		}
-		if _, err := os.Stat(target); err == nil {
-			return fmt.Errorf("目标已存在: %s", target)
-		}
-		return copyFile(p, target)
+	return fsutil.CopyDirRecursive(srcDir, dstDir, fsutil.CopyDirOptions{
+		RejectSymlink: true,  // 仓库安全红线：不追踪 symlink（paths.IsInside 声明）
+		Overwrite:     false, // 防覆盖：目标已存在报错
+		Rollback:      true,  // 失败整树回滚，防半棵树残留 + 重试被「目标已存在」永久卡死
 	})
 }
 
@@ -385,8 +355,9 @@ func DeleteModelFile(root, path string) error {
 
 // ========== 内部工具 ==========
 
-// copyFile 复制文件（tmp + rename 原子替换，与 installer.copyFileLocked 模式对齐——
-// 原直接 Create + io.Copy，崩溃/磁盘满留半截目标文件；补 Sync 落盘检查）
+// copyFile 复制文件（已收敛至 fsutil.CopyFile 的 tmp+rename 原子模式——
+// 原直接 Create + io.Copy，崩溃/磁盘满留半截目标文件；fsutil 补 Sync 落盘检查 + Chmod 0644）
+// 本处保留 Lstat 拒 symlink 前置守卫（仓库安全红线）。
 func copyFile(src, dst string) error {
 	// 复制前拒绝符号链接源——仓库内 symlink 指向外部
 	// 文件（如 /etc/passwd）时，词法校验通过但内容被拷入仓库（读取越界）。paths.IsInside
@@ -396,41 +367,5 @@ func copyFile(src, dst string) error {
 	} else if fi.Mode()&os.ModeSymlink != 0 {
 		return fmt.Errorf("拒绝复制符号链接: %s", src)
 	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(dst), ".copy-*.tmp")
-	if err != nil {
-		return err
-	}
-	out := tmp
-	tmpName := tmp.Name()
-	ok := false
-	defer func() {
-		out.Close()
-		if !ok {
-			os.Remove(tmpName)
-		}
-	}()
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
-	// Sync 确保数据落盘后再 Close+Rename（与 recycle/importer 的 copyFile 落盘检查对齐）
-	if err := out.Sync(); err != nil {
-		return err
-	}
-	if err := out.Close(); err != nil {
-		return err
-	}
-	if err := os.Rename(tmpName, dst); err != nil {
-		os.Remove(tmpName)
-		return err
-	}
-	ok = true
-	return nil
+	return fsutil.CopyFile(src, dst)
 }
