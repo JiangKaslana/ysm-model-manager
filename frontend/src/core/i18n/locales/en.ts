@@ -664,6 +664,9 @@ export const en: Record<string, string> = {
   // ── Settings - Mirror ──
   "settings.mirror.changed": "✅ Download mirror switched to {mirror}",
   "settings.updateCheck.title": "Update check interval",
+  "settings.updateCheck.option6h": "6 hours",
+  "settings.updateCheck.option12h": "12 hours",
+  "settings.updateCheck.option24h": "24 hours",
   "settings.updateCheck.off": "Disable auto check",
   "settings.updateCheck.desc": "How often to silently check for updates on startup (default 6 hours)",
   "settings.updateCheck.saved": "Update check interval saved",

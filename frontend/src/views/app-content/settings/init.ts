@@ -140,8 +140,8 @@ export async function initSettings(root: ShadowRoot): Promise<void> {
   // 版本检查间隔（ADR-062 §2.3：设置页写入 UpdateCheckIntervalMs，0=关闭检查）
   const updateCheckSelect = root.getElementById("set-update-check") as HTMLSelectElement | null;
   if (updateCheckSelect) {
-    // 初值取配置（0=关闭；缺省 6h 对应 21600000）
-    updateCheckSelect.value = String(cfg.updateCheckIntervalMs || 21600000);
+    // 初值取配置：null/undefined=缺省显示 6h；0 保留为「关闭自动检查」（勿用 || 把 0 变回 6h）
+    updateCheckSelect.value = String(cfg.updateCheckIntervalMs == null ? 21600000 : cfg.updateCheckIntervalMs);
     updateCheckSelect.addEventListener("change", async () => {
       try {
         const { SaveThresholds } = await getApp();

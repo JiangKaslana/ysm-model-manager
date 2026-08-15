@@ -77,9 +77,9 @@ export function settingsHTML(): string {
       </div>
       <div class="stg-card-body">
         <select id="set-update-check" class="stg-select" style="width:100%;margin-bottom:6px">
-          <option value="21600000">6 小时</option>
-          <option value="43200000">12 小时</option>
-          <option value="86400000">24 小时</option>
+          <option value="21600000">${t("settings.updateCheck.option6h")}</option>
+          <option value="43200000">${t("settings.updateCheck.option12h")}</option>
+          <option value="86400000">${t("settings.updateCheck.option24h")}</option>
           <option value="0">🛑 ${t("settings.updateCheck.off")}</option>
         </select>
         <div style="font-size:var(--fs-sm);color:var(--muted);padding:2px 0;line-height:1.5">${t("settings.updateCheck.desc")}</div>

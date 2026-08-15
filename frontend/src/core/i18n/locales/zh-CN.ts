@@ -667,6 +667,9 @@ export const zhCN: Record<string, string> = {
   // ── 设置页 - 镜像源 ──
   "settings.mirror.changed": "✅ 下载源已切换为 {mirror}",
   "settings.updateCheck.title": "版本检查间隔",
+  "settings.updateCheck.option6h": "6 小时",
+  "settings.updateCheck.option12h": "12 小时",
+  "settings.updateCheck.option24h": "24 小时",
   "settings.updateCheck.off": "关闭自动检查",
   "settings.updateCheck.desc": "启动时静默检查新版本的频次（默认 6 小时）",
   "settings.updateCheck.saved": "版本检查间隔已保存",

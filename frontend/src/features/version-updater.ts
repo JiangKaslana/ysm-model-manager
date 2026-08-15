@@ -31,6 +31,7 @@ async function currentCheckInterval(): Promise<number> {
     const { LoadAppConfig } = await getApp();
     const cfg = await LoadAppConfig();
     const ms = cfg.updateCheckIntervalMs;
+    if (ms === 0) return Infinity; // 显式关闭自动检查：恒不触发（canCheck 比较恒 false）
     return typeof ms === "number" && ms > 0 ? ms : CHECK_INTERVAL;
   } catch {
     return CHECK_INTERVAL; // 配置读取失败回退默认（不阻塞启动静默检查）

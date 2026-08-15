@@ -849,8 +849,8 @@
 | `useCurrentResourceType()` | `frontend/src/features/repo-rtype:18` | 订阅当前仓库资源类型。 |
 | `initResourcePacks()` | `frontend/src/features/resource-packs:14` | 初始化资源包 tab |
 | `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
-| `checkUpdateSilent()` | `frontend/src/features/version-updater:167` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
-| `initVersionUpdater()` | `frontend/src/features/version-updater:206` | 手动检查更新（设置页按钮） |
+| `checkUpdateSilent()` | `frontend/src/features/version-updater:168` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
+| `initVersionUpdater()` | `frontend/src/features/version-updater:207` | 手动检查更新（设置页按钮） |
 
 ## 前端·服务
 

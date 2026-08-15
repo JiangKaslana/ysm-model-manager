@@ -441,6 +441,65 @@ func TestSyncResources_IgnoresRecycleDir(t *testing.T) {
 	}
 }
 
+// TestSyncResources_FileLevelDepthGuard 文件级深度守卫（P3-4 补测）：
+// rtype 为文件级（!IsDirLevelSync）时 SyncResources 仅收集顶层文件，
+// 嵌套子目录内文件跳过；dir-level 类型（ysm）与空 rtype 保持全树递归。
+// 背景：Sable Schematics 生成 .nbt 于嵌套子目录，顶层语义下相对路径以 ".." 开头
+// 误判越界 → 拉取报「不在目标目录内」（sync.go:280-282 注释）。
+func TestSyncResources_FileLevelDepthGuard(t *testing.T) {
+	setup := func(t *testing.T) (string, string) {
+		globalDir := t.TempDir()
+		instDir := t.TempDir()
+		// 顶层文件（两侧同 size → Synced）
+		os.WriteFile(filepath.Join(globalDir, "top.nbt"), []byte("top"), 0644)
+		os.WriteFile(filepath.Join(instDir, "top.nbt"), []byte("top"), 0644)
+		// 嵌套子目录文件（仅 global 侧 → 若被收集则归 Missing）
+		os.MkdirAll(filepath.Join(globalDir, "sub"), 0755)
+		os.WriteFile(filepath.Join(globalDir, "sub", "nested.nbt"), []byte("nested"), 0644)
+		return globalDir, instDir
+	}
+	hasName := func(list []string, name string) bool {
+		for _, p := range list {
+			if filepath.Base(p) == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("file-level 排除嵌套", func(t *testing.T) {
+		globalDir, instDir := setup(t)
+		// create-blueprint 是文件级类型（非 IsDirLevelSync）→ 嵌套文件应被跳过
+		result := SyncResources(globalDir, instDir, "create-blueprint")
+		for _, list := range [][]string{result.Synced, result.Missing, result.Extra} {
+			if hasName(list, "nested.nbt") {
+				t.Errorf("file-level 同步不应收集嵌套文件 nested.nbt: %v", list)
+			}
+		}
+		if !hasName(result.Synced, "top.nbt") {
+			t.Errorf("顶层文件应 Synced: %v", result.Synced)
+		}
+	})
+
+	t.Run("dir-level 全树递归", func(t *testing.T) {
+		globalDir, instDir := setup(t)
+		// ysm 是 dir-level 类型（IsDirLevelSync）→ 嵌套文件仍被收集（Missing）
+		result := SyncResources(globalDir, instDir, "ysm")
+		if !hasName(result.Missing, "nested.nbt") {
+			t.Errorf("dir-level 同步应收集嵌套文件 nested.nbt 到 Missing: %v", result.Missing)
+		}
+	})
+
+	t.Run("空 rtype 保持全递归基线", func(t *testing.T) {
+		globalDir, instDir := setup(t)
+		// 空 rtype = 旧行为（全树递归），嵌套文件归 Missing
+		result := SyncResources(globalDir, instDir, "")
+		if !hasName(result.Missing, "nested.nbt") {
+			t.Errorf("空 rtype 应保持全递归（nested.nbt 归 Missing）: %v", result.Missing)
+		}
+	})
+}
+
 // ===== SyncToggleStatus =====
 
 func TestSyncToggleStatus_EnableDisable(t *testing.T) {
