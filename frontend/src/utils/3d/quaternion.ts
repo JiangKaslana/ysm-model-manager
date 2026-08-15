@@ -86,3 +86,32 @@ export function isIdentityQuat(q: [number, number, number, number]): boolean {
 export function hasBoneRotation(rot: [number, number, number]): boolean {
   return !isIdentityQuat(eulerToQuaternion(-rot[0], -rot[1], rot[2]));
 }
+
+// ===== applyRotationIfNonIdentity — 旋转赋值工具 =====
+
+/**
+ * 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。
+ * 收敛 mesh.ts / mesh-builder.ts 两处同构手写判定（对 `[x,y,z,w]` 数组、严格相等口径、判后赋值）。
+ * 口径保持严格相等（与原两处一致），不复用 isIdentityQuat 的 epsilon 1e-9 以免触发口径漂移。
+ * @param obj Three.js 对象（Mesh/Group 等，含 .quaternion）
+ * @param rot 可选的 `[x, y, z, w]` 四元数数组；null/undefined 跳过
+ */
+export function applyRotationIfNonIdentity(
+  obj: { quaternion: { set: (x: number, y: number, z: number, w: number) => void } },
+  rot: number[] | undefined | null,
+): void {
+  if (
+    rot &&
+    (rot[3] !== 1 ||
+      rot[0] !== 0 ||
+      rot[1] !== 0 ||
+      rot[2] !== 0)
+  ) {
+    obj.quaternion.set(
+      rot[0] ?? 0,
+      rot[1] ?? 0,
+      rot[2] ?? 0,
+      rot[3] ?? 1,
+    );
+  }
+}

@@ -66,6 +66,29 @@ function resetYSMParser(): void {
   delete (window as Record<string, unknown>).Module;
 }
 
+/**
+ * WASM 错误分类：收敛 decodeYsmFileFromMemory / decodeYsmFile 两个 catch 块的重复判定。
+ * 口径差异保留在调用方：前者 ExitStatus 一并重置，后者按 exit code 细分。
+ * @returns fatal=abort/trap/oOM 硬崩溃；exit=ExitStatus（调用方查 exitCode）；unknown=其他
+ */
+function classifyWasmError(err: unknown): {
+  kind: "fatal" | "exit" | "unknown";
+  exitCode?: number;
+} {
+  const errObj = err as { name?: string; status?: unknown };
+  const errStr = String(errObj?.name || err);
+  if (errStr.includes("ExitStatus")) {
+    return {
+      kind: "exit",
+      exitCode: typeof errObj?.status === "number" ? errObj.status : undefined,
+    };
+  }
+  if (/abort|trap|out of memory/i.test(errStr)) {
+    return { kind: "fatal" };
+  }
+  return { kind: "unknown" };
+}
+
 export async function initYSMParser(): Promise<boolean> {
   if (wasmModule) return true;
   if (loading) return new Promise<boolean>((r) => waiters.push(r));
@@ -192,8 +215,8 @@ export async function decodeYsmFileFromMemory(
   } catch (err) {
     // P2 硬崩溃恢复：_malloc/FS 操作同样可能触发 trap，
     // 一并纳入 catch 确保重置单例（否则 wasmModule 恒非空 → 永久失败）
-    const errStr = String((err as { name?: string })?.name || err);
-    if (errStr.includes("ExitStatus") || /abort|trap|out of memory/i.test(errStr)) {
+    const cls = classifyWasmError(err);
+    if (cls.kind === "fatal" || cls.kind === "exit") {
       resetYSMParser();
     }
     throw err;
@@ -235,15 +258,14 @@ export async function decodeYsmFile(
       wasmModule!.callMain!(["-i", "/input", "-o", "/output"]);
     }
   } catch (err) {
-    const errObj = err as { name?: string; status?: unknown };
-    const errStr = String(errObj?.name || err);
-    if (errStr.includes("ExitStatus")) {
-      if (typeof errObj?.status === "number" && errObj.status !== 0) {
-        throw new Error("YSMParser exit code " + errObj.status);
+    const cls = classifyWasmError(err);
+    if (cls.kind === "exit") {
+      if (cls.exitCode !== undefined && cls.exitCode !== 0) {
+        throw new Error("YSMParser exit code " + cls.exitCode);
       }
     } else {
       // P2 硬崩溃恢复：abort/trap/out of memory 等不可捕获信号 → 重置单例
-      if (/abort|trap|out of memory/i.test(errStr)) {
+      if (cls.kind === "fatal") {
         resetYSMParser();
       }
       throw err;

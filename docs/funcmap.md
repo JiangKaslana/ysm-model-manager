@@ -38,10 +38,10 @@
 | 前端·特性 | 19 | 90 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 54 | 181 |
+| 前端·工具 | 54 | 182 |
 | frontend/views | 78 | 208 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **269** | **1098** |
+| **合计** | **269** | **1099** |
 
 ## Go·头像
 
@@ -921,20 +921,20 @@
 | `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
-| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:24` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
-| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:199` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
+| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:42` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
+| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:198` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:37` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
 | `loadTdKeymap()` | `frontend/src/utils/3d/keymap:27` | 读取用户自定义键位（无/非法时回退默认） |
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/keymap:45` | 相机移动速度（2–200），默认 20 |
 | `loadTdRotMode()` | `frontend/src/utils/3d/keymap:52` | true = 环绕（orbit），false = 自身（free） |
-| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:14` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
-| `compKey()` | `frontend/src/utils/3d/mesh:13` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
-| `MaterialWithMap()` | `frontend/src/utils/3d/mesh:18` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
-| `disposeMaterial()` | `frontend/src/utils/3d/mesh:23` | 释放材质（含位图 .map），null/undefined 安全。 |
-| `buildSceneMesh()` | `frontend/src/utils/3d/mesh:31` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
-| `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:19` | 单组件 spec 构建核心。 |
+| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:15` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
+| `compKey()` | `frontend/src/utils/3d/mesh:14` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
+| `MaterialWithMap()` | `frontend/src/utils/3d/mesh:19` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
+| `disposeMaterial()` | `frontend/src/utils/3d/mesh:24` | 释放材质（含位图 .map），null/undefined 安全。 |
+| `buildSceneMesh()` | `frontend/src/utils/3d/mesh:32` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
+| `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:33` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
 | `BedrockModel()` | `frontend/src/utils/3d/model2d:31` | BedrockModel（AnalyzeBedrockModel 返回） |
@@ -963,6 +963,7 @@
 | `eulerToQuaternion()` | `frontend/src/utils/3d/quaternion:13` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
+| `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
 | `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:7` | setupRenderer 返回的组件 |
@@ -1306,9 +1307,9 @@
 |------|--------|------|
 | `_getGlueCode()` | `frontend/src/wasm/ysm-glue-data:3` | — |
 | `YsmDecodedFile()` | `frontend/src/wasm/ysm-parser:46` | 解码输出文件 |
-| `initYSMParser()` | `frontend/src/wasm/ysm-parser:69` | — |
-| `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:161` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
-| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:210` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
+| `initYSMParser()` | `frontend/src/wasm/ysm-parser:92` | — |
+| `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:184` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
+| `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:233` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
 
 ---

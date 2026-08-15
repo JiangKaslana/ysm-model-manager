@@ -13,6 +13,20 @@ interface BoneFirst {
 }
 
 /**
+ * 同名骨骼 overwrite 决策（bug-chronicle #14）：
+ * 已有骨骼无父 → 新有父则覆盖；均有父且已有无旋 → 新有旋则覆盖。
+ * 收敛 first 预收集与 bones 合并两处逐字同构的公式（原 50-51 与 92-93 行）。
+ */
+const shouldOverwrite = (
+  existingHasParent: boolean,
+  existingHasRot: boolean,
+  newHasParent: boolean,
+  newHasRot: boolean,
+): boolean =>
+  (!existingHasParent && newHasParent) ||
+  (existingHasParent && newHasParent && !existingHasRot && newHasRot);
+
+/**
  * 单组件 spec 构建核心。
  * 对齐 Go threejs/spec.go buildModelGroup（L103-390）。
  */
@@ -47,9 +61,7 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
     }
     const newHasParent = b.parent !== "";
     const newHasRot = hasBoneRotation(b.rotation);
-    const overwrite = (!fi.hasParent && newHasParent) ||
-      (fi.hasParent && newHasParent && !fi.hasRot && newHasRot);
-    if (overwrite) {
+    if (shouldOverwrite(fi.hasParent, fi.hasRot, newHasParent, newHasRot)) {
       pivots.set(b.name, np);
       first.set(b.name, { pivot: np, hasParent: newHasParent, hasRot: newHasRot });
     }
@@ -89,9 +101,7 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
       const existingHasRot = !isIdentityQuat(bones[idx].localRotation);
       const newHasRot = !isIdentityQuat(localRot);
 
-      const overwrite = (!existingHasParent && newHasParent) ||
-        (existingHasParent && newHasParent && !existingHasRot && newHasRot);
-      if (overwrite) {
+      if (shouldOverwrite(existingHasParent, existingHasRot, newHasParent, newHasRot)) {
         bones[idx].parentId = parentID;
         bones[idx].localPosition = localPos;
         bones[idx].localRotation = localRot;

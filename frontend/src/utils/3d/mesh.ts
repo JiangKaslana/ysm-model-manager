@@ -8,6 +8,7 @@
  */
 import * as THREE from "three";
 import { type Spec3D } from "./model3d.ts"; // 仅类型 import（编译后擦除，无运行时循环依赖）
+import { applyRotationIfNonIdentity } from "./quaternion.ts";
 
 /** 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 */
 export function compKey(mi: number, id: string) {
@@ -59,19 +60,7 @@ export function buildSceneMesh(spec: Spec3D): {
         pos[1] ?? 0,
         pos[2] ?? 0,
       );
-      const rot = bd.localRotation;
-      if (
-        rot?.[3] !== 1 ||
-        rot?.[0] !== 0 ||
-        rot?.[1] !== 0 ||
-        rot?.[2] !== 0
-      )
-        g.quaternion.set(
-          rot?.[0] ?? 0,
-          rot?.[1] ?? 0,
-          rot?.[2] ?? 0,
-          rot?.[3] ?? 1,
-        );
+      applyRotationIfNonIdentity(g, bd.localRotation);
       boneGroupMap.set(compKey(mi, bd.id), g);
       // 全局 key：main 组件优先（先到先得），供 hover/UI/动画（v1 单组件语义）
       if (!boneGroupMap.has(bd.id)) boneGroupMap.set(bd.id, g);

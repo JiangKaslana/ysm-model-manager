@@ -12,6 +12,24 @@ export { eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./quaternion
 /** 零厚度面修正值（避免 Three.js 渲染零面积面） */
 const THICKNESS_EPSILON = 0.001;
 
+/**
+ * 有限性守卫：任一值为 NaN/±Infinity 则 warn 并返回 false。
+ * 收敛 buildCubeMeshData 内三处同构的 `Number.isNaN || !Number.isFinite` 检查链
+ * （入口 / inflate 运算后 / 顶点派生后，原 33-44、62-73、92-100 行）。
+ * @param vals 待检数值数组
+ * @param label 失败时的诊断前缀（含 bone/cube 标识）
+ * @returns true 全通过；false 有非法值（调用方 return null）
+ */
+function assertFinite(vals: number[], label: string): boolean {
+  for (const v of vals) {
+    if (Number.isNaN(v) || !Number.isFinite(v)) {
+      console.warn(`[spec-builder] 跳过非法 cube（${label}）val=${v}`);
+      return false;
+    }
+  }
+  return true;
+}
+
 /** 同名骨骼 cube 合并的浮点 epsilon */
 const CUBE_EPSILON = 0.001;
 
@@ -30,18 +48,10 @@ export function buildCubeMeshData(
   cubeIdx: number,
 ): MeshData | null {
   // P2 修复：入口有限性检查
-  const finCheckVals = [
-    c.origin[0], c.origin[1], c.origin[2],
-    c.size[0], c.size[1], c.size[2],
-    c.pivot[0], c.pivot[1], c.pivot[2],
-    c.inflate,
-  ];
-  for (const v of finCheckVals) {
-    if (Number.isNaN(v) || !Number.isFinite(v)) {
-      console.warn("[spec-builder] 跳过非法 cube（非有限数值）bone=" + boneID + " cube=" + cubeIdx + " val=" + v);
-      return null;
-    }
-  }
+  if (!assertFinite(
+    [c.origin[0], c.origin[1], c.origin[2], c.size[0], c.size[1], c.size[2], c.pivot[0], c.pivot[1], c.pivot[2], c.inflate],
+    `非有限数值 bone=${boneID} cube=${cubeIdx}`,
+  )) return null;
 
   let ox = c.origin[0];
   let oy = c.origin[1];
@@ -60,17 +70,10 @@ export function buildCubeMeshData(
     sz += 2 * c.inflate;
   }
   // P1 修复：inflate 运算后复查有限性
-  if (
-    Number.isNaN(ox) || !Number.isFinite(ox) ||
-    Number.isNaN(oy) || !Number.isFinite(oy) ||
-    Number.isNaN(oz) || !Number.isFinite(oz) ||
-    Number.isNaN(sx) || !Number.isFinite(sx) ||
-    Number.isNaN(sy) || !Number.isFinite(sy) ||
-    Number.isNaN(sz) || !Number.isFinite(sz)
-  ) {
-    console.warn("[spec-builder] 跳过非法 cube（inflate 运算溢出）bone=" + boneID + " cube=" + cubeIdx);
-    return null;
-  }
+  if (!assertFinite(
+    [ox, oy, oz, sx, sy, sz],
+    `inflate 运算溢出 bone=${boneID} cube=${cubeIdx}`,
+  )) return null;
   // P3 修复：负 size 统一 clamp 到 ≥ thicknessEpsilon
   if (sx < THICKNESS_EPSILON) sx = THICKNESS_EPSILON;
   if (sy < THICKNESS_EPSILON) sy = THICKNESS_EPSILON;
@@ -90,14 +93,10 @@ export function buildCubeMeshData(
   const tx = ox + sx, ty = fy + sy, tz = fz + sz;
 
   // P2 修复：派生运算复查
-  if (
-    Number.isNaN(tx) || !Number.isFinite(tx) ||
-    Number.isNaN(ty) || !Number.isFinite(ty) ||
-    Number.isNaN(tz) || !Number.isFinite(tz)
-  ) {
-    console.warn("[spec-builder] 跳过非法 cube（顶点派生溢出）bone=" + boneID + " cube=" + cubeIdx);
-    return null;
-  }
+  if (!assertFinite(
+    [tx, ty, tz],
+    `顶点派生溢出 bone=${boneID} cube=${cubeIdx}`,
+  )) return null;
 
   const cx = (fx + tx) * 0.5;
   const cy = (fy + ty) * 0.5;

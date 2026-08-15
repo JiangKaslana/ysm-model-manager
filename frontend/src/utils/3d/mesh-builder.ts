@@ -2,6 +2,7 @@
 // 负责将 SpecMeshGroup3D 数据构建为 THREE.Mesh 并添加到目标组。
 import * as THREE from "three";
 import type { SpecMeshGroup3D, SpecModelGroup3D } from "./model3d.ts";
+import { applyRotationIfNonIdentity } from "./quaternion.ts";
 
 /**
  * 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。
@@ -63,18 +64,6 @@ export function addMeshToBoneGroup(
     md.localPosition?.[1] ?? 0,
     md.localPosition?.[2] ?? 0,
   );
-  if (
-    md.localRotation?.[3] !== 1 ||
-    md.localRotation?.[0] !== 0 ||
-    md.localRotation?.[1] !== 0 ||
-    md.localRotation?.[2] !== 0
-  ) {
-    mesh.quaternion.set(
-      md.localRotation?.[0] ?? 0,
-      md.localRotation?.[1] ?? 0,
-      md.localRotation?.[2] ?? 0,
-      md.localRotation?.[3] ?? 1,
-    );
-  }
+  applyRotationIfNonIdentity(mesh, md.localRotation);
   bg.add(mesh);
 }
