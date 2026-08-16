@@ -356,22 +356,22 @@ async function main() {
     // 内嵌 ysm-updater-helper.exe（.gitignore 不入库），干净 checkout 缺此文件会导致
     // go build/vet/test 失败（2026-08-14 补入 gate，对齐 doctor）。
     const tH = Date.now();
-    const uh = sh('go build -o go/updater/ysm-updater-helper.exe ./cmd/updater');
+    const uh = await shAsync('go build -o go/updater/ysm-updater-helper.exe ./cmd/updater');
     record('updater helper', uh.rc === 0, { time: Date.now() - tH, tail: uh.rc ? uh.out.trim().split('\n').slice(-4).join('\n') : '' });
 
     const goFiles = (byDomain.go || []).filter((f) => f.endsWith('.go'));
 
     const t0 = Date.now();
-    const goBuild = sh('go build ./go/...');
+    const goBuild = await shAsync('go build ./go/...');
     record('go build', goBuild.rc === 0, { time: Date.now() - t0, tail: goBuild.rc ? goBuild.out.trim().split('\n').slice(-4).join('\n') : '' });
 
     const t1 = Date.now();
     // 对齐 doctor 全量：go test 同时跑 ./internal/app/（2026-08-14 修复漏测）
-    const goTest = sh('go test -race ./go/... ./internal/app/ -count=1 -timeout 10m');
+    const goTest = await shAsync('go test -race ./go/... ./internal/app/ -count=1 -timeout 10m');
     record('go test', goTest.rc === 0, { time: Date.now() - t1, tail: goTest.rc ? goTest.out.trim().split('\n').slice(-4).join('\n') : '' });
 
     const tV = Date.now();
-    const goVet = sh('go vet ./go/... ./internal/app/...');
+    const goVet = await shAsync('go vet ./go/... ./internal/app/...');
     record('go vet', goVet.rc === 0, { time: Date.now() - tV, tail: goVet.rc ? goVet.out.trim().split('\n').slice(-4).join('\n') : '' });
 
     // gofmt：只读校验（修复已下沉 pre-commit；此处检出即阻断，防止绕过提交）
@@ -388,15 +388,14 @@ async function main() {
     // 此处检出即说明绕过了 pre-commit——防 --no-verify 绕过，与 .githooks/pre-commit 口径一致）
 
     const t3 = Date.now();
-    const bc = sh('node scripts/binding-check.mjs --json');
+    const bc = await shAsync('node scripts/binding-check.mjs --json');
     record('binding-check', bc.rc === 0, { time: Date.now() - t3, tail: bc.rc ? bc.out.trim().split('\n').slice(-4).join('\n') : '' });
-  }
-
-  /* --- 前端域 --- */
-  if (plan.frontend) {
+    }),
+    (async () => {
+      if (!plan.frontend) return;
     // 分层守护：前端目录间反向依赖（R1/R2 零容忍 + R3/R4 基线，现基线 0 条）
     const tL = Date.now();
-    const ll = sh('node scripts/check-layering.mjs --json');
+    const ll = await shAsync('node scripts/check-layering.mjs --json');
     let lz = null;
     try { lz = JSON.parse(ll.out)._summary; } catch { /* parse fail */ }
     const lOk = ll.rc === 0;
@@ -410,7 +409,7 @@ async function main() {
     // ADR-085：菜单表健康门禁——"加菜单项只改表"的自动兜底（秒级正则扫描，早失败早停）。
     // 校验：id 唯一 / labelKey 非空 / i18n 三语齐全 / dockGroup 合法 / kind 合法 / render·run 完备。
     const tM = Date.now();
-    const mh = sh('node scripts/check-menu-health.mjs --json');
+    const mh = await shAsync('node scripts/check-menu-health.mjs --json');
     let mz = null;
     try { mz = JSON.parse(mh.out)._summary; } catch { /* parse fail */ }
     const mOk = mh.rc === 0 && mz && mz.ok === true;
@@ -446,9 +445,10 @@ async function main() {
     // ADR-023 P3：L3 Vitest 随前端域变更回归（串行在后，独占资源）
     const t1 = Date.now();
     // 与 frontend/package.json test 对齐：--maxWorkers 8（24 核默认并发过载反慢 ~10s）
-    const ft = sh('npx vitest run --maxWorkers 8', { cwd: path.join(ROOT, 'frontend') });
+    const ft = await shAsync('npx vitest run --maxWorkers 8', { cwd: path.join(ROOT, 'frontend') });
     record('vitest run', ft.rc === 0, { time: Date.now() - t1, tail: ft.rc ? ft.out.trim().split('\n').slice(-4).join('\n') : '' });
-  }
+    })
+  ]);
 
   /* --- 数据域 --- */
   if (plan.data) {

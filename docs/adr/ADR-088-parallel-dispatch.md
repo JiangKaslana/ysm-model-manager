@@ -38,27 +38,45 @@ ADR-086 完成了**检查体系减负**（星级评定 + 职责去重 + AI 调�
 
 ## 2. 决策（Decision）
 
-### Take巧 #1：域间并行（Go + 前端 + 静态工具三阶段独立）
+### Take巧 #1：域间并行（Go ∥ 前端）✅ 已落地
 
-**当前**：
-```
-Go build(18s) → 前端 build(40s) → 静态工具(8s)
-总耗时: 66s
+**方案**：pre-push-gate `main()` 中，将 Go 域和前端域包成 `Promise.all([asyncFn, asyncFn])` 并行执行。
+
+**实现**（pre-push-gate.mjs:351-451）：
+
+```js
+await Promise.all([
+  // ── Go 域 ──
+  (async () => {
+    if (!plan.go) return;
+    const uh = await shAsync('go build -o go/updater/...');
+    const goBuild = await shAsync('go build ./go/...');
+    const goTest = await shAsync('go test -race ./go/...');
+    const goVet = await shAsync('go vet ./go/...');
+    // gofmt + binding-check ...
+  }),
+  // ── 前端域 ──
+  (async () => {
+    if (!plan.frontend) return;
+    const ll = await shAsync('node scripts/check-layering.mjs --json');
+    const mh = await shAsync('node scripts/check-menu-health.mjs --json');
+    const [fb, tscResult] = await Promise.all([
+      shAsync('npx vite build', { cwd: 'frontend' }),
+      shAsync(`"${tscBin}" --noEmit`, { cwd: 'frontend' }),
+    ]);
+    const ft = await shAsync('npx vitest run --maxWorkers 8', { cwd: 'frontend' });
+  }),
+]);
 ```
 
-**并行后**：
-```
-[Go build(18s) ∥ 前端 build(40s) ∥ 静态工具(8s)]
-总耗时: max(18, 40, 8) = 40s
-节省: 26s（39%）
-```
+**关键约束**：
+- Go 域和前端域**无共享状态**（Go build 写 `go/updater/ysm-updater-helper.exe`，前端 build 写 `frontend/dist/`，互不干扰）
+- 域内保持**串行**（Go: build→test→vet；前端: check→build→vitest），因为域内有依赖链
+- 前端域内已有 `vite build ∥ tsc --noEmit` 并行（原已有，未改动）
+- 用 `shAsync()`（spawn）替代 `sh()`（execFileSync），因为 `Promise.all` 中的 async 函数需要 await 不阻塞主线程
+- 数据域/红线域/静态工具仍用 `sh()`（execFileSync），不在 Promise.all 内，保持同步阻塞
 
-**实现**：pre-push-gate `main()` 中，将 Go/前端/静态工具三个独立阶段包成 `Promise.allSettled([goDomain(), frontendDomain(), staticTools()])`。
-
-**约束**：
-- `planFromFiles` 在并行前完成（域分类依赖文件列表，不可并行）
-- 阻塞标记（`blocked`）在各阶段内部独立维护，`Promise.allSettled` 返回后聚合
-- 用 `allSettled` 而非 `all`：一个域失败不中断其他域，全部执行完聚合结果（ADR-086 §2.3 保留「需人工的同样阻断推送」）
+**不采用 `Promise.allSettled` 的理由**：域间并行时一个域失败不代表另一个域也要继续跑（例如 Go build 失败时前端 build 结果无意义），`Promise.all` 的 fail-fast 语义更合适。
 
 ---
 
@@ -96,7 +114,7 @@ check-layering → check-menu-health → vite build → vitest → tsc
 
 ---
 
-### Take巧 #4：静态工具分组并行
+### Take巧 #4：静态工具分组并行（❌ 实测回退）
 
 **当前**（pre-push-gate:497-504）：`runTools()` 逐条串行执行 14 个工具。
 
@@ -107,6 +125,8 @@ check-layering → check-menu-health → vite build → vitest → tsc
 ```
 
 **理由**：14 个工具相互独立（纯静态分析），每组 4 个避免 CPU 过载（24 核上 4 个 Node 进程并行不冲突）。
+
+**实测回退（2026-08-17）**：落地后 `doctor --all` 实测 **2m15s（135s）**，比 ADR-086 基线 ~75s **慢 1.8 倍**。根因：`runSpawn`（spawn + stdio 流收集）的进程开销吃掉并行收益，静态工具单条累加 15.1s（原串行 ~8s）。**已回退**——runTools 恢复串行，proc.mjs 的 runSpawn + spawn import 删除。静态工具段不并行；域间并行（Go ∥ 前端）留作后续 Take巧。
 
 ---
 
