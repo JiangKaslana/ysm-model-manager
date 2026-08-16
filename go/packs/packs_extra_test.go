@@ -74,58 +74,6 @@ func TestIsYsmFile_BadZip(t *testing.T) {
 	}
 }
 
-// ====== hasMcmeta ======
-
-func TestHasMcmeta_Yes(t *testing.T) {
-	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{"pack.mcmeta": `{"pack":{"pack_format":15}}`})
-	if !hasMcmeta(path) {
-		t.Error("含 pack.mcmeta 的 zip 应返回 true")
-	}
-}
-
-func TestHasMcmeta_No(t *testing.T) {
-	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{"readme.txt": "hello"})
-	if hasMcmeta(path) {
-		t.Error("无 pack.mcmeta 的 zip 应返回 false")
-	}
-}
-
-func TestHasMcmeta_NotZip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "file.txt")
-	if err := os.WriteFile(path, []byte("data"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if hasMcmeta(path) {
-		t.Error("非 zip 应返回 false")
-	}
-}
-
-// ====== hasShaders ======
-
-func TestHasShaders_Yes(t *testing.T) {
-	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{"shaders/anything.glsl": "data"})
-	if !hasShaders(path) {
-		t.Error("含 shaders/ 的 zip 应返回 true")
-	}
-}
-
-func TestHasShaders_No(t *testing.T) {
-	path := testutil.WriteZipFile(t, "pack.zip", map[string]string{"readme.txt": "hello"})
-	if hasShaders(path) {
-		t.Error("无 shaders/ 的 zip 应返回 false")
-	}
-}
-
-func TestHasShaders_NotZip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "file.txt")
-	if err := os.WriteFile(path, []byte("data"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if hasShaders(path) {
-		t.Error("非 zip 应返回 false")
-	}
-}
-
 // ====== ReadPackMeta from ZIP ======
 
 func TestReadPackMeta_Zip(t *testing.T) {

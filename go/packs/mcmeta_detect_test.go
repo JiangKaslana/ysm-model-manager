@@ -13,7 +13,8 @@ import (
 func TestDetectResourceType_McmetaDetector(t *testing.T) {
 	reg := &types.ResourceTypeRegistry{
 		ResourceTypes: []types.ResourceType{
-			{ID: "resourcepack", Extensions: []string{".zip"}, Detector: "mcmeta"},
+			{ID: "resourcepack", Extensions: []string{".zip"}, Detector: "mcmeta",
+				ZipEntries: []types.ZipEntryMatch{{Name: "pack.mcmeta", Match: "exact"}}},
 		},
 	}
 	// 含 pack.mcmeta → 识别
@@ -35,7 +36,8 @@ func TestDetectResourceType_McmetaDetector(t *testing.T) {
 func TestDetectResourceType_ShaderDetector(t *testing.T) {
 	reg := &types.ResourceTypeRegistry{
 		ResourceTypes: []types.ResourceType{
-			{ID: "shaderpack", Extensions: []string{".zip"}, Detector: "shader"},
+			{ID: "shaderpack", Extensions: []string{".zip"}, Detector: "shader",
+				ZipEntries: []types.ZipEntryMatch{{Name: "shaders/", Match: "prefix"}}},
 		},
 	}
 	// 含 shaders/ 条目 → 识别

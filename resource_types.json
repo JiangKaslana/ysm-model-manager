@@ -5,7 +5,8 @@
       "name": "资源包",
       "icon": "🎨",
       "extensions": [
-        ".zip"
+        ".zip",
+        ".7z"
       ],
       "storageSubDir": "resourcepacks",
       "configField": "ResourcepackRoot",
@@ -30,7 +31,8 @@
       "name": "光影包",
       "icon": "☀️",
       "extensions": [
-        ".zip"
+        ".zip",
+        ".7z"
       ],
       "storageSubDir": "shaderpacks",
       "configField": "ShaderpackRoot",

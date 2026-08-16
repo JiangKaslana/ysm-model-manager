@@ -14,6 +14,7 @@
 //   - MAX_ZIP_FILE_BYTES: 100MB（单文件上限，与 MAX_IMPORT_BYTES 对齐）
 
 import { unzipSync } from "fflate";
+import { matchZipEntryTS } from "../utils/resource/types.ts";
 
 // --- ZIP 格式常量 ---
 const EOCD_SIG = 0x06054b50; // End of Central Directory
@@ -210,14 +211,11 @@ export function detectZipType(data: Uint8Array): ZipType {
     // 读文件名字节（按 Latin-1 处理，大小写折叠仅影响 ASCII）
     const nameLow = lowerLatin1(data.subarray(nameStart, nameStart + nameLen));
 
-    if (nameLow === "pack.mcmeta") return "resourcepack";
-    if (nameLow.startsWith("shaders/") || nameLow === "shaders") return "shaderpack";
-    if (nameLow.endsWith("ysm.json") || nameLow.startsWith("models/")) return "ysm";
-    // ADR-066 web 识别层：蓝图/投影/MMD/VRC 的 zip 条目后缀指纹（与 Go zipEntries suffix 同语义）
-    if (nameLow.endsWith(".nbt") || nameLow.endsWith(".schematic")) return "create-blueprint";
-    if (nameLow.endsWith(".litematic")) return "litematic";
-    if (nameLow.endsWith(".pmx") || nameLow.endsWith(".pmd")) return "mmd-skin";
-    if (nameLow.endsWith(".vrca") || nameLow.endsWith(".vrm")) return "vrchat-avatar";
+    // ADR-082 S4：注册表驱动指纹（matchZipEntryTS，与 Go types.MatchZipEntry 同构——
+    // 任意层级段后缀语义，pack.mcmeta/shaders/ysm.json/类型后缀命中任意层级，
+    // 新增类型只改 resource_types.json）。原硬编码 if 链删除防前后端漂移。
+    const rtype = matchZipEntryTS(nameLow);
+    if (rtype) return rtype as ZipType;
 
     // 跳到下一个 entry（跳过压缩数据）
     const compSize = dv.getUint32(idx + 18, true);

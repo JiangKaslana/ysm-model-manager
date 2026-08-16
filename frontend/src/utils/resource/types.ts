@@ -71,6 +71,8 @@ interface RawResourceType {
   icon?: string;
   extensions?: string[];
   preview?: string;
+  detector?: string;
+  zipEntries?: { name?: string; match?: string }[];
 }
 
 const rawTypes: RawResourceType[] =
@@ -155,4 +157,34 @@ export function resolveTypeSafe(path: string): string | null {
   const ext = extOf(path);
   if (!ext) return null;
   return AMBIGUOUS_EXTS.has(ext) ? null : resolveTypeByExt(path);
+}
+
+/** ZIP 条目任意层级段后缀（ADR-082 S1 前端同构）：a/b/c → [a/b/c, b/c, c] */
+function segmentSuffixes(name: string): string[] {
+  const segs = name.toLowerCase().split("/");
+  const out: string[] = [];
+  for (let i = 0; i < segs.length; i++) out.push(segs.slice(i).join("/"));
+  return out;
+}
+
+/**
+ * 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4：
+ * 前端指纹注册表化，与 Go types.MatchZipEntry 同构——任意层级段后缀语义，
+ * 新增类型只改 JSON）。命中规则来自 resource_types.json 的 zipEntries
+ * （exact/prefix/suffix 三种模式），未命中返回 null。
+ */
+export function matchZipEntryTS(name: string): string | null {
+  for (const t of rawTypes) {
+    if (!t.id || !t.zipEntries || t.zipEntries.length === 0) continue;
+    for (const m of t.zipEntries) {
+      const mlow = (m.name || "").toLowerCase();
+      if (!mlow) continue;
+      for (const seg of segmentSuffixes(name)) {
+        if (m.match === "prefix" && seg.startsWith(mlow)) return t.id;
+        if (m.match === "suffix" && seg.endsWith(mlow)) return t.id;
+        if (m.match !== "prefix" && m.match !== "suffix" && seg === mlow) return t.id;
+      }
+    }
+  }
+  return null;
 }

@@ -44,22 +44,30 @@ type ZipEntryMatch struct {
 }
 
 // MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感）
+// ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配，
+// 解决「zip 套一层目录」（MyPack/pack.mcmeta 命中 pack.mcmeta exact）。
+// suffix 幂等（原 HasSuffix 已覆盖任意层级），exact/prefix 从「根目录限定」放宽为「任意层级」。
 func (rt *ResourceType) MatchZipEntry(name string) bool {
 	low := strings.ToLower(name)
-	for _, m := range rt.ZipEntries {
-		mlow := strings.ToLower(m.Name)
-		switch m.Match {
-		case "prefix":
-			if strings.HasPrefix(low, mlow) {
-				return true
-			}
-		case "suffix":
-			if strings.HasSuffix(low, mlow) {
-				return true
-			}
-		default: // "exact"
-			if low == mlow {
-				return true
+	// 段后缀：a/b/c → [a/b/c, b/c, c]（zip 条目名标准为 /，反斜杠归一）
+	segs := strings.Split(strings.ReplaceAll(low, "\\", "/"), "/")
+	for i := range segs {
+		seg := strings.Join(segs[i:], "/")
+		for _, m := range rt.ZipEntries {
+			mlow := strings.ToLower(m.Name)
+			switch m.Match {
+			case "prefix":
+				if strings.HasPrefix(seg, mlow) {
+					return true
+				}
+			case "suffix":
+				if strings.HasSuffix(seg, mlow) {
+					return true
+				}
+			default: // "exact"
+				if seg == mlow {
+					return true
+				}
 			}
 		}
 	}
