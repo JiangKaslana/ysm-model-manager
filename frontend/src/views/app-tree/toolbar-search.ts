@@ -10,11 +10,34 @@ import { resolveWebMode } from "../../backend/platform.ts";
 import { importWebFiles } from "../../backend/browser-adapter.ts";
 // 网页版数值条件降级标记消费（web-stats.ts 经 browserAdapter 链 re-export——与
 // searchWebModels 同一模块实例；Worker 批量统计不可用时置位，此处 toast 提示）
-import { consumeWebSearchDegraded } from "../../backend/browser-adapter.ts";
+import { consumeWebSearchDegraded, onStatsProgress } from "../../backend/browser-adapter.ts";
 import type { AppTree } from "./index.ts";
 import { getApp } from "../../backend/app.ts";
 
 type $Id = (id: string) => HTMLElement | null;
+
+// --- 多线程统计角标（网页版证明 off-main-thread：主线程 + stats Worker 并行）---
+// 右下角 fixed 小角标：数值条件搜索时显示 "🧵×2 ⚙️ x/y"（Worker 批进度），
+// 统计完成隐藏；Worker 降级时短暂显示 ⚠️ 提示。仅 web 模式（resolveWebMode）创建。
+let statsBadge: HTMLElement | null = null;
+
+function showStatsBadge(html: string): void {
+  if (!statsBadge) {
+    statsBadge = document.createElement("div");
+    statsBadge.id = "web-stats-badge";
+    statsBadge.style.cssText =
+      "position:fixed;right:12px;bottom:12px;z-index:9999;padding:4px 10px;border-radius:8px;" +
+      "font-size:12px;font-family:monospace;background:rgba(0,0,0,.72);color:#7ee787;" +
+      "border:1px solid rgba(126,231,135,.4);pointer-events:none;user-select:none";
+    document.body.appendChild(statsBadge);
+  }
+  statsBadge.innerHTML = html;
+  statsBadge.style.display = "";
+}
+
+function hideStatsBadge(): void {
+  if (statsBadge) statsBadge.style.display = "none";
+}
 
 // 打开弹窗版筛选器（应用结果到 inline 面板 + 后端搜索）
 export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
@@ -127,6 +150,15 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
       return;
     }
     const n = (v: unknown): number => (v == null ? 0 : parseInt(String(v), 10) || 0);
+    // 网页版数值条件：显示多线程统计角标（主线程 + stats Worker 并行，批进度实时）
+    const isWebNum = resolveWebMode() && hasNumRange;
+    if (isWebNum) {
+      showStatsBadge("🧵×2 准备统计…");
+      // 进度回调：每批完成更新角标（done/total）
+      onStatsProgress((done, total) => {
+        showStatsBadge(`🧵×2 ⚙️ ${done}/${total}`);
+      });
+    }
     try {
       const results = await SearchModels(
         filesRoot,
@@ -151,6 +183,11 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
       vm._filterPaths = null;
       vm._renderTree();
       return;
+    } finally {
+      if (isWebNum) {
+        onStatsProgress(null);
+        hideStatsBadge();
+      }
     }
   }
 
@@ -162,6 +199,8 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
       duration: 3000,
       type: "warn",
     });
+    showStatsBadge("⚠️ Worker 降级 · 数值条件忽略");
+    setTimeout(hideStatsBadge, 3000);
   }
 
   // 3. 取交集：标签 ∩ 搜索条件（如果两者都有）

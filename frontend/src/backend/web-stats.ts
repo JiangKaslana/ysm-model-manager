@@ -32,6 +32,14 @@ let pending: {
 /** 降级标记：最近一次批量统计是否降级（一次消费，toolbar-search 读取后复位） */
 let degradedFlag = false;
 
+/** 进度回调（batchStatsWebModels 逐批推进时调用；null 注销）。UI 角标证明多线程统计 */
+let statsProgressCb: ((done: number, total: number) => void) | null = null;
+
+/** 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） */
+export function onStatsProgress(cb: ((done: number, total: number) => void) | null): void {
+  statsProgressCb = cb;
+}
+
 /** 批量统计函数签名（测试注入用；返回 null = 降级） */
 type StatsRunner = (paths: string[]) => Promise<WebModelStats[] | null>;
 
@@ -158,6 +166,8 @@ export async function batchStatsWebModels(paths: string[]): Promise<WebModelStat
   const out: Array<WebModelStats | null> = new Array(paths.length);
   for (let offset = 0; offset < paths.length; offset += STATS_BATCH_LIMIT) {
     const chunk = paths.slice(offset, offset + STATS_BATCH_LIMIT);
+    // 批前进度：已完成 offset 个（UI 角标显示）
+    statsProgressCb?.(offset, paths.length);
     const res = await statsOneChunk(chunk);
     if (res === null) {
       markDegraded();
@@ -182,5 +192,6 @@ export async function batchStatsWebModels(paths: string[]): Promise<WebModelStat
     markDegraded();
     return null;
   }
+  statsProgressCb?.(paths.length, paths.length); // 全部完成
   return out as WebModelStats[];
 }
