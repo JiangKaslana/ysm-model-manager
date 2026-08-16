@@ -40,10 +40,10 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 101 |
-| 前端·工具 | 86 | 300 |
+| 前端·工具 | 86 | 301 |
 | frontend/views | 88 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **340** | **1410** |
+| **合计** | **340** | **1411** |
 
 ## Go·头像
 
@@ -1140,6 +1140,7 @@
 | `MmdBoneDetail()` | `frontend/src/utils/3d/mmd-bones:34` | 骨骼详情（getMmdBoneDetail） |
 | `buildMmdBoneTree()` | `frontend/src/utils/3d/mmd-bones:45` | 树构建：parentBoneIndex 挂父（自引用/越界视为根），返回根节点森林 |
 | `listMmdBones()` | `frontend/src/utils/3d/mmd-bones:63` | 扁平列表：树 DFS 先序 + 深度（消费方可按 depth 缩进渲染） |
+| `pickMmdBone()` | `frontend/src/utils/3d/mmd-bones:85` | 骨骼拾取：THREE.Bone 无几何（Raycaster.intersectObjects 不命中），改为 「射线到骨骼 worldPosition 的距离」命中——遍历取最近且 |
 | `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:33` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
@@ -1500,8 +1501,8 @@
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:36` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:41` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:46` | 任意新预览派发时调用，作废在途 MMD 加载 |
-| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:15` | — |
-| `buildMmdBottomNav()` | `frontend/src/views/app-preview/mmd-controls:28` | 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） |
+| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:21` | — |
+| `buildMmdBottomNav()` | `frontend/src/views/app-preview/mmd-controls:34` | 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
