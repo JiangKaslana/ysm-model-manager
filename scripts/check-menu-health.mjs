@@ -106,7 +106,7 @@ function parseItem(block, id) {
     labelKey: field(/labelKey:\s*"([^"]+)"/),
     dockGroup: field(/dockGroup:\s*"([^"]+)"/),
     kind: field(/kind:\s*"([^"]+)"/),
-    hasRender: /render:\s*\(/.test(block) || /render:\s*\(/.test(block),
+    hasRender: /render:\s*\(/.test(block),
     hasRun: /\brun:\s*\(/.test(block),
   };
 }

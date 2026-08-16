@@ -82,3 +82,28 @@ describe("extractIds", () => {
     expect(extractIds([])).toEqual([]);
   });
 });
+
+describe("反向破坏性测试（误删必需项必须被拦截）", () => {
+  it("真实菜单场景：vrm 必需项齐（4 个），含额外项（vrma-play）→ pass", () => {
+    // 模拟 vrm 菜单表：4 个必需项 + 1 个额外注入项
+    const actual = ["model", "shot", "material", "bones", "vrma-play"];
+    const required = ["model", "shot", "material", "bones"];
+    // 必需项 4 个全在，额外项 vrma-play 被容忍
+    expectContainsAtLeast(actual, required, "vrm 必需项");
+  });
+
+  it("真实菜单场景：误删 material → 必须 fail（契约机器化锁死）", () => {
+    // 如果开发者误删了 vrm 菜单表的 material 项，测试必须报错
+    const actual = ["model", "shot", "bones", "vrma-play"];
+    const required = ["model", "shot", "material", "bones"];
+    expect(() => expectContainsAtLeast(actual, required, "vrm 必需项"))
+      .toThrow(/缺必需项: material/);
+  });
+
+  it("真实菜单场景：误删多个必需项 → 全部报告", () => {
+    const actual = ["model"];
+    const required = ["model", "shot", "material", "bones"];
+    expect(() => expectContainsAtLeast(actual, required, "vrm 必需项"))
+      .toThrow(/缺必需项: shot, material, bones/);
+  });
+});
