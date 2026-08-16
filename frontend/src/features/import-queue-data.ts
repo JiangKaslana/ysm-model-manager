@@ -219,7 +219,13 @@ export function initDataLayer(host: ImportQueueHost): {
           bus.emit("model:select", { path: tmpPath });
         }
       } catch (e) {
+        // 显式化（ADR-082 续）：预览是用户可见功能，保存失败 toast 提示而非静默
         console.warn("[import-queue] 预览临时文件保存失败:", e);
+        bus.emit("toast:show", {
+          msg: "❌ " + t("import.previewTempFailed", { err: friendlyError(e) }),
+          duration: 3000,
+          type: "warn",
+        });
       }
     })();
 
@@ -230,6 +236,8 @@ export function initDataLayer(host: ImportQueueHost): {
           await loadHeaderFromBase64();
         }
       } catch (err) {
+        // 自动读取头部：loadHeaderFromBase64 内部 catch 已置占位提示（ADR-082 续），
+        // 此处兜底不再重复 toast（自动后台行为，静默可接受）
         console.warn("[import-queue] 自动读取头部失败:", err);
       }
     }, 0);
@@ -250,6 +258,8 @@ export function initDataLayer(host: ImportQueueHost): {
         const el = root.getElementById("dl-conflict") as HTMLElement | null;
         if (el) el.style.display = exists ? "" : "none";
       } catch (e) {
+        // 冲突检查为防抖后台探测（输入暂停 400ms 才跑）：失败仅重名提示不显示，
+        // 不影响导入（导入时 Go 侧仍会报 FILE_EXISTS），静默可接受（ADR-082 续）
         console.warn("[import-queue] 冲突检查失败:", e);
       }
     }, 400);
@@ -298,7 +308,17 @@ export function initDataLayer(host: ImportQueueHost): {
       }
       updatePreview();
     } catch (e) {
+      // 显式化（ADR-082 续）：读取头部失败置占位提示，不再全静默——
+      // 用户勾选「读取作者」后失败应有感知（表单无预览但可正常导入）
       console.warn("[import-queue] 读取头部失败:", e);
+      const tipsEl = root.getElementById("dl-tips") as HTMLElement | null;
+      if (tipsEl) {
+        tipsEl.innerHTML =
+          '<div style="font-weight:600;font-size:9px;color:var(--warn);margin-bottom:2px">⚠️ ' +
+          t("import.headerReadFailed") +
+          "</div>";
+        tipsEl.style.display = "block";
+      }
     }
   };
 

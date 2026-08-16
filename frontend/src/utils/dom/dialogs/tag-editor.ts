@@ -1,6 +1,7 @@
 // ===== 模型标签编辑弹窗（类型化版 — ADR-014 P3 dialogs）=====
 // 读取/写入模型标签，支持输入新标签和选择已有标签
 import { esc } from "../../../utils/dom/html.ts";
+import { friendlyError } from "../../../utils/dom/errors.ts";
 import { closeDlg, registerDlg } from "./modal.ts";
 import { getApp } from "../../../backend/app.ts";
 import { addTagToSet } from "./tag-set.ts";
@@ -93,7 +94,7 @@ export function modalTagEditor(modelPath: string): Promise<string[] | null> {
         renderSuggestions(allTags);
       } catch (e) {
         loadFailed = true;
-        errEl.textContent = "⚠️ " + t("dialog.tagsLoadFailed") + ": " + (e as Error).message;
+        errEl.textContent = "⚠️ " + t("dialog.tagsLoadFailed") + ": " + friendlyError(e);
       } finally {
         loading = false;
         if (disposed) return; // 已关闭：不操作已卸载 DOM
@@ -192,7 +193,7 @@ export function modalTagEditor(modelPath: string): Promise<string[] | null> {
         if (disposed) return; // 保存期间用户已关闭：不 resolve（结果由 closeDlg 决定）
         close(tags);
       } catch (e) {
-        errEl.textContent = "⚠️ " + t("dialog.tagsSaveFailed") + ": " + (e as Error).message;
+        errEl.textContent = "⚠️ " + t("dialog.tagsSaveFailed") + ": " + friendlyError(e);
       }
     };
   });

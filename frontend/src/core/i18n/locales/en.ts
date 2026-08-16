@@ -252,6 +252,8 @@ export const en: Record<string, string> = {
   "import.overwritten": "Overwritten",
   "import.overwriteFailed": "Overwrite failed",
   "import.failed": "Import failed",
+  "import.previewTempFailed": "Preview temp file save failed: {err}",
+  "import.headerReadFailed": "Unable to read header info",
   "import.readDropFailed": "Failed to read dropped file",
   "import.ysmJsonHint": "ysm.json is the model manifest. Please drag the entire model folder (including geometry/animations/textures) to import as a group",
   "import.emptyFolder": "Folder contains no readable files",

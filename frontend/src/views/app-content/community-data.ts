@@ -25,6 +25,8 @@ export interface CommunityData {
   sites: WorkshopSite[];
   creators: LocalCreator[];
   authors: unknown[];
+  /** 加载是否失败（ADR-082 续：区分「真无数据」与「加载失败」，调用方据此占位提示） */
+  failed?: boolean;
 }
 
 /**
@@ -42,6 +44,7 @@ export async function loadCommunityData(): Promise<CommunityData> {
   let creators: WorkshopCreator[] = [];
   let authors: unknown[] = [];
   let localAuthors: LocalAuthorLike[] = [];
+  let failed = false;
   try {
     const results = await Promise.all([
       App.DefaultWorkshopSites(),
@@ -54,6 +57,9 @@ export async function loadCommunityData(): Promise<CommunityData> {
     authors = results[2] || [];
     localAuthors = results[3] || [];
   } catch (e) {
+    // 显式化（ADR-082 续）：不再只 console.warn 静默——failed 标记让调用方
+    // 区分「加载失败」（提示重试）与「真无数据」（显示空态），避免页面空白无感知
+    failed = true;
     console.warn("[community] 社区数据加载失败:", e);
   }
 
@@ -92,6 +98,7 @@ export async function loadCommunityData(): Promise<CommunityData> {
     sites: sites || [],
     creators: merged,
     authors: authors || [],
+    failed,
   };
 }
 

@@ -253,6 +253,8 @@ export const ja: Record<string, string> = {
   "import.overwritten": "上書きされました",
   "import.overwriteFailed": "上書きに失敗しました",
   "import.failed": "インポートに失敗しました",
+  "import.previewTempFailed": "プレビュー一時ファイルの保存に失敗: {err}",
+  "import.headerReadFailed": "ヘッダー情報を読み取れません",
   "import.readDropFailed": "ドロップされたファイルの読み取りに失敗しました",
   "import.ysmJsonHint": "ysm.jsonはモデルのマニフェストです。geometry／アニメーション／テクスチャを含むモデルフォルダ全体をドラッグして、グループとしてインポートしてください",
   "import.emptyFolder": "フォルダ内に読み取り可能なファイルがありません",

@@ -6,6 +6,7 @@ import { stagger } from "../../../utils/animation/stagger.ts";
 import { registerDlg, closeDlg } from "./modal.ts";
 import { esc } from "../../../utils/dom/html.ts";
 import { rebuildParsedName, applyReplaceToName } from "./batch-rename-util.ts";
+import { friendlyError } from "../../../utils/dom/errors.ts";
 import { t } from "../../../core/i18n/t.ts";
 
 /** 批量条目（ModelEntry 子集） */
@@ -324,7 +325,7 @@ export function showBatchRenameDialog(
           "❌ " +
           t("dialog.batchRenameFailed") +
           ": " +
-          (e instanceof Error ? e.message : String(e)),
+          friendlyError(e),
         duration: 4000,
         type: "error",
       });

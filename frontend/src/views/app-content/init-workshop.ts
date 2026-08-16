@@ -133,10 +133,12 @@ export function initWorkshopPage(host: AppContentHost): void {
         }
       } else if (tabsEl) {
         // 空态提示（e2e 反推）：原实现 sites 为空时永久停留 loading 占位，
-        // 加载失败/无配置用户无感知——显示「暂无数据」并允许手动导入站点配置
+        // 加载失败/无配置用户无感知——显示「暂无数据」并允许手动导入站点配置；
+        // 加载失败则提示「加载失败」（ADR-082 续：区分失败与真无数据，不再空白无感知）
+        const emptyText = data.failed ? t("common.loadFailed") : t("common.empty");
         tabsEl.innerHTML =
           '<span style="padding:4px 12px;font-size:var(--fs-sm);color:var(--muted)">' +
-          t("common.empty") +
+          emptyText +
           " 📤 " +
           t("workshop.exportSite") +
           "</span>";

@@ -70,7 +70,15 @@ type Logger struct {
 	mu   sync.Mutex
 	logs []types.ImportLog
 	path string
+	// saveTimer 防抖合并写定时器（ADR-082 续）：批量高频 addOp（如 sync 逐文件安装
+	// InstallModelTo）每次 save 都全量重写 JSON（O(N²) 写放大），窗口内合并为一次落盘
+	saveTimer *time.Timer
 }
+
+// saveDebounce 落盘防抖窗口：窗口内多条 addOp 合并为一次 save。
+// 权衡：窗口越大合并收益越高、崩溃时最后几条日志丢失窗口越长；300ms 平衡两者
+// （日志是审计/诊断数据，非关键事务，且 500 条上限本就截断最旧记录）。
+const saveDebounce = 300 * time.Millisecond
 
 // NewLogger 创建日志管理器
 // configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）——
@@ -225,6 +233,35 @@ func (l *Logger) addOp(op, modelName, sourcePath, targetDir string, fileSize int
 			l.logs = nb
 		}
 	}
+	l.scheduleSave()
+}
+
+// scheduleSave 防抖落盘：窗口内已有定时器则合并，否则启动新定时器（ADR-082 续）。
+// 调用方须持有 l.mu。内存态（path==""）不落盘，直接返回。
+func (l *Logger) scheduleSave() {
+	if l.path == "" {
+		return
+	}
+	if l.saveTimer != nil {
+		return // 窗口内合并：已有定时器待触发，本次写入随其落盘
+	}
+	l.saveTimer = time.AfterFunc(saveDebounce, func() {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		l.saveTimer = nil
+		l.save()
+	})
+}
+
+// Flush 立即落盘（取消防抖窗口）：批量写入后调用方需要立即可重启加载（测试）或
+// 退出前确保审计完整时使用。内存态 no-op。
+func (l *Logger) Flush() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.saveTimer != nil {
+		l.saveTimer.Stop()
+		l.saveTimer = nil
+	}
 	l.save()
 }
 
@@ -242,5 +279,9 @@ func (l *Logger) Clear() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.logs = []types.ImportLog{}
+	if l.saveTimer != nil {
+		l.saveTimer.Stop()
+		l.saveTimer = nil
+	}
 	l.save()
 }

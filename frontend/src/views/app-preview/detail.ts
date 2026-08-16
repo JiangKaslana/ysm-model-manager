@@ -6,6 +6,7 @@
 import { summaryCardHTML, type YsmSummary } from "../../utils/format/summarize.ts";
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { friendlyError } from "../../utils/dom/errors.ts";
 import { getApp } from "../../backend/app.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import type { PreviewCtx } from "./utils.ts";
@@ -134,7 +135,7 @@ export async function showModelDetail(
     if (gen !== _detailGen) return;
     const detailDiv = ctx.root.getElementById("preview-detail");
     if (detailDiv) {
-      detailDiv.innerHTML = `${t("preview.unknownError")} ${t("preview.parseFailed")}: ${esc(err instanceof Error ? err.message : String(err))}`;
+      detailDiv.innerHTML = `${t("preview.unknownError")} ${t("preview.parseFailed")}: ${esc(friendlyError(err))}`;
     }
   }
 }

@@ -68,6 +68,8 @@ func TestLogger_SaveAndLoad(t *testing.T) {
 	path := filepath.Join(dir, "test-logs.json")
 	l := &Logger{path: path}
 	l.Add("模型A", "/src/a.ysm", "/dst", 1024, "成功", "")
+	// 防抖落盘（ADR-082 续）：Add 后未过窗口不落盘，Flush 强制立即写入
+	l.Flush()
 
 	// 新建 Logger 从同一路径加载
 	l2 := &Logger{path: path}
@@ -78,6 +80,43 @@ func TestLogger_SaveAndLoad(t *testing.T) {
 	}
 	if logs[0].ModelName != "模型A" {
 		t.Errorf("ModelName = %q, 期望 模型A", logs[0].ModelName)
+	}
+}
+
+// 防抖合并写（ADR-082 续）：批量高频 addOp 只落盘一次（窗口内合并），
+// 消除 O(N²) 全量重写；Flush 可强制提前落盘
+func TestLogger_DebouncedSave(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-logs.json")
+	l := &Logger{path: path}
+
+	// 连续写入多条（模拟 sync 逐文件 InstallModelTo 批量场景）
+	for i := 0; i < 50; i++ {
+		l.Add("模型", "/src", "/dst", 0, "成功", "")
+	}
+	// 未 Flush 前磁盘不应有文件（防抖窗口内合并中）
+	if _, err := os.Stat(path); err == nil {
+		t.Fatal("防抖窗口内不应已落盘（批量写入应合并为一次 save）")
+	}
+	// Flush 强制落盘后应完整可读
+	l.Flush()
+	l2 := &Logger{path: path}
+	l2.load()
+	if got := len(l2.GetAll()); got != 50 {
+		t.Fatalf("Flush 后应 50 条, 得到 %d", got)
+	}
+}
+
+// 内存态（path==""）addOp 不启动定时器、不落盘（save no-op 语义保持）
+func TestLogger_DebounceMemoryMode(t *testing.T) {
+	l := &Logger{} // path 为空 → 内存态
+	l.Add("模型", "/src", "/dst", 0, "成功", "")
+	if l.saveTimer != nil {
+		t.Fatal("内存态不应启动防抖定时器")
+	}
+	l.Flush() // 不 panic
+	if got := len(l.GetAll()); got != 1 {
+		t.Fatalf("内存态应保留 1 条, 得到 %d", got)
 	}
 }
 
