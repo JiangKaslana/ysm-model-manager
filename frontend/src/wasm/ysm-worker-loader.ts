@@ -10,6 +10,9 @@
 // 解码链与 ysm-parser.ts 保持同口径：内存直解 → 失败时由调用方剥文本头部重试 → callMain。
 import { _getWasmBinary } from "./ysm-wasm-data.js";
 import { _getGlueCode } from "./ysm-glue-data.js";
+// ADR-079 M3：pthread 多线程版数据文件（crossOriginIsolated 时启用）
+import { _getWasmBinaryMt } from "./ysm-wasm-data-mt.js";
+import { _getGlueCodeMt } from "./ysm-glue-data-mt.js";
 import type { YsmDecodedFile } from "./ysm-parser.ts";
 
 /** Emscripten FS 最小接口（WASM 导出，与 ysm-parser.ts FSLike 同构） */
@@ -46,6 +49,8 @@ interface WorkerModuleConfig {
   printErr: () => void;
   noInitialRun: boolean;
   HEAPU8?: Uint8Array;
+  /** ADR-079 M4：pthread 版需要——pthread worker 池从该 URL 重新加载主胶水 */
+  mainScriptUrlOrBlob?: string;
 }
 
 let wasmModule: WasmModuleLike | null = null;
@@ -59,6 +64,32 @@ let waiters: Array<(ok: boolean) => void> = [];
  * 失败抛错；成功后 wasmModule 常驻，后续任务复用（Worker 常驻，无需重复加载）。
  */
 export async function initYsmParserInWorker(): Promise<boolean> {
+  return initParserInWorker(_getWasmBinary() as ArrayBuffer | null, _getGlueCode() as string | null);
+}
+
+/**
+ * ADR-079 M3/M4：pthread 多线程版初始化（需 crossOriginIsolated=true——SharedArrayBuffer
+ * 前提，见 backend/coi-sw.ts）。差异点：
+ *  1. 用 mt 数据文件（pthread 编译产物，Atomics/SharedArrayBuffer/PThread）
+ *  2. 注入 mainScriptUrlOrBlob（Blob URL）：Emscripten pthread worker 池从该 URL
+ *     重新加载主胶水（new Worker(mainScriptUrlOrBlob)，worker 内 ENVIRONMENT_IS_PTHREAD
+ *     分支等消息）——与单线程 base64+eval 注入架构的桥接（ADR-079 §4 补注）。
+ *  Blob URL 不能 revoke（pthread worker 生命周期内持续使用）。
+ */
+export async function initYsmParserInWorkerMt(): Promise<boolean> {
+  const glue = _getGlueCodeMt() as string | null;
+  if (!glue) throw new Error("mt 胶水代码空");
+  const blobUrl = URL.createObjectURL(new Blob([glue], { type: "application/javascript" }));
+  return initParserInWorker(_getWasmBinaryMt() as ArrayBuffer | null, glue, {
+    mainScriptUrlOrBlob: blobUrl,
+  });
+}
+
+async function initParserInWorker(
+  wasmBinary: ArrayBuffer | null,
+  glueCode: string | null,
+  extra?: { mainScriptUrlOrBlob?: string },
+): Promise<boolean> {
   if (wasmModule) return true;
   if (loading) return new Promise<boolean>((r) => waiters.push(r));
   loading = true;
@@ -66,8 +97,6 @@ export async function initYsmParserInWorker(): Promise<boolean> {
   const g = globalThis as Record<string, unknown>;
   try {
     // 1. 从内嵌 JS 拿 .wasm 二进制 + 胶水代码（数据文件为自动生成的 base64 常量）
-    const wasmBinary = _getWasmBinary() as ArrayBuffer | null;
-    const glueCode = _getGlueCode() as string | null;
     if (!wasmBinary || !wasmBinary.byteLength) throw new Error("wasmBinary 空");
     if (!glueCode) throw new Error("胶水代码空");
 
@@ -77,13 +106,15 @@ export async function initYsmParserInWorker(): Promise<boolean> {
       ';updateMemoryViews();Module["HEAPU8"]=HEAPU8',
     );
 
-    // 3. 设置 Module.wasmBinary（worker 全局，替代主线程的 window.Module）
+    // 3. 设置 Module.wasmBinary（worker 全局，替代主线程的 window.Module）；
+    //    ADR-079 M4：pthread 变体额外注入 mainScriptUrlOrBlob（Blob URL）
     const moduleCfg: WorkerModuleConfig = {
       wasmBinary,
       print: () => {},
       printErr: () => {},
       noInitialRun: true,
     };
+    if (extra?.mainScriptUrlOrBlob) moduleCfg.mainScriptUrlOrBlob = extra.mainScriptUrlOrBlob;
     g.Module = moduleCfg;
 
     // 4. 间接 eval 执行胶水代码（worker 全局作用域，var YSMParserModule → g.YSMParserModule）

@@ -42,9 +42,9 @@
 | frontend/ui | 18 | 103 |
 | 前端·工具 | 93 | 342 |
 | frontend/views | 88 | 245 |
-| 前端·WASM | 6 | 11 |
+| 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **355** | **1498** |
+| **合计** | **355** | **1499** |
 
 ## Go·头像
 
@@ -1706,9 +1706,10 @@
 | `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:233` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt:4` | — |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
-| `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:61` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
-| `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:204` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |
-| `decodeYsmInWorkerMemfs()` | `frontend/src/wasm/ysm-worker-loader:243` | callMain + MEMFS 解码 .ysm（回退路径，兼容旧 WASM 编译 / V3 文本头部等格式）。 |
+| `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:66` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
+| `initYsmParserInWorkerMt()` | `frontend/src/wasm/ysm-worker-loader:79` | ADR-079 M3/M4：pthread 多线程版初始化（需 crossOriginIsolated=true——SharedArrayBuffer 前提，见 backend/c |
+| `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:235` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |
+| `decodeYsmInWorkerMemfs()` | `frontend/src/wasm/ysm-worker-loader:274` | callMain + MEMFS 解码 .ysm（回退路径，兼容旧 WASM 编译 / V3 文本头部等格式）。 |
 
 ## frontend/workers
 

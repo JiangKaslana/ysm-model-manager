@@ -9,6 +9,7 @@ import { idbGet } from "../backend/idb.ts";
 import { parseWebPath } from "../backend/web-common.ts";
 import {
   initYsmParserInWorker,
+  initYsmParserInWorkerMt,
   decodeYsmInWorker,
   decodeYsmInWorkerMemfs,
 } from "../wasm/ysm-worker-loader.ts";
@@ -94,8 +95,12 @@ self.onmessage = async (ev: MessageEvent<StatsWorkerRequest>): Promise<void> => 
   const { requestId, paths } = msg;
   const total = paths?.length || 0;
   try {
+    // ADR-079 M4：跨源隔离（SharedArrayBuffer 可用）→ pthread 多线程 WASM（WASM 线程池
+    // 并行处理本批多模型）；否则单线程 WASM。crossOriginIsolated 在 worker 全局可读。
+    // 注意：mt 初始化依赖 COI（coi-sw.ts 网页版 SW 补头 / 桌面 mpr middleware）。
+    const mt = typeof crossOriginIsolated === "boolean" && crossOriginIsolated;
     // 预加载 WASM：失败 → 整批 error（主线程据此整体降级，避免每个模型空转浪费）
-    const ok = await initYsmParserInWorker();
+    const ok = mt ? await initYsmParserInWorkerMt() : await initYsmParserInWorker();
     if (!ok) {
       post({ type: "error", requestId, message: "YSMParser WASM 初始化失败" });
       return;
