@@ -1,7 +1,8 @@
 // ===== 3D 预览底部根菜单（ADR-076 v3：底部根菜单 + SlideMenu 多层派生，按能力动态显示）=====
 // 对齐 MikuMikuAR 范式：底部根按钮 → createSlideMenu 多层导航。
 // 唯一事实来源：仅描述结构（id / icon / labelKey / fallback / kind / 能力门槛）。
-// 渲染与 handler 见 preview-menu.ts；e2e 遍历本表断言结构与可解析性。
+// 渲染与 handler 见 preview-menu.ts；测试遍历本表 + 适配器真实注入项断言结构与
+// dock 渲染（preview-menu-items.test.ts，对齐 MikuMikuAR 声明式菜单测试范式）。
 //
 // 能力驱动显示（用户 2026-08-16 决策）：
 // - 有骨骼/模型工具（适配器注入 model 组项）→ 显示「🧍 模型」

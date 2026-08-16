@@ -42,9 +42,9 @@
 | frontend/ui | 18 | 103 |
 | 前端·工具 | 93 | 342 |
 | frontend/views | 88 | 245 |
-| 前端·WASM | 4 | 9 |
+| 前端·WASM | 6 | 11 |
 | frontend/workers | 2 | 14 |
-| **合计** | **353** | **1496** |
+| **合计** | **355** | **1498** |
 
 ## Go·头像
 
@@ -1105,7 +1105,7 @@
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:46` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:81` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
 | `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:309` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:331` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:332` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:30` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:49` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:65` | — |
@@ -1117,12 +1117,12 @@
 | `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:186` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
 | `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:191` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:196` | — |
-| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:11` | — |
-| `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
-| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:14` | — |
-| `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:41` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
-| `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:47` | — |
-| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:59` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
+| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
+| `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:13` | — |
+| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:15` | — |
+| `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:42` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
+| `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:48` | — |
+| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:60` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:19` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:39` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:46` | 挂载预览底部根菜单，返回句柄 |
@@ -1140,7 +1140,7 @@
 | `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:184` | 工厂：构造统一 PreviewAdapter（shared 模式） |
 | `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:198` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
 | `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:203` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:222` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:223` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
@@ -1618,12 +1618,12 @@
 | `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:50` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
 | `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:55` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
 | `CameraControlBridge()` | `frontend/src/views/app-preview/ysm-controls` | — |
-| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:19` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
-| `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:28` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
-| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:41` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
-| `fillYsmModelPanel()` | `frontend/src/views/app-preview/ysm-controls:70` | 模型菜单面板：统计 / 纹理 / 骨骼列表 / 骨骼详情 / 多组件切换（fill3DPanel 内容） |
-| `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:92` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
-| `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:132` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
+| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:20` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
+| `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:29` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
+| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:42` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
+| `fillYsmModelPanel()` | `frontend/src/views/app-preview/ysm-controls:71` | 模型菜单面板：统计 / 纹理 / 骨骼列表 / 骨骼详情 / 多组件切换（fill3DPanel 内容） |
+| `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:93` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
+| `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:133` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
 | `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |
@@ -1698,11 +1698,13 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `_getGlueCodeMt()` | `frontend/src/wasm/ysm-glue-data-mt:3` | — |
 | `_getGlueCode()` | `frontend/src/wasm/ysm-glue-data:3` | — |
 | `YsmDecodedFile()` | `frontend/src/wasm/ysm-parser:46` | 解码输出文件 |
 | `initYSMParser()` | `frontend/src/wasm/ysm-parser:92` | — |
 | `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:184` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
 | `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:233` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
+| `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt:3` | — |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
 | `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:61` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
 | `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:204` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |

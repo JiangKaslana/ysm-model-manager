@@ -760,6 +760,7 @@ export const ja: Record<string, string> = {
   // ── Preview ──
   "preview.title3d": "3Dプレビュー",
   "preview.modelInfo": "モデル情報",
+  "preview.switchModel": "モデル切替",
   "preview.parsing": "モデルファイルを解析中",
   "preview.parsingLitematica": "litematicaファイルを解析中",
   "preview.readFailed": "読み取りに失敗しました",

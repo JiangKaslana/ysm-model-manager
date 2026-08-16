@@ -65,7 +65,7 @@
 | `ui/` | 🥉 ui-helpers 原生 DOM 组件库（自 MikuMikuAR 迁移：slide-row / rows / header-toggle / advanced-rows / collapsible / preset / card / loading + 自包含 CSS 模块 `ui-components-styles.ts`，经 `installUiComponentsStyles()` / `uiComponentsStyleSheet` 接入） 〔源码 18〕 |
 | `utils/` | 工具函数（display / fmt / dom / icon / summarize / model3d） 〔源码 3: array.ts gh-links.ts types-re-export.ts · 测试 1 · 子目录 8: 3d/ animation/ core/ debug/ dom/ format/ icon/ resource/〕 |
 | `views/` | 页面级视图组件（app-content / app-tree / app-preview 等） 〔子目录 9: app-content/ app-nav/ app-preview/ app-resource-manager/ app-sidebar/ app-sync-manager/ app-toast/ app-tree/ context-menu/〕 |
-| `wasm/` | WASM 生成数据（base64 豁免文件） 〔源码 4: ysm-glue-data.js ysm-parser.ts ysm-wasm-data.js ysm-worker-loader.ts〕 |
+| `wasm/` | WASM 生成数据（base64 豁免文件） 〔源码 6: ysm-glue-data-mt.js ysm-glue-data.js ysm-parser.ts ysm-wasm-data-mt.js ysm-wasm-data.js ysm-worke…〕 |
 | `web-spike/` | 网页版 spike 入口（main.ts，构建/冒烟验证） 〔源码 1: main.ts〕 |
 | `workers/` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） 〔源码 3: stats-core.ts stats-protocol.ts stats.worker.ts · 测试 1〕 |
 | `app-modules.test.ts` | app-modules 主题/隐私模式启动链测试（normalizeTheme / safeGet / initTheme / applyUIPrefs） |

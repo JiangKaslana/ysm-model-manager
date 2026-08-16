@@ -759,6 +759,7 @@ export const en: Record<string, string> = {
   // ── Preview ──
   "preview.title3d": "3D Preview",
   "preview.modelInfo": "Model Info",
+  "preview.switchModel": "Switch Model",
   "preview.parsing": "Parsing model file",
   "preview.parsingLitematica": "Parsing litematica file",
   "preview.readFailed": "Read failed",

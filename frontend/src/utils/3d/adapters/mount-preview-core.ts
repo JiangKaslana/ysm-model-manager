@@ -279,7 +279,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   overlay.appendChild(topBar);
 
   // 声明式根菜单（⚙️）：core 在 overlay 内自建（预览全屏盖住 app 外壳，主程序 nav.settings 够不着），
-  // 全部控件以 PREVIEW_MENU_DEFS 表驱动渲染，e2e 选择器稳定可遍历（ADR-076 v2）。
+  // 全部控件以 CORE_MENU_ITEMS + 适配器注入项表驱动渲染（preview-menu-defs.ts），
+  // 测试遍历真实菜单数组断言（preview-menu-items.test.ts），选择器稳定可遍历（ADR-076 v2）。
   const menuHandle = mountPreviewRootMenu(overlay, {
     selfMode,
     getSkyCap: () => skyCap,

@@ -1,0 +1,306 @@
+// ===== 3D 菜单声明式测试：拿真实菜单数组去测（对齐 MikuMikuAR 范式）=====
+// CORE_MENU_ITEMS + ysm/mmd 适配器真实注入项 = 完整菜单数组（唯一事实来源）。
+// 测试遍历本表断言：结构完整性（id/legacyTestId 唯一、必填字段、i18n 键、组归属）、
+// dock 行全量渲染、安全面板逐个打开——加菜单项只改 menu 表，测试自动覆盖。
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as THREE from "three";
+import type { MMD } from "@moeru/three-mmd";
+import { zhCN } from "../../../core/i18n/locales/zh-CN.ts";
+import {
+  CORE_MENU_ITEMS,
+  PREVIEW_MENU_GROUPS,
+  type PreviewMenuItemDef,
+} from "./preview-menu-defs.ts";
+import { ysmMenuItems, type YsmMenuItemsOpts } from "./ysm-adapter.ts";
+import { mmdMenuItems, type MmdMenuItemsOpts } from "./mmd-adapter.ts";
+import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
+import type { BoneTree } from "../bone-tools.ts";
+
+// ── 假依赖工厂（结构/行渲染/轻面板用；重面板 fill3DPanel/截图/骨骼 不执行）──
+
+/** ysm 假依赖：仅喂结构断言与 dock 行渲染 */
+function fakeYsmOpts(): YsmMenuItemsOpts {
+  return {
+    controlsCtx: {
+      model: {} as never,
+      texIdx: 0,
+      texArr: [],
+      spec: {} as never,
+      handle: {} as never,
+    },
+    bonePanel: fakeBonePanel(),
+  };
+}
+
+/** mmd 假依赖：model/material/play 面板可真实渲染（轻量 DOM） */
+function fakeMmdOpts(overrides: Partial<MmdMenuItemsOpts> = {}): MmdMenuItemsOpts {
+  const mmd = {
+    pmx: { bones: [], materials: [], morphs: [] },
+  } as unknown as MMD;
+  const mesh = {
+    morphTargetDictionary: {},
+    morphTargetInfluences: [],
+  } as unknown as THREE.SkinnedMesh;
+  return {
+    navCtx: { mmd, mesh, modelName: "测试.pmx" },
+    material: {
+      list: () => [{ index: 0, name: "mat0" }],
+      getDetail: () => null,
+      setVisible: vi.fn(),
+      setOpacity: vi.fn(),
+    },
+    play: {
+      clips: [{ label: "动作A" }, { label: "动作B" }],
+      isPlaying: () => false,
+      toggle: vi.fn(),
+      currentIndex: () => 0,
+      select: vi.fn(),
+    },
+    bonePanel: null,
+    ...overrides,
+  };
+}
+
+function fakeBonePanel() {
+  return {
+    tree: null as unknown as BoneTree,
+    viewContainer: null,
+    camera: null,
+    scene: null,
+    cleanupRef: { current: null as (() => void) | null },
+  };
+}
+
+/** 环境能力假 cap（environment 面板 requiresEnvironment 过滤 + 渲染用） */
+const fakeCap = {
+  getTimeOfDay: () => 9,
+  setTime: vi.fn(),
+  setCloudCoverage: vi.fn(),
+  setEnvironmentEnabled: vi.fn(),
+  setVisible: vi.fn(),
+} as never;
+
+function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
+  return {
+    selfMode: false,
+    getSkyCap: () => fakeCap,
+    getGroundCap: () => fakeCap,
+    getCamBridge: () => ({
+      getOrbit: () => true,
+      setOrbit: vi.fn(),
+      getSpeed: () => 20,
+      setSpeed: vi.fn(),
+      reset: vi.fn(),
+    }),
+    getSiblings: () => [],
+    getCurrentPath: () => "/m/a.ysm",
+    getViewContainer: () => document.createElement("div"),
+    close: vi.fn(),
+    switchTo: vi.fn(),
+    ...overrides,
+  };
+}
+
+function mountWith(items: PreviewMenuItemDef[], ctxOverrides: Partial<PreviewMenuCtx> = {}) {
+  const overlay = document.createElement("div");
+  document.body.appendChild(overlay);
+  const handle = mountPreviewRootMenu(overlay, makeCtx(ctxOverrides));
+  handle.setAdapterItems(items);
+  return { overlay, handle };
+}
+
+// ── 结构断言 ──
+
+describe("真实菜单表结构（遍历 ysm/mmd 真实注入项）", () => {
+  const ysmItems = ysmMenuItems(fakeYsmOpts());
+  const mmdItems = mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() }));
+  const allItems = [...CORE_MENU_ITEMS, ...ysmItems, ...mmdItems];
+
+  it("id 唯一：core 内部 + 各适配器内部 + core∩适配器无交集（适配器按次挂载互斥）", () => {
+    const uniq = (arr: string[]) => new Set(arr).size === arr.length;
+    expect(uniq(CORE_MENU_ITEMS.map((d) => d.id))).toBe(true);
+    expect(uniq(ysmItems.map((d) => d.id))).toBe(true);
+    expect(uniq(mmdItems.map((d) => d.id))).toBe(true);
+    const coreIds = new Set(CORE_MENU_ITEMS.map((d) => d.id));
+    [...ysmItems, ...mmdItems].forEach((d) => {
+      expect(coreIds.has(d.id), `core 与适配器 id 冲突: ${d.id}`).toBe(false);
+    });
+  });
+
+  it("legacyTestId 全局唯一（e2e 兼容锚点不撞车）", () => {
+    const legacies = allItems.map((d) => d.legacyTestId).filter(Boolean);
+    expect(new Set(legacies).size).toBe(legacies.length);
+  });
+
+  it("非 divider 项必有 icon/fallback/labelKey，kind/dockGroup 合法", () => {
+    const groupIds = PREVIEW_MENU_GROUPS.map((g) => g.id);
+    allItems.forEach((d) => {
+      if (d.kind === "divider") return;
+      expect(d.icon.length, `${d.id}.icon`).toBeGreaterThan(0);
+      expect(d.fallback.length, `${d.id}.fallback`).toBeGreaterThan(0);
+      expect(d.labelKey.length, `${d.id}.labelKey`).toBeGreaterThan(0);
+      expect(["panel", "action", "divider"]).toContain(d.kind);
+      if (d.dockGroup) expect(groupIds, `${d.id}.dockGroup`).toContain(d.dockGroup);
+    });
+  });
+
+  it("适配器注入项 panel 必有 render；action 必有 run（core 项走 fillers 映射，行为测试覆盖）", () => {
+    [...ysmItems, ...mmdItems].forEach((d) => {
+      if (d.kind === "panel") expect(typeof d.render, `${d.id}.render`).toBe("function");
+      if (d.kind === "action") expect(typeof d.run, `${d.id}.run`).toBe("function");
+    });
+  });
+
+  it("labelKey 全部有翻译（zh-CN 有键；三语一致性由 locales-consistency.test 保证）", () => {
+    allItems.forEach((d) => {
+      expect(d.labelKey in zhCN, `${d.id} labelKey=${d.labelKey} 缺 zh-CN 翻译`).toBe(true);
+    });
+  });
+
+  it("ysm 三件套齐全且归 🧍 模型组（dock 可达，ADR-076 v3）", () => {
+    expect(ysmItems.map((d) => d.id).sort()).toEqual(["bones", "model", "shot"]);
+    ysmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
+  });
+
+  it("mmd model/material 恒定；play/bones 条件注入", () => {
+    const withAll = mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() }));
+    expect(withAll.map((d) => d.id).sort()).toEqual(["bones", "material", "model", "play"]);
+    // 无 VMD → 无 play；无 pmx.bones → 无 bones
+    const slim = mmdMenuItems(fakeMmdOpts({ play: null }));
+    expect(slim.some((d) => d.id === "play")).toBe(false);
+    expect(slim.map((d) => d.id).sort()).toEqual(["material", "model"]);
+  });
+
+  it("legacyTestId 锚点齐全（既有 e2e 选择器兼容契约）", () => {
+    const legacies = allItems.map((d) => d.legacyTestId).filter(Boolean);
+    [
+      "ysm-model-entry",
+      "ysm-shot-entry",
+      "ysm-bones-entry",
+      "mmd-model-entry",
+      "mmd-material-entry",
+      "mmd-play-entry",
+      "mmd-bones-entry",
+      "mmd-switch",
+      "env-menu-btn",
+    ].forEach((anchor) => expect(legacies, `缺锚点 ${anchor}`).toContain(anchor));
+  });
+});
+
+// ── dock 行全量渲染（真实数组驱动）──
+
+describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("ysm 数组：🧍 模型组按钮出现，点击列出 model/shot/bones + switch 行", () => {
+    const { overlay, handle } = mountWith(ysmMenuItems(fakeYsmOpts()), {
+      getSiblings: () => ["/m/b.ysm"],
+    });
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    expect(modelBtn).not.toBeNull();
+    modelBtn!.click();
+    ["preview-model", "preview-shot", "preview-bones", "preview-switch"].forEach((tid) => {
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+    });
+    handle.dispose();
+  });
+
+  it("mmd 数组：model/material 归 🧍 组，play 归 💃 组（bones 无 dockGroup 不进 dock）", () => {
+    const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() })));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    expect(modelBtn).not.toBeNull();
+    modelBtn!.click();
+    expect(overlay.querySelector('[data-testid="preview-model"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-material"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-bones"]')).toBeNull(); // 仅 openPanel 契约
+
+    // 单 panel 组（play）→ 快捷直达面板，不渲染组根行
+    const motionBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-motion"]');
+    expect(motionBtn).not.toBeNull();
+    motionBtn!.click();
+    expect(overlay.querySelector('[data-testid="preview-play"]')).toBeNull();
+    expect(overlay.querySelector("#mmd-play-btn")).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("core 场景组：camera + environment dock 渲染（shared 模式）", () => {
+    const { overlay, handle } = mountWith([], { getSiblings: () => ["/m/b.ysm"] });
+    const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
+    expect(sceneBtn).not.toBeNull();
+    sceneBtn!.click();
+    expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-environment"]')).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("能力驱动：无 siblings → 无 🧍 组；selfMode + 无环境能力 → 无 🌍 组", () => {
+    // 无 siblings → switch(needsSiblings) 被过滤 → 🧍 组空
+    const noSib = mountWith([], {});
+    expect(noSib.overlay.querySelector('[data-testid="dock-model"]')).toBeNull();
+    noSib.handle.dispose();
+    // selfMode → camera(sharedOnly) 过滤；无 cap → environment(requiresEnvironment) 过滤 → 🌍 组空
+    const noScene = mountWith([], { selfMode: true, getSkyCap: () => null, getGroundCap: () => null });
+    expect(noScene.overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
+    noScene.handle.dispose();
+  });
+});
+
+// ── 安全面板渲染（逐个打开断言非空）──
+
+describe("面板渲染（安全 panel 逐个打开）", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("mmd model 面板：信息卡含模型名", () => {
+    const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts()));
+    handle.openPanel("model");
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    expect(overlay.textContent).toContain("测试.pmx");
+    handle.dispose();
+  });
+
+  it("mmd play 面板：#mmd-play-btn + 动作选择器", () => {
+    const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts()));
+    handle.openPanel("play");
+    expect(overlay.querySelector("#mmd-play-btn")).not.toBeNull();
+    expect(overlay.querySelector("#mmd-motion-sel")).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("mmd material 面板：材质行渲染（data-testid=mmd-mat-<i>）", () => {
+    const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts()));
+    handle.openPanel("material");
+    expect(overlay.querySelector('[data-testid="mmd-mat-0"]')).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("core camera 面板：视角 select + 速度滑块", () => {
+    const { overlay, handle } = mountWith([]);
+    handle.openPanel("camera");
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.querySelector("select")).not.toBeNull();
+    expect(popup.querySelector('input[type="range"]')).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("core environment 面板：时间/云量滑块渲染", () => {
+    const { overlay, handle } = mountWith([], { getSiblings: () => ["/m/b.ysm"] });
+    handle.openPanel("environment");
+    expect(overlay.querySelectorAll('input[type="range"]').length).toBeGreaterThanOrEqual(2);
+    handle.dispose();
+  });
+
+  it("core switch 面板：siblings 行渲染", () => {
+    const { overlay, handle } = mountWith([], {
+      getSiblings: () => ["/m/b.ysm"],
+      getCurrentPath: () => "/m/b.ysm",
+    });
+    handle.openPanel("switch");
+    expect(overlay.textContent).toContain("b.ysm");
+    handle.dispose();
+  });
+});

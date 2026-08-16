@@ -762,6 +762,7 @@ export const zhCN: Record<string, string> = {
   // ── 预览 ──
   "preview.title3d": "3D 预览",
   "preview.modelInfo": "模型信息",
+  "preview.switchModel": "切换模型",
   "preview.parsing": "正在解析模型文件",
   "preview.parsingLitematica": "正在解析投影文件",
   "preview.readFailed": "读取失败",

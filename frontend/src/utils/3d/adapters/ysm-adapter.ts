@@ -14,9 +14,10 @@ import * as THREE from "three";
 import { buildYsmObject, type YsmObjectHandle } from "../ysm-object.ts";
 import { fitCameraToScene } from "../camera-setup.ts";
 import { buildBoneHierarchy, registerBoneRaycast } from "../bone-raycast.ts";
-import { buildBoneTree, type BoneNode } from "../bone-tools.ts";
+import { buildBoneTree, type BoneNode, type BoneTree } from "../bone-tools.ts";
 import type { YsmContentHandle, YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
 import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "../../../views/app-preview/ysm-controls.ts";
+import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import type { Spec3D, BoneSelectInfo } from "../model3d.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
@@ -120,7 +121,7 @@ export async function buildYsmScene(
 
   // ADR-077: 骨骼面板接入（通用版 makeBonePanelRenderer）
   // 从 spec.bones 构建 BoneNode[] → buildBoneTree → 喂入通用面板渲染器
-  let bonePanelCleanup: (() => void) | null = null;
+  const bonePanelRef: YsmBonePanelRef = { current: null };
   const specBones = (spec as Spec3D).models?.flatMap((m) => m.bones ?? []) ?? [];
   const boneNodes: BoneNode[] = specBones.map((b) => ({
     id: b.id,
@@ -138,6 +139,7 @@ export async function buildYsmScene(
 
   // ---- 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼 ----
   // 适配器只声明结构与 render，core 拥有外壳；e2e 经 data-testid="preview-<id>" 遍历。
+  // 菜单表提取为可导出 ysmMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
   const controlsCtx: YsmControlsContext = {
     model,
     texIdx: opts.texIdx ?? 0,
@@ -147,51 +149,23 @@ export async function buildYsmScene(
     cameraControls: ctx.cameraControls,
     onTextureChange: opts.onTextureChange,
   };
-  ctx.menu.setAdapterItems([
-    {
-      id: "model",
-      icon: "🧍",
-      labelKey: "preview.modelInfo",
-      fallback: "模型",
-      kind: "panel",
-      legacyTestId: "ysm-model-entry",
-      render: (list) => fillYsmModelPanel(list, controlsCtx),
-    },
-    {
-      id: "shot",
-      icon: "📷",
-      labelKey: "preview.screenshot",
-      fallback: "截图",
-      kind: "panel",
-      legacyTestId: "ysm-shot-entry",
-      render: (list) => fillYsmShotPanel(list, controlsCtx),
-    },
-    {
-      id: "bones",
-      icon: "🦴",
-      labelKey: "preview.bones",
-      fallback: "骨骼",
-      kind: "panel",
-      legacyTestId: "ysm-bones-entry",
-      render: (list) => {
-        // 通用骨骼面板（ADR-077）：渲染进根菜单面板；重入时先清理旧 renderer
-        if (bonePanelCleanup) {
-          bonePanelCleanup();
-          bonePanelCleanup = null;
-        }
-        bonePanelCleanup = makeBonePanelRenderer(boneTree)(list, {
-          viewContainer: ctx.viewContainer!,
-          camera: ctx.camera!,
-          scene: ctx.scene!,
-        });
+  ctx.menu.setAdapterItems(
+    ysmMenuItems({
+      controlsCtx,
+      bonePanel: {
+        tree: boneTree,
+        viewContainer: ctx.viewContainer,
+        camera: ctx.camera,
+        scene: ctx.scene,
+        cleanupRef: bonePanelRef,
       },
-    },
-  ]);
+    }),
+  );
 
   return {
     dispose(): void {
       rayCleanup();
-      bonePanelCleanup?.();
+      bonePanelRef.current?.();
       obj.removeFromScene(ctx.scene as THREE.Scene);
     },
     resetCamera(): void {
@@ -218,4 +192,76 @@ export function makeYsmAdapter(path: string, opts: YsmAdapterOptions): PreviewAd
       return buildYsmScene(ctx, buildPath, opts);
     },
   };
+}
+
+/** 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） */
+export interface YsmBonePanelRef {
+  current: (() => void) | null;
+}
+
+/** ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 */
+export interface YsmMenuItemsOpts {
+  controlsCtx: YsmControlsContext;
+  /** 骨骼面板依赖（render 闭包 + 清理引用） */
+  bonePanel: {
+    /** 已构建骨骼树（buildBoneTree 产物） */
+    tree: BoneTree;
+    viewContainer: HTMLElement | null;
+    /** 兼容真实 ctx 可选字段（undefined）与测试假依赖（null） */
+    camera: THREE.PerspectiveCamera | null | undefined;
+    scene: THREE.Object3D | null | undefined;
+    cleanupRef: YsmBonePanelRef;
+  };
+}
+
+/**
+ * YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。
+ * 提取为可导出表：适配器与测试共用同一份真实数组——测试遍历本表断言结构与
+ * dock 渲染（对齐 MikuMikuAR 声明式菜单测试范式），加菜单项只改这里。
+ * 三项均归 🧍 模型组（dockGroup: "model"，ADR-076 v3 能力驱动：有模型工具即显示）。
+ */
+export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
+  return [
+    {
+      id: "model",
+      icon: "🧍",
+      labelKey: "preview.modelInfo",
+      fallback: "模型",
+      kind: "panel",
+      dockGroup: "model",
+      legacyTestId: "ysm-model-entry",
+      render: (list) => fillYsmModelPanel(list, o.controlsCtx),
+    },
+    {
+      id: "shot",
+      icon: "📷",
+      labelKey: "preview.screenshot",
+      fallback: "截图",
+      kind: "panel",
+      dockGroup: "model",
+      legacyTestId: "ysm-shot-entry",
+      render: (list) => fillYsmShotPanel(list, o.controlsCtx),
+    },
+    {
+      id: "bones",
+      icon: "🦴",
+      labelKey: "preview.bones",
+      fallback: "骨骼",
+      kind: "panel",
+      dockGroup: "model",
+      legacyTestId: "ysm-bones-entry",
+      render: (list) => {
+        // 通用骨骼面板（ADR-077）：渲染进根菜单面板；重入时先清理旧 renderer
+        if (o.bonePanel.cleanupRef.current) {
+          o.bonePanel.cleanupRef.current();
+          o.bonePanel.cleanupRef.current = null;
+        }
+        o.bonePanel.cleanupRef.current = makeBonePanelRenderer(o.bonePanel.tree)(list, {
+          viewContainer: o.bonePanel.viewContainer!,
+          camera: o.bonePanel.camera!,
+          scene: o.bonePanel.scene!,
+        });
+      },
+    },
+  ];
 }

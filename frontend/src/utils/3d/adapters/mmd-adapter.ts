@@ -16,6 +16,7 @@ import {
   fillMmdPlayPanel,
   buildMaterialControls,
   type MmdPlayBridge,
+  type MaterialControlBridge,
 } from "../../../views/app-preview/mmd-controls.ts";
 import {
   listMmdMaterials,
@@ -24,7 +25,7 @@ import {
   setMmdMaterialOpacity,
 } from "../mmd-materials.ts";
 import { mmdBonesToBoneNodes } from "../mmd-bones.ts"; // ADR-077: pmx.bones 索引结构 → BoneNode[]
-import { buildBoneTree } from "../bone-tools.ts";
+import { buildBoneTree, type BoneTree } from "../bone-tools.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -232,6 +233,7 @@ export async function buildMmdScene(
 
   // ---- 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放 ----
   // 切换模型归 core switch 项（needsSiblings），相机归 core camera 项（sharedOnly）。
+  // 菜单表提取为可导出 mmdMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
   const navCtx: MmdBottomNavCtx = {
     mmd,
     mesh,
@@ -241,51 +243,22 @@ export async function buildMmdScene(
     switchTo: ctx.switchTo,
   };
   const mats = mesh.material as unknown as THREE.Material[];
-  const items: PreviewMenuItemDef[] = [
-    {
-      id: "model",
-      icon: "🧍",
-      labelKey: "preview.modelInfo",
-      fallback: "模型",
-      kind: "panel",
-      legacyTestId: "mmd-model-entry",
-      dockGroup: "model", // 底栏 🧍 模型组
-      render: (list) => fillMmdModelPanel(list, navCtx),
+  const bonePanelRef: { current: (() => void) | null } = { current: null };
+  const items = mmdMenuItems({
+    navCtx,
+    material: {
+      list: () => listMmdMaterials(mmd.pmx.materials),
+      getDetail: (i) => getMmdMaterialDetail(mmd.pmx.materials, mats, i),
+      setVisible: (i, v) => setMmdMaterialVisible(mats, i, v),
+      setOpacity: (i, o) => {
+        setMmdMaterialOpacity(mats, i, o);
+        const m = mats[i];
+        if (m) m.needsUpdate = true; // 透明状态变更需重编译着色器
+      },
     },
-    {
-      id: "material",
-      icon: "🎨",
-      labelKey: "preview.materialList",
-      fallback: "材质",
-      kind: "panel",
-      legacyTestId: "mmd-material-entry",
-      dockGroup: "model", // 底栏 🧍 模型组
-      render: (list) =>
-        buildMaterialControls(list, {
-          list: () => listMmdMaterials(mmd.pmx.materials),
-          getDetail: (i) => getMmdMaterialDetail(mmd.pmx.materials, mats, i),
-          setVisible: (i, v) => setMmdMaterialVisible(mats, i, v),
-          setOpacity: (i, o) => {
-            setMmdMaterialOpacity(mats, i, o);
-            const m = mats[i];
-            if (m) m.needsUpdate = true; // 透明状态变更需重编译着色器
-          },
-        }),
-    },
-  ];
-  if (clips.length > 0) {
-    items.push({
-      id: "play",
-      icon: "▶️",
-      labelKey: "preview.mmdPlay",
-      fallback: "播放",
-      kind: "panel",
-      legacyTestId: "mmd-play-entry",
-      dockGroup: "motion", // 底栏 💃 动作组
-      render: (list) =>
-        fillMmdPlayPanel(
-          list,
-          {
+    play:
+      clips.length > 0
+        ? {
             clips,
             isPlaying: () => playing,
             toggle: () => {
@@ -301,17 +274,97 @@ export async function buildMmdScene(
               action = mixer.clipAction(clips[i].clip);
               if (playing) action.play();
             },
-          } satisfies MmdPlayBridge,
-        ),
-    });
-  }
+          }
+        : null,
+    // ADR-077: 骨骼面板（MMD 特有：THREE.Bone 无几何，拾取走距离法）——收编为根菜单 bones 项
+    bonePanel:
+      mmd.pmx?.bones && mesh.skeleton
+        ? {
+            tree: buildBoneTree(mmdBonesToBoneNodes(mmd.pmx.bones, mesh.skeleton.bones)),
+            viewContainer: ctx.viewContainer,
+            camera: ctx.camera,
+            scene: ctx.scene,
+            cleanupRef: bonePanelRef,
+          }
+        : null,
+  });
   ctx.menu.setAdapterItems(items);
 
-  // ADR-077: 骨骼面板接入（MMD 特有：THREE.Bone 无几何，拾取走距离法）——收编为根菜单 bones 项
-  let bonePanelCleanup: (() => void) | null = null;
-  if (mmd.pmx?.bones && mesh.skeleton) {
-    const boneNodes = mmdBonesToBoneNodes(mmd.pmx.bones, mesh.skeleton.bones);
-    const boneTree = buildBoneTree(boneNodes);
+  return {
+    // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
+    update: (dt: number): void => {
+      mmd.updateWithMixer(dt, mixer, { ik: true, grant: true });
+    },
+    // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
+    dispose: (): void => {
+      bonePanelRef.current?.();
+      mixer.stopAllAction();
+      for (const url of blobUrls) URL.revokeObjectURL(url);
+      mmd.dispose();
+    },
+  };
+}
+
+/** mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 */
+export interface MmdMenuItemsOpts {
+  navCtx: MmdBottomNavCtx;
+  /** 材质面板桥（mmd-materials.ts 纯逻辑层，ADR-072） */
+  material: MaterialControlBridge;
+  /** 播放/动作桥；null（无同目录 VMD）→ 不注入 play 项 */
+  play: MmdPlayBridge | null;
+  /** 骨骼面板依赖；null（无 pmx.bones / skeleton）→ 不注入 bones 项 */
+  bonePanel: {
+    /** 已构建骨骼树（buildBoneTree 产物） */
+    tree: BoneTree;
+    viewContainer: HTMLElement | null;
+    /** 兼容真实 ctx 可选字段（undefined）与测试假依赖（null） */
+    camera: THREE.PerspectiveCamera | null | undefined;
+    scene: THREE.Object3D | null | undefined;
+    cleanupRef: { current: (() => void) | null };
+  } | null;
+}
+
+/**
+ * MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。
+ * 提取为可导出表：适配器与测试共用同一份真实数组——测试遍历本表断言结构与
+ * dock 渲染（对齐 MikuMikuAR 声明式菜单测试范式），加菜单项只改这里。
+ */
+export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
+  const items: PreviewMenuItemDef[] = [
+    {
+      id: "model",
+      icon: "🧍",
+      labelKey: "preview.modelInfo",
+      fallback: "模型",
+      kind: "panel",
+      legacyTestId: "mmd-model-entry",
+      dockGroup: "model", // 底栏 🧍 模型组
+      render: (list) => fillMmdModelPanel(list, o.navCtx),
+    },
+    {
+      id: "material",
+      icon: "🎨",
+      labelKey: "preview.materialList",
+      fallback: "材质",
+      kind: "panel",
+      legacyTestId: "mmd-material-entry",
+      dockGroup: "model", // 底栏 🧍 模型组
+      render: (list) => buildMaterialControls(list, o.material),
+    },
+  ];
+  if (o.play) {
+    items.push({
+      id: "play",
+      icon: "▶️",
+      labelKey: "preview.mmdPlay",
+      fallback: "播放",
+      kind: "panel",
+      legacyTestId: "mmd-play-entry",
+      dockGroup: "motion", // 底栏 💃 动作组
+      render: (list) => fillMmdPlayPanel(list, o.play!),
+    });
+  }
+  if (o.bonePanel) {
     items.push({
       id: "bones",
       icon: "🦴",
@@ -321,31 +374,17 @@ export async function buildMmdScene(
       legacyTestId: "mmd-bones-entry",
       render: (list) => {
         // 通用骨骼面板：渲染进根菜单面板；重入时先清理旧 renderer
-        if (bonePanelCleanup) {
-          bonePanelCleanup();
-          bonePanelCleanup = null;
+        if (o.bonePanel!.cleanupRef.current) {
+          o.bonePanel!.cleanupRef.current();
+          o.bonePanel!.cleanupRef.current = null;
         }
-        bonePanelCleanup = makeBonePanelRenderer(boneTree)(list, {
-          viewContainer: ctx.viewContainer!,
-          camera: ctx.camera!,
-          scene: ctx.scene!,
+        o.bonePanel!.cleanupRef.current = makeBonePanelRenderer(o.bonePanel!.tree)(list, {
+          viewContainer: o.bonePanel!.viewContainer!,
+          camera: o.bonePanel!.camera!,
+          scene: o.bonePanel!.scene!,
         });
       },
     });
-    ctx.menu.setAdapterItems(items);
   }
-
-  return {
-    // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
-    update: (dt: number): void => {
-      mmd.updateWithMixer(dt, mixer, { ik: true, grant: true });
-    },
-    // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
-    dispose: (): void => {
-      bonePanelCleanup?.();
-      mixer.stopAllAction();
-      for (const url of blobUrls) URL.revokeObjectURL(url);
-      mmd.dispose();
-    },
-  };
+  return items;
 }

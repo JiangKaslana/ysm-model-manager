@@ -2,7 +2,8 @@
 // adapter 保持「内容构建 + 装配」单一职责；YSM 专属面板（模型 fill3DPanel / 截图 /
 // 骨骼拾取联动）集中于此，由 ysm-adapter 经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单。
 // 旧 buildYsmBottomNav / mkNavBtn / popupSection / popupRow 已随 Phase 2 删除——
-// 控件全部表驱动渲染，e2e 遍历 PREVIEW_MENU_DEFS + 适配器项断言结构。
+// 控件全部表驱动渲染，测试遍历 CORE_MENU_ITEMS + 适配器真实注入项断言结构
+// （preview-menu-items.test.ts，对齐 MikuMikuAR 声明式菜单测试范式）。
 
 import * as THREE from "three";
 import { bus } from "../../bus.ts";
