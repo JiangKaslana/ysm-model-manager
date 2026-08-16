@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 87 张知识卡
+> 总计: 88 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -190,7 +190,7 @@
 - **test-utils**（测试工具 test-utils（G-1 抗脆弱测试基础设施））：`frontend/src/test-utils/` 是组件测试统一工具层（ADR-035 G-1 / Design.md §19.1）。查询走 `data-testid` 稳定钩子（不绑定 CSS 类/文案），等待走轮询（替代固定 sle…
 - **ui-slide-menu**（ADR 去桶化 slide-menu 外壳组件）：`frontend/src/ui/ui-slide-menu.ts` 是 ADR 去桶化（ADR-075/076）配套新增的**通用 slide-menu 卡片外壳组件**，复刻 MikuMikuAR 的 slide-menu 视觉卡片（m…
 
-## utils（20 张）
+## utils（21 张）
 
 *工具函数（display、fmt、dom、animation）*
 
@@ -200,6 +200,7 @@
 | 🍃 bone-tools | 跨格式骨骼工具层 bone-tools | leaf | 骨骼工具, 骨骼树, 骨骼列表, 骨骼拾取, 骨骼显隐, BoneNode, BoneTree, buildBoneTree, makeBonePanelRenderer |
 | 🍃 dom-storage | localStorage 安全读写 safeGet/safeSet | leaf | localStorage, 隐私模式, safeGet, safeSet, storage |
 | 🍃 format-ysm-anim-config | YSM 动画分组与配置菜单提取 | leaf | 动画分组, 配置菜单, ysm.json, extra_animation, summarize |
+| 🍃 mc-ao-tint | MC 环境光遮蔽(AO) 权重 + biome 配色 参考实现 | leaf | MC 方块模型 AO / 平滑光照, biome tint / 草叶水配色 / 4 类 tint, pack-model-adapter 材质升级后续（ADR-080）, 顶点色遮蔽权重 |
 | 🏗 model2d | 2D 预览渲染 model2d | architecture | 2D 预览, 骨骼图, Canvas 渲染, 前视图, 骨骼热区, 鼠标拾取, 线框图 |
 | 🏗 model3d | 3D 预览渲染 model3d | architecture | 3D 预览, Three.js, 相机, 骨骼渲染, 自由相机, 3D 截图, 纹理加载, spec 兜底, OrbitControls |
 | 🏗 preview_core | 统一 3D 预览核心 preview-core | architecture | 3D 预览, 统一预览外壳, 程序化天空 / sky / 背景 / scene.background, PreviewAdapter 适配器, 全模型预览（YSM / VRM / MMD / Litematic）, mount3D |

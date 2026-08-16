@@ -1347,6 +1347,10 @@ export const autoSidebar = [
             "link": "/knowledge/format-ysm-anim-config"
           },
           {
+            "text": "MC 环境光遮蔽(AO) 权重 + biome 配色 参考实现",
+            "link": "/knowledge/mc-ao-tint"
+          },
+          {
             "text": "2D 预览渲染 model2d",
             "link": "/knowledge/model2d"
           },
