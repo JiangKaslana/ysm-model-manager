@@ -97,6 +97,31 @@ vi.mock("../utils/dom/capabilities.ts", () => ({ can: canMock }));
 // 收集 menu:show 与 handler 发出的业务事件
 const menuShows: Array<{ x: number; y: number; items: MenuItem[] }> = [];
 const emitted: Array<{ e: string; p: unknown }> = [];
+
+// P5（2026-08-17）：--environment node 下 globalThis.document 不存在，
+// context-menu-handlers.ts:161 的 textarea fallback（copy-paths catch 分支）
+// 和 :191 的 anchor 下载（export-list）需 document.createElement。
+// 此处 mock 覆盖两个 DOM 路径；happy-dom 环境下 vi.stubGlobal 会叠加到已有 document 之上，
+// createElement 被替换不影响其他测试（其余测试不触发这两个 DOM 路径）。
+const createElementMock = vi.fn((tag: string) => {
+  if (tag === "textarea") {
+    return {
+      value: "",
+      style: { position: "", opacity: "" },
+      select: vi.fn(),
+    };
+  }
+  if (tag === "a") {
+    return { download: "", href: "", click: vi.fn() };
+  }
+  return {};
+});
+const documentMock = {
+  createElement: createElementMock,
+  body: { appendChild: vi.fn(), removeChild: vi.fn() },
+  execCommand: vi.fn(() => false),
+};
+vi.stubGlobal("document", documentMock);
 const TRACKED = [
   "instance:export-list",
   "instance:clear",
@@ -120,6 +145,7 @@ beforeAll(() => {
 
 afterAll(() => {
   menuUnsubs.forEach((fn) => fn());
+  vi.unstubAllGlobals();
 });
 
 beforeEach(() => {

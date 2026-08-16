@@ -25,19 +25,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   resolveWebModeMock.mockReturnValue(true);
   registerMock.mockResolvedValue({});
-  (globalThis as Record<string, unknown>)["crossOriginIsolated"] = false;
-  (globalThis as Record<string, unknown>)["navigator"] = {
+  vi.stubGlobal("crossOriginIsolated", false);
+  vi.stubGlobal("navigator", {
     serviceWorker: {
       register: registerMock,
       controller: null,
     },
-  };
-  (globalThis as Record<string, unknown>)["location"] = { reload: reloadMock };
+  });
+  vi.stubGlobal("location", { reload: reloadMock });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete (globalThis as Record<string, unknown>)["crossOriginIsolated"];
 });
 
 describe("COI Service Worker（ADR-079 M1）", () => {
@@ -56,30 +55,30 @@ describe("COI Service Worker（ADR-079 M1）", () => {
   });
 
   it("SW 已控制当前页 → 不 reload", async () => {
-    (globalThis as Record<string, unknown>)["navigator"] = {
+    vi.stubGlobal("navigator", {
       serviceWorker: { register: registerMock, controller: {} },
-    };
+    });
     registerCoiServiceWorker();
     await Promise.resolve();
     expect(reloadMock).not.toHaveBeenCalled();
   });
 
   it("已跨源隔离（crossOriginIsolated=true）→ 不 reload", async () => {
-    (globalThis as Record<string, unknown>)["crossOriginIsolated"] = true;
+    vi.stubGlobal("crossOriginIsolated", true);
     registerCoiServiceWorker();
     await Promise.resolve();
     expect(reloadMock).not.toHaveBeenCalled();
   });
 
   it("无 serviceWorker 支持 → 静默 no-op（渐进增强）", () => {
-    (globalThis as Record<string, unknown>)["navigator"] = {};
+    vi.stubGlobal("navigator", {});
     expect(() => registerCoiServiceWorker()).not.toThrow();
     expect(registerMock).not.toHaveBeenCalled();
   });
 
   it("isCrossOriginIsolated：布尔属性判定", () => {
     expect(isCrossOriginIsolated()).toBe(false);
-    (globalThis as Record<string, unknown>)["crossOriginIsolated"] = true;
+    vi.stubGlobal("crossOriginIsolated", true);
     expect(isCrossOriginIsolated()).toBe(true);
   });
 });
