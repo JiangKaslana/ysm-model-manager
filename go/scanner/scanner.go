@@ -49,6 +49,25 @@ const scanCacheTTL = 30 * time.Second
 // nil 或字段 0 时回退包级默认常量，行为零漂移）
 var configFunc func() types.AppConfig
 
+// errorSink 扫描错误回调（ADR-082 续：GUI 下 stdout 不可见，log.Printf 等于静默——
+// 薄壳注入 AddOpLog 让 walk/文件信息/哈希错误进环形日志面板，用户可查）
+var errorSink func(msg string)
+
+// SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装）
+func SetErrorSink(fn func(msg string)) {
+	errorSink = fn
+}
+
+// emitScanError 上报扫描错误：注入 sink 时走 sink（进日志面板），否则 log.Printf 兜底
+func emitScanError(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	if errorSink != nil {
+		errorSink(msg)
+		return
+	}
+	log.Printf("%s", msg)
+}
+
 // SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用）
 func SetConfigFunc(fn func() types.AppConfig) {
 	configFunc = fn
@@ -166,8 +185,9 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 	walkFailed := false
 	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
-			// 统一用 log（GUI 下 stdout 不可见，fmt.Printf 等于静默）
-			log.Printf("[scanner] walk error: %s: %v", p, err)
+			// 统一走错误回调（GUI 下 stdout 不可见，fmt.Printf 等于静默）——
+			// 薄壳注入后进环形日志面板（ADR-082 续）
+			emitScanError("[scanner] walk error: %s: %v", p, err)
 			if p == dir {
 				walkFailed = true // 根目录本身打不开：整目录失败
 			}
@@ -219,8 +239,9 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 		if err != nil {
 			// d.Info 失败跳过该文件——原实现 log 后仍以
 			// Size=0/ModTime=0 条目混入（前端展示大小 0 的幽灵文件，同步哈希基于
-			// 错误元数据）；权限/IO 错误下该文件不可读，跳过比假条目更诚实
-			log.Printf("[scanner] 获取文件信息失败 %s: %v，跳过该文件", p, err)
+			// 错误元数据）；权限/IO 错误下该文件不可读，跳过比假条目更诚实。
+			// 错误进环形日志面板（ADR-082 续），用户可查而非静默
+			emitScanError("[scanner] 获取文件信息失败 %s: %v，跳过该文件", p, err)
 			return nil
 		}
 		e := types.ModelEntry{Name: filepath.Base(p), Path: p, Ext: originalExt}
@@ -233,9 +254,9 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 			e.Hash = ComputeFileHash(p)
 			// 哈希失败留痕——ComputeFileHash 返回空串可能
 			// 是读错误或超上限，静默置空会让同步把该文件当「无哈希」跳过（用户
-			// 不知为何不同步）；log 一次便于排障（不阻断扫描）
+			// 不知为何不同步）；进环形日志面板（ADR-082 续）不阻断扫描
 			if e.Hash == "" {
-				log.Printf("[scanner] 哈希计算失败/跳过 %s（读错误或超 %d 字节上限）", p, types.MaxImportSize)
+				emitScanError("[scanner] 哈希计算失败/跳过 %s（读错误或超 %d 字节上限）", p, types.MaxImportSize)
 			}
 		}
 		entries = append(entries, e)
@@ -448,14 +469,14 @@ func GenerateRepoIndex(repoPath string) (string, error) {
 	workflowDir := filepath.Join(repoPath, ".github", "workflows")
 	if err := os.MkdirAll(workflowDir, fsutil.DirPerms); err != nil {
 		// index.json 已成功生成，workflow 属附带能力：失败留痕不阻断（排障盲区补齐）
-		log.Printf("[scanner] 创建 workflow 目录失败 %s: %v", workflowDir, err)
+		emitScanError("[scanner] 创建 workflow 目录失败 %s: %v", workflowDir, err)
 	} else {
 		workflowPath := filepath.Join(workflowDir, "generate-index.yml")
 		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
 			if err := os.WriteFile(workflowPath, []byte(generateIndexWorkflow), fsutil.FilePerms); err != nil {
 				// 与同文件 151/208/223 行纪律一致：写入失败留痕（静默失败会让
 				// CI 自动重生成 index 静默失效，用户无感知）
-				log.Printf("[scanner] 写入 workflow %s 失败: %v", workflowPath, err)
+				emitScanError("[scanner] 写入 workflow %s 失败: %v", workflowPath, err)
 			}
 		}
 	}

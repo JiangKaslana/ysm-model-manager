@@ -6,7 +6,7 @@ import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { isImportableFile } from "./dnd-shared.ts";
 import { ImportHistory, importWebFilesWithToast } from "./import-executor.ts";
 import type { ImportFile, QueueItem } from "./import-queue-data.ts";
-import { isFileExistsError } from "../utils/dom/errors.ts";
+import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { IMPORT_FORM_FIELD_IDS, readFormFields } from "./import-queue-data.ts";
 
 /** 事件绑定工具：收集 cleanup 函数 */
@@ -363,9 +363,8 @@ export function bindButtonEvents(
                 await commitImportSuccess(editing, finalName);
                 return;
               } catch (e2) {
-                const { friendlyError } = await import("../utils/dom/errors.ts");
                 bus.emit("toast:show", {
-                  msg: `❌ ${t("import.overwriteFailed")}: ` + String(e2),
+                  msg: `❌ ${t("import.overwriteFailed")}: ` + friendlyError(e2),
                   duration: 4000,
                   type: "error",
                 });
@@ -374,7 +373,9 @@ export function bindButtonEvents(
             }
           }
           bus.emit("toast:show", {
-            msg: `❌ ${t("import.failed")}: ` + String(e),
+            // 显式化：friendlyError 消费 AppError 结构化错误（ADR-082 续），
+            // 未归类 Code 透传 Go Reason/Suggestion 并剥离内部路径
+            msg: `❌ ${t("import.failed")}: ` + friendlyError(e),
             duration: 5000,
             type: "error",
           });

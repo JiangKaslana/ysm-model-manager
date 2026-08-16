@@ -11,7 +11,7 @@ import { importWebFiles } from "../backend/browser-adapter.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
-import { isFileExistsError } from "../utils/dom/errors.ts";
+import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = File & { _relPath?: string };
@@ -126,7 +126,9 @@ export const directImport = async (file: File): Promise<void> => {
     refreshRepo();
     toast(t("import.success") + ": " + file.name, "success", 2000);
   } catch (e) {
-    toast("❌ " + t("import.failed") + ": " + String(e), "error", 4000);
+    // 显式化：friendlyError 消费 AppError.Code → i18n 文案（FILE_EXISTS 等），
+    // 未归类 Code 透传 Go Reason/Suggestion 并剥离内部路径（ADR-082 续）
+    toast("❌ " + t("import.failed") + ": " + friendlyError(e), "error", 4000);
   } finally {
     _inFlight.delete(key);
   }
@@ -181,12 +183,12 @@ export const importFolder = async (
     refreshRepo();
     toast(t("import.success") + ": " + folderName, "success", 2500);
   } catch (e) {
-    const msg = String(e);
     // 统一文件已存在判定（索引 4.2）：结构化 Code 优先，字符串兜底覆盖漂移文案
     if (isFileExistsError(e)) {
       toast(`❌ ${folderName} ${t("import.alreadyExists")}`, "error", 4000);
     } else {
-      toast("❌ " + t("import.failed") + ": " + msg, "error", 4000);
+      // 显式化：friendlyError 展示 Go 结构化错误（Reason/Suggestion），剥内部路径
+      toast("❌ " + t("import.failed") + ": " + friendlyError(e), "error", 4000);
     }
   } finally {
     _inFlight.delete(dir);

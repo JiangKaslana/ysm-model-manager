@@ -103,6 +103,12 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	logs.SetConfigFunc(a.LoadAppConfig)
 	fileops.SetConfigFunc(a.LoadAppConfig)
 
+	// 扫描错误注入环形日志面板（ADR-082 续：GUI 下 stdout 不可见，walk/文件信息/哈希
+	// 失败若只 log.Printf 用户无从察觉；经 AddOpLog 落 ImportLog，诊断页可回溯）
+	scanner.SetErrorSink(func(msg string) {
+		a.AddOpLog("scan", msg, "", "", 0, "warn", msg)
+	})
+
 	// 恢复窗口位置
 	pos := a.GetWindowPosition()
 	if a.mainWindow != nil && pos.Width > 0 && pos.Height > 0 {

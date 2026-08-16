@@ -8,6 +8,7 @@ import { getApp } from "../backend/app.ts";
 import { resolveWebMode } from "../backend/platform.ts";
 import { MAX_IMPORT_BYTES } from "../backend/browser-adapter.ts";
 import { ALL_EXTS } from "../utils/resource/extensions.ts";
+import { friendlyError } from "../utils/dom/errors.ts";
 import { executeCollected, importWebFilesWithToast } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
 
@@ -155,7 +156,9 @@ export function bindTreeDnD(container: HTMLElement): () => void {
     void handleTreeDrop(e, isBusy, setBusy).catch((err) => {
       console.error("[tree-dnd] 拖放处理失败:", err);
       bus.emit("toast:show", {
-        msg: `❌ ${t("import.processError")}`,
+        // 显式化：friendlyError 展示 Go 结构化错误（ADR-082 续），
+        // 未归类 Code 透传 Reason/Suggestion 并剥离内部路径
+        msg: `❌ ${t("import.processError")}: ` + friendlyError(err),
         duration: 4000,
         type: "error",
       });
