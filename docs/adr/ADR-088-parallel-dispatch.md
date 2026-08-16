@@ -151,34 +151,30 @@ check-layering → check-menu-health → vite build → vitest → tsc
 | 核心目标 | 删冗余、降级噪音、防重复调用 | 串行→并行，充分利用 CPU |
 | 范围 | 33 个 check 脚本星级 + 重叠对 + AI 公约 | pre-push-gate + pre-commit 并行调度 |
 | 契约测试 | 串行 43s → 并行 31s（`runContractTestsParallel`） | 不变（已并行） |
-| 静态工具 | 去重 P1/P2/P3 重叠对 | 分组并行 14 个工具 |
-| 实现 | `scripts/check-*.mjs` 内容精简 | `scripts/pre-push-gate.mjs` + `.githooks/pre-commit` 调度 |
+| 静态工具 | 去重 P1/P2/P3 重叠对 | ~~分组并行~~ ❌ 回退 |
+| 域间并行 | 未涉及 | Go ∥ 前端 `Promise.all` ✅ 已落地 |
+| 实现 | `scripts/check-*.mjs` 内容精简 | `scripts/pre-push-gate.mjs`（复用既有 `shAsync`） |
 
 ---
 
-## 4. 性能预算
+## 4. 落地结果（2026-08-17）
 
-```
-当前 pre-push-gate（ADR-086 实测 ~75s）:
-  Go 域:              18s
-  前端域:             40s
-  静态工具:             8s
-  契约测试:            31s（已并行）
-  其他（link/redline/adr/gen/check）: ~12s
-  ─────────────────────────────
-  总计:               75s
+| Take巧 | 状态 | 说明 |
+|--------|------|------|
+| #1 域间并行（Go ∥ 前端） | ✅ **已落地** | `Promise.all([asyncFn, asyncFn])`，domain-classify 不变，`shAsync` 复用既有函数（无需 `runSpawn`） |
+| #2 Go 域内并行（go test ∥ go vet） | ⏸️ 待实施 | 域内依赖链（build→test→vet），当前域内仍串行 |
+| #3 前端域内并行 | ⏸️ 待实施 | vite build ∥ tsc 已存在；check-layering/check-menu-health 仍串行（<1s，收益低） |
+| #4 静态工具分组并行 | ❌ **实测回退** | spawn 开销吃掉 sub-second 工具收益（见 §2） |
+| #5 pre-commit gen 分组并行 | ⏸️ 待实施 | bash `&`+`wait`，未实施 |
 
-并行后（ADR-088）:
-  域间并行: max(Go 18s, 前端 40s, 静态 8s) = 40s（省 26s）
-    Go 域内: max(go test 5s, go vet 2s) = 5s（省 3s）
-    前端域内: max(vitest 15s, tsc 5s) = 15s（省 10s）
-  静态工具分组: ~5s（省 3s）
-  契约测试:             31s（不变，可与域间并行）
-  其他:                12s（不变）
-  ─────────────────────────────
-  总计:               max(40s 域间, 31s 契约测试) + 12s = 52s
-  节省: 75s → 52s（省 23s，31%）
+**Take巧 #1 净收益**：
 ```
+Go ∥ 前端:  max(Go 18s, 前端 40s) = 40s
+原串行:      Go 18s + 前端 40s = 58s
+节省:        18s（31%）
+```
+
+**未采用 `Promise.allSettled` 的理由**：一个域失败时继续跑另一域的结果无意义（例如 Go build 失败，前端 build 结果不会被消费），`Promise.all` fail-fast 语义更合适。ADR-086 §2.3「需人工的同样阻断推送」由 `blocked` 变量在聚合摘要阶段统一处理。
 
 ---
 
@@ -197,37 +193,26 @@ check-layering → check-menu-health → vite build → vitest → tsc
 
 ---
 
-## 6. 实现计划
+## 6. 实施状态
 
-### 前置
-
-1. **`_lib/proc.mjs` 新增 `runSpawn`**（async 版本，复用现有超时/错误分类/平台适配）：
-   ```js
-   export async function runSpawn(bin, args, opts = {}) {
-     return new Promise((resolve) => {
-       const proc = spawn(bin, args, {
-         cwd: opts.cwd || ROOT,
-         shell: opts.shell || false,
-         maxBuffer: opts.maxBuffer || DEFAULT_MAX_BUFFER,
-         timeout: opts.timeout || DEFAULT_TIMEOUT,
-       });
-       // ... 收集 stdout/stderr，超时处理
-     });
-   }
-   ```
-
-### 实施顺序
-
-| 优先级 | 任务 | 行数 | 风险 |
+| 优先级 | 任务 | 状态 | 说明 |
 |--------|------|------|------|
-| T1 | `_lib/proc.mjs` 新增 `runSpawn` async 封装 | ~30 行 | 🟢 低（新增函数，不改动 `run`） |
-| T2 | `pre-push-gate.mjs` Go 域异步化（go test ∥ go vet） | ~20 行 | 🟢 低（局部重构） |
-| T3 | `pre-push-gate.mjs` 前端域异步化（check-* ∥ + vitest ∥ tsc） | ~25 行 | 🟢 低 |
-| T4 | `pre-push-gate.mjs` 域间 `Promise.allSettled` | ~15 行 | 🟢 低 |
-| T5 | `pre-push-gate.mjs` 静态工具分组并行（`runTools` → `runToolsParallel`） | ~15 行 | 🟢 低 |
-| T6 | `.githooks/pre-commit` gen 脚本分组并行（bash `&` + `wait`） | ~10 行 | 🟢 低 |
-| T7 | 并行后全量实测耗时 vs ADR-086 §1.1 基准对比 | — | 🟢 低 |
-| T8 | 若任一 T1-T6 触发回退条件，回退并记录 | — | 🟢 低（翻转条件） |
+| T1 | `_lib/proc.mjs` 新增 `runSpawn` async 封装 | ❌ **不需要** | 复用了 pre-push-gate 既有 `shAsync()`（line 68），零新增代码 |
+| T2 | Go 域异步化 | ✅ **已落地**（含于 T4） | 6 个 `sh()` → `await shAsync()` |
+| T3 | 前端域异步化 | ✅ **已落地**（含于 T4） | 3 个 `sh()` → `await shAsync()`；vite∥tsc 原已有 |
+| T4 | 域间 `Promise.all` | ✅ **已落地**（核心改动） | `Promise.all([asyncFn, asyncFn])`，~105 行改动 |
+| T5 | 静态工具分组并行 | ❌ **回退** | spawn 开销吃掉收益（2m15s vs 75s） |
+| T6 | pre-commit gen 分组并行 | ⏸️ 待实施 | bash `&`+`wait`，秒级收益 |
+| T7 | 并行后全量实测耗时 vs 基线对比 | ⏸️ 待实施 | 需 `node scripts/pre-push-gate.mjs --all --dry-run` 实测 |
+| T8 | 回退条件触发时回退并记录 | ⏸️ 待命 | 翻转条件：单项耗时超预算 20% |
+
+**关键设计决策**（实施中发现的）：
+
+1. **不新增 `runSpawn`**：Take巧 #4 回退时 `_lib/proc.mjs` 的 `spawn` import 和 `runSpawn` 函数已删除。Take巧 #1 复用了 pre-push-gate 自身已有的 `shAsync()`（line 68），零新增代码、零 import。
+
+2. **`Promise.all` 而非 `allSettled`**：域间并行时一个域失败不代表另一个域要继续跑（Go build 失败时前端 build 结果无意义），`Promise.all` 的 fail-fast 语义更合适。
+
+3. **非 Go/前端域保持 `sh()`（execFileSync）**：数据域、红线域、静态工具的 `sh()` 调用未被修改，仍用同步 execFileSync（零 spawn 开销），因为不在 Promise.all 内、无并行需求。
 
 ---
 
