@@ -12,15 +12,26 @@
 
 import * as THREE from "three";
 import { getSemanticBone, type SemanticBoneMap, type SemanticBoneId } from "../semantic-bones.ts";
+import { createBeatDetector } from "./beat-detector.ts";
+
+/** 节拍 detector 接口（抽象，解耦具体实现） */
+export interface BeatDetectorLike {
+  /** 当前节拍相位（0..1） */
+  getPhase(): number;
+  /** 当前帧是否踩点 */
+  isBeat(): boolean;
+}
 
 /** AutoDance 配置 */
 export interface AutoDanceOptions {
-  /** 节拍 BPM（默认 120） */
+  /** 节拍 BPM（默认 120，有 beatDetector 时忽略） */
   bpm?: number;
   /** 整体强度（0..1，默认 0.5） */
   intensity?: number;
   /** 是否启用（默认 true） */
   enabled?: boolean;
+  /** 外部节拍 detector（可选，提供后使用其相位代替内部计时） */
+  beatDetector?: BeatDetectorLike;
 }
 
 /** 默认参数 */
@@ -59,12 +70,15 @@ export function createAutoDanceController(opts: AutoDanceOptions = {}) {
   const bpm = opts.bpm ?? DEFAULT_BPM;
   const intensity = opts.intensity ?? DEFAULT_INTENSITY;
   const enabled = opts.enabled ?? true;
+  const beatDetector = opts.beatDetector;
 
   const beatPeriod = 60 / bpm; // 每拍秒数
   const breathPeriod = beatPeriod * 4; // 4 拍呼吸周期
 
   let state: DanceState | null = null;
   let disposed = false;
+  // 内部计时（无外部 detector 时使用）
+  let internalTime = 0;
 
   function warmup(map: SemanticBoneMap): void {
     if (state) return;
@@ -90,17 +104,26 @@ export function createAutoDanceController(opts: AutoDanceOptions = {}) {
     warmup(map);
     if (!state) return;
 
-    state.t += dt;
-    const t = state.t;
+    // 更新内部计时（无外部 detector 时）
+    if (!beatDetector) {
+      internalTime += dt;
+    }
 
-    // 节拍相位（0..1 循环）
-    const beatPhase = (t / beatPeriod) % 1;
+    // 节拍相位来源：外部 detector 或内部计时
+    const beatPhase = beatDetector ? beatDetector.getPhase() : (internalTime / beatPeriod) % 1;
+    // 是否踩点（外部 detector 提供）
+    const isBeat = beatDetector ? beatDetector.isBeat() : false;
+
     // 呼吸相位（0..1 循环，4 拍周期）
-    const breathPhase = (t / breathPeriod) % 1;
+    const breathPhase = beatDetector
+      ? (beatDetector.getPhase() / 4) % 1
+      : (internalTime / breathPeriod) % 1;
 
     // 幅度调制：4 拍呼吸让律动有"起伏感"
     const breathMod = 0.6 + 0.4 * Math.sin(breathPhase * Math.PI * 2);
-    const effectiveIntensity = intensity * breathMod;
+    // 踩点增强：拍点瞬间幅度提升
+    const beatBoost = isBeat ? 1.3 : 1.0;
+    const effectiveIntensity = intensity * breathMod * beatBoost;
 
     for (const { id, xAmp, yAmp, zAmp, rxAmp, ryAmp, rzAmp } of DANCE_BONES) {
       const entry = getSemanticBone(map, id);
@@ -147,6 +170,7 @@ export function createAutoDanceController(opts: AutoDanceOptions = {}) {
 
   function reset(): void {
     state = null;
+    internalTime = 0;
   }
 
   function dispose(): void {

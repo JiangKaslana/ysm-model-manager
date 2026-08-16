@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 105 | 386 |
+| 前端·工具 | 105 | 387 |
 | frontend/views | 90 | 250 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **370** | **1553** |
+| **合计** | **370** | **1554** |
 
 ## Go·头像
 
@@ -1252,8 +1252,9 @@
 | `parseJavaModel()` | `frontend/src/utils/3d/parse-java-model:317` | 解析资源包内 block/item 模型（parent 链递归）。 |
 | `isRenderableModel()` | `frontend/src/utils/3d/parse-java-model:346` | 判定模型是否"完整可渲染"：至少一个面有纹理或纯色（纯模板如 cube/cube_all 返回 false） |
 | `INTERNALS()` | `frontend/src/utils/3d/parse-java-model:351` | — |
-| `AutoDanceOptions()` | `frontend/src/utils/3d/perception/autodance:17` | AutoDance 配置 |
-| `createAutoDanceController()` | `frontend/src/utils/3d/perception/autodance:58` | — |
+| `BeatDetectorLike()` | `frontend/src/utils/3d/perception/autodance:18` | 节拍 detector 接口（抽象，解耦具体实现） |
+| `AutoDanceOptions()` | `frontend/src/utils/3d/perception/autodance:26` | AutoDance 配置 |
+| `createAutoDanceController()` | `frontend/src/utils/3d/perception/autodance:69` | — |
 | `BeatDetectorOptions()` | `frontend/src/utils/3d/perception/beat-detector:27` | 节拍检测配置 |
 | `createBeatDetector()` | `frontend/src/utils/3d/perception/beat-detector:68` | 构建节拍 detector。 |
 | `BlinkCallback()` | `frontend/src/utils/3d/perception/blink:24` | 眨眼 callback：被 controller 在眨眼周期内周期性调用，传入当前权重（0→1→0） |
