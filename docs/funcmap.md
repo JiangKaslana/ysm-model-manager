@@ -39,10 +39,10 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 56 | 196 |
+| 前端·工具 | 76 | 252 |
 | frontend/views | 90 | 252 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **292** | **1210** |
+| **合计** | **312** | **1266** |
 
 ## Go·头像
 
@@ -1053,6 +1053,62 @@
 | `evaluateClip()` | `frontend/src/utils/animation/animation:350` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
+| `swallowError()` | `frontend/src/utils/core/async:11` | 吞掉 promise 的异常并记录日志（比空 `.catch(() =&gt; {})` 可调试）。 |
+| `fireAndForget()` | `frontend/src/utils/core/async:16` | 启动一个异步操作但不等待，异常由 swallowError 兜底。 |
+| `delay()` | `frontend/src/utils/core/async:21` | Promise 包装的延迟。 |
+| `waitForFrame()` | `frontend/src/utils/core/async:26` | Promise 包装的等待下一帧。 |
+| `makeLazyLoader()` | `frontend/src/utils/core/async:36` | 创建惰性动态 import 加载器（带并发守卫 + 失败重试）。 |
+| `LoadingGuard()` | `frontend/src/utils/core/async:70` | 并发加载守卫——防止同一 key 的异步操作重复触发。 |
+| `DebouncedTimer()` | `frontend/src/utils/core/async:102` | 防抖定时器——封装 setTimeout 的 schedule/cancel 样板。 |
+| `Abortable()` | `frontend/src/utils/core/async:137` | 可复用的 AbortController 封装——abort 后自动重置，使对象可重复使用。 |
+| `clamp()` | `frontend/src/utils/core/clamp:5` | — |
+| `clampInt()` | `frontend/src/utils/core/clamp:9` | — |
+| `clamp01()` | `frontend/src/utils/core/clamp:13` | — |
+| `lerp()` | `frontend/src/utils/core/clamp:18` | 线性插值。 |
+| `lerpArray()` | `frontend/src/utils/core/clamp:23` | 逐元素线性插值数组。 |
+| `clampPct()` | `frontend/src/utils/core/clamp:28` | 百分比钳制到 [0, 100]。 |
+| `ensureArray()` | `frontend/src/utils/core/collections:5` | 确保值为数组；非数组则包裹为单元素数组。 |
+| `filterKeys()` | `frontend/src/utils/core/collections:10` | 按谓词过滤对象键，返回仅含满足条件键值对的新对象。 |
+| `Cache()` | `frontend/src/utils/core/collections:30` | 轻量泛型缓存——Map 封装，统一 get/set/has/delete/clear 接口。 |
+| `allSettledFilter()` | `frontend/src/utils/core/collections:58` | 等待全部 promise 结束，仅返回 fulfilled 结果（rejected 被静默丢弃）。 |
+| `debounce()` | `frontend/src/utils/core/debounce:8` | 函数防抖：在等待指定时间后才执行函数，如果在等待期间再次调用则重置计时器。 |
+| `deepClone()` | `frontend/src/utils/core/deep-clone:9` | 深拷贝对象（基于 JSON 序列化）。 |
+| `Disposable()` | `frontend/src/utils/core/disposable:5` | 可释放资源的统一契约。 |
+| `addDisposableListener()` | `frontend/src/utils/core/disposable:13` | 添加事件监听器并返回 Disposable，便于在 dispose 链路中统一释放。 |
+| `escapeHtml()` | `frontend/src/utils/core/escape-html:4` | Escape HTML special characters to prevent injection. |
+| `formatTimestamp()` | `frontend/src/utils/core/format-timestamp:6` | 格式化日期为 HH:MM:SS.mmm 字符串。 |
+| `formatTime()` | `frontend/src/utils/core/format:7` | 格式化秒数为 `MM:SS.CC` 字符串（分:秒.百分秒）。 |
+| `formatError()` | `frontend/src/utils/core/format:21` | 将任意错误值转换为人类可读字符串，带截断保护。 |
+| `guardNum()` | `frontend/src/utils/core/guards:7` | 将 undefined/NaN/非数字归一为 fallback，防止 NaN 污染数学类型与 CSS 串。 |
+| `jsonStringify()` | `frontend/src/utils/core/json-stringify:4` | Format a value as pretty-printed JSON (2-space indent). |
+| `jsonParse()` | `frontend/src/utils/core/json-stringify:11` | Safely parse JSON; returns null on failure instead of throwing. |
+| `NavKeyKind()` | `frontend/src/utils/core/keyboard-nav:15` | 导航按键分类：垂直移动 / 水平移动，供 perKeySkip 差异化判断 |
+| `KeyboardNavOptions()` | `frontend/src/utils/core/keyboard-nav:17` | — |
+| `createKeyboardNav()` | `frontend/src/utils/core/keyboard-nav:63` | — |
+| `logWarn()` | `frontend/src/utils/core/log:5` | 统一告警日志。tag 用于按模块聚合排查；err 可为任意错误值。 |
+| `logError()` | `frontend/src/utils/core/log:11` | 统一错误日志。 |
+| `dist2d()` | `frontend/src/utils/core/math-geometry:5` | 2D 欧几里得距离。 |
+| `dist3d()` | `frontend/src/utils/core/math-geometry:12` | 3D 欧几里得距离。 |
+| `degToRad()` | `frontend/src/utils/core/math-geometry:23` | 角度 → 弧度。 |
+| `radToDeg()` | `frontend/src/utils/core/math-geometry:28` | 弧度 → 角度。 |
+| `normPath()` | `frontend/src/utils/core/path:15` | 标准化路径：反斜杠 → 正斜杠，去掉尾部斜杠。 |
+| `getBaseName()` | `frontend/src/utils/core/path:45` | 跨平台取路径末段文件名。 |
+| `getDirPath()` | `frontend/src/utils/core/path:55` | 跨平台取父目录路径。根目录（无 `/`）返回空字符串。 |
+| `isUnderRoot()` | `frontend/src/utils/core/path:67` | 路径归属判定（唯一实现，基于 normPath）。 |
+| `computeLibraryRef()` | `frontend/src/utils/core/path:83` | 纯函数：计算文件路径相对于 libraryRoot 的引用标识（相对路径）。 |
+| `scheduleRefresh()` | `frontend/src/utils/core/reactivity:24` | 安排一次刷新（RAF 去抖）。 |
+| `subscribe()` | `frontend/src/utils/core/reactivity:49` | 注册一个刷新订阅者。返回取消订阅函数。 |
+| `unsubscribeAll()` | `frontend/src/utils/core/reactivity:59` | 清空所有刷新订阅者。供场景/视图重入时调用，避免旧订阅者泄漏。 |
+| `reactive()` | `frontend/src/utils/core/reactivity:75` | — |
+| `readonly()` | `frontend/src/utils/core/reactivity:116` | Passthrough readonly — store 层通过约定保证不可变，不做深冻结。 |
+| `safeCall()` | `frontend/src/utils/core/safe-call:19` | 安全执行同步函数；异常时记录 logWarn(tag, msg, err) 并返回 undefined。 |
+| `safeCallVoid()` | `frontend/src/utils/core/safe-call:29` | 同 safeCall，但 fn 无返回值。 |
+| `safeCallAsync()` | `frontend/src/utils/core/safe-call:43` | 安全执行异步函数；异常时记录 logWarn(tag, msg, err)，返回的 Promise 解析为 undefined（不 reject）。 |
+| `setKey()` | `frontend/src/utils/core/set-key:8` | 泛型键值写入工具，避免大量 `obj[key] = value` 重复。 |
+| `generateUuid()` | `frontend/src/utils/core/uuid:7` | 生成 UUID v4 字符串（格式：xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx）。 |
+| `VirtualGridOptions()` | `frontend/src/utils/core/virtual-grid:6` | — |
+| `VirtualGridHandle()` | `frontend/src/utils/core/virtual-grid:21` | — |
+| `createVirtualGrid()` | `frontend/src/utils/core/virtual-grid:34` | — |
 | `dbg()` | `frontend/src/utils/debug/debug:38` | 输出调试日志（保留 tag 用于过滤） |
 | `safeStr()` | `frontend/src/utils/debug/debug:61` | 任意值 → 可读字符串（200 字符截断；供单测导出的纯函数） |
 | `WailsAndroidBridge()` | `frontend/src/utils/dom/android-bridge:7` | — |

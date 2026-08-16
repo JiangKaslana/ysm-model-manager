@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
+    "dev:web": "vite --mode web",
     "gen:locales": "node ../scripts/generate-locale-json.mjs",
     "build": "npm run gen:locales && vite build",
     "build:dev": "npm run gen:locales && vite build",

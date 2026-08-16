@@ -62,7 +62,7 @@
 | `features/` | 业务功能（import-queue / recycle-bin / version-updater / community） 〔源码 13 · 测试 10 · 子目录 1: community/〕 |
 | `services/` | 服务注册（registry.ts） 〔源码 1: registry.ts · 测试 1〕 |
 | `test-utils/` | 测试工具（G-1 抗脆弱测试基础设施 — ADR-035 §19.1：getByTestId / getAllByTestId / waitFor） 〔源码 4: events.ts index.ts query-by-testid.ts render.ts · 测试 3〕 |
-| `utils/` | 工具函数（display / fmt / dom / icon / summarize / model3d） 〔源码 2: array.ts gh-links.ts · 测试 1 · 子目录 7: 3d/ animation/ debug/ dom/ format/ icon/ resource/〕 |
+| `utils/` | 工具函数（display / fmt / dom / icon / summarize / model3d） 〔源码 2: array.ts gh-links.ts · 测试 1 · 子目录 8: 3d/ animation/ core/ debug/ dom/ format/ icon/ resource/〕 |
 | `views/` | 页面级视图组件（app-content / app-tree / app-preview 等） 〔子目录 9: app-content/ app-nav/ app-preview/ app-resource-manager/ app-sidebar/ app-sync-manager/ app-toast/ app-tree/ context-menu/〕 |
 | `wasm/` | WASM 生成数据（base64 豁免文件） 〔源码 3: ysm-glue-data.js ysm-parser.ts ysm-wasm-data.js〕 |
 | `web-spike/` | 网页版 spike 入口（main.ts，构建/冒烟验证） 〔源码 1: main.ts〕 |
