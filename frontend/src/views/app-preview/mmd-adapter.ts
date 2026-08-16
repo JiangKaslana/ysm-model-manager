@@ -223,8 +223,9 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
       const playBtn = document.createElement("button");
       playBtn.id = "mmd-play-btn";
       playBtn.textContent = playing ? t("preview.mmdPause") : t("preview.mmdPlay");
-      playBtn.style.cssText =
-        "font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
+      // 🥉 ui/ 库透明按钮样式（§19：类接管外观；样式由 mount-preview-core 的 installUiComponentsStyles 注入）
+      playBtn.className = "mode-btn";
+      playBtn.dataset.testid = "mmd-play"; // §19.1：关键交互元素 data-testid（前缀命名空间）
       playBtn.onclick = (): void => {
         playing = !playing;
         playBtn.textContent = playing ? t("preview.mmdPause") : t("preview.mmdPlay");
@@ -236,8 +237,10 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
       if (clips.length > 1) {
         const sel = document.createElement("select");
         sel.id = "mmd-motion-sel";
-        sel.style.cssText =
-          "font-size:11px;padding:1px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.85);font-family:inherit;max-width:160px";
+        // 🥉 ui/ 库下拉样式（§19）；布局保留 max-width
+        sel.className = "setting-select";
+        sel.style.maxWidth = "160px";
+        sel.dataset.testid = "mmd-motion"; // §19.1
         clips.forEach((c, i) => {
           const opt = document.createElement("option");
           opt.value = String(i);

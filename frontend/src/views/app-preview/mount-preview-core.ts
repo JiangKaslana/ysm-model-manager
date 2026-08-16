@@ -17,6 +17,7 @@ import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { createIconButton } from "../../utils/dom/fab.ts";
+import { installUiComponentsStyles } from "../../ui/ui-components-styles.ts";
 import type { BoneSelectInfo } from "../../utils/3d/model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
@@ -101,7 +102,9 @@ export function buildCameraControls(topBar: HTMLElement, bridge: CameraControlBr
   topBar.appendChild(rotLabel);
 
   const rotSel = document.createElement("select");
-  rotSel.style.cssText = "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;margin-right:8px";
+  rotSel.className = "setting-select"; // 🥉 ui/ 库下拉样式（§19）
+  rotSel.style.marginRight = "8px";
+  rotSel.dataset.testid = "mmd-rot-mode"; // §19.1
   [
     { v: true, t: "环绕" },
     { v: false, t: "自身" },
@@ -182,6 +185,9 @@ export interface Mount3DOptions {
 
 export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount3DOptions = {}): Promise<void> {
   cleanupPreview(); // 复用：再次创建先清旧的
+  // 🥉 ui/ 库样式（light-DOM 场景）：overlay 是 document.body 下的普通 DOM 非 shadow，
+  // 注入一次即可让 topBar 控件用上 mode-btn/setting-select 透明样式（幂等，§19）
+  installUiComponentsStyles();
   const myGen = ++_gen;
   const selfMode = adapter.mode === "self";
   const siblings = opts.siblings?.filter((p) => p !== path) ?? [];
@@ -224,16 +230,19 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   const closeBtn = document.createElement("button");
   closeBtn.id = "ysm-close-3d"; // 对齐旧 skeleton-render 关闭按钮 id（测试/样式钩子）
   closeBtn.textContent = "✕ " + t("preview.close3d");
-  closeBtn.style.cssText =
-    "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
+  // 🥉 ui/ 库透明按钮样式（§19：类接管外观，无内联硬编码背景/边框）
+  closeBtn.className = "mode-btn";
   topBar.appendChild(closeBtn);
 
   // 3D 内模型切换下拉（ADR-066 §5.6）：siblings ≥2 时显示；onchange 经 _handle.switchTo 换模型。
   // 审核 #4：选项动态重建——「当前」项始终指向 currentPath（切换后跟随新模型），原 path 移回候选可切回。
   if (siblings.length > 0) {
     const switchSel = document.createElement("select");
-    switchSel.style.cssText =
-      "font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit;max-width:220px";
+    // 🥉 ui/ 库下拉样式（§19）：setting-select 接管外观；布局保留 max-width/flex（防与 spacer 抢空间）
+    switchSel.className = "setting-select";
+    switchSel.style.maxWidth = "220px";
+    switchSel.style.flex = "0 1 auto";
+    switchSel.dataset.testid = "mmd-switch"; // §19.1：关键交互元素 data-testid（前缀命名空间）
     const renderOptions = (): void => {
       switchSel.innerHTML = "";
       const curOpt = document.createElement("option");

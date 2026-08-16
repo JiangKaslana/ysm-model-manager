@@ -981,8 +981,8 @@
 | `addSectionTitle()` | `frontend/src/ui/ui-collapsible:137` | 区块标题（section-title），用于 cardContainer 内的视觉分组。 |
 | `addPresetChip()` | `frontend/src/ui/ui-collapsible:162` | 创建一个 preset-chip 按钮并追加到 container（通常是 .preset-group div）。 |
 | `uiComponentsCss()` | `frontend/src/ui/ui-components-styles:7` | — |
-| `uiComponentsStyleSheet()` | `frontend/src/ui/ui-components-styles:15` | — |
-| `installUiComponentsStyles()` | `frontend/src/ui/ui-components-styles:19` | 将组件样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
+| `uiComponentsStyleSheet()` | `frontend/src/ui/ui-components-styles:21` | — |
+| `installUiComponentsStyles()` | `frontend/src/ui/ui-components-styles:25` | 将组件样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
 | `SLIDER_QUARTER_LARGE_STEP()` | `frontend/src/ui/ui-constants:6` | 左区大幅减步进：全范围 15% |
 | `SLIDER_QUARTER_SMALL_STEP()` | `frontend/src/ui/ui-constants:8` | 中左/中右微调步进：全范围 5% |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-header-toggle:8` | — |
