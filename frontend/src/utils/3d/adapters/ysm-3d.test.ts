@@ -1,7 +1,6 @@
-// ===== ysm-3d shared 集成测试（ADR-066 §5.7）=====
+// ===== ysm-3d shared 集成测试（ADR-066 §5.7 + ADR-077 骨骼面板接入）=====
 // buildYsmScene：loader(path) → preloadModel → buildYsmObject 挂 ctx.scene →
-// 底部导航出现 → dispose 清理。装配级测试（mock 内容构建/相机/射线，
-// 导航 DOM 走真实 buildYsmBottomNav）；skeleton.test.ts 已 mock ysm-3d 编排层。
+// extraControls 注入骨骼按钮 → dispose 清理。装配级测试（mock 内容构建/相机/射线）。
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildYsmScene, makeYsmAdapter } from "./ysm-adapter.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
@@ -14,13 +13,14 @@ const mocks = vi.hoisted(() => ({
   registerBoneRaycast: vi.fn(() => vi.fn()),
 }));
 
-// ADR-072 根治：preload 与 navBuilder 由视图壳注入（adapter 0 views import），
-// 测试直接注入 mock preload + 真实 buildYsmBottomNav（导航 DOM 走真实）
 vi.mock("../ysm-object.ts", () => ({ buildYsmObject: mocks.buildYsmObject }));
 vi.mock("../camera-setup.ts", () => ({ fitCameraToScene: mocks.fitCameraToScene }));
 vi.mock("../bone-raycast.ts", () => ({
   buildBoneHierarchy: () => ({ nameMap: new Map(), parentMap: new Map(), childrenMap: new Map() }),
   registerBoneRaycast: mocks.registerBoneRaycast,
+}));
+vi.mock("../bone-tools.ts", () => ({
+  buildBoneTree: vi.fn(() => ({ byId: new Map(), childrenMap: new Map(), roots: [] })),
 }));
 
 const rootGroup = { type: "Group", children: [] as unknown[] };
@@ -73,7 +73,7 @@ function makeCtx() {
 }
 
 describe("buildYsmScene（shared 装配）", () => {
-  it("loader(path) → model → buildYsmObject 挂 ctx.scene + 底部导航出现", async () => {
+  it("loader(path) → model → buildYsmObject 挂 ctx.scene + extraControls 注入骨骼按钮", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
     const preview = await buildYsmScene(
@@ -86,22 +86,26 @@ describe("buildYsmScene（shared 装配）", () => {
     expect(mocks.preloadModel).toHaveBeenCalledTimes(1);
     expect(mocks.buildYsmObject).toHaveBeenCalledTimes(1);
     expect(ctx.scene.add).toHaveBeenCalledWith(rootGroup);
-    // §5.7 底部悬浮导航（模型/视图弹窗入口）
-    expect(ctx.overlay.querySelector(".ysm-3d-nav")).toBeTruthy();
-    expect(ctx.overlay.querySelectorAll(".ysm-3d-navbtn").length).toBeGreaterThanOrEqual(2);
+
+    // ADR-077: extraControls 注入骨骼面板按钮
+    const topBar = document.createElement("div");
+    preview.extraControls?.(topBar);
+    const btn = topBar.querySelector("button");
+    expect(btn).toBeTruthy();
+    expect(btn?.textContent).toContain("🦴 骨骼");
 
     preview.dispose();
     expect(mocks.buildYsmObject().removeFromScene).toHaveBeenCalledWith(ctx.scene);
   });
 
-  it("loader 返回空 → 抛错（不挂 scene、不建导航）", async () => {
+  it("loader 返回空 → 抛错（不挂 scene）", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => null);
     await expect(buildYsmScene(ctx, "/m/missing.ysm", { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav })).rejects.toThrow(/加载失败/);
     expect(ctx.scene.add).not.toHaveBeenCalled();
   });
 
-  it("dispose → raycast cleanup + removeFromScene", async () => {
+  it("dispose → raycast cleanup + removeFromScene + bonePanelCleanup", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
     const preview = await buildYsmScene(ctx, "/m/a.ysm", { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav });

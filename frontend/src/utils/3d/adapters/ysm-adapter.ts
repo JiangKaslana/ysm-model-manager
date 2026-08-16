@@ -14,10 +14,12 @@ import * as THREE from "three";
 import { buildYsmObject, type YsmObjectHandle } from "../ysm-object.ts";
 import { fitCameraToScene } from "../camera-setup.ts";
 import { buildBoneHierarchy, registerBoneRaycast } from "../bone-raycast.ts";
+import { buildBoneTree, type BoneNode } from "../bone-tools.ts";
 import type { YsmContentHandle, YsmModel, YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
 import type { Spec3D, BoneSelectInfo } from "../model3d.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
+import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
 
 /** 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 */
 export interface YsmAdapterOptions {
@@ -114,16 +116,17 @@ export async function buildYsmScene(
     content.onBoneSelect?.(info);
   };
 
-  // 底部悬浮导航 + 分类弹窗（§5.7 范式）—— navBuilder 由视图壳注入
-  opts.navBuilder(ctx.overlay, {
-    model: model as YsmModel,
-    texIdx,
-    texArr,
-    spec: spec as Spec3D,
-    handle: content,
-    cameraControls: ctx.cameraControls,
-    onTextureChange: opts.onTextureChange,
-  });
+  // ADR-077: 骨骼面板接入（通用版 makeBonePanelRenderer）
+  // 从 spec.bones 构建 BoneNode[] → buildBoneTree → 喂入通用面板渲染器
+  let bonePanelCleanup: (() => void) | null = null;
+  const specBones = (spec as Spec3D).models?.flatMap((m) => m.bones ?? []) ?? [];
+  const boneNodes: BoneNode[] = specBones.map((b) => ({
+    id: b.id,
+    name: b.name,
+    parentId: b.parentId ?? null,
+    object: undefined, // YSM骨骼无直接 Object3D 引用，面板仅用于列表/详情
+  }));
+  const boneTree = buildBoneTree(boneNodes);
 
   // 成功路径：移除核心 loadingEl（错误/空数据由核心保留并提示）
   ctx.loadingEl.remove();
@@ -131,6 +134,7 @@ export async function buildYsmScene(
   return {
     dispose(): void {
       rayCleanup();
+      bonePanelCleanup?.();
       obj.removeFromScene(ctx.scene as THREE.Scene);
     },
     resetCamera(): void {
@@ -142,6 +146,31 @@ export async function buildYsmScene(
     setSpeed: (n: number) => ctx.cameraControls?.setSpeed(n),
     showModelGroup: (i: number) => obj.showModelGroup(i),
     // onBoneSelect 由 ysm-controls 内部接线（content.onBoneSelect），不暴露给 core
+    // ADR-077: 骨骼面板通过 extraControls 接入（topBar 按钮 → extraPanel 容器）
+    extraControls: (topBar: HTMLElement): void => {
+      const btn = document.createElement("button");
+      btn.textContent = "🦴 骨骼";
+      btn.style.cssText =
+        "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
+      btn.onclick = (): void => {
+        const panel = topBar.parentElement?.parentElement?.querySelector<HTMLElement>("#ysm-3d-panel");
+        if (!panel) return;
+        if (bonePanelCleanup) {
+          bonePanelCleanup();
+          bonePanelCleanup = null;
+          panel.style.display = "none";
+          return;
+        }
+        panel.style.display = "";
+        panel.innerHTML = "";
+        bonePanelCleanup = makeBonePanelRenderer(boneTree)(panel, {
+          viewContainer: ctx.viewContainer!,
+          camera: ctx.camera!,
+          scene: ctx.scene!,
+        });
+      };
+      topBar.appendChild(btn);
+    },
   };
 }
 

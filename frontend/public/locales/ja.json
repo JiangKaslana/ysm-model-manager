@@ -885,12 +885,5 @@
   "webFs.moveInvalidDstDir": "移動/コピーに失敗しました：無効な移動先ディレクトリ: {path}",
   "webFs.moveModelMissing": "移動/コピーに失敗しました：モデルが存在しません: {path}",
   "webFs.moveNested": "移動/コピーに失敗しました：移動先ディレクトリをソース内に置くことはできません: {path}",
-  "webFs.moveTargetExists": "移動/コピーに失敗しました：移動先が既に存在します: {path}",
-  "preview.settings": "設定",
-  "preview.back": "戻る",
-  "preview.switchModel": "モデル切替",
-  "preview.noOtherModel": "（他のモデルなし）",
-  "preview.timeOfDay": "時刻",
-  "preview.cloudCoverage": "雲量",
-  "preview.environmentLight": "環境光(IBL)"
+  "webFs.moveTargetExists": "移動/コピーに失敗しました：移動先が既に存在します: {path}"
 }
