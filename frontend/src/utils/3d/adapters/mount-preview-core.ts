@@ -368,6 +368,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     lightCap = new LightCapability({ scene, renderer });
     lightCap.setPreset(adapter.id);
     lightCap.apply();
+    // ADR-085 S3：caps 创建后触发 refreshDock()，修复 litematic/pack 的 environment 项时序缺失
+    // （菜单先于 caps 挂载，挂载时 requiresEnvironment 被过滤；此处重渲染补回）
+    menuHandle.refreshDock();
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;

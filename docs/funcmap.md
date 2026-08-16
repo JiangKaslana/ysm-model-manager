@@ -1134,8 +1134,8 @@
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:48` | — |
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:60` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:20` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:41` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:48` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:41` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:49` | 挂载预览底部根菜单，返回句柄 |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:70` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:89` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:149` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
