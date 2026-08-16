@@ -28,7 +28,7 @@ export interface PreviewMenuCtx {
   /** 3D 渲染器容器：点击该区域关闭菜单（不再全局点击杀弹窗） */
   getViewContainer: () => HTMLElement;
   close: () => void;
-  switchTo: (path: string) => void;
+  switchTo: (path: string, options?: { keepInScene?: boolean }) => void;
 }
 
 /** i18n 安全取值：键缺失时回退，杜绝菜单项退化显示原始键名 */
