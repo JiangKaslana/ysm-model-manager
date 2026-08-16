@@ -38,7 +38,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
-import { run as procRun, DEFAULT_TIMEOUT } from './_lib/proc.mjs';
+import { run as procRun } from './_lib/proc.mjs';
 import { classify, planFromFiles } from './_lib/domain-classify.mjs';
 import { runContractTestsParallel } from './_lib/contract-tests.mjs';
 import { logPush } from './_lib/log-push.mjs';
@@ -59,6 +59,21 @@ function sh(cmd, { cwd = ROOT, timeout = TIMEOUT } = {}) {
    * out 回退 err：ENOENT/超时诊断在 r.err，空 out 时保留原因（P3 复核）。 */
   const r = procRun(cmd, [], { cwd, timeout, shell: true });
   return { rc: r.rc, out: r.out || r.err || '' };
+}
+
+/**
+ * 异步版 sh——用 spawn 包装 Promise，供 Promise.all 并行执行。
+ * 仅用于 npm 三件套并行（vite build / tsc --noEmit），不替代同步 sh。
+ */
+function shAsync(cmd, { cwd = ROOT, timeout = TIMEOUT } = {}) {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, [], { cwd, shell: true, timeout, stdio: ['ignore', 'pipe', 'pipe'] });
+    let buf = '';
+    child.stdout.on('data', (d) => { buf += d.toString(); });
+    child.stderr.on('data', (d) => { buf += d.toString(); });
+    child.on('close', (code) => resolve({ rc: code, out: buf }));
+    child.on('error', (err) => resolve({ rc: -1, out: err.message }));
+  });
 }
 
 function git(args, { cwd = ROOT } = {}) {
@@ -300,42 +315,43 @@ async function main() {
   }
 
   /* --- 静态工具统一执行器 --- */
-  // ADR-088：静态工具分组并行（4 个/组，runSpawn + Promise.all）
-  // 原 runTools 串行 ~8s → 并行 ~5s（省 28%）。runSpawn 复用 _lib/proc.mjs。
-  const runTools = async (tools) => {
-    const BATCH = 4;
-    for (let i = 0; i < tools.length; i += BATCH) {
-      const batch = tools.slice(i, i + BATCH);
-      const promises = batch.map(async (entry) => {
-        const tool = typeof entry === 'string' ? entry : entry.tool;
-        const extraArgs = typeof entry === 'string' ? [] : entry.args || [];
-        const t0 = Date.now();
-        const r = await procRun('node', [`${ROOT}/scripts/${tool}`, '--json', ...extraArgs], { cwd: ROOT, timeout: DEFAULT_TIMEOUT * 4 });
-        // P1 修复（2026-08-17）：审计类工具退出码不可靠（i18n/孤儿/命名/卫生默认恒 0），
-        // 必须解析 --json 的 _summary 判定——与文件头「不得依赖退出码」契约对齐。
-        let ok = r.ok;
-        let note = '';
-        try {
-          const parsed = JSON.parse(r.out);
-          const s = parsed._summary || parsed;
-          if (typeof s.ok === 'boolean') ok = s.ok;
-          else if (typeof s.errors === 'number') ok = s.errors === 0;
-          // 有结构化计数时填充 note（替代空 OK 的假绿）
-          const cnt = Object.entries(s)
-            .filter(([k, v]) => /count|total|errors|issues|warns|violations|orphan|missing|flagged/.test(k) && typeof v === 'number')
-            .map(([k, v]) => `${k}=${v}`)
-            .join(' ');
-          if (cnt) note = cnt;
-        } catch { /* 非 JSON 输出，退回 rc 判定 */ }
-        return { tool, ok, note, time: Date.now() - t0, tail: !ok ? r.out.trim().split('\n').slice(-4).join('\n') : '' };
-      });
-      const settled = await Promise.all(promises);
-      for (const r of settled) record(r.tool, r.ok, { time: r.time, note: r.note, tail: r.tail });
+  // 回退 ADR-088 静态工具并行（实测 2m15s vs 基线 75s，runSpawn spawn 开销吃掉并行收益）
+  // 恢复串行 runTools——域间并行（Go ∥ 前端）留作后续 Take巧，静态工具段不并行
+  const runTools = (tools) => {
+    for (const entry of tools) {
+      const tool = typeof entry === 'string' ? entry : entry.tool;
+      const extraArgs = typeof entry === 'string' ? [] : entry.args || [];
+      const t0 = Date.now();
+      const r = sh(`node scripts/${tool} --json ${extraArgs.join(' ')}`);
+      // P1 修复（2026-08-17）：审计类工具退出码不可靠（i18n/孤儿/命名/卫生默认恒 0），
+      // 必须解析 --json 的 _summary 判定——与文件头「不得依赖退出码」契约对齐。
+      let ok = r.rc === 0;
+      let note = '';
+      try {
+        const parsed = JSON.parse(r.out);
+        const s = parsed._summary || parsed;
+        if (typeof s.ok === 'boolean') ok = s.ok;
+        else if (typeof s.errors === 'number') ok = s.errors === 0;
+        // 有结构化计数时填充 note（替代空 OK 的假绿）
+        const cnt = Object.entries(s)
+          .filter(([k, v]) => /count|total|errors|issues|warns|violations|orphan|missing|flagged/.test(k) && typeof v === 'number')
+          .map(([k, v]) => `${k}=${v}`)
+          .join(' ');
+        if (cnt) note = cnt;
+      } catch { /* 非 JSON 输出，退回 rc 判定 */ }
+      record(tool, ok, { time: Date.now() - t0, note, tail: !ok ? r.out.trim().split('\n').slice(-4).join('\n') : '' });
     }
   };
 
-  /* --- Go 域 --- */
-  if (plan.go) {
+  /* --- 域间并行：Go ∥ 前端（ADR-088 Take巧 #1）--- */
+  // Go 和前端域完全独立（无共享状态、无文件写冲突），用 Promise.all 并行。
+  // Take巧 #4（静态工具并行）已回退（spawn 开销吃掉 sub-second 工具收益）；
+  // 此处仅 2 个域级操作，spawn 开销 0.6s << 域本身 58s，收益成立。
+  // 域内用 shAsync（spawn 异步）替代 sh（execFileSync 同步），避免阻塞主线程。
+  await Promise.all([
+    // ── Go 域 ──
+    (async () => {
+      if (!plan.go) return;
     // updater helper 前置构建（doctor 全量协议）：go/updater/updater.go 通过 //go:embed
     // 内嵌 ysm-updater-helper.exe（.gitignore 不入库），干净 checkout 缺此文件会导致
     // go build/vet/test 失败（2026-08-14 补入 gate，对齐 doctor）。
@@ -407,28 +423,31 @@ async function main() {
     });
     if (!mOk) blocked = true; // 菜单表违规阻断推送（硬错误：加错键/漏 i18n 会破坏菜单渲染）
 
+    // npm 三件套并行优化：vite build ∥ tsc --noEmit，vitest 串行在后
+    // （vitest 是重活儿，独占资源更稳；build 与 tsc 无依赖，墙钟减半）
+    const tscBin = path.join(ROOT, 'frontend', 'node_modules', '.bin', process.platform === 'win32' ? 'tsc.cmd' : 'tsc');
+    const tscExists = fs.existsSync(tscBin);
     const t0 = Date.now();
-    const fb = sh('npx vite build', { cwd: path.join(ROOT, 'frontend') });
-    record('vite build', fb.rc === 0, { time: Date.now() - t0, tail: fb.rc ? fb.out.trim().split('\n').slice(-4).join('\n') : '' });
+    const [fb, tscResult] = await Promise.all([
+      shAsync('npx vite build', { cwd: path.join(ROOT, 'frontend') }),
+      tscExists
+        ? shAsync(`"${tscBin}" --noEmit`, { cwd: path.join(ROOT, 'frontend') })
+        : Promise.resolve({ rc: -1, out: '' }),
+    ]);
+    const wallA = Date.now() - t0;
+    record('vite build', fb.rc === 0, { time: wallA, tail: fb.rc ? fb.out.trim().split('\n').slice(-4).join('\n') : '' });
+    if (tscExists) {
+      const lines = tscResult.out.trim().split('\n').filter(Boolean);
+      record('tsc --noEmit', tscResult.rc === 0, { time: wallA, note: tscResult.rc === 0 ? '' : `${lines.length} errors`, tail: tscResult.rc === 0 ? '' : lines.slice(-5).join('\n') });
+    } else {
+      record('tsc --noEmit', false, { time: 0, note: 'tsc 未安装（frontend/node_modules 缺失）——请 npm ci 后重推' });
+    }
 
-    // ADR-023 P3：L3 Vitest 随前端域变更回归（写了要跑、坏了要红）
+    // ADR-023 P3：L3 Vitest 随前端域变更回归（串行在后，独占资源）
     const t1 = Date.now();
     // 与 frontend/package.json test 对齐：--maxWorkers 8（24 核默认并发过载反慢 ~10s）
     const ft = sh('npx vitest run --maxWorkers 8', { cwd: path.join(ROOT, 'frontend') });
     record('vitest run', ft.rc === 0, { time: Date.now() - t1, tail: ft.rc ? ft.out.trim().split('\n').slice(-4).join('\n') : '' });
-
-    // ADR-014：tsc --noEmit 类型检查（2026-08-14 补入 gate，对齐 doctor 全量）
-    const tT = Date.now();
-    const tscBin = path.join(ROOT, 'frontend', 'node_modules', '.bin', process.platform === 'win32' ? 'tsc.cmd' : 'tsc');
-    if (fs.existsSync(tscBin)) {
-      const tt = procRun(tscBin, ['--noEmit'], { cwd: path.join(ROOT, 'frontend'), shell: true });
-      const lines = (tt.out || '').trim().split('\n').filter(Boolean);
-      record('tsc --noEmit', tt.ok === true, { time: Date.now() - tT, note: tt.ok ? '' : `${lines.length} errors`, tail: tt.ok ? '' : lines.slice(-5).join('\n') });
-    } else {
-      // P1 修复（2026-08-17）：tsc 缺失此前记 OK 静默放行（fail-open）——与全文件其余
-      // fail-closed 口径不一致，node_modules 未装/装坏时类型检查无声跳过（门禁锐评 P1-4）。
-      record('tsc --noEmit', false, { time: 0, note: 'tsc 未安装（frontend/node_modules 缺失）——请 npm ci 后重推' });
-    }
   }
 
   /* --- 数据域 --- */
@@ -525,24 +544,24 @@ async function main() {
   }
 
   /* --- 静态工具（--all / --docs / push 按变更域补挂） --- */
-  // ADR-088：runTools 已改 async 并行版，调用点需 await
+  // 回退 ADR-088：runTools 恢复串行，调用点去掉 await
   if (allMode) {
-    await runTools(ALL_STATIC_TOOLS);
-    await runTools(DOC_EXTRA_SCRIPTS);
+    runTools(ALL_STATIC_TOOLS);
+    runTools(DOC_EXTRA_SCRIPTS);
   }
   if (docsMode) {
-    await runTools(DOC_STATIC_TOOLS);
-    await runTools(DOC_EXTRA_SCRIPTS);
+    runTools(DOC_STATIC_TOOLS);
+    runTools(DOC_EXTRA_SCRIPTS);
   }
   // 2026-08-17 P1-1 修复：push 模式此前从不执行静态治理工具（ALL_STATIC_TOOLS 只在
   // --all/--docs 跑）→ gate 名存实亡。现按变更域补挂子集：frontend 变更跑前端静态工具、
   // go 变更跑 Go 静态工具、docs/adr 变更跑文档静态工具——保持按域裁剪的轻量。
   if (!allMode && !docsMode) {
-    if (plan.frontend) await runTools(FRONTEND_STATIC_TOOLS);
-    if (plan.go) await runTools(GO_STATIC_TOOLS);
+    if (plan.frontend) runTools(FRONTEND_STATIC_TOOLS);
+    if (plan.go) runTools(GO_STATIC_TOOLS);
     if (plan.docs || plan.adr) {
-      await runTools(DOC_STATIC_TOOLS);
-      await runTools(DOC_EXTRA_SCRIPTS);
+      runTools(DOC_STATIC_TOOLS);
+      runTools(DOC_EXTRA_SCRIPTS);
     }
   }
 
@@ -597,10 +616,13 @@ main().then(async (code) => {
     // 失败空 catch 吞掉 + stdio ignore 无感知——改为后台 spawn（detached+unref），
     // 推送立即返回，失败至少打一行可见提示（门禁锐评 P2-1）。
     try {
+      // 2026-08-17 code_review P2：去掉 shell:true——process.execPath 是真实 .exe
+      // 直接 spawn；带 shell 会经 cmd.exe 重新解析 `C:\Program Files\...` 路径（空格炸）。
       const child = spawn(process.execPath, ['scripts/gen-doc-next-steps.mjs'], {
-        cwd: ROOT, stdio: 'ignore', detached: true, shell: true,
+        cwd: ROOT, stdio: 'ignore', detached: true,
       });
       child.unref();
+      child.on('error', (e) => console.error(`[MAP] 后台刷新启动失败（不影响推送）: ${e.message}`));
       console.log('[MAP] 已触发后台刷新 docs/.doc-next-steps.md（AI 待补地图，非阻断，不阻塞推送）');
     } catch (e) {
       console.error(`[MAP] 后台刷新启动失败（不影响推送）: ${e.message}`);

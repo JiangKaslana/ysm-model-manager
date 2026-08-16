@@ -39,8 +39,26 @@ cd "$ROOT"
 # gen 前快照：记录 docs/ 与 locales/ 下文件的 (mtime, size)，gen 后只 stage 本次
 # gen 实际 touch 的文件——防止 10+ AI 并发共享 checkout 时把他人未提交的
 # docs/locales 半成品扫进本次 commit（2026-08-17 门禁锐评 P2-2 修复）。
-GEN_SNAP="/tmp/ysm_gen_snap_before.txt"
-find docs/ frontend/public/locales/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > "$GEN_SNAP"
+# 快照文件用 $$ 进程后缀 + trap 清理：并发 pre-commit 互不覆盖（code_review P2）；
+# find -printf 仅 GNU 可用（Windows Git Bash OK），BSD 平台降级用 node 一行替代。
+GEN_SNAP="/tmp/ysm_gen_snap_before_$$.txt"
+GEN_SNAP_AFTER="/tmp/ysm_gen_snap_after_$$.txt"
+snap_docs() {
+  if find docs/ frontend/public/locales/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > "$1"; then
+    [ -s "$1" ] || node -e '
+      const fs=require("fs"),path=require("path");
+      const out=[];
+      for (const base of ["docs","frontend/public/locales"]) {
+        if (!fs.existsSync(base)) continue;
+        const walk=(d)=>{for(const e of fs.readdirSync(d)){const p=path.join(d,e),s=fs.statSync(p);if(s.isDirectory())walk(p);else out.push(`${s.mtimeMs} ${s.size} ${p}`);}};
+        walk(base);
+      }
+      fs.writeFileSync(process.argv[1], out.sort().join("\n"));
+    ' "$1" 2>/dev/null || true
+  fi
+}
+trap 'rm -f "$GEN_SNAP" "$GEN_SNAP_AFTER"' EXIT
+snap_docs "$GEN_SNAP"
 echo "[pre-commit] 文档自动同步..."
 GEN_CMDS='gen-docs-index.mjs
 funcmap.mjs

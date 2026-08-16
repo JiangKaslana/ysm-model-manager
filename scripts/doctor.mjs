@@ -74,8 +74,8 @@ if (GATE_MODE) {
   delegate(['--docs', '--dry-run']);
 } else {
   // 全量模式：编译 + 构建 + 文件 + 红线 + Git（全量体检）。
-  // --strict 不再忽略（2026-08-17 门禁锐评 P2-4）：静态工具挂载已自带 --strict
-  // （pre-push-gate ALL_STATIC_TOOLS 中 i18n/orphan/boolean-naming/script-hygiene 均显式挂
-  // --strict），全量即严格——孤儿导出/i18n 缺口/脚本卫生违规在 doctor 下必然 [FAIL]。
+  // --strict 不再忽略（2026-08-17 门禁锐评 P2-4）：runTools 已解析 _summary 判定
+  // （i18n-check/auto-import 挂 --strict 硬门禁；orphan/boolean-naming/script-hygiene
+  // 为审计类默认报告数量、退出码恒 0——与 deadcode/redlines 基线债务同口径：推送后修）。
   delegate(['--all', '--dry-run']);
 }

@@ -158,16 +158,21 @@ function main() {
       errors.push('[工具缺失] jscpd 未执行成功，拒绝写盘（防止空基线洗白债务）');
     }
     let prevKnip = [];
+    let prevJscpd = [];
     if (fs.existsSync(BASELINE_FILE)) {
       try {
         const prev = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf-8'));
         prevKnip = prev.knip || [];
+        prevJscpd = prev.jscpd || [];
       } catch { /* 基线损坏视为无旧基线，走新增判定 */ }
     }
     const prevKnipSet = new Set(prevKnip);
+    const prevJscpdSet = new Set(prevJscpd);
     const added = current.knip.filter((k) => !prevKnipSet.has(k));
-    if (added.length > 0 && !force && errors.length === 0) {
-      errors.push(`[基线守卫] 新增 ${added.length} 条 knip 死代码，拒绝写入基线（只许减少）——确认后加 --force 覆盖`);
+    const addedJscpd = current.jscpd.filter((k) => !prevJscpdSet.has(k));
+    // 2026-08-17 code_review P3：守卫须同时覆盖 knip 与 jscpd（此前只挡 knip，jscpd 可洗白）
+    if ((added.length > 0 || addedJscpd.length > 0) && !force && errors.length === 0) {
+      errors.push(`[基线守卫] 新增 ${added.length} 条 knip + ${addedJscpd.length} 条 jscpd 死代码，拒绝写入基线（只许减少）——确认后加 --force 覆盖`);
     }
     if (errors.length > 0) {
       console.log(errors.join('\n'));
