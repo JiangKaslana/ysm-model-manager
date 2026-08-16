@@ -9,7 +9,26 @@ import * as THREE from "three";
 import { MMDLoader, VmdObject, buildAnimation } from "@moeru/three-mmd";
 import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
+import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import type { MmdBottomNavCtx } from "../../../views/app-preview/mmd-controls.ts";
+import {
+  fillMmdModelPanel,
+  fillMmdPlayPanel,
+  buildMaterialControls,
+  type MmdPlayBridge,
+} from "../../../views/app-preview/mmd-controls.ts";
+import {
+  listMmdMaterials,
+  getMmdMaterialDetail,
+  setMmdMaterialVisible,
+  setMmdMaterialOpacity,
+} from "../mmd-materials.ts";
+import { mmdBonesToBoneNodes } from "../mmd-bones.ts"; // ADR-077: pmx.bones 索引结构 → BoneNode[]
+import { buildBoneTree } from "../bone-tools.ts";
+import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
+import { mmdBonesToBoneNodes } from "../mmd-bones.ts";
+import { buildBoneTree } from "../bone-tools.ts";
+import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-077: 通用骨骼面板
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -65,7 +84,6 @@ export async function buildMmdScene(
   ctx: PreviewBuildCtx,
   path: string,
   port: MmdDataPort,
-  navBuilder: (overlay: HTMLElement, navCtx: MmdBottomNavCtx) => void,
 ): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:ysm-prog 1.5s ease-in-out infinite"></div></div>';
@@ -164,15 +182,6 @@ export async function buildMmdScene(
   const mesh = mmd.mesh;
 
   ctx.scene!.add(mesh);
-  // MMD 底部根菜单（§5.7 范式：模型信息 + 表情列表 + 切换模型区 + 视图相机，弹窗内容接入 ui/ 库组件）—— navBuilder 由视图壳注入
-  navBuilder(ctx.overlay, {
-    mmd,
-    mesh,
-    modelName: path.split(/[/\\]/).pop() || "",
-    modelPath: path,
-    cameraControls: ctx.cameraControls,
-    switchTo: ctx.switchTo,
-  });
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 
   // ---- VMD 动作（同目录 .vmd）：VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
@@ -224,58 +233,116 @@ export async function buildMmdScene(
   ctx.scene!.add(dl);
   ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
+  // ---- 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放 ----
+  // 切换模型归 core switch 项（needsSiblings），相机归 core camera 项（sharedOnly）。
+  const navCtx: MmdBottomNavCtx = {
+    mmd,
+    mesh,
+    modelName: path.split(/[/\\]/).pop() || "",
+    modelPath: path,
+    cameraControls: ctx.cameraControls,
+    switchTo: ctx.switchTo,
+  };
+  const mats = mesh.material as unknown as THREE.Material[];
+  const items: PreviewMenuItemDef[] = [
+    {
+      id: "model",
+      icon: "🧍",
+      labelKey: "preview.modelInfo",
+      fallback: "模型",
+      kind: "panel",
+      legacyTestId: "mmd-model-entry",
+      render: (list) => fillMmdModelPanel(list, navCtx),
+    },
+    {
+      id: "material",
+      icon: "🎨",
+      labelKey: "preview.materialList",
+      fallback: "材质",
+      kind: "panel",
+      legacyTestId: "mmd-material-entry",
+      render: (list) =>
+        buildMaterialControls(list, {
+          list: () => listMmdMaterials(mmd.pmx.materials),
+          getDetail: (i) => getMmdMaterialDetail(mmd.pmx.materials, mats, i),
+          setVisible: (i, v) => setMmdMaterialVisible(mats, i, v),
+          setOpacity: (i, o) => {
+            setMmdMaterialOpacity(mats, i, o);
+            const m = mats[i];
+            if (m) m.needsUpdate = true; // 透明状态变更需重编译着色器
+          },
+        }),
+    },
+  ];
+  if (clips.length > 0) {
+    items.push({
+      id: "play",
+      icon: "▶️",
+      labelKey: "preview.mmdPlay",
+      fallback: "播放",
+      kind: "panel",
+      legacyTestId: "mmd-play-entry",
+      render: (list) =>
+        fillMmdPlayPanel(
+          list,
+          {
+            clips,
+            isPlaying: () => playing,
+            toggle: () => {
+              playing = !playing;
+              // AnimationAction 的暂停是 paused 属性（无 pause() 方法），play() 兼容重置
+              if (action) action.paused = !playing;
+            },
+            currentIndex: () => curIdx,
+            select: (i) => {
+              if (i === curIdx) return;
+              curIdx = i;
+              action?.stop();
+              action = mixer.clipAction(clips[i].clip);
+              if (playing) action.play();
+            },
+          } satisfies MmdPlayBridge,
+        ),
+    });
+  }
+  ctx.menu.setAdapterItems(items);
+
+  // ADR-077: 骨骼面板接入（MMD 特有：THREE.Bone 无几何，拾取走距离法）——收编为根菜单 bones 项
+  let bonePanelCleanup: (() => void) | null = null;
+  if (mmd.pmx?.bones && mesh.skeleton) {
+    const boneNodes = mmdBonesToBoneNodes(mmd.pmx.bones, mesh.skeleton.bones);
+    const boneTree = buildBoneTree(boneNodes);
+    items.push({
+      id: "bones",
+      icon: "🦴",
+      labelKey: "preview.bones",
+      fallback: "骨骼",
+      kind: "panel",
+      legacyTestId: "mmd-bones-entry",
+      render: (list) => {
+        // 通用骨骼面板：渲染进根菜单面板；重入时先清理旧 renderer
+        if (bonePanelCleanup) {
+          bonePanelCleanup();
+          bonePanelCleanup = null;
+        }
+        bonePanelCleanup = makeBonePanelRenderer(boneTree)(list, {
+          viewContainer: ctx.viewContainer!,
+          camera: ctx.camera!,
+          scene: ctx.scene!,
+        });
+      },
+    });
+    ctx.menu.setAdapterItems(items);
+  }
+
   return {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
     update: (dt: number): void => {
       mmd.updateWithMixer(dt, mixer, { ik: true, grant: true });
     },
-    // topBar 播放控制（对齐 litematic extraControls 样式）：播放/暂停 + 多动作切换
-    extraControls(topBar: HTMLElement): void {
-      if (clips.length === 0) return;
-      const sep = document.createElement("span");
-      sep.style.cssText = "width:1px;height:16px;background:rgba(255,255,255,0.15);margin:0 4px";
-      topBar.appendChild(sep);
-
-      const playBtn = document.createElement("button");
-      playBtn.id = "mmd-play-btn";
-      playBtn.textContent = playing ? t("preview.mmdPause") : t("preview.mmdPlay");
-      // 🥉 ui/ 库透明按钮样式（§19：类接管外观；样式由 mount-preview-core 的 installUiComponentsStyles 注入）
-      playBtn.className = "mode-btn";
-      playBtn.dataset.testid = "mmd-play"; // §19.1：关键交互元素 data-testid（前缀命名空间）
-      playBtn.onclick = (): void => {
-        playing = !playing;
-        playBtn.textContent = playing ? t("preview.mmdPause") : t("preview.mmdPlay");
-        // AnimationAction 的暂停是 paused 属性（无 pause() 方法），play() 兼容重置
-        if (action) action.paused = !playing;
-      };
-      topBar.appendChild(playBtn);
-
-      if (clips.length > 1) {
-        const sel = document.createElement("select");
-        sel.id = "mmd-motion-sel";
-        // 🥉 ui/ 库下拉样式（§19）；布局保留 max-width
-        sel.className = "setting-select";
-        sel.style.maxWidth = "160px";
-        sel.dataset.testid = "mmd-motion"; // §19.1
-        clips.forEach((c, i) => {
-          const opt = document.createElement("option");
-          opt.value = String(i);
-          opt.textContent = c.label;
-          sel.appendChild(opt);
-        });
-        sel.onchange = (): void => {
-          const idx = Number(sel.value) || 0;
-          if (idx === curIdx) return;
-          curIdx = idx;
-          action?.stop();
-          action = mixer.clipAction(clips[idx].clip);
-          if (playing) action.play();
-        };
-        topBar.appendChild(sel);
-      }
-    },
     // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
+      bonePanelCleanup?.();
       mixer.stopAllAction();
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();

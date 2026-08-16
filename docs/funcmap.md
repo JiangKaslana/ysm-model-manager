@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 93 | 333 |
-| frontend/views | 88 | 239 |
+| 前端·工具 | 93 | 334 |
+| frontend/views | 88 | 245 |
 | 前端·WASM | 4 | 9 |
-| frontend/workers | 2 | 13 |
-| **合计** | **351** | **1472** |
+| frontend/workers | 2 | 14 |
+| **合计** | **351** | **1480** |
 
 ## Go·头像
 
@@ -779,10 +779,10 @@
 | `scanAllWebModels()` | `frontend/src/backend/web-fs:444` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
-| `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:43` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
-| `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:48` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
-| `terminateStatsWorker()` | `frontend/src/backend/web-stats:55` | 终止并回收 Worker（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
-| `batchStatsWebModels()` | `frontend/src/backend/web-stats:136` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。 |
+| `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:44` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
+| `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:49` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
+| `terminateStatsWorker()` | `frontend/src/backend/web-stats:56` | 终止并回收 Worker（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
+| `batchStatsWebModels()` | `frontend/src/backend/web-stats:137` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。 |
 | `webStoreBindings()` | `frontend/src/backend/web-store:171` | — |
 | `YsmHeaderShape()` | `frontend/src/backend/ysm-header:36` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
 | `YsmSummaryShape()` | `frontend/src/backend/ysm-header:55` | YsmSummary（对齐 go/ysm/summary.go:48 YsmSummary json tag；animGroups/configMenus 一并平移） |
@@ -1094,24 +1094,25 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:25` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:29` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:64` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:48` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:83` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:30` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:47` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:63` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:73` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `CameraControlBridge()` | `frontend/src/utils/3d/adapters/mount-preview-core:92` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
-| `buildCameraControls()` | `frontend/src/utils/3d/adapters/mount-preview-core:106` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:170` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:175` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:184` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:189` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:194` | — |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:49` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:65` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:75` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `CameraControlBridge()` | `frontend/src/utils/3d/adapters/mount-preview-core:94` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
+| `buildCameraControls()` | `frontend/src/utils/3d/adapters/mount-preview-core:108` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:172` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:177` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:186` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:191` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:196` | — |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:10` | — |
 | `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
-| `PREVIEW_MENU_DEFS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:31` | 核心根菜单项（适配器专属项在 Phase 2 经契约注入） |
+| `PREVIEW_MENU_DEFS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:35` | 核心根菜单项（适配器专属项在 Phase 2 经契约注入） |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:17` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:35` | 挂载预览声明式根菜单，返回解绑函数（preview 拆卸时移除 document 监听，防泄漏） |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:35` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项（Phase 2 契约）；openPanel 直接打开指定面板（骨骼拾取联动） |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:42` | 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:53` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:64` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:113` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
@@ -1121,26 +1122,26 @@
 | `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:156` | 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:25` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:66` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:178` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:26` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:65` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:207` | 工厂：构造统一 PreviewAdapter（shared 模式） |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
 | `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:128` | 注册 pointermove / click 骨骼拾取监听器。 |
 | `BoneNode()` | `frontend/src/utils/3d/bone-tools:11` | 统一骨骼节点：来源无关（YSM spec bones / VRM humanoid bones 均适配） |
-| `BoneTree()` | `frontend/src/utils/3d/bone-tools:23` | 骨骼树：id 索引 + 子映射 + 根集合（buildBoneTree 产物） |
-| `buildBoneTree()` | `frontend/src/utils/3d/bone-tools:34` | 从任意扁平骨骼声明构建层级树。 |
-| `BoneListItem()` | `frontend/src/utils/3d/bone-tools:54` | 深度缩进的骨骼列表项（枚举 + 父子 + 深度） |
-| `listBonesWithDepth()` | `frontend/src/utils/3d/bone-tools:61` | 骨骼树 → 深度缩进列表（前序遍历，根 depth=0；数组顺序即展开顺序） |
-| `getBonePath()` | `frontend/src/utils/3d/bone-tools:74` | 骨骼 id → 全路径（如 "root / spine / head"；找不到该 id 返回 null） |
-| `getBonePosition()` | `frontend/src/utils/3d/bone-tools:89` | 骨骼 id → 世界坐标（需 object；无 object 或缺省返回 null） |
-| `BoneDetail()` | `frontend/src/utils/3d/bone-tools:97` | 骨骼详情：路径/坐标/父骨骼/子骨骼列表（id 不存在返回 null） |
-| `getBoneDetail()` | `frontend/src/utils/3d/bone-tools:106` | — |
-| `setBoneVisible()` | `frontend/src/utils/3d/bone-tools:125` | 骨骼显隐：设置该骨骼节点及其所有子网格可见性（需 object；无 object no-op） |
-| `toggleBoneVisible()` | `frontend/src/utils/3d/bone-tools:133` | 骨骼显隐：切换（取反）该骨骼节点可见性 |
-| `findAncestorBoneId()` | `frontend/src/utils/3d/bone-tools:151` | 沿 Object3D 父链向上找最近的骨骼 id（obj 自身或祖先的 name 命中 byId 即归属） |
-| `pickBone()` | `frontend/src/utils/3d/bone-tools:166` | Raycaster 拾取：命中任意 mesh → 沿父链找最近挂载在骨骼节点上的祖先（需 object）。 |
+| `BoneTree()` | `frontend/src/utils/3d/bone-tools:23` | 骨骼树：id 索引 + 子映射 + 根集合 + object 反查（buildBoneTree 产物） |
+| `buildBoneTree()` | `frontend/src/utils/3d/bone-tools:36` | 从任意扁平骨骼声明构建层级树。 |
+| `BoneListItem()` | `frontend/src/utils/3d/bone-tools:58` | 深度缩进的骨骼列表项（枚举 + 父子 + 深度） |
+| `listBonesWithDepth()` | `frontend/src/utils/3d/bone-tools:65` | 骨骼树 → 深度缩进列表（前序遍历，根 depth=0；数组顺序即展开顺序） |
+| `getBonePath()` | `frontend/src/utils/3d/bone-tools:78` | 骨骼 id → 全路径（如 "root / spine / head"；找不到该 id 返回 null） |
+| `getBonePosition()` | `frontend/src/utils/3d/bone-tools:93` | 骨骼 id → 世界坐标（需 object；无 object 或缺省返回 null） |
+| `BoneDetail()` | `frontend/src/utils/3d/bone-tools:101` | 骨骼详情：路径/坐标/父骨骼/子骨骼列表（id 不存在返回 null） |
+| `getBoneDetail()` | `frontend/src/utils/3d/bone-tools:110` | — |
+| `setBoneVisible()` | `frontend/src/utils/3d/bone-tools:129` | 骨骼显隐：设置该骨骼节点及其所有子网格可见性（需 object；无 object no-op） |
+| `toggleBoneVisible()` | `frontend/src/utils/3d/bone-tools:137` | 骨骼显隐：切换（取反）该骨骼节点可见性 |
+| `findAncestorBoneId()` | `frontend/src/utils/3d/bone-tools:153` | 沿 Object3D 父链向上找最近的骨骼 id（object 引用匹配，不依赖 name 约定） |
+| `pickBone()` | `frontend/src/utils/3d/bone-tools:169` | Raycaster 拾取：命中任意 mesh → 沿父链找最近挂载在骨骼节点上的祖先（需 object）。 |
 | `BoneGroupMap()` | `frontend/src/utils/3d/bone-visibility:6` | BoneGroupMap 类型别名：骨骼 id → THREE.Group |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
 | `toggleBone()` | `frontend/src/utils/3d/bone-visibility:19` | 切换指定骨骼组的可见性（取反）。 |
@@ -1542,13 +1543,16 @@
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:110` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:250` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:14` | 加载模型几何数据 + 纹理 + 作者信息 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底 |
-| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:36` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
-| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:41` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:46` | 任意新预览派发时调用，作废在途 MMD 加载 |
-| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:32` | — |
-| `buildMmdBottomNav()` | `frontend/src/views/app-preview/mmd-controls:45` | 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） |
-| `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:263` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
-| `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:279` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
+| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:35` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
+| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:40` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:45` | 任意新预览派发时调用，作废在途 MMD 加载 |
+| `CameraControlBridge()` | `frontend/src/views/app-preview/mmd-controls` | — |
+| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:22` | — |
+| `fillMmdModelPanel()` | `frontend/src/views/app-preview/mmd-controls:35` | MMD 模型面板：信息卡 + 表情列表（morph 权重 0/1 切换，✓ 高亮当前开启） |
+| `MmdPlayBridge()` | `frontend/src/views/app-preview/mmd-controls:82` | MMD 播放/动作控制桥（mmd-adapter 组装，纯逻辑层状态） |
+| `fillMmdPlayPanel()` | `frontend/src/views/app-preview/mmd-controls:91` | MMD 播放面板：播放/暂停 + 多动作切换（原 mmd-adapter extraControls 收编，ADR-076 v2 Phase 2） |
+| `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:124` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
+| `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:140` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
@@ -1593,14 +1597,17 @@
 | `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:37` | 任意新预览派发时调用，作废在途 VRM 加载 |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
-| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:14` | — |
-| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:27` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
-| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:52` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
-| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:57` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
-| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:24` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
-| `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:33` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
-| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:46` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
-| `buildYsmBottomNav()` | `frontend/src/views/app-preview/ysm-controls:118` | 在统一外壳（overlay）挂载底部悬浮导航 + 分类弹窗（§5.7 范式）。 |
+| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:13` | — |
+| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:26` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
+| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:50` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
+| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:55` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
+| `CameraControlBridge()` | `frontend/src/views/app-preview/ysm-controls` | — |
+| `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:19` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
+| `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:28` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
+| `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:41` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |
+| `fillYsmModelPanel()` | `frontend/src/views/app-preview/ysm-controls:70` | 模型菜单面板：统计 / 纹理 / 骨骼列表 / 骨骼详情 / 多组件切换（fill3DPanel 内容） |
+| `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:92` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
+| `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:132` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
 | `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
 | `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |
@@ -1696,12 +1703,13 @@
 | `StatsRelReader()` | `frontend/src/workers/stats-core:147` | 读取相对路径文件的回调（Worker 内 = IDB 读取；测试可注入内存 Map） |
 | `statsFromJsonBytes()` | `frontend/src/workers/stats-core:155` | 从 .json 主文件字节计算统计（解压目录入口，ADR-038 ysm.json 语义）： - ysm.json spec 格式（spec+files）：按 files.play |
 | `WebModelStats()` | `frontend/src/workers/stats-protocol:5` | 单模型统计结果（与 SearchResult 数值字段对齐） |
-| `StatsWorkerRequest()` | `frontend/src/workers/stats-protocol:14` | 主线程 → Worker：批量统计任务 |
-| `StatsWorkerProgress()` | `frontend/src/workers/stats-protocol:23` | Worker → 主线程：进度 |
-| `StatsWorkerResult()` | `frontend/src/workers/stats-protocol:31` | Worker → 主线程：批量结果（与 paths 一一对应，含 path 便于主线程对齐） |
-| `StatsWorkerError()` | `frontend/src/workers/stats-protocol:38` | Worker → 主线程：致命错误（WASM 无法加载 / 任务内部异常），主线程据此整体降级 |
-| `StatsWorkerResponse()` | `frontend/src/workers/stats-protocol:44` | — |
-| `STATS_BATCH_LIMIT()` | `frontend/src/workers/stats-protocol:50` | 单批模型上限：防 Worker 内存爆（每个模型 WASM 解码 + 纹理驻留 HEAP，200 已含余量） |
+| `WebModelStatsWithPath()` | `frontend/src/workers/stats-protocol:14` | 带 path 的统计结果（Worker 返回，主线程按 path 对齐防顺序漂移） |
+| `StatsWorkerRequest()` | `frontend/src/workers/stats-protocol:17` | 主线程 → Worker：批量统计任务 |
+| `StatsWorkerProgress()` | `frontend/src/workers/stats-protocol:26` | Worker → 主线程：进度 |
+| `StatsWorkerResult()` | `frontend/src/workers/stats-protocol:34` | Worker → 主线程：批量结果（与 paths 一一对应，含 path 便于主线程对齐） |
+| `StatsWorkerError()` | `frontend/src/workers/stats-protocol:41` | Worker → 主线程：致命错误（WASM 无法加载 / 任务内部异常），主线程据此整体降级 |
+| `StatsWorkerResponse()` | `frontend/src/workers/stats-protocol:47` | — |
+| `STATS_BATCH_LIMIT()` | `frontend/src/workers/stats-protocol:53` | 单批模型上限：防 Worker 内存爆（每个模型 WASM 解码 + 纹理驻留 HEAP，200 已含余量） |
 
 ---
 
