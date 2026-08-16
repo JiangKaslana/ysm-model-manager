@@ -60,7 +60,7 @@ invariant_anchors:
 | **工具/辅助层** | `quaternion.ts` / `debug-render.ts` / `keymap.ts` / `model3d-spec.ts` | 四元数工具 / debug 叠加 / 键位偏好 / 历史 JS spec 兜底（已废弃） |
 | **加载/桥接层** | `model3d-loader.ts` / `spec-builder.ts` | 纹理 + spec 预加载（Go binding 桥接） / spec 构建工具 |
 
-> **ADR-072 前瞻**：当前内容适配器（ysm/vrm/litematic/mmd）混在 `app-preview/` 目录。ADR-072 已拍板下沉到 `utils/3d/adapters/`，落地后本卡将拆分适配器子卡，`app-preview.md` 同步瘦身。
+> **ADR-072 已落地**：内容适配器（ysm/vrm/litematic/mmd）已下沉至 `utils/3d/adapters/`，本卡仅覆盖渲染层基础设施。适配器层见知识卡 [preview_core](./preview_core.md)。
 
 几何数据（顶点/法线/UV/骨骼四元数）全部由 Go 端 [go_threejs](./go-threejs.md) 预计算，本层只渲染、不做几何计算。
 
