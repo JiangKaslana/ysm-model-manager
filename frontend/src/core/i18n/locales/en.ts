@@ -816,6 +816,7 @@ export const en: Record<string, string> = {
   "preview.resetView": "Reset View",
   "preview.cameraRotation": "Camera Rotation",
   "preview.cameraSpeed": "Camera Speed",
+  "preview.cameraView": "Camera View",
   "preview.allComponents": "All Components",
   "preview.copied": "Copied",
   "preview.blueprintDetail": "Blueprint Detail",

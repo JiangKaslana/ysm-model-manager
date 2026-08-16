@@ -819,6 +819,7 @@ export const zhCN: Record<string, string> = {
   "preview.resetView": "重置视角",
   "preview.cameraRotation": "摄像机旋转",
   "preview.cameraSpeed": "摄像机速度",
+  "preview.cameraView": "摄像机视图",
   "preview.allComponents": "全部组件",
   "preview.copied": "已复制",
   "preview.blueprintDetail": "蓝图详情",
