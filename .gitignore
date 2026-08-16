@@ -102,3 +102,6 @@ go-cover
 
 # 渲染对齐对比一次性报告（compare.mjs 可随时再生，不入库）
 tests/port-verification/report-*.txt
+
+# 实验性 POC 产物（ADR-080 Java 模型渲染 POC，已复刻进主工程）
+poc/
