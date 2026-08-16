@@ -21,7 +21,6 @@ source_files:
   - frontend/src/utils/3d/cleanup-helper.ts
   - frontend/src/utils/3d/mesh-builder.ts
   - frontend/src/utils/3d/render-loop.ts
-  - frontend/src/utils/3d/renderer-setup.ts
   - frontend/src/utils/3d/scene-lights.ts
   - frontend/src/utils/3d/session-state.ts
   - frontend/src/views/app-preview/model3d-loader.ts
@@ -54,7 +53,7 @@ invariant_anchors:
 | 层 | 文件 | 职责 |
 |----|------|------|
 | **场景/会话层**（核心，ADR-052） | `session-state.ts` / `model3d.ts` / `cube-mesh.ts` | 会话状态 + 类型枢纽 + 坐标口径工具 |
-| **渲染管线层** | `renderer-setup.ts` / `render-loop.ts` / `camera-setup.ts` / `scene-lights.ts` / `cleanup-helper.ts` | 场景初始化 → 渲染循环 → 相机定位 → 灯光配置 → 资源释放 |
+| **渲染管线层** | `render-loop.ts` / `camera-setup.ts` / `scene-lights.ts` / `cleanup-helper.ts` | 渲染循环 → 相机定位 → 灯光配置 → 资源释放 |
 | **骨骼/几何层**（最大层） | `mesh.ts` / `mesh-builder.ts` / `cube-mesh.ts` / `model-group-builder.ts` / `bone-list.ts` / `bone-visibility.ts` / `bone-raycast.ts` | 骨骼组树构建 → 立方体几何 → mesh 合并 → 骨骼列表/可见性 → 射线拾取 |
 | **工具/辅助层** | `quaternion.ts` / `debug-render.ts` / `keymap.ts` / `model3d-spec.ts` | 四元数工具 / debug 叠加 / 键位偏好 / 历史 JS spec 兜底（已废弃） |
 | **加载/桥接层** | `model3d-loader.ts` / `spec-builder.ts` | 纹理 + spec 预加载（Go binding 桥接） / spec 构建工具 |
@@ -125,7 +124,7 @@ export function computeBoneLocalPos(
 
 ## 渲染管线层
 
-**职责**：从场景初始化到渲染循环的完整执行链。`renderer-setup.ts` 创建 `WebGLRenderer` + `Scene` + `PerspectiveCamera`（45° FOV）→ `camera-setup.ts` 定位相机到 Z 负侧（`camera.position.set(0, 80, -120)`，`controls.target(0, 80, 0)`，模型脸朝 Z-）→ `scene-lights.ts` 配置环境光 + 双方向光（`addStandardSceneLights`，快消批收敛自 3D 灯光样板）→ `render-loop.ts` 启动 `requestAnimationFrame` 主循环。
+**职责**：从场景初始化到渲染循环的完整执行链。`camera-setup.ts` 定位相机到 Z 负侧（`camera.position.set(0, 80, -120)`，`controls.target(0, 80, 0)`，模型脸朝 Z-）→ `scene-lights.ts` 配置环境光 + 双方向光（`addStandardSceneLights`，快消批收敛自 3D 灯光样板）→ `render-loop.ts` 启动 `requestAnimationFrame` 主循环。
 
 **渲染循环与交互**：
 - 默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降）

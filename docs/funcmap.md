@@ -20,7 +20,7 @@
 | go/instance | 1 | 2 |
 | go/internal | 1 | 3 |
 | Go·Litematic | 4 | 9 |
-| Go·日志 | 2 | 12 |
+| Go·日志 | 2 | 13 |
 | Go·包管理 | 1 | 3 |
 | Go·路径 | 1 | 5 |
 | Go·回收站 | 2 | 19 |
@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 105 | 389 |
-| frontend/views | 90 | 249 |
+| 前端·工具 | 104 | 389 |
+| frontend/views | 90 | 250 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **370** | **1555** |
+| **合计** | **369** | **1557** |
 
 ## Go·头像
 
@@ -250,11 +250,12 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `SetConfigFunc()` | `go/logs/logs:34` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `NewLogger()` | `go/logs/logs:79` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
-| `Logger.Add()` | `go/logs/logs:185` | Add 添加一条导入日志（兼容旧调用） |
-| `Logger.AddOp()` | `go/logs/logs:190` | AddOp 添加一条指定操作类型的日志 |
-| `Logger.GetAll()` | `go/logs/logs:232` | GetAll 获取所有日志 |
-| `Logger.Clear()` | `go/logs/logs:241` | Clear 清空日志 |
+| `NewLogger()` | `go/logs/logs:87` | NewLogger 创建日志管理器 configDir 为应用配置根目录（含 "YSM-Model-Manager" 子目录）—— 由调用方（internal/app）注入，与 c |
+| `Logger.Add()` | `go/logs/logs:193` | Add 添加一条导入日志（兼容旧调用） |
+| `Logger.AddOp()` | `go/logs/logs:198` | AddOp 添加一条指定操作类型的日志 |
+| `Logger.Flush()` | `go/logs/logs:258` | Flush 立即落盘（取消防抖窗口）：批量写入后调用方需要立即可重启加载（测试）或 退出前确保审计完整时使用。内存态 no-op。 |
+| `Logger.GetAll()` | `go/logs/logs:269` | GetAll 获取所有日志 |
+| `Logger.Clear()` | `go/logs/logs:278` | Clear 清空日志 |
 | `Logger()` | `go/logs/logs:69` | Logger 导入日志管理器 |
 | `NewRuntimeBuffer()` | `go/logs/runtime:22` | NewRuntimeBuffer 创建环形缓冲 |
 | `RuntimeBuffer.Write()` | `go/logs/runtime:30` | Write 实现 io.Writer：每次调用记录一条运行时日志（标准库 log 一行即一次 Write） |
@@ -1107,21 +1108,22 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:25` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:55` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:90` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:410` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:433` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:53` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:89` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:96` | — |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:422` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:449` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:36` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:55` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:77` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:87` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `CameraControlBridge()` | `frontend/src/utils/3d/adapters/mount-preview-core:108` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
-| `buildCameraControls()` | `frontend/src/utils/3d/adapters/mount-preview-core:122` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:186` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:191` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:200` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:205` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:210` | — |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:79` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:89` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `CameraControlBridge()` | `frontend/src/utils/3d/adapters/mount-preview-core:110` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
+| `buildCameraControls()` | `frontend/src/utils/3d/adapters/mount-preview-core:124` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:188` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:193` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:202` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:207` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:212` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:20` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:36` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1134,23 +1136,24 @@
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:20` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:41` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:48` | 挂载预览底部根菜单，返回句柄 |
-| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:67` | VRM meta 归一化信息（meta 卡展示用） |
-| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:86` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:145` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:285` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:308` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
+| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:68` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:87` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:147` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:155` | — |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:302` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:331` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:20` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:30` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:36` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
 | `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:156` | 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:32` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:71` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:230` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:244` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:249` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:269` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:31` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:79` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:240` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:254` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:259` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:284` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
@@ -1273,8 +1276,6 @@
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
-| `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:8` | setupRenderer 返回的组件 |
-| `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:19` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |
@@ -1402,8 +1403,8 @@
 | `rebuildParsedName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:16` | 按 YSM 命名规范重建文件名：`[作者]【作品】角色 (日期).ext(.ban)` - 作者/作品空值跳过；角色缺省回退到「剥 .ban 与扩展名后的文件名」； - 扩展名取原 |
 | `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
 | `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
-| `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:19` | 应用变更载荷 |
-| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:48` | 弹出批量重命名对话框 重复打开时先结算上一个 Promise，调用方 await 不会永远悬挂 |
+| `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:20` | 应用变更载荷 |
+| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:49` | 弹出批量重命名对话框 重复打开时先结算上一个 Promise，调用方 await 不会永远悬挂 |
 | `esc()` | `frontend/src/utils/dom/dialogs/modal` | — |
 | `trapFocus()` | `frontend/src/utils/dom/dialogs/modal:26` | 焦点陷阱：Tab 键在弹窗内可聚焦元素间循环，防止焦点逃逸到背后页面 |
 | `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:54` | 带退场动画关闭对话框 |
@@ -1425,7 +1426,7 @@
 | `buildModelName()` | `frontend/src/utils/dom/dialogs/rename-format:40` | 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.ban]` 单一模板引擎——buildRenameName（缺省填充）与 rebuildPar |
 | `buildRenameName()` | `frontend/src/utils/dom/dialogs/rename-format:60` | 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext` 品牌缺省「未知」、角色缺省「?」，与预览一致（收敛自 buildModelName，索引 4.9 |
 | `showRenameDialog()` | `frontend/src/utils/dom/dialogs/rename:16` | 弹出重命名对话框 |
-| `modalTagEditor()` | `frontend/src/utils/dom/dialogs/tag-editor:14` | 弹出标签编辑弹窗 |
+| `modalTagEditor()` | `frontend/src/utils/dom/dialogs/tag-editor:15` | 弹出标签编辑弹窗 |
 | `TagSetResult()` | `frontend/src/utils/dom/dialogs/tag-set:6` | — |
 | `MAX_TAG_LENGTH()` | `frontend/src/utils/dom/dialogs/tag-set:12` | 标签最大长度（与原 addTag 一致） |
 | `addTagToSet()` | `frontend/src/utils/dom/dialogs/tag-set:19` | 向标签集合添加一个标签（已 trim）： 空输入 → 原样返回；重复 → error「标签已存在」；超长 → error「最多 20 个字符」； 合法 → 排序后返回新数组。错误文 |
@@ -1502,13 +1503,13 @@
 |------|--------|------|
 | `LocalCreator()` | `frontend/src/views/app-content/community-data:8` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
 | `CommunityData()` | `frontend/src/views/app-content/community-data:24` | 站点 + 创作者 + 作者 数据包 |
-| `loadCommunityData()` | `frontend/src/views/app-content/community-data:34` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:144` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:198` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:227` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:264` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:288` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:309` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `loadCommunityData()` | `frontend/src/views/app-content/community-data:36` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:151` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:205` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:234` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:271` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:295` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:316` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:12` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:2` | — |
@@ -1531,7 +1532,7 @@
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:28` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:52` | 初始化创意工坊页 |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:522` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:524` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:129` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |
@@ -1591,12 +1592,12 @@
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
 | `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:18` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
 | `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:91` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
-| `nextDetailGen()` | `frontend/src/views/app-preview/detail:22` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
-| `getDetailGen()` | `frontend/src/views/app-preview/detail:27` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
-| `showModelDetail()` | `frontend/src/views/app-preview/detail:32` | 显示模型详情（YSM 模型） |
-| `showResourcePack()` | `frontend/src/views/app-preview/detail:143` | 显示资源包信息（pack.mcmeta + pack.png） |
-| `showSimplePreview()` | `frontend/src/views/app-preview/detail:185` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
-| `showShaderpack()` | `frontend/src/views/app-preview/detail:203` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
+| `nextDetailGen()` | `frontend/src/views/app-preview/detail:23` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
+| `getDetailGen()` | `frontend/src/views/app-preview/detail:28` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
+| `showModelDetail()` | `frontend/src/views/app-preview/detail:33` | 显示模型详情（YSM 模型） |
+| `showResourcePack()` | `frontend/src/views/app-preview/detail:144` | 显示资源包信息（pack.mcmeta + pack.png） |
+| `showSimplePreview()` | `frontend/src/views/app-preview/detail:186` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
+| `showShaderpack()` | `frontend/src/views/app-preview/detail:204` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:4` | Bedrock 方块 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
@@ -1610,16 +1611,17 @@
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:108` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:239` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:14` | 加载模型几何数据 + 纹理 + 作者信息 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底 |
-| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:35` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
-| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:40` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:45` | 任意新预览派发时调用，作废在途 MMD 加载 |
+| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:43` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
+| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:48` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:53` | 任意新预览派发时调用，作废在途 MMD 加载 |
 | `CameraControlBridge()` | `frontend/src/views/app-preview/mmd-controls` | — |
-| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:22` | — |
-| `fillMmdModelPanel()` | `frontend/src/views/app-preview/mmd-controls:35` | MMD 模型面板：信息卡 + 表情列表（morph 权重 0/1 切换，✓ 高亮当前开启） |
-| `MmdPlayBridge()` | `frontend/src/views/app-preview/mmd-controls:82` | MMD 播放/动作控制桥（mmd-adapter 组装，纯逻辑层状态） |
-| `fillMmdPlayPanel()` | `frontend/src/views/app-preview/mmd-controls:91` | MMD 播放面板：播放/暂停 + 多动作切换（原 mmd-adapter extraControls 收编，ADR-076 v2 Phase 2） |
-| `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:124` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
-| `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:140` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
+| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:25` | — |
+| `fillMmdModelPanel()` | `frontend/src/views/app-preview/mmd-controls:38` | MMD 模型面板：信息卡 + 表情列表（morph 权重 0/1 切换，✓ 高亮当前开启） |
+| `MmdPlayBridge()` | `frontend/src/views/app-preview/mmd-controls:85` | MMD 播放/动作控制桥（mmd-adapter 组装，纯逻辑层状态） |
+| `fillMmdPlayPanel()` | `frontend/src/views/app-preview/mmd-controls:94` | MMD 播放面板：播放/暂停 + 多动作切换（原 mmd-adapter extraControls 收编，ADR-076 v2 Phase 2） |
+| `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:127` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
+| `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:143` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
+| `fillMmdShotPanel()` | `frontend/src/views/app-preview/mmd-controls:224` | MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。 |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
@@ -1660,19 +1662,19 @@
 | `getPrefer3D()` | `frontend/src/views/app-preview/utils:60` | — |
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
 | `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
-| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:22` | 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 |
-| `switchVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:27` | 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
-| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:32` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:37` | 任意新预览派发时调用，作废在途 VRM 加载 |
+| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:27` | 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 |
+| `switchVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:32` | 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
+| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:37` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:42` | 任意新预览派发时调用，作废在途 VRM 加载 |
 | `VrmMaterialControlBridge()` | `frontend/src/views/app-preview/vrm-controls:15` | 材质控制桥：复用 vrm-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在本文件 |
 | `buildVrmMaterialControls()` | `frontend/src/views/app-preview/vrm-controls:27` | 在 container 渲染 VRM 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `makeVrmPanelRenderer()` | `frontend/src/views/app-preview/vrm-controls:94` | VRM 菜单面板渲染器（声明式菜单 item.render 回调） |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
-| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:13` | — |
-| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:26` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
-| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:50` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
-| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:55` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
+| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:14` | — |
+| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:27` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
+| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:57` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
+| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:62` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
 | `CameraControlBridge()` | `frontend/src/views/app-preview/ysm-controls` | — |
 | `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:20` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
 | `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:29` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |

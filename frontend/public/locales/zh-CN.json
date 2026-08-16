@@ -233,6 +233,8 @@
   "import.overwritten": "已覆盖",
   "import.overwriteFailed": "覆盖失败",
   "import.failed": "导入失败",
+  "import.previewTempFailed": "预览临时文件保存失败：{err}",
+  "import.headerReadFailed": "无法读取头部信息",
   "import.readDropFailed": "读取拖入文件失败",
   "import.ysmJsonHint": "ysm.json 是模型清单，请拖入整个模型文件夹（含 geometry/动画/纹理，将整组导入）",
   "import.emptyFolder": "文件夹内没有可读取的文件",
