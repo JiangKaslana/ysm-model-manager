@@ -68,7 +68,8 @@ vi.mock("./screenshot-renderer.ts", () => ({ renderMultiAngle }));
 vi.mock("./model3d-loader.ts", () => ({ preloadModel }));
 // §5.7 shared 化：3D 打开收敛到 ysm-3d（path 驱动），骨架层测试 mock 编排层——
 // shared 外壳（挂 scene/导航/raycast）集成由 ysm-3d.test.ts（three stub）覆盖
-vi.mock("./ysm-3d.ts", () => ({ createYsm3D, cleanupYsm3D, invalidateYsmPreview }));
+// ADR-072 D1b：ysm-3d 已迁至 utils/3d/adapters，mock 路径同步
+vi.mock("../../utils/3d/adapters/ysm-3d.ts", () => ({ createYsm3D, cleanupYsm3D, invalidateYsmPreview }));
 
 import { loadModel2D } from "./skeleton.ts";
 import { fill3DPanel } from "./skeleton-render.ts";

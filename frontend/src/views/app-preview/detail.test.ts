@@ -24,19 +24,21 @@ vi.mock("../../backend/app.ts", () => ({
 vi.mock("./skeleton.ts", () => ({
   loadModel2D: vi.fn().mockResolvedValue(undefined),
 }));
-// VRM meta 卡依赖 three-vrm 解析，测试环境 mock（showVrmMeta 单测直接喂数据）
-vi.mock("./vrm-adapter.ts", () => ({
+// VRM meta 卡依赖 three-vrm 解析，测试环境 mock（showVrmMeta 单测直接喂数据）；
+// ADR-072 D1b：adapter/薄包装已迁至 utils/3d/adapters，mock 路径同步
+vi.mock("../../utils/3d/adapters/vrm-adapter.ts", () => ({
   readVrmMeta: vrmMetaMock,
 }));
-vi.mock("./vrm-3d.ts", () => ({
+vi.mock("../../utils/3d/adapters/vrm-3d.ts", () => ({
   createVrm3D: createVrm3DMock,
 }));
-vi.mock("./mmd-3d.ts", () => ({
+vi.mock("../../utils/3d/adapters/mmd-3d.ts", () => ({
   createMmd3D: createMmd3DMock,
   resolveMmdSiblings: resolveMmdSiblingsMock,
 }));
 
-import { showModelDetail, showResourcePack, showSimplePreview, showVrmMeta, showMmdPreview } from "./detail.ts";
+import { showModelDetail, showResourcePack, showSimplePreview } from "./detail.ts";
+import { showVrmMeta, showMmdPreview } from "./detail-3d.ts";
 
 function makeCtx(): PreviewCtx {
   const host = document.createElement("div");

@@ -700,6 +700,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-073：联邦 3D 渲染能力共享策略（程序化天空为首个落地能力）",
+        "link": "/adr/ADR-073-federal-render-caps"
+      },
+      {
         "text": "ADR-072：3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters",
         "link": "/adr/ADR-072-3d-organization-adapter-sink"
       },
@@ -1293,6 +1297,10 @@ export const autoSidebar = [
           {
             "text": "3D 预览渲染 model3d",
             "link": "/knowledge/model3d"
+          },
+          {
+            "text": "统一 3D 预览核心 preview-core",
+            "link": "/knowledge/preview_core"
           },
           {
             "text": "数组工具 moveItem",

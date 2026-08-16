@@ -7,10 +7,9 @@
 
 import * as THREE from "three";
 import { MMDLoader, VmdObject, buildAnimation } from "@moeru/three-mmd";
-import { getApp } from "../../backend/app.ts";
-import { t } from "../../core/i18n/t.ts";
+import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
-import { buildMmdBottomNav } from "./mmd-controls.ts";
+import { buildMmdBottomNav } from "../../../views/app-preview/mmd-controls.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -26,18 +25,23 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
+/** MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
+export interface MmdDataPort {
+  readFileBytes(path: string): Promise<string | null>;
+  listAllFilePaths(dir: string): Promise<string[] | null>;
+  addOpLog(op: string, msg: string, status: "ok" | "fail", err?: string): Promise<void>;
+}
+
 /** 环形日志面板诊断（AGENTS.md：排查卡顿往环形日志塞日志而非死盯 console）；失败静默不阻断 */
 async function mmdDiag(
-  App: unknown,
+  port: MmdDataPort,
   op: string,
   msg: string,
   status: "ok" | "fail",
   err?: string,
 ): Promise<void> {
   try {
-    const addFn = (App as unknown as Record<string, (a: string, b: string, c: string, d: string, e: number, f: string, g: string) => Promise<unknown>>)["AddOpLog"];
-    if (typeof addFn !== "function") return;
-    await addFn("mmd-preview", op, msg, "", 0, status, err || "");
+    await port.addOpLog(op, msg, status, err);
   } catch {
     /* 诊断不阻断加载 */
   }
@@ -55,16 +59,14 @@ function isLikelyTga(bytes: Uint8Array): boolean {
 
 /**
  * MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。
- * 成功路径自行移除 loadingEl（对齐 vrm/litematic 既有口径）。
+ * 成功路径自行移除 loadingEl（对齐 vrm/litematic 既有口径）。数据读取经 port 注入（ADR-072）。
  */
-export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise<PreviewScene> {
+export async function buildMmdScene(ctx: PreviewBuildCtx, path: string, port: MmdDataPort): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:ysm-prog 1.5s ease-in-out infinite"></div></div>';
 
-  const App = await getApp();
-  const readFn = (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"];
-  const b64 = await readFn(path);
-  await mmdDiag(App, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
+  const b64 = await port.readFileBytes(path);
+  await mmdDiag(port, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
   if (!b64) throw new Error("ReadFileBytes 返回空");
   const bytes = b64ToBytes(b64);
   const modelBase = (path.split(/[/\\]/).pop() || "").toLowerCase();
@@ -81,14 +83,13 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   blobUrls.push(modelBlobUrl);
   texMap.set(modelBase, modelBlobUrl);
   try {
-    const listFn = (App as unknown as Record<string, (d: string) => Promise<string[] | null>>)["ListAllFilePaths"];
-    const files = (await listFn(dirPath)) || [];
+    const files = (await port.listAllFilePaths(dirPath)) || [];
     // 并行预读纹理（避免 N 次串行 RPC 拖慢预览打开；单张失败降级不影响整体）
     await Promise.all(
       files
         .filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext)))
         .map(async (p) => {
-          const texB64 = await readFn(p);
+          const texB64 = await port.readFileBytes(p);
           if (!texB64) return;
           const texBytes = b64ToBytes(texB64);
           // 假 TGA（扩展名 .tga 但头部类型非法）：不注册 blob → TGALoader 不会加载它 → 无刷屏错误
@@ -111,14 +112,14 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
     // 同目录 VMD 动作文件（模型加载后逐个解析）
     vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
     await mmdDiag(
-      App,
+      port,
       "list-files",
       dirPath,
       "ok",
       `files=${files.length} tex=${files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext))).length} vmd=${vmdPaths.length}`,
     );
   } catch (e) {
-    await mmdDiag(App, "list-files", dirPath, "fail", e instanceof Error ? e.message : String(e));
+    await mmdDiag(port, "list-files", dirPath, "fail", e instanceof Error ? e.message : String(e));
     /* 目录不可列 → 白模降级，不阻断模型渲染 */
   }
 
@@ -145,11 +146,11 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   } catch (e) {
     // 加载失败：回收已建 blob（模型 + 已读纹理），避免 WebView2 会话期内泄漏内存
     for (const url of blobUrls) URL.revokeObjectURL(url);
-    await mmdDiag(App, "parse", path, "fail", e instanceof Error ? e.message : String(e));
+    await mmdDiag(port, "parse", path, "fail", e instanceof Error ? e.message : String(e));
     throw e;
   }
   await mmdDiag(
-    App,
+    port,
     "parse",
     path,
     "ok",
@@ -174,7 +175,7 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   const clips: Array<{ label: string; clip: THREE.AnimationClip }> = [];
   for (const v of vmdPaths) {
     try {
-      const vmdB64 = await readFn(v);
+      const vmdB64 = await port.readFileBytes(v);
       if (!vmdB64) continue;
       // await 包装：真实库 ParseFromBuffer 同步返回（await 无害），但损坏/异步实现时
       // reject 能被 try/catch 捕获，不会把 Promise 对象当 vmd 传给 buildAnimation

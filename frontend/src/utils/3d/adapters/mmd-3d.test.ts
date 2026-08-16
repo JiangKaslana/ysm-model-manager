@@ -8,8 +8,8 @@ const { getAppMock, getRepoRootMock, scanEntriesMock } = vi.hoisted(() => ({
   getRepoRootMock: vi.fn(),
   scanEntriesMock: vi.fn(),
 }));
-vi.mock("../../backend/app.ts", () => ({ getApp: getAppMock }));
-vi.mock("../../utils/resource/types.ts", () => ({
+vi.mock("../../../backend/app.ts", () => ({ getApp: getAppMock }));
+vi.mock("../../../utils/resource/types.ts", () => ({
   RESOURCE_TYPES: { MMD: "mmd-skin" },
 }));
 vi.mock("./mount-preview-core.ts", () => ({

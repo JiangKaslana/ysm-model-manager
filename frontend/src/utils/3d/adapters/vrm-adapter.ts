@@ -6,8 +6,7 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
-import { getApp } from "../../backend/app.ts";
-import { t } from "../../core/i18n/t.ts";
+import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -60,10 +59,11 @@ export interface VrmMetaInfo {
 }
 
 /** 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null */
-export async function readVrmMeta(path: string): Promise<VrmMetaInfo | null> {
+export async function readVrmMeta(
+  path: string,
+  readFn: (p: string) => Promise<string | null>,
+): Promise<VrmMetaInfo | null> {
   try {
-    const App = await getApp();
-    const readFn = (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"];
     const b64 = await readFn(path);
     if (!b64) return null;
 
@@ -108,12 +108,14 @@ export async function readVrmMeta(path: string): Promise<VrmMetaInfo | null> {
 }
 
 /** VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose */
-export async function buildVrmScene(ctx: PreviewBuildCtx, path: string): Promise<PreviewScene> {
+export async function buildVrmScene(
+  ctx: PreviewBuildCtx,
+  path: string,
+  readFn: (p: string) => Promise<string | null>,
+): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🥽</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:ysm-prog 1.5s ease-in-out infinite"></div></div>';
 
-  const App = await getApp();
-  const readFn = (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"];
   const b64 = await readFn(path);
   if (!b64) throw new Error("ReadFileBytes 返回空");
 

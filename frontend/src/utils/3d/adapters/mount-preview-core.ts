@@ -11,14 +11,14 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { bus } from "../../bus.ts";
-import { friendlyError } from "../../utils/dom/errors.ts";
-import { t } from "../../core/i18n/t.ts";
-import { esc } from "../../utils/dom/html.ts";
-import { safeGet, safeSet } from "../../utils/dom/storage.ts";
-import { createIconButton } from "../../utils/dom/fab.ts";
-import { installUiComponentsStyles } from "../../ui/ui-components-styles.ts";
-import type { BoneSelectInfo } from "../../utils/3d/model3d.ts";
+import { bus } from "../../../bus.ts";
+import { friendlyError } from "../../../utils/dom/errors.ts";
+import { t } from "../../../core/i18n/t.ts";
+import { esc } from "../../../utils/dom/html.ts";
+import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
+import { createIconButton } from "../../../utils/dom/fab.ts";
+import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
+import type { BoneSelectInfo } from "../model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
 export interface PreviewBuildCtx {

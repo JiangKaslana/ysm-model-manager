@@ -5,9 +5,19 @@
 
 import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "./mount-preview-core.ts";
 import { buildLitematicScene } from "./litematic-adapter.ts";
+import { getApp } from "../../../backend/app.ts";
+
+/** voxelCall 注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
+function makeVoxelCall(voxelFn: string): (path: string) => Promise<string> {
+  return async (path: string): Promise<string> => {
+    const App = await getApp();
+    const fn = (App as unknown as Record<string, (p: string) => Promise<string>>)[voxelFn || "GetLitematicVoxelData"];
+    return fn(path);
+  };
+}
 
 function makeLitematicAdapter(voxelFn: string): PreviewAdapter {
-  return { id: "litematic", build: (ctx, path) => buildLitematicScene(ctx, path, voxelFn) };
+  return { id: "litematic", build: (ctx, path) => buildLitematicScene(ctx, path, makeVoxelCall(voxelFn)) };
 }
 
 /** 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 */

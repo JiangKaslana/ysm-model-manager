@@ -31,6 +31,8 @@ const detailSpies = vi.hoisted(() => ({
   showMmdPreview: vi.fn(),
 }));
 vi.mock("./detail.ts", () => detailSpies);
+// ADR-072 D3：3D 入口已拆至 detail-3d.ts，分流断言 spy 复用同一对象
+vi.mock("./detail-3d.ts", () => detailSpies);
 
 const litematicSpies = vi.hoisted(() => ({
   showLitematic: vi.fn(),

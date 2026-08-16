@@ -135,13 +135,13 @@ vi.mock("three/addons/controls/OrbitControls.js", () => ({
   },
 }));
 
-vi.mock("../../backend/app.ts", () => ({ getApp: vi.fn() }));
+vi.mock("../../../backend/app.ts", () => ({ getApp: vi.fn() }));
 
-import { getApp } from "../../backend/app.ts";
-import { bus } from "../../bus.ts";
+import { getApp } from "../../../backend/app.ts";
+import { bus } from "../../../bus.ts";
 import * as THREE from "three";
 import { cleanupVoxel3D, createLitematic3D } from "./litematic-3d.ts";
-import { sleep } from "../../test-utils/index.ts";
+import { sleep } from "../../../test-utils/index.ts";
 
 /** 访问 mock 暴露的 InstancedMesh 实例列表，供 count / setMatrixAt 断言 */
 const meshInstances = (THREE as unknown as {

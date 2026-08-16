@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 83 张知识卡
+> 总计: 84 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -186,7 +186,7 @@
 - **shared-styles**（共享样式 shared-styles）：两个样式模块为 Shadow DOM 组件提供可复用的 CSS 字符串：`utils/dom/css.ts` 导出全应用统一的按钮体系 `.btn-base` 与通用 focus-visible 规则；`views/app-tree/app…
 - **test-utils**（测试工具 test-utils（G-1 抗脆弱测试基础设施））：`frontend/src/test-utils/` 是组件测试统一工具层（ADR-035 G-1 / Design.md §19.1）。查询走 `data-testid` 稳定钩子（不绑定 CSS 类/文案），等待走轮询（替代固定 sle…
 
-## utils（18 张）
+## utils（19 张）
 
 *工具函数（display、fmt、dom、animation）*
 
@@ -197,6 +197,7 @@
 | 🍃 format-ysm-anim-config | YSM 动画分组与配置菜单提取 | leaf | 动画分组, 配置菜单, ysm.json, extra_animation, summarize |
 | 🏗 model2d | 2D 预览渲染 model2d | architecture | 2D 预览, 骨骼图, Canvas 渲染, 前视图, 骨骼热区, 鼠标拾取, 线框图 |
 | 🏗 model3d | 3D 预览渲染 model3d | architecture | 3D 预览, Three.js, 相机, 骨骼渲染, 自由相机, 3D 截图, 纹理加载, spec 兜底, OrbitControls |
+| 🏗 preview_core | 统一 3D 预览核心 preview-core | architecture | 3D 预览, 统一预览外壳, 程序化天空 / sky / 背景 / scene.background, PreviewAdapter 适配器, 全模型预览（YSM / VRM / MMD / Litematic）, mount3D |
 | 🍃 utils-array | 数组工具 moveItem | leaf | 数组排序, 拖拽排序, moveItem, 列表 reorder |
 | 🍃 utils-display | 文件名显示 display | leaf | 文件名, 文件名显示, 美化文件名, renderDisplayName, 作者标签, 作品标签, 文件名着色, 搜索高亮, ban 文件 |
 | 🍃 utils-dom | DOM 工具 dom | leaf | esc, HTML 转义, innerHTML, 搜索高亮, mark, XSS |
@@ -218,6 +219,7 @@
 - **format-ysm-anim-config**（YSM 动画分组与配置菜单提取）：前端镜像 Go 端 `appendAnimGroupsAndConfigs` 逻辑的纯函数模块（`summary.go`）。加密 `.ysm` 经 WASM 解码后，`ysm.json` 的 `properties` 字段可读，但原 `wa…
 - **model2d**（2D 预览渲染 model2d）：Canvas 2D 渲染基岩版模型骨骼的线框/正交投影图（前视图 + 可选 Y 轴旋转），是预览面板的轻量视图；与 [model3d](./model3d.md) 共享同一套 Bedrock 几何口径。
 - **model3d**（3D 预览渲染 model3d）：前端 Three.js 3D 渲染层（`frontend/src/utils/3d/`），采用 **RenderSession 对象化架构**（ADR-052 落地）。核心入口 `renderModel3D()` 现为薄壳，实际逻辑在 `R…
+- **preview_core**（统一 3D 预览核心 preview-core）：ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚手架（旧实现各内联 ~250 行同构），成为所有富格式 3D 预览的**单一事实来源外壳**。内容差异经 `PreviewAdapter.bui…
 - **utils-array**（数组工具 moveItem）：纯函数层数组操作工具，从 `site/edit.ts` 的拖拽排序 drop 逻辑抽出，供单测覆盖（ADR-023 L3）。
 - **utils-display**（文件名显示 display）：模型文件名解析 + 美化显示管线。YSM 社区文件名遵循 `[作者]【作品】角色 日期.ext` 命名约定，本模块把它解析为结构化字段，并在原文件名上原位着色（作者/作品/日期各自样式），是 UI 侧文件名展示的唯一入口。
 - **utils-dom**（DOM 工具 dom）：HTML 转义与搜索高亮工具。`esc()` 是全前端 HTML 转义的统一入口，也是治理红线指定的转义函数。

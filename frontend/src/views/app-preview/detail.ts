@@ -1,5 +1,8 @@
 // ===== 模型/资源包详情面板 =====
-// 从 index.ts 拆分：详情面板渲染逻辑
+// 从 index.ts 拆分：详情面板渲染逻辑。
+// ADR-072 D3：3D 入口（showVrmMeta/showMmdPreview）已拆至 detail-3d.ts，
+// 本文件保留 2D 详情（showModelDetail/showResourcePack/showSimplePreview/showShaderpack）；
+// _detailGen 导出供 detail-3d.ts 共享（跨文件快速切换时在途请求互相作废）。
 import { summaryCardHTML, type YsmSummary } from "../../utils/format/summarize.ts";
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
@@ -8,14 +11,21 @@ import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import type { PreviewCtx } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { loadModel2D } from "./skeleton.ts";
-import { readVrmMeta } from "./vrm-adapter.ts";
-import { createVrm3D } from "./vrm-3d.ts";
-import { createMmd3D, resolveMmdSiblings } from "./mmd-3d.ts";
 import { describeVersionRange } from "../../utils/format/pack-format.ts";
 import { t } from "../../core/i18n/t.ts";
 
 /** 详情面板 generation：每次展示新预览自增，慢请求返回后比对，过期结果不回写 DOM */
 let _detailGen = 0;
+
+/** 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） */
+export function nextDetailGen(): number {
+  return ++_detailGen;
+}
+
+/** 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） */
+export function getDetailGen(): number {
+  return _detailGen;
+}
 
 /** 显示模型详情（YSM 模型） */
 export async function showModelDetail(
@@ -228,91 +238,4 @@ export async function showShaderpack(
 </div>`;
   }
 }
-
-/** 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） */
-export async function showVrmMeta(
-  ctx: PreviewCtx,
-  path: string,
-  opts?: { icon?: string; label?: string },
-): Promise<void> {
-  const gen = ++_detailGen;
-  const icon = (opts && opts.icon) || "🥽";
-  const label = (opts && opts.label) || t("preview.vrcAvatar");
-  const basename = path.split(/[/\\]/).pop() || "";
-  ctx.root.innerHTML = `<div class="content" id="preview-content">
-  <h3>${icon} ${label}</h3>
-  <div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsing")}...</div></div>
-</div>`;
-  try {
-    const meta = await readVrmMeta(path);
-    if (gen !== _detailGen) return; // 过期守卫：await 期间用户已切走
-    if (!meta || (!meta.name && !meta.authors?.length)) {
-      // 无 meta（非标准 VRM 或解析失败）→ 仅名称 + FAB
-      ctx.root.innerHTML = `<div class="content" id="preview-content">
-  <h3>${icon} ${label}</h3>
-  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
-    <div><strong>${renderFormattedText(basename)}</strong></div>
-    <button class="ysm-fab" id="btn-vrm-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="ysm-ic">🎨</span></button>
-  </div>
-</div>`;
-    } else {
-      const authors = meta.authors.filter(Boolean).join("、");
-      const thumb = meta.thumbnail
-        ? `<img src="${esc(meta.thumbnail)}" alt="thumbnail" style="width:128px;height:128px;object-fit:contain;border-radius:6px;border:1px solid var(--bd);align-self:center;image-rendering:pixelated">`
-        : "";
-      ctx.root.innerHTML = `<div class="content" id="preview-content">
-  <h3>${icon} ${label}</h3>
-  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
-    ${thumb}
-    <div><strong>${renderFormattedText(meta.name || basename)}</strong></div>
-    ${authors ? `<div style="color:var(--muted)">👤 ${esc(authors)}</div>` : ""}
-    ${meta.version ? `<div style="color:var(--muted);font-size:var(--fs-xs)">版本: ${esc(meta.version)}</div>` : ""}
-    ${meta.contact ? `<div style="color:var(--muted);font-size:var(--fs-xs)">📮 ${esc(meta.contact)}</div>` : ""}
-    ${meta.license ? `<div style="color:var(--muted);font-size:var(--fs-xs)">📜 ${esc(meta.license)}</div>` : ""}
-    <button class="ysm-fab" id="btn-vrm-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="ysm-ic">🎨</span></button>
-  </div>
-</div>`;
-    }
-    const fab = ctx.root.querySelector<HTMLElement>("#btn-vrm-3d");
-    if (fab) {
-      fab.onclick = (): void => {
-        void createVrm3D(path);
-      };
-    }
-  } catch (e) {
-    if (gen !== _detailGen) return;
-    ctx.root.innerHTML = `<div class="content" id="preview-content">
-  <h3>${icon} ${label}</h3>
-  <div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div></div>
-</div>`;
-  }
-}
-
-/** 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） */
-export async function showMmdPreview(
-  ctx: PreviewCtx,
-  path: string,
-  opts?: { icon?: string; label?: string },
-): Promise<void> {
-  ++_detailGen; // 无 await 也要作废在途的慢请求回写
-  const icon = (opts && opts.icon) || "🎭";
-  const label = (opts && opts.label) || t("preview.mmdSkin");
-  const basename = path.split(/[/\\]/).pop() || "";
-  ctx.root.innerHTML = `<div class="content" id="preview-content">
-  <h3>${icon} ${label}</h3>
-  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
-    <div><strong>${renderFormattedText(basename || "")}</strong></div>
-    <button class="ysm-fab" id="btn-mmd-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="ysm-ic">🎨</span></button>
-  </div>
-</div>`;
-  const fab = ctx.root.querySelector<HTMLElement>("#btn-mmd-3d");
-  if (fab) {
-    fab.onclick = (): void => {
-      // 3D 内换模型（ADR-066 §5.6）：先取同类型候选列表，随 siblings 传入渲染 topBar 切换下拉
-      void (async () => {
-        const siblings = await resolveMmdSiblings();
-        await createMmd3D(path, { siblings });
-      })();
-    };
-  }
-}
+// ADR-072 D3：showVrmMeta / showMmdPreview 已拆至 detail-3d.ts（3D 入口与 2D 详情分离）

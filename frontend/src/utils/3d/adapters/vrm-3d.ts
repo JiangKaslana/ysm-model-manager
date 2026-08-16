@@ -5,8 +5,18 @@
 
 import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "./mount-preview-core.ts";
 import { buildVrmScene } from "./vrm-adapter.ts";
+import { getApp } from "../../../backend/app.ts";
 
-const vrmAdapter: PreviewAdapter = { id: "vrm", build: buildVrmScene };
+/** 数据读取注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
+async function readFileBytes(path: string): Promise<string | null> {
+  const App = await getApp();
+  return (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"](path);
+}
+
+const vrmAdapter: PreviewAdapter = {
+  id: "vrm",
+  build: (ctx, path) => buildVrmScene(ctx, path, readFileBytes),
+};
 
 /** 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 */
 export async function createVrm3D(path: string, opts?: Mount3DOptions): Promise<void> {

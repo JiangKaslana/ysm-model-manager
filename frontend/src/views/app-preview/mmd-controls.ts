@@ -6,11 +6,11 @@ import * as THREE from "three";
 import type { MMD } from "@moeru/three-mmd";
 import { t } from "../../core/i18n/t.ts";
 import { ensureFabStyles } from "../../utils/dom/fab.ts";
-import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
+import { buildCameraControls, type CameraControlBridge } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { cardContainer } from "../../ui/ui-card.ts";
 import { addCollapsible, addSectionTitle } from "../../ui/ui-collapsible.ts";
 import { slideRow } from "../../ui/ui-slide-row.ts";
-import { resolveMmdSiblings } from "./mmd-3d.ts";
+import { resolveMmdSiblings } from "../../utils/3d/adapters/mmd-3d.ts";
 
 export interface MmdBottomNavCtx {
   mmd: MMD;

@@ -11,13 +11,13 @@
 // （buildYsmBottomNav，相机控件复用核心 cameraControls）。
 // 已知降级（后续补）：调试模式（F 键 normal/pivot/bone 可视化）暂不接入 shared。
 import * as THREE from "three";
-import { preloadModel, type ModelLike } from "./model3d-loader.ts";
-import { buildYsmObject, type YsmObjectHandle } from "../../utils/3d/ysm-object.ts";
-import { fitCameraToScene } from "../../utils/3d/camera-setup.ts";
-import { buildBoneHierarchy, registerBoneRaycast } from "../../utils/3d/bone-raycast.ts";
-import { buildYsmBottomNav, type YsmContentHandle, type YsmModel } from "./ysm-controls.ts";
-import type { Spec3D, BoneSelectInfo } from "../../utils/3d/model3d.ts";
-import type { BedrockGeometry } from "./geometry.ts";
+import { preloadModel, type ModelLike } from "../../../views/app-preview/model3d-loader.ts";
+import { buildYsmObject, type YsmObjectHandle } from "../ysm-object.ts";
+import { fitCameraToScene } from "../camera-setup.ts";
+import { buildBoneHierarchy, registerBoneRaycast } from "../bone-raycast.ts";
+import { buildYsmBottomNav, type YsmContentHandle, type YsmModel } from "../../../views/app-preview/ysm-controls.ts";
+import type { Spec3D, BoneSelectInfo } from "../model3d.ts";
+import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
 
 /** 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 */

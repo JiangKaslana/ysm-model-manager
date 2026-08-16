@@ -9,7 +9,8 @@ import { buildMmdBottomNav } from "./mmd-controls.ts";
 const { resolveMmdSiblingsMock } = vi.hoisted(() => ({
   resolveMmdSiblingsMock: vi.fn(),
 }));
-vi.mock("./mmd-3d.ts", () => ({
+// ADR-072 D1b：mmd-3d 已迁至 utils/3d/adapters，mock 路径同步
+vi.mock("../../utils/3d/adapters/mmd-3d.ts", () => ({
   resolveMmdSiblings: resolveMmdSiblingsMock,
 }));
 

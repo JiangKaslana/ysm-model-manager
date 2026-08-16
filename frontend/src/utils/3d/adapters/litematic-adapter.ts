@@ -4,8 +4,7 @@
 // （overlay/renderer/循环/释放/相机控制）由 mount-preview-core.ts 拥有。
 
 import * as THREE from "three";
-import { getApp } from "../../backend/app.ts";
-import { t } from "../../core/i18n/t.ts";
+import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 
 /** 体素数据（GetLitematicVoxelData 等返回 JSON） */
@@ -21,18 +20,17 @@ const CHUNK_SIZE = 32; // 空间分块维：每 chunk 持一个 InstancedMesh，
 const DEFAULT_VOXEL_COLOR = "#7F7F7F"; // group 缺色时兜底色
 const FALLBACK_MAX_BLOCKS = 200000; // data.maxBlocks 缺席时的展示上限
 
-/** Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子 */
+/** Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。
+ *  voxelCall 由视图壳注入（对齐 ADR-072：适配器 0 backend import），经绑定名取 Go RPC。 */
 export async function buildLitematicScene(
   ctx: PreviewBuildCtx,
   path: string,
-  voxelFn: string,
+  voxelCall: (path: string) => Promise<string>,
 ): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🧊</div><div>' + t("preview.loadingVoxels") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:ysm-prog 1.5s ease-in-out infinite"></div></div>';
 
-  const App = await getApp();
-  const fn = (App as unknown as Record<string, (p: string) => Promise<string>>)[voxelFn || "GetLitematicVoxelData"];
-  const jsonStr = await fn(path);
+  const jsonStr = await voxelCall(path);
   const data = JSON.parse(jsonStr) as VoxelData;
 
   if (!data || !data.groups || !data.groups.length) {

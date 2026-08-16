@@ -16,7 +16,7 @@ import { friendlyError } from "../../utils/dom/errors.ts";
 import { t } from "../../core/i18n/t.ts";
 import { saveScreenshot } from "./skeleton-render.ts";
 import { fill3DPanel } from "./skeleton-fill-panel.ts";
-import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
+import { buildCameraControls, type CameraControlBridge } from "../../utils/3d/adapters/mount-preview-core.ts";
 import type { Spec3D, BoneSelectInfo } from "../../utils/3d/model3d.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 

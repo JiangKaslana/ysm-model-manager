@@ -4,7 +4,7 @@
 // 导航 DOM 走真实 buildYsmBottomNav）；skeleton.test.ts 已 mock ysm-3d 编排层。
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildYsmScene, makeYsmAdapter } from "./ysm-adapter.ts";
-import type { BedrockGeometry } from "./geometry.ts";
+import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 
 const mocks = vi.hoisted(() => ({
   preloadModel: vi.fn(),
@@ -13,10 +13,11 @@ const mocks = vi.hoisted(() => ({
   registerBoneRaycast: vi.fn(() => vi.fn()),
 }));
 
-vi.mock("./model3d-loader.ts", () => ({ preloadModel: mocks.preloadModel }));
-vi.mock("../../utils/3d/ysm-object.ts", () => ({ buildYsmObject: mocks.buildYsmObject }));
-vi.mock("../../utils/3d/camera-setup.ts", () => ({ fitCameraToScene: mocks.fitCameraToScene }));
-vi.mock("../../utils/3d/bone-raycast.ts", () => ({
+// model3d-loader 未随适配器迁移（仍在 views/app-preview），mock 路径指向原位置
+vi.mock("../../../views/app-preview/model3d-loader.ts", () => ({ preloadModel: mocks.preloadModel }));
+vi.mock("../ysm-object.ts", () => ({ buildYsmObject: mocks.buildYsmObject }));
+vi.mock("../camera-setup.ts", () => ({ fitCameraToScene: mocks.fitCameraToScene }));
+vi.mock("../bone-raycast.ts", () => ({
   buildBoneHierarchy: () => ({ nameMap: new Map(), parentMap: new Map(), childrenMap: new Map() }),
   registerBoneRaycast: mocks.registerBoneRaycast,
 }));

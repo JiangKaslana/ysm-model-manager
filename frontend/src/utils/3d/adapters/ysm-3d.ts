@@ -7,7 +7,7 @@
 // 3D 内模型切换无需重建整个会话。
 import { mount3D, cleanupPreview, invalidatePreview } from "./mount-preview-core.ts";
 import { makeYsmAdapter } from "./ysm-adapter.ts";
-import type { BedrockGeometry } from "./geometry.ts";
+import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 
 export interface YsmOpenOptions {
   /** path → model 加载器（skeleton 层注入：loadModelData(p, ctx)，含缓存/WASM/Go 兜底） */
