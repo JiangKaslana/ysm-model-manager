@@ -25,6 +25,35 @@ import { closeActive3DOverlay } from "./skeleton.ts";
 import { esc } from "../../utils/dom/html.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 
+/** 预览 show 函数签名：ctx + path + 类型元信息（icon/label） */
+type PreviewShowFn = (
+  ctx: PreviewCtx,
+  path: string,
+  meta: { icon: string; label: string },
+) => void;
+
+/**
+ * 类型 → show 派发映射表（ADR-072 D2：把 index.ts 手写 if 链替换为注册表驱动查表）。
+ * 新增格式 = 注册表一条目 + 这里一行，不再改 _showModelDetail 的 if 链。
+ * VRC 的 .vrm（3D meta 卡）/ .vrca/.zip（简单预览）分支收进 handler 内部。
+ */
+const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
+  [RESOURCE_TYPES.PACK]: (ctx, path) => showResourcePack(ctx, path),
+  [RESOURCE_TYPES.YSM]: (ctx, path) => showModelDetail(ctx, path),
+  [RESOURCE_TYPES.LITEMATIC]: (ctx, path) => showLitematic(ctx, path),
+  [RESOURCE_TYPES.BLUEPRINT]: (ctx, path) => showLitematic(ctx, path),
+  [RESOURCE_TYPES.SHADER]: (ctx, path, meta) => showShaderpack(ctx, path, meta),
+  [RESOURCE_TYPES.MMD]: (ctx, path, meta) => showMmdPreview(ctx, path, meta),
+  [RESOURCE_TYPES.VRC]: (ctx, path, meta) => {
+    // .vrm 直引 three-vrm meta 卡 + FAB 进 3D；.vrca/.zip 暂不直接加载 → 简单预览
+    if (extOf(path) === ".vrm") {
+      showVrmMeta(ctx, path, meta);
+    } else {
+      showSimplePreview(ctx, path, meta);
+    }
+  },
+};
+
 // 注册缓存淘汰回调：释放 blob URL（Set 去重：重复 URL 只 revoke 一次，revoke 幂等无害）
 cacheSetEvictHandler((key, val) => {
   if (!val) return;
@@ -191,41 +220,15 @@ class AppPreview extends HTMLElement implements PreviewCtx {
     } catch (_) {}
     // 过期守卫：await 期间用户已点其他文件，丢弃本次分流
     if (gen !== this._previewGen) return;
-    if (rtype === RESOURCE_TYPES.PACK) {
-      showResourcePack(this, path);
-      return;
+    // ADR-072 D2：注册表驱动查表派发——新增格式 = 注册表一条目 + PREVIEW_HANDLERS 一行，
+    // 不再改 if 链。ysm 或无检测结果默认走 YSM handler；未命中走 showSimplePreview 兜底。
+    const key = rtype || RESOURCE_TYPES.YSM;
+    const handler = PREVIEW_HANDLERS[key];
+    if (handler) {
+      handler(this, path, this._typeMeta(key));
+    } else {
+      showSimplePreview(this, path, this._typeMeta(key));
     }
-    // ysm 或无检测结果 → YSM 模型解析
-    if (!rtype || rtype === RESOURCE_TYPES.YSM) {
-      showModelDetail(this, path);
-      return;
-    }
-    if (rtype === RESOURCE_TYPES.LITEMATIC || rtype === RESOURCE_TYPES.BLUEPRINT) {
-      showLitematic(this, path);
-      return;
-    }
-    // VRChat 模型：.vrm 先显示 meta 卡（名称/作者/许可 + FAB 进 3D，对齐 YSM 模式）；
-    // .vrca/.zip 暂不直接加载
-    if (rtype === RESOURCE_TYPES.VRC) {
-      if (extOf(path) === ".vrm") {
-        showVrmMeta(this, path, this._typeMeta(rtype));
-      } else {
-        showSimplePreview(this, path, this._typeMeta(rtype));
-      }
-      return;
-    }
-    // 光影包：从 lang/en_US.lang 提取显示名 + 配置项简介（对齐资源管理器口径）
-    if (rtype === RESOURCE_TYPES.SHADER) {
-      showShaderpack(this, path, this._typeMeta(rtype));
-      return;
-    }
-    // MMD 模型：文件名 + FAB 进 3D（@moeru/three-mmd 直引，ADR-066 P2）
-    if (rtype === RESOURCE_TYPES.MMD) {
-      showMmdPreview(this, path, this._typeMeta(rtype));
-      return;
-    }
-    // 其他已知类型
-    showSimplePreview(this, path, this._typeMeta(rtype));
   }
 
   private _typeMeta(rtype: string): { icon: string; label: string } {

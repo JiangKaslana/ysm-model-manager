@@ -185,6 +185,31 @@ describe("_showModelDetail — 类型分流", () => {
     unmountElement(el);
   });
 
+  it("VRC .vrca → showSimplePreview（handler 内 .vrm 分支收口）", async () => {
+    const el = mountPreview();
+    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.VRC);
+    await el._showModelDetail("/repo/avatar.vrca");
+    expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
+      el,
+      "/repo/avatar.vrca",
+      expect.objectContaining({ icon: "📦", label: "vrchat-avatar" }),
+    );
+    expect(detailSpies.showVrmMeta).not.toHaveBeenCalled();
+    unmountElement(el);
+  });
+
+  it("未注册类型 → showSimplePreview 兜底（查表未命中）", async () => {
+    const el = mountPreview();
+    appObj.DetectResourceType.mockResolvedValue("no-such-type");
+    await el._showModelDetail("/repo/x.xyz");
+    expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
+      el,
+      "/repo/x.xyz",
+      expect.objectContaining({ icon: "📦", label: "no-such-type" }),
+    );
+    unmountElement(el);
+  });
+
   it("DetectResourceType 抛错 → 空类型回落 showModelDetail", async () => {
     const el = mountPreview();
     appObj.DetectResourceType.mockRejectedValue(new Error("no-detect"));
