@@ -40,10 +40,10 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 101 |
-| 前端·工具 | 89 | 317 |
+| 前端·工具 | 90 | 322 |
 | frontend/views | 88 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **343** | **1427** |
+| **合计** | **344** | **1432** |
 
 ## Go·头像
 
@@ -1098,6 +1098,9 @@
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:51` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:62` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:111` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
+| `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:22` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
+| `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:32` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
+| `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:39` | 构造 VRM 骨骼面板渲染器（extraPanel 契约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:23` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
@@ -1118,6 +1121,8 @@
 | `getBoneDetail()` | `frontend/src/utils/3d/bone-tools:106` | — |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-tools:125` | 骨骼显隐：设置该骨骼节点及其所有子网格可见性（需 object；无 object no-op） |
 | `toggleBoneVisible()` | `frontend/src/utils/3d/bone-tools:133` | 骨骼显隐：切换（取反）该骨骼节点可见性 |
+| `findAncestorBoneId()` | `frontend/src/utils/3d/bone-tools:151` | 沿 Object3D 父链向上找最近的骨骼 id（obj 自身或祖先的 name 命中 byId 即归属） |
+| `pickBone()` | `frontend/src/utils/3d/bone-tools:166` | Raycaster 拾取：命中任意 mesh → 沿父链找最近挂载在骨骼节点上的祖先（需 object）。 |
 | `BoneGroupMap()` | `frontend/src/utils/3d/bone-visibility:6` | BoneGroupMap 类型别名：骨骼 id → THREE.Group |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
 | `toggleBone()` | `frontend/src/utils/3d/bone-visibility:19` | 切换指定骨骼组的可见性（取反）。 |

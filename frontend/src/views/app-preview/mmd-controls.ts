@@ -1,16 +1,22 @@
 // ===== MMD 底部根菜单（§5.7 范式：底部悬浮导航 + 分类弹窗，对齐 YSM buildYsmBottomNav）=====
-// 弹窗内容接入 🥉 ui/ 库组件（cardContainer / addCollapsible / slideRow）组织；
-// 毛玻璃导航样式复用 fab.ts ensureFabStyles（ysm-3d-nav / ysm-3d-popup / ysm-3d-navbtn 类）。
+// 弹窗外壳接入 🥉 ui/ 库 slide-menu 组件（createSlideMenu）；内容行用 cardContainer /
+// addFieldRow / addCollapsible / slideRow / addSectionTitle 组织；
+// 毛玻璃导航样式复用 fab.ts ensureFabStyles（ysm-3d-nav / ysm-3d-navbtn 类）。
 
 import * as THREE from "three";
 import type { MMD } from "@moeru/three-mmd";
 import { t } from "../../core/i18n/t.ts";
 import { ensureFabStyles } from "../../utils/dom/fab.ts";
 import { buildCameraControls, type CameraControlBridge } from "../../utils/3d/adapters/mount-preview-core.ts";
-import { cardContainer } from "../../ui/ui-card.ts";
-import { addCollapsible, addSectionTitle } from "../../ui/ui-collapsible.ts";
-import { slideRow } from "../../ui/ui-slide-row.ts";
-import { resolveMmdSiblings } from "../../utils/3d/adapters/mmd-3d.ts";
+import {
+  cardContainer,
+  addFieldRow,
+  addCollapsible,
+  addSectionTitle,
+  slideRow,
+  createSlideMenu,
+} from "../../ui/ui-helpers.ts";
+import { resolveMmdSiblings } from "./mmd-siblings.ts";
 
 export interface MmdBottomNavCtx {
   mmd: MMD;
@@ -36,19 +42,24 @@ export function buildMmdBottomNav(overlay: HTMLElement, ctx: MmdBottomNavCtx): v
   nav.appendChild(viewBtn);
   overlay.appendChild(nav);
 
+  // 定位容器（.ysm-slide-popup）+ slide-menu 卡片外壳（标题栏 + 关闭 + 内容区）
   const popup = document.createElement("div");
-  popup.className = "ysm-3d-popup";
+  popup.className = "ysm-slide-popup";
   popup.style.display = "none";
   overlay.appendChild(popup);
+
+  const menu = createSlideMenu({ title: t("preview.modelInfo") });
+  popup.appendChild(menu.root);
 
   /** 关闭弹窗（nav 激活态同步）——对齐 YSM closePopup 口径 */
   const closePopup = (): void => {
     popup.style.display = "none";
-    popup.innerHTML = "";
+    menu.list.innerHTML = "";
     nav
       .querySelectorAll<HTMLElement>(".ysm-3d-navbtn--on")
       .forEach((b) => b.classList.remove("ysm-3d-navbtn--on"));
   };
+  menu.setOnClose(() => closePopup());
 
   /** 切换弹窗：同菜单再点收起，跨菜单切换内容（对齐 YSM togglePopup 口径） */
   const togglePopup = (fill: () => void, btn: HTMLElement): void => {
@@ -75,15 +86,16 @@ export function buildMmdBottomNav(overlay: HTMLElement, ctx: MmdBottomNavCtx): v
     return idx !== undefined && (ctx.mesh.morphTargetInfluences?.[idx] ?? 0) > 0.5;
   };
 
-  // ── 模型菜单：信息卡（ui/ 库 cardContainer）+ 表情列表（collapsible + slideRow）+ 切换模型区 ──
+  // ── 模型菜单：信息卡（ui/ 库 cardContainer + addFieldRow）+ 表情列表（collapsible + slideRow）+ 切换模型区 ──
   /** 同类型模型候选缓存（类型根固定不随当前模型变，切换后无需刷新；首次打开菜单拉取） */
   let siblingsCache: string[] | null = null;
   const fillModelMenu = (): void => {
-    popup.innerHTML = "";
+    menu.setTitle(t("preview.modelInfo"));
+    menu.list.innerHTML = "";
     const pmx = ctx.mmd.pmx;
-    cardContainer(popup, (c) => {
-      addInfoRow(c, t("preview.nameLabel"), ctx.modelName);
-      addInfoRow(
+    cardContainer(menu.list, (c) => {
+      addFieldRow(c, t("preview.nameLabel"), ctx.modelName);
+      addFieldRow(
         c,
         t("preview.modelOverview"),
         `${pmx.bones.length} 骨骼 · ${pmx.materials.length} 材质 · ${pmx.morphs.length} 表情`,
@@ -91,7 +103,7 @@ export function buildMmdBottomNav(overlay: HTMLElement, ctx: MmdBottomNavCtx): v
     });
     const morphNames = Object.keys(ctx.mesh.morphTargetDictionary || {});
     if (morphNames.length > 0) {
-      addCollapsible(popup, {
+      addCollapsible(menu.list, {
         title: `😀 ${t("preview.mmdMorph")} (${morphNames.length})`,
         defaultOpen: true,
         testId: "mmd-morph-list",
@@ -119,11 +131,11 @@ export function buildMmdBottomNav(overlay: HTMLElement, ctx: MmdBottomNavCtx): v
     void resolveMmdSiblings().then((siblings) => {
       if (popup.style.display === "none" || siblings.length === 0) return; // 菜单已关 / 无候选
       siblingsCache = siblings;
-      addSectionTitle(popup, `📦 ${t("preview.mmdLoadModel")} (${siblings.length})`);
+      addSectionTitle(menu.list, `📦 ${t("preview.mmdLoadModel")} (${siblings.length})`);
       siblings.forEach((p) => {
         const isCurrent = !!ctx.modelPath && p.toLowerCase() === ctx.modelPath.toLowerCase();
         slideRow(
-          popup,
+          menu.list,
           "📦",
           p.split(/[/\\]/).pop() || p,
           true,
@@ -140,8 +152,9 @@ export function buildMmdBottomNav(overlay: HTMLElement, ctx: MmdBottomNavCtx): v
 
   // ── 视图菜单：相机控件（复用 core cameraControls bridge，对齐 YSM fillViewMenu）──
   const fillViewMenu = (): void => {
-    popup.innerHTML = "";
-    buildCameraControls(popup, {
+    menu.setTitle(t("preview.cameraView"));
+    menu.list.innerHTML = "";
+    buildCameraControls(menu.list, {
       getOrbit: () => ctx.cameraControls?.getOrbit() ?? true,
       setOrbit: (v: boolean) => ctx.cameraControls?.setOrbit(v),
       getSpeed: () => ctx.cameraControls?.getSpeed() ?? 20,
@@ -160,19 +173,4 @@ function mkNavBtn(icon: string, label: string): HTMLElement {
   btn.className = "ysm-3d-navbtn";
   btn.innerHTML = `<span class="ysm-ic">${icon}</span><span class="ysm-3d-navlabel">${label}</span>`;
   return btn;
-}
-
-/** 信息行（label + value，§19：颜色用 var(--*)） */
-function addInfoRow(container: HTMLElement, label: string, value: string): void {
-  const row = document.createElement("div");
-  row.style.cssText = "display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12px";
-  const l = document.createElement("span");
-  l.style.cssText = "color:var(--muted)";
-  l.textContent = label;
-  const v = document.createElement("span");
-  v.style.cssText = "color:var(--txt)";
-  v.textContent = value;
-  row.appendChild(l);
-  row.appendChild(v);
-  container.appendChild(row);
 }

@@ -9,8 +9,8 @@ import { buildMmdBottomNav } from "./mmd-controls.ts";
 const { resolveMmdSiblingsMock } = vi.hoisted(() => ({
   resolveMmdSiblingsMock: vi.fn(),
 }));
-// ADR-072 D1b：mmd-3d 已迁至 utils/3d/adapters，mock 路径同步
-vi.mock("../../utils/3d/adapters/mmd-3d.ts", () => ({
+// ADR-072 根治：resolveMmdSiblings 归位 mmd-siblings.ts（视图壳数据准备），mock 路径同目录
+vi.mock("./mmd-siblings.ts", () => ({
   resolveMmdSiblings: resolveMmdSiblingsMock,
 }));
 
@@ -47,7 +47,7 @@ function navBtns(overlay: HTMLElement): NodeListOf<HTMLButtonElement> {
   return overlay.querySelectorAll<HTMLButtonElement>(".ysm-3d-navbtn");
 }
 function popup(overlay: HTMLElement): HTMLElement {
-  return overlay.querySelector(".ysm-3d-popup") as HTMLElement;
+  return overlay.querySelector(".ysm-slide-popup") as HTMLElement;
 }
 
 beforeEach(() => {
@@ -62,6 +62,9 @@ describe("buildMmdBottomNav", () => {
     expect(overlay.querySelector(".ysm-3d-nav")).not.toBeNull();
     expect(navBtns(overlay).length).toBe(2);
     expect(popup(overlay).style.display).toBe("none");
+    // slide-menu 外壳已挂载（卡片 + 标题栏）
+    expect(overlay.querySelector(".menu-wrapper.slide-menu")).not.toBeNull();
+    expect(overlay.querySelector(".slide-title")?.textContent).toBe("模型信息");
   });
 
   it("点击模型按钮 → 信息卡（名称/骨骼/材质/表情数）+ 表情列表渲染", () => {
