@@ -1,4 +1,6 @@
 frontend/dist
+# 构建验证产物（verify 模式本地构建输出，非发布产物）
+frontend/dist-verify/
 frontend/coverage/
 # Playwright E2E 运行产物（.last-run.json / 失败截图 / HTML 报告 / G-4 覆盖采集）
 frontend/test-results/

@@ -21,7 +21,6 @@ import { rebuildDebug } from "../debug-render.ts";
 import { disposeDebugGroup } from "../cleanup-helper.ts";
 import { screenshotFromRenderer } from "../screenshot.ts";
 import type { YsmContentHandle, YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
-import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "../../../views/app-preview/ysm-controls.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import type { Spec3D, BoneSelectInfo } from "../model3d.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
@@ -40,6 +39,15 @@ export interface YsmAdapterOptions {
   onClose?: () => void;
   /** 当前纹理下标（多纹理模型重建时传入） */
   texIdx?: number;
+  /**
+   * 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1，ADR 分层契约）。
+   * 缺失时菜单 render / 骨骼拾取联动退化为 no-op（测试与无面板场景安全）。
+   */
+  panels?: {
+    fillModelPanel: (list: HTMLElement, ctx: YsmControlsContext) => void;
+    fillShotPanel: (list: HTMLElement, ctx: YsmControlsContext) => void;
+    attachBoneSelect: (content: YsmContentHandle, cb: (id: string) => void) => void;
+  };
 }
 
 /** 骨骼拾取状态（bone-raycast 需要的最小 state） */
@@ -122,7 +130,8 @@ export async function buildYsmScene(
   };
 
   // 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，详情框更新 + 滚动高亮
-  attachYsmBoneSelect(content, (id: string) => ctx.menu.openPanel(id));
+  // 填充函数由视图层经 opts.panels 注入（解除 utils→views 分层违规 R1）
+  opts.panels?.attachBoneSelect?.(content, (id: string) => ctx.menu.openPanel(id));
 
   // ADR-077: 骨骼面板接入（通用版 makeBonePanelRenderer）
   // 从 spec.bones 构建 BoneNode[] → buildBoneTree → 喂入通用面板渲染器
@@ -160,6 +169,7 @@ export async function buildYsmScene(
   ctx.menu.setAdapterItems(
     ysmMenuItems({
       controlsCtx,
+      panels: opts.panels,
       bonePanel: {
         tree: boneTree,
         viewContainer: ctx.viewContainer,
@@ -258,6 +268,11 @@ export interface YsmMenuItemsOpts {
     scene: THREE.Object3D | null | undefined;
     cleanupRef: YsmBonePanelRef;
   };
+  /** 面板填充回调（视图层注入；缺失则 render 退化为 no-op，解除 utils→views 分层违规 R1） */
+  panels?: {
+    fillModelPanel: (list: HTMLElement, ctx: YsmControlsContext) => void;
+    fillShotPanel: (list: HTMLElement, ctx: YsmControlsContext) => void;
+  };
 }
 
 /**
@@ -276,7 +291,7 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model",
       legacyTestId: "ysm-model-entry",
-      render: (list) => fillYsmModelPanel(list, o.controlsCtx),
+      render: (list) => o.panels?.fillModelPanel?.(list, o.controlsCtx),
     },
     {
       id: "shot",
@@ -286,7 +301,7 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       dockGroup: "model",
       legacyTestId: "ysm-shot-entry",
-      render: (list) => fillYsmShotPanel(list, o.controlsCtx),
+      render: (list) => o.panels?.fillShotPanel?.(list, o.controlsCtx),
     },
     {
       id: "bones",

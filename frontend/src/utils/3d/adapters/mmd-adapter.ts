@@ -10,13 +10,10 @@ import { MMDLoader, VmdObject, buildAnimation, VPDLoader, applyVPD, type VpdObje
 import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
-import type { MmdBottomNavCtx } from "../../../views/app-preview/mmd-controls.ts";
-import {
-  fillMmdModelPanel,
-  fillMmdPlayPanel,
-  buildMaterialControls,
-  type MmdPlayBridge,
-  type MaterialControlBridge,
+import type {
+  MmdBottomNavCtx,
+  MmdPlayBridge,
+  MaterialControlBridge,
 } from "../../../views/app-preview/mmd-controls.ts";
 import {
   listMmdMaterials,
@@ -35,6 +32,7 @@ import { createBlinkController } from "../perception/blink.ts"; // 语义 morph 
 import { createLipSyncController } from "../perception/lipsync.ts"; // 语义 morph 消费方：程序化生命力 L2
 import { createAutoDanceController } from "../perception/autodance.ts"; // 语义骨骼消费方：程序化生命力 L3
 import { buildLipMorphIndices } from "../perception/lipsync.ts"; // 多 morph index 提取
+import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -87,10 +85,19 @@ function isLikelyTga(bytes: Uint8Array): boolean {
  * MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。
  * 成功路径自行移除 loadingEl（对齐 vrm/litematic 既有口径）。数据读取经 port 注入（ADR-072）。
  */
+/** 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） */
+export interface MmdPanelHooks {
+  fillModelPanel: (list: HTMLElement, ctx: MmdBottomNavCtx) => void;
+  fillPlayPanel: (list: HTMLElement, bridge: MmdPlayBridge) => void;
+  fillShotPanel: (list: HTMLElement, ctx: MmdBottomNavCtx, screenshot: (() => Promise<string | null>) | null) => void;
+  buildMaterialControls: (container: HTMLElement, bridge: MaterialControlBridge) => void;
+}
+
 export async function buildMmdScene(
   ctx: PreviewBuildCtx,
   path: string,
   port: MmdDataPort,
+  panels?: MmdPanelHooks,
 ): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
@@ -276,6 +283,8 @@ export async function buildMmdScene(
     : null;
   const items = mmdMenuItems({
     navCtx,
+    panels,
+    screenshot: () => Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
     material: {
       list: () => listMmdMaterials(mmd.pmx.materials),
       getDetail: (i) => getMmdMaterialDetail(mmd.pmx.materials, mats, i),
@@ -390,6 +399,9 @@ export async function buildMmdScene(
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();
     },
+    // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/vrm/litematic 呑约对称）
+    screenshot: () =>
+      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
     semanticBones,
     // VPD 姿势导入：同目录 .vpd 文件加载后缓存，点击触发 applyVPD
     applyPose: vpdPoses.length > 0
@@ -409,6 +421,8 @@ export async function buildMmdScene(
 /** mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 */
 export interface MmdMenuItemsOpts {
   navCtx: MmdBottomNavCtx;
+  /** 截图能力（ADR-052 P3：screenshotFromRenderer 共享 renderer）；null → 不注入 shot 项 */
+  screenshot: (() => Promise<string | null>) | null;
   /** 材质面板桥（mmd-materials.ts 纯逻辑层，ADR-072） */
   material: MaterialControlBridge;
   /** 播放/动作桥；null（无同目录 VMD）→ 不注入 play 项 */
@@ -423,6 +437,8 @@ export interface MmdMenuItemsOpts {
     scene: THREE.Object3D | null | undefined;
     cleanupRef: { current: (() => void) | null };
   } | null;
+  /** 面板填充回调（视图层注入；缺失则 render 退化为 no-op，解除 utils→views 分层违规 R1） */
+  panels?: MmdPanelHooks;
 }
 
 /**
@@ -440,7 +456,17 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "mmd-model-entry",
       dockGroup: "model", // 底栏 🧍 模型组
-      render: (list) => fillMmdModelPanel(list, o.navCtx),
+      render: (list) => o.panels?.fillModelPanel?.(list, o.navCtx),
+    },
+    {
+      id: "shot",
+      icon: "📷",
+      labelKey: "preview.screenshot",
+      fallback: "截图",
+      kind: "panel",
+      dockGroup: "model", // 底栏 🧍 模型组
+      legacyTestId: "mmd-shot-entry",
+      render: (list) => o.panels?.fillShotPanel?.(list, o.navCtx, o.screenshot),
     },
     {
       id: "material",
@@ -450,7 +476,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "mmd-material-entry",
       dockGroup: "model", // 底栏 🧍 模型组
-      render: (list) => buildMaterialControls(list, o.material),
+      render: (list) => o.panels?.buildMaterialControls?.(list, o.material),
     },
   ];
   if (o.play) {
@@ -462,7 +488,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       kind: "panel",
       legacyTestId: "mmd-play-entry",
       dockGroup: "motion", // 底栏 💃 动作组
-      render: (list) => fillMmdPlayPanel(list, o.play!),
+      render: (list) => o.panels?.fillPlayPanel?.(list, o.play!),
     });
   }
   if (o.bonePanel) {

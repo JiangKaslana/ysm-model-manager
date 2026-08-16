@@ -9,6 +9,7 @@ import { mount3D, cleanupPreview, invalidatePreview } from "../../utils/3d/adapt
 import { makeYsmAdapter } from "../../utils/3d/adapters/ysm-adapter.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import { preloadModel } from "./model3d-loader.ts";
+import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "./ysm-controls.ts";
 
 export interface YsmOpenOptions {
   /** path → model 加载器（skeleton 层注入：loadModelData(p, ctx)，含缓存/WASM/Go 兜底） */
@@ -40,6 +41,12 @@ export async function createYsm3D(
       preload: (model) => preloadModel(model as never),
       onTextureChange: rebuild,
       onClose: opts.onClose,
+      // 面板填充回调由视图层注入，解除 utils→views 分层违规 R1（ADR 分层契约）
+      panels: {
+        fillModelPanel: fillYsmModelPanel,
+        fillShotPanel: fillYsmShotPanel,
+        attachBoneSelect: attachYsmBoneSelect,
+      },
     }),
     path,
     { siblings: opts.siblings },
