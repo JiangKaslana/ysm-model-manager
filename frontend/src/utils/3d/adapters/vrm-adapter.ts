@@ -185,8 +185,12 @@ export async function buildVrmScene(
   const semanticBones = vrmSemanticBoneMap(vrm.humanoid.humanBones);
   // 感知层呼吸（程序化生命力 L1）：待机态下对 chest/spine/shoulders 施加正弦微位移
   const breath = createBreathController();
-  // 感知层注视追踪（程序化生命力 L2）：head/eyes 跟随相机方向
-  const gaze = createGazeController();
+  // 感知层注视追踪（程序化生命力 L2）：优先用 VRM 原生 lookAt（内部处理 head 旋转限幅），
+  // fallback 到语义骨骼驱动（仅当 vrm.lookAt 缺失，极少见）
+  const useNativeLookAt = !!vrm.lookAt;
+  let gaze: ReturnType<typeof createGazeController> | null = useNativeLookAt ? null : createGazeController();
+  // 启用原生 lookAt：指向相机作为注视目标（autoUpdate 默认 true，vrm.update 自动消费）
+  if (useNativeLookAt) vrm.lookAt!.target = ctx.camera;
   // 感知层眨眼（程序化生命力 L1.5）：随机间隔触发 blink 表情
   // 对齐 MMD 接法：先发现可用 blink 表情（"blink" / "blinkLeft" / "blinkRight"），
   // 再用 BlinkController 周期写入；无匹配表情则静默降级
@@ -202,7 +206,8 @@ export async function buildVrmScene(
       vrm.update(dt);
       if (semanticBones) {
         breath.apply(dt, semanticBones);
-        gaze.apply(dt, semanticBones, ctx.camera!.position);
+        // 注视追踪：原生 lookAt 优先（VRM 内部处理 head 旋转限幅），fallback 才走语义骨骼
+        if (!useNativeLookAt) gaze!.apply(dt, semanticBones, ctx.camera!.position);
       }
       // 眨眼：多表情统一写入（VRM 无 action 系统，始终生效）
       if (exprMgr && blinkExpressionNames.length > 0) {
@@ -222,8 +227,10 @@ export async function buildVrmScene(
         /* 面板清理不阻断 dispose */
       }
       breath.reset();
-      gaze.reset();
+      gaze?.reset();
       blink.dispose();
+      // 原生 lookAt：断开相机引用，避免释放后残留
+      if (useNativeLookAt) vrm.lookAt!.target = null;
       VRMUtils.deepDispose(vrm.scene);
     },
     semanticBones,
