@@ -237,14 +237,14 @@ describe("registerErrorDiary", () => {
     expect(call[6]).toContain("解决建议");
   });
 
-  it("P3 网页版早退：resolveWebMode=true 时不调 AddOpLog（消除 console.warn 噪音）", async () => {
+  it("ADR-071 修正：web 模式同样调 AddOpLog（web-store 已实现内存日志环，早退已移除）", async () => {
     vi.mocked(resolveWebMode).mockReturnValue(true);
     try {
       registerErrorDiary();
       bus.emit("toast:show", { msg: "❌ 网页版错误", duration: 3000, type: "error" });
       await flush();
-      // 网页版 AddOpLog 不在 webImpls（fail-fast），日记本就不落盘——早退不调用
-      expect(addOpLogMock).not.toHaveBeenCalled();
+      // 早退删除后 web 也落日记（原测试断言"不调用"已过时）
+      expect(addOpLogMock).toHaveBeenCalled();
     } finally {
       vi.mocked(resolveWebMode).mockReturnValue(false);
     }

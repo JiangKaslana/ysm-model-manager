@@ -7,6 +7,7 @@ import { safeSet } from "../../utils/dom/storage.ts";
 import type { TreeEntry } from "./loader.ts";
 import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
+import { can } from "../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { flashBtn } from "../../utils/dom/feedback.ts";
 
@@ -51,8 +52,8 @@ async function toggleFolderBatch(fhEl: HTMLElement, vm: AppTree): Promise<void> 
     });
     return;
   }
-  // 查看器模式（Android/网页版 ADR-049）：无本地文件系统写能力，启用/禁用开关不可用
-  if (isViewerMode()) {
+  // 能力门控：web 已实现 ToggleModelEnable（IDB ban 标记）→ 解锁；Android viewer 无此能力 → 封禁
+  if (!can("ToggleModelEnable")) {
     bus.emit("toast:show", {
       msg: "网页版不支持启用/禁用模型",
       duration: 3000,
@@ -162,8 +163,8 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
     const flCk = target.closest(".fl .ck, .fl-list .ck") as HTMLElement | null;
     if (flCk) {
       e.stopPropagation();
-      // 查看器模式（Android/网页版 ADR-049）：无本地文件系统写能力，启用/禁用开关不可用
-      if (isViewerMode()) {
+      // 能力门控：web 已实现 ToggleModelEnable → 解锁；Android viewer 封禁
+      if (!can("ToggleModelEnable")) {
         bus.emit("toast:show", {
           msg: "网页版不支持启用/禁用模型",
           duration: 3000,

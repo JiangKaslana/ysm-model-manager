@@ -3,6 +3,7 @@
 // 菜单结构来自 menu-defs.ts（唯一事实来源），此处只保留 orchestrator。
 import { bus, type CtxShowPayload, type MenuItem } from "../bus.ts";
 import { isViewerMode } from "../utils/dom/android-bridge.ts";
+import { can } from "../utils/dom/capabilities.ts";
 import { getMenuDef } from "./menu-defs";
 // P1 修复（ADR-040）：handler 表已拆至 context-menu-handlers.ts；此处仅消费 HANDLERS，
 // 不再 re-export 其余共享符号（无外部消费者，消除死代码）
@@ -10,8 +11,7 @@ import { HANDLERS } from "./context-menu-handlers.ts";
 type MenuCtx = import("./context-menu-handlers.ts").MenuCtx;
 
 // 查看器模式（Android/网页版 ADR-049）下仍可用的纯前端右键菜单动作：
-// 其余 action 均调 Wails binding（重命名/移动/复制/回收站/打开位置/推送整合包/
-// 新建子目录/标签编辑等），查看器模式无本地文件系统写能力，一律隐藏。
+// 其余 action 均调 Wails binding，查看器模式默认无本地文件系统写能力，一律隐藏。
 const VIEWER_OK_ACTIONS = new Set([
   "noop",
   "batch.copy-paths",
@@ -19,18 +19,31 @@ const VIEWER_OK_ACTIONS = new Set([
   "file.copy-path",
 ]);
 
+// ADR-071 判断修正：查看器模式（web）下已实现 binding 的右键动作——web 端
+// RenameFile/RenameDir/GetModelTags 已实现（web-fs/web-store），can() 探测放行；
+// Android viewer 无这些 binding，can() 返回 false 维持隐藏。
+const VIEWER_WEB_ACTION_BINDINGS: Record<string, string> = {
+  "file.rename": "RenameFile",
+  "dir.rename": "RenameDir",
+  "dir.batch-rename": "RenameDir",
+  "file.edit-tags": "GetModelTags",
+};
+
 function buildMenuItems(ctx: CtxShowPayload): MenuItem[] {
   const def = getMenuDef(ctx.type);
   if (!def) return [];
   const paths = ctx.paths || [];
   const norm: MenuCtx = { ...ctx, paths };
   const isViewer = isViewerMode();
-  // 查看器模式（Android/网页版）：过滤掉调 Wails binding 的桌面专属菜单项，
-  // 仅保留纯前端可用动作（VIEWER_OK_ACTIONS）。连续 divider 会在渲染时折叠，无需此处去重。
+  // 查看器模式：纯前端白名单 + web 已实现 binding 的动作（can 探测）放行；
+  // 连续 divider 会在渲染时折叠，无需此处去重。
   const items = def.items.filter((item) => {
     if (item.divider) return true;
     if (!item.action) return true;
-    return !isViewer || VIEWER_OK_ACTIONS.has(item.action);
+    if (!isViewer) return true;
+    if (VIEWER_OK_ACTIONS.has(item.action)) return true;
+    const b = VIEWER_WEB_ACTION_BINDINGS[item.action];
+    return b !== undefined && can(b);
   });
   return items.map((item) => {
     if (item.divider) return { divider: true };

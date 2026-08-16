@@ -844,6 +844,32 @@ export const webFsBindings = {
   // 真实列表入口（loader/import-queue/resource-manager 等 6 处均调 WithLabel 版本）
   ScanModelEntriesWithLabel: (dir: string, _label: string) => scanWebModels(dir),
   ReadFileBytes: (path: string) => readWebFile(path),
+  // CheckFileExists：IDB 虚拟库路径是否存在（file: 或 dir: key，对齐 Go os.Stat 语义）
+  CheckFileExists: async (path: string) => {
+    const pm = parseWebPath(path);
+    if (!pm) return false;
+    const f = await idbGet("files", `file:${pm.type}/${pm.rest}`);
+    if (f) return true;
+    const prefix = `dir:${pm.type}/`;
+    const dirKeys = await idbKeys("files", prefix);
+    const rest = pm.rest;
+    return dirKeys.some((k) => {
+      const name = k.slice(prefix.length, -1);
+      return !!name && (rest === name || rest.startsWith(name + "/"));
+    });
+  },
+  // DetectZipType：base64 → 字节 → 内容指纹（extract.ts detectZipType，对齐 Go 语义）
+  DetectZipType: (base64Data: string) => {
+    if (!base64Data) return Promise.resolve("");
+    try {
+      const bin = atob(base64Data);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return Promise.resolve(detectZipType(bytes) || "");
+    } catch {
+      return Promise.resolve("");
+    }
+  },
   // ADR-070 M1：蓝图/投影详情面板恢复（原 fail-fast 报「读取失败」）。
   // TS 平移 go/litematic/parser.go 三函数（ParseMeta/ParseSchematicSummary/ParseNbtStructure），
   // 只读 meta（不做 voxel，M2）；失败返回 "{}" 对齐 Go binding 契约

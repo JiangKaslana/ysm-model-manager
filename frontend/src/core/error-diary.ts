@@ -3,7 +3,6 @@
 
 import { bus, type ToastPayload } from "../bus.ts";
 import { getApp } from "../backend/app.ts";
-import { resolveWebMode } from "../backend/platform.ts";
 import { stripPathSegments } from "../utils/dom/errors.ts";
 
 let _registered = false;
@@ -81,9 +80,6 @@ export function registerErrorDiary(): void {
 }
 
 async function logUiMsg(msg: string, status: string): Promise<void> {
-  // P3 修复（审核）：网页版 AddOpLog 不在 webImpls（fail-fast 抛 WebUnsupportedError），
-  // 日记本就不落盘——早退避免每个 error/warn toast 刷 console.warn 噪音
-  if (resolveWebMode()) return;
   // P2 修复（审核）：同 (msg+status) 5s 去重——错误风暴只记首条
   const key = status + ":" + msg;
   const now = Date.now();

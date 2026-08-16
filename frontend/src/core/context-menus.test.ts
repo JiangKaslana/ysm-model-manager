@@ -1,4 +1,4 @@
-﻿// ===== context-menus 映射测试（ADR-021 A 层）=====
+// ===== context-menus 映射测试（ADR-021 A 层）=====
 // 触发 ctx:show → 断言 menu:show 载荷与 menu-defs.ts 声明一致；
 // 点击 item → 断言 handler 发出正确的 bus 事件 / getApp 调用。
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest";
@@ -89,6 +89,10 @@ vi.mock("../../bindings/ysm-model-manager/internal/app/app.js", () => ({
 vi.mock("../utils/dom/android-bridge.ts", () => ({
   isViewerMode: isViewerModeMock,
 }));
+
+// can() 能力探测 mock（web 已实现 binding 的右键动作放行依赖它）
+const { canMock } = vi.hoisted(() => ({ canMock: vi.fn(() => false) }));
+vi.mock("../utils/dom/capabilities.ts", () => ({ can: canMock }));
 
 // 收集 menu:show 与 handler 发出的业务事件
 const menuShows: Array<{ x: number; y: number; items: MenuItem[] }> = [];

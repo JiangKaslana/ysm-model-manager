@@ -21,6 +21,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../backend/app.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
+import { can } from "../../utils/dom/capabilities.ts";
 import { bindTreeDnD } from "../../features/import-dnd.ts";
 
 
@@ -319,8 +320,8 @@ export class AppTree extends HTMLElement {
           });
           return;
         }
-        // 查看器模式（Android/网页版 ADR-049）：无本地文件系统写能力，删除不可用
-        if (isViewerMode()) {
+        // 能力门控：web 已实现 DeleteModelDir（IDB 整组删）→ 解锁；Android viewer 封禁
+        if (!can("DeleteModelDir")) {
           bus.emit("toast:show", {
             msg: "网页版不支持删除模型",
             duration: 3000,
