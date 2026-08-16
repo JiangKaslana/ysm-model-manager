@@ -19,8 +19,10 @@
 import { classify, planFromFiles, DATA_FILES } from '../scripts/_lib/domain-classify.mjs';
 
 const failures = [];
+let assertCount = 0;
 
 function assert(cond, msg) {
+  assertCount++;
   if (!cond) failures.push(msg);
 }
 
@@ -83,7 +85,7 @@ for (const f of DATA_FILES) {
 
 // ---- 汇总 ----
 if (failures.length === 0) {
-  console.log(`✅ test_domain_classify.mjs 全部通过（${DATA_FILES.size} 个 data 文件 + 18 组断言）`);
+  console.log(`✅ test_domain_classify.mjs 全部通过（${DATA_FILES.size} 个 data 文件 + ${assertCount} 组断言）`);
   process.exit(0);
 } else {
   console.log('❌ test_domain_classify.mjs 失败:');
