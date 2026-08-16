@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import { t } from "../../../core/i18n/t.ts";
+import { makeVrmBonePanelRenderer } from "./vrm-bone-ui.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -161,13 +162,49 @@ export async function buildVrmScene(
   ctx.scene!.add(dl);
   ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
+  // ADR-074 S2 骨骼面板接入：topBar 骨骼按钮开关面板，面板复用 vrm-bone-ui 的 makeVrmBonePanelRenderer
+  let bonePanelCleanup: (() => void) | null = null;
   return {
     // VRM 动态部分（SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
     update: (dt: number): void => {
       vrm.update(dt);
     },
     // 释放 VRM 几何/材质/纹理（含 MToon），避免 GPU 缓冲泄漏
+    // ADR-074 S2 骨骼面板接入：topBar 骨骼按钮开关面板，面板复用 vrm-bone-ui 的 makeVrmBonePanelRenderer
+    extraControls: (topBar: HTMLElement): void => {
+      const btn = document.createElement("button");
+      btn.textContent = "🦴 骨骼";
+      btn.style.cssText =
+        "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;font-family:inherit";
+      btn.onclick = (): void => {
+        // 切换面板：core 的 extraPanel 容器由 ysm-3d-panel 持有（对齐 §5.7 底部导航范式）
+        const panel = topBar.parentElement?.parentElement?.querySelector<HTMLElement>("#ysm-3d-panel");
+        if (!panel) return;
+        if (bonePanelCleanup) {
+          // 已开 → 关
+          bonePanelCleanup();
+          bonePanelCleanup = null;
+          panel.style.display = "none";
+          return;
+        }
+        // 开 → 渲染骨骼面板
+        panel.style.display = "";
+        panel.innerHTML = "";
+        const renderer = makeVrmBonePanelRenderer(vrm);
+        bonePanelCleanup = renderer(panel, {
+          viewContainer: ctx.viewContainer!,
+          camera: ctx.camera!,
+          scene: ctx.scene!,
+        });
+      };
+      topBar.appendChild(btn);
+    },
     dispose: (): void => {
+      try {
+        bonePanelCleanup?.();
+      } catch {
+        /* 面板清理不阻断 dispose */
+      }
       VRMUtils.deepDispose(vrm.scene);
     },
   };
