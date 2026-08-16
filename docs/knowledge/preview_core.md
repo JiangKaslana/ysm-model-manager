@@ -64,6 +64,16 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - **天空落点（已实现，ADR-073 L1）**：统一核心在 shared 模式创建 `renderer` 后立即 `new SkyCapability({ scene, renderer }).apply()`（`mount-preview-core.ts`），复用 Three 官方 `Sky`（Preetham 散射）。YSM / VRM / MMD / Litematic 因共用同一 `ctx.scene` **零改动继承**——即「MMD 有天空 → YSM/VRM 自动获得」在 Three 域内的真·自动机制。能力层 `frontend/src/utils/3d/caps/sky-capability.ts` 封装 uniform 管线 + 可选 IBL（`setEnvironmentEnabled`，默认关）+ 会话级 tone mapping（dispose 还原）。`scene.background` 纯色保留为禁用天空时的兜底。
 - **self 模式**（`adapter.mode === "self"`，如个别单例）：核心仅提供外壳、不创建 `scene`，背景由适配器自管
 
+## 验证状态与迭代清单（2026-08-16）
+
+- **L1 程序化天空已落地并目视验证**：`task dev` / `npm run dev:web` 跑通，天空渲染正常、四种模型（YSM/VRM/MMD/Litematic）零改动继承。用户评定「效果一般但能跑，作为基线收口，后续迭代」。
+- **基线参数**（`sky-capability.ts` 默认值）：`scale 12000`（相机 maxDistance 5000 留余量）、`turbidity 8 / rayleigh 2 / mieCoefficient 0.005 / mieDirectionalG 0.8`、`cloudCoverage 0`、默认太阳方位、`ACESFilmicToneMapping` + 曝光 0.5（会话级，dispose 还原）、IBL `scene.environment` 默认关。
+- **已知观感短板（后续迭代项，非阻断）**：
+  1. 太阳方位偏固定，缺 time-of-day 联动 UI（接口 `setTime(hour)` 已就绪待用）；
+  2. IBL 默认关 → 模型反射/环境光偏平（开 `setEnvironmentEnabled(true)` 待视觉验证）；
+  3. 散射/曝光参数偏通用，未针对不同模型类别做预设；
+  4. 无云量/天气 UI（`setWeather(...)` 接口已就绪待用）。
+
 ## 相关
 
 - `model3d.md`（RenderSession 旧链路，背景设于 `renderer-setup.ts:44`）
