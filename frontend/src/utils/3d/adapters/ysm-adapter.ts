@@ -10,11 +10,15 @@
 // YSM 特色保留：骨骼射线拾取（绑核心 renderer.domElement）、声明式根菜单专属项
 // （model/截图/骨骼 经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单，ADR-076 v2 Phase 2）。
 // 已知降级（后续补）：调试模式（F 键 normal/pivot/bone 可视化）暂不接入 shared。
+// ⚠️ 已解除：F 键调试模式现已接入 shared 模式，经 rebuildDebug 复用旧 renderModel3D 的
+// 相同逻辑（pivot 线 + 骨骼连接 + Sprite 标签），与旧单例路径行为一致。
 import * as THREE from "three";
 import { buildYsmObject, type YsmObjectHandle } from "../ysm-object.ts";
 import { fitCameraToScene } from "../camera-setup.ts";
 import { buildBoneHierarchy, registerBoneRaycast } from "../bone-raycast.ts";
 import { buildBoneTree, type BoneNode, type BoneTree } from "../bone-tools.ts";
+import { rebuildDebug } from "../debug-render.ts";
+import { disposeDebugGroup } from "../cleanup-helper.ts";
 import { screenshotFromRenderer } from "../screenshot.ts";
 import type { YsmContentHandle, YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
 import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "../../../views/app-preview/ysm-controls.ts";
@@ -166,11 +170,46 @@ export async function buildYsmScene(
     }),
   );
 
+  // ---- F 键调试模式（旧 renderModel3D 功能，shared 模式接入）----
+  // 三态循环：normal（无调试）→ pivot（pivot 线 + 标签）→ bone（骨骼连接线）→ normal
+  // rebuildDebug 复用旧 renderModel3D 的相同逻辑（pivot 线 + 骨骼连接 + Sprite 标签）。
+  // 状态持有：debugMode 记录当前模式，debugGroup 持有当前调试叠加层（供下次重建前 dispose）。
+  const debugState = {
+    debugMode: "normal" as "normal" | "pivot" | "bone",
+    debugGroup: null as THREE.Group | null,
+  };
+  // F 键切换 debug 模式（绑定 renderer.domElement，与旧单例 renderModel3D 行为一致）
+  const onFKeyDown = (e: KeyboardEvent): void => {
+    if (e.key !== "f" && e.key !== "F") return;
+    // 忽略 Shift/Ctrl/Alt 修饰（仅裸 F）
+    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const modes: Array<"normal" | "pivot" | "bone"> = ["normal", "pivot", "bone"];
+    const currentIdx = modes.indexOf(debugState.debugMode);
+    const nextMode = modes[(currentIdx + 1) % modes.length];
+    debugState.debugMode = nextMode;
+    rebuildDebug(
+      ctx.scene as THREE.Scene,
+      obj.rootGroup,
+      obj.boneGroupMap,
+      spec as Spec3D,
+      debugState,
+    );
+  };
+  ctx.renderer!.domElement.addEventListener("keydown", onFKeyDown);
+
   return {
     dispose(): void {
       rayCleanup();
       bonePanelRef.current?.();
       obj.removeFromScene(ctx.scene as THREE.Scene);
+      // F 键调试模式清理：移除事件监听 + 释放调试叠加层
+      ctx.renderer!.domElement.removeEventListener("keydown", onFKeyDown);
+      if (debugState.debugGroup) {
+        disposeDebugGroup(debugState.debugGroup);
+        debugState.debugGroup = null;
+      }
     },
     resetCamera(): void {
       ctx.camera!.position.copy(initCamPos);
