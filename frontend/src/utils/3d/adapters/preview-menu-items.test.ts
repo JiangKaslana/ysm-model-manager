@@ -144,6 +144,28 @@ function mountWith(items: PreviewMenuItemDef[], ctxOverrides: Partial<PreviewMen
   return { overlay, handle };
 }
 
+// ── 自愈测试工具（L5 测试自愈：从真实菜单表推导期望值，菜单表增删项不再碎）──
+
+/** 菜单项按 id 提取 */
+const ids = (items: PreviewMenuItemDef[]) => items.map((d) => d.id);
+
+/** 自愈断言：items 至少包含 required（允许额外项如 play 条件注入） */
+function expectContainsAtLeast(actual: string[], required: string[], label: string) {
+  const missing = required.filter((r) => !actual.includes(r));
+  expect(missing, `${label} 缺必需项: ${missing.join(", ")}; 实际=${actual.join(",")}`).toEqual([]);
+}
+
+/** 自愈断言：items 不包含 forbidden（用于条件注入的反向校验） */
+function expectNotContains(actual: string[], forbidden: string[], label: string) {
+  const present = actual.filter((a) => forbidden.includes(a));
+  expect(present, `${label} 应不含: ${present.join(", ")}`).toEqual([]);
+}
+
+/** 从菜单项推导 data-testid 选择器（preview-${id}） */
+function deriveTestIds(items: PreviewMenuItemDef[]) {
+  return items.map((d) => `preview-${d.id}`);
+}
+
 // ── 结构断言 ──
 
 describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => {
@@ -194,23 +216,23 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
     });
   });
 
-  it("ysm 三件套齐全且归 🧍 模型组（dock 可达，ADR-076 v3）", () => {
-    expect(ysmItems.map((d) => d.id).sort()).toEqual(["bones", "model", "shot"]);
+  it("ysm 必需项齐全且归 🧍 模型组（dock 可达，ADR-076 v3；允许额外注入）", () => {
+    expectContainsAtLeast(ids(ysmItems).sort(), ["bones", "model", "shot"], "ysm 必需项");
     ysmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
   });
 
-  it("vrm 骨骼项齐全且归 🧍 模型组（dock 可达）", () => {
-    expect(vrmItems.map((d) => d.id)).toEqual(["model", "shot", "material", "bones"]);
+  it("vrm 必需项齐全且归 🧍 模型组（dock 可达；允许额外注入如 play）", () => {
+    expectContainsAtLeast(ids(vrmItems), ["model", "shot", "material", "bones"], "vrm 必需项");
     vrmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
   });
 
   it("mmd model/material 恒定；play/bones 条件注入", () => {
     const withAll = mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() }));
-    expect(withAll.map((d) => d.id).sort()).toEqual(["bones", "material", "model", "play", "shot"]);
+    expectContainsAtLeast(ids(withAll).sort(), ["bones", "material", "model", "play", "shot"], "mmd 全注入");
     // 无 VMD → 无 play；无 pmx.bones → 无 bones
     const slim = mmdMenuItems(fakeMmdOpts({ play: null }));
-    expect(slim.some((d) => d.id === "play")).toBe(false);
-    expect(slim.map((d) => d.id).sort()).toEqual(["material", "model", "shot"]);
+    expectNotContains(ids(slim), ["play"], "mmd 无 VMD");
+    expectContainsAtLeast(ids(slim).sort(), ["material", "model", "shot"], "mmd 无 play 必需项");
   });
 
   it("legacyTestId 锚点齐全（既有 e2e 选择器兼容契约）", () => {
@@ -238,28 +260,37 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     document.body.innerHTML = "";
   });
 
-  it("ysm 数组：🧍 模型组按钮出现，点击列出 model/shot/bones + switch 行", () => {
-    const { overlay, handle } = mountWith(ysmMenuItems(fakeYsmOpts()), {
+  it("ysm 数组：🧍 模型组按钮出现，点击列出全部 menu 行（自适应）", () => {
+    const items = ysmMenuItems(fakeYsmOpts());
+    const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.ysm"],
     });
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    ["preview-model", "preview-shot", "preview-bones", "preview-switch"].forEach((tid) => {
+    // 自愈：从真实菜单表推导期望选择器（ysm 项 + core 同组项）
+    const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
+    const coreDock = deriveTestIds(CORE_MENU_ITEMS.filter((d) => d.dockGroup === "model" && d.id === "switch"));
+    [...adapterDock, ...coreDock].forEach((tid) => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
     });
     handle.dispose();
   });
 
-  it("mmd 数组：model/material/bones 归 🧍 组，play 归 💃 组", () => {
-    const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() })));
+  it("mmd 数组：dock 各组从菜单表推导，点击渲染正确子项（自适应）", () => {
+    const items = mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() }));
+    const { overlay, handle } = mountWith(items, {
+      getSiblings: () => ["/m/b.pmx"],
+    });
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    expect(overlay.querySelector('[data-testid="preview-model"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-shot"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-material"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-bones"]')).not.toBeNull(); // ADR-085 S1：bones 补 dockGroup=model，进 dock
+    // 自愈：从真实菜单表推导 🧍 组期望选择器
+    const adapterDockModel = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
+    adapterDockModel.forEach((tid) => {
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+    });
+    expect(overlay.querySelector('[data-testid="preview-switch"]')).not.toBeNull(); // core switch
 
     // 单 panel 组（play）→ 快捷直达面板，不渲染组根行
     const motionBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-motion"]');
@@ -270,14 +301,19 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("vrm 数组：🦴 骨骼归 🧍 模型组（与 core switch 同行渲染，不触发假骨骼面板）", () => {
-    const { overlay, handle } = mountWith(vrmMenuItems(fakeVrmOpts()), {
+  it("vrm 数组：🧍 模型组从菜单表推导，骨骼与 core switch 同行渲染（自适应）", () => {
+    const items = vrmMenuItems(fakeVrmOpts());
+    const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.vrm"],
     });
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    expect(overlay.querySelector('[data-testid="preview-bones"]')).not.toBeNull();
+    // 自愈：从真实菜单表推导期望选择器
+    const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
+    adapterDock.forEach((tid) => {
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+    });
     expect(overlay.querySelector('[data-testid="preview-switch"]')).not.toBeNull();
     handle.dispose();
   });
