@@ -54,6 +54,8 @@ export interface RenderSessionHandle {
   dispose: () => void;
   /** 兼容别名：指向 dispose */
   cleanup: () => void;
+  /** 截取当前渲染画面（PNG base64，无 data: 前缀） */
+  screenshot: () => string | null;
 }
 
 /**
@@ -434,6 +436,18 @@ export class RenderSession {
   // 兼容原 handle.cleanup 命名（别名）
   cleanup(): void {
     this.dispose();
+  }
+
+  /** 截取当前渲染画面（PNG base64，无 data: 前缀） */
+  screenshot(): string | null {
+    if (this._disposed) return null;
+    try {
+      this.renderer.render(this.scene, this.camera);
+      const dataUrl = this.renderer.domElement.toDataURL("image/png");
+      return dataUrl.split(",")[1] ?? null;
+    } catch {
+      return null;
+    }
   }
 }
 

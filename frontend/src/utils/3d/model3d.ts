@@ -90,8 +90,10 @@ export async function renderModel3D(
 }
 
 /** 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null */
-// TODO(ADR-052 P2): 截图功能需适配 RenderSession 多实例（目前返回 null 占位）
+// ADR-052 P2: 截图功能已适配 RenderSession（通过 session.screenshot() 方法）
+// 注意：多实例场景需传入具体 session 引用，此处为兼容层提供 null 占位
 export function screenshotPreview(): string | null {
+  // TODO(ADR-052 P3): 截图需显式传入 RenderSession 实例（当前 API 为历史兼容层）
   return null;
 }
 
