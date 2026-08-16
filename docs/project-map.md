@@ -91,7 +91,6 @@
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
 | `opencode.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `resource_types.json` | 资源类型单一事实来源（注册表优先） |
-| `rl_tmp.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |
 | `workshop_sites.json` | 工坊站点配置 |

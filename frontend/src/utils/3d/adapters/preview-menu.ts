@@ -13,6 +13,7 @@ import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
+import { RESOURCE_TYPES } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
 
@@ -37,11 +38,12 @@ const tr = (key: string, fallback: string): string => {
   return v === key ? fallback : v;
 };
 
-/** 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 */
+/** 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（ADR-085 S3） */
 export interface PreviewMenuHandle {
   dispose(): void;
   setAdapterItems(items: PreviewMenuItemDef[]): void;
   openPanel(id: string): void;
+  refreshDock(): void;
 }
 
 /** 挂载预览底部根菜单，返回句柄 */
@@ -198,6 +200,17 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   // ---- 句柄 ----
   const setAdapterItems = (items: PreviewMenuItemDef[]): void => {
+    // ADR-085 S1：运行期 id 冲突守卫（抛错阻断，避免重复行静默渲染）
+    const seen = new Set<string>();
+    for (const it of items) {
+      if (seen.has(it.id)) {
+        throw new Error(`[preview-menu] setAdapterItems 重复 id: "${it.id}"（适配器项之间冲突）`);
+      }
+      if (CORE_MENU_ITEMS.some((c) => c.id === it.id)) {
+        throw new Error(`[preview-menu] setAdapterItems id "${it.id}" 与 CORE_MENU_ITEMS 冲突`);
+      }
+      seen.add(it.id);
+    }
     adapterItems = items;
     renderDock();
   };
@@ -219,11 +232,15 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     },
     setAdapterItems,
     openPanel,
+    refreshDock: renderDock, // ADR-085 S3：caps 创建后调用，修复 litematic/pack environment 项时序
   };
 }
 
 /** 环境面板（ADR-075 已落地项的复用）：地面 / 时间-of-day / 云量 / 环境光(IBL) */
 function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
+  const groundCap = ctx.getGroundCap();
+  const skyCap = ctx.getSkyCap();
+
   const groundRow = document.createElement("div");
   groundRow.className = "slide-item";
   groundRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
@@ -231,9 +248,11 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   groundLabel.className = "slide-label";
   groundLabel.textContent = t("preview.ground");
   groundLabel.style.cssText = "flex:1;font-size:12px";
+  // ADR-085 S2：惰性读 cap getter（groundCap.getVisible()），消灭硬编码 value:true
   const groundToggle = createHeaderToggle({
-    value: true,
-    onChange: (v: boolean): void => ctx.getGroundCap()?.setVisible(v),
+    value: groundCap?.getVisible() ?? true,
+    onChange: (v: boolean): void => groundCap?.setVisible(v),
+    bind: (): boolean => groundCap?.getVisible() ?? true,
   });
   groundRow.append(groundLabel, groundToggle);
   list.appendChild(groundRow);
@@ -250,7 +269,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   timeName.className = "slide-label";
   timeName.textContent = tr("preview.timeOfDay", "时间");
   const timeVal = document.createElement("span");
-  const initHour = ctx.getSkyCap()?.getTimeOfDay() ?? 9;
+  const initHour = skyCap?.getTimeOfDay() ?? 9;
   timeVal.textContent = formatHour(initHour);
   timeHead.append(timeName, timeVal);
   const timeSlider = document.createElement("input");
@@ -262,7 +281,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   timeSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
   timeSlider.oninput = (): void => {
     const h = Number(timeSlider.value);
-    ctx.getSkyCap()?.setTime(h);
+    skyCap?.setTime(h);
     timeVal.textContent = formatHour(h);
   };
   timeRow.append(timeHead, timeSlider);
@@ -277,23 +296,25 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   const cloudName = document.createElement("span");
   cloudName.className = "slide-label";
   cloudName.textContent = tr("preview.cloudCoverage", "云量");
+  // ADR-085 S2：惰性读 skyCap.getCloudCoverage()，消灭硬编码 "0%"
+  const initCloud = skyCap?.getCloudCoverage() ?? 0;
   const cloudVal = document.createElement("span");
-  cloudVal.textContent = "0%";
+  cloudVal.textContent = `${Math.round(initCloud * 100)}%`;
   cloudHead.append(cloudName, cloudVal);
   const cloudSlider = document.createElement("input");
   cloudSlider.type = "range";
   cloudSlider.min = "0";
   cloudSlider.max = "1";
   cloudSlider.step = "0.05";
-  cloudSlider.value = "0";
+  cloudSlider.value = String(initCloud);
   cloudSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
   cloudSlider.oninput = (): void => {
     const v = Number(cloudSlider.value);
-    ctx.getSkyCap()?.setCloudCoverage(v, false);
+    skyCap?.setCloudCoverage(v, false);
     cloudVal.textContent = `${Math.round(v * 100)}%`;
   };
   cloudSlider.onchange = (): void => {
-    ctx.getSkyCap()?.setCloudCoverage(Number(cloudSlider.value), true);
+    skyCap?.setCloudCoverage(Number(cloudSlider.value), true);
   };
   cloudRow.append(cloudHead, cloudSlider);
   list.appendChild(cloudRow);
@@ -305,9 +326,11 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   ibLabel.className = "slide-label";
   ibLabel.textContent = tr("preview.environmentLight", "环境光(IBL)");
   ibLabel.style.cssText = "flex:1;font-size:12px";
+  // ADR-085 S2：惰性读 skyCap.isEnvironmentEnabled()，消灭硬编码 value:true
   const ibToggle = createHeaderToggle({
-    value: true,
-    onChange: (v: boolean): void => ctx.getSkyCap()?.setEnvironmentEnabled(v),
+    value: skyCap?.isEnvironmentEnabled() ?? true,
+    onChange: (v: boolean): void => skyCap?.setEnvironmentEnabled(v),
+    bind: (): boolean => skyCap?.isEnvironmentEnabled() ?? true,
   });
   ibRow.append(ibLabel, ibToggle);
   list.appendChild(ibRow);
@@ -369,6 +392,7 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   const spotToggle = createHeaderToggle({
     value: params.spotlight.enabled,
     onChange: (v: boolean): void => lightCap.setSpotlight({ enabled: v }),
+    bind: (): boolean => lightCap.getParams().spotlight.enabled, // ADR-085 S2：菜单重渲染时同步 live 值
   });
   spotRow.append(spotLabel, spotToggle);
   list.appendChild(spotRow);
@@ -439,8 +463,9 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
     value: params.volumetric.enabled,
     onChange: (v: boolean): void => {
       lightCap.setVolumetric({ enabled: v });
-      if (v && !params.spotlight.enabled) lightCap.setSpotlight({ enabled: true });
+      if (v && !lightCap.getParams().spotlight.enabled) lightCap.setSpotlight({ enabled: true }); // ADR-085 S2：回调内读 live getParams()
     },
+    bind: (): boolean => lightCap.getParams().volumetric.enabled, // ADR-085 S2：菜单重渲染时同步 live 值
   });
   volRow.append(volLabel, volToggle);
   list.appendChild(volRow);
@@ -510,7 +535,7 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   presetSel.style.cssText = "font-size:11px;padding:2px 4px";
   const presets = [
     { v: "default",  t: "\u9ED8\u8BA4" },
-    { v: "ysm",      t: "YSM\u65B9\u5757" },
+    { v: RESOURCE_TYPES.YSM, t: "YSM\u65B9\u5757" },
     { v: "vrm",      t: "VRM\u89D2\u8272" },
     { v: "mmd",      t: "MMD\u89D2\u8272" },
     { v: "litematic", t: "\u4F53\u7D20" },
@@ -522,7 +547,7 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
     opt.textContent = pr.t;
     presetSel.appendChild(opt);
   });
-  presetSel.value = params.spotlight.enabled ? "resourcepack" : "default";
+  presetSel.value = lightCap.getCurrentPreset(); // ADR-085 S2：只读真实预设，消灭 spotlight.enabled ? "resourcepack" : "default" 启发式派生
   presetSel.onchange = (): void => lightCap.setPreset(presetSel.value);
   presetHead.append(presetName, presetSel);
   presetRow.appendChild(presetHead);

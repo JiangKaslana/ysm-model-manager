@@ -498,6 +498,7 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       labelKey: "preview.bones",
       fallback: "骨骼",
       kind: "panel",
+      dockGroup: "model", // 底栏 🧍 模型组（ADR-085：补齐，与 ysm/vrm bones 对齐）
       legacyTestId: "mmd-bones-entry",
       render: (list) => {
         // 通用骨骼面板：渲染进根菜单面板；重入时先清理旧 renderer

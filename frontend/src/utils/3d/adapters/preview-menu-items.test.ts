@@ -251,7 +251,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("mmd 数组：model/material 归 🧍 组，play 归 💃 组（bones 无 dockGroup 不进 dock）", () => {
+  it("mmd 数组：model/material/bones 归 🧍 组，play 归 💃 组", () => {
     const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() })));
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
@@ -259,7 +259,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     expect(overlay.querySelector('[data-testid="preview-model"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="preview-shot"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="preview-material"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-bones"]')).toBeNull(); // 仅 openPanel 契约
+    expect(overlay.querySelector('[data-testid="preview-bones"]')).not.toBeNull(); // ADR-085 S1：bones 补 dockGroup=model，进 dock
 
     // 单 panel 组（play）→ 快捷直达面板，不渲染组根行
     const motionBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-motion"]');

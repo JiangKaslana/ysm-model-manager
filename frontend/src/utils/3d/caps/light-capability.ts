@@ -237,6 +237,9 @@ export class LightCapability {
   // 体积光锥引擎（预留：后续支持 postprocess 模式）
   private volumetricEngine: "cone" | "postprocess" = "cone";
 
+  // ADR-085 S2：记录当前预设名，消灭 fillLighting 启发式派生
+  private currentPreset: string = "default";
+
   constructor(opts: {
     scene: THREE.Scene;
     renderer: THREE.WebGLRenderer;
@@ -448,6 +451,7 @@ export class LightCapability {
   /** 按模型类别套用预设 */
   setPreset(modelType: string): void {
     const preset = LIGHT_PRESETS[modelType] ?? LIGHT_PRESETS.default;
+    this.currentPreset = modelType; // ADR-085 S2：记录真实预设名
     this.params = deepMergeLightParams(this.params, preset);
     this.syncLightsFromParams();
     this.rebuildCone();
@@ -531,6 +535,11 @@ export class LightCapability {
 
   getParams(): LightParams {
     return deepMergeLightParams(DEFAULT_LIGHT_PARAMS, this.params);
+  }
+
+  /** 当前预设名（ADR-085 S2：fillLighting 只读初始化，消灭启发式派生） */
+  getCurrentPreset(): string {
+    return this.currentPreset;
   }
 
   private syncLightsFromParams(): void {
