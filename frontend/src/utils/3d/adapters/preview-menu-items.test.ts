@@ -90,6 +90,7 @@ function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
     selfMode: false,
     getSkyCap: () => fakeCap,
     getGroundCap: () => fakeCap,
+    getLightCap: () => null,
     getCamBridge: () => ({
       getOrbit: () => true,
       setOrbit: vi.fn(),

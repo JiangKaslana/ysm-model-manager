@@ -296,6 +296,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     selfMode,
     getSkyCap: () => skyCap,
     getGroundCap: () => groundCap,
+    getLightCap: () => lightCap,
     getCamBridge: () => camBridge,
     getSiblings: () => siblings,
     getCurrentPath: () => currentPath,

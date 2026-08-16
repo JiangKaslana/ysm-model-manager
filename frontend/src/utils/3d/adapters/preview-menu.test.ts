@@ -10,6 +10,7 @@ function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
     selfMode: false,
     getSkyCap: () => null,
     getGroundCap: () => null,
+    getLightCap: () => null,
     getCamBridge: () => ({
       getOrbit: () => true,
       setOrbit: vi.fn(),
@@ -70,15 +71,18 @@ describe("mountPreviewRootMenu", () => {
     expect(overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
   });
 
-  it("点击 scene 组（单 panel camera）→ 快捷直达相机面板（select）", () => {
+  it("点击 scene 组（多 panel：camera + lighting）→ 组根视图列项，点击 camera 下钻出现 select", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    // 单 panel 直达：无 preview-camera 行，直接渲染相机面板 select
-    expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
+    // 多 panel：进入组根视图，camera + lighting + environment 三行均出现
+    expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-lighting"]')).not.toBeNull();
+    // 点击 camera 下钻：出现 select 控件
+    (overlay.querySelector('[data-testid="preview-camera"]') as HTMLElement).click();
     expect(popup.querySelector("select")).not.toBeNull();
     handle.dispose();
   });

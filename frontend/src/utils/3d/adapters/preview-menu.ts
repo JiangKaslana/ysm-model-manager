@@ -11,6 +11,7 @@ import { createSlideMenu, type SlideMenuView } from "../../../ui/ui-slide-menu.t
 import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
 import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
+import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
@@ -20,6 +21,7 @@ export interface PreviewMenuCtx {
   selfMode: boolean;
   getSkyCap: () => SkyCapability | null;
   getGroundCap: () => GroundCapability | null;
+  getLightCap: () => LightCapability | null;
   getCamBridge: () => CameraControlBridge;
   getSiblings: () => string[];
   getCurrentPath: () => string;
@@ -107,6 +109,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     environment: (list) => fillEnvironment(list, ctx),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
     switch: (list) => fillSwitch(list, ctx, hideMenu),
+    lighting: (list) => fillLighting(list, ctx),
   };
   const runners: Record<string, () => void> = {
     close: () => ctx.close(),
@@ -340,4 +343,163 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     };
     list.appendChild(row);
   });
+}
+
+
+/** 灯光面板（ADR-081 L1）：顶光/体积光锥/预设切换 */
+function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
+  const lightCap = ctx.getLightCap();
+  const noCap = (): void => {
+    const row = document.createElement("div");
+    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+    row.textContent = tr("preview.noLightCap", "\u8FDB\u5165 3D \u540E\u518D\u6253\u5F00\u706F\u5149\u9762\u677F");
+    list.appendChild(row);
+  };
+  if (!lightCap) { noCap(); return; }
+  const params = lightCap.getParams();
+
+  // --- 顶光（SpotLight） ---
+  const spotRow = document.createElement("div");
+  spotRow.className = "slide-item";
+  spotRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+  const spotLabel = document.createElement("span");
+  spotLabel.className = "slide-label";
+  spotLabel.textContent = tr("preview.spotlight", "\u9876\u5149");
+  spotLabel.style.cssText = "flex:1;font-size:12px";
+  const spotToggle = createHeaderToggle({
+    value: params.spotlight.enabled,
+    onChange: (v: boolean): void => lightCap.setSpotlight({ enabled: v }),
+  });
+  spotRow.append(spotLabel, spotToggle);
+  list.appendChild(spotRow);
+
+  // --- 主光强度 ---
+  const keyRow = document.createElement("div");
+  keyRow.className = "slide-item";
+  keyRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+  const keyHead = document.createElement("div");
+  keyHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
+  const keyName = document.createElement("span");
+  keyName.className = "slide-label";
+  keyName.textContent = tr("preview.keyIntensity", "\u4E3B\u5149\u5F3A\u5EA6");
+  const keyVal = document.createElement("span");
+  keyVal.textContent = params.key.intensity.toFixed(2);
+  keyHead.append(keyName, keyVal);
+  const keySlider = document.createElement("input");
+  keySlider.type = "range";
+  keySlider.min = "0";
+  keySlider.max = "3";
+  keySlider.step = "0.1";
+  keySlider.value = String(params.key.intensity);
+  keySlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+  keySlider.oninput = (): void => {
+    const v = Number(keySlider.value);
+    lightCap.setParams({ key: { intensity: v } });
+    keyVal.textContent = v.toFixed(2);
+  };
+  keyRow.append(keyHead, keySlider);
+  list.appendChild(keyRow);
+
+  // --- 环境光强度 ---
+  const ambRow = document.createElement("div");
+  ambRow.className = "slide-item";
+  ambRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+  const ambHead = document.createElement("div");
+  ambHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
+  const ambName = document.createElement("span");
+  ambName.className = "slide-label";
+  ambName.textContent = tr("preview.ambientIntensity", "\u73AF\u5883\u5149");
+  const ambVal = document.createElement("span");
+  ambVal.textContent = params.ambient.intensity.toFixed(2);
+  ambHead.append(ambName, ambVal);
+  const ambSlider = document.createElement("input");
+  ambSlider.type = "range";
+  ambSlider.min = "0";
+  ambSlider.max = "2";
+  ambSlider.step = "0.05";
+  ambSlider.value = String(params.ambient.intensity);
+  ambSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+  ambSlider.oninput = (): void => {
+    const v = Number(ambSlider.value);
+    lightCap.setParams({ ambient: { color: 0xffffff, intensity: v } });
+    ambVal.textContent = v.toFixed(2);
+  };
+  ambRow.append(ambHead, ambSlider);
+  list.appendChild(ambRow);
+
+  // --- 体积光锥 ---
+  const volRow = document.createElement("div");
+  volRow.className = "slide-item";
+  volRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+  const volLabel = document.createElement("span");
+  volLabel.className = "slide-label";
+  volLabel.textContent = tr("preview.volumetricCone", "\u4F53\u79EF\u5149\u952F");
+  volLabel.style.cssText = "flex:1;font-size:12px";
+  const volToggle = createHeaderToggle({
+    value: params.volumetric.enabled,
+    onChange: (v: boolean): void => {
+      lightCap.setVolumetric({ enabled: v });
+      if (v && !params.spotlight.enabled) lightCap.setSpotlight({ enabled: true });
+    },
+  });
+  volRow.append(volLabel, volToggle);
+  list.appendChild(volRow);
+
+  // --- 锥角 ---
+  const angleRow = document.createElement("div");
+  angleRow.className = "slide-item";
+  angleRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+  const angleHead = document.createElement("div");
+  angleHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
+  const angleName = document.createElement("span");
+  angleName.className = "slide-label";
+  angleName.textContent = tr("preview.coneAngle", "\u952F\u89D2");
+  const angleVal = document.createElement("span");
+  angleVal.textContent = params.spotlight.angle + "\u00B0";
+  angleHead.append(angleName, angleVal);
+  const angleSlider = document.createElement("input");
+  angleSlider.type = "range";
+  angleSlider.min = "10";
+  angleSlider.max = "60";
+  angleSlider.step = "1";
+  angleSlider.value = String(params.spotlight.angle);
+  angleSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+  angleSlider.oninput = (): void => {
+    const v = Number(angleSlider.value);
+    lightCap.setSpotlight({ angle: v });
+    angleVal.textContent = v + "\u00B0";
+  };
+  angleRow.append(angleHead, angleSlider);
+  list.appendChild(angleRow);
+
+  // --- 预设 ---
+  const presetRow = document.createElement("div");
+  presetRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+  const presetHead = document.createElement("div");
+  presetHead.style.cssText = "display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.7)";
+  const presetName = document.createElement("span");
+  presetName.className = "slide-label";
+  presetName.textContent = tr("preview.lightPreset", "\u98DE\u5149\u9884\u8BBE");
+  const presetSel = document.createElement("select");
+  presetSel.className = "setting-select";
+  presetSel.style.cssText = "font-size:11px;padding:2px 4px";
+  const presets = [
+    { v: "default",  t: "\u9ED8\u8BA4" },
+    { v: "ysm",      t: "YSM\u65B9\u5757" },
+    { v: "vrm",      t: "VRM\u89D2\u8272" },
+    { v: "mmd",      t: "MMD\u89D2\u8272" },
+    { v: "litematic", t: "\u4F53\u7D20" },
+    { v: "resourcepack", t: "MC\u5757\u5305" },
+  ];
+  presets.forEach((pr) => {
+    const opt = document.createElement("option");
+    opt.value = pr.v;
+    opt.textContent = pr.t;
+    presetSel.appendChild(opt);
+  });
+  presetSel.value = params.spotlight.enabled ? "resourcepack" : "default";
+  presetSel.onchange = (): void => lightCap.setPreset(presetSel.value);
+  presetHead.append(presetName, presetSel);
+  presetRow.appendChild(presetHead);
+  list.appendChild(presetRow);
 }

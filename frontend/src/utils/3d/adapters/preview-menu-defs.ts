@@ -87,4 +87,13 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     sharedOnly: true,
     dockGroup: "scene",
   },
+  {
+    id: "lighting",
+    icon: "💡",
+    labelKey: "preview.lighting",
+    fallback: "灯光",
+    kind: "panel",
+    sharedOnly: true,
+    dockGroup: "scene",
+  },
 ];

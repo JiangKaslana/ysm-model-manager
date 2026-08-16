@@ -818,7 +818,9 @@ export const ja: Record<string, string> = {
   "preview.resetView": "ビューをリセット",
   "preview.cameraRotation": "カメラ回転",
   "preview.cameraSpeed": "カメラ速度",
-  "preview.cameraView": "カメラビュー",
+  
+   "preview.lighting": "照明",
+   "preview.cameraView": "カメラビュー",
   "preview.environment": "環境",
   "preview.ground": "地面",
   "preview.allComponents": "すべてのコンポーネント",
