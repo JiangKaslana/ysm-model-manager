@@ -34,7 +34,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 180 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 17 | 92 |
+| frontend/backend | 17 | 94 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
@@ -44,7 +44,7 @@
 | frontend/views | 88 | 245 |
 | 前端·WASM | 4 | 9 |
 | frontend/workers | 2 | 14 |
-| **合计** | **351** | **1485** |
+| **合计** | **351** | **1487** |
 
 ## Go·头像
 
@@ -716,7 +716,8 @@
 | `setStatsRunnerForTest()` | `frontend/src/backend/browser-adapter` | — |
 | `terminateStatsWorker()` | `frontend/src/backend/browser-adapter` | — |
 | `onStatsProgress()` | `frontend/src/backend/browser-adapter` | — |
-| `browserAdapter()` | `frontend/src/backend/browser-adapter:66` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `getStatsPoolSize()` | `frontend/src/backend/browser-adapter` | — |
+| `browserAdapter()` | `frontend/src/backend/browser-adapter:67` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `ZipEntryMeta()` | `frontend/src/backend/extract:32` | ZIP 中央目录条目元数据（pre-parse 产物） |
 | `ExtractResult()` | `frontend/src/backend/extract:48` | extractZip 返回值 |
 | `ZipType()` | `frontend/src/backend/extract:56` | detectZipType 返回值 |
@@ -780,11 +781,12 @@
 | `scanAllWebModels()` | `frontend/src/backend/web-fs:444` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
-| `onStatsProgress()` | `frontend/src/backend/web-stats:39` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
-| `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:52` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
-| `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:57` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
-| `terminateStatsWorker()` | `frontend/src/backend/web-stats:64` | 终止并回收 Worker（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
-| `batchStatsWebModels()` | `frontend/src/backend/web-stats:153` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。 |
+| `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
+| `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:53` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
+| `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:58` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
+| `terminateStatsWorker()` | `frontend/src/backend/web-stats:65` | 终止并回收整个 Worker 池（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
+| `getStatsPoolSize()` | `frontend/src/backend/web-stats:91` | 当前池大小（Worker 池并行线程数，供 UI 角标显示 🧵×N） |
+| `batchStatsWebModels()` | `frontend/src/backend/web-stats:160` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 池不可用 / 任一片失败 / 超时 → 返回 null（整体降级）。 |
 | `__resetWebLogStateForTest()` | `frontend/src/backend/web-store:120` | 测试钩子：重置日志环状态与 hydrated 标记（防模块级状态测试间污染） |
 | `webStoreBindings()` | `frontend/src/backend/web-store:193` | — |
 | `YsmHeaderShape()` | `frontend/src/backend/ysm-header:36` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
@@ -1673,7 +1675,7 @@
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
 | `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:59` | — |
 | `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:43` | — |
-| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:236` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:237` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |

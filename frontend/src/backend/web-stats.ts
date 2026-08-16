@@ -1,7 +1,8 @@
-// ===== Web Worker 批量模型统计编排（SearchModels 数值条件的统计来源）=====
-// 主线程只做消息编排：Worker 内独立加载 WASM + open IndexedDB（同源）逐个模型
-// 解码统计，主线程零解析负载（大库后台跑不卡 UI）。
-// 降级契约：Worker 不支持（new Worker 抛错）/ 启动失败 / 运行时错误 / 单批超时
+// ===== Web Worker 池批量模型统计编排（SearchModels 数值条件的统计来源）=====
+// 主线程只做消息编排：N 个 Worker（池大小 = hardwareConcurrency，上限 8）内独立加载
+// WASM + open IndexedDB（同源）逐个模型解码统计——多模型**并行**处理（路 B Worker 池：
+// 无 SharedArrayBuffer/COOP-COEP 依赖，GitHub Pages 可用），主线程零解析负载。
+// 降级契约：Worker 不支持（new Worker 抛错）/ 启动失败 / 运行时错误 / 超时
 // → 返回 null 并置降级标记（consumeWebSearchDegraded 消费，供 toolbar-search 提示）；
 // web-fs.searchWebModels 收到 null 走「数值 0 + hasError:false」降级路径。
 // 测试注入：setStatsRunnerForTest 替换 Worker 路径（browser-adapter.test.ts 用）。
@@ -17,17 +18,17 @@ import {
 export type { WebModelStats } from "../workers/stats-protocol.ts";
 export { STATS_BATCH_LIMIT } from "../workers/stats-protocol.ts";
 
-/** 单批超时（毫秒）：WASM 解码 + 200 模型，60s 已含余量；超时终止 Worker 防僵尸 */
+/** 单批超时（毫秒）：WASM 解码 + 200 模型，60s 已含余量；超时终止整个池防僵尸 */
 const STATS_CHUNK_TIMEOUT_MS = 60_000;
 
-let worker: Worker | null = null;
+/** 池大小上限：防资源爆（8 个 worker × 每 worker 独立 WASM 实例内存可观） */
+const POOL_MAX = 8;
+
+let workers: Worker[] = [];
 let requestSeq = 0;
 
-/** 单批在途请求（批间串行，同一时刻至多一个；terminate/error/timeout 时清空） */
-let pending: {
-  requestId: number;
-  settle: (v: Array<WebModelStatsWithPath> | null) => void;
-} | null = null;
+/** 在途请求表（requestId → settle）：terminate 杀池时全部降级 settle，防 Promise.all 永久挂起 */
+const inflight = new Map<number, (v: Array<WebModelStatsWithPath> | null) => void>();
 
 /** 降级标记：最近一次批量统计是否降级（一次消费，toolbar-search 读取后复位） */
 let degradedFlag = false;
@@ -60,66 +61,72 @@ export function consumeWebSearchDegraded(): boolean {
   return d;
 }
 
-/** 终止并回收 Worker（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） */
+/** 终止并回收整个 Worker 池（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） */
 export function terminateStatsWorker(): void {
-  if (worker) {
-    worker.terminate();
-    worker = null;
+  for (const w of workers) {
+    try {
+      w.terminate();
+    } catch {
+      /* 已终止 */
+    }
   }
-  if (pending) {
-    pending = null;
-  }
+  workers = [];
+  // 在途请求全部降级 settle（防 Promise.all 永久挂起）
+  for (const [, settle] of inflight) settle(null);
+  inflight.clear();
 }
 
 function markDegraded(): void {
   degradedFlag = true;
 }
 
-/** 懒创建 Worker；不支持（非浏览器/被屏蔽）返回 null */
-function getWorker(): Worker | null {
-  if (worker) return worker;
-  try {
-    worker = new Worker(new URL("../workers/stats.worker.ts", import.meta.url), {
-      type: "module",
-    });
-  } catch {
-    worker = null;
-  }
-  return worker;
+/** 池大小：hardwareConcurrency（缺省 4）夹取 1..8 */
+function poolSize(): number {
+  const hc = typeof navigator !== "undefined" ? navigator.hardwareConcurrency : 4;
+  const n = Number.isFinite(hc) && hc > 0 ? Math.floor(hc) : 4;
+  return Math.min(Math.max(n, 1), POOL_MAX);
 }
 
-/** 单批统计（串行调用；返回 null = 该批降级） */
-function statsOneChunk(paths: string[]): Promise<Array<WebModelStatsWithPath> | null> {
+/** 当前池大小（Worker 池并行线程数，供 UI 角标显示 🧵×N） */
+export function getStatsPoolSize(): number {
+  return poolSize();
+}
+
+/** 懒创建 Worker 池；不支持（非浏览器/被屏蔽）返回 null */
+function getWorkerPool(): Worker[] | null {
+  if (workers.length) return workers;
+  try {
+    const n = poolSize();
+    for (let i = 0; i < n; i++) {
+      workers.push(new Worker(new URL("../workers/stats.worker.ts", import.meta.url), { type: "module" }));
+    }
+    return workers;
+  } catch {
+    workers = [];
+    return null;
+  }
+}
+
+/**
+ * 单 chunk 统计（一个 worker 一个在途任务；requestId 隔离旧消息/并发批）。
+ * 超时杀整个池（任一 worker 挂起可能同批传染）→ 整批降级；返回 null = 该 chunk 降级。
+ */
+function statsOneChunk(w: Worker, requestId: number, paths: string[]): Promise<Array<WebModelStatsWithPath> | null> {
   return new Promise((resolve) => {
-    // 单槽守卫（审核 A #4）：在途请求未清 → 拒绝新批（返回 null 降级），
-    // 防 pending/onmessage 被新批顶掉导致旧批 settle 丢失 → 双双超时降级
-    // （当前 UI 模态弹窗串行调用不触发；防御性并发保护）
-    if (pending) {
-      markDegraded();
-      resolve(null);
-      return;
-    }
-    const w = getWorker();
-    if (!w) {
-      markDegraded();
-      resolve(null);
-      return;
-    }
-    const requestId = ++requestSeq;
+    inflight.set(requestId, resolve);
     const timer = setTimeout(() => {
-      // 超时：杀掉 Worker 防僵尸（可能 WASM 死循环/挂起），整批降级
+      // 超时：杀整个池防僵尸（WASM 死循环/挂起）；terminate 会 settle 全部在途 → 整批降级
       terminateStatsWorker();
       markDegraded();
+      inflight.delete(requestId);
       resolve(null);
     }, STATS_CHUNK_TIMEOUT_MS);
 
     const settle = (v: Array<WebModelStatsWithPath> | null): void => {
       clearTimeout(timer);
-      if (pending?.requestId === requestId) pending = null;
+      inflight.delete(requestId);
       resolve(v);
     };
-
-    pending = { requestId, settle };
 
     w.onmessage = (ev: MessageEvent<StatsWorkerResponse>): void => {
       const data = ev.data as StatsWorkerResponse;
@@ -148,7 +155,7 @@ function statsOneChunk(paths: string[]): Promise<Array<WebModelStatsWithPath> | 
 
 /**
  * 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应；
- * Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。
+ * Worker 池不可用 / 任一片失败 / 超时 → 返回 null（整体降级）。
  */
 export async function batchStatsWebModels(paths: string[]): Promise<WebModelStats[] | null> {
   if (injectedRunner) {
@@ -163,18 +170,49 @@ export async function batchStatsWebModels(paths: string[]): Promise<WebModelStat
     }
   }
   if (!paths.length) return [];
-  const out: Array<WebModelStats | null> = new Array(paths.length);
-  for (let offset = 0; offset < paths.length; offset += STATS_BATCH_LIMIT) {
-    const chunk = paths.slice(offset, offset + STATS_BATCH_LIMIT);
-    // 批前进度：已完成 offset 个（UI 角标显示）
-    statsProgressCb?.(offset, paths.length);
-    const res = await statsOneChunk(chunk);
-    if (res === null) {
-      markDegraded();
-      return null;
+  const ws = getWorkerPool();
+  if (!ws || ws.length === 0) {
+    markDegraded();
+    return null;
+  }
+  // 分片：paths → ≤200 的 chunks（记录原起始索引）；任务队列轮询分给池内 worker（每 worker 同时 1 片）
+  const chunks: Array<{ slice: string[]; offset: number }> = [];
+  for (let i = 0; i < paths.length; i += STATS_BATCH_LIMIT) {
+    chunks.push({ slice: paths.slice(i, i + STATS_BATCH_LIMIT), offset: i });
+  }
+  const results: Array<Array<WebModelStatsWithPath> | null> = new Array(chunks.length).fill(null);
+  let nextChunk = 0;
+  let progressDone = 0;
+  let failed = false;
+
+  const runWorkerQueue = async (w: Worker): Promise<void> => {
+    while (!failed) {
+      const ci = nextChunk++;
+      if (ci >= chunks.length) return;
+      const res = await statsOneChunk(w, ++requestSeq, chunks[ci].slice);
+      if (res === null) {
+        failed = true; // 该片降级 → 整体降级（在途其他片 settle 后统一判）
+        results[ci] = null;
+        return;
+      }
+      results[ci] = res;
+      progressDone += chunks[ci].slice.length;
+      statsProgressCb?.(Math.min(progressDone, paths.length), paths.length);
     }
-    // 按索引对齐（Worker 顺序遍历 paths 返回同序结果，results 带 path 仅作调试/校验用）
-    for (let i = 0; i < chunk.length; i++) {
+  };
+
+  await Promise.all(ws.map(runWorkerQueue));
+
+  if (failed || results.some((r) => r === null)) {
+    markDegraded();
+    return null;
+  }
+  // 合并（chunks 顺序 = paths 顺序）：按原起始索引对齐
+  const out: Array<WebModelStats | null> = new Array(paths.length);
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const { slice, offset } = chunks[ci];
+    const res = results[ci] as Array<WebModelStatsWithPath>;
+    for (let i = 0; i < slice.length; i++) {
       const s = res[i];
       out[offset + i] = s
         ? {

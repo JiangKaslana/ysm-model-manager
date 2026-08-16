@@ -10,7 +10,7 @@ import { resolveWebMode } from "../../backend/platform.ts";
 import { importWebFiles } from "../../backend/browser-adapter.ts";
 // 网页版数值条件降级标记消费（web-stats.ts 经 browserAdapter 链 re-export——与
 // searchWebModels 同一模块实例；Worker 批量统计不可用时置位，此处 toast 提示）
-import { consumeWebSearchDegraded, onStatsProgress } from "../../backend/browser-adapter.ts";
+import { consumeWebSearchDegraded, onStatsProgress, getStatsPoolSize } from "../../backend/browser-adapter.ts";
 import type { AppTree } from "./index.ts";
 import { getApp } from "../../backend/app.ts";
 
@@ -150,13 +150,14 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
       return;
     }
     const n = (v: unknown): number => (v == null ? 0 : parseInt(String(v), 10) || 0);
-    // 网页版数值条件：显示多线程统计角标（主线程 + stats Worker 并行，批进度实时）
+    // 网页版数值条件：显示多线程统计角标（Worker 池并行，🧵×N 批进度实时）
     const isWebNum = resolveWebMode() && hasNumRange;
+    const poolN = getStatsPoolSize();
     if (isWebNum) {
-      showStatsBadge("🧵×2 准备统计…");
-      // 进度回调：每批完成更新角标（done/total）
+      showStatsBadge(`🧵×${poolN} 准备统计…`);
+      // 进度回调：每片完成更新角标（done/total）
       onStatsProgress((done, total) => {
-        showStatsBadge(`🧵×2 ⚙️ ${done}/${total}`);
+        showStatsBadge(`🧵×${poolN} ⚙️ ${done}/${total}`);
       });
     }
     try {
