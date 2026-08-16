@@ -50,6 +50,23 @@ export const DEFAULT_SKY_PARAMS: SkyParams = {
   exposure: 0.5,
 };
 
+/** 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） */
+export type SkyModelType = "ysm" | "vrm" | "mmd" | "litematic" | "default";
+
+/**
+ * 按模型类别的散射/曝光预设（ADR-073 #3）。
+ * 不同模型材质特性不同：VRM 为 PBR 角色、MMD 常带 toon/emissive 易过曝、
+ * YSM/Litematic 为方块哑光。预设仅调散射与曝光，不改太阳位置（由 timeOfDay 控制）。
+ * 数值为初始合理值，观感待目视微调。
+ */
+export const MODEL_SKY_PRESETS: Record<string, Partial<SkyParams>> = {
+  default: { turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, mieDirectionalG: 0.8, exposure: 0.5 },
+  vrm: { turbidity: 8, rayleigh: 2.2, mieCoefficient: 0.004, mieDirectionalG: 0.85, exposure: 0.55 },
+  mmd: { turbidity: 10, rayleigh: 1.8, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.42 },
+  ysm: { turbidity: 12, rayleigh: 2.5, mieCoefficient: 0.005, mieDirectionalG: 0.8, exposure: 0.6 },
+  litematic: { turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, mieDirectionalG: 0.8, exposure: 0.5 },
+};
+
 export class SkyCapability {
   private scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
@@ -154,6 +171,16 @@ export class SkyCapability {
     if (!this.enabled) return;
     if (v) this.regenerateEnvironment();
     else this.clearEnvironment();
+  }
+
+  /** 按模型类别套用散射/曝光预设（ADR-073 #3）；modelType 取 adapter.id（ysm/vrm/mmd/litematic） */
+  setPreset(modelType: string): void {
+    const preset = MODEL_SKY_PRESETS[modelType] ?? MODEL_SKY_PRESETS.default;
+    this.params = { ...this.params, ...preset };
+    if (!this.enabled) return;
+    this.writeUniforms(this.sky);
+    this.writeUniforms(this.envSky);
+    if (this.params.environment) this.regenerateEnvironment();
   }
 
   /** 由 timeOfDay 推导太阳 elevation/azimuth（单一事实来源，避免与 setSun 双写冲突） */

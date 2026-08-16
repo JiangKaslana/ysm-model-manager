@@ -40,10 +40,10 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 101 |
-| 前端·工具 | 90 | 322 |
+| 前端·工具 | 90 | 324 |
 | frontend/views | 88 | 239 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **344** | **1434** |
+| **合计** | **344** | **1436** |
 
 ## Go·头像
 
@@ -1131,7 +1131,9 @@
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:18` | — |
 | `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:39` | — |
-| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:53` | — |
+| `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:54` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
+| `MODEL_SKY_PRESETS()` | `frontend/src/utils/3d/caps/sky-capability:62` | 按模型类别的散射/曝光预设（ADR-073 #3）。 |
+| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:70` | — |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:55` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |

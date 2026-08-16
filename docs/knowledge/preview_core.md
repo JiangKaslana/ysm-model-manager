@@ -71,7 +71,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - **已知观感短板（后续迭代项，非阻断）**：
   1. ✅ 时间-of-day 滑块已接入预览 topBar（`skyCap.setTime(hour)`，0-24 映射日出/正午/日落，夜间转暗；`preview.timeOfDay` i18n 三语）；默认 9:00；
   2. ✅ IBL 已默认开启（`environment: true`，2026-08-16 目视验证通过，模型反射/环境光更真实）；如需关闭调 `setEnvironmentEnabled(false)`；
-  3. 散射/曝光参数偏通用，未针对不同模型类别做预设；
+  3. ✅ 按模型类别散射/曝光预设已落地（`MODEL_SKY_PRESETS` 表 + `setPreset(adapter.id)`：ysm/vrm/mmd/litematic 各自 turbidity/rayleigh/exposure；数值为初始合理值，待目视微调）；
   4. 无云量/天气 UI（`setWeather(...)` 接口已就绪待用）。
 
 ## 相关

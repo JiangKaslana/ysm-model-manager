@@ -360,6 +360,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     viewContainer.appendChild(renderer.domElement);
     // 程序化天空（ADR-073 L1）：注入统一核心，YSM/VRM/MMD/Litematic 经同一 scene 零改动继承
     skyCap = new SkyCapability({ scene, renderer });
+    skyCap.setPreset(adapter.id); // #3 按模型类别套用散射/曝光预设
     skyCap.apply();
     // 时间-of-day 滑块（ADR-073 #1）：联动天空太阳方位/高度，四种模型共享同一 scene
     {
