@@ -3,8 +3,6 @@ import { esc } from "../../utils/dom/html.ts";
 import { extOf, VOXEL_RPC_BY_EXT } from "../../utils/resource/types.ts";
 import { getApp } from "../../backend/app.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
-import { resolveWebMode } from "../../backend/platform.ts";
-import { bus } from "../../bus.ts";
 import type { PreviewRoot } from "./utils.ts";
 import { createLitematic3D, cleanupVoxel3D } from "./litematic-3d.ts";
 import { t } from "../../core/i18n/t.ts";
@@ -210,19 +208,10 @@ export async function showLitematic(
     }
 
     if (btn3dTab) {
-      // 按扩展名单点映射 Go 体素 RPC（ADR-066 解墙，移除三元字符串分支）
+      // 按扩展名单点映射体素 RPC（ADR-066 解墙）；web 端由 web-fs.ts 的
+      // Get*VoxelData TS 实现提供数据（ADR-070 M2 voxel-parse.ts 平移）
       const voxelFn = VOXEL_RPC_BY_EXT[ext] || "GetLitematicVoxelData";
       btn3dTab.onclick = async (): Promise<void> => {
-        // ADR-070 M1 门控：web 端体素 RPC 缺失 → 明确提示而非点开报 WebUnsupportedError
-        // （体素 3D 的 TS 平移属 M2，见 ADR-070）
-        if (resolveWebMode()) {
-          bus.emit("toast:show", {
-            msg: t("preview.webVoxelUnsupported"),
-            duration: 3000,
-            type: "warn",
-          });
-          return;
-        }
         btn3dTab.textContent = "⏳";
         btn3dTab.disabled = true;
         try {
