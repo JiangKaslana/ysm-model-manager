@@ -39,11 +39,11 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| frontend/ui | 10 | 44 |
-| 前端·工具 | 77 | 254 |
+| frontend/ui | 16 | 92 |
+| 前端·工具 | 78 | 269 |
 | frontend/views | 90 | 252 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **323** | **1312** |
+| **合计** | **330** | **1375** |
 
 ## Go·头像
 
@@ -973,6 +973,13 @@
 | `COLLAPSIBLE()` | `frontend/src/ui/dom-contract:29` | collapsible（folder）组件契约 |
 | `SLIDER_BAR_CLASS()` | `frontend/src/ui/dom-contract:37` | 滑动条本体 class（slider / colorSlider / modeSlider 共用 .cs-bar） |
 | `createIcon()` | `frontend/src/ui/icons:10` | 创建一个图标元素（可能返回 null，调用方应走兜底层）。 |
+| `addColorSliderRow()` | `frontend/src/ui/ui-advanced-rows:30` | — |
+| `addVector3SliderRow()` | `frontend/src/ui/ui-advanced-rows:171` | — |
+| `addModeSlider()` | `frontend/src/ui/ui-advanced-rows:337` | — |
+| `cardContainer()` | `frontend/src/ui/ui-card:10` | Card container helper: removes render-card bg, wraps content in an lcard. |
+| `addCollapsible()` | `frontend/src/ui/ui-collapsible:24` | 通用折叠面板组件 |
+| `addSectionTitle()` | `frontend/src/ui/ui-collapsible:137` | 区块标题（section-title），用于 cardContainer 内的视觉分组。 |
+| `addPresetChip()` | `frontend/src/ui/ui-collapsible:162` | 创建一个 preset-chip 按钮并追加到 container（通常是 .preset-group div）。 |
 | `uiComponentsCss()` | `frontend/src/ui/ui-components-styles:7` | — |
 | `uiComponentsStyleSheet()` | `frontend/src/ui/ui-components-styles:15` | — |
 | `installUiComponentsStyles()` | `frontend/src/ui/ui-components-styles:19` | 将组件样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
@@ -980,6 +987,47 @@
 | `SLIDER_QUARTER_SMALL_STEP()` | `frontend/src/ui/ui-constants:8` | 中左/中右微调步进：全范围 5% |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-header-toggle:8` | — |
 | `createHeaderToggle()` | `frontend/src/ui/ui-header-toggle:26` | 创建标题栏小型开关。返回 `&lt;label class="toggle header-toggle"&gt;`， 含双触发去重（跳过 target===input 的 synthetic |
+| `ControlOptions()` | `frontend/src/ui/ui-helpers` | — |
+| `slideRow()` | `frontend/src/ui/ui-helpers` | — |
+| `SlideRowExtra()` | `frontend/src/ui/ui-helpers` | — |
+| `TrailingAction()` | `frontend/src/ui/ui-helpers` | — |
+| `initControl()` | `frontend/src/ui/ui-helpers` | — |
+| `addToggleRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addSliderRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addModeRow()` | `frontend/src/ui/ui-helpers` | — |
+| `sliderRow()` | `frontend/src/ui/ui-helpers` | — |
+| `toggleRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addDangerRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addFieldRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addInfoGrid()` | `frontend/src/ui/ui-helpers` | — |
+| `addInfoCard()` | `frontend/src/ui/ui-helpers` | — |
+| `addEmptyRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addCardTitle()` | `frontend/src/ui/ui-helpers` | — |
+| `addWatchDirRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addActionRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addDisabledRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addInlineToggleRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addBoneSelectRow()` | `frontend/src/ui/ui-helpers` | — |
+| `isIkBone()` | `frontend/src/ui/ui-helpers` | — |
+| `buildBoneGroups()` | `frontend/src/ui/ui-helpers` | — |
+| `BoneSelectOptions()` | `frontend/src/ui/ui-helpers` | — |
+| `createHeaderToggle()` | `frontend/src/ui/ui-helpers` | — |
+| `HeaderToggleConfig()` | `frontend/src/ui/ui-helpers` | — |
+| `addColorSliderRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addModeSlider()` | `frontend/src/ui/ui-helpers` | — |
+| `addVector3SliderRow()` | `frontend/src/ui/ui-helpers` | — |
+| `addCollapsible()` | `frontend/src/ui/ui-helpers` | — |
+| `addSectionTitle()` | `frontend/src/ui/ui-helpers` | — |
+| `addPresetChip()` | `frontend/src/ui/ui-helpers` | — |
+| `buildPresetChipGroup()` | `frontend/src/ui/ui-helpers` | — |
+| `addClearRow()` | `frontend/src/ui/ui-helpers` | — |
+| `PresetChipItem()` | `frontend/src/ui/ui-helpers` | — |
+| `cardContainer()` | `frontend/src/ui/ui-helpers` | — |
+| `withLoadingIndicator()` | `frontend/src/ui/ui-helpers` | — |
+| `withLoadingIndicator()` | `frontend/src/ui/ui-loading:10` | — |
+| `PresetChipItem()` | `frontend/src/ui/ui-preset:16` | 单个预设芯片的描述。 |
+| `buildPresetChipGroup()` | `frontend/src/ui/ui-preset:35` | 渲染一组 preset-chip（统一 .preset-group 容器 + addPresetChip 布局）。 |
+| `addClearRow()` | `frontend/src/ui/ui-preset:73` | 渲染一行右对齐的「清除」按钮（统一 cs-btn cs-btn-sm 样式）。 |
 | `addToggleRow()` | `frontend/src/ui/ui-rows:23` | — |
 | `initControl()` | `frontend/src/ui/ui-rows:114` | 封装 registerControl + immediate update 模式。 |
 | `addSliderRow()` | `frontend/src/ui/ui-rows:151` | 数字滑块行。内部统一由 {@link DragSliderController} 驱动 （拖拽 + 键盘 + 游标点击），行为与其他滑块 builder 保持一致。 |
@@ -1030,8 +1078,9 @@
 | `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
-| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:43` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
-| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:199` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
+| `computeBoneLocalPos()` | `frontend/src/utils/3d/cube-mesh:24` | 计算骨骼本地位置（对齐 YSMViewer/C# ConvertBones 口径）。 |
+| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:64` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
+| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:220` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:47` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
@@ -1067,15 +1116,29 @@
 | `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:37` | — |
 | `Spec3D()` | `frontend/src/utils/3d/model3d:45` | — |
 | `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:50` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:72` | renderModel3D 返回的渲染句柄 |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:107` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:342` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:72` | renderModel3D 返回的渲染句柄（兼容层，实际由 RenderSession 提供） |
+| `renderModel3D()` | `frontend/src/utils/3d/model3d:80` | 渲染 3D 模型到容器，返回控制句柄 |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:93` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/quaternion:13` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
+| `Spec3D()` | `frontend/src/utils/3d/render-session` | — |
+| `SpecBone3D()` | `frontend/src/utils/3d/render-session` | — |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/render-session` | — |
+| `SpecModelGroup3D()` | `frontend/src/utils/3d/render-session` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/render-session` | — |
+| `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/render-session` | — |
+| `loadTdKeymap()` | `frontend/src/utils/3d/render-session` | — |
+| `loadTdCamSpeed()` | `frontend/src/utils/3d/render-session` | — |
+| `loadTdRotMode()` | `frontend/src/utils/3d/render-session` | — |
+| `TdKeyAction()` | `frontend/src/utils/3d/render-session` | — |
+| `RenderSessionHandle()` | `frontend/src/utils/3d/render-session:43` | RenderSession 公开接口（兼容原 RenderModel3DHandle） |
+| `RenderSession()` | `frontend/src/utils/3d/render-session:70` | RenderSession：封装单次 3D 渲染会话的完整生命周期。 |
+| `RenderModel3DHandle()` | `frontend/src/utils/3d/render-session:455` | — |
+| `renderModel3D()` | `frontend/src/utils/3d/render-session:458` | — |
 | `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:8` | setupRenderer 返回的组件 |
 | `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:19` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |

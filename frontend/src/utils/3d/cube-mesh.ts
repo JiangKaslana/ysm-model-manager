@@ -2,10 +2,31 @@
 // 从 spec-builder.ts 拆出（ADR-040 P1），仅含自包含的立方体处理函数。
 // 对齐 Go threejs/spec.go buildCubeMeshData / parseUV / eulerToQuaternion 等。
 // 旋转工具已进一步拆至 quaternion.ts（ADR-040 ≤400 行红线），此处 re-export 保兼容。
+// ADR-052 P3: 坐标口径收敛——骨骼位置计算统一为此模块导出工具。
 
 import type { Cube2D, MeshData, Vec3 } from "./spec-builder.ts";
 import { eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./quaternion.ts";
 import { CUBE_EPS } from "./model3d-spec.ts";
+
+/**
+ * 计算骨骼本地位置（对齐 YSMViewer/C# ConvertBones 口径）。
+ * 
+ * 公式：
+ * - 有父骨骼：localPos = (parent.pivot.x - bone.pivot.x, bone.pivot.y - parent.pivot.y, bone.pivot.z - parent.pivot.z)
+ * - 无父骨骼：localPos = (-bone.pivot.x, bone.pivot.y, bone.pivot.z)
+ * 
+ * X 轴翻转是 ysmview 口径的关键特征（trap #11 反复修的根源）。
+ * 
+ * @param bonePivot 骨骼自身 pivot
+ * @param parentPivot 父骨骼 pivot（null 表示根骨骼）
+ * @returns [x, y, z] 本地位置
+ */
+export function computeBoneLocalPos(bonePivot: Vec3, parentPivot: Vec3 | null): [number, number, number] {
+  if (parentPivot) {
+    return [parentPivot.x - bonePivot.x, bonePivot.y - parentPivot.y, bonePivot.z - parentPivot.z];
+  }
+  return [-bonePivot.x, bonePivot.y, bonePivot.z];
+}
 
 // 旋转工具 re-export（spec-builder.ts / model-group-builder.ts 仍自本文件取，消费方零改动）
 export { eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./quaternion.ts";
