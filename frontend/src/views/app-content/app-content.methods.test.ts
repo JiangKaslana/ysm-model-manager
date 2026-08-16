@@ -253,6 +253,30 @@ describe("_initRepository — subtab 切换", () => {
       unmountElement(el);
     }
   });
+
+  it("localStorage 存非默认 rtype → 初始化 tree/active 对齐，首次点当前类型仍生效（不早退）", async () => {
+    // 回归：localStorage 存 resourcepack 时，初始化 savedTab.click() 曾被
+    // `if (rtype === curRtype) return` 早退拦截 → tree 停在模板写死 ysm、active 错位，
+    // 用户点 resourcepack 按钮二次被早退拦截 → 首次点击无反应
+    localStorage.setItem("repo_rtype", "resourcepack");
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    try {
+      const tree = el.shadowRoot.getElementById("repo-tab-tree");
+      expect(tree?.innerHTML).toContain('root="resourcepack"');
+      const active = el.shadowRoot.querySelector(".repo-subtab.active") as HTMLElement;
+      expect(active?.dataset.rtab).toBe("resourcepack");
+      // 首次点当前类型按钮 → 重建 tree（不再被早退拦截）
+      const pack = el.shadowRoot.querySelector('.repo-subtab[data-rtab="resourcepack"]') as HTMLElement;
+      pack.click();
+      await sleep(20);
+      expect(tree?.innerHTML).toContain('root="resourcepack"');
+    } finally {
+      unmountElement(el);
+    }
+  });
 });
 
 describe("_initPreviewResize — 拖拽调宽", () => {

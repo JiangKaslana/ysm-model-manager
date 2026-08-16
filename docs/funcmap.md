@@ -39,11 +39,11 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| frontend/ui | 16 | 92 |
+| frontend/ui | 17 | 95 |
 | 前端·工具 | 85 | 293 |
 | frontend/views | 88 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **337** | **1394** |
+| **合计** | **338** | **1397** |
 
 ## Go·头像
 
@@ -1058,6 +1058,9 @@
 | `buildBoneGroups()` | `frontend/src/ui/ui-rows:715` | 按类别分组骨骼名，未匹配的归入「その他」。空组被剔除。 |
 | `BoneSelectOptions()` | `frontend/src/ui/ui-rows:744` | — |
 | `addBoneSelectRow()` | `frontend/src/ui/ui-rows:755` | 创建骨骼选择行：label + 搜索框 + 分组下拉（含 IK 标记）。 |
+| `slideMenuCss()` | `frontend/src/ui/ui-slide-menu-styles:8` | — |
+| `slideMenuStyleSheet()` | `frontend/src/ui/ui-slide-menu-styles:140` | — |
+| `installSlideMenuStyles()` | `frontend/src/ui/ui-slide-menu-styles:144` | 将外壳样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-slide-row` | — |
 | `TrailingAction()` | `frontend/src/ui/ui-slide-row:12` | — |
 | `createTrailingBtn()` | `frontend/src/ui/ui-slide-row:55` | 统一尾部第二动作按钮工厂——供 slideRow 与 menu.ts createRow 共用， 确保两条渲染路径的第二按钮观感与行为一致（22px .slide-add-btn； |

@@ -65,35 +65,40 @@ export function initRepositoryPage(host: AppContentHost): void {
   const subtabs = root.querySelectorAll(".repo-subtab");
   const treeBody = root.getElementById("repo-tab-tree");
   let curRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+
+  // 统一应用资源类型：无条件重建 tree + 更新 active，仅真正变化时写 localStorage + emit。
+  // （审核修复：原 click 里 `if (rtype === curRtype) return` 早退 + 初始化 savedTab.click()
+  //  的组合，在 localStorage 存非默认 rtype 时初始化 click 被早退拦截——tree 停在模板写死的
+  //  ysm、active 错位、curRtype 却已是非默认值；用户点当前 rtype 对应按钮时二次被早退拦截，
+  //  表现为「首次点击无反应，必须点另一个资源按钮才刷新」。去早退，改为无条件应用。）
+  const applyRtype = (rtype: string): void => {
+    const prev = curRtype;
+    curRtype = rtype;
+    try {
+      localStorage.setItem("repo_rtype", rtype);
+    } catch {}
+    subtabs.forEach((t) => {
+      t.classList.toggle("active", (t as HTMLElement).dataset.rtab === rtype);
+    });
+    // 更新文件树（预览已在外层共享，不重复创建）
+    if (treeBody) {
+      treeBody.innerHTML =
+        '<app-tree root="' +
+        rtype +
+        '" style="flex:1;min-width:0"></app-tree>';
+    }
+    // 通知其他 tab（仅当 rtype 真正变化时）
+    if (rtype !== prev) {
+      bus.emit("repo:rtype-changed", rtype);
+    }
+  };
   subtabs.forEach((btn) => {
     btn.addEventListener("click", () => {
-      const rtype = (btn as HTMLElement).dataset.rtab || "";
-      if (rtype === curRtype) return;
-      const prevRtype = curRtype;
-      curRtype = rtype;
-      try {
-        localStorage.setItem("repo_rtype", rtype);
-      } catch {}
-      subtabs.forEach((t) => {
-        t.classList.toggle("active", t === btn);
-      });
-      // 更新文件树（预览已在外层共享，不重复创建）
-      if (treeBody) {
-        treeBody.innerHTML =
-          '<app-tree root="' +
-          rtype +
-          '" style="flex:1;min-width:0"></app-tree>';
-      }
-      // 通知其他 tab（仅当 rtype 真正变化时）
-      if (rtype !== prevRtype) {
-        bus.emit("repo:rtype-changed", rtype);
-      }
+      applyRtype((btn as HTMLElement).dataset.rtab || "");
     });
   });
-  const savedTab = root.querySelector(
-    '.repo-subtab[data-rtab="' + curRtype + '"]',
-  );
-  if (savedTab) (savedTab as HTMLElement).click();
+  // 初始化：应用 curRtype（对齐 tree + active——模板 tree root 写死 ysm，localStorage 可能存别的）
+  applyRtype(curRtype);
 }
 
 /**
