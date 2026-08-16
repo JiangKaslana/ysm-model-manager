@@ -186,8 +186,8 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `ImportFromBase64()` | `go/importer/importer_file:38` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
-| `WriteFileAtomic()` | `go/importer/importer_file:123` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
-| `DetectZipType()` | `go/importer/importer_file:136` | DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json |
+| `WriteFileAtomic()` | `go/importer/importer_file:126` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
+| `DetectZipType()` | `go/importer/importer_file:142` | DetectZipType 扫描容器条目名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries （exact/pr |
 | `ImportOptions()` | `go/importer/importer_file:28` | ImportOptions 导入选项 |
 | `ImportLogger()` | `go/importer/importer_file:34` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
 | `Register()` | `go/importer/importer:33` | Register 注册导入策略 |
@@ -268,7 +268,7 @@
 |------|--------|------|
 | `ReadPackMeta()` | `go/packs/mcmeta:35` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
 | `DetectResourceType()` | `go/packs/mcmeta:139` | DetectResourceType 检测文件属于哪种资源类型 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:265` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:248` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 
@@ -1106,8 +1106,8 @@
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:25` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:53` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:88` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:409` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:432` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:416` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:439` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:36` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:55` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:77` | — |
@@ -1134,8 +1134,8 @@
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:59` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:70` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:119` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:234` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:250` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼。 |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:241` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:257` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:20` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:30` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:36` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |

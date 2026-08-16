@@ -825,6 +825,7 @@ export const en: Record<string, string> = {
    "preview.volumetricCone": "Volumetric Cone",
    "preview.coneAngle": "Cone Angle",
    "preview.lightPreset": "Light Preset",
+   "preview.volumetricEngine": "Volumetric Engine",
    "preview.lighting": "Lighting",
    "preview.cameraView": "Camera View",
   "preview.environment": "Environment",

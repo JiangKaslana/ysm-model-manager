@@ -445,6 +445,31 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   volRow.append(volLabel, volToggle);
   list.appendChild(volRow);
 
+  // --- 体积光引擎（ADR-081 L2）：cone 轻量 vs postprocess 后处理 ---
+  const engineRow = document.createElement("div");
+  engineRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+  const engineLabel = document.createElement("span");
+  engineLabel.className = "slide-label";
+  engineLabel.textContent = tr("preview.volumetricEngine", "\u952F\u5F15\u64CE");
+  engineLabel.style.cssText = "flex:1;font-size:12px";
+  const engineSel = document.createElement("select");
+  engineSel.className = "setting-select";
+  engineSel.style.cssText = "font-size:11px;padding:2px 4px";
+  const engineOpts = [
+    { v: "cone",        t: "\u952F\u5F62" },
+    { v: "postprocess", t: "\u540E\u5904\u7406" },
+  ];
+  engineOpts.forEach((eo) => {
+    const opt = document.createElement("option");
+    opt.value = eo.v;
+    opt.textContent = eo.t;
+    engineSel.appendChild(opt);
+  });
+  engineSel.value = lightCap.getVolumetricEngine();
+  engineSel.onchange = (): void => lightCap.setVolumetricEngine(engineSel.value as "cone" | "postprocess");
+  engineRow.append(engineLabel, engineSel);
+  list.appendChild(engineRow);
+
   // --- 锥角 ---
   const angleRow = document.createElement("div");
   angleRow.className = "slide-item";

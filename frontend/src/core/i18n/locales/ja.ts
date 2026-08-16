@@ -826,6 +826,7 @@ export const ja: Record<string, string> = {
    "preview.volumetricCone": "体積光コーン",
    "preview.coneAngle": "コーン角",
    "preview.lightPreset": "ライトプリセット",
+   "preview.volumetricEngine": "体積光エンジン",
    "preview.lighting": "照明",
    "preview.cameraView": "カメラビュー",
   "preview.environment": "環境",

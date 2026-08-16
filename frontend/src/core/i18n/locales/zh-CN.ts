@@ -828,6 +828,7 @@ export const zhCN: Record<string, string> = {
    "preview.volumetricCone": "体积光锥",
    "preview.coneAngle": "锥角",
    "preview.lightPreset": "灯光预设",
+   "preview.volumetricEngine": "锥引擎",
    "preview.lighting": "灯光",
    "preview.cameraView": "摄像机视图",
   "preview.environment": "环境",
