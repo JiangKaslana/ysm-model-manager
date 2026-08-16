@@ -13,6 +13,7 @@ import { decodeYsmViaWasm } from "./wasm.ts";
 import { loadModel2D } from "./skeleton.ts";
 import { describeVersionRange } from "../../utils/format/pack-format.ts";
 import { t } from "../../core/i18n/t.ts";
+import { createPack3D } from "./pack-3d.ts";
 
 /** 详情面板 generation：每次展示新预览自增，慢请求返回后比对，过期结果不回写 DOM */
 let _detailGen = 0;
@@ -42,7 +43,7 @@ export async function showModelDetail(
   <div id="preview-detail"${savedTab !== "detail" ? ' style="display:none"' : ""}><h3>📄 ${t("preview.modelInfo")}</h3><div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsing")}...</div></div></div>
   <div id="preview-skeleton"${savedTab !== "skeleton" ? ' style="display:none"' : ""}></div>
 </div>
-<button class="ysm-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="ysm-ic">&#x1F3A8;</span></button>`;
+<button class="preview-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">&#x1F3A8;</span></button>`;
 
   const switchTab = (tab: string): void => {
     safeSet("ysm_previewTab", tab);
@@ -168,7 +169,12 @@ export async function showResourcePack(
     ${desc ? `<div style="color:var(--muted);line-height:1.6">${desc}</div>` : ""}
     <div style="color:var(--muted);font-size:var(--fs-xs)">pack_format: ${rv.format}${rv.version ? "（" + rv.version + "）" : ""}</div>
   </div>
-</div>`;
+</div>
+<button class="preview-fab" id="btn-pack-model-3d" title="方块/物品模型 3D 预览" aria-label="方块/物品模型 3D 预览"><span class="preview-ic">&#x1F3D7;&#xFE0F;</span></button>`;
+    const fab = ctx.root.querySelector("#btn-pack-model-3d") as HTMLButtonElement;
+    if (fab) {
+      fab.onclick = (): void => { createPack3D(path).catch((e) => console.warn("[preview] pack3D:", e)); };
+    }
   } catch (e) {
     if (gen !== _detailGen) return;
     ctx.root.innerHTML = `<div class="content" id="preview-content"><h3>🎨 ${t("preview.resourcePack")}</h3><div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div></div></div>`;

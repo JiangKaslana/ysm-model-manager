@@ -1241,9 +1241,9 @@
 | `PackEntryReader()` | `frontend/src/utils/3d/parse-java-model:71` | 条目读取器：Go binding ReadPackEntry 包装（返回 base64 或 null） |
 | `b64ToBytes()` | `frontend/src/utils/3d/parse-java-model:76` | base64 → Uint8Array（Go []byte 序列化格式） |
 | `modelEntryFor()` | `frontend/src/utils/3d/parse-java-model:100` | 模型名 → 条目路径（无命名空间默认 minecraft） |
-| `parseJavaModel()` | `frontend/src/utils/3d/parse-java-model:316` | 解析资源包内 block/item 模型（parent 链递归）。 |
-| `isRenderableModel()` | `frontend/src/utils/3d/parse-java-model:345` | 判定模型是否"完整可渲染"：至少一个面有纹理或纯色（纯模板如 cube/cube_all 返回 false） |
-| `INTERNALS()` | `frontend/src/utils/3d/parse-java-model:350` | — |
+| `parseJavaModel()` | `frontend/src/utils/3d/parse-java-model:317` | 解析资源包内 block/item 模型（parent 链递归）。 |
+| `isRenderableModel()` | `frontend/src/utils/3d/parse-java-model:346` | 判定模型是否"完整可渲染"：至少一个面有纹理或纯色（纯模板如 cube/cube_all 返回 false） |
+| `INTERNALS()` | `frontend/src/utils/3d/parse-java-model:351` | — |
 | `createBreathController()` | `frontend/src/utils/3d/perception/breath:48` | 构建呼吸 controller：每次 build 调用一次，持有闭包 state |
 | `createGazeController()` | `frontend/src/utils/3d/perception/gaze:35` | — |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/quaternion:13` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
@@ -1567,12 +1567,12 @@
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
 | `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:18` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
 | `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:80` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
-| `nextDetailGen()` | `frontend/src/views/app-preview/detail:21` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
-| `getDetailGen()` | `frontend/src/views/app-preview/detail:26` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
-| `showModelDetail()` | `frontend/src/views/app-preview/detail:31` | 显示模型详情（YSM 模型） |
-| `showResourcePack()` | `frontend/src/views/app-preview/detail:142` | 显示资源包信息（pack.mcmeta + pack.png） |
-| `showSimplePreview()` | `frontend/src/views/app-preview/detail:179` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
-| `showShaderpack()` | `frontend/src/views/app-preview/detail:197` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
+| `nextDetailGen()` | `frontend/src/views/app-preview/detail:22` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
+| `getDetailGen()` | `frontend/src/views/app-preview/detail:27` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
+| `showModelDetail()` | `frontend/src/views/app-preview/detail:32` | 显示模型详情（YSM 模型） |
+| `showResourcePack()` | `frontend/src/views/app-preview/detail:143` | 显示资源包信息（pack.mcmeta + pack.png） |
+| `showSimplePreview()` | `frontend/src/views/app-preview/detail:185` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
+| `showShaderpack()` | `frontend/src/views/app-preview/detail:203` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:4` | Bedrock 方块 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
