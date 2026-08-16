@@ -669,6 +669,10 @@ export const autoSidebar = [
         "link": "/audit-report-2026-08-06"
       },
       {
+        "text": "YSM — 🥉 ui-helpers 组件库迁移与设计集成",
+        "link": "/3d-DESIGN"
+      },
+      {
         "text": "MikuMikuAR — DESIGN.md（视觉 / 品牌规范）",
         "link": "/3d-ui-DESIGN"
       },

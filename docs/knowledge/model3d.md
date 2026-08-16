@@ -5,6 +5,7 @@ tier: architecture
 category: utils
 source_files:
   - frontend/src/utils/3d/model3d.ts
+  - frontend/src/utils/3d/render-session.ts
   - frontend/src/utils/3d/mesh.ts
   - frontend/src/utils/3d/keymap.ts
   - frontend/src/utils/3d/debug-render.ts
@@ -38,7 +39,8 @@ use_when:
   - spec 兜底
   - OrbitControls
 invariant_anchors:
-  - frontend/src/utils/3d/model3d.ts|modelGroups
+  - frontend/src/utils/3d/render-session.ts|RenderSession
+  - frontend/src/utils/3d/cube-mesh.ts|computeBoneLocalPos
   - frontend/src/views/app-preview/model3d-loader.ts|specCache
 ---
 
@@ -46,61 +48,144 @@ invariant_anchors:
 
 ## 概览
 
-前端 Three.js 3D 渲染层，由八个文件组成：`model3d.ts` 负责场景搭建/相机/渲染循环（**ADR-040 P1 进行中**，关键逻辑已拆至独立模块），`mesh.ts` 承载场景网格构建与材质释放（buildSceneMesh / compKey / disposeMaterial / modelScale），`keymap.ts` 承载 3D 操作键位/相机偏好持久化（loadTdKeymap / loadTdCamSpeed / loadTdRotMode），`debug-render.ts` 承载 debug 叠加层渲染（rebuildDebug / makeTextTexture），`camera-control.ts` 承载 free 模式 pointer drag 控制（registerFreeCameraDrag），`bone-raycast.ts` 承载骨骼层级映射与射线拾取（buildBoneHierarchy / registerBoneRaycast / assembleBoneSelectInfo），`model3d-loader.ts` 负责纹理与 spec 加载（**Go binding 为桌面通道事实来源；Android/网页 viewer 模式保留 WASM 解码兜底** `fetchSpecViaWasmFallback`），`model3d-spec.ts` 是历史 JS 端兜底 spec 构建算法（已废弃、无消费方，仅测试保留作口径参考）。几何数据（顶点/法线/UV/骨骼四元数）全部由 Go 端 [go_threejs](./go-threejs.md) 预计算，本层只渲染、不做几何计算。
+前端 Three.js 3D 渲染层，采用 **RenderSession 对象化架构**（ADR-052 落地）。核心入口 `renderModel3D()` 现为薄壳，实际逻辑在 `RenderSession` 类中。每个 3D 预览实例独立封装场景、相机、渲染器、控制器，消除模块级状态覆盖竞态。
 
-## 核心职责
+**文件职责分布**：
+- `render-session.ts`：RenderSession 类（ADR-052 核心），封装完整渲染生命周期
+- `model3d.ts`：类型定义 + 薄壳工厂函数（向后兼容）
+- `mesh.ts`：场景网格构建（buildSceneMesh）、材质释放（disposeMaterial）
+- `cube-mesh.ts`：立方体几何构建 + 坐标工具（computeBoneLocalPos）
+- `model-group-builder.ts`：骨骼层级构建（buildModelGroup）
+- `mesh-builder.ts`：单个 mesh 构建（addMeshToBoneGroup）
+- `keymap.ts`：键位/相机偏好持久化
+- `debug-render.ts`：debug 叠加层渲染
+- `camera-control.ts`：free 模式 pointer drag
+- `bone-raycast.ts`：骨骼射线拾取
+- `bone-list.ts` / `bone-visibility.ts`：骨骼列表/可见性
+- `camera-setup.ts`：相机初始化定位
+- `cleanup-helper.ts`：资源释放工具
+- `render-loop.ts`：主渲染循环
+- `renderer-setup.ts`：renderer 场景初始化
+- `scene-lights.ts`：场景灯光配置
+- `session-state.ts`：会话状态重置（保留兼容）
+- `model3d-loader.ts`：纹理 + spec 预加载
+- `model3d-spec.ts`：历史 JS 兜底 spec 构建（已废弃）
 
-- Three.js 场景搭建：PerspectiveCamera(45°) + OrbitControls + 环境光/双方向光 + GridHelper/AxesHelper
-- 骨骼层级组树构建（buildSceneMesh）、mesh 合并与纹理槽分配、渲染循环、骨骼拾取回调
-- 纹理并行加载（NearestFilter 像素风采样、低分辨率纹理过滤）、spec 获取（Go binding 为桌面通道事实来源，模块级 specCache LRU 缓存上限 20，桌面通道空 models 直接 throw；Android/网页 viewer 模式保留 WASM 解码兜底——见 `preloadModel` 段；`loadTextures` 返回 `(Texture|null)[]`，null 占位不压缩索引，无「像素量阈值过滤」逻辑——知识卡旧文幽灵特性已删）
-- `model3d-spec.ts`：历史 JS 兜底 spec 构建（同名骨骼合并、box UV / faceUV 解析）——**已废弃不消费**（fetchSpec 在桌面通道空 models throw，buildSpecFromModel 全项目无调用方）。其 cubePivot/cubeOrigin **不做 X 取反**、与 Go 口径不一致（因废弃无运行时影响，仅测试作参考）
+几何数据（顶点/法线/UV/骨骼四元数）全部由 Go 端 [go_threejs](./go-threejs.md) 预计算，本层只渲染、不做几何计算。
+
+## 核心架构（ADR-052）
+
+### RenderSession 类
+
+```typescript
+class RenderSession {
+  // 场景对象（实例字段，替代原模块级 _scene3d/_camera3d 等）
+  readonly scene: THREE.Scene;
+  readonly camera: THREE.PerspectiveCamera;
+  readonly renderer: THREE.WebGLRenderer;
+  readonly controls: OrbitControls;
+  readonly container: HTMLElement;
+  readonly rootGroup: THREE.Group;
+  
+  // 会话状态（11 个可变状态收敛进实例）
+  readonly state: RenderSessionState;
+  
+  // 生命周期
+  dispose(): void;        // 完整资源释放
+  cleanup(): void;        // 兼容别名
+  screenshot(): string | null;  // 截图功能
+  
+  // 控制接口
+  resetCamera(): void;
+  setSpeed(v: number): void;
+  setRotationMode(orbit: boolean): void;
+  setBoneVisible(name: string, visible: boolean): void;
+  getBoneList(): Array<{...}>;
+  toggleBone(name: string): void;
+  showModelGroup(idx: number): void;
+  getModelGroupCount(): number;
+  setDebugMode(mode: "normal" | "pivot" | "bone"): void;
+}
+```
+
+### 坐标口径工具
+
+```typescript
+// cube-mesh.ts 导出，统一骨骼位置计算（ADR-052 P3）
+export function computeBoneLocalPos(
+  bonePivot: Vec3,
+  parentPivot: Vec3 | null
+): [number, number, number]
+```
+
+公式（对齐 YSMViewer/C# ConvertBones）：
+- 有父骨骼：`[parent.x - bone.x, bone.y - parent.y, bone.z - parent.z]`
+- 无父骨骼：`[-bone.x, bone.y, bone.z]`
+
+**X 轴翻转是 ysmview 口径关键特征**（trap #11 反复修的根源）。
 
 ## 对外 API / 入口
 
 `model3d.ts`：
-- 类型：`Spec3D` / `SpecModelGroup3D` / `SpecBone3D`（localPosition/localRotation 四元数 [x,y,z,w]/parentId）/ `SpecMeshGroup3D`（positions/normals/uvs/indices/texIdx）/ `BoneSelectInfo` / `RenderModel3DHandle`
-- `buildSceneMesh(spec: Spec3D)` — 构建骨骼 Group 树，返回 `{ boneGroupMap, rootGroup, modelScale, modelGroups }`（**返回 `modelGroups`，知识卡旧文 `meshMax` 为幽灵字段已删**）；modelScale **固定 1/16**（旧文「>32→1/16、>4→1/4 动态缩放」已被移除，定值后不再随顶点缩放）
-- `renderModel3D(container, texArr, spec, texIdx=0): Promise<RenderModel3DHandle>` — 渲染主入口；**入口复用守卫**（P1 修复：若上一场景未 cleanup，先主动 cancelAnimationFrame + dispose renderer + 移除 DOM + 置空模块状态，防僵尸 rAF 循环）；句柄含 resetCamera / setSpeed / setRotationMode（轨道/自由相机切换）/ setBoneVisible / getBoneList / toggleBone / showModelGroup / getModelGroupCount / onBoneSelect（骨骼选中回调）/ setDebugMode("normal"|"pivot"|"bone") / cleanup
-- `screenshotPreview(): string | null` — 截取当前画面为 PNG base64（无 data: 前缀），依赖 renderer 的 `preserveDrawingBuffer: true`
+- 类型：`Spec3D` / `SpecModelGroup3D` / `SpecBone3D`（localPosition/localRotation 四元数 [x,y,z,w]/parentId）/ `SpecMeshGroup3D`（positions/normals/uvs/indices/texIdx）/ `BoneSelectInfo` / `RenderModel3DHandle`（类型别名 → RenderSessionHandle）
+- `renderModel3D(container, texArr, spec, texIdx=0): Promise<RenderSessionHandle>` — 渲染主入口（薄壳，实际创建 RenderSession 实例）
+- `screenshotPreview(): string | null` — 截取当前画面（兼容层，多实例场景需传 session 引用）
+
+`RenderSession` 实例方法：
+- `dispose()` / `cleanup()` — 完整资源释放（cancelAnimationFrame、移除监听器、dispose renderer/controls/geometry/material）
+- `screenshot()` — 返回 PNG base64（无 data: 前缀）
+- `resetCamera()` / `setSpeed()` / `setRotationMode()` — 相机控制
+- `setBoneVisible()` / `getBoneList()` / `toggleBone()` / `showModelGroup()` — 骨骼/组件控制
+- `setDebugMode()` — 调试模式切换（normal/pivot/bone）
+- `onBoneSelect` — 骨骼选中回调（getter/setter）
 
 `model3d-loader.ts`：
-- `loadTextures(urls?): Promise<(THREE.Texture | null)[]>` — 并行加载，flipY=false + NearestFilter + SRGB；**null 占位不压缩索引**（全失败时返回 null 占位数组而非空数组，fallback 颜色由渲染侧处理）
-- `preloadModel(model): Promise<{ texArr, spec }>` — 纹理 + spec 并行预加载；内部 fetchSpec（未导出）走 Go `GetModel3DSpec` binding（模块级 specCache，**LRU** 淘汰上限 20，命中重插刷新访问序——旧文 FIFO 漂移已修正）；**桌面通道**空 models 时抛错由上层 toast；Android/网页 viewer 模式（`isViewerMode()`）则降级 `fetchSpecViaWasmFallback`（`decodeYsmViaWasm` + 网页 `buildSpecFromGeometryJSON` / Android `Build3DSpecFromGeometryJSON` 重建 spec）
-- `ModelLike` / `ModelSpec` 接口 — 轻量模型对象与 spec 结构
-
-`model3d-spec.ts`：
-- `buildSpecFromModel(model: SpecModelInput): SpecBuildResult` — JS 兜底算法，与 Go `threejs.Build()` 一致：同名骨骼去重（首次无 parent、后续带 parent → cube 整体替换；否则 mergeCubes 重叠替换/非重叠保留）、cube 坐标转骨骼局部系、box UV / faceUV JSON 解析
-- **inflate/mirror 已同步**（2026-08-09，对齐 Go buildCubeMeshData）：SpecCube 含 inflate/mirror 字段，JS 构建几何膨胀（origin -i、size +2i）、UV 用原始尺寸、mirror u 交换——与 Go 双边锁定（model3d-spec.test.ts 有镜像用例）
+- `loadTextures(urls?): Promise<(THREE.Texture | null)[]>` — 并行加载，flipY=false + NearestFilter + SRGB；**null 占位不压缩索引**
+- `preloadModel(model): Promise<{ texArr, spec }>` — 纹理 + spec 并行预加载；内部 fetchSpec 走 Go `GetModel3DSpec` binding（模块级 specCache LRU 缓存上限 20）；Android/网页 viewer 模式降级 WASM 解码兜底
 
 ## 渲染循环与交互
 
-- **渲染循环**：`requestAnimationFrame(loop)` 启动（`_rafId` 保存，cleanup 时 `cancelAnimationFrame`），每帧 `renderer.render(scene, camera)`；默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降，`_keys` 按键状态机驱动，`_camSpeed` 可调）
-- **默认相机在 Z 负侧**（`camera.position.set(0, 80, -120)`，`controls.target(0,80,0)`）：模型脸朝 Z-，默认视角看正面而非后脑勺（2026-08-12 由 Z+ 改为 Z-；`resetCamera`/换模型重设相机时同样用 Z- 基线）
-- **3D 操作键位 / 相机偏好持久化**（localStorage，与界面设置同源）：键位存 `KeyboardEvent.code` 物理键（`td-keymap`，默认 WASD + Space/ShiftLeft 升降，方向键保留为通用兜底），相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）；`loadTdKeymap` / `loadTdCamSpeed` / `loadTdRotMode` 均为导出工具，非法/缺失回退默认（camSpeed 经 `safeGet` + 数值范围校验，P3 修复）
-- **骨骼拾取**：`Raycaster.setFromCamera(pointer, camera)` + `intersectObjects(scene.children, true)` 反投影；pointermove 更新 `_hoveredBone`/`_hoveredMesh` 与 cursor（命中 pointer / 未命中 default）；click 命中时经 `_boneNameMap`/`_boneParentMap`/`_boneChildrenMap` 组装 `BoneSelectInfo`（name/path/parent/children/meshCount/localPos/worldPos/localRot/cubeRot/cubePos）调 `handle.onBoneSelect`——boneId 先局部收窄再传参（TS 对闭包捕获变量不做控制流收窄）
-- **调试模式**：`setDebugMode("normal"|"pivot"|"bone")` 循环切换，`rebuildDebug()` 重建叠加层（pivot 标记 / 骨骼线框）
-- **材质为 ysmview 风格**（YSMViewer 同款）：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true` 收敛为 `mesh-builder.ts` 的 `MATERIAL_OPTS` 常量（2026-08 渲染对齐提交 2041f382）；`<0.1` alpha 像素直接裁剪，硬透明边缘干净；不透明像素写深度防透明面穿透后方网格
-- **mesh 合并**：同一骨骼下按 `boneId + ":" + texIdx` 分组，同组多个 MeshGroup 合并顶点/法线/UV/索引，减少 draw call；`thicknessEpsilon` 零厚度面修正位于 spec-builder.ts 的 WASM 兜底通道（spec-builder.ts:616），不属 model3d.ts 的 mesh 合并段
+- **渲染循环**：`requestAnimationFrame(loop)` 启动，每帧 `renderer.render(scene, camera)`；默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降）
+- **默认相机在 Z 负侧**（`camera.position.set(0, 80, -120)`）：模型脸朝 Z-，默认视角看正面
+- **3D 操作键位 / 相机偏好持久化**（localStorage）：键位存 `KeyboardEvent.code` 物理键，相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）
+- **骨骼拾取**：`Raycaster.setFromCamera(pointer, camera)` + `intersectObjects(scene.children, true)`；click 命中时组装 `BoneSelectInfo` 调 `handle.onBoneSelect`
+- **调试模式**：`setDebugMode("normal"|"pivot"|"bone")` 循环切换，`rebuildDebug()` 重建叠加层
+- **材质为 ysmview 风格**：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true`
+- **mesh 合并**：同一骨骼下按 `boneId + ":" + texIdx` 分组，同组多个 MeshGroup 合并顶点/法线/UV/索引，减少 draw call
+
+## 多实例隔离（ADR-052 核心收益）
+
+| 维度 | Before（模块级） | After（RenderSession） |
+|------|-----------------|----------------------|
+| 场景对象 | `_scene3d` 全局覆盖 | `this.scene` 实例字段 |
+| 相机 | `_camera3d` 全局覆盖 | `this.camera` 实例字段 |
+| 渲染器 | `_renderer3d` 全局覆盖 | `this.renderer` 实例字段 |
+| 状态 | `_rafIdGuard` 共享 | `state.rafId` 独立 |
+| 监听器 | `_sessionCleanups` 共享 | `this.cleanups` 独立 |
+| 截图 | `screenshotPreview()` 用全局 | `session.screenshot()` 用实例 |
+
+**关键场景**：同时打开 2-3 个模型预览面板，各面板相机/渲染状态互不干扰。
 
 ## 与其他子系统关系
 
-- 消费方：`app-preview/skeleton.ts`（**静态顶层 import（ESM）** renderModel3D / preloadModel / screenshotPreview）、`utils/screenshot-renderer.ts`（复用 buildSceneMesh + loadTextures 做离屏多角度截图）、`app-content/settings/init.ts`（静态导入 loadTdKeymap / TdKeyAction 类型，键位偏好）
+- 消费方：`app-preview/skeleton.ts`（调用 renderModel3D 创建 session）、`utils/screenshot-renderer.ts`（复用 buildSceneMesh + loadTextures 做离屏多角度截图）
 - 上游数据：Go `GetModel3DSpec` binding ← [go_threejs](./go-threejs.md) `threejs.Build()`；纹理/模型对象来自 [go_geometry](./go-geometry.md)
-- 相机/调试状态存于模块级 `_scene3d/_camera3d/_renderer3d/_rootGroup3d`（供 screenshotPreview 使用，cleanup 时置空，不挂 window 全局）
 
 ## 不变量
 
-- **致命陷阱 #11**：3D 坐标变换是全项目 fix 次数最多的区域（model3d.ts 历史 fix 第一）。坐标口径必须对齐 YSMViewer：pivot X 取反、`from.x = origin.x - size.x`（Go go/threejs 实现，见 spec.go:444-449 顶点 origin..origin+size + spec.go:530 `bonePivot.x - cp[0]` X 取反经 localPos 公式实现）。**消费侧（buildSceneMesh/renderModel3D）直接透传 Go 坐标，不再二次翻转**；JS 兜底 model3d-spec.ts 的 cubePivot/cubeOrigin **不做 X 取反、与 Go 口径不一致**（已废弃无运行时影响）。改 model2d/model3d/threejs spec 前先 grep `docs/archive/bug-chronicle.md`，改完用自由相机近距验证
-- cleanup() 必须完整执行：cancelAnimationFrame、移除 keydown/keyup/pointer/resize/fullscreenchange 全部监听（Pointer Events 迁移，ADR-047）、dispose controls/renderer/geometry/material、清空容器 —— 缺一即泄漏
-- **Three.js 资源 dispose 模式**（审计发现）：移除 `Object3D` 时，`Object3D.remove()` 只从场景图移除引用，**不释放底层 WebGL 资源**。必须遍历子对象并调用 `geometry?.dispose()`、`material?.dispose()`、`texture?.dispose()`。`rebuildDebug`（model3d.ts:644-736）和 `makeTextTexture`（model3d.ts:739-759）是典型场景——频繁切换 debug 模式或 pivot 模式每骨骼一个标签，不 dispose 会持续累积 GPU 内存泄漏（P1 已修，行号随实现演进）
+- **致命陷阱 #11**：3D 坐标变换是全项目 fix 次数最多的区域（model3d.ts 历史 fix 第一）。坐标口径必须对齐 YSMViewer：pivot X 取反、`from.x = origin.x - size.x`（Go go/threejs 实现）。**消费侧（buildSceneMesh/renderModel3D）直接透传 Go 坐标，不再二次翻转**；JS 兜底 model3d-spec.ts 的 cubePivot/cubeOrigin **不做 X 取反、与 Go 口径不一致**（已废弃无运行时影响）。改 model2d/model3d/threejs spec 前先 grep `docs/archive/bug-chronicle.md`，改完用自由相机近距验证
+- `dispose()` 必须完整执行：cancelAnimationFrame、移除 keydown/keyup/pointer/resize/fullscreenchange 全部监听（Pointer Events 迁移，ADR-047）、dispose controls/renderer/geometry/material、清空容器 —— 缺一即泄漏
+- **Three.js 资源 dispose 模式**：移除 `Object3D` 时，`Object3D.remove()` 只从场景图移除引用，**不释放底层 WebGL 资源**。必须遍历子对象并调用 `geometry?.dispose()`、`material?.dispose()`、`texture?.dispose()`
 - 几何计算（顶点/UV/四元数）在 Go 端完成，前端不得私改几何口径；JS 兜底算法（model3d-spec.ts）已废弃，不再承担降级职责
-- 治理红线 R1：模块级状态不挂 `window.__*`
+- 治理红线 R1：模块级状态不挂 `window.__*`（ADR-052 已消除模块级场景状态）
 
 ## 相关
 
-- [go_threejs](./go-threejs.md) — spec 生成（Go 端）
+- [ADR-052](../adr/ADR-052-render-session-objectification.md) — RenderSession 对象化决策
+- [ADR-040](../adr/ADR-040-architecture-scale-governance.md) — 架构治理（拆分基准）
+- [ADR-047](../adr/ADR-047-pointer-events.md) — Pointer Events 统一
+- [go-threejs](./go-threejs.md) — spec 生成（Go 端）
 - [model2d](./model2d.md) — 2D 预览（同一坐标口径约束）
 - [app_preview](./app-preview.md) — 预览面板消费方
-- [utils_export](./utils-export.md) — 截图与导出
-- `frontend/src/utils/3d/model3d-spec.test.ts` — JS 兜底 ↔ Go 口径黄金样本测试（验证入口；注意 UV 归一化/面序尚未与 Go 对齐，见测试自述）
-- AGENTS.md 致命陷阱 §二 #11
+- `frontend/src/utils/3d/render-session.ts` — RenderSession 实现
+- `frontend/src/utils/3d/cube-mesh.ts` — computeBoneLocalPos 工具

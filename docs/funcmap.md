@@ -1035,19 +1035,19 @@
 | `addEmptyRow()` | `frontend/src/ui/ui-rows:325` | 创建空状态占位行（灰色文字，不可点击），替代手动 `el.style.opacity = '0.5'` 模式 |
 | `addCardTitle()` | `frontend/src/ui/ui-rows:348` | 创建 card-title 标题行并追加到容器 |
 | `addDangerRow()` | `frontend/src/ui/ui-rows:363` | 创建危险操作行（icon + red label），替代手动拼接 `div.slide-item &gt; icon + label.danger-text` |
-| `addFieldRow()` | `frontend/src/ui/ui-rows:396` | 创建字段行（左 label + 右 value），替代手动拼接的 `div.slide-item &gt; span.slide-label.field-label + span.fie |
-| `addInfoGrid()` | `frontend/src/ui/ui-rows:430` | — |
-| `addInfoCard()` | `frontend/src/ui/ui-rows:437` | — |
-| `sliderRow()` | `frontend/src/ui/ui-rows:470` | — |
-| `toggleRow()` | `frontend/src/ui/ui-rows:487` | — |
-| `addWatchDirRow()` | `frontend/src/ui/ui-rows:512` | — |
-| `addActionRow()` | `frontend/src/ui/ui-rows:574` | 创建一个可点击的动作按钮行（替代手写 cs-row + button）。 |
-| `addDisabledRow()` | `frontend/src/ui/ui-rows:611` | 创建一个不可交互的提示行（替代手写 cs-row + opacity 0.4 + pointer-events none）。 |
-| `addInlineToggleRow()` | `frontend/src/ui/ui-rows:642` | 创建一个内联 toggle 行（替代手写 toggle-row + toggle-label + toggle-switch）。 |
-| `isIkBone()` | `frontend/src/ui/ui-rows:691` | 判断骨骼是否为 IK 相关骨骼 |
-| `buildBoneGroups()` | `frontend/src/ui/ui-rows:717` | 按类别分组骨骼名，未匹配的归入「その他」。空组被剔除。 |
-| `BoneSelectOptions()` | `frontend/src/ui/ui-rows:746` | — |
-| `addBoneSelectRow()` | `frontend/src/ui/ui-rows:757` | 创建骨骼选择行：label + 搜索框 + 分组下拉（含 IK 标记）。 |
+| `addFieldRow()` | `frontend/src/ui/ui-rows:395` | 创建字段行（左 label + 右 value），替代手动拼接的 `div.slide-item &gt; span.slide-label.field-label + span.fie |
+| `addInfoGrid()` | `frontend/src/ui/ui-rows:428` | — |
+| `addInfoCard()` | `frontend/src/ui/ui-rows:435` | — |
+| `sliderRow()` | `frontend/src/ui/ui-rows:468` | — |
+| `toggleRow()` | `frontend/src/ui/ui-rows:485` | — |
+| `addWatchDirRow()` | `frontend/src/ui/ui-rows:510` | — |
+| `addActionRow()` | `frontend/src/ui/ui-rows:572` | 创建一个可点击的动作按钮行（替代手写 cs-row + button）。 |
+| `addDisabledRow()` | `frontend/src/ui/ui-rows:609` | 创建一个不可交互的提示行（替代手写 cs-row + opacity 0.4 + pointer-events none）。 |
+| `addInlineToggleRow()` | `frontend/src/ui/ui-rows:640` | 创建一个内联 toggle 行（替代手写 toggle-row + toggle-label + toggle-switch）。 |
+| `isIkBone()` | `frontend/src/ui/ui-rows:689` | 判断骨骼是否为 IK 相关骨骼 |
+| `buildBoneGroups()` | `frontend/src/ui/ui-rows:715` | 按类别分组骨骼名，未匹配的归入「その他」。空组被剔除。 |
+| `BoneSelectOptions()` | `frontend/src/ui/ui-rows:744` | — |
+| `addBoneSelectRow()` | `frontend/src/ui/ui-rows:755` | 创建骨骼选择行：label + 搜索框 + 分组下拉（含 IK 标记）。 |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-slide-row` | — |
 | `TrailingAction()` | `frontend/src/ui/ui-slide-row:12` | — |
 | `createTrailingBtn()` | `frontend/src/ui/ui-slide-row:55` | 统一尾部第二动作按钮工厂——供 slideRow 与 menu.ts createRow 共用， 确保两条渲染路径的第二按钮观感与行为一致（22px .slide-add-btn； |
