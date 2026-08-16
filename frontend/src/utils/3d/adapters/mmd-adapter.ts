@@ -249,6 +249,7 @@ export async function buildMmdScene(
       fallback: "模型",
       kind: "panel",
       legacyTestId: "mmd-model-entry",
+      dockGroup: "model", // 底栏 🧍 模型组
       render: (list) => fillMmdModelPanel(list, navCtx),
     },
     {
@@ -258,6 +259,7 @@ export async function buildMmdScene(
       fallback: "材质",
       kind: "panel",
       legacyTestId: "mmd-material-entry",
+      dockGroup: "model", // 底栏 🧍 模型组
       render: (list) =>
         buildMaterialControls(list, {
           list: () => listMmdMaterials(mmd.pmx.materials),
@@ -279,6 +281,7 @@ export async function buildMmdScene(
       fallback: "播放",
       kind: "panel",
       legacyTestId: "mmd-play-entry",
+      dockGroup: "motion", // 底栏 💃 动作组
       render: (list) =>
         fillMmdPlayPanel(
           list,

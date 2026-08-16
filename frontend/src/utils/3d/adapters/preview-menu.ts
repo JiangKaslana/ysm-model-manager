@@ -6,7 +6,7 @@
 //
 // ctx 全部经 getter 暴露，避免构建期 capability 为 null / 后期赋值 / 切换后 currentPath 失效
 // （对齐 ADR-075 构建期 null→never 收窄约定：初始值用 getter 实时读取，交互在闭包内 ?. 延迟调用）。
-import { PREVIEW_MENU_DEFS, type PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import { PREVIEW_MENU_DEFS, DOCK_GROUPS, type PreviewMenuItemDef, type DockGroupDef } from "./preview-menu-defs.ts";
 import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
 import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
@@ -161,32 +161,46 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     else fillers[def.id]?.(popup);
   };
 
-  // 底栏高频直显（dock 项：模型切换/视图——参考 ⚙️ 菜单理念，同一份 PREVIEW_MENU_DEFS 声明）
+  // 底栏 dock 分组（🧍 模型 / 💃 动作 / 🌍 场景）：每组一个按钮，点击弹窗动态生成组内子菜单
   const dock = document.createElement("div");
   dock.className = "ysm-3d-nav"; // 复用毛玻璃悬浮条样式（fab.ts ensureFabStyles）
   overlay.appendChild(dock);
+  /** 组内子菜单：弹窗动态生成（组标题 + 组内项列表，点击开各面板——复用 makeRow/bindRow） */
+  const renderGroup = (g: DockGroupDef, groupItems: PreviewMenuItemDef[]): void => {
+    popup.innerHTML = "";
+    const title = makeRow({
+      id: "back",
+      icon: g.icon,
+      labelKey: "",
+      fallback: g.fallback,
+      kind: "action",
+    });
+    title.onclick = (): void => closePopup();
+    popup.appendChild(title);
+    groupItems.forEach((def) => {
+      const row = makeRow(def);
+      bindRow(row, def);
+      popup.appendChild(row);
+    });
+  };
   const renderDock = (): void => {
     dock.innerHTML = "";
     const items = [...PREVIEW_MENU_DEFS, ...adapterItems]
-      .filter((d) => d.dock && d.kind !== "divider")
+      .filter((d) => d.dockGroup && d.kind !== "divider")
       .filter((d) => !(d.sharedOnly && ctx.selfMode))
       .filter((d) => !(d.needsSiblings && ctx.getSiblings().length === 0));
     if (items.length === 0) return;
-    items.forEach((def) => {
+    DOCK_GROUPS.forEach((g) => {
+      const groupItems = items.filter((d) => d.dockGroup === g.id);
+      if (groupItems.length === 0) return;
       const btn = document.createElement("button");
       btn.className = "ysm-3d-navbtn";
-      btn.dataset.testid = "dock-" + def.id;
-      btn.innerHTML = `<span class="ysm-ic">${def.icon}</span><span class="ysm-3d-navlabel">${tr(def.labelKey, def.fallback)}</span>`;
+      btn.dataset.testid = "dock-" + g.id;
+      btn.innerHTML = `<span class="ysm-ic">${g.icon}</span><span class="ysm-3d-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation(); // 防 document onDoc 误判外部点击收起（与 root.onclick 同款）
-        if (def.kind === "action") {
-          closePopup();
-          if (def.run) def.run();
-          else runners[def.id]?.();
-        } else {
-          renderSub(def);
-          popup.style.display = "flex";
-        }
+        renderGroup(g, groupItems);
+        popup.style.display = "flex";
       };
       dock.appendChild(btn);
     });

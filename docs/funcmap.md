@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 93 | 334 |
+| 前端·工具 | 93 | 336 |
 | frontend/views | 88 | 245 |
 | 前端·WASM | 4 | 9 |
 | frontend/workers | 2 | 14 |
-| **合计** | **351** | **1481** |
+| **合计** | **351** | **1483** |
 
 ## Go·头像
 
@@ -1111,6 +1111,8 @@
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:10` | — |
 | `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
 | `PREVIEW_MENU_DEFS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:37` | 核心根菜单项（适配器专属项在 Phase 2 经契约注入） |
+| `DockGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:78` | dock 底栏分组（🧍 模型 / 💃 动作 / 🌍 场景）：每组一个底栏按钮，点击弹窗动态生成组内子菜单 |
+| `DOCK_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:83` | — |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:18` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:36` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项（Phase 2 契约）；openPanel 直接打开指定面板（骨骼拾取联动） |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:43` | 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） |
