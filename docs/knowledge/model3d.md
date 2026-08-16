@@ -48,32 +48,32 @@ invariant_anchors:
 
 ## 概览
 
-前端 Three.js 3D 渲染层，采用 **RenderSession 对象化架构**（ADR-052 落地）。核心入口 `renderModel3D()` 现为薄壳，实际逻辑在 `RenderSession` 类中。每个 3D 预览实例独立封装场景、相机、渲染器、控制器，消除模块级状态覆盖竞态。
+前端 Three.js 3D 渲染层（`frontend/src/utils/3d/`），采用 **RenderSession 对象化架构**（ADR-052 落地）。核心入口 `renderModel3D()` 现为薄壳，实际逻辑在 `RenderSession` 类中。每个 3D 预览实例独立封装场景、相机、渲染器、控制器，消除模块级状态覆盖竞态。
 
-**文件职责分布**：
-- `render-session.ts`：RenderSession 类（ADR-052 核心），封装完整渲染生命周期
-- `model3d.ts`：类型定义 + 薄壳工厂函数（向后兼容）
-- `mesh.ts`：场景网格构建（buildSceneMesh）、材质释放（disposeMaterial）
-- `cube-mesh.ts`：立方体几何构建 + 坐标工具（computeBoneLocalPos）
-- `model-group-builder.ts`：骨骼层级构建（buildModelGroup）
-- `mesh-builder.ts`：单个 mesh 构建（addMeshToBoneGroup）
-- `keymap.ts`：键位/相机偏好持久化
-- `debug-render.ts`：debug 叠加层渲染
-- `camera-control.ts`：free 模式 pointer drag
-- `bone-raycast.ts`：骨骼射线拾取
-- `bone-list.ts` / `bone-visibility.ts`：骨骼列表/可见性
-- `camera-setup.ts`：相机初始化定位
-- `cleanup-helper.ts`：资源释放工具
-- `render-loop.ts`：主渲染循环
-- `renderer-setup.ts`：renderer 场景初始化
-- `scene-lights.ts`：场景灯光配置
-- `session-state.ts`：会话状态重置（保留兼容）
-- `model3d-loader.ts`：纹理 + spec 预加载
-- `model3d-spec.ts`：历史 JS 兜底 spec 构建（已废弃）
+**文件按层分组**：
+
+| 层 | 文件 | 职责 |
+|----|------|------|
+| **场景/会话层**（核心，ADR-052） | `render-session.ts` / `session-state.ts` / `model3d.ts` / `cube-mesh.ts` | RenderSession 类 + 会话状态 + 薄壳入口 + 坐标口径工具 |
+| **渲染管线层** | `renderer-setup.ts` / `render-loop.ts` / `camera-setup.ts` / `scene-lights.ts` / `cleanup-helper.ts` | 场景初始化 → 渲染循环 → 相机定位 → 灯光配置 → 资源释放 |
+| **骨骼/几何层**（最大层） | `mesh.ts` / `mesh-builder.ts` / `cube-mesh.ts` / `model-group-builder.ts` / `bone-list.ts` / `bone-visibility.ts` / `bone-raycast.ts` | 骨骼组树构建 → 立方体几何 → mesh 合并 → 骨骼列表/可见性 → 射线拾取 |
+| **工具/辅助层** | `quaternion.ts` / `debug-render.ts` / `keymap.ts` / `model3d-spec.ts` | 四元数工具 / debug 叠加 / 键位偏好 / 历史 JS spec 兜底（已废弃） |
+| **加载/桥接层** | `model3d-loader.ts` / `spec-builder.ts` | 纹理 + spec 预加载（Go binding 桥接） / spec 构建工具 |
+
+> **ADR-072 前瞻**：当前内容适配器（ysm/vrm/litematic/mmd）混在 `app-preview/` 目录。ADR-072 已拍板下沉到 `utils/3d/adapters/`，落地后本卡将拆分适配器子卡，`app-preview.md` 同步瘦身。
 
 几何数据（顶点/法线/UV/骨骼四元数）全部由 Go 端 [go_threejs](./go-threejs.md) 预计算，本层只渲染、不做几何计算。
 
-## 核心架构（ADR-052）
+## 快速导航
+
+| 你想找什么 | 跳到 |
+|-----------|------|
+| RenderSession 架构 / 多实例隔离 | [§ 场景/会话层](#场景会话层-adr-052) + [§ 多实例隔离](#多实例隔离-adr-052-核心收益) |
+| 渲染循环 / 相机 / 灯光 / 材质 | [§ 渲染管线层](#渲染管线层) + [§ 渲染循环与交互](#渲染循环与交互) |
+| 骨骼组树 / mesh 合并 / 拾取 | [§ 骨骼/几何层](#骨骼几何层) |
+| 坐标口径 / X 轴翻转 / trap #11 | [§ 坐标口径工具](#坐标口径工具) + [不变量](#不变量) |
+| 对外 API / 加载入口 | [§ 加载/桥接层](#加载桥接层) + [对外 API / 入口](#对外-api--入口) |
+| 废弃兜底 spec | [§ 工具/辅助层](#工具辅助层) |
 
 ### RenderSession 类
 
@@ -124,6 +124,42 @@ export function computeBoneLocalPos(
 
 **X 轴翻转是 ysmview 口径关键特征**（trap #11 反复修的根源）。
 
+## 渲染管线层
+
+**职责**：从场景初始化到渲染循环的完整执行链。`renderer-setup.ts` 创建 `WebGLRenderer` + `Scene` + `PerspectiveCamera`（45° FOV）→ `camera-setup.ts` 定位相机到 Z 负侧（`camera.position.set(0, 80, -120)`，`controls.target(0, 80, 0)`，模型脸朝 Z-）→ `scene-lights.ts` 配置环境光 + 双方向光（`addStandardSceneLights`，快消批收敛自 3D 灯光样板）→ `render-loop.ts` 启动 `requestAnimationFrame` 主循环。
+
+**渲染循环与交互**：
+- 默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降）
+- **3D 操作键位 / 相机偏好持久化**（localStorage）：键位存 `KeyboardEvent.code` 物理键，相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）
+- **材质为 ysmview 风格**：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true`
+- **debug 叠加层**（`debug-render.ts`）：`setDebugMode("normal"|"pivot"|"bone")` 循环切换，`rebuildDebug()` 重建叠加层
+- **cleanup**（`cleanup-helper.ts`）：资源释放工具，遍历子对象并调用 `geometry/material/texture` 的 `dispose()`，确保 WebGL 资源完全释放
+
+## 骨骼/几何层
+
+**职责**：骨骼层级组树构建 + 立方体几何生成 + mesh 合并 + 骨骼交互。
+
+- **骨骼组树**：`model-group-builder.ts` 的 `buildModelGroup` 递归构建骨骼 Group 树，`mesh.ts` 的 `buildSceneMesh` 组装完整场景；同一骨骼下按 `boneId + ":" + texIdx` 分组，同组多个 MeshGroup 合并顶点/法线/UV/索引减少 draw call
+- **立方体几何**：`cube-mesh.ts` 的 `computeBoneLocalPos` + `buildCubeGeometry` 生成单个 cube 顶点/法线/UV（**坐标口径见上方坐标口径工具**）
+- **单个 mesh**：`mesh-builder.ts` 的 `addMeshToBoneGroup` 构造单个 Mesh 并挂到骨骼 Group
+- **骨骼交互**：`bone-raycast.ts` 用 `Raycaster.setFromCamera` + `intersectObjects` 做骨骼拾取，命中时组装 `BoneSelectInfo` 调 `handle.onBoneSelect`；`bone-list.ts` / `bone-visibility.ts` 分别维护骨骼列表与可见性切换（`setBoneVisible` / `toggleBone` / `showModelGroup`）
+- **四元数**（`quaternion.ts`）：骨骼旋转的 `localRotation` 四元数 `[x,y,z,w]` 工具函数
+
+## 工具/辅助层
+
+- `keymap.ts` — 键位/相机偏好持久化（`loadTdKeymap` / `loadTdCamSpeed` / `loadTdRotMode`）
+- `debug-render.ts` — debug 叠加层渲染（pivot 标记 / 骨骼线框）
+- `model3d-spec.ts` — **历史 JS 兜底 spec 构建（已废弃不消费）**：与 Go `threejs.Build()` 口径不一致（cubePivot/cubeOrigin 不做 X 取反），保留仅作测试参考。`fetchSpec` 在桌面通道空 models throw，`buildSpecFromModel` 全项目无调用方
+
+## 加载/桥接层
+
+**`model3d-loader.ts`**：
+- `loadTextures(urls?): Promise<(THREE.Texture | null)[]>` — 并行加载，`flipY=false` + `NearestFilter` + `SRGB`；**null 占位不压缩索引**（全失败时返回 null 占位数组而非空数组）
+- `preloadModel(model): Promise<{ texArr, spec }>` — 纹理 + spec 并行预加载；内部 `fetchSpec` 走 Go `GetModel3DSpec` binding（模块级 `specCache` LRU 缓存上限 20）；Android/网页 viewer 模式降级 WASM 解码兜底（`fetchSpecViaWasmFallback` + `buildSpecFromModel`）
+- `spec-builder.ts` — spec 构建工具（WASM 兜底通道，含 `thicknessEpsilon` 零厚度面修正）
+
+**桥接方向**：Go `GetModel3DSpec` ← [go_threejs](./go-threejs.md) `threejs.Build()` → `model3d-loader.ts` `fetchSpec` → `RenderSession` 渲染。纹理/模型对象来自 [go_geometry](./go-geometry.md)。
+
 ## 对外 API / 入口
 
 `model3d.ts`：
@@ -140,18 +176,8 @@ export function computeBoneLocalPos(
 - `onBoneSelect` — 骨骼选中回调（getter/setter）
 
 `model3d-loader.ts`：
-- `loadTextures(urls?): Promise<(THREE.Texture | null)[]>` — 并行加载，flipY=false + NearestFilter + SRGB；**null 占位不压缩索引**
-- `preloadModel(model): Promise<{ texArr, spec }>` — 纹理 + spec 并行预加载；内部 fetchSpec 走 Go `GetModel3DSpec` binding（模块级 specCache LRU 缓存上限 20）；Android/网页 viewer 模式降级 WASM 解码兜底
-
-## 渲染循环与交互
-
-- **渲染循环**：`requestAnimationFrame(loop)` 启动，每帧 `renderer.render(scene, camera)`；默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降）
-- **默认相机在 Z 负侧**（`camera.position.set(0, 80, -120)`）：模型脸朝 Z-，默认视角看正面
-- **3D 操作键位 / 相机偏好持久化**（localStorage）：键位存 `KeyboardEvent.code` 物理键，相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）
-- **骨骼拾取**：`Raycaster.setFromCamera(pointer, camera)` + `intersectObjects(scene.children, true)`；click 命中时组装 `BoneSelectInfo` 调 `handle.onBoneSelect`
-- **调试模式**：`setDebugMode("normal"|"pivot"|"bone")` 循环切换，`rebuildDebug()` 重建叠加层
-- **材质为 ysmview 风格**：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true`
-- **mesh 合并**：同一骨骼下按 `boneId + ":" + texIdx` 分组，同组多个 MeshGroup 合并顶点/法线/UV/索引，减少 draw call
+- `loadTextures(urls?): Promise<(THREE.Texture | null)[]>` — 并行加载，`flipY=false` + `NearestFilter` + `SRGB`；**null 占位不压缩索引**
+- `preloadModel(model): Promise<{ texArr, spec }>` — 纹理 + spec 并行预加载；内部 `fetchSpec` 走 Go `GetModel3DSpec` binding（模块级 `specCache` LRU 缓存上限 20）；Android/网页 viewer 模式降级 WASM 解码兜底
 
 ## 多实例隔离（ADR-052 核心收益）
 
