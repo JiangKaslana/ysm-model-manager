@@ -4,7 +4,7 @@
 import { t } from "../../../core/i18n/t.ts";
 import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
-import { isViewerMode } from "../../../utils/dom/android-bridge.ts";
+import { can } from "../../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { loadDiagnosticsLogs, loadRuntimeLogs, type EscFn } from "./logs.ts";
 import { scanConflicts } from "./conflicts.ts";
@@ -28,8 +28,9 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
       else loadDiagnosticsLogs(root, esc);
     });
   root.getElementById("diag-clear")?.addEventListener("click", async () => {
-    // 查看器模式（Android/网页版 ADR-049）：无本地日志文件，清除操作不可用
-    if (isViewerMode()) {
+    // 能力门控：web 已实现 ClearImportLogs/ClearRuntimeLogs（IDB 持久化）→ 解锁；
+    // Android viewer 无此能力 → 封禁
+    if (!can("ClearImportLogs")) {
       bus.emit("toast:show", {
         msg: "网页版不支持清除日志",
         duration: 3000,
