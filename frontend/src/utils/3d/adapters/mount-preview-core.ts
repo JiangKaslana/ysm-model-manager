@@ -15,6 +15,10 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SkyCapability } from "../caps/sky-capability.ts";
 import { GroundCapability } from "../caps/ground-capability.ts";
 import { LightCapability } from "../caps/light-capability.ts";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { type SemanticBoneMap } from "../semantic-bones.ts";
 import { bus } from "../../../bus.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
@@ -233,6 +237,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let skyCap: SkyCapability | null = null;
   let groundCap: GroundCapability | null = null;
   let lightCap: LightCapability | null = null;
+  // 后处理体积光管线（ADR-081 L2）：EffectComposer + UnrealBloomPass，仅在 volumetric engine=postprocess 时激活
+  let composer: any = null;
+  let bloomPass: any = null;
   let animId = 0;
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
@@ -411,6 +418,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       cam.aspect = viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1);
       cam.updateProjectionMatrix();
       rd.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+      if (composer) {
+        composer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+        if (bloomPass) {
+          bloomPass.resolution = new THREE.Vector2(viewContainer.clientWidth, viewContainer.clientHeight);
+        }
+      }
     };
     window.addEventListener("resize", onResize);
 
@@ -451,7 +464,44 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         ctr.update();
       }
       if (perFrame) perFrame(dt);
-      rd.render(sc, cam);
+      // ADR-081 L2：后处理体积光管线——引擎=postprocess 且 volumetric 启用时走 EffectComposer
+      const usePostProc = lightCap && lightCap.getVolumetricEngine() === "postprocess" && lightCap.getParams().volumetric.enabled;
+      if (usePostProc) {
+        // 延迟创建 composer（运行中切换引擎）
+        if (!composer) {
+          const w = Math.max(rd.domElement.width, 1);
+          const h = Math.max(rd.domElement.height, 1);
+          composer = new EffectComposer(rd);
+          composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          composer.setSize(w, h);
+          const rp = new RenderPass(scene as THREE.Scene, camera as THREE.PerspectiveCamera);
+          composer.addPass(rp);
+          bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(w, h),
+            0.5, 1.0, 0.3,
+          );
+          composer.addPass(bloomPass);
+          composer.addPass(new OutputPass());
+        }
+        // 每帧更新 bloom 参数——volumetric.opacity 控制 bloom 强度
+        // usePostProc 已保证 lightCap 非 null，此处断言
+        const lc = lightCap!;
+        if (bloomPass) {
+          const vol = lc.getParams().volumetric;
+          bloomPass.threshold = Math.max(0.1, 0.5 - vol.opacity * 0.3);
+          bloomPass.strength = vol.opacity * 1.5;
+          bloomPass.radius = vol.edgeFade * 0.5 + 0.1;
+        }
+        composer.render(dt);
+      } else if (composer && lightCap) {
+        // 引擎切回 cone 或 volumetric 关闭：销毁 composer
+        composer.dispose();
+        composer = null;
+        bloomPass = null;
+        rd.render(sc, cam);
+      } else {
+        rd.render(sc, cam);
+      }
     }
     animate();
   }
@@ -612,6 +662,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       // 个人灯光系统（ADR-081 L1）：释放聚光灯 + 体积光锥
       try {
         lightCap?.dispose();
+      } catch (_) {}
+      // 后处理体积光管线（ADR-081 L2）：释放 EffectComposer + bloom
+      try {
+        composer?.dispose();
+        composer = null;
+        bloomPass = null;
       } catch (_) {}
       // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
       // （stub 环境 Scene 未必实现 traverse，typeof 守卫避免误崩）

@@ -821,6 +821,13 @@ export const zhCN: Record<string, string> = {
   "preview.cameraRotation": "摄像机旋转",
   "preview.cameraSpeed": "摄像机速度",
   
+
+   "preview.spotlight": "顶光",
+   "preview.keyIntensity": "主光强度",
+   "preview.ambientIntensity": "环境光强度",
+   "preview.volumetricCone": "体积光锥",
+   "preview.coneAngle": "锥角",
+   "preview.lightPreset": "灯光预设",
    "preview.lighting": "灯光",
    "preview.cameraView": "摄像机视图",
   "preview.environment": "环境",

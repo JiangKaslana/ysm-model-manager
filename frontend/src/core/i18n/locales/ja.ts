@@ -819,6 +819,13 @@ export const ja: Record<string, string> = {
   "preview.cameraRotation": "カメラ回転",
   "preview.cameraSpeed": "カメラ速度",
   
+
+   "preview.spotlight": "スポットライト",
+   "preview.keyIntensity": "キーライト",
+   "preview.ambientIntensity": "アンビエント",
+   "preview.volumetricCone": "体積光コーン",
+   "preview.coneAngle": "コーン角",
+   "preview.lightPreset": "ライトプリセット",
    "preview.lighting": "照明",
    "preview.cameraView": "カメラビュー",
   "preview.environment": "環境",

@@ -818,6 +818,13 @@ export const en: Record<string, string> = {
   "preview.cameraRotation": "Camera Rotation",
   "preview.cameraSpeed": "Camera Speed",
   
+
+   "preview.spotlight": "Spotlight",
+   "preview.keyIntensity": "Key Light",
+   "preview.ambientIntensity": "Ambient",
+   "preview.volumetricCone": "Volumetric Cone",
+   "preview.coneAngle": "Cone Angle",
+   "preview.lightPreset": "Light Preset",
    "preview.lighting": "Lighting",
    "preview.cameraView": "Camera View",
   "preview.environment": "Environment",
