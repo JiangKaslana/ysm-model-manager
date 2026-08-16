@@ -221,6 +221,11 @@ export class SkyCapability {
     return this.params.timeOfDay;
   }
 
+  /** 当前是否联动 IBL 环境贴图（下拉开关初始化用） */
+  isEnvironmentEnabled(): boolean {
+    return this.params.environment;
+  }
+
   private detach(): void {
     if (this.sky.parent) this.sky.parent.remove(this.sky);
     this.clearEnvironment();

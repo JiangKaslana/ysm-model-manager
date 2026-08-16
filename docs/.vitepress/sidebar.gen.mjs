@@ -700,6 +700,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-075：3D 预览通用底部导航与环境共用菜单契约",
+        "link": "/adr/ADR-075-preview-bottom-nav-environment-menu"
+      },
+      {
         "text": "ADR-074：3D 骨骼层级通用工具：统一 YSM/MMD/VRM 的骨骼列表·拾取·显隐",
         "link": "/adr/ADR-074-bone-hierarchy-toolkit"
       },

@@ -39,11 +39,11 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| frontend/ui | 18 | 101 |
+| frontend/ui | 18 | 103 |
 | 前端·工具 | 91 | 327 |
 | frontend/views | 88 | 239 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **345** | **1439** |
+| **合计** | **345** | **1441** |
 
 ## Go·头像
 
@@ -1036,6 +1036,7 @@
 | `withLoadingIndicator()` | `frontend/src/ui/ui-helpers` | — |
 | `createSlideMenu()` | `frontend/src/ui/ui-helpers` | — |
 | `SlideMenuHandle()` | `frontend/src/ui/ui-helpers` | — |
+| `SlideMenuView()` | `frontend/src/ui/ui-helpers` | — |
 | `installSlideMenuStyles()` | `frontend/src/ui/ui-helpers` | — |
 | `slideMenuStyleSheet()` | `frontend/src/ui/ui-helpers` | — |
 | `withLoadingIndicator()` | `frontend/src/ui/ui-loading:10` | — |
@@ -1065,8 +1066,9 @@
 | `slideMenuCss()` | `frontend/src/ui/ui-slide-menu-styles:9` | — |
 | `slideMenuStyleSheet()` | `frontend/src/ui/ui-slide-menu-styles:165` | — |
 | `installSlideMenuStyles()` | `frontend/src/ui/ui-slide-menu-styles:169` | 将外壳样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
-| `SlideMenuHandle()` | `frontend/src/ui/ui-slide-menu:14` | — |
-| `createSlideMenu()` | `frontend/src/ui/ui-slide-menu:28` | 构建 slide-menu 卡片外壳。 |
+| `SlideMenuView()` | `frontend/src/ui/ui-slide-menu:19` | 单个菜单视图：标题 + 把内容渲染进给定的 list 容器。 |
+| `SlideMenuHandle()` | `frontend/src/ui/ui-slide-menu:26` | — |
+| `createSlideMenu()` | `frontend/src/ui/ui-slide-menu:54` | 构建 slide-menu 卡片外壳（含轻量导航栈）。 |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-slide-row` | — |
 | `TrailingAction()` | `frontend/src/ui/ui-slide-row:12` | — |
 | `createTrailingBtn()` | `frontend/src/ui/ui-slide-row:55` | 统一尾部第二动作按钮工厂——供 slideRow 与 menu.ts createRow 共用， 确保两条渲染路径的第二按钮观感与行为一致（22px .slide-add-btn； |
@@ -1527,10 +1529,10 @@
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:36` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:41` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:46` | 任意新预览派发时调用，作废在途 MMD 加载 |
-| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:29` | — |
-| `buildMmdBottomNav()` | `frontend/src/views/app-preview/mmd-controls:42` | 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） |
-| `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:207` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
-| `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:223` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
+| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:32` | — |
+| `buildMmdBottomNav()` | `frontend/src/views/app-preview/mmd-controls:45` | 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） |
+| `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:263` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
+| `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:279` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |

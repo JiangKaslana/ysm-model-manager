@@ -218,8 +218,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   // 程序化天空能力（ADR-073 L1）：shared 模式注入统一核心，四种模型零改动继承
   let skyCap: SkyCapability | null = null;
   let groundCap: GroundCapability | null = null;
-  /** 环境菜单（ADR-073 #1/#4 收口）：下拉 popover 的 document 点击关闭监听清理（声明前移，赋值在 L512 先于原声明位） */
-  let envMenuCleanup: (() => void) | null = null;
   let animId = 0;
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
@@ -316,6 +314,89 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     row.appendChild(label);
     row.appendChild(toggle);
     envMenu.list.appendChild(row);
+
+    // i18n 安全取值：键缺失时回退，杜绝菜单项退化显示原始键名（ADR-073 #1 教训）
+    const tr = (key: string, fallback: string): string => {
+      const v = t(key);
+      return v === key ? fallback : v;
+    };
+    const formatHour = (h: number): string =>
+      `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+
+    // --- 时间-of-day：联动天空太阳方位/高度（skyCap 在 shared 模式内才创建，此处用 ?. 延迟调用）---
+    const timeRow = document.createElement("div");
+    timeRow.className = "slide-item";
+    timeRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+    const timeHead = document.createElement("div");
+    timeHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
+    const timeName = document.createElement("span");
+    timeName.className = "slide-label";
+    timeName.textContent = tr("preview.timeOfDay", "时间");
+    const timeVal = document.createElement("span");
+    // 构建期 skyCap 尚未创建（shared 模式内才赋值），用默认值；交互时经闭包 skyCap?. 延迟调用
+    const initHour = 9;
+    timeVal.textContent = formatHour(initHour);
+    timeHead.append(timeName, timeVal);
+    const timeSlider = document.createElement("input");
+    timeSlider.type = "range";
+    timeSlider.min = "0";
+    timeSlider.max = "24";
+    timeSlider.step = "0.5";
+    timeSlider.value = String(initHour);
+    timeSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+    timeSlider.oninput = (): void => {
+      const h = Number(timeSlider.value);
+      skyCap?.setTime(h);
+      timeVal.textContent = formatHour(h);
+    };
+    timeRow.append(timeHead, timeSlider);
+    envMenu.list.appendChild(timeRow);
+
+    // --- 云量：0=晴空 1=多云，联动天空与 IBL 环境 ---
+    const cloudRow = document.createElement("div");
+    cloudRow.className = "slide-item";
+    cloudRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+    const cloudHead = document.createElement("div");
+    cloudHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
+    const cloudName = document.createElement("span");
+    cloudName.className = "slide-label";
+    cloudName.textContent = tr("preview.cloudCoverage", "云量");
+    const cloudVal = document.createElement("span");
+    cloudVal.textContent = "0%";
+    cloudHead.append(cloudName, cloudVal);
+    const cloudSlider = document.createElement("input");
+    cloudSlider.type = "range";
+    cloudSlider.min = "0";
+    cloudSlider.max = "1";
+    cloudSlider.step = "0.05";
+    cloudSlider.value = "0";
+    cloudSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+    cloudSlider.oninput = (): void => {
+      const v = Number(cloudSlider.value);
+      skyCap?.setCloudCoverage(v, false);
+      cloudVal.textContent = `${Math.round(v * 100)}%`;
+    };
+    cloudSlider.onchange = (): void => {
+      skyCap?.setCloudCoverage(Number(cloudSlider.value), true);
+    };
+    cloudRow.append(cloudHead, cloudSlider);
+    envMenu.list.appendChild(cloudRow);
+
+    // --- 环境光(IBL) 开关：可选 IBL 环境贴图联动（复用 createHeaderToggle，对齐地面行）---
+    const ibRow = document.createElement("div");
+    ibRow.className = "slide-item";
+    ibRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+    const ibLabel = document.createElement("span");
+    ibLabel.className = "slide-label";
+    ibLabel.textContent = tr("preview.environmentLight", "环境光(IBL)");
+    ibLabel.style.cssText = "flex:1;font-size:12px";
+    const ibToggle = createHeaderToggle({
+      value: true, // 构建期 skyCap 尚未创建（shared 模式内才赋值），默认开启；onChange 切换真实状态
+      onChange: (v: boolean): void => skyCap?.setEnvironmentEnabled(v),
+    });
+    ibRow.append(ibLabel, ibToggle);
+    envMenu.list.appendChild(ibRow);
+
     envBtn.onclick = (): void => {
       envPopup.style.display = envPopup.style.display === "none" ? "flex" : "none";
     };
@@ -403,116 +484,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // 地面（ADR-073 同款 caps/ 能力）：统一核心注入，各类型零改动继承
     groundCap = new GroundCapability({ scene });
     groundCap.apply();
-    // 环境菜单（ADR-073 #1/#2/#4 收口）：顶栏只留「环境」按钮，时间/云量/IBL 收进
-    // 下拉面板，清空顶栏滑块垃圾（避免与相机控件抢空间 + 修复 raw key 显示）。
-    // topBar 为 position:relative，下拉以 absolute 锚定按钮下方，点击外部自动关闭。
-    {
-      // i18n 安全取值：键缺失时返回 fallback，杜绝滑块退化显示原始键名（ADR-073 #1 教训）
-      const tr = (key: string, fallback: string): string => {
-        const v = t(key);
-        return v === key ? fallback : v;
-      };
-
-      const envBtn = document.createElement("button");
-      envBtn.className = "mode-btn"; // 🥉 ui/ 库透明按钮样式（§19）
-      envBtn.dataset.testid = "env-menu-btn"; // §19.1 data-testid 命名空间
-      envBtn.style.marginLeft = "8px";
-      envBtn.textContent = "🌐 " + tr("preview.environment", "环境");
-      topBar.appendChild(envBtn);
-
-      const menu = document.createElement("div");
-      menu.style.cssText =
-        "position:absolute;top:100%;right:0;margin-top:6px;min-width:210px;padding:10px 12px;" +
-        "background:rgba(20,21,38,0.98);border:1px solid rgba(255,255,255,0.15);border-radius:8px;" +
-        "box-shadow:0 8px 24px rgba(0,0,0,0.45);color:#fff;font-size:12px;display:none;z-index:50;" +
-        "flex-direction:column;gap:10px";
-      topBar.appendChild(menu);
-
-      let open = false;
-      const setOpen = (v: boolean): void => {
-        open = v;
-        menu.style.display = open ? "flex" : "none";
-      };
-      envBtn.onclick = (e): void => {
-        e.stopPropagation(); // 防冒泡触发 document 关闭监听
-        setOpen(!open);
-      };
-      menu.onclick = (e): void => e.stopPropagation();
-      const onDocClick = (): void => setOpen(false);
-      document.addEventListener("click", onDocClick);
-
-      // --- 时间-of-day：联动天空太阳方位/高度，四种模型共享同一 scene ---
-      const timeRow = document.createElement("div");
-      timeRow.style.cssText = "display:flex;flex-direction:column;gap:4px";
-      const formatHour = (h: number): string =>
-        `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
-      const timeHead = document.createElement("div");
-      timeHead.style.cssText = "display:flex;justify-content:space-between;color:rgba(255,255,255,0.7)";
-      const timeName = document.createElement("span");
-      timeName.textContent = tr("preview.timeOfDay", "时间");
-      const timeVal = document.createElement("span");
-      const initHour = skyCap.getTimeOfDay();
-      timeVal.textContent = formatHour(initHour);
-      timeHead.append(timeName, timeVal);
-      const timeSlider = document.createElement("input");
-      timeSlider.type = "range";
-      timeSlider.min = "0";
-      timeSlider.max = "24";
-      timeSlider.step = "0.5";
-      timeSlider.value = String(initHour);
-      timeSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-      timeSlider.oninput = (): void => {
-        const h = Number(timeSlider.value);
-        skyCap?.setTime(h);
-        timeVal.textContent = formatHour(h);
-      };
-      timeRow.append(timeHead, timeSlider);
-      menu.appendChild(timeRow);
-
-      // --- 云量：0=晴空 1=多云，联动天空与 IBL 环境 ---
-      const cloudRow = document.createElement("div");
-      cloudRow.style.cssText = "display:flex;flex-direction:column;gap:4px";
-      const cloudHead = document.createElement("div");
-      cloudHead.style.cssText = "display:flex;justify-content:space-between;color:rgba(255,255,255,0.7)";
-      const cloudName = document.createElement("span");
-      cloudName.textContent = tr("preview.cloudCoverage", "云量");
-      const cloudVal = document.createElement("span");
-      cloudVal.textContent = "0%";
-      cloudHead.append(cloudName, cloudVal);
-      const cloudSlider = document.createElement("input");
-      cloudSlider.type = "range";
-      cloudSlider.min = "0";
-      cloudSlider.max = "1";
-      cloudSlider.step = "0.05";
-      cloudSlider.value = "0";
-      cloudSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-      cloudSlider.oninput = (): void => {
-        const v = Number(cloudSlider.value);
-        skyCap?.setCloudCoverage(v, false);
-        cloudVal.textContent = `${Math.round(v * 100)}%`;
-      };
-      cloudSlider.onchange = (): void => {
-        skyCap?.setCloudCoverage(Number(cloudSlider.value), true);
-      };
-      cloudRow.append(cloudHead, cloudSlider);
-      menu.appendChild(cloudRow);
-
-      // --- 环境光(IBL) 开关：可选 IBL 环境贴图联动 ---
-      const ibRow = document.createElement("label");
-      ibRow.style.cssText = "display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.8);cursor:pointer";
-      const ibCb = document.createElement("input");
-      ibCb.type = "checkbox";
-      ibCb.checked = skyCap.isEnvironmentEnabled();
-      ibCb.style.cssText = "cursor:pointer;accent-color:var(--accent,#7c83ff)";
-      ibCb.onchange = (): void => skyCap?.setEnvironmentEnabled(ibCb.checked);
-      const ibName = document.createElement("span");
-      ibName.textContent = tr("preview.environmentLight", "环境光(IBL)");
-      ibRow.append(ibCb, ibName);
-      menu.appendChild(ibRow);
-
-      // 注册清理：移除 document 点击监听，防预览关闭后泄漏
-      envMenuCleanup = (): void => document.removeEventListener("click", onDocClick);
-    }
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
@@ -736,7 +707,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       window.removeEventListener("pointermove", onDragPointerMove);
       window.removeEventListener("resize", onResize);
       panelCleanup?.();
-      envMenuCleanup?.();
       // 内容层先释放自身资源，核心再回收外壳
       try {
         built?.dispose();
