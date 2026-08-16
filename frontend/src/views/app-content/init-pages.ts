@@ -226,3 +226,35 @@ export function initWorkshopPage(host: never): void {
 export function initGithubPage(host: never): void {
   _initGithubPage(host as never);
 }
+
+// ===== 3D 预览器页面 =====
+let _lastModelPath: string | null = null;
+
+/** 记住最后选中的模型路径，供 viewer 页面恢复 */
+export function rememberModelPath(path: string | null): void {
+  _lastModelPath = path;
+}
+
+export function getLastModelPath(): string | null {
+  return _lastModelPath;
+}
+
+/**
+ * 初始化 3D 预览器页
+ */
+export function initViewerPage(host: never): void {
+  const root = (host as unknown as { _root: ShadowRoot })._root;
+  // 恢复上次选中的模型
+  if (_lastModelPath) {
+    bus.emit("model:select", { path: _lastModelPath, isDir: false });
+  }
+  // 监听新的模型选择，更新工具栏显示
+  const unsub = bus.on("model:select", ({ path, isDir }) => {
+    _lastModelPath = path;
+    const el = root.getElementById("viewer-model-path");
+    if (el) {
+      el.textContent = path || "-";
+    }
+  });
+  (host as unknown as { _unsubs: Array<() => void> })._unsubs.push(unsub);
+}

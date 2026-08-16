@@ -35,12 +35,12 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     document.body.innerHTML = "";
   });
 
-  it("connected → 渲染 6 个导航项（初始 active 同源 resolveInitialPage）", async () => {
+  it("connected → 渲染 7 个导航项（含 3D 预览，初始 active 同源 resolveInitialPage）", async () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 7);
     const items = getAllByTestId(root, "nav-item");
-    expect(items.length).toBe(6);
+    expect(items.length).toBe(7);
     // 构造器与 PageStore 同源：nav_page 未保存时默认 repository，首个导航项 active
     // （旧行为硬编码幽灵值 "dashboard"，无任何项 active——启动高亮缺失的根因）
     const active = items.filter((i) => i.classList.contains("active"));
@@ -53,9 +53,10 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     isViewerModeMock.mockReturnValue(true); // Android/网页版
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 5);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
     const items = getAllByTestId(root, "nav-item");
-    expect(items.length).toBe(5); // repository/workshop/github/diagnostics/settings
+    // repository/viewer/workshop/github/diagnostics/settings = 6
+    expect(items.length).toBe(6);
     expect(items.some((i) => (i as HTMLElement).dataset.page === "instances")).toBe(false);
     expect(items.some((i) => (i as HTMLElement).dataset.page === "github")).toBe(true);
     expect(items.some((i) => (i as HTMLElement).dataset.page === "repository")).toBe(true);
@@ -66,11 +67,11 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
   it("点击 nav-item → 发射 nav:change", async () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 7);
     const spy = vi.fn();
     const offNav = bus.on("nav:change", spy);
     const items = getAllByTestId(root, "nav-item");
-    (items[1] as HTMLElement).click(); // 点击第二个（整合包管理）
+    (items[1] as HTMLElement).click(); // 点击第二个（整合包管理，viewer 插在实例之后第三位）
     expect(spy).toHaveBeenCalledWith({ page: "instances" });
     offNav();
     unmountElement(el);
@@ -79,7 +80,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
   it("nav:changed → 激活项高亮更新", async () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 7);
     bus.emit("nav:changed", { page: "settings" });
     await sleep(50);
     const items = getAllByTestId(root, "nav-item");
@@ -92,7 +93,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
   it("disconnected → 清理 nav:changed 订阅（P3 修复：原 expect(true) 恒真）", async () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 7);
     // 卸载前初始 active 为 repository
     unmountElement(el);
     // 断开后发射：若订阅已清理，已卸载元素的高亮不应被更新（仍为 repository）
@@ -120,7 +121,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
   it("折叠按钮：点击折叠为窄条（data-collapsed + 持久化），再点展开恢复", async () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 7);
     // 初始展开
     expect(el.hasAttribute("data-collapsed")).toBe(false);
     // 点击折叠
@@ -141,7 +142,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
   it("setCollapsed(persist=false) 折叠但不污染用户手动记忆", async () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 7);
     (el as unknown as { setCollapsed(c: boolean, p?: boolean): void }).setCollapsed(true, false);
     await sleep(50);
     expect(el.hasAttribute("data-collapsed")).toBe(true);
@@ -153,7 +154,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
   it("点击「🧭 导航栏」整行也能折叠（扩大触发区，label 可点）", async () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
-    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 7);
     expect(el.hasAttribute("data-collapsed")).toBe(false);
     // 点击 label 而非箭头按钮——事件挂在整行 menu-head 上
     (root.querySelector(".menu-label") as HTMLElement).click();

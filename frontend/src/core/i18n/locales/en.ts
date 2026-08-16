@@ -10,6 +10,7 @@ export const en: Record<string, string> = {
   "nav.repository": "Model Repository",
   "nav.instances": "Modpacks",
   "nav.label": "Navigation",
+  "nav.viewer": "3D Viewer",
   "nav.community": "Creators Channel",
   "nav.workshop": "Workshop",
   "nav.diagnostics": "Diagnostics",

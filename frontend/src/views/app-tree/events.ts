@@ -10,6 +10,7 @@ import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { can } from "../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { flashBtn } from "../../utils/dom/feedback.ts";
+import { rememberModelPath } from "../app-content/init-pages.ts";
 
 const ENABLE_MULTI_SELECT = true;
 
@@ -155,6 +156,7 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
       // 折叠时通知预览清空；展开时通知预览显示整合包
       if (!isOpen) {
         bus.emit("model:select", { path: dir, isDir: true });
+        rememberModelPath(null);
       }
       return;
     }
@@ -328,6 +330,7 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
       vm._renderTree();
       updateSelectCount(vm._root);
       bus.emit("model:select", { path: fullPath });
+      rememberModelPath(fullPath);
       return;
     }
   });

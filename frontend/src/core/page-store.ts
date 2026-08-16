@@ -17,7 +17,7 @@ import { bus, type PageName } from "../bus.ts";
  * default 分支却无对应 init 分发（死页，历史教训：resources 遗留值）。
  */
 const VALID_PAGES: PageName[] = [
-  "repository", "instances", "workshop", "github", "diagnostics", "settings",
+  "repository", "instances", "workshop", "github", "diagnostics", "settings", "viewer",
 ];
 
 // P3 修复（code_review）：导出白名单供 index.html 内联脚本经 window 桥接复用——

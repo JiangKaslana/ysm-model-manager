@@ -13,6 +13,7 @@ export const zhCN: Record<string, string> = {
   "nav.repository": "模型仓库",
   "nav.instances": "整合包管理",
   "nav.label": "导航栏",
+  "nav.viewer": "3D 预览",
   "nav.community": "创作者频道",
   "nav.workshop": "创意工坊",
   "nav.diagnostics": "诊断与冲突",

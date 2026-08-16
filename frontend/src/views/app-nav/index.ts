@@ -62,6 +62,7 @@ class AppNav extends HTMLElement {
     const items = [
       { id: "repository", icon: "📚", key: "nav.repository" },
       ...(isViewer ? [] : [{ id: "instances", icon: "🎮", key: "nav.instances" }]),
+      { id: "viewer", icon: "🎲", key: "nav.viewer" },
       { id: "workshop", icon: "🎨", key: "nav.community" },
       { id: "github", icon: "🧩", key: "nav.workshop" },
       { id: "diagnostics", icon: "🛠️", key: "nav.diagnostics" },

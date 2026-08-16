@@ -21,6 +21,7 @@ import {
   initWorkshopPage,
   initGithubPage,
   initSettingsPage,
+  initViewerPage,
 } from "./init-pages.ts";
 import { resetAvatarConfigLoaded } from "./init-workshop.ts";
 import {
@@ -30,6 +31,7 @@ import {
   diagnosticsHTML,
   workshopHTML,
   githubHTML,
+  viewerHTML,
 } from "./tpl.ts";
 
 import { friendlyError } from "../../utils/dom/errors.ts";
@@ -196,6 +198,9 @@ class AppContent extends HTMLElement {
         case "github":
           inner = githubHTML();
           break;
+        case "viewer":
+          inner = viewerHTML();
+          break;
         case "diagnostics":
         case "oldest":
           inner = diagnosticsHTML();
@@ -221,6 +226,8 @@ class AppContent extends HTMLElement {
         this._initWorkshop();
       } else if (this._current === "github") {
         this._initGithub();
+      } else if (this._current === "viewer") {
+        this._initViewer();
       } else if (this._current === "instances") {
         this._initInstances();
       } else if (this._current === "repository") {
@@ -318,6 +325,10 @@ class AppContent extends HTMLElement {
 
   _initGithub(): void {
     initGithubPage(this as never);
+  }
+
+  _initViewer(): void {
+    initViewerPage(this as never);
   }
 
   async _initSettings(): Promise<void> {
