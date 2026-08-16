@@ -102,6 +102,87 @@
 - deadcode 163 条 + auto-import 3 条存量基线债务——本 ADR 不清理，留待后续「存量债务清零」专项
 - check-circular 1 个环（mount-preview-core ↔ preview-menu）——降为非阻塞后报告但不强制解环；若后续 ADR-085 演进引入更多同类层双向 import，按 R2 翻转条件评估是否恢复阻断
 
+## 3.1 钩子分散面 + add.yml 可行性（2026-08-17 补充）
+
+### 钩子已分散什么
+
+| 钩子 | 已分散 | 未分散（AI 仍手动） |
+|------|--------|---------------------|
+| pre-commit | 11 个 gen 脚本 + gofmt 自动修复 + docs/ stage | tsc / build / vitest（AI 逐条跑） |
+| prepare-commit-msg | 知识卡漂移 + 覆盖率建议（非阻断 stderr） | — |
+| pre-push | 7 大域全量门禁（Go/前端/数据/文档/ADR/红线/契约） | — |
+
+**核心缺口**：pre-commit 只做 docs gen，没做 tsc/build/test 的组合——AI 必须逐条 bash 跑确认性循环。
+
+### add.yml 可行性
+
+**可行**。GitHub Actions 支持任意 `.yml` 文件名，只需新建 `.github/workflows/add.yml` 并定义 `on:` trigger。现有 4 个 workflow（ci.yml / pages-deploy.yml / release.yml / test.yml）已覆盖 CI 层。
+
+但 **add.yml 不该做**：重复 pre-push 已做的全量门禁。add.yml 的定位应是 **CI 层补 pre-push 不跑的项**（如 E2E / 跨平台构建 / 覆盖率上报），而非再加一层重复检查。
+
+### commit-with-check.mjs——把 AI 确认性循环压缩为单条命令
+
+**已落地**：`scripts/commit-with-check.mjs`（232 行）
+
+**核心洞察**：不是「加更多钩子」，而是**把 AI 的「确认性循环」变成单次命令**。
+
+现在的模式（~80 条指令/功能）：
+```
+AI: 改代码
+AI: 跑 tsc          ← 确认性循环
+AI: 跑 build        ← 确认性循环
+AI: 跑 test         ← 确认性循环
+AI: git add + commit
+AI: git log 确认    ← 确认性循环
+```
+
+应该是（~20 条指令/功能）：
+```
+AI: 改代码
+AI: node scripts/commit-with-check.mjs -m "..."  ← 单条命令：按域跑 tsc+build+test，全绿后自动 commit + 显示 SHA
+```
+
+**commit-with-check.mjs 覆盖的检查项**：
+
+| 域 | 检查项 | 耗时 |
+|----|--------|------|
+| Go | go build + go test | ~5s |
+| 前端 | tsc --noEmit + vite build + vitest run | ~35s |
+| 数据 | type-consistency | ~0.1s |
+| 文档 | link-checker | ~0.2s |
+| ADR | adr-check | ~0.1s |
+| 红线 | check-redlines | ~1.1s |
+
+**用法**：
+- `node scripts/commit-with-check.mjs -m "feat: xxx"` — 全流程（按 staged files 判断域）
+- `node scripts/commit-with-check.mjs -m "feat: xxx" --fast` — 跳过 vitest（仅 tsc+build）
+- `node scripts/commit-with-check.mjs -m "feat: xxx" --docs` — 仅文档域
+- `node scripts/commit-with-check.mjs --check` — 仅验证不提交
+
+### 量化指令节省（基于今天真实指令清单）
+
+**今天真实指令清单**（~80 条）：
+
+| 操作 | 指令数 | commit-with-check 替代后 |
+|------|--------|--------------------------|
+| 类型检查 | 6 | 0（脚本内跑） |
+| 构建验证 | 4 | 0（脚本内跑） |
+| 测试运行 | 7 | 0（脚本内跑） |
+| Git 提交 | 5 | 1（脚本自动 commit） |
+| 状态检查 | 10+ | 0（脚本自动显示 SHA + status） |
+| 文档同步 | 5 | 0（pre-commit 已做） |
+| 文档验证 | 3 | 0（脚本内跑 adr-check） |
+| ADR 生成 | 2 | 2（new-adr.mjs 不替代） |
+| 文件读写 | 30+ | 30+（不可替代） |
+| 后台编译 | 2 | 2（不替代） |
+
+**节省测算**：
+- 替代前：~80 条/功能
+- 替代后：~35 条/功能（文件读写 30+ + ADR 2 + 后台编译 2 + commit-with-check 1）
+- **目标**：从 ~80 条/功能降到 ~20 条/功能——需进一步压缩文件读写（子代理并行读）
+
+**翻转条件**：若 commit-with-check.mjs 的按域判断漏跑某项检查导致回归 → 补 `--full` 模式跑全量 pre-push-gate
+
 ## 4. 检查脚本星级 Top 表（附录 A）
 
 > 子代理 2026-08-17 抽查 scripts/check-*.mjs 头部注释 + 实测耗时，输出三星级评定。
