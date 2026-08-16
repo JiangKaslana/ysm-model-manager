@@ -183,7 +183,7 @@ export function computeBoneLocalPos(
 
 - [ADR-052](../adr/ADR-052-render-session-objectification.md) — RenderSession 对象化决策
 - [ADR-040](../adr/ADR-040-architecture-scale-governance.md) — 架构治理（拆分基准）
-- [ADR-047](../adr/ADR-047-pointer-events.md) — Pointer Events 统一
+- [ADR-047](../adr/ADR-047-android-usability-plan.md) — Pointer Events 统一
 - [go-threejs](./go-threejs.md) — spec 生成（Go 端）
 - [model2d](./model2d.md) — 2D 预览（同一坐标口径约束）
 - [app_preview](./app-preview.md) — 预览面板消费方

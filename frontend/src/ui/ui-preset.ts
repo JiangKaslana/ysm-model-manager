@@ -49,7 +49,7 @@ export function buildPresetChipGroup(
             ...(item.isActive
                 ? {
                       onUpdate: (btn: HTMLButtonElement) =>
-                          btn.classList.toggle('active', item.isActive!),
+                          btn.classList.toggle('active', item.isActive!()),
                   }
                 : {}),
         });

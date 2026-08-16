@@ -40,10 +40,10 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 16 | 92 |
-| 前端·工具 | 78 | 269 |
+| 前端·工具 | 79 | 270 |
 | frontend/views | 90 | 252 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **330** | **1375** |
+| **合计** | **331** | **1376** |
 
 ## Go·头像
 
@@ -783,9 +783,9 @@
 | `toast()` | `frontend/src/core/context-menu-shared:20` | 显示 toast 通知 |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:25` | 路径安全过滤：禁止逃逸段（. |
 | `resolveDstDir()` | `frontend/src/core/context-menu-shared:36` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
-| `registerContextMenus()` | `frontend/src/core/context-menus:56` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
-| `__TEST__resetDiary()` | `frontend/src/core/error-diary:30` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
-| `registerErrorDiary()` | `frontend/src/core/error-diary:52` | 注册 UI 报错落日记功能。 |
+| `registerContextMenus()` | `frontend/src/core/context-menus:69` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
+| `__TEST__resetDiary()` | `frontend/src/core/error-diary:29` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
+| `registerErrorDiary()` | `frontend/src/core/error-diary:51` | 注册 UI 报错落日记功能。 |
 | `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:17` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |
 | `registerGlobalHandlers()` | `frontend/src/core/handlers/global:12` | 注册所有 core 全局 handler，返回 unsub 函数数组（features/views 层注册由 app-content 编排） |
 | `registerInstanceOps()` | `frontend/src/core/handlers/instance-ops:10` | 注册整合包操作 handler，push 返回的取消订阅函数到 unsubs |
@@ -1229,6 +1229,7 @@
 | `isViewerMode()` | `frontend/src/utils/dom/android-bridge:24` | 查看器模式判定（ADR-049 Phase 3 能力门控统一入口）： Android（双端桥存在）或网页版（browser adapter）——均无本地文件系统写能力、 无桌面专属 |
 | `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:40` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
 | `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:53` | 系统返回键的前端触发入口：依次从栈顶触发已注册处理器。 |
+| `can()` | `frontend/src/utils/dom/capabilities:14` | 当前平台是否可用指定 binding（web 查 adapter 实现；桌面恒 true；Android viewer 假） |
 | `btnBaseCSS()` | `frontend/src/utils/dom/css:1` | — |
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter-util:6` | 筛选条件 |
@@ -1555,8 +1556,8 @@
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:16` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:123` | — |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:17` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:124` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:6` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:48` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |

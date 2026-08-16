@@ -377,7 +377,6 @@ export function addDangerRow(
         undefined,
         undefined,
         undefined,
-        undefined,
         {
             variant: 'danger',
             ...(testId ? { testId } : {}),
@@ -405,7 +404,6 @@ export function addFieldRow(
         label,
         false,
         () => {},
-        undefined,
         undefined,
         undefined,
         undefined,
