@@ -5,7 +5,7 @@
 // 通用外壳（overlay/renderer/循环/释放/根菜单切换面板）由 mount-preview-core.ts 拥有。
 // 边界：适配器 0 backend import（ADR-072），Go 绑定经 deps 注入。
 //
-// 已知限制：tint 面近似草绿（无 biome 数据），沿用 ADR-080 口径。
+// L4：tint 面按类别取 MC biome 默认色（plains；数据来源见 mc-tints.ts / ADR-080 §5.4）。
 
 import * as THREE from "three";
 import {
@@ -14,6 +14,7 @@ import {
   type JavaModelResult,
 } from "../parse-java-model.ts";
 import { screenshotFromRenderer } from "../screenshot.ts";
+import { loadMcTints, getTintColorSync } from "../mc-tints.ts";
 import type { PreviewAdapter, PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 
 /** Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） */
@@ -21,10 +22,9 @@ export interface PackDeps {
   readEntry(path: string, entry: string): Promise<string>;
 }
 
-/** tint 染色面近似色（无 biome 数据的兜底，ADR-080 已知限制） */
-/** MC Java 4 类 tint 颜色（tintindex → 默认色，biome 无关时近似默认绿色系）
- * 0=grass, 1=leaves, 2=water, 3=dead_bush；完整实现需 biome 数据，此处用通用近似 */
-const TINT_COLORS: number[] = [0x59ad47, 0x65b065, 0x3f76e4, 0x7c4e08];
+// tint 染色类别映射（tintindex → MC 染色类别；视觉近似，ADR-080 §5.4）
+// 0=grass, 1=leaves(foliage), 2=water, 3=dead_bush(固定色)
+const TINT_CATEGORY = ["grass", "foliage", "water", "dead_bush"] as const;
 const NO_TEX_FALLBACK = 0xcccccc;
 
 interface PackState {
@@ -52,7 +52,9 @@ async function textureFor(
 ): Promise<THREE.Material> {
   if (face.tintindex !== null) {
     const idx = Math.max(0, Math.min(3, face.tintindex));
-    return new THREE.MeshStandardMaterial({ color: TINT_COLORS[idx], transparent: true, opacity: 0.9, roughness: 1.0, metalness: 0.0 });
+    const cat = TINT_CATEGORY[idx];
+    const color = getTintColorSync(cat, "plains");
+    return new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.9, roughness: 1.0, metalness: 0.0 });
   }
   if (face.texColor) {
     return new THREE.MeshStandardMaterial({ color: parseInt(face.texColor.slice(1), 16), roughness: 1.0, metalness: 0.0 });
@@ -160,6 +162,13 @@ async function buildPackScene(
   if (!isRenderableModel(model!)) {
     ctx.loadingEl.remove();
     throw new Error(`资源包内模型无完整纹理引用: ${entryPath}`);
+  }
+
+  // 预载 MC biome tint 表（vendored minecraft-data，ADR-080 §5.4 L4）；失败则降级 plains 默认常量
+  try {
+    await loadMcTints();
+  } catch (e) {
+    console.warn("[pack-model] tint 表加载失败，使用 plains 默认色兜底:", e);
   }
 
   // 释放旧内容层（ADR-084 L2：switchTo 先 dispose 旧 group 再重建）

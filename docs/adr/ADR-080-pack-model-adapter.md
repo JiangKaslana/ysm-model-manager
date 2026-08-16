@@ -104,7 +104,7 @@ POC `parse-java-model.mjs` 纯 TS 移植（零依赖），加载抽象为 `read(
 | 项 | 状态 | 说明 |
 |----|------|------|
 | MC AO（4 段阴影） | 🟡 待定 / 非阻塞 | 依赖邻居块查询，单模型预览无邻居 → 实测全亮收益为 0；算法已备（卡 §1），需先合成 3×3×3 邻域或接受全亮 |
-| biome 正确 tint | 🔴 需范围决策 | 见 §5.4 可行性评估 |
+| biome 正确 tint（默认 plains） | ✅ 已落地（L4） | 默认 plains 色取 MC Wiki biome 表常量；water 用 vendored tints 表；全 biome 选择见 §5.4 |
 | NormalMap / Emissive | 🟢 确认放弃 | MC Java block model 格式几乎不用，加了无实际效果 |
 
 ### 5.4 biome 正确 tint 可行性评估（引入 `minecraft-data` tints 表）
@@ -113,6 +113,9 @@ POC `parse-java-model.mjs` 纯 TS 移植（零依赖），加载抽象为 `read(
 
 - `minecraft-data` 的 `tints.json`（1.21.4）仅 **8.1 KB**，结构为 `grass/foliage/water/redstone/constant` 各含 `data: [{keys:[biome名...], color:int24}, ...]`，即 **biome 名 → 打包 RGB（0xRRGGBB，解码 `r=(c>>16)&255, g=(c>>8)&255, b=c&255`）**。
 - **结论：不要引入 `minecraft-data` 整包（多版本多 MB）作为运行时依赖**。正确做法是**仅 vendoring 目标版本的 `tints.json`（~8KB）为静态资产**（`frontend/src/assets/` 或 `docs/data/`），零依赖、可审计、可随版本切换。
+
+> **L4 落地修正（重要发现）**：实现时证实 `tints` 表对**默认 biome 的 grass/foliage `color=0`**（哨兵：意为"需走 colormap 采样"），仅 **water 与例外 biome**（badlands/cherry_grove/dark_forest/swamp 等）存真实固定色。因此「vendoring tints.json 即得 biome 草/叶色」的假设**不成立**——tints 表本身不含默认 biome 草/叶色。
+> **L4 实际取值**：grass/foliage 默认用 **MC Wiki biome 颜色表**（Plains: temperature 0.8 / downfall 0.4 → 草 `#91BD59`、叶 `#77AB2F`，等价于对 grass.png/foliage.png colormap 在 plains 坐标采样的结果）；water 用 tints 表（`0x3F76E4`，与 MC Wiki 吻合）；`tints.json` 仍 vendored 供未来例外 biome / 全 biome 路径。colormap 运行时采样（canvas）为 L5 全 biome 选项的真正落地方式。
 
 **两个真实缺口 —— 决定能否"语义正确"（范围决策核心）：**
 
@@ -126,7 +129,7 @@ POC `parse-java-model.mjs` 纯 TS 移植（零依赖），加载抽象为 `read(
 
 | 目标 | 方案 | 工作量 | 推荐度 |
 |------|------|--------|--------|
-| 让草/叶/水"看起来对"（默认 plains） | vendoring `tints.grass/foliage/water[plains]` 作为新默认色，替换当前 `TINT_COLORS[4]` 硬编码 | 极小（~8KB 资产 + 数行查表） | ✅ **推荐做**（语义正确化，非近似） |
+| 让草/叶/水"看起来对"（默认 plains） | vendoring `tints.water[plains]`（0x3F76E4）+ grass/foliage 取 MC Wiki biome 表常量（#91BD59/#77AB2F，= colormap 采样） | 极小（~8KB 资产 + 数十行查表） | ✅ **已落地（L4）** |
 | 用户选 biome → 模型重染色 | 加 biome 下拉（~80 项）+ block→类别启发式/小表 + 重渲 | 中等 | 🟡 可选（需 §5.4 缺口 1/2 一并解决） |
 | 完整 MC biome 保真 | 引入 chunk/世界 biome 解析 | 大 | ❌ 不推荐（推倒重来红线，超出预览器定位） |
 

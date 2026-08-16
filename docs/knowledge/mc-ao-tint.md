@@ -13,7 +13,8 @@ use_when:
   - pack-model-adapter 材质升级后续（ADR-080）
   - 顶点色遮蔽权重
 invariant_anchors:
-  - frontend/src/utils/3d/adapters/pack-model-adapter.ts|TINT_COLORS
+  - frontend/src/utils/3d/adapters/pack-model-adapter.ts|TINT_CATEGORY
+  - frontend/src/utils/3d/mc-tints.ts|getTintColorSync
 ---
 
 # MC 环境光遮蔽(AO) 权重 + biome 配色 参考实现
