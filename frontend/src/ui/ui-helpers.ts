@@ -38,5 +38,5 @@ export type { PresetChipItem } from './ui-preset.ts';
 export { cardContainer } from './ui-card.ts';
 export { withLoadingIndicator } from './ui-loading.ts';
 export { createSlideMenu } from './ui-slide-menu.ts';
-export type { SlideMenuHandle } from './ui-slide-menu.ts';
+export type { SlideMenuHandle, SlideMenuView } from './ui-slide-menu.ts';
 export { installSlideMenuStyles, slideMenuStyleSheet } from './ui-slide-menu-styles.ts';

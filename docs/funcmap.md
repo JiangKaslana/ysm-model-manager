@@ -34,17 +34,17 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 180 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 17 | 84 |
+| frontend/backend | 17 | 86 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 91 | 327 |
+| 前端·工具 | 93 | 332 |
 | frontend/views | 88 | 239 |
 | 前端·WASM | 4 | 9 |
 | frontend/workers | 2 | 13 |
-| **合计** | **349** | **1461** |
+| **合计** | **351** | **1468** |
 
 ## Go·头像
 
@@ -765,19 +765,21 @@
 | `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:243` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:53` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:111` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:143` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:165` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:183` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:220` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:231` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:284` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:444` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:39` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
-| `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:44` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
-| `terminateStatsWorker()` | `frontend/src/backend/web-stats:51` | 终止并回收 Worker（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
-| `batchStatsWebModels()` | `frontend/src/backend/web-stats:132` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。 |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:50` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:108` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:140` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:162` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:180` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:217` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:228` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:281` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:441` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `WebModelStats()` | `frontend/src/backend/web-stats` | — |
+| `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
+| `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:43` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
+| `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:48` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
+| `terminateStatsWorker()` | `frontend/src/backend/web-stats:55` | 终止并回收 Worker（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
+| `batchStatsWebModels()` | `frontend/src/backend/web-stats:136` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。 |
 | `webStoreBindings()` | `frontend/src/backend/web-store:171` | — |
 | `YsmHeaderShape()` | `frontend/src/backend/ysm-header:36` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
 | `YsmSummaryShape()` | `frontend/src/backend/ysm-header:55` | YsmSummary（对齐 go/ysm/summary.go:48 YsmSummary json tag；animGroups/configMenus 一并平移） |
@@ -1102,12 +1104,17 @@
 | `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:182` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
 | `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:187` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:192` | — |
+| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:10` | — |
+| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
+| `PREVIEW_MENU_DEFS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:31` | 核心根菜单项（适配器专属项在 Phase 2 经契约注入） |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:17` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:35` | 挂载预览声明式根菜单，返回解绑函数（preview 拆卸时移除 document 监听，防泄漏） |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:52` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:63` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:112` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
-| `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:22` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
-| `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:32` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
-| `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:39` | 构造 VRM 骨骼面板渲染器（extraPanel 契约）。 |
+| `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:20` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
+| `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:30` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
+| `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:36` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:23` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
@@ -1649,8 +1656,8 @@
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
 | `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:59` | — |
-| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:19` | — |
-| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:186` | — |
+| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:17` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:193` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |

@@ -67,7 +67,7 @@
 | `views/` | 页面级视图组件（app-content / app-tree / app-preview 等） 〔子目录 9: app-content/ app-nav/ app-preview/ app-resource-manager/ app-sidebar/ app-sync-manager/ app-toast/ app-tree/ context-menu/〕 |
 | `wasm/` | WASM 生成数据（base64 豁免文件） 〔源码 4: ysm-glue-data.js ysm-parser.ts ysm-wasm-data.js ysm-worker-loader.ts〕 |
 | `web-spike/` | 网页版 spike 入口（main.ts，构建/冒烟验证） 〔源码 1: main.ts〕 |
-| `workers/` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） 〔源码 3: stats-core.ts stats-protocol.ts stats.worker.ts〕 |
+| `workers/` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） 〔源码 3: stats-core.ts stats-protocol.ts stats.worker.ts · 测试 1〕 |
 | `app-modules.test.ts` | app-modules 主题/隐私模式启动链测试（normalizeTheme / safeGet / initTheme / applyUIPrefs） |
 | `app-modules.ts` | 组件入口 + 右键菜单映射 |
 | `bus.test.ts` | 事件总线测试 |
