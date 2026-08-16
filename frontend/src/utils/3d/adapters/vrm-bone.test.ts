@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== VRM Humanoid bones 提取适配测试（vrm-bone.ts）=====
 // 覆盖：标准骨骼命名提取 / 沿 scene 父链推导 parentId / 无 humanoid 降级空树 /
 // 层级树构建一步到位。用 fake VRM 对象（结构对齐 three-vrm VRMHumanoid）。

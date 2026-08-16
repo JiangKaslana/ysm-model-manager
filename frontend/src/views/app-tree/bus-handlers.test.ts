@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== app-tree bus 事件处理测试（bindBusEvents）=====
 // 覆盖：选仓库 / 去重占位 / 回收站占位 / 批量启用禁用（前缀过滤+并发守卫）/
 //       文件夹重命名/新建/回收 / 批量重命名（空目录/成功/部分失败）/ tree:reload
@@ -73,6 +74,11 @@ vi.mock("../../utils/dom/dialogs/modal.ts", () => ({
 
 vi.mock("../../utils/dom/dialogs/batch-rename.ts", () => ({
   showBatchRenameDialog: showBatchRenameDialogMock,
+}));
+
+// node 环境无 window，capabilities.ts → android-bridge.ts 访问 window 会崩溃
+vi.mock("../../utils/dom/capabilities.ts", () => ({
+  can: vi.fn(() => true),
 }));
 
 import { bindBusEvents } from "./bus-handlers.ts";

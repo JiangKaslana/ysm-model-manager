@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== mmd-siblings 视图壳数据准备测试 =====
 // 覆盖：resolveMmdSiblings（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表，
 // filter .pmx/.pmd；根为空/扫描失败 → []，下拉不渲染）。

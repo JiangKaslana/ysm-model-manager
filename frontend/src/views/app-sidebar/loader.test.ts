@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== sidebar MMD 变体聚合纯函数测试 =====
 // groupMmdVariants：按父文件夹聚合 .pmx 变体 / 单层路径自身为组 / Windows 分隔符归一 / 去重。
 // loadInstances：失败路径 toast + loading:start/end 配对（此前零测试覆盖）。
@@ -14,6 +15,11 @@ vi.mock("../../../bindings/ysm-model-manager/internal/app/app.js", () => ({
   GetResourceInstanceStatus: vi.fn(),
   GetRepoRoot: vi.fn(),
 }));
+
+// node 环境无 window，getApp() 在 app.ts 中访问 window.go 前就崩溃。
+// mock 整个 app.ts 使 loadInstances 直接拿到 mock bindings。
+const { getAppMock } = vi.hoisted(() => ({ getAppMock: vi.fn() }));
+vi.mock("../../backend/app.ts", () => ({ getApp: getAppMock }));
 
 describe("groupMmdVariants", () => {
   it("按父文件夹聚合 missing/extra 变体", () => {
@@ -65,11 +71,21 @@ describe("groupMmdVariants", () => {
 });
 
 describe("loadInstances", () => {
+  /** 设置 getAppMock 返回 mock bindings，返回各 mock 函数供测试配置 */
+  function mockBindings() {
+    const mocks = {
+      LoadAppConfig: vi.fn(),
+      ListVersionInstances: vi.fn(),
+      GetResourceInstanceStatus: vi.fn(),
+      GetRepoRoot: vi.fn(),
+    };
+    getAppMock.mockResolvedValue(mocks);
+    return mocks;
+  }
+
   it("加载失败 → 空列表 + toast 提示 + loading:start/end 配对", async () => {
-    const { LoadAppConfig } = await import(
-      "../../../bindings/ysm-model-manager/internal/app/app.js"
-    );
-    (LoadAppConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("boom"));
+    const { LoadAppConfig } = mockBindings();
+    LoadAppConfig.mockRejectedValue(new Error("boom"));
     const seq: string[] = [];
     const toasts: Array<{ msg?: string }> = [];
     const offs = [
@@ -89,10 +105,8 @@ describe("loadInstances", () => {
   });
 
   it("mcRoot 未配置 → 空列表且不 toast（非错误场景）", async () => {
-    const { LoadAppConfig } = await import(
-      "../../../bindings/ysm-model-manager/internal/app/app.js"
-    );
-    (LoadAppConfig as ReturnType<typeof vi.fn>).mockResolvedValue({ mcRoot: "" });
+    const { LoadAppConfig } = mockBindings();
+    LoadAppConfig.mockResolvedValue({ mcRoot: "" });
     const toasts: Array<{ msg?: string }> = [];
     const off = bus.on("toast:show", (p) => toasts.push(p));
     try {
@@ -105,17 +119,15 @@ describe("loadInstances", () => {
   });
 
   it("成功加载 → 转换实例并按 hasMod 优先 + synced 降序排序", async () => {
-    const app = await import(
-      "../../../bindings/ysm-model-manager/internal/app/app.js"
-    );
-    (app.LoadAppConfig as ReturnType<typeof vi.fn>).mockResolvedValue({ mcRoot: "/mc" });
-    (app.ListVersionInstances as ReturnType<typeof vi.fn>).mockResolvedValue([
+    const { LoadAppConfig, ListVersionInstances, GetResourceInstanceStatus, GetRepoRoot } = mockBindings();
+    LoadAppConfig.mockResolvedValue({ mcRoot: "/mc" });
+    ListVersionInstances.mockResolvedValue([
       { Name: "NoMod", VersionDir: "/v/nomod", Exists: true },
       { Name: "A", VersionDir: "/v/a", Exists: true },
       { Name: "B", VersionDir: "/v/b", Exists: true },
     ]);
-    (app.GetRepoRoot as ReturnType<typeof vi.fn>).mockResolvedValue("/repo");
-    (app.GetResourceInstanceStatus as ReturnType<typeof vi.fn>).mockResolvedValue([
+    GetRepoRoot.mockResolvedValue("/repo");
+    GetResourceInstanceStatus.mockResolvedValue([
       { Name: "NoMod", Missing: ["x"], Extra: [], Synced: 5, HasMod: false },
       { Name: "A", Missing: [], Extra: [], Synced: 3, HasMod: true },
       { Name: "B", Missing: [], Extra: [], Synced: 9, HasMod: true },

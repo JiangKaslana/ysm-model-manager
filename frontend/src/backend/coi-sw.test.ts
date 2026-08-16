@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== COI Service Worker 注册测试（ADR-079 M1）=====
 // 仅网页版注册；首次注册 reload 一次（localStorage 标记防循环）；已控制/已隔离不 reload。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

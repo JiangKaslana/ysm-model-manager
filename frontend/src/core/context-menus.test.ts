@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== context-menus 映射测试（ADR-021 A 层）=====
 // 触发 ctx:show → 断言 menu:show 载荷与 menu-defs.ts 声明一致；
 // 点击 item → 断言 handler 发出正确的 bus 事件 / getApp 调用。
