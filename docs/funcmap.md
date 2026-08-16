@@ -34,17 +34,17 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 180 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 17 | 94 |
+| frontend/backend | 18 | 96 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 93 | 336 |
+| 前端·工具 | 93 | 337 |
 | frontend/views | 88 | 245 |
 | 前端·WASM | 4 | 9 |
 | frontend/workers | 2 | 14 |
-| **合计** | **351** | **1487** |
+| **合计** | **352** | **1490** |
 
 ## Go·头像
 
@@ -683,9 +683,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `normalizeTheme()` | `frontend/src/app-modules:67` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
-| `applyTheme()` | `frontend/src/app-modules:71` | — |
-| `initTheme()` | `frontend/src/app-modules:96` | — |
+| `normalizeTheme()` | `frontend/src/app-modules:68` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
+| `applyTheme()` | `frontend/src/app-modules:72` | — |
+| `initTheme()` | `frontend/src/app-modules:97` | — |
 | `bus()` | `frontend/src/bus:204` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
@@ -718,6 +718,8 @@
 | `onStatsProgress()` | `frontend/src/backend/browser-adapter` | — |
 | `getStatsPoolSize()` | `frontend/src/backend/browser-adapter` | — |
 | `browserAdapter()` | `frontend/src/backend/browser-adapter:67` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `isCrossOriginIsolated()` | `frontend/src/backend/coi-sw:14` | 当前是否已跨源隔离（SW 补头后 crossOriginIsolated=true；供多线程 WASM 分支） |
+| `registerCoiServiceWorker()` | `frontend/src/backend/coi-sw:19` | 注册 COI SW（网页版）：首次注册后 reload 一次让浏览器重新导航经 SW（解锁跨源隔离） |
 | `ZipEntryMeta()` | `frontend/src/backend/extract:32` | ZIP 中央目录条目元数据（pre-parse 产物） |
 | `ExtractResult()` | `frontend/src/backend/extract:48` | extractZip 返回值 |
 | `ZipType()` | `frontend/src/backend/extract:56` | detectZipType 返回值 |
@@ -1112,14 +1114,15 @@
 | `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:186` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
 | `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:191` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:196` | — |
-| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:10` | — |
-| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
-| `PREVIEW_MENU_DEFS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:37` | 核心根菜单项（适配器专属项在 Phase 2 经契约注入） |
-| `DockGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:78` | dock 底栏分组（🧍 模型 / 💃 动作 / 🌍 场景）：每组一个底栏按钮，点击弹窗动态生成组内子菜单 |
-| `DOCK_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:83` | — |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:18` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:36` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项（Phase 2 契约）；openPanel 直接打开指定面板（骨骼拾取联动） |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:43` | 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） |
+| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:11` | — |
+| `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
+| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:14` | — |
+| `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:41` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
+| `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:47` | — |
+| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:59` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:19` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:37` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:44` | 挂载预览底部根菜单，返回句柄 |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:53` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:64` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:113` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |

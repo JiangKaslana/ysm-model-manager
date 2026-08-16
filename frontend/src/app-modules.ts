@@ -5,6 +5,7 @@ import { register } from "./services/registry.ts";
 import { Window } from "@wailsio/runtime";
 import { getApp } from "./backend/app.ts";
 import { registerErrorDiary } from "./core/error-diary.ts";
+import { registerCoiServiceWorker } from "./backend/coi-sw.ts";
 import { initI18n } from "./core/i18n/locale.ts";
 import { friendlyError } from "./utils/dom/errors.ts";
 import { checkUpdateSilent } from "./features/version-updater.ts";
@@ -114,6 +115,9 @@ export async function initTheme() {
 // 启动初始化
 (async () => {
   registerErrorDiary();
+  // ADR-079 M1：网页版注册 COI Service Worker（补 COOP/COEP → crossOriginIsolated，
+  // 为 pthread WASM 铺路；渐进增强，失败静默降级单线程）
+  registerCoiServiceWorker();
   await initI18n();
   try {
     await import("./views/app-nav/index.ts");
