@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
+import type { VRM0Meta } from "@pixiv/three-vrm-core";
 import { t } from "../../../core/i18n/t.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts";
 import { buildVrmBoneTree } from "./vrm-bone.ts";
@@ -16,6 +17,13 @@ import { createBlinkController } from "../perception/blink.ts"; // 语义表情�
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { BoneTree } from "../bone-tools.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import {
+  listVrmMaterials,
+  getVrmMaterialDetail,
+  setVrmMaterialVisible,
+  setVrmMaterialOpacity,
+} from "../vrm-materials.ts";
+import { makeVrmPanelRenderer } from "../../../views/app-preview/vrm-controls.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -64,6 +72,14 @@ export interface VrmMetaInfo {
   contact?: string;
   thumbnail?: string; // dataURL，空串表示无缩略图
   metaVersion: "0" | "1";
+  /** VRM0 授权约束徽章（Vrm0Restrictions），VRM1 无此字段 */
+  restrictions?: {
+    allowedUser: "everyone" | "licensed" | "onlyAuthor";
+    commercial: boolean;
+    sexual: boolean;
+    violent: boolean;
+    reference?: string;
+  };
 }
 
 /** 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null */
@@ -88,6 +104,7 @@ export async function readVrmMeta(
     const meta = vrm.meta;
     let info: VrmMetaInfo;
     if (meta.metaVersion === "0") {
+      const m = meta as VRM0Meta;
       info = {
         metaVersion: "0",
         name: meta.title || "",
@@ -96,6 +113,15 @@ export async function readVrmMeta(
         license: meta.licenseName ? meta.licenseName + (meta.otherLicenseUrl ? " · " + meta.otherLicenseUrl : "") : undefined,
         contact: meta.contactInformation,
         thumbnail: meta.texture ? imageToDataURL(meta.texture) : "",
+        restrictions: {
+          allowedUser: m.allowedUserName === "Everyone" ? "everyone"
+            : m.allowedUserName === "ExplicitlyLicensedPerson" ? "licensed"
+            : "onlyAuthor",
+          commercial: m.commercialUssageName === "Allow",
+          sexual: m.sexualUssageName === "Allow",
+          violent: m.violentUssageName === "Allow",
+          reference: m.reference || undefined,
+        },
       };
     } else {
       info = {
@@ -169,6 +195,16 @@ export async function buildVrmScene(
   // 菜单表提取为可导出 vrmMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
   const bonePanelRef: { current: (() => void) | null } = { current: null };
   const boneTree = buildVrmBoneTree(vrm);
+
+  // VRM 材质收集：vrm.scene.traverse 取所有 Mesh.material（含数组材质）
+  const vrmMaterials: THREE.Material[] = [];
+  vrm.scene.traverse((child: THREE.Object3D) => {
+    if (!(child as THREE.Mesh).isMesh) return;
+    const mesh = child as THREE.Mesh;
+    const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    vrmMaterials.push(...mats);
+  });
+
   ctx.menu.setAdapterItems(
     vrmMenuItems({
       bonePanel: {
@@ -177,6 +213,14 @@ export async function buildVrmScene(
         camera: ctx.camera,
         scene: ctx.scene,
         cleanupRef: bonePanelRef,
+      },
+      material: {
+        list: () => listVrmMaterials(vrmMaterials),
+        getDetail: (i: number) => getVrmMaterialDetail(vrmMaterials, i),
+        setVisible: (i: number, v: boolean) => setVrmMaterialVisible(vrmMaterials, i, v),
+        setOpacity: (i: number, o: number) => {
+          setVrmMaterialOpacity(vrmMaterials, i, o);
+        },
       },
     }),
   );
@@ -248,14 +292,33 @@ export interface VrmMenuItemsOpts {
     scene: THREE.Object3D | null | undefined;
     cleanupRef: { current: (() => void) | null };
   };
+  /** VRM 材质桥：vrm.scene 遍历的 Mesh.material 列表（与 MMD MaterialControlBridge 对齐）*/
+  material: {
+    list: () => ReturnType<typeof listVrmMaterials>;
+    getDetail: (i: number) => ReturnType<typeof getVrmMaterialDetail>;
+    setVisible: (i: number, v: boolean) => void;
+    setOpacity: (i: number, o: number) => void;
+  };
 }
 
 /**
- * VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼。
+ * VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。
  * 提取为可导出表：适配器与测试共用同一份真实数组（对齐 MikuMikuAR），加菜单项只改这里。
  */
 export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
   return [
+    {
+      id: "material",
+      icon: "🎨",
+      labelKey: "preview.materialList",
+      fallback: "材质",
+      kind: "panel",
+      legacyTestId: "vrm-material-entry",
+      dockGroup: "model",
+      render: (list): void => {
+        makeVrmPanelRenderer(o.material)(list);
+      },
+    },
     {
       id: "bones",
       icon: "🦴",

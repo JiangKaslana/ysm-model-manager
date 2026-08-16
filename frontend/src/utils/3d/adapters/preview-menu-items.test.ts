@@ -73,7 +73,15 @@ function fakeBonePanel() {
 }
 
 function fakeVrmOpts(): VrmMenuItemsOpts {
-  return { bonePanel: fakeBonePanel() };
+  return {
+    bonePanel: fakeBonePanel(),
+    material: {
+      list: () => [{ index: 0, name: "Body" }],
+      getDetail: () => ({ index: 0, name: "Body", visible: true, opacity: 1, transparent: false, type: "mtoon" }),
+      setVisible: vi.fn(),
+      setOpacity: vi.fn(),
+    },
+  };
 }
 
 /** 环境能力假 cap（environment 面板 requiresEnvironment 过滤 + 渲染用） */
@@ -171,7 +179,7 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
   });
 
   it("vrm 骨骼项齐全且归 🧍 模型组（dock 可达）", () => {
-    expect(vrmItems.map((d) => d.id)).toEqual(["bones"]);
+    expect(vrmItems.map((d) => d.id)).toEqual(["material", "bones"]);
     vrmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
   });
 
@@ -194,6 +202,7 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
       "mmd-material-entry",
       "mmd-play-entry",
       "mmd-bones-entry",
+      "vrm-material-entry",
       "vrm-bones-entry",
       "mmd-switch",
       "env-menu-btn",
@@ -301,6 +310,13 @@ describe("面板渲染（安全 panel 逐个打开）", () => {
     const { overlay, handle } = mountWith(mmdMenuItems(fakeMmdOpts()));
     handle.openPanel("material");
     expect(overlay.querySelector('[data-testid="mmd-mat-0"]')).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("vrm material 面板：材质行渲染（data-testid=vrm-mat-<i>）", () => {
+    const { overlay, handle } = mountWith(vrmMenuItems(fakeVrmOpts()));
+    handle.openPanel("material");
+    expect(overlay.querySelector('[data-testid="vrm-mat-0"]')).not.toBeNull();
     handle.dispose();
   });
 
