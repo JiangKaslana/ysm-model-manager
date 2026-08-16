@@ -142,22 +142,18 @@ AI: 改代码
 AI: node scripts/commit-with-check.mjs -m "..."  ← 单条命令：按域跑 tsc+build+test，全绿后自动 commit + 显示 SHA
 ```
 
-**commit-with-check.mjs 覆盖的检查项**：
+**commit-with-check.mjs 检查项（2026-08-17 重构为 thin wrapper）**：
 
-| 域 | 检查项 | 耗时 |
-|----|--------|------|
-| Go | go build + go test | ~5s |
-| 前端 | tsc --noEmit + vite build + vitest run | ~35s |
-| 数据 | type-consistency | ~0.1s |
-| 文档 | link-checker | ~0.2s |
-| ADR | adr-check | ~0.1s |
-| 红线 | check-redlines | ~1.1s |
+**不再自维护检查清单**——检查全部委托 `pre-push-gate.mjs`：
+- 默认：`pre-push-gate --all --dry-run`（Go build/test/vet + 前端 tsc/build/vitest + 数据 + 文档 + ADR + 红线 + 契约测试 + 静态工具，单一实现源头）
+- `--docs`：`pre-push-gate --docs --dry-run`（文档/ADR/索引/静态文档工具）
+- 耗时：--all 约 45-75s（含 vitest + 契约测试）；--docs 约 2s
 
 **用法**：
-- `node scripts/commit-with-check.mjs -m "feat: xxx"` — 全流程（按 staged files 判断域）
-- `node scripts/commit-with-check.mjs -m "feat: xxx" --fast` — 跳过 vitest（仅 tsc+build）
-- `node scripts/commit-with-check.mjs -m "feat: xxx" --docs` — 仅文档域
+- `node scripts/commit-with-check.mjs -m "feat: xxx"` — 全量门禁 + 提交
+- `node scripts/commit-with-check.mjs -m "feat: xxx" --docs` — 仅文档域门禁 + 提交
 - `node scripts/commit-with-check.mjs --check` — 仅验证不提交
+- `--fast` 已移除（thin wrapper 统一全量门禁，不再支持跳过 vitest）
 
 ### 量化指令节省（基于今天真实指令清单）
 
@@ -306,7 +302,7 @@ AI: node scripts/commit-with-check.mjs -m "..."  ← 单条命令：按域跑 ts
 | **pre-commit 合计** | **~1.5s** | **10%** | **0.17%** |
 | commit-with-check（前端域） | ~35s | 233% | 3.9% | 
 
-**结论**：git hook 侧的性能损耗小到可忽略（合计 < 1.5s，占功能周期 0.17%）。真正占思考/功能周期的是 commit-with-check 的 35s 前端验证——但那是「一次功能收口」而非「每轮思考」，可接受；若嫌慢可 `--fast` 跳过 vitest。
+**结论**：git hook 侧的性能损耗小到可忽略（合计 < 1.5s，占功能周期 0.17%）。真正占思考/功能周期的是 commit-with-check 全量门禁（约 45-75s，含 vitest + 契约测试）——但那是「一次功能收口」而非「每轮思考」，可接受；文档-only 场景用 `--docs` 可压到 ~2s。
 
 ## 6. 数据溯源
 
