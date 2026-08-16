@@ -7,7 +7,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("three", () => {
   class Scene {
     background: unknown;
+    children: unknown[] = [];
     add = vi.fn();
+    remove = vi.fn();
   }
   class Color {
     constructor(..._a: unknown[]) {}
@@ -24,11 +26,18 @@ vi.mock("three", () => {
     }
   }
   class WebGLRenderer {
-    domElement = document.createElement("div");
+    domElement: HTMLElement;
     setSize = vi.fn();
     setPixelRatio = vi.fn();
     render = vi.fn();
     dispose = vi.fn();
+    constructor(..._a: unknown[]) {
+      this.domElement = document.createElement("div");
+      // 拖拽 handler（onDragPointerDown/Move/Up）会调用 pointer capture API
+      this.domElement.setPointerCapture = vi.fn();
+      this.domElement.hasPointerCapture = vi.fn(() => false);
+      this.domElement.releasePointerCapture = vi.fn();
+    }
   }
   class AmbientLight {
     constructor(..._a: unknown[]) {}
@@ -99,6 +108,60 @@ vi.mock("three", () => {
       this.z = z;
     }
   }
+  // 以下为 ADR-081/073 3D 重构新增、本测试 three 全 stub 需补齐的符号
+  class Box3 {
+    min = new Vector3();
+    max = new Vector3();
+    setFromObject = vi.fn(() => this);
+    getCenter = vi.fn((t: Vector3) => t);
+    getSize = vi.fn((t: Vector3) => t);
+    constructor(..._a: unknown[]) {}
+  }
+  class Group {
+    add = vi.fn();
+    position = { set: vi.fn() };
+    constructor(..._a: unknown[]) {}
+  }
+  class Mesh {
+    geometry = { dispose: vi.fn() };
+    material = { dispose: vi.fn() };
+    position = { set: vi.fn() };
+    constructor(..._a: unknown[]) {}
+  }
+  class Material {
+    dispose = vi.fn();
+    constructor(..._a: unknown[]) {}
+  }
+  class PlaneGeometry {
+    dispose = vi.fn();
+    constructor(..._a: unknown[]) {}
+  }
+  class ShaderMaterial {
+    dispose = vi.fn();
+    constructor(..._a: unknown[]) {}
+  }
+  class SpotLight {
+    position = { set: vi.fn() };
+    constructor(..._a: unknown[]) {}
+  }
+  class Texture {
+    constructor(..._a: unknown[]) {}
+  }
+  class Vector2 {
+    constructor(..._a: unknown[]) {}
+  }
+  class WebGLRenderTarget {
+    constructor(..._a: unknown[]) {}
+  }
+  class PMREMGenerator {
+    compileEquirectangularShader = vi.fn();
+    fromScene = vi.fn(() => ({ texture: {} }));
+    constructor(..._a: unknown[]) {}
+  }
+  const ACESFilmicToneMapping = 0;
+  const AdditiveBlending = 0;
+  const DoubleSide = 0;
+  const ToneMapping = 0;
   return {
     Scene,
     Color,
@@ -113,6 +176,21 @@ vi.mock("three", () => {
     InstancedMesh,
     Euler,
     Vector3,
+    Box3,
+    Group,
+    Mesh,
+    Material,
+    PlaneGeometry,
+    ShaderMaterial,
+    SpotLight,
+    Texture,
+    Vector2,
+    WebGLRenderTarget,
+    PMREMGenerator,
+    ACESFilmicToneMapping,
+    AdditiveBlending,
+    DoubleSide,
+    ToneMapping,
     _instancedMeshInstances: instancedMeshInstances,
     _cameraInstances: cameraInstances,
   };
@@ -148,6 +226,20 @@ vi.mock("../../utils/3d/caps/sky-capability.ts", () => ({
     getTimeOfDay = vi.fn(() => 12);
     setTime = vi.fn();
     setCloudCoverage = vi.fn();
+    constructor() {}
+  },
+}));
+// ADR-081 LightCapability 依赖真实 WebGL/THREE（聚光灯/体积光锥/方向光 position.copy），
+// 本测试 three 全 stub 无 WebGL——mock 为 no-op，隔离体素渲染逻辑（同 SkyCapability）。
+vi.mock("../../utils/3d/caps/light-capability.ts", () => ({
+  LightCapability: class {
+    apply = vi.fn();
+    dispose = vi.fn();
+    setPreset = vi.fn();
+    setTarget = vi.fn();
+    setTargetHeight = vi.fn();
+    getVolumetricEngine = vi.fn(() => "none");
+    getParams = vi.fn(() => ({ volumetric: { enabled: false } }));
     constructor() {}
   },
 }));
@@ -304,21 +396,27 @@ describe("体素数据处理", () => {
 });
 
 describe("控件交互", () => {
-  it("旋转模式切换 + 速度滑块更新显示（dock 场景组 → 视图面板）", async () => {
+  it("旋转模式切换 + 速度滑块更新显示（camera 面板 buildCameraControls）", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    // 打开 dock 场景组（🌍）→ 测试环境无 sky/ground cap，scene 组仅 camera 一项 → 快捷直达相机面板
-    const dockScene = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
-    dockScene.click();
-    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
-    const sel = popup.querySelector("select") as HTMLSelectElement;
-    const spd = popup.querySelector('input[type="range"]') as HTMLInputElement;
+    // 旋转模式 / 速度滑块由 buildCameraControls 挂在 camera 面板（SlideMenu 弹层内，
+    // 懒渲染），需先 dock-scene → preview-camera 下钻才生成。
+    const dock = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
+    dock.click();
+    const camRow = overlay.querySelector('[data-testid="preview-camera"]') as HTMLElement;
+    expect(camRow).toBeTruthy();
+    camRow.click();
+    const sel = overlay.querySelector('[data-testid="mmd-rot-mode"]') as HTMLSelectElement;
+    expect(sel).toBeTruthy();
+    // 相机面板 list 是 buildCameraControls 的挂载点，速度滑块/值标签均在其内，
+    // 限定作用域避免误命中 litematic 常驻分层滑块。
+    const panelList = sel.parentElement as HTMLElement;
+    const spd = panelList.querySelector('input[type="range"]') as HTMLInputElement;
     sel.value = "false";
     sel.dispatchEvent(new Event("change"));
     spd.value = "55";
     spd.dispatchEvent(new Event("input"));
-    // 速度值标签跟随（数字文本的 span）
-    const spdVal = [...popup.querySelectorAll("span")].find(
+    const spdVal = [...panelList.querySelectorAll("span")].find(
       (s) => /^\d+$/.test(s.textContent || ""),
     );
     expect(spdVal?.textContent).toBe("55");
@@ -563,13 +661,17 @@ describe("审核补充：边界与异步路径", () => {
   it("自身旋转模式拖拽：pointerdown + pointermove → quaternion 更新", async () => {
     await createLitematic3D("/drag.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    // 打开 dock 场景组（🌍）→ 测试环境无 sky/ground cap，scene 组仅 camera 一项 → 快捷直达相机面板，切「自身」模式
-    const dockScene = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
-    dockScene.click();
-    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
-    const sel = popup.querySelector("select") as HTMLSelectElement;
-    sel.value = "false"; // 自身模式（非 orbit）
+    // 下钻 camera 面板，切「自身」模式（非 orbit）
+    const dock = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
+    dock.click();
+    const camRow = overlay.querySelector('[data-testid="preview-camera"]') as HTMLElement;
+    expect(camRow).toBeTruthy();
+    camRow.click();
+    const sel = overlay.querySelector('[data-testid="mmd-rot-mode"]') as HTMLSelectElement;
+    expect(sel).toBeTruthy();
+    sel.value = "false";
     sel.dispatchEvent(new Event("change"));
+    // renderer.domElement（canvas）touchAction=none，pointerdown 绑其上、move/up 绑 window
     const rendererEl = Array.from(overlay.querySelectorAll("div")).find(
       (d) => d.style.touchAction === "none",
     ) as HTMLElement;

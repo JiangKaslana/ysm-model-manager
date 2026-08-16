@@ -80,10 +80,10 @@ describe("AMBIGUOUS_EXTS 歧义扩展名集合", () => {
     expect(AMBIGUOUS_EXTS.has(".zip")).toBe(true);
   });
 
-  it(".7z 单归属（仅 ysm 声明，S1 未给其他类型加 .7z）", () => {
-    // 注册表现状：.7z 仅 ysm.extensions 含（resourcepack/shaderpack 只有 .zip，
-    // S1 新增 zipentry 类型也只加 .zip）→ .7z 单归属不歧义，resolveTypeSafe 可直判
-    expect(AMBIGUOUS_EXTS.has(".7z")).toBe(false);
+  it(".7z 多归属（resourcepack/shaderpack/ysm 均声明）→ 歧义", () => {
+    // 注册表现状：.7z 已被 resourcepack/shaderpack/ysm 三类同时声明
+    // （resource_types.json 单一事实来源）→ 计入歧义集合，resolveTypeSafe 回退 Go 内容检测。
+    expect(AMBIGUOUS_EXTS.has(".7z")).toBe(true);
   });
 
   it("单归属扩展名不歧义", () => {
@@ -119,8 +119,8 @@ describe("resolveTypeSafe 安全解析", () => {
 
   it("歧义扩展名返回 null（强制回退 Go 内容检测）", () => {
     expect(resolveTypeSafe("pack.zip")).toBeNull();
-    // .7z 单归属 ysm（见 AMBIGUOUS_EXTS 用例），直接命中——与注册表现状一致
-    expect(resolveTypeSafe("pack.7z")).toBe("ysm");
+    // .7z 现被多类型声明（见 AMBIGUOUS_EXTS 用例）→ 歧义，回退 Go 内容检测而非直判 ysm
+    expect(resolveTypeSafe("pack.7z")).toBeNull();
   });
 
   it("未知/无扩展名返回 null", () => {

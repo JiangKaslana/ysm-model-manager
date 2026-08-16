@@ -30,6 +30,16 @@ const rootGroup = { type: "Group", children: [] as unknown[] };
 const boneGroupMap = new Map();
 const modelGroups: unknown[] = [];
 
+// 视图层面板填充函数（DI 注入）：单元测试仅验证适配器将 fill* 接线出去，
+// 真实 DOM 渲染由视图层测试覆盖（fill* 属 views 域，utils 不得运行时依赖）。
+const fakePanels = {
+  fillModelPanel: (list: HTMLElement) => {
+    list.textContent = "模型统计（骨骼 0 根 / 立方体 0 个）";
+  },
+  fillShotPanel: () => {},
+  attachBoneSelect: () => {},
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.buildYsmObject.mockReturnValue({
@@ -93,6 +103,7 @@ describe("buildYsmScene（shared 装配）", () => {
     const preview = await buildYsmScene(ctx, "/m/a.ysm", {
       loader,
       preload: mocks.preloadModel,
+      panels: fakePanels,
     });
 
     expect(loader).toHaveBeenCalledWith("/m/a.ysm");

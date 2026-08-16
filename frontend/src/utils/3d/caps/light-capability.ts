@@ -12,6 +12,9 @@
 
 import * as THREE from "three";
 
+/** 角度(度)→弧度；内联等价 THREE.MathUtils.degToRad，避免对 three 测试 mock 强依赖 MathUtils 导出 */
+const degToRad = (deg: number): number => (deg * Math.PI) / 180;
+
 /** 递归 Partial：允许任意深度只传子集字段 */
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
@@ -259,7 +262,7 @@ export class LightCapability {
       this.params.spotlight.color,
       this.params.spotlight.intensity,
       this.params.spotlight.distance,
-      THREE.MathUtils.degToRad(this.params.spotlight.angle),
+      degToRad(this.params.spotlight.angle),
       this.params.spotlight.penumbra,
       this.params.spotlight.decay,
     );
@@ -287,8 +290,8 @@ export class LightCapability {
 
   /** 方位角 + 仰角 → 3D 位置（radius 为单位长度，后续乘 intensity 相关） */
   private dirToPosition(p: DirectionalLightParams, radius: number): THREE.Vector3 {
-    const az = THREE.MathUtils.degToRad(p.azimuth);
-    const el = THREE.MathUtils.degToRad(p.elevation);
+    const az = degToRad(p.azimuth);
+    const el = degToRad(p.elevation);
     const h = radius * Math.cos(el); // 水平分量
     const y = radius * Math.sin(el); // 垂直分量
     return new THREE.Vector3(h * Math.sin(az), y, h * Math.cos(az));
@@ -314,7 +317,7 @@ export class LightCapability {
     // 锥高 = 从聚光灯到对象中心的距离（= targetHeight）
     const height = this.targetHeight;
     // 锥底半径 = 锥高 * tan(半角)
-    const halfAngle = THREE.MathUtils.degToRad(sp.angle);
+    const halfAngle = degToRad(sp.angle);
     const baseRadius = height * Math.tan(halfAngle) * (1.0 + sp.penumbra * 0.5);
 
     this.coneHeight = height;
@@ -467,7 +470,7 @@ export class LightCapability {
     this.spotlight.color.setHex(sp.color);
     this.spotlight.intensity = sp.intensity;
     this.spotlight.distance = sp.distance;
-    this.spotlight.angle = THREE.MathUtils.degToRad(sp.angle);
+    this.spotlight.angle = degToRad(sp.angle);
     this.spotlight.penumbra = sp.penumbra;
     this.spotlight.decay = sp.decay;
     this.spotlight.visible = sp.enabled;
