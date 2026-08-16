@@ -99,20 +99,23 @@ if (typeof window !== "undefined") {
   setTimeout(() => prefetchStatsWorker(), 2000);
 })();
 
-window
-  .matchMedia("(prefers-color-scheme: dark)")
-  .addEventListener("change", (e) => {
-    // P3 修复（code_review）：裸调改 safeGet——隐私模式每次系统主题切换抛错 → 主题跟随静默失效
-    const theme = safeGet("theme") || "system";
-    if (theme === "system") {
-      applyTheme("system");
-      bus.emit("toast:show", {
-        msg: `已跟随系统切换至${e.matches ? "深色" : "浅色"}主题`,
-        duration: 2000,
-        type: "info",
-      });
-    }
-  });
+// node 测试环境无 window，跳过系统主题跟随注册（浏览器语义不变）
+if (typeof window !== "undefined") {
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", (e) => {
+      // P3 修复（code_review）：裸调改 safeGet——隐私模式每次系统主题切换抛错 → 主题跟随静默失效
+      const theme = safeGet("theme") || "system";
+      if (theme === "system") {
+        applyTheme("system");
+        bus.emit("toast:show", {
+          msg: `已跟随系统切换至${e.matches ? "深色" : "浅色"}主题`,
+          duration: 2000,
+          type: "info",
+        });
+      }
+    });
+}
 
 // ===== F12 / Ctrl+Shift+I 打开 DevTools（仅开发/调试环境）=====
 // 通过查询参数 ?dev=1 或 localStorage 标志启用
@@ -123,9 +126,12 @@ try {
 } catch {
   /* 隐私模式：仅 ?dev=1 生效 */
 }
+// node 测试环境无 window，短路跳过 devtools 判定（浏览器语义不变）
 const _devMode =
-  new URLSearchParams(window.location.search).has("dev") || _devtoolsFlag;
-if (_devMode) {
+  (typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("dev")) ||
+  _devtoolsFlag;
+if (_devMode && typeof document !== "undefined") {
   document.addEventListener("keydown", (e) => {
     if (e.key === "F12" || (e.ctrlKey && e.shiftKey && e.key === "I")) {
       e.preventDefault();
