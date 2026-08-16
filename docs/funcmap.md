@@ -690,16 +690,16 @@
 | `normalizeTheme()` | `frontend/src/app-modules:69` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
 | `applyTheme()` | `frontend/src/app-modules:73` | — |
 | `initTheme()` | `frontend/src/app-modules:98` | — |
-| `bus()` | `frontend/src/bus:204` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:205` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
-| `NavPagePayload()` | `frontend/src/bus:38` | — |
-| `ModelSelectPayload()` | `frontend/src/bus:42` | — |
-| `CtxShowPayload()` | `frontend/src/bus:47` | — |
-| `BusEvents()` | `frontend/src/bus:64` | — |
-| `BusEventName()` | `frontend/src/bus:113` | — |
-| `Bus()` | `frontend/src/bus:141` | — |
+| `NavPagePayload()` | `frontend/src/bus:39` | — |
+| `ModelSelectPayload()` | `frontend/src/bus:43` | — |
+| `CtxShowPayload()` | `frontend/src/bus:48` | — |
+| `BusEvents()` | `frontend/src/bus:65` | — |
+| `BusEventName()` | `frontend/src/bus:114` | — |
+| `Bus()` | `frontend/src/bus:142` | — |
 
 ## frontend/backend
 

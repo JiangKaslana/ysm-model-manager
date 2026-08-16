@@ -121,9 +121,9 @@ export function createAutoDanceController(opts: AutoDanceOptions = {}) {
 
     // 幅度调制：4 拍呼吸让律动有"起伏感"
     const breathMod = 0.6 + 0.4 * Math.sin(breathPhase * Math.PI * 2);
-    // 踩点增强：拍点瞬间幅度提升
-    const beatBoost = isBeat ? 1.3 : 1.0;
-    const effectiveIntensity = intensity * breathMod * beatBoost;
+    // beatBounce 包络：拍头 0 → 拍中峰值 1 → 拍尾 0，制造踩点感
+    const bounce = Math.sin(beatPhase * Math.PI);
+    const effectiveIntensity = intensity * breathMod * (0.7 + 0.3 * bounce);
 
     for (const { id, xAmp, yAmp, zAmp, rxAmp, ryAmp, rzAmp } of DANCE_BONES) {
       const entry = getSemanticBone(map, id);
