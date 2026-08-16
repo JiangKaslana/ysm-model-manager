@@ -41,10 +41,10 @@
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
 | 前端·工具 | 105 | 389 |
-| frontend/views | 90 | 250 |
+| frontend/views | 90 | 249 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **370** | **1556** |
+| **合计** | **370** | **1555** |
 
 ## Go·头像
 
@@ -1122,9 +1122,9 @@
 | `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:200` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
 | `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:205` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:210` | — |
-| `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:35` | — |
-| `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:18` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
-| `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter:126` | 构建资源包模型预览场景（ADR-080 D3） |
+| `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
+| `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:20` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
+| `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:34` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
 | `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:13` | — |
 | `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:15` | — |
@@ -1528,8 +1528,6 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:26` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:33` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:219` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:226` | 初始化 GitHub 页（委托到 init-github.ts） |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:28` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:52` | 初始化创意工坊页 |
@@ -1575,6 +1573,7 @@
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:85` | — |
 | `githubHTML()` | `frontend/src/views/app-content/tpl:149` | ===== GitHub 仓库页面 ===== |
 | `workshopHTML()` | `frontend/src/views/app-content/tpl:180` | — |
+| `viewerHTML()` | `frontend/src/views/app-content/tpl:234` | — |
 | `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:8` | 创作者身份识别结果 |
 | `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:15` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
 | `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:22` | — |
@@ -1626,9 +1625,9 @@
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
 | `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:137` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
-| `createPack3D()` | `frontend/src/views/app-preview/pack-3d:32` | 打开资源包模型 3D 预览（无 block 模型时 build 抛错，调用方回退缩略图） |
-| `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:37` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
-| `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:42` | 任意新预览派发时调用，作废在途资源包加载 |
+| `createPack3D()` | `frontend/src/views/app-preview/pack-3d:25` | 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） |
+| `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:45` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
+| `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:50` | 任意新预览派发时调用，作废在途资源包加载 |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:12` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:18` | — |
@@ -1717,8 +1716,8 @@
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:17` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:124` | — |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:18` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:6` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:49` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |

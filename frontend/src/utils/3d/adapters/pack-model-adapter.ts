@@ -1,22 +1,23 @@
-// ===== pack-model-adapter.ts — MC 资源包模型内容适配器（ADR-080）=====
-// 资源包（.zip）→ ListPackModels 枚举 → 解析首个完整可渲染 block/item 模型
-// → 逐面 BufferGeometry + MeshLambert（纹理/纯色/tint 近似）→ 挂核心 scene。
-// 模型浏览：extraControls 挂"◀ n/N ▶"切换（复用外壳，重建内容层）。
-// 通用外壳（overlay/renderer/循环/释放）由 mount-preview-core.ts 拥有。
+// ===== pack-model-adapter.ts — MC 资源包模型内容适配器（ADR-080 + ADR-084 L2）=====
+// 资源包（.zip）→ ListPackModels 枚举 → 首个 entry 作为初始 path → 逐面 BufferGeometry + MeshLambert。
+// ADR-084 L2：zip 当虚拟文件夹——buildPath 即 entry path（assets/minecraft/models/block/xxx.json），
+// core switchTo(newEntryPath) 走 ADR-066 §5.6 语义（复用外壳重建内容层），不自建 ◀/▶。
+// 通用外壳（overlay/renderer/循环/释放/根菜单切换面板）由 mount-preview-core.ts 拥有。
 // 边界：适配器 0 backend import（ADR-072），Go 绑定经 deps 注入。
+//
+// 已知限制：tint 面近似草绿（无 biome 数据），沿用 ADR-080 口径。
 
 import * as THREE from "three";
 import {
   parseJavaModel,
   isRenderableModel,
-  b64ToBytes,
   type JavaModelResult,
 } from "../parse-java-model.ts";
+import { screenshotFromRenderer } from "../screenshot.ts";
 import type { PreviewAdapter, PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 
 /** Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） */
 export interface PackDeps {
-  listModels(path: string): Promise<string[]>;
   readEntry(path: string, entry: string): Promise<string>;
 }
 
@@ -25,35 +26,28 @@ const TINT_FALLBACK = 0x7cbd4b;
 const NO_TEX_FALLBACK = 0xcccccc;
 
 interface PackState {
-  entries: string[];
-  index: number;
-  cache: Map<string, JavaModelResult>;
-  root: THREE.Group | null;
+  group: THREE.Group | null;
   disposables: THREE.Object3D[];
 }
 
-function makePackAdapter(deps: PackDeps): PreviewAdapter {
+/** 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） */
+export function makePackAdapter(deps: PackDeps, zipPath: string): PreviewAdapter {
   return {
     id: "resourcepack",
-    build: (ctx, path) => buildPackScene(ctx, path, deps),
+    build: (ctx, buildPath) => buildPackScene(ctx, buildPath, deps, zipPath),
   };
 }
 
 /** base64 → dataURL（纹理喂 TextureLoader） */
 function b64ToDataURL(b64: string): string {
-  const bytes = b64ToBytes(b64);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return `data:image/png;base64,${btoa(bin)}`;
+  return `data:image/png;base64,${b64}`;
 }
 
 async function textureFor(
-  ctx: PreviewBuildCtx,
   deps: PackDeps,
   path: string,
   face: JavaModelResult["faces"][number],
 ): Promise<THREE.Material> {
-  // tint 面：近似草绿（无 biome 数据）
   if (face.tintindex !== null) {
     return new THREE.MeshLambertMaterial({ color: TINT_FALLBACK, transparent: true, opacity: 0.9 });
   }
@@ -65,11 +59,9 @@ async function textureFor(
     if (b64) {
       const tex = await new THREE.TextureLoader().loadAsync(b64ToDataURL(b64));
       tex.colorSpace = THREE.SRGBColorSpace;
-      tex.magFilter = THREE.NearestFilter; // MC 像素风
+      tex.magFilter = THREE.NearestFilter;
       tex.minFilter = THREE.NearestFilter;
-      const mat = new THREE.MeshLambertMaterial({ map: tex });
-      // 半透明面（overlay 草层/植物）随材质透明；纹理无 alpha 时忽略
-      return mat;
+      return new THREE.MeshLambertMaterial({ map: tex });
     }
   }
   return new THREE.MeshLambertMaterial({ color: NO_TEX_FALLBACK });
@@ -77,7 +69,6 @@ async function textureFor(
 
 /** 构建单个模型的内容 group（面 → BufferGeometry + Material） */
 async function buildModelGroup(
-  ctx: PreviewBuildCtx,
   deps: PackDeps,
   path: string,
   model: JavaModelResult,
@@ -85,7 +76,7 @@ async function buildModelGroup(
   const group = new THREE.Group();
   const disposables: THREE.Object3D[] = [];
   for (const f of model.faces) {
-    const mat = await textureFor(ctx, deps, path, f);
+    const mat = await textureFor(deps, path, f);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.Float32BufferAttribute(f.verts.map((v) => v / 16), 3));
     geo.setAttribute("uv", new THREE.Float32BufferAttribute(f.uv, 2));
@@ -93,7 +84,6 @@ async function buildModelGroup(
       "normal",
       new THREE.Float32BufferAttribute(f.verts.map((_, i) => f.dir[i % 3]), 3),
     );
-    // prismarine 无 AO 索引：(0,1,2),(2,1,3)
     geo.setIndex([0, 1, 2, 2, 1, 3]);
     const mesh = new THREE.Mesh(geo, mat);
     group.add(mesh);
@@ -122,123 +112,80 @@ function frameCamera(ctx: PreviewBuildCtx, target: THREE.Object3D): void {
   }
 }
 
-/** 构建资源包模型预览场景（ADR-080 D3） */
-export async function buildPackScene(
-  ctx: PreviewBuildCtx,
-  path: string,
-  deps: PackDeps,
-): Promise<PreviewScene> {
-  const entries = (await deps.listModels(path)).filter((e) => e.includes("/block/") || e.includes("/item/")); // 方块 + 物品
-  if (entries.length === 0) {
-    ctx.loadingEl.remove();
-    throw new Error("资源包内无方块/物品模型（无 3D 内容）");
+/** 释放内容层 GPU 资源（复用：build 失败和 dispose 共用） */
+function disposeContent(state: PackState, scene: THREE.Scene): void {
+  if (state.group && state.group.parent) {
+    scene.remove(state.group);
   }
-
-  const state: PackState = { entries, index: -1, cache: new Map(), root: null, disposables: [] };
-
-  // 定位首个完整可渲染模型（懒解析，纯模板如 cube/cube_all 自动跳过）
-  let start = 0;
-  while (start < entries.length) {
-    const m = await parseJavaModel(entries[start], async (e) => deps.readEntry(path, e));
-    if (isRenderableModel(m)) {
-      state.cache.set(entries[start], m);
-      break;
-    }
-    start++;
-  }
-  if (start >= entries.length) {
-    ctx.loadingEl.remove();
-    throw new Error("资源包内无完整可渲染模型（缺少纹理引用）");
-  }
-  state.index = start;
-
-
-  /** 重建当前索引模型（复用外壳，替换内容层） */
-  async function rebuild(): Promise<void> {
-    if (state.root) {
-      ctx.scene!.remove(state.root);
-      for (const d of state.disposables) {
-        d.traverse((o) => {
-          const mesh = o as THREE.Mesh;
-          mesh.geometry?.dispose();
-          const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
-          for (const m of mats) {
-            (m as THREE.MeshLambertMaterial).map?.dispose();
-            (m as THREE.Material).dispose();
-          }
-        });
+  for (const d of state.disposables) {
+    d.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      try { mesh.geometry?.dispose(); } catch {}
+      const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+      for (const m of mats) {
+        const lm = m as THREE.MeshLambertMaterial;
+        try { lm.map?.dispose(); } catch {}
+        try { m.dispose(); } catch {}
       }
-      state.disposables = [];
-      state.root = null;
-    }
-    const entry = state.entries[state.index];
-    let model = state.cache.get(entry);
-    if (!model) {
-      model = (await parseJavaModel(entry, async (e) => deps.readEntry(path, e))) ?? undefined;
-      if (!model) return; // 解析失败：保持现状
-      state.cache.set(entry, model);
-    }
-    const { group, disposables } = await buildModelGroup(ctx, deps, path, model);
-    ctx.scene!.add(group);
-    state.root = group;
-    state.disposables = disposables;
-    frameCamera(ctx, group);
-    if (labelEl) labelEl.textContent = `${state.index + 1}/${entries.length}`;
+    });
+  }
+  state.disposables = [];
+  state.group = null;
+}
+
+/** 构建资源包模型预览场景（ADR-080 D3 + ADR-084 L2） */
+async function buildPackScene(
+  ctx: PreviewBuildCtx,
+  entryPath: string, // ADR-084 L2：zip 内模型路径（虚拟文件夹下的文件路径）
+  deps: PackDeps,
+  zipPath: string,   // 容器路径（.zip 文件路径）
+): Promise<PreviewScene> {
+  if (!ctx.scene || !ctx.camera || !ctx.controls || !ctx.renderer) {
+    throw new Error("pack-model shared 模式需要核心提供 scene/camera/controls/renderer");
   }
 
-  // 模型切换控件（挂通用 topBar）
-  const sep = document.createElement("span");
-  sep.style.opacity = "0.4";
-  sep.textContent = "│";
-  const prevBtn = document.createElement("button");
-  prevBtn.textContent = "◀";
-  prevBtn.title = "上一个模型";
-  prevBtn.onclick = () => {
-    if (entries.length === 0) return;
-    state.index = (state.index - 1 + entries.length) % entries.length;
-    void rebuild();
-  };
-  const nextBtn = document.createElement("button");
-  nextBtn.textContent = "▶";
-  nextBtn.title = "下一个模型";
-  nextBtn.onclick = () => {
-    if (entries.length === 0) return;
-    state.index = (state.index + 1) % entries.length;
-    void rebuild();
-  };
-  const labelEl = document.createElement("span");
-  labelEl.style.fontSize = "12px";
-  labelEl.style.opacity = "0.8";
-  labelEl.textContent = `-/${entries.length}`;
+  const state: PackState = { group: null, disposables: [] };
 
-  // 首模型渲染
-  await rebuild();
-  ctx.loadingEl.remove(); // 加载完成，移除占位
+  // 解析模型（entryPath = zip 内路径，readEntry 取 zip 内文件内容）
+  let model: JavaModelResult | null = null;
+  try {
+    model = await parseJavaModel(entryPath, async (e) => deps.readEntry(zipPath, e));
+  } catch (e) {
+    ctx.loadingEl.remove();
+    throw new Error(`资源包内模型解析失败: ${entryPath}`);
+  }
+  if (!isRenderableModel(model!)) {
+    ctx.loadingEl.remove();
+    throw new Error(`资源包内模型无完整纹理引用: ${entryPath}`);
+  }
+
+  // 释放旧内容层（ADR-084 L2：switchTo 先 dispose 旧 group 再重建）
+  // 注意：core switchTo 已执行 built?.dispose()，但我们保留此处作为防御性清理（
+  // 首次 build 时 state 为空 no-op，重建时确保无残留）。
+  // 核心在 switchTo 内已移除 sceneBaseline 之外的子节点（line 724-727），此处只需释放 GPU 资源。
+  if (state.group && state.group.parent) {
+    ctx.scene!.remove(state.group);
+  }
+
+  const { group, disposables } = await buildModelGroup(deps, zipPath, model);
+  state.group = group;
+  state.disposables = disposables;
+  ctx.scene!.add(group);
+  frameCamera(ctx, group);
+  ctx.loadingEl.remove();
 
   return {
-    dispose: (): void => {
-      if (state.root) ctx.scene!.remove(state.root);
-      for (const d of state.disposables) {
-        d.traverse((o) => {
-          const mesh = o as THREE.Mesh;
-          mesh.geometry?.dispose();
-          const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
-          for (const m of mats) {
-            (m as THREE.MeshLambertMaterial).map?.dispose();
-            (m as THREE.Material).dispose();
-          }
-        });
+    dispose: () => disposeContent(state, ctx.scene!),
+    resetCamera: () => {
+      if (ctx.camera && state.group) {
+        frameCamera(ctx, state.group);
       }
-      state.disposables = [];
-      state.root = null;
     },
-    extraControls: (topBar: HTMLElement): void => {
-      topBar.appendChild(sep);
-      topBar.appendChild(prevBtn);
-      topBar.appendChild(labelEl);
-      topBar.appendChild(nextBtn);
-    },
+    setRotationMode: (orbit: boolean) => ctx.cameraControls?.setOrbit(orbit),
+    setSpeed: (n: number) => ctx.cameraControls?.setSpeed(n),
+    screenshot: () =>
+      Promise.resolve(screenshotFromRenderer(ctx.renderer, ctx.scene, ctx.camera)),
   };
 }
 
-export { makePackAdapter };
+export { buildPackScene };

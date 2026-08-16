@@ -763,6 +763,23 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
           euler.setFromQuaternion((camera as THREE.PerspectiveCamera).quaternion);
         }
         perFrame = next.update ?? null;
+        // ADR-084 L2（pack-model 对齐 ADR-066 §5.6）：switchTo 后重算内容层包围盒，更新 lightCap target
+        if (lightCap && scene && baseline) {
+          const box = new THREE.Box3();
+          let contentFound = false;
+          for (const child of scene.children) {
+            if (baseline.has(child)) continue;
+            box.expandByObject(child);
+            contentFound = true;
+          }
+          if (contentFound) {
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1;
+            lightCap.setTarget(center);
+            lightCap.setTargetHeight(Math.max(maxDim * 0.8, 6));
+          }
+        }
         if (_handle) _handle.screenshot = next.screenshot;
         next.extraControls?.(topBar);
         if (next.extraPanel && panelEl) {
