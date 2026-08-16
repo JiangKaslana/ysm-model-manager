@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 93 | 342 |
+| 前端·工具 | 94 | 352 |
 | frontend/views | 88 | 245 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **355** | **1499** |
+| **合计** | **356** | **1509** |
 
 ## Go·头像
 
@@ -1252,6 +1252,16 @@
 | `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:8` | setupRenderer 返回的组件 |
 | `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:19` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
+| `SemanticBoneId()` | `frontend/src/utils/3d/semantic-bones:21` | 语义骨骼 id（对齐 VRM humanoid 命名；MMD 经候选名匹配；center 为 MMD 特有整体根） |
+| `SEMANTIC_BONE_IDS()` | `frontend/src/utils/3d/semantic-bones:47` | 全部语义骨骼 id（稳定顺序：躯干 → 头颈 → 四肢；消费方遍历用） |
+| `SemanticBoneEntry()` | `frontend/src/utils/3d/semantic-bones:74` | 语义骨骼解析结果：语义 → 格式内骨骼（object 可直接改变换；缺失 = 该语义缺省） |
+| `SemanticBoneMap()` | `frontend/src/utils/3d/semantic-bones:82` | 语义骨骼映射表（Partial：匹配不到的语义缺省，消费方宽容降级） |
+| `MMD_SEMANTIC_CANDIDATES()` | `frontend/src/utils/3d/semantic-bones:92` | MMD 语义候选名表：语义 → 候选骨骼名列表（MMD 命名空间；消费方不直接触达） |
+| `matchSemanticBone()` | `frontend/src/utils/3d/semantic-bones:154` | 在 BoneTree 中按候选名匹配首个骨骼（name 优先、id 兜底；候选顺序即优先级）。 |
+| `resolveSemanticBones()` | `frontend/src/utils/3d/semantic-bones:167` | 从 BoneTree + 候选表解析语义映射（MMD 等无标准语义的格式走此路）。 |
+| `getSemanticBone()` | `frontend/src/utils/3d/semantic-bones:186` | 取语义骨骼（消费方唯一入口；缺失返回 null，调用方自行降级）。 |
+| `vrmSemanticBoneMap()` | `frontend/src/utils/3d/semantic-bones:200` | VRM 特化：humanoid.humanBones 的键天然就是语义名（52 个标准骨骼）， 零候选匹配直接产映射——与 buildVrmBoneNodes 同一数据源。 |
+| `mmdSemanticBoneMap()` | `frontend/src/utils/3d/semantic-bones:216` | MMD 特化：BoneTree（mmdBonesToBoneNodes → buildBoneTree 产物）+ 内置候选表 → 语义映射。 |
 | `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
 | `resetRendererState()` | `frontend/src/utils/3d/session-state:18` | 复位所有模块级渲染器引用为 null。 |
 | `detachRendererCanvas()` | `frontend/src/utils/3d/session-state:28` | 从 DOM 中移除 renderer 的 canvas 元素（安全，已 detached 时不操作）。 |

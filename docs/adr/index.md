@@ -16,9 +16,9 @@ permalink: /adr/
 
 | 状态 | 数量 |
 |------|------|
-| 🔄 部分采纳 | 10 |
+| 🔄 部分采纳 | 9 |
 | ⚠️ 已采纳但遗留未修复 | 0 |
-| ✅ 已采纳 | 66 |
+| ✅ 已采纳 | 67 |
 | 🧊 已废弃 | 0 |
 | ❌ 已取代 | 1 |
 
@@ -102,7 +102,7 @@ permalink: /adr/
 | ADR-075 | 3D 预览环境控件收进环境菜单契约 | ✅ 已采纳 | 2026-08-16 |
 | ADR-076 | 3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编） | 🔄 部分采纳（**Phase 1 已落地**：顶栏砍掉，收敛为 overlay 内 ⚙️ 声明式根菜单；**Phase 2 已落地**：ysm/mmd 适配器专属控件经 `PreviewBuildCtx.menu.setAdapterItems` 收编进根菜单，`buildYsm/MmdBottomNav` + 重复 `mkNavBtn`/`togglePopup`/`closePopup` 已删除；**Phase 3 待立项**：vrm/litematic 的 `extraControls` 单按钮收编） | 2026-08-16 |
 | ADR-078 | 底部导航通用外壳收敛（D1+D3 落地） | ✅ 已采纳 | 2026-08-16 |
-| ADR-079 | WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游 | 🔄 部分采纳（M1/M2/M3 落地，M4 接入遇架构障碍——见 §4 补注） | 2026-08-16 |
+| ADR-079 | WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游 | ✅ 已采纳（M1-M4 全落地：网页 COI SW / 桌面中间件 / 重编译 pthread / 接入降级） | 2026-08-16 |
 
 ## 使用规则（硬约束）
 
