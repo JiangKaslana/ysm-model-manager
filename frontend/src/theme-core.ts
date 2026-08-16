@@ -7,6 +7,12 @@
 import { getApp } from "./backend/app.ts";
 import { safeGet, safeSet } from "./utils/dom/storage.ts";
 
+declare global {
+  interface Window {
+    applyTheme?: (mode: string) => void;
+  }
+}
+
 const THEME_DARK = "cyber";
 // 主题白名单（applyTheme 与 initTheme 共用，防两处口径漂移）
 const THEME_VALID = ["cyber", "warm", "pro", "sakura", "ocean", "mint", "system"];

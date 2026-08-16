@@ -701,9 +701,9 @@
 | `BusEvents()` | `frontend/src/bus:65` | — |
 | `BusEventName()` | `frontend/src/bus:114` | — |
 | `Bus()` | `frontend/src/bus:142` | — |
-| `normalizeTheme()` | `frontend/src/theme-core:17` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
-| `applyTheme()` | `frontend/src/theme-core:21` | — |
-| `initTheme()` | `frontend/src/theme-core:34` | — |
+| `normalizeTheme()` | `frontend/src/theme-core:23` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
+| `applyTheme()` | `frontend/src/theme-core:27` | — |
+| `initTheme()` | `frontend/src/theme-core:40` | — |
 
 ## frontend/backend
 

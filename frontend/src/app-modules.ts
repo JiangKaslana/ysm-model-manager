@@ -53,18 +53,11 @@ loadView("app-sync-manager", () => import("./views/app-sync-manager/index.ts"));
 //  窗口状态已由 Go 端 shutdown 保存，前端不再重复写入
 
 // ===== 全局主题控制 =====
-declare global {
-  interface Window {
-    applyTheme?: (mode: string) => void;
-  }
-}
 
 // 2026-08-17 神桶拆分：normalizeTheme/applyTheme/initTheme 已移至 theme-core.ts
 // （纯逻辑无顶层副作用，测试可独立 import）；本文件保留启动装配 + window 桥接。
-// 注意：export ... from 不引入本地名，IIFE 内仍要用 initTheme/applyTheme/safeGet →
-// 显式 import 后再 re-export（神桶拆分时曾漏本地 import 导致 TS2304）。
 import { normalizeTheme, applyTheme, initTheme } from "./theme-core.ts";
-import { safeGet, safeSet } from "./utils/dom/storage.ts";
+import { safeGet } from "./utils/dom/storage.ts";
 export { normalizeTheme, applyTheme, initTheme };
 
 // P3 修复（code_review）：把 page-store 白名单桥接到 window，供 index.html 内联
@@ -87,11 +80,21 @@ if (typeof window !== "undefined") {
     await import("./views/app-nav/index.ts");
   } catch (e) {
     console.warn("[module] app-nav 加载失败:", e);
+    bus.emit("toast:show", {
+      msg: "❌ " + friendlyError(e, "导航组件加载失败"),
+      duration: 5000,
+      type: "error",
+    });
   }
   try {
     await initTheme();
   } catch (e) {
     console.warn("[theme] 主题初始化失败:", e);
+    bus.emit("toast:show", {
+      msg: "⚠️ " + friendlyError(e, "主题初始化失败"),
+      duration: 5000,
+      type: "error",
+    });
   }
   applyUIPrefs();
   checkUpdateSilent().catch((e) => console.warn("[updater] 静默检查失败:", e));
@@ -120,12 +123,7 @@ if (typeof window !== "undefined") {
 // ===== F12 / Ctrl+Shift+I 打开 DevTools（仅开发/调试环境）=====
 // 通过查询参数 ?dev=1 或 localStorage 标志启用
 // P3 修复：localStorage 裸调在隐私模式抛错会中止模块求值——即使 ?dev=1 也无法启用
-let _devtoolsFlag = false;
-try {
-  _devtoolsFlag = localStorage.getItem("_devtools") === "1";
-} catch {
-  /* 隐私模式：仅 ?dev=1 生效 */
-}
+const _devtoolsFlag = safeGet("_devtools") === "1";
 // node 测试环境无 window，短路跳过 devtools 判定（浏览器语义不变）
 const _devMode =
   (typeof window !== "undefined" &&
