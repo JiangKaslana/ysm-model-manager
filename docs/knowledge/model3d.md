@@ -5,7 +5,7 @@ tier: architecture
 category: utils
 source_files:
   - frontend/src/utils/3d/model3d.ts
-  - frontend/src/utils/3d/render-session.ts
+  - frontend/src/utils/3d/session-state.ts
   - frontend/src/utils/3d/mesh.ts
   - frontend/src/utils/3d/keymap.ts
   - frontend/src/utils/3d/debug-render.ts
@@ -39,7 +39,6 @@ use_when:
   - spec 兜底
   - OrbitControls
 invariant_anchors:
-  - frontend/src/utils/3d/render-session.ts|RenderSession
   - frontend/src/utils/3d/cube-mesh.ts|computeBoneLocalPos
   - frontend/src/views/app-preview/model3d-loader.ts|specCache
 ---
@@ -54,7 +53,7 @@ invariant_anchors:
 
 | 层 | 文件 | 职责 |
 |----|------|------|
-| **场景/会话层**（核心，ADR-052） | `render-session.ts` / `session-state.ts` / `model3d.ts` / `cube-mesh.ts` | RenderSession 类 + 会话状态 + 薄壳入口 + 坐标口径工具 |
+| **场景/会话层**（核心，ADR-052） | `session-state.ts` / `model3d.ts` / `cube-mesh.ts` | 会话状态 + 类型枢纽 + 坐标口径工具 |
 | **渲染管线层** | `renderer-setup.ts` / `render-loop.ts` / `camera-setup.ts` / `scene-lights.ts` / `cleanup-helper.ts` | 场景初始化 → 渲染循环 → 相机定位 → 灯光配置 → 资源释放 |
 | **骨骼/几何层**（最大层） | `mesh.ts` / `mesh-builder.ts` / `cube-mesh.ts` / `model-group-builder.ts` / `bone-list.ts` / `bone-visibility.ts` / `bone-raycast.ts` | 骨骼组树构建 → 立方体几何 → mesh 合并 → 骨骼列表/可见性 → 射线拾取 |
 | **工具/辅助层** | `quaternion.ts` / `debug-render.ts` / `keymap.ts` / `model3d-spec.ts` | 四元数工具 / debug 叠加 / 键位偏好 / 历史 JS spec 兜底（已废弃） |
@@ -213,5 +212,4 @@ export function computeBoneLocalPos(
 - [go-threejs](./go-threejs.md) — spec 生成（Go 端）
 - [model2d](./model2d.md) — 2D 预览（同一坐标口径约束）
 - [app_preview](./app-preview.md) — 预览面板消费方
-- `frontend/src/utils/3d/render-session.ts` — RenderSession 实现
 - `frontend/src/utils/3d/cube-mesh.ts` — computeBoneLocalPos 工具
