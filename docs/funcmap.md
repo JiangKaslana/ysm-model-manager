@@ -34,7 +34,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 180 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 14 | 70 |
+| frontend/backend | 15 | 74 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
@@ -43,7 +43,7 @@
 | 前端·工具 | 79 | 270 |
 | frontend/views | 91 | 254 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **332** | **1378** |
+| **合计** | **333** | **1382** |
 
 ## Go·头像
 
@@ -732,6 +732,10 @@
 | `litematicMetaView()` | `frontend/src/backend/nbt-parse:288` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
 | `nbtStructureView()` | `frontend/src/backend/nbt-parse:322` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
 | `schematicSummaryView()` | `frontend/src/backend/nbt-parse:443` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
+| `findZipEntry()` | `frontend/src/backend/pack-meta:23` | zip entries 中按小写名找条目（对齐 go 端 strings.ToLower(f.Name) 匹配—— zip 内路径大小写不敏感：PACK.MCMETA / Lang |
+| `parsePackMetaJson()` | `frontend/src/backend/pack-meta:99` | pack.mcmeta 字节 → meta 对象（对齐 internal/app ReadPackMeta 的 result 形状： pack_format / descripti |
+| `packPngToThumbnail()` | `frontend/src/backend/pack-meta:132` | pack.png 字节 → data URL base64 缩略图（10MB 限额；空/超限 → ""，对齐 go 截断探测置空） |
+| `parseShaderpackLang()` | `frontend/src/backend/pack-meta:142` | lang/en_US.lang 字节 → {name, entries} JSON 字符串（对齐 go ReadShaderpackLang： &gt;1MB → 空结果；key=val |
 | `readDeclaredBackend()` | `frontend/src/backend/platform:13` | 读取入口 HTML 声明的适配器身份（'go' | 'browser'），未声明返回 undefined |
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
@@ -760,15 +764,15 @@
 | `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:243` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:38` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:96` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:128` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:150` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:168` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:205` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:216` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:269` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:383` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:41` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:99` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:131` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:153` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:171` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:208` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:219` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:272` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:432` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
 | `webStoreBindings()` | `frontend/src/backend/web-store:150` | — |
 
 ## 前端·核心

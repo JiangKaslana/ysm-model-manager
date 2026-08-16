@@ -28,6 +28,9 @@ import { parseNbtRoot, litematicMetaView, nbtStructureView, schematicSummaryView
 // LongArray 精确 64 位——BlockStates 打包位解码必需，number 归一会丢低 10 位）
 import { parseNbtRootExact } from "./nbt-parse.ts";
 import { litematicVoxelView, nbtVoxelView, schematicVoxelView, type VoxelData } from "./voxel-parse.ts";
+// 资源包/光影包详情 meta 读取（TS 平移 go/packs/mcmeta.go 的解析层；binding 装配见下方
+// webFsBindings 的 ReadPackMeta/ReadShaderpackLang 条目——读 IDB → 解 zip → 本文件纯解析）
+import { findZipEntry, parsePackMetaJson, parseShaderpackLang, packPngToThumbnail } from "./pack-meta.ts";
 
 // --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
 const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
@@ -324,6 +327,52 @@ async function readNbtMetaJson(
     return JSON.stringify(view);
   } catch {
     return "{}";
+  }
+}
+
+/**
+ * 资源包详情 binding 公共骨架（TS 平移 go/packs/mcmeta.go ReadPackMeta + internal/app
+ * resource_bindings.go:34 的 result 装配）。读 IDB → base64 → 字节 → extractZip →
+ * 找 pack.mcmeta（1MB 限额）→ JSON 解析 → 找 pack.png（10MB 限额）→ base64 缩略图。
+ * 任何一步失败（文件缺失 / 非 zip / 无 mcmeta / 超限 / 解析失败）→ "{}"（对齐 Go
+ * binding 契约：ReadPackMeta error → "{}"）。
+ */
+async function readPackMetaJson(path: string): Promise<string> {
+  try {
+    const b64 = await readWebFile(path);
+    if (!b64) return "{}";
+    const bytes = base64ToBytes(b64);
+    if (!bytes) return "{}";
+    const { entries } = extractZip(bytes);
+    const mcmeta = findZipEntry(entries, "pack.mcmeta");
+    if (!mcmeta) return "{}";
+    const meta = parsePackMetaJson(mcmeta);
+    if (!meta) return "{}";
+    // pack.png → base64 缩略图（10MB 限额，超限置空——对齐 go zip 分支 LimitReader+1 截断探测）
+    meta.thumbnail = packPngToThumbnail(findZipEntry(entries, "pack.png"));
+    return JSON.stringify(meta);
+  } catch {
+    return "{}";
+  }
+}
+
+/**
+ * 光影包详情 binding（TS 平移 go/packs/mcmeta.go ReadShaderpackLang）。读 IDB → base64 →
+ * 字节 → extractZip → 找 lang/en_US.lang（大小写不敏感，1MB 限额）→ key=value 解析 →
+ * {name, entries}。任何一步失败 → {"name":"","entries":{}}（对齐 Go binding 契约）。
+ */
+async function readShaderpackLangJson(path: string): Promise<string> {
+  try {
+    const b64 = await readWebFile(path);
+    if (!b64) return '{"name":"","entries":{}}';
+    const bytes = base64ToBytes(b64);
+    if (!bytes) return '{"name":"","entries":{}}';
+    const { entries } = extractZip(bytes);
+    const lang = findZipEntry(entries, "lang/en_us.lang");
+    if (!lang) return '{"name":"","entries":{}}';
+    return parseShaderpackLang(lang);
+  } catch {
+    return '{"name":"","entries":{}}';
   }
 }
 
@@ -895,6 +944,11 @@ export const webFsBindings = {
     if (!bytes) return "";
     return detectZipType(bytes);
   },
+  // 资源包/光影包详情恢复（原 fail-fast 报「binding 未实现」红错，app-preview/detail.ts:138/201
+  // 直调）。TS 平移 go/packs/mcmeta.go ReadPackMeta/ReadShaderpackLang，只读 meta；
+  // 失败返回 "{}"/{"name":"","entries":{}} 对齐 Go binding 契约（resource_bindings.go:34/59）
+  ReadPackMeta: (path: string) => readPackMetaJson(path),
+  ReadShaderpackLang: (path: string) => readShaderpackLangJson(path),
   // rtype 含 / 时替换为 _，避免 /web/a/b 破坏 readWebFile 三段解析
   GetRepoRoot: (rtype: string) => Promise.resolve(`${WEB_ROOT}/${rtype.replace(/\//g, "_")}`),
   GetDefaultRepoRoot: () => Promise.resolve(WEB_ROOT),
