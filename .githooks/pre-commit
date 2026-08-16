@@ -82,13 +82,18 @@ done
 # 未提交 docs/locales 半成品扫进本次 commit。改为 gen 前后快照对比，只 add 变化文件。
 ADD_FAIL=""
 if [ -f "$GEN_SNAP" ]; then
-  find docs/ frontend/public/locales/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > /tmp/ysm_gen_snap_after.txt
-  # diff 快照：新增/内容变化的文件（`>` 侧），路径取第 3 列；删除（`<` 侧）不 stage
-  diff "$GEN_SNAP" /tmp/ysm_gen_snap_after.txt 2>/dev/null | grep '^>' | awk '{print $3}' | sort -u | while IFS= read -r p; do
+  find docs/ frontend/public/locales/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > /tmp/ysm_gen_snap_after.txt || node -e '
+const fs=require("fs"),path=require("path");
+const out=[];
+for(const base of ["docs","frontend/public/locales"]){if(!fs.existsSync(base))continue;const w=(d)=>{for(const e of fs.readdirSync(d)){const p=path.join(d,e),s=fs.statSync(p);if(s.isDirectory())w(p);else out.push(`${s.mtimeMs} ${s.size} ${p}`);}};w(base);}
+fs.writeFileSync("/tmp/ysm_gen_snap_after.txt",out.sort().join("\n"));' 2>/dev/null || true
+  # diff 快照：新增/内容变化的文件（`>` 侧），路径取第 4 列（diff 行比快照行多 1 个 `>` 前缀）
+  diff "$GEN_SNAP" /tmp/ysm_gen_snap_after.txt 2>/dev/null | grep '^>' | awk '{print $4}' | sort -u > /tmp/ysm_gen_to_stage.txt
+while IFS= read -r p; do
     [ -z "$p" ] && continue
     [ -f "$p" ] || continue
     git add -- "$p" 2>/dev/null || ADD_FAIL="$ADD_FAIL $p"
-  done
+  done < /tmp/ysm_gen_to_stage.txt
   rm -f "$GEN_SNAP" /tmp/ysm_gen_snap_after.txt
 else
   # 快照缺失（find 异常）→ 兜底只 stage 已跟踪 docs/locales 的修改（-u 不 stage 新文件）

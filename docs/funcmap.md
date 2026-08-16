@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 105 | 390 |
+| 前端·工具 | 106 | 391 |
 | frontend/views | 90 | 252 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **372** | **1572** |
+| **合计** | **373** | **1573** |
 
 ## Go·头像
 
@@ -1467,6 +1467,7 @@
 | `safeGet()` | `frontend/src/utils/dom/storage:7` | 安全读：存储不可用时返回 null（调用方走默认值回退） |
 | `safeSet()` | `frontend/src/utils/dom/storage:16` | 安全写：存储不可用时静默忽略持久化（不中断调用方） |
 | `safeRemove()` | `frontend/src/utils/dom/storage:25` | 安全删：存储不可用时静默忽略（不中断调用方） |
+| `WebComponentBase()` | `frontend/src/utils/dom/web-component-base:7` | — |
 | `renderFormattedText()` | `frontend/src/utils/format/mc-format:45` | 将含 Minecraft § 分节符的文本渲染为带颜色的 HTML。 |
 | `PackMeta()` | `frontend/src/utils/format/pack-format:95` | ReadPackMeta 返回的 JSON 对象（仅覆盖用到的字段） |
 | `describeVersionRange()` | `frontend/src/utils/format/pack-format:108` | 根据 meta 对象生成格式号 + 版本号描述 拼接用「 / 」作分隔符，避免出现 "1.9 ~ 1.10.2 ~ 1.11" 的四段歧义串。 |
@@ -1536,7 +1537,7 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
+| `appContentStyle()` | `frontend/src/views/app-content/index:11` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
@@ -1615,7 +1616,7 @@
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
-| `appPreviewStyle()` | `frontend/src/views/app-preview/index:7` | — |
+| `appPreviewStyle()` | `frontend/src/views/app-preview/index:8` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:24` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:29` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:34` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
@@ -1698,8 +1699,8 @@
 | `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:95` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
 | `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:135` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
-| `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:57` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
-| `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:73` | — |
+| `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:58` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
+| `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:74` | — |
 | `PackMetaDetail()` | `frontend/src/views/app-resource-manager/tpl:8` | 详情面板元数据（ReadPackMeta / ReadShaderpackLang 返回 JSON 的兼容视图） |
 | `sidebarHTML()` | `frontend/src/views/app-resource-manager/tpl:21` | 侧栏布局（路径 + 操作栏 + 列表） |
 | `itemHTML()` | `frontend/src/views/app-resource-manager/tpl:63` | 列表项 HTML |
@@ -1709,7 +1710,7 @@
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
 | `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:147` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
 | `bindFooter()` | `frontend/src/views/app-sidebar/events:180` | — |
-| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:9` | — |
+| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:10` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
 | `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:150` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
@@ -1719,7 +1720,7 @@
 | `footerHTML()` | `frontend/src/views/app-sidebar/tpl:38` | — |
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:83` | — |
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:102` | 单个整合包卡片头部。 |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:50` | — |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:51` | — |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:21` | 容器骨架 |
 | `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:66` | 状态筛选标签 HTML |
@@ -1735,8 +1736,8 @@
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:18` | — |
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
-| `appTreeStyle()` | `frontend/src/views/app-tree/index:8` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:57` | — |
+| `appTreeStyle()` | `frontend/src/views/app-tree/index:9` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:58` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
 | `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |
