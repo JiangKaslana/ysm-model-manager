@@ -63,6 +63,10 @@ export interface PreviewScene {
   extraPanel?(panel: HTMLElement): void;
   /** 语义骨骼映射（语义骨骼层消费方读取；无 = 该格式不接入语义层，消费方降级） */
   semanticBones?: SemanticBoneMap;
+  /** 应用 VPD 姿势（MMD 专属；无 = 该格式不支持） */
+  applyPose?(index: number): void;
+  /** 截取当前 3D 渲染画面（PNG base64，无 data: 前缀）—— ADR-052 P3 通用化 */
+  screenshot?(): Promise<string | null>;
 }
 
 export interface PreviewAdapter {
@@ -84,6 +88,8 @@ export interface PreviewHandle {
   onBoneSelect?(info: BoneSelectInfo): void;
   /** 当前会话内切换到另一模型：复用外壳（renderer/rAF/controls/灯光）重建内容层（ADR-066 §5.6） */
   switchTo?(path: string): Promise<void>;
+  /** 截取当前 3D 渲染画面（PNG base64，无 data: 前缀）—— ADR-052 P3 通用化 */
+  screenshot?(): Promise<string | null>;
 }
 
 // ---- 通用相机控制常量（对齐 vrm/litematic 既有口径）----
@@ -620,6 +626,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       setSpeed: built.setSpeed,
       showModelGroup: built.showModelGroup,
       onBoneSelect: built.onBoneSelect,
+      screenshot: built.screenshot,
       // 当前会话内切换模型：复用外壳（renderer/rAF/controls/灯光）重建内容层（ADR-066 §5.6）
       switchTo: async (newPath: string): Promise<void> => {
         if (aborted || isDisposed.v || myGen !== _gen) return;
@@ -673,6 +680,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
           euler.setFromQuaternion((camera as THREE.PerspectiveCamera).quaternion);
         }
         perFrame = next.update ?? null;
+        if (_handle) _handle.screenshot = next.screenshot;
         next.extraControls?.(topBar);
         if (next.extraPanel && panelEl) {
           panelEl.innerHTML = "";

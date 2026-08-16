@@ -6,7 +6,7 @@
 // 通用外壳（overlay/renderer/循环/释放）由 mount-preview-core.ts 拥有。
 
 import * as THREE from "three";
-import { MMDLoader, VmdObject, buildAnimation } from "@moeru/three-mmd";
+import { MMDLoader, VmdObject, buildAnimation, VPDLoader, applyVPD, type VpdObject } from "@moeru/three-mmd";
 import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
@@ -30,6 +30,7 @@ import { mmdSemanticBoneMap } from "../semantic-bones.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
 import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
+// import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -101,6 +102,7 @@ export async function buildMmdScene(
   const texMap = new Map<string, string>();
   const blobUrls: string[] = [];
   const vmdPaths: string[] = [];
+  const vpdPaths: string[] = []; // 同目录 VPD 姿势文件
   // 模型本体也注册 blob：MMDLoader 内部 FileLoader 从 URL 读字节（WebView2 读不了磁盘路径），
   // URLModifier 拦截模型 URL → blob 后才可加载。
   const modelBlobUrl = URL.createObjectURL(new Blob([bytesToArrayBuffer(bytes)]));
@@ -135,6 +137,8 @@ export async function buildMmdScene(
     );
     // 同目录 VMD 动作文件（模型加载后逐个解析）
     vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
+    // 同目录 VPD 姿势文件（模型加载后逐个应用）
+    vpdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vpd")));
     await mmdDiag(
       port,
       "list-files",
@@ -201,6 +205,25 @@ export async function buildMmdScene(
       });
     } catch {
       /* 单个 VMD 损坏 → 跳过，其余照常 */
+    }
+  }
+  // 同目录 VPD 姿势文件：加载并缓存（applyVPD 直接修改骨骼变换，非动画 clip）
+  const vpdPoses: Array<{ label: string; vpd: VpdObject }> = [];
+  for (const v of vpdPaths) {
+    try {
+      const vpdB64 = await port.readFileBytes(v);
+      if (!vpdB64) continue;
+      const vpdBytes = b64ToBytes(vpdB64);
+      // VPDLoader.loadAsync 需要 URL，构造 blob URL（ArrayBuffer 兼容 BlobPart）
+      const vpdBlobUrl = URL.createObjectURL(new Blob([vpdBytes.buffer as ArrayBuffer]));
+      blobUrls.push(vpdBlobUrl);
+      const vpd = await new VPDLoader().loadAsync(vpdBlobUrl);
+      vpdPoses.push({
+        label: (v.split(/[/\\]/).pop() || "").replace(/\.vpd$/i, "") || "pose",
+        vpd,
+      });
+    } catch {
+      /* 单个 VPD 损坏 → 跳过，其余照常 */
     }
   }
   let playing = true;
@@ -302,6 +325,22 @@ export async function buildMmdScene(
   const breath = createBreathController();
   // 感知层注视追踪（程序化生命力 L2）：head/eyes 跟随相机方向
   const gaze = createGazeController();
+  // 感知层眨眼（程序化生命力 L1.5）：随机间隔触发 morph
+  // ⚠️ three-mmd 未暴露 MMD.morphs 运行时写入 API（morphs 仅在 VpdObject 上），
+  // 候选匹配逻辑保留，callback 暂空——待 three-mmd 升级后接入。
+  const BLINK_MORPH_CANDIDATES = [
+    "まばたき", "blink", "Blink", "眨眼", "wink", "eye close", "EyeClose", "眼", "目", "閉眼",
+  ];
+  let blinkMorphName: string | null = null;
+  if (mmd.pmx?.morphs) {
+    for (const morph of mmd.pmx.morphs) {
+      if (BLINK_MORPH_CANDIDATES.includes(morph.name)) {
+        blinkMorphName = morph.name;
+        break;
+      }
+    }
+  }
+  // const blink = createBlinkController(); // 待 morph API 可用后启用
 
   return {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
@@ -313,6 +352,10 @@ export async function buildMmdScene(
         // 注视追踪：始终生效（动画中头也跟随相机，增强生命力）
         gaze.apply(dt, semanticBones, ctx.camera!.position);
       }
+      // 眨眼：候选匹配到 morph 名后，待 three-mmd 暴露 morph 权重写入 API 再接入
+      // if (blinkMorphName && (!action || action.paused)) {
+      //   blink.apply(dt, (weight) => { (mmd as any).morphs[blinkMorphName] = weight; });
+      // }
     },
     // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
@@ -320,10 +363,23 @@ export async function buildMmdScene(
       mixer.stopAllAction();
       breath.reset();
       gaze.reset();
+      // blink.dispose(); // 待 morph API 可用后启用
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();
     },
     semanticBones,
+    // VPD 姿势导入：同目录 .vpd 文件加载后缓存，点击触发 applyVPD
+    applyPose: vpdPoses.length > 0
+      ? (index: number): void => {
+          const pose = vpdPoses[index];
+          if (!pose) return;
+          try {
+            applyVPD(mmd, pose.vpd, { ik: true, grant: true });
+          } catch {
+            /* 单个 VPD 应用失败不阻断预览 */
+          }
+        }
+      : undefined,
   };
 }
 
