@@ -1090,8 +1090,8 @@
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:62` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:111` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:23` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:60` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:145` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:64` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:149` | 工厂：构造统一 PreviewAdapter（shared 模式） |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
@@ -1481,9 +1481,9 @@
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:110` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:250` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:14` | 加载模型几何数据 + 纹理 + 作者信息 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底 |
-| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:35` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
-| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:40` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:45` | 任意新预览派发时调用，作废在途 MMD 加载 |
+| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:36` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
+| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:41` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:46` | 任意新预览派发时调用，作废在途 MMD 加载 |
 | `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:15` | — |
 | `buildMmdBottomNav()` | `frontend/src/views/app-preview/mmd-controls:28` | 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
@@ -1530,10 +1530,10 @@
 | `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:37` | 任意新预览派发时调用，作废在途 VRM 加载 |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
-| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:12` | — |
-| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:25` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
-| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:48` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
-| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:53` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
+| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:14` | — |
+| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:27` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
+| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:52` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
+| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:57` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
 | `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:24` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
 | `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:33` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
 | `YsmControlsContext()` | `frontend/src/views/app-preview/ysm-controls:46` | 控件装配上下文：由 ysm-adapter 在 buildYsmScene 内组装传入 |

@@ -7,6 +7,20 @@
 > 分类口径：①硬编码常量 ②未抽离重复 ③缺扩展点分支 ④未充分利用抽象 ⑤缺配置项/钩子 ⑥可插件化管线。
 > 价值：低/中/高 —— 综合改造成本与收益频次的主观判断，仅作排期参考。
 
+---
+
+## 批次 2（2026-08-16）：对账 + Round 2 探索
+
+> 本轮（ADR-064/065/067/068 + 硬编码清理 c30fb366 + 目录解析锚定 d517113c + web M1/M2 93cb0e8b）闭环了批次 1 Top 10 的 **60%**。
+> 对账详情（逐条已闭环/存活/部分，grep 实测当前 HEAD 行号）：`extensibility-index-reconciliation.md`
+> 新拓展点探索（4 维度扩展入口 + Top 10 新建议 + 残留清单）：`extensibility-round2.md`
+
+**批次 1 Top 10 状态**：✅ 闭环 #3（文件夹级判定）/ #5（ShouldHashExt）/ #6（browser-adapter 装配）/ #7（import-dnd）/ #8（app-modules loadView）/ #10（/web 正则）；🔄 部分 #2（双检测器并存）/ #4（copyFile 7 处 wrapper 未收尽）/ #9（无显式 hook 指针）；⏸ N/A #1（RenderSession 独立立项）。
+
+**未触达（下一批候选）**：3D 渲染管线（utils/3d 全部硬编码）、test-utils 重复模式、wasm 胶水层、Go 低价值阈值常量（MaxImportSize/CHECK_INTERVAL/logs 阈值未入 AppConfig）。
+
+**⭐ 最痛残留（加新类型必改，见 extensibility-round2.md §残留清单）**：前端 `RESOURCE_TYPES` 键 / `RESOURCE_TYPE_LABELS` / `icon.ts` 图标 / `PREVIEW_HANDLERS` / 侧栏顶部 tab 5 处**每次必改**——待从 `resource_types.json` 派生（round2 Top 10 建议 #1-4/#7）。
+
 ## 跨模块 Top 10（按价值降序）
 
 | # | 类型 | 位置 | 一句话 | 价值 |
