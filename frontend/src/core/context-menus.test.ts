@@ -122,7 +122,9 @@ const documentMock = {
   body: { appendChild: vi.fn(), removeChild: vi.fn() },
   execCommand: vi.fn(() => false),
 };
-vi.stubGlobal("document", documentMock);
+// 2026-08-17 修复：document stub 从模块顶层移入 beforeEach——isolate:false 审核模式下
+// 其他文件的 afterEach unstubAllGlobals 会清掉本文件顶层 stub（且 export-list 测试自身
+// unstubAllGlobals 也清 document），导致后续 copy-paths 测试 document is not defined。
 const TRACKED = [
   "instance:export-list",
   "instance:clear",
@@ -150,6 +152,8 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  // 2026-08-17：document stub 每次测试前重建（防跨文件 unstub 污染——见顶层注释）
+  vi.stubGlobal("document", documentMock);
   menuShows.length = 0;
   emitted.length = 0;
   openFolderMock.mockClear();
