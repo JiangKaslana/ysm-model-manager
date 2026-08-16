@@ -7,6 +7,7 @@ import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type Preview
 import { buildVrmScene, type VrmPanelHooks } from "../../utils/3d/adapters/vrm-adapter.ts";
 import { getApp } from "../../backend/app.ts";
 import { makeVrmPanelRenderer } from "./vrm-controls.ts";
+import { fillMmdPlayPanel } from "./mmd-controls.ts";
 
 /** 数据读取注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 async function readFileBytes(path: string): Promise<string | null> {
@@ -22,6 +23,8 @@ async function listAllFilePaths(dir: string): Promise<string[] | null> {
 
 const vrmPanelHooks: VrmPanelHooks = {
   makePanelRenderer: makeVrmPanelRenderer,
+  // 播放面板复用 MMD 填充函数（views→views 合法；解除 utils→views 分层违规 R1）
+  fillPlayPanel: fillMmdPlayPanel,
 };
 
 const vrmAdapter: PreviewAdapter = {

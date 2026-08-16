@@ -44,6 +44,7 @@ function fakeMmdOpts(overrides: Partial<MmdMenuItemsOpts> = {}): MmdMenuItemsOpt
   } as unknown as THREE.SkinnedMesh;
   return {
     navCtx: { mmd, mesh, modelName: "测试.pmx" },
+    screenshot: null,
     material: {
       list: () => [{ index: 0, name: "mat0" }],
       getDetail: () => null,
@@ -58,6 +59,12 @@ function fakeMmdOpts(overrides: Partial<MmdMenuItemsOpts> = {}): MmdMenuItemsOpt
       select: vi.fn(),
     },
     bonePanel: null,
+    panels: {
+      fillModelPanel: (list) => { list.innerHTML = '<div data-testid="mmd-model-card">测试.pmx</div>'; },
+      fillPlayPanel: (list) => { list.innerHTML = '<button id="mmd-play-btn"></button><select id="mmd-motion-sel"></select>'; },
+      fillShotPanel: () => {},
+      buildMaterialControls: (list) => { list.innerHTML = '<div data-testid="mmd-mat-0"></div>'; },
+    },
     ...overrides,
   };
 }
@@ -74,12 +81,18 @@ function fakeBonePanel() {
 
 function fakeVrmOpts(): VrmMenuItemsOpts {
   return {
+    screenshot: null,
     bonePanel: fakeBonePanel(),
     material: {
       list: () => [{ index: 0, name: "Body" }],
       getDetail: () => ({ index: 0, name: "Body", visible: true, opacity: 1, transparent: false, type: "mtoon" }),
       setVisible: vi.fn(),
       setOpacity: vi.fn(),
+    },
+    panels: {
+      makePanelRenderer: () => (list) => { list.innerHTML = '<div data-testid="vrm-mat-0"></div>'; },
+      makeModelPanelRenderer: (list) => { list.innerHTML = '<div data-testid="vrm-model-card">测试.vrm</div>'; },
+      makeShotPanelRenderer: () => () => {},
     },
   };
 }
@@ -179,17 +192,17 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
   });
 
   it("vrm 骨骼项齐全且归 🧍 模型组（dock 可达）", () => {
-    expect(vrmItems.map((d) => d.id)).toEqual(["material", "bones"]);
+    expect(vrmItems.map((d) => d.id)).toEqual(["model", "shot", "material", "bones"]);
     vrmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
   });
 
   it("mmd model/material 恒定；play/bones 条件注入", () => {
     const withAll = mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() }));
-    expect(withAll.map((d) => d.id).sort()).toEqual(["bones", "material", "model", "play"]);
+    expect(withAll.map((d) => d.id).sort()).toEqual(["bones", "material", "model", "play", "shot"]);
     // 无 VMD → 无 play；无 pmx.bones → 无 bones
     const slim = mmdMenuItems(fakeMmdOpts({ play: null }));
     expect(slim.some((d) => d.id === "play")).toBe(false);
-    expect(slim.map((d) => d.id).sort()).toEqual(["material", "model"]);
+    expect(slim.map((d) => d.id).sort()).toEqual(["material", "model", "shot"]);
   });
 
   it("legacyTestId 锚点齐全（既有 e2e 选择器兼容契约）", () => {
@@ -236,6 +249,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
     expect(overlay.querySelector('[data-testid="preview-model"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-shot"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="preview-material"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="preview-bones"]')).toBeNull(); // 仅 openPanel 契约
 

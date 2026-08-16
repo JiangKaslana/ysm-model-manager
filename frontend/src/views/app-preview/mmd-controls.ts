@@ -8,6 +8,9 @@ import * as THREE from "three";
 import type { MMD } from "@moeru/three-mmd";
 import { t } from "../../core/i18n/t.ts";
 import { cardContainer, addFieldRow } from "../../ui/ui-helpers.ts";
+import { bus } from "../../bus.ts";
+import { friendlyError } from "../../utils/dom/errors.ts";
+import { saveScreenshot } from "./skeleton-render.ts";
 import {
   listMmdMaterials,
   getMmdMaterialDetail,
@@ -199,5 +202,69 @@ export function buildMaterialControls(container: HTMLElement, bridge: MaterialCo
       eye.click();
     };
     container.appendChild(row);
+  });
+}
+
+/** 连点/多菜单触发时忽略并发（防重复保存文件）——对齐 ysm-controls makeShotGuard */
+function makeShotGuard(): { saving: boolean; setSaving: (v: boolean) => void } {
+  let saving = false;
+  return {
+    saving,
+    setSaving: (v: boolean): void => {
+      saving = v;
+    },
+  };
+}
+
+/**
+ * MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。
+ * current / front / 45 / side / back45 / all 六角度——all 走 saveScreenshot 的 angle 路径。
+ * @param screenshotFn 适配器注入的截图能力（screenshotFromRenderer 共享 renderer），null 时面板不渲染
+ */
+export function fillMmdShotPanel(
+  list: HTMLElement,
+  ctx: MmdBottomNavCtx,
+  screenshotFn: (() => Promise<string | null>) | null,
+): void {
+  if (!screenshotFn) return;
+  const shot = makeShotGuard();
+  const shotKeys = ["current", "front", "45", "side", "back45", "all"] as const;
+  const shotLabels = [
+    t("preview.screenshotCurrent"),
+    t("preview.screenshotFront"),
+    t("preview.screenshot45"),
+    t("preview.screenshotSide"),
+    t("preview.screenshotBack45"),
+    t("preview.screenshotAll"),
+  ];
+  const saveShot = async (key: string): Promise<void> => {
+    if (shot.saving) return;
+    shot.setSaving(true);
+    try {
+      await saveScreenshot(
+        { boneCount: 0, cubeCount: 0, texWidth: 0, texHeight: 0, bones: [], _modelPath: ctx.modelPath, texture: "" },
+        key,
+        screenshotFn,
+      );
+    } catch (e) {
+      console.error("[3D 截图]", e);
+      bus.emit("toast:show", {
+        msg: "截图保存失败：" + friendlyError(e),
+        duration: 4000,
+        type: "error",
+      });
+    } finally {
+      shot.setSaving(false);
+    }
+  };
+  shotKeys.forEach((key, i) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "ysm-3d-popbtn ysm-3d-popbtn--row";
+    item.textContent = "📷 " + shotLabels[i];
+    item.onclick = (): void => {
+      void saveShot(key);
+    };
+    list.appendChild(item);
   });
 }

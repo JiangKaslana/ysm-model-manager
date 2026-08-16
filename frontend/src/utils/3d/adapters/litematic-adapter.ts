@@ -5,6 +5,7 @@
 
 import * as THREE from "three";
 import { t } from "../../../core/i18n/t.ts";
+import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 
 /** 体素数据（GetLitematicVoxelData 等返回 JSON） */
@@ -324,5 +325,8 @@ export async function buildLitematicScene(
       topBar.appendChild(layerSlider2);
       topBar.appendChild(layerInput2);
     },
+    // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/mmd/vrm 呑约对称）
+    screenshot: () =>
+      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
   };
 }

@@ -26,7 +26,7 @@ import {
   setVrmMaterialOpacity,
 } from "../vrm-materials.ts";
 import type { VrmMaterialControlBridge } from "../../../views/app-preview/vrm-controls.ts";
-import { fillMmdPlayPanel, type MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
+import type { MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -152,6 +152,8 @@ export interface VrmPanelHooks {
   makeModelPanelRenderer?: (list: HTMLElement) => void;
   /** 截图面板填充回调（ADR-052 P3：喂 screenshotFn 给 saveScreenshot）；缺失则 shot 项 render 退化为 no-op */
   makeShotPanelRenderer?: (screenshotFn: () => Promise<string | null>) => (list: HTMLElement) => void;
+  /** 播放面板填充回调（复用 MMD 播放面板；解除 utils→views 分层违规 R1，缺失则 play 项 render 退化为 no-op） */
+  fillPlayPanel?: (list: HTMLElement, bridge: MmdPlayBridge) => void;
 }
 
 export async function buildVrmScene(
@@ -475,7 +477,7 @@ export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
       legacyTestId: "vrm-play-entry",
       dockGroup: "motion", // 底栏 💃 动作组（对齐 MMD）
       render: (list): void => {
-        fillMmdPlayPanel(list, o.play!);
+        o.panels?.fillPlayPanel?.(list, o.play!);
       },
     });
   }

@@ -7,6 +7,7 @@ import { buildSceneMesh, compKey, disposeMaterial } from "../../utils/3d/mesh.ts
 import { addStandardSceneLights } from "../../utils/3d/scene-lights.ts";
 import { screenshotFromRenderer } from "../../utils/3d/screenshot.ts";
 import { type Spec3D } from "../../utils/3d/model3d.ts";
+import { buildSpecFromGeometryJSON } from "../../utils/3d/spec-builder.ts";
 
 export interface AngleShot {
   name: string;
@@ -23,13 +24,12 @@ export async function renderMultiAngle(
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
   try {
-    const { GetModel3DSpec } = await getApp();
-    let spec: Spec3D;
+    let spec: Spec3D | null = null;
     try {
+      const { GetModel3DSpec } = await getApp();
       spec = JSON.parse(await GetModel3DSpec(modelPath)) as Spec3D;
-    } catch (e) {
-      console.warn("[screenshot] spec 获取失败:", e);
-      // ADR-071：web 端 GetModel3DSpec 恒 "{}" 桩 → fallthrough 到 WASM 解码兜底
+    } catch {
+      console.warn("[screenshot] spec 获取失败");
     }
     // ADR-071：web 端 spec 桩无效 → 前端 WASM 解码 + buildSpecFromGeometryJSON 兜底（同 model3d-loader）
     if (!spec?.models?.length) {
