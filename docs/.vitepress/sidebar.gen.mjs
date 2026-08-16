@@ -704,6 +704,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-086：检查体系减负与赋能决策表",
+        "link": "/adr/ADR-086-check-system-reduction"
+      },
+      {
         "text": "ADR-085：3D 预览菜单单一事实来源：注册表驱动 + 状态单向流",
         "link": "/adr/ADR-085-menu-single-source"
       },
