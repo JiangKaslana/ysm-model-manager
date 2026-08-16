@@ -10,6 +10,7 @@ import {
   type StatsWorkerRequest,
   type StatsWorkerResponse,
   type WebModelStats,
+  type WebModelStatsWithPath,
 } from "../workers/stats-protocol.ts";
 
 // 对外类型（web-fs 复用：SearchModels 数值字段形状对齐 go types.SearchResult）
@@ -25,7 +26,7 @@ let requestSeq = 0;
 /** 单批在途请求（批间串行，同一时刻至多一个；terminate/error/timeout 时清空） */
 let pending: {
   requestId: number;
-  settle: (v: Array<WebModelStats & { path: string }> | null) => void;
+  settle: (v: Array<WebModelStatsWithPath> | null) => void;
 } | null = null;
 
 /** 降级标记：最近一次批量统计是否降级（一次消费，toolbar-search 读取后复位） */
@@ -80,7 +81,7 @@ function getWorker(): Worker | null {
 }
 
 /** 单批统计（串行调用；返回 null = 该批降级） */
-function statsOneChunk(paths: string[]): Promise<Array<WebModelStats & { path: string }> | null> {
+function statsOneChunk(paths: string[]): Promise<Array<WebModelStatsWithPath> | null> {
   return new Promise((resolve) => {
     const w = getWorker();
     if (!w) {
@@ -96,7 +97,7 @@ function statsOneChunk(paths: string[]): Promise<Array<WebModelStats & { path: s
       resolve(null);
     }, STATS_CHUNK_TIMEOUT_MS);
 
-    const settle = (v: Array<WebModelStats & { path: string }> | null): void => {
+    const settle = (v: Array<WebModelStatsWithPath> | null): void => {
       clearTimeout(timer);
       if (pending?.requestId === requestId) pending = null;
       resolve(v);
@@ -148,10 +149,9 @@ export async function batchStatsWebModels(paths: string[]): Promise<WebModelStat
       markDegraded();
       return null;
     }
-    // 按 path 对齐（Worker 结果带 path，防顺序漂移）
-    const byPath = new Map(res.map((s) => [s.path, s]));
+    // 按索引对齐（Worker 顺序遍历 paths 返回同序结果，results 带 path 仅作调试/校验用）
     for (let i = 0; i < chunk.length; i++) {
-      const s = byPath.get(chunk[i]);
+      const s = res[i];
       out[offset + i] = s
         ? {
             boneCount: s.boneCount,

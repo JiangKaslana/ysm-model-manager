@@ -22,6 +22,7 @@ import type {
   StatsWorkerRequest,
   StatsWorkerResponse,
   WebModelStats,
+  WebModelStatsWithPath,
 } from "./stats-protocol.ts";
 
 /** Worker 全局（module worker 下为 DedicatedWorkerGlobalScope；显式声明避免依赖 lib） */
@@ -99,7 +100,7 @@ self.onmessage = async (ev: MessageEvent<StatsWorkerRequest>): Promise<void> => 
       post({ type: "error", requestId, message: "YSMParser WASM 初始化失败" });
       return;
     }
-    const results: Array<WebModelStats & { path: string }> = [];
+    const results: Array<WebModelStatsWithPath> = [];
     let done = 0;
     for (const p of paths) {
       results.push({ path: p, ...(await statsOne(p)) });

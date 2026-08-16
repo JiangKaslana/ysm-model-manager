@@ -818,11 +818,13 @@ describe("browserAdapter — 桥接增强边界/异常分支补全（审核补�
 // ===== ADR-071 #6：SearchModels 数值过滤（Worker 统计注入 / 降级 / 快路径）=====
 // 数值条件统计走 Web Worker（web-stats.ts）；单测环境无 Worker → 注入统计 runner
 // 模拟「Worker 可用」；runner 返回 null 模拟「Worker 不可用 → 降级」。
+// 注入/降级标记经 browser-adapter 链 re-export 引入：与 web-fs 内 searchWebModels
+// 共用同一 web-stats 实例（vitest mock 图会拆独立实例，直接 import 会断降级标记）。
 import {
   setStatsRunnerForTest,
   consumeWebSearchDegraded,
   terminateStatsWorker,
-} from "./web-stats.ts";
+} from "./browser-adapter.ts";
 
 describe("browserAdapter — SearchModels 数值过滤（ADR-071 #6 Worker 统计）", () => {
   const encN = new TextEncoder();

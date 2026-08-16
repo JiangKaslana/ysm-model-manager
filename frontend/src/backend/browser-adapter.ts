@@ -16,6 +16,14 @@ export { WebUnsupportedError, WEB_ROOT, MAX_IMPORT_BYTES, arrayBufferToBase64 } 
 export { importWebFiles, selectLocalRepo } from "./web-fs.ts";
 // R2 FSA 持久化原语对外暴露（含授权状态查询，供 settings UI 启动引导）
 export { getFsaAuthState, reauthorizeFsaRoot, rescanFsaRoot } from "./web-fs.ts";
+// ADR-071 #6：SearchModels 数值统计 Worker 编排（降级标记/测试注入/取消）。
+// 经 browserAdapter 链 re-export：保证消费方（toolbar-search / 测试）与 web-fs 内
+// searchWebModels 拿到同一模块实例（vitest mock 图会拆出独立实例，直接 import 会断降级标记）。
+export {
+  consumeWebSearchDegraded,
+  setStatsRunnerForTest,
+  terminateStatsWorker,
+} from "./web-stats.ts";
 // 注册表驱动装配（Top 6）：各职责模块自注册 binding 片段（web-common/web-fs/
 // web-store/web-community），本文件只做 spread 装配 + 类型对账 + Proxy 门控。
 import { WebUnsupportedError, webCommonBindings } from "./web-common.ts";

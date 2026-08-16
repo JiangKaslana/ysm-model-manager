@@ -10,6 +10,9 @@ export interface WebModelStats {
   hasError: boolean;
 }
 
+/** 带 path 的统计结果（Worker 返回，主线程按 path 对齐防顺序漂移） */
+export type WebModelStatsWithPath = WebModelStats & { path: string };
+
 /** 主线程 → Worker：批量统计任务 */
 export interface StatsWorkerRequest {
   type: "stats";
@@ -31,7 +34,7 @@ export interface StatsWorkerProgress {
 export interface StatsWorkerResult {
   type: "result";
   requestId: number;
-  results: Array<WebModelStats & { path: string }>;
+  results: Array<WebModelStatsWithPath>;
 }
 
 /** Worker → 主线程：致命错误（WASM 无法加载 / 任务内部异常），主线程据此整体降级 */

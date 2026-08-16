@@ -10,6 +10,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // —— 模块 mock（工厂不引用外部变量，可安全提升）——
 vi.mock("../../backend/app.ts", () => ({ getApp: vi.fn() }));
+// can() 默认 true（桌面/常规语义）；"查看器模式"用例内设 false 模拟无能力
+const { canMock } = vi.hoisted(() => ({ canMock: vi.fn(() => true) }));
+vi.mock("../../utils/dom/capabilities.ts", () => ({ can: canMock }));
 vi.mock("../../utils/dom/dialogs/modal.ts", () => ({
   modalConfirm: vi.fn(),
   modalPrompt: vi.fn(),
@@ -113,6 +116,7 @@ function getToast(): { msg: string; type?: string; duration?: number } | undefin
 
 beforeEach(() => {
   vi.clearAllMocks();
+  canMock.mockReturnValue(true); // 重置能力探测（viewer 用例内改 false，防测试间污染）
   emitSpy = vi.spyOn(bus, "emit");
   getAppMock.mockResolvedValue(bindings as unknown as AppBindings);
   modalConfirmMock.mockResolvedValue(true);
@@ -173,6 +177,7 @@ describe("app-tree index 入口生命周期（补位）", () => {
   it("Delete 查看器模式 → 网页版 toast，不删除", async () => {
     await mountEl();
     (globalThis as Record<string, unknown>)["__YSM_WEB__"] = true;
+    canMock.mockReturnValue(false); // 模拟无删除能力（Android viewer / 未实现 binding）
     selectState.keys.add("/repo/a.ysm");
     dispatchKey("Delete");
     await waitFor(() => toastCalls().some(([ev]) => ev === "toast:show"));

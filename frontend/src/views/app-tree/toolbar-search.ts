@@ -8,6 +8,9 @@ import { modalAdvFilter, type AdvFilterValue } from "../../utils/dom/dialogs/adv
 import { dbg } from "../../utils/debug/debug.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
 import { importWebFiles } from "../../backend/browser-adapter.ts";
+// 网页版数值条件降级标记消费（web-stats.ts 经 browserAdapter 链 re-export——与
+// searchWebModels 同一模块实例；Worker 批量统计不可用时置位，此处 toast 提示）
+import { consumeWebSearchDegraded } from "../../backend/browser-adapter.ts";
 import type { AppTree } from "./index.ts";
 import { getApp } from "../../backend/app.ts";
 
@@ -15,9 +18,10 @@ type $Id = (id: string) => HTMLElement | null;
 
 // 打开弹窗版筛选器（应用结果到 inline 面板 + 后端搜索）
 export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
-  // ADR-049 桥接增强：网页版已实现 SearchModels（关键词）/ ListByTag（标签），
-  // 早期「网页版未实现」守卫已移除。数值范围条件（骨骼/立方体/纹理）浏览器端无几何
-  // 分析能力，由后端降级为仅关键词匹配（在 rv 确定后于下方提示，不阻断调用）。
+  // ADR-049 桥接增强：网页版已实现 SearchModels（关键词 + 数值范围条件）。
+  // 数值统计（骨骼/立方体/纹理）走 Web Worker 批量分析（ADR-071 #6，用户「多线程
+  // 注入」要求）：Worker 可用时数值条件真实生效；不可用/失败时后端降级为仅关键词
+  // 匹配，并在搜索结果返回后 toast 提示（consumeWebSearchDegraded）。
   // 降级提示仅限网页版（resolveWebMode）：Android 的 isViewerMode 恒 true，但其走
   // 真实 Go 后端、SearchModels 支持数值范围，误提示会与后端行为不符。
   dbg("adv-filter", "open:start", { filesRoot: vm._filesRoot });
@@ -62,6 +66,13 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
   const kw = srchEl?.value || "";
   const hasTag = rv.tag && !(rv.tag === "");
   const isUnset = (v: unknown): boolean => v == null || v === "";
+  const hasNumRange =
+    !isUnset(rv.minBones) ||
+    !isUnset(rv.maxBones) ||
+    !isUnset(rv.minCubes) ||
+    !isUnset(rv.maxCubes) ||
+    !isUnset(rv.minTex) ||
+    !isUnset(rv.maxTex);
   if (
     !kw &&
     !hasTag &&
@@ -75,23 +86,6 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
     vm._filterPaths = null;
     vm._renderTree();
     return;
-  }
-  // 网页版数值范围条件降级提示（仅提示，不阻断）
-  if (resolveWebMode()) {
-    const hasNumRange =
-      !isUnset(rv.minBones) ||
-      !isUnset(rv.maxBones) ||
-      !isUnset(rv.minCubes) ||
-      !isUnset(rv.maxCubes) ||
-      !isUnset(rv.minTex) ||
-      !isUnset(rv.maxTex);
-    if (hasNumRange) {
-      bus.emit("toast:show", {
-        msg: "网页版仅支持关键词/标签筛选，骨骼/立方体数值条件已忽略",
-        duration: 3000,
-        type: "warn",
-      });
-    }
   }
   const { SearchModels, ListByTag, GetRepoRoot } =
     await getApp();
@@ -158,6 +152,16 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
       vm._renderTree();
       return;
     }
+  }
+
+  // 网页版数值条件降级提示：仅当统计引擎实际不可用（Worker 失败，SearchModels 已
+  // 降级为关键词匹配）时提示；Worker 生效时数值条件是真实的，不打扰用户
+  if (resolveWebMode() && hasNumRange && consumeWebSearchDegraded()) {
+    bus.emit("toast:show", {
+      msg: "⚠️ 网页版统计引擎不可用，骨骼/立方体数值条件已忽略（仅关键词匹配）",
+      duration: 3000,
+      type: "warn",
+    });
   }
 
   // 3. 取交集：标签 ∩ 搜索条件（如果两者都有）

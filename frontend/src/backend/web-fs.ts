@@ -40,6 +40,9 @@ import {
   emptyYsmHeader,
   emptyYsmSummary,
 } from "./ysm-header.ts";
+// ADR-071 #6：SearchModels 数值条件的统计来源 —— Web Worker 批量统计
+// （Worker 内独立加载 WASM + open IndexedDB，主线程零解析负载；不可用/失败降级）
+import { batchStatsWebModels, type WebModelStats } from "./web-stats.ts";
 
 // --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
 const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
@@ -451,19 +454,100 @@ export async function scanAllWebModels(): Promise<Array<{ type: string; name: st
   return out;
 }
 
-// --- 搜索（关键词匹配；数值范围条件浏览器端无几何分析，降级忽略）---
+// --- 搜索（关键词匹配 + 数值范围条件，数值统计走 Web Worker 批量分析）---
+// 对齐桌面 internal/app/app_scan.go SearchModels：kw 匹配 name OR path；
+// 数值参数 [minBones,maxBones,minCubes,maxCubes,minTex,maxTex]，>0 才参与过滤：
+//   minBones>0 && BoneCount<minBones → 排除（骨骼 ≥ N）
+//   maxBones>0 && BoneCount>maxBones → 排除
+//   minCubes>0 && CubeCount<minCubes → 排除（立方体 ≥ N）
+//   maxCubes>0 && CubeCount>maxCubes → 排除
+//   minTex>0 && (TexWidth<minTex || TexHeight<minTex) → 排除（纹理宽/高 ≥ N）
+//   maxTex>0 && (TexWidth>maxTex || TexHeight>maxTex) → 排除
+// 统计来源：Worker 批量统计（大库后台跑不卡 UI）；Worker 不可用/失败 → 降级返回
+// 关键词匹配（数值 0 + hasError:false，toolbar-search 经 consumeWebSearchDegraded 提示）。
+// 返回形状对齐 go types.SearchResult {name,path,boneCount,cubeCount,texWidth,texHeight,hasError}。
+interface WebSearchResult {
+  name: string;
+  path: string;
+  boneCount: number;
+  cubeCount: number;
+  texWidth: number;
+  texHeight: number;
+  hasError: boolean;
+}
+
 async function searchWebModels(
   filesRoot: string,
   keyword: string,
-): Promise<Array<{ name: string; path: string; boneCount: number; cubeCount: number; texWidth: number; texHeight: number; hasError: boolean }>> {
+  minBones = 0,
+  maxBones = 0,
+  minCubes = 0,
+  maxCubes = 0,
+  minTex = 0,
+  maxTex = 0,
+): Promise<WebSearchResult[]> {
   const type = typeFromWebDir(filesRoot);
   const entries = await scanWebModels(`${WEB_ROOT}/${type}`);
   // 对齐桌面 app_scan.go SearchModels：kw = strings.ToLower(strings.TrimSpace(keyword))
   const kw = (keyword || "").trim().toLowerCase();
-  return entries
-    // 对齐桌面 app_scan.go SearchModels：匹配 name OR path（搜索目录名/作者路径段可命中）
-    .filter((e) => !kw || e.Name.toLowerCase().includes(kw) || e.Path.toLowerCase().includes(kw))
-    .map((e) => ({ name: e.Name, path: e.Path, boneCount: 0, cubeCount: 0, texWidth: 0, texHeight: 0, hasError: false }));
+  // 对齐桌面 app_scan.go SearchModels：匹配 name OR path（搜索目录名/作者路径段可命中）
+  const matched = entries.filter(
+    (e) => !kw || e.Name.toLowerCase().includes(kw) || e.Path.toLowerCase().includes(kw),
+  );
+  const hasNumeric =
+    minBones > 0 || maxBones > 0 || minCubes > 0 || maxCubes > 0 || minTex > 0 || maxTex > 0;
+  // 无数值条件 → 快路径：关键词匹配即可（保持既有行为，不做批量解码）
+  if (!hasNumeric) {
+    return matched.map((e) => ({
+      name: e.Name,
+      path: e.Path,
+      boneCount: 0,
+      cubeCount: 0,
+      texWidth: 0,
+      texHeight: 0,
+      hasError: false,
+    }));
+  }
+  // Worker 批量统计；不可用/失败 → 降级为关键词匹配（数值 0），toast 由消费方提示
+  let stats: WebModelStats[] | null = null;
+  try {
+    stats = await batchStatsWebModels(matched.map((e) => e.Path));
+  } catch {
+    stats = null;
+  }
+  if (!stats) {
+    return matched.map((e) => ({
+      name: e.Name,
+      path: e.Path,
+      boneCount: 0,
+      cubeCount: 0,
+      texWidth: 0,
+      texHeight: 0,
+      hasError: false,
+    }));
+  }
+  const out: WebSearchResult[] = [];
+  matched.forEach((e, i) => {
+    const s = stats[i];
+    // 对齐 Go：统计失败（BoneCount==0 等价 hasError）在数值条件下直接排除
+    if (!s || s.hasError) return;
+    if (minBones > 0 && s.boneCount < minBones) return;
+    if (maxBones > 0 && s.boneCount > maxBones) return;
+    if (minCubes > 0 && s.cubeCount < minCubes) return;
+    if (maxCubes > 0 && s.cubeCount > maxCubes) return;
+    if (minTex > 0 && (s.texWidth < minTex || s.texHeight < minTex)) return;
+    if (maxTex > 0 && (s.texWidth > maxTex || s.texHeight > maxTex)) return;
+    out.push({
+      name: e.Name,
+      path: e.Path,
+      boneCount: s.boneCount,
+      cubeCount: s.cubeCount,
+      texWidth: s.texWidth,
+      texHeight: s.texHeight,
+      hasError: false,
+    });
+  });
+  return out;
 }
 
 // --- 重命名校验（对齐桌面 fileops.RenameDir/RenameFile：非法字符/空名/穿越拒绝）---
@@ -1084,8 +1168,19 @@ export const webFsBindings = {
   // rtype 含 / 时替换为 _，避免 /web/a/b 破坏 readWebFile 三段解析
   GetRepoRoot: (rtype: string) => Promise.resolve(`${WEB_ROOT}/${rtype.replace(/\//g, "_")}`),
   GetDefaultRepoRoot: () => Promise.resolve(WEB_ROOT),
-  // 搜索：关键词匹配（数值范围条件浏览器端无几何分析，降级忽略，如实标注）
-  SearchModels: (filesRoot: string, keyword: string, ..._rest: number[]) => searchWebModels(filesRoot, keyword),
+  // 搜索：关键词 + 数值范围条件（min/max 骨骼/立方体/纹理，>0 才过滤；统计走
+  // Web Worker 批量分析，Worker 不可用降级为仅关键词匹配并在 UI 提示）
+  SearchModels: (filesRoot: string, keyword: string, ...rest: number[]) =>
+    searchWebModels(
+      filesRoot,
+      keyword,
+      rest[0] ?? 0,
+      rest[1] ?? 0,
+      rest[2] ?? 0,
+      rest[3] ?? 0,
+      rest[4] ?? 0,
+      rest[5] ?? 0,
+    ),
   // 删除模型组（dir + file + 标记）
   DeleteModelDir: async (path: string) => {
     // 格式校验区分「非法路径」（reject）与「合法但组已删」（幂等通过，对齐桌面重复删除不报错）：
