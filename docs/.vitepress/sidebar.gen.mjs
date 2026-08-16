@@ -704,6 +704,14 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-090：vitest 环境切换与 npm 三件套并行优化",
+        "link": "/adr/ADR-090-vitest-env-optimization"
+      },
+      {
+        "text": "ADR-089：测试环境切分持续推进：慢测试定位与 node 环境甄别",
+        "link": "/adr/ADR-089-test-env-split-continued"
+      },
+      {
         "text": "ADR-088：检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行",
         "link": "/adr/ADR-088-parallel-dispatch"
       },
@@ -1457,6 +1465,10 @@ export const autoSidebar = [
           {
             "text": "拓展点 / 扩展入口 探索报告（Round 2）",
             "link": "/knowledge/extensibility-round2"
+          },
+          {
+            "text": "Vitest 环境切换规则",
+            "link": "/knowledge/vitest-env-switch"
           }
         ]
       }
