@@ -99,7 +99,7 @@ permalink: /adr/
 | ADR-072 | 3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters | ✅ 已采纳（根治三主线落地：薄包装归位 views `4413fb2a` + `resolveMmdSiblings` 断环 `761138dd` + adapter 注入化消反向依赖 `ca1780e7`；终态 `utils/3d/adapters` 0 backend import，check-circular/check-layering 双零） | 2026-08-16 |
 | ADR-073 | 联邦 3D 渲染能力共享策略（程序化天空为首个落地能力） | ✅ 已采纳 | 2026-08-16 |
 | ADR-074 | 3D 骨骼层级通用工具：统一 YSM/MMD/VRM 的骨骼列表·拾取·显隐 | ✅ 已采纳 | 2026-08-16 |
-| ADR-075 | 3D 预览通用底部导航与环境共用菜单契约 | ✅ 已采纳 | 2026-08-16 |
+| ADR-075 | 3D 预览环境控件收进环境菜单契约 | ✅ 已采纳 | 2026-08-16 |
 
 ## 使用规则（硬约束）
 
