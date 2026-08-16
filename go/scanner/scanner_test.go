@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"ysm-model-manager/go/types"
 )
@@ -247,4 +248,74 @@ func TestGenerateRepoIndex(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, ".github", "workflows", "generate-index.yml")); err != nil {
 		t.Fatalf("workflow 应生成: %v", err)
 	}
+}
+
+// ===== emitScanError 去重（ADR-082 续：防重复扫描刷屏环形日志面板）=====
+
+func TestEmitScanError_DedupWindow(t *testing.T) {
+	// 重置去重表（测试隔离：map 是包级，避免用例间相互影响）
+	dedupMu.Lock()
+	dedupSeen = map[string]time.Time{}
+	dedupMu.Unlock()
+
+	var calls []string
+	errorSink = func(msg string) { calls = append(calls, msg) }
+	t.Cleanup(func() {
+		errorSink = nil
+		dedupMu.Lock()
+		dedupSeen = map[string]time.Time{}
+		dedupMu.Unlock()
+	})
+
+	// 第一次上报 → 入面板
+	emitScanError("[scanner] walk error: %s: %v", "/x", "perm")
+	// 窗口内同 msg（重复扫描同目录）→ 去重，不重复入面板
+	emitScanError("[scanner] walk error: %s: %v", "/x", "perm")
+	// 不同 msg（不同目录/不同错误）→ 各自上报
+	emitScanError("[scanner] walk error: %s: %v", "/y", "perm")
+
+	if len(calls) != 2 {
+		t.Fatalf("窗口内同错误应去重（共 2 条），实际 %d 条: %v", len(calls), calls)
+	}
+	if calls[0] == calls[1] {
+		t.Fatalf("不同目录错误不应去重，实际两条相同: %v", calls)
+	}
+}
+
+func TestEmitScanError_ExpiredWindow(t *testing.T) {
+	dedupMu.Lock()
+	dedupSeen = map[string]time.Time{}
+	dedupMu.Unlock()
+
+	var calls []string
+	errorSink = func(msg string) { calls = append(calls, msg) }
+	t.Cleanup(func() {
+		errorSink = nil
+		dedupMu.Lock()
+		dedupSeen = map[string]time.Time{}
+		dedupMu.Unlock()
+	})
+
+	emitScanError("same-error")
+	// 模拟窗口过期：把记录时间拨回窗口外
+	dedupMu.Lock()
+	dedupSeen["same-error"] = time.Now().Add(-scanErrorDedupWindow - time.Second)
+	dedupMu.Unlock()
+	emitScanError("same-error")
+
+	if len(calls) != 2 {
+		t.Fatalf("窗口过期后同错误应重新上报（共 2 条），实际 %d 条", len(calls))
+	}
+}
+
+func TestEmitScanError_NoSinkFallsBackToLog(t *testing.T) {
+	// 未注入 sink 时走 log.Printf 兜底，不 panic（行为零漂移）
+	errorSink = nil
+	t.Cleanup(func() {
+		errorSink = nil
+		dedupMu.Lock()
+		dedupSeen = map[string]time.Time{}
+		dedupMu.Unlock()
+	})
+	emitScanError("fallback-msg")
 }

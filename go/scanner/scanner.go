@@ -53,14 +53,36 @@ var configFunc func() types.AppConfig
 // 薄壳注入 AddOpLog 让 walk/文件信息/哈希错误进环形日志面板，用户可查）
 var errorSink func(msg string)
 
+// scanErrorDedup 错误去重窗口：同一 msg 在窗口期内只上报一次。
+// 背景：扫描缓存 30s TTL，缓存过期后同目录反复重扫；若目录持续出错（如权限拒绝），
+// 每次扫描都会触发同一条错误 → 环形日志面板刷屏（日志面板本身无去重，只按条数截尾）。
+// 窗口与 scanCacheTTL 对齐（30s）：重扫前该错误已入面板，去重不影响可查性。
+const scanErrorDedupWindow = 30 * time.Second
+
+// dedupMu + dedupSeen 记录 msg → 上次上报时间
+var (
+	dedupMu   sync.Mutex
+	dedupSeen = map[string]time.Time{}
+)
+
 // SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装）
 func SetErrorSink(fn func(msg string)) {
 	errorSink = fn
 }
 
-// emitScanError 上报扫描错误：注入 sink 时走 sink（进日志面板），否则 log.Printf 兜底
+// emitScanError 上报扫描错误：注入 sink 时走 sink（进日志面板），否则 log.Printf 兜底。
+// 同 msg 在 scanErrorDedupWindow 窗口内去重（防重复扫描刷屏），窗口外重新上报。
 func emitScanError(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
+	now := time.Now()
+	dedupMu.Lock()
+	last, seen := dedupSeen[msg]
+	if seen && now.Sub(last) < scanErrorDedupWindow {
+		dedupMu.Unlock()
+		return // 窗口内同错误已上报过，去重
+	}
+	dedupSeen[msg] = now
+	dedupMu.Unlock()
 	if errorSink != nil {
 		errorSink(msg)
 		return
