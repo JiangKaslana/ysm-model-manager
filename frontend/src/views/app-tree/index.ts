@@ -401,9 +401,10 @@ export class AppTree extends HTMLElement {
 if (!customElements.get("app-tree")) {
   customElements.define("app-tree", AppTree);
 }
-// HMR 热更新：treeCSS 变更时，将新样式表重新挂载到已存在的 shadow root
-import.meta.hot?.accept((newModule) => {
-  const style = (newModule as any).appTreeStyle;
+// HMR 热更新：仅 treeCSS（./app-tree-styles.ts）变更时热刷 shadow 样式表；其余依赖变更落到整页重载。
+import.meta.hot?.accept("./app-tree-styles.ts", (newCssMod) => {
+  const style = new CSSStyleSheet();
+  style.replaceSync((newCssMod as any).treeCSS);
   document.querySelectorAll("app-tree").forEach((el: any) => {
     const root = el.shadowRoot;
     if (root) root.adoptedStyleSheets = [style];

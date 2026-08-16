@@ -7,7 +7,8 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import { t } from "../../../core/i18n/t.ts";
-import { makeVrmBonePanelRenderer } from "./vrm-bone-ui.ts";
+import { makeBonePanelRenderer } from "./vrm-bone-ui.ts";
+import { buildVrmBoneTree } from "./vrm-bone.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -162,7 +163,7 @@ export async function buildVrmScene(
   ctx.scene!.add(dl);
   ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
-  // ADR-074 S2 骨骼面板接入：topBar 骨骼按钮开关面板，面板复用 vrm-bone-ui 的 makeVrmBonePanelRenderer
+  // ADR-074 S2 骨骼面板接入：topBar 骨骼按钮开关面板，面板复用 vrm-bone-ui 的 makeBonePanelRenderer（buildVrmBoneTree 构树后喂入）
   let bonePanelCleanup: (() => void) | null = null;
   return {
     // VRM 动态部分（SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
@@ -170,7 +171,7 @@ export async function buildVrmScene(
       vrm.update(dt);
     },
     // 释放 VRM 几何/材质/纹理（含 MToon），避免 GPU 缓冲泄漏
-    // ADR-074 S2 骨骼面板接入：topBar 骨骼按钮开关面板，面板复用 vrm-bone-ui 的 makeVrmBonePanelRenderer
+    // ADR-074 S2 骨骼面板接入：topBar 骨骼按钮开关面板，面板复用 vrm-bone-ui 的 makeBonePanelRenderer（buildVrmBoneTree 构树后喂入）
     extraControls: (topBar: HTMLElement): void => {
       const btn = document.createElement("button");
       btn.textContent = "🦴 骨骼";
@@ -190,7 +191,7 @@ export async function buildVrmScene(
         // 开 → 渲染骨骼面板
         panel.style.display = "";
         panel.innerHTML = "";
-        const renderer = makeVrmBonePanelRenderer(vrm);
+        const renderer = makeBonePanelRenderer(buildVrmBoneTree(vrm));
         bonePanelCleanup = renderer(panel, {
           viewContainer: ctx.viewContainer!,
           camera: ctx.camera!,

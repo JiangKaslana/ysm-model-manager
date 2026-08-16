@@ -22,6 +22,7 @@ import { createIconButton } from "../../../utils/dom/fab.ts";
 import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
 import { createSlideMenu } from "../../../ui/ui-helpers.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
+import { mountPreviewRootMenu } from "./preview-menu.ts";
 import type { BoneSelectInfo } from "../model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
@@ -232,180 +233,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#1a1b2e;display:flex;flex-direction:column";
   document.body.appendChild(overlay);
 
-  const topBar = document.createElement("div");
-  topBar.style.cssText =
-    "display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(0,0,0,0.3);flex-shrink:0;position:relative;z-index:10;color:#fff;font-size:13px;pointer-events:auto";
+  // 顶栏已移除（ADR-076 v2，用户 2026-08-16 决策）：预览控件（关闭/切换/环境/相机）全部收进
+  // 声明式根菜单（⚙️ 按钮 → mountPreviewRootMenu），彻底告别顶栏滑块垃圾。
 
-  const closeBtn = document.createElement("button");
-  closeBtn.id = "ysm-close-3d"; // 对齐旧 skeleton-render 关闭按钮 id（测试/样式钩子）
-  closeBtn.textContent = "✕ " + t("preview.close3d");
-  // 🥉 ui/ 库透明按钮样式（§19：类接管外观，无内联硬编码背景/边框）
-  closeBtn.className = "mode-btn";
-  topBar.appendChild(closeBtn);
-
-  // 3D 内模型切换下拉（ADR-066 §5.6）：siblings ≥2 时显示；onchange 经 _handle.switchTo 换模型。
-  // 审核 #4：选项动态重建——「当前」项始终指向 currentPath（切换后跟随新模型），原 path 移回候选可切回。
-  if (siblings.length > 0) {
-    const switchSel = document.createElement("select");
-    // 🥉 ui/ 库下拉样式（§19）：setting-select 接管外观；布局保留 max-width/flex（防与 spacer 抢空间）
-    switchSel.className = "setting-select";
-    switchSel.style.maxWidth = "220px";
-    switchSel.style.flex = "0 1 auto";
-    switchSel.dataset.testid = "mmd-switch"; // §19.1：关键交互元素 data-testid（前缀命名空间）
-    const renderOptions = (): void => {
-      switchSel.innerHTML = "";
-      const curOpt = document.createElement("option");
-      curOpt.value = currentPath;
-      curOpt.textContent = "当前: " + (currentPath.split(/[/\\]/).pop() || currentPath);
-      switchSel.appendChild(curOpt);
-      // 候选 = siblings + 原 path（切换后原 path 移回可选，保证可切回）；当前项不重复入列
-      const candidates = [...siblings];
-      if (path !== currentPath) candidates.unshift(path);
-      candidates.forEach((p) => {
-        if (p === currentPath) return;
-        const opt = document.createElement("option");
-        opt.value = p;
-        opt.textContent = p.split(/[/\\]/).pop() || p;
-        switchSel.appendChild(opt);
-      });
-      switchSel.value = currentPath;
-    };
-    renderOptions();
-    switchSel.onchange = (): void => {
-      const target = switchSel.value;
-      if (target === currentPath) return;
-      switchSel.disabled = true; // 切换期间防连点
-      void _handle?.switchTo?.(target)?.finally(() => {
-        switchSel.disabled = false;
-        currentPath = target; // 切换成功：「当前」项跟随新模型
-        renderOptions();
-      });
-    };
-    topBar.appendChild(switchSel);
-  }
-
-  const spacer = document.createElement("div");
-  spacer.style.cssText = "flex:1";
-  topBar.appendChild(spacer);
-
-  // 🌍 环境菜单（ADR-073 同款 caps/ 能力模式）：地面开关；天空滑块（时间/云量）后续收拢
-  {
-    const envBtn = document.createElement("button");
-    envBtn.className = "mode-btn";
-    envBtn.textContent = "🌍 " + t("preview.environment");
-    envBtn.dataset.testid = "env-menu-btn";
-    const envPopup = document.createElement("div");
-    envPopup.className = "ysm-slide-popup";
-    envPopup.style.display = "none";
-    overlay.appendChild(envPopup);
-    const envMenu = createSlideMenu({ title: t("preview.environment") });
-    envPopup.appendChild(envMenu.root);
-    const row = document.createElement("div");
-    row.className = "slide-item";
-    row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-    const label = document.createElement("span");
-    label.className = "slide-label";
-    label.textContent = t("preview.ground");
-    label.style.cssText = "flex:1;font-size:12px";
-    const toggle = createHeaderToggle({
-      value: true, // 构建时 groundCap 未创建（shared 模式内才赋值），默认可见；onChange 切换真实状态
-      onChange: (v: boolean): void => groundCap?.setVisible(v),
-    });
-    row.appendChild(label);
-    row.appendChild(toggle);
-    envMenu.list.appendChild(row);
-
-    // i18n 安全取值：键缺失时回退，杜绝菜单项退化显示原始键名（ADR-073 #1 教训）
-    const tr = (key: string, fallback: string): string => {
-      const v = t(key);
-      return v === key ? fallback : v;
-    };
-    const formatHour = (h: number): string =>
-      `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
-
-    // --- 时间-of-day：联动天空太阳方位/高度（skyCap 在 shared 模式内才创建，此处用 ?. 延迟调用）---
-    const timeRow = document.createElement("div");
-    timeRow.className = "slide-item";
-    timeRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
-    const timeHead = document.createElement("div");
-    timeHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
-    const timeName = document.createElement("span");
-    timeName.className = "slide-label";
-    timeName.textContent = tr("preview.timeOfDay", "时间");
-    const timeVal = document.createElement("span");
-    // 构建期 skyCap 尚未创建（shared 模式内才赋值），用默认值；交互时经闭包 skyCap?. 延迟调用
-    const initHour = 9;
-    timeVal.textContent = formatHour(initHour);
-    timeHead.append(timeName, timeVal);
-    const timeSlider = document.createElement("input");
-    timeSlider.type = "range";
-    timeSlider.min = "0";
-    timeSlider.max = "24";
-    timeSlider.step = "0.5";
-    timeSlider.value = String(initHour);
-    timeSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-    timeSlider.oninput = (): void => {
-      const h = Number(timeSlider.value);
-      skyCap?.setTime(h);
-      timeVal.textContent = formatHour(h);
-    };
-    timeRow.append(timeHead, timeSlider);
-    envMenu.list.appendChild(timeRow);
-
-    // --- 云量：0=晴空 1=多云，联动天空与 IBL 环境 ---
-    const cloudRow = document.createElement("div");
-    cloudRow.className = "slide-item";
-    cloudRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
-    const cloudHead = document.createElement("div");
-    cloudHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
-    const cloudName = document.createElement("span");
-    cloudName.className = "slide-label";
-    cloudName.textContent = tr("preview.cloudCoverage", "云量");
-    const cloudVal = document.createElement("span");
-    cloudVal.textContent = "0%";
-    cloudHead.append(cloudName, cloudVal);
-    const cloudSlider = document.createElement("input");
-    cloudSlider.type = "range";
-    cloudSlider.min = "0";
-    cloudSlider.max = "1";
-    cloudSlider.step = "0.05";
-    cloudSlider.value = "0";
-    cloudSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-    cloudSlider.oninput = (): void => {
-      const v = Number(cloudSlider.value);
-      skyCap?.setCloudCoverage(v, false);
-      cloudVal.textContent = `${Math.round(v * 100)}%`;
-    };
-    cloudSlider.onchange = (): void => {
-      skyCap?.setCloudCoverage(Number(cloudSlider.value), true);
-    };
-    cloudRow.append(cloudHead, cloudSlider);
-    envMenu.list.appendChild(cloudRow);
-
-    // --- 环境光(IBL) 开关：可选 IBL 环境贴图联动（复用 createHeaderToggle，对齐地面行）---
-    const ibRow = document.createElement("div");
-    ibRow.className = "slide-item";
-    ibRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-    const ibLabel = document.createElement("span");
-    ibLabel.className = "slide-label";
-    ibLabel.textContent = tr("preview.environmentLight", "环境光(IBL)");
-    ibLabel.style.cssText = "flex:1;font-size:12px";
-    const ibToggle = createHeaderToggle({
-      value: true, // 构建期 skyCap 尚未创建（shared 模式内才赋值），默认开启；onChange 切换真实状态
-      onChange: (v: boolean): void => skyCap?.setEnvironmentEnabled(v),
-    });
-    ibRow.append(ibLabel, ibToggle);
-    envMenu.list.appendChild(ibRow);
-
-    envBtn.onclick = (): void => {
-      envPopup.style.display = envPopup.style.display === "none" ? "flex" : "none";
-    };
-    topBar.appendChild(envBtn);
-  }
-
-  // 相机控制桥（shared 模式）：core 的 topBar 控件与 PreviewBuildCtx.cameraControls
+  // 相机控制桥（shared 模式）：core 的相机控件与 PreviewBuildCtx.cameraControls
   // 共用同一 bridge（操作核心内部 orbitMode/camSpeed/controls），适配器（如 ysm 底部
-  // 导航）经 cameraControls 复用同一套相机状态，消灭双份实现。
+  // 导航）经 cameraControls 复用同一套相机状态。相机控件本身已收进声明式根菜单的 camera 项。
   const camBridge: CameraControlBridge = {
     getOrbit: () => orbitMode,
     setOrbit: (v: boolean) => {
@@ -423,12 +256,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // built 在 try 块内声明，此处经模块级 _handle（PreviewHandle 含 resetCamera? 契约）延迟调用
     reset: () => { _handle?.resetCamera?.(); },
   };
-  // 通用相机控件（仅 shared 模式：self 模式由适配器经 extraControls 复用同一 buildCameraControls）
-  if (!selfMode) {
-    buildCameraControls(topBar, camBridge);
-  }
-
-  overlay.appendChild(topBar);
 
   // 主体：body(flex row) 内放 viewContainer；self 模式适配器经 extraPanel 往 body 追加侧栏
   const body = document.createElement("div");

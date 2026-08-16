@@ -274,9 +274,12 @@ ${pack.description ? `<div style="font-size:11px;color:var(--txt);margin-top:6px
 if (!customElements.get("app-preview")) {
   customElements.define("app-preview", AppPreview);
 }
-// HMR 热更新：previewCSS 变更时，将新样式表重新挂载到已存在的 shadow root
-import.meta.hot?.accept((newModule) => {
-  const style = (newModule as any).appPreviewStyle;
+// HMR 热更新：仅 previewCSS（./css.ts）变更时热刷 shadow 样式表；其余依赖变更落到 Vite 整页重载。
+// 之前用无参 accept(cb) 自接受，把整棵子树（含 3D 预览 mount-preview-core/vrm-bone-ui 等）都吞成
+// 该边界，回调又只重挂样式表 → 隔壁改样式/加按钮不刷新（只报 index.ts 一个更新点）。
+import.meta.hot?.accept("./css.ts", (newCssMod) => {
+  const style = new CSSStyleSheet();
+  style.replaceSync((newCssMod as any).previewCSS);
   document.querySelectorAll("app-preview").forEach((el: any) => {
     const root = el.shadowRoot;
     if (root) root.adoptedStyleSheets = [style];

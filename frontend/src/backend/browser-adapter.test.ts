@@ -1,5 +1,5 @@
 // ===== 浏览器后端适配器测试（ADR-049 Phase 1 骨架 + Phase 2 IndexedDB 模型库）=====
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { zipSync, strToU8 } from "fflate";
 import {
   browserAdapter,
@@ -520,7 +520,7 @@ describe("browserAdapter — LoadResourceTypes（注册表驱动视图降级消�
 describe("browserAdapter — ADR-049 桥接增强 Batch 1（纯前端可复现绑定）", () => {
   const enc2 = new TextEncoder();
 
-  it("SearchModels：关键词匹配模型名，返回 SearchResult[]（数值范围条件浏览器端降级忽略）", async () => {
+  it("SearchModels：关键词匹配模型名，返回 SearchResult[]（无数值条件 → 快路径）", async () => {
     await importWebFiles([new File([enc2.encode("YSM")], "狐狸.ysm")], "ysm");
     await importWebFiles([new File([enc2.encode("YSM")], "小猫.ysm")], "ysm");
     const hit = (await browserAdapter.SearchModels("/web/ysm", "狐狸", 0, 0, 0, 0, 0, 0)) as Array<{ name: string; path: string }>;
@@ -743,7 +743,7 @@ describe("browserAdapter — 作者扫描/仓库索引（ADR-049 Batch 3：基�
 describe("browserAdapter — 桥接增强边界/异常分支补全（审核补充）", () => {
   const enc3 = new TextEncoder();
 
-  it("SearchModels 数值范围条件浏览器端降级：boneCount 恒 0 且非零数值不影响关键词匹配", async () => {
+  it("SearchModels 数值条件降级（真实环境无 Worker）：数值 0 且非零数值不影响关键词匹配", async () => {
     await importWebFiles([new File([enc3.encode("YSM")], "狐狸.ysm")], "ysm");
     const hit = (await browserAdapter.SearchModels("/web/ysm", "狐狸", 999, 999, 999, 999, 999, 999)) as Array<{
       name: string;
@@ -812,6 +812,135 @@ describe("browserAdapter — 桥接增强边界/异常分支补全（审核补�
     await browserAdapter.SaveWorkshopSites(null);
     const got = (await browserAdapter.DefaultWorkshopSites()) as Array<{ id: string }>;
     expect(got.length).toBeGreaterThan(1); // bundled 默认远大于 1
+  });
+});
+
+// ===== ADR-071 #6：SearchModels 数值过滤（Worker 统计注入 / 降级 / 快路径）=====
+// 数值条件统计走 Web Worker（web-stats.ts）；单测环境无 Worker → 注入统计 runner
+// 模拟「Worker 可用」；runner 返回 null 模拟「Worker 不可用 → 降级」。
+import {
+  setStatsRunnerForTest,
+  consumeWebSearchDegraded,
+  terminateStatsWorker,
+} from "./web-stats.ts";
+
+describe("browserAdapter — SearchModels 数值过滤（ADR-071 #6 Worker 统计）", () => {
+  const encN = new TextEncoder();
+
+  beforeEach(() => {
+    // 清残留：上一 describe（桥接增强边界测试）可能置过降级标记（真实环境无 Worker）
+    setStatsRunnerForTest(null);
+    while (consumeWebSearchDegraded()) {}
+  });
+
+  afterEach(() => {
+    setStatsRunnerForTest(null);
+    while (consumeWebSearchDegraded()) {}
+    terminateStatsWorker();
+  });
+
+  it("数值条件：min/max 骨骼、立方体、纹理过滤生效，且返回真实统计数值", async () => {
+    await importWebFiles([new File([encN.encode("X")], "大狐狸.ysm")], "ysm");
+    await importWebFiles([new File([encN.encode("X")], "小猫.ysm")], "ysm");
+    setStatsRunnerForTest(async (paths) =>
+      paths.map((p) =>
+        p.includes("大狐狸")
+          ? { boneCount: 10, cubeCount: 30, texWidth: 128, texHeight: 128, hasError: false }
+          : { boneCount: 4, cubeCount: 8, texWidth: 32, texHeight: 16, hasError: false },
+      ),
+    );
+
+    // minBones=5 → 仅大狐狸（10 ≥ 5；小猫 4 < 5 排除）
+    const byMinBones = (await browserAdapter.SearchModels("/web/ysm", "", 5, 0, 0, 0, 0, 0)) as Array<{
+      name: string;
+      boneCount: number;
+      cubeCount: number;
+      texWidth: number;
+    }>;
+    expect(byMinBones.map((r) => r.name)).toEqual(["大狐狸.ysm"]);
+    expect(byMinBones[0].boneCount).toBe(10);
+    expect(byMinBones[0].cubeCount).toBe(30);
+    expect(byMinBones[0].texWidth).toBe(128);
+
+    // maxBones=8 → 仅小猫（4 ≤ 8；大狐狸 10 > 8 排除）
+    const byMaxBones = (await browserAdapter.SearchModels("/web/ysm", "", 0, 8, 0, 0, 0, 0)) as Array<{
+      name: string;
+    }>;
+    expect(byMaxBones.map((r) => r.name)).toEqual(["小猫.ysm"]);
+
+    // minCubes=10 → 仅大狐狸（30 ≥ 10；小猫 8 < 10 排除）
+    const byMinCubes = (await browserAdapter.SearchModels("/web/ysm", "", 0, 0, 10, 0, 0, 0)) as Array<{
+      name: string;
+    }>;
+    expect(byMinCubes.map((r) => r.name)).toEqual(["大狐狸.ysm"]);
+
+    // minTex=64 → 仅大狐狸（宽高均 ≥ 64；小猫 32×16 排除——对齐 Go minTex 语义）
+    const byMinTex = (await browserAdapter.SearchModels("/web/ysm", "", 0, 0, 0, 0, 64, 0)) as Array<{
+      name: string;
+      texWidth: number;
+      texHeight: number;
+    }>;
+    expect(byMinTex.map((r) => r.name)).toEqual(["大狐狸.ysm"]);
+    expect(byMinTex[0].texWidth).toBe(128);
+    expect(byMinTex[0].texHeight).toBe(128);
+
+    // Worker 生效 → 不置降级标记
+    expect(consumeWebSearchDegraded()).toBe(false);
+  });
+
+  it("数值条件 + 统计失败（hasError）→ 该模型排除（对齐 Go BoneCount==0 跳过）", async () => {
+    await importWebFiles([new File([encN.encode("X")], "好模型.ysm")], "ysm");
+    await importWebFiles([new File([encN.encode("X")], "坏模型.ysm")], "ysm");
+    setStatsRunnerForTest(async (paths) =>
+      paths.map((p) =>
+        p.includes("坏模型")
+          ? { boneCount: 0, cubeCount: 0, texWidth: 0, texHeight: 0, hasError: true }
+          : { boneCount: 7, cubeCount: 9, texWidth: 64, texHeight: 64, hasError: false },
+      ),
+    );
+    // maxBones=100：坏模型若返回 0 骨也会通过 max 过滤，但 Go 语义要求 BoneCount==0 直接跳过
+    const hit = (await browserAdapter.SearchModels("/web/ysm", "", 0, 100, 0, 0, 0, 0)) as Array<{
+      name: string;
+      hasError: boolean;
+    }>;
+    expect(hit.map((r) => r.name)).toEqual(["好模型.ysm"]);
+    expect(hit[0].hasError).toBe(false);
+  });
+
+  it("数值条件 + Worker 不可用（runner 返回 null）→ 降级：数值 0 + hasError false + 降级标记置位", async () => {
+    await importWebFiles([new File([encN.encode("X")], "狐狸.ysm")], "ysm");
+    await importWebFiles([new File([encN.encode("X")], "小猫.ysm")], "ysm");
+    setStatsRunnerForTest(async () => null);
+    const hit = (await browserAdapter.SearchModels("/web/ysm", "小", 999, 0, 0, 0, 0, 0)) as Array<{
+      name: string;
+      boneCount: number;
+      texWidth: number;
+      hasError: boolean;
+    }>;
+    // 降级 = 纯关键词匹配（数值条件忽略，保持既有行为）
+    expect(hit.map((r) => r.name)).toEqual(["小猫.ysm"]);
+    expect(hit[0].boneCount).toBe(0);
+    expect(hit[0].texWidth).toBe(0);
+    expect(hit[0].hasError).toBe(false);
+    // toolbar-search 据此 toast 降级提示
+    expect(consumeWebSearchDegraded()).toBe(true);
+  });
+
+  it("无数值条件 → 快路径：不触发统计 runner，数值恒 0", async () => {
+    await importWebFiles([new File([encN.encode("X")], "狐狸.ysm")], "ysm");
+    const runner = vi.fn(async (paths: string[]) =>
+      paths.map(() => ({ boneCount: 1, cubeCount: 1, texWidth: 1, texHeight: 1, hasError: false })),
+    );
+    setStatsRunnerForTest(runner as never);
+    const hit = (await browserAdapter.SearchModels("/web/ysm", "狐狸", 0, 0, 0, 0, 0, 0)) as Array<{
+      name: string;
+      boneCount: number;
+    }>;
+    expect(hit).toHaveLength(1);
+    expect(hit[0].name).toBe("狐狸.ysm");
+    expect(hit[0].boneCount).toBe(0); // 快路径不统计
+    expect(runner).not.toHaveBeenCalled();
+    expect(consumeWebSearchDegraded()).toBe(false);
   });
 });
 

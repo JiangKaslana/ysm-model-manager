@@ -1,9 +1,10 @@
 // ===== VRM 骼骼面板 UI 测试（vrm-bone-ui.ts）=====
-// 覆盖：makeVrmBonePanelRenderer 驱动——列表渲染（深度缩进）/ 详情区 / 显隐勾选 /
+// 覆盖：makeBonePanelRenderer 驱动——列表渲染（深度缩进）/ 详情区 / 显隐勾选 /
 // 拾取联动（click viewContainer → pickBone → 高亮 + 详情）。用 fake VRM + DOM。
 import { describe, it, expect, vi } from "vitest";
 import * as THREE from "three";
-import { makeVrmBonePanelRenderer } from "./vrm-bone-ui.ts";
+import { makeBonePanelRenderer } from "./vrm-bone-ui.ts";
+import { buildVrmBoneTree } from "./vrm-bone.ts";
 
 /** 构造 fake VRM：humanBones 结构对齐 three-vrm（key=boneName，node=Object3D） */
 function fakeVrmWithScene(boneNames: string[]): { vrm: unknown; nodes: Map<string, THREE.Object3D>; scene: THREE.Scene } {
@@ -30,13 +31,13 @@ function mountPanel(): { panel: HTMLElement; cleanup: () => void } {
   return { panel, cleanup: () => panel.remove() };
 }
 
-describe("makeVrmBonePanelRenderer", () => {
+describe("makeBonePanelRenderer", () => {
   it("列表渲染：深度缩进（根 0，逐级 +1）+ 名称正确", () => {
     const { vrm, nodes } = fakeVrmWithScene(["hips", "spine", "head"]);
     nodes.get("head")!.parent = nodes.get("spine")!;
     nodes.get("spine")!.parent = nodes.get("hips")!;
     const { panel, cleanup } = mountPanel();
-    const renderer = makeVrmBonePanelRenderer(vrm as never);
+    const renderer = makeBonePanelRenderer(buildVrmBoneTree(vrm as never));
     const viewContainer = document.createElement("div");
     const camera = new THREE.PerspectiveCamera();
     const done = renderer(panel, { viewContainer, camera, scene: new THREE.Scene() });
@@ -62,7 +63,7 @@ describe("makeVrmBonePanelRenderer", () => {
     const headNode = nodes.get("hips")!;
     headNode.visible = true;
     const { panel, cleanup } = mountPanel();
-    const renderer = makeVrmBonePanelRenderer(vrm as never);
+    const renderer = makeBonePanelRenderer(buildVrmBoneTree(vrm as never));
     const done = renderer(panel, { viewContainer: document.createElement("div"), camera: new THREE.PerspectiveCamera(), scene: new THREE.Scene() });
     try {
       const cb = panel.querySelector<HTMLInputElement>("input[type='checkbox']")!;
@@ -80,7 +81,7 @@ describe("makeVrmBonePanelRenderer", () => {
     nodes.get("head")!.parent = nodes.get("spine")!;
     nodes.get("spine")!.parent = nodes.get("hips")!;
     const { panel, cleanup } = mountPanel();
-    const renderer = makeVrmBonePanelRenderer(vrm as never);
+    const renderer = makeBonePanelRenderer(buildVrmBoneTree(vrm as never));
     const done = renderer(panel, { viewContainer: document.createElement("div"), camera: new THREE.PerspectiveCamera(), scene: new THREE.Scene() });
     try {
       const spineRow = panel.querySelector<HTMLElement>("div[data-bone-id='spine']")!;
@@ -110,7 +111,7 @@ describe("makeVrmBonePanelRenderer", () => {
     const viewContainer = document.createElement("div");
     document.body.appendChild(viewContainer);
     const camera = new THREE.PerspectiveCamera();
-    const renderer = makeVrmBonePanelRenderer(vrm as never);
+    const renderer = makeBonePanelRenderer(buildVrmBoneTree(vrm as never));
     const done = renderer(panel, { viewContainer, camera, scene });
     try {
       // mock raycaster.intersectObjects 命中 mesh
@@ -133,7 +134,7 @@ describe("makeVrmBonePanelRenderer", () => {
     const { vrm } = fakeVrmWithScene(["hips"]);
     const { panel, cleanup } = mountPanel();
     const viewContainer = document.createElement("div");
-    const renderer = makeVrmBonePanelRenderer(vrm as never);
+    const renderer = makeBonePanelRenderer(buildVrmBoneTree(vrm as never));
     const done = renderer(panel, { viewContainer, camera: new THREE.PerspectiveCamera(), scene: new THREE.Scene() });
     done();
     // 清理后 click 不应抛错（disposed 守卫）

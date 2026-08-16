@@ -705,10 +705,6 @@ export const autoSidebar = [
     "items": [
       {
         "text": "ADR-078：底部导航通用外壳收敛（D1+D3 落地）",
-        "link": "/adr/ADR-078-bottom-nav-shell-convergence"
-      },
-      {
-        "text": "ADR-077：底部导航通用外壳收敛（D1+D3 落地）",
         "link": "/adr/ADR-077-bottom-nav-shell-convergence"
       },
       {

@@ -430,9 +430,10 @@ class AppSidebar extends HTMLElement {
 if (!customElements.get("app-sidebar")) {
   customElements.define("app-sidebar", AppSidebar);
 }
-// HMR 热更新：sidebarCSS 变更时，将新样式表重新挂载到已存在的 shadow root
-import.meta.hot?.accept((newModule) => {
-  const style = (newModule as any).appSidebarStyle;
+// HMR 热更新：仅 sidebarCSS（./sidebar-css.ts）变更时热刷 shadow 样式表；其余依赖变更落到整页重载。
+import.meta.hot?.accept("./sidebar-css.ts", (newCssMod) => {
+  const style = new CSSStyleSheet();
+  style.replaceSync((newCssMod as any).sidebarCSS);
   document.querySelectorAll("app-sidebar").forEach((el: any) => {
     const root = el.shadowRoot;
     if (root) root.adoptedStyleSheets = [style];

@@ -6,9 +6,7 @@
 
 import * as THREE from "three";
 import type { VRM } from "@pixiv/three-vrm";
-import {
-  buildVrmBoneTree,
-} from "./vrm-bone.ts";
+import { buildVrmBoneTree } from "./vrm-bone.ts";
 import {
   listBonesWithDepth,
   getBoneDetail,
@@ -32,13 +30,11 @@ export interface VrmBonePanelCtx {
 export type RenderVrmBonePanel = (panel: HTMLElement, ctx: VrmBonePanelCtx) => () => void;
 
 /**
- * 构造 VRM 骨骼面板渲染器（extraPanel 契约）。
- * 用法：vrm-adapter 的 buildVrmScene 把本函数的返回值挂到 PreviewScene.extraPanel。
- * 内部 lazy 构建骨骼树（VRM 加载完成后才有 humanoid），拾取联动挂载在 viewContainer click。
+ * 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。
+ * VRM/YSM 均用此函数——VRM 经 buildVrmBoneTree 构树后喂入，YSM 从 spec bones 构树后喂入。
  */
-export function makeVrmBonePanelRenderer(vrm: VRM): RenderVrmBonePanel {
+export function makeBonePanelRenderer(tree: BoneTree): RenderVrmBonePanel {
   return (panel: HTMLElement, ctx: VrmBonePanelCtx): () => void => {
-    let tree: BoneTree | null = buildVrmBoneTree(vrm);
     let activeId: string | null = null; // 拾取联动高亮项
     let disposed = false;
 
@@ -150,4 +146,13 @@ export function makeVrmBonePanelRenderer(vrm: VRM): RenderVrmBonePanel {
       tree = null;
     };
   };
+}
+
+/**
+ * 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。
+ * 用法：vrm-adapter 的 buildVrmScene 把本函数的返回值挂到 PreviewScene.extraPanel。
+ * 内部 lazy 构建骨骼树（VRM 加载完成后才有 humanoid），拾取联动挂载在 viewContainer click。
+ */
+export function makeVrmBonePanelRenderer(vrm: VRM): RenderVrmBonePanel {
+  return makeBonePanelRenderer(buildVrmBoneTree(vrm));
 }
