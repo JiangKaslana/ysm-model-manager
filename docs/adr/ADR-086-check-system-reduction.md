@@ -259,6 +259,55 @@ AI: node scripts/commit-with-check.mjs -m "..."  ← 单条命令：按域跑 ts
 
 本边界由 ADR-085（菜单单一事实来源）+ ADR-086（决策表）固化，**不需要再开新 ADR**。新增 check 时照此账衡量"值不值"：耗时占一个功能（900s）超过 1% 的需特别说明理由。
 
+## 5.1 真实指令清单审计（2026-08-17 3D 菜单重构轮）
+
+> 来自当天 ADR-085→086→087 之后的一整轮 3D 菜单重构（底部根菜单 SlideMenu 化 + 事件修复 + 关闭机制改进）。记录 AI 实际打过的全部工具指令，按「能否自动化」归类，作为 ADR-087 git hook 侧的实证输入。
+
+### 5.1.1 指令分类清单（约 60 条/功能）
+
+| 类别 | 指令示例 | 次数/功能 | 能否自动化 | 已自动化？ |
+|------|---------|-----------|-----------|-----------|
+| **无脑验证** | `npm run typecheck` / `npx vitest run` / `npx vite build` / `doctor --docs` | 8-12 | ✅ 可下沉 commit-with-check / pre-push | ✅ commit-with-check.mjs + pre-push-gate |
+| **无脑状态** | `git status --short` / `git log --oneline -N` / `git diff --stat HEAD` | 6-10 | ⚠️ status 可下沉；log/diff 属语义查询，不适合 | ✅ status 摘要已下沉（ADR-087 T3）；log/diff 保留 |
+| **无脑暂存** | `git add <file>` | 4-6 | ✅ 智能 stage 可覆盖测试文件；源码/文档 add 仍需语义 | ✅ 测试文件智能 stage（T1）；源码 add 保留 |
+| **文档漂移反馈** | `check-knowledge-drift --affected` | 1-2 | ✅ pre-commit 可自动跑 | ✅ T2 |
+| **文档同步** | `git add docs/` / locales | 2 | ✅ pre-commit gen 已自动 | ✅ 既有 |
+| **工作区编排** | `git worktree add/list/remove` / `git merge` / `git fetch` | 3-5 | ❌ 编排决策，不适合 | ❌ |
+| **读文件思考** | `Get-Content` / `read` / `Select-String` / `Get-ChildItem` | 20-30 | ❌ 思考主要载体，不可替代 | ❌ |
+| **写文件编辑** | `edit` / `write` / `str_replace` | 10-15 | ❌ 核心产出，不可替代 | ❌ |
+| **ADR 生成** | `new-adr.mjs` | 1-2 | ⚠️ 脚本已半自动；标题/内容需语义 | ⚠️ |
+| **合入/发布** | `git push` / `git merge` | 1-2 | ❌ 需人类决策 | ❌ |
+
+### 5.1.2 下一批可下沉决策表（ADR-087 的候选池）
+
+> 判断标准：① 输出可被机械消费；② 耗时 < 5s；③ 不替代语义判断；④ 减少的指令 ≥ 1 条/功能。
+
+| 编号 | 指令 | 适合自动打？ | 落地位置 | 性能增量 | 翻转条件 |
+|------|------|------------|---------|---------|----------|
+| N1 | `git log --oneline -5 -- <file>`（提交前显示本次文件最近提交） | 🟡 半适合 · prepare-commit-msg 输出最近 3 条 | prepare-commit-msg | +0.05s | 输出噪音 > 50% → 移除 |
+| N2 | `git diff --stat HEAD`（提交前变更概览） | 🟡 半适合 · T3 已覆盖 status，diff stat 冗余 | 不落地 | — | — |
+| N3 | `npx vitest run <changed-dir>`（窄范围单测） | 🟢 适合 · commit-with-check 已按域跑全量；窄范围留给 AI 定向排查 | 不落地（保留人工） | — | — |
+| N4 | `node scripts/doctor.mjs --docs`（文档域轻量门禁） | 🟢 适合 · pre-push 已按域自动跑；commit 时不必重复 | 不落地（pre-push 已兜底） | — | — |
+| N5 | `node scripts/check-knowledge-drift.mjs --affected` 已自动 | ✅ 已落地（T2） | pre-commit | +0.3s | — |
+| N6 | commit 后自动 `git log --oneline -1` 确认 SHA | 🟡 可做 · 但 commit-with-check 已回显 SHA，冗余 | 不落地 | — | — |
+| N7 | 自动 stage 同目录测试文件 | ✅ 已落地（T1） | pre-commit | +0.1s | 误 stage > 10% |
+| N8 | 提交前 status 摘要 | ✅ 已落地（T3） | pre-commit | +0.05s | — |
+
+**结论**：现有 ADR-087 的 T1/T2/T3 已覆盖「无脑 30%」里最高频的三类（暂存/漂移/状态）。候选池 N1-N6 边际收益低（每项省 ≤1 条/功能且与已有输出重叠），**不建议继续加 hook**，避免 pre-commit 膨胀。真正值得投的是「文件读写」——但那属于子代理并行读，不属 git hook。
+
+### 5.1.3 性能损耗实测账
+
+| 项 | 耗时 | 占 15s 思考 | 占 900s 功能 |
+|----|------|------------|-------------|
+| pre-commit 既有 gen 循环 | ~1.0s | 6.7% | 0.11% |
+| +T2 drift --affected | +0.3s | 2.0% | 0.03% |
+| +T1 智能 stage | +0.1s | 0.7% | 0.01% |
+| +T3 status 摘要 | +0.05s | 0.3% | 0.006% |
+| **pre-commit 合计** | **~1.5s** | **10%** | **0.17%** |
+| commit-with-check（前端域） | ~35s | 233% | 3.9% | 
+
+**结论**：git hook 侧的性能损耗小到可忽略（合计 < 1.5s，占功能周期 0.17%）。真正占思考/功能周期的是 commit-with-check 的 35s 前端验证——但那是「一次功能收口」而非「每轮思考」，可接受；若嫌慢可 `--fast` 跳过 vitest。
+
 ## 6. 数据溯源
 
 来源：用户「该折腾检查减负了，信息赋能了，看看各检查的配置是否合理吧」→ 全量实测 pre-push-gate --all --dry-run（36 项 ~75s，3 个 FAIL：check-circular 1 环 / deadcode 163 存量 / auto-import 3 存量）+ 文档模式实测（12 项 ~2s 全绿）+ 契约测试/vitest 耗时占比分析（各 28.9s，串行浪费并发）+ 用户「立项吧，值得痛斥后再折腾」「先把挂不挂的辩论做好」→ 立项 ADR-086，把减负 R1/R2/R3 + 赋能 E1/E2 + 保留项 25 条固化为决策表 → 用户「历史提交看一看，审核能拦截啥」「脚本的检查按星级排序，避免 ai 乱打检查，或者一轮检查打三次」→ 派子代理抽查 16 个 check-*.mjs 头部注释 + 实测耗时 → 输出三星级 Top 表（综合⭐⭐⭐⭐⭐ 4 项 / ⭐⭐⭐⭐½ 1 项 / ⭐⭐⭐⭐ 11 项 / ⭐⭐⭐½ 1 项）+ 5 个职责重叠对（P1 知识卡维度重叠 / P2 ADR 登记表重叠 / P3 孤儿检测子集重叠 / P4-P5 已治理或正交）+ AI 调用公约（防一轮打三次）→ ADR-086 附录 A 落地。

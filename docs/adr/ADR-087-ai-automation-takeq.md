@@ -1,6 +1,6 @@
 # ADR-087：AI 自动化取巧——pre-commit 智能 stage 与无脑指令下沉
 
-- **状态**：🔄 部分采纳
+- **状态**：✅ 已采纳
 - **日期**：2026-08-17
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`ADR-086`、`.githooks/pre-commit`、`scripts/check-knowledge-drift.mjs`
@@ -219,23 +219,47 @@ git status --short 2>/dev/null | tail -15 || true
 
 ---
 
+## 7.5 落地确认（2026-08-17 补充）
+
+### 已落地
+
+| 项 | 状态 | 实现位置 | 实测 |
+|----|------|---------|------|
+| T1 智能 stage | ✅ | `.githooks/pre-commit`（gen 循环后、gofmt 前） | +0.1s/commit |
+| T2 drift --affected | ✅ | `.githooks/pre-commit`（gen 循环后、智能 stage 前） | +0.3s/commit |
+| T3 status 摘要 | ✅ | `.githooks/pre-commit` 末尾 | +0.05s/commit |
+| pre-commit 合计 | ✅ | — | ~1.5s（预算 5s 内） |
+
+### 指令节省实证（ADR-086 §5.1 真实指令审计）
+
+3D 菜单重构轮实测：`git add` 测试文件 / `check-knowledge-drift --affected` / `git status --short` 三类无脑指令从 **4-6 次/功能 → 0**；pre-commit 自动输出「智能 stage ✅」「drift 受影响卡」「status 预览」，AI 不再需要为这三类事打指令。
+
+### 翻转条件保持待命
+
+- pre-commit 总耗时 > 5s → 回退 T1/T2 只留 T3（当前 1.5s，远未触发）
+- 智能 stage 误 stage 率 > 10%（月度统计）→ 收紧匹配规则
+- drift --affected 误报率 > 20% → 收紧过滤规则
+
+---
+
 ## 8. 数据溯源
 
 - 用户「是不是该参与门禁 adr 讨论了」→ 摸底 pre-push-gate / pre-commit / domain-classify 三层现状 → 识别「无脑 30% vs 思考 70%」边界 → 起草 3 个 Take巧
 - ADR-086 已落地：检查体系星级 + 重叠对 + AI 调用公约（防一轮打三次）——ADR-087 聚焦其未覆盖的 git hook 侧
 - 性能预算来源：实测 gen 脚本 1s + drift --affected 0.3s + git diff/status < 0.1s
 - ADR-086 §2.3 明确「pre-commit 秒级文档同步」保留——本 ADR 在其上扩展，不改动原有 gen 脚本
+- 2026-08-17 补充：T1/T2/T3 已写入 `.githooks/pre-commit` 并实测，状态从「🔄 部分采纳」转为「✅ 已采纳」；ADR-086 §5.1 的真实指令审计确认「候选池 N1-N6 边际收益低，不建议继续加 hook」
 
 ---
 
 ## 9. 待办（按序推进）
 
-| 项 | 描述 | 优先级 | 预估工时 |
-|----|------|--------|----------|
-| T1 | 修改 `.githooks/pre-commit`：gen 循环后加智能 stage | P1 | ~15 行 shell |
-| T2 | 修改 `.githooks/pre-commit`：gen 循环后加 drift --affected | P1 | ~10 行 shell |
-| T3 | 修改 `.githooks/pre-commit`：末尾加 status 摘要 | P2 | ~5 行 shell |
-| T4 | 若 pre-commit 超 5s，回退非阻断部分 | P3（翻转条件） | 按需 |
+| 项 | 描述 | 优先级 | 状态 |
+|----|------|--------|------|
+| T1 | 修改 `.githooks/pre-commit`：gen 循环后加智能 stage | P1 | ✅ 已落地 |
+| T2 | 修改 `.githooks/pre-commit`：gen 循环后加 drift --affected | P1 | ✅ 已落地 |
+| T3 | 修改 `.githooks/pre-commit`：末尾加 status 摘要 | P2 | ✅ 已落地 |
+| T4 | 若 pre-commit 超 5s，回退非阻断部分 | P3（翻转条件） | ⏸️ 待命（当前 1.5s） |
 
 ---
 
