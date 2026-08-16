@@ -127,6 +127,16 @@ node scripts/doctor.mjs --docs        # 改文档时用，轻量秒级（仅文�
 node scripts/doctor.mjs               # 改代码 / 发版前，全量闸门（编译+构建+文件+红线+Git）
 ```
 
+## 开发启动（三模式，勿混）
+
+```bash
+task dev                        # 完整桌面开发：wails3 dev -port 9245（Go + 前端 + WebView2，唯一能跑通 Go 桥业务的模式）
+cd frontend && npm run dev:web   # 纯浏览器跑网页版系统：vite --mode web → browserAdapter（IDB 虚拟库 + 识别/导入/预览；不依赖 wails 壳）
+cd frontend && npm run dev       # 纯前端壳：仅 UI 渲染，无 Go 桥也无 web 桥（一般不用）
+```
+
+> 网页版模式判定：`resolveWebMode()`（platform.ts）Tier 0 `__YSM_BACKEND__` 声明 → Tier 1 `import.meta.env.MODE==='web'`（dev:web / build:web 走此）→ Tier 2 window.go 探测。改 web 功能用 `npm run dev:web` 验证；桌面模式用 `task dev`。
+
 ```html
 edge://inspect # Edog 网页调试
 http://localhost:9222/json # 实际网页一览
