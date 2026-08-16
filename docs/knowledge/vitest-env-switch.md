@@ -6,6 +6,8 @@
 
 `@vitest-environment node` 环境无 `window` / `document` / `localStorage` / `navigator` 等浏览器 API。**只有纯逻辑测试（不碰 DOM）才能切**。
 
+**源码健康优先（2026-08-17 神桶拆分教训）**：测试 import 即炸（`window is not defined` / `HTMLElement is not defined`）通常是**源码顶层副作用**的信号，不是测试的问题——先治理源码（惰性化守卫 / 神桶拆分 / WebComponentBase），别用 `vi.mock` 硬扛。vi.mock 是治标，只该用于外部依赖（Go 桥 / @wailsio/runtime）。
+
 ## 判定流程
 
 ```
@@ -16,12 +18,25 @@
 ├── localStorage / sessionStorage
 ├── new Image() / canvas / getContext
 ├── window.go / window.wails（Wails 桥接）
-└── navigator / location / crossOriginIsolated
+├── navigator / location / crossOriginIsolated
+└── customElements / extends HTMLElement（Web Component）
      └── 有任一 → 需要 happy-dom（不可切）
          └── 全无 → 可以切 node
 ```
 
 **注意**：即使测试文件本身不用 DOM，import 的源文件也可能在模块顶层或函数体内访问 `window`。逐一检查 import 链。
+
+**import 链顶层副作用清单（node 下 import 即炸）**：
+
+| 顶层副作用 | 后果 | 长治久安解法 |
+|-----------|------|-------------|
+| `class X extends HTMLElement` | `ReferenceError: HTMLElement is not defined` | `extends WebComponentBase`（见模式 5） |
+| `window.xxx = ...` 挂载 | `window is not defined` | `typeof window !== "undefined"` 守卫 |
+| `window\n .matchMedia(...)`（window 换行点号形态） | `window is not defined` | `typeof window !== "undefined"` 包裹整段 |
+| 启动 IIFE `(async () => {...})()` | 执行 DOM 操作 | 神桶拆分：纯逻辑拆出独立文件（见模式 6） |
+| `customElements.define` | 已有 `typeof customElements` 守卫则不炸 | 保持守卫 |
+
+> ⚠️ **window 换行点号形态（2026-08-17 复扫漏网）**：`window\n  .matchMedia(...)` 这种换行后点号续写的调用，`grep "^window"` 只匹配行首的 `window` 而漏掉——排查顶层副作用时按**语义块**而非行首查（`window.` 出现在行首以外的位置同样算）。app-modules.ts 曾三处此形态裸执行（matchMedia / location.search / document.addEventListener keydown），守卫补齐见 `71091189`。
 
 ## 翻车修复模式
 
@@ -115,7 +130,17 @@ getAppMock.mockResolvedValue({
 | `views/app-sidebar/loader.test.ts` | 标注 + 模式4 | mock `getApp` |
 | `views/app-tree/bus-handlers.test.ts` | 标注 + 模式3 | mock `capabilities` |
 
-### 仍需 happy-dom 的（80 个）
+### 第二批（2026-08-17 神桶拆分 + 3 个 window 耦合测试）
+
+| 文件 | 切换方式 | 注意事项 |
+|------|---------|---------|
+| `app-modules.test.ts` | 神桶拆分 + 直接标注 | **源码侧先拆分**：`normalizeTheme/applyTheme/initTheme` 移至 `theme-core.ts`（无顶层副作用），app-modules.ts 保留装配并 re-export；测试直测 theme-core，删 12 个针对启动 IIFE 的 vi.mock（见模式 6） |
+| `backend/app.test.ts` | 标注 + 模式1 | `beforeAll` stubGlobal window（window.go 注入路径）；被测 `backend/app.ts` 顶层无副作用 |
+| `utils/dom/android-bridge.test.ts` | 标注 + 模式1 | 同款 stubGlobal（window.wails 判定）；被测源码顶层无副作用 |
+
+**WebComponentBase 治理（源码侧，配套 9 处视图）**：`views/{context-menu,app-toast,app-content,app-nav,app-preview,app-resource-manager,app-sidebar,app-sync-manager,app-tree}/index.ts` 的 `class X extends HTMLElement` 统一改 `extends WebComponentBase`（`frontend/src/utils/dom/web-component-base.ts`：浏览器=HTMLElement，node=空类，类型恒为 typeof HTMLElement）——node 环境 import 视图不再炸，无需 vi.mock 视图（见模式 5）。
+
+### 仍需 happy-dom 的（约 74 个）
 
 所有涉及 DOM 渲染（Web Components / Shadow DOM / querySelector / innerHTML / localStorage 端到端测试）的文件。
 
