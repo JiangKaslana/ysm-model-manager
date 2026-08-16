@@ -704,7 +704,7 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
-        "text": "ADR-083：语义层双抽象：跨格式语义骨骼+语义morph+感知层程序化生命力",
+        "text": "ADR-083：语义层双抽象——跨格式语义骨骼 + 语义 morph + 感知层程序化生命力",
         "link": "/adr/ADR-083-semantic-layer"
       },
       {
