@@ -91,4 +91,10 @@ else
   echo "⚠️  gofmt 不可用（PATH 异常），跳过 go 格式化。"
 fi
 
+# ── Take巧 #3：git status 摘要（commit 前预览，ADR-087）──
+# 输出 git status --short 的最后 15 行，非阻断，纯输出层改造
+echo ""
+echo "[pre-commit] 当前 git status（提交前预览）:"
+git status --short 2>/dev/null | tail -15 || true
+
 exit 0
