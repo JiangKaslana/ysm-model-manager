@@ -1,6 +1,6 @@
 # ADR-072：3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters
 
-- **状态**：🔄 部分采纳（方向已定，编码待立项落地——等 ADR-070/071 web 端施工稳定后动工，避免与施工中地基冲突）
+- **状态**：✅ 已采纳（D1/D2/D3 落地 `b40ead4a`；根治补充——薄包装归位 views + adapter 注入化消反向依赖 + `resolveMmdSiblings` 断环——落于 `ca1780e7`；终态 `utils/3d/adapters` 0 backend import，check-circular/check-layering 双零）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/views/app-preview/`、`frontend/src/utils/3d/`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`ADR-066`、`ADR-070`、`ADR-071`
@@ -95,9 +95,14 @@ const PREVIEW_HANDLERS: Record<string, PreviewHandler> = {
 
 6 个 show 函数按资源域拆文件（ysm / pack / shader / vrm / mmd / 通用），或至少把 3D 入口（`showVrmMeta`/`showMmdPreview`）与 2D 详情（`showModelDetail`/`showResourcePack`/`showShaderpack`）分离。落地方案二选一，以文件行数与 import 面最小为准。
 
-### D4 · 落地时机：编码待立项，等 web 施工稳定（用户拍板）
+### D4 · 落地记录（2026-08-16 编码完成，原「待立项」解除）
 
-**本期只记决策，不动代码。** 落地排期在 ADR-070（web 体素 3D）/ ADR-071（web 能力边界）施工稳定之后，避免文件迁移与并行分支冲突；同时不阻塞 ADR-066 其余待立项项（P3-E、MmdAdapter 成熟度评估）。
+落地分两批：
+
+- **D1/D2/D3 落地 `b40ead4a`**：3D 适配器层下沉 `utils/3d/adapters`（D1a 数据链注入 0 backend import + D1b 物理迁移）+ `index.ts` 派发改 `PREVIEW_HANDLERS` 查表（D2）+ `detail.ts` 拆出 `detail-3d.ts`（D3）。
+- **根治补充落于 `ca1780e7`**（审核反推）：`resolveMmdSiblings` 归位 `views/app-preview/mmd-siblings.ts`（断 mmd 循环环）+ 4 个薄包装（`ysm-3d`/`vrm-3d`/`litematic-3d`/`mmd-3d`）归位 views + adapter 注入化（`ysm-adapter` 注入 `preload`/`navBuilder`、`mmd-adapter` 注入 `navBuilder`）——消除 D1 落地的 3 条 utils→views 反向依赖。
+
+**终态**：`utils/3d/adapters` 只留纯渲染（4 adapter + `mount-preview-core`），0 backend import；check-circular 0 环、check-layering 0 反向。
 
 ---
 
@@ -129,4 +134,4 @@ const PREVIEW_HANDLERS: Record<string, PreviewHandler> = {
   - `frontend/src/views/app-preview/` — 50+ 文件三层混居（UI 壳 / 3D 适配器 / WASM 胶水）；
   - `frontend/src/utils/3d/` — 26 源文件 + 4 测试，grep `backend|wails` 零命中（纯渲染边界已验证）；
   - `frontend/src/utils/resource/types.ts` — `RESOURCE_CAPS` 已派生但消费端未接（ADR-066 D1 半落地）。
-- **决策**：方案 B（适配器下沉 + 派发注册表化）已拍板；D4 编码待立项（等 ADR-070/071 稳定）。
+- **决策**：方案 B 已拍板并落地（`b40ead4a` + 根治补充 `ca1780e7`），见 §2 D4 落地记录。

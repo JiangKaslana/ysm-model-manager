@@ -20,13 +20,20 @@ const VIEWER_OK_ACTIONS = new Set([
 ]);
 
 // ADR-071 判断修正：查看器模式（web）下已实现 binding 的右键动作——web 端
-// RenameFile/RenameDir/GetModelTags 已实现（web-fs/web-store），can() 探测放行；
-// Android viewer 无这些 binding，can() 返回 false 维持隐藏。
+// RenameFile/RenameDir/GetModelTags/MoveModelFile/CopyModelFile 已实现
+// （web-fs/web-store），can() 探测放行；Android viewer 无这些 binding，
+// can() 返回 false 维持隐藏。
 const VIEWER_WEB_ACTION_BINDINGS: Record<string, string> = {
   "file.rename": "RenameFile",
   "dir.rename": "RenameDir",
   "dir.batch-rename": "RenameDir",
   "file.edit-tags": "GetModelTags",
+  // 移动/复制解锁（P0 翻案）：runBatchFileOp / file.move / file.copy 均走
+  // MoveModelFile/CopyModelFile binding（web-fs webFsBindings 已实现组级 rekey）
+  "file.move": "MoveModelFile",
+  "file.copy": "CopyModelFile",
+  "batch.move": "MoveModelFile",
+  "batch.copy": "CopyModelFile",
 };
 
 function buildMenuItems(ctx: CtxShowPayload): MenuItem[] {

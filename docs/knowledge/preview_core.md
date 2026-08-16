@@ -14,7 +14,7 @@ source_files:
 tests:
   - frontend/src/utils/3d/adapters/mmd-adapter.test.ts
   - frontend/src/utils/3d/adapters/ysm-3d.test.ts
-  - frontend/src/utils/3d/adapters/litematic-3d.test.ts
+  - frontend/src/views/app-preview/litematic-3d.test.ts
 use_when:
   - 3D 预览
   - 统一预览外壳

@@ -586,6 +586,97 @@ async function renameWebFile(oldPath: string, newName: string): Promise<void> {
   }
 }
 
+// --- 模型移动/复制（组级 rekey；对齐桌面 fileops.MoveModelFile/CopyModelFile，go/fileops/fileops.go:138/220）---
+// 桌面语义：MoveModelFile(src, dstDir) 把 src（文件/目录）移入 dstDir 并保留原名
+// （dst = Join(dstDir, Base(src))）；CopyModelFile 同语义但保留源。
+// web 适配：模型库以「模型组」为最小单位（dir:<type>/<name>: + file:<type>/<name>/<rel>，
+// 无桌面「游离文件」概念）——src 为组内任意文件路径或组目录路径时，均整组移动/复制
+// （dir + 全部 file + ban/tags 标记，rekey 对齐 renameWebDir 既有处理）。
+// dstDir = /web/<type>/<目标文件夹>（resolveDstDir 由 GetRepoRoot + 用户输入拼接），
+// 目标模型名 = <目标文件夹>/<src 组名末段>（对齐 Go 的 dst=Join(dstDir, Base(src))，
+// 多段组名只保留末段，父路径随移动丢弃，如 分类1/狐狸 → 作者A/狐狸）。
+// 校验（对齐 Go 错误语义）：src/dstDir 非空、dstDir 须为合法 /web/<type>/<目标> 目录、
+// 源须存在（Go os.Stat 源报错）、目标不得位于源内（自嵌套，Go「目标目录不能位于源目录内」）、
+// 目标已存在拒绝（Go「目标已存在」防静默覆盖）。
+
+/**
+ * 目标目录 + 源组名 → 新模型组名（对齐 Go dst=Join(dstDir, Base(src))：
+ * 目标文件夹 + src 组名末段）。
+ */
+function webMoveTargetName(dstName: string, srcName: string): string {
+  const srcBase = srcName.includes("/") ? srcName.slice(srcName.lastIndexOf("/") + 1) : srcName;
+  return `${dstName}/${srcBase}`;
+}
+
+/**
+ * 模型组整组 rekey：旧组名 → 新组名（dir + 全部 file + ban/tags 标记）。
+ * move=true 移动（删旧 key）；move=false 复制（保留旧 key = 读旧写新）。
+ */
+async function rekeyWebModelGroup(type: string, oldName: string, newName: string, move: boolean): Promise<void> {
+  // dir key rekey（meta.name 同步更新：scanWebModels 用它推导文件查找前缀，
+  // 沿用旧名会在移动后的 file:<type>/<newName>/ 下扫不到模型）
+  const dv = await idbGet("files", dirKey(type, oldName));
+  if (dv !== undefined) {
+    await idbSet("files", dirKey(type, newName), { ...(dv as Record<string, unknown>), name: newName });
+    if (move) await idbDel("files", dirKey(type, oldName));
+  }
+  // file keys rekey
+  const oldPrefix = `file:${type}/${oldName}/`;
+  const fks = await idbKeys("files", oldPrefix);
+  for (const k of fks) {
+    const rel = k.slice(oldPrefix.length);
+    const val = await idbGet("files", k);
+    if (val !== undefined) {
+      await idbSet("files", fileKey(type, newName, rel), val);
+      if (move) await idbDel("files", k);
+    }
+  }
+  // 标记 rekey（best-effort，对齐 renameWebDir）：ban:/web/<type>/<oldName>/<rel> → 新名
+  for (const prefix of ["ban:", "tags:"]) {
+    const scanPrefix = `${prefix}/web/${type}/${oldName}/`;
+    const keys = await idbKeys("config", scanPrefix);
+    for (const k of keys) {
+      const suffix = k.slice(scanPrefix.length); // 含原 rel（含前导斜杠），拼接新路径即正确
+      const val = await idbGet("config", k);
+      if (val !== undefined) {
+        await idbSet("config", `${prefix}/web/${type}/${newName}/${suffix}`, val);
+        if (move) await idbDel("config", k);
+      }
+    }
+  }
+}
+
+/**
+ * MoveModelFile / CopyModelFile 共用：解析 + 校验 + 组级 rekey。
+ * move=true 移动（删源）；move=false 复制（保留源）。失败 reject（对齐 Go error → binding reject）。
+ */
+async function moveOrCopyWebModel(src: string, dstDir: string, move: boolean): Promise<void> {
+  // 非 /web/ 路径 → 无效源路径（对齐 Go「源文件必须在仓库内」）；
+  // 合法 /web/ 路径但模型组不存在（parseWebModelPath 反向匹配不到 dir key）→ 模型不存在
+  if (!isWebPath(src)) throw new Error(t("webFs.moveInvalidSrc", { path: src }));
+  const pm = await parseWebModelPath(src);
+  if (!pm) throw new Error(t("webFs.moveModelMissing", { path: src }));
+  const { type, name } = pm;
+  // dstDir 须为 /web/<type>/<目标> 目录形态（目标名非空由 parseWebDirPath 保证）
+  const di = parseWebDirPath(dstDir);
+  if (!di) throw new Error(t("webFs.moveInvalidDstDir", { path: dstDir }));
+  const dstName = di.name.trim();
+  if (!dstName) throw new Error(t("webFs.moveInvalidDstDir", { path: dstDir }));
+  // 目标模型名 = 目标文件夹/<src 组名末段>（对齐 Go dst=Join(dstDir, Base(src))）
+  const newName = webMoveTargetName(dstName, name);
+  // 防覆盖：目标组已存在 → 拒绝（对齐 Go「目标已存在」；含目标 == 源自身移动——
+  // Go 对 dst===src 命中 stat(dst) 存在报「目标已存在」，web 侧 dir key 即源自身）
+  if ((await idbGet("files", dirKey(type, newName))) !== undefined) {
+    throw new Error(t("webFs.moveTargetExists", { path: `${WEB_ROOT}/${type}/${newName}` }));
+  }
+  // 自嵌套检查（须在写库前执行）：目标位于源内 → 拒绝
+  // （对齐 Go「目标目录不能位于源目录内」；防在 src 内留下嵌套组）
+  if (newName === name || newName.startsWith(`${name}/`)) {
+    throw new Error(t("webFs.moveNested", { path: dstDir }));
+  }
+  await rekeyWebModelGroup(type, name, newName, move);
+}
+
 // --- 子目录映射（resource_types.json → {id: scanDir}）---
 async function getWebSubDirMap(): Promise<Record<string, string>> {
   // 对齐 go/types/extensions.go SubDirAll：返回 rt.ScanDir（整合包实例版本目录扫描子目录），
@@ -1013,6 +1104,10 @@ export const webFsBindings = {
   // 重命名：模型目录整组 rekey / 组内单文件 rekey
   RenameDir: (oldPath: string, newName: string) => renameWebDir(oldPath, newName),
   RenameFile: (oldPath: string, newName: string) => renameWebFile(oldPath, newName),
+  // 模型移动/复制（组级 rekey；对齐桌面 fileops.MoveModelFile/CopyModelFile 语义，
+  // 差异：web 无「游离文件」，src 为组内文件/组目录时均整组移动/复制）
+  MoveModelFile: (src: string, dstDir: string) => moveOrCopyWebModel(src, dstDir, true),
+  CopyModelFile: (src: string, dstDir: string) => moveOrCopyWebModel(src, dstDir, false),
   // 子目录映射（resource_types.json 派生）
   GetSubDirMap: () => getWebSubDirMap(),
   // R1 文件层级读取：递归列出 /web 目录下全部文件完整路径（对齐桌面 ListAllFilePaths，

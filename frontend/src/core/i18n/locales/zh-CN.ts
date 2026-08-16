@@ -965,4 +965,9 @@ export const zhCN: Record<string, string> = {
   "webFs.renameModelMissing": "重命名失败：模型不存在: {path}",
   "webFs.renameYsmJsonForbidden": "ysm.json 是模型目录清单，请重命名所在文件夹（整组操作）",
   "webFs.deleteInvalidPath": "删除失败：无效路径: {path}",
+  "webFs.moveInvalidSrc": "移动/复制失败：无效源路径: {path}",
+  "webFs.moveInvalidDstDir": "移动/复制失败：目标目录无效: {path}",
+  "webFs.moveModelMissing": "移动/复制失败：模型不存在: {path}",
+  "webFs.moveNested": "移动/复制失败：目标目录不能位于源目录内: {path}",
+  "webFs.moveTargetExists": "移动/复制失败：目标已存在: {path}",
 };

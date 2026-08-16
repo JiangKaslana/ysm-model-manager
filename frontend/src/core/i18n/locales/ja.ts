@@ -963,4 +963,9 @@ export const ja: Record<string, string> = {
   "webFs.renameModelMissing": "名前の変更に失敗しました：モデルが存在しません: {path}",
   "webFs.renameYsmJsonForbidden": "ysm.json はモデルフォルダのマニフェストです。フォルダごと名前を変更してください（グループ操作）",
   "webFs.deleteInvalidPath": "削除に失敗しました：無効なパス: {path}",
+  "webFs.moveInvalidSrc": "移動/コピーに失敗しました：無効なソースパス: {path}",
+  "webFs.moveInvalidDstDir": "移動/コピーに失敗しました：無効な移動先ディレクトリ: {path}",
+  "webFs.moveModelMissing": "移動/コピーに失敗しました：モデルが存在しません: {path}",
+  "webFs.moveNested": "移動/コピーに失敗しました：移動先ディレクトリをソース内に置くことはできません: {path}",
+  "webFs.moveTargetExists": "移動/コピーに失敗しました：移動先が既に存在します: {path}",
 };

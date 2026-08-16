@@ -229,6 +229,35 @@ describe("registerContextMenus 四类菜单声明", () => {
       isViewerModeMock.mockReturnValue(false);
     }
   });
+
+  it("查看器模式 → web 已实现 binding 的移动/复制放行（can 探测 true，P0 翻案）", () => {
+    isViewerModeMock.mockReturnValue(true);
+    canMock.mockReturnValue(true);
+    try {
+      // file 菜单：file.move/file.copy（MoveModelFile/CopyModelFile binding 已实现）出现
+      const filePayload = showMenu("file", payloadCtx("file"));
+      const fileActions = filePayload.items.filter((i) => i.action).map((i) => i.action);
+      expect(fileActions).toEqual(
+        expect.arrayContaining([
+          "file.move",
+          "file.copy",
+          "file.rename",
+          "file.edit-tags",
+          "file.copy-path",
+        ]),
+      );
+      // batch 菜单：batch.move/batch.copy（runBatchFileOp 走同一 binding）出现
+      menuShows.length = 0; // showMenu 断言每次恰好 1 条 menu:show，触发前清空
+      const batchPayload = showMenu("batch", payloadCtx("batch"));
+      const batchActions = batchPayload.items.filter((i) => i.action).map((i) => i.action);
+      expect(batchActions).toEqual(
+        expect.arrayContaining(["batch.move", "batch.copy", "noop", "batch.copy-paths", "batch.export-list"]),
+      );
+    } finally {
+      canMock.mockReturnValue(false);
+      isViewerModeMock.mockReturnValue(false);
+    }
+  });
 });
 
 describe("菜单项点击行为", () => {

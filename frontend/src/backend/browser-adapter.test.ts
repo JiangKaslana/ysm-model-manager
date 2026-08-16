@@ -1049,3 +1049,128 @@ describe("R1 文件层级读取（P-A 多段路径，蓝图 docs/roadmap/web-edi
     expect(idbMock._store.has("file:ysm/狐狸/main.json")).toBe(true);
   });
 });
+
+// ===== MoveModelFile / CopyModelFile（模型组移动/复制，P0 翻案项）=====
+// 对齐桌面 fileops.MoveModelFile/CopyModelFile 语义：Move 删源、Copy 保留源；
+// dstDir = /web/<type>/<目标文件夹>，目标模型名 = 目标文件夹/<src 组名末段>
+// （Go 的 dst=Join(dstDir, Base(src))）；组级 rekey（dir + file + ban/tags 标记）。
+describe("browserAdapter — MoveModelFile / CopyModelFile（组级移动/复制）", () => {
+  const e6 = new TextEncoder();
+
+  it("MoveModelFile：整组移动（dir + file + ban/tags rekey，旧路径消失、新路径可见）", async () => {
+    await importWebFiles([new File([e6.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.SetModelTags(p, ["联动"]);
+    await browserAdapter.ToggleModelEnable(p); // 置 ban 标记
+    await browserAdapter.MoveModelFile(p, "/web/ysm/作者A");
+    // 扫描结果：新路径出现、旧路径消失
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Name: string; Path: string }>;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].Name).toBe("狐狸.ysm");
+    expect(entries[0].Path).toBe("/web/ysm/作者A/狐狸/狐狸.ysm");
+    // dir/file key rekey（旧 key 删、新 key 建）
+    expect(idbMock._store.has("dir:ysm/作者A/狐狸:")).toBe(true);
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(false);
+    expect(idbMock._store.has("file:ysm/作者A/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(false);
+    // ban/tags 标记随全路径 rekey（对齐 renameWebDir 既有处理）
+    expect(idbMock._store.has("tags:/web/ysm/作者A/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("ban:/web/ysm/作者A/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("tags:/web/ysm/狐狸/狐狸.ysm")).toBe(false);
+    expect(await browserAdapter.IsFileBanned("/web/ysm/作者A/狐狸/狐狸.ysm")).toBe(true);
+    expect((await browserAdapter.GetModelTags("/web/ysm/作者A/狐狸/狐狸.ysm")) as string[]).toEqual(["联动"]);
+  });
+
+  it("MoveModelFile：目录形态 src（/web/<type>/<name>）同样整组移动", async () => {
+    await importWebFiles([new File([e6.encode("Y")], "狐狸.ysm")], "ysm");
+    await browserAdapter.MoveModelFile("/web/ysm/狐狸", "/web/ysm/作者A");
+    expect(idbMock._store.has("dir:ysm/作者A/狐狸:")).toBe(true);
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(false);
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Path: string }>;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].Path).toBe("/web/ysm/作者A/狐狸/狐狸.ysm");
+  });
+
+  it("MoveModelFile：多段组名移动只保留末段（分类1/狐狸 → 作者A/狐狸，对齐 Go Base(src)）", async () => {
+    const fMain = new File([e6.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fMain, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
+    const fTex = new File([e6.encode("PNG")], "face.png");
+    Object.defineProperty(fTex, "webkitRelativePath", { value: "分类1/狐狸/tex/face.png" });
+    await importWebFiles([fMain, fTex], "ysm");
+    await browserAdapter.MoveModelFile("/web/ysm/分类1/狐狸/狐狸.ysm", "/web/ysm/作者A");
+    expect(idbMock._store.has("dir:ysm/作者A/狐狸:")).toBe(true);
+    expect(idbMock._store.has("dir:ysm/分类1/狐狸:")).toBe(false);
+    expect(idbMock._store.has("file:ysm/作者A/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/作者A/狐狸/tex/face.png")).toBe(true);
+    expect(idbMock._store.has("file:ysm/分类1/狐狸/tex/face.png")).toBe(false);
+  });
+
+  it("CopyModelFile：复制保留源（新旧模型并存，dir/file/标记都复制）", async () => {
+    await importWebFiles([new File([e6.encode("Y")], "狐狸.ysm")], "ysm");
+    const p = "/web/ysm/狐狸/狐狸.ysm";
+    await browserAdapter.SetModelTags(p, ["联动"]);
+    await browserAdapter.CopyModelFile(p, "/web/ysm/备份");
+    // 新旧都存在（扫描 2 条）
+    const entries = (await browserAdapter.ScanModelEntries("/web/ysm")) as Array<{ Path: string }>;
+    expect(entries).toHaveLength(2);
+    expect(entries.map((e) => e.Path)).toEqual(
+      expect.arrayContaining(["/web/ysm/狐狸/狐狸.ysm", "/web/ysm/备份/狐狸/狐狸.ysm"]),
+    );
+    // 源 key 保留 + 新 key 建立
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(true);
+    expect(idbMock._store.has("dir:ysm/备份/狐狸:")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("file:ysm/备份/狐狸/狐狸.ysm")).toBe(true);
+    // 标记复制到新路径，源标记保留
+    expect(idbMock._store.has("tags:/web/ysm/备份/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("tags:/web/ysm/狐狸/狐狸.ysm")).toBe(true);
+  });
+
+  it("目标冲突：目标组已存在 → reject 且数据不动（对齐 Go「目标已存在」）", async () => {
+    // 预置目标模型 作者A/狐狸（webkitRelativePath 直接建多段组，RenameDir 禁含 / 名）
+    const fDst = new File([e6.encode("X")], "狐狸.ysm");
+    Object.defineProperty(fDst, "webkitRelativePath", { value: "作者A/狐狸/狐狸.ysm" });
+    await importWebFiles([fDst], "ysm");
+    // 另建顶层 狐狸，移动到 作者A → 目标 作者A/狐狸 已存在
+    await importWebFiles([new File([e6.encode("Y")], "狐狸.ysm")], "ysm");
+    await expect(browserAdapter.MoveModelFile("/web/ysm/狐狸/狐狸.ysm", "/web/ysm/作者A")).rejects.toThrow("目标已存在");
+    // 源不动、目标不动
+    expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(true);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
+    expect(idbMock._store.has("dir:ysm/作者A/狐狸:")).toBe(true);
+    expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(2);
+  });
+
+  it("非法路径：src 非 /web/ 或 dstDir 非目录形态 → reject（模型不受影响）", async () => {
+    await importWebFiles([new File([e6.encode("Y")], "狐狸.ysm")], "ysm");
+    // src 非 /web/ 路径
+    await expect(browserAdapter.MoveModelFile("/repo/ysm/狐狸/狐狸.ysm", "/web/ysm/作者A")).rejects.toThrow("无效源路径");
+    // dstDir 缺目标名（/web/ysm 根）或非 /web/ 路径
+    await expect(browserAdapter.MoveModelFile("/web/ysm/狐狸/狐狸.ysm", "/web/ysm")).rejects.toThrow("目标目录无效");
+    await expect(browserAdapter.CopyModelFile("/web/ysm/狐狸/狐狸.ysm", "/repo/ysm/作者A")).rejects.toThrow("目标目录无效");
+    // 源模型未被破坏
+    expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(1);
+    expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(true);
+  });
+
+  it("自嵌套：目标位于源内 → reject（对齐 Go「目标目录不能位于源目录内」）", async () => {
+    await importWebFiles([new File([e6.encode("Y")], "狐狸.ysm")], "ysm");
+    // dstDir 名 = 源组名 → 目标 狐狸/狐狸 是源严格子目录
+    await expect(browserAdapter.MoveModelFile("/web/ysm/狐狸/狐狸.ysm", "/web/ysm/狐狸")).rejects.toThrow("不能位于源目录内");
+    // 多段组：dstDir 名 = 源父路径 → 目标 == 源（自身移动）→ 命中「目标已存在」
+    // （对齐 Go：dst===src 时 stat(dst) 存在报「目标已存在」，非自嵌套——relToSrc 为 ".."）
+    const fNested = new File([e6.encode("YSM")], "狐狸.ysm");
+    Object.defineProperty(fNested, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
+    await importWebFiles([fNested], "ysm");
+    await expect(browserAdapter.MoveModelFile("/web/ysm/分类1/狐狸/狐狸.ysm", "/web/ysm/分类1")).rejects.toThrow(
+      "目标已存在",
+    );
+    expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(2);
+    expect(idbMock._store.has("file:ysm/分类1/狐狸/狐狸.ysm")).toBe(true);
+  });
+
+  it("源不存在 → reject（对齐 Go os.Stat 源报错，拒绝静默 no-op）", async () => {
+    await expect(browserAdapter.MoveModelFile("/web/ysm/不存在/不存在.ysm", "/web/ysm/作者A")).rejects.toThrow("模型不存在");
+    await expect(browserAdapter.CopyModelFile("/web/ysm/不存在/不存在.ysm", "/web/ysm/作者A")).rejects.toThrow("模型不存在");
+  });
+});

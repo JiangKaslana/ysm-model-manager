@@ -13,7 +13,7 @@ source_files:
   - frontend/src/views/app-preview/skeleton-utils.ts
   - frontend/src/views/app-preview/zoom.ts
   - frontend/src/views/app-preview/wasm.ts
-  - frontend/src/utils/3d/adapters/litematic-3d.ts
+  - frontend/src/views/app-preview/litematic-3d.ts
   - frontend/src/views/app-preview/litematic-meta.ts
   - frontend/src/views/app-preview/cache.ts
   - frontend/src/views/app-preview/model3d-loader.ts
@@ -27,9 +27,9 @@ source_files:
   - frontend/src/views/app-preview/skeleton-fill-panel.ts
   - frontend/src/utils/3d/adapters/mount-preview-core.ts
   - frontend/src/utils/3d/adapters/litematic-adapter.ts
-  - frontend/src/utils/3d/adapters/vrm-3d.ts
+  - frontend/src/views/app-preview/vrm-3d.ts
   - frontend/src/utils/3d/adapters/vrm-adapter.ts
-  - frontend/src/utils/3d/adapters/ysm-3d.ts
+  - frontend/src/views/app-preview/ysm-3d.ts
   - frontend/src/utils/3d/adapters/ysm-adapter.ts
   - frontend/src/views/app-preview/ysm-controls.ts
 tests:

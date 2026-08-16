@@ -8,7 +8,7 @@ source_files:
   - frontend/src/utils/3d/model2d.ts
   - frontend/src/views/app-preview/zoom.ts
   - frontend/src/views/app-preview/skeleton.ts
-  - frontend/src/utils/3d/adapters/litematic-3d.ts
+  - frontend/src/views/app-preview/litematic-3d.ts
   - frontend/src/views/app-content/index.ts
   - frontend/src/views/app-content/settings/init.ts
   - frontend/src/views/app-content/site/edit.ts
