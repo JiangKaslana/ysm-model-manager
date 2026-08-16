@@ -9,7 +9,11 @@ import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import { t } from "../../../core/i18n/t.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts";
 import { buildVrmBoneTree } from "./vrm-bone.ts";
+import { vrmSemanticBoneMap } from "../semantic-bones.ts";
+import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
+import type { BoneTree } from "../bone-tools.ts";
+import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -166,8 +170,65 @@ export async function buildVrmScene(
   // ADR-074 S2 骨骼面板接入：经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单专属项（ADR-076 v2 Phase 2）。
   // 旧版经 extraControls 加「🦴 骨骼」按钮 → querySelector("#ysm-3d-panel") 恒 null（core 仅在适配器
   // 返回 extraPanel 时才建 #ysm-3d-panel），按钮实为死按钮——改走声明式根菜单契约（对齐 ysm-adapter）。
-  let bonePanelCleanup: (() => void) | null = null;
-  ctx.menu.setAdapterItems([
+  // 菜单表提取为可导出 vrmMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
+  const bonePanelRef: { current: (() => void) | null } = { current: null };
+  const boneTree = buildVrmBoneTree(vrm);
+  ctx.menu.setAdapterItems(
+    vrmMenuItems({
+      bonePanel: {
+        tree: boneTree,
+        viewContainer: ctx.viewContainer,
+        camera: ctx.camera,
+        scene: ctx.scene,
+        cleanupRef: bonePanelRef,
+      },
+    }),
+  );
+
+  // VRM humanoid 天然语义化：humanBones 键即语义名，零候选匹配直产映射
+  const semanticBones = vrmSemanticBoneMap(vrm.humanoid.humanBones);
+  // 感知层呼吸（程序化生命力 L1）：待机态下对 chest/spine/shoulders 施加正弦微位移
+  const breath = createBreathController();
+
+  return {
+    // VRM 动态部分（SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
+    update: (dt: number): void => {
+      vrm.update(dt);
+      if (semanticBones) breath.apply(dt, semanticBones);
+    },
+    // 释放 VRM 几何/材质/纹理（含 MToon），避免 GPU 缓冲泄漏
+    dispose: (): void => {
+      try {
+        bonePanelRef.current?.();
+      } catch {
+        /* 面板清理不阻断 dispose */
+      }
+      breath.reset();
+      VRMUtils.deepDispose(vrm.scene);
+    },
+    semanticBones,
+  };
+}
+
+/** vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 */
+export interface VrmMenuItemsOpts {
+  bonePanel: {
+    /** 已构建骨骼树（buildVrmBoneTree 产物） */
+    tree: BoneTree;
+    viewContainer: HTMLElement | null;
+    /** 兼容真实 ctx 可选字段（undefined）与测试假依赖（null） */
+    camera: THREE.PerspectiveCamera | null | undefined;
+    scene: THREE.Object3D | null | undefined;
+    cleanupRef: { current: (() => void) | null };
+  };
+}
+
+/**
+ * VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼。
+ * 提取为可导出表：适配器与测试共用同一份真实数组（对齐 MikuMikuAR），加菜单项只改这里。
+ */
+export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
+  return [
     {
       id: "bones",
       icon: "🦴",
@@ -178,32 +239,16 @@ export async function buildVrmScene(
       dockGroup: "model", // 底栏 🧍 模型组（骨骼）
       render: (list): void => {
         // 通用骨骼面板（ADR-077）：渲染进根菜单面板；重入时先清理旧 renderer
-        if (bonePanelCleanup) {
-          bonePanelCleanup();
-          bonePanelCleanup = null;
+        if (o.bonePanel.cleanupRef.current) {
+          o.bonePanel.cleanupRef.current();
+          o.bonePanel.cleanupRef.current = null;
         }
-        bonePanelCleanup = makeBonePanelRenderer(buildVrmBoneTree(vrm))(list, {
-          viewContainer: ctx.viewContainer!,
-          camera: ctx.camera!,
-          scene: ctx.scene!,
+        o.bonePanel.cleanupRef.current = makeBonePanelRenderer(o.bonePanel.tree)(list, {
+          viewContainer: o.bonePanel.viewContainer!,
+          camera: o.bonePanel.camera!,
+          scene: o.bonePanel.scene!,
         });
       },
     },
-  ]);
-
-  return {
-    // VRM 动态部分（SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
-    update: (dt: number): void => {
-      vrm.update(dt);
-    },
-    // 释放 VRM 几何/材质/纹理（含 MToon），避免 GPU 缓冲泄漏
-    dispose: (): void => {
-      try {
-        bonePanelCleanup?.();
-      } catch {
-        /* 面板清理不阻断 dispose */
-      }
-      VRMUtils.deepDispose(vrm.scene);
-    },
-  };
+  ];
 }

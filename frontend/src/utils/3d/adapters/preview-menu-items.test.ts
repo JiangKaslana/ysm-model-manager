@@ -13,6 +13,7 @@ import {
 } from "./preview-menu-defs.ts";
 import { ysmMenuItems, type YsmMenuItemsOpts } from "./ysm-adapter.ts";
 import { mmdMenuItems, type MmdMenuItemsOpts } from "./mmd-adapter.ts";
+import { vrmMenuItems, type VrmMenuItemsOpts } from "./vrm-adapter.ts";
 import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
 import type { BoneTree } from "../bone-tools.ts";
 
@@ -71,6 +72,10 @@ function fakeBonePanel() {
   };
 }
 
+function fakeVrmOpts(): VrmMenuItemsOpts {
+  return { bonePanel: fakeBonePanel() };
+}
+
 /** 环境能力假 cap（environment 面板 requiresEnvironment 过滤 + 渲染用） */
 const fakeCap = {
   getTimeOfDay: () => 9,
@@ -111,18 +116,20 @@ function mountWith(items: PreviewMenuItemDef[], ctxOverrides: Partial<PreviewMen
 
 // ── 结构断言 ──
 
-describe("真实菜单表结构（遍历 ysm/mmd 真实注入项）", () => {
+describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => {
   const ysmItems = ysmMenuItems(fakeYsmOpts());
   const mmdItems = mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() }));
-  const allItems = [...CORE_MENU_ITEMS, ...ysmItems, ...mmdItems];
+  const vrmItems = vrmMenuItems(fakeVrmOpts());
+  const allItems = [...CORE_MENU_ITEMS, ...ysmItems, ...mmdItems, ...vrmItems];
 
   it("id 唯一：core 内部 + 各适配器内部 + core∩适配器无交集（适配器按次挂载互斥）", () => {
     const uniq = (arr: string[]) => new Set(arr).size === arr.length;
     expect(uniq(CORE_MENU_ITEMS.map((d) => d.id))).toBe(true);
     expect(uniq(ysmItems.map((d) => d.id))).toBe(true);
     expect(uniq(mmdItems.map((d) => d.id))).toBe(true);
+    expect(uniq(vrmItems.map((d) => d.id))).toBe(true);
     const coreIds = new Set(CORE_MENU_ITEMS.map((d) => d.id));
-    [...ysmItems, ...mmdItems].forEach((d) => {
+    [...ysmItems, ...mmdItems, ...vrmItems].forEach((d) => {
       expect(coreIds.has(d.id), `core 与适配器 id 冲突: ${d.id}`).toBe(false);
     });
   });
@@ -145,7 +152,7 @@ describe("真实菜单表结构（遍历 ysm/mmd 真实注入项）", () => {
   });
 
   it("适配器注入项 panel 必有 render；action 必有 run（core 项走 fillers 映射，行为测试覆盖）", () => {
-    [...ysmItems, ...mmdItems].forEach((d) => {
+    [...ysmItems, ...mmdItems, ...vrmItems].forEach((d) => {
       if (d.kind === "panel") expect(typeof d.render, `${d.id}.render`).toBe("function");
       if (d.kind === "action") expect(typeof d.run, `${d.id}.run`).toBe("function");
     });
@@ -160,6 +167,11 @@ describe("真实菜单表结构（遍历 ysm/mmd 真实注入项）", () => {
   it("ysm 三件套齐全且归 🧍 模型组（dock 可达，ADR-076 v3）", () => {
     expect(ysmItems.map((d) => d.id).sort()).toEqual(["bones", "model", "shot"]);
     ysmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
+  });
+
+  it("vrm 骨骼项齐全且归 🧍 模型组（dock 可达）", () => {
+    expect(vrmItems.map((d) => d.id)).toEqual(["bones"]);
+    vrmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
   });
 
   it("mmd model/material 恒定；play/bones 条件注入", () => {
@@ -181,6 +193,7 @@ describe("真实菜单表结构（遍历 ysm/mmd 真实注入项）", () => {
       "mmd-material-entry",
       "mmd-play-entry",
       "mmd-bones-entry",
+      "vrm-bones-entry",
       "mmd-switch",
       "env-menu-btn",
     ].forEach((anchor) => expect(legacies, `缺锚点 ${anchor}`).toContain(anchor));
@@ -222,6 +235,18 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     motionBtn!.click();
     expect(overlay.querySelector('[data-testid="preview-play"]')).toBeNull();
     expect(overlay.querySelector("#mmd-play-btn")).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("vrm 数组：🦴 骨骼归 🧍 模型组（与 core switch 同行渲染，不触发假骨骼面板）", () => {
+    const { overlay, handle } = mountWith(vrmMenuItems(fakeVrmOpts()), {
+      getSiblings: () => ["/m/b.vrm"],
+    });
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    expect(modelBtn).not.toBeNull();
+    modelBtn!.click();
+    expect(overlay.querySelector('[data-testid="preview-bones"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-switch"]')).not.toBeNull();
     handle.dispose();
   });
 
@@ -302,5 +327,45 @@ describe("面板渲染（安全 panel 逐个打开）", () => {
     handle.openPanel("switch");
     expect(overlay.textContent).toContain("b.ysm");
     handle.dispose();
+  });
+});
+
+// ── 错误路径：面板渲染失败兜底 ──
+
+describe("渲染失败兜底（render 抛错不崩）", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("render 抛错 → 面板显示红色错误行 + console.error（挂载不崩）", () => {
+    const errSpy = vi.fn();
+    const origError = console.error;
+    console.error = errSpy;
+    try {
+      const boom = vi.fn(() => {
+        throw new Error("boom");
+      });
+      const { overlay, handle } = mountWith([
+        {
+          id: "broken",
+          icon: "❌",
+          labelKey: "preview.modelInfo",
+          fallback: "坏",
+          kind: "panel",
+          render: boom,
+        },
+      ]);
+      handle.openPanel("broken");
+      const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+      expect(popup.style.display).toBe("flex");
+      expect(overlay.textContent).toContain("面板渲染失败");
+      expect(overlay.textContent).toContain("boom");
+      expect(overlay.querySelector('[style*="#ff7b7b"]')).not.toBeNull();
+      expect(errSpy).toHaveBeenCalled();
+      expect(boom).toHaveBeenCalled();
+      handle.dispose();
+    } finally {
+      console.error = origError;
+    }
   });
 });
