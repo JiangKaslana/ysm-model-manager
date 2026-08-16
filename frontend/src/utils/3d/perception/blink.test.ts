@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 感知层：眨眼 测试（blink.ts）=====
 import { describe, expect, it } from "vitest";
 import { createBlinkController, type BlinkCallback } from "./blink.ts";

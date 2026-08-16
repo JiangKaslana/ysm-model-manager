@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 感知层：节拍检测 测试（beat-detector.ts）=====
 import { describe, expect, it, vi } from "vitest";
 import { createBeatDetector } from "./beat-detector.ts";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 感知层：AutoDance 测试（autodance.ts）=====
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 感知层：LipSync 测试（lipsync.ts）=====
 import { describe, expect, it } from "vitest";
 import { createLipSyncController, buildLipMorphIndices } from "./lipsync.ts";

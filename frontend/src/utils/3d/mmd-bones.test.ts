@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== MMD 骨骼适配层测试（utils/3d/mmd-bones.ts + bone-tools.ts 通用层集成）=====
 // 覆盖：mmdBonesToBoneNodes 适配正确性（id/parentId/object）、与 bone-tools 通用层集成
 // （buildBoneTree / listBonesWithDepth / getBoneDetail / setBoneVisible 作用于 MMD 数据）、

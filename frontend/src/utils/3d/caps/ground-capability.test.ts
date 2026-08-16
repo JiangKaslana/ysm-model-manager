@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== GroundCapability 测试（utils/3d/caps/ground-capability.ts）=====
 // 覆盖：apply 挂入场景（GridHelper）、setVisible/getVisible 开关切换、
 // 默认可见/参数覆盖、dispose 移除并释放。

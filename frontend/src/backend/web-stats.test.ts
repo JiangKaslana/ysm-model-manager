@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== web-stats 编排层测试（审核 B 缺口 #1，可测部分）=====
 // 降级标记（consume 复位）、runner 注入的降级传播、terminate 幂等。
 // 单槽守卫/超时/onerror 走 Worker 路径（new Worker 测试环境不支持），标注为环境限制。

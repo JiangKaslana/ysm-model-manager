@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== parse-java-model.test.ts — MC Java 版模型解析器（ADR-080）=====
 // 覆盖：parent 链合并、纹理变量链式解析、缺省 UV、UV v 翻转/角序、
 // element rotation、face UV rotation、isRenderableModel 模板判定。

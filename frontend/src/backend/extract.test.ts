@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== extract.ts 契约测试 =====
 // 覆盖：detectZipType / parseZipCentralDir / extractZip / GBK 解码
 import { describe, it, expect } from "vitest";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 语义 morph 层测试（semantic-morphs.ts）=====
 import { describe, expect, it } from "vitest";
 import {

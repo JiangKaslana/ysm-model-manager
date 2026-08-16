@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 感知层：呼吸 测试（breath.ts）=====
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";

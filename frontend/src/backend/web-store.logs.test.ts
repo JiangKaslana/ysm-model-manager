@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 日志 IDB 持久化测试（审核 B 缺口 #2）=====
 // AddOpLog/AddImportLog → IDB 落库（web:runtime-logs/web:import-logs）；
 // GetRuntimeLogs hydrate 恢复上会话日志；clear 删 IDB；push 先 hydrate 不覆盖旧。

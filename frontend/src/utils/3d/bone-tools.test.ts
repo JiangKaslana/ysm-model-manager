@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 通用骨骼工具层测试（bone-tools.ts）=====
 // 覆盖：buildBoneTree 层级构建 / listBonesWithDepth 深度缩进 / getBonePath /
 // getBonePosition / getBoneDetail / setBoneVisible + toggleBoneVisible。

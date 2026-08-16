@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== MMD 材质工具层测试（utils/3d/mmd-materials.ts）=====
 // 覆盖：列表（name + 索引）、显隐（set/toggle/越界）、透明度（opacity + transparent 联动）、
 // 详情（name/visible/opacity/specular/shininess + 越界 null）。

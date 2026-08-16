@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== dnd-collector 单测 =====
 // 覆盖 collectFiles 的三种路径：文件条目、目录递归、getAsFile 兜底
 import { describe, it, expect, vi } from "vitest";

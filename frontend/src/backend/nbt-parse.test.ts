@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== NBT 解析 + 蓝图/投影 meta binding web 实现测试（ADR-070 M1）=====
 // 覆盖：parseNbtRoot（gzip/原始输入、各标签类型值映射、畸形报错）+ 三个 binding
 // （ReadLitematicMeta/ReadNbtStructure/ReadSchematic）经 browserAdapter 的端到端 JSON 输出。

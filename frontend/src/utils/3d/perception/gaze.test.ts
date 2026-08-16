@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 感知层：注视追踪 测试（gaze.ts）=====
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";

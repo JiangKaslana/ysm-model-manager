@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 语义骨骼层测试（semantic-bones.ts）=====
 // 覆盖：候选名匹配（日/英变体、优先级、缺省）、MMD 映射（歧义消解：上半身2 →
 // upperChest 不归 chest）、VRM 直产映射、宽容缺省、消费方入口。

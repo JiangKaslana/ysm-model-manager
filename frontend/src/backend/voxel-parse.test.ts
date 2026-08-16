@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== voxel 数据构建测试（ADR-070 M2）=====
 // 覆盖：readVarInt / extractBits / unpackBlockStates 位解码（期望值对照
 // go/litematic/malformed_test.go TestExtractBits_* / TestReadVarInt_ContinuationOverflow）、
