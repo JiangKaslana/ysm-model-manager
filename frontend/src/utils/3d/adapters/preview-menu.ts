@@ -8,7 +8,7 @@
 
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
 import { createSlideMenu, type SlideMenuView } from "../../../ui/ui-slide-menu.ts";
-import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
+import { buildCameraControls, type CameraControlBridge } from "./camera-controls.ts";
 import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";

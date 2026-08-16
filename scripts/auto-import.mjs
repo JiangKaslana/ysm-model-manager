@@ -205,16 +205,29 @@ function tokenize(text) {
     if (c === '/' && chars[i + 1] !== '/' && chars[i + 1] !== '*') {
       const prev = backChar(i);
       if (REGEX_PRECEDERS.has(prev)) {
-        // 先探测闭合：从 i+1 起找未被转义的 `/`（处理 \\ 转义），确认能闭合才剥离，
-        // 否则退回普通字符继续外层扫描（避免误判时 break 终止整个扫描）。
+        // 先探测闭合：从 i+1 起找未被转义的 `/`（处理 \\ 转义与字符类 [...] 内的 `/`），
+        // 确认能闭合才剥离，否则退回普通字符继续外层扫描（避免误判时 break 终止整个扫描）。
+        // 2026-08-17 修复：字符类 `/[\\/:*?"<>|]/` 内的 `/` 不是闭合符——漏处理会让
+        // 后续字符串剥离状态错乱（如 web-fs.ts 的 "toast:show" 被误判为裸标识符）。
         let probe = i + 1;
         let probeClosed = false;
+        let inClass = false;
         while (probe < n) {
           if (chars[probe] === '\\') {
             probe += 2;
             continue;
           }
-          if (chars[probe] === '/') {
+          if (!inClass && chars[probe] === '[') {
+            inClass = true;
+            probe++;
+            continue;
+          }
+          if (inClass && chars[probe] === ']') {
+            inClass = false;
+            probe++;
+            continue;
+          }
+          if (!inClass && chars[probe] === '/') {
             probeClosed = true;
             break;
           }
@@ -234,7 +247,21 @@ function tokenize(text) {
             i += 2;
             continue;
           }
-          if (chars[i] === '/') {
+          if (!inClass && chars[i] === '[') {
+            // 2026-08-17 修复：与 probe 阶段同口径——字符类 [...] 内的 `/` 不是闭合符，
+            // 否则 `/[\\/:*?"<>|]/` 提前闭合污染后续字符串剥离（web-fs.ts "toast:show" 误判）
+            inClass = true;
+            stripped[i] = ' ';
+            i++;
+            continue;
+          }
+          if (inClass && chars[i] === ']') {
+            inClass = false;
+            stripped[i] = ' ';
+            i++;
+            continue;
+          }
+          if (!inClass && chars[i] === '/') {
             stripped[i] = ' ';
             i++;
             // 吞 flags
@@ -380,7 +407,9 @@ function collectParams(stripped, startRe) {
 }
 
 // 对象/类方法定义：`{ | } | , | ; | 换行` 后跟（可选 async）名字(，且配对右括号后是 `{` 或 `:`。
-const METHOD_START_RE = /(?:\{|\}|,|;|\n)\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(/g;
+// `\??` 支持接口可选方法（showModelGroup?(i: number): void;）——名字后跟 `?` 再 `(`，
+// 否则可选方法名被误判为缺失 import（2026-08-17 修复）。
+const METHOD_START_RE = /(?:\{|\}|,|;|\n)\s*(?:async\s+)?([A-Za-z_$][\w$]*)\??\s*\(/g;
 
 /** 收集对象字面量/类体中的方法定义名（`foo(): void {` 形式）及其形参名。 */
 function collectMethods(stripped) {
@@ -421,7 +450,9 @@ function extractDefined(stripped) {
   for (const re of [DEFINED_FN_RE, DEFINED_CLASS_RE, DEFINED_TYPE_RE]) {
     for (const m of stripped.matchAll(re)) out.add(m[1]);
   }
-  const FN_START = /\bfunction\s+(?:[A-Za-z_$][\w$]*\s*)?\(/g;
+  // FN_START 支持泛型函数签名（closeDlg<T>(…)：名字后跟 <...> 再 `(`，
+  // 否则泛型函数形参名（如 delay = 120）漏收集 → 被误判为缺失 import（2026-08-17 修复）
+  const FN_START = /\bfunction\s+(?:[A-Za-z_$][\w$]*\s*(?:<[^>]*>\s*)?)?\(/g;
   const ARROW_START = /\(/g; // 箭头参数：配对后紧跟 =>
   const CATCH_START = /\bcatch\s*\(/g;
   const CTOR_START = /\bconstructor\s*\(/g;

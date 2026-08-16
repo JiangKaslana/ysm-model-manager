@@ -13,7 +13,7 @@ import { saveScreenshot } from "./skeleton-render.ts";
 import { fill3DPanel } from "./skeleton-fill-panel.ts";
 import type { Spec3D, BoneSelectInfo } from "../../utils/3d/model3d.ts";
 import type { BedrockGeometry } from "./geometry.ts";
-import type { CameraControlBridge } from "../../utils/3d/adapters/mount-preview-core.ts";
+import type { CameraControlBridge } from "../../utils/3d/adapters/camera-controls.ts";
 export type { CameraControlBridge };
 
 /** 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） */

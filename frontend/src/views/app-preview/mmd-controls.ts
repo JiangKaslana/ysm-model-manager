@@ -19,7 +19,7 @@ import {
   type MmdMaterialDetail,
   type MmdMaterialListItem,
 } from "../../utils/3d/mmd-materials.ts";
-import type { CameraControlBridge } from "../../utils/3d/adapters/mount-preview-core.ts";
+import type { CameraControlBridge } from "../../utils/3d/adapters/camera-controls.ts";
 export type { CameraControlBridge };
 
 export interface MmdBottomNavCtx {

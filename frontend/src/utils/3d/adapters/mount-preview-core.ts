@@ -30,6 +30,7 @@ import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
 import { createSlideMenu } from "../../../ui/ui-helpers.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { mountPreviewRootMenu, type PreviewMenuHandle } from "./preview-menu.ts";
+import { type CameraControlBridge } from "./camera-controls.ts";
 import type { BoneSelectInfo } from "../model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
@@ -99,87 +100,11 @@ export interface PreviewHandle {
   screenshot?(): Promise<string | null>;
 }
 
-// ---- 通用相机控制常量（对齐 vrm/litematic 既有口径）----
+// 相机控制常量（buildCameraControls 已拆至 camera-controls.ts，本文件保留自身仍使用的部分：
+// DRAG_ROTATE_SENSITIVITY 拖拽旋转 / DEFAULT_CAM_SPEED 初始速度 / TIP_AUTO_DISMISS_MS 提示自动消失）
 const DRAG_ROTATE_SENSITIVITY = 0.003; // 自身旋转模式拖拽灵敏度（rad/px）
-const MIN_CAM_SPEED = 2;
-const MAX_CAM_SPEED = 200;
 const DEFAULT_CAM_SPEED = 20;
 const TIP_AUTO_DISMISS_MS = 6000;
-
-/** 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） */
-export interface CameraControlBridge {
-  /** 当前旋转模式（true=环绕） */
-  getOrbit(): boolean;
-  /** 设置旋转模式（含 shared 模式的 controls.enableRotate / orbitTarget 同步） */
-  setOrbit(v: boolean): void;
-  /** 当前相机速度 */
-  getSpeed(): number;
-  /** 设置相机速度 */
-  setSpeed(n: number): void;
-  /** 重置视角（shared 模式经 built.resetCamera，build 前调用安全——闭包延迟求值） */
-  reset(): void;
-}
-
-/** 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 */
-export function buildCameraControls(topBar: HTMLElement, bridge: CameraControlBridge): void {
-  const rotLabel = document.createElement("span");
-  rotLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
-  rotLabel.textContent = t("preview.cameraRotation") + ":";
-  topBar.appendChild(rotLabel);
-
-  const rotSel = document.createElement("select");
-  rotSel.className = "setting-select"; // 🥉 ui/ 库下拉样式（§19）
-  rotSel.style.marginRight = "8px";
-  rotSel.dataset.testid = "mmd-rot-mode"; // §19.1
-  [
-    { v: true, t: "环绕" },
-    { v: false, t: "自身" },
-  ].forEach((m) => {
-    const opt = document.createElement("option");
-    opt.value = String(m.v);
-    opt.textContent = m.t;
-    rotSel.appendChild(opt);
-  });
-  rotSel.value = String(bridge.getOrbit());
-  rotSel.onchange = (): void => {
-    const v = rotSel.value === "true";
-    bridge.setOrbit(v);
-    safeSet("td-rot-mode", v ? "orbit" : "free");
-  };
-  topBar.appendChild(rotSel);
-
-  const spdLabel = document.createElement("span");
-  spdLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
-  spdLabel.textContent = t("preview.cameraSpeed") + ":";
-  topBar.appendChild(spdLabel);
-
-  const spdSlider = document.createElement("input");
-  spdSlider.type = "range";
-  spdSlider.min = String(MIN_CAM_SPEED);
-  spdSlider.max = String(MAX_CAM_SPEED);
-  spdSlider.value = String(bridge.getSpeed());
-  spdSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-  topBar.appendChild(spdSlider);
-
-  const spdVal = document.createElement("span");
-  spdVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:20px";
-  spdVal.textContent = String(bridge.getSpeed());
-  topBar.appendChild(spdVal);
-
-  spdSlider.oninput = (): void => {
-    spdVal.textContent = spdSlider.value;
-    bridge.setSpeed(Number(spdSlider.value));
-    safeSet("td-cam-speed", spdSlider.value);
-  };
-
-  const resetBtn = createIconButton({
-    icon: "⟲",
-    label: t("preview.resetView"),
-    title: "重置相机视角到初始位置",
-  });
-  resetBtn.onclick = (): void => bridge.reset();
-  topBar.appendChild(resetBtn);
-}
 
 let _handle: PreviewHandle | null = null;
 let _gen = 0;
