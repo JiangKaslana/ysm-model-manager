@@ -704,6 +704,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-079：WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游",
+        "link": "/adr/ADR-079-wasm-pthread-mt-decode"
+      },
+      {
         "text": "ADR-078：底部导航通用外壳收敛（D1+D3 落地）",
         "link": "/adr/ADR-077-bottom-nav-shell-convergence"
       },
