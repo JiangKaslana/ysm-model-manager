@@ -1,7 +1,7 @@
 # 用户指南
 
 <!-- GEN: guide-index -->
-> 按功能讲解入口路径与操作步骤，共 **26** 篇。新功能持续建档；索引由 gen-docs-index.mjs 自动生成，断链由 link-checker 兜底。
+> 按功能讲解入口路径与操作步骤，共 **27** 篇。新功能持续建档；索引由 gen-docs-index.mjs 自动生成，断链由 link-checker 兜底。
 
 | 指南页 | 说明 |
 |--------|------|
@@ -36,6 +36,7 @@
 | **🩺 疑难排查** |  |
 | [常见问题（FAQ）](./faq.md) | 安装、同步、导入、预览等高频问题与故障排查表 |
 | [诊断与去重](./diagnostics.md) | 操作日志查询与多整合包冲突扫描（去重、回收站在仓库页 tab） |
+| [bone-tools-architecture](./bone-tools-architecture.md) |  |
 <!-- /GEN: guide-index -->
 
 ---

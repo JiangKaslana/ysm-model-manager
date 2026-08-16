@@ -34,7 +34,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 180 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 16 | 80 |
+| frontend/backend | 17 | 84 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
@@ -43,8 +43,8 @@
 | 前端·工具 | 91 | 327 |
 | frontend/views | 88 | 239 |
 | 前端·WASM | 4 | 9 |
-| frontend/workers | 3 | 14 |
-| **合计** | **349** | **1458** |
+| frontend/workers | 2 | 13 |
+| **合计** | **349** | **1461** |
 
 ## Go·头像
 
@@ -765,15 +765,19 @@
 | `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:243` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:50` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:108` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:140` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:162` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:180` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:217` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:228` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:281` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:441` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:53` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:111` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:143` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:165` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:183` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:220` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:231` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:284` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:444` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:39` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
+| `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:44` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
+| `terminateStatsWorker()` | `frontend/src/backend/web-stats:51` | 终止并回收 Worker（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
+| `batchStatsWebModels()` | `frontend/src/backend/web-stats:132` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。 |
 | `webStoreBindings()` | `frontend/src/backend/web-store:171` | — |
 | `YsmHeaderShape()` | `frontend/src/backend/ysm-header:36` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
 | `YsmSummaryShape()` | `frontend/src/backend/ysm-header:55` | YsmSummary（对齐 go/ysm/summary.go:48 YsmSummary json tag；animGroups/configMenus 一并平移） |
@@ -1645,8 +1649,8 @@
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
 | `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:59` | — |
-| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:17` | — |
-| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:193` | — |
+| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:19` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:186` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |
@@ -1687,7 +1691,6 @@
 | `StatsWorkerError()` | `frontend/src/workers/stats-protocol:38` | Worker → 主线程：致命错误（WASM 无法加载 / 任务内部异常），主线程据此整体降级 |
 | `StatsWorkerResponse()` | `frontend/src/workers/stats-protocol:44` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/workers/stats-protocol:50` | 单批模型上限：防 Worker 内存爆（每个模型 WASM 解码 + 纹理驻留 HEAP，200 已含余量） |
-| `WebModelStats()` | `frontend/src/workers/stats.worker` | — |
 
 ---
 
