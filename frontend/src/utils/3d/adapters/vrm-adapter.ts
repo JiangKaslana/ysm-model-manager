@@ -12,6 +12,7 @@ import { buildVrmBoneTree } from "./vrm-bone.ts";
 import { vrmSemanticBoneMap } from "../semantic-bones.ts";
 import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
+import { createBlinkController } from "../perception/blink.ts"; // 语义表情消费方：程序化生命力 L1.5
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { BoneTree } from "../bone-tools.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
@@ -186,6 +187,14 @@ export async function buildVrmScene(
   const breath = createBreathController();
   // 感知层注视追踪（程序化生命力 L2）：head/eyes 跟随相机方向
   const gaze = createGazeController();
+  // 感知层眨眼（程序化生命力 L1.5）：随机间隔触发 blink 表情
+  // 对齐 MMD 接法：先发现可用 blink 表情（"blink" / "blinkLeft" / "blinkRight"），
+  // 再用 BlinkController 周期写入；无匹配表情则静默降级
+  const exprMgr = vrm.expressionManager;
+  const blinkExpressionNames = exprMgr
+    ? (["blink", "blinkLeft", "blinkRight"] as const).filter((n) => exprMgr.getExpression(n) !== null)
+    : [] as Array<"blink" | "blinkLeft" | "blinkRight">;
+  const blink = createBlinkController();
 
   return {
     // VRM 动态部分（SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
@@ -194,6 +203,14 @@ export async function buildVrmScene(
       if (semanticBones) {
         breath.apply(dt, semanticBones);
         gaze.apply(dt, semanticBones, ctx.camera!.position);
+      }
+      // 眨眼：多表情统一写入（VRM 无 action 系统，始终生效）
+      if (exprMgr && blinkExpressionNames.length > 0) {
+        blink.apply(dt, (weight: number) => {
+          for (const name of blinkExpressionNames) {
+            exprMgr.setValue(name, weight);
+          }
+        });
       }
     },
     // 释放 VRM 几何/材质/纹理（含 MToon），避免 GPU 缓冲泄漏
@@ -205,6 +222,7 @@ export async function buildVrmScene(
       }
       breath.reset();
       gaze.reset();
+      blink.dispose();
       VRMUtils.deepDispose(vrm.scene);
     },
     semanticBones,
