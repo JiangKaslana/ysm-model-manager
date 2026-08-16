@@ -24,7 +24,6 @@ import { cleanupMmd3D, invalidateMmdPreview } from "./mmd-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
 import { esc } from "../../utils/dom/html.ts";
 import type { BedrockGeometry } from "./geometry.ts";
-import { t } from "../../core/i18n/t.ts";
 
 // 注册缓存淘汰回调：释放 blob URL（Set 去重：重复 URL 只 revoke 一次，revoke 幂等无害）
 cacheSetEvictHandler((key, val) => {

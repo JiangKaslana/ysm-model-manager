@@ -40,9 +40,9 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | 前端·工具 | 56 | 196 |
-| frontend/views | 90 | 251 |
+| frontend/views | 90 | 252 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **292** | **1209** |
+| **合计** | **292** | **1210** |
 
 ## Go·头像
 
@@ -1275,9 +1275,10 @@
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:110` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:250` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:14` | 加载模型几何数据 + 纹理 + 作者信息 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底 |
-| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:11` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd） |
-| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:16` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:21` | 任意新预览派发时调用，作废在途 MMD 加载 |
+| `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:13` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
+| `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-3d:18` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
+| `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:34` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:39` | 任意新预览派发时调用，作废在途 MMD 加载 |
 | `buildMmdScene()` | `frontend/src/views/app-preview/mmd-adapter:59` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |

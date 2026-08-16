@@ -4,13 +4,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PreviewCtx } from "./utils.ts";
 
-const { summaryMock, headerMock, readPackMock, vrmMetaMock, createVrm3DMock, createMmd3DMock } = vi.hoisted(() => ({
+const { summaryMock, headerMock, readPackMock, vrmMetaMock, createVrm3DMock, createMmd3DMock, resolveMmdSiblingsMock } = vi.hoisted(() => ({
   summaryMock: vi.fn(),
   headerMock: vi.fn(),
   readPackMock: vi.fn(),
   vrmMetaMock: vi.fn(),
   createVrm3DMock: vi.fn(),
   createMmd3DMock: vi.fn(),
+  resolveMmdSiblingsMock: vi.fn(),
 }));
 
 vi.mock("../../backend/app.ts", () => ({
@@ -32,6 +33,7 @@ vi.mock("./vrm-3d.ts", () => ({
 }));
 vi.mock("./mmd-3d.ts", () => ({
   createMmd3D: createMmd3DMock,
+  resolveMmdSiblings: resolveMmdSiblingsMock,
 }));
 
 import { showModelDetail, showResourcePack, showSimplePreview, showVrmMeta, showMmdPreview } from "./detail.ts";
@@ -53,6 +55,7 @@ beforeEach(() => {
   summaryMock.mockResolvedValue(null);
   headerMock.mockResolvedValue(null);
   readPackMock.mockResolvedValue("{}");
+  resolveMmdSiblingsMock.mockResolvedValue([]);
   localStorage.clear();
 });
 
@@ -173,7 +176,8 @@ describe("showVrmMeta VRM meta 卡", () => {
 });
 
 describe("showMmdPreview MMD 预览卡", () => {
-  it("渲染标签 + 文件名 + FAB，点击 → createMmd3D", async () => {
+  it("渲染标签 + 文件名 + FAB，点击 → resolveMmdSiblings 后 createMmd3D(path, {siblings})", async () => {
+    resolveMmdSiblingsMock.mockResolvedValue(["/repo/other.pmx", "/repo/third.pmd"]);
     const ctx = makeCtx();
     await showMmdPreview(ctx, "/repo/miku.pmx");
     const html = ctx.root.innerHTML;
@@ -182,7 +186,12 @@ describe("showMmdPreview MMD 预览卡", () => {
     const fab = ctx.root.querySelector<HTMLElement>("#btn-mmd-3d");
     expect(fab).not.toBeNull();
     fab?.click();
-    expect(createMmd3DMock).toHaveBeenCalledWith("/repo/miku.pmx");
+    // 3D 内换模型（ADR-066 §5.6）：siblings 随 opts 传入，核心渲染 topBar 切换下拉
+    await vi.waitFor(() =>
+      expect(createMmd3DMock).toHaveBeenCalledWith("/repo/miku.pmx", {
+        siblings: ["/repo/other.pmx", "/repo/third.pmd"],
+      }),
+    );
   });
 
   it("自定义 opts → 使用传入图标与标签", async () => {

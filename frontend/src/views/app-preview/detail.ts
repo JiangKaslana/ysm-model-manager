@@ -10,7 +10,7 @@ import { decodeYsmViaWasm } from "./wasm.ts";
 import { loadModel2D } from "./skeleton.ts";
 import { readVrmMeta } from "./vrm-adapter.ts";
 import { createVrm3D } from "./vrm-3d.ts";
-import { createMmd3D } from "./mmd-3d.ts";
+import { createMmd3D, resolveMmdSiblings } from "./mmd-3d.ts";
 import { describeVersionRange } from "../../utils/format/pack-format.ts";
 import { t } from "../../core/i18n/t.ts";
 
@@ -308,7 +308,11 @@ export async function showMmdPreview(
   const fab = ctx.root.querySelector<HTMLElement>("#btn-mmd-3d");
   if (fab) {
     fab.onclick = (): void => {
-      void createMmd3D(path);
+      // 3D 内换模型（ADR-066 §5.6）：先取同类型候选列表，随 siblings 传入渲染 topBar 切换下拉
+      void (async () => {
+        const siblings = await resolveMmdSiblings();
+        await createMmd3D(path, { siblings });
+      })();
     };
   }
 }
