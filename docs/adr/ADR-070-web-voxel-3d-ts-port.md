@@ -1,9 +1,9 @@
 # ADR-070：网页版体素 3D：蓝图/投影预览 TS 平移 voxel 解析
 
-- **状态**：🔄 部分采纳（方向已定，编码待立项落地）
+- **状态**：✅ 已采纳（M1 门控 + meta 恢复 → M2 TS 平移 voxel → M3 门控移除接入，web 蓝图/投影 3D 全链路贯通）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
-- **相关**：`go/litematic/voxel.go`、`go/litematic/nbt.go`、`go/litematic/parser.go`、`frontend/src/views/app-preview/litematic-3d.ts`、`frontend/src/backend/browser-adapter.ts`、`docs/adr/ADR-066-universal-resource-preview.md`
+- **相关**：`go/litematic/voxel.go`、`go/litematic/nbt.go`、`go/litematic/parser.go`、`frontend/src/views/app-preview/litematic-3d.ts`、`frontend/src/backend/browser-adapter.ts`、`frontend/src/backend/nbt-parse.ts`、`frontend/src/backend/voxel-parse.ts`、`frontend/src/backend/web-fs.ts`、`docs/adr/ADR-066-universal-resource-preview.md`
 
 ---
 
@@ -28,9 +28,9 @@ YSM 的网页 gap 曾同病（Spec3D 生成在 Go 侧），解决范式是 **ADR
 
 **网页版蓝图/投影预览 = 纯 TS 平移 voxel 解析，分三阶段，不互相等：**
 
-1. **M1（门控，先行）**：web 端蓝图/投影的 3D 入口**门控隐藏**（详情可显示文件名/大小，3D tab 不渲染）——消除"点开报 WebUnsupportedError"的坏体验；同时 `browser-adapter` 补 `ReadLitematicMeta`/`ReadNbtStructure`/`ReadSchematic` 的 TS 实现（详情面板恢复，低风险）。
-2. **M2（核心，立项后执行）**：**TS 平移 voxel 解析**——前端解析 `.nbt`（gzip + NBT varint + 块状态调色板）/ `.litematic` / `.schematic` → voxel 数据，与 `go/litematic/voxel.go`/`nbt.go` 同口径（参考 spec-builder.ts 范式：镜像 + 双边测试锁定 `frontend 解析 ↔ go/litematic 输出` 对拍）。产出 `frontend/src/views/app-preview/voxel-parse.ts`，`Get*VoxelData` 三 binding 的 web 实现 = 调它。
-3. **M3（接入）**：`litematic-3d.ts` 在 web 模式走 `voxel-parse.ts` 数据（渲染复用现有 createLitematic3D，不重写）；D2 统一渲染核心落地后再迁移。
+1. **M1（门控，先行）✅ 已落地**：web 端蓝图/投影的 3D 入口**门控隐藏**（详情可显示文件名/大小，3D tab 不渲染）——消除"点开报 WebUnsupportedError"的坏体验；同时 `browser-adapter` 补 `ReadLitematicMeta`/`ReadNbtStructure`/`ReadSchematic` 的 TS 实现（详情面板恢复，低风险）。落地：`frontend/src/backend/nbt-parse.ts`（`litematicMetaView`/`nbtStructureView`/`schematicSummaryView`）+ `web-fs.ts` `readNbtMetaJson` + `litematic-meta.ts:216-225` 门控。
+2. **M2（核心）✅ 已落地**：**TS 平移 voxel 解析**——前端解析 `.nbt`（gzip + NBT varint + 块状态调色板）/ `.litematic` / `.schematic` → voxel 数据，与 `go/litematic/voxel.go`/`nbt.go` 同口径（参考 spec-builder.ts 范式：镜像 + 双边测试锁定 `frontend 解析 ↔ go/litematic 输出` 对拍）。产出 `frontend/src/backend/voxel-parse.ts`（`litematicVoxelView`/`nbtVoxelView`/`schematicVoxelView`，对齐 `BuildVoxelData`/`BuildNbtVoxelData`/`BuildSchematicVoxelData`），`Get*VoxelData` 三 binding 的 web 实现 = `web-fs.ts` `readVoxelJson` 调它（`VOXEL_MAX_BLOCKS=200000` 对齐 Go `voxelMaxBlocks`）。
+3. **M3（接入）✅ 已落地**：`litematic-3d.ts` 在 web 模式走 TS voxel 数据（渲染复用现有 `createLitematic3D`，不重写）——`litematic-meta.ts` 移除 `resolveWebMode` 门控，`makeVoxelCall` 经 `browserAdapter`（`webFsBindings` 展开装配）直达 web 实现，三端同一渲染路径；D2 统一渲染核心落地后再迁移。
 
 **边界**：不做 WASM 平移（体素解析是纯逻辑，TS 成本低于 YSM spec；WASM 引入 Go 运行时体积不值）；不与 D2 耦合（litematic-3d 渲染维持现状，D2 只收敛 renderer 骨架，数据层独立）。
 
@@ -50,6 +50,8 @@ YSM 的网页 gap 曾同病（Spec3D 生成在 Go 侧），解决范式是 **ADR
 
 ## 4. 数据溯源
 
-来源：网页版 vs Go 能力差异审计（2026-08-16，审计缺口 #2 体素 3D 全灭）+ 用户决策（"等不起，给 ADR 定大方向"）→ 结果：ADR-070 立项，方向 = TS 平移 voxel 解析（对齐 ADR-049 P2-2 范式），三阶段（M1 门控 + M2 解析 + M3 接入），与 D2 解耦。编码按 M1 → M2 → M3 排期，M1 不依赖他人。
+来源：网页版 vs Go 能力差异审计（2026-08-16，审计缺口 #2 体素 3D 全灭）+ 用户决策（"等不起，给 ADR 定大方向"）→ 结果：ADR-070 立项，方向 = TS 平移 voxel 解析（对齐 ADR-049 P2-2 范式），三阶段（M1 门控 + M2 解析 + M3 接入），与 D2 解耦。
+
+**落地补注（2026-08-16）**：M1/M2 随 ADR-071 审计增强系列 commits 落地（`nbt-parse.ts`/`voxel-parse.ts`/`web-fs.ts` binding 装配，含双边对拍测试 `nbt-parse.test.ts`/`voxel-parse.test.ts`）；M3 于同日移除 `litematic-meta.ts` web 门控接入（web 走 `browserAdapter` 的 `Get*VoxelData` TS 实现，三语言 `preview.webVoxelUnsupported` key 同步清理），状态更新为 ✅ 已采纳。验证：typecheck + 相关单测全绿 + `i18n-check.mjs` 三语言 887 keys 对齐。
 
 <!-- 文件名: web-voxel-3d-ts-port.md → 实际文件 ADR-070-web-voxel-3d-ts-port.md -->
