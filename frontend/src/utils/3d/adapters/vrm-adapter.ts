@@ -206,9 +206,10 @@ export async function buildVrmScene(
       }
       // 眨眼：多表情统一写入（VRM 无 action 系统，始终生效）
       if (exprMgr && blinkExpressionNames.length > 0) {
+        const mgr = exprMgr;
         blink.apply(dt, (weight: number) => {
           for (const name of blinkExpressionNames) {
-            exprMgr.setValue(name, weight);
+            mgr.setValue(name, weight);
           }
         });
       }

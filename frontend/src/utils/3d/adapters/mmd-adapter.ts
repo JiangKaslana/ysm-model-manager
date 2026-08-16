@@ -31,6 +31,7 @@ import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用�
 import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
 import { createBlinkController } from "../perception/blink.ts"; // 语义 morph 消费方：程序化生命力 L1.5
+import { createLipSyncController } from "../perception/lipsync.ts"; // 语义 morph 消费方：程序化生命力 L2
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -337,6 +338,21 @@ export async function buildMmdScene(
     }
   }
   const blink = createBlinkController();
+  // 感知层 LipSync（程序化生命力 L2）：待机态下用呼吸相位驱动口型开合
+  // 口型 morph 候选：あ/ア/A/a/口/mouth/open（优先级降序）
+  const LIP_MORPH_CANDIDATES = ["あ", "ア", "A", "a", "口", "mouth", "open"];
+  let lipMorphIndex: number | null = null;
+  if (mesh.morphTargetDictionary) {
+    for (const candidate of LIP_MORPH_CANDIDATES) {
+      const idx = mesh.morphTargetDictionary[candidate];
+      if (idx !== undefined && idx !== null) {
+        lipMorphIndex = idx;
+        break;
+      }
+    }
+  }
+  const lipSync = createLipSyncController();
+  let lipSyncTime = 0;
 
   return {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
@@ -352,6 +368,14 @@ export async function buildMmdScene(
       if (blinkMorphIndex !== null && (!action || action.paused)) {
         blink.apply(dt, (weight: number) => { mesh.morphTargetInfluences![blinkMorphIndex] = weight; });
       }
+      // LipSync：待机态下用呼吸相位模拟张嘴（后续可接入 Web Audio API 真实振幅）
+      if (lipMorphIndex !== null && (!action || action.paused)) {
+        lipSyncTime += dt;
+        // 呼吸相位驱动：sin 半波 → 0..1，模拟呼吸时自然张嘴
+        const breathPhase = Math.sin(lipSyncTime / 2.5 * Math.PI * 2);
+        const amplitude = Math.max(0, breathPhase) * 0.3; // 最大 0.3（微张嘴）
+        lipSync.apply(dt, amplitude, (weight) => { mesh.morphTargetInfluences![lipMorphIndex!] = weight; });
+      }
     },
     // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
@@ -360,6 +384,7 @@ export async function buildMmdScene(
       breath.reset();
       gaze.reset();
       blink.dispose();
+      lipSync.dispose();
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();
     },
