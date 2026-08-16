@@ -818,6 +818,8 @@ export const ja: Record<string, string> = {
   "preview.cameraRotation": "カメラ回転",
   "preview.cameraSpeed": "カメラ速度",
   "preview.cameraView": "カメラビュー",
+  "preview.environment": "環境",
+  "preview.ground": "地面",
   "preview.allComponents": "すべてのコンポーネント",
   "preview.copied": "コピーしました",
   "preview.blueprintDetail": "設計図の詳細",

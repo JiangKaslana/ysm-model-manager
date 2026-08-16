@@ -12,6 +12,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SkyCapability } from "../caps/sky-capability.ts";
+import { GroundCapability } from "../caps/ground-capability.ts";
 import { bus } from "../../../bus.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { t } from "../../../core/i18n/t.ts";
@@ -19,6 +20,8 @@ import { esc } from "../../../utils/dom/html.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 import { createIconButton } from "../../../utils/dom/fab.ts";
 import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
+import { createSlideMenu } from "../../../ui/ui-helpers.ts";
+import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import type { BoneSelectInfo } from "../model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
@@ -214,6 +217,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let orbitTarget: THREE.Vector3 | undefined;
   // 程序化天空能力（ADR-073 L1）：shared 模式注入统一核心，四种模型零改动继承
   let skyCap: SkyCapability | null = null;
+  let groundCap: GroundCapability | null = null;
+  /** 环境菜单（ADR-073 #1/#4 收口）：下拉 popover 的 document 点击关闭监听清理（声明前移，赋值在 L512 先于原声明位） */
+  let envMenuCleanup: (() => void) | null = null;
   let animId = 0;
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
@@ -283,6 +289,38 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   const spacer = document.createElement("div");
   spacer.style.cssText = "flex:1";
   topBar.appendChild(spacer);
+
+  // 🌍 环境菜单（ADR-073 同款 caps/ 能力模式）：地面开关；天空滑块（时间/云量）后续收拢
+  {
+    const envBtn = document.createElement("button");
+    envBtn.className = "mode-btn";
+    envBtn.textContent = "🌍 " + t("preview.environment");
+    envBtn.dataset.testid = "env-menu-btn";
+    const envPopup = document.createElement("div");
+    envPopup.className = "ysm-slide-popup";
+    envPopup.style.display = "none";
+    overlay.appendChild(envPopup);
+    const envMenu = createSlideMenu({ title: t("preview.environment") });
+    envPopup.appendChild(envMenu.root);
+    const row = document.createElement("div");
+    row.className = "slide-item";
+    row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+    const label = document.createElement("span");
+    label.className = "slide-label";
+    label.textContent = t("preview.ground");
+    label.style.cssText = "flex:1;font-size:12px";
+    const toggle = createHeaderToggle({
+      value: true, // 构建时 groundCap 未创建（shared 模式内才赋值），默认可见；onChange 切换真实状态
+      onChange: (v: boolean): void => groundCap?.setVisible(v),
+    });
+    row.appendChild(label);
+    row.appendChild(toggle);
+    envMenu.list.appendChild(row);
+    envBtn.onclick = (): void => {
+      envPopup.style.display = envPopup.style.display === "none" ? "flex" : "none";
+    };
+    topBar.appendChild(envBtn);
+  }
 
   // 相机控制桥（shared 模式）：core 的 topBar 控件与 PreviewBuildCtx.cameraControls
   // 共用同一 bridge（操作核心内部 orbitMode/camSpeed/controls），适配器（如 ysm 底部
@@ -362,61 +400,92 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     skyCap = new SkyCapability({ scene, renderer });
     skyCap.setPreset(adapter.id); // #3 按模型类别套用散射/曝光预设
     skyCap.apply();
-    // 时间-of-day 滑块（ADR-073 #1）：联动天空太阳方位/高度，四种模型共享同一 scene
+    // 地面（ADR-073 同款 caps/ 能力）：统一核心注入，各类型零改动继承
+    groundCap = new GroundCapability({ scene });
+    groundCap.apply();
+    // 环境菜单（ADR-073 #1/#2/#4 收口）：顶栏只留「环境」按钮，时间/云量/IBL 收进
+    // 下拉面板，清空顶栏滑块垃圾（避免与相机控件抢空间 + 修复 raw key 显示）。
+    // topBar 为 position:relative，下拉以 absolute 锚定按钮下方，点击外部自动关闭。
     {
+      // i18n 安全取值：键缺失时返回 fallback，杜绝滑块退化显示原始键名（ADR-073 #1 教训）
+      const tr = (key: string, fallback: string): string => {
+        const v = t(key);
+        return v === key ? fallback : v;
+      };
+
+      const envBtn = document.createElement("button");
+      envBtn.className = "mode-btn"; // 🥉 ui/ 库透明按钮样式（§19）
+      envBtn.dataset.testid = "env-menu-btn"; // §19.1 data-testid 命名空间
+      envBtn.style.marginLeft = "8px";
+      envBtn.textContent = "🌐 " + tr("preview.environment", "环境");
+      topBar.appendChild(envBtn);
+
+      const menu = document.createElement("div");
+      menu.style.cssText =
+        "position:absolute;top:100%;right:0;margin-top:6px;min-width:210px;padding:10px 12px;" +
+        "background:rgba(20,21,38,0.98);border:1px solid rgba(255,255,255,0.15);border-radius:8px;" +
+        "box-shadow:0 8px 24px rgba(0,0,0,0.45);color:#fff;font-size:12px;display:none;z-index:50;" +
+        "flex-direction:column;gap:10px";
+      topBar.appendChild(menu);
+
+      let open = false;
+      const setOpen = (v: boolean): void => {
+        open = v;
+        menu.style.display = open ? "flex" : "none";
+      };
+      envBtn.onclick = (e): void => {
+        e.stopPropagation(); // 防冒泡触发 document 关闭监听
+        setOpen(!open);
+      };
+      menu.onclick = (e): void => e.stopPropagation();
+      const onDocClick = (): void => setOpen(false);
+      document.addEventListener("click", onDocClick);
+
+      // --- 时间-of-day：联动天空太阳方位/高度，四种模型共享同一 scene ---
+      const timeRow = document.createElement("div");
+      timeRow.style.cssText = "display:flex;flex-direction:column;gap:4px";
       const formatHour = (h: number): string =>
         `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
-      const timeLabel = document.createElement("span");
-      timeLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5);margin-left:8px";
-      timeLabel.textContent = t("preview.timeOfDay") + ":";
-      topBar.appendChild(timeLabel);
-
+      const timeHead = document.createElement("div");
+      timeHead.style.cssText = "display:flex;justify-content:space-between;color:rgba(255,255,255,0.7)";
+      const timeName = document.createElement("span");
+      timeName.textContent = tr("preview.timeOfDay", "时间");
+      const timeVal = document.createElement("span");
+      const initHour = skyCap.getTimeOfDay();
+      timeVal.textContent = formatHour(initHour);
+      timeHead.append(timeName, timeVal);
       const timeSlider = document.createElement("input");
       timeSlider.type = "range";
       timeSlider.min = "0";
       timeSlider.max = "24";
       timeSlider.step = "0.5";
-      const initHour = skyCap.getTimeOfDay();
       timeSlider.value = String(initHour);
-      timeSlider.style.cssText = "width:90px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-      topBar.appendChild(timeSlider);
-
-      const timeVal = document.createElement("span");
-      timeVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:44px";
-      timeVal.textContent = formatHour(initHour);
-      topBar.appendChild(timeVal);
-
+      timeSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
       timeSlider.oninput = (): void => {
         const h = Number(timeSlider.value);
         skyCap?.setTime(h);
         timeVal.textContent = formatHour(h);
       };
-    }
-    // 云量滑块（ADR-073 #4）：0=晴空 1=多云，联动天空与 IBL 环境
-    {
-      // i18n 键 preview.cloudCoverage 由 i18n 进程统一维护；并发竞争下键可能暂缺，
-      // 此处 fallback 到中文，避免滑块退化显示原始键名（代码层兜底，非硬编码业务文案）。
-      const cloudKey = "preview.cloudCoverage";
-      const cloudLabel = document.createElement("span");
-      cloudLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5);margin-left:12px";
-      const cloudTranslated = t(cloudKey);
-      cloudLabel.textContent = (cloudTranslated === cloudKey ? "云量" : cloudTranslated) + ":";
-      topBar.appendChild(cloudLabel);
+      timeRow.append(timeHead, timeSlider);
+      menu.appendChild(timeRow);
 
+      // --- 云量：0=晴空 1=多云，联动天空与 IBL 环境 ---
+      const cloudRow = document.createElement("div");
+      cloudRow.style.cssText = "display:flex;flex-direction:column;gap:4px";
+      const cloudHead = document.createElement("div");
+      cloudHead.style.cssText = "display:flex;justify-content:space-between;color:rgba(255,255,255,0.7)";
+      const cloudName = document.createElement("span");
+      cloudName.textContent = tr("preview.cloudCoverage", "云量");
+      const cloudVal = document.createElement("span");
+      cloudVal.textContent = "0%";
+      cloudHead.append(cloudName, cloudVal);
       const cloudSlider = document.createElement("input");
       cloudSlider.type = "range";
       cloudSlider.min = "0";
       cloudSlider.max = "1";
       cloudSlider.step = "0.05";
       cloudSlider.value = "0";
-      cloudSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-      topBar.appendChild(cloudSlider);
-
-      const cloudVal = document.createElement("span");
-      cloudVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:30px";
-      cloudVal.textContent = "0%";
-      topBar.appendChild(cloudVal);
-
+      cloudSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
       cloudSlider.oninput = (): void => {
         const v = Number(cloudSlider.value);
         skyCap?.setCloudCoverage(v, false);
@@ -425,6 +494,24 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       cloudSlider.onchange = (): void => {
         skyCap?.setCloudCoverage(Number(cloudSlider.value), true);
       };
+      cloudRow.append(cloudHead, cloudSlider);
+      menu.appendChild(cloudRow);
+
+      // --- 环境光(IBL) 开关：可选 IBL 环境贴图联动 ---
+      const ibRow = document.createElement("label");
+      ibRow.style.cssText = "display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.8);cursor:pointer";
+      const ibCb = document.createElement("input");
+      ibCb.type = "checkbox";
+      ibCb.checked = skyCap.isEnvironmentEnabled();
+      ibCb.style.cssText = "cursor:pointer;accent-color:var(--accent,#7c83ff)";
+      ibCb.onchange = (): void => skyCap?.setEnvironmentEnabled(ibCb.checked);
+      const ibName = document.createElement("span");
+      ibName.textContent = tr("preview.environmentLight", "环境光(IBL)");
+      ibRow.append(ibCb, ibName);
+      menu.appendChild(ibRow);
+
+      // 注册清理：移除 document 点击监听，防预览关闭后泄漏
+      envMenuCleanup = (): void => document.removeEventListener("click", onDocClick);
     }
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -649,6 +736,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       window.removeEventListener("pointermove", onDragPointerMove);
       window.removeEventListener("resize", onResize);
       panelCleanup?.();
+      envMenuCleanup?.();
       // 内容层先释放自身资源，核心再回收外壳
       try {
         built?.dispose();
@@ -656,6 +744,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       // 程序化天空（ADR-073 L1）：还原 tone mapping 并释放 PMREM/几何/材质
       try {
         skyCap?.dispose();
+      } catch (_) {}
+      // 地面能力：移除网格并释放几何/材质
+      try {
+        groundCap?.dispose();
       } catch (_) {}
       // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
       // （stub 环境 Scene 未必实现 traverse，typeof 守卫避免误崩）
