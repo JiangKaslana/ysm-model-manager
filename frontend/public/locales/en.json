@@ -885,5 +885,12 @@
   "webFs.moveInvalidDstDir": "Move/Copy failed: invalid destination directory: {path}",
   "webFs.moveModelMissing": "Move/Copy failed: model not found: {path}",
   "webFs.moveNested": "Move/Copy failed: destination directory cannot be inside the source: {path}",
-  "webFs.moveTargetExists": "Move/Copy failed: target already exists: {path}"
+  "webFs.moveTargetExists": "Move/Copy failed: target already exists: {path}",
+  "preview.settings": "Settings",
+  "preview.back": "Back",
+  "preview.switchModel": "Switch Model",
+  "preview.noOtherModel": "(No other models)",
+  "preview.timeOfDay": "Time of Day",
+  "preview.cloudCoverage": "Cloud Coverage",
+  "preview.environmentLight": "Environment Light (IBL)"
 }

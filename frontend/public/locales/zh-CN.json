@@ -885,5 +885,12 @@
   "webFs.moveInvalidDstDir": "移动/复制失败：目标目录无效: {path}",
   "webFs.moveModelMissing": "移动/复制失败：模型不存在: {path}",
   "webFs.moveNested": "移动/复制失败：目标目录不能位于源目录内: {path}",
-  "webFs.moveTargetExists": "移动/复制失败：目标已存在: {path}"
+  "webFs.moveTargetExists": "移动/复制失败：目标已存在: {path}",
+  "preview.settings": "设置",
+  "preview.back": "返回",
+  "preview.switchModel": "切换模型",
+  "preview.noOtherModel": "（无其他模型）",
+  "preview.timeOfDay": "时间",
+  "preview.cloudCoverage": "云量",
+  "preview.environmentLight": "环境光(IBL)"
 }
