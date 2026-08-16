@@ -61,9 +61,11 @@ if (!checkOnly && !message) {
 }
 
 // ── 辅助函数 ──
+// Q0 修复（子代理锐评）：加 -c core.quotepath=false，解非 ASCII 文件名八进制转义
+// 否则 git diff --cached --name-only 输出转义串 → classify 判 'other' → 零检查静默放行+自动提交
 function git(args) {
   try {
-    return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
+    return execFileSync('git', ['-c', 'core.quotepath=false', ...args], { cwd: ROOT, encoding: 'utf8' }).trim();
   } catch {
     return '';
   }
@@ -71,7 +73,7 @@ function git(args) {
 
 function gitArray(args) {
   try {
-    execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    execFileSync('git', ['-c', 'core.quotepath=false', ...args], { cwd: ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
     return 0;
   } catch (e) {
     return e.status ?? 1;
@@ -101,22 +103,43 @@ console.log('');
 
 // ── 2. 委托 pre-push-gate（唯一检查清单源头）──
 // P1 修复：传 staged files 作 --files 参数，真按域裁剪（替代 --all 全量）
-// P2 修复（子代理锐评）：门禁前先跑 gen-docs-index 刷新索引，解 gen 鸡生蛋
+// P2 修复（子代理锐评）：门禁前先跑 gen 刷新索引，解 gen 鸡生蛋
 // （门禁跑 gen-docs-index --check，若索引旧则 fail-closed 阻断；而 pre-commit 的 gen 修复在门禁之后才跑——永远轮不到修）
+// Q2 修复（子代理再洗礼）：补全 pre-commit 跑的全 11 个 gen，不只 gen-docs-index
+// （残余 10 个 gen 产物若过期，门禁静态工具如 funcmap --check 会挂，而修复在 pre-commit 之后才跑——同一鸡生蛋）
 // 用 byDomain 判断是否有 docs/adr 域改动（plan 变量在 pre-push-gate 内部，commit-with-check 够不到）
 if (docsMode || byDomain.docs?.length || byDomain.adr?.length) {
-  try {
-    execFileSync(process.execPath, ['scripts/gen-docs-index.mjs'], {
-      cwd: ROOT, stdio: 'ignore', timeout: 30_000,
-    });
-    console.log('[gen] 已刷新 docs 索引（门禁前预刷新，解鸡生蛋）');
-  } catch {
-    console.log('[gen] ⚠️ gen-docs-index 预刷新失败（不阻断，门禁会再检）');
+  const GEN_CMDS = [
+    'gen-docs-index.mjs',
+    'funcmap.mjs',
+    'gen-knowledge-index.mjs',
+    'build-novel-index.mjs',
+    'gen-project-map.mjs',
+    'gen-vitepress-sidebar.mjs',
+    'gen-knowledge-h1.mjs',
+    'gen-knowledge-symbols.mjs',
+    'gen-knowledge-adr.mjs',
+    'gen-knowledge-tests.mjs',
+    'generate-locale-json.mjs',
+  ];
+  let genOk = 0, genFail = 0;
+  for (const cmd of GEN_CMDS) {
+    try {
+      execFileSync(process.execPath, [`scripts/${cmd}`], {
+        cwd: ROOT, stdio: 'ignore', timeout: 30_000,
+      });
+      genOk++;
+    } catch {
+      genFail++;
+    }
   }
+  console.log(`[gen] 已预刷新 ${genOk}/${GEN_CMDS.length} 个 gen 腚本${genFail ? `（${genFail} 个失败，不阻断，门禁会再检）` : '（全绿）'}`);
 }
+// Q1 修复（子代理再洗礼）：传 --no-banner 抑制门禁横幅，由本脚本在 commit 成功后自己打印
+// （commit-with-check 恒走 dry-run，横幅在自动 commit 前出现会诱导 AI push 旧 HEAD）
 const gateArgs = docsMode
-  ? ['--docs', '--dry-run']
-  : ['--files', stagedFiles.join('\n'), '--dry-run'];
+  ? ['--docs', '--dry-run', '--no-banner']
+  : ['--files', stagedFiles.join('\n'), '--dry-run', '--no-banner'];
 let gateRc = 0;
 try {
   execFileSync(process.execPath, ['scripts/pre-push-gate.mjs', ...gateArgs], {
@@ -151,6 +174,13 @@ if (commitRc !== 0) {
 const sha = git(['rev-parse', '--short', 'HEAD']);
 const subject = git(['log', '-1', '--format=%s']);
 console.log(`✅ 已提交: ${sha} ${subject}`);
+console.log('');
+
+// Q1 修复：横幅在 commit 成功后打印（此时 HEAD 已更新，AI 看到「可直接 push」时 commit 已执行）
+console.log('════════════════════════════════════════');
+console.log('  ✅ 门禁全绿 + 已提交，可直接执行：git push');
+console.log('  （门禁已验，无需再手动跑 doctor --docs / tsc / build 确认）');
+console.log('════════════════════════════════════════');
 console.log('');
 
 const status = git(['status', '--short']);

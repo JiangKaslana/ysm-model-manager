@@ -176,6 +176,7 @@ function parseStdin() {
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
+  const noBanner = process.argv.includes('--no-banner');
   const allMode = process.argv.includes('--all');
   const docsMode = process.argv.includes('--docs');
   const filesIdx = process.argv.indexOf('--files');
@@ -505,7 +506,9 @@ async function main() {
     logPush(`结论: PASS ✅ ${dryRun ? '（DRY-RUN）' : '放行推送'} ${passCount}/${results.length} 项通过`);
     // P0 修复（子代理锐评）：横幅移到 dry-run 分支——AI 验证完（dry-run）时看到「可直接 push」，
     // 真实 push 时（!dryRun）已在执行，复读机提示无意义。
-    if (dryRun) {
+    // Q1 修复（子代理再洗礼）：--no-banner 抑制横幅，由调用方（commit-with-check）在 commit 成功后自己打印
+    // （commit-with-check 恒走 dry-run，横幅在自动 commit 前出现会诱导 AI push 旧 HEAD）
+    if (dryRun && !noBanner) {
       logPush('');
       logPush('════════════════════════════════════════');
       logPush('  ✅ 门禁全绿，可直接执行：git push');
