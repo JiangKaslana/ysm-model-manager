@@ -77,10 +77,9 @@ if [ -n "$CHANGED_FILES" ]; then
   # 过滤生成物文件（pre-commit 自身产物，不应触发漂移告警）
   FILTERED=$(printf '%s\n' "$CHANGED_FILES" | grep -vE '^docs/(knowledge/index|funcmap|project-map)\.md$' | grep -v '^frontend/public/locales/' || true)
   if [ -n "$FILTERED" ]; then
-    printf '%s\n' "$FILTERED" | while IFS= read -r f; do
-      [ -z "$f" ] && continue
-      node scripts/check-knowledge-drift.mjs --affected "$f" 2>&1 | head -20 || echo "⚠️  drift 检查失败（不阻断）：$f"
-    done
+    # 批量调用：一次 node 进程 + 一次索引构建（~0.3s），
+    # 替代逐文件循环（10 文件 ≈ 3s，SIGPIPE 误报风险已消除）
+    node scripts/check-knowledge-drift.mjs --affected $FILTERED 2>&1 || echo "⚠️  drift 检查失败（不阻断）"
   fi
 fi
 
@@ -139,10 +138,11 @@ else
   echo "⚠️  gofmt 不可用（PATH 异常），跳过 go 格式化。"
 fi
 
-# ── Take巧 #3：git status 摘要（commit 前预览，ADR-087）──
-# 输出 git status --short 的最后 15 行，非阻断，纯输出层改造
+# ── Take巧 #3：本次 commit 变更统计（commit 前预览，ADR-087）──
+# 输出 staged 文件的 diff --stat（行数增删），比 status --short 更聚焦「本次 commit 内容」
+# 锐评反馈（2026-08-17）：status 显示整个工作区（含未 stage 噪音），diff --cached 直接对应本次提交
 echo ""
-echo "[pre-commit] 当前 git status（提交前预览）:"
-git status --short 2>/dev/null | tail -15 || true
+echo "[pre-commit] 本次 commit 变更统计（提交前预览）:"
+git diff --cached --stat 2>/dev/null | tail -10 || true
 
 exit 0

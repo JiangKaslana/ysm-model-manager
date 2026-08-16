@@ -205,7 +205,8 @@ if [ -n "$CHANGED_FILES" ]; then
   # 过滤生成物
   FILTERED=$(printf '%s\n' "$CHANGED_FILES" | grep -v '^docs/knowledge/index.md$' | grep -v '^docs/funcmap.md$' | grep -v '^docs/project-map.md$' | grep -v '^frontend/public/locales/' || true)
   if [ -n "$FILTERED" ]; then
-    node scripts/check-knowledge-drift.mjs --affected $FILTERED 2>&1 | head -20 || echo "⚠️  drift 检查失败（不阻断）"
+    # 批量调用：一次 node 进程 + 一次索引构建（~0.3s）
+    node scripts/check-knowledge-drift.mjs --affected $FILTERED 2>&1 || echo "⚠️  drift 检查失败（不阻断）"
   fi
 fi
 ```
@@ -272,3 +273,74 @@ git status --short 2>/dev/null | tail -15 || true
 | pre-commit 总耗时 > 5s | 回退 T1/T2，只保留 T3 |
 | 智能 stage 误 stage 率 > 10%（月度统计） | 收紧匹配规则或移除 T1 |
 | drift --affected 误报率 > 20%（月度统计） | 收紧过滤规则或移除 T2 |
+
+---
+
+## 11. 锐评反馈（子代理独立审计，2026-08-17）
+
+> 子代理独立锐评（不接触本 ADR 正文），从架构师角度审视 T1/T2/T3 设计。
+> 来源：用户「放个子代理探索并锐评这个改动」→ 派独立 subagent 读 ADR-087 + pre-push-gate + pre-commit 三层现状 → 输出锐评报告。
+
+### 11.1 判定摘要
+
+| Take巧 | 判定 | 核心理由 |
+|--------|------|---------|
+| #1 智能 stage | ✅ **保留**（小缝，Windows 路径分隔符） | 幂等保证成立；防误 stage 守卫（`git diff --cached` 中必须有对应源码改动）已设计 |
+| #2 drift --affected | ⚠️ **已修**（逐文件循环→批量 + `head -20` SIGPIPE） | 见 11.2 修复记录 |
+| #3 status 摘要 | ⚠️ **已改**（`status --short`→`diff --cached --stat`） | 见 11.3 修复记录 |
+
+### 11.2 T2 修复：逐文件循环 → 批量调用
+
+**原实现（有 2 个 bug）**：
+```sh
+printf '%s\n' "$FILTERED" | while IFS= read -r f; do
+  node scripts/check-knowledge-drift.mjs --affected "$f" 2>&1 | head -20
+done
+```
+
+**Bug 1 — 逐文件循环**：每次调用启动新 Node.js 进程 + 重建知识卡索引（O(n) × m），10 文件 ≈ 3s。
+**Bug 2 — `head -20` 截断**：Node.js 输出 >20 行时触发 SIGPIPE（exit 141），外层 `|| echo "⚠️ 失败"` 误报；且第 21 行起的真正 ERROR 被静默丢弃。
+
+**修复后**：
+```sh
+node scripts/check-knowledge-drift.mjs --affected $FILTERED 2>&1 || echo "⚠️  drift 检查失败（不阻断）"
+```
+
+- 单次 Node.js 进程 + 单次索引构建（0.3s）
+- 输出完整 stderr（含全部 ERROR/WARN），无 SIGPIPE
+
+### 11.3 T3 修复：status 摘要 → diff --cached --stat
+
+**原实现**：
+```sh
+git status --short 2>/dev/null | tail -15
+```
+
+**问题**：`status` 显示整个工作区状态（含未 stage 噪音），而 pre-commit 在 commit 前运行，AI 真正需要的是「本次 commit 包含什么」。
+
+**修复后**：
+```sh
+git diff --cached --stat 2>/dev/null | tail -10 || true
+```
+
+直接显示 staged 文件的变更统计（行数增删），与本次 commit 内容直接对应。
+
+### 11.4 未采纳建议
+
+| 建议 | 判定 | 理由 |
+|------|------|------|
+| Take巧 #4：`git diff --cached --stat` 预览 | ✅ 采纳 | 见 11.3 |
+| Take巧 #5：drift 加 `--quiet` 模式 | ❌ 不采纳 | `--quiet` 仅输出 stem 列表，丢失 ERROR/WARN 详情，对 AI 不如完整输出有用 |
+| Take巧 #6：commit 后 SHA 确认 | ❌ 不采纳 | 与 `prepare-commit-msg` 钩子的 commit message 回显重叠，且 pre-commit 在 commit 前运行，看不到 SHA |
+| Windows 路径分隔符归一化 | ⚠️ 观察 | 当前 `git diff --name-only` 在 Windows Git Bash 下输出 `/` 分隔符（MinGit 默认），暂未发现问题；若出现异常再添加 `tr '\\' '/'` |
+
+---
+
+## 12. 翻转正则（修订版）
+
+| 条件 | 动作 |
+|------|------|
+| pre-commit 总耗时 > 5s | 回退 T1/T2，只保留 T3 |
+| 智能 stage 误 stage 率 > 10%（月度统计） | 收紧匹配规则或移除 T1 |
+| drift --affected 误报率 > 20%（月度统计） | 收紧过滤规则或移除 T2 |
+| pre-commit 输出 >50 行 | 截断为 30 行 + `[...] N 行省略`（防终端刷屏，但不丢 ERROR） |
