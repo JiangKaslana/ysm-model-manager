@@ -36,15 +36,15 @@
 | 前端·根 (app-modules/bus) | 3 | 16 |
 | frontend/backend | 18 | 98 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 20 | 94 |
+| 前端·特性 | 21 | 95 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 103 |
 | 前端·工具 | 106 | 391 |
-| frontend/views | 90 | 252 |
+| frontend/views | 94 | 262 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **373** | **1573** |
+| **合计** | **378** | **1584** |
 
 ## Go·头像
 
@@ -900,6 +900,7 @@
 | `groupSites()` | `frontend/src/features/community/render:200` | 按 group 分组站点（缺省 browse）。纯函数，供单测覆盖（ADR-023 L3）。 |
 | `renderCardsHTML()` | `frontend/src/features/community/render:217` | 生成左栏站点卡片 HTML |
 | `renderRepoHeaderHTML()` | `frontend/src/features/community/render:267` | 生成仓库模型页面的头部 HTML（含返回按钮、计数、筛选按钮等） |
+| `showRepoModels()` | `frontend/src/features/community/show-repo-models:24` | 显示 GitHub 仓库模型列表（比对本地已有文件） 包含：本地扫描、sourceLabel构建、countMissing、renderRepoHeaderHTML、bindRep |
 | `CollectedFile()` | `frontend/src/features/dnd-collector:6` | 收集结果条目 |
 | `collectFiles()` | `frontend/src/features/dnd-collector:35` | 递归收集 DataTransferItem[] 或 FileSystemEntry[] 中的文件。 |
 | `getExt()` | `frontend/src/features/dnd-shared:4` | — |
@@ -1544,9 +1545,9 @@
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:26` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:33` | 初始化实例页 |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
-| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:28` | app-content 组件完整接口（供 workshop/github 初始化函数访问） |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:52` | 初始化创意工坊页 |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:524` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag， 组件销毁后新实例可重新注册（拆分后模块级状 |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:29` | 初始化创意工坊页（编排入口） |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:136` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:147` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:129` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |
@@ -1589,6 +1590,11 @@
 | `githubHTML()` | `frontend/src/views/app-content/tpl:149` | ===== GitHub 仓库页面 ===== |
 | `workshopHTML()` | `frontend/src/views/app-content/tpl:180` | — |
 | `viewerHTML()` | `frontend/src/views/app-content/tpl:234` | — |
+| `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:12` | 提取创作者头像（后台批量） |
+| `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
+| `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |
+| `saveBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:21` | 保存浏览模式到 localStorage |
+| `cycleBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:30` | 循环切换浏览模式 |
 | `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:8` | 创作者身份识别结果 |
 | `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:15` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
 | `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:22` | — |
@@ -1597,6 +1603,11 @@
 | `loadFavs()` | `frontend/src/views/app-content/workshop-data:63` | — |
 | `isFaved()` | `frontend/src/views/app-content/workshop-data:75` | — |
 | `toggleFav()` | `frontend/src/views/app-content/workshop-data:79` | — |
+| `openSite()` | `frontend/src/views/app-content/workshop-site-opener:18` | 打开站点（外链/内嵌/窗口） |
+| `openEmbedded()` | `frontend/src/views/app-content/workshop-site-opener:42` | 内嵌浏览：直连官网 |
+| `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:69` | 绑定站点打开相关事件 |
+| `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:17` | 初始化创意工坊 Tab |
+| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:109` | — |
 | `BoneEntry()` | `frontend/src/views/app-preview/bone-names:5` | 骨骼条目（结构类型，兼容 DecodedYsm.bones 元素） |
 | `buildBoneNamesText()` | `frontend/src/views/app-preview/bone-names:15` | 构建骨骼名导出文本行： 首行 `模型: &lt;path&gt;`、次行 `骨骼总数: &lt;n&gt;`，其后每根骨骼 有方块则 `名称 (n 方)`，结构骨骼（无方块）则 `名称 (结构骨骼,无方) |
 | `CacheValue()` | `frontend/src/views/app-preview/cache:10` | 缓存条目值 |
