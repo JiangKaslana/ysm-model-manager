@@ -2,7 +2,7 @@
 // events/edit/drag 三块事件绑定共享的闭包变量提为显式 state 对象，
 // 消除幽灵路径（AGENTS.md §致命陷阱 #13）+ 便于逐块抽到独立文件。
 import type { bus } from "../../../bus.ts";
-import type { WorkshopSite } from "../../../../bindings/ysm-model-manager/go/types/models.ts";
+import type { WorkshopSite } from "../../../utils/types-re-export.ts";
 import type { LocalCreatorLike, RepoAuthorLike, RenderSiteViewCtx } from "../site-view.ts";
 
 /**

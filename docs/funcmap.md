@@ -39,10 +39,11 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 76 | 252 |
+| frontend/ui | 10 | 44 |
+| 前端·工具 | 77 | 254 |
 | frontend/views | 90 | 252 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **312** | **1266** |
+| **合计** | **323** | **1312** |
 
 ## Go·头像
 
@@ -960,6 +961,55 @@
 | `RenderResult()` | `frontend/src/test-utils/render:13` | — |
 | `renderComponent()` | `frontend/src/test-utils/render:31` | 渲染一个自定义元素到 DOM。 |
 
+## frontend/ui
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `ControlUpdater()` | `frontend/src/ui/control-registry:9` | — |
+| `setControlRegistry()` | `frontend/src/ui/control-registry:17` | 接入外部控件更新系统（如 ysm 的响应式链路）。 |
+| `registerControl()` | `frontend/src/ui/control-registry:22` | 注册一个控件更新回调。未接入外部系统时静默忽略。 |
+| `ROLE()` | `frontend/src/ui/dom-contract:6` | 渲染层 role 常量 |
+| `ARIA_ATTR()` | `frontend/src/ui/dom-contract:17` | aria 属性名常量 |
+| `COLLAPSIBLE()` | `frontend/src/ui/dom-contract:29` | collapsible（folder）组件契约 |
+| `SLIDER_BAR_CLASS()` | `frontend/src/ui/dom-contract:37` | 滑动条本体 class（slider / colorSlider / modeSlider 共用 .cs-bar） |
+| `createIcon()` | `frontend/src/ui/icons:10` | 创建一个图标元素（可能返回 null，调用方应走兜底层）。 |
+| `uiComponentsCss()` | `frontend/src/ui/ui-components-styles:7` | — |
+| `uiComponentsStyleSheet()` | `frontend/src/ui/ui-components-styles:15` | — |
+| `installUiComponentsStyles()` | `frontend/src/ui/ui-components-styles:19` | 将组件样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
+| `SLIDER_QUARTER_LARGE_STEP()` | `frontend/src/ui/ui-constants:6` | 左区大幅减步进：全范围 15% |
+| `SLIDER_QUARTER_SMALL_STEP()` | `frontend/src/ui/ui-constants:8` | 中左/中右微调步进：全范围 5% |
+| `HeaderToggleConfig()` | `frontend/src/ui/ui-header-toggle:8` | — |
+| `createHeaderToggle()` | `frontend/src/ui/ui-header-toggle:26` | 创建标题栏小型开关。返回 `&lt;label class="toggle header-toggle"&gt;`， 含双触发去重（跳过 target===input 的 synthetic |
+| `addToggleRow()` | `frontend/src/ui/ui-rows:23` | — |
+| `initControl()` | `frontend/src/ui/ui-rows:114` | 封装 registerControl + immediate update 模式。 |
+| `addSliderRow()` | `frontend/src/ui/ui-rows:151` | 数字滑块行。内部统一由 {@link DragSliderController} 驱动 （拖拽 + 键盘 + 游标点击），行为与其他滑块 builder 保持一致。 |
+| `addModeRow()` | `frontend/src/ui/ui-rows:290` | — |
+| `addEmptyRow()` | `frontend/src/ui/ui-rows:325` | 创建空状态占位行（灰色文字，不可点击），替代手动 `el.style.opacity = '0.5'` 模式 |
+| `addCardTitle()` | `frontend/src/ui/ui-rows:348` | 创建 card-title 标题行并追加到容器 |
+| `addDangerRow()` | `frontend/src/ui/ui-rows:363` | 创建危险操作行（icon + red label），替代手动拼接 `div.slide-item &gt; icon + label.danger-text` |
+| `addFieldRow()` | `frontend/src/ui/ui-rows:396` | 创建字段行（左 label + 右 value），替代手动拼接的 `div.slide-item &gt; span.slide-label.field-label + span.fie |
+| `addInfoGrid()` | `frontend/src/ui/ui-rows:430` | — |
+| `addInfoCard()` | `frontend/src/ui/ui-rows:437` | — |
+| `sliderRow()` | `frontend/src/ui/ui-rows:470` | — |
+| `toggleRow()` | `frontend/src/ui/ui-rows:487` | — |
+| `addWatchDirRow()` | `frontend/src/ui/ui-rows:512` | — |
+| `addActionRow()` | `frontend/src/ui/ui-rows:574` | 创建一个可点击的动作按钮行（替代手写 cs-row + button）。 |
+| `addDisabledRow()` | `frontend/src/ui/ui-rows:611` | 创建一个不可交互的提示行（替代手写 cs-row + opacity 0.4 + pointer-events none）。 |
+| `addInlineToggleRow()` | `frontend/src/ui/ui-rows:642` | 创建一个内联 toggle 行（替代手写 toggle-row + toggle-label + toggle-switch）。 |
+| `isIkBone()` | `frontend/src/ui/ui-rows:691` | 判断骨骼是否为 IK 相关骨骼 |
+| `buildBoneGroups()` | `frontend/src/ui/ui-rows:717` | 按类别分组骨骼名，未匹配的归入「その他」。空组被剔除。 |
+| `BoneSelectOptions()` | `frontend/src/ui/ui-rows:746` | — |
+| `addBoneSelectRow()` | `frontend/src/ui/ui-rows:757` | 创建骨骼选择行：label + 搜索框 + 分组下拉（含 IK 标记）。 |
+| `HeaderToggleConfig()` | `frontend/src/ui/ui-slide-row` | — |
+| `TrailingAction()` | `frontend/src/ui/ui-slide-row:12` | — |
+| `createTrailingBtn()` | `frontend/src/ui/ui-slide-row:55` | 统一尾部第二动作按钮工厂——供 slideRow 与 menu.ts createRow 共用， 确保两条渲染路径的第二按钮观感与行为一致（22px .slide-add-btn； |
+| `createLeadingBtn()` | `frontend/src/ui/ui-slide-row:64` | 统一左侧行为区按钮工厂——镜像 createTrailingBtn，但渲染为 21px 透明可点击 `.slide-lead-btn`（复用 .slide-icon 尺寸，非 22 |
+| `SlideRowExtra()` | `frontend/src/ui/ui-slide-row:68` | — |
+| `slideRow()` | `frontend/src/ui/ui-slide-row:97` | — |
+| `DragSliderOptions()` | `frontend/src/ui/ui-slider-controller:9` | — |
+| `DragSliderController()` | `frontend/src/ui/ui-slider-controller:24` | — |
+| `ControlOptions()` | `frontend/src/ui/ui-types:2` | 控件通用选项：支持 bind 自动更新或 onUpdate 手动更新 |
+
 ## 前端·工具
 
 | 符号 | 文件:行 | 说明 |
@@ -1216,6 +1266,8 @@
 | `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:122` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
 | `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:133` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
 | `resolveTypeSafe()` | `frontend/src/utils/resource/types:146` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
+| `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
 
 ## frontend/views
 

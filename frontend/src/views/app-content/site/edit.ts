@@ -4,7 +4,7 @@ import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
 import { moveItem } from "../../../utils/array.ts";
 import { safeSet } from "../../../utils/dom/storage.ts";
-import type { WorkshopPresetSearch } from "../../../../bindings/ysm-model-manager/go/types/models.ts";
+import type { WorkshopPresetSearch } from "../../../utils/types-re-export.ts";
 import type { LocalCreatorLike } from "../site-view.ts";
 import type { SiteViewState, CleanupFn } from "./types.ts";
 import * as m from "../community-data.ts";

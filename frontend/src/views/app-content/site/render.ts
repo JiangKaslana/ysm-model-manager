@@ -6,7 +6,7 @@ import {
   loadFavs,
 } from "../workshop-data.ts";
 import { t } from "../../../core/i18n/t.ts";
-import type { WorkshopSite } from "../../../../bindings/ysm-model-manager/go/types/models.ts";
+import type { WorkshopSite } from "../../../utils/types-re-export.ts";
 import type { LocalCreatorLike, RepoAuthorLike } from "../site-view.ts";
 
 /** 创作者卡片工厂上下文 */
