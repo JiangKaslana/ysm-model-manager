@@ -50,3 +50,41 @@ if (!("localStorage" in globalThis)) {
     },
   });
 }
+
+// 4. three 全局 mock（2026-08-17，isolate:false 审核模式修复）
+// 根因：isolate:false 共享模块图，先跑的兄弟测试（mmd-adapter 等）把真实 three
+// 求值进共享图，mount-preview-core 的 `import * as THREE` 绑定固化指向真实 three，
+// 后跑文件的 per-file vi.mock("three") 无法改写已求值绑定 → 真实 WebGLRenderer 在
+// happy-dom（getContext 返回 null）下抛 "Error creating WebGL context"。
+// 解法：setupFiles 全局 mock——每个测试文件运行前都执行，worker 内第一个 import
+// "three" 就拿到 mock，真实 three 永不进入共享图，isolate:true/false 双模式同口径。
+// importActual 保留纯 JS 部分（Box3/Vector3/Light 等），15+ 个用真实 three 的测试零回归；
+// 只 stub WebGLRenderer / PMREMGenerator（需真实 WebGL context 的构造路径）。
+vi.mock("three", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("three")>();
+  class FakeWebGLRenderer {
+    domElement: HTMLElement;
+    constructor() {
+      // 构造时引用 document（延迟求值，node 环境安全；happy-dom 有 document）
+      this.domElement = document.createElement("div");
+    }
+    setSize(): void {}
+    setPixelRatio(): void {}
+    render(): void {}
+    dispose(): void {}
+    setPointerCapture(): void {}
+    hasPointerCapture(): boolean { return false; }
+    releasePointerCapture(): void {}
+    getContext(): null { return null; }
+  }
+  class FakePMREMGenerator {
+    constructor() {}
+    fromScene(): { texture: {} } { return { texture: {} }; }
+    dispose(): void {}
+  }
+  return {
+    ...actual,
+    WebGLRenderer: FakeWebGLRenderer as unknown as typeof actual.WebGLRenderer,
+    PMREMGenerator: FakePMREMGenerator as unknown as typeof actual.PMREMGenerator,
+  };
+});
