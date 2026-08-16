@@ -34,6 +34,7 @@ import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消
 import { createBlinkController } from "../perception/blink.ts"; // 语义 morph 消费方：程序化生命力 L1.5
 import { createLipSyncController } from "../perception/lipsync.ts"; // 语义 morph 消费方：程序化生命力 L2
 import { createAutoDanceController } from "../perception/autodance.ts"; // 语义骨骼消费方：程序化生命力 L3
+import { buildLipMorphIndices } from "../perception/lipsync.ts"; // 多 morph index 提取
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -328,9 +329,13 @@ export async function buildMmdScene(
   const gaze = createGazeController();
   // 感知层眨眼（程序化生命力 L1.5）：随机间隔触发 morph
   const blink = createBlinkController();
-  // 感知层 LipSync（程序化生命力 L2）：待机态下用呼吸相位驱动口型开合
-  const lipSync = createLipSyncController();
+  // 感知层 LipSync（程序化生命力 L2）：待机态下多 morph 驱动口型
+  const lipSync = createLipSyncController({ multiMorph: true });
   let lipSyncTime = 0;
+  // 构建口型 morph index 映射（从语义 morph map + mesh.morphTargetDictionary）
+  const lipIndices = (mesh.morphTargetDictionary && semanticMorphs
+    ? buildLipMorphIndices(semanticMorphs, mesh.morphTargetDictionary)
+    : undefined);
   // 感知层 AutoDance（程序化生命力 L3）：按 BPM 节拍驱动骨骼律动（待机态生效）
   const autoDance = createAutoDanceController({ bpm: 120, intensity: 0.3 });
 
@@ -352,16 +357,21 @@ export async function buildMmdScene(
           blink.apply(dt, (weight: number) => { mesh.morphTargetInfluences![idx] = weight; });
         }
       }
-      // LipSync：待机态下用呼吸相位模拟张嘴（后续可接入 Web Audio API 真实振幅）
-      const lipEntry = semanticMorphs.lipOpen;
-      if (lipEntry && mesh.morphTargetDictionary && (!action || action.paused)) {
+      // LipSync：待机态下多 morph 驱动（open/close/pucker/smile）
+      // 当前用呼吸相位模拟，后续可接入 Web Audio API 真实振幅
+      if (lipIndices && (!action || action.paused)) {
         lipSyncTime += dt;
         const breathPhase = Math.sin(lipSyncTime / 2.5 * Math.PI * 2);
-        const amplitude = Math.max(0, breathPhase) * 0.3;
-        const lipIdx = mesh.morphTargetDictionary[lipEntry.name];
-        if (lipIdx !== undefined) {
-          lipSync.apply(dt, amplitude, (weight) => { mesh.morphTargetInfluences![lipIdx] = weight; });
-        }
+        // 张嘴随呼吸相位变化，其他音素静默
+        const openAmp = Math.max(0, breathPhase) * 0.4;
+        lipSync.applyMulti(dt, { lipOpen: openAmp }, (morphId, weight) => {
+          const idx = morphId === "lipOpen" ? lipIndices.open
+            : morphId === "lipClose" ? lipIndices.close
+            : morphId === "lipPucker" ? lipIndices.pucker
+            : morphId === "lipSmile" ? lipIndices.smile
+            : undefined;
+          if (idx !== undefined) mesh.morphTargetInfluences![idx] = weight;
+        });
       }
       // AutoDance：待机态下按节拍律动（与呼吸/眨眼/注视共存，动作叠加）
       if (!action || action.paused) {

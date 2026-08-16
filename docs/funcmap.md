@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 105 | 387 |
+| 前端·工具 | 105 | 389 |
 | frontend/views | 90 | 250 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **370** | **1554** |
+| **合计** | **370** | **1556** |
 
 ## Go·头像
 
@@ -1107,10 +1107,10 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:25` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:54` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:89` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:400` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:423` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:55` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:90` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:410` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:433` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:36` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:55` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:77` | — |
@@ -1262,9 +1262,11 @@
 | `createBlinkController()` | `frontend/src/utils/3d/perception/blink:55` | 构建眨眼 controller。 |
 | `createBreathController()` | `frontend/src/utils/3d/perception/breath:48` | 构建呼吸 controller：每次 build 调用一次，持有闭包 state |
 | `createGazeController()` | `frontend/src/utils/3d/perception/gaze:35` | — |
-| `AmplitudeProvider()` | `frontend/src/utils/3d/perception/lipsync:29` | 振幅回调：消费方每帧提供归一化振幅（0..1，可超过 1 会被 clamp） |
+| `LipSyncCallback()` | `frontend/src/utils/3d/perception/lipsync:26` | 单 morph 回调：消费方写入具体格式的 morph weight |
+| `MultiLipSyncCallback()` | `frontend/src/utils/3d/perception/lipsync:29` | 多 morph 回调：(morphId, weight) → 消费方写入 |
 | `LipSyncOptions()` | `frontend/src/utils/3d/perception/lipsync:36` | — |
-| `createLipSyncController()` | `frontend/src/utils/3d/perception/lipsync:49` | 构建 LipSync controller。 |
+| `createLipSyncController()` | `frontend/src/utils/3d/perception/lipsync:51` | 构建 LipSync controller。 |
+| `buildLipMorphIndices()` | `frontend/src/utils/3d/perception/lipsync:132` | 从 SemanticMorphMap 提取口型 morph index 映射（供消费方使用）。 |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/quaternion:13` | 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。 |
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
