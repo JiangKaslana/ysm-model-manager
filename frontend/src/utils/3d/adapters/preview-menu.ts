@@ -41,7 +41,7 @@ export interface PreviewMenuHandle {
 
 /** 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） */
 export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx): PreviewMenuHandle {
-  ensureFabStyles(); // 底栏 dock 复用毛玻璃悬浮条样式（ysm-3d-nav / ysm-3d-navbtn）
+  ensureFabStyles(); // 底栏 dock 复用毛玻璃悬浮条样式（preview-dock-nav / preview-dock-navbtn）
   const root = document.createElement("button");
   root.className = "mode-btn";
   root.textContent = "⚙️";
@@ -108,7 +108,11 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   /** 行点击分发：action 直接执行（适配器 run 优先于 core runners），panel 开子面板 */
   const bindRow = (row: HTMLElement, def: PreviewMenuItemDef): void => {
-    row.onclick = (): void => {
+    row.onclick = (e: MouseEvent): void => {
+      // 关键：renderSub 会清空 popup.innerHTML，若事件继续冒泡到 document 的 onDoc，
+      // e.target 已是脱离 DOM 的旧节点 → popup.contains(e.target) 为 false → 误关弹窗。
+      // 必须 stopPropagation 阻止这次点击被 onDoc 判定为「外部点击」。
+      e.stopPropagation();
       if (def.kind === "action") {
         closePopup();
         if (def.run) def.run();
@@ -155,7 +159,10 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       fallback: tr("preview.back", "返回"),
       kind: "action",
     });
-    back.onclick = (): void => renderRoot();
+    back.onclick = (e: MouseEvent): void => {
+      e.stopPropagation(); // 同 bindRow：渲染根菜单清空 DOM 后防 document onDoc 误关
+      renderRoot();
+    };
     popup.appendChild(back);
     if (def.render) def.render(popup, closePopup);
     else fillers[def.id]?.(popup);
@@ -163,7 +170,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   // 底栏 dock 分组（🧍 模型 / 💃 动作 / 🌍 场景）：每组一个按钮，点击弹窗动态生成组内子菜单
   const dock = document.createElement("div");
-  dock.className = "ysm-3d-nav"; // 复用毛玻璃悬浮条样式（fab.ts ensureFabStyles）
+  dock.className = "preview-dock-nav"; // 复用毛玻璃悬浮条样式（fab.ts ensureFabStyles）
   overlay.appendChild(dock);
   /** 组内子菜单：弹窗动态生成（组标题 + 组内项列表，点击开各面板——复用 makeRow/bindRow） */
   const renderGroup = (g: DockGroupDef, groupItems: PreviewMenuItemDef[]): void => {
@@ -194,9 +201,9 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       const groupItems = items.filter((d) => d.dockGroup === g.id);
       if (groupItems.length === 0) return;
       const btn = document.createElement("button");
-      btn.className = "ysm-3d-navbtn";
+      btn.className = "preview-dock-navbtn";
       btn.dataset.testid = "dock-" + g.id;
-      btn.innerHTML = `<span class="ysm-ic">${g.icon}</span><span class="ysm-3d-navlabel">${g.fallback}</span>`;
+      btn.innerHTML = `<span class="ysm-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation(); // 防 document onDoc 误判外部点击收起（与 root.onclick 同款）
         renderGroup(g, groupItems);

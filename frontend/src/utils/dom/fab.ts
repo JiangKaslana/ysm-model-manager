@@ -28,12 +28,12 @@ export const YSW_FAB_CSS = `
 
 /* ===== 底部悬浮导航 + 分类弹窗（MikuMikuAR 玻璃 HUD 范式，ADR-066 §5.7）=====
    3D 全屏沉浸：无常驻侧栏，功能经底部导航按域分组、点击弹出 280px 毛玻璃弹窗 */
-.ysm-3d-nav{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:12px;background:rgba(20,20,30,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);z-index:20}
-.ysm-3d-navbtn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:56px;padding:6px 8px;border-radius:8px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;font-family:inherit;font-size:10px;line-height:1.2;transition:background .12s ease}
-.ysm-3d-navbtn .ysm-ic{font-size:17px}
-.ysm-3d-navbtn:hover{background:rgba(255,255,255,.08);color:#fff}
-.ysm-3d-navbtn--on{background:rgba(124,131,255,.28);color:#fff;border-color:rgba(124,131,255,.35)}
-.ysm-3d-navlabel{white-space:nowrap}
+.preview-dock-nav{position:absolute;left:16px;bottom:16px;display:flex;gap:6px;padding:6px;border-radius:12px;background:rgba(20,20,30,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);z-index:20}
+.preview-dock-navbtn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:56px;padding:6px 8px;border-radius:8px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;font-family:inherit;font-size:10px;line-height:1.2;transition:background .12s ease}
+.preview-dock-navbtn .ysm-ic{font-size:17px}
+.preview-dock-navbtn:hover{background:rgba(255,255,255,.08);color:#fff}
+.preview-dock-navbtn--on{background:rgba(124,131,255,.28);color:#fff;border-color:rgba(124,131,255,.35)}
+.preview-dock-navlabel{white-space:nowrap}
 .ysm-3d-popup{position:absolute;left:50%;bottom:84px;transform:translateX(-50%);width:280px;max-height:min(60vh,420px);overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;background:rgba(20,20,30,.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.12);box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:25;color:rgba(255,255,255,.85);font-size:11px;box-sizing:border-box}
 .ysm-3d-popsec{font-weight:600;font-size:11px;color:rgba(255,255,255,.9);margin:8px 0 4px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08)}
 .ysm-3d-popsec:first-child{border-top:none;padding-top:0;margin-top:0}
@@ -66,7 +66,7 @@ export const YSW_FAB_CSS = `
 /* 触控热区扩到 44px（Apple HIG），透明叠加不改视觉高度 */
 @media (pointer:coarse){
   .ysm-ovl-btn,.ysm-ovl-select,.ysm-ovl-shotitem{min-height:44px}
-  .ysm-3d-navbtn,.ysm-3d-popbtn{min-height:44px}
+  .preview-dock-navbtn,.ysm-3d-popbtn{min-height:44px}
 }
 `;
 
