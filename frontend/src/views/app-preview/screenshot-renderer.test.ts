@@ -67,11 +67,20 @@ const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, threeStub } 
       static toDataURLValue = "data:image/png;base64,QUFB";
       static instances: FakeWebGLRenderer[] = [];
       domElement = {
+        width: 512;
+        height: 512;
         toDataURL: vi.fn(() => FakeWebGLRenderer.toDataURLValue),
       };
       setClearColor = vi.fn();
       setSize = vi.fn();
       setPixelRatio = vi.fn();
+      getSize = vi.fn(function (v: any) {
+        v.width = this.domElement.width;
+        v.height = this.domElement.height;
+        return v;
+      });
+      setPreserveDrawingBuffer = vi.fn();
+      getPreserveDrawingBuffer = vi.fn(() => false);
       render = vi.fn();
       dispose = vi.fn();
       forceContextLoss = vi.fn();
@@ -97,6 +106,7 @@ const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, threeStub } 
         Mesh: FakeMesh,
         Box3: FakeBox3,
         Vector3: FakeVec,
+        Vector2: FakeVec,
         PerspectiveCamera: FakeCamera,
         BufferGeometry: class {
           setAttribute() {}

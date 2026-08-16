@@ -163,7 +163,6 @@ import {
   loadTdCamSpeed,
   loadTdRotMode,
   DEFAULT_TD_KEYMAP,
-  screenshotPreview,
 } from "./model3d.ts";
 
 beforeEach(() => {
@@ -323,10 +322,4 @@ describe("buildSceneMesh — 骨骼层级构建", () => {
   });
 });
 
-// ===== screenshotPreview 测试（ADR-052 P2 待适配，当前返回 null 占位）=====
-describe("screenshotPreview", () => {
-  it("未适配阶段 → 始终返回 null（占位实现）", () => {
-    const result = screenshotPreview();
-    expect(result).toBeNull();
-  });
-});
+// screenshotPreview 死占位已随 ADR-052 P3 删（current 路径改走 renderMultiAngle），测试同删。

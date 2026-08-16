@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 99 | 355 |
+| 前端·工具 | 100 | 364 |
 | frontend/views | 89 | 247 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **363** | **1516** |
+| **合计** | **364** | **1525** |
 
 ## Go·头像
 
@@ -268,7 +268,7 @@
 |------|--------|------|
 | `ReadPackMeta()` | `go/packs/mcmeta:35` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
 | `DetectResourceType()` | `go/packs/mcmeta:139` | DetectResourceType 检测文件属于哪种资源类型 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:279` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:265` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 
@@ -723,13 +723,13 @@
 | `browserAdapter()` | `frontend/src/backend/browser-adapter:67` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `isCrossOriginIsolated()` | `frontend/src/backend/coi-sw:14` | 当前是否已跨源隔离（SW 补头后 crossOriginIsolated=true；供多线程 WASM 分支） |
 | `registerCoiServiceWorker()` | `frontend/src/backend/coi-sw:19` | 注册 COI SW（网页版）：首次注册后 reload 一次让浏览器重新导航经 SW（解锁跨源隔离） |
-| `ZipEntryMeta()` | `frontend/src/backend/extract:32` | ZIP 中央目录条目元数据（pre-parse 产物） |
-| `ExtractResult()` | `frontend/src/backend/extract:48` | extractZip 返回值 |
-| `ZipType()` | `frontend/src/backend/extract:56` | detectZipType 返回值 |
-| `parseZipCentralDir()` | `frontend/src/backend/extract:61` | 解析 ZIP 中央目录，返回每个 entry 的 fflateKey + 原始文件名字节 |
-| `extractZip()` | `frontend/src/backend/extract:140` | 解压 ZIP 数据，返回 {entries, metas}。 |
-| `gbkDecodeEntry()` | `frontend/src/backend/extract:176` | 尝试 GBK 解码 fflateKey 的原始字节（当 gpf bit 11 未设时）。 |
-| `detectZipType()` | `frontend/src/backend/extract:194` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
+| `ZipEntryMeta()` | `frontend/src/backend/extract:33` | ZIP 中央目录条目元数据（pre-parse 产物） |
+| `ExtractResult()` | `frontend/src/backend/extract:49` | extractZip 返回值 |
+| `ZipType()` | `frontend/src/backend/extract:57` | detectZipType 返回值 |
+| `parseZipCentralDir()` | `frontend/src/backend/extract:62` | 解析 ZIP 中央目录，返回每个 entry 的 fflateKey + 原始文件名字节 |
+| `extractZip()` | `frontend/src/backend/extract:141` | 解压 ZIP 数据，返回 {entries, metas}。 |
+| `gbkDecodeEntry()` | `frontend/src/backend/extract:177` | 尝试 GBK 解码 fflateKey 的原始字节（当 gpf bit 11 未设时）。 |
+| `detectZipType()` | `frontend/src/backend/extract:195` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
 | `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |
@@ -1174,6 +1174,14 @@
 | `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:8` | — |
 | `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:21` | — |
 | `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:29` | — |
+| `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:22` | ============ 参数类型 ============ |
+| `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:32` | — |
+| `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:37` | — |
+| `VolumetricParams()` | `frontend/src/utils/3d/caps/light-capability:51` | — |
+| `LightParams()` | `frontend/src/utils/3d/caps/light-capability:65` | — |
+| `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:93` | — |
+| `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:103` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
+| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:211` | ============ LightCapability ============ |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:18` | — |
 | `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:39` | — |
 | `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:54` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
@@ -1450,12 +1458,13 @@
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:20` | 资源类型显示标签（内部 ID → 中文名） |
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:43` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
 | `extOf()` | `frontend/src/utils/resource/types:52` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:94` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:119` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:124` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:130` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:141` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:154` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:96` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:121` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:126` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:132` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:143` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:156` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:176` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
 
@@ -1598,11 +1607,11 @@
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:18` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
-| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:19` | 创建 2D 骨骼画布并异步加载纹理 |
-| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:44` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
-| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:84` | 构建统计卡片（含作者列表） |
-| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:133` | 构建导出骨骼名按钮行 |
-| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:168` | 截图保存内部逻辑（供 3D overlay 使用） 无则 fallback 到 renderMultiAngle 取首帧（仅当 key="current"） |
+| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:20` | 创建 2D 骨骼画布并异步加载纹理 |
+| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:45` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
+| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:85` | 构建统计卡片（含作者列表） |
+| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:134` | 构建导出骨骼名按钮行 |
+| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:167` | 截图保存内部逻辑（供 3D overlay 使用） |
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |

@@ -26,7 +26,7 @@
 | `internal/` | Go 内部工具（testutil 测试工具） 〔子目录 1: testutil/〕 |
 | `litematic/` | Litematica 投影文件 (.litematic) 解析与预览数据 〔源码 6: block_colors.go block_ids.go block_ids_data.go nbt.go parser.go voxel.go · 测试 7 · 子目录 1: gen/〕 |
 | `logs/` | 导入日志 〔源码 2: logs.go runtime.go · 测试 3〕 |
-| `packs/` | 资源包元数据读取（pack.mcmeta / 光影包 lang / 资源类型检测） 〔源码 2: mcmeta.go repro_helper.go · 测试 4〕 |
+| `packs/` | 资源包元数据读取（pack.mcmeta / 光影包 lang / 资源类型检测） 〔源码 1: mcmeta.go · 测试 4 · 子目录 1: testdata/〕 |
 | `paths/` | 路径安全 〔源码 1: safe.go · 测试 2〕 |
 | `recycle/` | 回收站管理 〔源码 2: recycle.go recycle_clean.go · 测试 9〕 |
 | `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 1: scanner.go · 测试 3〕 |

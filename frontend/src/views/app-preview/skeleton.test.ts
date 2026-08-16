@@ -20,7 +20,6 @@ const {
   friendlyError,
   statsCardHTML,
   buildBoneNamesText,
-  screenshotPreview,
   renderMultiAngle,
   preloadModel,
   createYsm3D,
@@ -37,7 +36,6 @@ const {
   friendlyError: vi.fn((e: unknown) => `友好:${String((e as Error)?.message ?? e)}`),
   statsCardHTML: vi.fn(() => "<div>stats-card</div>"),
   buildBoneNamesText: vi.fn(() => ["root", "head"]),
-  screenshotPreview: vi.fn(() => "b64data"),
   renderMultiAngle: vi.fn(),
   preloadModel: vi.fn(),
   createYsm3D: vi.fn(),
@@ -58,9 +56,6 @@ vi.mock("../../bus.ts", () => ({ bus: { emit: busEmit } }));
 vi.mock("../../utils/dom/errors.ts", () => ({ friendlyError }));
 vi.mock("./tpl.ts", () => ({ statsCardHTML }));
 vi.mock("./bone-names.ts", () => ({ buildBoneNamesText }));
-vi.mock("../../utils/3d/model3d.ts", () => ({
-  screenshotPreview,
-}));
 vi.mock("./screenshot-renderer.ts", () => ({ renderMultiAngle }));
 vi.mock("./model3d-loader.ts", () => ({ preloadModel }));
 // §5.7 shared 化：3D 打开收敛到 ysm-3d（path 驱动），骨架层测试 mock 编排层——

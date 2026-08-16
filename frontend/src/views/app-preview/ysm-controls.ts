@@ -52,6 +52,8 @@ export interface YsmControlsContext {
   cameraControls?: CameraControlBridge;
   /** 用户切换纹理时触发重建（旧 overlay 清理 + 按新 texIdx 重新挂载） */
   onTextureChange?: (texIdx: number) => void;
+  /** 截取当前 3D 渲染画面（PNG base64，无 data: 前缀）—— ADR-052 P3 通用化 */
+  screenshot?(): Promise<string | null>;
 }
 
 /** 连点/多菜单触发时忽略并发（防重复保存文件）——对齐原 skeleton.ts makeShotGuard */
@@ -105,7 +107,7 @@ export function fillYsmShotPanel(list: HTMLElement, ctx: YsmControlsContext): vo
     if (shot.saving) return;
     shot.setSaving(true);
     try {
-      await saveScreenshot(ctx.model, key, () => {});
+      await saveScreenshot(ctx.model, key, () => {}, ctx.screenshot);
     } catch (e) {
       console.error("[3D 截图]", e);
       bus.emit("toast:show", {

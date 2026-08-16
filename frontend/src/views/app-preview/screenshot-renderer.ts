@@ -6,6 +6,7 @@ import { resolveWebMode } from "../../backend/platform.ts";
 import { loadTextures } from "./model3d-loader.ts";
 import { buildSceneMesh, compKey, disposeMaterial } from "../../utils/3d/mesh.ts";
 import { addStandardSceneLights } from "../../utils/3d/scene-lights.ts";
+import { screenshotFromRenderer } from "../../utils/3d/screenshot.ts";
 import { type Spec3D } from "../../utils/3d/model3d.ts";
 
 export interface AngleShot {
@@ -136,8 +137,8 @@ export async function renderMultiAngle(
         center.z - Math.cos(theta) * dist,
       );
       camera.lookAt(center);
-      renderer.render(scene, camera);
-      const b64 = renderer.domElement.toDataURL("image/png").split(",")[1] || "";
+      // ADR-052 P3：复用截图纯函数（preserveDrawingBuffer 已开启，toDataURL 安全）
+      const b64 = screenshotFromRenderer(renderer, scene, camera, { width: size, height: size }) || "";
       // P3 修复：空 base64（GPU 异常）不入结果集，避免空内容写成 PNG 文件
       if (b64) {
         results.push({ name, base64: b64 });

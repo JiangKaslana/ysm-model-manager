@@ -15,6 +15,7 @@ import { buildYsmObject, type YsmObjectHandle } from "../ysm-object.ts";
 import { fitCameraToScene } from "../camera-setup.ts";
 import { buildBoneHierarchy, registerBoneRaycast } from "../bone-raycast.ts";
 import { buildBoneTree, type BoneNode, type BoneTree } from "../bone-tools.ts";
+import { screenshotFromRenderer } from "../screenshot.ts";
 import type { YsmContentHandle, YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
 import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "../../../views/app-preview/ysm-controls.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
@@ -148,6 +149,9 @@ export async function buildYsmScene(
     handle: content,
     cameraControls: ctx.cameraControls,
     onTextureChange: opts.onTextureChange,
+    // ADR-052 P3：截图走共享 renderer（通用化手段，替代死代码 screenshotPreview）
+    screenshot: () =>
+      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
   };
   ctx.menu.setAdapterItems(
     ysmMenuItems({
@@ -176,6 +180,9 @@ export async function buildYsmScene(
     setRotationMode: (orbit: boolean) => ctx.cameraControls?.setOrbit(orbit),
     setSpeed: (n: number) => ctx.cameraControls?.setSpeed(n),
     showModelGroup: (i: number) => obj.showModelGroup(i),
+    // ADR-052 P3：截图走共享 renderer（通用化手段，替代死代码 screenshotPreview）
+    screenshot: () =>
+      Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
     // onBoneSelect 由 attachYsmBoneSelect 接线（content.onBoneSelect），不暴露给 core
   };
 }

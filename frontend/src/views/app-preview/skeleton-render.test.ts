@@ -6,16 +6,15 @@
 //  build3DOverlay 已于 ADR-066 §5.6 方案 A 删除（YSM 3D 走 createYsm3D → mount3D）
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { getApp, screenshotPreview, renderMultiAngle, saveFile } = vi.hoisted(() => ({
+const { getApp, screenshotFn, renderMultiAngle, saveFile } = vi.hoisted(() => ({
   getApp: vi.fn(),
-  screenshotPreview: vi.fn(),
+  screenshotFn: vi.fn(),
   renderMultiAngle: vi.fn(),
   saveFile: vi.fn(),
 }));
 
 vi.mock("../../core/i18n/t.ts", () => ({ t: (k: string) => k }));
 vi.mock("../../backend/app.ts", () => ({ getApp }));
-vi.mock("../../utils/3d/model3d.ts", () => ({ screenshotPreview }));
 vi.mock("./screenshot-renderer.ts", () => ({ renderMultiAngle }));
 
 import { setup2DCanvas, buildToggleRow, buildStatsCard, buildBoneExportRow, saveScreenshot } from "./skeleton-render.ts";
@@ -229,23 +228,15 @@ describe("buildBoneExportRow", () => {
 
 // ── saveScreenshot ─────────────────────────────────────────────
 describe("saveScreenshot", () => {
-  it("current 且 b64 空 → 抛错（不静默吞错）", async () => {
-    screenshotPreview.mockReturnValue("");
-    const setShotState = vi.fn();
-    await expect(
-      saveScreenshot(makeModel(), "current", setShotState),
-    ).rejects.toThrow("screenshotPreview");
-    // 抛错路径不应调 setShotState 成功态（消费者 catch 统一处理）
-    expect(setShotState).not.toHaveBeenCalledWith("\u2705");
-  });
-
-  it("current 且 b64 有值 → SaveScreenshotFile 调用 + ✅ + 2s 回退", async () => {
-    screenshotPreview.mockReturnValue("b64data");
+  it("current 有 screenshotFn → 直接截当前视角", async () => {
+    screenshotFn.mockResolvedValue("b64data");
     saveFile.mockResolvedValue(undefined);
     const setShotState = vi.fn();
     vi.useFakeTimers();
     try {
-      await saveScreenshot(makeModel(), "current", setShotState);
+      await saveScreenshot(makeModel(), "current", setShotState, screenshotFn);
+      expect(screenshotFn).toHaveBeenCalledTimes(1);
+      expect(renderMultiAngle).not.toHaveBeenCalled();
       expect(saveFile).toHaveBeenCalledWith(expect.stringContaining(".png"), "b64data");
       expect(setShotState).toHaveBeenCalledWith("\u2705");
       vi.advanceTimersByTime(2000);
@@ -253,6 +244,25 @@ describe("saveScreenshot", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("current 无 screenshotFn → fallback renderMultiAngle 取首帧", async () => {
+    renderMultiAngle.mockResolvedValue([{ name: "front", base64: "f" }]);
+    saveFile.mockResolvedValue(undefined);
+    const setShotState = vi.fn();
+    await saveScreenshot(makeModel(), "current", setShotState);
+    expect(screenshotFn).not.toHaveBeenCalled();
+    expect(renderMultiAngle).toHaveBeenCalledTimes(1);
+    expect(saveFile).toHaveBeenCalledWith(expect.stringContaining(".png"), "f");
+  });
+
+  it("current 且 b64 空 → 抛错（不静默吞错）", async () => {
+    screenshotFn.mockResolvedValue(null);
+    const setShotState = vi.fn();
+    await expect(
+      saveScreenshot(makeModel(), "current", setShotState, screenshotFn),
+    ).rejects.toThrow("截图返回空");
+    expect(setShotState).not.toHaveBeenCalledWith("\u2705");
   });
 
   it("all → 递归 front/45/side/back45（saveFile 4 次）", async () => {
@@ -264,7 +274,7 @@ describe("saveScreenshot", () => {
     ]);
     saveFile.mockResolvedValue(undefined);
     const setShotState = vi.fn();
-    await saveScreenshot(makeModel({ textures: ["t1", "t2"] }), "all", setShotState);
+    await saveScreenshot(makeModel({ textures: ["t1", "t2"] }), "all", setShotState, screenshotFn);
     expect(renderMultiAngle).toHaveBeenCalledTimes(4);
     expect(saveFile).toHaveBeenCalledTimes(4);
   });
@@ -273,7 +283,7 @@ describe("saveScreenshot", () => {
     renderMultiAngle.mockResolvedValue([{ name: "front", base64: "f" }]);
     saveFile.mockResolvedValue(undefined);
     const setShotState = vi.fn();
-    await saveScreenshot(makeModel(), "front", setShotState);
+    await saveScreenshot(makeModel(), "front", setShotState, screenshotFn);
     expect(renderMultiAngle).toHaveBeenCalledWith("/m/a.ysm", [""], { size: 512 });
     expect(saveFile).toHaveBeenCalledWith(expect.stringContaining("_front"), "f");
   });
@@ -282,7 +292,7 @@ describe("saveScreenshot", () => {
     renderMultiAngle.mockResolvedValue(null);
     saveFile.mockResolvedValue(undefined);
     const setShotState = vi.fn();
-    await saveScreenshot(makeModel(), "front", setShotState);
+    await saveScreenshot(makeModel(), "front", setShotState, screenshotFn);
     expect(saveFile).not.toHaveBeenCalled();
   });
 });
