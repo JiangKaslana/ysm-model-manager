@@ -30,6 +30,8 @@ export interface SkyParams {
   scale: number;
   /** 是否联动 IBL 环境贴图（scene.environment）。默认 true（2026-08-16 目视验证通过） */
   environment: boolean;
+  /** 时间-of-day（小时 0-24），太阳方位/高度的单一事实来源；默认 9（上午，观感较佳） */
+  timeOfDay: number;
   /** ACES 曝光（天空正确显色所需，同时影响模型观感） */
   exposure: number;
 }
@@ -44,6 +46,7 @@ export const DEFAULT_SKY_PARAMS: SkyParams = {
   cloudCoverage: 0,
   scale: 12000,
   environment: true,
+  timeOfDay: 9,
   exposure: 0.5,
 };
 
@@ -88,6 +91,7 @@ export class SkyCapability {
 
   /** 应用天空到场景（背景 + 可选 IBL + tone mapping） */
   apply(): void {
+    this.syncSunFromTime();
     this.writeUniforms(this.sky);
     this.writeUniforms(this.envSky);
     if (!this.enabled) {
@@ -150,6 +154,36 @@ export class SkyCapability {
     if (!this.enabled) return;
     if (v) this.regenerateEnvironment();
     else this.clearEnvironment();
+  }
+
+  /** 由 timeOfDay 推导太阳 elevation/azimuth（单一事实来源，避免与 setSun 双写冲突） */
+  private syncSunFromTime(): void {
+    const { elevation, azimuth } = this.hourToSun(this.params.timeOfDay);
+    this.params.elevation = elevation;
+    this.params.azimuth = azimuth;
+  }
+
+  /** 按一天中的小时（0-24）映射太阳位置：6=日出(东)、12=正午(南)、18=日落(西)，夜间在地平线下 → 天空转暗 */
+  private hourToSun(hour: number): { elevation: number; azimuth: number } {
+    const h = ((hour % 24) + 24) % 24;
+    const dayAngle = ((h - 6) / 12) * Math.PI; // 6→0, 12→π/2, 18→π
+    const elevation = Math.sin(dayAngle) * 70; // 峰值 70°，夜间为负 → 天空转暗
+    const azimuth = 90 + ((h - 6) / 12) * 180; // 90(东)→180(南)→270(西)
+    return { elevation, azimuth };
+  }
+
+  /** 按时间设置太阳位置（time-of-day），联动天空与 IBL 环境 */
+  setTime(hour: number): void {
+    this.params.timeOfDay = ((hour % 24) + 24) % 24;
+    this.syncSunFromTime();
+    if (!this.enabled) return;
+    this.writeUniforms(this.sky);
+    this.writeUniforms(this.envSky);
+    if (this.params.environment) this.regenerateEnvironment();
+  }
+
+  getTimeOfDay(): number {
+    return this.params.timeOfDay;
   }
 
   private detach(): void {

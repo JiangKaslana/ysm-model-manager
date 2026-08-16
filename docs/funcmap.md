@@ -1095,9 +1095,9 @@
 | `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:179` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
 | `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:184` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:189` | — |
-| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:51` | VRM meta 归一化信息（meta 卡展示用） |
-| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:62` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:111` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
+| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:52` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:63` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:112` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:22` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:32` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:39` | 构造 VRM 骨骼面板渲染器（extraPanel 契约）。 |
@@ -1130,8 +1130,8 @@
 | `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:19` | 注册 free 模式 pointer drag 监听器。 |
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:18` | — |
-| `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:37` | — |
-| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:50` | — |
+| `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:39` | — |
+| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:53` | — |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:55` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |

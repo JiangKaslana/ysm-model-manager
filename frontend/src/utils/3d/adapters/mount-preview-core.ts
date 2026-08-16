@@ -361,6 +361,36 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // 程序化天空（ADR-073 L1）：注入统一核心，YSM/VRM/MMD/Litematic 经同一 scene 零改动继承
     skyCap = new SkyCapability({ scene, renderer });
     skyCap.apply();
+    // 时间-of-day 滑块（ADR-073 #1）：联动天空太阳方位/高度，四种模型共享同一 scene
+    {
+      const formatHour = (h: number): string =>
+        `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+      const timeLabel = document.createElement("span");
+      timeLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5);margin-left:8px";
+      timeLabel.textContent = t("preview.timeOfDay") + ":";
+      topBar.appendChild(timeLabel);
+
+      const timeSlider = document.createElement("input");
+      timeSlider.type = "range";
+      timeSlider.min = "0";
+      timeSlider.max = "24";
+      timeSlider.step = "0.5";
+      const initHour = skyCap.getTimeOfDay();
+      timeSlider.value = String(initHour);
+      timeSlider.style.cssText = "width:90px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+      topBar.appendChild(timeSlider);
+
+      const timeVal = document.createElement("span");
+      timeVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:44px";
+      timeVal.textContent = formatHour(initHour);
+      topBar.appendChild(timeVal);
+
+      timeSlider.oninput = (): void => {
+        const h = Number(timeSlider.value);
+        skyCap?.setTime(h);
+        timeVal.textContent = formatHour(h);
+      };
+    }
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;

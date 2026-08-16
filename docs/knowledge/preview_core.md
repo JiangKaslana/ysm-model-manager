@@ -69,7 +69,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - **L1 程序化天空已落地并目视验证**：`task dev` / `npm run dev:web` 跑通，天空渲染正常、四种模型（YSM/VRM/MMD/Litematic）零改动继承。用户评定「效果一般但能跑，作为基线收口，后续迭代」。
 - **基线参数**（`sky-capability.ts` 默认值）：`scale 12000`（相机 maxDistance 5000 留余量）、`turbidity 8 / rayleigh 2 / mieCoefficient 0.005 / mieDirectionalG 0.8`、`cloudCoverage 0`、默认太阳方位、`ACESFilmicToneMapping` + 曝光 0.5（会话级，dispose 还原）、IBL `scene.environment` 默认关。
 - **已知观感短板（后续迭代项，非阻断）**：
-  1. 太阳方位偏固定，缺 time-of-day 联动 UI（接口 `setTime(hour)` 已就绪待用）；
+  1. ✅ 时间-of-day 滑块已接入预览 topBar（`skyCap.setTime(hour)`，0-24 映射日出/正午/日落，夜间转暗；`preview.timeOfDay` i18n 三语）；默认 9:00；
   2. ✅ IBL 已默认开启（`environment: true`，2026-08-16 目视验证通过，模型反射/环境光更真实）；如需关闭调 `setEnvironmentEnabled(false)`；
   3. 散射/曝光参数偏通用，未针对不同模型类别做预设；
   4. 无云量/天气 UI（`setWeather(...)` 接口已就绪待用）。
