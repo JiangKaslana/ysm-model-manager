@@ -85,8 +85,9 @@ describe("makeVrmBonePanelRenderer", () => {
     try {
       const spineRow = panel.querySelector<HTMLElement>("div[data-bone-id='spine']")!;
       spineRow.click();
-      // 高亮：spine 行有背景色
-      expect(spineRow.style.background).toContain("rgba");
+      // 高亮：renderList 重建行后，新 spine 行 style.background 含 rgba（旧引用 spineRow 已脱离 DOM）
+      const spineRowAfter = panel.querySelector<HTMLElement>("div[data-bone-id='spine']")!;
+      expect(spineRowAfter.style.background).toContain("rgba");
       // 详情区：路径含 "hips / spine"，父骨骼含 "hips"，子骨骼含 "head"
       const detailCol = panel.children[1] as HTMLElement;
       expect(detailCol.textContent).toContain("hips / spine");

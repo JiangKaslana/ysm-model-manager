@@ -61,9 +61,8 @@ export function makeVrmBonePanelRenderer(vrm: VRM): RenderVrmBonePanel {
       const items = listBonesWithDepth(tree);
       for (const item of items) {
         const row = document.createElement("div");
-        row.style.cssText = `display:flex;align-items:center;gap:4px;padding-left:${item.depth * 12}px;cursor:pointer${
-          activeId === item.id ? ";background:rgba(124,131,255,0.25)" : ""
-        }`;
+        row.style.cssText = `display:flex;align-items:center;gap:4px;padding-left:${item.depth * 12}px;cursor:pointer`;
+        if (activeId === item.id) row.style.background = "rgba(124,131,255,0.25)";
         row.dataset.boneId = item.id;
 
         // 显隐勾选框
