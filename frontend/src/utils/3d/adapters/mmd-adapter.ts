@@ -26,7 +26,10 @@ import {
 } from "../mmd-materials.ts";
 import { mmdBonesToBoneNodes } from "../mmd-bones.ts"; // ADR-077: pmx.bones 索引结构 → BoneNode[]
 import { buildBoneTree, type BoneTree } from "../bone-tools.ts";
+import { mmdSemanticBoneMap } from "../semantic-bones.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
+import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
+import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -84,7 +87,7 @@ export async function buildMmdScene(
   port: MmdDataPort,
 ): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
-    '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:ysm-prog 1.5s ease-in-out infinite"></div></div>';
+    '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
 
   const b64 = await port.readFileBytes(path);
   await mmdDiag(port, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
@@ -244,6 +247,10 @@ export async function buildMmdScene(
   };
   const mats = mesh.material as unknown as THREE.Material[];
   const bonePanelRef: { current: (() => void) | null } = { current: null };
+  // ADR-077 + 语义骨骼层：骨骼树构建复用一次，既喂骨骼面板也产语义映射
+  const boneTree = mmd.pmx?.bones && mesh.skeleton
+    ? buildBoneTree(mmdBonesToBoneNodes(mmd.pmx.bones, mesh.skeleton.bones))
+    : null;
   const items = mmdMenuItems({
     navCtx,
     material: {
@@ -277,31 +284,46 @@ export async function buildMmdScene(
           }
         : null,
     // ADR-077: 骨骼面板（MMD 特有：THREE.Bone 无几何，拾取走距离法）——收编为根菜单 bones 项
-    bonePanel:
-      mmd.pmx?.bones && mesh.skeleton
-        ? {
-            tree: buildBoneTree(mmdBonesToBoneNodes(mmd.pmx.bones, mesh.skeleton.bones)),
-            viewContainer: ctx.viewContainer,
-            camera: ctx.camera,
-            scene: ctx.scene,
-            cleanupRef: bonePanelRef,
-          }
-        : null,
+    bonePanel: boneTree
+      ? {
+          tree: boneTree,
+          viewContainer: ctx.viewContainer,
+          camera: ctx.camera,
+          scene: ctx.scene,
+          cleanupRef: bonePanelRef,
+        }
+      : null,
   });
   ctx.menu.setAdapterItems(items);
+
+  // MMD 语义骨骼：候选名匹配表移植自 MikuMikuAR motion-algos；消费方读取驱动感知层
+  const semanticBones = boneTree ? mmdSemanticBoneMap(boneTree) : undefined;
+  // 感知层呼吸（程序化生命力 L1）：待机态下对 chest/spine/shoulders 施加正弦微位移
+  const breath = createBreathController();
+  // 感知层注视追踪（程序化生命力 L2）：head/eyes 跟随相机方向
+  const gaze = createGazeController();
 
   return {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
     update: (dt: number): void => {
       mmd.updateWithMixer(dt, mixer, { ik: true, grant: true });
+      if (semanticBones) {
+        // 待机呼吸：有动画播放时暂停（避免与动画打架）
+        if (!action || action.paused) breath.apply(dt, semanticBones);
+        // 注视追踪：始终生效（动画中头也跟随相机，增强生命力）
+        gaze.apply(dt, semanticBones, ctx.camera!.position);
+      }
     },
     // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
       bonePanelRef.current?.();
       mixer.stopAllAction();
+      breath.reset();
+      gaze.reset();
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();
     },
+    semanticBones,
   };
 }
 

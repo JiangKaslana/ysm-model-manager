@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SkyCapability } from "../caps/sky-capability.ts";
 import { GroundCapability } from "../caps/ground-capability.ts";
+import { type SemanticBoneMap } from "../semantic-bones.ts";
 import { bus } from "../../../bus.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { t } from "../../../core/i18n/t.ts";
@@ -60,6 +61,8 @@ export interface PreviewScene {
   extraControls?(topBar: HTMLElement): void;
   /** 在核心侧栏（如有）挂载适配器专属面板内容（ysm 骨骼列表/详情等） */
   extraPanel?(panel: HTMLElement): void;
+  /** 语义骨骼映射（语义骨骼层消费方读取；无 = 该格式不接入语义层，消费方降级） */
+  semanticBones?: SemanticBoneMap;
 }
 
 export interface PreviewAdapter {
@@ -508,7 +511,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     if (built.extraPanel) {
       const panel = document.createElement("div");
       panelEl = panel;
-      panel.id = "ysm-3d-panel"; // 对齐旧 skeleton panel：fill3DPanel 内部选择器依赖此 id（全选/全不选）
+      panel.id = "preview-panel"; // 对齐旧 skeleton panel：fill3DPanel 内部选择器依赖此 id（全选/全不选）
       panel.style.cssText =
         "width:260px;flex-shrink:0;overflow:auto;background:rgba(0,0,0,0.25);color:#fff;font-size:12px;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.1)";
       const resizeHandle = document.createElement("div");

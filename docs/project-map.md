@@ -47,7 +47,7 @@
 
 | 包 | 用途 |
 |----|------|
-| `app/` | Wails Binding 入口（app.go / resource_bindings.go） 〔源码 34 · 测试 12〕 |
+| `app/` | Wails Binding 入口（app.go / resource_bindings.go） 〔源码 35 · 测试 12〕 |
 
 <!-- /GEN: internal-structure -->
 
@@ -72,6 +72,7 @@
 | `app-modules.ts` | 组件入口 + 右键菜单映射 |
 | `bus.test.ts` | 事件总线测试 |
 | `bus.ts` | 事件总线 |
+| `color-debug.test.ts` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `real-data-fuzz.test.ts` | 真实数据模糊测试（资源类型/schema 契约） |
 
 <!-- /GEN: frontend-structure -->

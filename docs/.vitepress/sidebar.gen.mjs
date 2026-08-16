@@ -704,6 +704,14 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-081：语义骨骼层——跨格式语义骨骼统一抽象",
+        "link": "/adr/ADR-081-semantic-bone-layer"
+      },
+      {
+        "text": "ADR-080：资源包 block/item 模型 JSON 解析与渲染（PackModelAdapter）",
+        "link": "/adr/ADR-080-pack-model-adapter"
+      },
+      {
         "text": "ADR-079：WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游",
         "link": "/adr/ADR-079-wasm-pthread-mt-decode"
       },

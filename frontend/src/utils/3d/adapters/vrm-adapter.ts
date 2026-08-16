@@ -11,6 +11,7 @@ import { makeBonePanelRenderer } from "./vrm-bone-ui.ts";
 import { buildVrmBoneTree } from "./vrm-bone.ts";
 import { vrmSemanticBoneMap } from "../semantic-bones.ts";
 import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
+import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { BoneTree } from "../bone-tools.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
@@ -120,7 +121,7 @@ export async function buildVrmScene(
   readFn: (p: string) => Promise<string | null>,
 ): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
-    '<div style="font-size:32px">🥽</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:ysm-prog 1.5s ease-in-out infinite"></div></div>';
+    '<div style="font-size:32px">🥽</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
 
   const b64 = await readFn(path);
   if (!b64) throw new Error("ReadFileBytes 返回空");
@@ -168,8 +169,8 @@ export async function buildVrmScene(
   ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
   // ADR-074 S2 骨骼面板接入：经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单专属项（ADR-076 v2 Phase 2）。
-  // 旧版经 extraControls 加「🦴 骨骼」按钮 → querySelector("#ysm-3d-panel") 恒 null（core 仅在适配器
-  // 返回 extraPanel 时才建 #ysm-3d-panel），按钮实为死按钮——改走声明式根菜单契约（对齐 ysm-adapter）。
+  // 旧版经 extraControls 加「🦴 骨骼」按钮 → querySelector("#preview-panel") 恒 null（core 仅在适配器
+  // 返回 extraPanel 时才建 #preview-panel），按钮实为死按钮——改走声明式根菜单契约（对齐 ysm-adapter）。
   // 菜单表提取为可导出 vrmMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
   const bonePanelRef: { current: (() => void) | null } = { current: null };
   const boneTree = buildVrmBoneTree(vrm);
@@ -189,12 +190,17 @@ export async function buildVrmScene(
   const semanticBones = vrmSemanticBoneMap(vrm.humanoid.humanBones);
   // 感知层呼吸（程序化生命力 L1）：待机态下对 chest/spine/shoulders 施加正弦微位移
   const breath = createBreathController();
+  // 感知层注视追踪（程序化生命力 L2）：head/eyes 跟随相机方向
+  const gaze = createGazeController();
 
   return {
     // VRM 动态部分（SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
     update: (dt: number): void => {
       vrm.update(dt);
-      if (semanticBones) breath.apply(dt, semanticBones);
+      if (semanticBones) {
+        breath.apply(dt, semanticBones);
+        gaze.apply(dt, semanticBones, ctx.camera!.position);
+      }
     },
     // 释放 VRM 几何/材质/纹理（含 MToon），避免 GPU 缓冲泄漏
     dispose: (): void => {
@@ -204,6 +210,7 @@ export async function buildVrmScene(
         /* 面板清理不阻断 dispose */
       }
       breath.reset();
+      gaze.reset();
       VRMUtils.deepDispose(vrm.scene);
     },
     semanticBones,
