@@ -32,6 +32,7 @@ import { createBreathController } from "../perception/breath.ts"; // 语义骨�
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
 import { createBlinkController } from "../perception/blink.ts"; // 语义 morph 消费方：程序化生命力 L1.5
 import { createLipSyncController } from "../perception/lipsync.ts"; // 语义 morph 消费方：程序化生命力 L2
+import { createAutoDanceController } from "../perception/autodance.ts"; // 语义骨骼消费方：程序化生命力 L3
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -353,6 +354,8 @@ export async function buildMmdScene(
   }
   const lipSync = createLipSyncController();
   let lipSyncTime = 0;
+  // 感知层 AutoDance（程序化生命力 L3）：按 BPM 节拍驱动骨骼律动（待机态生效）
+  const autoDance = createAutoDanceController({ bpm: 120, intensity: 0.3 });
 
   return {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
@@ -376,6 +379,10 @@ export async function buildMmdScene(
         const amplitude = Math.max(0, breathPhase) * 0.3; // 最大 0.3（微张嘴）
         lipSync.apply(dt, amplitude, (weight) => { mesh.morphTargetInfluences![lipMorphIndex!] = weight; });
       }
+      // AutoDance：待机态下按节拍律动（与呼吸/眨眼/注视共存，动作叠加）
+      if (!action || action.paused) {
+        autoDance.apply(dt, semanticBones ?? {});
+      }
     },
     // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
@@ -385,6 +392,7 @@ export async function buildMmdScene(
       gaze.reset();
       blink.dispose();
       lipSync.dispose();
+      autoDance.dispose();
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();
     },
