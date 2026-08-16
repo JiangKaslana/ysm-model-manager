@@ -704,6 +704,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-084：个人灯光系统（Personal Lighting）——三点布光 + 聚光灯 + 体积光双引擎",
+        "link": "/adr/ADR-084-personal-lighting"
+      },
+      {
         "text": "ADR-083：语义层双抽象——跨格式语义骨骼 + 语义 morph + 感知层程序化生命力",
         "link": "/adr/ADR-083-semantic-layer"
       },

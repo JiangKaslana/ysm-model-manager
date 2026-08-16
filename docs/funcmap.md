@@ -24,7 +24,7 @@
 | Go·包管理 | 1 | 3 |
 | Go·路径 | 1 | 5 |
 | Go·回收站 | 2 | 19 |
-| go/scanner | 1 | 9 |
+| go/scanner | 1 | 10 |
 | Go·同步 | 7 | 23 |
 | Go·标签 | 1 | 8 |
 | Go·Three.js | 1 | 6 |
@@ -44,7 +44,7 @@
 | frontend/views | 90 | 250 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **369** | **1550** |
+| **合计** | **369** | **1551** |
 
 ## Go·头像
 
@@ -308,15 +308,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetConfigFunc()` | `go/scanner/scanner:53` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `InvalidateCache()` | `go/scanner/scanner:78` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
-| `InvalidatePath()` | `go/scanner/scanner:93` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:124` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:131` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:261` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:314` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:344` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:407` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `SetErrorSink()` | `go/scanner/scanner:57` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
+| `SetConfigFunc()` | `go/scanner/scanner:72` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `InvalidateCache()` | `go/scanner/scanner:97` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
+| `InvalidatePath()` | `go/scanner/scanner:112` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
+| `ScanEntries()` | `go/scanner/scanner:143` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:150` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:282` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:335` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:365` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:428` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -630,9 +631,9 @@
 | `App.SetApp()` | `internal/app/app:82` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
 | `App.SetMainWindow()` | `internal/app/app:87` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
 | `App.ServiceStartup()` | `internal/app/app:90` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:176` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:211` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:216` | GetAppVersion 返回当前版本号 |
+| `App.ServiceShutdown()` | `internal/app/app:182` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:217` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:222` | GetAppVersion 返回当前版本号 |
 | `App()` | `internal/app/app:28` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
