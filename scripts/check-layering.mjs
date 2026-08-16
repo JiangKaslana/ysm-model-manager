@@ -173,13 +173,23 @@ function main() {
   const baseline = existsSync(BASELINE_FILE) ? JSON.parse(readFileSync(BASELINE_FILE, 'utf8')) : null;
 
   if (update) {
+    // P1 守卫（2026-08-17）：基线只许减少（注释已声明，实现此前未拦截）——
+    // 新增反向边拒绝写入，除非显式 --force（门禁锐评 P1-3）。
+    const force = process.argv.includes('--force');
+    const knownPrev = new Set(baseline?.entries ?? []);
+    const added = tracked.filter((v) => !knownPrev.has(key(v))).map(key);
+    if (added.length > 0 && !force) {
+      console.log(`[基线守卫] 新增 ${added.length} 条反向边违规，拒绝更新基线（只许减少）——确认后加 --force 覆盖`);
+      console.log(`✖ 基线未更新（存在守卫拦截）`);
+      process.exit(1);
+    }
     const data = {
       _comment: '前端分层反向边基线（R3 core→上层 / R4 features→views）。仅允许减少，不允许增加。更新: node scripts/check-layering.mjs --update',
       generatedAt: new Date().toISOString().slice(0, 10),
       entries: [...new Set(tracked.map(key))].sort(),
     };
     writeFileSync(BASELINE_FILE, JSON.stringify(data, null, 2) + '\n');
-    console.log(`[layering] 基线已更新: ${relative(REPO_ROOT, BASELINE_FILE)}（${data.entries.length} 条反向边）`);
+    console.log(`[layering] 基线已更新: ${relative(REPO_ROOT, BASELINE_FILE)}（${data.entries.length} 条反向边）${force && added.length ? `（--force 覆盖 ${added.length} 条新增）` : ''}`);
     process.exit(0);
   }
 

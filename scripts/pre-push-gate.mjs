@@ -3,8 +3,8 @@
  * pre-push-gate.mjs — 本地质量门禁核心（.githooks/pre-push 的调度器）。
  *
  * 设计目标：CI 红之前，本地先红。按变更域（Go / 前端 / 数据 / 文档）只跑相关检查；
- * gofmt 修复下沉 pre-commit（提交时自动 -w 修复 + stage）；pre-push 对未格式化只读检出不阻断
- * （格式类债务，2026-08-13 决策）；
+ * gofmt 修复下沉 pre-commit（提交时自动 -w 修复 + stage）；pre-push 对未格式化只读检出即阻断
+ * （防 --no-verify 绕过 pre-commit 的自动修复）；
  * 需人工的（构建失败、断链、契约失败、红线扫描不可用）同样阻断推送。
  * 分层哲学（2026-08-13）：硬错误（编译/测试/契约/链接）阻断推送；基线债务
  * （红线新增、死代码等"没有报错"的治理欠账）只报告不阻断——推送后修，发布前全量 doctor 兜底。
@@ -34,11 +34,11 @@
  *
  * 退出码：0 = 门禁通过（放行推送）；1 = 门禁失败（阻断推送）；2 = 用法错误。
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
-import { run as procRun } from './_lib/proc.mjs';
+import { run as procRun, DEFAULT_TIMEOUT } from './_lib/proc.mjs';
 import { classify, planFromFiles } from './_lib/domain-classify.mjs';
 import { runContractTestsParallel } from './_lib/contract-tests.mjs';
 import { logPush } from './_lib/log-push.mjs';
@@ -145,7 +145,7 @@ const ALL_STATIC_TOOLS = [
   { tool: 'build-novel-index.mjs', args: ['--check'] },
   'check-script-hygiene.mjs',
   'check-workflow-refs.mjs',
-  'i18n-check.mjs',
+  { tool: 'i18n-check.mjs', args: ['--strict'] },
   'i18n-ui-check.mjs',
   // binding-check.mjs — Go 域已覆盖
 ];
@@ -166,6 +166,26 @@ const DOC_STATIC_TOOLS = [
  * adr-check（adr 域已跑）不在此重复执行（2026-08-14 审核去重）。 */
 const DOC_EXTRA_SCRIPTS = [
   'check-knowledge-drift.mjs',
+];
+
+/** push 模式按变更域补挂的前端静态工具（2026-08-17 P1-1 修复）：
+ * 此前 ALL_STATIC_TOOLS 只在 --all/--docs 跑，正常 push 从不执行治理检查（gate 名存实亡）。
+ * 抽出 frontend 相关子集，plan.frontend 时补挂——保持按域裁剪的轻量，同时让 push 也过治理闸。 */
+const FRONTEND_STATIC_TOOLS = [
+  'check-circular.mjs',
+  'check-boolean-naming.mjs',
+  'check-orphan-exports.mjs',
+  'check-deadcode-baseline.mjs',
+  'check-tpl-refs.mjs',
+  'check-dynamic-import.mjs',
+  { tool: 'auto-import.mjs', args: ['--strict'] },
+  { tool: 'i18n-check.mjs', args: ['--strict'] },
+  'i18n-ui-check.mjs',
+];
+
+/** push 模式按变更域补挂的 Go 静态工具 */
+const GO_STATIC_TOOLS = [
+  'check-circular-go.mjs',
 ];
 
 /* ---------------- 主流程 ---------------- */
@@ -280,13 +300,37 @@ async function main() {
   }
 
   /* --- 静态工具统一执行器 --- */
-  const runTools = (tools) => {
-    for (const entry of tools) {
-      const tool = typeof entry === 'string' ? entry : entry.tool;
-      const extraArgs = typeof entry === 'string' ? [] : entry.args || [];
-      const t0 = Date.now();
-      const r = sh(`node scripts/${tool} --json ${extraArgs.join(' ')}`);
-      record(tool, r.rc === 0, { time: Date.now() - t0, tail: r.rc ? r.out.trim().split('\n').slice(-4).join('\n') : '' });
+  // ADR-088：静态工具分组并行（4 个/组，runSpawn + Promise.all）
+  // 原 runTools 串行 ~8s → 并行 ~5s（省 28%）。runSpawn 复用 _lib/proc.mjs。
+  const runTools = async (tools) => {
+    const BATCH = 4;
+    for (let i = 0; i < tools.length; i += BATCH) {
+      const batch = tools.slice(i, i + BATCH);
+      const promises = batch.map(async (entry) => {
+        const tool = typeof entry === 'string' ? entry : entry.tool;
+        const extraArgs = typeof entry === 'string' ? [] : entry.args || [];
+        const t0 = Date.now();
+        const r = await procRun('node', [`${ROOT}/scripts/${tool}`, '--json', ...extraArgs], { cwd: ROOT, timeout: DEFAULT_TIMEOUT * 4 });
+        // P1 修复（2026-08-17）：审计类工具退出码不可靠（i18n/孤儿/命名/卫生默认恒 0），
+        // 必须解析 --json 的 _summary 判定——与文件头「不得依赖退出码」契约对齐。
+        let ok = r.ok;
+        let note = '';
+        try {
+          const parsed = JSON.parse(r.out);
+          const s = parsed._summary || parsed;
+          if (typeof s.ok === 'boolean') ok = s.ok;
+          else if (typeof s.errors === 'number') ok = s.errors === 0;
+          // 有结构化计数时填充 note（替代空 OK 的假绿）
+          const cnt = Object.entries(s)
+            .filter(([k, v]) => /count|total|errors|issues|warns|violations|orphan|missing|flagged/.test(k) && typeof v === 'number')
+            .map(([k, v]) => `${k}=${v}`)
+            .join(' ');
+          if (cnt) note = cnt;
+        } catch { /* 非 JSON 输出，退回 rc 判定 */ }
+        return { tool, ok, note, time: Date.now() - t0, tail: !ok ? r.out.trim().split('\n').slice(-4).join('\n') : '' };
+      });
+      const settled = await Promise.all(promises);
+      for (const r of settled) record(r.tool, r.ok, { time: r.time, note: r.note, tail: r.tail });
     }
   };
 
@@ -324,7 +368,8 @@ async function main() {
         : '无未格式化文件',
       tail: unformatted.length ? unformatted.join('\n') : '',
     });
-    // 格式类债务不阻断推送（2026-08-13 决策：与红线一致，推送后修；pre-commit 正常已自动 gofmt -w）
+    // 格式类债务阻断推送（2026-08-17 注释对齐：record 已置 blocked；pre-commit 正常已自动 gofmt -w，
+    // 此处检出即说明绕过了 pre-commit——防 --no-verify 绕过，与 .githooks/pre-commit 口径一致）
 
     const t3 = Date.now();
     const bc = sh('node scripts/binding-check.mjs --json');
@@ -380,7 +425,9 @@ async function main() {
       const lines = (tt.out || '').trim().split('\n').filter(Boolean);
       record('tsc --noEmit', tt.ok === true, { time: Date.now() - tT, note: tt.ok ? '' : `${lines.length} errors`, tail: tt.ok ? '' : lines.slice(-5).join('\n') });
     } else {
-      record('tsc --noEmit', true, { time: 0, note: 'tsc 未安装，跳过' });
+      // P1 修复（2026-08-17）：tsc 缺失此前记 OK 静默放行（fail-open）——与全文件其余
+      // fail-closed 口径不一致，node_modules 未装/装坏时类型检查无声跳过（门禁锐评 P1-4）。
+      record('tsc --noEmit', false, { time: 0, note: 'tsc 未安装（frontend/node_modules 缺失）——请 npm ci 后重推' });
     }
   }
 
@@ -477,14 +524,26 @@ async function main() {
     });
   }
 
-  /* --- 静态工具（--all / --docs 模式） --- */
+  /* --- 静态工具（--all / --docs / push 按变更域补挂） --- */
+  // ADR-088：runTools 已改 async 并行版，调用点需 await
   if (allMode) {
-    runTools(ALL_STATIC_TOOLS);
-    runTools(DOC_EXTRA_SCRIPTS);
+    await runTools(ALL_STATIC_TOOLS);
+    await runTools(DOC_EXTRA_SCRIPTS);
   }
   if (docsMode) {
-    runTools(DOC_STATIC_TOOLS);
-    runTools(DOC_EXTRA_SCRIPTS);
+    await runTools(DOC_STATIC_TOOLS);
+    await runTools(DOC_EXTRA_SCRIPTS);
+  }
+  // 2026-08-17 P1-1 修复：push 模式此前从不执行静态治理工具（ALL_STATIC_TOOLS 只在
+  // --all/--docs 跑）→ gate 名存实亡。现按变更域补挂子集：frontend 变更跑前端静态工具、
+  // go 变更跑 Go 静态工具、docs/adr 变更跑文档静态工具——保持按域裁剪的轻量。
+  if (!allMode && !docsMode) {
+    if (plan.frontend) await runTools(FRONTEND_STATIC_TOOLS);
+    if (plan.go) await runTools(GO_STATIC_TOOLS);
+    if (plan.docs || plan.adr) {
+      await runTools(DOC_STATIC_TOOLS);
+      await runTools(DOC_EXTRA_SCRIPTS);
+    }
   }
 
   /* --- 聚合摘要 --- */
@@ -534,13 +593,17 @@ async function main() {
 // check-knowledge-drift / link-checker / adr-check 三个重型检查，会延迟失败回执（2026-08-12 排查）。
 main().then(async (code) => {
   if (code === 0) {
+    // P2 修复（2026-08-17）：地图刷新此前 execFileSync 同步阻塞每次成功推送（≤300s），
+    // 失败空 catch 吞掉 + stdio ignore 无感知——改为后台 spawn（detached+unref），
+    // 推送立即返回，失败至少打一行可见提示（门禁锐评 P2-1）。
     try {
-      execFileSync('node', ['scripts/gen-doc-next-steps.mjs'], {
-        cwd: ROOT, stdio: 'ignore', shell: true, timeout: 300_000,
+      const child = spawn(process.execPath, ['scripts/gen-doc-next-steps.mjs'], {
+        cwd: ROOT, stdio: 'ignore', detached: true, shell: true,
       });
-      console.log('[MAP] 已刷新 docs/.doc-next-steps.md（AI 待补地图，非阻断）');
-    } catch {
-      /* 非阻断：地图生成失败不影响推送 */
+      child.unref();
+      console.log('[MAP] 已触发后台刷新 docs/.doc-next-steps.md（AI 待补地图，非阻断，不阻塞推送）');
+    } catch (e) {
+      console.error(`[MAP] 后台刷新启动失败（不影响推送）: ${e.message}`);
     }
   }
   process.exit(code ?? 0);

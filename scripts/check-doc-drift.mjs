@@ -231,9 +231,21 @@ function checkArchCoverage() {
   const known = new Set(baseline.unregistered || []);
 
   if (FIX_MODE) {
+    // P1 守卫（2026-08-17）：基线只许减少——新增未登记模块拒绝刷新基线，除非显式 --force。
+    // 此前无条件写盘，未登记模块可被一键洗白（门禁锐评 P1-3）。
+    const force = process.argv.includes('--force');
+    const added = unregistered.filter((m) => !known.has(m));
+    if (added.length > 0 && !force) {
+      errors.push(`[基线守卫] 新增 ${added.length} 个未登记模块，拒绝刷新基线（只许减少）——确认后加 --force 覆盖`);
+    }
+    if (errors.length > 0) {
+      console.log(errors.join('\n'));
+      console.log('✖ 基线未更新（存在守卫拦截）');
+      process.exit(1);
+    }
     fs.mkdirSync(path.dirname(BASELINE_FILE), { recursive: true });
     fs.writeFileSync(BASELINE_FILE, JSON.stringify({ generated: new Date().toISOString(), unregistered }, null, 2) + '\n');
-    infos.push(`[架构树] --fix 已刷新基线（${unregistered.length} 个未登记模块）`);
+    infos.push(`[架构树] --fix 已刷新基线（${unregistered.length} 个未登记模块）${force && added.length ? `（--force 覆盖 ${added.length} 个新增）` : ''}`);
     return;
   }
 

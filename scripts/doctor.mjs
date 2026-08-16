@@ -10,7 +10,7 @@
  *   node scripts/doctor.mjs --gate          # 门禁模式（委托 pre-push-gate.mjs --dry-run，不触发 push）
  *   node scripts/doctor.mjs --gate <ref>    # 指定 ref（默认 HEAD，用于预检未提交的改动）
  *   node scripts/doctor.mjs --check  # 兼容旧参数，忽略（gate 无对应语义）
- *   node scripts/doctor.mjs --strict # 兼容旧参数，忽略
+ *   node scripts/doctor.mjs --strict # 严格模式：等价 --all（静态工具挂载已自带 --strict，2026-08-17）
  *   node scripts/doctor.mjs --json   # 透传 pre-push-gate 原始输出（契约见 check-script-hygiene）
  * 退出码：任何非零检查([FAIL])均透传退出码阻断；仅 WARN/skip 不阻断
  */
@@ -73,6 +73,9 @@ if (GATE_MODE) {
   // 文档模式：轻量（仅文档/ADR/索引/静态文档工具，跳过 Go/前端编译与测试）
   delegate(['--docs', '--dry-run']);
 } else {
-  // 全量模式：编译 + 构建 + 文件 + 红线 + Git（全量体检）
+  // 全量模式：编译 + 构建 + 文件 + 红线 + Git（全量体检）。
+  // --strict 不再忽略（2026-08-17 门禁锐评 P2-4）：静态工具挂载已自带 --strict
+  // （pre-push-gate ALL_STATIC_TOOLS 中 i18n/orphan/boolean-naming/script-hygiene 均显式挂
+  // --strict），全量即严格——孤儿导出/i18n 缺口/脚本卫生违规在 doctor 下必然 [FAIL]。
   delegate(['--all', '--dry-run']);
 }

@@ -423,10 +423,25 @@ function runBaseline(results) {
   }
   const update = process.argv.includes('--update-baseline');
   if (update) {
+    // P1 守卫（2026-08-17）：基线只许减少，不许增加——新增违规拒绝洗白，除非显式 --force。
+    // 此前无条件写盘，一行命令即可把全部债务勾销（门禁锐评 P1-3）。
+    const force = process.argv.includes('--force');
+    let prevKeys = [];
+    if (fs.existsSync(BASELINE_FILE)) {
+      try { prevKeys = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf-8')).violations || []; }
+      catch { /* 基线损坏视为无旧基线，走新增判定 */ }
+    }
+    const prevSet = new Set(prevKeys);
+    const added = allKeys.filter((k) => !prevSet.has(k));
+    if (added.length > 0 && !force) {
+      return { ok: false,
+        note: `[基线守卫] 新增 ${added.length} 条违规，拒绝写入基线（只许减少）——确认债务后加 --force 覆盖`,
+        current: allKeys, newViolations: added, advisoryViolations: [] };
+    }
     fs.mkdirSync(path.dirname(BASELINE_FILE), { recursive: true });
     fs.writeFileSync(BASELINE_FILE, JSON.stringify(
       { generated: new Date().toISOString(), count: allKeys.length, violations: allKeys }, null, 2) + '\n');
-    return { ok: true, note: `--update-baseline: 已写入 ${allKeys.length} 条红线基线`, current: allKeys };
+    return { ok: true, note: `--update-baseline: 已写入 ${allKeys.length} 条红线基线${force && added.length ? `（--force 覆盖 ${added.length} 条新增）` : ''}`, current: allKeys };
   }
   if (!fs.existsSync(BASELINE_FILE)) {
     return { ok: false,
