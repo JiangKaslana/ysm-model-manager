@@ -82,6 +82,24 @@ function git(args) {
   return r.out.trim();
 }
 
+/**
+ * 以数组参数直接执行 git，避免 shell 插值命令注入。
+ * 用于 commit message 等用户可控/含特殊字符的输入（审计 2026-08-17 子代理）。
+ */
+function gitArray(args) {
+  try {
+    const out = execFileSync('git', args, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 120_000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return { rc: 0, out };
+  } catch (e) {
+    return { rc: e.status ?? 1, out: (e.stdout || '') + (e.stderr || '') };
+  }
+}
+
 const results = [];
 let blocked = false;
 const record = (label, ok, { time = 0, note = '', tail = '' } = {}) => {
@@ -208,7 +226,8 @@ if (checkOnly) {
 }
 
 // ── 4. 全绿后自动 git commit ──
-const commitRc = sh(`git commit -m "${message.replace(/"/g, '\\"')}"`).rc;
+// 审计修复：用数组参数传 message，杜绝反引号/$/;/| 命令注入（原来只转义双引号）
+const commitRc = gitArray(['commit', '-m', message]).rc;
 if (commitRc !== 0) {
   console.error('❌ git commit 失败（可能是 pre-commit 钩子拦截，或 message 格式问题）');
   process.exit(1);

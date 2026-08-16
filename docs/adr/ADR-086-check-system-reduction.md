@@ -161,7 +161,7 @@ AI: node scripts/commit-with-check.mjs -m "..."  ← 单条命令：按域跑 ts
 
 ### 量化指令节省（基于今天真实指令清单）
 
-**今天真实指令清单**（~80 条）：
+**今天真实指令清单**（早期粗算 ~80 条）：
 
 | 操作 | 指令数 | commit-with-check 替代后 |
 |------|--------|--------------------------|
@@ -176,12 +176,12 @@ AI: node scripts/commit-with-check.mjs -m "..."  ← 单条命令：按域跑 ts
 | 文件读写 | 30+ | 30+（不可替代） |
 | 后台编译 | 2 | 2（不替代） |
 
-**节省测算**：
-- 替代前：~80 条/功能
+**节省测算**（估算，非实测）：注意下方 §5.1 以 2026-08-17 3D 菜单重构轮实测口径重新统计为 **~60 条/功能**；本处的 ~80 条是早期含重复尝试的粗算。两处口径不同，**以 §5.1 为准**。
+- 替代前：~80 条/功能（粗算）→ 实测基线 ~60 条/功能
 - 替代后：~35 条/功能（文件读写 30+ + ADR 2 + 后台编译 2 + commit-with-check 1）
-- **目标**：从 ~80 条/功能降到 ~20 条/功能——需进一步压缩文件读写（子代理并行读）
+- **目标**：从 ~60 条/功能降到 ~20 条/功能——需进一步压缩文件读写（子代理并行读）
 
-**翻转条件**：若 commit-with-check.mjs 的按域判断漏跑某项检查导致回归 → 补 `--full` 模式跑全量 pre-push-gate
+**翻转条件**：若 commit-with-check.mjs 的按域判断漏跑某项检查导致回归 → **手动跑 `node scripts/pre-push-gate.mjs --all --dry-run`（或 `node scripts/doctor.mjs`）全量兜底**；commit-with-check 当前不实现 `--full`（避免重复维护第二条全量检查线，全量唯一源头是 pre-push-gate）
 
 ## 4. 检查脚本星级 Top 表（附录 A）
 
@@ -192,7 +192,7 @@ AI: node scripts/commit-with-check.mjs -m "..."  ← 单条命令：按域跑 ts
 
 | 脚本 | 耗时⭐ | 价值⭐ | 重复度⭐ | 综合 | 一句话定位 | 触发时机 |
 |------|--------|--------|----------|------|------------|----------|
-| check-circular.mjs | 4 (0.3s) | 5 | 4 | ⭐⭐⭐⭐⭐ | ESM import 图 DFS 找环，前端循环依赖硬阻断 | pre-push / CI |
+| check-circular.mjs | 4 (0.3s) | 5 | 4 | ⭐⭐⭐⭐⭐ | ESM import 图 DFS 找环（**已按 §2.1 R2 降为非阻塞**，docs 模式报告；唯一现存环 mount-preview-core ↔ preview-menu 属同层双向 import，check-layering R1/R2 已兜底） | pre-push / CI（报告不阻断） |
 | check-layering.mjs | 5 (秒级) | 5 | 5 | ⭐⭐⭐⭐⭐ | 前端三层分层方向守护（views→features→services→utils→core） | pre-push / CI |
 | check-tpl-refs.mjs | 5 (0.1s) | 5 | 5 | ⭐⭐⭐⭐⭐ | getElementById 引用 ↔ 模板 id 定义交叉核对，断链 ERROR 阻断 | pre-push / CI |
 | check-menu-health.mjs | 5 (0.1s) | 5 | 5 | ⭐⭐⭐⭐⭐ | 3D 预览菜单表健康门禁（ADR-085 配套，6 条校验） | pre-push / CI |
