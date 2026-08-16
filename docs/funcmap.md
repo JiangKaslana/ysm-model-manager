@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 98 | 367 |
-| frontend/views | 89 | 248 |
+| 前端·工具 | 97 | 351 |
+| frontend/views | 89 | 247 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **362** | **1529** |
+| **合计** | **361** | **1512** |
 
 ## Go·头像
 
@@ -1228,14 +1228,12 @@
 | `loadTdKeymap()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdCamSpeed()` | `frontend/src/utils/3d/model3d` | — |
 | `loadTdRotMode()` | `frontend/src/utils/3d/model3d` | — |
-| `SpecBone3D()` | `frontend/src/utils/3d/model3d:17` | — |
-| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:25` | — |
-| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:37` | — |
-| `Spec3D()` | `frontend/src/utils/3d/model3d:45` | — |
-| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:50` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/model3d:72` | renderModel3D 返回的渲染句柄（兼容层，实际由 RenderSession 提供） |
-| `renderModel3D()` | `frontend/src/utils/3d/model3d:80` | 渲染 3D 模型到容器，返回控制句柄 |
-| `screenshotPreview()` | `frontend/src/utils/3d/model3d:93` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
+| `SpecBone3D()` | `frontend/src/utils/3d/model3d:10` | — |
+| `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:18` | — |
+| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:30` | — |
+| `Spec3D()` | `frontend/src/utils/3d/model3d:38` | — |
+| `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:43` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
+| `screenshotPreview()` | `frontend/src/utils/3d/model3d:63` | 截取当前 3D 预览画面（PNG base64，无 data: 前缀），无渲染器时返回 null |
 | `JavaModelFace()` | `frontend/src/utils/3d/parse-java-model:42` | 单面解析产物（像素坐标 + Three 域 UV） |
 | `JavaModelResult()` | `frontend/src/utils/3d/parse-java-model:57` | — |
 | `PackEntryReader()` | `frontend/src/utils/3d/parse-java-model:71` | 条目读取器：Go binding ReadPackEntry 包装（返回 base64 或 null） |
@@ -1252,20 +1250,6 @@
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
-| `Spec3D()` | `frontend/src/utils/3d/render-session` | — |
-| `SpecBone3D()` | `frontend/src/utils/3d/render-session` | — |
-| `SpecMeshGroup3D()` | `frontend/src/utils/3d/render-session` | — |
-| `SpecModelGroup3D()` | `frontend/src/utils/3d/render-session` | — |
-| `BoneSelectInfo()` | `frontend/src/utils/3d/render-session` | — |
-| `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/render-session` | — |
-| `loadTdKeymap()` | `frontend/src/utils/3d/render-session` | — |
-| `loadTdCamSpeed()` | `frontend/src/utils/3d/render-session` | — |
-| `loadTdRotMode()` | `frontend/src/utils/3d/render-session` | — |
-| `TdKeyAction()` | `frontend/src/utils/3d/render-session` | — |
-| `RenderSessionHandle()` | `frontend/src/utils/3d/render-session:43` | RenderSession 公开接口（兼容原 RenderModel3DHandle） |
-| `RenderSession()` | `frontend/src/utils/3d/render-session:70` | RenderSession：封装单次 3D 渲染会话的完整生命周期。 |
-| `RenderModel3DHandle()` | `frontend/src/utils/3d/render-session:455` | — |
-| `renderModel3D()` | `frontend/src/utils/3d/render-session:458` | — |
 | `RendererComponents()` | `frontend/src/utils/3d/renderer-setup:8` | setupRenderer 返回的组件 |
 | `setupRenderer()` | `frontend/src/utils/3d/renderer-setup:19` | 初始化渲染器和场景基础元素（灯光、网格、轴）。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
@@ -1610,12 +1594,11 @@
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:18` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
-| `Model3DHandleX()` | `frontend/src/views/app-preview/skeleton-render:18` | RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） |
-| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:27` | 创建 2D 骨骼画布并异步加载纹理 |
-| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:52` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
-| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:92` | 构建统计卡片（含作者列表） |
-| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:141` | 构建导出骨骼名按钮行 |
-| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:174` | 截图保存内部逻辑（供 3D overlay 使用） |
+| `setup2DCanvas()` | `frontend/src/views/app-preview/skeleton-render:20` | 创建 2D 骨骼画布并异步加载纹理 |
+| `buildToggleRow()` | `frontend/src/views/app-preview/skeleton-render:45` | 构建骨骼名开关行（不含放大按钮，放大按钮由调用方单独添加） |
+| `buildStatsCard()` | `frontend/src/views/app-preview/skeleton-render:85` | 构建统计卡片（含作者列表） |
+| `buildBoneExportRow()` | `frontend/src/views/app-preview/skeleton-render:134` | 构建导出骨骼名按钮行 |
+| `saveScreenshot()` | `frontend/src/views/app-preview/skeleton-render:167` | 截图保存内部逻辑（供 3D overlay 使用） |
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |

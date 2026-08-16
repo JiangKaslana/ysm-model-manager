@@ -21,7 +21,6 @@ const {
   statsCardHTML,
   buildBoneNamesText,
   screenshotPreview,
-  renderModel3D,
   renderMultiAngle,
   preloadModel,
   createYsm3D,
@@ -39,7 +38,6 @@ const {
   statsCardHTML: vi.fn(() => "<div>stats-card</div>"),
   buildBoneNamesText: vi.fn(() => ["root", "head"]),
   screenshotPreview: vi.fn(() => "b64data"),
-  renderModel3D: vi.fn(),
   renderMultiAngle: vi.fn(),
   preloadModel: vi.fn(),
   createYsm3D: vi.fn(),
@@ -62,7 +60,6 @@ vi.mock("./tpl.ts", () => ({ statsCardHTML }));
 vi.mock("./bone-names.ts", () => ({ buildBoneNamesText }));
 vi.mock("../../utils/3d/model3d.ts", () => ({
   screenshotPreview,
-  renderModel3D,
 }));
 vi.mock("./screenshot-renderer.ts", () => ({ renderMultiAngle }));
 vi.mock("./model3d-loader.ts", () => ({ preloadModel }));

@@ -14,13 +14,6 @@ import type { PreviewRoot, YsmDecoder, PreviewDebugger } from "./utils.ts";
 // P1 修复（ADR-040）：fill3DPanel 已拆至 skeleton-fill-panel.ts，此处 re-export 兼容
 export { fill3DPanel } from "./skeleton-fill-panel.ts";
 
-/** RenderModel3DHandle 运行时扩展（_keyHandler/_timeTimer/_boneDetailEl 为 JS 时代附加字段） */
-export type Model3DHandleX = import("../../utils/3d/model3d.ts").RenderModel3DHandle & {
-  _keyHandler?: ((e: KeyboardEvent) => void) | null;
-  _timeTimer?: ReturnType<typeof setInterval>;
-  _boneDetailEl?: HTMLElement | null;
-};
-
 /**
  * 创建 2D 骨骼画布并异步加载纹理
  */
