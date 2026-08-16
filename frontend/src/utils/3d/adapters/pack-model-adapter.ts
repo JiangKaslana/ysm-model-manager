@@ -1,5 +1,5 @@
 // ===== pack-model-adapter.ts — MC 资源包模型内容适配器（ADR-080 + ADR-084 L2）=====
-// 资源包（.zip）→ ListPackModels 枚举 → 首个 entry 作为初始 path → 逐面 BufferGeometry + MeshLambert。
+// 资源包（.zip）→ ListPackModels 枚举 → 首个 entry 作为初始 path → 逐面 BufferGeometry + MeshStandardMaterial（roughness 1.0）。
 // ADR-084 L2：zip 当虚拟文件夹——buildPath 即 entry path（assets/minecraft/models/block/xxx.json），
 // core switchTo(newEntryPath) 走 ADR-066 §5.6 语义（复用外壳重建内容层），不自建 ◀/▶。
 // 通用外壳（overlay/renderer/循环/释放/根菜单切换面板）由 mount-preview-core.ts 拥有。
@@ -22,7 +22,9 @@ export interface PackDeps {
 }
 
 /** tint 染色面近似色（无 biome 数据的兜底，ADR-080 已知限制） */
-const TINT_FALLBACK = 0x7cbd4b;
+/** MC Java 4 类 tint 颜色（tintindex → 默认色，biome 无关时近似默认绿色系）
+ * 0=grass, 1=leaves, 2=water, 3=dead_bush；完整实现需 biome 数据，此处用通用近似 */
+const TINT_COLORS: number[] = [0x59ad47, 0x65b065, 0x3f76e4, 0x7c4e08];
 const NO_TEX_FALLBACK = 0xcccccc;
 
 interface PackState {
@@ -49,10 +51,11 @@ async function textureFor(
   face: JavaModelResult["faces"][number],
 ): Promise<THREE.Material> {
   if (face.tintindex !== null) {
-    return new THREE.MeshLambertMaterial({ color: TINT_FALLBACK, transparent: true, opacity: 0.9 });
+    const idx = Math.max(0, Math.min(3, face.tintindex));
+    return new THREE.MeshStandardMaterial({ color: TINT_COLORS[idx], transparent: true, opacity: 0.9, roughness: 1.0, metalness: 0.0 });
   }
   if (face.texColor) {
-    return new THREE.MeshLambertMaterial({ color: parseInt(face.texColor.slice(1), 16) });
+    return new THREE.MeshStandardMaterial({ color: parseInt(face.texColor.slice(1), 16), roughness: 1.0, metalness: 0.0 });
   }
   if (face.texEntry) {
     const b64 = await deps.readEntry(path, face.texEntry);
@@ -61,10 +64,10 @@ async function textureFor(
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.magFilter = THREE.NearestFilter;
       tex.minFilter = THREE.NearestFilter;
-      return new THREE.MeshLambertMaterial({ map: tex });
+      return new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0, metalness: 0.0 });
     }
   }
-  return new THREE.MeshLambertMaterial({ color: NO_TEX_FALLBACK });
+  return new THREE.MeshStandardMaterial({ color: NO_TEX_FALLBACK, roughness: 1.0, metalness: 0.0 });
 }
 
 /** 构建单个模型的内容 group（面 → BufferGeometry + Material） */
@@ -123,8 +126,8 @@ function disposeContent(state: PackState, scene: THREE.Scene): void {
       try { mesh.geometry?.dispose(); } catch {}
       const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
       for (const m of mats) {
-        const lm = m as THREE.MeshLambertMaterial;
-        try { lm.map?.dispose(); } catch {}
+        const tex = (m as THREE.MeshStandardMaterial).map;
+        if (tex) { try { tex.dispose(); } catch {} }
         try { m.dispose(); } catch {}
       }
     });

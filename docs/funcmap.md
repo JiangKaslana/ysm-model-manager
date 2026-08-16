@@ -1124,7 +1124,7 @@
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:210` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:20` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
-| `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:34` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
+| `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:36` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
 | `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:13` | — |
 | `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:15` | — |
