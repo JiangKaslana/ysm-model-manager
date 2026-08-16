@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "test": "vitest run --maxWorkers 8",
     "test:full": "vitest run",
+    "test:audit": "vitest run --maxWorkers 8 --isolate=false --sequence.shuffle",
     "test:coverage": "vitest run --coverage --maxWorkers 8",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",

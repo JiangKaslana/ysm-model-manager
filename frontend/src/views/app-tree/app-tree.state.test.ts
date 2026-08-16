@@ -85,6 +85,9 @@ describe("app-tree 组件（testid 钩子 + 交互路径）", () => {
     document.querySelectorAll("app-tree").forEach((el) => el.remove());
     // events.ts 展开文件夹会写 localStorage["at_dirs"]，不清理会污染后续用例
     localStorage.removeItem("at_dirs");
+    // 2026-08-17 isolate:false 审核模式发现：全局残留（stubGlobal/window 挂载）
+    // 会让连点防重入用例 5000ms 超时——补 unstubAllGlobals 防跨文件污染。
+    vi.unstubAllGlobals();
   });
 
   it("1. 渲染后文件行带 tree-file testid", async () => {

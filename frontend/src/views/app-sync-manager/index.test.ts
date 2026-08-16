@@ -57,6 +57,10 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
 
   afterEach(() => {
     document.body.innerHTML = "";
+    // 2026-08-17 isolate:false 审核模式发现：全局残留会让 5000ms waitFor 渲染超时
+    // （前一文件的 vi.stubGlobal/window 挂载未还原）。补 unstubAllGlobals 防御
+    // 跨文件污染——与隔壁清理规范（vi.stubGlobal + unstubAllGlobals 配对）对齐。
+    vi.unstubAllGlobals();
   });
 
   it("connected 无 instance → 显示错误提示", async () => {
