@@ -190,8 +190,18 @@ tasks:
     # 环境特定偏差：本机 localhost 会解析到 ::1（IPv6），而 Wails 3 的
     # ExternalAssetHandler 代理强制走 IPv4 127.0.0.1，若 vite 仅绑 IPv6 会被
     # 「actively refused」。故显式 --host 127.0.0.1 钉死 IPv4 回环，与代理一致。
+    # 自动重启（2026-08-16 实测）：wails refresh 对 background 步骤（vite-dev）不自动
+    # 拉起——vite 因 EBUSY/意外崩溃退出后 dev 前端永久停摆"愣着"。改为循环运行，
+    # 退出后 2s 自动重启（Ctrl+C 退出循环）；EBUSY 已由 vite.config.js watch.ignored
+    # 治本，此处为兜底。Task 的 script 用 POSIX shell（含 Windows）。
     cmds:
-      - npx vite --host 127.0.0.1 --port {{.VITE_PORT}} --strictPort
+      - |
+        while true; do
+          npx vite --host 127.0.0.1 --port {{.VITE_PORT}} --strictPort
+          code=$?
+          echo "[dev:frontend] vite exited ($code), restarting in 2s (Ctrl+C 退出)"
+          sleep 2
+        done
 
   frontend:dev:yarn:
     dir: frontend

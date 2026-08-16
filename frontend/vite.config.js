@@ -41,6 +41,16 @@ export default defineConfig({
         fileURLToPath(new URL("../resource_types.json", import.meta.url)),
       ],
     },
+    watch: {
+      // Windows EBUSY 防护（2026-08-16 实测）：外部工具（esbuild/IDE/杀软）原子写
+      // 临时目录（.web-fs.ts.<pid>.<uuid>.tmpdir/）时，chokidar 尝试 watch 被占用
+      // 的文件会抛 EBUSY 崩溃整个 vite 进程（dev 前端停摆"愣着"）——忽略这些
+      // 临时产物目录，watcher 不再触碰
+      ignored: [
+        /[\\/]\.[^\\/]+\.\d+\.[0-9a-f-]{36}\.tmpdir([\\/]|$)/,
+        /\.tmp$/,
+      ],
+    },
   },
   plugins: [wailsBindingsResolve],
 });
