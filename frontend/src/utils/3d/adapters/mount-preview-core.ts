@@ -46,7 +46,7 @@ export interface PreviewBuildCtx {
   /** shared 模式下核心的相机控制桥（旋转/速度/重置，操作核心内部状态；self 模式 undefined） */
   cameraControls?: CameraControlBridge;
   /** 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；延迟闭包——build 时 _handle 未赋值，点击时已就绪 */
-  switchTo?(path: string): Promise<void>;
+  switchTo?(path: string, options?: { keepInScene?: boolean }): Promise<void>;
   /** 声明式根菜单注册通道（ADR-076 v2 Phase 2）：适配器 build 内经 setAdapterItems 注入专属菜单项、openPanel 打开面板（骨骼拾取联动） */
   menu: PreviewMenuHandle;
 }
@@ -72,6 +72,8 @@ export interface PreviewScene {
   applyPose?(index: number): void;
   /** 截取当前 3D 渲染画面（PNG base64，无 data: 前缀）—— ADR-052 P3 通用化 */
   screenshot?(): Promise<string | null>;
+  /** 同台追加模式：true 表示不替换 scene，改为将模型 add 到已有场景（多模型同框） */
+  keepInScene?: boolean;
 }
 
 export interface PreviewAdapter {
@@ -92,7 +94,7 @@ export interface PreviewHandle {
   showModelGroup?(i: number): void;
   onBoneSelect?(info: BoneSelectInfo): void;
   /** 当前会话内切换到另一模型：复用外壳（renderer/rAF/controls/灯光）重建内容层（ADR-066 §5.6） */
-  switchTo?(path: string): Promise<void>;
+  switchTo?(path: string, options?: { keepInScene?: boolean }): Promise<void>;
   /** 截取当前 3D 渲染画面（PNG base64，无 data: 前缀）—— ADR-052 P3 通用化 */
   screenshot?(): Promise<string | null>;
 }
@@ -197,18 +199,21 @@ export function cleanupPreview(): void {
 }
 
 /** 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op */
-export async function switchPreview(path: string): Promise<void> {
-  await _handle?.switchTo?.(path);
+export async function switchPreview(path: string, options?: { keepInScene?: boolean }): Promise<void> {
+  await _handle?.switchTo?.(path, options);
 }
 
 /** mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） */
 export interface Mount3DOptions {
   /** 同类型可切换的候选路径列表（≥2 时 topBar 渲染切换下拉；缺省不渲染，向后兼容） */
   siblings?: string[];
+  /** 同台追加模式：true 时不移除旧模型，新模型追加到同一场景（多模型同框） */
+  cooperate?: boolean;
 }
 
 export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount3DOptions = {}): Promise<void> {
-  cleanupPreview(); // 复用：再次创建先清旧的
+  const cooperate = opts.cooperate === true;
+  if (!cooperate) cleanupPreview(); // 复用：再次创建先清旧的（同台模式不清理，保留旧模型）
   // 🥉 ui/ 库样式（light-DOM 场景）：overlay 是 document.body 下的普通 DOM 非 shadow，
   // 注入一次即可让 topBar 控件用上 mode-btn/setting-select 透明样式（幂等，§19）
   installUiComponentsStyles();
@@ -312,8 +317,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       if (cleanupFn) cleanupFn();
       else closeOverlay();
     },
-    switchTo: (p: string) => {
-      void _handle?.switchTo?.(p);
+    switchTo: (p: string, options?: { keepInScene?: boolean }) => {
+      void _handle?.switchTo?.(p, options);
     },
   });
 
@@ -545,7 +550,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         menu: menuHandle,
         // 延迟闭包：build 时 _handle 尚未赋值，菜单点击（build 之后）时已就绪；
         // 无活跃会话时 no-op（与 switchPreview 同口径）
-        switchTo: (p: string): Promise<void> => _handle?.switchTo?.(p) ?? Promise.resolve(),
+        switchTo: (p: string, options?: { keepInScene?: boolean }): Promise<void> => _handle?.switchTo?.(p, options) ?? Promise.resolve(),
       },
       path,
     );
@@ -711,25 +716,27 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       onBoneSelect: built.onBoneSelect,
       screenshot: built.screenshot,
       // 当前会话内切换模型：复用外壳（renderer/rAF/controls/灯光）重建内容层（ADR-066 §5.6）
-      switchTo: async (newPath: string): Promise<void> => {
+      // 支持 keepInScene 模式：true 时不移除旧模型，新模型追加到同一场景（多模型同台）
+      switchTo: async (newPath: string, options?: { keepInScene?: boolean }): Promise<void> => {
         if (aborted || isDisposed.v || myGen !== _gen) return;
+        const keep = options?.keepInScene === true;
+
         // 1) 移除旧适配器专属控件（topBar 中 adapterControlsStart 之后追加的节点）
         while (topBar.childElementCount > adapterControlsStart) {
           topBar.lastChild?.remove();
         }
-        // 1b) 移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积——审核 #1）
-        // 适配器 dispose 只释放 GPU（deepDispose/dispose），不 detach；不移除会导致
-        // 每次切换旧模型/灯光/Grid 残留叠加（灯光过亮/鬼影/已释放几何仍被遍历）。
-        const baseline = sceneBaseline; // 局部快照：闭包内 let 窄化失效
-        if (scene && baseline) {
-          const stale = scene.children.filter((c) => !baseline.has(c));
+
+        // 2) 非同台模式：移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积——审核 #1）
+        //    同台模式：保留旧模型，不清除
+        if (!keep && scene && sceneBaseline) {
+          const stale = scene.children.filter((c) => !sceneBaseline!.has(c));
           for (const c of stale) scene.remove(c);
         }
-        // 2) 释放旧内容层 GPU 资源
-        try {
-          built?.dispose();
-        } catch (_) {}
-        // 3) 重建内容层（新 path）
+        // 3) 释放旧内容层 GPU 资源（非同台模式才 dispose；同台模式下旧模型仍需保持）
+        if (!keep) {
+          try { built?.dispose(); } catch (_) {}
+        }
+        // 4) 重建内容层（新 path）
         let next: PreviewScene;
         try {
           next = await adapter.build(
@@ -750,25 +757,23 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
           return;
         }
         if (aborted || isDisposed.v || myGen !== _gen) {
-          try {
-            next.dispose();
-          } catch (_) {}
+          try { next.dispose(); } catch (_) {}
           return;
         }
         built = next;
         currentPath = newPath; // 同步「当前」项（ADR-066 §5.6 3D 内切换）：根菜单切换面板高亮随之移动
-        // 4) 同步相机状态到新内容层取景 + 重挂适配器控件/侧栏
+        // 5) 同步相机状态到新内容层取景 + 重挂适配器控件/侧栏
         if (renderer) {
           orbitTarget!.copy((controls as OrbitControls).target);
           euler.setFromQuaternion((camera as THREE.PerspectiveCamera).quaternion);
         }
         perFrame = next.update ?? null;
         // ADR-084 L2（pack-model 对齐 ADR-066 §5.6）：switchTo 后重算内容层包围盒，更新 lightCap target
-        if (lightCap && scene && baseline) {
+        if (lightCap && scene && sceneBaseline) {
           const box = new THREE.Box3();
           let contentFound = false;
           for (const child of scene.children) {
-            if (baseline.has(child)) continue;
+            if (sceneBaseline!.has(child)) continue;
             box.expandByObject(child);
             contentFound = true;
           }

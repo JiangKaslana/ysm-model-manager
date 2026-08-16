@@ -4,8 +4,9 @@
 // 公开符号，index.ts 与既有测试无需改动。
 
 import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
-import { buildVrmScene } from "../../utils/3d/adapters/vrm-adapter.ts";
+import { buildVrmScene, type VrmPanelHooks } from "../../utils/3d/adapters/vrm-adapter.ts";
 import { getApp } from "../../backend/app.ts";
+import { makeVrmPanelRenderer } from "./vrm-controls.ts";
 
 /** 数据读取注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 async function readFileBytes(path: string): Promise<string | null> {
@@ -13,9 +14,13 @@ async function readFileBytes(path: string): Promise<string | null> {
   return (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"](path);
 }
 
+const vrmPanelHooks: VrmPanelHooks = {
+  makePanelRenderer: makeVrmPanelRenderer,
+};
+
 const vrmAdapter: PreviewAdapter = {
   id: "vrm",
-  build: (ctx, path) => buildVrmScene(ctx, path, readFileBytes),
+  build: (ctx, path) => buildVrmScene(ctx, path, readFileBytes, vrmPanelHooks),
 };
 
 /** 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 */
@@ -26,6 +31,11 @@ export async function createVrm3D(path: string, opts?: Mount3DOptions): Promise<
 /** 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） */
 export async function switchVrmPreview(path: string): Promise<void> {
   await switchPreview(path);
+}
+
+/** 同台追加 VRM 模型：不清理旧场景，将新模型 add 到已有场景（多模型同框） */
+export async function appendVrmPreview(path: string): Promise<void> {
+  await switchPreview(path, { keepInScene: true });
 }
 
 /** 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */
