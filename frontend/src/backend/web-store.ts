@@ -29,10 +29,13 @@ function saveWebConfig(cfg: Record<string, unknown>): void {
 // 容量与 Go 侧差异为有意为之：import 环对齐 Go maxLogEntries=500（go/logs/logs.go:18）；
 // runtime 环 300 高于 Go DefaultRuntimeCap=200（go/logs/runtime.go:11）——网页版日志纯内存
 // 无落盘成本，多留诊断上下文；Go 侧 200 含落盘 IO 权衡。调整任一侧容量互不影响。
-// 注：error-diary.ts 网页版刻意早退不调 AddOpLog（日记不落盘），故 web 环默认空——
-// 诊断页显示「空日志」而非报错，行为等价于桌面无操作记录场景。
+// 注：error-diary.ts 曾刻意早退不调 AddOpLog（日记不落盘）——ADR-071 已移除早退，
+// web 环现在有真实日志；并做 IDB 持久化（#8）刷新不丢。
 const WEB_IMPORT_LOG_CAP = 500;
 const WEB_RUNTIME_LOG_CAP = 300;
+// ADR-071 #8：日志 IDB 持久化 key（config store，刷新/重开浏览器不丢；cap 内环形截断）
+const LOG_IMPORT_KEY = "web:import-logs";
+const LOG_RUNTIME_KEY = "web:runtime-logs";
 
 /** 导入日志环容量：读配置 logMaxEntries（>0 用之，ADR-062 §2.3），缺省回退 500 */
 function importLogCap(): number {
@@ -45,12 +48,28 @@ const webRuntimeLogs: Array<Record<string, unknown>> = [];
 function pushWebLog(ring: Array<Record<string, unknown>>, cap: number, entry: Record<string, unknown>): void {
   ring.push(entry);
   if (ring.length > cap) ring.splice(0, ring.length - cap); // 仅保留最近 cap 条（环形截断）
+  // ADR-071 #8：fire-and-forget 写 IDB（刷新不丢；隐私模式/写失败静默降级为纯内存）
+  const key = ring === webImportLogs ? LOG_IMPORT_KEY : LOG_RUNTIME_KEY;
+  void idbSet("config", key, ring).catch(() => {});
+}
+
+/** 内存环为空时从 IDB 恢复（首次读取/刷新后）；有数据则直接返回 */
+async function hydrateWebLog(ring: Array<Record<string, unknown>>, key: string): Promise<void> {
+  if (ring.length > 0) return;
+  try {
+    const saved = await idbGet<unknown>("config", key);
+    if (Array.isArray(saved)) ring.push(...(saved as Array<Record<string, unknown>>));
+  } catch {
+    // IDB 不可用：保持空环
+  }
 }
 
 async function getWebImportLogs(): Promise<unknown> {
+  await hydrateWebLog(webImportLogs, LOG_IMPORT_KEY);
   return webImportLogs.slice(); // 返回副本，防外部篡改内部环
 }
 async function getWebRuntimeLogs(): Promise<unknown> {
+  await hydrateWebLog(webRuntimeLogs, LOG_RUNTIME_KEY);
   return webRuntimeLogs.slice();
 }
 async function addWebImportLog(
@@ -75,10 +94,12 @@ async function addWebOpLog(
 /** 清空导入日志环（webImpls.ClearImportLogs 调用；状态封装在 web-store 内部） */
 function clearWebImportLogs(): void {
   webImportLogs.length = 0;
+  void idbDel("config", LOG_IMPORT_KEY).catch(() => {});
 }
 /** 清空运行时日志环（webImpls.ClearRuntimeLogs 调用；状态封装在 web-store 内部） */
 function clearWebRuntimeLogs(): void {
   webRuntimeLogs.length = 0;
+  void idbDel("config", LOG_RUNTIME_KEY).catch(() => {});
 }
 
 // --- 标签（config store: tags:<path> = string[]）---

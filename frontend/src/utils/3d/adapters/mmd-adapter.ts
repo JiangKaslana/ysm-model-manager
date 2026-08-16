@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { MMDLoader, VmdObject, buildAnimation } from "@moeru/three-mmd";
 import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
-import { buildMmdBottomNav } from "../../../views/app-preview/mmd-controls.ts";
+import type { MmdBottomNavCtx } from "../../../views/app-preview/mmd-controls.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -61,7 +61,12 @@ function isLikelyTga(bytes: Uint8Array): boolean {
  * MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。
  * 成功路径自行移除 loadingEl（对齐 vrm/litematic 既有口径）。数据读取经 port 注入（ADR-072）。
  */
-export async function buildMmdScene(ctx: PreviewBuildCtx, path: string, port: MmdDataPort): Promise<PreviewScene> {
+export async function buildMmdScene(
+  ctx: PreviewBuildCtx,
+  path: string,
+  port: MmdDataPort,
+  navBuilder: (overlay: HTMLElement, navCtx: MmdBottomNavCtx) => void,
+): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:ysm-prog 1.5s ease-in-out infinite"></div></div>';
 
@@ -159,8 +164,8 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string, port: Mm
   const mesh = mmd.mesh;
 
   ctx.scene!.add(mesh);
-  // MMD 底部根菜单（§5.7 范式：模型信息 + 表情列表 + 切换模型区 + 视图相机，弹窗内容接入 ui/ 库组件）
-  buildMmdBottomNav(ctx.overlay, {
+  // MMD 底部根菜单（§5.7 范式：模型信息 + 表情列表 + 切换模型区 + 视图相机，弹窗内容接入 ui/ 库组件）—— navBuilder 由视图壳注入
+  navBuilder(ctx.overlay, {
     mmd,
     mesh,
     modelName: path.split(/[/\\]/).pop() || "",

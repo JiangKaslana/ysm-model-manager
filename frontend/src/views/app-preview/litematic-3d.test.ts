@@ -135,13 +135,22 @@ vi.mock("three/addons/controls/OrbitControls.js", () => ({
   },
 }));
 
-vi.mock("../../../backend/app.ts", () => ({ getApp: vi.fn() }));
+vi.mock("../../backend/app.ts", () => ({ getApp: vi.fn() }));
+// ADR-073 天空能力（隔壁 sky-capability）依赖 PMREMGenerator 需真实 WebGL context，
+// 本测试 three 全 stub 无 WebGL——mock SkyCapability 为 no-op，隔离体素渲染逻辑
+vi.mock("../../utils/3d/caps/sky-capability.ts", () => ({
+  SkyCapability: class {
+    apply = vi.fn();
+    dispose = vi.fn();
+    constructor() {}
+  },
+}));
 
-import { getApp } from "../../../backend/app.ts";
-import { bus } from "../../../bus.ts";
+import { getApp } from "../../backend/app.ts";
+import { bus } from "../../bus.ts";
 import * as THREE from "three";
 import { cleanupVoxel3D, createLitematic3D } from "./litematic-3d.ts";
-import { sleep } from "../../../test-utils/index.ts";
+import { sleep } from "../../test-utils/index.ts";
 
 /** 访问 mock 暴露的 InstancedMesh 实例列表，供 count / setMatrixAt 断言 */
 const meshInstances = (THREE as unknown as {

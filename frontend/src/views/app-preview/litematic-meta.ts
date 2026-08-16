@@ -6,7 +6,7 @@ import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
 import { bus } from "../../bus.ts";
 import type { PreviewRoot } from "./utils.ts";
-import { createLitematic3D, cleanupVoxel3D } from "../../utils/3d/adapters/litematic-3d.ts";
+import { createLitematic3D, cleanupVoxel3D } from "./litematic-3d.ts";
 import { t } from "../../core/i18n/t.ts";
 
 function fmtTime(ms: number): string {

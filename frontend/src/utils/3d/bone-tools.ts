@@ -142,4 +142,41 @@ export function toggleBoneVisible(node: BoneNode | undefined): void {
 //   - mmd（THREE.Bone 无几何）走 mmd-bones.ts pickMmdBone 的「射线到骨骼距离」法；
 //   - vrm（humanoid node）待接。
 // 曾在此放 pickBone/findAncestorBoneId（「网格面片归属拾取」，只适用于 ysm 且有
+// 完整骨骼节点挂载在 Object3D 树上的格式）。审核时移走以保持工具层「策略无关」。
+// 但「沿父链找最近骨骼节点」对 VRM（humanoid bones 挂在 rig 节点）/YSM（spec bones
+// 挂在 Group）均成立——本质是 Object3D 父链回溯，与格式无关。现补回通用版，
+// 输入是任意 Object3D 命中体 + BoneTree（byId 锚定骨骼节点），命中后沿父链找归属。
+
+/** 沿 Object3D 父链向上找最近的骨骼 id（obj 自身或祖先的 name 命中 byId 即归属） */
+export function findAncestorBoneId(obj: THREE.Object3D, tree: BoneTree): string | null {
+  let cur: THREE.Object3D | null = obj;
+  let guard = 0;
+  while (cur && guard++ < 1000) {
+    if (cur.name && tree.byId.has(cur.name)) return cur.name;
+    cur = cur.parent;
+  }
+  return null;
+}
+
+/**
+ * Raycaster 拾取：命中任意 mesh → 沿父链找最近挂载在骨骼节点上的祖先（需 object）。
+ * 返回 { node, distance }；未命中或找不到骨骼归属返回 null。
+ * 策略无关：VRM（rig 节点 parent 链）/YSM（Group parent 链）均靠 findAncestorBoneId 回溯。
+ */
+export function pickBone(
+  raycaster: THREE.Raycaster,
+  meshes: THREE.Object3D[],
+  tree: BoneTree,
+): { node: BoneNode; distance: number } | null {
+  const hits = raycaster.intersectObjects(meshes, true);
+  if (!hits.length) return null;
+  for (const hit of hits) {
+    const boneId = findAncestorBoneId(hit.object, tree);
+    if (boneId) {
+      const node = tree.byId.get(boneId);
+      if (node) return { node, distance: hit.distance };
+    }
+  }
+  return null;
+}
 // 无消费者），已拆出——通用工具只保留格式无关的树/列表/路径/详情/显隐。

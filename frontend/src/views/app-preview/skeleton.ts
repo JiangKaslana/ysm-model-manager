@@ -15,7 +15,7 @@ import { sec, iRow } from "./skeleton-utils.ts";
 import {
   setup2DCanvas, buildToggleRow, buildStatsCard, buildBoneExportRow,
 } from "./skeleton-render.ts";
-import { createYsm3D, cleanupYsm3D } from "../../utils/3d/adapters/ysm-3d.ts";
+import { createYsm3D, cleanupYsm3D } from "./ysm-3d.ts";
 
 // 2D 拖拽的 window 监听器槽位：loadModel2D 每次渲染模型都会绑定，
 // 先移除上一轮处理器再绑定，防止 window 级监听器累积泄漏

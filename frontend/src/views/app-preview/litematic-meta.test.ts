@@ -8,6 +8,7 @@ const { mocks } = vi.hoisted(() => {
     ReadNbtStructure: vi.fn(),
     ReadSchematic: vi.fn(),
     createLitematic3D: vi.fn(),
+    cleanupVoxel3D: vi.fn(),
   };
   return { mocks };
 });
@@ -20,8 +21,8 @@ vi.mock("../../backend/app.ts", () => ({
   }),
 }));
 
-// ADR-072 D1b：litematic-3d 已迁至 utils/3d/adapters，mock 路径同步
-vi.mock("../../utils/3d/adapters/litematic-3d.ts", () => ({
+// ADR-072 根治：litematic-3d 薄包装已归位 views/app-preview（视图壳注入层），mock 路径同目录
+vi.mock("./litematic-3d.ts", () => ({
   createLitematic3D: mocks.createLitematic3D,
   cleanupVoxel3D: mocks.cleanupVoxel3D,
 }));

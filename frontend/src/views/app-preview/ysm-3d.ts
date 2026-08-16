@@ -5,9 +5,11 @@
 // §5.7 shared 化：YSM 适配器改 path 驱动（build(ctx, path) 内经 loadModelData
 // 加载 model），与 vrm/litematic 同构——core 的 switchTo(path) 对 ysm 生效，
 // 3D 内模型切换无需重建整个会话。
-import { mount3D, cleanupPreview, invalidatePreview } from "./mount-preview-core.ts";
-import { makeYsmAdapter } from "./ysm-adapter.ts";
-import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
+import { mount3D, cleanupPreview, invalidatePreview } from "../../utils/3d/adapters/mount-preview-core.ts";
+import { makeYsmAdapter } from "../../utils/3d/adapters/ysm-adapter.ts";
+import type { BedrockGeometry } from "./geometry.ts";
+import { preloadModel } from "./model3d-loader.ts";
+import { buildYsmBottomNav } from "./ysm-controls.ts";
 
 export interface YsmOpenOptions {
   /** path → model 加载器（skeleton 层注入：loadModelData(p, ctx)，含缓存/WASM/Go 兜底） */
@@ -36,6 +38,8 @@ export async function createYsm3D(
     makeYsmAdapter(path, {
       texIdx,
       loader: opts.loader,
+      preload: (model) => preloadModel(model as never),
+      navBuilder: buildYsmBottomNav,
       onTextureChange: rebuild,
       onClose: opts.onClose,
     }),

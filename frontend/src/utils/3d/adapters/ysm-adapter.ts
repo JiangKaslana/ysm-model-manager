@@ -11,11 +11,10 @@
 // （buildYsmBottomNav，相机控件复用核心 cameraControls）。
 // 已知降级（后续补）：调试模式（F 键 normal/pivot/bone 可视化）暂不接入 shared。
 import * as THREE from "three";
-import { preloadModel, type ModelLike } from "../../../views/app-preview/model3d-loader.ts";
 import { buildYsmObject, type YsmObjectHandle } from "../ysm-object.ts";
 import { fitCameraToScene } from "../camera-setup.ts";
 import { buildBoneHierarchy, registerBoneRaycast } from "../bone-raycast.ts";
-import { buildYsmBottomNav, type YsmContentHandle, type YsmModel } from "../../../views/app-preview/ysm-controls.ts";
+import type { YsmContentHandle, YsmModel, YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
 import type { Spec3D, BoneSelectInfo } from "../model3d.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
@@ -24,6 +23,10 @@ import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-prev
 export interface YsmAdapterOptions {
   /** path → model 加载器（由 skeleton 层注入：loadModelData(p, ctx)，含缓存/WASM/Go 兜底） */
   loader: (path: string) => Promise<BedrockGeometry | null>;
+  /** preloadModel 注入（视图壳层数据转换：model → { texArr, spec }，含 WASM/Go 兜底） */
+  preload: (model: unknown) => Promise<{ texArr: (THREE.Texture | null)[]; spec: unknown }>;
+  /** buildYsmBottomNav 注入（视图壳层 UI 控件：底部导航 + 分类弹窗） */
+  navBuilder: (overlay: HTMLElement, ctx: YsmControlsContext) => void;
   /** 用户切换纹理时触发重建（旧 overlay 清理 + 按新 texIdx 重新挂载） */
   onTextureChange?: (texIdx: number) => void;
   /** core 关闭（ESC / 关闭按钮 / 切模型 cleanup）时回调：复位调用方状态 + 注销 android-back */
@@ -72,7 +75,7 @@ export async function buildYsmScene(
   if (!model) throw new Error("模型数据加载失败: " + path);
 
   const texIdx = opts.texIdx ?? 0;
-  const { texArr, spec } = await preloadModel(model as ModelLike);
+  const { texArr, spec } = await opts.preload(model);
 
   // 内容层：spec → 场景图（§5.7 shared 化，renderModel3D 同款 buildYsmObject）
   const obj: YsmObjectHandle = buildYsmObject(spec as Spec3D, texArr, texIdx);
@@ -111,8 +114,8 @@ export async function buildYsmScene(
     content.onBoneSelect?.(info);
   };
 
-  // 底部悬浮导航 + 分类弹窗（§5.7 范式）
-  buildYsmBottomNav(ctx.overlay, {
+  // 底部悬浮导航 + 分类弹窗（§5.7 范式）—— navBuilder 由视图壳注入
+  opts.navBuilder(ctx.overlay, {
     model: model as YsmModel,
     texIdx,
     texArr,

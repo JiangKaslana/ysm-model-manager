@@ -24,16 +24,18 @@ vi.mock("../../backend/app.ts", () => ({
 vi.mock("./skeleton.ts", () => ({
   loadModel2D: vi.fn().mockResolvedValue(undefined),
 }));
-// VRM meta 卡依赖 three-vrm 解析，测试环境 mock（showVrmMeta 单测直接喂数据）；
-// ADR-072 D1b：adapter/薄包装已迁至 utils/3d/adapters，mock 路径同步
 vi.mock("../../utils/3d/adapters/vrm-adapter.ts", () => ({
   readVrmMeta: vrmMetaMock,
 }));
-vi.mock("../../utils/3d/adapters/vrm-3d.ts", () => ({
+// ADR-072 根治：薄包装（vrm-3d/mmd-3d）已归位 views/app-preview，mock 路径同目录；
+// resolveMmdSiblings 归位 mmd-siblings.ts
+vi.mock("./vrm-3d.ts", () => ({
   createVrm3D: createVrm3DMock,
 }));
-vi.mock("../../utils/3d/adapters/mmd-3d.ts", () => ({
+vi.mock("./mmd-3d.ts", () => ({
   createMmd3D: createMmd3DMock,
+}));
+vi.mock("./mmd-siblings.ts", () => ({
   resolveMmdSiblings: resolveMmdSiblingsMock,
 }));
 

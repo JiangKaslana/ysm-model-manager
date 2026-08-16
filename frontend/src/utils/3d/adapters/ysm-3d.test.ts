@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildYsmScene, makeYsmAdapter } from "./ysm-adapter.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
+import { buildYsmBottomNav } from "../../../views/app-preview/ysm-controls.ts";
 
 const mocks = vi.hoisted(() => ({
   preloadModel: vi.fn(),
@@ -13,8 +14,8 @@ const mocks = vi.hoisted(() => ({
   registerBoneRaycast: vi.fn(() => vi.fn()),
 }));
 
-// model3d-loader 未随适配器迁移（仍在 views/app-preview），mock 路径指向原位置
-vi.mock("../../../views/app-preview/model3d-loader.ts", () => ({ preloadModel: mocks.preloadModel }));
+// ADR-072 根治：preload 与 navBuilder 由视图壳注入（adapter 0 views import），
+// 测试直接注入 mock preload + 真实 buildYsmBottomNav（导航 DOM 走真实）
 vi.mock("../ysm-object.ts", () => ({ buildYsmObject: mocks.buildYsmObject }));
 vi.mock("../camera-setup.ts", () => ({ fitCameraToScene: mocks.fitCameraToScene }));
 vi.mock("../bone-raycast.ts", () => ({
@@ -78,7 +79,7 @@ describe("buildYsmScene（shared 装配）", () => {
     const preview = await buildYsmScene(
       ctx,
       "/m/a.ysm",
-      { loader },
+      { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav },
     );
 
     expect(loader).toHaveBeenCalledWith("/m/a.ysm");
@@ -96,21 +97,21 @@ describe("buildYsmScene（shared 装配）", () => {
   it("loader 返回空 → 抛错（不挂 scene、不建导航）", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => null);
-    await expect(buildYsmScene(ctx, "/m/missing.ysm", { loader })).rejects.toThrow(/加载失败/);
+    await expect(buildYsmScene(ctx, "/m/missing.ysm", { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav })).rejects.toThrow(/加载失败/);
     expect(ctx.scene.add).not.toHaveBeenCalled();
   });
 
   it("dispose → raycast cleanup + removeFromScene", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
-    const preview = await buildYsmScene(ctx, "/m/a.ysm", { loader });
+    const preview = await buildYsmScene(ctx, "/m/a.ysm", { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav });
     preview.dispose();
     expect(mocks.registerBoneRaycast).toHaveBeenCalled();
   });
 
   it("makeYsmAdapter：build 用传入 path（switchTo 换模型语义，闭包 path 仅初始值）", async () => {
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
-    const adapter = makeYsmAdapter("/m/a.ysm", { loader });
+    const adapter = makeYsmAdapter("/m/a.ysm", { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav });
     expect(adapter.id).toBe("ysm");
     // switchTo 语义：core 调 build(ctx, newPath) 重建内容层——必须加载 newPath 而非闭包旧 path
     await expect(

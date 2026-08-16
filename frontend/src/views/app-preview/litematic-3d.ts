@@ -3,9 +3,9 @@
 // createLitematic3D / cleanupVoxel3D / invalidateLitematicPreview 公开符号，
 // litematic-meta.ts 与既有测试无需改动。voxelFn 经适配器工厂传入，决定走哪条 Go RPC。
 
-import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "./mount-preview-core.ts";
-import { buildLitematicScene } from "./litematic-adapter.ts";
-import { getApp } from "../../../backend/app.ts";
+import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
+import { buildLitematicScene } from "../../utils/3d/adapters/litematic-adapter.ts";
+import { getApp } from "../../backend/app.ts";
 
 /** voxelCall 注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 function makeVoxelCall(voxelFn: string): (path: string) => Promise<string> {

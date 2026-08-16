@@ -773,7 +773,7 @@
 | `scanWebModels()` | `frontend/src/backend/web-fs:228` | — |
 | `readWebFile()` | `frontend/src/backend/web-fs:281` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
 | `scanAllWebModels()` | `frontend/src/backend/web-fs:441` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `webStoreBindings()` | `frontend/src/backend/web-store:150` | — |
+| `webStoreBindings()` | `frontend/src/backend/web-store:171` | — |
 | `YsmHeaderShape()` | `frontend/src/backend/ysm-header:36` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
 | `YsmSummaryShape()` | `frontend/src/backend/ysm-header:55` | YsmSummary（对齐 go/ysm/summary.go:48 YsmSummary json tag；animGroups/configMenus 一并平移） |
 | `emptyYsmHeader()` | `frontend/src/backend/ysm-header:73` | 空 YSMHeader（对齐 Go YSMHeader{} JSON 形状：isYsm/isFree/hasFree/name 恒输出） |
