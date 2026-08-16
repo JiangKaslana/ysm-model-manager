@@ -1,5 +1,5 @@
 // ===== sidebar HTML 模板 =====
-import { ALL_RESOURCE_TYPES, RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { ALL_RESOURCE_TYPES, RESOURCE_TYPES, typeIconOf } from "../../utils/resource/types.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { t } from "../../core/i18n/t.ts";
 
@@ -44,15 +44,15 @@ export function footerHTML(): string {
 </div>`;
 }
 
-/** 同步菜单类型展示配置（顺序 = 渲染顺序，保持原输出不变；labelKey 走 i18n，label 为品牌字面量） */
+/** 同步菜单类型展示配置（顺序 = 渲染顺序，UX 约定保留；icon 从 JSON 派生防手写漂移——拓展点残留清单 #5） */
 const SYNC_TYPE_MENU: ReadonlyArray<{ id: string; icon: string; labelKey?: string; label?: string }> = [
-  { id: RESOURCE_TYPES.YSM, icon: "💎", label: "YSM" },
-  { id: RESOURCE_TYPES.MMD, icon: "🎭", label: "MMD" },
-  { id: RESOURCE_TYPES.VRC, icon: "🥽", label: "VRC" },
-  { id: RESOURCE_TYPES.PACK, icon: "🎨", labelKey: "rtype.pack" },
-  { id: RESOURCE_TYPES.SHADER, icon: "☀️", labelKey: "rtype.shader" },
-  { id: RESOURCE_TYPES.BLUEPRINT, icon: "⚙️", labelKey: "rtype.blueprint" },
-  { id: RESOURCE_TYPES.LITEMATIC, icon: "📐", labelKey: "rtype.litematic" },
+  { id: RESOURCE_TYPES.YSM, icon: typeIconOf(RESOURCE_TYPES.YSM), label: "YSM" },
+  { id: RESOURCE_TYPES.MMD, icon: typeIconOf(RESOURCE_TYPES.MMD), label: "MMD" },
+  { id: RESOURCE_TYPES.VRC, icon: typeIconOf(RESOURCE_TYPES.VRC), label: "VRC" },
+  { id: RESOURCE_TYPES.PACK, icon: typeIconOf(RESOURCE_TYPES.PACK), labelKey: "rtype.pack" },
+  { id: RESOURCE_TYPES.SHADER, icon: typeIconOf(RESOURCE_TYPES.SHADER), labelKey: "rtype.shader" },
+  { id: RESOURCE_TYPES.BLUEPRINT, icon: typeIconOf(RESOURCE_TYPES.BLUEPRINT), labelKey: "rtype.blueprint" },
+  { id: RESOURCE_TYPES.LITEMATIC, icon: typeIconOf(RESOURCE_TYPES.LITEMATIC), labelKey: "rtype.litematic" },
 ];
 
 /** 推送/拉取下拉菜单共用的资源类型选项（两组共用，防 jscpd 重复） */

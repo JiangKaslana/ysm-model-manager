@@ -40,10 +40,10 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 101 |
-| 前端·工具 | 86 | 301 |
+| 前端·工具 | 87 | 316 |
 | frontend/views | 88 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **340** | **1411** |
+| **合计** | **341** | **1426** |
 
 ## Go·头像
 
@@ -1105,6 +1105,18 @@
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
 | `registerBoneRaycast()` | `frontend/src/utils/3d/bone-raycast:128` | 注册 pointermove / click 骨骼拾取监听器。 |
+| `BoneNode()` | `frontend/src/utils/3d/bone-tools:11` | 统一骨骼节点：来源无关（YSM spec bones / VRM humanoid bones 均适配） |
+| `BoneTree()` | `frontend/src/utils/3d/bone-tools:23` | 骨骼树：id 索引 + 子映射 + 根集合（buildBoneTree 产物） |
+| `buildBoneTree()` | `frontend/src/utils/3d/bone-tools:34` | 从任意扁平骨骼声明构建层级树。 |
+| `BoneListItem()` | `frontend/src/utils/3d/bone-tools:54` | 深度缩进的骨骼列表项（枚举 + 父子 + 深度） |
+| `listBonesWithDepth()` | `frontend/src/utils/3d/bone-tools:61` | 骨骼树 → 深度缩进列表（前序遍历，根 depth=0；数组顺序即展开顺序） |
+| `getBonePath()` | `frontend/src/utils/3d/bone-tools:74` | 骨骼 id → 全路径（如 "root / spine / head"；找不到该 id 返回 null） |
+| `getBonePosition()` | `frontend/src/utils/3d/bone-tools:89` | 骨骼 id → 世界坐标（需 object；无 object 或缺省返回 null） |
+| `BoneDetail()` | `frontend/src/utils/3d/bone-tools:97` | 骨骼详情：路径/坐标/父骨骼/子骨骼列表（id 不存在返回 null） |
+| `getBoneDetail()` | `frontend/src/utils/3d/bone-tools:106` | — |
+| `setBoneVisible()` | `frontend/src/utils/3d/bone-tools:125` | 骨骼显隐：设置该骨骼节点及其所有子网格可见性（需 object；无 object no-op） |
+| `toggleBoneVisible()` | `frontend/src/utils/3d/bone-tools:133` | 骨骼显隐：切换（取反）该骨骼节点可见性 |
+| `pickBone()` | `frontend/src/utils/3d/bone-tools:144` | Raycaster 拾取：命中任意 mesh → 沿父链找最近挂载在骨骼节点上的祖先（需 object）。 |
 | `BoneGroupMap()` | `frontend/src/utils/3d/bone-visibility:6` | BoneGroupMap 类型别名：骨骼 id → THREE.Group |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
 | `toggleBone()` | `frontend/src/utils/3d/bone-visibility:19` | 切换指定骨骼组的可见性（取反）。 |
@@ -1141,6 +1153,9 @@
 | `buildMmdBoneTree()` | `frontend/src/utils/3d/mmd-bones:45` | 树构建：parentBoneIndex 挂父（自引用/越界视为根），返回根节点森林 |
 | `listMmdBones()` | `frontend/src/utils/3d/mmd-bones:63` | 扁平列表：树 DFS 先序 + 深度（消费方可按 depth 缩进渲染） |
 | `pickMmdBone()` | `frontend/src/utils/3d/mmd-bones:85` | 骨骼拾取：THREE.Bone 无几何（Raycaster.intersectObjects 不命中），改为 「射线到骨骼 worldPosition 的距离」命中——遍历取最近且 |
+| `setMmdBoneVisible()` | `frontend/src/utils/3d/mmd-bones:109` | 骨骼显隐：设置 THREE.Bone.visible（骨骼自身无几何，控制后续 helper/拾取可见性） |
+| `toggleMmdBoneVisible()` | `frontend/src/utils/3d/mmd-bones:119` | 骨骼显隐切换：返回切换后的可见状态（越界返回 false） |
+| `getMmdBoneDetail()` | `frontend/src/utils/3d/mmd-bones:139` | 骨骼详情：路径（父链 → 根，"/" 拼接）/ 直接子索引 / 本地坐标（pmx position）/ 世界坐标（当前姿态 getWorldPosition）。越界返回 null。 |
 | `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:33` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
