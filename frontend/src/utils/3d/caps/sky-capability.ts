@@ -9,8 +9,8 @@
 //   天空盒半边长须 > 相机 maxDistance。预览核心 maxDistance=5000 → scale 默认 12000。
 // - 天空依赖 tone mapping 才正确显色；本能力在 apply() 内为本次会话 renderer
 //   设置 ACESFilmic + exposure，dispose() 时还原，作用域不泄漏到其它预览。
-// - IBL 环境联动（scene.environment）默认关闭，避免未经验证的模型打光回归；
-//   视觉验证后调用 setEnvironmentEnabled(true) 开启。
+// - IBL 环境联动（scene.environment）默认开启（2026-08-16 目视验证通过，模型反射/环境光更真实）；
+//   如需关闭调用 setEnvironmentEnabled(false)。
 
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
@@ -28,7 +28,7 @@ export interface SkyParams {
   cloudCoverage: number;
   /** 天空盒缩放（半边长须 > 相机 maxDistance；预览核心=5000 → 12000） */
   scale: number;
-  /** 是否联动 IBL 环境贴图（scene.environment）。默认 false（避免打光回归） */
+  /** 是否联动 IBL 环境贴图（scene.environment）。默认 true（2026-08-16 目视验证通过） */
   environment: boolean;
   /** ACES 曝光（天空正确显色所需，同时影响模型观感） */
   exposure: number;
@@ -43,7 +43,7 @@ export const DEFAULT_SKY_PARAMS: SkyParams = {
   mieDirectionalG: 0.8,
   cloudCoverage: 0,
   scale: 12000,
-  environment: false,
+  environment: true,
   exposure: 0.5,
 };
 

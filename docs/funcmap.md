@@ -40,10 +40,10 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 101 |
-| 前端·工具 | 88 | 310 |
+| 前端·工具 | 89 | 317 |
 | frontend/views | 88 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **342** | **1420** |
+| **合计** | **343** | **1427** |
 
 ## Go·头像
 
@@ -1150,6 +1150,13 @@
 | `mmdBonesToBoneNodes()` | `frontend/src/utils/3d/mmd-bones:16` | MMD 骨骼 → bone-tools BoneNode[]（id = pmx 索引字符串；越界父/自引用 → null 根） |
 | `MmdBonePickResult()` | `frontend/src/utils/3d/mmd-bones:32` | 拾取结果（pickMmdBone 命中） |
 | `pickMmdBone()` | `frontend/src/utils/3d/mmd-bones:39` | MMD 骨骼拾取：射线到骨骼 worldPosition 距离命中（Bone 无几何，网格归属拾取不适用） |
+| `MmdMaterialListItem()` | `frontend/src/utils/3d/mmd-materials:13` | 材质列表项（listMmdMaterials） |
+| `MmdMaterialDetail()` | `frontend/src/utils/3d/mmd-materials:19` | 材质详情（getMmdMaterialDetail） |
+| `listMmdMaterials()` | `frontend/src/utils/3d/mmd-materials:31` | 材质列表：pmx.materials name + 索引（索引与 mesh.material 对齐） |
+| `setMmdMaterialVisible()` | `frontend/src/utils/3d/mmd-materials:38` | 材质显隐：Material.visible（MMDToonMaterial 继承 MeshPhongMaterial） |
+| `toggleMmdMaterialVisible()` | `frontend/src/utils/3d/mmd-materials:48` | 材质显隐切换：返回切换后的可见状态（越界返回 false） |
+| `setMmdMaterialOpacity()` | `frontend/src/utils/3d/mmd-materials:59` | 材质透明度（0-1）：opacity 设置 + transparent 联动（opacity &lt; 1 → transparent = true） |
+| `getMmdMaterialDetail()` | `frontend/src/utils/3d/mmd-materials:71` | 材质详情：name/可见/透明/高光/光泽（越界返回 null） |
 | `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:33` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
