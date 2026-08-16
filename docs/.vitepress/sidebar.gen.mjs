@@ -1371,8 +1371,16 @@ export const autoSidebar = [
         "collapsed": true,
         "items": [
           {
+            "text": "可拓展点索引对账（vs HEAD @ d517113c…）",
+            "link": "/knowledge/extensibility-index-reconciliation"
+          },
+          {
             "text": "可拓展点发掘索引（extensibility inventory）",
             "link": "/knowledge/extensibility-index"
+          },
+          {
+            "text": "拓展点 / 扩展入口 探索报告（Round 2）",
+            "link": "/knowledge/extensibility-round2"
           }
         ]
       }

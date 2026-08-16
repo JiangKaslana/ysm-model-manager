@@ -11,6 +11,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { SkyCapability } from "../caps/sky-capability.ts";
 import { bus } from "../../../bus.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { t } from "../../../core/i18n/t.ts";
@@ -211,6 +212,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let mouseDown = false;
   let lastMouse = { x: 0, y: 0 };
   let orbitTarget: THREE.Vector3 | undefined;
+  // 程序化天空能力（ADR-073 L1）：shared 模式注入统一核心，四种模型零改动继承
+  let skyCap: SkyCapability | null = null;
   let animId = 0;
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
@@ -355,6 +358,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.touchAction = "none"; // ADR-047：触屏拖拽旋转需禁手势默认
     viewContainer.appendChild(renderer.domElement);
+    // 程序化天空（ADR-073 L1）：注入统一核心，YSM/VRM/MMD/Litematic 经同一 scene 零改动继承
+    skyCap = new SkyCapability({ scene, renderer });
+    skyCap.apply();
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
@@ -581,6 +587,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       // 内容层先释放自身资源，核心再回收外壳
       try {
         built?.dispose();
+      } catch (_) {}
+      // 程序化天空（ADR-073 L1）：还原 tone mapping 并释放 PMREM/几何/材质
+      try {
+        skyCap?.dispose();
       } catch (_) {}
       // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
       // （stub 环境 Scene 未必实现 traverse，typeof 守卫避免误崩）
