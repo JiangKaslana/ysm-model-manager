@@ -6,7 +6,6 @@ import { esc } from "../../utils/dom/html.ts";
 import { getApp } from "../../backend/app.ts";
 import { statsCardHTML } from "./tpl.ts";
 import { buildBoneNamesText } from "./bone-names.ts";
-import { screenshotPreview } from "../../utils/3d/model3d.ts";
 import { renderMultiAngle } from "./screenshot-renderer.ts";
 import { t } from "../../core/i18n/t.ts";
 import { sec, iRow, buildDepthMap } from "./skeleton-utils.ts";
@@ -168,21 +167,34 @@ export async function saveScreenshot(
   model: BedrockGeometry & { textures?: string[] | null; _modelPath?: string },
   key: string,
   setShotState: (icon: string) => void,
+  screenshotFn?: () => Promise<string | null>,
 ): Promise<void> {
   const { SaveScreenshotFile } = await getApp();
   const p = (model._modelPath || "screenshot").replace(/\\/g, "/");
   const base = p.split("/").pop()?.replace(/\.\w+$/, "") || "";
   if (key === "current") {
-    const b64 = screenshotPreview();
+    let b64: string | null;
+    if (screenshotFn) {
+      // ADR-052 P3：首选活跃渲染器截图（实时、当前视角）
+      b64 = await screenshotFn();
+    } else {
+      // fallback：无活跃渲染器时复用 renderMultiAngle 取 front 帧
+      const texUrls =
+        model.textures && model.textures.length > 1
+          ? model.textures
+          : [model.texture || ""];
+      const results = await renderMultiAngle(model._modelPath || "", texUrls, { size: 512 });
+      b64 = results?.[0]?.base64 ?? null;
+    }
     if (!b64) {
       // 抛错而非静默吞错：让消费者统一 catch（setIcon ❌ + toast），
       // 否则用户只见 ❌ 无原因（陷阱 #3 静类：异步失败须可观测）
-      throw new Error("screenshotPreview 返回空（3D 渲染尚未就绪）");
+      throw new Error("截图返回空（3D 渲染尚未就绪）");
     }
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     await SaveScreenshotFile(base + "_" + ts + ".png", b64);
   } else if (key === "all") {
-    for (const k of ["front", "45", "side", "back45"]) await saveScreenshot(model, k, setShotState);
+    for (const k of ["front", "45", "side", "back45"]) await saveScreenshot(model, k, setShotState, screenshotFn);
   } else {
     const texUrls =
       model.textures && model.textures.length > 1

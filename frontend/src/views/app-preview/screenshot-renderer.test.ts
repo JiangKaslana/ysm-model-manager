@@ -61,14 +61,14 @@ const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, threeStub } 
       }
     }
     class FakeLight {
-      position = { set() {} };
+      position = { set: vi.fn() };
     }
     class FakeWebGLRenderer {
       static toDataURLValue = "data:image/png;base64,QUFB";
       static instances: FakeWebGLRenderer[] = [];
       domElement = {
-        width: 512;
-        height: 512;
+        width: 512,
+        height: 512,
         toDataURL: vi.fn(() => FakeWebGLRenderer.toDataURLValue),
       };
       setClearColor = vi.fn();
