@@ -10,6 +10,7 @@ import { MMDLoader, VmdObject, buildAnimation } from "@moeru/three-mmd";
 import { getApp } from "../../backend/app.ts";
 import { t } from "../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
+import { buildMmdBottomNav } from "./mmd-controls.ts";
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
@@ -157,6 +158,13 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   const mesh = mmd.mesh;
 
   ctx.scene!.add(mesh);
+  // MMD 底部根菜单（§5.7 范式：模型信息 + 表情列表 + 视图相机，弹窗内容接入 ui/ 库组件）
+  buildMmdBottomNav(ctx.overlay, {
+    mmd,
+    mesh,
+    modelName: path.split(/[/\\]/).pop() || "",
+    cameraControls: ctx.cameraControls,
+  });
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 
   // ---- VMD 动作（同目录 .vmd）：VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----

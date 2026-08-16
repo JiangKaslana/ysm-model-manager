@@ -41,9 +41,9 @@
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 16 | 92 |
 | 前端·工具 | 79 | 270 |
-| frontend/views | 90 | 252 |
+| frontend/views | 91 | 254 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **331** | **1376** |
+| **合计** | **332** | **1378** |
 
 ## Go·头像
 
@@ -1451,7 +1451,9 @@
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-3d:18` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:34` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:39` | 任意新预览派发时调用，作废在途 MMD 加载 |
-| `buildMmdScene()` | `frontend/src/views/app-preview/mmd-adapter:59` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
+| `buildMmdScene()` | `frontend/src/views/app-preview/mmd-adapter:60` | MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。 |
+| `MmdBottomNavCtx()` | `frontend/src/views/app-preview/mmd-controls:14` | — |
+| `buildMmdBottomNav()` | `frontend/src/views/app-preview/mmd-controls:23` | 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
