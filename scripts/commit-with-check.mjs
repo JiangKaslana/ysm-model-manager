@@ -103,7 +103,8 @@ console.log('');
 // P1 修复：传 staged files 作 --files 参数，真按域裁剪（替代 --all 全量）
 // P2 修复（子代理锐评）：门禁前先跑 gen-docs-index 刷新索引，解 gen 鸡生蛋
 // （门禁跑 gen-docs-index --check，若索引旧则 fail-closed 阻断；而 pre-commit 的 gen 修复在门禁之后才跑——永远轮不到修）
-if (plan.docs || plan.adr) {
+// 用 byDomain 判断是否有 docs/adr 域改动（plan 变量在 pre-push-gate 内部，commit-with-check 够不到）
+if (docsMode || byDomain.docs?.length || byDomain.adr?.length) {
   try {
     execFileSync(process.execPath, ['scripts/gen-docs-index.mjs'], {
       cwd: ROOT, stdio: 'ignore', timeout: 30_000,
