@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
+	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
@@ -64,19 +64,22 @@ func ImportFromBase64(fileName, base64Data string, opts ImportOptions, rootFn fu
 		return types.AppError{Code: types.ErrFileEmpty, Operation: "导入模型", SourcePath: fileName, Reason: "文件内容为空", Suggestion: "请检查文件是否损坏"}
 	}
 
-	// 类型检测：优先内容检测（ZIP 可能为 YSM/资源包/光影包），回退扩展名匹配
-	rtype := "ysm"
-	if ext == ".zip" {
+	// 类型检测：优先内容检测（ZIP/7z 可能为 YSM/资源包/光影包），回退扩展名匹配
+	rtype := ""
+	if ext == ".zip" || ext == ".7z" {
 		rtype = DetectZipType(data)
 	}
-	// DetectZipType 保守默认 ysm：扩展名不属于当前 rtype 注册表扩展名集合时，
+	// DetectZipType 无特征返回空（ADR-082 续）：扩展名不属于当前 rtype 注册表扩展名集合时，
 	// 用扩展名反查真实类型（ADR-065：扩展名列表注册表驱动，消除手写 .zip/.ysm/.7z/.json
-	// 字面量漂移；rtype=="ysm" 守卫冗余——DetectZipType 命中其他类型时其集合必含 .zip）
-	if !slices.Contains(types.SupportedExtsForType(rtype), ext) {
+	// 字面量漂移）。反查仍无结果 → 识别不出就是识别不出：明确报错，不假装 YSM 导入。
+	if rtype == "" {
 		rtypes := types.ExtBelongsTo(ext)
-		if len(rtypes) > 0 && rtypes[0] != "ysm" {
+		if len(rtypes) == 1 {
 			rtype = rtypes[0]
 		}
+	}
+	if rtype == "" {
+		return types.AppError{Code: types.ErrUnsupportedType, Operation: "导入模型", SourcePath: fileName, Reason: "无法识别文件类型", Suggestion: "ZIP/7z 内未找到已知资源特征（pack.mcmeta/shaders/ysm.json/模型后缀等），请确认文件格式或改用桌面端导入"}
 	}
 
 	targetRoot := rootFn(rtype)
@@ -130,10 +133,28 @@ func WriteFileAtomic(destPath string, data []byte) error {
 	return nil
 }
 
-// DetectZipType 扫描 ZIP local file header 中的文件名识别资源类型
+// DetectZipType 扫描容器条目名识别资源类型
 // 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries
 // （exact/prefix/suffix 三种模式），新增类型只需改 JSON，无需改检测器。
+// ADR-082 续：zip 走 local header 字节扫描（轻量），.7z 走 container 枚举（ADR-068 统一
+// 打开）；无特征返回 ""（未知）——不再默认 ysm，识别不出就是识别不出，由调用方决定
+// 报错/降级，杜绝「坏文件假装 YSM 模型」。
 func DetectZipType(data []byte) string {
+	if len(data) >= 4 && bytes.HasPrefix(data, sevenZipSig) {
+		// .7z 内容指纹：container.Open7zBytes 枚举条目（ADR-068 统一桥接），
+		// 与 zip 分支同走 MatchZipEntry 注册表指纹
+		r, err := container.Open7zBytes(data, int64(len(data)))
+		if err != nil {
+			return ""
+		}
+		defer r.Close()
+		for _, e := range r.Entries() {
+			if rtype := types.MatchZipEntry(e.Name()); rtype != "" {
+				return rtype
+			}
+		}
+		return ""
+	}
 	idx := 0
 	for idx+30 <= len(data) {
 		if !bytes.HasPrefix(data[idx:idx+4], zipLocalHeaderSig) {
@@ -152,7 +173,6 @@ func DetectZipType(data []byte) string {
 		compSize := int(data[idx+18]) | int(data[idx+19])<<8 | int(data[idx+20])<<16 | int(data[idx+21])<<24
 		idx += 30 + nameLen + extraLen + compSize
 	}
-	// 默认按 YSM 处理（保守默认）：ZIP 内无任何识别特征时，导入目标路径按 YSM 归类。
-	// 影响仅为导入去向，后续以实际内容解析为准；不返回空值以免调用方失去类型上下文
-	return "ysm" // 默认 YSM
+	// 无特征返回空（未知）：识别不出就是识别不出，不再假装 YSM
+	return ""
 }

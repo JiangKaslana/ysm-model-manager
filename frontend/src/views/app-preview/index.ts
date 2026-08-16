@@ -242,13 +242,22 @@ class AppPreview extends HTMLElement implements PreviewCtx {
     // 过期守卫：await 期间用户已点其他文件，丢弃本次分流
     if (gen !== this._previewGen) return;
     // ADR-072 D2：注册表驱动查表派发——新增格式 = 注册表一条目 + PREVIEW_HANDLERS 一行，
-    // 不再改 if 链。ysm 或无检测结果默认走 YSM handler；未命中走 showSimplePreview 兜底。
-    const key = rtype || RESOURCE_TYPES.YSM;
-    const handler = PREVIEW_HANDLERS[key];
+    // 不再改 if 链。识别不出（空 rtype）不再假装 YSM（ADR-082 续）：toast 提示 + 简单预览，
+    // 让用户知道文件类型未被识别，而非静默走 YSM 解析路径。
+    if (!rtype) {
+      bus.emit("toast:show", {
+        msg: t("preview.unrecognizedType"),
+        duration: 3000,
+        type: "warn",
+      });
+      showSimplePreview(this, path, { icon: "❓", label: t("preview.unrecognizedType") });
+      return;
+    }
+    const handler = PREVIEW_HANDLERS[rtype];
     if (handler) {
-      handler(this, path, this._typeMeta(key));
+      handler(this, path, this._typeMeta(rtype));
     } else {
-      showSimplePreview(this, path, this._typeMeta(key));
+      showSimplePreview(this, path, this._typeMeta(rtype));
     }
   }
 

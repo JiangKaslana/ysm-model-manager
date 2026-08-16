@@ -221,7 +221,7 @@ export function detectZipType(data: Uint8Array): ZipType {
     const compSize = dv.getUint32(idx + 18, true);
     idx += 30 + nameLen + extraLen + compSize;
   }
-  return "ysm"; // 默认按 YSM 处理（与 Go 保守默认一致）
+  return null; // 无特征返回 null（识别不出就是识别不出，不假装 YSM，与 Go DetectZipType 对齐）
 }
 
 // --- 编码工具函数 ---

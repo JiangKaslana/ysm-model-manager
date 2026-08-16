@@ -63,15 +63,16 @@ func TestDetectResourceType_SevenZipResourcepack(t *testing.T) {
 	}
 }
 
-// 坏 .7z 兜底不变量（ADR-082 S3 声明）：资源包/光影包打开失败后 ysm 兜底仍生效
-func TestDetectResourceType_SevenZipFallbackStillYsm(t *testing.T) {
+// 坏 .7z 兜底已移除（ADR-082 续）：识别不出就是识别不出——
+// 原「ys m 扩展名直判接住坏 .7z」收敛为容器指纹失败即返回空，不再假装 YSM。
+func TestDetectResourceType_SevenZipNoFallback(t *testing.T) {
 	reg := types.LoadRegistry()
 	dir := t.TempDir()
 	sevenPath := filepath.Join(dir, "pkg.7z")
 	if err := os.WriteFile(sevenPath, []byte("not really 7z"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if got := DetectResourceType(sevenPath, reg); got != "ysm" {
-		t.Fatalf("坏 .7z 应靠 ysm 扩展名兜底判 ysm，实际 %q", got)
+	if got := DetectResourceType(sevenPath, reg); got != "" {
+		t.Fatalf("坏 .7z 应识别不出返回空，实际 %q（不得兜底 ysm）", got)
 	}
 }

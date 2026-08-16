@@ -484,10 +484,10 @@ func TestImportFromBase64_MagicWarn(t *testing.T) {
 	root := t.TempDir()
 	rootFn := func(rtype string) string { return root }
 	badZip := base64.StdEncoding.EncodeToString([]byte{0xDE, 0xAD, 0xBE, 0xEF, 0x00})
-	goodZip := base64.StdEncoding.EncodeToString([]byte{0x50, 0x4B, 0x03, 0x04, 0x00})
 	bad7z := base64.StdEncoding.EncodeToString([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
 	short := base64.StdEncoding.EncodeToString([]byte{0x50, 0x4B})
 
+	// 合法 ysm 字节（不校验魔数，仅验证 .ysm 路径 warn 分支保留）
 	run := func(name, b64 string, opts ImportOptions) []string {
 		var logs []string
 		logFn := func(n, s, d string, size int64, status, msg string) {
@@ -508,12 +508,10 @@ func TestImportFromBase64_MagicWarn(t *testing.T) {
 		opts     ImportOptions
 		wantWarn bool
 	}{
-		{"zip 魔数不匹配", "m.zip", badZip, ImportOptions{}, true},
+		// ADR-082 续：坏 zip/7z 在类型检测阶段即被拦截（无特征 → 空 rtype → 报错），
+		// 魔数 warn 路径仅剩 .ysm（扩展名单归属，魔数不匹配仍导入 + warn）
 		{"ysm 魔数不匹配", "m.ysm", badZip, ImportOptions{}, true},
-		{"7z 魔数不匹配", "m.7z", bad7z, ImportOptions{}, true},
-		{"zip 魔数匹配", "m.zip", goodZip, ImportOptions{}, false},
-		{"SkipCheck 跳过", "m.zip", badZip, ImportOptions{SkipCheck: true}, false},
-		{"数据不足4字节", "m.zip", short, ImportOptions{}, false},
+		{"数据不足4字节", "m.ysm", short, ImportOptions{}, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -529,17 +527,40 @@ func TestImportFromBase64_MagicWarn(t *testing.T) {
 			}
 		})
 	}
+
+	// 坏 zip/7z：无特征 → 明确报错（不假装 ysm 导入）
+	badCases := []struct {
+		name     string
+		fileName string
+		b64      string
+	}{
+		{"zip 魔数不匹配", "m.zip", badZip},
+		{"7z 魔数不匹配", "m.7z", bad7z},
+	}
+	for _, tc := range badCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var logs []string
+			logFn := func(n, s, d string, size int64, status, msg string) { logs = append(logs, msg) }
+			err := ImportFromBase64(tc.fileName, tc.b64, ImportOptions{Overwrite: true}, rootFn, logFn)
+			if err == nil {
+				t.Fatalf("坏容器应报错（识别不出就是识别不出），实际导入成功")
+			}
+			if code := appErrCode(t, err); code != "FILE_TYPE_UNSUPPORTED" {
+				t.Fatalf("错误码 = %q, 期望 FILE_TYPE_UNSUPPORTED", code)
+			}
+		})
+	}
 }
 
-// 缺陷B回归：logger 为 nil 时不得 panic（魔数不匹配仍应正常导入）
+// 缺陷B回归：logger 为 nil 时不得 panic（.ysm 魔数不匹配仍应正常导入）
 func TestImportFromBase64_NilLogger(t *testing.T) {
 	root := t.TempDir()
-	badZip := base64.StdEncoding.EncodeToString([]byte{0xDE, 0xAD, 0xBE, 0xEF, 0x00})
-	err := ImportFromBase64("m.zip", badZip, ImportOptions{}, func(rtype string) string { return root }, nil)
+	badYsm := base64.StdEncoding.EncodeToString([]byte{0xDE, 0xAD, 0xBE, 0xEF, 0x00})
+	err := ImportFromBase64("m.ysm", badYsm, ImportOptions{}, func(rtype string) string { return root }, nil)
 	if err != nil {
 		t.Fatalf("nil logger 不应影响导入: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, "m.zip")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, "m.ysm")); err != nil {
 		t.Fatalf("文件应已写入: %v", err)
 	}
 }
@@ -583,18 +604,26 @@ func TestImportFromBase64_RtypeRouting(t *testing.T) {
 		fileName string
 		data     []byte
 		wantType string
+		wantErr  bool
 	}{
-		{"zip 内 pack.mcmeta → resourcepack", "p.zip", buildZip("pack.mcmeta"), "resourcepack"},
-		{"zip 无特征 → 默认 ysm", "p.zip", buildZip("random.txt"), "ysm"},
-		{"pmx 扩展名 → mmd-skin", "model.pmx", []byte("pmx"), "mmd-skin"},
-		{"vrm 扩展名 → vrchat-avatar", "model.vrm", []byte("vrm"), "vrchat-avatar"},
-		{"nbt 扩展名 → create-blueprint", "build.nbt", []byte("nbt"), "create-blueprint"},
-		{"litematic 扩展名 → litematic", "build.litematic", []byte("li"), "litematic"},
+		{"zip 内 pack.mcmeta → resourcepack", "p.zip", buildZip("pack.mcmeta"), "resourcepack", false},
+		// ADR-082 续：zip 无特征 → 空 rtype → 报错（识别不出就是识别不出，不假装 ysm）
+		{"zip 无特征 → 报错", "p.zip", buildZip("random.txt"), "", true},
+		{"pmx 扩展名 → mmd-skin", "model.pmx", []byte("pmx"), "mmd-skin", false},
+		{"vrm 扩展名 → vrchat-avatar", "model.vrm", []byte("vrm"), "vrchat-avatar", false},
+		{"nbt 扩展名 → create-blueprint", "build.nbt", []byte("nbt"), "create-blueprint", false},
+		{"litematic 扩展名 → litematic", "build.litematic", []byte("li"), "litematic", false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			clear(got)
 			err := ImportFromBase64(tc.fileName, base64.StdEncoding.EncodeToString(tc.data), ImportOptions{Overwrite: true}, rootFn, logFn)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("应报错（无特征容器不得假装 ysm），实际导入成功")
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("导入失败: %v", err)
 			}
@@ -800,11 +829,12 @@ func TestDetectZipType_More(t *testing.T) {
 		{"ysm.json 后缀匹配", buildZip(zipEntry{"foo/ysm.json", nil}), "ysm"},
 		{"大小写不敏感", buildZip(zipEntry{"Pack.McMeta", nil}), "resourcepack"},
 		{"多 entry 跳过压缩数据后识别", buildZip(plain, zipEntry{"shaders/x.fsh", nil}), "shaderpack"},
-		{"首 entry 无特征多 entry 默认 ysm", buildZip(plain, zipEntry{"data.bin", nil}), "ysm"},
-		{"截断 header", []byte{0x50, 0x4B, 0x03}, "ysm"},
-		{"文件名超长截断", append([]byte{0x50, 0x4B, 0x03, 0x04}, make([]byte, 26)...), "ysm"},
-		{"非 ZIP 开头", []byte("PK\x00\x00"), "ysm"},
-		{"空数据", nil, "ysm"},
+		{"首 entry 无特征多 entry 无特征 → 空", buildZip(plain, zipEntry{"data.bin", nil}), ""},
+		{"截断 header", []byte{0x50, 0x4B, 0x03}, ""},
+		{"文件名超长截断", append([]byte{0x50, 0x4B, 0x03, 0x04}, make([]byte, 26)...), ""},
+		{"非 ZIP 开头", []byte("PK\x00\x00"), ""},
+		{"空数据", nil, ""},
+		{"7z 魔数非 7z 内容 → 空", append([]byte{0x37, 0x7A, 0xBC, 0xAF}, []byte("not7z")...), ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

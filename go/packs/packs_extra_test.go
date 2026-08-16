@@ -28,8 +28,8 @@ func TestIsYsmFile_7zExt(t *testing.T) {
 	if err := os.WriteFile(path, []byte("not7z"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if !isYsmFile(path) {
-		t.Error(".7z 应直接返回 true（注册表声明为 YSM 扩展名）")
+	if isYsmFile(path) {
+		t.Error("坏 .7z 不应判 YSM（容器指纹失败即 false，不再扩展名直判）")
 	}
 }
 

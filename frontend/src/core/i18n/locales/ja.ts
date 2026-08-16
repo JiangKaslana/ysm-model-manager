@@ -856,6 +856,7 @@ export const ja: Record<string, string> = {
   "preview.mmdLoadModel": "モデル切替",
   "preview.vrcAvatar": "VRCアバター",
   "preview.unknownError": "不明なエラー",
+  "preview.unrecognizedType": "認識できないファイル形式",
   "preview.nameLabel": "名前",
   "preview.authorLabel": "作者",
   "preview.versionLabel": "バージョン",

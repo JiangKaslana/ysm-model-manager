@@ -147,16 +147,17 @@ func TestDetectResourceType_ZipEntry_NoMatch(t *testing.T) {
 }
 
 // .7z 内容指纹已接入（ADR-068 后 container.Open7zPath 可枚举 7z 条目）：坏/伪造 .7z
-// 打开失败 → zipentry 指纹不命中 → ysm 扩展名兜底（与改动前一致）。合法 .7z 含
-// 匹配条目时走内容指纹（正向构造需 7-Zip CLI 预生成 fixture，见 geometry testdata）。
-func TestDetectResourceType_ZipEntry_SevenZipFallbackToYsm(t *testing.T) {
+// 打开失败 → zipentry 指纹不命中 → 返回空（识别不出就是识别不出，ADR-082 续——
+// 不再靠 ysm 扩展名兜底假装模型）。合法 .7z 含匹配条目时走内容指纹（正向构造需
+// 7-Zip CLI 预生成 fixture，见 go/packs/testdata/pack.7z 与 mcmeta_adr082_test.go）。
+func TestDetectResourceType_ZipEntry_SevenZipNoFallback(t *testing.T) {
 	reg := zipentryReg()
 	dir := t.TempDir()
 	sevenPath := filepath.Join(dir, "pkg.7z")
 	if err := os.WriteFile(sevenPath, []byte("not really 7z"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if got := DetectResourceType(sevenPath, reg); got != "ysm" {
-		t.Fatalf("坏 .7z 应靠 ysm 扩展名兜底判 ysm，实际 %q", got)
+	if got := DetectResourceType(sevenPath, reg); got != "" {
+		t.Fatalf("坏 .7z 应返回空（不再兜底 ysm），实际 %q", got)
 	}
 }

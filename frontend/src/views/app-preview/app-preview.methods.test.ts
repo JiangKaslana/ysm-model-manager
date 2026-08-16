@@ -126,7 +126,7 @@ describe("_showModelDetail — 类型分流", () => {
     unmountElement(el);
   });
 
-  it("YSM / 空检测 → showModelDetail", async () => {
+  it("YSM → showModelDetail；空检测 → toast + showSimplePreview（不假装 YSM）", async () => {
     const el = mountPreview();
     appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.YSM);
     await el._showModelDetail("/repo/m.ysm");
@@ -134,7 +134,13 @@ describe("_showModelDetail — 类型分流", () => {
     await el._showModelDetail("/repo/unknown");
     // 精确断言（原只查次数，不验参数——传错 path 也会误过）
     expect(detailSpies.showModelDetail).toHaveBeenCalledWith(el, "/repo/m.ysm");
-    expect(detailSpies.showModelDetail).toHaveBeenCalledWith(el, "/repo/unknown");
+    // ADR-082 续：识别不出不再假装 YSM——空检测走 showSimplePreview（unrecognizedType 提示）
+    expect(detailSpies.showModelDetail).not.toHaveBeenCalledWith(el, "/repo/unknown");
+    expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
+      el,
+      "/repo/unknown",
+      expect.objectContaining({ icon: "❓", label: "无法识别文件类型" }),
+    );
     unmountElement(el);
   });
 
@@ -212,11 +218,16 @@ describe("_showModelDetail — 类型分流", () => {
     unmountElement(el);
   });
 
-  it("DetectResourceType 抛错 → 空类型回落 showModelDetail", async () => {
+  it("DetectResourceType 抛错 → 空类型走 unrecognizedType 提示（不假装 YSM）", async () => {
     const el = mountPreview();
     appObj.DetectResourceType.mockRejectedValue(new Error("no-detect"));
     await el._showModelDetail("/repo/e.ysm");
-    expect(detailSpies.showModelDetail).toHaveBeenCalledWith(el, "/repo/e.ysm");
+    expect(detailSpies.showModelDetail).not.toHaveBeenCalled();
+    expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
+      el,
+      "/repo/e.ysm",
+      expect.objectContaining({ icon: "❓", label: "无法识别文件类型" }),
+    );
     unmountElement(el);
   });
 });

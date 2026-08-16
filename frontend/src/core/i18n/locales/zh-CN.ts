@@ -858,6 +858,7 @@ export const zhCN: Record<string, string> = {
   "preview.mmdLoadModel": "切换模型",
   "preview.vrcAvatar": "VRC 头像",
   "preview.unknownError": "未知错误",
+  "preview.unrecognizedType": "无法识别文件类型",
   "preview.nameLabel": "名称",
   "preview.authorLabel": "作者",
   "preview.versionLabel": "版本",

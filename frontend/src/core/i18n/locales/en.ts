@@ -855,6 +855,7 @@ export const en: Record<string, string> = {
   "preview.mmdLoadModel": "Load Model",
   "preview.vrcAvatar": "VRC Avatar",
   "preview.unknownError": "Unknown error",
+  "preview.unrecognizedType": "Unrecognized file type",
   "preview.nameLabel": "Name",
   "preview.authorLabel": "Author",
   "preview.versionLabel": "Version",

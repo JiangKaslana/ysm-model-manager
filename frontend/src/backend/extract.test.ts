@@ -178,9 +178,9 @@ describe("detectZipType", () => {
     expect(detectZipType(buildMinimalZip("avatar/a.vrca", new TextEncoder().encode("x")))).toBe("vrchat-avatar");
   });
 
-  it("无可识别文件的 ZIP → ysm（保守默认）", () => {
+  it("无可识别文件的 ZIP → null（识别不出就是识别不出，不假装 YSM）", () => {
     const zip = buildMinimalZip("readme.txt", new Uint8Array([0x52, 0x45, 0x41, 0x44]));
-    expect(detectZipType(zip)).toBe("ysm");
+    expect(detectZipType(zip)).toBeNull();
   });
 
   it("多 entry 优先命中首个识别特征", () => {
@@ -245,7 +245,7 @@ describe("parseZipCentralDir", () => {
     // local file header 需要 30 字节 + 文件名，这里故意不填全，第 4 字节后直接垃圾
     for (let i = 4; i < 60; i++) data[i] = 0xff;
     // 第一个 LFH 签名有效，读取 nameLen(0xff00) 后发现 nameStart+nameLen 超出范围 → break
-    expect(detectZipType(data)).toBe("ysm");
+    expect(detectZipType(data)).toBeNull();
   });
 
   it("文件名为 shaders（目录形态）→ shaderpack", () => {

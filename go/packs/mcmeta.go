@@ -181,24 +181,6 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 	return ""
 }
 
-// zipEntryMatch 打开 .zip 容器遍历条目，谓词命中即返回 true（ADR-067 S5：
-// 收敛 isYsmFile 的独立 zip.OpenReader 模板——统一"打开容器→找条目"桥接；
-// .7z 不在容器遍历范围，由调用方按扩展名兜底）。
-// 条目名统一 lowercase 传入谓词（与 MatchZipEntry 内部 ToLower 幂等）。
-func zipEntryMatch(path string, match func(name string) bool) bool {
-	r, err := zip.OpenReader(path)
-	if err != nil {
-		return false
-	}
-	defer r.Close()
-	for _, f := range r.File {
-		if match(strings.ToLower(f.Name)) {
-			return true
-		}
-	}
-	return false
-}
-
 // matchZipArchive 打开容器（.zip/.7z）并按 rt.ZipEntries 内容指纹匹配（ADR-067/068）：
 // 走 container 统一打开——.7z 也参与内容指纹（ADR-067 §3 遗留，原仅 zip；
 // sevenzip 只读但可枚举条目）。条目名统一 lowercase（与 MatchZipEntry 内部 ToLower 幂等）。
@@ -228,8 +210,8 @@ func hasExt(ext string, exts []string) bool {
 
 // isYsmFile 检查文件是否为 YSM 模型
 // .ysm → 直接返回 true；.json → 仅 ysm.json 入口清单算模型（scanner 同口径，动画/动作 json 不算）；
-// .zip → 检查内部是否有 ysm.json 或 models/；
-// .7z → zip.OpenReader 会失败，跳过内容检测直接返回 true（靠扩展名兜底）
+// .zip/.7z → 统一走 container 打开 + ysm.json/models/ 任意层级指纹（ADR-082 续：
+// 不再对 .7z 扩展名直判——坏容器打开失败即 false，识别不出就是识别不出）
 func isYsmFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".ysm" {
@@ -242,22 +224,23 @@ func isYsmFile(path string) bool {
 	if ext != ".zip" && ext != ".7z" {
 		return false
 	}
-	// .7z 不是 ZIP 格式，无法用 zip.OpenReader 打开，但注册表已声明为 YSM 扩展名，直接放行
-	if ext == ".7z" {
-		return true
+	// .zip/.7z 统一走 container（ADR-068）：任意层级段后缀匹配（ADR-082 S1 与
+	// types.MatchZipEntry 同构）——ys m.json / models/ 命中任意层级；坏容器返回 false
+	r, err := container.Open(path)
+	if err != nil {
+		return false
 	}
-	// .zip：任意层级段后缀匹配（ADR-082 S1 与 types.MatchZipEntry 同构）——
-	// ysm.json / models/ 命中任意层级（MyPack/ysm.json、MyPack/models/... 也识别）
-	return zipEntryMatch(path, func(name string) bool {
-		segs := strings.Split(strings.ReplaceAll(name, "\\", "/"), "/")
+	defer r.Close()
+	for _, e := range r.Entries() {
+		segs := strings.Split(strings.ReplaceAll(strings.ToLower(e.Name()), "\\", "/"), "/")
 		for i := range segs {
 			seg := strings.Join(segs[i:], "/")
 			if seg == "ysm.json" || strings.HasPrefix(seg, "models/") {
 				return true
 			}
 		}
-		return false
-	})
+	}
+	return false
 }
 
 // ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名
