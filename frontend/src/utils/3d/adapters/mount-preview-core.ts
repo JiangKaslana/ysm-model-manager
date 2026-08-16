@@ -1,7 +1,7 @@
 // ===== 统一 3D 预览核心（ADR-066 P3：收缴 vrm/litematic 复制脚手架）=====
 // 所有富格式 3D 预览（vrm / litematic / 后续 ysm）共用同一套外壳：
-// overlay + 声明式根菜单(⚙️, PREVIEW_MENU_DEFS) + viewContainer + loadingEl +
-// 适配器底部导航容器(topBar, Phase 2 经 previewMenuItems 收编) +
+// overlay + 声明式根菜单(⚙️, CORE_MENU_ITEMS + 适配器注入项) + viewContainer + loadingEl +
+// 适配器底部导航容器(topBar, 经 previewMenuItems 收编；仅剩 litematic 常驻分层控件例外) +
 // scene/camera/renderer/OrbitControls/灯光 + WASD/拖拽自转 + resize +
 // rAF 循环 + ESC + GPU 资源释放。内容差异由 PreviewAdapter 经 build() 注入，
 // 每帧 update(dt) 驱动动态部分（如 VRM SpringBone）。
@@ -62,7 +62,7 @@ export interface PreviewScene {
   setSpeed?(n: number): void;
   showModelGroup?(i: number): void;
   onBoneSelect?(info: BoneSelectInfo): void;
-  /** 在通用 topBar 之后追加适配器专属控件（litematic 分层 / ysm 侧栏按钮等） */
+  /** 在通用 topBar 之后追加适配器专属控件（仅 litematic 分层控制器——唯一常驻控件例外） */
   extraControls?(topBar: HTMLElement): void;
   /** 在核心侧栏（如有）挂载适配器专属面板内容（ysm 骨骼列表/详情等） */
   extraPanel?(panel: HTMLElement): void;
@@ -291,8 +291,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   body.appendChild(viewContainer);
   overlay.appendChild(body);
 
-  // 适配器专属控件容器（仅 vrm/litematic 遗留 extraControls 单按钮继续使用：
-  // ysm/mmd 的底部导航/弹窗已按 ADR-076 v2 Phase 2 全量收编进 ⚙️ 根菜单）。
+  // 适配器专属控件容器（仅 litematic 遗留 extraControls 常驻分层控制器继续使用：
+  // litematic 分层（axis/layer）为高频常驻切片调节器，语义上非「打开即关」的模态面板，
+  // 故保留顶栏常驻（其余 ysm/mmd/vrm 已按 ADR-076 v2 Phase 2 全量收编进 ⚙️ 根菜单）。
   const topBar = document.createElement("div");
   topBar.className = "ysm-3d-adapter-nav";
   topBar.style.cssText =
@@ -530,6 +531,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let panelEl: HTMLElement | null = null;
   /** 首次 build 前 scene 子节点快照（shared 模式）：switchTo 时移除旧内容层添加的增量，防场景累积（审核 #1） */
   let sceneBaseline: Set<THREE.Object3D> | null = null;
+  /** cooperate 模式下已追加的内容句柄列表（fullCleanup 时逐一 dispose） */
+  const allBuilt: PreviewScene[] = [];
 
   try {
     // 代际守卫：await 期间用户已点其他文件 / 被 invalidate，丢弃本次挂载
@@ -587,6 +590,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       }
     }
     perFrame = built.update ?? null;
+    // 记录初始模型到追加列表（cooperate 模式下 fullCleanup 需逐一 dispose）
+    if (built) allBuilt.push(built);
 
     // 适配器专属控件挂入通用 topBar 之后
     built.extraControls?.(topBar);
@@ -653,9 +658,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       window.removeEventListener("resize", onResize);
       panelCleanup?.();
       // 内容层先释放自身资源，核心再回收外壳
-      try {
-        built?.dispose();
-      } catch (_) {}
+      // cooperate 模式下需逐一 dispose 所有已追加模型（adapter 专属 GPU 资源）
+      for (const b of allBuilt) {
+        try { b.dispose(); } catch (_) {}
+      }
+      allBuilt.length = 0;
+      built = null;
       // 程序化天空（ADR-073 L1）：还原 tone mapping 并释放 PMREM/几何/材质
       try {
         skyCap?.dispose();
@@ -761,6 +769,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
           return;
         }
         built = next;
+        allBuilt.push(next); // cooperate 模式：记录追加模型，fullCleanup 时逐一 dispose
         currentPath = newPath; // 同步「当前」项（ADR-066 §5.6 3D 内切换）：根菜单切换面板高亮随之移动
         // 5) 同步相机状态到新内容层取景 + 重挂适配器控件/侧栏
         if (renderer) {
