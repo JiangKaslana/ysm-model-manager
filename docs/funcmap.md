@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 102 | 369 |
-| frontend/views | 89 | 247 |
+| 前端·工具 | 104 | 384 |
+| frontend/views | 90 | 250 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **366** | **1530** |
+| **合计** | **369** | **1548** |
 
 ## Go·头像
 
@@ -1131,11 +1131,11 @@
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:20` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:41` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:48` | 挂载预览底部根菜单，返回句柄 |
-| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:59` | VRM meta 归一化信息（meta 卡展示用） |
-| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:70` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:119` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:241` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:257` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼。 |
+| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:67` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:86` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:145` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:267` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:290` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:20` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:30` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:36` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
@@ -1280,6 +1280,15 @@
 | `getSemanticBone()` | `frontend/src/utils/3d/semantic-bones:186` | 取语义骨骼（消费方唯一入口；缺失返回 null，调用方自行降级）。 |
 | `vrmSemanticBoneMap()` | `frontend/src/utils/3d/semantic-bones:200` | VRM 特化：humanoid.humanBones 的键天然就是语义名（52 个标准骨骼）， 零候选匹配直接产映射——与 buildVrmBoneNodes 同一数据源。 |
 | `mmdSemanticBoneMap()` | `frontend/src/utils/3d/semantic-bones:216` | MMD 特化：BoneTree（mmdBonesToBoneNodes → buildBoneTree 产物）+ 内置候选表 → 语义映射。 |
+| `SemanticMorphId()` | `frontend/src/utils/3d/semantic-morphs:14` | 语义 morph id（对齐 MMD 标准表情 + VRM 标准 expression） |
+| `SEMANTIC_MORPH_IDS()` | `frontend/src/utils/3d/semantic-morphs:24` | 全部语义 morph id（稳定顺序） |
+| `SemanticMorphEntry()` | `frontend/src/utils/3d/semantic-morphs:30` | 语义 morph 解析结果 |
+| `SemanticMorphMap()` | `frontend/src/utils/3d/semantic-morphs:36` | 语义 morph 映射表（Partial：匹配不到的语义缺省） |
+| `MMD_SEMANTIC_MORPH_CANDIDATES()` | `frontend/src/utils/3d/semantic-morphs:43` | MMD 语义 morph 候选名表 |
+| `matchSemanticMorph()` | `frontend/src/utils/3d/semantic-morphs:60` | 在 morph 名列表中按候选名匹配首个语义 morph（候选顺序 = 优先级）。 |
+| `resolveSemanticMorphs()` | `frontend/src/utils/3d/semantic-morphs:70` | 从 morph 名列表 + 候选表解析语义 morph 映射（MMD 等无标准语义的格式走此路）。 |
+| `mmdSemanticMorphMap()` | `frontend/src/utils/3d/semantic-morphs:87` | MMD 特化：pmx.morphs[].name 列表 → 语义 morph 映射。 |
+| `getSemanticMorph()` | `frontend/src/utils/3d/semantic-morphs:95` | 取语义 morph 条目（消费方唯一入口；缺失返回 null）。 |
 | `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
 | `resetRendererState()` | `frontend/src/utils/3d/session-state:18` | 复位所有模块级渲染器引用为 null。 |
 | `detachRendererCanvas()` | `frontend/src/utils/3d/session-state:28` | 从 DOM 中移除 renderer 的 canvas 元素（安全，已 detached 时不操作）。 |
@@ -1290,6 +1299,12 @@
 | `BoneData()` | `frontend/src/utils/3d/spec-builder:84` | BoneData — Go threejs/spec.go BoneData |
 | `MeshData()` | `frontend/src/utils/3d/spec-builder:94` | MeshData — Go threejs/spec.go MeshData |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:113` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `VrmMaterialListItem()` | `frontend/src/utils/3d/vrm-materials:11` | 材质列表项（listVrmMaterials） |
+| `VrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:17` | 材质详情（getVrmMaterialDetail） |
+| `listVrmMaterials()` | `frontend/src/utils/3d/vrm-materials:28` | 材质列表：vrm.scene 遍历所有 Mesh.material（含数组材质） |
+| `setVrmMaterialVisible()` | `frontend/src/utils/3d/vrm-materials:38` | 材质显隐：Material.visible（MToon/标准/基础均支持） |
+| `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
+| `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:22` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
 | `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:41` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
@@ -1568,7 +1583,7 @@
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
 | `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:18` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
-| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:80` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
+| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:91` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
 | `nextDetailGen()` | `frontend/src/views/app-preview/detail:22` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
 | `getDetailGen()` | `frontend/src/views/app-preview/detail:27` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
 | `showModelDetail()` | `frontend/src/views/app-preview/detail:32` | 显示模型详情（YSM 模型） |
@@ -1642,6 +1657,9 @@
 | `switchVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:27` | 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
 | `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:32` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:37` | 任意新预览派发时调用，作废在途 VRM 加载 |
+| `VrmMaterialControlBridge()` | `frontend/src/views/app-preview/vrm-controls:15` | 材质控制桥：复用 vrm-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在本文件 |
+| `buildVrmMaterialControls()` | `frontend/src/views/app-preview/vrm-controls:27` | 在 container 渲染 VRM 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
+| `makeVrmPanelRenderer()` | `frontend/src/views/app-preview/vrm-controls:94` | VRM 菜单面板渲染器（声明式菜单 item.render 回调） |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
 | `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:13` | — |
@@ -1737,10 +1755,10 @@
 | `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:233` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt:4` | — |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
-| `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:66` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
-| `initYsmParserInWorkerMt()` | `frontend/src/wasm/ysm-worker-loader:79` | ADR-079 M3/M4：pthread 多线程版初始化（需 crossOriginIsolated=true——SharedArrayBuffer 前提，见 backend/c |
-| `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:235` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |
-| `decodeYsmInWorkerMemfs()` | `frontend/src/wasm/ysm-worker-loader:274` | callMain + MEMFS 解码 .ysm（回退路径，兼容旧 WASM 编译 / V3 文本头部等格式）。 |
+| `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:68` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
+| `initYsmParserInWorkerMt()` | `frontend/src/wasm/ysm-worker-loader:81` | ADR-079 M3/M4：pthread 多线程版初始化（需 crossOriginIsolated=true——SharedArrayBuffer 前提，见 backend/c |
+| `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:237` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |
+| `decodeYsmInWorkerMemfs()` | `frontend/src/wasm/ysm-worker-loader:276` | callMain + MEMFS 解码 .ysm（回退路径，兼容旧 WASM 编译 / V3 文本头部等格式）。 |
 
 ## frontend/workers
 

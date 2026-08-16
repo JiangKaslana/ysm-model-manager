@@ -42,7 +42,7 @@ ADR-067（zip 化资源识别）落地后，材质包（resourcepack）识别仍
 
 ### S3 — resourcepack/shaderpack `extensions` 补 `.7z`（双副本同步）
 
-`resource_types.json` 与 `go/types/resource_types_embed.go`（`resource_types_consistency_test.go` 强约束逐字段一致）同步：resourcepack/shaderpack 的 `extensions` 追加 `.7z`，使 `.7z` 材质包能过 `hasExt` 准入进入 detector。ys m 兜底不变量保持：坏 .7z → 前两类打开失败 → ysm 兜底（原测试 `TestDetectResourceType_ZipEntry_SevenZipFallbackToYsm` 继续通过）。
+`resource_types.json` 与 `go/types/resource_types_embed.go`（`resource_types_consistency_test.go` 强约束逐字段一致）同步：resourcepack/shaderpack 的 `extensions` 追加 `.7z`，使 `.7z` 材质包能过 `hasExt` 准入进入 detector。**兜底语义同步收严（ADR-082 续）**：坏 .7z 不再靠 ysm 扩展名直判接住——`DetectResourceType` 容器指纹打开失败即返回空、`DetectZipType` 无特征返回空、`ImportFromBase64` 空 rtype 明确报错 `FILE_TYPE_UNSUPPORTED`，「识别不出就是识别不出」，杜绝坏文件假装 YSM 模型。
 
 ### S4 — 前端指纹注册表化（frontend）
 
