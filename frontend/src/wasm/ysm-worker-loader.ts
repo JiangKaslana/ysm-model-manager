@@ -5,12 +5,14 @@
 //  2. 胶水代码 worker 安全：window 仅出现于 `globalThis.window?.prompt`（可选链，
 //     Worker 下 globalThis.window 为 undefined 直接跳过）；_scriptName 走
 //     `globalThis.document?.currentScript?.src`（同样可选链安全）。
-//  3. 数据文件用静态 import（随 Worker chunk 一起打包，避免 Worker 内动态 chunk 加载）。
+//  3. 数据文件用静态 import（随 Worker chunk 一起打包，Worker 内不支持动态 import()——
+//     vite 打包 Worker 为 IIFE，无法 code-splitting）。mt 数据虽捆进 chunk，但 Worker chunk
+//     本身是懒加载的（首次数值搜索才下载），且 SW 缓存后二次访问命中缓存。
 // 仅被 src/workers/stats.worker.ts 引用（Worker 内），主线程路径不受影响。
 // 解码链与 ysm-parser.ts 保持同口径：内存直解 → 失败时由调用方剥文本头部重试 → callMain。
 import { _getWasmBinary } from "./ysm-wasm-data.js";
 import { _getGlueCode } from "./ysm-glue-data.js";
-// ADR-079 M3：pthread 多线程版数据文件（crossOriginIsolated 时启用）
+// ADR-079 M3：pthread 多线程版（静态 import 随 Worker chunk 打包，懒加载不额外增加下载次数）
 import { _getWasmBinaryMt } from "./ysm-wasm-data-mt.js";
 import { _getGlueCodeMt } from "./ysm-glue-data-mt.js";
 import type { YsmDecodedFile } from "./ysm-parser.ts";

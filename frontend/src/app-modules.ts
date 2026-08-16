@@ -6,6 +6,7 @@ import { Window } from "@wailsio/runtime";
 import { getApp } from "./backend/app.ts";
 import { registerErrorDiary } from "./core/error-diary.ts";
 import { registerCoiServiceWorker } from "./backend/coi-sw.ts";
+import { prefetchStatsWorker } from "./backend/browser-adapter.ts";
 import { initI18n } from "./core/i18n/locale.ts";
 import { friendlyError } from "./utils/dom/errors.ts";
 import { checkUpdateSilent } from "./features/version-updater.ts";
@@ -131,6 +132,8 @@ export async function initTheme() {
   }
   applyUIPrefs();
   checkUpdateSilent().catch((e) => console.warn("[updater] 静默检查失败:", e));
+  // 启动 2s 后后台预下载 stats.worker chunk（网页版）：让首次数值搜索不用等下载
+  setTimeout(() => prefetchStatsWorker(), 2000);
 })();
 
 window

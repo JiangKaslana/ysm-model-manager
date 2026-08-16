@@ -107,6 +107,19 @@ function getWorkerPool(): Worker[] | null {
   }
 }
 
+/** 预加载 stats.worker chunk（页面加载后后台静默下载，让首次搜索秒开）。
+ *  创建一个 Worker 后立即释放——触发浏览器下载并缓存 chunk，用户无感知。
+ *  后续 getWorkerPool() 正常创建新 Worker（chunk 已在缓存中，几乎瞬间）。 */
+export function prefetchStatsWorker(): void {
+  if (typeof Worker === "undefined") return;
+  try {
+    const w = new Worker(new URL("../workers/stats.worker.ts", import.meta.url), { type: "module" });
+    w.terminate();
+  } catch {
+    // 不支持/被屏蔽 → 静默降级，首次搜索时正常下载
+  }
+}
+
 /**
  * 单 chunk 统计（一个 worker 一个在途任务；requestId 隔离旧消息/并发批）。
  * 超时杀整个池（任一 worker 挂起可能同批传染）→ 整批降级；返回 null = 该 chunk 降级。

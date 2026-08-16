@@ -34,7 +34,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 24 | 183 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 18 | 96 |
+| frontend/backend | 18 | 98 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
@@ -44,7 +44,7 @@
 | frontend/views | 90 | 250 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **369** | **1548** |
+| **合计** | **369** | **1550** |
 
 ## Go·头像
 
@@ -686,9 +686,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `normalizeTheme()` | `frontend/src/app-modules:68` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
-| `applyTheme()` | `frontend/src/app-modules:72` | — |
-| `initTheme()` | `frontend/src/app-modules:97` | — |
+| `normalizeTheme()` | `frontend/src/app-modules:69` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
+| `applyTheme()` | `frontend/src/app-modules:73` | — |
+| `initTheme()` | `frontend/src/app-modules:98` | — |
 | `bus()` | `frontend/src/bus:204` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
@@ -720,7 +720,8 @@
 | `terminateStatsWorker()` | `frontend/src/backend/browser-adapter` | — |
 | `onStatsProgress()` | `frontend/src/backend/browser-adapter` | — |
 | `getStatsPoolSize()` | `frontend/src/backend/browser-adapter` | — |
-| `browserAdapter()` | `frontend/src/backend/browser-adapter:67` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `prefetchStatsWorker()` | `frontend/src/backend/browser-adapter` | — |
+| `browserAdapter()` | `frontend/src/backend/browser-adapter:68` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `isCrossOriginIsolated()` | `frontend/src/backend/coi-sw:14` | 当前是否已跨源隔离（SW 补头后 crossOriginIsolated=true；供多线程 WASM 分支） |
 | `registerCoiServiceWorker()` | `frontend/src/backend/coi-sw:19` | 注册 COI SW（网页版）：首次注册后 reload 一次让浏览器重新导航经 SW（解锁跨源隔离） |
 | `ZipEntryMeta()` | `frontend/src/backend/extract:33` | ZIP 中央目录条目元数据（pre-parse 产物） |
@@ -791,7 +792,8 @@
 | `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:58` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
 | `terminateStatsWorker()` | `frontend/src/backend/web-stats:65` | 终止并回收整个 Worker 池（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
 | `getStatsPoolSize()` | `frontend/src/backend/web-stats:91` | 当前池大小（Worker 池并行线程数，供 UI 角标显示 🧵×N） |
-| `batchStatsWebModels()` | `frontend/src/backend/web-stats:160` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 池不可用 / 任一片失败 / 超时 → 返回 null（整体降级）。 |
+| `prefetchStatsWorker()` | `frontend/src/backend/web-stats:113` | 预加载 stats.worker chunk（页面加载后后台静默下载，让首次搜索秒开）。 |
+| `batchStatsWebModels()` | `frontend/src/backend/web-stats:173` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 池不可用 / 任一片失败 / 超时 → 返回 null（整体降级）。 |
 | `__resetWebLogStateForTest()` | `frontend/src/backend/web-store:120` | 测试钩子：重置日志环状态与 hydrated 标记（防模块级状态测试间污染） |
 | `webStoreBindings()` | `frontend/src/backend/web-store:193` | — |
 | `YsmHeaderShape()` | `frontend/src/backend/ysm-header:36` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |

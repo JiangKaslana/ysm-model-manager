@@ -704,6 +704,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-083：语义层双抽象：跨格式语义骨骼+语义morph+感知层程序化生命力",
+        "link": "/adr/ADR-083-semantic-layer"
+      },
+      {
         "text": "ADR-082：材质包识别长治久安：zipEntries 任意层级指纹（any 模式）+ detector 容器统一",
         "link": "/adr/ADR-082-zipentries-any-fingerprint"
       },

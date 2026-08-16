@@ -25,6 +25,7 @@ export {
   terminateStatsWorker,
   onStatsProgress,
   getStatsPoolSize,
+  prefetchStatsWorker,
 } from "./web-stats.ts";
 // 注册表驱动装配（Top 6）：各职责模块自注册 binding 片段（web-common/web-fs/
 // web-store/web-community），本文件只做 spread 装配 + 类型对账 + Proxy 门控。
