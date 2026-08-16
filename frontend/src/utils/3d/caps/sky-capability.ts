@@ -183,6 +183,14 @@ export class SkyCapability {
     if (this.params.environment) this.regenerateEnvironment();
   }
 
+  /** 设置云量 0=晴空 1=多云（ADR-073 #4）；regenerate=true 时同步刷新 IBL 环境 */
+  setCloudCoverage(v: number, regenerate = false): void {
+    this.params.cloudCoverage = Math.max(0, Math.min(1, v));
+    this.sky.material.uniforms["cloudCoverage"].value = this.params.cloudCoverage;
+    this.envSky.material.uniforms["cloudCoverage"].value = this.params.cloudCoverage;
+    if (regenerate && this.enabled && this.params.environment) this.regenerateEnvironment();
+  }
+
   /** 由 timeOfDay 推导太阳 elevation/azimuth（单一事实来源，避免与 setSun 双写冲突） */
   private syncSunFromTime(): void {
     const { elevation, azimuth } = this.hourToSun(this.params.timeOfDay);

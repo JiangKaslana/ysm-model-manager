@@ -392,6 +392,36 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         timeVal.textContent = formatHour(h);
       };
     }
+    // 云量滑块（ADR-073 #4）：0=晴空 1=多云，联动天空与 IBL 环境
+    {
+      const cloudLabel = document.createElement("span");
+      cloudLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5);margin-left:12px";
+      cloudLabel.textContent = t("preview.cloudCoverage") + ":";
+      topBar.appendChild(cloudLabel);
+
+      const cloudSlider = document.createElement("input");
+      cloudSlider.type = "range";
+      cloudSlider.min = "0";
+      cloudSlider.max = "1";
+      cloudSlider.step = "0.05";
+      cloudSlider.value = "0";
+      cloudSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+      topBar.appendChild(cloudSlider);
+
+      const cloudVal = document.createElement("span");
+      cloudVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:30px";
+      cloudVal.textContent = "0%";
+      topBar.appendChild(cloudVal);
+
+      cloudSlider.oninput = (): void => {
+        const v = Number(cloudSlider.value);
+        skyCap?.setCloudCoverage(v, false);
+        cloudVal.textContent = `${Math.round(v * 100)}%`;
+      };
+      cloudSlider.onchange = (): void => {
+        skyCap?.setCloudCoverage(Number(cloudSlider.value), true);
+      };
+    }
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;

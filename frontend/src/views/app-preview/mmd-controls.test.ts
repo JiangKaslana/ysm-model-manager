@@ -15,11 +15,19 @@ vi.mock("./mmd-siblings.ts", () => ({
 }));
 
 function makeCtx() {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+  // MMD 的 SkinnedMesh 是多材质数组（fillMaterialMenu 按数组访问 mats[i]）
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    Array.from({ length: 28 }, () => new THREE.MeshBasicMaterial()),
+  );
   mesh.morphTargetDictionary = { "微笑": 0, "怒": 1, "哀": 2 };
   mesh.morphTargetInfluences = [0, 0, 0];
   const mmd = {
-    pmx: { bones: new Array(364), materials: new Array(28), morphs: new Array(55) },
+    pmx: {
+      bones: new Array(364),
+      materials: Array.from({ length: 28 }, (_, i) => ({ name: `mat${i}` })),
+      morphs: new Array(55),
+    },
   };
   const overlay = document.createElement("div");
   const cameraControls = {
@@ -60,7 +68,7 @@ describe("buildMmdBottomNav", () => {
     const { ctx, overlay } = makeCtx();
     buildMmdBottomNav(overlay, ctx as never);
     expect(overlay.querySelector(".ysm-3d-nav")).not.toBeNull();
-    expect(navBtns(overlay).length).toBe(2);
+    expect(navBtns(overlay).length).toBe(3);
     expect(popup(overlay).style.display).toBe("none");
     // slide-menu 外壳已挂载（卡片 + 标题栏）
     expect(overlay.querySelector(".menu-wrapper.slide-menu")).not.toBeNull();
@@ -160,5 +168,27 @@ describe("buildMmdBottomNav", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(overlay.querySelector('[data-testid^="mmd-load-"]')).toBeNull();
+  });
+
+  it("点击材质按钮 → 材质面板渲染（显隐 + 透明度滑条），行数 = pmx.materials 长度", () => {
+    const { ctx, overlay } = makeCtx();
+    buildMmdBottomNav(overlay, ctx as never);
+    navBtns(overlay)[2].click();
+    const p = popup(overlay);
+    expect(p.style.display).toBe("flex");
+    expect(p.querySelector(".mmd-mat-row")).not.toBeNull();
+    expect(overlay.querySelectorAll(".mmd-mat-row").length).toBe(28); // = pmx.materials.length
+    expect(overlay.querySelector(".mmd-mat-op")).not.toBeNull(); // 透明度滑条
+  });
+
+  it("点击材质显隐按钮 → Material.visible 切换", () => {
+    const { ctx, overlay } = makeCtx();
+    buildMmdBottomNav(overlay, ctx as never);
+    navBtns(overlay)[2].click();
+    const eye = overlay.querySelector(".mmd-mat-eye") as HTMLElement;
+    const mat = (ctx.mesh.material as THREE.Material[])[0]; // 多材质数组，取第 0 个
+    const before = mat.visible;
+    eye.click();
+    expect(mat.visible).toBe(!before);
   });
 });
