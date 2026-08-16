@@ -31,6 +31,15 @@ import { litematicVoxelView, nbtVoxelView, schematicVoxelView, type VoxelData } 
 // 资源包/光影包详情 meta 读取（TS 平移 go/packs/mcmeta.go 的解析层；binding 装配见下方
 // webFsBindings 的 ReadPackMeta/ReadShaderpackLang 条目——读 IDB → 解 zip → 本文件纯解析）
 import { findZipEntry, parsePackMetaJson, parseShaderpackLang, packPngToThumbnail } from "./pack-meta.ts";
+// YSM 头部/摘要 binding web 实现（TS 平移 go/ysm/header.go + summary.go；纯解析在
+// ysm-header.ts，本文件只做 IDB 读取装配。消费方：import-queue-data.ts:278 作者/tips
+// 预填、rename.ts:92 重命名 tips、detail.ts:58-62 详情 stats/license、loader.ts:140 作者兜底）
+import {
+  parseYsmHeaderFromBytes,
+  extractYsmSummaryFromBytes,
+  emptyYsmHeader,
+  emptyYsmSummary,
+} from "./ysm-header.ts";
 
 // --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
 const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
@@ -943,6 +952,38 @@ export const webFsBindings = {
     const bytes = base64ToBytes(b64);
     if (!bytes) return "";
     return detectZipType(bytes);
+  },
+  // YSM 头部/摘要 web 实现（原 fail-fast → import-queue 作者预填/重命名 tips 静默降级、
+  // 详情缺 stats/license）。失败不 reject：头部返回全空 YSMHeader、摘要返回最小空
+  // YsmSummary（对齐 Go internal/app/app_model.go:41-65 单返回值吞错契约，消费方容错）。
+  // ExtractYSMHeaderFromBase64：base64 → 字节 → parseYsmHeaderFromBytes（YSGP 尽力检测）
+  ExtractYSMHeaderFromBase64: (base64Data: string) => {
+    const bytes = base64ToBytes(base64Data);
+    if (!bytes) return Promise.resolve(emptyYsmHeader());
+    return Promise.resolve(parseYsmHeaderFromBytes(bytes));
+  },
+  // ExtractYSMHeader：readWebFile → base64 → 复用 FromBase64 同一解析
+  ExtractYSMHeader: async (path: string) => {
+    const b64 = await readWebFile(path);
+    if (!b64) return emptyYsmHeader();
+    const bytes = base64ToBytes(b64);
+    if (!bytes) return emptyYsmHeader();
+    return parseYsmHeaderFromBytes(bytes);
+  },
+  // ExtractYsmSummary：readWebFile → 字节 → YSGP 检测 → zip（PK 头）找 ysm.json 解析
+  // → 非 zip 文本头部基本摘要；失败 → 最小空 YsmSummary
+  ExtractYsmSummary: async (path: string) => {
+    const source = path.split(/[/\\]/).pop() || "";
+    const b64 = await readWebFile(path);
+    if (!b64) return emptyYsmSummary(source);
+    const bytes = base64ToBytes(b64);
+    if (!bytes) return emptyYsmSummary(source);
+    try {
+      return extractYsmSummaryFromBytes(bytes, source);
+    } catch {
+      // ysm.json 畸形/非对象等 → 最小空摘要（对齐 Go app 层 ExtractYsmSummary 失败分支）
+      return emptyYsmSummary(source);
+    }
   },
   // 资源包/光影包详情恢复（原 fail-fast 报「binding 未实现」红错，app-preview/detail.ts:138/201
   // 直调）。TS 平移 go/packs/mcmeta.go ReadPackMeta/ReadShaderpackLang，只读 meta；
