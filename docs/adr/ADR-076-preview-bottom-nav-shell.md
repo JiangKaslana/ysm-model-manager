@@ -1,9 +1,9 @@
-# ADR-076：3D 预览通用导航与弹窗脚手架收敛契约（v2 — 声明式根菜单）
+# ADR-076：3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编）
 
-- **状态**：🔄 部分采纳（**Phase 1 已落地**：顶栏整块砍掉，收敛为 overlay 内 ⚙️ 声明式根菜单；**Phase 2+ 待立项**：适配器专属控件经 `previewMenuItems` 契约收编，删除 `buildYsm/MmdBottomNav` + 重复 `mkNavBtn`）
+- **状态**：🔄 部分采纳（**Phase 1 已落地**：顶栏砍掉，收敛为 overlay 内 ⚙️ 声明式根菜单；**Phase 2 已落地**：ysm/mmd 适配器专属控件经 `PreviewBuildCtx.menu.setAdapterItems` 收编进根菜单，`buildYsm/MmdBottomNav` + 重复 `mkNavBtn`/`togglePopup`/`closePopup` 已删除；**Phase 3 待立项**：vrm/litematic 的 `extraControls` 单按钮收编）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
-- **相关**：`frontend/src/utils/3d/adapters/mount-preview-core.ts`、`frontend/src/utils/3d/adapters/preview-menu-defs.ts`、`frontend/src/utils/3d/adapters/preview-menu.ts`、`frontend/src/views/app-preview/ysm-controls.ts`、`frontend/src/views/app-preview/mmd-controls.ts`、`ADR-075`、`ADR-073`、`ADR-072`、`ADR-066`、`ADR-021`
+- **相关**：`frontend/src/utils/3d/adapters/mount-preview-core.ts`、`frontend/src/utils/3d/adapters/preview-menu-defs.ts`、`frontend/src/utils/3d/adapters/preview-menu.ts`、`frontend/src/views/app-preview/ysm-controls.ts`、`frontend/src/views/app-preview/mmd-controls.ts`、`ADR-075`、`ADR-073`、`ADR-072`、`ADR-077`、`ADR-066`、`ADR-021`
 
 > **v2 重定向（2026-08-16 用户二次拍板）**：原 v1 方案为「底部悬浮导航 + 分类弹窗外壳」。
 > 用户明确：**「顶层都可以不要了，关闭相当于退出 3D，可以新增设置根菜单放那里，这样全局都走声明式菜单，e2e 不容易载跟头」**。
@@ -71,16 +71,22 @@ ADR-075 已落地的「🌍 环境菜单」（地面/时间/云量/IBL）作为�
 `buildCameraControls`（旋转/速度/重置）作为根菜单 `camera` 项（`sharedOnly`，self 模式由适配器底部导航提供，避免双份），
 复用 `camBridge`，消灭 core 顶栏 + ysm + mmd 三份重复。`camBridge` 在 `mount3D` 内定义并保留给根菜单 camera 项复用。
 
-### D4 · 落地范围（v2）
+### D4 · 落地范围（v3）
 
 - **Phase 1（已落地，2026-08-16）**：
   - 顶栏整块移除（closeBtn/switchSel/spacer/环境菜单块/相机顶栏调用 + `overlay.appendChild(topBar)`）；
   - 新增 `preview-menu-defs.ts`（PREVIEW_MENU_DEFS）+ `preview-menu.ts`（`mountPreviewRootMenu` + `fillEnvironment` + `fillSwitch`）；
-  - `mount3D` 在 `overlay` 内挂载根菜单（⚙️ 按钮 `preview-menu-btn` + 弹出 `ysm-preview-menu`），`close` 复刻原 `closeBtn` 分支（`cleanupFn?fullCleanup:closeOverlay`），`fullCleanup` 内 `unsubMenu?.()` 解绑 document 监听；
+  - `mount3D` 在 `overlay` 内挂载根菜单（⚙️ 按钮 `preview-menu-btn` + 弹出 `ysm-preview-menu`），`close` 复刻原 `closeBtn` 分支（`cleanupFn?fullCleanup:closeOverlay`），`fullCleanup` 内解绑 document 监听；
   - 切换后 `currentPath = newPath` 同步根菜单高亮（ADR-066 §5.6）；
   - 适配器底部导航容器 `topBar` 重建为**底部容器**（承接 `extraControls(topBar)`），Phase 2 收编；
   - 三语 locale 补齐 7 键（settings/back/switchModel/noOtherModel/timeOfDay/cloudCoverage/environmentLight）。
-- **Phase 2+（待立项）**：适配器专属控件（model/material/play/bones/layers/screenshot）经 `PreviewAdapter.previewMenuItems` 契约注入根菜单，删除 `buildYsm/MmdBottomNav` + 重复 `mkNavBtn`，重写 `mmd-controls.test.ts`/`ysm-3d.test.ts`/`mmd-adapter.test.ts` 断言为表遍历，新增 `preview-menu.test.ts`。
+- **Phase 2（已落地，2026-08-16）**：
+  - **契约修正**：落地为 `PreviewBuildCtx.menu`（`PreviewMenuHandle`：`setAdapterItems` 替换适配器项 / `openPanel` 打开面板 / `dispose` 解绑），而非预想的静态 `PreviewAdapter.previewMenuItems`——因为适配器菜单项（model/material/play/bones）依赖 build 后内容（mmd/mesh/model/handle），只能在 build 内经注册通道注入。`PreviewMenuItemDef` 扩展 `render?`（panel 填充）/ `run?`（action 执行）；
+  - **ysM 收编**：`buildYsmBottomNav`/`mkNavBtn`/`popupSection`/`popupRow` 删除，`ysm-controls.ts` 瘦身为面板填充模块（`fillYsmModelPanel`/`fillYsmShotPanel`/`attachYsmBoneSelect`）；ysM 注册 model/截图/骨骼 三项；顺带修复两处现存缺陷（navBuilder 死参数——ysM 底部导航从未挂载；骨骼按钮找不存在的 `#ysm-3d-panel`——点击无效）；
+  - **mmd 收编**：`buildMmdBottomNav`/`mkNavBtn`/slide-menu 弹窗删除，`mmd-controls.ts` 瘦身为面板填充模块（`fillMmdModelPanel`/`fillMmdPlayPanel` + 保留 `buildMaterialControls`）；mmd 注册 model/材质/播放 三项 + ADR-077 骨骼项（并行落地，仲裁收编为 bones 菜单项）；切换归 core switch 项、相机归 core camera 项，消灭双入口；
+  - **测试**：新增 `preview-menu.test.ts`（表遍历 + 句柄行为，12 例）；重写 `ysm-3d.test.ts`/`mmd-adapter.test.ts`/`mmd-controls.test.ts` 为菜单项断言（30 例全绿）；
+  - 验证：`tsc --noEmit` 全仓零错、`vite build` 通过（exit 0）、受控 vitest 30/30 通过。
+- **Phase 3（待立项）**：vrm/litematic 的 `extraControls(topBar)` 单按钮（骨骼/分层/切换）收编为声明式菜单项——非「各写一套底部导航」重复（单按钮，无弹窗脚手架），故 Phase 2 未动，后续轮次统一。
 
 ---
 
@@ -93,15 +99,14 @@ ADR-075 已落地的「🌍 环境菜单」（地面/时间/云量/IBL）作为�
 - 顶栏消失，预览全屏更干净。
 
 **负面 / 风险**：
-- 🟡 UI 外壳契约变更（根菜单取代顶栏），Phase 2 迁移适配器专属控件 + 对应测试断言；
-- 🟡 弹窗容器 id（`ysm-3d-panel`）被 `fill3DPanel` 内部选择器依赖，Phase 2 收编时须保留该 id 兼容，防骨骼面板断链；
-- 🟡 `mmd-controls.ts` 已用 `createSlideMenu` + 两级层级（视图集），`ysm-controls.ts` 仍是内联 popup——Phase 2 以根菜单为统一外壳，ysm 需对齐迁移；
-- 🟢 legacy e2e 选择器（`ysm-close-3d`/`env-menu-btn`/`mmd-switch`）已通过 `legacyTestId` 保留，未断链。
+- 🟡 UI 外壳契约变更（根菜单取代顶栏 + 适配器底部导航），e2e 断言已随测试重写迁移到 `data-testid="preview-<id>"`；
+- 🟡 `fill3DPanel` 内部选择器依赖旧弹窗 id——Phase 2 后其渲染容器为根菜单面板（`.ysm-preview-menu`），骨骼拾取滚动高亮选择器已同步放宽；
+- 🟢 legacy e2e 选择器（`ysm-close-3d`/`env-menu-btn`/`mmd-switch`）+ 适配器项 legacyTestId（`ysm-model-entry`/`mmd-model-entry` 等）均保留，未断链；
+- 🟢 vrm/litematic `extraControls(topBar)` 契约保留（Phase 3 收编），topBar 底部容器保留，无回归。
 
-**已知遗留（Phase 1 边界）**：
-- `ysm-controls.ts` 的 `formatBoneInfo`/`popupSection`/`popupRow`/`makeShotGuard` 是 YSM 专属内容辅助，非脚手架，Phase 2 收编时保留在适配器侧或转 `previewMenuItems` 填充函数；
-- 截图（`saveScreenshot`）属 YSM 专属，不进 core 通用项（Phase 2 独立立项）；
-- 适配器底部导航容器 `topBar` 在 Phase 1 暂留（经 `extraControls(topBar)`），Phase 2 经 `previewMenuItems` 收编后移除。
+**已知遗留（Phase 2 边界）**：
+- vrm/litematic 的 `extraControls` 单按钮（骨骼/分层/切换）仍走 topBar，Phase 3 收编为菜单项后删除容器；
+- `.ysm-3d-navbtn` 等毛玻璃样式类（fab.ts）保留（CSS 残留，无 JS 依赖），供后续复用。
 
 ---
 
@@ -110,11 +115,11 @@ ADR-075 已落地的「🌍 环境菜单」（地面/时间/云量/IBL）作为�
 - **来源**：用户对话（2026-08-16）：
   - v1 立项：「继续审核看看，感觉共享架构还得优化，看看怎么设计通用弹窗按钮，比如环境是共用设置的？」（方案 A：先出 ADR，编码待立项）；
   - v2 重定向：「通用弹窗按钮重复仍在，环境菜单已被 ADR-075 覆盖，出 ADR-076 聚焦通用弹窗脚手架收敛，开始折腾大统一吧」；
-  - v2 拍板：「顶层都可以不要了，关闭相当于退出 3D，可以新增设置根菜单放那里，这样全局都走声明式菜单，e2e 不容易载跟头」；范围：「先 Phase1 保底」。
-- **审计证据（file:line）**：
-  - `frontend/src/views/app-preview/ysm-controls.ts:62/147/156/192` — `mkNavBtn`/`closePopup`/`togglePopup`/`buildCameraControls`（脚手架）；
-  - `frontend/src/views/app-preview/mmd-controls.ts:68/82/221/255` — 同构脚手架（`createSlideMenu` 版）；
-  - `frontend/src/utils/3d/adapters/mount-preview-core.ts` — core 顶栏的 `buildCameraControls`（与两控件视图菜单重复）；
-  - `frontend/src/utils/3d/adapters/mount-preview-core.ts:293-403` — ADR-075 已落地的「🌍 环境菜单」（slide-menu，本 ADR D2 的复用对象）。
-- **关联 ADR**：ADR-075（环境菜单已收敛，本 ADR 的环境项复用其落地）、ADR-073（能力层 caps 共享）、ADR-072（3D 归置）、ADR-066（统一预览契约 + 单一渲染核心）、ADR-021（声明式菜单范式 `menu-defs.ts`，本 ADR 根菜单镜像其表驱动 + 测试遍历机制）。
-- **决策**：v1 通用底部导航 + 弹窗脚手架收敛契约已定；**v2 用户重定向为声明式根菜单**，顶栏砍掉。Phase 1 已落地，Phase 2+ 待立项。
+  - v2 拍板：「顶层都可以不要了，关闭相当于退出 3D，可以新增设置根菜单放那里，这样全局都走声明式菜单，e2e 不容易载跟头」；范围：「先 Phase1 保底」；
+  - Phase 2 批准：「折腾吧」（2026-08-16，适配器专属控件收编 + 删 buildYsm/MmdBottomNav + 重写测试）。
+- **审计证据（file:line）**（Phase 1 基线，Phase 2 已删除/迁移，留档）：
+  - `frontend/src/views/app-preview/ysm-controls.ts:62/147/156/192` — `mkNavBtn`/`closePopup`/`togglePopup`/`buildCameraControls`（脚手架，Phase 2 已删）；
+  - `frontend/src/views/app-preview/mmd-controls.ts:68/82/221/255` — 同构脚手架（`createSlideMenu` 版，Phase 2 已删）；
+  - `frontend/src/utils/3d/adapters/mount-preview-core.ts` — core 顶栏的 `buildCameraControls`（已迁根菜单 camera 项）。
+- **关联 ADR**：ADR-075（环境菜单已收敛，本 ADR 的环境项复用其落地）、ADR-073（能力层 caps 共享）、ADR-072（3D 归置）、ADR-077（骨骼面板统一，Phase 2 并行落地经仲裁收编为 bones 菜单项）、ADR-066（统一预览契约 + 单一渲染核心）、ADR-021（声明式菜单范式 `menu-defs.ts`，本 ADR 根菜单镜像其表驱动 + 测试遍历机制）。
+- **决策**：v1 通用底部导航 + 弹窗脚手架收敛契约已定；v2 用户重定向为声明式根菜单（Phase 1 落地）；v3 Phase 2 将 ysm/mmd 适配器专属控件经 `PreviewBuildCtx.menu.setAdapterItems` 收编进根菜单，删除两份底部导航脚手架。vrm/litematic `extraControls` 单按钮保留至 Phase 3。

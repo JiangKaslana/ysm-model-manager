@@ -39,7 +39,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 
 ## 核心职责
 
-- **外壳**：overlay + ⚙️ 声明式根菜单(`PREVIEW_MENU_DEFS`) + viewContainer + loadingEl + 适配器底部导航容器(`topBar`，Phase 2 经 `previewMenuItems` 收编)
+- **外壳**：overlay + ⚙️ 声明式根菜单(`PREVIEW_MENU_DEFS`) + viewContainer + loadingEl + 适配器控件容器(`topBar`，仅 vrm/litematic 遗留 `extraControls` 单按钮，Phase 3 收编)
 - **渲染基座（shared 模式）**：创建 `scene` / `camera` / `renderer` / `OrbitControls` / 灯光，驱动 rAF 循环、WASD/拖拽自转、resize、ESC 关闭、GPU 资源释放
 - **适配器注入**：内容层经 `PreviewAdapter.build()` 挂进 `ctx.scene`；每帧 `update(dt)` 驱动动态部分（VRM SpringBone、动画）
 - **3D 内模型切换**：`switchTo(path)` 复用外壳重建内容层（ADR-066 §5.6）
@@ -50,8 +50,8 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - `mount3D(adapter, path, opts?)` — 主入口，`cleanupPreview()` 旧会话后建新
 - `cleanupPreview()` / `invalidatePreview()` / `switchPreview(path)`
 - `buildCameraControls(topBar, bridge)` — 通用相机控件（旋转模式/速度/重置），已收进根菜单 `camera` 项（sharedOnly）
-- `mountPreviewRootMenu(overlay, ctx)` + `PREVIEW_MENU_DEFS`（`preview-menu-defs.ts` / `preview-menu.ts`）— **ADR-076 v2 声明式根菜单**（顶栏砍掉，⚙️ 按钮 + 弹出菜单，项表驱动；关闭/切换/环境/相机；legacyTestId `ysm-close-3d`/`env-menu-btn`/`mmd-switch` 保留兼容 e2e）
-- 契约接口：`PreviewBuildCtx`（外壳句柄）、`PreviewScene`（内容契约：`update`/`dispose`/`resetCamera`/`extraControls`…）、`PreviewAdapter`（`id`/`mode`/`build`/`onClose`）、`PreviewHandle`、`CameraControlBridge`
+- `mountPreviewRootMenu(overlay, ctx)` → `PreviewMenuHandle`（`dispose`/`setAdapterItems`/`openPanel`）+ `PREVIEW_MENU_DEFS`（`preview-menu-defs.ts` / `preview-menu.ts`）— **ADR-076 v3 声明式根菜单**（顶栏砍掉，⚙️ 按钮 + 弹出菜单，项表驱动；core 项 close/switch/environment/camera；**适配器项经 `PreviewBuildCtx.menu.setAdapterItems` 注入**；legacyTestId `ysm-close-3d`/`env-menu-btn`/`mmd-switch` + 适配器项 `ysm-model-entry`/`mmd-model-entry` 等保留兼容 e2e）
+- 契约接口：`PreviewBuildCtx`（外壳句柄 + **`menu: PreviewMenuHandle` 注册通道**）、`PreviewScene`（内容契约：`update`/`dispose`/`resetCamera`/`extraControls`…）、`PreviewAdapter`（`id`/`mode`/`build`/`onClose`）、`PreviewHandle`、`CameraControlBridge`
 
 ## 与其他子系统关系
 

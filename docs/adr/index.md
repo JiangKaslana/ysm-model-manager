@@ -100,7 +100,7 @@ permalink: /adr/
 | ADR-073 | 联邦 3D 渲染能力共享策略（程序化天空为首个落地能力） | ✅ 已采纳 | 2026-08-16 |
 | ADR-074 | 3D 骨骼层级通用工具：统一 YSM/MMD/VRM 的骨骼列表·拾取·显隐 | ✅ 已采纳 | 2026-08-16 |
 | ADR-075 | 3D 预览环境控件收进环境菜单契约 | ✅ 已采纳 | 2026-08-16 |
-| ADR-076 | 3D 预览通用导航与弹窗脚手架收敛契约（v2 — 声明式根菜单） | 🔄 部分采纳（**Phase 1 已落地**：顶栏整块砍掉，收敛为 overlay 内 ⚙️ 声明式根菜单；**Phase 2+ 待立项**：适配器专属控件经 `previewMenuItems` 契约收编，删除 `buildYsm/MmdBottomNav` + 重复 `mkNavBtn`） | 2026-08-16 |
+| ADR-076 | 3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编） | 🔄 部分采纳（**Phase 1 已落地**：顶栏砍掉，收敛为 overlay 内 ⚙️ 声明式根菜单；**Phase 2 已落地**：ysm/mmd 适配器专属控件经 `PreviewBuildCtx.menu.setAdapterItems` 收编进根菜单，`buildYsm/MmdBottomNav` + 重复 `mkNavBtn`/`togglePopup`/`closePopup` 已删除；**Phase 3 待立项**：vrm/litematic 的 `extraControls` 单按钮收编） | 2026-08-16 |
 | ADR-078 | 底部导航通用外壳收敛（D1+D3 落地） | ✅ 已采纳 | 2026-08-16 |
 
 ## 使用规则（硬约束）

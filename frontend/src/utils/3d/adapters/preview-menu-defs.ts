@@ -25,6 +25,10 @@ export interface PreviewMenuItemDef {
   needsSiblings?: boolean;
   /** 面板型保留 legacy data-testid（兼容既有 e2e 选择器，如 ysm-close-3d / env-menu-btn / mmd-switch） */
   legacyTestId?: string;
+  /** panel 型：子面板填充（适配器注入的专属项必需；core 固定项走 fillers 映射） */
+  render?: (list: HTMLElement, closePopup: () => void) => void;
+  /** action 型：点击执行（适配器注入的专属项必需；core 固定项走 runners 映射） */
+  run?: () => void;
 }
 
 /** 核心根菜单项（适配器专属项在 Phase 2 经契约注入） */

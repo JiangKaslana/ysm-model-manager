@@ -26,9 +26,6 @@ import {
 import { mmdBonesToBoneNodes } from "../mmd-bones.ts"; // ADR-077: pmx.bones 索引结构 → BoneNode[]
 import { buildBoneTree } from "../bone-tools.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
-import { mmdBonesToBoneNodes } from "../mmd-bones.ts";
-import { buildBoneTree } from "../bone-tools.ts";
-import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-077: 通用骨骼面板
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {

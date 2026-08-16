@@ -1,27 +1,30 @@
-// ===== mmd-controls 底部根菜单测试 =====
-// 覆盖：导航挂载（模型/视图/材质按钮 + 弹窗初始隐藏）、模型根菜单（信息卡 + 表情/切换模型入口，
-// 表情行不在根级）、下钻表情子集 + 返回根级、表情行点击切换 morphTargetInfluences（0↔1 + refresh 高亮）、
-// 下钻切换模型子集 + 点击切换、视图菜单（相机控件）、跨菜单切换。ui/ 库组件真实执行。
+// ===== mmd-controls 菜单面板测试（ADR-076 v2 Phase 2：底部导航收编为根菜单面板填充）=====
+// 覆盖：fillMmdModelPanel（信息卡 + 表情列表 + morph 权重切换）、buildMaterialControls
+// （材质显隐 + 透明度）。切换模型/相机视图归 core 根菜单（switch/camera 项），此处不再覆盖。
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
-import { buildMmdBottomNav } from "./mmd-controls.ts";
-
-const { resolveMmdSiblingsMock } = vi.hoisted(() => ({
-  resolveMmdSiblingsMock: vi.fn(),
-}));
-// ADR-072 根治：resolveMmdSiblings 归位 mmd-siblings.ts（视图壳数据准备），mock 路径同目录
-vi.mock("./mmd-siblings.ts", () => ({
-  resolveMmdSiblings: resolveMmdSiblingsMock,
-}));
+import {
+  fillMmdModelPanel,
+  buildMaterialControls,
+  type MmdBottomNavCtx,
+  type MaterialControlBridge,
+} from "./mmd-controls.ts";
+import {
+  listMmdMaterials,
+  getMmdMaterialDetail,
+  setMmdMaterialVisible,
+  setMmdMaterialOpacity,
+} from "../../utils/3d/mmd-materials.ts";
 
 function makeCtx() {
   // MMD 的 SkinnedMesh 是多材质数组（材料列表按数组访问 mats[i]）
-  const mesh = new THREE.Mesh(
+  const rawMesh = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
     Array.from({ length: 28 }, () => new THREE.MeshBasicMaterial()),
   );
-  mesh.morphTargetDictionary = { "微笑": 0, "怒": 1, "哀": 2 };
-  mesh.morphTargetInfluences = [0, 0, 0];
+  rawMesh.morphTargetDictionary = { "微笑": 0, "怒": 1, "哀": 2 };
+  rawMesh.morphTargetInfluences = [0, 0, 0];
+  const mesh = rawMesh as unknown as THREE.SkinnedMesh;
   const mmd = {
     pmx: {
       bones: new Array(364),
@@ -29,184 +32,74 @@ function makeCtx() {
       morphs: new Array(55),
     },
   };
-  const overlay = document.createElement("div");
-  const cameraControls = {
-    getOrbit: vi.fn(() => true),
-    setOrbit: vi.fn(),
-    getSpeed: vi.fn(() => 20),
-    setSpeed: vi.fn(),
-    reset: vi.fn(),
+  const ctx: MmdBottomNavCtx = {
+    mmd: mmd as never,
+    mesh,
+    modelName: "子言.pmx",
+    modelPath: "/mmd/子言/子言.pmx",
   };
-  return {
-    ctx: {
-      mmd,
-      mesh,
-      modelName: "子言.pmx",
-      modelPath: "/mmd/子言/子言.pmx",
-      cameraControls,
-      switchTo: vi.fn(),
-    },
-    overlay,
-  };
+  return { ctx, mesh, mmd };
 }
 
-/** 最近一次 buildMmdBottomNav 挂载的 nav 按钮（模型=0，视图=1，材质=2） */
-function navBtns(overlay: HTMLElement): NodeListOf<HTMLButtonElement> {
-  return overlay.querySelectorAll<HTMLButtonElement>(".ysm-3d-navbtn");
-}
-function popup(overlay: HTMLElement): HTMLElement {
-  return overlay.querySelector(".ysm-slide-popup") as HTMLElement;
-}
-/** 当前栈顶视图内容（menu.list 即 slide-list；cardContainer 会移除 render-card 类，故按外壳作用域查） */
-function menuList(overlay: HTMLElement): HTMLElement {
-  return overlay.querySelector(".menu-wrapper.slide-menu .slide-list") as HTMLElement;
+/** 真实操作 mesh.material 的材质桥（复用 mmd-materials.ts 纯逻辑层，对齐 mmd-adapter 组装口径） */
+function makeMatBridge(ctx: MmdBottomNavCtx): MaterialControlBridge {
+  const mats = ctx.mesh.material as THREE.Material[];
+  return {
+    list: () => listMmdMaterials(ctx.mmd.pmx.materials),
+    getDetail: (i: number) => getMmdMaterialDetail(ctx.mmd.pmx.materials, mats, i),
+    setVisible: (i: number, v: boolean) => setMmdMaterialVisible(mats, i, v),
+    setOpacity: (i: number, o: number) => setMmdMaterialOpacity(mats, i, o),
+  };
 }
 
 beforeEach(() => {
   document.body.innerHTML = "";
-  resolveMmdSiblingsMock.mockResolvedValue([]);
 });
 
-describe("buildMmdBottomNav", () => {
-  it("挂载底部导航（模型/视图/材质按钮）+ 弹窗初始隐藏", () => {
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    expect(overlay.querySelector(".ysm-3d-nav")).not.toBeNull();
-    expect(navBtns(overlay).length).toBe(3);
-    expect(popup(overlay).style.display).toBe("none");
-    // slide-menu 外壳已挂载（卡片 + 标题栏）
-    expect(overlay.querySelector(".menu-wrapper.slide-menu")).not.toBeNull();
-    expect(overlay.querySelector(".slide-title")?.textContent).toBe("模型信息");
+describe("fillMmdModelPanel", () => {
+  it("渲染信息卡（名称 + 骨骼/材质/表情计数）", () => {
+    const { ctx } = makeCtx();
+    const list = document.createElement("div");
+    fillMmdModelPanel(list, ctx);
+    expect(list.textContent).toContain("子言.pmx");
+    expect(list.textContent).toContain("364");
+    expect(list.textContent).toContain("28");
+    expect(list.textContent).toContain("55");
   });
 
-  it("点击模型按钮 → 根菜单含信息卡 + 表情/切换模型入口（表情行不在根级）", () => {
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    navBtns(overlay)[0].click();
-    const p = popup(overlay);
-    expect(p.style.display).toBe("flex");
-    expect(p.textContent).toContain("子言.pmx");
-    expect(p.textContent).toContain("364");
-    expect(p.textContent).toContain("28");
-    // 入口行
-    expect(overlay.querySelector('[data-testid="mmd-morph-entry"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="mmd-switch-entry"]')).not.toBeNull();
-    // 根级不直接渲染表情行（已下钻到子集）
-    expect(overlay.querySelector('[data-testid="mmd-morph-微笑"]')).toBeNull();
-  });
-
-  it("点击表情入口 → 进入表情子集（N 行）；点击返回回到根级", () => {
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    navBtns(overlay)[0].click();
-    (overlay.querySelector('[data-testid="mmd-morph-entry"]') as HTMLElement).click();
-    // 子集标题/行
-    expect(menuList(overlay).querySelector('[data-testid="mmd-morph-微笑"]')).not.toBeNull();
-    expect(overlay.querySelectorAll('[data-testid^="mmd-morph-"]').length).toBe(3);
-    // 子集不再显示入口
-    expect(overlay.querySelector('[data-testid="mmd-morph-entry"]')).toBeNull();
-    // 返回根级
-    (overlay.querySelector(".slide-back") as HTMLElement).click();
-    expect(overlay.querySelector('[data-testid="mmd-morph-entry"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="mmd-morph-微笑"]')).toBeNull();
-  });
-
-  it("子集内点击表情行 → morphTargetInfluences 切换 0↔1（refresh 重绘高亮）", () => {
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    navBtns(overlay)[0].click();
-    (overlay.querySelector('[data-testid="mmd-morph-entry"]') as HTMLElement).click();
-    const row = overlay.querySelector('[data-testid="mmd-morph-微笑"]') as HTMLElement;
-    expect(ctx.mesh.morphTargetInfluences![0]).toBe(0);
+  it("表情行 = morph 数（testId mmd-morph-<name>），点击切换权重 0↔1 + ✓ 高亮", () => {
+    const { ctx, mesh } = makeCtx();
+    const list = document.createElement("div");
+    fillMmdModelPanel(list, ctx);
+    const rows = list.querySelectorAll('[data-testid^="mmd-morph-"]');
+    expect(rows.length).toBe(3);
+    const row = list.querySelector('[data-testid="mmd-morph-微笑"]') as HTMLElement;
+    expect(mesh.morphTargetInfluences![0]).toBe(0);
     row.click();
-    expect(ctx.mesh.morphTargetInfluences![0]).toBe(1);
-    // 再次点击关闭
-    const row2 = overlay.querySelector('[data-testid="mmd-morph-微笑"]') as HTMLElement;
-    row2.click();
-    expect(ctx.mesh.morphTargetInfluences![0]).toBe(0);
+    expect(mesh.morphTargetInfluences![0]).toBe(1);
+    expect(row.querySelector("span")?.textContent).toBe("✓");
+    row.click();
+    expect(mesh.morphTargetInfluences![0]).toBe(0);
+    expect(row.querySelector("span")?.textContent).toBe("🙂");
+  });
+});
+
+describe("buildMaterialControls", () => {
+  it("渲染材质面板（显隐 + 透明度滑条），行数 = pmx.materials 长度", () => {
+    const { ctx } = makeCtx();
+    const container = document.createElement("div");
+    buildMaterialControls(container, makeMatBridge(ctx));
+    expect(container.querySelector(".mmd-mat-row")).not.toBeNull();
+    expect(container.querySelectorAll(".mmd-mat-row").length).toBe(28); // = pmx.materials.length
+    expect(container.querySelector(".mmd-mat-op")).not.toBeNull(); // 透明度滑条
   });
 
-  it("点击视图按钮 → 相机控件渲染（select）；同菜单再点收起", () => {
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    const btns = navBtns(overlay);
-    btns[1].click();
-    const p = popup(overlay);
-    expect(p.style.display).toBe("flex");
-    expect(p.querySelector("select")).not.toBeNull(); // buildCameraControls 旋转下拉
-    btns[1].click();
-    expect(p.style.display).toBe("none");
-  });
-
-  it("跨菜单切换：模型 → 视图 内容替换", () => {
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    const btns = navBtns(overlay);
-    btns[0].click();
-    expect(popup(overlay).textContent).toContain("364");
-    btns[1].click();
-    expect(popup(overlay).textContent).not.toContain("364");
-    expect(popup(overlay).querySelector("select")).not.toBeNull();
-  });
-
-  it("模型菜单下钻切换模型子集 → siblings 列表 + 当前模型行", async () => {
-    resolveMmdSiblingsMock.mockResolvedValue([
-      "/mmd/子言/子言.pmx",
-      "/mmd/毒蛇/Viper.pmx",
-    ]);
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    navBtns(overlay)[0].click();
-    (overlay.querySelector('[data-testid="mmd-switch-entry"]') as HTMLElement).click();
-    await vi.waitFor(() => {
-      expect(overlay.querySelector('[data-testid^="mmd-load-"]')).not.toBeNull();
-    });
-    expect(overlay.querySelectorAll('[data-testid^="mmd-load-"]').length).toBe(2);
-    // 当前模型行存在（高亮判断基于 modelPath 匹配）
-    expect(overlay.querySelector('[data-testid="mmd-load-子言.pmx"]')).not.toBeNull();
-  });
-
-  it("子集内点击切换行 → ctx.switchTo(path) 调用（复用核心外壳重建内容层）", async () => {
-    resolveMmdSiblingsMock.mockResolvedValue(["/mmd/毒蛇/Viper.pmx"]);
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    navBtns(overlay)[0].click();
-    (overlay.querySelector('[data-testid="mmd-switch-entry"]') as HTMLElement).click();
-    await vi.waitFor(() => {
-      expect(overlay.querySelector('[data-testid="mmd-load-Viper.pmx"]')).not.toBeNull();
-    });
-    (overlay.querySelector('[data-testid="mmd-load-Viper.pmx"]') as HTMLElement).click();
-    expect(ctx.switchTo).toHaveBeenCalledWith("/mmd/毒蛇/Viper.pmx");
-  });
-
-  it("无 switchTo → 根菜单不渲染切换模型入口（向后兼容）", async () => {
-    resolveMmdSiblingsMock.mockResolvedValue(["/mmd/other.pmx"]);
-    const { ctx, overlay } = makeCtx();
-    delete (ctx as { switchTo?: unknown }).switchTo;
-    buildMmdBottomNav(overlay, ctx as never);
-    navBtns(overlay)[0].click();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(overlay.querySelector('[data-testid="mmd-switch-entry"]')).toBeNull();
-  });
-
-  it("点击材质按钮 → 材质面板渲染（显隐 + 透明度滑条），行数 = pmx.materials 长度", () => {
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    navBtns(overlay)[2].click();
-    const p = popup(overlay);
-    expect(p.style.display).toBe("flex");
-    expect(p.querySelector(".mmd-mat-row")).not.toBeNull();
-    expect(overlay.querySelectorAll(".mmd-mat-row").length).toBe(28); // = pmx.materials.length
-    expect(overlay.querySelector(".mmd-mat-op")).not.toBeNull(); // 透明度滑条
-  });
-
-  it("点击材质显隐按钮 → Material.visible 切换", () => {
-    const { ctx, overlay } = makeCtx();
-    buildMmdBottomNav(overlay, ctx as never);
-    navBtns(overlay)[2].click();
-    const eye = overlay.querySelector(".mmd-mat-eye") as HTMLElement;
-    const mat = (ctx.mesh.material as THREE.Material[])[0]; // 多材质数组，取第 0 个
+  it("点击显隐按钮 → Material.visible 切换", () => {
+    const { ctx, mesh } = makeCtx();
+    const container = document.createElement("div");
+    buildMaterialControls(container, makeMatBridge(ctx));
+    const eye = container.querySelector(".mmd-mat-eye") as HTMLElement;
+    const mat = (mesh.material as THREE.Material[])[0]; // 多材质数组，取第 0 个
     const before = mat.visible;
     eye.click();
     expect(mat.visible).toBe(!before);

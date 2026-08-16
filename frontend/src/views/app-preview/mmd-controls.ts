@@ -1,25 +1,13 @@
-// ===== MMD 底部根菜单（§5.7 范式：底部悬浮导航 + 分类弹窗，对齐 YSM buildYsmBottomNav）=====
-// 弹窗外壳接入 🥉 ui/ 库 slide-menu 组件（createSlideMenu）；内容按【视图集】组织为两级层级：
-//   模型根视图（信息卡 + 表情入口 + 切换模型入口）
-//     ├─ 表情子集（55 个 morph 行，点击切换权重 0/1）
-//     └─ 切换模型子集（同类型候选，点击经 ctx.switchTo 复用核心外壳重建）
-//   摄像机视图（相机控件）/ 材料列表（显隐 + 透明度）为各自一级视图。
-// 行组件用 cardContainer / addFieldRow / slideRow；外壳 slide-back 在根级=关闭(✕)、子集=返回(←)。
-// 毛玻璃导航样式复用 fab.ts ensureFabStyles（ysm-3d-nav / ysm-3d-navbtn 类）。
+// ===== MMD 菜单面板填充（ADR-076 v2 Phase 2：底部导航收编进声明式根菜单）=====
+// 旧 buildMmdBottomNav / mkNavBtn / slide-menu 弹窗已删除——mmd 专属面板（模型信息+
+// 表情 / 材质 / 播放）由 mmd-adapter 经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单。
+// 切换模型归 core 根菜单 switch 项（needsSiblings）；相机归 core camera 项（sharedOnly）。
+// 材质面板 buildMaterialControls 保留复用（纯渲染层，状态经 bridge 下沉 mmd-materials.ts，ADR-072）。
 
 import * as THREE from "three";
 import type { MMD } from "@moeru/three-mmd";
 import { t } from "../../core/i18n/t.ts";
-import { ensureFabStyles } from "../../utils/dom/fab.ts";
-import { buildCameraControls, type CameraControlBridge } from "../../utils/3d/adapters/mount-preview-core.ts";
-import {
-  cardContainer,
-  addFieldRow,
-  slideRow,
-  createSlideMenu,
-  type SlideMenuView,
-} from "../../ui/ui-helpers.ts";
-import { resolveMmdSiblings } from "./mmd-siblings.ts";
+import { cardContainer, addFieldRow } from "../../ui/ui-helpers.ts";
 import {
   listMmdMaterials,
   getMmdMaterialDetail,
@@ -28,235 +16,108 @@ import {
   type MmdMaterialDetail,
   type MmdMaterialListItem,
 } from "../../utils/3d/mmd-materials.ts";
+import type { CameraControlBridge } from "../../utils/3d/adapters/mount-preview-core.ts";
+export type { CameraControlBridge };
 
 export interface MmdBottomNavCtx {
   mmd: MMD;
   mesh: THREE.SkinnedMesh;
   modelName: string;
-  /** 当前模型完整路径（切换区「当前」高亮判断） */
+  /** 当前模型完整路径（切换区「当前」高亮判断；Phase 2 后切换归 core switch 项，本字段保留兼容） */
   modelPath?: string;
-  /** shared 模式下核心的相机控制桥（视图菜单复用；self 模式 undefined 时降级默认值） */
+  /** shared 模式下核心的相机控制桥（Phase 2 后相机归 core camera 项，本字段保留兼容） */
   cameraControls?: CameraControlBridge;
-  /** 切换到另一模型（复用核心外壳重建内容层；undefined 时不渲染切换区） */
+  /** 切换到另一模型（复用核心外壳重建内容层；Phase 2 后归 core switch 项，本字段保留兼容） */
   switchTo?(path: string): Promise<void>;
 }
 
-/** 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） */
-export function buildMmdBottomNav(overlay: HTMLElement, ctx: MmdBottomNavCtx): void {
-  ensureFabStyles();
-
-  const nav = document.createElement("div");
-  nav.className = "ysm-3d-nav";
-  const modelBtn = mkNavBtn("🧍", t("preview.modelInfo"));
-  const viewBtn = mkNavBtn("🎥", t("preview.cameraView"));
-  const matBtn = mkNavBtn("🎨", t("preview.materialList"));
-  nav.appendChild(modelBtn);
-  nav.appendChild(viewBtn);
-  nav.appendChild(matBtn);
-  overlay.appendChild(nav);
-
-  // 定位容器（.ysm-slide-popup）+ slide-menu 卡片外壳（标题栏 + 关闭/返回 + 内容区）
-  const popup = document.createElement("div");
-  popup.className = "ysm-slide-popup";
-  popup.style.display = "none";
-  overlay.appendChild(popup);
-
-  const menu = createSlideMenu({ title: t("preview.modelInfo") });
-  popup.appendChild(menu.root);
-
-  /** 关闭弹窗（nav 激活态同步 + 导航栈复位）——对齐 YSM closePopup 口径 */
-  const closePopup = (): void => {
-    popup.style.display = "none";
-    menu.reset();
-    nav
-      .querySelectorAll<HTMLElement>(".ysm-3d-navbtn--on")
-      .forEach((b) => b.classList.remove("ysm-3d-navbtn--on"));
-  };
-  menu.setOnClose(() => closePopup());
-
-  /** 切换弹窗：同菜单再点收起，跨菜单切换内容（对齐 YSM togglePopup 口径）；
-   *  经导航栈 home 进入一级视图，关闭时栈已复位，故重新打开恒为根视图。 */
-  const openMenu = (view: SlideMenuView, btn: HTMLElement): void => {
-    const wasOpen = popup.style.display !== "none";
-    const isSame = btn.classList.contains("ysm-3d-navbtn--on");
-    closePopup();
-    if (wasOpen && isSame) return;
-    btn.classList.add("ysm-3d-navbtn--on");
-    menu.home(view);
-    popup.style.display = "flex";
-  };
-
-  /** 表情开/关切换（morphTargetInfluences 权重 0/1），切换后 refresh 重绘当前视图同步高亮 */
-  const toggleMorph = (name: string): void => {
+/** MMD 模型面板：信息卡 + 表情列表（morph 权重 0/1 切换，✓ 高亮当前开启） */
+export function fillMmdModelPanel(list: HTMLElement, ctx: MmdBottomNavCtx): void {
+  const pmx = ctx.mmd.pmx;
+  cardContainer(list, (c) => {
+    addFieldRow(c, t("preview.nameLabel"), ctx.modelName);
+    addFieldRow(
+      c,
+      t("preview.modelOverview"),
+      `${pmx.bones.length} 骨骼 · ${pmx.materials.length} 材质 · ${pmx.morphs.length} 表情`,
+    );
+  });
+  const morphNames = Object.keys(ctx.mesh.morphTargetDictionary || {});
+  if (morphNames.length === 0) return;
+  const sec = document.createElement("div");
+  sec.className = "slide-sublabel";
+  sec.style.cssText = "padding:6px 10px;font-size:12px;color:rgba(255,255,255,0.7)";
+  sec.textContent = `😀 ${t("preview.mmdMorph")} (${morphNames.length})`;
+  list.appendChild(sec);
+  morphNames.forEach((name) => {
+    const row = document.createElement("div");
+    row.className = "ysm-preview-menu-row";
+    row.dataset.testid = "mmd-morph-" + name;
     const dict = ctx.mesh.morphTargetDictionary || {};
     const idx = dict[name];
-    if (idx === undefined || !ctx.mesh.morphTargetInfluences) return;
-    ctx.mesh.morphTargetInfluences[idx] = ctx.mesh.morphTargetInfluences[idx] > 0.5 ? 0 : 1;
-    menu.refresh();
-  };
-  const morphActive = (name: string): boolean => {
-    const dict = ctx.mesh.morphTargetDictionary || {};
-    const idx = dict[name];
-    return idx !== undefined && (ctx.mesh.morphTargetInfluences?.[idx] ?? 0) > 0.5;
-  };
-
-  /** 同类型模型候选缓存（类型根固定不随当前模型变，切换后无需刷新；首次进入子集拉取） */
-  let siblingsCache: string[] | null = null;
-
-  // ── 模型根视图：信息卡 + 表情入口 + 切换模型入口 ──
-  const viewModelRoot: SlideMenuView = {
-    title: t("preview.modelInfo"),
-    render: (l) => {
-      const pmx = ctx.mmd.pmx;
-      cardContainer(l, (c) => {
-        addFieldRow(c, t("preview.nameLabel"), ctx.modelName);
-        addFieldRow(
-          c,
-          t("preview.modelOverview"),
-          `${pmx.bones.length} 骨骼 · ${pmx.materials.length} 材质 · ${pmx.morphs.length} 表情`,
-        );
-      });
-      const morphNames = Object.keys(ctx.mesh.morphTargetDictionary || {});
-      if (morphNames.length > 0) {
-        slideRow(
-          l,
-          "😀",
-          `${t("preview.mmdMorph")} (${morphNames.length})`,
-          true, // 箭头指示可下钻
-          () => menu.navigate(viewMorphList),
-          undefined,
-          undefined,
-          false,
-          undefined,
-          { testId: "mmd-morph-entry" },
-        );
-      }
-      if (ctx.switchTo) {
-        slideRow(
-          l,
-          "📦",
-          t("preview.mmdLoadModel"),
-          true, // 箭头指示可下钻
-          () => menu.navigate(viewSwitchList),
-          undefined,
-          undefined,
-          false,
-          undefined,
-          { testId: "mmd-switch-entry" },
-        );
-      }
-    },
-  };
-
-  // ── 表情子集：55 个 morph 行（点击切换权重，focused 高亮当前开启）──
-  const viewMorphList: SlideMenuView = {
-    title: `😀 ${t("preview.mmdMorph")}`,
-    render: (l) => {
-      const morphNames = Object.keys(ctx.mesh.morphTargetDictionary || {});
-      morphNames.forEach((name) => {
-        slideRow(
-          l,
-          "🙂",
-          name,
-          false,
-          () => toggleMorph(name),
-          undefined,
-          undefined,
-          morphActive(name), // focused：当前开启的表情高亮
-          undefined,
-          { testId: "mmd-morph-" + name },
-        );
-      });
-    },
-  };
-
-  // ── 切换模型子集：同类型候选列表（resolveMmdSiblings；点击经 ctx.switchTo 复用核心外壳）──
-  const viewSwitchList: SlideMenuView = {
-    title: `📦 ${t("preview.mmdLoadModel")}`,
-    render: (l) => {
-      const siblings = siblingsCache;
-      if (!siblings) {
-        const loading = document.createElement("div");
-        loading.className = "slide-sublabel";
-        loading.style.cssText = "padding:8px 10px;color:rgba(128,128,128,0.85);font-size:12px";
-        loading.textContent = "加载中…";
-        l.appendChild(loading);
-        void resolveMmdSiblings().then((s) => {
-          siblingsCache = s;
-          // 守卫：若用户已返回/切菜单，子集不再是栈顶，则不写入失效 list
-          if (menu.isShowing(viewSwitchList)) menu.refresh();
-        });
-        return;
-      }
-      if (siblings.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "slide-sublabel";
-        empty.style.cssText = "padding:8px 10px;color:rgba(128,128,128,0.85);font-size:12px";
-        empty.textContent = "（无同类型模型）";
-        l.appendChild(empty);
-        return;
-      }
-      siblings.forEach((p) => {
-        const isCurrent = !!ctx.modelPath && p.toLowerCase() === ctx.modelPath.toLowerCase();
-        slideRow(
-          l,
-          "📦",
-          p.split(/[/\\]/).pop() || p,
-          false,
-          () => void ctx.switchTo?.(p),
-          undefined,
-          undefined,
-          isCurrent, // focused：当前模型高亮
-          undefined,
-          { testId: "mmd-load-" + (p.split(/[/\\]/).pop() || "model") },
-        );
-      });
-    },
-  };
-
-  // ── 摄像机视图：相机控件（复用 core cameraControls bridge，对齐 YSM fillViewMenu）──
-  const viewCamera: SlideMenuView = {
-    title: t("preview.cameraView"),
-    render: (l) => {
-      buildCameraControls(l, {
-        getOrbit: () => ctx.cameraControls?.getOrbit() ?? true,
-        setOrbit: (v: boolean) => ctx.cameraControls?.setOrbit(v),
-        getSpeed: () => ctx.cameraControls?.getSpeed() ?? 20,
-        setSpeed: (n: number) => ctx.cameraControls?.setSpeed(n),
-        reset: () => ctx.cameraControls?.reset(),
-      });
-    },
-  };
-
-  // ── 材料列表视图：显隐 + 透明度（复用 mmd-materials.ts 纯逻辑层，DOM 渲染在视图层，ADR-072）──
-  const viewMaterial: SlideMenuView = {
-    title: t("preview.materialList"),
-    render: (l) => {
-      const mats = ctx.mesh.material as unknown as THREE.Material[];
-      buildMaterialControls(l, {
-        list: () => listMmdMaterials(ctx.mmd.pmx.materials),
-        getDetail: (i: number) => getMmdMaterialDetail(ctx.mmd.pmx.materials, mats, i),
-        setVisible: (i: number, v: boolean) => setMmdMaterialVisible(mats, i, v),
-        setOpacity: (i: number, o: number) => {
-          setMmdMaterialOpacity(mats, i, o);
-          const m = mats[i];
-          if (m) m.needsUpdate = true; // 透明状态变更需重编译着色器
-        },
-      });
-    },
-  };
-
-  modelBtn.onclick = (): void => openMenu(viewModelRoot, modelBtn);
-  viewBtn.onclick = (): void => openMenu(viewCamera, viewBtn);
-  matBtn.onclick = (): void => openMenu(viewMaterial, matBtn);
+    const active = idx !== undefined && (ctx.mesh.morphTargetInfluences?.[idx] ?? 0) > 0.5;
+    const ic = document.createElement("span");
+    ic.textContent = active ? "✓" : "🙂";
+    ic.style.cssText = "font-size:15px;width:18px;text-align:center";
+    const lb = document.createElement("span");
+    lb.textContent = name;
+    row.append(ic, lb);
+    row.style.cssText =
+      "display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
+      (active ? ";background:rgba(124,131,255,0.25)" : "");
+    row.onclick = (): void => {
+      const d = ctx.mesh.morphTargetDictionary || {};
+      const i = d[name];
+      if (i === undefined || !ctx.mesh.morphTargetInfluences) return;
+      ctx.mesh.morphTargetInfluences[i] = ctx.mesh.morphTargetInfluences[i] > 0.5 ? 0 : 1;
+      const now = ctx.mesh.morphTargetInfluences[i] > 0.5;
+      ic.textContent = now ? "✓" : "🙂";
+      row.style.background = now ? "rgba(124,131,255,0.25)" : "transparent";
+    };
+    list.appendChild(row);
+  });
 }
 
-/** 底部导航按钮（毛玻璃 HUD 样式类来自 fab.ts ensureFabStyles） */
-function mkNavBtn(icon: string, label: string): HTMLElement {
-  const btn = document.createElement("button");
-  btn.className = "ysm-3d-navbtn";
-  btn.innerHTML = `<span class="ysm-ic">${icon}</span><span class="ysm-3d-navlabel">${label}</span>`;
-  return btn;
+/** MMD 播放/动作控制桥（mmd-adapter 组装，纯逻辑层状态） */
+export interface MmdPlayBridge {
+  clips: Array<{ label: string }>;
+  isPlaying(): boolean;
+  toggle(): void;
+  currentIndex(): number;
+  select(index: number): void;
+}
+
+/** MMD 播放面板：播放/暂停 + 多动作切换（原 mmd-adapter extraControls 收编，ADR-076 v2 Phase 2） */
+export function fillMmdPlayPanel(list: HTMLElement, bridge: MmdPlayBridge): void {
+  const playBtn = document.createElement("button");
+  playBtn.id = "mmd-play-btn";
+  playBtn.textContent = bridge.isPlaying() ? t("preview.mmdPause") : t("preview.mmdPlay");
+  playBtn.className = "mode-btn"; // 🥉 ui/ 库透明按钮样式（installUiComponentsStyles 注入）
+  playBtn.dataset.testid = "mmd-play"; // §19.1：关键交互元素 data-testid（前缀命名空间）
+  playBtn.style.cssText = "align-self:flex-start;margin:2px 0";
+  playBtn.onclick = (): void => {
+    bridge.toggle();
+    playBtn.textContent = bridge.isPlaying() ? t("preview.mmdPause") : t("preview.mmdPlay");
+  };
+  list.appendChild(playBtn);
+
+  if (bridge.clips.length > 1) {
+    const sel = document.createElement("select");
+    sel.id = "mmd-motion-sel";
+    sel.className = "setting-select"; // 🥉 ui/ 库下拉样式
+    sel.dataset.testid = "mmd-motion"; // §19.1
+    sel.value = String(bridge.currentIndex());
+    bridge.clips.forEach((c, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = c.label;
+      sel.appendChild(opt);
+    });
+    sel.onchange = (): void => {
+      bridge.select(Number(sel.value) || 0);
+    };
+    list.appendChild(sel);
+  }
 }
 
 /** 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） */

@@ -708,7 +708,7 @@ export const autoSidebar = [
         "link": "/adr/ADR-077-bottom-nav-shell-convergence"
       },
       {
-        "text": "ADR-076：3D 预览通用导航与弹窗脚手架收敛契约（v2 — 声明式根菜单）",
+        "text": "ADR-076：3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编）",
         "link": "/adr/ADR-076-preview-bottom-nav-shell"
       },
       {

@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import type { PreviewMenuHandle } from "./preview-menu.ts";
 
 const hoisted = vi.hoisted(() => {
   const managerInstances: Array<{ resolveURL: (url: string) => string }> = [];
@@ -68,11 +69,22 @@ function makeCtx() {
       viewContainer: document.createElement("div"),
       loadingEl,
       overlay: document.createElement("div"),
+      menu: { setAdapterItems: vi.fn(), openPanel: vi.fn() } as unknown as PreviewMenuHandle,
     },
     scene,
     camera,
     loadingEl,
   };
+}
+
+/** 最近一次 setAdapterItems 收到的适配器项 */
+function registeredItems(ctx: ReturnType<typeof makeCtx>["ctx"]) {
+  return (ctx.menu as unknown as { setAdapterItems: ReturnType<typeof vi.fn> }).setAdapterItems.mock
+    .calls[0][0] as Array<{
+    id: string;
+    kind: string;
+    render?: (list: HTMLElement, close: () => void) => void;
+  }>;
 }
 
 /** 构造一个可用的 fake MMD（mesh 挂进 scene 需真实 Object3D 供 Box3 计算；pmx 对齐真实 MMD 类形态） */
@@ -118,7 +130,7 @@ describe("buildMmdScene 主路径", () => {
         "/mmd/miku/readme.txt",
       ]);
       const { ctx, scene, camera, loadingEl } = makeCtx();
-      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {});
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort());
 
       // 目录列取 + 模型/纹理读取
       expect(hoisted.listPathsMock).toHaveBeenCalledWith("/mmd/miku");
@@ -173,7 +185,7 @@ describe("buildMmdScene 主路径", () => {
       hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
       hoisted.listPathsMock.mockRejectedValue(new Error("no dir"));
       const { ctx, scene } = makeCtx();
-      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {});
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort());
       expect(scene.children.length).toBeGreaterThan(0);
       built.dispose();
       // 无纹理 → 仅回收模型本体 blob
@@ -198,7 +210,7 @@ describe("buildMmdScene 主路径", () => {
         "/mmd/miku/b/body.png",
       ]);
       const { ctx } = makeCtx();
-      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {});
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort());
       const mgr = hoisted.managerInstances[0]!;
       // 模型 blob 第 1 个（t1）；纹理按 entries 顺序 a→t2、b→t3
       expect(mgr.resolveURL("/mmd/miku/miku.pmx")).toBe("blob:t1");
@@ -232,7 +244,7 @@ describe("buildMmdScene 主路径", () => {
         "/mmd/miku/fake.tga",
       ]);
       const { ctx } = makeCtx();
-      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {});
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort());
       const mgr = hoisted.managerInstances[0]!;
       // 合法 PNG 命中 blob
       expect(mgr.resolveURL("/mmd/miku/tex.png")).toBe("blob:mock-url");
@@ -257,7 +269,7 @@ describe("buildMmdScene 主路径", () => {
         "C:\\mmd\\ziyan\\ziyan.pmx",
       ]);
       const { ctx } = makeCtx();
-      const built = await buildMmdScene(ctx, "C:\\mmd\\ziyan\\ziyan.pmx", makePort(), () => {});
+      const built = await buildMmdScene(ctx, "C:\\mmd\\ziyan\\ziyan.pmx", makePort());
       expect(hoisted.listPathsMock).toHaveBeenCalledWith("C:\\mmd\\ziyan");
       const mgr = hoisted.managerInstances[0]!;
       // PMX 内正斜杠相对路径（textures/ziyan_head.png）→ 命中 rel 键
@@ -273,7 +285,7 @@ describe("buildMmdScene 主路径", () => {
     }
   });
 
-  it("同目录 VMD → 自动播放 + topBar 播放/暂停按钮", async () => {
+  it("同目录 VMD → 自动播放 + 播放面板（经菜单项渲染）", async () => {
     const createURL = vi
       .spyOn(URL, "createObjectURL")
       .mockImplementation(() => "blob:mock-url");
@@ -288,15 +300,17 @@ describe("buildMmdScene 主路径", () => {
       hoisted.buildAnimMock.mockReturnValue(new THREE.AnimationClip("dance", -1, []));
 
       const { ctx } = makeCtx();
-      const topBar = document.createElement("div");
-      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {});
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort());
       // VMD 解析 + 动画构建
       expect(hoisted.vmdParseMock).toHaveBeenCalledTimes(1);
       expect(hoisted.buildAnimMock).toHaveBeenCalledTimes(1);
 
-      // 播放按钮（初始播放态 → 文案"暂停"）
-      built.extraControls!(topBar);
-      const playBtn = topBar.querySelector<HTMLElement>("#mmd-play-btn");
+      // 播放面板（ADR-076 v2 Phase 2：经菜单项 render；初始播放态 → 文案"暂停"）
+      const playItem = registeredItems(ctx).find((i) => i.id === "play");
+      expect(playItem).toBeDefined();
+      const list = document.createElement("div");
+      playItem!.render!(list, () => {});
+      const playBtn = list.querySelector<HTMLElement>("#mmd-play-btn");
       expect(playBtn).not.toBeNull();
       expect(playBtn!.textContent).toBe("暂停");
       playBtn!.click();
@@ -342,15 +356,17 @@ describe("buildMmdScene 主路径", () => {
       hoisted.buildAnimMock.mockReturnValue(new THREE.AnimationClip("motion", -1, []));
 
       const { ctx } = makeCtx();
-      const topBar = document.createElement("div");
-      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {});
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort());
       // 坏 VMD 被跳过，仅 1 个动画构建成功
       expect(hoisted.buildAnimMock).toHaveBeenCalledTimes(1);
 
-      // 仅 1 个 clip → 无 select（播放按钮仍在）
-      built.extraControls!(topBar);
-      expect(topBar.querySelector("#mmd-motion-sel")).toBeNull();
-      expect(topBar.querySelector("#mmd-play-btn")).not.toBeNull();
+      // 仅 1 个 clip → 播放面板无 select（播放按钮仍在）
+      const playItem = registeredItems(ctx).find((i) => i.id === "play");
+      expect(playItem).toBeDefined();
+      const list = document.createElement("div");
+      playItem!.render!(list, () => {});
+      expect(list.querySelector("#mmd-motion-sel")).toBeNull();
+      expect(list.querySelector("#mmd-play-btn")).not.toBeNull();
       built.dispose();
     } finally {
       createURL.mockRestore();
@@ -369,11 +385,10 @@ describe("buildMmdScene 主路径", () => {
         "/mmd/miku/miku.pmx",
       ]);
       const { ctx } = makeCtx();
-      const topBar = document.createElement("div");
-      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {});
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort());
       expect(hoisted.vmdParseMock).not.toHaveBeenCalled();
-      built.extraControls!(topBar);
-      expect(topBar.querySelector("#mmd-play-btn")).toBeNull();
+      // 无 VMD → 不注册 play 菜单项
+      expect(registeredItems(ctx).find((i) => i.id === "play")).toBeUndefined();
       // 空 mixer 的 updateWithMixer 无害
       built.update!(0.016);
       expect(hoisted.mmdUpdateWithMixerMock).toHaveBeenCalled();
@@ -389,7 +404,7 @@ describe("buildMmdScene 错误路径", () => {
   it("ReadFileBytes 返回空 → 抛错", async () => {
     hoisted.readBytesMock.mockResolvedValue(null);
     const { ctx } = makeCtx();
-    await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {})).rejects.toThrow("ReadFileBytes 返回空");
+    await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort())).rejects.toThrow("ReadFileBytes 返回空");
   });
 
   it("MMDLoader.loadAsync 失败 → 抛错穿透 + 已建 blob 全部回收", async () => {
@@ -404,7 +419,7 @@ describe("buildMmdScene 错误路径", () => {
       ]);
       hoisted.loaderLoadAsyncMock.mockRejectedValue(new Error("parse fail"));
       const { ctx } = makeCtx();
-      await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), () => {})).rejects.toThrow("parse fail");
+      await expect(buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort())).rejects.toThrow("parse fail");
       // 模型 blob + 已读纹理 blob 均回收，不随会话泄漏
       expect(revokeURL).toHaveBeenCalledTimes(2);
     } finally {

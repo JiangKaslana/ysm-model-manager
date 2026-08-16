@@ -1,10 +1,10 @@
-// ===== ysm-3d shared 集成测试（ADR-066 §5.7 + ADR-077 骨骼面板接入）=====
+// ===== ysm-3d shared 集成测试（ADR-066 §5.7 + ADR-076 v2 Phase 2 菜单收编）=====
 // buildYsmScene：loader(path) → preloadModel → buildYsmObject 挂 ctx.scene →
-// extraControls 注入骨骼按钮 → dispose 清理。装配级测试（mock 内容构建/相机/射线）。
+// ctx.menu.setAdapterItems 注入 model/截图/骨骼 三项 → dispose 清理。装配级测试。
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildYsmScene, makeYsmAdapter } from "./ysm-adapter.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
-import { buildYsmBottomNav } from "../../../views/app-preview/ysm-controls.ts";
+import type { PreviewMenuHandle } from "./preview-menu.ts";
 
 const mocks = vi.hoisted(() => ({
   preloadModel: vi.fn(),
@@ -21,6 +21,9 @@ vi.mock("../bone-raycast.ts", () => ({
 }));
 vi.mock("../bone-tools.ts", () => ({
   buildBoneTree: vi.fn(() => ({ byId: new Map(), childrenMap: new Map(), roots: [] })),
+}));
+vi.mock("./vrm-bone-ui.ts", () => ({
+  makeBonePanelRenderer: () => () => () => {},
 }));
 
 const rootGroup = { type: "Group", children: [] as unknown[] };
@@ -69,53 +72,71 @@ function makeCtx() {
     viewContainer: document.createElement("div"),
     loadingEl: document.createElement("div"),
     overlay,
+    menu: { setAdapterItems: vi.fn(), openPanel: vi.fn() } as unknown as PreviewMenuHandle,
   };
 }
 
+/** 最近一次 setAdapterItems 收到的适配器项 */
+function registeredItems(menu: unknown) {
+  return (menu as { setAdapterItems: ReturnType<typeof vi.fn> }).setAdapterItems.mock
+    .calls[0][0] as Array<{
+    id: string;
+    kind: string;
+    render?: (list: HTMLElement, close: () => void) => void;
+  }>;
+}
+
 describe("buildYsmScene（shared 装配）", () => {
-  it("loader(path) → model → buildYsmObject 挂 ctx.scene + extraControls 注入骨骼按钮", async () => {
+  it("loader(path) → model → buildYsmObject 挂 ctx.scene + 注入声明式菜单项", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
-    const preview = await buildYsmScene(
-      ctx,
-      "/m/a.ysm",
-      { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav },
-    );
+    const preview = await buildYsmScene(ctx, "/m/a.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+    });
 
     expect(loader).toHaveBeenCalledWith("/m/a.ysm");
     expect(mocks.preloadModel).toHaveBeenCalledTimes(1);
     expect(mocks.buildYsmObject).toHaveBeenCalledTimes(1);
     expect(ctx.scene.add).toHaveBeenCalledWith(rootGroup);
 
-    // ADR-077: extraControls 注入骨骼面板按钮
-    const topBar = document.createElement("div");
-    preview.extraControls?.(topBar);
-    const btn = topBar.querySelector("button");
-    expect(btn).toBeTruthy();
-    expect(btn?.textContent).toContain("🦴 骨骼");
+    // ADR-076 v2 Phase 2：适配器经 ctx.menu.setAdapterItems 注入 model / 截图 / 骨骼 三项
+    const items = registeredItems(ctx.menu);
+    expect(items.map((i) => i.id)).toEqual(["model", "shot", "bones"]);
+    items.forEach((i) => expect(i.kind).toBe("panel"));
+    items.forEach((i) => expect(typeof i.render).toBe("function"));
+
+    // model 面板渲染：fill3DPanel 输出统计行（骨骼 0 根 + 立方体 0 个）
+    const list = document.createElement("div");
+    const modelItem = items.find((i) => i.id === "model")!;
+    modelItem.render!(list, () => {});
+    expect(list.textContent).toContain("模型统计");
 
     preview.dispose();
     expect(mocks.buildYsmObject().removeFromScene).toHaveBeenCalledWith(ctx.scene);
   });
 
-  it("loader 返回空 → 抛错（不挂 scene）", async () => {
+  it("loader 返回空 → 抛错（不挂 scene，不注入菜单）", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => null);
-    await expect(buildYsmScene(ctx, "/m/missing.ysm", { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav })).rejects.toThrow(/加载失败/);
+    await expect(
+      buildYsmScene(ctx, "/m/missing.ysm", { loader, preload: mocks.preloadModel }),
+    ).rejects.toThrow(/加载失败/);
     expect(ctx.scene.add).not.toHaveBeenCalled();
+    expect(ctx.menu.setAdapterItems).not.toHaveBeenCalled();
   });
 
   it("dispose → raycast cleanup + removeFromScene + bonePanelCleanup", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
-    const preview = await buildYsmScene(ctx, "/m/a.ysm", { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav });
+    const preview = await buildYsmScene(ctx, "/m/a.ysm", { loader, preload: mocks.preloadModel });
     preview.dispose();
     expect(mocks.registerBoneRaycast).toHaveBeenCalled();
   });
 
   it("makeYsmAdapter：build 用传入 path（switchTo 换模型语义，闭包 path 仅初始值）", async () => {
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
-    const adapter = makeYsmAdapter("/m/a.ysm", { loader, preload: mocks.preloadModel, navBuilder: buildYsmBottomNav });
+    const adapter = makeYsmAdapter("/m/a.ysm", { loader, preload: mocks.preloadModel });
     expect(adapter.id).toBe("ysm");
     // switchTo 语义：core 调 build(ctx, newPath) 重建内容层——必须加载 newPath 而非闭包旧 path
     await expect(

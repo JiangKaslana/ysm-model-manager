@@ -19,11 +19,13 @@ export interface BoneNode {
   object?: THREE.Object3D;
 }
 
-/** 骨骼树：id 索引 + 子映射 + 根集合（buildBoneTree 产物） */
+/** 骨骼树：id 索引 + 子映射 + 根集合 + object 反查（buildBoneTree 产物） */
 export interface BoneTree {
   byId: Map<string, BoneNode>;
   childrenMap: Map<string, string[]>;
   roots: string[];
+  /** object 引用 → 骨骼 id 反查（拾取沿父链匹配 object，不依赖 name 约定） */
+  objectToId: Map<THREE.Object3D, string>;
 }
 
 /**
@@ -35,8 +37,10 @@ export function buildBoneTree(bones: Array<{ id: string; name: string; parentId?
   const byId = new Map<string, BoneNode>();
   const childrenMap = new Map<string, string[]>();
   const roots: string[] = [];
+  const objectToId = new Map<THREE.Object3D, string>();
   for (const b of bones) {
     byId.set(b.id, { id: b.id, name: b.name, parentId: b.parentId ?? null, object: b.object });
+    if (b.object) objectToId.set(b.object, b.id);
     if (!childrenMap.has(b.id)) childrenMap.set(b.id, []);
   }
   for (const node of byId.values()) {
@@ -47,7 +51,7 @@ export function buildBoneTree(bones: Array<{ id: string; name: string; parentId?
       roots.push(node.id);
     }
   }
-  return { byId, childrenMap, roots };
+  return { byId, childrenMap, roots, objectToId };
 }
 
 /** 深度缩进的骨骼列表项（枚举 + 父子 + 深度） */
@@ -137,22 +141,21 @@ export function toggleBoneVisible(node: BoneNode | undefined): void {
   });
 }
 
-// 注意（审核，2026-08-16）：骨骼「拾取」不在此层——拾取策略格式相关：
-//   - ysm（cube mesh 有几何）走 bone-raycast.ts 的 intersectObjects + name 归属；
-//   - mmd（THREE.Bone 无几何）走 mmd-bones.ts pickMmdBone 的「射线到骨骼距离」法；
-//   - vrm（humanoid node）待接。
-// 曾在此放 pickBone/findAncestorBoneId（「网格面片归属拾取」，只适用于 ysm 且有
-// 完整骨骼节点挂载在 Object3D 树上的格式）。审核时移走以保持工具层「策略无关」。
-// 但「沿父链找最近骨骼节点」对 VRM（humanoid bones 挂在 rig 节点）/YSM（spec bones
-// 挂在 Group）均成立——本质是 Object3D 父链回溯，与格式无关。现补回通用版，
-// 输入是任意 Object3D 命中体 + BoneTree（byId 锚定骨骼节点），命中后沿父链找归属。
+// 注意（审核，2026-08-16）：骨骼「拾取」的策略分歧已收敛——拾取本质是
+// 「命中体沿 Object3D 父链回溯到骨骼节点」，对 YSM（cube mesh 挂 Group）/
+// VRM（rig mesh 挂 humanoid node）均成立，唯一例外是 MMD（蒙皮 Bone 无几何，
+// 走 mmd-bones.ts pickMmdBone 距离法）。
+// 关键修正：findAncestorBoneId 必须用 **object 引用匹配**（objectToId 反查），
+// 不能用 name 匹配——ysm 的 Group.name === boneId 是 ysm 约定，VRM rig 节点
+// name 是模型制作者命名（≠ HumanoidBoneName），name 匹配对 VRM 必失效。
 
-/** 沿 Object3D 父链向上找最近的骨骼 id（obj 自身或祖先的 name 命中 byId 即归属） */
+/** 沿 Object3D 父链向上找最近的骨骼 id（object 引用匹配，不依赖 name 约定） */
 export function findAncestorBoneId(obj: THREE.Object3D, tree: BoneTree): string | null {
   let cur: THREE.Object3D | null = obj;
   let guard = 0;
   while (cur && guard++ < 1000) {
-    if (cur.name && tree.byId.has(cur.name)) return cur.name;
+    const id = tree.objectToId.get(cur);
+    if (id) return id;
     cur = cur.parent;
   }
   return null;
@@ -179,4 +182,3 @@ export function pickBone(
   }
   return null;
 }
-// 无消费者），已拆出——通用工具只保留格式无关的树/列表/路径/详情/显隐。

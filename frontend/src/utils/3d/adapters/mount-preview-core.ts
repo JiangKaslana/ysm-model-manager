@@ -23,7 +23,7 @@ import { createIconButton } from "../../../utils/dom/fab.ts";
 import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
 import { createSlideMenu } from "../../../ui/ui-helpers.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
-import { mountPreviewRootMenu } from "./preview-menu.ts";
+import { mountPreviewRootMenu, type PreviewMenuHandle } from "./preview-menu.ts";
 import type { BoneSelectInfo } from "../model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
@@ -41,6 +41,8 @@ export interface PreviewBuildCtx {
   cameraControls?: CameraControlBridge;
   /** 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；延迟闭包——build 时 _handle 未赋值，点击时已就绪 */
   switchTo?(path: string): Promise<void>;
+  /** 声明式根菜单注册通道（ADR-076 v2 Phase 2）：适配器 build 内经 setAdapterItems 注入专属菜单项、openPanel 打开面板（骨骼拾取联动） */
+  menu: PreviewMenuHandle;
 }
 
 /** 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） */
@@ -266,9 +268,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   body.appendChild(viewContainer);
   overlay.appendChild(body);
 
-  // 适配器专属控件容器（Phase 1 暂留，Phase 2 经 previewMenuItems 契约收编）：
-  // 用户 2026-08-16 决策「适配器底部导航暂留」——核心控件（关闭/切换/环境/相机）已迁入 ⚙️ 根菜单，
-  // 此处仅作底部容器承接适配器经 extraControls(topBar) 注入的专属控件（ysm 侧栏按钮 / mmd 控件等）。
+  // 适配器专属控件容器（仅 vrm/litematic 遗留 extraControls 单按钮继续使用：
+  // ysm/mmd 的底部导航/弹窗已按 ADR-076 v2 Phase 2 全量收编进 ⚙️ 根菜单）。
   const topBar = document.createElement("div");
   topBar.className = "ysm-3d-adapter-nav";
   topBar.style.cssText =
@@ -279,7 +280,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
 
   // 声明式根菜单（⚙️）：core 在 overlay 内自建（预览全屏盖住 app 外壳，主程序 nav.settings 够不着），
   // 全部控件以 PREVIEW_MENU_DEFS 表驱动渲染，e2e 选择器稳定可遍历（ADR-076 v2）。
-  const unsubMenu = mountPreviewRootMenu(overlay, {
+  const menuHandle = mountPreviewRootMenu(overlay, {
     selfMode,
     getSkyCap: () => skyCap,
     getGroundCap: () => groundCap,
@@ -474,6 +475,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         viewContainer,
         loadingEl,
         overlay,
+        menu: menuHandle,
         // 延迟闭包：build 时 _handle 尚未赋值，菜单点击（build 之后）时已就绪；
         // 无活跃会话时 no-op（与 switchPreview 同口径）
         switchTo: (p: string): Promise<void> => _handle?.switchTo?.(p) ?? Promise.resolve(),
@@ -550,7 +552,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
 
     function fullCleanup(): void {
-      unsubMenu?.();
+      menuHandle.dispose();
       if (isDisposed.v) return;
       isDisposed.v = true;
       cancelAnimationFrame(animId);
@@ -636,7 +638,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         let next: PreviewScene;
         try {
           next = await adapter.build(
-            { scene, camera, controls, renderer, cameraControls: selfMode ? undefined : camBridge, viewContainer, loadingEl, overlay },
+            { scene, camera, controls, renderer, cameraControls: selfMode ? undefined : camBridge, viewContainer, loadingEl, overlay, menu: menuHandle },
             newPath,
           );
         } catch (e) {

@@ -31,8 +31,15 @@ const tr = (key: string, fallback: string): string => {
   return v === key ? fallback : v;
 };
 
-/** 挂载预览声明式根菜单，返回解绑函数（preview 拆卸时移除 document 监听，防泄漏） */
-export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx): () => void {
+/** 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项（Phase 2 契约）；openPanel 直接打开指定面板（骨骼拾取联动） */
+export interface PreviewMenuHandle {
+  dispose(): void;
+  setAdapterItems(items: PreviewMenuItemDef[]): void;
+  openPanel(id: string): void;
+}
+
+/** 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） */
+export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx): PreviewMenuHandle {
   const root = document.createElement("button");
   root.className = "mode-btn";
   root.textContent = "⚙️";
@@ -94,6 +101,22 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     close: () => ctx.close(),
   };
 
+  /** 适配器注入的专属项（Phase 2：build 内经 ctx.menu.setAdapterItems 替换） */
+  let adapterItems: PreviewMenuItemDef[] = [];
+
+  /** 行点击分发：action 直接执行（适配器 run 优先于 core runners），panel 开子面板 */
+  const bindRow = (row: HTMLElement, def: PreviewMenuItemDef): void => {
+    row.onclick = (): void => {
+      if (def.kind === "action") {
+        closePopup();
+        if (def.run) def.run();
+        else runners[def.id]?.();
+      } else {
+        renderSub(def);
+      }
+    };
+  };
+
   const renderRoot = (): void => {
     popup.innerHTML = "";
     PREVIEW_MENU_DEFS.forEach((def) => {
@@ -104,16 +127,21 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
         return;
       }
       const row = makeRow(def);
-      row.onclick = (): void => {
-        if (def.kind === "action") {
-          closePopup();
-          runners[def.id]?.();
-        } else {
-          renderSub(def);
-        }
-      };
+      bindRow(row, def);
       popup.appendChild(row);
     });
+    if (adapterItems.length > 0) {
+      popup.appendChild(makeDivider());
+      adapterItems.forEach((def) => {
+        if (def.kind === "divider") {
+          popup.appendChild(makeDivider());
+          return;
+        }
+        const row = makeRow(def);
+        bindRow(row, def);
+        popup.appendChild(row);
+      });
+    }
   };
 
   const renderSub = (def: PreviewMenuItemDef): void => {
@@ -127,7 +155,8 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     });
     back.onclick = (): void => renderRoot();
     popup.appendChild(back);
-    fillers[def.id]?.(popup);
+    if (def.render) def.render(popup, closePopup);
+    else fillers[def.id]?.(popup);
   };
 
   root.onclick = (e: MouseEvent): void => {
@@ -145,7 +174,25 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   };
   document.addEventListener("click", onDoc);
 
-  return (): void => document.removeEventListener("click", onDoc);
+  /** 替换适配器专属项（build 后 / switchTo 重建后调用；菜单开着则重渲染） */
+  const setAdapterItems = (items: PreviewMenuItemDef[]): void => {
+    adapterItems = items;
+    if (popup.style.display !== "none") renderRoot();
+  };
+
+  /** 直接打开指定 panel（骨骼拾取联动：未开菜单时点击骨骼 → 打开模型面板） */
+  const openPanel = (id: string): void => {
+    const def = [...PREVIEW_MENU_DEFS, ...adapterItems].find((d) => d.id === id);
+    if (!def || def.kind !== "panel") return;
+    renderSub(def);
+    popup.style.display = "flex";
+  };
+
+  return {
+    dispose: (): void => document.removeEventListener("click", onDoc),
+    setAdapterItems,
+    openPanel,
+  };
 }
 
 /** 环境面板（ADR-075 已落地项的复用）：地面 / 时间-of-day / 云量 / 环境光(IBL) */
