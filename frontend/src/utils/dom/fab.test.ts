@@ -77,33 +77,33 @@ describe("createIconButton — 图标按钮工厂", () => {
     expect(btn.getAttribute("aria-label")).toBe("关闭");
   });
 
-  it("Unicode emoji icon → .ysm-ic textContent 形态（不走 CSS 类）", () => {
+  it("Unicode emoji icon → .preview-ic textContent 形态（不走 CSS 类）", () => {
     const btn = createIconButton({ icon: "✕" });
-    const ic = btn.querySelector(".ysm-ic");
+    const ic = btn.querySelector(".preview-ic");
     expect(ic).not.toBeNull();
     expect(ic!.textContent).toBe("✕");
-    expect(ic!.classList.contains("ysm-ic--✕")).toBe(false);
+    expect(ic!.classList.contains("preview-ic--✕")).toBe(false);
   });
 
   it("多码元 emoji icon → textContent 形态", () => {
     const btn = createIconButton({ icon: "\u{1F4F7}" });
-    const ic = btn.querySelector(".ysm-ic");
+    const ic = btn.querySelector(".preview-ic");
     expect(ic!.textContent).toBe("\u{1F4F7}");
-    expect(ic!.classList.contains("ysm-ic--\u{1F4F7}")).toBe(false);
+    expect(ic!.classList.contains("preview-ic--\u{1F4F7}")).toBe(false);
   });
 
-  it("CSS 类名 icon（cam）→ 注入 ysm-ic--cam，不写 textContent", () => {
+  it("CSS 类名 icon（cam）→ 注入 preview-ic--cam，不写 textContent", () => {
     const btn = createIconButton({ icon: "cam" });
-    const ic = btn.querySelector(".ysm-ic");
-    expect(ic!.classList.contains("ysm-ic--cam")).toBe(true);
+    const ic = btn.querySelector(".preview-ic");
+    expect(ic!.classList.contains("preview-ic--cam")).toBe(true);
     expect(ic!.textContent).toBe("");
   });
 
   it("非纯类名字符串 icon → 降级 textContent（防误注入 CSS 类）", () => {
     const btn = createIconButton({ icon: "cam x" });
-    const ic = btn.querySelector(".ysm-ic");
+    const ic = btn.querySelector(".preview-ic");
     expect(ic!.textContent).toBe("cam x");
-    expect(ic!.classList.contains("ysm-ic--cam")).toBe(false);
+    expect(ic!.classList.contains("preview-ic--cam")).toBe(false);
   });
 
   it("label → 追加文本 span", () => {
@@ -126,7 +126,7 @@ describe("createIconButton — 图标按钮工厂", () => {
 
   it("icon + label + title 组合齐全", () => {
     const btn = createIconButton({ icon: "close", label: "关闭", title: "关闭预览" });
-    expect(btn.querySelector(".ysm-ic--close")).not.toBeNull();
+    expect(btn.querySelector(".preview-ic--close")).not.toBeNull();
     expect(btn.textContent).toBe("关闭");
     expect(btn.getAttribute("aria-label")).toBe("关闭预览");
   });

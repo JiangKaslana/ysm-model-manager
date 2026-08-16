@@ -43,7 +43,7 @@ function makeShotGuard(shotBtn: HTMLElement): {
 } {
   let _saving = false;
   const setIcon = (icon: string): void => {
-    const ic = shotBtn.querySelector<HTMLElement>(".ysm-ic");
+    const ic = shotBtn.querySelector<HTMLElement>(".preview-ic");
     if (ic) ic.textContent = icon;
   };
   return { get saving() { return _saving; }, setSaving: (v: boolean) => { _saving = v; }, setIcon };

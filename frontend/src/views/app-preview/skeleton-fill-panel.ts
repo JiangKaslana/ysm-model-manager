@@ -98,7 +98,7 @@ export function fill3DPanel(
       btn.style.cssText = "font-size:10px;padding:1px 4px;border-radius:3px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.6);cursor:pointer;line-height:1";
       btn.onclick = (): void => {
         boneList.forEach((b) => _model3d?.setBoneVisible(b.id, v));
-        document.querySelectorAll("#ysm-3d-panel input[type=checkbox]").forEach((c) => ((c as HTMLInputElement).checked = v));
+        document.querySelectorAll("#preview-panel input[type=checkbox]").forEach((c) => ((c as HTMLInputElement).checked = v));
       };
       btnGroup.appendChild(btn);
     });

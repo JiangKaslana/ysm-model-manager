@@ -461,7 +461,7 @@ describe("fill3DPanel", () => {
     textureNames?: string[];
   } = {}) {
     const panel = document.createElement("div");
-    panel.id = "ysm-3d-panel";
+    panel.id = "preview-panel";
     document.body.appendChild(panel);
     const model = makeModel({
       textures: over.textures ?? ["t1.png", "t2.png"],

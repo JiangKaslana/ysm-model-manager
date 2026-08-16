@@ -28,7 +28,7 @@ export async function buildLitematicScene(
   voxelCall: (path: string) => Promise<string>,
 ): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
-    '<div style="font-size:32px">🧊</div><div>' + t("preview.loadingVoxels") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:ysm-prog 1.5s ease-in-out infinite"></div></div>';
+    '<div style="font-size:32px">🧊</div><div>' + t("preview.loadingVoxels") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
 
   const jsonStr = await voxelCall(path);
   const data = JSON.parse(jsonStr) as VoxelData;

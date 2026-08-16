@@ -227,13 +227,13 @@ describe("createLitematic3D 主路径", () => {
     expect(overlay.textContent).not.toContain("加载体素数据");
   });
 
-  it("closeBtn 点击 → overlay 移除（SlideMenu header ✕，legacy #ysm-close-3d）", async () => {
+  it("closeBtn 点击 → overlay 移除（SlideMenu header ✕，legacy #preview-close-3d）", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
     // 打开底部 dock 菜单使 SlideMenu 可见，再点 header ✕ 关闭 3D
     const dockBtn = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
     dockBtn.click();
-    const closeBtn = overlay.querySelector("#ysm-close-3d") as HTMLElement;
+    const closeBtn = overlay.querySelector("#preview-close-3d") as HTMLElement;
     expect(closeBtn).toBeTruthy();
     closeBtn.click();
     expect(document.body.contains(overlay)).toBe(false);

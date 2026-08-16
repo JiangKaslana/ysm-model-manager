@@ -1,7 +1,7 @@
 // ===== 3D 预览悬浮控制层组件（ADR-057）=====
 // 用途：替代 skeleton.ts 内联 style.cssText 控制栏，集中治理样式 + 双端响应式。
 // 挂载点：3D overlay 挂 document.body（light DOM），全局 CSS 经 ensureFabStyles 注入 head 一次。
-// 触发 FAB 在预览面板 Shadow DOM 内（.ysm-fab 见 css.ts，因 Shadow DOM 隔离需本地样式）。
+// 触发 FAB 在预览面板 Shadow DOM 内（.preview-fab 见 css.ts，因 Shadow DOM 隔离需本地样式）。
 
 export const YSW_FAB_CSS = `
 /* ===== 3D 全屏 overlay 根容器（#ysm-overlay-3d，light DOM） ===== */
@@ -24,13 +24,13 @@ export const YSW_FAB_CSS = `
 .ysm-ovl-shotitem:hover{background:rgba(124,131,255,.3)}
 
 /* ===== 3D 信息面板（原内联布局，移入 CSS 以便响应式覆盖宽度） ===== */
-.ysm-3d-panel{position:absolute;top:0;right:0;bottom:0;width:260px;background:rgba(0,0,0,.4);border-left:1px solid rgba(255,255,255,.1);overflow-y:auto;padding:10px 12px;font-size:11px;color:rgba(255,255,255,.75);z-index:5}
+.preview-panel{position:absolute;top:0;right:0;bottom:0;width:260px;background:rgba(0,0,0,.4);border-left:1px solid rgba(255,255,255,.1);overflow-y:auto;padding:10px 12px;font-size:11px;color:rgba(255,255,255,.75);z-index:5}
 
 /* ===== 底部悬浮导航 + 分类弹窗（MikuMikuAR 玻璃 HUD 范式，ADR-066 §5.7）=====
    3D 全屏沉浸：无常驻侧栏，功能经底部导航按域分组、点击弹出 280px 毛玻璃弹窗 */
 .preview-dock-nav{position:absolute;left:16px;bottom:16px;display:flex;gap:6px;padding:6px;border-radius:12px;background:rgba(20,20,30,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);z-index:20}
 .preview-dock-navbtn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:56px;padding:6px 8px;border-radius:8px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;font-family:inherit;font-size:10px;line-height:1.2;transition:background .12s ease}
-.preview-dock-navbtn .ysm-ic{font-size:17px}
+.preview-dock-navbtn .preview-ic{font-size:17px}
 .preview-dock-navbtn:hover{background:rgba(255,255,255,.08);color:#fff}
 .preview-dock-navbtn--on{background:rgba(124,131,255,.28);color:#fff;border-color:rgba(124,131,255,.35)}
 .preview-dock-navlabel{white-space:nowrap}
@@ -46,18 +46,18 @@ export const YSW_FAB_CSS = `
 .ysm-3d-popbtn:hover{background:rgba(124,131,255,.3)}
 .ysm-3d-popbtn--row{width:100%;margin:1px 0}
 
-/* ===== 图标语义类（light DOM + Shadow DOM 均生效；shadow DOM 内由父级 .ysm-fab .ysm-ic 兜底）===== */
-.ysm-ic{display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0}
-.ysm-ic--cam::before{content:"📷"}
-.ysm-ic--rot::before{content:"⟲"}
-.ysm-ic--close::before{content:"✕"}
-.ysm-ic--panel-hide::before{content:"◀"}
-.ysm-ic--panel-show::before{content:"▶"}
+/* ===== 图标语义类（light DOM + Shadow DOM 均生效；shadow DOM 内由父级 .preview-fab .preview-ic 兜底）===== */
+.preview-ic{display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0}
+.preview-ic--cam::before{content:"📷"}
+.preview-ic--rot::before{content:"⟲"}
+.preview-ic--close::before{content:"✕"}
+.preview-ic--panel-hide::before{content:"◀"}
+.preview-ic--panel-show::before{content:"▶"}
 
 /* ===== 双端响应式：复用 MikuMikuAR 断点（ADR-057 §2.4） ===== */
 @media (max-width:480px){
   .ysm-ovl-bar{padding:4px 8px;gap:4px;flex-wrap:wrap}
-  .ysm-3d-panel{width:min(78vw,260px)}
+  .preview-panel{width:min(78vw,260px)}
   .ysm-3d-popup{width:min(86vw,280px)}
 }
 @media (orientation:landscape) and (max-height:500px){
@@ -96,8 +96,8 @@ export interface IconButtonOpts {
 }
 /** 图标按钮工厂（ADR-057 §2.6）：统一 emoji/图标按钮，集中可达性；用 textContent 防 XSS。
  * icon 支持两种形态：
- *   - Unicode 文本字面量（如 "✕" "\u{1F4F7}"）→ 直接写入 .ysm-ic span
- *   - CSS 类名字符串（如 "cam" "rot" "close"）→ 注入 .ysm-ic--{name} class 到 .ysm-ic span
+ *   - Unicode 文本字面量（如 "✕" "\u{1F4F7}"）→ 直接写入 .preview-ic span
+ *   - CSS 类名字符串（如 "cam" "rot" "close"）→ 注入 .preview-ic--{name} class 到 .preview-ic span
  */
 export function createIconButton(opts: IconButtonOpts): HTMLButtonElement {
   const btn = document.createElement("button");
@@ -108,10 +108,10 @@ export function createIconButton(opts: IconButtonOpts): HTMLButtonElement {
   }
   if (opts.icon) {
     const ic = document.createElement("span");
-    ic.className = "ysm-ic";
+    ic.className = "preview-ic";
     if (/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(opts.icon)) {
-      // CSS class name form: match ysm-ic-{name} rule in YSW_FAB_CSS
-      ic.classList.add("ysm-ic", `ysm-ic--${opts.icon}`);
+      // CSS class name form: match preview-ic-{name} rule in YSW_FAB_CSS
+      ic.classList.add("preview-ic", `preview-ic--${opts.icon}`);
     } else {
       // Unicode emoji form
       ic.textContent = opts.icon;

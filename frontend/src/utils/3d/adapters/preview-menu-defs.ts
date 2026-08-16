@@ -30,7 +30,7 @@ export interface PreviewMenuItemDef {
   requiresEnvironment?: boolean;
   /** 归属底栏分组（🧍 模型 / 💃 动作 / 🌍 场景）；无 dockGroup 的项只出现在设置聚合视图 */
   dockGroup?: PreviewMenuGroupId;
-  /** 面板型保留 legacy data-testid（兼容既有 e2e 选择器，如 ysm-close-3d / env-menu-btn / mmd-switch） */
+  /** 面板型保留 legacy data-testid（兼容既有 e2e 选择器，如 preview-close-3d / env-menu-btn / mmd-switch） */
   legacyTestId?: string;
   /** panel 型：子面板填充（适配器注入的专属项必需；core 固定项走 fillers 映射） */
   render?: (list: HTMLElement, closePopup: () => void) => void;
@@ -55,7 +55,7 @@ export const PREVIEW_MENU_GROUPS: PreviewMenuGroupDef[] = [
  * core 固定菜单项（不依赖适配器注入）：
  * - switch：模型组（有 siblings 才显示）
  * - environment / camera：场景组（shared 模式才显示）
- * close 不在此表——关闭由 SlideMenu header 的 ✕ 承担（legacy ysm-close-3d 挂在关闭按钮）。
+ * close 不在此表——关闭由 SlideMenu header 的 ✕ 承担（legacy preview-close-3d 挂在关闭按钮）。
  */
 export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
   {

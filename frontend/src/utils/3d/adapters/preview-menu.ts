@@ -61,8 +61,8 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   const menu = createSlideMenu({ title: "", closeIcon: "✕" });
   popup.appendChild(menu.root);
-  // 兼容既有 e2e 选择器：关闭按钮保留 ysm-close-3d
-  menu.root.querySelector<HTMLElement>(".slide-back")?.setAttribute("id", "ysm-close-3d");
+  // 兼容既有 e2e 选择器：关闭按钮保留 preview-close-3d
+  menu.root.querySelector<HTMLElement>(".slide-back")?.setAttribute("id", "preview-close-3d");
 
   const showMenu = (view: SlideMenuView): void => {
     menu.home(view);
@@ -171,7 +171,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       const btn = document.createElement("button");
       btn.className = "preview-dock-navbtn";
       btn.dataset.testid = "dock-" + g.id;
-      btn.innerHTML = `<span class="ysm-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
+      btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation();
         const panels = groupItems.filter((d) => d.kind === "panel");

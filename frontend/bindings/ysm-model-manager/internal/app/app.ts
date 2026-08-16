@@ -575,6 +575,14 @@ export function ListModelAuthors(): $CancellablePromise<types$0.AuthorInfo[] | n
     return $Call.ByID(2783678748);
 }
 
+/**
+ * ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。
+ * 失败或无模型返回 "[]"（前端据此回退缩略图通道）。
+ */
+export function ListPackModels(path: string): $CancellablePromise<string> {
+    return $Call.ByID(426377372, path);
+}
+
 export function ListRecycleBin(recyclePath: string): $CancellablePromise<types$0.ModelEntry[] | null> {
     return $Call.ByID(3420025601, recyclePath);
 }
@@ -721,6 +729,14 @@ export function ReadLitematicMeta(path: string): $CancellablePromise<string> {
  */
 export function ReadNbtStructure(path: string): $CancellablePromise<string> {
     return $Call.ByID(304829738, path);
+}
+
+/**
+ * ReadPackEntry 读取容器内条目内容（base64 字符串）。
+ * entry 非法/缺失/超限返回空串（前端渲染兜底跳过）。
+ */
+export function ReadPackEntry(path: string, entry: string): $CancellablePromise<string> {
+    return $Call.ByID(1997958062, path, entry);
 }
 
 /**
