@@ -704,6 +704,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-085：3D 预览菜单单一事实来源：注册表驱动 + 状态单向流",
+        "link": "/adr/ADR-085-menu-single-source"
+      },
+      {
         "text": "ADR-084：个人灯光系统（Personal Lighting）——三点布光 + 聚光灯 + 体积光双引擎",
         "link": "/adr/ADR-084-personal-lighting"
       },
