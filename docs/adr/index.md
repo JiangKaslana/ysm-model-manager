@@ -101,7 +101,7 @@ permalink: /adr/
 | ADR-074 | 3D 骨骼层级通用工具：统一 YSM/MMD/VRM 的骨骼列表·拾取·显隐 | ✅ 已采纳 | 2026-08-16 |
 | ADR-075 | 3D 预览环境控件收进环境菜单契约 | ✅ 已采纳 | 2026-08-16 |
 | ADR-076 | 3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编） | 🔄 部分采纳（**Phase 1 已落地**：顶栏砍掉，收敛为 overlay 内 ⚙️ 声明式根菜单；**Phase 2 已落地**：ysm/mmd 适配器专属控件经 `PreviewBuildCtx.menu.setAdapterItems` 收编进根菜单，`buildYsm/MmdBottomNav` + 重复 `mkNavBtn`/`togglePopup`/`closePopup` 已删除；**Phase 3 待立项**：vrm/litematic 的 `extraControls` 单按钮收编） | 2026-08-16 |
-| ADR-078 | 底部导航通用外壳收敛（D1+D3 落地） | ✅ 已采纳 | 2026-08-16 |
+| ADR-077 | 底部导航通用外壳收敛（D1+D3 落地） |  | - |
 | ADR-079 | WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游 | ✅ 已采纳（M1-M4 全落地：网页 COI SW / 桌面中间件 / 重编译 pthread / 接入降级） | 2026-08-16 |
 | ADR-080 | 资源包 block/item 模型 JSON 解析与渲染（PackModelAdapter） | ✅ 已采纳 | 2026-08-16 |
 | ADR-081 | 语义骨骼层——跨格式语义骨骼统一抽象 | ✅ 已采纳（L1 呼吸 + L2 注视追踪已落地，L3 眨眼/LipSync 格式特化待接入） | 2026-08-17 |

@@ -728,7 +728,7 @@ export const autoSidebar = [
         "link": "/adr/ADR-079-wasm-pthread-mt-decode"
       },
       {
-        "text": "ADR-078：底部导航通用外壳收敛（D1+D3 落地）",
+        "text": "ADR-077：底部导航通用外壳收敛（D1+D3 落地）",
         "link": "/adr/ADR-077-bottom-nav-shell-convergence"
       },
       {
