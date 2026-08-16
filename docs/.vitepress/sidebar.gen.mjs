@@ -700,6 +700,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-076：3D 预览通用底部导航与弹窗脚手架收敛契约",
+        "link": "/adr/ADR-076-preview-bottom-nav-shell"
+      },
+      {
         "text": "ADR-075：3D 预览环境控件收进环境菜单契约",
         "link": "/adr/ADR-075-preview-bottom-nav-environment-menu"
       },

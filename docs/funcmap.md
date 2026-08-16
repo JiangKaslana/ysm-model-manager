@@ -42,8 +42,9 @@
 | frontend/ui | 18 | 103 |
 | 前端·工具 | 91 | 327 |
 | frontend/views | 88 | 239 |
-| 前端·WASM | 3 | 6 |
-| **合计** | **345** | **1441** |
+| 前端·WASM | 4 | 9 |
+| frontend/workers | 3 | 14 |
+| **合计** | **349** | **1458** |
 
 ## Go·头像
 
@@ -1665,6 +1666,28 @@
 | `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:184` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
 | `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:233` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
+| `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:61` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
+| `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:204` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |
+| `decodeYsmInWorkerMemfs()` | `frontend/src/wasm/ysm-worker-loader:243` | callMain + MEMFS 解码 .ysm（回退路径，兼容旧 WASM 编译 / V3 文本头部等格式）。 |
+
+## frontend/workers
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `StatsFileInput()` | `frontend/src/workers/stats-core:13` | 解码/直读产物文件（Worker 与主线程共用形状） |
+| `ModelStatsResult()` | `frontend/src/workers/stats-core:19` | 单模型统计结果（SearchResult 数值字段对齐） |
+| `sniffTexSize()` | `frontend/src/workers/stats-core:40` | 从纹理字节嗅探像素尺寸（PNG：签名 + IHDR 后宽/高大端；JPEG：SOI 后首个 SOF）。 |
+| `statsFromDecodedFiles()` | `frontend/src/workers/stats-core:111` | 从 WASM 解码产物计算统计（.ysm 主文件路径）。 |
+| `StatsRelReader()` | `frontend/src/workers/stats-core:147` | 读取相对路径文件的回调（Worker 内 = IDB 读取；测试可注入内存 Map） |
+| `statsFromJsonBytes()` | `frontend/src/workers/stats-core:155` | 从 .json 主文件字节计算统计（解压目录入口，ADR-038 ysm.json 语义）： - ysm.json spec 格式（spec+files）：按 files.play |
+| `WebModelStats()` | `frontend/src/workers/stats-protocol:5` | 单模型统计结果（与 SearchResult 数值字段对齐） |
+| `StatsWorkerRequest()` | `frontend/src/workers/stats-protocol:14` | 主线程 → Worker：批量统计任务 |
+| `StatsWorkerProgress()` | `frontend/src/workers/stats-protocol:23` | Worker → 主线程：进度 |
+| `StatsWorkerResult()` | `frontend/src/workers/stats-protocol:31` | Worker → 主线程：批量结果（与 paths 一一对应，含 path 便于主线程对齐） |
+| `StatsWorkerError()` | `frontend/src/workers/stats-protocol:38` | Worker → 主线程：致命错误（WASM 无法加载 / 任务内部异常），主线程据此整体降级 |
+| `StatsWorkerResponse()` | `frontend/src/workers/stats-protocol:44` | — |
+| `STATS_BATCH_LIMIT()` | `frontend/src/workers/stats-protocol:50` | 单批模型上限：防 Worker 内存爆（每个模型 WASM 解码 + 纹理驻留 HEAP，200 已含余量） |
+| `WebModelStats()` | `frontend/src/workers/stats.worker` | — |
 
 ---
 
