@@ -1180,14 +1180,14 @@
 | `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:8` | — |
 | `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:21` | — |
 | `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:29` | — |
-| `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:22` | ============ 参数类型 ============ |
-| `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:32` | — |
-| `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:37` | — |
-| `VolumetricParams()` | `frontend/src/utils/3d/caps/light-capability:51` | — |
-| `LightParams()` | `frontend/src/utils/3d/caps/light-capability:65` | — |
-| `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:93` | — |
-| `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:103` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
-| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:211` | ============ LightCapability ============ |
+| `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:25` | ============ 参数类型 ============ |
+| `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:35` | — |
+| `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:40` | — |
+| `VolumetricParams()` | `frontend/src/utils/3d/caps/light-capability:54` | — |
+| `LightParams()` | `frontend/src/utils/3d/caps/light-capability:68` | — |
+| `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:96` | — |
+| `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:106` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
+| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:214` | ============ LightCapability ============ |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:18` | — |
 | `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:39` | — |
 | `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:54` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
