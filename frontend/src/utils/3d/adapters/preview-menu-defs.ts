@@ -23,6 +23,8 @@ export interface PreviewMenuItemDef {
   sharedOnly?: boolean;
   /** 仅 siblings.length > 0 显示（3D 内模型切换） */
   needsSiblings?: boolean;
+  /** dock 直显：底栏高频按钮（模型切换/视图——参考 ⚙️ 菜单理念，同一份声明定义） */
+  dock?: boolean;
   /** 面板型保留 legacy data-testid（兼容既有 e2e 选择器，如 ysm-close-3d / env-menu-btn / mmd-switch） */
   legacyTestId?: string;
   /** panel 型：子面板填充（适配器注入的专属项必需；core 固定项走 fillers 映射） */
@@ -49,6 +51,7 @@ export const PREVIEW_MENU_DEFS: PreviewMenuItemDef[] = [
     fallback: "切换模型",
     kind: "panel",
     needsSiblings: true,
+    dock: true, // 底栏高频直显（模型切换）
     legacyTestId: "mmd-switch",
   },
   { id: "div-env", icon: "", labelKey: "", fallback: "", kind: "divider" },
@@ -67,5 +70,6 @@ export const PREVIEW_MENU_DEFS: PreviewMenuItemDef[] = [
     fallback: "视图",
     kind: "panel",
     sharedOnly: true,
+    dock: true, // 底栏高频直显（视图相机）
   },
 ];

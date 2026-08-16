@@ -11,6 +11,7 @@ import { buildCameraControls, type CameraControlBridge } from "./mount-preview-c
 import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
+import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
@@ -40,6 +41,7 @@ export interface PreviewMenuHandle {
 
 /** 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） */
 export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx): PreviewMenuHandle {
+  ensureFabStyles(); // 底栏 dock 复用毛玻璃悬浮条样式（ysm-3d-nav / ysm-3d-navbtn）
   const root = document.createElement("button");
   root.className = "mode-btn";
   root.textContent = "⚙️";
@@ -159,6 +161,37 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     else fillers[def.id]?.(popup);
   };
 
+  // 底栏高频直显（dock 项：模型切换/视图——参考 ⚙️ 菜单理念，同一份 PREVIEW_MENU_DEFS 声明）
+  const dock = document.createElement("div");
+  dock.className = "ysm-3d-nav"; // 复用毛玻璃悬浮条样式（fab.ts ensureFabStyles）
+  overlay.appendChild(dock);
+  const renderDock = (): void => {
+    dock.innerHTML = "";
+    const items = [...PREVIEW_MENU_DEFS, ...adapterItems]
+      .filter((d) => d.dock && d.kind !== "divider")
+      .filter((d) => !(d.sharedOnly && ctx.selfMode))
+      .filter((d) => !(d.needsSiblings && ctx.getSiblings().length === 0));
+    if (items.length === 0) return;
+    items.forEach((def) => {
+      const btn = document.createElement("button");
+      btn.className = "ysm-3d-navbtn";
+      btn.dataset.testid = "dock-" + def.id;
+      btn.innerHTML = `<span class="ysm-ic">${def.icon}</span><span class="ysm-3d-navlabel">${tr(def.labelKey, def.fallback)}</span>`;
+      btn.onclick = (e: MouseEvent): void => {
+        e.stopPropagation(); // 防 document onDoc 误判外部点击收起（与 root.onclick 同款）
+        if (def.kind === "action") {
+          closePopup();
+          if (def.run) def.run();
+          else runners[def.id]?.();
+        } else {
+          renderSub(def);
+          popup.style.display = "flex";
+        }
+      };
+      dock.appendChild(btn);
+    });
+  };
+
   root.onclick = (e: MouseEvent): void => {
     e.stopPropagation();
     if (popup.style.display === "none") {
@@ -174,9 +207,10 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   };
   document.addEventListener("click", onDoc);
 
-  /** 替换适配器专属项（build 后 / switchTo 重建后调用；菜单开着则重渲染） */
+  /** 替换适配器专属项（build 后 / switchTo 重建后调用；菜单开着则重渲染，底栏 dock 同步） */
   const setAdapterItems = (items: PreviewMenuItemDef[]): void => {
     adapterItems = items;
+    renderDock(); // 适配器注入的 dock 项（如骨骼/材质）同步到底栏
     if (popup.style.display !== "none") renderRoot();
   };
 
@@ -187,6 +221,8 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     renderSub(def);
     popup.style.display = "flex";
   };
+
+  renderDock(); // 初始渲染底栏（core dock 项：switch/camera）
 
   return {
     dispose: (): void => document.removeEventListener("click", onDoc),

@@ -165,3 +165,56 @@ describe("mountPreviewRootMenu", () => {
     document.body.click();
   });
 });
+
+describe("dock 底栏高频直显（模型切换/视图——参考 ⚙️ 菜单理念，同一份 PREVIEW_MENU_DEFS 声明）", () => {
+  let overlay: HTMLElement;
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    overlay = document.createElement("div");
+    document.body.appendChild(overlay);
+  });
+
+  it("core dock 项渲染为底栏按钮（dock-switch / dock-camera），siblings>0 才显示 switch", () => {
+    mountPreviewRootMenu(
+      overlay,
+      makeCtx({ getSiblings: () => ["/m/a.ysm", "/m/b.ysm"] }),
+    );
+    expect(overlay.querySelector('[data-testid="dock-switch"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="dock-camera"]')).not.toBeNull();
+  });
+
+  it("无 siblings → switch 不 dock（needsSiblings 过滤），camera 仍显示", () => {
+    mountPreviewRootMenu(overlay, makeCtx());
+    expect(overlay.querySelector('[data-testid="dock-switch"]')).toBeNull();
+    expect(overlay.querySelector('[data-testid="dock-camera"]')).not.toBeNull();
+  });
+
+  it("dock 按钮点击 → 打开对应面板（popup 显示 + 子面板内容）", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx());
+    const camBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-camera"]');
+    expect(camBtn).not.toBeNull();
+    camBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    expect(popup.querySelector("select")).not.toBeNull(); // buildCameraControls 渲染旋转下拉
+    handle.dispose();
+  });
+
+  it("setAdapterItems 注入 dock 项 → 底栏同步新增按钮", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx());
+    expect(overlay.querySelector('[data-testid="dock-bones"]')).toBeNull();
+    handle.setAdapterItems([
+      {
+        id: "bones",
+        icon: "🦴",
+        labelKey: "",
+        fallback: "骨骼",
+        kind: "panel",
+        dock: true,
+        render: () => {},
+      },
+    ]);
+    expect(overlay.querySelector('[data-testid="dock-bones"]')).not.toBeNull();
+    handle.dispose();
+  });
+});

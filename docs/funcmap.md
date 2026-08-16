@@ -1109,10 +1109,10 @@
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:196` | — |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:10` | — |
 | `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
-| `PREVIEW_MENU_DEFS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:35` | 核心根菜单项（适配器专属项在 Phase 2 经契约注入） |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:17` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:35` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项（Phase 2 契约）；openPanel 直接打开指定面板（骨骼拾取联动） |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:42` | 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） |
+| `PREVIEW_MENU_DEFS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:37` | 核心根菜单项（适配器专属项在 Phase 2 经契约注入） |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:18` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:36` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项（Phase 2 契约）；openPanel 直接打开指定面板（骨骼拾取联动） |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:43` | 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:53` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:64` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:113` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
