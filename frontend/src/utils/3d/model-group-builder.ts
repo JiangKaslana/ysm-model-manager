@@ -3,7 +3,7 @@
 // 对齐 Go threejs/spec.go buildModelGroup（L103-390）。
 
 import type { BedrockModel, ModelGroup, BoneData, MeshData, Vec3, Cube2D } from "./spec-builder.ts";
-import { buildCubeMeshData, mergeCubes, eulerToQuaternion, isIdentityQuat, hasBoneRotation } from "./cube-mesh.ts";
+import { buildCubeMeshData, mergeCubes, eulerToQuaternion, isIdentityQuat, hasBoneRotation, computeBoneLocalPos } from "./cube-mesh.ts";
 
 /** buildModelGroup 内部：骨骼首次出现信息 */
 interface BoneFirst {
@@ -75,17 +75,9 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
     const bp = pivots.get(b.name)!;
 
     // 骨骼 local position = (bone.pivot - parent.pivot)，X 翻转对齐 C# ConvertBones（-pivot.x）
-    let localPos: [number, number, number];
-    if (b.parent !== "") {
-      const pp = pivots.get(b.parent);
-      if (pp) {
-        localPos = [pp.x - bp.x, bp.y - pp.y, bp.z - pp.z];
-      } else {
-        localPos = [-bp.x, bp.y, bp.z];
-      }
-    } else {
-      localPos = [-bp.x, bp.y, bp.z];
-    }
+    // ADR-052 P3: 收敛为 computeBoneLocalPos 工具函数
+    const parentPivot = b.parent !== "" ? pivots.get(b.parent) ?? null : null;
+    const localPos = computeBoneLocalPos(bp, parentPivot);
 
     let localRot: [number, number, number, number] = [0, 0, 0, 1];
     if (hasBoneRotation(b.rotation)) {
@@ -163,20 +155,9 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
         if (b.name === name) {
           found = true;
           parentName = b.parent;
-          if (b.parent !== "") {
-            const pp = pivots.get(b.parent);
-            if (pp && bp) {
-              localPos = [pp.x - bp.x, bp.y - pp.y, bp.z - pp.z];
-            } else if (bp) {
-              localPos = [-bp.x, bp.y, bp.z];
-            } else {
-              localPos = [0, 0, 0];
-            }
-          } else if (bp) {
-            localPos = [-bp.x, bp.y, bp.z];
-          } else {
-            localPos = [0, 0, 0];
-          }
+          // ADR-052 P3: 收敛为 computeBoneLocalPos 工具函数
+      const parentPivot2 = b.parent !== "" ? pivots.get(b.parent) ?? null : null;
+      localPos = parentPivot2 && bp ? computeBoneLocalPos(bp, parentPivot2) : (bp ? computeBoneLocalPos(bp, null) : [0, 0, 0]);
           break;
         }
       }
@@ -184,12 +165,8 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
         if (!bp) {
           console.warn("[spec-builder] 骨骼 " + name + " 无 pivot（纯 parent 引用）");
         }
-        // 挂到 root，用世界坐标
-        if (bp) {
-          localPos = [-bp.x, bp.y, bp.z];
-        } else {
-          localPos = [0, 0, 0];
-        }
+        // 挂到 root，用世界坐标（ADR-052 P3: 收敛为 computeBoneLocalPos）
+        localPos = bp ? computeBoneLocalPos(bp, null) : [0, 0, 0];
         parentName = "";
       }
       const parentID: string | null = parentName !== "" ? parentName : null;
@@ -233,17 +210,13 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
     }
 
     const bp = pivots.get(bones[i].name);
+    const ancPivot = ancestor !== "" ? pivots.get(ancestor) ?? null : null;
     if (ancestor !== "") {
-      const ancPivot = pivots.get(ancestor)!;
       bones[i].parentId = ancestor;
-      if (bp) {
-        bones[i].localPosition = [ancPivot.x - bp.x, bp.y - ancPivot.y, bp.z - ancPivot.z];
-      }
+      bones[i].localPosition = ancPivot && bp ? computeBoneLocalPos(bp, ancPivot) : (bp ? computeBoneLocalPos(bp, null) : [0, 0, 0]);
     } else {
       bones[i].parentId = null;
-      if (bp) {
-        bones[i].localPosition = [-bp.x, bp.y, bp.z];
-      }
+      bones[i].localPosition = bp ? computeBoneLocalPos(bp, null) : [0, 0, 0];
     }
   }
 
@@ -255,7 +228,7 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
           const raPivot = pivots.get("RightArm")!;
           const armPivot = pivots.get("Arm")!;
           bones[i].parentId = bones[j].name;
-          bones[i].localPosition = [armPivot.x - raPivot.x, raPivot.y - armPivot.y, raPivot.z - armPivot.z];
+          bones[i].localPosition = computeBoneLocalPos(raPivot, armPivot);
           break;
         }
       }
@@ -266,7 +239,7 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
           const laPivot = pivots.get("LeftArm")!;
           const armPivot = pivots.get("Arm")!;
           bones[i].parentId = bones[j].name;
-          bones[i].localPosition = [armPivot.x - laPivot.x, laPivot.y - armPivot.y, laPivot.z - armPivot.z];
+          bones[i].localPosition = computeBoneLocalPos(laPivot, armPivot);
           break;
         }
       }

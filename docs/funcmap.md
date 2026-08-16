@@ -39,10 +39,10 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| 前端·工具 | 56 | 208 |
+| 前端·工具 | 56 | 209 |
 | frontend/views | 81 | 212 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **279** | **1163** |
+| **合计** | **279** | **1164** |
 
 ## Go·头像
 
@@ -961,8 +961,9 @@
 | `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
-| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:43` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
-| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:199` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
+| `computeBoneLocalPos()` | `frontend/src/utils/3d/cube-mesh:24` | 计算骨骼本地位置（对齐 YSMViewer/C# ConvertBones 口径）。 |
+| `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:64` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
+| `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:220` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:47` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
