@@ -24,8 +24,10 @@ func main() {
 			// Wails 在 desktop 模式对 /wails/custom.js 刻意返回 404（仅 server 模式 serve）。
 			// 但 runtime 的 loadOptionalScript 无条件发 HEAD 请求 → DevTools 显示红色 404。
 			// 此处用 Middleware 在框架内置中间件之前拦截，返回空 JS 消除噪音。
+			// ADR-079 M2：CoopCoepMiddleware 包最外层——mpr build tag 时给全部响应注入
+			// COOP/COEP（桌面 WebView2 解锁 SharedArrayBuffer → pthread WASM 多线程解码）。
 			Middleware: func(next http.Handler) http.Handler {
-				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if r.URL.Path == "/wails/custom.js" {
 						w.Header().Set("Content-Type", "application/javascript")
 						w.WriteHeader(http.StatusOK)
@@ -34,6 +36,7 @@ func main() {
 					}
 					next.ServeHTTP(w, r)
 				})
+				return app.CoopCoepMiddleware(inner)
 			},
 		},
 	})

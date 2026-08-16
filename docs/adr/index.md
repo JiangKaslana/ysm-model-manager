@@ -102,7 +102,7 @@ permalink: /adr/
 | ADR-075 | 3D 预览环境控件收进环境菜单契约 | ✅ 已采纳 | 2026-08-16 |
 | ADR-076 | 3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编） | 🔄 部分采纳（**Phase 1 已落地**：顶栏砍掉，收敛为 overlay 内 ⚙️ 声明式根菜单；**Phase 2 已落地**：ysm/mmd 适配器专属控件经 `PreviewBuildCtx.menu.setAdapterItems` 收编进根菜单，`buildYsm/MmdBottomNav` + 重复 `mkNavBtn`/`togglePopup`/`closePopup` 已删除；**Phase 3 待立项**：vrm/litematic 的 `extraControls` 单按钮收编） | 2026-08-16 |
 | ADR-078 | 底部导航通用外壳收敛（D1+D3 落地） | ✅ 已采纳 | 2026-08-16 |
-| ADR-079 | WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游 | 🔄 部分采纳（方向已定，编码待立项落地） | 2026-08-16 |
+| ADR-079 | WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游 | 🔄 部分采纳（M1 网页 COI SW + M2 桌面中间件已落地，M3/M4 待编码） | 2026-08-16 |
 
 ## 使用规则（硬约束）
 

@@ -32,7 +32,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
-| Go(internal)·应用入口 | 22 | 180 |
+| Go(internal)·应用入口 | 23 | 181 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
 | frontend/backend | 18 | 96 |
 | 前端·核心 | 18 | 36 |
@@ -44,7 +44,7 @@
 | frontend/views | 88 | 245 |
 | 前端·WASM | 4 | 9 |
 | frontend/workers | 2 | 14 |
-| **合计** | **352** | **1490** |
+| **合计** | **353** | **1491** |
 
 ## Go·头像
 
@@ -635,6 +635,7 @@
 | `App.GetAppVersion()` | `internal/app/app:216` | GetAppVersion 返回当前版本号 |
 | `App()` | `internal/app/app:28` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
+| `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
 | `desktopPathManager.AppDataRoot()` | `internal/app/pathmgr_desktop:10` | — |
@@ -1121,8 +1122,8 @@
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:47` | — |
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:59` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:19` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:37` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:44` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:39` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:46` | 挂载预览底部根菜单，返回句柄 |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:53` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:64` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:113` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |

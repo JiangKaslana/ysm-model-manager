@@ -1,6 +1,6 @@
 # ADR-079：WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游
 
-- **状态**：🔄 部分采纳（方向已定，编码待立项落地）
+- **状态**：🔄 部分采纳（M1 网页 COI SW + M2 桌面中间件已落地，M3/M4 待编码）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`upstream/YesSteveModel-Parser/build-wasm`、`frontend/src/wasm/ysm-worker-loader.ts`、`docs/adr/ADR-070-web-voxel-3d-ts-port.md`、借鉴 `MikuMikuAR`（`frontend/dist-web/app/sw.js` COI Service Worker + `CoopCoepMiddleware` mpr build tag）
@@ -38,6 +38,8 @@ SharedArrayBuffer 要求 `crossOriginIsolated`（COOP/COEP 响应头）：
 4. **M4（接入 + 降级）**：前端 `ysm-worker-loader.ts` 支持加载多线程 WASM 变体（`crossOriginIsolated=true` 时用 pthread 版）；不支持/未隔离 → 自动降级单线程 WASM（现状链路不变）。
 
 **边界**：不做 WASM SIMD/多线程的深度调优（fpng 并行是唯一明确收益点）；Worker 池（路 B）与 pthread（路 A）**互补共存**——批量统计走池、单大模型加载可走 pthread；pthread 不作为网页版默认（Pages 首次加载无 SW 控制需 reload，降级路径保持默认单线程）。
+
+**实现补注（2026-08-16）**：M1 落地（public/sw.js 纯 COI SW + coi-sw.ts 注册/检测，网页版 Pages 可达 crossOriginIsolated）；M2 落地（internal/app/coi_middleware.go + mpr_off/on.go，main.go Middleware 接入，-tags mpr 构建注入 COOP/COEP；off/on 双测试）；M3（重编译上游）与 M4（接入降级）待编码。
 
 ## 3. 后果（Consequences）
 
