@@ -820,6 +820,7 @@ export const en: Record<string, string> = {
   "preview.copied": "Copied",
   "preview.blueprintDetail": "Blueprint Detail",
   "preview.webVoxelUnsupported": "Blueprint/Projection 3D preview is not supported on web (use desktop)",
+  "preview.web7zUnsupported": ".7z model preview is not supported on web (use desktop)",
   "preview.nonAirBlocks": "Non-Air Blocks",
   "preview.totalVolume": "Total Volume",
   "preview.boundingBox": "Bounding Box",
