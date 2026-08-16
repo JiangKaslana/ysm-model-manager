@@ -34,40 +34,46 @@ ADR-073 确立「联邦渲染能力共享」（天空能力已落地 L1）。骨
 
 **抽通用骨骼工具层，三格式经「格式 → BoneRef」适配器接入**，复用同一套列表/拾取/显隐/详情。
 
-### 2.1 核心抽象：`BoneRef`
+### 2.1 核心抽象：`BoneNode`（实现落地命名，见 `utils/3d/bone-tools.ts`）
 
 ```ts
-// 骨骼引用：格式无关的「骨骼 = Object3D + 元数据」最小契约
-interface BoneRef {
+// 骨骼节点：格式无关的「骨骼 = Object3D + 元数据」最小契约
+interface BoneNode {
   id: string;                 // 稳定标识（ysm boneId / mmd bone name / vrm humanoid bone name）
   name: string;               // 显示名
   parentId: string | null;    // 父骨骼 id（根为 null）
-  object: THREE.Object3D;     // 骨骼对应的 Object3D（ysm Group / mmd Bone / vrm normalized node）
+  object?: THREE.Object3D;    // 骨骼对应的 Object3D（ysm Group / mmd Bone / vrm normalized node），可选
 }
 ```
 
-### 2.2 通用工具（`utils/3d/bone-hierarchy.ts` 新文件，替代现有 bone-* 三散件）
+> 注：本 ADR 初稿用 `BoneRef` 命名，与并行落地的 `bone-tools.ts` 实现（`BoneNode`）撞车；以实现为准统一为 `BoneNode`。
 
-| 函数 | 职责 | 对应现有 |
+### 2.2 通用工具（`utils/3d/bone-tools.ts`，纯逻辑零 DOM，已落地）
+
+| 函数 | 职责 | 对应旧 ysm 散件 |
 |------|------|---------|
-| `buildBoneIndex(bones: BoneRef[])` | 建层级表（`byId`/`nameMap`/`parentMap`/`childrenMap`）+ 路径 | `buildBoneHierarchy(spec)` |
-| `getBoneList(bones: BoneRef[])` | 扁平列表（id/name/parentId） | `bone-list.ts getBoneList(spec)` |
-| `setBoneVisible(bones, id, visible)` / `toggleBone` | `object.traverse(visible)` | `bone-visibility.ts` |
-| `registerBonePick(renderer, camera, scene, bones, state)` | Raycaster 命中 `object` → 组装选中信息 | `registerBoneRaycast` |
+| `buildBoneTree(bones)` | 建树（byId/childrenMap/roots） | `buildBoneHierarchy(spec)` |
+| `listBonesWithDepth(tree)` | 深度缩进列表 | `bone-list.ts getBoneList(spec)` |
+| `getBonePath` / `getBonePosition` / `getBoneDetail` | 路径/坐标/详情 | `bone-raycast.ts` 内联 |
+| `setBoneVisible` / `toggleBoneVisible` | `object.traverse(visible)` | `bone-visibility.ts` |
+| `pickBone(raycaster, meshes, tree)` | Raycaster 命中 mesh → 沿父链归属骨骼 | `registerBoneRaycast` |
 
-通用工具只吃 `BoneRef[]`，**不感知 Spec3D / pmx / humanoid**。拾取判定从「`Group.name ∈ nameMap`」改为「命中 `object` 在 `byId` 里」（沿父链匹配 `object` 引用），消除 boneId 当 Group.name 的约定。
+**策略（对齐实现）**：不推倒旧 `bone-list`/`bone-raycast`/`bone-visibility`，通用工具独立成层；ysm 是否桥接进通用工具属后续任务（实现注释「任务 #5」），当前 ysm 仍走旧散件、mmd/vrm 走通用工具。
 
-### 2.3 格式适配器（各提供一个「格式 → BoneRef[]」）
+**mmd 骨骼拾取特殊性**：`THREE.Bone` 无几何（`intersectObjects` 不命中），改「射线到骨骼世界坐标距离」法（`mmd-bones.ts pickMmdBone`），故 mmd 独立实现拾取，未并入 `pickBone`。
 
-- **ysm**：`specToBoneRefs(spec, boneGroupMap)` — `Spec3D.bones` → `{ id, name, parentId, object: boneGroupMap.get(id) }`。
-- **mmd**：`pmxBonesToRefs(mmd)` — `pmx.bones` + `skeleton.bones` → `{ name, parentIndex→parentId, object: skeleton.bones[i] }`。
-- **vrm**：`vrmBonesToRefs(vrm)` — `humanoid` 骨骼名 → `getNormalizedBoneNode(name)`。
+### 2.3 格式适配器（各提供一个「格式 → 通用/独立工具」输入）
+
+- **ysm**：`Spec3D.bones` + `boneGroupMap` → `BoneNode`（object = `boneGroupMap.get(id)`），暂走旧散件。
+- **mmd**：`pmx.bones`（name/parentBoneIndex/position）+ `mesh.skeleton.bones`（索引对齐）→ `mmd-bones.ts`（`buildMmdBoneTree`/`pickMmdBone`/`getMmdBoneDetail`，已落地）。
+- **vrm**：`vrm.humanoid` 骨骼名 → `getNormalizedBoneNode(name)`，待接。
 
 ### 2.4 分阶段
 
-- **S1**：定义 `BoneRef` + 通用工具 `bone-hierarchy.ts`；ysm 适配 `specToBoneRefs`；`bone-list`/`bone-raycast`/`bone-visibility` 收编进通用工具（ysm 行为零回归，测试迁移）。
-- **S2**：mmd 接入（拾取/列表/显隐），复用通用工具。
+- **S1（进行中）**：通用工具 `bone-tools.ts` + mmd 适配 `mmd-bones.ts` 落地（并行代理实现，主模型抽查通过）。
+- **S2**：mmd 骨骼交互接 UI（拾取/列表/显隐 → 预览面板）。
 - **S3**：vrm 接入（Humanoid 骨骼列表/拾取）。
+- **S4**：ysm 桥接进通用工具（评估后，旧散件收敛）。
 
 ---
 

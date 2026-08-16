@@ -40,10 +40,10 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 101 |
-| 前端·工具 | 87 | 316 |
+| 前端·工具 | 88 | 311 |
 | frontend/views | 88 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **341** | **1426** |
+| **合计** | **342** | **1421** |
 
 ## Go·头像
 
@@ -1098,6 +1098,8 @@
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:51` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:62` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:111` | VRM 内容构建：把模型挂入核心 scene，返回每帧 update + dispose |
+| `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
+| `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:23` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
 | `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:64` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
 | `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:149` | 工厂：构造统一 PreviewAdapter（shared 模式） |
@@ -1146,16 +1148,9 @@
 | `MaterialWithMap()` | `frontend/src/utils/3d/mesh:22` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:27` | 释放材质（含位图 .map），null/undefined 安全。 |
 | `buildSceneMesh()` | `frontend/src/utils/3d/mesh:35` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
-| `MmdBoneTreeNode()` | `frontend/src/utils/3d/mmd-bones:12` | 骨骼树节点（buildMmdBoneTree 返回根数组 = 森林） |
-| `MmdBoneListItem()` | `frontend/src/utils/3d/mmd-bones:19` | 扁平骨骼列表项（listMmdBones：DFS 先序，depth 即缩进层级） |
-| `MmdBonePickResult()` | `frontend/src/utils/3d/mmd-bones:27` | 拾取结果（pickMmdBone 命中） |
-| `MmdBoneDetail()` | `frontend/src/utils/3d/mmd-bones:34` | 骨骼详情（getMmdBoneDetail） |
-| `buildMmdBoneTree()` | `frontend/src/utils/3d/mmd-bones:45` | 树构建：parentBoneIndex 挂父（自引用/越界视为根），返回根节点森林 |
-| `listMmdBones()` | `frontend/src/utils/3d/mmd-bones:63` | 扁平列表：树 DFS 先序 + 深度（消费方可按 depth 缩进渲染） |
-| `pickMmdBone()` | `frontend/src/utils/3d/mmd-bones:85` | 骨骼拾取：THREE.Bone 无几何（Raycaster.intersectObjects 不命中），改为 「射线到骨骼 worldPosition 的距离」命中——遍历取最近且 |
-| `setMmdBoneVisible()` | `frontend/src/utils/3d/mmd-bones:109` | 骨骼显隐：设置 THREE.Bone.visible（骨骼自身无几何，控制后续 helper/拾取可见性） |
-| `toggleMmdBoneVisible()` | `frontend/src/utils/3d/mmd-bones:119` | 骨骼显隐切换：返回切换后的可见状态（越界返回 false） |
-| `getMmdBoneDetail()` | `frontend/src/utils/3d/mmd-bones:139` | 骨骼详情：路径（父链 → 根，"/" 拼接）/ 直接子索引 / 本地坐标（pmx position）/ 世界坐标（当前姿态 getWorldPosition）。越界返回 null。 |
+| `mmdBonesToBoneNodes()` | `frontend/src/utils/3d/mmd-bones:16` | MMD 骨骼 → bone-tools BoneNode[]（id = pmx 索引字符串；越界父/自引用 → null 根） |
+| `MmdBonePickResult()` | `frontend/src/utils/3d/mmd-bones:32` | 拾取结果（pickMmdBone 命中） |
+| `pickMmdBone()` | `frontend/src/utils/3d/mmd-bones:39` | MMD 骨骼拾取：射线到骨骼 worldPosition 距离命中（Bone 无几何，网格归属拾取不适用） |
 | `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:33` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
