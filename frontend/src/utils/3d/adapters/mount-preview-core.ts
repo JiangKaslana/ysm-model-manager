@@ -287,6 +287,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getCamBridge: () => camBridge,
     getSiblings: () => siblings,
     getCurrentPath: () => currentPath,
+    getViewContainer: () => viewContainer,
     close: () => {
       if (cleanupFn) cleanupFn();
       else closeOverlay();

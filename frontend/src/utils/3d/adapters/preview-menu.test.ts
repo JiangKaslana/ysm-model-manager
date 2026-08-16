@@ -19,6 +19,7 @@ function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
     }),
     getSiblings: () => [],
     getCurrentPath: () => "/m/a.ysm",
+    getViewContainer: () => document.createElement("div"),
     close: vi.fn(),
     switchTo: vi.fn(),
     ...overrides,

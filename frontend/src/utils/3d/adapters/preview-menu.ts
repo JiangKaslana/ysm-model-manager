@@ -23,6 +23,8 @@ export interface PreviewMenuCtx {
   getCamBridge: () => CameraControlBridge;
   getSiblings: () => string[];
   getCurrentPath: () => string;
+  /** 3D 渲染器容器：点击该区域关闭菜单（不再全局点击杀弹窗） */
+  getViewContainer: () => HTMLElement;
   close: () => void;
   switchTo: (path: string) => void;
 }
@@ -184,11 +186,12 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     });
   };
 
-  // ---- 外部点击关闭 ----
-  const onDoc = (e: MouseEvent): void => {
-    if (e.target !== dock && !popup.contains(e.target as Node)) hideMenu();
+  // ---- 点击 3D 渲染器区域关闭菜单（不全局杀弹窗）----
+  const viewEl = ctx.getViewContainer();
+  const onViewClick = (): void => {
+    hideMenu();
   };
-  document.addEventListener("click", onDoc);
+  viewEl.addEventListener("click", onViewClick);
 
   // ---- 句柄 ----
   const setAdapterItems = (items: PreviewMenuItemDef[]): void => {
@@ -206,7 +209,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   return {
     dispose: (): void => {
-      document.removeEventListener("click", onDoc);
+      viewEl.removeEventListener("click", onViewClick);
       menu.dispose();
       dock.remove();
       popup.remove();
