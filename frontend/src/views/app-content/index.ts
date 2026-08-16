@@ -2,11 +2,20 @@
 import { bus } from "../../bus.ts";
 import { resolveInitialPage } from "../../core/page-store.ts";
 import { esc as escUtil } from "../../utils/dom/html.ts";
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { formatBytes } from "../../utils/dom/format.ts";
 import { contentCSS } from "./content-css.ts";
-// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）
-const appContentStyle = new CSSStyleSheet();
-appContentStyle.replaceSync(contentCSS);
+// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
+// 环境守卫对齐 ui-components-styles.ts：node/happy-dom 无 CSSStyleSheet 时返回
+// 占位对象（replaceSync no-op）避免 import 即崩；浏览器恒走真实分支。
+const appContentStyle: CSSStyleSheet = (() => {
+  if (typeof CSSStyleSheet === "undefined") {
+    return { replaceSync: () => {} } as unknown as CSSStyleSheet;
+  }
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(contentCSS);
+  return sheet;
+})();
 export { appContentStyle };
 import { getApp } from "../../backend/app.ts";
 import { registerGlobalHandlers } from "../../core/handlers/global.ts";
@@ -46,7 +55,7 @@ interface RepoCacheEntry {
   localMap?: Map<string, string>;
 }
 
-class AppContent extends HTMLElement {
+class AppContent extends WebComponentBase {
   _root: ShadowRoot;
   _current: string;
   _globalUnsubs: Array<() => void>;
@@ -346,7 +355,7 @@ class AppContent extends HTMLElement {
 }
 
 // 注册组件（防 HMR/重复 import 时重复 define）
-if (!customElements.get("app-content")) {
+if (typeof customElements !== "undefined" && !customElements.get("app-content")) {
   customElements.define("app-content", AppContent);
 }
 // HMR 热更新：仅 contentCSS（./content-css.ts）变更时热刷 shadow 样式表；其余依赖变更落到整页重载。

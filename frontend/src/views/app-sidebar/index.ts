@@ -1,11 +1,20 @@
 // ===== <app-sidebar> 入口 =====
 import { bus } from "../../bus.ts";
 import { dbg } from "../../utils/debug/debug.ts";
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS, ALL_RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { sidebarCSS } from "./sidebar-css.ts";
-// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）
-const appSidebarStyle = new CSSStyleSheet();
-appSidebarStyle.replaceSync(sidebarCSS);
+// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
+// 环境守卫对齐 ui-components-styles.ts：node/happy-dom 无 CSSStyleSheet 时返回
+// 占位对象（replaceSync no-op）避免 import 即崩；浏览器恒走真实分支。
+const appSidebarStyle: CSSStyleSheet = (() => {
+  if (typeof CSSStyleSheet === "undefined") {
+    return { replaceSync: () => {} } as unknown as CSSStyleSheet;
+  }
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(sidebarCSS);
+  return sheet;
+})();
 export { appSidebarStyle };
 import { headerHTML, footerHTML, listContainerHTML } from "./tpl.ts";
 import { renderVersionCards } from "./render.ts";
@@ -29,7 +38,7 @@ function checkedSetFor(rtype: string): Set<string> {
 /** 推送等待/兜底超时（陷阱 #3：任何 await 必须有兜底，按钮才不会永久卡死） */
 const SYNC_TIMEOUT_MS = 30_000;
 
-class AppSidebar extends HTMLElement {
+class AppSidebar extends WebComponentBase {
   static get observedAttributes(): string[] {
     return ["rtype"];
   }
@@ -427,7 +436,7 @@ class AppSidebar extends HTMLElement {
   }
 }
 // 注册组件（防 HMR/重复 import 时重复 define）
-if (!customElements.get("app-sidebar")) {
+if (typeof customElements !== "undefined" && !customElements.get("app-sidebar")) {
   customElements.define("app-sidebar", AppSidebar);
 }
 // HMR 热更新：仅 sidebarCSS（./sidebar-css.ts）变更时热刷 shadow 样式表；其余依赖变更落到整页重载。

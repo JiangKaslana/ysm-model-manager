@@ -1,9 +1,18 @@
 // ===== <app-preview> 入口 =====
 import { bus } from "../../bus.ts";
 import { previewCSS } from "./css.ts";
-// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）
-const appPreviewStyle = new CSSStyleSheet();
-appPreviewStyle.replaceSync(previewCSS);
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
+// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
+// 环境守卫对齐 ui-components-styles.ts：node/happy-dom 无 CSSStyleSheet 时返回
+// 占位对象（replaceSync no-op）避免 import 即崩；浏览器恒走真实分支。
+const appPreviewStyle: CSSStyleSheet = (() => {
+  if (typeof CSSStyleSheet === "undefined") {
+    return { replaceSync: () => {} } as unknown as CSSStyleSheet;
+  }
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(previewCSS);
+  return sheet;
+})();
 export { appPreviewStyle };
 import { RESOURCE_TYPES, isYsmWasmPreview, extOf } from "../../utils/resource/types.ts";
 import { modelDetailHTML } from "./tpl.ts";
@@ -93,7 +102,7 @@ cacheSetEvictHandler((key, val) => {
   }
 });
 
-class AppPreview extends HTMLElement implements PreviewCtx {
+class AppPreview extends WebComponentBase implements PreviewCtx {
   root: ShadowRoot;
   unsubs: Array<() => void> = [];
   private _typeCache: Array<{ id: string; name?: string; icon?: string }> = [];
@@ -300,7 +309,7 @@ ${pack.description ? `<div style="font-size:11px;color:var(--txt);margin-top:6px
 
 }
 // 注册组件（防 HMR/重复 import 时重复 define）
-if (!customElements.get("app-preview")) {
+if (typeof customElements !== "undefined" && !customElements.get("app-preview")) {
   customElements.define("app-preview", AppPreview);
 }
 // HMR 热更新：仅 previewCSS（./css.ts）变更时热刷 shadow 样式表；其余依赖变更落到 Vite 整页重载。

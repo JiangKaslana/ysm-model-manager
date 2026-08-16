@@ -8,6 +8,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { getApp } from "../../backend/app.ts";
 import {
@@ -47,7 +48,7 @@ const TOAST_MS_SHORT = 2000;
 const TOAST_MS_NORMAL = 3000;
 const TOAST_MS_LONG = 5000;
 
-export class AppSyncManager extends HTMLElement {
+export class AppSyncManager extends WebComponentBase {
   static get observedAttributes(): string[] {
     return ["instance", "default-type"];
   }
@@ -521,6 +522,6 @@ export class AppSyncManager extends HTMLElement {
 
 // 注册
 // 注册组件（防 HMR/重复 import 时重复 define）
-if (!customElements.get("app-sync-manager")) {
+if (typeof customElements !== "undefined" && !customElements.get("app-sync-manager")) {
   customElements.define("app-sync-manager", AppSyncManager);
 }

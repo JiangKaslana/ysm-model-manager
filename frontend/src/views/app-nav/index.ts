@@ -2,12 +2,13 @@
 // 事件：nav:change — 切换页面
 import { bus, type PageName } from "../../bus.ts";
 import { resolveInitialPage, sanitizePage } from "../../core/page-store.ts";
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { t } from "../../core/i18n/t.ts";
 import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 
-class AppNav extends HTMLElement {
+class AppNav extends WebComponentBase {
   _current: string;
   /** 导航折叠态：折叠后收成常驻窄条（仅图标），展开按钮/页面小图标始终可见 */
   _collapsed: boolean;
@@ -224,6 +225,6 @@ class AppNav extends HTMLElement {
   }
 }
 // 注册组件（防 HMR/重复 import 时重复 define）
-if (!customElements.get("app-nav")) {
+if (typeof customElements !== "undefined" && !customElements.get("app-nav")) {
   customElements.define("app-nav", AppNav);
 }

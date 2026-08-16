@@ -33,7 +33,7 @@
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 24 | 183 |
-| 前端·根 (app-modules/bus) | 2 | 13 |
+| 前端·根 (app-modules/bus) | 3 | 16 |
 | frontend/backend | 18 | 98 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
@@ -44,7 +44,7 @@
 | frontend/views | 90 | 252 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **371** | **1569** |
+| **合计** | **372** | **1572** |
 
 ## Go·头像
 
@@ -688,9 +688,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `normalizeTheme()` | `frontend/src/app-modules:69` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
-| `applyTheme()` | `frontend/src/app-modules:73` | — |
-| `initTheme()` | `frontend/src/app-modules:98` | — |
+| `normalizeTheme()` | `frontend/src/app-modules` | — |
+| `applyTheme()` | `frontend/src/app-modules` | — |
+| `initTheme()` | `frontend/src/app-modules` | — |
 | `bus()` | `frontend/src/bus:205` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
@@ -701,6 +701,9 @@
 | `BusEvents()` | `frontend/src/bus:65` | — |
 | `BusEventName()` | `frontend/src/bus:114` | — |
 | `Bus()` | `frontend/src/bus:142` | — |
+| `normalizeTheme()` | `frontend/src/theme-core:17` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
+| `applyTheme()` | `frontend/src/theme-core:21` | — |
+| `initTheme()` | `frontend/src/theme-core:34` | — |
 
 ## frontend/backend
 
@@ -1533,7 +1536,7 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `appContentStyle()` | `frontend/src/views/app-content/index:8` | — |
+| `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
@@ -1612,7 +1615,7 @@
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
-| `appPreviewStyle()` | `frontend/src/views/app-preview/index:5` | — |
+| `appPreviewStyle()` | `frontend/src/views/app-preview/index:7` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:24` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:29` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:34` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
@@ -1706,7 +1709,7 @@
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
 | `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:147` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
 | `bindFooter()` | `frontend/src/views/app-sidebar/events:180` | — |
-| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:7` | — |
+| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:9` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
 | `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:150` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
@@ -1732,8 +1735,8 @@
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:18` | — |
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
-| `appTreeStyle()` | `frontend/src/views/app-tree/index:6` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:49` | — |
+| `appTreeStyle()` | `frontend/src/views/app-tree/index:8` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:57` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
 | `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |

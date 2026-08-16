@@ -61,7 +61,11 @@ declare global {
 
 // 2026-08-17 神桶拆分：normalizeTheme/applyTheme/initTheme 已移至 theme-core.ts
 // （纯逻辑无顶层副作用，测试可独立 import）；本文件保留启动装配 + window 桥接。
-export { normalizeTheme, applyTheme, initTheme } from "./theme-core.ts";
+// 注意：export ... from 不引入本地名，IIFE 内仍要用 initTheme/applyTheme/safeGet →
+// 显式 import 后再 re-export（神桶拆分时曾漏本地 import 导致 TS2304）。
+import { normalizeTheme, applyTheme, initTheme } from "./theme-core.ts";
+import { safeGet, safeSet } from "./utils/dom/storage.ts";
+export { normalizeTheme, applyTheme, initTheme };
 
 // P3 修复（code_review）：把 page-store 白名单桥接到 window，供 index.html 内联
 // DOMContentLoaded 脚本复用（经典脚本无法 import）——消除内联源硬编码第二份列表的

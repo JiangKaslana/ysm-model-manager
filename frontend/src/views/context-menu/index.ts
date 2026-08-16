@@ -2,9 +2,10 @@
 // 事件：menu:show, menu:hide
 // 监听：menu:show({ x, y, items: [{label, icon?, onClick}] })
 import { bus, type MenuItem } from "../../bus.ts";
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { esc } from "../../utils/dom/html.ts";
 
-class ContextMenu extends HTMLElement {
+class ContextMenu extends WebComponentBase {
   _unsub: (() => void) | undefined;
   _docClick: () => void;
   _docCtx: () => void;
@@ -148,6 +149,6 @@ class ContextMenu extends HTMLElement {
   }
 }
 // 注册组件（防 HMR/重复 import 时重复 define）
-if (!customElements.get("context-menu")) {
+if (typeof customElements !== "undefined" && !customElements.get("context-menu")) {
   customElements.define("context-menu", ContextMenu);
 }

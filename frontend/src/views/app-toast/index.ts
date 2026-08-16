@@ -2,6 +2,7 @@
 // 用法：bus.emit('toast:show', { msg, undo?, duration?, type? })
 import { bus } from "../../bus.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 // 别名导入：show() 内局部变量 `t` 是 toast 元素，直接用 `t` 会被遮蔽
 import { t as tr } from "../../core/i18n/t.ts";
 
@@ -17,7 +18,7 @@ const SLIDE_OUT_MS = 200;    // 退出动画时长 ms（与 CSS slideOut 同步�
 const OK_TOAST_MS = 2000;    // 成功反馈 toast 展示时长 ms
 const ERR_TOAST_MS = 3000;   // 失败反馈 toast 展示时长 ms
 
-class AppToast extends HTMLElement {
+class AppToast extends WebComponentBase {
   _unsub: (() => void) | undefined;
 
   constructor() {
@@ -170,6 +171,6 @@ class AppToast extends HTMLElement {
   }
 }
 // 注册组件（防 HMR/重复 import 时重复 define）
-if (!customElements.get("app-toast")) {
+if (typeof customElements !== "undefined" && !customElements.get("app-toast")) {
   customElements.define("app-toast", AppToast);
 }

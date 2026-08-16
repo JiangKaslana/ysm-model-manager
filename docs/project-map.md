@@ -73,6 +73,7 @@
 | `bus.test.ts` | 事件总线测试 |
 | `bus.ts` | 事件总线 |
 | `real-data-fuzz.test.ts` | 真实数据模糊测试（资源类型/schema 契约） |
+| `theme-core.ts` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 
 <!-- /GEN: frontend-structure -->
 

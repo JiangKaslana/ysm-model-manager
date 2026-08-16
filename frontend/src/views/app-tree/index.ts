@@ -2,9 +2,18 @@
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { treeCSS } from "./app-tree-styles.ts";
-// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）
-const appTreeStyle = new CSSStyleSheet();
-appTreeStyle.replaceSync(treeCSS);
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
+// 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
+// 环境守卫对齐 ui-components-styles.ts：node/happy-dom 无 CSSStyleSheet 时返回
+// 占位对象（replaceSync no-op）避免 import 即崩；浏览器恒走真实分支。
+const appTreeStyle: CSSStyleSheet = (() => {
+  if (typeof CSSStyleSheet === "undefined") {
+    return { replaceSync: () => {} } as unknown as CSSStyleSheet;
+  }
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(treeCSS);
+  return sheet;
+})();
 export { appTreeStyle };
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { headerHTML, footerHTML, spinnerHTML } from "./tpl.ts";
@@ -46,7 +55,7 @@ declare global {
   }
 }
 
-export class AppTree extends HTMLElement {
+export class AppTree extends WebComponentBase {
   _root: ShadowRoot;
   _entries: TreeEntry[] = [];
   _search = "";
@@ -398,7 +407,7 @@ export class AppTree extends HTMLElement {
 }
 
 // 注册组件（防 HMR/重复 import 时重复 define）
-if (!customElements.get("app-tree")) {
+if (typeof customElements !== "undefined" && !customElements.get("app-tree")) {
   customElements.define("app-tree", AppTree);
 }
 // HMR 热更新：仅 treeCSS（./app-tree-styles.ts）变更时热刷 shadow 样式表；其余依赖变更落到整页重载。

@@ -10,6 +10,7 @@ import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { resolveAndroidRepoDir } from "../../utils/dom/directory-picker.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 
 /** 资源类型配置（resource_types.json 条目视图） */
@@ -70,7 +71,7 @@ function _esc(s: unknown): string {
   return esc(String(s ?? ""));
 }
 
-export class AppResourceManager extends HTMLElement {
+export class AppResourceManager extends WebComponentBase {
   static get observedAttributes(): string[] {
     return ["rtype", "instance"];
   }
@@ -566,6 +567,6 @@ export class AppResourceManager extends HTMLElement {
 }
 
 // 注册组件
-if (!customElements.get("app-resource-manager")) {
+if (typeof customElements !== "undefined" && !customElements.get("app-resource-manager")) {
   customElements.define("app-resource-manager", AppResourceManager);
 }
