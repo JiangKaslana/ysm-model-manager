@@ -27,6 +27,7 @@ import {
 import { mmdBonesToBoneNodes } from "../mmd-bones.ts"; // ADR-077: pmx.bones 索引结构 → BoneNode[]
 import { buildBoneTree, type BoneTree } from "../bone-tools.ts";
 import { mmdSemanticBoneMap } from "../semantic-bones.ts";
+import { mmdSemanticMorphMap } from "../semantic-morphs.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
 import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
@@ -319,39 +320,15 @@ export async function buildMmdScene(
 
   // MMD 语义骨骼：候选名匹配表移植自 MikuMikuAR motion-algos；消费方读取驱动感知层
   const semanticBones = boneTree ? mmdSemanticBoneMap(boneTree) : undefined;
+  // MMD 语义 morph：候选名匹配（blink/lipOpen 等）→ morphTargetDictionary index
+  const semanticMorphs = mmdSemanticMorphMap(mmd.pmx?.morphs ?? []);
   // 感知层呼吸（程序化生命力 L1）：待机态下对 chest/spine/shoulders 施加正弦微位移
   const breath = createBreathController();
   // 感知层注视追踪（程序化生命力 L2）：head/eyes 跟随相机方向
   const gaze = createGazeController();
   // 感知层眨眼（程序化生命力 L1.5）：随机间隔触发 morph
-  // three-mmd 将 PMX morphs 转为 Three.js morphTarget，通过 mesh.morphTargetDictionary/index 读写
-  const BLINK_MORPH_CANDIDATES = [
-    "まばたき", "blink", "Blink", "眨眼", "wink", "eye close", "EyeClose", "眼", "目", "閉眼",
-  ];
-  let blinkMorphIndex: number | null = null;
-  if (mesh.morphTargetDictionary) {
-    for (const candidate of BLINK_MORPH_CANDIDATES) {
-      const idx = mesh.morphTargetDictionary[candidate];
-      if (idx !== undefined && idx !== null) {
-        blinkMorphIndex = idx;
-        break;
-      }
-    }
-  }
   const blink = createBlinkController();
   // 感知层 LipSync（程序化生命力 L2）：待机态下用呼吸相位驱动口型开合
-  // 口型 morph 候选：あ/ア/A/a/口/mouth/open（优先级降序）
-  const LIP_MORPH_CANDIDATES = ["あ", "ア", "A", "a", "口", "mouth", "open"];
-  let lipMorphIndex: number | null = null;
-  if (mesh.morphTargetDictionary) {
-    for (const candidate of LIP_MORPH_CANDIDATES) {
-      const idx = mesh.morphTargetDictionary[candidate];
-      if (idx !== undefined && idx !== null) {
-        lipMorphIndex = idx;
-        break;
-      }
-    }
-  }
   const lipSync = createLipSyncController();
   let lipSyncTime = 0;
   // 感知层 AutoDance（程序化生命力 L3）：按 BPM 节拍驱动骨骼律动（待机态生效）
@@ -368,16 +345,23 @@ export async function buildMmdScene(
         gaze.apply(dt, semanticBones, ctx.camera!.position);
       }
       // 眨眼：随机间隔触发 morph（待机态，有动画时暂停避免冲突）
-      if (blinkMorphIndex !== null && (!action || action.paused)) {
-        blink.apply(dt, (weight: number) => { mesh.morphTargetInfluences![blinkMorphIndex] = weight; });
+      const blinkEntry = semanticMorphs.blink;
+      if (blinkEntry && mesh.morphTargetDictionary && (!action || action.paused)) {
+        const idx = mesh.morphTargetDictionary[blinkEntry.name];
+        if (idx !== undefined) {
+          blink.apply(dt, (weight: number) => { mesh.morphTargetInfluences![idx] = weight; });
+        }
       }
       // LipSync：待机态下用呼吸相位模拟张嘴（后续可接入 Web Audio API 真实振幅）
-      if (lipMorphIndex !== null && (!action || action.paused)) {
+      const lipEntry = semanticMorphs.lipOpen;
+      if (lipEntry && mesh.morphTargetDictionary && (!action || action.paused)) {
         lipSyncTime += dt;
-        // 呼吸相位驱动：sin 半波 → 0..1，模拟呼吸时自然张嘴
         const breathPhase = Math.sin(lipSyncTime / 2.5 * Math.PI * 2);
-        const amplitude = Math.max(0, breathPhase) * 0.3; // 最大 0.3（微张嘴）
-        lipSync.apply(dt, amplitude, (weight) => { mesh.morphTargetInfluences![lipMorphIndex!] = weight; });
+        const amplitude = Math.max(0, breathPhase) * 0.3;
+        const lipIdx = mesh.morphTargetDictionary[lipEntry.name];
+        if (lipIdx !== undefined) {
+          lipSync.apply(dt, amplitude, (weight) => { mesh.morphTargetInfluences![lipIdx] = weight; });
+        }
       }
       // AutoDance：待机态下按节拍律动（与呼吸/眨眼/注视共存，动作叠加）
       if (!action || action.paused) {
