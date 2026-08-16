@@ -266,7 +266,11 @@ func (a *App) GetGlobalCustomDir(mcRoot string) string {
 }
 
 func (a *App) ListFileNames(dir string) []string {
-	if !a.isPathInRoot(dir) {
+	// 2026-08-16 修复：原用 isPathInRoot（只认 ysm 根），MMD/VRC 等兄弟类型根（MmdRoot 等）
+	// 下的目录被误拒返回 nil → 前端 mmd-adapter 纹理清单空（files=0）→ 模型无贴图纯黑。
+	// 改用 isPathInRootOrSelf，与 ReadFileBytes（app_model.go 同源修复）口径一致：
+	// 能读的文件就能列（只读遍历，放行根本身安全）；仍拒绝 .. 越权/根外路径。
+	if !a.isPathInRootOrSelf(dir) {
 		return nil
 	}
 	files := fsutil.WalkAllFiles(dir, true)
@@ -279,14 +283,18 @@ func (a *App) ListFileNames(dir string) []string {
 
 // ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名）
 func (a *App) ListAllFilePaths(dir string) []string {
-	if !a.isPathInRoot(dir) {
+	// 同 ListFileNames 2026-08-16 修复：isPathInRoot 只认 ysm 根，兄弟类型根误拒；
+	// 改 isPathInRootOrSelf 与 ReadFileBytes/ScanModelEntries 对称（ADR-044③ 对称范式）
+	if !a.isPathInRootOrSelf(dir) {
 		return nil
 	}
 	return fsutil.WalkAllFiles(dir, true)
 }
 
 func (a *App) CheckFileExists(path string) bool {
-	if !a.isPathInRoot(path) {
+	// 同 ListAllFilePaths 2026-08-16 修复：兄弟类型根（MmdRoot/VrcRoot 等）下文件
+	// isPathInRoot 误拒 → 与 ReadFileBytes 口径不对称（能读不能查存在）
+	if !a.isPathInRootOrSelf(path) {
 		return false
 	}
 	_, err := os.Stat(path)

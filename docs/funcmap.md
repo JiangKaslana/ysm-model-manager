@@ -599,11 +599,11 @@
 | `App.ListVersionInstances()` | `internal/app/app_scan:258` | — |
 | `App.GetGlobalCustomDir()` | `internal/app/app_scan:262` | — |
 | `App.ListFileNames()` | `internal/app/app_scan:268` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:281` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:288` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:362` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:393` | OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录 |
-| `progressReader.Read()` | `internal/app/app_scan:416` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:285` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:294` | — |
+| `App.OpenFolder()` | `internal/app/app_scan:370` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:401` | OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录 |
+| `progressReader.Read()` | `internal/app/app_scan:424` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |

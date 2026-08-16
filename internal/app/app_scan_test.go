@@ -79,15 +79,37 @@ func TestListFileNames_Guard(t *testing.T) {
 		}
 	})
 
-	t.Run("仓库根本身被守卫拒绝（rel==. 防整删）", func(t *testing.T) {
-		if got := a.ListFileNames(root); got != nil {
-			t.Errorf("仓库根本身应返回 nil（守卫拒绝）, got %v", got)
+	t.Run("仓库根本身只读放行（整仓扫描语义，与 ReadFileBytes 同口径）", func(t *testing.T) {
+		// 2026-08-16 修复：ListFileNames 改 isPathInRootOrSelf——只读遍历放行根本身安全，
+		// 旧 isPathInRoot 对 rel==. 拒绝（防整删语义属写操作 RemoveDir/RenameDir 职责）
+		got := a.ListFileNames(root)
+		if len(got) != 2 {
+			t.Fatalf("ListFileNames(根) 应列出全部文件（a.ysm+b.ysm）, got %v", got)
 		}
 	})
 
 	t.Run("根外拒绝返回 nil", func(t *testing.T) {
-		if got := a.ListFileNames(base); got != nil {
+		outside := filepath.Join(filepath.Dir(base), "outside-ysm-guard")
+		if got := a.ListFileNames(outside); got != nil {
 			t.Errorf("根外目录应返回 nil, got %v", got)
+		}
+	})
+
+	t.Run("兄弟类型根（MmdRoot）下目录放行——mmd 预览纹理清单修复回归", func(t *testing.T) {
+		// 2026-08-16 修复核心场景：mmd-skin 目录在 MmdRoot 下，旧 isPathInRoot 只认 ysm 根
+		// 误拒 → ListAllFilePaths 返回 nil → 前端纹理清单空（files=0）→ 模型无贴图纯黑
+		mmdRoot := filepath.Join(base, "mmd")
+		modelDir := filepath.Join(mmdRoot, "模型A")
+		if err := os.MkdirAll(modelDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(modelDir, "tex.png"), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		a2 := scanApp(t, types.AppConfig{FilesRoot: base, MmdRoot: mmdRoot})
+		got := a2.ListAllFilePaths(modelDir)
+		if len(got) != 1 || filepath.Base(got[0]) != "tex.png" {
+			t.Errorf("MmdRoot 下目录应列出 tex.png, got %v", got)
 		}
 	})
 }
@@ -102,7 +124,9 @@ func TestCheckFileExists_Guard(t *testing.T) {
 	if err := os.WriteFile(inside, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	outside := filepath.Join(base, "secret.ysm")
+	outside := filepath.Join(filepath.Dir(base), "outside-secret.ysm")
+	// 2026-08-16 修复：CheckFileExists 改 isPathInRootOrSelf（与 ReadFileBytes 同口径，
+	// FilesRoot 整仓可读可查存在）——真正根外 = FilesRoot 之外（父目录），仍拒绝
 	if err := os.WriteFile(outside, []byte("s"), 0o644); err != nil {
 		t.Fatal(err)
 	}
