@@ -83,6 +83,14 @@ function getWorker(): Worker | null {
 /** 单批统计（串行调用；返回 null = 该批降级） */
 function statsOneChunk(paths: string[]): Promise<Array<WebModelStatsWithPath> | null> {
   return new Promise((resolve) => {
+    // 单槽守卫（审核 A #4）：在途请求未清 → 拒绝新批（返回 null 降级），
+    // 防 pending/onmessage 被新批顶掉导致旧批 settle 丢失 → 双双超时降级
+    // （当前 UI 模态弹窗串行调用不触发；防御性并发保护）
+    if (pending) {
+      markDegraded();
+      resolve(null);
+      return;
+    }
     const w = getWorker();
     if (!w) {
       markDegraded();
@@ -136,9 +144,15 @@ function statsOneChunk(paths: string[]): Promise<Array<WebModelStatsWithPath> | 
  */
 export async function batchStatsWebModels(paths: string[]): Promise<WebModelStats[] | null> {
   if (injectedRunner) {
-    const res = await injectedRunner(paths);
-    if (res === null) markDegraded();
-    return res;
+    try {
+      const res = await injectedRunner(paths);
+      if (res === null) markDegraded();
+      return res;
+    } catch {
+      // 注入 runner 抛错（对齐 Worker error 语义）→ 整批降级，不向上抛
+      markDegraded();
+      return null;
+    }
   }
   if (!paths.length) return [];
   const out: Array<WebModelStats | null> = new Array(paths.length);

@@ -1043,6 +1043,10 @@ export const autoSidebar = [
             "link": "/knowledge/i18n"
           },
           {
+            "text": "Web Worker 模型统计层 model-stats",
+            "link": "/knowledge/model-stats"
+          },
+          {
             "text": "页面状态管理 page-store.ts",
             "link": "/knowledge/page-store"
           },
@@ -1261,6 +1265,10 @@ export const autoSidebar = [
           {
             "text": "测试工具 test-utils（G-1 抗脆弱测试基础设施）",
             "link": "/knowledge/test-utils"
+          },
+          {
+            "text": "ADR 去桶化 slide-menu 外壳组件",
+            "link": "/knowledge/ui-slide-menu"
           }
         ]
       },
@@ -1301,6 +1309,10 @@ export const autoSidebar = [
           {
             "text": "动画系统 animation",
             "link": "/knowledge/animation-system"
+          },
+          {
+            "text": "跨格式骨骼工具层 bone-tools",
+            "link": "/knowledge/bone-tools"
           },
           {
             "text": "localStorage 安全读写 safeGet/safeSet",

@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 84 张知识卡
+> 总计: 87 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -18,7 +18,7 @@
 
 - **resource-registry**（资源注册表 registry）：`resource_types.json` 是 YSM 资源类型定义的单一事实来源（Single Source of Truth）。所有资源类型、子目录、扩展名的定义均以此处为准。
 
-## core（11 张）
+## core（12 张）
 
 *核心基础设施（事件总线、页面状态、Wails 桥接）*
 
@@ -30,6 +30,7 @@
 | 🏗 event-bus | 事件总线 bus.ts | architecture | 事件, 事件总线, 通信, emit, 跨组件通信, bus |
 | 🏗 global-handlers | 全局事件处理 global-handlers | architecture | 全局事件, 拖拽导入, 拖拽提示, 同步缺失, 清空整合包, 导出清单 |
 | 🏗 i18n | 国际化 i18n 模块 | architecture | 翻译, 多语言, i18n, t(), 语言切换, lang:changed |
+| 🍃 model-stats | Web Worker 模型统计层 model-stats | leaf | 模型统计, 骨骼数, 立方体数, 纹理尺寸, SearchModels, 数值筛选, Web Worker, 批量统计 |
 | 🏗 page-store | 页面状态管理 page-store.ts | architecture | 页面, 当前页, 状态管理, page store, currentPage |
 | 🏗 pointer-events | Pointer Events 统一交互（触屏 + 桌面） | architecture | pointerdown, pointermove, pointerup, setPointerCapture, touch-action, 触屏, 拖拽, 旋转, hover, mouseenter, 全窗预览 |
 | 🍃 theme | 主题系统 theme | leaf | 主题, 换肤, 深色, 浅色, 跟随系统, 动画开关, 字号, 界面偏好 |
@@ -44,6 +45,7 @@
 - **event-bus**（事件总线 bus.ts）：`bus.ts` 是 YSM 前端的唯一事件中枢，基于发布/订阅模式。所有跨组件、跨页面的异步通信都经过此总线，避免组件间直接耦合。
 - **global-handlers**（全局事件处理 global-handlers）：`core/handlers/global.ts` 是全应用唯一的 core 全局 handler 注册入口（致命陷阱 #2 的解法）：app-content 的 `connectedCallback` 调一次 `registerGloba…
 - **i18n**（国际化 i18n 模块）：`i18n` 模块是 YSM 前端的唯一翻译层，基于 ADR-045 设计。`t.ts` 提供纯函数式翻译（按 key 查表），`locale.ts` 管理语言状态、持久化与异步加载。支持简体中文（基准）、英语、日语三种语言，语言偏好持久化…
+- **model-stats**（Web Worker 模型统计层 model-stats）：`frontend/src/workers/` + `frontend/src/backend/web-stats.ts` 是 ADR-071 审计增强 #7 新增的**Web Worker 批量模型统计层**，为网页版 `SearchMo…
 - **page-store**（页面状态管理 page-store.ts）：`page-store.ts` 管理 YSM 的前端页面导航状态，是 `PageStore.currentPage` 的唯一数据源，替代了旧版 `window.__currentPage`。核心职责是维护只读当前页状态与启动初始页解析——*…
 - **pointer-events**（Pointer Events 统一交互（触屏 + 桌面））：ADR-047 核心立项 A：全前端拖拽/缩放/旋转/hover 交互从 mouse 事件统一迁移 **Pointer Events**（`pointerdown/move/up` + `setPointerCapture` + CSS `…
 - **theme**（主题系统 theme）：主题系统的实现在组件入口 `app-modules.ts`（无独立 theme.ts 文件）：提供 6 套主题皮肤（cyber/warm/pro/sakura/ocean/mint）+ `system` 跟随系统模式，全部通过在 `<bod…
@@ -140,7 +142,7 @@
 - **go-ysm-parser**（YSM 解析 go/ysm）：`go/ysm/` 包负责解析 YSM（Yuan's Sketch Model）格式文件，提取模型元数据并生成结构化摘要。
 - **wails-bindings**（Wails Binding API 总览 internal/app）：`internal/app/` 是 Go 端唯一的 Wails Binding 入口层：所有导出给前端的方法都定义在 `*App` 上，业务逻辑下沉到 `go/*` 包，本层只做参数转发与窗口/事件/对话框编排。前端统一经 `getApp(…
 
-## ui（18 张）
+## ui（19 张）
 
 *前端 UI 组件（tree、sidebar、preview、content）*
 
@@ -164,6 +166,7 @@
 | 🏗 dom-fab | 3D 预览悬浮 FAB 控制层 | architecture | FAB, 悬浮按钮, 3D 预览, overlay, ADR-057 |
 | 🍃 shared-styles | 共享样式 shared-styles | leaf | 共享样式, 按钮样式, btn-base, focus-visible, tree 样式, Shadow DOM 样式, CSS 变量 |
 | 🏗 test-utils | 测试工具 test-utils（G-1 抗脆弱测试基础设施） | architecture | 测试工具, testid, getByTestId, waitFor, 组件测试, mock, G-1 |
+| 🍃 ui-slide-menu | ADR 去桶化 slide-menu 外壳组件 | leaf | slide-menu, slide 菜单, 去桶化, ADR 卡片, 两级菜单, 轻量导航栈, createSlideMenu, slideRow, 行组件 |
 
 ### 摘要
 
@@ -185,14 +188,16 @@
 - **dom-fab**（3D 预览悬浮 FAB 控制层）：3D 预览悬浮控制层组件（ADR-057），替代 `skeleton.ts` 内联 `style.cssText` 控制栏，集中治理样式 + 双端响应式。FAB 挂载在 document.body（light DOM），样式通过 `ensu…
 - **shared-styles**（共享样式 shared-styles）：两个样式模块为 Shadow DOM 组件提供可复用的 CSS 字符串：`utils/dom/css.ts` 导出全应用统一的按钮体系 `.btn-base` 与通用 focus-visible 规则；`views/app-tree/app…
 - **test-utils**（测试工具 test-utils（G-1 抗脆弱测试基础设施））：`frontend/src/test-utils/` 是组件测试统一工具层（ADR-035 G-1 / Design.md §19.1）。查询走 `data-testid` 稳定钩子（不绑定 CSS 类/文案），等待走轮询（替代固定 sle…
+- **ui-slide-menu**（ADR 去桶化 slide-menu 外壳组件）：`frontend/src/ui/ui-slide-menu.ts` 是 ADR 去桶化（ADR-075/076）配套新增的**通用 slide-menu 卡片外壳组件**，复刻 MikuMikuAR 的 slide-menu 视觉卡片（m…
 
-## utils（19 张）
+## utils（20 张）
 
 *工具函数（display、fmt、dom、animation）*
 
 | 标识 | 名称 | tier | 关键词 |
 |------|------|------|--------|
 | 🏗 animation-system | 动画系统 animation | architecture | 动画, 骨骼动画, 关键帧, 动画播放, Molang, 数字滚动, stagger 入场, 关闭动画 |
+| 🍃 bone-tools | 跨格式骨骼工具层 bone-tools | leaf | 骨骼工具, 骨骼树, 骨骼列表, 骨骼拾取, 骨骼显隐, BoneNode, BoneTree, buildBoneTree, makeBonePanelRenderer |
 | 🍃 dom-storage | localStorage 安全读写 safeGet/safeSet | leaf | localStorage, 隐私模式, safeGet, safeSet, storage |
 | 🍃 format-ysm-anim-config | YSM 动画分组与配置菜单提取 | leaf | 动画分组, 配置菜单, ysm.json, extra_animation, summarize |
 | 🏗 model2d | 2D 预览渲染 model2d | architecture | 2D 预览, 骨骼图, Canvas 渲染, 前视图, 骨骼热区, 鼠标拾取, 线框图 |
@@ -215,6 +220,7 @@
 ### 摘要
 
 - **animation-system**（动画系统 animation）：前端动画体系分两层：**模型骨骼动画**（基岩版 animation.json 解析 + 关键帧插值求值）与 **UI 动效**（数字里程表滚动、stagger 入场延迟）。UI 层的 CSS 动画可被全局 `no-animations` …
+- **bone-tools**（跨格式骨骼工具层 bone-tools）：`frontend/src/utils/3d/bone-tools.ts` 是 ADR-072 落地后新增的**跨格式骨骼工具层**，屏蔽 YSM spec 扁平 bones 声明与 VRM humanoid Object3D 层级树两种形…
 - **dom-storage**（localStorage 安全读写 safeGet/safeSet）：`localStorage` 安全读写工具层（ADR-044 策略 A），收敛项目内所有 `localStorage` 调用，避免隐私模式/存储禁用下裸调抛错中断启动链（`initTheme`/`applyUIPrefs`/`setting…
 - **format-ysm-anim-config**（YSM 动画分组与配置菜单提取）：前端镜像 Go 端 `appendAnimGroupsAndConfigs` 逻辑的纯函数模块（`summary.go`）。加密 `.ysm` 经 WASM 解码后，`ysm.json` 的 `properties` 字段可读，但原 `wa…
 - **model2d**（2D 预览渲染 model2d）：Canvas 2D 渲染基岩版模型骨骼的线框/正交投影图（前视图 + 可选 Y 轴旋转），是预览面板的轻量视图；与 [model3d](./model3d.md) 共享同一套 Bedrock 几何口径。

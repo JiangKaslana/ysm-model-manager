@@ -1,6 +1,7 @@
 # ADR-076：3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编）
 
 - **状态**：🔄 部分采纳（**Phase 1 已落地**：顶栏砍掉，收敛为 overlay 内 ⚙️ 声明式根菜单；**Phase 2 已落地**：ysm/mmd 适配器专属控件经 `PreviewBuildCtx.menu.setAdapterItems` 收编进根菜单，`buildYsm/MmdBottomNav` + 重复 `mkNavBtn`/`togglePopup`/`closePopup` 已删除；**Phase 3 待立项**：vrm/litematic 的 `extraControls` 单按钮收编）
+- **被取代**：[ADR-079] 取代
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/utils/3d/adapters/mount-preview-core.ts`、`frontend/src/utils/3d/adapters/preview-menu-defs.ts`、`frontend/src/utils/3d/adapters/preview-menu.ts`、`frontend/src/views/app-preview/ysm-controls.ts`、`frontend/src/views/app-preview/mmd-controls.ts`、`ADR-075`、`ADR-073`、`ADR-072`、`ADR-077`、`ADR-066`、`ADR-021`

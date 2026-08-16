@@ -44,38 +44,50 @@ function importLogCap(): number {
 }
 const webImportLogs: Array<Record<string, unknown>> = [];
 const webRuntimeLogs: Array<Record<string, unknown>> = [];
+// 审核 A #3：hydrate 标记——push/get 首次触发一次 IDB 恢复；clear 后重置（下次读到空）
+const webLogHydrated: Record<"import" | "runtime", boolean> = { import: false, runtime: false };
 
-function pushWebLog(ring: Array<Record<string, unknown>>, cap: number, entry: Record<string, unknown>): void {
-  ring.push(entry);
-  if (ring.length > cap) ring.splice(0, ring.length - cap); // 仅保留最近 cap 条（环形截断）
-  // ADR-071 #8：fire-and-forget 写 IDB（刷新不丢；隐私模式/写失败静默降级为纯内存）
-  const key = ring === webImportLogs ? LOG_IMPORT_KEY : LOG_RUNTIME_KEY;
-  void idbSet("config", key, ring).catch(() => {});
+function logKeyOf(ring: Array<Record<string, unknown>>): string {
+  return ring === webImportLogs ? LOG_IMPORT_KEY : LOG_RUNTIME_KEY;
+}
+function logHydrateFlagOf(ring: Array<Record<string, unknown>>): "import" | "runtime" {
+  return ring === webImportLogs ? "import" : "runtime";
 }
 
-/** 内存环为空时从 IDB 恢复（首次读取/刷新后）；有数据则直接返回 */
-async function hydrateWebLog(ring: Array<Record<string, unknown>>, key: string): Promise<void> {
-  if (ring.length > 0) return;
+/** 内存环首次使用时从 IDB 恢复上会话日志（幂等：hydrated 标记防重复读） */
+async function hydrateWebLog(ring: Array<Record<string, unknown>>): Promise<void> {
+  const flag = logHydrateFlagOf(ring);
+  if (webLogHydrated[flag]) return;
   try {
-    const saved = await idbGet<unknown>("config", key);
+    const saved = await idbGet<unknown>("config", logKeyOf(ring));
     if (Array.isArray(saved)) ring.push(...(saved as Array<Record<string, unknown>>));
   } catch {
     // IDB 不可用：保持空环
   }
+  webLogHydrated[flag] = true;
+}
+
+/** 追加日志：先 hydrate（合并上会话旧日志，防 fresh 会话先写后读覆盖丢失），
+ *  截断后写回 IDB（fire-and-forget，隐私模式/写失败静默降级为纯内存） */
+async function pushWebLog(ring: Array<Record<string, unknown>>, cap: number, entry: Record<string, unknown>): Promise<void> {
+  await hydrateWebLog(ring);
+  ring.push(entry);
+  if (ring.length > cap) ring.splice(0, ring.length - cap); // 仅保留最近 cap 条（环形截断）
+  void idbSet("config", logKeyOf(ring), ring).catch(() => {});
 }
 
 async function getWebImportLogs(): Promise<unknown> {
-  await hydrateWebLog(webImportLogs, LOG_IMPORT_KEY);
+  await hydrateWebLog(webImportLogs);
   return webImportLogs.slice(); // 返回副本，防外部篡改内部环
 }
 async function getWebRuntimeLogs(): Promise<unknown> {
-  await hydrateWebLog(webRuntimeLogs, LOG_RUNTIME_KEY);
+  await hydrateWebLog(webRuntimeLogs);
   return webRuntimeLogs.slice();
 }
 async function addWebImportLog(
   modelName: string, sourcePath: string, targetDir: string, fileSize: number, status: string, errMsg: string,
 ): Promise<void> {
-  pushWebLog(webImportLogs, importLogCap(), {
+  await pushWebLog(webImportLogs, importLogCap(), {
     ModelName: modelName, SourcePath: sourcePath, TargetDir: targetDir,
     FileSize: fileSize, Status: status, ErrorMsg: errMsg, Timestamp: Date.now(), Operation: "import",
   });
@@ -85,7 +97,7 @@ async function addWebOpLog(
 ): Promise<void> {
   // 操作日志归入运行时环（webRuntimeLogs），与导入日志环（webImportLogs）分离，
   // 否则 GetRuntimeLogs 恒空、ClearRuntimeLogs 形同虚设（原实现误写入导入环）
-  pushWebLog(webRuntimeLogs, WEB_RUNTIME_LOG_CAP, {
+  await pushWebLog(webRuntimeLogs, WEB_RUNTIME_LOG_CAP, {
     Message: `${op} ${modelName}${errMsg ? " " + errMsg : ""}`.trim(),
     Timestamp: Date.now(),
   });
@@ -94,12 +106,22 @@ async function addWebOpLog(
 /** 清空导入日志环（webImpls.ClearImportLogs 调用；状态封装在 web-store 内部） */
 function clearWebImportLogs(): void {
   webImportLogs.length = 0;
+  webLogHydrated.import = false; // 重置：下次 hydrate 读到已删 IDB → 空环
   void idbDel("config", LOG_IMPORT_KEY).catch(() => {});
 }
 /** 清空运行时日志环（webImpls.ClearRuntimeLogs 调用；状态封装在 web-store 内部） */
 function clearWebRuntimeLogs(): void {
   webRuntimeLogs.length = 0;
+  webLogHydrated.runtime = false;
   void idbDel("config", LOG_RUNTIME_KEY).catch(() => {});
+}
+
+/** 测试钩子：重置日志环状态与 hydrated 标记（防模块级状态测试间污染） */
+export function __resetWebLogStateForTest(): void {
+  webImportLogs.length = 0;
+  webRuntimeLogs.length = 0;
+  webLogHydrated.import = false;
+  webLogHydrated.runtime = false;
 }
 
 // --- 标签（config store: tags:<path> = string[]）---

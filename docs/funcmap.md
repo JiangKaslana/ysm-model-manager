@@ -34,7 +34,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 22 | 180 |
 | 前端·根 (app-modules/bus) | 2 | 13 |
-| frontend/backend | 17 | 89 |
+| frontend/backend | 17 | 90 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
@@ -44,7 +44,7 @@
 | frontend/views | 88 | 245 |
 | 前端·WASM | 4 | 9 |
 | frontend/workers | 2 | 14 |
-| **合计** | **351** | **1480** |
+| **合计** | **351** | **1481** |
 
 ## Go·头像
 
@@ -782,8 +782,9 @@
 | `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:44` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
 | `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:49` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
 | `terminateStatsWorker()` | `frontend/src/backend/web-stats:56` | 终止并回收 Worker（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
-| `batchStatsWebModels()` | `frontend/src/backend/web-stats:137` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。 |
-| `webStoreBindings()` | `frontend/src/backend/web-store:171` | — |
+| `batchStatsWebModels()` | `frontend/src/backend/web-stats:145` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 不可用 / 任一批失败 / 超时 → 返回 null（整体降级）。 |
+| `__resetWebLogStateForTest()` | `frontend/src/backend/web-store:120` | 测试钩子：重置日志环状态与 hydrated 标记（防模块级状态测试间污染） |
+| `webStoreBindings()` | `frontend/src/backend/web-store:193` | — |
 | `YsmHeaderShape()` | `frontend/src/backend/ysm-header:36` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
 | `YsmSummaryShape()` | `frontend/src/backend/ysm-header:55` | YsmSummary（对齐 go/ysm/summary.go:48 YsmSummary json tag；animGroups/configMenus 一并平移） |
 | `emptyYsmHeader()` | `frontend/src/backend/ysm-header:73` | 空 YSMHeader（对齐 Go YSMHeader{} JSON 形状：isYsm/isFree/hasFree/name 恒输出） |

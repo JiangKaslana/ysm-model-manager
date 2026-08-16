@@ -10,7 +10,7 @@ import type { AppTree } from "./index.ts";
 import { modalPrompt, modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 import { showBatchRenameDialog } from "../../utils/dom/dialogs/batch-rename.ts";
 import { selectState } from "./data.ts";
-import { isViewerMode } from "../../utils/dom/android-bridge.ts";
+import { can } from "../../utils/dom/capabilities.ts";
 
 export function bindBusEvents(vm: AppTree): Array<() => void> {
   const unsubs: Array<() => void> = [];
@@ -303,9 +303,9 @@ async function runBatchToggle(
   enable: boolean,
   opts: { prefix?: string; label: string },
 ): Promise<void> {
-  // 查看器模式（Android/网页版 ADR-049）：无本地文件系统写能力，
-  // 批量启用/禁用不可用（与 events.ts 单文件/文件夹开关门控一致）
-  if (isViewerMode()) {
+  // 能力门控：web 已实现 ToggleModelEnable（与 events.ts 单文件/文件夹开关一致）
+  // → 解锁批量启用/禁用；Android viewer 无此能力 → 封禁
+  if (!can("ToggleModelEnable")) {
     bus.emit("toast:show", {
       msg: "网页版不支持启用/禁用模型",
       duration: 3000,

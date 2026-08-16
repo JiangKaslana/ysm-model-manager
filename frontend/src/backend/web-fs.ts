@@ -695,38 +695,64 @@ function webMoveTargetName(dstName: string, srcName: string): string {
 /**
  * 模型组整组 rekey：旧组名 → 新组名（dir + 全部 file + ban/tags 标记）。
  * move=true 移动（删旧 key）；move=false 复制（保留旧 key = 读旧写新）。
+ * 审核 A #1（事务性）：两阶段——先写全部新 key（不删旧），全成功后才删旧 key；
+ * 中途失败只回滚本次新建（best-effort），旧 key 完好 → 无 dir/file 分裂残留。
  */
 async function rekeyWebModelGroup(type: string, oldName: string, newName: string, move: boolean): Promise<void> {
-  // dir key rekey（meta.name 同步更新：scanWebModels 用它推导文件查找前缀，
-  // 沿用旧名会在移动后的 file:<type>/<newName>/ 下扫不到模型）
-  const dv = await idbGet("files", dirKey(type, oldName));
-  if (dv !== undefined) {
-    await idbSet("files", dirKey(type, newName), { ...(dv as Record<string, unknown>), name: newName });
-    if (move) await idbDel("files", dirKey(type, oldName));
-  }
-  // file keys rekey
-  const oldPrefix = `file:${type}/${oldName}/`;
-  const fks = await idbKeys("files", oldPrefix);
-  for (const k of fks) {
-    const rel = k.slice(oldPrefix.length);
-    const val = await idbGet("files", k);
-    if (val !== undefined) {
-      await idbSet("files", fileKey(type, newName, rel), val);
-      if (move) await idbDel("files", k);
-    }
-  }
-  // 标记 rekey（best-effort，对齐 renameWebDir）：ban:/web/<type>/<oldName>/<rel> → 新名
-  for (const prefix of ["ban:", "tags:"]) {
-    const scanPrefix = `${prefix}/web/${type}/${oldName}/`;
-    const keys = await idbKeys("config", scanPrefix);
-    for (const k of keys) {
-      const suffix = k.slice(scanPrefix.length); // 含原 rel（含前导斜杠），拼接新路径即正确
-      const val = await idbGet("config", k);
-      if (val !== undefined) {
-        await idbSet("config", `${prefix}/web/${type}/${newName}/${suffix}`, val);
-        if (move) await idbDel("config", k);
+  const writtenNew: string[] = [];
+  const rollbackNew = async (): Promise<void> => {
+    for (const k of writtenNew.reverse()) {
+      try {
+        await idbDel("files", k);
+      } catch {
+        /* best-effort */
       }
     }
+  };
+  try {
+    // 阶段一：写新 key（dir + file + 标记），全成功才进阶段二
+    const dv = await idbGet("files", dirKey(type, oldName));
+    if (dv !== undefined) {
+      await idbSet("files", dirKey(type, newName), { ...(dv as Record<string, unknown>), name: newName });
+      writtenNew.push(dirKey(type, newName));
+    }
+    const oldPrefix = `file:${type}/${oldName}/`;
+    const fks = await idbKeys("files", oldPrefix);
+    for (const k of fks) {
+      const rel = k.slice(oldPrefix.length);
+      const val = await idbGet("files", k);
+      if (val !== undefined) {
+        const nk = fileKey(type, newName, rel);
+        await idbSet("files", nk, val);
+        writtenNew.push(nk);
+      }
+    }
+    for (const prefix of ["ban:", "tags:"]) {
+      const scanPrefix = `${prefix}/web/${type}/${oldName}/`;
+      const keys = await idbKeys("config", scanPrefix);
+      for (const k of keys) {
+        const suffix = k.slice(scanPrefix.length);
+        const val = await idbGet("config", k);
+        if (val !== undefined) {
+          const nk = `${prefix}/web/${type}/${newName}/${suffix}`;
+          await idbSet("config", nk, val);
+          writtenNew.push(nk);
+        }
+      }
+    }
+    // 阶段二：全部新 key 写入成功 → 删旧 key（move 时）
+    if (move) {
+      await idbDel("files", dirKey(type, oldName));
+      for (const k of fks) await idbDel("files", k);
+      for (const prefix of ["ban:", "tags:"]) {
+        const scanPrefix = `${prefix}/web/${type}/${oldName}/`;
+        const keys = await idbKeys("config", scanPrefix);
+        for (const k of keys) await idbDel("config", k);
+      }
+    }
+  } catch (e) {
+    await rollbackNew();
+    throw e;
   }
 }
 
@@ -746,8 +772,13 @@ async function moveOrCopyWebModel(src: string, dstDir: string, move: boolean): P
   if (!di) throw new Error(t("webFs.moveInvalidDstDir", { path: dstDir }));
   const dstName = di.name.trim();
   if (!dstName) throw new Error(t("webFs.moveInvalidDstDir", { path: dstDir }));
+  // 审核 A #2：目标文件夹名 + 源组名末段分别做非法字符/空名校验（拼接后的 newName
+  // 是多段路径含 "/" 合法，assertValidRenameName 禁 "/" 只适用于单段重命名）
+  assertValidRenameName(dstName, "目录");
   // 目标模型名 = 目标文件夹/<src 组名末段>（对齐 Go dst=Join(dstDir, Base(src))）
   const newName = webMoveTargetName(dstName, name);
+  const srcBase = newName.slice(newName.lastIndexOf("/") + 1);
+  assertValidRenameName(srcBase, "目录");
   // 防覆盖：目标组已存在 → 拒绝（对齐 Go「目标已存在」；含目标 == 源自身移动——
   // Go 对 dst===src 命中 stat(dst) 存在报「目标已存在」，web 侧 dir key 即源自身）
   if ((await idbGet("files", dirKey(type, newName))) !== undefined) {
