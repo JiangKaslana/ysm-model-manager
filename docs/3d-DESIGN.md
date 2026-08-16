@@ -5,7 +5,7 @@
 > - ysm 唯一 UI 规范：`docs/Design.md`（设计系统 §1–§13 + 组件架构 §14–§20）。
 > - 本文档不重复视觉规范，只讲「代码落哪儿、样式怎么接、耦合怎么解、面板怎么用」。
 >
-> **状态**：已落地 `frontend/src/ui/`，`npm run typecheck` 与 `npx vite build` 均通过；**尚未被任何面板接入（待采用）**。
+> **状态**：已落地 `frontend/src/ui/`（18 文件），`npm run typecheck` 与 `npx vite build` 均通过；**已被 MMD 预览弹窗（`views/app-preview/mmd-controls.ts`）接入**，复刻 MikuMikuAR slide-menu 卡片视觉。
 
 ---
 
@@ -14,13 +14,13 @@
 | 项 | 说明 |
 |----|------|
 | 来源 | MikuMikuAR `frontend/src/core/` 下 `ui-helpers` / `ui-rows` / `ui-slide-row` / `ui-header-toggle` / `ui-advanced-rows` / `ui-collapsible` / `ui-preset` / `ui-card` / `ui-loading` 等模块 + `frontend/src/app.css` |
-| 目标 | `ysm/frontend/src/ui/`（16 文件，见 §2） |
+| 目标 | `ysm/frontend/src/ui/`（18 文件，见 §2） |
 | 不在本批 | `ui-resource-panel` / `ui-fullscreen-overlay` / `ui-virtual-grid`（virtual-grid 已按 🥈 单独迁入 `utils/core`） |
 | 去桶化 | 未照搬 MikuMikuAR 的巨型 `ui-helpers` barrel，改为分层小模块 + 精简 barrel（`ui-helpers.ts`），符合 ADR-191 去桶化 |
 
 ---
 
-## 2. 文件清单（16）
+## 2. 文件清单（18）
 
 | 文件 | 职责 | 关键耦合解除 |
 |------|------|--------------|
@@ -40,6 +40,8 @@
 | `ui-types.ts` | `ControlOptions<T>` 接口 | — |
 | `ui-helpers.ts` | **精简 barrel（对外 API 表面）** | 见 §3 |
 | `ui-components-styles.ts` | 自动生成的 CSS 模块（见 §4） | — |
+| `ui-slide-menu-styles.ts` | slide-menu 外壳 CSS 模块（自 MikuMikuAR `app.css` 外壳类提取） | `--uih-` 命名空间 + 撞色映射 |
+| `ui-slide-menu.ts` | `createSlideMenu` 外壳构建器（复用 🥉 rows，自包含样式安装） | 见 §7 |
 
 ---
 
@@ -145,9 +147,90 @@ this.shadowRoot!.adoptedStyleSheets = [uiComponentsStyleSheet, ...existingSheets
 
 ---
 
-## 7. 已知约束 / 待办
+## 7. slide-menu 外壳层（MMD 预览弹窗复刻）
 
-- **待接入**：`frontend/src` 当前无任何面板 import 本库；接入时按 `docs/Design.md` §19 验收清单核对一致性与无障碍。
+### 7.1 动机与边界
+
+🥉 层只提供**行 / 卡片原子**（`slideRow` / `cardContainer` / `addFieldRow` …），并不包含 MikuMikuAR 的 **slide-menu 外壳**（`menu-wrapper` / `slide-viewport` / `slide-panel` / `slide-header` / `slide-back` / `slide-title`）。该外壳位于 MikuMikuAR `frontend/src/menus/` 的菜单导航引擎中，属 🔴 业务层，**不整体迁移**。
+
+但 ysm 的 MMD 预览弹窗（`views/app-preview/mmd-controls.ts`）需要与该外壳一致的三段式卡片视觉（顶栏标题 + 关闭 + 滚动列表）。为此采用**仅提取外壳**策略：
+
+- 抽取外壳的 DOM 结构 + CSS + 一个最小自包含构建器 `createSlideMenu`；
+- 列表内容**复用 🥉 rows**（`addFieldRow` / `addCollapsible` / `slideRow` …），不重造轮子；
+- **不**移植菜单注册表 / Schema / 栈引擎。
+
+### 7.2 文件
+
+| 文件 | 职责 |
+|------|------|
+| `ui-slide-menu-styles.ts` | `slideMenuCss` + `installSlideMenuStyles()`；外壳类 + `--uih-` 外壳尺寸 token |
+| `ui-slide-menu.ts` | `createSlideMenu(opts?)` 构建器，返回 `SlideMenuHandle` |
+
+### 7.3 Token 映射
+
+外壳颜色 token 全部映射到 ysm 设计系统变量（撞色映射见 §4.3），尺寸 token 用 `--uih-` 命名空间隔离，防止与 🥉 同名冲突：
+
+| 外壳 token | 映射 |
+|------------|------|
+| `--card` / `--txt` / `--bd` | ysm 卡片背景 / 文字 / 边框 |
+| `--hover` / `--act` | 关闭按钮 hover / active 态 |
+| `--radius-lg` / `--radius-sm` | 外壳圆角 / 关闭按钮圆角 |
+| `--uih-slide-*` | 外壳专属尺寸（padding / min-width / 列表间距） |
+
+> 注意：定位容器 `.ysm-slide-popup`（light-DOM，挂 `document.body` 的 overlay）的样式也定义在本外壳 CSS 模块中，🥉 全局样式可正常注入该区域。
+
+### 7.4 API 表面
+
+```ts
+export interface SlideMenuHandle {
+  root: HTMLElement;          // .menu-wrapper.slide-menu
+  list: HTMLElement;          // .slide-list.render-card（注入 🥉 rows）
+  setTitle(title: string): void;
+  setOnClose(fn: () => void): void;
+  dispose(): void;
+}
+export function createSlideMenu(opts?: { title?: string; closeIcon?: string }): SlideMenuHandle;
+```
+
+解耦点：关闭按钮用字面量 `✕`（`opts.closeIcon` 可覆盖），**不**走 iconify 运行时。
+
+### 7.5 集成示例（`mmd-controls.ts`）
+
+```ts
+import { cardContainer, addFieldRow, addCollapsible, slideRow, createSlideMenu }
+  from "../../ui/ui-helpers.ts";
+
+// 定位容器：light-DOM，挂 document.body 的 overlay（🥉 全局样式可注入）
+const popup = document.createElement("div");
+popup.className = "ysm-slide-popup";
+popup.style.display = "none";
+overlay.appendChild(popup);
+
+// 外壳：三段式卡片（标题 + 关闭 + 滚动列表）
+const menu = createSlideMenu({ title: t("preview.modelInfo") });
+popup.appendChild(menu.root);
+menu.setOnClose(() => {
+  popup.style.display = "none";
+  menu.list.innerHTML = "";
+  /* 取消导航按钮高亮 … */
+});
+
+// 列表内容复用 🥉 rows
+menu.setTitle(t("preview.modelInfo"));
+menu.list.innerHTML = "";
+cardContainer(menu.list, (c) => {
+  addFieldRow(c, t("preview.nameLabel"), ctx.modelName);
+  addFieldRow(c, t("preview.modelOverview"),
+    `${pmx.bones.length} 骨骼 · ${pmx.materials.length} 材质 · ${pmx.morphs.length} 表情`);
+});
+// 相机视角等次级菜单：buildCameraControls(menu.list, { … })
+```
+
+---
+
+## 8. 已知约束 / 待办
+
+- **已接入**：MMD 预览弹窗（`views/app-preview/mmd-controls.ts`）已通过 `createSlideMenu` 接入本库（见 §7）。后续新面板接入时按 `docs/Design.md` §19 验收清单核对一致性与无障碍。
 - **勿手改样式字符串**：`ui-components-styles.ts` 的 `uiComponentsCss` 为生成产物。若 MikuMikuAR `app.css` 变更需重同步，按 §4 三步重生成（提取→`--uih-` 命名空间→撞色映射），不要直接编辑字符串。
 - **未搬模块**：`ui-resource-panel` / `ui-fullscreen-overlay` / `ui-virtual-grid` 不在本批；如需再搬，复用同一解耦范式。
 - **引用真值**：视觉值以 `docs/3d-ui-DESIGN.md` 为准；ysm UI 规范以 `docs/Design.md` 为准。
