@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 浏览器后端适配器测试（ADR-049 Phase 1 骨架 + Phase 2 IndexedDB 模型库）=====
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { zipSync, strToU8 } from "fflate";
@@ -47,6 +48,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   idbMock._store.clear();
   localStorage.clear();
+  // node 环境无 window——FSA 授权簇（showDirectoryPicker）与 web-fs.ts:144 检测读 window
+  vi.stubGlobal("window", {});
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("browserAdapter — 虚拟根与仓库路径", () => {
@@ -464,6 +471,8 @@ describe("R2 FSA 句柄持久化（蓝图 docs/roadmap/web-edition.md §R2，参
   });
 
   it("getFsaAuthState：无句柄 → none；不支持 FSA → unsupported", async () => {
+    // 显式声明 FSA 支持（此前依赖前一用例 setPicker 残留，node 环境 window 重建后不再成立）
+    setPicker(undefined);
     expect(await getFsaAuthState()).toBe("none");
     delete (window as { showDirectoryPicker?: unknown }).showDirectoryPicker;
     expect(await getFsaAuthState()).toBe("unsupported");

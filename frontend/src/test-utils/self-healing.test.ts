@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 自愈工具测试（test-utils/self-healing）=====
 // 覆盖：expectContainsAtLeast（缺项/允许额外/全匹配）/ expectNotContains（含/不含）/
 // deriveTestIds（推导选择器）/ extractIds（提取排序）

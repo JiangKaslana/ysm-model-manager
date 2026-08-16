@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 契约测试 B1（代码侦探）：以桌面端 Go 真实实现为契约，反推网页版 browser-adapter 偏差 =====
 // 目标簇：SearchModels / IsFileBanned / ToggleModelEnable / GetModelTags / SetModelTags /
 //         ListByTag / AllTags / DeleteModelDir / RemoveDir / RenameDir / RenameFile /

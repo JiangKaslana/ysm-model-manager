@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 网页版 YSM 头部/摘要解析测试（ysm-header.ts 纯解析 + web-fs.ts binding 装配）=====
 // 范式对齐 nbt-parse.test.ts / browser-adapter.test.ts：纯函数直测 + IDB mock 装配测。
 // 头部用例镜像 go/ysm/header_test.go（scanHeader/AnalyzeYSMHeaderFromBytes 口径），

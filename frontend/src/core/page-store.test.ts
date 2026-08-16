@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== page-store 导航状态机测试（陷阱 #13 幽灵路径守护）=====
 // 唯一写入点：registerPageStore 的 nav:changed listener；
 // 页面名收窄为 PageName 联合（编译期拦截拼错，运行时信任 emit 方类型）。
@@ -12,7 +13,7 @@ import {
 
 /** 隐私模式模拟：localStorage 读抛错（复用 app-modules.test.ts 的 breakLocalStorage 模式） */
 function breakLocalStorageRead(): () => void {
-  const getSpy = vi.spyOn(window.localStorage, "getItem").mockImplementation(() => {
+  const getSpy = vi.spyOn(localStorage, "getItem").mockImplementation(() => {
     throw new Error("denied");
   });
   return () => getSpy.mockRestore();

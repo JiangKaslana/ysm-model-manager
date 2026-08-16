@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== can() 能力门控真实实现三态测试（审核 B 缺口 #3）=====
 // 桌面（__YSM_BACKEND__='go'）→ true；web（resolveWebMode）→ 'X' in browserAdapter；
 // Android viewer（getAndroidBridge 非 null）→ false。
@@ -17,8 +18,8 @@ const webImplKeys = [
 
 beforeEach(() => {
   vi.stubGlobal(KEY, undefined);
-  // 默认无 android 桥（走 web/桌面判定）
-  vi.stubGlobal("wails", undefined);
+  // node 环境无 window——android-bridge.getAndroidBridge 读 window.wails（非全局 wails）
+  vi.stubGlobal("window", { wails: undefined });
 });
 
 afterEach(() => {
@@ -49,7 +50,7 @@ describe("can() — 三级能力门控", () => {
   it("Android viewer（getAndroidBridge 非 null）→ false（无本地 FS 写能力）", () => {
     // Android Java 桥：window.wails 带 requestStoragePermission（android-bridge.ts:13-16 检测）
     vi.stubGlobal(KEY, undefined);
-    (globalThis as Record<string, unknown>)["wails"] = { requestStoragePermission: () => {} };
+    vi.stubGlobal("window", { wails: { requestStoragePermission: () => {} } });
     expect(can("DeleteModelDir")).toBe(false);
     expect(can("ToggleModelEnable")).toBe(false);
     expect(can("ScanModelEntries")).toBe(false);

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== storage.ts localStorage 安全读写独立测试 =====
 // 子代理审计 P3：storage 无独立测试且 safeRemove 零覆盖（仅 app-modules.test 间接
 // 覆盖 safeGet/safeSet 正常路径）。此处覆盖：正常透传、存储抛错降级（safeGet→null、
@@ -5,8 +6,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { safeGet, safeSet, safeRemove } from "./storage.ts";
 
-// 保存原始 localStorage 引用以便还原（vi.stubGlobal 替换）
-const realLocalStorage = globalThis.localStorage;
+// node 环境无 localStorage——内存实现（对齐 happy-dom 语义；makeStorageThrow 覆盖抛错版）
+const memStorage = (() => {
+  const store = new Map<string, string>();
+  return {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+    clear: () => store.clear(),
+    key: () => null,
+    length: 0,
+  };
+})();
 
 /** 让 localStorage.getItem/setItem/removeItem 抛错（模拟隐私模式/存储禁用） */
 function makeStorageThrow(): void {
@@ -29,6 +40,7 @@ function makeStorageThrow(): void {
 describe("storage 安全读写", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.stubGlobal("localStorage", memStorage);
     localStorage.clear();
   });
   afterEach(() => {

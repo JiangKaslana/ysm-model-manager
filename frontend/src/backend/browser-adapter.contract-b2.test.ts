@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== B2 社区/工坊契约测试（反推源码问题）=====
 // 对照 Go 真实契约 internal/app/app_workshop.go，校验网页桥接（browser-adapter.ts）
 // 中 LoadWorkshopCreators / SaveWorkshopCreators / LoadGitHubRepos /

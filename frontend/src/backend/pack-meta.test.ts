@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 资源包/光影包详情 web 实现测试（ReadPackMeta / ReadShaderpackLang）=====
 // TS 平移 go/packs/mcmeta.go：用 fflate zipSync 构造 zip → importWebFiles 落 IDB →
 // browserAdapter.ReadPackMeta / ReadShaderpackLang 验证字段（成功路径 + 失败路径 "{}"）。

@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== model2d 命中区域坐标测试（ADR-021 扩展，防坐标回归）=====
 // calcBoneHitZones：2D 正交投影热区计算（scale/偏移/骨骼位移/绕 pivot 旋转/前后视图）。
 import { describe, it, expect, vi, type Mock } from "vitest";

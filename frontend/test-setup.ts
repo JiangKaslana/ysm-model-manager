@@ -3,6 +3,9 @@
 // 1. @wailsio/runtime 全局阻断 —— 其 drag.js 在模块加载时访问 window，
 //    happy-dom teardown 后延迟回调报 "window is not defined" 环境噪声
 // 2. i18n t() 函数 —— 预加载 zh-CN 翻译表，测试中 t() 返回中文而非 key
+// 3. node 环境 localStorage 兜底 —— 纯逻辑测试标 @vitest-environment node 后无
+//    localStorage，测试内裸调（beforeEach clear / setItem）会炸；注入内存实现，
+//    happy-dom 环境自带 localStorage（in 判断跳过）。ADR-089 编写约定配套基建。
 import { vi } from "vitest";
 import { zhCN } from "./src/core/i18n/locales/zh-CN.ts";
 
@@ -29,3 +32,21 @@ vi.mock("./src/core/i18n/t.ts", async () => {
     },
   };
 });
+
+// 3. node 环境 localStorage 兜底（内存实现，Map 语义；happy-dom 自带，跳过）
+if (!("localStorage" in globalThis)) {
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+      clear: () => store.clear(),
+      key: (i: number) => [...store.keys()][i] ?? null,
+      get length() {
+        return store.size;
+      },
+    },
+  });
+}

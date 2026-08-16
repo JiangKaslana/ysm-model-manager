@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== B3 契约测试（反推源码问题）：对标 Go 侧真实契约 =====
 // 目标簇：ListModelAuthors / ScanLocalAuthors / GenerateRepoIndex
 // 不改动任何源码，仅新增本文件。harness 复刻 browser-adapter.test.ts

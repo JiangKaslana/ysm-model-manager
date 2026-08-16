@@ -1,3 +1,4 @@
+// @vitest-environment node
 // ===== 创意工坊数据/工具测试 =====
 // 覆盖：getCreatorIdentity 全部分支、getTagFromRole、parseDescTags、收藏 CRUD
 import { describe, it, expect, beforeEach } from "vitest";
