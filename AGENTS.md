@@ -7,7 +7,7 @@
 
 > 500 行文件先 grep 定位再读。核实符号：当前源码 > `docs/adr/` > `docs/knowledge/` > `docs/archive/architecture.md`。
 > 改完即验：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`（tsc --noEmit，ADR-014 门槛）。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）；发版前用全量 `node scripts/doctor.mjs`。
-> 有失败就修复，超出职责的就报告；通过则直接 `git status --short` 抓清单 → 提交对应的文件夹，无需询问。先提交 `docs/`，捎带了无关文件也别怕。
+> 有失败就修复，超出职责的就报告；通过则直接 `git add <source files>` → 提交对应的文件夹，**无需手动打 `git status --short`**（pre-commit 自动输出本次 commit diff 统计）。先提交 `docs/`，捎带了无关文件也别怕。
 > 放弃低效的 `git stash` / `git stash push` / `git stash pop` 指令（`list` / `show` 只读不受限）。需要临时回退时用 `git commit` + `git reset --soft HEAD~1`。
 > 查日志/排查卡顿：往**环形日志面板**塞日志，而非死盯 console。
 > 连续修改时，从下往上修改可避免行号变化的影响。
@@ -63,6 +63,24 @@ git reset HEAD~1                      # 撤销最近一条 commit，把改动放
 
 > `pre-commit` 自动同步 docs/ 索引（秒级 gen）；`prepare-commit-msg` 提示受影响知识卡 + 覆盖率；均不阻塞提交。`pre-push` 全量门禁，失败阻断推送，无逃生阀。
 > `--no-verify` 跳过 pre-commit/prepare-commit-msg，不影响 pre-push。doctor 输出 `[WARN]...skip` 时须手动 `tsc` 验证。
+
+### AI 勿手动执行的指令（pre-commit 已自动执行，ADR-087）
+
+> **核心原则**：pre-commit 自动执行的命令，AI 不再手动打。pre-commit 已在 stderr 输出结果，直接读即可。
+>
+> | AI 勿手动 | pre-commit 自动 | 读取位置 |
+> |-----------|----------------|----------|
+> | `git status --short` | `git diff --cached --stat`（本次 commit 变更统计） | pre-commit 末尾 stderr |
+> | `check-knowledge-drift --affected <files>` | `check-knowledge-drift.mjs --affected $STAGED_FILES` | pre-commit 中段 stderr |
+> | `git add <foo>.test.ts`（对应源码的测试文件） | 智能 stage（同目录同名 `.test.ts`/`.test.js`） | pre-commit 中段 stderr |
+> | `node scripts/gen-*-index.mjs` | 10 个 gen 脚本循环 | pre-commit 头部 stderr |
+> | `gofmt -w <file>` | gofmt 自动修复 + stage | pre-commit 中段 stderr |
+>
+> **例外**（仍需手动）：
+> - `git add` **手动 stage 自己的源码文件**（pre-commit 不会自动 stage 你未 `git add` 的源码）
+> - `node scripts/doctor.mjs`（发版前全量闸门，pre-commit 不跑）
+> - `cd frontend && npm run typecheck`（源码改动后的手动验证）
+> - `git push`（推送时 pre-push 门禁自然触发）
 
 ## ADR 规则
 
