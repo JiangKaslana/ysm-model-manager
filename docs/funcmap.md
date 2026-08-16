@@ -40,10 +40,10 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 101 |
-| 前端·工具 | 88 | 311 |
+| 前端·工具 | 88 | 310 |
 | frontend/views | 88 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **342** | **1421** |
+| **合计** | **342** | **1420** |
 
 ## Go·头像
 
@@ -1118,7 +1118,6 @@
 | `getBoneDetail()` | `frontend/src/utils/3d/bone-tools:106` | — |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-tools:125` | 骨骼显隐：设置该骨骼节点及其所有子网格可见性（需 object；无 object no-op） |
 | `toggleBoneVisible()` | `frontend/src/utils/3d/bone-tools:133` | 骨骼显隐：切换（取反）该骨骼节点可见性 |
-| `pickBone()` | `frontend/src/utils/3d/bone-tools:144` | Raycaster 拾取：命中任意 mesh → 沿父链找最近挂载在骨骼节点上的祖先（需 object）。 |
 | `BoneGroupMap()` | `frontend/src/utils/3d/bone-visibility:6` | BoneGroupMap 类型别名：骨骼 id → THREE.Group |
 | `setBoneVisible()` | `frontend/src/utils/3d/bone-visibility:11` | 设置指定骨骼组及其所有子网格的可见性。 |
 | `toggleBone()` | `frontend/src/utils/3d/bone-visibility:19` | 切换指定骨骼组的可见性（取反）。 |
