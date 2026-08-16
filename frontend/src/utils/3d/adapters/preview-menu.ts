@@ -186,14 +186,18 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   /** 组内子菜单：弹窗动态生成（组标题 + 组内项列表，点击开各面板——复用 makeRow/bindRow） */
   const renderGroup = (g: DockGroupDef, groupItems: PreviewMenuItemDef[]): void => {
     popup.innerHTML = "";
-    const title = makeRow({
-      id: "back",
-      icon: g.icon,
-      labelKey: "",
-      fallback: g.fallback,
-      kind: "action",
-    });
-    title.onclick = (): void => closePopup();
+    // 标题行：纯展示，不可点击（避免用户误以为它是菜单项/快捷入口）
+    const title = document.createElement("div");
+    title.dataset.testid = "dock-group-title-" + g.id;
+    title.style.cssText =
+      "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;" +
+      "font-size:12px;font-weight:600;color:rgba(255,255,255,0.55);cursor:default;user-select:none";
+    const titleIc = document.createElement("span");
+    titleIc.textContent = g.icon;
+    titleIc.style.cssText = "font-size:15px;width:18px;text-align:center";
+    const titleLb = document.createElement("span");
+    titleLb.textContent = g.fallback;
+    title.append(titleIc, titleLb);
     popup.appendChild(title);
     groupItems.forEach((def) => {
       const row = makeRow(def);
@@ -217,7 +221,13 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       btn.innerHTML = `<span class="ysm-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation(); // 防 document onDoc 误判外部点击收起（与 root.onclick 同款）
-        renderGroup(g, groupItems);
+        // 快捷直达：组内只有一个 panel 项时，点击直接打开该面板，跳过中间层
+        const panelItems = groupItems.filter((d) => d.kind === "panel");
+        if (panelItems.length === 1 && groupItems.length === 1) {
+          renderSub(panelItems[0]);
+        } else {
+          renderGroup(g, groupItems);
+        }
         popup.style.display = "flex";
       };
       dock.appendChild(btn);

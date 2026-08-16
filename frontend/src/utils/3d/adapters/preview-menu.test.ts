@@ -190,18 +190,46 @@ describe("dock 底栏分组（🧍 模型 / 💃 动作 / 🌍 场景——组�
     expect(overlay.querySelector('[data-testid="dock-scene"]')).not.toBeNull();
   });
 
-  it("点击 dock 组按钮 → 弹窗动态生成组内子菜单 → 点击项开面板", () => {
+  it("点击 dock 组按钮（单 panel 项）→ 快捷直达面板，跳过中间层", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/a.ysm"] }));
     const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    // 组内子菜单：camera 项行存在（preview-camera）
-    expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
-    // 点击 camera 项 → 相机面板（buildCameraControls 渲染 select）
-    (overlay.querySelector('[data-testid="preview-camera"]') as HTMLElement).click();
+    // 快捷直达：scene 组只有 camera 一项，直接渲染相机面板（select），无中间 preview-camera 行
+    expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
     expect(popup.querySelector("select")).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("点击 dock 组按钮（多 panel 项）→ 显示组标题 + 项列表 → 点击项开面板", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/a.ysm"] }));
+    handle.setAdapterItems([
+      {
+        id: "model",
+        icon: "🧍",
+        labelKey: "preview.modelInfo",
+        fallback: "模型",
+        kind: "panel",
+        dockGroup: "model",
+        render: (l) => {
+          l.append("MODEL-PANEL");
+        },
+      },
+    ]);
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    expect(modelBtn).not.toBeNull();
+    modelBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    // 组内子菜单：标题 + switch + model 行
+    expect(overlay.querySelector('[data-testid="dock-group-title-model"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-switch"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-model"]')).not.toBeNull();
+    // 点击 model 项 → 打开模型面板
+    (overlay.querySelector('[data-testid="preview-model"]') as HTMLElement).click();
+    expect(overlay.textContent).toContain("MODEL-PANEL");
     handle.dispose();
   });
 
