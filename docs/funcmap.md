@@ -914,8 +914,8 @@
 | `ImportHistory()` | `frontend/src/features/import-executor:37` | — |
 | `directImport()` | `frontend/src/features/import-executor:95` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
 | `importFolder()` | `frontend/src/features/import-executor:138` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
-| `executeCollected()` | `frontend/src/features/import-executor:203` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:223` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `executeCollected()` | `frontend/src/features/import-executor:207` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:227` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `ImportFile()` | `frontend/src/features/import-queue-data:15` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `QueueItem()` | `frontend/src/features/import-queue-data:18` | 队列项数据类型 |
 | `normalizeRepoName()` | `frontend/src/features/import-queue-data:31` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
@@ -926,7 +926,7 @@
 | `bindFormEvents()` | `frontend/src/features/import-queue-events:24` | 表单输入事件绑定 |
 | `bindDragEvents()` | `frontend/src/features/import-queue-events:55` | 拖拽事件绑定 |
 | `bindInputEvents()` | `frontend/src/features/import-queue-events:142` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:223` | 按钮事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:224` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
 | `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |

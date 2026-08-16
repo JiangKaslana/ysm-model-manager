@@ -151,6 +151,7 @@ export const importFolder = async (
   const subpath = parts.slice(0, -1).join("/");
   try {
     const items: Array<{ RelPath: string; Base64: string }> = [];
+    let skipped = 0; // 读取失败跳过计数（ADR-082 续：成功 toast 反馈跳过数，不全静默）
     for (const c of files) {
       const rel = c.relPath.startsWith(dir + "/")
         ? c.relPath.slice(dir.length + 1)
@@ -162,6 +163,7 @@ export const importFolder = async (
         b64 = await fileToBase64(c.file);
       } catch (e) {
         console.warn("[import] 跳过读取失败文件:", rel, e);
+        skipped++;
         continue;
       }
       if (!b64) continue;
@@ -181,7 +183,9 @@ export const importFolder = async (
       isYsm: items.some((it) => it.RelPath.toLowerCase().endsWith("ysm.json")),
     });
     refreshRepo();
-    toast(t("import.success") + ": " + folderName, "success", 2500);
+    // 部分文件跳过时成功 toast 带计数，避免用户以为全部导入（ADR-082 续）
+    const skipHint = skipped > 0 ? `（${skipped} 个文件读取失败已跳过）` : "";
+    toast(t("import.success") + ": " + folderName + skipHint, "success", 2500);
   } catch (e) {
     // 统一文件已存在判定（索引 4.2）：结构化 Code 优先，字符串兜底覆盖漂移文案
     if (isFileExistsError(e)) {
@@ -240,7 +244,8 @@ export const importWebFilesWithToast = async (
   } catch (e) {
     console.error("[import-web] importWebFiles 失败:", e);
     bus.emit("toast:show", {
-      msg: "❌ " + t("import.processError") + ": " + String(e),
+      // 显式化：friendlyError 消费 AppError 结构化错误（ADR-082 续）
+      msg: "❌ " + t("import.processError") + ": " + friendlyError(e),
       duration: 4000,
       type: "error",
     });

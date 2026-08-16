@@ -210,7 +210,8 @@ export function bindInputEvents(
       }
     }).catch((e) => {
       bus.emit("toast:show", {
-        msg: "❌ " + t("import.folderImportFailed") + ": " + String(e),
+        // 显式化：friendlyError 消费 AppError 结构化错误（ADR-082 续）
+        msg: "❌ " + t("import.folderImportFailed") + ": " + friendlyError(e),
         duration: 4000,
         type: "error",
       });

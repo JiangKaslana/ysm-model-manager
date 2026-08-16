@@ -182,7 +182,9 @@ export function registerSync(unsubs: Array<() => void>): void {
             totalDisable += res?.[0] ?? 0;
             totalEnable += res?.[1] ?? 0;
           } catch (e) {
-            errors.push(`${ins.Name}: ${String(e)}`);
+            // 显式化：friendlyError 消费 AppError.Code → i18n 文案并剥离内部路径，
+            // 失败明细带整合包名（ADR-082 续）
+            errors.push(`${ins.Name}: ${friendlyError(e)}`);
           }
         }
         await AddImportLog(
@@ -221,7 +223,7 @@ export function registerSync(unsubs: Array<() => void>): void {
           dbg("sync", "AddImportLog(sync-status 失败) 写入失败:", logErr);
         }
         bus.emit("toast:show", {
-          msg: `同步失败: ${String(err)}`,
+          msg: `同步失败: ${friendlyError(err)}`,
           duration: 8000,
           type: "error",
         });
