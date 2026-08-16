@@ -327,6 +327,22 @@ async function main() {
           : `零容忍 ${lz.zero_tolerance} + 新增回归 ${lz.regressions}`),
     });
 
+    // ADR-085：菜单表健康门禁——"加菜单项只改表"的自动兜底（秒级正则扫描，早失败早停）。
+    // 校验：id 唯一 / labelKey 非空 / i18n 三语齐全 / dockGroup 合法 / kind 合法 / render·run 完备。
+    const tM = Date.now();
+    const mh = sh('node scripts/check-menu-health.mjs --json');
+    let mz = null;
+    try { mz = JSON.parse(mh.out)._summary; } catch { /* parse fail */ }
+    const mOk = mh.rc === 0 && mz && mz.ok === true;
+    record('check-menu-health', mOk, {
+      time: Date.now() - tM,
+      note: mz === null ? '输出解析失败'
+        : (mOk ? `菜单表 ${mz.total} 项全绿`
+          : `${mz.violations} 条菜单表违规（id/labelKey/i18n/dockGroup/kind/render-run）`),
+      tail: mOk ? '' : mh.out.trim().split('\n').slice(-4).join('\n'),
+    });
+    if (!mOk) blocked = true; // 菜单表违规阻断推送（硬错误：加错键/漏 i18n 会破坏菜单渲染）
+
     const t0 = Date.now();
     const fb = sh('npx vite build', { cwd: path.join(ROOT, 'frontend') });
     record('vite build', fb.rc === 0, { time: Date.now() - t0, tail: fb.rc ? fb.out.trim().split('\n').slice(-4).join('\n') : '' });
