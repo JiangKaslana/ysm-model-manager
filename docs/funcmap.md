@@ -793,7 +793,7 @@
 | `toast()` | `frontend/src/core/context-menu-shared:20` | 显示 toast 通知 |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:25` | 路径安全过滤：禁止逃逸段（. |
 | `resolveDstDir()` | `frontend/src/core/context-menu-shared:36` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
-| `registerContextMenus()` | `frontend/src/core/context-menus:69` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
+| `registerContextMenus()` | `frontend/src/core/context-menus:76` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:29` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:51` | 注册 UI 报错落日记功能。 |
 | `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:17` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |

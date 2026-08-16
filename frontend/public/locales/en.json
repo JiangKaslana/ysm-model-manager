@@ -878,5 +878,10 @@
   "webFs.renameTargetExists": "Rename failed: target already exists: {path}",
   "webFs.renameModelMissing": "Rename failed: model not found: {path}",
   "webFs.renameYsmJsonForbidden": "ysm.json is the model folder manifest; rename the containing folder instead (group operation)",
-  "webFs.deleteInvalidPath": "Delete failed: invalid path: {path}"
+  "webFs.deleteInvalidPath": "Delete failed: invalid path: {path}",
+  "webFs.moveInvalidSrc": "Move/Copy failed: invalid source path: {path}",
+  "webFs.moveInvalidDstDir": "Move/Copy failed: invalid destination directory: {path}",
+  "webFs.moveModelMissing": "Move/Copy failed: model not found: {path}",
+  "webFs.moveNested": "Move/Copy failed: destination directory cannot be inside the source: {path}",
+  "webFs.moveTargetExists": "Move/Copy failed: target already exists: {path}"
 }
