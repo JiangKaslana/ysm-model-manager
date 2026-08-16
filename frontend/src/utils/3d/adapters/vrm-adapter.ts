@@ -292,10 +292,14 @@ export async function buildVrmScene(
             currentIndex: () => motionIdx,
             select: (i: number) => {
               if (i === motionIdx || !motionMixer) return;
+              if (i < 0 || i >= motionClips.length) return;
               motionIdx = i;
               motionAction?.stop();
               motionAction = motionMixer.clipAction(motionClips[i].clip);
-              if (motionPlaying) motionAction.play();
+              // 先 play() 再按当前播放态设 paused：暂停态切片也能靠后续 toggle 恢复，
+              // 避免「新 action 从未 play() → 永久冻结且 animActive 误判关掉呼吸/眨眼」
+              motionAction.play();
+              motionAction.paused = !motionPlaying;
             },
           }
         : null,
@@ -356,6 +360,7 @@ export async function buildVrmScene(
       gaze?.reset();
       blink.dispose();
       motionMixer?.stopAllAction(); // 停掉 VRMA 动画 mixer，避免释放后残留 action
+      motionMixer?.uncacheRoot(vrm.scene); // 释放 PropertyBinding 缓存，防 GPU/内存残留（switchTo 重建时尤甚）
       // 原生 lookAt：断开相机引用，避免释放后残留
       if (useNativeLookAt) vrm.lookAt!.target = null;
       VRMUtils.deepDispose(vrm.scene);
