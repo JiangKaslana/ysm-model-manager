@@ -8,8 +8,8 @@
 // （对齐 ADR-075 构建期 null→never 收窄约定：初始值用 getter 实时读取，交互在闭包内 ?. 延迟调用）。
 import { PREVIEW_MENU_DEFS, type PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
-import type { SkyCapability } from "./caps/sky-capability.ts";
-import type { GroundCapability } from "./caps/ground-capability.ts";
+import type { SkyCapability } from "../caps/sky-capability.ts";
+import type { GroundCapability } from "../caps/ground-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { t } from "../../../core/i18n/t.ts";
 

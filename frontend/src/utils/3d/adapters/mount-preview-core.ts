@@ -1,6 +1,7 @@
 // ===== 统一 3D 预览核心（ADR-066 P3：收缴 vrm/litematic 复制脚手架）=====
 // 所有富格式 3D 预览（vrm / litematic / 后续 ysm）共用同一套外壳：
-// overlay + topBar(关闭/旋转模式/速度) + viewContainer + loadingEl +
+// overlay + 声明式根菜单(⚙️, PREVIEW_MENU_DEFS) + viewContainer + loadingEl +
+// 适配器底部导航容器(topBar, Phase 2 经 previewMenuItems 收编) +
 // scene/camera/renderer/OrbitControls/灯光 + WASD/拖拽自转 + resize +
 // rAF 循环 + ESC + GPU 资源释放。内容差异由 PreviewAdapter 经 build() 注入，
 // 每帧 update(dt) 驱动动态部分（如 VRM SpringBone）。
@@ -265,6 +266,35 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   body.appendChild(viewContainer);
   overlay.appendChild(body);
 
+  // 适配器专属控件容器（Phase 1 暂留，Phase 2 经 previewMenuItems 契约收编）：
+  // 用户 2026-08-16 决策「适配器底部导航暂留」——核心控件（关闭/切换/环境/相机）已迁入 ⚙️ 根菜单，
+  // 此处仅作底部容器承接适配器经 extraControls(topBar) 注入的专属控件（ysm 侧栏按钮 / mmd 控件等）。
+  const topBar = document.createElement("div");
+  topBar.className = "ysm-3d-adapter-nav";
+  topBar.style.cssText =
+    "position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;" +
+    "padding:8px 12px;z-index:11;background:rgba(20,21,38,0.85);" +
+    "border-top:1px solid rgba(255,255,255,0.12);flex-wrap:wrap";
+  overlay.appendChild(topBar);
+
+  // 声明式根菜单（⚙️）：core 在 overlay 内自建（预览全屏盖住 app 外壳，主程序 nav.settings 够不着），
+  // 全部控件以 PREVIEW_MENU_DEFS 表驱动渲染，e2e 选择器稳定可遍历（ADR-076 v2）。
+  const unsubMenu = mountPreviewRootMenu(overlay, {
+    selfMode,
+    getSkyCap: () => skyCap,
+    getGroundCap: () => groundCap,
+    getCamBridge: () => camBridge,
+    getSiblings: () => siblings,
+    getCurrentPath: () => currentPath,
+    close: () => {
+      if (cleanupFn) cleanupFn();
+      else closeOverlay();
+    },
+    switchTo: (p: string) => {
+      void _handle?.switchTo?.(p);
+    },
+  });
+
   const loadingEl = document.createElement("div");
   loadingEl.style.cssText =
     "position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,0.6);font-size:14px;gap:12px;z-index:10;background:rgba(26,27,46,0.9)";
@@ -284,10 +314,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     _handle = null;
     adapter.onClose?.();
   }
-  closeBtn.onclick = () => {
-    if (cleanupFn) cleanupFn();
-    else closeOverlay();
-  };
   document.addEventListener("keydown", escH);
 
   if (!selfMode) {
@@ -524,6 +550,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
 
     function fullCleanup(): void {
+      unsubMenu?.();
       if (isDisposed.v) return;
       isDisposed.v = true;
       cancelAnimationFrame(animId);
@@ -578,7 +605,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
     document.removeEventListener("keydown", escH);
     document.addEventListener("keydown", escHandler);
-    closeBtn.onclick = fullCleanup;
     cleanupFn = fullCleanup;
     _handle = {
       cleanup: fullCleanup,
@@ -633,6 +659,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
           return;
         }
         built = next;
+        currentPath = newPath; // 同步「当前」项（ADR-066 §5.6 3D 内切换）：根菜单切换面板高亮随之移动
         // 4) 同步相机状态到新内容层取景 + 重挂适配器控件/侧栏
         if (renderer) {
           orbitTarget!.copy((controls as OrbitControls).target);
