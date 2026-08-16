@@ -6,6 +6,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
 import { buildMmdBottomNav } from "./mmd-controls.ts";
 
+const { resolveMmdSiblingsMock } = vi.hoisted(() => ({
+  resolveMmdSiblingsMock: vi.fn(),
+}));
+vi.mock("./mmd-3d.ts", () => ({
+  resolveMmdSiblings: resolveMmdSiblingsMock,
+}));
+
 function makeCtx() {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
   mesh.morphTargetDictionary = { "微笑": 0, "怒": 1, "哀": 2 };
@@ -22,7 +29,14 @@ function makeCtx() {
     reset: vi.fn(),
   };
   return {
-    ctx: { mmd, mesh, modelName: "子言.pmx", cameraControls },
+    ctx: {
+      mmd,
+      mesh,
+      modelName: "子言.pmx",
+      modelPath: "/mmd/子言/子言.pmx",
+      cameraControls,
+      switchTo: vi.fn(),
+    },
     overlay,
   };
 }
@@ -37,6 +51,7 @@ function popup(overlay: HTMLElement): HTMLElement {
 
 beforeEach(() => {
   document.body.innerHTML = "";
+  resolveMmdSiblingsMock.mockResolvedValue([]);
 });
 
 describe("buildMmdBottomNav", () => {
@@ -101,5 +116,45 @@ describe("buildMmdBottomNav", () => {
     btns[1].click();
     expect(popup(overlay).textContent).not.toContain("364");
     expect(popup(overlay).querySelector("select")).not.toBeNull();
+  });
+
+  it("模型菜单渲染切换区：siblings 列表 + 当前模型行", async () => {
+    resolveMmdSiblingsMock.mockResolvedValue([
+      "/mmd/子言/子言.pmx",
+      "/mmd/毒蛇/Viper.pmx",
+    ]);
+    const { ctx, overlay } = makeCtx();
+    buildMmdBottomNav(overlay, ctx as never);
+    navBtns(overlay)[0].click();
+    await vi.waitFor(() => {
+      expect(overlay.querySelector('[data-testid^="mmd-load-"]')).not.toBeNull();
+    });
+    expect(popup(overlay).textContent).toContain("切换模型");
+    expect(overlay.querySelectorAll('[data-testid^="mmd-load-"]').length).toBe(2);
+    // 当前模型行存在（高亮判断基于 modelPath 匹配）
+    expect(overlay.querySelector('[data-testid="mmd-load-子言.pmx"]')).not.toBeNull();
+  });
+
+  it("点击切换行 → ctx.switchTo(path) 调用（复用核心外壳重建内容层）", async () => {
+    resolveMmdSiblingsMock.mockResolvedValue(["/mmd/毒蛇/Viper.pmx"]);
+    const { ctx, overlay } = makeCtx();
+    buildMmdBottomNav(overlay, ctx as never);
+    navBtns(overlay)[0].click();
+    await vi.waitFor(() => {
+      expect(overlay.querySelector('[data-testid="mmd-load-Viper.pmx"]')).not.toBeNull();
+    });
+    (overlay.querySelector('[data-testid="mmd-load-Viper.pmx"]') as HTMLElement).click();
+    expect(ctx.switchTo).toHaveBeenCalledWith("/mmd/毒蛇/Viper.pmx");
+  });
+
+  it("无 switchTo → 不渲染切换区（向后兼容）", async () => {
+    resolveMmdSiblingsMock.mockResolvedValue(["/mmd/other.pmx"]);
+    const { ctx, overlay } = makeCtx();
+    delete (ctx as { switchTo?: unknown }).switchTo;
+    buildMmdBottomNav(overlay, ctx as never);
+    navBtns(overlay)[0].click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(overlay.querySelector('[data-testid^="mmd-load-"]')).toBeNull();
   });
 });

@@ -8,15 +8,20 @@ import { t } from "../../core/i18n/t.ts";
 import { ensureFabStyles } from "../../utils/dom/fab.ts";
 import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
 import { cardContainer } from "../../ui/ui-card.ts";
-import { addCollapsible } from "../../ui/ui-collapsible.ts";
+import { addCollapsible, addSectionTitle } from "../../ui/ui-collapsible.ts";
 import { slideRow } from "../../ui/ui-slide-row.ts";
+import { resolveMmdSiblings } from "./mmd-3d.ts";
 
 export interface MmdBottomNavCtx {
   mmd: MMD;
   mesh: THREE.SkinnedMesh;
   modelName: string;
+  /** 当前模型完整路径（切换区「当前」高亮判断） */
+  modelPath?: string;
   /** shared 模式下核心的相机控制桥（视图菜单复用；self 模式 undefined 时降级默认值） */
   cameraControls?: CameraControlBridge;
+  /** 切换到另一模型（复用核心外壳重建内容层；undefined 时不渲染切换区） */
+  switchTo?(path: string): Promise<void>;
 }
 
 /** 在统一外壳（overlay）挂载 MMD 底部悬浮导航 + 分类弹窗（§5.7 范式，对齐 YSM） */
@@ -70,7 +75,9 @@ export function buildMmdBottomNav(overlay: HTMLElement, ctx: MmdBottomNavCtx): v
     return idx !== undefined && (ctx.mesh.morphTargetInfluences?.[idx] ?? 0) > 0.5;
   };
 
-  // ── 模型菜单：信息卡（ui/ 库 cardContainer）+ 表情列表（collapsible + slideRow）──
+  // ── 模型菜单：信息卡（ui/ 库 cardContainer）+ 表情列表（collapsible + slideRow）+ 切换模型区 ──
+  /** 同类型模型候选缓存（类型根固定不随当前模型变，切换后无需刷新；首次打开菜单拉取） */
+  let siblingsCache: string[] | null = null;
   const fillModelMenu = (): void => {
     popup.innerHTML = "";
     const pmx = ctx.mmd.pmx;
@@ -106,6 +113,29 @@ export function buildMmdBottomNav(overlay: HTMLElement, ctx: MmdBottomNavCtx): v
         },
       });
     }
+    // 切换模型区：同类型候选列表（resolveMmdSiblings 函数声明提升，循环依赖安全）；
+    // 点击经 ctx.switchTo 复用核心外壳重建内容层（ADR-066 §5.6）
+    if (!ctx.switchTo) return;
+    void resolveMmdSiblings().then((siblings) => {
+      if (popup.style.display === "none" || siblings.length === 0) return; // 菜单已关 / 无候选
+      siblingsCache = siblings;
+      addSectionTitle(popup, `📦 ${t("preview.mmdLoadModel")} (${siblings.length})`);
+      siblings.forEach((p) => {
+        const isCurrent = !!ctx.modelPath && p.toLowerCase() === ctx.modelPath.toLowerCase();
+        slideRow(
+          popup,
+          "📦",
+          p.split(/[/\\]/).pop() || p,
+          true,
+          () => void ctx.switchTo?.(p),
+          undefined,
+          undefined,
+          isCurrent, // focused：当前模型高亮
+          undefined,
+          { testId: "mmd-load-" + (p.split(/[/\\]/).pop() || "model") },
+        );
+      });
+    });
   };
 
   // ── 视图菜单：相机控件（复用 core cameraControls bridge，对齐 YSM fillViewMenu）──

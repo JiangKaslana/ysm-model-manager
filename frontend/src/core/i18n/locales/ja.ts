@@ -840,6 +840,7 @@ export const ja: Record<string, string> = {
   "preview.mmdPlay": "再生",
   "preview.mmdPause": "一時停止",
   "preview.mmdMorph": "モーフ",
+  "preview.mmdLoadModel": "モデル切替",
   "preview.vrcAvatar": "VRCアバター",
   "preview.unknownError": "不明なエラー",
   "preview.nameLabel": "名前",

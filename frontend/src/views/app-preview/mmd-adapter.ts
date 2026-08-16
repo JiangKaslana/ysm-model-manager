@@ -158,12 +158,14 @@ export async function buildMmdScene(ctx: PreviewBuildCtx, path: string): Promise
   const mesh = mmd.mesh;
 
   ctx.scene!.add(mesh);
-  // MMD 底部根菜单（§5.7 范式：模型信息 + 表情列表 + 视图相机，弹窗内容接入 ui/ 库组件）
+  // MMD 底部根菜单（§5.7 范式：模型信息 + 表情列表 + 切换模型区 + 视图相机，弹窗内容接入 ui/ 库组件）
   buildMmdBottomNav(ctx.overlay, {
     mmd,
     mesh,
     modelName: path.split(/[/\\]/).pop() || "",
+    modelPath: path,
     cameraControls: ctx.cameraControls,
+    switchTo: ctx.switchTo,
   });
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 

@@ -33,6 +33,8 @@ export interface PreviewBuildCtx {
   renderer?: THREE.WebGLRenderer;
   /** shared 模式下核心的相机控制桥（旋转/速度/重置，操作核心内部状态；self 模式 undefined） */
   cameraControls?: CameraControlBridge;
+  /** 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；延迟闭包——build 时 _handle 未赋值，点击时已就绪 */
+  switchTo?(path: string): Promise<void>;
 }
 
 /** 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） */
@@ -481,7 +483,19 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     if (scene) sceneBaseline = new Set(scene.children);
     adapterControlsStart = topBar.childElementCount;
     built = await adapter.build(
-      { scene, camera, controls, renderer, cameraControls: selfMode ? undefined : camBridge, viewContainer, loadingEl, overlay },
+      {
+        scene,
+        camera,
+        controls,
+        renderer,
+        cameraControls: selfMode ? undefined : camBridge,
+        viewContainer,
+        loadingEl,
+        overlay,
+        // 延迟闭包：build 时 _handle 尚未赋值，菜单点击（build 之后）时已就绪；
+        // 无活跃会话时 no-op（与 switchPreview 同口径）
+        switchTo: (p: string): Promise<void> => _handle?.switchTo?.(p) ?? Promise.resolve(),
+      },
       path,
     );
     if (aborted || myGen !== _gen) {

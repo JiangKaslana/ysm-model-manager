@@ -842,6 +842,7 @@ export const zhCN: Record<string, string> = {
   "preview.mmdPlay": "播放",
   "preview.mmdPause": "暂停",
   "preview.mmdMorph": "表情",
+  "preview.mmdLoadModel": "切换模型",
   "preview.vrcAvatar": "VRC 头像",
   "preview.unknownError": "未知错误",
   "preview.nameLabel": "名称",

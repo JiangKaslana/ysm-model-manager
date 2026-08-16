@@ -839,6 +839,7 @@ export const en: Record<string, string> = {
   "preview.mmdPlay": "Play",
   "preview.mmdPause": "Pause",
   "preview.mmdMorph": "Morph",
+  "preview.mmdLoadModel": "Load Model",
   "preview.vrcAvatar": "VRC Avatar",
   "preview.unknownError": "Unknown error",
   "preview.nameLabel": "Name",
