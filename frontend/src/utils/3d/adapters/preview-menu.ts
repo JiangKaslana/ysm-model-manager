@@ -1,12 +1,13 @@
-// ===== 3D 预览声明式根菜单渲染器（ADR-076 v2）=====
-// 渲染 ⚙️ 根按钮 + 弹出菜单；项来自 PREVIEW_MENU_DEFS（唯一事实来源）。
-// 面板型（environment / camera / switch）开子视图填充；动作型（close）直接执行。
-// 环境面板复用 ADR-075 行（地面/时间/云量/IBL）；相机面板调 buildCameraControls；
-// 切换面板列 siblings（经 ctx.switchTo 复用外壳重建，ADR-066 §5.6）。
-//
-// ctx 全部经 getter 暴露，避免构建期 capability 为 null / 后期赋值 / 切换后 currentPath 失效
-// （对齐 ADR-075 构建期 null→never 收窄约定：初始值用 getter 实时读取，交互在闭包内 ?. 延迟调用）。
-import { PREVIEW_MENU_DEFS, DOCK_GROUPS, type PreviewMenuItemDef, type DockGroupDef } from "./preview-menu-defs.ts";
+// ===== 3D 预览底部根菜单（ADR-076 v3）=====
+// 对齐 MikuMikuAR：底部根按钮 → createSlideMenu 多层导航。
+// 能力驱动：有模型/骨骼项 → 🧍 模型；有动作/播放项 → 💃 动作；有场景/相机/环境能力 → 🌍 场景。
+// 每组按钮点击：
+//   - 组内仅一个 panel 项 → 直接打开该面板（快捷直达）
+//   - 组内多个项 → home 到组根视图（项列表），点击项 navigate 下钻面板
+// 关闭统一走 SlideMenu header ✕（根级）/ ←（子级），外部点击关闭。
+
+import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
+import { createSlideMenu, type SlideMenuView } from "../../../ui/ui-slide-menu.ts";
 import { buildCameraControls, type CameraControlBridge } from "./mount-preview-core.ts";
 import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
@@ -32,39 +33,50 @@ const tr = (key: string, fallback: string): string => {
   return v === key ? fallback : v;
 };
 
-/** 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项（Phase 2 契约）；openPanel 直接打开指定面板（骨骼拾取联动） */
+/** 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 */
 export interface PreviewMenuHandle {
   dispose(): void;
   setAdapterItems(items: PreviewMenuItemDef[]): void;
   openPanel(id: string): void;
 }
 
-/** 挂载预览声明式根菜单，返回句柄（preview 拆卸时 dispose 移除 document 监听，防泄漏） */
+/** 挂载预览底部根菜单，返回句柄 */
 export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx): PreviewMenuHandle {
-  ensureFabStyles(); // 底栏 dock 复用毛玻璃悬浮条样式（preview-dock-nav / preview-dock-navbtn）
-  const root = document.createElement("button");
-  root.className = "mode-btn";
-  root.textContent = "⚙️";
-  root.dataset.testid = "preview-menu-btn";
-  root.title = tr("preview.settings", "设置");
-  root.style.cssText =
-    "position:absolute;top:8px;right:8px;z-index:12;width:36px;height:36px;font-size:18px;" +
-    "display:flex;align-items:center;justify-content:center";
-  overlay.appendChild(root);
+  ensureFabStyles();
 
+  // ---- 底部 dock 容器 ----
+  const dock = document.createElement("div");
+  dock.className = "preview-dock-nav";
+  overlay.appendChild(dock);
+
+  // ---- SlideMenu 外壳（复用 MikuMikuAR 迁移组件）----
   const popup = document.createElement("div");
   popup.className = "ysm-preview-menu";
   popup.style.cssText =
-    "position:absolute;top:50px;right:8px;min-width:224px;max-height:80vh;overflow:auto;" +
-    "padding:6px;background:rgba(20,21,38,0.98);border:1px solid rgba(255,255,255,0.15);" +
-    "border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5);color:#fff;font-size:13px;" +
-    "display:none;z-index:12;flex-direction:column;gap:2px";
+    "position:absolute;left:16px;bottom:84px;width:300px;max-height:70vh;" +
+    "display:none;z-index:25";
   overlay.appendChild(popup);
 
-  const closePopup = (): void => {
-    popup.style.display = "none";
-  };
+  const menu = createSlideMenu({ title: "", closeIcon: "✕" });
+  popup.appendChild(menu.root);
+  // 兼容既有 e2e 选择器：关闭按钮保留 ysm-close-3d
+  menu.root.querySelector<HTMLElement>(".slide-back")?.setAttribute("id", "ysm-close-3d");
 
+  const showMenu = (view: SlideMenuView): void => {
+    menu.home(view);
+    popup.style.display = "flex";
+  };
+  const hideMenu = (): void => {
+    popup.style.display = "none";
+    menu.reset();
+  };
+  // 根级 ✕（SlideMenu onClose）语义 = 关闭整个 3D 预览（对齐旧 close 菜单项）
+  menu.setOnClose(() => {
+    hideMenu();
+    ctx.close();
+  });
+
+  // ---- 行/分隔线工厂 ----
   const makeRow = (def: PreviewMenuItemDef): HTMLElement => {
     const row = document.createElement("div");
     row.className = "ysm-preview-menu-row";
@@ -88,186 +100,117 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     return row;
   };
 
-  const makeDivider = (): HTMLElement => {
-    const d = document.createElement("div");
-    d.style.cssText = "height:1px;background:rgba(255,255,255,0.12);margin:4px 2px";
-    return d;
-  };
-
+  // ---- core 填充器 ----
   const fillers: Record<string, (list: HTMLElement) => void> = {
     environment: (list) => fillEnvironment(list, ctx),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
-    switch: (list) => fillSwitch(list, ctx, closePopup),
+    switch: (list) => fillSwitch(list, ctx, hideMenu),
   };
   const runners: Record<string, () => void> = {
     close: () => ctx.close(),
   };
 
-  /** 适配器注入的专属项（Phase 2：build 内经 ctx.menu.setAdapterItems 替换） */
+  // ---- 适配器注入项 ----
   let adapterItems: PreviewMenuItemDef[] = [];
 
-  /** 行点击分发：action 直接执行（适配器 run 优先于 core runners），panel 开子面板 */
-  const bindRow = (row: HTMLElement, def: PreviewMenuItemDef): void => {
-    row.onclick = (e: MouseEvent): void => {
-      // 关键：renderSub 会清空 popup.innerHTML，若事件继续冒泡到 document 的 onDoc，
-      // e.target 已是脱离 DOM 的旧节点 → popup.contains(e.target) 为 false → 误关弹窗。
-      // 必须 stopPropagation 阻止这次点击被 onDoc 判定为「外部点击」。
-      e.stopPropagation();
-      console.warn("[preview-menu] row click", def.id, "kind=", def.kind);
-      if (def.kind === "action") {
-        closePopup();
-        if (def.run) def.run();
-        else runners[def.id]?.();
-      } else {
-        renderSub(def);
-      }
-    };
-  };
-
-  const renderRoot = (): void => {
-    popup.innerHTML = "";
-    PREVIEW_MENU_DEFS.forEach((def) => {
-      if (def.sharedOnly && ctx.selfMode) return;
-      if (def.needsSiblings && ctx.getSiblings().length === 0) return;
-      if (def.kind === "divider") {
-        popup.appendChild(makeDivider());
-        return;
-      }
-      const row = makeRow(def);
-      bindRow(row, def);
-      popup.appendChild(row);
-    });
-    if (adapterItems.length > 0) {
-      popup.appendChild(makeDivider());
-      adapterItems.forEach((def) => {
-        if (def.kind === "divider") {
-          popup.appendChild(makeDivider());
-          return;
-        }
-        const row = makeRow(def);
-        bindRow(row, def);
-        popup.appendChild(row);
-      });
-    }
-  };
-
-  const renderSub = (def: PreviewMenuItemDef): void => {
-    popup.innerHTML = "";
-    const back = makeRow({
-      id: "back",
-      icon: "←",
-      labelKey: "",
-      fallback: tr("preview.back", "返回"),
-      kind: "action",
-    });
-    back.onclick = (e: MouseEvent): void => {
-      e.stopPropagation(); // 同 bindRow：渲染根菜单清空 DOM 后防 document onDoc 误关
-      renderRoot();
-    };
-    popup.appendChild(back);
+  const renderPanel = (list: HTMLElement, def: PreviewMenuItemDef): void => {
+    list.innerHTML = "";
     try {
-      if (def.render) def.render(popup, closePopup);
-      else fillers[def.id]?.(popup);
-      console.warn("[preview-menu] renderSub done", def.id, "children=", popup.childElementCount, "display=", popup.style.display);
+      if (def.render) def.render(list, hideMenu);
+      else fillers[def.id]?.(list);
     } catch (err) {
-      console.error("[preview-menu] renderSub FAILED", def.id, err);
-      // 失败也保持弹窗可见，内容区显示错误，便于定位（不静默关闭）
+      console.error("[preview-menu] renderPanel FAILED", def.id, err);
       const errRow = document.createElement("div");
       errRow.style.cssText = "padding:8px 10px;color:#ff7b7b;font-size:12px";
       errRow.textContent = "面板渲染失败: " + (err instanceof Error ? err.message : String(err));
-      popup.appendChild(errRow);
+      list.appendChild(errRow);
     }
   };
 
-  // 底栏 dock 分组（🧍 模型 / 💃 动作 / 🌍 场景）：每组一个按钮，点击弹窗动态生成组内子菜单
-  const dock = document.createElement("div");
-  dock.className = "preview-dock-nav"; // 复用毛玻璃悬浮条样式（fab.ts ensureFabStyles）
-  overlay.appendChild(dock);
-  /** 组内子菜单：弹窗动态生成（组标题 + 组内项列表，点击开各面板——复用 makeRow/bindRow） */
-  const renderGroup = (g: DockGroupDef, groupItems: PreviewMenuItemDef[]): void => {
-    popup.innerHTML = "";
-    // 标题行：纯展示，不可点击（避免用户误以为它是菜单项/快捷入口）
-    const title = document.createElement("div");
-    title.dataset.testid = "dock-group-title-" + g.id;
-    title.style.cssText =
-      "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;" +
-      "font-size:12px;font-weight:600;color:rgba(255,255,255,0.55);cursor:default;user-select:none";
-    const titleIc = document.createElement("span");
-    titleIc.textContent = g.icon;
-    titleIc.style.cssText = "font-size:15px;width:18px;text-align:center";
-    const titleLb = document.createElement("span");
-    titleLb.textContent = g.fallback;
-    title.append(titleIc, titleLb);
-    popup.appendChild(title);
-    groupItems.forEach((def) => {
-      const row = makeRow(def);
-      bindRow(row, def);
-      popup.appendChild(row);
-    });
-  };
+  const makePanelView = (def: PreviewMenuItemDef): SlideMenuView => ({
+    title: tr(def.labelKey, def.fallback),
+    render: (list) => renderPanel(list, def),
+  });
+
+  /** 组根视图：列出组内项，点击 navigate 下钻面板 / action 直接执行 */
+  const makeGroupView = (g: PreviewMenuGroupDef, groupItems: PreviewMenuItemDef[]): SlideMenuView => ({
+    title: g.fallback,
+    render: (list) => {
+      list.innerHTML = "";
+      groupItems.forEach((def) => {
+        const row = makeRow(def);
+        row.onclick = (e: MouseEvent): void => {
+          e.stopPropagation();
+          if (def.kind === "panel") {
+            menu.navigate(makePanelView(def));
+          } else {
+            hideMenu();
+            if (def.run) def.run();
+            else runners[def.id]?.();
+          }
+        };
+        list.appendChild(row);
+      });
+    },
+  });
+
+  // ---- 底部 dock 渲染（能力驱动）----
   const renderDock = (): void => {
     dock.innerHTML = "";
-    const items = [...PREVIEW_MENU_DEFS, ...adapterItems]
-      .filter((d) => d.dockGroup && d.kind !== "divider")
-      .filter((d) => !(d.sharedOnly && ctx.selfMode))
-      .filter((d) => !(d.needsSiblings && ctx.getSiblings().length === 0));
-    if (items.length === 0) return;
-    DOCK_GROUPS.forEach((g) => {
-      const groupItems = items.filter((d) => d.dockGroup === g.id);
+    const allItems = [...CORE_MENU_ITEMS, ...adapterItems];
+    PREVIEW_MENU_GROUPS.forEach((g) => {
+      const groupItems = allItems
+        .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
+        .filter((d) => !(d.sharedOnly && ctx.selfMode))
+        .filter((d) => !(d.needsSiblings && ctx.getSiblings().length === 0))
+        .filter((d) => !(d.requiresEnvironment && !ctx.getSkyCap() && !ctx.getGroundCap()));
       if (groupItems.length === 0) return;
+
       const btn = document.createElement("button");
       btn.className = "preview-dock-navbtn";
       btn.dataset.testid = "dock-" + g.id;
       btn.innerHTML = `<span class="ysm-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
-        e.stopPropagation(); // 防 document onDoc 误判外部点击收起（与 root.onclick 同款）
-        // 快捷直达：组内只有一个 panel 项时，点击直接打开该面板，跳过中间层
-        const panelItems = groupItems.filter((d) => d.kind === "panel");
-        if (panelItems.length === 1 && groupItems.length === 1) {
-          renderSub(panelItems[0]);
+        e.stopPropagation();
+        const panels = groupItems.filter((d) => d.kind === "panel");
+        // 快捷直达：组内仅一个 panel 项
+        if (panels.length === 1 && groupItems.length === 1) {
+          showMenu(makePanelView(panels[0]));
         } else {
-          renderGroup(g, groupItems);
+          showMenu(makeGroupView(g, groupItems));
         }
-        popup.style.display = "flex";
       };
       dock.appendChild(btn);
     });
   };
 
-  root.onclick = (e: MouseEvent): void => {
-    e.stopPropagation();
-    if (popup.style.display === "none") {
-      renderRoot();
-      popup.style.display = "flex";
-    } else {
-      closePopup();
-    }
-  };
-
+  // ---- 外部点击关闭 ----
   const onDoc = (e: MouseEvent): void => {
-    if (e.target !== root && !popup.contains(e.target as Node)) closePopup();
+    if (e.target !== dock && !popup.contains(e.target as Node)) hideMenu();
   };
   document.addEventListener("click", onDoc);
 
-  /** 替换适配器专属项（build 后 / switchTo 重建后调用；菜单开着则重渲染，底栏 dock 同步） */
+  // ---- 句柄 ----
   const setAdapterItems = (items: PreviewMenuItemDef[]): void => {
     adapterItems = items;
-    renderDock(); // 适配器注入的 dock 项（如骨骼/材质）同步到底栏
-    if (popup.style.display !== "none") renderRoot();
+    renderDock();
   };
 
-  /** 直接打开指定 panel（骨骼拾取联动：未开菜单时点击骨骼 → 打开模型面板） */
   const openPanel = (id: string): void => {
-    const def = [...PREVIEW_MENU_DEFS, ...adapterItems].find((d) => d.id === id);
+    const def = [...CORE_MENU_ITEMS, ...adapterItems].find((d) => d.id === id);
     if (!def || def.kind !== "panel") return;
-    renderSub(def);
-    popup.style.display = "flex";
+    showMenu(makePanelView(def));
   };
 
-  renderDock(); // 初始渲染底栏（core dock 项：switch/camera）
+  renderDock();
 
   return {
-    dispose: (): void => document.removeEventListener("click", onDoc),
+    dispose: (): void => {
+      document.removeEventListener("click", onDoc);
+      menu.dispose();
+      dock.remove();
+      popup.remove();
+    },
     setAdapterItems,
     openPanel,
   };
@@ -275,7 +218,6 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
 /** 环境面板（ADR-075 已落地项的复用）：地面 / 时间-of-day / 云量 / 环境光(IBL) */
 function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
-  // 地面开关
   const groundRow = document.createElement("div");
   groundRow.className = "slide-item";
   groundRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
@@ -290,7 +232,6 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   groundRow.append(groundLabel, groundToggle);
   list.appendChild(groundRow);
 
-  // 时间-of-day：联动天空太阳方位/高度（打开面板时 skyCap 已赋值，实时读取真实值）
   const formatHour = (h: number): string =>
     `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
   const timeRow = document.createElement("div");
@@ -321,7 +262,6 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   timeRow.append(timeHead, timeSlider);
   list.appendChild(timeRow);
 
-  // 云量：0=晴空 1=多云，联动天空与 IBL 环境
   const cloudRow = document.createElement("div");
   cloudRow.className = "slide-item";
   cloudRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
@@ -352,7 +292,6 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   cloudRow.append(cloudHead, cloudSlider);
   list.appendChild(cloudRow);
 
-  // 环境光(IBL) 开关：可选 IBL 环境贴图联动（复用 createHeaderToggle，对齐地面行）
   const ibRow = document.createElement("div");
   ibRow.className = "slide-item";
   ibRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
@@ -372,7 +311,6 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
   const siblings = ctx.getSiblings();
   const cur = ctx.getCurrentPath();
-  console.warn("[preview-menu] fillSwitch siblings=", siblings.length, "cur=", cur);
   if (siblings.length === 0) {
     const empty = document.createElement("div");
     empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";

@@ -227,12 +227,12 @@ describe("createLitematic3D 主路径", () => {
     expect(overlay.textContent).not.toContain("加载体素数据");
   });
 
-  it("closeBtn 点击 → overlay 移除（⚙️ 根菜单 close 项）", async () => {
+  it("closeBtn 点击 → overlay 移除（SlideMenu header ✕，legacy #ysm-close-3d）", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    // 打开 ⚙️ 根菜单 → 点 close 项（legacyTestId 保留 #ysm-close-3d）
-    const menuBtn = overlay.querySelector('[data-testid="preview-menu-btn"]') as HTMLElement;
-    menuBtn.click();
+    // 打开底部 dock 菜单使 SlideMenu 可见，再点 header ✕ 关闭 3D
+    const dockBtn = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
+    dockBtn.click();
     const closeBtn = overlay.querySelector("#ysm-close-3d") as HTMLElement;
     expect(closeBtn).toBeTruthy();
     closeBtn.click();
@@ -304,12 +304,12 @@ describe("体素数据处理", () => {
 });
 
 describe("控件交互", () => {
-  it("旋转模式切换 + 速度滑块更新显示（dock 视图面板）", async () => {
+  it("旋转模式切换 + 速度滑块更新显示（dock 场景组 → 视图面板）", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    // 打开 dock 视图面板（🎥）→ camera 面板填充旋转/速度控件
-    const dockCam = overlay.querySelector('[data-testid="dock-camera"]') as HTMLElement;
-    dockCam.click();
+    // 打开 dock 场景组（🌍）→ 测试环境无 sky/ground cap，scene 组仅 camera 一项 → 快捷直达相机面板
+    const dockScene = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
+    dockScene.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     const sel = popup.querySelector("select") as HTMLSelectElement;
     const spd = popup.querySelector('input[type="range"]') as HTMLInputElement;
@@ -563,9 +563,9 @@ describe("审核补充：边界与异步路径", () => {
   it("自身旋转模式拖拽：pointerdown + pointermove → quaternion 更新", async () => {
     await createLitematic3D("/drag.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    // 打开 dock 视图面板（🎥）→ camera 面板填充旋转/速度控件，切「自身」模式
-    const dockCam = overlay.querySelector('[data-testid="dock-camera"]') as HTMLElement;
-    dockCam.click();
+    // 打开 dock 场景组（🌍）→ 测试环境无 sky/ground cap，scene 组仅 camera 一项 → 快捷直达相机面板，切「自身」模式
+    const dockScene = overlay.querySelector('[data-testid="dock-scene"]') as HTMLElement;
+    dockScene.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     const sel = popup.querySelector("select") as HTMLSelectElement;
     sel.value = "false"; // 自身模式（非 orbit）

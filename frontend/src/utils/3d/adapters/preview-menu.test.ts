@@ -1,9 +1,8 @@
-// ===== preview-menu 声明式根菜单测试（ADR-076 v2 Phase 2）=====
-// 覆盖：PREVIEW_MENU_DEFS 表结构（e2e 遍历契约：id/legacyTestId 唯一、divider 合法、
-// sharedOnly/needsSiblings 锚点）、mountPreviewRootMenu 挂载/展开/过滤/setAdapterItems/
-// openPanel/dispose。环境面板（fillEnvironment）与相机面板（buildCameraControls）由 ADR-075/076 复用。
+// ===== preview-menu 底部根菜单测试（ADR-076 v3：SlideMenu 多层派生 + 能力驱动 dock）=====
+// 覆盖：CORE_MENU_ITEMS 表结构、mountPreviewRootMenu 挂载 dock、能力过滤、
+// setAdapterItems/openPanel/dispose、单 panel 快捷直达、多 panel 组内下钻。
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PREVIEW_MENU_DEFS } from "./preview-menu-defs.ts";
+import { CORE_MENU_ITEMS } from "./preview-menu-defs.ts";
 import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
 
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
@@ -26,16 +25,16 @@ function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
   };
 }
 
-describe("PREVIEW_MENU_DEFS 表结构（e2e 遍历契约）", () => {
-  it("id 唯一 + legacyTestId 唯一（core 项不冲突）", () => {
-    const ids = PREVIEW_MENU_DEFS.map((d) => d.id);
+describe("CORE_MENU_ITEMS 表结构", () => {
+  it("id 唯一 + legacyTestId 唯一", () => {
+    const ids = CORE_MENU_ITEMS.map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
-    const legacies = PREVIEW_MENU_DEFS.map((d) => d.legacyTestId).filter(Boolean);
+    const legacies = CORE_MENU_ITEMS.map((d) => d.legacyTestId).filter(Boolean);
     expect(new Set(legacies).size).toBe(legacies.length);
   });
 
-  it("divider 结构合法：非 divider 项必有 icon/fallback/labelKey", () => {
-    PREVIEW_MENU_DEFS.forEach((d) => {
+  it("非 divider 项必有 icon/fallback/labelKey", () => {
+    CORE_MENU_ITEMS.forEach((d) => {
       if (d.kind === "divider") return;
       expect(d.icon.length).toBeGreaterThan(0);
       expect(d.fallback.length).toBeGreaterThan(0);
@@ -43,17 +42,9 @@ describe("PREVIEW_MENU_DEFS 表结构（e2e 遍历契约）", () => {
     });
   });
 
-  it("kind 枚举合法（panel/action/divider）", () => {
-    const valid = new Set(["panel", "action", "divider"]);
-    PREVIEW_MENU_DEFS.forEach((d) => expect(valid.has(d.kind)).toBe(true));
-  });
-
-  it("契约锚点：camera=sharedOnly，switch=needsSiblings，close 为 danger action", () => {
-    expect(PREVIEW_MENU_DEFS.find((d) => d.id === "camera")?.sharedOnly).toBe(true);
-    expect(PREVIEW_MENU_DEFS.find((d) => d.id === "switch")?.needsSiblings).toBe(true);
-    const close = PREVIEW_MENU_DEFS.find((d) => d.id === "close");
-    expect(close?.kind).toBe("action");
-    expect(close?.danger).toBe(true);
+  it("契约锚点：camera=sharedOnly，switch=needsSiblings", () => {
+    expect(CORE_MENU_ITEMS.find((d) => d.id === "camera")?.sharedOnly).toBe(true);
+    expect(CORE_MENU_ITEMS.find((d) => d.id === "switch")?.needsSiblings).toBe(true);
   });
 });
 
@@ -65,146 +56,34 @@ describe("mountPreviewRootMenu", () => {
     document.body.appendChild(overlay);
   });
 
-  it("挂载 ⚙️ 按钮；点击展开渲染 core 项 + legacy testid 保留", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx());
-    const root = overlay.querySelector<HTMLElement>('[data-testid="preview-menu-btn"]');
-    expect(root).not.toBeNull();
-    root!.click();
-    expect(overlay.querySelector('[data-testid="preview-close"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-environment"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
-    // legacy testid 保留（e2e 兼容）
-    expect(overlay.querySelector("#ysm-close-3d")).not.toBeNull();
-    expect(overlay.querySelector("#env-menu-btn")).not.toBeNull();
-    handle.dispose();
-  });
-
-  it("selfMode → camera 项隐藏（sharedOnly 过滤）", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx({ selfMode: true }));
-    overlay.querySelector<HTMLElement>('[data-testid="preview-menu-btn"]')!.click();
-    expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
-    handle.dispose();
-  });
-
-  it("无 siblings → switch 项隐藏（needsSiblings 过滤）", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx());
-    overlay.querySelector<HTMLElement>('[data-testid="preview-menu-btn"]')!.click();
-    expect(overlay.querySelector('[data-testid="preview-switch"]')).toBeNull();
-    handle.dispose();
-  });
-
-  it("有 siblings → switch 项显示；点击开子面板列模型 + 当前高亮", () => {
-    const handle = mountPreviewRootMenu(
-      overlay,
-      makeCtx({ getSiblings: () => ["/m/b.ysm"], getCurrentPath: () => "/m/a.ysm" }),
-    );
-    overlay.querySelector<HTMLElement>('[data-testid="preview-menu-btn"]')!.click();
-    const sw = overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement;
-    expect(sw).not.toBeNull();
-    sw.click();
-    expect(overlay.querySelector('[data-testid="preview-back"]')).not.toBeNull();
-    expect(overlay.textContent).toContain("b.ysm");
-    handle.dispose();
-  });
-
-  it("setAdapterItems 追加渲染适配器项（divider 隔离），点击开面板", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx());
-    handle.setAdapterItems([
-      {
-        id: "model",
-        icon: "🧍",
-        labelKey: "preview.modelInfo",
-        fallback: "模型",
-        kind: "panel",
-        render: (l) => {
-          l.append("MODEL-PANEL");
-        },
-      },
-    ]);
-    overlay.querySelector<HTMLElement>('[data-testid="preview-menu-btn"]')!.click();
-    expect(overlay.querySelector('[data-testid="preview-model"]')).not.toBeNull();
-    (overlay.querySelector('[data-testid="preview-model"]') as HTMLElement).click();
-    expect(overlay.textContent).toContain("MODEL-PANEL");
-    handle.dispose();
-  });
-
-  it("action 项（close）点击 → ctx.close 调用", () => {
-    const close = vi.fn();
-    const handle = mountPreviewRootMenu(overlay, makeCtx({ close }));
-    overlay.querySelector<HTMLElement>('[data-testid="preview-menu-btn"]')!.click();
-    (overlay.querySelector('[data-testid="preview-close"]') as HTMLElement).click();
-    expect(close).toHaveBeenCalled();
-    handle.dispose();
-  });
-
-  it("openPanel(id) 直接打开指定面板（骨骼拾取联动契约）", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx());
-    handle.setAdapterItems([
-      {
-        id: "bones",
-        icon: "🦴",
-        labelKey: "preview.bones",
-        fallback: "骨骼",
-        kind: "panel",
-        render: (l) => {
-          l.append("BONES-PANEL");
-        },
-      },
-    ]);
-    handle.openPanel("bones");
-    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
-    expect(popup.style.display).toBe("flex");
-    expect(overlay.textContent).toContain("BONES-PANEL");
-    handle.dispose();
-  });
-
-  it("dispose 解绑 document 点击监听（外部点击不再触发收起，无异常）", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx());
-    overlay.querySelector<HTMLElement>('[data-testid="preview-menu-btn"]')!.click();
-    handle.dispose();
-    document.body.click();
-  });
-});
-
-describe("dock 底栏分组（🧍 模型 / 💃 动作 / 🌍 场景——组按钮 → 弹窗动态生成组内子菜单）", () => {
-  let overlay: HTMLElement;
-  beforeEach(() => {
-    document.body.innerHTML = "";
-    overlay = document.createElement("div");
-    document.body.appendChild(overlay);
-  });
-
-  it("dock 组按钮渲染（dock-model/dock-scene；有 siblings 时 model 组含 switch）", () => {
-    mountPreviewRootMenu(
-      overlay,
-      makeCtx({ getSiblings: () => ["/m/a.ysm", "/m/b.ysm"] }),
-    );
-    expect(overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull(); // switch 入 model 组
-    expect(overlay.querySelector('[data-testid="dock-scene"]')).not.toBeNull(); // camera 入 scene 组
-    expect(overlay.querySelector('[data-testid="dock-motion"]')).toBeNull(); // core 无 motion 项
-  });
-
-  it("无 siblings → model 组无项不渲染（needsSiblings 过滤），scene 组仍显示", () => {
-    mountPreviewRootMenu(overlay, makeCtx());
-    expect(overlay.querySelector('[data-testid="dock-model"]')).toBeNull(); // 仅 switch 在 model 组且被过滤
+  it("挂载底部 dock 按钮（能力驱动：有 siblings → model；shared → scene）", () => {
+    mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
+    expect(overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="dock-scene"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="dock-motion"]')).toBeNull();
   });
 
-  it("点击 dock 组按钮（单 panel 项）→ 快捷直达面板，跳过中间层", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/a.ysm"] }));
+  it("无 siblings → model 组隐藏；selfMode → scene 组隐藏", () => {
+    mountPreviewRootMenu(overlay, makeCtx({ selfMode: true }));
+    expect(overlay.querySelector('[data-testid="dock-model"]')).toBeNull();
+    expect(overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
+  });
+
+  it("点击 scene 组（单 panel camera）→ 快捷直达相机面板（select）", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    // 快捷直达：scene 组只有 camera 一项，直接渲染相机面板（select），无中间 preview-camera 行
+    // 单 panel 直达：无 preview-camera 行，直接渲染相机面板 select
     expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
     expect(popup.querySelector("select")).not.toBeNull();
     handle.dispose();
   });
 
-  it("点击 dock 组按钮（多 panel 项）→ 显示组标题 + 项列表 → 点击项开面板", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/a.ysm"] }));
+  it("点击 model 组（多 panel：switch + adapter model）→ 组根视图列项，点击项下钻面板", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     handle.setAdapterItems([
       {
         id: "model",
@@ -223,18 +102,17 @@ describe("dock 底栏分组（🧍 模型 / 💃 动作 / 🌍 场景——组�
     modelBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    // 组内子菜单：标题 + switch + model 行
-    expect(overlay.querySelector('[data-testid="dock-group-title-model"]')).not.toBeNull();
+    // 组根视图：switch + model 行都在
     expect(overlay.querySelector('[data-testid="preview-switch"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="preview-model"]')).not.toBeNull();
-    // 点击 model 项 → 打开模型面板
+    // 点击 model 项 → navigate 下钻面板
     (overlay.querySelector('[data-testid="preview-model"]') as HTMLElement).click();
     expect(overlay.textContent).toContain("MODEL-PANEL");
     handle.dispose();
   });
 
-  it("setAdapterItems 注入 dockGroup 项 → 底栏组按钮同步新增", () => {
-    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/a.ysm"] }));
+  it("setAdapterItems 注入 motion 组项 → dock-motion 按钮出现", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx());
     expect(overlay.querySelector('[data-testid="dock-motion"]')).toBeNull();
     handle.setAdapterItems([
       {
@@ -249,5 +127,35 @@ describe("dock 底栏分组（🧍 模型 / 💃 动作 / 🌍 场景——组�
     ]);
     expect(overlay.querySelector('[data-testid="dock-motion"]')).not.toBeNull();
     handle.dispose();
+  });
+
+  it("openPanel(id) 直接打开指定面板（骨骼拾取联动契约）", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx());
+    handle.setAdapterItems([
+      {
+        id: "bones",
+        icon: "🦴",
+        labelKey: "preview.bones",
+        fallback: "骨骼",
+        kind: "panel",
+        dockGroup: "model",
+        render: (l) => {
+          l.append("BONES-PANEL");
+        },
+      },
+    ]);
+    handle.openPanel("bones");
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    expect(overlay.textContent).toContain("BONES-PANEL");
+    handle.dispose();
+  });
+
+  it("dispose 移除菜单 DOM + 解绑 document 监听", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx());
+    handle.dispose();
+    expect(overlay.querySelector(".ysm-preview-menu")).toBeNull();
+    expect(overlay.querySelector(".preview-dock-nav")).toBeNull();
+    document.body.click();
   });
 });

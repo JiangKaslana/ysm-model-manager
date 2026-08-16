@@ -1,13 +1,15 @@
-// ===== 3D 预览声明式根菜单（ADR-076 v2：顶栏收敛为单一根菜单；对齐 menu-defs.ts ADR-021 范式）=====
-// 唯一事实来源：仅描述结构（id / icon / labelKey / fallback / kind / sharedOnly / needsSiblings）。
-// 渲染与 handler 见 preview-menu.ts；e2e 遍历本表断言结构与可解析性，告别飘忽 overlay DOM。
+// ===== 3D 预览底部根菜单（ADR-076 v3：底部根菜单 + SlideMenu 多层派生，按能力动态显示）=====
+// 对齐 MikuMikuAR 范式：底部根按钮 → createSlideMenu 多层导航。
+// 唯一事实来源：仅描述结构（id / icon / labelKey / fallback / kind / 能力门槛）。
+// 渲染与 handler 见 preview-menu.ts；e2e 遍历本表断言结构与可解析性。
 //
-// 设计要点：
-// - 顶栏已移除（用户 2026-08-16 决策：顶栏整体砍掉，关闭收进根菜单）。
-// - 本表仅为 core 固定项；适配器专属项（模型/材质/截图/播放/骨骼/分层）在 Phase 2
-//   经 PreviewAdapter 契约注入，届时本表由 core 项 + 适配器项聚合而成。
+// 能力驱动显示（用户 2026-08-16 决策）：
+// - 有骨骼/模型工具（适配器注入 model 组项）→ 显示「🧍 模型」
+// - 有动作/播放（适配器注入 motion 组项）→ 显示「💃 动作」
+// - 有场景/相机/环境能力（shared 模式 + sky/ground cap）→ 显示「🌍 场景」
 
 export type PreviewMenuItemKind = "panel" | "action" | "divider";
+export type PreviewMenuGroupId = "model" | "motion" | "scene";
 
 export interface PreviewMenuItemDef {
   /** 稳定 id；渲染为 data-testid="preview-<id>"，必要时保留 legacyTestId 兼容既有 e2e 选择器 */
@@ -23,8 +25,10 @@ export interface PreviewMenuItemDef {
   sharedOnly?: boolean;
   /** 仅 siblings.length > 0 显示（3D 内模型切换） */
   needsSiblings?: boolean;
-  /** dock 分组：底栏按组显示（🧍 模型 / 💃 动作 / 🌍 场景），点击弹窗动态生成组内子菜单 */
-  dockGroup?: "model" | "motion" | "scene";
+  /** 仅环境能力可用（skyCap/groundCap 任一非空）时显示 */
+  requiresEnvironment?: boolean;
+  /** 归属底栏分组（🧍 模型 / 💃 动作 / 🌍 场景）；无 dockGroup 的项只出现在设置聚合视图 */
+  dockGroup?: PreviewMenuGroupId;
   /** 面板型保留 legacy data-testid（兼容既有 e2e 选择器，如 ysm-close-3d / env-menu-btn / mmd-switch） */
   legacyTestId?: string;
   /** panel 型：子面板填充（适配器注入的专属项必需；core 固定项走 fillers 映射） */
@@ -33,17 +37,26 @@ export interface PreviewMenuItemDef {
   run?: () => void;
 }
 
-/** 核心根菜单项（适配器专属项在 Phase 2 经契约注入） */
-export const PREVIEW_MENU_DEFS: PreviewMenuItemDef[] = [
-  {
-    id: "close",
-    icon: "✕",
-    labelKey: "preview.close3d",
-    fallback: "关闭",
-    kind: "action",
-    danger: true,
-    legacyTestId: "ysm-close-3d",
-  },
+/** 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） */
+export interface PreviewMenuGroupDef {
+  id: PreviewMenuGroupId;
+  icon: string;
+  fallback: string;
+}
+
+export const PREVIEW_MENU_GROUPS: PreviewMenuGroupDef[] = [
+  { id: "model", icon: "🧍", fallback: "模型" },
+  { id: "motion", icon: "💃", fallback: "动作" },
+  { id: "scene", icon: "🌍", fallback: "场景" },
+];
+
+/**
+ * core 固定菜单项（不依赖适配器注入）：
+ * - switch：模型组（有 siblings 才显示）
+ * - environment / camera：场景组（shared 模式才显示）
+ * close 不在此表——关闭由 SlideMenu header 的 ✕ 承担（legacy ysm-close-3d 挂在关闭按钮）。
+ */
+export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
   {
     id: "switch",
     icon: "🔁",
@@ -51,16 +64,17 @@ export const PREVIEW_MENU_DEFS: PreviewMenuItemDef[] = [
     fallback: "切换模型",
     kind: "panel",
     needsSiblings: true,
-    dockGroup: "model", // 底栏 🧍 模型组（切换模型）
+    dockGroup: "model",
     legacyTestId: "mmd-switch",
   },
-  { id: "div-env", icon: "", labelKey: "", fallback: "", kind: "divider" },
   {
     id: "environment",
     icon: "🌍",
     labelKey: "preview.environment",
     fallback: "环境",
     kind: "panel",
+    dockGroup: "scene",
+    requiresEnvironment: true,
     legacyTestId: "env-menu-btn",
   },
   {
@@ -70,18 +84,6 @@ export const PREVIEW_MENU_DEFS: PreviewMenuItemDef[] = [
     fallback: "视图",
     kind: "panel",
     sharedOnly: true,
-    dockGroup: "scene", // 底栏 🌍 场景组（视图相机）
+    dockGroup: "scene",
   },
-];
-
-/** dock 底栏分组（🧍 模型 / 💃 动作 / 🌍 场景）：每组一个底栏按钮，点击弹窗动态生成组内子菜单 */
-export interface DockGroupDef {
-  id: "model" | "motion" | "scene";
-  icon: string;
-  fallback: string;
-}
-export const DOCK_GROUPS: DockGroupDef[] = [
-  { id: "model", icon: "🧍", fallback: "模型" },
-  { id: "motion", icon: "💃", fallback: "动作" },
-  { id: "scene", icon: "🌍", fallback: "场景" },
 ];
