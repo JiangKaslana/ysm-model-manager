@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 104 | 384 |
+| 前端·工具 | 105 | 386 |
 | frontend/views | 90 | 250 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **369** | **1551** |
+| **合计** | **370** | **1553** |
 
 ## Go·头像
 
@@ -308,16 +308,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetErrorSink()` | `go/scanner/scanner:57` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
-| `SetConfigFunc()` | `go/scanner/scanner:72` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `InvalidateCache()` | `go/scanner/scanner:97` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
-| `InvalidatePath()` | `go/scanner/scanner:112` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:143` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:150` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:282` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:335` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:365` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:428` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `SetErrorSink()` | `go/scanner/scanner:69` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
+| `SetConfigFunc()` | `go/scanner/scanner:94` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `InvalidateCache()` | `go/scanner/scanner:119` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
+| `InvalidatePath()` | `go/scanner/scanner:134` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
+| `ScanEntries()` | `go/scanner/scanner:165` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:172` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:304` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:357` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:387` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:450` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -1254,6 +1254,8 @@
 | `INTERNALS()` | `frontend/src/utils/3d/parse-java-model:351` | — |
 | `AutoDanceOptions()` | `frontend/src/utils/3d/perception/autodance:17` | AutoDance 配置 |
 | `createAutoDanceController()` | `frontend/src/utils/3d/perception/autodance:58` | — |
+| `BeatDetectorOptions()` | `frontend/src/utils/3d/perception/beat-detector:27` | 节拍检测配置 |
+| `createBeatDetector()` | `frontend/src/utils/3d/perception/beat-detector:68` | 构建节拍 detector。 |
 | `BlinkCallback()` | `frontend/src/utils/3d/perception/blink:24` | 眨眼 callback：被 controller 在眨眼周期内周期性调用，传入当前权重（0→1→0） |
 | `BlinkOptions()` | `frontend/src/utils/3d/perception/blink:42` | — |
 | `createBlinkController()` | `frontend/src/utils/3d/perception/blink:55` | 构建眨眼 controller。 |
