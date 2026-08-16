@@ -1,24 +1,27 @@
-// ===== app-modules 主题/隐私模式启动链测试（app-modules.ts）=====
+// @vitest-environment node
+// ===== 主题核心测试（theme-core.ts，2026-08-17 神桶拆分后直测纯逻辑）=====
 // 覆盖 P3 隐私模式修复（a25c64d）：safeGet/safeSet 在 localStorage 抛错时兜底、
-// initTheme 白名单归一化+回写、applyUIPrefs 默认值兜底、_devtools 隐私模式降级。
-// 顶层副作用（视图注册/启动 IIFE/checkUpdateSilent）用 vi.mock 隔离，
-// 只测导出的纯逻辑函数（不 import 整模块触发 IIFE）。
+// initTheme 白名单归一化+回写、_devtools 隐私模式降级。
+// 原 app-modules.ts 承载启动装配（Web Component import / 启动 IIFE / window 挂载），
+// import 即触发全部顶层副作用——神桶拆分后 theme-core.ts 无顶层副作用，测试直测。
 // ADR-044 策略 A：safeGet/safeSet 已收敛至 utils/dom/storage.ts（app-modules 不再导出）。
+// 2026-08-17 切 node 环境：test-setup.ts 已注入全局 localStorage 内存实现；
+// applyTheme 断言 document.body.classList + window.matchMedia → 下方 stubGlobal 最小 DOM。
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from "vitest";
 import {
   normalizeTheme,
   applyTheme,
   initTheme,
-} from "./app-modules.ts";
+} from "./theme-core.ts";
 import { applyUIPrefs } from "./views/app-content/settings/ui-prefs.ts";
 import { safeGet, safeSet } from "./utils/dom/storage.ts";
 
-/** 隐私模式模拟：让 localStorage 读写抛错（happy-dom 的 localStorage 是 getter 保护，必须 vi.spyOn） */
+/** 隐私模式模拟：让 localStorage 读写抛错（node 环境 test-setup 注入的全局 localStorage，必须 vi.spyOn） */
 function breakLocalStorage() {
-  const getSpy = vi.spyOn(window.localStorage, "getItem").mockImplementation(() => {
+  const getSpy = vi.spyOn(localStorage, "getItem").mockImplementation(() => {
     throw new Error("denied");
   });
-  const setSpy = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+  const setSpy = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
     throw new Error("denied");
   });
   return () => {
@@ -26,6 +29,49 @@ function breakLocalStorage() {
     setSpy.mockRestore();
   };
 }
+
+// node 环境无 DOM：stubGlobal 最小 document/window（applyTheme/applyUIPrefs 依赖）
+// classList 用真实 Set 语义（add/remove/contains），断言可正确读回；
+// matchMedia 与 happy-dom 默认一致（matches=false → warm）。
+const _bodyClasses = new Set<string>();
+const _docClasses = new Set<string>();
+// applyUIPrefs 写 CSS 变量（setProperty），断言用 getPropertyValue 读回——带存储语义
+const _docStyle = new Map<string, string>();
+vi.stubGlobal("document", {
+  body: {
+    className: "",
+    classList: {
+      add: (c: string) => void _bodyClasses.add(c),
+      remove: (...cs: string[]) => void cs.forEach((c) => _bodyClasses.delete(c)),
+      contains: (c: string) => _bodyClasses.has(c),
+    },
+  },
+  documentElement: {
+    style: {
+      removeProperty: (k: string) => void _docStyle.delete(k),
+      setProperty: (k: string, v: string) => void _docStyle.set(k, v),
+      getPropertyValue: (k: string) => _docStyle.get(k) ?? "",
+    },
+    // applyUIPrefs 动画偏好写 documentElement.classList（no-animations）——补同构 Set
+    classList: {
+      add: (c: string) => void _docClasses.add(c),
+      remove: (...cs: string[]) => void cs.forEach((c) => _docClasses.delete(c)),
+      contains: (c: string) => _docClasses.has(c),
+      toggle: (c: string, force?: boolean) => {
+        const want = force ?? !_docClasses.has(c);
+        if (want) _docClasses.add(c);
+        else _docClasses.delete(c);
+        return want;
+      },
+    },
+  },
+});
+vi.stubGlobal("window", { matchMedia: () => ({ matches: false }) });
+afterEach(() => {
+  _bodyClasses.clear();
+  _docClasses.clear();
+  _docStyle.clear();
+});
 
 // getApp 动态 import 链：mock 返回可控 LoadAppConfig
 const { LoadAppConfigMock } = vi.hoisted(() => ({
@@ -39,28 +85,6 @@ vi.mock("@wailsio/runtime", () => ({
   Events: { On: () => () => {} },
   Window: { OpenDevTools: vi.fn() },
 }));
-// version-updater：checkUpdateSilent 走后端，测试不触发
-vi.mock("./features/version-updater.ts", () => ({
-  checkUpdateSilent: vi.fn().mockResolvedValue(undefined),
-}));
-// 视图侧链（bus 依赖纯净，视图只在动态 import 顶层执行，mock 空避免组件副作用）
-vi.mock("./core/error-diary.ts", () => ({ registerErrorDiary: vi.fn() }));
-vi.mock("./services/registry.ts", () => ({
-  register: () => {},
-  get: () => undefined,
-  has: () => false,
-  unregister: () => {},
-  clear: () => {},
-}));
-vi.mock("./views/app-sidebar/loader.ts", () => ({ loadInstances: vi.fn() }));
-vi.mock("./views/app-tree/loader.ts", () => ({ loadEntries: vi.fn() }));
-// 顶层动态 import 的视图：mock 为空，避免测试环境 teardown 期间加载组件链
-//（app-modules.ts 启动 IIFE 的 import("./views/...") 跨环境边界失败会刷 warning）
-vi.mock("./views/app-tree/index.ts", () => ({}));
-vi.mock("./views/app-sidebar/index.ts", () => ({}));
-vi.mock("./views/app-content/index.ts", () => ({}));
-vi.mock("./views/app-resource-manager/index.ts", () => ({}));
-vi.mock("./views/app-sync-manager/index.ts", () => ({}));
 
 describe("normalizeTheme 白名单归一化", () => {
   it("合法主题原样返回", () => {

@@ -1,6 +1,16 @@
+// @vitest-environment node
 // ===== getApp 桥接语义单测（P2 补测：wails/ 目录仅 app.ts，84 个消费方测试全部 vi.mock 掉本模块，
 // 缓存/并发复用/失败重置/window.go 回退四语义零直接测试、第 5 批 P2 修复无回归护栏）=====
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+
+// node 环境无 window——beforeAll stub 空对象供 window.go 注入路径使用
+// （getApp 源码读 window.go；测试动态 import 被测模块。2026-08-17 切 node）
+beforeAll(() => {
+  vi.stubGlobal("window", {});
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 // 用 vi.resetModules + 动态 import 隔离模块级 _App/_appPromise 状态
 async function freshGetApp() {
@@ -9,21 +19,21 @@ async function freshGetApp() {
   return mod.getApp;
 }
 
-const ORIGINAL_WINDOW_GO = (window as unknown as { go?: unknown }).go;
+let originalWindowGo: unknown;
 
 beforeEach(() => {
+  originalWindowGo = (window as unknown as { go?: unknown }).go;
   vi.resetModules();
   delete (window as unknown as { go?: unknown }).go;
   delete (globalThis as Record<string, unknown>)["__YSM_BACKEND__"];
 });
 
 afterEach(() => {
-  if (ORIGINAL_WINDOW_GO === undefined) {
+  if (originalWindowGo === undefined) {
     delete (window as unknown as { go?: unknown }).go;
   } else {
-    (window as unknown as { go?: unknown }).go = ORIGINAL_WINDOW_GO;
+    (window as unknown as { go?: unknown }).go = originalWindowGo;
   }
-  vi.unstubAllGlobals();
 });
 
 describe("getApp — window.go mock bridge 注入路径", () => {

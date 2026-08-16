@@ -59,58 +59,17 @@ declare global {
   }
 }
 
-const THEME_DARK = "cyber";
-// 主题白名单（applyTheme 与 initTheme 共用，防两处口径漂移）
-const THEME_VALID = ["cyber", "warm", "pro", "sakura", "ocean", "mint", "system"];
-// class 清理列表由 THEME_VALID 推导，新增主题无需再手抄第二份（原 applyTheme 手抄双份是漂移源）
-const THEME_CLASSES = THEME_VALID.filter((t) => t !== "system").map((t) => "theme-" + t);
+// 2026-08-17 神桶拆分：normalizeTheme/applyTheme/initTheme 已移至 theme-core.ts
+// （纯逻辑无顶层副作用，测试可独立 import）；本文件保留启动装配 + window 桥接。
+export { normalizeTheme, applyTheme, initTheme } from "./theme-core.ts";
 
-/** 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） */
-export function normalizeTheme(mode: string): string {
-  return THEME_VALID.includes(mode) ? mode : "system";
-}
-
-export function applyTheme(mode: string): void {
-  if (!THEME_VALID.includes(mode)) mode = "system";
-  document.body.classList.remove(...THEME_CLASSES);
-  if (mode === "system") {
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
-    ).matches;
-    document.body.classList.add(prefersDark ? "theme-cyber" : "theme-warm");
-  } else {
-    document.body.classList.add("theme-" + mode);
-  }
-}
-// node 测试环境无 window，跳过挂载（浏览器语义不变）
-if (typeof window !== "undefined") window.applyTheme = applyTheme;
 // P3 修复（code_review）：把 page-store 白名单桥接到 window，供 index.html 内联
 // DOMContentLoaded 脚本复用（经典脚本无法 import）——消除内联源硬编码第二份列表的
 // 双源漂移（新增页时内联源把新页重置回 repository 的静默回归）。
 // 红线 §3.1 只禁双下划线前缀（window. 后接两个下划线）；非 __ 前缀与 window.applyTheme 同模式。
-(window as unknown as { PAGE_WHITELIST?: readonly string[] }).PAGE_WHITELIST = PAGE_WHITELIST;
-
-// ADR-044 策略 A：safeGet/safeSet 收敛至 utils/dom/storage.ts 统一实现——
-// 隐私模式/存储禁用下 localStorage 读写抛错会中断启动链；原模块级定义与
-// settings/init.ts 的 themeGet/themeSet 为重复实现，现统一 import 共享工具。
-import { safeGet, safeSet } from "./utils/dom/storage.ts";
-
-export async function initTheme() {
-  try {
-    const { LoadAppConfig } = await getApp();
-    const cfg = await LoadAppConfig();
-    const raw = safeGet("theme") || cfg.theme || THEME_DARK;
-    // P2 修复：持久层只回写合法值——原实现把 localStorage 非法值（如设置页误写的 "time"）
-    // 原样写回，脏数据持续污染导致后续 matchMedia 跟随失效
-    const theme = normalizeTheme(raw);
-    safeSet("theme", theme);
-    applyTheme(theme);
-  } catch {
-    const raw = safeGet("theme") || THEME_DARK;
-    const theme = normalizeTheme(raw);
-    safeSet("theme", theme);
-    applyTheme(theme);
-  }
+// node 测试环境无 window，跳过桥接（浏览器语义不变）
+if (typeof window !== "undefined") {
+  (window as unknown as { PAGE_WHITELIST?: readonly string[] }).PAGE_WHITELIST = PAGE_WHITELIST;
 }
 
 // 启动初始化

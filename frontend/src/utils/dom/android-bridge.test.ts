@@ -1,11 +1,21 @@
+// @vitest-environment node
 // ===== Android 桥 / 查看器模式判定测试（ADR-046/049）=====
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import {
   getAndroidBridge,
   isViewerMode,
   registerAndroidBackHandler,
   emitAndroidBack,
 } from "./android-bridge.ts";
+
+// node 环境无 window——beforeAll stub 空对象供 window.wails 判定使用
+// （被测源码 android-bridge.ts 顶层无副作用，纯判定函数；2026-08-17 切 node）
+beforeAll(() => {
+  vi.stubGlobal("window", {});
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 beforeEach(() => {
   delete (window as unknown as { wails?: unknown }).wails;
