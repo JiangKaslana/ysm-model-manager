@@ -113,6 +113,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       // e.target 已是脱离 DOM 的旧节点 → popup.contains(e.target) 为 false → 误关弹窗。
       // 必须 stopPropagation 阻止这次点击被 onDoc 判定为「外部点击」。
       e.stopPropagation();
+      console.warn("[preview-menu] row click", def.id, "kind=", def.kind);
       if (def.kind === "action") {
         closePopup();
         if (def.run) def.run();
@@ -164,8 +165,18 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       renderRoot();
     };
     popup.appendChild(back);
-    if (def.render) def.render(popup, closePopup);
-    else fillers[def.id]?.(popup);
+    try {
+      if (def.render) def.render(popup, closePopup);
+      else fillers[def.id]?.(popup);
+      console.warn("[preview-menu] renderSub done", def.id, "children=", popup.childElementCount, "display=", popup.style.display);
+    } catch (err) {
+      console.error("[preview-menu] renderSub FAILED", def.id, err);
+      // 失败也保持弹窗可见，内容区显示错误，便于定位（不静默关闭）
+      const errRow = document.createElement("div");
+      errRow.style.cssText = "padding:8px 10px;color:#ff7b7b;font-size:12px";
+      errRow.textContent = "面板渲染失败: " + (err instanceof Error ? err.message : String(err));
+      popup.appendChild(errRow);
+    }
   };
 
   // 底栏 dock 分组（🧍 模型 / 💃 动作 / 🌍 场景）：每组一个按钮，点击弹窗动态生成组内子菜单
@@ -351,6 +362,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
   const siblings = ctx.getSiblings();
   const cur = ctx.getCurrentPath();
+  console.warn("[preview-menu] fillSwitch siblings=", siblings.length, "cur=", cur);
   if (siblings.length === 0) {
     const empty = document.createElement("div");
     empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
