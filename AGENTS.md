@@ -56,6 +56,7 @@ git reset HEAD~1                      # 撤销最近一条 commit，把改动放
 | `bug-search` | Bug 历史关键词搜索 |
 | `type-consistency` | 类型一致性检查 |
 | `binding-check` | 绑定契约检查 |
+| `commit-with-check` | `node scripts/commit-with-check.mjs -m "<msg>"` 一次性验证+提交（按 staged files 真按域裁剪门禁→全绿自动 commit+显示 SHA；`--fast` 跳 vitest / `--docs` 仅文档域 / `--check` 仅验证不提交）——替代逐条 tsc→build→test→git add→commit 确认性循环 |
 
 > 全表见 `scripts/README.md`。
 

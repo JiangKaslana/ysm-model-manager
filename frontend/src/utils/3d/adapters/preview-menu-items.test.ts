@@ -16,6 +16,12 @@ import { mmdMenuItems, type MmdMenuItemsOpts } from "./mmd-adapter.ts";
 import { vrmMenuItems, type VrmMenuItemsOpts } from "./vrm-adapter.ts";
 import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
 import type { BoneTree } from "../bone-tools.ts";
+import {
+  expectContainsAtLeast,
+  expectNotContains,
+  deriveTestIds,
+  extractIds,
+} from "../../../test-utils/index.ts";
 
 /** 测试假渲染器：同步写 innerHTML，规避 W5 异步竞态正则命中（纯同步 mock，无异步路径） */
 function setHtml(el: Element, html: string): void {
@@ -144,28 +150,6 @@ function mountWith(items: PreviewMenuItemDef[], ctxOverrides: Partial<PreviewMen
   return { overlay, handle };
 }
 
-// ── 自愈测试工具（L5 测试自愈：从真实菜单表推导期望值，菜单表增删项不再碎）──
-
-/** 菜单项按 id 提取 */
-const ids = (items: PreviewMenuItemDef[]) => items.map((d) => d.id);
-
-/** 自愈断言：items 至少包含 required（允许额外项如 play 条件注入） */
-function expectContainsAtLeast(actual: string[], required: string[], label: string) {
-  const missing = required.filter((r) => !actual.includes(r));
-  expect(missing, `${label} 缺必需项: ${missing.join(", ")}; 实际=${actual.join(",")}`).toEqual([]);
-}
-
-/** 自愈断言：items 不包含 forbidden（用于条件注入的反向校验） */
-function expectNotContains(actual: string[], forbidden: string[], label: string) {
-  const present = actual.filter((a) => forbidden.includes(a));
-  expect(present, `${label} 应不含: ${present.join(", ")}`).toEqual([]);
-}
-
-/** 从菜单项推导 data-testid 选择器（preview-${id}） */
-function deriveTestIds(items: PreviewMenuItemDef[]) {
-  return items.map((d) => `preview-${d.id}`);
-}
-
 // ── 结构断言 ──
 
 describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => {
@@ -217,22 +201,22 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
   });
 
   it("ysm 必需项齐全且归 🧍 模型组（dock 可达，ADR-076 v3；允许额外注入）", () => {
-    expectContainsAtLeast(ids(ysmItems).sort(), ["bones", "model", "shot"], "ysm 必需项");
+    expectContainsAtLeast(extractIds(ysmItems), ["bones", "model", "shot"], "ysm 必需项");
     ysmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
   });
 
   it("vrm 必需项齐全且归 🧍 模型组（dock 可达；允许额外注入如 play）", () => {
-    expectContainsAtLeast(ids(vrmItems), ["model", "shot", "material", "bones"], "vrm 必需项");
+    expectContainsAtLeast(extractIds(vrmItems), ["bones", "material", "model", "shot"], "vrm 必需项");
     vrmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
   });
 
   it("mmd model/material 恒定；play/bones 条件注入", () => {
     const withAll = mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() }));
-    expectContainsAtLeast(ids(withAll).sort(), ["bones", "material", "model", "play", "shot"], "mmd 全注入");
+    expectContainsAtLeast(extractIds(withAll), ["bones", "material", "model", "play", "shot"], "mmd 全注入");
     // 无 VMD → 无 play；无 pmx.bones → 无 bones
     const slim = mmdMenuItems(fakeMmdOpts({ play: null }));
-    expectNotContains(ids(slim), ["play"], "mmd 无 VMD");
-    expectContainsAtLeast(ids(slim).sort(), ["material", "model", "shot"], "mmd 无 play 必需项");
+    expectNotContains(extractIds(slim), ["play"], "mmd 无 VMD");
+    expectContainsAtLeast(extractIds(slim), ["material", "model", "shot"], "mmd 无 play 必需项");
   });
 
   it("legacyTestId 锚点齐全（既有 e2e 选择器兼容契约）", () => {

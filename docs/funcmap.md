@@ -38,13 +38,13 @@
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
-| frontend/test-utils | 4 | 34 |
+| frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 103 |
 | 前端·工具 | 105 | 390 |
 | frontend/views | 90 | 252 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **370** | **1560** |
+| **合计** | **371** | **1569** |
 
 ## Go·头像
 
@@ -981,11 +981,15 @@
 | `fireDrop()` | `frontend/src/test-utils/index` | — |
 | `fireDrag()` | `frontend/src/test-utils/index` | — |
 | `renderComponent()` | `frontend/src/test-utils/index` | — |
-| `mountCustomElement()` | `frontend/src/test-utils/index:27` | 同步渲染自定义元素到 body，返回已创建元素。 |
-| `unmountElement()` | `frontend/src/test-utils/index:39` | 卸载元素：从 DOM 移除。 |
-| `sleep()` | `frontend/src/test-utils/index:46` | 简单睡眠（测试中等待异步渲染）。 |
-| `waitFor()` | `frontend/src/test-utils/index:55` | 轮询等待条件满足（兼容现有测试风格，作为统一导出）。 |
-| `waitForElementToBeRemoved()` | `frontend/src/test-utils/index:84` | 轮询等待元素被移除。 |
+| `expectContainsAtLeast()` | `frontend/src/test-utils/index` | — |
+| `expectNotContains()` | `frontend/src/test-utils/index` | — |
+| `deriveTestIds()` | `frontend/src/test-utils/index` | — |
+| `extractIds()` | `frontend/src/test-utils/index` | — |
+| `mountCustomElement()` | `frontend/src/test-utils/index:39` | 同步渲染自定义元素到 body，返回已创建元素。 |
+| `unmountElement()` | `frontend/src/test-utils/index:51` | 卸载元素：从 DOM 移除。 |
+| `sleep()` | `frontend/src/test-utils/index:58` | 简单睡眠（测试中等待异步渲染）。 |
+| `waitFor()` | `frontend/src/test-utils/index:67` | 轮询等待条件满足（兼容现有测试风格，作为统一导出）。 |
+| `waitForElementToBeRemoved()` | `frontend/src/test-utils/index:96` | 轮询等待元素被移除。 |
 | `QueryContainer()` | `frontend/src/test-utils/query-by-testid:11` | — |
 | `queryByTestId()` | `frontend/src/test-utils/query-by-testid:30` | — |
 | `getByTestId()` | `frontend/src/test-utils/query-by-testid:39` | — |
@@ -994,6 +998,11 @@
 | `RenderOptions()` | `frontend/src/test-utils/render:6` | 渲染配置 |
 | `RenderResult()` | `frontend/src/test-utils/render:13` | — |
 | `renderComponent()` | `frontend/src/test-utils/render:31` | 渲染一个自定义元素到 DOM。 |
+| `MenuDefLike()` | `frontend/src/test-utils/self-healing:8` | 形如菜单项的定义（至少有 id；可选 dockGroup） |
+| `expectContainsAtLeast()` | `frontend/src/test-utils/self-healing:17` | 自愈断言：actual 至少包含 required（允许额外项）。 |
+| `expectNotContains()` | `frontend/src/test-utils/self-healing:36` | 反向自愈断言：actual 不包含 forbidden。 |
+| `deriveTestIds()` | `frontend/src/test-utils/self-healing:49` | 从菜单项推导 data-testid 选择器（`preview-${id}`）。 |
+| `extractIds()` | `frontend/src/test-utils/self-healing:57` | 从菜单项列表提取 id 数组（已排序）。 |
 
 ## frontend/ui
 

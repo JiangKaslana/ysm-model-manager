@@ -95,11 +95,27 @@ const domainSummary = Object.keys(byDomain).length
 
 console.log('========== commit-with-check（thin wrapper → pre-push-gate）==========');
 console.log(`变更域: ${domainSummary}`);
-console.log(`门禁: ${docsMode ? 'pre-push-gate --docs --dry-run' : 'pre-push-gate --all --dry-run'}`);
+// P1 修复（子代理锐评）：真按域裁剪——传 staged files 给 --files，让 planFromFiles 算域
+console.log(`门禁: ${docsMode ? 'pre-push-gate --docs --dry-run' : 'pre-push-gate --files <staged> --dry-run'}`);
 console.log('');
 
 // ── 2. 委托 pre-push-gate（唯一检查清单源头）──
-const gateArgs = docsMode ? ['--docs', '--dry-run'] : ['--all', '--dry-run'];
+// P1 修复：传 staged files 作 --files 参数，真按域裁剪（替代 --all 全量）
+// P2 修复（子代理锐评）：门禁前先跑 gen-docs-index 刷新索引，解 gen 鸡生蛋
+// （门禁跑 gen-docs-index --check，若索引旧则 fail-closed 阻断；而 pre-commit 的 gen 修复在门禁之后才跑——永远轮不到修）
+if (plan.docs || plan.adr) {
+  try {
+    execFileSync(process.execPath, ['scripts/gen-docs-index.mjs'], {
+      cwd: ROOT, stdio: 'ignore', timeout: 30_000,
+    });
+    console.log('[gen] 已刷新 docs 索引（门禁前预刷新，解鸡生蛋）');
+  } catch {
+    console.log('[gen] ⚠️ gen-docs-index 预刷新失败（不阻断，门禁会再检）');
+  }
+}
+const gateArgs = docsMode
+  ? ['--docs', '--dry-run']
+  : ['--files', stagedFiles.join('\n'), '--dry-run'];
 let gateRc = 0;
 try {
   execFileSync(process.execPath, ['scripts/pre-push-gate.mjs', ...gateArgs], {

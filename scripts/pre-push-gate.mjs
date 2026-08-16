@@ -178,6 +178,8 @@ async function main() {
   const dryRun = process.argv.includes('--dry-run');
   const allMode = process.argv.includes('--all');
   const docsMode = process.argv.includes('--docs');
+  const filesIdx = process.argv.indexOf('--files');
+  const filesMode = filesIdx !== -1;
   const argBase = dryRun ? 3 : 2;
 
   console.log('========== YSM 本地质量门禁 ==========');
@@ -205,6 +207,22 @@ async function main() {
     plan = { go: false, frontend: false, data: false, docs: true, adr: true, contractTests: false, redlines: false };
     domainSummary = 'docs';
     console.log('模式: 文档检查（--docs）');
+    console.log('');
+  } else if (filesMode) {
+    // —— 文件驱动模式（commit-with-check 调用）：按 staged files 真按域裁剪 ——
+    const filesRaw = process.argv[filesIdx + 1] || '';
+    const files = filesRaw ? filesRaw.split('\n').filter(Boolean) : [];
+    if (!files.length) {
+      console.log('用法: node scripts/pre-push-gate.mjs --files "<file1>\\n<file2>..." [--dry-run]');
+      return 2;
+    }
+    plan = planFromFiles(files);
+    for (const f of files) (byDomain[classify(f)] = byDomain[classify(f)] || []).push(f);
+    domainSummary = Object.keys(byDomain).length
+      ? Object.entries(byDomain).map(([d, fs]) => `${d}:${fs.length}`).join('  ')
+      : '无变更';
+    console.log(`模式: 文件驱动（--files，${files.length} 个文件）`);
+    console.log(`变更域: ${domainSummary}`);
     console.log('');
   } else {
     // —— 推送门禁模式（默认）：stdin 驱动 ——
@@ -483,7 +501,17 @@ async function main() {
     return 0;
   }
   if (!blocked) {
-    logPush(`结论: PASS ✅ ${dryRun ? '（DRY-RUN）' : '放行推送'} ${results.filter((r) => r.ok).length}/${results.length} 项通过`);
+    const passCount = results.filter((r) => r.ok).length;
+    logPush(`结论: PASS ✅ ${dryRun ? '（DRY-RUN）' : '放行推送'} ${passCount}/${results.length} 项通过`);
+    // P0 修复（子代理锐评）：横幅移到 dry-run 分支——AI 验证完（dry-run）时看到「可直接 push」，
+    // 真实 push 时（!dryRun）已在执行，复读机提示无意义。
+    if (dryRun) {
+      logPush('');
+      logPush('════════════════════════════════════════');
+      logPush('  ✅ 门禁全绿，可直接执行：git push');
+      logPush('  （无需再手动跑 doctor --docs / tsc / build 确认）');
+      logPush('════════════════════════════════════════');
+    }
     return 0;
   }
   logPush(`结论: FAIL ❌ ${results.filter((r) => r.ok).length}/${results.length} 项通过，推送已${dryRun ? '将被' : ''}阻断`);

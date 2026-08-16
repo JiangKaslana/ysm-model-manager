@@ -21,6 +21,18 @@ export {
 export { renderComponent } from "./render.ts";
 
 /**
+ * 测试自愈工具：菜单表单一事实来源场景下的自适应断言。
+ * expectContainsAtLeast / expectNotContains / deriveTestIds / extractIds
+ * 依赖 vitest expect，仅测试上下文使用。
+ */
+export {
+  expectContainsAtLeast,
+  expectNotContains,
+  deriveTestIds,
+  extractIds,
+} from "./self-healing.ts";
+
+/**
  * 同步渲染自定义元素到 body，返回已创建元素。
  * 与 renderComponent 不同：不返回 RenderResult，适合简单测试。
  */
