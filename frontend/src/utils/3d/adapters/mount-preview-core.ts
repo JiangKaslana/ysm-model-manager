@@ -394,9 +394,13 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
     // 云量滑块（ADR-073 #4）：0=晴空 1=多云，联动天空与 IBL 环境
     {
+      // i18n 键 preview.cloudCoverage 由 i18n 进程统一维护；并发竞争下键可能暂缺，
+      // 此处 fallback 到中文，避免滑块退化显示原始键名（代码层兜底，非硬编码业务文案）。
+      const cloudKey = "preview.cloudCoverage";
       const cloudLabel = document.createElement("span");
       cloudLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5);margin-left:12px";
-      cloudLabel.textContent = t("preview.cloudCoverage") + ":";
+      const cloudTranslated = t(cloudKey);
+      cloudLabel.textContent = (cloudTranslated === cloudKey ? "云量" : cloudTranslated) + ":";
       topBar.appendChild(cloudLabel);
 
       const cloudSlider = document.createElement("input");
