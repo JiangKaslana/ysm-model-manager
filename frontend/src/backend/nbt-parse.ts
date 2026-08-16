@@ -37,6 +37,18 @@ const GZIP_MAGIC_1 = 0x8b;
 /** 解压后 NBT 大小上限（对齐 go/litematic/nbt.go maxDecodedBytes 100MB，防 zip-bomb） */
 const MAX_NBT_BYTES = 100 << 20;
 
+/**
+ * gzip footer ISIZE：末 4 字节（小端）记录原始数据长度 mod 2^32。
+ * 合法 NBT 元数据通常 < 10MB；ISIZE ≥ MAX_NBT_BYTES 直接拒收，
+ * 避免 gunzipSync 把 100MB 压缩数据膨胀到 TB 级再被事后校验拦住（时序缺陷）。
+ * 注意：ISIZE 是模 2^32 的低位，真实值可能更大，但 ≥ MAX_NBT_BYTES 已足够拒收炸弹。
+ */
+function gzipIsizedUpperBound(bytes: Uint8Array): number | null {
+  if (bytes.length < 8) return null; // gzip footer 至少 8 字节（4 ISIZE + 4 CRC32）
+  const off = bytes.length - 4;
+  return (bytes[off] | (bytes[off + 1] << 8) | (bytes[off + 2] << 16) | (bytes[off + 3] << 24)) >>> 0;
+}
+
 /** 嵌套深度上限（对齐 go/litematic/nbt.go maxNbtDepth 256，防深嵌套栈溢出） */
 const MAX_NBT_DEPTH = 256;
 
@@ -201,6 +213,11 @@ class NbtReader {
 export function parseNbtRoot(bytes: Uint8Array): Record<string, unknown> {
   let data = bytes;
   if (data.length >= 2 && data[0] === GZIP_MAGIC_0 && data[1] === GZIP_MAGIC_1) {
+    // P1：gzip footer ISIZE 预筛（防 zip-bomb：gunzipSync 无解压期内限，事后校验已太晚）
+    const isize = gzipIsizedUpperBound(data);
+    if (isize !== null && isize > MAX_NBT_BYTES) {
+      throw new Error(`nbt gzip ISIZE ${isize} 超过 ${MAX_NBT_BYTES} 字节上限`);
+    }
     data = gunzipSync(data);
     if (data.length > MAX_NBT_BYTES) throw new Error(`nbt 解压后超过 ${MAX_NBT_BYTES} 字节上限`);
   }
@@ -219,6 +236,11 @@ export function parseNbtRoot(bytes: Uint8Array): Record<string, unknown> {
 export function parseNbtRootExact(bytes: Uint8Array): Record<string, unknown> {
   let data = bytes;
   if (data.length >= 2 && data[0] === GZIP_MAGIC_0 && data[1] === GZIP_MAGIC_1) {
+    // P1：gzip footer ISIZE 预筛（与 parseNbtRoot 同防线）
+    const isize = gzipIsizedUpperBound(data);
+    if (isize !== null && isize > MAX_NBT_BYTES) {
+      throw new Error(`nbt gzip ISIZE ${isize} 超过 ${MAX_NBT_BYTES} 字节上限`);
+    }
     data = gunzipSync(data);
     if (data.length > MAX_NBT_BYTES) throw new Error(`nbt 解压后超过 ${MAX_NBT_BYTES} 字节上限`);
   }

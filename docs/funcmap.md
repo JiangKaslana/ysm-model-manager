@@ -726,11 +726,11 @@
 | `idbSet()` | `frontend/src/backend/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
 | `idbDel()` | `frontend/src/backend/idb:184` | 删除单 key |
 | `idbKeys()` | `frontend/src/backend/idb:200` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） |
-| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:201` | 解析 NBT 根 compound，返回全部顶层标签。 |
-| `parseNbtRootExact()` | `frontend/src/backend/nbt-parse:219` | ADR-070 M2：精确 LongArray 变体——LongArray 输出 bigint[]（精确 64 位）， 供 voxel 打包位解码（BlockStates）使用。其 |
-| `litematicMetaView()` | `frontend/src/backend/nbt-parse:266` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
-| `nbtStructureView()` | `frontend/src/backend/nbt-parse:300` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
-| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:421` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
+| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:213` | 解析 NBT 根 compound，返回全部顶层标签。 |
+| `parseNbtRootExact()` | `frontend/src/backend/nbt-parse:236` | ADR-070 M2：精确 LongArray 变体——LongArray 输出 bigint[]（精确 64 位）， 供 voxel 打包位解码（BlockStates）使用。其 |
+| `litematicMetaView()` | `frontend/src/backend/nbt-parse:288` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
+| `nbtStructureView()` | `frontend/src/backend/nbt-parse:322` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
+| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:443` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
 | `readDeclaredBackend()` | `frontend/src/backend/platform:13` | 读取入口 HTML 声明的适配器身份（'go' | 'browser'），未声明返回 undefined |
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
@@ -1168,12 +1168,12 @@
 | `LocalCreator()` | `frontend/src/views/app-content/community-data:8` | 本地合并后的创作者（绑定 WorkshopCreator + 运行时附加字段） |
 | `CommunityData()` | `frontend/src/views/app-content/community-data:24` | 站点 + 创作者 + 作者 数据包 |
 | `loadCommunityData()` | `frontend/src/views/app-content/community-data:34` | 加载站点 + 创作者数据（纯数据，不碰 DOM） 自动合并本地仓库提取的作者 |
-| `fillSearch()` | `frontend/src/views/app-content/community-data:138` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
-| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:192` | 从 GitHub 拉取 creators.json（三路回退） |
-| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:221` | 合并社区索引到本地 creators.json |
-| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:258` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
-| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:282` | 合并社区站点到本地 workshop_sites.json |
-| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:303` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
+| `fillSearch()` | `frontend/src/views/app-content/community-data:144` | 替换 &#123;&#123;q&#125;&#125; 为查询词 |
+| `fetchCommunityCreators()` | `frontend/src/views/app-content/community-data:198` | 从 GitHub 拉取 creators.json（三路回退） |
+| `mergeCommunityCreators()` | `frontend/src/views/app-content/community-data:227` | 合并社区索引到本地 creators.json |
+| `fetchCommunitySites()` | `frontend/src/views/app-content/community-data:264` | 从 GitHub 拉取 workshop_sites.json（三路回退） |
+| `mergeCommunitySites()` | `frontend/src/views/app-content/community-data:288` | 合并社区站点到本地 workshop_sites.json |
+| `DEFAULT_COMMUNITY_URL()` | `frontend/src/views/app-content/community-data:309` | 社区索引的默认 URL（可配置为社区维护的独立 creators JSON） 贡献通道：https://github.com/eghrhegpe/ysm-model-manager |
 | `contentCreatorCSS()` | `frontend/src/views/app-content/content-creator:2` | — |
 | `contentCSS()` | `frontend/src/views/app-content/content-css:12` | — |
 | `contentDiagCSS()` | `frontend/src/views/app-content/content-diag:2` | — |

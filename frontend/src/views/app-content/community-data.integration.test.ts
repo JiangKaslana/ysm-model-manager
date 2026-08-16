@@ -138,17 +138,6 @@ describe("loadCommunityData", () => {
     vi.stubGlobal("fetch", fetchMock);
     mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "老作者", type: "bilibili" }]);
 
-    const { fetchCommunityCreators, mergeCommunityCreators } = await import("./community-data.ts");
-    const community = await fetchCommunityCreators("https://raw.githubusercontent.com/x/y/main/creators.json");
-    // eslint-disable-next-line no-console
-    console.log("DBG community:", JSON.stringify(community));
-    const { added } = mergeCommunityCreators(
-      [{ name: "老作者", type: "bilibili", desc: "" }],
-      community,
-    );
-    // eslint-disable-next-line no-console
-    console.log("DBG added:", added);
-
     await loadCommunityData();
     await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalled());
 
@@ -158,5 +147,42 @@ describe("loadCommunityData", () => {
     const names = saved.map((c) => c.name);
     expect(names).toContain("社区新作者");
     expect(names).toContain("老作者");
+  });
+
+  it("多段 type 条目（bilibili;afdian）去重：只写入一次", async () => {
+    // 审核发现 P0-1：多段 type 会被 push 进多个 siteMap 组，flat 后重复 → 按 name 去重
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: async () => [{ name: "社区新作者", desc: "c", type: "afdian" }],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    // 存储中有带多段 type 的条目
+    mocks.LoadWorkshopCreators.mockResolvedValue([
+      { name: "多段作者", type: "bilibili;afdian" },
+      { name: "单段作者", type: "bilibili" },
+    ]);
+
+    await loadCommunityData();
+    await vi.waitFor(() => expect(mocks.SaveWorkshopCreators).toHaveBeenCalled());
+
+    const saved = mocks.SaveWorkshopCreators.mock.calls[0][0] as Array<{ name: string; type: string }>;
+    const count = saved.filter((c) => c.name === "多段作者").length;
+    expect(count).toBe(1); // 去重后只出现一次
+    expect(saved.map((c) => c.name)).toContain("社区新作者");
+  });
+
+  it("SaveWorkshopCreators 失败 → 静默降级不抛（原子保存回滚语义）", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({ ok: true, json: async () => [{ name: "社区新作者", type: "bilibili" }] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.LoadWorkshopCreators.mockResolvedValue([{ name: "老作者", type: "bilibili" }]);
+    mocks.SaveWorkshopCreators.mockRejectedValue(new Error("disk full"));
+
+    // 不抛错——catch 内 dbg 静默处理
+    const data = await loadCommunityData();
+    expect(data.creators.some((c) => c.name === "老作者")).toBe(true);
   });
 });

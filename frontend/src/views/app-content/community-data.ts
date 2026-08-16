@@ -85,8 +85,7 @@ export async function loadCommunityData(): Promise<CommunityData> {
   }
 
   // 自动拉取社区索引（静默，后台执行）——R3-P0 后网页版已桥接
-  // SaveWorkshopCreatorsBySite（localStorage 覆盖层），门控移除：网页版也执行
-  // 自动合并（网络拉取失败静默，保存到 localStorage；原门控因未桥接必败保存）
+  // 自动合并（网络拉取失败静默，保存到 localStorage）
   tryAutoMergeCommunity(merged).catch((e) => { dbg("tryAutoMergeCommunity failed", e); });
 
   return {
@@ -126,7 +125,14 @@ async function tryAutoMergeCommunity(creators: LocalCreator[]): Promise<void> {
         const t = c.type || "";
         return !siteIDs.some((sid) => t === sid || t.includes(sid + ";") || t.endsWith(";" + sid));
       });
-      const merged = [...kept, ...Object.values(siteMap).flat()];
+      // 去重：多段 type（如 "bilibili;afdian"）会被 push 进多个 siteMap 组，
+      // flat 后同名条目重复 → 按 name 去重（mergeCommunityCreators 本就用 name 作 key）
+      const flat = Object.values(siteMap).flat();
+      const deduped = new Map<string, LocalCreator>();
+      for (const c of flat) {
+        if (c.name) deduped.set(c.name, c);
+      }
+      const merged = [...kept, ...deduped.values()];
       await SaveWorkshopCreators(merged as WorkshopCreator[]);
     } catch (e) { dbg("SaveWorkshopCreators failed", e); }
   }

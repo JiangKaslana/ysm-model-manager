@@ -364,4 +364,26 @@ describe("三个 binding — 失败路径 → '{}'", () => {
     const badSch = await importAs("create-blueprint", "坏.schematic", new TextEncoder().encode("notgzip"));
     expect(await browserAdapter.ReadSchematic(badSch)).toBe("{}");
   });
+
+  it("gzip ISIZE 超大 → 预筛拒收抛错 → '{}'", async () => {
+    // 构造 gzip 数据，footer ISIZE 设为 200MB（超过 MAX_NBT_BYTES=100MB）
+    // gzip 格式：header + 压缩数据 + optional fields + CRC32(4B) + ISIZE(4B)
+    // 我们直接拼一个假 footer：前面放 gzip 魔数 + 任意压缩数据，末尾 8 字节是 CRC+ISIZE
+    const fakeData = new Uint8Array(20);
+    fakeData[0] = 0x1f;
+    fakeData[1] = 0x8b; // gzip magic
+    // 末尾 4 字节 ISIZE = 200MB（小端）
+    const isize = 200 << 20;
+    fakeData[16] = isize & 0xff;
+    fakeData[17] = (isize >>> 8) & 0xff;
+    fakeData[18] = (isize >>> 16) & 0xff;
+    fakeData[19] = (isize >>> 24) & 0xff;
+    // CRC32 占位（任意值）
+    fakeData[12] = 0;
+    fakeData[13] = 0;
+    fakeData[14] = 0;
+    fakeData[15] = 0;
+
+    expect(() => parseNbtRoot(fakeData)).toThrow("ISIZE");
+  });
 });
