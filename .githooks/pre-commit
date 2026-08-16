@@ -36,6 +36,11 @@ cd "$ROOT"
 # ── 秒级文档同步（全部输出在 docs/ 下；失败不阻断） ──
 # 注意：不放任何触发 vitest/coverage 的命令——覆盖率建议由 prepare-commit-msg
 # 只读 frontend/coverage/coverage-final.json，不在此触发（避免提交前跑慢检查）。
+# gen 前快照：记录 docs/ 与 locales/ 下文件的 (mtime, size)，gen 后只 stage 本次
+# gen 实际 touch 的文件——防止 10+ AI 并发共享 checkout 时把他人未提交的
+# docs/locales 半成品扫进本次 commit（2026-08-17 门禁锐评 P2-2 修复）。
+GEN_SNAP="/tmp/ysm_gen_snap_before.txt"
+find docs/ frontend/public/locales/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > "$GEN_SNAP"
 echo "[pre-commit] 文档自动同步..."
 GEN_CMDS='gen-docs-index.mjs
 funcmap.mjs
@@ -54,16 +59,28 @@ echo "$GEN_CMDS" | while IFS= read -r line; do
   node scripts/$line >/dev/null 2>&1 || echo "⚠️  scripts/$line 执行失败（不阻断）"
 done
 
-# ── stage 生成的文档（无 diff 则无副作用） ──
+# ── stage 生成的文档（只 stage 本次 gen 实际 touch 的文件，无 diff 则无副作用） ──
+# 2026-08-17 P2-2 修复：不再无条件 `git add docs/`——并发共享 checkout 下会把他人
+# 未提交 docs/locales 半成品扫进本次 commit。改为 gen 前后快照对比，只 add 变化文件。
 ADD_FAIL=""
-git add docs/ 2>/dev/null || ADD_FAIL="$ADD_FAIL docs/"
-# generate-locale-json.mjs 输出在 frontend/public/locales/（运行时 fetch 消费，与 TS 单一事实源保持同步）
-git add frontend/public/locales/ 2>/dev/null || ADD_FAIL="$ADD_FAIL locales/"
+if [ -f "$GEN_SNAP" ]; then
+  find docs/ frontend/public/locales/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > /tmp/ysm_gen_snap_after.txt
+  # diff 快照：新增/内容变化的文件（`>` 侧），路径取第 3 列；删除（`<` 侧）不 stage
+  diff "$GEN_SNAP" /tmp/ysm_gen_snap_after.txt 2>/dev/null | grep '^>' | awk '{print $3}' | sort -u | while IFS= read -r p; do
+    [ -z "$p" ] && continue
+    [ -f "$p" ] || continue
+    git add -- "$p" 2>/dev/null || ADD_FAIL="$ADD_FAIL $p"
+  done
+  rm -f "$GEN_SNAP" /tmp/ysm_gen_snap_after.txt
+else
+  # 快照缺失（find 异常）→ 兜底只 stage 已跟踪 docs/locales 的修改（-u 不 stage 新文件）
+  git add -u docs/ frontend/public/locales/ 2>/dev/null || ADD_FAIL="$ADD_FAIL docs/locales"
+fi
 
 if [ -n "$ADD_FAIL" ]; then
   echo "⚠️  git add 失败（$ADD_FAIL），文档产物未 stage（不阻断 commit，请检查索引状态）"
 else
-  echo "[pre-commit] ✅ 文档已同步并 stage"
+  echo "[pre-commit] ✅ 文档已同步并 stage（仅本次 gen 产物）"
 fi
 
 # ── Take巧 #2：drift --affected 秒级接入（ADR-087）──

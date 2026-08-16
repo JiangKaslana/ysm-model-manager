@@ -97,6 +97,20 @@ jobs:
           node scripts/adr-check.mjs | Out-String -Width 200
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      # P1 修复（2026-08-17，门禁锐评 P1-5）：CI 此前零治理检查，远端无防线——
+      # redlines 新增红线 / deadcode 基线回归在 CI 即红，不再只靠本地 pre-push（可被逃生阀绕过）。
+      - name: 红线零新增门禁（check-redlines — R1-R10/W1-W6）
+        shell: pwsh
+        run: |
+          node scripts/check-redlines.mjs --json --baseline | Out-String -Width 200
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 死代码基线门禁（check-deadcode-baseline）
+        shell: pwsh
+        run: |
+          node scripts/check-deadcode-baseline.mjs --json | Out-String -Width 200
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: 安装前端依赖
         working-directory: frontend
         shell: pwsh

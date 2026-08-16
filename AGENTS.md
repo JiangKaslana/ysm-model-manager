@@ -62,8 +62,8 @@ git reset HEAD~1                      # 撤销最近一条 commit，把改动放
 
 ## 钩子自动化（无需手动触发）
 
-> `pre-commit` 自动同步 docs/ 索引（秒级 gen）；`prepare-commit-msg` 提示受影响知识卡 + 覆盖率；均不阻塞提交。`pre-push` 全量门禁，失败阻断推送，无逃生阀。
-> `--no-verify` 跳过 pre-commit/prepare-commit-msg，不影响 pre-push。doctor 输出 `[WARN]...skip` 时须手动 `tsc` 验证。
+> `pre-commit` 自动同步 docs/ 索引（秒级 gen）；`prepare-commit-msg` 提示受影响知识卡 + 覆盖率；均不阻塞提交。`pre-push` 全量门禁，失败阻断推送；**紧急逃生阀**：`YSM_SKIP_GATE=1 git push` 或 `git push --no-verify`（两者都会跳过 pre-push 门禁，慎用——绕过不留审计痕迹）。
+> `git commit --no-verify` 只跳过 commit 期钩子（pre-commit/prepare-commit-msg）；`git push --no-verify` 会连同 pre-push 门禁一起跳过。doctor 输出 `[WARN]...skip` 时须手动 `tsc` 验证。
 
 ### AI 勿手动执行的指令（pre-commit 已自动执行，ADR-087）
 
