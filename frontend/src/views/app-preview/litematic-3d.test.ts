@@ -136,12 +136,18 @@ vi.mock("three/addons/controls/OrbitControls.js", () => ({
 }));
 
 vi.mock("../../backend/app.ts", () => ({ getApp: vi.fn() }));
-// ADR-073 天空能力（隔壁 sky-capability）依赖 PMREMGenerator 需真实 WebGL context，
-// 本测试 three 全 stub 无 WebGL——mock SkyCapability 为 no-op，隔离体素渲染逻辑
+// ADR-073 天空能力（sky-capability）依赖 PMREMGenerator 需真实 WebGL context，
+// 本测试 three 全 stub 无 WebGL——mock SkyCapability 为 no-op，隔离体素渲染逻辑。
+// 方法面同步 mount-preview-core 的 shared 初始化路径（setPreset/apply/getTimeOfDay 即时调用；
+// setTime/setCloudCoverage 是滑块回调，一并 mock 防 undefined）
 vi.mock("../../utils/3d/caps/sky-capability.ts", () => ({
   SkyCapability: class {
     apply = vi.fn();
     dispose = vi.fn();
+    setPreset = vi.fn();
+    getTimeOfDay = vi.fn(() => 12);
+    setTime = vi.fn();
+    setCloudCoverage = vi.fn();
     constructor() {}
   },
 }));
@@ -533,11 +539,14 @@ describe("审核补充：边界与异步路径", () => {
     layerMode.value = "range";
     layerMode.dispatchEvent(new Event("change"));
     // range 模式：layerSlider 设 1（lo=0），slider2 设 2（hi=2）→ 区间 [0,2) 保留 Y=0/1
-    const ranges = overlay.querySelectorAll<HTMLInputElement>('input[type="range"]');
-    ranges[1].value = "1"; // layerSlider
+    // 注：topBar 的 range 滑块顺序 = 速度(spdSlider) + 时间(timeSlider, ADR-073#1) + 云量(cloudSlider, ADR-073#4)
+    // 再是 litematic 的 layerSlider[3] / layerSlider2[4]——按 min==="1" 定位可免疫前面滑块增删
+    const ranges = [...overlay.querySelectorAll<HTMLInputElement>('input[type="range"]')]
+      .filter((el) => el.min === "1");
+    ranges[0].value = "1"; // layerSlider
+    ranges[0].dispatchEvent(new Event("input"));
+    ranges[1].value = "2"; // layerSlider2
     ranges[1].dispatchEvent(new Event("input"));
-    ranges[2].value = "2"; // layerSlider2
-    ranges[2].dispatchEvent(new Event("input"));
     const total = meshInstances.reduce((s, m) => s + m.count, 0);
     expect(total).toBe(2);
     unmountOverlay(overlay);

@@ -1,6 +1,6 @@
 # ADR-072：3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters
 
-- **状态**：✅ 已采纳（D1/D2/D3 落地 `b40ead4a`；根治补充——薄包装归位 views + adapter 注入化消反向依赖 + `resolveMmdSiblings` 断环——落于 `ca1780e7`；终态 `utils/3d/adapters` 0 backend import，check-circular/check-layering 双零）
+- **状态**：✅ 已采纳（根治三主线落地：薄包装归位 views `4413fb2a` + `resolveMmdSiblings` 断环 `761138dd` + adapter 注入化消反向依赖 `ca1780e7`；终态 `utils/3d/adapters` 0 backend import，check-circular/check-layering 双零）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`frontend/src/views/app-preview/`、`frontend/src/utils/3d/`、`frontend/src/utils/resource/types.ts`、`resource_types.json`、`ADR-066`、`ADR-070`、`ADR-071`
@@ -97,10 +97,13 @@ const PREVIEW_HANDLERS: Record<string, PreviewHandler> = {
 
 ### D4 · 落地记录（2026-08-16 编码完成，原「待立项」解除）
 
-落地分两批：
+落地分三条主线，**分散于多个 commit**（并行施工导致部分 commit message 与内容漂移，以下 commit 号经 `git show --stat` 实测核验）：
 
-- **D1/D2/D3 落地 `b40ead4a`**：3D 适配器层下沉 `utils/3d/adapters`（D1a 数据链注入 0 backend import + D1b 物理迁移）+ `index.ts` 派发改 `PREVIEW_HANDLERS` 查表（D2）+ `detail.ts` 拆出 `detail-3d.ts`（D3）。
-- **根治补充落于 `ca1780e7`**（审核反推）：`resolveMmdSiblings` 归位 `views/app-preview/mmd-siblings.ts`（断 mmd 循环环）+ 4 个薄包装（`ysm-3d`/`vrm-3d`/`litematic-3d`/`mmd-3d`）归位 views + adapter 注入化（`ysm-adapter` 注入 `preload`/`navBuilder`、`mmd-adapter` 注入 `navBuilder`）——消除 D1 落地的 3 条 utils→views 反向依赖。
+- **薄包装归位 views**（判据对齐）落于 `4413fb2a`：`ysm-3d`/`vrm-3d`/`litematic-3d`/`mmd-3d` 四个薄包装 rename `utils/3d/adapters → views/app-preview`（该 commit message 写「ADR-073 天空」，内容含本次 rename）。
+- **`resolveMmdSiblings` 断环**落于 `761138dd`：新建 `views/app-preview/mmd-siblings.ts` + `mmd-controls.ts` 改 import（断 `mmd-3d→mmd-adapter→mmd-controls→mmd-3d` 环）。
+- **adapter 注入化**（消反向依赖）落于 `ca1780e7`：`ysm-adapter` 注入 `preload`/`navBuilder`、`mmd-adapter` 注入 `navBuilder`（该 commit message 写「ADR-071 日志 IDB」，内容含本次注入化）。
+
+> 注：原始 D1（适配器下沉 utils/3d/adapters + 0 backend import）、D2（`PREVIEW_HANDLERS` 派发）、D3（`detail-3d.ts` 拆分）的实际落地同样受 message 漂移影响（物理迁移 rename 在 `cd4f953f`，其 message 写「vite EBUSY 防护」），故不逐 commit 对号，以终态为准。
 
 **终态**：`utils/3d/adapters` 只留纯渲染（4 adapter + `mount-preview-core`），0 backend import；check-circular 0 环、check-layering 0 反向。
 
