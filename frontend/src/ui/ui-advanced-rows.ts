@@ -60,7 +60,7 @@ export function addColorSliderRow(
     swatch.style.background = rgbString(col3FromTriple(safeColor));
     header.appendChild(swatch);
     block.appendChild(header);
-    const channelColors = ['#f66', '#6f6', '#66f'];
+    const channelColors = ['var(--clr-ch-r)', 'var(--clr-ch-g)', 'var(--clr-ch-b)'];
     const current: [number, number, number] = [safeColor[0], safeColor[1], safeColor[2]];
     const controllers: DragSliderController[] = [];
 

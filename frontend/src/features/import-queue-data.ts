@@ -10,6 +10,7 @@ import { directImport as execDirectImport, importFolder as execImportFolder, Imp
 import type { ImportFile as ImportedFile } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
 import { currentRepoType } from "./repo-rtype.ts";
+import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = ImportedFile;
@@ -274,7 +275,7 @@ export function initDataLayer(host: ImportQueueHost): {
       "-" +
       String(new Date().getMonth() + 1).padStart(2, "0");
     const d = manualDate || (autoOn ? autoDate : "");
-    const ext = state.currentFileName?.split(".").pop() || "ysm";
+    const ext = state.currentFileName?.split(".").pop() || RESOURCE_TYPES.YSM;
     // 拼装逻辑与重命名对话框同源
     const preview = buildRenameName({ author: a, work: w, chara: c, variant: v, date: d }, ext);
     (root.getElementById("dl-preview") as HTMLElement).textContent = preview;

@@ -13,6 +13,7 @@
 // ⚠️ 已解除：F 键调试模式现已接入 shared 模式，经 rebuildDebug 复用旧 renderModel3D 的
 // 相同逻辑（pivot 线 + 骨骼连接 + Sprite 标签），与旧单例路径行为一致。
 import * as THREE from "three";
+import { RESOURCE_TYPES } from "../../resource/types.ts";
 import { buildYsmObject, type YsmObjectHandle } from "../ysm-object.ts";
 import { fitCameraToScene } from "../camera-setup.ts";
 import { buildBoneHierarchy, registerBoneRaycast } from "../bone-raycast.ts";
@@ -239,7 +240,7 @@ export async function buildYsmScene(
 /** 工厂：构造统一 PreviewAdapter（shared 模式） */
 export function makeYsmAdapter(path: string, opts: YsmAdapterOptions): PreviewAdapter {
   return {
-    id: "ysm",
+    id: RESOURCE_TYPES.YSM,
     // shared 模式（§5.7）：核心提供 renderer/scene/camera/controls/rAF，适配器只注入内容
     onClose: opts.onClose,
     // 审核修复：必须用 build 传入的 path（switchTo(newPath) 重建内容层的换模型入口），

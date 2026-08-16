@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
 | frontend/ui | 18 | 103 |
-| 前端·工具 | 105 | 391 |
+| 前端·工具 | 104 | 390 |
 | frontend/views | 90 | 252 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **370** | **1561** |
+| **合计** | **369** | **1560** |
 
 ## Go·头像
 
@@ -798,12 +798,12 @@
 | `batchStatsWebModels()` | `frontend/src/backend/web-stats:173` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 池不可用 / 任一片失败 / 超时 → 返回 null（整体降级）。 |
 | `__resetWebLogStateForTest()` | `frontend/src/backend/web-store:120` | 测试钩子：重置日志环状态与 hydrated 标记（防模块级状态测试间污染） |
 | `webStoreBindings()` | `frontend/src/backend/web-store:193` | — |
-| `YsmHeaderShape()` | `frontend/src/backend/ysm-header:36` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
-| `YsmSummaryShape()` | `frontend/src/backend/ysm-header:55` | YsmSummary（对齐 go/ysm/summary.go:48 YsmSummary json tag；animGroups/configMenus 一并平移） |
-| `emptyYsmHeader()` | `frontend/src/backend/ysm-header:73` | 空 YSMHeader（对齐 Go YSMHeader{} JSON 形状：isYsm/isFree/hasFree/name 恒输出） |
-| `emptyYsmSummary()` | `frontend/src/backend/ysm-header:78` | 最小空 YsmSummary（对齐 Go app 层失败返回 {schema, source} 的最小结构 + 消费方零值容错） |
-| `parseYsmHeaderFromBytes()` | `frontend/src/backend/ysm-header:100` | 从字节解析 YSM 头部（对齐 AnalyzeYSMHeaderFromBytes + AnalyzeYSMHeader 的 YSGP 合并）： - 超 4096 字节截断（头部在 |
-| `extractYsmSummaryFromBytes()` | `frontend/src/backend/ysm-header:327` | 从字节提取 YsmSummary（source 为原始文件名）。 |
+| `YsmHeaderShape()` | `frontend/src/backend/ysm-header:37` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
+| `YsmSummaryShape()` | `frontend/src/backend/ysm-header:56` | YsmSummary（对齐 go/ysm/summary.go:48 YsmSummary json tag；animGroups/configMenus 一并平移） |
+| `emptyYsmHeader()` | `frontend/src/backend/ysm-header:74` | 空 YSMHeader（对齐 Go YSMHeader{} JSON 形状：isYsm/isFree/hasFree/name 恒输出） |
+| `emptyYsmSummary()` | `frontend/src/backend/ysm-header:79` | 最小空 YsmSummary（对齐 Go app 层失败返回 {schema, source} 的最小结构 + 消费方零值容错） |
+| `parseYsmHeaderFromBytes()` | `frontend/src/backend/ysm-header:101` | 从字节解析 YSM 头部（对齐 AnalyzeYSMHeaderFromBytes + AnalyzeYSMHeader 的 YSGP 合并）： - 超 4096 字节截断（头部在 |
+| `extractYsmSummaryFromBytes()` | `frontend/src/backend/ysm-header:328` | 从字节提取 YsmSummary（source 为原始文件名）。 |
 
 ## 前端·核心
 
@@ -917,17 +917,17 @@
 | `importFolder()` | `frontend/src/features/import-executor:138` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
 | `executeCollected()` | `frontend/src/features/import-executor:207` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
 | `importWebFilesWithToast()` | `frontend/src/features/import-executor:227` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
-| `ImportFile()` | `frontend/src/features/import-queue-data:15` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `QueueItem()` | `frontend/src/features/import-queue-data:18` | 队列项数据类型 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue-data:31` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
-| `ImportQueueHost()` | `frontend/src/features/import-queue-data:36` | 应用主机接口 |
-| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:46` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
-| `readFormFields()` | `frontend/src/features/import-queue-data:55` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
-| `initDataLayer()` | `frontend/src/features/import-queue-data:74` | 初始化导入队列的数据层：返回状态对象和清理函数 |
-| `bindFormEvents()` | `frontend/src/features/import-queue-events:24` | 表单输入事件绑定 |
-| `bindDragEvents()` | `frontend/src/features/import-queue-events:55` | 拖拽事件绑定 |
-| `bindInputEvents()` | `frontend/src/features/import-queue-events:142` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:224` | 按钮事件绑定 |
+| `ImportFile()` | `frontend/src/features/import-queue-data:16` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `QueueItem()` | `frontend/src/features/import-queue-data:19` | 队列项数据类型 |
+| `normalizeRepoName()` | `frontend/src/features/import-queue-data:32` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
+| `ImportQueueHost()` | `frontend/src/features/import-queue-data:37` | 应用主机接口 |
+| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:47` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
+| `readFormFields()` | `frontend/src/features/import-queue-data:56` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
+| `initDataLayer()` | `frontend/src/features/import-queue-data:75` | 初始化导入队列的数据层：返回状态对象和清理函数 |
+| `bindFormEvents()` | `frontend/src/features/import-queue-events:25` | 表单输入事件绑定 |
+| `bindDragEvents()` | `frontend/src/features/import-queue-events:56` | 拖拽事件绑定 |
+| `bindInputEvents()` | `frontend/src/features/import-queue-events:143` | 文件输入框事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:225` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
 | `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
@@ -1133,8 +1133,8 @@
 | `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:42` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:48` | — |
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:60` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:20` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:41` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:21` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:42` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板 |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:49` | 挂载预览底部根菜单，返回句柄 |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:70` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:89` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
@@ -1148,12 +1148,12 @@
 | `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:156` | 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:31` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:79` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:240` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:254` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:259` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:284` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:32` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:80` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:241` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:255` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:260` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:285` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
@@ -1188,11 +1188,11 @@
 | `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:96` | — |
 | `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:106` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
 | `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:214` | ============ LightCapability ============ |
-| `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:18` | — |
-| `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:39` | — |
-| `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:54` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
-| `MODEL_SKY_PRESETS()` | `frontend/src/utils/3d/caps/sky-capability:62` | 按模型类别的散射/曝光预设（ADR-073 #3）。 |
-| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:70` | — |
+| `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:19` | — |
+| `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:40` | — |
+| `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:55` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
+| `MODEL_SKY_PRESETS()` | `frontend/src/utils/3d/caps/sky-capability:63` | 按模型类别的散射/曝光预设（ADR-073 #3）。 |
+| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:71` | — |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:55` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
@@ -1352,7 +1352,6 @@
 | `deepClone()` | `frontend/src/utils/core/deep-clone:9` | 深拷贝对象（基于 JSON 序列化）。 |
 | `Disposable()` | `frontend/src/utils/core/disposable:5` | 可释放资源的统一契约。 |
 | `addDisposableListener()` | `frontend/src/utils/core/disposable:13` | 添加事件监听器并返回 Disposable，便于在 dispose 链路中统一释放。 |
-| `escapeHtml()` | `frontend/src/utils/core/escape-html:4` | Escape HTML special characters to prevent injection. |
 | `formatTimestamp()` | `frontend/src/utils/core/format-timestamp:6` | 格式化日期为 HH:MM:SS.mmm 字符串。 |
 | `formatTime()` | `frontend/src/utils/core/format:7` | 格式化秒数为 `MM:SS.CC` 字符串（分:秒.百分秒）。 |
 | `formatError()` | `frontend/src/utils/core/format:21` | 将任意错误值转换为人类可读字符串，带截断保护。 |

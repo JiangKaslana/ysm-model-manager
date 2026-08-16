@@ -14,7 +14,7 @@
 //   - MAX_ZIP_FILE_BYTES: 100MB（单文件上限，与 MAX_IMPORT_BYTES 对齐）
 
 import { unzipSync } from "fflate";
-import { matchZipEntryTS } from "../utils/resource/types.ts";
+import { matchZipEntryTS, RESOURCE_TYPES } from "../utils/resource/types.ts";
 
 // --- ZIP 格式常量 ---
 const EOCD_SIG = 0x06054b50; // End of Central Directory
@@ -54,7 +54,7 @@ export interface ExtractResult {
 }
 
 /** detectZipType 返回值 */
-export type ZipType = "ysm" | "resourcepack" | "shaderpack" | "create-blueprint" | "litematic" | "mmd-skin" | "vrchat-avatar" | null;
+export type ZipType = typeof RESOURCE_TYPES.YSM | typeof RESOURCE_TYPES.PACK | typeof RESOURCE_TYPES.SHADER | typeof RESOURCE_TYPES.BLUEPRINT | typeof RESOURCE_TYPES.LITEMATIC | typeof RESOURCE_TYPES.MMD | typeof RESOURCE_TYPES.VRC | null;
 
 // --- 中央目录预解析（fflateKey 对齐，处理 gpf bit 11 / 中文文件名）---
 

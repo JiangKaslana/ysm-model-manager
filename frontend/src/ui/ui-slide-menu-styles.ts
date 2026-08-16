@@ -78,7 +78,7 @@ export const slideMenuCss = `/* ===== 🥉 slide-menu 外壳样式（自 MikuMik
   align-items: center;
   gap: 8px;
   padding: var(--uih-slide-header-pad-y) var(--uih-slide-header-pad-x);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--uih-slide-divider);
   flex-shrink: 0;
 }
 
@@ -146,7 +146,7 @@ export const slideMenuCss = `/* ===== 🥉 slide-menu 外壳样式（自 MikuMik
   background: rgba(124, 131, 255, 0.28);
 }
 .menu-wrapper.slide-menu .collapsible-header {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--uih-slide-divider);
 }
 `;
 

@@ -422,7 +422,7 @@ export function addFieldRow(
 // addInfoGrid / addInfoCard — 响应式信息卡网格
 // 数字类短字段进常规卡（窄屏 2 列、宽屏 auto-fill 自动加列），
 // 长文本字段传 wide:true 跨整行，避免截断。
-// 用 textContent 写入，天然免疫 HTML 注入，无需 escapeHtml。
+// 用 textContent 写入，天然免疫 HTML 注入，无需 esc。
 // ===================================================================
 
 export function addInfoGrid(container: HTMLElement): HTMLElement {

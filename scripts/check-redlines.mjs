@@ -198,6 +198,12 @@ function runChecks() {
       .filter((l) => { const [f] = parseRgLine(l); return !/\/tpl\.ts$/.test(f) && !/\/css\.ts$/.test(f) && !f.endsWith('/fab.ts') && !f.includes('content-css') && !f.includes('app-tree-styles'); })
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('/3d/'); })
       .filter((l) => !/var\(--/.test(l))
+      // 颜色数据/算法模块豁免（R5 针对硬编码 UI 调色板，非数据/算法色）：
+      // - voxel-colors-data.ts：生成式「方块名→十六进制」配色表（DO NOT EDIT），颜色即数据；
+      // - voxel-parse.ts：调色板解析默认值 #000000（数据兜底）；
+      // - ui-advanced-rows.ts：rgbString 按数值通道动态构造 CSS 颜色（无硬编码调色板），
+      //   channelColors 为功能性 R/G/B 通道指示映射（非设计期调色板）。
+      .filter((l) => { const [f] = parseRgLine(l); return !/voxel-colors-data\.ts$/.test(f) && !/voxel-parse\.ts$/.test(f) && !/ui-advanced-rows\.ts$/.test(f); })
       .filter((l) => { const [f] = parseRgLine(l); return !/litematic-(meta|3d)\.ts$/.test(f) && !/mc-format\.ts$/.test(f) && !/summarize\.ts$/.test(f) && !/zoom\.ts$/.test(f) && !/skeleton\.ts$/.test(f); })
       .filter((l) => !/style\.cssText/.test(l))
       .filter((l) => !/style\.\w+\s*=\s*["'`]/.test(l))

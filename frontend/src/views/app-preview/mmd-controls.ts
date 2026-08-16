@@ -67,7 +67,7 @@ export function fillMmdModelPanel(list: HTMLElement, ctx: MmdBottomNavCtx): void
     row.append(ic, lb);
     row.style.cssText =
       "display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
-      (active ? ";background:rgba(124,131,255,0.25)" : "");
+      (active ? ";background:var(--mmd-morph-active-bg)" : "");
     row.onclick = (): void => {
       const d = ctx.mesh.morphTargetDictionary || {};
       const i = d[name];
@@ -75,7 +75,7 @@ export function fillMmdModelPanel(list: HTMLElement, ctx: MmdBottomNavCtx): void
       ctx.mesh.morphTargetInfluences[i] = ctx.mesh.morphTargetInfluences[i] > 0.5 ? 0 : 1;
       const now = ctx.mesh.morphTargetInfluences[i] > 0.5;
       ic.textContent = now ? "✓" : "🙂";
-      row.style.background = now ? "rgba(124,131,255,0.25)" : "transparent";
+      row.style.background = now ? "var(--mmd-morph-active-bg)" : "transparent";
     };
     list.appendChild(row);
   });

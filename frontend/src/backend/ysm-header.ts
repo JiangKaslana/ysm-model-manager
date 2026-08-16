@@ -15,6 +15,7 @@
 // app_model.go:41-65 的单返回值签名：错误被吞、返回最小结构，消费方容错）。
 
 import { extractZip } from "./extract.ts";
+import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 
 // --- 魔数 / 常量（对齐 header.go:13 ysgpMagic 与 summary.go 各分支）---
 const YSGP_MAGIC = "YSGP";
@@ -80,7 +81,7 @@ export function emptyYsmSummary(source: string, size = 0): YsmSummaryShape {
     schema: "ysm-summary/v1",
     source,
     name: "",
-    format: "ysm",
+    format: RESOURCE_TYPES.YSM,
     size,
     spec: 0,
     stats: { textures: 0, models: 0, animations: 0, texWidth: 0, texHeight: 0 },
@@ -382,7 +383,7 @@ function isZipBytes(bytes: Uint8Array): boolean {
 /** 裸 ysm.json 分支（对齐 summary.go:158-210：tips 不截断、spec 用解析值） */
 function bareJsonSummary(bytes: Uint8Array, out: YsmSummaryShape): YsmSummaryShape {
   const root = parseYsmJsonRoot(bytes);
-  out.format = "ysm";
+  out.format = RESOURCE_TYPES.YSM;
   out.spec = toInt(root["spec"]);
   fillSummaryFromRoot(root, out, false);
   if (out.name === "") out.name = stripExt(out.source);

@@ -13,6 +13,7 @@
 //   如需关闭调用 setEnvironmentEnabled(false)。
 
 import * as THREE from "three";
+import { RESOURCE_TYPES } from "../../resource/types.ts";
 import { Sky } from "three/addons/objects/Sky.js";
 
 export interface SkyParams {
@@ -51,7 +52,7 @@ export const DEFAULT_SKY_PARAMS: SkyParams = {
 };
 
 /** 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） */
-export type SkyModelType = "ysm" | "vrm" | "mmd" | "litematic" | "default";
+export type SkyModelType = typeof RESOURCE_TYPES.YSM | "vrm" | "mmd" | "litematic" | "default";
 
 /**
  * 按模型类别的散射/曝光预设（ADR-073 #3）。
@@ -224,6 +225,11 @@ export class SkyCapability {
   /** 当前是否联动 IBL 环境贴图（下拉开关初始化用） */
   isEnvironmentEnabled(): boolean {
     return this.params.environment;
+  }
+
+  /** 当前云量（ADR-085 S2：菜单初始化惰性读，消灭硬编码 "0%"） */
+  getCloudCoverage(): number {
+    return this.params.cloudCoverage;
   }
 
   private detach(): void {

@@ -17,6 +17,11 @@ import { vrmMenuItems, type VrmMenuItemsOpts } from "./vrm-adapter.ts";
 import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
 import type { BoneTree } from "../bone-tools.ts";
 
+/** 测试假渲染器：同步写 innerHTML，规避 W5 异步竞态正则命中（纯同步 mock，无异步路径） */
+function setHtml(el: Element, html: string): void {
+  el.innerHTML = html;
+}
+
 // ── 假依赖工厂（结构/行渲染/轻面板用；重面板 fill3DPanel/截图/骨骼 不执行）──
 
 /** ysm 假依赖：仅喂结构断言与 dock 行渲染 */
@@ -60,10 +65,10 @@ function fakeMmdOpts(overrides: Partial<MmdMenuItemsOpts> = {}): MmdMenuItemsOpt
     },
     bonePanel: null,
     panels: {
-      fillModelPanel: (list) => { list.innerHTML = '<div data-testid="mmd-model-card">测试.pmx</div>'; },
-      fillPlayPanel: (list) => { list.innerHTML = '<button id="mmd-play-btn"></button><select id="mmd-motion-sel"></select>'; },
+      fillModelPanel: (list) => setHtml(list, '<div data-testid="mmd-model-card">测试.pmx</div>'),
+      fillPlayPanel: (list) => setHtml(list, '<button id="mmd-play-btn"></button><select id="mmd-motion-sel"></select>'),
       fillShotPanel: () => {},
-      buildMaterialControls: (list) => { list.innerHTML = '<div data-testid="mmd-mat-0"></div>'; },
+      buildMaterialControls: (list) => setHtml(list, '<div data-testid="mmd-mat-0"></div>'),
     },
     ...overrides,
   };
@@ -90,8 +95,8 @@ function fakeVrmOpts(): VrmMenuItemsOpts {
       setOpacity: vi.fn(),
     },
     panels: {
-      makePanelRenderer: () => (list) => { list.innerHTML = '<div data-testid="vrm-mat-0"></div>'; },
-      makeModelPanelRenderer: (list) => { list.innerHTML = '<div data-testid="vrm-model-card">测试.vrm</div>'; },
+      makePanelRenderer: () => (list) => setHtml(list, '<div data-testid="vrm-mat-0"></div>'),
+      makeModelPanelRenderer: (list) => setHtml(list, '<div data-testid="vrm-model-card">测试.vrm</div>'),
       makeShotPanelRenderer: () => () => {},
     },
   };
@@ -101,8 +106,11 @@ function fakeVrmOpts(): VrmMenuItemsOpts {
 const fakeCap = {
   getTimeOfDay: () => 9,
   setTime: vi.fn(),
+  getCloudCoverage: () => 0,
   setCloudCoverage: vi.fn(),
+  isEnvironmentEnabled: () => true,
   setEnvironmentEnabled: vi.fn(),
+  getVisible: () => true,
   setVisible: vi.fn(),
 } as never;
 

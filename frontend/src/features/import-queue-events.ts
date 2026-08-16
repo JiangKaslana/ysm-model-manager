@@ -8,6 +8,7 @@ import { ImportHistory, importWebFilesWithToast } from "./import-executor.ts";
 import type { ImportFile, QueueItem } from "./import-queue-data.ts";
 import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { IMPORT_FORM_FIELD_IDS, readFormFields } from "./import-queue-data.ts";
+import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 
 /** 事件绑定工具：收集 cleanup 函数 */
 function on<K extends keyof HTMLElementEventMap>(
@@ -282,7 +283,7 @@ export function bindButtonEvents(
               "-" +
               String(new Date().getMonth() + 1).padStart(2, "0")
             : "");
-        const ext = editing.name?.split(".").pop() || "ysm";
+        const ext = editing.name?.split(".").pop() || RESOURCE_TYPES.YSM;
 
         let newName: string;
         if (c) {
