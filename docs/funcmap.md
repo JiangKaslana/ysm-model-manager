@@ -1062,9 +1062,9 @@
 | `buildBoneGroups()` | `frontend/src/ui/ui-rows:715` | 按类别分组骨骼名，未匹配的归入「その他」。空组被剔除。 |
 | `BoneSelectOptions()` | `frontend/src/ui/ui-rows:744` | — |
 | `addBoneSelectRow()` | `frontend/src/ui/ui-rows:755` | 创建骨骼选择行：label + 搜索框 + 分组下拉（含 IK 标记）。 |
-| `slideMenuCss()` | `frontend/src/ui/ui-slide-menu-styles:8` | — |
-| `slideMenuStyleSheet()` | `frontend/src/ui/ui-slide-menu-styles:140` | — |
-| `installSlideMenuStyles()` | `frontend/src/ui/ui-slide-menu-styles:144` | 将外壳样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
+| `slideMenuCss()` | `frontend/src/ui/ui-slide-menu-styles:9` | — |
+| `slideMenuStyleSheet()` | `frontend/src/ui/ui-slide-menu-styles:165` | — |
+| `installSlideMenuStyles()` | `frontend/src/ui/ui-slide-menu-styles:169` | 将外壳样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
 | `SlideMenuHandle()` | `frontend/src/ui/ui-slide-menu:14` | — |
 | `createSlideMenu()` | `frontend/src/ui/ui-slide-menu:28` | 构建 slide-menu 卡片外壳。 |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-slide-row` | — |

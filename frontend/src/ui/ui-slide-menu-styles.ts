@@ -2,7 +2,8 @@
 // 消费方式：
 //  - Shadow DOM 组件：root.adoptedStyleSheets = [slideMenuStyleSheet, ...others];
 //  - 全局/light-DOM：installSlideMenuStyles() 会把样式注入 document.head 一次。
-// 注意：请勿手动编辑本文件字符串；改样式请改 MikuMikuAR 源后重跑迁移脚本。
+// 注意：本文件由 MikuMikuAR 外壳迁移而来，但 .menu-wrapper.slide-menu 的背景已
+// 有意改为玻璃质感（对齐 ysm 3D HUD 的 .ysm-3d-popup），故此处允许针对 3D 浮层手工微调。
 // 外壳始终承载 🥉 行组件，故 createSlideMenu 会同时安装 ui-components 样式。
 
 export const slideMenuCss = `/* ===== 🥉 slide-menu 外壳样式（自 MikuMikuAR app.css 迁移） ===== */
@@ -30,19 +31,22 @@ export const slideMenuCss = `/* ===== 🥉 slide-menu 外壳样式（自 MikuMik
   flex-direction: column;
 }
 
-/* 卡片本体（对齐 MikuMikuAR menu-wrapper.slide-menu） */
+/* 卡片本体：玻璃质感对齐 ysm 3D HUD（fab.ts .ysm-3d-popup），与 MikuMikuAR 实心卡不同——
+   3D 浮层需透出场景，且不受 app 主题影响（主题无关，统一深色玻璃）。 */
 .menu-wrapper.slide-menu {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  background: var(--card);
-  border: 1px solid var(--bd);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  background: rgba(20, 20, 30, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   overflow: hidden;
   touch-action: pan-y;
-  color: var(--txt);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .slide-viewport {
@@ -74,34 +78,34 @@ export const slideMenuCss = `/* ===== 🥉 slide-menu 外壳样式（自 MikuMik
   align-items: center;
   gap: 8px;
   padding: var(--uih-slide-header-pad-y) var(--uih-slide-header-pad-x);
-  border-bottom: 1px solid var(--bd);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
 }
 
 .slide-back {
-  color: var(--txt);
+  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
   padding: var(--uih-slide-back-pad-y) var(--uih-slide-back-pad-x);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--uih-slide-back-radius);
-  background: var(--card);
-  border: 1px solid var(--bd);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   min-width: var(--uih-slide-back-min-width);
   transition: background var(--tr-fast);
 }
 
 .slide-back:hover {
-  background: var(--hover);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .slide-back:active {
-  background: var(--act);
+  background: rgba(124, 131, 255, 0.3);
 }
 
 .slide-title {
-  color: var(--txt);
+  color: rgba(255, 255, 255, 0.9);
   cursor: default;
   flex: 1;
   overflow: hidden;
@@ -122,6 +126,27 @@ export const slideMenuCss = `/* ===== 🥉 slide-menu 外壳样式（自 MikuMik
 
 .lcard > .slide-item:only-child {
   border-radius: var(--uih-lcard-radius);
+}
+
+/* 内部 🥉 行组件在玻璃卡内的文字/交互色：强制白底调，使 3D 浮层与 ysm HUD 一致、不受 app 主题影响 */
+.menu-wrapper.slide-menu .slide-item,
+.menu-wrapper.slide-menu .slide-label,
+.menu-wrapper.slide-menu .field-label,
+.menu-wrapper.slide-menu .field-value,
+.menu-wrapper.slide-menu .collapsible-label,
+.menu-wrapper.slide-menu .section-title,
+.menu-wrapper.slide-menu .slide-icon,
+.menu-wrapper.slide-menu .cs-icon {
+  color: rgba(255, 255, 255, 0.85);
+}
+.menu-wrapper.slide-menu .slide-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.menu-wrapper.slide-menu .slide-item:active {
+  background: rgba(124, 131, 255, 0.28);
+}
+.menu-wrapper.slide-menu .collapsible-header {
+  border-color: rgba(255, 255, 255, 0.1);
 }
 `;
 
