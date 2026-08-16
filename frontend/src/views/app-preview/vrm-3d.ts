@@ -14,13 +14,19 @@ async function readFileBytes(path: string): Promise<string | null> {
   return (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"](path);
 }
 
+/** 同目录文件枚举（VRMA 动作扫描用；对齐 MMD 同款 ListAllFilePaths 注入） */
+async function listAllFilePaths(dir: string): Promise<string[] | null> {
+  const App = await getApp();
+  return (App as unknown as Record<string, (d: string) => Promise<string[] | null>>)["ListAllFilePaths"](dir);
+}
+
 const vrmPanelHooks: VrmPanelHooks = {
   makePanelRenderer: makeVrmPanelRenderer,
 };
 
 const vrmAdapter: PreviewAdapter = {
   id: "vrm",
-  build: (ctx, path) => buildVrmScene(ctx, path, readFileBytes, vrmPanelHooks),
+  build: (ctx, path) => buildVrmScene(ctx, path, readFileBytes, vrmPanelHooks, listAllFilePaths),
 };
 
 /** 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 */
