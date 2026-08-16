@@ -25,7 +25,7 @@ let requestSeq = 0;
 /** 单批在途请求（批间串行，同一时刻至多一个；terminate/error/timeout 时清空） */
 let pending: {
   requestId: number;
-  settle: (v: WebModelStats[] | null) => void;
+  settle: (v: Array<WebModelStats & { path: string }> | null) => void;
 } | null = null;
 
 /** 降级标记：最近一次批量统计是否降级（一次消费，toolbar-search 读取后复位） */
@@ -80,7 +80,7 @@ function getWorker(): Worker | null {
 }
 
 /** 单批统计（串行调用；返回 null = 该批降级） */
-function statsOneChunk(paths: string[]): Promise<WebModelStats[] | null> {
+function statsOneChunk(paths: string[]): Promise<Array<WebModelStats & { path: string }> | null> {
   return new Promise((resolve) => {
     const w = getWorker();
     if (!w) {
@@ -96,7 +96,7 @@ function statsOneChunk(paths: string[]): Promise<WebModelStats[] | null> {
       resolve(null);
     }, STATS_CHUNK_TIMEOUT_MS);
 
-    const settle = (v: WebModelStats[] | null): void => {
+    const settle = (v: Array<WebModelStats & { path: string }> | null): void => {
       clearTimeout(timer);
       if (pending?.requestId === requestId) pending = null;
       resolve(v);
@@ -108,7 +108,7 @@ function statsOneChunk(paths: string[]): Promise<WebModelStats[] | null> {
       const data = ev.data as StatsWorkerResponse;
       if (!data || data.requestId !== requestId) return; // 旧批/进度消息忽略
       if (data.type === "result") {
-        settle(data.results as WebModelStats[]);
+        settle(data.results);
       } else if (data.type === "error") {
         // Worker 内 WASM 初始化失败等 → 终止并降级
         terminateStatsWorker();

@@ -33,7 +33,7 @@ export type RenderVrmBonePanel = (panel: HTMLElement, ctx: VrmBonePanelCtx) => (
  * 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。
  * VRM/YSM 均用此函数——VRM 经 buildVrmBoneTree 构树后喂入，YSM 从 spec bones 构树后喂入。
  */
-export function makeBonePanelRenderer(tree: BoneTree): RenderVrmBonePanel {
+export function makeBonePanelRenderer(tree: BoneTree | null): RenderVrmBonePanel {
   return (panel: HTMLElement, ctx: VrmBonePanelCtx): () => void => {
     let activeId: string | null = null; // 拾取联动高亮项
     let disposed = false;

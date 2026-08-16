@@ -39,7 +39,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 
 ## 核心职责
 
-- **外壳**：overlay + topBar(关闭/旋转模式/速度) + viewContainer + loadingEl
+- **外壳**：overlay + ⚙️ 声明式根菜单(`PREVIEW_MENU_DEFS`) + viewContainer + loadingEl + 适配器底部导航容器(`topBar`，Phase 2 经 `previewMenuItems` 收编)
 - **渲染基座（shared 模式）**：创建 `scene` / `camera` / `renderer` / `OrbitControls` / 灯光，驱动 rAF 循环、WASD/拖拽自转、resize、ESC 关闭、GPU 资源释放
 - **适配器注入**：内容层经 `PreviewAdapter.build()` 挂进 `ctx.scene`；每帧 `update(dt)` 驱动动态部分（VRM SpringBone、动画）
 - **3D 内模型切换**：`switchTo(path)` 复用外壳重建内容层（ADR-066 §5.6）
@@ -49,7 +49,8 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 
 - `mount3D(adapter, path, opts?)` — 主入口，`cleanupPreview()` 旧会话后建新
 - `cleanupPreview()` / `invalidatePreview()` / `switchPreview(path)`
-- `buildCameraControls(topBar, bridge)` — 通用相机控件（旋转模式/速度/重置）
+- `buildCameraControls(topBar, bridge)` — 通用相机控件（旋转模式/速度/重置），已收进根菜单 `camera` 项（sharedOnly）
+- `mountPreviewRootMenu(overlay, ctx)` + `PREVIEW_MENU_DEFS`（`preview-menu-defs.ts` / `preview-menu.ts`）— **ADR-076 v2 声明式根菜单**（顶栏砍掉，⚙️ 按钮 + 弹出菜单，项表驱动；关闭/切换/环境/相机；legacyTestId `ysm-close-3d`/`env-menu-btn`/`mmd-switch` 保留兼容 e2e）
 - 契约接口：`PreviewBuildCtx`（外壳句柄）、`PreviewScene`（内容契约：`update`/`dispose`/`resetCamera`/`extraControls`…）、`PreviewAdapter`（`id`/`mode`/`build`/`onClose`）、`PreviewHandle`、`CameraControlBridge`
 
 ## 与其他子系统关系
@@ -65,6 +66,8 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - **self 模式**（`adapter.mode === "self"`，如个别单例）：核心仅提供外壳、不创建 `scene`，背景由适配器自管
 
 ## 验证状态与迭代清单（2026-08-16）
+
+- **ADR-076 v2 声明式根菜单（Phase 1 已落地）**：顶栏整块砍掉，预览控件收进 overlay 内 ⚙️ 根菜单（`PREVIEW_MENU_DEFS` 表驱动，对齐 ADR-021 范式）。`mount3D` 内 `mountPreviewRootMenu(overlay, ctx)` 挂 ⚙️ 按钮（`preview-menu-btn`）+ 弹出（`ysm-preview-menu`）；`close` 复刻原 `closeBtn` 分支（`cleanupFn?fullCleanup:closeOverlay`），`fullCleanup` 内 `unsubMenu?.()` 解绑 `document` 监听；`switchTo` 成功后 `currentPath = newPath` 同步高亮。适配器底部导航容器 `topBar` 重建为底部容器承接 `extraControls(topBar)`，Phase 2 经 `previewMenuItems` 收编。三语 locale 补齐 7 键（settings/back/switchModel/noOtherModel/timeOfDay/cloudCoverage/environmentLight）。验证：`tsc --noEmit` 本文件零错、`vite build` 通过（exit 0）。预存无关错误 `web-stats.ts:152` / `vrm-bone-ui.ts:146` 非本轮引入，备案不擅改。
 
 - **L1 程序化天空已落地并目视验证**：`task dev` / `npm run dev:web` 跑通，天空渲染正常、四种模型（YSM/VRM/MMD/Litematic）零改动继承。用户评定「效果一般但能跑，作为基线收口，后续迭代」。
 - **基线参数**（`sky-capability.ts` 默认值）：`scale 12000`（相机 maxDistance 5000 留余量）、`turbidity 8 / rayleigh 2 / mieCoefficient 0.005 / mieDirectionalG 0.8`、`cloudCoverage 0`、默认太阳方位、`ACESFilmicToneMapping` + 曝光 0.5（会话级，dispose 还原）、IBL `scene.environment` 默认关。
