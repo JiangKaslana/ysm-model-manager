@@ -227,10 +227,14 @@ describe("createLitematic3D 主路径", () => {
     expect(overlay.textContent).not.toContain("加载体素数据");
   });
 
-  it("closeBtn 点击 → overlay 移除", async () => {
+  it("closeBtn 点击 → overlay 移除（⚙️ 根菜单 close 项）", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    const closeBtn = overlay.querySelector("button") as HTMLElement;
+    // 打开 ⚙️ 根菜单 → 点 close 项（legacyTestId 保留 #ysm-close-3d）
+    const menuBtn = overlay.querySelector('[data-testid="preview-menu-btn"]') as HTMLElement;
+    menuBtn.click();
+    const closeBtn = overlay.querySelector("#ysm-close-3d") as HTMLElement;
+    expect(closeBtn).toBeTruthy();
     closeBtn.click();
     expect(document.body.contains(overlay)).toBe(false);
   });
@@ -300,17 +304,21 @@ describe("体素数据处理", () => {
 });
 
 describe("控件交互", () => {
-  it("旋转模式切换 + 速度滑块更新显示", async () => {
+  it("旋转模式切换 + 速度滑块更新显示（dock 视图面板）", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    const sel = overlay.querySelector("select") as HTMLSelectElement;
-    const spd = overlay.querySelector('input[type="range"]') as HTMLInputElement;
+    // 打开 dock 视图面板（🎥）→ camera 面板填充旋转/速度控件
+    const dockCam = overlay.querySelector('[data-testid="dock-camera"]') as HTMLElement;
+    dockCam.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    const sel = popup.querySelector("select") as HTMLSelectElement;
+    const spd = popup.querySelector('input[type="range"]') as HTMLInputElement;
     sel.value = "false";
     sel.dispatchEvent(new Event("change"));
     spd.value = "55";
     spd.dispatchEvent(new Event("input"));
     // 速度值标签跟随（数字文本的 span）
-    const spdVal = [...overlay.querySelectorAll("span")].find(
+    const spdVal = [...popup.querySelectorAll("span")].find(
       (s) => /^\d+$/.test(s.textContent || ""),
     );
     expect(spdVal?.textContent).toBe("55");
@@ -555,7 +563,11 @@ describe("审核补充：边界与异步路径", () => {
   it("自身旋转模式拖拽：pointerdown + pointermove → quaternion 更新", async () => {
     await createLitematic3D("/drag.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    const sel = overlay.querySelector("select") as HTMLSelectElement;
+    // 打开 dock 视图面板（🎥）→ camera 面板填充旋转/速度控件，切「自身」模式
+    const dockCam = overlay.querySelector('[data-testid="dock-camera"]') as HTMLElement;
+    dockCam.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    const sel = popup.querySelector("select") as HTMLSelectElement;
     sel.value = "false"; // 自身模式（非 orbit）
     sel.dispatchEvent(new Event("change"));
     const rendererEl = Array.from(overlay.querySelectorAll("div")).find(
@@ -576,10 +588,9 @@ describe("审核补充：边界与异步路径", () => {
   });
 });
 
-/** 通过关闭按钮移除 overlay（避免污染后续用例） */
+/** 直接移除 overlay（避免污染后续用例；内部状态由 afterEach cleanupVoxel3D 清理）。
+ * 注意：不能靠「点第一个 button」关闭——ADR-076 v2 后第一个 button 是 ⚙️ 根菜单按钮，
+ * close 收进菜单项，直接 removeChild 更稳。 */
 function unmountOverlay(overlay: HTMLElement): void {
-  const btn = overlay.querySelector("button") as HTMLElement | null;
-  if (btn) btn.click();
-  else if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-  void sleep;
+  if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
 }

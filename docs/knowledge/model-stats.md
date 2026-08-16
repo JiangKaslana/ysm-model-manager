@@ -20,8 +20,8 @@ use_when:
   - Web Worker
   - 批量统计
 invariant_anchors:
-  - frontend/src/workers/stats-core.ts|statsModelFiles
-  - frontend/src/backend/web-stats.ts|runStatsBatch
+  - frontend/src/workers/stats-core.ts|statsFromDecodedFiles
+  - frontend/src/backend/web-stats.ts|batchStatsWebModels
 ---
 
 # Web Worker 模型统计层 model-stats
@@ -33,7 +33,7 @@ invariant_anchors:
 ## 核心职责
 
 - **`stats-core.ts`** — 纯计算核心（无 IO、无 WASM 依赖），输入为解码/直读产物文件，输出统计数值
-  - `statsModelFiles(files)` — 批量统计：骨数 = `bones` 数组长度；立方体数 = 各 `bone.cubes` 长度之和（递归收集）；纹理宽高 = `max(嗅探, geometry description 描述)`
+  - `statsFromDecodedFiles(files)` — 批量统计：骨数 = `bones` 数组长度；立方体数 = 各 `bone.cubes` 长度之和（递归收集）；纹理宽高 = `max(嗅探, geometry description 描述)`
   - **纹理头魔数**：`PNG_SIG` / `JPG_SIG` / `GIF_SIG` / `BMP_SIG` / `TGA_SIG` — 与 Go `imagePixelArea` / `wasm.ts sniffTexSize` 同口径，勿单独改
   - 输出 `ModelStatsResult`（`boneCount` / `cubeCount` / `texWidth` / `texHeight` / `hasError`），口径对齐 Go `decodeYSMViaNodeJS`（`internal/app/wasm_decoder.go:224`）与前端 `decodeYsmViaWasm`
 
@@ -42,7 +42,7 @@ invariant_anchors:
 - **`stats.worker.ts`** — Worker 入口：独立 `import` WASM + `open` IndexedDB（同源），消息驱动批量处理
 
 - **`web-stats.ts`** — 主线程编排：
-  - `runStatsBatch(paths)` — 串行发送请求（同一时刻至多一个），批间 `STATS_CHUNK_TIMEOUT_MS`（60s）超时终止防僵尸
+  - `batchStatsWebModels(paths)` — 串行发送请求（同一时刻至多一个），批间 `STATS_CHUNK_TIMEOUT_MS`（60s）超时终止防僵尸
   - **降级契约**：Worker 不支持（`new Worker` 抛错）/ 启动失败 / 运行时错误 / 单批超时 → 返回 `null` 并置降级标记（`consumeWebSearchDegraded` 消费，供 toolbar-search 提示）；`web-fs.searchWebModels` 收到 `null` 走「数值 0 + `hasError: false`」降级路径
   - **测试注入**：`setStatsRunnerForTest` 替换 Worker 路径（`browser-adapter.test.ts` 用）
 
