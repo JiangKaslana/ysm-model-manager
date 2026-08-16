@@ -74,7 +74,7 @@ const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, threeStub } 
       setClearColor = vi.fn();
       setSize = vi.fn();
       setPixelRatio = vi.fn();
-      getSize = vi.fn(function (v: any) {
+      getSize = vi.fn(function (this: FakeWebGLRenderer, v: any) {
         v.width = this.domElement.width;
         v.height = this.domElement.height;
         return v;
@@ -265,3 +265,4 @@ describe("renderMultiAngle — 成功路径", () => {
     expect(lastRenderer().forceContextLoss).toHaveBeenCalledTimes(1);
   });
 });
+

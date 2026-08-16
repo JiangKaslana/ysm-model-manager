@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SkyCapability } from "../caps/sky-capability.ts";
 import { GroundCapability } from "../caps/ground-capability.ts";
+import { LightCapability } from "../caps/light-capability.ts";
 import { type SemanticBoneMap } from "../semantic-bones.ts";
 import { bus } from "../../../bus.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
@@ -231,6 +232,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   // 程序化天空能力（ADR-073 L1）：shared 模式注入统一核心，四种模型零改动继承
   let skyCap: SkyCapability | null = null;
   let groundCap: GroundCapability | null = null;
+  let lightCap: LightCapability | null = null;
   let animId = 0;
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
@@ -349,6 +351,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // 地面（ADR-073 同款 caps/ 能力）：统一核心注入，各类型零改动继承
     groundCap = new GroundCapability({ scene });
     groundCap.apply();
+    lightCap = new LightCapability({ scene, renderer });
+    lightCap.setPreset(adapter.id);
+    lightCap.apply();
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
@@ -508,6 +513,23 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       orbitTarget!.copy((controls as OrbitControls).target);
       euler.setFromQuaternion((camera as THREE.PerspectiveCamera).quaternion);
     }
+    // ADR-081 L1：内容层包围盒 -> 聚光灯/体积光锥瞄准对象上方
+    if (lightCap && scene && sceneBaseline) {
+      const box = new THREE.Box3();
+      let contentFound = false;
+      for (const child of scene.children) {
+        if (sceneBaseline.has(child)) continue;
+        box.expandByObject(child);
+        contentFound = true;
+      }
+      if (contentFound) {
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        lightCap.setTarget(center);
+        lightCap.setTargetHeight(Math.max(maxDim * 0.8, 6));
+      }
+    }
     perFrame = built.update ?? null;
 
     // 适配器专属控件挂入通用 topBar 之后
@@ -585,6 +607,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       // 地面能力：移除网格并释放几何/材质
       try {
         groundCap?.dispose();
+      } catch (_) {}
+      // 个人灯光系统（ADR-081 L1）：释放聚光灯 + 体积光锥
+      try {
+        lightCap?.dispose();
       } catch (_) {}
       // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
       // （stub 环境 Scene 未必实现 traverse，typeof 守卫避免误崩）

@@ -30,6 +30,7 @@ import { mmdSemanticBoneMap } from "../semantic-bones.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
 import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
+import { createBlinkController } from "../perception/blink.ts"; // 语义 morph 消费方：程序化生命力 L1.5
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -251,11 +252,6 @@ export async function buildMmdScene(
   ctx.controls!.update();
 
   // MMDToon 材质对光有响应，补环境 + 主光 + 半球光（对齐 vrm-adapter 灯位）
-  ctx.scene!.add(new THREE.AmbientLight(0xffffff, 0.6));
-  const dl = new THREE.DirectionalLight(0xffffff, 1.2);
-  dl.position.set(1, 2, 1);
-  ctx.scene!.add(dl);
-  ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
   // ---- 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放 ----
   // 切换模型归 core switch 项（needsSiblings），相机归 core camera 项（sharedOnly）。
@@ -326,21 +322,21 @@ export async function buildMmdScene(
   // 感知层注视追踪（程序化生命力 L2）：head/eyes 跟随相机方向
   const gaze = createGazeController();
   // 感知层眨眼（程序化生命力 L1.5）：随机间隔触发 morph
-  // ⚠️ three-mmd 未暴露 MMD.morphs 运行时写入 API（morphs 仅在 VpdObject 上），
-  // 候选匹配逻辑保留，callback 暂空——待 three-mmd 升级后接入。
+  // three-mmd 将 PMX morphs 转为 Three.js morphTarget，通过 mesh.morphTargetDictionary/index 读写
   const BLINK_MORPH_CANDIDATES = [
     "まばたき", "blink", "Blink", "眨眼", "wink", "eye close", "EyeClose", "眼", "目", "閉眼",
   ];
-  let blinkMorphName: string | null = null;
-  if (mmd.pmx?.morphs) {
-    for (const morph of mmd.pmx.morphs) {
-      if (BLINK_MORPH_CANDIDATES.includes(morph.name)) {
-        blinkMorphName = morph.name;
+  let blinkMorphIndex: number | null = null;
+  if (mesh.morphTargetDictionary) {
+    for (const candidate of BLINK_MORPH_CANDIDATES) {
+      const idx = mesh.morphTargetDictionary[candidate];
+      if (idx !== undefined && idx !== null) {
+        blinkMorphIndex = idx;
         break;
       }
     }
   }
-  // const blink = createBlinkController(); // 待 morph API 可用后启用
+  const blink = createBlinkController();
 
   return {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
@@ -352,10 +348,10 @@ export async function buildMmdScene(
         // 注视追踪：始终生效（动画中头也跟随相机，增强生命力）
         gaze.apply(dt, semanticBones, ctx.camera!.position);
       }
-      // 眨眼：候选匹配到 morph 名后，待 three-mmd 暴露 morph 权重写入 API 再接入
-      // if (blinkMorphName && (!action || action.paused)) {
-      //   blink.apply(dt, (weight) => { (mmd as any).morphs[blinkMorphName] = weight; });
-      // }
+      // 眨眼：随机间隔触发 morph（待机态，有动画时暂停避免冲突）
+      if (blinkMorphIndex !== null && (!action || action.paused)) {
+        blink.apply(dt, (weight: number) => { mesh.morphTargetInfluences![blinkMorphIndex] = weight; });
+      }
     },
     // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
@@ -363,7 +359,7 @@ export async function buildMmdScene(
       mixer.stopAllAction();
       breath.reset();
       gaze.reset();
-      // blink.dispose(); // 待 morph API 可用后启用
+      blink.dispose();
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();
     },

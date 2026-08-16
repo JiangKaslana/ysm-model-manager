@@ -134,8 +134,8 @@ export const LIGHT_PRESETS: Record<string, Partial<LightParams>> = {
     spotlight: { ...DEFAULT_SPOTLIGHT, enabled: false },
     volumetric: { ...DEFAULT_VOLUMETRIC, enabled: false },
   },
-  "pack-model": {
-    // MC 方块，顶光稍柔
+  "resourcepack": {
+    // MC 方块/物品，顶光稍柔（alias for pack-model 兼容 adapter.id）
     key: { ...DEFAULT_KEY, intensity: 1.3 },
     fill: { ...DEFAULT_FILL, intensity: 0.4 },
     rim: { ...DEFAULT_RIM, intensity: 0.35 },
@@ -559,7 +559,7 @@ export class LightCapability {
 
 /* ============ 工具函数 ============ */
 
-function deepMergeLightParams(base: LightParams, override: Partial<LightParams>): LightParams {
+function deepMergeLightParams(base: LightParams, override: DeepPartial<LightParams>): LightParams {
   const mergeDir = (a: DirectionalLightParams, b?: Partial<DirectionalLightParams>): DirectionalLightParams =>
     ({ ...a, ...b } as DirectionalLightParams);
   const mergeAmb = (a: AmbientLightParams, b?: Partial<AmbientLightParams>): AmbientLightParams =>

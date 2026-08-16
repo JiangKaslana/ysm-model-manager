@@ -152,12 +152,6 @@ export async function buildPackScene(
   }
   state.index = start;
 
-  // 环境光（对齐 vrm-adapter）
-  ctx.scene!.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const dl = new THREE.DirectionalLight(0xffffff, 1.0);
-  dl.position.set(1, 2, 1);
-  ctx.scene!.add(dl);
-  ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
   /** 重建当前索引模型（复用外壳，替换内容层） */
   async function rebuild(): Promise<void> {

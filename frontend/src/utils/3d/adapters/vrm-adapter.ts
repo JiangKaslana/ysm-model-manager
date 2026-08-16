@@ -161,12 +161,6 @@ export async function buildVrmScene(
   ctx.controls!.maxDistance = maxDim * 12;
   ctx.controls!.update();
 
-  // MToon 材质对光有响应，补环境 + 主光 + 半球光
-  ctx.scene!.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const dl = new THREE.DirectionalLight(0xffffff, 1.0);
-  dl.position.set(1, 2, 1);
-  ctx.scene!.add(dl);
-  ctx.scene!.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.4));
 
   // ADR-074 S2 骨骼面板接入：经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单专属项（ADR-076 v2 Phase 2）。
   // 旧版经 extraControls 加「🦴 骨骼」按钮 → querySelector("#preview-panel") 恒 null（core 仅在适配器

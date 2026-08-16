@@ -55,14 +55,6 @@ export async function buildLitematicScene(
   ctx.controls!.maxDistance = maxDim * 8;
   ctx.controls!.update();
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-  ctx.scene!.add(ambient);
-  const dl1 = new THREE.DirectionalLight(0xffffff, 0.5);
-  dl1.position.set(sizeX, sizeY * 2, sizeZ);
-  ctx.scene!.add(dl1);
-  const dl2 = new THREE.DirectionalLight(0xffffff, 0.3);
-  dl2.position.set(-sizeX, sizeY, -sizeZ);
-  ctx.scene!.add(dl2);
 
   const gridSize = Math.ceil(maxDim / 10) * 10;
   const grid = new THREE.GridHelper(gridSize, Math.min(gridSize, 50), 0x6666aa, 0x444488);
@@ -318,12 +310,6 @@ export async function buildLitematicScene(
         } catch (_) {}
       });
       boxGeo.dispose();
-      // 光源 / 网格 helper 同属 GPU 资源，清理以防上下文残留
-      for (const l of [ambient, dl1, dl2]) {
-        try {
-          l.dispose();
-        } catch (_) {}
-      }
       try {
         grid.dispose();
       } catch (_) {}
