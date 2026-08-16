@@ -6,6 +6,11 @@ category: utils
 source_files:
   - frontend/src/utils/3d/adapters/mount-preview-core.ts
   - frontend/src/utils/3d/caps/sky-capability.ts
+  - frontend/src/utils/3d/caps/ground-capability.ts
+  - frontend/src/utils/3d/adapters/preview-menu.ts
+  - frontend/src/utils/3d/adapters/preview-menu-defs.ts
+  - frontend/src/utils/3d/adapters/vrm-bone-ui.ts
+  - frontend/src/utils/3d/bone-tools.ts
   - frontend/src/utils/3d/adapters/ysm-adapter.ts
   - frontend/src/utils/3d/adapters/vrm-adapter.ts
   - frontend/src/utils/3d/adapters/mmd-adapter.ts
@@ -61,13 +66,16 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 
 ## 不变量
 
-- **shared 模式**：核心创建 `scene` 并设 `scene.background = new THREE.Color("#1a1b2e")`（**`mount-preview-core.ts:346`**）；所有适配器 mount 进同一 `ctx.scene`
+- **`scene.background` 兜底（shared 模式，`mount-preview-core.ts:322`）**：核心创建 `scene` 并设 `scene.background = new THREE.Color("#1a1b2e")`；所有适配器 mount 进同一 `ctx.scene`
 - **天空落点（已实现，ADR-073 L1）**：统一核心在 shared 模式创建 `renderer` 后立即 `new SkyCapability({ scene, renderer }).apply()`（`mount-preview-core.ts`），复用 Three 官方 `Sky`（Preetham 散射）。YSM / VRM / MMD / Litematic 因共用同一 `ctx.scene` **零改动继承**——即「MMD 有天空 → YSM/VRM 自动获得」在 Three 域内的真·自动机制。能力层 `frontend/src/utils/3d/caps/sky-capability.ts` 封装 uniform 管线 + 可选 IBL（`setEnvironmentEnabled`，默认关）+ 会话级 tone mapping（dispose 还原）。`scene.background` 纯色保留为禁用天空时的兜底。
 - **self 模式**（`adapter.mode === "self"`，如个别单例）：核心仅提供外壳、不创建 `scene`，背景由适配器自管
 
 ## 验证状态与迭代清单（2026-08-16）
 
-- **ADR-076 v2 声明式根菜单（Phase 1 已落地）**：顶栏整块砍掉，预览控件收进 overlay 内 ⚙️ 根菜单（`PREVIEW_MENU_DEFS` 表驱动，对齐 ADR-021 范式）。`mount3D` 内 `mountPreviewRootMenu(overlay, ctx)` 挂 ⚙️ 按钮（`preview-menu-btn`）+ 弹出（`ysm-preview-menu`）；`close` 复刻原 `closeBtn` 分支（`cleanupFn?fullCleanup:closeOverlay`），`fullCleanup` 内 `unsubMenu?.()` 解绑 `document` 监听；`switchTo` 成功后 `currentPath = newPath` 同步高亮。适配器底部导航容器 `topBar` 重建为底部容器承接 `extraControls(topBar)`，Phase 2 经 `previewMenuItems` 收编。三语 locale 补齐 7 键（settings/back/switchModel/noOtherModel/timeOfDay/cloudCoverage/environmentLight）。验证：`tsc --noEmit` 本文件零错、`vite build` 通过（exit 0）。预存无关错误 `web-stats.ts:152` / `vrm-bone-ui.ts:146` 非本轮引入，备案不擅改。
+- **ADR-076 v3 声明式根菜单（Phase 1+2 已落地，Phase 3 待立项）**：
+  - **Phase 1**：顶栏整块砍掉，预览控件收进 overlay 内 ⚙️ 根菜单（`PREVIEW_MENU_DEFS` 表驱动，对齐 ADR-021 范式）。`mount3D` 内 `mountPreviewRootMenu(overlay, ctx)` 挂 ⚙️ 按钮（`preview-menu-btn`）+ 弹出（`ysm-preview-menu`）；`close` 复刻原 `closeBtn` 分支（`cleanupFn?fullCleanup:closeOverlay`），`fullCleanup` 内 `menuHandle.dispose()` 解绑 `document` 监听；`switchTo` 成功后 `currentPath = newPath` 同步高亮。三语 locale 补齐 7 键。
+  - **Phase 2**：ysM/mmd 底部导航脚手架删除（`buildYsm/MmdBottomNav` + `mkNavBtn` + 两份 togglePopup/closePopup），适配器经 `PreviewBuildCtx.menu.setAdapterItems` 注入专属项——ysM：model/截图/骨骼；mmd：model/材质/播放（+ADR-077 bones 并行落地经仲裁收编）。切换归 core switch 项、相机归 core camera 项，消灭双入口。测试：`preview-menu.test.ts` 新增（12 例）+ 三测试重写（30 例全绿）。顺带修复 ysm 两处现存缺陷（navBuilder 死参数——底部导航从未挂载；骨骼按钮点击找不存在的 `#ysm-3d-panel`——无效）。
+  - **Phase 3 待立项**：vrm/litematic `extraControls` 单按钮（骨骼/分层/切换）收编为菜单项后删除 topBar 容器；ADR-074 S2 VRM 骨骼面板已接 UI（topBar 骨骼按钮开关面板，经 `makeBonePanelRenderer` 通用外壳），ysm 骨骼面板同构落地（ADR-077）。
 
 - **L1 程序化天空已落地并目视验证**：`task dev` / `npm run dev:web` 跑通，天空渲染正常、四种模型（YSM/VRM/MMD/Litematic）零改动继承。用户评定「效果一般但能跑，作为基线收口，后续迭代」。
 - **基线参数**（`sky-capability.ts` 默认值）：`scale 12000`（相机 maxDistance 5000 留余量）、`turbidity 8 / rayleigh 2 / mieCoefficient 0.005 / mieDirectionalG 0.8`、`cloudCoverage 0`、默认太阳方位、`ACESFilmicToneMapping` + 曝光 0.5（会话级，dispose 还原）、IBL `scene.environment` 默认关。
@@ -77,7 +85,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
   3. ✅ 按模型类别散射/曝光预设已落地（`MODEL_SKY_PRESETS` 表 + `setPreset(adapter.id)`：ysm/vrm/mmd/litematic 各自 turbidity/rayleigh/exposure；数值为初始合理值，待目视微调）；
   4. ✅ 云量滑块已收进**环境菜单**（`skyCap.setCloudCoverage(v)`，0-1 映射晴空→多云，oninput 实时改天空、onchange 松手刷新 IBL；`preview.cloudCoverage` i18n 三语，代码层 `tr` 兜底）。重构背景：原顶栏滑块被批「塞垃圾」，统一收进 🌍 环境菜单面板；三语键 `preview.envMenu/timeOfDay/cloudCoverage/environmentLight` 已入库，但保留 `tr` 代码兜底防并行 locale 竞争退化显示原始键名。
 
-> **已知坑（构建期 capability 引用）**：环境菜单在 `if(!selfMode)` **之前**构建，此时 `skyCap`/`groundCap` 尚未赋值（仍为 `null`）。直接 `skyCap?.getX()` 取初始值会因 TS 收窄 `null` → `never` 报 `Property 'getX' does not exist on type 'never'`。正确模式：初始值用**字面量默认值**（time=9、IBL=true），交互处理器写在 `oninput`/`onChange` **闭包**内用 `skyCap?.`（闭包取声明类型 `SkyCapability | null`，安全）。地面行 `value: true`、IBL 行 `value: true` 即此口径。
+> **已知坑（构建期 capability 引用）**：环境菜单在 `if(!selfMode)` **之前**构建，此时 `skyCap`/`groundCap` 尚未赋值（仍为 `null`）。正确模式已改**getter 式 `PreviewMenuCtx`**（`preview-menu.ts`）：菜单项表通过 getter 在菜单渲染时按需取值，规避构建期 `null` 收窄报 `Property does not exist on type 'never'`；字面量默认值（time=9、IBL=true）只作为初始 UI 显示值，交互处理器写在 `oninput`/`onChange` 闭包内用 `skyCap?.`。地面行 `value: true`、IBL 行 `value: true` 即此口径。
 
 ## 相关
 

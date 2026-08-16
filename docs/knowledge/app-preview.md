@@ -25,6 +25,10 @@ source_files:
   - frontend/src/views/app-preview/parse-ysm-json.ts
   - frontend/src/views/app-preview/texture-order.ts
   - frontend/src/views/app-preview/skeleton-fill-panel.ts
+  - frontend/src/views/app-preview/detail-3d.ts
+  - frontend/src/views/app-preview/mmd-3d.ts
+  - frontend/src/views/app-preview/mmd-controls.ts
+  - frontend/src/views/app-preview/mmd-siblings.ts
   - frontend/src/utils/3d/adapters/mount-preview-core.ts
   - frontend/src/utils/3d/adapters/litematic-adapter.ts
   - frontend/src/views/app-preview/vrm-3d.ts
@@ -64,11 +68,12 @@ invariant_anchors:
 
 ## 核心职责
 
-- `index.ts` — `<app-preview>` 生命周期编排：监听 `model:select`（回调开头 `++this._previewGen`）、目录走 `_showPackInfo`、文件走 `_showModelDetail` 并按 `DetectResourceType` 结果分流（pack → `showResourcePack`；ysm/空 → `showModelDetail`；litematic/blueprint → `showLitematic`；vrchat-avatar `.vrm` → `showVrmMeta`（meta 卡 + FAB 进 3D，对齐 YSM 模式）；shaderpack → `showShaderpack`（`ReadShaderpackLang` 提显示名+配置简介）；mmd-skin 等其他已知类型 → `showSimplePreview`；类型元信息经 `_typeMeta` 查 `LoadResourceTypes` 预载表）、`_loadPreviewImage` 缩略图三级加载、`cacheSetEvictHandler` 注册缓存淘汰时回收 blob URL（含 `geometry.textures` / `authors[].avatarUrl` / `avatars` 去重后 revoke）
+- `index.ts` — `<app-preview>` 生命周期编排：监听 `model:select`（回调开头 `++this._previewGen`）、目录走 `_showPackInfo`、文件走 `_showModelDetail` 并按 `DetectResourceType` 结果分流（pack → `showResourcePack`；ysm/空 → `showModelDetail`；litematic/blueprint → `showLitematic`；vrchat-avatar `.vrm` → `showVrmMeta`（meta 卡 + FAB 进 3D，对齐 YSM 模式）；shaderpack → `showShaderpack`（`ReadShaderpackLang` 提显示名+配置简介）；**MMD `mmd-skin` 走专属 `showMmdPreview` 链路**（ADR-072 D2，`PREVIEW_HANDLERS` 查表注册）；其他已知类型 → `showSimplePreview`）；类型元信息经 `_typeMeta` 查 `LoadResourceTypes` 预载表；`_loadPreviewImage` 缩略图三级加载；`cacheSetEvictHandler` 注册缓存淘汰时回收 blob URL（含 `geometry.textures` / `authors[].avatarUrl` / `avatars` 去重后 revoke）
 - `loader.ts` — `loadModelData`：统一模型加载（缓存 → WASM → Go `AnalyzeBedrockModel` 兜底）；**ADR-066 P0 解硬编码墙**：WASM 能力判定由内联正则 `/\.(ysm|zip|json)$/i` 改为 `matchTypeByExt(modelPath, RESOURCE_TYPES.YSM)`（注册表驱动，附带修复原正则漏判 `.7z`）
-- `detail.ts` — `showModelDetail` / `showResourcePack` / `showShaderpack` / `showSimplePreview` / `showVrmMeta`：详情面板渲染（Go 侧 `ExtractYsmSummary` / `ExtractYSMHeader` / `ReadPackMeta` / `ReadShaderpackLang`；VRM meta 卡经 `vrm-adapter.readVrmMeta` 取 three-vrm `vrm.meta`：VRM0 `title/author/licenseName` ↔ VRM1 `name/authors/licenseUrl` 归一化 + 缩略图 dataURL，FAB 点击 `createVrm3D` 进 3D）
+- `detail.ts` — `showModelDetail` / `showResourcePack` / `showShaderpack` / `showSimplePreview`：详情面板渲染（Go 侧 `ExtractYsmSummary` / `ExtractYSMHeader` / `ReadPackMeta` / `ReadShaderpackLang`）——**ADR-072 D3 按资源域拆分**：`showVrmMeta`（VRM meta 卡 + FAB 进 3D，`vrm-adapter.readVrmMeta` 取 three-vrm `vrm.meta`：VRM0 `title/author/licenseName` ↔ VRM1 `name/authors/licenseUrl` 归一化）与 `showMmdPreview`（MMD 专属详情入口）已迁出至 `detail-3d.ts`，`detail.ts` 现仅 4 个 show 函数
 - `skeleton.ts` — `loadModel2D`：2D/3D 骨骼渲染编排，委托 `utils/3d/model2d.ts` 的 `renderModel2D` 与 `utils/3d/model3d.ts` 的 `renderModel3D`；window 级拖拽监听存模块级 `_prevWindowMove` / `_prevWindowUp` 槽位（`skeleton.ts:20`、`:193`），先移除上一轮再绑定并把移除逻辑 push 进 `ctx._unsubs`（`skeleton.ts:211`）；`_model3dGen` 作废在途 3D 渲染；截图走 `SaveScreenshotFile`。**ADR-057 控制层重构**：3D overlay 顶/底控制栏原内联 `style.cssText` 抽为全局 CSS 类（`utils/dom/fab.ts` 的 `ensureFabStyles()` 注入 head——overlay 挂 `document.body` 为 light DOM，全局 CSS 直接生效）；触发键 `🎨3D` 由面板内普通 tab 改为右下角悬浮 FAB（`.ysm-fab`，Shadow DOM 内样式在 `css.ts`，隔离不继承 head）；并接入 `registerAndroidBackHandler` 在 overlay 打开时消费安卓返回键关层。**async 窗口期守卫约定**（P2 修复）：每个 `await` 前后及 DOM 创建后立即检查 `container.isConnected`，防组件卸载后异步回调写入已卸载 DOM（`skeleton.ts:82`、`:112`、`:631` 三处）
 - `zoom.ts` — `openFullPreview`：全屏放大预览
+- `mmd-controls.ts` / `mmd-siblings.ts` / `mmd-3d.ts` — **MMD 根菜单两级层级导航（ADR-077 落地）**：旧 `buildMmdBottomNav` / slide-menu 弹窗删除，改 `fillMmdModelPanel` / `fillMmdPlayPanel` / `buildMaterialControls`，经 `ctx.menu.setAdapterItems` 收编进根菜单（模型 / 材质 / 播放 / 骨骼四面板）；`mmd-siblings.ts` 的 `resolveMmdSiblings` 归位 views 层防与 `mmd-adapter` 循环依赖；`mmd-3d.ts` 的 `createMmd3D` 为薄包装（同构 YSM/VRM/Litematic 模式）
 - `wasm.ts` — `decodeYsmViaWasm`：前端 WASM 解码 .ysm（经 Go `ReadFileBytes` 取字节，走 `cache.ts` 缓存）；**加密模型详情增强**（P2 修复链：`decodeYsmViaWasm` 解码后把 `properties.extra_animation*` 经 `utils/format/ysm-anim-config.ts` 的 `extractAnimGroupsAndConfigs` 抽出「其他动画 / 模型配置 / 自定义表情」，与 Go `summary.go:appendAnimGroupsAndConfigs` 口径对齐，供详情卡渲染；`.zip`/裸 `ysm.json` 共用同一提取逻辑）
 - `litematic-3d.ts` — `createLitematic3D` / `cleanupVoxel3D`：**ADR-066 P3 脚手架收缴**——原 627 行内联实现抽为 26 行薄包装：通用外壳（overlay/renderer/rAF 循环/相机控制/资源释放）归 `mount-preview-core.ts` 的 `mount3D(adapter, path)`（PreviewAdapter 契约），体素内容层归 `litematic-adapter.ts` 的 `buildLitematicScene`；`voxelFn` 经适配器工厂传入决定走哪条 Go RPC；vrm 预览同构迁移（`vrm-adapter.ts`）
 - `litematic-meta.ts` — `showLitematic`（Go `ReadLitematicMeta` / `ReadNbtStructure` / `ReadSchematic`）与 `cleanupLitematic3D`（转发 `cleanupVoxel3D`）
@@ -121,4 +126,4 @@ invariant_anchors:
 - `frontend/src/wasm/` — WASM 生成数据（base64 豁免文件）
 - 知识卡：`app_content`、`app_tree`、`go_ysm_parser`、`go_litematic`、`event_bus`、`pointer-events`（双端响应式触控热区）
 - ADR-057（3D 预览悬浮触发按钮与双端响应式控制层）；`frontend/src/utils/dom/fab.ts` — FloatingActionButton 组件与全局样式注入
-- ADR-072（3D 归置，编码待立项）：3D 适配器层（`*-adapter.ts`/`*-3d.ts`/`mount-preview-core.ts`）将下沉 `utils/3d/adapters/`（保持 0 backend import 纯渲染边界），`app-preview` 只留 UI 壳 + WASM 胶水；`index.ts` 的 `_showModelDetail` if 链（172-217 行）将改 `RESOURCE_CAPS` + `PREVIEW_HANDLERS` 映射表；`detail.ts` 6 个 show 函数（21/132/169/187/233/292 行）按资源域拆分。落地方案见 ADR-072
+- ADR-072（**3D 归置已落地**）：3D 适配器层（`*-adapter.ts` / `*-3d.ts` / `mount-preview-core.ts` / `preview-menu*.ts`）已下沉 `utils/3d/adapters/` 与 `utils/3d/`（保持 0 backend import 纯渲染边界），`app-preview` 只留 UI 壳 + WASM 胶水；`index.ts` 的 `_showModelDetail` if 链已改 `PREVIEW_HANDLERS` 映射表；`detail.ts` 6 个 show 函数已按资源域拆分为 `detail.ts`（4 个）+ `detail-3d.ts`（`showVrmMeta` / `showMmdPreview`）；MMD 根菜单两级层级导航（模型/材质/播放/骨骼）经 `setAdapterItems` 收编
