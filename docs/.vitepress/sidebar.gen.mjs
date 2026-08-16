@@ -1442,6 +1442,10 @@ export const autoSidebar = [
           {
             "text": "第 01 区域 · 第 3 章 · 砌墙的眼睛",
             "link": "/novel/01-解码与几何/03-砌墙的眼睛"
+          },
+          {
+            "text": "第 01 区域 · 第 4 章 · 只改了一半的名字",
+            "link": "/novel/01-解码与几何/04-只改了一半的名字"
           }
         ]
       },
@@ -1730,6 +1734,10 @@ export const autoSidebar = [
           {
             "text": "附录 · 跨模块重构 · 第 3 章 · 背上的城",
             "link": "/novel/appendix/跨模块重构/03-背上的城"
+          },
+          {
+            "text": "附录 · 跨模块重构 · 第 4 章 · 回到过去的刀",
+            "link": "/novel/appendix/跨模块重构/04-回到过去的刀"
           }
         ]
       },
