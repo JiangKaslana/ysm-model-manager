@@ -704,6 +704,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-088：检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行",
+        "link": "/adr/ADR-088-parallel-dispatch"
+      },
+      {
         "text": "ADR-087：AI 自动化取巧——pre-commit 智能 stage 与无脑指令下沉",
         "link": "/adr/ADR-087-ai-automation-takeq"
       },
