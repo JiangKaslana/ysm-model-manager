@@ -905,17 +905,17 @@
 | `CollectedEntry()` | `frontend/src/features/dnd-shared:33` | 收集条目（文件 + 相对路径） |
 | `FolderGroup()` | `frontend/src/features/dnd-shared:39` | 文件夹组：dir 为顶层目录名（可能含多级嵌套，组内文件保留完整 relPath） |
 | `groupCollected()` | `frontend/src/features/dnd-shared:51` | 将收集到的条目分组： - 有目录前缀的条目 → 按「顶层目录」整组（dir = 第一段路径），组内保留完整 relPath（支持多层嵌套） - 无目录前缀的散落文件 → 单文件队列 |
-| `handleTreeDrop()` | `frontend/src/features/import-dnd:30` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
-| `bindTreeDnD()` | `frontend/src/features/import-dnd:129` | 在目标容器上注册仓库页 DnD 事件。 |
+| `handleTreeDrop()` | `frontend/src/features/import-dnd:31` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
+| `bindTreeDnD()` | `frontend/src/features/import-dnd:130` | 在目标容器上注册仓库页 DnD 事件。 |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
 | `ImportFile()` | `frontend/src/features/import-executor:17` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `ImportRecord()` | `frontend/src/features/import-executor:20` | 已导入历史条目（导入 tab「已导入」列表数据源） |
 | `CollectedEntry()` | `frontend/src/features/import-executor:28` | 收集条目（文件 + 相对路径） |
 | `ImportHistory()` | `frontend/src/features/import-executor:37` | — |
 | `directImport()` | `frontend/src/features/import-executor:95` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
-| `importFolder()` | `frontend/src/features/import-executor:136` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
-| `executeCollected()` | `frontend/src/features/import-executor:201` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:221` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `importFolder()` | `frontend/src/features/import-executor:138` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
+| `executeCollected()` | `frontend/src/features/import-executor:203` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:223` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `ImportFile()` | `frontend/src/features/import-queue-data:15` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `QueueItem()` | `frontend/src/features/import-queue-data:18` | 队列项数据类型 |
 | `normalizeRepoName()` | `frontend/src/features/import-queue-data:31` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
