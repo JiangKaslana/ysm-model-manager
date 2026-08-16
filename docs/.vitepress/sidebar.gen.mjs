@@ -700,6 +700,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-074：3D 骨骼层级通用工具：统一 YSM/MMD/VRM 的骨骼列表·拾取·显隐",
+        "link": "/adr/ADR-074-bone-hierarchy-toolkit"
+      },
+      {
         "text": "ADR-073：联邦 3D 渲染能力共享策略（程序化天空为首个落地能力）",
         "link": "/adr/ADR-073-federal-render-caps"
       },

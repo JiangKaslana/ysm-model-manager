@@ -39,11 +39,11 @@
 | 前端·特性 | 20 | 94 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 4 | 34 |
-| frontend/ui | 17 | 95 |
-| 前端·工具 | 85 | 293 |
+| frontend/ui | 18 | 101 |
+| 前端·工具 | 86 | 300 |
 | frontend/views | 88 | 237 |
 | 前端·WASM | 3 | 6 |
-| **合计** | **338** | **1397** |
+| **合计** | **340** | **1410** |
 
 ## Go·头像
 
@@ -1034,6 +1034,10 @@
 | `PresetChipItem()` | `frontend/src/ui/ui-helpers` | — |
 | `cardContainer()` | `frontend/src/ui/ui-helpers` | — |
 | `withLoadingIndicator()` | `frontend/src/ui/ui-helpers` | — |
+| `createSlideMenu()` | `frontend/src/ui/ui-helpers` | — |
+| `SlideMenuHandle()` | `frontend/src/ui/ui-helpers` | — |
+| `installSlideMenuStyles()` | `frontend/src/ui/ui-helpers` | — |
+| `slideMenuStyleSheet()` | `frontend/src/ui/ui-helpers` | — |
 | `withLoadingIndicator()` | `frontend/src/ui/ui-loading:10` | — |
 | `PresetChipItem()` | `frontend/src/ui/ui-preset:16` | 单个预设芯片的描述。 |
 | `buildPresetChipGroup()` | `frontend/src/ui/ui-preset:35` | 渲染一组 preset-chip（统一 .preset-group 容器 + addPresetChip 布局）。 |
@@ -1061,6 +1065,8 @@
 | `slideMenuCss()` | `frontend/src/ui/ui-slide-menu-styles:8` | — |
 | `slideMenuStyleSheet()` | `frontend/src/ui/ui-slide-menu-styles:140` | — |
 | `installSlideMenuStyles()` | `frontend/src/ui/ui-slide-menu-styles:144` | 将外壳样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
+| `SlideMenuHandle()` | `frontend/src/ui/ui-slide-menu:14` | — |
+| `createSlideMenu()` | `frontend/src/ui/ui-slide-menu:28` | 构建 slide-menu 卡片外壳。 |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-slide-row` | — |
 | `TrailingAction()` | `frontend/src/ui/ui-slide-row:12` | — |
 | `createTrailingBtn()` | `frontend/src/ui/ui-slide-row:55` | 统一尾部第二动作按钮工厂——供 slideRow 与 menu.ts createRow 共用， 确保两条渲染路径的第二按钮观感与行为一致（22px .slide-add-btn； |
@@ -1128,6 +1134,12 @@
 | `MaterialWithMap()` | `frontend/src/utils/3d/mesh:22` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:27` | 释放材质（含位图 .map），null/undefined 安全。 |
 | `buildSceneMesh()` | `frontend/src/utils/3d/mesh:35` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
+| `MmdBoneTreeNode()` | `frontend/src/utils/3d/mmd-bones:12` | 骨骼树节点（buildMmdBoneTree 返回根数组 = 森林） |
+| `MmdBoneListItem()` | `frontend/src/utils/3d/mmd-bones:19` | 扁平骨骼列表项（listMmdBones：DFS 先序，depth 即缩进层级） |
+| `MmdBonePickResult()` | `frontend/src/utils/3d/mmd-bones:27` | 拾取结果（pickMmdBone 命中） |
+| `MmdBoneDetail()` | `frontend/src/utils/3d/mmd-bones:34` | 骨骼详情（getMmdBoneDetail） |
+| `buildMmdBoneTree()` | `frontend/src/utils/3d/mmd-bones:45` | 树构建：parentBoneIndex 挂父（自引用/越界视为根），返回根节点森林 |
+| `listMmdBones()` | `frontend/src/utils/3d/mmd-bones:63` | 扁平列表：树 DFS 先序 + 深度（消费方可按 depth 缩进渲染） |
 | `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:33` | 单组件 spec 构建核心。 |
 | `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
 | `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
@@ -1345,8 +1357,8 @@
 | `GH_REPO()` | `frontend/src/utils/gh-links:5` | — |
 | `GH_RELEASES()` | `frontend/src/utils/gh-links:6` | — |
 | `GH_DOCS()` | `frontend/src/utils/gh-links:7` | — |
-| `fileIcon()` | `frontend/src/utils/icon/icon:44` | 按扩展名返回图标 emoji |
-| `isYsmName()` | `frontend/src/utils/icon/icon:60` | 是否为 YSM 文件 |
+| `fileIcon()` | `frontend/src/utils/icon/icon:32` | 按扩展名返回图标 emoji |
+| `isYsmName()` | `frontend/src/utils/icon/icon:48` | 是否为 YSM 文件 |
 | `ICONS()` | `frontend/src/utils/icon/workshop-icons:3` | — |
 | `getSiteIcon()` | `frontend/src/utils/icon/workshop-icons:46` | — |
 | `getTagIconFromRole()` | `frontend/src/utils/icon/workshop-icons:54` | — |
@@ -1362,10 +1374,11 @@
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:43` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
 | `extOf()` | `frontend/src/utils/resource/types:52` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
 | `matchTypeByExt()` | `frontend/src/utils/resource/types:94` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:116` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:122` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:133` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:146` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `typeIconOf()` | `frontend/src/utils/resource/types:119` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:124` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:130` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:141` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:154` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
 

@@ -1,5 +1,5 @@
 // ===== 文件名 → 图标（类型化版 — ADR-014 P2）=====
-import { RESOURCE_TYPES } from "../resource/types.ts";
+import { RESOURCE_TYPES, typeIconOf } from "../resource/types.ts";
 import { RESOURCE_EXTS } from "../resource/extensions.ts";
 
 function getExt(name: string): string {
@@ -8,23 +8,11 @@ function getExt(name: string): string {
   return ((name ?? "").split(".").pop() || "").toLowerCase();
 }
 
-/** 注册表类型 → 特征图标（前端契约语义，非 JSON icon 字段） */
-const RTYPE_ICONS: Record<string, string> = {
-  [RESOURCE_TYPES.YSM]: "💎",
-  [RESOURCE_TYPES.MMD]: "🎭",
-  [RESOURCE_TYPES.VRC]: "🥽",
-  [RESOURCE_TYPES.PACK]: "📦",
-  [RESOURCE_TYPES.SHADER]: "📦",
-  [RESOURCE_TYPES.BLUEPRINT]: "⚙️",
-  [RESOURCE_TYPES.LITEMATIC]: "📐",
-};
-
-/** 注册表扩展名 → 图标（由 RESOURCE_EXTS 遍历生成，单一事实来源，防手写列表漂移） */
+/** 注册表扩展名 → 图标（由 RESOURCE_EXTS 遍历 + JSON icon 派生生成，单一事实来源） */
 const REGISTRY_EXT_ICONS: Record<string, string> = (() => {
   const m: Record<string, string> = {};
   for (const [rt, exts] of Object.entries(RESOURCE_EXTS)) {
-    const icon = RTYPE_ICONS[rt];
-    if (!icon) continue;
+    const icon = typeIconOf(rt);
     for (const e of exts) {
       const key = e.replace(/^\./, "");
       // ysm 的 .zip/.json 是归档/清单容器（且 .zip 与资源包/光影包共享），

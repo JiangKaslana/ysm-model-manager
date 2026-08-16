@@ -112,6 +112,14 @@ function resolveTypeByExt(path: string): string | null {
 /** 压缩容器扩展名：走 Go 解包提取，不由前端 WASM 直接预览 */
 const CONTAINER_EXTS = new Set([".zip", ".7z"]);
 
+/**
+ * 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3：
+ * 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新增类型须手改；现 JSON 加 icon 即自动生效）。
+ */
+export function typeIconOf(id: string): string {
+  return RESOURCE_CAPS[id]?.icon || "📦";
+}
+
 /** ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 */
 export function isYsmWasmPreview(path: string): boolean {
   const ext = extOf(path);
