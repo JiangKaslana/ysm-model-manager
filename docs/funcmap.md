@@ -1704,7 +1704,7 @@
 | `initYSMParser()` | `frontend/src/wasm/ysm-parser:92` | — |
 | `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:184` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
 | `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:233` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
-| `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt:3` | — |
+| `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt:4` | — |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
 | `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:61` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
 | `decodeYsmInWorker()` | `frontend/src/wasm/ysm-worker-loader:204` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组），返回 [{path, data}]。 |
