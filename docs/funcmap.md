@@ -192,17 +192,17 @@
 | `DetectZipType()` | `go/importer/importer_file:142` | DetectZipType 扫描容器条目名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries （exact/pr |
 | `ImportOptions()` | `go/importer/importer_file:28` | ImportOptions 导入选项 |
 | `ImportLogger()` | `go/importer/importer_file:34` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
-| `Register()` | `go/importer/importer:33` | Register 注册导入策略 |
-| `Get()` | `go/importer/importer:38` | Get 获取指定类型的导入策略 |
-| `NewSimpleCopy()` | `go/importer/importer:64` | NewSimpleCopy 创建简单文件复制导入器 |
-| `SimpleCopyImporter.Type()` | `go/importer/importer:68` | — |
-| `SimpleCopyImporter.Import()` | `go/importer/importer:70` | — |
-| `NewDirectoryCopy()` | `go/importer/importer:265` | NewDirectoryCopy 创建文件夹复制导入器 |
-| `DirectoryCopyImporter.Type()` | `go/importer/importer:269` | — |
-| `DirectoryCopyImporter.Import()` | `go/importer/importer:274` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
-| `Handler()` | `go/importer/importer:23` | Handler 资源导入策略接口 |
-| `SimpleCopyImporter()` | `go/importer/importer:59` | — |
-| `DirectoryCopyImporter()` | `go/importer/importer:260` | — |
+| `Register()` | `go/importer/importer:37` | Register 注册导入策略（线程安全） |
+| `Get()` | `go/importer/importer:44` | Get 获取指定类型的导入策略（线程安全） |
+| `NewSimpleCopy()` | `go/importer/importer:72` | NewSimpleCopy 创建简单文件复制导入器 |
+| `SimpleCopyImporter.Type()` | `go/importer/importer:76` | — |
+| `SimpleCopyImporter.Import()` | `go/importer/importer:78` | — |
+| `NewDirectoryCopy()` | `go/importer/importer:273` | NewDirectoryCopy 创建文件夹复制导入器 |
+| `DirectoryCopyImporter.Type()` | `go/importer/importer:277` | — |
+| `DirectoryCopyImporter.Import()` | `go/importer/importer:282` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
+| `Handler()` | `go/importer/importer:24` | Handler 资源导入策略接口 |
+| `SimpleCopyImporter()` | `go/importer/importer:67` | — |
+| `DirectoryCopyImporter()` | `go/importer/importer:268` | — |
 
 ## Go·安装
 

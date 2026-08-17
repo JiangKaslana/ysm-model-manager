@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"ysm-model-manager/go/fsutil"
@@ -27,15 +28,22 @@ type Handler interface {
 	Import(srcPath, dstDir string) string
 }
 
-var registry = map[string]Handler{}
+var (
+	registry   = map[string]Handler{}
+	registryMu sync.RWMutex
+)
 
-// Register 注册导入策略
+// Register 注册导入策略（线程安全）
 func Register(h Handler) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	registry[h.Type()] = h
 }
 
-// Get 获取指定类型的导入策略
+// Get 获取指定类型的导入策略（线程安全）
 func Get(rtype string) Handler {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	return registry[rtype]
 }
 
