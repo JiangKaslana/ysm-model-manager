@@ -10,7 +10,7 @@
 | Go·头像 | 4 | 11 |
 | go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
-| Go·下载 | 1 | 13 |
+| Go·下载 | 1 | 15 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 14 |
 | Go·文件系统 | 8 | 16 |
@@ -44,7 +44,7 @@
 | frontend/views | 98 | 273 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **383** | **1604** |
+| **合计** | **383** | **1606** |
 
 ## Go·头像
 
@@ -107,19 +107,21 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetConfigFunc()` | `go/download/download:36` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `HTTPStatusError.Error()` | `go/download/download:84` | — |
-| `TruncationError.Error()` | `go/download/download:92` | — |
-| `TruncationError.Unwrap()` | `go/download/download:98` | Unwrap 让 errors.Is(err, ErrTruncated) 成立——调用方既可判断类别（errors.Is）， 又可提取数值（errors.As），无需文本匹配（# |
-| `New()` | `go/download/download:110` | New 创建 Downloader，默认 5 分钟超时（可被 AppConfig.DownloadTimeoutSec 覆盖，ADR-062）。 |
-| `NewWithClient()` | `go/download/download:115` | NewWithClient 使用指定 HTTP client。 |
-| `Downloader.File()` | `go/download/download:282` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
-| `Downloader.FromGitHubAPI()` | `go/download/download:287` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
-| `ResolveSavePath()` | `go/download/download:311` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
-| `HTTPStatusError()` | `go/download/download:80` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
-| `TruncationError()` | `go/download/download:87` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
-| `ProgressFn()` | `go/download/download:101` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
-| `Downloader()` | `go/download/download:104` | Downloader 文件下载器。 |
+| `SetConfigFunc()` | `go/download/download:38` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `HTTPStatusError.Error()` | `go/download/download:89` | — |
+| `TruncationError.Error()` | `go/download/download:97` | — |
+| `TruncationError.Unwrap()` | `go/download/download:103` | Unwrap 让 errors.Is(err, ErrTruncated) 成立——调用方既可判断类别（errors.Is）， 又可提取数值（errors.As），无需文本匹配（# |
+| `New()` | `go/download/download:115` | New 创建 Downloader，默认 5 分钟超时（可被 AppConfig.DownloadTimeoutSec 覆盖，ADR-062）。 |
+| `NewWithClient()` | `go/download/download:120` | NewWithClient 使用指定 HTTP client。 |
+| `Downloader.File()` | `go/download/download:304` | File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。 |
+| `Downloader.FileWithChecksum()` | `go/download/download:310` | FileWithChecksum 与 File 相同，额外校验下载内容 SHA256 与期望值一致。 |
+| `Downloader.FromGitHubAPI()` | `go/download/download:315` | FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。 |
+| `Downloader.FromGitHubAPIWithChecksum()` | `go/download/download:320` | FromGitHubAPIWithChecksum 与 FromGitHubAPI 相同，额外校验 SHA256（P2 预留，语义同 FileWithChecksum）。 |
+| `ResolveSavePath()` | `go/download/download:344` | ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。 |
+| `HTTPStatusError()` | `go/download/download:85` | HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值， 替代 strings.Contains(err.Error(), "4 |
+| `TruncationError()` | `go/download/download:92` | TruncationError 携带期望/实际字节数的截断错误，调用方用 errors.As 提取数值做诊断上报。 |
+| `ProgressFn()` | `go/download/download:106` | ProgressFn 下载进度回调。downloaded / total 为字节数。 |
+| `Downloader()` | `go/download/download:109` | Downloader 文件下载器。 |
 
 ## go/executil
 
@@ -691,7 +693,7 @@
 | `normalizeTheme()` | `frontend/src/app-modules` | — |
 | `applyTheme()` | `frontend/src/app-modules` | — |
 | `initTheme()` | `frontend/src/app-modules` | — |
-| `bus()` | `frontend/src/bus:205` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:199` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
@@ -699,8 +701,8 @@
 | `ModelSelectPayload()` | `frontend/src/bus:43` | — |
 | `CtxShowPayload()` | `frontend/src/bus:48` | — |
 | `BusEvents()` | `frontend/src/bus:65` | — |
-| `BusEventName()` | `frontend/src/bus:114` | — |
-| `Bus()` | `frontend/src/bus:142` | — |
+| `BusEventName()` | `frontend/src/bus:110` | — |
+| `Bus()` | `frontend/src/bus:136` | — |
 | `normalizeTheme()` | `frontend/src/theme-core:23` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
 | `applyTheme()` | `frontend/src/theme-core:27` | — |
 | `initTheme()` | `frontend/src/theme-core:40` | — |
@@ -1733,7 +1735,7 @@
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:10` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
-| `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:150` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
+| `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:147` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
 | `renderVersionCards()` | `frontend/src/views/app-sidebar/render:8` | — |
 | `sidebarCSS()` | `frontend/src/views/app-sidebar/sidebar-css:3` | — |
 | `headerHTML()` | `frontend/src/views/app-sidebar/tpl:19` | — |

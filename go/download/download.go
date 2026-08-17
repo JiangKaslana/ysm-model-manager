@@ -2,7 +2,9 @@
 package download
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -73,6 +75,9 @@ var (
 	ErrNonBinaryContentType = errors.New("拒绝非二进制响应 Content-Type")
 	// ErrTruncated 下载截断——服务端声明 Content-Length 但实际字节数不足（#11 截断静默反模式）。
 	ErrTruncated = errors.New("下载截断")
+	// ErrChecksumMismatch 下载内容 SHA256 与期望值不符（P2 预留：可选校验，
+	// 调用方通过 FileWithChecksum / FromGitHubAPIWithChecksum 传入，不传即跳过，行为零漂移）。
+	ErrChecksumMismatch = errors.New("校验和不匹配")
 )
 
 // HTTPStatusError 携带 HTTP 状态码的类型化错误，调用方用 errors.As 提取码值，
@@ -124,9 +129,11 @@ func (d *Downloader) httpClient() *http.Client {
 }
 
 // downloadTo 下载到 savePath，支持 Accept 头与进度回调；失败/中断时清理半截临时文件。
+// expectedSHA256 非空时校验下载内容 SHA256 一致才装盘（P2 预留）；为空则跳过校验，
+// 行为零漂移。
 // 错误分类用 sentinel（ErrTruncated 等）+ 类型化（HTTPStatusError / TruncationError），
 // 调用方用 errors.Is / errors.As 判断类别，不要靠英文子串 contains 匹配（#11 反模式）。
-func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept string, onProgress ProgressFn) error {
+func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept string, onProgress ProgressFn, expectedSHA256 []byte) error {
 	// P2-2：URL scheme 校验——仅允许 http/https，拒绝 file/ftp 等本地读取源
 	u, err := neturl.Parse(url)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
@@ -258,6 +265,21 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 			return &TruncationError{Expected: total, Actual: downloaded}
 		}
 	}
+	// P2 预留：可选 checksum 校验——下载内容 SHA256 与期望值一致才装盘。
+	// expectedSHA256 为空跳过（行为零漂移）；不匹配返回 ErrChecksumMismatch，
+	// temp 由外层 defer 清理，最终路径旧文件不受影响（原子性保持）。
+	if len(expectedSHA256) > 0 {
+		if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+			return fmt.Errorf("定位临时文件失败: %w", err)
+		}
+		h := sha256.New()
+		if _, err := io.Copy(h, tmp); err != nil {
+			return fmt.Errorf("计算 SHA256 失败: %w", err)
+		}
+		if actual := h.Sum(nil); !bytes.Equal(actual, expectedSHA256) {
+			return fmt.Errorf("%w: 期望 %x, 实际 %x", ErrChecksumMismatch, expectedSHA256, actual)
+		}
+	}
 	if total <= 0 {
 		total = downloaded
 	}
@@ -280,12 +302,23 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 
 // File 从 URL 下载文件到 savePath，支持进度回调。ctx 取消/超时即中断下载。
 func (d *Downloader) File(ctx context.Context, url, savePath string, onProgress ProgressFn) error {
-	return d.downloadTo(ctx, url, savePath, "", onProgress)
+	return d.downloadTo(ctx, url, savePath, "", onProgress, nil)
+}
+
+// FileWithChecksum 与 File 相同，额外校验下载内容 SHA256 与期望值一致。
+// expectedSHA256 为空（nil/零长）时跳过校验，行为与 File 完全一致（P2 预留）。
+func (d *Downloader) FileWithChecksum(ctx context.Context, url, savePath string, onProgress ProgressFn, expectedSHA256 []byte) error {
+	return d.downloadTo(ctx, url, savePath, "", onProgress, expectedSHA256)
 }
 
 // FromGitHubAPI 从 GitHub API 下载（设置 Accept 头）。ctx 取消/超时即中断下载。
 func (d *Downloader) FromGitHubAPI(ctx context.Context, apiURL, savePath string, onProgress ProgressFn) error {
-	return d.downloadTo(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress)
+	return d.downloadTo(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress, nil)
+}
+
+// FromGitHubAPIWithChecksum 与 FromGitHubAPI 相同，额外校验 SHA256（P2 预留，语义同 FileWithChecksum）。
+func (d *Downloader) FromGitHubAPIWithChecksum(ctx context.Context, apiURL, savePath string, onProgress ProgressFn, expectedSHA256 []byte) error {
+	return d.downloadTo(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress, expectedSHA256)
 }
 
 // isBinaryContentType 判断 Content-Type 是否非"HTML 错误页"。

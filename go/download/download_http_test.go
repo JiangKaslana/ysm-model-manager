@@ -2,6 +2,7 @@ package download
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -938,5 +939,59 @@ func TestAudit_DownloadFailed_FileNeverCreated(t *testing.T) {
 	}
 	if residue := hasPartResidue(t, saveDir); len(residue) > 0 {
 		t.Fatalf("404 失败后 .part 残留: %v", residue)
+	}
+}
+
+// ============================================================================
+// P2 预留：可选 checksum 校验（FileWithChecksum / FromGitHubAPIWithChecksum）
+// ============================================================================
+
+// TestHTTP_Checksum_Match 期望 SHA256 匹配 → 下载成功装盘，内容一致。
+func TestHTTP_Checksum_Match(t *testing.T) {
+	body := []byte("checksum-match-content-1234567890")
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(body)
+	}))
+	defer ts.Close()
+
+	h := sha256.Sum256(body)
+	dl := New()
+	savePath := filepath.Join(t.TempDir(), "ck-match.txt")
+	if err := dl.FileWithChecksum(context.Background(), ts.URL, savePath, nil, h[:]); err != nil {
+		t.Fatalf("checksum 匹配应下载成功: %v", err)
+	}
+	data, err := os.ReadFile(savePath)
+	if err != nil {
+		t.Fatalf("下载文件缺失: %v", err)
+	}
+	if string(data) != string(body) {
+		t.Fatalf("内容不符: got %q, want %q", string(data), string(body))
+	}
+}
+
+// TestHTTP_Checksum_Mismatch 期望 SHA256 不匹配 → 返回 ErrChecksumMismatch，
+// savePath 不得装盘、无 .part 残留（temp 由 defer 清理，原子性保持）。
+func TestHTTP_Checksum_Mismatch(t *testing.T) {
+	body := []byte("checksum-mismatch-content")
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(body)
+	}))
+	defer ts.Close()
+
+	dl := New()
+	saveDir := t.TempDir()
+	savePath := filepath.Join(saveDir, "ck-mismatch.txt")
+	err := dl.FileWithChecksum(context.Background(), ts.URL, savePath, nil, make([]byte, 32))
+	if err == nil {
+		t.Fatal("checksum 不匹配应报错")
+	}
+	if !errors.Is(err, ErrChecksumMismatch) {
+		t.Fatalf("应为 ErrChecksumMismatch, got %T: %v", err, err)
+	}
+	if _, sErr := os.Stat(savePath); !os.IsNotExist(sErr) {
+		t.Fatalf("checksum 失败后 savePath 不应被装盘: %v", sErr)
+	}
+	if residue := hasPartResidue(t, saveDir); len(residue) > 0 {
+		t.Fatalf("checksum 失败后 .part 残留: %v", residue)
 	}
 }
