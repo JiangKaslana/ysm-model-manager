@@ -24,14 +24,18 @@ import type { PreviewMenuHandle } from "./preview-menu.ts";
 /** 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） */
 export interface SwitchContext {
   scene: THREE.Scene | undefined;
-  sceneBaseline: Set<THREE.Object3D> | null;
-  built: PreviewScene | null;
+  /** 可变：build 后赋值为 scene.children 快照 */
+  getSceneBaseline: () => Set<THREE.Object3D> | null;
+  /** 可变：build 后赋值 */
+  getBuilt: () => PreviewScene | null;
   setBuilt: (s: PreviewScene | null) => void;
   allBuilt: PreviewScene[];
   topBar: HTMLElement;
-  adapterControlsStart: number;
+  /** 可变：build 后赋值 */
+  getAdapterControlsStart: () => number;
   setAdapterControlsStart: (n: number) => void;
-  panelEl: HTMLElement | null;
+  /** 可变：sidePanel 挂载后赋值 */
+  getPanelEl: () => HTMLElement | null;
   loadingEl: HTMLElement;
   viewContainer: HTMLElement;
   overlay: HTMLElement;
@@ -44,11 +48,14 @@ export interface SwitchContext {
   orbitTarget: THREE.Vector3 | undefined;
   camera: THREE.PerspectiveCamera | undefined;
   lightCap: LightCapability | null;
-  currentPath: string;
+  /** 可变：build 后赋值 */
+  getCurrentPath: () => string;
   setCurrentPath: (p: string) => void;
-  perFrame: ((dt: number) => void) | null;
+  /** 可变：build 后赋值 */
+  getPerFrame: () => ((dt: number) => void) | null;
   setPerFrame: (f: ((dt: number) => void) | null) => void;
-  _handle: PreviewHandle | null;
+  /** 可变：_handle 构造后赋值 */
+  getHandle: () => PreviewHandle | null;
   aborted: boolean;
   isDisposed: { v: boolean };
   /** 代际守卫：切换时丢弃过期挂载 */
@@ -75,19 +82,19 @@ export async function switchToSession(
   const keep = options?.keepInScene === true;
 
   // 1) 移除旧适配器专属控件（topBar 中 adapterControlsStart 之后追加的节点）
-  while (ctx.topBar.childElementCount > ctx.adapterControlsStart) {
+  while (ctx.topBar.childElementCount > ctx.getAdapterControlsStart()) {
     ctx.topBar.lastChild?.remove();
   }
 
   // 2) 非同台模式：移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积）
-  if (!keep && ctx.scene && ctx.sceneBaseline) {
-    const stale = ctx.scene.children.filter((c) => !ctx.sceneBaseline!.has(c));
+  if (!keep && ctx.scene && ctx.getSceneBaseline()) {
+    const stale = ctx.scene.children.filter((c) => !ctx.getSceneBaseline()!.has(c));
     for (const c of stale) ctx.scene.remove(c);
   }
 
   // 3) 释放旧内容层 GPU 资源（非同台模式才 dispose；同台模式下旧模型仍需保持）
   if (!keep) {
-    try { ctx.built?.dispose(); } catch (_) {}
+    try { ctx.getBuilt()?.dispose(); } catch (_) {}
   }
 
   // 4) 重建内容层（新 path）
@@ -135,13 +142,15 @@ export async function switchToSession(
     ctx.orbitTarget.copy(ctx.controls.target);
   }
   ctx.setPerFrame(next.update ?? null);
-  syncLightTargetFromContent(ctx.scene, ctx.sceneBaseline, ctx.lightCap);
+  syncLightTargetFromContent(ctx.scene, ctx.getSceneBaseline(), ctx.lightCap);
 
-  if (ctx._handle) ctx._handle.screenshot = next.screenshot;
+  const handle = ctx.getHandle();
+  if (handle) handle.screenshot = next.screenshot;
   next.extraControls?.(ctx.topBar);
-  if (next.extraPanel && ctx.panelEl) {
-    ctx.panelEl.innerHTML = "";
-    next.extraPanel(ctx.panelEl);
+  const panel = ctx.getPanelEl();
+  if (next.extraPanel && panel) {
+    panel.innerHTML = "";
+    next.extraPanel(panel);
   }
 }
 

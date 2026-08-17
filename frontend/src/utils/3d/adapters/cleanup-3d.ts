@@ -27,7 +27,8 @@ export interface CleanupContext {
   onDragPointerUp: (e: PointerEvent) => void;
   onDragPointerMove: (e: PointerEvent) => void;
   onResize: () => void;
-  panelCleanup: (() => void) | null;
+  /** 可变：sidePanel 挂载后赋值 */
+  getPanelCleanup: () => (() => void) | null;
   allBuilt: { dispose(): void }[];
   /** 置 null built 引用（防双重释放） */
   nullBuilt: () => void;
@@ -61,7 +62,7 @@ export function runFullCleanup(ctx: CleanupContext): void {
   window.removeEventListener("pointerup", ctx.onDragPointerUp);
   window.removeEventListener("pointermove", ctx.onDragPointerMove);
   window.removeEventListener("resize", ctx.onResize);
-  ctx.panelCleanup?.();
+  ctx.getPanelCleanup()?.();
   // 内容层先释放自身资源，核心再回收外壳
   // cooperate 模式下需逐一 dispose 所有已追加模型（adapter 专属 GPU 资源）
   for (const b of ctx.allBuilt) {

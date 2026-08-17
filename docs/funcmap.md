@@ -1123,8 +1123,8 @@
 | `CameraControlBridge()` | `frontend/src/utils/3d/adapters/camera-controls:13` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:20` | — |
-| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:53` | — |
-| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:110` | — |
+| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:54` | — |
+| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:111` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:45` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1160,8 +1160,8 @@
 | `SidePanelResult()` | `frontend/src/utils/3d/adapters/side-panel:7` | 侧栏装配结果（供 mount3D 主流程写入 panelEl / panelCleanup 引用） |
 | `mountSidePanel()` | `frontend/src/utils/3d/adapters/side-panel:19` | 挂载适配器专属侧栏面板。 |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:25` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
-| `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:69` | 会话内切换模型（复用外壳重建内容层）。 |
-| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:159` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:76` | 会话内切换模型（复用外壳重建内容层）。 |
+| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:168` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:70` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:89` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:149` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |

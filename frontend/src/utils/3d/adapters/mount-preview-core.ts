@@ -35,6 +35,7 @@ import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts
 import type { SwitchContext } from "./switch-preview.ts";
 import { bindInputHandlers } from "./input-and-animation.ts";
 import type { InputOptions } from "./input-and-animation.ts";
+import { mountSidePanel } from "./side-panel.ts";
 import { type SemanticBoneMap } from "../semantic-bones.ts";
 import { bus } from "../../../bus.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
@@ -429,7 +430,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     onDragPointerUp,
     onDragPointerMove,
     onResize,
-    panelCleanup,
+    getPanelCleanup: () => panelCleanup,
     allBuilt,
     nullBuilt: () => { built = null; },
     skyCap,
@@ -447,14 +448,14 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
 
   const switchCtx: SwitchContext = {
     scene,
-    sceneBaseline,
-    built,
+    getSceneBaseline: () => sceneBaseline,
+    getBuilt: () => built,
     setBuilt: (s) => { built = s; },
     allBuilt,
     topBar,
-    adapterControlsStart,
+    getAdapterControlsStart: () => adapterControlsStart,
     setAdapterControlsStart: (n) => { adapterControlsStart = n; },
-    panelEl,
+    getPanelEl: () => panelEl,
     loadingEl,
     viewContainer,
     overlay,
@@ -467,11 +468,11 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     orbitTarget,
     camera,
     lightCap,
-    currentPath,
+    getCurrentPath: () => currentPath,
     setCurrentPath: (p) => { currentPath = p; },
-    perFrame,
+    getPerFrame: () => perFrame,
     setPerFrame: (f) => { perFrame = f; },
-    _handle,
+    getHandle: () => _handle,
     aborted,
     isDisposed,
     myGen,
@@ -527,52 +528,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     built.extraControls?.(topBar);
 
     // 适配器侧栏（ysm 骨骼列表/详情等）：核心提供 panel + 折叠/拖拽柄，内容由适配器填充
-    if (built.extraPanel) {
-      const panel = document.createElement("div");
-      panelEl = panel;
-      panel.id = "preview-panel"; // 对齐旧 skeleton panel：fill3DPanel 内部选择器依赖此 id（全选/全不选）
-      panel.style.cssText =
-        "width:260px;flex-shrink:0;overflow:auto;background:rgba(0,0,0,0.25);color:#fff;font-size:12px;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.1)";
-      const resizeHandle = document.createElement("div");
-      resizeHandle.style.cssText =
-        "width:4px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,0.2);touch-action:none";
-      body.appendChild(resizeHandle);
-      body.appendChild(panel);
-
-      const panelToggle = document.createElement("button");
-      panelToggle.textContent = "▾";
-      panelToggle.style.cssText =
-        "font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.8);cursor:pointer;margin-left:4px";
-      topBar.appendChild(panelToggle);
-      let panelVisible = true;
-      panelToggle.onclick = (): void => {
-        panelVisible = !panelVisible;
-        panel.style.display = panelVisible ? "flex" : "none";
-        resizeHandle.style.display = panelVisible ? "" : "none";
-        panelToggle.textContent = panelVisible ? "▾" : "▸";
-      };
-      let resizing = false;
-      const onRM = (e: PointerEvent): void => {
-        if (!resizing) return;
-        panel.style.width = Math.max(160, Math.min(500, body.getBoundingClientRect().right - e.clientX)) + "px";
-      };
-      const onRU = (e: PointerEvent): void => {
-        resizing = false;
-        if (resizeHandle.hasPointerCapture(e.pointerId)) resizeHandle.releasePointerCapture(e.pointerId);
-      };
-      resizeHandle.addEventListener("pointerdown", (e) => {
-        if (e.button !== 0) return;
-        resizing = true;
-        e.preventDefault();
-        resizeHandle.setPointerCapture(e.pointerId);
-      });
-      document.addEventListener("pointermove", onRM);
-      document.addEventListener("pointerup", onRU);
-      panelCleanup = (): void => {
-        document.removeEventListener("pointermove", onRM);
-        document.removeEventListener("pointerup", onRU);
-      };
-      built.extraPanel(panel);
+    const sidePanel = mountSidePanel(body, topBar, built);
+    if (sidePanel) {
+      panelEl = sidePanel.panelEl;
+      panelCleanup = sidePanel.panelCleanup;
     }
 
     function fullCleanup(): void { runFullCleanup(cleanupCtx); }
