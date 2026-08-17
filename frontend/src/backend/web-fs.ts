@@ -416,7 +416,7 @@ function parseWebModelDir(p: string): { type: string; name: string } | null {
 }
 
 /**
- * 递归列出指定 /web 目录下的全部文件完整路径（对齐桌面 ListAllFilePaths：
+ * 递归列出指定 /web 目录下全部文件完整路径（对齐桌面 ListAllFilePaths：
  * 递归完整路径、不限制扩展名）。支持多段 name（目录树）与组内子目录（rel 含 /）。
  * 目录形态路径（/web/<type>/<name> 或 /web/<type>/<name>/<subdir>）经
  * parseWebModelPath 反解出 {type, name, rel}，再枚举 file:<type>/<name>/ 前缀，
@@ -476,7 +476,7 @@ interface WebSearchResult {
   hasError: boolean;
 }
 
-async function searchWebModels(
+export async function searchWebModels(
   filesRoot: string,
   keyword: string,
   minBones = 0,
