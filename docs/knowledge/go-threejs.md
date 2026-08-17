@@ -16,7 +16,7 @@ use_when:
   - 四元数
   - 模型渲染
 invariant_anchors:
-  - go/threejs/spec.go|PivotSet
+  - go/threejs/spec.go|collectBonePivots
 ---
 
 # 3D 骨骼 spec go/threejs
