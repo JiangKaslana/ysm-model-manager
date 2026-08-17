@@ -13,33 +13,12 @@
 //   LoadGitHubRepos      : 用户配置 workshop-github.json > 内联 bundled > nil  ← 可被用户覆盖！
 // 关键差异：Go 全部从「用户配置目录优先」读取，覆盖层存在于磁盘；网页版创作者/站点/GitHub
 // 仓库均有 localStorage 覆盖层（WEB_CREATORS_KEY / WEB_SITES_KEY / web:github-repos，见 browser-adapter.ts）。
+// 共享 idb mock：setup 层 globalThis.__YSM_TEST_IDB__ 注入（isolate:false 穿透修复，2026-08-17）
+const idbMock = (globalThis as unknown as Record<string, unknown>).__YSM_TEST_IDB__;
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { browserAdapter } from "./browser-adapter.ts";
 
 // 复刻 harness：idb 层内存实现 + vi.mock；localStorage 由 happy-dom 提供。
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
-  };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
 
 // 各覆盖层 key（与 browser-adapter.ts 中保持一致，供测试直接探查）。
 const WEB_CREATORS_KEY = "web:workshop-creators";

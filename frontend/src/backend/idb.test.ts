@@ -3,6 +3,9 @@
 // 覆盖：open 失败降级 / onblocked / 内存驱逐双上限 / versionchange 重开 / _resetDBForTest
 // 实现：vi.stubGlobal 注入受控 fake indexedDB（open 可触发 onsuccess/onerror/onblocked），
 // 不依赖 fake-indexeddb 库（零依赖原则）。
+// 2026-08-17：本文件测「真实 idb.ts 实现」——test-setup 全局 mock 了 idb.ts（isolate:false
+// 穿透修复，供 browser-adapter 系共享），此处显式 unmock 恢复真实实现（否则 22 用例全被 mock 吞）。
+vi.unmock("./idb.ts");
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetDBForTest, idbDel, idbGet, idbKeys, idbSet, openDB } from "./idb.ts";
 

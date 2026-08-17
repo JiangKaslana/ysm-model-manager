@@ -11,6 +11,8 @@
 //   internal/app/resource_bindings.go  DeleteModelDir
 //   internal/app/app_install.go  ClearImportLogs/ClearRuntimeLogs
 //   internal/app/app_config.go   GetSubDirMap (→ go/types/extensions.go SubDirAll)
+// 共享 idb mock：setup 层 globalThis.__YSM_TEST_IDB__ 注入（isolate:false 穿透修复，2026-08-17）
+const idbMock = (globalThis as unknown as Record<string, unknown>).__YSM_TEST_IDB__;
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   browserAdapter,
@@ -19,29 +21,6 @@ import {
 } from "./browser-adapter.ts";
 
 // 复刻 browser-adapter.test.ts 的 harness（硬约束#3）
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
-  };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
 
 const enc = new TextEncoder();
 

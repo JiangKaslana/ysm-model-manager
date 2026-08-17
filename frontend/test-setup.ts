@@ -9,6 +9,39 @@
 import { vi } from "vitest";
 import { zhCN } from "./src/core/i18n/locales/zh-CN.ts";
 
+// 0. idb 层全局共享 mock（2026-08-17，isolate:false 穿透修复）——
+// browser-adapter 系测试原各自 vi.hoisted 独立 store + per-file vi.mock("./idb.ts")，
+// isolate:false 共享模块图下 web-fs.ts 首次求值捕获先运行文件的绑定 → 写入/读取错位。
+// 解法：setup 层用 vi.hoisted 建唯一 store 挂 globalThis，vi.mock factory 引用它——
+// 所有测试文件（含 web-fs.ts import 链）读写同一 store，穿透消失。
+// 注意：vi.hoisted 变量不能 export（vitest 限制），共享实例经 globalThis 传递。
+vi.hoisted(() => {
+  const g = globalThis as Record<string, unknown>;
+  if (!g.__YSM_TEST_IDB__) {
+    const store = new Map<string, unknown>();
+    g.__YSM_TEST_IDB__ = {
+      idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
+      idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
+        store.set(k, v);
+      }),
+      idbKeys: vi.fn(async (_s: string, prefix: string) =>
+        [...store.keys()].filter((k) => k.startsWith(prefix)),
+      ),
+      idbDel: vi.fn(async (_s: string, k: string) => {
+        store.delete(k);
+      }),
+      _store: store,
+    };
+  }
+  return g.__YSM_TEST_IDB__;
+});
+vi.mock("./src/backend/idb.ts", () => {
+  const m = (globalThis as Record<string, unknown>).__YSM_TEST_IDB__ as {
+    idbGet: unknown; idbSet: unknown; idbKeys: unknown; idbDel: unknown;
+  };
+  return { idbGet: m.idbGet, idbSet: m.idbSet, idbKeys: m.idbKeys, idbDel: m.idbDel };
+});
+
 // 1. Wails runtime 全局阻断（测试环境无需真实 runtime；组件测试可省去各自 vi.mock）
 vi.mock("@wailsio/runtime", () => ({
   Events: {

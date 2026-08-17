@@ -1,5 +1,7 @@
 // @vitest-environment node
 // ===== 浏览器后端适配器测试（ADR-049 Phase 1 骨架 + Phase 2 IndexedDB 模型库）=====
+// 共享 idb mock：setup 层 globalThis.__YSM_TEST_IDB__ 注入（isolate:false 穿透修复，2026-08-17）
+const idbMock = (globalThis as unknown as Record<string, unknown>).__YSM_TEST_IDB__;
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { zipSync, strToU8 } from "fflate";
 import {
@@ -15,32 +17,9 @@ import {
 } from "./browser-adapter.ts";
 
 // idb 层内存实现（真实 indexedDB 仅在浏览器存在，测试注入 Map 语义）
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    // P3 修复（code review）：mock 缺 idbDel——importWebFiles 回滚路径在测试中
-    // 解析到 undefined，任何触发回滚的用例都会 TypeError（被 best-effort catch 吞掉，
-    // 测试假绿而清理永不执行）
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
-  };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
+// 2026-08-17：改用 test-utils/idb-mock.ts 共享实例——isolate:false 共享模块图下
+// 各文件独立 vi.hoisted store 会被穿透（web-fs.ts 首次求值捕获先运行文件绑定），
+// setup 层已全局注入，此处仅 import 共享实例（同引用，import 须在文件首位）。
 
 const enc = new TextEncoder();
 

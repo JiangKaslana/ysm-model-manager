@@ -2,34 +2,13 @@
 // ===== 日志 IDB 持久化测试（审核 B 缺口 #2）=====
 // AddOpLog/AddImportLog → IDB 落库（web:runtime-logs/web:import-logs）；
 // GetRuntimeLogs hydrate 恢复上会话日志；clear 删 IDB；push 先 hydrate 不覆盖旧。
+// 共享 idb mock：setup 层 globalThis.__YSM_TEST_IDB__ 注入（isolate:false 穿透修复，2026-08-17）
+const idbMock = (globalThis as unknown as Record<string, unknown>).__YSM_TEST_IDB__;
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { browserAdapter } from "./browser-adapter.ts";
 import { __resetWebLogStateForTest } from "./web-store.ts";
 
 // idb 层内存实现（对齐 browser-adapter.test.ts 的 mock 模式）
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
-  };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
 
 beforeEach(() => {
   idbMock._store.clear();

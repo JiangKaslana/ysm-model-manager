@@ -3,33 +3,12 @@
 // 目标簇：ListModelAuthors / ScanLocalAuthors / GenerateRepoIndex
 // 不改动任何源码，仅新增本文件。harness 复刻 browser-adapter.test.ts
 // （vi.hoisted 的 idbMock + vi.mock("./idb.ts")）。
+// 共享 idb mock：setup 层 globalThis.__YSM_TEST_IDB__ 注入（isolate:false 穿透修复，2026-08-17）
+const idbMock = (globalThis as unknown as Record<string, unknown>).__YSM_TEST_IDB__;
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { browserAdapter, importWebFiles, WEB_ROOT } from "./browser-adapter.ts";
 
 // idb 层内存实现（与既有测试同形）
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
-  };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
 
 const enc = new TextEncoder();
 
