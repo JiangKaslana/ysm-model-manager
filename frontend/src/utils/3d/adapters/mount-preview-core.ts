@@ -9,6 +9,20 @@
 // 旧实现里 vrm-3d.ts 与 litematic-3d.ts 各自内联 ~250 行同构脚手架（"复制那套"），
 // 本文件将其收敛为单一事实来源。适配器契约对齐 YSM 既有的 Model3DHandleX，
 // 使三套渲染器最终可经注册表统一派发（P3-E）。
+//
+// ┌─ 快速跳转 ───────────────────────────────────────────────────────────────────┐
+// │  §1  常量 + 状态变量      → L105   DRAG_ROTATE_SENSITIVITY / DEFAULT_CAM_SPEED │
+// │  §2  公开 API             → L113   invalidatePreview / cleanupPreview         │
+// │  §3  switchPreview        → L127   会话内切换模型（复用外壳）                   │
+// │  §4  mount3D 入口         → L139   主挂载函数（722 行 → 见子节）               │
+// │    └─ 基础设施创建        → L272   scene/camera/renderer/OrbitControls         │
+// │    └─ UI 装配             → L180   overlay/topBar/侧栏/loading               │
+// │    └─ 输入绑定            → L308   WASD 键盘 + 拖拽自转                       │
+// │    └─ rAF 渲染管线        → L365   animate loop + postprocess composer        │
+// │    └─ 生命周期管理        → L452   cooperate/switchTo/代际守卫               │
+// │    └─ 通知 + 释放         → L580   toast + safeDisposeMat + fullCleanup       │
+// │  §5  私有工具             → L749   safeDisposeMat                            │
+// └──────────────────────────────────────────────────────────────────────────────┘
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -100,6 +114,7 @@ export interface PreviewHandle {
   screenshot?(): Promise<string | null>;
 }
 
+// ===== §1 常量 + 状态变量 =====
 // 相机控制常量（buildCameraControls 已拆至 camera-controls.ts，本文件保留自身仍使用的部分：
 // DRAG_ROTATE_SENSITIVITY 拖拽旋转 / DEFAULT_CAM_SPEED 初始速度 / TIP_AUTO_DISMISS_MS 提示自动消失）
 const DRAG_ROTATE_SENSITIVITY = 0.003; // 自身旋转模式拖拽灵敏度（rad/px）
@@ -110,7 +125,8 @@ let _handle: PreviewHandle | null = null;
 let _gen = 0;
 
 /** 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） */
-export function invalidatePreview(): void {
+  // ===== §2 公开 API =====
+  export function invalidatePreview(): void {
   _gen++;
 }
 
@@ -163,6 +179,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let mouseDown = false;
   let lastMouse = { x: 0, y: 0 };
   let orbitTarget: THREE.Vector3 | undefined;
+  // ===== §3 UI 装配（overlay/topBar/侧栏/loading/菜单）=====
   // 程序化天空能力（ADR-073 L1）：shared 模式注入统一核心，四种模型零改动继承
   let skyCap: SkyCapability | null = null;
   let groundCap: GroundCapability | null = null;
@@ -253,6 +270,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     "position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,0.6);font-size:14px;gap:12px;z-index:10;background:rgba(26,27,46,0.9)";
   viewContainer.appendChild(loadingEl);
 
+  // ===== §4 基础设施创建（scene/camera/renderer/OrbitControls/灯光/resize）=====
   let aborted = false;
   function escH(e: KeyboardEvent): void {
     if (e.key === "Escape") {
@@ -315,6 +333,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("keyup", onKeyUp);
 
+  // ===== §4a 输入绑定（WASD 键盘 + 拖拽自转）=====
     const onDragPointerDown = (e: PointerEvent): void => {
       if (!orbitMode && e.button === 0) {
         mouseDown = true;
@@ -362,7 +381,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     window.addEventListener("resize", onResize);
 
     let lastTime = performance.now();
-    function animate(): void {
+    // ===== §4b rAF 渲染管线（animate loop + postprocess composer）=====
+  function animate(): void {
       if (isDisposed.v) return;
       animId = requestAnimationFrame(animate);
       const now = performance.now();
@@ -518,7 +538,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       }
     }
     perFrame = built.update ?? null;
-    // 记录初始模型到追加列表（cooperate 模式下 fullCleanup 需逐一 dispose）
+  // ===== §4c 生命周期管理（cooperate/switchTo/代际守卫）=====
+  // 记录初始模型到追加列表（cooperate 模式下 fullCleanup 需逐一 dispose）
     if (built) allBuilt.push(built);
 
     // 适配器专属控件挂入通用 topBar 之后
@@ -746,6 +767,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   }
 }
 
+// ===== §5 私有工具函数 =====
 function safeDisposeMat(m: THREE.Material): void {
   const withTex = m as unknown as { map?: THREE.Texture; emissiveMap?: THREE.Texture };
   for (const tex of [withTex.map, withTex.emissiveMap]) {
