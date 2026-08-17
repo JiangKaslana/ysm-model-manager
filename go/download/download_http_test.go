@@ -46,12 +46,12 @@ func startRawHTTPServer(t *testing.T, status int, contentLength int, body []byte
 }
 
 // ============================================================================
-// 探察方向 1: 206 Partial Content 静默装盘
+// 验证方向 1: 206 Partial Content 静默装盘
 // ============================================================================
 
 // TestHTTP_206PartialContent_Rejected
 // 服务端返回 206 Partial Content + Content-Range: bytes 0-99/1000
-// 当前代码: resp.StatusCode != http.StatusOK → 206 != 200 → 返回错误
+// 防御：StatusCode 检查拒绝非 200 + Content-Range 头兜底（BUG-HTTP-1/2）
 func TestHTTP_206PartialContent_Rejected(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Range", "bytes 0-99/1000")
@@ -75,11 +75,11 @@ func TestHTTP_206PartialContent_Rejected(t *testing.T) {
 	}
 }
 
-// TestHTTP_200WithContentRange_NoValidation
+// TestHTTP_200WithContentRange_Rejected
 // 服务端返回 200 OK + Content-Range: bytes 0-99/1000 + Content-Length: 100
-// 当前代码只检查 StatusCode == 200，不校验 Content-Range 头
-// 这是真正漏洞: 服务端声称只发了 100/1000 字节，却被当作完整文件装盘
-func TestHTTP_200WithContentRange_NoValidation(t *testing.T) {
+// 防御（BUG-HTTP-2 修复）：即使 StatusCode=200，Content-Range 头存在即拒绝——
+// 防 SSRF 中间人用 200 + Content-Range 伪装完整响应整盘
+func TestHTTP_200WithContentRange_Rejected(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Range", "bytes 0-99/1000")
 		w.Header().Set("Content-Length", "100")
@@ -98,7 +98,7 @@ func TestHTTP_200WithContentRange_NoValidation(t *testing.T) {
 }
 
 // ============================================================================
-// 探察方向 2: 重定向链与 scheme 白名单
+// 验证方向 2: 重定向链与 scheme 白名单
 // ============================================================================
 
 // TestHTTP_Redirect_ChainExceedsLimit
@@ -167,14 +167,13 @@ func TestHTTP_Redirect_ToFtpScheme_Rejected(t *testing.T) {
 }
 
 // ============================================================================
-// 探察方向 3: Content-Type 校验缺失
+// 验证方向 3: Content-Type 校验缺失
 // ============================================================================
 
-// TestHTTP_ContentType_HTML_NotValidated
+// TestHTTP_ContentType_HTML_Rejected
 // 服务端返回 200 + Content-Type: text/html + HTML 错误页 body
-// 当前代码不校验 Content-Type → HTML 被当作文件装盘
-// FIXED(BUG-HTTP-5): downloadTo 现在校验 Content-Type，text/html 错误页被拒绝
-func TestHTTP_ContentType_HTML_NotValidated(t *testing.T) {
+// 防御（BUG-HTTP-5 修复）：downloadTo 校验 Content-Type，text/html 错误页被拒绝
+func TestHTTP_ContentType_HTML_Rejected(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write([]byte("<html><body><h1>404 Not Found</h1><p>The requested resource was not found.</p></body></html>"))
@@ -194,7 +193,7 @@ func TestHTTP_ContentType_HTML_NotValidated(t *testing.T) {
 }
 
 // ============================================================================
-// 探察方向 4: Content-Length 声明不符
+// 验证方向 4: Content-Length 声明不符
 // ============================================================================
 
 // TestHTTP_ContentLength_TruncationDetected
@@ -237,7 +236,7 @@ func TestHTTP_ContentLength_OverSent_NoValidation(t *testing.T) {
 }
 
 // ============================================================================
-// 探察方向 5: Progress 回调 panic
+// 验证方向 5: Progress 回调 panic
 // ============================================================================
 
 // TestHTTP_ProgressPanic_DuringLoop_TempFileCleaned
@@ -342,7 +341,7 @@ func TestHTTP_ProgressPanic_FinalCallback_FileSurvives(t *testing.T) {
 }
 
 // ============================================================================
-// 探察方向 6: Chunked encoding (无 Content-Length)
+// 验证方向 6: Chunked encoding (无 Content-Length)
 // ============================================================================
 
 // TestHTTP_ChunkedEncoding_Success
@@ -372,7 +371,7 @@ func TestHTTP_ChunkedEncoding_Success(t *testing.T) {
 }
 
 // ============================================================================
-// 探察方向 7: 0 字节 body + Content-Length: 0
+// 验证方向 7: 0 字节 body + Content-Length: 0
 // ============================================================================
 
 // TestHTTP_ZeroByteBody_WithContentLength0
@@ -398,7 +397,7 @@ func TestHTTP_ZeroByteBody_WithContentLength0(t *testing.T) {
 }
 
 // ============================================================================
-// 探察方向 8: fileLocks 并发冲突
+// 验证方向 8: fileLocks 并发冲突
 // ============================================================================
 
 // TestHTTP_ConcurrentSamePath_MutexSafety
