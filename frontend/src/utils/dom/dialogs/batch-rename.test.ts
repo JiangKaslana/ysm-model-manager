@@ -15,7 +15,7 @@ vi.mock("./modal.ts", () => ({
   esc: (s: unknown): string => String(s),
 }));
 
-import { showBatchRenameDialog } from "./batch-rename.ts";
+import { showBatchRenameDialog, __resetBatchRenameForTest } from "./batch-rename.ts";
 import type { BatchRenameChange } from "./batch-rename.ts";
 
 async function open(entries: Array<{ Name: string; Path?: string }>) {
@@ -30,6 +30,7 @@ beforeEach(() => {
   document.body.innerHTML = "";
   closeDlgMock.mockClear();
   registerDlgMock.mockClear();
+  __resetBatchRenameForTest(); // 重置模块级 dialogEl（防 isolate:false 跨文件残留）
 });
 
 afterEach(() => {

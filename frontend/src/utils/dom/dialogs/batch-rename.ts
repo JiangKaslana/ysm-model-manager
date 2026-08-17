@@ -38,6 +38,13 @@ interface BatchItem {
 let dialogEl: HTMLElement | null = null;
 let _pendingResolve: (() => void) | null = null;
 
+/** 测试钩子：重置模块级弹窗单例（isolate:false 共享模块图下，兄弟文件残留的
+ *  dialogEl 会让「重复打开」用例的 closeDlgMock 计数失真；modal.__resetModalStateForTest 同款） */
+export function __resetBatchRenameForTest(): void {
+  dialogEl = null;
+  _pendingResolve = null;
+}
+
 /**
  * 弹出批量重命名对话框
  * @param dir 所在目录

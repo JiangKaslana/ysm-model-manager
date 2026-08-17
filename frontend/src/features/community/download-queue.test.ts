@@ -67,7 +67,7 @@ let createDownloadQueue!: (options: QueueControllerOptions) => QueueController;
 beforeEach(async () => {
   vi.resetModules();
   onMock.mockClear(); // 清掉上一用例注册记录，防「累积调用下恒真」弱断言
-  enqueueMock.mockClear();
+  enqueueMock.mockReset(); // mockReset 清实现：防「入队失败」用例的 mockRejectedValue 跨用例残留（isolate:false 共享 mock 引用）
   statusMock.mockClear();
   cancelMock.mockClear();
   cachedAvatarMock.mockReset();

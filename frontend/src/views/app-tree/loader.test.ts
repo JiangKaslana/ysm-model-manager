@@ -4,8 +4,10 @@
 // mock 基线来自 e2e/mock-data.ts（共享单源：改 Go 数据只改一处，防双源漂移），
 // 测试专用值用 override 覆盖（如反斜杠路径用例）。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { bus } from "../../bus.ts";
 import { MOCK_DATA } from "../../../e2e/mock-data.ts";
+// bus 不静态 import：beforeEach resetModules 后动态拿，保证与 loader 新实例同源
+// （裸 resetModules 会让 loader 的 bus 与 spy 的 bus 分叉，toast 收不到——见 141 行注）
+import type { Bus } from "../../bus.ts";
 
 const { mocks } = vi.hoisted(() => {
   const mocks = {
@@ -44,9 +46,16 @@ vi.mock("../../utils/dom/android-bridge.ts", () => ({
 }));
 
 let cleanups: Array<() => void> = [];
+let bus: Bus;
 
-beforeEach(() => {
+beforeEach(async () => {
   cleanups = [];
+  // isolate:false 共享模块图下 per-file mock 先到先得：resetModules 让 loader.ts
+  // 及其依赖（backend/app.ts、android-bridge.ts）按本文件 mock 表重新求值，
+  // 避免被兄弟文件先求值的真实绑定固化（同 errors.test.ts 修复模式）。
+  // bus 必须动态 import 拿同一实例——否则 loader 新实例与 spy 的 bus 分叉，toast 收不到。
+  vi.resetModules();
+  bus = (await import("../../bus.ts")).bus;
   vi.clearAllMocks();
   mocks.getExts.mockReturnValue([".ysm", ".zip"]);
   // 共享基线：GetRepoRoot 取 MOCK_DATA 值（"/e2e/repo"），与 e2e 一致
@@ -149,6 +158,11 @@ describe("maybePromptAndroidStorage（loadEntries 失败触发）", () => {
     fakeMs += 60_000;
     vi.useFakeTimers();
     vi.setSystemTime(new Date(realStartMs + fakeMs));
+    // 显式制造 loadEntries 失败：maybePromptAndroidStorage 的入口是 loadEntries 的
+    // catch 分支，须保证本组每用例都抛错（发 error toast + 触发引导判断）。
+    // 原实现依赖前序用例「ScanModelEntriesWithLabel 抛错」的 mockRejectedValue 残留，
+    // isolate:true 顺序恰好生效，shuffle 打乱后失效 → 3 用例偶发挂。
+    mocks.ScanModelEntriesWithLabel.mockRejectedValue(new Error("load-fail"));
   });
   afterEach(() => {
     vi.useRealTimers();
