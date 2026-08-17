@@ -57,12 +57,12 @@
 
 | 路径 | 用途 |
 |------|------|
-| `backend/` | 后端适配层：Wails 绑定入口（app.ts）+ 平台判定（platform.ts）+ 浏览器适配（browser-adapter.ts）+ IndexedDB 模型库（idb.ts） 〔源码 18 · 测试 15〕 |
+| `backend/` | 后端适配层：Wails 绑定入口（app.ts）+ 平台判定（platform.ts）+ 浏览器适配（browser-adapter.ts）+ IndexedDB 模型库（idb.ts） 〔源码 17 · 测试 15〕 |
 | `core/` | 基础设施（buttons / global-handlers / theme / context-menus） 〔源码 8: context-menu-dir-handlers.ts context-menu-file-handlers.ts context-menu-handlers.ts context-menu-… · 测试 3 · 子目录 2: handlers/ i18n/〕 |
 | `features/` | 业务功能（import-queue / recycle-bin / version-updater / community） 〔源码 13 · 测试 10 · 子目录 1: community/〕 |
 | `services/` | 服务注册（registry.ts） 〔源码 1: registry.ts · 测试 1〕 |
 | `test-utils/` | 测试工具（G-1 抗脆弱测试基础设施 — ADR-035 §19.1：getByTestId / getAllByTestId / waitFor） 〔源码 5: events.ts index.ts query-by-testid.ts render.ts self-healing.ts · 测试 4〕 |
-| `ui/` | 🥉 ui-helpers 原生 DOM 组件库（自 MikuMikuAR 迁移：slide-row / rows / header-toggle / advanced-rows / collapsible / preset / card / loading + 自包含 CSS 模块 `ui-components-styles.ts`，经 `installUiComponentsStyles()` / `uiComponentsStyleSheet` 接入） 〔源码 19〕 |
+| `ui/` | 🥉 ui-helpers 原生 DOM 组件库（自 MikuMikuAR 迁移：slide-row / rows / header-toggle / advanced-rows / collapsible / preset / card / loading + 自包含 CSS 模块 `ui-components-styles.ts`，经 `installUiComponentsStyles()` / `uiComponentsStyleSheet` 接入） 〔源码 18〕 |
 | `utils/` | 工具函数（display / fmt / dom / icon / summarize / model3d） 〔源码 3: array.ts gh-links.ts types-re-export.ts · 测试 1 · 子目录 8: 3d/ animation/ core/ debug/ dom/ format/ icon/ resource/〕 |
 | `views/` | 页面级视图组件（app-content / app-tree / app-preview 等） 〔子目录 9: app-content/ app-nav/ app-preview/ app-resource-manager/ app-sidebar/ app-sync-manager/ app-toast/ app-tree/ context-menu/〕 |
 | `wasm/` | WASM 生成数据（base64 豁免文件） 〔源码 6: ysm-glue-data-mt.js ysm-glue-data.js ysm-parser.ts ysm-wasm-data-mt.js ysm-wasm-data.js ysm-worke…〕 |

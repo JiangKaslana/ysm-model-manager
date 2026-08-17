@@ -116,7 +116,7 @@ export function render(self: SyncRenderSelf): void {
         ';cursor:pointer;font-family:inherit;font-size:var(--fs-tab);white-space:nowrap">' +
         esc(cfg.icon || "📦") +
         " " +
-        esc(label) +
+        esc(label || "") +
         (count > 0
           ? ' <span style="font-size:var(--fs-xs);opacity:0.7">(' + count + ")</span>"
           : "") +

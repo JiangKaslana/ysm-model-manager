@@ -34,17 +34,17 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 24 | 183 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
-| frontend/backend | 18 | 99 |
+| frontend/backend | 17 | 97 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 21 | 99 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
-| frontend/ui | 19 | 107 |
-| 前端·工具 | 106 | 391 |
-| frontend/views | 99 | 271 |
+| frontend/ui | 18 | 95 |
+| 前端·工具 | 106 | 392 |
+| frontend/views | 99 | 270 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **384** | **1605** |
+| **合计** | **382** | **1591** |
 
 ## Go·头像
 
@@ -760,10 +760,8 @@
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
 | `AppBindings()` | `frontend/src/backend/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
-| `BLOCK_COLOR_MAP()` | `frontend/src/backend/voxel-colors-data:7` | 方块名（去命名空间）→ 近似十六进制颜色（对齐 go/litematic/block_colors.go blockColorMap） |
-| `BLOCK_VARIANT_NAMES()` | `frontend/src/backend/voxel-colors-data:305` | "id:data" → 注册名（对齐 go/litematic/block_ids_data.go blockVariantNames，schematic v1 数字 ID 解析） |
-| `mapColor()` | `frontend/src/backend/voxel-colors:90` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
-| `resolveBlockName()` | `frontend/src/backend/voxel-colors:105` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
+| `mapColor()` | `frontend/src/backend/voxel-colors:94` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
+| `resolveBlockName()` | `frontend/src/backend/voxel-colors:109` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
 | `VoxelGroup()` | `frontend/src/backend/voxel-parse:34` | 输出形状（对齐 types.VoxelGroup / LitematicVoxelData json tag） |
 | `VoxelData()` | `frontend/src/backend/voxel-parse:39` | — |
 | `readVarInt()` | `frontend/src/backend/voxel-parse:56` | 对齐 voxel.go:531-549 readVarInt：返回 {value, offset}（shift≥64 截断防溢出 wrap） |
@@ -1031,10 +1029,6 @@
 | `addColorSliderRow()` | `frontend/src/ui/ui-advanced-rows:30` | — |
 | `addVector3SliderRow()` | `frontend/src/ui/ui-advanced-rows:171` | — |
 | `addModeSlider()` | `frontend/src/ui/ui-advanced-rows:337` | — |
-| `BoneSelectOptions()` | `frontend/src/ui/ui-bone-select:6` | — |
-| `isIkBone()` | `frontend/src/ui/ui-bone-select:27` | 判断骨骼是否为 IK 相关骨骼 |
-| `buildBoneGroups()` | `frontend/src/ui/ui-bone-select:53` | 按类别分组骨骼名，未匹配的归入「その他」。空组被剔除。 |
-| `addBoneSelectRow()` | `frontend/src/ui/ui-bone-select:87` | 创建骨骼选择行：label + 搜索框 + 分组下拉（含 IK 标记）。 |
 | `cardContainer()` | `frontend/src/ui/ui-card:10` | Card container helper: removes render-card bg, wraps content in an lcard. |
 | `addCollapsible()` | `frontend/src/ui/ui-collapsible:24` | 通用折叠面板组件 |
 | `addSectionTitle()` | `frontend/src/ui/ui-collapsible:137` | 区块标题（section-title），用于 cardContainer 内的视觉分组。 |
@@ -1066,10 +1060,6 @@
 | `addActionRow()` | `frontend/src/ui/ui-helpers` | — |
 | `addDisabledRow()` | `frontend/src/ui/ui-helpers` | — |
 | `addInlineToggleRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addBoneSelectRow()` | `frontend/src/ui/ui-helpers` | — |
-| `isIkBone()` | `frontend/src/ui/ui-helpers` | — |
-| `buildBoneGroups()` | `frontend/src/ui/ui-helpers` | — |
-| `BoneSelectOptions()` | `frontend/src/ui/ui-helpers` | — |
 | `createHeaderToggle()` | `frontend/src/ui/ui-helpers` | — |
 | `HeaderToggleConfig()` | `frontend/src/ui/ui-helpers` | — |
 | `addColorSliderRow()` | `frontend/src/ui/ui-helpers` | — |
@@ -1092,26 +1082,22 @@
 | `PresetChipItem()` | `frontend/src/ui/ui-preset:16` | 单个预设芯片的描述。 |
 | `buildPresetChipGroup()` | `frontend/src/ui/ui-preset:35` | 渲染一组 preset-chip（统一 .preset-group 容器 + addPresetChip 布局）。 |
 | `addClearRow()` | `frontend/src/ui/ui-preset:73` | 渲染一行右对齐的「清除」按钮（统一 cs-btn cs-btn-sm 样式）。 |
-| `addBoneSelectRow()` | `frontend/src/ui/ui-rows` | — |
-| `isIkBone()` | `frontend/src/ui/ui-rows` | — |
-| `buildBoneGroups()` | `frontend/src/ui/ui-rows` | — |
-| `BoneSelectOptions()` | `frontend/src/ui/ui-rows` | — |
-| `addToggleRow()` | `frontend/src/ui/ui-rows:46` | — |
-| `initControl()` | `frontend/src/ui/ui-rows:126` | 封装 registerControl + immediate update 模式。 |
-| `addSliderRow()` | `frontend/src/ui/ui-rows:163` | 数字滑块行。内部统一由 {@link DragSliderController} 驱动 （拖拽 + 键盘 + 游标点击），行为与其他滑块 builder 保持一致。 |
-| `addModeRow()` | `frontend/src/ui/ui-rows:291` | — |
-| `addEmptyRow()` | `frontend/src/ui/ui-rows:326` | 创建空状态占位行（灰色文字，不可点击），替代手动 `el.style.opacity = '0.5'` 模式 |
-| `addCardTitle()` | `frontend/src/ui/ui-rows:349` | 创建 card-title 标题行并追加到容器 |
-| `addDangerRow()` | `frontend/src/ui/ui-rows:364` | 创建危险操作行（icon + red label），替代手动拼接 `div.slide-item &gt; icon + label.danger-text` |
-| `addFieldRow()` | `frontend/src/ui/ui-rows:396` | 创建字段行（左 label + 右 value），替代手动拼接的 `div.slide-item &gt; span.slide-label.field-label + span.fie |
-| `addInfoGrid()` | `frontend/src/ui/ui-rows:429` | — |
-| `addInfoCard()` | `frontend/src/ui/ui-rows:436` | — |
-| `sliderRow()` | `frontend/src/ui/ui-rows:469` | — |
-| `toggleRow()` | `frontend/src/ui/ui-rows:486` | — |
-| `addWatchDirRow()` | `frontend/src/ui/ui-rows:511` | — |
-| `addActionRow()` | `frontend/src/ui/ui-rows:573` | 创建一个可点击的动作按钮行（替代手写 cs-row + button）。 |
-| `addDisabledRow()` | `frontend/src/ui/ui-rows:610` | 创建一个不可交互的提示行（替代手写 cs-row + opacity 0.4 + pointer-events none）。 |
-| `addInlineToggleRow()` | `frontend/src/ui/ui-rows:641` | 创建一个内联 toggle 行（替代手写 toggle-row + toggle-label + toggle-switch）。 |
+| `addToggleRow()` | `frontend/src/ui/ui-rows:43` | — |
+| `initControl()` | `frontend/src/ui/ui-rows:123` | 封装 registerControl + immediate update 模式。 |
+| `addSliderRow()` | `frontend/src/ui/ui-rows:160` | 数字滑块行。内部统一由 {@link DragSliderController} 驱动 （拖拽 + 键盘 + 游标点击），行为与其他滑块 builder 保持一致。 |
+| `addModeRow()` | `frontend/src/ui/ui-rows:288` | — |
+| `addEmptyRow()` | `frontend/src/ui/ui-rows:323` | 创建空状态占位行（灰色文字，不可点击），替代手动 `el.style.opacity = '0.5'` 模式 |
+| `addCardTitle()` | `frontend/src/ui/ui-rows:346` | 创建 card-title 标题行并追加到容器 |
+| `addDangerRow()` | `frontend/src/ui/ui-rows:361` | 创建危险操作行（icon + red label），替代手动拼接 `div.slide-item &gt; icon + label.danger-text` |
+| `addFieldRow()` | `frontend/src/ui/ui-rows:393` | 创建字段行（左 label + 右 value），替代手动拼接的 `div.slide-item &gt; span.slide-label.field-label + span.fie |
+| `addInfoGrid()` | `frontend/src/ui/ui-rows:426` | — |
+| `addInfoCard()` | `frontend/src/ui/ui-rows:433` | — |
+| `sliderRow()` | `frontend/src/ui/ui-rows:466` | — |
+| `toggleRow()` | `frontend/src/ui/ui-rows:483` | — |
+| `addWatchDirRow()` | `frontend/src/ui/ui-rows:508` | — |
+| `addActionRow()` | `frontend/src/ui/ui-rows:570` | 创建一个可点击的动作按钮行（替代手写 cs-row + button）。 |
+| `addDisabledRow()` | `frontend/src/ui/ui-rows:607` | 创建一个不可交互的提示行（替代手写 cs-row + opacity 0.4 + pointer-events none）。 |
+| `addInlineToggleRow()` | `frontend/src/ui/ui-rows:638` | 创建一个内联 toggle 行（替代手写 toggle-row + toggle-label + toggle-switch）。 |
 | `slideMenuCss()` | `frontend/src/ui/ui-slide-menu-styles:9` | — |
 | `slideMenuStyleSheet()` | `frontend/src/ui/ui-slide-menu-styles:165` | — |
 | `installSlideMenuStyles()` | `frontend/src/ui/ui-slide-menu-styles:169` | 将外壳样式注入 document.head（全局/light-DOM 场景）。幂等，仅注入一次。 |
@@ -1434,18 +1420,19 @@
 | `esc()` | `frontend/src/utils/dom/dialogs/modal` | — |
 | `trapFocus()` | `frontend/src/utils/dom/dialogs/modal:26` | 焦点陷阱：Tab 键在弹窗内可聚焦元素间循环，防止焦点逃逸到背后页面 |
 | `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:54` | 带退场动画关闭对话框 |
-| `registerDlg()` | `frontend/src/utils/dom/dialogs/modal:81` | 弹窗 append 到 body 后调用，登记为当前活动弹窗 |
-| `closeActiveDialog()` | `frontend/src/utils/dom/dialogs/modal:97` | 关闭当前活动弹窗（按取消值结算）。返回是否关闭了弹窗。 |
-| `ModalPromptOptions()` | `frontend/src/utils/dom/dialogs/modal:156` | modalPrompt 选项 |
-| `modalPrompt()` | `frontend/src/utils/dom/dialogs/modal:169` | 弹出带输入框的模态框，类似 styled prompt() |
-| `ModalSelectOptions()` | `frontend/src/utils/dom/dialogs/modal:226` | modalSelect 选项 |
-| `modalSelect()` | `frontend/src/utils/dom/dialogs/modal:239` | 弹出下拉选择框 |
-| `ModalConfirmOptions()` | `frontend/src/utils/dom/dialogs/modal:291` | modalConfirm 选项 |
-| `modalConfirm()` | `frontend/src/utils/dom/dialogs/modal:307` | 弹出确认对话框 |
-| `ModalProgressOptions()` | `frontend/src/utils/dom/dialogs/modal:353` | — |
-| `ModalProgressHandle()` | `frontend/src/utils/dom/dialogs/modal:361` | — |
-| `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:368` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
-| `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:378` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
+| `__resetModalStateForTest()` | `frontend/src/utils/dom/dialogs/modal:82` | 测试钩子：重置活动弹窗单例槽位（isolate:false 共享模块图下，兄弟文件残留的 _activeOverlay 会让「无活动弹窗」断言失真；web-store.__rese |
+| `registerDlg()` | `frontend/src/utils/dom/dialogs/modal:89` | 弹窗 append 到 body 后调用，登记为当前活动弹窗 |
+| `closeActiveDialog()` | `frontend/src/utils/dom/dialogs/modal:105` | 关闭当前活动弹窗（按取消值结算）。返回是否关闭了弹窗。 |
+| `ModalPromptOptions()` | `frontend/src/utils/dom/dialogs/modal:164` | modalPrompt 选项 |
+| `modalPrompt()` | `frontend/src/utils/dom/dialogs/modal:177` | 弹出带输入框的模态框，类似 styled prompt() |
+| `ModalSelectOptions()` | `frontend/src/utils/dom/dialogs/modal:234` | modalSelect 选项 |
+| `modalSelect()` | `frontend/src/utils/dom/dialogs/modal:247` | 弹出下拉选择框 |
+| `ModalConfirmOptions()` | `frontend/src/utils/dom/dialogs/modal:299` | modalConfirm 选项 |
+| `modalConfirm()` | `frontend/src/utils/dom/dialogs/modal:315` | 弹出确认对话框 |
+| `ModalProgressOptions()` | `frontend/src/utils/dom/dialogs/modal:361` | — |
+| `ModalProgressHandle()` | `frontend/src/utils/dom/dialogs/modal:369` | — |
+| `fmtMB()` | `frontend/src/utils/dom/dialogs/modal:376` | 格式化字节为 MB（进度弹窗/窗口标题共用） |
+| `modalProgress()` | `frontend/src/utils/dom/dialogs/modal:386` | 只读进度弹窗（无确认/取消按钮，Esc 或点遮罩关闭）。 |
 | `RenameFields()` | `frontend/src/utils/dom/dialogs/rename-format:7` | 重命名字段（调用方已 trim） |
 | `BuildModelNameOptions()` | `frontend/src/utils/dom/dialogs/rename-format:21` | 命名模板引擎选项（索引 4.9 收敛 buildRenameName / rebuildParsedName 两套手工拼接）： - fillDefaults=true：空作品补「未 |
 | `ModelNameFields()` | `frontend/src/utils/dom/dialogs/rename-format:27` | 命名模板输入字段（variant 可选：单重命名有、批量重建无） |
@@ -1616,7 +1603,6 @@
 | `isFaved()` | `frontend/src/views/app-content/workshop-data:75` | — |
 | `toggleFav()` | `frontend/src/views/app-content/workshop-data:79` | — |
 | `openSite()` | `frontend/src/views/app-content/workshop-site-opener:18` | 打开站点（外链/内嵌/窗口） |
-| `openEmbedded()` | `frontend/src/views/app-content/workshop-site-opener:42` | 内嵌浏览：直连官网 |
 | `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:69` | 绑定站点打开相关事件 |
 | `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:17` | 初始化创意工坊 Tab |
 | `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:109` | — |
