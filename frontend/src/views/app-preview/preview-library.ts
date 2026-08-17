@@ -45,6 +45,11 @@ export function registerReRoute(rtype: string, opener: (path: string) => Promise
   _openers[rtype] = opener;
 }
 
+/** 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） */
+export function getRegisteredRoutes(): string[] {
+  return Object.keys(_openers);
+}
+
 /** 全量模型列表（桌面 Go binding / 网页 adapter 兜底；空关键词返回全部）。限流防超大库拖垮菜单。 */
 async function loadAllModels(): Promise<LibraryAsset[]> {
   try {

@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 108 | 397 |
-| frontend/views | 100 | 281 |
+| 前端·工具 | 110 | 405 |
+| frontend/views | 100 | 282 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **386** | **1609** |
+| **合计** | **388** | **1618** |
 
 ## Go·头像
 
@@ -1122,21 +1122,24 @@
 |------|--------|------|
 | `CameraControlBridge()` | `frontend/src/utils/3d/adapters/camera-controls:13` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
+| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:20` | — |
+| `fullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:53` | — |
+| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:110` | — |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:26` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:53` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:89` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:96` | — |
 | `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:422` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:449` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:48` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:67` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:91` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:101` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:49` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:68` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:92` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:102` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
 | `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core` | — |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:131` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:140` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:145` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:156` | — |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:132` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:141` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:146` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:157` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:21` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:36` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1219,6 +1222,11 @@
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:220` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `clearLabelTexCache()` | `frontend/src/utils/3d/debug-render:21` | 清空标签纹理缓存（debug 组销毁时调用，防长时使用 OOM） |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:58` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
+| `IKChain()` | `frontend/src/utils/3d/ik-solver:21` | IK 链：从 root 到 endEffector 的 THREE.Object3D 有序数组（含两端） |
+| `IKConfig()` | `frontend/src/utils/3d/ik-solver:24` | IK 求解配置 |
+| `IKResult()` | `frontend/src/utils/3d/ik-solver:42` | IK 求解结果 |
+| `solveIK()` | `frontend/src/utils/3d/ik-solver:75` | CCD IK 求解器。 |
+| `extractIKChainFromTree()` | `frontend/src/utils/3d/ik-solver:195` | 从 BoneTree 中提取从 root 到 endEffector 的骨骼链（object 引用）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
 | `loadTdKeymap()` | `frontend/src/utils/3d/keymap:27` | 读取用户自定义键位（无/非法时回退默认） |
@@ -1666,8 +1674,9 @@
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `registerReRoute()` | `frontend/src/views/app-preview/preview-library:44` | 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用） |
-| `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:75` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
-| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:99` | 给 mount3D opts 注入「资源库默认扩展」：库加载 + 跨类型跳转。各 createXxx3D 统一经此获得 3D 内 📚 面板 |
+| `getRegisteredRoutes()` | `frontend/src/views/app-preview/preview-library:49` | 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） |
+| `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:80` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
+| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:104` | 给 mount3D opts 注入「资源库默认扩展」：库加载 + 跨类型跳转。各 createXxx3D 统一经此获得 3D 内 📚 面板 |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:13` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:19` | — |
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
