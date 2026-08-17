@@ -30,6 +30,11 @@ import { SkyCapability } from "../caps/sky-capability.ts";
 import { GroundCapability } from "../caps/ground-capability.ts";
 import { LightCapability } from "../caps/light-capability.ts";
 import { PostprocessingManager } from "./postprocessing.ts";
+import { runFullCleanup, type CleanupContext } from "./cleanup-3d.ts";
+import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts";
+import type { SwitchContext } from "./switch-preview.ts";
+import { bindInputHandlers } from "./input-and-animation.ts";
+import type { InputOptions } from "./input-and-animation.ts";
 import { type SemanticBoneMap } from "../semantic-bones.ts";
 import { bus } from "../../../bus.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
@@ -327,57 +332,25 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     orbitTarget = (controls as OrbitControls).target.clone();
     controls.enableRotate = true;
 
-    onKeyDown = (e: KeyboardEvent): void => {
-      keys[e.key.toLowerCase()] = true;
-      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(e.key.toLowerCase())) {
-        e.preventDefault();
-      }
+    // ===== §4a 输入绑定（WASD 键盘 + 拖拽自转 + resize）=====
+    const inputOpts: InputOptions = {
+      keys,
+      getOrbitMode: () => orbitMode,
+      mouseDown: { v: mouseDown },
+      lastMouse: { x: lastMouse.x, y: lastMouse.y },
+      euler,
+      camera,
+      renderer,
+      postProc,
+      viewContainer,
+      isDisposed,
     };
-    onKeyUp = (e: KeyboardEvent): void => { keys[e.key.toLowerCase()] = false; };
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("keyup", onKeyUp);
-
-  // ===== §4a 输入绑定（WASD 键盘 + 拖拽自转）=====
-    const onDragPointerDown = (e: PointerEvent): void => {
-      if (!orbitMode && e.button === 0) {
-        mouseDown = true;
-        lastMouse.x = e.clientX;
-        lastMouse.y = e.clientY;
-        (renderer as THREE.WebGLRenderer).domElement.setPointerCapture(e.pointerId);
-      }
-    };
-    onDragPointerUp = (e: PointerEvent): void => {
-      mouseDown = false;
-      const rd = renderer as THREE.WebGLRenderer;
-      if (rd.domElement.hasPointerCapture(e.pointerId)) rd.domElement.releasePointerCapture(e.pointerId);
-    };
-    onDragPointerMove = (e: PointerEvent): void => {
-      if (orbitMode || !mouseDown) return;
-      const dx = e.clientX - lastMouse.x;
-      const dy = e.clientY - lastMouse.y;
-      lastMouse.x = e.clientX;
-      lastMouse.y = e.clientY;
-      const cam = camera as THREE.PerspectiveCamera;
-      euler.setFromQuaternion(cam.quaternion);
-      euler.y -= dx * DRAG_ROTATE_SENSITIVITY;
-      euler.x -= dy * DRAG_ROTATE_SENSITIVITY;
-      euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
-      cam.quaternion.setFromEuler(euler);
-    };
-    (renderer as THREE.WebGLRenderer).domElement.addEventListener("pointerdown", onDragPointerDown);
-    window.addEventListener("pointerup", onDragPointerUp);
-    window.addEventListener("pointermove", onDragPointerMove);
-
-    onResize = (): void => {
-      if (isDisposed.v) return;
-      const cam = camera as THREE.PerspectiveCamera;
-      const rd = renderer as THREE.WebGLRenderer;
-      cam.aspect = viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1);
-      cam.updateProjectionMatrix();
-      rd.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
-      postProc?.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
-    };
-    window.addEventListener("resize", onResize);
+    const handlers = bindInputHandlers(inputOpts);
+    onKeyDown = handlers.onKeyDown;
+    onKeyUp = handlers.onKeyUp;
+    onDragPointerUp = handlers.onDragPointerUp;
+    onDragPointerMove = handlers.onDragPointerMove;
+    onResize = handlers.onResize;
 
     let lastTime = performance.now();
     // ===== §4b rAF 渲染管线（animate loop + postprocess composer）=====
@@ -446,6 +419,65 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   /** cooperate 模式下已追加的内容句柄列表（fullCleanup 时逐一 dispose） */
   const allBuilt: PreviewScene[] = [];
 
+  const cleanupCtx: CleanupContext = {
+    menuHandle,
+    isDisposed,
+    animId,
+    onKeyDown,
+    onKeyUp,
+    escH,
+    onDragPointerUp,
+    onDragPointerMove,
+    onResize,
+    panelCleanup,
+    allBuilt,
+    nullBuilt: () => { built = null; },
+    skyCap,
+    groundCap,
+    lightCap,
+    postProc,
+    nullPostProc: () => { postProc = null; },
+    renderer,
+    scene,
+    controls,
+    overlay,
+    nullHandle: () => { _handle = null; },
+    adapter,
+  };
+
+  const switchCtx: SwitchContext = {
+    scene,
+    sceneBaseline,
+    built,
+    setBuilt: (s) => { built = s; },
+    allBuilt,
+    topBar,
+    adapterControlsStart,
+    setAdapterControlsStart: (n) => { adapterControlsStart = n; },
+    panelEl,
+    loadingEl,
+    viewContainer,
+    overlay,
+    menuHandle,
+    adapter: { build: adapter.build.bind(adapter) },
+    camBridge,
+    selfMode,
+    renderer,
+    controls,
+    orbitTarget,
+    camera,
+    lightCap,
+    currentPath,
+    setCurrentPath: (p) => { currentPath = p; },
+    perFrame,
+    setPerFrame: (f) => { perFrame = f; },
+    _handle,
+    aborted,
+    isDisposed,
+    myGen,
+    getGen: () => _gen,
+  };
+
   try {
     // 代际守卫：await 期间用户已点其他文件 / 被 invalidate，丢弃本次挂载
     if (myGen !== _gen) return;
@@ -485,22 +517,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       euler.setFromQuaternion((camera as THREE.PerspectiveCamera).quaternion);
     }
     // ADR-081 L1：内容层包围盒 -> 聚光灯/体积光锥瞄准对象上方
-    if (lightCap && scene && sceneBaseline) {
-      const box = new THREE.Box3();
-      let contentFound = false;
-      for (const child of scene.children) {
-        if (sceneBaseline.has(child)) continue;
-        box.expandByObject(child);
-        contentFound = true;
-      }
-      if (contentFound) {
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z) || 1;
-        lightCap.setTarget(center);
-        lightCap.setTargetHeight(Math.max(maxDim * 0.8, 6));
-      }
-    }
+    syncLightTargetFromContent(scene, sceneBaseline, lightCap);
     perFrame = built.update ?? null;
   // ===== §4c 生命周期管理（cooperate/switchTo/代际守卫）=====
   // 记录初始模型到追加列表（cooperate 模式下 fullCleanup 需逐一 dispose）
@@ -558,68 +575,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       built.extraPanel(panel);
     }
 
-    function fullCleanup(): void {
-      menuHandle.dispose();
-      if (isDisposed.v) return;
-      isDisposed.v = true;
-      cancelAnimationFrame(animId);
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("keyup", onKeyUp);
-      document.removeEventListener("keydown", escH);
-      window.removeEventListener("pointerup", onDragPointerUp);
-      window.removeEventListener("pointermove", onDragPointerMove);
-      window.removeEventListener("resize", onResize);
-      panelCleanup?.();
-      // 内容层先释放自身资源，核心再回收外壳
-      // cooperate 模式下需逐一 dispose 所有已追加模型（adapter 专属 GPU 资源）
-      for (const b of allBuilt) {
-        try { b.dispose(); } catch (_) {}
-      }
-      allBuilt.length = 0;
-      built = null;
-      // 程序化天空（ADR-073 L1）：还原 tone mapping 并释放 PMREM/几何/材质
-      try {
-        skyCap?.dispose();
-      } catch (_) {}
-      // 地面能力：移除网格并释放几何/材质
-      try {
-        groundCap?.dispose();
-      } catch (_) {}
-      // 个人灯光系统（ADR-081 L1）：释放聚光灯 + 体积光锥
-      try {
-        lightCap?.dispose();
-      } catch (_) {}
-      // 后处理体积光管线（ADR-081 L2）：释放 EffectComposer + bloom
-      try {
-        postProc?.dispose();
-        postProc = null;
-      } catch (_) {}
-      // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
-      // （stub 环境 Scene 未必实现 traverse，typeof 守卫避免误崩）
-      if (renderer) {
-        const sc = scene as THREE.Scene;
-        if (typeof (sc as unknown as { traverse?: unknown }).traverse === "function") {
-          sc.traverse((obj) => {
-            const mesh = obj as THREE.Mesh;
-            if (mesh.geometry) {
-              try {
-                mesh.geometry.dispose();
-              } catch (_) {}
-            }
-            const mat = (mesh as unknown as { material?: THREE.Material | THREE.Material[] }).material;
-            if (mat) {
-              if (Array.isArray(mat)) mat.forEach((m) => safeDisposeMat(m));
-              else safeDisposeMat(mat);
-            }
-          });
-        }
-        renderer.dispose();
-        (controls as OrbitControls).dispose();
-      }
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      _handle = null;
-      adapter.onClose?.();
-    }
+    function fullCleanup(): void { runFullCleanup(cleanupCtx); }
 
     function escHandler(e: KeyboardEvent): void {
       if (e.key === "Escape") fullCleanup();
@@ -637,82 +593,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       screenshot: built.screenshot,
       // 当前会话内切换模型：复用外壳（renderer/rAF/controls/灯光）重建内容层（ADR-066 §5.6）
       // 支持 keepInScene 模式：true 时不移除旧模型，新模型追加到同一场景（多模型同台）
-      switchTo: async (newPath: string, options?: { keepInScene?: boolean }): Promise<void> => {
-        if (aborted || isDisposed.v || myGen !== _gen) return;
-        const keep = options?.keepInScene === true;
-
-        // 1) 移除旧适配器专属控件（topBar 中 adapterControlsStart 之后追加的节点）
-        while (topBar.childElementCount > adapterControlsStart) {
-          topBar.lastChild?.remove();
-        }
-
-        // 2) 非同台模式：移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积——审核 #1）
-        //    同台模式：保留旧模型，不清除
-        if (!keep && scene && sceneBaseline) {
-          const stale = scene.children.filter((c) => !sceneBaseline!.has(c));
-          for (const c of stale) scene.remove(c);
-        }
-        // 3) 释放旧内容层 GPU 资源（非同台模式才 dispose；同台模式下旧模型仍需保持）
-        if (!keep) {
-          try { built?.dispose(); } catch (_) {}
-        }
-        // 4) 重建内容层（新 path）
-        let next: PreviewScene;
-        try {
-          next = await adapter.build(
-            { scene, camera, controls, renderer, cameraControls: selfMode ? undefined : camBridge, viewContainer, loadingEl, overlay, menu: menuHandle },
-            newPath,
-          );
-        } catch (e) {
-          // 切换失败（坏 PMX/VRM/读取错误）：旧内容已 dispose 无法回滚，恢复 loadingEl 错误提示 + toast
-          // （对齐 mount3D 入口 catch——不留下无提示空壳 + unhandled rejection，审核 #2）
-          console.error("[preview 3D] 切换失败:", e);
-          if (!loadingEl.parentNode) viewContainer.appendChild(loadingEl); // 成功路径已 remove，失败需重新挂回
-          loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`;
-          bus.emit("toast:show", {
-            msg: "❌ " + friendlyError(e, t("preview.loadFailed")),
-            duration: 5000,
-            type: "error",
-          });
-          return;
-        }
-        if (aborted || isDisposed.v || myGen !== _gen) {
-          try { next.dispose(); } catch (_) {}
-          return;
-        }
-        built = next;
-        allBuilt.push(next); // cooperate 模式：记录追加模型，fullCleanup 时逐一 dispose
-        currentPath = newPath; // 同步「当前」项（ADR-066 §5.6 3D 内切换）：根菜单切换面板高亮随之移动
-        // 5) 同步相机状态到新内容层取景 + 重挂适配器控件/侧栏
-        if (renderer) {
-          orbitTarget!.copy((controls as OrbitControls).target);
-          euler.setFromQuaternion((camera as THREE.PerspectiveCamera).quaternion);
-        }
-        perFrame = next.update ?? null;
-        // ADR-084 L2（pack-model 对齐 ADR-066 §5.6）：switchTo 后重算内容层包围盒，更新 lightCap target
-        if (lightCap && scene && sceneBaseline) {
-          const box = new THREE.Box3();
-          let contentFound = false;
-          for (const child of scene.children) {
-            if (sceneBaseline!.has(child)) continue;
-            box.expandByObject(child);
-            contentFound = true;
-          }
-          if (contentFound) {
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z) || 1;
-            lightCap.setTarget(center);
-            lightCap.setTargetHeight(Math.max(maxDim * 0.8, 6));
-          }
-        }
-        if (_handle) _handle.screenshot = next.screenshot;
-        next.extraControls?.(topBar);
-        if (next.extraPanel && panelEl) {
-          panelEl.innerHTML = "";
-          next.extraPanel(panelEl);
-        }
-      },
+      switchTo: (newPath, options) => switchToSession(switchCtx, newPath, options),
     };
   } catch (e) {
     document.removeEventListener("keydown", escH);
@@ -730,17 +611,4 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   }
 }
 
-// ===== §5 私有工具函数 =====
-function safeDisposeMat(m: THREE.Material): void {
-  const withTex = m as unknown as { map?: THREE.Texture; emissiveMap?: THREE.Texture };
-  for (const tex of [withTex.map, withTex.emissiveMap]) {
-    if (tex) {
-      try {
-        tex.dispose();
-      } catch (_) {}
-    }
-  }
-  try {
-    m.dispose();
-  } catch (_) {}
-}
+// ===== §5 私有工具函数 → cleanup-3d.ts =====

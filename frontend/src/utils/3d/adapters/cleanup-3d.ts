@@ -1,0 +1,118 @@
+// ===== 3D 预览清理函数（从 mount-preview-core.ts 抽出）=====
+// 涵盖全量 GPU 资源释放 + 事件监听解绑 + 外壳拆除
+//
+// 拆分原则（ADR-066 P3）：
+// - fullCleanup：mount3D 内嵌闭包，改写成接受 CleanupContext 的纯函数
+// - safeDisposeMat：材质+纹理安全释放，无外部依赖
+
+import * as THREE from "three";
+import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import type { PreviewMenuHandle } from "./preview-menu.ts";
+import type { SkyCapability } from "../caps/sky-capability.ts";
+import type { GroundCapability } from "../caps/ground-capability.ts";
+import type { LightCapability } from "../caps/light-capability.ts";
+import type { PostprocessingManager } from "./postprocessing.ts";
+
+// ── CleanupContext ────────────────────────────────────────────────────────
+// 所有可从 mount3D 作用域松绑的外部引用，统一经此接口注入。
+// 可变 let 变量通过 setter 回调传递，允许纯函数内赋值。
+
+export interface CleanupContext {
+  menuHandle: PreviewMenuHandle;
+  isDisposed: { v: boolean };
+  animId: number;
+  onKeyDown: (e: KeyboardEvent) => void;
+  onKeyUp: (e: KeyboardEvent) => void;
+  escH: (e: KeyboardEvent) => void;
+  onDragPointerUp: (e: PointerEvent) => void;
+  onDragPointerMove: (e: PointerEvent) => void;
+  onResize: () => void;
+  panelCleanup: (() => void) | null;
+  allBuilt: { dispose(): void }[];
+  /** 置 null built 引用（防双重释放） */
+  nullBuilt: () => void;
+  skyCap: SkyCapability | null;
+  groundCap: GroundCapability | null;
+  lightCap: LightCapability | null;
+  /** 后处理管理器（.dispose() + 置 null 引用） */
+  postProc: PostprocessingManager | null;
+  nullPostProc: () => void;
+  renderer: THREE.WebGLRenderer | undefined;
+  scene: THREE.Scene | undefined;
+  controls: OrbitControls | undefined;
+  overlay: HTMLElement;
+  /** 置 null 模块级 _handle（避免 cleanupPreview 重复调用） */
+  nullHandle: () => void;
+  adapter: { onClose?: () => void };
+}
+
+// ── fullCleanup ────────────────────────────────────────────────────────────
+// 全量释放：事件监听解绑 + caps dispose + 内容层 dispose + 外壳拆除
+// 替代原 mount3D 内嵌闭包（L561-622）
+
+export function runFullCleanup(ctx: CleanupContext): void {
+  ctx.menuHandle.dispose();
+  if (ctx.isDisposed.v) return;
+  ctx.isDisposed.v = true;
+  cancelAnimationFrame(ctx.animId);
+  document.removeEventListener("keydown", ctx.onKeyDown);
+  document.removeEventListener("keyup", ctx.onKeyUp);
+  document.removeEventListener("keydown", ctx.escH);
+  window.removeEventListener("pointerup", ctx.onDragPointerUp);
+  window.removeEventListener("pointermove", ctx.onDragPointerMove);
+  window.removeEventListener("resize", ctx.onResize);
+  ctx.panelCleanup?.();
+  // 内容层先释放自身资源，核心再回收外壳
+  // cooperate 模式下需逐一 dispose 所有已追加模型（adapter 专属 GPU 资源）
+  for (const b of ctx.allBuilt) {
+    try { b.dispose(); } catch (_) { /* 防御性：个别适配器 dispose 抛错不阻塞全量释放 */ }
+  }
+  ctx.allBuilt.length = 0;
+  ctx.nullBuilt();
+  // 程序化天空（ADR-073 L1）：还原 tone mapping 并释放 PMREM/几何/材质
+  try { ctx.skyCap?.dispose(); } catch (_) { /* 防御性释放 */ }
+  // 地面能力：移除网格并释放几何/材质
+  try { ctx.groundCap?.dispose(); } catch (_) { /* 防御性释放 */ }
+  // 个人灯光系统（ADR-081 L1）：释放聚光灯 + 体积光锥
+  try { ctx.lightCap?.dispose(); } catch (_) { /* 防御性释放 */ }
+  // 后处理体积光管线（ADR-081 L2）：释放 EffectComposer + bloom
+  try {
+    ctx.postProc?.dispose();
+    ctx.nullPostProc();
+  } catch (_) { /* 防御性释放 */ }
+  // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
+  if (ctx.renderer) {
+    const sc = ctx.scene as THREE.Scene | undefined;
+    if (sc && typeof (sc as unknown as { traverse?: unknown }).traverse === "function") {
+      sc.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.geometry) {
+          try { mesh.geometry.dispose(); } catch (_) { /* 防御性释放 */ }
+        }
+        const mat = (mesh as unknown as { material?: THREE.Material | THREE.Material[] }).material;
+        if (mat) {
+          if (Array.isArray(mat)) mat.forEach((m) => safeDisposeMat(m));
+          else safeDisposeMat(mat);
+        }
+      });
+    }
+    ctx.renderer.dispose();
+    ctx.controls?.dispose();
+  }
+  if (ctx.overlay.parentNode) ctx.overlay.parentNode.removeChild(ctx.overlay);
+  ctx.nullHandle();
+  ctx.adapter.onClose?.();
+}
+
+// ── safeDisposeMat ─────────────────────────────────────────────────────────
+// 安全释放材质及其关联纹理（map / emissiveMap），错误不抛
+
+export function safeDisposeMat(m: THREE.Material): void {
+  const withTex = m as unknown as { map?: THREE.Texture; emissiveMap?: THREE.Texture };
+  for (const tex of [withTex.map, withTex.emissiveMap]) {
+    if (tex) {
+      try { tex.dispose(); } catch (_) { /* 防御性释放 */ }
+    }
+  }
+  try { m.dispose(); } catch (_) { /* 防御性释放 */ }
+}
