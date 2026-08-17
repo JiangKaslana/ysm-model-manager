@@ -6,6 +6,7 @@
 import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { buildLitematicScene } from "../../utils/3d/adapters/litematic-adapter.ts";
 import { getApp } from "../../backend/app.ts";
+import { withPreviewExtras } from "./preview-library.ts";
 
 /** voxelCall 注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 function makeVoxelCall(voxelFn: string): (path: string) => Promise<string> {
@@ -22,7 +23,7 @@ function makeLitematicAdapter(voxelFn: string): PreviewAdapter {
 
 /** 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 */
 export async function createLitematic3D(path: string, voxelFn: string, opts?: Mount3DOptions): Promise<void> {
-  await mount3D(makeLitematicAdapter(voxelFn), path, opts);
+  await mount3D(makeLitematicAdapter(voxelFn), path, withPreviewExtras(opts ?? {}));
 }
 
 /** 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） */

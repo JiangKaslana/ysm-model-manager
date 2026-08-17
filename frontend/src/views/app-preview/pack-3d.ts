@@ -9,6 +9,7 @@
 import { mount3D, cleanupPreview, invalidatePreview, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { makePackAdapter } from "../../utils/3d/adapters/pack-model-adapter.ts";
 import { getApp } from "../../backend/app.ts";
+import { withPreviewExtras } from "./preview-library.ts";
 
 /** 经 getApp 注入 Go 绑定（适配器 0 backend import，ADR-072 边界判据） */
 function makePackDeps() {
@@ -38,7 +39,7 @@ export async function createPack3D(path: string, opts?: Mount3DOptions): Promise
   // 首个 entry 作为初始 path（zip 内模型路径，即虚拟文件夹下的文件路径）
   const initialEntry = entries[0];
   // 适配器持 zipPath（解析模型文件所需的容器路径）
-  await mount3D(makePackAdapter(makePackDeps(), path), initialEntry, { siblings: entries, ...opts });
+  await mount3D(makePackAdapter(makePackDeps(), path), initialEntry, withPreviewExtras({ siblings: entries, ...opts }));
 }
 
 /** 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 */

@@ -6,6 +6,7 @@ import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type Preview
 import { buildMmdScene, type MmdDataPort, type MmdPanelHooks } from "../../utils/3d/adapters/mmd-adapter.ts";
 import { getApp } from "../../backend/app.ts";
 import { fillMmdModelPanel, fillMmdPlayPanel, fillMmdShotPanel, buildMaterialControls } from "./mmd-controls.ts";
+import { withPreviewExtras } from "./preview-library.ts";
 
 /** 数据端口注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 async function makeMmdPort(): Promise<MmdDataPort> {
@@ -41,7 +42,7 @@ const mmdAdapter: PreviewAdapter = {
 
 /** 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） */
 export async function createMmd3D(path: string, opts?: Mount3DOptions): Promise<void> {
-  await mount3D(mmdAdapter, path, opts);
+  await mount3D(mmdAdapter, path, withPreviewExtras(opts ?? {}));
 }
 
 /** 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */

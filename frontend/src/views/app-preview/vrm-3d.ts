@@ -8,6 +8,7 @@ import { buildVrmScene, type VrmPanelHooks } from "../../utils/3d/adapters/vrm-a
 import { getApp } from "../../backend/app.ts";
 import { makeVrmPanelRenderer } from "./vrm-controls.ts";
 import { fillMmdPlayPanel } from "./mmd-controls.ts";
+import { withPreviewExtras } from "./preview-library.ts";
 
 /** 数据读取注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 async function readFileBytes(path: string): Promise<string | null> {
@@ -34,7 +35,7 @@ const vrmAdapter: PreviewAdapter = {
 
 /** 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 */
 export async function createVrm3D(path: string, opts?: Mount3DOptions): Promise<void> {
-  await mount3D(vrmAdapter, path, opts);
+  await mount3D(vrmAdapter, path, withPreviewExtras(opts ?? {}));
 }
 
 /** 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） */

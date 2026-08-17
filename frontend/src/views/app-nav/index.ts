@@ -254,8 +254,8 @@ class AppNav extends WebComponentBase {
 
   /**
    * 左下角 3D 一键跳转：复用文件树记住的最近选中模型（getLastModelPath），
-   * 按资源类型派发到既有全屏 3D 入口（createYsm3D/createMmd3D/createVrm3D/createPack3D），
-   * 只在全屏遮罩内加载，不在导航层内嵌文件树。无选中模型 → toast 引导。
+   * 委托 preview-library.openModel3DFullscreen（按类型派发既有 createXxx3D 全屏入口）；
+   * 无选中模型 → toast 引导。
    */
   private async _viewerFabClick(): Promise<void> {
     const { getLastModelPath } = await import("../../views/app-content/init-pages.ts");
@@ -264,38 +264,8 @@ class AppNav extends WebComponentBase {
       bus.emit("toast:show", { msg: t("nav.viewerNoModel"), duration: 3000, type: "warn" });
       return;
     }
-    // 关闭可能残留的活跃全屏层，再开新的（防双全屏叠加）
-    const { closeActive3DOverlay } = await import("../../views/app-preview/skeleton.ts");
-    closeActive3DOverlay();
-
-    const { DetectResourceType } = await getApp();
-    let rtype = "";
-    try {
-      rtype = (await DetectResourceType(path)) || "";
-    } catch {
-      /* 类型探测失败 → 回退 YSM 通路 */
-    }
-    const { RESOURCE_TYPES } = await import("../../utils/resource/types.ts");
-    if (rtype === RESOURCE_TYPES.MMD) {
-      await (await import("../../views/app-preview/mmd-3d.ts")).createMmd3D(path);
-      return;
-    }
-    if (rtype === RESOURCE_TYPES.VRC) {
-      await (await import("../../views/app-preview/vrm-3d.ts")).createVrm3D(path);
-      return;
-    }
-    if (rtype === RESOURCE_TYPES.PACK) {
-      await (await import("../../views/app-preview/pack-3d.ts")).createPack3D(path);
-      return;
-    }
-    // 默认 YSM（含未知类型回退）：注入轻量 loader ctx（decodeYsmViaWasm + 空 appendDebug）
-    const { createYsm3D } = await import("../../views/app-preview/ysm-3d.ts");
-    const { loadModelData } = await import("../../views/app-preview/loader.ts");
-    const { decodeYsmViaWasm } = await import("../../views/app-preview/wasm.ts");
-    await createYsm3D(path, 0, {
-      loader: async (p: string) =>
-        (await loadModelData(p, { decodeYsmViaWasm, appendDebug: () => {} } as never)).model,
-    });
+    const { openModel3DFullscreen } = await import("../../views/app-preview/preview-library.ts");
+    await openModel3DFullscreen(path);
   }
 
   /**

@@ -10,6 +10,7 @@ import { makeYsmAdapter } from "../../utils/3d/adapters/ysm-adapter.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import { preloadModel } from "./model3d-loader.ts";
 import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "./ysm-controls.ts";
+import { withPreviewExtras } from "./preview-library.ts";
 
 export interface YsmOpenOptions {
   /** path → model 加载器（skeleton 层注入：loadModelData(p, ctx)，含缓存/WASM/Go 兜底） */
@@ -49,7 +50,7 @@ export async function createYsm3D(
       },
     }),
     path,
-    { siblings: opts.siblings },
+    withPreviewExtras({ siblings: opts.siblings }),
   );
 }
 
