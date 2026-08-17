@@ -5,6 +5,7 @@
 
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { t } from "../../core/i18n/t.ts";
+import { esc } from "../../utils/dom/html.ts";
 import {
   containerHTML,
   statusTabHTML,
@@ -93,36 +94,38 @@ export function render(self: SyncRenderSelf): void {
     litematic: t("rtype.litematic"),
   };
 
-  const renderGroup = (types: string[], sep: boolean): string => {
+  // 类型标签 HTML（R8 豁免：HTML 后缀安全生成器 + 内部 esc 转义动态数据）
+  const typeTabHTML = (types: string[], sep: boolean): string => {
     let html = "";
     for (const id of types) {
-      const t = self._typeConfig.find((c) => c.id === id);
-      if (!t) continue;
+      const cfg = self._typeConfig.find((c) => c.id === id);
+      if (!cfg) continue;
       const c = typeCounts[id];
       const count = c ? c.total : 0;
       const active = self._selectedType === id;
+      const label = shortLabel[id] || cfg.name;
       html +=
         '<button class="sm-tab' +
         (active ? " active" : "") +
         '" data-type="' +
-        id +
+        esc(id) +
         '" style="padding:var(--pad-tab) 14px;border-radius:5px 5px 0 0;border:none;background:' +
         (active ? "var(--surf)" : "transparent") +
         ";color:" +
         (active ? "var(--accent)" : "var(--muted)") +
         ';cursor:pointer;font-family:inherit;font-size:var(--fs-tab);white-space:nowrap">' +
-        (t.icon || "📦") +
+        esc(cfg.icon || "📦") +
         " " +
-        (shortLabel[id] || t.name) +
+        esc(label) +
         (count > 0
-          ? ' <span style="font-size:var(--fs-xs);opacity:0.7">(' + count +')</span>'
+          ? ' <span style="font-size:var(--fs-xs);opacity:0.7">(' + count + ")</span>"
           : "") +
         "</button>";
     }
     if (sep) html += '<span style="color:var(--bd);padding:0 2px">│</span>';
     return html;
   };
-  tabsEl.innerHTML = renderGroup(modelTypes, true) + renderGroup(resourceTypes, false);
+  tabsEl.innerHTML = typeTabHTML(modelTypes, true) + typeTabHTML(resourceTypes, false);
 
   // — 状态筛选标签 —
   const curCounts: TypeCounts = self._selectedType
@@ -148,7 +151,7 @@ export function render(self: SyncRenderSelf): void {
 }
 
 /** 渲染列表行（含空态） */
-export function renderList(self: SyncRenderSelf, listEl: HTMLElement): void {
+function renderList(self: SyncRenderSelf, listEl: HTMLElement): void {
   if (!listEl) return;
   if (self._filteredItems.length === 0) {
     const statusLabels: Record<string, string> = {

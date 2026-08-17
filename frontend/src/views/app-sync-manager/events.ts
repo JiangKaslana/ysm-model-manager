@@ -6,7 +6,7 @@
 
 import { bus } from "../../bus.ts";
 import { safeSet } from "../../utils/dom/storage.ts";
-import { LAST_TYPE_KEY, _lastSelectedType, setLastSelectedType } from "./index.ts";
+import { LAST_TYPE_KEY, setLastSelectedType } from "./state.ts";
 import type { SyncItem } from "./tpl.ts";
 
 interface EventSelf {

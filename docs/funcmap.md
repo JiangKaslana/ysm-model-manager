@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 19 | 107 |
 | 前端·工具 | 106 | 391 |
-| frontend/views | 98 | 273 |
+| frontend/views | 99 | 271 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **383** | **1607** |
+| **合计** | **384** | **1605** |
 
 ## Go·头像
 
@@ -1744,14 +1744,12 @@
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:83` | — |
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:102` | 单个整合包卡片头部。 |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:25` | 绑定所有 DOM 事件（类型切换 / 状态筛选 / 单行操作按钮） |
-| `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/index:25` | — |
-| `_lastSelectedType()` | `frontend/src/views/app-sync-manager/index:26` | — |
-| `setLastSelectedType()` | `frontend/src/views/app-sync-manager/index:27` | — |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:33` | — |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:30` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:34` | 统一推送 / 拉取单文件操作。 |
-| `setButtonsBusy()` | `frontend/src/views/app-sync-manager/network:77` | 切换所有单行按钮的禁用态与视觉反馈。 |
-| `render()` | `frontend/src/views/app-sync-manager/renderer:43` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
-| `renderList()` | `frontend/src/views/app-sync-manager/renderer:151` | 渲染列表行（含空态） |
+| `render()` | `frontend/src/views/app-sync-manager/renderer:44` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
+| `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/state:9` | — |
+| `_lastSelectedType()` | `frontend/src/views/app-sync-manager/state:10` | — |
+| `setLastSelectedType()` | `frontend/src/views/app-sync-manager/state:11` | — |
 | `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:30` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
 | `loadData()` | `frontend/src/views/app-sync-manager/store:53` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
 | `applyFilter()` | `frontend/src/views/app-sync-manager/store:74` | 应用类型 + 状态筛选，写入 self._filteredItems。 |

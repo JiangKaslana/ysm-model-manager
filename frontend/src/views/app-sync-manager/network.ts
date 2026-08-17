@@ -74,7 +74,7 @@ export async function performSingleOp(
  * 切换所有单行按钮的禁用态与视觉反馈。
  * 守卫：querySelectorAll 可能返回空集（卸载后），静默跳过。
  */
-export function setButtonsBusy(self: NetworkSelf, busy: boolean): void {
+function setButtonsBusy(self: NetworkSelf, busy: boolean): void {
   self.querySelectorAll(".sm-item-btn").forEach((btn) => {
     const htmlBtn = btn as HTMLButtonElement;
     htmlBtn.disabled = busy;

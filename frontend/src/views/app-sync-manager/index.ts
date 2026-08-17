@@ -2,7 +2,8 @@
 // 展示整合包内所有资源类型的同步状态（扁平列表，一次加载，前端过滤）
 // 使用: <app-sync-manager instance="1.20.1-Fabric"></app-sync-manager>
 // 拆分：store / renderer / events / network 四模块，本文件仅负责生命周期编排
-// 依赖 DAG：index → store / renderer / events / network（leaf modules 间无循环）
+// 依赖 DAG：index → store / renderer / events / network / state（leaf modules 间无循环，
+// events 的 LAST_TYPE_KEY 等共享状态走 state.ts，不再反向依赖 index）
 
 import { t } from "../../core/i18n/t.ts";
 import { bus } from "../../bus.ts";
@@ -11,7 +12,6 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
-import { safeGet } from "../../utils/dom/storage.ts";
 import {
   containerHTML,
   loadingHTML,
@@ -20,13 +20,10 @@ import { loadTypeConfig, loadData } from "./store.ts";
 import { render } from "./renderer.ts";
 import { bindEvents } from "./events.ts";
 import { performSingleOp } from "./network.ts";
+import { LAST_TYPE_KEY, _lastSelectedType, setLastSelectedType } from "./state.ts";
 
-// P3 修复（子代理审计）：模块顶层裸调 localStorage——改 safeGet
-export const LAST_TYPE_KEY = "ysm_syncLastType";
-export let _lastSelectedType = safeGet(LAST_TYPE_KEY) || RESOURCE_TYPES.YSM;
-export function setLastSelectedType(type: string): void {
-  _lastSelectedType = type;
-}
+// P3 修复（子代理审计）：共享状态（LAST_TYPE_KEY / _lastSelectedType / setLastSelectedType）
+// 已下沉至 state.ts，打破 index ↔ events 循环依赖
 
 const TOAST_MS_LONG = 5000;
 
