@@ -237,10 +237,10 @@ export function viewerHTML(): string {
     // 顶部工具栏
     '<div class="viewer-toolbar" style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--bd);background:var(--bg);flex-shrink:0;">' +
     '<span style="font-size:15px;font-weight:600;color:var(--txt)">🎲 3D 预览</span>' +
-    '<span id="viewer-model-path" style="flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</span>' +
+    '<span id="viewer-model-path" style="flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>' +
     '</div>' +
-    // 全屏预览区
-    '<app-preview id="app-preview" style="flex:1;width:100%;border-left:none;overflow:hidden;"></app-preview>' +
+    // 全屏 3D 预览容器（挂载点，由 initViewerPage 注入）
+    '<div id="viewer-3d-container" style="flex:1;width:100%;overflow:hidden;"></div>' +
     '</div>'
   );
 }

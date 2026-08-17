@@ -240,21 +240,52 @@ export function getLastModelPath(): string | null {
 }
 
 /**
- * 初始化 3D 预览器页
+ * 初始化 3D 预览器页：直接进入全屏 3D 预览，无需文件选择器（3D 预览器自带模型切换）。
  */
-export function initViewerPage(host: never): void {
+export async function initViewerPage(host: never): Promise<void> {
   const root = (host as unknown as { _root: ShadowRoot })._root;
-  // 恢复上次选中的模型
-  if (_lastModelPath) {
-    bus.emit("model:select", { path: _lastModelPath, isDir: false });
-  }
-  // 监听新的模型选择，更新工具栏显示
-  const unsub = bus.on("model:select", ({ path, isDir }) => {
+  const container = root.getElementById("viewer-3d-container");
+  if (!container) return;
+
+  const { createYsm3D, cleanupYsm3D } = await import("../../views/app-preview/ysm-3d.ts");
+  const { loadModelData } = await import("../../views/app-preview/loader.ts");
+
+  const close3D = (): void => {
+    cleanupYsm3D();
+  };
+  const unsub3DClose = bus.on("nav:changed", ({ page }) => {
+    if (page !== "viewer") close3D();
+  });
+
+  // 监听 model:select（从其他页面切换过来时触发）
+  const unsubModelSelect = bus.on("model:select", async ({ path }) => {
+    if (!path) return;
     _lastModelPath = path;
-    const el = root.getElementById("viewer-model-path");
-    if (el) {
-      el.textContent = path || "-";
+    const pathEl = root.getElementById("viewer-model-path");
+    if (pathEl) pathEl.textContent = path;
+    try {
+      await createYsm3D(path, 0, {
+        loader: async (p: string) => (await loadModelData(p, { root } as never)).model,
+        onClose: close3D,
+      });
+    } catch (e) {
+      console.error("[viewer] 3D 预览加载失败:", e);
     }
   });
-  (host as unknown as { _unsubs: Array<() => void> })._unsubs.push(unsub);
+
+  // 恢复上次选中的模型
+  if (_lastModelPath) {
+    try {
+      await createYsm3D(_lastModelPath, 0, {
+        loader: async (p: string) => (await loadModelData(p, { root } as never)).model,
+        onClose: close3D,
+      });
+      const pathEl = root.getElementById("viewer-model-path");
+      if (pathEl) pathEl.textContent = _lastModelPath;
+    } catch (e) {
+      console.error("[viewer] 3D 预览恢复失败:", e);
+    }
+  }
+
+  (host as unknown as { _unsubs: Array<() => void> })._unsubs.push(unsub3DClose, unsubModelSelect);
 }
