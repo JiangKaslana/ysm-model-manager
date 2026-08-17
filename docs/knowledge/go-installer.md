@@ -24,9 +24,9 @@ invariant_anchors:
 
 ## 核心职责
 
-- 路径清理与安全校验：`cleanAbs` + `paths.ContainsMinecraftMarker`（目标必须在 `.minecraft` 内）+ `paths.IsInside`（源必须在仓库内）
+- 路径清理与安全校验：`cleanAbs` + `paths.ContainsMinecraftMarker`（目标必须在 `.minecraft` 内）+ `paths.IsInside`（源必须在仓库内）+ **`EvalSymlinks` 三重守卫**（customDir 侧 [68–71] / src 侧 [82–88] / finalDst 逐段 Lstat [242–251] / 条目级 symlink 逃逸拦截 [327–333]）——防符号链接段绕过字符串守卫
 - 按 `LinkMode` 落地单文件：复制 / 硬链接 / 符号链接，链接目标已存在时原子替换
-- 目录树递归安装（`installDirRecursive`），按 `rtype` 白名单过滤扩展名（MMD 配套纹理、YSM 配套 JSON/图）
+- 目录树递归安装（`installDirRecursive`），按 `rtype` 白名单过滤扩展名（MMD 配套纹理、YSM 配套 JSON/图）；**rtype="" 时 deny-list 拦截可执行文件扩展名**（`.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi/.ps1/.vbs`，`installer.go:285–288`）
 - 链接失败的错误分类（`linkErr` / `symlinkErr`）：跨分区 / 权限不足 / 其他，均落为 `LINK_FAILED` + 修复建议
 - 仓库根目录合法性校验（`IsValidRepoRoot`，拒绝盘符根与系统目录）
 

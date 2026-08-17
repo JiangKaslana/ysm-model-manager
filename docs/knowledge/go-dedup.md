@@ -19,6 +19,8 @@ invariant_anchors:
 
 `go/dedup/` 包提供资源去重检测，避免重复导入相同资源。
 
+**路径安全（BUG-1 已免疫）**：`filepath.WalkDir` 不跟随符号链接（Go 标准库语义，仅 root 自身例外）+ 显式跳过 `ModeSymlink` 条目 + 根为 符号链接时返回 `ErrSymlinkRoot`。Go 1.25.0 处于 GO-2026-4970 受影响范围，若未来考虑 `os.Root` 迁移需先升 go1.25.12+。
+
 ## 核心职责
 
 - 基于文件哈希（**纯 SHA256 内容哈希，元数据 name/size/modtime 仅随 FileEntry 展示、不参与重复判定**——知识卡旧文「哈希/元数据检测」表述漂移已修正）检测重复
