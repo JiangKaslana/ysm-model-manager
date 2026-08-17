@@ -8,7 +8,11 @@ import { buildVrmScene, type VrmPanelHooks } from "../../utils/3d/adapters/vrm-a
 import { getApp } from "../../backend/app.ts";
 import { makeVrmPanelRenderer } from "./vrm-controls.ts";
 import { fillMmdPlayPanel } from "./mmd-controls.ts";
-import { withPreviewExtras } from "./preview-library.ts";
+import { withPreviewExtras, registerReRoute } from "./preview-library.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+
+// 注册跨类型换角色路由（资源库面板/导航 FAB 选中 VRM 时派发到此）
+registerReRoute(RESOURCE_TYPES.VRC, (path) => createVrm3D(path));
 
 /** 数据读取注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 async function readFileBytes(path: string): Promise<string | null> {

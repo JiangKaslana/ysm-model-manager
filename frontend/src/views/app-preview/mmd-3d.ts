@@ -6,7 +6,11 @@ import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type Preview
 import { buildMmdScene, type MmdDataPort, type MmdPanelHooks } from "../../utils/3d/adapters/mmd-adapter.ts";
 import { getApp } from "../../backend/app.ts";
 import { fillMmdModelPanel, fillMmdPlayPanel, fillMmdShotPanel, buildMaterialControls } from "./mmd-controls.ts";
-import { withPreviewExtras } from "./preview-library.ts";
+import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+
+// 注册跨类型换角色路由（资源库面板/导航 FAB 选中 MMD 时派发到此）
+registerReRoute(RESOURCE_TYPES.MMD, (path) => createMmd3D(path));
 
 /** 数据端口注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 async function makeMmdPort(): Promise<MmdDataPort> {

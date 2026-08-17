@@ -10,7 +10,20 @@ import { makeYsmAdapter } from "../../utils/3d/adapters/ysm-adapter.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import { preloadModel } from "./model3d-loader.ts";
 import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "./ysm-controls.ts";
-import { withPreviewExtras } from "./preview-library.ts";
+import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+
+/** 跨类型换角色路由用：注入轻量 loader ctx（decodeYsmViaWasm + 空 appendDebug） */
+async function openYsmFullscreen(path: string): Promise<void> {
+  const { loadModelData } = await import("./loader.ts");
+  const { decodeYsmViaWasm } = await import("./wasm.ts");
+  await createYsm3D(path, 0, {
+    loader: async (p) =>
+      (await loadModelData(p, { decodeYsmViaWasm, appendDebug: () => {} } as never)).model,
+  });
+}
+// 注册跨类型换角色路由（资源库面板/导航 FAB 选中 YSM 时派发到此；未知类型回退入口）
+registerReRoute(RESOURCE_TYPES.YSM, openYsmFullscreen);
 
 export interface YsmOpenOptions {
   /** path → model 加载器（skeleton 层注入：loadModelData(p, ctx)，含缓存/WASM/Go 兜底） */

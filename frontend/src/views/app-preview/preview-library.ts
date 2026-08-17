@@ -1,18 +1,18 @@
 // ===== 3D 全屏内「资源库 / 换角色」（step 3）=====
-// 落点：⚙️ 根菜单的 📚 资源库面板。复用既有绑定（GetRepoRoot / SearchModels /
-// DetectResourceType）与既有 createXxx3D 全屏入口；把「关当前 + 开目标」收敛为唯一路由
-// openModel3DFullscreen，导航栏 FAB 与菜单 📚 面板共用（复用 > 重造）。
-// 只在全屏遮罩内加载，不在导航/页内再造第二套文件树。
+// 落点：⚙️ 根菜单的 📚 资源库面板 + 导航栏左下角 FAB。
+// 复用既有绑定（GetRepoRoot / SearchModels / DetectResourceType）与既有 createXxx3D 全屏入口。
+//
+// 循环依赖红线（check-circular 阻断）：本模块是【叶子】——只被各 createXxx3D 静态 import
+// （registerReRoute / withPreviewExtras），自身【不】反向 import 任何 createXxx3D 包装器。
+// 跨类型跳转靠「注册表反向注入」：各包装器在模块加载时 registerReRoute(id, opener)，
+// openModel3DFullscreen 只查表调用，从而打破「库→包装器→库」闭环。
 
 import { getApp } from "../../backend/app.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import type { LibraryAsset } from "../../utils/3d/adapters/preview-menu.ts";
-import { decodeYsmViaWasm } from "./wasm.ts";
 
-export type { LibraryAsset } from "../../utils/3d/adapters/preview-menu.ts";
-
-/** 资源库扫描的仓库类型（模型仓库 ysm；Create/Ray 等类型不在此列） */
+/** 资源库扫描的仓库类型（模型仓库 ysm） */
 const LIBRARY_REPO = RESOURCE_TYPES.YSM;
 
 /** 扩展名 → 类型标签 + 图标（列表即时展示用；真正路由准确性交给路由侧 DetectResourceType） */
@@ -34,13 +34,19 @@ function tagOf(path: string): { icon: string; label: string } {
   return { icon: "📦", label: (ext || "?").toUpperCase() };
 }
 
-/** 路径 → basename（资源库名称展示） */
 function baseName(p: string): string {
   return p.split(/[/\\]/).pop() || p;
 }
 
-/** 全量模型列表（桌面 Go binding / 网页 browserAdapter 兜底；空关键词返回全部）。限流防超大库拖垮菜单。 */
-export async function loadAllModels(): Promise<LibraryAsset[]> {
+/** 跨类型换角色注册表：各 createXxx3D 模块加载时注册，路由侧不反向 import 包装器（破循环） */
+const _openers: Record<string, (path: string) => Promise<void>> = {};
+/** 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用） */
+export function registerReRoute(rtype: string, opener: (path: string) => Promise<void>): void {
+  _openers[rtype] = opener;
+}
+
+/** 全量模型列表（桌面 Go binding / 网页 adapter 兜底；空关键词返回全部）。限流防超大库拖垮菜单。 */
+async function loadAllModels(): Promise<LibraryAsset[]> {
   try {
     const { GetRepoRoot, SearchModels } = await getApp();
     const root = await GetRepoRoot(LIBRARY_REPO);
@@ -60,9 +66,9 @@ export async function loadAllModels(): Promise<LibraryAsset[]> {
 }
 
 /**
- * 通用「打开一个模型 3D」路由：探测类型 → 派发既有 createXxx3D 全屏入口
- * （各 createXxx3D → mount3D cooperate=false 会先清理旧的活跃全屏层，故无需手动预关）。
- * 无类型/探测失败回退 YSM 通路。
+ * 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。
+ * 未注册类型回退 YSM opener；全无注册时 toast 提示。各 opener 内部（createXxx3D →
+ * mount3D cooperate=false）会先清理旧的活跃全屏层。
  */
 export async function openModel3DFullscreen(path: string): Promise<void> {
   if (!path) return;
@@ -71,32 +77,18 @@ export async function openModel3DFullscreen(path: string): Promise<void> {
   try {
     rtype = (await DetectResourceType(path)) || "";
   } catch {
-    /* 类型探测失败 → 回退 YSM */
+    /* 类型探测失败 */
   }
-  if (rtype === RESOURCE_TYPES.MMD) {
-    const { createMmd3D } = await import("./mmd-3d.ts");
-    await createMmd3D(path);
+  const opener = _openers[rtype] ?? _openers[RESOURCE_TYPES.YSM];
+  if (opener) {
+    await opener(path);
     return;
   }
-  if (rtype === RESOURCE_TYPES.VRC) {
-    const { createVrm3D } = await import("./vrm-3d.ts");
-    await createVrm3D(path);
-    return;
-  }
-  if (rtype === RESOURCE_TYPES.PACK) {
-    const { createPack3D } = await import("./pack-3d.ts");
-    await createPack3D(path);
-    return;
-  }
-  const { createYsm3D } = await import("./ysm-3d.ts");
-  const { loadModelData } = await import("./loader.ts");
-  await createYsm3D(path, 0, {
-    loader: async (p: string) =>
-      (await loadModelData(p, { decodeYsmViaWasm, appendDebug: () => {} } as never)).model,
-  });
+  const { bus } = await import("../../bus.ts");
+  bus.emit("toast:show", { msg: "3D 预览暂不支持该类型", duration: 3000, type: "warn" });
 }
 
-export interface PreviewExtras extends Mount3DOptions {
+interface PreviewExtras extends Mount3DOptions {
   library?: () => Promise<LibraryAsset[]>;
   switchExternal?: (path: string) => Promise<void>;
 }

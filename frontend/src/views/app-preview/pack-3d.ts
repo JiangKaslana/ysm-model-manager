@@ -9,7 +9,11 @@
 import { mount3D, cleanupPreview, invalidatePreview, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { makePackAdapter } from "../../utils/3d/adapters/pack-model-adapter.ts";
 import { getApp } from "../../backend/app.ts";
-import { withPreviewExtras } from "./preview-library.ts";
+import { withPreviewExtras, registerReRoute } from "./preview-library.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+
+// 注册跨类型换角色路由（资源库面板/导航 FAB 选中资源包时派发到此）
+registerReRoute(RESOURCE_TYPES.PACK, (path) => createPack3D(path));
 
 /** 经 getApp 注入 Go 绑定（适配器 0 backend import，ADR-072 边界判据） */
 function makePackDeps() {
