@@ -5,7 +5,7 @@
 - **范围**：`go/download/download.go` + `go/download/download_http_test.go`
 - **对标库**：`github.com/hashicorp/go-getter`（v2.1.0+）、`github.com/cavaliergopher/grab/v3`
 - **动机**：项目里有 10 处 `TODO(BUG-HTTP-X)` 探察态断言点（另有 BUG-HTTP-2/5 已在报告产出前由 `FIXED(...)` 硬断言覆盖），但源码本体已实现对应修复。真实差距是"测试未跟上源码"——回归发生时 CI 不会变红。本报告先澄清现状，再给出最小化补丁。
-- **落地状态（同日更新）**：P0-a（断言升级）已落地，提交 `57b1bd9f`——10 处探察态断言点全部 `t.Fatalf` 化（9 处 `t.Log→t.Fatalf` + BUG-HTTP-7c 异常分支加固），`go test ./go/download/...` 全绿 ✅。P0-b（checksum）调研完成：**降级为 P2 预留能力**（§4.2.1）。P1 未动，见 §5。
+- **落地状态（同日更新）**：P0-a（断言升级）已落地，提交 `57b1bd9f`——10 处探察态断言点全部 `t.Fatalf` 化（9 处 `t.Log→t.Fatalf` + BUG-HTTP-7c 异常分支加固），`go test ./go/download/...` 全绿 ✅。P0-b（checksum）调研完成：**降级为 P2 预留能力**（§4.2.1）。P1-a / P1-b 调研完成：**均已闭环**（§4.3.1 / §4.4.1，本项目 Go 1.25.0 ≥1.24；dedup 依赖 WalkDir 语义免疫、installer 已有 EvalSymlinks 三重守卫 + deny-list；WASM MT 已由 ADR-079 + COI Service Worker 落地）。见 §5。
 
 ---
 
@@ -16,8 +16,8 @@
 | P0 安全红线（HTTP 下载） | ✅ **源码已修**。`downloadTo` 已有 `CheckRedirect`（scheme 白名单 + 10 跳上限）、`Content-Range` 拒绝、`Content-Type` 白名单、`TruncationError` 截断检测、原子写入 + `.part` 清理。 |
 | 测试断言 | ✅ **已落地（提交 `57b1bd9f`）**。10 处探察态断言点全部升级为 `t.Fatalf` 硬断言，回归即红 CI。 |
 | 与 go-getter/grab 范式差距 | 🟡 **可选加固**。缺失：checksum 校验（grab 内建 `req.SetChecksum`）、断点续传（grab 内建 Range 续传）。这两项不是安全红线，是可靠性增强。 |
-| P1 路径安全（dedup/installer） | 🟡 **Go 1.24 `os.Root` 范式**可统一修复 symlink 跟随、NUL 截断、`rtype=""` 越权。需先确认项目 Go 版本。 |
-| P1 WASM Pthread MT 解码（ADR-079） | 🟡 **WebView2 需 COOP/COEP 头**才能启用 SharedArrayBuffer。Wails v3 AssetServer 默认不发这两个头。桌面端可行，网页版（`dev:web` / GitHub Pages 静态托管）**无法跑 MT**，需降级单线程 fallback。 |
+| P1 路径安全（dedup/installer） | ✅ **实际已闭环**（调研修正 §4.3.1）：Go 1.25.0 ≥1.24；dedup 由 `WalkDir` 语义免疫 symlink 跟随 + `ErrSymlinkRoot`；installer 已有 `EvalSymlinks` 三重守卫 + 可执行文件 deny-list（`rtype=""` 也拦截）。`os.Root` 残余增量极小，无需大改。 |
+| P1 WASM Pthread MT 解码（ADR-079） | ✅ **已由 ADR-079 落地**（调研修正 §4.4.1）：COI Service Worker 补 COOP/COEP 头（GitHub Pages 静态托管可用）+ `crossOriginIsolated` 检测 → 多线程 / 单线程 fallback。桌面/网页均闭环。 |
 
 ---
 
@@ -109,12 +109,12 @@ root.Open("a/../b") // 允许（不逃逸 root）
 
 **与项目现状对照**：
 
-| 项目 BUG | 业界做法 |
+| 项目 BUG | 业界做法 / **项目实际现状（调研修正）** |
 |---|---|
-| `dedup/BUG-1`：symlink 子目录被跟随 | `os.OpenRoot(scanRoot)` + `Root.WalkDir`，自动拒绝逃逸 symlink |
-| `dedup/BUG-3`：NUL 字节路径截断 | 输入校验层拒绝 `\x00`（`filepath.Clean` 不防这个） |
-| `installer/BUG-1/2`：任意路径读取 | `os.OpenRoot(filesRoot)` + `Root.Open`，调用方负责传入绝对路径 |
-| `installer/BUG-3`：`rtype=""` 复制 `.exe/.bat/.dll` | 文件类型白名单（按 rtype 从 `resource_types.json` 取允许扩展名集） |
+| `dedup/BUG-1`：symlink 子目录被跟随 | 业界 `os.OpenRoot(scanRoot)` + `Root.WalkDir`；**项目实际已免疫**：`filepath.WalkDir` 不跟随 symlink（Go 语义）+ 显式跳过 symlink 条目 + `ErrSymlinkRoot` 拒根（§4.3.1） |
+| `dedup/BUG-3`：NUL 字节路径截断 | 输入校验层拒绝 `\x00`；项目 `download.ResolveSavePath` 已剔除 NUL（附录 C） |
+| `installer/BUG-1/2`：任意路径读取 | 业界 `os.OpenRoot(filesRoot)` + `Root.Open`；**项目实际已修复**：`EvalSymlinks` 三重守卫（src / customDir / 条目级，§4.3.1） |
+| `installer/BUG-3`：`rtype=""` 复制 `.exe/.bat/.dll` | 业界文件类型白名单；**项目实际已修复**：`installer.go` deny-list（.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi/.ps1/.vbs）即使 `rtype=""` 也拒绝（§4.3.1） |
 
 ### 2.4 P1 WASM Pthread MT 解码 — COOP/COEP 硬约束
 
@@ -135,11 +135,11 @@ root.Open("a/../b") // 允许（不逃逸 root）
 - 需要在 Go 端的 AssetHandler 中间件注入这两个头，否则即使 emscripten 编译了 `-pthread`，WebView2 也不会给 SharedArrayBuffer。
 - 参考实现：`prismarine-viewer` 的 worker 桥范式，但**只抄算法口径**（知识卡 `mc-ao-tint` 已立此规矩）。
 
-**推荐路径**：
+**推荐路径——⚠️ 已由项目落地（ADR-079，调研修正见 §4.4.1）**：
 
-1. **桌面端**：在 Wails AssetServer 中间件加 COOP/COEP 头。
-2. **网页版**：降级为单线程解码（`-pthread` 用 `Atomics.wait` 检测，失败则 fallback）。
-3. **验证**：前端启动时检查 `self.crossOriginIsolated`，false 则在环形日志面板告警。
+1. ✅ **COI Service Worker**（`frontend/src/backend/coi-sw.ts` + `public/sw.js`）：拦截同源响应补 COOP/COEP 头——**GitHub Pages 静态托管也能跑 MT**（报告初判"静态托管无法设头"不成立）。
+2. ✅ **降级 fallback**（`frontend/src/workers/stats.worker.ts`）：`crossOriginIsolated` 检测 → 多线程 WASM / 单线程 fallback。
+3. ✅ **检测**：worker 内读 `crossOriginIsolated`，false 走单线程（测试 `coi-sw.test.ts` 覆盖）。
 
 ---
 
@@ -386,9 +386,9 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 
 **④ 取代方案（若未来需要模型下载完整性）**：自营仓库/整合包清单配套 SHA256SUMS 文件，照 `go/updater` 的 `fetchExpectedHash` 范式接入——不依赖 jsDelivr API，数据源可控。现有威胁面（截断检测 + Content-Type 白名单 + 三源回退）已覆盖主流风险，该项不急。
 
-### 4.3 P1 路径安全：引入 `os.Root`（需先确认 Go 版本）
+### 4.3 P1 路径安全：引入 `os.Root`（需先确认 Go 版本）—— ⚠️ 调研修正：已闭环，无需大改，见 §4.3.1
 
-**前置检查**：项目 `go.mod` 的 `go` 指令是否 ≥1.24。若 <1.24，需先升级 Go 工具链或退而用 `github.com/google/safeopen`。
+**前置检查**：项目 `go.mod` 的 `go` 指令 = **1.25.0（≥1.24 满足）**。但进一步调研发现：dedup / installer 的对应 BUG 已由既有防线覆盖（§4.3.1），`os.Root` 迁移的残余增量极小。
 
 **改动原则**：去重和安装器都改用 `os.OpenRoot(scanRoot)` + `Root.WalkDir` / `Root.Open`。这一步**同时修 `dedup/BUG-1` 和 `installer/BUG-1/BUG-2`**（任意路径读取）。
 
@@ -428,13 +428,23 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 
 **`installer/BUG-3`（`rtype=""` 复制 `.exe/.bat/.dll`）**：
 
-需要 `resource_types.json` 加 `allowed_extensions` 字段，安装器按 rtype 查表，拒绝表外扩展名。这一步涉及数据模型改动，需单独立 ADR。
+需要 `resource_types.json` 加 `allowed_extensions` 字段，安装器按 rtype 查表，拒绝表外扩展名。这一步涉及数据模型改动，需单独立 ADR。⚠️ 调研修正：无需 data 模型改动——`installer.go` 已用 deny-list 硬编码拦截可执行扩展名（§4.3.1），`resource_types.json` 白名单属可选加固。
 
-### 4.4 P1 WASM Pthread MT 解码：COOP/COEP 头注入
+### 4.3.1 P1-a 调研结论（2026-08-17）——已闭环，`os.Root` 无需大改
 
-**前置检查**：Wails v3 AssetServer 是否支持自定义响应头中间件。若不支持，需 fork Wails 或在 WebView2 层注入。
+| 报告 BUG | 项目实际现状（源码核验） | 结论 |
+|---|---|---|
+| `dedup/BUG-1`：symlink 子目录被跟随 | `go/dedup/dedup.go` 用 `filepath.WalkDir`——**Go 语义不跟随 symlink**（仅 root 自身例外）；且第 54–59 行显式跳过 `ModeSymlink` 条目 + 根为 symlink 时返回 `ErrSymlinkRoot` | ✅ 已免疫，无需 `os.Root` |
+| `installer/BUG-1/2`：任意路径读取 | `go/installer/installer.go` 已有 `EvalSymlinks` 三重守卫：customDir 侧（68–71）、src 侧（82–88）、finalDst 逐段 Lstat（242–251）、条目级 symlink 逃逸拦截（327–333） | ✅ 已修复 |
+| `installer/BUG-3`：`rtype=""` 复制可执行文件 | `installer.go` 285–288：deny-list `.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi/.ps1/.vbs`，**即使 `rtype=""` 也拒绝**；`installer_extra2_test.go:966` 有硬断言 | ✅ 已修复（比"白名单"方案更轻） |
 
-**桌面端改动草图**：
+**残余增量评估**：`os.Root` 相对现状的唯一增量是"路径解析 + 打开"合并（抗 TOCTOU），而 dedup 为只读分析、installer 输入路径受调用方约束——残余风险可接受。**结论：P1-a 不做 `os.Root` 迁移，不立 ADR**；若未来引入第三方文件解析或 scanner 高危场景再评估（Go 1.25.0 已满足前置）。
+
+### 4.4 P1 WASM Pthread MT 解码：COOP/COEP 头注入—— ⚠️ 调研修正：已由 ADR-079 落地，见 §4.4.1
+
+**前置检查**：Wails v3 AssetServer 是否支持自定义响应头中间件。若不支持，需 fork Wails 或在 WebView2 层注入。（⚠️ 已不需要——项目用 COI Service Worker 方案，无 AssetServer 依赖，见 §4.4.1）
+
+**桌面端改动草图（历史参考，未采用）**：
 
 ```diff
 @@ go/app/asset_handler.go（假设存在）@@
@@ -446,7 +456,7 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
  }
 ```
 
-**网页版改动草图**：
+**网页版改动草图（历史参考，未采用）**：
 
 ```diff
 @@ frontend/src/platform.ts @@
@@ -474,10 +484,22 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
  }
 ```
 
-**验证**：
+**验证**（⚠️ 实际落地为 ADR-079 方案，见 §4.4.1）：
 
 1. 桌面端启动后在 DevTools 控制台执行 `self.crossOriginIsolated`，应返回 `true`。
-2. 网页版（`npm run dev:web`）执行同样命令，应返回 `false`，并触发单线程 fallback。
+2. 网页版（`npm run dev:web`）执行同样命令——COI SW 补头后应返回 `true`（多线程）；SW 未注册路径返回 `false` 触发单线程 fallback。
+
+### 4.4.1 P1-b 调研结论（2026-08-17）——已由 ADR-079 落地
+
+项目实际实现（`frontend/`）已完整覆盖报告 §2.4/§4.4 建议的三步，且**网页版方案优于报告初判**：
+
+| 报告建议 | 项目实际（源码核验） |
+|---|---|
+| 桌面端 AssetServer 注入 COOP/COEP | 未采用 AssetServer 方案；**COI Service Worker**（`frontend/src/backend/coi-sw.ts` + `public/sw.js`）截获同源响应补头（ADR-079 M1） |
+| 网页版降级单线程 fallback | **已实现**：`frontend/src/workers/stats.worker.ts:98–101`（ADR-079 M4）读 `crossOriginIsolated` → pthread 多线程 / 单线程 fallback |
+| 启动时检测 `crossOriginIsolated` | **已实现**：worker 内布尔检测 + `coi-sw.test.ts` 覆盖 true/false 两态 |
+
+**报告初判纠偏**："GitHub Pages 静态托管无法设 COOP/COEP → 网页版跑不了 MT"不成立——Service Worker 可在静态托管下补同源响应头，`crossOriginIsolated=true` 解锁 SharedArrayBuffer。**结论：P1-b 已闭环，无需任何改动。**
 
 ---
 
@@ -487,8 +509,8 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 |---|---|---|---|---|
 | 🔴 P0-a | 测试断言升级 | ✅ **已落地（提交 `57b1bd9f`）**：10 处断言点 `t.Fatalf` 化 | — | `go test ./go/download/...` 全绿 ✅ |
 | 🟡 P0-b | checksum 校验 | 🔽 **调研降级为 P2 预留**：实测无现成数据源（§4.2.1），仅预留 `expectedSHA256` API | 低 | — |
-| 🟡 P1-a | 路径安全 `os.Root` | 需先确认 Go 版本 ≥1.24，再去重/安装器改 `os.OpenRoot` | 中 | `go test ./go/dedup/... ./go/installer/...` 全绿 |
-| 🟡 P1-b | WASM MT COOP/COEP | 桌面端 AssetServer 注入头，网页版降级单线程 | 中 | DevTools 检查 `self.crossOriginIsolated` |
+| 🟡 P1-a | 路径安全 `os.Root` | ✅ **已闭环，不做迁移**（§4.3.1）：Go 1.25.0 满足前置，但 dedup 已免疫、installer 已有 EvalSymlinks 三重守卫 + deny-list | — | `go test ./go/dedup/... ./go/installer/...` 全绿 |
+| 🟡 P1-b | WASM MT COOP/COEP | ✅ **已由 ADR-079 落地**（§4.4.1）：COI Service Worker 补头 + `crossOriginIsolated` 检测 + 单线程 fallback | — | `coi-sw.test.ts` 覆盖 |
 
 **P0-a 已落地**：一个文件、11 行增删，回归红 CI 缺口已关闭。下一步按上表顺序评估 P0-b（checksum）。
 
@@ -556,4 +578,20 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 
 ---
 
-**报告完。** P0-a 已落地（提交 `57b1bd9f`），回归红 CI 缺口关闭；P0-b 调研完成并降级为 P2 预留（§4.2.1，实测 jsDelivr 无文件级 hash API、GitHub Contents 为 SHA-1）。下一步建议：P1-a（`os.Root` 路径安全，先确认 Go 版本 ≥1.24）或 P1-b（COOP/COEP），或落地 P2 预留参数（~30 行，打开自营仓库 checksum 口子）。
+## 附录 E：P1 调研快照（2026-08-17 源码核验）
+
+**P1-a（`os.Root` 路径安全）——已闭环，不做迁移：**
+- Go 版本：`go.mod` = **1.25.0**（≥1.24 前置满足）。
+- dedup（`go/dedup/dedup.go:48`）：`filepath.WalkDir` **不跟随 symlink**（Go 语义，仅 root 自身例外）+ 第 54–59 行显式跳过 `ModeSymlink` 条目 + 根为 symlink 返回 `ErrSymlinkRoot` → BUG-1 已免疫。
+- installer（`go/installer/installer.go`）：`EvalSymlinks` 守卫（customDir 68–71 / src 82–88 / finalDst 逐段 242–251 / 条目级 327–333）+ deny-list 拦截 `.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi/.ps1/.vbs`（285–288，`rtype=""` 也拒绝，`installer_extra2_test.go:966` 硬断言）→ BUG-1/2/3 已修复。
+- 残余增量：`os.Root` 抗 TOCTOU 属极致防御，dedup 只读分析 / installer 输入受调用方约束，风险可接受。**不立 ADR**。
+
+**P1-b（WASM MT COOP/COEP）——已由 ADR-079 落地：**
+- `frontend/src/backend/coi-sw.ts` + `public/sw.js`：COI Service Worker 补 COOP/COEP 头，**GitHub Pages 静态托管也可用**（报告初判"静态托管无法设头"不成立）。
+- `frontend/src/workers/stats.worker.ts:98–101`（ADR-079 M4）：`crossOriginIsolated` 检测 → pthread 多线程 WASM / 单线程 fallback。
+- `frontend/src/app-modules.ts:75`（ADR-079 M1）：网页版注册 COI SW；`coi-sw.test.ts` 覆盖两态。
+- 结论：无需任何改动。
+
+---
+
+**报告完。** P0-a 已落地（提交 `57b1bd9f`），回归红 CI 缺口关闭；P0-b 调研完成并降级为 P2 预留（§4.2.1）；P1-a / P1-b 调研完成并确认**均已闭环**（§4.3.1 / §4.4.1）。本报告四优先级全部收敛：**剩余可选项仅 P2 预留参数**（~30 行，打开自营仓库 checksum 口子，需用户拍板）与附录 A 未深入点。
