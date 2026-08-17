@@ -37,9 +37,9 @@ export function openSite(
 }
 
 /**
- * 内嵌浏览：直连官网
+ * 内嵌浏览：直连官网（仅 openSite 的 embed 分支调用，模块私有）
  */
-export function openEmbedded(
+function openEmbedded(
   host: AppContentHost,
   site: WorkshopSite,
 ): void {

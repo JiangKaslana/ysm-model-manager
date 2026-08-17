@@ -12,9 +12,6 @@ import { DragSliderController } from "./ui-slider-controller.ts";
 import { SLIDER_QUARTER_LARGE_STEP, SLIDER_QUARTER_SMALL_STEP } from "./ui-constants.ts";
 // DOM 契约单源：role/class 由 dom-contract 提供，禁止手写字符串
 import { ROLE, SLIDER_BAR_CLASS, ARIA_ATTR } from "./dom-contract.ts";
-// 骨骼选择行（ADR-122 P3 拆分，独立领域模块）
-export { addBoneSelectRow, isIkBone, buildBoneGroups } from "./ui-bone-select.ts";
-export type { BoneSelectOptions } from "./ui-bone-select.ts";
 
 // ===================================================================
 // createIconBox — icon 渲染工具（消除 addToggleRow/addSliderRow 两处重复）
