@@ -705,6 +705,10 @@ export const autoSidebar = [
         "link": "/web-research-report-2026-08-17-part2"
       },
       {
+        "text": "联网调研报告（再续）：五个实用技术方向",
+        "link": "/web-research-report-2026-08-17-part3"
+      },
+      {
         "text": "联网调研报告：值得后续开发借鉴的思路、文章与代码",
         "link": "/web-research-report-2026-08-17"
       }

@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 106 | 392 |
+| 前端·工具 | 106 | 393 |
 | frontend/views | 99 | 270 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **383** | **1593** |
+| **合计** | **383** | **1594** |
 
 ## Go·头像
 
@@ -1418,7 +1418,8 @@
 | `ReplaceResult()` | `frontend/src/utils/dom/dialogs/batch-rename-util:31` | — |
 | `applyReplaceToName()` | `frontend/src/utils/dom/dialogs/batch-rename-util:41` | 查找替换：分离扩展名，仅对文件名主体做替换。 |
 | `BatchRenameChange()` | `frontend/src/utils/dom/dialogs/batch-rename:20` | 应用变更载荷 |
-| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:49` | 弹出批量重命名对话框 重复打开时先结算上一个 Promise，调用方 await 不会永远悬挂 |
+| `__resetBatchRenameForTest()` | `frontend/src/utils/dom/dialogs/batch-rename:43` | 测试钩子：重置模块级弹窗单例（isolate:false 共享模块图下，兄弟文件残留的 dialogEl 会让「重复打开」用例的 closeDlgMock 计数失真；modal._ |
+| `showBatchRenameDialog()` | `frontend/src/utils/dom/dialogs/batch-rename:56` | 弹出批量重命名对话框 重复打开时先结算上一个 Promise，调用方 await 不会永远悬挂 |
 | `esc()` | `frontend/src/utils/dom/dialogs/modal` | — |
 | `trapFocus()` | `frontend/src/utils/dom/dialogs/modal:26` | 焦点陷阱：Tab 键在弹窗内可聚焦元素间循环，防止焦点逃逸到背后页面 |
 | `closeDlg()` | `frontend/src/utils/dom/dialogs/modal:54` | 带退场动画关闭对话框 |
