@@ -16,6 +16,12 @@ const DEBUG_THEME = {
 
 /** 生成骨骼名 Canvas 纹理（Sprite 标签用）—— 按骨名缓存，避免重复创建 CanvasTexture（审核 P3） */
 const _labelTexCache = new Map<string, THREE.CanvasTexture>();
+
+/** 清空标签纹理缓存（debug 组销毁时调用，防长时使用 OOM） */
+export function clearLabelTexCache(): void {
+  for (const tex of _labelTexCache.values()) tex.dispose();
+  _labelTexCache.clear();
+}
 function makeTextTexture(text: string, color?: string): THREE.CanvasTexture {
   const key = color ? `${text}::${color}` : text;
   const cached = _labelTexCache.get(key);
@@ -62,6 +68,8 @@ export function rebuildDebug(
     disposeDebugGroup(state.debugGroup);
     scene.remove(state.debugGroup);
     state.debugGroup = null;
+    // 清空标签纹理缓存（审核 P3：_labelTexCache 无清理机制 → 长时使用 OOM）
+    clearLabelTexCache();
   }
   if (state.debugMode === "normal") return;
   state.debugGroup = new THREE.Group();

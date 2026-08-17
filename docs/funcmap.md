@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 108 | 396 |
+| 前端·工具 | 108 | 397 |
 | frontend/views | 100 | 281 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **386** | **1608** |
+| **合计** | **386** | **1609** |
 
 ## Go·头像
 
@@ -1217,7 +1217,8 @@
 | `computeBoneLocalPos()` | `frontend/src/utils/3d/cube-mesh:24` | 计算骨骼本地位置（对齐 YSMViewer/C# ConvertBones 口径）。 |
 | `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:64` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:220` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
-| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:52` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
+| `clearLabelTexCache()` | `frontend/src/utils/3d/debug-render:21` | 清空标签纹理缓存（debug 组销毁时调用，防长时使用 OOM） |
+| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:58` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
 | `loadTdKeymap()` | `frontend/src/utils/3d/keymap:27` | 读取用户自定义键位（无/非法时回退默认） |
