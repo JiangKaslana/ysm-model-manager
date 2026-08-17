@@ -233,14 +233,21 @@ export function workshopHTML(): string {
 // ===== 3D 预览器页面 =====
 export function viewerHTML(): string {
   return (
-    '<div class="viewer-wrap" style="display:flex;flex-direction:column;height:100%;overflow:hidden;">' +
-    // 顶部工具栏
-    '<div class="viewer-toolbar" style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--bd);background:var(--bg);flex-shrink:0;">' +
-    '<span style="font-size:15px;font-weight:600;color:var(--txt)">🎲 3D 预览</span>' +
-    '<span id="viewer-model-path" style="flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>' +
+    '<div class="viewer-wrap" style="display:flex;flex-direction:row;height:100%;overflow:hidden;">' +
+    // 左侧模型列表
+    '<div class="viewer-sidebar" style="width:220px;flex-shrink:0;border-right:1px solid var(--bd);background:var(--bg);overflow-y:auto;display:flex;flex-direction:column;">' +
+    '<div style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--txt);border-bottom:1px solid var(--bd);">📦 模型列表</div>' +
+    '<div id="viewer-model-list" style="flex:1;overflow-y:auto;"></div>' +
+    '<div id="viewer-list-empty" style="padding:20px;font-size:12px;color:var(--muted);text-align:center;display:none;">暂无模型<br>请先导入 .ysm 文件</div>' +
     '</div>' +
-    // 全屏 3D 预览容器（挂载点，由 initViewerPage 注入）
-    '<div id="viewer-3d-container" style="flex:1;width:100%;overflow:hidden;"></div>' +
+    // 右侧 3D 预览容器
+    '<div class="viewer-main" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">' +
+    '<div class="viewer-toolbar" style="display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--bd);background:var(--bg);flex-shrink:0;">' +
+    '<span style="font-size:13px;font-weight:600;color:var(--txt)">🎲 3D 预览</span>' +
+    '<span id="viewer-model-path" style="flex:1;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>' +
+    '</div>' +
+    '<div id="viewer-3d-container" style="flex:1;width:100%;overflow:hidden;position:relative;"></div>' +
+    '</div>' +
     '</div>'
   );
 }
