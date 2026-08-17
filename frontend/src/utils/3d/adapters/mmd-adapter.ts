@@ -32,6 +32,7 @@ import { createBlinkController } from "../perception/blink.ts"; // 语义 morph 
 import { createLipSyncController } from "../perception/lipsync.ts"; // 语义 morph 消费方：程序化生命力 L2
 import { createAutoDanceController } from "../perception/autodance.ts"; // 语义骨骼消费方：程序化生命力 L3
 import { buildLipMorphIndices } from "../perception/lipsync.ts"; // 多 morph index 提取
+import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK）
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
@@ -347,6 +348,8 @@ export async function buildMmdScene(
     : undefined);
   // 感知层 AutoDance（程序化生命力 L3）：按 BPM 节拍驱动骨骼律动（待机态生效）
   const autoDance = createAutoDanceController({ bpm: 120, intensity: 0.3 });
+  // 程序化足部锚地（Foot IK）：待机态下保持双足贴地，防悬空/穿模
+  const footIK = createFootIKController(boneTree, semanticBones);
 
   return {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
@@ -383,7 +386,10 @@ export async function buildMmdScene(
         });
       }
       // AutoDance：待机态下按节拍律动（与呼吸/眨眼/注视共存，动作叠加）
-      if (!action || action.paused) {
+      const isIdle = !action || action.paused;
+      // Foot IK：待机态下锚定双足（在 AutoDance 之前，防足部偏移被覆盖）
+      footIK.apply(dt, isIdle);
+      if (isIdle) {
         autoDance.apply(dt, semanticBones ?? {});
       }
     },
@@ -396,6 +402,7 @@ export async function buildMmdScene(
       blink.dispose();
       lipSync.dispose();
       autoDance.dispose();
+      footIK.dispose();
       for (const url of blobUrls) URL.revokeObjectURL(url);
       mmd.dispose();
     },
