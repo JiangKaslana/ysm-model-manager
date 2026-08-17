@@ -56,6 +56,14 @@ interface RepoCacheEntry {
 }
 
 class AppContent extends WebComponentBase {
+  /** 订阅桶语义约定（ADR-091 D22）：
+   * - _unsub:         全局单订阅（nav:changed），连入注册、卸载清除
+   * - _globalUnsubs:  全局多订阅（lang:changed / repo:search-creator / handlers），
+   *                    连入注册、卸载清除，不随切页清空
+   * - _unsubs:        页面级临时订阅（各 initXxx 注入的 bus.on 退订），
+   *                    每次 _render() 开头清空（防跨页累积）+ disconnectedCallback 兜底
+   * 补丁历史：P2 空 _unsubs@_render 防跨页累积 → P3 同步复位 _insListenerReg
+   * 防实例页订阅永久丢失。未来新增订阅必须二选一入桶，禁止裸 bus.on。 */
   _root: ShadowRoot;
   _current: string;
   _globalUnsubs: Array<() => void>;
