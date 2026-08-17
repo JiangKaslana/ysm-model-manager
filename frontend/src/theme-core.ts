@@ -1,17 +1,12 @@
 // ===== 主题核心（纯逻辑，无启动装配副作用）=====
 // 2026-08-17 神桶拆分：原 app-modules.ts 同时承载「纯逻辑导出」与「启动装配
-// （Web Component import / 启动 IIFE / window 挂载 / addEventListener）」，测试
+// （Web Component import / 启动 IIFE / 总线发射 / addEventListener）」，测试
 // import 纯函数即触发全部顶层副作用 → 切 node 环境需逐个 stubGlobal 补不完。
 // 拆出本文件：normalizeTheme/applyTheme/initTheme 无顶层副作用，测试可独立 import；
-// 挂载（window.applyTheme）带守卫保留在文件尾，浏览器语义不变、node 安全。
+// 主题变更通过 bus.emit("theme:change") 广播，替代 window.applyTheme 暗契约（ADR-091 D21）。
 import { getApp } from "./backend/app.ts";
+import { bus } from "./bus.ts";
 import { safeGet, safeSet } from "./utils/dom/storage.ts";
-
-declare global {
-  interface Window {
-    applyTheme?: (mode: string) => void;
-  }
-}
 
 const THEME_DARK = "cyber";
 // 主题白名单（applyTheme 与 initTheme 共用，防两处口径漂移）
@@ -35,6 +30,8 @@ export function applyTheme(mode: string): void {
   } else {
     document.body.classList.add("theme-" + mode);
   }
+  // ADR-091 D21 修复：替代 window.applyTheme 暗契约，通过 bus 广播主题变更
+  bus.emit("theme:change", { name: mode });
 }
 
 export async function initTheme() {
@@ -54,6 +51,3 @@ export async function initTheme() {
     applyTheme(theme);
   }
 }
-
-// node 测试环境无 window，跳过挂载（浏览器语义不变）
-if (typeof window !== "undefined") window.applyTheme = applyTheme;

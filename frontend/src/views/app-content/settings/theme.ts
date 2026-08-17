@@ -5,6 +5,7 @@
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 import { getApp } from "../../../backend/app.ts";
 import { cfg } from "./store.ts";
+import { applyTheme } from "../../../theme-core.ts";
 
 // 时间段主题边界（魔法数值收敛）：6:00–18:00 白天 warm，其余夜晚 cyber
 const DAY_START_HOUR = 6;
@@ -15,7 +16,7 @@ function applyTimeTheme(): string {
   const hour = new Date().getHours();
   const isDay = hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
   const themeName = isDay ? "warm" : "cyber";
-  window.applyTheme?.(themeName);
+  applyTheme(themeName);
   return themeName;
 }
 
@@ -31,7 +32,7 @@ export function initTheme(root: ShadowRoot): void {
         themePicker.querySelectorAll(".theme-card").forEach((c) => c.classList.remove("active"));
         card.classList.add("active");
         const themeName = (card as HTMLElement).dataset.theme || "";
-        window.applyTheme?.(themeName);
+        applyTheme(themeName);
         safeSet("theme", themeName);
         // P2 修复：主题切后同步到 ysm_config.json，保持 localStorage ↔ JSON 一致
         // P3 修复（审核，linkMode 失同步）：读 cfg.linkMode 而非闭包旧值 linkMode——
@@ -64,7 +65,7 @@ export function initTheme(root: ShadowRoot): void {
       const mode = autoSelect.value;
       safeSet("theme-auto", mode);
       if (mode === "system") {
-        window.applyTheme?.("system");
+        applyTheme("system");
         safeSet("theme", "system");
         // 更新卡片选中态
         if (themePicker) themePicker.querySelectorAll(".theme-card").forEach((c) => c.classList.remove("active"));
@@ -79,14 +80,14 @@ export function initTheme(root: ShadowRoot): void {
     });
     // 初始化：如果 savedAuto 是 system/time，应用对应主题
     if (savedAuto === "system") {
-      window.applyTheme?.("system");
+      applyTheme("system");
     } else if (savedAuto === "time") {
       const themeName = applyTimeTheme();
       safeSet("theme", themeName);
     } else {
-      window.applyTheme?.(savedTheme);
+      applyTheme(savedTheme);
     }
   } else {
-    window.applyTheme?.(savedTheme);
+    applyTheme(savedTheme);
   }
 }

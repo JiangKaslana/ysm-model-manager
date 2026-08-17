@@ -33,7 +33,7 @@
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 24 | 183 |
-| 前端·根 (app-modules/bus) | 3 | 16 |
+| 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 21 | 99 |
@@ -44,7 +44,7 @@
 | frontend/views | 98 | 273 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **383** | **1606** |
+| **合计** | **383** | **1607** |
 
 ## Go·头像
 
@@ -693,19 +693,20 @@
 | `normalizeTheme()` | `frontend/src/app-modules` | — |
 | `applyTheme()` | `frontend/src/app-modules` | — |
 | `initTheme()` | `frontend/src/app-modules` | — |
-| `bus()` | `frontend/src/bus:199` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:205` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
 | `NavPagePayload()` | `frontend/src/bus:39` | — |
-| `ModelSelectPayload()` | `frontend/src/bus:43` | — |
-| `CtxShowPayload()` | `frontend/src/bus:48` | — |
-| `BusEvents()` | `frontend/src/bus:65` | — |
-| `BusEventName()` | `frontend/src/bus:110` | — |
-| `Bus()` | `frontend/src/bus:136` | — |
-| `normalizeTheme()` | `frontend/src/theme-core:23` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
-| `applyTheme()` | `frontend/src/theme-core:27` | — |
-| `initTheme()` | `frontend/src/theme-core:40` | — |
+| `ThemeChangePayload()` | `frontend/src/bus:43` | — |
+| `ModelSelectPayload()` | `frontend/src/bus:47` | — |
+| `CtxShowPayload()` | `frontend/src/bus:52` | — |
+| `BusEvents()` | `frontend/src/bus:69` | — |
+| `BusEventName()` | `frontend/src/bus:116` | — |
+| `Bus()` | `frontend/src/bus:142` | — |
+| `normalizeTheme()` | `frontend/src/theme-core:18` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
+| `applyTheme()` | `frontend/src/theme-core:22` | — |
+| `initTheme()` | `frontend/src/theme-core:37` | — |
 
 ## frontend/backend
 
@@ -1572,7 +1573,7 @@
 | `setBusy()` | `frontend/src/views/app-content/settings/store:21` | — |
 | `toastError()` | `frontend/src/views/app-content/settings/store:26` | — |
 | `resetSettingsStore()` | `frontend/src/views/app-content/settings/store:35` | 重置模块级状态（initSettings 开头调用；重复执行时清空上次残留） |
-| `initTheme()` | `frontend/src/views/app-content/settings/theme:23` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
+| `initTheme()` | `frontend/src/views/app-content/settings/theme:24` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
 | `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:11` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
 | `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:51` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |

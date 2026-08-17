@@ -40,6 +40,10 @@ export interface NavPagePayload {
   page: PageName;
 }
 
+export interface ThemeChangePayload {
+  name: string;
+}
+
 export interface ModelSelectPayload {
   path: string;
   isDir?: boolean;
@@ -65,6 +69,8 @@ export interface CtxShowPayload {
 export interface BusEvents {
   // 导航
   "nav:changed": NavPagePayload;
+  // 主题（ADR-091 D21：替代 window.applyTheme 暗契约）
+  "theme:change": ThemeChangePayload;
   // i18n
   "lang:changed": { lang: string };
   // 反馈

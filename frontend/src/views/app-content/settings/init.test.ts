@@ -144,22 +144,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   document.body.innerHTML = "";
   localStorage.clear();
-  window.applyTheme = undefined; // 重置主题应用函数（app-modules 未挂载时 undefined）
   loadResourceRegistry.mockResolvedValue({
     ysm: { id: "ysm", name: "模型", icon: "🧊", storageSubDir: "ysm", configField: "YsmRoot" },
   });
   mockApp();
 });
 
-afterEach(() => {
-  window.applyTheme = undefined;
-});
-
-/** 挂载 applyTheme spy（theme.ts 经 window.applyTheme?.() 调用，直接赋值可断言） */
-function applyThemeSpy(): (mode: string) => void {
-  const spy = vi.fn<(mode: string) => void>();
-  window.applyTheme = spy;
-  return spy;
+/** 挂载 theme:change bus 监听 spy（theme.ts 经 bus.emit("theme:change") 调用，直接断言） */
+function themeChangeSpy(): ReturnType<typeof vi.fn> {
+  return vi.fn();
 }
 
 describe("initSettings — 初始化", () => {
@@ -347,21 +340,25 @@ describe("initSettings — 高级面板/主题/镜像/发布页", () => {
 });
 
 describe("initSettings — 主题自动切换（theme.ts）", () => {
-  it("auto 切 system → applyTheme(system) + theme 落盘 + 卡片取消选中", async () => {
-    const spy = applyThemeSpy();
+  it("auto 切 system → theme:change bus + theme 落盘 + 卡片取消选中", async () => {
+    const spy = themeChangeSpy();
+    busOn.mockImplementation((event: string, fn: (p: unknown) => void) => {
+      if (event === "theme:change") busEmit.mockImplementation(() => {});
+      return () => {};
+    });
     const { root } = makeRoot();
     await initSettings(root);
     const sel = root.getElementById("theme-auto") as HTMLSelectElement;
     sel.value = "system";
     sel.dispatchEvent(new Event("change"));
-    expect(spy).toHaveBeenCalledWith("system");
+    expect(busEmit).toHaveBeenCalledWith("theme:change", { name: "system" });
     expect(localStorage.getItem("theme")).toBe("system");
     expect(localStorage.getItem("theme-auto")).toBe("system");
     expect(root.querySelectorAll(".theme-card.active").length).toBe(0);
   });
 
   it("auto 切 time → 写入实际时间段主题（warm/cyber）而非非法值 time", async () => {
-    applyThemeSpy();
+    themeChangeSpy();
     const { root } = makeRoot();
     await initSettings(root);
     const sel = root.getElementById("theme-auto") as HTMLSelectElement;
@@ -373,7 +370,7 @@ describe("initSettings — 主题自动切换（theme.ts）", () => {
   });
 
   it("auto 切 off → 不覆盖当前主题", async () => {
-    applyThemeSpy();
+    themeChangeSpy();
     localStorage.setItem("theme", "cyber");
     const { root } = makeRoot();
     await initSettings(root);
@@ -383,12 +380,12 @@ describe("initSettings — 主题自动切换（theme.ts）", () => {
     expect(localStorage.getItem("theme")).toBe("cyber");
   });
 
-  it("持久化 theme-auto=system 初始化 → 应用 system", async () => {
-    const spy = applyThemeSpy();
+  it("持久化 theme-auto=system 初始化 → theme:change bus 发射 system", async () => {
+    themeChangeSpy();
     localStorage.setItem("theme-auto", "system");
     const { root } = makeRoot();
     await initSettings(root);
-    expect(spy).toHaveBeenCalledWith("system");
+    expect(busEmit).toHaveBeenCalledWith("theme:change", { name: "system" });
   });
 });
 
