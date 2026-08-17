@@ -203,12 +203,92 @@ export function computeBoneLocalPos(
 - 几何计算（顶点/UV/四元数）在 Go 端完成，前端不得私改几何口径；JS 兜底算法（model3d-spec.ts）已废弃，不再承担降级职责
 - 治理红线 R1：模块级状态不挂 `window.__*`（ADR-052 已消除模块级场景状态）
 
+## ⚠️ 大文件性能阈值
+
+> **状态**：欠账（ADR-049:98）。100MB 上限是唯一防线，但从未在真实设备上实测校准。
+
+### 内存拷贝链（解码时 peak）
+
+网页版 WASM 解码流水线在解码瞬间存在 2-3 份全量拷贝：
+
+```
+Go/binding 返回 base64 字符串        ← 拷贝①：文本形态（~1.33× 原始大小）
+  │
+  ▼
+b64ToBytes → Uint8Array             ← 拷贝②：二进制形态（原始大小）
+  │
+  ▼
+_writeHeap → _malloc → HEAPU8.set   ← 拷贝③：WASM 线性内存（原始大小）
+  │
+  ▼
+WASM 解码 → MEMFS 输出文件            ← 拷贝④：WASM 内部 FS（解码后产物）
+  │
+  ▼
+collectOutputFiles → FS.readFile    ← 拷贝⑤：JS 侧读取解码结果
+  │
+  ▼
+parseBedrockGeometry → JSON.parse   ← 拷贝⑥：字符串化 + 解析
+```
+
+**关键点**：拷贝③④⑤⑥在解码过程中并存，但拷贝③（`_malloc`）在 `finally` 块中 `_free` 释放（`ysm-parser.ts:225`），拷贝⑤在读取后通过 `wipeDir` 清理 MEMFS 残留（`ysm-parser.ts:276-278`）。**不存在长期泄漏，但解码瞬间 peak 内存可达 ~3-4× 文件大小。**
+
+### 当前 100MB 防线（四层互锁）
+
+| 层 | 文件 | 常量 | 阶段 |
+|----|------|------|------|
+| 导入层（网页） | `web-common.ts:51` | `MAX_IMPORT_BYTES = 100MB` | 拖入/选择文件时过滤 |
+| 导入层（桌面） | `import-dnd.ts:100` | 引用 `MAX_IMPORT_BYTES` | 拖入文件时过滤 |
+| ZIP 解压 | `extract.ts:25-27` | `MAX_ZIP_FILE_BYTES = 100MB` | 单 entry 解压前拦截 |
+| NBT 解析 | `nbt-parse.ts:38` | `MAX_NBT_BYTES = 100MB` | 解压后 NBT 解析前 |
+| Spec 构建 | `spec-builder.ts:18` | `MAX_PARSE_SIZE = 100MB` | 解析 bedrock geometry JSON 前 |
+| Go 侧（桌面） | `geometry/parse.go:13` | `maxParseSize = 100MB` | 服务端解析 |
+| Go 侧（桌面） | `litematic/nbt.go:15` | `maxDecodedBytes = 100MB` | 服务端 NBT 解析 |
+
+所有 100MB 阈值同源（继承自 Go `geometry/parse.go` 的设计值），但 **从未在网页版真实设备上实证**——包括低端手机（4GB RAM）、中端平板、旧款 Chromebook 等边缘场景。
+
+### 解码后释放策略现状
+
+| 策略 | 状态 | 说明 |
+|------|------|------|
+| `_malloc` → `_free` | ✅ 已落地 | `ysm-parser.ts:225` finally 块释放 |
+| MEMFS `wipeDir` | ✅ 已落地 | `decodeYsmFile` 末尾清理 `/output` 和 `/input`；`decodeYsmFileFromMemory` 不写 MEMFS，无需清理 |
+| 并发去重守卫 | ✅ 已落地 | `wasm.ts:17` `_decodeInFlight` Map，同一路径只解码一次 |
+| LRU spec 缓存 | ✅ 已落地 | `model3d-loader.ts:26` `SPEC_CACHE_MAX = 20`，用 Map 淘汰 |
+| Worker 独立 HEAP | ✅ 已落地 | `ysm-worker-loader.ts` stats worker 内独立 WASM 实例，不占主线程 HEAP |
+| base64 中间态及时释放 | ⚠️ 依赖 GC | `b64ToBytes` 返回的 `Uint8Array` 在 `_decodeYsmViaWasm` 内无显式释放，依赖 V8 GC（解码结束后自然可达） |
+| 大文件导入后 IDB 残留 | ⚠️ 未评估 | 100MB 文件写入 IDB 后删除，IDB 是否及时回收空间未验证 |
+
+### 如需实测阈值
+
+```bash
+# 1. 启动网页版
+cd frontend && npm run dev:web
+
+# 2. 准备不同大小的测试模型（可用 Python/Node 生成填充骨架）
+#    建议测试梯度：10MB、30MB、50MB、80MB、100MB、120MB（超限验证）
+
+# 3. 在 Chrome DevTools → Performance 面板录制解码过程，记录：
+#    - JS Heap 峰值（尤其是解码瞬间）
+#    - DOM GC 后的常驻内存
+#    - 解码耗时
+#    - 是否触发 OOM / tab 崩溃
+
+# 4. 至少覆盖 3 类设备：
+#    - 低端（4GB RAM，Chrome）
+#    - 中端（8GB RAM，Edge）
+#    - 高端（16GB+ RAM，Chrome）
+
+# 5. 实测数据填回本表，并据此调整 MAX_IMPORT_BYTES 等阈值
+```
+
 ## 相关
 
+- [ADR-049](../adr/ADR-049-web-edition-bridge.md) — 网页版桥接（含大文件性能欠账）
 - [ADR-052](../adr/ADR-052-render-session-objectification.md) — RenderSession 对象化决策
 - [ADR-040](../adr/ADR-040-architecture-scale-governance.md) — 架构治理（拆分基准）
 - [ADR-047](../adr/ADR-047-android-usability-plan.md) — Pointer Events 统一
 - [go-threejs](./go-threejs.md) — spec 生成（Go 端）
 - [model2d](./model2d.md) — 2D 预览（同一坐标口径约束）
 - [app_preview](./app-preview.md) — 预览面板消费方
+- [web-edition 路线图](../roadmap/web-edition.md) — 网页版性能线 R4
 - `frontend/src/utils/3d/cube-mesh.ts` — computeBoneLocalPos 工具

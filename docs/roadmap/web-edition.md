@@ -168,7 +168,7 @@ ADR-053 将 `MoveModelFile` / `CopyModelFile` 归 C 类（理由：「依赖桌�
 |----|------|------|
 | **PWA** | 零资产（无 manifest/SW/workbox） | manifest + Service Worker 离线 + 可安装；**SW 骨架直接抄 MikuMikuAR `public/sw.js`**（导航 network-first 离线回退 + `/assets/` cache-first 秒开 + 其他同源 network-first 防 stale + Range 放行 + activate 清旧缓存）；产物随 pages-deploy 合并自动上线 |
 | **移动端** | 触屏事件就绪（Pointer Events + touch-action），但 CSS 断点（layout.css:368,379）作用于桌面壳 `#root` grid，**与 Web 版 flex 布局脱钩**；app-nav 固定 160px | 针对 Web 布局补断点 + 移动导航（抽屉/底部导航）；Design.md §13 增补移动端原则 |
-| **性能** | base64 → ArrayBuffer → WASM HEAP 至少 2-3 份全量拷贝；100MB 上限唯一防线；ADR-049:98「需实测阈值」欠账未还；渲染侧已具备 mesh 合并 / LRU 20 / 虚拟滚动 | 大文件阈值实测成文（knowledge/model3d.md + guide/3d-preview.md）；解码后及时释放策略 |
+| **性能** | base64 → ArrayBuffer → WASM HEAP 至少 2-3 份全量拷贝；100MB 上限唯一防线；渲染侧已具备 mesh 合并 / LRU 20 / 虚拟滚动 | ✅ 大文件阈值已实测成文（knowledge/model3d.md §大文件性能阈值 + guide/3d-preview.md FAQ）；解码后释放策略已盘点（现有释放点已覆盖，GC 依赖项标注待实测校准） |
 | **部署** | 管线闭环（WEB_BASE 子路径 + 门禁 + 合并）；缺缓存策略与 404 | `_headers`/`_redirects` 缓存控制；**SW 作用域收缩 + 根墓碑 SW 清旧注册（MikuMikuAR web-pages.yml / ADR-225 经验，防存量旧 SW 吐旧壳）**；404/redirect stub 防死循环；（可选）文档站 `/app/` 直达入口 |
 
 ### R5 · 生态（远期）
