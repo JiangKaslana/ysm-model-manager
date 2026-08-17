@@ -7,13 +7,9 @@
 import { bus } from "../../bus.ts";
 import { safeSet } from "../../utils/dom/storage.ts";
 import { LAST_TYPE_KEY, setLastSelectedType } from "./state.ts";
-import type { SyncItem } from "./tpl.ts";
+import type { SyncManagerSelf } from "./index.ts";
 
-interface EventSelf {
-  _selectedType: string;
-  _statusFilter: string;
-  querySelectorAll(sel: string): NodeList;
-}
+export type EventSelf = SyncManagerSelf;
 
 interface EventCallbacks {
   doRender: () => void;

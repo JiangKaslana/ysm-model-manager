@@ -3,6 +3,7 @@ import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { treeCSS } from "./app-tree-styles.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
+import { refreshAdoptedStyleSheets } from "../../utils/dom/css-hmr.ts";
 // 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
 // 环境守卫对齐 ui-components-styles.ts：node/happy-dom 无 CSSStyleSheet 时返回
 // 占位对象（replaceSync no-op）避免 import 即崩；浏览器恒走真实分支。
@@ -412,10 +413,5 @@ if (typeof customElements !== "undefined" && !customElements.get("app-tree")) {
 }
 // HMR 热更新：仅 treeCSS（./app-tree-styles.ts）变更时热刷 shadow 样式表；其余依赖变更落到整页重载。
 import.meta.hot?.accept("./app-tree-styles.ts", (newCssMod) => {
-  const style = new CSSStyleSheet();
-  style.replaceSync((newCssMod as any).treeCSS);
-  document.querySelectorAll("app-tree").forEach((el: any) => {
-    const root = el.shadowRoot;
-    if (root) root.adoptedStyleSheets = [style];
-  });
+  refreshAdoptedStyleSheets(newCssMod?.treeCSS, "app-tree");
 });

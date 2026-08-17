@@ -7,7 +7,7 @@ import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
 import { startDedup } from "./diagnostics/init.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
-import { safeGet } from "../../utils/dom/storage.ts";
+import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { initWorkshopPage as _initWorkshopPage } from "./init-workshop.ts";
@@ -75,7 +75,7 @@ export function initRepositoryPage(host: AppContentHost): void {
     const prev = curRtype;
     curRtype = rtype;
     try {
-      localStorage.setItem("repo_rtype", rtype);
+      safeSet("repo_rtype", rtype);
     } catch {}
     subtabs.forEach((t) => {
       t.classList.toggle("active", (t as HTMLElement).dataset.rtab === rtype);

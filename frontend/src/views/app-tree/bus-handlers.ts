@@ -6,6 +6,7 @@ import { bus } from "../../bus.ts";
 import { get } from "../../services/registry.ts";
 import type { loadEntries } from "./loader.ts";
 import { getApp } from "../../backend/app.ts";
+import { dbg } from "../../utils/debug/debug.ts";
 import type { AppTree } from "./index.ts";
 import { modalPrompt, modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 import { showBatchRenameDialog } from "../../utils/dom/dialogs/batch-rename.ts";
@@ -124,7 +125,9 @@ export function bindBusEvents(vm: AppTree): Array<() => void> {
         // 尝试删除空文件夹（必须传绝对路径，相对路径会按进程 CWD 解析）
         try {
           await RemoveDir(absDir);
-        } catch {}
+        } catch (ex) {
+          dbg("tree-remove-dir-failed", { dir: absDir, error: String(ex) });
+        }
         // P2 修复：数据变更链路（回收/重命名/移动）成功前清空选中态——
         // selectState 是模块级单例，旧路径不失效会滞留「已选 N 个文件」并误删已不存在的路径。
         // 必须在 reload 之前清空（与 app-tree/index.ts:337-340 删除流程一致）：

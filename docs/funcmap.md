@@ -1407,7 +1407,7 @@
 | `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:40` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
 | `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:53` | 系统返回键的前端触发入口：依次从栈顶触发已注册处理器。 |
 | `can()` | `frontend/src/utils/dom/capabilities:14` | 当前平台是否可用指定 binding（web 查 adapter 实现；桌面恒 true；Android viewer 假） |
-| `refreshAdoptedStyleSheets()` | `frontend/src/utils/dom/css-hmr:12` | 热刷指定自定义元素的 Shadow DOM 样式表。 |
+| `refreshAdoptedStyleSheets()` | `frontend/src/utils/dom/css-hmr:13` | 热刷指定自定义元素的 Shadow DOM 样式表。 |
 | `btnBaseCSS()` | `frontend/src/utils/dom/css:1` | — |
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter-util:6` | 筛选条件 |

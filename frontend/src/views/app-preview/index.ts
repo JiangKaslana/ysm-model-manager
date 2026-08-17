@@ -2,6 +2,7 @@
 import { bus } from "../../bus.ts";
 import { previewCSS } from "./css.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
+import { refreshAdoptedStyleSheets } from "../../utils/dom/css-hmr.ts";
 // 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
 // 环境守卫对齐 ui-components-styles.ts：node/happy-dom 无 CSSStyleSheet 时返回
 // 占位对象（replaceSync no-op）避免 import 即崩；浏览器恒走真实分支。
@@ -316,10 +317,5 @@ if (typeof customElements !== "undefined" && !customElements.get("app-preview"))
 // 之前用无参 accept(cb) 自接受，把整棵子树（含 3D 预览 mount-preview-core/vrm-bone-ui 等）都吞成
 // 该边界，回调又只重挂样式表 → 隔壁改样式/加按钮不刷新（只报 index.ts 一个更新点）。
 import.meta.hot?.accept("./css.ts", (newCssMod) => {
-  const style = new CSSStyleSheet();
-  style.replaceSync((newCssMod as any).previewCSS);
-  document.querySelectorAll("app-preview").forEach((el: any) => {
-    const root = el.shadowRoot;
-    if (root) root.adoptedStyleSheets = [style];
-  });
+  refreshAdoptedStyleSheets(newCssMod?.previewCSS, "app-preview");
 });

@@ -11,14 +11,9 @@ import { friendlyError } from "../../utils/dom/errors.ts";
 const TOAST_MS_SHORT = 2000;
 const TOAST_MS_NORMAL = 3000;
 
-interface NetworkSelf {
-  _singleBusy: boolean;
-  _instance: string;
-  _selectedType: string;
-  _gen: number;
-  isConnected?: boolean;
-  querySelectorAll(sel: string): NodeList;
-}
+import type { SyncManagerSelf } from "./index.ts";
+
+export type NetworkSelf = SyncManagerSelf;
 
 interface NetworkCallbacks {
   doLoadData: () => Promise<void>;

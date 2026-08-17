@@ -2,6 +2,7 @@
 import { bus } from "../../bus.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
+import { refreshAdoptedStyleSheets } from "../../utils/dom/css-hmr.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS, ALL_RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { sidebarCSS } from "./sidebar-css.ts";
 // 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
@@ -441,10 +442,5 @@ if (typeof customElements !== "undefined" && !customElements.get("app-sidebar"))
 }
 // HMR 热更新：仅 sidebarCSS（./sidebar-css.ts）变更时热刷 shadow 样式表；其余依赖变更落到整页重载。
 import.meta.hot?.accept("./sidebar-css.ts", (newCssMod) => {
-  const style = new CSSStyleSheet();
-  style.replaceSync((newCssMod as any).sidebarCSS);
-  document.querySelectorAll("app-sidebar").forEach((el: any) => {
-    const root = el.shadowRoot;
-    if (root) root.adoptedStyleSheets = [style];
-  });
+  refreshAdoptedStyleSheets(newCssMod?.sidebarCSS, "app-sidebar");
 });

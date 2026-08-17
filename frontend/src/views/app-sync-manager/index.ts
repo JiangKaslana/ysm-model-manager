@@ -17,6 +17,25 @@ import {
   loadingHTML,
 } from "./tpl.ts";
 import { loadTypeConfig, loadData } from "./store.ts";
+import type { SyncItem } from "./tpl.ts";
+
+/** 合并四子模块（store / renderer / events / network）对组件实例的接口需求，
+ * 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 */
+export interface SyncManagerSelf {
+  _gen: number;
+  _instance: string;
+  _selectedType: string;
+  _statusFilter: string;
+  _singleBusy: boolean;
+  _allItems: SyncItem[];
+  _filteredItems: SyncItem[];
+  _typeConfig: Array<{ id: string; name?: string; icon?: string }>;
+  _loading: boolean;
+  isConnected?: boolean;
+  innerHTML: string;
+  querySelector(sel: string): HTMLElement | null;
+  querySelectorAll(sel: string): NodeList;
+}
 import { render } from "./renderer.ts";
 import { bindEvents } from "./events.ts";
 import { performSingleOp } from "./network.ts";
@@ -36,8 +55,8 @@ export class AppSyncManager extends WebComponentBase {
   private _defaultType = RESOURCE_TYPES.YSM;
   private _selectedType = RESOURCE_TYPES.YSM;
   private _statusFilter = "all";
-  private _allItems: any[] = [];
-  private _filteredItems: any[] = [];
+  private _allItems: SyncItem[] = [];
+  private _filteredItems: SyncItem[] = [];
   private _typeConfig: Array<{ id: string; name?: string; icon?: string }> = [];
   private _loading = false;
   private _gen = 0;
@@ -74,7 +93,7 @@ export class AppSyncManager extends WebComponentBase {
   }
 
   async _init(): Promise<void> {
-    const self = this as any;
+    const self = this as unknown as SyncManagerSelf;
     const gen = ++this._gen;
     this._loading = true;
     this.innerHTML = containerHTML();
@@ -131,7 +150,7 @@ export class AppSyncManager extends WebComponentBase {
 
   /** 渲染 + 事件绑定的统一入口（供 _init 和 stats:refresh 复用） */
   private _doRender(): void {
-    const self = this as any;
+    const self = this as unknown as SyncManagerSelf;
     const doLoadData = () => loadData(self);
     const doEmitStats = () => bus.emit("stats:refresh");
 

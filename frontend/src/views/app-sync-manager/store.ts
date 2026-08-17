@@ -6,22 +6,12 @@
 import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import type { SyncManagerSelf } from "./index.ts";
 import type { SyncItem } from "./tpl.ts";
 
 const TOAST_MS_NORMAL = 3000;
 
-// 组件实例接口（store 只关心数据态，不关心 DOM/事件）
-interface SyncStoreSelf {
-  _gen: number;
-  _instance: string;
-  _selectedType: string;
-  _statusFilter: string;
-  _allItems: SyncItem[];
-  _filteredItems: SyncItem[];
-  _typeConfig: Array<{ id: string; name?: string; icon?: string }>;
-  _loading: boolean;
-  isConnected?: boolean;
-}
+export type SyncStoreSelf = SyncManagerSelf;
 
 /**
  * 加载资源类型配置（LoadResourceTypes）

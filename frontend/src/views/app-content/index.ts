@@ -3,6 +3,7 @@ import { bus } from "../../bus.ts";
 import { resolveInitialPage } from "../../core/page-store.ts";
 import { esc as escUtil } from "../../utils/dom/html.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
+import { refreshAdoptedStyleSheets } from "../../utils/dom/css-hmr.ts";
 import { formatBytes } from "../../utils/dom/format.ts";
 import { contentCSS } from "./content-css.ts";
 // 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
@@ -347,10 +348,5 @@ if (typeof customElements !== "undefined" && !customElements.get("app-content"))
 }
 // HMR 热更新：仅 contentCSS（./content-css.ts）变更时热刷 shadow 样式表；其余依赖变更落到整页重载。
 import.meta.hot?.accept("./content-css.ts", (newCssMod) => {
-  const style = new CSSStyleSheet();
-  style.replaceSync((newCssMod as any).contentCSS);
-  document.querySelectorAll("app-content").forEach((el: any) => {
-    const root = el.shadowRoot;
-    if (root) root.adoptedStyleSheets = [style];
-  });
+  refreshAdoptedStyleSheets(newCssMod?.contentCSS, "app-content");
 });

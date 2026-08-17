@@ -13,22 +13,9 @@ import {
   itemHTML,
 } from "./tpl.ts";
 import { applyFilter } from "./store.ts";
-import type { SyncItem } from "./tpl.ts";
+import type { SyncManagerSelf } from "./index.ts";
 
-// 渲染上下文（数据态 + DOM 操作）
-interface SyncRenderSelf {
-  _selectedType: string;
-  _statusFilter: string;
-  _allItems: SyncItem[];
-  _filteredItems: SyncItem[];
-  _typeConfig: Array<{ id: string; name?: string; icon?: string }>;
-  innerHTML: string;
-  querySelector(sel: string): HTMLElement | null;
-  querySelectorAll(sel: string): NodeList;
-  _gen?: number;
-  _instance?: string;
-  _loading?: boolean;
-}
+export type SyncRenderSelf = SyncManagerSelf;
 
 // 类型统计计数
 interface TypeCounts {
@@ -146,7 +133,7 @@ export function render(self: SyncRenderSelf): void {
     .join("");
 
   // — 列表 —
-  applyFilter(self as any);
+  applyFilter(self);
   renderList(self, listEl);
 }
 
