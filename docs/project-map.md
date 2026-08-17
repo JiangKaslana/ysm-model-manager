@@ -67,13 +67,13 @@
 | `views/` | 页面级视图组件（app-content / app-tree / app-preview 等） 〔子目录 9: app-content/ app-nav/ app-preview/ app-resource-manager/ app-sidebar/ app-sync-manager/ app-toast/ app-tree/ context-menu/〕 |
 | `wasm/` | WASM 生成数据（base64 豁免文件） 〔源码 6: ysm-glue-data-mt.js ysm-glue-data.js ysm-parser.ts ysm-wasm-data-mt.js ysm-wasm-data.js ysm-worke…〕 |
 | `web-spike/` | 网页版 spike 入口（main.ts，构建/冒烟验证） 〔源码 1: main.ts〕 |
-| `workers/` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） 〔源码 3: stats-core.ts stats-protocol.ts stats.worker.ts · 测试 1〕 |
+| `workers/` | Web Worker 批量统计（searchWebModels 数值条件走 Worker 线程，主线程零解析负载） 〔源码 3: stats-core.ts stats-protocol.ts stats.worker.ts · 测试 1〕 |
 | `app-modules.test.ts` | app-modules 主题/隐私模式启动链测试（normalizeTheme / safeGet / initTheme / applyUIPrefs） |
 | `app-modules.ts` | 组件入口 + 右键菜单映射 |
 | `bus.test.ts` | 事件总线测试 |
 | `bus.ts` | 事件总线 |
 | `real-data-fuzz.test.ts` | 真实数据模糊测试（资源类型/schema 契约） |
-| `theme-core.ts` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `theme-core.ts` | 主题系统核心（normalizeTheme / applyTheme / initTheme + 隐私模式兜底） |
 
 <!-- /GEN: frontend-structure -->
 
@@ -87,10 +87,10 @@
 | `README.md` | 项目说明（面向用户） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
-| `link-checker-out.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
-| `opencode.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `opencode.json` | OpenCode AI 编辑器配置（IDE 集成） |
 | `resource_types.json` | 资源类型单一事实来源（注册表优先） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |

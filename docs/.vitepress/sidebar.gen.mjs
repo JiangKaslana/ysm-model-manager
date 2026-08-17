@@ -712,6 +712,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-091：架构债务总览 v2（2026-08-17 并发审计）",
+        "link": "/adr/ADR-091-v2-2026-08-17"
+      },
+      {
         "text": "ADR-090：vitest 环境切换与 npm 三件套并行优化",
         "link": "/adr/ADR-090-vitest-env-optimization"
       },
