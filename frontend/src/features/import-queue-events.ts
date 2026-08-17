@@ -5,9 +5,10 @@ import { t } from "../core/i18n/t.ts";
 import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { isImportableFile } from "./dnd-shared.ts";
 import { ImportHistory, importWebFilesWithToast } from "./import-executor.ts";
-import type { ImportFile, QueueItem } from "./import-queue-data.ts";
-import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
+import type { ImportFile, QueueItem, PreparedFormData, HeaderData } from "./import-queue-data.ts";
 import { IMPORT_FORM_FIELD_IDS, readFormFields } from "./import-queue-data.ts";
+import { getApp } from "../backend/app.ts";
+import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 
 /** 事件绑定工具：收集 cleanup 函数 */
@@ -21,11 +22,99 @@ function on<K extends keyof HTMLElementEventMap>(
   cleanups.push(() => el.removeEventListener(type, handler as EventListener));
 }
 
+// ===================================================================
+// renderFormData — 表单 DOM 渲染（从 import-queue-data.ts 的 showForm 迁出）
+// 填充字段 → toggleForm → 保存预览临时文件 → 设置头部读取定时器
+// ===================================================================
+export function renderFormData(
+  root: ShadowRoot,
+  esc: (s: string) => string,
+  formData: PreparedFormData,
+  base64: string,
+  toggleForm: (visible: boolean) => void,
+  updatePreview: () => void,
+  loadHeaderData: () => Promise<HeaderData | null>,
+  renderHeaderData: (header: HeaderData, updatePreview: () => void) => void,
+  cleanups: Array<() => void>,
+): void {
+  // 填充表单字段
+  for (const id of IMPORT_FORM_FIELD_IDS) {
+    (root.getElementById(id) as HTMLInputElement).value = formData.fieldValues[id];
+  }
+  updatePreview();
+  toggleForm(true);
+
+  // 存临时文件供右侧预览面板读取
+  (async () => {
+    try {
+      const { SavePreviewTempFile } = await getApp();
+      const tmpPath = await SavePreviewTempFile(base64);
+      if (tmpPath) {
+        bus.emit("model:select", { path: tmpPath });
+      }
+    } catch (e) {
+      console.warn("[import-queue] 预览临时文件保存失败:", e);
+      bus.emit("toast:show", {
+        msg: "❌ " + t("import.previewTempFailed", { err: friendlyError(e) }),
+        duration: 3000,
+        type: "warn",
+      });
+    }
+  })();
+
+  // "读取作者"已勾选时，自动为新文件读取 YSM 头部
+  const headerTimer = setTimeout(async () => {
+    if ((root.getElementById("dl-from-header") as HTMLInputElement | null)?.checked) {
+      try {
+        const header = await loadHeaderData();
+        if (header) renderHeaderData(header, updatePreview);
+      } catch (err) {
+        console.warn("[import-queue] 自动读取头部失败:", err);
+      }
+    }
+  }, 0);
+  cleanups.push(() => clearTimeout(headerTimer));
+}
+
+// ===================================================================
+// renderHeaderData — 头部 DOM 渲染（从 import-queue-data.ts 的 loadHeaderFromBase64 迁出）
+// 填充作者字段（高亮）+ 填充 tips 区域
+// ===================================================================
+export function renderHeaderData(
+  root: ShadowRoot,
+  esc: (s: string) => string,
+  header: HeaderData,
+  updatePreview: () => void,
+): void {
+  if (header.authorName) {
+    const authorEl = root.getElementById("dl-author") as HTMLInputElement;
+    if (!authorEl.value.trim()) {
+      authorEl.value = header.authorName;
+      authorEl.style.background = "color-mix(in srgb,var(--accent) 10%,var(--surf))";
+      authorEl.style.borderColor = "color-mix(in srgb,var(--accent) 30%,var(--bd))";
+    }
+  }
+  if (header.tips) {
+    const tipsEl = root.getElementById("dl-tips") as HTMLElement | null;
+    if (tipsEl) {
+      tipsEl.innerHTML =
+        '<div style="font-weight:600;font-size:9px;color:var(--accent);margin-bottom:2px">📝 ' +
+        "头部信息" +
+        "</div><div>" +
+        esc(header.tips) +
+        "</div>";
+      tipsEl.style.display = "block";
+    }
+  }
+  updatePreview();
+}
+
 /** 表单输入事件绑定 */
 export function bindFormEvents(
   root: ShadowRoot,
+  esc: (s: string) => string,
   updatePreview: () => void,
-  loadHeaderFromBase64: () => Promise<void>,
+  loadHeaderData: () => Promise<HeaderData | null>,
   cleanups: Array<() => void>,
 ): void {
   IMPORT_FORM_FIELD_IDS.forEach(
@@ -43,7 +132,10 @@ export function bindFormEvents(
   if (fromHeaderChk) {
     on(fromHeaderChk, "change", async () => {
       if (fromHeaderChk.checked) {
-        await loadHeaderFromBase64();
+        const header = await loadHeaderData();
+        if (header) {
+          renderHeaderData(root, esc, header, updatePreview);
+        }
       } else {
         const tipsEl = root.getElementById("dl-tips") as HTMLElement | null;
         if (tipsEl) tipsEl.style.display = "none";

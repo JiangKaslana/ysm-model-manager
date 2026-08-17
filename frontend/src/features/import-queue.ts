@@ -2,7 +2,7 @@
 import { bus } from "../bus.ts";
 import { initDataLayer } from "./import-queue-data.ts";
 import { renderImportedList, bindQueueEvents, updateQueueCount } from "./import-queue-render.ts";
-import { bindFormEvents, bindDragEvents, bindInputEvents, bindButtonEvents } from "./import-queue-events.ts";
+import { bindFormEvents, bindDragEvents, bindInputEvents, bindButtonEvents, renderFormData, renderHeaderData } from "./import-queue-events.ts";
 import type { ImportFile, ImportQueueHost } from "./import-queue-data.ts";
 
 export { normalizeRepoName, type ImportQueueHost } from "./import-queue-data.ts";
@@ -70,10 +70,18 @@ export function initImportQueue(app: ImportQueueHost): () => void {
   // 注入渲染函数到数据层
   actions.renderImportedList = renderImportedListFn;
 
+  // === 注入 DOM 渲染回调（数据层 prepareFormData/loadHeaderData 为纯数据，DOM 操作在此完成）===
+  actions.setRenderFormData((formData, base64) => {
+    renderFormData(root, app._esc, formData, base64, actions.toggleForm, actions.updatePreview, actions.loadHeaderData, (header) => renderHeaderData(root, app._esc, header, actions.updatePreview), cleanups);
+  });
+  actions.setRenderHeaderData((header) => {
+    renderHeaderData(root, app._esc, header, actions.updatePreview);
+  });
+
   // 绑定事件
   const cleanups: Array<() => void> = [];
 
-  bindFormEvents(root, actions.updatePreview, actions.loadHeaderFromBase64, cleanups);
+  bindFormEvents(root, app._esc, actions.updatePreview, actions.loadHeaderData, cleanups);
   bindDragEvents(dropZone, fileInput, folderInput, actions.readAndRouteFile, actions.processDropItems, () => updateQueueCount(dlQueueCount, dlCount, state.fileQueue), cleanups);
   bindInputEvents(fileInput, folderInput, actions.readAndRouteFile, actions.routeCollected, () => updateQueueCount(dlQueueCount, dlCount, state.fileQueue), cleanups);
   bindButtonEvents(

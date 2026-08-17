@@ -24,11 +24,13 @@ export {
     addActionRow,
     addDisabledRow,
     addInlineToggleRow,
+} from './ui-rows.ts';
+export {
     addBoneSelectRow,
     isIkBone,
     buildBoneGroups,
-} from './ui-rows.ts';
-export type { BoneSelectOptions } from './ui-rows.ts';
+} from './ui-bone-select.ts';
+export type { BoneSelectOptions } from './ui-bone-select.ts';
 export { createHeaderToggle } from './ui-header-toggle.ts';
 export type { HeaderToggleConfig } from './ui-header-toggle.ts';
 export { addColorSliderRow, addModeSlider, addVector3SliderRow } from './ui-advanced-rows.ts';

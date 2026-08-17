@@ -36,7 +36,7 @@
 | 前端·根 (app-modules/bus) | 3 | 16 |
 | frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 21 | 95 |
+| 前端·特性 | 21 | 99 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 19 | 107 |
@@ -44,7 +44,7 @@
 | frontend/views | 98 | 273 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **383** | **1600** |
+| **合计** | **383** | **1604** |
 
 ## Go·头像
 
@@ -922,17 +922,21 @@
 | `importFolder()` | `frontend/src/features/import-executor:138` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
 | `executeCollected()` | `frontend/src/features/import-executor:207` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
 | `importWebFilesWithToast()` | `frontend/src/features/import-executor:227` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
-| `ImportFile()` | `frontend/src/features/import-queue-data:16` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `QueueItem()` | `frontend/src/features/import-queue-data:19` | 队列项数据类型 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue-data:32` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
-| `ImportQueueHost()` | `frontend/src/features/import-queue-data:37` | 应用主机接口 |
-| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:47` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
-| `readFormFields()` | `frontend/src/features/import-queue-data:56` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
-| `initDataLayer()` | `frontend/src/features/import-queue-data:75` | 初始化导入队列的数据层：返回状态对象和清理函数 |
-| `bindFormEvents()` | `frontend/src/features/import-queue-events:25` | 表单输入事件绑定 |
-| `bindDragEvents()` | `frontend/src/features/import-queue-events:56` | 拖拽事件绑定 |
-| `bindInputEvents()` | `frontend/src/features/import-queue-events:143` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:225` | 按钮事件绑定 |
+| `ImportFile()` | `frontend/src/features/import-queue-data:17` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `QueueItem()` | `frontend/src/features/import-queue-data:20` | 队列项数据类型 |
+| `normalizeRepoName()` | `frontend/src/features/import-queue-data:33` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
+| `ImportQueueHost()` | `frontend/src/features/import-queue-data:38` | 应用主机接口 |
+| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:48` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
+| `readFormFields()` | `frontend/src/features/import-queue-data:57` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
+| `PreparedFormData()` | `frontend/src/features/import-queue-data:76` | prepareFormData 返回的纯数据（不含 DOM 引用） |
+| `HeaderData()` | `frontend/src/features/import-queue-data:82` | loadHeaderData 返回的头部数据（不含 DOM 引用） |
+| `initDataLayer()` | `frontend/src/features/import-queue-data:88` | 初始化导入队列的数据层：返回状态对象和清理函数 |
+| `renderFormData()` | `frontend/src/features/import-queue-events:29` | — |
+| `renderHeaderData()` | `frontend/src/features/import-queue-events:83` | — |
+| `bindFormEvents()` | `frontend/src/features/import-queue-events:113` | 表单输入事件绑定 |
+| `bindDragEvents()` | `frontend/src/features/import-queue-events:148` | 拖拽事件绑定 |
+| `bindInputEvents()` | `frontend/src/features/import-queue-events:235` | 文件输入框事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:317` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
 | `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
