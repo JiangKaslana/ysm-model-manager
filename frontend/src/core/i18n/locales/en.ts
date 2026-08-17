@@ -11,6 +11,7 @@ export const en: Record<string, string> = {
   "nav.instances": "Modpacks",
   "nav.label": "Navigation",
   "nav.viewer": "3D Viewer",
+  "nav.viewerNoModel": "Please select a model in the file tree first",
   "nav.community": "Creators Channel",
   "nav.workshop": "Workshop",
   "nav.diagnostics": "Diagnostics",

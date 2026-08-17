@@ -13,6 +13,7 @@
  *   node scripts/android-build.mjs --arch all        # arm64 + amd64（fat APK）
  *   node scripts/android-build.mjs --production      # 生产版（-tags production,android）
  *   node scripts/android-build.mjs --skip-frontend   # 跳过前端构建（仅重编 Go + gradle）
+ *   node scripts/android-build.mjs --version vX.Y.Z  # 注入版本到 go/version.Version（缺省读 git 最新 tag，无则 dev）
  *   node scripts/android-build.mjs --help
  * 退出码：0 成功；1 环境缺失/构建失败（错误信息直通）。
  * 设计意图：一键构建 Android APK，补齐 android-install.mjs 的缺口（只做 installDebug，不重编 libwails.so）。
@@ -44,13 +45,39 @@ function hostTag() {
   return 'linux-x86_64';
 }
 
-/** 定位 NDK 根：$ANDROID_NDK_HOME，或 $SDK/ndk/<最新版本> */
+/** Windows 读 User 级环境变量（新开终端不继承，显式读 registry；非 Windows 直接返回空） */
+function readUserEnv(name) {
+  if (process.platform !== 'win32') return '';
+  try {
+    const r = run('reg', ['query', 'HKCU\\Environment', '/v', name]);
+    if (!r.ok) return '';
+    // reg query 输出为 tab/多空格分隔的三列：值名 类型(REG_EXPAND_SZ) 值。
+    // 末列即值（值内可含空格，逐列拆分后取末段最稳）。类型列是第二列，永不混入。
+    for (const l of r.out.split(/\r?\n/)) {
+      const cols = l.trim().split(/\s+/);
+      if (cols.length >= 3) return cols.slice(2).join(' '); // 第 3 列起都是该 REG 值
+    }
+    return '';
+  } catch { return ''; }
+}
+
+/** 定位 NDK 根：$ANDROID_NDK_HOME，或 $SDK/ndk/<最新版本>（进程级→User 级→非 Windows 兜底） */
 function findNdk() {
-  const ndkHome = process.env.ANDROID_NDK_HOME;
-  if (ndkHome && fs.existsSync(ndkHome)) return ndkHome;
-  const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+  const home =
+    process.env.ANDROID_NDK_HOME ||
+    readUserEnv('ANDROID_NDK_HOME');
+  if (home) {
+    const ndkHome = home.replace(/"/g, '');
+    if (fs.existsSync(ndkHome)) return ndkHome;
+  }
+  const sdk =
+    process.env.ANDROID_HOME ||
+    process.env.ANDROID_SDK_ROOT ||
+    readUserEnv('ANDROID_HOME') ||
+    readUserEnv('ANDROID_SDK_ROOT') ||
+    (fs.existsSync('C:\\Android\\Sdk') ? 'C:\\Android\\Sdk' : '');
   if (sdk) {
-    const ndkDir = path.join(sdk, 'ndk');
+    const ndkDir = path.join(sdk.replace(/"/g, ''), 'ndk');
     if (fs.existsSync(ndkDir)) {
       const versions = fs
         .readdirSync(ndkDir)
@@ -76,6 +103,7 @@ if (argv.includes('--help')) {
   node scripts/android-build.mjs --arch all       arm64 + amd64（fat APK）
   node scripts/android-build.mjs --production     生产版（-tags production,android）
   node scripts/android-build.mjs --skip-frontend  跳过前端构建
+  node scripts/android-build.mjs --version vX.Y.Z 注入版本（缺省读 git 最新 tag，无则 dev）
 前置：ANDROID_HOME（含 NDK）+ Go 1.25+（cgo）+ JDK 17+。
 产物：build/android/app/build/outputs/apk/debug/app-debug.apk（或 release/）`);
   process.exit(0);
@@ -87,12 +115,25 @@ const archArg =
   "arm64";
 const production = argv.includes('--production');
 const skipFrontend = argv.includes('--skip-frontend');
+const versionArg =
+  argv.find((a) => a.startsWith("--version="))?.split("=")[1] ??
+  (argv.indexOf("--version") >= 0 ? argv[argv.indexOf("--version") + 1] : undefined);
 if (!(archArg in ARCHES) && archArg !== 'all') fail(`未知架构: ${archArg}（可选 arm64/amd64/all）`);
 const arches = archArg === 'all' ? Object.keys(ARCHES) : [archArg];
 
+/** 解析注入版本：显式 --version 优先，否则取 git 最新 tag，兜底 dev */
+function resolveVersion() {
+  if (versionArg) return versionArg;
+  const git = run('git', ['describe', '--tags', '--abbrev=0'], { cwd: ROOT });
+  return git.ok ? git.out.trim() : 'dev';
+}
+
 // ---- 前置检查 ----
 if (!fs.existsSync(OVERLAY)) {
-  fail(`缺少 overlay.json（Android main 注册）——先执行 wails3 android overlay:gen 或 Taskfile generate:android:overlay`);
+  // 缺则自动生成（内含本机绝对路径，不入库——ADR-047）；生成失败再 hard fail
+  console.log(`[android-build] 缺少 overlay.json，自动执行 wails3 android overlay:gen …`);
+  const gen = run('wails3', ['android', 'overlay:gen', '-out', OVERLAY, '-config', path.join(ROOT, 'build', 'config.yml')], { cwd: ROOT, timeout: 0 });
+  if (!gen.ok) fail(`overlay 自动生成失败（可手动执行 wails3 android overlay:gen）：\n${gen.out.slice(-800)}`);
 }
 const ndk = findNdk();
 if (!ndk) fail(`未找到 NDK：设 ANDROID_NDK_HOME，或 ANDROID_HOME/ndk 下存在 NDK（当前: ${process.env.ANDROID_HOME || '未设置'}）`);
@@ -100,18 +141,21 @@ console.log(`[android-build] NDK: ${ndk}`);
 
 // ---- 1. 前端构建（APK assets 需要最新 dist）----
 if (!skipFrontend) {
-  console.log('[android-build] 前端构建（vite build）…');
+  console.log('[android-build] 前端构建（build:dev = gen:locales && vite build）…');
   // npm 无扩展名 shim：Windows 需 shell（proc.mjs 注释）
-  const fe = run('npm', ['run', 'build'], { cwd: FRONTEND_DIR, timeout: 0, shell: os.platform() === 'win32' });
+  const fe = run('npm', ['run', 'build:dev'], { cwd: FRONTEND_DIR, timeout: 0, shell: os.platform() === 'win32' });
   if (!fe.ok) fail(`前端构建失败：\n${fe.out.slice(-800)}`);
 }
 
 // ---- 2. Go 交叉编译 libwails.so（per ABI）----
 const toolchain = path.join(ndk, 'toolchains', 'llvm', 'prebuilt', hostTag());
 if (!fs.existsSync(toolchain)) fail(`NDK 工具链缺失: ${toolchain}`);
+const version = resolveVersion();
+const ldflag = `-X ysm-model-manager/go/version.Version=${version}`;
 const buildFlags = production
-  ? ['-tags', 'production,android', '-trimpath', '-buildvcs=false', '-ldflags=-w -s']
-  : ['-tags', 'android,debug', '-buildvcs=false', '-gcflags=all=-l'];
+  ? ['-tags', 'production,android', '-trimpath', '-buildvcs=false', `-ldflags=-w -s ${ldflag}`]
+  : ['-tags', 'android,debug', '-buildvcs=false', '-gcflags=all=-l', `-ldflags=${ldflag}`];
+console.log(`[android-build] 版本注入: ${version}`);
 for (const arch of arches) {
   const a = ARCHES[arch];
   const cc = path.join(toolchain, 'bin', a.ndkTarget + '-clang'); // NDK 26 Windows 为无后缀 PE，可直接 exec

@@ -63,7 +63,6 @@ class AppNav extends WebComponentBase {
     const items = [
       { id: "repository", icon: "📚", key: "nav.repository" },
       ...(isViewer ? [] : [{ id: "instances", icon: "🎮", key: "nav.instances" }]),
-      { id: "viewer", icon: "🎲", key: "nav.viewer" },
       { id: "workshop", icon: "🎨", key: "nav.community" },
       { id: "github", icon: "🧩", key: "nav.workshop" },
       { id: "diagnostics", icon: "🛠️", key: "nav.diagnostics" },
@@ -148,6 +147,26 @@ class AppNav extends WebComponentBase {
           padding-left: 7px;
         }
         .nav-item .icon { font-size: 15px; width: 20px; text-align: center; }
+        /* 左下角 3D 一键跳转（替代原 viewer 页内嵌文件树）：直开全屏 3D 预览器 */
+        .nav-viewer-fab {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin: 2px 8px 6px;
+          padding: 8px 10px;
+          border-radius: 6px;
+          cursor: pointer;
+          background: color-mix(in srgb, var(--accent) 16%, transparent);
+          border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+          color: var(--accent);
+          font-size: calc(var(--fs-nav) + 2px);
+          transition: var(--tr-fast);
+        }
+        .nav-viewer-fab:hover { filter: brightness(1.1); }
+        .nav-viewer-fab:active { filter: brightness(.95); }
+        .nav-viewer-fab .icon { font-size: 15px; width: 20px; text-align: center; }
+        :host([data-collapsed]) .nav-viewer-fab { justify-content: center; padding: 8px 0; margin: 2px 6px 6px; }
+        :host([data-collapsed]) .nav-viewer-fab .fab-text { display: none; }
         .version {
           padding: 10px 14px;
           border-top: 1px solid var(--bd);
@@ -176,6 +195,10 @@ class AppNav extends WebComponentBase {
           .join("")}
       </div>
       <div class="version" id="nav-version">${t("common.loading")}</div>
+      <div class="nav-viewer-fab" data-testid="nav-viewer-fab" title="${t("nav.viewer")}" role="button" tabindex="0">
+        <span class="icon">🎲</span>
+        <span class="fab-text">${t("nav.viewer")}</span>
+      </div>
     `;
 
     this.shadowRoot!.querySelectorAll(".nav-item").forEach((el) => {
@@ -195,6 +218,24 @@ class AppNav extends WebComponentBase {
     const head = this.shadowRoot!.querySelector(".menu-head");
     head?.addEventListener("click", () => this.setCollapsed(!this._collapsed));
 
+    // 左下角 3D 一键跳转：取上次选中模型直开全屏 3D 预览器（复用文件树记住的 path，不内嵌第二套树）
+    const fab = this.shadowRoot!.querySelector<HTMLElement>(".nav-viewer-fab");
+    if (fab) {
+      const handler = (): void => {
+        void this._viewerFabClick().catch((e) => {
+          console.error("[app-nav] 打开 3D 失败:", e);
+          bus.emit("toast:show", { msg: "❌ 打开 3D 失败", duration: 3000, type: "error" });
+        });
+      };
+      fab.addEventListener("click", handler);
+      fab.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handler();
+        }
+      });
+    }
+
     // 异步加载版本号
     getApp()
       .then((App) =>
@@ -209,6 +250,52 @@ class AppNav extends WebComponentBase {
         // GetAppVersion 返回 "web"，此处仅剩真失败兜底；硬编码版本与实际发版脱节会误导）
         if (el) el.textContent = t("nav.preview");
       });
+  }
+
+  /**
+   * 左下角 3D 一键跳转：复用文件树记住的最近选中模型（getLastModelPath），
+   * 按资源类型派发到既有全屏 3D 入口（createYsm3D/createMmd3D/createVrm3D/createPack3D），
+   * 只在全屏遮罩内加载，不在导航层内嵌文件树。无选中模型 → toast 引导。
+   */
+  private async _viewerFabClick(): Promise<void> {
+    const { getLastModelPath } = await import("../../views/app-content/init-pages.ts");
+    const path = getLastModelPath();
+    if (!path) {
+      bus.emit("toast:show", { msg: t("nav.viewerNoModel"), duration: 3000, type: "warn" });
+      return;
+    }
+    // 关闭可能残留的活跃全屏层，再开新的（防双全屏叠加）
+    const { closeActive3DOverlay } = await import("../../views/app-preview/skeleton.ts");
+    closeActive3DOverlay();
+
+    const { DetectResourceType } = await getApp();
+    let rtype = "";
+    try {
+      rtype = (await DetectResourceType(path)) || "";
+    } catch {
+      /* 类型探测失败 → 回退 YSM 通路 */
+    }
+    const { RESOURCE_TYPES } = await import("../../utils/resource/types.ts");
+    if (rtype === RESOURCE_TYPES.MMD) {
+      await (await import("../../views/app-preview/mmd-3d.ts")).createMmd3D(path);
+      return;
+    }
+    if (rtype === RESOURCE_TYPES.VRC) {
+      await (await import("../../views/app-preview/vrm-3d.ts")).createVrm3D(path);
+      return;
+    }
+    if (rtype === RESOURCE_TYPES.PACK) {
+      await (await import("../../views/app-preview/pack-3d.ts")).createPack3D(path);
+      return;
+    }
+    // 默认 YSM（含未知类型回退）：注入轻量 loader ctx（decodeYsmViaWasm + 空 appendDebug）
+    const { createYsm3D } = await import("../../views/app-preview/ysm-3d.ts");
+    const { loadModelData } = await import("../../views/app-preview/loader.ts");
+    const { decodeYsmViaWasm } = await import("../../views/app-preview/wasm.ts");
+    await createYsm3D(path, 0, {
+      loader: async (p: string) =>
+        (await loadModelData(p, { decodeYsmViaWasm, appendDebug: () => {} } as never)).model,
+    });
   }
 
   /**

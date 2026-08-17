@@ -12,6 +12,7 @@ export const ja: Record<string, string> = {
   "nav.instances": "統合パック管理",
   "nav.label": "ナビゲーション",
   "nav.viewer": "3D プレビュー",
+  "nav.viewerNoModel": "先にファイルツリーでモデルを選択してください",
   "nav.community": "クリエイター",
   "nav.workshop": "ワークショップ",
   "nav.diagnostics": "診断と競合",

@@ -33,8 +33,7 @@ export type PageName =
   | "workshop"
   | "github"
   | "diagnostics"
-  | "settings"
-  | "viewer";
+  | "settings";
 
 export interface NavPagePayload {
   page: PageName;

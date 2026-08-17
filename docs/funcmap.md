@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 106 | 393 |
-| frontend/views | 99 | 270 |
+| frontend/views | 99 | 273 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **383** | **1594** |
+| **合计** | **383** | **1597** |
 
 ## Go·头像
 
@@ -693,17 +693,17 @@
 | `normalizeTheme()` | `frontend/src/app-modules` | — |
 | `applyTheme()` | `frontend/src/app-modules` | — |
 | `initTheme()` | `frontend/src/app-modules` | — |
-| `bus()` | `frontend/src/bus:205` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:204` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
-| `NavPagePayload()` | `frontend/src/bus:39` | — |
-| `ThemeChangePayload()` | `frontend/src/bus:43` | — |
-| `ModelSelectPayload()` | `frontend/src/bus:47` | — |
-| `CtxShowPayload()` | `frontend/src/bus:52` | — |
-| `BusEvents()` | `frontend/src/bus:69` | — |
-| `BusEventName()` | `frontend/src/bus:116` | — |
-| `Bus()` | `frontend/src/bus:142` | — |
+| `NavPagePayload()` | `frontend/src/bus:38` | — |
+| `ThemeChangePayload()` | `frontend/src/bus:42` | — |
+| `ModelSelectPayload()` | `frontend/src/bus:46` | — |
+| `CtxShowPayload()` | `frontend/src/bus:51` | — |
+| `BusEvents()` | `frontend/src/bus:68` | — |
+| `BusEventName()` | `frontend/src/bus:115` | — |
+| `Bus()` | `frontend/src/bus:141` | — |
 | `normalizeTheme()` | `frontend/src/theme-core:18` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
 | `applyTheme()` | `frontend/src/theme-core:22` | — |
 | `initTheme()` | `frontend/src/theme-core:37` | — |
@@ -1546,6 +1546,10 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:26` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:33` | 初始化实例页 |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:219` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:226` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:234` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:238` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:29` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:136` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
@@ -1591,7 +1595,6 @@
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:85` | — |
 | `githubHTML()` | `frontend/src/views/app-content/tpl:149` | ===== GitHub 仓库页面 ===== |
 | `workshopHTML()` | `frontend/src/views/app-content/tpl:180` | — |
-| `viewerHTML()` | `frontend/src/views/app-content/tpl:234` | — |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:12` | 提取创作者头像（后台批量） |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |

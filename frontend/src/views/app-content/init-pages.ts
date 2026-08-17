@@ -227,9 +227,8 @@ export function initGithubPage(host: never): void {
   _initGithubPage(host as never);
 }
 
-// ===== 3D 预览器页面 =====
+// ===== 最近选中模型（供导航栏 3D 一键跳转复用；app-tree 在 model:select 时写入）=====
 let _lastModelPath: string | null = null;
-let _viewerModels: Array<{ name: string; path: string }> | null = null;
 
 /** 记住最后选中的模型路径（供文件树等外部调用） */
 export function rememberModelPath(path: string | null): void {
@@ -238,120 +237,4 @@ export function rememberModelPath(path: string | null): void {
 
 export function getLastModelPath(): string | null {
   return _lastModelPath;
-}
-
-/** 加载模型列表（SearchModels 空关键词返回全部） */
-async function loadViewerModels(): Promise<Array<{ name: string; path: string }>> {
-  try {
-    const { browserAdapter } = await import("../../backend/browser-adapter.ts");
-    const { GetRepoRoot } = await import("../../backend/app.ts").then((m) => m.getApp()).then((app) => app);
-    // SearchModels 空关键词返回全部；数值条件全 0 走快路径（无 Worker）
-    const filesRoot = await GetRepoRoot("ysm");
-    if (!filesRoot) return [];
-    const results = await browserAdapter.SearchModels(filesRoot, "", 0, 0, 0, 0, 0, 0);
-    return (results as Array<{ name: string; path: string }>).filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-/** 渲染模型列表到 sidebar */
-function renderModelList(
-  root: ShadowRoot,
-  models: Array<{ name: string; path: string }>,
-  currentPath: string | null,
-  onSelect: (path: string) => void,
-): void {
-  const listEl = root.getElementById("viewer-model-list");
-  const emptyEl = root.getElementById("viewer-list-empty");
-  if (!listEl || !emptyEl) return;
-
-  listEl.innerHTML = "";
-  if (models.length === 0) {
-    emptyEl.style.display = "block";
-    return;
-  }
-  emptyEl.style.display = "none";
-
-  for (const m of models) {
-    const item = document.createElement("div");
-    item.className = "viewer-model-item" + (m.path === currentPath ? " active" : "");
-    item.style.cssText = `
-      padding: 6px 12px;
-      font-size: 12px;
-      color: ${m.path === currentPath ? "var(--accent)" : "var(--muted)"};
-      cursor: pointer;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      transition: background .1s;
-    `;
-    item.textContent = m.name;
-    item.title = m.path;
-    item.onmouseenter = () => { item.style.background = "var(--hover)"; };
-    item.onmouseleave = () => { item.style.background = ""; };
-    item.onclick = () => onSelect(m.path);
-    listEl.appendChild(item);
-  }
-}
-
-/**
- * 初始化 3D 预览器页：自给自足，自带模型列表，不依赖文件树历史。
- */
-export async function initViewerPage(host: never): Promise<void> {
-  const root = (host as unknown as { _root: ShadowRoot })._root;
-  const container = root.getElementById("viewer-3d-container");
-  if (!container) return;
-
-  const { createYsm3D, cleanupYsm3D } = await import("../../views/app-preview/ysm-3d.ts");
-  const { loadModelData } = await import("../../views/app-preview/loader.ts");
-
-  let _currentPath: string | null = null;
-
-  const close3D = (): void => {
-    cleanupYsm3D();
-  };
-
-  // 导航切换时清理 3D
-  const unsub3DClose = bus.on("nav:changed", ({ page }) => {
-    if (page !== "viewer") close3D();
-  });
-
-  // 打开 3D 预览
-  const open3D = async (path: string): Promise<void> => {
-    _currentPath = path;
-    const pathEl = root.getElementById("viewer-model-path");
-    if (pathEl) pathEl.textContent = path;
-    try {
-      await createYsm3D(path, 0, {
-        loader: async (p: string) => (await loadModelData(p, { root } as never)).model,
-        onClose: close3D,
-      });
-    } catch (e) {
-      console.error("[viewer] 3D 预览加载失败:", e);
-    }
-  };
-
-  // 监听 model:select（从其他页面切换过来时触发）
-  const unsubModelSelect = bus.on("model:select", async ({ path }) => {
-    if (!path) return;
-    // 高亮列表项
-    const items = root.querySelectorAll(".viewer-model-item");
-    items.forEach((el) => {
-      (el as HTMLElement).classList.toggle("active", (el as HTMLElement).textContent === path);
-    });
-    await open3D(path);
-  });
-
-  // 加载模型列表
-  const models = await loadViewerModels();
-  _viewerModels = models;
-  renderModelList(root, models, _currentPath, open3D);
-
-  // 恢复上次选中（仅当列表中存在时才恢复，避免跨源路径失效）
-  if (_currentPath && models.some((m) => m.path === _currentPath)) {
-    await open3D(_currentPath);
-  }
-
-  (host as unknown as { _unsubs: Array<() => void> })._unsubs.push(unsub3DClose, unsubModelSelect);
 }
