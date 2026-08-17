@@ -781,16 +781,16 @@
 | `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
 | `webCommunityBindings()` | `frontend/src/backend/web-community:243` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:53` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:111` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:143` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:165` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:183` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:220` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:231` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:284` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:444` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:479` | — |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:73` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:133` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:165` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:187` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:205` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:242` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:254` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:308` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:472` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:508` | — |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
 | `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |

@@ -4,6 +4,25 @@
 // （作者扫描/仓库索引）复用；browser-adapter.ts 从本文件 import 组装 webImpls。
 // 共享原语（WebUnsupportedError / WEB_ROOT / MAX_IMPORT_BYTES / arrayBufferToBase64）
 // 见 web-common.ts。
+//
+// ┌─ 快速跳转 ───────────────────────────────────────────────────────────────────┐
+// │  §1  key 规约            → L47    dirKey / fileKey                            │
+// │  §2  主文件优先级         → L57    MAIN_FILE_RANK_* / mainFileRank             │
+// │  §3  FSA 授权持久化      → L90    restore/reauthorize/rescan FSA handle        │
+// │  §4  模型库扫描           → L230   scanWebModels / scanAllWebModels            │
+// │  §5  文件读取            → L280   readWebFile                                   │
+// │  §6  NBT/体素 meta 读取   → L293   readVoxelJson / readNbtMetaJson             │
+// │  §7  pack/shaderpack 读取 → L352   readPackMetaJson / readShaderpackLangJson   │
+// │  §8  路径解析            → L396   parseWebModelPath / parseWebModelDir        │
+// │  §9  列表                → L424   listWebModelDirFiles                        │
+// │  §10 搜索                → L457  searchWebModels                               │
+// │  §11 重命名              → L553  assertValidRenameName / renameWebDir/File    │
+// │  §12 删除               → L569  deleteWebModel                                 │
+// │  §13 移动/复制          → L673  rekeyWebModelGroup / moveOrCopyWebModel       │
+// │  §14 子目录映射          → L795  getWebSubDirMap / collectAllWebEntries        │
+// │  §15 导入分组            → L816  importWebFiles / expandZipFiles / stem helpers│
+// │  §16 binding 装配        → L1102 webFsBindings（Top 6 注册表驱动）            │
+// └──────────────────────────────────────────────────────────────────────────────┘
 import { idbGet, idbSet, idbKeys, idbDel } from "./idb.ts";
 import { t } from "../core/i18n/t.ts";
 import { bus } from "../bus.ts";
@@ -44,6 +63,7 @@ import {
 // （Worker 内独立加载 WASM + open IndexedDB，主线程零解析负载；不可用/失败降级）
 import { batchStatsWebModels, type WebModelStats } from "./web-stats.ts";
 
+// ===== §1 key 规约（dir:*: / file:*: 前缀，ADR-177 对齐）=====
 // --- key 规约（对齐 MikuMikuAR ADR-177：dir:*: / file:*: 前缀）---
 const dirKey = (type: string, name: string): string => `dir:${type}/${name}:`;
 const fileKey = (type: string, name: string, rel: string): string =>
@@ -54,6 +74,7 @@ export function typeFromWebDir(dir: string): string {
   return webDirType(dir) || RESOURCE_TYPES.YSM;
 }
 
+// ===== §2 主文件优先级（注册表驱动，ADR-066）=====
 // --- 主文件优先级（scanWebModels / importWebFiles 共用）---
 // ADR-066 识别层对齐 Go scanner：主文件判定注册表驱动——每类型注册表扩展名都是
 // 该类型主文件；.json 仅 ysm.json（IsYsmEntryJSON 口径）；.ysm/.zip 为 YSM 主文件
@@ -87,6 +108,7 @@ function mainFileRank(rel: string): number {
   return MAIN_FILE_RANK_NONE;
 }
 
+// ===== §3 FSA 授权持久化（网页版本地仓库目录授权）=====
 // --- FSA 授权本地仓库（网页版文件来源桥接，替代 Go 本地文件系统扫描）---
 // 对齐 MikuMikuAR browser-adapter 的 [doc:adr-177] 方案：网页版无本地文件系统，
 // 用 File System Access API 让用户手动授权本地目录，递归扫 .ysm 写入 IndexedDB，
@@ -227,6 +249,7 @@ export async function selectLocalRepo(): Promise<{ ok: boolean; imported: number
   return scanFsaHandle(handle);
 }
 
+// ===== §4 模型库扫描 =====
 // --- 模型库扫描（IDB dir: 前缀 → ModelEntry 列表）---
 export async function scanWebModels(dir: string): Promise<ModelEntry[]> {
   const type = typeFromWebDir(dir);
@@ -277,6 +300,7 @@ export async function scanWebModels(dir: string): Promise<ModelEntry[]> {
   return entries;
 }
 
+// ===== §5 文件读取（readWebFile）=====
 /** 读文件（/web/<type>/<rest> → IDB → base64；wasm.ts 解码链零改动复用）
  *  模型组 name 与组内 rel 在 file key 中无缝拼接（file:<type>/<name>/<rel>），
  *  多段 name（目录树，如 /web/ysm/分类1/狐狸/狐狸.ysm）无需拆分边界：
@@ -318,6 +342,7 @@ async function readVoxelJson(
   }
 }
 
+// ===== §6 NBT/体素 meta 读取（ADR-070 M1/M2）=====
 /**
  * ADR-070 M1：蓝图/投影 meta binding 公共读取骨架（TS 平移 go/litematic/parser.go 的
  * openGzRoot + 视图提取）。读 IDB → base64 → 字节 → parseNbtRoot → 视图提取 → JSON 字符串。
@@ -342,6 +367,7 @@ async function readNbtMetaJson(
   }
 }
 
+// ===== §7 pack/shaderpack meta 读取 =====
 /**
  * 资源包详情 binding 公共骨架（TS 平移 go/packs/mcmeta.go ReadPackMeta + internal/app
  * resource_bindings.go:34 的 result 装配）。读 IDB → base64 → 字节 → extractZip →
@@ -388,6 +414,7 @@ async function readShaderpackLangJson(path: string): Promise<string> {
   }
 }
 
+// ===== §8 路径解析（parseWebModelPath / parseWebModelDir）=====
 /**
  * /web/<type>/<name>/<rel> → 三段解析（多段 name 支持）。
  * name 与 rel 均可含 /，边界无法靠正则无歧义拆分——枚举 dir:<type>/ 前缀
@@ -440,6 +467,7 @@ async function listWebModelDirFiles(p: string): Promise<string[]> {
   return out;
 }
 
+// ===== §9 列表（递归列出 /web 目录全部文件路径）=====
 /** 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） */
 export async function scanAllWebModels(): Promise<Array<{ type: string; name: string; path: string }>> {
   const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string }> }).resourceTypes ?? [];
@@ -454,6 +482,7 @@ export async function scanAllWebModels(): Promise<Array<{ type: string; name: st
   return out;
 }
 
+// ===== §10 搜索（关键词 + 数值范围，Worker 批量统计）=====
 // --- 搜索（关键词匹配 + 数值范围条件，数值统计走 Web Worker 批量分析）---
 // 对齐桌面 internal/app/app_scan.go SearchModels：kw 匹配 name OR path；
 // 数值参数 [minBones,maxBones,minCubes,maxCubes,minTex,maxTex]，>0 才参与过滤：
@@ -550,6 +579,7 @@ export async function searchWebModels(
   return out;
 }
 
+// ===== §11 重命名校验 =====
 // --- 重命名校验（对齐桌面 fileops.RenameDir/RenameFile：非法字符/空名/穿越拒绝）---
 // 缺校验的后果：newName 含 / 或为空会制造坏 key（dir:ysm/a/b:），scanWebModels 仍能扫到，
 // 但 parseWebModelDir 三段解析失败 → 该模型变成幽灵（无法删除/再次重命名），且重命名到
@@ -565,6 +595,7 @@ function assertValidRenameName(newName: string, kind: "目录" | "文件"): void
   if (n === "." || n === "..") throw new Error(t("webFs.renameInvalidPathSegment", { kind: kindLabel }));
 }
 
+// ===== §12 删除模型组 =====
 // --- 删除模型组（dir + 所有 file + 元数据标记）---
 async function deleteWebModel(type: string, name: string): Promise<void> {
   await idbDel("files", dirKey(type, name));
@@ -756,6 +787,7 @@ async function rekeyWebModelGroup(type: string, oldName: string, newName: string
   }
 }
 
+// ===== §13 移动/复制（组级 rekey）=====
 /**
  * MoveModelFile / CopyModelFile 共用：解析 + 校验 + 组级 rekey。
  * move=true 移动（删源）；move=false 复制（保留源）。失败 reject（对齐 Go error → binding reject）。
@@ -792,7 +824,7 @@ async function moveOrCopyWebModel(src: string, dstDir: string, move: boolean): P
   await rekeyWebModelGroup(type, name, newName, move);
 }
 
-// --- 子目录映射（resource_types.json → {id: scanDir}）---
+// ===== §14 子目录映射 =====
 async function getWebSubDirMap(): Promise<Record<string, string>> {
   // 对齐 go/types/extensions.go SubDirAll：返回 rt.ScanDir（整合包实例版本目录扫描子目录），
   // 非 storageSubDir（仓库存储子目录）——B1 契约测试暴露的字段错用
@@ -904,6 +936,7 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
   return out;
 }
 
+// ===== §15 导入分组（expandZipFiles + 粗/细分组 + stem helpers）=====
 export async function importWebFiles(
   files: File[],
   type: string,
@@ -1099,6 +1132,7 @@ function relOf(f: File, stem: string): string {
   return f.name;
 }
 
+// ===== §16 binding 装配（browser-adapter.ts 消费入口）=====
 // ===== 文件系统类 binding 片段（Top 6 注册表驱动：browser-adapter.ts 只做 {...} 装配）=====
 // 收敛自 browser-adapter.ts webImpls 的文件系统类条目（扫描/读写/搜索/删除/重命名/
 // 子目录/清缓存/FSA 授权）；SelectLocalRepo/GetFsaAuthState 为网页版专属扩展
