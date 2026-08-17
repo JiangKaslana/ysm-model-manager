@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 88 张知识卡
+> 总计: 89 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -142,12 +142,13 @@
 - **go-ysm-parser**（YSM 解析 go/ysm）：`go/ysm/` 包负责解析 YSM（Yuan's Sketch Model）格式文件，提取模型元数据并生成结构化摘要。
 - **wails-bindings**（Wails Binding API 总览 internal/app）：`internal/app/` 是 Go 端唯一的 Wails Binding 入口层：所有导出给前端的方法都定义在 `*App` 上，业务逻辑下沉到 `go/*` 包，本层只做参数转发与窗口/事件/对话框编排。前端统一经 `getApp(…
 
-## ui（19 张）
+## ui（20 张）
 
 *前端 UI 组件（tree、sidebar、preview、content）*
 
 | 标识 | 名称 | tier | 关键词 |
 |------|------|------|--------|
+| 🍃 3d-patterns | 3D 区审核与修复模式提炼 | leaf | 3D 渲染循环优化, Vector3 复用, 纹理缓存, AbortController 事件管理, 资源生命周期 dispose, 循环依赖破壁, 审核驱动开发, 并发防护 gen 守卫 |
 | 🏗 app-content | 主内容页 app-content | architecture | 主内容区, 页面切换, nav:change, 仓库页, 诊断页, 设置页, 创作者频道, 创意工坊, 全局 handler |
 | 🏗 app-modules | 组件入口 app-modules | architecture | 组件入口, 模块装配, 启动流程, 主题初始化, 服务注册, 检查更新, import 组件, 新组件注册 |
 | 🍃 app-nav | 顶部导航 app-nav | leaf | 导航栏, 导航, 切页, nav:change, 菜单, 页面记忆, 版本号 |

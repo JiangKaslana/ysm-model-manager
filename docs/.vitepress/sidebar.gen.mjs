@@ -1263,6 +1263,10 @@ export const autoSidebar = [
         "collapsed": true,
         "items": [
           {
+            "text": "3D 区审核与修复模式提炼",
+            "link": "/knowledge/3d-patterns"
+          },
+          {
             "text": "主内容页 app-content",
             "link": "/knowledge/app-content"
           },
