@@ -17,10 +17,8 @@ import {
 } from "./skeleton-render.ts";
 import { createYsm3D, cleanupYsm3D } from "./ysm-3d.ts";
 
-// 2D 拖拽的 window 监听器槽位：loadModel2D 每次渲染模型都会绑定，
-// 先移除上一轮处理器再绑定，防止 window 级监听器累积泄漏
-let _prevWindowMove: ((e: PointerEvent) => void) | null = null;
-let _prevWindowUp: ((e: PointerEvent) => void) | null = null;
+// 2D 拖拽的 window 监听器使用 AbortController 管理，避免模块级单例竞态（审核 P3）
+let _prevAbort: AbortController | null = null;
 
 /**
  * P2 修复（审核）：3D overlay 挂 document.body，不随预览面板 shadow DOM 重建消失。
@@ -97,13 +95,16 @@ export async function loadModel2D(
     canvas.title = "左键全窗放大 · 滚轮缩放 · 左右拖拽旋转";
     let _dragging = false, _dragged = false, _lastX = 0;
     canvas.addEventListener("pointerdown", (e) => { if (e.button !== 0) return; _dragging = true; _dragged = false; _lastX = e.clientX; canvas.setPointerCapture(e.pointerId); });
-    if (_prevWindowMove) window.removeEventListener("pointermove", _prevWindowMove);
-    if (_prevWindowUp) window.removeEventListener("pointerup", _prevWindowUp);
+    // 取消上一轮的 window 监听器（AbortController 一次性清除所有，无竞态风险）
+    _prevAbort?.abort();
+    const ac = new AbortController();
+    _prevAbort = ac;
+    const opts = { signal: ac.signal };
     const onWindowMove = (e: PointerEvent): void => { if (!_dragging) return; const dx = e.clientX - _lastX; if (Math.abs(dx) > 3) _dragged = true; _lastX = e.clientX; _rotation = (_rotation + dx * 0.5) % 360; doRender(); };
     const onWindowUp = (e: PointerEvent): void => { _dragging = false; if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId); };
-    _prevWindowMove = onWindowMove; _prevWindowUp = onWindowUp;
-    window.addEventListener("pointermove", onWindowMove); window.addEventListener("pointerup", onWindowUp);
-    ctx.unsubs?.push(() => { window.removeEventListener("pointermove", onWindowMove); window.removeEventListener("pointerup", onWindowUp); if (_prevWindowMove === onWindowMove) _prevWindowMove = null; if (_prevWindowUp === onWindowUp) _prevWindowUp = null; });
+    window.addEventListener("pointermove", onWindowMove, opts);
+    window.addEventListener("pointerup", onWindowUp, opts);
+    ctx.unsubs?.push(() => { ac.abort(); if (_prevAbort === ac) _prevAbort = null; });
     canvas.addEventListener("click", (e) => { if (_dragged) { e.stopPropagation(); return; } openFullPreview(canvas, model, textureImg, getLabelsOn()); });
     canvas.addEventListener("wheel", (e) => { e.preventDefault(); _zoom = Math.max(0.2, Math.min(10, _zoom * Math.exp(-e.deltaY * 0.002))); doRender(); }, { passive: false });
     buildStatsCard(container, model, modelPath, _decodedBy, ctx);

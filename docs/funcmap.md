@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 107 | 395 |
-| frontend/views | 100 | 277 |
+| frontend/views | 100 | 281 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **385** | **1603** |
+| **合计** | **385** | **1607** |
 
 ## Go·头像
 
@@ -1216,7 +1216,7 @@
 | `computeBoneLocalPos()` | `frontend/src/utils/3d/cube-mesh:24` | 计算骨骼本地位置（对齐 YSMViewer/C# ConvertBones 口径）。 |
 | `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:64` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:220` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
-| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:47` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
+| `rebuildDebug()` | `frontend/src/utils/3d/debug-render:52` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `TdKeyAction()` | `frontend/src/utils/3d/keymap:8` | — |
 | `DEFAULT_TD_KEYMAP()` | `frontend/src/utils/3d/keymap:11` | 默认键位以 KeyboardEvent.code 存储（物理键，跨键盘布局一致） |
 | `loadTdKeymap()` | `frontend/src/utils/3d/keymap:27` | 读取用户自定义键位（无/非法时回退默认） |
@@ -1664,8 +1664,8 @@
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
 | `registerReRoute()` | `frontend/src/views/app-preview/preview-library:44` | 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用） |
-| `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:73` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
-| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:97` | 给 mount3D opts 注入「资源库默认扩展」：库加载 + 跨类型跳转。各 createXxx3D 统一经此获得 3D 内 📚 面板 |
+| `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:75` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
+| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:99` | 给 mount3D opts 注入「资源库默认扩展」：库加载 + 跨类型跳转。各 createXxx3D 统一经此获得 3D 内 📚 面板 |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:12` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:18` | — |
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
@@ -1679,8 +1679,8 @@
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
-| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:35` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
-| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:53` | 加载模型 2D 骨骼线条图 + 统计面板 |
+| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:33` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
+| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:51` | 加载模型 2D 骨骼线条图 + 统计面板 |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |
 | `buildOrderedTexKeys()` | `frontend/src/views/app-preview/texture-order:21` | 计算 3D 渲染/纹理选择器用的有序纹理名列表 |
 | `ModelDetailMeta()` | `frontend/src/views/app-preview/tpl:6` | 模型统计元数据（modelDetailHTML 入参） |
@@ -1740,17 +1740,21 @@
 | `footerHTML()` | `frontend/src/views/app-sidebar/tpl:38` | — |
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:83` | — |
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:102` | 单个整合包卡片头部。 |
-| `bindEvents()` | `frontend/src/views/app-sync-manager/events:25` | 绑定所有 DOM 事件（类型切换 / 状态筛选 / 单行操作按钮） |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:32` | — |
-| `performSingleOp()` | `frontend/src/views/app-sync-manager/network:34` | 统一推送 / 拉取单文件操作。 |
-| `render()` | `frontend/src/views/app-sync-manager/renderer:45` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
+| `EventSelf()` | `frontend/src/views/app-sync-manager/events:12` | — |
+| `bindEvents()` | `frontend/src/views/app-sync-manager/events:21` | 绑定所有 DOM 事件（类型切换 / 状态筛选 / 单行操作按钮） |
+| `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:24` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:49` | — |
+| `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
+| `performSingleOp()` | `frontend/src/views/app-sync-manager/network:29` | 统一推送 / 拉取单文件操作。 |
+| `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:18` | — |
+| `render()` | `frontend/src/views/app-sync-manager/renderer:31` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
 | `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/state:9` | — |
 | `_lastSelectedType()` | `frontend/src/views/app-sync-manager/state:10` | — |
 | `setLastSelectedType()` | `frontend/src/views/app-sync-manager/state:11` | — |
 | `SyncStoreSelf()` | `frontend/src/views/app-sync-manager/store:14` | — |
-| `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:30` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
-| `loadData()` | `frontend/src/views/app-sync-manager/store:53` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
-| `applyFilter()` | `frontend/src/views/app-sync-manager/store:74` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
+| `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:20` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
+| `loadData()` | `frontend/src/views/app-sync-manager/store:43` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
+| `applyFilter()` | `frontend/src/views/app-sync-manager/store:64` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:21` | 容器骨架 |
 | `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:66` | 状态筛选标签 HTML |

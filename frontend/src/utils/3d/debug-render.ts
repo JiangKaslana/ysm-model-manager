@@ -14,8 +14,12 @@ const DEBUG_THEME = {
   labelScale: { x: 120, y: 24, z: 1 },
 } as const;
 
-/** 生成骨骼名 Canvas 纹理（Sprite 标签用） */
+/** 生成骨骼名 Canvas 纹理（Sprite 标签用）—— 按骨名缓存，避免重复创建 CanvasTexture（审核 P3） */
+const _labelTexCache = new Map<string, THREE.CanvasTexture>();
 function makeTextTexture(text: string, color?: string): THREE.CanvasTexture {
+  const key = color ? `${text}::${color}` : text;
+  const cached = _labelTexCache.get(key);
+  if (cached) return cached;
   const canvas = document.createElement("canvas");
   canvas.width = DEBUG_THEME.labelCanvas.width;
   canvas.height = DEBUG_THEME.labelCanvas.height;
@@ -33,6 +37,7 @@ function makeTextTexture(text: string, color?: string): THREE.CanvasTexture {
   const tex = new THREE.CanvasTexture(canvas);
   tex.minFilter = THREE.LinearFilter;
   tex.premultiplyAlpha = true;
+  _labelTexCache.set(key, tex);
   return tex;
 }
 

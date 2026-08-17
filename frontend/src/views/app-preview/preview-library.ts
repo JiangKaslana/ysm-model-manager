@@ -61,6 +61,8 @@ async function loadAllModels(): Promise<LibraryAsset[]> {
     }
     return out.slice(0, 500);
   } catch {
+    // 加载失败时 toast 通知用户，而非静默返回空（审核 P3）
+    import("../../bus.ts").then(({ bus }) => bus.emit("toast:show", { msg: "库加载失败", duration: 3000, type: "warn" }));
     return [];
   }
 }
