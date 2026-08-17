@@ -34,17 +34,17 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 24 | 183 |
 | 前端·根 (app-modules/bus) | 3 | 16 |
-| frontend/backend | 18 | 98 |
+| frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 21 | 95 |
 | 前端·服务 | 1 | 6 |
-| frontend/test-utils | 5 | 43 |
+| frontend/test-utils | 6 | 44 |
 | frontend/ui | 18 | 103 |
 | 前端·工具 | 106 | 391 |
-| frontend/views | 94 | 262 |
+| frontend/views | 98 | 273 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **378** | **1584** |
+| **合计** | **383** | **1597** |
 
 ## Go·头像
 
@@ -790,6 +790,7 @@
 | `scanWebModels()` | `frontend/src/backend/web-fs:231` | — |
 | `readWebFile()` | `frontend/src/backend/web-fs:284` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
 | `scanAllWebModels()` | `frontend/src/backend/web-fs:444` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:479` | — |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
 | `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
@@ -972,6 +973,7 @@
 | `fireInput()` | `frontend/src/test-utils/events:45` | 模拟输入变化（更新 input.value 并触发 input + change 事件） |
 | `fireDrop()` | `frontend/src/test-utils/events:55` | 模拟拖拽 drop：构造 DragEvent 并注入 dataTransfer（happy-dom 忽略 DragEvent init 参数，需 defineProperty） |
 | `fireDrag()` | `frontend/src/test-utils/events:67` | 模拟任意类型拖拽事件（dragstart/dragover/dragleave…），与 fireDrop 同款 dataTransfer 注入 |
+| `idbMock()` | `frontend/src/test-utils/idb-mock:10` | — |
 | `queryByTestId()` | `frontend/src/test-utils/index` | — |
 | `getByTestId()` | `frontend/src/test-utils/index` | — |
 | `queryAllByTestId()` | `frontend/src/test-utils/index` | — |
@@ -1731,7 +1733,18 @@
 | `footerHTML()` | `frontend/src/views/app-sidebar/tpl:38` | — |
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:83` | — |
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:102` | 单个整合包卡片头部。 |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:51` | — |
+| `bindEvents()` | `frontend/src/views/app-sync-manager/events:25` | 绑定所有 DOM 事件（类型切换 / 状态筛选 / 单行操作按钮） |
+| `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/index:25` | — |
+| `_lastSelectedType()` | `frontend/src/views/app-sync-manager/index:26` | — |
+| `setLastSelectedType()` | `frontend/src/views/app-sync-manager/index:27` | — |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:33` | — |
+| `performSingleOp()` | `frontend/src/views/app-sync-manager/network:34` | 统一推送 / 拉取单文件操作。 |
+| `setButtonsBusy()` | `frontend/src/views/app-sync-manager/network:77` | 切换所有单行按钮的禁用态与视觉反馈。 |
+| `render()` | `frontend/src/views/app-sync-manager/renderer:43` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
+| `renderList()` | `frontend/src/views/app-sync-manager/renderer:151` | 渲染列表行（含空态） |
+| `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:30` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
+| `loadData()` | `frontend/src/views/app-sync-manager/store:53` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
+| `applyFilter()` | `frontend/src/views/app-sync-manager/store:74` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:21` | 容器骨架 |
 | `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:66` | 状态筛选标签 HTML |
