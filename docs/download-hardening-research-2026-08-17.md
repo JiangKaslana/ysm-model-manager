@@ -5,7 +5,7 @@
 - **范围**：`go/download/download.go` + `go/download/download_http_test.go`
 - **对标库**：`github.com/hashicorp/go-getter`（v2.1.0+）、`github.com/cavaliergopher/grab/v3`
 - **动机**：项目里有 10 处 `TODO(BUG-HTTP-X)` 探察态断言点（另有 BUG-HTTP-2/5 已在报告产出前由 `FIXED(...)` 硬断言覆盖），但源码本体已实现对应修复。真实差距是"测试未跟上源码"——回归发生时 CI 不会变红。本报告先澄清现状，再给出最小化补丁。
-- **落地状态（同日更新）**：P0-a（断言升级）已落地，提交 `57b1bd9f`——10 处探察态断言点全部 `t.Fatalf` 化（9 处 `t.Log→t.Fatalf` + BUG-HTTP-7c 异常分支加固），`go test ./go/download/...` 全绿 ✅。P0-b / P1 未动，见 §5。
+- **落地状态（同日更新）**：P0-a（断言升级）已落地，提交 `57b1bd9f`——10 处探察态断言点全部 `t.Fatalf` 化（9 处 `t.Log→t.Fatalf` + BUG-HTTP-7c 异常分支加固），`go test ./go/download/...` 全绿 ✅。P0-b（checksum）调研完成：**降级为 P2 预留能力**（§4.2.1）。P1 未动，见 §5。
 
 ---
 
@@ -53,7 +53,7 @@ var httpGetter = &getter.HttpGetter{
 | 重定向跳数上限 | ✅ 已实现（`len(via) >= 10`） |
 | `X-Terraform-Get` 禁用 | ⚪ 项目用标准 `net/http`，默认不处理该头，无需显式禁用 |
 | `DisableSymlinks` | ⚪ 项目下载路径由调用方控制，暂无 symlink 写入风险 |
-| checksum 校验 | ❌ 项目无 checksum 验证，纯靠 `Content-Length` + 截断检测 |
+| checksum 校验 | 🟡 更新包场景已闭环（`go/updater`：SHA256SUMS 解析 + 下载中 SHA256 流式校验 + `ErrHashMismatch`）；模型文件场景无现成数据源（§4.2.1），预留 API 能力 |
 | 断点续传 | ❌ 项目每次重下，无 Range 续传 |
 
 ### 2.2 `cavaliergopher/grab/v3` — 大文件下载库
@@ -317,7 +317,7 @@ if info, err := os.Stat(savePath); err == nil {
 - 风险：极低。仅升级失败时的报告强度，不改动测试逻辑。
 - 验证：`go test ./go/download/...` 全绿 ✅（提交 `57b1bd9f`）。
 
-### 4.2 P0 可选加固：checksum 校验（照 aptly 范式）
+### 4.2 P0 可选加固：checksum 校验（照 aptly 范式）—— ⚠️ 调研结论修正，降级为 P2 预留，见 §4.2.1
 
 **文件**：`go/download/download.go`（新增）、调用方（按需）
 
@@ -366,6 +366,25 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 ```
 
 **调用方改动**：GitHub Release 资产有公布的 SHA256，可在 `ResolveSavePath` 旁加一个 `expectedSHA256` 参数透传。这一步**不是安全红线**，是可靠性增强，优先级低于 4.1。
+
+### 4.2.1 P0-b 调研结论（2026-08-17 实测）——降级为 P2 预留能力
+
+**① 纠正调研盲区：更新包场景 checksum 已闭环。**
+`go/updater` 已有完整 SHA256SUMS 链路（`Check` 从 Release 资产定位 SHA256SUMS → `fetchExpectedHash` 解析 → `downloadOnce` 用 `io.TeeReader` 边下边算 SHA256 → 不匹配删文件并返回 `ErrHashMismatch`）。§2.1/§4.2 的"项目无 checksum 验证"**只对 `go/download` 成立**——报告产出时未考察 `go/updater`，属调研盲区，特此纠正。
+
+**② 模型文件三源 checksum 数据源实测**（真实 HTTP 探测）：
+
+| 源 | hash 字段 | 算法 | 结论 |
+|---|---|---|---|
+| `raw.githubusercontent.com` | 无 | — | ❌ 无数据源 |
+| jsDelivr data API（`/v1/packages/gh/{repo}@{ref}`） | `hash` | base64 SHA-256（实测 44 字符） | 🟡 仅全文件树，无文件级 API |
+| jsDelivr 文件级 API（`/v1/package/gh/{repo}@{ref}/{path}`） | — | — | ❌ 实测 400 Bad Request |
+| GitHub Contents API | `sha` | git blob SHA-1（实测 40 hex） | ❌ 非内容 SHA256 |
+| GitHub Release Assets | `digest` | sha256 | ⚪ 模型文件不走 Release 资产 |
+
+**③ 降级理由**：唯一可能的数据源（jsDelivr data API）无文件级查询，取单文件 hash 须拉全文件树（大仓库数百 KB+，每模型一次往返），且该 hash 只约束 jsd 镜像源、约束不了 primary raw 源。相对收益低 → **从 P0-b 降级为 P2 预留**：`downloadTo` 预留可选 `expectedSHA256` 参数 + `ErrChecksumMismatch` sentinel（nil 则行为零漂移），不接调用方。
+
+**④ 取代方案（若未来需要模型下载完整性）**：自营仓库/整合包清单配套 SHA256SUMS 文件，照 `go/updater` 的 `fetchExpectedHash` 范式接入——不依赖 jsDelivr API，数据源可控。现有威胁面（截断检测 + Content-Type 白名单 + 三源回退）已覆盖主流风险，该项不急。
 
 ### 4.3 P1 路径安全：引入 `os.Root`（需先确认 Go 版本）
 
@@ -467,7 +486,7 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 | 优先 | 项 | 动作 | 风险 | 验证 |
 |---|---|---|---|---|
 | 🔴 P0-a | 测试断言升级 | ✅ **已落地（提交 `57b1bd9f`）**：10 处断言点 `t.Fatalf` 化 | — | `go test ./go/download/...` 全绿 ✅ |
-| 🟡 P0-b | checksum 校验 | 照 aptly 范式加 `ChecksumOption`，调用方透传 SHA256 | 低 | 新增测试覆盖 checksum 不匹配场景 |
+| 🟡 P0-b | checksum 校验 | 🔽 **调研降级为 P2 预留**：实测无现成数据源（§4.2.1），仅预留 `expectedSHA256` API | 低 | — |
 | 🟡 P1-a | 路径安全 `os.Root` | 需先确认 Go 版本 ≥1.24，再去重/安装器改 `os.OpenRoot` | 中 | `go test ./go/dedup/... ./go/installer/...` 全绿 |
 | 🟡 P1-b | WASM MT COOP/COEP | 桌面端 AssetServer 注入头，网页版降级单线程 | 中 | DevTools 检查 `self.crossOriginIsolated` |
 
@@ -524,4 +543,17 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 
 ---
 
-**报告完。** P0-a 已落地（提交 `57b1bd9f`），回归红 CI 缺口关闭。下一步建议：评估 P0-b（checksum 校验）——先确认资源侧是否公布 SHA256（GitHub Release 资产 / jsDelivr），再定是否立 ADR 推进。
+## 附录 D：P0-b checksum 调研快照（2026-08-17 实测）
+
+- **结论**：checksum 从 P0-b 降级为 **P2 预留**（详见 §4.2.1）。
+- **盲区纠正**：`go/updater` 已有完整 SHA256SUMS 校验链路（`ErrHashMismatch` / `fetchExpectedHash` / `downloadOnce` 流式算哈希），报告初版"项目无 checksum 验证"仅对 `go/download` 成立。
+- **实测数据**（真实 HTTP 探测）：
+  - jsDelivr `/v1/packages/gh/jquery/jquery@3.7.1` 文件 `hash` = base64（44 字符 → 32 字节），**SHA-256**；`/v1/package/gh/{repo}@{ref}/{path}` 文件级查询 **400 不可用**。
+  - GitHub `/repos/jquery/jquery/contents/package.json?ref=3.7.1` `sha` = 40 hex，**git blob SHA-1**，非内容 SHA256。
+  - raw 源无 hash；Release Assets `digest` 与模型文件下载无关。
+- **预留 API 改动量**：`downloadTo` 加可选 `expectedSHA256`（零漂移）+ `ErrChecksumMismatch` sentinel + 2 单测 ≈ 30 行，未落地（等自营仓库场景或用户决定）。
+- **取代方案**：自营仓库配套 SHA256SUMS（照 updater `fetchExpectedHash` 范式），不依赖 jsDelivr API。
+
+---
+
+**报告完。** P0-a 已落地（提交 `57b1bd9f`），回归红 CI 缺口关闭；P0-b 调研完成并降级为 P2 预留（§4.2.1，实测 jsDelivr 无文件级 hash API、GitHub Contents 为 SHA-1）。下一步建议：P1-a（`os.Root` 路径安全，先确认 Go 版本 ≥1.24）或 P1-b（COOP/COEP），或落地 P2 预留参数（~30 行，打开自营仓库 checksum 口子）。
