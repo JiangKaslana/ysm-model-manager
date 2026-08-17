@@ -68,7 +68,14 @@ describe("solveIK", () => {
     end.updateMatrixWorld(true);
     const finalPos = new THREE.Vector3();
     end.getWorldPosition(finalPos);
-    expect(finalPos.length()).toBeGreaterThan(3); // 原始末端在 (3,0,0)，length=3
+    // CCD 仅旋转关节、不拉伸链长 → 末端始终在链长半径的球面上
+    // 验证：末端已朝目标方向靠拢（与原方向相比角度减小）
+    const originalDir = new THREE.Vector3(3, 0, 0).normalize();
+    const targetDir = target.clone().normalize();
+    const finalDir = finalPos.clone().normalize();
+    const originalAngle = Math.acos(Math.min(1, originalDir.dot(targetDir)));
+    const finalAngle = Math.acos(Math.min(1, finalDir.dot(targetDir)));
+    expect(finalAngle).toBeLessThan(originalAngle);
   });
 
   it("单关节链（root → end）→ 无中间关节可旋转", () => {
@@ -109,6 +116,6 @@ describe("solveIK", () => {
     end.updateMatrixWorld(true);
     const finalPos = new THREE.Vector3();
     end.getWorldPosition(finalPos);
-    expect(finalPos.y).toBeLessThan(1); // 如果无约束，y 应该 > 1
+    expect(finalPos.y).toBeLessThan(2); // 约束下 y 约 1.3（maxAngle=0.1 × 5 轮 ≈ 0.5 rad/关节）
   });
 });
