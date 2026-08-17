@@ -14,8 +14,16 @@
 // 关键差异：Go 全部从「用户配置目录优先」读取，覆盖层存在于磁盘；网页版创作者/站点/GitHub
 // 仓库均有 localStorage 覆盖层（WEB_CREATORS_KEY / WEB_SITES_KEY / web:github-repos，见 browser-adapter.ts）。
 // 共享 idb mock：setup 层 globalThis.__YSM_TEST_IDB__ 注入（isolate:false 穿透修复，2026-08-17）
-const idbMock = (globalThis as unknown as Record<string, unknown>).__YSM_TEST_IDB__;
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+const idbMock = (globalThis as unknown as {
+  __YSM_TEST_IDB__: {
+    idbGet: Mock;
+    idbSet: Mock;
+    idbKeys: Mock;
+    idbDel: Mock;
+    _store: Map<string, unknown>;
+  };
+}).__YSM_TEST_IDB__;
 import { browserAdapter } from "./browser-adapter.ts";
 
 // 复刻 harness：idb 层内存实现 + vi.mock；localStorage 由 happy-dom 提供。

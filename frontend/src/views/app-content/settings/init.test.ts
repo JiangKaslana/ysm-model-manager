@@ -19,7 +19,7 @@ const {
   friendlyError,
 } = vi.hoisted(() => ({
   busEmit: vi.fn(),
-  busOn: vi.fn(() => () => {}),
+  busOn: vi.fn((_event: string, _fn: (p: unknown) => void) => () => {}),
   getApp: vi.fn(),
   loadResourceRegistry: vi.fn(() => ({})),
   // 模拟真实 loadTdKeymap（utils/3d/keymap.ts）：从 localStorage 读取并合并默认键位——

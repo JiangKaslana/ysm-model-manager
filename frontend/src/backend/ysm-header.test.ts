@@ -3,7 +3,7 @@
 // 范式对齐 nbt-parse.test.ts / browser-adapter.test.ts：纯函数直测 + IDB mock 装配测。
 // 头部用例镜像 go/ysm/header_test.go（scanHeader/AnalyzeYSMHeaderFromBytes 口径），
 // 摘要用例镜像 go/ysm/summary_extract_test.go（zip 内 ysm.json / 降级扫描 / YSGP）。
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { zipSync, strToU8 } from "fflate";
 import {
   parseYsmHeaderFromBytes,
@@ -12,30 +12,17 @@ import {
   emptyYsmSummary,
 } from "./ysm-header.ts";
 
-// idb 层内存实现（与 browser-adapter.test.ts 同模式：vi.mock ./idb.ts 注入 Map 语义）
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
+// idb 层内存实现：复用 test-setup 全局共享 store（isolate:false 穿透修复，
+// 与 browser-adapter 系一致——per-file vi.mock 在共享模块图下会捕获错位绑定）
+const idbMock = (globalThis as unknown as {
+  __YSM_TEST_IDB__: {
+    idbGet: Mock;
+    idbSet: Mock;
+    idbKeys: Mock;
+    idbDel: Mock;
+    _store: Map<string, unknown>;
   };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
+}).__YSM_TEST_IDB__;
 
 import { browserAdapter, importWebFiles } from "./browser-adapter.ts";
 

@@ -77,6 +77,14 @@ let _closeActive: (() => void) | null = null;
 /** 当前活动弹窗是否允许被外部关闭（进度弹窗 closable=false 时 back 不强关） */
 let _activeClosable = true;
 
+/** 测试钩子：重置活动弹窗单例槽位（isolate:false 共享模块图下，兄弟文件残留的
+ *  _activeOverlay 会让「无活动弹窗」断言失真；web-store.__resetWebLogStateForTest 同款） */
+export function __resetModalStateForTest(): void {
+  _activeOverlay = null;
+  _closeActive = null;
+  _activeClosable = true;
+}
+
 /** 弹窗 append 到 body 后调用，登记为当前活动弹窗 */
 export function registerDlg(
   overlay: HTMLElement,

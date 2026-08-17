@@ -2,7 +2,7 @@
 // 覆盖：renderVersionCards 空/非空、vcHeaderHTML 各 chips 分支（真实实现——
 // mock 用 spy 包装真实 vcHeaderHTML，既记录调用又产出真实 HTML，修复此前
 // 「注释声称覆盖 chips 分支、实际整模块被替换」的假覆盖）
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { vcHeaderHTMLMock } = vi.hoisted(() => ({ vcHeaderHTMLMock: vi.fn() }));
 
@@ -10,6 +10,12 @@ vi.mock("./tpl.ts", async () => {
   const actual = await vi.importActual<typeof import("./tpl.ts")>("./tpl.ts");
   vcHeaderHTMLMock.mockImplementation(actual.vcHeaderHTML);
   return { ...actual, vcHeaderHTML: vcHeaderHTMLMock };
+});
+
+// isolate:false 共享 mock 引用 + shuffle 打乱用例顺序：mock 调用记录跨用例累积
+// （「空实例」排到「非空实例」后 → not.toHaveBeenCalled 失真），每用例清一次
+beforeEach(() => {
+  vcHeaderHTMLMock.mockClear();
 });
 
 import { renderVersionCards } from "./render.ts";

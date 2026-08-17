@@ -12,13 +12,24 @@
 //   internal/app/app_install.go  ClearImportLogs/ClearRuntimeLogs
 //   internal/app/app_config.go   GetSubDirMap (→ go/types/extensions.go SubDirAll)
 // 共享 idb mock：setup 层 globalThis.__YSM_TEST_IDB__ 注入（isolate:false 穿透修复，2026-08-17）
-const idbMock = (globalThis as unknown as Record<string, unknown>).__YSM_TEST_IDB__;
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+const idbMock = (globalThis as unknown as {
+  __YSM_TEST_IDB__: {
+    idbGet: Mock;
+    idbSet: Mock;
+    idbKeys: Mock;
+    idbDel: Mock;
+    _store: Map<string, unknown>;
+  };
+}).__YSM_TEST_IDB__;
 import {
   browserAdapter,
   importWebFiles,
   WEB_ROOT,
 } from "./browser-adapter.ts";
+// 模块级日志环重置钩子：webImportLogs/webRuntimeLogs 是共享模块图里的模块级数组，
+// 隔离残留（先跑文件 push 的日志）会让「AddImportLog 仅入导入环」断言环长度失真
+import { __resetWebLogStateForTest } from "./web-store.ts";
 
 // 复刻 browser-adapter.test.ts 的 harness（硬约束#3）
 
@@ -27,6 +38,7 @@ const enc = new TextEncoder();
 beforeEach(() => {
   vi.clearAllMocks();
   idbMock._store.clear();
+  __resetWebLogStateForTest(); // 重置模块级日志环（防跨文件残留）
   localStorage.clear();
 });
 

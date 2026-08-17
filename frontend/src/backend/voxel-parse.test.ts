@@ -6,7 +6,7 @@
 // makeNbtStructureGz / makeSchematicV2Gz / makeSchematicV1Gz）、
 // 端到端 browserAdapter.Get*VoxelData（导入 IDB → 调用 → JSON 字段名
 // color/positions/size/truncated/maxBlocks 对齐 litematic-adapter.ts 消费）、失败路径 "{}"。
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { gzipSync } from "fflate";
 import { browserAdapter, importWebFiles } from "./browser-adapter.ts";
 import {
@@ -23,30 +23,17 @@ import { mapColor } from "./voxel-colors.ts";
 // 测试直接构造 NBT 字节 → parseNbtRootExact（与 binding 层同一精确 LongArray 解码）
 import { parseNbtRootExact } from "./nbt-parse.ts";
 
-// idb 层内存实现（与 nbt-parse.test.ts 同款 mock）
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
+// idb 层内存实现：复用 test-setup 全局共享 store（isolate:false 穿透修复，
+// 与 browser-adapter 系一致——per-file vi.mock 在共享模块图下会捕获错位绑定）
+const idbMock = (globalThis as unknown as {
+  __YSM_TEST_IDB__: {
+    idbGet: Mock;
+    idbSet: Mock;
+    idbKeys: Mock;
+    idbDel: Mock;
+    _store: Map<string, unknown>;
   };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
+}).__YSM_TEST_IDB__;
 
 beforeEach(() => {
   vi.clearAllMocks();

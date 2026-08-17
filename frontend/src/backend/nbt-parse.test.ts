@@ -4,35 +4,22 @@
 // （ReadLitematicMeta/ReadNbtStructure/ReadSchematic）经 browserAdapter 的端到端 JSON 输出。
 // NBT 字节构造 helper 结构对齐 go/litematic/parser_test.go 的 makeLitematicGz/
 // makeSchematicGz/makeNbtStructureGz（nbtTag/nbtString/nbtInt/nbtCompound/nbtList/...）。
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { gzipSync } from "fflate";
 import { browserAdapter, importWebFiles } from "./browser-adapter.ts";
 import { parseNbtRoot } from "./nbt-parse.ts";
 
-// idb 层内存实现（与 browser-adapter.test.ts 同款 mock，binding 走 readWebFile → IDB）
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
+// idb 层内存实现：复用 test-setup 全局共享 store（isolate:false 穿透修复，
+// 与 browser-adapter 系一致——per-file vi.mock 在共享模块图下会捕获错位绑定）
+const idbMock = (globalThis as unknown as {
+  __YSM_TEST_IDB__: {
+    idbGet: Mock;
+    idbSet: Mock;
+    idbKeys: Mock;
+    idbDel: Mock;
+    _store: Map<string, unknown>;
   };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
+}).__YSM_TEST_IDB__;
 
 beforeEach(() => {
   vi.clearAllMocks();

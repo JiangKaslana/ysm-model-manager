@@ -2,34 +2,21 @@
 // ===== 资源包/光影包详情 web 实现测试（ReadPackMeta / ReadShaderpackLang）=====
 // TS 平移 go/packs/mcmeta.go：用 fflate zipSync 构造 zip → importWebFiles 落 IDB →
 // browserAdapter.ReadPackMeta / ReadShaderpackLang 验证字段（成功路径 + 失败路径 "{}"）。
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { zipSync, strToU8 } from "fflate";
 import { browserAdapter, importWebFiles } from "./browser-adapter.ts";
 
-// idb 层内存实现（同 browser-adapter.test.ts：真实 indexedDB 仅浏览器存在）
-const idbMock = vi.hoisted(() => {
-  const store = new Map<string, unknown>();
-  return {
-    idbGet: vi.fn(async (_s: string, k: string) => store.get(k)),
-    idbSet: vi.fn(async (_s: string, k: string, v: unknown) => {
-      store.set(k, v);
-    }),
-    idbKeys: vi.fn(async (_s: string, prefix: string) =>
-      [...store.keys()].filter((k) => k.startsWith(prefix)),
-    ),
-    idbDel: vi.fn(async (_s: string, k: string) => {
-      store.delete(k);
-    }),
-    _store: store,
+// idb 层内存实现：复用 test-setup 全局共享 store（isolate:false 穿透修复，
+// 与 browser-adapter 系一致——per-file vi.mock 在共享模块图下会捕获错位绑定）
+const idbMock = (globalThis as unknown as {
+  __YSM_TEST_IDB__: {
+    idbGet: Mock;
+    idbSet: Mock;
+    idbKeys: Mock;
+    idbDel: Mock;
+    _store: Map<string, unknown>;
   };
-});
-
-vi.mock("./idb.ts", () => ({
-  idbGet: idbMock.idbGet,
-  idbSet: idbMock.idbSet,
-  idbKeys: idbMock.idbKeys,
-  idbDel: idbMock.idbDel,
-}));
+}).__YSM_TEST_IDB__;
 
 const enc = new TextEncoder();
 

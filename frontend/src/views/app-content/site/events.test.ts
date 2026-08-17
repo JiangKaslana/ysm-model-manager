@@ -103,11 +103,11 @@ beforeEach(() => {
 });
 
 describe("bindBrowseEvents — 基础绑定", () => {
-  it("空状态按钮 → nav:change 到 repository", () => {
+  it("空状态按钮 → nav:changed 到 repository", () => {
     const { state } = makeState();
     bindBrowseEvents(state, () => {});
     (state.searchResults.querySelector("[data-local-empty]") as HTMLElement).click();
-    expect(busEmit).toHaveBeenCalledWith("nav:change", { page: "repository" });
+    expect(busEmit).toHaveBeenCalledWith("nav:changed", { page: "repository" });
   });
 
   it("有创作者且非编辑模式 → 每创作者生成一张卡片", () => {

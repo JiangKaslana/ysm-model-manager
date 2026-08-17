@@ -3,13 +3,16 @@
 // Go 原始错误 → 友好提示；覆盖空值/中文直通/结构化 Code/兜底四类路径。
 // ADR-051：删除正则兜底表，只消费结构化 AppError.Code。
 import { describe, it, expect, vi } from "vitest";
-import { friendlyError, stripPathSegments } from "./errors.ts";
 
-// 本地 mock t() —— 返回 key 本身（与 test-setup.ts 全局 mock 行为一致，
-// 但此文件必须显式 mock，否则 node 环境下路径不匹配导致 t is not defined）
+// 本地 mock t() —— 返回 key 本身。注意：isolate:false 共享模块图下 per-file vi.mock
+// 与 test-setup 全局 zhCN mock 竞争同一模块，先到先得会让本文件或兄弟文件拿错绑定
+// （期望 key 收到中文 / 期望中文收到 key）。用 resetModules + 动态 import 把 errors.ts
+// 的求值限定在本文件 mock 表内，互不污染。
 vi.mock("../../core/i18n/t.ts", () => ({
   t: (key: string): string => key,
 }));
+vi.resetModules();
+const { friendlyError, stripPathSegments } = await import("./errors.ts");
 
 describe("friendlyError 空值与中文直通", () => {
   it("null/undefined/空串 → 未知错误", () => {

@@ -14,12 +14,15 @@ import {
   modalProgress,
   trapFocus,
   fmtMB,
+  __resetModalStateForTest,
 } from "./modal.ts";
 
 // 统一清理：恢复真实定时器（防 fake timers 泄漏到下一用例）+ 移除残留 overlay
 afterEach(() => {
   vi.useRealTimers();
   document.querySelectorAll(".dlg-overlay").forEach((el) => el.remove());
+  // isolate:false 共享模块图下兄弟文件可能残留活动弹窗单例 → 每用例清空槽位
+  __resetModalStateForTest();
 });
 
 /** 关闭当前残留弹窗（走 closeDlg 路径清空单例状态） */

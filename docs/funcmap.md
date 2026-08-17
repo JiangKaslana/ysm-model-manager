@@ -34,7 +34,7 @@
 | Go·YSM 核心 | 7 | 25 |
 | Go(internal)·应用入口 | 24 | 183 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
-| frontend/backend | 18 | 99 |
+| frontend/backend | 17 | 95 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 21 | 99 |
 | 前端·服务 | 1 | 6 |
@@ -44,7 +44,7 @@
 | frontend/views | 99 | 270 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **383** | **1593** |
+| **合计** | **382** | **1589** |
 
 ## Go·头像
 
@@ -724,7 +724,7 @@
 | `reauthorizeFsaRoot()` | `frontend/src/backend/browser-adapter` | — |
 | `rescanFsaRoot()` | `frontend/src/backend/browser-adapter` | — |
 | `consumeWebSearchDegraded()` | `frontend/src/backend/browser-adapter` | — |
-| `setStatsRunnerForTest()` | `frontend/src/backend/browser-adapter` | — |
+| `__setStatsRunnerForTest()` | `frontend/src/backend/browser-adapter` | — |
 | `terminateStatsWorker()` | `frontend/src/backend/browser-adapter` | — |
 | `onStatsProgress()` | `frontend/src/backend/browser-adapter` | — |
 | `getStatsPoolSize()` | `frontend/src/backend/browser-adapter` | — |
@@ -742,7 +742,7 @@
 | `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |
-| `_resetDBForTest()` | `frontend/src/backend/idb:139` | 仅测试用：重置单例连接 + 降级标志（避免用例间共享状态） |
+| `__resetDBForTest()` | `frontend/src/backend/idb:139` | 仅测试用：重置单例连接 + 降级标志（避免用例间共享状态） |
 | `idbGet()` | `frontend/src/backend/idb:156` | 读取单 key |
 | `idbSet()` | `frontend/src/backend/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
 | `idbDel()` | `frontend/src/backend/idb:184` | 删除单 key |
@@ -752,18 +752,14 @@
 | `litematicMetaView()` | `frontend/src/backend/nbt-parse:288` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
 | `nbtStructureView()` | `frontend/src/backend/nbt-parse:322` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
 | `schematicSummaryView()` | `frontend/src/backend/nbt-parse:443` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
-| `findZipEntry()` | `frontend/src/backend/pack-meta:23` | zip entries 中按小写名找条目（对齐 go 端 strings.ToLower(f.Name) 匹配—— zip 内路径大小写不敏感：PACK.MCMETA / Lang |
-| `parsePackMetaJson()` | `frontend/src/backend/pack-meta:99` | pack.mcmeta 字节 → meta 对象（对齐 internal/app ReadPackMeta 的 result 形状： pack_format / descripti |
-| `packPngToThumbnail()` | `frontend/src/backend/pack-meta:132` | pack.png 字节 → data URL base64 缩略图（10MB 限额；空/超限 → ""，对齐 go 截断探测置空） |
-| `parseShaderpackLang()` | `frontend/src/backend/pack-meta:142` | lang/en_US.lang 字节 → {name, entries} JSON 字符串（对齐 go ReadShaderpackLang： &gt;1MB → 空结果；key=val |
 | `readDeclaredBackend()` | `frontend/src/backend/platform:13` | 读取入口 HTML 声明的适配器身份（'go' | 'browser'），未声明返回 undefined |
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
 | `AppBindings()` | `frontend/src/backend/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
 | `BLOCK_COLOR_MAP()` | `frontend/src/backend/voxel-colors-data:7` | 方块名（去命名空间）→ 近似十六进制颜色（对齐 go/litematic/block_colors.go blockColorMap） |
 | `BLOCK_VARIANT_NAMES()` | `frontend/src/backend/voxel-colors-data:305` | "id:data" → 注册名（对齐 go/litematic/block_ids_data.go blockVariantNames，schematic v1 数字 ID 解析） |
-| `mapColor()` | `frontend/src/backend/voxel-colors:94` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
-| `resolveBlockName()` | `frontend/src/backend/voxel-colors:109` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
+| `mapColor()` | `frontend/src/backend/voxel-colors:90` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
+| `resolveBlockName()` | `frontend/src/backend/voxel-colors:105` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
 | `VoxelGroup()` | `frontend/src/backend/voxel-parse:34` | 输出形状（对齐 types.VoxelGroup / LitematicVoxelData json tag） |
 | `VoxelData()` | `frontend/src/backend/voxel-parse:39` | — |
 | `readVarInt()` | `frontend/src/backend/voxel-parse:56` | 对齐 voxel.go:531-549 readVarInt：返回 {value, offset}（shift≥64 截断防溢出 wrap） |
@@ -797,7 +793,7 @@
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
 | `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
-| `setStatsRunnerForTest()` | `frontend/src/backend/web-stats:53` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
+| `__setStatsRunnerForTest()` | `frontend/src/backend/web-stats:53` | 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。 |
 | `consumeWebSearchDegraded()` | `frontend/src/backend/web-stats:58` | 消费「最近一次批量统计是否降级」标记（读完复位，避免跨搜索串扰） |
 | `terminateStatsWorker()` | `frontend/src/backend/web-stats:65` | 终止并回收整个 Worker 池（取消在途任务：调用方在超时/失败后使用；外部也可主动取消） |
 | `getStatsPoolSize()` | `frontend/src/backend/web-stats:91` | 当前池大小（Worker 池并行线程数，供 UI 角标显示 🧵×N） |

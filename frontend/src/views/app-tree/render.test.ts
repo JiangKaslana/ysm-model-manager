@@ -266,6 +266,17 @@ describe("R3 子目录展开（web 多段组形态）", () => {
 });
 
 describe("getRenderMode / setRenderMode（node 环境无 localStorage 的降级路径）", () => {
+  beforeEach(() => {
+    // test-setup 在 node 环境注入内存 localStorage 兜底；isolate:false 共享
+    // globalThis 下其他文件写入的 "ysm-render-mode" 会残留 → getRenderMode 读错值。
+    // 每个用例前清掉该 key，恢复「存储空」的降级语义。
+    try {
+      localStorage.removeItem("ysm-render-mode");
+    } catch {
+      /* 无 localStorage：正合降级语义 */
+    }
+  });
+
   it("getRenderMode 在存储不可用时降级为 grid", () => {
     expect(getRenderMode()).toBe("grid");
   });

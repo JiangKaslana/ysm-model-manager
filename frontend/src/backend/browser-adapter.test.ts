@@ -1,8 +1,16 @@
 // @vitest-environment node
 // ===== 浏览器后端适配器测试（ADR-049 Phase 1 骨架 + Phase 2 IndexedDB 模型库）=====
 // 共享 idb mock：setup 层 globalThis.__YSM_TEST_IDB__ 注入（isolate:false 穿透修复，2026-08-17）
-const idbMock = (globalThis as unknown as Record<string, unknown>).__YSM_TEST_IDB__;
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
+const idbMock = (globalThis as unknown as {
+  __YSM_TEST_IDB__: {
+    idbGet: Mock;
+    idbSet: Mock;
+    idbKeys: Mock;
+    idbDel: Mock;
+    _store: Map<string, unknown>;
+  };
+}).__YSM_TEST_IDB__;
 import { zipSync, strToU8 } from "fflate";
 import {
   browserAdapter,
@@ -809,7 +817,7 @@ describe("browserAdapter — 桥接增强边界/异常分支补全（审核补�
 // 注入/降级标记经 browser-adapter 链 re-export 引入：与 web-fs 内 searchWebModels
 // 共用同一 web-stats 实例（vitest mock 图会拆独立实例，直接 import 会断降级标记）。
 import {
-  setStatsRunnerForTest,
+  __setStatsRunnerForTest,
   consumeWebSearchDegraded,
   terminateStatsWorker,
 } from "./browser-adapter.ts";
@@ -819,12 +827,12 @@ describe("browserAdapter — SearchModels 数值过滤（ADR-071 #6 Worker 统�
 
   beforeEach(() => {
     // 清残留：上一 describe（桥接增强边界测试）可能置过降级标记（真实环境无 Worker）
-    setStatsRunnerForTest(null);
+    __setStatsRunnerForTest(null);
     while (consumeWebSearchDegraded()) {}
   });
 
   afterEach(() => {
-    setStatsRunnerForTest(null);
+    __setStatsRunnerForTest(null);
     while (consumeWebSearchDegraded()) {}
     terminateStatsWorker();
   });
@@ -832,7 +840,7 @@ describe("browserAdapter — SearchModels 数值过滤（ADR-071 #6 Worker 统�
   it("数值条件：min/max 骨骼、立方体、纹理过滤生效，且返回真实统计数值", async () => {
     await importWebFiles([new File([encN.encode("X")], "大狐狸.ysm")], "ysm");
     await importWebFiles([new File([encN.encode("X")], "小猫.ysm")], "ysm");
-    setStatsRunnerForTest(async (paths) =>
+    __setStatsRunnerForTest(async (paths) =>
       paths.map((p) =>
         p.includes("大狐狸")
           ? { boneCount: 10, cubeCount: 30, texWidth: 128, texHeight: 128, hasError: false }
@@ -881,7 +889,7 @@ describe("browserAdapter — SearchModels 数值过滤（ADR-071 #6 Worker 统�
   it("数值条件 + 统计失败（hasError）→ 该模型排除（对齐 Go BoneCount==0 跳过）", async () => {
     await importWebFiles([new File([encN.encode("X")], "好模型.ysm")], "ysm");
     await importWebFiles([new File([encN.encode("X")], "坏模型.ysm")], "ysm");
-    setStatsRunnerForTest(async (paths) =>
+    __setStatsRunnerForTest(async (paths) =>
       paths.map((p) =>
         p.includes("坏模型")
           ? { boneCount: 0, cubeCount: 0, texWidth: 0, texHeight: 0, hasError: true }
@@ -900,7 +908,7 @@ describe("browserAdapter — SearchModels 数值过滤（ADR-071 #6 Worker 统�
   it("数值条件 + Worker 不可用（runner 返回 null）→ 降级：数值 0 + hasError false + 降级标记置位", async () => {
     await importWebFiles([new File([encN.encode("X")], "狐狸.ysm")], "ysm");
     await importWebFiles([new File([encN.encode("X")], "小猫.ysm")], "ysm");
-    setStatsRunnerForTest(async () => null);
+    __setStatsRunnerForTest(async () => null);
     const hit = (await browserAdapter.SearchModels("/web/ysm", "小", 999, 0, 0, 0, 0, 0)) as Array<{
       name: string;
       boneCount: number;
@@ -921,7 +929,7 @@ describe("browserAdapter — SearchModels 数值过滤（ADR-071 #6 Worker 统�
     const runner = vi.fn(async (paths: string[]) =>
       paths.map(() => ({ boneCount: 1, cubeCount: 1, texWidth: 1, texHeight: 1, hasError: false })),
     );
-    setStatsRunnerForTest(runner as never);
+    __setStatsRunnerForTest(runner as never);
     const hit = (await browserAdapter.SearchModels("/web/ysm", "狐狸", 0, 0, 0, 0, 0, 0)) as Array<{
       name: string;
       boneCount: number;
@@ -1293,3 +1301,4 @@ describe("browserAdapter — MoveModelFile / CopyModelFile（组级移动/复制
     await expect(browserAdapter.CopyModelFile("/web/ysm/不存在/不存在.ysm", "/web/ysm/作者A")).rejects.toThrow("模型不存在");
   });
 });
+
