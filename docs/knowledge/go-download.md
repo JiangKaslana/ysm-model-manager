@@ -31,7 +31,9 @@ use_when:
 
 - `New` / `NewWithClient` — 创建 `Downloader`（可注入 http client）
 - `File(ctx, url, savePath, onProgress)` — 单文件下载，ctx 取消即中断
+- `FileWithChecksum(ctx, url, savePath, onProgress, expectedSHA256)` — P2 预留：File + 可选 SHA256 校验（nil/空则跳过，行为零漂移；不匹配返回 `ErrChecksumMismatch`，不装盘、无 .part 残留）
 - `FromGitHubAPI(ctx, apiURL, savePath, onProgress)` — 从 GitHub API 拉取下载
+- `FromGitHubAPIWithChecksum(ctx, apiURL, savePath, onProgress, expectedSHA256)` — P2 预留：GitHub API 版的可选 SHA256 校验（语义同 FileWithChecksum）
 - `ResolveSavePath(rawURL, saveDir)` — 从 raw URL 解析保存路径 + jsd/api 镜像 URL
 
 ## 与其他子系统关系
