@@ -9,14 +9,14 @@ import { mount3D, cleanupPreview, invalidatePreview } from "../../utils/3d/adapt
 import { makeYsmAdapter } from "../../utils/3d/adapters/ysm-adapter.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import { preloadModel } from "./model3d-loader.ts";
+import { loadModelData } from "./loader.ts";
+import { decodeYsmViaWasm } from "./wasm.ts";
 import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "./ysm-controls.ts";
 import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
 /** 跨类型换角色路由用：注入轻量 loader ctx（decodeYsmViaWasm + 空 appendDebug） */
 async function openYsmFullscreen(path: string): Promise<void> {
-  const { loadModelData } = await import("./loader.ts");
-  const { decodeYsmViaWasm } = await import("./wasm.ts");
   await createYsm3D(path, 0, {
     loader: async (p) =>
       (await loadModelData(p, { decodeYsmViaWasm, appendDebug: () => {} } as never)).model,

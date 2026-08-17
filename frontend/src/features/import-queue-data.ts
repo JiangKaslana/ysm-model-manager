@@ -5,7 +5,7 @@ import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { getApp } from "../backend/app.ts";
-import { isImportableFile, shouldEnterForm } from "./dnd-shared.ts";
+import { isImportableFile, shouldEnterForm, groupCollected } from "./dnd-shared.ts";
 import { buildRenameName } from "../utils/dom/dialogs/rename-format.ts";
 import { directImport as execDirectImport, importFolder as execImportFolder, ImportHistory } from "./import-executor.ts";
 import type { ImportFile as ImportedFile } from "./import-executor.ts";
@@ -316,7 +316,6 @@ export function initDataLayer(host: ImportQueueHost): {
   const routeCollected = async (
     collected: Array<{ file: ImportFile; relPath: string }>,
   ): Promise<void> => {
-    const { groupCollected } = await import("./dnd-shared.ts");
     const { folders, singles } = groupCollected(collected);
     for (const g of folders) {
       await importModelFolder(g.dir, g.files as Array<{ file: ImportFile; relPath: string }>);

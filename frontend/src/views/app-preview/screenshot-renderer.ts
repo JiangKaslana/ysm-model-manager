@@ -8,6 +8,7 @@ import { addStandardSceneLights } from "../../utils/3d/scene-lights.ts";
 import { screenshotFromRenderer } from "../../utils/3d/screenshot.ts";
 import { type Spec3D } from "../../utils/3d/model3d.ts";
 import { buildSpecFromGeometryJSON } from "../../utils/3d/spec-builder.ts";
+import { decodeYsmViaWasm } from "./wasm.ts";
 
 export interface AngleShot {
   name: string;
@@ -34,7 +35,6 @@ export async function renderMultiAngle(
     // ADR-071：web 端 spec 桩无效 → 前端 WASM 解码 + buildSpecFromGeometryJSON 兜底（同 model3d-loader）
     if (!spec?.models?.length) {
       try {
-        const { decodeYsmViaWasm } = await import("./wasm.ts");
         const decoded = await decodeYsmViaWasm(modelPath);
         if (decoded?.geometryRaw) {
           spec = JSON.parse(buildSpecFromGeometryJSON(decoded.geometryRaw)) as Spec3D;

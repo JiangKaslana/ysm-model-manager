@@ -10,6 +10,8 @@ import { IMPORT_FORM_FIELD_IDS, readFormFields } from "./import-queue-data.ts";
 import { getApp } from "../backend/app.ts";
 import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+import { buildRenameName } from "../utils/dom/dialogs/rename-format.ts";
+import { showRenameDialog } from "../utils/dom/dialogs/rename.ts";
 
 /** 事件绑定工具：收集 cleanup 函数 */
 function on<K extends keyof HTMLElementEventMap>(
@@ -379,7 +381,6 @@ export function bindButtonEvents(
 
         let newName: string;
         if (c) {
-          const { buildRenameName } = await import("../utils/dom/dialogs/rename-format.ts");
           newName = buildRenameName(
             { author: a, work: w, chara: c, variant: v, date: d },
             ext,
@@ -405,7 +406,6 @@ export function bindButtonEvents(
           const subpath = editing.relPath
             ? editing.relPath.substring(0, editing.relPath.lastIndexOf("/"))
             : "";
-          const { showRenameDialog } = await import("../utils/dom/dialogs/rename.ts");
           const renameTo = await showRenameDialog(null, newName);
           if (!renameTo) {
             bus.emit("toast:show", {

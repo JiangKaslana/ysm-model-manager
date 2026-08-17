@@ -934,12 +934,12 @@
 | `PreparedFormData()` | `frontend/src/features/import-queue-data:76` | prepareFormData 返回的纯数据（不含 DOM 引用） |
 | `HeaderData()` | `frontend/src/features/import-queue-data:82` | loadHeaderData 返回的头部数据（不含 DOM 引用） |
 | `initDataLayer()` | `frontend/src/features/import-queue-data:88` | 初始化导入队列的数据层：返回状态对象和清理函数 |
-| `renderFormData()` | `frontend/src/features/import-queue-events:29` | — |
-| `renderHeaderData()` | `frontend/src/features/import-queue-events:83` | — |
-| `bindFormEvents()` | `frontend/src/features/import-queue-events:113` | 表单输入事件绑定 |
-| `bindDragEvents()` | `frontend/src/features/import-queue-events:148` | 拖拽事件绑定 |
-| `bindInputEvents()` | `frontend/src/features/import-queue-events:235` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:317` | 按钮事件绑定 |
+| `renderFormData()` | `frontend/src/features/import-queue-events:31` | — |
+| `renderHeaderData()` | `frontend/src/features/import-queue-events:85` | — |
+| `bindFormEvents()` | `frontend/src/features/import-queue-events:115` | 表单输入事件绑定 |
+| `bindDragEvents()` | `frontend/src/features/import-queue-events:150` | 拖拽事件绑定 |
+| `bindInputEvents()` | `frontend/src/features/import-queue-events:237` | 文件输入框事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:319` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
 | `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
@@ -1666,8 +1666,8 @@
 | `registerReRoute()` | `frontend/src/views/app-preview/preview-library:44` | 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用） |
 | `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:75` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
 | `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:99` | 给 mount3D opts 注入「资源库默认扩展」：库加载 + 跨类型跳转。各 createXxx3D 统一经此获得 3D 内 📚 面板 |
-| `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:12` | — |
-| `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:18` | — |
+| `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:13` | — |
+| `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:19` | — |
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:18` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
