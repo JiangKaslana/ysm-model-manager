@@ -27,6 +27,53 @@ const shouldOverwrite = (
   (existingHasParent && newHasParent && !existingHasRot && newHasRot);
 
 /**
+ * 修复断裂的父子链：沿父链向上找第一个有 pivot 且在 bones 列表中的祖先，
+ * 若链断则挂到 root。从 buildModelGroup 内联段抽独立函数以降低圈复杂度。
+ */
+function fixOrphanBoneChain(
+  bones: BoneData[],
+  modelBones: BedrockModel["bones"],
+  pivots: Map<string, Vec3>,
+): void {
+  const boneNameSet = new Set<string>();
+  for (const b of bones) boneNameSet.add(b.name);
+  for (let i = 0; i < bones.length; i++) {
+    if (bones[i].parentId === null) continue;
+    // 沿父链向上找第一个有 pivot 且在 bones 列表中的祖先
+    let ancestor = bones[i].parentId!;
+    const visited = new Set<string>([bones[i].name]);
+    while (true) {
+      const ancHasPivot = pivots.has(ancestor);
+      if (boneNameSet.has(ancestor) && ancHasPivot) break;
+      // 找 ancestor 的 parent
+      let found = false;
+      for (const b of modelBones) {
+        if (b.name === ancestor && b.parent !== "" && !visited.has(b.parent)) {
+          ancestor = b.parent;
+          visited.add(ancestor);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        ancestor = ""; // 链断了，挂到 root
+        break;
+      }
+    }
+
+    const bp = pivots.get(bones[i].name);
+    const ancPivot = ancestor !== "" ? pivots.get(ancestor) ?? null : null;
+    if (ancestor !== "") {
+      bones[i].parentId = ancestor;
+      bones[i].localPosition = ancPivot && bp ? computeBoneLocalPos(bp, ancPivot) : (bp ? computeBoneLocalPos(bp, null) : [0, 0, 0]);
+    } else {
+      bones[i].parentId = null;
+      bones[i].localPosition = bp ? computeBoneLocalPos(bp, null) : [0, 0, 0];
+    }
+  }
+}
+
+/**
  * 单组件 spec 构建核心。
  * 对齐 Go threejs/spec.go buildModelGroup（L103-390）。
  */
@@ -156,8 +203,8 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
           found = true;
           parentName = b.parent;
           // ADR-052 P3: 收敛为 computeBoneLocalPos 工具函数
-      const parentPivot2 = b.parent !== "" ? pivots.get(b.parent) ?? null : null;
-      localPos = parentPivot2 && bp ? computeBoneLocalPos(bp, parentPivot2) : (bp ? computeBoneLocalPos(bp, null) : [0, 0, 0]);
+          const parentPivot2 = b.parent !== "" ? pivots.get(b.parent) ?? null : null;
+          localPos = parentPivot2 && bp ? computeBoneLocalPos(bp, parentPivot2) : (bp ? computeBoneLocalPos(bp, null) : [0, 0, 0]);
           break;
         }
       }
@@ -182,43 +229,8 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
     }
   }
 
-  // 后处理：修复断裂的父子链
-  const boneNameSet = new Set<string>();
-  for (const b of bones) boneNameSet.add(b.name);
-  for (let i = 0; i < bones.length; i++) {
-    if (bones[i].parentId === null) continue;
-    // 沿父链向上找第一个有 pivot 且在 bones 列表中的祖先
-    let ancestor = bones[i].parentId!;
-    const visited = new Set<string>([bones[i].name]);
-    while (true) {
-      const ancHasPivot = pivots.has(ancestor);
-      if (boneNameSet.has(ancestor) && ancHasPivot) break;
-      // 找 ancestor 的 parent
-      let found = false;
-      for (const b of model.bones) {
-        if (b.name === ancestor && b.parent !== "" && !visited.has(b.parent)) {
-          ancestor = b.parent;
-          visited.add(ancestor);
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        ancestor = ""; // 链断了，挂到 root
-        break;
-      }
-    }
-
-    const bp = pivots.get(bones[i].name);
-    const ancPivot = ancestor !== "" ? pivots.get(ancestor) ?? null : null;
-    if (ancestor !== "") {
-      bones[i].parentId = ancestor;
-      bones[i].localPosition = ancPivot && bp ? computeBoneLocalPos(bp, ancPivot) : (bp ? computeBoneLocalPos(bp, null) : [0, 0, 0]);
-    } else {
-      bones[i].parentId = null;
-      bones[i].localPosition = bp ? computeBoneLocalPos(bp, null) : [0, 0, 0];
-    }
-  }
+  // 后处理：修复断裂的父子链（抽为独立函数 fixOrphanBoneChain）
+  fixOrphanBoneChain(bones, model.bones, pivots);
 
   // 后处理：将 RightArm/LeftArm 挂到 Arm 下面
   for (let i = 0; i < bones.length; i++) {

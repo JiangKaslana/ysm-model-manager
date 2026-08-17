@@ -189,8 +189,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let groundCap: GroundCapability | null = null;
   let lightCap: LightCapability | null = null;
   // 后处理体积光管线（ADR-081 L2）：EffectComposer + UnrealBloomPass，仅在 volumetric engine=postprocess 时激活
-  let composer: any = null;
-  let bloomPass: any = null;
+  let composer: EffectComposer | null = null;
+  let bloomPass: UnrealBloomPass | null = null;
   let animId = 0;
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
