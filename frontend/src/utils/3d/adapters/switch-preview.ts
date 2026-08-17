@@ -94,7 +94,7 @@ export async function switchToSession(
 
   // 3) 释放旧内容层 GPU 资源（非同台模式才 dispose；同台模式下旧模型仍需保持）
   if (!keep) {
-    try { ctx.getBuilt()?.dispose(); } catch (_) {}
+    try { ctx.getBuilt()?.dispose(); } catch (e) { console.error("[preview] 旧内容层 dispose 失败:", e); }
   }
 
   // 4) 重建内容层（新 path）

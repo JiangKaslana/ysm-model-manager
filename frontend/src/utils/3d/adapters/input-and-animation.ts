@@ -29,6 +29,7 @@ export interface InputOptions {
 export interface InputHandlers {
   onKeyDown: (e: KeyboardEvent) => void;
   onKeyUp: (e: KeyboardEvent) => void;
+  onDragPointerDown: (e: PointerEvent) => void;
   onDragPointerUp: (e: PointerEvent) => void;
   onDragPointerMove: (e: PointerEvent) => void;
   onResize: () => void;
@@ -50,6 +51,7 @@ export function bindInputHandlers(opts: InputOptions): InputHandlers {
     return {
       onKeyDown: noop,
       onKeyUp: noop,
+      onDragPointerDown: noop,
       onDragPointerUp: noop,
       onDragPointerMove: noop,
       onResize: () => {},
@@ -116,5 +118,5 @@ export function bindInputHandlers(opts: InputOptions): InputHandlers {
   };
   window.addEventListener("resize", onResize);
 
-  return { onKeyDown, onKeyUp, onDragPointerUp, onDragPointerMove, onResize };
+  return { onKeyDown, onKeyUp, onDragPointerDown, onDragPointerUp, onDragPointerMove, onResize };
 }

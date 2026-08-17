@@ -197,6 +197,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
   let onKeyUp: (e: KeyboardEvent) => void = () => {};
+  let onDragPointerDown: (e: PointerEvent) => void = () => {};
   let onDragPointerUp: (e: PointerEvent) => void = () => {};
   let onDragPointerMove: (e: PointerEvent) => void = () => {};
   let onResize: () => void = () => {};
@@ -280,12 +281,13 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
 
   // ===== §4 基础设施创建（scene/camera/renderer/OrbitControls/灯光/resize）=====
   let aborted = false;
-  function escH(e: KeyboardEvent): void {
+  // 可变 ESC 处理函数：switchTo 后重新赋值（审核 #2：防止旧 handler 被替换后新 handler 永不卸载）
+  let escH = (e: KeyboardEvent): void => {
     if (e.key === "Escape") {
       if (cleanupFn) cleanupFn();
       else closeOverlay();
     }
-  }
+  };
   function closeOverlay(): void {
     aborted = true;
     document.removeEventListener("keydown", escH);
@@ -349,6 +351,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     const handlers = bindInputHandlers(inputOpts);
     onKeyDown = handlers.onKeyDown;
     onKeyUp = handlers.onKeyUp;
+    onDragPointerDown = handlers.onDragPointerDown;
     onDragPointerUp = handlers.onDragPointerUp;
     onDragPointerMove = handlers.onDragPointerMove;
     onResize = handlers.onResize;
@@ -403,7 +406,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   tip.style.cssText = "padding:6px 12px;background:rgba(124,131,255,0.2);color:#fff;font-size:12px;text-align:center;flex-shrink:0;font-weight:500";
   tip.textContent = "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
   overlay.insertBefore(tip, body);
-  setTimeout(() => {
+  // 审核 #3：保存 timeoutId 供 cleanup 时 clearTimeout
+  let tipTimeoutId = setTimeout(() => {
     if (tip.parentNode) tip.remove();
   }, TIP_AUTO_DISMISS_MS);
 
@@ -426,7 +430,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     animId,
     onKeyDown,
     onKeyUp,
-    escH,
+    getEscH: () => escH,
+    onDragPointerDown,
     onDragPointerUp,
     onDragPointerMove,
     onResize,
@@ -444,6 +449,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     overlay,
     nullHandle: () => { _handle = null; },
     adapter,
+    getTipTimeoutId: () => tipTimeoutId,
   };
 
   const switchCtx: SwitchContext = {
@@ -536,11 +542,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
 
     function fullCleanup(): void { runFullCleanup(cleanupCtx); }
 
-    function escHandler(e: KeyboardEvent): void {
+    // 审核 #2：复用 escH 可变引用，switchTo 后旧 handler 被替换，新 handler 在 cleanup 时通过 getter 正确卸载
+    escH = (e: KeyboardEvent): void => {
       if (e.key === "Escape") fullCleanup();
-    }
+    };
     document.removeEventListener("keydown", escH);
-    document.addEventListener("keydown", escHandler);
+    document.addEventListener("keydown", escH);
     cleanupFn = fullCleanup;
     _handle = {
       cleanup: fullCleanup,

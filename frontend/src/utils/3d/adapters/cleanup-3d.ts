@@ -23,28 +23,28 @@ export interface CleanupContext {
   animId: number;
   onKeyDown: (e: KeyboardEvent) => void;
   onKeyUp: (e: KeyboardEvent) => void;
-  escH: (e: KeyboardEvent) => void;
+  /** 当前 ESC 处理函数（可变：switchTo 后重新赋值，getter 保证读到最新值） */
+  getEscH: () => (e: KeyboardEvent) => void;
+  onDragPointerDown: (e: PointerEvent) => void;
   onDragPointerUp: (e: PointerEvent) => void;
   onDragPointerMove: (e: PointerEvent) => void;
   onResize: () => void;
-  /** 可变：sidePanel 挂载后赋值 */
   getPanelCleanup: () => (() => void) | null;
   allBuilt: { dispose(): void }[];
-  /** 置 null built 引用（防双重释放） */
   nullBuilt: () => void;
   skyCap: SkyCapability | null;
   groundCap: GroundCapability | null;
   lightCap: LightCapability | null;
-  /** 后处理管理器（.dispose() + 置 null 引用） */
   postProc: PostprocessingManager | null;
   nullPostProc: () => void;
   renderer: THREE.WebGLRenderer | undefined;
   scene: THREE.Scene | undefined;
   controls: OrbitControls | undefined;
   overlay: HTMLElement;
-  /** 置 null 模块级 _handle（避免 cleanupPreview 重复调用） */
   nullHandle: () => void;
   adapter: { onClose?: () => void };
+  /** tip 自动消失定时器 ID（可变，0 表示无） */
+  getTipTimeoutId: () => ReturnType<typeof setTimeout> | 0;
 }
 
 // ── fullCleanup ────────────────────────────────────────────────────────────
@@ -56,9 +56,15 @@ export function runFullCleanup(ctx: CleanupContext): void {
   if (ctx.isDisposed.v) return;
   ctx.isDisposed.v = true;
   cancelAnimationFrame(ctx.animId);
+  // tip 自动消失定时器（审核 #3）：防止 cleanup 后回调执行
+  const tipId = ctx.getTipTimeoutId();
+  if (tipId) clearTimeout(tipId);
   document.removeEventListener("keydown", ctx.onKeyDown);
   document.removeEventListener("keyup", ctx.onKeyUp);
-  document.removeEventListener("keydown", ctx.escH);
+  // 当前 ESC 处理函数（审核 #2）：switchTo 后 escH 被重新赋值，通过 getter 读取最新值
+  document.removeEventListener("keydown", ctx.getEscH());
+  // renderer.domElement 上的拖拽监听（审核 #1）：之前遗漏，cleanup 链中完全缺失
+  ctx.renderer?.domElement?.removeEventListener("pointerdown", ctx.onDragPointerDown);
   window.removeEventListener("pointerup", ctx.onDragPointerUp);
   window.removeEventListener("pointermove", ctx.onDragPointerMove);
   window.removeEventListener("resize", ctx.onResize);
