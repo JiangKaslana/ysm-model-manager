@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 106 | 394 |
-| frontend/views | 100 | 276 |
+| 前端·工具 | 107 | 395 |
+| frontend/views | 100 | 277 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **384** | **1601** |
+| **合计** | **385** | **1603** |
 
 ## Go·头像
 
@@ -1290,8 +1290,8 @@
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
-| `LoopContext()` | `frontend/src/utils/3d/render-loop:9` | loop 所需的运行时上下文接口 |
-| `startRenderLoop()` | `frontend/src/utils/3d/render-loop:33` | 启动渲染循环并立即渲染一帧。 |
+| `LoopContext()` | `frontend/src/utils/3d/render-loop:12` | loop 所需的运行时上下文接口 |
+| `startRenderLoop()` | `frontend/src/utils/3d/render-loop:41` | 启动渲染循环并立即渲染一帧。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |
@@ -1407,6 +1407,7 @@
 | `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:40` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
 | `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:53` | 系统返回键的前端触发入口：依次从栈顶触发已注册处理器。 |
 | `can()` | `frontend/src/utils/dom/capabilities:14` | 当前平台是否可用指定 binding（web 查 adapter 实现；桌面恒 true；Android viewer 假） |
+| `refreshAdoptedStyleSheets()` | `frontend/src/utils/dom/css-hmr:12` | 热刷指定自定义元素的 Shadow DOM 样式表。 |
 | `btnBaseCSS()` | `frontend/src/utils/dom/css:1` | — |
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |
 | `AdvFilterValue()` | `frontend/src/utils/dom/dialogs/adv-filter-util:6` | 筛选条件 |
@@ -1541,7 +1542,7 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `appContentStyle()` | `frontend/src/views/app-content/index:11` | — |
+| `appContentStyle()` | `frontend/src/views/app-content/index:12` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
@@ -1632,7 +1633,7 @@
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
-| `appPreviewStyle()` | `frontend/src/views/app-preview/index:8` | — |
+| `appPreviewStyle()` | `frontend/src/views/app-preview/index:9` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:25` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:30` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:35` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
@@ -1729,7 +1730,7 @@
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
 | `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:147` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
 | `bindFooter()` | `frontend/src/views/app-sidebar/events:180` | — |
-| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:10` | — |
+| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
 | `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:147` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
@@ -1740,12 +1741,13 @@
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:83` | — |
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:102` | 单个整合包卡片头部。 |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:25` | 绑定所有 DOM 事件（类型切换 / 状态筛选 / 单行操作按钮） |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:30` | — |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:32` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:34` | 统一推送 / 拉取单文件操作。 |
-| `render()` | `frontend/src/views/app-sync-manager/renderer:44` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
+| `render()` | `frontend/src/views/app-sync-manager/renderer:45` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
 | `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/state:9` | — |
 | `_lastSelectedType()` | `frontend/src/views/app-sync-manager/state:10` | — |
 | `setLastSelectedType()` | `frontend/src/views/app-sync-manager/state:11` | — |
+| `SyncStoreSelf()` | `frontend/src/views/app-sync-manager/store:14` | — |
 | `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:30` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
 | `loadData()` | `frontend/src/views/app-sync-manager/store:53` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
 | `applyFilter()` | `frontend/src/views/app-sync-manager/store:74` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
@@ -1758,14 +1760,14 @@
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |
-| `bindBusEvents()` | `frontend/src/views/app-tree/bus-handlers:15` | — |
+| `bindBusEvents()` | `frontend/src/views/app-tree/bus-handlers:16` | — |
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:18` | — |
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
-| `appTreeStyle()` | `frontend/src/views/app-tree/index:9` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:58` | — |
+| `appTreeStyle()` | `frontend/src/views/app-tree/index:10` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:59` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
 | `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |
