@@ -572,6 +572,15 @@ function checkFile(file, symbolMap) {
       while (k < text.length && /\s/.test(text[k])) k++;
       if (text[k] === ':') continue;
     }
+    // 类字段 / 接口可选属性定义（mock 对象 `render = vi.fn()`、接口 `render?: Type`）：
+    // 前一个非空白是换行/`;`/`}`，后一个非空白是 `=`（字段赋值）或 `?`（可选属性标记）
+    // → 定义而非引用。METHOD_START_RE 只收可选方法 `name?(`，收不到 `name?: ` 字段形态
+    // （2026-08-17 修复：3d 适配器/测试的 mock render 字段被误报为缺失 import）。
+    if (j >= 0 && (stripped[j] === '\n' || stripped[j] === ';' || stripped[j] === '}')) {
+      let k = start + name.length;
+      while (k < text.length && /\s/.test(text[k])) k++;
+      if (text[k] === '=' || text[k] === '?') continue;
+    }
     if (seen.has(name)) continue;
 
     const cands = symbolMap.get(name);
