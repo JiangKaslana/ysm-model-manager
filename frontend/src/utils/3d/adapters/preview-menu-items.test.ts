@@ -322,6 +322,37 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     expect(noScene.overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
     noScene.handle.dispose();
   });
+
+  it("提供 getLibrary → 🧍 组出现资源库；选中条目触发 switchExternal（换角色）", async () => {
+    const switchExt = vi.fn();
+    const { overlay, handle } = mountWith([], {
+      getSiblings: () => [], // 无 siblings → 仅 library 支撑模型组
+      getLibrary: () => Promise.resolve([
+        { path: "/m/a.ysm", name: "a.ysm", tag: "YSM", icon: "🧊" },
+        { path: "/m/b.vrm", name: "b.vrm", tag: "VRM", icon: "🥽" },
+      ]),
+      getCurrentPath: () => "/m/a.ysm",
+      switchExternal: switchExt,
+    });
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    expect(modelBtn).not.toBeNull();
+    modelBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    await new Promise((r) => setTimeout(r, 0)); // 等 getLibrary 异步渲染
+    const rows = overlay.querySelectorAll('[data-testid="preview-library-item"]');
+    expect(rows.length).toBe(2);
+    (rows[1] as HTMLElement).click();
+    expect(switchExt).toHaveBeenCalledWith("/m/b.vrm");
+    handle.dispose();
+  });
+
+  it("未提供 getLibrary → 资源库项不渲染（无 siblings 时模型组保持空）", () => {
+    const { overlay, handle } = mountWith([], { getSiblings: () => [] });
+    expect(overlay.querySelector('[data-testid="preview-library"]')).toBeNull();
+    expect(overlay.querySelector('[data-testid="dock-model"]')).toBeNull();
+    handle.dispose();
+  });
 });
 
 // ── 安全面板渲染（逐个打开断言非空）──

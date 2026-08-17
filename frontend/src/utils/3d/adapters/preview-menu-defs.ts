@@ -69,6 +69,14 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     legacyTestId: "mmd-switch",
   },
   {
+    id: "library",
+    icon: "📚",
+    labelKey: "preview.library",
+    fallback: "资源库",
+    kind: "panel",
+    dockGroup: "model",
+  },
+  {
     id: "environment",
     icon: "🌍",
     labelKey: "preview.environment",

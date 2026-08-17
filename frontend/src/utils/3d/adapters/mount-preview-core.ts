@@ -43,7 +43,7 @@ import { createIconButton } from "../../../utils/dom/fab.ts";
 import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
 import { createSlideMenu } from "../../../ui/ui-helpers.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
-import { mountPreviewRootMenu, type PreviewMenuHandle } from "./preview-menu.ts";
+import { mountPreviewRootMenu, type PreviewMenuHandle, type LibraryAsset } from "./preview-menu.ts";
 import { type CameraControlBridge } from "./camera-controls.ts";
 import type { BoneSelectInfo } from "../model3d.ts";
 
@@ -150,6 +150,10 @@ export interface Mount3DOptions {
   siblings?: string[];
   /** 同台追加模式：true 时不移除旧模型，新模型追加到同一场景（多模型同框） */
   cooperate?: boolean;
+  /** 📚 资源库数据源（3D 内换角色面板；经 app 层 withPreviewExtras 注入；缺省不渲染该面板） */
+  library?: () => Promise<LibraryAsset[]>;
+  /** 跨类型跳转（资源库选中不同类型：关当前 + 开目标；app 层 openModel3DFullscreen 注入） */
+  switchExternal?: (path: string) => Promise<void>;
 }
 
 export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount3DOptions = {}): Promise<void> {
@@ -263,6 +267,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     switchTo: (p: string, options?: { keepInScene?: boolean }) => {
       void _handle?.switchTo?.(p, options);
     },
+    getLibrary: opts.library ? () => opts.library!() : undefined,
+    switchExternal: opts.switchExternal ? (p: string): void => { void opts.switchExternal!(p); } : undefined,
   });
 
   const loadingEl = document.createElement("div");
