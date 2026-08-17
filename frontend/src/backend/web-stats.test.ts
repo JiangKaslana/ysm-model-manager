@@ -5,18 +5,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   batchStatsWebModels,
-  setStatsRunnerForTest,
+  __setStatsRunnerForTest,
   consumeWebSearchDegraded,
   terminateStatsWorker,
 } from "./web-stats.ts";
 
 beforeEach(() => {
-  setStatsRunnerForTest(null);
+  __setStatsRunnerForTest(null);
 });
 
 describe("web-stats 编排（可测部分）", () => {
   it("runner 注入：返回统计 → 不降级；consume 标记 false", async () => {
-    setStatsRunnerForTest(async (paths) =>
+    __setStatsRunnerForTest(async (paths) =>
       paths.map(() => ({ boneCount: 10, cubeCount: 5, texWidth: 64, texHeight: 64, hasError: false })),
     );
     const res = await batchStatsWebModels(["/web/ysm/a.ysm"]);
@@ -25,7 +25,7 @@ describe("web-stats 编排（可测部分）", () => {
   });
 
   it("runner 返回 null → 整批降级 + 降级标记置位（consume 一次后复位）", async () => {
-    setStatsRunnerForTest(async () => null);
+    __setStatsRunnerForTest(async () => null);
     const res = await batchStatsWebModels(["/web/ysm/a.ysm"]);
     expect(res).toBeNull();
     expect(consumeWebSearchDegraded()).toBe(true);
@@ -33,7 +33,7 @@ describe("web-stats 编排（可测部分）", () => {
   });
 
   it("runner 抛错 → 降级（不向上抛，批返回 null）", async () => {
-    setStatsRunnerForTest(async () => {
+    __setStatsRunnerForTest(async () => {
       throw new Error("boom");
     });
     const res = await batchStatsWebModels(["/web/ysm/a.ysm"]);
@@ -52,3 +52,4 @@ describe("web-stats 编排（可测部分）", () => {
     expect(() => terminateStatsWorker()).not.toThrow();
   });
 });
+

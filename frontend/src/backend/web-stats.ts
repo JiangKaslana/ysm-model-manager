@@ -5,7 +5,7 @@
 // 降级契约：Worker 不支持（new Worker 抛错）/ 启动失败 / 运行时错误 / 超时
 // → 返回 null 并置降级标记（consumeWebSearchDegraded 消费，供 toolbar-search 提示）；
 // web-fs.searchWebModels 收到 null 走「数值 0 + hasError:false」降级路径。
-// 测试注入：setStatsRunnerForTest 替换 Worker 路径（browser-adapter.test.ts 用）。
+// 测试注入：__setStatsRunnerForTest 替换 Worker 路径（browser-adapter.test.ts 用）。
 import {
   STATS_BATCH_LIMIT,
   type StatsWorkerRequest,
@@ -50,7 +50,7 @@ let injectedRunner: StatsRunner | null = null;
  * 测试注入统计实现（替换 Worker 路径）。传 null 恢复 Worker 真实路径。
  * 返回 null 等价 Worker 不可用 → batchStatsWebModels 整体降级。
  */
-export function setStatsRunnerForTest(runner: StatsRunner | null): void {
+export function __setStatsRunnerForTest(runner: StatsRunner | null): void {
   injectedRunner = runner;
 }
 

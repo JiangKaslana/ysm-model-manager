@@ -136,7 +136,7 @@ async function getIdb(): Promise<IDBDatabase | null> {
 let _warnedNoIdb = false;
 
 /** 仅测试用：重置单例连接 + 降级标志（避免用例间共享状态） */
-export function _resetDBForTest(): void {
+export function __resetDBForTest(): void {
   // P3 修复（子代理审计）：原仅重置 dbPromise/forcedMemory——已打开的 IDB 连接未
   // close（测试环境泄漏）、memoryStore 不清理（真实后端测试间状态串扰）
   if (dbPromise) {

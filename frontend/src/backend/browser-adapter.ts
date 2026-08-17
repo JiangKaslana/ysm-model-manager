@@ -21,7 +21,7 @@ export { getFsaAuthState, reauthorizeFsaRoot, rescanFsaRoot } from "./web-fs.ts"
 // searchWebModels 拿到同一模块实例（vitest mock 图会拆出独立实例，直接 import 会断降级标记）。
 export {
   consumeWebSearchDegraded,
-  setStatsRunnerForTest,
+  __setStatsRunnerForTest,
   terminateStatsWorker,
   onStatsProgress,
   getStatsPoolSize,

@@ -1,13 +1,13 @@
 // @vitest-environment node
 // ===== idb.ts 故障路径测试（子代理审计 P2：idb 零测试，被 browser-adapter 整体 mock 掉）=====
-// 覆盖：open 失败降级 / onblocked / 内存驱逐双上限 / versionchange 重开 / _resetDBForTest
+// 覆盖：open 失败降级 / onblocked / 内存驱逐双上限 / versionchange 重开 / __resetDBForTest
 // 实现：vi.stubGlobal 注入受控 fake indexedDB（open 可触发 onsuccess/onerror/onblocked），
 // 不依赖 fake-indexeddb 库（零依赖原则）。
 // 2026-08-17：本文件测「真实 idb.ts 实现」——test-setup 全局 mock 了 idb.ts（isolate:false
 // 穿透修复，供 browser-adapter 系共享），此处显式 unmock 恢复真实实现（否则 22 用例全被 mock 吞）。
 vi.unmock("./idb.ts");
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetDBForTest, idbDel, idbGet, idbKeys, idbSet, openDB } from "./idb.ts";
+import { __resetDBForTest, idbDel, idbGet, idbKeys, idbSet, openDB } from "./idb.ts";
 
 // MEMORY_MAX_KEYS=200 / MEMORY_MAX_BYTES=64MB（与 idb.ts 常量保持一致——此处验证驱逐行为）
 const MEMORY_MAX_KEYS = 200;
@@ -80,11 +80,11 @@ function makeFakeIDB(opts: { failOpen?: boolean; blocked?: boolean } = {}): {
 
 describe("idb 故障路径", () => {
   beforeEach(() => {
-    _resetDBForTest();
+    __resetDBForTest();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
-    _resetDBForTest();
+    __resetDBForTest();
   });
 
   it("open 失败（隐私模式）→ 降级内存模式，读写仍可用", async () => {
@@ -225,11 +225,11 @@ function makeFakeIDBWithTx(opts: { writeError?: Error } = {}): {
 
 describe("idb IDB 事务路径", () => {
   beforeEach(() => {
-    _resetDBForTest();
+    __resetDBForTest();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
-    _resetDBForTest();
+    __resetDBForTest();
   });
 
   it("idbSet → idbGet 经真实 transaction 读写（非内存降级）", async () => {
@@ -271,11 +271,11 @@ describe("idb IDB 事务路径", () => {
 // ===== 内存降级模式补充（字节上限驱逐 / idbDel）=====
 describe("idb 内存降级补充", () => {
   beforeEach(() => {
-    _resetDBForTest();
+    __resetDBForTest();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
-    _resetDBForTest();
+    __resetDBForTest();
   });
 
   it("字节上限驱逐：totalBytes 超 64MB 时按 FIFO 淘汰最旧（保留单条超大值不驱逐）", async () => {
@@ -297,3 +297,5 @@ describe("idb 内存降级补充", () => {
     expect(await idbGet("files", "k1")).toBeUndefined();
   });
 });
+
+
