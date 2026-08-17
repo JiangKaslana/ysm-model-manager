@@ -27,7 +27,6 @@ export interface MmdVariantGroups {
 export async function loadInstances(
   rtype: string,
 ): Promise<SidebarInstance[]> {
-  bus.emit("loading:start");
   try {
     const {
       LoadAppConfig,
@@ -136,8 +135,6 @@ export async function loadInstances(
       type: "error",
     });
     return [];
-  } finally {
-    bus.emit("loading:end");
   }
 }
 

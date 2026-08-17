@@ -90,27 +90,17 @@ class AppContent extends WebComponentBase {
   }
 
   connectedCallback(): void {
-    this._unsub = bus.on("nav:change", ({ page }) => {
+    this._unsub = bus.on("nav:changed", ({ page }) => {
       this._current = page;
-      // 不再每次 nav:change 清扫描缓存：30s 缓存由导入/同步/下载等实际数据变更处
+      // 不再每次 nav:changed 清扫描缓存：30s 缓存由导入/同步/下载等实际数据变更处
       // 显式清除（sync.ts / download-queue.ts），避免重复扫盘 + 刷屏扫描日志
       this._render();
-      // P2 修复（审核）：nav:changed 是「渲染完成后」的完成事件——原在 _render() 之前发射，
-      // _render 的 HTML 装配段（switch+innerHTML）若抛错，PageStore/导航高亮已是新页而 DOM
-      // 仍是旧页（#13「状态变、内容不渲染」契约违反）；渲染成功后广播才真正收敛。
-      // P3 修复（审核）：_render 失败时 _pageInitFailed 会把 _current 重定向回 repository 并
-      // 同步重发 nav:change（其 handler 已广播 nav:changed{repository}）；此处若仍按原 page
-      // 广播，会把 PageStore/导航高亮写回失败页（幽灵路径）。仅当 _current 仍是目标页
-      // （渲染未被重定向）才广播完成事件。
-      if (this._current === page) {
-        bus.emit("nav:changed", { page });
-      }
     });
     // 创作者详情浮层→搜索本地模型
     this._globalUnsubs.push(
       bus.on("repo:search-creator", (name) => {
         // 先切到仓库页面（_render 同步创建 <app-tree>，其 connectedCallback 注册 tree:set-search 监听）
-        bus.emit("nav:change", { page: "repository" });
+        bus.emit("nav:changed", { page: "repository" });
         // 渲染完成后发射搜索事件——app-tree 已挂载，bus 监听就绪
         bus.emit("tree:set-search", name);
       }),
@@ -262,7 +252,7 @@ class AppContent extends WebComponentBase {
     // 已在 repository 页时跳过，避免无效 nav:change 触发链
     if (this._current !== "repository") {
       this._current = "repository";
-      bus.emit("nav:change", { page: "repository" });
+      bus.emit("nav:changed", { page: "repository" });
     }
   }
 

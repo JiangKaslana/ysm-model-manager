@@ -1,7 +1,7 @@
 // @vitest-environment node
 // ===== sidebar MMD 变体聚合纯函数测试 =====
 // groupMmdVariants：按父文件夹聚合 .pmx 变体 / 单层路径自身为组 / Windows 分隔符归一 / 去重。
-// loadInstances：失败路径 toast + loading:start/end 配对（此前零测试覆盖）。
+// loadInstances：失败路径 toast（loading 孤儿已删除）。
 import { describe, it, expect, vi } from "vitest";
 import { groupMmdVariants, loadInstances } from "./loader.ts";
 import { bus } from "../../bus.ts";
@@ -83,21 +83,17 @@ describe("loadInstances", () => {
     return mocks;
   }
 
-  it("加载失败 → 空列表 + toast 提示 + loading:start/end 配对", async () => {
+  it("加载失败 → 空列表 + toast 提示（loading 孤儿已删除）", async () => {
     const { LoadAppConfig } = mockBindings();
     LoadAppConfig.mockRejectedValue(new Error("boom"));
-    const seq: string[] = [];
     const toasts: Array<{ msg?: string }> = [];
     const offs = [
-      bus.on("loading:start", () => seq.push("start")),
-      bus.on("loading:end", () => seq.push("end")),
       bus.on("toast:show", (p) => toasts.push(p)),
     ];
     try {
       const result = await loadInstances("ysm");
       expect(result).toEqual([]);
-      // 失败不静默：toast 提示 + loading 标志必配对（防止全局 loading 卡死）
-      expect(seq).toEqual(["start", "end"]);
+      // 失败不静默：toast 提示；loading 孤儿已删除，不再配对
       expect(toasts.some((t) => (t.msg || "").includes("整合包列表加载失败"))).toBe(true);
     } finally {
       offs.forEach((fn) => fn());

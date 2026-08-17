@@ -316,7 +316,7 @@ describe("事件订阅", () => {
     await sleep(50);
     const navSpy = vi.fn();
     const searchSpy = vi.fn();
-    const unsubNav = bus.on("nav:change", navSpy);
+    const unsubNav = bus.on("nav:changed", navSpy);
     const unsubSearch = bus.on("tree:set-search", searchSpy);
     try {
       bus.emit("repo:search-creator", "某作者");

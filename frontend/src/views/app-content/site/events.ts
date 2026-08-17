@@ -41,7 +41,7 @@ export function bindBrowseEvents(state: SiteViewState, refreshView: () => void):
   const emptyLocalBtn = searchResults.querySelector("[data-local-empty]");
   if (emptyLocalBtn) {
     emptyLocalBtn.addEventListener("click", () => {
-      busRef.emit("nav:change", { page: "repository" });
+      busRef.emit("nav:changed", { page: "repository" });
     });
   }
 

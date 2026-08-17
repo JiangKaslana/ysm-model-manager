@@ -111,8 +111,8 @@ describe("事件总线 — 带 payload 事件", () => {
 
   it("emit 复杂对象 payload", () => {
     let received: unknown;
-    track(bus.on("nav:change", (p) => { received = p; }));
-    bus.emit("nav:change", { page: "settings" });
+    track(bus.on("nav:changed", (p) => { received = p; }));
+    bus.emit("nav:changed", { page: "settings" });
     expect(received).toEqual({ page: "settings" });
   });
 
@@ -127,8 +127,8 @@ describe("事件总线 — 带 payload 事件", () => {
 describe("事件总线 — void 事件（无 payload）", () => {
   it("void 事件 emit 不传第二参数", () => {
     let called = false;
-    track(bus.on("loading:start", () => { called = true; }));
-    bus.emit("loading:start");
+    track(bus.on("stats:refresh", () => { called = true; }));
+    bus.emit("stats:refresh");
     expect(called).toBe(true);
   });
 });

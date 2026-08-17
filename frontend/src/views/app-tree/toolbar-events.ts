@@ -128,7 +128,7 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
   });
 
   $("btn-repo")?.addEventListener("click", () => {
-    bus.emit("nav:change", { page: "settings" });
+    bus.emit("nav:changed", { page: "settings" });
   });
 
   // 搜索框实时过滤

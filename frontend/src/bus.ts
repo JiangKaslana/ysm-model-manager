@@ -64,7 +64,6 @@ export interface CtxShowPayload {
 
 export interface BusEvents {
   // 导航
-  "nav:change": NavPagePayload;
   "nav:changed": NavPagePayload;
   // i18n
   "lang:changed": { lang: string };
@@ -106,9 +105,6 @@ export interface BusEvents {
   "dir:recycle": { dir: string };
   "dir:mkdir": { dir: string };
   "dir:batch-rename": { dir: string };
-  // 其他
-  "loading:start": void;
-  "loading:end": void;
 }
 
 export type BusEventName = keyof BusEvents;
@@ -128,8 +124,6 @@ const VOID_EVENTS = [
   "config:updated",
   "batch:enable-all",
   "batch:disable-all",
-  "loading:start",
-  "loading:end",
 ] as const satisfies readonly VoidEventName[];
 
 // 完整性校验：BusEvents 新增 void 事件若未登记进 VOID_EVENTS → 此处类型错误

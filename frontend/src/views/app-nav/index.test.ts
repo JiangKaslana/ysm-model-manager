@@ -69,7 +69,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     const root = el.shadowRoot!;
     await waitFor(() => getAllByTestId(root, "nav-item").length >= 7);
     const spy = vi.fn();
-    const offNav = bus.on("nav:change", spy);
+    const offNav = bus.on("nav:changed", spy);
     const items = getAllByTestId(root, "nav-item");
     (items[1] as HTMLElement).click(); // 点击第二个（整合包管理，viewer 插在实例之后第三位）
     expect(spy).toHaveBeenCalledWith({ page: "instances" });

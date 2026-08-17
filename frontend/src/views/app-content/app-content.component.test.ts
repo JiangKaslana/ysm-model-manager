@@ -73,7 +73,7 @@ describe("app-content 生命周期配对", () => {
     const el = mountCustomElement("app-content");
     await sleep(150);
     const before = el.shadowRoot?.innerHTML || "";
-    bus.emit("nav:change", { page: "settings" });
+    bus.emit("nav:changed", { page: "settings" });
     await sleep(200);
     expect(el.shadowRoot?.innerHTML).not.toBe(before); // 已切换到 settings 页
     unmountElement(el);
@@ -84,7 +84,7 @@ describe("app-content 生命周期配对", () => {
     await sleep(150);
     const before = el.shadowRoot?.innerHTML || "";
     unmountElement(el);
-    bus.emit("nav:change", { page: "settings" });
+    bus.emit("nav:changed", { page: "settings" });
     await sleep(200);
     expect(el.shadowRoot?.innerHTML).toBe(before); // 订阅已随 disconnectedCallback 清理
   });
@@ -119,7 +119,7 @@ describe("app-content 生命周期配对", () => {
     onMock.mockClear();
     const el = mountCustomElement("app-content");
     await sleep(150);
-    bus.emit("nav:change", { page: "workshop" });
+    bus.emit("nav:changed", { page: "workshop" });
     await sleep(250);
     expect(onMock).toHaveBeenCalledWith("config-loaded", expect.any(Function));
     const unsub = onMock.mock.results[0]?.value as ReturnType<typeof vi.fn>;
@@ -133,7 +133,7 @@ describe("app-content 生命周期配对", () => {
     onMock.mockClear();
     const el2 = mountCustomElement("app-content");
     await sleep(150);
-    bus.emit("nav:change", { page: "workshop" });
+    bus.emit("nav:changed", { page: "workshop" });
     await sleep(250);
     expect(onMock).toHaveBeenCalledWith("config-loaded", expect.any(Function));
     unmountElement(el2);

@@ -43,7 +43,7 @@ class AppNav extends WebComponentBase {
     // 用 queueMicrotask 确保其他组件的 connectedCallback 先完成注册
     // 恢复逻辑统一走 page-store.resolveInitialPage，避免两处漂移
     const targetPage = resolveInitialPage();
-    queueMicrotask(() => bus.emit("nav:change", { page: targetPage }));
+    queueMicrotask(() => bus.emit("nav:changed", { page: targetPage }));
   }
 
   disconnectedCallback(): void {
@@ -187,7 +187,7 @@ class AppNav extends WebComponentBase {
         // P3 修复（子代理审计）：safeSet 收敛裸调（storage.ts 红线：全项目统一经
         // 本模块读写）
         safeSet("nav_page", page);
-        bus.emit("nav:change", { page });
+        bus.emit("nav:changed", { page });
       };
     });
 

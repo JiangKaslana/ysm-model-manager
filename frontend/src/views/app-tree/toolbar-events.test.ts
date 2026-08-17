@@ -158,7 +158,7 @@ beforeEach(() => {
   offs.forEach((fn) => fn());
   offs.length = 0;
   offs.push(bus.on("toast:show", (p) => toasts.push(p as never)));
-  offs.push(bus.on("nav:change", (p) => navs.push((p as { page: string }).page)));
+  offs.push(bus.on("nav:changed", (p) => navs.push((p as { page: string }).page)));
   offs.push(bus.on("batch:enable-all", () => batchEvts.push("enable-all")));
   offs.push(bus.on("batch:disable-all", () => batchEvts.push("disable-all")));
 
