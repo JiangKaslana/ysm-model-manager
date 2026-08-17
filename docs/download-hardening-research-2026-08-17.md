@@ -4,7 +4,8 @@
 - **作者**：鲸鱼架构师 deepseek（GLM-5.2）
 - **范围**：`go/download/download.go` + `go/download/download_http_test.go`
 - **对标库**：`github.com/hashicorp/go-getter`（v2.1.0+）、`github.com/cavaliergopher/grab/v3`
-- **动机**：项目里有 8 处 `TODO(BUG-HTTP-X)` 探察态测试断言，但源码本体已实现对应修复。真实差距是"测试未跟上源码"——回归发生时 CI 不会变红。本报告先澄清现状，再给出最小化补丁。
+- **动机**：项目里有 10 处 `TODO(BUG-HTTP-X)` 探察态断言点（另有 BUG-HTTP-2/5 已在报告产出前由 `FIXED(...)` 硬断言覆盖），但源码本体已实现对应修复。真实差距是"测试未跟上源码"——回归发生时 CI 不会变红。本报告先澄清现状，再给出最小化补丁。
+- **落地状态（同日更新）**：P0-a（断言升级）已落地，提交 `57b1bd9f`——10 处探察态断言点全部 `t.Fatalf` 化（9 处 `t.Log→t.Fatalf` + BUG-HTTP-7c 异常分支加固），`go test ./go/download/...` 全绿 ✅。P0-b / P1 未动，见 §5。
 
 ---
 
@@ -13,7 +14,7 @@
 | 项 | 结论 |
 |---|---|
 | P0 安全红线（HTTP 下载） | ✅ **源码已修**。`downloadTo` 已有 `CheckRedirect`（scheme 白名单 + 10 跳上限）、`Content-Range` 拒绝、`Content-Type` 白名单、`TruncationError` 截断检测、原子写入 + `.part` 清理。 |
-| 测试断言 | ❌ **探察态软断言**。8 处 `t.Log("TODO(BUG-HTTP-X)...")` 不让 CI 变红，回归静默通过。需升级为 `t.Errorf` / `t.Fatalf` 硬断言。 |
+| 测试断言 | ✅ **已落地（提交 `57b1bd9f`）**。10 处探察态断言点全部升级为 `t.Fatalf` 硬断言，回归即红 CI。 |
 | 与 go-getter/grab 范式差距 | 🟡 **可选加固**。缺失：checksum 校验（grab 内建 `req.SetChecksum`）、断点续传（grab 内建 Range 续传）。这两项不是安全红线，是可靠性增强。 |
 | P1 路径安全（dedup/installer） | 🟡 **Go 1.24 `os.Root` 范式**可统一修复 symlink 跟随、NUL 截断、`rtype=""` 越权。需先确认项目 Go 版本。 |
 | P1 WASM Pthread MT 解码（ADR-079） | 🟡 **WebView2 需 COOP/COEP 头**才能启用 SharedArrayBuffer。Wails v3 AssetServer 默认不发这两个头。桌面端可行，网页版（`dev:web` / GitHub Pages 静态托管）**无法跑 MT**，需降级单线程 fallback。 |
@@ -142,7 +143,7 @@ root.Open("a/../b") // 允许（不逃逸 root）
 
 ---
 
-## 3. P0 真实差距：测试断言未跟上源码
+## 3. P0 真实差距：测试断言未跟上源码（已落地）
 
 ### 3.1 源码已实现的修复（`download.go`）
 
@@ -157,7 +158,7 @@ root.Open("a/../b") // 允许（不逃逸 root）
 
 ### 3.2 测试文件的"探察态"断言（`download_http_test.go`）
 
-8 处 `t.Log("TODO(BUG-HTTP-X)...")` 不让 CI 变红，回归静默通过：
+落地前：10 处 `t.Log("TODO(BUG-HTTP-X)...")` 断言点不让 CI 变红，回归静默通过。下表行号为当日快照；同一文件后续又追加了 `#11 错误分类` 专项测试，行号已前移，以当前文件为准。**该 10 处已全部升级为 `t.Fatalf`（提交 `57b1bd9f`）**，下表为落地前的探察态清单：
 
 | 行号 | 测试函数 | 现状断言 | 应升级为 |
 |---|---|---|---|
@@ -170,6 +171,8 @@ root.Open("a/../b") // 允许（不逃逸 root）
 | 295 | 同上 | `t.Log("TODO(BUG-HTTP-7b)...")` | `t.Fatalf("循环内 panic 后 .part 临时文件残留: %s", e.Name())` |
 | 337 | `TestHTTP_ProgressPanic_FinalCallback_FileSurvives` | `t.Logf("TODO(BUG-HTTP-7c)...")` | 见下方说明 |
 | 445 | `TestHTTP_ConcurrentSamePath_MutexSafety` | `t.Log("TODO(BUG-HTTP-8)...")` | `t.Fatalf("并发下载后 .part 临时文件残留: %s", e.Name())` |
+
+**✅ 落地**：上表所列断言点已于 2026-08-17 全部升级（提交 `57b1bd9f`），探察态清零。另注：BUG-HTTP-2（200+Content-Range）与 BUG-HTTP-5（Content-Type）已在报告产出前由 `FIXED(...)` 硬断言覆盖，不在探察态清单内。
 
 **BUG-HTTP-7c 特殊处理**：
 
@@ -207,13 +210,13 @@ if info, err := os.Stat(savePath); err == nil {
 --- PASS: TestHTTP_ContentLength_TruncationDetected (0.00s)
 ```
 
-**结论**：源码本体已实现全部 P0 修复，但测试断言仍停留在 `t.Log("TODO(BUG-HTTP-X)...")` 探察态。真实差距是"测试未跟上源码"，非"源码待修"。升级断言为 `t.Fatalf` 即可让回归红 CI。
+**结论**：源码本体已实现全部 P0 修复，但测试断言停留在 `t.Log("TODO(BUG-HTTP-X)...")` 探察态。真实差距是"测试未跟上源码"，非"源码待修"。**该差距已于当日修复（提交 `57b1bd9f`）：10 处断言点升级为 `t.Fatalf`，回归红 CI。**
 
 ---
 
 ## 4. 建议的 diff 补丁
 
-### 4.1 P0 测试断言升级（最小化补丁，安全收益最大）
+### 4.1 P0 测试断言升级（最小化补丁，安全收益最大）—— ✅ 已执行，提交 `57b1bd9f`
 
 **文件**：`go/download/download_http_test.go`
 
@@ -307,12 +310,12 @@ if info, err := os.Stat(savePath); err == nil {
  	}
 ```
 
-**改动影响面**：
+**改动影响面（实际落地）**：
 
 - 文件数：1（`go/download/download_http_test.go`）
-- 改动行数：约 15 行（纯断言升级）
+- 改动行数：11 行增删（9 处 `t.Log→t.Fatalf` + BUG-HTTP-7c 异常分支加固）
 - 风险：极低。仅升级失败时的报告强度，不改动测试逻辑。
-- 验证：`cd go/download && go test -v ./...` 全绿即可。
+- 验证：`go test ./go/download/...` 全绿 ✅（提交 `57b1bd9f`）。
 
 ### 4.2 P0 可选加固：checksum 校验（照 aptly 范式）
 
@@ -463,12 +466,12 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 
 | 优先 | 项 | 动作 | 风险 | 验证 |
 |---|---|---|---|---|
-| 🔴 P0-a | 测试断言升级 | 改 `download_http_test.go` 8 处 `t.Log` → `t.Fatalf` | 极低 | `cd go/download && go test -v ./...` 全绿 |
+| 🔴 P0-a | 测试断言升级 | ✅ **已落地（提交 `57b1bd9f`）**：10 处断言点 `t.Fatalf` 化 | — | `go test ./go/download/...` 全绿 ✅ |
 | 🟡 P0-b | checksum 校验 | 照 aptly 范式加 `ChecksumOption`，调用方透传 SHA256 | 低 | 新增测试覆盖 checksum 不匹配场景 |
 | 🟡 P1-a | 路径安全 `os.Root` | 需先确认 Go 版本 ≥1.24，再去重/安装器改 `os.OpenRoot` | 中 | `go test ./go/dedup/... ./go/installer/...` 全绿 |
 | 🟡 P1-b | WASM MT COOP/COEP | 桌面端 AssetServer 注入头，网页版降级单线程 | 中 | DevTools 检查 `self.crossOriginIsolated` |
 
-**推荐先动 P0-a**：改动最小、安全收益最大、风险最低。一个文件、约 15 行纯断言升级，即可让回归红 CI。
+**P0-a 已落地**：一个文件、11 行增删，回归红 CI 缺口已关闭。下一步按上表顺序评估 P0-b（checksum）。
 
 ---
 
@@ -511,4 +514,14 @@ ErrChecksumMismatch = errors.New("校验和不匹配")
 
 ---
 
-**报告完。** 下一步建议：直接落地 P0-a（测试断言升级），一个文件、约 15 行改动，即可让 8 处 `TODO(BUG-HTTP-X)` 探察态断言升级为硬断言，回归红 CI。是否要我直接改？
+## 附录 C：P0-a 落地快照（2026-08-17 同日）
+
+- **提交**：`57b1bd9f` `fix(test): download HTTP 探察态断言升级为硬断言`，仅 1 文件（`go/download/download_http_test.go`，+11/-11）。
+- **升级清单**：10 处断言点（BUG-HTTP-1/1b/3/4a/4b/6a/7a/7b/7c/8）：9 处 `t.Log→t.Fatalf`；BUG-HTTP-7c 按 §3.2 特殊处理（OK 分支文档化，异常分支由"注意"日志升级为 `t.Fatalf`）。
+- **验证**：`go test ./go/download/...` 全绿（3.09s）。
+- **行号漂移提示**：§3.2 表格行号为报告产出日快照；同一文件后续追加了 `#11 错误分类` 专项测试（`TestHTTP_ErrorClassification_*`、`TestAudit_*` 等，现第 455 行起），后续以当前文件实际行号为准。
+- **download.go 现状补充**：`ResolveSavePath` 已含三重路径防线（NUL 字节剔除 / `.recycle` 段剥离 / Clean+Abs+前缀校验），下载层 P1 风险已独立兜底；`os.Root`（§4.3）主要仍面向 `go/dedup` / `go/installer` 的批量读取侧，与报告结论一致。
+
+---
+
+**报告完。** P0-a 已落地（提交 `57b1bd9f`），回归红 CI 缺口关闭。下一步建议：评估 P0-b（checksum 校验）——先确认资源侧是否公布 SHA256（GitHub Release 资产 / jsDelivr），再定是否立 ADR 推进。
