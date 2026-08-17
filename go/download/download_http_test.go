@@ -66,9 +66,9 @@ func TestHTTP_206PartialContent_Rejected(t *testing.T) {
 	err := dl.File(context.Background(), ts.URL, savePath, nil)
 	if err == nil {
 		if info, err2 := os.Stat(savePath); err2 == nil {
-			t.Logf("TODO(BUG-HTTP-1): 206 Partial Content 被当作成功，文件已写入 (%d bytes)，可能是不完整分片数据被当作完整文件装盘", info.Size())
+			t.Fatalf("BUG-HTTP-1: 206 Partial Content 被当作成功，文件已写入 (%d bytes)，可能是不完整分片数据被当作完整文件装盘", info.Size())
 		} else {
-			t.Log("TODO(BUG-HTTP-1b): 206 返回 nil 但无文件写入，行为异常")
+			t.Fatalf("BUG-HTTP-1b: 206 返回 nil 但无文件写入，行为异常")
 		}
 	} else {
 		t.Logf("OK: 206 被正确拒绝: %v", err)
@@ -124,7 +124,7 @@ func TestHTTP_Redirect_ChainExceedsLimit(t *testing.T) {
 	dl := New()
 	err := dl.File(context.Background(), servers[0].URL, filepath.Join(t.TempDir(), "chain.txt"), nil)
 	if err == nil {
-		t.Log("TODO(BUG-HTTP-3): 12 跳重定向链未被拦截，可能存在 SSRF 风险")
+		t.Fatalf("BUG-HTTP-3: 12 跳重定向链未被拦截，存在 SSRF 风险")
 	} else {
 		t.Logf("OK: 重定向链被拦截: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestHTTP_Redirect_ToFileScheme_Rejected(t *testing.T) {
 	dl := New()
 	err := dl.File(context.Background(), ts.URL, filepath.Join(t.TempDir(), "file.txt"), nil)
 	if err == nil {
-		t.Log("TODO(BUG-HTTP-4a): 重定向到 file:// 未被拒绝，存在 SSRF/本地文件读取风险")
+		t.Fatalf("BUG-HTTP-4a: 重定向到 file:// 未被拒绝，存在 SSRF/本地文件读取风险")
 	} else {
 		t.Logf("OK: file:// 重定向被拒绝: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestHTTP_Redirect_ToFtpScheme_Rejected(t *testing.T) {
 	dl := New()
 	err := dl.File(context.Background(), ts.URL, filepath.Join(t.TempDir(), "ftp.txt"), nil)
 	if err == nil {
-		t.Log("TODO(BUG-HTTP-4b): 重定向到 ftp:// 未被拒绝，存在 SSRF 风险")
+		t.Fatalf("BUG-HTTP-4b: 重定向到 ftp:// 未被拒绝，存在 SSRF 风险")
 	} else {
 		t.Logf("OK: ftp:// 重定向被拒绝: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestHTTP_ContentLength_TruncationDetected(t *testing.T) {
 	dl := New()
 	err := dl.File(context.Background(), url, filepath.Join(t.TempDir(), "truncated.txt"), nil)
 	if err == nil {
-		t.Log("TODO(BUG-HTTP-6a): Content-Length 截断未被检测到 — 服务端声明 1000 字节但只发送 7 字节，不完整文件被当作完整文件装盘")
+		t.Fatalf("BUG-HTTP-6a: Content-Length 截断未被检测到 — 服务端声明 1000 字节但只发送 7 字节，不完整文件被当作完整文件装盘")
 	} else {
 		t.Logf("OK: 截断被检测到: %v", err)
 	}
@@ -283,7 +283,7 @@ func TestHTTP_ProgressPanic_DuringLoop_TempFileCleaned(t *testing.T) {
 
 	// 验证 savePath 未被写入
 	if _, err := os.Stat(savePath); !os.IsNotExist(err) {
-		t.Log("TODO(BUG-HTTP-7a): onProgress 循环内 panic 后 savePath 文件仍存在 — defer 清理逻辑失效")
+		t.Fatalf("BUG-HTTP-7a: onProgress 循环内 panic 后 savePath 文件仍存在 — defer 清理逻辑失效")
 	} else {
 		t.Log("OK: 循环内 panic 后 savePath 未被写入")
 	}
@@ -292,7 +292,7 @@ func TestHTTP_ProgressPanic_DuringLoop_TempFileCleaned(t *testing.T) {
 	entries, _ := os.ReadDir(saveDir)
 	for _, e := range entries {
 		if strings.HasSuffix(e.Name(), ".part") {
-			t.Log("TODO(BUG-HTTP-7b): 循环内 panic 后 .part 临时文件残留: " + e.Name())
+			t.Fatalf("BUG-HTTP-7b: 循环内 panic 后 .part 临时文件残留: %s", e.Name())
 		}
 	}
 }
@@ -334,9 +334,9 @@ func TestHTTP_ProgressPanic_FinalCallback_FileSurvives(t *testing.T) {
 	if info, err := os.Stat(savePath); err == nil {
 		data, _ := os.ReadFile(savePath)
 		if string(data) == "hello" {
-			t.Logf("TODO(BUG-HTTP-7c): 最终 onProgress 回调 panic 后 savePath 仍存在（%d 字节，内容正确）。这是预期行为 — rename 已完成，panic 在 success path 中。若需防御，应在 rename 后 wrap onProgress 调用。", info.Size())
+			t.Logf("OK(BUG-HTTP-7c): 最终 onProgress 回调 panic 后 savePath 仍存在（%d 字节，内容正确）。这是预期行为 — rename 已完成，panic 在 success path 中。若需防御，应在 rename 后 wrap onProgress 调用。", info.Size())
 		} else {
-			t.Logf("注意: savePath 存在但内容异常: %q", string(data))
+			t.Fatalf("BUG-HTTP-7c: 最终回调 panic 后 savePath 内容异常: got %q, want %q", string(data), "hello")
 		}
 	}
 }
@@ -442,7 +442,7 @@ func TestHTTP_ConcurrentSamePath_MutexSafety(t *testing.T) {
 	entries, _ := os.ReadDir(saveDir)
 	for _, e := range entries {
 		if strings.HasSuffix(e.Name(), ".part") {
-			t.Log("TODO(BUG-HTTP-8): 并发下载后 .part 临时文件残留: " + e.Name())
+			t.Fatalf("BUG-HTTP-8: 并发下载后 .part 临时文件残留: %s", e.Name())
 		}
 	}
 	t.Log("OK: fileLocks 互斥锁正常工作，并发同路径下载串行化，无临时文件残留")
