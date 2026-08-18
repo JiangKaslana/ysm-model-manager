@@ -64,17 +64,9 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     labelKey: "preview.switchModel",
     fallback: "切换模型",
     kind: "panel",
-    needsSiblings: true,
+    /** 始终显示 dock 按钮：面板内按 siblings 是否为空切换列表/路径模式 */
     dockGroup: "model",
     legacyTestId: "mmd-switch",
-  },
-  {
-    id: "library",
-    icon: "📚",
-    labelKey: "preview.library",
-    fallback: "资源库",
-    kind: "panel",
-    dockGroup: "model",
   },
   {
     id: "environment",

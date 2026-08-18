@@ -30,19 +30,8 @@ export interface PreviewMenuCtx {
   getViewContainer: () => HTMLElement;
   close: () => void;
   switchTo: (path: string, options?: { keepInScene?: boolean }) => void;
-  /** 📚 资源库数据源（由 app 层注入）；缺省时 dock 不渲染资源库项 */
-  getLibrary?: () => Promise<LibraryAsset[]>;
-  /** 跨类型跳转（资源库选中不同类型：关当前 + 开目标，由 app 层 openModel3DFullscreen 提供） */
+  /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标，由 app 层 openModel3DFullscreen 提供） */
   switchExternal?: (path: string) => Promise<void> | void;
-}
-
-/** 3D 内资源库条目（app 层 loadAllModels 供给；菜单侧契约以打破 view↔utils 分层） */
-export interface LibraryAsset {
-  path: string;
-  name: string;
-  /** 类型标签（展示用，如 YSM / MMD / VRM） */
-  tag: string;
-  icon: string;
 }
 
 /** i18n 安全取值：键缺失时回退，杜绝菜单项退化显示原始键名 */
@@ -124,7 +113,6 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     environment: (list) => fillEnvironment(list, ctx),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
     switch: (list) => fillSwitch(list, ctx, hideMenu),
-    library: (list) => fillLibrary(list, ctx, hideMenu),
     lighting: (list) => fillLighting(list, ctx),
   };
   const runners: Record<string, () => void> = {
@@ -184,8 +172,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
         .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
         .filter((d) => !(d.sharedOnly && ctx.selfMode))
         .filter((d) => !(d.needsSiblings && ctx.getSiblings().length === 0))
-        .filter((d) => !(d.requiresEnvironment && !ctx.getSkyCap() && !ctx.getGroundCap()))
-        .filter((d) => !(d.id === "library" && !ctx.getLibrary));
+        .filter((d) => !(d.requiresEnvironment && !ctx.getSkyCap() && !ctx.getGroundCap()));
       if (groupItems.length === 0) return;
 
       const btn = document.createElement("button");
@@ -351,7 +338,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   list.appendChild(ibRow);
 }
 
-/** 3D 内模型切换面板：列 siblings，当前项高亮；点击经 ctx.switchTo 复用外壳重建 */
+/** 3D 内模型切换面板：列 siblings，当前项高亮；底部提供手动路径输入支持跨类型切换 */
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
   const siblings = ctx.getSiblings();
   const cur = ctx.getCurrentPath();
@@ -360,92 +347,75 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
     empty.textContent = tr("preview.noOtherModel", "（无其他模型）");
     list.appendChild(empty);
-    return;
-  }
-  siblings.forEach((p) => {
-    const isCur = p.toLowerCase() === cur.toLowerCase();
-    const row = document.createElement("div");
-    row.className = "ysm-preview-menu-row";
-    row.style.cssText =
-      "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
-      (isCur ? ";background:rgba(124,131,255,0.25)" : "");
-    const ic = document.createElement("span");
-    ic.textContent = isCur ? "✓" : "📦";
-    ic.style.cssText = "font-size:15px;width:18px;text-align:center";
-    const lb = document.createElement("span");
-    lb.textContent = p.split(/[/\\]/).pop() || p;
-    row.append(ic, lb);
-    row.onclick = (): void => {
-      closePopup();
-      void ctx.switchTo(p);
-    };
-    list.appendChild(row);
-  });
-}
-
-
-/** 📚 资源库面板：列全量模型（含类型标签），当前项高亮；点击换角色（跨类型经 switchExternal 重挂载，同类型走 switchTo 就地） */
-function fillLibrary(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
-  const loading = document.createElement("div");
-  loading.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-  loading.textContent = tr("preview.libraryLoading", "加载资源库…");
-  list.appendChild(loading);
-  void Promise.resolve(typeof ctx.getLibrary === "function" ? ctx.getLibrary() : Promise.resolve([]))
-    .then((assets) => {
-      // 面板已关闭/重建超时：丢弃（防迟到的库渲染写进已销毁 DOM）
-      if (!list.parentNode) return;
-      list.innerHTML = "";
-      if (!assets || assets.length === 0) {
-        const empty = document.createElement("div");
-        empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-        empty.textContent = tr("preview.libraryEmpty", "（资源库为空）");
-        list.appendChild(empty);
-        return;
-      }
-      const cur = ctx.getCurrentPath();
-      assets.forEach((a) => {
-        const isCur = a.path.toLowerCase() === cur.toLowerCase();
-        const row = document.createElement("div");
-        row.className = "ysm-preview-menu-row";
-        row.dataset.testid = "preview-library-item";
-        row.style.cssText =
-          "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
-          (isCur ? ";background:rgba(124,131,255,0.25)" : "");
-        row.onmouseenter = (): void => {
-          if (!isCur) row.style.background = "rgba(255,255,255,0.08)";
-        };
-        row.onmouseleave = (): void => {
-          if (!isCur) row.style.background = "";
-        };
-        const ic = document.createElement("span");
-        ic.textContent = isCur ? "✓" : a.icon;
-        ic.style.cssText = "font-size:15px;width:18px;text-align:center;flex-shrink:0";
-        const lb = document.createElement("span");
-        lb.textContent = a.name;
-        lb.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
-        const tg = document.createElement("span");
-        tg.textContent = a.tag;
-        tg.style.cssText =
-          "font-size:10px;color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:0 4px;flex-shrink:0";
-        row.append(ic, lb, tg);
-        row.onclick = (): void => {
-          closePopup();
-          if (ctx.switchExternal) void ctx.switchExternal(a.path);
-          else void ctx.switchTo?.(a.path);
-        };
-        list.appendChild(row);
-      });
-    })
-    .catch(() => {
-      if (!list.parentNode) return;
-      list.innerHTML = "";
-      const err = document.createElement("div");
-      err.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-      err.textContent = tr("preview.libraryFailed", "资源库加载失败");
-      list.appendChild(err);
+  } else {
+    siblings.forEach((p) => {
+      const isCur = p.toLowerCase() === cur.toLowerCase();
+      const row = document.createElement("div");
+      row.className = "ysm-preview-menu-row";
+      row.dataset.testid = "preview-switch-item";
+      row.style.cssText =
+        "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
+        (isCur ? ";background:rgba(124,131,255,0.25)" : "");
+      const ic = document.createElement("span");
+      ic.textContent = isCur ? "✓" : "📦";
+      ic.style.cssText = "font-size:15px;width:18px;text-align:center";
+      const lb = document.createElement("span");
+      lb.textContent = p.split(/[/\\]/).pop() || p;
+      row.append(ic, lb);
+      row.onclick = (): void => {
+        closePopup();
+        void ctx.switchTo(p);
+      };
+      list.appendChild(row);
     });
+  }
+
+  // 分隔线 + 手动路径输入（支持跨类型加载，无需退出 3D）
+  const sep = document.createElement("div");
+  sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+  list.appendChild(sep);
+
+  const inputRow = document.createElement("div");
+  inputRow.style.cssText = "display:flex;gap:4px;padding:4px 10px 8px";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = tr("preview.switchPathPlaceholder", "输入模型文件路径…");
+  input.style.cssText =
+    "flex:1;font-size:12px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);" +
+    "background:rgba(255,255,255,0.06);color:#fff;outline:none";
+  input.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const path = input.value.trim();
+    if (!path) return;
+    closePopup();
+    if (ctx.switchExternal) {
+      void ctx.switchExternal(path);
+    } else {
+      // 无跨类型路由时降级为同类型 switchTo
+      void ctx.switchTo(path);
+    }
+  });
+  const btn = document.createElement("button");
+  btn.className = "ysm-btn";
+  btn.textContent = tr("preview.switchByPath", "加载");
+  btn.style.cssText = "font-size:12px;padding:4px 10px;white-space:nowrap";
+  btn.onclick = (): void => {
+    const path = input.value.trim();
+    if (!path) return;
+    closePopup();
+    if (ctx.switchExternal) {
+      void ctx.switchExternal(path);
+    } else {
+      void ctx.switchTo(path);
+    }
+  };
+  inputRow.append(input, btn);
+  list.appendChild(inputRow);
 }
 
+
+/** 📚 资源库面板：列全量模型（含类型标签），当前项高亮；点击换角色（跨类型经 switchExternal 重挂载，同类型走 switchTo 就地）。
+ *  顶部类别 tab（全部 + 各来源 rtype）切换搜索范围——按物理分类目录聚合后按仓库类型过滤。 */
 /** 灯光面板（ADR-081 L1）：顶光/体积光锥/预设切换 */
 function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   const lightCap = ctx.getLightCap();

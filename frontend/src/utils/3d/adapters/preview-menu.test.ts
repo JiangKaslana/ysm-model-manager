@@ -44,9 +44,10 @@ describe("CORE_MENU_ITEMS 表结构", () => {
     });
   });
 
-  it("契约锚点：camera=sharedOnly，switch=needsSiblings", () => {
+  it("契约锚点：camera=sharedOnly，switch 始终可见 dock（路径输入兜底）", () => {
     expect(CORE_MENU_ITEMS.find((d) => d.id === "camera")?.sharedOnly).toBe(true);
-    expect(CORE_MENU_ITEMS.find((d) => d.id === "switch")?.needsSiblings).toBe(true);
+    // switch 不再设 needsSiblings：dock 始终显示，面板内按 siblings 是否为空切换模式
+    expect(CORE_MENU_ITEMS.find((d) => d.id === "switch")?.needsSiblings).toBeUndefined();
   });
 });
 
@@ -65,9 +66,9 @@ describe("mountPreviewRootMenu", () => {
     expect(overlay.querySelector('[data-testid="dock-motion"]')).toBeNull();
   });
 
-  it("无 siblings → model 组隐藏；selfMode → scene 组隐藏", () => {
+  it("selfMode → scene 组隐藏；model 组始终显示（路径输入兜底）", () => {
     mountPreviewRootMenu(overlay, makeCtx({ selfMode: true }));
-    expect(overlay.querySelector('[data-testid="dock-model"]')).toBeNull();
+    expect(overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
   });
 
@@ -163,4 +164,82 @@ describe("mountPreviewRootMenu", () => {
     expect(overlay.querySelector(".preview-dock-nav")).toBeNull();
     document.body.click();
   });
+
+  it("switch 面板：无 siblings → 显示空态 + 路径输入框（跨类型加载入口）", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => [] }));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    expect(modelBtn).not.toBeNull();
+    modelBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    // 空态提示
+    expect(overlay.textContent).toContain("无其他模型");
+    // 路径输入行存在（input + 按钮）
+    const input = popup.querySelector("input[type='text']") as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    expect(input?.placeholder.length).toBeGreaterThan(0);
+    const loadBtn = popup.querySelector(".ysm-btn") as HTMLElement | null;
+    expect(loadBtn).not.toBeNull();
+    handle.dispose();
+  });
+
+  it("switch 面板：siblings 存在 → 列兄弟项 + 路径输入行（分隔线以下）", () => {
+    const switchTo = vi.fn();
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
+      getCurrentPath: () => "/m/a.ysm",
+      switchTo,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    modelBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    // 兄弟项渲染
+    expect(popup.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(2);
+    // 分隔线 + 输入行在兄弟项之后
+    const rows = popup.querySelectorAll<HTMLElement>('.ysm-preview-menu-row');
+    expect(rows.length).toBe(2);
+    // 输入框在 rows 之后
+    const input = popup.querySelector("input[type='text']") as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    // 点击兄弟项 → switchTo
+    rows[1].click();
+    expect(switchTo).toHaveBeenCalledWith("/m/b.ysm");
+    handle.dispose();
+  });
+
+  it("switch 面板：路径输入 Enter → 调 switchExternal（跨类型）", async () => {
+    const switchExt = vi.fn().mockResolvedValue(undefined);
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => [],
+      switchExternal: switchExt,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    modelBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    const input = popup!.querySelector("input[type='text']") as HTMLInputElement;
+    input.value = "/repo/model.vrm";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(switchExt).toHaveBeenCalledWith("/repo/model.vrm");
+    handle.dispose();
+  });
+
+  it("switch 面板：无 switchExternal → 降级 switchTo", async () => {
+    const switchTo = vi.fn();
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => [],
+      switchTo,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    modelBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    const input = popup!.querySelector("input[type='text']") as HTMLInputElement;
+    input.value = "/repo/model.ysm";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(switchTo).toHaveBeenCalledWith("/repo/model.ysm");
+    handle.dispose();
+  });
 });
+

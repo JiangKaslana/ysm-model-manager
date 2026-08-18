@@ -765,6 +765,8 @@ export const ja: Record<string, string> = {
   "preview.title3d": "3Dプレビュー",
   "preview.modelInfo": "モデル情報",
   "preview.switchModel": "モデル切替",
+  "preview.switchByPath": "パスから読み込み",
+  "preview.switchPathPlaceholder": "モデルファイルのパスを入力…",
   "preview.library": "ライブラリ",
   "preview.libraryLoading": "ライブラリを読み込み中…",
   "preview.libraryEmpty": "（ライブラリは空です）",

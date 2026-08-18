@@ -312,10 +312,10 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("能力驱动：无 siblings → 无 🧍 组；selfMode + 无环境能力 → 无 🌍 组", () => {
-    // 无 siblings → switch(needsSiblings) 被过滤 → 🧍 组空
+  it("能力驱动：无 siblings → model dock 仍显示（路径输入兜底）；selfMode + 无环境能力 → 无 🌍 组", () => {
+    // 无 siblings → switch 不再被过滤（needsSiblings 已移除），dock-model 始终可见
     const noSib = mountWith([], {});
-    expect(noSib.overlay.querySelector('[data-testid="dock-model"]')).toBeNull();
+    expect(noSib.overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
     noSib.handle.dispose();
     // selfMode → camera(sharedOnly) 过滤；无 cap → environment(requiresEnvironment) 过滤 → 🌍 组空
     const noScene = mountWith([], { selfMode: true, getSkyCap: () => null, getGroundCap: () => null });
@@ -323,34 +323,35 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     noScene.handle.dispose();
   });
 
-  it("提供 getLibrary → 🧍 组出现资源库；选中条目触发 switchExternal（换角色）", async () => {
-    const switchExt = vi.fn();
+  it("提供 siblings → 🧍 组出现切换模型；选中条目触发 switchTo（换角色）", async () => {
+    const switchTo = vi.fn();
     const { overlay, handle } = mountWith([], {
-      getSiblings: () => [], // 无 siblings → 仅 library 支撑模型组
-      getLibrary: () => Promise.resolve([
-        { path: "/m/a.ysm", name: "a.ysm", tag: "YSM", icon: "🧊" },
-        { path: "/m/b.vrm", name: "b.vrm", tag: "VRM", icon: "🥽" },
-      ]),
+      getSiblings: () => ["/m/a.ysm", "/m/b.vrm"],
       getCurrentPath: () => "/m/a.ysm",
-      switchExternal: switchExt,
+      switchTo,
     });
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    await new Promise((r) => setTimeout(r, 0)); // 等 getLibrary 异步渲染
-    const rows = overlay.querySelectorAll('[data-testid="preview-library-item"]');
+    const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
     expect(rows.length).toBe(2);
     (rows[1] as HTMLElement).click();
-    expect(switchExt).toHaveBeenCalledWith("/m/b.vrm");
+    expect(switchTo).toHaveBeenCalledWith("/m/b.vrm");
     handle.dispose();
   });
 
-  it("未提供 getLibrary → 资源库项不渲染（无 siblings 时模型组保持空）", () => {
+  it("无 siblings → dock-model 可见（路径输入兜底），面板内显示空态 + 输入框", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => [] });
-    expect(overlay.querySelector('[data-testid="preview-library"]')).toBeNull();
-    expect(overlay.querySelector('[data-testid="dock-model"]')).toBeNull();
+    expect(overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
+    // 点击 model 打开 switch 面板，应显示空态文字 + 输入框
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    modelBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    expect(popup.textContent).toContain("无其他模型");
+    expect(popup.querySelector("input[type='text']")).not.toBeNull();
     handle.dispose();
   });
 });
