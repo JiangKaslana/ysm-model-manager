@@ -74,8 +74,8 @@ export async function loadEntries(
     // 但子类型（SceneModel/CustomAnim 等）平铺在 FilesRoot/mmd/ 下（group 根），需回溯到 group 根再拼子类。
     // 默认子类（EntityPlayer）即 GetRepoRoot 本身，subdir 为空。
     if (subdir) {
-      const groupRoot = filesRoot.replace(/[\\/]+$/, "").split(/[\\/]/).slice(0, -1).join("/");
-      filesRoot = groupRoot + "/" + subdir.replace(/^[\\/]+/, "");
+      const groupRoot = filesRoot.replace(/[/\\]+$/, "").split(/[/\\]/).slice(0, -1).join("/");
+      filesRoot = groupRoot + "/" + subdir.replace(/^[/\\]+/, "");
     }
 
     const raw = await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[rtype] || rtype);
