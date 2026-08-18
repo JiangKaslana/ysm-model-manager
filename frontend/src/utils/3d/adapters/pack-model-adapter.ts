@@ -31,6 +31,7 @@ const NO_TEX_FALLBACK = 0xcccccc;
 interface PackState {
   group: THREE.Group | null;
   disposables: THREE.Object3D[];
+  usedTextures: Set<string>;
 }
 
 /** 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） */
@@ -50,6 +51,7 @@ async function textureFor(
   deps: PackDeps,
   path: string,
   face: JavaModelResult["faces"][number],
+  usedTextures: Set<string>,
 ): Promise<THREE.Material> {
   if (face.tintindex !== null) {
     const idx = Math.max(0, Math.min(3, face.tintindex));
@@ -64,6 +66,7 @@ async function textureFor(
     const b64 = await deps.readEntry(path, face.texEntry);
     if (b64) {
       const dataUrl = b64ToDataURL(b64);
+      usedTextures.add(dataUrl);
       const tex = textureCache.acquire(dataUrl, (u) => {
         const t = new THREE.Texture(new Image());
         t.colorSpace = THREE.SRGBColorSpace;
@@ -85,11 +88,12 @@ async function buildModelGroup(
   deps: PackDeps,
   path: string,
   model: JavaModelResult,
+  usedTextures: Set<string>,
 ): Promise<{ group: THREE.Group; disposables: THREE.Object3D[] }> {
   const group = new THREE.Group();
   const disposables: THREE.Object3D[] = [];
   for (const f of model.faces) {
-    const mat = await textureFor(deps, path, f);
+    const mat = await textureFor(deps, path, f, usedTextures);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.Float32BufferAttribute(f.verts.map((v) => v / 16), 3));
     geo.setAttribute("uv", new THREE.Float32BufferAttribute(f.uv, 2));
@@ -140,8 +144,12 @@ function disposeContent(state: PackState, scene: THREE.Scene): void {
       }
     });
   }
+  for (const url of state.usedTextures) {
+    textureCache.release(url);
+  }
   state.disposables = [];
   state.group = null;
+  state.usedTextures.clear();
 }
 
 /** 构建资源包模型预览场景（ADR-080 D3 + ADR-084 L2） */
@@ -155,7 +163,7 @@ async function buildPackScene(
     throw new Error("pack-model shared 模式需要核心提供 scene/camera/controls/renderer");
   }
 
-  const state: PackState = { group: null, disposables: [] };
+  const state: PackState = { group: null, disposables: [], usedTextures: new Set() };
 
   // 解析模型（entryPath = zip 内路径，readEntry 取 zip 内文件内容）
   let model: JavaModelResult | null = null;
@@ -185,7 +193,7 @@ async function buildPackScene(
     ctx.scene!.remove(state.group);
   }
 
-  const { group, disposables } = await buildModelGroup(deps, zipPath, model);
+  const { group, disposables } = await buildModelGroup(deps, zipPath, model!, state.usedTextures);
   state.group = group;
   state.disposables = disposables;
   ctx.scene!.add(group);

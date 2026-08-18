@@ -213,6 +213,12 @@ describe("maybePromptAndroidStorage（loadEntries 失败触发）", () => {
   });
 });
 
+describe("ADR-094 subdir 路由", () => {
+  beforeEach(() => {
+    mocks.GetRepoRoot.mockReset();
+    mocks.ScanModelEntriesWithLabel.mockReset();
+  });
+
   it("ADR-094: mmd 子类型 subdir 从 group 根拼接（FilesRoot/mmd/EntityPlayer → group根 + SceneModel）", async () => {
     // 模拟 mmd-skin: GetRepoRoot 返回 FilesRoot/mmd/EntityPlayer
     mocks.GetRepoRoot.mockResolvedValue("/repo/mmd/EntityPlayer");
@@ -240,4 +246,5 @@ describe("maybePromptAndroidStorage（loadEntries 失败触发）", () => {
     );
     expect(r.filesRoot).toBe("/repo/mmd/EntityPlayer");
   });
+});
 

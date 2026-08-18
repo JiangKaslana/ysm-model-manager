@@ -107,8 +107,8 @@ export async function loadEntries(
       // ADR-096：MMD 类型按 SubDir 分组展示。
       // 若扫描结果含 subdir（如 SceneModel），拼到 relPath 前缀，
       // 文件树自动按子目录分组（无需改 render.ts 建树逻辑）。
-      if ((e as any).subdir && (e as any).subdir !== "") {
-        relPath = (e as any).subdir + "/" + relPath;
+      if (e.subdir && e.subdir !== "") {
+        relPath = e.subdir + "/" + relPath;
       }
       return {
         name: e.Name,
