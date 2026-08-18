@@ -165,7 +165,7 @@ describe("mountPreviewRootMenu", () => {
     document.body.click();
   });
 
-  it("switch 面板：无 siblings → 显示空态 + 路径输入框（跨类型加载入口）", () => {
+  it("switch 面板：无 siblings → 显示空态（无路径输入，类型 tab 由 adapter 注入）", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => [] }));
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
@@ -174,16 +174,13 @@ describe("mountPreviewRootMenu", () => {
     expect(popup.style.display).toBe("flex");
     // 空态提示
     expect(overlay.textContent).toContain("无其他模型");
-    // 路径输入行存在（input + 按钮）
+    // 不再渲染路径输入框（类型 tab 由 adapter 的 getTypeTabs 注入）
     const input = popup.querySelector("input[type='text']") as HTMLInputElement | null;
-    expect(input).not.toBeNull();
-    expect(input?.placeholder.length).toBeGreaterThan(0);
-    const loadBtn = popup.querySelector(".ysm-btn") as HTMLElement | null;
-    expect(loadBtn).not.toBeNull();
+    expect(input).toBeNull();
     handle.dispose();
   });
 
-  it("switch 面板：siblings 存在 → 列兄弟项 + 路径输入行（分隔线以下）", () => {
+  it("switch 面板：siblings 存在 → 列兄弟项（无路径输入行）", () => {
     const switchTo = vi.fn();
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
@@ -196,49 +193,12 @@ describe("mountPreviewRootMenu", () => {
     expect(popup.style.display).toBe("flex");
     // 兄弟项渲染
     expect(popup.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(2);
-    // 分隔线 + 输入行在兄弟项之后
-    const rows = popup.querySelectorAll<HTMLElement>('.ysm-preview-menu-row');
-    expect(rows.length).toBe(2);
-    // 输入框在 rows 之后
-    const input = popup.querySelector("input[type='text']") as HTMLInputElement | null;
-    expect(input).not.toBeNull();
+    // 无路径输入框
+    expect(popup.querySelector("input[type='text']")).toBeNull();
     // 点击兄弟项 → switchTo
+    const rows = popup.querySelectorAll<HTMLElement>('.ysm-preview-menu-row');
     rows[1].click();
     expect(switchTo).toHaveBeenCalledWith("/m/b.ysm");
-    handle.dispose();
-  });
-
-  it("switch 面板：路径输入 Enter → 调 switchExternal（跨类型）", async () => {
-    const switchExt = vi.fn().mockResolvedValue(undefined);
-    const handle = mountPreviewRootMenu(overlay, makeCtx({
-      getSiblings: () => [],
-      switchExternal: switchExt,
-    }));
-    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
-    modelBtn!.click();
-    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
-    const input = popup!.querySelector("input[type='text']") as HTMLInputElement;
-    input.value = "/repo/model.vrm";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-    await new Promise((r) => setTimeout(r, 10));
-    expect(switchExt).toHaveBeenCalledWith("/repo/model.vrm");
-    handle.dispose();
-  });
-
-  it("switch 面板：无 switchExternal → 降级 switchTo", async () => {
-    const switchTo = vi.fn();
-    const handle = mountPreviewRootMenu(overlay, makeCtx({
-      getSiblings: () => [],
-      switchTo,
-    }));
-    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
-    modelBtn!.click();
-    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
-    const input = popup!.querySelector("input[type='text']") as HTMLInputElement;
-    input.value = "/repo/model.ysm";
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-    await new Promise((r) => setTimeout(r, 10));
-    expect(switchTo).toHaveBeenCalledWith("/repo/model.ysm");
     handle.dispose();
   });
 });

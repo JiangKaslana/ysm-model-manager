@@ -1,4 +1,4 @@
-// ===== 3D 预览底部根菜单（ADR-076 v3）=====
+﻿// ===== 3D 预览底部根菜单（ADR-076 v3）=====
 // 对齐 MikuMikuAR：底部根按钮 → createSlideMenu 多层导航。
 // 能力驱动：有模型/骨骼项 → 🧍 模型；有动作/播放项 → 💃 动作；有场景/相机/环境能力 → 🌍 场景。
 // 每组按钮点击：
@@ -426,48 +426,6 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
 
   list.append(tabBar, listBody);
   renderRows();
-
-  // 分隔线 + 手动路径输入（支持跨类型加载，无需退出 3D）
-  const sep = document.createElement("div");
-  sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
-  list.appendChild(sep);
-
-  const inputRow = document.createElement("div");
-  inputRow.style.cssText = "display:flex;gap:4px;padding:4px 10px 8px";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = tr("preview.switchPathPlaceholder", "输入模型文件路径…");
-  input.style.cssText =
-    "flex:1;font-size:12px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);" +
-    "background:rgba(255,255,255,0.06);color:#fff;outline:none";
-  input.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
-    const path = input.value.trim();
-    if (!path) return;
-    closePopup();
-    if (ctx.switchExternal) {
-      void ctx.switchExternal(path);
-    } else {
-      // 无跨类型路由时降级为同类型 switchTo
-      void ctx.switchTo(path);
-    }
-  });
-  const btn = document.createElement("button");
-  btn.className = "ysm-btn";
-  btn.textContent = tr("preview.switchByPath", "加载");
-  btn.style.cssText = "font-size:12px;padding:4px 10px;white-space:nowrap";
-  btn.onclick = (): void => {
-    const path = input.value.trim();
-    if (!path) return;
-    closePopup();
-    if (ctx.switchExternal) {
-      void ctx.switchExternal(path);
-    } else {
-      void ctx.switchTo(path);
-    }
-  };
-  inputRow.append(input, btn);
-  list.appendChild(inputRow);
 }
 
 /** 灯光面板（ADR-081 L1）：顶光/体积光锥/预设切换 */

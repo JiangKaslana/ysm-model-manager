@@ -764,8 +764,6 @@ export const en: Record<string, string> = {
   "preview.title3d": "3D Preview",
   "preview.modelInfo": "Model Info",
   "preview.switchModel": "Switch Model",
-  "preview.switchByPath": "Load by path",
-  "preview.switchPathPlaceholder": "Enter model file path…",
   "preview.library": "Library",
   "preview.libraryLoading": "Loading library…",
   "preview.libraryEmpty": "(empty library)",
