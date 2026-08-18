@@ -596,15 +596,15 @@ func isPowerOf2(n int) bool {
 // CLI 阈值常量：复用 types 包中的共享常量，避免硬编码
 const (
 	// cliLargeFileThreshold 大文件阈值（1MB），用于筛选需要性能测试的文件
-	cliLargeFileThreshold = 1 * 1024 * 1024
+	cliLargeFileThreshold = int64(1 * 1024 * 1024)
 	// cliScanLargeFileThreshold 扫描大文件阈值（10MB），用于标识需要关注的文件
-	cliScanLargeFileThreshold = 10 * 1024 * 1024
+	cliScanLargeFileThreshold = int64(10 * 1024 * 1024)
 	// cliTextureLargeWarning 贴图大小警告阈值（32MB）
-	cliTextureLargeWarning = 32 * 1024 * 1024
+	cliTextureLargeWarning = int64(32 * 1024 * 1024)
 	// cliPerformanceWarning 性能警告阈值（100MB）
-	cliPerformanceWarning = 100 * 1024 * 1024
+	cliPerformanceWarning = int64(100 * 1024 * 1024)
 	// cliPerformanceCaution 性能警告阈值（50MB）
-	cliPerformanceCaution = 50 * 1024 * 1024
+	cliPerformanceCaution = int64(50 * 1024 * 1024)
 )
 
 // ============ MMD 相关命令 ============
