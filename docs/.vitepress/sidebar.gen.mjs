@@ -713,6 +713,10 @@ export const autoSidebar = [
         "link": "/audit-r5-frontend-data-layer-2026-08-18"
       },
       {
+        "text": "R6 审核报告：安全横切扫描（全仓）",
+        "link": "/audit-r6-security-scan-2026-08-18"
+      },
+      {
         "text": "下载层加固调研报告",
         "link": "/download-hardening-research-2026-08-17"
       },
