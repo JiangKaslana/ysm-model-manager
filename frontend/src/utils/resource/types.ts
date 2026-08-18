@@ -18,7 +18,7 @@ export const RESOURCE_TYPES: Record<string, string> = {
 
 /** 资源类型显示标签（内部 ID → 中文名） */
 export const RESOURCE_TYPE_LABELS: Record<string, string> = {
-  ysm: "模型",
+  ysm: "YSM 模型",
   "mmd-skin": "MMD",
   "vrchat-avatar": "VRC",
   resourcepack: "资源包",

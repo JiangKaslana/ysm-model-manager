@@ -41,7 +41,7 @@ describe("RESOURCE_TYPE_LABELS 显示标签", () => {
   });
 
   it("关键 ID 的中文名正确", () => {
-    expect(RESOURCE_TYPE_LABELS["ysm"]).toBe("模型");
+    expect(RESOURCE_TYPE_LABELS["ysm"]).toBe("YSM 模型");
     expect(RESOURCE_TYPE_LABELS["resourcepack"]).toBe("资源包");
     expect(RESOURCE_TYPE_LABELS["shaderpack"]).toBe("光影包");
     expect(RESOURCE_TYPE_LABELS["create-blueprint"]).toBe("蓝图");
