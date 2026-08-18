@@ -39,7 +39,7 @@ SharedArrayBuffer 要求 `crossOriginIsolated`（COOP/COEP 响应头）：
 
 **边界**：不做 WASM SIMD/多线程的深度调优（fpng 并行是唯一明确收益点）；Worker 池（路 B）与 pthread（路 A）**互补共存**——批量统计走池、单大模型加载可走 pthread；pthread 不作为网页版默认（Pages 首次加载无 SW 控制需 reload，降级路径保持默认单线程）。
 
-**实现补注（2026-08-16）**：M1 落地（public/sw.js 纯 COI SW + coi-sw.ts 注册/检测，网页版 Pages 可达 crossOriginIsolated）；M2 落地（internal/app/coi_middleware.go + mpr_off/on.go，main.go Middleware 接入，-tags mpr 构建注入 COOP/COEP；off/on 双测试）；M3（重编译上游）与 M4（接入降级）待编码。
+**实现补注（2026-08-16）**：M1 落地（public/sw.js 纯 COI SW + coi-sw.ts 注册/检测，网页版 Pages 可达 crossOriginIsolated）；M2 落地（internal/app/coi_middleware.go + mpr_off/on.go，main.go Middleware 接入，-tags mpr 构建注入 COOP/COEP；off/on 双测试）；M3 落地（ysm-wasm-data-mt.js + ysm-glue-data-mt.js 双产物 + initYsmParserInWorkerMt pthread 初始化）；M4 落地（stats.worker.ts:99–101 crossOriginIsolated 分支 → pthread/单线程自动降级）。**M1–M4 全落地，2026-08-18 补注。**
 
 ## 3. 后果（Consequences）
 
