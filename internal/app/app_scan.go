@@ -446,6 +446,9 @@ func resolveInstDirTarget(instDir, rtype string) string {
 
 	// 候选 C：scanDir 存在性回溯（逐级上溯，覆盖 ysm 的 config 树：
 	// custom 不存在时上溯到 config/yes_steve_model，再上溯到 config）
+	// ⚠️ 特殊分支：仅 ysm 需要——其模型真身在 config 树内（scanDir 即模组加载目录，
+	// 安装/同步链路锚定它），而 installDir（versions/{instance}/ysm/）在整合包场景
+	// 通常不存在；其余类型 installDir 标准目录在候选 A/B 已命中，此分支自然跳过。
 	if rt.ScanDir != "" {
 		for d := rt.ScanDir; d != "." && d != string(filepath.Separator) && filepath.Dir(d) != d; d = filepath.Dir(d) {
 			if c := filepath.Join(instDir, d); isDir(c) {

@@ -7,6 +7,7 @@ import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { t } from "../../core/i18n/t.ts";
 import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
+import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, MMD_SUBTYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 
 class AppNav extends WebComponentBase {
   _current: string;
@@ -14,6 +15,7 @@ class AppNav extends WebComponentBase {
   _collapsed: boolean;
   _unsub: (() => void) | undefined;
   _unsubLang: (() => void) | undefined;
+  _unsubRtype: (() => void) | undefined;
 
   constructor() {
     super();
@@ -38,6 +40,10 @@ class AppNav extends WebComponentBase {
     });
     // 语言切换时重渲染导航标签
     this._unsubLang = bus.on("lang:changed", () => this.render());
+    // logo 文案随资源类型动态化：切换 rtype → 「💎 xxx管理器」（仅类型短标签）
+    this._unsubRtype = bus.on("repo:rtype-changed", (rt) => {
+      this._updateLogoText(rt);
+    });
     this.render();
     // 恢复上次保存的页面（首次使用或仓库页也需发射，确保导航栏高亮和 app-content 渲染）
     // 用 queueMicrotask 确保其他组件的 connectedCallback 先完成注册
@@ -49,6 +55,34 @@ class AppNav extends WebComponentBase {
   disconnectedCallback(): void {
     this._unsub?.();
     this._unsubLang?.();
+    this._unsubRtype?.();
+  }
+
+  /** 资源类型短标签（对齐 sync-manager renderer 的 shortLabel；logo 显示用短名而非全名） */
+  private _shortLabel(rtype: string): string {
+    const map: Record<string, string> = {
+      [RESOURCE_TYPES.YSM]: "YSM",
+      [RESOURCE_TYPES.MMD]: "MMD",
+      [RESOURCE_TYPES.VRC]: "VRC",
+      resourcepack: t("rtype.pack"),
+      shaderpack: t("rtype.shader"),
+      "create-blueprint": t("rtype.blueprint"),
+      litematic: t("rtype.litematic"),
+    };
+    return map[rtype] || RESOURCE_TYPE_LABELS[rtype] || rtype || RESOURCE_TYPES.YSM;
+  }
+
+  /** logo 初始文案：当前资源类型短标签 + 「管理器」后缀（如「YSM 管理器」「MMD 管理器」） */
+  private _logoText(): string {
+    const rtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+    return this._shortLabel(rtype) + " " + t("app.managerSuffix");
+  }
+
+  /** logo 文案随资源类型动态化：rtype → 「xxx 管理器」（仅类型短标签，如 YSM/MMD/VRC） */
+  private _updateLogoText(rtype: string): void {
+    const el = this.shadowRoot?.querySelector(".logo-text");
+    if (!el) return;
+    el.textContent = this._shortLabel(rtype) + " " + t("app.managerSuffix");
   }
 
   render(): void {
@@ -92,6 +126,26 @@ class AppNav extends WebComponentBase {
         :host([data-collapsed]) .nav-item { justify-content: center; padding: 8px 0; }
         :host([data-collapsed]) .nav-item.active { border-left: none; padding-left: 0; }
         :host([data-collapsed]) .menu-head { justify-content: center; }
+        /* 资源切换器（大类+子类型双下拉，ADR-092 派生）：折叠态隐藏 */
+        .nav-repo-sel {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          padding: 6px 8px 8px;
+          border-bottom: 1px solid var(--bd);
+          flex-shrink: 0;
+        }
+        .nav-repo-sel select {
+          background: var(--surf);
+          color: var(--txt);
+          border: 1px solid var(--bd);
+          border-radius: 4px;
+          font-size: var(--fs-tab);
+          font-family: var(--font-ui);
+          padding: 2px 4px;
+          width: 100%;
+        }
+        :host([data-collapsed]) .nav-repo-sel { display: none; }
         .logo {
           padding: 16px 14px 12px;
           font-size: var(--fs-lg);
@@ -176,12 +230,16 @@ class AppNav extends WebComponentBase {
       </style>
       <div class="logo">
         <span class="logo-icon">💎</span>
-        <span class="logo-text">${t("app.name")}</span>
+        <span class="logo-text">${this._logoText()}</span>
       </div>
       <div class="menu">
         <div class="menu-head" data-menu-head title="${this._collapsed ? t("nav.expand") : t("nav.collapse")}">
           <div class="menu-label">🧭 ${t("nav.label")}</div>
           <button class="nav-toggle" data-testid="nav-toggle" aria-hidden="true">${this._collapsed ? "»" : "«"}</button>
+        </div>
+        <div class="nav-repo-sel" data-testid="nav-repo-sel">
+          <select id="nav-group-select" data-testid="nav-group-select" title="资源大类"></select>
+          <select id="nav-subtype-select" data-testid="nav-subtype-select" title="资源类型"></select>
         </div>
         ${items
           .map(
@@ -213,6 +271,57 @@ class AppNav extends WebComponentBase {
         bus.emit("nav:changed", { page });
       };
     });
+
+    // —— 资源切换器：大类 + 子类型双下拉（ADR-092 派生，对齐仓库页旧 subtabs 逻辑）——
+    const groupSel = this.shadowRoot!.querySelector<HTMLSelectElement>("#nav-group-select");
+    const subtypeSel = this.shadowRoot!.querySelector<HTMLSelectElement>("#nav-subtype-select");
+    if (groupSel && subtypeSel) {
+      const groups = Object.entries(GROUP_META)
+        .sort((a, b) => a[1].order - b[1].order)
+        .map(([gid, meta]) => ({ gid, label: meta.icon + " " + meta.name }));
+      groupSel.innerHTML = groups
+        .map((g) => `<option value="${g.gid}">${g.label}</option>`)
+        .join("");
+
+      // 子类型选项：mmd 组用 MMD_SUBTYPES（MC-MMD 子目录细分，ADR-094），
+      // 其余用 GROUP_TYPE_OPTIONS（注册表派生资源类型）。
+      // ⚠️ 特殊分支：此处比较的是「组 id "mmd"」，不能用 RESOURCE_TYPES.MMD——
+      // 那是「类型 id "mmd-skin"」（types.ts:11），两者不相等。ADR-094 初版误用
+      // 类型 id 比较导致本分支恒 false 成死代码，mmd 组只剩 1 个 "MMD" 选项；
+      // 2026-08-18 修复为组 id 比较。日后改组命名先查 GROUP_META 键（resource_types.json）。
+      const buildSubtypeOptions = (group: string): Array<{ label: string; rtype: string; subdir: string }> => {
+        if (group === "mmd") {
+          return MMD_SUBTYPES.map((s) => ({ label: s.label, rtype: RESOURCE_TYPES.MMD, subdir: s.subdir }));
+        }
+        return (GROUP_TYPE_OPTIONS[group] || []).map((o) => ({ label: o.label, rtype: o.rtype, subdir: "" }));
+      };
+      const fillSubtypes = (group: string): void => {
+        const opts = buildSubtypeOptions(group);
+        subtypeSel.innerHTML = opts
+          .map((o, i) => `<option value="${i}" data-rtype="${o.rtype}" data-subdir="${o.subdir}">${o.label}</option>`)
+          .join("");
+        const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+        const savedSubdir = safeGet("repo_subdir") || "";
+        let idx = opts.findIndex((o) => o.rtype === savedRtype && o.subdir === savedSubdir);
+        if (idx < 0) idx = 0;
+        subtypeSel.selectedIndex = idx;
+      };
+      const apply = (): void => {
+        const opts = buildSubtypeOptions(groupSel.value);
+        const sel = opts[Number(subtypeSel.value)] || opts[0];
+        if (!sel) return;
+        try { safeSet("repo_rtype", sel.rtype); safeSet("repo_subdir", sel.subdir); } catch {}
+        bus.emit("repo:rtype-changed", sel.rtype);
+      };
+      groupSel.addEventListener("change", () => { fillSubtypes(groupSel.value); apply(); });
+      subtypeSel.addEventListener("change", apply);
+
+      // 初始化：按 localStorage 恢复大类（无匹配回退首个），再填充子类型
+      const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+      const savedGroup = GROUP_OF[savedRtype] || groups[0]?.gid || "";
+      groupSel.value = groups.some((g) => g.gid === savedGroup) ? savedGroup : (groups[0]?.gid || "");
+      fillSubtypes(groupSel.value);
+    }
 
     // 折叠/展开：整个「🧭 导航栏」行可点击（label + 箭头统一触发，扩大点击范围）
     const head = this.shadowRoot!.querySelector(".menu-head");

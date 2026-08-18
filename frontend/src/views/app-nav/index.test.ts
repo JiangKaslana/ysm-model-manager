@@ -73,6 +73,33 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     unmountElement(el);
   });
 
+  it("mmd 组渲染 MMC-MMD 子目录细分选项（ADR-094 回归：组 id 比较修复）", async () => {
+    // 钉住：mmd 大类下拉应显示 MMD_SUBTYPES 全量 6 项（PMX 模型/场景/自定义动画/
+    // 自定义表情/舞台/着色器），而非退化为注册表内唯一类型 mmd-skin 的 1 项。
+    // 历史缺陷：buildSubtypeOptions 用 RESOURCE_TYPES.MMD（类型 id "mmd-skin"）
+    // 比较组 id "mmd" 恒 false，MMD_SUBTYPES 分支成死代码。
+    const el = mountCustomElement("app-nav");
+    const root = el.shadowRoot!;
+    await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
+    const groupSel = root.querySelector<HTMLSelectElement>("#nav-group-select");
+    const subtypeSel = root.querySelector<HTMLSelectElement>("#nav-subtype-select");
+    expect(groupSel).not.toBeNull();
+    expect(subtypeSel).not.toBeNull();
+    // 切到 mmd 大类 → 子类型下拉应填充 MMD_SUBTYPES
+    groupSel!.value = "mmd";
+    groupSel!.dispatchEvent(new Event("change"));
+    const opts = subtypeSel!.querySelectorAll("option");
+    expect(opts.length).toBe(6);
+    expect((opts[0] as HTMLOptionElement).dataset.subdir).toBe(""); // PMX 模型 (EntityPlayer)
+    expect((opts[1] as HTMLOptionElement).dataset.subdir).toBe("SceneModel");
+    expect((opts[5] as HTMLOptionElement).dataset.subdir).toBe("shader");
+    // 其余大类不受影响：minecraft 组 = 资源包/光影包 2 项
+    groupSel!.value = "minecraft";
+    groupSel!.dispatchEvent(new Event("change"));
+    expect(subtypeSel!.querySelectorAll("option").length).toBe(2);
+    unmountElement(el);
+  });
+
   it("点击 nav-item → 发射 nav:change", async () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
