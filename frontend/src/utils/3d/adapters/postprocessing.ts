@@ -8,7 +8,15 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { LightCapability } from "../caps/light-capability.ts";
 
-export class PostprocessingManager {
+/** 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） */
+export interface PostprocessingLike {
+  /** 每帧渲染；返回 true 表示已接管渲染（composer.render），false 表示调用方需 renderer.render */
+  render(dt: number, lightCap: LightCapability | null): boolean;
+  setSize(width: number, height: number): void;
+  dispose(): void;
+}
+
+export class PostprocessingManager implements PostprocessingLike {
   private composer: EffectComposer | null = null;
   private renderPass: RenderPass | null = null;
   private bloomPass: UnrealBloomPass | null = null;

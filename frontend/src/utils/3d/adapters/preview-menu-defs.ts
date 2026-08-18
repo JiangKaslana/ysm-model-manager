@@ -96,4 +96,13 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     sharedOnly: true,
     dockGroup: "scene",
   },
+  {
+    id: "postproc",
+    icon: "🎇",
+    labelKey: "preview.postprocessing",
+    fallback: "后处理",
+    kind: "panel",
+    sharedOnly: true,
+    dockGroup: "scene",
+  },
 ];

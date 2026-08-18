@@ -34,7 +34,8 @@ import { FogCapability } from "../caps/fog-capability.ts";
 import { ShadowCapability } from "../caps/shadow-capability.ts";
 import { ReflectorCapability } from "../caps/reflector-capability.ts";
 import { EnvironmentCapability } from "../caps/environment-capability.ts";
-import { PostprocessingManager } from "./postprocessing.ts";
+import { PostprocessingManager, type PostprocessingLike } from "./postprocessing.ts";
+import type { PostprocessingCapability } from "../caps/postprocessing-capability.ts";
 import { runFullCleanup, type CleanupContext } from "./cleanup-3d.ts";
 import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts";
 import type { SwitchContext } from "./switch-preview.ts";
@@ -223,8 +224,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let shadowCap: ShadowCapability | null = null;
   let reflectorCap: ReflectorCapability | null = null;
   let environmentCap: EnvironmentCapability | null = null;
-  // 后处理体积光管线（ADR-081 L2）：PostprocessingManager 管理 EffectComposer + bloom，仅在 volumetric engine=postprocess 时激活
-  let postProc: PostprocessingManager | null = null;
+  // 后处理体积光管线（ADR-081 L2）：抽成 PostprocessingCapability（Registry 驱动），
+  // 保留 PostprocessingManager 引用做回退（外部 cleanupCtx 老字段兼容）。接口一致：render/setSize/dispose
+  let postProc: PostprocessingLike | null = null;
+  let postProcCap: PostprocessingCapability | null = null;
   let animId = 0;
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
@@ -350,7 +353,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     renderer.domElement.style.touchAction = "none"; // ADR-047：触屏拖拽旋转需禁手势默认
     viewContainer.appendChild(renderer.domElement);
     // 程序化能力（ADR-073 L1 + 统一注册表）：由 registry 统一创建并持久化
-    const caps = sceneCapabilityRegistry.createAll({ scene, renderer });
+    const caps = sceneCapabilityRegistry.createAll({ scene, renderer, camera });
     skyCap = (sceneCapabilityRegistry.getById("sky") as SkyCapability) ?? null;
     groundCap = (sceneCapabilityRegistry.getById("ground") as GroundCapability) ?? null;
     lightCap = (sceneCapabilityRegistry.getById("light") as LightCapability) ?? null;
@@ -382,8 +385,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       });
       shadowCap.syncLights(lights);
     }
-    // 后处理体积光管线（ADR-081 L2）：PostprocessingManager 管理 EffectComposer + bloom
-    postProc = new PostprocessingManager(renderer, scene, camera);
+    // 后处理体积光管线（ADR-081 L2）：PostprocessingCapability（registry 驱动）
+    postProcCap = (sceneCapabilityRegistry.getById("postprocessing") as PostprocessingCapability) ?? null;
+    // 兼容老接口：postProc 变量也指向同一 capability（对外 render/setSize/dispose 方法签名一致）
+    postProc = postProcCap;
+    // 按模型类别套用预设
+    postProcCap?.setPreset(adapter.id);
     // ADR-085 S3：caps 创建后触发 refreshDock()，修复 litematic/pack 的 environment 项时序缺失
     // （菜单先于 caps 挂载，挂载时 requiresEnvironment 被过滤；此处重渲染补回）
     menuHandle.refreshDock();
@@ -560,6 +567,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     environmentCap,
     postProc,
     nullPostProc: () => { postProc = null; },
+    postProcCap,
     renderer,
     scene,
     controls,

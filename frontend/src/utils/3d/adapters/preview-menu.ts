@@ -203,6 +203,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
     switch: (list) => fillSwitch(list, ctx, hideMenu),
     lighting: (list) => fillLighting(list, ctx),
+    postproc: (list) => fillPostprocessing(list, ctx),
   };
   const runners: Record<string, () => void> = {
     close: () => ctx.close(),
@@ -329,9 +330,11 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
 /** 环境面板（ADR-075 + 统一注册表）：从注册表全部 capability 的 getMenuControls() 自动渲染
  *  顺序 = 注册顺序（sky/ground/fog/shadow/...）；
- *  每个 cap 的控件之间画分隔线，视觉分组。 */
+ *  每个 cap 的控件之间画分隔线，视觉分组。
+ *  light 排除：灯光由独立灯光面板（fillLighting）渲染，职责分离（ADR-081），
+ *  避免同一组 light 控件双面板重复（防「光」指代混淆：环境面板只收环境类能力）。 */
 function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
-  const allCaps = sceneCapabilityRegistry.getAll();
+  const allCaps = sceneCapabilityRegistry.getAll().filter((cap) => cap.id !== "light");
   const controls: MenuControlDef[] = [];
   if (allCaps.length > 0) {
     allCaps.forEach((cap, idx) => {
@@ -520,4 +523,17 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   if (!lightCap) { noCap(); return; }
 
   renderCapControls(list, lightCap.getMenuControls());
+}
+
+/** 后处理面板：从注册表 postprocessing cap 的 getMenuControls() 渲染 */
+function fillPostprocessing(list: HTMLElement, ctx: PreviewMenuCtx): void {
+  const fromReg = sceneCapabilityRegistry.getById("postprocessing") as import("../caps/postprocessing-capability.ts").PostprocessingCapability | null;
+  const noCap = (): void => {
+    const row = document.createElement("div");
+    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+    row.textContent = tr("preview.noPostprocCap", "进入 3D 后再打开后处理面板");
+    list.appendChild(row);
+  };
+  if (!fromReg) { noCap(); return; }
+  renderCapControls(list, fromReg.getMenuControls());
 }

@@ -5,7 +5,7 @@
 // 状态耦合深，暂不提取（见 TODO）。
 
 import * as THREE from "three";
-import type { PostprocessingManager } from "./postprocessing.ts";
+import type { PostprocessingLike } from "./postprocessing.ts";
 
 // ---------------------------------------------------------------------------
 // 类型
@@ -20,7 +20,7 @@ export interface InputOptions {
   euler: THREE.Euler;
   camera: THREE.PerspectiveCamera | undefined;
   renderer: THREE.WebGLRenderer | undefined;
-  postProc: PostprocessingManager | null;
+  postProc: PostprocessingLike | null;
   viewContainer: HTMLElement;
   isDisposed: { v: boolean };
 }

@@ -13,12 +13,14 @@ import { FogCapability } from "./fog-capability.ts";
 import { ShadowCapability } from "./shadow-capability.ts";
 import { ReflectorCapability } from "./reflector-capability.ts";
 import { EnvironmentCapability } from "./environment-capability.ts";
+import { PostprocessingCapability } from "./postprocessing-capability.ts";
 import type { SceneCapability } from "./scene-capability.ts";
 
-/** 能力工厂：接收 scene/renderer，返回能力实例 */
+/** 能力工厂：接收 scene/renderer/camera，返回能力实例 */
 export type SceneCapabilityFactory = (ctx: {
   scene: THREE.Scene;
   renderer: THREE.WebGLRenderer;
+  camera: THREE.PerspectiveCamera;
 }) => SceneCapability;
 
 /** 注册表：管理所有场景能力的工厂和实例 */
@@ -35,6 +37,7 @@ export class SceneCapabilityRegistry {
   createAll(ctx: {
     scene: THREE.Scene;
     renderer: THREE.WebGLRenderer;
+    camera: THREE.PerspectiveCamera;
   }): SceneCapability[] {
     this.dispose(); // 清理旧实例
     this.instances = [];
@@ -111,4 +114,9 @@ sceneCapabilityRegistry.add((ctx) => new EnvironmentCapability(ctx));
 sceneCapabilityRegistry.add((ctx) => new FogCapability(ctx));
 sceneCapabilityRegistry.add((ctx) => new ShadowCapability(ctx));
 sceneCapabilityRegistry.add((ctx) => new ReflectorCapability(ctx));
+sceneCapabilityRegistry.add((ctx) => new PostprocessingCapability({
+  scene: ctx.scene,
+  renderer: ctx.renderer,
+  camera: ctx.camera,
+}));
 sceneCapabilityRegistry.add((ctx) => new LightCapability(ctx));

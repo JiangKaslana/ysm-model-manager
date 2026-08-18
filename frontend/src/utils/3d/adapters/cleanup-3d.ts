@@ -15,7 +15,8 @@ import type { FogCapability } from "../caps/fog-capability.ts";
 import { ShadowCapability } from "../caps/shadow-capability.ts";
 import { ReflectorCapability } from "../caps/reflector-capability.ts";
 import { EnvironmentCapability } from "../caps/environment-capability.ts";
-import type { PostprocessingManager } from "./postprocessing.ts";
+import type { PostprocessingManager, PostprocessingLike } from "./postprocessing.ts";
+import type { PostprocessingCapability } from "../caps/postprocessing-capability.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 import { textureCache } from "../texture-cache.ts";
@@ -48,8 +49,9 @@ export interface CleanupContext {
   shadowCap: ShadowCapability | null;
   reflectorCap: ReflectorCapability | null;
   environmentCap: EnvironmentCapability | null;
-  postProc: PostprocessingManager | null;
+  postProc: PostprocessingLike | null;
   nullPostProc: () => void;
+  postProcCap: PostprocessingCapability | null;
   renderer: THREE.WebGLRenderer | undefined;
   scene: THREE.Scene | undefined;
   controls: OrbitControls | undefined;
@@ -113,6 +115,7 @@ export function runFullCleanup(ctx: CleanupContext): void {
   try { ctx.environmentCap?.dispose(); } catch (_) { /* 防御性释放 */ }
   // 后处理体积光管线（ADR-081 L2）：释放 EffectComposer + bloom
   try {
+    ctx.postProcCap?.dispose();
     ctx.postProc?.dispose();
     ctx.nullPostProc();
   } catch (_) { /* 防御性释放 */ }

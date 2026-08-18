@@ -1,0 +1,494 @@
+// ===== PostprocessingCapability：后处理管线能力（ADR-073 caps/ 能力模式）=====
+// 合并/升级原有 PostprocessingManager（原本只在 volumetric engine=postprocess 时激活）
+// 为 SceneCapability 接口：独立开关 + Bloom 参数独立可调（原跟随 volumetric 做联动可开/关）+ SSAO。
+//
+// 设计要点：
+//   - 兼容旧 PostprocessingManager 外部接口：render(dt, lightCap): boolean，setSize，dispose
+//   - 延迟创建 composer：需要启用（enabled=true 或 lightCap volumetric postprocess 触发）时才创建，无 composer 时走普通 renderer.render
+//   - Pass 顺序：RenderPass → (SSAOPass 可选) → UnrealBloomPass → OutputPass
+//   - dispose 还原构造前 renderer.toneMapping 等输出设置，不泄漏
+//   - SceneCapability 接口 + 注册表驱动：菜单自动渲染所有控件
+//   - setPreset 按模型类别分：方块/体素 = Bloom 薄 + 关 SSAO（无明显细节）；VRM/MMD = SSAO 中档 + Bloom 柔光
+
+import * as THREE from "three";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
+import type { LightCapability } from "./light-capability.ts";
+import type { PostprocessingLike } from "../adapters/postprocessing.ts";
+import {
+  type SceneCapability,
+  type MenuControlDef,
+  persistState,
+  restoreState,
+} from "./scene-capability.ts";
+
+export interface PostprocessingParams {
+  enabled: boolean;
+  /** Bloom 强度（0~3）*/
+  bloomStrength: number;
+  /** Bloom 阈值（0~1；低于此亮度的像素不参与 bloom） */
+  bloomThreshold: number;
+  /** Bloom 半径（0~2） */
+  bloomRadius: number;
+  /** 是否让 Bloom 参数跟随 LightCapability 体积光联动（开启后用 opacity/edgeFade 调 bloom） */
+  bloomFollowVolumetric: boolean;
+  /** SSAO 开关 */
+  ssaoEnabled: boolean;
+  /** SSAO 采样半径（控制 AO 扩散范围） */
+  ssaoRadius: number;
+  /** SSAO 最小生效距离 */
+  ssaoMinDist: number;
+  /** SSAO 最大生效距离 */
+  ssaoMaxDist: number;
+  /** 后处理输出色彩映射（默认 ACES Filmic） */
+  toneMapping: "none" | "linear" | "reinhard" | "aces" | "cineon";
+  /** 曝光值（toneMapping≠none 时生效） */
+  exposure: number;
+}
+
+const THREE_TONE_MAPPING: Record<PostprocessingParams["toneMapping"], THREE.ToneMapping> = {
+  none: THREE.NoToneMapping,
+  linear: THREE.LinearToneMapping,
+  reinhard: THREE.ReinhardToneMapping,
+  aces: THREE.ACESFilmicToneMapping,
+  cineon: THREE.CineonToneMapping,
+};
+
+export const DEFAULT_POSTPROC_PARAMS: PostprocessingParams = {
+  enabled: false,
+  bloomStrength: 0.6,
+  bloomThreshold: 0.6,
+  bloomRadius: 0.5,
+  bloomFollowVolumetric: true,
+  ssaoEnabled: false,
+  ssaoRadius: 8,
+  ssaoMinDist: 0.005,
+  ssaoMaxDist: 0.1,
+  toneMapping: "aces",
+  exposure: 1.0,
+};
+
+/** 模型类别后处理预设 */
+export const POSTPROC_PRESETS: Record<string, Partial<PostprocessingParams>> = {
+  default: { ...DEFAULT_POSTPROC_PARAMS },
+  ysm: {
+    // 方块：后处理薄，避免像素感丢失
+    enabled: false, bloomStrength: 0.3, bloomThreshold: 0.85, bloomRadius: 0.3,
+    ssaoEnabled: false, toneMapping: "aces", exposure: 1.0,
+  },
+  vrm: {
+    // PBR 角色：Bloom 柔光 + SSAO 中档
+    enabled: false, bloomStrength: 0.7, bloomThreshold: 0.65, bloomRadius: 0.6,
+    ssaoEnabled: false, ssaoRadius: 10, toneMapping: "aces", exposure: 1.05,
+  },
+  mmd: {
+    // toon：Bloom 稍强出画面空气感，SSAO 弱开
+    enabled: false, bloomStrength: 0.8, bloomThreshold: 0.6, bloomRadius: 0.8,
+    ssaoEnabled: false, ssaoRadius: 6, toneMapping: "aces", exposure: 1.05,
+  },
+  litematic: {
+    // 体素：Bloom 小，SSAO 关（无明显细节反而出噪声）
+    enabled: false, bloomStrength: 0.3, bloomThreshold: 0.9, bloomRadius: 0.2,
+    ssaoEnabled: false, toneMapping: "aces", exposure: 1.0,
+  },
+  resourcepack: {
+    enabled: false, bloomStrength: 0.3, bloomThreshold: 0.85, bloomRadius: 0.3,
+    ssaoEnabled: false, toneMapping: "aces", exposure: 1.0,
+  },
+};
+
+export class PostprocessingCapability implements SceneCapability, PostprocessingLike {
+  readonly id = "postprocessing";
+  readonly labelKey = "preview.postprocessing";
+  readonly icon = "🎇";
+  readonly descKey = "preview.postprocessingDesc";
+
+  private scene: THREE.Scene;
+  private renderer: THREE.WebGLRenderer;
+  private camera: THREE.PerspectiveCamera;
+  private params: PostprocessingParams;
+  private enabled: boolean;
+
+  // composer
+  private composer: EffectComposer | null = null;
+  private renderPass: RenderPass | null = null;
+  private bloomPass: UnrealBloomPass | null = null;
+  private ssaoPass: SSAOPass | null = null;
+  private outputPass: OutputPass | null = null;
+
+  // prev 状态（dispose 还原）
+  private prevToneMapping: THREE.ToneMapping;
+  private prevOutputColorSpace: string;
+  private prevExposure: number;
+
+  constructor(opts: {
+    scene: THREE.Scene;
+    renderer: THREE.WebGLRenderer;
+    camera: THREE.PerspectiveCamera;
+    params?: Partial<PostprocessingParams>;
+    enabled?: boolean;
+  }) {
+    this.scene = opts.scene;
+    this.renderer = opts.renderer;
+    this.camera = opts.camera;
+    this.params = { ...DEFAULT_POSTPROC_PARAMS, ...(opts.params ?? {}) };
+    this.enabled = opts.enabled ?? this.params.enabled;
+
+    this.prevToneMapping = this.renderer.toneMapping;
+    this.prevOutputColorSpace = this.renderer.outputColorSpace;
+    this.prevExposure = this.renderer.toneMappingExposure;
+
+    this.applyToneMapping();
+  }
+
+  /* -------- 内部：构建/销毁 composer -------- */
+
+  private needComposer(lightCap: LightCapability | null): boolean {
+    if (this.enabled) return true;
+    const useVolumetric = lightCap &&
+      lightCap.getVolumetricEngine() === "postprocess" &&
+      lightCap.getParams().volumetric.enabled;
+    return !!useVolumetric;
+  }
+
+  private buildComposer(): void {
+    this.disposeComposer();
+    const w = Math.max(this.renderer.domElement.width, 1);
+    const h = Math.max(this.renderer.domElement.height, 1);
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.composer.setSize(w, h);
+
+    this.renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(this.renderPass);
+
+    if (this.params.ssaoEnabled) {
+      this.ssaoPass = new SSAOPass(this.scene, this.camera, w, h, 32);
+      this.ssaoPass.kernelRadius = this.params.ssaoRadius;
+      this.ssaoPass.minDistance = this.params.ssaoMinDist;
+      this.ssaoPass.maxDistance = this.params.ssaoMaxDist;
+      this.ssaoPass.output = (SSAOPass as unknown as { OUTPUT: { Default: number } }).OUTPUT?.Default ?? 0;
+      this.composer.addPass(this.ssaoPass);
+    }
+
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(w, h),
+      this.params.bloomStrength,
+      this.params.bloomRadius,
+      this.params.bloomThreshold,
+    );
+    this.composer.addPass(this.bloomPass);
+
+    this.outputPass = new OutputPass();
+    this.composer.addPass(this.outputPass);
+  }
+
+  private disposeComposer(): void {
+    this.ssaoPass?.dispose();
+    this.ssaoPass = null;
+    this.renderPass?.dispose();
+    this.renderPass = null;
+    this.bloomPass?.dispose();
+    this.bloomPass = null;
+    this.outputPass?.dispose();
+    this.outputPass = null;
+    this.composer?.dispose();
+    this.composer = null;
+  }
+
+  /* -------- 参数应用 -------- */
+
+  private applyToneMapping(): void {
+    this.renderer.toneMapping = THREE_TONE_MAPPING[this.params.toneMapping];
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMappingExposure = this.params.exposure;
+  }
+
+  private syncBloomPass(lightCap: LightCapability | null): void {
+    if (!this.bloomPass) return;
+    if (this.params.bloomFollowVolumetric && lightCap) {
+      const vol = lightCap.getParams().volumetric;
+      this.bloomPass.threshold = Math.max(0.05, 0.5 - vol.opacity * 0.3);
+      this.bloomPass.strength = vol.opacity * 1.5;
+      this.bloomPass.radius = vol.edgeFade * 0.5 + 0.1;
+    } else {
+      this.bloomPass.threshold = this.params.bloomThreshold;
+      this.bloomPass.strength = this.params.bloomStrength;
+      this.bloomPass.radius = this.params.bloomRadius;
+    }
+  }
+
+  private syncSSAOPass(): void {
+    if (!this.ssaoPass) return;
+    this.ssaoPass.kernelRadius = this.params.ssaoRadius;
+    this.ssaoPass.minDistance = this.params.ssaoMinDist;
+    this.ssaoPass.maxDistance = this.params.ssaoMaxDist;
+  }
+
+  /* -------- 兼容旧 PostprocessingManager 对外 API -------- */
+
+  /** 每帧调用：若返回 true 表示已渲染（composer.render）；否则调用方需 renderer.render */
+  render(dt: number, lightCap: LightCapability | null): boolean {
+    const need = this.needComposer(lightCap);
+    if (!need) {
+      if (this.composer) this.disposeComposer();
+      return false;
+    }
+    if (!this.composer) this.buildComposer();
+    this.syncBloomPass(lightCap);
+    this.syncSSAOPass();
+    this.composer!.render(dt);
+    return true;
+  }
+
+  setSize(width: number, height: number): void {
+    if (this.composer) {
+      this.composer.setSize(width, height);
+      if (this.bloomPass) this.bloomPass.resolution = new THREE.Vector2(width, height);
+    }
+  }
+
+  /* -------- SceneCapability 接口 -------- */
+
+  apply(): void {
+    this.applyToneMapping();
+  }
+
+  setEnabled(v: boolean): void {
+    this.enabled = v;
+    this.params.enabled = v;
+    if (v) this.buildComposer();
+    else this.disposeComposer();
+  }
+
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  setPreset(modelType: string): void {
+    const preset = POSTPROC_PRESETS[modelType] ?? POSTPROC_PRESETS.default;
+    this.params = { ...this.params, ...preset };
+    this.applyToneMapping();
+    if (this.composer) {
+      this.buildComposer(); // 重新按预设构建（pass 组合可能改变）
+    }
+  }
+
+  /* -------- 参数 setter -------- */
+
+  setBloomStrength(v: number): void {
+    this.params.bloomStrength = v;
+    if (this.bloomPass) this.bloomPass.strength = v;
+  }
+  setBloomThreshold(v: number): void {
+    this.params.bloomThreshold = v;
+    if (this.bloomPass) this.bloomPass.threshold = v;
+  }
+  setBloomRadius(v: number): void {
+    this.params.bloomRadius = v;
+    if (this.bloomPass) this.bloomPass.radius = v;
+  }
+  setBloomFollowVolumetric(v: boolean): void {
+    this.params.bloomFollowVolumetric = v;
+  }
+
+  setSSAOEnabled(v: boolean): void {
+    this.params.ssaoEnabled = v;
+    if (this.composer) this.buildComposer();
+  }
+  setSSAORadius(v: number): void {
+    this.params.ssaoRadius = v;
+    this.syncSSAOPass();
+  }
+  setSSAOMinDist(v: number): void {
+    this.params.ssaoMinDist = v;
+    this.syncSSAOPass();
+  }
+  setSSAOMaxDist(v: number): void {
+    this.params.ssaoMaxDist = v;
+    this.syncSSAOPass();
+  }
+
+  setToneMapping(v: PostprocessingParams["toneMapping"]): void {
+    this.params.toneMapping = v;
+    this.applyToneMapping();
+  }
+  setExposure(v: number): void {
+    this.params.exposure = v;
+    this.applyToneMapping();
+  }
+
+  /* -------- 菜单控件（声明式驱动）-------- */
+
+  getMenuControls(): MenuControlDef[] {
+    return [
+      {
+        id: "pp-enabled",
+        kind: "toggle",
+        labelKey: "preview.postprocessing",
+        fallback: "后处理管线",
+        getValue: () => this.isEnabled(),
+        setValue: (v) => this.setEnabled(v as boolean),
+      },
+      {
+        id: "pp-toneMapping",
+        kind: "select",
+        labelKey: "preview.toneMapping",
+        fallback: "色彩映射",
+        select: [
+          { value: "none", label: "无" },
+          { value: "linear", label: "线性" },
+          { value: "reinhard", label: "Reinhard" },
+          { value: "aces", label: "ACES Filmic" },
+          { value: "cineon", label: "Cineon" },
+        ],
+        getValue: () => this.params.toneMapping,
+        setValue: (v) => this.setToneMapping(v as PostprocessingParams["toneMapping"]),
+      },
+      {
+        id: "pp-exposure",
+        kind: "slider",
+        labelKey: "preview.exposure",
+        fallback: "曝光",
+        slider: { min: 0.1, max: 3, step: 0.05 },
+        getValue: () => this.params.exposure,
+        setValue: (v) => this.setExposure(v as number),
+      },
+      {
+        id: "pp-bloom-divider",
+        kind: "divider",
+        labelKey: "",
+        fallback: "",
+        getValue: () => false,
+        setValue: () => { /* 占位 */ },
+      },
+      {
+        id: "pp-bloom-strength",
+        kind: "slider",
+        labelKey: "preview.bloomStrength",
+        fallback: "辉光强度",
+        slider: { min: 0, max: 3, step: 0.05 },
+        getValue: () => this.params.bloomStrength,
+        setValue: (v) => this.setBloomStrength(v as number),
+      },
+      {
+        id: "pp-bloom-threshold",
+        kind: "slider",
+        labelKey: "preview.bloomThreshold",
+        fallback: "辉光阈值",
+        slider: { min: 0, max: 1, step: 0.02 },
+        getValue: () => this.params.bloomThreshold,
+        setValue: (v) => this.setBloomThreshold(v as number),
+      },
+      {
+        id: "pp-bloom-radius",
+        kind: "slider",
+        labelKey: "preview.bloomRadius",
+        fallback: "辉光半径",
+        slider: { min: 0, max: 2, step: 0.02 },
+        getValue: () => this.params.bloomRadius,
+        setValue: (v) => this.setBloomRadius(v as number),
+      },
+      {
+        id: "pp-bloom-follow",
+        kind: "toggle",
+        labelKey: "preview.bloomFollowVolumetric",
+        fallback: "跟随体积光联动",
+        getValue: () => this.params.bloomFollowVolumetric,
+        setValue: (v) => this.setBloomFollowVolumetric(v as boolean),
+      },
+      {
+        id: "pp-ssao-divider",
+        kind: "divider",
+        labelKey: "",
+        fallback: "",
+        getValue: () => false,
+        setValue: () => { /* 占位 */ },
+      },
+      {
+        id: "pp-ssao-enabled",
+        kind: "toggle",
+        labelKey: "preview.ssao",
+        fallback: "环境光遮蔽 (SSAO)",
+        getValue: () => this.params.ssaoEnabled,
+        setValue: (v) => this.setSSAOEnabled(v as boolean),
+      },
+      {
+        id: "pp-ssao-radius",
+        kind: "slider",
+        labelKey: "preview.ssaoRadius",
+        fallback: "SSAO 采样半径",
+        slider: { min: 0.5, max: 32, step: 0.5 },
+        getValue: () => this.params.ssaoRadius,
+        setValue: (v) => this.setSSAORadius(v as number),
+      },
+      {
+        id: "pp-ssao-mindist",
+        kind: "slider",
+        labelKey: "preview.ssaoMinDist",
+        fallback: "SSAO 最小距离",
+        slider: { min: 0.001, max: 0.05, step: 0.001 },
+        getValue: () => this.params.ssaoMinDist,
+        setValue: (v) => this.setSSAOMinDist(v as number),
+      },
+      {
+        id: "pp-ssao-maxdist",
+        kind: "slider",
+        labelKey: "preview.ssaoMaxDist",
+        fallback: "SSAO 最大距离",
+        slider: { min: 0.01, max: 1, step: 0.01 },
+        getValue: () => this.params.ssaoMaxDist,
+        setValue: (v) => this.setSSAOMaxDist(v as number),
+      },
+    ];
+  }
+
+  /* -------- 持久化 -------- */
+
+  saveState(): void {
+    persistState(this.id, {
+      enabled: this.enabled,
+      bloomStrength: this.params.bloomStrength,
+      bloomThreshold: this.params.bloomThreshold,
+      bloomRadius: this.params.bloomRadius,
+      bloomFollowVolumetric: this.params.bloomFollowVolumetric,
+      ssaoEnabled: this.params.ssaoEnabled,
+      ssaoRadius: this.params.ssaoRadius,
+      ssaoMinDist: this.params.ssaoMinDist,
+      ssaoMaxDist: this.params.ssaoMaxDist,
+      toneMapping: this.params.toneMapping,
+      exposure: this.params.exposure,
+    });
+  }
+
+  loadState(): void {
+    const state = restoreState(this.id);
+    if (!state) return;
+    if (typeof state.enabled === "boolean") { this.enabled = state.enabled; this.params.enabled = state.enabled; }
+    if (typeof state.bloomStrength === "number") this.params.bloomStrength = state.bloomStrength;
+    if (typeof state.bloomThreshold === "number") this.params.bloomThreshold = state.bloomThreshold;
+    if (typeof state.bloomRadius === "number") this.params.bloomRadius = state.bloomRadius;
+    if (typeof state.bloomFollowVolumetric === "boolean") this.params.bloomFollowVolumetric = state.bloomFollowVolumetric;
+    if (typeof state.ssaoEnabled === "boolean") this.params.ssaoEnabled = state.ssaoEnabled;
+    if (typeof state.ssaoRadius === "number") this.params.ssaoRadius = state.ssaoRadius;
+    if (typeof state.ssaoMinDist === "number") this.params.ssaoMinDist = state.ssaoMinDist;
+    if (typeof state.ssaoMaxDist === "number") this.params.ssaoMaxDist = state.ssaoMaxDist;
+    if (typeof state.toneMapping === "string" && (THREE_TONE_MAPPING as Record<string, number>)[state.toneMapping] !== undefined) {
+      this.params.toneMapping = state.toneMapping as PostprocessingParams["toneMapping"];
+    }
+    if (typeof state.exposure === "number") this.params.exposure = state.exposure;
+    this.applyToneMapping();
+  }
+
+  /* -------- 生命周期 -------- */
+
+  dispose(): void {
+    this.disposeComposer();
+    this.renderer.toneMapping = this.prevToneMapping;
+    this.renderer.outputColorSpace = this.prevOutputColorSpace;
+    this.renderer.toneMappingExposure = this.prevExposure;
+  }
+}
