@@ -46,7 +46,7 @@ import { createIconButton } from "../../../utils/dom/fab.ts";
 import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
 import { createSlideMenu } from "../../../ui/ui-helpers.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
-import { mountPreviewRootMenu, type PreviewMenuHandle, type LibraryAsset } from "./preview-menu.ts";
+import { mountPreviewRootMenu, type PreviewMenuHandle } from "./preview-menu.ts";
 import { type CameraControlBridge } from "./camera-controls.ts";
 import type { BoneSelectInfo } from "../model3d.ts";
 
@@ -153,10 +153,12 @@ export interface Mount3DOptions {
   siblings?: string[];
   /** 同台追加模式：true 时不移除旧模型，新模型追加到同一场景（多模型同框） */
   cooperate?: boolean;
-  /** 📚 资源库数据源（3D 内换角色面板；经 app 层 withPreviewExtras 注入；缺省不渲染该面板） */
-  library?: () => Promise<LibraryAsset[]>;
-  /** 跨类型跳转（资源库选中不同类型：关当前 + 开目标；app 层 openModel3DFullscreen 注入） */
+  /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标；app 层 openModel3DFullscreen 注入） */
   switchExternal?: (path: string) => Promise<void>;
+  /** 按资源类型懒加载候选模型路径（切换模型的类型 tab 点击时；缺省无 tab） */
+  getModelsByType?: (rtype: string) => Promise<string[]>;
+  /** 类型 tab 列表（有 3D opener 的类型；经 withPreviewExtras 注入，缺省仅「当前目录」tab） */
+  getTypeTabs?: () => string[];
 }
 
 export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount3DOptions = {}): Promise<void> {
@@ -167,8 +169,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   installUiComponentsStyles();
   const myGen = ++_gen;
   const selfMode = adapter.mode === "self";
-  const siblings = opts.siblings?.filter((p) => p !== path) ?? [];
-  /** 3D 内切换后的当前模型路径（审核 #4：切换成功后「当前」项须指向新模型，原 path 移回候选） */
+  /** 当前模型路径（审核 #4：切换成功后「当前」项须指向新模型，原 path 移回候选）。
+   *  siblings 不再 mount 时一次性过滤——getSiblings 基于 currentPath 动态过滤，
+   *  切换模型即「变更 filter 路径」，全程轻量不重扫。 */
   let currentPath = path;
 
   // ---- shared 模式相机状态（提前声明：buildCameraControls 的 bridge 闭包需在此后引用）----
@@ -260,8 +263,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getGroundCap: () => groundCap,
     getLightCap: () => lightCap,
     getCamBridge: () => camBridge,
-    getSiblings: () => siblings,
+    getSiblings: () => (opts.siblings ?? []).filter((p) => p !== currentPath),
     getCurrentPath: () => currentPath,
+    getModelsByType: opts.getModelsByType ? (t: string) => opts.getModelsByType!(t) : undefined,
+    getTypeTabs: opts.getTypeTabs ? () => opts.getTypeTabs!() : undefined,
     getViewContainer: () => viewContainer,
     close: () => {
       if (cleanupFn) cleanupFn();
@@ -270,7 +275,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     switchTo: (p: string, options?: { keepInScene?: boolean }) => {
       void _handle?.switchTo?.(p, options);
     },
-    getLibrary: opts.library ? () => opts.library!() : undefined,
     switchExternal: opts.switchExternal ? (p: string): void => { void opts.switchExternal!(p); } : undefined,
   });
 

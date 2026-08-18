@@ -15,6 +15,7 @@ import { vrmSemanticBoneMap } from "../semantic-bones.ts";
 import { createBreathController } from "../perception/breath.ts"; // 语义骨骼消费方：程序化生命力 L1
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
 import { createBlinkController } from "../perception/blink.ts"; // 语义表情消费方：程序化生命力 L1.5
+import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK，格式无关）
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { BoneTree } from "../bone-tools.ts";
@@ -326,6 +327,8 @@ export async function buildVrmScene(
     ? (["blink", "blinkLeft", "blinkRight"] as const).filter((n) => exprMgr.getExpression(n) !== null)
     : [] as Array<"blink" | "blinkLeft" | "blinkRight">;
   const blink = createBlinkController();
+  // 程序化足部锚地（Foot IK）：待机态下保持双足贴地，防悬空/穿模（格式无关，与 MMD 共用）
+  const footIK = createFootIKController(boneTree, semanticBones);
 
   return {
     // VRM 动态部分（VRMA 动画 + SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
@@ -341,6 +344,8 @@ export async function buildVrmScene(
         // 注视追踪：原生 lookAt 优先（VRM 内部处理 head 旋转限幅），fallback 才走语义骨骼
         if (!animActive && !useNativeLookAt) gaze!.apply(dt, semanticBones, ctx.camera!.position);
       }
+      // Foot IK：待机态下锚定双足（在眨眼之前，先稳定姿态再驱动表情）
+      footIK.apply(dt, !animActive);
       // 眨眼：多表情统一写入（动画播放时暂停，避免覆盖 VRMA 表情轨）
       if (exprMgr && blinkExpressionNames.length > 0 && !animActive) {
         const mgr = exprMgr;
@@ -361,6 +366,7 @@ export async function buildVrmScene(
       breath.reset();
       gaze?.reset();
       blink.dispose();
+      footIK.dispose();
       motionMixer?.stopAllAction(); // 停掉 VRMA 动画 mixer，避免释放后残留 action
       motionMixer?.uncacheRoot(vrm.scene); // 释放 PropertyBinding 缓存，防 GPU/内存残留（switchTo 重建时尤甚）
       // 原生 lookAt：断开相机引用，避免释放后残留

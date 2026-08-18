@@ -1,48 +1,19 @@
-// ===== 3D 全屏内「资源库 / 换角色」（step 3）=====
-// 落点：⚙️ 根菜单的 📚 资源库面板 + 导航栏左下角 FAB。
-// 复用既有绑定（GetRepoRoot / SearchModels / DetectResourceType）与既有 createXxx3D 全屏入口。
+// ===== 3D 全屏内「跨类型换角色」（step 3）=====
+// 落点：导航栏左下角 FAB + 3D 内模型切换（siblings 轻量路径）。
+// 复用既有绑定（DetectResourceType）与既有 createXxx3D 全屏入口。
 //
 // 循环依赖红线（check-circular 阻断）：本模块是【叶子】——只被各 createXxx3D 静态 import
 // （registerReRoute / withPreviewExtras），自身【不】反向 import 任何 createXxx3D 包装器。
 // 跨类型跳转靠「注册表反向注入」：各包装器在模块加载时 registerReRoute(id, opener)，
 // openModel3DFullscreen 只查表调用，从而打破「库→包装器→库」闭环。
+//
+// 资源库列表（loadAllModels）已移除：3D 内切换模型走 mount-preview-core 的
+// opts.siblings（同目录兄弟，mount 时一次性过滤），点击即 switchTo 复用外壳重建，
+// 全程轻量获取文件——不再全量扫描各仓库、不再按扩展名分类贴标签。
 
 import { getApp } from "../../backend/app.ts";
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
-import type { LibraryAsset } from "../../utils/3d/adapters/preview-menu.ts";
-
-/** 资源库聚合的仓库类型：有 3D opener 的类型（与 registerReRoute 注册集对应，
- *  见各 createXxx3D 模块；litematic 等豁免类型无 3D 预览，不聚合）。 */
-const LIBRARY_REPOS: string[] = [
-  RESOURCE_TYPES.YSM,
-  RESOURCE_TYPES.MMD,
-  RESOURCE_TYPES.VRC,
-  RESOURCE_TYPES.PACK,
-];
-
-/** 扩展名 → 类型标签 + 图标（列表即时展示用；真正路由准确性交给路由侧 DetectResourceType） */
-const EXT_TAGS: Array<{ icon: string; label: string; exts: string[] }> = [
-  { icon: "🧊", label: "YSM", exts: [".ysm", ".zip", ".7z"] },
-  { icon: "🥽", label: "VRM", exts: [".vrm"] },
-  { icon: "🎭", label: "MMD", exts: [".pmx", ".pmd"] },
-  { icon: "🧱", label: "资源包", exts: [".mcpack"] },
-  { icon: "🌐", label: "蓝图", exts: [".litematic"] },
-];
-
-/** 粗判类型标签（按扩展名） */
-function tagOf(path: string): { icon: string; label: string } {
-  const low = path.toLowerCase();
-  for (const e of EXT_TAGS) {
-    if (e.exts.some((x) => low.endsWith(x))) return { icon: e.icon, label: e.label };
-  }
-  const ext = path.split(/[\\/.]/).pop() ?? "";
-  return { icon: "📦", label: (ext || "?").toUpperCase() };
-}
-
-function baseName(p: string): string {
-  return p.split(/[/\\]/).pop() || p;
-}
 
 /** 跨类型换角色注册表：各 createXxx3D 模块加载时注册，路由侧不反向 import 包装器（破循环） */
 const _openers: Record<string, (path: string) => Promise<void>> = {};
@@ -54,31 +25,6 @@ export function registerReRoute(rtype: string, opener: (path: string) => Promise
 /** 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） */
 export function getRegisteredRoutes(): string[] {
   return Object.keys(_openers);
-}
-
-/** 全量模型列表：聚合各类型仓库（按物理分类目录），空关键词返回全部。
- *  限流防超大库拖垮菜单。每项带来源 rtype（tab 过滤用）+ 扩展名粗判标签。 */
-async function loadAllModels(): Promise<LibraryAsset[]> {
-  try {
-    const { GetRepoRoot, SearchModels } = await getApp();
-    const out: LibraryAsset[] = [];
-    for (const rtype of LIBRARY_REPOS) {
-      const root = await GetRepoRoot(rtype);
-      if (!root) continue;
-      const results = (await SearchModels(root, "", 0, 0, 0, 0, 0, 0)) as Array<{ name?: string; path?: string }>;
-      for (const r of results || []) {
-        const p = r?.path;
-        if (!p) continue;
-        const { icon, label } = tagOf(p);
-        out.push({ path: p, name: r.name || baseName(p), tag: label, icon, rtype });
-      }
-    }
-    return out.slice(0, 500);
-  } catch {
-    // 加载失败时 toast 通知用户，而非静默返回空（审核 P3）
-    import("../../bus.ts").then(({ bus }) => bus.emit("toast:show", { msg: "库加载失败", duration: 3000, type: "warn" }));
-    return [];
-  }
 }
 
 /**
@@ -105,15 +51,34 @@ export async function openModel3DFullscreen(path: string): Promise<void> {
 }
 
 interface PreviewExtras extends Mount3DOptions {
-  library?: () => Promise<LibraryAsset[]>;
   switchExternal?: (path: string) => Promise<void>;
 }
 
-/** 给 mount3D opts 注入「资源库默认扩展」：库加载 + 跨类型跳转。各 createXxx3D 统一经此获得 3D 内 📚 面板 */
+/**
+ * 按资源类型扫描候选模型路径（轻量：GetRepoRoot + ScanModelEntriesWithLabel，
+ * 复用文件树扫描缓存，不逐文件解析）。供 3D 内切换模型的类型 tab 点击时懒加载。
+ * 注意：返回的 ModelEntry 字段为 Go 风格大写 Path（web-fs.ts scanWebModels 同构），
+ * 且 label 需传 RESOURCE_TYPE_LABELS 短标签（对齐 loader.ts 调用约定）。
+ */
+async function scanModelsByType(rtype: string): Promise<string[]> {
+  try {
+    const { GetRepoRoot, ScanModelEntriesWithLabel } = await getApp();
+    const root = await GetRepoRoot(rtype);
+    if (!root) return [];
+    const label = RESOURCE_TYPE_LABELS[rtype] || rtype;
+    const raw = (await ScanModelEntriesWithLabel(root, label)) as Array<{ Path?: string }>;
+    return (raw || []).map((e) => e.Path).filter((p): p is string => !!p);
+  } catch {
+    return [];
+  }
+}
+
+/** 给 mount3D opts 注入「跨类型换角色」入口 + 按类型懒加载数据源。各 createXxx3D 统一经此接入 */
 export function withPreviewExtras<T extends Mount3DOptions>(opts: T): T & PreviewExtras {
   return Object.assign(opts as T & PreviewExtras, {
-    library: loadAllModels,
     switchExternal: openModel3DFullscreen,
+    getModelsByType: scanModelsByType,
+    getTypeTabs: () => getRegisteredRoutes(),
   });
 }
 

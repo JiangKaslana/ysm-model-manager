@@ -30,6 +30,11 @@ source_files:
   - frontend/src/views/app-preview/mmd-controls.ts
   - frontend/src/views/app-preview/mmd-siblings.ts
   - frontend/src/utils/3d/adapters/mount-preview-core.ts
+  - frontend/src/utils/3d/adapters/mmd-adapter.ts
+  - frontend/src/utils/3d/adapters/cleanup-3d.ts
+  - frontend/src/utils/3d/adapters/switch-preview.ts
+  - frontend/src/utils/3d/adapters/input-and-animation.ts
+  - frontend/src/utils/3d/adapters/postprocessing.ts
   - frontend/src/utils/3d/adapters/litematic-adapter.ts
   - frontend/src/views/app-preview/vrm-3d.ts
   - frontend/src/utils/3d/adapters/vrm-adapter.ts
@@ -73,6 +78,7 @@ invariant_anchors:
 - `detail.ts` — `showModelDetail` / `showResourcePack` / `showShaderpack` / `showSimplePreview`：详情面板渲染（Go 侧 `ExtractYsmSummary` / `ExtractYSMHeader` / `ReadPackMeta` / `ReadShaderpackLang`）——**ADR-072 D3 按资源域拆分**：`showVrmMeta`（VRM meta 卡 + FAB 进 3D，`vrm-adapter.readVrmMeta` 取 three-vrm `vrm.meta`：VRM0 `title/author/licenseName` ↔ VRM1 `name/authors/licenseUrl` 归一化）与 `showMmdPreview`（MMD 专属详情入口）已迁出至 `detail-3d.ts`，`detail.ts` 现仅 4 个 show 函数
 - `skeleton.ts` — `loadModel2D`：2D/3D 骨骼渲染编排，委托 `utils/3d/model2d.ts` 的 `renderModel2D` 与 `utils/3d/model3d.ts` 的 `renderModel3D`；window 级拖拽监听存模块级 `_prevWindowMove` / `_prevWindowUp` 槽位（`skeleton.ts:20`、`:193`），先移除上一轮再绑定并把移除逻辑 push 进 `ctx._unsubs`（`skeleton.ts:211`）；`_model3dGen` 作废在途 3D 渲染；截图走 `SaveScreenshotFile`。**ADR-057 控制层重构**：3D overlay 顶/底控制栏原内联 `style.cssText` 抽为全局 CSS 类（`utils/dom/fab.ts` 的 `ensureFabStyles()` 注入 head——overlay 挂 `document.body` 为 light DOM，全局 CSS 直接生效）；触发键 `🎨3D` 由面板内普通 tab 改为右下角悬浮 FAB（`.ysm-fab`，Shadow DOM 内样式在 `css.ts`，隔离不继承 head）；并接入 `registerAndroidBackHandler` 在 overlay 打开时消费安卓返回键关层。**async 窗口期守卫约定**（P2 修复）：每个 `await` 前后及 DOM 创建后立即检查 `container.isConnected`，防组件卸载后异步回调写入已卸载 DOM（`skeleton.ts:82`、`:112`、`:631` 三处）
 - `zoom.ts` — `openFullPreview`：全屏放大预览
+- `mmd-adapter.ts` — **MMD 3D 预览适配器（ADR-066 P2，2026-08-16 落地）**：`ReadFileBytes` 读 PMX/PMD 字节 + `ScanModelEntries` 同目录纹理预读 → `LoadingManager.setURLModifier` 把模型/纹理 URL 映射为 blob URL（WebView2 读不了磁盘路径）→ 挂场景 + 灯光 + 包围盒定相机；`MMD.update` 每帧驱动 IK/追加变换，`dispose` 回收 GPU + blob URL；**shared 模式**（复用核心 renderer/rAF/controls），33 项测试全过
 - `mmd-controls.ts` / `mmd-siblings.ts` / `mmd-3d.ts` — **MMD 根菜单两级层级导航（ADR-077 落地）**：旧 `buildMmdBottomNav` / slide-menu 弹窗删除，改 `fillMmdModelPanel` / `fillMmdPlayPanel` / `buildMaterialControls`，经 `ctx.menu.setAdapterItems` 收编进根菜单（模型 / 材质 / 播放 / 骨骼四面板）；`mmd-siblings.ts` 的 `resolveMmdSiblings` 归位 views 层防与 `mmd-adapter` 循环依赖；`mmd-3d.ts` 的 `createMmd3D` 为薄包装（同构 YSM/VRM/Litematic 模式）
 - `vrm-3d.ts` / `vrm-adapter.ts` — **VRM 预览 + 动画播放（VRMA）**：`createVrm3D(path, opts?)` 为薄包装（同构 YSM/MMD/Litematic 模式，配套 `switchVrmPreview` / `appendVrmPreview` / `cleanupVrm3D` / `invalidateVrmPreview`）；`buildVrmScene` 经 `PreviewAdapter.build` 挂内容层，`vrm-3d.ts` 注入 `listAllFilePaths` 端口（数据经端口注入、0 backend import）供同目录 `.vrma` 发现；`vrm-adapter` 注册 `VRMAnimationLoaderPlugin`，`createVRMAnimationClip` → `AnimationMixer`，每帧 `mixer.update(dt)` → `vrm.update(dt)`，播放时暂停呼吸 / 视线 / 眨眼；复用 MMD 播放面板（`fillMmdPlayPanel` / `MmdPlayBridge`）渲染播放 / 暂停 / 选片，无 `.vrma` 时优雅降级（面板不显示）
 - `wasm.ts` — `decodeYsmViaWasm`：前端 WASM 解码 .ysm（经 Go `ReadFileBytes` 取字节，走 `cache.ts` 缓存）；**加密模型详情增强**（P2 修复链：`decodeYsmViaWasm` 解码后把 `properties.extra_animation*` 经 `utils/format/ysm-anim-config.ts` 的 `extractAnimGroupsAndConfigs` 抽出「其他动画 / 模型配置 / 自定义表情」，与 Go `summary.go:appendAnimGroupsAndConfigs` 口径对齐，供详情卡渲染；`.zip`/裸 `ysm.json` 共用同一提取逻辑）
@@ -112,6 +118,7 @@ invariant_anchors:
 - `_unsubs` 中的 `bus.on` 订阅必须在 `disconnectedCallback` 清理；拖拽 window 监听经 `PreviewCtx._unsubs` 挂销毁清理；Litematic 3D 经 `cleanupLitematic3D`（转发 `cleanupVoxel3D`）终止 WebGL renderer + rAF 循环（防切页 GPU 残留）
 - 2D 拖拽的 window 监听先移除上一轮再绑定（模块级槽位 `_prevWindowMove` / `_prevWindowUp`），禁止累积
 - 预览缓存淘汰时必须 `URL.revokeObjectURL` 释放 blob URL（`cacheSetEvictHandler`）
+- **mount-preview-core 拆分（ADR-091 D5，2026-08-17）**：原 707 行拆为 537 行主文件 + `cleanup-3d.ts`（118 行，fullCleanup + safeDisposeMat）/ `switch-preview.ts`（178 行，switchToSession + syncLightTarget）/ `input-and-animation.ts`（120 行，bindInputHandlers）/ `postprocessing.ts`（67 行，PostprocessingManager）；animate 循环因状态耦合深暂留主函数
 - Three.js 现为静态依赖（`litematic-3d.ts` / `model3d-loader.ts` / `screenshot-renderer.ts` / `utils/3d/model3d.ts` 均 `import * as THREE from "three"`），且 `app-preview` 已被 `app-content` 静态导入，因此 three 进入主 chunk；vite 未配 `manualChunks`，若要恢复懒加载需同时改回动态 import 与分包配置
 - 坐标变换遵循 ysmview 口径（陷阱 #11：改 model2d/model3d 前先 grep bug-chronicle）
 - **纹理口径对称**：`texture-order.ts` 与 Go `internal/app/texture_order.go` 口径严格对称，改一侧须同步另一侧；`default_texture` 置首逻辑在 `parse-ysm-json.ts`（返回 `_ysmMeta.defaultTexture`）与 `texture-order.ts`（实际排序）两处协同处理

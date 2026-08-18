@@ -26,6 +26,10 @@ export interface PreviewMenuCtx {
   getCamBridge: () => CameraControlBridge;
   getSiblings: () => string[];
   getCurrentPath: () => string;
+  /** 按资源类型扫描候选模型路径（点击切换模型的类型 tab 时懒加载；缺省回退 siblings） */
+  getModelsByType?: (rtype: string) => Promise<string[]>;
+  /** 类型 tab 列表（如 ["ysm","mmd-skin","vrchat-avatar","resourcepack"]；缺省仅「当前目录」tab） */
+  getTypeTabs?: () => string[];
   /** 3D 渲染器容器：点击该区域关闭菜单（不再全局点击杀弹窗） */
   getViewContainer: () => HTMLElement;
   close: () => void;
@@ -338,37 +342,90 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
   list.appendChild(ibRow);
 }
 
-/** 3D 内模型切换面板：列 siblings，当前项高亮；底部提供手动路径输入支持跨类型切换 */
+/** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮；
+ *  底部提供手动路径输入支持跨类型切换。 */
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
-  const siblings = ctx.getSiblings();
   const cur = ctx.getCurrentPath();
-  if (siblings.length === 0) {
-    const empty = document.createElement("div");
-    empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    empty.textContent = tr("preview.noOtherModel", "（无其他模型）");
-    list.appendChild(empty);
-  } else {
-    siblings.forEach((p) => {
-      const isCur = p.toLowerCase() === cur.toLowerCase();
-      const row = document.createElement("div");
-      row.className = "ysm-preview-menu-row";
-      row.dataset.testid = "preview-switch-item";
-      row.style.cssText =
-        "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
-        (isCur ? ";background:rgba(124,131,255,0.25)" : "");
-      const ic = document.createElement("span");
-      ic.textContent = isCur ? "✓" : "📦";
-      ic.style.cssText = "font-size:15px;width:18px;text-align:center";
-      const lb = document.createElement("span");
-      lb.textContent = p.split(/[/\\]/).pop() || p;
-      row.append(ic, lb);
-      row.onclick = (): void => {
-        closePopup();
-        void ctx.switchTo(p);
-      };
-      list.appendChild(row);
-    });
-  }
+  const rtypes = ctx.getTypeTabs?.() ?? [];
+  let activeTab = ""; // "" = 当前目录（siblings）
+
+  // 类型 tab 行：「当前目录」恒在首位，后接各资源类型（点击懒加载）
+  const tabBar = document.createElement("div");
+  tabBar.style.cssText =
+    "display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.12);flex-wrap:wrap;flex-shrink:0";
+  tabBar.dataset.testid = "preview-switch-tabs";
+  const mkTab = (key: string, label: string): void => {
+    const b = document.createElement("button");
+    b.dataset.testid = "preview-switch-tab";
+    b.dataset.rtype = key;
+    b.textContent = label;
+    b.style.cssText =
+      "font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;color:rgba(255,255,255,0.7);background:transparent" +
+      (key === activeTab ? ";background:rgba(124,131,255,0.35);color:#fff" : "");
+    b.onclick = (): void => {
+      activeTab = key;
+      // 高亮当前 tab
+      for (const tb of Array.from(tabBar.children)) {
+        (tb as HTMLElement).style.background = (tb as HTMLElement).dataset.rtype === key
+          ? "rgba(124,131,255,0.35)"
+          : "transparent";
+      }
+      renderRows();
+    };
+    tabBar.appendChild(b);
+  };
+  mkTab("", tr("preview.switchDirTab", "当前目录"));
+  for (const r of rtypes) mkTab(r, r);
+
+  const listBody = document.createElement("div");
+  listBody.style.cssText = "max-height:240px;overflow-y:auto";
+
+  const renderRows = (): void => {
+    listBody.innerHTML = "";
+    const draw = (paths: string[], viaType: boolean): void => {
+      if (paths.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+        empty.textContent = viaType
+          ? tr("preview.noTypeModel", "（该类型暂无模型）")
+          : tr("preview.noOtherModel", "（无其他模型）");
+        listBody.appendChild(empty);
+        return;
+      }
+      paths.forEach((p) => {
+        const isCur = p.toLowerCase() === cur.toLowerCase();
+        const row = document.createElement("div");
+        row.className = "ysm-preview-menu-row";
+        row.dataset.testid = "preview-switch-item";
+        row.style.cssText =
+          "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px" +
+          (isCur ? ";background:rgba(124,131,255,0.25)" : "");
+        const ic = document.createElement("span");
+        ic.textContent = isCur ? "✓" : "📦";
+        ic.style.cssText = "font-size:15px;width:18px;text-align:center";
+        const lb = document.createElement("span");
+        lb.textContent = p.split(/[/\\]/).pop() || p;
+        row.append(ic, lb);
+        row.onclick = (): void => {
+          closePopup();
+          if (viaType && ctx.switchExternal) void ctx.switchExternal(p);
+          else void ctx.switchTo(p);
+        };
+        listBody.appendChild(row);
+      });
+    };
+    if (activeTab === "") {
+      draw(ctx.getSiblings(), false);
+    } else {
+      void Promise.resolve(ctx.getModelsByType?.(activeTab) ?? Promise.resolve([])).then((paths) => {
+        if (!listBody.parentNode) return; // 面板已关闭
+        draw(paths ?? [], true);
+      });
+    }
+  };
+
+  list.append(tabBar, listBody);
+  renderRows();
 
   // 分隔线 + 手动路径输入（支持跨类型加载，无需退出 3D）
   const sep = document.createElement("div");
@@ -413,9 +470,6 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
   list.appendChild(inputRow);
 }
 
-
-/** 📚 资源库面板：列全量模型（含类型标签），当前项高亮；点击换角色（跨类型经 switchExternal 重挂载，同类型走 switchTo 就地）。
- *  顶部类别 tab（全部 + 各来源 rtype）切换搜索范围——按物理分类目录聚合后按仓库类型过滤。 */
 /** 灯光面板（ADR-081 L1）：顶光/体积光锥/预设切换 */
 function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   const lightCap = ctx.getLightCap();

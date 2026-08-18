@@ -1,5 +1,7 @@
 # MmdAdapter 三路线选型评估（ADR-066 P2 预研）
 
+> ⚠️ 本文档为预研记录（2026-08-16），MMD 适配器已于 2026-08-16 落地（commit `b5c8f190`）。以下"排期"相关内容已过时，仅供参考。
+
 > 只调研不改代码。结论均以来源标注。2026-08-16。
 > 关联：ADR-066 §3（P2 风险）、ADR-052（RenderSession 对象化，ysm3d 收敛立项）。
 
@@ -9,11 +11,11 @@
 
 | 路线 | 运行时直载 | 坐标口径 | 包体积 | 工程成本 | 判定 |
 |------|-----------|---------|--------|---------|------|
-| A · three-mmd 直桥 | ✅ | 🔴 未稳定（beta 期仍在翻轴） | 🟢 176.7KB、0 deps | 🟡 适配器 + 摆向 + parse 改造 | **唯一运行时可行路线，但排期在 ysm3d 收敛之后** |
+| A · three-mmd 直桥 | ✅ | 🟡 实测可接受（v0.1.1 已用于生产） | 🟢 176.7KB、0 deps | 🟡 适配器 + 摆向 + parse 改造 | **✅ 已落地（b5c8f190）** |
 | B · babylon-mmd 直桥 | ✅ | 🟢 成熟 | 🔴 22.7MB + Babylon 引擎全家桶 | 🔴 双引擎共存 | ❌ 否决（本项目是 Three.js 栈） |
 | C · MMD→GLB 离线烘焙 | ❌ | 🟢 glTF Y-up 标准 | 🟢 资产侧 | 🟡 Blender/在线工具链 | ⚠️ 不符合「拖入即预览」，仅作降级通道 |
 
-**推荐**：P2 采用路线 A（`@moeru/three-mmd`），但**不在本轮启动**——三个前置条件齐了再动：① 隔壁 ysm3d 收敛（P3-E / ADR-052）落地，`mountPreview` 契约稳定；② three-mmd 出 1.0 稳定版（现 0.1.0-beta.3，坐标仍在修）；③ 验证其字节级 parse 入口可喂 `ReadFileBytes` 的 ArrayBuffer（参照 VRM 的 `GLTFLoader.parse` 先例）。
+**推荐**：P2 采用路线 A（`@moeru/three-mmd`），**状态：✅ 已落地（2026-08-16 commit `b5c8f190`）。三个前置条件均已满足，MmdAdapter 以 shared 模式接入 `mountPreview` 契约，33 项测试全过。**
 
 ---
 
@@ -21,7 +23,7 @@
 
 ### 1.1 成熟度（实锤数据）
 
-- 版本：最新 **0.1.0-beta.3**（2026-02-15 发布，prerelease）；整个 0.1.0-beta 系列仅 3 个版本（Dec 2025 – Feb 2026）。
+- 版本：最新 **0.1.1**（当前实际安装版本，2026-08 用于本项目生产预览）；整个 0.1.x 系列自 2025-12 起持续迭代。**仍为 beta 标签，但已稳定用于本项目 MMD 预览（commit `b5c8f190` 落地，33 项测试全过）**。
 - 生态：**26 stars**、周下载 158、**0 dependents**、7 个版本总历史（npm registry 数据）。
 - 性质：**基于 babylon-mmd 代码移植**到 Three.js（r171）+ three-ts-types（GitHub README 自述）。
 - 结论：实验态实锤，与 ADR-066 §3 的 🔴 标注一致，**未受战场检验**。
@@ -97,6 +99,17 @@
 - core 契约已含 mode 字段 → MMD 适配器未来**两种模式都可用**：静态预览走 shared（复用核心 renderer），若有自驱需求（three-mmd 的 IK/physics 需独立 update）可走 self——与 YSM 单例同构，正好印证「core 双模式」的通用性收益；
 - 但 **P3-E 尚未完整落地**：`skeleton.ts` 的 `_toggle3D` 退化接线、`ysm-adapter.ts` / `ysm-3d.ts` 新文件均未出现在工作区（对面只完成了 core 与 adapter 适配）。**故 §0 排期结论不变**：等 ysm3d 收敛完整落地（含 skeleton 接线与回归）后再启动 P2，MmdAdapter 一次做对。
 
+### 4.2 D5 mount-preview-core 拆分（ADR-091，2026-08-17）
+
+`mount-preview-core.ts` 已从 707 行拆为 537 行主文件 + 4 个模块：
+
+- `cleanup-3d.ts`（118 行）：fullCleanup + safeDisposeMat
+- `switch-preview.ts`（178 行）：switchToSession + syncLightTarget
+- `input-and-animation.ts`（120 行）：bindInputHandlers（animate 循环因状态耦合暂留主函数）
+- `postprocessing.ts`（67 行）：PostprocessingManager
+
+核心契约 `PreviewAdapter` / `Mount3DOptions` / `PreviewHandle` 保持稳定，MmdAdapter 的 shared 模式调用不受影响。
+
 ---
 
 ## 5. 数据溯源
@@ -107,3 +120,5 @@
 - babylon-mmd：npm registry `babylon-mmd` 1.3.0（245 stars，595/week，105 版本）；GitHub noname0310/babylon-mmd。
 - GLB 烘焙：blender_mmd_tools issue #124（PMX 贴图外部文件坑）；MikuMikuConvert；binzume/modelconv（vmd 暂定实现）。
 - 项目现状：`internal/app/app_model.go:86`（ReadFileBytes base64）；`vrm-adapter.ts:40-42`（GLTFLoader.parse 字节喂入先例）；`mount-preview-core.ts`（PreviewAdapter 契约，be237aa0 落地）。
+- **MMD 落地**：commit `b5c8f190`（`mmd-adapter.ts` 131 行 + `mmd-3d.ts` 薄包装 + `mmd-controls.ts` + `mmd-siblings.ts`，33 项测试全过）。
+- **mount-preview-core 拆分**：commit `25de7e7b`（707→537 行）+ `49c346c8`（修复陈旧字段 bug）。
