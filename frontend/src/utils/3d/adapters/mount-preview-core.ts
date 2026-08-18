@@ -374,9 +374,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     for (const cap of caps) cap.apply();
     // ShadowCapability 同步：光 castShadow（光已由 LightCapability 创建）
     if (shadowCap && lightCap) {
+      // 优先注入 LightCapability 引用（ShadowCapability 通过 getter 精准取 3 方向灯+1 聚光灯，不会误吞外部自定义灯）
+      shadowCap.setLightCap(lightCap);
       const lights: Array<THREE.DirectionalLight | THREE.SpotLight> = [];
-      // 通过 scene 遍历拿光对象（LightCapability 不暴露内部光实例）；
-      // 名字约定：ysm-light-* / 未命名的 DirectionalLight/SpotLight
+      // 兼容路径（旧版 shadow-capability 走 scene 遍历取实例，新 shadow-capability 已用 setLightCap 注入，但仍留 syncLights 兜底，防自定义灯）
       scene.traverse((obj) => {
         if ((obj as unknown as THREE.DirectionalLight).isDirectionalLight
           || (obj as unknown as THREE.SpotLight).isSpotLight) {

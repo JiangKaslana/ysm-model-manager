@@ -97,6 +97,15 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     dockGroup: "scene",
   },
   {
+    id: "shadow",
+    icon: "🌫️",
+    labelKey: "preview.shadow",
+    fallback: "阴影",
+    kind: "panel",
+    sharedOnly: true,
+    dockGroup: "scene",
+  },
+  {
     id: "postproc",
     icon: "🎇",
     labelKey: "preview.postprocessing",

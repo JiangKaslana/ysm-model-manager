@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 126 | 465 |
+| 前端·工具 | 126 | 466 |
 | frontend/views | 105 | 294 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **410** | **1701** |
+| **合计** | **410** | **1702** |
 
 ## Go·头像
 
@@ -1260,7 +1260,8 @@
 | `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:121` | 从 localStorage 加载 JSON |
 | `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:24` | ============ 参数类型 ============ |
 | `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:39` | — |
-| `ShadowCapability()` | `frontend/src/utils/3d/caps/shadow-capability:70` | ============ ShadowCapability ============ |
+| `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:49` | 预设（setPreset 套用到不同模型类别） |
+| `ShadowCapability()` | `frontend/src/utils/3d/caps/shadow-capability:94` | ============ ShadowCapability ============ |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:26` | — |
 | `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:47` | — |
 | `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:62` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |

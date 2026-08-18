@@ -419,6 +419,11 @@ export class LightCapability implements SceneCapability {
     if (!this.fillLight.parent) this.scene.add(this.fillLight);
     if (!this.rimLight.parent) this.scene.add(this.rimLight);
     if (!this.ambientLight.parent) this.scene.add(this.ambientLight);
+    // DirectionalLight.target 默认 Object3D(0,0,0)，没 add 到 scene 时 light.shadow.camera 不会跟随 target 位置更新
+    // （shadow 需要 target 在 scene 图里，才能在世界坐标内正确定向 shadow frustum）
+    if (!this.keyLight.target.parent) this.scene.add(this.keyLight.target);
+    if (!this.fillLight.target.parent) this.scene.add(this.fillLight.target);
+    if (!this.rimLight.target.parent) this.scene.add(this.rimLight.target);
     if (this.spotlightTarget && !this.spotlightTarget.parent) this.scene.add(this.spotlightTarget);
     if (!this.spotlight.parent) this.scene.add(this.spotlight);
     if (this.params.volumetric.enabled && this.params.spotlight.enabled && this.coneGroup) {
@@ -448,6 +453,15 @@ export class LightCapability implements SceneCapability {
 
   getTarget(): THREE.Vector3 {
     return this.target.clone();
+  }
+
+  /* ShadowCapability 跨能力协作：取得当前挂到场景的方向灯（3 盏）与聚光灯，统一设置 shadow 参数；
+   * 不返回内部引用副本，避免 ShadowCapability 直接写 private 字段。 */
+  getDirectionalLights(): THREE.DirectionalLight[] {
+    return [this.keyLight, this.fillLight, this.rimLight];
+  }
+  getSpotLight(): THREE.SpotLight {
+    return this.spotlight;
   }
 
   setTargetHeight(h: number): void {
@@ -683,8 +697,12 @@ export class LightCapability implements SceneCapability {
   }
 
   private detach(): void {
-    [this.keyLight, this.fillLight, this.rimLight, this.ambientLight, this.spotlight, this.spotlightTarget]
-      .filter((o): o is THREE.Object3D => o !== null)
+    [
+      this.keyLight, this.fillLight, this.rimLight, this.ambientLight,
+      this.keyLight?.target ?? null, this.fillLight?.target ?? null, this.rimLight?.target ?? null,
+      this.spotlight, this.spotlightTarget,
+    ]
+      .filter((o): o is THREE.Object3D => o !== null && o !== undefined)
       .forEach((o) => {
         if (o.parent) o.parent.remove(o);
       });
