@@ -2,21 +2,15 @@
 import { getApp } from "../../backend/app.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import type { AppContentHost } from "./init-workshop.ts";
-import type { LocalCreator } from "./community-data.ts";
-import type { WorkshopSite } from "../../../bindings/ysm-model-manager/go/types/models.ts";
-import type { RepoAuthorLike } from "./site-view.ts";
 
 /**
  * 提取创作者头像（后台批量）
+ *
+ * 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache；
+ * 先前按「当前站点/作者限定 + 编辑态门控」的窄范围参数因实现走全局捷径而沦为死参数，
+ * 已随 2026-08-18 瘦身删除（全量幂等增量更优，局部反而增加切换往返）。
  */
-export async function extractAvatars(
-  host: AppContentHost,
-  browseMode: string,
-  allSites: WorkshopSite[],
-  allCreators: LocalCreator[],
-  repoAuthors: RepoAuthorLike[],
-  wsEditModeRef: { v: boolean },
-): Promise<void> {
+export async function extractAvatars(host: AppContentHost): Promise<void> {
   try {
     const { BatchExtractCreatorAvatars } = await getApp();
     const result = await BatchExtractCreatorAvatars();

@@ -50,14 +50,14 @@ export function initWorkshopPage(host: AppContentHost): void {
 
   // 后台批量提取创作者头像
   host._setAvatarCache({});
-  extractAvatars(host, browseMode, allSites, allCreators, repoAuthors, wsEditModeRef);
+  extractAvatars(host);
 
   // 配置加载完成后重新提取
   if (!(_avatarConfigLoadedRegistered)) {
     _avatarConfigLoadedRegistered = true;
     _avatarConfigLoadedUnsub = Events.On("config-loaded", () => {
       dbg("avatar", "配置已加载，重新提取头像");
-      extractAvatars(host, browseMode, allSites, allCreators, repoAuthors, wsEditModeRef);
+      extractAvatars(host);
     });
   }
 

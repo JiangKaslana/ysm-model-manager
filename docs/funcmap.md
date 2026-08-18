@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 121 | 447 |
+| 前端·工具 | 121 | 448 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **405** | **1683** |
+| **合计** | **405** | **1684** |
 
 ## Go·头像
 
@@ -946,12 +946,12 @@
 | `PreparedFormData()` | `frontend/src/features/import-queue-data:77` | prepareFormData 返回的纯数据（不含 DOM 引用） |
 | `HeaderData()` | `frontend/src/features/import-queue-data:84` | loadHeaderData 返回的头部数据（不含 DOM 引用） |
 | `initDataLayer()` | `frontend/src/features/import-queue-data:90` | 初始化导入队列的数据层：返回状态对象和清理函数 |
-| `renderFormData()` | `frontend/src/features/import-queue-events:31` | — |
-| `renderHeaderData()` | `frontend/src/features/import-queue-events:94` | — |
-| `bindFormEvents()` | `frontend/src/features/import-queue-events:124` | 表单输入事件绑定 |
-| `bindDragEvents()` | `frontend/src/features/import-queue-events:159` | 拖拽事件绑定 |
-| `bindInputEvents()` | `frontend/src/features/import-queue-events:246` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:328` | 按钮事件绑定 |
+| `renderFormData()` | `frontend/src/features/import-queue-events:32` | — |
+| `renderHeaderData()` | `frontend/src/features/import-queue-events:96` | — |
+| `bindFormEvents()` | `frontend/src/features/import-queue-events:126` | 表单输入事件绑定 |
+| `bindDragEvents()` | `frontend/src/features/import-queue-events:161` | 拖拽事件绑定 |
+| `bindInputEvents()` | `frontend/src/features/import-queue-events:248` | 文件输入框事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:330` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
 | `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
@@ -1134,9 +1134,9 @@
 |------|--------|------|
 | `CameraControlBridge()` | `frontend/src/utils/3d/adapters/camera-controls:13` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
-| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:24` | — |
-| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:61` | — |
-| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:140` | — |
+| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:25` | — |
+| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:62` | — |
+| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:143` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1157,8 +1157,8 @@
 | `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:169` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:185` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
-| `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:21` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
-| `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:36` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
+| `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
+| `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:37` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
 | `PostprocessingManager()` | `frontend/src/utils/3d/adapters/postprocessing:11` | — |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
 | `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:13` | — |
@@ -1380,6 +1380,7 @@
 | `BoneData()` | `frontend/src/utils/3d/spec-builder:84` | BoneData — Go threejs/spec.go BoneData |
 | `MeshData()` | `frontend/src/utils/3d/spec-builder:94` | MeshData — Go threejs/spec.go MeshData |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:113` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `TextureCacheImpl()` | `frontend/src/utils/3d/texture-cache:17` | — |
 | `textureCache()` | `frontend/src/utils/3d/texture-cache:62` | 全局单例（随 3D 会话生命周期；disposeAll 由 cleanup-3d.ts 调用） |
 | `VrmMaterialListItem()` | `frontend/src/utils/3d/vrm-materials:11` | 材质列表项（listVrmMaterials） |
 | `VrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:17` | 材质详情（getVrmMaterialDetail） |
@@ -1666,7 +1667,7 @@
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:74` | — |
 | `githubHTML()` | `frontend/src/views/app-content/tpl:138` | ===== GitHub 仓库页面 ===== |
 | `workshopHTML()` | `frontend/src/views/app-content/tpl:169` | — |
-| `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:12` | 提取创作者头像（后台批量） |
+| `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |
 | `saveBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:21` | 保存浏览模式到 localStorage |
@@ -1730,8 +1731,8 @@
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:11` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:21` | Go 返回的 3D spec（models 数组） |
-| `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:50` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
-| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:138` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
+| `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:50` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） |
+| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:149` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
 | `createPack3D()` | `frontend/src/views/app-preview/pack-3d:30` | 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） |
 | `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:50` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |
