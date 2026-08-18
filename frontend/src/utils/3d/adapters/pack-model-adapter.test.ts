@@ -173,9 +173,9 @@ describe("GPU 释放", () => {
     const deps = makeDeps();
     const ctx = makeCtx();
     const preview = await buildPackScene(ctx, "dirt.json", deps, "/packs.zip");
-    const group = ctx.scene.children[0];
+    const group = (ctx.scene as THREE.Scene).children[0];
     preview.dispose!();
-    expect(ctx.scene.children).not.toContain(group);
+    expect((ctx.scene as THREE.Scene).children).not.toContain(group);
   });
 });
 
@@ -222,7 +222,7 @@ describe("材质签名", () => {
     const deps = makeDeps();
     const ctx = makeCtx();
     const preview = await buildPackScene(ctx, "multi.json", deps, "/packs.zip");
-    const group = ctx.scene.children[0] as THREE.Group;
+    const group = (ctx.scene as THREE.Scene).children[0] as THREE.Group;
     // 两个不同纹理应生成两个 Mesh
     const meshes = group.children.filter((c) => (c as THREE.Mesh).isMesh);
     expect(meshes.length).toBe(2);
@@ -239,7 +239,7 @@ describe("材质签名", () => {
     const deps = makeDeps();
     const ctx = makeCtx();
     const preview = await buildPackScene(ctx, "same.json", deps, "/packs.zip");
-    const group = ctx.scene.children[0] as THREE.Group;
+    const group = (ctx.scene as THREE.Scene).children[0] as THREE.Group;
     const meshes = group.children.filter((c) => (c as THREE.Mesh).isMesh);
     expect(meshes.length).toBe(1);
     preview.dispose!();
@@ -256,7 +256,7 @@ describe("NO_TEX_FALLBACK", () => {
     const preview = await buildPackScene(ctx, "noface.json", deps, "/packs.zip");
     // readEntry 不应被调用（没有 texEntry）
     expect(deps.readEntry).not.toHaveBeenCalled();
-    const group = ctx.scene.children[0] as THREE.Group;
+    const group = (ctx.scene as THREE.Scene).children[0] as THREE.Group;
     const mesh = group.children[0] as THREE.Mesh;
     // 检查材质颜色是 NO_TEX_FALLBACK (0xcccccc)
     const mat = mesh.material as THREE.MeshStandardMaterial;
@@ -272,7 +272,7 @@ describe("空模型", () => {
     const ctx = makeCtx();
     const preview = await buildPackScene(ctx, "empty.json", deps, "/packs.zip");
     // group 应该存在但无子 Mesh
-    const group = ctx.scene.children[0] as THREE.Group;
+    const group = (ctx.scene as THREE.Scene).children[0] as THREE.Group;
     expect(group).toBeDefined();
     const meshes = group.children.filter((c) => (c as THREE.Mesh).isMesh);
     expect(meshes.length).toBe(0);
