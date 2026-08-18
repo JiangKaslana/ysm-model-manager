@@ -32,6 +32,26 @@ func IsMMDSubDir(name string) bool {
 	return mmdSubdirNames[strings.ToLower(name)]
 }
 
+// IsSubDirGrouping 判断 rtype 是否支持子目录分组（ADR-096）：
+// storage 按用途子目录组织（如 mmd-skin 的 EntityPlayer/SceneModel/CustomAnim），
+// 同步保留层级、前端展示分批。消费注册表 subDirGrouping 字段，不硬编码 rtype。
+func IsSubDirGrouping(rtype string) bool {
+	if rt := RegistryType(rtype); rt != nil {
+		return rt.SubDirGrouping
+	}
+	return false
+}
+
+// IsNestedModelDir 判断 rtype 是否有嵌套模型目录结构（ADR-095）：
+// 模型入口文件在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）。
+// 消费注册表 nestedModelDir 字段，不硬编码 rtype。
+func IsNestedModelDir(rtype string) bool {
+	if rt := RegistryType(rtype); rt != nil {
+		return rt.NestedModelDir
+	}
+	return false
+}
+
 // MaxImportSize 导入文件最大体积限制（500MB）
 // MMD/VRC 模型文件可达数十 MB，但超过 500MB 的文件可能是异常数据
 const MaxImportSize = 500 * 1024 * 1024
@@ -295,18 +315,21 @@ func FindInstDir(versionDir, subDir, rtype string) string {
 		extSet[low] = true
 	}
 	// hit 判定：扩展名命中（剔除 .json）或 ysm 标志文件命中
+	// 消费注册表 detector 字段（ADR-065 合规），不硬编码 rtype。
+	rt := RegistryType(rtype)
+	isYsm := rt != nil && rt.Detector == "ysm"
 	hit := func(root string) bool {
 		if dirContainsExt(root, extSet) {
 			return true
 		}
-		return rtype == "ysm" && dirContainsFlag(root, "ysm.json")
+		return isYsm && dirContainsFlag(root, "ysm.json")
 	}
 	// 标准目录存在且包含该类型文件 → 标准优先返回（行为不变）
 	if info, err := os.Stat(standard); err == nil && info.IsDir() &&
 		hit(standard) {
 		return standard
 	}
-	if len(extSet) == 0 && rtype != "ysm" {
+	if len(extSet) == 0 && !isYsm {
 		return standard // 没有扩展名信息，返回标准路径（ysm 仍可经标志文件判定）
 	}
 	// 标准目录不存在 / 存在但无该类型文件 → 兜底扫描其他子目录

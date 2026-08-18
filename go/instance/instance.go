@@ -96,7 +96,7 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 			// （EntityPlayer/SceneModel/CustomAnim 等）填 SubDir，前端按组分批展示；
 			// 根下条目 SubDir=""（= EntityPlayer 默认）。
 			subDir := ""
-			if rt.ID == "mmd-skin" {
+			if types.IsSubDirGrouping(rt.ID) {
 				if rel, err := filepath.Rel(instDir, p); err == nil && rel != "." {
 					if seg := strings.Split(rel, string(filepath.Separator))[0]; types.IsMMDSubDir(seg) {
 						subDir = seg

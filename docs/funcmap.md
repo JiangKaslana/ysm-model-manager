@@ -28,7 +28,7 @@
 | Go·同步 | 7 | 23 |
 | Go·标签 | 1 | 8 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 5 | 68 |
+| Go·类型 | 5 | 70 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -44,7 +44,7 @@
 | frontend/views | 104 | 292 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **397** | **1659** |
+| **合计** | **397** | **1661** |
 
 ## Go·头像
 
@@ -328,7 +328,7 @@
 |------|--------|------|
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:64` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:65` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
@@ -387,44 +387,46 @@
 | `WorkshopSite()` | `go/types/config:53` | WorkshopSite 创意工坊站点配置 |
 | `WorkshopCreator()` | `go/types/config:66` | WorkshopCreator 创作者条目 Type 是平台标签，分号分隔，如 "bilibili;afdian" |
 | `IsMMDSubDir()` | `go/types/extensions:31` | IsMMDSubDir 判断目录名是否为 MC-MMD 用途子目录（大小写不敏感） |
-| `AllExts()` | `go/types/extensions:49` | AllExts 返回所有支持的扩展名（去重后） |
-| `IsSupportedExt()` | `go/types/extensions:65` | IsSupportedExt 检查扩展名是否被任何资源类型支持 |
-| `IsYsmEntryJSON()` | `go/types/extensions:81` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
-| `NormalizeResourceName()` | `go/types/extensions:88` | NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）： 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyn |
-| `IsResourceAllowed()` | `go/types/extensions:100` | IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）： 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json（ |
-| `IsTypeModelFile()` | `go/types/extensions:119` | IsTypeModelFile 判断文件名是否为指定资源类型的模型文件（ADR-064 收敛）： 扩展名命中该类型注册表扩展集（SupportedExtsForType），.jso |
-| `ShouldHashExt()` | `go/types/extensions:147` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配） 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。 |
-| `IsDirLevelSync()` | `go/types/extensions:165` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
-| `IsScanInstance()` | `go/types/extensions:178` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。 |
-| `InstallExtsFor()` | `go/types/extensions:187` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
-| `MatchZipEntry()` | `go/types/extensions:198` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
-| `ExtBelongsTo()` | `go/types/extensions:212` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
-| `SupportedExtsForType()` | `go/types/extensions:227` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
-| `FindInstDir()` | `go/types/extensions:286` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
-| `StorageSubDir()` | `go/types/extensions:335` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
-| `GroupOf()` | `go/types/extensions:344` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
-| `GroupStorageRoot()` | `go/types/extensions:356` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
-| `GroupLabel()` | `go/types/extensions:372` | GroupLabel 返回分组显示名（ADR-092 resourceGroups 元数据）；未知分组返回空串。 |
-| `SubDirMap()` | `go/types/extensions:392` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
-| `SubDirAll()` | `go/types/extensions:404` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:416` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:386` | SubDirEntry 资源类型的版本子目录信息 |
-| `ResourceType.MatchZipEntry()` | `go/types/resource:60` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
-| `SetRegistryPath()` | `go/types/resource:95` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
-| `LoadRegistry()` | `go/types/resource:106` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
-| `RegistryType()` | `go/types/resource:197` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:218` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:314` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `IsSubDirGrouping()` | `go/types/extensions:38` | IsSubDirGrouping 判断 rtype 是否支持子目录分组（ADR-096）： storage 按用途子目录组织（如 mmd-skin 的 EntityPlayer/S |
+| `IsNestedModelDir()` | `go/types/extensions:48` | IsNestedModelDir 判断 rtype 是否有嵌套模型目录结构（ADR-095）： 模型入口文件在 assets/&lt;namespace&gt;/ 下（如 maid-model |
+| `AllExts()` | `go/types/extensions:69` | AllExts 返回所有支持的扩展名（去重后） |
+| `IsSupportedExt()` | `go/types/extensions:85` | IsSupportedExt 检查扩展名是否被任何资源类型支持 |
+| `IsYsmEntryJSON()` | `go/types/extensions:101` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
+| `NormalizeResourceName()` | `go/types/extensions:108` | NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）： 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyn |
+| `IsResourceAllowed()` | `go/types/extensions:120` | IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）： 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json（ |
+| `IsTypeModelFile()` | `go/types/extensions:139` | IsTypeModelFile 判断文件名是否为指定资源类型的模型文件（ADR-064 收敛）： 扩展名命中该类型注册表扩展集（SupportedExtsForType），.jso |
+| `ShouldHashExt()` | `go/types/extensions:167` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配） 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。 |
+| `IsDirLevelSync()` | `go/types/extensions:185` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
+| `IsScanInstance()` | `go/types/extensions:198` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。 |
+| `InstallExtsFor()` | `go/types/extensions:207` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
+| `MatchZipEntry()` | `go/types/extensions:218` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
+| `ExtBelongsTo()` | `go/types/extensions:232` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
+| `SupportedExtsForType()` | `go/types/extensions:247` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
+| `FindInstDir()` | `go/types/extensions:306` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
+| `StorageSubDir()` | `go/types/extensions:358` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
+| `GroupOf()` | `go/types/extensions:367` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
+| `GroupStorageRoot()` | `go/types/extensions:379` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
+| `GroupLabel()` | `go/types/extensions:395` | GroupLabel 返回分组显示名（ADR-092 resourceGroups 元数据）；未知分组返回空串。 |
+| `SubDirMap()` | `go/types/extensions:415` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
+| `SubDirAll()` | `go/types/extensions:427` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:439` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:409` | SubDirEntry 资源类型的版本子目录信息 |
+| `ResourceType.MatchZipEntry()` | `go/types/resource:62` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
+| `SetRegistryPath()` | `go/types/resource:97` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
+| `LoadRegistry()` | `go/types/resource:108` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
+| `RegistryType()` | `go/types/resource:199` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:220` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:316` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:14` | ResourceTypeRegistry 资源类型注册表 |
 | `ResourceGroup()` | `go/types/resource:20` | ResourceGroup 资源分组元数据（ADR-092 顶层 resourceGroups 数组） |
 | `ResourceType()` | `go/types/resource:28` | ResourceType 一种受支持的资源类型定义 |
-| `ZipEntryMatch()` | `go/types/resource:51` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:212` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:303` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:321` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:338` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:344` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:352` | VoxelGroup 同一颜色的方块组 |
+| `ZipEntryMatch()` | `go/types/resource:53` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
+| `FormatRange()` | `go/types/resource:214` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:305` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:323` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:340` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:346` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:354` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:121` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:169` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:175` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
@@ -1598,7 +1600,7 @@
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:136` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:147` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
-| `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:27` | — |
+| `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:28` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:129` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |

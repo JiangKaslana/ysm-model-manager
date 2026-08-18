@@ -29,7 +29,7 @@ type ResourceType struct {
 	ID             string          `json:"id"`
 	Name           string          `json:"name"`
 	Icon           string          `json:"icon"`
-	Group          string          `json:"group"`          // 所属分组（ADR-092）：minecraft / minecraft-mod / mmd / vrm / other
+	Group          string          `json:"group"` // 所属分组（ADR-092）：minecraft / minecraft-mod / mmd / vrm / other
 	Extensions     []string        `json:"extensions"`
 	StorageSubDir  string          `json:"storageSubDir"`
 	InstallDir     string          `json:"installDir"`
@@ -45,6 +45,8 @@ type ResourceType struct {
 	ScanInstance   bool            `json:"scanInstance"`   // instance 视图额外扫描整合包目录（非模型类型兜底）
 	InstallExts    []string        `json:"installExts"`    // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
 	ZipEntries     []ZipEntryMatch `json:"zipEntries"`     // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
+	SubDirGrouping bool            `json:"subDirGrouping"` // 子目录分组（ADR-096）：storage 按用途子目录组织（如 mmd-skin 的 EntityPlayer/SceneModel），同步保留层级、展示分批
+	NestedModelDir bool            `json:"nestedModelDir"` // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
 }
 
 // ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名
