@@ -1503,6 +1503,10 @@ export const autoSidebar = [
             "link": "/knowledge/preview_core"
           },
           {
+            "text": "场景能力注册表 scene-capability-registry",
+            "link": "/knowledge/scene_capability_registry"
+          },
+          {
             "text": "数组工具 moveItem",
             "link": "/knowledge/utils-array"
           },
