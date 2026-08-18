@@ -96,23 +96,20 @@ export const navCSS: string = `
   padding-left: 7px;
 }
 .nav-item .icon { font-size: 15px; width: 20px; text-align: center; }
-/* 左下角 3D 一键跳转（替代原 viewer 页内嵌文件树）：直开全屏 3D 预览器 */
+/* 左下角 3D 一键跳转（统一为导航项样式，与 nav-item 一致） */
 .nav-viewer-fab {
   display: flex;
   align-items: center;
   gap: 8px;
   margin: 2px 8px 6px;
   padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  color: var(--accent);
+  border-radius: 5px;
   font-size: calc(var(--fs-nav) + 2px);
+  color: var(--muted);
+  cursor: pointer;
   transition: var(--tr-fast);
 }
-.nav-viewer-fab:hover { filter: brightness(1.1); }
-.nav-viewer-fab:active { filter: brightness(.95); }
+.nav-viewer-fab:hover { background: var(--hover); color: var(--txt); }
 .nav-viewer-fab .icon { font-size: 15px; width: 20px; text-align: center; }
 :host([data-collapsed]) .nav-viewer-fab { justify-content: center; padding: 8px 0; margin: 2px 6px 6px; }
 :host([data-collapsed]) .nav-viewer-fab .fab-text { display: none; }
