@@ -4,9 +4,71 @@
 //
 // 编码在后台进行（Promise），不阻塞模型加载和渲染。
 // 编码失败静默降级，不影响已有 PNG 纹理。
+//
+// P1-1 优化：并发控制（MAX_CONCURRENT=3）+ 取消机制 + 幂等调度
 
 // 使用动态 import 加载 KTX2BasisWriter（含 BasisEncoder WASM）
 import type { MmdDataPort } from "./mmd-adapter.ts";
+
+/** 最大并发编码数（WASM BasisEncoder 单实例，并发过高会争抢资源） */
+const MAX_CONCURRENT = 3;
+
+/** 并发信号量：等待队列中等待执行的任务 */
+type WaitingTask = () => void;
+let activeCount = 0;
+const waitingQueue: WaitingTask[] = [];
+let cancelled = false;
+
+/** 已完成编码的 hash 集合（幂等去重） */
+const completedHashes = new Set<string>();
+
+/** 正在进行中的编码 hash 集合（防止重复调度） */
+const inProgressHashes = new Set<string>();
+
+/** 信号量：获取执行槽位，返回释放函数 */
+function acquire(): Promise<() => void> {
+  return new Promise((resolve) => {
+    const task: WaitingTask = () => {
+      activeCount++;
+      let released = false;
+      resolve(() => {
+        if (released) return;
+        released = true;
+        activeCount--;
+        // 从等待队列取下一个任务
+        const next = waitingQueue.shift();
+        if (next) next();
+      });
+    };
+    if (activeCount < MAX_CONCURRENT && !cancelled) {
+      // 立即执行
+      task();
+    } else {
+      waitingQueue.push(task);
+    }
+  });
+}
+
+/** 取消所有待执行的编码（已在执行的不受影响） */
+export function cancelPendingEncodings(): void {
+  cancelled = true;
+  // 清空等待队列
+  waitingQueue.length = 0;
+}
+
+/** 重置取消状态（下次调度前调用） */
+function resetCancelled(): void {
+  cancelled = false;
+}
+
+/** 重置编码器状态（测试用） */
+export function resetEncoderState(): void {
+  activeCount = 0;
+  waitingQueue.length = 0;
+  cancelled = false;
+  completedHashes.clear();
+  inProgressHashes.clear();
+}
 
 /** 从 blob URL 解码图像数据为 { data, width, height } */
 async function blobUrlToImageData(blobUrl: string): Promise<{
@@ -58,6 +120,8 @@ export async function encodeAndCacheTexture(
   pngBlobUrl: string,
   port: MmdDataPort,
 ): Promise<boolean> {
+  // 获取并发槽位
+  const release = await acquire();
   try {
     // 解码 PNG → ImageData
     const imageData = await blobUrlToImageData(pngBlobUrl);
@@ -84,17 +148,14 @@ export async function encodeAndCacheTexture(
       void port.addOpLog("ktx2-encode", hash, "ok", `bytes=${ktx2Bytes.length} original=${imageData.width}x${imageData.height}`);
     }
     // 通过 Go 绑定保存缓存
-    // 注意：这里需要调用 Go 的 SaveCachedTexture 绑定
-    // 但由于 port 接口不包含 SaveCachedTexture，我们直接调用 go 绑定
-    // 实际上，port 是 MmdDataPort 接口，没有 SaveCachedTexture
-    // 我们需要通过 getApp() 来调用
-    // 这是一个临时方案，后续可以重构
     const { getApp } = await import("../../../backend/app.ts");
     const app = await getApp();
     const saveFn = (app as unknown as Record<string, (h: string, d: string) => Promise<void>>)["SaveCachedTexture"];
     if (typeof saveFn === "function") {
       await saveFn(hash, ktx2B64);
     }
+    // 标记为已完成
+    completedHashes.add(hash);
     return true;
   } catch (e) {
     // 编码失败静默降级，不影响已有纹理
@@ -102,12 +163,16 @@ export async function encodeAndCacheTexture(
       void port.addOpLog("ktx2-encode", hash, "fail", e instanceof Error ? e.message : String(e));
     }
     return false;
+  } finally {
+    release();
   }
 }
 
 /**
  * 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。
  * 在模型加载完成后调用，不阻塞渲染。
+ *
+ * P1-1 优化：并发控制 + 取消机制 + 幂等调度
  * @param hashByBlobUrl blob URL → hash 映射
  * @param port 数据端口
  */
@@ -115,14 +180,29 @@ export function scheduleBackgroundEncoding(
   hashByBlobUrl: Map<string, string>,
   port: MmdDataPort,
 ): void {
+  // 重置取消状态（新一轮调度开始）
+  resetCancelled();
+
   // 在微任务中启动编码，避免阻塞当前帧
   queueMicrotask(() => {
     for (const [blobUrl, hash] of hashByBlobUrl) {
-      // 每个纹理编码是独立的 Promise，不互相等待
+      // 幂等去重：已完成或已在队列中的 hash 跳过
+      if (completedHashes.has(hash)) continue;
+
+      // 检查是否已在进行中
+      if (inProgressHashes.has(hash)) continue;
+
+      // 加入进行中集合
+      inProgressHashes.add(hash);
+
+      // 每个纹理编码是独立的 Promise，通过 acquire 控制并发
       encodeAndCacheTexture(hash, blobUrl, port).then((ok) => {
+        inProgressHashes.delete(hash);
         if (ok) {
-          console.debug(`[ktx2] 编码完成: ${hash.slice(0, 8)}...`);
+          // 编码成功已在 encodeAndCacheTexture 中记录
         }
+      }).catch(() => {
+        inProgressHashes.delete(hash);
       });
     }
   });
