@@ -446,3 +446,60 @@ func TestResolveInstDirTarget_UnknownType(t *testing.T) {
 		t.Errorf("未知类型 = %q, 期望 %q", got, instDir)
 	}
 }
+
+func TestResolveInstDirTarget_YsmConfigTree(t *testing.T) {
+	// 候选 C：ysm 的模型真身在 config 树内（用户环境 [海岛寿司店]v1.1/config/yes_steve_model）。
+	// installDir 推导（instDir/ysm）不存在 → scanDir 存在性回溯命中 config/yes_steve_model。
+	instDir := t.TempDir()
+	ysmDir := filepath.Join(instDir, "config", "yes_steve_model")
+	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTarget(instDir, "ysm"); got != ysmDir {
+		t.Errorf("ysm config 树回溯 = %q, 期望 %q", got, ysmDir)
+	}
+}
+
+func TestResolveInstDirTarget_YsmConfigTreeCustom(t *testing.T) {
+	// 候选 C 逐级回溯：custom 存在时命中最深一层（config/yes_steve_model/custom）
+	instDir := t.TempDir()
+	custom := filepath.Join(instDir, "config", "yes_steve_model", "custom")
+	if err := os.MkdirAll(custom, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTarget(instDir, "ysm"); got != custom {
+		t.Errorf("ysm custom 命中 = %q, 期望 %q", got, custom)
+	}
+}
+
+func TestResolveInstDirTarget_SableBlueprintFallback(t *testing.T) {
+	// 候选 D：蓝图标准目录（schematics）不存在，兜底扫描命中 Sable 非标准目录——
+	// 弥合「列表显示正确（FindInstDir 兜底）但打开回退版本目录」的裂口。
+	instDir := t.TempDir()
+	sable := filepath.Join(instDir, "Sable-Schematics", "hello_new_generation_core")
+	if err := os.MkdirAll(sable, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sable, "c1.nbt"), []byte("nbt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTarget(instDir, "create-blueprint"); got != filepath.Join(instDir, "Sable-Schematics") {
+		t.Errorf("Sable 兜底 = %q, 期望 %q", got, filepath.Join(instDir, "Sable-Schematics"))
+	}
+}
+
+func TestResolveInstDirTarget_TlmStandard(t *testing.T) {
+	// 候选 A：TLM 注册表条目落地后（并行会话 ADR 链路），标准目录直接命中。
+	// 条件测试：注册表未含 tlm 条目（尚未提交）时跳过，不依赖未提交改动。
+	if types.RegistryType("tlm") == nil {
+		t.Skip("注册表暂无 tlm 条目（并行会话未提交），跳过")
+	}
+	instDir := t.TempDir()
+	tlmDir := filepath.Join(instDir, "tlm_custom_pack")
+	if err := os.MkdirAll(tlmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTarget(instDir, "tlm"); got != tlmDir {
+		t.Errorf("tlm 标准命中 = %q, 期望 %q", got, tlmDir)
+	}
+}

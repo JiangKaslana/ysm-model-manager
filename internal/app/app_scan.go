@@ -399,26 +399,35 @@ func (a *App) OpenFolder(dir string) error {
 
 // OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录
 //
-// 方案 A（ADR-095）：不再用 SubDirMap/FindInstDir 探测模组扫描目录。
+// 方案 A（ADR-095）：不再用 SubDirMap/FindInstDir 作为唯一探测手段。
 // 原实现取 scanDir（如 config/yes_steve_model/custom）拼 instDir——scanDir 是
 // 「模组从哪加载文件」，且 FindInstDir 的包含性判定含 .json（ysm 类型扩展名），
 // config 目录下成堆模组配置文件会误命中 → 右键打开的是 config 而非资源包目录。
-// 改为按 installDir（资源存储目录模板）推导，候选路径存在才打开：
-//  1. 候选 A：instDir 直接拼 installDir 掐掉 "versions/{instance}/" 前缀后的段
-//     （instDir 已是版本目录/整合包根时，ysm = instDir/ysm）
-//  2. 候选 B：instDir 上两级（vanilla 布局的 mcRoot）+ 完整 installDir
-//     （resourcepack 等 installDir 相对 mcRoot 全局目录：mcRoot/resourcepacks）
+// 改为「installDir 标准推导 → scanDir 存在性回溯 → FindInstDir 兜底」三级：
+//  1. 候选 A/B：installDir（资源存储目录模板）推导——resourcepacks/shaderpacks/
+//     3d-skin/tlm 等标准目录直接命中，config 零参与；
+//  2. 候选 C：scanDir 存在性回溯（逐级上溯找存在的目录）——ysm 的模型真身在
+//     config 树内（config/yes_steve_model[/custom]），standard 不存在时逐级上溯；
+//  3. 候选 D：FindInstDir 兜底扫描——接住 Sable-Schematics/hello_new_generation_core
+//     等非标准目录（与计数/列表链路同款逻辑，弥合「显示对但打开错」的裂口）。
+//
+// 全部落空回退 instDir。
 func (a *App) OpenInstanceFolder(instDir, rtype string) error {
 	return a.OpenFolder(resolveInstDirTarget(instDir, rtype))
 }
 
 // resolveInstDirTarget 推导整合包内资源存储目录（ADR-095，纯函数可测）：
-//  1. 有 InstallDir 配置时按 installDir 模板推导，候选 A/B 取第一个存在的目录；
-//  2. 无 InstallDir 配置（未知类型）返回 instDir 原样（保持原行为）。
+// 候选顺序：installDir 标准推导（A/B）→ scanDir 存在性回溯（C）→
+// FindInstDir 兜底扫描（D）→ 回退 instDir。未知类型（无注册表配置）返回 instDir。
 func resolveInstDirTarget(instDir, rtype string) string {
-	target := instDir
-	if rt := types.RegistryType(rtype); rt != nil && rt.InstallDir != "" {
-		instName := filepath.Base(instDir)
+	rt := types.RegistryType(rtype)
+	if rt == nil {
+		return instDir
+	}
+	instName := filepath.Base(instDir)
+
+	// 候选 A/B：installDir 标准推导
+	if rt.InstallDir != "" {
 		rel := strings.ReplaceAll(rt.InstallDir, "{instance}", instName)
 		// 掐掉 "versions/{instance}/" 前缀段：instDir 已含版本目录层级，直接拼剩余段
 		trimmed := strings.TrimPrefix(rel, "versions/"+instName+"/")
@@ -430,12 +439,35 @@ func resolveInstDirTarget(instDir, rtype string) string {
 			filepath.Join(mcRoot, rel),
 		} {
 			if info, err := os.Stat(c); err == nil && info.IsDir() {
-				target = c
-				break
+				return c
 			}
 		}
 	}
-	return target
+
+	// 候选 C：scanDir 存在性回溯（逐级上溯，覆盖 ysm 的 config 树：
+	// custom 不存在时上溯到 config/yes_steve_model，再上溯到 config）
+	if rt.ScanDir != "" {
+		for d := rt.ScanDir; d != "." && d != string(filepath.Separator) && filepath.Dir(d) != d; d = filepath.Dir(d) {
+			if c := filepath.Join(instDir, d); isDir(c) {
+				return c
+			}
+		}
+	}
+
+	// 候选 D：FindInstDir 兜底扫描（非标准目录：Sable-Schematics 等；
+	// scanDir 为空时无扫描基准，直接回退 instDir）
+	if rt.ScanDir != "" {
+		if c := types.FindInstDir(instDir, rt.ScanDir, rtype); c != instDir && isDir(c) {
+			return c
+		}
+	}
+	return instDir
+}
+
+// isDir 路径存在且为目录
+func isDir(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && info.IsDir()
 }
 
 // progressReader 包装 io.Reader，下载时通过回调推送进度（保留：下载进度计算）

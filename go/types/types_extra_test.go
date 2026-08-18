@@ -320,3 +320,60 @@ func TestFindInstDir_UnknownType(t *testing.T) {
 		t.Fatalf("未知类型应返回标准路径: %s", got)
 	}
 }
+
+// ====== FindInstDir .json 弱证据收紧（ADR-095）======
+
+// TestFindInstDir_YsmJsonOnlyNotHit ysm 的 .json 不作独立命中证据：
+// standard（config/yes_steve_model/custom）下只有非 ysm.json 的配置文件 → 不命中，
+// 兜底扫描命中真正含 .ysm 的目录（config 树不再因配置文件被误判为模型目录）。
+func TestFindInstDir_YsmJsonOnlyNotHit(t *testing.T) {
+	versionDir := t.TempDir()
+	// standard 目录存在但只有配置文件（无 ysm.json / .ysm）
+	custom := filepath.Join(versionDir, "config", "yes_steve_model", "custom")
+	if err := os.MkdirAll(custom, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(custom, "settings.json"), []byte("{}"), 0o644)
+	// 真正的模型目录：含 .ysm 主文件
+	modelDir := filepath.Join(versionDir, "modelpacks")
+	if err := os.MkdirAll(modelDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(modelDir, "hero.ysm"), []byte("ysm"), 0o644)
+	got := FindInstDir(versionDir, "config/yes_steve_model/custom", "ysm")
+	if got != modelDir {
+		t.Fatalf("json-only 不应命中，应兜底到含 .ysm 的目录: %s vs %s", got, modelDir)
+	}
+}
+
+// TestFindInstDir_YsmJsonFlagHit ysm.json 标志文件可独立命中（解压型模型目录
+// 无 .ysm 主文件，靠 ysm.json + models/ 识别）。
+func TestFindInstDir_YsmJsonFlagHit(t *testing.T) {
+	versionDir := t.TempDir()
+	custom := filepath.Join(versionDir, "config", "yes_steve_model", "custom")
+	if err := os.MkdirAll(filepath.Join(custom, "models"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(custom, "ysm.json"), []byte("{}"), 0o644)
+	got := FindInstDir(versionDir, "config/yes_steve_model/custom", "ysm")
+	if got != custom {
+		t.Fatalf("ysm.json 标志应命中 standard: %s vs %s", got, custom)
+	}
+}
+
+// TestFindInstDir_YsmConfigRootJsonOnly config 树根目录只含普通 .json 配置
+// （无 ysm.json / .ysm）时，兜底扫描不得把 config 根当作命中目录。
+func TestFindInstDir_YsmConfigRootJsonOnly(t *testing.T) {
+	versionDir := t.TempDir()
+	// config/yes_steve_model 下只有选项配置文件，standard（custom）不存在
+	ysmCfg := filepath.Join(versionDir, "config", "yes_steve_model")
+	if err := os.MkdirAll(ysmCfg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(ysmCfg, "options.json"), []byte("{}"), 0o644)
+	standard := filepath.Join(versionDir, "config", "yes_steve_model", "custom")
+	got := FindInstDir(versionDir, "config/yes_steve_model/custom", "ysm")
+	if got != standard {
+		t.Fatalf("json 弱证据不应命中 config 树，应返回 standard: %s vs %s", got, standard)
+	}
+}
