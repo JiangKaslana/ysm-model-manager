@@ -62,14 +62,28 @@ function countLines(paths) {
   return total;
 }
 
+// 生成文件豁免名单（文件头含「自动生成」标记或位于 .gen.* 路径）。
+// 这些文件是脚本产物（JSON 数据 / 绑定代码），非手写逻辑，不计入大文件预警。
+const GENERATED_FILE_RE = /\.gen\.(mjs|js|ts|go)$/;
+const GENERATED_MARKER_RE = /\/\/\s*=====\s*自动生成|\/\*\s*自动生成|<!--\s*自动生成/;
+
+function isGeneratedFile(f) {
+  if (GENERATED_FILE_RE.test(f)) return true;
+  try {
+    const head = fs.readFileSync(f, 'utf-8').slice(0, 200);
+    return GENERATED_MARKER_RE.test(head);
+  } catch { return false; }
+}
+
 function oversizedFiles(paths, threshold = 700) {
-  /** 找出超过 threshold 行的文件。 */
+  /** 找出超过 threshold 行的文件（生成文件豁免）。 */
   const result = [];
   for (const p of paths) {
     for (const f of p) {
       const name = path.basename(f);
       const parts = f.split(path.sep);
       if (name.endsWith('.min.js') || parts.includes('node_modules')) continue;
+      if (isGeneratedFile(f)) continue; // 生成文件豁免（sidebar.gen.mjs 等 JSON 数据）
       try {
         const lines = pyLineCount(fs.readFileSync(f, 'utf-8'));
         if (lines > threshold) result.push([lines, f, lines > 1000]);
