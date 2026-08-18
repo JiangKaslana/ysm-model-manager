@@ -407,7 +407,7 @@ export class LightCapability {
     if (!this.fillLight.parent) this.scene.add(this.fillLight);
     if (!this.rimLight.parent) this.scene.add(this.rimLight);
     if (!this.ambientLight.parent) this.scene.add(this.ambientLight);
-    if (!this.spotlightTarget.parent) this.scene.add(this.spotlightTarget);
+    if (this.spotlightTarget && !this.spotlightTarget.parent) this.scene.add(this.spotlightTarget);
     if (!this.spotlight.parent) this.scene.add(this.spotlight);
     if (this.params.volumetric.enabled && this.params.spotlight.enabled && this.coneGroup) {
       if (!this.coneGroup.parent) this.scene.add(this.coneGroup);
@@ -552,9 +552,11 @@ export class LightCapability {
   }
 
   private detach(): void {
-    [this.keyLight, this.fillLight, this.rimLight, this.ambientLight, this.spotlight, this.spotlightTarget].forEach((o) => {
-      if (o.parent) o.parent.remove(o);
-    });
+    [this.keyLight, this.fillLight, this.rimLight, this.ambientLight, this.spotlight, this.spotlightTarget]
+      .filter((o): o is THREE.Object3D => o !== null)
+      .forEach((o) => {
+        if (o.parent) o.parent.remove(o);
+      });
     if (this.coneGroup?.parent) this.coneGroup.parent.remove(this.coneGroup);
   }
 

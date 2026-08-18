@@ -709,6 +709,10 @@ export const autoSidebar = [
         "link": "/audit-r4-mmd-subdir-sync-2026-08-18"
       },
       {
+        "text": "R5 审核报告：前端数据层与服务（backend/core/services）",
+        "link": "/audit-r5-frontend-data-layer-2026-08-18"
+      },
+      {
         "text": "下载层加固调研报告",
         "link": "/download-hardening-research-2026-08-17"
       },
