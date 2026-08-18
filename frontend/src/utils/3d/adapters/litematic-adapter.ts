@@ -32,7 +32,22 @@ export async function buildLitematicScene(
     '<div style="font-size:32px">🧊</div><div>' + t("preview.loadingVoxels") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
 
   const jsonStr = await voxelCall(path);
-  const data = JSON.parse(jsonStr) as VoxelData;
+  const data = JSON.parse(jsonStr) as VoxelData & { error?: string };
+
+  // 失败契约（对齐 Go marshalVoxelData / web readVoxelJson）：{"error": string} 表示
+  // 解析失败（格式不支持/文件损坏），与「真空数据」区分——后者走下方 voxelEmpty。
+  // 错误信息含外部路径/异常文本，用 textContent 插入防注入。
+  if (data.error) {
+    ctx.loadingEl.innerHTML = "";
+    const icon = document.createElement("div");
+    icon.style.cssText = "font-size:32px";
+    icon.textContent = "⚠️";
+    const msg = document.createElement("div");
+    msg.textContent = data.error;
+    msg.style.cssText = "max-width:420px;word-break:break-all;text-align:center;opacity:0.85";
+    ctx.loadingEl.append(icon, msg);
+    return { dispose() {} };
+  }
 
   if (!data || !data.groups || !data.groups.length) {
     ctx.loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.voxelEmpty")}</div>`;

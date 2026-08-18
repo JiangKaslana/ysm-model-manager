@@ -374,6 +374,54 @@ describe("nbtVoxelView — .nbt structure（BuildNbtVoxelData 平移）", () => 
   it("maxBlocks=0 → truncated（对齐 TestBuildNbtVoxelData_MaxBlocksTruncate）", () => {
     expect(nbtVoxelView(parse(makeNbtStructureRoot(1)), 0)!.truncated).toBe(true);
   });
+
+  it("基岩版 sub_levels 聚合：包围盒 + 坐标平移 + air/越界过滤（对齐 TestBuildNbtVoxelData_BedrockSubLevels）", () => {
+    // sub0: bounds (0,0,0)-(1,0,0)；sub1: bounds (2,0,0)-(3,0,0) → 聚合 size [4,1,1]
+    const palette = nbtList("block_palette", 0x0a,
+      nbtCompoundBody(nbtString("Name", "minecraft:air")),
+      nbtCompoundBody(nbtString("Name", "minecraft:stone")),
+      nbtCompoundBody(nbtString("Name", "minecraft:red_concrete")),
+    );
+    const block = (x: number, y: number, z: number, pid: number): number[] =>
+      nbtCompoundBody(
+        nbtCompound("local_pos", nbtInt("x", x), nbtInt("y", y), nbtInt("z", z)),
+        nbtInt("palette_id", pid),
+      );
+    const sub0 = nbtCompoundBody(
+      nbtCompound("local_bounds",
+        nbtInt("min_x", 0), nbtInt("min_y", 0), nbtInt("min_z", 0),
+        nbtInt("max_x", 1), nbtInt("max_y", 0), nbtInt("max_z", 0)),
+      palette,
+      nbtList("blocks", 0x0a,
+        block(0, 0, 0, 1), // stone → 全局 (0,0,0)
+        block(0, 0, 1, 0), // air → 跳过
+        block(1, 0, 0, 2), // red_concrete → 全局 (1,0,0)
+      ),
+    );
+    const sub1 = nbtCompoundBody(
+      nbtCompound("local_bounds",
+        nbtInt("min_x", 2), nbtInt("min_y", 0), nbtInt("min_z", 0),
+        nbtInt("max_x", 3), nbtInt("max_y", 0), nbtInt("max_z", 0)),
+      palette,
+      nbtList("blocks", 0x0a,
+        block(0, 0, 0, 1), // origin_x=2 → 全局 (2,0,0)
+        block(1, 0, 0, 9), // palette_id 越界 → 跳过
+      ),
+    );
+    const root = parse(nbtRoot(nbtInt("version", 1), nbtList("sub_levels", 0x0a, sub0, sub1)));
+    const data = nbtVoxelView(root, 100);
+    expect(data!.size).toEqual([4, 1, 1]);
+    const byColor: Record<string, number[][]> = {};
+    for (const g of data!.groups!) byColor[g.color] = g.positions;
+    expect(byColor[STONE_COLOR]).toEqual([[0, 0, 0], [2, 0, 0]]);
+    expect(byColor["#932922"]).toEqual([[1, 0, 0]]); // red_concrete
+    expect(data!.groups).toHaveLength(2);
+  });
+
+  it("基岩版 sub_levels 无有效包围盒 → null（对齐 TestBuildNbtVoxelData_BedrockNoBounds）", () => {
+    const root = parse(nbtRoot(nbtList("sub_levels", 0x0a, nbtCompoundBody(nbtInt("id", 0)))));
+    expect(nbtVoxelView(root, 100)).toBeNull();
+  });
 });
 
 // ===== schematicVoxelView（对齐 BuildSchematicVoxelData）=====
@@ -528,23 +576,30 @@ describe("Get*VoxelData — web 实现端到端（ADR-070 M2）", () => {
     expect(sch.truncated).toBe(false);
   });
 
-  it("失败路径：文件不存在 / 非 gzip / 缺 palette 结构 → '{}'（对齐 marshalVoxelData error → '{}'）", async () => {
+  it("失败路径：文件不存在 / 非 gzip / 缺 palette 结构 → {error}（对齐 marshalVoxelData → voxelErrorJSON）", async () => {
+    const errOf = async (p: Promise<string>): Promise<string> => {
+      const raw = await p;
+      const data = JSON.parse(raw) as { error?: string };
+      expect(data.error, `应返回 {error}，got ${raw}`).toBeTruthy();
+      return data.error!;
+    };
     // 文件不存在
-    expect(await browserAdapter.GetLitematicVoxelData("/web/litematic/无/无.litematic")).toBe("{}");
-    expect(await browserAdapter.GetNbtVoxelData("/web/create-blueprint/无/无.nbt")).toBe("{}");
-    expect(await browserAdapter.GetSchematicVoxelData("/web/create-blueprint/无/无.schematic")).toBe("{}");
-    // 非 gzip / 非 NBT
+    await errOf(browserAdapter.GetLitematicVoxelData("/web/litematic/无/无.litematic"));
+    await errOf(browserAdapter.GetNbtVoxelData("/web/create-blueprint/无/无.nbt"));
+    await errOf(browserAdapter.GetSchematicVoxelData("/web/create-blueprint/无/无.schematic"));
+    // 非 gzip / 非 NBT → 具体解析错误（未知标签/截断）
     const bad = await importAs("litematic", "坏.litematic", new TextEncoder().encode("not nbt"));
-    expect(await browserAdapter.GetLitematicVoxelData(bad)).toBe("{}");
+    const badErr = await errOf(browserAdapter.GetLitematicVoxelData(bad));
+    expect(badErr.length).toBeGreaterThan(0);
     // .nbt 缺 size/blocks/palette
     const emptyNbt = await importAs("create-blueprint", "空.nbt", gz(nbtRoot(nbtInt("DataVersion", 2566))));
-    expect(await browserAdapter.GetNbtVoxelData(emptyNbt)).toBe("{}");
+    await errOf(browserAdapter.GetNbtVoxelData(emptyNbt));
     // .schematic 缺 Width/Height/Length
     const emptySch = await importAs("create-blueprint", "空.schematic", gz(nbtRoot(nbtInt("Version", 1))));
-    expect(await browserAdapter.GetSchematicVoxelData(emptySch)).toBe("{}");
+    await errOf(browserAdapter.GetSchematicVoxelData(emptySch));
   });
 
-  it("全部 region 数据损坏的 .litematic → '{}'（对齐 BuildVoxelData 显式报错）", async () => {
+  it("全部 region 数据损坏的 .litematic → {error}（对齐 BuildVoxelData 显式报错）", async () => {
     const palette = nbtList("BlockStatePalette", 0x0a,
       nbtCompoundBody(nbtString("Name", "minecraft:air")),
       nbtCompoundBody(nbtString("Name", "minecraft:stone")),
@@ -560,7 +615,10 @@ describe("Get*VoxelData — web 实现端到端（ADR-070 M2）", () => {
       nbtCompound("Regions", region),
     ));
     const path = await importAs("litematic", "坏.litematic", root);
-    expect(await browserAdapter.GetLitematicVoxelData(path)).toBe("{}");
+    const raw = await browserAdapter.GetLitematicVoxelData(path);
+    const data = JSON.parse(raw) as { error?: string };
+    // view 返回 null（region 全损坏）→ readVoxelJson 给通用错误；精确原因由桌面 Go 路径给出
+    expect(data.error).toBeTruthy();
   });
 });
 

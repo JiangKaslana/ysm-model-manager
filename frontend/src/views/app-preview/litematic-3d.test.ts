@@ -83,6 +83,19 @@ vi.mock("three", () => {
     x: number;
     y: number;
     z: number;
+    // mount-preview-core animate 循环复用实例：set/copy 必须写回字段（否则按键移动断言失真）
+    set = vi.fn(function (this: Vector3, x: number, y: number, z: number) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+      return this;
+    });
+    copy = vi.fn(function (this: Vector3, v: { x: number; y: number; z: number }) {
+      this.x = v.x;
+      this.y = v.y;
+      this.z = v.z;
+      return this;
+    });
     normalize = vi.fn(function (this: Vector3) {
       return this;
     });
@@ -150,6 +163,12 @@ vi.mock("three", () => {
   class Vector2 {
     constructor(..._a: unknown[]) {}
   }
+  // ADR-093 T5 统一拾取器（mount-preview-core.ts:382）：仅 setFromCamera + intersectObjects
+  class Raycaster {
+    setFromCamera = vi.fn();
+    intersectObjects = vi.fn(() => []);
+    constructor(..._a: unknown[]) {}
+  }
   class WebGLRenderTarget {
     constructor(..._a: unknown[]) {}
   }
@@ -185,6 +204,7 @@ vi.mock("three", () => {
     SpotLight,
     Texture,
     Vector2,
+    Raycaster,
     WebGLRenderTarget,
     PMREMGenerator,
     ACESFilmicToneMapping,
@@ -359,6 +379,17 @@ describe("体素数据处理", () => {
     await createLitematic3D("/empty.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
     expect(overlay.textContent).toContain("体素数据为空"); // test-setup t() 返回 zhCN
+    unmountOverlay(overlay);
+  });
+
+  it("{error} 契约 → 显示具体错误而非 voxelEmpty（对齐 Go voxelErrorJSON）", async () => {
+    vi.mocked(getApp).mockResolvedValue({
+      GetNbtVoxelData: voxelFn(JSON.stringify({ error: "BuildNbtVoxelData: not a structure NBT file" })),
+    } as never);
+    await createLitematic3D("/err.nbt", "GetNbtVoxelData");
+    const overlay = lastOverlay();
+    expect(overlay.textContent).toContain("not a structure NBT file");
+    expect(overlay.textContent).not.toContain("体素数据为空");
     unmountOverlay(overlay);
   });
 

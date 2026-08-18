@@ -392,6 +392,11 @@ export function litematicVoxelView(root: Record<string, unknown>, maxBlocks: num
  * 空气判定按 palette 条目实际颜色（MapColor 对 air 系返回 ""），非 `state == 0`。
  */
 export function nbtVoxelView(root: Record<string, unknown>, maxBlocks: number): VoxelData | null {
+  // 基岩版 1.21+ structure 新格式：根含 sub_levels 时走聚合分支
+  // （对齐 nbt-parse.ts:325 的判定 + Go voxel.go buildBedrockVoxelData 口径）
+  const subLevels = asArray(root["sub_levels"]);
+  if (subLevels) return bedrockVoxelView(subLevels, maxBlocks);
+
   const sizeList = asArray(root["size"]);
   const blocksList = asArray(root["blocks"]);
   const paletteList = asArray(root["palette"]);
@@ -441,6 +446,106 @@ export function nbtVoxelView(root: Record<string, unknown>, maxBlocks: number): 
 
   const { colorGroups, truncated } = groupVoxelStream(next, maxBlocks);
   return finalizeVoxelData([sx, sy, sz], colorGroups, truncated, maxBlocks);
+}
+
+// ===== 基岩版 1.21+ structure：sub_levels 聚合（对齐 Go buildBedrockVoxelData）=====
+
+/**
+ * 对齐 voxel.go buildBedrockVoxelData：基岩版 1.21+ structure 体素视图。
+ * 每个 sub_level：local_bounds（min/max 聚合全局包围盒）+ blocks（local_pos + palette_id）
+ * + block_palette（Name → mapColor）。全局坐标 = local_bounds.min + local_pos − 聚合 min
+ * （平移归零，与 Java 版 size/blocks.pos 相对原点语义一致）。
+ * 空气判定按 palette 颜色为空（mapColor 对 air 系返回 ""），非 `palette_id == 0`。
+ * 无任何有效 sub_level（缺 local_bounds/blocks）→ null（→ "{}"）。
+ */
+export function bedrockVoxelView(subLevels: unknown[], maxBlocks: number): VoxelData | null {
+  interface SubInfo {
+    originX: number;
+    originY: number;
+    originZ: number;
+    palette: string[];
+    blocks: unknown[];
+  }
+  let gMinX = 0, gMinY = 0, gMinZ = 0, gMaxX = 0, gMaxY = 0, gMaxZ = 0;
+  let hasBounds = false;
+  const infos: SubInfo[] = [];
+
+  for (const sl of subLevels) {
+    if (!isObj(sl)) continue;
+    const lb = getCompound(sl, "local_bounds");
+    const blocks = asArray(sl["blocks"]);
+    if (!lb || !blocks) continue;
+    const minX = asNumber(lb["min_x"]) ?? 0;
+    const minY = asNumber(lb["min_y"]) ?? 0;
+    const minZ = asNumber(lb["min_z"]) ?? 0;
+    const maxX = asNumber(lb["max_x"]) ?? 0;
+    const maxY = asNumber(lb["max_y"]) ?? 0;
+    const maxZ = asNumber(lb["max_z"]) ?? 0;
+    if (!hasBounds) {
+      gMinX = minX; gMinY = minY; gMinZ = minZ;
+      gMaxX = maxX; gMaxY = maxY; gMaxZ = maxZ;
+      hasBounds = true;
+    } else {
+      if (minX < gMinX) gMinX = minX;
+      if (minY < gMinY) gMinY = minY;
+      if (minZ < gMinZ) gMinZ = minZ;
+      if (maxX > gMaxX) gMaxX = maxX;
+      if (maxY > gMaxY) gMaxY = maxY;
+      if (maxZ > gMaxZ) gMaxZ = maxZ;
+    }
+    // block_palette：Name → mapColor（缺失 Name / 非 compound 元素兜底灰）
+    const paletteList = asArray(sl["block_palette"]) ?? [];
+    const palette: string[] = new Array(paletteList.length);
+    for (let i = 0; i < paletteList.length; i++) {
+      const elem = paletteList[i];
+      if (isObj(elem)) {
+        const name = elem["Name"];
+        palette[i] = typeof name === "string" ? mapColor(name) : "#7F7F7F";
+      } else {
+        palette[i] = "#7F7F7F";
+      }
+    }
+    infos.push({ originX: minX, originY: minY, originZ: minZ, palette, blocks });
+  }
+  if (!hasBounds) return null;
+
+  const size = [gMaxX - gMinX + 1, gMaxY - gMinY + 1, gMaxZ - gMinZ + 1];
+
+  let si = 0;
+  let bi = 0;
+  const next = (): VoxelBlock | null => {
+    for (; si < infos.length; ) {
+      const info = infos[si];
+      for (; bi < info.blocks.length; ) {
+        const elem: unknown = info.blocks[bi];
+        bi++;
+        if (!isObj(elem)) continue;
+        const pid = asNumber(elem["palette_id"]);
+        // 空气判定按 palette 条目实际颜色（mapColor 对 air 系返回 ""），非 `pid == 0`
+        if (pid === undefined || pid < 0 || pid >= info.palette.length || info.palette[pid] === "") continue;
+        const lp = getCompound(elem, "local_pos");
+        if (!lp) continue;
+        const lx = asNumber(lp["x"]);
+        const ly = asNumber(lp["y"]);
+        const lz = asNumber(lp["z"]);
+        if (lx === undefined || ly === undefined || lz === undefined) continue;
+        // 全局坐标 = local_bounds.min + local_pos − 聚合 min（平移归零）；int16 守卫与 Java 分支一致
+        const gx = info.originX + lx - gMinX;
+        const gy = info.originY + ly - gMinY;
+        const gz = info.originZ + lz - gMinZ;
+        if (gx < INT16_MIN || gx > INT16_MAX || gy < INT16_MIN || gy > INT16_MAX || gz < INT16_MIN || gz > INT16_MAX) {
+          continue;
+        }
+        return { color: info.palette[pid], x: gx, y: gy, z: gz };
+      }
+      si++;
+      bi = 0;
+    }
+    return null;
+  };
+
+  const { colorGroups, truncated } = groupVoxelStream(next, maxBlocks);
+  return finalizeVoxelData(size, colorGroups, truncated, maxBlocks);
 }
 
 // ===== .schematic：v1 Blocks/Data / v2 BlockData varint + Palette（对齐 BuildSchematicVoxelData）=====

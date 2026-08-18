@@ -288,6 +288,11 @@ func BuildNbtVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, e
 	if err != nil {
 		return nil, err
 	}
+	// 基岩版 1.21+ structure 新格式：根含 sub_levels 时走聚合分支
+	// （对齐 ParseNbtStructure:274 的判定；Java 版 structure 无此字段，直接走下方原逻辑）
+	if subLevels := getList(root, "sub_levels"); subLevels != nil {
+		return buildBedrockVoxelData(subLevels, maxBlocks)
+	}
 
 	sizeList := getList(root, "size")
 	blocksList := getList(root, "blocks")
@@ -379,6 +384,141 @@ func BuildNbtVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, e
 	}
 	colorGroups, truncated := groupVoxelStream(next, maxBlocks)
 	return finalizeVoxelData([3]int{sx, sy, sz}, colorGroups, truncated, maxBlocks), nil
+}
+
+// buildBedrockVoxelData 基岩版 1.21+ structure 体素聚合。
+// 格式（对齐 parseBedrockStructure:329 的字段口径）：
+//   sub_levels[]: {
+//     local_bounds: {min_x,min_y,min_z,max_x,max_y,max_z},   // 子结构包围盒（相对结构原点）
+//     blocks: [{ local_pos: {x,y,z}, palette_id: int }],     // local_pos 相对 local_bounds.min
+//     block_palette: [{ Name: string, Properties: {...} }],  // palette_id 引用索引
+//     entities / block_entities
+//   }
+// 全局坐标 = local_bounds.min + local_pos，再整体平移使聚合 min 归零
+// （与 Java 版 structure 的 size/blocks.pos「相对结构原点」语义一致，
+//   实测样本 local_bounds.min 恒为 0，公式退化即 local_pos 本身）。
+// 空气判定按 palette 颜色为空（MapColor 对 air 系返回 ""），与 Java 分支口径一致。
+func buildBedrockVoxelData(subLevels []any, maxBlocks int) (*types.LitematicVoxelData, error) {
+	// 第一遍：聚合全局包围盒 + 各 sub_level 遍历信息（origin=local_bounds.min）
+	var gMinX, gMinY, gMinZ, gMaxX, gMaxY, gMaxZ int
+	hasBounds := false
+	type subInfo struct {
+		originX, originY, originZ int
+		palette                   []string
+		blocks                    []any
+	}
+	infos := make([]subInfo, 0, len(subLevels))
+	for _, sl := range subLevels {
+		sub, ok := sl.(map[string]any)
+		if !ok {
+			continue
+		}
+		lb := getCompound(sub, "local_bounds")
+		blocks := getList(sub, "blocks")
+		if lb == nil || blocks == nil {
+			continue
+		}
+		minX, _ := getInt(lb, "min_x")
+		minY, _ := getInt(lb, "min_y")
+		minZ, _ := getInt(lb, "min_z")
+		maxX, _ := getInt(lb, "max_x")
+		maxY, _ := getInt(lb, "max_y")
+		maxZ, _ := getInt(lb, "max_z")
+		if !hasBounds {
+			gMinX, gMinY, gMinZ = minX, minY, minZ
+			gMaxX, gMaxY, gMaxZ = maxX, maxY, maxZ
+			hasBounds = true
+		} else {
+			if minX < gMinX {
+				gMinX = minX
+			}
+			if minY < gMinY {
+				gMinY = minY
+			}
+			if minZ < gMinZ {
+				gMinZ = minZ
+			}
+			if maxX > gMaxX {
+				gMaxX = maxX
+			}
+			if maxY > gMaxY {
+				gMaxY = maxY
+			}
+			if maxZ > gMaxZ {
+				gMaxZ = maxZ
+			}
+		}
+		// block_palette：Name → MapColor（缺失 Name / 非 compound 元素兜底灰）
+		paletteList := getList(sub, "block_palette")
+		palette := make([]string, 0, len(paletteList))
+		for _, elem := range paletteList {
+			if em, ok := elem.(map[string]any); ok {
+				if name, ok := getString(em, "Name"); ok {
+					palette = append(palette, MapColor(name))
+				} else {
+					palette = append(palette, "#7F7F7F")
+				}
+			} else {
+				palette = append(palette, "#7F7F7F")
+			}
+		}
+		infos = append(infos, subInfo{originX: minX, originY: minY, originZ: minZ, palette: palette, blocks: blocks})
+	}
+	if !hasBounds {
+		return nil, fmt.Errorf("not a structure NBT file（sub_levels 无有效包围盒）")
+	}
+	size := [3]int{gMaxX - gMinX + 1, gMaxY - gMinY + 1, gMaxZ - gMinZ + 1}
+
+	// 方块生成器：跨 sub_level 顺序推进，跳过 air/invalid（状态由闭包捕获）
+	si, bi := 0, 0
+	next := func() (voxelBlock, bool) {
+		for si < len(infos) {
+			info := infos[si]
+			for bi < len(info.blocks) {
+				elem := info.blocks[bi]
+				bi++
+				bm, ok := elem.(map[string]any)
+				if !ok {
+					continue
+				}
+				pid, ok := getInt(bm, "palette_id")
+				// 空气判定按 palette 条目实际颜色（MapColor 对 air 系返回 ""），
+				// 而非 `pid == 0`——基岩版 block_palette 索引 0 不保证是 air
+				if !ok || pid < 0 || pid >= len(info.palette) || info.palette[pid] == "" {
+					continue // air or invalid
+				}
+				lp := getCompound(bm, "local_pos")
+				if lp == nil {
+					continue
+				}
+				lx, okx := getInt(lp, "x")
+				ly, oky := getInt(lp, "y")
+				lz, okz := getInt(lp, "z")
+				if !okx || !oky || !okz {
+					continue
+				}
+				// 全局坐标 = local_bounds.min + local_pos - 聚合 min（平移归零）；
+				// int16 守卫与 Java 分支口径一致（越界丢弃）
+				gx := info.originX + lx - gMinX
+				gy := info.originY + ly - gMinY
+				gz := info.originZ + lz - gMinZ
+				if gx < -32768 || gx > 32767 || gy < -32768 || gy > 32767 || gz < -32768 || gz > 32767 {
+					continue
+				}
+				return voxelBlock{
+					Color: info.palette[pid],
+					X:     int16(gx),
+					Y:     int16(gy),
+					Z:     int16(gz),
+				}, true
+			}
+			si++
+			bi = 0
+		}
+		return voxelBlock{}, false
+	}
+	colorGroups, truncated := groupVoxelStream(next, maxBlocks)
+	return finalizeVoxelData(size, colorGroups, truncated, maxBlocks), nil
 }
 
 func BuildSchematicVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, error) {

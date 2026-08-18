@@ -329,15 +329,26 @@ async function readVoxelJson(
 ): Promise<string> {
   try {
     const b64 = await readWebFile(path);
-    if (!b64) return "{}";
+    if (!b64) return voxelErrorJson("文件读取失败或不存在");
     const bytes = base64ToBytes(b64);
-    if (!bytes) return "{}";
+    if (!bytes) return voxelErrorJson("文件解码失败");
     const root = parseNbtRootExact(bytes);
     const data = view(root, VOXEL_MAX_BLOCKS);
-    if (!data) return "{}";
+    if (!data) return voxelErrorJson("无法解析为有效的体素结构（格式不支持或字段缺失）");
     return JSON.stringify(data);
+  } catch (err) {
+    // 对齐 Go marshalVoxelData 的 {error} 契约：失败带具体原因，
+    // 前端可区分「解析失败」与「空数据」，不再吞成 "{}"
+    return voxelErrorJson(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/** 体素失败契约 JSON：{"error": string}（对齐 Go internal/app voxelErrorJSON） */
+function voxelErrorJson(msg: string): string {
+  try {
+    return JSON.stringify({ error: msg });
   } catch {
-    return "{}";
+    return '{"error":"json stringify failed"}';
   }
 }
 

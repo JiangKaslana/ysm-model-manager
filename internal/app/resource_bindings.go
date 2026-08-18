@@ -62,12 +62,25 @@ func (a *App) ReadShaderpackLang(path string) string {
 
 // ===== Litematica 蓝图/投影绑定 =====
 
+// voxelErrorJSON 体素构建失败的错误 JSON。
+// 契约（对齐 dedup FindDuplicateFiles 的 {error} 模式）：成功 → LitematicVoxelData JSON；
+// 失败 → {"error": string}。前端 litematic-adapter 按 error 字段区分「解析失败」与
+// 「空数据」——不再把失败吞成 "{}"（原契约下用户永远只看到"体素数据为空"，
+// 无法分辨是文件格式不支持还是真的没有方块，排查需翻日志）。
+func voxelErrorJSON(fnName string, err error) string {
+	data, merr := json.Marshal(map[string]string{"error": fmt.Sprintf("%s: %v", fnName, err)})
+	if merr != nil {
+		return `{"error":"json marshal failed"}`
+	}
+	return string(data)
+}
+
 // marshalVoxelData 调用体素构建函数并序列化为 JSON。
 func marshalVoxelData(tag, fnName, path string, buildFn func(string, int) (*types.LitematicVoxelData, error), maxBlocks int) string {
 	data, err := buildFn(path, maxBlocks)
 	if err != nil {
 		log.Printf("[%s] %s 失败 %s: %v", tag, fnName, path, err)
-		return "{}"
+		return voxelErrorJSON(fnName, err)
 	}
 	result, _ := json.Marshal(data)
 	return string(result)

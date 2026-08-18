@@ -424,6 +424,103 @@ func TestBuildNbtVoxelData_InvalidSize(t *testing.T) {
 	}
 }
 
+// ====== 基岩版 1.21+ structure（sub_levels 聚合，对齐 buildBedrockVoxelData）=====
+
+// makeBedrockStructureGz 构造基岩版 structure NBT：
+//   sub0: bounds (0,0,0)-(1,0,0)，blocks: (0,0,0) pid=1 stone、(0,0,1) pid=0 air、(1,0,0) pid=2 red_concrete
+//   sub1: bounds (2,0,0)-(3,0,0)，blocks: (0,0,0) pid=1 stone（origin=2 → 全局 (2,0,0)）、(1,0,0) pid=9 越界跳过
+// 聚合包围盒 (0,0,0)-(3,0,0) → Size [4,1,1]；验证坐标平移归零（min=0）+ air/越界过滤
+func makeBedrockStructureGz(t *testing.T) []byte {
+	t.Helper()
+	palette := nbtList("block_palette", 0x0A,
+		nbtCompoundBody(nbtString("Name", "minecraft:air")),
+		nbtCompoundBody(nbtString("Name", "minecraft:stone")),
+		nbtCompoundBody(nbtString("Name", "minecraft:red_concrete")),
+	)
+	block := func(x, y, z, pid int32) []byte {
+		return nbtCompoundBody(
+			nbtCompound("local_pos", nbtInt("x", x), nbtInt("y", y), nbtInt("z", z)),
+			nbtInt("palette_id", pid),
+		)
+	}
+	sub0 := nbtCompoundBody(
+		nbtCompound("local_bounds",
+			nbtInt("min_x", 0), nbtInt("min_y", 0), nbtInt("min_z", 0),
+			nbtInt("max_x", 1), nbtInt("max_y", 0), nbtInt("max_z", 0)),
+		palette,
+		nbtList("blocks", 0x0A,
+			block(0, 0, 0, 1), // stone → 全局 (0,0,0)
+			block(0, 0, 1, 0), // air → 跳过
+			block(1, 0, 0, 2), // red_concrete → 全局 (1,0,0)
+		),
+	)
+	sub1 := nbtCompoundBody(
+		nbtCompound("local_bounds",
+			nbtInt("min_x", 2), nbtInt("min_y", 0), nbtInt("min_z", 0),
+			nbtInt("max_x", 3), nbtInt("max_y", 0), nbtInt("max_z", 0)),
+		palette,
+		nbtList("blocks", 0x0A,
+			block(0, 0, 0, 1), // origin_x=2 → 全局 (2,0,0)
+			block(1, 0, 0, 9), // palette_id 越界 → 跳过
+		),
+	)
+	root := nbtCompound("", nbtInt("version", 1), nbtList("sub_levels", 0x0A, sub0, sub1))
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func TestBuildNbtVoxelData_BedrockSubLevels(t *testing.T) {
+	path := writeVoxelGz(t, makeBedrockStructureGz(t))
+	result, err := BuildNbtVoxelData(path, 100)
+	if err != nil {
+		t.Fatalf("BuildNbtVoxelData 失败: %v", err)
+	}
+	if result.Size != [3]int{4, 1, 1} {
+		t.Errorf("Size = %v, want [4 1 1]（sub_levels 聚合包围盒）", result.Size)
+	}
+	// 按颜色收集方块（stone #7F7F7F / red_concrete #932922）
+	got := map[string][][3]int16{}
+	for _, g := range result.Groups {
+		got[g.Color] = g.Positions
+	}
+	if len(got["#7F7F7F"]) != 2 {
+		t.Errorf("stone 方块 = %v, want 2 个（(0,0,0) 与 (2,0,0)）", got["#7F7F7F"])
+	}
+	for _, p := range got["#7F7F7F"] {
+		if p == [3]int16{0, 0, 0} || p == [3]int16{2, 0, 0} {
+			continue
+		}
+		t.Errorf("stone 意外坐标: %v", p)
+	}
+	if len(got["#932922"]) != 1 || got["#932922"][0] != [3]int16{1, 0, 0} {
+		t.Errorf("red_concrete 方块 = %v, want [(1,0,0)]", got["#932922"])
+	}
+	if len(result.Groups) != 2 {
+		t.Errorf("Groups = %d, want 2（air 与越界 pid 应被过滤）", len(result.Groups))
+	}
+}
+
+func TestBuildNbtVoxelData_BedrockNoBounds(t *testing.T) {
+	// sub_levels 存在但无有效包围盒/blocks → 报错（对齐 Java 版 not a structure）
+	sub := nbtCompoundBody(nbtInt("id", 0))
+	root := nbtCompound("", nbtList("sub_levels", 0x0A, sub))
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	_, _ = gz.Write(root)
+	_ = gz.Close()
+	path := writeVoxelGz(t, buf.Bytes())
+	if _, err := BuildNbtVoxelData(path, 100); err == nil {
+		t.Fatal("sub_levels 无有效包围盒应报错")
+	}
+}
+
 // ====== BuildSchematicVoxelData（schematic 格式，v1 Blocks / v2 BlockData 双路径）=====
 
 func TestBuildSchematicVoxelData_V2BlockData(t *testing.T) {
