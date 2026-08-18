@@ -717,6 +717,14 @@ export const autoSidebar = [
         "link": "/audit-r6-security-scan-2026-08-18"
       },
       {
+        "text": "R7 审核报告：性能与内存审计",
+        "link": "/audit-r7-performance-memory-2026-08-18"
+      },
+      {
+        "text": "R8 审核报告：测试覆盖缺口审计",
+        "link": "/audit-r8-test-coverage-gaps-2026-08-18"
+      },
+      {
         "text": "下载层加固调研报告",
         "link": "/download-hardening-research-2026-08-17"
       },
