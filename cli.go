@@ -52,6 +52,21 @@ var cliCommands = map[string]cliCommand{
 		Description: "导出模型结构信息",
 		Run:         runExport,
 	},
+	"file-bench": {
+		Name:        "file-bench",
+		Description: "测试大文件读取性能（模拟 MMD/PMX/VRM 加载）",
+		Run:         runFileBench,
+	},
+	"scan-dir": {
+		Name:        "scan-dir",
+		Description: "扫描 MMD 目录结构并统计资产",
+		Run:         runScanDir,
+	},
+	"analyze-mmd": {
+		Name:        "analyze-mmd",
+		Description: "分析 MMD 模型资产（贴图、PMX、VMD 等）",
+		Run:         runAnalyzeMMD,
+	},
 }
 
 // runCLI 执行 CLI 模式
@@ -575,4 +590,434 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// ============ MMD 相关命令 ============
+
+// runFileBench 测试大文件读取性能
+func runFileBench(a *app.App, args []string) error {
+	fs := flag.NewFlagSet("file-bench", flag.ExitOnError)
+	testDir := fs.String("dir", "", "测试目录路径（扫描此目录下的大文件）")
+	filePath := fs.String("file", "", "单个测试文件路径")
+	iterations := fs.Int("iterations", 3, "迭代次数")
+	parseFlags(fs, args)
+
+	var files []string
+
+	if *filePath != "" {
+		files = append(files, *filePath)
+	} else if *testDir != "" {
+		filepath.Walk(*testDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !info.IsDir() {
+				ext := strings.ToLower(filepath.Ext(path))
+				size := info.Size()
+				// 只关注大文件（> 1MB），模拟 MMD 资源
+				if size > 1*1024*1024 {
+					files = append(files, path)
+				}
+				_ = ext
+			}
+			return nil
+		})
+	} else {
+		return fmt.Errorf("请指定 --dir 或 --file 参数")
+	}
+
+	if len(files) == 0 {
+		fmt.Println("📭 没有找到大于 1MB 的文件")
+		return nil
+	}
+
+	fmt.Printf("⚡ 文件读取性能测试\n")
+	fmt.Printf("   文件数: %d\n", len(files))
+	fmt.Printf("   迭代次数: %d\n\n", *iterations)
+
+	// 按大小排序
+	type fileInfo struct {
+		path string
+		size int64
+	}
+	var fileInfos []fileInfo
+	for _, f := range files {
+		info, err := os.Stat(f)
+		if err != nil {
+			continue
+		}
+		fileInfos = append(fileInfos, fileInfo{path: f, size: info.Size()})
+	}
+
+	// 显示文件列表
+	fmt.Println("📁 待测试文件:")
+	totalSize := int64(0)
+	for i, fi := range fileInfos {
+		name := filepath.Base(fi.path)
+		if len(name) > 50 {
+			name = name[:47] + "..."
+		}
+		fmt.Printf("   [%d] %-50s %s\n", i+1, name, formatSize(fi.size))
+		totalSize += fi.size
+	}
+	fmt.Printf("\n   总大小: %s\n\n", formatSize(totalSize))
+
+	// 逐个文件测试
+	fmt.Println("📊 单文件读取测试:")
+	var allReadTimes []time.Duration
+	for _, fi := range fileInfos {
+		name := filepath.Base(fi.path)
+		readTimes := make([]time.Duration, *iterations)
+
+		for i := 0; i < *iterations; i++ {
+			start := time.Now()
+			data := a.ReadFileBytes(fi.path)
+			readTimes[i] = time.Since(start)
+			_ = data
+		}
+
+		avgTime := avgDuration(readTimes)
+		throughput := float64(fi.size) / avgTime.Seconds() / (1024 * 1024)
+		allReadTimes = append(allReadTimes, readTimes...)
+
+		fmt.Printf("   %s (%s):\n", name, formatSize(fi.size))
+		fmt.Printf("     平均耗时: %v | 吞吐: %.1f MB/s\n", avgTime, throughput)
+	}
+
+	// 批量读取测试
+	if len(fileInfos) > 1 {
+		fmt.Println("\n📊 批量读取测试 (模拟 ReadFileBytesBatch):")
+		paths := make([]string, len(fileInfos))
+		for i, fi := range fileInfos {
+			paths[i] = fi.path
+		}
+
+		batchTimes := make([]time.Duration, *iterations)
+		for i := 0; i < *iterations; i++ {
+			start := time.Now()
+			results := a.ReadFileBytesBatch(paths)
+			batchTimes[i] = time.Since(start)
+			_ = results
+		}
+
+		avgBatch := avgDuration(batchTimes)
+		batchThroughput := float64(totalSize) / avgBatch.Seconds() / (1024 * 1024)
+		fmt.Printf("   %d 个文件, 总大小 %s:\n", len(fileInfos), formatSize(totalSize))
+		fmt.Printf("     平均耗时: %v | 吞吐: %.1f MB/s\n", avgBatch, batchThroughput)
+	}
+
+	// 格式转换开销估算（JSON/Base64 序列化模拟）
+	fmt.Println("\n📊 IPC 传输开销估算 (Base64 + JSON 序列化):")
+	estimatedOverhead := float64(totalSize) * 1.33 // Base64 膨胀 ~33%
+	avgSingleTime := avgDuration(allReadTimes)
+	fmt.Printf("   原始大小: %s\n", formatSize(totalSize))
+	fmt.Printf("   Base64 后: ~%s (+33%%)\n", formatSize(int64(estimatedOverhead)))
+	fmt.Printf("   预估序列化: ~%v\n", time.Duration(avgSingleTime.Seconds()*0.3*float64(time.Second)))
+
+	return nil
+}
+
+// runScanDir 扫描目录结构
+func runScanDir(a *app.App, args []string) error {
+	fs := flag.NewFlagSet("scan-dir", flag.ExitOnError)
+	dirPath := fs.String("dir", "", "目录路径")
+	detail := fs.Bool("detail", false, "显示详细文件列表")
+	parseFlags(fs, args)
+
+	if *dirPath == "" {
+		return fmt.Errorf("--dir 参数不能为空")
+	}
+
+	fmt.Printf("📁 扫描目录: %s\n\n", *dirPath)
+
+	var (
+		totalFiles   int
+		totalDirs    int
+		totalSize    int64
+		extCount     = make(map[string]int)
+		extSize      = make(map[string]int64)
+		largestFiles []struct {
+			path string
+			size int64
+		}
+	)
+
+	threshold := int64(10 * 1024 * 1024) // 10MB
+
+	err := filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if info.IsDir() {
+			totalDirs++
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		size := info.Size()
+		totalFiles++
+		totalSize += size
+
+		extCount[ext]++
+		extSize[ext] += size
+
+		// 追踪最大的文件
+		if size > threshold {
+			largestFiles = append(largestFiles, struct {
+				path string
+				size int64
+			}{path: path, size: size})
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("扫描目录失败: %w", err)
+	}
+
+	// 输出统计
+	fmt.Printf("📊 目录统计:\n")
+	fmt.Printf("   目录数:   %d\n", totalDirs)
+	fmt.Printf("   文件数:   %d\n", totalFiles)
+	fmt.Printf("   总大小:   %s\n\n", formatSize(totalSize))
+
+	// 按扩展名分组
+	fmt.Println("📋 按扩展名分组:")
+	type extStat struct {
+		ext   string
+		count int
+		size  int64
+	}
+	var stats []extStat
+	for ext, count := range extCount {
+		stats = append(stats, extStat{ext, count, extSize[ext]})
+	}
+	// 按大小排序
+	for i := 0; i < len(stats); i++ {
+		for j := i + 1; j < len(stats); j++ {
+			if stats[j].size > stats[i].size {
+				stats[i], stats[j] = stats[j], stats[i]
+			}
+		}
+	}
+
+	fmt.Printf("   %-10s %-8s %s\n", "扩展名", "数量", "总大小")
+	fmt.Println("   " + strings.Repeat("-", 50))
+	for _, s := range stats {
+		fmt.Printf("   %-10s %-8d %s\n", s.ext, s.count, formatSize(s.size))
+	}
+
+	// 大文件列表
+	if len(largestFiles) > 0 {
+		fmt.Printf("\n⚠️  大文件列表 (>10MB, 共 %d 个):\n", len(largestFiles))
+		for i, lf := range largestFiles {
+			if i >= 10 {
+				fmt.Printf("   ... 还有 %d 个\n", len(largestFiles)-10)
+				break
+			}
+			relPath := strings.TrimPrefix(lf.path, *dirPath)
+			fmt.Printf("   [%d] %s (%s)\n", i+1, relPath, formatSize(lf.size))
+		}
+	}
+
+	// 详细列表
+	if *detail && totalFiles > 0 {
+		fmt.Printf("\n📝 文件详情 (前 20 个):\n")
+		count := 0
+		filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() || count >= 20 {
+				return nil
+			}
+			relPath := strings.TrimPrefix(path, *dirPath)
+			fmt.Printf("   %s (%s)\n", relPath, formatSize(info.Size()))
+			count++
+			return nil
+		})
+		if totalFiles > 20 {
+			fmt.Printf("   ... 还有 %d 个文件\n", totalFiles-20)
+		}
+	}
+
+	return nil
+}
+
+// runAnalyzeMMD 分析 MMD 模型资产
+func runAnalyzeMMD(a *app.App, args []string) error {
+	fs := flag.NewFlagSet("analyze-mmd", flag.ExitOnError)
+	modelDir := fs.String("dir", "", "MMD 模型目录路径")
+	parseFlags(fs, args)
+
+	if *modelDir == "" {
+		return fmt.Errorf("--dir 参数不能为空")
+	}
+
+	fmt.Printf("🎭 MMD 模型资产分析: %s\n\n", *modelDir)
+
+	var (
+		pmxFiles     []string
+		vrmFiles     []string
+		vmdFiles     []string
+		vpdFiles     []string
+		textureFiles []string
+		textureSize  int64
+		modelSize    int64
+	)
+
+	textureExts := map[string]bool{
+		".png":  true,
+		".jpg":  true,
+		".jpeg": true,
+		".tga":  true,
+		".bmp":  true,
+		".dds":  true,
+		".ktx2": true,
+	}
+
+	err := filepath.Walk(*modelDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		size := info.Size()
+
+		switch ext {
+		case ".pmx", ".pmd":
+			pmxFiles = append(pmxFiles, path)
+			modelSize += size
+		case ".vrm":
+			vrmFiles = append(vrmFiles, path)
+			modelSize += size
+		case ".vmd":
+			vmdFiles = append(vmdFiles, path)
+		case ".vpd":
+			vpdFiles = append(vpdFiles, path)
+		default:
+			if textureExts[ext] {
+				textureFiles = append(textureFiles, path)
+				textureSize += size
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("分析目录失败: %w", err)
+	}
+
+	// 输出分析结果
+	fmt.Printf("📊 资产统计:\n")
+	fmt.Printf("   PMX/PMD 模型:  %d 个 (%s)\n", len(pmxFiles), formatSize(modelSize))
+	fmt.Printf("   VRM 模型:      %d 个\n", len(vrmFiles))
+	fmt.Printf("   VMD 动画:      %d 个\n", len(vmdFiles))
+	fmt.Printf("   VPD 物理:      %d 个\n", len(vpdFiles))
+	fmt.Printf("   贴图文件:      %d 个 (%s)\n", len(textureFiles), formatSize(textureSize))
+
+	// 贴图详细信息
+	if len(textureFiles) > 0 {
+		fmt.Printf("\n🖼️  贴图详情:\n")
+
+		// 按大小排序
+		type texInfo struct {
+			path string
+			size int64
+			ext  string
+		}
+		var texInfos []texInfo
+		for _, tf := range textureFiles {
+			info, _ := os.Stat(tf)
+			ext := strings.ToLower(filepath.Ext(tf))
+			texInfos = append(texInfos, texInfo{path: tf, size: info.Size(), ext: ext})
+		}
+
+		// 排序
+		for i := 0; i < len(texInfos); i++ {
+			for j := i + 1; j < len(texInfos); j++ {
+				if texInfos[j].size > texInfos[i].size {
+					texInfos[i], texInfos[j] = texInfos[j], texInfos[i]
+				}
+			}
+		}
+
+		// 统计各格式大小
+		extSizeMap := make(map[string]int64)
+		for _, ti := range texInfos {
+			extSizeMap[ti.ext] += ti.size
+		}
+
+		fmt.Printf("   按格式:\n")
+		for ext, size := range extSizeMap {
+			fmt.Printf("     %s: %s\n", ext, formatSize(size))
+		}
+
+		fmt.Printf("\n   最大贴图 Top 10:\n")
+		for i := 0; i < min(10, len(texInfos)); i++ {
+			relPath := strings.TrimPrefix(texInfos[i].path, *modelDir)
+			fmt.Printf("     [%d] %s (%s) %s\n", i+1, relPath, texInfos[i].ext, formatSize(texInfos[i].size))
+		}
+
+		// 性能预警
+		fmt.Printf("\n⚠️  性能预警:\n")
+		largeTextures := 0
+		for _, ti := range texInfos {
+			if ti.size > 32*1024*1024 { // > 32MB
+				largeTextures++
+			}
+		}
+		if largeTextures > 0 {
+			fmt.Printf("   🔴 有 %d 个贴图大于 32MB，建议压缩或转换为 KTX2\n", largeTextures)
+		} else {
+			fmt.Printf("   ✅ 无超大贴图\n")
+		}
+
+		// TGA 特殊警告
+		tgaSize := extSizeMap[".tga"] + extSizeMap[".dds"]
+		if tgaSize > 0 {
+			fmt.Printf("   🟡 TGA/DDS 贴图占 %s，建议转换为 PNG 或 KTX2\n", formatSize(tgaSize))
+		}
+	}
+
+	// 模型文件详情
+	if len(pmxFiles) > 0 {
+		fmt.Printf("\n📦 模型文件:\n")
+		for i, pf := range pmxFiles {
+			info, _ := os.Stat(pf)
+			relPath := strings.TrimPrefix(pf, *modelDir)
+			fmt.Printf("   [%d] %s (%s)\n", i+1, relPath, formatSize(info.Size()))
+		}
+	}
+
+	// 总体评估
+	fmt.Printf("\n📈 总体评估:\n")
+	totalAssetsSize := modelSize + textureSize
+	fmt.Printf("   模型+贴图总大小: %s\n", formatSize(totalAssetsSize))
+
+	if totalAssetsSize > 100*1024*1024 {
+		fmt.Printf("   🔴 大于 100MB，首次加载预计 > 10s\n")
+		fmt.Printf("   💡 建议: 使用 KTX2 压缩贴图，可减少 60-70% 体积\n")
+	} else if totalAssetsSize > 50*1024*1024 {
+		fmt.Printf("   🟡 50-100MB，首次加载可能 5-10s\n")
+	} else {
+		fmt.Printf("   🟢 小于 50MB，加载性能应该可以接受\n")
+	}
+
+	return nil
+}
+
+// avgDuration 计算平均时长
+func avgDuration(durations []time.Duration) time.Duration {
+	if len(durations) == 0 {
+		return 0
+	}
+	var total time.Duration
+	for _, d := range durations {
+		total += d
+	}
+	return total / time.Duration(len(durations))
 }
