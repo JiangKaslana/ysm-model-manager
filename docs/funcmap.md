@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 123 | 459 |
+| 前端·工具 | 124 | 464 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **407** | **1695** |
+| **合计** | **408** | **1700** |
 
 ## Go·头像
 
@@ -803,9 +803,9 @@
 | `rescanFsaRoot()` | `frontend/src/backend/web-fs:204` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
 | `selectLocalRepo()` | `frontend/src/backend/web-fs:241` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
 | `scanWebModels()` | `frontend/src/backend/web-fs:253` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:307` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:483` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:519` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:312` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:488` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:524` | — |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
 | `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
@@ -1134,9 +1134,9 @@
 |------|--------|------|
 | `CameraControlBridge()` | `frontend/src/utils/3d/adapters/camera-controls:13` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
-| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:27` | — |
-| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:66` | — |
-| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:149` | — |
+| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:28` | — |
+| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:67` | — |
+| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:152` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1146,16 +1146,16 @@
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:97` | — |
 | `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:430` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:457` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:63` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:82` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:112` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:122` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:64` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:83` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:113` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:123` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
 | `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core` | — |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:152` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:161` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:166` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:171` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:187` | — |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:153` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:162` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:167` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:172` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:188` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:37` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1277,6 +1277,11 @@
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:220` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `clearLabelTexCache()` | `frontend/src/utils/3d/debug-render:21` | 清空标签纹理缓存（debug 组销毁时调用，防长时使用 OOM） |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:58` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
+| `registerModelRoot()` | `frontend/src/utils/3d/frustum-cull:16` | 注册模型根节点（adapter 调用） |
+| `unregisterModelRoot()` | `frontend/src/utils/3d/frustum-cull:21` | 注销模型根节点（adapter dispose 时调用） |
+| `getModelRootCount()` | `frontend/src/utils/3d/frustum-cull:27` | 获取当前注册的模型根节点数 |
+| `cullModelGroups()` | `frontend/src/utils/3d/frustum-cull:36` | 对所有已注册的模型根节点做视锥裁剪。 |
+| `clearModelRoots()` | `frontend/src/utils/3d/frustum-cull:59` | 清空所有注册（session 结束时调用） |
 | `IKChain()` | `frontend/src/utils/3d/ik-solver:21` | IK 链：从 root 到 endEffector 的 THREE.Object3D 有序数组（含两端） |
 | `IKConfig()` | `frontend/src/utils/3d/ik-solver:24` | IK 求解配置 |
 | `IKResult()` | `frontend/src/utils/3d/ik-solver:42` | IK 求解结果 |
