@@ -713,6 +713,10 @@ export const autoSidebar = [
         "link": "/audit-r13-go-resource-management-2026-08-18"
       },
       {
+        "text": "R14 — 全量测试覆盖率审计报告",
+        "link": "/audit-r14-coverage-2026-08-18"
+      },
+      {
         "text": "第 2 轮审核报告：Go 后端路径层（fileops/sync/installer/recycle/download）",
         "link": "/audit-r2-go-backend-2026-08-18"
       },

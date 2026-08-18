@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 115 | 428 |
-| frontend/views | 101 | 287 |
+| frontend/views | 101 | 286 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **394** | **1652** |
+| **合计** | **394** | **1651** |
 
 ## Go·头像
 
@@ -1705,7 +1705,6 @@
 | `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:50` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
-| `openEmpty3DFullscreen()` | `frontend/src/views/app-preview/preview-library` | — |
 | `registerReRoute()` | `frontend/src/views/app-preview/preview-library:23` | 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用； 第二参透传 siblings，切换后新会话「当前目录」tab 有候选，P1-2） |
 | `getRegisteredRoutes()` | `frontend/src/views/app-preview/preview-library:31` | 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） |
 | `OpenModel3DOptions()` | `frontend/src/views/app-preview/preview-library:36` | openModel3DFullscreen 选项（ADR-093 T4：cooperate 统一多模型同台追加入口） |
