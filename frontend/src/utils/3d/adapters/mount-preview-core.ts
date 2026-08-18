@@ -426,6 +426,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     onResize = handlers.onResize;
 
     let lastTime = performance.now();
+    // rAF 每帧复用 Vector3 实例，避免 5 次 GC 分配（R1-P1-1）
+    const _camDir = new THREE.Vector3();
+    const _forward = new THREE.Vector3();
+    const _up = new THREE.Vector3(0, 1, 0);
+    const _right = new THREE.Vector3();
+    const _move = new THREE.Vector3();
     // ===== §4b rAF 渲染管线（animate loop + postprocess composer）=====
   function animate(): void {
       if (isDisposed.v) return;
@@ -438,28 +444,27 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       const rd = renderer as THREE.WebGLRenderer;
       const ctr = controls as OrbitControls;
       const ot = orbitTarget as THREE.Vector3;
-      const camDir = new THREE.Vector3();
-      cam.getWorldDirection(camDir);
-      const forward = new THREE.Vector3(camDir.x, 0, camDir.z).normalize();
-      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-      const move = new THREE.Vector3();
-      if (keys["w"] || keys["arrowup"]) move.add(forward);
-      if (keys["s"] || keys["arrowdown"]) move.sub(forward);
-      if (keys["a"] || keys["arrowleft"]) move.sub(right);
-      if (keys["d"] || keys["arrowright"]) move.add(right);
-      if (keys[" "]) move.y += 1;
-      if (keys["shift"]) move.y -= 1;
-      if (move.length() > 0) {
-        move.normalize().multiplyScalar(camSpeed * dt);
-        cam.position.add(move);
-        if (orbitMode) ot.add(move);
+      cam.getWorldDirection(_camDir);
+      _forward.set(_camDir.x, 0, _camDir.z).normalize();
+      _right.crossVectors(_forward, _up).normalize();
+      _move.set(0, 0, 0);
+      if (keys["w"] || keys["arrowup"]) _move.add(_forward);
+      if (keys["s"] || keys["arrowdown"]) _move.sub(_forward);
+      if (keys["a"] || keys["arrowleft"]) _move.sub(_right);
+      if (keys["d"] || keys["arrowright"]) _move.add(_right);
+      if (keys[" "]) _move.y += 1;
+      if (keys["shift"]) _move.y -= 1;
+      if (_move.length() > 0) {
+        _move.normalize().multiplyScalar(camSpeed * dt);
+        cam.position.add(_move);
+        if (orbitMode) ot.add(_move);
       }
       if (orbitMode) {
         ctr.target.copy(ot);
         ctr.update();
         ot.copy(ctr.target);
       } else {
-        ctr.target.copy(cam.position).addScaledVector(camDir, 10);
+        ctr.target.copy(cam.position).addScaledVector(_camDir, 10);
         ctr.update();
       }
       if (perFrame) perFrame(dt);
@@ -504,6 +509,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     onDragPointerUp,
     onDragPointerMove,
     onResize,
+    onUnifiedPick,
     getPanelCleanup: () => panelCleanup,
     allBuilt,
     nullBuilt: () => { built = null; },
@@ -628,10 +634,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     function fullCleanup(): void { runFullCleanup(cleanupCtx); }
 
     // 审核 #2：复用 escH 可变引用，switchTo 后旧 handler 被替换，新 handler 在 cleanup 时通过 getter 正确卸载
+    // R1-P1-2：先保存旧引用再替换，否则 removeEventListener 移除的是新函数（从未注册过），旧函数仍残留
+    const oldEscH = escH;
     escH = (e: KeyboardEvent): void => {
       if (e.key === "Escape") fullCleanup();
     };
-    document.removeEventListener("keydown", escH);
+    document.removeEventListener("keydown", oldEscH);
     document.addEventListener("keydown", escH);
     cleanupFn = fullCleanup;
     _handle = {

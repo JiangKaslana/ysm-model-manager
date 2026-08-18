@@ -28,7 +28,7 @@
 | Go·同步 | 7 | 23 |
 | Go·标签 | 1 | 8 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 5 | 63 |
+| Go·类型 | 5 | 67 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 25 |
@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 115 | 423 |
+| 前端·工具 | 115 | 427 |
 | frontend/views | 101 | 287 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **394** | **1641** |
+| **合计** | **394** | **1649** |
 
 ## Go·头像
 
@@ -386,40 +386,44 @@
 | `WorkshopPresetSearch()` | `go/types/config:47` | WorkshopPresetSearch 预设搜索词 |
 | `WorkshopSite()` | `go/types/config:53` | WorkshopSite 创意工坊站点配置 |
 | `WorkshopCreator()` | `go/types/config:66` | WorkshopCreator 创作者条目 Type 是平台标签，分号分隔，如 "bilibili;afdian" |
-| `AllExts()` | `go/types/extensions:28` | AllExts 返回所有支持的扩展名（去重后） |
-| `IsSupportedExt()` | `go/types/extensions:44` | IsSupportedExt 检查扩展名是否被任何资源类型支持 |
-| `IsYsmEntryJSON()` | `go/types/extensions:60` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
-| `NormalizeResourceName()` | `go/types/extensions:67` | NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）： 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyn |
-| `IsResourceAllowed()` | `go/types/extensions:79` | IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）： 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json（ |
-| `IsTypeModelFile()` | `go/types/extensions:98` | IsTypeModelFile 判断文件名是否为指定资源类型的模型文件（ADR-064 收敛）： 扩展名命中该类型注册表扩展集（SupportedExtsForType），.jso |
-| `ShouldHashExt()` | `go/types/extensions:126` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配） 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。 |
-| `IsDirLevelSync()` | `go/types/extensions:144` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
-| `IsScanInstance()` | `go/types/extensions:157` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。 |
-| `InstallExtsFor()` | `go/types/extensions:166` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
-| `MatchZipEntry()` | `go/types/extensions:177` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
-| `ExtBelongsTo()` | `go/types/extensions:191` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
-| `SupportedExtsForType()` | `go/types/extensions:206` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
-| `FindInstDir()` | `go/types/extensions:241` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
-| `StorageSubDir()` | `go/types/extensions:279` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
-| `SubDirMap()` | `go/types/extensions:293` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
-| `SubDirAll()` | `go/types/extensions:305` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:317` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:287` | SubDirEntry 资源类型的版本子目录信息 |
-| `ResourceType.MatchZipEntry()` | `go/types/resource:50` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
-| `SetRegistryPath()` | `go/types/resource:85` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
-| `LoadRegistry()` | `go/types/resource:96` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
-| `RegistryType()` | `go/types/resource:187` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:208` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:304` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `AllExts()` | `go/types/extensions:29` | AllExts 返回所有支持的扩展名（去重后） |
+| `IsSupportedExt()` | `go/types/extensions:45` | IsSupportedExt 检查扩展名是否被任何资源类型支持 |
+| `IsYsmEntryJSON()` | `go/types/extensions:61` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
+| `NormalizeResourceName()` | `go/types/extensions:68` | NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）： 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyn |
+| `IsResourceAllowed()` | `go/types/extensions:80` | IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）： 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json（ |
+| `IsTypeModelFile()` | `go/types/extensions:99` | IsTypeModelFile 判断文件名是否为指定资源类型的模型文件（ADR-064 收敛）： 扩展名命中该类型注册表扩展集（SupportedExtsForType），.jso |
+| `ShouldHashExt()` | `go/types/extensions:127` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配） 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。 |
+| `IsDirLevelSync()` | `go/types/extensions:145` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
+| `IsScanInstance()` | `go/types/extensions:158` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。 |
+| `InstallExtsFor()` | `go/types/extensions:167` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
+| `MatchZipEntry()` | `go/types/extensions:178` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
+| `ExtBelongsTo()` | `go/types/extensions:192` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个） |
+| `SupportedExtsForType()` | `go/types/extensions:207` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
+| `FindInstDir()` | `go/types/extensions:242` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
+| `StorageSubDir()` | `go/types/extensions:280` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
+| `GroupOf()` | `go/types/extensions:289` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
+| `GroupStorageRoot()` | `go/types/extensions:301` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
+| `GroupLabel()` | `go/types/extensions:317` | GroupLabel 返回分组显示名（ADR-092 resourceGroups 元数据）；未知分组返回空串。 |
+| `SubDirMap()` | `go/types/extensions:337` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
+| `SubDirAll()` | `go/types/extensions:349` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:361` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:331` | SubDirEntry 资源类型的版本子目录信息 |
+| `ResourceType.MatchZipEntry()` | `go/types/resource:60` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
+| `SetRegistryPath()` | `go/types/resource:95` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
+| `LoadRegistry()` | `go/types/resource:106` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
+| `RegistryType()` | `go/types/resource:197` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:218` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:314` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:14` | ResourceTypeRegistry 资源类型注册表 |
-| `ResourceType()` | `go/types/resource:19` | ResourceType 一种受支持的资源类型定义 |
-| `ZipEntryMatch()` | `go/types/resource:41` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:202` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:293` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:311` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:328` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:334` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:342` | VoxelGroup 同一颜色的方块组 |
+| `ResourceGroup()` | `go/types/resource:20` | ResourceGroup 资源分组元数据（ADR-092 顶层 resourceGroups 数组） |
+| `ResourceType()` | `go/types/resource:28` | ResourceType 一种受支持的资源类型定义 |
+| `ZipEntryMatch()` | `go/types/resource:51` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
+| `FormatRange()` | `go/types/resource:212` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:303` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:321` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:338` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:344` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:352` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:121` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:169` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:175` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
@@ -634,9 +638,9 @@
 | `App.SetApp()` | `internal/app/app:82` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
 | `App.SetMainWindow()` | `internal/app/app:87` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
 | `App.ServiceStartup()` | `internal/app/app:90` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:182` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:217` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:222` | GetAppVersion 返回当前版本号 |
+| `App.ServiceShutdown()` | `internal/app/app:185` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:220` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:225` | GetAppVersion 返回当前版本号 |
 | `App()` | `internal/app/app:28` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
@@ -1123,8 +1127,8 @@
 | `CameraControlBridge()` | `frontend/src/utils/3d/adapters/camera-controls:13` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:21` | — |
-| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:55` | — |
-| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:120` | — |
+| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:56` | — |
+| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:123` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1165,7 +1169,7 @@
 | `mountSidePanel()` | `frontend/src/utils/3d/adapters/side-panel:19` | 挂载适配器专属侧栏面板。 |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:27` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:80` | 会话内切换模型（复用外壳重建内容层）。 |
-| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:210` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:220` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:71` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:90` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:150` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
@@ -1532,15 +1536,19 @@
 | `loadResourceRegistry()` | `frontend/src/utils/resource/registry:19` | 加载资源类型注册表（失败不缓存：Go 桥瞬断后下次调用重试，避免整会话降级） |
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:20` | 资源类型显示标签（内部 ID → 中文名） |
-| `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:43` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
-| `extOf()` | `frontend/src/utils/resource/types:52` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:96` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:121` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:126` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:132` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:143` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:156` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `matchZipEntryTS()` | `frontend/src/utils/resource/types:176` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:44` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
+| `GROUP_META()` | `frontend/src/utils/resource/types:64` | 分组元数据（id → {name, icon, order}），从 resourceGroups 派生 |
+| `GROUP_OF()` | `frontend/src/utils/resource/types:75` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
+| `groupLabelOf()` | `frontend/src/utils/resource/types:81` | 分组 id → 显示名 |
+| `groupStorageRootOf()` | `frontend/src/utils/resource/types:90` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
+| `extOf()` | `frontend/src/utils/resource/types:103` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:147` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:172` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:177` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:183` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:194` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:207` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:227` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
 
@@ -1586,10 +1594,10 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:147` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:129` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
-| `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:23` | — |
-| `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:51` | — |
-| `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:193` | — |
-| `initMcDetect()` | `frontend/src/views/app-content/settings/path-cards:320` | — |
+| `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
+| `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:52` | — |
+| `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:194` | — |
+| `initMcDetect()` | `frontend/src/views/app-content/settings/path-cards:321` | — |
 | `SettingsCfg()` | `frontend/src/views/app-content/settings/store:10` | 设置页当前配置类型（LoadAppConfig 返回值，经 Wails $CancellablePromise 解包） |
 | `cfg()` | `frontend/src/views/app-content/settings/store:13` | 当前配置：initSettings 加载后注入，各模块就地更新字段（saveCfg/检测/主题/链接模式） |
 | `cardRefreshers()` | `frontend/src/views/app-content/settings/store:16` | 所有路径卡片的刷新函数列表（绑定后收集，重排/重置时统一调用） |

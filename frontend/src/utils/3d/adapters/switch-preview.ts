@@ -97,9 +97,10 @@ export async function switchToSession(
     return;
   }
 
-  // 1) 移除旧适配器专属控件（topBar 中 adapterControlsStart 之后追加的节点）
-  while (ctx.topBar.childElementCount > ctx.getAdapterControlsStart()) {
-    ctx.topBar.lastChild?.remove();
+  // 1) 移除旧适配器专属控件（topBar 中 adapterControlsStart 之后追加的元素）
+  // R1-P2-3：用 children（仅元素节点）替代 lastChild（含文本节点），避免空白文本节点导致误删
+  while (ctx.topBar.children.length > ctx.getAdapterControlsStart()) {
+    ctx.topBar.removeChild(ctx.topBar.children[ctx.topBar.children.length - 1]);
   }
 
   // 2) 非同台模式：移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积）
@@ -157,6 +158,15 @@ export async function switchToSession(
   if (!keep) ctx.allBuilt.length = 0;
   ctx.allBuilt.push(next);
   ctx.setCurrentPath(newPath);
+
+  // ADR-093 T2 修正：非 keep 切换须 unregister 旧活跃模型，
+  // 否则注册表残留旧 entry → count 虚高（误触 MAX_MODELS 拦截）+ visibleRoots
+  // 含已移除的 detached root（取景幽灵）。单模型切换为最常见路径；
+  // keep 多模型后做非 keep 切换的残留由下次 mount 的 reset 兜底。
+  if (!keep) {
+    const prevId = sceneRegistry.getActiveId();
+    if (prevId) sceneRegistry.unregister(prevId);
+  }
 
   // ADR-093 T2：注册进场景注册表（keep 追加 / 普通切换均登记，单一事实来源）
   if (beforeBuild) {

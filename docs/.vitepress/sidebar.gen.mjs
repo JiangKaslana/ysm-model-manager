@@ -693,6 +693,10 @@ export const autoSidebar = [
         "link": "/audit-framework"
       },
       {
+        "text": "第 R1 轮审核报告：3D 引擎核心层",
+        "link": "/audit-r1-3d-engine-core-2026-08-18"
+      },
+      {
         "text": "下载层加固调研报告",
         "link": "/download-hardening-research-2026-08-17"
       },
