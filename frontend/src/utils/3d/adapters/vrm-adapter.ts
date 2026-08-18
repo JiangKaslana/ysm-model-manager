@@ -335,6 +335,7 @@ export async function buildVrmScene(
   return {
     // VRM 动态部分（VRMA 动画 + SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
     update: (dt: number): void => {
+      if (!vrm.scene.visible) return; // Frustum Culling 不可见 → 跳过 springBone/感知层，省 CPU
       if (motionMixer) motionMixer.update(dt);
       // vrm.update 内部序：humanoid（含 VRMA 写入的归一化骨骼）→ lookAt → expression →
       // nodeConstraint → springBone；故 VRMA 播放只需 mixer.update + vrm.update，无需手动 humanoid.update。

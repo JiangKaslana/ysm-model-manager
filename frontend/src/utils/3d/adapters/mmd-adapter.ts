@@ -356,6 +356,7 @@ export async function buildMmdScene(
   return {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
     update: (dt: number): void => {
+      if (!mesh.visible) return; // Frustum Culling 不可见 → 跳过 IK/感知层，省 CPU
       mmd.updateWithMixer(dt, mixer, { ik: true, grant: true });
       if (semanticBones) {
         // 待机呼吸：有动画播放时暂停（避免与动画打架）
