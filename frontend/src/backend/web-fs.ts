@@ -45,7 +45,7 @@ import { parseNbtRoot, litematicMetaView, nbtStructureView, schematicSummaryView
 // ADR-070 M2：蓝图/投影 voxel 读取（TS 平移 go/litematic/voxel.go；parseNbtRootExact 提供
 // LongArray 精确 64 位——BlockStates 打包位解码必需，number 归一会丢低 10 位）
 import { parseNbtRootExact } from "./nbt-parse.ts";
-import { litematicVoxelView, nbtVoxelView, schematicVoxelView, type VoxelData } from "./voxel-parse.ts";
+import { litematicVoxelView, nbtVoxelView, schematicVoxelView, decodeVoxelNbt, type VoxelData } from "./voxel-parse.ts";
 // 资源包/光影包详情 meta 读取（TS 平移 go/packs/mcmeta.go 的解析层；binding 装配见下方
 // webFsBindings 的 ReadPackMeta/ReadShaderpackLang 条目——读 IDB → 解 zip → 本文件纯解析）
 import { findZipEntry, parsePackMetaJson, parseShaderpackLang, packPngToThumbnail } from "./pack-meta.ts";
@@ -330,9 +330,10 @@ async function readVoxelJson(
   try {
     const b64 = await readWebFile(path);
     if (!b64) return voxelErrorJson("文件读取失败或不存在");
-    const bytes = base64ToBytes(b64);
-    if (!bytes) return voxelErrorJson("文件解码失败");
-    const root = parseNbtRootExact(bytes);
+    // IO（读文件）与解码（b64 → NBT root）解耦：decodeVoxelNbt 为纯函数
+    // （voxel-parse.ts），此处只做装配——读文件 → 纯解码 → 纯视图 → 契约化 JSON
+    const root = decodeVoxelNbt(b64);
+    if (!root) return voxelErrorJson("文件解码失败");
     const data = view(root, VOXEL_MAX_BLOCKS);
     if (!data) return voxelErrorJson("无法解析为有效的体素结构（格式不支持或字段缺失）");
     return JSON.stringify(data);

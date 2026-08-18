@@ -17,6 +17,7 @@ import {
   litematicVoxelView,
   nbtVoxelView,
   schematicVoxelView,
+  decodeVoxelNbt,
   type VoxelData,
 } from "./voxel-parse.ts";
 import { mapColor } from "./voxel-colors.ts";
@@ -626,3 +627,24 @@ describe("Get*VoxelData — web 实现端到端（ADR-070 M2）", () => {
 function parse(bytes: number[]): Record<string, unknown> {
   return parseNbtRootExact(Uint8Array.from(bytes));
 }
+
+// ===== decodeVoxelNbt 纯函数（IO 与解码解耦后可直接单测：b64 → NBT root）=====
+describe("decodeVoxelNbt — base64 → NBT root（纯函数）", () => {
+  it("合法 b64（makeLitematicRoot 构造的 NBT）→ 返回可被 voxelView 消费的 root", () => {
+    const bytes = makeLitematicRoot([1n]);
+    const b64 = Buffer.from(bytes).toString("base64");
+    const root = decodeVoxelNbt(b64);
+    expect(root).not.toBeNull();
+    // 解码结果再经视图消费，确认与「直接 parse」链路等价（IO 解耦不改变解码语义）
+    const data = root ? litematicVoxelView(root, 100) : null;
+    expect(data).not.toBeNull();
+  });
+
+  it("损坏 b64 → null（不抛错，错误语义由调用方契约化）", () => {
+    expect(decodeVoxelNbt("!!! not-a-valid-base64 !!!")).toBeNull();
+  });
+
+  it("空串 → null", () => {
+    expect(decodeVoxelNbt("")).toBeNull();
+  });
+});

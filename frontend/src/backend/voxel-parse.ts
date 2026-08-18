@@ -8,6 +8,8 @@
 // 位解码口径（对齐 nbt.go:299-327 extractBits）：Litematica 小端位序——方块索引从
 // 每个 long 的 LSB 开始连续排列，可跨 64 位容器边界。
 import { mapColor, resolveBlockName } from "./voxel-colors.ts";
+import { base64ToBytes } from "./web-common.ts";
+import { parseNbtRootExact } from "./nbt-parse.ts";
 
 /** 对齐 voxel.go:30 voxelBlock（各格式统一中间表示；坐标已过 int16 守卫） */
 interface VoxelBlock {
@@ -637,4 +639,16 @@ export function schematicVoxelView(root: Record<string, unknown>, maxBlocks: num
 function toIntStrict(v: unknown, label: string): number | null {
   if (typeof v !== "number" || !Number.isInteger(v)) return null;
   return v;
+}
+
+/**
+ * 纯函数：base64 字节 → NBT root（IO 与解码解耦——本函数无任何 IO，输入 b64 字符串
+ * 输出解析后的 root 对象；readVoxelJson 等装配层只负责「读文件 → 调本函数 → 视图」）。
+ * 任一环节失败（非法 base64 / NBT 解析失败）返回 null，错误语义由调用方契约化。
+ */
+export function decodeVoxelNbt(b64: string): Record<string, unknown> | null {
+  if (!b64) return null;
+  const bytes = base64ToBytes(b64);
+  if (!bytes) return null;
+  return parseNbtRootExact(bytes);
 }
