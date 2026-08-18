@@ -33,6 +33,7 @@ import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from ".
 import { cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
 import { cleanupMmd3D, invalidateMmdPreview } from "./mmd-3d.ts";
 import { cleanupPack3D, invalidatePackPreview } from "./pack-3d.ts";
+import { cleanupEmpty3D, invalidateEmptyPreview } from "./empty-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
 import { esc } from "../../utils/dom/html.ts";
 import type { BedrockGeometry } from "./geometry.ts";
@@ -123,6 +124,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
         invalidateVrmPreview();
         invalidateMmdPreview();
         invalidatePackPreview();
+        invalidateEmptyPreview();
         try {
           if (isDir) {
             await this._showPackInfo(path);
@@ -147,6 +149,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
     cleanupVrm3D();
     cleanupMmd3D();
     cleanupPack3D();
+    cleanupEmpty3D();
   }
 
   private _render(): void {
