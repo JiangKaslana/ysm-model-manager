@@ -216,3 +216,108 @@ export function vrmSemanticBoneMap(
 export function mmdSemanticBoneMap(tree: BoneTree): SemanticBoneMap {
   return resolveSemanticBones(tree, MMD_SEMANTIC_CANDIDATES);
 }
+
+// ---------------------------------------------------------------------------
+// YSM 特化
+// ---------------------------------------------------------------------------
+
+/**
+ * YSM 语义骨骼候选名表。
+ * 覆盖 Blockbench/MC 导出常见命名（英文为主，含部分日文/中文变体）。
+ * 候选顺序 = 优先级，首个命中胜出。
+ */
+export const YSM_SEMANTIC_CANDIDATES: Record<SemanticBoneId, readonly string[]> = {
+  center: ["center", "Center", "Centre", "root", "Root", "ROOT", "allparent", "AllParent"],
+  hips: ["hips", "Hips", "HIPS", "hip", "Pelvis", "pelvis", "腰", "下半身"],
+  spine: ["spine", "Spine", "SPINE", "脊柱", "stomach", "Stomach"],
+  chest: ["chest", "Chest", "CHEST", "upper", "Upper", "上半身", "torso", "Torso"],
+  upperChest: ["upperChest", "upper_chest", "upper chest", "上半身2", "上半身２", "upper2"],
+  neck: ["neck", "Neck", "NECK", "首", "脖子"],
+  head: ["head", "Head", "HEAD", "頭", "头"],
+  leftEye: ["leftEye", "left_eye", "LeftEye", "left eye", "左目", "左眼"],
+  rightEye: ["rightEye", "right_eye", "RightEye", "right eye", "右目", "右眼"],
+  leftShoulder: [
+    "leftShoulder", "left_shoulder", "LeftShoulder", "left shoulder",
+    "左肩", "左肩P", "左肩C", "L_Shoulder", "lShoulder",
+  ],
+  rightShoulder: [
+    "rightShoulder", "right_shoulder", "RightShoulder", "right shoulder",
+    "右肩", "右肩P", "右肩C", "R_Shoulder", "rShoulder",
+  ],
+  leftUpperArm: [
+    "leftUpperArm", "left_upper_arm", "LeftUpperArm", "left upper arm",
+    "左腕", "左腕W", "L_UpperArm", "lUpperArm", "lArm",
+  ],
+  rightUpperArm: [
+    "rightUpperArm", "right_upper_arm", "RightUpperArm", "right upper arm",
+    "右腕", "右腕W", "R_UpperArm", "rUpperArm", "rArm",
+  ],
+  leftLowerArm: [
+    "leftLowerArm", "left_lower_arm", "LeftLowerArm", "left lower arm",
+    "左ひじ", "左肘", "L_LowerArm", "lLowerArm", "lElbow",
+  ],
+  rightLowerArm: [
+    "rightLowerArm", "right_lower_arm", "RightLowerArm", "right lower arm",
+    "右ひじ", "右肘", "R_LowerArm", "rLowerArm", "rElbow",
+  ],
+  leftHand: [
+    "leftHand", "left_hand", "LeftHand", "left hand",
+    "左手首", "左リスト", "L_Hand", "lHand",
+  ],
+  rightHand: [
+    "rightHand", "right_hand", "RightHand", "right hand",
+    "右手首", "右リスト", "R_Hand", "rHand",
+  ],
+  leftUpperLeg: [
+    "leftUpperLeg", "left_upper_leg", "LeftUpperLeg", "left upper leg",
+    "左足", "左太もも", "L_Thigh", "lThigh", "lUpperLeg",
+  ],
+  rightUpperLeg: [
+    "rightUpperLeg", "right_upper_leg", "RightUpperLeg", "right upper leg",
+    "右足", "右太もも", "R_Thigh", "rThigh", "rUpperLeg",
+  ],
+  leftLowerLeg: [
+    "leftLowerLeg", "left_lower_leg", "LeftLowerLeg", "left lower leg",
+    "左ひざ", "左膝", "L_Knee", "lKnee", "lLowerLeg",
+  ],
+  rightLowerLeg: [
+    "rightLowerLeg", "right_lower_leg", "RightLowerLeg", "right lower leg",
+    "右ひざ", "右膝", "R_Knee", "rKnee", "rLowerLeg",
+  ],
+  leftFoot: [
+    "leftFoot", "left_foot", "LeftFoot", "left foot",
+    "左足首", "左足IK", "L_Foot", "lFoot", "lAnkle",
+  ],
+  rightFoot: [
+    "rightFoot", "right_foot", "RightFoot", "right foot",
+    "右足首", "右足IK", "R_Foot", "rFoot", "rAnkle",
+  ],
+};
+
+/**
+ * YSM 特化：从 SpecBone3D[]（spec.models[].bones[]）构建语义映射。
+ * YSM spec.bones[].name 即骨骼名，与 .animation.json 的 bones key 直接匹配。
+ * @param bones spec.bones 列表（扁平声明）
+ * @returns 语义映射（匹配不到的语义缺省）
+ */
+export function ysmSemanticBoneMap(
+  bones: Array<{ id: string; name: string; parentId?: string }>,
+): SemanticBoneMap {
+  const nameToId = new Map<string, string>();
+  for (const b of bones) {
+    if (b.name) nameToId.set(b.name, b.id);
+  }
+  const map: SemanticBoneMap = {};
+  for (const id of SEMANTIC_BONE_IDS) {
+    const cands = YSM_SEMANTIC_CANDIDATES[id];
+    if (!cands) continue;
+    for (const c of cands) {
+      const boneId = nameToId.get(c);
+      if (boneId) {
+        map[id] = { id: boneId };
+        break;
+      }
+    }
+  }
+  return map;
+}
