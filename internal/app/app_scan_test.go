@@ -24,7 +24,7 @@ func TestIsPathInRoot_Boundaries(t *testing.T) {
 	base := t.TempDir()
 	a := scanApp(t, types.AppConfig{FilesRoot: base})
 	// ysm 子目录：FilesRoot/ysm
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestIsPathInRoot_NoRootConfigured(t *testing.T) {
 
 func TestListFileNames_Guard(t *testing.T) {
 	base := t.TempDir()
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(filepath.Join(root, "sub"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestListFileNames_Guard(t *testing.T) {
 
 func TestCheckFileExists_Guard(t *testing.T) {
 	base := t.TempDir()
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestCheckFileExists_Guard(t *testing.T) {
 
 func TestScanModelEntries_CacheHit(t *testing.T) {
 	base := t.TempDir()
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestScanModelEntries_SiblingTypeRootAllowed(t *testing.T) {
 	// （FilesRoot 公共祖先），而非仅 ysmRoot——resourcepack 等兄弟类型根相对
 	// ysmRoot 是 ../，旧守卫会误拒（got 0 回归）
 	base := t.TempDir()
-	rpRoot := filepath.Join(base, types.StorageSubDir("resourcepack"))
+	rpRoot := filepath.Join(base, types.GroupStorageRoot("resourcepack"))
 	if err := os.MkdirAll(rpRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestScanModelEntries_SiblingTypeRootAllowed(t *testing.T) {
 func TestScanModelEntriesWithLabel_Guard(t *testing.T) {
 	// code_review 修复：WithLabel 是前端主扫描入口，须与 ScanModelEntries 共用守卫
 	base := t.TempDir()
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestScanModelEntriesWithLabel_Guard(t *testing.T) {
 
 func TestScanModelEntriesWithHit_CacheSemantics(t *testing.T) {
 	base := t.TempDir()
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +241,7 @@ func TestScanModelEntriesWithHit_CacheSemantics(t *testing.T) {
 
 func TestListModelAuthors_PrefixExtraction(t *testing.T) {
 	base := t.TempDir()
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -278,8 +278,8 @@ func TestListModelAuthors_PrefixExtraction(t *testing.T) {
 // 语义与 isPathInRoot 的关键差异：放行根本身（rel==.）、支持兄弟类型根（resourcepack 等）。
 func TestIsPathInRootOrSelf_Boundaries(t *testing.T) {
 	base := t.TempDir()
-	ysmRoot := filepath.Join(base, types.StorageSubDir("ysm"))
-	rpRoot := filepath.Join(base, types.StorageSubDir("resourcepack"))
+	ysmRoot := filepath.Join(base, types.GroupStorageRoot("ysm"))
+	rpRoot := filepath.Join(base, types.GroupStorageRoot("resourcepack"))
 	if err := os.MkdirAll(ysmRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +327,7 @@ func TestIsPathInRootOrSelf_NoRootConfigured(t *testing.T) {
 // isPathInRootOrSelf 放行根本身（这是两函数语义差异的核心，直接影响整仓扫描合法与否）
 func TestIsPathInRootOrSelf_RootItselfAllowed(t *testing.T) {
 	base := t.TempDir()
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -338,5 +338,40 @@ func TestIsPathInRootOrSelf_RootItselfAllowed(t *testing.T) {
 	}
 	if a.isPathInRoot(root) {
 		t.Error("isPathInRoot 应拒绝根本身（防整删）")
+	}
+}
+
+// ===== inferFolderType（ADR-092 子类型落位根基）=====
+// 文件夹整组导入按内容推断 rtype，MMD 文件夹不再落到 ysm 根。
+
+func TestInferFolderType_MMD(t *testing.T) {
+	files := []types.ImportFileItem{
+		{RelPath: "model.pmx", Base64: "cG14"},
+		{RelPath: "anims/walk.vmd", Base64: "dm1k"},
+		{RelPath: "textures/model.png", Base64: "cG5n"},
+	}
+	if got := inferFolderType(files); got != "mmd-skin" {
+		t.Errorf("inferFolderType(MMD) = %q, 期望 'mmd-skin'", got)
+	}
+}
+
+func TestInferFolderType_Ysm(t *testing.T) {
+	files := []types.ImportFileItem{
+		{RelPath: "ysm.json", Base64: "e30="},
+		{RelPath: "models/entity.json", Base64: "e30="},
+		{RelPath: "textures/tex.png", Base64: "cG5n"},
+	}
+	if got := inferFolderType(files); got != "ysm" {
+		t.Errorf("inferFolderType(YSM) = %q, 期望 'ysm'", got)
+	}
+}
+
+func TestInferFolderType_FallbackYsm(t *testing.T) {
+	// 无主文件 / 未知扩展名 → 回退 ysm（向后兼容）
+	if got := inferFolderType([]types.ImportFileItem{{RelPath: "notes.txt", Base64: ""}}); got != "ysm" {
+		t.Errorf("inferFolderType(unknown) = %q, 期望 'ysm'", got)
+	}
+	if got := inferFolderType(nil); got != "ysm" {
+		t.Errorf("inferFolderType(empty) = %q, 期望 'ysm'", got)
 	}
 }

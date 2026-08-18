@@ -15,7 +15,8 @@ import (
 func guardedApp(t *testing.T) (*App, string) {
 	t.Helper()
 	base := t.TempDir()
-	ysm := filepath.Join(base, "ysm")
+	// ADR-092 两层路由：ysm 根在 FilesRoot/{group}/{storageSubDir}
+	ysm := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(ysm, 0755); err != nil {
 		t.Fatal(err)
 	}

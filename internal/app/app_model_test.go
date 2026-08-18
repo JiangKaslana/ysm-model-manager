@@ -70,7 +70,7 @@ func TestReadFileBytes_MultiRootGuard(t *testing.T) {
 		t.Fatalf("VrcRoot 内文件应可读，got %q", got)
 	}
 	// 2. ysm 根内文件仍可读（回归：既有行为不破坏）
-	ysmRoot := filepath.Join(cfg.FilesRoot, types.StorageSubDir("ysm"))
+	ysmRoot := filepath.Join(cfg.FilesRoot, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(ysmRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}

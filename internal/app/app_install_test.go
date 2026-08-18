@@ -41,7 +41,7 @@ func TestClearCustomDir_Guard(t *testing.T) {
 	})
 
 	t.Run("仓库根本身拒绝（rel==. 防整删）", func(t *testing.T) {
-		root := filepath.Join(base, types.StorageSubDir("ysm"))
+		root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 		if err := os.MkdirAll(root, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -53,7 +53,7 @@ func TestClearCustomDir_Guard(t *testing.T) {
 
 func TestClearCustomDir_RemovalSemantics(t *testing.T) {
 	base := t.TempDir()
-	root := filepath.Join(base, types.StorageSubDir("ysm"))
+	root := filepath.Join(base, types.GroupStorageRoot("ysm"))
 	if err := os.MkdirAll(filepath.Join(root, ".recycle"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestFindRecycleRoot_MultiType(t *testing.T) {
 
 	t.Run("未配置根不参与（空跳过）", func(t *testing.T) {
 		// ShaderpackRoot 未配置 → 不参与候选；路径落到 FilesRoot 内 → 命中 ysm 子目录
-		ysm := filepath.Join(base, types.StorageSubDir("ysm"))
+		ysm := filepath.Join(base, types.GroupStorageRoot("ysm"))
 		if err := os.MkdirAll(ysm, 0o755); err != nil {
 			t.Fatal(err)
 		}

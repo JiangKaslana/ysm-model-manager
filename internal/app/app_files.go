@@ -86,10 +86,13 @@ func (a *App) CopyModelFile(src, dstDir string) error {
 	return fileops.CopyModelFile(cfg.FilesRoot, src, dstDir)
 }
 
-// ImportModelFolder 文件夹型模型整组导入（YSM 解压目录，保留子目录层级，ADR-038 关联）
+// ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联）
 // folderName = 仓库文件夹名（模型名）；files = 相对路径 → base64 内容
+// rtype 按文件夹内容推断（非硬编码 ysm）：扫主文件扩展名经 ExtBelongsTo 判定，
+// 使 MMD 文件夹落到 mmd-skin 根而非 ysm 根（ADR-092 子类型落位根基）。
 func (a *App) ImportModelFolder(folderName, subpath string, files []types.ImportFileItem) error {
-	root, _ := a.GetRepoRoot("ysm")
+	rtype := inferFolderType(files)
+	root, _ := a.GetRepoRoot(rtype)
 	if root == "" {
 		return fmt.Errorf("请先设置文件存储路径")
 	}
@@ -98,6 +101,30 @@ func (a *App) ImportModelFolder(folderName, subpath string, files []types.Import
 	}
 	scanner.InvalidateCache()
 	return nil
+}
+
+// inferFolderType 从文件夹文件列表推断资源类型：
+// 扫首个「支持文件」（扩展名命中注册表且非 ysm.json 附属）经 ExtBelongsTo 判定，
+// 单归属则用该类型；歧义/未知回退 ysm（保持向后兼容）。
+// 关键：MMD 文件夹（含 .pmx/.pmd）不再落到 ysm 根。
+func inferFolderType(files []types.ImportFileItem) string {
+	for _, f := range files {
+		rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(f.RelPath)))
+		ext := strings.ToLower(filepath.Ext(rel))
+		base := filepath.Base(rel)
+		// ysm.json 是 YSM 解压目录入口，优先
+		if ext == ".json" && types.IsYsmEntryJSON(base) {
+			return "ysm"
+		}
+		if ext == ".json" {
+			continue // 其他 json 不参与类型判定
+		}
+		rtypes := types.ExtBelongsTo(ext)
+		if len(rtypes) == 1 {
+			return rtypes[0]
+		}
+	}
+	return "ysm"
 }
 
 // ========== 在资源管理器中显示 ==========

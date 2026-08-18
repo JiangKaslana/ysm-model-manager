@@ -543,10 +543,10 @@
 | `App.GetPackInfo()` | `internal/app/app_files:72` | ========== 包信息 ========== |
 | `App.MoveModelFile()` | `internal/app/app_files:78` | ========== 模型移动/复制 ========== MoveModelFile 移动（root 传 FilesRoot 做路径安全校验，对齐 CopyModelFile） |
 | `App.CopyModelFile()` | `internal/app/app_files:84` | CopyModelFile 复制（root 传 FilesRoot 做路径安全校验） |
-| `App.ImportModelFolder()` | `internal/app/app_files:91` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模型名）；files = |
-| `App.RevealInExplorer()` | `internal/app/app_files:104` | ========== 在资源管理器中显示 ========== |
-| `App.ToggleModelEnable()` | `internal/app/app_files:133` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
-| `App.IsFileBanned()` | `internal/app/app_files:141` | — |
+| `App.ImportModelFolder()` | `internal/app/app_files:93` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模 |
+| `App.RevealInExplorer()` | `internal/app/app_files:131` | ========== 在资源管理器中显示 ========== |
+| `App.ToggleModelEnable()` | `internal/app/app_files:160` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
+| `App.IsFileBanned()` | `internal/app/app_files:168` | — |
 | `App.InstallModelFile()` | `internal/app/app_install_import:19` | ========== 安装 ========== |
 | `App.InstallModelTo()` | `internal/app/app_install_import:23` | — |
 | `App.InstallModelWithOverlay()` | `internal/app/app_install_import:33` | — |

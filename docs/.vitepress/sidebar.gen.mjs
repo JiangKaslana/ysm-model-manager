@@ -697,6 +697,10 @@ export const autoSidebar = [
         "link": "/audit-r1-3d-engine-core-2026-08-18"
       },
       {
+        "text": "第 2 轮审核报告：Go 后端路径层（fileops/sync/installer/recycle/download）",
+        "link": "/audit-r2-go-backend-2026-08-18"
+      },
+      {
         "text": "下载层加固调研报告",
         "link": "/download-hardening-research-2026-08-17"
       },

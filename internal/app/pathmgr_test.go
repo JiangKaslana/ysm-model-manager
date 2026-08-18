@@ -86,7 +86,8 @@ func TestGetRepoRoot_FallbackChain(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := filepath.Join(base, types.StorageSubDir("ysm"))
+		// ADR-092 两层路由：FilesRoot/{group}/{storageSubDir}
+		want := filepath.Join(base, types.GroupStorageRoot("ysm"))
 		if got != want {
 			t.Errorf("FilesRoot+子目录, got %q want %q", got, want)
 		}
@@ -129,7 +130,8 @@ func TestGetRepoRoot_PlatformDefault(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := filepath.Join(root, types.StorageSubDir("ysm"))
+		// ADR-092 两层路由：FilesRoot/{group}/{storageSubDir}
+		want := filepath.Join(root, types.GroupStorageRoot("ysm"))
 		if got != want {
 			t.Errorf("平台默认回退+子目录, got %q want %q", got, want)
 		}
