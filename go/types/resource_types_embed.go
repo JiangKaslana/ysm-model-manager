@@ -134,6 +134,7 @@ var embeddedRegistryJSON = []byte(`{
       ],
       "isDir": true,
       "dirLevelSync": true,
+      "nestedModelDir": true,
       "installExts": [".json", ".png", ".js"],
       "actions": ["import", "delete", "openFolder"]
     },
@@ -156,6 +157,7 @@ var embeddedRegistryJSON = []byte(`{
       ],
       "isDir": true,
       "dirLevelSync": true,
+      "subDirGrouping": true,
       "installExts": [".pmx", ".pmd", ".vmd", ".vpd", ".json", ".png", ".tga", ".spa", ".sph"],
       "actions": ["import", "delete", "openFolder"]
     },
