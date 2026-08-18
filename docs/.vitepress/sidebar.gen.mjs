@@ -705,6 +705,10 @@ export const autoSidebar = [
         "link": "/audit-r3-wails-binding-2026-08-18"
       },
       {
+        "text": "R4 审核报告：MMD 子类型目录落位（commit 7420399c）",
+        "link": "/audit-r4-mmd-subdir-sync-2026-08-18"
+      },
+      {
         "text": "下载层加固调研报告",
         "link": "/download-hardening-research-2026-08-17"
       },
