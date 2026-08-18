@@ -780,6 +780,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-101: MMD 场景加载性能分析与优化方向",
+        "link": "/adr/ADR-101-mmd-loading-perf"
+      },
+      {
         "text": "ADR-100：YSM 骨骼动画播放——L1 基础播放",
         "link": "/adr/ADR-100-ysm-bone-animation"
       },

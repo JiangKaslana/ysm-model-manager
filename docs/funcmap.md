@@ -27,12 +27,13 @@
 | go/scanner | 1 | 10 |
 | Go·同步 | 7 | 23 |
 | Go·标签 | 1 | 8 |
+| go/texture_cache | 1 | 6 |
 | Go·Three.js | 1 | 6 |
 | Go·类型 | 6 | 70 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 24 | 185 |
+| Go(internal)·应用入口 | 25 | 190 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 100 |
 | 前端·核心 | 18 | 36 |
@@ -44,7 +45,7 @@
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **409** | **1704** |
+| **合计** | **411** | **1715** |
 
 ## Go·头像
 
@@ -363,6 +364,17 @@
 | `Store.AllTags()` | `go/tags/tags:252` | AllTags 返回所有被使用的标签（按使用次数降序） |
 | `Store()` | `go/tags/tags:19` | Store 是标签存储，线程安全 |
 
+## go/texture_cache
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `TextureHash()` | `go/texture_cache/texture_cache:37` | TextureHash 计算文件内容的 SHA256 哈希，用作缓存 key。 |
+| `CachePath()` | `go/texture_cache/texture_cache:52` | CachePath 返回给定哈希对应的缓存文件路径。 |
+| `ReadCached()` | `go/texture_cache/texture_cache:62` | ReadCached 读取缓存中的 KTX2 数据。 |
+| `WriteCached()` | `go/texture_cache/texture_cache:82` | WriteCached 写入 KTX2 数据到缓存。 |
+| `HasCached()` | `go/texture_cache/texture_cache:107` | HasCached 检查缓存中是否存在指定哈希的 KTX2 文件。 |
+| `ClearCache()` | `go/texture_cache/texture_cache:123` | ClearCache 清空纹理缓存目录（用于测试或用户主动清理）。 |
+
 ## Go·Three.js
 
 | 符号 | 文件:行 | 说明 |
@@ -624,6 +636,11 @@
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
 | `App.AllTags()` | `internal/app/app_tags:32` | AllTags 返回所有被使用的标签（按使用次数降序） |
+| `App.GetCachedTexture()` | `internal/app/app_texture_cache:24` | GetCachedTexture 读取纹理文件，计算内容哈希，检查 KTX2 缓存。 |
+| `App.SaveCachedTexture()` | `internal/app/app_texture_cache:64` | SaveCachedTexture 保存前端 WASM 编码后的 KTX2 数据到缓存。 |
+| `App.ClearTextureCache()` | `internal/app/app_texture_cache:73` | ClearTextureCache 清空纹理缓存（用户主动清理用）。 |
+| `App.HasCachedTexture()` | `internal/app/app_texture_cache:78` | HasCachedTexture 检查指定纹理的内容哈希是否已有 KTX2 缓存。 |
+| `CachedTextureResult()` | `internal/app/app_texture_cache:15` | CachedTextureResult 是 GetCachedTexture 的返回值。 |
 | `App.DefaultWorkshopSites()` | `internal/app/app_workshop:103` | — |
 | `App.SaveWorkshopSites()` | `internal/app/app_workshop:114` | — |
 | `App.LoadWorkshopCreators()` | `internal/app/app_workshop:156` | — |
