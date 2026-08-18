@@ -780,6 +780,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-098: 3D 预览性能优化——纹理复用 + 视锥裁剪 + 按需更新",
+        "link": "/adr/ADR-098-3d-preview-perf"
+      },
+      {
         "text": "ADR-097：3D SceneCapability 注册表 + 模型切换复用架构",
         "link": "/adr/ADR-097-scene-capability-registry"
       },
