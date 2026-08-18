@@ -81,7 +81,7 @@ const THREE_TONE_MAPPING: Record<PostprocessingParams["toneMapping"], THREE.Tone
   cineon: THREE.CineonToneMapping,
 };
 
-const DEFAULT_POSTPROC_PARAMS: PostprocessingParams = {
+export const DEFAULT_POSTPROC_PARAMS: PostprocessingParams = {
   enabled: false,
   bloomStrength: 0.6,
   bloomThreshold: 0.6,
@@ -108,7 +108,7 @@ const DEFAULT_POSTPROC_PARAMS: PostprocessingParams = {
 const SSRPASS_OUTPUT_DEFAULT = 0;
 
 /** 模型类别后处理预设 */
-const POSTPROC_PRESETS: Record<string, Partial<PostprocessingParams>> = {
+export const POSTPROC_PRESETS: Record<string, Partial<PostprocessingParams>> = {
   default: { ...DEFAULT_POSTPROC_PARAMS },
   ysm: {
     // 方块：后处理薄，避免像素感丢失；SSR off（方块 PBR 效果有限）

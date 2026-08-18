@@ -27,7 +27,7 @@ export interface FogParams {
   density: number;
 }
 
-const DEFAULT_FOG_PARAMS: FogParams = {
+export const DEFAULT_FOG_PARAMS: FogParams = {
   enabled: false,
   mode: "linear",
   color: 0xaac4e8,
@@ -37,7 +37,7 @@ const DEFAULT_FOG_PARAMS: FogParams = {
 };
 
 /** 模型类别雾预设：材质特性不同，雾浓度/远近做合理初始值 */
-const FOG_PRESETS: Record<string, Partial<FogParams>> = {
+export const FOG_PRESETS: Record<string, Partial<FogParams>> = {
   default: { ...DEFAULT_FOG_PARAMS },
   ysm: {
     // 方块场景：近处清晰，远处轻雾（100 ~ 600 尺幅）

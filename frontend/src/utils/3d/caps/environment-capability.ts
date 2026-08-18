@@ -16,7 +16,7 @@ import {
 
 export type EnvPresetId = "sky" | "studio" | "sunset" | "night" | "forest";
 
-interface EnvPreset {
+export interface EnvPreset {
   id: EnvPresetId;
   label: string;
   /** 顶部天空色（y=+1 方向） */
@@ -37,7 +37,7 @@ interface EnvPreset {
   defaultIntensity: number;
 }
 
-const ENV_PRESETS: Record<EnvPresetId, EnvPreset> = {
+export const ENV_PRESETS: Record<EnvPresetId, EnvPreset> = {
   sky: {
     id: "sky", label: "天空（跟随 SkyCapability）",
     zenith: 0x0b5ea8, horizon: 0x78a7e6, nadir: 0xb8d0ec,
@@ -79,7 +79,7 @@ export interface EnvironmentParams {
   resolution: number;
 }
 
-const DEFAULT_ENV_PARAMS: EnvironmentParams = {
+export const DEFAULT_ENV_PARAMS: EnvironmentParams = {
   enabled: true,
   preset: "sky",
   intensity: 1.0,
@@ -87,7 +87,7 @@ const DEFAULT_ENV_PARAMS: EnvironmentParams = {
 };
 
 /** 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） */
-const ENV_PRESET_BY_MODEL: Record<string, Partial<EnvironmentParams>> = {
+export const ENV_PRESET_BY_MODEL: Record<string, Partial<EnvironmentParams>> = {
   default: { preset: "sky", intensity: ENV_PRESETS.sky.defaultIntensity },
   ysm: { preset: "sky", intensity: 1.0 },
   vrm: { preset: "studio", intensity: ENV_PRESETS.studio.defaultIntensity },

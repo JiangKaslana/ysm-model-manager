@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 125 | 453 |
+| 前端·工具 | 125 | 465 |
 | frontend/views | 105 | 290 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **409** | **1685** |
+| **合计** | **409** | **1697** |
 
 ## Go·头像
 
@@ -1220,10 +1220,16 @@
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
 | `fitCameraToRoots()` | `frontend/src/utils/3d/camera-setup:50` | 按给定根节点列表（多模型同框）计算并集包围盒并返回相机初始位姿。 |
 | `EnvPresetId()` | `frontend/src/utils/3d/caps/environment-capability:17` | — |
+| `EnvPreset()` | `frontend/src/utils/3d/caps/environment-capability:19` | — |
+| `ENV_PRESETS()` | `frontend/src/utils/3d/caps/environment-capability:40` | — |
 | `EnvironmentParams()` | `frontend/src/utils/3d/caps/environment-capability:73` | — |
+| `DEFAULT_ENV_PARAMS()` | `frontend/src/utils/3d/caps/environment-capability:82` | — |
+| `ENV_PRESET_BY_MODEL()` | `frontend/src/utils/3d/caps/environment-capability:90` | 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） |
 | `EnvironmentCapability()` | `frontend/src/utils/3d/caps/environment-capability:190` | — |
 | `FogMode()` | `frontend/src/utils/3d/caps/fog-capability:15` | — |
 | `FogParams()` | `frontend/src/utils/3d/caps/fog-capability:17` | — |
+| `DEFAULT_FOG_PARAMS()` | `frontend/src/utils/3d/caps/fog-capability:30` | — |
+| `FOG_PRESETS()` | `frontend/src/utils/3d/caps/fog-capability:40` | 模型类别雾预设：材质特性不同，雾浓度/远近做合理初始值 |
 | `FogCapability()` | `frontend/src/utils/3d/caps/fog-capability:64` | — |
 | `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:15` | — |
 | `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:28` | — |
@@ -1238,8 +1244,12 @@
 | `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:221` | ============ LightCapability ============ |
 | `ReflectionMode()` | `frontend/src/utils/3d/caps/postprocessing-capability:32` | 反射模式三档：envmap-only 纯环境贴图、envmap+ssr SSR+屏外 fallback、ssr-only 纯 SSR（屏外会变黑） |
 | `PostprocessingParams()` | `frontend/src/utils/3d/caps/postprocessing-capability:34` | — |
+| `DEFAULT_POSTPROC_PARAMS()` | `frontend/src/utils/3d/caps/postprocessing-capability:84` | — |
+| `POSTPROC_PRESETS()` | `frontend/src/utils/3d/caps/postprocessing-capability:111` | 模型类别后处理预设 |
 | `PostprocessingCapability()` | `frontend/src/utils/3d/caps/postprocessing-capability:144` | — |
 | `ReflectorParams()` | `frontend/src/utils/3d/caps/reflector-capability:18` | — |
+| `DEFAULT_REFLECTOR_PARAMS()` | `frontend/src/utils/3d/caps/reflector-capability:34` | — |
+| `REFLECTOR_PRESETS()` | `frontend/src/utils/3d/caps/reflector-capability:45` | 模型类别反光预设：反光强度按材质风格适配（toon 不要强反射，PBR 角色中等，方块/体素弱） |
 | `ReflectorCapability()` | `frontend/src/utils/3d/caps/reflector-capability:69` | — |
 | `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability-registry:20` | 能力工厂：接收 scene/renderer/camera，返回能力实例 |
 | `SceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:27` | 注册表：管理所有场景能力的工厂和实例 |
@@ -1249,6 +1259,8 @@
 | `persistState()` | `frontend/src/utils/3d/caps/scene-capability:99` | 保存 JSON 到 localStorage |
 | `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:104` | 从 localStorage 加载 JSON |
 | `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:18` | — |
+| `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:47` | — |
+| `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:61` | 模型类别阴影预设 |
 | `ShadowCapability()` | `frontend/src/utils/3d/caps/shadow-capability:85` | — |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:26` | — |
 | `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:47` | — |
