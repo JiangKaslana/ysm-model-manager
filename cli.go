@@ -83,6 +83,11 @@ var cliCommands = map[string]cliCommand{
 		Description: "清空纹理缓存",
 		Run:         runCacheClear,
 	},
+	"cache-diag": {
+		Name:        "cache-diag",
+		Description: "诊断缓存流程（哈希计算、读写功能、目录权限）",
+		Run:         runCacheDiag,
+	},
 	"config-show": {
 		Name:        "config-show",
 		Description: "查看当前配置",
@@ -1513,6 +1518,145 @@ func runCacheClear(a *app.App, args []string) error {
 	fmt.Println()
 	fmt.Println("💡 提示: 清空后首次加载模型会较慢，系统会自动重新生成缓存。")
 
+	return nil
+}
+
+// runCacheDiag 诊断缓存流程
+func runCacheDiag(a *app.App, args []string) error {
+	_ = a
+	_ = args
+
+	fmt.Printf("🔍 缓存流程诊断\n")
+	fmt.Println(strings.Repeat("=", 60))
+
+	// 1. 缓存目录检查
+	fmt.Printf("\n📁 1. 缓存目录检查\n")
+	dir := texture_cache.CacheDir()
+	fmt.Printf("   路径: %s\n", dir)
+
+	if dir == "" {
+		fmt.Printf("   ❌ 缓存目录不可用\n")
+		fmt.Printf("   💡 原因: os.UserConfigDir() 返回空（可能是权限问题或平台不支持）\n")
+		return fmt.Errorf("缓存目录不可用")
+	}
+
+	// 检查目录是否存在
+	_, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("   ⚠️  目录不存在（将在首次写入时自动创建）\n")
+		} else {
+			fmt.Printf("   ❌ 无法访问目录: %v\n", err)
+		}
+	} else {
+		fmt.Printf("   ✅ 目录存在\n")
+	}
+
+	// 测试目录创建
+	testDir := filepath.Join(dir, ".diag_test")
+	err = os.MkdirAll(testDir, 0755)
+	if err != nil {
+		fmt.Printf("   ❌ 无法创建子目录: %v\n", err)
+		fmt.Printf("   💡 可能是权限不足，请检查目录的写入权限\n")
+	} else {
+		fmt.Printf("   ✅ 目录创建权限正常\n")
+		os.Remove(testDir)
+	}
+
+	// 2. 哈希计算测试
+	fmt.Printf("\n🔐 2. 哈希计算测试\n")
+	testFile := filepath.Join(os.TempDir(), "ysm_cache_test.txt")
+	testContent := []byte("YSM Cache Diagnostic Test Content")
+	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+		fmt.Printf("   ❌ 无法创建测试文件: %v\n", err)
+	} else {
+		hash, err := texture_cache.TextureHash(testFile)
+		if err != nil {
+			fmt.Printf("   ❌ 哈希计算失败: %v\n", err)
+		} else {
+			fmt.Printf("   ✅ 哈希计算成功\n")
+			fmt.Printf("      输入: %s\n", testFile)
+			fmt.Printf("      哈希: %s\n", hash)
+
+			// 验证哈希一致性
+			hash2, _ := texture_cache.TextureHash(testFile)
+			if hash == hash2 {
+				fmt.Printf("      ✅ 哈希一致性验证通过\n")
+			} else {
+				fmt.Printf("      ❌ 哈希不一致！\n")
+			}
+		}
+		os.Remove(testFile)
+	}
+
+	// 3. 缓存读写测试
+	fmt.Printf("\n💾 3. 缓存读写测试\n")
+	testHash := "diag_test_hash_12345"
+	testData := []byte("YSM KTX2 Cache Test Data - " + time.Now().Format(time.RFC3339))
+
+	// 写入测试
+	err = texture_cache.WriteCached(testHash, testData)
+	if err != nil {
+		fmt.Printf("   ❌ 缓存写入失败: %v\n", err)
+		fmt.Printf("   💡 可能是磁盘空间不足或权限问题\n")
+	} else {
+		fmt.Printf("   ✅ 缓存写入成功\n")
+		fmt.Printf("      文件: %s\n", texture_cache.CachePath(testHash))
+
+		// 读取测试
+		data, ok, err := texture_cache.ReadCached(testHash)
+		if err != nil {
+			fmt.Printf("   ❌ 缓存读取失败: %v\n", err)
+		} else if !ok {
+			fmt.Printf("   ❌ 缓存未命中（刚写入的应该命中）\n")
+		} else {
+			fmt.Printf("   ✅ 缓存读取成功\n")
+			if string(data) == string(testData) {
+				fmt.Printf("   ✅ 数据完整性验证通过\n")
+			} else {
+				fmt.Printf("   ❌ 数据不完整！\n")
+			}
+		}
+
+		// 清理测试文件
+		texture_cache.ClearCache()
+	}
+
+	// 4. 缓存状态
+	fmt.Printf("\n📊 4. 当前缓存状态\n")
+	stats := texture_cache.GetCacheStats()
+	fmt.Printf("   文件数量: %d\n", stats.FileCount)
+	fmt.Printf("   总大小:   %s\n", formatSize(stats.TotalSize))
+
+	// 5. 关键发现
+	fmt.Printf("\n🎯 5. 关键说明\n")
+	fmt.Printf("   %s\n", strings.Repeat("-", 50))
+	fmt.Printf("   💡 缓存编码流程:\n")
+	fmt.Printf("      1. 前端加载 MMD 模型 → 调用 GetCachedTexture(hash)\n")
+	fmt.Printf("      2. 后端计算文件哈希，检查缓存 → 未命中时返回原始 PNG\n")
+	fmt.Printf("      3. 前端在后台用 WASM 编码为 KTX2 → 调用 SaveCachedTexture\n")
+	fmt.Printf("      4. 后端写入缓存文件 → 下次加载直接命中\n\n")
+	fmt.Printf("   ⚠️  CLI 模式说明:\n")
+	fmt.Printf("      - CLI 不会触发 KTX2 编码（编码需要前端 WASM 环境）\n")
+	fmt.Printf("      - CLI 只能检查缓存状态，不能生成缓存\n")
+	fmt.Printf("      - 要生成缓存，请在 GUI 中加载一次模型\n\n")
+	fmt.Printf("   🔍 排查步骤:\n")
+	fmt.Printf("      1. 在 GUI 中加载 MMD 模型（等待加载完成）\n")
+	fmt.Printf("      2. 查看环形日志面板，确认 'ktx2-encode' 日志\n")
+	fmt.Printf("      3. 使用 'cache-status' 检查缓存是否已生成\n")
+	fmt.Printf("      4. 使用 'cache-verify --dir <模型路径>' 检查具体模型\n\n")
+
+	// 6. 如果缓存为空，给出建议
+	if stats.FileCount == 0 {
+		fmt.Printf("   🔴 当前缓存为空！\n")
+		fmt.Printf("      - 如果已在 GUI 中加载模型，说明编码可能失败了\n")
+		fmt.Printf("      - 请检查 GUI 的环形日志面板（filter: ktx2-encode）\n")
+		fmt.Printf("      - 常见失败原因: WASM 加载失败、纹理格式不支持\n")
+	} else {
+		fmt.Printf("   🟢 缓存正常，可放心使用\n")
+	}
+
+	fmt.Printf("\n%s\n", strings.Repeat("=", 60))
 	return nil
 }
 

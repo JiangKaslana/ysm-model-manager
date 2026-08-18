@@ -243,6 +243,7 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 | `cache-status` | 查看纹理缓存状态（路径/大小/文件数） | `cache-status` |
 | `cache-verify` | 检查模型贴图缓存命中情况 | `cache-verify --dir ./mmd/子言 --verbose` |
 | `cache-clear` | 清空纹理缓存 | `cache-clear --yes` |
+| `cache-diag` | 诊断缓存流程（目录/哈希/读写/权限） | `cache-diag` |
 
 ### 配置管理命令
 
@@ -291,6 +292,9 @@ go run . --cli --files-root ./models file-bench --dir ./mmd --compare baseline.j
 ### 场景 4：缓存清理与重建
 
 ```bash
+# 诊断缓存流程
+go run . --cli --files-root ./models cache-diag
+
 # 查看缓存状态
 go run . --cli --files-root ./models cache-status
 
@@ -298,6 +302,22 @@ go run . --cli --files-root ./models cache-status
 go run . --cli --files-root ./models cache-clear --yes
 
 # 验证缓存已清空
+go run . --cli --files-root ./models cache-verify --dir ./mmd/子言
+```
+
+### 场景 5：缓存编码失败排查
+
+```bash
+# 1. 运行诊断命令，检查缓存基础设施
+go run . --cli --files-root ./models cache-diag
+
+# 2. 如果诊断通过，说明问题在前端 WASM 编码
+#    需要在 GUI 中加载模型，查看环形日志面板的 ktx2-encode 日志
+
+# 3. 查看缓存状态是否有新文件
+go run . --cli --files-root ./models cache-status
+
+# 4. 检查特定模型的缓存命中
 go run . --cli --files-root ./models cache-verify --dir ./mmd/子言
 ```
 
