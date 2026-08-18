@@ -34,6 +34,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "@loaders.gl/textures": "^4.4.4",
     "@moeru/three-mmd": "^0.1.1",
     "@pixiv/three-vrm": "^3.5.5",
     "@pixiv/three-vrm-animation": "^3.5.5",

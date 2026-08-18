@@ -11,6 +11,7 @@ import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
+import { scheduleBackgroundEncoding } from "./mmd-ktx2-encoder.ts";
 import type {
   MmdBottomNavCtx,
   MmdPlayBridge,
@@ -178,6 +179,8 @@ export async function buildMmdScene(
   texMap.set(modelBase, modelBlobUrl);
   // blob URL → 相对路径反向映射（post-load KTX2 替换时从纹理 image.src 反查 relPath）
   const blobUrlToRel = new Map<string, string>();
+  // blob URL → hash 映射（后台 KTX2 编码用）
+  const blobUrlToHash = new Map<string, string>();
   try {
     const files = (await port.listAllFilePaths(dirPath)) || [];
     // ADR-101：批量读取纹理（1 次 RPC 替代 N 次 readFileBytes，减少 Go↔JS IPC 往返）
@@ -235,7 +238,10 @@ export async function buildMmdScene(
       // 反向映射：blob URL → 相对路径（post-load KTX2 替换溯源）
       blobUrlToRel.set(url, rel);
       // 存储 hash（后续 KTX2 替换用）
-      if (texHash) texHashMap.set(rel, texHash);
+      if (texHash) {
+        texHashMap.set(rel, texHash);
+        blobUrlToHash.set(url, texHash);
+      }
     }
     // 同目录 VMD 动作文件（模型加载后逐个解析）
     vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
@@ -375,6 +381,11 @@ export async function buildMmdScene(
         });
       }
     }
+  }
+
+  // ---- 后台 KTX2 编码：未缓存的纹理在后台编码并保存到 Go 侧缓存 ----
+  if (blobUrlToHash.size > 0 && port.getCachedTexture) {
+    scheduleBackgroundEncoding(blobUrlToHash, port);
   }
 
   // ---- VMD 动作（同目录 .vmd）：批量读取 + VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
