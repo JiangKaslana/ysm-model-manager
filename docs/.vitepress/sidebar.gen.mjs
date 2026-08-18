@@ -753,6 +753,10 @@ export const autoSidebar = [
         "link": "/download-hardening-research-2026-08-17"
       },
       {
+        "text": "最终审计总结报告",
+        "link": "/final-audit-summary-2026-08-18"
+      },
+      {
         "text": "YSM 模型管理器 — 前端测试覆盖专项报告",
         "link": "/test-coverage-report-2026-08-09"
       },
