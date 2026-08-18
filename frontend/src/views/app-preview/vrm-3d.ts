@@ -8,7 +8,7 @@ import { buildVrmScene, type VrmPanelHooks } from "../../utils/3d/adapters/vrm-a
 import { getApp } from "../../backend/app.ts";
 import { makeVrmPanelRenderer } from "./vrm-controls.ts";
 import { fillMmdPlayPanel } from "./mmd-controls.ts";
-import { withPreviewExtras, registerReRoute } from "./preview-library.ts";
+import { withPreviewExtras, registerReRoute, openModel3DFullscreen } from "./preview-library.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
 // 注册跨类型换角色路由（资源库面板/导航 FAB 选中 VRM 时派发到此）
@@ -47,9 +47,9 @@ export async function switchVrmPreview(path: string): Promise<void> {
   await switchPreview(path);
 }
 
-/** 同台追加 VRM 模型：不清理旧场景，将新模型 add 到已有场景（多模型同框） */
+/** 同台追加 VRM 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） */
 export async function appendVrmPreview(path: string): Promise<void> {
-  await switchPreview(path, { keepInScene: true });
+  await openModel3DFullscreen(path, { cooperate: true });
 }
 
 /** 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */

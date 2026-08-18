@@ -12,13 +12,18 @@
 // 全程轻量获取文件——不再全量扫描各仓库、不再按扩展名分类贴标签。
 
 import { getApp } from "../../backend/app.ts";
-import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
+import { switchPreview, hasActivePreview } from "../../utils/3d/adapters/mount-preview-core.ts";
 
 /** 跨类型换角色注册表：各 createXxx3D 模块加载时注册，路由侧不反向 import 包装器（破循环） */
-const _openers: Record<string, (path: string) => Promise<void>> = {};
-/** 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用） */
-export function registerReRoute(rtype: string, opener: (path: string) => Promise<void>): void {
+const _openers: Record<string, (path: string, siblings?: string[]) => Promise<void>> = {};
+/** 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用；
+ *  第二参透传 siblings，切换后新会话「当前目录」tab 有候选，P1-2） */
+export function registerReRoute(
+  rtype: string,
+  opener: (path: string, siblings?: string[]) => Promise<void>,
+): void {
   _openers[rtype] = opener;
 }
 
@@ -27,13 +32,34 @@ export function getRegisteredRoutes(): string[] {
   return Object.keys(_openers);
 }
 
+/** openModel3DFullscreen 选项（ADR-093 T4：cooperate 统一多模型同台追加入口） */
+export interface OpenModel3DOptions {
+  /** 同类型候选路径列表（透传给 opener 的 siblings） */
+  siblings?: string[];
+  /**
+   * 多模型同台追加：有活跃会话时改走 switchPreview({keepInScene}) 把新模型追加进
+   * 同一场景，统一收口到注册表主门（消除 appendXxxPreview 绕过路由的接缝）。
+   * 注意：当前 switchToSession 复用活跃会话的适配器，故 cooperate 追加与活跃会话
+   * 同类型时语义最稳；跨类型（如 MMD 会话追加 VRM）需适配器按类型解析，见 ADR-093 T4-b。
+   */
+  cooperate?: boolean;
+}
+
 /**
  * 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。
- * 未注册类型回退 YSM opener；全无注册时 toast 提示。各 opener 内部（createXxx3D →
+ * 未注册类型直接 toast 提示（不回退 YSM opener——YSM opener 无法加载非 YSM 文件，
+ * 回退只会产生「加载失败」误导，P2-4）。各 opener 内部（createXxx3D →
  * mount3D cooperate=false）会先清理旧的活跃全屏层。
+ *
+ * cooperate=true 且有活跃会话时：改走同台追加（keepInScene），不清理旧场景。
  */
-export async function openModel3DFullscreen(path: string): Promise<void> {
+export async function openModel3DFullscreen(path: string, options?: OpenModel3DOptions): Promise<void> {
   if (!path) return;
+  const siblings = options?.siblings;
+  if (options?.cooperate && hasActivePreview()) {
+    await switchPreview(path, { keepInScene: true });
+    return;
+  }
   const { DetectResourceType } = await getApp();
   let rtype = "";
   try {
@@ -41,9 +67,9 @@ export async function openModel3DFullscreen(path: string): Promise<void> {
   } catch {
     /* 类型探测失败 */
   }
-  const opener = _openers[rtype] ?? _openers[RESOURCE_TYPES.YSM];
+  const opener = _openers[rtype];
   if (opener) {
-    await opener(path);
+    await opener(path, siblings);
     return;
   }
   const { bus } = await import("../../bus.ts");
@@ -76,7 +102,7 @@ async function scanModelsByType(rtype: string): Promise<string[]> {
 /** 给 mount3D opts 注入「跨类型换角色」入口 + 按类型懒加载数据源。各 createXxx3D 统一经此接入 */
 export function withPreviewExtras<T extends Mount3DOptions>(opts: T): T & PreviewExtras {
   return Object.assign(opts as T & PreviewExtras, {
-    switchExternal: openModel3DFullscreen,
+    switchExternal: (p: string, s?: string[]) => openModel3DFullscreen(p, s ? { siblings: s } : undefined),
     getModelsByType: scanModelsByType,
     getTypeTabs: () => getRegisteredRoutes(),
   });

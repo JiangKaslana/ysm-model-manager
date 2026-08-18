@@ -33,6 +33,9 @@ import { PostprocessingManager } from "./postprocessing.ts";
 import { runFullCleanup, type CleanupContext } from "./cleanup-3d.ts";
 import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts";
 import type { SwitchContext } from "./switch-preview.ts";
+import { sceneRegistry } from "./scene-registry.ts";
+import { fitCameraToRoots } from "../camera-setup.ts";
+import { assembleBoneSelectInfo, getMeshBoneId } from "../bone-raycast.ts";
 import { bindInputHandlers } from "./input-and-animation.ts";
 import type { InputOptions } from "./input-and-animation.ts";
 import { mountSidePanel } from "./side-panel.ts";
@@ -47,8 +50,9 @@ import { installUiComponentsStyles } from "../../../ui/ui-components-styles.ts";
 import { createSlideMenu } from "../../../ui/ui-helpers.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { mountPreviewRootMenu, type PreviewMenuHandle } from "./preview-menu.ts";
+import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { type CameraControlBridge } from "./camera-controls.ts";
-import type { BoneSelectInfo } from "../model3d.ts";
+import type { BoneSelectInfo, BoneMaps } from "../model3d.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
 export interface PreviewBuildCtx {
@@ -88,10 +92,16 @@ export interface PreviewScene {
   semanticBones?: SemanticBoneMap;
   /** 应用 VPD 姿势（MMD 专属；无 = 该格式不支持） */
   applyPose?(index: number): void;
-  /** 截取当前 3D 渲染画面（PNG base64，无 data: 前缀）—— ADR-052 P3 通用化 */
+  /** 截取当前 3D 渲染画面；PNG base64，无 data: 前缀—— ADR-052 P3 通用化 */
   screenshot?(): Promise<string | null>;
   /** 同台追加模式：true 表示不替换 scene，改为将模型 add 到已有场景（多模型同框） */
   keepInScene?: boolean;
+  /** 骨骼映射（dispatch 拾取归属用，ADR-093 T5；未接入格式不返回） */
+  boneMaps?: BoneMaps | null;
+  /** 该模型声明式根菜单专属项（selectModel 换菜单用，ADR-093 T5；未接入为 null） */
+  menuItems?: PreviewMenuItemDef[] | null;
+  /** 多模型下由统一拾取器调用：点中该模型骨骼时打开其面板（ADR-093 T5） */
+  onBonePick?: (boneId: string) => void;
 }
 
 export interface PreviewAdapter {
@@ -147,14 +157,22 @@ export async function switchPreview(path: string, options?: { keepInScene?: bool
   await _handle?.switchTo?.(path, options);
 }
 
+/** 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） */
+export function hasActivePreview(): boolean {
+  return _handle !== null;
+}
+
 /** mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） */
 export interface Mount3DOptions {
   /** 同类型可切换的候选路径列表（≥2 时 topBar 渲染切换下拉；缺省不渲染，向后兼容） */
   siblings?: string[];
   /** 同台追加模式：true 时不移除旧模型，新模型追加到同一场景（多模型同框） */
   cooperate?: boolean;
-  /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标；app 层 openModel3DFullscreen 注入） */
-  switchExternal?: (path: string) => Promise<void>;
+  /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标；app 层 openModel3DFullscreen 注入）。
+   *  第二参透传 siblings（当前会话候选），避免切换后新会话「当前目录」tab 为空 */
+  switchExternal?: (path: string, siblings?: string[]) => Promise<void>;
+  /** 当前会话资源类型（如 ysm/mmd-skin/vrchat-avatar/resourcepack）；类型 tab 点击时判断同类型走 switchTo */
+  rtype?: string;
   /** 按资源类型懒加载候选模型路径（切换模型的类型 tab 点击时；缺省无 tab） */
   getModelsByType?: (rtype: string) => Promise<string[]>;
   /** 类型 tab 列表（有 3D opener 的类型；经 withPreviewExtras 注入，缺省仅「当前目录」tab） */
@@ -265,6 +283,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getCamBridge: () => camBridge,
     getSiblings: () => (opts.siblings ?? []).filter((p) => p !== currentPath),
     getCurrentPath: () => currentPath,
+    getCurrentRtype: () => opts.rtype ?? "",
     getModelsByType: opts.getModelsByType ? (t: string) => opts.getModelsByType!(t) : undefined,
     getTypeTabs: opts.getTypeTabs ? () => opts.getTypeTabs!() : undefined,
     getViewContainer: () => viewContainer,
@@ -275,8 +294,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     switchTo: (p: string, options?: { keepInScene?: boolean }) => {
       void _handle?.switchTo?.(p, options);
     },
-    switchExternal: opts.switchExternal ? (p: string): void => { void opts.switchExternal!(p); } : undefined,
+    switchExternal: opts.switchExternal ? (p: string, s?: string[]): void => { void opts.switchExternal!(p, s); } : undefined,
   });
+  // ADR-093 T5：注册表菜单 sink（selectModel 时按活跃模型换菜单项）
+  sceneRegistry.setMenuSink({ setAdapterItems: (items) => menuHandle.setAdapterItems(items) });
 
   const loadingEl = document.createElement("div");
   loadingEl.style.cssText =
@@ -354,6 +375,50 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     };
     const handlers = bindInputHandlers(inputOpts);
     onKeyDown = handlers.onKeyDown;
+
+    // ADR-093 T5：统一多模型拾取器（仅 count>=2 激活，单模型完全沿用逐模型 registerBoneRaycast，零回归）
+    const raycaster = new THREE.Raycaster();
+    const pickPointer = new THREE.Vector2();
+    const onUnifiedPick = (e: MouseEvent): void => {
+      if (sceneRegistry.count() < 2) return;
+      if (!renderer || !camera || !scene) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pickPointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pickPointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pickPointer, camera);
+      const hits = raycaster.intersectObjects(scene.children, true);
+      for (const hit of hits) {
+        // THREE Raycaster 不检查 visible，手动跳过隐藏链
+        let node: THREE.Object3D | null = hit.object;
+        let hidden = false;
+        while (node) {
+          if (!node.visible) { hidden = true; break; }
+          node = node.parent;
+        }
+        if (hidden) continue;
+        const entry = sceneRegistry.pickModelByObject(hit.object);
+        if (!entry) continue;
+        // 切活跃模型 + 换菜单（菜单会话级共享、后建覆盖前建，故需按归属换项）
+        sceneRegistry.setActive(entry.id);
+        if (entry.boneMaps) {
+          const boneId = getMeshBoneId(hit.object, entry.boneMaps.nameMap);
+          if (boneId) {
+            const info = assembleBoneSelectInfo(
+              boneId,
+              entry.boneMaps.boneGroupMap,
+              entry.boneMaps.nameMap,
+              entry.boneMaps.parentMap,
+              entry.boneMaps.childrenMap,
+              hit.object,
+            );
+            entry.built.onBoneSelect?.(info);
+            entry.onBonePick?.(boneId);
+          }
+        }
+        break;
+      }
+    };
+    renderer.domElement.addEventListener("click", onUnifiedPick);
     onKeyUp = handlers.onKeyUp;
     onDragPointerDown = handlers.onDragPointerDown;
     onDragPointerUp = handlers.onDragPointerUp;
@@ -480,6 +545,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     lightCap,
     getCurrentPath: () => currentPath,
     setCurrentPath: (p) => { currentPath = p; },
+    getCurrentRtype: () => opts.rtype ?? adapter.id,
     getPerFrame: () => perFrame,
     setPerFrame: (f) => { perFrame = f; },
     getHandle: () => _handle,
@@ -533,6 +599,21 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   // ===== §4c 生命周期管理（cooperate/switchTo/代际守卫）=====
   // 记录初始模型到追加列表（cooperate 模式下 fullCleanup 需逐一 dispose）
     if (built) allBuilt.push(built);
+    // ADR-093 T2：首模型注册进场景注册表（roots 经 scene.children 差量捕获）
+    if (built) {
+      const added = scene && sceneBaseline
+        ? scene.children.filter((c) => !sceneBaseline!.has(c))
+        : [];
+      sceneRegistry.register({
+        path,
+        rtype: opts.rtype ?? adapter.id,
+        roots: added,
+        built,
+        boneMaps: built.boneMaps ?? null,
+        menuItems: built.menuItems ?? null,
+        onBonePick: built.onBonePick ?? null,
+      });
+    }
 
     // 适配器专属控件挂入通用 topBar 之后
     built.extraControls?.(topBar);

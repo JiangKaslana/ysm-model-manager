@@ -13,7 +13,7 @@ import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
-import { RESOURCE_TYPES } from "../../resource/types.ts";
+import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
 
@@ -26,6 +26,8 @@ export interface PreviewMenuCtx {
   getCamBridge: () => CameraControlBridge;
   getSiblings: () => string[];
   getCurrentPath: () => string;
+  /** 当前会话资源类型（如 ysm/mmd-skin/vrchat-avatar/resourcepack；空串未知）——类型 tab 点击时判断同类型走 switchTo */
+  getCurrentRtype?: () => string;
   /** 按资源类型扫描候选模型路径（点击切换模型的类型 tab 时懒加载；缺省回退 siblings） */
   getModelsByType?: (rtype: string) => Promise<string[]>;
   /** 类型 tab 列表（如 ["ysm","mmd-skin","vrchat-avatar","resourcepack"]；缺省仅「当前目录」tab） */
@@ -34,8 +36,9 @@ export interface PreviewMenuCtx {
   getViewContainer: () => HTMLElement;
   close: () => void;
   switchTo: (path: string, options?: { keepInScene?: boolean }) => void;
-  /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标，由 app 层 openModel3DFullscreen 提供） */
-  switchExternal?: (path: string) => Promise<void> | void;
+  /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标，由 app 层 openModel3DFullscreen 提供）。
+   *  第二参透传 siblings，切换后新会话「当前目录」tab 有候选（P1-2） */
+  switchExternal?: (path: string, siblings?: string[]) => Promise<void> | void;
 }
 
 /** i18n 安全取值：键缺失时回退，杜绝菜单项退化显示原始键名 */
@@ -375,15 +378,24 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     tabBar.appendChild(b);
   };
   mkTab("", tr("preview.switchDirTab", "当前目录"));
-  for (const r of rtypes) mkTab(r, r);
+  for (const r of rtypes) mkTab(r, RESOURCE_TYPE_LABELS[r] || r);
 
   const listBody = document.createElement("div");
   listBody.style.cssText = "max-height:240px;overflow-y:auto";
 
+  // 请求代际守卫：快速切 tab 时丢弃过期异步结果（P1-3）
+  let reqGen = 0;
+
+  /** 路径归一化：统一正斜杠 + 小写（跨平台分隔符比较一致，P2-5） */
+  const norm = (s: string): string => s.replace(/\\/g, "/").toLowerCase();
+
   const renderRows = (): void => {
+    const gen = ++reqGen;
     listBody.innerHTML = "";
     const draw = (paths: string[], viaType: boolean): void => {
-      if (paths.length === 0) {
+      // 类型 tab 候选过滤当前项（避免点击自己整段重建，P3-4）；当前目录 tab 已由 getSiblings 过滤
+      const shown = viaType ? paths.filter((p) => norm(p) !== norm(cur)) : paths;
+      if (shown.length === 0) {
         const empty = document.createElement("div");
         empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
         empty.textContent = viaType
@@ -392,8 +404,8 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         listBody.appendChild(empty);
         return;
       }
-      paths.forEach((p) => {
-        const isCur = p.toLowerCase() === cur.toLowerCase();
+      shown.forEach((p) => {
+        const isCur = norm(p) === norm(cur);
         const row = document.createElement("div");
         row.className = "ysm-preview-menu-row";
         row.dataset.testid = "preview-switch-item";
@@ -408,8 +420,14 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         row.append(ic, lb);
         row.onclick = (): void => {
           closePopup();
-          if (viaType && ctx.switchExternal) void ctx.switchExternal(p);
-          else void ctx.switchTo(p);
+          // 同类型（当前目录 tab 或类型 tab 与当前会话 rtype 一致）→ switchTo 复用外壳；
+          // 跨类型 → switchExternal 整段重建，并透传 siblings（P1-1 / P1-2）
+          const sameType = !viaType || activeTab === ctx.getCurrentRtype?.();
+          if (!sameType && ctx.switchExternal) {
+            void ctx.switchExternal(p, ctx.getSiblings());
+          } else {
+            void ctx.switchTo(p);
+          }
         };
         listBody.appendChild(row);
       });
@@ -418,14 +436,51 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       draw(ctx.getSiblings(), false);
     } else {
       void Promise.resolve(ctx.getModelsByType?.(activeTab) ?? Promise.resolve([])).then((paths) => {
+        if (gen !== reqGen) return; // 过期请求丢弃（P1-3）
         if (!listBody.parentNode) return; // 面板已关闭
         draw(paths ?? [], true);
+      }).catch(() => {
+        // P3-3：扫描失败优雅降级为空列表（不产生 unhandled rejection、不卡加载态）
+        if (gen !== reqGen) return;
+        if (!listBody.parentNode) return;
+        draw([], true);
       });
     }
   };
 
   list.append(tabBar, listBody);
   renderRows();
+
+  // 分隔线 + 手动路径输入（支持跨类型加载，无需退出 3D；P2-1 补回）
+  const sep = document.createElement("div");
+  sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+  list.appendChild(sep);
+
+  const inputRow = document.createElement("div");
+  inputRow.style.cssText = "display:flex;gap:4px;padding:4px 10px 8px";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = tr("preview.switchPathPlaceholder", "输入模型文件路径…");
+  input.style.cssText =
+    "flex:1;font-size:12px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);" +
+    "background:rgba(255,255,255,0.06);color:#fff;outline:none";
+  const goByPath = (): void => {
+    const path = input.value.trim();
+    if (!path) return;
+    closePopup();
+    if (ctx.switchExternal) void ctx.switchExternal(path, ctx.getSiblings());
+    else void ctx.switchTo(path);
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") goByPath();
+  });
+  const btn = document.createElement("button");
+  btn.className = "ysm-btn";
+  btn.textContent = tr("preview.switchByPath", "手动加载模型");
+  btn.style.cssText = "font-size:12px;padding:4px 10px;white-space:nowrap";
+  btn.onclick = goByPath;
+  inputRow.append(input, btn);
+  list.appendChild(inputRow);
 }
 
 /** 灯光面板（ADR-081 L1）：顶光/体积光锥/预设切换 */

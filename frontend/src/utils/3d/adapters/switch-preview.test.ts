@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import * as THREE from "three";
 import type { SwitchContext } from "./switch-preview.ts";
 import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts";
-import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
+import type { PreviewBuildCtx, PreviewScene, PreviewHandle } from "./mount-preview-core.ts";
 
 /** 构造最小可用的 mock 测试上下文 */
 function makeMockCtx(): {
@@ -19,7 +19,7 @@ function makeMockCtx(): {
     perFrame: ((dt: number) => void) | null;
     currentPath: string;
     adapterControlsStart: number;
-    _handle: { screenshot?: (() => Promise<string | null>) | null } | null;
+    _handle: PreviewHandle | null;
   };
   mockScene: THREE.Scene;
   mockAdapter: { build: ReturnType<typeof vi.fn> };
@@ -31,7 +31,7 @@ function makeMockCtx(): {
     perFrame: null as ((dt: number) => void) | null,
     currentPath: "initial.glb",
     adapterControlsStart: 0,
-    _handle: null as { screenshot?: (() => Promise<string | null>) | null } | null,
+    _handle: null as PreviewHandle | null,
   };
 
   const mockScene = new THREE.Scene();
@@ -73,6 +73,7 @@ function makeMockCtx(): {
     lightCap: null,
     getCurrentPath: () => state.currentPath,
     setCurrentPath: (p) => { state.currentPath = p; },
+    getCurrentRtype: () => state.currentPath,
     getPerFrame: () => state.perFrame,
     setPerFrame: (f) => { state.perFrame = f; },
     getHandle: () => state._handle,

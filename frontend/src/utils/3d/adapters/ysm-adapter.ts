@@ -23,7 +23,8 @@ import { disposeDebugGroup } from "../cleanup-helper.ts";
 import { screenshotFromRenderer } from "../screenshot.ts";
 import type { YsmContentHandle, YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
-import type { Spec3D, BoneSelectInfo } from "../model3d.ts";
+import type { Spec3D, BoneSelectInfo, BoneMaps } from "../model3d.ts";
+import { sceneRegistry } from "./scene-registry.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
@@ -105,16 +106,21 @@ export async function buildYsmScene(
   // 骨骼射线拾取（YSM 特色）：绑定核心 renderer.domElement
   const rayState = makeRayState();
   const { nameMap, parentMap, childrenMap } = buildBoneHierarchy(spec as Spec3D);
-  const rayCleanup = registerBoneRaycast(
-    ctx.renderer,
-    ctx.camera,
-    ctx.scene,
-    obj.boneGroupMap,
-    nameMap,
-    parentMap,
-    childrenMap,
-    rayState as never,
-  );
+  // ADR-093 T5：多模型会话中后续模型不注册自身监听，交统一拾取器接管（防重复 + 菜单错位）
+  const multiMode = sceneRegistry.count() >= 1;
+  const rayCleanup = multiMode
+    ? () => {}
+    : registerBoneRaycast(
+        ctx.renderer,
+        ctx.camera,
+        ctx.scene,
+        obj.boneGroupMap,
+        nameMap,
+        parentMap,
+        childrenMap,
+        rayState as never,
+      );
+  const boneMaps: BoneMaps = { boneGroupMap: obj.boneGroupMap, nameMap, parentMap, childrenMap };
 
   // 内容句柄（fill3DPanel / 底部导航消费；相机操作走核心 cameraControls）
   const content: YsmContentHandle = {
@@ -167,19 +173,18 @@ export async function buildYsmScene(
     screenshot: () =>
       Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
   };
-  ctx.menu.setAdapterItems(
-    ysmMenuItems({
-      controlsCtx,
-      panels: opts.panels,
-      bonePanel: {
-        tree: boneTree,
-        viewContainer: ctx.viewContainer,
-        camera: ctx.camera,
-        scene: ctx.scene,
-        cleanupRef: bonePanelRef,
-      },
-    }),
-  );
+  const menuItems = ysmMenuItems({
+    controlsCtx,
+    panels: opts.panels,
+    bonePanel: {
+      tree: boneTree,
+      viewContainer: ctx.viewContainer,
+      camera: ctx.camera,
+      scene: ctx.scene,
+      cleanupRef: bonePanelRef,
+    },
+  });
+  ctx.menu.setAdapterItems(menuItems);
 
   // ---- F 键调试模式（旧 renderModel3D 功能，shared 模式接入）----
   // 三态循环：normal（无调试）→ pivot（pivot 线 + 标签）→ bone（骨骼连接线）→ normal
@@ -234,6 +239,10 @@ export async function buildYsmScene(
     screenshot: () =>
       Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
     // onBoneSelect 由 attachYsmBoneSelect 接线（content.onBoneSelect），不暴露给 core
+    // ADR-093 T5：回填骨骼映射 + 菜单项，供注册表 dispatch（多模型拾取归属 + 换菜单）
+    boneMaps,
+    menuItems,
+    onBonePick: (id: string) => ctx.menu.openPanel(id),
   };
 }
 

@@ -5,6 +5,8 @@
 //   - Spec 结构（Go 返回的 models 结构）—— 活跃类型枢纽
 //   - 键位/相机偏好 re-export（keymap.ts 的对外统一出口）
 
+import * as THREE from "three";
+
 // ── Spec 结构（Go 返回的 models 结构）────────────────
 export interface SpecBone3D {
   id: string;
@@ -50,6 +52,14 @@ export interface BoneSelectInfo {
   localRot: number[] | null;
   cubeRot: number[] | null;
   cubePos: number[] | null;
+}
+
+/** 骨骼层级映射（dispatch 拾取归属用，ADR-093 T5） */
+export interface BoneMaps {
+  boneGroupMap: Map<string, THREE.Group>;
+  nameMap: Map<string, string>;
+  parentMap: Map<string, string | null>;
+  childrenMap: Map<string, string[]>;
 }
 
 // P1 修复（ADR-040）：键位/相机偏好 re-export 兼容

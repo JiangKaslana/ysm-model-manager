@@ -6,7 +6,8 @@
 import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { buildLitematicScene } from "../../utils/3d/adapters/litematic-adapter.ts";
 import { getApp } from "../../backend/app.ts";
-import { withPreviewExtras } from "./preview-library.ts";
+import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
+import { RESOURCE_TYPES, VOXEL_RPC_BY_EXT, extOf } from "../../utils/resource/types.ts";
 
 /** voxelCall 注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 function makeVoxelCall(voxelFn: string): (path: string) => Promise<string> {
@@ -25,6 +26,19 @@ function makeLitematicAdapter(voxelFn: string): PreviewAdapter {
 export async function createLitematic3D(path: string, voxelFn: string, opts?: Mount3DOptions): Promise<void> {
   await mount3D(makeLitematicAdapter(voxelFn), path, withPreviewExtras(opts ?? {}));
 }
+
+/** 按扩展名解析体素 RPC（对齐 litematic-meta.ts 的 VOXEL_RPC_BY_EXT 映射） */
+function voxelFnFor(path: string): string {
+  return VOXEL_RPC_BY_EXT[extOf(path)] || "GetLitematicVoxelData";
+}
+
+/** 跨类型换角色注册：投影/蓝图进入类型 tab（P2-2），opener 透传 siblings（P1-2） */
+registerReRoute(RESOURCE_TYPES.LITEMATIC, (path, siblings) =>
+  createLitematic3D(path, voxelFnFor(path), siblings ? { siblings } : undefined),
+);
+registerReRoute(RESOURCE_TYPES.BLUEPRINT, (path, siblings) =>
+  createLitematic3D(path, voxelFnFor(path), siblings ? { siblings } : undefined),
+);
 
 /** 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） */
 export async function switchLitematicPreview(path: string): Promise<void> {

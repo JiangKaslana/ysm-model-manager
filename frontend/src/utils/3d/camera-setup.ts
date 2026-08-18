@@ -40,3 +40,41 @@ export function fitCameraToScene(
     initCamTarget: controls.target.clone(),
   };
 }
+
+/**
+ * 按给定根节点列表（多模型同框）计算并集包围盒并返回相机初始位姿。
+ * 与 fitCameraToScene 同口径，但只框显式传入的 roots（来自 SceneRegistry.visibleRoots），
+ * 从而正确处理「隐藏模型不计入」「排除 sky/ground 基线」（ADR-093 T3）。
+ * @param roots 各可见模型的根 Object3D（差量捕获所得）
+ */
+export function fitCameraToRoots(
+  roots: THREE.Object3D[],
+  camera: THREE.PerspectiveCamera,
+  controls: OrbitControls,
+): { initCamPos: THREE.Vector3; initCamTarget: THREE.Vector3 } {
+  const box = new THREE.Box3();
+  for (const root of roots) {
+    root.updateMatrixWorld();
+    box.expandByObject(root);
+  }
+
+  if (!box.isEmpty()) {
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const dist = Math.max(size.x, size.y, size.z) * 1.5 + 2;
+    camera.position.set(center.x, center.y, center.z - dist);
+    camera.lookAt(center);
+    controls.target.copy(center);
+  } else {
+    camera.position.set(0, 80, -120);
+    controls.target.set(0, 80, 0);
+  }
+  controls.update();
+
+  return {
+    initCamPos: camera.position.clone(),
+    initCamTarget: controls.target.clone(),
+  };
+}

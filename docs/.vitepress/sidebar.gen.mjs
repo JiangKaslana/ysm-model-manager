@@ -720,6 +720,14 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-093：多模型同框引擎核心（注册表/dispatch/相机累加/路由接缝/上限）",
+        "link": "/adr/ADR-093-multi-model-scene-core"
+      },
+      {
+        "text": "ADR-092：资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并",
+        "link": "/adr/ADR-092-resource-type-group-routing"
+      },
+      {
         "text": "ADR-091：架构债务总览 v2（2026-08-17 并发审计）",
         "link": "/adr/ADR-091-v2-2026-08-17"
       },

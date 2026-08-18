@@ -48,8 +48,9 @@ function getBonePath(boneId: string, nameMap: Map<string, string>, parentMap: Ma
 
 /**
  * Mesh → 所属骨骼名（沿父链向上查找 has isGroup 且 name 在 nameMap 中的节点）。
+ * 导出供统一多模型拾取器（ADR-093 dispatch）复用。
  */
-function getMeshBoneId(mesh: THREE.Object3D, nameMap: Map<string, string>): string | null {
+export function getMeshBoneId(mesh: THREE.Object3D, nameMap: Map<string, string>): string | null {
   let obj: THREE.Object3D | null = mesh;
   while (obj) {
     if ((obj as THREE.Group).isGroup && obj.name && nameMap.has(obj.name)) {
@@ -62,8 +63,9 @@ function getMeshBoneId(mesh: THREE.Object3D, nameMap: Map<string, string>): stri
 
 /**
  * 骨骼选中信息组装。
+ * 导出供统一多模型拾取器（ADR-093 dispatch）复用。
  */
-function assembleBoneSelectInfo(
+export function assembleBoneSelectInfo(
   boneId: string,
   boneGroupMap: Map<string, THREE.Group>,
   nameMap: Map<string, string>,

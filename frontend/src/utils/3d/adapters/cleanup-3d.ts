@@ -12,6 +12,7 @@ import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import type { PostprocessingManager } from "./postprocessing.ts";
+import { sceneRegistry } from "./scene-registry.ts";
 
 // ── CleanupContext ────────────────────────────────────────────────────────
 // 所有可从 mount3D 作用域松绑的外部引用，统一经此接口注入。
@@ -53,6 +54,8 @@ export interface CleanupContext {
 
 export function runFullCleanup(ctx: CleanupContext): void {
   ctx.menuHandle.dispose();
+  // ADR-093 T2：重置场景注册表（随会话生命周期；释放由下方 allBuilt dispose 负责）
+  sceneRegistry.reset();
   if (ctx.isDisposed.v) return;
   ctx.isDisposed.v = true;
   cancelAnimationFrame(ctx.animId);

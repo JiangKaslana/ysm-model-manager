@@ -16,6 +16,8 @@ import type { LightCapability } from "../caps/light-capability.ts";
 import type { CameraControlBridge } from "./camera-controls.ts";
 import type { PreviewBuildCtx, PreviewHandle, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuHandle } from "./preview-menu.ts";
+import { sceneRegistry, MAX_MODELS } from "./scene-registry.ts";
+import { fitCameraToRoots } from "../camera-setup.ts";
 
 // ---------------------------------------------------------------------------
 // 类型
@@ -51,6 +53,8 @@ export interface SwitchContext {
   /** 可变：build 后赋值 */
   getCurrentPath: () => string;
   setCurrentPath: (p: string) => void;
+  /** 当前资源类型（注册表 rtype 用；mount3D 注入 opts.rtype ?? adapter.id） */
+  getCurrentRtype: () => string;
   /** 可变：build 后赋值 */
   getPerFrame: () => ((dt: number) => void) | null;
   setPerFrame: (f: ((dt: number) => void) | null) => void;
@@ -79,7 +83,19 @@ export async function switchToSession(
   options?: { keepInScene?: boolean },
 ): Promise<void> {
   if (ctx.aborted || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) return;
+  // P3-2：空路径守卫——空路径会触发 adapter.build(ctx, "") 加载未定义内容
+  if (!newPath || !newPath.trim()) return;
   const keep = options?.keepInScene === true;
+
+  // ADR-093 T6：同台追加超量拦截（GPU/内存上限）
+  if (keep && sceneRegistry.count() >= MAX_MODELS) {
+    bus.emit("toast:show", {
+      msg: `同场景模型已达上限（${MAX_MODELS}），无法继续追加`,
+      duration: 4000,
+      type: "warn",
+    });
+    return;
+  }
 
   // 1) 移除旧适配器专属控件（topBar 中 adapterControlsStart 之后追加的节点）
   while (ctx.topBar.childElementCount > ctx.getAdapterControlsStart()) {
@@ -98,6 +114,8 @@ export async function switchToSession(
   }
 
   // 4) 重建内容层（新 path）
+  // ADR-093 T2：build 前后 scene.children 差量捕获本次新增根节点（适配器无关）
+  const beforeBuild = ctx.scene ? new Set(ctx.scene.children) : null;
   let next: PreviewScene;
   try {
     next = await ctx.adapter.build(
@@ -134,8 +152,27 @@ export async function switchToSession(
   }
 
   ctx.setBuilt(next);
+  // P3-1：非同台模式旧 built 已在上方 dispose，allBuilt 只保留当前活跃项——
+  // 否则每次切换累积已释放的 PreviewScene 引用，长时间频繁切换内存泄漏。
+  if (!keep) ctx.allBuilt.length = 0;
   ctx.allBuilt.push(next);
   ctx.setCurrentPath(newPath);
+
+  // ADR-093 T2：注册进场景注册表（keep 追加 / 普通切换均登记，单一事实来源）
+  if (beforeBuild) {
+    const added = ctx.scene ? ctx.scene.children.filter((c) => !beforeBuild.has(c)) : [];
+    sceneRegistry.register({
+      path: newPath,
+      rtype: ctx.getCurrentRtype?.() ?? "",
+      roots: added,
+      built: next,
+      boneMaps: next.boneMaps ?? null,
+      menuItems: next.menuItems ?? null,
+      onBonePick: next.onBonePick ?? null,
+    });
+  } else {
+    sceneRegistry.register({ path: newPath, rtype: "", roots: [], built: next });
+  }
 
   // 5) 同步相机状态到新内容层取景 + 重挂适配器控件/侧栏
   if (ctx.renderer && ctx.orbitTarget && ctx.controls && ctx.camera) {
@@ -143,6 +180,11 @@ export async function switchToSession(
   }
   ctx.setPerFrame(next.update ?? null);
   syncLightTargetFromContent(ctx.scene, ctx.getSceneBaseline(), ctx.lightCap);
+  // ADR-093 T3：同台追加后按可见注册模型根节点重算并集取景（多模型同框正确框全场景）
+  if (keep && ctx.scene && ctx.camera && ctx.controls) {
+    const roots = sceneRegistry.visibleRoots();
+    if (roots.length) fitCameraToRoots(roots, ctx.camera, ctx.controls);
+  }
 
   const handle = ctx.getHandle();
   if (handle) handle.screenshot = next.screenshot;

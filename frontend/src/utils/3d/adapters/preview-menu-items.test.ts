@@ -342,17 +342,17 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("无 siblings → dock-model 可见（类型 tab 兜底），面板内显示空态（无输入框）", () => {
+  it("无 siblings → dock-model 可见（类型 tab 兜底），面板内显示空态（路径输入保留）", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => [] });
     expect(overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
-    // 点击 model 打开 switch 面板，应显示空态文字，不再有路径输入框
+    // 点击 model 打开 switch 面板，应显示空态文字，路径输入框保留（P2-1 补回）
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     modelBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     expect(popup.textContent).toContain("无其他模型");
-    // 路径输入已移除（类型 tab 由 adapter getTypeTabs 注入，此处为空）
-    expect(popup.querySelector("input[type='text']")).toBeNull();
+    // 路径输入保留（跨类型手动加载；类型 tab 由 adapter getTypeTabs 注入）
+    expect(popup.querySelector("input[type='text']")).not.toBeNull();
     handle.dispose();
   });
 });

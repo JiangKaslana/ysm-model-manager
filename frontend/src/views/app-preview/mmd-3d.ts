@@ -2,11 +2,11 @@
 // 内容层在 mmd-adapter.ts；本文件仅作兼容薄包装，保留 createMmd3D / cleanupMmd3D /
 // invalidateMmdPreview 公开符号，index.ts 分发对齐 vrm-3d.ts 模式。
 
-import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
+import { mount3D, cleanupPreview, invalidatePreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { buildMmdScene, type MmdDataPort, type MmdPanelHooks } from "../../utils/3d/adapters/mmd-adapter.ts";
 import { getApp } from "../../backend/app.ts";
 import { fillMmdModelPanel, fillMmdPlayPanel, fillMmdShotPanel, buildMaterialControls } from "./mmd-controls.ts";
-import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
+import { registerReRoute, withPreviewExtras, openModel3DFullscreen } from "./preview-library.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
 // 注册跨类型换角色路由（资源库面板/导航 FAB 选中 MMD 时派发到此）
@@ -54,9 +54,9 @@ export function cleanupMmd3D(): void {
   cleanupPreview();
 }
 
-/** 同台追加 MMD 模型：不清理旧场景，将新模型 add 到已有场景（多模型同框） */
+/** 同台追加 MMD 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） */
 export async function appendMmdPreview(path: string): Promise<void> {
-  await switchPreview(path, { keepInScene: true });
+  await openModel3DFullscreen(path, { cooperate: true });
 }
 
 /** 任意新预览派发时调用，作废在途 MMD 加载 */

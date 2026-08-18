@@ -165,7 +165,7 @@ describe("mountPreviewRootMenu", () => {
     document.body.click();
   });
 
-  it("switch 面板：无 siblings → 显示空态（无路径输入，类型 tab 由 adapter 注入）", () => {
+  it("switch 面板：无 siblings → 显示空态（路径输入仍在，类型 tab 由 adapter 注入）", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => [] }));
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
@@ -174,13 +174,13 @@ describe("mountPreviewRootMenu", () => {
     expect(popup.style.display).toBe("flex");
     // 空态提示
     expect(overlay.textContent).toContain("无其他模型");
-    // 不再渲染路径输入框（类型 tab 由 adapter 的 getTypeTabs 注入）
+    // 手动路径输入框仍在（P2-1 补回：支持跨类型加载）
     const input = popup.querySelector("input[type='text']") as HTMLInputElement | null;
-    expect(input).toBeNull();
+    expect(input).not.toBeNull();
     handle.dispose();
   });
 
-  it("switch 面板：siblings 存在 → 列兄弟项（无路径输入行）", () => {
+  it("switch 面板：siblings 存在 → 列兄弟项（路径输入行保留）", () => {
     const switchTo = vi.fn();
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
@@ -193,8 +193,8 @@ describe("mountPreviewRootMenu", () => {
     expect(popup.style.display).toBe("flex");
     // 兄弟项渲染
     expect(popup.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(2);
-    // 无路径输入框
-    expect(popup.querySelector("input[type='text']")).toBeNull();
+    // 手动路径输入框保留（P2-1 补回）
+    expect(popup.querySelector("input[type='text']")).not.toBeNull();
     // 点击兄弟项 → switchTo
     const rows = popup.querySelectorAll<HTMLElement>('.ysm-preview-menu-row');
     rows[1].click();
