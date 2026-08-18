@@ -31,6 +31,8 @@ export interface LoopContext {
   _mv: THREE.Vector3;
   /** 每帧上报最新 RAF id（供调用方入口守卫跟随活跃 id，防快照过期——code_review P2） */
   onRafId?: (id: number) => void;
+  /** 每帧渲染后上报 renderer.info（draw call / 三角数等，供诊断面板消费） */
+  onFrame?: (info: { calls: number; triangles: number; geometries: number; textures: number }) => void;
 }
 
 /**
@@ -68,6 +70,16 @@ export function startRenderLoop(ctx: LoopContext): () => void {
       ctx.controls.update();
     }
     ctx.renderer.render(ctx.scene, ctx.camera);
+    // ADR-096 诊断：每帧上报 renderer.info 供诊断面板消费
+    if (ctx.onFrame) {
+      const info = ctx.renderer.info.render;
+      ctx.onFrame({
+        calls: info.calls,
+        triangles: info.triangles,
+        geometries: ctx.renderer.info.memory.geometries,
+        textures: ctx.renderer.info.memory.textures,
+      });
+    }
   };
 
   ctx.state.rafId = requestAnimationFrame(loop);

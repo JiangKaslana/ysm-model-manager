@@ -83,7 +83,7 @@ async function textureFor(
   return new THREE.MeshStandardMaterial({ color: NO_TEX_FALLBACK, roughness: 1.0, metalness: 0.0 });
 }
 
-/** 构建单个模型的内容 group（面 → BufferGeometry + Material） */
+/** 构建单个模型的内容 group（面 → 合并 BufferGeometry + Material） */
 async function buildModelGroup(
   deps: PackDeps,
   path: string,
@@ -92,16 +92,34 @@ async function buildModelGroup(
 ): Promise<{ group: THREE.Group; disposables: THREE.Object3D[] }> {
   const group = new THREE.Group();
   const disposables: THREE.Object3D[] = [];
+
+  // 按材质分组面：同材质的面合并为单一 BufferGeometry，减少 draw call
+  // 原实现：每面独立 Mesh（100 面 = 100 draw call）→ 合并后：每材质 1 个 Mesh（通常 1-5 draw call）
+  const matFaces = new Map<THREE.Material, Array<typeof model.faces[number]>>();
   for (const f of model.faces) {
     const mat = await textureFor(deps, path, f, usedTextures);
+    if (!matFaces.has(mat)) matFaces.set(mat, []);
+    matFaces.get(mat)!.push(f);
+  }
+
+  for (const [mat, faces] of matFaces) {
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(f.verts.map((v) => v / 16), 3));
-    geo.setAttribute("uv", new THREE.Float32BufferAttribute(f.uv, 2));
-    geo.setAttribute(
-      "normal",
-      new THREE.Float32BufferAttribute(f.verts.map((_, i) => f.dir[i % 3]), 3),
-    );
-    geo.setIndex([0, 1, 2, 2, 1, 3]);
+    const positions: number[] = [];
+    const uvs: number[] = [];
+    const normals: number[] = [];
+    const indices: number[] = [];
+    let idxOff = 0;
+    for (const f of faces) {
+      for (const v of f.verts) positions.push(v / 16);
+      for (const u of f.uv) uvs.push(u);
+      for (let i = 0; i < f.verts.length; i++) normals.push(f.dir[i % 3]);
+      indices.push(idxOff, idxOff + 1, idxOff + 2, idxOff + 2, idxOff + 1, idxOff + 3);
+      idxOff += f.verts.length / 3;
+    }
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+    geo.setIndex(indices);
     const mesh = new THREE.Mesh(geo, mat);
     group.add(mesh);
     disposables.push(mesh);
