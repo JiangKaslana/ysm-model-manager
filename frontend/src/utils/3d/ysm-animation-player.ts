@@ -1,9 +1,13 @@
 // ===== YSM 骨骼动画播放器（ADR-100 L1+L2）=====
-// 把 parseBedrockAnimationJSON 产出的 AnimationClip 驱动到 THREE.Bone 上。
+// 把 parseBedrockAnimationJSON 产出的 AnimationClip 驱动到 THREE.Object3D 骨骼节点上。
 // 纯 Three.js 逻辑，0 backend import（ADR-072 边界纯净）。
 //
-// L1：单 clip 播放 + loop/非loop
-// L2：多 clip 切换 + 四元数 slerp 旋转插值 + isAnimActive 感知层接口
+// 与 VRM VRMA 的差异：
+//   - VRM：GLTFLoader + VRMAnimationLoaderPlugin 自动解析 .vrma → vrmAnimations
+//   - YSM：手动调 parseBedrockAnimationJSON → evaluateClip → 应用 Group 变换
+//
+// YSM 骨骼是 THREE.Group 层级（非 THREE.Bone），变换直接作用在 group.position/quaternion/scale。
+// 旋转用四元数 slerp 路径平滑（避免欧拉角跳变）。
 
 import * as THREE from "three";
 import {
@@ -41,13 +45,13 @@ export interface YsmAnimPlayer {
 
 /**
  * 构建 YSM 骨骼动画播放器。
- * @param boneByName   spec.bones[].name → THREE.Bone 映射
+ * @param boneByName   spec.bones[].name → THREE.Object3D（骨骼节点，通常是 Group）映射
  * @param clips        动画剪辑列表（至少 1 个）
  * @param boneHierarchy 骨骼层级 [{name, parent}] 供 evaluateClip 传播
  * @param clipLabels   每 clip 的显示名；缺省时用 "Clip 0", "Clip 1"...
  */
 export function createYsmAnimPlayer(
-  boneByName: Map<string, THREE.Bone>,
+  boneByName: Map<string, THREE.Object3D>,
   clips: AnimationClip[],
   boneHierarchy: BoneHierarchyNode[],
   clipLabels?: string[],
@@ -81,8 +85,8 @@ export function createYsmAnimPlayer(
       const transforms = evaluateClip(clip, elapsed, boneHierarchy, true);
 
       for (const [boneName, transform] of transforms) {
-        const bone = boneByName.get(boneName);
-        if (!bone) continue; // 未匹配骨骼静默跳过
+        const node = boneByName.get(boneName);
+        if (!node) continue; // 未匹配骨骼静默跳过
 
         if (transform.rotation) {
           const [rx, ry, rz] = transform.rotation;
@@ -90,20 +94,20 @@ export function createYsmAnimPlayer(
           const rest = restQuaternions.get(boneName);
           if (rest) {
             // slerp 路径：从 rest 姿态到目标姿态的旋转增量
-            bone.quaternion.copy(rest).multiplyQuaternions(rest.clone().conjugate(), targetQuat);
+            node.quaternion.copy(rest).multiplyQuaternions(rest.clone().conjugate(), targetQuat);
           } else {
-            bone.quaternion.copy(targetQuat);
-            restQuaternions.set(boneName, bone.quaternion.clone());
+            node.quaternion.copy(targetQuat);
+            restQuaternions.set(boneName, node.quaternion.clone());
           }
         }
 
         if (transform.position) {
           const [px, py, pz] = transform.position;
-          bone.position.set(px, py, pz);
+          node.position.set(px, py, pz);
         }
         if (transform.scale) {
           const [sx, sy, sz] = transform.scale;
-          bone.scale.set(sx, sy, sz);
+          node.scale.set(sx, sy, sz);
         }
       }
     },

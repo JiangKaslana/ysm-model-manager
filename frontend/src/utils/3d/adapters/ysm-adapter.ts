@@ -204,13 +204,11 @@ export async function buildYsmScene(
           } catch { /* 单个文件解析失败跳过 */ }
         }
         if (allClips.length > 0) {
-          // 构建 boneByName：spec.bones[].name → THREE.Bone（从 boneGroupMap 提取）
-          const boneByName = new Map<string, THREE.Bone>();
+          // 构建 boneByName：spec.bones[].name → 骨骼 Group（boneGroupMap 值为 Group 层级节点）
+          const boneByName = new Map<string, THREE.Object3D>();
           for (const sb of specBones) {
             const group = obj.boneGroupMap.get(sb.id);
-            if (!group) continue;
-            const bone = group.children[0] as THREE.Bone | undefined;
-            if (bone?.isBone) boneByName.set(sb.name, bone);
+            if (group) boneByName.set(sb.name, group);
           }
           const hierarchy: import("../../animation/animation.ts").BoneHierarchyNode[] =
             specBones.map((b) => ({ name: b.name, parent: b.parentId ?? undefined }));

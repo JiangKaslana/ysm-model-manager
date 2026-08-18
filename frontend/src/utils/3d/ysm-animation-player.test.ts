@@ -23,8 +23,8 @@ function makeClip(length = 2.0, boneName = "root"): AnimationClip {
 
 const H: BoneHierarchyNode[] = [{ name: "root" }];
 
-function makeBone(name: string): THREE.Bone {
-  const b = new THREE.Bone();
+function makeBone(name: string): THREE.Object3D {
+  const b = new THREE.Object3D();
   b.name = name;
   return b;
 }
