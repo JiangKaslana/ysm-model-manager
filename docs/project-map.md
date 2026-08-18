@@ -86,7 +86,7 @@
 |------|------|
 | `AGENTS.md` | AI 入口手册（硬约束 + 导航） |
 | `README.md` | 项目说明（面向用户） |
-| `cli.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `cli.go` | CLI 模式入口（脱离 Wails GUI 独立运行，支持 --cli/--files-root/--keyword 参数） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
 | `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |

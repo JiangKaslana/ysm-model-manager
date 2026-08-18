@@ -223,6 +223,8 @@ export const MOCK_DATA = {
   PushResourceToInstance: undefined,
   QueueStatus: undefined,
   ReadFileBytes: undefined,
+  ReadFileBytesBatch: undefined,
+  SaveCachedTexture: undefined,
   ReadLitematicMeta: undefined,
   ReadNbtStructure: undefined,
   ReadPackEntry: undefined,
