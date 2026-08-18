@@ -76,8 +76,6 @@ export async function loadModel2D(
     container.innerHTML = "";
     const { canvas, textureImg } = await setup2DCanvas(container, model);
     if (!container.isConnected) return;
-    // 作者/头像延迟补全（不阻塞首帧渲染，后台异步填充）
-    if (model) void fillAuthorsAsync(modelPath, model);
     const { eyeBtn, eyeHint, getLabelsOn, setLabelsOn } = buildToggleRow(container);
     const zoomBtn = document.createElement("button");
     zoomBtn.className = "ysm-btn";
@@ -109,6 +107,8 @@ export async function loadModel2D(
     ctx.unsubs?.push(() => { ac.abort(); if (_prevAbort === ac) _prevAbort = null; });
     canvas.addEventListener("click", (e) => { if (_dragged) { e.stopPropagation(); return; } openFullPreview(canvas, model, textureImg, getLabelsOn()); });
     canvas.addEventListener("wheel", (e) => { e.preventDefault(); _zoom = Math.max(0.2, Math.min(10, _zoom * Math.exp(-e.deltaY * 0.002))); doRender(); }, { passive: false });
+    // 作者/头像延迟补全（首帧已渲染，await 不阻塞用户看到模型）
+    if (model) await fillAuthorsAsync(modelPath, model);
     buildStatsCard(container, model, modelPath, _decodedBy, ctx);
     buildBoneExportRow(container, model as BedrockGeometry & { boneCount?: number; bones?: Array<{ id: string; name: string; parentId?: string }> }, modelPath);
     let _is3D = false, _prefer3D = getPrefer3D(), _loading3D = false, _model3dGen = 0;

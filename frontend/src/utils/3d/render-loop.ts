@@ -33,6 +33,8 @@ export interface LoopContext {
   onRafId?: (id: number) => void;
   /** 每帧渲染后上报 renderer.info（draw call / 三角数等，供诊断面板消费） */
   onFrame?: (info: { calls: number; triangles: number; geometries: number; textures: number }) => void;
+  /** 复用帧信息对象，避免每帧 new object 增加 GC 压力 */
+  _frameInfo?: { calls: number; triangles: number; geometries: number; textures: number };
 }
 
 /**
@@ -70,15 +72,15 @@ export function startRenderLoop(ctx: LoopContext): () => void {
       ctx.controls.update();
     }
     ctx.renderer.render(ctx.scene, ctx.camera);
-    // ADR-096 诊断：每帧上报 renderer.info 供诊断面板消费
+    // ADR-096 诊断：每帧上报 renderer.info 供诊断面板消费（复用对象，避免 GC 压力）
     if (ctx.onFrame) {
       const info = ctx.renderer.info.render;
-      ctx.onFrame({
-        calls: info.calls,
-        triangles: info.triangles,
-        geometries: ctx.renderer.info.memory.geometries,
-        textures: ctx.renderer.info.memory.textures,
-      });
+      const fi = ctx._frameInfo ??= { calls: 0, triangles: 0, geometries: 0, textures: 0 };
+      fi.calls = info.calls;
+      fi.triangles = info.triangles;
+      fi.geometries = ctx.renderer.info.memory.geometries;
+      fi.textures = ctx.renderer.info.memory.textures;
+      ctx.onFrame(fi);
     }
   };
 

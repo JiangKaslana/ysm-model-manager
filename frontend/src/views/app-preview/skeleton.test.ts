@@ -48,7 +48,7 @@ vi.mock("./utils.ts", () => ({ getPrefer3D, setPrefer3D }));
 vi.mock("../../core/i18n/t.ts", () => ({
   t: (key: string) => key,
 }));
-vi.mock("./loader.ts", () => ({ loadModelData }));
+vi.mock("./loader.ts", () => ({ loadModelData, fillAuthorsAsync: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../../utils/3d/model2d.ts", () => ({ renderModel2D }));
 vi.mock("./zoom.ts", () => ({ openFullPreview }));
 vi.mock("../../backend/app.ts", () => ({ getApp }));

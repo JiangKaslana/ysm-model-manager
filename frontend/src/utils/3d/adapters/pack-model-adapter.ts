@@ -47,20 +47,26 @@ function b64ToDataURL(b64: string): string {
   return `data:image/png;base64,${b64}`;
 }
 
+/** 材质签名 + 实例（用于按材质分组面） */
+export interface MatWithKey {
+  mat: THREE.Material;
+  key: string;
+}
+
 async function textureFor(
   deps: PackDeps,
   path: string,
   face: JavaModelResult["faces"][number],
   usedTextures: Set<string>,
-): Promise<THREE.Material> {
+): Promise<MatWithKey> {
   if (face.tintindex !== null) {
     const idx = Math.max(0, Math.min(3, face.tintindex));
     const cat = TINT_CATEGORY[idx];
     const color = getTintColorSync(cat, "plains");
-    return new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.9, roughness: 1.0, metalness: 0.0 });
+    return { mat: new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.9, roughness: 1.0, metalness: 0.0 }), key: `tint:${cat}` };
   }
   if (face.texColor) {
-    return new THREE.MeshStandardMaterial({ color: parseInt(face.texColor.slice(1), 16), roughness: 1.0, metalness: 0.0 });
+    return { mat: new THREE.MeshStandardMaterial({ color: parseInt(face.texColor.slice(1), 16), roughness: 1.0, metalness: 0.0 }), key: `color:${face.texColor}` };
   }
   if (face.texEntry) {
     const b64 = await deps.readEntry(path, face.texEntry);
@@ -77,13 +83,13 @@ async function textureFor(
         img.src = u;
         return t;
       });
-      return new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0, metalness: 0.0 });
+      return { mat: new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0, metalness: 0.0 }), key: `tex:${face.texEntry}` };
     }
   }
-  return new THREE.MeshStandardMaterial({ color: NO_TEX_FALLBACK, roughness: 1.0, metalness: 0.0 });
+  return { mat: new THREE.MeshStandardMaterial({ color: NO_TEX_FALLBACK, roughness: 1.0, metalness: 0.0 }), key: "fallback" };
 }
 
-/** 构建单个模型的内容 group（面 → 合并 BufferGeometry + Material） */
+/** 构建单个模型的内容 group（面 → 合并 BufferGeometry + Material，按材质签名去重） */
 async function buildModelGroup(
   deps: PackDeps,
   path: string,
@@ -93,16 +99,21 @@ async function buildModelGroup(
   const group = new THREE.Group();
   const disposables: THREE.Object3D[] = [];
 
-  // 按材质分组面：同材质的面合并为单一 BufferGeometry，减少 draw call
+  // 按材质签名分组面：同材质的面合并为单一 BufferGeometry，减少 draw call
   // 原实现：每面独立 Mesh（100 面 = 100 draw call）→ 合并后：每材质 1 个 Mesh（通常 1-5 draw call）
-  const matFaces = new Map<THREE.Material, Array<typeof model.faces[number]>>();
+  // 修复：用材质签名 key 分组（原实现按 Material 对象引用分组，每面新实例 → 永远不命中）
+  const matFaces = new Map<string, { mat: THREE.Material; faces: Array<typeof model.faces[number]> }>();
   for (const f of model.faces) {
-    const mat = await textureFor(deps, path, f, usedTextures);
-    if (!matFaces.has(mat)) matFaces.set(mat, []);
-    matFaces.get(mat)!.push(f);
+    const { mat, key } = await textureFor(deps, path, f, usedTextures);
+    const existing = matFaces.get(key);
+    if (existing) {
+      existing.faces.push(f);
+    } else {
+      matFaces.set(key, { mat, faces: [f] });
+    }
   }
 
-  for (const [mat, faces] of matFaces) {
+  for (const { mat, faces } of matFaces.values()) {
     const geo = new THREE.BufferGeometry();
     const positions: number[] = [];
     const uvs: number[] = [];
