@@ -312,6 +312,9 @@ class AppNav extends WebComponentBase {
         if (!sel) return;
         try { safeSet("repo_rtype", sel.rtype); safeSet("repo_subdir", sel.subdir); } catch {}
         bus.emit("repo:rtype-changed", sel.rtype);
+        // ADR-095 后续：MMD 子目录选择单独广播（sync 页按 subdir 过滤列表）；
+        // 非 MMD 组 subdir 恒 ""（apply 时自然重置订阅方过滤）
+        bus.emit("repo:subdir-changed", sel.subdir);
       };
       groupSel.addEventListener("change", () => { fillSubtypes(groupSel.value); apply(); });
       subtypeSel.addEventListener("change", apply);

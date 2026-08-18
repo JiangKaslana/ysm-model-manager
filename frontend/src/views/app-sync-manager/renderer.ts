@@ -3,7 +3,7 @@
 // 不处理数据加载、不绑事件、不调用 Go 桥接。
 // 依赖 DAG：index → renderer ← events（events 点击触发 render）
 
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, MMD_SUBTYPES } from "../../utils/resource/types.ts";
 import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
 import {
@@ -12,6 +12,7 @@ import {
   emptyHTML,
   itemHTML,
 } from "./tpl.ts";
+import type { SyncItem } from "./tpl.ts";
 import { applyFilter } from "./store.ts";
 import type { SyncManagerSelf } from "./index.ts";
 
@@ -133,5 +134,52 @@ function renderList(self: SyncRenderSelf, listEl: HTMLElement): void {
     listEl.innerHTML = emptyHTML(hint);
     return;
   }
+  // ADR-095 后续：MMD 按用途子目录分组展示（角色/场景/动画…分开，不再平铺一锅）。
+  // 子目录来自 Go 侧 ResourceSyncItem.SubDir（BuildSyncItems 按 IsMMDSubDir 填充）；
+  // 根下条目 SubDir="" 归 EntityPlayer 组。
+  if (self._selectedType === RESOURCE_TYPES.MMD) {
+    listEl.innerHTML = renderMMDGroups(self._filteredItems);
+    return;
+  }
   listEl.innerHTML = self._filteredItems.map((it, i) => itemHTML(it, i)).join("");
+}
+
+/** MMD 子目录组名 → 显示标签（MMD_SUBTYPES 优先，系统内置 DefaultAnim/DefaultMorph 显示原名） */
+function mmdGroupLabel(subdir: string): string {
+  if (!subdir) return MMD_SUBTYPES[0]?.label || "EntityPlayer";
+  const hit = MMD_SUBTYPES.find((s) => s.subdir.toLowerCase() === subdir.toLowerCase());
+  return hit ? hit.label : subdir;
+}
+
+/** MMD 分组渲染：组头 + 组内条目；组序按 MMD_SUBTYPES（根、场景、动画…），未知归尾 */
+function renderMMDGroups(items: SyncItem[]): string {
+  const groups = new Map<string, SyncItem[]>();
+  for (const it of items) {
+    const key = (it.subdir || "").toLowerCase();
+    const arr = groups.get(key) || [];
+    arr.push(it);
+    groups.set(key, arr);
+  }
+  // 组排序：MMD_SUBTYPES 定义的 subdir 顺序（含根 ""），未知组追加尾部
+  const order = new Map<string, number>();
+  MMD_SUBTYPES.forEach((s, i) => order.set(s.subdir.toLowerCase(), i));
+  const keys = Array.from(groups.keys()).sort(
+    (a, b) =>
+      (order.has(a) ? order.get(a)! : 99) - (order.has(b) ? order.get(b)! : 99),
+  );
+  let html = "";
+  for (const key of keys) {
+    const list = groups.get(key)!;
+    const label = mmdGroupLabel(key);
+    html +=
+      '<div class="sm-group-head" style="display:flex;align-items:center;gap:4px;' +
+      "padding:3px 10px;color:var(--muted);font-size:var(--fs-xs);" +
+      'border-bottom:1px solid var(--bd);background:var(--hover)">' +
+      esc(label) +
+      ' <span style="opacity:0.7">(' +
+      list.length +
+      ")</span></div>";
+    html += list.map((it, i) => itemHTML(it, i)).join("");
+  }
+  return html;
 }

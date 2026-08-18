@@ -780,6 +780,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-096：全局库存储分层规范：MMD 子目录三链路消费",
+        "link": "/adr/ADR-096-global-storage-hierarchy"
+      },
+      {
         "text": "ADR-095：OpenInstanceFolder 打开资源存储目录而非模组扫描目录",
         "link": "/adr/ADR-095-open-folder-installdir"
       },

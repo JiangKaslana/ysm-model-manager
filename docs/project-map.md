@@ -17,7 +17,7 @@
 | `dedup/` | 文件去重检测（纯函数，不绑回收站/UI） 〔源码 1: dedup.go · 测试 3〕 |
 | `download/` | 纯下载逻辑（不依赖 Wails runtime） 〔源码 1: download.go · 测试 5〕 |
 | `executil/` | 外部进程工具（HideWindow 平台双实现，收敛自三处副本） 〔源码 2: hidewindow_other.go hidewindow_windows.go · 测试 3〕 |
-| `fileops/` | 文件操作 + 预览提取 + 包信息（ADR-003 P3 下沉） 〔源码 4: fileops.go fileops_enable.go fileops_preview.go folder_import.go · 测试 8〕 |
+| `fileops/` | 文件操作 + 预览提取 + 包信息（ADR-003 P3 下沉） 〔源码 4: fileops.go fileops_enable.go fileops_preview.go folder_import.go · 测试 9〕 |
 | `fsutil/` | 目录遍历工具（WalkDir 集中管理） 〔源码 9: bom.go copy.go crossdevice_other.go crossdevice_windows.go hardlink_other.go hardlink_windows.go … · 测试 9〕 |
 | `geometry/` | Bedrock Geometry JSON 解析（ZIP/7z 提取，防炸弹限制） 〔源码 2: archive.go parse.go · 测试 7 · 子目录 1: testdata/〕 |
 | `importer/` | 资源导入策略接口与内置实现 〔源码 2: importer.go importer_file.go · 测试 7〕 |
@@ -25,15 +25,15 @@
 | `instance/` | 整合包实例同步状态组装（ADR-003 补充下沉） 〔源码 1: instance.go · 测试 1〕 |
 | `internal/` | Go 内部工具（testutil 测试工具） 〔子目录 1: testutil/〕 |
 | `litematic/` | Litematica 投影文件 (.litematic) 解析与预览数据 〔源码 6: block_colors.go block_ids.go block_ids_data.go nbt.go parser.go voxel.go · 测试 7 · 子目录 1: gen/〕 |
-| `logs/` | 导入日志 〔源码 2: logs.go runtime.go · 测试 3〕 |
+| `logs/` | 导入日志 〔源码 2: logs.go runtime.go · 测试 4〕 |
 | `packs/` | 资源包元数据读取（pack.mcmeta / 光影包 lang / 资源类型检测） 〔源码 1: mcmeta.go · 测试 4 · 子目录 1: testdata/〕 |
 | `paths/` | 路径安全 〔源码 1: safe.go · 测试 2〕 |
 | `recycle/` | 回收站管理 〔源码 2: recycle.go recycle_clean.go · 测试 9〕 |
-| `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 1: scanner.go · 测试 3〕 |
+| `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 1: scanner.go · 测试 4〕 |
 | `sync/` | 整合包同步 〔源码 7: sync.go sync_diff.go sync_dirlevel.go sync_discovery.go sync_hash.go sync_push.go sync_relink.go · 测试 9〕 |
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 5〕 |
-| `types/` | 共享类型 + 注册表 〔源码 6: bedrock.go config.go extensions.go resource.go resource_types_embed.go types.go · 测试 8〕 |
+| `types/` | 共享类型 + 注册表 〔源码 6: bedrock.go config.go extensions.go resource.go resource_types_embed.go types.go · 测试 9〕 |
 | `updater/` | 自动更新 〔源码 3: updater.go updater_other.go updater_windows.go · 测试 8〕 |
 | `version/` | 版本号 〔源码 1: version.go · 测试 1〕 |
 | `watcher/` | 文件监听 〔源码 1: watcher.go · 测试 2〕 |

@@ -146,6 +146,64 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     unmountElement(el);
   });
 
+  it("mmd-skin 按用途子目录分组展示（ADR-095 后续：角色/场景/动画分开）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    // 初始渲染稳定（状态筛选栏恒在，不依赖列表内容）
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+    bus.emit("repo:rtype-changed", "ysm");
+    await sleep(200);
+    // 覆盖下一次 loadData：mmd 条目含 subdir
+    mocks.GetInstanceSyncStatus.mockResolvedValueOnce(
+      JSON.stringify([
+        { path: "x/3d-skin/SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "mmd-skin", icon: "🎭", size: 10, subdir: "SceneModel" },
+        { path: "x/3d-skin/角色A.pmx", name: "角色A", status: "missing", type: "mmd-skin", icon: "🎭", size: 20 },
+        { path: "x/3d-skin/CustomAnim/动作.pmx", name: "动作", status: "synced", type: "mmd-skin", icon: "🎭", size: 30, subdir: "CustomAnim" },
+      ]),
+    );
+    bus.emit("repo:rtype-changed", "mmd-skin");
+    await sleep(500);
+    // 组头存在：根（PMX 模型 (EntityPlayer)）+ SceneModel + CustomAnim
+    const heads = el.querySelectorAll(".sm-group-head");
+    const texts = Array.from(heads).map((h) => h.textContent || "");
+    expect(texts.some((s) => s.includes("PMX 模型"))).toBe(true);
+    expect(texts.some((s) => s.includes("SceneModel"))).toBe(true);
+    expect(texts.some((s) => s.includes("CustomAnim"))).toBe(true);
+    // 恢复全局状态（防模块级 _lastSelectedType 泄漏到后续用例）
+    bus.emit("repo:rtype-changed", "ysm");
+    await sleep(100);
+    unmountElement(el);
+  });
+
+  it("repo:subdir-changed → 列表按 MMD 子目录过滤（ADR-095 后续）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+    bus.emit("repo:rtype-changed", "ysm");
+    await sleep(200);
+    mocks.GetInstanceSyncStatus.mockResolvedValueOnce(
+      JSON.stringify([
+        { path: "x/3d-skin/SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "mmd-skin", icon: "🎭", size: 10, subdir: "SceneModel" },
+        { path: "x/3d-skin/角色A.pmx", name: "角色A", status: "missing", type: "mmd-skin", icon: "🎭", size: 20 },
+      ]),
+    );
+    bus.emit("repo:rtype-changed", "mmd-skin");
+    await sleep(500);
+    // 选 SceneModel 子目录 → 只剩该组条目
+    bus.emit("repo:subdir-changed", "SceneModel");
+    await sleep(100);
+    const items = el.querySelectorAll(".sm-item");
+    expect(items.length).toBe(1);
+    expect((items[0] as HTMLElement).textContent || "").toContain("舞台");
+    // 恢复全局状态（防泄漏到后续用例）
+    bus.emit("repo:rtype-changed", "ysm");
+    bus.emit("repo:subdir-changed", "");
+    await sleep(100);
+    unmountElement(el);
+  });
+
   it("状态筛选标签 → 切换后列表变化（P2 修复：原 if 包裹可空洞通过）", async () => {
     const el = document.createElement("app-sync-manager");
     el.setAttribute("instance", "test");

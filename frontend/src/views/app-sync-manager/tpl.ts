@@ -13,6 +13,8 @@ export interface SyncItem {
   type: string;
   icon?: string;
   size: number;
+  /** MMD 用途子目录分组（ADR-095 后续）：EntityPlayer/SceneModel/...；根下为空 */
+  subdir?: string;
 }
 
 /**

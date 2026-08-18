@@ -50,21 +50,12 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 	return false
 }
 
-// mmdSubdirNames MC-MMD 资源树的按用途子目录（ADR-092 路线 B）。
+// MC-MMD 用途子目录集合已上移 go/types（IsMMDSubDir，单一事实来源 ADR-096）：
+// sync_dirlevel（同步保留层级）与 instance.BuildSyncItems（展示分组）共用。
 // 仓库 mmd 根下按这些子目录组织时，同步须把它们作为独立同步单元保留层级，
 // 而非展平到 3d-skin/ 根（EntityPlayer/角色A 不能变 3d-skin/角色A）。
 // 与上游 PathConstants.java 的 SKIN 子目录对齐（含 DefaultAnim/DefaultMorph
 // 系统内置目录，虽用户不导入，但已存在时同步需识别）。
-var mmdSubdirNames = map[string]bool{
-	"entityplayer": true,
-	"scenemodel":   true,
-	"defaultanim":  true,
-	"customanim":   true,
-	"stageanim":    true,
-	"defaultmorph": true,
-	"custommorph":  true,
-	"shader":       true,
-}
 
 // SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹）
 // 以文件夹名为单位，一个文件夹包含模型文件 + 纹理文件 = 一个整体
@@ -109,7 +100,7 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 			// 作为独立同步单元保留层级，不展平——其内部模型文件夹随目录整体走
 			// （否则 EntityPlayer/角色A 会被展平为 3d-skin/角色A，丢 EntityPlayer 层）。
 			// mmd-skin 专用（其他 rtype 不启用此增强，避免干扰 YSM 等目录型）。
-			if rtype == "mmd-skin" && mmdSubdirNames[strings.ToLower(info.Name())] {
+			if rtype == "mmd-skin" && types.IsMMDSubDir(info.Name()) {
 				name := strings.ToLower(info.Name())
 				entries[name] = path
 				return filepath.SkipDir

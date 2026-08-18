@@ -92,9 +92,20 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 				status = types.SyncStatusLegacy
 				icon = "🔗"
 			}
+			// ADR-096：MMD 展示分组——dirLevel 条目若位于用途子目录内
+			// （EntityPlayer/SceneModel/CustomAnim 等）填 SubDir，前端按组分批展示；
+			// 根下条目 SubDir=""（= EntityPlayer 默认）。
+			subDir := ""
+			if rt.ID == "mmd-skin" {
+				if rel, err := filepath.Rel(instDir, p); err == nil && rel != "." {
+					if seg := strings.Split(rel, string(filepath.Separator))[0]; types.IsMMDSubDir(seg) {
+						subDir = seg
+					}
+				}
+			}
 			items = append(items, types.ResourceSyncItem{
 				Path: p, Name: filepath.Base(p),
-				Status: status, Type: rt.ID, Icon: icon, Size: sizeOf(p),
+				Status: status, Type: rt.ID, Icon: icon, Size: sizeOf(p), SubDir: subDir,
 			})
 		}
 

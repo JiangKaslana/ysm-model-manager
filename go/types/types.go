@@ -212,4 +212,7 @@ type ResourceSyncItem struct {
 	Type   string     `json:"type"`
 	Icon   string     `json:"icon"`
 	Size   int64      `json:"size"`
+	// SubDir MMD 子目录分组（ADR-096：dirLevel 同步单元若位于
+	// mmdSubdirNames 命中的用途子目录内，填子目录名；根下为 ""=EntityPlayer）
+	SubDir string `json:"subdir,omitempty"`
 }

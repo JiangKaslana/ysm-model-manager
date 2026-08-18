@@ -26,6 +26,7 @@ export interface SyncManagerSelf {
   _instance: string;
   _selectedType: string;
   _statusFilter: string;
+  _subdirFilter: string;
   _singleBusy: boolean;
   _allItems: SyncItem[];
   _filteredItems: SyncItem[];
@@ -56,6 +57,7 @@ export class AppSyncManager extends WebComponentBase {
   private _defaultType = RESOURCE_TYPES.YSM;
   private _selectedType = RESOURCE_TYPES.YSM;
   private _statusFilter = "all";
+  private _subdirFilter = "";
   private _allItems: SyncItem[] = [];
   private _filteredItems: SyncItem[] = [];
   private _typeConfig: Array<{ id: string; name?: string; icon?: string }> = [];
@@ -154,6 +156,7 @@ export class AppSyncManager extends WebComponentBase {
       this._selectedType = rt;
       setLastSelectedType(rt);
       this._statusFilter = "all";
+      this._subdirFilter = ""; // 切类型重置子目录过滤（非 mmd 类型 subdir 无意义）
       const gen = this._gen;
       loadData(self)
         .then(() => {
@@ -165,6 +168,17 @@ export class AppSyncManager extends WebComponentBase {
         });
     });
     this._unsubs.push(unsubRtype);
+
+    // MMD 子目录过滤（ADR-095 后续）：app-nav MMD 下拉选子目录 → 仅显示该组。
+    // 仅过滤重渲染（无需重载数据）；非 MMD 类型 app-nav 发射 subdir="" 自然重置。
+    const unsubSubdir = bus.on("repo:subdir-changed", (subdir: string) => {
+      if (!this.isConnected) return;
+      const want = subdir || "";
+      if (want === this._subdirFilter) return;
+      this._subdirFilter = want;
+      this._doRender();
+    });
+    this._unsubs.push(unsubSubdir);
 
     this._syncRM();
     this._bindRmToggle();

@@ -12,6 +12,26 @@ import (
 	"strings"
 )
 
+// mmdSubdirNames MC-MMD 资源树的按用途子目录（ADR-092 路线 B / ADR-096）。
+// 单一事实来源：sync_dirlevel（同步保留层级）与 instance.BuildSyncItems（展示分组）
+// 均引用本集合。含 DefaultAnim/DefaultMorph 模组系统内置目录——用户不导入，
+// 但已存在时同步需识别保留、展示需归属分组。
+var mmdSubdirNames = map[string]bool{
+	"entityplayer": true,
+	"scenemodel":   true,
+	"defaultanim":  true,
+	"customanim":   true,
+	"stageanim":    true,
+	"defaultmorph": true,
+	"custommorph":  true,
+	"shader":       true,
+}
+
+// IsMMDSubDir 判断目录名是否为 MC-MMD 用途子目录（大小写不敏感）
+func IsMMDSubDir(name string) bool {
+	return mmdSubdirNames[strings.ToLower(name)]
+}
+
 // MaxImportSize 导入文件最大体积限制（500MB）
 // MMD/VRC 模型文件可达数十 MB，但超过 500MB 的文件可能是异常数据
 const MaxImportSize = 500 * 1024 * 1024

@@ -59,12 +59,18 @@ export async function loadData(self: SyncStoreSelf): Promise<void> {
 }
 
 /**
- * 应用类型 + 状态筛选，写入 self._filteredItems。
+ * 应用类型 + MMD 子目录 + 状态筛选，写入 self._filteredItems。
+ * subdir 过滤（ADR-095 后续）：app-nav MMD 下拉选子目录后仅显示该组；
+ * 非 MMD 类型 _subdirFilter 恒 "" 不过滤。
  */
 export function applyFilter(self: SyncStoreSelf): void {
   let items = self._allItems;
   if (self._selectedType) {
     items = items.filter((i) => i.type === self._selectedType);
+  }
+  if (self._subdirFilter) {
+    const want = self._subdirFilter.toLowerCase();
+    items = items.filter((i) => (i.subdir || "").toLowerCase() === want);
   }
   if (self._statusFilter !== "all") {
     items = items.filter((i) => i.status === self._statusFilter);
