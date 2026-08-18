@@ -783,9 +783,13 @@ function unmountOverlay(overlay: HTMLElement): void {
 
 /** Phase 3 收编辅助：打开 litematic 分层切片面板
  * 控件已从 topBar 迁移到声明式根菜单模型组（dock-model → slice 面板）。
- * 测试需先导航打开面板，才能访问 axisSel/layerMode/layerSlider 等控件。 */
+ * 模型组含 switch + slice 两项，需先开组视图再点 slice 下钻面板。 */
 function openSlicePanel(overlay: HTMLElement): void {
   const modelBtn = overlay.querySelector('[data-testid="dock-model"]') as HTMLElement;
   if (!modelBtn) throw new Error("dock-model button not found");
   modelBtn.click();
+  // 组视图：点击 slice 项下钻面板
+  const sliceRow = overlay.querySelector('[data-testid="preview-slice"]') as HTMLElement;
+  if (!sliceRow) throw new Error("preview-slice row not found in model group");
+  sliceRow.click();
 }
