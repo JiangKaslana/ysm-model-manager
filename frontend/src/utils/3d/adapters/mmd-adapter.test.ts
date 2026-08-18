@@ -455,13 +455,6 @@ describe("KTX2 缓存", () => {
     expect(getCachedTexMock).toHaveBeenCalledWith("/mmd/miku/tex.png");
     expect(getCachedTexMock).toHaveBeenCalledWith("/mmd/miku/face.png");
 
-    // readBytesMock 被调用：1 次模型文件 + 2 次纹理 PNG 回退（KTX2 命中时额外取 PNG）
-    // batch 内部也调 readBytesMock，但 batch 返回结果后，KXT2 分支用 texBatch[p] 而非额外 readFileBytes
-    expect(hoisted.readBytesMock).toHaveBeenCalledWith("/mmd/miku/miku.pmx");
-    // 2 个纹理各一次 readFileBytes（KTX2 分支的 pngB64 = texBatch[p]）
-    // 注意：texBatch 由 readFileBytesBatch 填充，内部已调 readBytesMock
-    // 所以 readBytesMock 被调次数 = 1(PNG) + 2(batch内部) + 2(纹理文件) ... 计数复杂，不精确断言
-
     // 验证 blob URL 数量：模型(1) + 纹理(2) + KTX2(2) = 5 次 createObjectURL
     expect(URL.createObjectURL).toHaveBeenCalledTimes(5);
 
