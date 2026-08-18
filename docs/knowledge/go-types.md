@@ -29,7 +29,7 @@ use_when:
 
 ## 核心职责
 
-- `types.go` — 跨包数据结构：ModelEntry、VersionInstance、InstanceStatus、ResourceSyncResult、SyncStatus、ImportLog、LinkType、AppError、CustomFileInfo、WindowState、AuthorInfo、SearchResult、**ErrorCode（结构化错误码，ADR-051 落地）**、**LogLevel（日志级别）**
+- `types.go` — 跨包数据结构：ModelEntry（含 **SubDir 字段，ADR-096 P1**：MMD 用途子目录分组，`json:"subdir,omitempty"`）、VersionInstance、InstanceStatus、ResourceSyncResult、SyncStatus、ImportLog、LinkType、AppError、CustomFileInfo、WindowState、AuthorInfo、SearchResult、**ErrorCode（结构化错误码，ADR-051 落地）**、**LogLevel（日志级别）**
 - `config.go` — AppConfig（FilesRoot/各类型 Root/LinkMode/Theme/Mirror/VoxelMaxBlocks/窗口状态）、PackInfo、WorkshopSite、WorkshopCreator
 - `resource.go` — 注册表加载（LoadRegistry）、PackMeta/FormatRange、LitematicMeta/LitematicVoxelData/VoxelGroup、**`ResourceType.ZipEntries []ZipEntryMatch`（ADR-067 内容指纹）**
 - `extensions.go` — 注册表驱动的扩展名与子目录查询

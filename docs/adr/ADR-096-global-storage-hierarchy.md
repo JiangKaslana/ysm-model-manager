@@ -24,10 +24,11 @@ MC-MMD 模型在 Minecraft 内按「用途子目录」组织（`EntityPlayer`/`S
 1. **共享集合单一来源**：`mmdSubdirNames`（8 项）上移 `go/types/extensions.go`，导出 `IsMMDSubDir(name)`；`go/sync`（同步保留层级）与 `go/instance`（展示分组）引用同一集合，消除双源。
 2. **展示链路（已落地）**：`ResourceSyncItem.SubDir`（Go 侧 `BuildSyncItems` 按 `IsMMDSubDir` 填充，根下空）→ 前端 `SyncItem.subdir` → `app-sync-manager` 按 `MMD_SUBTYPES` 顺序分组渲染（组头 + 组内条目），根下归「PMX 模型 (EntityPlayer)」组。
 3. **选择链路（已落地）**：`app-nav` 切 MMD 子目录 → `repo:subdir-changed` 事件 + `repo_subdir` 持久化 → sync 订阅按 subdir 过滤列表；切类型重置过滤。
-4. **存储分层（规划，分阶段）**：
+4. **存储分层（已落地，分三阶段实施）**：
    - 存储规范：`FilesRoot/mmd/EntityPlayer`（根/默认）+ `FilesRoot/mmd/{SceneModel|CustomAnim|CustomMorph|StageAnim|Shader}`（用途子目录）；
-   - 导入归类：MMD 导入时按用途选择落到对应子目录（后续实现，导入 UI 增用途下拉或自动识别）；
-   - 扫描：`ScanModelEntries` 对 mmd 返回含子目录分组的条目（后续，`ModelEntry` 加分组字段或前端推导）；
+   - **P1 扫描分组字段**（✅ 已完成）：`ModelEntry` 新增 `SubDir` 字段（`go/types/types.go`），扫描器（`go/scanner/scanner.go`）在 MMD group 根扫描时自动填充用途子目录名；前端绑定同步生成（`frontend/bindings/ysm-model-manager/go/types/models.ts`）。
+   - **P2 导入归类**（✅ 已完成）：导入 UI 新增 MMD 用途子目录下拉（`frontend/src/views/app-content/tpl-downloads.ts`），仅 `mmd-skin` 类型显示；后端新增 `ImportModelFileToMMD`/`ImportModelFileOverwriteToMMD`（`internal/app/app_install_import.go`），按 `mmdSubdirNames` 白名单校验后拼接到 `FilesRoot/mmd/{mmdSubdir}/` 路径；i18n 新增 `import.mmdSubdir`（zh-CN/en/ja）。
+   - **P3 分组展示**（✅ 已完成）：`app-tree` 文件树按 `subdir` 字段分组展示（`frontend/src/views/app-tree/loader.ts`），网页版 `scanWebModels` 同步填充（`frontend/src/backend/web-fs.ts`）；`subdir` 仅作元数据保留，文件树分组由目录结构天然实现（避免双前缀）。
    - 同步：`dirLevelSync` 已保留层级，无需改。
 
 ## 3. 后果（Consequences）
@@ -39,9 +40,8 @@ MC-MMD 模型在 Minecraft 内按「用途子目录」组织（`EntityPlayer`/`S
 - 为全局库存储分层（导入归类/扫描分组）铺路。
 
 **负面 / 已知遗留**：
-- 展示分组仅覆盖**整合包同步列表**；全局库资源管理器（`app-resource-manager`）的 MMD 分组与导入归类**未实施**（存储分层 Phase 2）；
 - 系统内置 `DefaultAnim`/`DefaultMorph` 在展示中显示原名（前端 `MMD_SUBTYPES` 刻意缺省，注释已说明）；
-- `go/types/types_subdir_test.go` 与既有测试重名（并行会话文件，2026-08-18 14:40，构建挡路）——需并行会话删除重复。
+- 导入 UI 下拉首项 `value=""` 语义歧义（应落 `EntityPlayer/` 还是根目录，待产品确认）。
 
 ## 4. 数据溯源
 
