@@ -34,7 +34,7 @@
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 5〕 |
 | `types/` | 共享类型 + 注册表 〔源码 6: bedrock.go config.go extensions.go resource.go resource_types_embed.go types.go · 测试 7〕 |
-| `updater/` | 自动更新 〔源码 3: updater.go updater_other.go updater_windows.go · 测试 7〕 |
+| `updater/` | 自动更新 〔源码 3: updater.go updater_other.go updater_windows.go · 测试 8〕 |
 | `version/` | 版本号 〔源码 1: version.go · 测试 1〕 |
 | `watcher/` | 文件监听 〔源码 1: watcher.go · 测试 2〕 |
 | `ysm/` | YSM 解析 + 摘要 〔源码 8: cli.go decode_inject.go extracted.go header.go parse.go summary.go texsize.go ysm.go · 测试 12〕 |
@@ -91,6 +91,8 @@
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
 | `opencode.json` | OpenCode AI 编辑器配置（IDE 集成） |
+| `package-lock.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `package.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `resource_types.json` | 资源类型单一事实来源（注册表优先） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |

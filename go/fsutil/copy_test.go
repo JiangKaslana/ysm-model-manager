@@ -177,14 +177,6 @@ func TestCopyDirRecursive_RollbackOnFailure(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "a.txt"), []byte("AAA"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// 制造第二个文件，其父目录为文件 → CopyFile 失败
-	if err := os.WriteFile(filepath.Join(src, "blocker"), []byte("block"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(src, "blocker", "b.txt"), []byte("BBB"), 0644); err == nil {
-		// blocker 是文件，WriteFile 到其子路径应失败——但 t.TempDir 下 blocker 是文件
-		// 所以这里直接跳过，用另一种方式制造失败
-	}
 
 	// 用 Overwrite=false + 预置目标文件来制造失败
 	dst := filepath.Join(t.TempDir(), "dst")
@@ -207,30 +199,41 @@ func TestCopyDirRecursive_RollbackOnFailure(t *testing.T) {
 }
 
 func TestRelJoin(t *testing.T) {
+	// 使用 filepath.Join 构造跨平台兼容路径
+	dst := filepath.Join("dst")
+	src := filepath.Join("src")
+
 	tests := []struct {
-		dst, src, p    string
-		expected       string
-		expectErr      bool
+		p        string
+		expected string
 	}{
-		{"/dst", "/src", "/src/a.txt", "/dst/a.txt", false},
-		{"/dst", "/src", "/src/sub/b.txt", "/dst/sub/b.txt", false},
-		{"/dst", "/src", "/other/x.txt", "", true}, // 不在 src 下
+		{filepath.Join("src", "a.txt"), filepath.Join("dst", "a.txt")},
+		{filepath.Join("src", "sub", "b.txt"), filepath.Join("dst", "sub", "b.txt")},
 	}
 	for _, tt := range tests {
 		t.Run("", func(t *testing.T) {
-			got, err := relJoin(tt.dst, tt.src, tt.p)
-			if tt.expectErr {
-				if err == nil {
-					t.Error("应报错")
-				}
-				return
-			}
+			got, err := relJoin(dst, src, tt.p)
 			if err != nil {
 				t.Fatalf("不应报错: %v", err)
 			}
 			if got != tt.expected {
-				t.Errorf("relJoin(%q,%q,%q) = %q, 期望 %q", tt.dst, tt.src, tt.p, got, tt.expected)
+				t.Errorf("relJoin(%q,%q,%q) = %q, 期望 %q", dst, src, tt.p, got, tt.expected)
 			}
 		})
+	}
+	// 跨根路径：Windows 下 filepath.Rel 不报错（返回 ..\other\x.txt），
+	// Linux/macOS 下报错——分别验证
+	other := filepath.Join("other", "x.txt")
+	got, err := relJoin(dst, src, other)
+	if runtime.GOOS == "windows" {
+		// Windows: 不报错，返回 dst + ..\other\x.txt
+		if err != nil {
+			t.Errorf("Windows 下跨根路径不应报错: %v", err)
+		}
+	} else {
+		// Unix: 报错
+		if err == nil {
+			t.Errorf("Unix 下跨根路径应报错, got %q", got)
+		}
 	}
 }

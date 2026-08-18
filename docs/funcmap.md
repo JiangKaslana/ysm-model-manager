@@ -1171,7 +1171,7 @@
 | `mountSidePanel()` | `frontend/src/utils/3d/adapters/side-panel:19` | 挂载适配器专属侧栏面板。 |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:27` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:80` | 会话内切换模型（复用外壳重建内容层）。 |
-| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:220` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:231` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:71` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:90` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
 | `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:150` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
