@@ -284,14 +284,14 @@ export async function scanWebModels(dir: string): Promise<ModelEntry[]> {
     // Ext 与桌面一致：小写化 + 无点号保护（lastIndexOf=-1 时 slice(-1) 会取 "E" 之类的字符）
     const dot = mainRel.lastIndexOf(".");
     const ext = dot > 0 ? mainRel.slice(dot).toLowerCase() : "";
-    // ADR-096：MMD 类型按 SubDir 分组。从 dir 路径提取子目录段（如 /web/mmd-skin/SceneModel → SceneModel），
-    // 拼到 Path 前缀，文件树自动按子目录分组。非 MMD 类型 / 根下 SubDir 为空。
-    const dirParts = dir.split("/").filter(Boolean);
-    const subDir = dirParts.length > 2 ? dirParts[dirParts.length - 1] : "";
+    // ADR-096：subdir 仅作元数据保留，不参与 Path 拼接。
+    // 网页版 name 已含子目录路径（如 "SceneModel/角色A"），无需额外提取。
+    const nameParts = name.split("/");
+    const subDir = nameParts.length > 1 ? nameParts[0] : "";
     entries.push({
       Name: mainRel,
       Size: size,
-      Path: subDir ? `${dir}/${subDir}/${name}/${mainRel}` : `${dir}/${name}/${mainRel}`,
+      Path: `${dir}/${name}/${mainRel}`,
       Ext: ext,
       Hash: "",
       ModTime: meta?.addedAt ?? Date.now(),

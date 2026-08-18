@@ -104,12 +104,8 @@ export async function loadEntries(
       if (normRoot && normPath.startsWith(normRoot)) {
         relPath = normPath.slice(normRoot.length).replace(/^[/\\]+/, "");
       }
-      // ADR-096：MMD 类型按 SubDir 分组展示。
-      // 若扫描结果含 subdir（如 SceneModel），拼到 relPath 前缀，
-      // 文件树自动按子目录分组（无需改 render.ts 建树逻辑）。
-      if (e.subdir && e.subdir !== "") {
-        relPath = e.subdir + "/" + relPath;
-      }
+      // ADR-096：subdir 仅作元数据保留，不参与 relPath 拼接。
+      // 文件树分组已由目录结构天然实现（ADR-094 子目录扫描），无需前缀。
       return {
         name: e.Name,
         path: relPath,
