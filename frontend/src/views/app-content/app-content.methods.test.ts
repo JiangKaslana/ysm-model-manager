@@ -108,15 +108,15 @@ afterEach(() => {
 });
 
 describe("_render — 页面分支", () => {
-  it("repository → 仓库页（.repo-tab + 双下拉导航）", async () => {
+  it("repository → 仓库页（.repo-tab，无本地双下拉——资源类型由导航栏全局切换器驱动）", async () => {
     const el = mountContent();
     await sleep(50);
     el._current = "repository";
     el._render();
     expect(el.shadowRoot.querySelector(".repo-tab")).not.toBeNull();
-    // ADR-092/094：大类(group) + 子类型双下拉替代平铺 subtab
-    expect(el.shadowRoot.querySelector("#group-select")).not.toBeNull();
-    expect(el.shadowRoot.querySelector("#subtype-select")).not.toBeNull();
+    // ADR-092/094 收敛：仓库页不再持有本地 subtabs（资源切换器已上移导航栏 app-nav）
+    expect(el.shadowRoot.querySelector("#group-select")).toBeNull();
+    expect(el.shadowRoot.querySelector("#subtype-select")).toBeNull();
     unmountElement(el);
   });
 
@@ -233,82 +233,53 @@ describe("_bindTabs — 仓库 tab 懒初始化", () => {
   });
 });
 
-describe("_initRepository — 双下拉导航（大类→子类型，ADR-092/094）", () => {
-  it("切换大类 → 联动子类型 + 更新树 + 发 repo:rtype-changed", async () => {
+describe("_initRepository — 订阅全局资源类型（ADR-092/094 收敛）", () => {
+  it("repo:rtype-changed → 重建文件树 root=mmd-skin（subdir 从 localStorage 读）", async () => {
     const el = mountContent();
     await sleep(50);
     el._current = "repository";
     el._render();
-    const rtypeSpy = vi.fn();
-    const unsub = bus.on("repo:rtype-changed", rtypeSpy);
+    const unsub = bus.on("repo:rtype-changed", () => {});
     try {
-      const groupSel = el.shadowRoot.getElementById("group-select") as HTMLSelectElement | null;
-      const subtypeSel = el.shadowRoot.getElementById("subtype-select") as HTMLSelectElement | null;
-      expect(groupSel).not.toBeNull();
-      expect(subtypeSel).not.toBeNull();
-      // 切大类到 mmd → 子类型联动为 MMD_SUBTYPES，tree 重建 root=mmd-skin
-      if (groupSel) {
-        groupSel.value = "mmd";
-        groupSel.dispatchEvent(new Event("change"));
-        await sleep(20);
-      }
-      expect(localStorage.getItem("repo_rtype")).toBe("mmd-skin");
-      expect(rtypeSpy).toHaveBeenCalledWith("mmd-skin");
+      localStorage.setItem("repo_subdir", "SceneModel");
+      bus.emit("repo:rtype-changed", "mmd-skin");
+      await sleep(20);
+      // repo_rtype 由导航栏 app-nav 切换器写入（仓库页只订阅重建树，不再落盘）
+      expect(localStorage.getItem("repo_rtype")).not.toBe("mmd-skin");
       const tree = el.shadowRoot.getElementById("repo-tab-tree");
       expect(tree?.innerHTML).toContain('root="mmd-skin"');
-      // 子类型下拉切到"场景(SceneModel)" → tree 带 subdir
-      if (subtypeSel) {
-        const sceneIdx = Array.from(subtypeSel.options).findIndex(
-          (o) => o.text.includes("SceneModel"),
-        );
-        expect(sceneIdx).toBeGreaterThan(0);
-        subtypeSel.selectedIndex = sceneIdx;
-        subtypeSel.dispatchEvent(new Event("change"));
-        await sleep(20);
-      }
-      const tree2 = el.shadowRoot.getElementById("repo-tab-tree");
-      expect(tree2?.innerHTML).toContain('root="mmd-skin"');
-      expect(tree2?.innerHTML).toContain('subdir="SceneModel"');
+      expect(tree?.innerHTML).toContain('subdir="SceneModel"');
     } finally {
+      localStorage.removeItem("repo_subdir");
       unsub();
       unmountElement(el);
     }
   });
 
-  it("切大类到 minecraft → 子类型联动为资源包/光影包", async () => {
+  it("repo:rtype-changed → 切到 resourcepack（无 subdir）重建树", async () => {
     const el = mountContent();
     await sleep(50);
     el._current = "repository";
     el._render();
     try {
-      const groupSel = el.shadowRoot.getElementById("group-select") as HTMLSelectElement | null;
-      const subtypeSel = el.shadowRoot.getElementById("subtype-select") as HTMLSelectElement | null;
-      if (groupSel) {
-        groupSel.value = "minecraft";
-        groupSel.dispatchEvent(new Event("change"));
-        await sleep(20);
-      }
-      const labels = subtypeSel ? Array.from(subtypeSel.options).map((o) => o.text) : [];
-      expect(labels.join()).toContain("资源包");
-      expect(labels.join()).toContain("光影包");
-      // 默认第一个资源包 → tree root=resourcepack（无 subdir）
+      bus.emit("repo:rtype-changed", "resourcepack");
+      await sleep(20);
       const tree = el.shadowRoot.getElementById("repo-tab-tree");
       expect(tree?.innerHTML).toContain('root="resourcepack"');
+      expect(tree?.innerHTML).not.toContain("subdir=");
     } finally {
       unmountElement(el);
     }
   });
 
-  it("localStorage 存非默认 rtype → 初始化恢复对应大类/子类型", async () => {
-    // 回归：localStorage 存 resourcepack 时，初始化应恢复 minecraft 大类 + 资源包子类型
+  it("localStorage 存非默认 rtype → 初始化恢复该 rtype 文件树", async () => {
+    // 回归：localStorage 存 resourcepack 时，初始化应挂载 resourcepack 文件树
     localStorage.setItem("repo_rtype", "resourcepack");
     const el = mountContent();
     await sleep(50);
     el._current = "repository";
     el._render();
     try {
-      const groupSel = el.shadowRoot.getElementById("group-select") as HTMLSelectElement | null;
-      expect(groupSel?.value).toBe("minecraft");
       const tree = el.shadowRoot.getElementById("repo-tab-tree");
       expect(tree?.innerHTML).toContain('root="resourcepack"');
     } finally {

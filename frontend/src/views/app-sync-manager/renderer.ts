@@ -3,7 +3,7 @@
 // 不处理数据加载、不绑事件、不调用 Go 桥接。
 // 依赖 DAG：index → renderer ← events（events 点击触发 render）
 
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, GROUP_META, GROUP_OF, groupStorageRootOf } from "../../utils/resource/types.ts";
 import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
 import {
@@ -65,12 +65,7 @@ export function render(self: SyncRenderSelf): void {
     (globalCounts as unknown as Record<string, number>)[item.status]++;
   }
 
-  // — 类型标签（分组：模型类 | 资源类）—
-  const modelTypes = [RESOURCE_TYPES.YSM, RESOURCE_TYPES.MMD, RESOURCE_TYPES.VRC];
-  const resourceTypes = [
-    RESOURCE_TYPES.PACK, RESOURCE_TYPES.SHADER,
-    RESOURCE_TYPES.BLUEPRINT, RESOURCE_TYPES.LITEMATIC,
-  ];
+  // — 类型标签（按 ADR-092 大分类分组派生：GROUP_META.order 排序 + GROUP_OF 归属）—
   const shortLabel: Record<string, string> = {
     [RESOURCE_TYPES.YSM]: "YSM",
     [RESOURCE_TYPES.MMD]: "MMD",
@@ -82,7 +77,7 @@ export function render(self: SyncRenderSelf): void {
   };
 
   // 类型标签 HTML（R8 豁免：HTML 后缀安全生成器 + 内部 esc 转义动态数据）
-  const typeTabHTML = (types: string[], sep: boolean): string => {
+  const typeTabHTML = (types: string[]): string => {
     let html = "";
     for (const id of types) {
       const cfg = self._typeConfig.find((c) => c.id === id);
@@ -96,6 +91,8 @@ export function render(self: SyncRenderSelf): void {
         (active ? " active" : "") +
         '" data-type="' +
         esc(id) +
+        '" title="' +
+        esc(groupStorageRootOf(id)) +
         '" style="padding:var(--pad-tab) 14px;border-radius:5px 5px 0 0;border:none;background:' +
         (active ? "var(--surf)" : "transparent") +
         ";color:" +
@@ -109,10 +106,44 @@ export function render(self: SyncRenderSelf): void {
           : "") +
         "</button>";
     }
-    if (sep) html += '<span style="color:var(--bd);padding:0 2px">│</span>';
     return html;
   };
-  tabsEl.innerHTML = typeTabHTML(modelTypes, true) + typeTabHTML(resourceTypes, false);
+
+  // 大分类分组渲染：组头（icon + 分组名 + 存放位置）+ 组内类型 tab，组间 │ 分隔。
+  // 分组顺序由 GROUP_META.order 决定；无 group 的类型归入「其他」尾组（向后兼容）。
+  const groupIds = Object.keys(GROUP_META).sort(
+    (a, b) => (GROUP_META[a]?.order ?? 9) - (GROUP_META[b]?.order ?? 9),
+  );
+  const others: string[] = [];
+  const groupTabs: string[] = [];
+  for (const gid of groupIds) {
+    const members = self._typeConfig.filter((c) => GROUP_OF[c.id] === gid).map((c) => c.id);
+    if (members.length === 0) continue;
+    const meta = GROUP_META[gid];
+    const roots = members.map((id) => groupStorageRootOf(id)).join(" / ");
+    groupTabs.push(
+      '<span class="sm-group" style="display:inline-flex;align-items:center;gap:4px;padding:0 6px;' +
+        'color:var(--muted);font-size:var(--fs-xs);white-space:nowrap" title="存放位置：' +
+        esc(roots) +
+        '">' +
+        esc(meta?.icon || "📦") +
+        " " +
+        esc(meta?.name || gid) +
+        "</span>" +
+        typeTabHTML(members),
+    );
+  }
+  for (const c of self._typeConfig) {
+    if (!GROUP_OF[c.id] && !others.includes(c.id)) others.push(c.id);
+  }
+  if (others.length > 0) {
+    groupTabs.push(
+      '<span class="sm-group" style="display:inline-flex;align-items:center;gap:4px;padding:0 6px;' +
+        'color:var(--muted);font-size:var(--fs-xs);white-space:nowrap">📦 其他</span>' +
+        typeTabHTML(others),
+    );
+  }
+  tabsEl.innerHTML = groupTabs.join('<span style="color:var(--bd);padding:0 2px">│</span>');
 
   // — 状态筛选标签 —
   const curCounts: TypeCounts = self._selectedType

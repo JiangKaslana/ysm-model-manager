@@ -28,12 +28,6 @@ export function repositoryHTML(): string {
     '<button class="repo-tab" data-testid="content-tab" data-tab="import">📥 ' + t("import.tab") + '</button>' +
     viewerExtras +
     "</div>" +
-    // 第二栏：资源类型（双下拉导航：大类(group) → 子类型；ADR-092/094）
-    // 选项由 initRepositoryPage 动态填充（子类型随大类联动）
-    '<div class="repo-subtabs" id="repo-subtabs" style="display:flex;gap:2px;padding:2px 8px;border-bottom:1px solid var(--bd);flex-shrink:0;align-items:center">' +
-    '<select id="group-select" data-testid="group-select" title="资源大类" style="background:var(--surf);color:var(--txt);border:1px solid var(--bd);border-radius:4px;font-size:var(--fs-tab);padding:1px 4px"></select>' +
-    '<select id="subtype-select" data-testid="subtype-select" title="资源类型" style="background:var(--surf);color:var(--txt);border:1px solid var(--bd);border-radius:4px;font-size:var(--fs-tab);padding:1px 4px;margin-left:2px"></select>' +
-    "</div>" +
     '<div class="repo-layout" style="flex:1;display:flex;overflow:hidden">' +
     '<div class="repo-left" style="flex:1;display:flex;flex-direction:column;min-width:0">' +
     '<div class="repo-tab-body" id="repo-tab-tree" style="flex:1;display:flex;flex-direction:column;overflow:hidden">' +

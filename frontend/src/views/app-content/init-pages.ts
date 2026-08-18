@@ -6,8 +6,8 @@ import { initImportQueue } from "../../features/import-queue.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
 import { startDedup } from "./diagnostics/init.ts";
-import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, MMD_SUBTYPES } from "../../utils/resource/types.ts";
-import { safeGet, safeSet } from "../../utils/dom/storage.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { safeGet } from "../../utils/dom/storage.ts";
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { initWorkshopPage as _initWorkshopPage } from "./init-workshop.ts";
@@ -60,112 +60,32 @@ export function initInstancesPage(host: AppContentHost): void {
 export function initRepositoryPage(host: AppContentHost): void {
   bindTabs(host, ".repo-tab", "repo", ["tree", "import", "recycle", "dedup", "oldest"]);
 
-  // ADR-092/094 双下拉导航：大类(group) → 子类型(资源类型/mmd子目录)
+  // 资源类型由导航栏全局切换器驱动（app-nav 双下拉 → repo:rtype-changed + repo_rtype/repo_subdir 落盘）。
+  // 仓库页不再持有本地 subtabs，只订阅全局事件重建文件树（单一入口，ADR-092/094 收敛）。
   const root = host._root;
   const treeBody = root.getElementById("repo-tab-tree");
-  const groupSel = root.getElementById("group-select") as HTMLSelectElement | null;
-  const subtypeSel = root.getElementById("subtype-select") as HTMLSelectElement | null;
-  let curGroup = "";
-  let curRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-  let curSubdir = ""; // ADR-094 位置路由：mmd 子类型子目录
 
-  // 子类型选项：mmd 用 MMD_SUBTYPES（子目录），其他 group 用 GROUP_TYPE_OPTIONS（资源类型）
-  const buildSubtypeOptions = (group: string): Array<{ label: string; rtype: string; subdir: string }> => {
-    if (group === "mmd") {
-      return MMD_SUBTYPES.map((s) => ({ label: s.label, rtype: RESOURCE_TYPES.MMD, subdir: s.subdir }));
-    }
-    return (GROUP_TYPE_OPTIONS[group] || []).map((o) => ({ label: o.label, rtype: o.rtype, subdir: "" }));
-  };
-
-  // 填充大类下拉（GROUP_META 按 order 排序）
-  const groups = Object.entries(GROUP_META)
-    .sort((a, b) => a[1].order - b[1].order)
-    .map(([gid, meta]) => ({ gid, label: meta.icon + " " + meta.name }));
-  if (groupSel) {
-    groupSel.innerHTML = groups
-      .map((g) => `<option value="${g.gid}">${g.label}</option>`)
-      .join("");
-  }
-
-  // 填充子类型下拉并返回当前选中项
-  const fillSubtypes = (group: string): { label: string; rtype: string; subdir: string } => {
-    const opts = buildSubtypeOptions(group);
-    const savedRtype = safeGet("repo_rtype") || "";
-    const savedSubdir = curSubdir || "";
-    let idx = 0;
-    const savedIdx = opts.findIndex((o) => o.rtype === savedRtype && o.subdir === savedSubdir);
-    if (savedIdx >= 0) idx = savedIdx;
-    if (subtypeSel) {
-      subtypeSel.innerHTML = opts.map((o, i) => `<option value="${i}">${o.label}</option>`).join("");
-      subtypeSel.selectedIndex = idx;
-    }
-    return opts[idx] || opts[0] || { label: "", rtype: RESOURCE_TYPES.YSM, subdir: "" };
-  };
-
-  // 统一应用导航：大类+子类型 → 重建 tree
-  const applyNav = (group: string): void => {
-    curGroup = group;
-    const sel = fillSubtypes(group);
-    curRtype = sel.rtype;
-    curSubdir = sel.subdir;
-    try {
-      safeSet("repo_rtype", sel.rtype);
-    } catch {}
-    if (treeBody) {
-      treeBody.innerHTML =
-        '<app-tree root="' +
-        sel.rtype +
-        '"' +
-        (sel.subdir ? ' subdir="' + sel.subdir + '"' : "") +
-        ' style="flex:1;min-width:0"></app-tree>';
-    }
-    bus.emit("repo:rtype-changed", sel.rtype);
-  };
-
-  // 大类下拉变化 → 联动子类型并重建
-  groupSel?.addEventListener("change", () => {
-    applyNav(groupSel.value);
-  });
-  // 子类型下拉变化 → 重建 tree
-  subtypeSel?.addEventListener("change", () => {
-    const opts = buildSubtypeOptions(curGroup);
-    const idx = Number(subtypeSel.value);
-    const sel = opts[idx] || opts[0];
-    if (!sel) return;
-    curRtype = sel.rtype;
-    curSubdir = sel.subdir;
-    try {
-      safeSet("repo_rtype", sel.rtype);
-    } catch {}
-    if (treeBody) {
-      treeBody.innerHTML =
-        '<app-tree root="' +
-        sel.rtype +
-        '"' +
-        (sel.subdir ? ' subdir="' + sel.subdir + '"' : "") +
-        ' style="flex:1;min-width:0"></app-tree>';
-    }
-    bus.emit("repo:rtype-changed", sel.rtype);
-  });
-
-  // 初始化：从 localStorage 恢复大类 + 子类型
-  const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-  const savedGroup = GROUP_META[GROUP_OF[savedRtype] || ""] ? GROUP_OF[savedRtype] : groups[0]?.gid;
-  if (groupSel) groupSel.value = savedGroup || groups[0]?.gid || "";
-  curGroup = groupSel?.value || groups[0]?.gid || "";
-  const sel = fillSubtypes(curGroup);
-  // 若 localStorage 有具体 rtype/subdir，恢复到该子类型
-  const savedIdx = (subtypeSel ? Number(subtypeSel.value) : 0) || 0;
-  curRtype = sel.rtype;
-  curSubdir = sel.subdir;
-  if (treeBody) {
+  // 重建文件树：按 rtype + 可选 subdir（mmd 子目录）挂载 app-tree
+  const mountTree = (rtype: string, subdir: string): void => {
+    if (!treeBody) return;
     treeBody.innerHTML =
       '<app-tree root="' +
-      curRtype +
+      rtype +
       '"' +
-      (curSubdir ? ' subdir="' + curSubdir + '"' : "") +
+      (subdir ? ' subdir="' + subdir + '"' : "") +
       ' style="flex:1;min-width:0"></app-tree>';
-  }
+  };
+
+  // 全局 rtype 变化 → 重建文件树（app-nav 切换器 emit；subdir 从 localStorage 读）
+  host._unsubs.push(
+    bus.on("repo:rtype-changed", (rt) => {
+      mountTree(rt, safeGet("repo_subdir") || "");
+    }),
+  );
+
+  // 初始挂载：从 localStorage 恢复（app-nav 已在连接时初始化切换器并落盘）
+  const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+  mountTree(savedRtype, safeGet("repo_subdir") || "");
 }
 
 /**
