@@ -63,6 +63,7 @@ export class AppTree extends WebComponentBase {
   _sort = "name";
   _typeFilter = "";
   _rootAttr = ""; // 由 root 属性指定，覆盖 _typeFilter 加载用
+  _subdirAttr = ""; // 由 subdir 属性指定，ADR-094 位置路由：mmd 子类型扫子目录
   _dirOpen: Record<string, boolean> = {};
   _filesRoot = "";
   _authors: Array<AuthorInfo | string> = [];
@@ -83,9 +84,9 @@ export class AppTree extends WebComponentBase {
   /** P2 修复（审核）：挂载期间 root 变更标记——_ready 前不吞掉变更，connected 补加载 */
   private _pendingRoot = false;
 
-  /** 响应式属性：root（资源类型根，Design.md §15 契约） */
+  /** 响应式属性：root（资源类型根，Design.md §15 契约）+ subdir（ADR-094 子类型子目录） */
   static get observedAttributes(): string[] {
-    return ["root"];
+    return ["root", "subdir"];
   }
 
   constructor() {
@@ -96,6 +97,7 @@ export class AppTree extends WebComponentBase {
 
   async connectedCallback(): Promise<void> {
     this._rootAttr = this.getAttribute("root") || "";
+    this._subdirAttr = this.getAttribute("subdir") || "";
     // P3 修复：挂载代际捕获——二次挂载时若 root 在途被切换（attributeChangedCallback 已 ++_gen），
     // 丢弃本代过期 _load 的渲染，防旧类型数据覆盖新树（绑定逻辑不受影响，容器不变）
     const gen = ++this._gen;
@@ -169,10 +171,11 @@ export class AppTree extends WebComponentBase {
     }
   }
 
-  /** root 属性变更 → 重新加载并渲染（首次挂载由 connectedCallback 负责，避免重复加载） */
+  /** root/subdir 属性变更 → 重新加载并渲染（首次挂载由 connectedCallback 负责，避免重复加载） */
   attributeChangedCallback(name: string, oldVal: string | null, newVal: string | null): void {
-    if (name !== "root" || oldVal === newVal) return;
-    this._rootAttr = newVal || "";
+    if (oldVal === newVal) return;
+    if (name === "root") this._rootAttr = newVal || "";
+    if (name === "subdir") this._subdirAttr = newVal || "";
     if (!this._ready || !this.isConnected) {
       // P2 修复（审核，挂载时序）：_ready 前不吞掉变更——记 pending，connectedCallback
       // 的 _load 完成后补加载最新 root（原直接 return → 新类型树永不渲染，停在 spinner）
@@ -227,7 +230,10 @@ export class AppTree extends WebComponentBase {
   async _load(): Promise<void> {
     try {
       const rtype = this._rootAttr || this._typeFilter;
-      const r = await get<typeof loadEntries>("loadEntries")(rtype);
+      // ADR-094：仅当有子目录时才传 subdir（无 subdir 保持单参，向后兼容）
+      const r = this._subdirAttr
+        ? await get<typeof loadEntries>("loadEntries")(rtype, this._subdirAttr)
+        : await get<typeof loadEntries>("loadEntries")(rtype);
       if (r && r.entries) {
         this._filesRoot = r.filesRoot;
         this._entries = r.entries;

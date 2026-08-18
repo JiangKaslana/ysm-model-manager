@@ -254,6 +254,40 @@ describe("_initRepository — subtab 切换", () => {
     }
   });
 
+  it("ADR-094: mmd 子类型下拉显示 + 切换 → tree 带 subdir 重建", async () => {
+    const el = mountContent();
+    await sleep(50);
+    el._current = "repository";
+    el._render();
+    try {
+      const sel = el.shadowRoot.getElementById("mmd-subtype") as HTMLSelectElement | null;
+      expect(sel).not.toBeNull();
+      // 默认 mmd 未选中时下拉隐藏
+      expect(sel?.style.display).toBe("none");
+      // 切到 mmd → 下拉显示
+      const mmd = el.shadowRoot.querySelector('.repo-subtab[data-rtab="mmd-skin"]') as HTMLElement;
+      mmd.click();
+      await sleep(20);
+      expect(sel?.style.display).toBe("inline-block");
+      // 切换子类型 → tree 重建并带 subdir
+      if (sel) {
+        sel.value = "SceneModel";
+        sel.dispatchEvent(new Event("change"));
+        await sleep(20);
+      }
+      const tree = el.shadowRoot.getElementById("repo-tab-tree");
+      expect(tree?.innerHTML).toContain('root="mmd-skin"');
+      expect(tree?.innerHTML).toContain('subdir="SceneModel"');
+      // 切回非 mmd → 下拉隐藏
+      const ysm = el.shadowRoot.querySelector('.repo-subtab[data-rtab="ysm"]') as HTMLElement;
+      ysm.click();
+      await sleep(20);
+      expect(sel?.style.display).toBe("none");
+    } finally {
+      unmountElement(el);
+    }
+  });
+
   it("localStorage 存非默认 rtype → 初始化 tree/active 对齐，首次点当前类型仍生效（不早退）", async () => {
     // 回归：localStorage 存 resourcepack 时，初始化 savedTab.click() 曾被
     // `if (rtype === curRtype) return` 早退拦截 → tree 停在模板写死 ysm、active 错位，

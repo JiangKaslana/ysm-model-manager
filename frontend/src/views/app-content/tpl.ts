@@ -29,9 +29,18 @@ export function repositoryHTML(): string {
     viewerExtras +
     "</div>" +
     // 第二栏：资源类型（仅在文件树 tab 可见）
-    '<div class="repo-subtabs" id="repo-subtabs" style="display:flex;gap:2px;padding:2px 8px;border-bottom:1px solid var(--bd);flex-shrink:0">' +
+    '<div class="repo-subtabs" id="repo-subtabs" style="display:flex;gap:2px;padding:2px 8px;border-bottom:1px solid var(--bd);flex-shrink:0;align-items:center">' +
     '<button class="repo-subtab active" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.YSM + '">💎 YSM</button>' +
     '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.MMD + '">🎭 MMD</button>' +
+    // ADR-094 位置路由：mmd 子类型下拉（选中子目录扫 FilesRoot/mmd/mmd/{subdir}）
+    '<select id="mmd-subtype" data-testid="mmd-subtype" title="MMD 子类型（目录）" style="display:none;margin-left:2px;background:var(--surf);color:var(--txt);border:1px solid var(--bd);border-radius:4px;font-size:var(--fs-tab);padding:1px 4px">' +
+    '<option value="">模型 (EntityPlayer)</option>' +
+    '<option value="SceneModel">场景 (SceneModel)</option>' +
+    '<option value="CustomAnim">自定义动画 (CustomAnim)</option>' +
+    '<option value="CustomMorph">自定义表情 (CustomMorph)</option>' +
+    '<option value="StageAnim">舞台 (StageAnim)</option>' +
+    '<option value="shader">着色器 (shader)</option>' +
+    "</select>" +
     '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.VRC + '">🥽 VRC</button>' +
     '<span style="padding:3px 4px;color:var(--muted)">│</span>' +
     '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.PACK + '">🎨 ' + t("rtype.pack") + '</button>' +

@@ -63,11 +63,16 @@ function maybePromptAndroidStorage(): void {
 /** 从 Go 后端加载仓库文件列表，返回格式化的 entries */
 export async function loadEntries(
   rtype: string,
+  subdir?: string,
 ): Promise<{ filesRoot: string; entries: TreeEntry[] }> {
   try {
     const { GetRepoRoot, ScanModelEntriesWithLabel, IsFileBanned } = await getApp();
-    const filesRoot = await GetRepoRoot(rtype || "");
+    let filesRoot = await GetRepoRoot(rtype || "");
     if (!filesRoot) return { filesRoot: "", entries: [] };
+    // ADR-094 位置路由：MMD 子类型扫子目录（FilesRoot/mmd/mmd/EntityPlayer 等）
+    if (subdir) {
+      filesRoot = filesRoot.replace(/[\\/]+$/, "") + "/" + subdir.replace(/^[\\/]+/, "");
+    }
 
     const raw = await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[rtype] || rtype);
     if (!raw || !raw.length) return { filesRoot, entries: [] };

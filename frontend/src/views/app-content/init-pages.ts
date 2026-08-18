@@ -64,7 +64,9 @@ export function initRepositoryPage(host: AppContentHost): void {
   const root = host._root;
   const subtabs = root.querySelectorAll(".repo-subtab");
   const treeBody = root.getElementById("repo-tab-tree");
+  const subtypeSel = root.getElementById("mmd-subtype") as HTMLSelectElement | null;
   let curRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+  let curSubdir = ""; // ADR-094 位置路由：mmd 子类型子目录
 
   // 统一应用资源类型：无条件重建 tree + 更新 active，仅真正变化时写 localStorage + emit。
   // （审核修复：原 click 里 `if (rtype === curRtype) return` 早退 + 初始化 savedTab.click()
@@ -80,12 +82,16 @@ export function initRepositoryPage(host: AppContentHost): void {
     subtabs.forEach((t) => {
       t.classList.toggle("active", (t as HTMLElement).dataset.rtab === rtype);
     });
+    // ADR-094：仅 mmd 显示子类型下拉（其他类型复用整合包根目录，无子类型）
+    if (subtypeSel) subtypeSel.style.display = rtype === RESOURCE_TYPES.MMD ? "inline-block" : "none";
     // 更新文件树（预览已在外层共享，不重复创建）
     if (treeBody) {
       treeBody.innerHTML =
         '<app-tree root="' +
         rtype +
-        '" style="flex:1;min-width:0"></app-tree>';
+        '"' +
+        (rtype === RESOURCE_TYPES.MMD && curSubdir ? ' subdir="' + curSubdir + '"' : "") +
+        ' style="flex:1;min-width:0"></app-tree>';
     }
     // 通知其他 tab（仅当 rtype 真正变化时）
     if (rtype !== prev) {
@@ -96,6 +102,11 @@ export function initRepositoryPage(host: AppContentHost): void {
     btn.addEventListener("click", () => {
       applyRtype((btn as HTMLElement).dataset.rtab || "");
     });
+  });
+  // ADR-094：mmd 子类型下拉变化 → 更新当前子目录并重建 tree（subdir 驱动扫描）
+  subtypeSel?.addEventListener("change", () => {
+    curSubdir = subtypeSel.value || "";
+    applyRtype(curRtype);
   });
   // 初始化：应用 curRtype（对齐 tree + active——模板 tree root 写死 ysm，localStorage 可能存别的）
   applyRtype(curRtype);
