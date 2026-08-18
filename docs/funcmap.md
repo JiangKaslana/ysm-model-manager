@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 125 | 465 |
-| frontend/views | 105 | 290 |
+| frontend/views | 105 | 291 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **409** | **1697** |
+| **合计** | **409** | **1698** |
 
 ## Go·头像
 
@@ -1142,8 +1142,8 @@
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:55` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:91` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:98` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:444` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:471` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:443` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:470` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:65` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:84` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:114` | — |
@@ -1634,9 +1634,9 @@
 | `rememberModelPath()` | `frontend/src/views/app-content/init-pages:221` | 记住最后选中的模型路径（供文件树等外部调用） |
 | `getLastModelPath()` | `frontend/src/views/app-content/init-pages:225` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:30` | 初始化创意工坊页（编排入口） |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:142` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
-| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:153` | app-content 组件接口（供 workshop/github 初始化函数访问） |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:143` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:154` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:29` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
@@ -1698,8 +1698,9 @@
 | `toggleFav()` | `frontend/src/views/app-content/workshop-data:79` | — |
 | `openSite()` | `frontend/src/views/app-content/workshop-site-opener:18` | 打开站点（外链/内嵌/窗口） |
 | `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:69` | 绑定站点打开相关事件 |
-| `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:17` | 初始化创意工坊 Tab |
-| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:109` | — |
+| `WorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:20` | 创意工坊页的共享 ref 集合——单一事实来源。 |
+| `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:30` | 初始化创意工坊 Tab |
+| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:116` | — |
 | `navCSS()` | `frontend/src/views/app-nav/tpl:2` | — |
 | `BoneEntry()` | `frontend/src/views/app-preview/bone-names:5` | 骨骼条目（结构类型，兼容 DecodedYsm.bones 元素） |
 | `buildBoneNamesText()` | `frontend/src/views/app-preview/bone-names:15` | 构建骨骼名导出文本行： 首行 `模型: &lt;path&gt;`、次行 `骨骼总数: &lt;n&gt;`，其后每根骨骼 有方块则 `名称 (n 方)`，结构骨骼（无方块）则 `名称 (结构骨骼,无方) |

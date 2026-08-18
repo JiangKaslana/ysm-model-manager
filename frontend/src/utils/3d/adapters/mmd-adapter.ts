@@ -199,9 +199,9 @@ export async function buildMmdScene(
     `bones=${mmd.pmx?.bones?.length ?? 0} mats=${mmd.pmx?.materials?.length ?? 0} morphs=${mmd.pmx?.morphs?.length ?? 0}`,
   );
   const mesh = mmd.mesh;
-
-  ctx.scene!.add(mesh);
-  registerModelRoot(mesh);
+  try {
+    ctx.scene!.add(mesh);
+    registerModelRoot(mesh);
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 
   // ---- VMD 动作（同目录 .vmd）：VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
@@ -353,7 +353,7 @@ export async function buildMmdScene(
   // 程序化足部锚地（Foot IK）：待机态下保持双足贴地，防悬空/穿模
   const footIK = createFootIKController(boneTree, semanticBones);
 
-  return {
+  const result: PreviewScene = {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
     update: (dt: number): void => {
       if (!mesh.visible) return; // Frustum Culling 不可见 → 跳过 IK/感知层，省 CPU
@@ -428,6 +428,15 @@ export async function buildMmdScene(
         }
       : undefined,
   };
+  return result;
+  } finally {
+    // 防御：若 build 中途 throw（scene.add 之后、return 之前），
+    // mount-preview-core catch 会调 built?.dispose()，但此时 build 未返回，
+    // dispose 不会执行。兜底回收 blobUrls 防止泄漏。
+    if (!mesh.parent) {
+      for (const url of blobUrls) URL.revokeObjectURL(url);
+    }
+  }
 }
 
 /** mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 */
