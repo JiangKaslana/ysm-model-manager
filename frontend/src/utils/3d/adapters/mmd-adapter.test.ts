@@ -575,7 +575,7 @@ describe("dispose 错误路径 blob URL 回收", () => {
     const origAdd = THREE.Scene.prototype.add;
     vi.spyOn(THREE.Scene.prototype, "add").mockImplementation(function (this: THREE.Scene, ...args: unknown[]) {
       // 抛错前先执行原方法（让 mesh.parent 被设置）
-      origAdd.call(this, ...args);
+      origAdd.call(this, ...(args as [THREE.Object3D]));
       // 然后抛错，模拟 scene.add 后 build 中途失败
       throw new Error("scene.add failed");
     });
