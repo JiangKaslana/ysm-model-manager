@@ -66,6 +66,14 @@ export const REFLECTOR_PRESETS: Record<string, Partial<ReflectorParams>> = {
   },
 };
 
+/** three r185 官方 ReflectorShader 静态属性（运行时存在，@types/three 未声明该静态属性，断言桥接） */
+type ReflectorShaderDef = {
+  uniforms: Record<string, { value: unknown }>;
+  vertexShader: string;
+  fragmentShader: string;
+};
+const REFLECTOR_SHADER = (Reflector as typeof Reflector & { ReflectorShader: ReflectorShaderDef }).ReflectorShader;
+
 export class ReflectorCapability implements SceneCapability {
   readonly id = "reflector";
   readonly labelKey = "preview.reflector";
@@ -100,20 +108,36 @@ export class ReflectorCapability implements SceneCapability {
     const geometry = new THREE.PlaneGeometry(this.params.size, this.params.size);
 
     // Reflector 需要渲染目标尺寸与 clipBias；
-    // 我们自定义 onBeforeRender 不注入 shader 修改：color/opacity 靠 Reflector.color + 自定义 shader 的 mixColor 分支无法直接访问，
-    // 这里通过给 Reflector 加一个独立材质的"覆盖层"叠加方案：
-    //   - Reflector 本体：标准反射（1 透明通道）
-    //   - opacity 调用法：用一个 Group 包 Reflector，并在 Reflector.userData 上挂 opacity；
-    //     但官方 Reflector 没有直接 opacity 接口，这里采用"加一层 MeshBasicMaterial 混合平面"方案不现实（会阻挡反射内容）。
-    // 采用官方 Reflector 提供的 color 参数 + 后处理式手动叠加 opacity 的替代方案：
-    //   给 Reflector 材质的 uniforms.tDiffuse 再乘以 opacity + color mix，
-    //   通过 monkeypatch 材质 fragmentShader 实现（避免自写 shader 违反 ADR-073 红线的"完全自写"——仅做 2 行 uniform 注入）。
+    // opacity/tint：tint 用官方 color 参数（ReflectorShader 内 blendOverlay 原生混合），
+    // opacity 经官方 options.shader 扩展点注入 uOpacity（见下），避免 monkeypatch 材质后改 fragmentShader。
+
+    // ========== opacity 注入（官方 shader 扩展点，锚点精确 + 失败警告，不静默）==========
+    // r185 ReflectorShader 输出 alpha 恒 1.0（官方不支持透明度）；tint 由官方 color 参数
+    // 原生支持（blendOverlay 混合），无需注入。这里仅经 options.shader 注入 uOpacity 乘 alpha：
+    //   1. uniform 声明行后追加 uOpacity
+    //   2. gl_FragColor 的 alpha 1.0 → uOpacity
+    // 锚点取官方模板固定文本；three 升级若 shader 变更致不匹配，console.warn 显式暴露
+    // （不再静默失效），并回退官方 shader（反射仍工作，仅 opacity 无效）。
+    const officialFrag = REFLECTOR_SHADER.fragmentShader;
+    const declAnchor = "uniform vec3 color;";
+    const alphaAnchor = "gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );";
+    const injectedFrag = officialFrag
+      .replace(declAnchor, `${declAnchor}\n\t\t\tuniform float uOpacity;`)
+      .replace(alphaAnchor, "gl_FragColor = vec4( blendOverlay( base.rgb, color ), uOpacity );");
+    const injectedOk = injectedFrag !== officialFrag && injectedFrag.includes("uOpacity");
+    if (!injectedOk) {
+      console.warn("[reflector-cap] three ReflectorShader 锚点未匹配（three 升级？），opacity 注入失败，回退官方 shader");
+    }
 
     const reflector = new Reflector(geometry, {
       clipBias: this.params.clipBias,
       textureWidth: this.params.resolution,
       textureHeight: this.params.resolution,
       color: this.params.color,
+      shader: {
+        ...REFLECTOR_SHADER,
+        fragmentShader: injectedOk ? injectedFrag : officialFrag,
+      },
     });
     reflector.position.y = this.params.groundY - 0.01; // 毫米级后移避开 shadow 地面
     reflector.rotation.x = -Math.PI / 2; // PlaneGeometry 默认 xy 面，Reflector 构造时用 rotateX 也可，但 Reflector 期望 xy 面自己旋转
@@ -123,26 +147,10 @@ export class ReflectorCapability implements SceneCapability {
 
     reflector.name = "ysm-reflector";
 
-    // ========== opacity 注入（2 行 uniform，非完整自写 shader，不违反 ADR-073）==========
+    // opacity uniform（fragmentShader 已声明 uOpacity；tint 走官方 color uniform，无独立注入）
     const mat = reflector.material as THREE.ShaderMaterial;
     mat.transparent = true;
     mat.uniforms.uOpacity = { value: this.params.opacity };
-    mat.uniforms.uTintColor = { value: new THREE.Color(this.params.color) };
-    // 改写 fragment：在最终 `gl_FragColor = vec4( outgoingLight, diffuseColor.a );` 前乘 tint 与 opacity；
-    // 找到 Reflector 原 shader 结尾的 `gl_FragColor = vec4( outgoingLight, diffuseColor.a );` 注入 mix。
-    // 若 pattern 不匹配，原 shader 仍工作（只是 opacity/tint 失效，不崩溃）。
-    const originalFrag = mat.fragmentShader;
-    const injectedFrag = originalFrag.replace(
-      /gl_FragColor\s*=\s*vec4\(\s*outgoingLight\s*,\s*diffuseColor\.a\s*\)\s*;/,
-      [
-        "outgoingLight = mix(outgoingLight, outgoingLight * uTintColor.rgb, 0.5);",
-        "gl_FragColor = vec4(outgoingLight, diffuseColor.a * uOpacity);",
-      ].join("\n"),
-    );
-    if (injectedFrag !== originalFrag) {
-      mat.fragmentShader = injectedFrag;
-      mat.needsUpdate = true;
-    }
 
     this.reflector = reflector;
     this.scene.add(reflector);
@@ -184,7 +192,8 @@ export class ReflectorCapability implements SceneCapability {
   setColor(hex: number): void {
     this.params.color = hex;
     const mat = this.reflector?.material as THREE.ShaderMaterial | undefined;
-    if (mat?.uniforms?.uTintColor) mat.uniforms.uTintColor.value.setHex(hex);
+    // tint 走官方 color uniform（fragmentShader 内 blendOverlay( base.rgb, color ) 原生混合）
+    if (mat?.uniforms?.color) mat.uniforms.color.value.setHex(hex);
   }
 
   setSize(v: number): void {
