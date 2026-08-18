@@ -6,18 +6,17 @@
 ## 硬约束
 
 > 500 行文件先 grep 定位再读。核实符号：当前源码 > `docs/adr/` > `docs/knowledge/` > `docs/archive/architecture.md`。
-> 改完即验：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`（tsc --noEmit，ADR-014 门槛）。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）；发版前用全量 `node scripts/doctor.mjs`。
+> 先写测试再写代码（TDD）,改完即验，验完提交：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`（tsc --noEmit，ADR-014 门槛）。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）。
 > 有失败就修复，超出职责的就报告；通过则直接 `git add <source files>` → 提交对应的文件夹，**无需手动打 `git status --short`**（pre-commit 自动输出本次 commit diff 统计）。先提交 `docs/`，捎带了无关文件也别怕。
 > 放弃低效的 `git stash` / `git stash push` / `git stash pop` 指令（`list` / `show` 只读不受限）。需要临时回退时用 `git commit` + `git reset --soft HEAD~1`。
 > 查日志/排查卡顿：往**环形日志面板**塞日志，而非死盯 console。
 > 连续修改时，从下往上修改可避免行号变化的影响。
 > 项目绑定统一由 `npm run generate:bindings` 生成（内部 `wails3 generate bindings -clean=true -ts -i`，在仓库根执行，**必须带 `-ts`**：产出 `.ts`，前端以 `.js` 后缀 import、由 vite `wailsBindingsResolve` 重定向；无 `-ts` 生成会产出 `.js` 并清掉 git 跟踪的 `.ts`，属回归红线。契约见 `docs/architecture.md` §绑定模式）。
-> 前端看（`docs/Design.md` §12 文档命名与归属规范）。
+> 前端看（`docs/Design.md` §12 文档命名与归属规范）；发版前用全量 `node scripts/doctor.mjs`。
 
 ```bash
 # 暂存（本地缓存）
-git add <通过测试的路径...> # 精准提交自己的代码。
-git commit -m "<type>: <简短描述>"    # pre-commit 自动同步文档/索引（秒级），勿 --no-verify 跳过
+git add <通过测试的路径...> & git commit -m "<type>: <简短描述>"    # pre-commit 自动同步文档/索引（秒级），勿 --no-verify 跳过
 # ⚠️ 并行会话活跃时（git status 可见他人改动）：用路径限定提交防共享 index 串台——
 # 共享 checkout 的 index（暂存区）是仓库级共享，先 git add 后 git commit 的窗口内
 # 对方 commit 会把你的 staged 文件一起带走（2026-08-18 实锤：audit R13 捎带 ADR-095 改动）。

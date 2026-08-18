@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 125 | 465 |
+| 前端·工具 | 126 | 465 |
 | frontend/views | 105 | 292 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **409** | **1699** |
+| **合计** | **410** | **1699** |
 
 ## Go·头像
 
@@ -1258,10 +1258,9 @@
 | `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:57` | ============ 场景能力统一接口 ============ |
 | `persistState()` | `frontend/src/utils/3d/caps/scene-capability:116` | 保存 JSON 到 localStorage |
 | `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:121` | 从 localStorage 加载 JSON |
-| `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:18` | — |
-| `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:47` | — |
-| `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:61` | 模型类别阴影预设 |
-| `ShadowCapability()` | `frontend/src/utils/3d/caps/shadow-capability:85` | — |
+| `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:24` | ============ 参数类型 ============ |
+| `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:39` | — |
+| `ShadowCapability()` | `frontend/src/utils/3d/caps/shadow-capability:70` | ============ ShadowCapability ============ |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:26` | — |
 | `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:47` | — |
 | `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:62` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
@@ -1569,6 +1568,7 @@
 | `ICONS()` | `frontend/src/utils/icon/workshop-icons:3` | — |
 | `getSiteIcon()` | `frontend/src/utils/icon/workshop-icons:46` | — |
 | `getTagIconFromRole()` | `frontend/src/utils/icon/workshop-icons:54` | — |
+| `loadView()` | `frontend/src/utils/module-loader:13` | 懒加载 Web Component：统一动态 import + 加载失败 toast 反馈。 |
 | `RESOURCE_EXTS()` | `frontend/src/utils/resource/extensions:28` | 每种资源类型对应的扩展名（从 resource_types.json 派生，单一事实来源） |
 | `ALL_EXTS()` | `frontend/src/utils/resource/extensions:33` | 所有支持的扩展名列表（去重，用于 UI 提示文案） |
 | `getExts()` | `frontend/src/utils/resource/extensions:48` | 获取某资源类型支持的扩展名 |
