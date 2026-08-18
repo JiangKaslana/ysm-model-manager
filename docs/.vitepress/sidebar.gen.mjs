@@ -732,6 +732,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-094：MMD 子类型位置路由：3d-skin 目录层级优先于扩展名",
+        "link": "/adr/ADR-094-mmd-subdir-position-routing"
+      },
+      {
         "text": "ADR-093：多模型同框引擎核心（注册表/dispatch/相机累加/路由接缝/上限）",
         "link": "/adr/ADR-093-multi-model-scene-core"
       },
