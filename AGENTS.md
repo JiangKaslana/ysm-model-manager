@@ -43,6 +43,9 @@ git reset HEAD~1                      # 撤销最近一条 commit，把改动放
 | 发布与维护 | `docs/releases/`（发版流程）+ `docs/maintenance.md`（维护手册） |
 | Android 开发 | `docs/android-dev.md`（双端桥/按钮适配清单/构建/坑点） |
 | 特殊创作 | `docs/novel/AGENTS.md` 小说圣经，完成新功能、重构后可以写写 |
+| **CLI 命令使用** | 查本文件末尾「CLI 模式使用说明」章节 | 别猜参数格式，直接查说明 |
+| **缓存相关问题** | `texture_cache` 包 + `cache-status`/`cache-verify` 命令 | 别直接删缓存文件，用 `cache-clear` |
+| **性能诊断需求** | `file-bench`/`analyze-mmd`/`scan-dir` 命令 | 别手动统计文件大小，用 CLI 自动分析 |
 
 ### 预定义脚本口令（高频）
 
@@ -147,12 +150,13 @@ node scripts/doctor.mjs --docs        # 改文档时用，轻量秒级（仅文�
 node scripts/doctor.mjs               # 改代码 / 发版前，全量闸门（编译+构建+文件+红线+Git）
 ```
 
-## 开发启动（三模式，勿混）
+## 开发启动（四模式，勿混）
 
 ```bash
 task dev                        # 完整桌面开发：wails3 dev -port 9245（Go + 前端 + WebView2，唯一能跑通 Go 桥业务的模式）
 cd frontend && npm run dev:web   # 纯浏览器跑网页版系统：vite --mode web → browserAdapter（IDB 虚拟库 + 识别/导入/预览；不依赖 wails 壳）
 cd frontend && npm run dev       # 纯前端壳：仅 UI 渲染，无 Go 桥也无 web 桥（一般不用）
+go run . --cli --files-root <路径> <命令>  # CLI 模式：脱离 GUI 的命令行操作，详见本文件末尾
 ```
 
 > 网页版模式判定：`resolveWebMode()`（platform.ts）Tier 0 `__YSM_BACKEND__` 声明 → Tier 1 `import.meta.env.MODE==='web'`（dev:web / build:web 走此）→ Tier 2 window.go 探测。改 web 功能用 `npm run dev:web` 验证；桌面模式用 `task dev`。
@@ -194,4 +198,117 @@ git push
 
 # 共享 node_modules
 已经用 symlink 搞定了，3 个 wt 共用一份，装一次管全部。
-不够继续说
+
+# CLI 模式使用说明
+
+> CLI 模式支持脱离 GUI 进行模型管理、性能诊断、缓存管理等操作。源码位于 `cli.go`。
+
+## 基本格式
+
+```bash
+go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
+```
+
+## 全局参数
+
+| 参数 | 说明 |
+|------|------|
+| `--files-root <路径>` | **必填**，模型仓库根目录 |
+
+## 命令列表
+
+### 模型管理命令
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `search` | 搜索模型（支持关键词/骨骼/立方块/贴图过滤） | `search --keyword warrior --format table` |
+| `analyze` | 分析单个模型详情 | `analyze --model ./model/ysm.json` |
+| `list` | 列出所有模型摘要 | `list --format json` |
+| `verify` | 验证模型完整性 | `verify --repair` |
+| `benchmark` | 性能基准测试 | `benchmark --iterations 5` |
+| `export` | 导出模型结构 | `export --model ./model/ysm.json --output model.json` |
+
+### MMD 专用命令
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `file-bench` | 测试大文件读取性能（单文件/批量/IPC） | `file-bench --dir ./mmd/模型目录 --iterations 3` |
+| `scan-dir` | 扫描目录结构统计资产 | `scan-dir --dir ./mmd` |
+| `analyze-mmd` | 分析 MMD 模型资产（贴图/PMX/VMD） | `analyze-mmd --dir ./mmd/子言` |
+
+### 缓存管理命令
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `cache-status` | 查看纹理缓存状态（路径/大小/文件数） | `cache-status` |
+| `cache-verify` | 检查模型贴图缓存命中情况 | `cache-verify --dir ./mmd/子言 --verbose` |
+| `cache-clear` | 清空纹理缓存 | `cache-clear --yes` |
+
+### 配置管理命令
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `config-show` | 查看当前配置（路径/阈值/窗口状态） | `config-show` |
+
+## 常用场景
+
+### 场景 1：诊断 MMD 模型加载慢
+
+```bash
+# 1. 分析模型资产，定位瓶颈
+go run . --cli --files-root ./models analyze-mmd --dir ./mmd/子言
+
+# 2. 测试文件读取性能
+go run . --cli --files-root ./models file-bench --dir ./mmd/子言
+
+# 3. 检查缓存状态
+go run . --cli --files-root ./models cache-status
+
+# 4. 检查特定模型的缓存命中
+go run . --cli --files-root ./models cache-verify --dir ./mmd/子言
+```
+
+### 场景 2：快速查看仓库概况
+
+```bash
+# 列出所有模型
+go run . --cli --files-root ./models list --format table
+
+# 扫描目录结构
+go run . --cli --files-root ./models scan-dir --dir ./mmd
+```
+
+### 场景 3：性能对比（保存基准 + 对比）
+
+```bash
+# 保存当前基准
+go run . --cli --files-root ./models file-bench --dir ./mmd --output baseline.json
+
+# 修改后对比
+go run . --cli --files-root ./models file-bench --dir ./mmd --compare baseline.json
+```
+
+### 场景 4：缓存清理与重建
+
+```bash
+# 查看缓存状态
+go run . --cli --files-root ./models cache-status
+
+# 清空缓存（跳过确认）
+go run . --cli --files-root ./models cache-clear --yes
+
+# 验证缓存已清空
+go run . --cli --files-root ./models cache-verify --dir ./mmd/子言
+```
+
+## 输出格式
+
+大部分命令支持两种输出格式：
+- **表格格式**（默认）：人类易读
+- **JSON 格式**（`--format json`）：机器可读，便于脚本集成
+
+## 源码参考
+
+- 命令定义与实现：[`cli.go`](./cli.go)
+- 缓存包：[`go/texture_cache/`](./go/texture_cache/)
+- 应用配置：[`go/types/config.go`](./go/types/config.go)
