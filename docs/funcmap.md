@@ -34,17 +34,17 @@
 | Go·YSM 核心 | 7 | 26 |
 | Go(internal)·应用入口 | 24 | 183 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
-| frontend/backend | 18 | 100 |
+| frontend/backend | 18 | 101 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 21 | 99 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 115 | 428 |
-| frontend/views | 101 | 287 |
+| frontend/views | 102 | 288 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **394** | **1653** |
+| **合计** | **395** | **1655** |
 
 ## Go·头像
 
@@ -770,16 +770,17 @@
 | `BLOCK_VARIANT_NAMES()` | `frontend/src/backend/voxel-colors-data:305` | "id:data" → 注册名（对齐 go/litematic/block_ids_data.go blockVariantNames，schematic v1 数字 ID 解析） |
 | `mapColor()` | `frontend/src/backend/voxel-colors:90` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
 | `resolveBlockName()` | `frontend/src/backend/voxel-colors:105` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
-| `VoxelGroup()` | `frontend/src/backend/voxel-parse:34` | 输出形状（对齐 types.VoxelGroup / LitematicVoxelData json tag） |
-| `VoxelData()` | `frontend/src/backend/voxel-parse:39` | — |
-| `readVarInt()` | `frontend/src/backend/voxel-parse:56` | 对齐 voxel.go:531-549 readVarInt：返回 {value, offset}（shift≥64 截断防溢出 wrap） |
-| `extractBits()` | `frontend/src/backend/voxel-parse:75` | 对齐 nbt.go:299-327 extractBits：从 LongArray（精确 bigint[]，小端位序）按 bitOffset 取 bitCount 位，支持跨 64 |
-| `bitsPerEntry()` | `frontend/src/backend/voxel-parse:95` | 对齐 nbt.go:329-338 bitsPerEntry：palette 大小 → 每方块位数（≥2，单条目返回 0） |
-| `unpackBlockStates()` | `frontend/src/backend/voxel-parse:107` | 打包位解码：expectedCount 个方块索引 → palette 索引数组。 |
-| `litematicVoxelView()` | `frontend/src/backend/voxel-parse:321` | 对齐 voxel.go:92-171 BuildVoxelData：.litematic 体素视图。 |
-| `nbtVoxelView()` | `frontend/src/backend/voxel-parse:394` | 对齐 voxel.go:286-382 BuildNbtVoxelData：structure NBT 体素视图。 |
-| `bedrockVoxelView()` | `frontend/src/backend/voxel-parse:461` | 对齐 voxel.go buildBedrockVoxelData：基岩版 1.21+ structure 体素视图。 |
-| `schematicVoxelView()` | `frontend/src/backend/voxel-parse:559` | 对齐 voxel.go:384-491 BuildSchematicVoxelData：schematic 体素视图。 |
+| `VoxelGroup()` | `frontend/src/backend/voxel-parse:36` | 输出形状（对齐 types.VoxelGroup / LitematicVoxelData json tag） |
+| `VoxelData()` | `frontend/src/backend/voxel-parse:41` | — |
+| `readVarInt()` | `frontend/src/backend/voxel-parse:58` | 对齐 voxel.go:531-549 readVarInt：返回 {value, offset}（shift≥64 截断防溢出 wrap） |
+| `extractBits()` | `frontend/src/backend/voxel-parse:77` | 对齐 nbt.go:299-327 extractBits：从 LongArray（精确 bigint[]，小端位序）按 bitOffset 取 bitCount 位，支持跨 64 |
+| `bitsPerEntry()` | `frontend/src/backend/voxel-parse:97` | 对齐 nbt.go:329-338 bitsPerEntry：palette 大小 → 每方块位数（≥2，单条目返回 0） |
+| `unpackBlockStates()` | `frontend/src/backend/voxel-parse:109` | 打包位解码：expectedCount 个方块索引 → palette 索引数组。 |
+| `litematicVoxelView()` | `frontend/src/backend/voxel-parse:323` | 对齐 voxel.go:92-171 BuildVoxelData：.litematic 体素视图。 |
+| `nbtVoxelView()` | `frontend/src/backend/voxel-parse:396` | 对齐 voxel.go:286-382 BuildNbtVoxelData：structure NBT 体素视图。 |
+| `bedrockVoxelView()` | `frontend/src/backend/voxel-parse:463` | 对齐 voxel.go buildBedrockVoxelData：基岩版 1.21+ structure 体素视图。 |
+| `schematicVoxelView()` | `frontend/src/backend/voxel-parse:561` | 对齐 voxel.go:384-491 BuildSchematicVoxelData：schematic 体素视图。 |
+| `decodeVoxelNbt()` | `frontend/src/backend/voxel-parse:649` | 纯函数：base64 字节 → NBT root（IO 与解码解耦——本函数无任何 IO，输入 b64 字符串 输出解析后的 root 对象；readVoxelJson 等装配层只 |
 | `WebUnsupportedError()` | `frontend/src/backend/web-common:8` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
 | `WEB_ROOT()` | `frontend/src/backend/web-common:16` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
 | `isWebPath()` | `frontend/src/backend/web-common:27` | 校验是否为 /web/ 虚拟仓库路径（含 type 段与至少一个后续段） |
@@ -799,8 +800,8 @@
 | `selectLocalRepo()` | `frontend/src/backend/web-fs:241` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
 | `scanWebModels()` | `frontend/src/backend/web-fs:253` | — |
 | `readWebFile()` | `frontend/src/backend/web-fs:307` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:482` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:518` | — |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:483` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:519` | — |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
 | `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
@@ -1624,6 +1625,7 @@
 | `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |
 | `SiteViewState()` | `frontend/src/views/app-content/site/types:12` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
+| `SubscriptionBucket()` | `frontend/src/views/app-content/subscription-bucket:11` | — |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |

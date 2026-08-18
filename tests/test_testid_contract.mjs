@@ -19,7 +19,6 @@ const FE = path.join(ROOT, 'frontend');
 const TESTID_REGISTRY = {
   // app-content 标签栏
   'content-tab':    'src/views/app-content/tpl.ts',
-  'content-subtab': 'src/views/app-content/tpl.ts',
   // app-nav 导航项
   'nav-item':       'src/views/app-nav/index.ts',
   // app-resource-manager 资源管理器

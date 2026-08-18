@@ -180,7 +180,7 @@ function bindTabs(
         }
         // 注意：resourcepacks/shaderpacks/blueprint/MMD/VRC/LITEMATIC 六个
         // initResourcePacks 分支已删除（P2 审计：tpl 无对应 repo-tab 按钮与容器 id，
-        // 双重复死不可达；资源类型切换改由 .repo-subtab 重渲染 <app-tree>）。
+        // 双重复死不可达；资源类型切换改由 app-nav 资源切换器重渲染 <app-tree>）。
         // wrapper（features/resource-packs.ts）保留作兼容层，见 resource-packs 知识卡。
       }
     });
