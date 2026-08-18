@@ -32,6 +32,8 @@ import { GroundCapability } from "../caps/ground-capability.ts";
 import { LightCapability } from "../caps/light-capability.ts";
 import { FogCapability } from "../caps/fog-capability.ts";
 import { ShadowCapability } from "../caps/shadow-capability.ts";
+import { ReflectorCapability } from "../caps/reflector-capability.ts";
+import { EnvironmentCapability } from "../caps/environment-capability.ts";
 import { PostprocessingManager } from "./postprocessing.ts";
 import { runFullCleanup, type CleanupContext } from "./cleanup-3d.ts";
 import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts";
@@ -218,6 +220,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let lightCap: LightCapability | null = null;
   let fogCap: FogCapability | null = null;
   let shadowCap: ShadowCapability | null = null;
+  let reflectorCap: ReflectorCapability | null = null;
+  let environmentCap: EnvironmentCapability | null = null;
   // 后处理体积光管线（ADR-081 L2）：PostprocessingManager 管理 EffectComposer + bloom，仅在 volumetric engine=postprocess 时激活
   let postProc: PostprocessingManager | null = null;
   let animId = 0;
@@ -351,6 +355,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     lightCap = (sceneCapabilityRegistry.getById("light") as LightCapability) ?? null;
     fogCap = (sceneCapabilityRegistry.getById("fog") as FogCapability) ?? null;
     shadowCap = (sceneCapabilityRegistry.getById("shadow") as ShadowCapability) ?? null;
+    reflectorCap = (sceneCapabilityRegistry.getById("reflector") as ReflectorCapability) ?? null;
+    environmentCap = (sceneCapabilityRegistry.getById("environment") as EnvironmentCapability) ?? null;
     // 从 localStorage 恢复上次会话状态
     sceneCapabilityRegistry.loadAll();
     // 按模型类别套用预设（已有持久化状态的 cap 不覆盖）
@@ -358,6 +364,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     lightCap?.setPreset(adapter.id);
     fogCap?.setPreset(adapter.id);
     shadowCap?.setPreset(adapter.id);
+    reflectorCap?.setPreset(adapter.id);
+    environmentCap?.setPreset(adapter.id);
     // 全部挂入场景
     for (const cap of caps) cap.apply();
     // ShadowCapability 同步：光 castShadow（光已由 LightCapability 创建）
@@ -545,6 +553,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     lightCap,
     fogCap,
     shadowCap,
+    reflectorCap,
+    environmentCap,
     postProc,
     nullPostProc: () => { postProc = null; },
     renderer,
@@ -579,6 +589,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     camera,
     lightCap,
     shadowCap,
+    environmentCap,
     getCurrentPath: () => currentPath,
     setCurrentPath: (p) => { currentPath = p; },
     getCurrentRtype: () => opts.rtype ?? adapter.id,
@@ -637,6 +648,13 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         ? scene.children.filter((c) => !sceneBaseline!.has(c))
         : [];
       shadowCap.applyMeshCasts(roots);
+    }
+    // 首模型 mesh envMapIntensity 同步
+    if (environmentCap && built) {
+      const roots = scene && sceneBaseline
+        ? scene.children.filter((c) => !sceneBaseline!.has(c))
+        : [];
+      environmentCap.syncMeshIntensity(roots);
     }
     perFrame = built.update ?? null;
   // ===== §4c 生命周期管理（cooperate/switchTo/代际守卫）=====

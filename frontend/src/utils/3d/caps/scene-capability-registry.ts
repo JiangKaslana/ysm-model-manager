@@ -11,6 +11,8 @@ import { GroundCapability } from "./ground-capability.ts";
 import { LightCapability } from "./light-capability.ts";
 import { FogCapability } from "./fog-capability.ts";
 import { ShadowCapability } from "./shadow-capability.ts";
+import { ReflectorCapability } from "./reflector-capability.ts";
+import { EnvironmentCapability } from "./environment-capability.ts";
 import type { SceneCapability } from "./scene-capability.ts";
 
 /** 能力工厂：接收 scene/renderer，返回能力实例 */
@@ -101,10 +103,12 @@ export class SceneCapabilityRegistry {
 export const sceneCapabilityRegistry = new SceneCapabilityRegistry();
 
 // ============ 内置能力注册 ============
-// 注意顺序：菜单渲染按注册顺序列出控件（天→地→雾→阴影→灯光），
+// 注意顺序：菜单渲染按注册顺序列出控件（天→地→环境→雾→阴影→反光→灯光），
 // 与用户"先环境后灯光"的心智一致。
 sceneCapabilityRegistry.add((ctx) => new SkyCapability(ctx));
 sceneCapabilityRegistry.add((ctx) => new GroundCapability(ctx));
+sceneCapabilityRegistry.add((ctx) => new EnvironmentCapability(ctx));
 sceneCapabilityRegistry.add((ctx) => new FogCapability(ctx));
 sceneCapabilityRegistry.add((ctx) => new ShadowCapability(ctx));
+sceneCapabilityRegistry.add((ctx) => new ReflectorCapability(ctx));
 sceneCapabilityRegistry.add((ctx) => new LightCapability(ctx));

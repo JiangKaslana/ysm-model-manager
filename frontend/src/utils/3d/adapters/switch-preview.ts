@@ -14,6 +14,7 @@ import { friendlyError } from "../../../utils/dom/errors.ts";
 import { t } from "../../../core/i18n/t.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import type { ShadowCapability } from "../caps/shadow-capability.ts";
+import type { EnvironmentCapability } from "../caps/environment-capability.ts";
 import type { CameraControlBridge } from "./camera-controls.ts";
 import type { PreviewBuildCtx, PreviewHandle, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuHandle } from "./preview-menu.ts";
@@ -52,6 +53,7 @@ export interface SwitchContext {
   camera: THREE.PerspectiveCamera | undefined;
   lightCap: LightCapability | null;
   shadowCap: ShadowCapability | null;
+  environmentCap: EnvironmentCapability | null;
   /** 可变：build 后赋值 */
   getCurrentPath: () => string;
   setCurrentPath: (p: string) => void;
@@ -207,6 +209,11 @@ export async function switchToSession(
   if (ctx.shadowCap && beforeBuild) {
     const added = ctx.scene ? ctx.scene.children.filter((c) => !beforeBuild.has(c)) : [];
     ctx.shadowCap.applyMeshCasts(added);
+  }
+  // 切换模型后 envMapIntensity 同步
+  if (ctx.environmentCap && beforeBuild) {
+    const added = ctx.scene ? ctx.scene.children.filter((c) => !beforeBuild.has(c)) : [];
+    ctx.environmentCap.syncMeshIntensity(added);
   }
   // ADR-093 T3：同台追加后按可见注册模型根节点重算并集取景（多模型同框正确框全场景）
   if (keep && ctx.scene && ctx.camera && ctx.controls) {

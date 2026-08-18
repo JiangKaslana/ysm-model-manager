@@ -12,7 +12,9 @@ import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import type { FogCapability } from "../caps/fog-capability.ts";
-import type { ShadowCapability } from "../caps/shadow-capability.ts";
+import { ShadowCapability } from "../caps/shadow-capability.ts";
+import { ReflectorCapability } from "../caps/reflector-capability.ts";
+import { EnvironmentCapability } from "../caps/environment-capability.ts";
 import type { PostprocessingManager } from "./postprocessing.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
@@ -43,6 +45,8 @@ export interface CleanupContext {
   lightCap: LightCapability | null;
   fogCap: FogCapability | null;
   shadowCap: ShadowCapability | null;
+  reflectorCap: ReflectorCapability | null;
+  environmentCap: EnvironmentCapability | null;
   postProc: PostprocessingManager | null;
   nullPostProc: () => void;
   renderer: THREE.WebGLRenderer | undefined;
@@ -102,6 +106,8 @@ export function runFullCleanup(ctx: CleanupContext): void {
   try { ctx.lightCap?.dispose(); } catch (_) { /* 防御性释放 */ }
   try { ctx.fogCap?.dispose(); } catch (_) { /* 防御性释放 */ }
   try { ctx.shadowCap?.dispose(); } catch (_) { /* 防御性释放 */ }
+  try { ctx.reflectorCap?.dispose(); } catch (_) { /* 防御性释放 */ }
+  try { ctx.environmentCap?.dispose(); } catch (_) { /* 防御性释放 */ }
   // 后处理体积光管线（ADR-081 L2）：释放 EffectComposer + bloom
   try {
     ctx.postProc?.dispose();
