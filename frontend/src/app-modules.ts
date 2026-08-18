@@ -11,6 +11,7 @@ import { initI18n } from "./core/i18n/locale.ts";
 import { friendlyError } from "./utils/dom/errors.ts";
 import { checkUpdateSilent } from "./features/version-updater.ts";
 import { applyUIPrefs } from "./views/app-content/settings/ui-prefs.ts";
+import { loadView } from "./utils/module-loader.ts";
 
 // bus 已在 bus.ts 中挂载 window.bus，此处不再重复赋值
 
@@ -26,22 +27,6 @@ register("loadEntries", loadEntries);
 // 避免首帧渲染时 i18n bundle 尚未加载导致 [i18n] 缺失 key 警告。
 import "./views/context-menu/index.ts";
 import "./views/app-toast/index.ts";
-
-/**
- * 懒加载 Web Component：统一动态 import + 加载失败 toast 反馈。
- * 收敛 5 处 `import(...).catch` 模板（app-tree/sidebar/content/resource-manager/sync-manager）。
- * 用字面量路径确保 Vite 构建时解析。
- */
-const loadView = (name: string, importer: () => Promise<unknown>): void => {
-  importer().catch((e) => {
-    console.warn(`[module] 组件加载失败: ${name}`, e);
-    bus.emit("toast:show", {
-      msg: "❌ " + friendlyError(e, "组件加载失败"),
-      duration: 5000,
-      type: "error",
-    });
-  });
-};
 
 // Web Components 动态导入（使用字面量确保 Vite 能在构建时解析路径）
 loadView("app-tree", () => import("./views/app-tree/index.ts"));
