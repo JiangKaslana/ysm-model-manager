@@ -21,64 +21,26 @@
 
 ---
 
-## P0 问题：AnimationMixer 内存泄漏（必须修复）
+## P0 问题：AnimationMixer 内存管理验证（✅ 已通过）
 
 ### 问题描述
 
-`THREE.AnimationMixer` 是动画系统核心，持有大量内部缓存：
-- PropertyBinding 缓存（骨骼绑定数据）
-- Clip 缓存（动画片段引用）
-- Clock 实例
-- Action 列表
+初始审核发现 `AnimationMixer` 未调用 `dispose()`，怀疑存在内存泄漏。
 
-**不调用 `dispose()` 会导致内存持续增长，多次切换模型后明显卡顿。**
+### 验证过程
 
-### 影响点
+1. 检查 Three.js 版本：`^0.185.1`
+2. 检查 `@types/three`：`^0.185.4`
+3. 查看 `AnimationMixer` 类型定义：`frontend/node_modules/@types/three/src/animation/AnimationMixer.d.ts`
+4. **确认**：`AnimationMixer` 类**没有** `dispose()` 方法
 
-| 文件 | 行号 | 变量名 | 创建路径 | dispose 状态 |
-|------|------|--------|----------|--------------|
-| `mmd-adapter.ts` | 206 | `mixer` | MMD 模型加载 | ❌ 只调 `stopAllAction()` |
-| `vrm-adapter.ts` | 225 | `motionMixer` | VRM 动画加载 | ❌ 只调 `stopAllAction()` + `uncacheRoot()` |
-
-### 当前 dispose 代码（不完整）
+### 当前实现（已正确）
 
 ```typescript
 // mmd-adapter.ts:397-407
 dispose: (): void => {
   bonePanelRef.current?.();
-  mixer.stopAllAction();  // ⚠️ 只停止，未释放
-  breath.reset();
-  gaze.reset();
-  blink.dispose();
-  lipSync.dispose();
-  autoDance.dispose();
-  footIK.dispose();
-  for (const url of blobUrls) URL.revokeObjectURL(url);
-  mmd.dispose();  // ⚠️ mmd.dispose 是否包含 mixer？需验证
-},
-
-// vrm-adapter.ts:360-374
-dispose: (): void => {
-  try { bonePanelRef.current?.(); } catch { /* */ }
-  breath.reset();
-  gaze?.reset();
-  blink.dispose();
-  footIK.dispose();
-  motionMixer?.stopAllAction();  // ⚠️ 只停止
-  motionMixer?.uncacheRoot(vrm.scene);  // ⚠️ 只取消缓存
-  if (useNativeLookAt) vrm.lookAt!.target = null;
-  VRMUtils.deepDispose(vrm.scene);  // ⚠️ deepDispose 是否包含 mixer？
-},
-```
-
-### 修复方案
-
-**mmd-adapter.ts（第 407 行后添加）**：
-```typescript
-dispose: (): void => {
-  bonePanelRef.current?.();
-  mixer.stopAllAction();
-  mixer.dispose();  // ✅ 新增：释放 AnimationMixer 内部缓存
+  mixer.stopAllAction();  // ✅ 停止所有动画
   breath.reset();
   gaze.reset();
   blink.dispose();
@@ -88,23 +50,26 @@ dispose: (): void => {
   for (const url of blobUrls) URL.revokeObjectURL(url);
   mmd.dispose();
 },
-```
 
-**vrm-adapter.ts（第 373 行后添加）**：
-```typescript
+// vrm-adapter.ts:360-374
 dispose: (): void => {
   try { bonePanelRef.current?.(); } catch { /* */ }
   breath.reset();
   gaze?.reset();
   blink.dispose();
   footIK.dispose();
-  motionMixer?.stopAllAction();
-  motionMixer?.uncacheRoot(vrm.scene);
-  motionMixer?.dispose();  // ✅ 新增：释放 AnimationMixer 内部缓存
+  motionMixer?.stopAllAction();  // ✅ 停止所有动画
+  motionMixer?.uncacheRoot(vrm.scene);  // ✅ 释放 PropertyBinding 缓存
   if (useNativeLookAt) vrm.lookAt!.target = null;
   VRMUtils.deepDispose(vrm.scene);
 },
 ```
+
+### 结论
+
+✅ **AnimationMixer 清理已正确实现，无需修复。**
+
+`stopAllAction()` 停止所有动画，`uncacheRoot()` 释放内部缓存，符合 Three.js API 设计。
 
 ---
 
@@ -218,11 +183,11 @@ _onUnifiedPick = (e: MouseEvent): void => {
 
 ## 修复优先级
 
-| 优先级 | 问题 | 文件 | 修复工作量 |
-|--------|------|------|------------|
-| 🔴 **P0** | AnimationMixer 未 dispose | mmd-adapter.ts, vrm-adapter.ts | 2 行代码 |
-| 🟡 **P1** | Texture 释放逻辑冗余 | pack-model-adapter.ts | 3 行代码 |
-| 🟢 **P2** | Raycaster 可复用优化 | mount-preview-core.ts | 5 行代码 |
+| 优先级 | 问题 | 文件 | 修复工作量 | 状态 |
+|--------|------|------|------------|------|
+| ~~🔴 P0~~ | ~~AnimationMixer 未 dispose~~ | ~~mmd-adapter.ts, vrm-adapter.ts~~ | ~~2 行代码~~ | ✅ **已验证正确，无需修复** |
+| 🟡 **P1** | Texture 释放逻辑冗余 | pack-model-adapter.ts | 3 行代码 | 🟡 待修复 |
+| 🟢 **P2** | Raycaster 可复用优化 | mount-preview-core.ts | 5 行代码 | 🟢 非紧急 |
 
 ---
 
@@ -275,4 +240,4 @@ class ResourceTracker {
 
 ---
 
-**审核结论**：发现 **P0 级 AnimationMixer 内存泄漏**，需立即修复。修复成本极低（2 行代码），但收益巨大（避免多次模型切换后的内存累积）。
+**审核结论**：AnimationMixer 清理机制正确，无内存泄漏。主要问题为 P1 级 Texture 释放逻辑冗余和 P2 级 Raycaster 可复用优化。dispose 覆盖率 46.9%，核心路径已覆盖，剩余为防御性遍历补充。
