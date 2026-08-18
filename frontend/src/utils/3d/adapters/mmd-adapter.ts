@@ -83,6 +83,52 @@ function isLikelyTga(bytes: Uint8Array): boolean {
   return type === 1 || type === 2 || type === 3 || type === 9 || type === 10 || type === 11;
 }
 
+/** 可释放的纹理字段名（MMDToonMaterial 特有 + 标准纹理，对齐 cleanup-3d.ts SAFE_DISPOSE_TEX_KEYS） */
+const DISPOSE_TEX_KEYS = [
+  "map", "emissiveMap", "normalMap", "roughnessMap",
+  "metalnessMap", "aoMap", "lightMap", "alphaMap", "envMap",
+  "sphereMap", "toonMap", "displacementMap", "bumpMap",
+] as const;
+
+/** 估算纹理 GPU 内存（字节），只计 RGBA 全尺寸；压缩纹理格式不在此列 */
+function estimateTexGpuBytes(tex: THREE.Texture): number {
+  const img = tex.image as HTMLImageElement | undefined;
+  if (!img?.width || !img?.height) return 0;
+  // RGBA8888 = 4B/px（最普适场景）；其它格式估算偏保守
+  return img.width * img.height * 4;
+}
+
+/** 释放 MMD mesh 的全部几何/材质/纹理，并记录统计到环形日志 */
+async function disposeMmdMesh(
+  mesh: THREE.SkinnedMesh,
+  diag: typeof mmdDiag,
+  port: MmdDataPort,
+  op: string,
+): Promise<void> {
+  // 收集材质（单材质 / 多材质数组）
+  const allMats: THREE.Material[] = Array.isArray(mesh.material)
+    ? mesh.material
+    : mesh.material
+      ? [mesh.material]
+      : [];
+  let texCount = 0;
+  let totalGpuBytes = 0;
+  for (const mat of allMats) {
+    for (const key of DISPOSE_TEX_KEYS) {
+      const tex = (mat as unknown as Record<string, unknown>)[key];
+      if (tex instanceof THREE.Texture) {
+        totalGpuBytes += estimateTexGpuBytes(tex);
+        texCount++;
+        try { tex.dispose(); } catch { /* 防御性 */ }
+      }
+    }
+    try { mat.dispose(); } catch { /* 防御性 */ }
+  }
+  try { mesh.geometry.dispose(); } catch { /* 防御性 */ }
+  const gpuMb = (totalGpuBytes / (1024 * 1024)).toFixed(1);
+  void diag(port, op, `tex=${texCount} gpu≈${gpuMb}MB`, "ok");
+}
+
 /**
  * MMD 内容构建：读 PMX/PMD 字节 + 同目录纹理 → 挂入核心 scene，返回每帧 update + dispose。
  * 成功路径自行移除 loadingEl（对齐 vrm/litematic 既有口径）。数据读取经 port 注入（ADR-072）。
@@ -202,12 +248,19 @@ export async function buildMmdScene(
       }
     }
     const texSizes = [...dimCount.entries()].map(([k, n]) => `${k}x${n}`).join(",") || "none";
+    // GPU 内存估算：各尺寸 × 数量 × 4B/px（RGBA8888）
+    let gpuBytes = 0;
+    for (const [dim, n] of dimCount) {
+      const [w, h] = dim.split("x").map(Number);
+      if (w && h) gpuBytes += w * h * 4 * n;
+    }
+    const gpuMb = (gpuBytes / (1024 * 1024)).toFixed(1);
     void mmdDiag(
       port,
       "perf",
       path,
       "ok",
-      `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${Math.round(textureLoadedAt - tParseEnd)}ms build=${Math.round(buildMs)}ms tex=${texSizes}`,
+      `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${Math.round(textureLoadedAt - tParseEnd)}ms build=${Math.round(buildMs)}ms tex=${texSizes} gpu≈${gpuMb}MB`,
     );
   };
   manager.setURLModifier((url: string): string => {
@@ -440,7 +493,9 @@ export async function buildMmdScene(
         autoDance.apply(dt, semanticBones ?? {});
       }
     },
-    // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
+    // 释放 MMD 纹理/材质/几何（@moeru/three-mmd 的 MMD.dispose 只释放物理引擎，不释放 GPU 资源——
+    // 见 node_modules/@moeru/three-mmd/dist/index.js:2901-2905。切换模型时 switchToSession 只调
+    // 本 dispose，不跑 fullCleanup 的 scene.traverse catch-all，所以必须在此显式释放）。
     dispose: (): void => {
       bonePanelRef.current?.();
       unregisterModelRoot(mesh);
@@ -453,6 +508,8 @@ export async function buildMmdScene(
       autoDance.dispose();
       footIK.dispose();
       for (const url of blobUrls) URL.revokeObjectURL(url);
+      // 显式释放几何/材质/纹理（mmd?.dispose() 不会释放这些）
+      disposeMmdMesh(mesh, mmdDiag, port, "dispose-tex");
       mmd?.dispose();
     },
     // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/vrm/litematic 呑约对称）
