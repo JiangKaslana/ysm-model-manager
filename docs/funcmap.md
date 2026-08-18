@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 121 | 448 |
+| 前端·工具 | 122 | 452 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **405** | **1684** |
+| **合计** | **406** | **1688** |
 
 ## Go·头像
 
@@ -1146,16 +1146,16 @@
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:97` | — |
 | `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:430` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:457` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:61` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:80` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:110` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:120` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:62` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:81` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:111` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:121` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
 | `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core` | — |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:150` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:159` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:164` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:169` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:185` | — |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:151` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:160` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:165` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:170` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:186` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:37` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1238,9 +1238,13 @@
 | `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:103` | — |
 | `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:113` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
 | `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:221` | ============ LightCapability ============ |
-| `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability-registry:17` | 能力工厂：接收 scene/renderer，返回能力实例 |
-| `SceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:23` | 注册表：管理所有场景能力的工厂和实例 |
-| `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:101` | 全局单例（模块级单例 + 运行时状态隔离） |
+| `ReflectorParams()` | `frontend/src/utils/3d/caps/reflector-capability:18` | — |
+| `DEFAULT_REFLECTOR_PARAMS()` | `frontend/src/utils/3d/caps/reflector-capability:34` | — |
+| `REFLECTOR_PRESETS()` | `frontend/src/utils/3d/caps/reflector-capability:45` | 模型类别反光预设：反光强度按材质风格适配（toon 不要强反射，PBR 角色中等，方块/体素弱） |
+| `ReflectorCapability()` | `frontend/src/utils/3d/caps/reflector-capability:69` | — |
+| `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability-registry:18` | 能力工厂：接收 scene/renderer，返回能力实例 |
+| `SceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:24` | 注册表：管理所有场景能力的工厂和实例 |
+| `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:102` | 全局单例（模块级单例 + 运行时状态隔离） |
 | `MenuControlKind()` | `frontend/src/utils/3d/caps/scene-capability:11` | 单个菜单控件类型 |
 | `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:14` | 菜单控件定义（声明式，由框架渲染为 DOM） |
 | `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:40` | ============ 场景能力统一接口 ============ |

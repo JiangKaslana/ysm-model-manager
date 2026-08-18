@@ -224,6 +224,7 @@ export const en: Record<string, string> = {
   "settings.preview3d.resetKeys": "Reset Key Bindings",
 
   // ── Import Page ──
+  "import.mmdSubdir": "MMD Purpose Subdir",
   "import.renameGuide": "Rename before importing to repository:",
   "import.author": "Author",
   "import.brand": "Brand",

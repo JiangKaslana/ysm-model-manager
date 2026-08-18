@@ -12,6 +12,7 @@ import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { buildRenameName } from "../utils/dom/dialogs/rename-format.ts";
 import { showRenameDialog } from "../utils/dom/dialogs/rename.ts";
+import { currentRepoType } from "./repo-rtype.ts";
 
 /** 事件绑定工具：收集 cleanup 函数 */
 function on<K extends keyof HTMLElementEventMap>(
@@ -42,6 +43,16 @@ export function renderFormData(
   // 填充表单字段
   for (const id of IMPORT_FORM_FIELD_IDS) {
     (root.getElementById(id) as HTMLInputElement).value = formData.fieldValues[id];
+  }
+  // ADR-096：MMD 类型显示用途子目录下拉（仅 mmd-skin 类型）
+  const subdirWrap = root.getElementById("dl-mmd-subdir-wrap") as HTMLElement | null;
+  const subdirSelect = root.getElementById("dl-mmd-subdir") as HTMLSelectElement | null;
+  if (subdirWrap) {
+    const isMMD = currentRepoType() === "mmd-skin";
+    subdirWrap.style.display = isMMD ? "flex" : "none";
+    if (isMMD && subdirSelect && formData.mmdSubdir) {
+      subdirSelect.value = formData.mmdSubdir;
+    }
   }
   updatePreview();
   toggleForm(true);
@@ -360,11 +371,14 @@ export function bindButtonEvents(
     const handler = async () => {
       if (isImportingRef.current) return;
       isImportingRef.current = true;
+      // ADR-096：读取 MMD 用途子目录下拉值（仅 mmd-skin 类型）
+      const subdirSelect = root.getElementById("dl-mmd-subdir") as HTMLSelectElement | null;
       const editing = {
         file: currentFileRef.current,
         base64: currentBase64Ref.current,
         name: currentFileNameRef.current,
         relPath: currentRelPathRef.current,
+        mmdSubdir: subdirSelect?.value || "",
       };
       try {
         // 统一走 readFormFields 读取（索引 4.1 收敛逐字段手写）
@@ -393,7 +407,7 @@ export function bindButtonEvents(
         try {
           const { getApp } = await import("../backend/app.ts");
           const app = await getApp();
-          const { LoadAppConfig, ImportModelFileTo } = app;
+          const { LoadAppConfig } = app;
           const cfg = await LoadAppConfig();
           if (!cfg.filesRoot) {
             bus.emit("toast:show", {
@@ -417,7 +431,13 @@ export function bindButtonEvents(
           }
           finalName = renameTo;
 
-          await ImportModelFileTo(finalName, subpath, editing.base64 || "");
+          // ADR-096：MMD 类型按用途子目录导入，其他类型走原有路径
+          const mmdSubdir = editing.mmdSubdir || "";
+          if (currentRepoType() === "mmd-skin" && app.ImportModelFileToMMD) {
+            await app.ImportModelFileToMMD(finalName, subpath, mmdSubdir, editing.base64 || "");
+          } else {
+            await app.ImportModelFileTo(finalName, subpath, editing.base64 || "");
+          }
           bus.emit("stats:refresh");
           bus.emit("tree:reload");
 
@@ -442,11 +462,16 @@ export function bindButtonEvents(
               try {
                 const { getApp } = await import("../backend/app.ts");
                 const app = await getApp();
-                const { ImportModelFileOverwriteTo } = app;
                 const subpath2 = editing.relPath
                   ? editing.relPath.substring(0, editing.relPath.lastIndexOf("/"))
                   : "";
-                await ImportModelFileOverwriteTo(finalName, subpath2, editing.base64 || "");
+                // ADR-096：MMD 覆盖导入也走子目录
+                const mmdSubdir = editing.mmdSubdir || "";
+                if (currentRepoType() === "mmd-skin" && app.ImportModelFileOverwriteToMMD) {
+                  await app.ImportModelFileOverwriteToMMD(finalName, subpath2, mmdSubdir, editing.base64 || "");
+                } else {
+                  await app.ImportModelFileOverwriteTo(finalName, subpath2, editing.base64 || "");
+                }
                 bus.emit("stats:refresh");
                 bus.emit("tree:reload");
                 bus.emit("toast:show", {

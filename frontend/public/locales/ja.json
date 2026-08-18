@@ -205,6 +205,7 @@
   "settings.preview3d.keymap": "操作キー（クリック→キーで再割り当て）",
   "settings.preview3d.keymapHint": "矢印キーは常に移動のフォールバックとして有効。変更は次の 3D プレビューで反映。",
   "settings.preview3d.resetKeys": "デフォルトキーに戻す",
+  "import.mmdSubdir": "MMD 用途サブディレクトリ",
   "import.renameGuide": "リポジトリにインポートする前に名前を変更してください：",
   "import.author": "作者",
   "import.brand": "ブランド",

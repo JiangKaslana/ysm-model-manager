@@ -205,6 +205,7 @@
   "settings.preview3d.keymap": "操作键位（点击后按任意键重绑）",
   "settings.preview3d.keymapHint": "方向键始终可用作移动兜底；修改即时生效，下次 3D 预览启用。",
   "settings.preview3d.resetKeys": "恢复默认键位",
+  "import.mmdSubdir": "MMD 用途子目录",
   "import.renameGuide": "导入仓库前，先重命名一下吧：",
   "import.author": "作者",
   "import.brand": "品牌",

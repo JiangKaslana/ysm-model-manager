@@ -225,6 +225,7 @@ export const ja: Record<string, string> = {
   "settings.preview3d.resetKeys": "デフォルトキーに戻す",
 
   // ── Import Page ──
+  "import.mmdSubdir": "MMD 用途サブディレクトリ",
   "import.renameGuide": "リポジトリにインポートする前に名前を変更してください：",
   "import.author": "作者",
   "import.brand": "ブランド",

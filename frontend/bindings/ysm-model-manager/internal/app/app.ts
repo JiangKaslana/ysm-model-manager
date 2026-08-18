@@ -482,12 +482,28 @@ export function ImportModelFileOverwriteTo(fileName: string, subpath: string, ba
     return $Call.ByID(3849603631, fileName, subpath, base64Data);
 }
 
+/**
+ * ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。
+ */
+export function ImportModelFileOverwriteToMMD(fileName: string, subpath: string, mmdSubdir: string, base64Data: string): $CancellablePromise<void> {
+    return $Call.ByID(445496335, fileName, subpath, mmdSubdir, base64Data);
+}
+
 export function ImportModelFileSkipCheck(fileName: string, base64Data: string): $CancellablePromise<void> {
     return $Call.ByID(334185050, fileName, base64Data);
 }
 
 export function ImportModelFileTo(fileName: string, subpath: string, base64Data: string): $CancellablePromise<void> {
     return $Call.ByID(191674492, fileName, subpath, base64Data);
+}
+
+/**
+ * ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。
+ * mmdSubdir: MMD 用途子目录名（如 SceneModel/CustomAnim），对应 MMD_SUBTYPES 的 subdir 字段。
+ * subpath: 文件在子目录内的相对路径（文件夹导入时保留层级）。
+ */
+export function ImportModelFileToMMD(fileName: string, subpath: string, mmdSubdir: string, base64Data: string): $CancellablePromise<void> {
+    return $Call.ByID(509903146, fileName, subpath, mmdSubdir, base64Data);
 }
 
 /**

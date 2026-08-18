@@ -227,6 +227,7 @@ export const zhCN: Record<string, string> = {
   "settings.preview3d.resetKeys": "恢复默认键位",
 
   // ── 导入页 ──
+  "import.mmdSubdir": "MMD 用途子目录",
   "import.renameGuide": "导入仓库前，先重命名一下吧：",
   "import.author": "作者",
   "import.brand": "品牌",

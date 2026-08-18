@@ -205,6 +205,7 @@
   "settings.preview3d.keymap": "Key Bindings (click then press a key to rebind)",
   "settings.preview3d.keymapHint": "Arrow keys always work as a fallback; changes apply immediately to the next 3D preview.",
   "settings.preview3d.resetKeys": "Reset Key Bindings",
+  "import.mmdSubdir": "MMD Purpose Subdir",
   "import.renameGuide": "Rename before importing to repository:",
   "import.author": "Author",
   "import.brand": "Brand",

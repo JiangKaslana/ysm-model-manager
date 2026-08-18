@@ -23,6 +23,7 @@ export type QueueItem = {
   name: string;
   size: number;
   relPath: string;
+  mmdSubdir?: string; // ADR-096：MMD 用途子目录（仅 mmd-skin 类型）
 };
 
 /**
@@ -76,6 +77,7 @@ export function readFormFields(root: ShadowRoot): {
 export interface PreparedFormData {
   parsed: ReturnType<typeof parseModelName>;
   fieldValues: Record<string, string>;
+  mmdSubdir?: string; // ADR-096：MMD 用途子目录（仅 mmd-skin 类型）
 }
 
 /** loadHeaderData 返回的头部数据（不含 DOM 引用） */
@@ -226,7 +228,9 @@ export function initDataLayer(host: ImportQueueHost): {
       "dl-variant": "",
       "dl-date": parsed.date || "",
     };
-    return { parsed, fieldValues };
+    // ADR-096：MMD 用途子目录（仅 mmd-skin 类型，从队列项读取）
+    const mmdSubdir = currentRepoType() === "mmd-skin" ? (state.fileQueue[0]?.mmdSubdir || "") : "";
+    return { parsed, fieldValues, mmdSubdir };
   };
 
   const checkConflictDebounced = (name: string): void => {

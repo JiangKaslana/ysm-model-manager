@@ -88,6 +88,37 @@ func (a *App) ImportModelFileOverwriteTo(fileName, subpath, base64Data string) e
 	return a.importModelFileWithSubpath(fileName, subpath, base64Data, true)
 }
 
+// ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。
+// mmdSubdir: MMD 用途子目录名（如 SceneModel/CustomAnim），对应 MMD_SUBTYPES 的 subdir 字段。
+// subpath: 文件在子目录内的相对路径（文件夹导入时保留层级）。
+func (a *App) ImportModelFileToMMD(fileName, subpath, mmdSubdir, base64Data string) error {
+	return a.importModelFileMMD(fileName, subpath, mmdSubdir, base64Data, false)
+}
+
+// ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。
+func (a *App) ImportModelFileOverwriteToMMD(fileName, subpath, mmdSubdir, base64Data string) error {
+	return a.importModelFileMMD(fileName, subpath, mmdSubdir, base64Data, true)
+}
+
+// importModelFileMMD 导入 MMD 模型文件到 FilesRoot/mmd/{mmdSubdir}/{subpath}/。
+func (a *App) importModelFileMMD(fileName, subpath, mmdSubdir, base64Data string, overwrite bool) error {
+	root, _ := a.GetRepoRoot("mmd-skin")
+	if root == "" {
+		return fmt.Errorf("请先设置文件存储路径")
+	}
+	// mmdSubdir 白名单校验（仅允许 MMD_SUBTYPES 命中的用途子目录）。
+	// 与 go/types 的 mmdSubdirNames 对齐，防路径穿越。
+	if mmdSubdir != "" && !types.IsMMDSubDir(mmdSubdir) {
+		return types.AppError{Code: types.ErrInvalidPath, Operation: "导入模型", SourcePath: mmdSubdir, Reason: "非法 MMD 用途子目录", Suggestion: "仅允许: EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/shader"}
+	}
+	// 拼接子目录：mmdSubdir 在前，subpath 在后（如有）。
+	fullSubpath := mmdSubdir
+	if subpath != "" {
+		fullSubpath = mmdSubdir + "/" + subpath
+	}
+	return a.importModelFileWithSubpath(fileName, fullSubpath, base64Data, overwrite)
+}
+
 func (a *App) importModelFileWithSubpath(fileName, subpath, base64Data string, overwrite bool) error {
 	root, _ := a.GetRepoRoot("ysm")
 	if root == "" {
