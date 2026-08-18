@@ -64,8 +64,11 @@ export function createYsmAnimPlayer(
   let elapsed = 0;
   let playing = true;
 
-  // slerp 支持：记录每个骨骼的 rest quaternion（首次 apply 时保存）
+  // slerp 支持：记录每个骨骼的 rest quaternion + 插值进度 alpha
+  // 每次 apply 从 rest 姿态以 alpha 进度球面插值到目标姿态，避免欧拉角跳变
   const restQuaternions = new Map<string, THREE.Quaternion>();
+  const slerpAlpha = new Map<string, number>();
+  const SLERP_RATE = 5.0; // 插值速率：~0.2s 到达目标
 
   function getClip(): AnimationClip { return clips[currentIdx]; }
 
@@ -91,13 +94,21 @@ export function createYsmAnimPlayer(
         if (transform.rotation) {
           const [rx, ry, rz] = transform.rotation;
           const targetQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, "XYZ"));
-          const rest = restQuaternions.get(boneName);
-          if (rest) {
-            // slerp 路径：从 rest 姿态到目标姿态的旋转增量
-            node.quaternion.copy(rest).multiplyQuaternions(rest.clone().conjugate(), targetQuat);
+          let rest = restQuaternions.get(boneName);
+          let alpha = slerpAlpha.get(boneName) ?? 0;
+          if (!rest) {
+            // 首次 apply：保存当前姿态为 rest，alpha 从 0 开始
+            rest = node.quaternion.clone();
+            restQuaternions.set(boneName, rest);
+            alpha = 0;
           } else {
+            alpha = Math.min(1, alpha + dt * SLERP_RATE);
+          }
+          slerpAlpha.set(boneName, alpha);
+          if (alpha >= 1) {
             node.quaternion.copy(targetQuat);
-            restQuaternions.set(boneName, node.quaternion.clone());
+          } else {
+            node.quaternion.copy(rest).slerp(targetQuat, alpha);
           }
         }
 
@@ -116,6 +127,7 @@ export function createYsmAnimPlayer(
       elapsed = 0;
       playing = true;
       restQuaternions.clear();
+      slerpAlpha.clear();
     },
 
     toggle(): void {
@@ -139,6 +151,7 @@ export function createYsmAnimPlayer(
       elapsed = 0;
       playing = true;
       restQuaternions.clear();
+      slerpAlpha.clear();
     },
     isAnimActive(): boolean {
       return playing && elapsed < (getClip().length || Infinity);

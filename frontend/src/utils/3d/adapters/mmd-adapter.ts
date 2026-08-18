@@ -58,7 +58,7 @@ export interface MmdDataPort {
   readFileBytes(path: string): Promise<string | null>;
   readFileBytesBatch(paths: string[]): Promise<Record<string, string | null>>;
   listAllFilePaths(dir: string): Promise<string[] | null>;
-  addOpLog(op: string, msg: string, status: "ok" | "fail", err?: string): Promise<void>;
+  addOpLog(op: string, msg: string, status: "ok" | "fail" | "warn", err?: string): Promise<void>;
   /** 读取纹理文件并检查 KTX2 缓存，返回 { format, data, hash } */
   getCachedTexture?(path: string): Promise<{ format: string; data: string; hash: string } | null>;
 }
@@ -68,7 +68,7 @@ async function mmdDiag(
   port: MmdDataPort,
   op: string,
   msg: string,
-  status: "ok" | "fail",
+  status: "ok" | "fail" | "warn",
   err?: string,
 ): Promise<void> {
   try {
@@ -129,7 +129,8 @@ async function disposeMmdMesh(
     }
     try { mat.dispose(); } catch { /* 防御性 */ }
   }
-  try { mesh.geometry.dispose(); } catch { /* 防御性 */ }
+  try { mesh.geometry.dispose();
+    mesh.skeleton?.dispose(); } catch { /* 防御性 */ }
   const gpuMb = (totalGpuBytes / (1024 * 1024)).toFixed(1);
   void diag(port, op, `tex=${texCount} gpu≈${gpuMb}MB`, "ok");
 }
@@ -185,7 +186,22 @@ export async function buildMmdScene(
     const files = (await port.listAllFilePaths(dirPath)) || [];
     // ADR-101：批量读取纹理（1 次 RPC 替代 N 次 readFileBytes，减少 Go↔JS IPC 往返）
     const texFiles = files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext)));
-    const texBatch = texFiles.length > 0 ? await port.readFileBytesBatch(texFiles) : {};
+    let texBatch: Record<string, string | null> = {};
+    if (texFiles.length > 0) {
+      try {
+        texBatch = await port.readFileBytesBatch(texFiles);
+      } catch {
+        // P0-3 fallback：批量读取失败时降级为逐条 readFileBytes
+        void mmdDiag(port, "batch-read", dirPath, "warn", "批量读取失败，降级逐条读取");
+        for (const p of texFiles) {
+          try {
+            texBatch[p] = await port.readFileBytes(p);
+          } catch {
+            texBatch[p] = null;
+          }
+        }
+      }
+    }
     for (const p of texFiles) {
       // 先计算相对路径（rel），后续 KTX2 和 PNG 分支都用到
       const lower = p.toLowerCase().replace(/\\/g, "/");

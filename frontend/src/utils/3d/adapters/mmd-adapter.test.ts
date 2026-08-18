@@ -523,3 +523,105 @@ describe("KTX2 缓存", () => {
     }
   });
 });
+
+// ---- P0-2 GPU 内存释放：SkinnedMesh.skeleton.dispose ----
+describe("GPU 内存释放", () => {
+  function makeSkinnedMeshForTest() {
+    const geometry = new THREE.BoxGeometry(1, 2, 1);
+    // 添加 skinIndex 和 skinWeight 属性让 SkinnedMesh.computeBoundingBox 不崩
+    const boneIndices = new Float32Array(geometry.attributes.position.count * 4);
+    const boneWeights = new Float32Array(geometry.attributes.position.count * 4);
+    for (let i = 0; i < boneWeights.length; i += 4) {
+      boneIndices[i] = 0; boneIndices[i + 1] = 0; boneIndices[i + 2] = 0; boneIndices[i + 3] = 0;
+      boneWeights[i] = 1; boneWeights[i + 1] = 0; boneWeights[i + 2] = 0; boneWeights[i + 3] = 0;
+    }
+    geometry.setAttribute("skinIndex", new THREE.BufferAttribute(boneIndices, 4));
+    geometry.setAttribute("skinWeight", new THREE.BufferAttribute(boneWeights, 4));
+    const skeleton = new THREE.Skeleton([new THREE.Bone()]);
+    const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+    mesh.bind(skeleton, new THREE.Matrix4());
+    return { mesh, skeleton };
+  }
+
+  it("dispose 时释放 SkinnedMesh.skeleton（防 GPU 内存泄漏）", async () => {
+    const { mesh, skeleton } = makeSkinnedMeshForTest();
+    const skeletonDisposeSpy = vi.spyOn(skeleton, "dispose");
+
+    hoisted.loaderLoadAsyncMock.mockImplementation(() =>
+      Promise.resolve({
+        mesh,
+        pmx: { bones: [], materials: [], morphs: [] },
+        update: hoisted.mmdUpdateMock,
+        updateWithMixer: hoisted.mmdUpdateWithMixerMock,
+        dispose: hoisted.mmdDisposeMock,
+      })
+    );
+    hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+    hoisted.listPathsMock.mockResolvedValue([]);
+
+    const { ctx } = makeCtx();
+    const built = await buildMmdScene(ctx, "/mmd/test/test.pmx", makePort(), makeMmdPanels());
+    built.dispose();
+    expect(skeletonDisposeSpy).toHaveBeenCalled();
+    skeletonDisposeSpy.mockRestore();
+  });
+
+  it("dispose 时无 skeleton 不抛错", async () => {
+    const geometry = new THREE.BoxGeometry(1, 2, 1);
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+    // Mesh 没有 skeleton 属性
+
+    hoisted.loaderLoadAsyncMock.mockImplementation(() =>
+      Promise.resolve({
+        mesh,
+        pmx: { bones: [], materials: [], morphs: [] },
+        update: hoisted.mmdUpdateMock,
+        updateWithMixer: hoisted.mmdUpdateWithMixerMock,
+        dispose: hoisted.mmdDisposeMock,
+      })
+    );
+    hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+    hoisted.listPathsMock.mockResolvedValue([]);
+
+    const { ctx } = makeCtx();
+    const built = await buildMmdScene(ctx, "/mmd/test/test.pmx", makePort(), makeMmdPanels());
+    expect(() => built.dispose()).not.toThrow();
+  });
+});
+
+// ---- P0-3 批量读取 fallback：readFileBytesBatch 失败时降级逐条读取 ----
+describe("批量读取降级", () => {
+  it("readFileBytesBatch 抛错时，降级为逐条 readFileBytes 读取纹理", async () => {
+    hoisted.readBytesMock.mockImplementation((p: string) => {
+      if (p.endsWith(".pmx")) return Promise.resolve(btoa("PMX"));
+      if (p.endsWith(".png")) return Promise.resolve(btoa("PNX"));
+      return Promise.resolve(btoa("DATA"));
+    });
+    hoisted.listPathsMock.mockResolvedValue([
+      "/mmd/miku/miku.pmx",
+      "/mmd/miku/tex.png",
+      "/mmd/miku/sub.png",
+    ]);
+    hoisted.loaderLoadAsyncMock.mockImplementation(
+      () => Promise.resolve(fakeMmd())
+    );
+
+    const port: MmdDataPort = {
+      ...makePort(),
+      // 批量读取抛错，强制降级
+      readFileBytesBatch: vi.fn().mockRejectedValue(new Error("batch RPC failed")),
+    };
+
+    const { ctx } = makeCtx();
+    const built = await buildMmdScene(ctx, "/mmd/miku", port, makeMmdPanels());
+
+    // 关键断言：batch 失败后，readFileBytes 仍被逐条调用读取纹理
+    const texCalls = hoisted.readBytesMock.mock.calls
+      .map((c: unknown[]) => (c as [string])[0])
+      .filter((p: string) => p.endsWith(".png"));
+    expect(texCalls.length).toBeGreaterThanOrEqual(2);
+
+    // 模型仍正常加载（URLModifier 已挂载）
+    expect(built.update).toBeDefined();
+  });
+});
