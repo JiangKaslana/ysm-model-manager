@@ -9,14 +9,10 @@ export default defineConfig({
   // ADR-035 G-4：覆盖广度采集 spec 按需执行（npx playwright test coverage-breadth），
   // 不纳入日常 e2e 套件（采集会拖慢且产物仅人工观察面）
   testIgnore: ["**/coverage-breadth.spec.ts"],
-  // 每项限 15 秒（用户侧验收标准）；总套件限 7 分钟；累计 5 次失败阻断（ADR-037 接入参数）
+  // 每项限 15 秒（用户侧验收标准）；总套件限 7 分钟；2 次失败立即停——避免「改个菜单空跑 N 个 15s 超时」
   timeout: 15000,
   globalTimeout: 7 * 60 * 1000,
-  maxFailures: 5,
-  // bail: 2 —— 连续 2 次失败立即停，避免「改个菜单空跑 N 个 15s 超时」。
-  // 开发期快反馈，CI 期也适用：系统性问题 2 次暴露足够，多跑无用。
-  // 需要全量看失败列表时可临时 `npx playwright test --no-bail`。
-  bail: 2,
+  maxFailures: 2,
   // retries: 0 —— 失败即真红，不靠重试掩盖竞态（子代理审核 P2）。
   // 已知环境性缺口（vite 冷启动）已由 fixture 的 app-content shadowRoot
   // 轮询等待根治；条件性 test.skip 保留（mock 未渲染时优雅跳过，有原因注释）。
