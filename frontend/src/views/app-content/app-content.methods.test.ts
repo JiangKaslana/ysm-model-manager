@@ -5,6 +5,8 @@
 // _fmtSize / _esc 纯函数。
 // heavy feature 模块全 mock（副作用 import 断开），页面 HTML 用真实 tpl。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { formatBytes } from "../../utils/dom/format.ts";
+import { esc } from "../../utils/dom/html.ts";
 
 vi.mock("@wailsio/runtime", () => ({
   Events: { On: vi.fn().mockReturnValue(() => {}) },
@@ -78,8 +80,6 @@ type ContentEl = {
   _initRepository(): void;
   _initInstances(): void;
   _bindTabs(sel: string, prefix: string, ids: string[]): void;
-  _fmtSize(bytes: number): string;
-  _esc(s: unknown): string;
   [key: string]: unknown;
 } & Element;
 
@@ -467,21 +467,18 @@ describe("_initGithub / _initWorkshop 真实路径", () => {
   });
 });
 
-describe("纯函数", () => {
-  it("_fmtSize：0/字节/KB/MB 分级", () => {
-    const el = mountCustomElement("app-content") as unknown as ContentEl;
-    expect((el as unknown as { _fmtSize(n: number): string })._fmtSize(0)).toBe("");
-    expect((el as unknown as { _fmtSize(n: number): string })._fmtSize(512)).toBe("512 B");
-    expect((el as unknown as { _fmtSize(n: number): string })._fmtSize(2048)).toBe("2.0 KB");
-    expect((el as unknown as { _fmtSize(n: number): string })._fmtSize(5 * 1048576)).toBe("5.0 MB");
+describe("纯函数（直引 util：formatBytes / esc，AppContent 不再持有薄壳）", () => {
+  it("formatBytes：0/字节/KB/MB 分级", () => {
+    expect(formatBytes(0)).toBe("");
+    expect(formatBytes(512)).toBe("512 B");
+    expect(formatBytes(2048)).toBe("2.0 KB");
+    expect(formatBytes(5 * 1048576)).toBe("5.0 MB");
   });
 
-  it("_esc：委托规范 esc（含引号转义）", () => {
-    const el = mountCustomElement("app-content") as unknown as ContentEl;
-    const esc = (el as unknown as { _esc(s: unknown): string })._esc.bind(el);
+  it("esc：规范转义（含引号）", () => {
     expect(esc('<b title="x">')).toContain("&lt;b");
     expect(esc('a"b')).toContain("&quot;");
-    expect(esc(null)).toBe("");
-    expect(esc(undefined)).toBe("");
+    expect(esc(null as unknown as string)).toBe("");
+    expect(esc(undefined as unknown as string)).toBe("");
   });
 });

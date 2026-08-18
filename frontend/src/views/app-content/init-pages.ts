@@ -8,6 +8,7 @@ import { loadOldestModel } from "../../features/oldest-models.ts";
 import { startDedup } from "./diagnostics/init.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { safeGet } from "../../utils/dom/storage.ts";
+import { esc } from "../../utils/dom/html.ts";
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { initWorkshopPage as _initWorkshopPage } from "./init-workshop.ts";
@@ -16,7 +17,6 @@ import { initGithubPage as _initGithubPage } from "./init-github.ts";
 /** app-content 组件接口（供页面初始化函数访问） */
 export interface AppContentHost {
   _root: ShadowRoot;
-  _esc(s: unknown): string;
   _unsubs: Array<() => void>;
 }
 
@@ -24,7 +24,7 @@ export interface AppContentHost {
  * 初始化诊断页
  */
 export function initDiagnosticsPage(host: AppContentHost): void {
-  initDiagnostics(host._root, (s) => host._esc(s));
+  initDiagnostics(host._root, (s) => esc(String(s || "")));
 }
 
 /**
@@ -146,7 +146,7 @@ function bindTabs(
               if (list)
                 startDedup(
                   list as HTMLElement,
-                  (s: unknown) => host._esc(s),
+                  (s: unknown) => esc(String(s || "")),
                   dedupType,
                 );
             };
@@ -165,7 +165,7 @@ function bindTabs(
             host._unsubs.push(_unsub);
           } else if (tab === "oldest") {
             const oldestCleanup = await loadOldestModel(container, (s) =>
-              host._esc(s),
+              esc(s),
             );
             host._unsubs = host._unsubs || [];
             if (oldestCleanup) host._unsubs.push(oldestCleanup);

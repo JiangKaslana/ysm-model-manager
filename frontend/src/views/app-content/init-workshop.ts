@@ -9,6 +9,7 @@
 import { bus } from "../../bus.ts";
 import { getApp } from "../../backend/app.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
+import { esc } from "../../utils/dom/html.ts";
 import { Events } from "@wailsio/runtime";
 import { dbg } from "../../utils/debug/debug.ts";
 import { fillSearch } from "./community-data.ts";
@@ -62,7 +63,7 @@ export function initWorkshopPage(host: AppContentHost): void {
       openSite(host, site, browseMode);
     };
     const ctx: RenderSiteViewCtx = {
-      esc: (s) => host._esc(s),
+      esc: (s) => esc(String(s || "")),
       searchResults: searchResults as HTMLElement,
       creatorView: creatorView as HTMLElement,
       allSites,
@@ -71,7 +72,7 @@ export function initWorkshopPage(host: AppContentHost): void {
       wsEditModeRef,
       showRepoModels: async (repo, models, source) => {
         await showRepoModels(
-          (s) => host._esc(s),
+          (s) => esc(String(s || "")),
           host._repoEventsCleanup,
           host._setRepoEventsCleanup,
           host._currentSite,
@@ -146,7 +147,6 @@ export function resetAvatarConfigLoaded(): void {
 /** app-content 组件接口（供 workshop/github 初始化函数访问） */
 export interface AppContentHost {
   _root: ShadowRoot;
-  _esc(s: unknown): string;
   _unsubs: Array<() => void>;
   _globalUnsubs: Array<() => void>;
   _repoEventsCleanup: (() => Promise<void>) | null;

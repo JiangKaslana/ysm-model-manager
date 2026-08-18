@@ -1585,10 +1585,10 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `appContentStyle()` | `frontend/src/views/app-content/index:12` | — |
+| `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
-| `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-github:29` | 初始化 GitHub 页 |
+| `AppContentHost()` | `frontend/src/views/app-content/init-pages:18` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:26` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:33` | 初始化实例页 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:206` | 初始化创意工坊页（委托到 init-workshop.ts） |
@@ -1596,9 +1596,9 @@
 | `rememberModelPath()` | `frontend/src/views/app-content/init-pages:221` | 记住最后选中的模型路径（供文件树等外部调用） |
 | `getLastModelPath()` | `frontend/src/views/app-content/init-pages:225` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:29` | 初始化创意工坊页（编排入口） |
-| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:136` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
-| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:147` | app-content 组件接口（供 workshop/github 初始化函数访问） |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:30` | 初始化创意工坊页（编排入口） |
+| `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:137` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
+| `AppContentHost()` | `frontend/src/views/app-content/init-workshop:148` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:28` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |

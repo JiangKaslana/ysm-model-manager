@@ -15,7 +15,6 @@ import type { WorkshopModel } from "../../features/community/render.ts";
 /** app-content 组件接口（供 github 初始化函数访问） */
 export interface AppContentHost {
   _root: ShadowRoot;
-  _esc(s: unknown): string;
   _unsubs: Array<() => void>;
   _globalUnsubs: Array<() => void>;
   _repoEventsCleanup: (() => Promise<void>) | null;
@@ -62,14 +61,14 @@ export function initGithubPage(host: AppContentHost): void {
               '<div class="gh-card gh-repo-card" style="animation-delay:' + stagger(idx, 30, 300) + 'ms" data-index="' +
               idx +
               '" data-repo="' +
-              host._esc(cr.name) +
+              escUtil(cr.name) +
               '">' +
               '<div class="gh-card-body">' +
               '<div class="ws-name" style="font-size:11px">🐙 ' +
-              host._esc(cr.name) +
+              escUtil(cr.name) +
               "</div>" +
               '<div class="ws-desc" style="font-size:9px">' +
-              host._esc(cr.desc) +
+              escUtil(cr.desc) +
               "</div>" +
               "</div></div>",
           )
@@ -178,7 +177,7 @@ export function initGithubPage(host: AppContentHost): void {
       if (resultsBody) {
         resultsBody.innerHTML =
           '<div style="padding:24px;text-align:center;color:var(--muted);font-size:11px">❌ ' +
-          host._esc(msg) +
+          escUtil(msg) +
           "</div>" +
           '<div style="text-align:center;padding:8px"><button class="btn-base sm ws-btn-txt" id="gh-open-repo">↗ ' +
           t("downloads.openInGithub") +
@@ -216,7 +215,7 @@ export function initGithubPage(host: AppContentHost): void {
       const missingCount = countMissing(models, localMap);
       if (resultsBody) {
         resultsBody.innerHTML = renderRepoHeaderHTML({
-          esc: (s) => host._esc(s),
+          esc: (s) => escUtil(s),
           repo,
           sourceLabel,
           modelsLength: models.length,
@@ -233,7 +232,7 @@ export function initGithubPage(host: AppContentHost): void {
           }
         }
         const { renderList, cleanup } = bindRepoEvents(resultsBody, {
-          esc: (s) => host._esc(s),
+          esc: (s) => escUtil(s),
           models,
           dlPrefix,
           repo,
