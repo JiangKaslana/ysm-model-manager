@@ -222,6 +222,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let onDragPointerUp: (e: PointerEvent) => void = () => {};
   let onDragPointerMove: (e: PointerEvent) => void = () => {};
   let onResize: () => void = () => {};
+  // R1-P2-1：提升为 let，使 cleanupCtx（块外构建）可访问 click 处理器
+  let onUnifiedPick: ((e: MouseEvent) => void) | null = null;
 
   const overlay = document.createElement("div");
   overlay.id = "ysm-overlay-3d"; // 对齐旧 skeleton overlay 定位（测试/样式钩子）
@@ -379,7 +381,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // ADR-093 T5：统一多模型拾取器（仅 count>=2 激活，单模型完全沿用逐模型 registerBoneRaycast，零回归）
     const raycaster = new THREE.Raycaster();
     const pickPointer = new THREE.Vector2();
-    const onUnifiedPick = (e: MouseEvent): void => {
+    onUnifiedPick = (e: MouseEvent): void => {
       if (sceneRegistry.count() < 2) return;
       if (!renderer || !camera || !scene) return;
       const rect = renderer.domElement.getBoundingClientRect();

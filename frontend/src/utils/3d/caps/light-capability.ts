@@ -566,6 +566,9 @@ export class LightCapability {
     this.rimLight.dispose();
     this.ambientLight.dispose();
     this.spotlight.dispose();
+    // R1-P2-6：spotlightTarget 是隐形 Object3D（无几何/材质），detach 已从场景移除；
+    // 显式置空引用，防止后续误用
+    this.spotlightTarget = null as unknown as THREE.Object3D;
   }
 }
 

@@ -207,6 +207,48 @@ func TestInstallDir_TypeFilter(t *testing.T) {
 	}
 }
 
+// TestInstallDir_MMDVmdWhiteList：mmd-skin 安装白名单须放行 vmd/vpd/json（模型随行动画/表情/槽位映射）
+// 守卫 ADR-092 第 2 层 A：玩家模型目录内 anims/*.vmd、*.vpd、animations.json 须能装进 3d-skin/EntityPlayer/
+func TestInstallDir_MMDVmdWhiteList(t *testing.T) {
+	repo, custom, _, _ := setupTestDirs(t)
+
+	srcDir := filepath.Join(repo, "mmd_model")
+	if err := os.MkdirAll(filepath.Join(srcDir, "anims"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// 模型 + 随行动画/表情/槽位映射 + 干扰项
+	for f, data := range map[string]string{
+		"model.pmx":           "pmx",
+		"anims/walk.vmd":      "vmd",
+		"anims/idle.vmd":      "vmd",
+		"happy.vpd":           "vpd",
+		"animations.json":     `{"walk":"anims/walk.vmd"}`,
+		"model.png":           "png",
+		"notes.txt":           "no",
+		"evil.exe":            "MZ",
+	} {
+		if err := os.WriteFile(filepath.Join(srcDir, f), []byte(data), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := InstallDir(srcDir, custom, repo, "copy", "mmd-skin"); err != nil {
+		t.Fatalf("InstallDir(mmd-skin) = %v", err)
+	}
+	base := filepath.Join(custom, filepath.Base(srcDir))
+	// 白名单内：vmd/vpd/json/png 全部安装
+	for _, want := range []string{"model.pmx", "anims/walk.vmd", "anims/idle.vmd", "happy.vpd", "animations.json", "model.png"} {
+		if _, err := os.Stat(filepath.Join(base, want)); err != nil {
+			t.Errorf("mmd-skin 白名单应安装 %s: %v", want, err)
+		}
+	}
+	// 白名单外：txt/exe 被过滤
+	for _, deny := range []string{"notes.txt", "evil.exe"} {
+		if _, err := os.Stat(filepath.Join(base, deny)); err == nil {
+			t.Errorf("mmd-skin 白名单应排除 %s", deny)
+		}
+	}
+}
+
 func TestInstallToGlobal_UnsupportedExt(t *testing.T) {
 	_, _, mcRoot, _ := setupTestDirs(t)
 

@@ -140,10 +140,15 @@ export class SkyCapability {
   private regenerateEnvironment(): void {
     // 生成环境贴图时隐藏太阳盘，避免光斑伪影（Sky 文档建议）
     this.envSky.material.uniforms["showSunDisc"].value = 0;
-    if (this.renderTarget) this.renderTarget.dispose();
-    this.renderTarget = this.pmrem.fromScene(this.envScene);
-    this.envSky.material.uniforms["showSunDisc"].value = 1;
-    this.scene.environment = this.renderTarget.texture;
+    try {
+      if (this.renderTarget) this.renderTarget.dispose();
+      this.renderTarget = this.pmrem.fromScene(this.envScene);
+      this.scene.environment = this.renderTarget.texture;
+    } catch (e) {
+      console.error("[sky] 环境贴图生成失败:", e);
+    } finally {
+      this.envSky.material.uniforms["showSunDisc"].value = 1;
+    }
   }
 
   private clearEnvironment(): void {

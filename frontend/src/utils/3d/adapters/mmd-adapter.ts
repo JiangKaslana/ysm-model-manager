@@ -363,7 +363,7 @@ export async function buildMmdScene(
       }
       // 眨眼：随机间隔触发 morph（待机态，有动画时暂停避免冲突）
       const blinkEntry = semanticMorphs.blink;
-      if (blinkEntry && mesh.morphTargetDictionary && (!action || action.paused)) {
+      if (blinkEntry && mesh.morphTargetDictionary && mesh.morphTargetInfluences && (!action || action.paused)) {
         const idx = mesh.morphTargetDictionary[blinkEntry.name];
         if (idx !== undefined) {
           blink.apply(dt, (weight: number) => { mesh.morphTargetInfluences![idx] = weight; });

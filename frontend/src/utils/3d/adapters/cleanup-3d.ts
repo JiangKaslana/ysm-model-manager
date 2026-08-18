@@ -30,6 +30,7 @@ export interface CleanupContext {
   onDragPointerUp: (e: PointerEvent) => void;
   onDragPointerMove: (e: PointerEvent) => void;
   onResize: () => void;
+  onUnifiedPick: ((e: MouseEvent) => void) | null;
   getPanelCleanup: () => (() => void) | null;
   allBuilt: { dispose(): void }[];
   nullBuilt: () => void;
@@ -71,6 +72,10 @@ export function runFullCleanup(ctx: CleanupContext): void {
   window.removeEventListener("pointerup", ctx.onDragPointerUp);
   window.removeEventListener("pointermove", ctx.onDragPointerMove);
   window.removeEventListener("resize", ctx.onResize);
+  // R1-P2-1：click 拾取处理器显式解绑（之前仅靠 GC，多会话切换时残留）
+  if (ctx.onUnifiedPick && ctx.renderer?.domElement) {
+    ctx.renderer.domElement.removeEventListener("click", ctx.onUnifiedPick);
+  }
   ctx.getPanelCleanup()?.();
   // 内容层先释放自身资源，核心再回收外壳
   // cooperate 模式下需逐一 dispose 所有已追加模型（adapter 专属 GPU 资源）

@@ -10,7 +10,9 @@ import type { LightCapability } from "../caps/light-capability.ts";
 
 export class PostprocessingManager {
   private composer: EffectComposer | null = null;
+  private renderPass: RenderPass | null = null;
   private bloomPass: UnrealBloomPass | null = null;
+  private outputPass: OutputPass | null = null;
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -33,10 +35,12 @@ export class PostprocessingManager {
         this.composer = new EffectComposer(this.renderer);
         this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.composer.setSize(w, h);
-        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        this.renderPass = new RenderPass(this.scene, this.camera);
+        this.composer.addPass(this.renderPass);
         this.bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.5, 1.0, 0.3);
         this.composer.addPass(this.bloomPass);
-        this.composer.addPass(new OutputPass());
+        this.outputPass = new OutputPass();
+        this.composer.addPass(this.outputPass);
       }
       if (this.bloomPass) {
         const vol = lightCap!.getParams().volumetric;
@@ -68,8 +72,13 @@ export class PostprocessingManager {
   }
 
   private disposeComposer(): void {
+    this.renderPass?.dispose();
+    this.renderPass = null;
+    this.bloomPass?.dispose();
+    this.bloomPass = null;
+    this.outputPass?.dispose();
+    this.outputPass = null;
     this.composer?.dispose();
     this.composer = null;
-    this.bloomPass = null;
   }
 }

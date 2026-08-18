@@ -158,6 +158,8 @@
       "extensions": [
         ".pmx",
         ".pmd",
+        ".vmd",
+        ".vpd",
         ".zip"
       ],
       "storageSubDir": "mmd",
@@ -173,7 +175,7 @@
       ],
       "isDir": true,
       "dirLevelSync": true,
-      "installExts": [".pmx", ".pmd", ".png", ".tga", ".spa", ".sph"],
+      "installExts": [".pmx", ".pmd", ".vmd", ".vpd", ".json", ".png", ".tga", ".spa", ".sph"],
       "actions": [
         "import",
         "delete",

@@ -121,7 +121,7 @@ var embeddedRegistryJSON = []byte(`{
       "name": "MMD 角色模型",
       "icon": "🎭",
       "group": "mmd",
-      "extensions": [".pmx", ".pmd", ".zip"],
+      "extensions": [".pmx", ".pmd", ".vmd", ".vpd", ".zip"],
       "storageSubDir": "mmd",
       "configField": "MmdRoot",
       "installDir": "3d-skin/EntityPlayer/",
@@ -135,7 +135,7 @@ var embeddedRegistryJSON = []byte(`{
       ],
       "isDir": true,
       "dirLevelSync": true,
-      "installExts": [".pmx", ".pmd", ".png", ".tga", ".spa", ".sph"],
+      "installExts": [".pmx", ".pmd", ".vmd", ".vpd", ".json", ".png", ".tga", ".spa", ".sph"],
       "actions": ["import", "delete", "openFolder"]
     },
     {
