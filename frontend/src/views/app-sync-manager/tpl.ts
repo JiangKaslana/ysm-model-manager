@@ -39,8 +39,7 @@ export function containerHTML(): string {
     "@keyframes sk-shimmer{from{background-position:-200% 0}to{background-position:200% 0}}" +
     "</style>" +
     '<div class="sm-wrap" style="display:flex;flex-direction:column;height:100%;overflow:hidden">' +
-    // 类型标签栏
-    '<div class="sm-tabs" style="display:flex;gap:2px;padding:2px 8px 0;flex-shrink:0;border-bottom:1px solid var(--bd);overflow-x:auto"></div>' +
+    // 状态筛选栏（类型选择已全局化到 nav 下拉，sm-cur-type 只读指示随本栏渲染）
     '<div class="sm-status-tabs" style="display:flex;gap:2px;padding:3px 8px;flex-shrink:0;border-bottom:1px solid var(--bd);font-size:var(--fs-xs)"></div>' +
     // 摘要栏
     '<div class="sm-summary" style="display:flex;align-items:center;gap:8px;padding:2px 8px;flex-shrink:0;border-bottom:1px solid var(--bd);font-size:var(--fs-xs)"></div>' +

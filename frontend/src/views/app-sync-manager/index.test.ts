@@ -124,20 +124,25 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     expect(mocks.GetInstanceSyncStatus.mock.calls.length).toBe(callsBefore);
   });
 
-  it("类型标签切换 → 数据过滤（P2 修复：原 if 包裹空洞通过）", async () => {
+  it("repo:rtype-changed → 当前类型跟随 + 数据重载（sm-tabs 移除后全局驱动）", async () => {
     const el = document.createElement("app-sync-manager");
     el.setAttribute("instance", "test");
     document.body.appendChild(el);
-    await waitFor(() => el.querySelector(".sm-tab") !== null, 5000);
-    const tabs = el.querySelectorAll(".sm-tab");
-    expect(tabs.length).toBeGreaterThanOrEqual(3);
-    const target = tabs[1] as HTMLElement;
-    target.click();
+    await waitFor(() => el.querySelector(".sm-item") !== null, 5000);
+    // 无类型 tab（已移除，防回归）
+    expect(el.querySelector(".sm-tab")).toBeNull();
+    // 发射全局焦点 → 订阅应重载数据（GetInstanceSyncStatus +1）
+    const callsBefore = mocks.GetInstanceSyncStatus.mock.calls.length;
+    bus.emit("repo:rtype-changed", "shaderpack");
+    await sleep(500);
+    expect(mocks.GetInstanceSyncStatus.mock.calls.length).toBe(callsBefore + 1);
+    // 当前类型指示更新
+    const cur = el.querySelector(".sm-cur-type") as HTMLElement;
+    expect(cur).not.toBeNull();
+    expect(cur.dataset.rtype).toBe("shaderpack");
+    // 恢复全局焦点为 ysm（防模块级 _lastSelectedType 泄漏到后续用例）
+    bus.emit("repo:rtype-changed", "ysm");
     await sleep(100);
-    // 点击后 active 标签与目标 data-type 一致（不再空洞通过）
-    const activeTab = el.querySelector(".sm-tab.active") as HTMLElement;
-    expect(activeTab).not.toBeNull();
-    expect(activeTab.dataset.type).toBe(target.dataset.type);
     unmountElement(el);
   });
 
@@ -145,15 +150,6 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     const el = document.createElement("app-sync-manager");
     el.setAttribute("instance", "test");
     document.body.appendChild(el);
-    await waitFor(() => el.querySelector(".sm-tab") !== null, 5000);
-    // 类型切换用例会改变模块级 _lastSelectedType（泄漏到本用例）——先显式切回 ysm，
-    // 否则 _applyFilter 先按残留类型过滤，missing 列表为空
-    const ysmTab = Array.from(el.querySelectorAll(".sm-tab")).find(
-      (t) => (t as HTMLElement).dataset.type === "ysm",
-    ) as HTMLElement;
-    expect(ysmTab).toBeTruthy();
-    ysmTab.click();
-    await sleep(50);
     await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
     const statusTabs = el.querySelectorAll(".sm-status-tab");
     const missingTab = Array.from(statusTabs).find(

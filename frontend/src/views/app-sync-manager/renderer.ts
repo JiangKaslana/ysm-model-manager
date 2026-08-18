@@ -3,7 +3,7 @@
 // 不处理数据加载、不绑事件、不调用 Go 桥接。
 // 依赖 DAG：index → renderer ← events（events 点击触发 render）
 
-import { RESOURCE_TYPES, GROUP_META, GROUP_OF, groupStorageRootOf } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
 import {
@@ -36,10 +36,9 @@ export function render(self: SyncRenderSelf): void {
     return;
   }
 
-  const tabsEl = self.querySelector(".sm-tabs");
   const statusTabsEl = self.querySelector(".sm-status-tabs");
   const listEl = self.querySelector(".sm-list");
-  if (!tabsEl || !statusTabsEl || !listEl) {
+  if (!statusTabsEl || !listEl) {
     console.warn("[sync-manager] _render DOM 查询失败, 放弃渲染");
     return;
   }
@@ -65,7 +64,7 @@ export function render(self: SyncRenderSelf): void {
     (globalCounts as unknown as Record<string, number>)[item.status]++;
   }
 
-  // — 类型标签（按 ADR-092 大分类分组派生：GROUP_META.order 排序 + GROUP_OF 归属）—
+  // 类型短标签（当前类型指示用；选择已全局化，此处不再渲染可切 tab）
   const shortLabel: Record<string, string> = {
     [RESOURCE_TYPES.YSM]: "YSM",
     [RESOURCE_TYPES.MMD]: "MMD",
@@ -75,75 +74,6 @@ export function render(self: SyncRenderSelf): void {
     "create-blueprint": t("rtype.blueprint"),
     litematic: t("rtype.litematic"),
   };
-
-  // 类型标签 HTML（R8 豁免：HTML 后缀安全生成器 + 内部 esc 转义动态数据）
-  const typeTabHTML = (types: string[]): string => {
-    let html = "";
-    for (const id of types) {
-      const cfg = self._typeConfig.find((c) => c.id === id);
-      if (!cfg) continue;
-      const c = typeCounts[id];
-      const count = c ? c.total : 0;
-      const active = self._selectedType === id;
-      const label = shortLabel[id] || cfg.name;
-      html +=
-        '<button class="sm-tab' +
-        (active ? " active" : "") +
-        '" data-type="' +
-        esc(id) +
-        '" title="' +
-        esc(groupStorageRootOf(id)) +
-        '" style="padding:var(--pad-tab) 14px;border-radius:5px 5px 0 0;border:none;background:' +
-        (active ? "var(--surf)" : "transparent") +
-        ";color:" +
-        (active ? "var(--accent)" : "var(--muted)") +
-        ';cursor:pointer;font-family:inherit;font-size:var(--fs-tab);white-space:nowrap">' +
-        esc(cfg.icon || "📦") +
-        " " +
-        esc(label || "") +
-        (count > 0
-          ? ' <span style="font-size:var(--fs-xs);opacity:0.7">(' + count + ")</span>"
-          : "") +
-        "</button>";
-    }
-    return html;
-  };
-
-  // 大分类分组渲染：组头（icon + 分组名 + 存放位置）+ 组内类型 tab，组间 │ 分隔。
-  // 分组顺序由 GROUP_META.order 决定；无 group 的类型归入「其他」尾组（向后兼容）。
-  const groupIds = Object.keys(GROUP_META).sort(
-    (a, b) => (GROUP_META[a]?.order ?? 9) - (GROUP_META[b]?.order ?? 9),
-  );
-  const others: string[] = [];
-  const groupTabs: string[] = [];
-  for (const gid of groupIds) {
-    const members = self._typeConfig.filter((c) => GROUP_OF[c.id] === gid).map((c) => c.id);
-    if (members.length === 0) continue;
-    const meta = GROUP_META[gid];
-    const roots = members.map((id) => groupStorageRootOf(id)).join(" / ");
-    groupTabs.push(
-      '<span class="sm-group" style="display:inline-flex;align-items:center;gap:4px;padding:0 6px;' +
-        'color:var(--muted);font-size:var(--fs-xs);white-space:nowrap" title="存放位置：' +
-        esc(roots) +
-        '">' +
-        esc(meta?.icon || "📦") +
-        " " +
-        esc(meta?.name || gid) +
-        "</span>" +
-        typeTabHTML(members),
-    );
-  }
-  for (const c of self._typeConfig) {
-    if (!GROUP_OF[c.id] && !others.includes(c.id)) others.push(c.id);
-  }
-  if (others.length > 0) {
-    groupTabs.push(
-      '<span class="sm-group" style="display:inline-flex;align-items:center;gap:4px;padding:0 6px;' +
-        'color:var(--muted);font-size:var(--fs-xs);white-space:nowrap">📦 其他</span>' +
-        typeTabHTML(others),
-    );
-  }
-  tabsEl.innerHTML = groupTabs.join('<span style="color:var(--bd);padding:0 2px">│</span>');
 
   // — 状态筛选标签 —
   const curCounts: TypeCounts = self._selectedType
@@ -157,11 +87,27 @@ export function render(self: SyncRenderSelf): void {
     ["optional", "📤 " + t("syncManager.status.optional"), curCounts.optional || 0],
     ["legacy", "🔗 " + t("syncManager.status.legacy"), curCounts.legacy || 0],
   ];
-  statusTabsEl.innerHTML = statusDefs
-    .map(([id, label, count]) =>
-      statusTabHTML(id, label, count, self._statusFilter === id),
-    )
-    .join("");
+  // 当前类型只读指示（类型选择已全局化到 nav 下拉，此处仅展示上下文，不再承担切换）
+  const curCfg = self._typeConfig.find((c) => c.id === self._selectedType);
+  const curLabel = (curCfg && (shortLabel[curCfg.id] || curCfg.name)) || self._selectedType || "";
+  const curIcon = curCfg?.icon || "📦";
+  statusTabsEl.innerHTML =
+    '<span class="sm-cur-type" data-rtype="' +
+    esc(self._selectedType || "") +
+    '" style="display:inline-flex;align-items:center;gap:4px;padding:0 8px;' +
+    "color:var(--accent);font-size:var(--fs-filter);white-space:nowrap;" +
+    'border-right:1px solid var(--bd);margin-right:6px" title="' +
+    t("syncManager.curTypeHint") +
+    '">' +
+    esc(curIcon) +
+    " " +
+    esc(curLabel) +
+    "</span>" +
+    statusDefs
+      .map(([id, label, count]) =>
+        statusTabHTML(id, label, count, self._statusFilter === id),
+      )
+      .join("");
 
   // — 列表 —
   applyFilter(self);

@@ -509,6 +509,7 @@
   "syncManager.emptyFiltered": "No {status} resource files found",
   "syncManager.emptyType": "No resource files in this modpack",
   "syncManager.rmTitle": "Resource Manager",
+  "syncManager.curTypeHint": "Type selection moved to left sidebar (global)",
   "diagnostics.logsCleared": "Logs cleared",
   "diagnostics.opImport": "Import",
   "diagnostics.opScan": "Scan",

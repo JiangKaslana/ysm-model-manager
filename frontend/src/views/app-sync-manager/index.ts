@@ -40,9 +40,10 @@ import { render } from "./renderer.ts";
 import { bindEvents } from "./events.ts";
 import { performSingleOp } from "./network.ts";
 import { LAST_TYPE_KEY, _lastSelectedType, setLastSelectedType } from "./state.ts";
-
 // P3 修复（子代理审计）：共享状态（LAST_TYPE_KEY / _lastSelectedType / setLastSelectedType）
 // 已下沉至 state.ts，打破 index ↔ events 循环依赖
+// 2026-08-18：sm-tabs 移除后类型完全由全局 nav 下拉驱动——订阅 repo:rtype-changed 跟随，
+// 状态主键统一 repo_rtype（state.ts），LAST_TYPE_KEY 仅历史兼容。
 
 const TOAST_MS_LONG = 5000;
 
@@ -143,6 +144,27 @@ export class AppSyncManager extends WebComponentBase {
         });
     });
     this._unsubs.push(unsub);
+
+    // 全局焦点跟随（ADR-095 后续：sm-tabs 移除，类型切换归 app-nav 下拉）：
+    // nav 切类型 → 重载该类型同步数据 + 重渲染；自身点击已不再触发此事件（sm-tab 已删），
+    // 但仍保留 rt === _selectedType 防重入守卫（防未来其他发射源）。
+    const unsubRtype = bus.on("repo:rtype-changed", (rt: string) => {
+      if (!this.isConnected) return;
+      if (!rt || rt === this._selectedType) return;
+      this._selectedType = rt;
+      setLastSelectedType(rt);
+      this._statusFilter = "all";
+      const gen = this._gen;
+      loadData(self)
+        .then(() => {
+          if (gen !== this._gen) return;
+          this._doRender();
+        })
+        .catch((err) => {
+          console.warn("[sync-manager] rtype 跟随重载失败:", err);
+        });
+    });
+    this._unsubs.push(unsubRtype);
 
     this._syncRM();
     this._bindRmToggle();

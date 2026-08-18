@@ -1787,7 +1787,7 @@
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:18` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮） |
 | `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:24` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:49` | — |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:50` | — |
 | `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:29` | 统一推送 / 拉取单文件操作。 |
 | `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:18` | — |

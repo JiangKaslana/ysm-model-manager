@@ -553,6 +553,7 @@ export const ja: Record<string, string> = {
   "syncManager.emptyFiltered": "{status} のリソースファイルが見つかりません",
   "syncManager.emptyType": "この統合パックにリソースファイルはありません",
   "syncManager.rmTitle": "リソース管理",
+  "syncManager.curTypeHint": "タイプ選択は左サイドバーへ移動（グローバル切替）",
 
   // ── Diagnostics Operation Types ──
   "diagnostics.logsCleared": "ログをクリアしました",

@@ -552,6 +552,7 @@ export const en: Record<string, string> = {
   "syncManager.emptyFiltered": "No {status} resource files found",
   "syncManager.emptyType": "No resource files in this modpack",
   "syncManager.rmTitle": "Resource Manager",
+  "syncManager.curTypeHint": "Type selection moved to left sidebar (global)",
 
   // ── Diagnostics Operation Types ──
   "diagnostics.logsCleared": "Logs cleared",
