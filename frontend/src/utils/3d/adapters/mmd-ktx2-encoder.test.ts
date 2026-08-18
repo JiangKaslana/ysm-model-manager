@@ -1,6 +1,6 @@
 // ===== MMD KTX2 编码器单元测试 =====
 // 覆盖：encodeAndCacheTexture（编码成功/失败）、
-// scheduleBackgroundEncoding（调度行为）。
+// scheduleBackgroundEncoding（调度行为）、并发控制与取消机制。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const hoisted = vi.hoisted(() => {
@@ -24,6 +24,9 @@ vi.mock("../../../backend/app.ts", () => ({
 import { encodeAndCacheTexture, scheduleBackgroundEncoding, cancelPendingEncodings, resetEncoderState } from "./mmd-ktx2-encoder.ts";
 import type { MmdDataPort } from "./mmd-adapter.ts";
 
+// ===== 辅助函数 =====
+
+/** 创建 Mock 端口 */
 function makePort(): MmdDataPort {
   return {
     readFileBytes: vi.fn(),
@@ -38,22 +41,29 @@ function makePort(): MmdDataPort {
 const MINIMAL_PNG_B64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFhAJ/wlseKgAAAABJRU5ErkJggg==";
 
-// 安装完整 DOM mock（Image/fetch/FileReader/canvas）
+/**
+ * 安装完整 DOM mock（Image/fetch/FileReader/canvas）
+ * 使用 fake timers 确保定时器行为可预测
+ */
 function installDomMocks(): void {
+  // Image mock：自动触发 onload
   const ImageCtor = function () {
     const obj: { width: number; height: number; onload: (() => void) | null; src: string } = {
       width: 1, height: 1, onload: null, src: "",
     };
+    // 使用 process.nextTick 模拟同步回调，便于 fake timers 控制
     setTimeout(() => { obj.onload?.(); }, 0);
     return obj;
   };
   vi.stubGlobal("Image", ImageCtor);
 
+  // fetch mock：返回 blob
   const mockFetch = vi.fn().mockResolvedValue({
     blob: () => Promise.resolve(new Blob([MINIMAL_PNG_B64], { type: "image/png" })),
   });
   vi.stubGlobal("fetch", mockFetch);
 
+  // FileReader mock：自动触发 onload
   const FileReaderCtor = function () {
     const obj: { result: string; onload: (() => void) | null; readAsDataURL: () => void } = {
       result: `data:image/png;base64,${MINIMAL_PNG_B64}`,
@@ -66,6 +76,7 @@ function installDomMocks(): void {
   };
   vi.stubGlobal("FileReader", FileReaderCtor);
 
+  // canvas mock
   const ctxMock = {
     drawImage: vi.fn(),
     getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 })),
@@ -76,16 +87,31 @@ function installDomMocks(): void {
   });
 }
 
+/**
+ * 等待所有微任务和定时器完成
+ * 使用 fake timers 精确推进时间，避免嵌套 setTimeout
+ */
+async function flushAsyncTasks(): Promise<void> {
+  // 推进微任务队列
+  await vi.advanceTimersByTimeAsync(0);
+  // 再推进一小段时间确保所有嵌套定时器完成
+  await vi.advanceTimersByTimeAsync(10);
+}
+
 describe("encodeAndCacheTexture", () => {
   beforeEach(() => {
     resetEncoderState();
     vi.clearAllMocks();
     hoisted.ktx2EncodeMock.mockResolvedValue(new Uint8Array([0xab, 0xcd, 0xef]).buffer);
     hoisted.saveTextureMock.mockResolvedValue(undefined);
+    installDomMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("编码成功 → 返回 true 且记录日志", async () => {
-    installDomMocks();
     const port = makePort();
     const ok = await encodeAndCacheTexture("hash123", "blob:test", port);
 
@@ -95,12 +121,10 @@ describe("encodeAndCacheTexture", () => {
     expect(hoisted.addOpLogMock).toHaveBeenCalledWith(
       "ktx2-encode", "hash123", "ok", expect.stringContaining("bytes="),
     );
-    vi.unstubAllGlobals();
   });
 
   it("编码失败（KTX2BasisWriter 抛错）→ 返回 false 且记录 fail 日志", async () => {
     hoisted.ktx2EncodeMock.mockRejectedValue(new Error("WASM encode failed"));
-    installDomMocks();
 
     const port = makePort();
     const ok = await encodeAndCacheTexture("hash456", "blob:test", port);
@@ -110,7 +134,6 @@ describe("encodeAndCacheTexture", () => {
       "ktx2-encode", "hash456", "fail",
       expect.stringContaining("WASM encode failed"),
     );
-    vi.unstubAllGlobals();
   });
 
   it("编码结果转 base64 正确处理二进制数据", async () => {
@@ -118,7 +141,6 @@ describe("encodeAndCacheTexture", () => {
     const largeBuffer = new Uint8Array(256);
     for (let i = 0; i < 256; i++) largeBuffer[i] = i;
     hoisted.ktx2EncodeMock.mockResolvedValue(largeBuffer.buffer);
-    installDomMocks();
 
     const port = makePort();
     const ok = await encodeAndCacheTexture("hash789", "blob:test", port);
@@ -127,7 +149,29 @@ describe("encodeAndCacheTexture", () => {
     // saveTexture 被调用，base64 正确包含所有字节
     const savedB64 = hoisted.saveTextureMock.mock.calls[0][1] as string;
     expect(savedB64.length).toBeGreaterThan(0);
-    vi.unstubAllGlobals();
+  });
+
+  it("blob URL 无法加载时返回 false", async () => {
+    // 模拟 Image 加载失败（onerror 触发）
+    const ImageCtor = function () {
+      const obj: { width: number; height: number; onload: (() => void) | null; onerror: (() => void) | null; src: string } = {
+        width: 1, height: 1, onload: null, onerror: null, src: "",
+      };
+      // 触发 onerror
+      setTimeout(() => { obj.onerror?.(); }, 0);
+      return obj;
+    };
+    vi.stubGlobal("Image", ImageCtor);
+
+    const port = makePort();
+    const ok = await encodeAndCacheTexture("hash_fail", "blob:invalid", port);
+
+    expect(ok).toBe(false);
+    expect(hoisted.addOpLogMock).toHaveBeenCalledWith(
+      "ktx2-encode", "hash_fail", "fail",
+      expect.any(String),
+    );
+    expect(hoisted.ktx2EncodeMock).not.toHaveBeenCalled();
   });
 });
 
@@ -137,13 +181,20 @@ describe("scheduleBackgroundEncoding", () => {
     vi.clearAllMocks();
     hoisted.ktx2EncodeMock.mockResolvedValue(new Uint8Array([0x01]).buffer);
     hoisted.saveTextureMock.mockResolvedValue(undefined);
+    installDomMocks();
+    // 启用 fake timers 以便精确控制异步流程
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("遍历 hashByBlobUrl 条目数触发对应编码", async () => {
     const tasks: Array<() => void> = [];
     vi.stubGlobal("queueMicrotask", (cb: () => void) => tasks.push(cb));
 
-    installDomMocks();
     const port = makePort();
     const hashMap = new Map<string, string>([
       ["blob:aaa", "hash_aaa"],
@@ -154,13 +205,10 @@ describe("scheduleBackgroundEncoding", () => {
 
     for (const task of tasks) task();
 
-    // 等待 Image.onload + FileReader.onload + Promise 链完成
-    await new Promise<void>((resolve) => {
-      setTimeout(() => { setTimeout(() => { resolve(); }, 0); }, 0);
-    });
+    // 使用 fake timers 推进所有定时器完成
+    await vi.advanceTimersByTimeAsync(50);
 
     expect(hoisted.ktx2EncodeMock).toHaveBeenCalledTimes(2);
-    vi.unstubAllGlobals();
   });
 
   it("空 hashByBlobUrl 不报错", () => {
@@ -178,7 +226,6 @@ describe("scheduleBackgroundEncoding", () => {
 
     const tasks: Array<() => void> = [];
     vi.stubGlobal("queueMicrotask", (cb: () => void) => tasks.push(cb));
-    installDomMocks();
 
     const port = makePort();
     const hashMap = new Map<string, string>([
@@ -189,10 +236,8 @@ describe("scheduleBackgroundEncoding", () => {
     scheduleBackgroundEncoding(hashMap, port);
     for (const task of tasks) task();
 
-    // 等待所有异步完成
-    await new Promise<void>((resolve) => {
-      setTimeout(() => { setTimeout(() => { resolve(); }, 0); }, 0);
-    });
+    // 推进所有定时器完成
+    await vi.advanceTimersByTimeAsync(50);
 
     expect(hoisted.ktx2EncodeMock).toHaveBeenCalledTimes(2);
 
@@ -204,8 +249,31 @@ describe("scheduleBackgroundEncoding", () => {
     );
     expect(failLogs.length).toBeGreaterThanOrEqual(1);
     expect(okLogs.length).toBeGreaterThanOrEqual(1);
+  });
 
-    vi.unstubAllGlobals();
+  it("所有编码都失败时正确记录日志", async () => {
+    hoisted.ktx2EncodeMock.mockRejectedValue(new Error("All encode failed"));
+
+    const tasks: Array<() => void> = [];
+    vi.stubGlobal("queueMicrotask", (cb: () => void) => tasks.push(cb));
+
+    const port = makePort();
+    const hashMap = new Map<string, string>([
+      ["blob:aaa", "hash_aaa"],
+      ["blob:bbb", "hash_bbb"],
+    ]);
+
+    scheduleBackgroundEncoding(hashMap, port);
+    for (const task of tasks) task();
+
+    // 推进所有定时器完成
+    await vi.advanceTimersByTimeAsync(50);
+
+    // 所有编码都应该调用 fail 日志
+    const failLogs = hoisted.addOpLogMock.mock.calls.filter(
+      (c: unknown[]) => (c as [string, string, string])[2] === "fail"
+    );
+    expect(failLogs.length).toBe(2);
   });
 });
 
@@ -216,6 +284,13 @@ describe("并发控制与取消", () => {
     vi.clearAllMocks();
     hoisted.ktx2EncodeMock.mockResolvedValue(new Uint8Array([0x01]).buffer);
     hoisted.saveTextureMock.mockResolvedValue(undefined);
+    installDomMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("超过并发限制时，后续编码排队等待（不超过 MAX_CONCURRENT 同时执行）", async () => {
@@ -236,7 +311,6 @@ describe("并发控制与取消", () => {
       });
     });
 
-    installDomMocks();
     const port = makePort();
     const hashMap = new Map<string, string>();
     for (let i = 0; i < 5; i++) {
@@ -250,15 +324,12 @@ describe("并发控制与取消", () => {
     scheduleBackgroundEncoding(hashMap, port);
     for (const task of tasks) task();
 
-    // 等待所有编码完成
-    await new Promise<void>((resolve) => {
-      setTimeout(() => { setTimeout(() => { resolve(); }, 50); }, 50);
-    });
+    // 推进定时器让所有编码完成
+    await vi.advanceTimersByTimeAsync(100);
 
     // 最大并发数不超过 3
     expect(maxConcurrent).toBeLessThanOrEqual(3);
     expect(hoisted.ktx2EncodeMock).toHaveBeenCalledTimes(5);
-    vi.unstubAllGlobals();
   });
 
   it("cancelPendingEncodings 跳过未开始的编码", async () => {
@@ -282,7 +353,6 @@ describe("并发控制与取消", () => {
       });
     });
 
-    installDomMocks();
     const port = makePort();
     const hashMap = new Map<string, string>();
     for (let i = 0; i < 8; i++) {
@@ -295,18 +365,14 @@ describe("并发控制与取消", () => {
     scheduleBackgroundEncoding(hashMap, port);
     for (const task of tasks) task();
 
-    // 等待足够时间让取消生效
-    await new Promise<void>((resolve) => {
-      setTimeout(() => { setTimeout(() => { resolve(); }, 100); }, 100);
-    });
+    // 推进足够时间让取消生效
+    await vi.advanceTimersByTimeAsync(200);
 
     // 取消后不应所有 8 个都完成（至少有排队的被跳过）
     expect(encodeStarted).toBeLessThanOrEqual(8);
-    vi.unstubAllGlobals();
   });
 
   it("重复调度不导致重复编码（幂等）", async () => {
-    installDomMocks();
     const port = makePort();
     // 使用本测试专属的唯一 hash（避免 completedHashes 干扰）
     const uniqueHash = `unique_test_${Date.now()}_${Math.random()}`;
@@ -322,12 +388,120 @@ describe("并发控制与取消", () => {
     scheduleBackgroundEncoding(hashMap, port);
 
     for (const task of tasks) task();
-    await new Promise<void>((resolve) => {
-      setTimeout(() => { setTimeout(() => { resolve(); }, 0); }, 0);
-    });
+    await vi.advanceTimersByTimeAsync(50);
 
     // 同一 hash 不应编码两次（只有第一次生效）
     expect(hoisted.ktx2EncodeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancelPendingEncodings 在无待处理任务时不报错", () => {
+    // 直接调用取消，不应抛出异常
+    expect(() => cancelPendingEncodings()).not.toThrow();
+  });
+});
+
+// ---- resetEncoderState 测试 ----
+describe("resetEncoderState", () => {
+  beforeEach(() => {
+    resetEncoderState();
+    vi.clearAllMocks();
+    installDomMocks();
+    hoisted.ktx2EncodeMock.mockResolvedValue(new Uint8Array([0x01]).buffer);
+    hoisted.saveTextureMock.mockResolvedValue(undefined);
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("重置后 completedHashes 被清空", async () => {
+    const port = makePort();
+    const hashMap = new Map<string, string>([
+      ["blob:test", "hash_reset_test"],
+    ]);
+
+    const tasks: Array<() => void> = [];
+    vi.stubGlobal("queueMicrotask", (cb: () => void) => tasks.push(cb));
+
+    // 先完成一次编码
+    scheduleBackgroundEncoding(hashMap, port);
+    for (const task of tasks) task();
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(hoisted.ktx2EncodeMock).toHaveBeenCalledTimes(1);
+
+    // 重置状态
+    resetEncoderState();
+
+    // 再次调度同一 hash，应该重新编码（幂等性被清除）
+    scheduleBackgroundEncoding(hashMap, port);
+    for (const task of tasks) task();
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(hoisted.ktx2EncodeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("重置后 cancelled 标志被清除", () => {
+    // 先取消
+    cancelPendingEncodings();
+
+    // 重置后应该不再处于取消状态
+    resetEncoderState();
+
+    // 再次调用 cancelPendingEncodings 不应该影响已完成的编码
+    const hashMap = new Map<string, string>([
+      ["blob:test", "hash_reset_cancel"],
+    ]);
+    const port = makePort();
+
+    const tasks: Array<() => void> = [];
+    vi.stubGlobal("queueMicrotask", (cb: () => void) => tasks.push(cb));
+
+    scheduleBackgroundEncoding(hashMap, port);
+    for (const task of tasks) task();
+    // 不应该报错
+    expect(() => cancelPendingEncodings()).not.toThrow();
+  });
+
+  it("重置后 waitingQueue 被清空", async () => {
+    const port = makePort();
+    const tasks: Array<() => void> = [];
+    const hashMap = new Map<string, string>();
+
+    // 使用唯一 hash 避免幂等去重干扰
+    for (let i = 0; i < 5; i++) {
+      hashMap.set(`blob:tex_reset_${i}`, `hash_queue_reset_${i}`);
+    }
+
+    vi.stubGlobal("queueMicrotask", (cb: () => void) => tasks.push(cb));
+
+    // 第一次调度
+    scheduleBackgroundEncoding(hashMap, port);
+    for (const task of tasks) task();
+    await vi.advanceTimersByTimeAsync(50);
+
+    // 验证第一次调度的编码次数
+    expect(hoisted.ktx2EncodeMock).toHaveBeenCalledTimes(5);
+
+    // 重置状态
+    resetEncoderState();
+
+    // 清空任务队列，准备第二次调度
+    tasks.length = 0;
+
+    // 再次调度（使用不同的 blob URL 确保不会被幂等去重跳过）
+    const hashMap2 = new Map<string, string>();
+    for (let i = 0; i < 5; i++) {
+      hashMap2.set(`blob:tex_reset2_${i}`, `hash_queue_reset2_${i}`);
+    }
+
+    scheduleBackgroundEncoding(hashMap2, port);
+    for (const task of tasks) task();
+    await vi.advanceTimersByTimeAsync(50);
+
+    // 总计应该是 10 次（第一次 5 次 + 第二次 5 次）
+    expect(hoisted.ktx2EncodeMock).toHaveBeenCalledTimes(10);
   });
 });
