@@ -29,6 +29,10 @@ import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
+import { createYsmAnimPlayer, type YsmAnimPlayer } from "../ysm-animation-player.ts";
+import { parseBedrockAnimationJSON } from "../../animation/animation.ts";
+import type { MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
+import { fillMmdPlayPanel } from "../../../views/app-preview/mmd-controls.ts";
 
 /** 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 */
 export interface YsmAdapterOptions {
@@ -51,6 +55,10 @@ export interface YsmAdapterOptions {
     fillShotPanel: (list: HTMLElement, ctx: YsmControlsContext) => void;
     attachBoneSelect: (content: YsmContentHandle, cb: (id: string) => void) => void;
   };
+  /** 同目录文件枚举（.animation.json 扫描用；对齐 VRM listAllFilePaths 注入模式） */
+  listAllFilePaths?: (dir: string) => Promise<string[] | null>;
+  /** base64 文本读取（读 .animation.json 字节用；对齐 VRM readFn 注入模式） */
+  readTextFile?: (path: string) => Promise<string | null>;
 }
 
 /** 骨骼拾取状态（bone-raycast 需要的最小 state） */
@@ -160,6 +168,51 @@ export async function buildYsmScene(
   // 成功路径：移除核心 loadingEl（错误/空数据由核心保留并提示）
   ctx.loadingEl.remove();
 
+  // ---- YSM 骨骼动画（ADR-100 L1）：扫描同目录 .animation.json ----
+  let animPlayer: YsmAnimPlayer | null = null;
+  let animBridge: MmdPlayBridge | null = null;
+  if (opts.listAllFilePaths && opts.readTextFile) {
+    try {
+      const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
+      const files = (await opts.listAllFilePaths(dirPath)) || [];
+      const animFiles = files.filter((f) => f.toLowerCase().endsWith(".animation.json"));
+      if (animFiles.length > 0) {
+        const b64 = await opts.readTextFile(animFiles[0]);
+        if (b64) {
+          const bin = atob(b64) as string;
+          const text = [...bin].map((c) => String.fromCharCode(c.charCodeAt(0))).join("");
+          const { clips, errors: parseErrors } = parseBedrockAnimationJSON(text);
+          if (clips.length > 0) {
+            const clip = clips[0];
+            // 构建 boneByName：spec.bones[].name → THREE.Bone（从 boneGroupMap 提取）
+            const specBones = (spec as Spec3D).models?.flatMap((m) => m.bones ?? []) ?? [];
+            const boneByName = new Map<string, THREE.Bone>();
+            for (const sb of specBones) {
+              const group = obj.boneGroupMap.get(sb.id);
+              if (!group) continue;
+              // boneGroup 内含一个 THREE.Bone（骨骼锚点）+ 子网格
+              const bone = group.children[0] as THREE.Bone | undefined;
+              if (bone?.isBone) boneByName.set(sb.name, bone);
+            }
+            const hierarchy: import("../../animation/animation.ts").BoneHierarchyNode[] =
+              specBones.map((b) => ({ name: b.name, parent: b.parentId ?? undefined }));
+            animPlayer = createYsmAnimPlayer(boneByName, clip, hierarchy);
+            let playing = true;
+            animBridge = {
+              clips: [{ label: animFiles[0].split(/[/\\]/).pop()!.replace(/\.animation\.json$/i, "") }],
+              isPlaying: () => playing && (animPlayer?.isPlaying() ?? false),
+              toggle: () => { playing = !playing; animPlayer?.toggle(); },
+              currentIndex: () => 0,
+              select: () => {}, // L1 单 clip，无需选择
+            };
+          }
+        }
+      }
+    } catch {
+      /* 动画扫描失败 → 静默降级，不影响模型渲染 */
+    }
+  }
+
   // ---- 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼 ----
   // 适配器只声明结构与 render，core 拥有外壳；e2e 经 data-testid="preview-<id>" 遍历。
   // 菜单表提取为可导出 ysmMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
@@ -185,6 +238,8 @@ export async function buildYsmScene(
       scene: ctx.scene,
       cleanupRef: bonePanelRef,
     },
+    play: animBridge ?? undefined,
+    fillPlayPanel: opts.panels ? fillMmdPlayPanel : undefined,
   });
   ctx.menu.setAdapterItems(menuItems);
 
@@ -229,6 +284,7 @@ export async function buildYsmScene(
         disposeDebugGroup(debugState.debugGroup);
         debugState.debugGroup = null;
       }
+      animPlayer?.dispose();
     },
     resetCamera(): void {
       ctx.camera!.position.copy(initCamPos);
@@ -246,6 +302,8 @@ export async function buildYsmScene(
     boneMaps,
     menuItems,
     onBonePick: (id: string) => ctx.menu.openPanel(id),
+    // ADR-100：动画驱动（perFrame 钩子，core rAF 每帧调用）
+    update: (dt: number): void => { animPlayer?.apply(dt); },
   };
 }
 
@@ -286,16 +344,20 @@ export interface YsmMenuItemsOpts {
     fillModelPanel: (list: HTMLElement, ctx: YsmControlsContext) => void;
     fillShotPanel: (list: HTMLElement, ctx: YsmControlsContext) => void;
   };
+  /** YSM 动画桥（ADR-100）；null/缺省（无 .animation.json）→ 不注入 play 项 */
+  play?: MmdPlayBridge | null | undefined;
+  /** 播放面板填充回调（视图层注入；复用 fillMmdPlayPanel，解除 utils→views 分层违规 R1） */
+  fillPlayPanel?: (list: HTMLElement, bridge: MmdPlayBridge) => void;
 }
 
 /**
  * YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。
  * 提取为可导出表：适配器与测试共用同一份真实数组——测试遍历本表断言结构与
  * dock 渲染（对齐 MikuMikuAR 声明式菜单测试范式），加菜单项只改这里。
- * 三项均归 🧍 模型组（dockGroup: "model"，ADR-076 v3 能力驱动：有模型工具即显示）。
+ * model/截图/骨骼 归 🧍 模型组；play 归 💃 动作组（有 clip 才显示）。
  */
 export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
-  return [
+  const items: PreviewMenuItemDef[] = [
     {
       id: "model",
       icon: "🧍",
@@ -338,4 +400,19 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       },
     },
   ];
+  if (o.play) {
+    items.push({
+      id: "ysm-play",
+      icon: "▶️",
+      labelKey: "preview.mmdPlay",
+      fallback: "播放",
+      kind: "panel",
+      legacyTestId: "ysm-play-entry",
+      dockGroup: "motion",
+      render: (list) => {
+        o.fillPlayPanel?.(list, o.play!);
+      },
+    });
+  }
+  return items;
 }

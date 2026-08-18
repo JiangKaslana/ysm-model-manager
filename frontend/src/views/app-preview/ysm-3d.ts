@@ -7,6 +7,7 @@
 // 3D 内模型切换无需重建整个会话。
 import { mount3D, cleanupPreview, invalidatePreview } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { makeYsmAdapter } from "../../utils/3d/adapters/ysm-adapter.ts";
+import { getApp } from "../../backend/app.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import { preloadModel } from "./model3d-loader.ts";
 import { loadModelData } from "./loader.ts";
@@ -14,6 +15,18 @@ import { decodeYsmViaWasm } from "./wasm.ts";
 import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "./ysm-controls.ts";
 import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+
+/** 数据读取注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
+async function readFileBytes(path: string): Promise<string | null> {
+  const App = await getApp();
+  return (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"](path);
+}
+
+/** 同目录文件枚举（.animation.json 扫描用；对齐 VRM 同款 ListAllFilePaths 注入） */
+async function listAllFilePaths(dir: string): Promise<string[] | null> {
+  const App = await getApp();
+  return (App as unknown as Record<string, (d: string) => Promise<string[] | null>>)["ListAllFilePaths"](dir);
+}
 
 /** 跨类型换角色路由用：注入轻量 loader ctx（decodeYsmViaWasm + 空 appendDebug） */
 async function openYsmFullscreen(path: string): Promise<void> {
@@ -55,6 +68,8 @@ export async function createYsm3D(
       preload: (model) => preloadModel(model as never),
       onTextureChange: rebuild,
       onClose: opts.onClose,
+      listAllFilePaths,
+      readTextFile: readFileBytes,
       // 面板填充回调由视图层注入，解除 utils→views 分层违规 R1（ADR 分层契约）
       panels: {
         fillModelPanel: fillYsmModelPanel,

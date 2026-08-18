@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 125 | 466 |
+| 前端·工具 | 126 | 468 |
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **408** | **1702** |
+| **合计** | **409** | **1704** |
 
 ## Go·头像
 
@@ -1186,12 +1186,12 @@
 | `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:157` | 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:34` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:82` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:253` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:267` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:272` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:297` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:38` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:90` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:311` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:325` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:330` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:359` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
@@ -1403,6 +1403,8 @@
 | `setVrmMaterialVisible()` | `frontend/src/utils/3d/vrm-materials:38` | 材质显隐：Material.visible（MToon/标准/基础均支持） |
 | `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
+| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:21` | YSM 骨骼动画播放器接口 |
+| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:37` | 构建 YSM 骨骼动画播放器 |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:22` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
 | `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:41` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
@@ -1802,10 +1804,10 @@
 | `makeVrmPanelRenderer()` | `frontend/src/views/app-preview/vrm-controls:94` | VRM 菜单面板渲染器（声明式菜单 item.render 回调） |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
 | `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
-| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:28` | — |
-| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:41` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
-| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:71` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
-| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:76` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
+| `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:41` | — |
+| `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:54` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
+| `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:86` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
+| `invalidateYsmPreview()` | `frontend/src/views/app-preview/ysm-3d:91` | 作废在途 YSM 3D 加载（切模型前调用，防旧会话迟到渲染覆盖新模型） |
 | `CameraControlBridge()` | `frontend/src/views/app-preview/ysm-controls` | — |
 | `YsmModel()` | `frontend/src/views/app-preview/ysm-controls:20` | 模型对象（对齐 fill3DPanel / saveScreenshot 的字段需求；ysm-adapter 复用此类型） |
 | `YsmContentHandle()` | `frontend/src/views/app-preview/ysm-controls:29` | YSM 内容层句柄（shared 化：相机操作走核心 cameraControls，本句柄只管内容/骨骼） |
