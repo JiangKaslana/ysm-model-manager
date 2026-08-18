@@ -118,6 +118,12 @@ const fakeCap = {
   setEnvironmentEnabled: vi.fn(),
   getVisible: () => true,
   setVisible: vi.fn(),
+  getMenuControls: () => [
+    { id: "sky-time", kind: "slider" as const, labelKey: "preview.timeOfDay", fallback: "时间", slider: { min: 0, max: 24, step: 0.5 }, getValue: () => 9, setValue: vi.fn() },
+    { id: "sky-cloud", kind: "slider" as const, labelKey: "preview.cloudCoverage", fallback: "云量", slider: { min: 0, max: 1, step: 0.05 }, getValue: () => 0, setValue: vi.fn() },
+    { id: "sky-env", kind: "toggle" as const, labelKey: "preview.environmentMapping", fallback: "环境贴图", getValue: () => true, setValue: vi.fn() },
+    { id: "ground-visible", kind: "toggle" as const, labelKey: "preview.ground", fallback: "地面", getValue: () => true, setValue: vi.fn() },
+  ],
 } as never;
 
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {

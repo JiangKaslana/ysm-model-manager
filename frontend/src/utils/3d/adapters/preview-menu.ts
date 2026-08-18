@@ -16,6 +16,8 @@ import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
+import type { MenuControlDef } from "../caps/scene-capability.ts";
+import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
@@ -46,6 +48,63 @@ const tr = (key: string, fallback: string): string => {
   const v = t(key);
   return v === key ? fallback : v;
 };
+
+/** 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 */
+function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void {
+  for (const c of controls) {
+    if (c.kind === "divider") {
+      const hr = document.createElement("div");
+      hr.style.cssText = "height:1px;background:rgba(255,255,255,0.12);margin:4px 10px";
+      list.appendChild(hr);
+      continue;
+    }
+    if (c.kind === "toggle") {
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+      const label = document.createElement("span");
+      label.className = "slide-label";
+      label.textContent = tr(c.labelKey, c.fallback);
+      label.style.cssText = "flex:1;font-size:12px";
+      const toggle = createHeaderToggle({
+        value: c.getValue() as boolean,
+        onChange: (v: boolean): void => c.setValue(v),
+        bind: (): boolean => c.getValue() as boolean,
+      });
+      row.append(label, toggle);
+      list.appendChild(row);
+      continue;
+    }
+    if (c.kind === "slider") {
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+      const head = document.createElement("div");
+      head.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
+      const name = document.createElement("span");
+      name.className = "slide-label";
+      name.textContent = tr(c.labelKey, c.fallback);
+      const val = document.createElement("span");
+      const numVal = c.getValue() as number;
+      val.textContent = c.slider?.unit === "%" ? `${Math.round(numVal * 100)}%` : c.slider?.unit === "h" ? `${String(Math.floor(numVal)).padStart(2, "0")}:${String(Math.round((numVal % 1) * 60)).padStart(2, "0")}` : numVal.toFixed(2);
+      head.append(name, val);
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = String(c.slider?.min ?? 0);
+      slider.max = String(c.slider?.max ?? 1);
+      slider.step = String(c.slider?.step ?? 0.01);
+      slider.value = String(numVal);
+      slider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+      slider.oninput = (): void => {
+        const v = Number(slider.value);
+        c.setValue(v);
+        val.textContent = c.slider?.unit === "%" ? `${Math.round(v * 100)}%` : c.slider?.unit === "h" ? `${String(Math.floor(v)).padStart(2, "0")}:${String(Math.round((v % 1) * 60)).padStart(2, "0")}` : v.toFixed(2);
+      };
+      row.append(head, slider);
+      list.appendChild(row);
+    }
+  }
+}
 
 /** 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（ADR-085 S3） */
 export interface PreviewMenuHandle {
@@ -179,7 +238,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
         .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
         .filter((d) => !(d.sharedOnly && ctx.selfMode))
         .filter((d) => !(d.needsSiblings && ctx.getSiblings().length === 0))
-        .filter((d) => !(d.requiresEnvironment && !ctx.getSkyCap() && !ctx.getGroundCap()));
+        .filter((d) => !(d.requiresEnvironment && !sceneCapabilityRegistry.getById("sky") && !sceneCapabilityRegistry.getById("ground") && !ctx.getSkyCap() && !ctx.getGroundCap()));
       if (groupItems.length === 0) return;
 
       const btn = document.createElement("button");
@@ -245,104 +304,29 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   };
 }
 
-/** 环境面板（ADR-075 已落地项的复用）：地面 / 时间-of-day / 云量 / 环境光(IBL) */
+/** 环境面板（ADR-075 + 统一注册表）：从 sky/ground cap 的 getMenuControls() 自动渲染 */
 function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
-  const groundCap = ctx.getGroundCap();
-  const skyCap = ctx.getSkyCap();
-
-  const groundRow = document.createElement("div");
-  groundRow.className = "slide-item";
-  groundRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-  const groundLabel = document.createElement("span");
-  groundLabel.className = "slide-label";
-  groundLabel.textContent = t("preview.ground");
-  groundLabel.style.cssText = "flex:1;font-size:12px";
-  // ADR-085 S2：惰性读 cap getter（groundCap.getVisible()），消灭硬编码 value:true
-  const groundToggle = createHeaderToggle({
-    value: groundCap?.getVisible() ?? true,
-    onChange: (v: boolean): void => groundCap?.setVisible(v),
-    bind: (): boolean => groundCap?.getVisible() ?? true,
-  });
-  groundRow.append(groundLabel, groundToggle);
-  list.appendChild(groundRow);
-
-  const formatHour = (h: number): string =>
-    `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
-  const timeRow = document.createElement("div");
-  timeRow.className = "slide-item";
-  timeRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
-  const timeHead = document.createElement("div");
-  timeHead.style.cssText =
-    "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
-  const timeName = document.createElement("span");
-  timeName.className = "slide-label";
-  timeName.textContent = tr("preview.timeOfDay", "时间");
-  const timeVal = document.createElement("span");
-  const initHour = skyCap?.getTimeOfDay() ?? 9;
-  timeVal.textContent = formatHour(initHour);
-  timeHead.append(timeName, timeVal);
-  const timeSlider = document.createElement("input");
-  timeSlider.type = "range";
-  timeSlider.min = "0";
-  timeSlider.max = "24";
-  timeSlider.step = "0.5";
-  timeSlider.value = String(initHour);
-  timeSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-  timeSlider.oninput = (): void => {
-    const h = Number(timeSlider.value);
-    skyCap?.setTime(h);
-    timeVal.textContent = formatHour(h);
-  };
-  timeRow.append(timeHead, timeSlider);
-  list.appendChild(timeRow);
-
-  const cloudRow = document.createElement("div");
-  cloudRow.className = "slide-item";
-  cloudRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
-  const cloudHead = document.createElement("div");
-  cloudHead.style.cssText =
-    "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
-  const cloudName = document.createElement("span");
-  cloudName.className = "slide-label";
-  cloudName.textContent = tr("preview.cloudCoverage", "云量");
-  // ADR-085 S2：惰性读 skyCap.getCloudCoverage()，消灭硬编码 "0%"
-  const initCloud = skyCap?.getCloudCoverage() ?? 0;
-  const cloudVal = document.createElement("span");
-  cloudVal.textContent = `${Math.round(initCloud * 100)}%`;
-  cloudHead.append(cloudName, cloudVal);
-  const cloudSlider = document.createElement("input");
-  cloudSlider.type = "range";
-  cloudSlider.min = "0";
-  cloudSlider.max = "1";
-  cloudSlider.step = "0.05";
-  cloudSlider.value = String(initCloud);
-  cloudSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-  cloudSlider.oninput = (): void => {
-    const v = Number(cloudSlider.value);
-    skyCap?.setCloudCoverage(v, false);
-    cloudVal.textContent = `${Math.round(v * 100)}%`;
-  };
-  cloudSlider.onchange = (): void => {
-    skyCap?.setCloudCoverage(Number(cloudSlider.value), true);
-  };
-  cloudRow.append(cloudHead, cloudSlider);
-  list.appendChild(cloudRow);
-
-  const ibRow = document.createElement("div");
-  ibRow.className = "slide-item";
-  ibRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-  const ibLabel = document.createElement("span");
-  ibLabel.className = "slide-label";
-  ibLabel.textContent = tr("preview.environmentLight", "环境光(IBL)");
-  ibLabel.style.cssText = "flex:1;font-size:12px";
-  // ADR-085 S2：惰性读 skyCap.isEnvironmentEnabled()，消灭硬编码 value:true
-  const ibToggle = createHeaderToggle({
-    value: skyCap?.isEnvironmentEnabled() ?? true,
-    onChange: (v: boolean): void => skyCap?.setEnvironmentEnabled(v),
-    bind: (): boolean => skyCap?.isEnvironmentEnabled() ?? true,
-  });
-  ibRow.append(ibLabel, ibToggle);
-  list.appendChild(ibRow);
+  const controls: MenuControlDef[] = [];
+  // 优先从注册表收集，回退到 ctx getter（测试兼容）
+  const skyFromReg = sceneCapabilityRegistry.getById("sky");
+  const groundFromReg = sceneCapabilityRegistry.getById("ground");
+  if (skyFromReg) controls.push(...skyFromReg.getMenuControls());
+  if (groundFromReg) controls.push(...groundFromReg.getMenuControls());
+  // 注册表为空时回退到 ctx getter（测试场景）
+  if (controls.length === 0) {
+    const skyCap = ctx.getSkyCap();
+    const groundCap = ctx.getGroundCap();
+    if (skyCap && "getMenuControls" in skyCap) controls.push(...(skyCap as unknown as { getMenuControls(): MenuControlDef[] }).getMenuControls());
+    if (groundCap && "getMenuControls" in groundCap) controls.push(...(groundCap as unknown as { getMenuControls(): MenuControlDef[] }).getMenuControls());
+  }
+  if (controls.length === 0) {
+    const row = document.createElement("div");
+    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+    row.textContent = tr("preview.noEnvironment", "进入 3D 后再打开环境面板");
+    list.appendChild(row);
+    return;
+  }
+  renderCapControls(list, controls);
 }
 
 /** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮；
@@ -483,9 +467,15 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
   list.appendChild(inputRow);
 }
 
-/** 灯光面板（ADR-081 L1）：顶光/体积光锥/预设切换 */
+/** 灯光面板（ADR-081 L1 + 统一注册表）：从 light cap 的 getMenuControls() 自动渲染基础控件，加额外自定义控件 */
 function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
-  const lightCap = ctx.getLightCap();
+  const lightFromReg = sceneCapabilityRegistry.getById("light") as import("../caps/light-capability.ts").LightCapability | null;
+  const lightCap = lightFromReg ?? (() => {
+    // 注册表为空时回退到 ctx getter（测试场景）
+    const fromCtx = ctx.getLightCap();
+    if (fromCtx && "getMenuControls" in fromCtx) return fromCtx as unknown as import("../caps/light-capability.ts").LightCapability;
+    return null;
+  })();
   const noCap = (): void => {
     const row = document.createElement("div");
     row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
@@ -493,96 +483,12 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
     list.appendChild(row);
   };
   if (!lightCap) { noCap(); return; }
+
+  // 基础控件：由 getMenuControls() 驱动
+  renderCapControls(list, lightCap.getMenuControls());
   const params = lightCap.getParams();
 
-  // --- 顶光（SpotLight） ---
-  const spotRow = document.createElement("div");
-  spotRow.className = "slide-item";
-  spotRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-  const spotLabel = document.createElement("span");
-  spotLabel.className = "slide-label";
-  spotLabel.textContent = tr("preview.spotlight", "\u9876\u5149");
-  spotLabel.style.cssText = "flex:1;font-size:12px";
-  const spotToggle = createHeaderToggle({
-    value: params.spotlight.enabled,
-    onChange: (v: boolean): void => lightCap.setSpotlight({ enabled: v }),
-    bind: (): boolean => lightCap.getParams().spotlight.enabled, // ADR-085 S2：菜单重渲染时同步 live 值
-  });
-  spotRow.append(spotLabel, spotToggle);
-  list.appendChild(spotRow);
-
-  // --- 主光强度 ---
-  const keyRow = document.createElement("div");
-  keyRow.className = "slide-item";
-  keyRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
-  const keyHead = document.createElement("div");
-  keyHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
-  const keyName = document.createElement("span");
-  keyName.className = "slide-label";
-  keyName.textContent = tr("preview.keyIntensity", "\u4E3B\u5149\u5F3A\u5EA6");
-  const keyVal = document.createElement("span");
-  keyVal.textContent = params.key.intensity.toFixed(2);
-  keyHead.append(keyName, keyVal);
-  const keySlider = document.createElement("input");
-  keySlider.type = "range";
-  keySlider.min = "0";
-  keySlider.max = "3";
-  keySlider.step = "0.1";
-  keySlider.value = String(params.key.intensity);
-  keySlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-  keySlider.oninput = (): void => {
-    const v = Number(keySlider.value);
-    lightCap.setParams({ key: { intensity: v } });
-    keyVal.textContent = v.toFixed(2);
-  };
-  keyRow.append(keyHead, keySlider);
-  list.appendChild(keyRow);
-
-  // --- 环境光强度 ---
-  const ambRow = document.createElement("div");
-  ambRow.className = "slide-item";
-  ambRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
-  const ambHead = document.createElement("div");
-  ambHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
-  const ambName = document.createElement("span");
-  ambName.className = "slide-label";
-  ambName.textContent = tr("preview.ambientIntensity", "\u73AF\u5883\u5149");
-  const ambVal = document.createElement("span");
-  ambVal.textContent = params.ambient.intensity.toFixed(2);
-  ambHead.append(ambName, ambVal);
-  const ambSlider = document.createElement("input");
-  ambSlider.type = "range";
-  ambSlider.min = "0";
-  ambSlider.max = "2";
-  ambSlider.step = "0.05";
-  ambSlider.value = String(params.ambient.intensity);
-  ambSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-  ambSlider.oninput = (): void => {
-    const v = Number(ambSlider.value);
-    lightCap.setParams({ ambient: { color: 0xffffff, intensity: v } });
-    ambVal.textContent = v.toFixed(2);
-  };
-  ambRow.append(ambHead, ambSlider);
-  list.appendChild(ambRow);
-
-  // --- 体积光锥 ---
-  const volRow = document.createElement("div");
-  volRow.className = "slide-item";
-  volRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-  const volLabel = document.createElement("span");
-  volLabel.className = "slide-label";
-  volLabel.textContent = tr("preview.volumetricCone", "\u4F53\u79EF\u5149\u952F");
-  volLabel.style.cssText = "flex:1;font-size:12px";
-  const volToggle = createHeaderToggle({
-    value: params.volumetric.enabled,
-    onChange: (v: boolean): void => {
-      lightCap.setVolumetric({ enabled: v });
-      if (v && !lightCap.getParams().spotlight.enabled) lightCap.setSpotlight({ enabled: true }); // ADR-085 S2：回调内读 live getParams()
-    },
-    bind: (): boolean => lightCap.getParams().volumetric.enabled, // ADR-085 S2：菜单重渲染时同步 live 值
-  });
-  volRow.append(volLabel, volToggle);
-  list.appendChild(volRow);
+  // --- 额外控件（引擎/锥角/预设）：不在 getMenuControls 中，保留手动渲染 ---
 
   // --- 体积光引擎（ADR-081 L2）：cone 轻量 vs postprocess 后处理 ---
   const engineRow = document.createElement("div");

@@ -340,16 +340,18 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.touchAction = "none"; // ADR-047：触屏拖拽旋转需禁手势默认
     viewContainer.appendChild(renderer.domElement);
-    // 程序化天空（ADR-073 L1）：注入统一核心，YSM/VRM/MMD/Litematic 经同一 scene 零改动继承
-    skyCap = new SkyCapability({ scene, renderer });
-    skyCap.setPreset(adapter.id); // #3 按模型类别套用散射/曝光预设
-    skyCap.apply();
-    // 地面（ADR-073 同款 caps/ 能力）：统一核心注入，各类型零改动继承
-    groundCap = new GroundCapability({ scene });
-    groundCap.apply();
-    lightCap = new LightCapability({ scene, renderer });
-    lightCap.setPreset(adapter.id);
-    lightCap.apply();
+    // 程序化能力（ADR-073 L1 + 统一注册表）：由 registry 统一创建并持久化
+    const caps = sceneCapabilityRegistry.createAll({ scene, renderer });
+    skyCap = (sceneCapabilityRegistry.getById("sky") as SkyCapability) ?? null;
+    groundCap = (sceneCapabilityRegistry.getById("ground") as GroundCapability) ?? null;
+    lightCap = (sceneCapabilityRegistry.getById("light") as LightCapability) ?? null;
+    // 从 localStorage 恢复上次会话状态
+    sceneCapabilityRegistry.loadAll();
+    // 按模型类别套用预设（已有持久化状态的 cap 不覆盖）
+    skyCap?.setPreset(adapter.id);
+    lightCap?.setPreset(adapter.id);
+    // 全部挂入场景
+    for (const cap of caps) cap.apply();
     // 后处理体积光管线（ADR-081 L2）：PostprocessingManager 管理 EffectComposer + bloom
     postProc = new PostprocessingManager(renderer, scene, camera);
     // ADR-085 S3：caps 创建后触发 refreshDock()，修复 litematic/pack 的 environment 项时序缺失

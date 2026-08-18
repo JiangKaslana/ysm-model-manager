@@ -13,6 +13,7 @@ import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import type { PostprocessingManager } from "./postprocessing.ts";
 import { sceneRegistry } from "./scene-registry.ts";
+import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 
 // ── CleanupContext ────────────────────────────────────────────────────────
 // 所有可从 mount3D 作用域松绑的外部引用，统一经此接口注入。
@@ -85,10 +86,12 @@ export function runFullCleanup(ctx: CleanupContext): void {
   ctx.allBuilt.length = 0;
   ctx.nullBuilt();
   // 程序化天空（ADR-073 L1）：还原 tone mapping 并释放 PMREM/几何/材质
+  // 统一注册表：保存状态后由 registry 统一 dispose
+  try { sceneCapabilityRegistry.saveAll(); } catch (_) { /* 防御性 */ }
+  try { sceneCapabilityRegistry.dispose(); } catch (_) { /* 防御性释放 */ }
+  // 兼容旧 cleanupCtx 引用（cleanupCtx 内仍有 skyCap/groundCap/lightCap）
   try { ctx.skyCap?.dispose(); } catch (_) { /* 防御性释放 */ }
-  // 地面能力：移除网格并释放几何/材质
   try { ctx.groundCap?.dispose(); } catch (_) { /* 防御性释放 */ }
-  // 个人灯光系统（ADR-081 L1）：释放聚光灯 + 体积光锥
   try { ctx.lightCap?.dispose(); } catch (_) { /* 防御性释放 */ }
   // 后处理体积光管线（ADR-081 L2）：释放 EffectComposer + bloom
   try {

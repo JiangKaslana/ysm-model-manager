@@ -18,7 +18,7 @@ export type SceneCapabilityFactory = (ctx: {
 }) => SceneCapability;
 
 /** 注册表：管理所有场景能力的工厂和实例 */
-class SceneCapabilityRegistry {
+export class SceneCapabilityRegistry {
   private factories: SceneCapabilityFactory[] = [];
   private instances: SceneCapability[] = [];
 

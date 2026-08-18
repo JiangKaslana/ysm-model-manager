@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 118 | 438 |
+| 前端·工具 | 118 | 439 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **402** | **1672** |
+| **合计** | **402** | **1673** |
 
 ## Go·头像
 
@@ -317,10 +317,10 @@
 | `InvalidatePath()` | `go/scanner/scanner:134` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
 | `ScanEntries()` | `go/scanner/scanner:165` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:172` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:304` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:357` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:387` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:450` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ComputeFileHash()` | `go/scanner/scanner:312` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:365` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:395` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:458` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -427,27 +427,27 @@
 | `LitematicBlockStat()` | `go/types/resource:340` | LitematicBlockStat 方块类型统计 |
 | `LitematicVoxelData()` | `go/types/resource:346` | LitematicVoxelData 体素渲染数据 |
 | `VoxelGroup()` | `go/types/resource:354` | VoxelGroup 同一颜色的方块组 |
-| `StatusToLevel()` | `go/types/types:121` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
-| `AppError.WithCause()` | `go/types/types:169` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
-| `AppError.Unwrap()` | `go/types/types:175` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
-| `AppError.Error()` | `go/types/types:177` | — |
+| `StatusToLevel()` | `go/types/types:125` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
+| `AppError.WithCause()` | `go/types/types:173` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
+| `AppError.Unwrap()` | `go/types/types:179` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
+| `AppError.Error()` | `go/types/types:181` | — |
 | `WindowState()` | `go/types/types:6` | WindowState 窗口位置 |
 | `AuthorInfo()` | `go/types/types:14` | AuthorInfo 作者信息（含模型计数） |
 | `ModelEntry()` | `go/types/types:21` | ModelEntry 模型文件条目 |
-| `ImportFileItem()` | `go/types/types:32` | ImportFileItem 文件夹型模型整组导入的文件项（ADR-038 关联：解压目录整组导入） |
-| `VersionInstance()` | `go/types/types:38` | VersionInstance 整合包信息 |
-| `SearchResult()` | `go/types/types:46` | SearchResult 模型搜索结果 |
-| `ImportLog()` | `go/types/types:57` | ImportLog 应用操作日志（导入、扫描、下载、同步等） |
-| `RuntimeLog()` | `go/types/types:70` | RuntimeLog 运行时日志（watcher/sync 等标准库 log 输出，诊断页可见） |
-| `LinkType()` | `go/types/types:77` | LinkType 链接类型 |
-| `ErrorCode()` | `go/types/types:88` | ErrorCode 结构化错误码（ADR-051 落地：替代裸字符串拼接，消除前后端双份分类表漂移）。 |
-| `LogLevel()` | `go/types/types:109` | LogLevel 日志级别（诊断页按 Level 过滤；向后兼容——旧日志无此字段时前端按 Status 兜底） |
-| `CustomFileInfo()` | `go/types/types:137` | CustomFileInfo custom 目录下的文件信息 |
-| `InstanceStatus()` | `go/types/types:143` | InstanceStatus 整合包状态 |
-| `AppError()` | `go/types/types:156` | — |
-| `ResourceSyncResult()` | `go/types/types:190` | ResourceSyncResult 资源同步结果 |
-| `SyncStatus()` | `go/types/types:197` | SyncStatus 资源文件同步状态 |
-| `ResourceSyncItem()` | `go/types/types:208` | ResourceSyncItem 单个资源文件的同步状态 |
+| `ImportFileItem()` | `go/types/types:36` | ImportFileItem 文件夹型模型整组导入的文件项（ADR-038 关联：解压目录整组导入） |
+| `VersionInstance()` | `go/types/types:42` | VersionInstance 整合包信息 |
+| `SearchResult()` | `go/types/types:50` | SearchResult 模型搜索结果 |
+| `ImportLog()` | `go/types/types:61` | ImportLog 应用操作日志（导入、扫描、下载、同步等） |
+| `RuntimeLog()` | `go/types/types:74` | RuntimeLog 运行时日志（watcher/sync 等标准库 log 输出，诊断页可见） |
+| `LinkType()` | `go/types/types:81` | LinkType 链接类型 |
+| `ErrorCode()` | `go/types/types:92` | ErrorCode 结构化错误码（ADR-051 落地：替代裸字符串拼接，消除前后端双份分类表漂移）。 |
+| `LogLevel()` | `go/types/types:113` | LogLevel 日志级别（诊断页按 Level 过滤；向后兼容——旧日志无此字段时前端按 Status 兜底） |
+| `CustomFileInfo()` | `go/types/types:141` | CustomFileInfo custom 目录下的文件信息 |
+| `InstanceStatus()` | `go/types/types:147` | InstanceStatus 整合包状态 |
+| `AppError()` | `go/types/types:160` | — |
+| `ResourceSyncResult()` | `go/types/types:194` | ResourceSyncResult 资源同步结果 |
+| `SyncStatus()` | `go/types/types:201` | SyncStatus 资源文件同步状态 |
+| `ResourceSyncItem()` | `go/types/types:212` | ResourceSyncItem 单个资源文件的同步状态 |
 
 ## Go·更新器
 
@@ -1132,9 +1132,9 @@
 |------|--------|------|
 | `CameraControlBridge()` | `frontend/src/utils/3d/adapters/camera-controls:13` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
-| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:21` | — |
-| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:56` | — |
-| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:131` | — |
+| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:22` | — |
+| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:57` | — |
+| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:134` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1164,9 +1164,9 @@
 | `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:42` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:48` | — |
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:60` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:21` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:51` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:59` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:23` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:110` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:118` | 挂载预览底部根菜单，返回句柄 |
 | `MenuItemsSink()` | `frontend/src/utils/3d/adapters/scene-registry:16` | 菜单句柄最小接口（解耦 preview-menu.ts 运行时依赖） |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录 |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
@@ -1232,6 +1232,7 @@
 | `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:112` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
 | `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:220` | ============ LightCapability ============ |
 | `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability-registry:15` | 能力工厂：接收 scene/renderer，返回能力实例 |
+| `SceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:21` | 注册表：管理所有场景能力的工厂和实例 |
 | `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:99` | 全局单例（模块级单例 + 运行时状态隔离） |
 | `MenuControlKind()` | `frontend/src/utils/3d/caps/scene-capability:13` | 单个菜单控件类型 |
 | `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:16` | 菜单控件定义（声明式，由框架渲染为 DOM） |
