@@ -375,3 +375,74 @@ func TestInferFolderType_FallbackYsm(t *testing.T) {
 		t.Errorf("inferFolderType(empty) = %q, 期望 'ysm'", got)
 	}
 }
+
+// ===== resolveInstDirTarget（ADR-095：打开资源存储目录而非模组扫描目录）=====
+// 覆盖矩阵：vanilla / Prism 布局 × ysm（installDir 含 {instance} 前缀）/ resourcepack
+// （installDir 为 mcRoot 全局目录）；全部目录不存在 / 未知类型 → 回退 instDir。
+func TestResolveInstDirTarget_VanillaYsm(t *testing.T) {
+	// vanilla 布局：instDir = {mcRoot}/versions/{name}，ysm 存储目录 = instDir/ysm
+	mcRoot := t.TempDir()
+	instDir := filepath.Join(mcRoot, "versions", "1.20.1-Fabric")
+	ysmDir := filepath.Join(instDir, "ysm")
+	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTarget(instDir, "ysm"); got != ysmDir {
+		t.Errorf("vanilla+ysm = %q, 期望 %q", got, ysmDir)
+	}
+}
+
+func TestResolveInstDirTarget_VanillaResourcepack(t *testing.T) {
+	// vanilla + resourcepack：installDir=resourcepacks/ 相对 mcRoot；instDir 侧无此目录
+	mcRoot := t.TempDir()
+	instDir := filepath.Join(mcRoot, "versions", "1.20.1-Fabric")
+	rpDir := filepath.Join(mcRoot, "resourcepacks")
+	if err := os.MkdirAll(rpDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTarget(instDir, "resourcepack"); got != rpDir {
+		t.Errorf("vanilla+resourcepack = %q, 期望 %q", got, rpDir)
+	}
+}
+
+func TestResolveInstDirTarget_PrismYsm(t *testing.T) {
+	// Prism 布局：instDir = 整合包 .minecraft 根，ysm 存储目录 = instDir/ysm
+	base := t.TempDir()
+	instDir := filepath.Join(base, ".minecraft")
+	ysmDir := filepath.Join(instDir, "ysm")
+	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTarget(instDir, "ysm"); got != ysmDir {
+		t.Errorf("Prism+ysm = %q, 期望 %q", got, ysmDir)
+	}
+}
+
+func TestResolveInstDirTarget_PrismResourcepack(t *testing.T) {
+	// Prism + resourcepack：instDir 即整合包根，存储目录 = instDir/resourcepacks
+	base := t.TempDir()
+	instDir := filepath.Join(base, ".minecraft")
+	rpDir := filepath.Join(instDir, "resourcepacks")
+	if err := os.MkdirAll(rpDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTarget(instDir, "resourcepack"); got != rpDir {
+		t.Errorf("Prism+resourcepack = %q, 期望 %q", got, rpDir)
+	}
+}
+
+func TestResolveInstDirTarget_NoneExistsFallback(t *testing.T) {
+	// 所有候选都不存在 → 回退 instDir（不得拼出不存在的路径强行打开）
+	instDir := filepath.Join(t.TempDir(), "empty-inst")
+	if got := resolveInstDirTarget(instDir, "ysm"); got != instDir {
+		t.Errorf("无候选存在 = %q, 期望回退 %q", got, instDir)
+	}
+}
+
+func TestResolveInstDirTarget_UnknownType(t *testing.T) {
+	// 未知类型（无 InstallDir 配置）→ 原样返回 instDir（保持原行为）
+	instDir := filepath.Join(t.TempDir(), "unknown-inst")
+	if got := resolveInstDirTarget(instDir, "no-such-type"); got != instDir {
+		t.Errorf("未知类型 = %q, 期望 %q", got, instDir)
+	}
+}

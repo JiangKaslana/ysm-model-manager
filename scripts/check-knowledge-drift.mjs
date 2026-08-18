@@ -46,7 +46,7 @@ const warns = [];
 const CATEGORY_ENUM = new Set(['core', 'go', 'ui', 'feature', 'utils', 'config']);
 const TIER_ENUM = new Set(['architecture', 'leaf']);
 const REQUIRED_FIELDS = ['kind', 'name', 'category', 'tier'];
-const KIND_RE = /^[a-z][a-z0-9_-]*$/;
+const KIND_RE = /^[a-z0-9][a-z0-9_-]*$/;
 const PLACEHOLDER_RE = /^<.*>$/;
 
 // 源码事实源黑名单：生成物（构建产物，非稳定事实源）/ 测试文件（应在 tests: 字段）

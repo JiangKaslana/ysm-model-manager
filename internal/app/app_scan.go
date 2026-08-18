@@ -397,19 +397,45 @@ func (a *App) OpenFolder(dir string) error {
 	return cmd.Start()
 }
 
-// OpenInstanceFolder 按资源类型打开整合包子目录；目录不存在时回退到实例根目录
+// OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录
+//
+// 方案 A（ADR-095）：不再用 SubDirMap/FindInstDir 探测模组扫描目录。
+// 原实现取 scanDir（如 config/yes_steve_model/custom）拼 instDir——scanDir 是
+// 「模组从哪加载文件」，且 FindInstDir 的包含性判定含 .json（ysm 类型扩展名），
+// config 目录下成堆模组配置文件会误命中 → 右键打开的是 config 而非资源包目录。
+// 改为按 installDir（资源存储目录模板）推导，候选路径存在才打开：
+//  1. 候选 A：instDir 直接拼 installDir 掐掉 "versions/{instance}/" 前缀后的段
+//     （instDir 已是版本目录/整合包根时，ysm = instDir/ysm）
+//  2. 候选 B：instDir 上两级（vanilla 布局的 mcRoot）+ 完整 installDir
+//     （resourcepack 等 installDir 相对 mcRoot 全局目录：mcRoot/resourcepacks）
 func (a *App) OpenInstanceFolder(instDir, rtype string) error {
-	subDir := types.SubDirMap(rtype)
-	if subDir == "" {
-		return a.OpenFolder(instDir)
+	return a.OpenFolder(resolveInstDirTarget(instDir, rtype))
+}
+
+// resolveInstDirTarget 推导整合包内资源存储目录（ADR-095，纯函数可测）：
+//  1. 有 InstallDir 配置时按 installDir 模板推导，候选 A/B 取第一个存在的目录；
+//  2. 无 InstallDir 配置（未知类型）返回 instDir 原样（保持原行为）。
+func resolveInstDirTarget(instDir, rtype string) string {
+	target := instDir
+	if rt := types.RegistryType(rtype); rt != nil && rt.InstallDir != "" {
+		instName := filepath.Base(instDir)
+		rel := strings.ReplaceAll(rt.InstallDir, "{instance}", instName)
+		// 掐掉 "versions/{instance}/" 前缀段：instDir 已含版本目录层级，直接拼剩余段
+		trimmed := strings.TrimPrefix(rel, "versions/"+instName+"/")
+		// mcRoot：vanilla 布局 instDir = {mcRoot}/versions/{name}，上两级即 mcRoot；
+		// Prism 布局 instDir 即整合包根，候选 B 多拼一段 versions/{name} 不存在、自然跳过
+		mcRoot := filepath.Dir(filepath.Dir(instDir))
+		for _, c := range []string{
+			filepath.Join(instDir, trimmed),
+			filepath.Join(mcRoot, rel),
+		} {
+			if info, err := os.Stat(c); err == nil && info.IsDir() {
+				target = c
+				break
+			}
+		}
 	}
-	target := types.FindInstDir(instDir, subDir, rtype)
-	// FindInstDir 在找不到时返回 standard 路径（未必存在）
-	// 如果返回的目录也不存在，回退到 instDir
-	if info, err := os.Stat(target); err != nil || !info.IsDir() {
-		target = instDir
-	}
-	return a.OpenFolder(target)
+	return target
 }
 
 // progressReader 包装 io.Reader，下载时通过回调推送进度（保留：下载进度计算）
