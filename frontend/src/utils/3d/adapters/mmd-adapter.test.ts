@@ -47,8 +47,16 @@ import { buildMmdScene, type MmdDataPort, type MmdPanelHooks } from "./mmd-adapt
 function makePort(): MmdDataPort {
   return {
     readFileBytes: hoisted.readBytesMock,
+    readFileBytesBatch: vi.fn().mockImplementation(async (paths: string[]) => {
+      const result: Record<string, string | null> = {};
+      for (const p of paths) {
+        result[p] = await hoisted.readBytesMock(p);
+      }
+      return result;
+    }),
     listAllFilePaths: hoisted.listPathsMock,
     addOpLog: vi.fn().mockResolvedValue(undefined),
+    getCachedTexture: vi.fn().mockResolvedValue(null),
   };
 }
 

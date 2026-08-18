@@ -98,6 +98,25 @@ func (a *App) ReadFileBytes(path string) []byte {
 	return data
 }
 
+// ReadFileBytesBatch 批量读取多个文件（ADR-101：MMD 纹理加载优化）。
+// 一次 RPC 返回多个文件字节，减少 Go↔JS IPC 往返（原 N 次 readFileBytes → 1 次 batch）。
+// 路径守卫：逐个校验 isPathInRootOrSelf，非法路径跳过（值为 nil）。
+// 返回 map[路径] → base64 字节（Wails []byte 自动序列化为 base64，map 保持键序）。
+func (a *App) ReadFileBytesBatch(paths []string) map[string][]byte {
+	result := make(map[string][]byte, len(paths))
+	for _, p := range paths {
+		if !a.isPathInRootOrSelf(p) {
+			continue
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		result[p] = data
+	}
+	return result
+}
+
 func (a *App) AnalyzeBedrockModel(modelPath string) types.BedrockModel {
 	// 剥禁用后缀（.ban/.disabled），与 scanner 口径一致
 	for _, suffix := range []string{".ban", ".disabled"} {

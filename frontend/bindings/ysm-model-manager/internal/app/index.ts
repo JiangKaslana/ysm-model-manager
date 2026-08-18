@@ -7,6 +7,7 @@ export {
 };
 
 export type {
+    CachedTextureResult,
     DownloadTask,
     QueueStatusInfo
 } from "./models.js";

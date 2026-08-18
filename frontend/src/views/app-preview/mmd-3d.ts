@@ -18,6 +18,15 @@ async function makeMmdPort(): Promise<MmdDataPort> {
   return {
     readFileBytes: (p) =>
       (App as unknown as Record<string, (x: string) => Promise<string | null>>)["ReadFileBytes"](p),
+    readFileBytesBatch: async (paths) => {
+      try {
+        const batchFn = (App as unknown as Record<string, (x: string[]) => Promise<Record<string, string | null>>>)["ReadFileBytesBatch"];
+        if (typeof batchFn !== "function") return {};
+        return await batchFn(paths);
+      } catch {
+        return {};
+      }
+    },
     listAllFilePaths: (d) =>
       (App as unknown as Record<string, (x: string) => Promise<string[] | null>>)["ListAllFilePaths"](d),
     addOpLog: async (op, msg, status, err) => {
@@ -27,6 +36,18 @@ async function makeMmdPort(): Promise<MmdDataPort> {
         await addFn("mmd-preview", op, msg, "", 0, status, err || "");
       } catch {
         /* 诊断不阻断 */
+      }
+    },
+    getCachedTexture: async (p) => {
+      try {
+        const appAny = App as unknown as Record<string, (x: string) => Promise<unknown>>;
+        const getFn = appAny["GetCachedTexture"];
+        if (typeof getFn !== "function") return null;
+        const result = await getFn(p) as { format: string; data: string; hash: string } | null;
+        if (!result) return null;
+        return { format: result.format, data: result.data, hash: result.hash };
+      } catch {
+        return null;
       }
     },
   };

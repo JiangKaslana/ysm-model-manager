@@ -57,7 +57,15 @@
 - 收益：首次加载减少 ~100ms
 - 风险：无
 
-### 方向 B：PMX 文件 Worker 化（P1，中等）
+### 方向 B：Go bridge 批量读取（P1，已实现 ✅）
+
+把 N 次 `readFileBytes` RPC 合并为 1 次 `ReadFileBytesBatch`，减少 Go↔JS IPC 往返。
+
+- 实现：`app_model.go` 新增 `ReadFileBytesBatch(paths []string) map[string][]byte`；`mmd-adapter.ts` 纹理/VMD/VPD 加载改用批量 API
+- 收益：纹理加载从 N 次 RPC → 1 次；VMD/VPD 同理
+- 风险：无（降级路径：batch 失败时逐个 fallback）
+
+### 方向 C：PMX 文件 Worker 化（P1，中等）
 
 把 `readFileBytes` + PMX 解析移到 Web Worker，不阻塞主线程。
 
@@ -65,7 +73,7 @@
 - 收益：主线程释放 1.8–2.7s×2 = **3.6–5.4s**
 - 风险：Worker 无法直接访问 DOM/Canvas，需 `OffscreenCanvas` 传入
 
-### 方向 C：纹理上传异步化（P0，复杂）
+### 方向 D：纹理上传异步化（P0，复杂）
 
 用 `OffscreenCanvas` + Worker 做图片解码，或 Three.js `TextureLoader` streaming。
 
@@ -73,7 +81,7 @@
 - 收益：主线程释放 ~2.2s
 - 风险：需要 WebGL 上下文 transfer（`transferControlToOffscreen`），与现有渲染循环冲突
 
-### 方向 D：KTX2 纹理压缩（P1，外部依赖）
+### 方向 E：KTX2 纹理压缩（P1，外部依赖）
 
 隔壁同事已启动 KTX2 纹理缓存管线（Go cache package + WASM basis_encoder）。
 
@@ -85,9 +93,10 @@
 | 优先级 | 方向 | 状态 | 负责 |
 |--------|------|------|------|
 | 立即 | A. Three.js 预加载 | 待实施 | AI |
-| 短期 | D. KTX2 压缩 | 进行中（隔壁） | 隔壁 AI |
-| 中期 | B. PMX Worker 化 | 待评估 | 待定 |
-| 长期 | C. 纹理异步上传 | 待评估 | 待定 |
+| 立即 | B. Go bridge 批量读取 | ✅ 已实现 | AI |
+| 短期 | E. KTX2 压缩 | 进行中（隔壁） | 隔壁 AI |
+| 中期 | C. PMX Worker 化 | 待评估 | 待定 |
+| 长期 | D. 纹理异步上传 | 待评估 | 待定 |
 
 ## 验证方法
 

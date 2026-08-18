@@ -128,6 +128,13 @@ export function ClearScanCache(): $CancellablePromise<void> {
     return $Call.ByID(3066626705);
 }
 
+/**
+ * ClearTextureCache 清空纹理缓存（用户主动清理用）。
+ */
+export function ClearTextureCache(): $CancellablePromise<void> {
+    return $Call.ByID(2838206023);
+}
+
 export function ClosePlazaWindow(): $CancellablePromise<void> {
     return $Call.ByID(891522693);
 }
@@ -318,6 +325,15 @@ export function GetAppVersion(): $CancellablePromise<string> {
 }
 
 /**
+ * GetCachedTexture 读取纹理文件，计算内容哈希，检查 KTX2 缓存。
+ * 缓存命中时 Format="ktx2" Data=KTX2 base64；未命中时 Format="png" Data=PNG base64。
+ * 前端可根据 Format 决定使用 KTX2Loader 还是 TextureLoader。
+ */
+export function GetCachedTexture(path: string): $CancellablePromise<$models.CachedTextureResult> {
+    return $Call.ByID(3613359678, path);
+}
+
+/**
  * GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application Support）
  * 供前端 UI 展示，避免硬编码 Windows 路径
  */
@@ -454,6 +470,13 @@ export function GetWasmBinary(): $CancellablePromise<string | null> {
 
 export function GetWindowPosition(): $CancellablePromise<types$0.WindowState> {
     return $Call.ByID(3862857718);
+}
+
+/**
+ * HasCachedTexture 检查指定纹理的内容哈希是否已有 KTX2 缓存。
+ */
+export function HasCachedTexture(hash: string): $CancellablePromise<boolean> {
+    return $Call.ByID(337849218, hash);
 }
 
 /**
@@ -750,6 +773,16 @@ export function ReadFileBytes(path: string): $CancellablePromise<string | null> 
 }
 
 /**
+ * ReadFileBytesBatch 批量读取多个文件（ADR-101：MMD 纹理加载优化）。
+ * 一次 RPC 返回多个文件字节，减少 Go↔JS IPC 往返（原 N 次 readFileBytes → 1 次 batch）。
+ * 路径守卫：逐个校验 isPathInRootOrSelf，非法路径跳过（值为 nil）。
+ * 返回 map[路径] → base64 字节（Wails []byte 自动序列化为 base64，map 保持键序）。
+ */
+export function ReadFileBytesBatch(paths: string[] | null): $CancellablePromise<{ [_ in string]?: string | null } | null> {
+    return $Call.ByID(1632485740, paths);
+}
+
+/**
  * ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图）
  */
 export function ReadLitematicMeta(path: string): $CancellablePromise<string> {
@@ -850,6 +883,14 @@ export function RevealInExplorer(path: string): $CancellablePromise<void> {
 
 export function SaveAppConfig(filesRoot: string, rpRoot: string, mcRoot: string, linkMode: string, theme: string): $CancellablePromise<void> {
     return $Call.ByID(3201182099, filesRoot, rpRoot, mcRoot, linkMode, theme);
+}
+
+/**
+ * SaveCachedTexture 保存前端 WASM 编码后的 KTX2 数据到缓存。
+ * hash 是 GetCachedTexture 返回的 Hash 值，data 是 KTX2 字节的 base64。
+ */
+export function SaveCachedTexture(hash: string, b64Data: string): $CancellablePromise<void> {
+    return $Call.ByID(3781776119, hash, b64Data);
 }
 
 export function SavePreviewTempFile(base64Data: string): $CancellablePromise<string> {

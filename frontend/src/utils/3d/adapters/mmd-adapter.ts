@@ -10,6 +10,7 @@ import { MMDLoader, VmdObject, buildAnimation, VPDLoader, applyVPD, type VpdObje
 import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import type {
   MmdBottomNavCtx,
   MmdPlayBridge,
@@ -54,8 +55,11 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 /** MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface MmdDataPort {
   readFileBytes(path: string): Promise<string | null>;
+  readFileBytesBatch(paths: string[]): Promise<Record<string, string | null>>;
   listAllFilePaths(dir: string): Promise<string[] | null>;
   addOpLog(op: string, msg: string, status: "ok" | "fail", err?: string): Promise<void>;
+  /** 读取纹理文件并检查 KTX2 缓存，返回 { format, data, hash } */
+  getCachedTexture?(path: string): Promise<{ format: string; data: string; hash: string } | null>;
 }
 
 /** 环形日志面板诊断（AGENTS.md：排查卡顿往环形日志塞日志而非死盯 console）；失败静默不阻断 */
@@ -163,38 +167,76 @@ export async function buildMmdScene(
   const blobUrls: string[] = [];
   const vmdPaths: string[] = [];
   const vpdPaths: string[] = []; // 同目录 VPD 姿势文件
+  // KTX2 缓存映射：纹理相对路径 → KTX2 blob URL（post-load 替换用）
+  const texKtx2Map = new Map<string, string>();
+  // 纹理内容哈希：纹理相对路径 → SHA256（用于 KTX2 缓存查找）
+  const texHashMap = new Map<string, string>();
   // 模型本体也注册 blob：MMDLoader 内部 FileLoader 从 URL 读字节（WebView2 读不了磁盘路径），
   // URLModifier 拦截模型 URL → blob 后才可加载。
   const modelBlobUrl = URL.createObjectURL(new Blob([bytesToArrayBuffer(bytes)]));
   blobUrls.push(modelBlobUrl);
   texMap.set(modelBase, modelBlobUrl);
+  // blob URL → 相对路径反向映射（post-load KTX2 替换时从纹理 image.src 反查 relPath）
+  const blobUrlToRel = new Map<string, string>();
   try {
     const files = (await port.listAllFilePaths(dirPath)) || [];
-    // 并行预读纹理（避免 N 次串行 RPC 拖慢预览打开；单张失败降级不影响整体）
-    await Promise.all(
-      files
-        .filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext)))
-        .map(async (p) => {
-          const texB64 = await port.readFileBytes(p);
-          if (!texB64) return;
-          const texBytes = b64ToBytes(texB64);
-          // 假 TGA（扩展名 .tga 但头部类型非法）：不注册 blob → TGALoader 不会加载它 → 无刷屏错误
-          if (p.toLowerCase().endsWith(".tga") && !isLikelyTga(texBytes)) return;
-          const blob = new Blob([bytesToArrayBuffer(texBytes)]);
-          const url = URL.createObjectURL(blob);
-          blobUrls.push(url);
-          const lower = p.toLowerCase().replace(/\\/g, "/");
-          // 键1：相对目录路径（PMX 内记录如 "textures/face.png"，对齐 URLModifier 收到的 fullPath；
-          // 统一正斜杠——Go 在 Windows 返回反斜杠路径）
-          const dirNorm = dirPath.toLowerCase().replace(/\\/g, "/");
-          const rel = lower.startsWith(dirNorm + "/")
-            ? lower.slice(dirNorm.length + 1)
-            : lower;
-          texMap.set(rel, url);
-          // 键2：basename 兜底（同名不同子目录由最长后缀匹配区分）
-          texMap.set(lower.split("/").pop() || "", url);
-        }),
-    );
+    // ADR-101：批量读取纹理（1 次 RPC 替代 N 次 readFileBytes，减少 Go↔JS IPC 往返）
+    const texFiles = files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext)));
+    const texBatch = texFiles.length > 0 ? await port.readFileBytesBatch(texFiles) : {};
+    for (const p of texFiles) {
+      // 先计算相对路径（rel），后续 KTX2 和 PNG 分支都用到
+      const lower = p.toLowerCase().replace(/\\/g, "/");
+      const dirNorm = dirPath.toLowerCase().replace(/\\/g, "/");
+      const rel = lower.startsWith(dirNorm + "/")
+        ? lower.slice(dirNorm.length + 1)
+        : lower;
+      const baseName = lower.split("/").pop() || "";
+
+      // 优先用 getCachedTexture（含 hash + KTX2 缓存检测），降级到批量读取结果
+      let texB64: string | null;
+      let texHash: string | undefined;
+      let pngB64: string | null = null;
+      if (port.getCachedTexture) {
+        const cached = await port.getCachedTexture(p);
+        if (cached) {
+          texHash = cached.hash;
+          if (cached.format === "ktx2") {
+            // KTX2 已缓存：PNG 单独读取（TextureLoader 用），KTX2 数据存为 blob 供替换
+            pngB64 = texBatch[p] ?? await port.readFileBytes(p);
+            texB64 = pngB64;
+            if (pngB64) {
+              const ktxBytes = b64ToBytes(cached.data);
+              const ktxBlob = new Blob([bytesToArrayBuffer(ktxBytes)]);
+              const ktxUrl = URL.createObjectURL(ktxBlob);
+              blobUrls.push(ktxUrl);
+              texKtx2Map.set(rel, ktxUrl);
+            }
+          } else {
+            // PNG（无 KTX2 缓存）：直接使用
+            texB64 = cached.data;
+          }
+        } else {
+          texB64 = texBatch[p] ?? null;
+        }
+      } else {
+        texB64 = texBatch[p] ?? null;
+      }
+      if (!texB64) continue;
+      const texBytes = b64ToBytes(texB64);
+      // 假 TGA（扩展名 .tga 但头部类型非法）：不注册 blob → TGALoader 不会加载它 → 无刷屏错误
+      if (p.toLowerCase().endsWith(".tga") && !isLikelyTga(texBytes)) continue;
+      const blob = new Blob([bytesToArrayBuffer(texBytes)]);
+      const url = URL.createObjectURL(blob);
+      blobUrls.push(url);
+      // 键1：相对目录路径（PMX 内记录如 "textures/face.png"，对齐 URLModifier 收到的 fullPath）
+      texMap.set(rel, url);
+      // 键2：basename 兜底（同名不同子目录由最长后缀匹配区分）
+      texMap.set(baseName, url);
+      // 反向映射：blob URL → 相对路径（post-load KTX2 替换溯源）
+      blobUrlToRel.set(url, rel);
+      // 存储 hash（后续 KTX2 替换用）
+      if (texHash) texHashMap.set(rel, texHash);
+    }
     // 同目录 VMD 动作文件（模型加载后逐个解析）
     vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
     // 同目录 VPD 姿势文件（模型加载后逐个应用）
@@ -301,12 +343,49 @@ export async function buildMmdScene(
     registerModelRoot(mesh);
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 
-  // ---- VMD 动作（同目录 .vmd）：VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
+  // ---- KTX2 纹理替换（post-load）：有 KTX2 缓存时用压缩纹理替换已加载的 PNG 纹理 ----
+  if (texKtx2Map.size > 0 && ctx.renderer) {
+    const ktx2Loader = new KTX2Loader()
+      .setTranscoderPath("/basis/")
+      .detectSupport(ctx.renderer);
+    // 遍历 mesh 材质，替换有 KTX2 缓存的纹理 map
+    const allMats: THREE.Material[] = Array.isArray(mesh.material)
+      ? mesh.material
+      : mesh.material
+        ? [mesh.material]
+        : [];
+    for (const mat of allMats) {
+      // 检查材质的所有纹理 field（map/sphereMap/toonMap 等）
+      for (const key of DISPOSE_TEX_KEYS) {
+        const tex = (mat as unknown as Record<string, unknown>)[key];
+        if (!(tex instanceof THREE.Texture)) continue;
+        const img = tex.image as HTMLImageElement | undefined;
+        if (!img?.src?.startsWith("blob:")) continue;
+        const rel = blobUrlToRel.get(img.src);
+        if (!rel) continue;
+        const ktxUrl = texKtx2Map.get(rel);
+        if (!ktxUrl) continue;
+        // 加载 KTX2 压缩纹理并替换
+        ktx2Loader.loadAsync(ktxUrl).then((compressedTex) => {
+          (mat as unknown as Record<string, unknown>)[key] = compressedTex;
+          tex.dispose(); // 释放旧 PNG 纹理的 GPU 内存
+          mat.needsUpdate = true;
+        }).catch(() => {
+          /* KTX2 加载失败不阻断，保留原 PNG 纹理 */
+        });
+      }
+    }
+  }
+
+  // ---- VMD 动作（同目录 .vmd）：批量读取 + VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
   const mixer = new THREE.AnimationMixer(mesh);
   const clips: Array<{ label: string; clip: THREE.AnimationClip }> = [];
+  // ADR-101：批量读取 VMD/VPD（1 次 RPC 替代 N 次 readFileBytes）
+  const allAnimPaths = [...vmdPaths, ...vpdPaths];
+  const animBatch = allAnimPaths.length > 0 ? await port.readFileBytesBatch(allAnimPaths) : {};
   for (const v of vmdPaths) {
     try {
-      const vmdB64 = await port.readFileBytes(v);
+      const vmdB64 = animBatch[v] ?? null;
       if (!vmdB64) continue;
       // await 包装：真实库 ParseFromBuffer 同步返回（await 无害），但损坏/异步实现时
       // reject 能被 try/catch 捕获，不会把 Promise 对象当 vmd 传给 buildAnimation
@@ -323,7 +402,7 @@ export async function buildMmdScene(
   const vpdPoses: Array<{ label: string; vpd: VpdObject }> = [];
   for (const v of vpdPaths) {
     try {
-      const vpdB64 = await port.readFileBytes(v);
+      const vpdB64 = animBatch[v] ?? null;
       if (!vpdB64) continue;
       const vpdBytes = b64ToBytes(vpdB64);
       // VPDLoader.loadAsync 需要 URL，构造 blob URL（ArrayBuffer 兼容 BlobPart）
