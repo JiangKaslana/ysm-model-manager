@@ -30,6 +30,11 @@ class AppNav extends WebComponentBase {
   }
 
   connectedCallback(): void {
+    // P1-2（子代理审核）：重入守卫——组件被重新插入 DOM（HMR/测试反复 mount）时
+    // 先退订旧订阅，避免 nav:changed/lang:changed/repo:rtype-changed 叠加执行
+    this._unsub?.();
+    this._unsubLang?.();
+    this._unsubRtype?.();
     this._unsub = bus.on("nav:changed", ({ page }) => {
       // P3 修复（子代理审计）：page 过 sanitizePage 白名单——非法页 emit（遗留 .js/
       // 未来调用方）会让高亮静默丢失 + 脏值入 nav_page（启动时虽被兜底，会话期 UI 脱节）；
@@ -217,11 +222,14 @@ class AppNav extends WebComponentBase {
     getApp()
       .then((App) =>
         App.GetAppVersion().then((v) => {
+          // P3-5（子代理审核）：版本加载是异步，disconnect 后不再写已卸载 DOM
+          if (!this.isConnected) return;
           const el = this.shadowRoot!.getElementById("nav-version");
           if (el) el.textContent = (v || "dev") + " \u2022 " + t("nav.preview");
         }),
       )
       .catch(() => {
+        if (!this.isConnected) return;
         const el = this.shadowRoot!.getElementById("nav-version");
         // P2 修复（审核）：兜底不再硬编码 "v1.0.0"（网页版 browserAdapter 已实现
         // GetAppVersion 返回 "web"，此处仅剩真失败兜底；硬编码版本与实际发版脱节会误导）

@@ -150,20 +150,13 @@ class AppContent extends WebComponentBase {
       // 初始化预览面板拖拽调整宽度
       this._initPreviewResize();
 
-      if (this._current === "diagnostics") {
-        this._initDiagnostics();
-      } else if (this._current === "settings") {
-        // _initSettings 是 async：外层 try/catch 抓不到 reject，必须显式挂 catch 出口
-        // （ADR-044 ①异步范式：async 调用最外层必有 catch，reject 转 toast 而非 unhandled）
-        void this._initSettings().catch((e) => this._pageInitFailed(e));
-      } else if (this._current === "workshop") {
-        this._initWorkshop();
-      } else if (this._current === "github") {
-        this._initGithub();
-      } else if (this._current === "instances") {
-        this._initInstances();
-      } else if (this._current === "repository") {
-        this._initRepository();
+      // P1-1（子代理审核）：消费注册表 init 字段，替代手动 if/else 链——
+      // 新增页面只需在 PAGE_REGISTRY 添加一行，init 自动执行（不再有死代码）。
+      // async init（如 settings）显式挂 catch 出口（ADR-044 ①：reject 转 toast）；
+      // 同步 init 抛错由外层 try/catch 统一兜底。
+      const initResult = page.init(this as never);
+      if (initResult instanceof Promise) {
+        void initResult.catch((e) => this._pageInitFailed(e));
       }
     } catch (e) {
       // P2 修复（审核）：HTML 装配段（switch+innerHTML）与页 init 统一兜底——

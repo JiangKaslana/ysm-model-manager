@@ -13,6 +13,7 @@ import {
   GROUP_OF,
   groupLabelOf,
   groupStorageRootOf,
+  MMD_SUBTYPES,
 } from "./types.ts";
 import resourceTypesJson from "../../../../resource_types.json";
 
@@ -232,6 +233,19 @@ describe("groupLabelOf 分组显示名", () => {
   it("未知分组返回原样（不炸）", () => {
     expect(groupLabelOf("nonexistent")).toBe("nonexistent");
     expect(groupLabelOf("")).toBe("");
+  });
+});
+
+describe("MMD_SUBTYPES — 用户可导入子目录（与 Go 端 8 项有意裁剪）", () => {
+  it("钉住 6 项，且不含模组内置目录 DefaultAnim/DefaultMorph", () => {
+    // 注释契约（types.ts:110-112）：Go mmdSubdirNames 8 项含 DefaultAnim/DefaultMorph
+    // 内置目录，用户不导入——前端刻意不列出。若未来调整此处，需同步 Go 端并更新本守卫。
+    expect(MMD_SUBTYPES).toHaveLength(6);
+    const subdirs = MMD_SUBTYPES.map((s) => s.subdir.toLowerCase());
+    expect(subdirs).not.toContain("defaultanim");
+    expect(subdirs).not.toContain("defaultmorph");
+    // 首个默认 EntityPlayer（storageSubDir 同款），其余为平铺子目录
+    expect(MMD_SUBTYPES[0].subdir).toBe("");
   });
 });
 

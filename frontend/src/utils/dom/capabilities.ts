@@ -6,6 +6,9 @@
 //   - 网页版（resolveWebMode）：browserAdapter has trap 探测（"X" in browserAdapter，
 //     未实现 binding 返回 false → 能力门控隐藏对应 UI）
 //   - Android viewer：无本地文件系统写能力 → false（Android 桥无对应 binding）
+// 消费方清单（新增消费方前核对语义为「该 binding 当前平台是否可用」，勿误作查看器
+// 模式判定）：app-nav/index.ts:83（ListVersionInstances）、app-tree/bus-handlers.ts、
+// app-tree/events.ts、app-tree/index.ts（如 OpenFileDialog 等）。
 import { readDeclaredBackend, resolveWebMode } from "../../backend/platform.ts";
 import { browserAdapter } from "../../backend/browser-adapter.ts";
 import { getAndroidBridge } from "./android-bridge.ts";

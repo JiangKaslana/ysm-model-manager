@@ -1,20 +1,8 @@
 // ===== sidebar HTML 模板 =====
 import { ALL_RESOURCE_TYPES, RESOURCE_TYPES, typeIconOf } from "../../utils/resource/types.ts";
+import { shortLabelOf } from "../../utils/resource/short-label.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { t } from "../../core/i18n/t.ts";
-
-/** rtype 短标签映射（vcHeaderHTML 徽章） */
-// 注：与 types.ts 的 RESOURCE_TYPE_LABELS 非全等（ysm「YSM」vs「模型」、litematic
-// 「投影文件」vs「投影」），徽章语义不同，不复用
-const RTYPE_LABELS: Record<string, string> = {
-  [RESOURCE_TYPES.YSM]: "YSM",
-  [RESOURCE_TYPES.MMD]: "MMD",
-  [RESOURCE_TYPES.VRC]: "VRC",
-  resourcepack: "资源包",
-  shaderpack: "光影包",
-  "create-blueprint": "蓝图",
-  litematic: "投影文件",
-};
 
 export function headerHTML(): string {
   return (
@@ -115,7 +103,7 @@ export function vcHeaderHTML(
     (missing > 0 && hasMod ? `<span class="tag red">${missing}</span> ` : "") +
     (extra > 0 ? `<span class="tag orange">${extra}</span>` : "") +
     (!hasMod
-      ? `<span class="tag gray">🚫 ${t("sidebar.noMods", { type: RTYPE_LABELS[rtype] || rtype })}</span>`
+      ? `<span class="tag gray">🚫 ${t("sidebar.noMods", { type: shortLabelOf(rtype) || rtype })}</span>`
       : allZero
         ? `<span class="tag">0</span>`
         : "");

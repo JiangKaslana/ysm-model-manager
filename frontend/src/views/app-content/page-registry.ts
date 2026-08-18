@@ -21,8 +21,9 @@ import {
 
 export interface PageDefinition {
   html: () => string;
-  // init 接收组件实例（调用方用 this as never 传入，与 init-pages.ts 接口对齐）
-  init: (host: never) => void;
+  // init 接收组件实例（调用方用 this as never 传入，与 init-pages.ts 接口对齐）。
+  // 可 async（如 settings）；调用方负责 reject 转 toast（ADR-044 ①异步范式）。
+  init: (host: never) => void | Promise<void>;
 }
 
 export const PAGE_REGISTRY: Record<string, PageDefinition> = {

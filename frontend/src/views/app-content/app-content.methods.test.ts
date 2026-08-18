@@ -63,6 +63,7 @@ import { initImportQueue } from "../../features/import-queue.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
 import { startDedup } from "./diagnostics/init.ts";
+import { PAGE_REGISTRY } from "./page-registry.ts";
 import { loadCommunityData } from "./community-data.ts";
 import { tryFetchModels } from "../../features/community/data.ts";
 import { renderSiteView } from "./site-view.ts";
@@ -156,10 +157,10 @@ describe("_render — 页面分支", () => {
     const el = mountContent();
     await sleep(50);
     el._current = "settings";
-    // _render 的 try/catch 只捕获同步 throw（async reject 会变 unhandled，不进 catch）
-    (el as unknown as { _initSettings: () => Promise<void> })._initSettings = vi.fn(() => {
-      throw new Error("boom");
-    }) as unknown as () => Promise<void>;
+    // P1-1（子代理审核）：_render 改直调 PAGE_REGISTRY.init（不再经私有 _initSettings），
+    // 故替换注册表 init 为 reject 验证 async 失败路径 → _pageInitFailed → toast
+    const origInit = PAGE_REGISTRY.settings.init;
+    PAGE_REGISTRY.settings.init = () => Promise.reject(new Error("boom"));
     const toastSpy = vi.fn();
     const unsub = bus.on("toast:show", toastSpy);
     try {
@@ -167,6 +168,7 @@ describe("_render — 页面分支", () => {
       await sleep(20);
       expect(toastSpy).toHaveBeenCalled();
     } finally {
+      PAGE_REGISTRY.settings.init = origInit;
       unsub();
       unmountElement(el);
     }

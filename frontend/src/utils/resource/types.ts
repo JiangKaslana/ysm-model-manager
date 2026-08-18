@@ -105,6 +105,9 @@ export const GROUP_TYPE_OPTIONS: Record<string, Array<{ rtype: string; label: st
 
 /**
  * MMD 子类型目录选项（ADR-094 位置路由，与整合包 3d-skin/ 子目录同款名）。
+ * ⚠️ 大小写约定：subdir 字段恒驼峰原样（如 SceneModel/CustomAnim），消费方比较
+ * 统一 toLowerCase()（renderer/app-nav 同款），新增项须与 Go 端 mmdSubdirNames 对齐
+ * 并同步 types.test.ts 的 6 项守卫。
  * 默认首个为空（= EntityPlayer，即 mmd-skin 的 storageSubDir），
  * 其余为平铺在 FilesRoot/mmd/ 下的 MC-MMD 子目录。
  * ⚠️ 与 go/sync/sync_dirlevel.go 的 mmdSubdirNames（8 项）非严格对齐：
