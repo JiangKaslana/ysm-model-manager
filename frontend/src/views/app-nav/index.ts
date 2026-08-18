@@ -121,11 +121,11 @@ class AppNav extends WebComponentBase {
           )
           .join("")}
       </div>
-      <div class="version" id="nav-version">${t("common.loading")}</div>
       <div class="nav-viewer-fab" data-testid="nav-viewer-fab" title="${t("nav.viewer")}" role="button" tabindex="0">
         <span class="icon">🎲</span>
         <span class="fab-text">${t("nav.viewer")}</span>
       </div>
+      <div class="version" id="nav-version">${t("common.loading")}</div>
     `;
 
     this.shadowRoot!.querySelectorAll(".nav-item").forEach((el) => {
