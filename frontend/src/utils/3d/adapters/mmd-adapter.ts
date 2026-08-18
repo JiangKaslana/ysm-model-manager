@@ -102,7 +102,7 @@ export async function buildMmdScene(
   panels?: MmdPanelHooks,
 ): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
-    '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
+    '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div id="ysm-mmd-progress" style="height:100%;width:5%;background:var(--accent,#7c83ff);border-radius:2px;transition:width 0.2s"></div></div>';
 
   const b64 = await port.readFileBytes(path);
   await mmdDiag(port, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
@@ -175,6 +175,13 @@ export async function buildMmdScene(
   let tBuildEnd = 0;
   // mmd 提升到 onLoad 之前声明（onLoad 统计贴图尺寸需引用；类型取 loadAsync 返回值）
   let mmd: Awaited<ReturnType<MMDLoader["loadAsync"]>> | null = null;
+  // 真实进度条（替代假动画）：MMDLoader 的 FileLoader/TextureLoader 都走本 manager，
+  // loaded/total = 已加载文件数/总文件数（模型 + 纹理），驱动 loadingEl 进度条
+  manager.onProgress = (url: string, loaded: number, total: number): void => {
+    const pct = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
+    const bar = ctx.loadingEl.querySelector<HTMLElement>("#ysm-mmd-progress");
+    if (bar) bar.style.width = `${Math.max(5, pct)}%`;
+  };
   manager.onLoad = async (): Promise<void> => {
     textureLoadedAt = performance.now();
     if (tParseEnd === 0) return; // loadAsync 未完成（异常时序），放弃 perf
