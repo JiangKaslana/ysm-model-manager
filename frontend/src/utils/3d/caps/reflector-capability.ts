@@ -98,7 +98,6 @@ export class ReflectorCapability implements SceneCapability {
     if (!this.enabled) return;
 
     const geometry = new THREE.PlaneGeometry(this.params.size, this.params.size);
-    geometry.rotateX(-Math.PI / 2);
 
     // Reflector 需要渲染目标尺寸与 clipBias；
     // 我们自定义 onBeforeRender 不注入 shader 修改：color/opacity 靠 Reflector.color + 自定义 shader 的 mixColor 分支无法直接访问，

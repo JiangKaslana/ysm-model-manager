@@ -396,7 +396,10 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
 
   setPreset(modelType: string): void {
     const preset = POSTPROC_PRESETS[modelType] ?? POSTPROC_PRESETS.default;
-    this.params = { ...this.params, ...preset };
+    // 反射模式（SSR 三档）是用户显式选择：预设只做合理默认，不覆盖 loadState 恢复的持久化值
+    // （对齐 fog「预设不强制覆盖用户选择」口径，修复重启后 SSR 模式被静默重置为 envmap-only）
+    const { reflectionMode: _presetMode, ...presetRest } = preset;
+    this.params = { ...this.params, ...presetRest };
     this.applyToneMapping();
     if (this.composer) {
       this.buildComposer(); // 重新按预设构建（pass 组合可能改变）
