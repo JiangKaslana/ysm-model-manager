@@ -44,7 +44,7 @@ const THREE_SHADOW_TYPE: Record<ShadowParams["type"], THREE.ShadowMapType> = {
   vsm: THREE.VSMShadowMap,
 };
 
-export const DEFAULT_SHADOW_PARAMS: ShadowParams = {
+const DEFAULT_SHADOW_PARAMS: ShadowParams = {
   enabled: false,
   type: "pcfsoft",
   mapSize: 2048,
@@ -58,7 +58,7 @@ export const DEFAULT_SHADOW_PARAMS: ShadowParams = {
 };
 
 /** 模型类别阴影预设 */
-export const SHADOW_PRESETS: Record<string, Partial<ShadowParams>> = {
+const SHADOW_PRESETS: Record<string, Partial<ShadowParams>> = {
   default: { ...DEFAULT_SHADOW_PARAMS },
   ysm: {
     // 方块：硬边阴影即可，尺寸可小省算力

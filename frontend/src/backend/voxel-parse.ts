@@ -460,7 +460,7 @@ export function nbtVoxelView(root: Record<string, unknown>, maxBlocks: number): 
  * 空气判定按 palette 颜色为空（mapColor 对 air 系返回 ""），非 `palette_id == 0`。
  * 无任何有效 sub_level（缺 local_bounds/blocks）→ null（→ "{}"）。
  */
-export function bedrockVoxelView(subLevels: unknown[], maxBlocks: number): VoxelData | null {
+function bedrockVoxelView(subLevels: unknown[], maxBlocks: number): VoxelData | null {
   interface SubInfo {
     originX: number;
     originY: number;

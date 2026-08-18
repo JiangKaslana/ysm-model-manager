@@ -37,11 +37,11 @@ export async function openEmpty3DFullscreen(): Promise<void> {
 }
 
 /** 清理空场景 3D（WebGL renderer + rAF 循环） */
-export function cleanupEmpty3D(): void {
+function cleanupEmpty3D(): void {
   cleanupPreview();
 }
 
 /** 作废在途空场景加载 */
-export function invalidateEmptyPreview(): void {
+function invalidateEmptyPreview(): void {
   invalidatePreview();
 }

@@ -152,7 +152,7 @@ const SAFE_DISPOSE_TEX_KEYS = [
   "metalnessMap", "aoMap", "lightMap", "alphaMap", "envMap",
 ] as const;
 
-export function safeDisposeMat(m: THREE.Material): void {
+function safeDisposeMat(m: THREE.Material): void {
   for (const key of SAFE_DISPOSE_TEX_KEYS) {
     const tex = (m as unknown as Record<string, unknown | THREE.Texture | null>)[key];
     if (tex && typeof (tex as THREE.Texture).dispose === "function") {

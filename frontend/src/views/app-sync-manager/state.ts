@@ -12,7 +12,7 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 // 历史兼容键（sm-tabs 时代的旧数据）
 export const LAST_TYPE_KEY = "ysm_syncLastType";
 // 全局类型焦点主键（app-nav 双下拉同源）
-export const GLOBAL_RTYPE_KEY = "repo_rtype";
+const GLOBAL_RTYPE_KEY = "repo_rtype";
 // 优先读全局主键，兼容旧键，兜底 YSM
 export let _lastSelectedType =
   safeGet(GLOBAL_RTYPE_KEY) || safeGet(LAST_TYPE_KEY) || RESOURCE_TYPES.YSM;

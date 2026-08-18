@@ -13,12 +13,12 @@ import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import type { BoneSelectInfo, BoneMaps } from "../model3d.ts";
 
 /** 菜单句柄最小接口（解耦 preview-menu.ts 运行时依赖） */
-export interface MenuItemsSink {
+interface MenuItemsSink {
   setAdapterItems(items: PreviewMenuItemDef[]): void;
 }
 
 /** 单条模型记录 */
-export interface ModelEntry {
+interface ModelEntry {
   id: string;
   path: string;
   /** 资源类型（如 ysm/mmd-skin/vrchat-avatar），取自 opts.rtype ?? adapter.id */

@@ -31,7 +31,7 @@ export interface ReflectorParams {
   clipBias: number;
 }
 
-export const DEFAULT_REFLECTOR_PARAMS: ReflectorParams = {
+const DEFAULT_REFLECTOR_PARAMS: ReflectorParams = {
   enabled: false,
   size: 100,
   groundY: 0,
@@ -42,7 +42,7 @@ export const DEFAULT_REFLECTOR_PARAMS: ReflectorParams = {
 };
 
 /** 模型类别反光预设：反光强度按材质风格适配（toon 不要强反射，PBR 角色中等，方块/体素弱） */
-export const REFLECTOR_PRESETS: Record<string, Partial<ReflectorParams>> = {
+const REFLECTOR_PRESETS: Record<string, Partial<ReflectorParams>> = {
   default: { ...DEFAULT_REFLECTOR_PARAMS },
   ysm: {
     // 方块：弱反射，避免镜面太强抢主体

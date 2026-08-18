@@ -18,7 +18,7 @@ const DEBUG_THEME = {
 const _labelTexCache = new Map<string, THREE.CanvasTexture>();
 
 /** 清空标签纹理缓存（debug 组销毁时调用，防长时使用 OOM） */
-export function clearLabelTexCache(): void {
+function clearLabelTexCache(): void {
   for (const tex of _labelTexCache.values()) tex.dispose();
   _labelTexCache.clear();
 }
