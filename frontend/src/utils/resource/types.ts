@@ -107,7 +107,9 @@ export const GROUP_TYPE_OPTIONS: Record<string, Array<{ rtype: string; label: st
  * MMD 子类型目录选项（ADR-094 位置路由，与整合包 3d-skin/ 子目录同款名）。
  * 默认首个为空（= EntityPlayer，即 mmd-skin 的 storageSubDir），
  * 其余为平铺在 FilesRoot/mmd/ 下的 MC-MMD 子目录。
- * 与 go/sync/sync_dirlevel.go 的 mmdSubdirNames 对齐。
+ * ⚠️ 与 go/sync/sync_dirlevel.go 的 mmdSubdirNames（8 项）非严格对齐：
+ * 本列表仅「用户可导入」子目录（6 项）；DefaultAnim/DefaultMorph 为模组系统内置，
+ * 用户不导入——Go 端同步需识别保留、前端下拉刻意不列出，故缺省。
  */
 export const MMD_SUBTYPES: Array<{ label: string; subdir: string }> = [
   { label: "PMX 模型 (EntityPlayer)", subdir: "" },

@@ -332,9 +332,18 @@ ReadFileBytes(Go, base64) → atob → Uint8Array
 
 ## 5. 资源类型系统（`resource_types.json` 单一事实来源）
 
-位于**仓库根**（约 3.4KB），顶层唯一键 `resourceTypes`（数组，7 项）：`resourcepack / shaderpack / ysm / create-blueprint / litematic / mmd-skin / vrchat-avatar`。
+位于**仓库根**（约 3.4KB），顶层唯一键 `resourceTypes`（数组，8 项）：`resourcepack / shaderpack / ysm / create-blueprint / litematic / mmd-skin / vrchat-avatar / maid-model`。
 
-每项字段：`id, name, icon, extensions[], storageSubDir, configField, configFallback?, installDir, scanDir, instanceLevel, preview(3d|thumbnail|none), detector(mcmeta|shader|ysm|extension), isDir?, actions[]`。
+每项字段：`id, name, icon, extensions[], storageSubDir, configField, configFallback?, installDir, scanDir, instanceLevel, preview(3d|thumbnail|none), detector(mcmeta|shader|ysm|zipentry|extension), isDir?, actions[]`。
+
+### installDir vs scanDir 语义（ADR-095 澄清）
+
+| 字段 | 语义 | 消费方 |
+|------|------|--------|
+| `installDir` | 资源**存储目录模板**（相对 mcRoot，如 `versions/{instance}/ysm/`、`resourcepacks/`、`tlm_custom_pack/`）。Go 逻辑层仅 `resolveInstDirTarget`（打开文件夹候选 A/B）消费，前端 resource-manager 实例模式推导 `_rpRoot` 亦用 | 展示 / 导航 |
+| `scanDir` | 模组**加载 / 扫描目录**（相对版本目录，如 `config/yes_steve_model/custom`）。**安装 / 同步 / 统计 / 哈希的锚点**（`FindInstDir` 探测）| 写入 / 数据链路 |
+
+**警示**（ADR-095 教训）：整合包「打开文件夹」曾误用 `scanDir`（模组加载目录）导致打开 `config` 而非资源包目录。「打开」应指向存储 / 模型真身目录。新增类型需两者都给：`installDir` 管「打开给用户看」，`scanDir` 管「模型装哪、模组从哪读」——两者通常不同（ysm 是典型：存储 `versions/{instance}/ysm/`，加载 `config/yes_steve_model/custom`）。
 
 ### 三处消费链（由测试守护一致性）
 

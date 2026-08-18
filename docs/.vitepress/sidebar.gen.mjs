@@ -709,6 +709,10 @@ export const autoSidebar = [
         "link": "/audit-r12-scene-switch-race-2026-08-18"
       },
       {
+        "text": "审计 R13 — Go 侧资源管理审计",
+        "link": "/audit-r13-go-resource-management-2026-08-18"
+      },
+      {
         "text": "第 2 轮审核报告：Go 后端路径层（fileops/sync/installer/recycle/download）",
         "link": "/audit-r2-go-backend-2026-08-18"
       },

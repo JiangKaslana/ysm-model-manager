@@ -488,18 +488,18 @@ func TestResolveInstDirTarget_SableBlueprintFallback(t *testing.T) {
 	}
 }
 
-func TestResolveInstDirTarget_TlmStandard(t *testing.T) {
-	// 候选 A：TLM 注册表条目落地后（并行会话 ADR 链路），标准目录直接命中。
-	// 条件测试：注册表未含 tlm 条目（尚未提交）时跳过，不依赖未提交改动。
-	if types.RegistryType("tlm") == nil {
-		t.Skip("注册表暂无 tlm 条目（并行会话未提交），跳过")
+func TestResolveInstDirTarget_MaidModelStandard(t *testing.T) {
+	// 候选 A：车万女仆（maid-model，原 tlm 条目合并改名）installDir=tlm_custom_pack/，
+	// 标准目录直接命中，不依赖 scanDir/config 探测。条件测试：注册表条目缺失时跳过。
+	if types.RegistryType("maid-model") == nil {
+		t.Skip("注册表暂无 maid-model 条目，跳过")
 	}
 	instDir := t.TempDir()
-	tlmDir := filepath.Join(instDir, "tlm_custom_pack")
-	if err := os.MkdirAll(tlmDir, 0o755); err != nil {
+	packDir := filepath.Join(instDir, "tlm_custom_pack")
+	if err := os.MkdirAll(packDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if got := resolveInstDirTarget(instDir, "tlm"); got != tlmDir {
-		t.Errorf("tlm 标准命中 = %q, 期望 %q", got, tlmDir)
+	if got := resolveInstDirTarget(instDir, "maid-model"); got != packDir {
+		t.Errorf("maid-model 标准命中 = %q, 期望 %q", got, packDir)
 	}
 }
