@@ -31,6 +31,7 @@
    - `minecraft`：`resourcepack`、`shaderpack`（光影包**正式纳入** Minecraft 总目录，此前平铺）；
    - `minecraft-mod`：`ysm`、`create-blueprint`、**新增 `maid-model`（车万女仆基岩模型）**；
    - `mmd`：`mmd-skin`，第 1 层只归并到 mmd 组（`FilesRoot/mmd/mmd`）。**其物理子目录结构已于 2026-08-18 拉取 `upstream/MC-MMD-rust` 源码核实解冻**：真实为 `3d-skin/` 根 + 按用途分的 7 类子目录——`EntityPlayer/`（玩家模型 pmx/pmd/vrm）、`SceneModel/`（场景模型）、`DefaultAnim/` + `CustomAnim/`（动画 vmd/fbx）、`StageAnim/`（舞台包 vmd+mp3/ogg/wav）、`DefaultMorph/` + `CustomMorph/`（表情 vpd）、`shader/`（着色器 glsl）。**推翻初稿「5 子目录含 mp3」假设**：mp3 仅存在于 `StageAnim/<包>/`（舞台配乐），非独立顶层子目录。**mmd 子类型化（mmd-scene / mmd-anim / mmd-morph / mmd-stage / mmd-shader）为第 2 层后续工作，本 ADR 第 1 层不落地。**
+   - **MMD 资源归属澄清（2026-08-18 补充，防第 2 层混淆）**：`shader/`（`.vsh/.fsh`，全局用户自定义渲染管线，`ShaderProvider.java` 编译替换默认渲染，开关 `mmdShaderEnabled`）**独立于模型**，属全局层，第 2 层应建 `mmd-shader` 类型；而 `.spa/.sph`（MMD 模型自带的 Standard/球面反射贴图，pmx 引用）**随模型文件夹走**，不建独立类型，靠 `mmd-skin` 的 `installExts` 覆盖即可（当前已含 `.spa/.sph`）。内置 `.glsl`（compute_skinning/toon_*）是 mod 打包在 assets 的资源，用户不可换，无需类型。
    - `vrm`：`vrchat-avatar`，**独立**，group=`vrm`，不与其他合并。
 4. **向后兼容（不 mass-move）**：存量数据已落在 `FilesRoot/{storageSubDir}`（单级）的保持可读；`GroupStorageRoot` 在无 `group` 时回退单级 `storageSubDir`。仅**新增 / 带 group 的类型**写入两级路径，不强制迁移旧目录。
 5. **`maid-model` 作为新类型**登记（storageSubDir / extensions / detector / installDir / scanDir / actions 另行实现），本 ADR 只锁定其归属 `minecraft-mod`。
@@ -56,6 +57,7 @@
   - `ModelCatalogEntry.java` / `SceneModelCatalog.java` → 玩家与场景模型扫描算法**完全同构**（子文件夹→`.pmx`>`.pmd`>`.vrm`→`model.*`优先→字母序兜底），模型是玩家还是场景**纯靠所在根目录区分**，无类型字段。
   - `AnimationInfo.java` / `ModelAnimConfig.java` → 动画发现支持 `DefaultAnim/` + `CustomAnim/` + 每模型 `anims/` 与模型根目录，格式含 `.vmd` 与 `.fbx`；槽位解析优先级 `animations.json` 映射 → `anims/<槽位>.vmd` → 模型根 `<槽位>.vmd` → `CustomAnim/<槽位>.vmd` → `DefaultAnim/<槽位>.vmd`。
   - `StagePack.java` / `StageConfig.java` → `StageAnim/<包>/` 内 vmd（motion/camera/morph 由 inspector 判定）+ 音频（`.mp3/.ogg/.wav`），`stage_config.json` 记舞台本地偏好。
+  - `ShaderProvider.java` → `shader/` 读 `MMDShader.vsh/.fsh`（用户自定义渲染着色器），与 mod 内置 `.glsl`（`compute_skinning`/`toon_*`，打包在 assets）分属两层；`.spa/.sph` 在 MC-MMD 源码**零引用**（属 MMD 模型自带的材质贴图，非 MC-MMD 引入）。
   - **→ 解冻结论**：mmd-skin 的 `installDir=3d-skin/EntityPlayer/`（当前实现）只覆盖玩家模型，`SceneModel/DefaultAnim/CustomAnim/StageAnim/DefaultMorph/CustomMorph/shader/` 均无对应类型——第 2 层需为这些子目录各建类型（见 §2.3 mmd 条目）。
 
 <!-- 文件名: resource-type-group-routing.md → 实际文件 ADR-092-resource-type-group-routing.md -->
