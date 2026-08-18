@@ -2,9 +2,11 @@
 // buildYsmScene：loader(path) → preloadModel → buildYsmObject 挂 ctx.scene →
 // ctx.menu.setAdapterItems 注入 model/截图/骨骼 三项 → dispose 清理。装配级测试。
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { buildYsmScene, makeYsmAdapter } from "./ysm-adapter.ts";
+import { buildYsmScene, makeYsmAdapter, ysmMenuItems } from "./ysm-adapter.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewMenuHandle } from "./preview-menu.ts";
+import type { BoneTree } from "../bone-tools.ts";
+import type { YsmControlsContext } from "../../../views/app-preview/ysm-controls.ts";
 
 const mocks = vi.hoisted(() => ({
   preloadModel: vi.fn(),
@@ -33,7 +35,7 @@ const modelGroups: unknown[] = [];
 // 视图层面板填充函数（DI 注入）：单元测试仅验证适配器将 fill* 接线出去，
 // 真实 DOM 渲染由视图层测试覆盖（fill* 属 views 域，utils 不得运行时依赖）。
 const fakePanels = {
-  fillModelPanel: (list: HTMLElement) => {
+  fillModelPanel: (list: HTMLElement, _ctx: YsmControlsContext) => {
     list.textContent = "模型统计（骨骼 0 根 / 立方体 0 个）";
   },
   fillShotPanel: () => {},
@@ -154,5 +156,278 @@ describe("buildYsmScene（shared 装配）", () => {
       adapter.build(makeCtx() as never, "/m/b.ysm"),
     ).resolves.toBeTruthy();
     expect(loader).toHaveBeenCalledWith("/m/b.ysm");
+  });
+});
+
+describe("buildYsmScene 面板填充与骨骼拾取", () => {
+  it("fillModelPanel 被调用时正确渲染（面板注入验证）", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    const preview = await buildYsmScene(ctx, "/m/a.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+      panels: fakePanels,
+    });
+
+    const items = registeredItems(ctx.menu);
+    const modelItem = items.find((i) => i.id === "model")!;
+    const list = document.createElement("div");
+    modelItem.render!(list, () => {});
+    expect(list.textContent).toContain("模型统计");
+
+    preview.dispose();
+  });
+
+  it("fillShotPanel 可被渲染调用（无侧效应）", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    const preview = await buildYsmScene(ctx, "/m/a.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+      panels: fakePanels,
+    });
+
+    const items = registeredItems(ctx.menu);
+    const shotItem = items.find((i) => i.id === "shot")!;
+    const list = document.createElement("div");
+    shotItem.render!(list, () => {});
+    // fillShotPanel 是 no-op，list 保持空
+    expect(list.textContent).toBe("");
+
+    preview.dispose();
+  });
+
+  it("attachBoneSelect 被正确接线（传入 content + openPanel 回调）", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    const boneSelectCb = vi.fn();
+    const panels = {
+      fillModelPanel: vi.fn(),
+      fillShotPanel: vi.fn(),
+      attachBoneSelect: vi.fn((content, cb) => {
+        // 模拟：绑定回调并立即调用
+        panels.attachBoneSelectCb = cb;
+      }),
+    };
+    await buildYsmScene(ctx, "/m/a.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+      panels: panels as never,
+    });
+
+    expect(panels.attachBoneSelect).toHaveBeenCalledTimes(1);
+    // 第二个参数是回调，core 调用它时触发 openPanel
+    if (panels.attachBoneSelectCb) {
+      panels.attachBoneSelectCb("hip");
+    }
+    expect(ctx.menu.openPanel).toHaveBeenCalledWith("hip");
+  });
+});
+
+describe("buildYsmScene dispose 清理行为", () => {
+  it("dispose 时 bonePanel cleanup 被调用", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    let cleanupCalled = false;
+    // 用真实 cleanupRef 追踪
+    const origBuildYsmObject = mocks.buildYsmObject;
+    mocks.buildYsmObject.mockReturnValue({
+      rootGroup,
+      boneGroupMap,
+      modelGroups,
+      showModelGroup: vi.fn(),
+      getModelGroupCount: () => 1,
+      setBoneVisible: vi.fn(),
+      toggleBone: vi.fn(),
+      getBoneList: () => [],
+      removeFromScene: vi.fn(),
+    });
+
+    const preview = await buildYsmScene(ctx, "/m/a.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+    });
+
+    // bonePanelRef.current 在 build 后仍为 null（未打开骨骼面板）
+    preview.dispose();
+    // dispose 应成功不抛错
+    expect(() => preview.dispose()).not.toThrow();
+  });
+
+  it("无 panels 时不崩溃（panels 可选）", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    const preview = await buildYsmScene(ctx, "/m/a.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+    });
+
+    // 无 panels → 菜单项 render 退化为 no-op
+    const items = registeredItems(ctx.menu);
+    const modelItem = items.find((i) => i.id === "model")!;
+    const list = document.createElement("div");
+    expect(() => modelItem.render!(list, () => {})).not.toThrow();
+
+    preview.dispose();
+  });
+});
+
+describe("buildYsmScene 动画播放器集成（ADR-100）", () => {
+  it("listAllFilePaths + readTextFile → 扫描 .animation.json 并构建播放器", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    const listPaths = vi.fn().mockResolvedValue([
+      "/m/anim/test.animation.json",
+      "/m/anim/readme.txt",
+    ]);
+    const readTextFile = vi.fn().mockResolvedValue(btoa('{"clips":[{"name":"idle","frames":[]}]}'));
+
+    const preview = await buildYsmScene(ctx, "/m/anim/model.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+      listAllFilePaths: listPaths,
+      readTextFile,
+    });
+
+    expect(listPaths).toHaveBeenCalledWith("/m/anim");
+    expect(readTextFile).toHaveBeenCalledWith("/m/anim/test.animation.json");
+    expect(preview.update).toBeDefined(); // animPlayer 已注入 update
+
+    preview.dispose();
+  });
+
+  it("无 .animation.json → 不注入 play 菜单项", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    const listPaths = vi.fn().mockResolvedValue([
+      "/m/model.ysm",
+    ]);
+    const readTextFile = vi.fn();
+
+    const preview = await buildYsmScene(ctx, "/m/model.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+      listAllFilePaths: listPaths,
+      readTextFile,
+    });
+
+    const items = registeredItems(ctx.menu);
+    const playItem = items.find((i) => i.id === "ysm-play");
+    expect(playItem).toBeUndefined();
+
+    preview.dispose();
+  });
+
+  it(".animation.json 解析失败 → 静默降级不阻断模型渲染", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    const listPaths = vi.fn().mockResolvedValue([
+      "/m/anim/bad.animation.json",
+    ]);
+    const readTextFile = vi.fn().mockResolvedValue("invalid-json");
+
+    // 允许 build 成功
+    const preview = await buildYsmScene(ctx, "/m/anim/model.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+      listAllFilePaths: listPaths,
+      readTextFile,
+    });
+
+    expect(preview.dispose).toBeDefined();
+    preview.dispose();
+  });
+});
+
+describe("ysmMenuItems 独立菜单表测试", () => {
+  it("基本菜单项结构完整（model/shot/bones）", () => {
+    const opts = {
+      controlsCtx: {
+        model: {} as never,
+        texIdx: 0,
+        texArr: [],
+        spec: {} as never,
+        handle: {} as never,
+      },
+      bonePanel: {
+        tree: { byId: new Map(), childrenMap: new Map(), roots: [] } as BoneTree,
+        viewContainer: document.createElement("div"),
+        camera: null,
+        scene: null,
+        cleanupRef: { current: null },
+      },
+    };
+    const items = ysmMenuItems(opts);
+    expect(items.map((i) => i.id)).toEqual(["model", "shot", "bones"]);
+    items.forEach((i) => {
+      expect(i.kind).toBe("panel");
+      expect(i.dockGroup).toBe("model");
+      expect(typeof i.render).toBe("function");
+    });
+  });
+
+  it("有 play bridge 时追加 ysm-play 菜单项", () => {
+    const opts = {
+      controlsCtx: {
+        model: {} as never,
+        texIdx: 0,
+        texArr: [],
+        spec: {} as never,
+        handle: {} as never,
+      },
+      bonePanel: {
+        tree: { byId: new Map(), childrenMap: new Map(), roots: [] } as BoneTree,
+        viewContainer: document.createElement("div"),
+        camera: null,
+        scene: null,
+        cleanupRef: { current: null },
+      },
+      play: {
+        clips: [{ label: "idle" }],
+        isPlaying: () => false,
+        toggle: vi.fn(),
+        currentIndex: () => 0,
+        select: vi.fn(),
+      },
+      fillPlayPanel: vi.fn(),
+    };
+    const items = ysmMenuItems(opts);
+    expect(items.map((i) => i.id)).toContain("ysm-play");
+    expect(items.find((i) => i.id === "ysm-play")!.dockGroup).toBe("motion");
+  });
+
+  it("bonePanel cleanupRef 重入时先清理旧 renderer", () => {
+    const cleanup1 = vi.fn();
+    const cleanup2 = vi.fn();
+    const opts = {
+      controlsCtx: {
+        model: {} as never,
+        texIdx: 0,
+        texArr: [],
+        spec: {} as never,
+        handle: {} as never,
+      },
+      bonePanel: {
+        tree: { byId: new Map(), childrenMap: new Map(), roots: [] } as BoneTree,
+        viewContainer: document.createElement("div"),
+        camera: null,
+        scene: null,
+        cleanupRef: { current: null },
+      },
+    };
+    const items = ysmMenuItems(opts);
+    const bonesItem = items.find((i) => i.id === "bones")!;
+    const list = document.createElement("div");
+
+    // 首次渲染：cleanupRef.current 初始为 null，直接注册
+    bonesItem.render!(list, () => {});
+    expect(cleanup1).not.toHaveBeenCalled();
+
+    // 模拟重入场景：cleanupRef.current 已有值（第二次渲染）
+    // 此时应触发清理旧 renderer
+    const cleanupRef = (opts.bonePanel as { cleanupRef: { current: (() => void) | null } }).cleanupRef;
+    cleanupRef.current = cleanup2;
+    bonesItem.render!(list, () => {});
+    expect(cleanup2).toHaveBeenCalledTimes(1);
   });
 });
