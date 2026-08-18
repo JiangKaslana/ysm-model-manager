@@ -756,6 +756,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-095：OpenInstanceFolder 打开资源存储目录而非模组扫描目录",
+        "link": "/adr/ADR-095-open-folder-installdir"
+      },
+      {
         "text": "ADR-094：MMD 子类型位置路由：3d-skin 目录层级优先于扩展名",
         "link": "/adr/ADR-094-mmd-subdir-position-routing"
       },

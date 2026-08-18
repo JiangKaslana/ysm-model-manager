@@ -128,8 +128,6 @@ function disposeContent(state: PackState, scene: THREE.Scene): void {
       try { mesh.geometry?.dispose(); } catch {}
       const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
       for (const m of mats) {
-        const tex = (m as THREE.MeshStandardMaterial).map;
-        if (tex) { try { tex.dispose(); } catch {} }
         try { m.dispose(); } catch {}
       }
     });
