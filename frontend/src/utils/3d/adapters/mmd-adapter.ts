@@ -167,6 +167,11 @@ export async function buildMmdScene(
 
   // ---- URLModifier：模型自身 + 纹理 URL → blob URL（未命中原样返回，toon 内置 dataURL 天然放行）----
   const manager = new THREE.LoadingManager();
+  // 诊断（环形日志）：纹理加载完成打点——loadAsync resolve 后贴图仍可能异步解码，onLoad 捕捉其终点
+  let textureLoadedAt = 0;
+  manager.onLoad = (): void => {
+    textureLoadedAt = performance.now();
+  };
   manager.setURLModifier((url: string): string => {
     const lower = url.toLowerCase().replace(/\\/g, "/");
     // 最长路径后缀匹配（保留目录上下文：同名纹理在不同子目录时各归其位，basename 冲突兜底）
@@ -183,6 +188,7 @@ export async function buildMmdScene(
 
   const loader = new MMDLoader(manager);
   let mmd;
+  const tParseStart = performance.now();
   try {
     mmd = await loader.loadAsync(path);
   } catch (e) {
@@ -198,6 +204,7 @@ export async function buildMmdScene(
     "ok",
     `bones=${mmd.pmx?.bones?.length ?? 0} mats=${mmd.pmx?.materials?.length ?? 0} morphs=${mmd.pmx?.morphs?.length ?? 0}`,
   );
+  const tParseEnd = performance.now();
   const mesh = mmd.mesh;
   try {
     ctx.scene!.add(mesh);
@@ -428,6 +435,16 @@ export async function buildMmdScene(
         }
       : undefined,
   };
+  // 诊断（环形日志）：MMD 加载三段耗时——parse（loadAsync 解析+几何）/ texture（贴图剩余解码）/ build（场景装配+VMD/VPD）
+  const buildStart = Math.max(tParseEnd, textureLoadedAt || tParseEnd);
+  const textureMs = textureLoadedAt > 0 ? Math.max(0, textureLoadedAt - tParseEnd) : -1;
+  await mmdDiag(
+    port,
+    "perf",
+    path,
+    "ok",
+    `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${textureMs < 0 ? "?" : Math.round(textureMs) + "ms"} build=${Math.round(performance.now() - buildStart)}ms`,
+  );
   return result;
   } finally {
     // 防御：若 build 中途 throw（scene.add 之后、return 之前），
