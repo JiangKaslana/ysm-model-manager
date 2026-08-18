@@ -16,6 +16,7 @@ import {
 import { screenshotFromRenderer } from "../screenshot.ts";
 import { loadMcTints, getTintColorSync } from "../mc-tints.ts";
 import type { PreviewAdapter, PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
+import { textureCache } from "../texture-cache.ts";
 
 /** Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） */
 export interface PackDeps {
@@ -62,10 +63,17 @@ async function textureFor(
   if (face.texEntry) {
     const b64 = await deps.readEntry(path, face.texEntry);
     if (b64) {
-      const tex = await new THREE.TextureLoader().loadAsync(b64ToDataURL(b64));
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.magFilter = THREE.NearestFilter;
-      tex.minFilter = THREE.NearestFilter;
+      const dataUrl = b64ToDataURL(b64);
+      const tex = textureCache.acquire(dataUrl, (u) => {
+        const t = new THREE.Texture(new Image());
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.magFilter = THREE.NearestFilter;
+        t.minFilter = THREE.NearestFilter;
+        const img = t.image as HTMLImageElement;
+        img.onload = (): void => { t.needsUpdate = true; };
+        img.src = u;
+        return t;
+      });
       return new THREE.MeshStandardMaterial({ map: tex, roughness: 1.0, metalness: 0.0 });
     }
   }

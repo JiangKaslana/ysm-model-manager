@@ -5,6 +5,7 @@ import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { buildSpecFromGeometryJSON } from "../../utils/3d/spec-builder.ts";
+import { textureCache } from "../../utils/3d/texture-cache.ts";
 
 /** 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） */
 export interface ModelLike {
@@ -45,35 +46,46 @@ function getCachedSpec(path: string): string | undefined {
   return data;
 }
 
-/** 并行加载纹理 URL 列表，返回 THREE.Texture 数组 */
+/** 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） */
 export async function loadTextures(urls?: string[]): Promise<(THREE.Texture | null)[]> {
   if (!urls?.length) return [];
-  const texMap = new Map<string, THREE.Texture>();
-  const loads = urls.filter(Boolean).map(
-    (url) =>
-      new Promise<void>((resolve) => {
-        const img = new Image();
-        img.onload = (): void => {
-          const tex = new THREE.Texture(img);
-          tex.flipY = false;
-          tex.minFilter = THREE.NearestFilter;
-          tex.magFilter = THREE.NearestFilter;
-          tex.colorSpace = THREE.SRGBColorSpace;
-          tex.needsUpdate = true;
-          tex.userData.imgWidth = img.naturalWidth;
-          tex.userData.imgHeight = img.naturalHeight;
-          texMap.set(url, tex);
-          resolve();
-        };
-        img.onerror = (): void => resolve();
-        img.src = url;
-      }),
+  const texArr: (THREE.Texture | null)[] = urls.map((url) => {
+    if (!url) return null;
+    return textureCache.acquire(url, (u) => {
+      // 缓存未命中：创建新纹理
+      const img = new Image();
+      // 同步创建，异步填充——acquire 需要立即返回 Texture 实例
+      const tex = new THREE.Texture(img);
+      tex.flipY = false;
+      tex.minFilter = THREE.NearestFilter;
+      tex.magFilter = THREE.NearestFilter;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      // 异步加载图片并更新纹理
+      img.onload = (): void => {
+        tex.needsUpdate = true;
+        tex.userData.imgWidth = img.naturalWidth;
+        tex.userData.imgHeight = img.naturalHeight;
+      };
+      img.src = u;
+      return tex;
+    });
+  });
+  // 等待所有图片加载完成（确保 needsUpdate 已触发）
+  await Promise.all(
+    texArr.map((tex, i) =>
+      tex && urls[i]
+        ? new Promise<void>((resolve) => {
+            const img = tex.image;
+            if (img && typeof (img as HTMLImageElement).complete === "boolean" && (img as HTMLImageElement).complete) { resolve(); return; }
+            const check = (): void => {
+              if (img && typeof (img as HTMLImageElement).complete === "boolean" && (img as HTMLImageElement).complete) resolve();
+              else setTimeout(check, 50);
+            };
+            check();
+          })
+        : Promise.resolve(),
+    ),
   );
-  await Promise.all(loads);
-  // 失败项保留 null **占位**（不 filter 压缩索引）：多组件 spec 的 texIdx 是全局组件序
-  // （0,1,2...），压缩会让后续组件索引漂移 → 贴错纹理（P1）。消费端用 `texArr[i] ?? texArr[0]`
-  // 降级到 fallback 颜色，不影响其他组件索引。
-  const texArr: (THREE.Texture | null)[] = urls.map((url) => texMap.get(url) ?? null);
   if (texArr.every((t) => t === null))
     console.warn("[3D] 纹理加载失败，模型将显示为 fallback 颜色");
   return texArr;
