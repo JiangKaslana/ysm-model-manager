@@ -326,6 +326,13 @@ export interface ModelEntry {
      * 是否有标签
      */
     "HasTags": boolean;
+
+    /**
+     * SubDir MMD 用途子目录分组（ADR-096）：文件位于 mmdSubdirNames 命中的
+     * 用途子目录内时填子目录名（如 SceneModel/CustomAnim）；根下或其他类型恒为 ""。
+     * 前端据此按子目录分组展示，无需从 Path 推导。
+     */
+    "subdir"?: string;
 }
 
 /**

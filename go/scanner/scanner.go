@@ -269,6 +269,14 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 		e := types.ModelEntry{Name: filepath.Base(p), Path: p, Ext: originalExt}
 		e.Size = info.Size()
 		e.ModTime = info.ModTime().UnixMilli()
+		// ADR-096：填充 MMD 用途子目录分组。扫描 MMD group 根时，若文件
+		// 位于 mmdSubdirNames 命中的用途子目录内，标记 SubDir 供前端分组展示。
+		// 非 MMD 类型 / 根下文件恒为 ""（omitempty 不序列化）。
+		if rel, rerr := filepath.Rel(dir, p); rerr == nil {
+			if firstDir := strings.Split(rel, string(filepath.Separator))[0]; types.IsMMDSubDir(firstDir) {
+				e.SubDir = firstDir
+			}
+		}
 		// 计算 SHA256 供同步系统使用（GetInstanceStatus 依赖哈希匹配）
 		// 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）
 		// 蓝图文件（.nbt/.schematic/.litematic）通常较小，计入哈希以支持同步对比

@@ -168,6 +168,44 @@ func TestListModelAuthors_EmptyEntries(t *testing.T) {
 	}
 }
 
+// TestScanEntries_MMDSubDir ADR-096：扫描 MMD group 根时，文件位于 mmdSubdirNames
+// 命中的用途子目录内 → SubDir 填子目录名；根下文件 / 非 MMD 类型恒为 ""。
+func TestScanEntries_MMDSubDir(t *testing.T) {
+	dir := t.TempDir()
+	// 根下文件（EntityPlayer 默认）→ SubDir=""
+	_ = os.WriteFile(filepath.Join(dir, "root.ysm"), []byte("x"), 0644)
+	// SceneModel 子目录 → SubDir="SceneModel"
+	sceneDir := filepath.Join(dir, "SceneModel")
+	_ = os.MkdirAll(sceneDir, 0755)
+	_ = os.WriteFile(filepath.Join(sceneDir, "scene.ysm"), []byte("x"), 0644)
+	// CustomAnim 子目录 → SubDir="CustomAnim"
+	animDir := filepath.Join(dir, "CustomAnim")
+	_ = os.MkdirAll(animDir, 0755)
+	_ = os.WriteFile(filepath.Join(animDir, "anim.ysm"), []byte("x"), 0644)
+	// 非 MMD 子目录名（不命中 mmdSubdirNames）→ SubDir=""
+	otherDir := filepath.Join(dir, "OtherDir")
+	_ = os.MkdirAll(otherDir, 0755)
+	_ = os.WriteFile(filepath.Join(otherDir, "other.ysm"), []byte("x"), 0644)
+
+	entries := ScanEntries(dir)
+	got := map[string]string{}
+	for _, e := range entries {
+		got[e.Name] = e.SubDir
+	}
+	if got["root.ysm"] != "" {
+		t.Errorf("根下文件 SubDir 应为空, got %q", got["root.ysm"])
+	}
+	if got["scene.ysm"] != "SceneModel" {
+		t.Errorf("SceneModel 下文件 SubDir 应为 SceneModel, got %q", got["scene.ysm"])
+	}
+	if got["anim.ysm"] != "CustomAnim" {
+		t.Errorf("CustomAnim 下文件 SubDir 应为 CustomAnim, got %q", got["anim.ysm"])
+	}
+	if got["other.ysm"] != "" {
+		t.Errorf("非 MMD 子目录文件 SubDir 应为空, got %q", got["other.ysm"])
+	}
+}
+
 func TestScanEntries_WalkErrorTolerated(t *testing.T) {
 	// 目录不可读时 WalkDir 报错但不中断（返回已有条目）
 	dir := t.TempDir()

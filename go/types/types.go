@@ -26,6 +26,10 @@ type ModelEntry struct {
 	Hash    string `json:"Hash"`    // SHA256
 	ModTime int64  `json:"ModTime"` // Unix 时间戳（毫秒）
 	HasTags bool   `json:"HasTags"` // 是否有标签
+	// SubDir MMD 用途子目录分组（ADR-096）：文件位于 mmdSubdirNames 命中的
+	// 用途子目录内时填子目录名（如 SceneModel/CustomAnim）；根下或其他类型恒为 ""。
+	// 前端据此按子目录分组展示，无需从 Path 推导。
+	SubDir string `json:"subdir,omitempty"`
 }
 
 // ImportFileItem 文件夹型模型整组导入的文件项（ADR-038 关联：解压目录整组导入）
