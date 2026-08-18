@@ -591,6 +591,22 @@ func isPowerOf2(n int) bool {
 	return n > 0 && (n&(n-1)) == 0
 }
 
+// ============ CLI 常量定义 ============
+
+// CLI 阈值常量：复用 types 包中的共享常量，避免硬编码
+const (
+	// cliLargeFileThreshold 大文件阈值（1MB），用于筛选需要性能测试的文件
+	cliLargeFileThreshold = 1 * 1024 * 1024
+	// cliScanLargeFileThreshold 扫描大文件阈值（10MB），用于标识需要关注的文件
+	cliScanLargeFileThreshold = 10 * 1024 * 1024
+	// cliTextureLargeWarning 贴图大小警告阈值（32MB）
+	cliTextureLargeWarning = 32 * 1024 * 1024
+	// cliPerformanceWarning 性能警告阈值（100MB）
+	cliPerformanceWarning = 100 * 1024 * 1024
+	// cliPerformanceCaution 性能警告阈值（50MB）
+	cliPerformanceCaution = 50 * 1024 * 1024
+)
+
 // ============ MMD 相关命令 ============
 
 // fileBenchResult 文件基准测试结果
@@ -658,7 +674,7 @@ func runFileBench(a *app.App, args []string) error {
 	}
 
 	if len(files) == 0 {
-		fmt.Println("📭 没有找到大于 1MB 的文件")
+		fmt.Printf("📭 没有找到大于 %s 的文件\n", formatSize(cliLargeFileThreshold))
 		return nil
 	}
 
@@ -877,7 +893,7 @@ func runScanDir(a *app.App, args []string) error {
 		}
 	)
 
-	threshold := int64(10 * 1024 * 1024) // 10MB
+	threshold := cliScanLargeFileThreshold
 
 	err := filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -1133,12 +1149,12 @@ func runAnalyzeMMD(a *app.App, args []string) error {
 		fmt.Printf("\n⚠️  性能预警:\n")
 		largeTextures := 0
 		for _, ti := range texInfos {
-			if ti.size > 32*1024*1024 { // > 32MB
+			if ti.size > cliTextureLargeWarning {
 				largeTextures++
 			}
 		}
 		if largeTextures > 0 {
-			fmt.Printf("   🔴 有 %d 个贴图大于 32MB，建议压缩或转换为 KTX2\n", largeTextures)
+			fmt.Printf("   🔴 有 %d 个贴图大于 %s，建议压缩或转换为 KTX2\n", largeTextures, formatSize(cliTextureLargeWarning))
 		} else {
 			fmt.Printf("   ✅ 无超大贴图\n")
 		}
@@ -1165,13 +1181,13 @@ func runAnalyzeMMD(a *app.App, args []string) error {
 	totalAssetsSize := modelSize + textureSize
 	fmt.Printf("   模型+贴图总大小: %s\n", formatSize(totalAssetsSize))
 
-	if totalAssetsSize > 100*1024*1024 {
-		fmt.Printf("   🔴 大于 100MB，首次加载预计 > 10s\n")
+	if totalAssetsSize > cliPerformanceWarning {
+		fmt.Printf("   🔴 大于 %s，首次加载预计 > 10s\n", formatSize(cliPerformanceWarning))
 		fmt.Printf("   💡 建议: 使用 KTX2 压缩贴图，可减少 60-70% 体积\n")
-	} else if totalAssetsSize > 50*1024*1024 {
-		fmt.Printf("   🟡 50-100MB，首次加载可能 5-10s\n")
+	} else if totalAssetsSize > cliPerformanceCaution {
+		fmt.Printf("   🟡 %s-%s，首次加载可能 5-10s\n", formatSize(cliPerformanceCaution), formatSize(cliPerformanceWarning))
 	} else {
-		fmt.Printf("   🟢 小于 50MB，加载性能应该可以接受\n")
+		fmt.Printf("   🟢 小于 %s，加载性能应该可以接受\n", formatSize(cliPerformanceCaution))
 	}
 
 	return nil
