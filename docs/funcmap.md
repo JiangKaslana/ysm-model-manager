@@ -328,7 +328,7 @@
 |------|--------|------|
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:38` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:54` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
