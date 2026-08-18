@@ -28,6 +28,25 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 			return true
 		}
 	}
+	// ADR-095 maid-model（车万女仆）：模型包结构 assets/<namespace>/maid_model.json
+	// （CustomPackLoader 源码核实），入口文件在深层，需检查 assets 子目录
+	if rtype == "maid-model" {
+		assetsDir := filepath.Join(path, "assets")
+		nsDirs, err := os.ReadDir(assetsDir)
+		if err != nil {
+			return false
+		}
+		for _, ns := range nsDirs {
+			if !ns.IsDir() {
+				continue
+			}
+			for _, entry := range []string{"maid_model.json", "chair_model.json"} {
+				if info, err := os.Stat(filepath.Join(assetsDir, ns.Name(), entry)); err == nil && !info.IsDir() {
+					return true
+				}
+			}
+		}
+	}
 	return false
 }
 

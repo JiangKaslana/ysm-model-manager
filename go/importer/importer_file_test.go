@@ -109,6 +109,12 @@ func TestDetectZipType(t *testing.T) {
 	if got := DetectZipType(buildZip("models/thing/body.json")); got != "ysm" {
 		t.Fatalf("models/ 应识别为 ysm: %s", got)
 	}
+	if got := DetectZipType(buildZip("assets/my_pack/maid_model.json")); got != "maid-model" {
+		t.Fatalf("assets/.../maid_model.json 应识别为 maid-model: %s", got)
+	}
+	if got := DetectZipType(buildZip("assets/my_pack/chair_model.json")); got != "maid-model" {
+		t.Fatalf("assets/.../chair_model.json 应识别为 maid-model: %s", got)
+	}
 	if got := DetectZipType([]byte("notzip")); got != "" {
 		t.Fatalf("非 ZIP 应返回空（识别不出就是识别不出）: %q", got)
 	}

@@ -14,6 +14,7 @@ export const RESOURCE_TYPES: Record<string, string> = {
   SHADER: "shaderpack",
   BLUEPRINT: "create-blueprint",
   LITEMATIC: "litematic",
+  MAID: "maid-model",
 };
 
 /** 资源类型显示标签（内部 ID → 中文名） */
@@ -25,6 +26,7 @@ export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   shaderpack: "光影包",
   "create-blueprint": "蓝图",
   litematic: "投影",
+  "maid-model": "车万女仆",
 };
 
 /** JSON 条目（缺 id 的脏数据过滤掉，防 undefined 混入类型列表） */

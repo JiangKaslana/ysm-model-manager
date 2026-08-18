@@ -151,6 +151,33 @@
       ]
     },
     {
+      "id": "maid-model",
+      "name": "车万女仆模型",
+      "icon": "🧸",
+      "group": "minecraft-mod",
+      "extensions": [
+        ".zip"
+      ],
+      "storageSubDir": "maid-model",
+      "installDir": "tlm_custom_pack/",
+      "scanDir": "tlm_custom_pack",
+      "instanceLevel": true,
+      "preview": "none",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": "maid_model.json", "match": "suffix" },
+        { "name": "chair_model.json", "match": "suffix" }
+      ],
+      "isDir": true,
+      "dirLevelSync": true,
+      "installExts": [".json", ".png", ".js"],
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
+    },
+    {
       "id": "mmd-skin",
       "name": "MMD 角色模型",
       "icon": "🎭",

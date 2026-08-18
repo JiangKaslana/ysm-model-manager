@@ -29,6 +29,7 @@ describe("RESOURCE_TYPES 标签映射", () => {
       SHADER: "shaderpack",
       BLUEPRINT: "create-blueprint",
       LITEMATIC: "litematic",
+      MAID: "maid-model",
     });
   });
 });
