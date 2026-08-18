@@ -2,7 +2,8 @@
 // 接入通用骨骼工具层（bone-tools.ts）+ VRM 适配（vrm-bone.ts）：
 // 列表（深度缩进 + 显隐勾选）/ 详情（路径/坐标/父/子）/ 拾取联动（click 3D → 高亮 + 详情）。
 // 不复用 site/render.ts 的内联卡片工厂（创作者专用，非通用模块）——原生直绘更轻。
-// 经 vrm-adapter 的 extraControls（topBar 按钮）+ extraPanel（本面板）挂入 core 外壳。
+// Phase 3 收编：骨骼面板渲染器现在通过 vrmMenuItems 的 panel render 回调挂入根菜单，
+// 不再依赖 extraControls(topBar) 或 extraPanel 机制。
 
 import * as THREE from "three";
 import type { VRM } from "@pixiv/three-vrm";

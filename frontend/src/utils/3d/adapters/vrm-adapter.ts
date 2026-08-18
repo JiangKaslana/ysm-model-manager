@@ -253,6 +253,7 @@ export async function buildVrmScene(
   // ADR-074 S2 骨骼面板接入：经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单专属项（ADR-076 v2 Phase 2）。
   // 旧版经 extraControls 加「🦴 骨骼」按钮 → querySelector("#preview-panel") 恒 null（core 仅在适配器
   // 返回 extraPanel 时才建 #preview-panel），按钮实为死按钮——改走声明式根菜单契约（对齐 ysm-adapter）。
+  // Phase 3 收编后 extraPanel 机制已移除，所有适配器面板统一走声明式根菜单。
   // 菜单表提取为可导出 vrmMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
   const bonePanelRef: { current: (() => void) | null } = { current: null };
   const boneTree = buildVrmBoneTree(vrm);

@@ -915,6 +915,7 @@ export const en: Record<string, string> = {
   "preview.formatVersion": "Format Version",
   "preview.noBlockData": "No block data",
   "preview.sliceAxis": "Slice Axis",
+  "preview.sliceControl": "Slice Control",
   "preview.voxelEmpty": "Voxel data is empty",
   "preview.blockLimit": "Block count exceeds limit ({max}), showing partial content",
   "preview.clickFileHint": "Click a file in the left repository to view details",

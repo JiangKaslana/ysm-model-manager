@@ -27,12 +27,12 @@ export interface CameraControlBridge {
 const MIN_CAM_SPEED = 2;
 const MAX_CAM_SPEED = 200;
 
-/** 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 */
-export function buildCameraControls(topBar: HTMLElement, bridge: CameraControlBridge): void {
+/** 在根菜单 camera 面板内追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 */
+export function buildCameraControls(list: HTMLElement, bridge: CameraControlBridge): void {
   const rotLabel = document.createElement("span");
   rotLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
   rotLabel.textContent = t("preview.cameraRotation") + ":";
-  topBar.appendChild(rotLabel);
+  list.appendChild(rotLabel);
 
   const rotSel = document.createElement("select");
   rotSel.className = "setting-select"; // 🥉 ui/ 库下拉样式（§19）
@@ -53,12 +53,12 @@ export function buildCameraControls(topBar: HTMLElement, bridge: CameraControlBr
     bridge.setOrbit(v);
     safeSet("td-rot-mode", v ? "orbit" : "free");
   };
-  topBar.appendChild(rotSel);
+  list.appendChild(rotSel);
 
   const spdLabel = document.createElement("span");
   spdLabel.style.cssText = "font-size:11px;color:rgba(255,255,255,0.5)";
   spdLabel.textContent = t("preview.cameraSpeed") + ":";
-  topBar.appendChild(spdLabel);
+  list.appendChild(spdLabel);
 
   const spdSlider = document.createElement("input");
   spdSlider.type = "range";
@@ -66,12 +66,12 @@ export function buildCameraControls(topBar: HTMLElement, bridge: CameraControlBr
   spdSlider.max = String(MAX_CAM_SPEED);
   spdSlider.value = String(bridge.getSpeed());
   spdSlider.style.cssText = "width:80px;margin:0 4px;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-  topBar.appendChild(spdSlider);
+  list.appendChild(spdSlider);
 
   const spdVal = document.createElement("span");
   spdVal.style.cssText = "font-size:11px;color:rgba(255,255,255,0.6);min-width:20px";
   spdVal.textContent = String(bridge.getSpeed());
-  topBar.appendChild(spdVal);
+  list.appendChild(spdVal);
 
   spdSlider.oninput = (): void => {
     spdVal.textContent = spdSlider.value;
@@ -85,5 +85,5 @@ export function buildCameraControls(topBar: HTMLElement, bridge: CameraControlBr
     title: "重置相机视角到初始位置",
   });
   resetBtn.onclick = (): void => bridge.reset();
-  topBar.appendChild(resetBtn);
+  list.appendChild(resetBtn);
 }

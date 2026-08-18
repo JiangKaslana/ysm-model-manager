@@ -39,7 +39,6 @@ export interface CleanupContext {
   onDragPointerMove: (e: PointerEvent) => void;
   onResize: () => void;
   onUnifiedPick: ((e: MouseEvent) => void) | null;
-  getPanelCleanup: () => (() => void) | null;
   allBuilt: { dispose(): void }[];
   nullBuilt: () => void;
   skyCap: SkyCapability | null;
@@ -89,7 +88,6 @@ export function runFullCleanup(ctx: CleanupContext): void {
   if (ctx.onUnifiedPick && ctx.renderer?.domElement) {
     ctx.renderer.domElement.removeEventListener("click", ctx.onUnifiedPick);
   }
-  ctx.getPanelCleanup()?.();
   // 内容层先释放自身资源，核心再回收外壳
   // cooperate 模式下需逐一 dispose 所有已追加模型（adapter 专属 GPU 资源）
   for (const b of ctx.allBuilt) {

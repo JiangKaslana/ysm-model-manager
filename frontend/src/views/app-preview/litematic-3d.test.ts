@@ -363,11 +363,15 @@ describe("cleanupVoxel3D", () => {
 });
 
 describe("createLitematic3D 主路径", () => {
-  it("渲染 overlay + 顶层控件，加载完成后 loading 移除", async () => {
+  it("渲染 overlay + 控件，加载完成后 loading 移除", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
-    // topBar 控件：关闭按钮 / 旋转选择 / 速度滑块 / 切片轴 / 分层模式
-    expect(overlay.querySelector("button")).toBeTruthy();
+    // Phase 3 收编：控件从 topBar 迁移到声明式根菜单面板
+    // dock 按钮始终可见（模型组 / 场景组）
+    expect(overlay.querySelector('[data-testid="dock-model"]')).toBeTruthy();
+    expect(overlay.querySelector('[data-testid="dock-scene"]')).toBeTruthy();
+    // 打开分层切片面板验证 select / 滑块存在
+    openSlicePanel(overlay);
     expect(overlay.querySelector('select')).toBeTruthy();
     expect(overlay.querySelector('input[type="range"]')).toBeTruthy();
     // 加载占位已被移除
@@ -492,6 +496,8 @@ describe("控件交互", () => {
   it("分层模式切换 → applyLayer（mesh.count 更新）；切片轴切换 → 层范围重置", async () => {
     await createLitematic3D("/a.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
+    // Phase 3 收编：分层控件在菜单模型组面板内，需先导航打开
+    openSlicePanel(overlay);
     const selects = overlay.querySelectorAll("select");
     const layerMode = selects[selects.length - 1] as HTMLSelectElement; // 最后一个 select 是分层模式
     const axisSel = selects[1] as HTMLSelectElement; // 第二个 select 是切片轴
@@ -523,6 +529,8 @@ describe("陷阱 #11 坐标对齐 + #17 零值哨兵", () => {
     expect(meshInstances.length).toBeGreaterThanOrEqual(1);
     // 切到 single 并触发 applyLayer，使 mesh.count 被显式写入
     const overlay = lastOverlay();
+    // Phase 3 收编：分层控件在菜单模型组面板内，需先导航打开
+    openSlicePanel(overlay);
     const selects = overlay.querySelectorAll("select");
     const layerMode = selects[selects.length - 1] as HTMLSelectElement;
     layerMode.value = "all";
@@ -554,6 +562,8 @@ describe("陷阱 #11 坐标对齐 + #17 零值哨兵", () => {
     } as never);
     await createLitematic3D("/mixed.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
+    // Phase 3 收编：分层控件在菜单模型组面板内，需先导航打开
+    openSlicePanel(overlay);
     const selects = overlay.querySelectorAll("select");
     const layerMode = selects[selects.length - 1] as HTMLSelectElement;
     layerMode.value = "all";
@@ -576,6 +586,8 @@ describe("陷阱 #11 坐标对齐 + #17 零值哨兵", () => {
     await createLitematic3D("/edge.litematic", "GetLitematicVoxelData");
     expect(meshInstances.length).toBeGreaterThanOrEqual(1);
     const overlay = lastOverlay();
+    // Phase 3 收编：分层控件在菜单模型组面板内，需先导航打开
+    openSlicePanel(overlay);
     const selects = overlay.querySelectorAll("select");
     const layerMode = selects[selects.length - 1] as HTMLSelectElement;
     layerMode.value = "all";
@@ -598,6 +610,8 @@ describe("陷阱 #11 坐标对齐 + #17 零值哨兵", () => {
     } as never);
     await createLitematic3D("/layer.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
+    // Phase 3 收编：分层控件在菜单模型组面板内，需先导航打开
+    openSlicePanel(overlay);
     const selects = overlay.querySelectorAll("select");
     const layerMode = selects[selects.length - 1] as HTMLSelectElement;
     // 切到 single 后，把 layerVal 调到 1（target 层 0）
@@ -667,6 +681,8 @@ describe("审核补充：边界与异步路径", () => {
     } as never);
     await createLitematic3D("/noncube.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
+    // Phase 3 收编：分层控件在菜单模型组面板内，需先导航打开
+    openSlicePanel(overlay);
     const selects = overlay.querySelectorAll("select");
     const layerMode = selects[selects.length - 1] as HTMLSelectElement;
     layerMode.value = "single";
@@ -680,6 +696,8 @@ describe("审核补充：边界与异步路径", () => {
   it("layerInput 输入越界值 → 钳到 [1, layerMax]", async () => {
     await createLitematic3D("/clamp.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
+    // Phase 3 收编：分层控件在菜单模型组面板内，需先导航打开
+    openSlicePanel(overlay);
     const selects = overlay.querySelectorAll("select");
     const layerMode = selects[selects.length - 1] as HTMLSelectElement;
     layerMode.value = "single";
@@ -706,13 +724,13 @@ describe("审核补充：边界与异步路径", () => {
     } as never);
     await createLitematic3D("/range.litematic", "GetLitematicVoxelData");
     const overlay = lastOverlay();
+    // Phase 3 收编：分层控件在菜单模型组面板内，需先导航打开
+    openSlicePanel(overlay);
     const selects = overlay.querySelectorAll("select");
     const layerMode = selects[selects.length - 1] as HTMLSelectElement;
     layerMode.value = "range";
     layerMode.dispatchEvent(new Event("change"));
     // range 模式：layerSlider 设 1（lo=0），slider2 设 2（hi=2）→ 区间 [0,2) 保留 Y=0/1
-    // 注：topBar 的 range 滑块顺序 = 速度(spdSlider) + 时间(timeSlider, ADR-073#1) + 云量(cloudSlider, ADR-073#4)
-    // 再是 litematic 的 layerSlider[3] / layerSlider2[4]——按 min==="1" 定位可免疫前面滑块增删
     const ranges = [...overlay.querySelectorAll<HTMLInputElement>('input[type="range"]')]
       .filter((el) => el.min === "1");
     ranges[0].value = "1"; // layerSlider
@@ -761,4 +779,13 @@ describe("审核补充：边界与异步路径", () => {
  * close 收进菜单项，直接 removeChild 更稳。 */
 function unmountOverlay(overlay: HTMLElement): void {
   if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+}
+
+/** Phase 3 收编辅助：打开 litematic 分层切片面板
+ * 控件已从 topBar 迁移到声明式根菜单模型组（dock-model → slice 面板）。
+ * 测试需先导航打开面板，才能访问 axisSel/layerMode/layerSlider 等控件。 */
+function openSlicePanel(overlay: HTMLElement): void {
+  const modelBtn = overlay.querySelector('[data-testid="dock-model"]') as HTMLElement;
+  if (!modelBtn) throw new Error("dock-model button not found");
+  modelBtn.click();
 }

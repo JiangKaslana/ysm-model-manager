@@ -1,7 +1,6 @@
 // ===== 统一 3D 预览核心（ADR-066 P3：收缴 vrm/litematic 复制脚手架）=====
 // 所有富格式 3D 预览（vrm / litematic / 后续 ysm）共用同一套外壳：
 // overlay + 声明式根菜单(⚙️, CORE_MENU_ITEMS + 适配器注入项) + viewContainer + loadingEl +
-// 适配器底部导航容器(topBar, 经 previewMenuItems 收编；仅剩 litematic 常驻分层控件例外) +
 // scene/camera/renderer/OrbitControls/灯光 + WASD/拖拽自转 + resize +
 // rAF 循环 + ESC + GPU 资源释放。内容差异由 PreviewAdapter 经 build() 注入，
 // 每帧 update(dt) 驱动动态部分（如 VRM SpringBone）。
@@ -11,17 +10,17 @@
 // 使三套渲染器最终可经注册表统一派发（P3-E）。
 //
 // ┌─ 快速跳转 ───────────────────────────────────────────────────────────────────┐
-// │  §1  常量 + 状态变量      → L105   DRAG_ROTATE_SENSITIVITY / DEFAULT_CAM_SPEED │
-// │  §2  公开 API             → L113   invalidatePreview / cleanupPreview         │
-// │  §3  switchPreview        → L127   会话内切换模型（复用外壳）                   │
-// │  §4  mount3D 入口         → L139   主挂载函数（722 行 → 见子节）               │
-// │    └─ 基础设施创建        → L272   scene/camera/renderer/OrbitControls         │
-// │    └─ UI 装配             → L180   overlay/topBar/侧栏/loading               │
-// │    └─ 输入绑定            → L308   WASD 键盘 + 拖拽自转                       │
-// │    └─ rAF 渲染管线        → L365   animate loop + postprocess composer        │
-// │    └─ 生命周期管理        → L452   cooperate/switchTo/代际守卫               │
-// │    └─ 通知 + 释放         → L580   toast + safeDisposeMat + fullCleanup       │
-// │  §5  私有工具             → L749   safeDisposeMat                            │
+// │  §1  常量 + 状态变量      → L100   DRAG_ROTATE_SENSITIVITY / DEFAULT_CAM_SPEED │
+// │  §2  公开 API             → L108   invalidatePreview / cleanupPreview         │
+// │  §3  switchPreview        → L123   会话内切换模型（复用外壳）                   │
+// │  §4  mount3D 入口         → L133   主挂载函数（~700 行）                       │
+// │    └─ 基础设施创建        → L266   scene/camera/renderer/OrbitControls         │
+// │    └─ UI 装配             → L176   overlay/侧栏/loading/菜单                    │
+// │    └─ 输入绑定            → L302   WASD 键盘 + 拖拽自转                       │
+// │    └─ rAF 渲染管线        → L358   animate loop + postprocess composer        │
+// │    └─ 生命周期管理        → L445   cooperate/switchTo/代际守卫               │
+// │    └─ 通知 + 释放         → L572   toast + safeDisposeMat + fullCleanup       │
+// │  §5  私有工具             → L741   safeDisposeMat                            │
 // └──────────────────────────────────────────────────────────────────────────────┘
 
 import * as THREE from "three";
@@ -45,7 +44,6 @@ import { assembleBoneSelectInfo, getMeshBoneId } from "../bone-raycast.ts";
 import { cullModelGroups } from "../frustum-cull.ts";
 import { bindInputHandlers } from "./input-and-animation.ts";
 import type { InputOptions } from "./input-and-animation.ts";
-import { mountSidePanel } from "./side-panel.ts";
 import { type SemanticBoneMap } from "../semantic-bones.ts";
 import { bus } from "../../../bus.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
@@ -91,10 +89,6 @@ export interface PreviewScene {
   setSpeed?(n: number): void;
   showModelGroup?(i: number): void;
   onBoneSelect?(info: BoneSelectInfo): void;
-  /** 在通用 topBar 之后追加适配器专属控件（仅 litematic 分层控制器——唯一常驻控件例外） */
-  extraControls?(topBar: HTMLElement): void;
-  /** 在核心侧栏（如有）挂载适配器专属面板内容（ysm 骨骼列表/详情等） */
-  extraPanel?(panel: HTMLElement): void;
   /** 语义骨骼映射（语义骨骼层消费方读取；无 = 该格式不接入语义层，消费方降级） */
   semanticBones?: SemanticBoneMap;
   /** 应用 VPD 姿势（MMD 专属；无 = 该格式不支持） */
@@ -190,7 +184,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   const cooperate = opts.cooperate === true;
   if (!cooperate) cleanupPreview(); // 复用：再次创建先清旧的（同台模式不清理，保留旧模型）
   // 🥉 ui/ 库样式（light-DOM 场景）：overlay 是 document.body 下的普通 DOM 非 shadow，
-  // 注入一次即可让 topBar 控件用上 mode-btn/setting-select 透明样式（幂等，§19）
+  // 注入一次即可让声明式根菜单控件用上 mode-btn/setting-select 透明样式（幂等，§19）
   installUiComponentsStyles();
   const myGen = ++_gen;
   const selfMode = adapter.mode === "self";
@@ -214,7 +208,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let mouseDown = false;
   let lastMouse = { x: 0, y: 0 };
   let orbitTarget: THREE.Vector3 | undefined;
-  // ===== §3 UI 装配（overlay/topBar/侧栏/loading/菜单）=====
+  // ===== §3 UI 装配（overlay/loading/菜单）=====
   // 程序化天空能力（ADR-073 L1）：shared 模式注入统一核心，四种模型零改动继承
   // 由 sceneCapabilityRegistry 统一创建，此处用辅助 getter 引用
   let skyCap: SkyCapability | null = null;
@@ -245,8 +239,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#1a1b2e;display:flex;flex-direction:column";
   document.body.appendChild(overlay);
 
-  // 顶栏已移除（ADR-076 v2，用户 2026-08-16 决策）：预览控件（关闭/切换/环境/相机）全部收进
+  // 顶栏已移除（ADR-076 v2，用户 2026-08-16 决策）：预览控件全部收进
   // 声明式根菜单（⚙️ 按钮 → mountPreviewRootMenu），彻底告别顶栏滑块垃圾。
+  // litematic 分层控件也经 litematicMenuItems 注入根菜单模型组（Phase 3 收编）。
 
   // 相机控制桥（shared 模式）：core 的相机控件与 PreviewBuildCtx.cameraControls
   // 共用同一 bridge（操作核心内部 orbitMode/camSpeed/controls），适配器（如 ysm 底部
@@ -269,24 +264,13 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     reset: () => { _handle?.resetCamera?.(); },
   };
 
-  // 主体：body(flex row) 内放 viewContainer；self 模式适配器经 extraPanel 往 body 追加侧栏
+  // 主体：body(flex row) 内放 viewContainer
   const body = document.createElement("div");
   body.style.cssText = "flex:1;display:flex;flex-direction:row;position:relative;overflow:hidden";
   const viewContainer = document.createElement("div");
   viewContainer.style.cssText = "flex:1;position:relative;overflow:hidden";
   body.appendChild(viewContainer);
   overlay.appendChild(body);
-
-  // 适配器专属控件容器（仅 litematic 遗留 extraControls 常驻分层控制器继续使用：
-  // litematic 分层（axis/layer）为高频常驻切片调节器，语义上非「打开即关」的模态面板，
-  // 故保留顶栏常驻（其余 ysm/mmd/vrm 已按 ADR-076 v2 Phase 2 全量收编进 ⚙️ 根菜单）。
-  const topBar = document.createElement("div");
-  topBar.className = "ysm-3d-adapter-nav";
-  topBar.style.cssText =
-    "position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;" +
-    "padding:8px 12px;z-index:11;background:rgba(20,21,38,0.85);" +
-    "border-top:1px solid rgba(255,255,255,0.12);flex-wrap:wrap";
-  overlay.appendChild(topBar);
 
   // 声明式根菜单（⚙️）：core 在 overlay 内自建（预览全屏盖住 app 外壳，主程序 nav.settings 够不着），
   // 全部控件以 CORE_MENU_ITEMS + 适配器注入项表驱动渲染（preview-menu-defs.ts），
@@ -534,13 +518,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   }, TIP_AUTO_DISMISS_MS);
 
   let cleanupFn: (() => void) | null = null;
-  let panelCleanup: (() => void) | null = null;
   // switchTo 支持（ADR-066 §5.6）：提升 built 到 try 外，复用外壳重建内容层
   let built: PreviewScene | null = null;
-  /** topBar 中适配器专属控件的起始 childElementCount（切换时移除其后追加的节点） */
-  let adapterControlsStart = 0;
-  /** extraPanel 容器引用（切换时清空重填） */
-  let panelEl: HTMLElement | null = null;
   /** 首次 build 前 scene 子节点快照（shared 模式）：switchTo 时移除旧内容层添加的增量，防场景累积（审核 #1） */
   let sceneBaseline: Set<THREE.Object3D> | null = null;
   /** cooperate 模式下已追加的内容句柄列表（fullCleanup 时逐一 dispose） */
@@ -558,7 +537,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     onDragPointerMove,
     onResize,
     onUnifiedPick,
-    getPanelCleanup: () => panelCleanup,
     allBuilt,
     nullBuilt: () => { built = null; },
     skyCap,
@@ -586,10 +564,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getBuilt: () => built,
     setBuilt: (s) => { built = s; },
     allBuilt,
-    topBar,
-    getAdapterControlsStart: () => adapterControlsStart,
-    setAdapterControlsStart: (n) => { adapterControlsStart = n; },
-    getPanelEl: () => panelEl,
     loadingEl,
     viewContainer,
     overlay,
@@ -621,7 +595,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     if (myGen !== _gen) return;
 
     if (scene) sceneBaseline = new Set(scene.children);
-    adapterControlsStart = topBar.childElementCount;
     built = await adapter.build(
       {
         scene,
@@ -690,15 +663,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       });
     }
 
-    // 适配器专属控件挂入通用 topBar 之后
-    built.extraControls?.(topBar);
-
-    // 适配器侧栏（ysm 骨骼列表/详情等）：核心提供 panel + 折叠/拖拽柄，内容由适配器填充
-    const sidePanel = mountSidePanel(body, topBar, built);
-    if (sidePanel) {
-      panelEl = sidePanel.panelEl;
-      panelCleanup = sidePanel.panelCleanup;
-    }
+    // ADR-076 v2 Phase 3：适配器控件全部经声明式根菜单注入（ctx.menu.setAdapterItems / built.menuItems）
+    // 不再有 topBar 或 sidePanel 额外挂载
 
     function fullCleanup(): void { runFullCleanup(cleanupCtx); }
 

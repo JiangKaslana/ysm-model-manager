@@ -1,5 +1,5 @@
 // ===== switchToSession 陈旧字段修复测试 =====
-// 验证：ctx 中经 getter 访问的字段（built / sceneBaseline / panelEl 等）
+// 验证：ctx 中经 getter 访问的字段（built / sceneBaseline）
 // 在 ctx 构造后被修改时，switchToSession 能读到最新值——
 // 而非构造时快照的旧值（修复前的 bug）。
 
@@ -15,10 +15,8 @@ function makeMockCtx(): {
   state: {
     built: PreviewScene | null;
     sceneBaseline: Set<THREE.Object3D> | null;
-    panelEl: HTMLElement | null;
     perFrame: ((dt: number) => void) | null;
     currentPath: string;
-    adapterControlsStart: number;
     _handle: PreviewHandle | null;
   };
   mockScene: THREE.Scene;
@@ -27,15 +25,12 @@ function makeMockCtx(): {
   const state = {
     built: null as PreviewScene | null,
     sceneBaseline: null as Set<THREE.Object3D> | null,
-    panelEl: null as HTMLElement | null,
     perFrame: null as ((dt: number) => void) | null,
     currentPath: "initial.glb",
-    adapterControlsStart: 0,
     _handle: null as PreviewHandle | null,
   };
 
   const mockScene = new THREE.Scene();
-  const topBar = document.createElement("div");
   const loadingEl = document.createElement("div");
   const viewContainer = document.createElement("div");
   const overlay = document.createElement("div");
@@ -44,8 +39,6 @@ function makeMockCtx(): {
   const mockAdapter = {
     build: vi.fn().mockResolvedValue({
       dispose: vi.fn(),
-      extraControls: vi.fn(),
-      extraPanel: vi.fn(),
     }),
   };
 
@@ -55,14 +48,10 @@ function makeMockCtx(): {
     getBuilt: () => state.built,
     setBuilt: (s) => { state.built = s; },
     allBuilt,
-    topBar,
-    getAdapterControlsStart: () => state.adapterControlsStart,
-    setAdapterControlsStart: (n) => { state.adapterControlsStart = n; },
-    getPanelEl: () => state.panelEl,
     loadingEl,
     viewContainer,
     overlay,
-    menuHandle: { dispose: vi.fn() } as any,
+    menuHandle: { dispose: vi.fn(), setAdapterItems: vi.fn(), openPanel: vi.fn(), refreshDock: vi.fn() } as any,
     adapter: mockAdapter,
     camBridge: undefined,
     selfMode: false,
@@ -120,27 +109,6 @@ describe("switchToSession 陈旧字段修复", () => {
     expect(mockAdapter.build).toHaveBeenCalledTimes(1);
   });
 
-  it("panelEl 字段在 ctx 构造后被赋值，switchTo 能清空并重填侧栏", async () => {
-    const { ctx, state, mockAdapter } = makeMockCtx();
-    const panel = document.createElement("div");
-    panel.innerHTML = "<div id='old'>旧内容</div>";
-    state.panelEl = panel;
-
-    const extraPanelSpy = vi.fn();
-    // 让 mockAdapter 返回带 extraPanel 回调的 next scene
-    mockAdapter.build.mockResolvedValue({
-      dispose: vi.fn(),
-      extraControls: vi.fn(),
-      extraPanel: extraPanelSpy,
-    } as unknown as PreviewScene);
-
-    await switchToSession(ctx, "new.glb");
-
-    expect(extraPanelSpy).toHaveBeenCalledWith(panel);
-    // panel 被清空后重填（extraPanelSpy 是 no-op mock，不清空）
-    expect(panel.innerHTML).toBe("");
-  });
-
   it("currentPath 字段在 ctx 构造后更新，第二次 switchTo 使用最新路径", async () => {
     const { ctx, state } = makeMockCtx();
 
@@ -156,8 +124,6 @@ describe("switchToSession 陈旧字段修复", () => {
     const nextUpdate = vi.fn();
     mockAdapter.build.mockResolvedValue({
       dispose: vi.fn(),
-      extraControls: vi.fn(),
-      extraPanel: vi.fn(),
       update: nextUpdate,
     } as unknown as PreviewScene);
 

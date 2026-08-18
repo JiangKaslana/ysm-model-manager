@@ -34,12 +34,6 @@ export interface SwitchContext {
   getBuilt: () => PreviewScene | null;
   setBuilt: (s: PreviewScene | null) => void;
   allBuilt: PreviewScene[];
-  topBar: HTMLElement;
-  /** 可变：build 后赋值 */
-  getAdapterControlsStart: () => number;
-  setAdapterControlsStart: (n: number) => void;
-  /** 可变：sidePanel 挂载后赋值 */
-  getPanelEl: () => HTMLElement | null;
   loadingEl: HTMLElement;
   viewContainer: HTMLElement;
   overlay: HTMLElement;
@@ -101,11 +95,7 @@ export async function switchToSession(
     return;
   }
 
-  // 1) 移除旧适配器专属控件（topBar 中 adapterControlsStart 之后追加的元素）
-  // R1-P2-3：用 children（仅元素节点）替代 lastChild（含文本节点），避免空白文本节点导致误删
-  while (ctx.topBar.children.length > ctx.getAdapterControlsStart()) {
-    ctx.topBar.removeChild(ctx.topBar.children[ctx.topBar.children.length - 1]);
-  }
+  // 1) 清理旧内容层：菜单会通过 ctx.menu.setAdapterItems 在 build 时自动重建，无需手动清理
 
   // 2) 非同台模式：移除旧内容层添加到共享 scene 的对象（快照 delta，防场景累积）
   if (!keep && ctx.scene && ctx.getSceneBaseline()) {
@@ -223,12 +213,8 @@ export async function switchToSession(
 
   const handle = ctx.getHandle();
   if (handle) handle.screenshot = next.screenshot;
-  next.extraControls?.(ctx.topBar);
-  const panel = ctx.getPanelEl();
-  if (next.extraPanel && panel) {
-    panel.innerHTML = "";
-    next.extraPanel(panel);
-  }
+  // 注意：适配器控件（分层切片等）通过 ctx.menu.setAdapterItems 在 build 时注入根菜单，
+  // 无需额外 extraControls/extraPanel 调用（ADR-076 v2 Phase 3 收编）。
 }
 
 // ---------------------------------------------------------------------------
