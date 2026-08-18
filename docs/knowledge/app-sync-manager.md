@@ -7,11 +7,7 @@ source_files:
   - frontend/src/views/app-sync-manager/index.ts
   - frontend/src/views/app-sync-manager/tpl.ts
 tests:
-  - frontend/src/views/app-nav/index.test.ts
-  - frontend/src/views/app-resource-manager/index.test.ts
   - frontend/src/views/app-sync-manager/index.test.ts
-  - frontend/src/views/app-toast/index.test.ts
-  - frontend/src/views/context-menu/index.test.ts
 use_when:
   - 整合包同步
   - 同步状态
@@ -66,4 +62,4 @@ invariant_anchors:
 
 - `go/sync/` — 同步状态计算核心
 - `internal/app/app_install.go` — 推送/拉取 binding
-- 知识卡：`app_content`、`app_sidebar`、`go_sync`、`app_resource_manager`
+- 知识卡：`app_content`、`app_sidebar`、`go_sync`
