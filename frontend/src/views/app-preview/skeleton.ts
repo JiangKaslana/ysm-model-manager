@@ -1,7 +1,7 @@
 // ===== 2D 骨骼渲染层 =====
 // 加载统一走 loadModelData，本文件只做 2D 骨骼渲染编排
 import { getPrefer3D, setPrefer3D, type PreviewRoot, type YsmDecoder, type PreviewDebugger } from "./utils.ts";
-import { loadModelData } from "./loader.ts";
+import { loadModelData, fillAuthorsAsync } from "./loader.ts";
 import { renderModel2D } from "../../utils/3d/model2d.ts";
 import { openFullPreview } from "./zoom.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
@@ -76,6 +76,8 @@ export async function loadModel2D(
     container.innerHTML = "";
     const { canvas, textureImg } = await setup2DCanvas(container, model);
     if (!container.isConnected) return;
+    // 作者/头像延迟补全（不阻塞首帧渲染，后台异步填充）
+    if (model) void fillAuthorsAsync(modelPath, model);
     const { eyeBtn, eyeHint, getLabelsOn, setLabelsOn } = buildToggleRow(container);
     const zoomBtn = document.createElement("button");
     zoomBtn.className = "ysm-btn";

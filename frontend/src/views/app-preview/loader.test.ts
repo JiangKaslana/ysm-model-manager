@@ -34,7 +34,7 @@ vi.mock("../../utils/animation/animation.ts", () => ({
   parseBedrockAnimationJSON: parseAnimMock,
 }));
 
-import { loadModelData } from "./loader.ts";
+import { loadModelData, fillAuthorsAsync } from "./loader.ts";
 
 /** 构造一个带骨骼的几何对象（测试用，走 cast 绕开 BedrockBone 细节） */
 function geo(over: Partial<BedrockGeometry> = {}): BedrockGeometry {
@@ -263,7 +263,7 @@ describe("loadModelData — authors 填补", () => {
     expect(r.model?._authors).toEqual([{ name: "对象作者" }]);
   });
 
-  it("model 无 authors → ExtractYsmSummary 补齐作者名（Go 摘要兜底）", async () => {
+  it("model 无 authors → loadModelData 不填充（延迟到 fillAuthorsAsync）", async () => {
     const goModel = geo();
     AnalyzeMock.mockResolvedValue(goModel);
     ExtractSummaryMock.mockResolvedValue({
@@ -272,48 +272,67 @@ describe("loadModelData — authors 填补", () => {
 
     const r = await loadModelData("/m/f.ysm", ctx());
 
-    expect(ExtractSummaryMock).toHaveBeenCalledWith("/m/f.ysm");
-    expect(r.model?._authors).toEqual([
-      { name: "作者X", role: "模型", avatarUrl: null, avatarPath: "" },
-    ]);
+    // loadModelData 不再填充 authors（延迟加载）
+    expect(r.model?._authors).toBeUndefined();
+    expect(ExtractSummaryMock).not.toHaveBeenCalled();
   });
 
-  it("作者缺头像 → CacheModelAvatars + CachedCreatorAvatar 回填 avatarUrl", async () => {
-    const goModel = geo();
+  it("fillAuthorsAsync → ExtractYsmSummary 补齐作者名", async () => {
+    const goModel = geo({ _authors: [] });
     AnalyzeMock.mockResolvedValue(goModel);
     ExtractSummaryMock.mockResolvedValue({
       authors: [{ name: "作者X", roles: "模型" }],
     });
-    CachedAvatarMock.mockResolvedValue("blob:avatar");
 
-    const r = await loadModelData("/m/g.ysm", ctx());
+    await fillAuthorsAsync("/m/f.ysm", goModel);
 
-    expect(CacheAvatarsMock).toHaveBeenCalledWith("/m/g.ysm");
-    expect(CachedAvatarMock).toHaveBeenCalledWith("作者X");
-    expect(r.model?._authors?.[0].avatarUrl).toBe("blob:avatar");
+    expect(ExtractSummaryMock).toHaveBeenCalledWith("/m/f.ysm");
+    expect(goModel._authors).toEqual([
+      { name: "作者X", role: "模型", avatarUrl: null, avatarPath: "" },
+    ]);
   });
 
-  it("ExtractYsmSummary 抛错 → 静默吞掉，不影响几何渲染", async () => {
-    const goModel = geo();
+  it("fillAuthorsAsync → 并行回填所有作者头像", async () => {
+    const goModel = geo({ _authors: [] });
+    AnalyzeMock.mockResolvedValue(goModel);
+    ExtractSummaryMock.mockResolvedValue({
+      authors: [
+        { name: "作者X", roles: "模型" },
+        { name: "作者Y", roles: "纹理" },
+      ],
+    });
+    CachedAvatarMock.mockResolvedValue("blob:avatar");
+
+    await fillAuthorsAsync("/m/g.ysm", goModel);
+
+    expect(CacheAvatarsMock).toHaveBeenCalledWith("/m/g.ysm");
+    // 并行请求两个作者头像
+    expect(CachedAvatarMock).toHaveBeenCalledWith("作者X");
+    expect(CachedAvatarMock).toHaveBeenCalledWith("作者Y");
+    expect(goModel._authors?.[0].avatarUrl).toBe("blob:avatar");
+    expect(goModel._authors?.[1].avatarUrl).toBe("blob:avatar");
+  });
+
+  it("fillAuthorsAsync → ExtractYsmSummary 抛错静默吞掉", async () => {
+    const goModel = geo({ _authors: [] });
     AnalyzeMock.mockResolvedValue(goModel);
     ExtractSummaryMock.mockRejectedValue(new Error("go summary boom"));
 
-    const r = await loadModelData("/m/h.ysm", ctx());
+    await fillAuthorsAsync("/m/h.ysm", goModel);
 
-    expect(r.model).toBe(goModel);
-    expect(r.model?._authors).toEqual([]);
+    expect(goModel._authors).toEqual([]);
   });
 
-  it("CacheModelAvatars 抛错 → 静默吞掉，avatarUrl 保持空", async () => {
-    const goModel = geo();
+  it("fillAuthorsAsync → CacheModelAvatars 抛错静默吞掉", async () => {
+    const goModel = geo({ _authors: [] });
     AnalyzeMock.mockResolvedValue(goModel);
     ExtractSummaryMock.mockResolvedValue({
       authors: [{ name: "作者X", roles: "模型" }],
     });
     CacheAvatarsMock.mockRejectedValue(new Error("avatar boom"));
 
-    const r = await loadModelData("/m/i.ysm", ctx());
+    await fillAuthorsAsync("/m/i.ysm", goModel);
 
-    expect(r.model?._authors?.[0]).toMatchObject({ name: "作者X", avatarUrl: null });
+    expect(goModel._authors?.[0]).toMatchObject({ name: "作者X", avatarUrl: null });
   });
 });

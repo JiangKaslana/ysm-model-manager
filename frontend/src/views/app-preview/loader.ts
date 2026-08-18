@@ -8,8 +8,9 @@ import type { YsmDecoder, PreviewDebugger } from "./utils.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 
 /**
- * 加载模型几何数据 + 纹理 + 作者信息
+ * 加载模型几何数据 + 纹理（优先路径，阻塞渲染）
  * 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底
+ * 作者/头像延迟到 fillAuthorsAsync（不阻塞首帧渲染）
  */
 export async function loadModelData(
   modelPath: string,
@@ -17,9 +18,6 @@ export async function loadModelData(
 ): Promise<{ model: BedrockGeometry | null; decodedBy: string }> {
   let model: BedrockGeometry | null = null;
   let _decodedBy = "";
-  // 按注册表判定 ysm 扩展名（.ysm/.zip/.7z/.json）是否前端 WASM 可解码（ADR-066 解墙，不再散硬正则）。
-  // .zip/.7z 内含 ysm.json + models/ + textures/，WASM 解码器 decodeYsmFileFromMemory 直接处理（与 .ysm 同格式）；
-  // 若 WASM 失败/空骨骼，下方回退 Go AnalyzeBedrockModel。
   const isWasmCapable = matchTypeByExt(modelPath, RESOURCE_TYPES.YSM);
   let _wasmAuthors: BedrockGeometry["_authors"] = [];
   let _wasmAvatars: Record<string, string> = {};
@@ -32,7 +30,7 @@ export async function loadModelData(
     _decodedBy = cached?._decodedBy || "";
   }
 
-  // .ysm/.json → 前端 WASM 解码（含 parseYsmJsonDirect 提取作者元数据）
+  // .ysm/.json → 前端 WASM 解码
   if (!model && isWasmCapable) {
     const decoded = await ctx.decodeYsmViaWasm(modelPath);
     _wasmAuthors = decoded?.authors || [];
@@ -42,8 +40,6 @@ export async function loadModelData(
       model._authors = _wasmAuthors;
       model._avatars = _wasmAvatars;
       _decodedBy = "🧠 WASM 内置解码";
-      // P3 修复：WASM 解码结果直接写回缓存 geometry——原实现仅补 _decodedBy 标记，
-      // geometry 依赖 wasm.ts/index.ts 的外部补写，缺路径时缓存丢失 WASM 更优结果
       cacheSet(modelPath, {
         ...(cacheGet(modelPath) || {}),
         geometry: model,
@@ -56,11 +52,9 @@ export async function loadModelData(
 
   // 非 YSM/ZIP/JSON 或 WASM 失败/空骨骼 → 走 Go
   if (!model?.bones?.length) {
-    const { AnalyzeBedrockModel } =
-      await getApp();
+    const { AnalyzeBedrockModel } = await getApp();
     model = (await AnalyzeBedrockModel(modelPath)) as BedrockGeometry | null;
 
-    // .json 解压目录：用 WASM 解析出的 authors 填补（Go 不返回此字段）
     if (model && !model._authors && _wasmAuthors.length) {
       model._authors = _wasmAuthors;
       model._avatars = _wasmAvatars;
@@ -81,13 +75,9 @@ export async function loadModelData(
           texKey: goTexCount > 0 ? "texture[0]" : "—",
           texIdx: 0,
           pngSize: "—",
-          geoSize: model.texWidth
-            ? `${model.texWidth}×${model.texHeight}`
-            : "—",
+          geoSize: model.texWidth ? `${model.texWidth}×${model.texHeight}` : "—",
           uvSize: "—",
-          finalSize: model.texWidth
-            ? `${model.texWidth}×${model.texHeight}`
-            : "—",
+          finalSize: model.texWidth ? `${model.texWidth}×${model.texHeight}` : "—",
         },
       ];
       if (goTexCount > 1) {
@@ -102,10 +92,6 @@ export async function loadModelData(
         });
       }
       cacheSet(modelPath, {
-        // P2 修复（审核反推）：必须 spread 旧值保留 avatars/authors——Go 兜底成功时若
-        // 只写 texture/geometry，cache.ts 同 key re-set 差异检测发现旧值 blob URL 不在新值，
-        // 会把 WASM 解析出的头像 blob URL revoke 掉（详情页 <img> 裂图）。与 L45-49 的
-        // WASM 分支口径一致。
         ...(cacheGet(modelPath) || {}),
         texture: model.texture as string | undefined,
         geometry: model,
@@ -128,48 +114,57 @@ export async function loadModelData(
     }
   }
 
-  // 作者/头像兜底补全（覆盖 .zip 解压目录 + .ysm 裸文件名头像缺失）
-  // - .zip 走 WASM 解码路径（isWasmCapable 包含 .zip），WASM 解析出的作者已挂上 model
-  // - .ysm 经 WASM 解析出的头像常因 ysm.json 用裸文件名（如 "sdf"）声明而匹配失败 → 用 Go 后端兜底
-  if (model) {
-    if (!model._authors) model._authors = [];
-    // .zip 等无 authors：从 Go 摘要补齐作者名（头像走下方缓存回填）
-    if (model._authors.length === 0) {
-      try {
-        const { ExtractYsmSummary } = await getApp();
-        const goSummary = await ExtractYsmSummary(modelPath);
-        const goAuthors = goSummary?.authors ?? [];
-        if (goAuthors.length > 0) {
-          model._authors = goAuthors.map((a) => ({
-            name: a.name || "",
-            role: a.roles || "",
-            avatarUrl: null,
-            avatarPath: "",
-          }));
-        }
-      } catch {
-        /* 不影响几何渲染 */
-      }
-    }
-    // 任一作者缺头像 → 经 Go 后端缓存回填（ExtractAvatarURI 已放开裸文件名，
-    // CacheModelAvatars 已覆盖 .ysm/.zip）
-    if (model._authors.length > 0 && model._authors.some((a) => !a.avatarUrl)) {
-      try {
-        const { CacheModelAvatars, CachedCreatorAvatar } = await getApp();
-        await CacheModelAvatars(modelPath);
-        for (const au of model._authors) {
-          if (!au.avatarUrl && au.name) {
-            const uri = await CachedCreatorAvatar(au.name);
-            if (uri) au.avatarUrl = uri;
-          }
-        }
-      } catch {
-        /* 不影响几何渲染 */
-      }
-    }
-  }
-
   if (model) model._modelPath = modelPath;
 
   return { model: model || null, decodedBy: _decodedBy };
+}
+
+/**
+ * 异步补全作者/头像信息（不阻塞首帧渲染）
+ * 在几何渲染完成后调用，后台补齐作者名 + 头像 URL
+ */
+export async function fillAuthorsAsync(
+  modelPath: string,
+  model: BedrockGeometry,
+): Promise<void> {
+  if (!model) return;
+  // 确保 _authors 数组存在（loadModelData 可能未初始化）
+  if (!model._authors) model._authors = [];
+
+  // 作者名缺失 → 从 Go 摘要补齐
+  if (model._authors.length === 0) {
+    try {
+      const { ExtractYsmSummary } = await getApp();
+      const goSummary = await ExtractYsmSummary(modelPath);
+      const goAuthors = goSummary?.authors ?? [];
+      if (goAuthors.length > 0) {
+        model._authors = goAuthors.map((a) => ({
+          name: a.name || "",
+          role: a.roles || "",
+          avatarUrl: null,
+          avatarPath: "",
+        }));
+      }
+    } catch {
+      /* 不影响几何渲染 */
+    }
+  }
+
+  // 任一作者缺头像 → 经 Go 后端缓存回填
+  if (model._authors.length > 0 && model._authors.some((a) => !a.avatarUrl)) {
+    try {
+      const { CacheModelAvatars, CachedCreatorAvatar } = await getApp();
+      await CacheModelAvatars(modelPath);
+      // 并行请求所有作者头像（原实现串行 N 次 Go 调用 → 现并行 1 次 Promise.all）
+      const avatarTasks = model._authors
+        .filter((au): au is typeof au & { name: string } => !au.avatarUrl && !!au.name)
+        .map(async (au) => {
+          const uri = await CachedCreatorAvatar(au.name);
+          if (uri) au.avatarUrl = uri;
+        });
+      await Promise.all(avatarTasks);
+    } catch {
+      /* 不影响几何渲染 */
+    }
+  }
 }
