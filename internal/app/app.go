@@ -146,6 +146,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 
 	// 创建所有存储子目录（注册表驱动，防手写漂移；ADR-092 两层路由：有 group 则建 FilesRoot/{group}/{storageSubDir}）
 	if cfg.FilesRoot != "" {
+		migrateFlatStorageToGrouped(cfg.FilesRoot)
 		reg := types.LoadRegistry()
 		seen := make(map[string]bool, len(reg.ResourceTypes))
 		for _, rt := range reg.ResourceTypes {
@@ -224,4 +225,41 @@ func (a *App) OpenInBrowser(url string) {
 // GetAppVersion 返回当前版本号
 func (a *App) GetAppVersion() string {
 	return version.Version
+}
+
+// migrateFlatStorageToGrouped 将扁平存储目录迁移到 ADR-092 分组结构。
+// 检测 FilesRoot 下是否存在扁平的子目录（如 ysm/、mmd/、vrchat/），
+// 自动重命名为分组结构（如 minecraft-mod/ysm/、mmd/EntityPlayer/、vrm/vrchat/）。
+// 仅当目标路径不存在时才迁移，避免覆盖已有数据。
+func migrateFlatStorageToGrouped(filesRoot string) {
+	reg := types.LoadRegistry()
+	moved := 0
+	for _, rt := range reg.ResourceTypes {
+		if rt.StorageSubDir == "" {
+			continue
+		}
+		// 目标路径：FilesRoot/{group}/{storageSubDir}
+		targetRel := types.GroupStorageRoot(rt.ID)
+		targetPath := filepath.Join(filesRoot, targetRel)
+		// 目标已存在则无需迁移
+		if info, err := os.Stat(targetPath); err == nil && info.IsDir() {
+			continue
+		}
+		// 检查扁平源路径：FilesRoot/{storageSubDir}
+		flatPath := filepath.Join(filesRoot, rt.StorageSubDir)
+		srcInfo, err := os.Stat(flatPath)
+		if err != nil || !srcInfo.IsDir() {
+			continue
+		}
+		// 源存在且目标不存在，执行迁移
+		if err := os.Rename(flatPath, targetPath); err != nil {
+			log.Printf("[migrate] 迁移 %s → %s 失败: %v", rt.StorageSubDir, targetRel, err)
+			continue
+		}
+		log.Printf("[migrate] 已迁移: %s → %s", rt.StorageSubDir, targetRel)
+		moved++
+	}
+	if moved > 0 {
+		log.Printf("[migrate] 共迁移 %d 个存储目录到分组结构", moved)
+	}
 }
