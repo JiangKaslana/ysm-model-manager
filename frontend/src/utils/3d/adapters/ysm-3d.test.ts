@@ -200,13 +200,12 @@ describe("buildYsmScene 面板填充与骨骼拾取", () => {
   it("attachBoneSelect 被正确接线（传入 content + openPanel 回调）", async () => {
     const ctx = makeCtx();
     const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
-    const boneSelectCb = vi.fn();
+    let capturedCb: ((id: string) => void) | null = null;
     const panels = {
       fillModelPanel: vi.fn(),
       fillShotPanel: vi.fn(),
-      attachBoneSelect: vi.fn((content, cb) => {
-        // 模拟：绑定回调并立即调用
-        panels.attachBoneSelectCb = cb;
+      attachBoneSelect: vi.fn((content: never, cb: (id: string) => void) => {
+        capturedCb = cb;
       }),
     };
     await buildYsmScene(ctx, "/m/a.ysm", {
@@ -217,8 +216,8 @@ describe("buildYsmScene 面板填充与骨骼拾取", () => {
 
     expect(panels.attachBoneSelect).toHaveBeenCalledTimes(1);
     // 第二个参数是回调，core 调用它时触发 openPanel
-    if (panels.attachBoneSelectCb) {
-      panels.attachBoneSelectCb("hip");
+    if (capturedCb) {
+      capturedCb("hip");
     }
     expect(ctx.menu.openPanel).toHaveBeenCalledWith("hip");
   });
@@ -350,7 +349,7 @@ describe("ysmMenuItems 独立菜单表测试", () => {
         handle: {} as never,
       },
       bonePanel: {
-        tree: { byId: new Map(), childrenMap: new Map(), roots: [] } as BoneTree,
+        tree: { byId: new Map(), childrenMap: new Map(), roots: [], objectToId: new Map() } as unknown as BoneTree,
         viewContainer: document.createElement("div"),
         camera: null,
         scene: null,
@@ -376,7 +375,7 @@ describe("ysmMenuItems 独立菜单表测试", () => {
         handle: {} as never,
       },
       bonePanel: {
-        tree: { byId: new Map(), childrenMap: new Map(), roots: [] } as BoneTree,
+        tree: { byId: new Map(), childrenMap: new Map(), roots: [], objectToId: new Map() } as unknown as BoneTree,
         viewContainer: document.createElement("div"),
         camera: null,
         scene: null,
@@ -408,7 +407,7 @@ describe("ysmMenuItems 独立菜单表测试", () => {
         handle: {} as never,
       },
       bonePanel: {
-        tree: { byId: new Map(), childrenMap: new Map(), roots: [] } as BoneTree,
+        tree: { byId: new Map(), childrenMap: new Map(), roots: [], objectToId: new Map() } as unknown as BoneTree,
         viewContainer: document.createElement("div"),
         camera: null,
         scene: null,
