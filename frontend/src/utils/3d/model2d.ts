@@ -1,5 +1,4 @@
 // ===== 基岩版模型 2D 线条图渲染（类型化版 — ADR-014 P2 大件收尾）=====
-import { dbg } from "../debug/debug.ts";
 import type { BoneTransform } from "../animation/animation.ts";
 
 // P1 修复（审核）：cube 向量归一化——畸形模型缺 origin/size 或数组长度 <3 时
@@ -72,51 +71,6 @@ export function renderModel2D(
   if (!canvas || !model?.bones?.length) return;
   // ADR-047：2D hover 用 pointer 事件 + 禁触屏手势默认，桌面零回归
   if (canvas.style) canvas.style.touchAction = "none";
-
-  // 调试：检查是否有 cube rotation
-  const cubesWithRotation: Array<{
-    bone: string;
-    origin: number[];
-    size: number[];
-    rotation: number[];
-    y: number;
-  }> = [];
-  for (const bone of model.bones) {
-    for (const c of bone.cubes || []) {
-      if (
-        c.rotation &&
-        (c.rotation[0] !== 0 || c.rotation[1] !== 0 || c.rotation[2] !== 0)
-      ) {
-        // 只记录 Y 坐标较高的 cube（可能是头发）
-        if (c.origin[1] > 20) {
-          // Y > 20 的通常是头部/头发
-          cubesWithRotation.push({
-            bone: bone.name,
-            origin: c.origin,
-            size: c.size,
-            rotation: c.rotation,
-            y: c.origin[1],
-          });
-        }
-      }
-    }
-  }
-  if (cubesWithRotation.length > 0) {
-    // 按 Y 坐标排序，只显示最高的 10 个（最可能是头发）
-    cubesWithRotation.sort((a, b) => b.y - a.y);
-    dbg("model2d", "头部带 rotation 的 cube (前10个):", cubesWithRotation.slice(0, 10));
-
-    // 额外调试：检查第一个 cube 是否有 pivot
-    const firstCube = cubesWithRotation[0];
-    const bone = model.bones?.find((b) => b.name === firstCube.bone);
-    const cube = bone?.cubes?.find(
-      (c) =>
-        c.origin[0] === firstCube.origin[0] &&
-        c.origin[1] === firstCube.origin[1] &&
-        c.origin[2] === firstCube.origin[2],
-    );
-    dbg("model2d", "第一个 cube 的 pivot:", cube?.pivot || "无显式 pivot，使用默认中心点");
-  }
 
   const showLabels = opts?.showLabels !== false;
   const zoom = opts?.zoom || 1;
