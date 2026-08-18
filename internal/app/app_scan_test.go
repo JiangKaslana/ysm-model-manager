@@ -4,8 +4,10 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"ysm-model-manager/go/logs"
@@ -501,5 +503,318 @@ func TestResolveInstDirTarget_MaidModelStandard(t *testing.T) {
 	}
 	if got := resolveInstDirTarget(instDir, "maid-model"); got != packDir {
 		t.Errorf("maid-model 标准命中 = %q, 期望 %q", got, packDir)
+	}
+}
+
+// ===== SearchModels 并发优化测试 =====
+
+// geoJSON 创建可解析的 Bedrock 几何 JSON
+func geoJSON(name string, bones int) string {
+	boneObjs := make([]string, bones)
+	for i := range bones {
+		boneObjs[i] = fmt.Sprintf(
+			`{"name":"%s_%d","pivot":[0,0,0],"cubes":[{"origin":[-4,0,-4],"size":[8,8,8]}]}`,
+			name, i,
+		)
+	}
+	return fmt.Sprintf(
+		`{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"%s","texture_width":64,"texture_height":64},"bones":[%s]}]}`,
+		name, strings.Join(boneObjs, ","),
+	)
+}
+
+// writeYsmModelFixture 在 dir 下创建一个独立的 ysm.json + 几何文件结构
+// 每个模型用独立子目录，确保 ScanModelEntries 能发现多个 ysm.json
+func writeYsmModelFixture(t *testing.T, dir, modelName string, bones int) string {
+	t.Helper()
+	modelDir := filepath.Join(dir, modelName)
+	if err := os.MkdirAll(modelDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	geoName := modelName + ".geo.json"
+	ysmJSON := fmt.Sprintf(`{"files":{"player":{"model":{"main":"%s"}}}}`, geoName)
+	if err := os.WriteFile(filepath.Join(modelDir, "ysm.json"), []byte(ysmJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelDir, geoName), []byte(geoJSON(modelName, bones)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return modelDir
+}
+
+// TestSearchModels_ModelMatchesFilters: 纯函数过滤逻辑测试
+func TestSearchModels_ModelMatchesFilters(t *testing.T) {
+	cases := []struct {
+		name      string
+		model     types.BedrockModel
+		minBones  int
+		maxBones  int
+		minCubes  int
+		maxCubes  int
+		minTex    int
+		maxTex    int
+		wantMatch bool
+	}{
+		{"零骨骼不匹配", types.BedrockModel{BoneCount: 0}, 0, 0, 0, 0, 0, 0, false},
+		{"正常匹配", types.BedrockModel{BoneCount: 5, CubeCount: 10, TexWidth: 64, TexHeight: 64}, 0, 0, 0, 0, 0, 0, true},
+		{"骨骼数不足", types.BedrockModel{BoneCount: 3}, 5, 0, 0, 0, 0, 0, false},
+		{"骨骼数超限", types.BedrockModel{BoneCount: 10}, 0, 5, 0, 0, 0, 0, false},
+		{"立方体数不足", types.BedrockModel{BoneCount: 5, CubeCount: 2}, 0, 0, 5, 0, 0, 0, false},
+		{"立方体数超限", types.BedrockModel{BoneCount: 5, CubeCount: 20}, 0, 0, 0, 10, 0, 0, false},
+		{"纹理宽度不足", types.BedrockModel{BoneCount: 5, TexWidth: 32, TexHeight: 64}, 0, 0, 0, 0, 64, 0, false},
+		{"纹理高度不足", types.BedrockModel{BoneCount: 5, TexWidth: 64, TexHeight: 32}, 0, 0, 0, 0, 64, 0, false},
+		{"纹理宽度超限", types.BedrockModel{BoneCount: 5, TexWidth: 128}, 0, 0, 0, 0, 0, 64, false},
+		{"纹理高度超限", types.BedrockModel{BoneCount: 5, TexHeight: 128}, 0, 0, 0, 0, 0, 64, false},
+		{"全部条件满足", types.BedrockModel{BoneCount: 10, CubeCount: 50, TexWidth: 128, TexHeight: 128}, 5, 20, 10, 100, 64, 256, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := modelMatchesFilters(c.model, c.minBones, c.maxBones, c.minCubes, c.maxCubes, c.minTex, c.maxTex)
+			if got != c.wantMatch {
+				t.Errorf("modelMatchesFilters = %v, 期望 %v", got, c.wantMatch)
+			}
+		})
+	}
+}
+
+// TestSearchModels_SequentialPath: 候选 <= 2 走顺序路径
+func TestSearchModels_SequentialPath(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	writeYsmModelFixture(t, ysmRoot, "small", 3)
+	writeYsmModelFixture(t, ysmRoot, "tiny", 1)
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	results := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+	if len(results) < 2 {
+		t.Fatalf("至少应有 2 个结果，got %d", len(results))
+	}
+	for _, r := range results {
+		if r.BoneCount == 0 {
+			t.Errorf("结果 %s 应有非零骨骼数", r.Name)
+		}
+	}
+}
+
+// TestSearchModels_ConcurrentPath: 候选 > 2 走并发路径
+func TestSearchModels_ConcurrentPath(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	const n = 8
+	for i := range n {
+		writeYsmModelFixture(t, ysmRoot, fmt.Sprintf("model_%d", i), i+1)
+	}
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	results := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+	if len(results) != n {
+		t.Fatalf("期望 %d 个结果，got %d", n, len(results))
+	}
+}
+
+// TestSearchModels_KeywordFilter: 关键词预过滤有效
+func TestSearchModels_KeywordFilter(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	writeYsmModelFixture(t, ysmRoot, "warrior", 5)
+	writeYsmModelFixture(t, ysmRoot, "mage", 3)
+	writeYsmModelFixture(t, ysmRoot, "rogue", 4)
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+
+	// 搜索 "warrior" → 只匹配 warrior
+	results := a.SearchModels(base, "warrior", 0, 0, 0, 0, 0, 0)
+	if len(results) != 1 {
+		t.Fatalf("搜索 warrior 期望 1 个结果，got %d", len(results))
+	}
+
+	// 搜索不存在的关键词 → 空结果
+	results = a.SearchModels(base, "nonexistent", 0, 0, 0, 0, 0, 0)
+	if len(results) != 0 {
+		t.Fatalf("搜索 nonexistent 期望 0 个结果，got %d", len(results))
+	}
+}
+
+// TestSearchModels_BoneFilter: 骨骼数过滤有效
+func TestSearchModels_BoneFilter(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	writeYsmModelFixture(t, ysmRoot, "low", 2)
+	writeYsmModelFixture(t, ysmRoot, "high", 10)
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+
+	// 最少骨骼 5 → 只匹配 high
+	results := a.SearchModels(base, "", 5, 0, 0, 0, 0, 0)
+	if len(results) != 1 {
+		t.Fatalf("期望 1 个结果，got %d", len(results))
+	}
+
+	// 最多骨骼 3 → 只匹配 low
+	results = a.SearchModels(base, "", 0, 3, 0, 0, 0, 0)
+	if len(results) != 1 {
+		t.Fatalf("期望 1 个结果，got %d", len(results))
+	}
+}
+
+// TestSearchModels_ConcurrentConsistency: 并发路径全量搜索有效
+func TestSearchModels_ConcurrentConsistency(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	const n = 10
+	for i := range n {
+		writeYsmModelFixture(t, ysmRoot, fmt.Sprintf("model_%d", i), i+1)
+	}
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+
+	results := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+	if len(results) != n {
+		t.Fatalf("期望 %d 个结果，got %d", n, len(results))
+	}
+
+	for _, r := range results {
+		if r.BoneCount == 0 {
+			t.Errorf("结果 %s 骨骼数为 0", r.Name)
+		}
+	}
+}
+
+// TestSearchModels_EmptyRepo: 空仓库返回 nil
+func TestSearchModels_EmptyRepo(t *testing.T) {
+	base := t.TempDir()
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	results := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+	if results != nil {
+		t.Fatalf("空仓库应返回 nil, got %v", results)
+	}
+}
+
+// TestSearchModels_Boundary2Sequential: 恰好 2 个候选 → 走顺序路径
+func TestSearchModels_Boundary2Sequential(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	writeYsmModelFixture(t, ysmRoot, "a", 1)
+	writeYsmModelFixture(t, ysmRoot, "b", 2)
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	results := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+	if len(results) != 2 {
+		t.Fatalf("恰好 2 个模型应走顺序路径，got %d", len(results))
+	}
+}
+
+// TestSearchModels_Boundary3Concurrent: 恰好 3 个候选 → 走并发路径
+func TestSearchModels_Boundary3Concurrent(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	writeYsmModelFixture(t, ysmRoot, "a", 1)
+	writeYsmModelFixture(t, ysmRoot, "b", 2)
+	writeYsmModelFixture(t, ysmRoot, "c", 3)
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	results := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+	if len(results) != 3 {
+		t.Fatalf("恰好 3 个模型应走并发路径，got %d", len(results))
+	}
+}
+
+// TestSearchModels_CombinedFilter: 关键词+骨骼数+纹理组合过滤
+func TestSearchModels_CombinedFilter(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	writeYsmModelFixture(t, ysmRoot, "warrior_heavy", 15)
+	writeYsmModelFixture(t, ysmRoot, "warrior_light", 3)
+	writeYsmModelFixture(t, ysmRoot, "mage_heavy", 12)
+	writeYsmModelFixture(t, ysmRoot, "rogue_light", 4)
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+
+	// 组合：关键词 "warrior" + 最少骨骼 5 → 只匹配 warrior_heavy
+	results := a.SearchModels(base, "warrior", 5, 0, 0, 0, 0, 0)
+	if len(results) != 1 {
+		t.Fatalf("warrior+骨骼>=5 应只匹配 1 个，got %d", len(results))
+	}
+	if !strings.Contains(results[0].Path, "warrior_heavy") {
+		t.Errorf("期望 warrior_heavy, got path %s", results[0].Path)
+	}
+
+	// 组合：关键词 "warrior" + 最多骨骼 5 → 只匹配 warrior_light
+	results = a.SearchModels(base, "warrior", 0, 5, 0, 0, 0, 0)
+	if len(results) != 1 {
+		t.Fatalf("warrior+骨骼<=5 应只匹配 1 个，got %d", len(results))
+	}
+
+	// 搜索 "mage" → 只匹配 mage_heavy
+	results = a.SearchModels(base, "mage", 0, 0, 0, 0, 0, 0)
+	if len(results) != 1 {
+		t.Fatalf("搜索 mage 应只匹配 1 个，got %d", len(results))
+	}
+	if !strings.Contains(results[0].Path, "mage_heavy") {
+		t.Errorf("期望 mage_heavy, got path %s", results[0].Path)
+	}
+}
+
+// TestSearchModels_ResultOrder: 并发结果完整性验证
+func TestSearchModels_ResultOrder(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	names := []string{"alpha", "beta", "gamma", "delta", "epsilon"}
+	for _, name := range names {
+		writeYsmModelFixture(t, ysmRoot, name, 2)
+	}
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	results := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+	if len(results) != len(names) {
+		t.Fatalf("期望 %d 个结果，got %d", len(names), len(results))
+	}
+
+	// 验证所有模型都被找到（通过 Path 包含目录名）
+	for _, name := range names {
+		found := false
+		for _, r := range results {
+			if strings.Contains(r.Path, name) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("模型 %s 未在结果中找到", name)
+		}
+	}
+}
+
+// TestSearchModels_ZeroBoneFilter: 零骨骼模型被过滤
+func TestSearchModels_ZeroBoneFilter(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	modelDir := filepath.Join(ysmRoot, "empty_model")
+	os.MkdirAll(modelDir, 0o755)
+	ysmJSON := `{"files":{"player":{"model":{"main":"empty.geo.json"}}}}`
+	os.WriteFile(filepath.Join(modelDir, "ysm.json"), []byte(ysmJSON), 0o644)
+	emptyGeo := `{"format_version":"1.16.0","minecraft:geometry":[{"description":{"identifier":"empty","texture_width":64,"texture_height":64},"bones":[]}]}`
+	os.WriteFile(filepath.Join(modelDir, "empty.geo.json"), []byte(emptyGeo), 0o644)
+
+	writeYsmModelFixture(t, ysmRoot, "valid_model", 5)
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	results := a.SearchModels(base, "", 0, 0, 0, 0, 0, 0)
+	// 空骨骼模型应被过滤（BoneCount=0，modelMatchesFilters 返回 false）
+	if len(results) != 1 {
+		t.Fatalf("空骨骼模型应被过滤，仅 1 个有效结果，got %d", len(results))
+	}
+	if !strings.Contains(results[0].Path, "valid_model") {
+		t.Errorf("唯一有效结果应为 valid_model, got path %s", results[0].Path)
 	}
 }

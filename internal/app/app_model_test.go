@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -89,5 +90,234 @@ func TestReadFileBytes_MultiRootGuard(t *testing.T) {
 	// 4. 不存在的文件返回 nil（不抛错，与既有契约一致）
 	if got := a.ReadFileBytes(filepath.Join(vrcRoot, "missing.vrm")); got != nil {
 		t.Fatalf("不存在文件应返回 nil，got %q", got)
+	}
+}
+
+// ===== ReadFileBytesBatch 并发优化测试 =====
+
+// TestReadFileBytesBatch_SmallBatchSequential: <= 4 文件走顺序路径
+func TestReadFileBytesBatch_SmallBatchSequential(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	if err := os.MkdirAll(ysmRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	paths := make([]string, 4)
+	for i := range 4 {
+		p := filepath.Join(ysmRoot, fmt.Sprintf("file_%d.bin", i))
+		if err := os.WriteFile(p, []byte(fmt.Sprintf("data_%d", i)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		paths[i] = p
+	}
+	a := repoApp(t, types.AppConfig{FilesRoot: base})
+	result := a.ReadFileBytesBatch(paths)
+	if len(result) != 4 {
+		t.Fatalf("期望 4 个文件，got %d", len(result))
+	}
+	for _, p := range paths {
+		if result[p] == nil {
+			t.Errorf("文件 %s 应存在于结果中", p)
+		}
+	}
+}
+
+// TestReadFileBytesBatch_LargeBatchConcurrent: > 4 文件走并发路径
+func TestReadFileBytesBatch_LargeBatchConcurrent(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	if err := os.MkdirAll(ysmRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const n = 16
+	paths := make([]string, n)
+	for i := range n {
+		p := filepath.Join(ysmRoot, fmt.Sprintf("file_%d.bin", i))
+		if err := os.WriteFile(p, []byte(fmt.Sprintf("data_%d", i)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		paths[i] = p
+	}
+	a := repoApp(t, types.AppConfig{FilesRoot: base})
+	result := a.ReadFileBytesBatch(paths)
+	if len(result) != n {
+		t.Fatalf("期望 %d 个文件，got %d", n, len(result))
+	}
+	for _, p := range paths {
+		if result[p] == nil {
+			t.Errorf("文件 %s 应存在于结果中", p)
+		}
+	}
+}
+
+// TestReadFileBytesBatch_PathGuardConcurrent: 并发路径下路径守卫仍有效
+func TestReadFileBytesBatch_PathGuardConcurrent(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	if err := os.MkdirAll(ysmRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	validPaths := make([]string, 10)
+	for i := range 10 {
+		p := filepath.Join(ysmRoot, fmt.Sprintf("valid_%d.bin", i))
+		os.WriteFile(p, []byte("ok"), 0o644)
+		validPaths[i] = p
+	}
+	// 混入 3 个非法路径
+	paths := append(validPaths,
+		filepath.Join(base, "..", "outside.bin"),
+		"",
+		filepath.Join(base, "nonexistent", "dir", "file.bin"),
+	)
+	a := repoApp(t, types.AppConfig{FilesRoot: base})
+	result := a.ReadFileBytesBatch(paths)
+	// 仅合法路径应出现在结果中
+	if len(result) != 10 {
+		t.Fatalf("期望 10 个合法文件，got %d", len(result))
+	}
+	for _, p := range validPaths {
+		if result[p] == nil {
+			t.Errorf("合法文件 %s 应存在", p)
+		}
+	}
+}
+
+// TestReadFileBytesBatch_EmptyInput: 空输入返回空 map
+func TestReadFileBytesBatch_EmptyInput(t *testing.T) {
+	a := repoApp(t, types.AppConfig{FilesRoot: t.TempDir()})
+	result := a.ReadFileBytesBatch(nil)
+	if len(result) != 0 {
+		t.Fatalf("空输入应返回空 map，got %d", len(result))
+	}
+}
+
+// TestReadFileBytesBatch_ConcurrentPartialFail: 并发路径下部分文件不存在不影响其他
+func TestReadFileBytesBatch_ConcurrentPartialFail(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	if err := os.MkdirAll(ysmRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// 创建 10 个合法文件 + 5 个不存在的路径
+	paths := make([]string, 15)
+	for i := range 10 {
+		p := filepath.Join(ysmRoot, fmt.Sprintf("exists_%d.bin", i))
+		os.WriteFile(p, []byte("data"), 0o644)
+		paths[i] = p
+	}
+	for i := 10; i < 15; i++ {
+		paths[i] = filepath.Join(ysmRoot, fmt.Sprintf("missing_%d.bin", i))
+	}
+	a := repoApp(t, types.AppConfig{FilesRoot: base})
+	result := a.ReadFileBytesBatch(paths)
+	if len(result) != 10 {
+		t.Fatalf("期望 10 个存在的文件，got %d", len(result))
+	}
+}
+
+// TestReadFileBytesBatch_Boundary4Sequential: 恰好 4 个文件 → 走顺序路径
+func TestReadFileBytesBatch_Boundary4Sequential(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	paths := make([]string, 4)
+	for i := range 4 {
+		p := filepath.Join(ysmRoot, fmt.Sprintf("b4_%d.bin", i))
+		os.WriteFile(p, []byte(fmt.Sprintf("content_%d", i)), 0o644)
+		paths[i] = p
+	}
+	a := repoApp(t, types.AppConfig{FilesRoot: base})
+	result := a.ReadFileBytesBatch(paths)
+	if len(result) != 4 {
+		t.Fatalf("4 文件应全读，got %d", len(result))
+	}
+	// 验证返回内容正确性
+	for i, p := range paths {
+		expected := fmt.Sprintf("content_%d", i)
+		if string(result[p]) != expected {
+			t.Errorf("文件 %s 内容不匹配: got %q, want %q", p, result[p], expected)
+		}
+	}
+}
+
+// TestReadFileBytesBatch_Boundary5Concurrent: 恰好 5 个文件 → 走并发路径
+func TestReadFileBytesBatch_Boundary5Concurrent(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	paths := make([]string, 5)
+	for i := range 5 {
+		p := filepath.Join(ysmRoot, fmt.Sprintf("b5_%d.bin", i))
+		os.WriteFile(p, []byte(fmt.Sprintf("content_%d", i)), 0o644)
+		paths[i] = p
+	}
+	a := repoApp(t, types.AppConfig{FilesRoot: base})
+	result := a.ReadFileBytesBatch(paths)
+	if len(result) != 5 {
+		t.Fatalf("5 文件应全读，got %d", len(result))
+	}
+	for i, p := range paths {
+		expected := fmt.Sprintf("content_%d", i)
+		if string(result[p]) != expected {
+			t.Errorf("文件 %s 内容不匹配: got %q, want %q", p, result[p], expected)
+		}
+	}
+}
+
+// TestReadFileBytesBatch_SequentialPartialFail: 顺序路径下部分文件不存在
+func TestReadFileBytesBatch_SequentialPartialFail(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	// 3 个存在 + 1 个不存在（总共 4 个，走顺序路径）
+	paths := make([]string, 4)
+	for i := range 3 {
+		p := filepath.Join(ysmRoot, fmt.Sprintf("seq_exists_%d.bin", i))
+		os.WriteFile(p, []byte(fmt.Sprintf("seq_data_%d", i)), 0o644)
+		paths[i] = p
+	}
+	paths[3] = filepath.Join(ysmRoot, "seq_missing.bin")
+
+	a := repoApp(t, types.AppConfig{FilesRoot: base})
+	result := a.ReadFileBytesBatch(paths)
+	if len(result) != 3 {
+		t.Fatalf("期望 3 个存在的文件，got %d", len(result))
+	}
+	// 验证存在的文件内容正确
+	for i := range 3 {
+		p := paths[i]
+		expected := fmt.Sprintf("seq_data_%d", i)
+		if string(result[p]) != expected {
+			t.Errorf("文件 %s 内容不匹配", p)
+		}
+	}
+	// 不存在的文件不应出现在结果中
+	if _, exists := result[paths[3]]; exists {
+		t.Errorf("不存在的文件不应出现在结果中")
+	}
+}
+
+// TestReadFileBytesBatch_ContentCorrectness: 并发路径返回内容精确校验
+func TestReadFileBytesBatch_ContentCorrectness(t *testing.T) {
+	base := t.TempDir()
+	ysmRoot := filepath.Join(base, "ysm", "models")
+	os.MkdirAll(ysmRoot, 0o755)
+	const n = 8
+	paths := make([]string, n)
+	for i := range n {
+		p := filepath.Join(ysmRoot, fmt.Sprintf("verify_%d.bin", i))
+		content := []byte(fmt.Sprintf("unique_payload_%03d", i))
+		os.WriteFile(p, content, 0o644)
+		paths[i] = p
+	}
+	a := repoApp(t, types.AppConfig{FilesRoot: base})
+	result := a.ReadFileBytesBatch(paths)
+
+	for i, p := range paths {
+		expected := fmt.Sprintf("unique_payload_%03d", i)
+		got := string(result[p])
+		if got != expected {
+			t.Errorf("文件 %s 内容不匹配: got %q, want %q", p, got, expected)
+		}
 	}
 }

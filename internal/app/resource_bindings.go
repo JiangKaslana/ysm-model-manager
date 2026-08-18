@@ -233,22 +233,48 @@ func repoDirAccessible(dir string) bool {
 	return true
 }
 
-// specificRoot 返回资源类型的专属覆写路径，从 resource_types.json 注册表驱动
+// specificRoot 返回资源类型的专属覆写路径。
+// ADR-095：优先从 cfg.CustomRoots map 读取，其次回退到 AppConfig 旧字段（反射读取）。
+// 先查 rtype 自身 key，再查 rt.ConfigFallback（如 vrc → mmd-skin），都无则返回空串。
 func specificRoot(cfg types.AppConfig, rtype string) string {
+	// 1. 优先从 CustomRoots map 读取（新方式）
+	if cfg.CustomRoots != nil {
+		if root := cfg.CustomRoots[rtype]; root != "" {
+			return root
+		}
+		rt := types.RegistryType(rtype)
+		if rt != nil && rt.ConfigFallback != "" {
+			if root := cfg.CustomRoots[rt.ConfigFallback]; root != "" {
+				return root
+			}
+		}
+	}
+
+	// 2. 回退到 AppConfig 旧字段（向后兼容）
 	rt := types.RegistryType(rtype)
-	if rt == nil || rt.ConfigField == "" {
+	if rt != nil && rt.ConfigField != "" {
+		if root := getConfigFieldByReflection(cfg, rt.ConfigField); root != "" {
+			return root
+		}
+		if rt.ConfigFallback != "" {
+			if root := getConfigFieldByReflection(cfg, rt.ConfigFallback); root != "" {
+				return root
+			}
+		}
+	}
+
+	return ""
+}
+
+// getConfigFieldByReflection 通过反射读取 AppConfig 中指定字段的值
+func getConfigFieldByReflection(cfg types.AppConfig, fieldName string) string {
+	v := reflect.ValueOf(cfg)
+	f := v.FieldByName(fieldName)
+	if !f.IsValid() {
 		return ""
 	}
-	v := reflect.ValueOf(cfg)
-	if f := v.FieldByName(rt.ConfigField); f.IsValid() && f.Kind() == reflect.String {
-		if s := f.String(); s != "" {
-			return s
-		}
-	}
-	if rt.ConfigFallback != "" {
-		if f := v.FieldByName(rt.ConfigFallback); f.IsValid() && f.Kind() == reflect.String {
-			return f.String()
-		}
+	if f.Kind() == reflect.String {
+		return f.String()
 	}
 	return ""
 }
@@ -260,23 +286,13 @@ func specificRoot(cfg types.AppConfig, rtype string) string {
 // 传入仓库根时 os.Rename(root, root+".disabled") 会把整个仓库移出配置位置（镜像 DeleteModelDir
 // 的 rel=="." 拒绝同类输入）
 func (a *App) ToggleResourcePack(path string) bool {
-	// 守卫基准遍历全部配置根——原基准 a.ysmRoot() 下 resourcepacks 是
-	// FilesRoot 的兄弟子目录，相对 ysmRoot 为 ../ 被误拒，启用/禁用永远失败。
-	// 对任一根：路径等于根本身拒绝（防根被改名），在根内则放行；都不匹配返回 false。
 	cfg := a.LoadAppConfig()
 	roots := []string{cfg.FilesRoot, cfg.McRoot}
-	// ADR-064 锚定：遍历注册表组装各类型专属仓库根（原硬编码 9 个 config 字段，
-	// 新增类型的 ConfigField 不在此数组则该类型启用/禁用永远失败）
-	v := reflect.ValueOf(cfg)
-	for _, rt := range types.LoadRegistry().ResourceTypes {
-		for _, field := range []string{rt.ConfigField, rt.ConfigFallback} {
-			if field == "" {
-				continue
-			}
-			if f := v.FieldByName(field); f.IsValid() && f.Kind() == reflect.String {
-				if s := f.String(); s != "" {
-					roots = append(roots, s)
-				}
+	// ADR-095：专属根统一从 CustomRoots map 收集（不再反射结构体字段）
+	if cfg.CustomRoots != nil {
+		for _, s := range cfg.CustomRoots {
+			if s != "" {
+				roots = append(roots, s)
 			}
 		}
 	}
@@ -304,15 +320,12 @@ func (a *App) ToggleResourcePack(path string) bool {
 		src = path
 		dst = path + ".disabled"
 	}
-	// 防覆盖：目标已存在（同名新文件/旧状态残留）时拒绝——os.Rename 会静默覆盖，
-	// 对齐 ToggleModelEnable 批次3 P1 修复（剥 .ban 后静默覆盖同名新文件）
 	if _, err := os.Stat(dst); err == nil {
 		return false
 	}
 	if err := os.Rename(src, dst); err != nil {
 		return false
 	}
-	// 切换后失效该目录扫描缓存——与 ToggleModelEnable 的 InvalidatePath 对齐（防 30s 陈旧缓存）
 	scanner.InvalidatePath(filepath.Dir(path))
 	return true
 }
@@ -356,14 +369,12 @@ func (a *App) SelectImportFile(filter, title string) string {
 }
 
 // SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认）
-// 非空入参经 filepath.Abs(filepath.Clean()) 规范化，防止含 .. 或未规范化路径
-// 配置字段由注册表 configField 反射驱动（复用 specificRoot 同款模式），
-// 避免硬编码 switch 与注册表新增类型漂移。
+// ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。
+// 不再反射结构体字段，新增资源类型只改 resource_types.json 即可生效。
 func (a *App) SetResourceRoot(rtype, path string) error {
 	cfg := a.LoadAppConfig()
-	rt := types.RegistryType(rtype)
-	if rt == nil || rt.ConfigField == "" {
-		return fmt.Errorf("不支持单独设置此类型的路径: %s", rtype)
+	if types.RegistryType(rtype) == nil {
+		return fmt.Errorf("未知的资源类型: %s", rtype)
 	}
 	if path != "" {
 		abs, err := filepath.Abs(filepath.Clean(path))
@@ -372,11 +383,10 @@ func (a *App) SetResourceRoot(rtype, path string) error {
 		}
 		path = abs
 	}
-	v := reflect.ValueOf(&cfg).Elem().FieldByName(rt.ConfigField)
-	if !v.IsValid() || v.Kind() != reflect.String {
-		return fmt.Errorf("配置字段缺失: %s", rt.ConfigField)
+	if cfg.CustomRoots == nil {
+		cfg.CustomRoots = make(map[string]string)
 	}
-	v.SetString(path)
+	cfg.CustomRoots[rtype] = path
 	return a.saveConfig(cfg)
 }
 

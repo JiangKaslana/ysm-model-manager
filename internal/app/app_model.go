@@ -11,7 +11,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/geometry"
@@ -102,7 +104,18 @@ func (a *App) ReadFileBytes(path string) []byte {
 // 一次 RPC 返回多个文件字节，减少 Go↔JS IPC 往返（原 N 次 readFileBytes → 1 次 batch）。
 // 路径守卫：逐个校验 isPathInRootOrSelf，非法路径跳过（值为 nil）。
 // 返回 map[路径] → base64 字节（Wails []byte 自动序列化为 base64，map 保持键序）。
+//
+// 并发优化：I/O 密集型任务，使用 goroutine 池并行读取。
+// 当 paths 数量 <= 4 时退化为顺序读取（goroutine 开销不划算）。
 func (a *App) ReadFileBytesBatch(paths []string) map[string][]byte {
+	if len(paths) <= 4 {
+		return a.readFileBytesBatchSequential(paths)
+	}
+	return a.readFileBytesBatchConcurrent(paths)
+}
+
+// readFileBytesBatchSequential 顺序读取（小规模或单文件场景）
+func (a *App) readFileBytesBatchSequential(paths []string) map[string][]byte {
 	result := make(map[string][]byte, len(paths))
 	for _, p := range paths {
 		if !a.isPathInRootOrSelf(p) {
@@ -114,6 +127,63 @@ func (a *App) ReadFileBytesBatch(paths []string) map[string][]byte {
 		}
 		result[p] = data
 	}
+	return result
+}
+
+// readFileBytesBatchConcurrent 并发批量读取（goroutine 池 + 分片调度）
+// 按 runtime.NumCPU() 数量启动 worker，每个 worker 从任务队列取 path 读取。
+func (a *App) readFileBytesBatchConcurrent(paths []string) map[string][]byte {
+	type readTask struct {
+		index int
+		path  string
+	}
+
+	// 预过滤：路径守卫前置，非法路径直接跳过
+	validPaths := make([]readTask, 0, len(paths))
+	for i, p := range paths {
+		if a.isPathInRootOrSelf(p) {
+			validPaths = append(validPaths, readTask{index: i, path: p})
+		}
+	}
+
+	result := make(map[string][]byte, len(validPaths))
+	if len(validPaths) == 0 {
+		return result
+	}
+
+	// 启动 worker 池
+	workers := runtime.NumCPU()
+	if workers < 2 {
+		workers = 2
+	}
+
+	taskCh := make(chan readTask, len(validPaths))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for task := range taskCh {
+				data, err := os.ReadFile(task.path)
+				if err != nil {
+					continue
+				}
+				mu.Lock()
+				result[task.path] = data
+				mu.Unlock()
+			}
+		}()
+	}
+
+	// 投递任务
+	for _, task := range validPaths {
+		taskCh <- task
+	}
+	close(taskCh)
+
+	wg.Wait()
 	return result
 }
 

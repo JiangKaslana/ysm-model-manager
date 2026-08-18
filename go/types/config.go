@@ -1,21 +1,29 @@
 package types
 
 // AppConfig 应用持久化配置
+// 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"），
+// 取代过去 YsmRoot/ResourcepackRoot/... 7 个独立字段，避免资源类型膨胀时结构体硬编码。
+// configField 语义：存储的是资源类型 id（非结构体字段名），具体路由逻辑在 internal/app/resource_bindings.go
+// 统一查 CustomRoots map，检索 "customRoots" 即可抓到全貌。
 type AppConfig struct {
-	FilesRoot        string `json:"filesRoot"` // 统一文件存储根目录，各类型默认存 {filesRoot}/{subDir}/
-	YsmRoot          string `json:"ysmRoot"`
-	RepoRoot         string `json:"repoRoot"` // 旧版字段，v1.6.4+ 不再使用，仅用于 config 迁移
-	ResourcepackRoot string `json:"resourcepackRoot"`
-	ShaderpackRoot   string `json:"shaderpackRoot"`
-	SchematicRoot    string `json:"schematicRoot"`
-	LitematicRoot    string `json:"litematicRoot"`
-	MmdRoot          string `json:"mmdRoot"`
-	VrcRoot          string `json:"vrcRoot"`
-	McRoot           string `json:"mcRoot"`
-	LinkMode         string `json:"linkMode"`
-	Theme            string `json:"theme"`
-	Mirror           string `json:"mirror"`
-	VoxelMaxBlocks   int    `json:"voxelMaxBlocks"` // 3D 体素渲染上限，0=使用默认 200000
+	FilesRoot   string            `json:"filesRoot"`   // 统一文件存储根目录，各类型默认存 {filesRoot}/{subDir}/
+	CustomRoots map[string]string `json:"customRoots"` // 资源类型 id → 自定义根路径（留空则回退 FilesRoot）
+
+	// Deprecated: 以下字段为历史兼容保留，新代码请使用 FilesRoot/CustomRoots
+	YsmRoot          string `json:"ysmRoot,omitempty"`
+	ResourcepackRoot string `json:"resourcepackRoot,omitempty"`
+	ShaderpackRoot   string `json:"shaderpackRoot,omitempty"`
+	SchematicRoot    string `json:"schematicRoot,omitempty"`
+	LitematicRoot    string `json:"litematicRoot,omitempty"`
+	MmdRoot          string `json:"mmdRoot,omitempty"`
+	VrcRoot          string `json:"vrcRoot,omitempty"`
+	// 结束废弃字段
+
+	McRoot         string `json:"mcRoot"`
+	LinkMode       string `json:"linkMode"`
+	Theme          string `json:"theme"`
+	Mirror         string `json:"mirror"`
+	VoxelMaxBlocks int    `json:"voxelMaxBlocks"` // 3D 体素渲染上限，0=使用默认 200000
 	// 运行阈值（ADR-062 可配置化下沉：0=使用各包默认常量，行为零漂移）
 	ScanCacheTTLMs          int `json:"scanCacheTtlMs"`          // 扫描缓存 TTL 毫秒，0=默认 30s（scanner.scanCacheTTL）
 	DownloadTimeoutSec      int `json:"downloadTimeoutSec"`      // 下载超时秒，0=默认 300s（download.defaultTimeout）

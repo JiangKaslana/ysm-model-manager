@@ -11,7 +11,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"ysm-model-manager/go/executil"
@@ -115,40 +117,44 @@ func (a *App) ExportModelStructureJSON(modelPath string) string {
 }
 
 // ========== 高级搜索 ==========
+// SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。
+// 并发优化：关键词预过滤后，用 goroutine 池并行 AnalyzeBedrockModel（I/O + CPU 混合型）。
 func (a *App) SearchModels(filesRoot string, keyword string, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) []types.SearchResult {
 	entries := a.ScanModelEntries(filesRoot)
 	if len(entries) == 0 {
 		return nil
 	}
-	var results []types.SearchResult
 	kw := strings.ToLower(strings.TrimSpace(keyword))
-	for _, entry := range entries {
-		if kw != "" {
+
+	// Phase 1：关键词预过滤（纯内存操作，快速缩小候选集）
+	var candidates []types.ModelEntry
+	if kw != "" {
+		for _, entry := range entries {
 			name := strings.ToLower(entry.Name)
-			if !strings.Contains(name, kw) && !strings.Contains(strings.ToLower(entry.Path), kw) {
-				continue
+			if strings.Contains(name, kw) || strings.Contains(strings.ToLower(entry.Path), kw) {
+				candidates = append(candidates, entry)
 			}
 		}
+	} else {
+		candidates = entries
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	// Phase 2：并发分析 + 过滤
+	if len(candidates) <= 2 {
+		return a.searchModelsSequential(candidates, minBones, maxBones, minCubes, maxCubes, minTex, maxTex)
+	}
+	return a.searchModelsConcurrent(candidates, minBones, maxBones, minCubes, maxCubes, minTex, maxTex)
+}
+
+// searchModelsSequential 顺序分析（候选 <= 2 时，goroutine 开销不划算）
+func (a *App) searchModelsSequential(entries []types.ModelEntry, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) []types.SearchResult {
+	var results []types.SearchResult
+	for _, entry := range entries {
 		model := a.AnalyzeBedrockModel(entry.Path)
-		if model.BoneCount == 0 {
-			continue
-		}
-		if minBones > 0 && model.BoneCount < minBones {
-			continue
-		}
-		if maxBones > 0 && model.BoneCount > maxBones {
-			continue
-		}
-		if minCubes > 0 && model.CubeCount < minCubes {
-			continue
-		}
-		if maxCubes > 0 && model.CubeCount > maxCubes {
-			continue
-		}
-		if minTex > 0 && (model.TexWidth < minTex || model.TexHeight < minTex) {
-			continue
-		}
-		if maxTex > 0 && (model.TexWidth > maxTex || model.TexHeight > maxTex) {
+		if !modelMatchesFilters(model, minBones, maxBones, minCubes, maxCubes, minTex, maxTex) {
 			continue
 		}
 		results = append(results, types.SearchResult{
@@ -158,6 +164,97 @@ func (a *App) SearchModels(filesRoot string, keyword string, minBones, maxBones,
 		})
 	}
 	return results
+}
+
+// searchModelsConcurrent 并发分析（goroutine 池 + 有序收集结果）
+func (a *App) searchModelsConcurrent(entries []types.ModelEntry, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) []types.SearchResult {
+	type indexedResult struct {
+		index  int
+		result *types.SearchResult
+	}
+
+	workers := runtime.NumCPU()
+	if workers < 2 {
+		workers = 2
+	}
+
+	taskCh := make(chan int, len(entries))
+	resultCh := make(chan indexedResult, len(entries))
+	var wg sync.WaitGroup
+
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range taskCh {
+				entry := entries[idx]
+				model := a.AnalyzeBedrockModel(entry.Path)
+				if !modelMatchesFilters(model, minBones, maxBones, minCubes, maxCubes, minTex, maxTex) {
+					continue
+				}
+				resultCh <- indexedResult{
+					index: idx,
+					result: &types.SearchResult{
+						Name: entry.Name, Path: entry.Path,
+						BoneCount: model.BoneCount, CubeCount: model.CubeCount,
+						TexWidth: model.TexWidth, TexHeight: model.TexHeight,
+					},
+				}
+			}
+		}()
+	}
+
+	for i := range entries {
+		taskCh <- i
+	}
+	close(taskCh)
+
+	// 关闭 resultCh：所有 worker 完成后
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	// 收集结果并按原始顺序排序
+	var results []types.SearchResult
+	for r := range resultCh {
+		if r.result != nil {
+			results = append(results, *r.result)
+		}
+	}
+
+	// 按原始索引排序，保持确定性顺序
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
+
+	return results
+}
+
+// modelMatchesFilters 检查模型是否满足所有过滤条件（bone/cube/tex）
+func modelMatchesFilters(model types.BedrockModel, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) bool {
+	if model.BoneCount == 0 {
+		return false
+	}
+	if minBones > 0 && model.BoneCount < minBones {
+		return false
+	}
+	if maxBones > 0 && model.BoneCount > maxBones {
+		return false
+	}
+	if minCubes > 0 && model.CubeCount < minCubes {
+		return false
+	}
+	if maxCubes > 0 && model.CubeCount > maxCubes {
+		return false
+	}
+	if minTex > 0 && (model.TexWidth < minTex || model.TexHeight < minTex) {
+		return false
+	}
+	if maxTex > 0 && (model.TexWidth > maxTex || model.TexHeight > maxTex) {
+		return false
+	}
+	return true
 }
 
 // ========== 模型扫描（薄壳）==========

@@ -113,13 +113,7 @@ func (a *App) loadAppConfig() {
 		// 不设 configLoaded，让下次 LoadAppConfig 重试（保留原文件供人工修复）
 		return
 	}
-	// 配置迁移：旧 repoRoot → 新 filesRoot + ysm 子目录
-	if cfg.FilesRoot == "" && cfg.RepoRoot != "" {
-		cfg.FilesRoot = cfg.RepoRoot
-		cfg.RepoRoot = ""
-		_ = a.saveConfig(cfg)
-	}
-	// repoRoot 从 FilesRoot 动态推导，无需手动赋值
+	// 配置迁移逻辑简化：旧 repoRoot 字段已废弃，由 FilesRoot 统一承载
 	if cfg.LinkMode != "" {
 		a.linkModeMu.Lock()
 		a.LinkMode = cfg.LinkMode
@@ -150,16 +144,12 @@ func (a *App) SaveAppConfig(filesRoot, rpRoot, mcRoot, linkMode, theme string) e
 		}
 	}
 	cfg := types.AppConfig{
-		FilesRoot:        orDefault(filesRoot, oldCfg.FilesRoot),
-		ResourcepackRoot: orDefault(rpRoot, oldCfg.ResourcepackRoot),
-		ShaderpackRoot:   oldCfg.ShaderpackRoot,
-		SchematicRoot:    oldCfg.SchematicRoot,
-		MmdRoot:          oldCfg.MmdRoot,
-		VrcRoot:          oldCfg.VrcRoot,
-		McRoot:           orDefault(validated, oldCfg.McRoot),
-		LinkMode:         orDefault(linkMode, oldCfg.LinkMode),
-		Theme:            orDefault(theme, oldCfg.Theme),
-		Mirror:           oldCfg.Mirror,
+		FilesRoot:   orDefault(filesRoot, oldCfg.FilesRoot),
+		CustomRoots: oldCfg.CustomRoots, // 保留自定义根目录映射
+		McRoot:      orDefault(validated, oldCfg.McRoot),
+		LinkMode:    orDefault(linkMode, oldCfg.LinkMode),
+		Theme:       orDefault(theme, oldCfg.Theme),
+		Mirror:      oldCfg.Mirror,
 		// VoxelMaxBlocks 从 oldCfg 拷贝——原手工构造漏带该字段，
 		// 保存任何设置都会把用户体素上限重置为 0（默认 200000）
 		VoxelMaxBlocks: oldCfg.VoxelMaxBlocks,
