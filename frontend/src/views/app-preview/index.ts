@@ -32,7 +32,7 @@ import { showVrmMeta, showMmdPreview } from "./detail-3d.ts";
 import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from "./litematic-meta.ts";
 import { cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
 import { cleanupMmd3D, invalidateMmdPreview } from "./mmd-3d.ts";
-import { createPack3D, cleanupPack3D, invalidatePackPreview } from "./pack-3d.ts";
+import { cleanupPack3D, invalidatePackPreview } from "./pack-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
 import { esc } from "../../utils/dom/html.ts";
 import type { BedrockGeometry } from "./geometry.ts";
@@ -50,24 +50,11 @@ type PreviewShowFn = (
  * VRC 的 .vrm（3D meta 卡）/ .vrca/.zip（简单预览）分支收进 handler 内部。
  */
 const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
-  // ADR-080：资源包双通道——包内含 block 模型 → 3D 渲染；否则回退缩略图卡（pack.mcmeta + pack.png）
-  [RESOURCE_TYPES.PACK]: (ctx, path) => {
-    void (async (): Promise<void> => {
-      try {
-        const App = await getApp();
-        const fn = (App as unknown as Record<string, (p: string) => Promise<string>>).ListPackModels;
-        const raw = fn ? await fn(path) : "[]";
-        const models = JSON.parse(raw) as string[];
-        if (models.some((e) => e.includes("/block/") || e.includes("/item/"))) {
-          await createPack3D(path);
-          return;
-        }
-      } catch {
-        /* 检测失败回退缩略图 */
-      }
-      showResourcePack(ctx, path);
-    })();
-  },
+  // ADR-080：资源包详情卡（pack.mcmeta + pack.png）+ 🏗️ FAB 进 3D 模型预览。
+  // 含 block/item 模型与否由 createPack3D 内部 ListPackModels 检测（无模型静默不打开），
+  // 详情【不再自动触发 3D】——用户先看介绍，需要时点 FAB（原自动触发直接全屏 3D，
+  // showResourcePack 从未渲染，看不到 pack.png/描述；P2 修复对齐 YSM/VRM/MMD 详情+FAB 模式）
+  [RESOURCE_TYPES.PACK]: (ctx, path) => showResourcePack(ctx, path),
   [RESOURCE_TYPES.YSM]: (ctx, path) => showModelDetail(ctx, path),
   [RESOURCE_TYPES.LITEMATIC]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.BLUEPRINT]: (ctx, path) => showLitematic(ctx, path),

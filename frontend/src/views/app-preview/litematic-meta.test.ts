@@ -125,12 +125,13 @@ describe("showLitematic", () => {
     expect(root.getElementById("preview-material")!.innerHTML).toContain("无方块数据");
   });
 
-  it("3D tab 按钮 → createLitematic3D（带对应 voxel 函数名）", async () => {
+  it("3D FAB → createLitematic3D（带对应 voxel 函数名）", async () => {
     mocks.createLitematic3D.mockResolvedValue(undefined);
     await showLitematic(ctx, "/mc/a.litematic");
     await flush();
 
-    const btn = root.getElementById("btn-lt-3d-tab") as HTMLButtonElement;
+    const btn = root.getElementById("btn-lt-3d") as HTMLButtonElement;
+    expect(btn.classList.contains("preview-fab")).toBe(true); // FAB 标配形态（对齐 VRM/MMD）
     btn.click();
     await flush();
     await flush();
@@ -138,21 +139,20 @@ describe("showLitematic", () => {
       "/mc/a.litematic",
       "GetLitematicVoxelData",
     );
-    expect(btn.disabled).toBe(false);
-    expect(btn.textContent).toBe("🎨 3D");
   });
 
-  it("3D tab 按钮：createLitematic3D 拒绝 → 按钮恢复（不卡死、无 unhandled rejection）", async () => {
+  it("3D FAB：createLitematic3D 拒绝 → catch 兜底（无 unhandled rejection）", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     mocks.createLitematic3D.mockRejectedValue(new Error("voxel boom"));
     await showLitematic(ctx, "/mc/a.litematic");
     await flush();
 
-    const btn = root.getElementById("btn-lt-3d-tab") as HTMLButtonElement;
+    const btn = root.getElementById("btn-lt-3d") as HTMLButtonElement;
     btn.click();
     await flush();
     await flush();
-    expect(btn.disabled).toBe(false);
-    expect(btn.textContent).toBe("🎨 3D");
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it("Tab 切换更新 localStorage 与显示状态", async () => {

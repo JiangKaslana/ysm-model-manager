@@ -117,13 +117,13 @@ export async function showLitematic(
   <div class="ysm-tab-row">
     <button class="preview-tab ysm-tab ${savedTab === "detail" ? "ysm-tab-active" : "ysm-tab-inactive"}" data-tab="detail">📋 ${t("preview.detailTab")}</button>
     <button class="preview-tab ysm-tab ${savedTab === "material" ? "ysm-tab-active" : "ysm-tab-inactive"}" data-tab="material">🧱 ${t("preview.materialList")}</button>
-    <button class="ysm-tab ysm-tab-inactive" id="btn-lt-3d-tab" title="${t("preview.title3d")}">🎨 3D</button>
   </div>
   <div id="preview-detail"${savedTab !== "detail" ? ' style="display:none"' : ""}>
     <div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsingLitematica")}...</div></div>
   </div>
   <div id="preview-material"${savedTab !== "material" ? ' style="display:none"' : ""}></div>
-</div>`;
+</div>
+<button class="preview-fab" id="btn-lt-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">🎨</span></button>`;
 
   // Tab 切换
   const switchTab = (tab: string): void => {
@@ -142,8 +142,9 @@ export async function showLitematic(
     (btn as HTMLElement).onclick = (): void => switchTab((btn as HTMLElement).dataset.tab || "");
   });
 
-  // 3D tab 按钮
-  const btn3dTab = ctx.root.getElementById("btn-lt-3d-tab") as HTMLButtonElement | null;
+  // 3D FAB 按钮（对齐 YSM/VRM/MMD 的 preview-fab 标配形态，ADR-072 D3；
+  // 原 tab 式 #btn-lt-3d-tab 未并入 FAB 体系，P2 统一）
+  const btn3d = ctx.root.getElementById("btn-lt-3d") as HTMLButtonElement | null;
   const ext = extOf(path);
 
   try {
@@ -207,22 +208,14 @@ export async function showLitematic(
 	    </div>`;
     }
 
-    if (btn3dTab) {
+    if (btn3d) {
       // 按扩展名单点映射体素 RPC（ADR-066 解墙）；web 端由 web-fs.ts 的
-      // Get*VoxelData TS 实现提供数据（ADR-070 M2 voxel-parse.ts 平移）
+      // Get*VoxelData TS 实现提供数据（ADR-070 M2 voxel-parse.ts 平移）。
+      // FAB 形态无按钮级 loading 态（3D 全屏 overlay 自带加载占位），对齐 VRM/MMD；
+      // catch 防 unhandled rejection（陷阱 #3：异步点击不得产生未处理拒绝）
       const voxelFn = VOXEL_RPC_BY_EXT[ext] || "GetLitematicVoxelData";
-      btn3dTab.onclick = async (): Promise<void> => {
-        btn3dTab.textContent = "⏳";
-        btn3dTab.disabled = true;
-        try {
-          await createLitematic3D(path, voxelFn);
-        } catch {
-          // createLitematic3D 内部已渲染错误占位 + toast，这里仅兜底
-          // 防 unhandled rejection（陷阱 #3：异步后按钮不得卡死，finally 兜底恢复）
-        } finally {
-          btn3dTab.textContent = "🎨 3D";
-          btn3dTab.disabled = false;
-        }
+      btn3d.onclick = (): void => {
+        createLitematic3D(path, voxelFn).catch((e) => console.warn("[preview] litematic3D:", e));
       };
     }
   } catch (e) {
