@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 116 | 429 |
+| 前端·工具 | 117 | 436 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **400** | **1663** |
+| **合计** | **401** | **1670** |
 
 ## Go·头像
 
@@ -754,7 +754,7 @@
 | `idbGet()` | `frontend/src/backend/idb:156` | 读取单 key |
 | `idbSet()` | `frontend/src/backend/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
 | `idbDel()` | `frontend/src/backend/idb:184` | 删除单 key |
-| `idbKeys()` | `frontend/src/backend/idb:200` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） |
+| `idbKeys()` | `frontend/src/backend/idb:205` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） 性能优化（R1 万级 key 门槛）：真实浏览器用 IDBKeyRange |
 | `parseNbtRoot()` | `frontend/src/backend/nbt-parse:213` | 解析 NBT 根 compound，返回全部顶层标签。 |
 | `parseNbtRootExact()` | `frontend/src/backend/nbt-parse:236` | ADR-070 M2：精确 LongArray 变体——LongArray 输出 bigint[]（精确 64 位）， 供 voxel 打包位解码（BlockStates）使用。其 |
 | `litematicMetaView()` | `frontend/src/backend/nbt-parse:288` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
@@ -1231,6 +1231,13 @@
 | `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:96` | — |
 | `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:106` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
 | `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:214` | ============ LightCapability ============ |
+| `MenuControlKind()` | `frontend/src/utils/3d/caps/scene-capability:13` | 单个菜单控件类型 |
+| `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:16` | 菜单控件定义（声明式，由框架渲染为 DOM） |
+| `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:42` | ============ 场景能力统一接口 ============ |
+| `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability:81` | 能力工厂：接收 scene/renderer，返回能力实例 |
+| `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability:120` | 全局单例（ADR-066 同模式：模块级单例 + 运行时状态隔离） |
+| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:145` | 保存 JSON 到 localStorage |
+| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:150` | 从 localStorage 加载 JSON |
 | `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:19` | — |
 | `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:40` | — |
 | `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:55` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |

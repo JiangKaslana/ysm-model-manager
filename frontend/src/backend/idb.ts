@@ -196,7 +196,12 @@ export async function idbDel(store: Store, key: string): Promise<void> {
   });
 }
 
-/** 前缀扫描（MikuMikuAR 模式：dir:<stem>: / file:<stem>: 遍历模型库） */
+/** 前缀扫描（MikuMikuAR 模式：dir:<stem>: / file:<stem>: 遍历模型库）
+ *  性能优化（R1 万级 key 门槛）：真实浏览器用 IDBKeyRange 区间定位 cursor，
+ *  只访问前缀命中键（O(命中)）而非全库 openCursor 逐键 startsWith（O(全库)）。
+ *  仅当全局 IDBKeyRange 存在时启用（node 测试环境无此全局 → 降级全量 cursor），
+ *  且保留下方 startsWith 兜底过滤——区间上界 prefix+\uffff 覆盖所有命中键，
+ *  双保险防边界误含/误漏；内存降级分支逻辑不变。 */
 export async function idbKeys(store: Store, prefix: string): Promise<string[]> {
   const db = await getIdb();
   if (!db) {
@@ -206,7 +211,12 @@ export async function idbKeys(store: Store, prefix: string): Promise<string[]> {
     return [...m.keys()].filter((k) => k.startsWith(prefix)).sort();
   }
   return new Promise<string[]>((resolve, reject) => {
-    const req = db.transaction(store, "readonly").objectStore(store).openCursor();
+    const os = db.transaction(store, "readonly").objectStore(store);
+    // 空 prefix（=全库）不走区间，避免空上下界退化；无 IDBKeyRange（node 测试）降级全量
+    const useRange = prefix !== "" && typeof IDBKeyRange !== "undefined";
+    const req = useRange
+      ? os.openCursor(IDBKeyRange.bound(prefix, prefix + "\uffff", false, false))
+      : os.openCursor();
     const keys: string[] = [];
     req.onsuccess = () => {
       const cursor = req.result;

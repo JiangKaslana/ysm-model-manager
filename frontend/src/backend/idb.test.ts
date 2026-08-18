@@ -262,6 +262,60 @@ describe("idb IDB 事务路径", () => {
     expect(keys).toEqual(["dir:a:", "dir:b:"]); // cursor 升序 + 前缀过滤
   });
 
+  it("IDBKeyRange 存在时走区间 cursor（O(命中) 性能分支）且过滤结果仍正确", async () => {
+    // 真实浏览器有全局 IDBKeyRange；node 默认无 → 此用例 stub 后触发区间分支，
+    // 证明 openCursor 确实收到 [prefix, prefix+\uffff] 区间，且 startsWith 兜底不破坏结果
+    const store = new Map<string, unknown>();
+    let capturedRange: unknown = "NOT-CALLED";
+    const reqOf = (result: unknown) => {
+      const req = { result, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
+      setTimeout(() => req.onsuccess?.(), 0);
+      return req;
+    };
+    const os = {
+      put: (v: unknown, k: string) => {
+        store.set(k, v);
+        return reqOf(undefined);
+      },
+      openCursor: (range?: unknown) => {
+        capturedRange = range ?? null;
+        const keys = [...store.keys()].sort();
+        let i = 0;
+        const req = { result: null as unknown, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
+        const next = () => {
+          req.result = i < keys.length ? { key: keys[i++], continue: () => setTimeout(next, 0) } : null;
+          req.onsuccess?.();
+        };
+        setTimeout(next, 0);
+        return req;
+      },
+    };
+    const t = { oncomplete: null as (() => void) | null, onerror: null as (() => void) | null, onabort: null as (() => void) | null, error: null as Error | null, objectStore: () => os };
+    const fakeDB = {
+      close: vi.fn(),
+      objectStoreNames: { contains: () => false },
+      createObjectStore: vi.fn(),
+      transaction: vi.fn(() => {
+        setTimeout(() => t.oncomplete?.(), 0);
+        return t;
+      }),
+    };
+    installIndexedDBStub(fakeDB);
+    vi.stubGlobal("IDBKeyRange", { bound: (lo: string, hi: string) => ({ lo, hi }) });
+    try {
+      await idbSet("files", "dir:b:", { name: "b" });
+      await idbSet("files", "dir:a:", { name: "a" });
+      await idbSet("files", "cfg:x", {});
+      const keys = await idbKeys("files", "dir:");
+      expect(keys).toEqual(["dir:a:", "dir:b:"]); // 区间分支 + startsWith 兜底
+      expect(capturedRange).not.toBe("NOT-CALLED");
+      expect(capturedRange).not.toBeNull(); // openCursor 确实收到区间
+      expect(capturedRange).toMatchObject({ lo: "dir:", hi: "dir:\uffff" }); // 区间上界为 prefix+\uffff
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("put 失败（QuotaExceeded）→ 事务 abort → idbSet reject（不静默吞错）", async () => {
     makeFakeIDBWithTx({ writeError: new Error("QuotaExceededError") });
     await expect(idbSet("files", "dir:big", { data: new ArrayBuffer(8) })).rejects.toThrow("QuotaExceededError");

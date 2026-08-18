@@ -62,6 +62,7 @@ invariant_anchors:
 - **OOM 保护**: 内存降级模式有双上限——条目数 200 条 + 字节估算 64MB，超限按 FIFO 驱逐（近似 LRU：已存在 key 重写时移到队尾）
 - **多标签页互锁防护**: `db.onversionchange` 关闭旧连接并置空 `dbPromise`；`onblocked` 明确 reject 而非永久挂起
 - **统一 CRUD**: `idbGet` / `idbSet` / `idbDel` / `idbKeys(prefix)` — 全链路 Promise 化，`idbSet`/`idbDel` 监听 `tx.onabort` 防永不 settle
+- **前缀扫描性能（R1 万级 key 门槛）**: `idbKeys` 真实浏览器用 `IDBKeyRange.bound(prefix, prefix+\uffff)` 区间定位 cursor——只访问前缀命中键（O(命中)）而非全库逐键 startsWith（O(全库)）；无 `IDBKeyRange` 全局（node 测试）降级全量 cursor，且始终保留下方 `startsWith` 兜底过滤防边界误含/误漏（空 prefix=全库不走区间）
 
 ### app.ts — Wails 绑定访问
 - **统一入口**: `getApp()` 返回 `AppBindings`，缓存避免重复动态 import
