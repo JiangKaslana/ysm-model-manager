@@ -1162,10 +1162,10 @@
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:172` | — |
 | `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:687` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:714` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
-| `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:53` | 取消所有待执行的编码（已在执行的不受影响） |
-| `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:65` | 重置编码器状态（测试用） |
-| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:118` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
-| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:179` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
+| `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:63` | 取消所有待执行的编码（已在执行的不受影响） |
+| `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:75` | 重置编码器状态（测试用） |
+| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:128` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
+| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:185` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:63` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:82` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:108` | — |

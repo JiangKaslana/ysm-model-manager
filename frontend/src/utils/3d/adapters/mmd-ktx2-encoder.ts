@@ -25,6 +25,16 @@ const completedHashes = new Set<string>();
 /** 正在进行中的编码 hash 集合（防止重复调度） */
 const inProgressHashes = new Set<string>();
 
+/** 将 Uint8Array 转为 base64 字符串（分块处理，避免大数组栈溢出） */
+function bytesToBase64(bytes: Uint8Array): string {
+  const CHUNK = 0x8000; // 32768 字节/块
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
+  }
+  return btoa(chunks.join(""));
+}
+
 /** 信号量：获取执行槽位，返回释放函数 */
 function acquire(): Promise<() => void> {
   return new Promise((resolve) => {
@@ -136,13 +146,9 @@ export async function encodeAndCacheTexture(
         useSRGB: false,
       },
     });
-    // 将 KTX2 ArrayBuffer 转为 base64
+    // 将 KTX2 ArrayBuffer 转为 base64（分块避免栈溢出，O(n) 替代 O(n²) 字符串拼接）
     const ktx2Bytes = new Uint8Array(ktx2Buffer);
-    let binary = "";
-    for (let i = 0; i < ktx2Bytes.length; i++) {
-      binary += String.fromCharCode(ktx2Bytes[i]);
-    }
-    const ktx2B64 = btoa(binary);
+    const ktx2B64 = bytesToBase64(ktx2Bytes);
     // 保存到 Go 侧缓存
     if (port.addOpLog) {
       void port.addOpLog("ktx2-encode", hash, "ok", `bytes=${ktx2Bytes.length} original=${imageData.width}x${imageData.height}`);
