@@ -725,6 +725,10 @@ export const autoSidebar = [
         "link": "/audit-r8-test-coverage-gaps-2026-08-18"
       },
       {
+        "text": "R9 专项审核报告：3D 预览器资源管理问题",
+        "link": "/audit-r9-3d-preview-resource-management-2026-08-18"
+      },
+      {
         "text": "下载层加固调研报告",
         "link": "/download-hardening-research-2026-08-17"
       },
