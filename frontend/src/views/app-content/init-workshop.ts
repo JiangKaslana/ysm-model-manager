@@ -36,6 +36,11 @@ export function initWorkshopPage(host: AppContentHost): void {
   let allSites: WorkshopSite[] = [];
   let allCreators: LocalCreator[] = [];
   let repoAuthors: RepoAuthorLike[] = [];
+  // 数据 ref：workshop-tabs 异步 loadCommunityData 后经 `ref.v = data.x` 重赋值；showSiteView
+  // 必须读同一 ref，否则闭包里的原始数组永远为空 → 创作者卡片不渲染（e2e 反推，对齐 tabs 同源）
+  const allSitesRef = { v: allSites };
+  const allCreatorsRef = { v: allCreators };
+  const repoAuthorsRef = { v: repoAuthors };
   const wsEditModeRef = { v: false };
   if (!host._workshopCache) host._setWorkshopCache(new Map());
   const repoModelCache = host._workshopCache;
@@ -66,9 +71,9 @@ export function initWorkshopPage(host: AppContentHost): void {
       esc: (s) => esc(String(s || "")),
       searchResults: searchResults as HTMLElement,
       creatorView: creatorView as HTMLElement,
-      allSites,
-      allCreators,
-      repoAuthors,
+      allSites: allSitesRef.v,
+      allCreators: allCreatorsRef.v,
+      repoAuthors: repoAuthorsRef.v,
       wsEditModeRef,
       showRepoModels: async (repo, models, source) => {
         await showRepoModels(
@@ -101,7 +106,7 @@ export function initWorkshopPage(host: AppContentHost): void {
   setShowSiteView(showSiteView);
 
   // 初始化 Tab
-  initWorkshopTabs(host, { v: allSites }, { v: allCreators }, { v: repoAuthors }, wsEditModeRef);
+  initWorkshopTabs(host, allSitesRef, allCreatorsRef, repoAuthorsRef, wsEditModeRef);
 
   // 绑定站点打开事件
   bindSiteEvents(host, browseMode);
