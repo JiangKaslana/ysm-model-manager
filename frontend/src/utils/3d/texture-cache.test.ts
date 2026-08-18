@@ -1,5 +1,6 @@
 // ===== TextureCache 险恶测试 =====
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Texture } from "three";
 import { TextureCacheImpl } from "./texture-cache.ts";
 
 describe("TextureCache 险恶测试", () => {
@@ -9,8 +10,11 @@ describe("TextureCache 险恶测试", () => {
     cache = new TextureCacheImpl();
   });
 
+  const makeFakeTex = (): Texture =>
+    ({ dispose: vi.fn() }) as never;
+
   it("acquire 同 url 两次 → 返回同一实例", () => {
-    const fakeTex = { dispose: vi.fn() } as never;
+    const fakeTex = makeFakeTex();
     const make = vi.fn(() => fakeTex);
     const t1 = cache.acquire("a.png", make);
     const t2 = cache.acquire("a.png", make);
@@ -27,7 +31,7 @@ describe("TextureCache 险恶测试", () => {
   });
 
   it("release 后 acquire 同 url → 返回缓存实例（归零保留）", () => {
-    const fakeTex = { dispose: vi.fn() } as never;
+    const fakeTex = makeFakeTex();
     const make = vi.fn(() => fakeTex);
     cache.acquire("a.png", make);
     cache.release("a.png");
@@ -41,8 +45,8 @@ describe("TextureCache 险恶测试", () => {
   });
 
   it("disposeAll 释放所有缓存纹理", () => {
-    const t1 = { dispose: vi.fn() } as never;
-    const t2 = { dispose: vi.fn() } as never;
+    const t1 = makeFakeTex();
+    const t2 = makeFakeTex();
     cache.acquire("a.png", () => t1);
     cache.acquire("b.png", () => t2);
     cache.disposeAll();
@@ -52,31 +56,31 @@ describe("TextureCache 险恶测试", () => {
   });
 
   it("disposeAll 后 acquire → 重新创建", () => {
-    const t1 = { dispose: vi.fn() } as never;
+    const t1 = makeFakeTex();
     const make = vi.fn(() => t1);
     cache.acquire("a.png", make);
     cache.disposeAll();
-    const t2 = { dispose: vi.fn() } as never;
+    const t2 = makeFakeTex();
     cache.acquire("a.png", () => t2);
     expect(cache.size).toBe(1);
     expect(make).toHaveBeenCalledTimes(1);
   });
 
   it("多次 release 同 url → refs 不会变负", () => {
-    const fakeTex = { dispose: vi.fn() } as never;
+    const fakeTex = makeFakeTex();
     cache.acquire("a.png", () => fakeTex);
     cache.release("a.png");
     cache.release("a.png");
     cache.release("a.png");
-    const t2 = cache.acquire("a.png", vi.fn(() => ({ dispose: vi.fn() }) as never));
+    const t2 = cache.acquire("a.png", vi.fn(() => makeFakeTex()));
     expect(t2).toBe(fakeTex);
   });
 
   it("size 正确反映缓存数量", () => {
     expect(cache.size).toBe(0);
-    cache.acquire("a.png", () => ({ dispose: vi.fn() }) as never);
+    cache.acquire("a.png", () => makeFakeTex());
     expect(cache.size).toBe(1);
-    cache.acquire("b.png", () => ({ dispose: vi.fn() }) as never);
+    cache.acquire("b.png", () => makeFakeTex());
     expect(cache.size).toBe(2);
     cache.disposeAll();
     expect(cache.size).toBe(0);

@@ -76,7 +76,7 @@ vi.mock("three", () => {
   }
   class FakeRenderer {
     domElement = document.createElement("canvas");
-    outputColorSpace = "";
+    outputColorSpace = "" as unknown as import("three").ColorSpace;
     setSize = vi.fn();
     setPixelRatio = vi.fn();
     render = vi.fn();

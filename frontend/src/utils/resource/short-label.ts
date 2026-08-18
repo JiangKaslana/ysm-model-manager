@@ -12,10 +12,10 @@ const SHORT_LABEL_MAP: Record<string, string> = {
   [RESOURCE_TYPES.YSM]: "YSM",
   [RESOURCE_TYPES.MMD]: "MMD",
   [RESOURCE_TYPES.VRC]: "VRC",
-  resourcepack: t("rtype.pack"),
-  shaderpack: t("rtype.shader"),
-  "create-blueprint": t("rtype.blueprint"),
-  litematic: t("rtype.litematic"),
+  [RESOURCE_TYPES.PACK]: t("rtype.pack"),
+  [RESOURCE_TYPES.SHADER]: t("rtype.shader"),
+  [RESOURCE_TYPES.BLUEPRINT]: t("rtype.blueprint"),
+  [RESOURCE_TYPES.LITEMATIC]: t("rtype.litematic"),
 };
 
 /** 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） */
