@@ -846,6 +846,7 @@
   "preview.formatVersion": "フォーマットバージョン",
   "preview.noBlockData": "ブロックデータなし",
   "preview.sliceAxis": "スライス軸",
+  "preview.sliceControl": "スライス制御",
   "preview.voxelEmpty": "ボクセルデータが空です",
   "preview.blockLimit": "ブロック数が上限（{max}）を超えています。一部のみ表示します",
   "preview.clickFileHint": "左のリポジトリからファイルをクリックして詳細を表示",

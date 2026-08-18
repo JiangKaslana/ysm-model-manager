@@ -8,6 +8,7 @@ import { t } from "../../../core/i18n/t.ts";
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
+import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 
 /** 体素数据（GetLitematicVoxelData 等返回 JSON） */
 interface VoxelData {
@@ -141,14 +142,14 @@ export async function buildLitematicScene(
 
   ctx.loadingEl.remove(); // 体素网格构建完成，移除占位（旧 litematic-3d.ts:208 同款）
 
-  // 分层渲染逻辑（UI 元素在 extraControls 挂入通用 topBar）
+  // 分层渲染逻辑（UI 元素经 litematicMenuItems 注入 ⚙️ 根菜单分层面板，ADR-076 v2 Phase 3）
   const rawGroups = data.groups;
   let layerAxis = 1; // 默认 Y 轴: positions[p][1] = y
   let layerMax = Math.max(sizeX, sizeY, sizeZ, 1);
   let layerVal = layerMax;
   let layerVal2 = layerMax;
 
-  // 分层控件 DOM（创建于 build，挂入由 extraControls 完成）
+  // 分层控件 DOM（创建于 build，通过 litematicMenuItems 注入根菜单面板）
   const sep = document.createElement("span");
   sep.style.cssText = "width:1px;height:16px;background:rgba(255,255,255,0.15);margin:0 4px";
 
@@ -317,6 +318,20 @@ export async function buildLitematicScene(
     ctx.overlay.insertBefore(w, ctx.overlay.children[1]);
   }
 
+  // 分层控件 → 声明式根菜单注入（ADR-076 v2 Phase 3：从 topBar 收编进 ⚙️ 根菜单）
+  // DOM 元素创建与事件绑定不变，改为经 render 回调挂入菜单面板而非 topBar
+  const sliceItems = litematicMenuItems({
+    axisSel,
+    layerMode,
+    layerSlider,
+    layerInput,
+    layerSlider2,
+    layerInput2,
+    sep,
+    axisLabel,
+  });
+  ctx.menu.setAdapterItems(sliceItems);
+
   return {
     dispose(): void {
       unregisterModelRoot(modelGroup);
@@ -335,18 +350,52 @@ export async function buildLitematicScene(
         grid.dispose();
       } catch (_) {}
     },
-    extraControls(topBar: HTMLElement): void {
-      topBar.appendChild(sep);
-      topBar.appendChild(axisLabel);
-      topBar.appendChild(axisSel);
-      topBar.appendChild(layerMode);
-      topBar.appendChild(layerSlider);
-      topBar.appendChild(layerInput);
-      topBar.appendChild(layerSlider2);
-      topBar.appendChild(layerInput2);
-    },
     // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/mmd/vrm 呑约对称）
     screenshot: () =>
       Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
   };
+}
+
+// ===== litematic 菜单项（ADR-076 v2 Phase 3：分层控件收编进 ⚙️ 根菜单）=====
+
+/** litematic 分层控件渲染参数（由 buildLitematicScene 传入已创建的 DOM 元素） */
+interface LitematicMenuRenderArgs {
+  sep: HTMLElement;
+  axisLabel: HTMLElement;
+  axisSel: HTMLSelectElement;
+  layerMode: HTMLSelectElement;
+  layerSlider: HTMLInputElement;
+  layerInput: HTMLInputElement;
+  layerSlider2: HTMLInputElement;
+  layerInput2: HTMLInputElement;
+}
+
+/**
+ * 构造 litematic 专属菜单项：
+ * 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项，
+ * 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。
+ */
+export function litematicMenuItems(els: LitematicMenuRenderArgs): PreviewMenuItemDef[] {
+  return [
+    {
+      id: "slice",
+      icon: "🧊",
+      labelKey: "preview.sliceControl",
+      fallback: "分层切片",
+      kind: "panel",
+      dockGroup: "model",
+      legacyTestId: "litematic-slice-entry",
+      render: (list: HTMLElement) => {
+        list.innerHTML = "";
+        list.appendChild(els.sep);
+        list.appendChild(els.axisLabel);
+        list.appendChild(els.axisSel);
+        list.appendChild(els.layerMode);
+        list.appendChild(els.layerSlider);
+        list.appendChild(els.layerInput);
+        list.appendChild(els.layerSlider2);
+        list.appendChild(els.layerInput2);
+      },
+    },
+  ];
 }
