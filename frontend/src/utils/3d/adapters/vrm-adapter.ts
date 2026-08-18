@@ -21,6 +21,26 @@ import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { BoneTree } from "../bone-tools.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+
+/** VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
+export interface VrmDataPort {
+  addOpLog(op: string, msg: string, status: "ok" | "fail" | "warn", err?: string): Promise<void>;
+}
+
+/** 环形日志面板诊断（AGENTS.md：排查卡顿往环形日志塞日志而非死盯 console）；失败静默不阻断 */
+async function vrmDiag(
+  port: VrmDataPort,
+  op: string,
+  msg: string,
+  status: "ok" | "fail" | "warn",
+  err?: string,
+): Promise<void> {
+  try {
+    await port.addOpLog(op, msg, status, err);
+  } catch {
+    /* 诊断不阻断加载 */
+  }
+}
 import {
   listVrmMaterials,
   getVrmMaterialDetail,
@@ -161,6 +181,7 @@ export interface VrmPanelHooks {
 export async function buildVrmScene(
   ctx: PreviewBuildCtx,
   path: string,
+  port: VrmDataPort,
   readFn: (p: string) => Promise<string | null>,
   panels?: VrmPanelHooks,
   listAllFilePaths?: (dir: string) => Promise<string[] | null>,
@@ -168,7 +189,9 @@ export async function buildVrmScene(
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🥽</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
 
+  const tStart = performance.now();
   const b64 = await readFn(path);
+  await vrmDiag(port, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
   if (!b64) throw new Error("ReadFileBytes 返回空");
 
   const bytes = b64ToBytes(b64);
@@ -181,17 +204,23 @@ export async function buildVrmScene(
   // VRMA 动作：同款 loader 注册动画插件（解析 .vrma → gltf.userData.vrmAnimations）
   loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
 
+  let tParseStart = performance.now();
   const gltf = await new Promise<GLTF>((resolve, reject) => {
     loader.parse(buffer, "", resolve, reject);
   });
   const vrm = (gltf.userData as { vrm?: VRM }).vrm;
   if (!vrm) throw new Error("VRM 实例解析失败（非标准 .vrm？）");
+  await vrmDiag(port, "parse", path, "ok", `bones=${gltf.scenes?.[0]?.children?.length ?? 0} gltf-children=${gltf.scenes?.length ?? 0}`);
 
   // VRM0.0 模型背对镜头，转正；VRM1.0 为 no-op 但调用安全
   VRMUtils.rotateVRM0(vrm);
   ctx.scene!.add(vrm.scene);
   registerModelRoot(vrm.scene);
   ctx.loadingEl.remove(); // 加载完成，移除占位（旧 vrm-3d.ts:172 同款）
+
+  // 诊断（环形日志）：parse 耗时
+  const tParseEnd = performance.now();
+  await vrmDiag(port, "perf", path, "ok", `parse=${Math.round(tParseEnd - tParseStart)}ms total=${Math.round(tParseEnd - tStart)}ms`);
 
   // ---- VRMA 动作（同目录 .vrma）：官方 @pixiv/three-vrm-animation（与 three-vrm 同源）----
   // 复用已注册 VRMAnimationLoaderPlugin 的同一 loader 解析 .vrma → gltf.userData.vrmAnimations；
@@ -376,7 +405,22 @@ export async function buildVrmScene(
       motionMixer?.uncacheRoot(vrm.scene); // 释放 PropertyBinding 缓存，防 GPU/内存残留（switchTo 重建时尤甚）
       // 原生 lookAt：断开相机引用，避免释放后残留
       if (useNativeLookAt) vrm.lookAt!.target = null;
+      // 统计纹理数量（诊断用）
+      let texCount = 0;
+      vrm.scene.traverse((child: THREE.Object3D) => {
+        if (!(child as THREE.Mesh).isMesh) return;
+        const mesh = child as THREE.Mesh;
+        const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+        for (const mat of mats) {
+          const texKeys = ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap"];
+          for (const key of texKeys) {
+            const tex = (mat as unknown as Record<string, unknown>)[key];
+            if (tex instanceof THREE.Texture) texCount++;
+          }
+        }
+      });
       VRMUtils.deepDispose(vrm.scene);
+      void vrmDiag(port, "gpu-release", path, "ok", `tex=${texCount}`);
     },
     // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/mmd/litematic 呑约对称）
     screenshot: () =>
