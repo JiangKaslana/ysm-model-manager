@@ -238,7 +238,10 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
         camera: this.camera,
         width: w,
         height: h,
-        bouncing: this.params.ssrBouncing,
+        // selects: null = 全场景物体参与反射（非 selective 模式）；groundReflector: null = 不用内置地面反射器
+        selects: null,
+        groundReflector: null,
+        isBouncing: this.params.ssrBouncing,
       });
       this.ssrPass.output = SSRPASS_OUTPUT_DEFAULT;
       this.ssrPass.opacity = this.params.ssrOpacity;
@@ -261,6 +264,8 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
   private disposeComposer(): void {
     this.ssaoPass?.dispose();
     this.ssaoPass = null;
+    this.ssrPass?.dispose();
+    this.ssrPass = null;
     this.renderPass?.dispose();
     this.renderPass = null;
     this.bloomPass?.dispose();
@@ -269,6 +274,41 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     this.outputPass = null;
     this.composer?.dispose();
     this.composer = null;
+  }
+
+  /* -------- Reflector 联动：SSR on 时可自动禁用 ReflectorCapability 单平面镜面 -------- */
+
+  private ssrIsActive(): boolean {
+    return this.params.reflectionMode !== "envmap-only";
+  }
+
+  private applyReflectorSync(): void {
+    if (!this.reflectorCap) return;
+    // SSR 活动 + 用户设置了 reflectorDisableWhenSSR
+    const shouldDisableReflector = this.ssrIsActive() && this.params.reflectorDisableWhenSSR;
+    if (shouldDisableReflector) {
+      if (this.reflectorPrevEnabled === undefined) {
+        this.reflectorPrevEnabled = this.reflectorCap.isEnabled();
+      }
+      if (this.reflectorCap.isEnabled()) this.reflectorCap.setEnabled(false);
+    } else {
+      // 还原：当 SSR 不活动或用户取消了 reflectorDisableWhenSSR
+      if (this.reflectorPrevEnabled !== undefined) {
+        this.reflectorCap.setEnabled(this.reflectorPrevEnabled);
+        this.reflectorPrevEnabled = undefined;
+      }
+    }
+  }
+
+  /** 由 mount-preview-core wiring：registry createAll 之后注入 ReflectorCapability 引用 */
+  setReflectorCap(cap: ReflectorCapability | null): void {
+    // 切新引用前先还原旧引用（若之前禁用了 reflector）
+    if (this.reflectorCap && this.reflectorCap !== cap && this.reflectorPrevEnabled !== undefined) {
+      this.reflectorCap.setEnabled(this.reflectorPrevEnabled);
+      this.reflectorPrevEnabled = undefined;
+    }
+    this.reflectorCap = cap;
+    this.applyReflectorSync();
   }
 
   /* -------- 参数应用 -------- */
@@ -300,6 +340,17 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     this.ssaoPass.maxDistance = this.params.ssaoMaxDist;
   }
 
+  private syncSSRPass(): void {
+    if (!this.ssrPass) return;
+    this.ssrPass.opacity = this.params.reflectionMode === "ssr-only" ? 1 : this.params.ssrOpacity;
+    this.ssrPass.maxDistance = this.params.ssrMaxDistance;
+    this.ssrPass.thickness = this.params.ssrThickness;
+    this.ssrPass.blur = this.params.ssrBlur;
+    this.ssrPass.distanceAttenuation = this.params.ssrDistanceAttenuation;
+    this.ssrPass.fresnel = this.params.ssrFresnel;
+    this.ssrPass.bouncing = this.params.ssrBouncing;
+  }
+
   /* -------- 兼容旧 PostprocessingManager 对外 API -------- */
 
   /** 每帧调用：若返回 true 表示已渲染（composer.render）；否则调用方需 renderer.render */
@@ -312,6 +363,7 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     if (!this.composer) this.buildComposer();
     this.syncBloomPass(lightCap);
     this.syncSSAOPass();
+    this.syncSSRPass();
     this.composer!.render(dt);
     return true;
   }
@@ -320,6 +372,7 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     if (this.composer) {
       this.composer.setSize(width, height);
       if (this.bloomPass) this.bloomPass.resolution = new THREE.Vector2(width, height);
+      if (this.ssrPass) { this.ssrPass.width = width; this.ssrPass.height = height; this.ssrPass.setSize(width, height); }
     }
   }
 
@@ -334,6 +387,7 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     this.params.enabled = v;
     if (v) this.buildComposer();
     else this.disposeComposer();
+    this.applyReflectorSync();
   }
 
   isEnabled(): boolean {
@@ -391,6 +445,43 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
   setExposure(v: number): void {
     this.params.exposure = v;
     this.applyToneMapping();
+  }
+
+  setReflectionMode(v: ReflectionMode): void {
+    this.params.reflectionMode = v;
+    if (this.composer) this.buildComposer(); // SSRPass 组合改变，必须重建
+  }
+  setSSROpacity(v: number): void {
+    this.params.ssrOpacity = v;
+    this.syncSSRPass();
+  }
+  setSSRMaxDistance(v: number): void {
+    this.params.ssrMaxDistance = v;
+    this.syncSSRPass();
+  }
+  setSSRThickness(v: number): void {
+    this.params.ssrThickness = v;
+    this.syncSSRPass();
+  }
+  setSSRBlur(v: boolean): void {
+    this.params.ssrBlur = v;
+    this.syncSSRPass();
+  }
+  setSSRDistanceAttenuation(v: boolean): void {
+    this.params.ssrDistanceAttenuation = v;
+    this.syncSSRPass();
+  }
+  setSSRFresnel(v: boolean): void {
+    this.params.ssrFresnel = v;
+    this.syncSSRPass();
+  }
+  setSSRBouncing(v: boolean): void {
+    this.params.ssrBouncing = v;
+    this.syncSSRPass();
+  }
+  setReflectorDisableWhenSSR(v: boolean): void {
+    this.params.reflectorDisableWhenSSR = v;
+    this.applyReflectorSync();
   }
 
   /* -------- 菜单控件（声明式驱动）-------- */
@@ -515,6 +606,94 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
         getValue: () => this.params.ssaoMaxDist,
         setValue: (v) => this.setSSAOMaxDist(v as number),
       },
+      {
+        id: "pp-ssr-divider",
+        kind: "divider",
+        labelKey: "",
+        fallback: "",
+        getValue: () => false,
+        setValue: () => { /* 占位 */ },
+      },
+      {
+        id: "pp-reflection-mode",
+        kind: "select",
+        labelKey: "preview.reflectionMode",
+        fallback: "反射模式",
+        select: [
+          { value: "envmap-only", label: "仅环境贴图" },
+          { value: "envmap+ssr", label: "环境贴图 + 屏幕空间" },
+          { value: "ssr-only", label: "仅屏幕空间" },
+        ],
+        getValue: () => this.params.reflectionMode,
+        setValue: (v) => this.setReflectionMode(v as ReflectionMode),
+      },
+      {
+        id: "pp-reflector-disable-when-ssr",
+        kind: "toggle",
+        labelKey: "preview.reflectorDisableWhenSSR",
+        fallback: "SSR 时自动禁用地面镜面",
+        getValue: () => this.params.reflectorDisableWhenSSR,
+        setValue: (v) => this.setReflectorDisableWhenSSR(v as boolean),
+      },
+      {
+        id: "pp-ssr-opacity",
+        kind: "slider",
+        labelKey: "preview.ssrOpacity",
+        fallback: "SSR 反射强度",
+        slider: { min: 0, max: 1, step: 0.02 },
+        getValue: () => this.params.ssrOpacity,
+        setValue: (v) => this.setSSROpacity(v as number),
+      },
+      {
+        id: "pp-ssr-maxdistance",
+        kind: "slider",
+        labelKey: "preview.ssrMaxDistance",
+        fallback: "SSR 最大距离",
+        slider: { min: 10, max: 800, step: 5 },
+        getValue: () => this.params.ssrMaxDistance,
+        setValue: (v) => this.setSSRMaxDistance(v as number),
+      },
+      {
+        id: "pp-ssr-thickness",
+        kind: "slider",
+        labelKey: "preview.ssrThickness",
+        fallback: "SSR 厚度判定",
+        slider: { min: 0.001, max: 0.1, step: 0.001 },
+        getValue: () => this.params.ssrThickness,
+        setValue: (v) => this.setSSRThickness(v as number),
+      },
+      {
+        id: "pp-ssr-blur",
+        kind: "toggle",
+        labelKey: "preview.ssrBlur",
+        fallback: "SSR 模糊",
+        getValue: () => this.params.ssrBlur,
+        setValue: (v) => this.setSSRBlur(v as boolean),
+      },
+      {
+        id: "pp-ssr-distanceAttenuation",
+        kind: "toggle",
+        labelKey: "preview.ssrDistanceAttenuation",
+        fallback: "SSR 距离衰减",
+        getValue: () => this.params.ssrDistanceAttenuation,
+        setValue: (v) => this.setSSRDistanceAttenuation(v as boolean),
+      },
+      {
+        id: "pp-ssr-fresnel",
+        kind: "toggle",
+        labelKey: "preview.ssrFresnel",
+        fallback: "SSR 菲涅尔",
+        getValue: () => this.params.ssrFresnel,
+        setValue: (v) => this.setSSRFresnel(v as boolean),
+      },
+      {
+        id: "pp-ssr-bouncing",
+        kind: "toggle",
+        labelKey: "preview.ssrBouncing",
+        fallback: "SSR 多重弹射（慢）",
+        getValue: () => this.params.ssrBouncing,
+        setValue: (v) => this.setSSRBouncing(v as boolean),
+      },
     ];
   }
 
@@ -533,6 +712,15 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
       ssaoMaxDist: this.params.ssaoMaxDist,
       toneMapping: this.params.toneMapping,
       exposure: this.params.exposure,
+      reflectionMode: this.params.reflectionMode,
+      ssrOpacity: this.params.ssrOpacity,
+      ssrMaxDistance: this.params.ssrMaxDistance,
+      ssrThickness: this.params.ssrThickness,
+      ssrBlur: this.params.ssrBlur,
+      ssrDistanceAttenuation: this.params.ssrDistanceAttenuation,
+      ssrFresnel: this.params.ssrFresnel,
+      ssrBouncing: this.params.ssrBouncing,
+      reflectorDisableWhenSSR: this.params.reflectorDisableWhenSSR,
     });
   }
 
@@ -552,15 +740,32 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
       this.params.toneMapping = state.toneMapping as PostprocessingParams["toneMapping"];
     }
     if (typeof state.exposure === "number") this.params.exposure = state.exposure;
+    if (typeof state.reflectionMode === "string" && (state.reflectionMode === "envmap-only" || state.reflectionMode === "envmap+ssr" || state.reflectionMode === "ssr-only")) {
+      this.params.reflectionMode = state.reflectionMode;
+    }
+    if (typeof state.ssrOpacity === "number") this.params.ssrOpacity = state.ssrOpacity;
+    if (typeof state.ssrMaxDistance === "number") this.params.ssrMaxDistance = state.ssrMaxDistance;
+    if (typeof state.ssrThickness === "number") this.params.ssrThickness = state.ssrThickness;
+    if (typeof state.ssrBlur === "boolean") this.params.ssrBlur = state.ssrBlur;
+    if (typeof state.ssrDistanceAttenuation === "boolean") this.params.ssrDistanceAttenuation = state.ssrDistanceAttenuation;
+    if (typeof state.ssrFresnel === "boolean") this.params.ssrFresnel = state.ssrFresnel;
+    if (typeof state.ssrBouncing === "boolean") this.params.ssrBouncing = state.ssrBouncing;
+    if (typeof state.reflectorDisableWhenSSR === "boolean") this.params.reflectorDisableWhenSSR = state.reflectorDisableWhenSSR;
     this.applyToneMapping();
+    this.applyReflectorSync();
   }
 
   /* -------- 生命周期 -------- */
 
   dispose(): void {
+    // SSR 禁用时若 reflector 被禁用，要恢复
+    if (this.reflectorCap && this.reflectorPrevEnabled !== undefined) {
+      this.reflectorCap.setEnabled(this.reflectorPrevEnabled);
+      this.reflectorPrevEnabled = undefined;
+    }
     this.disposeComposer();
     this.renderer.toneMapping = this.prevToneMapping;
-    this.renderer.outputColorSpace = this.prevOutputColorSpace;
+    this.renderer.outputColorSpace = this.prevOutputColorSpace as THREE.ColorSpace;
     this.renderer.toneMappingExposure = this.prevExposure;
   }
 }

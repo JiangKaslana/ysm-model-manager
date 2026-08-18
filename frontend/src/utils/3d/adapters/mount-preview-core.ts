@@ -391,6 +391,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     postProc = postProcCap;
     // 按模型类别套用预设
     postProcCap?.setPreset(adapter.id);
+    // SSR↔Reflector 联动（postprocessing-capability.setReflectorCap）：SSR 开启时自动禁用单平面镜面，防 z-fighting
+    postProcCap?.setReflectorCap(reflectorCap);
     // ADR-085 S3：caps 创建后触发 refreshDock()，修复 litematic/pack 的 environment 项时序缺失
     // （菜单先于 caps 挂载，挂载时 requiresEnvironment 被过滤；此处重渲染补回）
     menuHandle.refreshDock();
