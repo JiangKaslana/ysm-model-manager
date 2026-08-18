@@ -182,7 +182,7 @@ export async function buildMmdScene(
     const bar = ctx.loadingEl.querySelector<HTMLElement>("#ysm-mmd-progress");
     if (bar) bar.style.width = `${Math.max(5, pct)}%`;
   };
-  manager.onLoad = async (): Promise<void> => {
+  manager.onLoad = (): void => {
     textureLoadedAt = performance.now();
     if (tParseEnd === 0) return; // loadAsync 未完成（异常时序），放弃 perf
     const buildMs = tBuildEnd > 0 ? Math.max(0, tBuildEnd - tParseEnd) : 0;
@@ -202,33 +202,12 @@ export async function buildMmdScene(
       }
     }
     const texSizes = [...dimCount.entries()].map(([k, n]) => `${k}x${n}`).join(",") || "none";
-    // 降采样（实测驱动：26×4096+1×8192 ≈ 1.9GB 显存炸弹）——主贴图 >2048 时替换为
-    // ImageBitmap 等比缩放版（单边指定保持宽高比），省显存/GPU 上传/渲染带宽，无重编码。
-    const MAX_TEX_DIM = 2048;
-    const downsampled: string[] = [];
-    for (const m of mats) {
-      const tex = (m as { map?: THREE.Texture }).map;
-      const img = tex?.image as { width?: number; height?: number } | undefined;
-      if (!tex?.image || !img?.width || !img?.height) continue;
-      if (img.width <= MAX_TEX_DIM && img.height <= MAX_TEX_DIM) continue;
-      try {
-        const opts: ImageBitmapOptions = img.width >= img.height
-          ? { resizeWidth: MAX_TEX_DIM, resizeQuality: "high" }
-          : { resizeHeight: MAX_TEX_DIM, resizeQuality: "high" };
-        const bitmap = await createImageBitmap(tex.image as ImageBitmapSource, opts);
-        tex.image = bitmap;
-        tex.needsUpdate = true;
-        downsampled.push(`${img.width}x${img.height}`);
-      } catch {
-        /* 单张贴图降采样失败保持原图，不阻断 */
-      }
-    }
     void mmdDiag(
       port,
       "perf",
       path,
       "ok",
-      `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${Math.round(textureLoadedAt - tParseEnd)}ms build=${Math.round(buildMs)}ms tex=${texSizes}${downsampled.length ? ` down=${downsampled.join(",")}` : ""}`,
+      `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${Math.round(textureLoadedAt - tParseEnd)}ms build=${Math.round(buildMs)}ms tex=${texSizes}`,
     );
   };
   manager.setURLModifier((url: string): string => {
