@@ -78,3 +78,17 @@ func (a *App) ClearTextureCache() error {
 func (a *App) HasCachedTexture(hash string) (bool, error) {
 	return texture_cache.HasCached(hash)
 }
+
+// GetCachedTextureByHash 通过哈希直接读取 KTX2 缓存（不读取原始文件，轻量操作）。
+// hash 由前端从已读纹理数据计算 SHA256 得到。
+// 返回 base64 编码的 KTX2 数据；缓存未命中时返回空字符串。
+func (a *App) GetCachedTextureByHash(hash string) (string, error) {
+	data, ok, err := texture_cache.ReadCached(hash)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", nil // 缓存未命中，返回空字符串
+	}
+	return base64.StdEncoding.EncodeToString(data), nil
+}

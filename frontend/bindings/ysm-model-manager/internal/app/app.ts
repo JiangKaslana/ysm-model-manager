@@ -334,6 +334,15 @@ export function GetCachedTexture(path: string): $CancellablePromise<$models.Cach
 }
 
 /**
+ * GetCachedTextureByHash 通过哈希直接读取 KTX2 缓存（不读取原始文件，轻量操作）。
+ * hash 由前端从已读纹理数据计算 SHA256 得到。
+ * 返回 base64 编码的 KTX2 数据；缓存未命中时返回空字符串。
+ */
+export function GetCachedTextureByHash(hash: string): $CancellablePromise<string> {
+    return $Call.ByID(79095655, hash);
+}
+
+/**
  * GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application Support）
  * 供前端 UI 展示，避免硬编码 Windows 路径
  */
@@ -777,6 +786,9 @@ export function ReadFileBytes(path: string): $CancellablePromise<string | null> 
  * 一次 RPC 返回多个文件字节，减少 Go↔JS IPC 往返（原 N 次 readFileBytes → 1 次 batch）。
  * 路径守卫：逐个校验 isPathInRootOrSelf，非法路径跳过（值为 nil）。
  * 返回 map[路径] → base64 字节（Wails []byte 自动序列化为 base64，map 保持键序）。
+ * 
+ * 并发优化：I/O 密集型任务，使用 goroutine 池并行读取。
+ * 当 paths 数量 <= 4 时退化为顺序读取（goroutine 开销不划算）。
  */
 export function ReadFileBytesBatch(paths: string[] | null): $CancellablePromise<{ [_ in string]?: string | null } | null> {
     return $Call.ByID(1632485740, paths);
@@ -969,6 +981,8 @@ export function ScanModelEntriesWithLabel(dir: string, label: string): $Cancella
 
 /**
  * ========== 高级搜索 ==========
+ * SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。
+ * 并发优化：关键词预过滤后，用 goroutine 池并行 AnalyzeBedrockModel（I/O + CPU 混合型）。
  */
 export function SearchModels(filesRoot: string, keyword: string, minBones: number, maxBones: number, minCubes: number, maxCubes: number, minTex: number, maxTex: number): $CancellablePromise<types$0.SearchResult[] | null> {
     return $Call.ByID(652244789, filesRoot, keyword, minBones, maxBones, minCubes, maxCubes, minTex, maxTex);
@@ -1032,9 +1046,8 @@ export function SetModelTags(modelPath: string, tags: string[] | null): $Cancell
 
 /**
  * SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认）
- * 非空入参经 filepath.Abs(filepath.Clean()) 规范化，防止含 .. 或未规范化路径
- * 配置字段由注册表 configField 反射驱动（复用 specificRoot 同款模式），
- * 避免硬编码 switch 与注册表新增类型漂移。
+ * ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。
+ * 不再反射结构体字段，新增资源类型只改 resource_types.json 即可生效。
  */
 export function SetResourceRoot(rtype: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(3405438717, rtype, path);

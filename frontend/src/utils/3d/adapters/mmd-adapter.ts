@@ -116,6 +116,19 @@ function isLikelyTga(bytes: Uint8Array): boolean {
   return type === 1 || type === 2 || type === 3 || type === 9 || type === 10 || type === 11;
 }
 
+/** 计算 Uint8Array 的 SHA256 十六进制字符串（浏览器 crypto.subtle，非阻塞） */
+async function sha256FromBytes(data: Uint8Array): Promise<string | null> {
+  try {
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data.slice(0).buffer as ArrayBuffer);
+    const hashArray = new Uint8Array(hashBuffer);
+    return Array.from(hashArray)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
+}
+
 /** 可释放的纹理字段名（MMDToonMaterial 特有 + 标准纹理，对齐 cleanup-3d.ts SAFE_DISPOSE_TEX_KEYS） */
 const DISPOSE_TEX_KEYS = [
   "map", "emissiveMap", "normalMap", "roughnessMap",
@@ -210,6 +223,8 @@ export async function buildMmdScene(
   const blobUrlToRel = new Map<string, string>();
   // blob URL → hash 映射（后台 KTX2 编码用）
   const blobUrlToHash = new Map<string, string>();
+  // hash 计算 Promise 列表（KTX2 替换前 await 确保全部完成）
+  const hashPromises: Promise<void>[] = [];
   try {
     const files = (await port.listAllFilePaths(dirPath)) || [];
     // ADR-101：批量读取纹理（1 次 RPC 替代 N 次 readFileBytes，减少 Go↔JS IPC 往返）
@@ -242,35 +257,8 @@ export async function buildMmdScene(
         : lower;
       const baseName = lower.split("/").pop() || "";
 
-      // 优先用 getCachedTexture（含 hash + KTX2 缓存检测），降级到批量读取结果
-      let texB64: string | null;
-      let texHash: string | undefined;
-      let pngB64: string | null = null;
-      if (port.getCachedTexture) {
-        const cached = await port.getCachedTexture(p);
-        if (cached) {
-          texHash = cached.hash;
-          if (cached.format === "ktx2") {
-            // KTX2 已缓存：PNG 单独读取（TextureLoader 用），KTX2 数据存为 blob 供替换
-            pngB64 = texBatch[p] ?? await port.readFileBytes(p);
-            texB64 = pngB64;
-            if (pngB64) {
-              const ktxBytes = b64ToBytes(cached.data);
-              const ktxBlob = new Blob([bytesToArrayBuffer(ktxBytes)]);
-              const ktxUrl = URL.createObjectURL(ktxBlob);
-              blobUrls.push(ktxUrl);
-              texKtx2Map.set(rel, ktxUrl);
-            }
-          } else {
-            // PNG（无 KTX2 缓存）：直接使用
-            texB64 = cached.data;
-          }
-        } else {
-          texB64 = texBatch[p] ?? null;
-        }
-      } else {
-        texB64 = texBatch[p] ?? null;
-      }
+      // 从批量读取结果取纹理数据（避免每纹理一次 RPC + SHA256，ADR-101）
+      const texB64 = texBatch[p] ?? null;
       if (!texB64) continue;
       const texBytes = b64ToBytes(texB64);
       // 假 TGA（扩展名 .tga 但头部类型非法）：不注册 blob → TGALoader 不会加载它 → 无刷屏错误
@@ -284,11 +272,16 @@ export async function buildMmdScene(
       texMap.set(baseName, url);
       // 反向映射：blob URL → 相对路径（post-load KTX2 替换溯源）
       blobUrlToRel.set(url, rel);
-      // 存储 hash（后续 KTX2 替换用）
-      if (texHash) {
-        texHashMap.set(rel, texHash);
-        blobUrlToHash.set(url, texHash);
-      }
+      // 后台计算 SHA256 hash（从已读纹理数据，避免额外 RPC + 文件读取）
+      const hashP = sha256FromBytes(texBytes).then((hash) => {
+        if (hash) {
+          texHashMap.set(rel, hash);
+          blobUrlToHash.set(url, hash);
+        }
+      }).catch(() => {
+        /* hash 计算失败不阻断，KTX2 替换/编码跳过 */
+      });
+      hashPromises.push(hashP);
     }
     // 同目录 VMD 动作文件（模型加载后逐个解析）
     vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
@@ -398,35 +391,52 @@ export async function buildMmdScene(
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 
   // ---- KTX2 纹理替换（post-load）：有 KTX2 缓存时用压缩纹理替换已加载的 PNG 纹理 ----
-  if (texKtx2Map.size > 0 && ctx.renderer) {
-    const ktx2Loader = new KTX2Loader()
-      .setTranscoderPath("/basis/")
-      .detectSupport(ctx.renderer);
-    // 遍历 mesh 材质，替换有 KTX2 缓存的纹理 map
-    const allMats: THREE.Material[] = Array.isArray(mesh.material)
-      ? mesh.material
-      : mesh.material
-        ? [mesh.material]
-        : [];
-    for (const mat of allMats) {
-      // 检查材质的所有纹理 field（map/sphereMap/toonMap 等）
-      for (const key of DISPOSE_TEX_KEYS) {
-        const tex = (mat as unknown as Record<string, unknown>)[key];
-        if (!(tex instanceof THREE.Texture)) continue;
-        const img = tex.image as HTMLImageElement | undefined;
-        if (!img?.src?.startsWith("blob:")) continue;
-        const rel = blobUrlToRel.get(img.src);
-        if (!rel) continue;
-        const ktxUrl = texKtx2Map.get(rel);
-        if (!ktxUrl) continue;
-        // 加载 KTX2 压缩纹理并替换
-        ktx2Loader.loadAsync(ktxUrl).then((compressedTex) => {
-          (mat as unknown as Record<string, unknown>)[key] = compressedTex;
-          tex.dispose(); // 释放旧 PNG 纹理的 GPU 内存
-          mat.needsUpdate = true;
-        }).catch(() => {
-          /* KTX2 加载失败不阻断，保留原 PNG 纹理 */
-        });
+  // 等待 hash 计算完成（从已读纹理数据计算 SHA256，无额外 RPC）
+  if (hashPromises.length > 0) {
+    await Promise.all(hashPromises);
+  }
+  // 检查是否有 hash 对应的 KTX2 缓存（通过轻量 HasCachedTexture 绑定，仅检查文件存在）
+  if (blobUrlToHash.size > 0 && ctx.renderer) {
+    const { getApp } = await import("../../../backend/app.ts");
+    const app = await getApp();
+    const appAny = app as unknown as Record<string, (x: string) => Promise<unknown>>;
+    const hasCached = appAny["HasCachedTexture"] as ((h: string) => Promise<boolean>) | undefined;
+    const getCached = appAny["GetCachedTextureByHash"] as ((h: string) => Promise<string>) | undefined;
+    if (hasCached && getCached) {
+      const ktx2Loader = new KTX2Loader()
+        .setTranscoderPath("/basis/")
+        .detectSupport(ctx.renderer);
+      const allMats: THREE.Material[] = Array.isArray(mesh.material)
+        ? mesh.material
+        : mesh.material
+          ? [mesh.material]
+          : [];
+      for (const mat of allMats) {
+        for (const key of DISPOSE_TEX_KEYS) {
+          const tex = (mat as unknown as Record<string, unknown>)[key];
+          if (!(tex instanceof THREE.Texture)) continue;
+          const img = tex.image as HTMLImageElement | undefined;
+          if (!img?.src?.startsWith("blob:")) continue;
+          const hash = blobUrlToHash.get(img.src);
+          if (!hash) continue;
+          const cached = await hasCached(hash);
+          if (!cached) continue;
+          // 缓存命中：通过轻量绑定获取 KTX2 数据（只读缓存文件，不读原始 PNG）
+          const ktx2B64 = await getCached(hash);
+          if (!ktx2B64) continue;
+          const ktxBytes = b64ToBytes(ktx2B64);
+          const ktxBlob = new Blob([bytesToArrayBuffer(ktxBytes)]);
+          const ktxUrl = URL.createObjectURL(ktxBlob);
+          blobUrls.push(ktxUrl);
+          // 加载 KTX2 压缩纹理并替换
+          ktx2Loader.loadAsync(ktxUrl).then((compressedTex) => {
+            (mat as unknown as Record<string, unknown>)[key] = compressedTex;
+            tex.dispose(); // 释放旧 PNG 纹理的 GPU 内存
+            mat.needsUpdate = true;
+          }).catch(() => {
+            /* KTX2 加载失败不阻断，保留原 PNG 纹理 */
+          });
+        }
       }
     }
   }

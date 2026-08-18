@@ -411,55 +411,50 @@ function fakeMmdMeshRef(scene: THREE.Scene): THREE.Object3D {
 }
 
 describe("KTX2 缓存", () => {
-  it("getCachedTexture 返回 KTX2 → 创建 KTX2 blob + 额外调用 readFileBytes 取 PNG", async () => {
-    vi.spyOn(URL, "createObjectURL")
+  it("纹理加载后无额外 RPC（getCachedTexture 不再调用，hash 由前端计算）", async () => {
+    const createURL = vi
+      .spyOn(URL, "createObjectURL")
       .mockImplementation(() => "blob:mock-url");
     const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-    // getCachedTexture 返回 KTX2 格式
-    const getCachedTexMock = vi.fn().mockImplementation(async (p: string) => {
-      if (p.toLowerCase().endsWith(".png")) {
-        return { format: "ktx2", data: btoa("FAKE_KTX2"), hash: "hash123" };
-      }
-      return null;
-    });
-    // readBytesMock 返回 PNG 数据（KTX2 命中时仍需 PNG 供 TextureLoader）
-    hoisted.readBytesMock.mockImplementation((p: string) => {
-      if (p.endsWith(".pmx")) return Promise.resolve(btoa("PMX"));
-      return Promise.resolve(btoa("PNG"));
-    });
-    hoisted.listPathsMock.mockResolvedValue([
-      "/mmd/miku/miku.pmx",
-      "/mmd/miku/tex.png",
-      "/mmd/miku/face.png",
-    ]);
+    try {
+      hoisted.readBytesMock.mockImplementation((p: string) => {
+        if (p.endsWith(".pmx")) return Promise.resolve(btoa("PMX"));
+        return Promise.resolve(btoa("PNG_DATA"));
+      });
+      hoisted.listPathsMock.mockResolvedValue([
+        "/mmd/miku/miku.pmx",
+        "/mmd/miku/tex.png",
+        "/mmd/miku/face.png",
+      ]);
 
-    const port: MmdDataPort = {
-      readFileBytes: hoisted.readBytesMock,
-      readFileBytesBatch: vi.fn().mockImplementation(async (paths: string[]) => {
-        const result: Record<string, string | null> = {};
-        for (const p of paths) {
-          result[p] = await hoisted.readBytesMock(p);
-        }
-        return result;
-      }),
-      listAllFilePaths: hoisted.listPathsMock,
-      addOpLog: vi.fn().mockResolvedValue(undefined),
-      getCachedTexture: getCachedTexMock,
-    };
+      const port: MmdDataPort = {
+        readFileBytes: hoisted.readBytesMock,
+        readFileBytesBatch: vi.fn().mockImplementation(async (paths: string[]) => {
+          const result: Record<string, string | null> = {};
+          for (const p of paths) {
+            result[p] = await hoisted.readBytesMock(p);
+          }
+          return result;
+        }),
+        listAllFilePaths: hoisted.listPathsMock,
+        addOpLog: vi.fn().mockResolvedValue(undefined),
+      };
 
-    const { ctx, loadingEl } = makeCtx();
-    const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", port, makeMmdPanels());
+      const { ctx } = makeCtx();
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", port, makeMmdPanels());
 
-    // getCachedTexture 被调用两次（tex.png + face.png）
-    expect(getCachedTexMock).toHaveBeenCalledTimes(2);
-    expect(getCachedTexMock).toHaveBeenCalledWith("/mmd/miku/tex.png");
-    expect(getCachedTexMock).toHaveBeenCalledWith("/mmd/miku/face.png");
+      // 验证 blob URL 数量：模型(1) + 纹理(2) = 3 次（无额外 KTX2 blob）
+      expect(createURL).toHaveBeenCalledTimes(3);
 
-    // 验证 blob URL 数量：模型(1) + 纹理(2) + KTX2(2) = 5 次 createObjectURL
-    expect(URL.createObjectURL).toHaveBeenCalledTimes(5);
+      // 模型文件仍走 readFileBytes
+      expect(hoisted.readBytesMock).toHaveBeenCalledWith("/mmd/miku/miku.pmx");
 
-    built.dispose();
-    expect(hoisted.mmdDisposeMock).toHaveBeenCalled();
+      built.dispose();
+      expect(hoisted.mmdDisposeMock).toHaveBeenCalled();
+    } finally {
+      createURL.mockRestore();
+      revokeURL.mockRestore();
+    }
   });
 });
 

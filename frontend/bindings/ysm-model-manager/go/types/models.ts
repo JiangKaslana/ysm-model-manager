@@ -3,24 +3,32 @@
 
 /**
  * AppConfig 应用持久化配置
+ * 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"），
+ * 取代过去 YsmRoot/ResourcepackRoot/... 7 个独立字段，避免资源类型膨胀时结构体硬编码。
+ * configField 语义：存储的是资源类型 id（非结构体字段名），具体路由逻辑在 internal/app/resource_bindings.go
+ * 统一查 CustomRoots map，检索 "customRoots" 即可抓到全貌。
  */
 export interface AppConfig {
     /**
      * 统一文件存储根目录，各类型默认存 {filesRoot}/{subDir}/
      */
     "filesRoot": string;
-    "ysmRoot": string;
 
     /**
-     * 旧版字段，v1.6.4+ 不再使用，仅用于 config 迁移
+     * 资源类型 id → 自定义根路径（留空则回退 FilesRoot）
      */
-    "repoRoot": string;
-    "resourcepackRoot": string;
-    "shaderpackRoot": string;
-    "schematicRoot": string;
-    "litematicRoot": string;
-    "mmdRoot": string;
-    "vrcRoot": string;
+    "customRoots": { [_ in string]?: string } | null;
+
+    /**
+     * Deprecated: 以下字段为历史兼容保留，新代码请使用 FilesRoot/CustomRoots
+     */
+    "ysmRoot"?: string;
+    "resourcepackRoot"?: string;
+    "shaderpackRoot"?: string;
+    "schematicRoot"?: string;
+    "litematicRoot"?: string;
+    "mmdRoot"?: string;
+    "vrcRoot"?: string;
     "mcRoot": string;
     "linkMode": string;
     "theme": string;
