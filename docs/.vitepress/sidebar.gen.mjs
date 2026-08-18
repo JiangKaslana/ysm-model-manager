@@ -701,6 +701,10 @@ export const autoSidebar = [
         "link": "/audit-r10-animation-resource-management-2026-08-18"
       },
       {
+        "text": "审计 R11 — 纹理生命周期管理",
+        "link": "/audit-r11-texture-lifecycle-2026-08-18"
+      },
+      {
         "text": "第 2 轮审核报告：Go 后端路径层（fileops/sync/installer/recycle/download）",
         "link": "/audit-r2-go-backend-2026-08-18"
       },

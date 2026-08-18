@@ -18,17 +18,30 @@ export function compKey(mi: number, id: string) {
   return mi + ":" + id;
 }
 
-/** 带贴图的材质（disposeMaterial 需释放 .map 位图） */
-export interface MaterialWithMap {
-  map?: THREE.Texture | null;
-}
+/** 材质上所有可能持有贴图的属性 key（对应 THREE.Material 纹理字段 + ShaderMaterial uniforms） */
+const ALL_TEXTURE_KEYS = [
+  "map",
+  "emissiveMap",
+  "normalMap",
+  "roughnessMap",
+  "metalnessMap",
+  "aoMap",
+  "lightMap",
+  "alphaMap",
+  "envMap",
+] as const;
 
-/** 释放材质（含位图 .map），null/undefined 安全。 */
+/** 释放材质（含所有位图贴图），null/undefined 安全。 */
 export function disposeMaterial(m: THREE.Material | null | undefined): void {
   if (!m) return;
-  const withMap = m as THREE.Material & Partial<MaterialWithMap>;
-  if (withMap.map) withMap.map.dispose();
-  m.dispose();
+  // 显式释放纹理：material.dispose() 不保证清除 mat.map 等引用（实测验证）
+  for (const key of ALL_TEXTURE_KEYS) {
+    const tex = (m as unknown as Record<string, unknown | THREE.Texture | null>)[key];
+    if (tex && typeof (tex as THREE.Texture).dispose === "function") {
+      try { (tex as THREE.Texture).dispose(); } catch {}
+    }
+  }
+  try { m.dispose(); } catch {}
 }
 
 /** 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 */

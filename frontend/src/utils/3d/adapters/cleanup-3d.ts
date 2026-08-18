@@ -120,13 +120,19 @@ export function runFullCleanup(ctx: CleanupContext): void {
 }
 
 // ── safeDisposeMat ─────────────────────────────────────────────────────────
-// 安全释放材质及其关联纹理（map / emissiveMap），错误不抛
+// 安全释放材质及其关联纹理（全量 map 字段），错误不抛
+// 与 mesh.ts disposeMaterial 保持一致的纹理字段覆盖范围
+
+const SAFE_DISPOSE_TEX_KEYS = [
+  "map", "emissiveMap", "normalMap", "roughnessMap",
+  "metalnessMap", "aoMap", "lightMap", "alphaMap", "envMap",
+] as const;
 
 export function safeDisposeMat(m: THREE.Material): void {
-  const withTex = m as unknown as { map?: THREE.Texture; emissiveMap?: THREE.Texture };
-  for (const tex of [withTex.map, withTex.emissiveMap]) {
-    if (tex) {
-      try { tex.dispose(); } catch (_) { /* 防御性释放 */ }
+  for (const key of SAFE_DISPOSE_TEX_KEYS) {
+    const tex = (m as unknown as Record<string, unknown | THREE.Texture | null>)[key];
+    if (tex && typeof (tex as THREE.Texture).dispose === "function") {
+      try { (tex as THREE.Texture).dispose(); } catch (_) { /* 防御性释放 */ }
     }
   }
   try { m.dispose(); } catch (_) { /* 防御性释放 */ }

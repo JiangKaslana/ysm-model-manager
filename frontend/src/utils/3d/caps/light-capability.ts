@@ -596,10 +596,17 @@ function deepMergeLightParams(base: LightParams, override: DeepPartial<LightPara
   };
 }
 
+/** 材质上所有可能持有贴图的属性 key */
+const ALL_TEX_KEYS = ["map", "emissiveMap", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "lightMap", "alphaMap", "envMap"] as const;
+
 function tryDisposeMat(m: THREE.Material): void {
   try {
-    const mt = m as unknown as { map?: THREE.Texture };
-    if (mt.map) mt.map.dispose();
+    for (const key of ALL_TEX_KEYS) {
+      const tex = (m as unknown as Record<string, unknown | THREE.Texture | null>)[key];
+      if (tex && typeof (tex as THREE.Texture).dispose === "function") {
+        try { (tex as THREE.Texture).dispose(); } catch {}
+      }
+    }
     m.dispose();
   } catch {}
 }

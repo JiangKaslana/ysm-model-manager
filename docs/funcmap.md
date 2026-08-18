@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 115 | 429 |
+| 前端·工具 | 115 | 428 |
 | frontend/views | 101 | 287 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **394** | **1653** |
+| **合计** | **394** | **1652** |
 
 ## Go·头像
 
@@ -1130,7 +1130,7 @@
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:21` | — |
 | `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:56` | — |
-| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:125` | — |
+| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:131` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1257,9 +1257,8 @@
 | `getTintColorSync()` | `frontend/src/utils/3d/mc-tints:51` | 取某染色类别在某 biome 下的颜色（默认 plains）。 |
 | `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:27` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
 | `compKey()` | `frontend/src/utils/3d/mesh:17` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
-| `MaterialWithMap()` | `frontend/src/utils/3d/mesh:22` | 带贴图的材质（disposeMaterial 需释放 .map 位图） |
-| `disposeMaterial()` | `frontend/src/utils/3d/mesh:27` | 释放材质（含位图 .map），null/undefined 安全。 |
-| `buildSceneMesh()` | `frontend/src/utils/3d/mesh:35` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
+| `disposeMaterial()` | `frontend/src/utils/3d/mesh:35` | 释放材质（含所有位图贴图），null/undefined 安全。 |
+| `buildSceneMesh()` | `frontend/src/utils/3d/mesh:48` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
 | `mmdBonesToBoneNodes()` | `frontend/src/utils/3d/mmd-bones:16` | MMD 骨骼 → bone-tools BoneNode[]（id = pmx 索引字符串；越界父/自引用 → null 根） |
 | `MmdBonePickResult()` | `frontend/src/utils/3d/mmd-bones:32` | 拾取结果（pickMmdBone 命中） |
 | `pickMmdBone()` | `frontend/src/utils/3d/mmd-bones:39` | MMD 骨骼拾取：射线到骨骼 worldPosition 距离命中（Bone 无几何，网格归属拾取不适用） |
