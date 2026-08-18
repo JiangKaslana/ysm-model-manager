@@ -6,12 +6,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { getByTestId, getAllByTestId, waitFor, sleep, mountCustomElement, unmountElement } from "../../test-utils/index.ts";
 import { bus } from "../../bus.ts";
 
-const { isViewerModeMock } = vi.hoisted(() => ({
-  isViewerModeMock: vi.fn().mockReturnValue(false), // 默认桌面
+const { canMock } = vi.hoisted(() => ({
+  canMock: vi.fn().mockReturnValue(true), // 默认桌面：ListVersionInstances 可用
 }));
 
-vi.mock("../../utils/dom/android-bridge.ts", () => ({
-  isViewerMode: isViewerModeMock,
+vi.mock("../../utils/dom/capabilities.ts", () => ({
+  can: canMock,
 }));
 
 // getApp 仅在 version 加载时调用，mock 阻断
@@ -28,7 +28,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     document.body.innerHTML = "";
     localStorage.removeItem("nav_page");
     localStorage.removeItem("nav_collapsed");
-    isViewerModeMock.mockReturnValue(false); // 默认桌面
+    canMock.mockReturnValue(true); // 默认桌面：ListVersionInstances 可用
   });
 
   afterEach(() => {
@@ -59,7 +59,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
   });
 
   it("查看器模式隐藏整合包导航项；GitHub 已由桥接增强 Batch 2 启用（ADR-049）", async () => {
-    isViewerModeMock.mockReturnValue(true); // Android/网页版
+    canMock.mockReturnValue(false); // Android/网页版：ListVersionInstances 不可用
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
     await waitFor(() => getAllByTestId(root, "nav-item").length >= 5);
@@ -179,7 +179,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
     await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
-    (el as unknown as { setCollapsed(c: boolean, p?: boolean): void }).setCollapsed(true, false);
+    (el as unknown as { setCollapsed(c: boolean, o?: { persist?: boolean }): void }).setCollapsed(true, { persist: false });
     await sleep(50);
     expect(el.hasAttribute("data-collapsed")).toBe(true);
     // 不落盘：localStorage 仍为空

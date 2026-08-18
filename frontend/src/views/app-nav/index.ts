@@ -1,5 +1,5 @@
 // ===== <app-nav> — 左侧导航菜单（类型化版 — ADR-014 P3 components）=====
-// 事件：nav:change — 切换页面
+// 事件：nav:changed — 切换页面
 import { bus, type PageName } from "../../bus.ts";
 import { resolveInitialPage, sanitizePage } from "../../core/page-store.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
@@ -140,7 +140,7 @@ class AppNav extends WebComponentBase {
       (el as HTMLElement).onclick = () => {
         const page = (el as HTMLElement).dataset.page as PageName;
         // P2 修复（e2e 时序反推）：nav_page 持久化原依赖 nav:changed 回环写入——
-        // app-content 未挂载时 nav:change 无人消费 → 回环不触发 → 上次停留页不落盘。
+        // app-content 未挂载时 nav:changed 无人消费 → 回环不触发 → 上次停留页不落盘。
         // 点击时同步写入，事件丢失时下次启动仍能经 resolveInitialPage 恢复。
         // P3 修复（子代理审计）：safeSet 收敛裸调（storage.ts 红线：全项目统一经
         // 本模块读写）
@@ -260,15 +260,16 @@ class AppNav extends WebComponentBase {
   }
 
   /**
-   * 折叠/展开导航栏。
+   * 折叠/展开导航栏（债务 #4：boolean 参数改为 options 对象，可读性/扩展性更好）。
    * @param collapsed 是否折叠
-   * @param persist 是否持久化到 localStorage。workshop 页自动折叠传 false，
-   *                避免污染用户手动折叠记忆；用户点按钮传 true。
+   * @param options.persist 是否持久化到 localStorage。workshop 页自动折叠传
+   *                        { persist: false }，避免污染用户手动折叠记忆；
+   *                        用户点按钮默认 true。
    */
-  setCollapsed(collapsed: boolean, persist = true): void {
+  setCollapsed(collapsed: boolean, options?: { persist?: boolean }): void {
     if (this._collapsed === collapsed) return;
     this._collapsed = collapsed;
-    if (persist) safeSet("nav_collapsed", collapsed ? "1" : "0");
+    if (options?.persist !== false) safeSet("nav_collapsed", collapsed ? "1" : "0");
     this.render();
   }
 }

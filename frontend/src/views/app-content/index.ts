@@ -86,7 +86,7 @@ class AppContent extends WebComponentBase {
     super();
     const root = this.attachShadow({ mode: "open" });
     root.adoptedStyleSheets = [appContentStyle];
-    // 与 PageStore 同源初始化：app-nav 的初始 nav:change 在 app-content 动态
+    // 与 PageStore 同源初始化：app-nav 的初始 nav:changed 在 app-content 动态
     // import 完成前可能被吞（app-modules.ts 动态加载），此时若硬编码 "repository"
     // 会导致 UI 渲染与 PageStore 脱节（守卫误拦 DnD 遮罩）。统一走
     // resolveInitialPage，即使初始事件丢失，两者也保持一致。
@@ -182,7 +182,7 @@ class AppContent extends WebComponentBase {
       type: "error",
     });
     // 重置页面状态为仓库页，防止 nav 高亮与内容脱节；
-    // 已在 repository 页时跳过，避免无效 nav:change 触发链
+    // 已在 repository 页时跳过，避免无效 nav:changed 触发链
     if (this._current !== "repository") {
       this._current = "repository";
       bus.emit("nav:changed", { page: "repository" });
