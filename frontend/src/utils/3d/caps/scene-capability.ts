@@ -8,7 +8,7 @@
 /* ============ 菜单控件定义 ============ */
 
 /** 单个菜单控件类型 */
-type MenuControlKind = "toggle" | "slider" | "select" | "divider";
+type MenuControlKind = "toggle" | "slider" | "select" | "button" | "divider";
 
 /** 菜单控件定义（声明式，由框架渲染为 DOM） */
 export interface MenuControlDef {
@@ -29,9 +29,24 @@ export interface MenuControlDef {
   };
   /** select 配置 */
   select?: Array<{ value: string; label: string }>;
-  /** 读取当前值（框架调用，渲染初始状态） */
+  /** button 配置（kind=button 时生效） */
+  button?: {
+    /** 按钮展示文案（i18n 键），为空则取 labelKey/fallback */
+    textKey?: string;
+    /** 按钮次级文案（i18n 键），展示按钮右侧小字（如已加载 HDR 文件名） */
+    hintKey?: string;
+    /** 读取当前右侧 hint 文案（动态覆盖 hintKey，如当前加载的 HDR 文件名） */
+    getHint?: () => string;
+    /** 按钮变种：primary 强调 / ghost 次按钮 */
+    variant?: "primary" | "ghost";
+    /** 点击回调。非 getValue/setValue 语义（按钮无"值"），统一单独挂 action */
+    action: () => void | Promise<void>;
+    /** 是否禁用（异步加载中禁用） */
+    disabled?: () => boolean;
+  };
+  /** 读取当前值（框架调用，渲染初始状态；button 忽略） */
   getValue: () => number | string | boolean;
-  /** 设置值（框架调用，用户交互时触发） */
+  /** 设置值（框架调用，用户交互时触发；button 忽略） */
   setValue: (v: number | string | boolean) => void;
 }
 

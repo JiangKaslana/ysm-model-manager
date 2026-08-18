@@ -1142,8 +1142,8 @@
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:55` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:91` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:98` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:434` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:461` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:444` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:471` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:65` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:84` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:114` | — |
@@ -1219,13 +1219,13 @@
 | `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:19` | 注册 free 模式 pointer drag 监听器。 |
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
 | `fitCameraToRoots()` | `frontend/src/utils/3d/camera-setup:50` | 按给定根节点列表（多模型同框）计算并集包围盒并返回相机初始位姿。 |
-| `EnvPresetId()` | `frontend/src/utils/3d/caps/environment-capability:17` | — |
-| `EnvPreset()` | `frontend/src/utils/3d/caps/environment-capability:19` | — |
-| `ENV_PRESETS()` | `frontend/src/utils/3d/caps/environment-capability:40` | — |
-| `EnvironmentParams()` | `frontend/src/utils/3d/caps/environment-capability:73` | — |
-| `DEFAULT_ENV_PARAMS()` | `frontend/src/utils/3d/caps/environment-capability:82` | — |
-| `ENV_PRESET_BY_MODEL()` | `frontend/src/utils/3d/caps/environment-capability:90` | 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） |
-| `EnvironmentCapability()` | `frontend/src/utils/3d/caps/environment-capability:190` | — |
+| `EnvPresetId()` | `frontend/src/utils/3d/caps/environment-capability:20` | — |
+| `EnvPreset()` | `frontend/src/utils/3d/caps/environment-capability:22` | — |
+| `ENV_PRESETS()` | `frontend/src/utils/3d/caps/environment-capability:43` | — |
+| `EnvironmentParams()` | `frontend/src/utils/3d/caps/environment-capability:78` | — |
+| `DEFAULT_ENV_PARAMS()` | `frontend/src/utils/3d/caps/environment-capability:87` | — |
+| `ENV_PRESET_BY_MODEL()` | `frontend/src/utils/3d/caps/environment-capability:95` | 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） |
+| `EnvironmentCapability()` | `frontend/src/utils/3d/caps/environment-capability:225` | — |
 | `FogMode()` | `frontend/src/utils/3d/caps/fog-capability:15` | — |
 | `FogParams()` | `frontend/src/utils/3d/caps/fog-capability:17` | — |
 | `DEFAULT_FOG_PARAMS()` | `frontend/src/utils/3d/caps/fog-capability:30` | — |

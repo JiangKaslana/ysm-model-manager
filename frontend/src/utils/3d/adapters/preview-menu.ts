@@ -125,6 +125,50 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
       sel.onchange = (): void => c.setValue(sel.value);
       row.append(label, sel);
       list.appendChild(row);
+      continue;
+    }
+    if (c.kind === "button") {
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+      const label = document.createElement("span");
+      label.className = "slide-label";
+      label.textContent = tr(c.labelKey, c.fallback);
+      label.style.cssText = "flex:1;font-size:12px";
+      const btn = document.createElement("button");
+      const variant = c.button?.variant ?? "ghost";
+      const accent = "var(--accent,#7c83ff)";
+      btn.style.cssText =
+        variant === "primary"
+          ? `padding:4px 10px;font-size:11px;border:0;border-radius:6px;cursor:pointer;background:${accent};color:#fff;`
+          : `padding:4px 10px;font-size:11px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;background:transparent;color:rgba(255,255,255,0.85);`;
+      btn.textContent = c.button?.textKey ? tr(c.button.textKey, c.fallback) : c.fallback;
+      const hint = document.createElement("span");
+      hint.style.cssText = "font-size:10px;color:rgba(255,255,255,0.5);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+      const syncHint = (): void => {
+        const v = c.button?.getHint ? c.button.getHint() : "";
+        hint.textContent = v ?? (c.button?.hintKey ? tr(c.button.hintKey, "") : "");
+      };
+      syncHint();
+      let disabled = c.button?.disabled?.() ?? false;
+      btn.disabled = disabled;
+      btn.style.opacity = disabled ? "0.5" : "1";
+      btn.onclick = async (): Promise<void> => {
+        if (!c.button?.action) return;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+        try {
+          await c.button.action();
+        } finally {
+          disabled = c.button?.disabled?.() ?? false;
+          btn.disabled = disabled;
+          btn.style.opacity = disabled ? "0.5" : "1";
+          syncHint();
+        }
+      };
+      row.append(label, btn, hint);
+      list.appendChild(row);
     }
   }
 }
