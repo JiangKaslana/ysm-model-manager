@@ -1156,7 +1156,7 @@
 | `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:189` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
-| `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:37` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
+| `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
 | `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:12` | 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） |
 | `PostprocessingManager()` | `frontend/src/utils/3d/adapters/postprocessing:19` | — |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
@@ -1861,7 +1861,7 @@
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:18` | — |
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:10` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:59` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:58` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
 | `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |

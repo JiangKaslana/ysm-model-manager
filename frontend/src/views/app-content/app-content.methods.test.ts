@@ -431,6 +431,47 @@ describe("_initGithub / _initWorkshop 真实路径", () => {
     unmountElement(el);
   });
 
+  it("workshop: 创作者数据异步加载 → ref 引用一致性（stale closure 防回归）", async () => {
+    // —— 设计意图：本次 bug 就是 initWorkshopTabs 写入的 ref 与 showSiteView 读取的 ref
+    // 不是同一个对象实例，导致 tabs 更新了 .v 但视图闭包永远读到原始空数组。
+    // 此用例显式断言：loadCommunityData 返回的 creators/authors 被 renderSiteView 收到的
+    // ctx.allCreators / ctx.repoAuthors 正确反映——即同一份 ref 的 .v。
+    const el = mountCustomElement("app-content") as unknown as ContentEl;
+    await sleep(50);
+
+    const mockCreators = [
+      { name: "测试创作者A", site: "bilibili", role: "creator", url: "https://a.example" },
+      { name: "测试创作者B", site: "afdian", role: "vup", url: "https://b.example" },
+    ];
+    const mockAuthors = [{ login: "repoAuthorA", avatar: "https://avatar/a.png" }];
+
+    vi.mocked(loadCommunityData).mockResolvedValue({
+      sites: [
+        { id: "bilibili", label: "B站", url: "https://bilibili.com", icon: "", desc: "", group: "" },
+        { id: "afdian", label: "爱发电", url: "https://afdian.com", icon: "", desc: "", group: "" },
+      ],
+      // @ts-expect-error 覆盖 LocalCreator 类型为最小形状
+      creators: mockCreators,
+      authors: mockAuthors,
+    });
+
+    el._current = "workshop";
+    el._render();
+    // initWorkshopTabs 用 setTimeout(100) 延迟加载 + 内部 async showCreatorsBySite 完成
+    await sleep(300);
+
+    // renderSiteView 必须被调用，且 ctx.allCreators 里包含测试创作者A
+    const viewCalls = vi.mocked(renderSiteView).mock.calls;
+    expect(viewCalls.length).toBeGreaterThan(0);
+    const lastCtx = viewCalls[viewCalls.length - 1][1] as { allCreators: unknown[]; repoAuthors: unknown[] };
+    expect(lastCtx.allCreators.length).toBe(mockCreators.length);
+    expect(lastCtx.allCreators.map((c: any) => c.name)).toContain("测试创作者A");
+    // 同时校验 repoAuthors（另一条 ref 通道）
+    expect(lastCtx.repoAuthors.length).toBe(mockAuthors.length);
+
+    unmountElement(el);
+  });
+
   it("内嵌模式直连官网（iframe.src=site.url，不再走本地代理 127.0.0.1）", async () => {
     const el = mountCustomElement("app-content") as unknown as ContentEl;
     await sleep(50);
