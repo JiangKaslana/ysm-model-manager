@@ -79,14 +79,17 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
   ...DIR_HANDLERS,
 
   // ── instance ──
-  "instance.open-folder": (ctx) => {
+  "instance.open-folder": async (ctx) => {
     if (!ctx.path) {
       toast("❌ 整合包目录未找到", 3000, "error");
       return;
     }
-    getApp()
-      .then((App) => App.OpenInstanceFolder(ctx.path || "", ctx.rtype || ""))
-      .catch(() => toast("❌ 打开文件夹失败", 3000, "error"));
+    try {
+      const { OpenInstanceFolder } = await getApp();
+      await OpenInstanceFolder(ctx.path, ctx.rtype || "");
+    } catch (e) {
+      toast(`❌ ${friendlyError(e, "打开文件夹失败")}`, 3000, "error");
+    }
   },
   "instance.export-list": (ctx) =>
     bus.emit("instance:export-list", {

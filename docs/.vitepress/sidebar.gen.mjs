@@ -780,6 +780,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-100：YSM 骨骼动画播放——L1 基础播放",
+        "link": "/adr/ADR-100-ysm-bone-animation"
+      },
+      {
         "text": "ADR-099：3D 预览 SceneCapability 注册表架构与能力分层（九 cap 接入、顶层五 tab 菜单映射、反射模式三档 SSR 闭环）",
         "link": "/adr/ADR-099-3d-scenecapability-cap-tab-ssr"
       },
