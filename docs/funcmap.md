@@ -1819,11 +1819,11 @@
 | `getPrefer3D()` | `frontend/src/views/app-preview/utils:60` | — |
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
 | `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
-| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:41` | 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 |
-| `switchVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:46` | 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
-| `appendVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:51` | 同台追加 VRM 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |
-| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:56` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:61` | 任意新预览派发时调用，作废在途 VRM 加载 |
+| `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:46` | 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 |
+| `switchVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:51` | 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
+| `appendVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:56` | 同台追加 VRM 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |
+| `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:61` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:66` | 任意新预览派发时调用，作废在途 VRM 加载 |
 | `VrmMaterialControlBridge()` | `frontend/src/views/app-preview/vrm-controls:15` | 材质控制桥：复用 vrm-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在本文件 |
 | `buildVrmMaterialControls()` | `frontend/src/views/app-preview/vrm-controls:27` | 在 container 渲染 VRM 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `makeVrmPanelRenderer()` | `frontend/src/views/app-preview/vrm-controls:94` | VRM 菜单面板渲染器（声明式菜单 item.render 回调） |

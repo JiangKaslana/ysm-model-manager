@@ -26,6 +26,11 @@ async function listAllFilePaths(dir: string): Promise<string[] | null> {
   return (App as unknown as Record<string, (d: string) => Promise<string[] | null>>)["ListAllFilePaths"](dir);
 }
 
+/** ADR-072 诊断端口：环形日志面板写入 */
+async function addOpLog(op: string, msg: string, status: "ok" | "fail" | "warn", err?: string): Promise<void> {
+  // TODO: 接入真实环形日志面板（当前 no-op，后续通过 bus 或 port 注入）
+}
+
 const vrmPanelHooks: VrmPanelHooks = {
   makePanelRenderer: makeVrmPanelRenderer,
   // 播放面板复用 MMD 填充函数（views→views 合法；解除 utils→views 分层违规 R1）
@@ -34,7 +39,7 @@ const vrmPanelHooks: VrmPanelHooks = {
 
 const vrmAdapter: PreviewAdapter = {
   id: "vrm",
-  build: (ctx, path) => buildVrmScene(ctx, path, readFileBytes, vrmPanelHooks, listAllFilePaths),
+  build: (ctx, path) => buildVrmScene(ctx, path, { addOpLog }, readFileBytes, vrmPanelHooks, listAllFilePaths),
 };
 
 /** 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 */
