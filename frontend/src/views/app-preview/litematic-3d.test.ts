@@ -10,6 +10,7 @@ vi.mock("three", () => {
     children: unknown[] = [];
     add = vi.fn();
     remove = vi.fn();
+    traverse = vi.fn();
   }
   class Color {
     constructor(..._a: unknown[]) {}
@@ -42,6 +43,7 @@ vi.mock("three", () => {
   class AmbientLight {
     constructor(..._a: unknown[]) {}
   }
+  class Camera {}
   class DirectionalLight {
     position = { set: vi.fn() };
     constructor(..._a: unknown[]) {}
@@ -209,7 +211,20 @@ vi.mock("three", () => {
     PMREMGenerator,
     ACESFilmicToneMapping,
     AdditiveBlending,
+    BasicShadowMap: 0,
+    Camera,
+    CineonToneMapping: 3,
+    ColorSpace: "srgb",
     DoubleSide,
+    Frustum: class Frustum { setFromProjectionMatrix = vi.fn(); intersectsSphere = vi.fn(() => true); intersectsObject = vi.fn(() => true); },
+    LinearToneMapping: 1,
+    Matrix4: class Matrix4 { multiplyMatrices = vi.fn(); },
+    NoToneMapping: 0,
+    OrthographicCamera: class OrthographicCamera {},
+    ReinhardToneMapping: 2,
+    SRGBColorSpace: "srgb",
+    ShadowMapType: 0,
+    Sphere: class Sphere {},
     ToneMapping,
     _instancedMeshInstances: instancedMeshInstances,
     _cameraInstances: cameraInstances,
@@ -247,6 +262,26 @@ vi.mock("../../utils/3d/caps/sky-capability.ts", () => ({
     setTime = vi.fn();
     setCloudCoverage = vi.fn();
     constructor() {}
+  },
+}));
+const { _noopHandler } = vi.hoisted(() => {
+  const _noopHandler: ProxyHandler<Record<string, unknown>> = {
+    get: (_t, prop) => (typeof prop === "symbol" ? undefined : vi.fn()),
+  };
+  return { _noopHandler };
+});
+
+// 注册表 createAll 会触发真实 cap 工厂（EnvironmentCapability.buildEnvironment 等），
+// 需要完整 THREE 环境——本测试 three 全 stub，mock 注册表为 no-op。
+// getById 返回 Proxy，任意方法调用都是 vi.fn()，不用逐个列举。
+vi.mock("../../utils/3d/caps/scene-capability-registry.ts", () => ({
+  sceneCapabilityRegistry: {
+    createAll: vi.fn(() => []),
+    loadAll: vi.fn(),
+    getAll: vi.fn(() => []),
+    getById: vi.fn(() => new Proxy({}, _noopHandler)),
+    saveAll: vi.fn(),
+    dispose: vi.fn(),
   },
 }));
 // ADR-081 LightCapability 依赖真实 WebGL/THREE（聚光灯/体积光锥/方向光 position.copy），

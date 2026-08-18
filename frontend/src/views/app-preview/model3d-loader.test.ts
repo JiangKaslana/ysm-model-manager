@@ -5,15 +5,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
 
-const { getAppMock, specMock, buildSpecMock, isViewerModeMock, decodeWasmMock, tsSpecBuilderMock } = vi.hoisted(() => ({
+const { getAppMock, specMock, buildSpecMock, isViewerModeMock, decodeWasmMock, tsSpecBuilderMock, fakeTextureCache } = vi.hoisted(() => ({
   getAppMock: vi.fn(),
   specMock: vi.fn(),
   buildSpecMock: vi.fn(),
-  // 查看器模式守卫（Android 双端桥 + 网页版，fetchSpec 兜底路径，ADR-049/046）
-  isViewerModeMock: vi.fn().mockReturnValue(false), // 默认桌面
+  isViewerModeMock: vi.fn().mockReturnValue(false),
   decodeWasmMock: vi.fn(),
-  // 网页版纯 TS 移植（ADR-049 P2-2）：fetchSpecViaWasmFallback 的 resolveWebMode 分支
   tsSpecBuilderMock: vi.fn(),
+  fakeTextureCache: {
+    acquire: (_url: string, make: (u: string) => import("three").Texture) => {
+      const tex = make(_url);
+      return tex.userData.loadError ? null : tex;
+    },
+    release: () => {},
+    disposeAll: () => {},
+  },
 }));
 
 vi.mock("../../backend/app.ts", () => ({
@@ -29,6 +35,10 @@ vi.mock("../../utils/3d/spec-builder.ts", () => ({
   buildSpecFromGeometryJSON: tsSpecBuilderMock,
 }));
 
+vi.mock("../../utils/3d/texture-cache.ts", () => ({
+  textureCache: fakeTextureCache,
+}));
+
 import { loadTextures, preloadModel } from "./model3d-loader.ts";
 
 /** 可控 Image：src setter 同步触发 onload/onerror（happy-dom 无真实网络） */
@@ -37,12 +47,13 @@ class FakeImage {
   onerror: (() => void) | null = null;
   naturalWidth = 64;
   naturalHeight = 32;
+  complete = false;
   _src = "";
   _fail = false;
   set src(u: string) {
     this._src = u;
     if (this._fail) this.onerror?.();
-    else this.onload?.();
+    else { this.complete = true; this.onload?.(); }
   }
   get src(): string {
     return this._src;
@@ -80,11 +91,10 @@ describe("loadTextures", () => {
 
   it("部分失败 → null 占位且索引不压缩（后续组件贴纹理不错位）", async () => {
     class PartialImage extends FakeImage {
-      // b.png 加载失败
       set src(u: string) {
         this._src = u;
-        if (u === "b.png") this.onerror?.();
-        else this.onload?.();
+        if (u === "b.png") { this.complete = true; this.onerror?.(); }
+        else { this.complete = true; this.onload?.(); }
       }
     }
     vi.stubGlobal("Image", PartialImage as never);

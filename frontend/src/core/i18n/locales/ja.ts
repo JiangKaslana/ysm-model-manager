@@ -849,7 +849,7 @@ export const ja: Record<string, string> = {
   "preview.envClearHdr": "HDR をクリア",
   "preview.envClearHdrBtn": "クリア",
   "preview.envClearHdrHint": "クリア後は「スタジオ」プリセットに戻ります",
-  "preview.envDivider": "",
+  "preview.envDivider": "──",
   "preview.envUseAsBackground": "背景として使用",
   "preview.envUseAsBackgroundHint": "オンにすると現在の環境マップをシーン背景に表示、オフにすると元に戻します",
   "preview.postprocessing": "ポストプロセス",

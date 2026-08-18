@@ -1751,7 +1751,7 @@
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:11` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:21` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:50` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） |
-| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:149` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
+| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:152` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
 | `createPack3D()` | `frontend/src/views/app-preview/pack-3d:30` | 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） |
 | `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:50` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |

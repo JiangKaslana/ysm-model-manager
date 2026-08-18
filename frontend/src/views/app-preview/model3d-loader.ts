@@ -66,6 +66,9 @@ export async function loadTextures(urls?: string[]): Promise<(THREE.Texture | nu
         tex.userData.imgWidth = img.naturalWidth;
         tex.userData.imgHeight = img.naturalHeight;
       };
+      img.onerror = (): void => {
+        tex.userData.loadError = true;
+      };
       img.src = u;
       return tex;
     });
