@@ -4,24 +4,21 @@
 // browser-adapter.ts 从本文件 import 组装 webImpls。
 import { idbGet, idbSet, idbDel } from "./idb.ts";
 import { scanAllWebModels } from "./web-fs.ts";
+import { safeGet, safeSet } from "../utils/dom/storage.ts";
 
 // --- 配置（localStorage，缺省返回 {} 让主应用可启动）---
 const CFG_KEY = "ysm:config";
 
 function loadWebConfig(): Record<string, unknown> {
   try {
-    return JSON.parse(localStorage.getItem(CFG_KEY) ?? "{}") as Record<string, unknown>;
+    return JSON.parse(safeGet(CFG_KEY) ?? "{}") as Record<string, unknown>;
   } catch {
     return {};
   }
 }
 
 function saveWebConfig(cfg: Record<string, unknown>): void {
-  try {
-    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-  } catch {
-    // 隐私模式等：静默降级（配置不持久化，会话内仍生效）
-  }
+  safeSet(CFG_KEY, JSON.stringify(cfg));
 }
 
 // --- 网页版内存日志环（替代 Go 侧 ImportLog / runtimeLogs）---

@@ -794,7 +794,7 @@
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
-| `webCommunityBindings()` | `frontend/src/backend/web-community:243` | — |
+| `webCommunityBindings()` | `frontend/src/backend/web-community:235` | — |
 | `typeFromWebDir()` | `frontend/src/backend/web-fs:72` | 从 /web/&lt;type&gt;/... |
 | `FsaAuthState()` | `frontend/src/backend/web-fs:132` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
 | `getFsaAuthState()` | `frontend/src/backend/web-fs:164` | 查询根目录授权状态（不触发权限弹窗） |
@@ -814,8 +814,8 @@
 | `getStatsPoolSize()` | `frontend/src/backend/web-stats:91` | 当前池大小（Worker 池并行线程数，供 UI 角标显示 🧵×N） |
 | `prefetchStatsWorker()` | `frontend/src/backend/web-stats:113` | 预加载 stats.worker chunk（页面加载后后台静默下载，让首次搜索秒开）。 |
 | `batchStatsWebModels()` | `frontend/src/backend/web-stats:173` | 批量统计模型（骨骼/立方体/纹理尺寸）。返回数组与输入 paths 一一对应； Worker 池不可用 / 任一片失败 / 超时 → 返回 null（整体降级）。 |
-| `__resetWebLogStateForTest()` | `frontend/src/backend/web-store:120` | 测试钩子：重置日志环状态与 hydrated 标记（防模块级状态测试间污染） |
-| `webStoreBindings()` | `frontend/src/backend/web-store:193` | — |
+| `__resetWebLogStateForTest()` | `frontend/src/backend/web-store:117` | 测试钩子：重置日志环状态与 hydrated 标记（防模块级状态测试间污染） |
+| `webStoreBindings()` | `frontend/src/backend/web-store:190` | — |
 | `YsmHeaderShape()` | `frontend/src/backend/ysm-header:37` | YSMHeader（对齐 go/ysm/header.go:17 YSMHeader json tag） |
 | `YsmSummaryShape()` | `frontend/src/backend/ysm-header:56` | YsmSummary（对齐 go/ysm/summary.go:48 YsmSummary json tag；animGroups/configMenus 一并平移） |
 | `emptyYsmHeader()` | `frontend/src/backend/ysm-header:74` | 空 YSMHeader（对齐 Go YSMHeader{} JSON 形状：isYsm/isFree/hasFree/name 恒输出） |

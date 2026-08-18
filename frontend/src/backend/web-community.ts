@@ -12,6 +12,7 @@ import workshopSitesJson from "../../../workshop_sites.json" with { type: "json"
 import { decodeYsmFile } from "../wasm/ysm-parser.ts";
 import { scanWebModels, readWebFile, collectAllWebEntries, typeFromWebDir } from "./web-fs.ts";
 import { WEB_ROOT, arrayBufferToBase64 } from "./web-common.ts";
+import { safeGet, safeSet, safeRemove } from "../utils/dom/storage.ts";
 
 // --- 社区/工坊数据（ADR-049 桥接增强 Batch 2）---
 // 网页版无 Go 侧磁盘配置文件：bundled JSON 作默认，localStorage 作用户覆盖层
@@ -88,21 +89,12 @@ function loadWebGitHubRepos(): WorkshopCreator[] {
 const WEB_AVATAR_KEY = (author: string) => `web:avatar:${author}`;
 
 function saveAvatarCache(author: string, dataUri: string): void {
-  try {
-    if (typeof localStorage !== "undefined") localStorage.setItem(WEB_AVATAR_KEY(author), dataUri);
-  } catch {
-    // 隐私模式/存储满：静默降级为无缓存（下次仍重提，不阻断）
-  }
+  safeSet(WEB_AVATAR_KEY(author), dataUri);
 }
 
 /** CachedCreatorAvatar：读头像缓存（Go 读 cacheDir/safe.png；web 用 localStorage，由批量提取落缓存） */
 async function cachedCreatorAvatar(authorName: string): Promise<string> {
-  if (typeof localStorage === "undefined") return "";
-  try {
-    return localStorage.getItem(WEB_AVATAR_KEY(authorName)) || "";
-  } catch {
-    return "";
-  }
+  return safeGet(WEB_AVATAR_KEY(authorName)) || "";
 }
 
 /** CacheModelAvatars：web no-op——模型库头像已由 BatchExtractCreatorAvatars 批量覆盖，
