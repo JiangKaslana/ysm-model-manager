@@ -225,6 +225,8 @@ export const MOCK_DATA = {
   ReadFileBytes: undefined,
   ReadFileBytesBatch: undefined,
   SaveCachedTexture: undefined,
+  GetCachedTexture: undefined,
+  HasCachedTexture: undefined,
   ReadLitematicMeta: undefined,
   ReadNbtStructure: undefined,
   ReadPackEntry: undefined,
