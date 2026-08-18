@@ -397,6 +397,7 @@ export async function buildMmdScene(
     dispose: (): void => {
       bonePanelRef.current?.();
       mixer.stopAllAction();
+      mixer.uncacheRoot(mesh); // 释放 PropertyMixer 缓存，对齐 vrm-adapter（ADR-084 L2）
       breath.reset();
       gaze.reset();
       blink.dispose();
