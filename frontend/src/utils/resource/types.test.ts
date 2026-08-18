@@ -211,7 +211,7 @@ describe("GROUP_OF 类型→分组映射", () => {
 describe("groupStorageRootOf 两层路由", () => {
   it("有 group 时返回 {group}/{storageSubDir}", () => {
     expect(groupStorageRootOf("resourcepack")).toBe("minecraft/resourcepacks");
-    expect(groupStorageRootOf("mmd-skin")).toBe("mmd/mmd");
+    expect(groupStorageRootOf("mmd-skin")).toBe("mmd/EntityPlayer");
     expect(groupStorageRootOf("vrchat-avatar")).toBe("vrm/vrchat");
   });
 

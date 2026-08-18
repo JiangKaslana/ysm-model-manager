@@ -212,3 +212,32 @@ describe("maybePromptAndroidStorage（loadEntries 失败触发）", () => {
     expect(bridge.requestStoragePermission).toHaveBeenCalledTimes(1);
   });
 });
+
+  it("ADR-094: mmd 子类型 subdir 从 group 根拼接（FilesRoot/mmd/EntityPlayer → group根 + SceneModel）", async () => {
+    // 模拟 mmd-skin: GetRepoRoot 返回 FilesRoot/mmd/EntityPlayer
+    mocks.GetRepoRoot.mockResolvedValue("/repo/mmd/EntityPlayer");
+    mocks.ScanModelEntriesWithLabel.mockResolvedValue([
+      { Name: "a.pmx", Path: "/repo/mmd/SceneModel/场景1/a.pmx", Size: 1, ModTime: 1 },
+    ]);
+    const { loadEntries } = await import("./loader.ts");
+    const r = await loadEntries("mmd-skin", "SceneModel");
+    // 应回溯到 group 根 /repo/mmd 再拼 SceneModel
+    expect(mocks.ScanModelEntriesWithLabel).toHaveBeenCalledWith(
+      "/repo/mmd/SceneModel",
+      expect.any(String),
+    );
+    expect(r.filesRoot).toBe("/repo/mmd/SceneModel");
+  });
+
+  it("ADR-094: 无 subdir 时不回溯（直接扫 GetRepoRoot）", async () => {
+    mocks.GetRepoRoot.mockResolvedValue("/repo/mmd/EntityPlayer");
+    mocks.ScanModelEntriesWithLabel.mockResolvedValue([]);
+    const { loadEntries } = await import("./loader.ts");
+    const r = await loadEntries("mmd-skin");
+    expect(mocks.ScanModelEntriesWithLabel).toHaveBeenCalledWith(
+      "/repo/mmd/EntityPlayer",
+      expect.any(String),
+    );
+    expect(r.filesRoot).toBe("/repo/mmd/EntityPlayer");
+  });
+

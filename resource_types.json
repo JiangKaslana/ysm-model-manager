@@ -162,7 +162,7 @@
         ".vpd",
         ".zip"
       ],
-      "storageSubDir": "mmd",
+      "storageSubDir": "EntityPlayer",
       "configField": "MmdRoot",
       "installDir": "3d-skin/",
       "scanDir": "3d-skin",

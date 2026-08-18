@@ -122,7 +122,7 @@ var embeddedRegistryJSON = []byte(`{
       "icon": "🎭",
       "group": "mmd",
       "extensions": [".pmx", ".pmd", ".vmd", ".vpd", ".zip"],
-      "storageSubDir": "mmd",
+      "storageSubDir": "EntityPlayer",
       "configField": "MmdRoot",
       "installDir": "3d-skin/",
       "scanDir": "3d-skin",

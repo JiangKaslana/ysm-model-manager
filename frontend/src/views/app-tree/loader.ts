@@ -69,9 +69,13 @@ export async function loadEntries(
     const { GetRepoRoot, ScanModelEntriesWithLabel, IsFileBanned } = await getApp();
     let filesRoot = await GetRepoRoot(rtype || "");
     if (!filesRoot) return { filesRoot: "", entries: [] };
-    // ADR-094 位置路由：MMD 子类型扫子目录（FilesRoot/mmd/mmd/EntityPlayer 等）
+    // ADR-094 位置路由：MMD 子类型扫子目录。
+    // storageSubDir=EntityPlayer（仓库与整合包同款名），GetRepoRoot 返回 FilesRoot/mmd/EntityPlayer。
+    // 但子类型（SceneModel/CustomAnim 等）平铺在 FilesRoot/mmd/ 下（group 根），需回溯到 group 根再拼子类。
+    // 默认子类（EntityPlayer）即 GetRepoRoot 本身，subdir 为空。
     if (subdir) {
-      filesRoot = filesRoot.replace(/[\\/]+$/, "") + "/" + subdir.replace(/^[\\/]+/, "");
+      const groupRoot = filesRoot.replace(/[\\/]+$/, "").split(/[\\/]/).slice(0, -1).join("/");
+      filesRoot = groupRoot + "/" + subdir.replace(/^[\\/]+/, "");
     }
 
     const raw = await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[rtype] || rtype);

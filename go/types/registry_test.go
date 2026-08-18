@@ -162,7 +162,7 @@ func TestGroupStorageRoot(t *testing.T) {
 		{"ysm", "minecraft-mod/ysm"},
 		{"create-blueprint", "minecraft-mod/create-blueprint"},
 		{"litematic", "minecraft-mod/litematics"},
-		{"mmd-skin", "mmd/mmd"},
+		{"mmd-skin", "mmd/EntityPlayer"}, // storageSubDir 统一整合包同款名（消 mmd/mmd 冗余）
 		{"vrchat-avatar", "vrm/vrchat"},
 	}
 	for _, c := range cases {
