@@ -41,6 +41,7 @@ import type { SwitchContext } from "./switch-preview.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import { fitCameraToRoots } from "../camera-setup.ts";
 import { assembleBoneSelectInfo, getMeshBoneId } from "../bone-raycast.ts";
+import { cullModelGroups } from "../frustum-cull.ts";
 import { bindInputHandlers } from "./input-and-animation.ts";
 import type { InputOptions } from "./input-and-animation.ts";
 import { mountSidePanel } from "./side-panel.ts";
@@ -503,6 +504,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         ctr.update();
       }
       if (perFrame) perFrame(dt);
+      // 视锥裁剪：Group 级 BoundingSphere 测试，visible=false 后 Three.js 跳过整组遍历
+      cullModelGroups(cam);
       // ADR-081 L2：后处理体积光管线——委托 PostprocessingManager
       const rendered = postProc ? postProc.render(dt, lightCap) : false;
       if (!rendered) rd.render(sc, cam);

@@ -1140,12 +1140,12 @@
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
-| `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:26` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:54` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:90` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:97` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:430` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:457` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:27` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:55` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:91` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:98` | — |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:433` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:460` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:64` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:83` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:113` | — |
@@ -1178,24 +1178,24 @@
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:29` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:84` | 会话内切换模型（复用外壳重建内容层）。 |
 | `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:245` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
-| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:71` | VRM meta 归一化信息（meta 卡展示用） |
-| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:90` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
-| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:150` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:160` | — |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:384` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:415` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
+| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:72` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:91` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:151` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:161` | — |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:387` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:418` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:20` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:30` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:36` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
 | `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:156` | 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:33` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:81` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:250` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:264` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:269` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:294` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:34` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:82` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:253` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:267` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:272` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:297` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |

@@ -19,6 +19,7 @@ import type { PostprocessingManager } from "./postprocessing.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 import { textureCache } from "../texture-cache.ts";
+import { clearModelRoots } from "../frustum-cull.ts";
 
 // ── CleanupContext ────────────────────────────────────────────────────────
 // 所有可从 mount3D 作用域松绑的外部引用，统一经此接口注入。
@@ -100,6 +101,8 @@ export function runFullCleanup(ctx: CleanupContext): void {
   try { sceneCapabilityRegistry.dispose(); } catch (_) { /* 防御性释放 */ }
   // P0 纹理缓存池：session 结束释放所有缓存纹理
   try { textureCache.disposeAll(); } catch (_) { /* 防御性释放 */ }
+  // 视锥裁剪：清空模型根节点注册
+  try { clearModelRoots(); } catch (_) { /* 防御性释放 */ }
   // 兼容旧 cleanupCtx 引用（cleanupCtx 内仍有 skyCap/groundCap/lightCap）
   try { ctx.skyCap?.dispose(); } catch (_) { /* 防御性释放 */ }
   try { ctx.groundCap?.dispose(); } catch (_) { /* 防御性释放 */ }

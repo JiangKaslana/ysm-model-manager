@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { t } from "../../../core/i18n/t.ts";
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
+import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 
 /** 体素数据（GetLitematicVoxelData 等返回 JSON） */
@@ -86,6 +87,9 @@ export async function buildLitematicScene(
   const zChunks = Math.ceil(sizeZ / CHUNK);
 
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+  const modelGroup = new THREE.Group();
+  ctx.scene!.add(modelGroup);
+  registerModelRoot(modelGroup);
   const instancedMeshes: Array<import("three").InstancedMesh> = [];
   const materials: Array<import("three").MeshLambertMaterial> = [];
   // P2 修复（审核反推）：分层渲染需按 (group, chunk) 寻址——instancedMeshes 是拍平数组，
@@ -129,7 +133,7 @@ export async function buildLitematicScene(
         mesh.setMatrixAt(i, dummy.matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      ctx.scene!.add(mesh);
+      modelGroup.add(mesh);
       instancedMeshes.push(mesh);
       gMeshes.push({ mesh, ck });
     }
@@ -315,6 +319,7 @@ export async function buildLitematicScene(
 
   return {
     dispose(): void {
+      unregisterModelRoot(modelGroup);
       instancedMeshes.forEach((m) => {
         try {
           m.dispose();

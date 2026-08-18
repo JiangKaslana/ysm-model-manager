@@ -17,6 +17,7 @@ import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消
 import { createBlinkController } from "../perception/blink.ts"; // 语义表情消费方：程序化生命力 L1.5
 import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK，格式无关）
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
+import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { BoneTree } from "../bone-tools.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
@@ -189,6 +190,7 @@ export async function buildVrmScene(
   // VRM0.0 模型背对镜头，转正；VRM1.0 为 no-op 但调用安全
   VRMUtils.rotateVRM0(vrm);
   ctx.scene!.add(vrm.scene);
+  registerModelRoot(vrm.scene);
   ctx.loadingEl.remove(); // 加载完成，移除占位（旧 vrm-3d.ts:172 同款）
 
   // ---- VRMA 动作（同目录 .vrma）：官方 @pixiv/three-vrm-animation（与 three-vrm 同源）----
@@ -363,6 +365,7 @@ export async function buildVrmScene(
       } catch {
         /* 面板清理不阻断 dispose */
       }
+      unregisterModelRoot(vrm.scene);
       breath.reset();
       gaze?.reset();
       blink.dispose();

@@ -28,6 +28,7 @@ import { sceneRegistry } from "./scene-registry.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
+import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 
 /** 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 */
 export interface YsmAdapterOptions {
@@ -97,6 +98,7 @@ export async function buildYsmScene(
   // 内容层：spec → 场景图（§5.7 shared 化，renderModel3D 同款 buildYsmObject）
   const obj: YsmObjectHandle = buildYsmObject(spec as Spec3D, texArr, texIdx);
   ctx.scene.add(obj.rootGroup);
+  registerModelRoot(obj.rootGroup);
 
   // 相机取景 + 记录初始位置（resetCamera 恢复）
   fitCameraToScene(ctx.scene, ctx.camera, ctx.controls);
@@ -219,6 +221,7 @@ export async function buildYsmScene(
     dispose(): void {
       rayCleanup();
       bonePanelRef.current?.();
+      unregisterModelRoot(obj.rootGroup);
       obj.removeFromScene(ctx.scene as THREE.Scene);
       // F 键调试模式清理：移除事件监听 + 释放调试叠加层
       ctx.renderer!.domElement.removeEventListener("keydown", onFKeyDown);

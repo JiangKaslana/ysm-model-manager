@@ -34,6 +34,7 @@ import { createAutoDanceController } from "../perception/autodance.ts"; // 语�
 import { buildLipMorphIndices } from "../perception/lipsync.ts"; // 多 morph index 提取
 import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK）
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
+import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
@@ -200,6 +201,7 @@ export async function buildMmdScene(
   const mesh = mmd.mesh;
 
   ctx.scene!.add(mesh);
+  registerModelRoot(mesh);
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 
   // ---- VMD 动作（同目录 .vmd）：VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
@@ -396,6 +398,7 @@ export async function buildMmdScene(
     // 先回收 blob URL（防御：库 dispose 抛错也不泄漏内存），再释放 MMD 资源（geometry/材质经核心 fullCleanup 防御释放）
     dispose: (): void => {
       bonePanelRef.current?.();
+      unregisterModelRoot(mesh);
       mixer.stopAllAction();
       mixer.uncacheRoot(mesh); // 释放 PropertyMixer 缓存，对齐 vrm-adapter（ADR-084 L2）
       breath.reset();
