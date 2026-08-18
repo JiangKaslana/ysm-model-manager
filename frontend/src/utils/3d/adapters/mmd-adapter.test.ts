@@ -4,7 +4,7 @@
 // 错误路径（空字节/加载失败/目录扫描失败降级）。
 // @moeru/three-mmd 全 mock（MMDLoader 捕获 LoadingManager 断言 URLModifier 行为）；
 // three 用真实实现（Box3/Vector3/Light/LoadingManager 为纯 JS，无 WebGL 依赖）。
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as THREE from "three";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { PreviewMenuHandle } from "./preview-menu.ts";
@@ -128,6 +128,10 @@ beforeEach(() => {
   hoisted.managerInstances.length = 0;
   hoisted.loaderLoadAsyncMock.mockReset();
   hoisted.loaderLoadAsyncMock.mockImplementation(() => Promise.resolve(fakeMmd()));
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("buildMmdScene 主路径", () => {
@@ -589,9 +593,70 @@ describe("GPU 内存释放", () => {
   });
 });
 
-// ---- P0-3 批量读取 fallback：readFileBytesBatch 失败时降级逐条读取 ----
+// ---- P1-4 dispose 错误路径 blob URL 回收 ----
+describe("dispose 错误路径 blob URL 回收", () => {
+  it("dispose 前置步骤抛错时，blob URL 仍在 finally 中被回收", async () => {
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    // 模拟 AnimationMixer.stopAllAction 抛错
+    vi.spyOn(THREE.AnimationMixer.prototype, "stopAllAction")
+      .mockImplementation(() => { throw new Error("mixer failed"); });
+
+    hoisted.loaderLoadAsyncMock.mockImplementation(() =>
+      Promise.resolve(fakeMmd())
+    );
+    hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+    hoisted.listPathsMock.mockResolvedValue([]);
+
+    const { ctx } = makeCtx();
+    const built = await buildMmdScene(ctx, "/mmd/test/test.pmx", makePort(), makeMmdPanels());
+
+    // dispose 不应向外抛错（blob URL 在 finally 中被回收）
+    let threw = false;
+    try { built.dispose(); } catch { threw = true; }
+    expect(threw).toBe(false);
+    expect(revokeURL).toHaveBeenCalled();
+  });
+
+  it("build 失败时 finally 兜底回收 blob URL（scene.add 后抛错）", async () => {
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+    // 让 loader.loadAsync 成功，但 scene.add 之后的步骤抛错
+    // 通过 mock loaderLoadAsyncMock 成功 + 让后续逻辑抛错
+    hoisted.loaderLoadAsyncMock.mockImplementation(() =>
+      Promise.resolve(fakeMmd())
+    );
+    hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+    hoisted.listPathsMock.mockResolvedValue([]);
+
+    // 让 registerModelRoot 抛错（scene.add 后的第一步）
+    // registerModelRoot 是模块内部函数，不易直接 mock
+    // 改为：mock THREE.Scene.prototype.add 在特定条件下抛错
+    const origAdd = THREE.Scene.prototype.add;
+    vi.spyOn(THREE.Scene.prototype, "add").mockImplementation(function (this: THREE.Scene, ...args: unknown[]) {
+      // 抛错前先执行原方法（让 mesh.parent 被设置）
+      origAdd.call(this, ...args);
+      // 然后抛错，模拟 scene.add 后 build 中途失败
+      throw new Error("scene.add failed");
+    });
+
+    const { ctx } = makeCtx();
+    let buildError: unknown = null;
+    try {
+      await buildMmdScene(ctx, "/mmd/test/test.pmx", makePort(), makeMmdPanels());
+    } catch (e) {
+      buildError = e;
+    }
+
+    // build 确实抛错了
+    expect(buildError).toBeInstanceOf(Error);
+    // finally 兜底回收了 blob URL
+    expect(revokeURL).toHaveBeenCalled();
+  });
+});
+
+// ---- P0-3 批量读取 fallback：readFileBytesBatch 失败时降级并发分片读取 ----
 describe("批量读取降级", () => {
-  it("readFileBytesBatch 抛错时，降级为逐条 readFileBytes 读取纹理", async () => {
+  it("readFileBytesBatch 抛错时，降级为并发分片 readFileBytes 读取纹理", async () => {
     hoisted.readBytesMock.mockImplementation((p: string) => {
       if (p.endsWith(".pmx")) return Promise.resolve(btoa("PMX"));
       if (p.endsWith(".png")) return Promise.resolve(btoa("PNX"));
@@ -615,7 +680,7 @@ describe("批量读取降级", () => {
     const { ctx } = makeCtx();
     const built = await buildMmdScene(ctx, "/mmd/miku", port, makeMmdPanels());
 
-    // 关键断言：batch 失败后，readFileBytes 仍被逐条调用读取纹理
+    // 关键断言：batch 失败后，readFileBytes 仍被并发调用读取所有纹理
     const texCalls = hoisted.readBytesMock.mock.calls
       .map((c: unknown[]) => (c as [string])[0])
       .filter((p: string) => p.endsWith(".png"));
@@ -623,5 +688,73 @@ describe("批量读取降级", () => {
 
     // 模型仍正常加载（URLModifier 已挂载）
     expect(built.update).toBeDefined();
+  });
+
+  it("多个纹理并发 fallback 全部成功", async () => {
+    // 模拟 6 个纹理文件（> chunkSize=4，触发分片行为）
+    hoisted.readBytesMock.mockImplementation((p: string) => {
+      if (p.endsWith(".pmx")) return Promise.resolve(btoa("PMX"));
+      return Promise.resolve(btoa("TEX"));
+    });
+    hoisted.listPathsMock.mockResolvedValue([
+      "/mmd/miku/miku.pmx",
+      "/mmd/miku/t1.png",
+      "/mmd/miku/t2.png",
+      "/mmd/miku/t3.png",
+      "/mmd/miku/t4.png",
+      "/mmd/miku/t5.png",
+      "/mmd/miku/t6.png",
+    ]);
+    hoisted.loaderLoadAsyncMock.mockImplementation(
+      () => Promise.resolve(fakeMmd())
+    );
+
+    const port: MmdDataPort = {
+      ...makePort(),
+      readFileBytesBatch: vi.fn().mockRejectedValue(new Error("batch RPC failed")),
+    };
+
+    const { ctx } = makeCtx();
+    const built = await buildMmdScene(ctx, "/mmd/miku", port, makeMmdPanels());
+
+    // 6 个纹理 + 1 个模型 = 7 次 readFileBytes 调用
+    const allCalls = hoisted.readBytesMock.mock.calls.map(
+      (c: unknown[]) => (c as [string])[0]
+    );
+    expect(allCalls.length).toBeGreaterThanOrEqual(7);
+
+    // 模型仍正常加载
+    expect(built.update).toBeDefined();
+  });
+
+  it("部分纹理 readFileBytes 失败不阻塞其他纹理", async () => {
+    let failCount = 0;
+    hoisted.readBytesMock.mockImplementation((p: string) => {
+      if (p.endsWith(".pmx")) return Promise.resolve(btoa("PMX"));
+      // 第二个纹理返回 null（模拟失败）
+      if (p.endsWith("t2.png")) { failCount++; return Promise.resolve(null); }
+      return Promise.resolve(btoa("TEX"));
+    });
+    hoisted.listPathsMock.mockResolvedValue([
+      "/mmd/miku/miku.pmx",
+      "/mmd/miku/t1.png",
+      "/mmd/miku/t2.png",
+      "/mmd/miku/t3.png",
+    ]);
+    hoisted.loaderLoadAsyncMock.mockImplementation(
+      () => Promise.resolve(fakeMmd())
+    );
+
+    const port: MmdDataPort = {
+      ...makePort(),
+      readFileBytesBatch: vi.fn().mockRejectedValue(new Error("batch RPC failed")),
+    };
+
+    const { ctx } = makeCtx();
+    const built = await buildMmdScene(ctx, "/mmd/miku", port, makeMmdPanels());
+
+    // 即使有纹理失败，模型仍应加载
+    expect(built.update).toBeDefined();
+    expect(failCount).toBe(1);
   });
 });

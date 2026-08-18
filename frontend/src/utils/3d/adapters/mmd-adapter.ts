@@ -78,6 +78,28 @@ async function mmdDiag(
   }
 }
 
+/**
+ * 并发分片映射：将 items 按 chunkSize 分组，每组内 Promise.all 并发执行，
+ * 组与组之间串行。fallback 批量读取的并发版——避免 N 次串行 await，
+ * 又不一次性爆栈（ADR-101 配套前端优化，对齐后端 goroutine 池设计）。
+ */
+async function concurrentMap<T, R>(
+  items: T[],
+  fn: (item: T) => Promise<R>,
+  chunkSize = 4,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results: R[] = new Array(items.length);
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    const chunkResults = await Promise.all(chunk.map((item) => fn(item)));
+    for (let j = 0; j < chunkResults.length; j++) {
+      results[i + j] = chunkResults[j];
+    }
+  }
+  return results;
+}
+
 /** 同目录纹理候选扩展名（PMX/PMD 引用的贴图；.spa/.sph 特殊格式 Image 解不了，命中后降级无贴图） */
 const TEXTURE_EXTS = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".webp"];
 
@@ -191,14 +213,17 @@ export async function buildMmdScene(
       try {
         texBatch = await port.readFileBytesBatch(texFiles);
       } catch {
-        // P0-3 fallback：批量读取失败时降级为逐条 readFileBytes
-        void mmdDiag(port, "batch-read", dirPath, "warn", "批量读取失败，降级逐条读取");
-        for (const p of texFiles) {
+        // P0-3 fallback：批量读取失败时降级为并发分片 readFileBytes
+        void mmdDiag(port, "batch-read", dirPath, "warn", "批量读取失败，降级并发分片读取");
+        const fallbackResults = await concurrentMap(texFiles, async (p) => {
           try {
-            texBatch[p] = await port.readFileBytes(p);
+            return [p, await port.readFileBytes(p)] as const;
           } catch {
-            texBatch[p] = null;
+            return [p, null] as const;
           }
+        });
+        for (const [p, v] of fallbackResults) {
+          texBatch[p] = v;
         }
       }
     }
@@ -360,6 +385,7 @@ export async function buildMmdScene(
   );
   tParseEnd = performance.now();
   const mesh = mmd!.mesh;
+  let buildSucceeded = false;
   try {
     ctx.scene!.add(mesh);
     registerModelRoot(mesh);
@@ -603,20 +629,30 @@ export async function buildMmdScene(
     // 见 node_modules/@moeru/three-mmd/dist/index.js:2901-2905。切换模型时 switchToSession 只调
     // 本 dispose，不跑 fullCleanup 的 scene.traverse catch-all，所以必须在此显式释放）。
     dispose: (): void => {
-      bonePanelRef.current?.();
-      unregisterModelRoot(mesh);
-      mixer.stopAllAction();
-      mixer.uncacheRoot(mesh); // 释放 PropertyMixer 缓存，对齐 vrm-adapter（ADR-084 L2）
-      breath.reset();
-      gaze.reset();
-      blink.dispose();
-      lipSync.dispose();
-      autoDance.dispose();
-      footIK.dispose();
-      for (const url of blobUrls) URL.revokeObjectURL(url);
-      // 显式释放几何/材质/纹理（mmd?.dispose() 不会释放这些）
-      disposeMmdMesh(mesh, mmdDiag, port, "dispose-tex");
-      mmd?.dispose();
+      try {
+        bonePanelRef.current?.();
+        unregisterModelRoot(mesh);
+        mixer.stopAllAction();
+        mixer.uncacheRoot(mesh); // 释放 PropertyMixer 缓存，对齐 vrm-adapter（ADR-084 L2）
+        breath.reset();
+        gaze.reset();
+        blink.dispose();
+        lipSync.dispose();
+        autoDance.dispose();
+        footIK.dispose();
+      } catch {
+        /* 前置步骤抛错 → 吞掉，确保后续清理继续 */
+      } finally {
+        // 始终回收 blob URL，无论上面是否抛错（revokeObjectURL 幂等）
+        for (const url of blobUrls) URL.revokeObjectURL(url);
+      }
+      try {
+        // 显式释放几何/材质/纹理（mmd?.dispose() 不会释放这些）
+        disposeMmdMesh(mesh, mmdDiag, port, "dispose-tex");
+        mmd?.dispose();
+      } catch {
+        /* 几何/纹理释放抛错 → 吞掉，blob URL 已在 finally 回收 */
+      }
     },
     // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/vrm/litematic 呑约对称）
     screenshot: () =>
@@ -637,12 +673,11 @@ export async function buildMmdScene(
   };
   // 诊断（环形日志）：build 段结束打点；完整 perf 由 manager.onLoad 在纹理完成时输出（见上）
   tBuildEnd = performance.now();
+  buildSucceeded = true;
   return result;
   } finally {
-    // 防御：若 build 中途 throw（scene.add 之后、return 之前），
-    // mount-preview-core catch 会调 built?.dispose()，但此时 build 未返回，
-    // dispose 不会执行。兜底回收 blobUrls 防止泄漏。
-    if (!mesh.parent) {
+    // build 失败时兜底回收 blobUrls（build 成功由 dispose 负责回收）
+    if (!buildSucceeded) {
       for (const url of blobUrls) URL.revokeObjectURL(url);
     }
   }
