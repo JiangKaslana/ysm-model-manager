@@ -7,7 +7,8 @@ import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { t } from "../../core/i18n/t.ts";
 import { getApp } from "../../backend/app.ts";
 import { can } from "../../utils/dom/capabilities.ts";
-import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, MMD_SUBTYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, MMD_SUBTYPES } from "../../utils/resource/types.ts";
+import { shortLabelOf } from "../../utils/resource/short-label.ts";
 import { navCSS } from "./tpl.ts";
 
 class AppNav extends WebComponentBase {
@@ -59,31 +60,17 @@ class AppNav extends WebComponentBase {
     this._unsubRtype?.();
   }
 
-  /** 资源类型短标签（对齐 sync-manager renderer 的 shortLabel；logo 显示用短名而非全名） */
-  private _shortLabel(rtype: string): string {
-    const map: Record<string, string> = {
-      [RESOURCE_TYPES.YSM]: "YSM",
-      [RESOURCE_TYPES.MMD]: "MMD",
-      [RESOURCE_TYPES.VRC]: "VRC",
-      resourcepack: t("rtype.pack"),
-      shaderpack: t("rtype.shader"),
-      "create-blueprint": t("rtype.blueprint"),
-      litematic: t("rtype.litematic"),
-    };
-    return map[rtype] || RESOURCE_TYPE_LABELS[rtype] || rtype || RESOURCE_TYPES.YSM;
-  }
-
   /** logo 初始文案：当前资源类型短标签 + 「管理器」后缀（如「YSM 管理器」「MMD 管理器」） */
   private _logoText(): string {
     const rtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
-    return this._shortLabel(rtype) + " " + t("app.managerSuffix");
+    return shortLabelOf(rtype) + " " + t("app.managerSuffix");
   }
 
   /** logo 文案随资源类型动态化：rtype → 「xxx 管理器」（仅类型短标签，如 YSM/MMD/VRC） */
   private _updateLogoText(rtype: string): void {
     const el = this.shadowRoot?.querySelector(".logo-text");
     if (!el) return;
-    el.textContent = this._shortLabel(rtype) + " " + t("app.managerSuffix");
+    el.textContent = shortLabelOf(rtype) + " " + t("app.managerSuffix");
   }
 
   render(): void {
@@ -187,7 +174,8 @@ class AppNav extends WebComponentBase {
         const opts = buildSubtypeOptions(groupSel.value);
         const sel = opts[Number(subtypeSel.value)] || opts[0];
         if (!sel) return;
-        try { safeSet("repo_rtype", sel.rtype); safeSet("repo_subdir", sel.subdir); } catch {}
+        // localStorage 写入失败静默忽略（配额/隐私模式下的可接受降级，不阻断切换）
+        try { safeSet("repo_rtype", sel.rtype); safeSet("repo_subdir", sel.subdir); } catch { /* 非关键路径 */ }
         bus.emit("repo:rtype-changed", sel.rtype);
         // ADR-095 后续：MMD 子目录选择单独广播（sync 页按 subdir 过滤列表）；
         // 非 MMD 组 subdir 恒 ""（apply 时自然重置订阅方过滤）

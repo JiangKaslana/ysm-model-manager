@@ -136,7 +136,7 @@ export class AppSyncManager extends WebComponentBase {
           dbg("sync-manager", "_loadData 完成, items:", this._allItems ? this._allItems.length : 0);
           if (this._allItems) {
             const counts: Record<string, number> = {};
-            this._allItems.forEach((i: any) => { counts[i.status] = (counts[i.status] || 0) + 1; });
+            this._allItems.forEach((i: SyncItem) => { counts[i.status] = (counts[i.status] || 0) + 1; });
             dbg("sync-manager", "重渲染, 计数:", counts);
           }
           this._doRender();

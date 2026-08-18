@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 115 | 428 |
+| 前端·工具 | 116 | 429 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **399** | **1662** |
+| **合计** | **400** | **1663** |
 
 ## Go·头像
 
@@ -1276,12 +1276,12 @@
 | `setMmdMaterialOpacity()` | `frontend/src/utils/3d/mmd-materials:59` | 材质透明度（0-1）：opacity 设置 + transparent 联动（opacity &lt; 1 → transparent = true） |
 | `getMmdMaterialDetail()` | `frontend/src/utils/3d/mmd-materials:71` | 材质详情：name/可见/透明/高光/光泽（越界返回 null） |
 | `buildModelGroup()` | `frontend/src/utils/3d/model-group-builder:80` | 单组件 spec 构建核心。 |
-| `BedrockCube()` | `frontend/src/utils/3d/model2d:15` | Bedrock cube（AnalyzeBedrockModel 结构） |
-| `BedrockBone()` | `frontend/src/utils/3d/model2d:25` | Bedrock bone |
-| `BedrockModel()` | `frontend/src/utils/3d/model2d:31` | BedrockModel（AnalyzeBedrockModel 返回） |
-| `Model2DOptions()` | `frontend/src/utils/3d/model2d:36` | renderModel2D 选项 |
-| `renderModel2D()` | `frontend/src/utils/3d/model2d:66` | 在 Canvas 上绘制模型骨骼的 2D 正交投影（前视图，支持 Y 轴旋转） |
-| `calcBoneHitZones()` | `frontend/src/utils/3d/model2d:259` | 计算骨骼在屏幕上的命中热区（2D 正交投影，供鼠标拾取；导出供测试） |
+| `BedrockCube()` | `frontend/src/utils/3d/model2d:14` | Bedrock cube（AnalyzeBedrockModel 结构） |
+| `BedrockBone()` | `frontend/src/utils/3d/model2d:24` | Bedrock bone |
+| `BedrockModel()` | `frontend/src/utils/3d/model2d:30` | BedrockModel（AnalyzeBedrockModel 返回） |
+| `Model2DOptions()` | `frontend/src/utils/3d/model2d:35` | renderModel2D 选项 |
+| `renderModel2D()` | `frontend/src/utils/3d/model2d:65` | 在 Canvas 上绘制模型骨骼的 2D 正交投影（前视图，支持 Y 轴旋转） |
+| `calcBoneHitZones()` | `frontend/src/utils/3d/model2d:213` | 计算骨骼在屏幕上的命中热区（2D 正交投影，供鼠标拾取；导出供测试） |
 | `CUBE_EPS()` | `frontend/src/utils/3d/model3d-spec:6` | 立方体几何 epsilon（0.001）——单点导出，cube-mesh.ts 的 THICKNESS_EPSILON/CUBE_EPSILON 同值收敛于此 |
 | `SpecCube()` | `frontend/src/utils/3d/model3d-spec:11` | 立方体（骨骼上的 box 元素） |
 | `SpecBone()` | `frontend/src/utils/3d/model3d-spec:23` | 骨骼 |
@@ -1539,6 +1539,7 @@
 | `extBelongsTo()` | `frontend/src/utils/resource/extensions:58` | 返回扩展名所属的资源类型 ID |
 | `ResourceTypeEntry()` | `frontend/src/utils/resource/registry:6` | 资源类型注册表条目（对应 resource_types.json 结构） |
 | `loadResourceRegistry()` | `frontend/src/utils/resource/registry:19` | 加载资源类型注册表（失败不缓存：Go 桥瞬断后下次调用重试，避免整会话降级） |
+| `shortLabelOf()` | `frontend/src/utils/resource/short-label:22` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:21` | 资源类型显示标签（内部 ID → 中文名） |
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:46` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
@@ -1800,8 +1801,8 @@
 | `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:51` | — |
 | `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:29` | 统一推送 / 拉取单文件操作。 |
-| `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:19` | — |
-| `render()` | `frontend/src/views/app-sync-manager/renderer:32` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
+| `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:20` | — |
+| `render()` | `frontend/src/views/app-sync-manager/renderer:33` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
 | `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/state:13` | — |
 | `GLOBAL_RTYPE_KEY()` | `frontend/src/views/app-sync-manager/state:15` | — |
 | `_lastSelectedType()` | `frontend/src/views/app-sync-manager/state:17` | — |

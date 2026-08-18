@@ -4,6 +4,7 @@
 // 依赖 DAG：index → renderer ← events（events 点击触发 render）
 
 import { RESOURCE_TYPES, MMD_SUBTYPES } from "../../utils/resource/types.ts";
+import { shortLabelOf } from "../../utils/resource/short-label.ts";
 import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
 import {
@@ -65,16 +66,8 @@ export function render(self: SyncRenderSelf): void {
     (globalCounts as unknown as Record<string, number>)[item.status]++;
   }
 
-  // 类型短标签（当前类型指示用；选择已全局化，此处不再渲染可切 tab）
-  const shortLabel: Record<string, string> = {
-    [RESOURCE_TYPES.YSM]: "YSM",
-    [RESOURCE_TYPES.MMD]: "MMD",
-    [RESOURCE_TYPES.VRC]: "VRC",
-    resourcepack: t("rtype.pack"),
-    shaderpack: t("rtype.shader"),
-    "create-blueprint": t("rtype.blueprint"),
-    litematic: t("rtype.litematic"),
-  };
+  // 类型短标签（当前类型指示用；选择已全局化，此处不再渲染可切 tab）。
+  // 共用 shortLabelOf（utils/resource/short-label.ts，与 app-nav logo 同源，消除重复映射）
 
   // — 状态筛选标签 —
   const curCounts: TypeCounts = self._selectedType
@@ -90,7 +83,7 @@ export function render(self: SyncRenderSelf): void {
   ];
   // 当前类型只读指示（类型选择已全局化到 nav 下拉，此处仅展示上下文，不再承担切换）
   const curCfg = self._typeConfig.find((c) => c.id === self._selectedType);
-  const curLabel = (curCfg && (shortLabel[curCfg.id] || curCfg.name)) || self._selectedType || "";
+  const curLabel = (curCfg && (shortLabelOf(curCfg.id) || curCfg.name)) || self._selectedType || "";
   const curIcon = curCfg?.icon || "📦";
   statusTabsEl.innerHTML =
     '<span class="sm-cur-type" data-rtype="' +
