@@ -18,6 +18,12 @@
 # 暂存（本地缓存）
 git add <通过测试的路径...> # 精准提交自己的代码。
 git commit -m "<type>: <简短描述>"    # pre-commit 自动同步文档/索引（秒级），勿 --no-verify 跳过
+# ⚠️ 并行会话活跃时（git status 可见他人改动）：用路径限定提交防共享 index 串台——
+# 共享 checkout 的 index（暂存区）是仓库级共享，先 git add 后 git commit 的窗口内
+# 对方 commit 会把你的 staged 文件一起带走（2026-08-18 实锤：audit R13 捎带 ADR-095 改动）。
+# `git commit -- <files>` 只提交指定路径，他人 staged 内容原样留在 index。仍先 git add
+# （让 pre-commit 智能 stage 同目录测试文件生效），commit 时限定路径即可。
+git add <自己的文件...> && git commit -m "<type>: <简短描述>" -- <自己的文件...>
 git push --verbose 2>&1 | Select-Object -Last 50    # 仅在完成多轮对话后再推送，推送结束时，返回检查信息。
 git log --oneline -5 -- <file>	# 这个文件是不是最近被谁提交了
 git reflog # 我确认改过但没了
