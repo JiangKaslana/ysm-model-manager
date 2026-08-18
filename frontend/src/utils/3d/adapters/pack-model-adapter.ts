@@ -48,7 +48,7 @@ function b64ToDataURL(b64: string): string {
 }
 
 /** 材质签名 + 实例（用于按材质分组面） */
-export interface MatWithKey {
+interface MatWithKey {
   mat: THREE.Material;
   key: string;
 }

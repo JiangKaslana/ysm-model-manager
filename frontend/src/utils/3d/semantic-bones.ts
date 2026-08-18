@@ -226,7 +226,7 @@ export function mmdSemanticBoneMap(tree: BoneTree): SemanticBoneMap {
  * 覆盖 Blockbench/MC 导出常见命名（英文为主，含部分日文/中文变体）。
  * 候选顺序 = 优先级，首个命中胜出。
  */
-export const YSM_SEMANTIC_CANDIDATES: Record<SemanticBoneId, readonly string[]> = {
+const YSM_SEMANTIC_CANDIDATES: Record<SemanticBoneId, readonly string[]> = {
   center: ["center", "Center", "Centre", "root", "Root", "ROOT", "allparent", "AllParent"],
   hips: ["hips", "Hips", "HIPS", "hip", "Pelvis", "pelvis", "腰", "下半身"],
   spine: ["spine", "Spine", "SPINE", "脊柱", "stomach", "Stomach"],

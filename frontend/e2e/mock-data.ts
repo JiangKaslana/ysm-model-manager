@@ -227,6 +227,7 @@ export const MOCK_DATA = {
   SaveCachedTexture: undefined,
   GetCachedTexture: undefined,
   HasCachedTexture: undefined,
+  ClearTextureCache: undefined,
   ReadLitematicMeta: undefined,
   ReadNbtStructure: undefined,
   ReadPackEntry: undefined,

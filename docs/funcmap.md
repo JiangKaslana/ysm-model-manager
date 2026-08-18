@@ -41,11 +41,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 127 | 475 |
+| 前端·工具 | 127 | 473 |
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **412** | **1723** |
+| **合计** | **412** | **1721** |
 
 ## Go·头像
 
@@ -1179,7 +1179,6 @@
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
-| `MatWithKey()` | `frontend/src/utils/3d/adapters/pack-model-adapter:51` | 材质签名 + 实例（用于按材质分组面） |
 | `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:12` | 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） |
 | `PostprocessingManager()` | `frontend/src/utils/3d/adapters/postprocessing:19` | — |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
@@ -1399,7 +1398,6 @@
 | `getSemanticBone()` | `frontend/src/utils/3d/semantic-bones:186` | 取语义骨骼（消费方唯一入口；缺失返回 null，调用方自行降级）。 |
 | `vrmSemanticBoneMap()` | `frontend/src/utils/3d/semantic-bones:200` | VRM 特化：humanoid.humanBones 的键天然就是语义名（52 个标准骨骼）， 零候选匹配直接产映射——与 buildVrmBoneNodes 同一数据源。 |
 | `mmdSemanticBoneMap()` | `frontend/src/utils/3d/semantic-bones:216` | MMD 特化：BoneTree（mmdBonesToBoneNodes → buildBoneTree 产物）+ 内置候选表 → 语义映射。 |
-| `YSM_SEMANTIC_CANDIDATES()` | `frontend/src/utils/3d/semantic-bones:229` | YSM 语义骨骼候选名表。 |
 | `ysmSemanticBoneMap()` | `frontend/src/utils/3d/semantic-bones:303` | YSM 特化：从 SpecBone3D[]（spec.models[].bones[]）构建语义映射。 |
 | `SemanticMorphId()` | `frontend/src/utils/3d/semantic-morphs:14` | 语义 morph id（对齐 MMD 标准表情 + VRM 标准 expression） |
 | `SEMANTIC_MORPH_IDS()` | `frontend/src/utils/3d/semantic-morphs:24` | 全部语义 morph id（稳定顺序） |
