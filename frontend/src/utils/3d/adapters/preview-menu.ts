@@ -62,16 +62,22 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
       const row = document.createElement("div");
       row.className = "slide-item";
       row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+      const labelBox = document.createElement("div");
+      labelBox.style.cssText = "flex:1;display:flex;align-items:center;gap:8px;min-width:0";
       const label = document.createElement("span");
       label.className = "slide-label";
       label.textContent = tr(c.labelKey, c.fallback);
-      label.style.cssText = "flex:1;font-size:12px";
+      label.style.cssText = "font-size:12px";
+      const hint = document.createElement("span");
+      hint.style.cssText = "font-size:10px;color:rgba(255,255,255,0.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+      hint.textContent = c.hintKey ? tr(c.hintKey, "") : "";
+      labelBox.append(label, hint);
       const toggle = createHeaderToggle({
         value: c.getValue() as boolean,
         onChange: (v: boolean): void => c.setValue(v),
         bind: (): boolean => c.getValue() as boolean,
       });
-      row.append(label, toggle);
+      row.append(labelBox, toggle);
       list.appendChild(row);
       continue;
     }

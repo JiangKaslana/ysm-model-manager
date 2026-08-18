@@ -852,6 +852,8 @@ export const zhCN: Record<string, string> = {
   "preview.envClearHdrBtn": "清除",
   "preview.envClearHdrHint": "清除后回到「工作室」预设",
   "preview.envDivider": "",
+  "preview.envUseAsBackground": "用作背景",
+  "preview.envUseAsBackgroundHint": "开启后将当前环境贴图作为场景背景显示，关闭后还原",
   "preview.postprocessing": "后处理",
   "preview.postprocessingDesc": "Bloom / SSAO / 色调映射 / 曝光",
   "preview.toneMapping": "色彩映射",

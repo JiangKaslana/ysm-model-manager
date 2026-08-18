@@ -780,6 +780,8 @@
   "preview.envClearHdrBtn": "Clear",
   "preview.envClearHdrHint": "Falls back to the Studio preset",
   "preview.envDivider": "",
+  "preview.envUseAsBackground": "Use as background",
+  "preview.envUseAsBackgroundHint": "Show the current environment map as the scene background when enabled; restores previous background when disabled",
   "preview.postprocessing": "Post-processing",
   "preview.postprocessingDesc": "Bloom / SSAO / Tone mapping / Exposure",
   "preview.toneMapping": "Tone Mapping",

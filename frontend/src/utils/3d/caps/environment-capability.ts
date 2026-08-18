@@ -82,6 +82,8 @@ export interface EnvironmentParams {
   intensity: number;
   /** 程序化纹理分辨率（宽，高=宽/2）；越大过渡越平滑，512 足够 */
   resolution: number;
+  /** 是否把当前环境贴图（HDR 原图/程序化 canvas）作为 scene.background */
+  useAsBackground: boolean;
 }
 
 export const DEFAULT_ENV_PARAMS: EnvironmentParams = {
@@ -89,6 +91,7 @@ export const DEFAULT_ENV_PARAMS: EnvironmentParams = {
   preset: "sky",
   intensity: 1.0,
   resolution: 1024,
+  useAsBackground: false,
 };
 
 /** 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） */
@@ -241,6 +244,10 @@ export class EnvironmentCapability implements SceneCapability {
 
   /** 构造前的 scene.environment（dispose 时还原） */
   private prevEnvironment: THREE.Texture | null = null;
+  /** 构造前的 scene.background（dispose 时还原） */
+  private prevBackground: THREE.Texture | THREE.Color | null = null;
+  /** 当前用作 scene.background 的源纹理（非 PMREM 版），useAsBackground=true 时赋值，下次 buildEnvironment 先 dispose */
+  private backgroundSrcTex: THREE.Texture | null = null;
 
   /* ===== custom HDR 缓存（经验 637368：DataTexture 存单例，preset 切换不重复解码）===== */
   /** RGBELoader 解码结果（DataTexture，HalfFloatType），dispose 时才释放 */
@@ -263,6 +270,7 @@ export class EnvironmentCapability implements SceneCapability {
     this.params = { ...DEFAULT_ENV_PARAMS, ...(opts.params ?? {}) };
     this.enabled = opts.enabled ?? this.params.enabled;
     this.prevEnvironment = this.scene.environment;
+    this.prevBackground = (this.scene.background as THREE.Texture | THREE.Color | null) ?? null;
   }
 
   /* -------- 内部：自定义 HDR 管线 -------- */
@@ -353,10 +361,28 @@ export class EnvironmentCapability implements SceneCapability {
 
   /* -------- 内部：重建环境贴图 -------- */
 
+  /** 把 backgroundSrcTex 或 程序化 CanvasTexture 挂到 scene.background（useAsBackground=true 时）；
+   *  useAsBackground=false 或 enabled=false：还原 prevBackground（若 prevBackground 是 Color 对象保留实例，Texture 保留引用，不 dispose prev） */
+  private applyBackground(srcTex: THREE.Texture | null): void {
+    // 先清旧的 backgroundSrcTex（不碰 customHdrTex / prevBackground）
+    if (this.backgroundSrcTex && this.backgroundSrcTex !== this.customHdrTex) {
+      this.backgroundSrcTex.dispose();
+    }
+    this.backgroundSrcTex = null;
+    if (!this.enabled || !this.params.useAsBackground || !srcTex) {
+      // 不使用：还原构造时的 prevBackground（不是 null 的话保留实例——也可能是 Color）
+      this.scene.background = this.prevBackground;
+      return;
+    }
+    this.backgroundSrcTex = srcTex;
+    this.scene.background = this.backgroundSrcTex;
+  }
+
   private buildEnvironment(): void {
     this.disposeEnvironment();
     if (!this.enabled) {
       this.scene.environment = this.prevEnvironment;
+      this.applyBackground(null);
       return;
     }
 
@@ -372,6 +398,8 @@ export class EnvironmentCapability implements SceneCapability {
         this.envRT = rt;
         this.envTexture = rt.texture;
         this.scene.environment = this.envTexture;
+        // background：直接拿 customHdrTex 当背景（sharp 原图，不拿 PMREM 模糊版）
+        this.applyBackground(this.customHdrTex);
         return;
       }
       // ——没有 custom HDR 缓存：告警一次 + 静默回退 studio（避免反射黑，教训 433477-4）——
@@ -408,8 +436,14 @@ export class EnvironmentCapability implements SceneCapability {
     // 挂到 scene.environment（PBR 材质自动取）
     this.scene.environment = this.envTexture;
 
-    // 临时纹理释放（程序化 canvas 是一次性的，custom HDR 源 DataTexture 不会走到这里）
-    tex.dispose();
+    // background：用 CanvasTexture（未 dispose 版，sharp 原图，不拿 PMREM 模糊版）
+    // useAsBackground=false 时 applyBackground 会立即 dispose 这个临时纹理
+    this.applyBackground(tex);
+
+    // 只有没被 backgroundSrcTex 引用时才 dispose 临时 CanvasTexture（用着的话引用在 disposeEnvironment 里释放）
+    if (this.backgroundSrcTex !== tex) {
+      tex.dispose();
+    }
   }
 
   private disposeEnvironment(): void {
@@ -422,6 +456,11 @@ export class EnvironmentCapability implements SceneCapability {
       this.pmrem.dispose();
       this.pmrem = null;
     }
+    // backgroundSrcTex 清理：只有不等于 customHdrTex（程序化 CanvasTexture 情形）才 dispose
+    if (this.backgroundSrcTex && this.backgroundSrcTex !== this.customHdrTex) {
+      this.backgroundSrcTex.dispose();
+    }
+    this.backgroundSrcTex = null;
   }
 
   /** 对外：切换模型后同步所有 mesh 的 envMapIntensity
@@ -480,6 +519,18 @@ export class EnvironmentCapability implements SceneCapability {
   setResolution(v: number): void {
     this.params.resolution = v;
     if (this.enabled) this.buildEnvironment();
+  }
+
+  setUseAsBackground(v: boolean): void {
+    this.params.useAsBackground = v;
+    // 切换开关只需要重新 assign background，不需要重跑 PMREM（canvas / DataTexture 源都还在）
+    // 但简化实现直接 buildEnvironment：程序化分支会走同一张 canvas，但 applyBackground 会正确设置/还原
+    // useAsBackground=true 时程序化 CanvasTexture 不会立即 dispose，false 时立即释放。
+    this.buildEnvironment();
+  }
+
+  isUseAsBackground(): boolean {
+    return this.params.useAsBackground;
   }
 
   /* -------- 菜单控件（声明式驱动）-------- */
@@ -555,6 +606,15 @@ export class EnvironmentCapability implements SceneCapability {
         setValue: () => { /* ignore */ },
       },
       {
+        id: "env-use-as-background",
+        kind: "toggle",
+        labelKey: "preview.envUseAsBackground",
+        fallback: "用作背景",
+        hintKey: "preview.envUseAsBackgroundHint",
+        getValue: () => this.isUseAsBackground(),
+        setValue: (v) => this.setUseAsBackground(v as boolean),
+      },
+      {
         id: "env-intensity",
         kind: "slider",
         labelKey: "preview.envIntensity",
@@ -579,6 +639,7 @@ export class EnvironmentCapability implements SceneCapability {
       preset: savePreset,
       intensity: this.params.intensity,
       resolution: this.params.resolution,
+      useAsBackground: this.params.useAsBackground,
     });
   }
 
@@ -608,6 +669,7 @@ export class EnvironmentCapability implements SceneCapability {
     }
     if (typeof state.intensity === "number") this.params.intensity = state.intensity;
     if (typeof state.resolution === "number") this.params.resolution = state.resolution;
+    if (typeof state.useAsBackground === "boolean") this.params.useAsBackground = state.useAsBackground;
     this.buildEnvironment();
   }
 
@@ -619,6 +681,7 @@ export class EnvironmentCapability implements SceneCapability {
 
   dispose(): void {
     this.scene.environment = this.prevEnvironment;
+    this.scene.background = this.prevBackground;
     this.disposeEnvironment();
     this.disposeCustomCache();
   }
