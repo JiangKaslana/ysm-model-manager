@@ -126,13 +126,12 @@ YSM L1 只有 1 个 clip，`clips.length === 1`，下拉框不渲染（与 MMD �
 
 | 步骤 | 文件 | 内容 |
 |------|------|------|
-| 1 | `frontend/src/utils/3d/ysm-animation-player.ts`（新建） | `createYsmAnimPlayer` + `YsmAnimPlayer` 接口 |
-| 2 | `frontend/src/utils/3d/ysm-animation-player.test.ts`（新建） | 单元测试：apply 变换、循环取模、骨骼匹配缺失降级 |
-| 3 | `frontend/src/utils/3d/adapters/ysm-adapter.ts` | buildYsmScene 加 animation 扫描 + player 接入 update |
-| 4 | `frontend/src/views/app-preview/ysm-3d.ts` | 注入 `listAllFilePaths` 端口（复用 VRM 同款模式） |
-| 5 | `frontend/src/views/app-preview/ysm-controls.ts` | `YsmControlsContext` 加 `animBridge?` 字段 |
-| 6 | `frontend/src/utils/3d/adapters/ysm-adapter.ts` ysmMenuItems | 加 `play` 菜单项（有 clip 时注入） |
-| 7 | `frontend/src/views/app-preview/ysm-3d.test.ts` | 回归测试：有/无 animation 两种场景 |
+| 1 | `frontend/src/utils/3d/ysm-animation-player.ts`（新建） | `createYsmAnimPlayer` + `YsmAnimPlayer` 接口 | ✅ L1 (0ee55eaa) + L2 (4d92eac9) |
+| 2 | `frontend/src/utils/3d/ysm-animation-player.test.ts`（新建） | 单元测试：apply/loop/暂停/多clip/slerp/骨骼缺失降级 | ✅ 13 项全过 |
+| 3 | `frontend/src/utils/3d/adapters/ysm-adapter.ts` | buildYsmScene 加 animation 扫描 + player 接入 update + 语义骨骼 + 呼吸 | ✅ L1+L2 |
+| 4 | `frontend/src/views/app-preview/ysm-3d.ts` | 注入 `listAllFilePaths` + `readTextFile` 端口 | ✅ |
+| 5 | `frontend/src/utils/3d/semantic-bones.ts` | 新增 `YSM_SEMANTIC_CANDIDATES` + `ysmSemanticBoneMap` | ✅ L2 (4d92eac9) |
+| 6 | ADR-100 本文档 | 决策记录 | ✅ |
 
 ---
 
