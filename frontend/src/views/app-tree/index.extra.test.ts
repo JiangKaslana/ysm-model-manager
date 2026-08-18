@@ -174,10 +174,9 @@ describe("app-tree index 入口生命周期（补位）", () => {
     expect(bindings.DeleteResourcePack).not.toHaveBeenCalled();
   });
 
-  it("Delete 查看器模式 → 网页版 toast，不删除", async () => {
+  it("Delete 网页版无删除能力 → toast，不删除", async () => {
     await mountEl();
-    (globalThis as Record<string, unknown>)["__YSM_WEB__"] = true;
-    canMock.mockReturnValue(false); // 模拟无删除能力（Android viewer / 未实现 binding）
+    canMock.mockReturnValue(false); // 模拟无删除能力
     selectState.keys.add("/repo/a.ysm");
     dispatchKey("Delete");
     await waitFor(() => toastCalls().some(([ev]) => ev === "toast:show"));
