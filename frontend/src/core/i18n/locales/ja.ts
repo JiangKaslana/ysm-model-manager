@@ -952,6 +952,7 @@ export const ja: Record<string, string> = {
 
   // ── アプリ ──
   "app.name": "YSM マネージャー",
+  "app.managerSuffix": "マネージャー",
 
   // ── インポートキュー ──
   "importQueue.headerInfo": "ヘッダー情報",

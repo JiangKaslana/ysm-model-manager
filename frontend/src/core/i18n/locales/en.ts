@@ -951,6 +951,7 @@ export const en: Record<string, string> = {
 
   // ── App ──
   "app.name": "YSM Manager",
+  "app.managerSuffix": "Manager",
 
   // ── Import queue ──
   "importQueue.headerInfo": "Header Info",

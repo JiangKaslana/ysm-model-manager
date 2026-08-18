@@ -954,6 +954,7 @@ export const zhCN: Record<string, string> = {
 
   // ── 应用 ──
   "app.name": "YSM 管理器",
+  "app.managerSuffix": "管理器",
 
   // ── 导入队列 ──
   "importQueue.headerInfo": "头部信息",
