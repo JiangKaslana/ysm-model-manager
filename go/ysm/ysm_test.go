@@ -312,3 +312,42 @@ func TestAnalyzeYSMModel_NoModelField(t *testing.T) {
 		t.Errorf("无 model 字段时 Vertices/Faces 应为 0, 得到 %d/%d", meta.Vertices, meta.Faces)
 	}
 }
+
+// ADR-095：maid-model（车万女仆）mod 内容检测——读 mods.toml 的 modId/displayName，
+// 非文件名关键词匹配（ModMeta 驱动）
+const tlmModToml = `modLoader="javafml"
+[[mods]]
+modId="touhou_little_maid"
+displayName="Touhou Little Maid"
+version="1.0.0"
+`
+
+func TestIsModJar_TLM(t *testing.T) {
+	jar := testutil.WriteZipFile(t, "mod.jar", map[string]string{"META-INF/mods.toml": tlmModToml})
+	if !IsModJar(jar, "touhou_little_maid", "Touhou Little Maid") {
+		t.Fatal("含 touhou_little_maid 的 jar 应识别为车万女仆")
+	}
+	// 非车万女仆 mod → false
+	jar2 := testutil.WriteZipFile(t, "mod.jar", map[string]string{"META-INF/mods.toml": ysmModToml})
+	if IsModJar(jar2, "touhou_little_maid", "Touhou Little Maid") {
+		t.Fatal("非车万女仆 jar 不应识别")
+	}
+}
+
+func TestHasModInDir_MaidModel(t *testing.T) {
+	modsDir := t.TempDir()
+	// 文件名不含 touhou 但内容匹配 → 应识别（不靠文件名）
+	jar := testutil.WriteZipFile(t, "random-name.jar", map[string]string{"META-INF/mods.toml": tlmModToml})
+	_ = os.Rename(jar, filepath.Join(modsDir, "random-name.jar"))
+	if !HasModInDir(modsDir, "maid-model") {
+		t.Fatal("内容匹配 touhou_little_maid 应识别（不靠文件名）")
+	}
+	// 清空 mods 目录 → false
+	if err := os.RemoveAll(modsDir); err != nil {
+		t.Fatal(err)
+	}
+	empty := t.TempDir()
+	if HasModInDir(empty, "maid-model") {
+		t.Fatal("无 mod 时 maid-model 应返回 false")
+	}
+}

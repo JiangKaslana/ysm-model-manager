@@ -12,6 +12,13 @@ import (
 
 // IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml）
 func IsYSMJar(jarPath string) bool {
+	return IsModJar(jarPath, "yes_steve_model", "Yes Steve Model")
+}
+
+// IsModJar 内容检测单个 jar 是否是指定 mod（读取 META-INF/mods.toml / neoforge.mods.toml
+// 的 [[mods]] 块，按 modId + displayName 判定，非文件名匹配）。
+// ADR-095：车万女仆等模型 mod 复用此内容检测，避免 ModKeywords 手写文件名关键词。
+func IsModJar(jarPath, modID, displayName string) bool {
 	r, err := container.OpenZipPath(jarPath)
 	if err != nil {
 		return false
@@ -58,12 +65,12 @@ func IsYSMJar(jarPath string) bool {
 					inModsBlock = false
 					continue
 				}
-				if strings.HasPrefix(trimmed, `modId="yes_steve_model"`) ||
-					strings.HasPrefix(trimmed, `modId = "yes_steve_model"`) {
+				if strings.HasPrefix(trimmed, `modId="`+modID+`"`) ||
+					strings.HasPrefix(trimmed, `modId = "`+modID+`"`) {
 					foundModID = true
 				}
-				if strings.HasPrefix(trimmed, `displayName="Yes Steve Model"`) ||
-					strings.HasPrefix(trimmed, `displayName = "Yes Steve Model"`) {
+				if strings.HasPrefix(trimmed, `displayName="`+displayName+`"`) ||
+					strings.HasPrefix(trimmed, `displayName = "`+displayName+`"`) {
 					foundDisplayName = true
 				}
 			}
@@ -104,8 +111,32 @@ var ModKeywords = map[string][]string{
 	"vrchat-avatar": {"vrchat"},
 }
 
+// ModMeta 内容检测型资源类型的 mod 识别信息（modId + displayName，读 mods.toml 判定）。
+// ADR-095：maid-model（车万女仆）不用文件名关键词，读 jar 内 mods.toml 确认
+// modId="touhou_little_maid"（TouhouLittleMaid 源码 mods.toml 核实）。
+var ModMeta = map[string]struct{ ModID, DisplayName string }{
+	"maid-model": {"touhou_little_maid", "Touhou Little Maid"},
+}
+
 // HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar
 func HasModInDir(modsDir, rtype string) bool {
+	// ADR-095：内容检测型资源（ModMeta 有 modId/displayName）优先读 mods.toml，
+	// 不靠文件名关键词匹配（避免 jar 改名/翻译导致误判）
+	if meta, ok := ModMeta[rtype]; ok {
+		files, err := os.ReadDir(modsDir)
+		if err != nil {
+			return false
+		}
+		for _, f := range files {
+			if f.IsDir() || !strings.HasSuffix(strings.ToLower(f.Name()), ".jar") {
+				continue
+			}
+			if IsModJar(filepath.Join(modsDir, f.Name()), meta.ModID, meta.DisplayName) {
+				return true
+			}
+		}
+		return false
+	}
 	keywords, ok := ModKeywords[rtype]
 	if !ok {
 		// 非模型类（资源包/光影包/蓝图等）默认假设 mod 已安装，由调用方按需处理

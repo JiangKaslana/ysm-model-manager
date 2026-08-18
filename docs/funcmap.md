@@ -31,7 +31,7 @@
 | Go·类型 | 5 | 67 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
-| Go·YSM 核心 | 7 | 25 |
+| Go·YSM 核心 | 7 | 26 |
 | Go(internal)·应用入口 | 24 | 183 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 100 |
@@ -44,7 +44,7 @@
 | frontend/views | 101 | 287 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **394** | **1652** |
+| **合计** | **394** | **1653** |
 
 ## Go·头像
 
@@ -499,8 +499,9 @@
 | `TexInfo()` | `go/ysm/texsize:20` | TexInfo 轻量级纹理尺寸（不解析完整模型） |
 | `ModelEntry()` | `go/ysm/texsize:43` | ModelEntry 轻量级条目（仅用于纹理扫描签名，调用方传入完整路径） |
 | `IsYSMJar()` | `go/ysm/ysm:14` | IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml） |
-| `HasYSMMod()` | `go/ysm/ysm:79` | HasYSMMod 检查 mods 目录是否有 YSM 模组（先做文件名过滤避免对每个 JAR 打开 ZIP） |
-| `HasModInDir()` | `go/ysm/ysm:108` | HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar |
+| `IsModJar()` | `go/ysm/ysm:21` | IsModJar 内容检测单个 jar 是否是指定 mod（读取 META-INF/mods.toml / neoforge.mods.toml 的 [[mods]] 块，按 mo |
+| `HasYSMMod()` | `go/ysm/ysm:86` | HasYSMMod 检查 mods 目录是否有 YSM 模组（先做文件名过滤避免对每个 JAR 打开 ZIP） |
+| `HasModInDir()` | `go/ysm/ysm:122` | HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar |
 
 ## Go(internal)·应用入口
 
@@ -1587,10 +1588,10 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:26` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:33` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:286` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:293` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:301` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:305` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:206` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:213` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:221` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:225` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:29` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:136` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
@@ -1632,10 +1633,10 @@
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |
-| `instancesHTML()` | `frontend/src/views/app-content/tpl:55` | — |
-| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:80` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:144` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:175` | — |
+| `instancesHTML()` | `frontend/src/views/app-content/tpl:49` | — |
+| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:74` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:138` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:169` | — |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:12` | 提取创作者头像（后台批量） |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |

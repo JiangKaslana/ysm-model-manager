@@ -872,6 +872,7 @@
   "web.fileListTitle": "Output file list:",
   "web.omitted": "… {n} more omitted",
   "app.name": "YSM Manager",
+  "app.managerSuffix": "Manager",
   "importQueue.headerInfo": "Header Info",
   "importQueue.noFiles": "No files",
   "importQueue.remove": "Remove",
