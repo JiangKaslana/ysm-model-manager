@@ -780,6 +780,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-097：3D SceneCapability 注册表 + 模型切换复用架构",
+        "link": "/adr/ADR-097-scene-capability-registry"
+      },
+      {
         "text": "ADR-096：全局库存储分层规范：MMD 子目录三链路消费",
         "link": "/adr/ADR-096-global-storage-hierarchy"
       },
