@@ -1,0 +1,191 @@
+package texture_cache
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestTextureHash(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.png")
+	if err := os.WriteFile(path, []byte("hello world"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := TextureHash(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hash == "" {
+		t.Fatal("expected non-empty hash")
+	}
+	// SHA256 of "hello world"
+	const expected = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+	if hash != expected {
+		t.Fatalf("hash mismatch: got %s, want %s", hash, expected)
+	}
+}
+
+func TestTextureHash_FileNotFound(t *testing.T) {
+	_, err := TextureHash("/nonexistent/file.png")
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+}
+
+func TestCacheDir(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	CacheDir = func() string { return t.TempDir() }
+	dir := CacheDir()
+	if dir == "" {
+		t.Fatal("expected non-empty cache dir")
+	}
+}
+
+func TestCacheDir_Empty(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	CacheDir = func() string { return "" }
+	path := CachePath("abc123")
+	if path != "" {
+		t.Fatal("expected empty path when cache dir is empty")
+	}
+}
+
+func TestCachePath(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	path := CachePath("abc123")
+	expected := filepath.Join(dir, "abc123.ktx2")
+	if path != expected {
+		t.Fatalf("path mismatch: got %s, want %s", path, expected)
+	}
+}
+
+func TestWriteAndReadCached(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	hash := "testhash123"
+	data := []byte("ktx2 test data")
+
+	if err := WriteCached(hash, data); err != nil {
+		t.Fatal(err)
+	}
+
+	read, ok, err := ReadCached(hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected cache hit")
+	}
+	if string(read) != string(data) {
+		t.Fatalf("data mismatch: got %s, want %s", string(read), string(data))
+	}
+}
+
+func TestReadCached_Miss(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	_, ok, err := ReadCached("nonexistent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("expected cache miss")
+	}
+}
+
+func TestHasCached(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	hash := "existshash"
+	// Write a file manually
+	os.WriteFile(filepath.Join(dir, hash+".ktx2"), []byte("data"), 0644)
+
+	exists, err := HasCached(hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Fatal("expected cache to exist")
+	}
+
+	exists, err = HasCached("nope")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Fatal("expected cache to not exist")
+	}
+}
+
+func TestClearCache(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	// Write a few cache files
+	for _, h := range []string{"a", "b", "c"} {
+		os.WriteFile(filepath.Join(dir, h+".ktx2"), []byte("data"), 0644)
+	}
+	// Also write a non-cache file (should be cleared too)
+	os.WriteFile(filepath.Join(dir, "other.txt"), []byte("data"), 0644)
+
+	if err := ClearCache(); err != nil {
+		t.Fatal(err)
+	}
+
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 0 {
+		t.Fatalf("expected empty cache dir, got %d entries", len(entries))
+	}
+}
+
+func TestWriteCached_Atomic(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	hash := "atomictest"
+	data := []byte("atomic write test data")
+
+	if err := WriteCached(hash, data); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify no .tmp file remains
+	tmpPath := filepath.Join(dir, hash+".ktx2.tmp")
+	if _, err := os.Stat(tmpPath); !os.IsNotExist(err) {
+		t.Fatal("expected temp file to be cleaned up")
+	}
+
+	// Verify data is correct
+	read, ok, _ := ReadCached(hash)
+	if !ok || string(read) != string(data) {
+		t.Fatal("data mismatch after atomic write")
+	}
+}
