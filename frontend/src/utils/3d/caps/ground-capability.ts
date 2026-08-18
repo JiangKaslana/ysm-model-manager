@@ -2,8 +2,15 @@
 // 统一核心注入（mount-preview-core），YSM/VRM/MMD/Litematic 零改动继承。
 // GridHelper 地面 + visible 开关；apply() 挂入场景，dispose() 移除并释放，
 // 作用域不泄漏到其它预览（对齐 SkyCapability 生命周期口径）。
+// 实现 SceneCapability 统一接口，支持注册表自动发现 + 菜单控件 + 持久化。
 
 import * as THREE from "three";
+import {
+  type SceneCapability,
+  type MenuControlDef,
+  persistState,
+  restoreState,
+} from "./scene-capability.ts";
 
 export interface GroundParams {
   /** 地面网格尺寸（世界单位） */
@@ -26,7 +33,12 @@ export const DEFAULT_GROUND_PARAMS: GroundParams = {
   visible: true,
 };
 
-export class GroundCapability {
+export class GroundCapability implements SceneCapability {
+  readonly id = "ground";
+  readonly labelKey = "preview.ground";
+  readonly icon = "🌐";
+  readonly descKey = "preview.groundDesc";
+
   private scene: THREE.Scene;
   private grid: THREE.GridHelper;
   private params: GroundParams;
@@ -63,6 +75,49 @@ export class GroundCapability {
 
   getVisible(): boolean {
     return this.grid.visible;
+  }
+
+  setEnabled(v: boolean): void {
+    this.enabled = v;
+    if (v) this.apply();
+    else if (this.grid.parent) this.grid.parent.remove(this.grid);
+  }
+
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  /** 返回菜单控件定义（框架自动渲染） */
+  getMenuControls(): MenuControlDef[] {
+    return [
+      {
+        id: "ground-visible",
+        kind: "toggle",
+        labelKey: "preview.ground",
+        fallback: "地面",
+        getValue: () => this.getVisible(),
+        setValue: (v) => this.setVisible(v as boolean),
+      },
+    ];
+  }
+
+  /** 保存状态到 localStorage */
+  saveState(): void {
+    persistState(this.id, {
+      visible: this.params.visible,
+      enabled: this.enabled,
+    });
+  }
+
+  /** 从 localStorage 恢复状态 */
+  loadState(): void {
+    const state = restoreState(this.id);
+    if (!state) return;
+    if (typeof state.enabled === "boolean") this.enabled = state.enabled;
+    if (typeof state.visible === "boolean") {
+      this.params.visible = state.visible;
+      this.grid.visible = state.visible;
+    }
   }
 
   /** 移除并释放（GridHelper 材质可能是数组，遍历 dispose） */

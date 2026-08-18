@@ -11,10 +11,17 @@
 //   设置 ACESFilmic + exposure，dispose() 时还原，作用域不泄漏到其它预览。
 // - IBL 环境联动（scene.environment）默认开启（2026-08-16 目视验证通过，模型反射/环境光更真实）；
 //   如需关闭调用 setEnvironmentEnabled(false)。
+// - 实现 SceneCapability 统一接口，支持注册表自动发现 + 菜单控件 + 持久化。
 
 import * as THREE from "three";
 import { RESOURCE_TYPES } from "../../resource/types.ts";
 import { Sky } from "three/addons/objects/Sky.js";
+import {
+  type SceneCapability,
+  type MenuControlDef,
+  persistState,
+  restoreState,
+} from "./scene-capability.ts";
 
 export interface SkyParams {
   /** 太阳高度角（度，0=地平线，90=天顶） */
@@ -68,7 +75,12 @@ export const MODEL_SKY_PRESETS: Record<string, Partial<SkyParams>> = {
   litematic: { turbidity: 10, rayleigh: 2, mieCoefficient: 0.005, mieDirectionalG: 0.8, exposure: 0.5 },
 };
 
-export class SkyCapability {
+export class SkyCapability implements SceneCapability {
+  readonly id = "sky";
+  readonly labelKey = "preview.sky";
+  readonly icon = "🌤️";
+  readonly descKey = "preview.skyDesc";
+
   private scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
   private pmrem: THREE.PMREMGenerator;
@@ -172,6 +184,10 @@ export class SkyCapability {
     else this.detach();
   }
 
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
   setEnvironmentEnabled(v: boolean): void {
     this.params.environment = v;
     if (!this.enabled) return;
@@ -235,6 +251,58 @@ export class SkyCapability {
   /** 当前云量（ADR-085 S2：菜单初始化惰性读，消灭硬编码 "0%"） */
   getCloudCoverage(): number {
     return this.params.cloudCoverage;
+  }
+
+  /** 返回菜单控件定义（框架自动渲染） */
+  getMenuControls(): MenuControlDef[] {
+    return [
+      {
+        id: "sky-time",
+        kind: "slider",
+        labelKey: "preview.timeOfDay",
+        fallback: "时间",
+        slider: { min: 0, max: 24, step: 0.5, unit: "h" },
+        getValue: () => this.getTimeOfDay(),
+        setValue: (v) => this.setTime(v as number),
+      },
+      {
+        id: "sky-cloud",
+        kind: "slider",
+        labelKey: "preview.cloudCoverage",
+        fallback: "云量",
+        slider: { min: 0, max: 1, step: 0.05, unit: "%" },
+        getValue: () => this.getCloudCoverage(),
+        setValue: (v) => this.setCloudCoverage(v as number, true),
+      },
+      {
+        id: "sky-env",
+        kind: "toggle",
+        labelKey: "preview.environmentMapping",
+        fallback: "环境贴图",
+        getValue: () => this.isEnvironmentEnabled(),
+        setValue: (v) => this.setEnvironmentEnabled(v as boolean),
+      },
+    ];
+  }
+
+  /** 保存状态到 localStorage */
+  saveState(): void {
+    persistState(this.id, {
+      timeOfDay: this.params.timeOfDay,
+      cloudCoverage: this.params.cloudCoverage,
+      environment: this.params.environment,
+      enabled: this.enabled,
+    });
+  }
+
+  /** 从 localStorage 恢复状态 */
+  loadState(): void {
+    const state = restoreState(this.id);
+    if (!state) return;
+    if (typeof state.enabled === "boolean") this.enabled = state.enabled;
+    if (typeof state.timeOfDay === "number") this.params.timeOfDay = state.timeOfDay;
+    if (typeof state.cloudCoverage === "number") this.params.cloudCoverage = state.cloudCoverage;
+    if (typeof state.environment === "boolean") this.params.environment = state.environment;
   }
 
   private detach(): void {

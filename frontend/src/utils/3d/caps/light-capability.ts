@@ -11,6 +11,12 @@
 //   - target（对象中心）可动态更新，聚光灯 + 体积光锥随之重新定位
 
 import * as THREE from "three";
+import {
+  type SceneCapability,
+  type MenuControlDef,
+  persistState,
+  restoreState,
+} from "./scene-capability.ts";
 
 /** 角度(度)→弧度；内联等价 THREE.MathUtils.degToRad，避免对 three 测试 mock 强依赖 MathUtils 导出 */
 const degToRad = (deg: number): number => (deg * Math.PI) / 180;
@@ -211,7 +217,12 @@ interface VolumetricConeUniforms {
 
 /* ============ LightCapability ============ */
 
-export class LightCapability {
+export class LightCapability implements SceneCapability {
+  readonly id = "light";
+  readonly labelKey = "preview.lighting";
+  readonly icon = "💡";
+  readonly descKey = "preview.lightingDesc";
+
   private scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
   private params: LightParams;
@@ -540,6 +551,88 @@ export class LightCapability {
   /** 当前预设名（ADR-085 S2：fillLighting 只读初始化，消灭启发式派生） */
   getCurrentPreset(): string {
     return this.currentPreset;
+  }
+
+  /** 返回菜单控件定义（框架自动渲染） */
+  getMenuControls(): MenuControlDef[] {
+    return [
+      {
+        id: "light-key",
+        kind: "toggle",
+        labelKey: "preview.keyLight",
+        fallback: "主灯",
+        getValue: () => this.params.key.enabled,
+        setValue: (v) => { this.params.key.enabled = v as boolean; this.syncLightsFromParams(); },
+      },
+      {
+        id: "light-fill",
+        kind: "toggle",
+        labelKey: "preview.fillLight",
+        fallback: "补灯",
+        getValue: () => this.params.fill.enabled,
+        setValue: (v) => { this.params.fill.enabled = v as boolean; this.syncLightsFromParams(); },
+      },
+      {
+        id: "light-rim",
+        kind: "toggle",
+        labelKey: "preview.rimLight",
+        fallback: "轮廓灯",
+        getValue: () => this.params.rim.enabled,
+        setValue: (v) => { this.params.rim.enabled = v as boolean; this.syncLightsFromParams(); },
+      },
+      {
+        id: "light-ambient",
+        kind: "slider",
+        labelKey: "preview.ambientIntensity",
+        fallback: "环境光",
+        slider: { min: 0, max: 2, step: 0.1 },
+        getValue: () => this.params.ambient.intensity,
+        setValue: (v) => { this.params.ambient.intensity = v as number; this.syncLightsFromParams(); },
+      },
+      {
+        id: "light-spotlight",
+        kind: "toggle",
+        labelKey: "preview.spotlight",
+        fallback: "聚光灯",
+        getValue: () => this.params.spotlight.enabled,
+        setValue: (v) => this.setSpotlight({ enabled: v as boolean }),
+      },
+      {
+        id: "light-volumetric",
+        kind: "toggle",
+        labelKey: "preview.volumetric",
+        fallback: "体积光",
+        getValue: () => this.params.volumetric.enabled,
+        setValue: (v) => this.setVolumetric({ enabled: v as boolean }),
+      },
+    ];
+  }
+
+  /** 保存状态到 localStorage */
+  saveState(): void {
+    persistState(this.id, {
+      enabled: this.enabled,
+      keyEnabled: this.params.key.enabled,
+      fillEnabled: this.params.fill.enabled,
+      rimEnabled: this.params.rim.enabled,
+      ambientIntensity: this.params.ambient.intensity,
+      spotlightEnabled: this.params.spotlight.enabled,
+      volumetricEnabled: this.params.volumetric.enabled,
+    });
+  }
+
+  /** 从 localStorage 恢复状态 */
+  loadState(): void {
+    const state = restoreState(this.id);
+    if (!state) return;
+    if (typeof state.enabled === "boolean") this.enabled = state.enabled;
+    if (typeof state.keyEnabled === "boolean") this.params.key.enabled = state.keyEnabled;
+    if (typeof state.fillEnabled === "boolean") this.params.fill.enabled = state.fillEnabled;
+    if (typeof state.rimEnabled === "boolean") this.params.rim.enabled = state.rimEnabled;
+    if (typeof state.ambientIntensity === "number") this.params.ambient.intensity = state.ambientIntensity;
+    if (typeof state.spotlightEnabled === "boolean") this.params.spotlight.enabled = state.spotlightEnabled;
+    if (typeof state.volumetricEnabled === "boolean") this.params.volumetric.enabled = state.volumetricEnabled;
+    this.syncLightsFromParams();
   }
 
   private syncLightsFromParams(): void {

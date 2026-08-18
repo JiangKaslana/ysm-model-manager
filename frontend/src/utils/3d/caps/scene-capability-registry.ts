@@ -1,0 +1,105 @@
+// ===== 场景能力注册表（ADR-073 扩展：能力注册表驱动）=====
+// 所有场景能力（Sky/Ground/Light/后续 Fog/Shadow 等）由本注册表统一创建，
+// 新增能力只需：
+//   1. 实现 SceneCapability 接口
+//   2. 在底部 add() 注册一行
+// 菜单/持久化/生命周期全部由框架驱动，零手工 wiring。
+
+import * as THREE from "three";
+import { SkyCapability } from "./sky-capability.ts";
+import { GroundCapability } from "./ground-capability.ts";
+import { LightCapability } from "./light-capability.ts";
+import type { SceneCapability } from "./scene-capability.ts";
+
+/** 能力工厂：接收 scene/renderer，返回能力实例 */
+export type SceneCapabilityFactory = (ctx: {
+  scene: THREE.Scene;
+  renderer: THREE.WebGLRenderer;
+}) => SceneCapability;
+
+/** 注册表：管理所有场景能力的工厂和实例 */
+class SceneCapabilityRegistry {
+  private factories: SceneCapabilityFactory[] = [];
+  private instances: SceneCapability[] = [];
+
+  /** 注册能力工厂 */
+  add(factory: SceneCapabilityFactory): void {
+    this.factories.push(factory);
+  }
+
+  /** 创建所有已注册能力（mount-preview-core 调用） */
+  createAll(ctx: {
+    scene: THREE.Scene;
+    renderer: THREE.WebGLRenderer;
+  }): SceneCapability[] {
+    this.dispose(); // 清理旧实例
+    this.instances = [];
+    for (const factory of this.factories) {
+      try {
+        const cap = factory(ctx);
+        this.instances.push(cap);
+      } catch (e) {
+        console.warn("[scene-cap] 能力创建失败:", e);
+      }
+    }
+    return [...this.instances];
+  }
+
+  /** 获取所有已创建的实例 */
+  getAll(): SceneCapability[] {
+    return [...this.instances];
+  }
+
+  /** 按 id 查找实例 */
+  getById(id: string): SceneCapability | undefined {
+    return this.instances.find((c) => c.id === id);
+  }
+
+  /** 保存所有能力状态到 localStorage */
+  saveAll(): void {
+    for (const cap of this.instances) {
+      try {
+        cap.saveState();
+      } catch (e) {
+        console.warn(`[scene-cap] ${cap.id} 保存失败:`, e);
+      }
+    }
+  }
+
+  /** 从 localStorage 恢复所有能力状态 */
+  loadAll(): void {
+    for (const cap of this.instances) {
+      try {
+        cap.loadState();
+      } catch (e) {
+        console.warn(`[scene-cap] ${cap.id} 恢复失败:`, e);
+      }
+    }
+  }
+
+  /** 释放所有能力 */
+  dispose(): void {
+    for (const cap of this.instances) {
+      try {
+        cap.dispose();
+      } catch (e) {
+        console.warn(`[scene-cap] ${cap.id} 释放失败:`, e);
+      }
+    }
+    this.instances = [];
+  }
+
+  /** 获取工厂数量（测试用） */
+  getFactoryCount(): number {
+    return this.factories.length;
+  }
+}
+
+/** 全局单例（模块级单例 + 运行时状态隔离） */
+export const sceneCapabilityRegistry = new SceneCapabilityRegistry();
+
+// ============ 内置能力注册 ============
+
+sceneCapabilityRegistry.add((ctx) => new SkyCapability(ctx));
+sceneCapabilityRegistry.add((ctx) => new GroundCapability(ctx));
+sceneCapabilityRegistry.add((ctx) => new LightCapability(ctx));

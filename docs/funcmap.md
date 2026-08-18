@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 117 | 436 |
+| 前端·工具 | 118 | 438 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **401** | **1670** |
+| **合计** | **402** | **1672** |
 
 ## Go·头像
 
@@ -1144,16 +1144,16 @@
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:97` | — |
 | `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:430` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:457` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:58` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:77` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:107` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:117` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:59` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:78` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:108` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:118` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
 | `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core` | — |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:147` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:156` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:161` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:166` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:182` | — |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:148` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:157` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:162` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:167` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:183` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:21` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:36` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1231,6 +1231,8 @@
 | `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:102` | — |
 | `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:112` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
 | `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:220` | ============ LightCapability ============ |
+| `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability-registry:15` | 能力工厂：接收 scene/renderer，返回能力实例 |
+| `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:99` | 全局单例（模块级单例 + 运行时状态隔离） |
 | `MenuControlKind()` | `frontend/src/utils/3d/caps/scene-capability:13` | 单个菜单控件类型 |
 | `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:16` | 菜单控件定义（声明式，由框架渲染为 DOM） |
 | `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:42` | ============ 场景能力统一接口 ============ |
@@ -1450,7 +1452,7 @@
 | `isViewerMode()` | `frontend/src/utils/dom/android-bridge:24` | 查看器模式判定（ADR-049 Phase 3 能力门控统一入口）： Android（双端桥存在）或网页版（browser adapter）——均无本地文件系统写能力、 无桌面专属 |
 | `registerAndroidBackHandler()` | `frontend/src/utils/dom/android-bridge:40` | 注册安卓返回键处理器，返回取消函数（供调用方在自身销毁/关闭时注销）。 |
 | `emitAndroidBack()` | `frontend/src/utils/dom/android-bridge:53` | 系统返回键的前端触发入口：依次从栈顶触发已注册处理器。 |
-| `can()` | `frontend/src/utils/dom/capabilities:14` | 当前平台是否可用指定 binding（web 查 adapter 实现；桌面恒 true；Android viewer 假） |
+| `can()` | `frontend/src/utils/dom/capabilities:17` | 当前平台是否可用指定 binding（web 查 adapter 实现；桌面恒 true；Android viewer 假） |
 | `refreshAdoptedStyleSheets()` | `frontend/src/utils/dom/css-hmr:13` | 热刷指定自定义元素的 Shadow DOM 样式表。 |
 | `btnBaseCSS()` | `frontend/src/utils/dom/css:1` | — |
 | `focusVisibleCSS()` | `frontend/src/utils/dom/css:32` | Shadow DOM 通用 focus-visible 规则（所有 button/input/select/textarea） |
@@ -1554,16 +1556,16 @@
 | `GROUP_OF()` | `frontend/src/utils/resource/types:77` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
 | `groupLabelOf()` | `frontend/src/utils/resource/types:83` | 分组 id → 显示名 |
 | `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:93` | 大类(group) → 其下资源类型列表（ADR-092/094 双下拉导航第二级选项）。 |
-| `MMD_SUBTYPES()` | `frontend/src/utils/resource/types:114` | MMD 子类型目录选项（ADR-094 位置路由，与整合包 3d-skin/ 子目录同款名）。 |
-| `groupStorageRootOf()` | `frontend/src/utils/resource/types:128` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
-| `extOf()` | `frontend/src/utils/resource/types:141` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:185` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:210` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:215` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:221` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:232` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:245` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `matchZipEntryTS()` | `frontend/src/utils/resource/types:265` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `MMD_SUBTYPES()` | `frontend/src/utils/resource/types:117` | MMD 子类型目录选项（ADR-094 位置路由，与整合包 3d-skin/ 子目录同款名）。 |
+| `groupStorageRootOf()` | `frontend/src/utils/resource/types:131` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
+| `extOf()` | `frontend/src/utils/resource/types:144` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:188` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:213` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:218` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:224` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:235` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:248` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:268` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
 
@@ -1608,7 +1610,7 @@
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:142` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:153` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
-| `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:28` | — |
+| `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:29` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:129` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
@@ -1798,10 +1800,10 @@
 | `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:147` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
 | `renderVersionCards()` | `frontend/src/views/app-sidebar/render:8` | — |
 | `sidebarCSS()` | `frontend/src/views/app-sidebar/sidebar-css:3` | — |
-| `headerHTML()` | `frontend/src/views/app-sidebar/tpl:19` | — |
-| `footerHTML()` | `frontend/src/views/app-sidebar/tpl:38` | — |
-| `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:83` | — |
-| `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:102` | 单个整合包卡片头部。 |
+| `headerHTML()` | `frontend/src/views/app-sidebar/tpl:7` | — |
+| `footerHTML()` | `frontend/src/views/app-sidebar/tpl:26` | — |
+| `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:71` | — |
+| `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:90` | 单个整合包卡片头部。 |
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:18` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮） |
 | `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:24` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |

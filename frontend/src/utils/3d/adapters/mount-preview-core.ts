@@ -26,6 +26,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 import { SkyCapability } from "../caps/sky-capability.ts";
 import { GroundCapability } from "../caps/ground-capability.ts";
 import { LightCapability } from "../caps/light-capability.ts";
@@ -209,6 +210,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let orbitTarget: THREE.Vector3 | undefined;
   // ===== §3 UI 装配（overlay/topBar/侧栏/loading/菜单）=====
   // 程序化天空能力（ADR-073 L1）：shared 模式注入统一核心，四种模型零改动继承
+  // 由 sceneCapabilityRegistry 统一创建，此处用辅助 getter 引用
   let skyCap: SkyCapability | null = null;
   let groundCap: GroundCapability | null = null;
   let lightCap: LightCapability | null = null;
