@@ -229,7 +229,7 @@ export function initDataLayer(host: ImportQueueHost): {
       "dl-date": parsed.date || "",
     };
     // ADR-096：MMD 用途子目录（仅 mmd-skin 类型，从队列项读取）
-    const mmdSubdir = currentRepoType() === "mmd-skin" ? (state.fileQueue[0]?.mmdSubdir || "") : "";
+    const mmdSubdir = currentRepoType() === RESOURCE_TYPES.MMD ? (state.fileQueue[0]?.mmdSubdir || "") : "";
     return { parsed, fieldValues, mmdSubdir };
   };
 

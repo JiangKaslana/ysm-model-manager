@@ -48,7 +48,7 @@ export function renderFormData(
   const subdirWrap = root.getElementById("dl-mmd-subdir-wrap") as HTMLElement | null;
   const subdirSelect = root.getElementById("dl-mmd-subdir") as HTMLSelectElement | null;
   if (subdirWrap) {
-    const isMMD = currentRepoType() === "mmd-skin";
+    const isMMD = currentRepoType() === RESOURCE_TYPES.MMD;
     subdirWrap.style.display = isMMD ? "flex" : "none";
     if (isMMD && subdirSelect && formData.mmdSubdir) {
       subdirSelect.value = formData.mmdSubdir;
@@ -433,7 +433,7 @@ export function bindButtonEvents(
 
           // ADR-096：MMD 类型按用途子目录导入，其他类型走原有路径
           const mmdSubdir = editing.mmdSubdir || "";
-          if (currentRepoType() === "mmd-skin" && app.ImportModelFileToMMD) {
+          if (currentRepoType() === RESOURCE_TYPES.MMD && app.ImportModelFileToMMD) {
             await app.ImportModelFileToMMD(finalName, subpath, mmdSubdir, editing.base64 || "");
           } else {
             await app.ImportModelFileTo(finalName, subpath, editing.base64 || "");
@@ -467,7 +467,7 @@ export function bindButtonEvents(
                   : "";
                 // ADR-096：MMD 覆盖导入也走子目录
                 const mmdSubdir = editing.mmdSubdir || "";
-                if (currentRepoType() === "mmd-skin" && app.ImportModelFileOverwriteToMMD) {
+                if (currentRepoType() === RESOURCE_TYPES.MMD && app.ImportModelFileOverwriteToMMD) {
                   await app.ImportModelFileOverwriteToMMD(finalName, subpath2, mmdSubdir, editing.base64 || "");
                 } else {
                   await app.ImportModelFileOverwriteTo(finalName, subpath2, editing.base64 || "");
