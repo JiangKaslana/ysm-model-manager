@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 115 | 428 |
-| frontend/views | 102 | 288 |
+| frontend/views | 103 | 290 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **395** | **1655** |
+| **合计** | **396** | **1657** |
 
 ## Go·头像
 
@@ -1625,6 +1625,8 @@
 | `createCrCard()` | `frontend/src/views/app-content/site/render:44` | 创作者卡片工厂 |
 | `SiteViewState()` | `frontend/src/views/app-content/site/types:12` | SiteViewState —— renderSiteView 内部闭包共享变量的显式收拢。 |
 | `CleanupFn()` | `frontend/src/views/app-content/site/types:40` | bindXxxEvents 函数的统一返回：清理函数，主入口聚合成单一 cleanup |
+| `RepoCacheEntry()` | `frontend/src/views/app-content/state:12` | — |
+| `AppContentState()` | `frontend/src/views/app-content/state:18` | — |
 | `SubscriptionBucket()` | `frontend/src/views/app-content/subscription-bucket:11` | — |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
