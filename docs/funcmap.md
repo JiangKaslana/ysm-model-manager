@@ -41,11 +41,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 127 | 474 |
+| 前端·工具 | 127 | 475 |
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **412** | **1722** |
+| **合计** | **412** | **1723** |
 
 ## Go·头像
 
@@ -1157,11 +1157,11 @@
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:378` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:57` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:165` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:172` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:687` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:714` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:63` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:171` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:178` | — |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:693` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:720` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:63` | 取消所有待执行的编码（已在执行的不受影响） |
 | `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:75` | 重置编码器状态（测试用） |
 | `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:128` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
@@ -1196,12 +1196,13 @@
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:29` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:78` | 会话内切换模型（复用外壳重建内容层）。 |
 | `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:231` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
-| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:72` | VRM meta 归一化信息（meta 卡展示用） |
-| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:91` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
-| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:151` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:161` | — |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:389` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:420` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
+| `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:26` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:92` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:111` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:171` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:181` | — |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:433` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:464` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:21` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:31` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |

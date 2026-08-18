@@ -39,6 +39,12 @@ import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截�
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
+/** 并发读取纹理的分片大小（fallback 路径：readFileBytesBatch 失败时降级）
+ * 默认 4：平衡内存占用与 I/O 并发性，适合大多数 MMD 模型（通常 < 20 贴图）。
+ * 若项目纹理数量大或网络/磁盘 I/O 慢，可调大（如 8/16）；内存紧张则调小（如 2）。
+ * ADR-101：对齐后端 goroutine 池设计哲学。 */
+const TEXTURE_READ_CHUNK_SIZE = 4;
+
 /** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -86,7 +92,7 @@ async function mmdDiag(
 async function concurrentMap<T, R>(
   items: T[],
   fn: (item: T) => Promise<R>,
-  chunkSize = 4,
+  chunkSize = TEXTURE_READ_CHUNK_SIZE,
 ): Promise<R[]> {
   if (items.length === 0) return [];
   const results: R[] = new Array(items.length);
