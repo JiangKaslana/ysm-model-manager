@@ -173,16 +173,34 @@ export async function buildMmdScene(
   let tParseStart = 0;
   let tParseEnd = 0;
   let tBuildEnd = 0;
+  // mmd 提升到 onLoad 之前声明（onLoad 统计贴图尺寸需引用；类型取 loadAsync 返回值）
+  let mmd: Awaited<ReturnType<MMDLoader["loadAsync"]>> | null = null;
   manager.onLoad = (): void => {
     textureLoadedAt = performance.now();
     if (tParseEnd === 0) return; // loadAsync 未完成（异常时序），放弃 perf
     const buildMs = tBuildEnd > 0 ? Math.max(0, tBuildEnd - tParseEnd) : 0;
+    // 贴图尺寸分布（诊断：决定降采样阈值）——统计各材质主贴图 map 的像素尺寸
+    const dimCount = new Map<string, number>();
+    const mmdMesh = mmd?.mesh;
+    const mats = Array.isArray(mmdMesh?.material)
+      ? mmdMesh.material
+      : mmdMesh?.material
+        ? [mmdMesh.material]
+        : [];
+    for (const m of mats) {
+      const img = (m as { map?: { image?: HTMLImageElement } })?.map?.image;
+      if (img?.width && img?.height) {
+        const key = `${img.width}x${img.height}`;
+        dimCount.set(key, (dimCount.get(key) ?? 0) + 1);
+      }
+    }
+    const texSizes = [...dimCount.entries()].map(([k, n]) => `${k}x${n}`).join(",") || "none";
     void mmdDiag(
       port,
       "perf",
       path,
       "ok",
-      `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${Math.round(textureLoadedAt - tParseEnd)}ms build=${buildMs}ms`,
+      `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${Math.round(textureLoadedAt - tParseEnd)}ms build=${Math.round(buildMs)}ms tex=${texSizes}`,
     );
   };
   manager.setURLModifier((url: string): string => {
@@ -200,7 +218,6 @@ export async function buildMmdScene(
   });
 
   const loader = new MMDLoader(manager);
-  let mmd;
   tParseStart = performance.now();
   try {
     mmd = await loader.loadAsync(path);
@@ -215,10 +232,10 @@ export async function buildMmdScene(
     "parse",
     path,
     "ok",
-    `bones=${mmd.pmx?.bones?.length ?? 0} mats=${mmd.pmx?.materials?.length ?? 0} morphs=${mmd.pmx?.morphs?.length ?? 0}`,
+    `bones=${mmd?.pmx?.bones?.length ?? 0} mats=${mmd?.pmx?.materials?.length ?? 0} morphs=${mmd?.pmx?.morphs?.length ?? 0}`,
   );
   tParseEnd = performance.now();
-  const mesh = mmd.mesh;
+  const mesh = mmd!.mesh;
   try {
     ctx.scene!.add(mesh);
     registerModelRoot(mesh);
@@ -291,7 +308,7 @@ export async function buildMmdScene(
   // 切换模型归 core switch 项（needsSiblings），相机归 core camera 项（sharedOnly）。
   // 菜单表提取为可导出 mmdMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
   const navCtx: MmdBottomNavCtx = {
-    mmd,
+    mmd: mmd!,
     mesh,
     modelName: path.split(/[/\\]/).pop() || "",
     modelPath: path,
@@ -301,16 +318,16 @@ export async function buildMmdScene(
   const mats = mesh.material as unknown as THREE.Material[];
   const bonePanelRef: { current: (() => void) | null } = { current: null };
   // ADR-077 + 语义骨骼层：骨骼树构建复用一次，既喂骨骼面板也产语义映射
-  const boneTree = mmd.pmx?.bones && mesh.skeleton
-    ? buildBoneTree(mmdBonesToBoneNodes(mmd.pmx.bones, mesh.skeleton.bones))
+  const boneTree = mmd?.pmx?.bones && mesh.skeleton
+    ? buildBoneTree(mmdBonesToBoneNodes(mmd?.pmx.bones, mesh.skeleton.bones))
     : null;
   const items = mmdMenuItems({
     navCtx,
     panels,
     screenshot: () => Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
     material: {
-      list: () => listMmdMaterials(mmd.pmx.materials),
-      getDetail: (i) => getMmdMaterialDetail(mmd.pmx.materials, mats, i),
+      list: () => listMmdMaterials(mmd?.pmx.materials),
+      getDetail: (i) => getMmdMaterialDetail(mmd?.pmx.materials, mats, i),
       setVisible: (i, v) => setMmdMaterialVisible(mats, i, v),
       setOpacity: (i, o) => {
         setMmdMaterialOpacity(mats, i, o);
@@ -354,7 +371,7 @@ export async function buildMmdScene(
   // MMD 语义骨骼：候选名匹配表移植自 MikuMikuAR motion-algos；消费方读取驱动感知层
   const semanticBones = boneTree ? mmdSemanticBoneMap(boneTree) : undefined;
   // MMD 语义 morph：候选名匹配（blink/lipOpen 等）→ morphTargetDictionary index
-  const semanticMorphs = mmdSemanticMorphMap(mmd.pmx?.morphs ?? []);
+  const semanticMorphs = mmdSemanticMorphMap(mmd?.pmx?.morphs ?? []);
   // 感知层呼吸（程序化生命力 L1）：待机态下对 chest/spine/shoulders 施加正弦微位移
   const breath = createBreathController();
   // 感知层注视追踪（程序化生命力 L2）：head/eyes 跟随相机方向
@@ -377,7 +394,7 @@ export async function buildMmdScene(
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
     update: (dt: number): void => {
       if (!mesh.visible) return; // Frustum Culling 不可见 → 跳过 IK/感知层，省 CPU
-      mmd.updateWithMixer(dt, mixer, { ik: true, grant: true });
+      mmd?.updateWithMixer(dt, mixer, { ik: true, grant: true });
       if (semanticBones) {
         // 待机呼吸：有动画播放时暂停（避免与动画打架）
         if (!action || action.paused) breath.apply(dt, semanticBones);
@@ -429,7 +446,7 @@ export async function buildMmdScene(
       autoDance.dispose();
       footIK.dispose();
       for (const url of blobUrls) URL.revokeObjectURL(url);
-      mmd.dispose();
+      mmd?.dispose();
     },
     // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/vrm/litematic 呑约对称）
     screenshot: () =>
@@ -441,7 +458,7 @@ export async function buildMmdScene(
           const pose = vpdPoses[index];
           if (!pose) return;
           try {
-            applyVPD(mmd, pose.vpd, { ik: true, grant: true });
+            applyVPD(mmd!, pose.vpd, { ik: true, grant: true });
           } catch {
             /* 单个 VPD 应用失败不阻断预览 */
           }
