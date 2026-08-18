@@ -167,10 +167,23 @@ export async function buildMmdScene(
 
   // ---- URLModifier：模型自身 + 纹理 URL → blob URL（未命中原样返回，toon 内置 dataURL 天然放行）----
   const manager = new THREE.LoadingManager();
-  // 诊断（环形日志）：纹理加载完成打点——loadAsync resolve 后贴图仍可能异步解码，onLoad 捕捉其终点
+  // 诊断（环形日志）：MMD 加载三段耗时。完整 perf 在 manager.onLoad 输出——
+  // 纹理完成时才有 texture 值（loadAsync resolve 后贴图仍异步解码，build 结束往往未完成）。
   let textureLoadedAt = 0;
+  let tParseStart = 0;
+  let tParseEnd = 0;
+  let tBuildEnd = 0;
   manager.onLoad = (): void => {
     textureLoadedAt = performance.now();
+    if (tParseEnd === 0) return; // loadAsync 未完成（异常时序），放弃 perf
+    const buildMs = tBuildEnd > 0 ? Math.max(0, tBuildEnd - tParseEnd) : 0;
+    void mmdDiag(
+      port,
+      "perf",
+      path,
+      "ok",
+      `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${Math.round(textureLoadedAt - tParseEnd)}ms build=${buildMs}ms`,
+    );
   };
   manager.setURLModifier((url: string): string => {
     const lower = url.toLowerCase().replace(/\\/g, "/");
@@ -188,7 +201,7 @@ export async function buildMmdScene(
 
   const loader = new MMDLoader(manager);
   let mmd;
-  const tParseStart = performance.now();
+  tParseStart = performance.now();
   try {
     mmd = await loader.loadAsync(path);
   } catch (e) {
@@ -204,7 +217,7 @@ export async function buildMmdScene(
     "ok",
     `bones=${mmd.pmx?.bones?.length ?? 0} mats=${mmd.pmx?.materials?.length ?? 0} morphs=${mmd.pmx?.morphs?.length ?? 0}`,
   );
-  const tParseEnd = performance.now();
+  tParseEnd = performance.now();
   const mesh = mmd.mesh;
   try {
     ctx.scene!.add(mesh);
@@ -435,16 +448,8 @@ export async function buildMmdScene(
         }
       : undefined,
   };
-  // 诊断（环形日志）：MMD 加载三段耗时——parse（loadAsync 解析+几何）/ texture（贴图剩余解码）/ build（场景装配+VMD/VPD）
-  const buildStart = Math.max(tParseEnd, textureLoadedAt || tParseEnd);
-  const textureMs = textureLoadedAt > 0 ? Math.max(0, textureLoadedAt - tParseEnd) : -1;
-  await mmdDiag(
-    port,
-    "perf",
-    path,
-    "ok",
-    `parse=${Math.round(tParseEnd - tParseStart)}ms texture=${textureMs < 0 ? "?" : Math.round(textureMs) + "ms"} build=${Math.round(performance.now() - buildStart)}ms`,
-  );
+  // 诊断（环形日志）：build 段结束打点；完整 perf 由 manager.onLoad 在纹理完成时输出（见上）
+  tBuildEnd = performance.now();
   return result;
   } finally {
     // 防御：若 build 中途 throw（scene.add 之后、return 之前），
