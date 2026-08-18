@@ -10,6 +10,8 @@ export default defineConfig({
   timeout: 20000,
   globalTimeout: 3 * 60 * 1000,
   maxFailures: 3,
+  // bail: 2 —— 连续 2 次失败立即停，避免改菜单后空跑 N 个超时
+  bail: 2,
   retries: 0,
   workers: 1,
   reporter: [["list"]],

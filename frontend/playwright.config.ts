@@ -13,6 +13,10 @@ export default defineConfig({
   timeout: 15000,
   globalTimeout: 7 * 60 * 1000,
   maxFailures: 5,
+  // bail: 2 —— 连续 2 次失败立即停，避免「改个菜单空跑 N 个 15s 超时」。
+  // 开发期快反馈，CI 期也适用：系统性问题 2 次暴露足够，多跑无用。
+  // 需要全量看失败列表时可临时 `npx playwright test --no-bail`。
+  bail: 2,
   // retries: 0 —— 失败即真红，不靠重试掩盖竞态（子代理审核 P2）。
   // 已知环境性缺口（vite 冷启动）已由 fixture 的 app-content shadowRoot
   // 轮询等待根治；条件性 test.skip 保留（mock 未渲染时优雅跳过，有原因注释）。
