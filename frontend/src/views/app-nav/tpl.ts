@@ -1,0 +1,125 @@
+// ===== app-nav 样式与模板 =====
+export const navCSS: string = `
+:host {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-right: 1px solid var(--bd);
+  width: 160px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  transition: width var(--tr-fast);
+  overflow: hidden;
+}
+/* 折叠态：收成常驻窄条，仅保留图标 + 展开按钮 */
+:host([data-collapsed]) { width: 48px; }
+:host([data-collapsed]) .logo { justify-content: center; padding: 16px 0 12px; }
+:host([data-collapsed]) .logo-text,
+:host([data-collapsed]) .menu-label,
+:host([data-collapsed]) .nav-text,
+:host([data-collapsed]) .version { display: none; }
+:host([data-collapsed]) .nav-item { justify-content: center; padding: 8px 0; }
+:host([data-collapsed]) .nav-item.active { border-left: none; padding-left: 0; }
+:host([data-collapsed]) .menu-head { justify-content: center; }
+/* 资源切换器（大类+子类型双下拉，ADR-092 派生）：折叠态隐藏 */
+.nav-repo-sel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--bd);
+  flex-shrink: 0;
+}
+.nav-repo-sel select {
+  background: var(--surf);
+  color: var(--txt);
+  border: 1px solid var(--bd);
+  border-radius: 4px;
+  font-size: var(--fs-tab);
+  font-family: var(--font-ui);
+  padding: 2px 4px;
+  width: 100%;
+}
+:host([data-collapsed]) .nav-repo-sel { display: none; }
+.logo {
+  padding: 16px 14px 12px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--txt);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--bd);
+}
+.logo-icon { font-size: 20px; }
+/* Logo 呼吸光晕 */
+@keyframes logoBreathe {
+  0%, 100% { text-shadow: 0 0 4px color-mix(in srgb, var(--accent) 0%, transparent); }
+  50% { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent); }
+}
+.logo-icon { animation: logoBreathe 3s ease-in-out infinite; }
+:host-context(.no-animations) .logo-icon { animation: none !important; }
+/* 「🧭 导航栏」行：label 撑满，折叠按钮置于行尾（紧贴导航项上方，直觉位置） */
+.menu-head { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+/* 折叠/展开按钮：常驻——折叠态窄条上仍可见，防意外找不回导航 */
+.nav-toggle {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: var(--tr-fast);
+  flex-shrink: 0;
+}
+.nav-toggle:hover { color: var(--accent); background: var(--hover); }
+.menu { padding: 4px 8px 8px; flex: 1; display: flex; flex-direction: column; }
+.menu-label { flex: 1; font-size: var(--fs-xs); color: var(--muted); padding: 8px 10px 4px; text-transform: uppercase; letter-spacing: .5px; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: calc(var(--fs-nav) + 2px);
+  color: var(--muted);
+  cursor: pointer;
+  transition: var(--tr-fast);
+  margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--hover); color: var(--txt); }
+.nav-item.active {
+  background: var(--hover);
+  color: var(--txt);
+  border-left: 3px solid var(--menu-indicator, var(--accent));
+  padding-left: 7px;
+}
+.nav-item .icon { font-size: 15px; width: 20px; text-align: center; }
+/* 左下角 3D 一键跳转（替代原 viewer 页内嵌文件树）：直开全屏 3D 预览器 */
+.nav-viewer-fab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 8px 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  font-size: calc(var(--fs-nav) + 2px);
+  transition: var(--tr-fast);
+}
+.nav-viewer-fab:hover { filter: brightness(1.1); }
+.nav-viewer-fab:active { filter: brightness(.95); }
+.nav-viewer-fab .icon { font-size: 15px; width: 20px; text-align: center; }
+:host([data-collapsed]) .nav-viewer-fab { justify-content: center; padding: 8px 0; margin: 2px 6px 6px; }
+:host([data-collapsed]) .nav-viewer-fab .fab-text { display: none; }
+.version {
+  padding: 10px 14px;
+  border-top: 1px solid var(--bd);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+`;

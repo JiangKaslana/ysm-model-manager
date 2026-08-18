@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 115 | 428 |
-| frontend/views | 104 | 292 |
+| frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **397** | **1661** |
+| **合计** | **398** | **1662** |
 
 ## Go·头像
 
@@ -1662,6 +1662,7 @@
 | `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:69` | 绑定站点打开相关事件 |
 | `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:17` | 初始化创意工坊 Tab |
 | `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:109` | — |
+| `navCSS()` | `frontend/src/views/app-nav/tpl:2` | — |
 | `BoneEntry()` | `frontend/src/views/app-preview/bone-names:5` | 骨骼条目（结构类型，兼容 DecodedYsm.bones 元素） |
 | `buildBoneNamesText()` | `frontend/src/views/app-preview/bone-names:15` | 构建骨骼名导出文本行： 首行 `模型: &lt;path&gt;`、次行 `骨骼总数: &lt;n&gt;`，其后每根骨骼 有方块则 `名称 (n 方)`，结构骨骼（无方块）则 `名称 (结构骨骼,无方) |
 | `CacheValue()` | `frontend/src/views/app-preview/cache:10` | 缓存条目值 |

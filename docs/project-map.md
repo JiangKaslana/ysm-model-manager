@@ -91,8 +91,6 @@
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
 | `opencode.json` | OpenCode AI 编辑器配置（IDE 集成） |
-| `package-lock.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
-| `package.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `resource_types.json` | 资源类型单一事实来源（注册表优先） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |
