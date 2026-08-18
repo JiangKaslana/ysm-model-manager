@@ -1,6 +1,6 @@
 # ADR-063：updater 版本比较语义化：semver 库接入替代手写比较
 
-- **状态**：🔄 部分采纳（方向已定，编码待立项落地）
+- **状态**：✅ 已采纳（semver 库 golang.org/x/mod/semver 已接入，isNewer 已改造为库比较 + 脏 tag 回退手写，预发布语义门控默认关闭；测试用例覆盖 v1.0.0 vs v1.0.0-beta.1、多段版本、+build 元数据等边界）
 - **日期**：2026-08-15
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/knowledge/extensibility-index.md 6.9b`、`go/updater/updater.go:503-531`（`isNewer`/`splitVer`）、`go/updater/updater_test.go`

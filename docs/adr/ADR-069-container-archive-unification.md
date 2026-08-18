@@ -1,6 +1,6 @@
 # ADR-069：内容识别统一：ysm 作为解密容器参与 zip/7z 指纹匹配
 
-- **状态**：🔄 部分采纳（方向已定，编码待立项落地）
+- **状态**：✅ 已采纳（识别层已统一：`DetectResourceType`/`DetectZipType` 不再扩展名直判 .ysm，走 `MatchZipEntry` 注册表指纹匹配；前端 `loader.ts` isWasmCapable 由注册表派生；`resource_types.json` 中 ysm 声明 `zipEntries` 指纹；Go/TS 双端指纹匹配已落地）
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`docs/adr/ADR-067-zip-packaged-resource-detection.md`、`docs/adr/ADR-068-container-reader-abstraction.md`（解包代码收敛，边界互补）、`frontend/src/views/app-preview/loader.ts:20-23`、`go/packs/mcmeta.go`、`go/importer/importer_file.go:99`、`go/geometry/archive.go`
