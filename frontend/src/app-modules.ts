@@ -83,6 +83,8 @@ if (typeof window !== "undefined") {
   }
   applyUIPrefs();
   checkUpdateSilent().catch((e) => console.warn("[updater] 静默检查失败:", e));
+  // ADR-101 方向 A：Three.js 模块预加载（非阻塞，省掉首次 3D 预览 ~105ms 脚本编译）
+  import("three").catch(() => {});
   // 启动 2s 后后台预下载 stats.worker chunk（网页版）：让首次数值搜索不用等下载
   setTimeout(() => prefetchStatsWorker(), 2000);
 })();
