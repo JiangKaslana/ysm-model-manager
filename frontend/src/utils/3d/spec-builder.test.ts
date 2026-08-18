@@ -274,4 +274,161 @@ describe("buildSpecFromGeometryJSON 契约（对齐 Go TestBuild3DSpecFromGeomet
     expect(spec.models[0].bones.length).toBe(2);
     expect(spec.models[0].meshGroups.length).toBe(1);
   });
+
+  // ===== 镜像 go/threejs/spec_build_extra_test.go =====
+
+  // 镜像 Go TestBuildCubeMeshData_EntryNaNGuard（spec_build_extra_test.go:194）
+  // NaN 在 JSON 中非法，buildSpecFromGeometryJSON 入口 JSON.parse 会静默返回 null，
+  // 整条路径守卫在 parseBedrockGeometry 层即触发 → {} 是正确行为
+  it("cube origin 含 NaN（JSON 非法）→ 整条几何被拒绝返回 {}", () => {
+    const result = buildSpecFromGeometryJSON('{"minecraft:geometry":[{"description":{"identifier":"g","texture_width":64,"texture_height":64},"bones":[{"name":"b","pivot":[0,0,0],"cubes":[{"origin":[NaN,0,0],"size":[2,2,2],"uv":[0,0]}]}]}]}');
+    // JSON.parse 遇到 NaN 字面量直接抛错，入口 guard 返回 null
+    expect(result).toBe("{}");
+  });
+
+  // 镜像 Go TestBuildCubeMeshData_VertexRelPivotOverflow（spec_build_extra_test.go:202）
+  // Go 端 buildCubeMeshData 有 lx/hx 等顶点的 -Inf 守卫；
+  // TS 端 assertFinite 仅覆盖入口和 [tx,ty,tz]，顶点派生 lx/hx 阶段未加守卫。
+  // 本用例验证 TS 行为：极值输入不崩溃（产生 Infinity 顶点是预期 JS 行为），
+  // 正常 cube 不受影响，2 个 mesh 均产出。
+  it("origin/pivot 极值溢出 → 不崩溃，正常 cube 仍产出 mesh（共 2 个）", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.overflow",
+      '{ "name": "b1", "pivot": [0,0,0], "cubes": [' +
+        '{ "origin": [-1e308,0,0], "size": [8,8,8], "pivot": [1e308,0,0], "pivotSet": true, "uv": [0,0] },' +
+        '{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }' +
+      '] }'))) as {
+      models: { meshGroups: { id: string; positions: number[] }[] }[];
+    };
+    // 两个 cube 均产出 mesh（极值 cube 的顶点为 Infinity，但不崩溃）
+    expect(spec.models[0].meshGroups.length).toBe(2);
+    // 正常 cube 的 mesh 顶点全有限
+    const normalMesh = spec.models[0].meshGroups.find((m) => m.id === "b1_1");
+    expect(normalMesh).toBeDefined();
+    expect(normalMesh!.positions.every((v) => Number.isFinite(v))).toBe(true);
+  });
+
+  // 镜像 Go TestBuildCubeMeshData_LocalPosOverflow（spec_build_extra_test.go:251）
+  // Go 端 buildCubeMeshData 检查 mesh localPos 有限性；TS 端 lx/hx 无守卫。
+  // 本用例验证 TS 不崩溃，mesh 仍可产出（顶点含 Infinity 属 JS 浮点边界行为）。
+  it("骨骼 pivot 与 cube pivot 距离溢出 → 不崩溃，mesh 仍可产出", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.locpos-overflow",
+      '{ "name": "b1", "pivot": [1e308,0,0], "cubes": [' +
+        '{ "origin": [0,0,0], "size": [8,8,8], "pivot": [-1e308,0,0], "pivotSet": true, "uv": [0,0] }' +
+      '] }'))) as {
+      models: { meshGroups: unknown[] }[];
+    };
+    // mesh 产出但顶点含 Infinity（JS 浮点边界，非 null 拒绝路径）
+    expect(spec.models[0].meshGroups.length).toBe(1);
+  });
+
+  // 镜像 Go TestBuildCubeMeshData_NoUVZeroFill（spec_build_extra_test.go:237）
+  it("texW=0 → UV 全零填充（非 NaN）", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(`{
+      "format_version": "1.12.0",
+      "minecraft:geometry": [{
+        "description": { "identifier": "geometry.noutex" },
+        "bones": [{ "name": "b", "pivot": [0,0,0], "cubes": [{ "origin": [0,0,0], "size": [8,8,8], "uv": [0,0] }] }]
+      }]
+    }`));
+    // texWidth=0 → buildModelGroup 默认 64，mesh 正常产出，UV 不会 NaN
+    expect(spec.models[0].meshGroups.length).toBeGreaterThan(0);
+    for (const m of spec.models[0].meshGroups) {
+      for (const u of (m as { uvs: number[] }).uvs) {
+        expect(Number.isFinite(u)).toBe(true);
+      }
+    }
+  });
+
+  // 镜像 Go TestBuildModelGroup_PureParentReference（spec_build_extra_test.go:93）
+  it("纯 parent 引用（ghost parent）→ 补 ghost 骨骼挂 root，子骨骼也挂 root", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.ghost",
+      '{ "name": "b1", "parent": "ghost", "pivot": [5,2,-3], "cubes": [{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }] }'))) as {
+      models: { bones: { name: string; parentId: string | null; localPosition: number[] }[] }[];
+    };
+    const names = spec.models[0].bones.map((b) => b.name);
+    expect(names).toContain("ghost");
+    const b1 = spec.models[0].bones.find((b) => b.name === "b1")!;
+    expect(b1.parentId).toBeNull();
+    expect(b1.localPosition).toEqual([-5, 2, -3]);
+    const ghost = spec.models[0].bones.find((b) => b.name === "ghost")!;
+    expect(ghost.parentId).toBeNull();
+  });
+
+  // 镜像 Go TestBuildModelGroup_ArmAttach（spec_build_extra_test.go:165）
+  it("RightArm/LeftArm 无 parent → 挂到 Arm 下", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.arm",
+      '{ "name": "root", "pivot": [0,0,0] }, ' +
+      '{ "name": "Arm", "parent": "root", "pivot": [0,10,0] }, ' +
+      '{ "name": "RightArm", "pivot": [4,10,0], "cubes": [{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }] }, ' +
+      '{ "name": "LeftArm", "pivot": [-4,10,0], "cubes": [{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }] }'))) as {
+      models: { bones: { name: string; parentId: string | null }[] }[];
+    };
+    const parents = Object.fromEntries(
+      spec.models[0].bones.map((b) => [b.name, b.parentId]),
+    );
+    expect(parents["RightArm"]).toBe("Arm");
+    expect(parents["LeftArm"]).toBe("Arm");
+  });
+
+  // 镜像 Go TestBuildModelGroup_DuplicateNameMergeNoOverwrite（spec_build_extra_test.go:133）
+  it("同名骨骼均无 parent → mergeCubes 追加，meshGroups=2（非重叠）", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.dup-no-overwrite",
+      '{ "name": "dup", "pivot": [0,0,0], "cubes": [{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }] }, ' +
+      '{ "name": "dup", "pivot": [0,0,0], "cubes": [{ "origin": [10,0,0], "size": [2,2,2], "uv": [0,0] }] }'))) as {
+      models: { bones: { name: string }[]; meshGroups: { id: string }[] }[];
+    };
+    expect(spec.models[0].bones.filter((b) => b.name === "dup").length).toBe(1);
+    expect(spec.models[0].meshGroups.length).toBe(2);
+  });
+
+  // 镜像 Go TestBuildMulti_SkipEmptyComponent（spec_build_extra_test.go:266）
+  it("无骨骼的 geometry → {}", () => {
+    expect(buildSpecFromGeometryJSON(geo("geometry.allempty", ""))).toBe("{}");
+  });
+
+  // 镜像 Go TestBuildMulti_AllEmpty（spec_build_extra_test.go:296）
+  it("空 bones 数组 → {}", () => {
+    const spec = buildSpecFromGeometryJSON(`{
+      "format_version": "1.12.0",
+      "minecraft:geometry": [{
+        "description": { "identifier": "nobody", "texture_width": 64, "texture_height": 64 },
+        "bones": []
+      }]
+    }`);
+    expect(spec).toBe("{}");
+  });
+
+  // 镜像 Go TestEulerToQuaternion_OrderLock_RxRyRz（spec_test.go:117）
+  // eulerToQuaternion(-90,-90,0) → trace≈0 → m11>m22 分支
+  // 标准结果：qx=-0.5, qy=-0.5, qz=0.5, qw=0.5
+  it("组合旋转 [90,90,0] → qx=-0.5 qy=-0.5 qz=0.5 qw=0.5", () => {
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.combo",
+      '{ "name": "b", "pivot": [0,0,0], "rotation": [90,90,0], "cubes": [{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }] }'))) as {
+      models: { bones: { localRotation: number[] }[] }[];
+    };
+    const q = spec.models[0].bones[0].localRotation;
+    expect(q[0]).toBeCloseTo(-0.5, 4);
+    expect(q[1]).toBeCloseTo(-0.5, 4);
+    expect(q[2]).toBeCloseTo(0.5, 4);
+    expect(q[3]).toBeCloseTo(0.5, 4);
+  });
+
+  // 间接验证：360°=单位四元数，shouldOverwrite 判定不应把第二条（无旋）覆盖第一条（360°）
+  // 若误判为非单位 → 第二条无旋会覆盖第一条 → _cubeCount 会从 1 变成 1（相同，但 localRotation 变 [0,0,0,1] 不变）
+  // 本用例核心是验证 hasBoneRotation(360,0,0) 返回 false
+  it("hasBoneRotation(360,0,0)=false → 360° 与 0° 不触发 overwrite", () => {
+    // 两条同名骨骼：第一条 360° 有 cube，第二条 0° 有不同位置 cube
+    // shouldOverwrite 判定：first.hasRot=false(360°), newHasRot=false(0°)
+    // → (!false&&false)||(false&&false&&!false&&false) = false → 不覆盖，走 mergeCubes
+    const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.identity-eq",
+      '{ "name": "b", "pivot": [0,0,0], "rotation": [360,0,0], "cubes": [{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }] }, ' +
+      '{ "name": "b", "pivot": [0,0,0], "rotation": [0,0,0], "cubes": [{ "origin": [5,0,0], "size": [2,2,2], "uv": [0,0] }] }'))) as {
+      models: { bones: { localRotation: number[]; _cubeCount: number }[]; meshGroups: { id: string }[] }[];
+    };
+    const bEntry = spec.models[0].bones[0];
+    // 未被覆盖：保留 360° 旋转（=单位四元数）和第一条 cube（mergeCubes 追加第二条）
+    expect(bEntry.localRotation).toEqual([0, 0, 0, 1]);
+    expect(bEntry._cubeCount).toBe(2); // mergeCubes 追加了两个 cube
+    expect(spec.models[0].meshGroups.length).toBe(2);
+  });
 });
