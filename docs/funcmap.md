@@ -34,17 +34,17 @@
 | Go·YSM 核心 | 7 | 26 |
 | Go(internal)·应用入口 | 24 | 185 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
-| frontend/backend | 18 | 101 |
+| frontend/backend | 18 | 100 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 21 | 99 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 125 | 470 |
+| 前端·工具 | 125 | 468 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **409** | **1706** |
+| **合计** | **409** | **1703** |
 
 ## Go·头像
 
@@ -782,7 +782,6 @@
 | `unpackBlockStates()` | `frontend/src/backend/voxel-parse:109` | 打包位解码：expectedCount 个方块索引 → palette 索引数组。 |
 | `litematicVoxelView()` | `frontend/src/backend/voxel-parse:323` | 对齐 voxel.go:92-171 BuildVoxelData：.litematic 体素视图。 |
 | `nbtVoxelView()` | `frontend/src/backend/voxel-parse:396` | 对齐 voxel.go:286-382 BuildNbtVoxelData：structure NBT 体素视图。 |
-| `bedrockVoxelView()` | `frontend/src/backend/voxel-parse:463` | 对齐 voxel.go buildBedrockVoxelData：基岩版 1.21+ structure 体素视图。 |
 | `schematicVoxelView()` | `frontend/src/backend/voxel-parse:561` | 对齐 voxel.go:384-491 BuildSchematicVoxelData：schematic 体素视图。 |
 | `decodeVoxelNbt()` | `frontend/src/backend/voxel-parse:649` | 纯函数：base64 字节 → NBT root（IO 与解码解耦——本函数无任何 IO，输入 b64 字符串 输出解析后的 root 对象；readVoxelJson 等装配层只 |
 | `WebUnsupportedError()` | `frontend/src/backend/web-common:8` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
@@ -1136,7 +1135,6 @@
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:29` | — |
 | `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:69` | — |
-| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:155` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1281,7 +1279,6 @@
 | `computeBoneLocalPos()` | `frontend/src/utils/3d/cube-mesh:24` | 计算骨骼本地位置（对齐 YSMViewer/C# ConvertBones 口径）。 |
 | `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:64` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:220` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
-| `clearLabelTexCache()` | `frontend/src/utils/3d/debug-render:21` | 清空标签纹理缓存（debug 组销毁时调用，防长时使用 OOM） |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:58` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
 | `registerModelRoot()` | `frontend/src/utils/3d/frustum-cull:16` | 注册模型根节点（adapter 调用） |
 | `unregisterModelRoot()` | `frontend/src/utils/3d/frustum-cull:21` | 注销模型根节点（adapter dispose 时调用） |
