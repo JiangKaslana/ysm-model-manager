@@ -114,11 +114,17 @@ YSM L1 只有 1 个 clip，`clips.length === 1`，下拉框不渲染（与 MMD �
 ### 负面
 
 - **名称匹配局限**：`.animation.json` 的骨骼名必须与 `spec.bones[].name` 完全一致，大小写敏感。不匹配的骨骼静默跳过（不报错）
-- **L1 单 clip**：多个 `.animation.json` 只取第一个，后续扩展需改接口
+- **Group vs Bone**：YSM 骨骼是 `THREE.Group` 层级树（`mesh.ts` 构建），非 `THREE.Bone`。播放器操作 `Object3D.position/quaternion/scale`，不涉及 SkinnedMesh 骨骼蒙皮——静态网格随 Group 变换整体移动，无蒙皮变形效果。对于方块人模型足够，但对精细模型（如有弯折手臂）动画可能看起来僵硬
+- **语义骨骼命中率依赖作者命名**：YSM 无标准命名规范，`YSM_SEMANTIC_CANDIDATES` 覆盖 Blockbench/MC 常见导出名，但自由命名模型命中率低。感知层（呼吸/眨眼）优雅降级（缺省骨骼静默跳过），不影响渲染
+- **多 clip 只取每文件首 clip**：`.animation.json` 可含多个 clip，当前只取 `clips[0]`。若模型有多个动作定义在同一文件，后续 clip 被忽略
+- **切 clip 首帧旋转跳变**：`selectClip` 时 `restQuaternions.clear()` 导致首帧从 rest→目标直接跳变（非平滑过渡）。当前可接受（动画切换本就是离散事件），若需平滑可加过渡帧
 
 ### 已知遗留
 
-- 旋转格式差异：`SpecBone3D.localRotation` 是欧拉角数组 `[rx, ry, rz]`（弧度），`.animation.json` 的 rotation keyframe 也是 `[rx, ry, rz]`（弧度）——**口径一致，无需转换**。但余弦/正弦插值（slerp）未做，用四元数球面插值更佳（L2 优化）。
+- **slerp 已完成（L2）**：`restQuaternions` + `multiplyQuaternions` 实现四元数路径插值，避免欧拉角 gimbal lock
+- **局部变换直接应用**：`evaluateClip(localOnly=true)` 返回的变换不含父级累积，直接设到 Group 上——正确，因为 Group 层级已包含位置偏移（`spec.bones[].localPosition` 在 `mesh.ts` 构建时已 apply）
+- **非 loop 动画末帧暂停后呼吸恢复**：`isAnimActive()` 在 `elapsed >= length && !loop` 时返回 false，呼吸恢复——与 VRM 口径一致
+- **P1 bug 已修复（6312b358）**：初始实现错误地取 `group.children[0] as THREE.Bone`，实际应为 `group` 本身（boneGroupMap 值为 Group 节点）
 
 ---
 
@@ -128,7 +134,8 @@ YSM L1 只有 1 个 clip，`clips.length === 1`，下拉框不渲染（与 MMD �
 |------|------|------|
 | 1 | `frontend/src/utils/3d/ysm-animation-player.ts`（新建） | `createYsmAnimPlayer` + `YsmAnimPlayer` 接口 | ✅ L1 (0ee55eaa) + L2 (4d92eac9) |
 | 2 | `frontend/src/utils/3d/ysm-animation-player.test.ts`（新建） | 单元测试：apply/loop/暂停/多clip/slerp/骨骼缺失降级 | ✅ 13 项全过 |
-| 3 | `frontend/src/utils/3d/adapters/ysm-adapter.ts` | buildYsmScene 加 animation 扫描 + player 接入 update + 语义骨骼 + 呼吸 | ✅ L1+L2 |
+| 3 | `frontend/src/utils/3d/adapters/ysm-adapter.ts` | buildYsmScene 加 animation 扫描 + player 接入 update + 语义骨骼 + 呼吸 | ✅ L1+L2 (4d92eac9) |
+| 3-fix | 同文件 P1 bug 修复 | boneByName 改为直接取 boneGroupMap 的 Group（非 children[0] as Bone） | ✅ (6312b358) |
 | 4 | `frontend/src/views/app-preview/ysm-3d.ts` | 注入 `listAllFilePaths` + `readTextFile` 端口 | ✅ |
 | 5 | `frontend/src/utils/3d/semantic-bones.ts` | 新增 `YSM_SEMANTIC_CANDIDATES` + `ysmSemanticBoneMap` | ✅ L2 (4d92eac9) |
 | 6 | ADR-100 本文档 | 决策记录 | ✅ |
@@ -143,5 +150,8 @@ YSM L1 只有 1 个 clip，`clips.length === 1`，下拉框不渲染（与 MMD �
 - `fillMmdPlayPanel`：`frontend/src/views/app-preview/mmd-controls.ts:94-124`
 - VRM VRMA 模式参照：`frontend/src/utils/3d/adapters/vrm-adapter.ts:197-232`（动画扫描 + mixer 驱动）
 - SpecBone3D 旋转格式：`frontend/src/utils/3d/model3d.ts:11-17`，`localRotation: number[]`（弧度，XYZ 欧拉）
+- boneGroupMap 结构：`frontend/src/utils/3d/mesh.ts:68-83`，值为 `THREE.Group`（非 Bone），层级为 modelGroup → parentGroup → childGroup
+- 播放器接口变更（L2）：`createYsmAnimPlayer(boneByName: Map<string, Object3D>, ...)` 第 2 参数从单 clip 改为 clips 数组
+- P1 bug 修复：`frontend/src/utils/3d/adapters/ysm-adapter.ts:207-214`（6312b358）
 
 <!-- 文件名: ysm-bone-animation.md → 实际文件 ADR-100-ysm-bone-animation.md -->
