@@ -36,7 +36,7 @@
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 100 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 21 | 99 |
+| 前端·特性 | 20 | 98 |
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
@@ -44,7 +44,7 @@
 | frontend/views | 105 | 294 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **410** | **1702** |
+| **合计** | **409** | **1701** |
 
 ## Go·头像
 
@@ -963,7 +963,6 @@
 | `initRecycleBin()` | `frontend/src/features/recycle-bin:49` | 初始化回收站管理，返回清理函数 |
 | `currentRepoType()` | `frontend/src/features/repo-rtype:18` | 读取当前仓库资源类型（时刻值）。 |
 | `useCurrentResourceType()` | `frontend/src/features/repo-rtype:28` | 订阅当前仓库资源类型。 |
-| `initResourcePacks()` | `frontend/src/features/resource-packs:14` | 初始化资源包 tab |
 | `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
 | `checkUpdateSilent()` | `frontend/src/features/version-updater:168` | 启动时静默检查更新（受 6h 频次限制） 有新版本则在右下角显示可点击的 toast 通知 |
 | `initVersionUpdater()` | `frontend/src/features/version-updater:207` | 手动检查更新（设置页按钮） |

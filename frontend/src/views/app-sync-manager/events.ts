@@ -10,7 +10,6 @@ export type EventSelf = SyncManagerSelf;
 
 interface EventCallbacks {
   doRender: () => void;
-  doSyncRM: () => void;
   doPerformOp: (op: "push" | "pull", path: string) => Promise<void>;
 }
 

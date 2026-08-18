@@ -180,8 +180,6 @@ export class AppSyncManager extends WebComponentBase {
     });
     this._unsubs.push(unsubSubdir);
 
-    this._syncRM();
-    this._bindRmToggle();
   }
 
   /** 渲染 + 事件绑定的统一入口（供 _init 和 stats:refresh 复用） */
@@ -193,39 +191,12 @@ export class AppSyncManager extends WebComponentBase {
     render(self);
     bindEvents(self, {
       doRender: () => this._doRender(),
-      doSyncRM: () => this._syncRM(),
       doPerformOp: (op, path) => performSingleOp(self, op, path, {
         doLoadData,
         doRender: () => this._doRender(),
         doEmitStats,
       }),
     });
-  }
-
-  /** 将 instance + 当前资源类型透传给 <app-resource-manager> */
-  private _syncRM(): void {
-    const el = this.querySelector<HTMLElement>(".sm-rm-el");
-    if (!el) return;
-    if (el.getAttribute("instance") !== this._instance) {
-      el.setAttribute("instance", this._instance);
-    }
-    if (el.getAttribute("rtype") !== this._selectedType) {
-      el.setAttribute("rtype", this._selectedType);
-    }
-  }
-
-  /** 资源管理器折叠区展开/收起 */
-  private _bindRmToggle(): void {
-    const toggleEl = this.querySelector<HTMLElement>(".sm-rm-toggle");
-    const bodyEl = this.querySelector<HTMLElement>(".sm-rm-body");
-    if (toggleEl && bodyEl) {
-      toggleEl.addEventListener("click", () => {
-        const expanded = bodyEl.style.display !== "none";
-        bodyEl.style.display = expanded ? "none" : "";
-        toggleEl.textContent = (expanded ? "📁 " : "▸ 📁 ") + t("syncManager.rmTitle");
-        this._syncRM();
-      });
-    }
   }
 }
 

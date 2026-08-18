@@ -47,12 +47,6 @@ export function containerHTML(): string {
     '<div class="sm-summary" style="display:flex;align-items:center;gap:8px;padding:2px 8px;flex-shrink:0;border-bottom:1px solid var(--bd);font-size:var(--fs-xs)"></div>' +
     // 列表容器
     '<div class="sm-list" style="flex:1;overflow-y:auto;padding:2px 0"></div>' +
-    // 资源管理器折叠区（仅资源类型选中时展开，含打开文件夹按钮）
-    '<div class="sm-rm-toggle" style="flex-shrink:0;border-top:1px solid var(--bd);cursor:pointer;font-size:var(--fs-xs);color:var(--muted);padding:2px 8px;user-select:none">' +
-    "📁 " + t("syncManager.rmTitle") + "</div>" +
-    '<div class="sm-rm-body" style="display:none;border-top:1px solid var(--bd);flex-shrink:0;overflow:hidden">' +
-    '<app-resource-manager class="sm-rm-el" style="flex:1;min-height:0"></app-resource-manager>' +
-    "</div>" +
     "</div>"
   );
 }
