@@ -19,6 +19,7 @@ import "./litematic-3d.ts"; // P2-2：投影/蓝图已注册 opener，一并触�
 /** 已知无 3D 预览能力的资源类型（走 YSM 兜底回退或 toast 提示） */
 const NO_3D_TYPES = new Set<string>([
   "shaderpack",
+  "maid-model", // ADR-095 车万女仆：preview: "none"，无 3D opener（隔壁新增类型，豁免表同步）
 ]);
 
 describe("preview-library _openers 覆盖率", () => {

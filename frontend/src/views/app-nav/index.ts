@@ -371,7 +371,7 @@ class AppNav extends WebComponentBase {
     const path = getLastModelPath();
     if (!path) {
       // 无选中模型 → 空场景 3D（renderer/scene/camera 已就位，用户可通过资源库选模型）
-      const { openEmpty3DFullscreen } = await import("../../views/app-preview/preview-library.ts");
+      const { openEmpty3DFullscreen } = await import("../../views/app-preview/empty-3d.ts");
       void openEmpty3DFullscreen();
       return;
     }

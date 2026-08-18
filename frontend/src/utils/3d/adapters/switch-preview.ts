@@ -155,7 +155,18 @@ export async function switchToSession(
   ctx.setBuilt(next);
   // P3-1：非同台模式旧 built 已在上方 dispose，allBuilt 只保留当前活跃项——
   // 否则每次切换累积已释放的 PreviewScene 引用，长时间频繁切换内存泄漏。
-  if (!keep) ctx.allBuilt.length = 0;
+  // 大审核 #1 修正：清空前必须先 dispose allBuilt 中的其余条目（keep=true 追加的
+  // 多模型 m1/m2 在步骤 2 被移出 scene 但从未 dispose）——否则其 GPU 资源孤儿泄漏，
+  // 且 sceneRegistry 残留计数虚高（误触 MAX_MODELS 拦截）。
+  if (!keep) {
+    const active = ctx.getBuilt();
+    for (const b of ctx.allBuilt) {
+      if (b !== active) {
+        try { b.dispose(); } catch (_) { /* 防御性：个别适配器 dispose 抛错不阻塞 */ }
+      }
+    }
+    ctx.allBuilt.length = 0;
+  }
   ctx.allBuilt.push(next);
   ctx.setCurrentPath(newPath);
 

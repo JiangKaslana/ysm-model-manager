@@ -108,5 +108,7 @@ export function withPreviewExtras<T extends Mount3DOptions>(opts: T): T & Previe
   });
 }
 
-/** 打开空场景 3D 全屏预览（无需 path）——供无选中模型时 FAB 降级入口 */
-export { openEmpty3DFullscreen } from "./empty-3d.ts";
+/** 打开空场景 3D 全屏预览（无需 path）——供无选中模型时 FAB 降级入口。
+ *  注意：不在此 re-export（empty-3d import 本模块的 withPreviewExtras，re-export 会构成
+ *  循环依赖，违反本模块叶子不变量——调用方（app-nav）直接 import ./empty-3d.ts）。 */
+

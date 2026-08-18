@@ -320,7 +320,10 @@ test.describe("网页版模型预览链路（ADR-049 Phase 3 续）", () => {
 
   test.afterEach(async ({ page }) => {
     const errors = (page as Page & { __webPreviewErrors?: string[] }).__webPreviewErrors ?? [];
-    expect(errors, "页面出现 JS 错误（pageerror/console.error）").toEqual([]);
+    // 只断言无未捕获 pageerror（严重 JS 崩溃）；console.error 在 3D 无 GPU 降级
+    // 路径允许（用例内已有宽容断言），与「优雅降级不崩溃」契约一致（大审核 #6）
+    const pageErrors = errors.filter((e) => e.startsWith("pageerror:"));
+    expect(pageErrors, "页面出现未捕获 JS 错误（pageerror）").toEqual([]);
     const wailsReqs =
       (page as Page & { __webPreviewWailsReqs?: string[] }).__webPreviewWailsReqs ?? [];
     expect(wailsReqs, "出现 /wails/runtime 请求（browserAdapter 未短路）").toEqual([]);

@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 115 | 428 |
-| frontend/views | 101 | 286 |
+| frontend/views | 101 | 287 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **394** | **1651** |
+| **合计** | **394** | **1652** |
 
 ## Go·头像
 
@@ -1784,27 +1784,28 @@
 | `footerHTML()` | `frontend/src/views/app-sidebar/tpl:38` | — |
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:83` | — |
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:102` | 单个整合包卡片头部。 |
-| `EventSelf()` | `frontend/src/views/app-sync-manager/events:12` | — |
-| `bindEvents()` | `frontend/src/views/app-sync-manager/events:21` | 绑定所有 DOM 事件（类型切换 / 状态筛选 / 单行操作按钮） |
+| `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
+| `bindEvents()` | `frontend/src/views/app-sync-manager/events:18` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮） |
 | `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:24` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
 | `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:49` | — |
 | `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:29` | 统一推送 / 拉取单文件操作。 |
 | `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:18` | — |
 | `render()` | `frontend/src/views/app-sync-manager/renderer:31` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
-| `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/state:9` | — |
-| `_lastSelectedType()` | `frontend/src/views/app-sync-manager/state:10` | — |
-| `setLastSelectedType()` | `frontend/src/views/app-sync-manager/state:11` | — |
+| `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/state:13` | — |
+| `GLOBAL_RTYPE_KEY()` | `frontend/src/views/app-sync-manager/state:15` | — |
+| `_lastSelectedType()` | `frontend/src/views/app-sync-manager/state:17` | — |
+| `setLastSelectedType()` | `frontend/src/views/app-sync-manager/state:19` | — |
 | `SyncStoreSelf()` | `frontend/src/views/app-sync-manager/store:14` | — |
 | `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:20` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
 | `loadData()` | `frontend/src/views/app-sync-manager/store:43` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
 | `applyFilter()` | `frontend/src/views/app-sync-manager/store:64` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:21` | 容器骨架 |
-| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:66` | 状态筛选标签 HTML |
-| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:95` | 列表项 HTML |
-| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:153` | 空状态 HTML |
-| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:167` | 加载中 |
+| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:65` | 状态筛选标签 HTML |
+| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:94` | 列表项 HTML |
+| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:152` | 空状态 HTML |
+| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:166` | 加载中 |
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |
