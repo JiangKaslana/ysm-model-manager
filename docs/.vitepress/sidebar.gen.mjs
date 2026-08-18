@@ -701,6 +701,10 @@ export const autoSidebar = [
         "link": "/audit-r2-go-backend-2026-08-18"
       },
       {
+        "text": "R3 审核报告：Wails Binding 层（internal/app）",
+        "link": "/audit-r3-wails-binding-2026-08-18"
+      },
+      {
         "text": "下载层加固调研报告",
         "link": "/download-hardening-research-2026-08-17"
       },
