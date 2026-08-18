@@ -2,9 +2,6 @@ package main
 
 import (
 	"embed"
-	"encoding/json"
-	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -18,14 +15,8 @@ var assets embed.FS
 
 func main() {
 	// ---- CLI Mode: 独立运行，脱离 Wails GUI，用于测试或自动化 ----
-	cliMode := flag.Bool("cli", false, "运行 CLI 模式 (无 GUI)")
-	filesRoot := flag.String("files-root", "", "模型仓库根目录路径")
-	keyword := flag.String("keyword", "", "搜索关键词")
-	flag.Parse()
-
-	if *cliMode {
-		if err := runCLI(*filesRoot, *keyword); err != nil {
-			fmt.Fprintf(os.Stderr, "CLI Error: %v\n", err)
+	if len(os.Args) > 1 && os.Args[1] == "--cli" {
+		if err := runCLI(os.Args[2:]); err != nil {
 			os.Exit(1)
 		}
 		return
@@ -74,35 +65,4 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-// runCLI 执行 CLI 模式下的核心逻辑
-func runCLI(filesRoot, keyword string) error {
-	if filesRoot == "" {
-		return fmt.Errorf("--files-root 参数不能为空")
-	}
-
-	a := app.NewApp()
-
-	// 为 CLI 模式设置配置
-	if err := a.SaveAppConfig(filesRoot, "", "", "", ""); err != nil {
-		return fmt.Errorf("初始化配置失败: %w", err)
-	}
-
-	fmt.Printf("🚀 CLI Mode: 开始搜索...\n")
-	fmt.Printf("   根目录: %s\n", filesRoot)
-	fmt.Printf("   关键词: %s\n", keyword)
-
-	results := a.SearchModels(filesRoot, keyword, 0, 0, 0, 0, 0, 0)
-	if len(results) == 0 {
-		fmt.Println("📭 未找到匹配的模型")
-		return nil
-	}
-
-	// 输出 JSON 格式结果，方便脚本解析
-	data, _ := json.MarshalIndent(results, "", "  ")
-	fmt.Printf("✅ 找到 %d 个模型:\n", len(results))
-	fmt.Println(string(data))
-
-	return nil
 }
