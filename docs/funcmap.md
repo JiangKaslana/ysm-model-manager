@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 125 | 465 |
-| frontend/views | 105 | 291 |
+| frontend/views | 105 | 292 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **409** | **1698** |
+| **合计** | **409** | **1699** |
 
 ## Go·头像
 
@@ -1698,9 +1698,10 @@
 | `toggleFav()` | `frontend/src/views/app-content/workshop-data:79` | — |
 | `openSite()` | `frontend/src/views/app-content/workshop-site-opener:18` | 打开站点（外链/内嵌/窗口） |
 | `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:69` | 绑定站点打开相关事件 |
-| `WorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:20` | 创意工坊页的共享 ref 集合——单一事实来源。 |
-| `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:30` | 初始化创意工坊 Tab |
-| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:116` | — |
+| `WorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:19` | 创意工坊页的共享 ref 集合——单一事实来源。 |
+| `createWorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:27` | 创建创意工坊页的共享 ref 对象（单一入口，所有消费者共享同一实例） |
+| `initWorkshopTabs()` | `frontend/src/views/app-content/workshop-tabs:39` | 初始化创意工坊 Tab |
+| `setShowSiteView()` | `frontend/src/views/app-content/workshop-tabs:125` | — |
 | `navCSS()` | `frontend/src/views/app-nav/tpl:2` | — |
 | `BoneEntry()` | `frontend/src/views/app-preview/bone-names:5` | 骨骼条目（结构类型，兼容 DecodedYsm.bones 元素） |
 | `buildBoneNamesText()` | `frontend/src/views/app-preview/bone-names:15` | 构建骨骼名导出文本行： 首行 `模型: &lt;path&gt;`、次行 `骨骼总数: &lt;n&gt;`，其后每根骨骼 有方块则 `名称 (n 方)`，结构骨骼（无方块）则 `名称 (结构骨骼,无方) |

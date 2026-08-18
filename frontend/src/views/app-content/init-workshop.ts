@@ -16,13 +16,20 @@ import { fillSearch } from "./community-data.ts";
 import { renderSiteView, type RenderSiteViewCtx, type RepoAuthorLike } from "./site-view.ts";
 import { showRepoModels } from "../../features/community/show-repo-models.ts";
 import { loadBrowseMode, saveBrowseMode, cycleBrowseMode } from "./workshop-browse-mode.ts";
-import { initWorkshopTabs, setShowSiteView } from "./workshop-tabs.ts";
+import { initWorkshopTabs, setShowSiteView, createWorkshopRefs } from "./workshop-tabs.ts";
 import { openSite, bindSiteEvents } from "./workshop-site-opener.ts";
 import { loadCommunityData, type LocalCreator } from "./community-data.ts";
 import { extractAvatars } from "./workshop-avatar.ts";
 import { t } from "../../core/i18n/t.ts";
 import type { WorkshopModel } from "../../features/community/render.ts";
 import type { WorkshopSite } from "../../../bindings/ysm-model-manager/go/types/models.ts";
+
+/**
+ * 创建创意工坊页的共享 ref 对象——单一入口，tabs / showSiteView / edit 等全部从此处取。
+ * 修复「initWorkshopTabs 写 .v 的对象 ≠ showSiteView 读 .v 的对象」这类实例错位 bug：
+ * 以前是 4 个独立的 `{ v: ... }`，调用方必须在 initWorkshopTabs(...) 处手动对齐；
+ * 现在统一封装成一个 WorkshopRefs 对象，工厂只生成一份，所有消费者拿同一个实例。
+ */
 
 /**
  * 初始化创意工坊页（编排入口）
@@ -33,15 +40,9 @@ export function initWorkshopPage(host: AppContentHost): void {
   const creatorView = root.getElementById("ws-creator-view") as HTMLElement | null;
 
   host._setCurrentSite(null);
-  let allSites: WorkshopSite[] = [];
-  let allCreators: LocalCreator[] = [];
-  let repoAuthors: RepoAuthorLike[] = [];
-  // 数据 ref：workshop-tabs 异步 loadCommunityData 后经 `ref.v = data.x` 重赋值；showSiteView
-  // 必须读同一 ref，否则闭包里的原始数组永远为空 → 创作者卡片不渲染（e2e 反推，对齐 tabs 同源）
-  const allSitesRef = { v: allSites };
-  const allCreatorsRef = { v: allCreators };
-  const repoAuthorsRef = { v: repoAuthors };
-  const wsEditModeRef = { v: false };
+  // 单一入口：所有可变 ref 由 createWorkshopRefs() 生成一份；tabs 写入、showSiteView 读取，
+  // 永远是同一实例——杜绝「形状相同、实例不同」的错位 bug。
+  const refs = createWorkshopRefs();
   if (!host._workshopCache) host._setWorkshopCache(new Map());
   const repoModelCache = host._workshopCache;
 
@@ -71,10 +72,10 @@ export function initWorkshopPage(host: AppContentHost): void {
       esc: (s) => esc(String(s || "")),
       searchResults: searchResults as HTMLElement,
       creatorView: creatorView as HTMLElement,
-      allSites: allSitesRef.v,
-      allCreators: allCreatorsRef.v,
-      repoAuthors: repoAuthorsRef.v,
-      wsEditModeRef,
+      allSites: refs.allSitesRef.v,
+      allCreators: refs.allCreatorsRef.v,
+      repoAuthors: refs.repoAuthorsRef.v,
+      wsEditModeRef: refs.wsEditModeRef,
       showRepoModels: async (repo, models, source) => {
         await showRepoModels(
           (s) => esc(String(s || "")),
@@ -106,7 +107,7 @@ export function initWorkshopPage(host: AppContentHost): void {
   setShowSiteView(showSiteView);
 
   // 初始化 Tab
-  initWorkshopTabs(host, allSitesRef, allCreatorsRef, repoAuthorsRef, wsEditModeRef);
+  initWorkshopTabs(host, refs);
 
   // 绑定站点打开事件
   bindSiteEvents(host, browseMode);

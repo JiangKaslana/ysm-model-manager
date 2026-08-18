@@ -12,15 +12,31 @@ import type { AppContentHost } from "./init-workshop.ts";
 const WS_TAB_LOAD_DELAY_MS = 100;
 
 /**
+ * 创意工坊页的共享 ref 集合——单一事实来源。
+ * 所有可变状态（sites/creators/repoAuthors/editMode）由 `createWorkshopRefs()` 生成一份，
+ * tabs 写入 `.v`，showSiteView 读取 `.v`——杜绝「形状相同、实例不同」的 stale-closure 错位 bug。
+ */
+export interface WorkshopRefs {
+  allSitesRef: { v: WorkshopSite[] };
+  allCreatorsRef: { v: LocalCreator[] };
+  repoAuthorsRef: { v: RepoAuthorLike[] };
+  wsEditModeRef: { v: boolean };
+}
+
+/** 创建创意工坊页的共享 ref 对象（单一入口，所有消费者共享同一实例） */
+export function createWorkshopRefs(): WorkshopRefs {
+  return {
+    allSitesRef: { v: [] as WorkshopSite[] },
+    allCreatorsRef: { v: [] as LocalCreator[] },
+    repoAuthorsRef: { v: [] as RepoAuthorLike[] },
+    wsEditModeRef: { v: false },
+  };
+}
+
+/**
  * 初始化创意工坊 Tab
  */
-export function initWorkshopTabs(
-  host: AppContentHost,
-  allSitesRef: { v: WorkshopSite[] },
-  allCreatorsRef: { v: LocalCreator[] },
-  repoAuthorsRef: { v: RepoAuthorLike[] },
-  wsEditModeRef: { v: boolean },
-): void {
+export function initWorkshopTabs(host: AppContentHost, refs: WorkshopRefs): void {
   const root = host._root;
   const searchResults = root.getElementById("ws-search-results") as HTMLElement | null;
   const creatorView = root.getElementById("ws-creator-view") as HTMLElement | null;
@@ -30,9 +46,9 @@ export function initWorkshopTabs(
   const showCreatorsBySite = async (siteType: string, data?: CommunityData): Promise<void> => {
     try {
       const { sites, creators, authors } = data ?? (await loadCommunityData());
-      allSitesRef.v = sites;
-      allCreatorsRef.v = creators;
-      repoAuthorsRef.v = (authors || []) as RepoAuthorLike[];
+      refs.allSitesRef.v = sites;
+      refs.allCreatorsRef.v = creators;
+      refs.repoAuthorsRef.v = (authors || []) as RepoAuthorLike[];
       const site = sites.find((s) => s.id === siteType);
       if (!site) return;
       host._setCurrentSite(site);
@@ -58,7 +74,7 @@ export function initWorkshopTabs(
   host._setWorkshopTimer(setTimeout(async () => {
     try {
       const data = await loadCommunityData();
-      allSitesRef.v = data.sites;
+      refs.allSitesRef.v = data.sites;
       // 动态生成 Tab
       const tabsEl = root.getElementById("ws-tabs");
       if (tabsEl && data.sites.length) {
