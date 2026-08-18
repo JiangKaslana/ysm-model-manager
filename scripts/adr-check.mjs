@@ -7,6 +7,7 @@
  *   - 登记表覆盖全部文件（无漏登）
  *   - 文件都在登记表（无幽灵文件）
  *   - 编号连续（无跳号，空缺需注明）
+ *   - 状态行合规（STATUS_MISSING=真没有；STATUS_FORMAT=有但格式不对，报行号与正确写法）
  * 呼应 ADR-013 Phase 0.2「写文件前先在登记表占号」。
  *
  * 零依赖（仅 node:fs / node:path / node:url）。
@@ -36,6 +37,26 @@ let files = [];
 let regNums = new Set();
 let gaps = [];
 
+// 文本位置 → 行号（1-based，报错定位用）
+function lineNo(text, index) {
+  return text.slice(0, index).split(/\r?\n/).length;
+}
+
+// 找「**状态…：」但写法不合规的行（如「**状态：** ✅ 已采纳」），供精准报错。
+// 逐行检测而非整文正则：避免 m 模式下 ^ 与字符类把前一行换行符当行首（回溯歧义）。
+// 跳过：表格行（|）、标题（#）、引用（>）、空行、规范列表项（- **状态**：）。
+function findStatusLike(text) {
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!/\*\*状态\s*[：:]/.test(line)) continue; // 无「**状态：」键
+    const head = line.trimStart()[0];
+    if (!head || head === '|' || head === '#' || head === '>') continue; // 空行/表格/标题/引用
+    return { line: line.trim(), no: i + 1 };
+  }
+  return null;
+}
+
 // 1. 扫描目录文件
 if (!fs.existsSync(ADR_DIR)) {
   errors.push('MISSING: docs/adr/ 目录不存在');
@@ -60,6 +81,8 @@ for (const f of files) {
   const text = fs.readFileSync(path.join(ADR_DIR, f), 'utf-8');
   const titleM = text.match(/^# ADR-(\d{3})[：:]\s*(.+)$/m);
   const statusM = text.match(/^-\s*\*\*状态\*\*[：:]\s*(.+)$/m);
+  // 近似写法（如「**状态：** ✅ 已采纳」）供精准报错：有状态信息但格式不合规 → STATUS_FORMAT，而非误报"缺少"
+  const statusLike = findStatusLike(text);
   if (!titleM) {
     errors.push(`TITLE_MISSING: ${f} 缺少 '# ADR-NNN：' 标题`);
     continue;
@@ -70,10 +93,12 @@ for (const f of files) {
     continue; // 撞号时保留首个文件元数据供后续对账，避免被覆盖（code_review P3-1）
   }
   const statusRaw = statusM ? statusM[1].trim() : '';
-  if (!statusRaw) {
+  if (statusLike) {
+    errors.push(`STATUS_FORMAT: ${f} 第 ${statusLike.no} 行「${statusLike.line}」写法不合规——状态行必须是「- **状态**：」前缀的列表项，如「- **状态**：✅ 已采纳」`);
+  } else if (!statusRaw) {
     errors.push(`STATUS_MISSING: ${f} 缺少 '- **状态**：' 行`);
   } else if (!VALID_STATUS.some((s) => statusRaw.startsWith(s))) {
-    errors.push(`BAD_STATUS: ${f} 状态「${statusRaw}」不在合法枚举 ${VALID_STATUS.join(' / ')}（code_review P2-1）`);
+    errors.push(`BAD_STATUS: ${f} 第 ${lineNo(text, statusM.index)} 行状态「${statusRaw}」不在合法枚举 ${VALID_STATUS.join(' / ')}（code_review P2-1）`);
   }
   fileMeta[num] = {
     file: f,
