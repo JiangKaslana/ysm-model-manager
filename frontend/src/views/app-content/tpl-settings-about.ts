@@ -16,9 +16,20 @@ export function aboutHTML(): string {
       <span>ℹ️ ${t("about.version")}</span>
       <span id="set-version" style="font-size:var(--fs-lg);font-weight:700;color:var(--accent)">${t("common.loading")}</span>
     </div>
-    <div class="stg-card-body" style="display:flex;align-items:center;gap:8px">
-      <button class="btn-base sm stg-btn" id="set-check-update">🔄 ${t("about.checkUpdate")}</button>
-      <button class="btn-base sm" id="set-releases" title="打开 GitHub Releases">📋 ${t("about.releasePage")}</button>
+    <div class="stg-card-body" style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn-base sm stg-btn" id="set-check-update">🔄 ${t("about.checkUpdate")}</button>
+        <button class="btn-base sm" id="set-releases" title="打开 GitHub Releases">📋 ${t("about.releasePage")}</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+        <span>🕐 ${t("settings.updateCheck.title")}:</span>
+        <select id="set-update-check" class="stg-select" style="width:auto;font-size:11px;padding:2px 4px">
+          <option value="21600000">${t("settings.updateCheck.option6h")}</option>
+          <option value="43200000">${t("settings.updateCheck.option12h")}</option>
+          <option value="86400000">${t("settings.updateCheck.option24h")}</option>
+          <option value="0">🛑 ${t("settings.updateCheck.off")}</option>
+        </select>
+      </div>
     </div>
   </div>
 </div>

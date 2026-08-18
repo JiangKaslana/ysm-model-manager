@@ -1693,7 +1693,7 @@
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:6` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |
-| `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:84` | Credits 标签页（灵感来源/特别感谢） |
+| `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:95` | Credits 标签页（灵感来源/特别感谢） |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:7` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
