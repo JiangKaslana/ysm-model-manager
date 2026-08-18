@@ -5,11 +5,19 @@ package types
 // embeddedRegistryJSON contains the compiled resource_types.json data.
 // Used as fallback when the external file is not found at runtime.
 var embeddedRegistryJSON = []byte(`{
+  "resourceGroups": [
+    { "id": "minecraft", "name": "Minecraft 原版", "icon": "⛏️", "order": 0 },
+    { "id": "minecraft-mod", "name": "Minecraft 模组", "icon": "🧩", "order": 1 },
+    { "id": "mmd", "name": "MMD", "icon": "🎭", "order": 2 },
+    { "id": "vrm", "name": "VRM", "icon": "🥽", "order": 3 },
+    { "id": "other", "name": "其他", "icon": "📦", "order": 9 }
+  ],
   "resourceTypes": [
     {
       "id": "resourcepack",
       "name": "资源包",
       "icon": "🎨",
+      "group": "minecraft",
       "extensions": [".zip", ".7z"],
       "storageSubDir": "resourcepacks",
       "configField": "ResourcepackRoot",
@@ -28,6 +36,7 @@ var embeddedRegistryJSON = []byte(`{
       "id": "shaderpack",
       "name": "光影包",
       "icon": "☀️",
+      "group": "minecraft",
       "extensions": [".zip", ".7z"],
       "storageSubDir": "shaderpacks",
       "configField": "ShaderpackRoot",
@@ -47,6 +56,7 @@ var embeddedRegistryJSON = []byte(`{
       "id": "ysm",
       "name": "YSM 模型",
       "icon": "💎",
+      "group": "minecraft-mod",
       "extensions": [".ysm", ".zip", ".7z", ".json"],
       "storageSubDir": "ysm",
       "configField": "YsmRoot",
@@ -68,6 +78,7 @@ var embeddedRegistryJSON = []byte(`{
       "id": "create-blueprint",
       "name": "蓝图 / 结构",
       "icon": "⚙️",
+      "group": "minecraft-mod",
       "extensions": [".nbt", ".schematic", ".zip"],
       "storageSubDir": "create-blueprint",
       "configField": "SchematicRoot",
@@ -89,6 +100,7 @@ var embeddedRegistryJSON = []byte(`{
       "id": "litematic",
       "name": "投影",
       "icon": "📐",
+      "group": "minecraft-mod",
       "extensions": [".litematic", ".zip"],
       "storageSubDir": "litematics",
       "configField": "LitematicRoot",
@@ -108,6 +120,7 @@ var embeddedRegistryJSON = []byte(`{
       "id": "mmd-skin",
       "name": "MMD 角色模型",
       "icon": "🎭",
+      "group": "mmd",
       "extensions": [".pmx", ".pmd", ".zip"],
       "storageSubDir": "mmd",
       "configField": "MmdRoot",
@@ -129,6 +142,7 @@ var embeddedRegistryJSON = []byte(`{
       "id": "vrchat-avatar",
       "name": "VRChat 模型",
       "icon": "🥽",
+      "group": "vrm",
       "extensions": [".vrca", ".vrm", ".zip"],
       "storageSubDir": "vrchat",
       "configField": "VrcRoot",

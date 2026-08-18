@@ -181,8 +181,8 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 	if root := specificRoot(cfg, rtype); root != "" {
 		return root, nil
 	}
-	subDir := types.StorageSubDir(rtype)
-	// 2. FilesRoot + 存储子目录
+	subDir := types.GroupStorageRoot(rtype) // ADR-092 两层路由：FilesRoot/{group}/{storageSubDir}
+	// 2. FilesRoot + 分组存储子目录
 	if cfg.FilesRoot != "" {
 		if subDir != "" {
 			return filepath.Join(cfg.FilesRoot, subDir), nil

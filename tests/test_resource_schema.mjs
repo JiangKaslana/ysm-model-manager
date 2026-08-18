@@ -21,6 +21,8 @@ const VALID_CONFIG_FIELDS = new Set([
   'YsmRoot', 'ResourcepackRoot', 'ShaderpackRoot', 'SchematicRoot', 'LitematicRoot', 'MmdRoot', 'VrcRoot',
 ]);
 const REQUIRED_FIELDS = ['id', 'name', 'icon', 'extensions', 'installDir', 'instanceLevel', 'preview', 'detector', 'actions', 'storageSubDir', 'scanDir'];
+// ADR-092：合法分组 id 白名单（resourceGroups 顶层数组派生）
+const VALID_GROUPS = new Set(['minecraft', 'minecraft-mod', 'mmd', 'vrm', 'other']);
 
 function validate() {
   const errors = [];
@@ -41,6 +43,26 @@ function validate() {
   if (!('resourceTypes' in data)) {
     errors.push("SCHEMA: missing top-level 'resourceTypes' key");
     return errors;
+  }
+
+  // ADR-092：resourceGroups 顶层数组（可选；若存在须为含 id 的非空数组，id 合法且唯一）
+  if ('resourceGroups' in data) {
+    const groups = data.resourceGroups;
+    if (!Array.isArray(groups) || groups.length === 0) {
+      errors.push("SCHEMA: 'resourceGroups' must be a non-empty array when present");
+    } else {
+      const groupIds = new Set();
+      for (let gi = 0; gi < groups.length; gi++) {
+        const g = groups[gi];
+        const gid = g?.id ?? '';
+        if (!gid) {
+          errors.push(`SCHEMA: resourceGroups[${gi}].id must be non-empty`);
+        } else if (groupIds.has(gid)) {
+          errors.push(`SCHEMA: duplicate resourceGroup id '${gid}'`);
+        }
+        groupIds.add(gid);
+      }
+    }
   }
 
   const types = data.resourceTypes;
@@ -164,6 +186,12 @@ function validate() {
     }
     if (cf && !VALID_CONFIG_FIELDS.has(cf)) {
       errors.push(`${prefix}: 'configField' must be one of ${[...VALID_CONFIG_FIELDS]} (got '${cf}')`);
+    }
+
+    // ADR-092：group 可选；若存在必须在合法分组白名单内，且引用的 resourceGroups 已声明
+    const grp = rt?.group ?? '';
+    if (grp && !VALID_GROUPS.has(grp)) {
+      errors.push(`${prefix}: 'group' must be one of ${[...VALID_GROUPS]} (got '${grp}')`);
     }
   }
 

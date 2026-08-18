@@ -133,6 +133,65 @@ func TestStorageSubDir(t *testing.T) {
 	}
 }
 
+func TestGroupOf(t *testing.T) {
+	cases := []struct{ rtype, want string }{
+		{"resourcepack", "minecraft"},
+		{"shaderpack", "minecraft"},
+		{"ysm", "minecraft-mod"},
+		{"create-blueprint", "minecraft-mod"},
+		{"litematic", "minecraft-mod"},
+		{"mmd-skin", "mmd"},
+		{"vrchat-avatar", "vrm"},
+	}
+	for _, c := range cases {
+		if got := GroupOf(c.rtype); got != c.want {
+			t.Errorf("GroupOf(%q) = %q, 期望 %q", c.rtype, got, c.want)
+		}
+	}
+	// 未知类型无 group
+	if got := GroupOf("unknown"); got != "" {
+		t.Errorf("GroupOf('unknown') = %q, 期望 ''", got)
+	}
+}
+
+func TestGroupStorageRoot(t *testing.T) {
+	// 有 group → 两层路由 {group}/{storageSubDir}
+	cases := []struct{ rtype, want string }{
+		{"resourcepack", "minecraft/resourcepacks"},
+		{"shaderpack", "minecraft/shaderpacks"},
+		{"ysm", "minecraft-mod/ysm"},
+		{"create-blueprint", "minecraft-mod/create-blueprint"},
+		{"litematic", "minecraft-mod/litematics"},
+		{"mmd-skin", "mmd/mmd"},
+		{"vrchat-avatar", "vrm/vrchat"},
+	}
+	for _, c := range cases {
+		if got := GroupStorageRoot(c.rtype); got != c.want {
+			t.Errorf("GroupStorageRoot(%q) = %q, 期望 %q", c.rtype, got, c.want)
+		}
+	}
+	// 未知类型回退自身
+	if got := GroupStorageRoot("unknown"); got != "unknown" {
+		t.Errorf("GroupStorageRoot('unknown') = %q, 期望 'unknown'", got)
+	}
+}
+
+func TestGroupLabel(t *testing.T) {
+	if got := GroupLabel("minecraft"); got != "Minecraft 原版" {
+		t.Errorf("GroupLabel('minecraft') = %q, 期望 'Minecraft 原版'", got)
+	}
+	if got := GroupLabel("mmd"); got != "MMD" {
+		t.Errorf("GroupLabel('mmd') = %q, 期望 'MMD'", got)
+	}
+	// 未知/空分组返回空串
+	if got := GroupLabel("nope"); got != "" {
+		t.Errorf("GroupLabel('nope') = %q, 期望 ''", got)
+	}
+	if got := GroupLabel(""); got != "" {
+		t.Errorf("GroupLabel('') = %q, 期望 ''", got)
+	}
+}
+
 func TestSubDirMap(t *testing.T) {
 	// 已知类型
 	if got := SubDirMap("resourcepack"); got != "resourcepacks" {

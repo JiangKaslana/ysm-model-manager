@@ -9,6 +9,7 @@ import { safeGet } from "../../../utils/dom/storage.ts";
 import { pickDirectory } from "../../../utils/dom/directory-picker.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import type { ResourceTypeEntry } from "../../../utils/resource/registry.ts";
+import { groupStorageRootOf } from "../../../utils/resource/types.ts";
 import { cfg, cardRefreshers, isBusy, setBusy, toastError } from "./store.ts";
 
 /** HTML 转义（高级面板路径/路径选择器/扫描提示共用） */
@@ -222,7 +223,7 @@ export function initAdvancedGrid(
       const canOverride = !!at.cfgKey;
       const overridePath = canOverride ? cfgStr(at.cfgKey) : "";
       const defaultPath = cfg.filesRoot
-        ? cfg.filesRoot + "/" + (reg[at.rtype]?.storageSubDir || at.rtype || "")
+        ? cfg.filesRoot + "/" + (groupStorageRootOf(at.rtype) || at.rtype || "")
         : t("settings.path.notSetStorage");
       const currentPath = overridePath || defaultPath;
       const isOverridden = !!overridePath;

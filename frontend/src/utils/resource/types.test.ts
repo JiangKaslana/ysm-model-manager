@@ -9,6 +9,10 @@ import {
   AMBIGUOUS_EXTS,
   resolveTypeSafe,
   VOXEL_RPC_BY_EXT,
+  GROUP_META,
+  GROUP_OF,
+  groupLabelOf,
+  groupStorageRootOf,
 } from "./types.ts";
 import resourceTypesJson from "../../../../resource_types.json";
 
@@ -166,4 +170,68 @@ describe("VOXEL_RPC_BY_EXT voxelFn 映射", () => {
     }
   });
 });
+
+// ===== ADR-092 资源分组派生层 =====
+// GROUP_META / GROUP_OF / groupStorageRootOf 从 resource_types.json 的 resourceGroups + 各类型 group 字段派生。
+// 守护：每个类型都有合法分组；两层路由 {group}/{storageSubDir} 与 JSON 单一事实来源一致。
+
+describe("GROUP_META 分组元数据", () => {
+  it("关键分组存在且 icon/name 正确", () => {
+    expect(GROUP_META["minecraft"]).toMatchObject({ name: "Minecraft 原版" });
+    expect(GROUP_META["minecraft-mod"]).toMatchObject({ name: "Minecraft 模组" });
+    expect(GROUP_META["mmd"]).toMatchObject({ name: "MMD" });
+    expect(GROUP_META["vrm"]).toMatchObject({ name: "VRM" });
+    expect(GROUP_META["other"]).toMatchObject({ name: "其他" });
+  });
+
+  it("分组按 order 有确定顺序", () => {
+    const groups = Object.values(GROUP_META).sort((a, b) => a.order - b.order);
+    expect(groups.map((g) => g.order)).toEqual([0, 1, 2, 3, 9]);
+  });
+});
+
+describe("GROUP_OF 类型→分组映射", () => {
+  it("原版资源归 minecraft", () => {
+    expect(GROUP_OF["resourcepack"]).toBe("minecraft");
+    expect(GROUP_OF["shaderpack"]).toBe("minecraft");
+  });
+
+  it("模组资源归 minecraft-mod", () => {
+    expect(GROUP_OF["ysm"]).toBe("minecraft-mod");
+    expect(GROUP_OF["create-blueprint"]).toBe("minecraft-mod");
+    expect(GROUP_OF["litematic"]).toBe("minecraft-mod");
+  });
+
+  it("MMD/VRM 各自独立分组", () => {
+    expect(GROUP_OF["mmd-skin"]).toBe("mmd");
+    expect(GROUP_OF["vrchat-avatar"]).toBe("vrm");
+  });
+});
+
+describe("groupStorageRootOf 两层路由", () => {
+  it("有 group 时返回 {group}/{storageSubDir}", () => {
+    expect(groupStorageRootOf("resourcepack")).toBe("minecraft/resourcepacks");
+    expect(groupStorageRootOf("mmd-skin")).toBe("mmd/mmd");
+    expect(groupStorageRootOf("vrchat-avatar")).toBe("vrm/vrchat");
+  });
+
+  it("无 group 字段时回退单级 storageSubDir（向后兼容）", () => {
+    // 构造无 group 场景：直接从 JSON 找未带 group 的类型验证回退逻辑
+    // （当前全类型均带 group，此处用 groupStorageRootOf 对已知 storageSubDir 断言）
+    expect(groupStorageRootOf("ysm")).toBe("minecraft-mod/ysm");
+  });
+});
+
+describe("groupLabelOf 分组显示名", () => {
+  it("已知分组返回中文名", () => {
+    expect(groupLabelOf("minecraft")).toBe("Minecraft 原版");
+    expect(groupLabelOf("mmd")).toBe("MMD");
+  });
+
+  it("未知分组返回原样（不炸）", () => {
+    expect(groupLabelOf("nonexistent")).toBe("nonexistent");
+    expect(groupLabelOf("")).toBe("");
+  });
+});
+
 

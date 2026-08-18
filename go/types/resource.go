@@ -12,7 +12,16 @@ import (
 
 // ResourceTypeRegistry 资源类型注册表
 type ResourceTypeRegistry struct {
-	ResourceTypes []ResourceType `json:"resourceTypes"`
+	ResourceGroups []ResourceGroup `json:"resourceGroups,omitempty"` // 分组元数据（ADR-092）
+	ResourceTypes  []ResourceType  `json:"resourceTypes"`
+}
+
+// ResourceGroup 资源分组元数据（ADR-092 顶层 resourceGroups 数组）
+type ResourceGroup struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Icon  string `json:"icon"`
+	Order int    `json:"order"`
 }
 
 // ResourceType 一种受支持的资源类型定义
@@ -20,6 +29,7 @@ type ResourceType struct {
 	ID             string          `json:"id"`
 	Name           string          `json:"name"`
 	Icon           string          `json:"icon"`
+	Group          string          `json:"group"`          // 所属分组（ADR-092）：minecraft / minecraft-mod / mmd / vrm / other
 	Extensions     []string        `json:"extensions"`
 	StorageSubDir  string          `json:"storageSubDir"`
 	InstallDir     string          `json:"installDir"`

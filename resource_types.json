@@ -1,9 +1,17 @@
 {
+  "resourceGroups": [
+    { "id": "minecraft", "name": "Minecraft 原版", "icon": "⛏️", "order": 0 },
+    { "id": "minecraft-mod", "name": "Minecraft 模组", "icon": "🧩", "order": 1 },
+    { "id": "mmd", "name": "MMD", "icon": "🎭", "order": 2 },
+    { "id": "vrm", "name": "VRM", "icon": "🥽", "order": 3 },
+    { "id": "other", "name": "其他", "icon": "📦", "order": 9 }
+  ],
   "resourceTypes": [
     {
       "id": "resourcepack",
       "name": "资源包",
       "icon": "🎨",
+      "group": "minecraft",
       "extensions": [
         ".zip",
         ".7z"
@@ -30,6 +38,7 @@
       "id": "shaderpack",
       "name": "光影包",
       "icon": "☀️",
+      "group": "minecraft",
       "extensions": [
         ".zip",
         ".7z"
@@ -57,6 +66,7 @@
       "id": "ysm",
       "name": "YSM 模型",
       "icon": "💎",
+      "group": "minecraft-mod",
       "extensions": [
         ".ysm",
         ".zip",
@@ -87,6 +97,7 @@
       "id": "create-blueprint",
       "name": "蓝图 / 结构",
       "icon": "⚙️",
+      "group": "minecraft-mod",
       "extensions": [
         ".nbt",
         ".schematic",
@@ -116,6 +127,7 @@
       "id": "litematic",
       "name": "投影",
       "icon": "📐",
+      "group": "minecraft-mod",
       "extensions": [
         ".litematic",
         ".zip"
@@ -142,6 +154,7 @@
       "id": "mmd-skin",
       "name": "MMD 角色模型",
       "icon": "🎭",
+      "group": "mmd",
       "extensions": [
         ".pmx",
         ".pmd",
@@ -171,6 +184,7 @@
       "id": "vrchat-avatar",
       "name": "VRChat 模型",
       "icon": "🥽",
+      "group": "vrm",
       "extensions": [
         ".vrca",
         ".vrm",

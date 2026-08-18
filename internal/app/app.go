@@ -144,15 +144,18 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 		}
 	}
 
-	// 创建所有存储子目录（注册表驱动，防手写漂移）
+	// 创建所有存储子目录（注册表驱动，防手写漂移；ADR-092 两层路由：有 group 则建 FilesRoot/{group}/{storageSubDir}）
 	if cfg.FilesRoot != "" {
 		reg := types.LoadRegistry()
 		seen := make(map[string]bool, len(reg.ResourceTypes))
 		for _, rt := range reg.ResourceTypes {
-			if rt.StorageSubDir != "" && !seen[rt.StorageSubDir] {
-				seen[rt.StorageSubDir] = true
-				// P0 修复（子代理审计）：目录权限 0644 无执行位，目录不可进入——应为 0755
-				os.MkdirAll(filepath.Join(cfg.FilesRoot, rt.StorageSubDir), 0755)
+			if rt.StorageSubDir != "" {
+				rel := types.GroupStorageRoot(rt.ID)
+				if !seen[rel] {
+					seen[rel] = true
+					// P0 修复（子代理审计）：目录权限 0644 无执行位，目录不可进入——应为 0755
+					os.MkdirAll(filepath.Join(cfg.FilesRoot, rel), 0755)
+				}
 			}
 		}
 	}

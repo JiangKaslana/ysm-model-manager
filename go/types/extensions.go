@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -281,6 +282,49 @@ func StorageSubDir(rtype string) string {
 		return rt.StorageSubDir
 	}
 	return rtype
+}
+
+// GroupOf 返回资源类型所属分组 id（ADR-092）
+// 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。
+func GroupOf(rtype string) string {
+	if rt := RegistryType(rtype); rt != nil && rt.Group != "" {
+		return rt.Group
+	}
+	return ""
+}
+
+// GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：
+//   - 有 group：FilesRoot/{group}/{storageSubDir}
+//   - 无 group（向后兼容）：FilesRoot/{storageSubDir}（单级平铺，不强制迁移旧目录）
+//
+// 返回的是相对于 FilesRoot 的子路径（不含 FilesRoot 本身），调用方自行 Join。
+func GroupStorageRoot(rtype string) string {
+	rt := RegistryType(rtype)
+	if rt == nil {
+		return rtype
+	}
+	sub := rt.StorageSubDir
+	if sub == "" {
+		sub = rtype
+	}
+	if rt.Group != "" {
+		return path.Join(rt.Group, sub)
+	}
+	return sub
+}
+
+// GroupLabel 返回分组显示名（ADR-092 resourceGroups 元数据）；未知分组返回空串。
+func GroupLabel(group string) string {
+	if group == "" {
+		return ""
+	}
+	reg := LoadRegistry()
+	for _, g := range reg.ResourceGroups {
+		if g.ID == group {
+			return g.Name
+		}
+	}
+	return ""
 }
 
 // SubDirEntry 资源类型的版本子目录信息

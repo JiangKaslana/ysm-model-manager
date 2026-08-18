@@ -30,6 +30,7 @@ export const RESOURCE_TYPE_LABELS: Record<string, string> = {
 /** JSON 条目（缺 id 的脏数据过滤掉，防 undefined 混入类型列表） */
 interface ResourceTypeIdEntry {
   id?: string;
+  group?: string;
 }
 
 const registryEntries: ResourceTypeIdEntry[] =
@@ -43,6 +44,56 @@ if (registryEntries.length === 0) {
 export const ALL_RESOURCE_TYPES: string[] = registryEntries
   .map((t) => t.id)
   .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+// ===== 资源分组派生（ADR-092：FilesRoot/{group}/{storageSubDir} 两层路由）=====
+// 从 resource_types.json 顶层 resourceGroups + 各类型 group 字段派生。
+// 无 group 字段的类型回退空串（单级平铺，向后兼容，不强制迁移旧目录）。
+
+interface ResourceGroupEntry {
+  id?: string;
+  name?: string;
+  icon?: string;
+  order?: number;
+}
+
+const resourceGroupsJson = resourceTypesJson as {
+  resourceGroups?: ResourceGroupEntry[];
+};
+
+/** 分组元数据（id → {name, icon, order}），从 resourceGroups 派生 */
+export const GROUP_META: Record<string, { name: string; icon: string; order: number }> = {};
+for (const g of resourceGroupsJson.resourceGroups ?? []) {
+  if (!g.id) continue;
+  GROUP_META[g.id] = {
+    name: g.name || g.id,
+    icon: g.icon || "📦",
+    order: typeof g.order === "number" ? g.order : 9,
+  };
+}
+
+/** 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） */
+export const GROUP_OF: Record<string, string> = {};
+for (const t of registryEntries) {
+  if (t.id) GROUP_OF[t.id] = t.group || "";
+}
+
+/** 分组 id → 显示名 */
+export function groupLabelOf(group: string): string {
+  return GROUP_META[group]?.name || group;
+}
+
+/**
+ * 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。
+ * 有 group：`{group}/{storageSubDir}`；无 group：`storageSubDir`（向后兼容）。
+ * 返回相对 FilesRoot 的子路径，调用方自行拼接。
+ */
+export function groupStorageRootOf(typeId: string): string {
+  const group = GROUP_OF[typeId];
+  const sub = (resourceTypesJson as {
+    resourceTypes?: Array<{ id?: string; storageSubDir?: string }>;
+  }).resourceTypes?.find((t) => t.id === typeId)?.storageSubDir || typeId;
+  return group ? `${group}/${sub}` : sub;
+}
 
 // ===== 资源能力派生（ADR-066：解墙 — 预览/解码层统一查表）=====
 // 此前 loader.ts / index.ts / litematic-meta.ts 散落扩展名正则与 Go RPC 字符串分支，
