@@ -616,6 +616,102 @@ describe("GPU 内存释放边界", () => {
   });
 });
 
+describe("vrmDiag 诊断日志", () => {
+  it("read-model 成功时 addOpLog 被调用（记录字节数）", async () => {
+    const vrm = makeFakeVrm();
+    hoisted.parseMock.mockImplementation(() => ({ userData: { vrm } }));
+    hoisted.readBytesMock.mockResolvedValue(btoa("VRM_DATA"));
+    hoisted.listPathsMock.mockResolvedValue([]);
+
+    const { ctx } = makeCtx();
+    const port = makePort();
+    await buildVrmScene(ctx, "/vrm/test.vrm", port, hoisted.readBytesMock, makePanels(), hoisted.listPathsMock);
+
+    // read-model op 被调用，status=ok，msg 含字节数信息
+    expect(port.addOpLog).toHaveBeenCalledWith(
+      "read-model",
+      "/vrm/test.vrm",
+      "ok",
+      expect.stringContaining("bytes="),
+    );
+  });
+
+  it("read-model 失败时 addOpLog 被调用（记录错误）", async () => {
+    hoisted.readBytesMock.mockResolvedValue(null);
+    const { ctx } = makeCtx();
+    const port = makePort();
+    await expect(
+      buildVrmScene(ctx, "/vrm/missing.vrm", port, hoisted.readBytesMock),
+    ).rejects.toThrow("ReadFileBytes 返回空");
+
+    // read-model op 被调用，status=fail
+    expect(port.addOpLog).toHaveBeenCalledWith(
+      "read-model",
+      "/vrm/missing.vrm",
+      "fail",
+      expect.stringContaining("ReadFileBytes 返回空"),
+    );
+  });
+
+  it("parse 完成后 addOpLog 被调用（记录 bones/glTF-children 数量）", async () => {
+    const vrm = makeFakeVrm();
+    hoisted.parseMock.mockImplementation(() => ({
+      userData: { vrm },
+      scenes: [{ children: [{} as unknown as THREE.Object3D, {} as unknown as THREE.Object3D] }],
+    }));
+    hoisted.readBytesMock.mockResolvedValue(btoa("VRM"));
+    hoisted.listPathsMock.mockResolvedValue([]);
+
+    const { ctx } = makeCtx();
+    const port = makePort();
+    await buildVrmScene(ctx, "/vrm/test.vrm", port, hoisted.readBytesMock, makePanels(), hoisted.listPathsMock);
+
+    // parse op 被调用，msg 含 gltf-children 信息
+    expect(port.addOpLog).toHaveBeenCalledWith(
+      "parse",
+      "/vrm/test.vrm",
+      "ok",
+      expect.stringContaining("gltf-children="),
+    );
+  });
+
+  it("dispose 时 addOpLog 被调用（记录 GPU 纹理释放）", async () => {
+    const vrm = makeFakeVrm();
+    hoisted.parseMock.mockImplementation(() => ({ userData: { vrm } }));
+    hoisted.readBytesMock.mockResolvedValue(btoa("VRM"));
+    hoisted.listPathsMock.mockResolvedValue([]);
+
+    const { ctx } = makeCtx();
+    const port = makePort();
+    const built = await buildVrmScene(ctx, "/vrm/test.vrm", port, hoisted.readBytesMock, makePanels(), hoisted.listPathsMock);
+    built.dispose();
+
+    // gpu-release op 被调用，msg 含 tex= 信息
+    expect(port.addOpLog).toHaveBeenCalledWith(
+      "gpu-release",
+      "/vrm/test.vrm",
+      "ok",
+      expect.stringContaining("tex="),
+    );
+  });
+
+  it("addOpLog 抛错时不阻断主流程", async () => {
+    const vrm = makeFakeVrm();
+    hoisted.parseMock.mockImplementation(() => ({ userData: { vrm } }));
+    hoisted.readBytesMock.mockResolvedValue(btoa("VRM"));
+    hoisted.listPathsMock.mockResolvedValue([]);
+    // addOpLog 抛错：诊断应静默吞掉
+    const port = makePort();
+    (port.addOpLog as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("diag break"));
+
+    const { ctx } = makeCtx();
+    // 不应向外抛错
+    await expect(
+      buildVrmScene(ctx, "/vrm/test.vrm", port, hoisted.readBytesMock, makePanels(), hoisted.listPathsMock),
+    ).resolves.toBeDefined();
+  });
+});
+
 describe("vrmMenuItems 结构", () => {
   it("基础三项：model/shot/bones", () => {
     const items = vrmMenuItems({
