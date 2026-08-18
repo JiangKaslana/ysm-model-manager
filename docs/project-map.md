@@ -32,8 +32,8 @@
 | `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 1: scanner.go · 测试 4〕 |
 | `sync/` | 整合包同步 〔源码 7: sync.go sync_diff.go sync_dirlevel.go sync_discovery.go sync_hash.go sync_push.go sync_relink.go · 测试 9〕 |
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
-| `texture_cache/` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） 〔源码 1: texture_cache.go · 测试 1〕 |
-| `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 6〕 |
+| `texture_cache/` | 纹理缓存管理（KTX2/PNG 缓存，支持后台编码与快速命中） 〔源码 1: texture_cache.go · 测试 1〕 |
+| `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 5〕 |
 | `types/` | 共享类型 + 注册表 〔源码 7: bedrock.go config.go extensions.go findinst.go resource.go resource_types_embed.go types.go · 测试 8〕 |
 | `updater/` | 自动更新 〔源码 3: updater.go updater_other.go updater_windows.go · 测试 8〕 |
 | `version/` | 版本号 〔源码 1: version.go · 测试 1〕 |
@@ -86,6 +86,7 @@
 |------|------|
 | `AGENTS.md` | AI 入口手册（硬约束 + 导航） |
 | `README.md` | 项目说明（面向用户） |
+| `cli.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
 | `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |
