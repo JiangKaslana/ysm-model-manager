@@ -30,6 +30,8 @@ import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 import { SkyCapability } from "../caps/sky-capability.ts";
 import { GroundCapability } from "../caps/ground-capability.ts";
 import { LightCapability } from "../caps/light-capability.ts";
+import { FogCapability } from "../caps/fog-capability.ts";
+import { ShadowCapability } from "../caps/shadow-capability.ts";
 import { PostprocessingManager } from "./postprocessing.ts";
 import { runFullCleanup, type CleanupContext } from "./cleanup-3d.ts";
 import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts";
@@ -214,6 +216,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let skyCap: SkyCapability | null = null;
   let groundCap: GroundCapability | null = null;
   let lightCap: LightCapability | null = null;
+  let fogCap: FogCapability | null = null;
+  let shadowCap: ShadowCapability | null = null;
   // 后处理体积光管线（ADR-081 L2）：PostprocessingManager 管理 EffectComposer + bloom，仅在 volumetric engine=postprocess 时激活
   let postProc: PostprocessingManager | null = null;
   let animId = 0;
@@ -345,13 +349,30 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     skyCap = (sceneCapabilityRegistry.getById("sky") as SkyCapability) ?? null;
     groundCap = (sceneCapabilityRegistry.getById("ground") as GroundCapability) ?? null;
     lightCap = (sceneCapabilityRegistry.getById("light") as LightCapability) ?? null;
+    fogCap = (sceneCapabilityRegistry.getById("fog") as FogCapability) ?? null;
+    shadowCap = (sceneCapabilityRegistry.getById("shadow") as ShadowCapability) ?? null;
     // 从 localStorage 恢复上次会话状态
     sceneCapabilityRegistry.loadAll();
     // 按模型类别套用预设（已有持久化状态的 cap 不覆盖）
     skyCap?.setPreset(adapter.id);
     lightCap?.setPreset(adapter.id);
+    fogCap?.setPreset(adapter.id);
+    shadowCap?.setPreset(adapter.id);
     // 全部挂入场景
     for (const cap of caps) cap.apply();
+    // ShadowCapability 同步：光 castShadow（光已由 LightCapability 创建）
+    if (shadowCap && lightCap) {
+      const lights: Array<THREE.DirectionalLight | THREE.SpotLight> = [];
+      // 通过 scene 遍历拿光对象（LightCapability 不暴露内部光实例）；
+      // 名字约定：ysm-light-* / 未命名的 DirectionalLight/SpotLight
+      scene.traverse((obj) => {
+        if ((obj as unknown as THREE.DirectionalLight).isDirectionalLight
+          || (obj as unknown as THREE.SpotLight).isSpotLight) {
+          lights.push(obj as THREE.DirectionalLight | THREE.SpotLight);
+        }
+      });
+      shadowCap.syncLights(lights);
+    }
     // 后处理体积光管线（ADR-081 L2）：PostprocessingManager 管理 EffectComposer + bloom
     postProc = new PostprocessingManager(renderer, scene, camera);
     // ADR-085 S3：caps 创建后触发 refreshDock()，修复 litematic/pack 的 environment 项时序缺失
@@ -522,6 +543,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     skyCap,
     groundCap,
     lightCap,
+    fogCap,
+    shadowCap,
     postProc,
     nullPostProc: () => { postProc = null; },
     renderer,
@@ -555,6 +578,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     orbitTarget,
     camera,
     lightCap,
+    shadowCap,
     getCurrentPath: () => currentPath,
     setCurrentPath: (p) => { currentPath = p; },
     getCurrentRtype: () => opts.rtype ?? adapter.id,
@@ -607,6 +631,13 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
     // ADR-081 L1：内容层包围盒 -> 聚光灯/体积光锥瞄准对象上方
     syncLightTargetFromContent(scene, sceneBaseline, lightCap);
+    // 首模型 mesh castShadow / receiveShadow（内容层根节点 = 刚注册的 added）
+    if (shadowCap && built) {
+      const roots = scene && sceneBaseline
+        ? scene.children.filter((c) => !sceneBaseline!.has(c))
+        : [];
+      shadowCap.applyMeshCasts(roots);
+    }
     perFrame = built.update ?? null;
   // ===== §4c 生命周期管理（cooperate/switchTo/代际守卫）=====
   // 记录初始模型到追加列表（cooperate 模式下 fullCleanup 需逐一 dispose）

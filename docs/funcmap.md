@@ -40,11 +40,11 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 120 | 446 |
+| 前端·工具 | 121 | 447 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **404** | **1682** |
+| **合计** | **405** | **1683** |
 
 ## Go·头像
 
@@ -1380,6 +1380,7 @@
 | `BoneData()` | `frontend/src/utils/3d/spec-builder:84` | BoneData — Go threejs/spec.go BoneData |
 | `MeshData()` | `frontend/src/utils/3d/spec-builder:94` | MeshData — Go threejs/spec.go MeshData |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:113` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `textureCache()` | `frontend/src/utils/3d/texture-cache:62` | 全局单例（随 3D 会话生命周期；disposeAll 由 cleanup-3d.ts 调用） |
 | `VrmMaterialListItem()` | `frontend/src/utils/3d/vrm-materials:11` | 材质列表项（listVrmMaterials） |
 | `VrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:17` | 材质详情（getVrmMaterialDetail） |
 | `listVrmMaterials()` | `frontend/src/utils/3d/vrm-materials:28` | 材质列表：vrm.scene 遍历所有 Mesh.material（含数组材质） |
@@ -1727,10 +1728,10 @@
 | `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:143` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `fillMmdShotPanel()` | `frontend/src/views/app-preview/mmd-controls:224` | MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。 |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
-| `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:10` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
-| `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:20` | Go 返回的 3D spec（models 数组） |
-| `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:49` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
-| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:137` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
+| `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:11` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
+| `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:21` | Go 返回的 3D spec（models 数组） |
+| `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:50` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组 |
+| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:138` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
 | `createPack3D()` | `frontend/src/views/app-preview/pack-3d:30` | 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） |
 | `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:50` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |

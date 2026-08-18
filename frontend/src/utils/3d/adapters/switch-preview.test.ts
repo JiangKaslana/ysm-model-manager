@@ -71,6 +71,7 @@ function makeMockCtx(): {
     orbitTarget: undefined,
     camera: undefined,
     lightCap: null,
+    shadowCap: null,
     getCurrentPath: () => state.currentPath,
     setCurrentPath: (p) => { state.currentPath = p; },
     getCurrentRtype: () => state.currentPath,
