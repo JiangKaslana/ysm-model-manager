@@ -32,7 +32,6 @@ import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import { createYsmAnimPlayer, type YsmAnimPlayer } from "../ysm-animation-player.ts";
 import { parseBedrockAnimationJSON } from "../../animation/animation.ts";
 import type { MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
-import { fillMmdPlayPanel } from "../../../views/app-preview/mmd-controls.ts";
 import { ysmSemanticBoneMap } from "../semantic-bones.ts";
 import { createBreathController } from "../perception/breath.ts";
 
@@ -255,7 +254,7 @@ export async function buildYsmScene(
       cleanupRef: bonePanelRef,
     },
     play: animBridge ?? undefined,
-    fillPlayPanel: opts.panels ? fillMmdPlayPanel : undefined,
+    fillPlayPanel: opts.fillPlayPanel,
   });
   ctx.menu.setAdapterItems(menuItems);
 

@@ -13,6 +13,7 @@ import { preloadModel } from "./model3d-loader.ts";
 import { loadModelData } from "./loader.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { fillYsmModelPanel, fillYsmShotPanel, attachYsmBoneSelect } from "./ysm-controls.ts";
+import { fillMmdPlayPanel } from "./mmd-controls.ts";
 import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
@@ -76,6 +77,7 @@ export async function createYsm3D(
         fillShotPanel: fillYsmShotPanel,
         attachBoneSelect: attachYsmBoneSelect,
       },
+      fillPlayPanel,
     }),
     path,
     withPreviewExtras({ siblings: opts.siblings }),
