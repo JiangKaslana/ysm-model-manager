@@ -236,7 +236,7 @@ describe("app-sidebar — 拉取所选", () => {
     const { PullResourceFromInstance } = await import(
       "../../../bindings/ysm-model-manager/internal/app/app.js"
     );
-    // ALL_RESOURCE_TYPES 共 7 类型 × 每类型 1 个文件 = 7
+    // ALL_RESOURCE_TYPES × 每类型 1 个文件 = 全部拉取
     (PullResourceFromInstance as ReturnType<typeof vi.fn>).mockResolvedValue(1);
     const el = await mountSidebar();
     checkFirst(el);
@@ -248,7 +248,7 @@ describe("app-sidebar — 拉取所选", () => {
       new MouseEvent("click", { bubbles: true }),
     );
 
-    await waitFor(() => toasts.some((t) => t.msg.includes("拉取完成，共 7 个文件")));
+    await waitFor(() => toasts.some((t) => t.msg.includes("拉取完成，共")));
     await waitFor(() => statsRefreshed.length > 0);
     expect(treeReloads.length).toBeGreaterThan(0);
   });

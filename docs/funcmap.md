@@ -1220,17 +1220,17 @@
 | `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:19` | 注册 free 模式 pointer drag 监听器。 |
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
 | `fitCameraToRoots()` | `frontend/src/utils/3d/camera-setup:50` | 按给定根节点列表（多模型同框）计算并集包围盒并返回相机初始位姿。 |
-| `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:8` | — |
-| `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:21` | — |
-| `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:29` | — |
-| `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:25` | ============ 参数类型 ============ |
-| `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:35` | — |
-| `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:40` | — |
-| `VolumetricParams()` | `frontend/src/utils/3d/caps/light-capability:54` | — |
-| `LightParams()` | `frontend/src/utils/3d/caps/light-capability:68` | — |
-| `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:96` | — |
-| `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:106` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
-| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:214` | ============ LightCapability ============ |
+| `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:15` | — |
+| `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:28` | — |
+| `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:36` | — |
+| `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:31` | ============ 参数类型 ============ |
+| `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:41` | — |
+| `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:46` | — |
+| `VolumetricParams()` | `frontend/src/utils/3d/caps/light-capability:60` | — |
+| `LightParams()` | `frontend/src/utils/3d/caps/light-capability:74` | — |
+| `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:102` | — |
+| `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:112` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
+| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:220` | ============ LightCapability ============ |
 | `MenuControlKind()` | `frontend/src/utils/3d/caps/scene-capability:13` | 单个菜单控件类型 |
 | `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:16` | 菜单控件定义（声明式，由框架渲染为 DOM） |
 | `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:42` | ============ 场景能力统一接口 ============ |
@@ -1238,11 +1238,11 @@
 | `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability:120` | 全局单例（ADR-066 同模式：模块级单例 + 运行时状态隔离） |
 | `persistState()` | `frontend/src/utils/3d/caps/scene-capability:145` | 保存 JSON 到 localStorage |
 | `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:150` | 从 localStorage 加载 JSON |
-| `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:19` | — |
-| `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:40` | — |
-| `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:55` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
-| `MODEL_SKY_PRESETS()` | `frontend/src/utils/3d/caps/sky-capability:63` | 按模型类别的散射/曝光预设（ADR-073 #3）。 |
-| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:71` | — |
+| `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:26` | — |
+| `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:47` | — |
+| `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:62` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
+| `MODEL_SKY_PRESETS()` | `frontend/src/utils/3d/caps/sky-capability:70` | 按模型类别的散射/曝光预设（ADR-073 #3）。 |
+| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:78` | — |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:55` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
