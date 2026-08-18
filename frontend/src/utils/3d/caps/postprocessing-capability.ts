@@ -1,14 +1,15 @@
 // ===== PostprocessingCapability：后处理管线能力（ADR-073 caps/ 能力模式）=====
 // 合并/升级原有 PostprocessingManager（原本只在 volumetric engine=postprocess 时激活）
-// 为 SceneCapability 接口：独立开关 + Bloom 参数独立可调（原跟随 volumetric 做联动可开/关）+ SSAO。
+// 为 SceneCapability 接口：独立开关 + Bloom 参数独立可调（原跟随 volumetric 做联动可开/关）+ SSAO + SSR。
 //
 // 设计要点：
 //   - 兼容旧 PostprocessingManager 外部接口：render(dt, lightCap): boolean，setSize，dispose
 //   - 延迟创建 composer：需要启用（enabled=true 或 lightCap volumetric postprocess 触发）时才创建，无 composer 时走普通 renderer.render
-//   - Pass 顺序：RenderPass → (SSAOPass 可选) → UnrealBloomPass → OutputPass
+//   - Pass 顺序：RenderPass → (SSAOPass 可选) → UnrealBloomPass → (SSRPass 可选，reflectionMode 控制) → OutputPass
 //   - dispose 还原构造前 renderer.toneMapping 等输出设置，不泄漏
 //   - SceneCapability 接口 + 注册表驱动：菜单自动渲染所有控件
 //   - setPreset 按模型类别分：方块/体素 = Bloom 薄 + 关 SSAO（无明显细节）；VRM/MMD = SSAO 中档 + Bloom 柔光
+//   - reflectionMode 三档：envmap-only (SSR off) / envmap+ssr (默认，SSR 叠上 envmap 反射当屏外 fallback) / ssr-only (SSR 无屏外补全)
 
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -16,7 +17,9 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
+import { SSRPass } from "three/examples/jsm/postprocessing/SSRPass.js";
 import type { LightCapability } from "./light-capability.ts";
+import type { ReflectorCapability } from "./reflector-capability.ts";
 import type { PostprocessingLike } from "../adapters/postprocessing.ts";
 import {
   type SceneCapability,
@@ -24,6 +27,9 @@ import {
   persistState,
   restoreState,
 } from "./scene-capability.ts";
+
+/** 反射模式三档：envmap-only 纯环境贴图、envmap+ssr SSR+屏外 fallback、ssr-only 纯 SSR（屏外会变黑） */
+export type ReflectionMode = "envmap-only" | "envmap+ssr" | "ssr-only";
 
 export interface PostprocessingParams {
   enabled: boolean;
@@ -47,6 +53,24 @@ export interface PostprocessingParams {
   toneMapping: "none" | "linear" | "reinhard" | "aces" | "cineon";
   /** 曝光值（toneMapping≠none 时生效） */
   exposure: number;
+  /** 反射模式：envmap-only 纯环境贴图 / envmap+ssr SSR 叠 envmap 屏外 fallback / ssr-only 纯 SSR */
+  reflectionMode: ReflectionMode;
+  /** SSR 透明度（SSR 叠 envmap 时的混合强度，0.5 默认） */
+  ssrOpacity: number;
+  /** SSR 最大反射距离（越大越吃性能，180 默认） */
+  ssrMaxDistance: number;
+  /** SSR 厚度判定（越大越不易漏反射，0.018 默认） */
+  ssrThickness: number;
+  /** SSR 模糊开关（真=两通高斯模糊镜面） */
+  ssrBlur: boolean;
+  /** SSR 距离衰减（真=远处反射变淡） */
+  ssrDistanceAttenuation: boolean;
+  /** SSR 菲涅尔（真=斜反射强，正反射弱） */
+  ssrFresnel: boolean;
+  /** SSR 多重弹射（真=上帧结果做迭代，细节更好但更慢） */
+  ssrBouncing: boolean;
+  /** SSR 开启时，自动禁用 ReflectorCapability 单平面镜面（省 draw call + 防 z-fighting） */
+  reflectorDisableWhenSSR: boolean;
 }
 
 const THREE_TONE_MAPPING: Record<PostprocessingParams["toneMapping"], THREE.ToneMapping> = {
@@ -69,34 +93,51 @@ export const DEFAULT_POSTPROC_PARAMS: PostprocessingParams = {
   ssaoMaxDist: 0.1,
   toneMapping: "aces",
   exposure: 1.0,
+  reflectionMode: "envmap-only",
+  ssrOpacity: 0.5,
+  ssrMaxDistance: 180,
+  ssrThickness: 0.018,
+  ssrBlur: true,
+  ssrDistanceAttenuation: true,
+  ssrFresnel: true,
+  ssrBouncing: false,
+  reflectorDisableWhenSSR: true,
 };
+
+/** SSRPass.OUTPUT 枚举（0=Default 正常显示反射混合），其他调试项 1=Beauty 2=SSR 仅深度 3=Blur 4=Normal 5=Metalness 先不暴露 */
+const SSRPASS_OUTPUT_DEFAULT = 0;
 
 /** 模型类别后处理预设 */
 export const POSTPROC_PRESETS: Record<string, Partial<PostprocessingParams>> = {
   default: { ...DEFAULT_POSTPROC_PARAMS },
   ysm: {
-    // 方块：后处理薄，避免像素感丢失
+    // 方块：后处理薄，避免像素感丢失；SSR off（方块 PBR 效果有限）
     enabled: false, bloomStrength: 0.3, bloomThreshold: 0.85, bloomRadius: 0.3,
     ssaoEnabled: false, toneMapping: "aces", exposure: 1.0,
+    reflectionMode: "envmap-only", reflectorDisableWhenSSR: true,
   },
   vrm: {
-    // PBR 角色：Bloom 柔光 + SSAO 中档
+    // PBR 角色：Bloom 柔光 + SSAO 中档 + SSR 默认开（金属皮肤反射明显）
     enabled: false, bloomStrength: 0.7, bloomThreshold: 0.65, bloomRadius: 0.6,
     ssaoEnabled: false, ssaoRadius: 10, toneMapping: "aces", exposure: 1.05,
+    reflectionMode: "envmap-only", ssrOpacity: 0.5, ssrMaxDistance: 180, reflectorDisableWhenSSR: true,
   },
   mmd: {
-    // toon：Bloom 稍强出画面空气感，SSAO 弱开
+    // toon：Bloom 稍强出画面空气感，SSAO 弱开；SSR 关（toon 角色几乎没 PBR 金属度）
     enabled: false, bloomStrength: 0.8, bloomThreshold: 0.6, bloomRadius: 0.8,
     ssaoEnabled: false, ssaoRadius: 6, toneMapping: "aces", exposure: 1.05,
+    reflectionMode: "envmap-only",
   },
   litematic: {
-    // 体素：Bloom 小，SSAO 关（无明显细节反而出噪声）
+    // 体素：Bloom 小，SSAO 关（无明显细节反而出噪声）；SSR 关（方块反射无细节）
     enabled: false, bloomStrength: 0.3, bloomThreshold: 0.9, bloomRadius: 0.2,
     ssaoEnabled: false, toneMapping: "aces", exposure: 1.0,
+    reflectionMode: "envmap-only",
   },
   resourcepack: {
     enabled: false, bloomStrength: 0.3, bloomThreshold: 0.85, bloomRadius: 0.3,
     ssaoEnabled: false, toneMapping: "aces", exposure: 1.0,
+    reflectionMode: "envmap-only",
   },
 };
 
@@ -117,7 +158,13 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
   private renderPass: RenderPass | null = null;
   private bloomPass: UnrealBloomPass | null = null;
   private ssaoPass: SSAOPass | null = null;
+  private ssrPass: SSRPass | null = null;
   private outputPass: OutputPass | null = null;
+
+  // 联动 ReflectorCapability（SSR 开启时可自动禁用）
+  private reflectorCap: ReflectorCapability | null = null;
+  // 记录上次 SSR on 时 Reflector 原本 enabled，SSR 关闭时精确恢复
+  private reflectorPrevEnabled: boolean | undefined;
 
   // prev 状态（dispose 还原）
   private prevToneMapping: THREE.ToneMapping;
@@ -182,8 +229,33 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     );
     this.composer.addPass(this.bloomPass);
 
+    // SSR 放在 Bloom 之后，保证发光物的反射也能带上 bloom 溢出
+    const useSSR = this.params.reflectionMode !== "envmap-only";
+    if (useSSR) {
+      this.ssrPass = new SSRPass({
+        renderer: this.renderer,
+        scene: this.scene,
+        camera: this.camera,
+        width: w,
+        height: h,
+        bouncing: this.params.ssrBouncing,
+      });
+      this.ssrPass.output = SSRPASS_OUTPUT_DEFAULT;
+      this.ssrPass.opacity = this.params.ssrOpacity;
+      this.ssrPass.maxDistance = this.params.ssrMaxDistance;
+      this.ssrPass.thickness = this.params.ssrThickness;
+      this.ssrPass.blur = this.params.ssrBlur;
+      this.ssrPass.distanceAttenuation = this.params.ssrDistanceAttenuation;
+      this.ssrPass.fresnel = this.params.ssrFresnel;
+      // envmap+ssr：SSR 混合比例按 ssrOpacity；ssr-only：直接 1.0 覆盖（屏外黑边靠用户接受度或后期降级到 envmap+ssr）
+      if (this.params.reflectionMode === "ssr-only") this.ssrPass.opacity = 1;
+      this.composer.addPass(this.ssrPass);
+    }
+
     this.outputPass = new OutputPass();
     this.composer.addPass(this.outputPass);
+
+    this.applyReflectorSync();
   }
 
   private disposeComposer(): void {
