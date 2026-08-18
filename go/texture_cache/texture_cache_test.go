@@ -189,3 +189,122 @@ func TestWriteCached_Atomic(t *testing.T) {
 		t.Fatal("data mismatch after atomic write")
 	}
 }
+
+func TestListCacheFiles_Empty(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	files, err := ListCacheFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 0 {
+		t.Fatalf("expected 0 files, got %d", len(files))
+	}
+}
+
+func TestListCacheFiles_WithFiles(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	// Write some cache files
+	os.WriteFile(filepath.Join(dir, "hash1.ktx2"), []byte("data123"), 0644)
+	os.WriteFile(filepath.Join(dir, "hash2.ktx2"), []byte("data4567"), 0644)
+	// Write a non-cache file (should be ignored)
+	os.WriteFile(filepath.Join(dir, "other.txt"), []byte("ignore"), 0644)
+
+	files, err := ListCacheFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+
+	// Verify file details
+	for _, f := range files {
+		if f.Hash == "" {
+			t.Fatal("expected non-empty hash")
+		}
+		if f.Size <= 0 {
+			t.Fatal("expected positive size")
+		}
+	}
+}
+
+func TestListCacheFiles_EmptyDir(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	CacheDir = func() string { return "" }
+
+	files, err := ListCacheFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files != nil {
+		t.Fatal("expected nil when cache dir is empty")
+	}
+}
+
+func TestGetCacheStats_Empty(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	stats := GetCacheStats()
+	if stats.Dir != dir {
+		t.Fatalf("expected dir %s, got %s", dir, stats.Dir)
+	}
+	if stats.FileCount != 0 {
+		t.Fatalf("expected 0 files, got %d", stats.FileCount)
+	}
+	if stats.TotalSize != 0 {
+		t.Fatalf("expected 0 total size, got %d", stats.TotalSize)
+	}
+}
+
+func TestGetCacheStats_WithFiles(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+
+	// Write cache files of known sizes
+	os.WriteFile(filepath.Join(dir, "hash1.ktx2"), []byte("12345"), 0644)      // 5 bytes
+	os.WriteFile(filepath.Join(dir, "hash2.ktx2"), []byte("1234567890"), 0644) // 10 bytes
+	// Non-cache file should be ignored
+	os.WriteFile(filepath.Join(dir, "other.txt"), []byte("ignored"), 0644)
+
+	stats := GetCacheStats()
+	if stats.FileCount != 2 {
+		t.Fatalf("expected 2 files, got %d", stats.FileCount)
+	}
+	if stats.TotalSize != 15 { // 5 + 10 = 15
+		t.Fatalf("expected 15 total size, got %d", stats.TotalSize)
+	}
+}
+
+func TestGetCacheStats_EmptyDir(t *testing.T) {
+	old := CacheDir
+	defer func() { CacheDir = old }()
+
+	CacheDir = func() string { return "" }
+
+	stats := GetCacheStats()
+	if stats.Dir != "" {
+		t.Fatal("expected empty dir")
+	}
+	if stats.FileCount != 0 {
+		t.Fatalf("expected 0 files, got %d", stats.FileCount)
+	}
+}

@@ -17,6 +17,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"ysm-model-manager/go/fsutil"
 )
@@ -142,4 +143,90 @@ func ClearCache() error {
 		}
 	}
 	return nil
+}
+
+// CacheEntry 缓存条目信息
+type CacheEntry struct {
+	Hash string
+	Path string
+	Size int64
+}
+
+// ListCacheFiles 列出所有缓存文件
+func ListCacheFiles() ([]CacheEntry, error) {
+	dir := CacheDir()
+	if dir == "" {
+		return nil, nil
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var result []CacheEntry
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasSuffix(name, ".ktx2") {
+			continue
+		}
+		path := filepath.Join(dir, name)
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		hash := strings.TrimSuffix(name, ".ktx2")
+		result = append(result, CacheEntry{
+			Hash: hash,
+			Path: path,
+			Size: info.Size(),
+		})
+	}
+	return result, nil
+}
+
+// CacheStats 缓存统计信息
+type CacheStats struct {
+	Dir       string
+	FileCount int
+	TotalSize int64
+}
+
+// GetCacheStats 获取缓存统计
+func GetCacheStats() CacheStats {
+	dir := CacheDir()
+	stats := CacheStats{Dir: dir}
+
+	if dir == "" {
+		return stats
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return stats
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasSuffix(name, ".ktx2") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		stats.FileCount++
+		stats.TotalSize += info.Size()
+	}
+
+	return stats
 }
