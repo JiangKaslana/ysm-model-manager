@@ -12,8 +12,14 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import type { LibraryAsset } from "../../utils/3d/adapters/preview-menu.ts";
 
-/** 资源库扫描的仓库类型（模型仓库 ysm） */
-const LIBRARY_REPO = RESOURCE_TYPES.YSM;
+/** 资源库聚合的仓库类型：有 3D opener 的类型（与 registerReRoute 注册集对应，
+ *  见各 createXxx3D 模块；litematic 等豁免类型无 3D 预览，不聚合）。 */
+const LIBRARY_REPOS: string[] = [
+  RESOURCE_TYPES.YSM,
+  RESOURCE_TYPES.MMD,
+  RESOURCE_TYPES.VRC,
+  RESOURCE_TYPES.PACK,
+];
 
 /** 扩展名 → 类型标签 + 图标（列表即时展示用；真正路由准确性交给路由侧 DetectResourceType） */
 const EXT_TAGS: Array<{ icon: string; label: string; exts: string[] }> = [
@@ -50,19 +56,22 @@ export function getRegisteredRoutes(): string[] {
   return Object.keys(_openers);
 }
 
-/** 全量模型列表（桌面 Go binding / 网页 adapter 兜底；空关键词返回全部）。限流防超大库拖垮菜单。 */
+/** 全量模型列表：聚合各类型仓库（按物理分类目录），空关键词返回全部。
+ *  限流防超大库拖垮菜单。每项带来源 rtype（tab 过滤用）+ 扩展名粗判标签。 */
 async function loadAllModels(): Promise<LibraryAsset[]> {
   try {
     const { GetRepoRoot, SearchModels } = await getApp();
-    const root = await GetRepoRoot(LIBRARY_REPO);
-    if (!root) return [];
-    const results = (await SearchModels(root, "", 0, 0, 0, 0, 0, 0)) as Array<{ name?: string; path?: string }>;
     const out: LibraryAsset[] = [];
-    for (const r of results || []) {
-      const p = r?.path;
-      if (!p) continue;
-      const { icon, label } = tagOf(p);
-      out.push({ path: p, name: r.name || baseName(p), tag: label, icon });
+    for (const rtype of LIBRARY_REPOS) {
+      const root = await GetRepoRoot(rtype);
+      if (!root) continue;
+      const results = (await SearchModels(root, "", 0, 0, 0, 0, 0, 0)) as Array<{ name?: string; path?: string }>;
+      for (const r of results || []) {
+        const p = r?.path;
+        if (!p) continue;
+        const { icon, label } = tagOf(p);
+        out.push({ path: p, name: r.name || baseName(p), tag: label, icon, rtype });
+      }
     }
     return out.slice(0, 500);
   } catch {
@@ -107,3 +116,6 @@ export function withPreviewExtras<T extends Mount3DOptions>(opts: T): T & Previe
     switchExternal: openModel3DFullscreen,
   });
 }
+
+/** 打开空场景 3D 全屏预览（无需 path）——供无选中模型时 FAB 降级入口 */
+export { openEmpty3DFullscreen } from "./empty-3d.ts";

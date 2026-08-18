@@ -255,13 +255,15 @@ class AppNav extends WebComponentBase {
   /**
    * 左下角 3D 一键跳转：复用文件树记住的最近选中模型（getLastModelPath），
    * 委托 preview-library.openModel3DFullscreen（按类型派发既有 createXxx3D 全屏入口）；
-   * 无选中模型 → toast 引导。
+   * 无选中模型 → 直接开空场景 3D（不弹 toast，降低首次使用门槛）。
    */
   private async _viewerFabClick(): Promise<void> {
     const { getLastModelPath } = await import("../../views/app-content/init-pages.ts");
     const path = getLastModelPath();
     if (!path) {
-      bus.emit("toast:show", { msg: t("nav.viewerNoModel"), duration: 3000, type: "warn" });
+      // 无选中模型 → 空场景 3D（renderer/scene/camera 已就位，用户可通过资源库选模型）
+      const { openEmpty3DFullscreen } = await import("../../views/app-preview/preview-library.ts");
+      void openEmpty3DFullscreen();
       return;
     }
     const { openModel3DFullscreen } = await import("../../views/app-preview/preview-library.ts");

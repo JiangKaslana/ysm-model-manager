@@ -41,10 +41,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 114 | 415 |
-| frontend/views | 100 | 282 |
+| frontend/views | 101 | 286 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **392** | **1628** |
+| **合计** | **393** | **1632** |
 
 ## Go·头像
 
@@ -1155,8 +1155,8 @@
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:60` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:21` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `LibraryAsset()` | `frontend/src/utils/3d/adapters/preview-menu:40` | 3D 内资源库条目（app 层 loadAllModels 供给；菜单侧契约以打破 view↔utils 分层） |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:55` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:63` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:57` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:65` | 挂载预览底部根菜单，返回句柄 |
 | `SidePanelResult()` | `frontend/src/utils/3d/adapters/side-panel:7` | 侧栏装配结果（供 mount3D 主流程写入 panelEl / panelCleanup 引用） |
 | `mountSidePanel()` | `frontend/src/utils/3d/adapters/side-panel:19` | 挂载适配器专属侧栏面板。 |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:25` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
@@ -1649,6 +1649,9 @@
 | `showResourcePack()` | `frontend/src/views/app-preview/detail:144` | 显示资源包信息（pack.mcmeta + pack.png） |
 | `showSimplePreview()` | `frontend/src/views/app-preview/detail:186` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
 | `showShaderpack()` | `frontend/src/views/app-preview/detail:204` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
+| `openEmpty3DFullscreen()` | `frontend/src/views/app-preview/empty-3d:35` | 打开空场景 3D 全屏预览（无需 path）。 |
+| `cleanupEmpty3D()` | `frontend/src/views/app-preview/empty-3d:40` | 清理空场景 3D（WebGL renderer + rAF 循环） |
+| `invalidateEmptyPreview()` | `frontend/src/views/app-preview/empty-3d:45` | 作废在途空场景加载 |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:4` | Bedrock 方块 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
@@ -1683,10 +1686,11 @@
 | `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:50` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |
 | `parseYsmJsonDirect()` | `frontend/src/views/app-preview/parse-ysm-json:23` | 直接解析纯 JSON 格式的 ysm.json（解压后的 YSM 模型文件） |
-| `registerReRoute()` | `frontend/src/views/app-preview/preview-library:44` | 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用） |
-| `getRegisteredRoutes()` | `frontend/src/views/app-preview/preview-library:49` | 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） |
-| `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:80` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
-| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:104` | 给 mount3D opts 注入「资源库默认扩展」：库加载 + 跨类型跳转。各 createXxx3D 统一经此获得 3D 内 📚 面板 |
+| `openEmpty3DFullscreen()` | `frontend/src/views/app-preview/preview-library` | — |
+| `registerReRoute()` | `frontend/src/views/app-preview/preview-library:50` | 注册某资源类型的「打开全屏 3D」入口（由对应 createXxx3D 包装器在模块加载时调用） |
+| `getRegisteredRoutes()` | `frontend/src/views/app-preview/preview-library:55` | 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） |
+| `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:89` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
+| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:113` | 给 mount3D opts 注入「资源库默认扩展」：库加载 + 跨类型跳转。各 createXxx3D 统一经此获得 3D 内 📚 面板 |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:13` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:19` | — |
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
