@@ -28,25 +28,11 @@ export function repositoryHTML(): string {
     '<button class="repo-tab" data-testid="content-tab" data-tab="import">📥 ' + t("import.tab") + '</button>' +
     viewerExtras +
     "</div>" +
-    // 第二栏：资源类型（仅在文件树 tab 可见）
+    // 第二栏：资源类型（双下拉导航：大类(group) → 子类型；ADR-092/094）
+    // 选项由 initRepositoryPage 动态填充（子类型随大类联动）
     '<div class="repo-subtabs" id="repo-subtabs" style="display:flex;gap:2px;padding:2px 8px;border-bottom:1px solid var(--bd);flex-shrink:0;align-items:center">' +
-    '<button class="repo-subtab active" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.YSM + '">💎 YSM</button>' +
-    '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.MMD + '">🎭 MMD</button>' +
-    // ADR-094 位置路由：mmd 子类型下拉（选中子目录扫 FilesRoot/mmd/mmd/{subdir}）
-    '<select id="mmd-subtype" data-testid="mmd-subtype" title="MMD 子类型（目录）" style="display:none;margin-left:2px;background:var(--surf);color:var(--txt);border:1px solid var(--bd);border-radius:4px;font-size:var(--fs-tab);padding:1px 4px">' +
-    '<option value="">模型 (EntityPlayer)</option>' +
-    '<option value="SceneModel">场景 (SceneModel)</option>' +
-    '<option value="CustomAnim">自定义动画 (CustomAnim)</option>' +
-    '<option value="CustomMorph">自定义表情 (CustomMorph)</option>' +
-    '<option value="StageAnim">舞台 (StageAnim)</option>' +
-    '<option value="shader">着色器 (shader)</option>' +
-    "</select>" +
-    '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.VRC + '">🥽 VRC</button>' +
-    '<span style="padding:3px 4px;color:var(--muted)">│</span>' +
-    '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.PACK + '">🎨 ' + t("rtype.pack") + '</button>' +
-    '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.SHADER + '">☀️ ' + t("rtype.shader") + '</button>' +
-    '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.BLUEPRINT + '">⚙️ ' + t("rtype.blueprint") + '</button>' +
-    '<button class="repo-subtab" data-testid="content-subtab" data-rtab="' + RESOURCE_TYPES.LITEMATIC + '">📐 ' + t("rtype.litematic") + '</button>' +
+    '<select id="group-select" data-testid="group-select" title="资源大类" style="background:var(--surf);color:var(--txt);border:1px solid var(--bd);border-radius:4px;font-size:var(--fs-tab);padding:1px 4px"></select>' +
+    '<select id="subtype-select" data-testid="subtype-select" title="资源类型" style="background:var(--surf);color:var(--txt);border:1px solid var(--bd);border-radius:4px;font-size:var(--fs-tab);padding:1px 4px;margin-left:2px"></select>' +
     "</div>" +
     '<div class="repo-layout" style="flex:1;display:flex;overflow:hidden">' +
     '<div class="repo-left" style="flex:1;display:flex;flex-direction:column;min-width:0">' +

@@ -83,6 +83,40 @@ export function groupLabelOf(group: string): string {
 }
 
 /**
+ * 大类(group) → 其下资源类型列表（ADR-092/094 双下拉导航第二级选项）。
+ * 从 resource_types.json 派生：每个 group 下挂的资源类型即子类型选项。
+ * 每个选项含 rtype 与短标签（RESOURCE_TYPE_LABELS）。
+ * mmd 组特殊：其下 mmd-skin 还需细分为 MC-MMD 子目录（见 MMD_SUBTYPES）。
+ */
+export const GROUP_TYPE_OPTIONS: Record<string, Array<{ rtype: string; label: string }>> = (() => {
+  const result: Record<string, Array<{ rtype: string; label: string }>> = {};
+  for (const t of registryEntries) {
+    if (!t.id || !GROUP_OF[t.id]) continue;
+    const g = GROUP_OF[t.id];
+    (result[g] ||= []).push({
+      rtype: t.id,
+      label: RESOURCE_TYPE_LABELS[t.id] || GROUP_META[g]?.name || t.id,
+    });
+  }
+  return result;
+})();
+
+/**
+ * MMD 子类型目录选项（ADR-094 位置路由，与整合包 3d-skin/ 子目录同款名）。
+ * 默认首个为空（= EntityPlayer，即 mmd-skin 的 storageSubDir），
+ * 其余为平铺在 FilesRoot/mmd/ 下的 MC-MMD 子目录。
+ * 与 go/sync/sync_dirlevel.go 的 mmdSubdirNames 对齐。
+ */
+export const MMD_SUBTYPES: Array<{ label: string; subdir: string }> = [
+  { label: "PMX 模型 (EntityPlayer)", subdir: "" },
+  { label: "场景 (SceneModel)", subdir: "SceneModel" },
+  { label: "自定义动画 (CustomAnim)", subdir: "CustomAnim" },
+  { label: "自定义表情 (CustomMorph)", subdir: "CustomMorph" },
+  { label: "舞台 (StageAnim)", subdir: "StageAnim" },
+  { label: "着色器 (shader)", subdir: "shader" },
+];
+
+/**
  * 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。
  * 有 group：`{group}/{storageSubDir}`；无 group：`storageSubDir`（向后兼容）。
  * 返回相对 FilesRoot 的子路径，调用方自行拼接。

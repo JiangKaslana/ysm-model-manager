@@ -6,7 +6,7 @@ import { initImportQueue } from "../../features/import-queue.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
 import { startDedup } from "./diagnostics/init.ts";
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, MMD_SUBTYPES } from "../../utils/resource/types.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
@@ -60,56 +60,112 @@ export function initInstancesPage(host: AppContentHost): void {
 export function initRepositoryPage(host: AppContentHost): void {
   bindTabs(host, ".repo-tab", "repo", ["tree", "import", "recycle", "dedup", "oldest"]);
 
-  // 资源类型 subtab 切换（全局生效）
+  // ADR-092/094 双下拉导航：大类(group) → 子类型(资源类型/mmd子目录)
   const root = host._root;
-  const subtabs = root.querySelectorAll(".repo-subtab");
   const treeBody = root.getElementById("repo-tab-tree");
-  const subtypeSel = root.getElementById("mmd-subtype") as HTMLSelectElement | null;
+  const groupSel = root.getElementById("group-select") as HTMLSelectElement | null;
+  const subtypeSel = root.getElementById("subtype-select") as HTMLSelectElement | null;
+  let curGroup = "";
   let curRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
   let curSubdir = ""; // ADR-094 位置路由：mmd 子类型子目录
 
-  // 统一应用资源类型：无条件重建 tree + 更新 active，仅真正变化时写 localStorage + emit。
-  // （审核修复：原 click 里 `if (rtype === curRtype) return` 早退 + 初始化 savedTab.click()
-  //  的组合，在 localStorage 存非默认 rtype 时初始化 click 被早退拦截——tree 停在模板写死的
-  //  ysm、active 错位、curRtype 却已是非默认值；用户点当前 rtype 对应按钮时二次被早退拦截，
-  //  表现为「首次点击无反应，必须点另一个资源按钮才刷新」。去早退，改为无条件应用。）
-  const applyRtype = (rtype: string): void => {
-    const prev = curRtype;
-    curRtype = rtype;
+  // 子类型选项：mmd 用 MMD_SUBTYPES（子目录），其他 group 用 GROUP_TYPE_OPTIONS（资源类型）
+  const buildSubtypeOptions = (group: string): Array<{ label: string; rtype: string; subdir: string }> => {
+    if (group === "mmd") {
+      return MMD_SUBTYPES.map((s) => ({ label: s.label, rtype: RESOURCE_TYPES.MMD, subdir: s.subdir }));
+    }
+    return (GROUP_TYPE_OPTIONS[group] || []).map((o) => ({ label: o.label, rtype: o.rtype, subdir: "" }));
+  };
+
+  // 填充大类下拉（GROUP_META 按 order 排序）
+  const groups = Object.entries(GROUP_META)
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([gid, meta]) => ({ gid, label: meta.icon + " " + meta.name }));
+  if (groupSel) {
+    groupSel.innerHTML = groups
+      .map((g) => `<option value="${g.gid}">${g.label}</option>`)
+      .join("");
+  }
+
+  // 填充子类型下拉并返回当前选中项
+  const fillSubtypes = (group: string): { label: string; rtype: string; subdir: string } => {
+    const opts = buildSubtypeOptions(group);
+    const savedRtype = safeGet("repo_rtype") || "";
+    const savedSubdir = curSubdir || "";
+    let idx = 0;
+    const savedIdx = opts.findIndex((o) => o.rtype === savedRtype && o.subdir === savedSubdir);
+    if (savedIdx >= 0) idx = savedIdx;
+    if (subtypeSel) {
+      subtypeSel.innerHTML = opts.map((o, i) => `<option value="${i}">${o.label}</option>`).join("");
+      subtypeSel.selectedIndex = idx;
+    }
+    return opts[idx] || opts[0] || { label: "", rtype: RESOURCE_TYPES.YSM, subdir: "" };
+  };
+
+  // 统一应用导航：大类+子类型 → 重建 tree
+  const applyNav = (group: string): void => {
+    curGroup = group;
+    const sel = fillSubtypes(group);
+    curRtype = sel.rtype;
+    curSubdir = sel.subdir;
     try {
-      safeSet("repo_rtype", rtype);
+      safeSet("repo_rtype", sel.rtype);
     } catch {}
-    subtabs.forEach((t) => {
-      t.classList.toggle("active", (t as HTMLElement).dataset.rtab === rtype);
-    });
-    // ADR-094：仅 mmd 显示子类型下拉（其他类型复用整合包根目录，无子类型）
-    if (subtypeSel) subtypeSel.style.display = rtype === RESOURCE_TYPES.MMD ? "inline-block" : "none";
-    // 更新文件树（预览已在外层共享，不重复创建）
     if (treeBody) {
       treeBody.innerHTML =
         '<app-tree root="' +
-        rtype +
+        sel.rtype +
         '"' +
-        (rtype === RESOURCE_TYPES.MMD && curSubdir ? ' subdir="' + curSubdir + '"' : "") +
+        (sel.subdir ? ' subdir="' + sel.subdir + '"' : "") +
         ' style="flex:1;min-width:0"></app-tree>';
     }
-    // 通知其他 tab（仅当 rtype 真正变化时）
-    if (rtype !== prev) {
-      bus.emit("repo:rtype-changed", rtype);
-    }
+    bus.emit("repo:rtype-changed", sel.rtype);
   };
-  subtabs.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      applyRtype((btn as HTMLElement).dataset.rtab || "");
-    });
+
+  // 大类下拉变化 → 联动子类型并重建
+  groupSel?.addEventListener("change", () => {
+    applyNav(groupSel.value);
   });
-  // ADR-094：mmd 子类型下拉变化 → 更新当前子目录并重建 tree（subdir 驱动扫描）
+  // 子类型下拉变化 → 重建 tree
   subtypeSel?.addEventListener("change", () => {
-    curSubdir = subtypeSel.value || "";
-    applyRtype(curRtype);
+    const opts = buildSubtypeOptions(curGroup);
+    const idx = Number(subtypeSel.value);
+    const sel = opts[idx] || opts[0];
+    if (!sel) return;
+    curRtype = sel.rtype;
+    curSubdir = sel.subdir;
+    try {
+      safeSet("repo_rtype", sel.rtype);
+    } catch {}
+    if (treeBody) {
+      treeBody.innerHTML =
+        '<app-tree root="' +
+        sel.rtype +
+        '"' +
+        (sel.subdir ? ' subdir="' + sel.subdir + '"' : "") +
+        ' style="flex:1;min-width:0"></app-tree>';
+    }
+    bus.emit("repo:rtype-changed", sel.rtype);
   });
-  // 初始化：应用 curRtype（对齐 tree + active——模板 tree root 写死 ysm，localStorage 可能存别的）
-  applyRtype(curRtype);
+
+  // 初始化：从 localStorage 恢复大类 + 子类型
+  const savedRtype = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
+  const savedGroup = GROUP_META[GROUP_OF[savedRtype] || ""] ? GROUP_OF[savedRtype] : groups[0]?.gid;
+  if (groupSel) groupSel.value = savedGroup || groups[0]?.gid || "";
+  curGroup = groupSel?.value || groups[0]?.gid || "";
+  const sel = fillSubtypes(curGroup);
+  // 若 localStorage 有具体 rtype/subdir，恢复到该子类型
+  const savedIdx = (subtypeSel ? Number(subtypeSel.value) : 0) || 0;
+  curRtype = sel.rtype;
+  curSubdir = sel.subdir;
+  if (treeBody) {
+    treeBody.innerHTML =
+      '<app-tree root="' +
+      curRtype +
+      '"' +
+      (curSubdir ? ' subdir="' + curSubdir + '"' : "") +
+      ' style="flex:1;min-width:0"></app-tree>';
+  }
 }
 
 /**
