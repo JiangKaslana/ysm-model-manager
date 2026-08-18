@@ -17,6 +17,7 @@ import {
   persistState,
   restoreState,
 } from "./scene-capability.ts";
+import { RESOURCE_TYPES } from "../../resource/types.ts";
 
 /** 角度(度)→弧度；内联等价 THREE.MathUtils.degToRad，避免对 three 测试 mock 强依赖 MathUtils 导出 */
 const degToRad = (deg: number): number => (deg * Math.PI) / 180;
@@ -604,6 +605,43 @@ export class LightCapability implements SceneCapability {
         fallback: "体积光",
         getValue: () => this.params.volumetric.enabled,
         setValue: (v) => this.setVolumetric({ enabled: v as boolean }),
+      },
+      {
+        id: "light-engine",
+        kind: "select",
+        labelKey: "preview.volumetricEngine",
+        fallback: "锥引擎",
+        select: [
+          { value: "cone", label: "锥形" },
+          { value: "postprocess", label: "后处理" },
+        ],
+        getValue: () => this.volumetricEngine,
+        setValue: (v) => this.setVolumetricEngine(v as "cone" | "postprocess"),
+      },
+      {
+        id: "light-cone-angle",
+        kind: "slider",
+        labelKey: "preview.coneAngle",
+        fallback: "锥角",
+        slider: { min: 10, max: 60, step: 1, unit: "°" },
+        getValue: () => this.params.spotlight.angle,
+        setValue: (v) => this.setSpotlight({ angle: v as number }),
+      },
+      {
+        id: "light-preset",
+        kind: "select",
+        labelKey: "preview.lightPreset",
+        fallback: "灯光预设",
+        select: [
+          { value: "default", label: "默认" },
+          { value: RESOURCE_TYPES.YSM, label: "YSM方块" },
+          { value: "vrm", label: "VRM角色" },
+          { value: "mmd", label: "MMD角色" },
+          { value: "litematic", label: "体素" },
+          { value: "resourcepack", label: "MC块包" },
+        ],
+        getValue: () => this.currentPreset,
+        setValue: (v) => this.setPreset(v as string),
       },
     ];
   }

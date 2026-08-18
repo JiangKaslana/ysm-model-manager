@@ -1,4 +1,4 @@
-﻿// ===== 3D 预览底部根菜单（ADR-076 v3）=====
+// ===== 3D 预览底部根菜单（ADR-076 v3）=====
 // 对齐 MikuMikuAR：底部根按钮 → createSlideMenu 多层导航。
 // 能力驱动：有模型/骨骼项 → 🧍 模型；有动作/播放项 → 💃 动作；有场景/相机/环境能力 → 🌍 场景。
 // 每组按钮点击：
@@ -13,7 +13,7 @@ import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
-import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../resource/types.ts";
+import { RESOURCE_TYPE_LABELS } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
 import type { MenuControlDef } from "../caps/scene-capability.ts";
@@ -86,7 +86,7 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
       name.textContent = tr(c.labelKey, c.fallback);
       const val = document.createElement("span");
       const numVal = c.getValue() as number;
-      val.textContent = c.slider?.unit === "%" ? `${Math.round(numVal * 100)}%` : c.slider?.unit === "h" ? `${String(Math.floor(numVal)).padStart(2, "0")}:${String(Math.round((numVal % 1) * 60)).padStart(2, "0")}` : numVal.toFixed(2);
+      val.textContent = c.slider?.unit === "%" ? `${Math.round(numVal * 100)}%` : c.slider?.unit === "h" ? `${String(Math.floor(numVal)).padStart(2, "0")}:${String(Math.round((numVal % 1) * 60)).padStart(2, "0")}` : c.slider?.unit ? `${numVal}${c.slider.unit}` : numVal.toFixed(2);
       head.append(name, val);
       const slider = document.createElement("input");
       slider.type = "range";
@@ -98,9 +98,32 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
       slider.oninput = (): void => {
         const v = Number(slider.value);
         c.setValue(v);
-        val.textContent = c.slider?.unit === "%" ? `${Math.round(v * 100)}%` : c.slider?.unit === "h" ? `${String(Math.floor(v)).padStart(2, "0")}:${String(Math.round((v % 1) * 60)).padStart(2, "0")}` : v.toFixed(2);
+        val.textContent = c.slider?.unit === "%" ? `${Math.round(v * 100)}%` : c.slider?.unit === "h" ? `${String(Math.floor(v)).padStart(2, "0")}:${String(Math.round((v % 1) * 60)).padStart(2, "0")}` : c.slider?.unit ? `${v}${c.slider.unit}` : v.toFixed(2);
       };
       row.append(head, slider);
+      list.appendChild(row);
+      continue;
+    }
+    if (c.kind === "select") {
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+      const label = document.createElement("span");
+      label.className = "slide-label";
+      label.textContent = tr(c.labelKey, c.fallback);
+      label.style.cssText = "flex:1;font-size:12px";
+      const sel = document.createElement("select");
+      sel.className = "setting-select";
+      sel.style.cssText = "font-size:11px;padding:2px 4px";
+      for (const opt of c.select ?? []) {
+        const o = document.createElement("option");
+        o.value = opt.value;
+        o.textContent = opt.label;
+        sel.appendChild(o);
+      }
+      sel.value = String(c.getValue());
+      sel.onchange = (): void => c.setValue(sel.value);
+      row.append(label, sel);
       list.appendChild(row);
     }
   }
@@ -304,16 +327,28 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   };
 }
 
-/** 环境面板（ADR-075 + 统一注册表）：从 sky/ground cap 的 getMenuControls() 自动渲染 */
+/** 环境面板（ADR-075 + 统一注册表）：从注册表全部 capability 的 getMenuControls() 自动渲染
+ *  顺序 = 注册顺序（sky/ground/fog/shadow/...）；
+ *  每个 cap 的控件之间画分隔线，视觉分组。 */
 function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
+  const allCaps = sceneCapabilityRegistry.getAll();
   const controls: MenuControlDef[] = [];
-  // 优先从注册表收集，回退到 ctx getter（测试兼容）
-  const skyFromReg = sceneCapabilityRegistry.getById("sky");
-  const groundFromReg = sceneCapabilityRegistry.getById("ground");
-  if (skyFromReg) controls.push(...skyFromReg.getMenuControls());
-  if (groundFromReg) controls.push(...groundFromReg.getMenuControls());
-  // 注册表为空时回退到 ctx getter（测试场景）
-  if (controls.length === 0) {
+  if (allCaps.length > 0) {
+    allCaps.forEach((cap, idx) => {
+      if (idx > 0) {
+        controls.push({
+          id: "__divider_" + cap.id,
+          kind: "divider",
+          labelKey: "",
+          fallback: "",
+          getValue: () => false,
+          setValue: () => { /* 占位 */ },
+        });
+      }
+      controls.push(...cap.getMenuControls());
+    });
+  } else {
+    // 注册表为空时回退到 ctx getter（测试场景）
     const skyCap = ctx.getSkyCap();
     const groundCap = ctx.getGroundCap();
     if (skyCap && "getMenuControls" in skyCap) controls.push(...(skyCap as unknown as { getMenuControls(): MenuControlDef[] }).getMenuControls());
@@ -467,7 +502,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
   list.appendChild(inputRow);
 }
 
-/** 灯光面板（ADR-081 L1 + 统一注册表）：从 light cap 的 getMenuControls() 自动渲染基础控件，加额外自定义控件 */
+/** 灯光面板（ADR-081 L1 + 统一注册表）：从 light cap 的 getMenuControls() 自动渲染 */
 function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   const lightFromReg = sceneCapabilityRegistry.getById("light") as import("../caps/light-capability.ts").LightCapability | null;
   const lightCap = lightFromReg ?? (() => {
@@ -484,92 +519,5 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   };
   if (!lightCap) { noCap(); return; }
 
-  // 基础控件：由 getMenuControls() 驱动
   renderCapControls(list, lightCap.getMenuControls());
-  const params = lightCap.getParams();
-
-  // --- 额外控件（引擎/锥角/预设）：不在 getMenuControls 中，保留手动渲染 ---
-
-  // --- 体积光引擎（ADR-081 L2）：cone 轻量 vs postprocess 后处理 ---
-  const engineRow = document.createElement("div");
-  engineRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
-  const engineLabel = document.createElement("span");
-  engineLabel.className = "slide-label";
-  engineLabel.textContent = tr("preview.volumetricEngine", "\u952F\u5F15\u64CE");
-  engineLabel.style.cssText = "flex:1;font-size:12px";
-  const engineSel = document.createElement("select");
-  engineSel.className = "setting-select";
-  engineSel.style.cssText = "font-size:11px;padding:2px 4px";
-  const engineOpts = [
-    { v: "cone",        t: "\u952F\u5F62" },
-    { v: "postprocess", t: "\u540E\u5904\u7406" },
-  ];
-  engineOpts.forEach((eo) => {
-    const opt = document.createElement("option");
-    opt.value = eo.v;
-    opt.textContent = eo.t;
-    engineSel.appendChild(opt);
-  });
-  engineSel.value = lightCap.getVolumetricEngine();
-  engineSel.onchange = (): void => lightCap.setVolumetricEngine(engineSel.value as "cone" | "postprocess");
-  engineRow.append(engineLabel, engineSel);
-  list.appendChild(engineRow);
-
-  // --- 锥角 ---
-  const angleRow = document.createElement("div");
-  angleRow.className = "slide-item";
-  angleRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
-  const angleHead = document.createElement("div");
-  angleHead.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
-  const angleName = document.createElement("span");
-  angleName.className = "slide-label";
-  angleName.textContent = tr("preview.coneAngle", "\u952F\u89D2");
-  const angleVal = document.createElement("span");
-  angleVal.textContent = params.spotlight.angle + "\u00B0";
-  angleHead.append(angleName, angleVal);
-  const angleSlider = document.createElement("input");
-  angleSlider.type = "range";
-  angleSlider.min = "10";
-  angleSlider.max = "60";
-  angleSlider.step = "1";
-  angleSlider.value = String(params.spotlight.angle);
-  angleSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
-  angleSlider.oninput = (): void => {
-    const v = Number(angleSlider.value);
-    lightCap.setSpotlight({ angle: v });
-    angleVal.textContent = v + "\u00B0";
-  };
-  angleRow.append(angleHead, angleSlider);
-  list.appendChild(angleRow);
-
-  // --- 预设 ---
-  const presetRow = document.createElement("div");
-  presetRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
-  const presetHead = document.createElement("div");
-  presetHead.style.cssText = "display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.7)";
-  const presetName = document.createElement("span");
-  presetName.className = "slide-label";
-  presetName.textContent = tr("preview.lightPreset", "\u98DE\u5149\u9884\u8BBE");
-  const presetSel = document.createElement("select");
-  presetSel.className = "setting-select";
-  presetSel.style.cssText = "font-size:11px;padding:2px 4px";
-  const presets = [
-    { v: "default",  t: "\u9ED8\u8BA4" },
-    { v: RESOURCE_TYPES.YSM, t: "YSM\u65B9\u5757" },
-    { v: "vrm",      t: "VRM\u89D2\u8272" },
-    { v: "mmd",      t: "MMD\u89D2\u8272" },
-    { v: "litematic", t: "\u4F53\u7D20" },
-    { v: "resourcepack", t: "MC\u5757\u5305" },
-  ];
-  presets.forEach((pr) => {
-    const opt = document.createElement("option");
-    opt.value = pr.v;
-    opt.textContent = pr.t;
-    presetSel.appendChild(opt);
-  });
-  presetSel.value = lightCap.getCurrentPreset(); // ADR-085 S2：只读真实预设，消灭 spotlight.enabled ? "resourcepack" : "default" 启发式派生
-  presetSel.onchange = (): void => lightCap.setPreset(presetSel.value);
-  presetHead.append(presetName, presetSel);
-  presetRow.appendChild(presetHead);
-  list.appendChild(presetRow);
 }

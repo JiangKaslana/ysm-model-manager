@@ -32,7 +32,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 24 | 183 |
+| Go(internal)·应用入口 | 24 | 185 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 101 |
 | 前端·核心 | 18 | 36 |
@@ -40,7 +40,7 @@
 | 前端·服务 | 1 | 6 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 120 | 448 |
+| 前端·工具 | 120 | 446 |
 | frontend/views | 105 | 293 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
@@ -561,6 +561,8 @@
 | `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:63` | — |
 | `App.ImportModelFileTo()` | `internal/app/app_install_import:83` | — |
 | `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:87` | — |
+| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:94` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
+| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:99` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
 | `App.CountInstanceResources()` | `internal/app/app_install_instance:26` | CountInstanceResources 统计指定整合包中可清空的资源文件数 只统计仓库中已有的文件（同 clearInstanceDir 逻辑） rtype 为空时统计全部类 |
 | `App.ClearInstanceResources()` | `internal/app/app_install_instance:66` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
 | `App.DeduplicateCustomDir()` | `internal/app/app_install_instance:152` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
@@ -937,19 +939,19 @@
 | `importWebFilesWithToast()` | `frontend/src/features/import-executor:227` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `ImportFile()` | `frontend/src/features/import-queue-data:17` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `QueueItem()` | `frontend/src/features/import-queue-data:20` | 队列项数据类型 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue-data:33` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
-| `ImportQueueHost()` | `frontend/src/features/import-queue-data:38` | 应用主机接口 |
-| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:48` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
-| `readFormFields()` | `frontend/src/features/import-queue-data:57` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
-| `PreparedFormData()` | `frontend/src/features/import-queue-data:76` | prepareFormData 返回的纯数据（不含 DOM 引用） |
-| `HeaderData()` | `frontend/src/features/import-queue-data:82` | loadHeaderData 返回的头部数据（不含 DOM 引用） |
-| `initDataLayer()` | `frontend/src/features/import-queue-data:88` | 初始化导入队列的数据层：返回状态对象和清理函数 |
+| `normalizeRepoName()` | `frontend/src/features/import-queue-data:34` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
+| `ImportQueueHost()` | `frontend/src/features/import-queue-data:39` | 应用主机接口 |
+| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:49` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
+| `readFormFields()` | `frontend/src/features/import-queue-data:58` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
+| `PreparedFormData()` | `frontend/src/features/import-queue-data:77` | prepareFormData 返回的纯数据（不含 DOM 引用） |
+| `HeaderData()` | `frontend/src/features/import-queue-data:84` | loadHeaderData 返回的头部数据（不含 DOM 引用） |
+| `initDataLayer()` | `frontend/src/features/import-queue-data:90` | 初始化导入队列的数据层：返回状态对象和清理函数 |
 | `renderFormData()` | `frontend/src/features/import-queue-events:31` | — |
-| `renderHeaderData()` | `frontend/src/features/import-queue-events:85` | — |
-| `bindFormEvents()` | `frontend/src/features/import-queue-events:115` | 表单输入事件绑定 |
-| `bindDragEvents()` | `frontend/src/features/import-queue-events:150` | 拖拽事件绑定 |
-| `bindInputEvents()` | `frontend/src/features/import-queue-events:237` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:319` | 按钮事件绑定 |
+| `renderHeaderData()` | `frontend/src/features/import-queue-events:94` | — |
+| `bindFormEvents()` | `frontend/src/features/import-queue-events:124` | 表单输入事件绑定 |
+| `bindDragEvents()` | `frontend/src/features/import-queue-events:159` | 拖拽事件绑定 |
+| `bindInputEvents()` | `frontend/src/features/import-queue-events:246` | 文件输入框事件绑定 |
+| `bindButtonEvents()` | `frontend/src/features/import-queue-events:328` | 按钮事件绑定 |
 | `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
 | `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
 | `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
@@ -1132,9 +1134,9 @@
 |------|--------|------|
 | `CameraControlBridge()` | `frontend/src/utils/3d/adapters/camera-controls:13` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在 topBar 追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
-| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:22` | — |
-| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:57` | — |
-| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:134` | — |
+| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:24` | — |
+| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:61` | — |
+| `safeDisposeMat()` | `frontend/src/utils/3d/adapters/cleanup-3d:140` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1228,24 +1230,22 @@
 | `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:15` | — |
 | `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:28` | — |
 | `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:36` | — |
-| `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:31` | ============ 参数类型 ============ |
-| `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:41` | — |
-| `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:46` | — |
-| `VolumetricParams()` | `frontend/src/utils/3d/caps/light-capability:60` | — |
-| `LightParams()` | `frontend/src/utils/3d/caps/light-capability:74` | — |
-| `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:102` | — |
-| `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:112` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
-| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:220` | ============ LightCapability ============ |
+| `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:32` | ============ 参数类型 ============ |
+| `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:42` | — |
+| `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:47` | — |
+| `VolumetricParams()` | `frontend/src/utils/3d/caps/light-capability:61` | — |
+| `LightParams()` | `frontend/src/utils/3d/caps/light-capability:75` | — |
+| `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:103` | — |
+| `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:113` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
+| `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:221` | ============ LightCapability ============ |
 | `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability-registry:17` | 能力工厂：接收 scene/renderer，返回能力实例 |
 | `SceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:23` | 注册表：管理所有场景能力的工厂和实例 |
 | `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:101` | 全局单例（模块级单例 + 运行时状态隔离） |
-| `MenuControlKind()` | `frontend/src/utils/3d/caps/scene-capability:13` | 单个菜单控件类型 |
-| `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:16` | 菜单控件定义（声明式，由框架渲染为 DOM） |
-| `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:42` | ============ 场景能力统一接口 ============ |
-| `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability:81` | 能力工厂：接收 scene/renderer，返回能力实例 |
-| `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability:120` | 全局单例（ADR-066 同模式：模块级单例 + 运行时状态隔离） |
-| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:145` | 保存 JSON 到 localStorage |
-| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:150` | 从 localStorage 加载 JSON |
+| `MenuControlKind()` | `frontend/src/utils/3d/caps/scene-capability:11` | 单个菜单控件类型 |
+| `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:14` | 菜单控件定义（声明式，由框架渲染为 DOM） |
+| `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:40` | ============ 场景能力统一接口 ============ |
+| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:99` | 保存 JSON 到 localStorage |
+| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:104` | 从 localStorage 加载 JSON |
 | `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:18` | — |
 | `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:47` | — |
 | `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:61` | 模型类别阴影预设 |

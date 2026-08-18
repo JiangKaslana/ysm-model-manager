@@ -5,8 +5,6 @@
 //   2. 在 registry.add() 注册一行
 // 菜单/持久化/生命周期全部由框架驱动，零手工 wiring。
 
-import type * as THREE from "three";
-
 /* ============ 菜单控件定义 ============ */
 
 /** 单个菜单控件类型 */
@@ -74,50 +72,6 @@ export interface SceneCapability {
   /** 持久化：从 localStorage 恢复状态（构造后、apply 前调用） */
   loadState(): void;
 }
-
-/* ============ 注册表 ============ */
-
-/** 能力工厂：接收 scene/renderer，返回能力实例 */
-export type SceneCapabilityFactory = (ctx: {
-  scene: THREE.Scene;
-  renderer: THREE.WebGLRenderer;
-}) => SceneCapability;
-
-class SceneCapabilityRegistry {
-  private factories = new Map<string, SceneCapabilityFactory>();
-
-  /** 注册能力工厂 */
-  add(factory: SceneCapabilityFactory): void {
-    // 用一个临时调用获取 id（工厂必须在首次调用时返回正确 id）
-    // 这里只存工厂，实际 id 在 create 时获取
-    this.factories.set("__pending__" + this.factories.size, factory);
-  }
-
-  /** 创建所有已注册能力 */
-  createAll(ctx: {
-    scene: THREE.Scene;
-    renderer: THREE.WebGLRenderer;
-  }): SceneCapability[] {
-    const caps: SceneCapability[] = [];
-    for (const factory of this.factories.values()) {
-      try {
-        const cap = factory(ctx);
-        caps.push(cap);
-      } catch (e) {
-        console.warn("[scene-cap] 能力创建失败:", e);
-      }
-    }
-    return caps;
-  }
-
-  /** 获取所有已注册能力的工厂（用于检查） */
-  getFactories(): SceneCapabilityFactory[] {
-    return [...this.factories.values()];
-  }
-}
-
-/** 全局单例（ADR-066 同模式：模块级单例 + 运行时状态隔离） */
-export const sceneCapabilityRegistry = new SceneCapabilityRegistry();
 
 /* ============ 持久化工具 ============ */
 
