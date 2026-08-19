@@ -61,14 +61,7 @@ export const ALL_RESOURCE_TYPES: string[] = registryEntries
 // ===== 资源分组派生（ADR-092：FilesRoot/{group}/{storageSubDir} 两层路由）=====
 // 从各类型 group 字段派生，消除 resourceGroups 冗余源。
 // 组 = 所有类型的 group 字段去重集合，新资源注册后自动入组。
-
-/** 分组显示名/图标映射（group id → 显示数据），无 resourceGroups 后轻量内联 */
-const GROUP_LABELS: Record<string, { name: string; icon: string }> = {
-  minecraft: { name: "Minecraft 原版", icon: "⛏️" },
-  "minecraft-mod": { name: "Minecraft 模组", icon: "🧩" },
-  mmd: { name: "MMD", icon: "🎭" },
-  other: { name: "其他", icon: "📦" },
-};
+// groupLabel/groupIcon 从注册表各类型的 groupLabel/groupIcon 字段读取（仅该组首个类型携带）。
 
 /** 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 */
 export const GROUP_META: Record<string, { name: string; icon: string; order: number }> = {};
@@ -76,8 +69,13 @@ const groupSeen: string[] = [];
 for (const t of registryEntries) {
   const gid = t.group || "";
   if (!gid || GROUP_META[gid]) continue;
-  const meta = GROUP_LABELS[gid] || { name: gid, icon: "📦" };
-  GROUP_META[gid] = { name: meta.name, icon: meta.icon, order: groupSeen.length };
+  // 从注册表读取 groupLabel/groupIcon（仅该组首个类型携带）
+  const raw = t as { groupLabel?: string; groupIcon?: string };
+  GROUP_META[gid] = {
+    name: raw.groupLabel || gid,
+    icon: raw.groupIcon || "📦",
+    order: groupSeen.length,
+  };
   groupSeen.push(gid);
 }
 

@@ -354,21 +354,31 @@ func GroupStorageRoot(rtype string) string {
 	return sub
 }
 
-// GroupLabel 返回分组显示名（从 resourceTypes 各类型 group 字段派生，消除 resourceGroups 冗余源）；
-// 未知分组返回空串。
+// GroupLabel 返回分组显示名（从注册表各类型的 groupLabel 字段派生，消除 resourceGroups 冗余源）；
+// 取该组第一个有 groupLabel 的类型的值；未知分组返回空串。
 func GroupLabel(group string) string {
 	if group == "" {
 		return ""
 	}
-	// 分组显示名直接映射（resourceGroups 已删除，组由 types 的 group 字段隐含定义）
-	labels := map[string]string{
-		"minecraft":     "Minecraft 原版",
-		"minecraft-mod": "Minecraft 模组",
-		"mmd":           "MMD",
-		"other":         "其他",
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		if rt.Group == group && rt.GroupLabel != "" {
+			return rt.GroupLabel
+		}
 	}
-	if l, ok := labels[group]; ok {
-		return l
+	return ""
+}
+
+// GroupIcon 返回分组图标（从注册表各类型的 groupIcon 字段派生）。
+func GroupIcon(group string) string {
+	if group == "" {
+		return ""
+	}
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		if rt.Group == group && rt.GroupIcon != "" {
+			return rt.GroupIcon
+		}
 	}
 	return ""
 }

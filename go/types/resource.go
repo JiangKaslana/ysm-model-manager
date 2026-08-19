@@ -31,7 +31,9 @@ type ResourceType struct {
 	ID             string            `json:"id"`
 	Name           string            `json:"name"`
 	Icon           string            `json:"icon"`
-	Group          string            `json:"group"` // 所属分组（ADR-092）：minecraft / minecraft-mod / mmd / vrm / other
+	Group          string            `json:"group"`                // 所属分组（ADR-092）：minecraft / minecraft-mod / mmd / vrm / other
+	GroupLabel     string            `json:"groupLabel,omitempty"` // 分组显示名，仅该组首个类型携带（消除双写）
+	GroupIcon      string            `json:"groupIcon,omitempty"`  // 分组图标，同上
 	Extensions     []string          `json:"extensions"`
 	StorageSubDir  string            `json:"storageSubDir"`
 	InstallDir     string            `json:"installDir"`
