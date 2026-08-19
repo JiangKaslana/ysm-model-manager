@@ -475,18 +475,18 @@
 | `LoadRegistry()` | `go/types/resource:178` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
 | `BundledRegistryJSON()` | `go/types/resource:269` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
 | `RegistryType()` | `go/types/resource:276` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:297` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:393` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:303` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:399` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:25` | ResourceTypeRegistry 资源类型注册表 |
 | `ResourceType()` | `go/types/resource:30` | ResourceType 一种受支持的资源类型定义 |
 | `ResourceSubType()` | `go/types/resource:65` | ResourceSubType 资源类型的用途子类（ADR-104/105：大类→小类→防御检验三层架构）。 |
 | `ZipEntryMatch()` | `go/types/resource:123` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:291` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:382` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:400` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:417` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:423` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:431` | VoxelGroup 同一颜色的方块组 |
+| `FormatRange()` | `go/types/resource:297` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:388` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:406` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:423` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:429` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:437` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:125` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:173` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:179` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |

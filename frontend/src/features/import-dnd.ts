@@ -145,10 +145,12 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   const isBusy = () => _dropBusy;
   const setBusy = (v: boolean) => { _dropBusy = v; };
 
-  // hint 与 #tree 同为 <app-tree> shadow root 的直接子节点：parentElement 对
-  // shadow root 子节点返回 null（ShadowRoot 非 Element），必须从 getRootNode()
-  // 查找，否则 hint 永远不显示（ADR-060 组件化回归）。
-  const hintEl = (container.getRootNode() as ParentNode).querySelector<HTMLElement>(".tree-drop-hint");
+  // 在 ShadowRoot 顶层绑定（避开 overflow:auto 容器吞 drop 的 WebView2 已知问题）；
+  // hint 同样需从 getRootNode() 查找，而非 container.parentElement。
+  const rootNode = container.getRootNode() as Document | ShadowRoot;
+  const hintEl = rootNode instanceof ShadowRoot
+    ? rootNode.querySelector<HTMLElement>(".tree-drop-hint")
+    : (rootNode as Document).querySelector<HTMLElement>(".tree-drop-hint");
 
   const onDragOver = (e: DragEvent): void => {
     if (isEditable(e.target)) return;
@@ -187,14 +189,14 @@ export function bindTreeDnD(container: HTMLElement): () => void {
     });
   };
 
-  container.addEventListener("dragover", onDragOver);
-  container.addEventListener("dragleave", onDragLeave);
-  container.addEventListener("drop", onDrop);
+  rootNode.addEventListener("dragover", onDragOver as EventListener);
+  rootNode.addEventListener("dragleave", onDragLeave as EventListener);
+  rootNode.addEventListener("drop", onDrop as EventListener);
   // eslint-disable-next-line no-console
-  console.log("[dnd] bound listeners to", container.id, container.tagName, "has drop:", typeof container.onclick);
+  console.log("[dnd] bound listeners to rootNode", rootNode.constructor.name);
   return () => {
-    container.removeEventListener("dragover", onDragOver);
-    container.removeEventListener("dragleave", onDragLeave);
-    container.removeEventListener("drop", onDrop);
+    rootNode.removeEventListener("dragover", onDragOver as EventListener);
+    rootNode.removeEventListener("dragleave", onDragLeave as EventListener);
+    rootNode.removeEventListener("drop", onDrop as EventListener);
   };
 }
