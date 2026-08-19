@@ -1,4 +1,4 @@
-// ===== app-content 方法级补测 =====
+﻿// ===== app-content 方法级补测 =====
 // 覆盖：_render 各页面分支、_bindTabs 懒初始化（import/recycle/dedup/oldest）、
 // _initRepository subtab 切换、_initPreviewResize 拖拽宽度、_initInstances、
 // 事件订阅（repo:search-creator / lang:changed / package:selected）、
@@ -41,7 +41,6 @@ vi.mock("./diagnostics/init.ts", () => ({
   initDiagnostics: vi.fn(),
   startDedup: vi.fn(),
 }));
-vi.mock("../../features/import-queue.ts", () => ({ initImportQueue: vi.fn() }));
 vi.mock("../../features/recycle-bin.ts", () => ({ initRecycleBin: vi.fn() }));
 vi.mock("../../features/oldest-models.ts", () => ({
   loadOldestModel: vi.fn().mockResolvedValue(undefined),
@@ -59,7 +58,6 @@ vi.mock("../../features/community/events.ts", () => ({ bindRepoEvents: vi.fn() }
 vi.mock("../../utils/icon/workshop-icons.ts", () => ({ getSiteIcon: vi.fn(() => "") }));
 
 import { bus } from "../../bus.ts";
-import { initImportQueue } from "../../features/import-queue.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
 import { startDedup } from "./diagnostics/init.ts";
@@ -175,23 +173,7 @@ describe("_render — 页面分支", () => {
   });
 });
 
-describe("_bindTabs — 仓库 tab 懒初始化", () => {
-  it("点击 import tab → 渲染下载页 + initImportQueue 注册", async () => {
-    const el = mountContent();
-    await sleep(50);
-    el._current = "repository";
-    el._render();
-    const importBtn = el.shadowRoot.querySelector('.repo-tab[data-tab="import"]') as HTMLElement;
-    importBtn.click();
-    await sleep(20);
-    expect(initImportQueue).toHaveBeenCalled();
-    const body = el.shadowRoot.getElementById("repo-tab-import");
-    expect(body?.innerHTML.length).toBeGreaterThan(0);
-    expect(body?.style.display).not.toBe("none");
-    unmountElement(el);
-  });
-
-  it("点击 recycle tab → initRecycleBin 注册", async () => {
+describe("_bindTabs — 仓库 tab 懒初始化", () => {  it("点击 recycle tab → initRecycleBin 注册", async () => {
     const el = mountContent();
     await sleep(50);
     el._current = "repository";

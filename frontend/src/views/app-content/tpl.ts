@@ -25,7 +25,6 @@ export function repositoryHTML(): string {
     // 第一栏：操作
     '<div class="repo-tabs">' +
     '<button class="repo-tab active" data-testid="content-tab" data-tab="tree">📁 ' + t("repo.tab.tree") + '</button>' +
-    '<button class="repo-tab" data-testid="content-tab" data-tab="import">📥 ' + t("import.tab") + '</button>' +
     viewerExtras +
     "</div>" +
     '<div class="repo-layout" style="flex:1;display:flex;overflow:hidden">' +
@@ -34,7 +33,6 @@ export function repositoryHTML(): string {
     // 默认 YSM 文件树（预览在外层共享）
     '<app-tree root="' + RESOURCE_TYPES.YSM + '" style="flex:1;min-width:0"></app-tree>' +
     "</div>" +
-    '<div class="repo-tab-body" id="repo-tab-import" style="display:none;flex:1;overflow-y:auto"></div>' +
     '<div class="repo-tab-body" id="repo-tab-recycle" style="display:none;flex:1;overflow-y:auto"></div>' +
     '<div class="repo-tab-body" id="repo-tab-dedup" style="display:none;flex:1;overflow-y:auto;padding:12px"></div>' +
     '<div class="repo-tab-body" id="repo-tab-oldest" style="display:none;flex:1;overflow-y:auto;overflow-x:hidden"></div>' +
@@ -66,9 +64,7 @@ export function instancesHTML(): string {
     "</div>"
   );
 }
-// P2 修复（chunk 实效）：downloadsHTML / recycleHTML 已拆至 tpl-downloads.ts / tpl-recycle.ts
-// 此处保留 re-export 以兼容直接 import 自 tpl.ts 的测试文件
-export { downloadsHTML } from "./tpl-downloads.ts";
+// P2 修复（chunk 实效）：recycleHTML 已拆至 tpl-recycle.ts
 export { recycleHTML } from "./tpl-recycle.ts";
 
 export function diagnosticsHTML(): string {

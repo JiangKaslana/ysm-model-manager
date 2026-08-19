@@ -1,4 +1,4 @@
-// ===== zh-CN 基准语言包（ADR-045）=====
+﻿// ===== zh-CN 基准语言包（ADR-045）=====
 // 唯一编辑入口。修改后执行 scripts/generate-locale-json.mjs 生成运行时 JSON。
 // key 格式：扁平化命名空间，"." 分隔，如 "nav.repository"
 // ⚠️ 本目录是纯数据目录，禁止放 .test.ts（会被构建脚本扫描）。
@@ -239,8 +239,7 @@ export const zhCN: Record<string, string> = {
   "import.queue": "队列",
   "import.imported": "已导入",
   "import.dropHint": "拖拽模型文件 … 或文件夹到此处，或点击选择文件",
-  "import.tab": "导入",
-  "import.dropHint2": "放开以导入模型",
+    "import.dropHint2": "放开以导入模型",
   "import.supportedFiles": "支持",
   "import.files": "文件",
   "import.noModelDetected": "⛔ 未检测到模型文件",
@@ -1041,11 +1040,7 @@ export const zhCN: Record<string, string> = {
   "app.managerSuffix": "管理器",
 
   // ── 导入队列 ──
-  "importQueue.headerInfo": "头部信息",
-  "importQueue.noFiles": "暂无文件",
-  "importQueue.remove": "移除",
-
-  // ── 下载页 ──
+        // ── 下载页 ──
   "downloads.readAuthor": "读取作者",
   "downloads.today": "当天",
   "downloads.fileCount": "{n} 个文件",

@@ -1,4 +1,4 @@
-// ===== ja locale (ADR-045) =====
+﻿// ===== ja locale (ADR-045) =====
 // Japanese translation matching all keys in zh-CN.ts / en.ts.
 // Placeholders like {n} / {path} / {mirror} must be kept verbatim.
 
@@ -237,8 +237,7 @@ export const ja: Record<string, string> = {
   "import.queue": "キュー",
   "import.imported": "インポート済み",
   "import.dropHint": "モデルファイル … またはフォルダをここにドラッグ、またはクリックしてファイルを選択",
-  "import.tab": "インポート",
-  "import.dropHint2": "離してモデルをインポート",
+    "import.dropHint2": "離してモデルをインポート",
   "import.supportedFiles": "対応",
   "import.files": "ファイル",
   "import.noModelDetected": "⛔ モデルファイルが見つかりません",
@@ -1039,11 +1038,7 @@ export const ja: Record<string, string> = {
   "app.managerSuffix": "マネージャー",
 
   // ── インポートキュー ──
-  "importQueue.headerInfo": "ヘッダー情報",
-  "importQueue.noFiles": "ファイルがありません",
-  "importQueue.remove": "削除",
-
-  // ── ダウンロードページ ──
+        // ── ダウンロードページ ──
   "downloads.readAuthor": "作者を読み取る",
   "downloads.today": "当日",
   "downloads.fileCount": "{n} 個のファイル",

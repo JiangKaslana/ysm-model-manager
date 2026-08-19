@@ -38,15 +38,15 @@
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 19 | 101 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 20 | 98 |
+| 前端·特性 | 16 | 77 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 136 | 521 |
-| frontend/views | 110 | 309 |
+| frontend/views | 109 | 307 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **433** | **1847** |
+| **合计** | **428** | **1824** |
 
 ## Go·头像
 
@@ -1012,27 +1012,6 @@
 | `importFolder()` | `frontend/src/features/import-executor:138` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
 | `executeCollected()` | `frontend/src/features/import-executor:207` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
 | `importWebFilesWithToast()` | `frontend/src/features/import-executor:227` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
-| `ImportFile()` | `frontend/src/features/import-queue-data:17` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `QueueItem()` | `frontend/src/features/import-queue-data:20` | 队列项数据类型 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue-data:34` | 仓库文件名归一化为「纯名」键（⚠️ 重名预警的 repoFiles Set 与查询共用契约）： 先剥 `.ban` 再剥扩展名（顺序不可反）——`foo.ysm` 与 `foo.y |
-| `ImportQueueHost()` | `frontend/src/features/import-queue-data:39` | 应用主机接口 |
-| `IMPORT_FORM_FIELD_IDS()` | `frontend/src/features/import-queue-data:49` | 导入表单 5 字段 id 注册表（收敛 4 处手写列表，索引 4.1）： 事件绑定（events.ts）/ 表单填充（showForm）/ 预览读取（updatePreview）/ |
-| `readFormFields()` | `frontend/src/features/import-queue-data:58` | 读取导入表单 5 字段值（trim 后）——收敛 updatePreview / 提交读取两处逐字段手写 |
-| `PreparedFormData()` | `frontend/src/features/import-queue-data:77` | prepareFormData 返回的纯数据（不含 DOM 引用） |
-| `HeaderData()` | `frontend/src/features/import-queue-data:84` | loadHeaderData 返回的头部数据（不含 DOM 引用） |
-| `initDataLayer()` | `frontend/src/features/import-queue-data:90` | 初始化导入队列的数据层：返回状态对象和清理函数 |
-| `renderFormData()` | `frontend/src/features/import-queue-events:32` | — |
-| `renderHeaderData()` | `frontend/src/features/import-queue-events:96` | — |
-| `bindFormEvents()` | `frontend/src/features/import-queue-events:126` | 表单输入事件绑定 |
-| `bindDragEvents()` | `frontend/src/features/import-queue-events:161` | 拖拽事件绑定 |
-| `bindInputEvents()` | `frontend/src/features/import-queue-events:248` | 文件输入框事件绑定 |
-| `bindButtonEvents()` | `frontend/src/features/import-queue-events:330` | 按钮事件绑定 |
-| `renderImportedList()` | `frontend/src/features/import-queue-render:16` | 渲染已导入列表（含队列） 纯函数：根据传入数据生成 HTML 并更新 DOM |
-| `bindQueueEvents()` | `frontend/src/features/import-queue-render:80` | 渲染后绑定队列相关事件 返回 cleanup 函数集合 |
-| `updateQueueCount()` | `frontend/src/features/import-queue-render:184` | 更新队列计数显示 |
-| `normalizeRepoName()` | `frontend/src/features/import-queue` | — |
-| `ImportQueueHost()` | `frontend/src/features/import-queue` | — |
-| `initImportQueue()` | `frontend/src/features/import-queue:11` | 初始化导入队列，返回清理函数 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:42` | 加载资历最深、仓库评分、热力图和每日推荐 |
 | `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
@@ -1770,13 +1749,13 @@
 | `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:29` | 初始化 GitHub 页 |
-| `AppContentHost()` | `frontend/src/views/app-content/init-pages:18` | app-content 组件接口（供页面初始化函数访问） |
-| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:26` | 初始化诊断页 |
-| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:33` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:206` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:213` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:221` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:225` | — |
+| `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
+| `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
+| `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:199` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:206` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:214` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:218` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:143` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
@@ -1814,19 +1793,17 @@
 | `RepoCacheEntry()` | `frontend/src/views/app-content/state:12` | — |
 | `AppContentState()` | `frontend/src/views/app-content/state:18` | — |
 | `SubscriptionBucket()` | `frontend/src/views/app-content/subscription-bucket:11` | — |
-| `downloadsHTML()` | `frontend/src/views/app-content/tpl-downloads:13` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl-recycle:5` | — |
 | `aboutHTML()` | `frontend/src/views/app-content/tpl-settings-about:6` | About 标签页（版本/特性/技术栈/链接/快速上手） |
 | `creditsHTML()` | `frontend/src/views/app-content/tpl-settings-about:95` | Credits 标签页（灵感来源/特别感谢） |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl-settings:7` | — |
 | `settingsHTML()` | `frontend/src/views/app-content/tpl` | — |
-| `downloadsHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `recycleHTML()` | `frontend/src/views/app-content/tpl` | — |
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |
-| `instancesHTML()` | `frontend/src/views/app-content/tpl:49` | — |
-| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:74` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:157` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:188` | — |
+| `instancesHTML()` | `frontend/src/views/app-content/tpl:47` | — |
+| `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:70` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:153` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:184` | — |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |

@@ -2,7 +2,6 @@
 import { bus } from "../../bus.ts";
 import { initDiagnostics } from "./diagnostics/init.ts";
 import { initSettings } from "./settings/init.ts";
-import { initImportQueue } from "../../features/import-queue.ts";
 import { initRecycleBin } from "../../features/recycle-bin.ts";
 import { loadOldestModel } from "../../features/oldest-models.ts";
 import { startDedup } from "./diagnostics/init.ts";
@@ -58,7 +57,7 @@ export function initInstancesPage(host: AppContentHost): void {
  * 初始化仓库页
  */
 export function initRepositoryPage(host: AppContentHost): void {
-  bindTabs(host, ".repo-tab", "repo", ["tree", "import", "recycle", "dedup", "oldest"]);
+  bindTabs(host, ".repo-tab", "repo", ["tree", "recycle", "dedup", "oldest"]);
 
   // 资源类型由导航栏全局切换器驱动（app-nav 双下拉 → repo:rtype-changed + repo_rtype/repo_subdir 落盘）。
   // 仓库页不再持有本地 subtabs，只订阅全局事件重建文件树（单一入口，ADR-092/094 收敛）。
@@ -119,13 +118,7 @@ function bindTabs(
         // catch 中复位以允许重试并 toast 提示（ADR-044 ①：async handler 最外层必有 catch）。
         inited[tab] = true;
         try {
-          if (tab === "import") {
-            const { downloadsHTML } = await import("./tpl-downloads.ts");
-            container.innerHTML = downloadsHTML();
-            const importCleanup = initImportQueue(host as never);
-            host._unsubs = host._unsubs || [];
-            if (importCleanup) host._unsubs.push(importCleanup);
-          } else if (tab === "recycle") {
+          if (tab === "recycle") {
             const { recycleHTML } = await import("./tpl-recycle.ts");
             container.innerHTML = recycleHTML();
             const recycleCleanup = initRecycleBin(host as never);

@@ -1,4 +1,4 @@
-// @vitest-environment node
+﻿// @vitest-environment node
 // ===== app-content 页面模板测试 =====
 // 覆盖：repository/instances/settings/downloads/diagnostics/recycle/github/workshop HTML 生成
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -6,7 +6,6 @@ import {
   repositoryHTML,
   instancesHTML,
   settingsHTML,
-  downloadsHTML,
   diagnosticsHTML,
   recycleHTML,
   githubHTML,
@@ -103,16 +102,7 @@ describe("app-content 模板", () => {
     expect(html).toContain("set-advanced-grid");
     // 桌面模式不显示网页版 FSA 授权卡片
     expect(html).not.toContain("web-repo-auth-btn");
-  });
-
-  it("downloadsHTML 包含导入表单与拖拽区", () => {
-    const html = downloadsHTML();
-    expect(html).toContain('id="dl-import"');
-    expect(html).toContain("拖拽模型文件");
-    expect(html).toContain('id="dl-queue-count"');
-  });
-
-  it("diagnosticsHTML 包含诊断 Tab 与面板", () => {
+  });  it("diagnosticsHTML 包含诊断 Tab 与面板", () => {
     const html = diagnosticsHTML();
     expect(html).toContain('data-tab="diagnostics"');
     expect(html).toContain('id="diag-scan-conflict"');

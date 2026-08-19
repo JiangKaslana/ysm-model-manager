@@ -1,4 +1,4 @@
-// ===== en locale (ADR-045) =====
+﻿// ===== en locale (ADR-045) =====
 // Complete translation matching all keys in zh-CN.ts.
 
 export const en: Record<string, string> = {
@@ -236,8 +236,7 @@ export const en: Record<string, string> = {
   "import.queue": "Queue",
   "import.imported": "Imported",
   "import.dropHint": "Drag model files … or folders here, or click to select files",
-  "import.tab": "Import",
-  "import.dropHint2": "Release to import models",
+    "import.dropHint2": "Release to import models",
   "import.supportedFiles": "Supported",
   "import.files": "files",
   "import.noModelDetected": "⛔ No model files detected",
@@ -1038,11 +1037,7 @@ export const en: Record<string, string> = {
   "app.managerSuffix": "Manager",
 
   // ── Import queue ──
-  "importQueue.headerInfo": "Header Info",
-  "importQueue.noFiles": "No files",
-  "importQueue.remove": "Remove",
-
-  // ── Downloads page ──
+        // ── Downloads page ──
   "downloads.readAuthor": "Read Author",
   "downloads.today": "Today",
   "downloads.fileCount": "{n} files",
