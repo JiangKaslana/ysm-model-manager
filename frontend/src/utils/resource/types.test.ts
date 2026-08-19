@@ -267,6 +267,10 @@ describe("groupStorageRootOf 两层路由", () => {
     // （当前全类型均带 group，此处用 groupStorageRootOf 对已知 storageSubDir 断言）
     expect(groupStorageRootOf("ysm")).toBe("minecraft-mod/ysm");
   });
+
+  it("未知 typeId 回退到 typeId 自身（对齐 Go TestGroupStorageRoot）", () => {
+    expect(groupStorageRootOf("nonexistent")).toBe("nonexistent");
+  });
 });
 
 describe("groupLabelOf 分组显示名", () => {
@@ -275,8 +279,8 @@ describe("groupLabelOf 分组显示名", () => {
     expect(groupLabelOf("mmd")).toBe("MMD");
   });
 
-  it("未知分组返回原样（不炸）", () => {
-    expect(groupLabelOf("nonexistent")).toBe("nonexistent");
+  it("未知分组返回空串（对齐 Go GroupLabel 语义）", () => {
+    expect(groupLabelOf("nonexistent")).toBe("");
     expect(groupLabelOf("")).toBe("");
   });
 });

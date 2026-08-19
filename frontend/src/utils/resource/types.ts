@@ -87,7 +87,7 @@ for (const t of registryEntries) {
 
 /** 分组 id → 显示名 */
 export function groupLabelOf(group: string): string {
-  return GROUP_META[group]?.name || group;
+  return GROUP_META[group]?.name || "";
 }
 
 /**

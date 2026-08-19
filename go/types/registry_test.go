@@ -194,6 +194,22 @@ func TestGroupLabel(t *testing.T) {
 	}
 }
 
+func TestGroupIcon(t *testing.T) {
+	if got := GroupIcon("minecraft"); got != "⛏️" {
+		t.Errorf("GroupIcon('minecraft') = %q, 期望 '⛏️'", got)
+	}
+	if got := GroupIcon("mmd"); got != "🎭" {
+		t.Errorf("GroupIcon('mmd') = %q, 期望 '🎭'", got)
+	}
+	// 未知/空分组返回空串
+	if got := GroupIcon("nope"); got != "" {
+		t.Errorf("GroupIcon('nope') = %q, 期望 ''", got)
+	}
+	if got := GroupIcon(""); got != "" {
+		t.Errorf("GroupIcon('') = %q, 期望 ''", got)
+	}
+}
+
 func TestSubDirMap(t *testing.T) {
 	// 已知类型
 	if got := SubDirMap("resourcepack"); got != "resourcepacks" {

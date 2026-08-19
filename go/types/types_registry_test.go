@@ -97,6 +97,49 @@ func TestRegistryType_ExtensionsDeepCopy(t *testing.T) {
 	}
 }
 
+// TestRegistryType_SubTypesDeepCopy 返回值的 SubTypes 切片必须与缓存解耦：
+// 修改 subtype 字段不应污染进程级注册表缓存。
+func TestRegistryType_SubTypesDeepCopy(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "sub.json")
+	payload := `{"resourceTypes":[
+		{"id":"test","name":"Test","extensions":[".x"],"storageSubDir":"test",
+		 "subtypes":[
+		   {"name":"SubA","label":"子A","icon":"📦","extensions":[".a"],"detector":"extension","zipEntries":[{"name":".a","match":"suffix"}],"preview":"none"},
+		   {"name":"SubB","label":"子B","icon":"📦","extensions":[".b"],"detector":"extension","zipEntries":[{"name":".b","match":"suffix"}],"preview":"none"}
+		 ]}
+	]}`
+	if err := os.WriteFile(p, []byte(payload), 0644); err != nil {
+		t.Fatal(err)
+	}
+	SetRegistryPath(p)
+	defer SetRegistryPath("")
+
+	rt := RegistryType("test")
+	if rt == nil || len(rt.SubTypes) < 2 {
+		t.Fatal("RegistryType('test') 应返回含 SubTypes 的条目")
+	}
+	// 篡改返回值的 SubTypes
+	rt.SubTypes[0].Name = "hacked"
+	rt.SubTypes[0].Extensions[0] = ".hacked"
+
+	// 再次查询必须拿到未污染的数据
+	rt2 := RegistryType("test")
+	if rt2 == nil {
+		t.Fatal("第二次 RegistryType('test') = nil")
+	}
+	if rt2.SubTypes[0].Name != "SubA" {
+		t.Errorf("SubTypes[0].Name 应深拷贝，缓存被篡改为 %q", rt2.SubTypes[0].Name)
+	}
+	if rt2.SubTypes[0].Extensions[0] != ".a" {
+		t.Errorf("SubTypes[0].Extensions[0] 应深拷贝，缓存被篡改为 %q", rt2.SubTypes[0].Extensions[0])
+	}
+	// 未篡改的项应保持不变
+	if rt2.SubTypes[1].Name != "SubB" {
+		t.Errorf("SubTypes[1].Name 应保持原始值 %q", rt2.SubTypes[1].Name)
+	}
+}
+
 // ====== AppError.WithCause ======
 
 // sentinel 用于 errors.Is 穿透测试

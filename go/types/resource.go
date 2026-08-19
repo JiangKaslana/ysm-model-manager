@@ -281,6 +281,12 @@ func RegistryType(id string) *ResourceType {
 			rt.Extensions = append([]string(nil), rt.Extensions...)
 			rt.InstallExts = append([]string(nil), rt.InstallExts...)
 			rt.ZipEntries = append([]ZipEntryMatch(nil), rt.ZipEntries...)
+			// SubTypes 深拷贝（含内部切片字段）
+			rt.SubTypes = append([]ResourceSubType(nil), rt.SubTypes...)
+			for j := range rt.SubTypes {
+				rt.SubTypes[j].Extensions = append([]string(nil), rt.SubTypes[j].Extensions...)
+				rt.SubTypes[j].ZipEntries = append([]ZipEntryMatch(nil), rt.SubTypes[j].ZipEntries...)
+			}
 			return &rt
 		}
 	}
