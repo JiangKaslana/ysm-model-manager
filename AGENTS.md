@@ -250,6 +250,7 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 | 命令 | 说明 | 示例 |
 |------|------|------|
 | `config-show` | 查看当前配置（路径/阈值/窗口状态） | `config-show` |
+| `gui-flow` | **模拟 GUI 完整加载流程**（配置→扫描→分析→缓存→渲染预估） | `gui-flow --verbose` |
 
 ## 常用场景
 
@@ -319,6 +320,19 @@ go run . --cli --files-root ./models cache-status
 
 # 4. 检查特定模型的缓存命中
 go run . --cli --files-root ./models cache-verify --dir ./mmd/子言
+```
+
+### 场景 6：模拟 GUI 完整加载流程（从配置到渲染）
+
+```bash
+# 完整流程模拟（自动选择第一个模型）
+go run . --cli --files-root ./models gui-flow
+
+# 指定模型 + 详细输出
+go run . --cli --files-root ./models gui-flow --model ./ysm/player.ysm --verbose
+
+# 流程阶段:
+# ① 配置加载 → ② 模型扫描 → ③ 模型分析 → ④ 纹理缓存检查 → ⑤ 数据准备(IPC预估) → ⑥ 渲染预估
 ```
 
 ## 输出格式
