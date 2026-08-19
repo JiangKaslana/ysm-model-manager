@@ -1247,8 +1247,8 @@
 | `PmxBuildResult()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:43` | Builder 产出 |
 | `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:52` | PMX 解析器管理器 |
 | `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:60` | 创建 PMX 解析器（Worker） |
-| `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:118` | 从 Worker 解析结果构建 Three.js 场景对象。 |
-| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:241` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
+| `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:130` | 从 Worker 解析结果构建 Three.js 场景对象。 |
+| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:253` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
 | `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:10` | 主线程 → Worker 请求 |
 | `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:16` | 顶点数据（交织存储，GPU 友好） |
 | `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:26` | 面数据 |
@@ -1265,9 +1265,9 @@
 | `DecodedTexture()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:23` | 解码结果条目 |
 | `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:34` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
 | `createTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:42` | 创建纹理解码器（Worker 池） |
-| `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:138` | 获取共享解码器（懒创建） |
-| `disposeTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:146` | 释放共享解码器 |
-| `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:158` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 遍历 mesh 的所有材质，将命中的 blob:HTMLImageElement 纹理替换为 I |
+| `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:142` | 获取共享解码器（懒创建） |
+| `disposeTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:150` | 释放共享解码器 |
+| `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:162` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:63` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:82` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:108` | — |

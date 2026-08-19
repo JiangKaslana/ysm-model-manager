@@ -88,6 +88,14 @@ export function createPmxParser(): PmxParser {
     }
   };
 
+  worker.onerror = (ev: ErrorEvent) => {
+    for (const [id, entry] of pending) {
+      clearTimeout(entry.timer);
+      pending.delete(id);
+      entry.resolve({ id, ok: false, error: `Worker 错误: ${ev.message}` });
+    }
+  };
+
   function parse(bytes: ArrayBuffer): Promise<PmxParseResponse> {
     return new Promise((resolve) => {
       const id = nextId++;
@@ -104,8 +112,12 @@ export function createPmxParser(): PmxParser {
   }
 
   function dispose() {
-    worker.terminate();
+    for (const [id, entry] of pending) {
+      clearTimeout(entry.timer);
+      entry.resolve({ id, ok: false, error: "Worker 已终止" });
+    }
     pending.clear();
+    worker.terminate();
   }
 
   return { parse, dispose };
@@ -292,12 +304,8 @@ export async function buildPmxSceneSliced(
       if (texPath) {
         const blobUrl = config.texUrlMap.get(texPath) ?? config.texUrlMap.get(texPath.split("/").pop() ?? "");
         if (blobUrl) {
-          const texLoader = new THREE.TextureLoader();
-          texLoader.load(blobUrl, (texture) => {
-            texture.colorSpace = THREE.SRGBColorSpace;
-            mat.map = texture;
-            mat.needsUpdate = true;
-          });
+          // 纹理延后到 Worker 解码完成后同步应用，避免 TextureLoader.load() 竞态
+          mat.userData.pendingTexture = { relPath: texPath, blobUrl };
         }
       }
     }

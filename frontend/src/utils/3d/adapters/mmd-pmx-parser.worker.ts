@@ -284,13 +284,61 @@ class PmxReader {
   }
 }
 
+/** PMX 结构预扫描：记录各 block 的位置、大小、count，用于确定索引大小和解析顺序 */
+interface PmxBlock {
+  pos: number;
+  size: number;
+  count: number;
+}
+
+interface PmxStructure {
+  vertex: PmxBlock;
+  face: PmxBlock;
+  texture: PmxBlock;
+  material: PmxBlock;
+  bone: PmxBlock;
+  rigidBody: PmxBlock;
+  joint: PmxBlock;
+  morph: PmxBlock;
+  displayFrame: PmxBlock;
+}
+
+function scanStructure(reader: PmxReader): PmxStructure {
+  const s: PmxStructure = {
+    vertex: { pos: 0, size: 0, count: 0 },
+    face: { pos: 0, size: 0, count: 0 },
+    texture: { pos: 0, size: 0, count: 0 },
+    material: { pos: 0, size: 0, count: 0 },
+    bone: { pos: 0, size: 0, count: 0 },
+    rigidBody: { pos: 0, size: 0, count: 0 },
+    joint: { pos: 0, size: 0, count: 0 },
+    morph: { pos: 0, size: 0, count: 0 },
+    displayFrame: { pos: 0, size: 0, count: 0 },
+  };
+
+  const blocks: Array<keyof PmxStructure> = [
+    "vertex", "face", "texture", "material", "bone",
+    "rigidBody", "joint", "morph", "displayFrame",
+  ];
+
+  for (const key of blocks) {
+    const pos = reader.position;
+    const size = reader.readInt32();
+    const count = size >= 4 ? reader.readInt32() : 0;
+    s[key] = { pos, size: size > 0 ? size : 0, count };
+    reader.pos = pos + 4 + (size > 0 ? size : 0);
+  }
+
+  return s;
+}
+
 // ===== PMX 解析 =====
 function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   const reader = new PmxReader(buffer);
 
   // --- Header ---
   const magic = new TextDecoder("ascii").decode(new Uint8Array(buffer, 0, 4));
-  if (magic !== "PMX " && magic !== "PMX\x20") {
+  if (magic !== "PMX ") {
     return { id: 0, ok: false, error: `无效 PMX 文件：magic="${magic}"` };
   }
 
@@ -298,170 +346,167 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   const encodingByte = reader.readUint8();
   reader.encoding = encodingByte === 0 ? "utf-8" : "utf-16";
   reader.additionalFlags = reader.readUint8();
+  const headerEnd = reader.position;
 
-  // 根据计数动态设置索引大小
-  // 先跳过 header 剩余部分，逐个块解析时再计算
+  // --- 结构预扫描：记录所有 block 位置和 count ---
+  reader.pos = headerEnd;
+  const struct = scanStructure(reader);
 
-  // --- Vertices ---
-  const vertexBlockSize = reader.readBlockSize();
-  const vertexCount = reader.readInt32();
+  // 从预扫描结果提取 count
+  const vertexCount = struct.vertex.count;
+  const faceCount = struct.face.count;
+  const texCount = struct.texture.count;
+  const matCount = struct.material.count;
+  const boneCount = struct.bone.count;
+  const rbCount = struct.rigidBody.count;
+  const jointCount = struct.joint.count;
+  const morphCount = struct.morph.count;
+  const dfCount = struct.displayFrame.count;
 
-  // 计算顶点数据布局
+  // 根据预扫描结果确定全局索引大小
+  reader.boneIndexSize = PmxReader.indexSizeFor(boneCount);
+  reader.textureIndexSize = PmxReader.indexSizeFor(texCount);
+  reader.materialIndexSize = PmxReader.indexSizeFor(matCount);
+  reader.rigidBodyIndexSize = PmxReader.indexSizeFor(rbCount);
+  reader.jointIndexSize = PmxReader.indexSizeFor(jointCount);
+  reader.morphIndexSize = PmxReader.indexSizeFor(morphCount);
+  reader.displayFrameIndexSize = PmxReader.indexSizeFor(Math.max(boneCount, morphCount));
+
+  // 解析顶点布局 flag
   const hasUV = (reader.additionalFlags & 0x01) !== 0;
   const hasExtraUV = (reader.additionalFlags & 0x02) !== 0;
-  const boneWeightType = (reader.additionalFlags >> 3) & 0x03; // 0=BDEF1, 1=BDEF2, 2=BDEF4
+  const boneWeightType = (reader.additionalFlags >> 3) & 0x03;
   const hasExtendedDeform = (reader.additionalFlags & 0x80) !== 0;
 
-  // 计算每个顶点的大小
-  let vertexSize = 12 + 12; // position(3) + normal(3) = 24 bytes
-  if (hasUV) vertexSize += 8; // uv(2) = 8 bytes
-  if (hasExtraUV) vertexSize += 8; // extra uv
-  // 骨骼索引
+  // === Vertices ===
+  // PMX 规范：position(12) + normal(12) + [UV(8)] + [ExtraUV(8)] + deform + [extended(4)]
+  let vertexSize = 12 + 12;
+  if (hasUV) vertexSize += 8;
+  if (hasExtraUV) vertexSize += 8;
+  // PMX 规范 deform 大小：BDEF1=8(1+3pad+4weight), BDEF2=8(2+2pad+4weight), BDEF4=20(4+16weights)
   if (boneWeightType === 2) {
-    vertexSize += 4; // BDEF1: 1 bone index
-    reader.boneIndexSize = 1;
+    vertexSize += 8;
   } else if (boneWeightType === 1) {
-    vertexSize += 8 + 4; // BDEF2: 2 indices + 2 weights
-    reader.boneIndexSize = 1;
+    vertexSize += 8;
   } else {
-    vertexSize += 16 + 16; // BDEF4: 4 indices + 4 weights
-    reader.boneIndexSize = 1;
+    vertexSize += 20;
   }
   if (hasExtendedDeform) vertexSize += 4;
 
-  // 动态确定骨骼索引大小
-  // 需要先知道骨骼数量，但骨骼数据在后面。
-  // PMX 文件通常在 header 里就确定了索引大小，我们先假设 1 字节，后续修正
-  // 为简单起见，我们在解析完骨骼后再处理
+  const vertexData = (() => {
+    const positions = new Float32Array(vertexCount * 3);
+    const normals = new Float32Array(vertexCount * 3);
+    const uvs = hasUV ? new Float32Array(vertexCount * 2) : new Float32Array(0);
+    const boneIndices = new Uint8Array(vertexCount * 4);
+    const boneWeights = new Float32Array(vertexCount * 4);
 
-  // 重新读取顶点数据（简化版：用 float32 读取，跳过复杂逻辑）
-  // 实际解析需要精确计算每个顶点的布局
-  // 这里做一个简化的解析
+    const vertexDataStart = struct.vertex.pos + 8; // skip blockSize(4) + count(4)
 
-  const positions = new Float32Array(vertexCount * 3);
-  const normals = new Float32Array(vertexCount * 3);
-  const uvs = hasUV ? new Float32Array(vertexCount * 2) : new Float32Array(0);
-  const boneIndices = new Uint8Array(vertexCount * 4);
-  const boneWeights = new Float32Array(vertexCount * 4);
+    for (let i = 0; i < vertexCount; i++) {
+      const vOffset = vertexDataStart + i * vertexSize;
+      const u8view = new Uint8Array(buffer, vOffset, vertexSize);
+      const view = new DataView(buffer, vOffset, vertexSize);
 
-  let offset = reader.position;
-  for (let i = 0; i < vertexCount; i++) {
-    const vOffset = offset + i * vertexSize;
-    const view = new DataView(buffer, vOffset, vertexSize);
+      // Position (12 bytes)
+      positions[i * 3] = view.getFloat32(0, true);
+      positions[i * 3 + 1] = view.getFloat32(4, true);
+      positions[i * 3 + 2] = view.getFloat32(8, true);
 
-    // Position
-    positions[i * 3] = view.getFloat32(0, true);
-    positions[i * 3 + 1] = view.getFloat32(4, true);
-    positions[i * 3 + 2] = view.getFloat32(8, true);
+      // Normal (12 bytes)
+      normals[i * 3] = view.getFloat32(12, true);
+      normals[i * 3 + 1] = view.getFloat32(16, true);
+      normals[i * 3 + 2] = view.getFloat32(20, true);
 
-    // Normal
-    normals[i * 3] = view.getFloat32(12, true);
-    normals[i * 3 + 1] = view.getFloat32(16, true);
-    normals[i * 3 + 2] = view.getFloat32(20, true);
+      let cursor = 24;
 
-    let cursor = 24;
+      // UV (8 bytes)
+      if (hasUV) {
+        uvs[i * 2] = view.getFloat32(cursor, true);
+        uvs[i * 2 + 1] = view.getFloat32(cursor + 4, true);
+        cursor += 8;
+      }
+      if (hasExtraUV) cursor += 8;
 
-    // UV
-    if (hasUV) {
-      uvs[i * 2] = view.getFloat32(cursor, true);
-      uvs[i * 2 + 1] = view.getFloat32(cursor + 4, true);
-      cursor += 8;
-    }
-    if (hasExtraUV) cursor += 8;
+      // Bone weights and indices (严格 PMX 规范)
+      if (boneWeightType === 2) {
+        // BDEF1: 1 byte index + 3 bytes padding + 4 bytes weight = 8 bytes
+        const bi = u8view[cursor];
+        boneIndices[i * 4] = bi;
+        boneIndices[i * 4 + 1] = bi;
+        boneIndices[i * 4 + 2] = bi;
+        boneIndices[i * 4 + 3] = bi;
+        const w = view.getFloat32(cursor + 4, true);
+        boneWeights[i * 4] = w;
+        boneWeights[i * 4 + 1] = 0;
+        boneWeights[i * 4 + 2] = 0;
+        boneWeights[i * 4 + 3] = 0;
+        cursor += 8;
+      } else if (boneWeightType === 1) {
+        // BDEF2: 2 bytes indices + 2 bytes padding + 4 bytes weight = 8 bytes
+        const bi0 = u8view[cursor];
+        const bi1 = u8view[cursor + 1];
+        boneIndices[i * 4] = bi0;
+        boneIndices[i * 4 + 1] = bi1;
+        boneIndices[i * 4 + 2] = 0;
+        boneIndices[i * 4 + 3] = 0;
+        const w = view.getFloat32(cursor + 4, true);
+        boneWeights[i * 4] = w;
+        boneWeights[i * 4 + 1] = 1 - w;
+        boneWeights[i * 4 + 2] = 0;
+        boneWeights[i * 4 + 3] = 0;
+        cursor += 8;
+      } else {
+        // BDEF4: 4 bytes indices + 16 bytes weights = 20 bytes
+        boneIndices[i * 4] = u8view[cursor];
+        boneIndices[i * 4 + 1] = u8view[cursor + 1];
+        boneIndices[i * 4 + 2] = u8view[cursor + 2];
+        boneIndices[i * 4 + 3] = u8view[cursor + 3];
+        boneWeights[i * 4] = view.getFloat32(cursor + 4, true);
+        boneWeights[i * 4 + 1] = view.getFloat32(cursor + 8, true);
+        boneWeights[i * 4 + 2] = view.getFloat32(cursor + 12, true);
+        boneWeights[i * 4 + 3] = view.getFloat32(cursor + 16, true);
+        cursor += 20;
+      }
 
-    // Bone weights
-    if (boneWeightType === 2) {
-      // BDEF1
-      const bi = view.getUint8(cursor);
-      boneIndices[i * 4] = bi;
-      boneIndices[i * 4 + 1] = bi;
-      boneIndices[i * 4 + 2] = bi;
-      boneIndices[i * 4 + 3] = bi;
-      boneWeights[i * 4] = 1;
-      boneWeights[i * 4 + 1] = 0;
-      boneWeights[i * 4 + 2] = 0;
-      boneWeights[i * 4 + 3] = 0;
-      cursor += 4;
-    } else if (boneWeightType === 1) {
-      // BDEF2
-      const bi0 = view.getUint8(cursor);
-      const bi1 = view.getUint8(cursor + 1);
-      const w0 = view.getFloat32(cursor + 2, true);
-      boneIndices[i * 4] = bi0;
-      boneIndices[i * 4 + 1] = bi1;
-      boneIndices[i * 4 + 2] = 0;
-      boneIndices[i * 4 + 3] = 0;
-      boneWeights[i * 4] = w0;
-      boneWeights[i * 4 + 1] = 1 - w0;
-      boneWeights[i * 4 + 2] = 0;
-      boneWeights[i * 4 + 3] = 0;
-      cursor += 8;
-    } else {
-      // BDEF4
-      boneIndices[i * 4] = view.getUint8(cursor);
-      boneIndices[i * 4 + 1] = view.getUint8(cursor + 1);
-      boneIndices[i * 4 + 2] = view.getUint8(cursor + 2);
-      boneIndices[i * 4 + 3] = view.getUint8(cursor + 3);
-      boneWeights[i * 4] = view.getFloat32(cursor + 4, true);
-      boneWeights[i * 4 + 1] = view.getFloat32(cursor + 8, true);
-      boneWeights[i * 4 + 2] = view.getFloat32(cursor + 12, true);
-      boneWeights[i * 4 + 3] = view.getFloat32(cursor + 16, true);
-      cursor += 20;
+      if (hasExtendedDeform) cursor += 4;
     }
 
-    if (hasExtendedDeform) cursor += 4;
-  }
-  reader.pos = offset + vertexBlockSize + 4; // 4 = block size field itself
+    return { count: vertexCount, positions, normals, uvs, boneIndices, boneWeights };
+  })();
 
-  const vertexData: PmxVertexData = {
-    count: vertexCount,
-    positions,
-    normals,
-    uvs,
-    boneIndices,
-    boneWeights,
-  };
-
-  // --- Faces ---
-  const faceBlockSize = reader.readBlockSize();
-  const faceCount = reader.readInt32();
-  const indexSize = PmxReader.indexSizeFor(vertexCount);
-  reader.pos += 4; // skip faceCount (already read)
-
-  // 重新计算 faces
-  const faceStart = reader.position;
-  const indices = new Uint32Array(faceCount * 3);
-  for (let i = 0; i < faceCount * 3; i++) {
-    switch (indexSize) {
-      case 1: indices[i] = reader.readUint8(); break;
-      case 2: indices[i] = reader.readUint16(); break;
-      case 4: indices[i] = reader.readUint32(); break;
-      default: indices[i] = 0;
+  // === Faces ===
+  const faceIndexSize = PmxReader.indexSizeFor(vertexCount);
+  const faceData = (() => {
+    if (faceCount === 0) {
+      return { count: 0, indices: new Uint32Array(0) } as PmxFaceData;
     }
-  }
-  reader.pos = faceStart + faceBlockSize + 4;
+    const faceDataStart = struct.face.pos + 8; // skip blockSize(4) + count(4)
+    const indices = new Uint32Array(faceCount * 3);
+    const totalBytes = faceCount * 3 * faceIndexSize;
+    const faceView = new DataView(buffer, faceDataStart, totalBytes);
+    const faceU8 = new Uint8Array(buffer, faceDataStart, totalBytes);
 
-  const faceData: PmxFaceData = { count: faceCount, indices };
+    for (let i = 0; i < faceCount * 3; i++) {
+      const off = i * faceIndexSize;
+      switch (faceIndexSize) {
+        case 1: indices[i] = faceU8[off]; break;
+        case 2: indices[i] = faceView.getUint16(off, true); break;
+        case 4: indices[i] = faceView.getUint32(off, true); break;
+        default: indices[i] = 0;
+      }
+    }
+    return { count: faceCount, indices } as PmxFaceData;
+  })();
 
-  // --- Textures ---
-  const texBlockSize = reader.readBlockSize();
-  const texCount = reader.readInt32();
-  reader.pos += 4;
+  // === Textures ===
+  reader.pos = struct.texture.pos + 8;
   const textures: string[] = [];
   for (let i = 0; i < texCount; i++) {
     textures.push(reader.readString());
   }
-  reader.pos = texBlockSize > 0 ? reader.position : reader.pos;
-  // 确保位置正确
-  const texEnd = faceStart + faceBlockSize + 4 + 4 + texBlockSize + 4;
-  reader.pos = texEnd > reader.pos ? texEnd : reader.pos;
 
-  // --- Materials ---
-  const matBlockSize = reader.readBlockSize();
-  const matCount = reader.readInt32();
-  reader.pos += 4;
-  reader.materialIndexSize = PmxReader.indexSizeFor(matCount);
-
+  // === Materials ===
+  reader.pos = struct.material.pos + 8;
   const materials: PmxMaterialData[] = [];
   for (let i = 0; i < matCount; i++) {
     const name = reader.readString();
@@ -492,12 +537,8 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     });
   }
 
-  // --- Bones ---
-  const boneBlockSize = reader.readBlockSize();
-  const boneCount = reader.readInt32();
-  reader.pos += 4;
-  reader.boneIndexSize = PmxReader.indexSizeFor(boneCount);
-
+  // === Bones ===
+  reader.pos = struct.bone.pos + 8;
   const bones: PmxBoneData[] = [];
   for (let i = 0; i < boneCount; i++) {
     const name = reader.readString();
@@ -538,16 +579,12 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     bones.push(bone);
   }
 
-  // --- Rigid Bodies ---
-  const rbBlockSize = reader.readBlockSize();
-  const rbCount = reader.readInt32();
-  reader.pos += 4;
-  reader.rigidBodyIndexSize = PmxReader.indexSizeFor(rbCount);
-
+  // === Rigid Bodies ===
+  reader.pos = struct.rigidBody.pos + 8;
   const rigidBodies: PmxRigidBodyData[] = [];
   for (let i = 0; i < rbCount; i++) {
     const name = reader.readString();
-    const boneIndex = reader.readRigidBodyIndex();
+    const boneIndex = reader.readBoneIndex();
     const group = reader.readUint8();
     const collisionGroup = reader.readUint8();
     const shapeType = reader.readUint8();
@@ -573,12 +610,8 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     });
   }
 
-  // --- Joints ---
-  const jointBlockSize = reader.readBlockSize();
-  const jointCount = reader.readInt32();
-  reader.pos += 4;
-  reader.jointIndexSize = PmxReader.indexSizeFor(jointCount);
-
+  // === Joints ===
+  reader.pos = struct.joint.pos + 8;
   const joints: PmxJointData[] = [];
   for (let i = 0; i < jointCount; i++) {
     const name = reader.readString();
@@ -610,12 +643,8 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     joints.push(joint);
   }
 
-  // --- Morphs ---
-  const morphBlockSize = reader.readBlockSize();
-  const morphCount = reader.readInt32();
-  reader.pos += 4;
-  reader.morphIndexSize = PmxReader.indexSizeFor(morphCount);
-
+  // === Morphs ===
+  reader.pos = struct.morph.pos + 8;
   const morphs: PmxMorphData[] = [];
   for (let i = 0; i < morphCount; i++) {
     const name = reader.readString();
@@ -626,20 +655,15 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
       const index = reader.readMorphIndex();
       let offset: [number, number, number] = [0, 0, 0];
       if (type === 1) {
-        // vertex morph: position offset
         offset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
       } else if (type === 2) {
-        // bone morph: rotation quaternion
         offset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-        reader.pos += 4; // w component
+        reader.pos += 4;
       } else if (type === 3) {
-        // UV morph: UV offset
         offset = [reader.readFloat32(), reader.readFloat32(), 0];
       } else {
-        // group / additional: skip remaining data
         offset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
         if (type === 0) {
-          // group: count + indices
           const subCount = reader.readInt32();
           reader.pos += subCount * 4;
         }
@@ -649,12 +673,8 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     morphs.push({ name, type, elements });
   }
 
-  // --- Display Frames ---
-  const dfBlockSize = reader.readBlockSize();
-  const dfCount = reader.readInt32();
-  reader.pos += 4;
-  reader.displayFrameIndexSize = PmxReader.indexSizeFor(dfCount);
-
+  // === Display Frames ===
+  reader.pos = struct.displayFrame.pos + 8;
   const displayFrames: PmxDisplayFrameData[] = [];
   for (let i = 0; i < dfCount; i++) {
     const name = reader.readString();

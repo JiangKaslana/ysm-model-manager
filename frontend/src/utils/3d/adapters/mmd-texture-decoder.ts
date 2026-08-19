@@ -124,8 +124,12 @@ export function createTextureDecoder(config: TexDecodeConfig = {}): TextureDecod
   }
 
   function dispose() {
-    for (const w of workers) w.terminate();
+    for (const [id, entry] of pending) {
+      clearTimeout(entry.timer);
+      entry.resolve({ id, ok: false, error: "Worker 已终止", relPath: "", width: 0, height: 0 });
+    }
     pending.clear();
+    for (const w of workers) w.terminate();
   }
 
   return { decodeAll, dispose };
@@ -152,8 +156,8 @@ export function disposeTextureDecoder(): void {
 
 /**
  * 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理：
- * 遍历 mesh 的所有材质，将命中的 blob:HTMLImageElement 纹理替换为 ImageBitmap 纹理。
- * 未命中的纹理保持原样（主线程解码的 fallback）。
+ * 1. 优先处理 Worker 路径材质（userData.pendingTexture），直接创建纹理赋值
+ * 2. 再处理 Fallback 路径材质，将命中的 blob:HTMLImageElement 替换为 ImageBitmap
  */
 export function applyWorkerDecodedTextures(
   mesh: THREE.Mesh | THREE.SkinnedMesh,
@@ -166,7 +170,6 @@ export function applyWorkerDecodedTextures(
       ? [mesh.material]
       : [];
 
-  // 可替换的纹理字段
   const texKeys = [
     "map", "emissiveMap", "normalMap", "roughnessMap",
     "metalnessMap", "aoMap", "lightMap", "alphaMap", "envMap",
@@ -177,30 +180,43 @@ export function applyWorkerDecodedTextures(
   let total = 0;
 
   for (const mat of allMats) {
+    // Worker 路径：pendingTexture 标记，直接同步赋值
+    const pending = (mat.userData as Record<string, unknown>)?.pendingTexture as
+      | { relPath: string; blobUrl: string }
+      | undefined;
+    if (pending) {
+      const decodedTex = decoded.get(pending.relPath);
+      if (decodedTex) {
+        const newTex = new THREE.Texture(decodedTex.bitmap);
+        newTex.colorSpace = THREE.SRGBColorSpace;
+        newTex.needsUpdate = true;
+        (mat as unknown as Record<string, unknown>)["map"] = newTex;
+        mat.needsUpdate = true;
+        replaced++;
+      }
+      continue;
+    }
+
+    // Fallback 路径：替换已有的 blob URL 纹理
     for (const key of texKeys) {
       const texVal = (mat as unknown as Record<string, unknown>)[key];
       if (!(texVal instanceof THREE.Texture)) continue;
       const tex: THREE.Texture = texVal;
       total++;
 
-      // 获取当前纹理的 image
       const img = tex.image as HTMLImageElement | ImageBitmap | undefined;
       if (!img) continue;
 
-      // 查找对应的 relPath：blob URL → relPath
       let relPath: string | undefined;
       if (img instanceof HTMLImageElement && img.src?.startsWith("blob:")) {
         relPath = blobUrlToRel.get(img.src);
       }
       if (!relPath) continue;
 
-      // 检查是否有 Worker 解码结果
       const decodedTex = decoded.get(relPath);
       if (!decodedTex) continue;
 
-      // 创建新的 THREE.Texture 从 ImageBitmap
       const newTex = new THREE.Texture(decodedTex.bitmap);
-      // 复制关键属性
       newTex.wrapS = tex.wrapS;
       newTex.wrapT = tex.wrapT;
       newTex.repeat = tex.repeat;
@@ -216,7 +232,6 @@ export function applyWorkerDecodedTextures(
       newTex.type = tex.type;
       newTex.colorSpace = tex.colorSpace;
 
-      // 替换
       (mat as unknown as Record<string, unknown>)[key] = newTex;
       tex.dispose();
       replaced++;
