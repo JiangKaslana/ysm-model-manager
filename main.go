@@ -27,6 +27,8 @@ func main() {
 	// ---- End CLI Mode ----
 
 	appStruct := app.NewApp()
+	// CLI 桥接：从 cli 注册表注入可用命令列表（单一事实来源，新增命令自动可见）
+	appStruct.SetAllowedCommands(cli.GetAllowedCommands())
 	wailsApp := application.New(application.Options{
 		Name: "YSM 模型管理器",
 		Services: []application.Service{

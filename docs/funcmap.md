@@ -34,7 +34,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 26 | 198 |
+| Go(internal)·应用入口 | 26 | 199 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 19 | 101 |
 | 前端·核心 | 18 | 36 |
@@ -46,7 +46,7 @@
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **419** | **1781** |
+| **合计** | **419** | **1782** |
 
 ## Go·头像
 
@@ -70,16 +70,16 @@
 |------|--------|------|
 | `RunCLI()` | `go/cli/cli:14` | RunCLI 执行 CLI 模式 |
 | `ExecuteCLIWithApp()` | `go/cli/cli:72` | ExecuteCLIWithApp 执行 CLI 命令 |
-| `NewJsonSuccess()` | `go/cli/json:38` | NewJsonSuccess 创建成功响应 |
-| `NewJsonError()` | `go/cli/json:49` | NewJsonError 创建错误响应 |
-| `NewJsonNotSupported()` | `go/cli/json:80` | NewJsonNotSupported 创建平台不支持响应 |
-| `JsonResponse.ToJson()` | `go/cli/json:93` | ToJson 将响应序列化为 JSON 字符串 |
-| `IsCommandAllowed()` | `go/cli/json:127` | IsCommandAllowed 检查命令是否在白名单中 |
-| `GetAllowedCommands()` | `go/cli/json:132` | GetAllowedCommands 返回允许的命令列表 |
-| `JsonResponse()` | `go/cli/json:11` | JsonResponse 统一 JSON 输出协议 |
-| `JsonError()` | `go/cli/json:21` | JsonError 错误详情 |
-| `TimingInfo()` | `go/cli/json:28` | TimingInfo 耗时统计 |
-| `MetaInfo()` | `go/cli/json:33` | MetaInfo 元信息 |
+| `NewJsonSuccess()` | `go/cli/json:39` | NewJsonSuccess 创建成功响应 |
+| `NewJsonError()` | `go/cli/json:50` | NewJsonError 创建错误响应 |
+| `NewJsonNotSupported()` | `go/cli/json:81` | NewJsonNotSupported 创建平台不支持响应 |
+| `JsonResponse.ToJson()` | `go/cli/json:94` | ToJson 将响应序列化为 JSON 字符串 |
+| `IsCommandAllowed()` | `go/cli/json:103` | IsCommandAllowed 检查命令是否已注册（自动派生自 cliCommands 注册表，无需手动白名单） |
+| `GetAllowedCommands()` | `go/cli/json:110` | GetAllowedCommands 返回所有已注册命令（自动派生自 cliCommands 注册表） 新增命令只需 RegisterCommand，无需手动同步白名单 |
+| `JsonResponse()` | `go/cli/json:12` | JsonResponse 统一 JSON 输出协议 |
+| `JsonError()` | `go/cli/json:22` | JsonError 错误详情 |
+| `TimingInfo()` | `go/cli/json:29` | TimingInfo 耗时统计 |
+| `MetaInfo()` | `go/cli/json:34` | MetaInfo 元信息 |
 | `RegisterCommand()` | `go/cli/registry:27` | RegisterCommand 注册一个 CLI 子命令 |
 | `GetCommand()` | `go/cli/registry:39` | GetCommand 获取已注册的命令 |
 | `GetAllCommands()` | `go/cli/registry:45` | GetAllCommands 获取所有已注册命令 |
@@ -700,18 +700,19 @@
 | `App.BackupWorkshopCreators()` | `internal/app/app_workshop:308` | — |
 | `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:321` | — |
 | `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:363` | — |
-| `NewApp()` | `internal/app/app:56` | — |
-| `App.SetApp()` | `internal/app/app:82` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
-| `App.GetYSMRepoRoot()` | `internal/app/app:85` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
-| `App.SetMainWindow()` | `internal/app/app:97` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
-| `App.ServiceStartup()` | `internal/app/app:100` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:196` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:231` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:236` | GetAppVersion 返回当前版本号 |
+| `NewApp()` | `internal/app/app:61` | — |
+| `App.SetApp()` | `internal/app/app:87` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
+| `App.GetYSMRepoRoot()` | `internal/app/app:90` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
+| `App.SetMainWindow()` | `internal/app/app:102` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
+| `App.ServiceStartup()` | `internal/app/app:105` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
+| `App.ServiceShutdown()` | `internal/app/app:201` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:236` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:241` | GetAppVersion 返回当前版本号 |
 | `App()` | `internal/app/app:28` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
-| `App.ExecuteCLI()` | `internal/app/cli_bridge:39` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
-| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:123` | GetAllowedCLICommands 返回允许的 CLI 命令列表 |
+| `App.SetAllowedCommands()` | `internal/app/cli_bridge:15` | SetAllowedCommands 注入可用 CLI 命令列表（由 main.go 调用 cli.GetAllowedCommands() 提供） 避免 app→cli 循环依赖 |
+| `App.ExecuteCLI()` | `internal/app/cli_bridge:31` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
+| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:116` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sort"
 )
 
 // JsonResponse 统一 JSON 输出协议
@@ -98,41 +99,19 @@ func (r *JsonResponse) ToJson() string {
 	return string(data)
 }
 
-// jsonAllowedCommands 允许通过 Wails Bridge 调用的命令白名单
-// 与 cliCommands 保持同步（RegisterCommand 注册的命令需在此显式授权）
-var jsonAllowedCommands = map[string]bool{
-	"search":           true,
-	"analyze":          true,
-	"list":             true,
-	"verify":           true,
-	"benchmark":        true,
-	"export":           true,
-	"file-bench":       true,
-	"single-bench":     true,
-	"concurrent-bench": true,
-	"scan-dir":         true,
-	"analyze-mmd":      true,
-	"perf-log":         true,
-	"cache-status":     true,
-	"cache-verify":     true,
-	"cache-clear":      true,
-	"cache-diag":       true,
-	"config-show":      true,
-	"gui-flow":         true,
-	"resource-scan":    true,
-	"repo-audit":       true,
-}
-
-// IsCommandAllowed 检查命令是否在白名单中
+// IsCommandAllowed 检查命令是否已注册（自动派生自 cliCommands 注册表，无需手动白名单）
 func IsCommandAllowed(command string) bool {
-	return jsonAllowedCommands[command]
+	_, exists := cliCommands[command]
+	return exists
 }
 
-// GetAllowedCommands 返回允许的命令列表
+// GetAllowedCommands 返回所有已注册命令（自动派生自 cliCommands 注册表）
+// 新增命令只需 RegisterCommand，无需手动同步白名单
 func GetAllowedCommands() []string {
-	var cmds []string
-	for cmd := range jsonAllowedCommands {
-		cmds = append(cmds, cmd)
+	names := make([]string, 0, len(cliCommands))
+	for name := range cliCommands {
+		names = append(names, name)
 	}
-	return cmds
+	sort.Strings(names)
+	return names
 }

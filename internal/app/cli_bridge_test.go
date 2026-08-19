@@ -6,6 +6,23 @@ import (
 	"testing"
 )
 
+// cliBridgeTestCommands 测试用注入命令列表（对应 go/cli 注册表，避免 app→cli 循环依赖）
+var cliBridgeTestCommands = []string{
+	"search", "analyze", "list", "verify", "benchmark", "export",
+	"file-bench", "single-bench", "concurrent-bench",
+	"scan-dir", "analyze-mmd", "perf-log",
+	"cache-status", "cache-verify", "cache-clear", "cache-diag",
+	"config-show", "gui-flow",
+	"resource-scan", "repo-audit",
+}
+
+// newAppWithCommands 创建已注入命令列表的 App
+func newAppWithCommands() *App {
+	a := NewApp()
+	a.SetAllowedCommands(cliBridgeTestCommands)
+	return a
+}
+
 // TestExecuteCLI_CommandNotAllowed 测试命令不在白名单中
 func TestExecuteCLI_CommandNotAllowed(t *testing.T) {
 	a := NewApp()
@@ -25,9 +42,9 @@ func TestExecuteCLI_CommandNotAllowed(t *testing.T) {
 	}
 }
 
-// TestExecuteCLI_CommandAllowed 测试白名单中的命令（不需要真实文件系统）
+// TestExecuteCLI_CommandAllowed 测试可用命令（不需要真实文件系统）
 func TestExecuteCLI_CommandAllowed(t *testing.T) {
-	a := NewApp()
+	a := newAppWithCommands()
 
 	// 测试 config-show 命令（不需要文件系统操作）
 	result := a.ExecuteCLI("config-show", map[string]interface{}{})
@@ -48,16 +65,10 @@ func TestExecuteCLI_CommandAllowed(t *testing.T) {
 	}
 }
 
-// TestExecuteCLI_AllAllowedCommands 测试所有白名单命令都能通过验证
+// TestExecuteCLI_AllAllowedCommands 测试所有注入命令都能通过验证
 func TestExecuteCLI_AllAllowedCommands(t *testing.T) {
-	a := NewApp()
-	commands := []string{
-		"search", "analyze", "list", "verify", "benchmark", "export",
-		"file-bench", "single-bench", "concurrent-bench",
-		"scan-dir", "analyze-mmd", "perf-log",
-		"cache-status", "cache-verify", "cache-clear", "cache-diag",
-		"config-show", "gui-flow",
-	}
+	a := newAppWithCommands()
+	commands := cliBridgeTestCommands
 
 	for _, cmd := range commands {
 		result := a.ExecuteCLI(cmd, map[string]interface{}{})
@@ -99,9 +110,9 @@ func TestExecuteCLI_ArgsBuilding(t *testing.T) {
 	}
 }
 
-// TestGetAllowedCLICommands 测试获取允许的命令列表
+// TestGetAllowedCLICommands 测试获取可用命令列表（注入后与注册表一致）
 func TestGetAllowedCLICommands(t *testing.T) {
-	a := NewApp()
+	a := newAppWithCommands()
 	result := a.GetAllowedCLICommands()
 
 	var commands []string
@@ -109,7 +120,7 @@ func TestGetAllowedCLICommands(t *testing.T) {
 		t.Fatalf("JSON 解析失败: %v", err)
 	}
 
-	expectedCount := 20 // 与 allowedCLICommands 数量一致
+	expectedCount := len(cliBridgeTestCommands)
 	if len(commands) != expectedCount {
 		t.Errorf("期望 %d 个命令, 实际 %d 个: %v", expectedCount, len(commands), commands)
 	}
@@ -248,30 +259,31 @@ func TestSplitLines(t *testing.T) {
 	}
 }
 
-// TestAllowedCommandsCount 测试白名单命令数量与 json.go 保持一致
+// TestAllowedCommandsCount 测试注入的命令列表与注册表保持一致（SetAllowedCommands 注入后）
 func TestAllowedCommandsCount(t *testing.T) {
-	// cli_bridge.go 中的白名单命令
-	bridgeCount := len(allowedCLICommands)
+	// 注入后的可用命令列表（来自 cliBridgeTestCommands，对应 go/cli 注册表）
+	a := newAppWithCommands()
+	result := a.GetAllowedCLICommands()
 
-	// json.go 中的白名单命令（从文档/注释推断）
-	// 两者应保持同步
-	expectedCommands := []string{
-		"search", "analyze", "list", "verify", "benchmark", "export",
-		"file-bench", "single-bench", "concurrent-bench",
-		"scan-dir", "analyze-mmd", "perf-log",
-		"cache-status", "cache-verify", "cache-clear", "cache-diag",
-		"config-show", "gui-flow",
-		"resource-scan", "repo-audit",
+	var commands []string
+	if err := json.Unmarshal([]byte(result), &commands); err != nil {
+		t.Fatalf("JSON 解析失败: %v", err)
 	}
 
-	if bridgeCount != len(expectedCommands) {
-		t.Errorf("白名单命令数量不匹配: cli_bridge.go=%d, 期望=%d", bridgeCount, len(expectedCommands))
+	expectedCommands := cliBridgeTestCommands
+
+	if len(commands) != len(expectedCommands) {
+		t.Errorf("命令数量不匹配: 注入=%d, 期望=%d", len(commands), len(expectedCommands))
 	}
 
-	// 检查所有期望的命令都在白名单中
+	// 检查所有期望的命令都在可用列表中
+	cmdSet := make(map[string]bool, len(commands))
+	for _, c := range commands {
+		cmdSet[c] = true
+	}
 	for _, cmd := range expectedCommands {
-		if !allowedCLICommands[cmd] {
-			t.Errorf("命令 %s 不在白名单中", cmd)
+		if !cmdSet[cmd] {
+			t.Errorf("命令 %s 不在可用列表中", cmd)
 		}
 	}
 }

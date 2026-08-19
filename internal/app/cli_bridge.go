@@ -10,37 +10,29 @@ import (
 	"time"
 )
 
-// allowedCLICommands 允许通过 Wails Bridge 调用的命令白名单
-// 与 go/cli/json.go 的 jsonAllowedCommands 保持同步
-var allowedCLICommands = map[string]bool{
-	"search":           true,
-	"analyze":          true,
-	"list":             true,
-	"verify":           true,
-	"benchmark":        true,
-	"export":           true,
-	"file-bench":       true,
-	"single-bench":     true,
-	"concurrent-bench": true,
-	"scan-dir":         true,
-	"analyze-mmd":      true,
-	"perf-log":         true,
-	"cache-status":     true,
-	"cache-verify":     true,
-	"cache-clear":      true,
-	"cache-diag":       true,
-	"config-show":      true,
-	"gui-flow":         true,
-	"resource-scan":    true,
-	"repo-audit":       true,
+// SetAllowedCommands 注入可用 CLI 命令列表（由 main.go 调用 cli.GetAllowedCommands() 提供）
+// 避免 app→cli 循环依赖：命令注册表单一事实来源在 go/cli，前端可见列表经此注入
+func (a *App) SetAllowedCommands(cmds []string) {
+	a.allowedCommandsOnce.Do(func() {
+		a.allowedCommands = append([]string(nil), cmds...)
+		a.allowedCommandSet = make(map[string]bool, len(cmds))
+		for _, c := range cmds {
+			a.allowedCommandSet[c] = true
+		}
+	})
+}
+
+// isCommandAllowed 检查命令是否在注入的可用列表中
+func (a *App) isCommandAllowed(command string) bool {
+	return a.allowedCommandSet[command]
 }
 
 // ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定）
 func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 	start := time.Now()
 
-	// 1. 检查命令是否在白名单中
-	if !allowedCLICommands[command] {
+	// 1. 检查命令是否在可用列表中
+	if !a.isCommandAllowed(command) {
 		elapsed := float64(time.Since(start).Milliseconds())
 		return makeJsonResponse("not_supported", command, nil, map[string]string{
 			"code":    "platform_not_supported",
@@ -119,17 +111,13 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 	}, nil, elapsed)
 }
 
-// GetAllowedCLICommands 返回允许的 CLI 命令列表
+// GetAllowedCLICommands 返回可用 CLI 命令列表
+// 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见
 func (a *App) GetAllowedCLICommands() string {
-	commands := []string{
-		"search", "analyze", "list", "verify", "benchmark", "export",
-		"file-bench", "single-bench", "concurrent-bench",
-		"scan-dir", "analyze-mmd", "perf-log",
-		"cache-status", "cache-verify", "cache-clear", "cache-diag",
-		"config-show", "gui-flow",
-		"resource-scan", "repo-audit",
+	if a.allowedCommands == nil {
+		a.allowedCommands = []string{}
 	}
-	result, _ := json.Marshal(commands)
+	result, _ := json.Marshal(a.allowedCommands)
 	return string(result)
 }
 

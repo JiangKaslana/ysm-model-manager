@@ -48,6 +48,11 @@ type App struct {
 	proxySessions      map[proxyServerKey]*proxySession
 	proxyMu            sync.Mutex
 	httpServers        []*http.Server
+
+	// CLI 桥接：可用命令列表（由 main.go 从 cli 注册表注入，避免 app→cli 循环依赖）
+	allowedCommands     []string
+	allowedCommandSet   map[string]bool
+	allowedCommandsOnce sync.Once
 }
 
 // repoRoot 动态返回 YSM 模型存储根目录（始终从配置推导，无需手动维护缓存）
