@@ -13,7 +13,7 @@
 | 包 | 用途 |
 |----|------|
 | `avatar/` | 创作者头像提取与缓存 〔源码 4: avatar.go avatar_decode.go avatar_extract.go avatar_zip.go · 测试 4〕 |
-| `cli/` | CLI 命令（脱离 GUI 的模型管理/诊断/缓存操作，入口 main.go 经 cli.RunCLI 接线） 〔源码 9: cache.go cli.go concurrent.go config.go flow.go mmd.go model.go perf.go shared.go · 测试 1〕 |
+| `cli/` | CLI 命令（脱离 GUI 的模型管理/诊断/缓存操作，入口 main.go 经 cli.RunCLI 接线） 〔源码 11: cache.go cli.go concurrent.go config.go flow.go json.go mmd.go model.go perf.go registry.go share… · 测试 1〕 |
 | `container/` | 统一容器桥接层（zip/7z/目录 Entry-Reader 抽象，ADR-068） 〔源码 1: container.go · 测试 2〕 |
 | `dedup/` | 文件去重检测（纯函数，不绑回收站/UI） 〔源码 1: dedup.go · 测试 3〕 |
 | `download/` | 纯下载逻辑（不依赖 Wails runtime） 〔源码 1: download.go · 测试 5〕 |
@@ -49,7 +49,7 @@
 
 | 包 | 用途 |
 |----|------|
-| `app/` | Wails Binding 入口（app.go / resource_bindings.go） 〔源码 36 · 测试 14〕 |
+| `app/` | Wails Binding 入口（app.go / resource_bindings.go） 〔源码 37 · 测试 14〕 |
 
 <!-- /GEN: internal-structure -->
 

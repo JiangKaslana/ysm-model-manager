@@ -8,7 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 11 |
-| go/cli | 2 | 12 |
+| go/cli | 4 | 28 |
 | go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 15 |
@@ -34,7 +34,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 25 | 195 |
+| Go(internal)·应用入口 | 26 | 199 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 100 |
 | 前端·核心 | 18 | 36 |
@@ -46,7 +46,7 @@
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **414** | **1741** |
+| **合计** | **417** | **1761** |
 
 ## Go·头像
 
@@ -68,18 +68,34 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RegisterCommand()` | `go/cli/cli:22` | RegisterCommand 注册一个 CLI 子命令（供各文件的 init() 调用） |
-| `RunCLI()` | `go/cli/cli:84` | RunCLI 执行 CLI 模式 返回的 error 用于映射到正确的退出码 支持: --help, --version, &lt;command&gt; --help |
-| `ErrParam.Error()` | `go/cli/shared:27` | — |
-| `ErrParam.Unwrap()` | `go/cli/shared:34` | — |
-| `ErrRuntime.Error()` | `go/cli/shared:42` | — |
-| `ErrRuntime.Unwrap()` | `go/cli/shared:49` | — |
-| `ExitCodeOf()` | `go/cli/shared:52` | ExitCodeOf 根据错误类型返回退出码 |
-| `PrintError()` | `go/cli/shared:61` | PrintError 输出错误到 stderr |
-| `ParseCommandArgs()` | `go/cli/shared:70` | ParseCommandArgs 从参数中提取 files-root 和命令参数 返回: filesRoot, commandArgs（不含 files-root 的剩余参数） |
-| `ErrParam()` | `go/cli/shared:22` | ErrParam 参数错误（exit code 2） |
-| `ErrRuntime()` | `go/cli/shared:37` | ErrRuntime 运行时业务错误（exit code 1） |
-| `CmdContext()` | `go/cli/shared:166` | CmdContext 统一命令执行上下文 |
+| `RunCLI()` | `go/cli/cli:17` | RunCLI 执行 CLI 模式（从命令行参数） 返回的 error 用于映射到正确的退出码 |
+| `ExecuteCLIWithApp()` | `go/cli/cli:48` | ExecuteCLIWithApp 执行 CLI 命令（使用 AppAdapter 接口） 返回 error 用于错误处理 |
+| `NewJsonSuccess()` | `go/cli/json:39` | NewJsonSuccess 创建成功响应 |
+| `NewJsonError()` | `go/cli/json:50` | NewJsonError 创建错误响应 |
+| `NewJsonNotSupported()` | `go/cli/json:81` | NewJsonNotSupported 创建平台不支持响应 |
+| `JsonResponse.ToJson()` | `go/cli/json:94` | ToJson 将响应序列化为 JSON 字符串 |
+| `IsCommandAllowed()` | `go/cli/json:119` | IsCommandAllowed 检查命令是否在白名单中 |
+| `GetAllowedCommands()` | `go/cli/json:124` | GetAllowedCommands 返回允许的命令列表 |
+| `JsonResponse()` | `go/cli/json:12` | JsonResponse 统一 JSON 输出协议 |
+| `JsonError()` | `go/cli/json:22` | JsonError 错误详情 |
+| `TimingInfo()` | `go/cli/json:29` | TimingInfo 耗时统计 |
+| `MetaInfo()` | `go/cli/json:34` | MetaInfo 元信息 |
+| `RegisterCommand()` | `go/cli/registry:31` | RegisterCommand 注册一个 CLI 子命令 |
+| `GetCommand()` | `go/cli/registry:43` | GetCommand 获取已注册的命令 |
+| `GetAllCommands()` | `go/cli/registry:49` | GetAllCommands 获取所有已注册命令（用于帮助信息） |
+| `DispatchCommand()` | `go/cli/registry:58` | DispatchCommand 分发命令执行 |
+| `AppAdapter()` | `go/cli/registry:8` | AppAdapter CLI 需要的 App 接口（由 internal/app 实现） |
+| `CmdContext()` | `go/cli/registry:14` | CmdContext 统一命令执行上下文 |
+| `CliCommand()` | `go/cli/registry:21` | CliCommand 命令注册结构 |
+| `ErrParam.Error()` | `go/cli/shared:25` | — |
+| `ErrParam.Unwrap()` | `go/cli/shared:32` | — |
+| `ErrRuntime.Error()` | `go/cli/shared:40` | — |
+| `ErrRuntime.Unwrap()` | `go/cli/shared:47` | — |
+| `ExitCodeOf()` | `go/cli/shared:50` | ExitCodeOf 根据错误类型返回退出码 |
+| `PrintError()` | `go/cli/shared:59` | PrintError 输出错误到 stderr |
+| `ParseCommandArgs()` | `go/cli/shared:68` | ParseCommandArgs 从参数中提取 files-root 和命令参数 返回: filesRoot, commandArgs（不含 files-root 的剩余参数） |
+| `ErrParam()` | `go/cli/shared:20` | ErrParam 参数错误（exit code 2） |
+| `ErrRuntime()` | `go/cli/shared:35` | ErrRuntime 运行时业务错误（exit code 1） |
 
 ## go/container
 
@@ -684,15 +700,19 @@
 | `App.BackupWorkshopCreators()` | `internal/app/app_workshop:308` | — |
 | `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:321` | — |
 | `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:363` | — |
-| `NewApp()` | `internal/app/app:56` | — |
-| `App.SetApp()` | `internal/app/app:82` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
-| `App.SetMainWindow()` | `internal/app/app:87` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
-| `App.ServiceStartup()` | `internal/app/app:90` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:186` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:221` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:226` | GetAppVersion 返回当前版本号 |
-| `App()` | `internal/app/app:28` | — |
+| `NewApp()` | `internal/app/app:57` | — |
+| `App.SetApp()` | `internal/app/app:83` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
+| `App.GetYSMRepoRoot()` | `internal/app/app:91` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录（实现 AppAdapter 接口） |
+| `App.SetMainWindow()` | `internal/app/app:99` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
+| `App.ServiceStartup()` | `internal/app/app:102` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
+| `App.ServiceShutdown()` | `internal/app/app:198` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:233` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:238` | GetAppVersion 返回当前版本号 |
+| `App()` | `internal/app/app:29` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
+| `App.ExecuteCLI()` | `internal/app/cli_bridge:16` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） 前端调用: await window.ExecuteCLI(command, args) 参数: |
+| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:104` | GetAllowedCLICommands 返回允许的 CLI 命令列表（Wails 绑定） |
+| `outputBuffer.String()` | `internal/app/cli_bridge:163` | — |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
