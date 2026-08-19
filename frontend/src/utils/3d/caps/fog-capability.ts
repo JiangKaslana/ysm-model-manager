@@ -178,6 +178,7 @@ export class FogCapability implements SceneCapability {
 
   getMenuControls(): MenuControlDef[] {
     return [
+      // 总开关：无 group，直接挂面板顶部
       {
         id: "fog-enabled",
         kind: "toggle",
@@ -186,11 +187,13 @@ export class FogCapability implements SceneCapability {
         getValue: () => this.isEnabled(),
         setValue: (v) => this.setEnabled(v as boolean),
       },
+      // 雾参数组
       {
         id: "fog-mode",
         kind: "select",
         labelKey: "preview.fogMode",
         fallback: "雾型",
+        group: "preview.fogGroupParams",
         select: [
           { value: "linear", label: "线性" },
           { value: "exp2", label: "指数" },
@@ -203,6 +206,7 @@ export class FogCapability implements SceneCapability {
         kind: "slider",
         labelKey: "preview.fogNear",
         fallback: "近距",
+        group: "preview.fogGroupParams",
         slider: { min: 0, max: 500, step: 1, unit: "" },
         getValue: () => this.params.near,
         setValue: (v) => this.setLinearRange(v as number, undefined),
@@ -212,6 +216,7 @@ export class FogCapability implements SceneCapability {
         kind: "slider",
         labelKey: "preview.fogFar",
         fallback: "远距",
+        group: "preview.fogGroupParams",
         slider: { min: 10, max: 2000, step: 10, unit: "" },
         getValue: () => this.params.far,
         setValue: (v) => this.setLinearRange(undefined, v as number),
@@ -221,6 +226,7 @@ export class FogCapability implements SceneCapability {
         kind: "slider",
         labelKey: "preview.fogDensity",
         fallback: "密度",
+        group: "preview.fogGroupParams",
         slider: { min: 0.001, max: 0.1, step: 0.001 },
         getValue: () => this.params.density,
         setValue: (v) => this.setDensity(v as number),

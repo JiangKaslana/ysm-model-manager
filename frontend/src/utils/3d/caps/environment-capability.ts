@@ -545,6 +545,7 @@ export class EnvironmentCapability implements SceneCapability {
       { value: "custom", label: CUSTOM_PRESET_LABEL },
     ];
     return [
+      // 总开关：无 group，直接挂面板顶部
       {
         id: "env-enabled",
         kind: "toggle",
@@ -553,20 +554,24 @@ export class EnvironmentCapability implements SceneCapability {
         getValue: () => this.isEnabled(),
         setValue: (v) => this.setEnabled(v as boolean),
       },
+      // 预设组
       {
         id: "env-preset",
         kind: "select",
         labelKey: "preview.envPreset",
         fallback: "环境预设",
+        group: "preview.envGroupPreset",
         select: presetOptions,
         getValue: () => this.getPresetId(),
         setValue: (v) => this.setPresetId(v as EnvPresetId),
       },
+      // 自定义 HDR 组
       {
         id: "env-pick-hdr",
         kind: "button",
         labelKey: "preview.envPickHdr",
         fallback: "自定义 HDR",
+        group: "preview.envGroupCustomHdr",
         button: {
           textKey: "preview.envPickHdrBtn",
           variant: "primary",
@@ -587,6 +592,7 @@ export class EnvironmentCapability implements SceneCapability {
         kind: "button",
         labelKey: "preview.envClearHdr",
         fallback: "清除自定义 HDR",
+        group: "preview.envGroupCustomHdr",
         button: {
           textKey: "preview.envClearHdrBtn",
           variant: "ghost",
@@ -598,19 +604,13 @@ export class EnvironmentCapability implements SceneCapability {
         getValue: () => "",
         setValue: () => { /* ignore */ },
       },
-      {
-        id: "env-divider",
-        kind: "divider",
-        labelKey: "preview.envDivider",
-        fallback: "",
-        getValue: () => "",
-        setValue: () => { /* ignore */ },
-      },
+      // 背景与强度组
       {
         id: "env-use-as-background",
         kind: "toggle",
         labelKey: "preview.envUseAsBackground",
         fallback: "用作背景",
+        group: "preview.envGroupBackground",
         hintKey: "preview.envUseAsBackgroundHint",
         getValue: () => this.isUseAsBackground(),
         setValue: (v) => this.setUseAsBackground(v as boolean),
@@ -620,6 +620,7 @@ export class EnvironmentCapability implements SceneCapability {
         kind: "slider",
         labelKey: "preview.envIntensity",
         fallback: "反射强度",
+        group: "preview.envGroupBackground",
         slider: { min: 0, max: 3, step: 0.05 },
         getValue: () => this.getIntensity(),
         setValue: (v) => this.setIntensity(v as number),

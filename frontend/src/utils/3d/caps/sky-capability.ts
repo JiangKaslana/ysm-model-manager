@@ -257,6 +257,7 @@ export class SkyCapability implements SceneCapability {
   /** 返回菜单控件定义（框架自动渲染） */
   getMenuControls(): MenuControlDef[] {
     return [
+      // 第一层主控件：time 无 group，直接挂面板顶部
       {
         id: "sky-time",
         kind: "slider",
@@ -266,11 +267,13 @@ export class SkyCapability implements SceneCapability {
         getValue: () => this.getTimeOfDay(),
         setValue: (v) => this.setTime(v as number),
       },
+      // 高级组：云量 + 环境贴图
       {
         id: "sky-cloud",
         kind: "slider",
         labelKey: "preview.cloudCoverage",
         fallback: "云量",
+        group: "preview.skyGroupAdvanced",
         slider: { min: 0, max: 1, step: 0.05, unit: "%" },
         getValue: () => this.getCloudCoverage(),
         setValue: (v) => this.setCloudCoverage(v as number, true),
@@ -280,6 +283,7 @@ export class SkyCapability implements SceneCapability {
         kind: "toggle",
         labelKey: "preview.environmentMapping",
         fallback: "环境贴图",
+        group: "preview.skyGroupAdvanced",
         getValue: () => this.isEnvironmentEnabled(),
         setValue: (v) => this.setEnvironmentEnabled(v as boolean),
       },

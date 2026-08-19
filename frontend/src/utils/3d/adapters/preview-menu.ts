@@ -51,11 +51,49 @@ const tr = (key: string, fallback: string): string => {
 
 /** 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 */
 function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void {
+  // 分组折叠：同一 group 的连续控件归入一个可折叠 section，header 点击切换展开/收起。
+  // group 为 undefined 的控件直接挂到 list（无 section 包裹），保持向后兼容。
+  let currentSection: HTMLElement | null = null;
+  let currentGroup: string | undefined = undefined;
+
+  const ensureSection = (group: string | undefined): HTMLElement | null => {
+    if (group === undefined) return null;
+    if (group === currentGroup && currentSection) return currentSection;
+    // 新分组：创建 section + header
+    currentGroup = group;
+    const section = document.createElement("div");
+    section.className = "cap-section";
+    section.style.cssText = "border-top:1px solid rgba(255,255,255,0.08)";
+    const header = document.createElement("div");
+    header.className = "cap-section-header";
+    header.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+    const arrow = document.createElement("span");
+    arrow.textContent = "▾";
+    arrow.style.cssText = "font-size:10px;transition:transform 0.15s";
+    const title = document.createElement("span");
+    title.textContent = tr(group, group);
+    header.append(arrow, title);
+    const body = document.createElement("div");
+    body.className = "cap-section-body";
+    body.style.cssText = "display:block";
+    let collapsed = false;
+    header.onclick = (): void => {
+      collapsed = !collapsed;
+      body.style.display = collapsed ? "none" : "block";
+      arrow.textContent = collapsed ? "▸" : "▾";
+    };
+    section.append(header, body);
+    list.appendChild(section);
+    currentSection = body;
+    return body;
+  };
+
   for (const c of controls) {
+    const target = ensureSection(c.group);
     if (c.kind === "divider") {
       const hr = document.createElement("div");
       hr.style.cssText = "height:1px;background:rgba(255,255,255,0.12);margin:4px 10px";
-      list.appendChild(hr);
+      (target ?? list).appendChild(hr);
       continue;
     }
     if (c.kind === "toggle") {
@@ -78,7 +116,7 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
         bind: (): boolean => c.getValue() as boolean,
       });
       row.append(labelBox, toggle);
-      list.appendChild(row);
+      (target ?? list).appendChild(row);
       continue;
     }
     if (c.kind === "slider") {
@@ -107,7 +145,7 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
         val.textContent = c.slider?.unit === "%" ? `${Math.round(v * 100)}%` : c.slider?.unit === "h" ? `${String(Math.floor(v)).padStart(2, "0")}:${String(Math.round((v % 1) * 60)).padStart(2, "0")}` : c.slider?.unit ? `${v}${c.slider.unit}` : v.toFixed(2);
       };
       row.append(head, slider);
-      list.appendChild(row);
+      (target ?? list).appendChild(row);
       continue;
     }
     if (c.kind === "select") {
@@ -130,7 +168,7 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
       sel.value = String(c.getValue());
       sel.onchange = (): void => c.setValue(sel.value);
       row.append(label, sel);
-      list.appendChild(row);
+      (target ?? list).appendChild(row);
       continue;
     }
     if (c.kind === "button") {
@@ -174,7 +212,7 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
         }
       };
       row.append(label, btn, hint);
-      list.appendChild(row);
+      (target ?? list).appendChild(row);
     }
   }
 }
@@ -480,9 +518,11 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
 
     const row = document.createElement("div");
     row.className = "slide-item";
+    // hasSubPanel → 整行可点下钻（cursor:pointer）；纯开关行 → 默认 cursor
     row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
 
     // 主控件渲染（toggle/slider 各自一行内控件）
+    // 主控件容器 stopPropagation：点 toggle/slider 不触发 row 下钻
     const renderPrimaryInline = (): void => {
       if (primary.kind === "toggle") {
         const label = document.createElement("span");
@@ -494,6 +534,8 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
           onChange: (v: boolean): void => primary.setValue(v),
           bind: (): boolean => primary.getValue() as boolean,
         });
+        // toggle 点击不冒泡到 row（否则会触发下钻）
+        toggle.addEventListener("click", (e: MouseEvent): void => e.stopPropagation());
         row.append(label, toggle);
       } else if (primary.kind === "slider") {
         // sky 特例：第一层直接放 sky-time slider（无 toggle）
@@ -532,6 +574,8 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
                 ? `${v}${primary.slider.unit}`
                 : v.toFixed(2);
         };
+        // slider 点击不冒泡到 row（sky 第一层 slider 整行就是它自己，但保持一致性仍 stop）
+        slider.addEventListener("click", (e: MouseEvent): void => e.stopPropagation());
         head.append(nameRow, slider);
         row.appendChild(head);
       } else {
@@ -546,14 +590,10 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
 
     renderPrimaryInline();
 
-    // › 下钻箭头（仅当该 cap 有子面板时显示）
+    // 整行可点下钻（仅 hasSubPanel）；› 箭头纯装饰（pointer-events:none）
     if (hasSubPanel) {
-      const chev = document.createElement("span");
-      chev.textContent = "›";
-      chev.dataset.testid = "row-chevron";
-      chev.style.cssText = "margin-left:auto;font-size:18px;font-weight:700;opacity:0.5;cursor:pointer;user-select:none;padding:0 4px";
-      chev.onclick = (e: MouseEvent): void => {
-        e.stopPropagation();
+      row.style.cursor = "pointer";
+      row.onclick = (): void => {
         menu.navigate({
           title: tr(cap.labelKey, cap.id),
           render: (subList: HTMLElement): void => {
@@ -562,6 +602,11 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
           },
         });
       };
+      const chev = document.createElement("span");
+      chev.textContent = "›";
+      chev.dataset.testid = "row-chevron";
+      // 装饰性：不抢点击、不改变 cursor（row 已 pointer）
+      chev.style.cssText = "margin-left:auto;font-size:18px;font-weight:700;opacity:0.5;user-select:none;padding:0 4px;pointer-events:none";
       row.appendChild(chev);
     }
 

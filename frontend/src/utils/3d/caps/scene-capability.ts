@@ -22,6 +22,8 @@ export interface MenuControlDef {
   fallback: string;
   /** 控件辅助说明 i18n 键（toggle/select 展示在右侧小字，hintKey 缺省取 fallback 不显示；button 有内部 button.hintKey 优先级更高） */
   hintKey?: string;
+  /** 分组标题 i18n 键（同一 group 的连续控件归入一个可折叠 section；group 变化时插入 section header） */
+  group?: string;
   /** slider 配置 */
   slider?: {
     min: number;

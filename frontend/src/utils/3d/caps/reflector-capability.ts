@@ -224,6 +224,7 @@ export class ReflectorCapability implements SceneCapability {
 
   getMenuControls(): MenuControlDef[] {
     return [
+      // 总开关：无 group，直接挂面板顶部
       {
         id: "reflector-enabled",
         kind: "toggle",
@@ -232,11 +233,13 @@ export class ReflectorCapability implements SceneCapability {
         getValue: () => this.isEnabled(),
         setValue: (v) => this.setEnabled(v as boolean),
       },
+      // 反射参数组
       {
         id: "reflector-opacity",
         kind: "slider",
         labelKey: "preview.reflectorOpacity",
         fallback: "反射强度",
+        group: "preview.reflectorGroupParams",
         slider: { min: 0, max: 1, step: 0.01 },
         getValue: () => this.params.opacity,
         setValue: (v) => this.setOpacity(v as number),
@@ -246,6 +249,7 @@ export class ReflectorCapability implements SceneCapability {
         kind: "slider",
         labelKey: "preview.reflectorResolution",
         fallback: "反射精度",
+        group: "preview.reflectorGroupParams",
         slider: { min: 256, max: 2048, step: 256 },
         getValue: () => this.params.resolution,
         setValue: (v) => this.setResolution(v as number),
@@ -255,6 +259,7 @@ export class ReflectorCapability implements SceneCapability {
         kind: "slider",
         labelKey: "preview.reflectorSize",
         fallback: "地面大小",
+        group: "preview.reflectorGroupParams",
         slider: { min: 20, max: 500, step: 10 },
         getValue: () => this.params.size,
         setValue: (v) => this.setSize(v as number),
