@@ -225,6 +225,9 @@ func (a *App) EnsureStorageDirs() error {
 	var firstErr error
 	for _, rt := range registry.ResourceTypes {
 		root, err := a.GetRepoRoot(rt.ID)
+		// 诊断打点：打印每个类型的路由推导，定位"目录扁平散开"问题
+		log.Printf("[storage] EnsureStorageDirs: id=%s group=%q sub=%q groupRoot=%q -> repoRoot=%q err=%v",
+			rt.ID, rt.Group, rt.StorageSubDir, types.GroupStorageRoot(rt.ID), root, err)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
