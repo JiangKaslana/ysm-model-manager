@@ -34,15 +34,21 @@ function configPath() {
   return null;
 }
 
-// 对应 Go types.AppConfig 的 json tag
+// 对应 Go types.AppConfig 的 json tag。
+// ADR-095 后 7 个独立 root 字段（ysmRoot/resourcepackRoot/shaderpackRoot/schematicRoot/
+// litematicRoot/mmdRoot/vrcRoot）已废弃为 omitempty + CustomRoots map，新 schema 落盘不再包含，
+// 故移出必填列表；仍保留在 STRING_FIELDS 做可选类型检查（旧配置若残留须为 string）。
 const ALWAYS_REQUIRED = [
-  'filesRoot', 'ysmRoot', 'resourcepackRoot', 'shaderpackRoot',
-  'schematicRoot', 'mmdRoot', 'vrcRoot', 'mcRoot',
-  'linkMode', 'theme', 'mirror',
+  'filesRoot', 'mcRoot', 'linkMode', 'theme', 'mirror',
   'winX', 'winY', 'winW', 'winH', 'winRelX', 'winRelY', 'winScrW', 'winScrH',
 ];
-const STRING_FIELDS = ALWAYS_REQUIRED.slice(0, 11).concat(['litematicRoot', 'repoRoot']);
-const INT_FIELDS = ALWAYS_REQUIRED.slice(11).concat(['voxelMaxBlocks']);
+const STRING_FIELDS = [
+  'filesRoot', 'mcRoot', 'linkMode', 'theme', 'mirror',
+  // 废弃 root 字段（ADR-095，omitempty，出现时仍须为 string）
+  'ysmRoot', 'resourcepackRoot', 'shaderpackRoot', 'schematicRoot',
+  'mmdRoot', 'vrcRoot', 'litematicRoot', 'repoRoot',
+];
+const INT_FIELDS = ['winX', 'winY', 'winW', 'winH', 'winRelX', 'winRelY', 'winScrW', 'winScrH', 'voxelMaxBlocks'];
 
 function validate() {
   const errors = [];

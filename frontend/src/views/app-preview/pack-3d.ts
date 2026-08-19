@@ -29,7 +29,7 @@ function makePackDeps() {
 /** 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） */
 export async function createPack3D(path: string, opts?: Mount3DOptions): Promise<void> {
   const App = await getApp();
-  const fn = (App as unknown as Record<string, (p: string) => Promise<string>>).ListPackModels;
+  const fn = (App as unknown as Record<string, (p: string) => Promise<string>>)["ListPackModels"];
   const raw = fn ? await fn(path) : "[]";
   let entries: string[] = [];
   try {

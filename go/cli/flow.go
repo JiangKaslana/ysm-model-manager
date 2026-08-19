@@ -44,7 +44,7 @@ func runGUIFlow(ctx *CmdContext) error {
 	totalStart := time.Now()
 
 	// ============ Phase 1: 配置加载 ============
-	results = append(results, runPhaseConfigLoad(ctx.App, filesRoot))
+	results = append(results, runPhaseConfigLoad(ctx.App))
 
 	// ============ Phase 2: 模型扫描 ============
 	results = append(results, runPhaseModelScan(ctx.App, filesRoot))
@@ -95,19 +95,12 @@ func runGUIFlow(ctx *CmdContext) error {
 	return nil
 }
 
-// runPhaseConfigLoad 模拟配置加载
-func runPhaseConfigLoad(a *app.App, filesRoot string) guiFlowResult {
+// runPhaseConfigLoad 模拟配置加载（只读）
+// 此前调用 a.SaveAppConfig 会写穿真实用户配置（APPDATA/ysm_config.json）并可能重启 watcher，
+// 属 CLI 测试副作用污染源；真实 CLI 中 DispatchCommand 已在命令执行前经 saveConfigFn 落盘配置，
+// 此处仅需 LoadAppConfig 读取。见 cli_test.go 文件头「不触发 SaveAppConfig 落盘」约束。
+func runPhaseConfigLoad(a *app.App) guiFlowResult {
 	start := time.Now()
-
-	err := a.SaveAppConfig(filesRoot, "", "", "", "")
-	if err != nil {
-		return guiFlowResult{
-			Stage:       "① 配置加载",
-			Duration:    time.Since(start),
-			Success:     false,
-			Description: fmt.Sprintf("❌ 失败: %v", err),
-		}
-	}
 
 	config := a.LoadAppConfig()
 	modelRoot := config.FilesRoot

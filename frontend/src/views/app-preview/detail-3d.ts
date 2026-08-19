@@ -29,7 +29,6 @@ export async function showVrmMeta(
   <div class="dp-placeholder"><div class="big-icon">⏳</div><div class="dp-hint">${t("preview.parsing")}...</div></div>
 </div>`;
   try {
-    // readFn 由视图壳注入（适配器 0 backend import，ADR-072 边界判据）
     const App = await getApp();
     const readFn = (App as unknown as Record<string, (p: string) => Promise<string | null>>)["ReadFileBytes"];
     const meta = await readVrmMeta(path, readFn);

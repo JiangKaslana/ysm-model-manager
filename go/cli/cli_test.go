@@ -650,6 +650,34 @@ func TestGUIFlow_WithVerbose(t *testing.T) {
 	}
 }
 
+// TestGUIFlow_DoesNotWriteRealConfig 回归守卫：gui-flow「配置加载」阶段只读，不得写穿真实用户配置。
+// 此前 runPhaseConfigLoad 调 SaveAppConfig 落盘 APPDATA/ysm_config.json（filesRoot 指向临时目录），
+// 污染用户配置并触发 test_config_defaults.mjs FAIL ①；修复后文件应保持原样（存在则内容不变，不存在则不新建）。
+func TestGUIFlow_DoesNotWriteRealConfig(t *testing.T) {
+	userCfg, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatalf("os.UserConfigDir: %v", err)
+	}
+	cfgPath := filepath.Join(userCfg, "YSM-Model-Manager", "ysm_config.json")
+	readCfg := func() ([]byte, bool) {
+		b, err := os.ReadFile(cfgPath)
+		if err != nil {
+			return nil, false
+		}
+		return b, true
+	}
+	before, beforeExists := readCfg()
+
+	dir := t.TempDir()
+	a := app.NewApp()
+	_ = runGUIFlow(&CmdContext{App: a, FilesRoot: dir, Args: []string{"--files-root", dir, "--verbose"}})
+
+	after, afterExists := readCfg()
+	if beforeExists != afterExists || !bytes.Equal(before, after) {
+		t.Errorf("gui-flow 不应写盘真实用户配置 %s\n  before: %q\n  after:  %q", cfgPath, before, after)
+	}
+}
+
 // ========== perf 命令测试 ==========
 
 func TestPerfLog_Output(t *testing.T) {

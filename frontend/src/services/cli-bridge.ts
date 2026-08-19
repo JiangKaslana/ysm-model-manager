@@ -12,17 +12,17 @@ import { WebUnsupportedError } from "../backend/web-common.ts";
 export type CLIArgs = Record<string, string | number | boolean | undefined>;
 
 /** CLI 响应状态 */
-export type CLIStatus = "success" | "error" | "not_supported";
+type CLIStatus = "success" | "error" | "not_supported";
 
 /** CLI 错误详情 */
-export interface CLIError {
+interface CLIError {
   code: string;
   message: string;
   details?: string;
 }
 
 /** CLI 响应数据 */
-export interface CLIData {
+interface CLIData {
   output?: string;
   lines?: string[];
   platform?: string;
@@ -64,7 +64,7 @@ export const ALLOWED_CLI_COMMANDS = [
   "repo-audit",
 ] as const;
 
-export type AllowedCLICommand = (typeof ALLOWED_CLI_COMMANDS)[number];
+type AllowedCLICommand = (typeof ALLOWED_CLI_COMMANDS)[number];
 
 // ===== 核心 API =====
 
@@ -156,34 +156,9 @@ export function cliAnalyze(args: { model: string }): Promise<CLIResponse> {
   return executeCLI("analyze", args);
 }
 
-/** 验证模型 */
-export function cliVerify(args: { repair?: boolean } = {}): Promise<CLIResponse> {
-  return executeCLI("verify", args);
-}
-
-/** 基准测试 */
-export function cliBenchmark(args: { iterations?: number } = {}): Promise<CLIResponse> {
-  return executeCLI("benchmark", args);
-}
-
-/** 单模型基准测试 */
-export function cliSingleBench(args: { model: string; iterations?: number }): Promise<CLIResponse> {
-  return executeCLI("single-bench", args);
-}
-
-/** 性能日志 */
-export function cliPerfLog(): Promise<CLIResponse> {
-  return executeCLI("perf-log", {});
-}
-
 /** 缓存状态查询 */
 export function cliCacheStatus(): Promise<CLIResponse> {
   return executeCLI("cache-status", {});
-}
-
-/** 缓存验证 */
-export function cliCacheVerify(args: { dir?: string; verbose?: boolean } = {}): Promise<CLIResponse> {
-  return executeCLI("cache-verify", args);
 }
 
 // ===== 内部工具（导出供测试使用） =====
