@@ -41,6 +41,8 @@ export const GUIDE_ORDER = [
   // ── 🩺 疑难排查 ──
   'faq.md',
   'diagnostics.md',
+  // ── 📐 参考 ──
+  'bone-tools-architecture.md',
 ];
 
 /** 侧边栏 / 索引表分组（收纳）；未列出的指南页归「其他」并告警，不静默丢页。 */
@@ -69,4 +71,5 @@ export const GUIDE_GROUPS = [
     ],
   },
   { key: '🩺 疑难排查', items: ['faq.md', 'diagnostics.md'] },
+  { key: '📐 参考', items: ['bone-tools-architecture.md'] },
 ];
