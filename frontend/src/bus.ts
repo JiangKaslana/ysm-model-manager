@@ -60,6 +60,8 @@ export interface CtxShowPayload {
   count?: number;
   paths?: string[];
   rtype?: string;
+  /** MMD 用途子目录（全局 repo_subdir 选择，仅 mmd-skin 有值；阶段 1 打开文件夹精确化） */
+  subdir?: string;
 }
 
 // ── 事件名 → payload 类型映射 ──────────────────────
@@ -82,6 +84,9 @@ export interface BusEvents {
   // 模型 / 选择
   "model:select": ModelSelectPayload;
   "package:selected": { name: string; rtype?: string }; // sidebar loader 实证：{name, rtype}
+  // MMD 子类型动作
+  "morph:apply": { path: string };
+  "stage:load": { path: string };
   // 菜单 / 上下文
   "menu:show": { x: number; y: number; items: MenuItem[] };
   "ctx:show": CtxShowPayload;

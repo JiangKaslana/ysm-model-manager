@@ -506,9 +506,29 @@ func (a *App) OpenFolder(dir string) error {
 //  3. 候选 D：FindInstDir 兜底扫描——接住 Sable-Schematics/hello_new_generation_core
 //     等非标准目录（与计数/列表链路同款逻辑，弥合「显示对但打开错」的裂口）。
 //
+// subdir（阶段 1，MMD 子类型对齐）：全局选定 mmd 用途子目录（SceneModel/CustomAnim…）
+// 后，打开文件夹应精确到 3d-skin/{subdir} 而非 3d-skin 根——与扫描/同步链路的
+// 位置路由口径一致；非 MMD 类型 subdir 恒 ""，行为不变。
+//
 // 全部落空回退 instDir。
-func (a *App) OpenInstanceFolder(instDir, rtype string) error {
-	return a.OpenFolder(resolveInstDirTarget(instDir, rtype))
+func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
+	return a.OpenFolder(resolveInstDirTargetSubdir(instDir, rtype, subdir))
+}
+
+// resolveInstDirTargetSubdir 在 resolveInstDirTarget 基准之上精确一层 MMD 用途子目录：
+// subdir 非空且 base/{subdir} 存在 → 返回该子目录；否则回退 base（含 subdir 空 / 子目录
+// 未创建 / 非 MMD 类型）。位置路由口径与 scanner（IsMMDSubDir 填充 SubDir）、同步
+// （SyncResourcesDirLevel 保留层级）一致——仅补「打开文件夹」链路的最后一段。
+func resolveInstDirTargetSubdir(instDir, rtype, subdir string) string {
+	base := resolveInstDirTarget(instDir, rtype)
+	subdir = strings.Trim(strings.TrimSpace(subdir), `\/`)
+	if subdir == "" {
+		return base
+	}
+	if c := filepath.Join(base, subdir); isDir(c) {
+		return c
+	}
+	return base
 }
 
 // resolveInstDirTarget 推导整合包内资源存储目录（ADR-095，纯函数可测）：

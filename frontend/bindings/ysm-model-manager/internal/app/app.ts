@@ -755,10 +755,14 @@ export function OpenInBrowser(url: string): $CancellablePromise<void> {
  *  3. 候选 D：FindInstDir 兜底扫描——接住 Sable-Schematics/hello_new_generation_core
  *     等非标准目录（与计数/列表链路同款逻辑，弥合「显示对但打开错」的裂口）。
  * 
+ * subdir（阶段 1，MMD 子类型对齐）：全局选定 mmd 用途子目录（SceneModel/CustomAnim…）
+ * 后，打开文件夹应精确到 3d-skin/{subdir} 而非 3d-skin 根——与扫描/同步链路的
+ * 位置路由口径一致；非 MMD 类型 subdir 恒 ""，行为不变。
+ * 
  * 全部落空回退 instDir。
  */
-export function OpenInstanceFolder(instDir: string, rtype: string): $CancellablePromise<void> {
-    return $Call.ByID(2384592956, instDir, rtype);
+export function OpenInstanceFolder(instDir: string, rtype: string, subdir: string): $CancellablePromise<void> {
+    return $Call.ByID(2384592956, instDir, rtype, subdir);
 }
 
 export function PlazaGoBack(): $CancellablePromise<void> {

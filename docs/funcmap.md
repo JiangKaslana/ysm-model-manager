@@ -43,10 +43,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 136 | 520 |
-| frontend/views | 109 | 304 |
+| frontend/views | 110 | 309 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **432** | **1834** |
+| **合计** | **433** | **1839** |
 
 ## Go·头像
 
@@ -674,8 +674,8 @@
 | `App.ListAllFilePaths()` | `internal/app/app_scan:380` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
 | `App.CheckFileExists()` | `internal/app/app_scan:389` | — |
 | `App.OpenFolder()` | `internal/app/app_scan:465` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:510` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
-| `progressReader.Read()` | `internal/app/app_scan:580` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:514` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
+| `progressReader.Read()` | `internal/app/app_scan:600` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -771,7 +771,7 @@
 | `normalizeTheme()` | `frontend/src/app-modules` | — |
 | `applyTheme()` | `frontend/src/app-modules` | — |
 | `initTheme()` | `frontend/src/app-modules` | — |
-| `bus()` | `frontend/src/bus:205` | 默认实例（组件直接使用） |
+| `bus()` | `frontend/src/bus:210` | 默认实例（组件直接使用） |
 | `ToastPayload()` | `frontend/src/bus:7` | — |
 | `MenuItem()` | `frontend/src/bus:18` | — |
 | `PageName()` | `frontend/src/bus:30` | 核心页面名（与 app-nav 导航菜单一致） |
@@ -779,9 +779,9 @@
 | `ThemeChangePayload()` | `frontend/src/bus:42` | — |
 | `ModelSelectPayload()` | `frontend/src/bus:46` | — |
 | `CtxShowPayload()` | `frontend/src/bus:51` | — |
-| `BusEvents()` | `frontend/src/bus:68` | — |
-| `BusEventName()` | `frontend/src/bus:116` | — |
-| `Bus()` | `frontend/src/bus:142` | — |
+| `BusEvents()` | `frontend/src/bus:70` | — |
+| `BusEventName()` | `frontend/src/bus:121` | — |
+| `Bus()` | `frontend/src/bus:147` | — |
 | `normalizeTheme()` | `frontend/src/theme-core:18` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
 | `applyTheme()` | `frontend/src/theme-core:22` | — |
 | `initTheme()` | `frontend/src/theme-core:37` | — |
@@ -1847,9 +1847,11 @@
 | `collectBlobUrls()` | `frontend/src/views/app-preview/cache:48` | 收集缓存值中全部 blob URL（evict 释放用） |
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
-| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:20` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
-| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:92` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
-| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:121` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
+| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:23` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
+| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:95` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
+| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:124` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
+| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:153` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
+| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:213` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
 | `nextDetailGen()` | `frontend/src/views/app-preview/detail:23` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
 | `getDetailGen()` | `frontend/src/views/app-preview/detail:28` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
 | `showModelDetail()` | `frontend/src/views/app-preview/detail:33` | 显示模型详情（YSM 模型） |
@@ -1920,6 +1922,9 @@
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
 | `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:33` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
 | `loadModel2D()` | `frontend/src/views/app-preview/skeleton:51` | 加载模型 2D 骨骼线条图 + 统计面板 |
+| `resolveStageSiblings()` | `frontend/src/views/app-preview/stage-siblings:16` | 扫描 StageAnim 目录下所有资源文件（VMD + 音频）；失败返回 [] |
+| `resolveStageVmdList()` | `frontend/src/views/app-preview/stage-siblings:44` | 仅获取 StageAnim 下所有 VMD 文件路径列表 |
+| `resolveStageAudioList()` | `frontend/src/views/app-preview/stage-siblings:50` | 仅获取 StageAnim 下所有音频文件路径列表 |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |
 | `buildOrderedTexKeys()` | `frontend/src/views/app-preview/texture-order:21` | 计算 3D 渲染/纹理选择器用的有序纹理名列表 |
 | `ModelDetailMeta()` | `frontend/src/views/app-preview/tpl:6` | 模型统计元数据（modelDetailHTML 入参） |
@@ -1967,8 +1972,8 @@
 | `placeholderHTML()` | `frontend/src/views/app-resource-manager/tpl:159` | 空状态占位 |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:147` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:180` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:150` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:183` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |

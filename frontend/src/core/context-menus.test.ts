@@ -327,7 +327,20 @@ describe("菜单项点击行为", () => {
     const item = payload.items.find((i) => i.action === "instance.open-folder");
     item!.onClick!();
     await vi.waitFor(() => expect(openFolderMock).toHaveBeenCalled());
-    expect(openFolderMock).toHaveBeenCalledWith("/packs/x", RESOURCE_TYPES.YSM);
+    // 阶段 1：subdir 透传（MMD 用途子目录；无则 ""）
+    expect(openFolderMock).toHaveBeenCalledWith("/packs/x", RESOURCE_TYPES.YSM, "");
+  });
+
+  it("instance 打开文件夹 带 subdir → 透传到后端", async () => {
+    const payload = showMenu("instance", {
+      ...payloadCtx("instance"),
+      path: "/packs/x",
+      subdir: "SceneModel",
+    });
+    const item = payload.items.find((i) => i.action === "instance.open-folder");
+    item!.onClick!();
+    await vi.waitFor(() => expect(openFolderMock).toHaveBeenCalled());
+    expect(openFolderMock).toHaveBeenCalledWith("/packs/x", RESOURCE_TYPES.YSM, "SceneModel");
   });
 
   it("batch 批量重命名 → batch:rename（paths 透传）", () => {

@@ -118,6 +118,9 @@ export function bindCardEvents(
       instanceName: name,
       path: pkg?.dir || "",
       rtype: pkg?.rtype || RESOURCE_TYPES.YSM,
+      // 阶段 1：透传全局 MMD 用途子目录选择（repo_subdir，app-nav 持久化），
+      // 使「打开文件夹」精确到 3d-skin/{subdir}；非 MMD 类型恒 ""，行为不变
+      subdir: safeGet("repo_subdir") || "",
     });
   };
 

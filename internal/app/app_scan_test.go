@@ -506,6 +506,56 @@ func TestResolveInstDirTarget_MaidModelStandard(t *testing.T) {
 	}
 }
 
+// ===== resolveInstDirTargetSubdir（阶段 1：打开文件夹精确到 MMD 用途子目录）=====
+// 全局选 mmd 子类型（SceneModel/CustomAnim/...）后，打开文件夹应精确到
+// 3d-skin/{subdir} 而非 3d-skin 根；subdir 空 / 目标子目录不存在 → 回退原推导（行为不变）。
+func TestResolveInstDirTargetSubdir_MmdSceneModelHit(t *testing.T) {
+	instDir := t.TempDir()
+	scene := filepath.Join(instDir, "3d-skin", "SceneModel")
+	if err := os.MkdirAll(scene, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", "SceneModel"); got != scene {
+		t.Errorf("mmd SceneModel 命中 = %q, 期望 %q", got, scene)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_MissingFallback(t *testing.T) {
+	instDir := t.TempDir()
+	skin := filepath.Join(instDir, "3d-skin")
+	if err := os.MkdirAll(skin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// SceneModel 子目录不存在 → 回退 3d-skin 根（原推导）
+	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", "SceneModel"); got != skin {
+		t.Errorf("SceneModel 缺失回退 = %q, 期望 %q", got, skin)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_EmptyKeepsBase(t *testing.T) {
+	instDir := t.TempDir()
+	skin := filepath.Join(instDir, "3d-skin")
+	if err := os.MkdirAll(skin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// EntityPlayer 默认（subdir=""）→ 3d-skin 根，与现有行为一致
+	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", ""); got != skin {
+		t.Errorf("空 subdir = %q, 期望 %q", got, skin)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_NonMmdTypeUnchanged(t *testing.T) {
+	// 非 MMD 类型（resourcepack）subdir 恒 ""，结果与原推导一致
+	instDir := t.TempDir()
+	rp := filepath.Join(instDir, "resourcepacks")
+	if err := os.MkdirAll(rp, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTargetSubdir(instDir, "resourcepack", ""); got != rp {
+		t.Errorf("resourcepack = %q, 期望 %q", got, rp)
+	}
+}
+
 // ===== SearchModels 并发优化测试 =====
 
 // geoJSON 创建可解析的 Bedrock 几何 JSON
