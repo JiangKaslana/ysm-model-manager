@@ -10,7 +10,7 @@ source_files:
   - go/types/extensions.go
   - go/types/bedrock.go
   - go/types/
-  - go/types/resource_types_embed.go
+  - resource_types.json
 use_when:
   - 共享类型
   - AppConfig
@@ -31,14 +31,13 @@ use_when:
 
 - `types.go` — 跨包数据结构：ModelEntry（含 **SubDir 字段，ADR-096 P1**：MMD 用途子目录分组，`json:"subdir,omitempty"`）、VersionInstance、InstanceStatus、ResourceSyncResult、SyncStatus、ImportLog、LinkType、AppError、CustomFileInfo、WindowState、AuthorInfo、SearchResult、**ErrorCode（结构化错误码，ADR-051 落地）**、**LogLevel（日志级别）**
 - `config.go` — AppConfig（FilesRoot/各类型 Root/LinkMode/Theme/Mirror/VoxelMaxBlocks/窗口状态）、PackInfo、WorkshopSite、WorkshopCreator
-- `resource.go` — 注册表加载（LoadRegistry）、PackMeta/FormatRange、LitematicMeta/LitematicVoxelData/VoxelGroup、**`ResourceType.ZipEntries []ZipEntryMatch`（ADR-067 内容指纹）**
+- `resource.go` — 注册表加载（LoadRegistry），编译期嵌入基线 `bundledRegistryJSON`（根包 `embed.go` 经 `SetBundledRegistryJSON` 注入，单源 = 仓库根 `resource_types.json`，取代旧 `resource_types_embed.go` 手工副本）；PackMeta/FormatRange、LitematicMeta/LitematicVoxelData/VoxelGroup、**`ResourceType.ZipEntries []ZipEntryMatch`（ADR-067 内容指纹）**
 - `extensions.go` — 注册表驱动的扩展名与子目录查询
 - `bedrock.go` — BedrockModel/Bone2D/Cube2D（2D 摘要与 3D 构建共用）
-- `resource_types_embed.go` — 编译期嵌入的注册表基线（生成文件，禁止手改）
 
 ## 对外 API / 入口
 
-- `LoadRegistry() *ResourceTypeRegistry` — 单例加载注册表，解析优先级：显式路径（`SetRegistryPath`）→ exe 同级/上级 `resource_types.json` → 嵌入基线 `embeddedRegistryJSON`
+- `LoadRegistry() *ResourceTypeRegistry` — 单例加载注册表，解析优先级：显式路径（`SetRegistryPath`）→ exe 同级/上级 `resource_types.json` → 编译期嵌入基线 `bundledRegistryJSON`（根包注入）→ 测试/未注入回退读仓库根 `resource_types.json`
 - `RegistryType(id string) *ResourceType` — 按 id 查类型，无匹配返回 nil
 - `SetRegistryPath(path string)` — 仅测试用，重置单例
 - 扩展名/目录查询：`AllExts()`、`IsSupportedExt(ext)`、`ExtBelongsTo(ext)`、`SupportedExtsForType(rtype)`、`StorageSubDir(rtype)`、`SubDirMap(rtype)`、`SubDirAll()`、`AllSubDirs()`、`FindInstDir(versionDir, subDir, rtype)`（标准子目录不存在/存在但无该类型文件时按扩展名兜底扫描）——**整合包侧资源子目录解析的唯一入口（ADR-064 锚定）**：展示（`BuildSyncItems`）、状态对比（`CompareGlobalInstanceHashes`）、单/全量推拉（`findInstanceDir`/`SyncResources` binding）、安装（`InstallResourceToInstance`）、重链接（`RelinkAllInstanceResources`）、打开文件夹（`OpenInstanceFolder`）均走它，禁止 `filepath.Join(versionDir, subDir)` 直拼（历史直拼曾致 Sable-Schematics 场景展示/操作口径不一致报"不在目标目录内"）；`mods` 目录检测（`HasYSMMod`）无兜底语义除外

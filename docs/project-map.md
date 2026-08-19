@@ -93,7 +93,7 @@
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
 | `opencode.json` | OpenCode AI 编辑器配置（IDE 集成） |
-| `resource_types.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `resource_types.json` | 资源类型注册表单一事实来源（扩展名/子目录/安装目标/预览/detector，编译期嵌入 go/types） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |
 | `workshop_sites.json` | 工坊站点配置 |

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-18T23:10:58.571Z",
+  "generated": "2026-08-19T08:00:50.481Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|jscpd",
@@ -198,6 +198,7 @@
     "src/utils/dom/dialogs/rename.ts#src/utils/dom/dialogs/tag-editor.ts",
     "src/utils/dom/directory-picker.ts#src/utils/dom/directory-picker.ts",
     "src/utils/format/ysm-anim-config.ts#src/views/app-preview/wasm.ts",
+    "src/views/app-content/diagnostics/perf.ts#src/views/app-content/diagnostics/perf.ts",
     "src/views/app-content/site/edit.ts#src/views/app-content/site/edit.ts",
     "src/views/app-preview/litematic-3d.test.ts#src/views/app-preview/litematic-3d.test.ts",
     "src/views/app-preview/mmd-controls.test.ts#src/views/app-preview/mmd-controls.test.ts",
