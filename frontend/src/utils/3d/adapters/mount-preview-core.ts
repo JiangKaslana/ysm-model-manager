@@ -497,7 +497,13 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         ctr.target.copy(cam.position).addScaledVector(_camDir, 10);
         ctr.update();
       }
+      // perFrame 阈值报警：单帧 >50ms 即 warn（主线程长任务，对齐 main-thread-watch 口径但内嵌零依赖）
+      const pfStart = performance.now();
       if (perFrame) perFrame(dt);
+      const pfMs = performance.now() - pfStart;
+      if (pfMs > 50) {
+        console.warn(`[perFrame] 阻塞 ${pfMs.toFixed(1)}ms (>50ms 阈值)`);
+      }
       // 视锥裁剪：Group 级 BoundingSphere 测试，visible=false 后 Three.js 跳过整组遍历
       cullModelGroups(cam);
       // ADR-081 L2：后处理体积光管线——委托 PostprocessingManager

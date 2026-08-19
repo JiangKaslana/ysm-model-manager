@@ -70,7 +70,7 @@ export function runFullCleanup(ctx: CleanupContext): void {
   if (ctx.renderer) {
     const memBefore = (ctx.renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
     if (memBefore) {
-      console.log(`[gpu-leak] before cleanup: geometries=${memBefore.geometries} textures=${memBefore.textures}`);
+      console.log(`[gpu-leak] cleanup before: geometries=${memBefore.geometries} textures=${memBefore.textures}`);
     }
   }
   ctx.menuHandle.dispose();
@@ -150,7 +150,7 @@ export function runFullCleanup(ctx: CleanupContext): void {
   if (ctx.renderer) {
     const memAfter = (ctx.renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
     if (memAfter) {
-      console.log(`[gpu-leak] after cleanup: geometries=${memAfter.geometries} textures=${memAfter.textures}`);
+      console.log(`[gpu-leak] cleanup after: geometries=${memAfter.geometries} textures=${memAfter.textures}`);
     }
   }
 }
