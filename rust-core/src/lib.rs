@@ -96,7 +96,8 @@ impl ScanPolicy {
 
     pub fn from_registry_path(path: impl AsRef<Path>) -> io::Result<Self> {
         let raw = fs::read_to_string(path)?;
-        Self::from_registry_json(&raw).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+        Self::from_registry_json(&raw)
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
     }
 
     pub fn supports_ext(&self, ext: &str) -> bool {
@@ -122,8 +123,12 @@ pub fn scan_fast(root: impl AsRef<Path>, policy: &ScanPolicy) -> ScanReport {
     let mut candidates = Vec::new();
 
     let walk = WalkDir::new(&root).process_read_dir(|_, _, _, children| {
-        for child in children.iter_mut().filter_map(|result| result.as_mut().ok()) {
-            if child.file_type.is_dir() && should_skip_dir_name(&child.file_name.to_string_lossy()) {
+        for child in children
+            .iter_mut()
+            .filter_map(|result| result.as_mut().ok())
+        {
+            if child.file_type.is_dir() && should_skip_dir_name(&child.file_name.to_string_lossy())
+            {
                 child.read_children = None;
             }
         }
@@ -166,10 +171,8 @@ pub fn scan_fast(root: impl AsRef<Path>, policy: &ScanPolicy) -> ScanReport {
         }
     }
 
-    let resolved: Vec<Result<ModelEntry, ScanError>> = candidates
-        .into_par_iter()
-        .map(resolve_metadata)
-        .collect();
+    let resolved: Vec<Result<ModelEntry, ScanError>> =
+        candidates.into_par_iter().map(resolve_metadata).collect();
 
     let mut entries = Vec::with_capacity(resolved.len());
     for item in resolved {
@@ -219,7 +222,9 @@ pub fn hydrate_hashes(entries: &mut [ModelEntry], policy: &ScanPolicy) -> Vec<Sc
 
 pub fn scan_eager(root: impl AsRef<Path>, policy: &ScanPolicy) -> ScanReport {
     let mut report = scan_fast(root, policy);
-    report.errors.extend(hydrate_hashes(&mut report.entries, policy));
+    report
+        .errors
+        .extend(hydrate_hashes(&mut report.entries, policy));
     report
 }
 

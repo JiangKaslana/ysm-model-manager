@@ -45,20 +45,29 @@ fn main() {
 
     let hash_elapsed = if eager_hash {
         let hash_started = Instant::now();
-        report.errors.extend(hydrate_hashes(&mut report.entries, &policy));
+        report
+            .errors
+            .extend(hydrate_hashes(&mut report.entries, &policy));
         Some(hash_started.elapsed())
     } else {
         None
     };
 
     let bytes: i64 = report.entries.iter().map(|entry| entry.size.max(0)).sum();
-    let hashed = report.entries.iter().filter(|entry| !entry.hash.is_empty()).count();
+    let hashed = report
+        .entries
+        .iter()
+        .filter(|entry| !entry.hash.is_empty())
+        .count();
 
     println!("root={root}");
     println!("registry={}", registry.display());
     println!("entries={}", report.entries.len());
     println!("bytes={bytes}");
-    println!("discovery_ms={:.3}", discovery_elapsed.as_secs_f64() * 1000.0);
+    println!(
+        "discovery_ms={:.3}",
+        discovery_elapsed.as_secs_f64() * 1000.0
+    );
     println!("hashed={hashed}");
     if let Some(elapsed) = hash_elapsed {
         println!("hash_ms={:.3}", elapsed.as_secs_f64() * 1000.0);
