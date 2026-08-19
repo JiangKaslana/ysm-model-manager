@@ -44,8 +44,9 @@ func RunCLI(args []string) error {
 	if jsonMode {
 		start := time.Now()
 		outputBuf, restoreStdout := captureStdout()
-		defer restoreStdout()
+		defer restoreStdout() // panic 兜底：确保 stdout 一定恢复
 		err := DispatchCommand(a, a.SaveAppConfig, filesRoot, commandArgs, true)
+		restoreStdout() // 显式关闭 pipe，确保 outputBuf.String() 不死锁
 
 		cmdName := commandArgs[0]
 		elapsed := float64(time.Since(start).Milliseconds())

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 )
 
 // exitCode 退出码常量
@@ -165,6 +166,7 @@ func max(a, b int) int {
 // ========== 输出捕获工具 ==========
 
 // captureStdout 捕获 stdout 输出
+// 返回缓冲区和恢复函数（幂等：可安全调用多次）
 func captureStdout() (*outputBuffer, func()) {
 	orig := os.Stdout
 	r, w, _ := os.Pipe()
@@ -175,9 +177,12 @@ func captureStdout() (*outputBuffer, func()) {
 		buf.readFrom(r)
 	}()
 
+	var once sync.Once
 	return buf, func() {
-		w.Close()
-		os.Stdout = orig
+		once.Do(func() {
+			w.Close()
+			os.Stdout = orig
+		})
 	}
 }
 

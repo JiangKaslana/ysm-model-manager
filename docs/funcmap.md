@@ -69,7 +69,7 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `RunCLI()` | `go/cli/cli:14` | RunCLI 执行 CLI 模式 |
-| `ExecuteCLIWithApp()` | `go/cli/cli:72` | ExecuteCLIWithApp 执行 CLI 命令 |
+| `ExecuteCLIWithApp()` | `go/cli/cli:73` | ExecuteCLIWithApp 执行 CLI 命令 |
 | `NewJsonSuccess()` | `go/cli/json:39` | NewJsonSuccess 创建成功响应 |
 | `NewJsonError()` | `go/cli/json:50` | NewJsonError 创建错误响应 |
 | `NewJsonNotSupported()` | `go/cli/json:81` | NewJsonNotSupported 创建平台不支持响应 |
@@ -86,16 +86,16 @@
 | `DispatchCommand()` | `go/cli/registry:56` | DispatchCommand 分发命令执行 |
 | `CmdContext()` | `go/cli/registry:11` | CmdContext 统一命令执行上下文 |
 | `CliCommand()` | `go/cli/registry:18` | CliCommand 命令注册结构 |
-| `ErrParam.Error()` | `go/cli/shared:25` | — |
-| `ErrParam.Unwrap()` | `go/cli/shared:32` | — |
-| `ErrRuntime.Error()` | `go/cli/shared:40` | — |
-| `ErrRuntime.Unwrap()` | `go/cli/shared:47` | — |
-| `ExitCodeOf()` | `go/cli/shared:50` | ExitCodeOf 根据错误类型返回退出码 |
-| `PrintError()` | `go/cli/shared:59` | PrintError 输出错误到 stderr |
-| `ParseCommandArgs()` | `go/cli/shared:68` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
-| `outputBuffer.String()` | `go/cli/shared:204` | — |
-| `ErrParam()` | `go/cli/shared:20` | ErrParam 参数错误（exit code 2） |
-| `ErrRuntime()` | `go/cli/shared:35` | ErrRuntime 运行时业务错误（exit code 1） |
+| `ErrParam.Error()` | `go/cli/shared:26` | — |
+| `ErrParam.Unwrap()` | `go/cli/shared:33` | — |
+| `ErrRuntime.Error()` | `go/cli/shared:41` | — |
+| `ErrRuntime.Unwrap()` | `go/cli/shared:48` | — |
+| `ExitCodeOf()` | `go/cli/shared:51` | ExitCodeOf 根据错误类型返回退出码 |
+| `PrintError()` | `go/cli/shared:60` | PrintError 输出错误到 stderr |
+| `ParseCommandArgs()` | `go/cli/shared:69` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
+| `outputBuffer.String()` | `go/cli/shared:209` | — |
+| `ErrParam()` | `go/cli/shared:21` | ErrParam 参数错误（exit code 2） |
+| `ErrRuntime()` | `go/cli/shared:36` | ErrRuntime 运行时业务错误（exit code 1） |
 
 ## go/container
 
