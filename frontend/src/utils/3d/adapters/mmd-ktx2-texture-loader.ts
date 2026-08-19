@@ -29,14 +29,31 @@ export interface Ktx2TextureLoaderDeps {
 }
 
 /** 将 CompressedTexture 的关键字段合并到占位纹理（保持对象身份一致） */
-function mergeInto(placeholder: THREE.CompressedTexture, src: THREE.CompressedTexture): void {
+function mergeCompressedInto(placeholder: THREE.Texture, src: THREE.CompressedTexture): void {
   placeholder.image = src.image;
-  placeholder.mipmaps = src.mipmaps;
+  (placeholder as unknown as { mipmaps: unknown[] }).mipmaps = src.mipmaps;
   placeholder.format = src.format;
   placeholder.type = src.type;
   placeholder.minFilter = src.minFilter;
   placeholder.magFilter = src.magFilter;
   placeholder.generateMipmaps = src.generateMipmaps;
+  // 压缩纹理上传路径开关：three WebGLTextures 按 isCompressedTexture 分支
+  (placeholder as unknown as { isCompressedTexture: boolean }).isCompressedTexture = true;
+  placeholder.needsUpdate = true;
+}
+
+/** 将普通纹理（fallback PNG）的关键字段合并到占位纹理 */
+function mergePlainInto(placeholder: THREE.Texture, src: THREE.Texture): void {
+  placeholder.image = src.image;
+  placeholder.format = src.format;
+  placeholder.type = src.type;
+  placeholder.colorSpace = src.colorSpace;
+  placeholder.flipY = src.flipY;
+  placeholder.wrapS = src.wrapS;
+  placeholder.wrapT = src.wrapT;
+  placeholder.minFilter = src.minFilter;
+  placeholder.magFilter = src.magFilter;
+  (placeholder as unknown as { isCompressedTexture: boolean }).isCompressedTexture = false;
   placeholder.needsUpdate = true;
 }
 
@@ -54,8 +71,10 @@ export class Ktx2TextureLoader extends THREE.Loader {
   }
 
   /**
-   * 与 TextureLoader.load 同签名：同步返回纹理（直载为占位 CompressedTexture，
-   * 回退为原 loader 的 Texture），异步填充/解码后 onLoad 收到同一对象。
+   * 与 TextureLoader.load 同签名：同步返回占位纹理（材质/ctx.textures 引用它），
+   * 异步填充后 onLoad 收到同一对象——直载与回退两条路径都合并进占位，
+   * 保证 three-mmd 的 loadTextureResource（`texture = loader.load(...)` 返回值即材质 map）
+   * 拿到的始终是有数据的对象，避免"空占位被材质引用 → 纹理丢失"。
    */
   load(
     url: string,
@@ -69,12 +88,20 @@ export class Ktx2TextureLoader extends THREE.Loader {
       return this.deps.fallbackLoader.load(url, onLoad, onProgress, onError);
     }
 
-    const placeholder = new THREE.CompressedTexture([], 0, 0);
+    // 占位用普通 Texture（非 CompressedTexture）：fallback 合并 PNG 字段天然兼容；
+    // 直载成功时置 isCompressedTexture=true 切换上传路径
+    const placeholder = new THREE.Texture();
     const fallback = (): void => {
-      // 回退：原 loader 加载 PNG，onLoad 收到其纹理（与直载返回对象不同——
-      // 但回退路径下材质引用的是 fallbackLoader 返回的纹理，仍一致）
-      const tex = this.deps.fallbackLoader.load(url, onLoad, onProgress, onError);
-      void tex; // fallback 返回对象由调用方直接使用
+      // 回退：原 loader 加载 PNG，结果合并进占位（保持同一对象身份）
+      this.deps.fallbackLoader.load(
+        url,
+        (t) => {
+          mergePlainInto(placeholder, t);
+          onLoad?.(placeholder);
+        },
+        onProgress,
+        onError,
+      );
     };
 
     this.deps
@@ -89,7 +116,7 @@ export class Ktx2TextureLoader extends THREE.Loader {
         const blobUrl = URL.createObjectURL(blob);
         try {
           const compressed = await this.deps.ktx2Loader.loadAsync(blobUrl);
-          mergeInto(placeholder, compressed);
+          mergeCompressedInto(placeholder, compressed);
           onLoad?.(placeholder);
         } catch {
           fallback();

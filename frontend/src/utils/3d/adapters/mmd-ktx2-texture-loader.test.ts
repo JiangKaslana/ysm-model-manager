@@ -12,6 +12,7 @@ function makeDeps(overrides: Partial<Ktx2TextureLoaderDeps> = {}): Ktx2TextureLo
 } {
   const fallbackLoad = vi.fn((_url: string, onLoad?: (t: THREE.Texture) => void) => {
     const t = new THREE.Texture();
+    t.image = { width: 4, height: 4 }; // 模拟 PNG 解码后的 image（默认 null，合并断言需要）
     if (onLoad) onLoad(t);
     return t;
   });
@@ -70,28 +71,37 @@ describe("Ktx2TextureLoader", () => {
     expect((tex as THREE.CompressedTexture).isCompressedTexture).not.toBe(true);
   });
 
-  it("缓存读取返回 null → 回退", async () => {
+  it("缓存读取返回 null → 回退且合并进占位（onLoad 与 load 返回值同一对象）", async () => {
     const deps = makeDeps({ getCachedTextureByHash: vi.fn().mockResolvedValue(null) });
     const loader = new Ktx2TextureLoader(deps);
     const onLoad = vi.fn();
 
-    loader.load("textures/ziyan_body.png", onLoad);
-    await vi.waitFor(() => expect(deps.fallbackLoad).toHaveBeenCalled());
+    const returned = loader.load("textures/ziyan_body.png", onLoad);
+    await vi.waitFor(() => expect(onLoad).toHaveBeenCalled());
 
     expect(deps.ktx2LoadAsync).not.toHaveBeenCalled();
+    // 关键：回退结果合并进占位，材质 map（load 返回值）始终是有数据的同一对象
+    const loaded = onLoad.mock.calls[0][0] as THREE.Texture;
+    expect(returned).toBe(loaded);
+    expect((loaded as unknown as { isCompressedTexture: boolean }).isCompressedTexture).toBe(false);
+    expect(loaded.image).toBeTruthy(); // PNG 数据已合并
   });
 
-  it("KTX2 解码失败 → 回退", async () => {
+  it("KTX2 解码失败 → 回退且合并进占位", async () => {
     const decodeFail = vi.fn().mockRejectedValue(new Error("decode fail"));
     const deps = makeDeps({ ktx2Loader: { loadAsync: decodeFail } });
     const loader = new Ktx2TextureLoader(deps);
     const onLoad = vi.fn();
 
-    loader.load("textures/ziyan_body.png", onLoad);
-    await vi.waitFor(() => expect(deps.fallbackLoad).toHaveBeenCalled());
+    const returned = loader.load("textures/ziyan_body.png", onLoad);
+    await vi.waitFor(() => expect(onLoad).toHaveBeenCalled());
 
     expect(decodeFail).toHaveBeenCalledTimes(1);
     expect(deps.fallbackLoad).toHaveBeenCalledTimes(1);
+    // 回退结果合并进占位：onLoad 与 load 返回值同一对象，材质 map 不悬空
+    const loaded = onLoad.mock.calls[0][0] as THREE.Texture;
+    expect(returned).toBe(loaded);
+    expect(loaded.image).toBeTruthy();
   });
 
   it("toon 路径不直载（resolveHash 返回 undefined 即回退）", () => {

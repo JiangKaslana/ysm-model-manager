@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 133 | 499 |
+| 前端·工具 | 135 | 515 |
 | frontend/views | 106 | 297 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **426** | **1806** |
+| **合计** | **428** | **1822** |
 
 ## Go·头像
 
@@ -1220,11 +1220,11 @@
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:378` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:66` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:176` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:183` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:819` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:846` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:67` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:177` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:184` | — |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:869` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:896` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
 | `BasisModuleLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:29` | 初始化后的 basis 模块（含 BasisEncoder 构造器） |
 | `loadBasisModule()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:40` | 加载并初始化本地 basis_encoder（缓存单例）。 |
@@ -1240,9 +1240,25 @@
 | `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:241` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
 | `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:291` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
 | `Ktx2TextureLoaderDeps()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:20` | 拦截 loader 依赖注入（装配方提供） |
-| `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:51` | — |
+| `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:68` | — |
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:8` | 主线程 → Worker 的请求 |
 | `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:16` | Worker → 主线程的响应 |
+| `PmxBuilderConfig()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:35` | Builder 配置 |
+| `PmxBuildResult()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:43` | Builder 产出 |
+| `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:52` | PMX 解析器管理器 |
+| `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:60` | 创建 PMX 解析器（Worker） |
+| `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:109` | 从 Worker 解析结果构建 Three.js 场景对象。 |
+| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:232` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
+| `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:10` | 主线程 → Worker 请求 |
+| `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:16` | 顶点数据（交织存储，GPU 友好） |
+| `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:26` | 面数据 |
+| `PmxMaterialData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:32` | 材质数据 |
+| `PmxBoneData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:49` | 骨骼数据 |
+| `PmxMorphData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:64` | Morph 数据 |
+| `PmxParseResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:71` | Worker → 主线程响应 |
+| `PmxRigidBodyData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:91` | — |
+| `PmxJointData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:108` | — |
+| `PmxDisplayFrameData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:123` | — |
 | `TexDecodeRequest()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:7` | 主线程 → Worker 的请求 |
 | `TexDecodeResponse()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:15` | Worker → 主线程的响应 |
 | `TexDecodeConfig()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:15` | 解码器配置 |
