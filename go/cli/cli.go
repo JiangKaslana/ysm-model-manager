@@ -60,9 +60,11 @@ func dispatchCommand(a *app.App, filesRoot string, commandArgs []string, require
 			Err: fmt.Errorf("--files-root 参数不能为空")}
 	}
 
-	if err := a.SaveAppConfig(filesRoot, "", "", "", ""); err != nil {
-		return &ErrRuntime{CmdName: cmdName,
-			Err: fmt.Errorf("初始化配置失败: %w", err)}
+	if filesRoot != "" {
+		if err := a.SaveAppConfig(filesRoot, "", "", "", ""); err != nil {
+			return &ErrRuntime{CmdName: cmdName,
+				Err: fmt.Errorf("初始化配置失败: %w", err)}
+		}
 	}
 
 	fmt.Printf("🚀 CLI Mode: %s\n", cmd.Name)

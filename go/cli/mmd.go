@@ -98,6 +98,9 @@ func runFileBench(ctx *CmdContext) error {
 	if err != nil {
 		return err
 	}
+	if *iterations <= 0 {
+		return newParamErrf("--iterations 必须大于 0")
+	}
 
 	var files []string
 
@@ -217,7 +220,9 @@ func runFileBench(ctx *CmdContext) error {
 			result.Files[i] = fileBenchFile{Path: f.Path, Size: f.Size}
 		}
 		if jsonBytes, err := json.MarshalIndent(result, "", "  "); err == nil {
-			os.WriteFile(*output, jsonBytes, 0644)
+			if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
+				return newRuntimeErrf("保存基准 JSON 失败: %v", err)
+			}
 			fmt.Printf("\n💾 基准已保存到: %s\n", *output)
 		}
 	}
@@ -381,7 +386,9 @@ func runScanDir(ctx *CmdContext) error {
 
 	if *output != "" {
 		if jsonBytes, err := json.MarshalIndent(result, "", "  "); err == nil {
-			os.WriteFile(*output, jsonBytes, 0644)
+			if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
+				return newRuntimeErrf("保存 JSON 文件失败: %v", err)
+			}
 			fmt.Printf("💾 JSON 已保存到: %s\n\n", *output)
 			return nil
 		} else {
@@ -538,7 +545,10 @@ func runAnalyzeMMD(ctx *CmdContext) error {
 		}
 		var texInfos []texInfo
 		for _, tf := range textureFiles {
-			info, _ := os.Stat(tf)
+			info, err := os.Stat(tf)
+			if err != nil {
+				continue // 文件在扫描后被移除，跳过
+			}
 			ext := strings.ToLower(filepath.Ext(tf))
 			texInfos = append(texInfos, texInfo{path: tf, size: info.Size(), ext: ext})
 		}
@@ -589,7 +599,10 @@ func runAnalyzeMMD(ctx *CmdContext) error {
 	if len(pmxFiles) > 0 {
 		fmt.Printf("\n📦 模型文件:\n")
 		for i, pf := range pmxFiles {
-			info, _ := os.Stat(pf)
+			info, err := os.Stat(pf)
+			if err != nil {
+				continue // 文件在扫描后被移除，跳过
+			}
 			relPath := strings.TrimPrefix(pf, *modelDir)
 			fmt.Printf("   [%d] %s (%s)\n", i+1, relPath, formatSize(info.Size()))
 		}

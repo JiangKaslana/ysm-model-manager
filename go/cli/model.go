@@ -284,6 +284,9 @@ func runBenchmark(ctx *CmdContext) error {
 	if err != nil {
 		return err
 	}
+	if *iterations <= 0 {
+		return newParamErrf("--iterations 必须大于 0")
+	}
 
 	fmt.Printf("⚡ 性能基准测试\n")
 	fmt.Printf("   迭代次数: %d\n\n", *iterations)

@@ -361,7 +361,8 @@ func TestRunCLIWithApp_UnknownCommand(t *testing.T) {
 func TestRunCLIWithApp_UsesProvidedApp(t *testing.T) {
 	a := &app.App{}
 	out := captureOutput(t, func() {
-		if err := runCLIWithApp(a, []string{"--files-root", "/tmp", "cache-status"}); err != nil {
+		// 不传 --files-root：避免触发 SaveAppConfig 落盘真实用户配置（文件头约束）
+		if err := runCLIWithApp(a, []string{"cache-status"}); err != nil {
 			t.Errorf("runCLIWithApp cache-status 应返回 nil, got %v", err)
 		}
 	})

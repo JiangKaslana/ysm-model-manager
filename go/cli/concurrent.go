@@ -348,6 +348,9 @@ func runSingleBench(ctx *CmdContext) error {
 	if *modelPath == "" {
 		return newParamErrf("必须指定 --model 参数")
 	}
+	if *iterations <= 0 {
+		return newParamErrf("--iterations 必须大于 0")
+	}
 
 	fmt.Println("🎯 单模型加载基准测试")
 	fmt.Println(strings.Repeat("=", 70))

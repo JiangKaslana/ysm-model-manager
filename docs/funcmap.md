@@ -69,7 +69,7 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `RegisterCommand()` | `go/cli/cli:22` | RegisterCommand 注册一个 CLI 子命令（供各文件的 init() 调用） |
-| `RunCLI()` | `go/cli/cli:82` | RunCLI 执行 CLI 模式 返回的 error 用于映射到正确的退出码 支持: --help, --version, &lt;command&gt; --help |
+| `RunCLI()` | `go/cli/cli:84` | RunCLI 执行 CLI 模式 返回的 error 用于映射到正确的退出码 支持: --help, --version, &lt;command&gt; --help |
 | `ErrParam.Error()` | `go/cli/shared:27` | — |
 | `ErrParam.Unwrap()` | `go/cli/shared:34` | — |
 | `ErrRuntime.Error()` | `go/cli/shared:42` | — |
