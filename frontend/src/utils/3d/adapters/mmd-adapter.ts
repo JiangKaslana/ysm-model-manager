@@ -806,6 +806,14 @@ export async function buildMmdScene(
     // 见 node_modules/@moeru/three-mmd/dist/index.js:2901-2905。切换模型时 switchToSession 只调
     // 本 dispose，不跑 fullCleanup 的 scene.traverse catch-all，所以必须在此显式释放）。
     dispose: (): void => {
+      // GPU 内存泄漏检测：记录 dispose 前的 renderer.info.memory
+      const renderer = ctx.renderer;
+      if (renderer) {
+        const memBefore = (renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
+        if (memBefore) {
+          console.log(`[gpu-leak] mmd dispose before: geometries=${memBefore.geometries} textures=${memBefore.textures}`);
+        }
+      }
       try {
         bonePanelRef.current?.();
         unregisterModelRoot(mesh);
@@ -833,6 +841,13 @@ export async function buildMmdScene(
         mmd?.dispose();
       } catch {
         /* 几何/纹理释放抛错 → 吞掉，blob URL 已在 finally 回收 */
+      }
+      // GPU 内存泄漏检测：记录 dispose 后的 renderer.info.memory
+      if (renderer) {
+        const memAfter = (renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
+        if (memAfter) {
+          console.log(`[gpu-leak] mmd dispose after: geometries=${memAfter.geometries} textures=${memAfter.textures}`);
+        }
       }
     },
     // ADR-052 P3：截图走共享 renderer（通用化，与 ysm/vrm/litematic 呑约对称）

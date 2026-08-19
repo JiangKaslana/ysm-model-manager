@@ -66,6 +66,13 @@ export interface CleanupContext {
 // 替代原 mount3D 内嵌闭包（L561-622）
 
 export function runFullCleanup(ctx: CleanupContext): void {
+  // GPU 内存泄漏检测：记录清理前的 renderer.info.memory
+  if (ctx.renderer) {
+    const memBefore = (ctx.renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
+    if (memBefore) {
+      console.log(`[gpu-leak] before cleanup: geometries=${memBefore.geometries} textures=${memBefore.textures}`);
+    }
+  }
   ctx.menuHandle.dispose();
   // ADR-093 T2：重置场景注册表（随会话生命周期；释放由下方 allBuilt dispose 负责）
   sceneRegistry.reset();
@@ -139,6 +146,13 @@ export function runFullCleanup(ctx: CleanupContext): void {
   if (ctx.overlay.parentNode) ctx.overlay.parentNode.removeChild(ctx.overlay);
   ctx.nullHandle();
   ctx.adapter.onClose?.();
+  // GPU 内存泄漏检测：记录清理后的 renderer.info.memory（renderer.dispose 后 info 仍可读）
+  if (ctx.renderer) {
+    const memAfter = (ctx.renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
+    if (memAfter) {
+      console.log(`[gpu-leak] after cleanup: geometries=${memAfter.geometries} textures=${memAfter.textures}`);
+    }
+  }
 }
 
 // ── safeDisposeMat ─────────────────────────────────────────────────────────
