@@ -251,6 +251,13 @@ export function EnqueueDownloads(tasks: $models.DownloadTask[] | null): $Cancell
 }
 
 /**
+ * ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定）
+ */
+export function ExecuteCLI(command: string, args: { [_ in string]?: any } | null): $CancellablePromise<string> {
+    return $Call.ByID(302310740, command, args);
+}
+
+/**
  * ========== 批量导出骨骼结构 ==========
  */
 export function ExportBoneStructures(filesRoot: string): $CancellablePromise<string> {
@@ -315,6 +322,13 @@ export function FindPreviewImage(modelPath: string): $CancellablePromise<string>
  */
 export function GenerateRepoIndex(repoPath: string): $CancellablePromise<string> {
     return $Call.ByID(1563740856, repoPath);
+}
+
+/**
+ * GetAllowedCLICommands 返回允许的 CLI 命令列表
+ */
+export function GetAllowedCLICommands(): $CancellablePromise<string> {
+    return $Call.ByID(4049775249);
 }
 
 /**
@@ -479,6 +493,13 @@ export function GetWasmBinary(): $CancellablePromise<string | null> {
 
 export function GetWindowPosition(): $CancellablePromise<types$0.WindowState> {
     return $Call.ByID(3862857718);
+}
+
+/**
+ * GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录
+ */
+export function GetYSMRepoRoot(): $CancellablePromise<string> {
+    return $Call.ByID(2204623080);
 }
 
 /**
