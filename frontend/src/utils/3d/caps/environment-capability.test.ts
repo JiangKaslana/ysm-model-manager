@@ -305,6 +305,15 @@ describe("EnvironmentCapability — getMenuControls 结构", () => {
     }
     expect(values).toContain("custom");
   });
+
+  it("非总开关控件均含 group 字段", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    controls.filter((c) => c.id !== "env-enabled").forEach((c) => {
+      expect(c.group).toBeDefined();
+      expect(c.group!.startsWith("preview.env")).toBe(true);
+    });
+  });
 });
 
 describe("EnvironmentCapability — 预设数据完整性", () => {

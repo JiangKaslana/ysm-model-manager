@@ -181,6 +181,15 @@ describe("SkyCapability — getMenuControls 结构", () => {
     envCtrl.setValue(true);
     expect(cap.isEnvironmentEnabled()).toBe(true);
   });
+
+  it("非主控件均含 group 字段（云量/环境贴图/昼夜循环）", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    controls.filter((c) => c.id !== "sky-time").forEach((c) => {
+      expect(c.group).toBeDefined();
+      expect(c.group!.startsWith("preview.sky")).toBe(true);
+    });
+  });
 });
 
 describe("SkyCapability — 预设数据完整性", () => {

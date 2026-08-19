@@ -215,6 +215,17 @@ describe("LightCapability — setPreset", () => {
   });
 });
 
+describe("LightCapability — getMenuControls 分组", () => {
+  it("主灯之外的控件均含 group 字段（全部归 lightGroupParams）", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    controls.filter((c) => c.id !== "light-key").forEach((c) => {
+      expect(c.group).toBeDefined();
+      expect(c.group!).toBe("preview.lightGroupParams");
+    });
+  });
+});
+
 describe("LightCapability — setVolumetricEngine", () => {
   it("cone 模式默认", () => {
     const cap = newCap();

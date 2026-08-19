@@ -542,7 +542,9 @@ export class LightCapability implements SceneCapability {
       if (this.coneGroup?.parent) {
         this.coneGroup.parent.remove(this.coneGroup);
       }
-    } else if (engine === "cone" && this.params.volumetric.enabled && this.params.spotlight.enabled) {
+    } else if (engine === "cone" && this.params.spotlight.enabled) {
+      // 切回 cone：重新启用 volumetric 并重建锥组
+      this.params.volumetric.enabled = true;
       this.rebuildCone();
       if (this.coneGroup && !this.coneGroup.parent) {
         this.scene.add(this.coneGroup);

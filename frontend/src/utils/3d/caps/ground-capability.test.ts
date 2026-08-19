@@ -53,3 +53,14 @@ describe("GroundCapability", () => {
     cap.dispose(); // 幂等：已移除不再抛错
   });
 });
+
+describe("GroundCapability — getMenuControls 分组", () => {
+  it("仅含总开关控件，无子控件需 group", () => {
+    const scene = new THREE.Scene();
+    const cap = new GroundCapability({ scene });
+    const controls = cap.getMenuControls();
+    expect(controls.length).toBe(1);
+    expect(controls[0]!.id).toBe("ground-visible");
+    expect(controls[0]!.group).toBeUndefined();
+  });
+});
