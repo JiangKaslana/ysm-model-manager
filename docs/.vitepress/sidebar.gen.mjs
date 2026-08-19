@@ -1251,6 +1251,10 @@ export const autoSidebar = [
         "collapsed": true,
         "items": [
           {
+            "text": "CLI 质量摸排 Checklist",
+            "link": "/knowledge/cli_quality_audit"
+          },
+          {
             "text": "质量闸门双调度器重叠审计",
             "link": "/knowledge/doctor_gate_overlap"
           },
