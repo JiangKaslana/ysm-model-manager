@@ -94,7 +94,7 @@ interface MeshShadowSnapshot {
 export class ShadowCapability implements SceneCapability {
   readonly id = "shadow";
   readonly labelKey = "preview.shadow";
-  readonly icon = "🌫️";
+  readonly icon = "🌑";
   readonly descKey = "preview.shadowDesc";
 
   private scene: THREE.Scene;
