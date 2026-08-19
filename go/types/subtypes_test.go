@@ -305,3 +305,56 @@ func TestSubtypes_CreateBlueprintFingerprint(t *testing.T) {
 		t.Error("blueprint.MatchZipEntry(build.litematic) = true，期望 false（.litematic 非蓝图指纹）")
 	}
 }
+
+// ===== mod-model 模型合集软合并（2026-08-20：ysm/maid 内部结构相同、仅入口文件不同）=====
+// mod-model 挂 subtypes [ysm, maid]（各自 installDir/scanDir 不同——零继承自描述），
+// ysm/maid 独立 rtype 保留（仓库侧 ysm/maid-model 目录、YsmRoot 配置不变）。
+
+func TestSubtypesFor_ModModel(t *testing.T) {
+	subs := SubtypesFor("mod-model")
+	if len(subs) != 2 {
+		t.Fatalf("SubtypesFor(mod-model) = %d 项，期望 2 项（ysm/maid-model）：%v", len(subs), subs)
+	}
+	// name 直接复用独立 rtype id（ysm/maid-model）——前端 nav 展开后 rtype 零映射路由
+	want := []string{"ysm", "maid-model"}
+	for i, w := range want {
+		if subs[i].Name != w {
+			t.Errorf("subtypes[%d].Name = %q，期望 %q", i, subs[i].Name, w)
+		}
+	}
+	// 零继承自描述：extensions/detector/zipEntries/preview/installDir/scanDir 必须完整
+	for _, s := range subs {
+		if len(s.Extensions) == 0 || s.Detector == "" || len(s.ZipEntries) == 0 || s.Preview == "" {
+			t.Errorf("subtype %s 自描述不完整（ADR-105 零继承）：%+v", s.Name, s)
+		}
+		// 整合包侧目录各自声明（installDir 不同是合并前提，非共享目录）
+		if s.InstallDir == "" || s.ScanDir == "" {
+			t.Errorf("subtype %s 缺 installDir/scanDir（ysM/maid 物理路径不同，必须各自声明）", s.Name)
+		}
+	}
+	// ysm 认 .ysm/.zip 入口 ysm.json/models/；maid 认 .zip 入口 maid_model.json/chair_model.json
+	ysmSub := SubtypeByDir("mod-model", "ysm")
+	if ysmSub == nil || !ysmSub.AcceptsExt(".ysm") || !ysmSub.MatchZipEntry("pack/ysm.json") {
+		t.Errorf("ysm subtype 应认 .ysm 与 ysm.json 指纹：%+v", ysmSub)
+	}
+	if ysmSub.InstallDir != "versions/{instance}/ysm/" || ysmSub.ScanDir != "config/yes_steve_model/custom" {
+		t.Errorf("ysm subtype 目录应各自声明（versions/{instance}/ysm/ + config 树）：%+v", ysmSub)
+	}
+	maidSub := SubtypeByDir("mod-model", "maid-model")
+	if maidSub == nil || !maidSub.AcceptsExt(".zip") || !maidSub.MatchZipEntry("assets/ns/maid_model.json") {
+		t.Errorf("maid subtype 应认 .zip 与 maid_model.json 指纹：%+v", maidSub)
+	}
+	if maidSub.InstallDir != "tlm_custom_pack/" || maidSub.ScanDir != "tlm_custom_pack" {
+		t.Errorf("maid subtype 目录应各自声明（tlm_custom_pack/）：%+v", maidSub)
+	}
+	// 软合并：ysm/maid 仍是独立 rtype（仓库侧目录/配置保留）
+	for _, id := range []string{"ysm", "maid-model"} {
+		if rt := RegistryType(id); rt == nil {
+			t.Errorf("软合并后独立 rtype %s 应保留（仓库侧目录/配置不变）", id)
+		}
+	}
+	// default 槽：ysm（主证据 .ysm 在前）
+	if !ysmSub.Default {
+		t.Error("ysm 应为 default 槽")
+	}
+}

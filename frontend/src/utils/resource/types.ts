@@ -15,6 +15,7 @@ export const RESOURCE_TYPES: Record<string, string> = {
   BLUEPRINT: "create-blueprint",
   LITEMATIC: "litematic",
   MAID: "maid-model",
+  MOD_MODEL: "mod-model", // ADR-105 软合并：模组模型合集壳（nav 展开 ysm/maid 子类型）
 };
 
 /** 资源类型显示标签（内部 ID → 中文名） */
@@ -27,6 +28,7 @@ export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   "create-blueprint": "蓝图",
   litematic: "投影",
   "maid-model": "车万女仆",
+  "mod-model": "模组模型", // ADR-105 软合并合集壳（nav 展开用）
 };
 
 /** JSON 条目（缺 id 的脏数据过滤掉，防 undefined 混入类型列表） */
@@ -95,9 +97,10 @@ export function groupLabelOf(group: string): string {
  * 大类(group) → 其下资源类型/子类型选项（ADR-092/094/105 双下拉导航第二级）。
  * 从 resource_types.json 派生：每个 group 下挂的资源类型即选项。
  * ADR-105 软合并通用化：rtype 若声明 subtypes（userImportable 过滤后非空），
- * 展开为子类型选项（如 create-blueprint → 蓝图/投影、mmd-skin → 6 子类）；
- * 被吸收的独立 rtype（name 出现在某父类型的 subtypes 中，如 litematic）不再单独平铺。
- * 选项含 subdir（子类型名；default 槽为 ""），消费方（app-nav）直接取用。
+ * 展开为子类型选项（如 create-blueprint → 蓝图/投影、mod-model → YSM/车万女仆）；
+ * 被吸收的独立 rtype（name 出现在某父类型的 subtypes 中，如 litematic/ysm）不再单独平铺。
+ * 子类型名匹配独立 rtype id → 选项 rtype 路由到独立 id、subdir=""（仓库侧 GetRepoRoot 精确）；
+ * 否则（EntityPlayer/blueprint 等无独立 rtype）→ 保留父 id + subdir=子类型名。
  */
 export interface GroupTypeOption {
   rtype: string;
@@ -107,7 +110,10 @@ export interface GroupTypeOption {
 export const GROUP_TYPE_OPTIONS: Record<string, GroupTypeOption[]> = (() => {
   // 被 subtypes 吸收的独立 rtype 集合（软合并：litematic 是 create-blueprint 的 subtype）
   const absorbed = new Set<string>();
+  // 全部独立 rtype id 集合（子类型名命中 → 路由到独立 id）
+  const independentIds = new Set<string>();
   for (const t of registryEntries) {
+    if (t.id) independentIds.add(t.id.toLowerCase());
     for (const s of t.subtypes ?? []) {
       if (s.name) absorbed.add(s.name.toLowerCase());
     }
@@ -120,13 +126,20 @@ export const GROUP_TYPE_OPTIONS: Record<string, GroupTypeOption[]> = (() => {
     if (absorbed.has(t.id.toLowerCase())) continue;
     const userSubs = (t.subtypes ?? []).filter((s) => s.userImportable !== false);
     if (userSubs.length > 0) {
-      // 展开子类型选项（default 槽 subdir=""）
+      // 展开子类型选项
       for (const s of userSubs) {
-        (result[g] ||= []).push({
-          rtype: t.id,
-          label: s.label || s.name || "",
-          subdir: s.default ? "" : s.name || "",
-        });
+        const name = s.name || "";
+        if (name && independentIds.has(name.toLowerCase())) {
+          // 子类型名匹配独立 rtype（软合并：litematic/ysm/maid-model）→ 路由到独立 id
+          (result[g] ||= []).push({ rtype: name, label: s.label || name, subdir: "" });
+        } else {
+          // 无独立 rtype（EntityPlayer/blueprint）→ 保留父 id + subdir=子类型名（default 槽 ""）
+          (result[g] ||= []).push({
+            rtype: t.id,
+            label: s.label || name || "",
+            subdir: s.default ? "" : name,
+          });
+        }
       }
     } else {
       (result[g] ||= []).push({

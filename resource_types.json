@@ -63,6 +63,46 @@
       ]
     },
     {
+      "id": "mod-model",
+      "name": "模组模型合集",
+      "icon": "🧍",
+      "group": "minecraft-mod",
+      "extensions": [".zip", ".7z"],
+      "storageSubDir": "mod-model",
+      "configField": "MmdRoot",
+      "installDir": "versions/{instance}/mod-model/",
+      "scanDir": "config/yes_steve_model/custom",
+      "instanceLevel": true,
+      "preview": "3d",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".mod-model", "match": "suffix" }],
+      "subtypes": [
+        {
+          "name": "ysm", "label": "YSM 模型", "icon": "💎",
+          "userImportable": true, "default": true,
+          "extensions": [".ysm", ".zip", ".7z", ".json"],
+          "detector": "ysm",
+          "zipEntries": [{ "name": "ysm.json", "match": "suffix" }, { "name": "models/", "match": "prefix" }],
+          "preview": "3d",
+          "installDir": "versions/{instance}/ysm/", "scanDir": "config/yes_steve_model/custom"
+        },
+        {
+          "name": "maid-model", "label": "车万女仆", "icon": "🧸",
+          "userImportable": true,
+          "extensions": [".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": "maid_model.json", "match": "suffix" }, { "name": "chair_model.json", "match": "suffix" }],
+          "preview": "none",
+          "installDir": "tlm_custom_pack/", "scanDir": "tlm_custom_pack"
+        }
+      ],
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
+    },
+    {
       "id": "ysm",
       "name": "YSM 模型",
       "icon": "💎",

@@ -520,6 +520,56 @@ func TestResolveInstDirTargetSubdir_MmdSceneModelHit(t *testing.T) {
 	}
 }
 
+// ===== mod-model 模型合集软合并（2026-08-20：ysM/maid 内部结构相同、仅入口不同）=====
+// resolveInstDirTargetSubdir 对 mod-model 子类型（ysm/maid-model）走各自 installDir 推导
+// （零继承自描述）：ysm → instDir/ysm、maid-model → instDir/tlm_custom_pack（与共享
+// schematics/ 的蓝图/投影不同，ysM/maid 物理路径不同，子类型各自声明）。
+
+func TestResolveInstDirTargetSubdir_ModModelYsm(t *testing.T) {
+	if types.RegistryType("mod-model") == nil {
+		t.Skip("注册表暂无 mod-model 条目，跳过")
+	}
+	instDir := t.TempDir()
+	ysmDir := filepath.Join(instDir, "ysm")
+	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// ysm subtype installDir = versions/{instance}/ysm/ → 掐前缀后拼 instDir/ysm
+	if got := resolveInstDirTargetSubdir(instDir, "mod-model", "ysm"); got != ysmDir {
+		t.Errorf("mod-model+ysm = %q, 期望 %q", got, ysmDir)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_ModModelMaid(t *testing.T) {
+	if types.RegistryType("mod-model") == nil {
+		t.Skip("注册表暂无 mod-model 条目，跳过")
+	}
+	instDir := t.TempDir()
+	maidDir := filepath.Join(instDir, "tlm_custom_pack")
+	if err := os.MkdirAll(maidDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// maid-model subtype installDir = tlm_custom_pack/ → instDir/tlm_custom_pack
+	if got := resolveInstDirTargetSubdir(instDir, "mod-model", "maid-model"); got != maidDir {
+		t.Errorf("mod-model+maid-model = %q, 期望 %q", got, maidDir)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_ModModelEmptyFallback(t *testing.T) {
+	// subdir="" → default 槽 ysm 的 installDir 推导（versions/{instance}/ysm/ → instDir/ysm）
+	if types.RegistryType("mod-model") == nil {
+		t.Skip("注册表暂无 mod-model 条目，跳过")
+	}
+	instDir := t.TempDir()
+	ysmDir := filepath.Join(instDir, "ysm")
+	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTargetSubdir(instDir, "mod-model", ""); got != ysmDir {
+		t.Errorf("mod-model 空 subdir（default=ysm）= %q, 期望 %q", got, ysmDir)
+	}
+}
+
 func TestResolveInstDirTargetSubdir_MissingFallback(t *testing.T) {
 	instDir := t.TempDir()
 	skin := filepath.Join(instDir, "3d-skin")

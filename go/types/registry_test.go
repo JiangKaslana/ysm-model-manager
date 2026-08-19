@@ -63,17 +63,19 @@ func TestExtBelongsTo(t *testing.T) {
 	if len(ids) != 1 || ids[0] != "ysm" {
 		t.Errorf("ExtBelongsTo('.ysm') = %v, 期望 [ysm]", ids)
 	}
-	// .zip 应属于全部 8 类（S1 ADR-067：.zip 是通用容器扩展名，
-	// mmd/vrc/蓝图/投影/车万女仆 新增 .zip 包裹识别；前端 AMBIGUOUS_EXTS 由此派生歧义集）
+	// .zip 应属于全部 9 类（S1 ADR-067：.zip 是通用容器扩展名，
+	// mmd/vrc/蓝图/投影/车万女仆 新增 .zip 包裹识别；ADR-105 mod-model 合集壳也声明容器扩展名；
+	// 前端 AMBIGUOUS_EXTS 由此派生歧义集）
 	ids = ExtBelongsTo(".zip")
-	if len(ids) != 8 {
-		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 8 类（resourcepack shaderpack ysm create-blueprint litematic mmd-skin vrchat-avatar maid-model）", ids)
+	if len(ids) != 9 {
+		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 9 类（含 mod-model 合集壳）", ids)
 	}
 	// 应包含全部类型（顺序不定）
 	expectedAll := map[string]bool{
 		"ysm": false, "resourcepack": false, "shaderpack": false,
 		"create-blueprint": false, "litematic": false,
 		"mmd-skin": false, "vrchat-avatar": false, "maid-model": false,
+		"mod-model": false,
 	}
 	for _, id := range ids {
 		if _, ok := expectedAll[id]; ok {

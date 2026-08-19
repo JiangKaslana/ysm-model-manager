@@ -32,6 +32,7 @@ describe("RESOURCE_TYPES 标签映射", () => {
       BLUEPRINT: "create-blueprint",
       LITEMATIC: "litematic",
       MAID: "maid-model",
+      MOD_MODEL: "mod-model", // ADR-105 软合并合集壳
     });
   });
 });
@@ -212,25 +213,34 @@ describe("GROUP_OF 类型→分组映射", () => {
 });
 
 describe("GROUP_TYPE_OPTIONS — 子类型展开（ADR-105 软合并）", () => {
-  it("create-blueprint 展开为 蓝图(default槽)/投影 两个子选项（litematic 独立 rtype 被吸收）", () => {
+  it("create-blueprint 展开：蓝图→父 id、投影→独立 rtype litematic（路由精确）", () => {
     const mod = GROUP_TYPE_OPTIONS["minecraft-mod"] || [];
     const rtypes = mod.map((o) => o.rtype);
-    // ysm/maid-model 平铺保留；create-blueprint 展开；litematic 独立 rtype 不再单独出现
+    // 展开自父类型：mod-model→[ysm, maid-model]、create-blueprint→[create-blueprint(蓝图), litematic(投影)]
     expect(rtypes).toContain("ysm");
     expect(rtypes).toContain("maid-model");
     expect(rtypes).toContain("create-blueprint");
-    expect(rtypes).not.toContain("litematic");
-    // create-blueprint 子选项：蓝图 default 槽 subdir=""，投影 subdir="litematic"
-    const bp = mod.filter((o) => o.rtype === "create-blueprint");
-    expect(bp.map((o) => o.subdir)).toEqual(["", "litematic"]);
-    expect(bp.map((o) => o.label)).toEqual(["蓝图", "投影"]);
+    expect(rtypes).toContain("litematic");
+    // 父壳本身不平铺（mod-model 不单独出现）
+    expect(rtypes).not.toContain("mod-model");
+    // 投影子选项 rtype 指向独立 rtype litematic（仓库侧 GetRepoRoot 路由正确）
+    const proj = mod.find((o) => o.label === "投影");
+    expect(proj).toEqual({ rtype: "litematic", label: "投影", subdir: "" });
+    // 蓝图子选项保留父 id + default 槽 subdir=""
+    const bp = mod.find((o) => o.label === "蓝图");
+    expect(bp).toEqual({ rtype: "create-blueprint", label: "蓝图", subdir: "" });
+    // 模组模型合集子选项指向独立 rtype
+    const ysm = mod.find((o) => o.label === "YSM 模型");
+    expect(ysm).toEqual({ rtype: "ysm", label: "YSM 模型", subdir: "" });
+    const maid = mod.find((o) => o.label === "车万女仆");
+    expect(maid).toEqual({ rtype: "maid-model", label: "车万女仆", subdir: "" });
   });
 
-  it("mmd 组仍展开 6 子类型（行为不变）", () => {
+  it("mmd 组仍展开 6 子类型（EntityPlayer 等无独立 rtype → 保留父 id + subdir）", () => {
     const mmd = GROUP_TYPE_OPTIONS["mmd"] || [];
     expect(mmd.length).toBe(6);
-    expect(mmd[0].subdir).toBe(""); // EntityPlayer 默认槽
-    expect(mmd[1].subdir).toBe("SceneModel");
+    expect(mmd[0]).toEqual({ rtype: "mmd-skin", label: "PMX 模型 (EntityPlayer)", subdir: "" });
+    expect(mmd[1]).toEqual({ rtype: "mmd-skin", label: "场景 (SceneModel)", subdir: "SceneModel" });
   });
 
   it("无 subtypes 的组（minecraft）保持平铺", () => {
