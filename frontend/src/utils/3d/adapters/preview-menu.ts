@@ -224,7 +224,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   });
 
   // ---- 行/分隔线工厂 ----
-  const makeRow = (def: PreviewMenuItemDef): HTMLElement => {
+  const makeRow = (def: PreviewMenuItemDef, opts?: { chevron?: boolean }): HTMLElement => {
     const row = document.createElement("div");
     row.className = "ysm-preview-menu-row";
     row.dataset.testid = "preview-" + def.id;
@@ -238,6 +238,14 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     const lb = document.createElement("span");
     lb.textContent = tr(def.labelKey, def.fallback);
     row.append(ic, lb);
+    // 可下钻面板 → 右侧装饰箭头（导航提示：点击进入下级菜单）
+    if (opts?.chevron) {
+      const chev = document.createElement("span");
+      chev.textContent = ">";
+      chev.dataset.testid = "row-chevron";
+      chev.style.cssText = "margin-left:auto;font-size:13px;font-weight:700;opacity:0.4;user-select:none";
+      row.append(chev);
+    }
     row.onmouseenter = (): void => {
       row.style.background = "rgba(255,255,255,0.08)";
     };
@@ -288,7 +296,8 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     render: (list) => {
       list.innerHTML = "";
       groupItems.forEach((def) => {
-        const row = makeRow(def);
+        // panel 型 → 下钻导航，带 ">" 装饰箭头提示可进入
+        const row = makeRow(def, { chevron: def.kind === "panel" });
         row.onclick = (e: MouseEvent): void => {
           e.stopPropagation();
           if (def.kind === "panel") {

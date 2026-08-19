@@ -117,6 +117,31 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
+  it("组根视图：panel 行带下钻箭头（row-chevron），action 行不带", () => {
+    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
+    handle.setAdapterItems([
+      {
+        id: "act",
+        icon: "⚡",
+        labelKey: "",
+        fallback: "执行动作",
+        kind: "action",
+        dockGroup: "model",
+        run: vi.fn(),
+      },
+    ]);
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    expect(modelBtn).not.toBeNull();
+    modelBtn!.click();
+    // switch 为 panel 行 → 有下钻箭头
+    const switchRow = overlay.querySelector('[data-testid="preview-switch"]');
+    expect(switchRow!.querySelector('[data-testid="row-chevron"]')).not.toBeNull();
+    // 注入的 action 行 → 无箭头（点击直接执行）
+    const actRow = overlay.querySelector('[data-testid="preview-act"]');
+    expect(actRow!.querySelector('[data-testid="row-chevron"]')).toBeNull();
+    handle.dispose();
+  });
+
   it("setAdapterItems 注入 motion 组项 → dock-motion 按钮出现", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx());
     expect(overlay.querySelector('[data-testid="dock-motion"]')).toBeNull();
