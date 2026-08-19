@@ -98,7 +98,8 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 			subDir := ""
 			if types.IsSubDirGrouping(rt.ID) {
 				if rel, err := filepath.Rel(instDir, p); err == nil && rel != "." {
-					if seg := strings.Split(rel, string(filepath.Separator))[0]; types.IsMMDSubDir(seg) {
+					// ADR-104：rtype 感知子目录判定（替代旧 IsMMDSubDir 全局判定）
+					if seg := strings.Split(rel, string(filepath.Separator))[0]; types.IsSubDirName(rt.ID, seg) {
 						subDir = seg
 					}
 				}

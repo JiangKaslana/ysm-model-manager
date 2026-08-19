@@ -538,9 +538,35 @@ func TestResolveInstDirTargetSubdir_EmptyKeepsBase(t *testing.T) {
 	if err := os.MkdirAll(skin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// EntityPlayer 默认（subdir=""）→ 3d-skin 根，与现有行为一致
+	// EntityPlayer 默认（subdir=""）且默认槽目录未创建 → 回退 3d-skin 根（阶段 1 行为）
 	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", ""); got != skin {
 		t.Errorf("空 subdir = %q, 期望 %q", got, skin)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_DefaultSlotHit(t *testing.T) {
+	// ADR-104：subdir="" 时查注册表 default 子类（EntityPlayer）installDir 推导——
+	// 默认槽目录存在则精确打开 3d-skin/EntityPlayer，而非 3d-skin 根
+	instDir := t.TempDir()
+	player := filepath.Join(instDir, "3d-skin", "EntityPlayer")
+	if err := os.MkdirAll(player, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", ""); got != player {
+		t.Errorf("EntityPlayer 默认槽命中 = %q, 期望 %q", got, player)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_SubtypeInstallDir(t *testing.T) {
+	// ADR-104：子类 installDir（3d-skin/SceneModel/）标准推导优先于 base+subdir 拼接，
+	// 结果一致（instDir/3d-skin/SceneModel）；非注册表子类名回退拼接路径不变
+	instDir := t.TempDir()
+	scene := filepath.Join(instDir, "3d-skin", "SceneModel")
+	if err := os.MkdirAll(scene, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", "SceneModel"); got != scene {
+		t.Errorf("SceneModel 子类 installDir = %q, 期望 %q", got, scene)
 	}
 }
 

@@ -1,7 +1,14 @@
 // ===== downloadsHTML 模板（从 tpl.ts 拆出，ADR-040 P2 chunk 实效修复）=====
 // 动态导入目标：init-pages.ts 按需加载，使 Vite 真正按功能拆分 chunk。
 import { ALL_EXTS } from "../../utils/resource/extensions.ts";
+import { MMD_SUBTYPES } from "../../utils/resource/types.ts";
 import { t } from "../../core/i18n/t.ts";
+
+// ADR-104：MMD 用途子目录下拉选项从注册表 subtypes 派生（userImportable 过滤），
+// 消灭硬编码 6 项——新增子目录只改 resource_types.json。
+const mmdSubdirOptions = MMD_SUBTYPES.map(
+  (s) => `<option value="${s.subdir}">${s.label}</option>`,
+).join("");
 
 export function downloadsHTML(): string {
   return `<div style="flex:1;display:flex;flex-direction:column;overflow:hidden">

@@ -152,8 +152,9 @@ class AppNav extends WebComponentBase {
         .map((g) => `<option value="${g.gid}">${g.label}</option>`)
         .join("");
 
-      // 子类型选项：mmd 组用 MMD_SUBTYPES（MC-MMD 子目录细分，ADR-094），
-      // 其余用 GROUP_TYPE_OPTIONS（注册表派生资源类型）。
+      // 子类型选项：mmd 组用 MMD_SUBTYPES（ADR-104 注册表 subtypes 派生，
+      // userImportable 过滤后 6 项；旧硬编码列表已退役），其余用 GROUP_TYPE_OPTIONS
+      // （注册表派生资源类型）——两类选项均为注册表单一事实来源，新增子目录只改 JSON。
       // ⚠️ 特殊分支：此处比较的是「组 id "mmd"」，不能用 RESOURCE_TYPES.MMD——
       // 那是「类型 id "mmd-skin"」（types.ts:11），两者不相等。ADR-094 初版误用
       // 类型 id 比较导致本分支恒 false 成死代码，mmd 组只剩 1 个 "MMD" 选项；

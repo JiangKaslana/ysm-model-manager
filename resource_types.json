@@ -204,6 +204,16 @@
       "isDir": true,
       "dirLevelSync": true,
       "subDirGrouping": true,
+      "subtypes": [
+        { "name": "EntityPlayer", "label": "PMX 模型 (EntityPlayer)", "userImportable": true, "default": true, "installDir": "3d-skin/EntityPlayer/" },
+        { "name": "SceneModel", "label": "场景 (SceneModel)", "userImportable": true, "installDir": "3d-skin/SceneModel/" },
+        { "name": "CustomAnim", "label": "自定义动画 (CustomAnim)", "userImportable": true, "installDir": "3d-skin/CustomAnim/" },
+        { "name": "CustomMorph", "label": "自定义表情 (CustomMorph)", "userImportable": true, "installDir": "3d-skin/CustomMorph/" },
+        { "name": "StageAnim", "label": "舞台 (StageAnim)", "userImportable": true, "installDir": "3d-skin/StageAnim/" },
+        { "name": "shader", "label": "着色器 (shader)", "userImportable": true, "installDir": "3d-skin/shader/" },
+        { "name": "DefaultAnim", "label": "默认动画 (DefaultAnim)", "userImportable": false, "installDir": "3d-skin/DefaultAnim/" },
+        { "name": "DefaultMorph", "label": "默认表情 (DefaultMorph)", "userImportable": false, "installDir": "3d-skin/DefaultMorph/" }
+      ],
       "installExts": [".pmx", ".pmd", ".vmd", ".vpd", ".json", ".png", ".tga", ".spa", ".sph"],
       "actions": [
         "import",

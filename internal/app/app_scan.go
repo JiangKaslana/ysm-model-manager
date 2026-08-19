@@ -516,12 +516,33 @@ func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
 }
 
 // resolveInstDirTargetSubdir 在 resolveInstDirTarget 基准之上精确一层 MMD 用途子目录：
-// subdir 非空且 base/{subdir} 存在 → 返回该子目录；否则回退 base（含 subdir 空 / 子目录
-// 未创建 / 非 MMD 类型）。位置路由口径与 scanner（IsMMDSubDir 填充 SubDir）、同步
-// （SyncResourcesDirLevel 保留层级）一致——仅补「打开文件夹」链路的最后一段。
+//  1. 查注册表 subtypes，命中子类（subdir="" 时取 default 槽）且该子类声明了
+//     installDir → 走候选 A/B 标准推导（如 3d-skin/SceneModel/ → instDir/3d-skin/SceneModel）；
+//  2. 否则回退 base + subdir 拼接（子类无 installDir / 目录未创建 / 非注册表子类名）；
+//  3. subdir 空且无默认槽目录 → 返回 base。
+//
+// 位置路由口径与 scanner（SubDir 填充）、同步（SyncResourcesDirLevel 保留层级）一致
+// （ADR-104：子类路径全部注册表驱动，新增子目录只改 JSON）。
 func resolveInstDirTargetSubdir(instDir, rtype, subdir string) string {
 	base := resolveInstDirTarget(instDir, rtype)
 	subdir = strings.Trim(strings.TrimSpace(subdir), `\/`)
+	// 注册表子类命中（subdir="" → default 槽）
+	var sub *types.ResourceSubType
+	for _, s := range types.SubtypesFor(rtype) {
+		if subdir == "" && s.Default {
+			sub = &s
+			break
+		}
+		if subdir != "" && strings.EqualFold(s.Name, subdir) {
+			sub = &s
+			break
+		}
+	}
+	if sub != nil && sub.InstallDir != "" {
+		if c := resolveInstallDirStandard(instDir, sub.InstallDir); c != "" {
+			return c
+		}
+	}
 	if subdir == "" {
 		return base
 	}
@@ -531,32 +552,43 @@ func resolveInstDirTargetSubdir(instDir, rtype, subdir string) string {
 	return base
 }
 
+// resolveInstallDirStandard 候选 A/B：installDir 模板标准推导（ADR-095）。
+// rel 替换 {instance} 后掐掉 "versions/{instance}/" 前缀拼 instDir（候选 A），
+// 或经 mcRoot（instDir 上两级）拼完整 rel（候选 B，vanilla 全局目录）；
+// 任一命中即返回，全部不存在返回 ""。供 rtype 级与子类级 installDir 共用。
+func resolveInstallDirStandard(instDir, installDir string) string {
+	if installDir == "" {
+		return ""
+	}
+	instName := filepath.Base(instDir)
+	rel := strings.ReplaceAll(installDir, "{instance}", instName)
+	trimmed := strings.TrimPrefix(rel, "versions/"+instName+"/")
+	mcRoot := filepath.Dir(filepath.Dir(instDir))
+	for _, c := range []string{
+		filepath.Join(instDir, trimmed),
+		filepath.Join(mcRoot, rel),
+	} {
+		if info, err := os.Stat(c); err == nil && info.IsDir() {
+			return c
+		}
+	}
+	return ""
+}
+
 // resolveInstDirTarget 推导整合包内资源存储目录（ADR-095，纯函数可测）：
-// 候选顺序：installDir 标准推导（A/B）→ scanDir 存在性回溯（C）→
-// FindInstDir 兜底扫描（D）→ 回退 instDir。未知类型（无注册表配置）返回 instDir。
+// 候选顺序：installDir 标准推导（A/B，复用 resolveInstallDirStandard）→
+// scanDir 存在性回溯（C）→ FindInstDir 兜底扫描（D）→ 回退 instDir。
+// 未知类型（无注册表配置）返回 instDir。
 func resolveInstDirTarget(instDir, rtype string) string {
 	rt := types.RegistryType(rtype)
 	if rt == nil {
 		return instDir
 	}
-	instName := filepath.Base(instDir)
 
-	// 候选 A/B：installDir 标准推导
-	if rt.InstallDir != "" {
-		rel := strings.ReplaceAll(rt.InstallDir, "{instance}", instName)
-		// 掐掉 "versions/{instance}/" 前缀段：instDir 已含版本目录层级，直接拼剩余段
-		trimmed := strings.TrimPrefix(rel, "versions/"+instName+"/")
-		// mcRoot：vanilla 布局 instDir = {mcRoot}/versions/{name}，上两级即 mcRoot；
-		// Prism 布局 instDir 即整合包根，候选 B 多拼一段 versions/{name} 不存在、自然跳过
-		mcRoot := filepath.Dir(filepath.Dir(instDir))
-		for _, c := range []string{
-			filepath.Join(instDir, trimmed),
-			filepath.Join(mcRoot, rel),
-		} {
-			if info, err := os.Stat(c); err == nil && info.IsDir() {
-				return c
-			}
-		}
+	// 候选 A/B：installDir 标准推导（与子类级 resolveInstallDirStandard 同款，
+	// rtype 级与子类级共用一处，杜绝两套口径漂移）
+	if c := resolveInstallDirStandard(instDir, rt.InstallDir); c != "" {
+		return c
 	}
 
 	// 候选 C：scanDir 存在性回溯（逐级上溯，覆盖 ysm 的 config 树：

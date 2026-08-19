@@ -236,16 +236,20 @@ describe("groupLabelOf 分组显示名", () => {
   });
 });
 
-describe("MMD_SUBTYPES — 用户可导入子目录（与 Go 端 8 项有意裁剪）", () => {
+describe("MMD_SUBTYPES — 用户可导入子目录（ADR-104 注册表派生）", () => {
   it("钉住 6 项，且不含模组内置目录 DefaultAnim/DefaultMorph", () => {
-    // 注释契约（types.ts:110-112）：Go mmdSubdirNames 8 项含 DefaultAnim/DefaultMorph
-    // 内置目录，用户不导入——前端刻意不列出。若未来调整此处，需同步 Go 端并更新本守卫。
+    // ADR-104：MMD_SUBTYPES 从 resource_types.json mmd-skin.subtypes[] 派生，
+    // userImportable=false（DefaultAnim/DefaultMorph 系统内置）天然不列出——
+    // 数据源单一（注册表），不再需要 Go 端 mmdSubdirNames 8 项对齐注释。
     expect(MMD_SUBTYPES).toHaveLength(6);
     const subdirs = MMD_SUBTYPES.map((s) => s.subdir.toLowerCase());
     expect(subdirs).not.toContain("defaultanim");
     expect(subdirs).not.toContain("defaultmorph");
-    // 首个默认 EntityPlayer（storageSubDir 同款），其余为平铺子目录
+    // 首个默认 EntityPlayer（default 槽 subdir=""），其余为平铺子目录
     expect(MMD_SUBTYPES[0].subdir).toBe("");
+    // label 与注册表一致（派生前置校验，防 JSON 缺 label 显示空）
+    expect(MMD_SUBTYPES[0].label).toBe("PMX 模型 (EntityPlayer)");
+    expect(MMD_SUBTYPES[1]).toEqual({ label: "场景 (SceneModel)", subdir: "SceneModel" });
   });
 });
 

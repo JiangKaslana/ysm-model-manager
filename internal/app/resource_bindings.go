@@ -242,15 +242,16 @@ func (a *App) EnsureStorageDirs() error {
 		// subDirGrouping 类型（如 mmd-skin）：预建全部用途子目录
 		// （EntityPlayer/SceneModel/CustomAnim/…），而非仅默认 storageSubDir，
 		// 使整棵类型树立即可见。base = root 去掉末段，兼容各类型专属覆写路径。
+		// ADR-104：子目录集合从注册表 subtypes 派生（不硬编码 MMD）。
 		if types.IsSubDirGrouping(rt.ID) {
 			base := filepath.Dir(root)
-			for _, sub := range types.MMDSubDirs() {
+			for _, sub := range types.SubtypeNames(rt.ID) {
 				dir := filepath.Join(base, sub)
 				if err := os.MkdirAll(dir, 0755); err != nil {
 					if firstErr == nil {
 						firstErr = err
 					}
-					log.Printf("[storage] 预创建 MMD 子目录失败 %s: %v", dir, err)
+					log.Printf("[storage] 预创建子目录失败 %s: %v", dir, err)
 				}
 			}
 			continue

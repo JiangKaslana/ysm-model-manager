@@ -100,8 +100,9 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 			// ADR-092 路线 B：MC-MMD 子目录（EntityPlayer/SceneModel/CustomAnim 等）
 			// 作为独立同步单元保留层级，不展平——其内部模型文件夹随目录整体走
 			// （否则 EntityPlayer/角色A 会被展平为 3d-skin/角色A，丢 EntityPlayer 层）。
-			// 消费注册表 subDirGrouping 字段（ADR-065 合规），不硬编码 rtype。
-			if types.IsSubDirGrouping(rtype) && types.IsMMDSubDir(info.Name()) {
+			// 消费注册表 subDirGrouping 字段 + subtypes 子目录集合（ADR-104），
+			// 不硬编码 rtype / 不硬编码子目录名。
+			if types.IsSubDirGrouping(rtype) && types.IsSubDirName(rtype, info.Name()) {
 				name := strings.ToLower(info.Name())
 				entries[name] = path
 				return filepath.SkipDir

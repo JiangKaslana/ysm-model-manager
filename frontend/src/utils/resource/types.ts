@@ -104,24 +104,33 @@ export const GROUP_TYPE_OPTIONS: Record<string, Array<{ rtype: string; label: st
 })();
 
 /**
- * MMD 子类型目录选项（ADR-094 位置路由，与整合包 3d-skin/ 子目录同款名）。
+ * MMD 子类型目录选项（ADR-094 位置路由 + ADR-104 注册表派生）。
  * ⚠️ 大小写约定：subdir 字段恒驼峰原样（如 SceneModel/CustomAnim），消费方比较
- * 统一 toLowerCase()（renderer/app-nav 同款），新增项须与 Go 端 mmdSubdirNames 对齐
- * 并同步 types.test.ts 的 6 项守卫。
- * 默认首个为空（= EntityPlayer，即 mmd-skin 的 storageSubDir），
- * 其余为平铺在 FilesRoot/mmd/ 下的 MC-MMD 子目录。
- * ⚠️ 与 go/sync/sync_dirlevel.go 的 mmdSubdirNames（8 项）非严格对齐：
- * 本列表仅「用户可导入」子目录（6 项）；DefaultAnim/DefaultMorph 为模组系统内置，
- * 用户不导入——Go 端同步需识别保留、前端下拉刻意不列出，故缺省。
+ * 统一 toLowerCase()（renderer/app-nav 同款）。
+ * 派生规则：从 resource_types.json 的 mmd-skin.subtypes[] 取 userImportable=true 项，
+ * default 槽（EntityPlayer，storageSubDir 同款）subdir=""，其余 subdir=name。
+ * DefaultAnim/DefaultMorph 系统内置目录 userImportable=false 天然不列出——
+ * Go 端同步识别保留（SubtypeNames 全量），前端下拉仅用户可导入项。
  */
-export const MMD_SUBTYPES: Array<{ label: string; subdir: string }> = [
-  { label: "PMX 模型 (EntityPlayer)", subdir: "" },
-  { label: "场景 (SceneModel)", subdir: "SceneModel" },
-  { label: "自定义动画 (CustomAnim)", subdir: "CustomAnim" },
-  { label: "自定义表情 (CustomMorph)", subdir: "CustomMorph" },
-  { label: "舞台 (StageAnim)", subdir: "StageAnim" },
-  { label: "着色器 (shader)", subdir: "shader" },
-];
+export const MMD_SUBTYPES: Array<{ label: string; subdir: string }> = (() => {
+  const mmd = (resourceTypesJson as {
+    resourceTypes?: Array<{
+      id?: string;
+      subtypes?: Array<{
+        name?: string;
+        label?: string;
+        userImportable?: boolean;
+        default?: boolean;
+      }>;
+    }>;
+  }).resourceTypes?.find((t) => t.id === RESOURCE_TYPES.MMD);
+  return (mmd?.subtypes ?? [])
+    .filter((s) => s.userImportable !== false)
+    .map((s) => ({
+      label: s.label || s.name || "",
+      subdir: s.default ? "" : s.name || "",
+    }));
+})();
 
 /**
  * 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。

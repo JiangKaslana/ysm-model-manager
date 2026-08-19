@@ -128,8 +128,9 @@ function renderList(self: SyncRenderSelf, listEl: HTMLElement): void {
     return;
   }
   // ADR-095 后续：MMD 按用途子目录分组展示（角色/场景/动画…分开，不再平铺一锅）。
-  // 子目录来自 Go 侧 ResourceSyncItem.SubDir（BuildSyncItems 按 IsMMDSubDir 填充）；
-  // 根下条目 SubDir="" 归 EntityPlayer 组。
+  // 子目录来自 Go 侧 ResourceSyncItem.SubDir（BuildSyncItems 按注册表 subtypes 判定填充，
+  // ADR-104）；根下条目 SubDir="" 归 EntityPlayer 默认槽组。
+  // 组序/标签均来自注册表派生的 MMD_SUBTYPES（userImportable 过滤 6 项）。
   if (self._selectedType === RESOURCE_TYPES.MMD) {
     listEl.innerHTML = renderMMDGroups(self._filteredItems);
     return;

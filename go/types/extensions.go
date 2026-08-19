@@ -9,43 +9,65 @@ import (
 	"strings"
 )
 
-// mmdSubdirNames MC-MMD 资源树的按用途子目录（ADR-092 路线 B / ADR-096）。
-// 单一事实来源：sync_dirlevel（同步保留层级）与 instance.BuildSyncItems（展示分组）
-// 均引用本集合。含 DefaultAnim/DefaultMorph 模组系统内置目录——用户不导入，
-// 但已存在时同步需识别保留、展示需归属分组。
-// mmdSubDirList 为规范名（PascalCase），MMDSubDirs() 供 EnsureStorageDirs 预建整棵
-// 类型树、展示分批复用；mmdSubdirNames 由本列表派生（小写键）供 IsMMDSubDir 查询。
-var mmdSubDirList = []string{
-	"EntityPlayer",
-	"SceneModel",
-	"DefaultAnim",
-	"CustomAnim",
-	"StageAnim",
-	"DefaultMorph",
-	"CustomMorph",
-	"shader",
-}
+// ===== 子类层查询（ADR-104：大类→小类→防御检验三层架构）=====
+// 子目录集合单一事实来源 = resource_types.json 的 subtypes[]（mmd-skin 挂 8 项），
+// 取代旧硬编码 mmdSubDirList。scanner/instance/sync/resource_bindings/打开文件夹
+// 均经本层查询，新增子目录只改 JSON。
 
-var mmdSubdirNames = func() map[string]bool {
-	m := make(map[string]bool, len(mmdSubDirList))
-	for _, s := range mmdSubDirList {
-		m[strings.ToLower(s)] = true
+// SubtypesFor 返回 rtype 的全部用途子类（注册表声明顺序，只读副本防调用方篡改）。
+// 非 subDirGrouping 类型 / 未知类型返回空切片。
+func SubtypesFor(rtype string) []ResourceSubType {
+	rt := RegistryType(rtype)
+	if rt == nil {
+		return nil
 	}
-	return m
-}()
-
-// MMDSubDirs 返回 MC-MMD 用途子目录规范名切片（只读副本，防调用方篡改）。
-// EnsureStorageDirs 预建 subDirGrouping 类型时复用，确保整棵类型树（EntityPlayer/
-// SceneModel/CustomAnim/…）立即出现在磁盘，而非仅默认 storageSubDir。
-func MMDSubDirs() []string {
-	out := make([]string, len(mmdSubDirList))
-	copy(out, mmdSubDirList)
+	if len(rt.SubTypes) == 0 {
+		return nil
+	}
+	out := make([]ResourceSubType, len(rt.SubTypes))
+	copy(out, rt.SubTypes)
 	return out
 }
 
-// IsMMDSubDir 判断目录名是否为 MC-MMD 用途子目录（大小写不敏感）
+// SubtypeNames 返回 rtype 的子目录规范名切片（如 mmd-skin 的 EntityPlayer/SceneModel/…）
+func SubtypeNames(rtype string) []string {
+	subs := SubtypesFor(rtype)
+	if len(subs) == 0 {
+		return nil
+	}
+	out := make([]string, len(subs))
+	for i, s := range subs {
+		out[i] = s.Name
+	}
+	return out
+}
+
+// IsSubDirName 判断目录名是否为 rtype 的用途子目录（大小写不敏感，ADR-104）。
+// 替代旧 IsMMDSubDir 的 rtype 感知判定：scanner/instance/sync 在已知 rtype
+// 上下文下用本函数；未知类型恒 false。
+func IsSubDirName(rtype, name string) bool {
+	for _, s := range SubtypesFor(rtype) {
+		if strings.EqualFold(s.Name, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// MMDSubDirs 返回 MC-MMD 用途子目录规范名切片（只读副本，防调用方篡改）。
+// 从注册表 mmd-skin 的 subtypes 派生（ADR-104 取代硬编码 mmdSubDirList）。
+// EnsureStorageDirs 预建 subDirGrouping 类型时复用，确保整棵类型树（EntityPlayer/
+// SceneModel/CustomAnim/…）立即出现在磁盘，而非仅默认 storageSubDir。
+func MMDSubDirs() []string {
+	return SubtypeNames("mmd-skin")
+}
+
+// IsMMDSubDir 判断目录名是否为 MC-MMD 用途子目录（大小写不敏感）。
+// 兼容壳：从注册表 mmd-skin subtypes 派生（ADR-104），语义不变。
+// 新代码优先用 IsSubDirName(rtype, name)（rtype 感知）；本函数仅保留
+// 给无 rtype 上下文的调用方（如 scanner 根扫描按目录名识别）。
 func IsMMDSubDir(name string) bool {
-	return mmdSubdirNames[strings.ToLower(name)]
+	return IsSubDirName("mmd-skin", name)
 }
 
 // IsSubDirGrouping 判断 rtype 是否支持子目录分组（ADR-096）：
