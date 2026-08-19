@@ -352,6 +352,7 @@ func runSingleBench(ctx *CmdContext) error {
 	baseline := fs.String("baseline", "", "对比基准 JSON 文件（[{name,ms}]），任一阶段退化超 --threshold 时返回失败")
 	saveBaseline := fs.String("save-baseline", "", "把本次各阶段平均耗时写入该 JSON 文件（供后续 --baseline 对比）")
 	thresholdPct := fs.Float64("threshold", 50, "退化阈值百分比（默认 50），配合 --baseline 使用")
+	format := fs.String("format", "text", "输出格式: text（人类可读）/ json（AI 友好）")
 	_, err := parseFlags(fs, ctx.Args)
 	if err != nil {
 		return err
@@ -362,6 +363,14 @@ func runSingleBench(ctx *CmdContext) error {
 	}
 	if *iterations <= 0 {
 		return newParamErrf("--iterations 必须大于 0")
+	}
+	if *format != "text" && *format != "json" {
+		return newParamErrf("--format 必须是 text 或 json")
+	}
+
+	// JSON 模式：静默运行，最后输出 JSON
+	if *format == "json" {
+		return runSingleBenchJSON(ctx, *modelPath, *iterations, *baseline, *saveBaseline, *thresholdPct)
 	}
 
 	fmt.Println("🎯 单模型加载基准测试")
@@ -419,6 +428,169 @@ func runSingleBench(ctx *CmdContext) error {
 	}
 
 	return nil
+}
+
+// singleBenchJSON 单模型基准测试 JSON 输出结构（AI 友好）
+type singleBenchJSON struct {
+	Model      string           `json:"model"`
+	Iterations int              `json:"iterations"`
+	TotalMs    float64          `json:"total_ms"`
+	Stages     []benchStageJSON `json:"stages"`
+	Bottleneck string           `json:"bottleneck"`
+	Hints      []string         `json:"hints"`
+	Format     string           `json:"format"`
+	SizeBytes  int64            `json:"size_bytes"`
+}
+
+// benchStageJSON 单个阶段 JSON 结构
+type benchStageJSON struct {
+	Name       string  `json:"name"`
+	Ms         float64 `json:"ms"`
+	Bytes      int64   `json:"bytes,omitempty"`
+	Status     string  `json:"status"`
+	Bottleneck bool    `json:"bottleneck"`
+	Note       string  `json:"note,omitempty"`
+}
+
+// runSingleBenchJSON 单模型基准测试 JSON 模式：静默运行，输出结构化数据
+func runSingleBenchJSON(ctx *CmdContext, modelPath string, iterations int, baseline, saveBaseline string, thresholdPct float64) error {
+	var allStages [][]singleBenchStage
+	totalStart := time.Now()
+
+	var modelSize int64
+	if info, err := os.Stat(modelPath); err == nil {
+		modelSize = info.Size()
+	}
+
+	for iter := 0; iter < iterations; iter++ {
+		stages := runSingleModelBench(ctx.App, modelPath, ctx.FilesRoot)
+		allStages = append(allStages, stages)
+	}
+
+	totalDuration := time.Since(totalStart)
+	avg := avgBenchStages(allStages)
+
+	// 检测模型格式
+	modelFormat := detectModelFormat(modelPath)
+
+	// 构建 JSON 输出
+	var stageJSON []benchStageJSON
+	var bottleneckName string
+	var maxMs float64
+
+	for _, s := range avg {
+		ms := float64(s.Duration.Microseconds()) / 1000
+		status := "ok"
+		if ms > 100 {
+			status = "bottleneck"
+		} else if ms > 50 {
+			status = "warn"
+		} else if ms > 10 {
+			status = "slow"
+		}
+		isBottleneck := ms > maxMs
+		if isBottleneck {
+			maxMs = ms
+			bottleneckName = s.Name
+		}
+		stageJSON = append(stageJSON, benchStageJSON{
+			Name:       s.Name,
+			Ms:         ms,
+			Bytes:      s.Bytes,
+			Status:     status,
+			Bottleneck: isBottleneck && ms > 10,
+			Note:       s.Notes,
+		})
+	}
+
+	hints := generateHints(avg)
+
+	output := singleBenchJSON{
+		Model:      modelPath,
+		Iterations: iterations,
+		TotalMs:    float64(totalDuration.Microseconds()) / 1000,
+		Stages:     stageJSON,
+		Bottleneck: bottleneckName,
+		Hints:      hints,
+		Format:     modelFormat,
+		SizeBytes:  modelSize,
+	}
+
+	data, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return newRuntimeErrf("JSON 序列化失败: %v", err)
+	}
+	fmt.Println(string(data))
+
+	// 基准对比 / 保存
+	if baseline != "" {
+		if err := compareSingleBenchBaseline(baseline, avg, thresholdPct); err != nil {
+			return err
+		}
+	}
+	if saveBaseline != "" {
+		if err := saveBenchBaseline(saveBaseline, avg); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// detectModelFormat 根据文件扩展名检测模型格式
+func detectModelFormat(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".ysm":
+		return "YSM"
+	case ".pmx":
+		return "PMX"
+	case ".pmd":
+		return "PMD"
+	case ".vrm":
+		return "VRM"
+	case ".gltf", ".glb":
+		return "GLTF"
+	case ".litematic":
+		return "Litematic"
+	case ".json":
+		return "JSON"
+	case ".zip":
+		return "Pack"
+	default:
+		return "Unknown"
+	}
+}
+
+// generateHints 根据各阶段耗时生成 AI 友好的优化建议
+func generateHints(stages []singleBenchStage) []string {
+	var hints []string
+	for _, s := range stages {
+		ms := float64(s.Duration.Microseconds()) / 1000
+		if ms <= 10 {
+			continue
+		}
+		switch s.Name {
+		case "① 文件读取":
+			hints = append(hints, fmt.Sprintf("文件读取 %.1fms：检查磁盘速度，考虑缓存或 SSD", ms))
+		case "② JSON 解析":
+			hints = append(hints, fmt.Sprintf("JSON 解析 %.1fms：模型可能过大，考虑精简数据或使用更快的解析器", ms))
+		case "③ 数据验证":
+			hints = append(hints, fmt.Sprintf("数据验证 %.1fms：考虑延迟非关键验证", ms))
+		case "④ 几何数据准备":
+			hints = append(hints, fmt.Sprintf("几何数据准备 %.1fms：考虑简化模型或 LOD", ms))
+		case "⑤ 纹理数据准备":
+			hints = append(hints, fmt.Sprintf("纹理数据准备 %.1fms：使用 KTX2/DDS 压缩可减少 60-70%%", ms))
+		case "⑥ IPC 传输模拟":
+			hints = append(hints, fmt.Sprintf("IPC 传输 %.1fms：减少数据量或使用更高效的序列化", ms))
+		case "⑦ 缓存检查":
+			hints = append(hints, fmt.Sprintf("缓存检查 %.1fms：确保纹理缓存正常命中", ms))
+		}
+	}
+	if len(hints) == 0 {
+		hints = append(hints, "所有阶段 <10ms，性能良好")
+	}
+	return hints
 }
 
 // benchStageMs single-bench 基准 JSON 条目（[{name,ms}]）

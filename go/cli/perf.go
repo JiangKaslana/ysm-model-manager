@@ -2,18 +2,26 @@
 // 输出优化历史日志，改从 docs/knowledge/optimization_log.md 单一事实来源读取（C-2）。
 // 此前为 Go 结构体硬编码（每次优化改源码）；现 AI/人在 md 记一条，CLI 即自动同步，杜绝双副本漂移。
 // 供 AI 代理和用户快速了解项目性能演进历史，无需翻阅 ADR 或知识卡。
+//
+// perf-snapshot：一站式性能快照（bench + cache + format-detect + 瓶颈建议）
+// 前置探测工具，AI 可直接消费结构化 JSON，定位瓶颈无需手动录 trace。
 
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"ysm-model-manager/go/texture_cache"
 )
 
 func init() {
 	RegisterCommand("perf-log", "输出优化记录日志（按时间倒序，含问题/做法/效果/提交）", runPerfLog)
+	RegisterCommand("perf-snapshot", "一站式性能快照（AI 友好 JSON，前置探测瓶颈）", runPerfSnapshot)
 }
 
 // optEntry 一条优化记录（对齐 optimization_log.md 表格 6 列）
@@ -235,4 +243,344 @@ func wrap(text string, maxLen int, indent string) string {
 		}
 	}
 	return b.String()
+}
+
+// ===== perf-snapshot：一站式性能快照 =====
+
+// perfSnapshot 性能快照 JSON 结构
+type perfSnapshot struct {
+	Timestamp       string               `json:"timestamp"`
+	Model           string               `json:"model"`
+	Format          string               `json:"format"`
+	SizeBytes       int64                `json:"size_bytes"`
+	BenchResult     *singleBenchJSON     `json:"bench"`
+	CacheStats      *cacheStatsJSON      `json:"cache"`
+	Diagnostics     []perfDiagnostic     `json:"diagnostics"`
+	Recommendations []perfRecommendation `json:"recommendations"`
+	Summary         string               `json:"summary"`
+}
+
+// cacheStatsJSON 缓存状态
+type cacheStatsJSON struct {
+	FileCount int    `json:"file_count"`
+	TotalSize int64  `json:"total_size"`
+	HitRate   string `json:"hit_rate"`
+	Healthy   bool   `json:"healthy"`
+}
+
+// perfDiagnostic 诊断条目
+type perfDiagnostic struct {
+	Level   string `json:"level"`
+	Area    string `json:"area"`
+	Message string `json:"message"`
+}
+
+// perfRecommendation 建议条目
+type perfRecommendation struct {
+	Priority string `json:"priority"`
+	Action   string `json:"action"`
+	Impact   string `json:"impact"`
+	Area     string `json:"area"`
+}
+
+// runPerfSnapshot 执行一站式性能快照
+func runPerfSnapshot(ctx *CmdContext) error {
+	fs := newCmdFlagSet("perf-snapshot")
+	modelPath := fs.String("model", "", "指定模型路径（可选，不填则用第一个）")
+	iterations := fs.Int("iterations", 2, "基准测试迭代次数")
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
+		return err
+	}
+
+	// 确定模型路径
+	targetModel := *modelPath
+	if targetModel == "" {
+		// 自动选择第一个模型
+		if models := scanFirstModel(ctx.FilesRoot); models != "" {
+			targetModel = models
+		} else {
+			return newRuntimeErrf("未找到模型，请指定 --model 参数")
+		}
+	}
+
+	// 获取模型大小
+	var modelSize int64
+	if info, err := os.Stat(targetModel); err == nil {
+		modelSize = info.Size()
+	}
+
+	// 检测格式
+	format := detectModelFormat(targetModel)
+
+	// 运行基准测试
+	var allStages [][]singleBenchStage
+	totalStart := time.Now()
+	for iter := 0; iter < *iterations; iter++ {
+		stages := runSingleModelBench(ctx.App, targetModel, ctx.FilesRoot)
+		allStages = append(allStages, stages)
+	}
+	totalDuration := time.Since(totalStart)
+	avg := avgBenchStages(allStages)
+
+	// 构建 bench JSON
+	var stageJSON []benchStageJSON
+	var bottleneckName string
+	var maxMs float64
+	for _, s := range avg {
+		ms := float64(s.Duration.Microseconds()) / 1000
+		status := "ok"
+		if ms > 100 {
+			status = "bottleneck"
+		} else if ms > 50 {
+			status = "warn"
+		} else if ms > 10 {
+			status = "slow"
+		}
+		isBottleneck := ms > maxMs
+		if isBottleneck {
+			maxMs = ms
+			bottleneckName = s.Name
+		}
+		stageJSON = append(stageJSON, benchStageJSON{
+			Name:       s.Name,
+			Ms:         ms,
+			Bytes:      s.Bytes,
+			Status:     status,
+			Bottleneck: isBottleneck && ms > 10,
+			Note:       s.Notes,
+		})
+	}
+
+	benchResult := &singleBenchJSON{
+		Model:      targetModel,
+		Iterations: *iterations,
+		TotalMs:    float64(totalDuration.Microseconds()) / 1000,
+		Stages:     stageJSON,
+		Bottleneck: bottleneckName,
+		Hints:      generateHints(avg),
+		Format:     format,
+		SizeBytes:  modelSize,
+	}
+
+	// 缓存统计
+	cacheStats := texture_cache.GetCacheStats()
+	cacheJSON := &cacheStatsJSON{
+		FileCount: cacheStats.FileCount,
+		TotalSize: cacheStats.TotalSize,
+		HitRate:   "N/A",
+		Healthy:   true,
+	}
+	if cacheStats.FileCount == 0 {
+		cacheJSON.Healthy = false
+	}
+
+	// 格式级诊断
+	var diagnostics []perfDiagnostic
+	diagnostics = append(diagnostics, perfDiagnostic{
+		Level:   "info",
+		Area:    "format",
+		Message: fmt.Sprintf("检测到 %s 格式模型，%.1fMB", format, float64(modelSize)/1024/1024),
+	})
+
+	switch format {
+	case "PMX", "PMD":
+		diagnostics = append(diagnostics, perfDiagnostic{
+			Level:   "info",
+			Area:    "loading",
+			Message: "PMX 格式：已启用 Worker 解析 + 纹理解码 + rAF 切片（P0+P1+P2）",
+		})
+		if modelSize > 100*1024*1024 {
+			diagnostics = append(diagnostics, perfDiagnostic{
+				Level:   "warn",
+				Area:    "size",
+				Message: "模型 >100MB，纹理解码可能仍需关注",
+			})
+		}
+	case "VRM", "GLTF":
+		diagnostics = append(diagnostics, perfDiagnostic{
+			Level:   "info",
+			Area:    "loading",
+			Message: "VRM/GLTF 格式：GLTFLoader 原生解析，通常无需 Worker 化",
+		})
+	case "YSM":
+		diagnostics = append(diagnostics, perfDiagnostic{
+			Level:   "info",
+			Area:    "loading",
+			Message: "YSM 格式：Go WASM 预计算，前端直接消费",
+		})
+	case "Litematic":
+		diagnostics = append(diagnostics, perfDiagnostic{
+			Level:   "info",
+			Area:    "loading",
+			Message: "Litematic 格式：JSON 体素数据，渲染走 BoxGeometry",
+		})
+	}
+
+	// 缓存健康度
+	if !cacheJSON.Healthy {
+		diagnostics = append(diagnostics, perfDiagnostic{
+			Level:   "warn",
+			Area:    "cache",
+			Message: "缓存为空，首次加载需要实时解码纹理",
+		})
+	}
+
+	// 瓶颈诊断
+	for _, s := range avg {
+		ms := float64(s.Duration.Microseconds()) / 1000
+		if ms > 100 {
+			diagnostics = append(diagnostics, perfDiagnostic{
+				Level:   "bottleneck",
+				Area:    strings.TrimPrefix(s.Name, "① "),
+				Message: fmt.Sprintf("%s 耗时 %.1fms，超过 100ms 瓶颈线", s.Name, ms),
+			})
+		} else if ms > 50 {
+			diagnostics = append(diagnostics, perfDiagnostic{
+				Level:   "warn",
+				Area:    strings.TrimPrefix(s.Name, "① "),
+				Message: fmt.Sprintf("%s 耗时 %.1fms，接近瓶颈线", s.Name, ms),
+			})
+		}
+	}
+
+	// 生成建议
+	var recommendations []perfRecommendation
+	for _, s := range avg {
+		ms := float64(s.Duration.Microseconds()) / 1000
+		if ms <= 10 {
+			continue
+		}
+		area := strings.TrimPrefix(s.Name, "① ")
+		switch s.Name {
+		case "① 文件读取":
+			recommendations = append(recommendations, perfRecommendation{
+				Priority: "high",
+				Action:   "检查磁盘速度，考虑文件缓存或 SSD",
+				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.7),
+				Area:     area,
+			})
+		case "② JSON 解析":
+			recommendations = append(recommendations, perfRecommendation{
+				Priority: "high",
+				Action:   "考虑 sonic 解析器或精简模型数据",
+				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.5),
+				Area:     area,
+			})
+		case "④ 几何数据准备":
+			recommendations = append(recommendations, perfRecommendation{
+				Priority: "high",
+				Action:   "考虑简化模型（减面/LOD）或预处理",
+				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.4),
+				Area:     area,
+			})
+		case "⑤ 纹理数据准备":
+			recommendations = append(recommendations, perfRecommendation{
+				Priority: "medium",
+				Action:   "使用 KTX2 压缩纹理（减少 60-70%）",
+				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.6),
+				Area:     area,
+			})
+		case "⑥ IPC 传输模拟":
+			recommendations = append(recommendations, perfRecommendation{
+				Priority: "medium",
+				Action:   "使用 msgpack 或分片传输",
+				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.3),
+				Area:     area,
+			})
+		}
+	}
+
+	// 格式级额外建议
+	switch format {
+	case "PMX", "PMD":
+		recommendations = append(recommendations, perfRecommendation{
+			Priority: "info",
+			Action:   "确认纹理由 Worker 解码（P0），PMX 由 Worker 解析（P1）",
+			Impact:   "主线程释放 3-5s",
+			Area:     "worker",
+		})
+		recommendations = append(recommendations, perfRecommendation{
+			Priority: "info",
+			Action:   "确认 rAF 切片生效（P2），单帧 max < 1s",
+			Impact:   "用户感知不卡",
+			Area:     "slicing",
+		})
+	case "VRM", "GLTF":
+		recommendations = append(recommendations, perfRecommendation{
+			Priority: "info",
+			Action:   "GLTFLoader 已原生高效，无需 Worker 化",
+			Impact:   "已最优",
+			Area:     "loading",
+		})
+	case "YSM":
+		recommendations = append(recommendations, perfRecommendation{
+			Priority: "info",
+			Action:   "YSM 数据由 Go 预计算，前端零解析开销",
+			Impact:   "已最优",
+			Area:     "loading",
+		})
+	}
+
+	// 总结
+	summary := generateSnapshotSummary(benchResult, cacheJSON, format)
+
+	snapshot := perfSnapshot{
+		Timestamp:       time.Now().Format(time.RFC3339),
+		Model:           targetModel,
+		Format:          format,
+		SizeBytes:       modelSize,
+		BenchResult:     benchResult,
+		CacheStats:      cacheJSON,
+		Diagnostics:     diagnostics,
+		Recommendations: recommendations,
+		Summary:         summary,
+	}
+
+	data, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		return newRuntimeErrf("JSON 序列化失败: %v", err)
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
+// generateSnapshotSummary 生成快照摘要文本
+func generateSnapshotSummary(bench *singleBenchJSON, cache *cacheStatsJSON, format string) string {
+	var parts []string
+	parts = append(parts, fmt.Sprintf("总耗时 %.2fms", bench.TotalMs))
+	if bench.Bottleneck != "" {
+		parts = append(parts, fmt.Sprintf("当前瓶颈: %s", bench.Bottleneck))
+	}
+	parts = append(parts, fmt.Sprintf("格式: %s", format))
+	if cache != nil {
+		parts = append(parts, fmt.Sprintf("缓存: %d 个文件 / %s", cache.FileCount, formatSize(cache.TotalSize)))
+		if !cache.Healthy {
+			parts = append(parts, "缓存为空（首次加载）")
+		}
+	}
+	return strings.Join(parts, " | ")
+}
+
+// scanFirstModel 扫描文件根目录获取第一个模型路径
+func scanFirstModel(filesRoot string) string {
+	if filesRoot == "" {
+		return ""
+	}
+	var firstModel string
+	allowedExts := map[string]bool{
+		".ysm": true, ".pmx": true, ".pmd": true, ".vrm": true,
+		".gltf": true, ".glb": true, ".litematic": true,
+	}
+	_ = filepath.Walk(filesRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() && allowedExts[strings.ToLower(filepath.Ext(path))] {
+			firstModel = path
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return firstModel
 }
