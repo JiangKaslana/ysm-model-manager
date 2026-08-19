@@ -138,12 +138,19 @@ export async function encodeAndCacheTexture(
     // 动态导入 KTX2BasisWriter（运行时加载 encode 函数）
     const { KTX2BasisWriter } = await import("@loaders.gl/textures");
     // 编码为 KTX2（Basis Universal）
+    // modules 注入本地 basis 库：loaders.gl 默认从 `modules/textures/src/libs/` 相对路径或 CDN
+    // 拉取 basis_encoder（vite 下 404 → BasisEncoderModule is not a function），
+    // 显式映射到项目 public/basis/（与 KTX2Loader transcoderPath 同源）。
     const ktx2Buffer = await (KTX2BasisWriter as unknown as { encode: (img: unknown, opts?: unknown) => Promise<ArrayBuffer> }).encode(imageData, {
       "ktx2-basis-writer": {
         qualityLevel: 128, // 质量 1-255，128 是平衡值
         encodeUASTC: false, // 用 ETC1S（更小，兼容性更好）
         mipmaps: false, // 不需要 mipmap，预览用
         useSRGB: false,
+      },
+      modules: {
+        "basis_encoder.js": "/basis/basis_encoder.js",
+        "basis_encoder.wasm": "/basis/basis_encoder.wasm",
       },
     });
     // 将 KTX2 ArrayBuffer 转为 base64（分块避免栈溢出，O(n) 替代 O(n²) 字符串拼接）

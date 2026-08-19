@@ -117,6 +117,11 @@ describe("encodeAndCacheTexture", () => {
 
     expect(ok).toBe(true);
     expect(hoisted.ktx2EncodeMock).toHaveBeenCalledOnce();
+    // 本地 basis 库注入：loaders.gl 默认从 CDN/相对路径拉取会 404（BasisEncoderModule is not a function），
+    // encode options 必须显式映射到项目 public/basis/（ADR 防回归）
+    const encodeOpts = hoisted.ktx2EncodeMock.mock.calls[0][1] as { modules?: Record<string, string> };
+    expect(encodeOpts?.modules?.["basis_encoder.js"]).toBe("/basis/basis_encoder.js");
+    expect(encodeOpts?.modules?.["basis_encoder.wasm"]).toBe("/basis/basis_encoder.wasm");
     expect(hoisted.saveTextureMock).toHaveBeenCalledWith("hash123", expect.any(String));
     expect(hoisted.addOpLogMock).toHaveBeenCalledWith(
       "ktx2-encode", "hash123", "ok", expect.stringContaining("bytes="),
