@@ -885,6 +885,7 @@ export const ja: Record<string, string> = {
   "preview.presetQuickSky": "空",
   "preview.skyAutoRotate": "昼夜サイクル",
   "preview.skyAutoRotateHint": "時間を自動的に進め、一日の光照変化をプレビュー",
+  "preview.envHdrPreview": "HDR プレビュー",
   "preview.postprocessingGroupColor": "色彩と露出",
   "preview.postprocessingGroupBloom": "ブルーム",
   "preview.postprocessingGroupSsao": "環境光遮蔽 (SSAO)",

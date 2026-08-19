@@ -409,6 +409,67 @@ export class EnvironmentCapability implements SceneCapability {
     return this.customHdrLoading;
   }
 
+  /**
+   * 把 customHdrTex（HalfFloatType DataTexture）降采样为缩略图 dataURL。
+   * 流程：读半浮点 RGB → 块平均到 thumbW×thumbH → Reinhard tonemap → sRGB 8-bit → canvas.toDataURL。
+   * 没有自定义 HDR 时返回 null。
+   */
+  getCustomHdrThumbnail(thumbW = 128, thumbH = 64): string | null {
+    if (!this.customHdrTex) return null;
+    const img = this.customHdrTex.image as { data: Uint16Array; width: number; height: number } | undefined;
+    if (!img || !img.data || !img.width || !img.height) return null;
+
+    const srcW = img.width;
+    const srcH = img.height;
+    const src = img.data;
+    // 半浮点读法：Uint16Array 视图 + Float32 reinterpret
+    const buf = new ArrayBuffer(src.length * 2);
+    new Uint16Array(buf).set(src);
+    const f32 = new Float32Array(buf);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = thumbW;
+    canvas.height = thumbH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const imageData = ctx.createImageData(thumbW, thumbH);
+    const dst = imageData.data;
+
+    for (let ty = 0; ty < thumbH; ty++) {
+      const y0 = Math.floor((ty * srcH) / thumbH);
+      const y1 = Math.max(y0 + 1, Math.floor(((ty + 1) * srcH) / thumbH));
+      for (let tx = 0; tx < thumbW; tx++) {
+        const x0 = Math.floor((tx * srcW) / thumbW);
+        const x1 = Math.max(x0 + 1, Math.floor(((tx + 1) * srcW) / thumbW));
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let yy = y0; yy < y1; yy++) {
+          for (let xx = x0; xx < x1; xx++) {
+            const si = (yy * srcW + xx) * 3;
+            r += f32[si];
+            g += f32[si + 1];
+            b += f32[si + 2];
+            count++;
+          }
+        }
+        if (count > 0) { r /= count; g /= count; b /= count; }
+        // Reinhard tonemap + sRGB 编码
+        const encode = (v: number): number => {
+          const mapped = v / (1 + v); // Reinhard
+          const clamped = Math.max(0, Math.min(1, mapped));
+          // sRGB 近似（gamma 2.2）
+          return Math.round(Math.pow(clamped, 1 / 2.2) * 255);
+        };
+        const di = (ty * thumbW + tx) * 4;
+        dst[di] = encode(r);
+        dst[di + 1] = encode(g);
+        dst[di + 2] = encode(b);
+        dst[di + 3] = 255;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL("image/png");
+  }
+
   /* -------- 内部：重建环境贴图 -------- */
 
   /** 把 backgroundSrcTex 或 程序化 CanvasTexture 挂到 scene.background（useAsBackground=true 时）；
@@ -615,6 +676,15 @@ export class EnvironmentCapability implements SceneCapability {
         setValue: (v) => this.setPresetId(v as EnvPresetId),
       },
       // 自定义 HDR 组
+      {
+        id: "env-hdr-preview",
+        kind: "image",
+        labelKey: "preview.envHdrPreview",
+        fallback: "HDR 预览",
+        group: "preview.envGroupCustomHdr",
+        getValue: () => this.getCustomHdrThumbnail(),
+        setValue: () => { /* 只读 */ },
+      },
       {
         id: "env-pick-hdr",
         kind: "button",

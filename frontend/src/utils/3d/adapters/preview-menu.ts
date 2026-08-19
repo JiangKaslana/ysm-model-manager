@@ -218,6 +218,20 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
       };
       row.append(label, btn, hint);
       (target ?? list).appendChild(row);
+      continue;
+    }
+    if (c.kind === "image") {
+      const url = c.getValue() as string | null;
+      if (!url) continue; // 无内容时跳过（不占位）
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "padding:6px 10px";
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = tr(c.labelKey, c.fallback);
+      img.style.cssText = "width:100%;border-radius:6px;border:1px solid rgba(255,255,255,0.12);display:block";
+      row.appendChild(img);
+      (target ?? list).appendChild(row);
     }
   }
 }
