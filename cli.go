@@ -14,78 +14,19 @@ type cliCommand struct {
 	Run         func(a *app.App, args []string) error
 }
 
-// cliCommands 注册所有 CLI 子命令
-var cliCommands = map[string]cliCommand{
-	"search": {
-		Name:        "search",
-		Description: "搜索模型（支持关键词过滤）",
-		Run:         runSearch,
-	},
-	"analyze": {
-		Name:        "analyze",
-		Description: "分析单个模型的详细信息",
-		Run:         runAnalyze,
-	},
-	"list": {
-		Name:        "list",
-		Description: "列出所有模型的摘要信息",
-		Run:         runList,
-	},
-	"verify": {
-		Name:        "verify",
-		Description: "验证模型文件完整性",
-		Run:         runVerify,
-	},
-	"benchmark": {
-		Name:        "benchmark",
-		Description: "性能基准测试",
-		Run:         runBenchmark,
-	},
-	"export": {
-		Name:        "export",
-		Description: "导出模型结构信息",
-		Run:         runExport,
-	},
-	"file-bench": {
-		Name:        "file-bench",
-		Description: "测试大文件读取性能（模拟 MMD/PMX/VRM 加载）",
-		Run:         runFileBench,
-	},
-	"scan-dir": {
-		Name:        "scan-dir",
-		Description: "扫描 MMD 目录结构并统计资产",
-		Run:         runScanDir,
-	},
-	"analyze-mmd": {
-		Name:        "analyze-mmd",
-		Description: "分析 MMD 模型资产（贴图、PMX、VMD 等）",
-		Run:         runAnalyzeMMD,
-	},
-	"cache-status": {
-		Name:        "cache-status",
-		Description: "查看纹理缓存状态（路径、大小、文件数）",
-		Run:         runCacheStatus,
-	},
-	"cache-verify": {
-		Name:        "cache-verify",
-		Description: "检查模型贴图的缓存命中情况",
-		Run:         runCacheVerify,
-	},
-	"cache-clear": {
-		Name:        "cache-clear",
-		Description: "清空纹理缓存",
-		Run:         runCacheClear,
-	},
-	"cache-diag": {
-		Name:        "cache-diag",
-		Description: "诊断缓存流程（哈希计算、读写功能、目录权限）",
-		Run:         runCacheDiag,
-	},
-	"config-show": {
-		Name:        "config-show",
-		Description: "查看当前配置",
-		Run:         runConfigShow,
-	},
+// cliCommands 注册所有 CLI 子命令（由各文件的 init() 自注册）
+var cliCommands = map[string]cliCommand{}
+
+// RegisterCommand 注册一个 CLI 子命令（供各文件的 init() 调用）
+func RegisterCommand(name, description string, run func(a *app.App, args []string) error) {
+	if _, exists := cliCommands[name]; exists {
+		panic(fmt.Sprintf("CLI 命令 %q 重复注册", name))
+	}
+	cliCommands[name] = cliCommand{
+		Name:        name,
+		Description: description,
+		Run:         run,
+	}
 }
 
 // runCLI 执行 CLI 模式

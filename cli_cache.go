@@ -12,6 +12,13 @@ import (
 	"ysm-model-manager/internal/app"
 )
 
+func init() {
+	RegisterCommand("cache-status", "查看纹理缓存状态（路径、大小、文件数）", runCacheStatus)
+	RegisterCommand("cache-verify", "检查模型贴图的缓存命中情况", runCacheVerify)
+	RegisterCommand("cache-clear", "清空纹理缓存", runCacheClear)
+	RegisterCommand("cache-diag", "诊断缓存流程（哈希计算、读写功能、目录权限）", runCacheDiag)
+}
+
 // runCacheStatus 查看纹理缓存状态
 func runCacheStatus(a *app.App, args []string) error {
 	_ = a

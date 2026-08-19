@@ -7,6 +7,10 @@ import (
 	"ysm-model-manager/internal/app"
 )
 
+func init() {
+	RegisterCommand("config-show", "查看当前配置", runConfigShow)
+}
+
 // runConfigShow 查看当前配置
 func runConfigShow(a *app.App, args []string) error {
 	_ = args

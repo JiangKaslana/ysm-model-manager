@@ -13,6 +13,15 @@ import (
 	"ysm-model-manager/internal/app"
 )
 
+func init() {
+	RegisterCommand("search", "搜索模型（支持关键词过滤）", runSearch)
+	RegisterCommand("analyze", "分析单个模型的详细信息", runAnalyze)
+	RegisterCommand("list", "列出所有模型的摘要信息", runList)
+	RegisterCommand("verify", "验证模型文件完整性", runVerify)
+	RegisterCommand("benchmark", "性能基准测试", runBenchmark)
+	RegisterCommand("export", "导出模型结构信息", runExport)
+}
+
 // runSearch 执行搜索命令
 func runSearch(a *app.App, args []string) error {
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
