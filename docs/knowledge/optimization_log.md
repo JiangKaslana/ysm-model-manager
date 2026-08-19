@@ -61,6 +61,6 @@ use_when:
 
 ## 相关
 
-- [ADR-098: 3D 预览性能优化](adr/ADR-098-3d-preview-perf.md)
-- [ADR-101: MMD 场景加载性能分析与优化方向](adr/ADR-101-mmd-loading-perf.md)
-- [MMD 适配器知识卡](knowledge/app-preview.md)
+- [ADR-098: 3D 预览性能优化](../adr/ADR-098-3d-preview-perf.md)
+- [ADR-101: MMD 场景加载性能分析与优化方向](../adr/ADR-101-mmd-loading-perf.md)
+- [MMD 适配器知识卡](app-preview.md)
