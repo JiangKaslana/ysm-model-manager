@@ -459,13 +459,13 @@
 | `SupportedExtsForType()` | `go/types/extensions:308` | SupportedExtsForType 返回指定资源类型的所有扩展名 |
 | `StorageSubDir()` | `go/types/extensions:321` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
 | `GroupOf()` | `go/types/extensions:330` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
-| `GroupStorageRoot()` | `go/types/extensions:342` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
-| `GroupLabel()` | `go/types/extensions:359` | GroupLabel 返回分组显示名（从注册表各类型的 groupLabel 字段派生，消除 resourceGroups 冗余源）； 取该组第一个有 groupLabel 的类型 |
-| `GroupIcon()` | `go/types/extensions:373` | GroupIcon 返回分组图标（从注册表各类型的 groupIcon 字段派生）。 |
-| `SubDirMap()` | `go/types/extensions:393` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
-| `SubDirAll()` | `go/types/extensions:405` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:417` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:387` | SubDirEntry 资源类型的版本子目录信息 |
+| `GroupStorageRoot()` | `go/types/extensions:345` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
+| `GroupLabel()` | `go/types/extensions:362` | GroupLabel 返回分组显示名（从注册表各类型的 groupLabel 字段派生，消除 resourceGroups 冗余源）； 取该组第一个有 groupLabel 的类型 |
+| `GroupIcon()` | `go/types/extensions:376` | GroupIcon 返回分组图标（从注册表各类型的 groupIcon 字段派生）。 |
+| `SubDirMap()` | `go/types/extensions:396` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
+| `SubDirAll()` | `go/types/extensions:408` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:420` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:390` | SubDirEntry 资源类型的版本子目录信息 |
 | `FindInstDir()` | `go/types/findinst:66` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `SetBundledRegistryJSON()` | `go/types/resource:20` | SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。 |
 | `ResourceSubType.AcceptsExt()` | `go/types/resource:83` | AcceptsExt 判断文件扩展名（含点、大小写不敏感）是否被本子类接受。 |

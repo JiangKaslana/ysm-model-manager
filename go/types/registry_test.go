@@ -176,6 +176,14 @@ func TestGroupStorageRoot(t *testing.T) {
 	if got := GroupStorageRoot("unknown"); got != "unknown" {
 		t.Errorf("GroupStorageRoot('unknown') = %q, 期望 'unknown'", got)
 	}
+	// 软合并壳类型（vanilla-assets/mod-model）无 storageSubDir，回退到 typeId；
+	// 实际存储由 subtypes 处理，app.go EnsureStorageDirs 已通过 `if rt.StorageSubDir != ""` 跳过。
+	for _, shell := range []string{"vanilla-assets", "mod-model"} {
+		got := GroupStorageRoot(shell)
+		if got == "" {
+			t.Errorf("GroupStorageRoot(%q) = 空，期望回退到 typeId（%q）", shell, shell)
+		}
+	}
 }
 
 func TestGroupLabel(t *testing.T) {
@@ -207,6 +215,39 @@ func TestGroupIcon(t *testing.T) {
 	}
 	if got := GroupIcon(""); got != "" {
 		t.Errorf("GroupIcon('') = %q, 期望 ''", got)
+	}
+}
+
+// TestGroupLabel_EachGroupOnce 验证每个组恰有一个类型携带 groupLabel/groupIcon。
+// 首个类型约定：JSON 中该组第一个出现的类型应携带 groupLabel/groupIcon。
+func TestGroupLabel_EachGroupOnce(t *testing.T) {
+	reg := LoadRegistry()
+	type groupInfo struct {
+		labelCount int
+		iconCount  int
+	}
+	groups := make(map[string]*groupInfo)
+	for _, rt := range reg.ResourceTypes {
+		if rt.Group == "" {
+			continue
+		}
+		if groups[rt.Group] == nil {
+			groups[rt.Group] = &groupInfo{}
+		}
+		if rt.GroupLabel != "" {
+			groups[rt.Group].labelCount++
+		}
+		if rt.GroupIcon != "" {
+			groups[rt.Group].iconCount++
+		}
+	}
+	for gid, info := range groups {
+		if info.labelCount != 1 {
+			t.Errorf("group %q 有 %d 个 groupLabel，期望正好 1 个（首个类型携带）", gid, info.labelCount)
+		}
+		if info.iconCount != 1 {
+			t.Errorf("group %q 有 %d 个 groupIcon，期望正好 1 个（首个类型携带）", gid, info.iconCount)
+		}
 	}
 }
 

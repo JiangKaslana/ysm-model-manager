@@ -195,6 +195,13 @@ describe("GROUP_META 分组元数据", () => {
   it("无类型使用的分组不出现（other 组无类型，不展示）", () => {
     expect(GROUP_META["other"]).toBeUndefined();
   });
+
+  it("每个分组 name/icon 非空（从注册表 groupLabel/groupIcon 派生）", () => {
+    for (const [gid, meta] of Object.entries(GROUP_META)) {
+      expect(meta.name).toBeTruthy();
+      expect(meta.icon).toBeTruthy();
+    }
+  });
 });
 
 describe("GROUP_OF 类型→分组映射", () => {
@@ -260,6 +267,11 @@ describe("groupStorageRootOf 两层路由", () => {
     expect(groupStorageRootOf("resourcepack")).toBe("minecraft/resourcepacks");
     expect(groupStorageRootOf("mmd-skin")).toBe("mmd/EntityPlayer");
     expect(groupStorageRootOf("vrchat-avatar")).toBe("mmd/vrchat"); // ADR-105 续：VRM 归并 mmd 组
+  });
+
+  it("软合并壳类型回退到 typeId（vanilla-assets/mod-model 无 storageSubDir）", () => {
+    expect(groupStorageRootOf("vanilla-assets")).toBe("minecraft/vanilla-assets");
+    expect(groupStorageRootOf("mod-model")).toBe("minecraft-mod/mod-model");
   });
 
   it("无 group 字段时回退单级 storageSubDir（向后兼容）", () => {
