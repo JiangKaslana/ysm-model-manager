@@ -557,6 +557,9 @@ export const zhCN: Record<string, string> = {
   "rtype.shader": "光影包",
   "rtype.blueprint": "蓝图",
   "rtype.litematic": "投影",
+  "rtype.maid": "女仆",
+  "rtype.mod": "模组",
+  "rtype.vanilla": "原版",
 
   // ── 同步管理器 ──
   "sync.noInstance": "未指定整合包",

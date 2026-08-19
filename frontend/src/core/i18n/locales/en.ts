@@ -554,6 +554,9 @@ export const en: Record<string, string> = {
   "rtype.shader": "Shader Pack",
   "rtype.blueprint": "Blueprint",
   "rtype.litematic": "Litematic",
+  "rtype.maid": "Maid",
+  "rtype.mod": "Mod",
+  "rtype.vanilla": "Vanilla",
 
   // ── Sync Manager ──
   "sync.noInstance": "No modpack specified",

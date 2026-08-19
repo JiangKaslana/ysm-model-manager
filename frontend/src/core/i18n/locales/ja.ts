@@ -555,6 +555,9 @@ export const ja: Record<string, string> = {
   "rtype.shader": "シェーダーパック",
   "rtype.blueprint": "ブループリント",
   "rtype.litematic": "リテマティック",
+  "rtype.maid": "メイド",
+  "rtype.mod": "MOD",
+  "rtype.vanilla": "ヴァニラ",
 
   // ── Sync Manager ──
   "sync.noInstance": "統合パックが指定されていません",

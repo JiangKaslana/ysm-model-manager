@@ -16,6 +16,9 @@ const SHORT_LABEL_MAP: Record<string, string> = {
   [RESOURCE_TYPES.SHADER]: t("rtype.shader"),
   [RESOURCE_TYPES.BLUEPRINT]: t("rtype.blueprint"),
   [RESOURCE_TYPES.LITEMATIC]: t("rtype.litematic"),
+  [RESOURCE_TYPES.MAID]: t("rtype.maid"),
+  [RESOURCE_TYPES.MOD_MODEL]: t("rtype.mod"),
+  [RESOURCE_TYPES.VANILLA_ASSETS]: t("rtype.vanilla"),
 };
 
 /** 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） */
