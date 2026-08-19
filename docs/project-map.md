@@ -90,6 +90,8 @@
 | `cli_cache.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `cli_config.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `cli_mmd.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `cli_model.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `cli_shared.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
 | `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |

@@ -33,7 +33,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 25 | 192 |
+| Go(internal)·应用入口 | 25 | 195 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 100 |
 | 前端·核心 | 18 | 36 |
@@ -45,7 +45,7 @@
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **412** | **1726** |
+| **合计** | **412** | **1729** |
 
 ## Go·头像
 
@@ -609,17 +609,19 @@
 | `App.RestoreFromRecycle()` | `internal/app/app_install_recycle:174` | — |
 | `App.DeleteFromRecycle()` | `internal/app/app_install_recycle:195` | — |
 | `App.EmptyRecycleBin()` | `internal/app/app_install_recycle:211` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
-| `App.AnalyzeYSMModel()` | `internal/app/app_model:39` | — |
-| `App.ExtractYsmSummary()` | `internal/app/app_model:43` | — |
-| `App.ExtractYSMHeader()` | `internal/app/app_model:57` | — |
-| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:61` | — |
-| `App.SavePreviewTempFile()` | `internal/app/app_model:69` | — |
-| `App.ReadFileBytes()` | `internal/app/app_model:88` | — |
-| `App.ReadFileBytesBatch()` | `internal/app/app_model:110` | ReadFileBytesBatch 批量读取多个文件（ADR-101：MMD 纹理加载优化）。 |
-| `App.AnalyzeBedrockModel()` | `internal/app/app_model:190` | — |
-| `App.GetModel3DSpec()` | `internal/app/app_model:242` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:278` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:340` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.AnalyzeYSMModel()` | `internal/app/app_model:41` | — |
+| `App.ExtractYsmSummary()` | `internal/app/app_model:45` | — |
+| `App.ExtractYSMHeader()` | `internal/app/app_model:59` | — |
+| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:63` | — |
+| `App.SavePreviewTempFile()` | `internal/app/app_model:71` | — |
+| `App.ReadFileBytes()` | `internal/app/app_model:90` | — |
+| `App.ReadFileBytesBatch()` | `internal/app/app_model:112` | ReadFileBytesBatch 批量读取多个文件（ADR-101：MMD 纹理加载优化）。 |
+| `App.ReadFileBytesBatchWithMeta()` | `internal/app/app_model:212` | ReadFileBytesBatchWithMeta 批量读取文件并返回内容 + SHA256 哈希。 |
+| `App.AnalyzeBedrockModel()` | `internal/app/app_model:272` | — |
+| `App.GetModel3DSpec()` | `internal/app/app_model:324` | — |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:360` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:422` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `ReadFileMeta()` | `internal/app/app_model:193` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
 | `App.ExportBoneStructures()` | `internal/app/app_scan:27` | ========== 批量导出骨骼结构 ========== |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:83` | ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:122` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
@@ -646,6 +648,7 @@
 | `App.ClearTextureCache()` | `internal/app/app_texture_cache:73` | ClearTextureCache 清空纹理缓存（用户主动清理用）。 |
 | `App.HasCachedTexture()` | `internal/app/app_texture_cache:78` | HasCachedTexture 检查指定纹理的内容哈希是否已有 KTX2 缓存。 |
 | `App.GetCachedTextureByHash()` | `internal/app/app_texture_cache:85` | GetCachedTextureByHash 通过哈希直接读取 KTX2 缓存（不读取原始文件，轻量操作）。 |
+| `App.HasCachedTextures()` | `internal/app/app_texture_cache:98` | HasCachedTextures 批量检查多个哈希是否已有 KTX2 缓存。 |
 | `CachedTextureResult()` | `internal/app/app_texture_cache:15` | CachedTextureResult 是 GetCachedTexture 的返回值。 |
 | `App.DefaultWorkshopSites()` | `internal/app/app_workshop:103` | — |
 | `App.SaveWorkshopSites()` | `internal/app/app_workshop:114` | — |
