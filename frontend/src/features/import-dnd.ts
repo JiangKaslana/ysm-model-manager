@@ -11,6 +11,7 @@ import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { executeCollected, importWebFilesWithToast } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
+import { isImportableFile } from "./dnd-shared.ts";
 
 const DROP_EXTS_STR = ALL_EXTS.join(" ");
 
@@ -101,7 +102,8 @@ export async function handleTreeDrop(
       });
       return;
     }
-    logDrop(`drop: 收集 ${collected.length} 文件 [${collected.slice(0, 3).map((c) => c.file.name).join(", ")}]`);
+    const importableStr = (name: string) => isImportableFile(name) ? "Y" : "N";
+    logDrop(`drop: 收集 ${collected.length} 文件 [${collected.map((c) => `${c.file.name}(imp=${importableStr(c.file.name)})`).join(", ")}]`);
 
     // oversize 逐文件过滤
     const oversized = collected.filter((c) => c.file.size > MAX_IMPORT_BYTES);
