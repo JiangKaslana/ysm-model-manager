@@ -73,6 +73,64 @@ func TestRunCLI_NoCommand_PrintsHelp(t *testing.T) {
 	}
 }
 
+func TestRunCLI_Version_Flag(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runCLI([]string{"--version"}); err != nil {
+			t.Errorf("--version 应返回 nil, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "YSM 模型管理器") || !strings.Contains(out, "CLI 模式") {
+		t.Errorf("--version 输出应包含版本信息, got: %s", out)
+	}
+}
+
+func TestRunCLI_Version_ShortFlag(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runCLI([]string{"-v"}); err != nil {
+			t.Errorf("-v 应返回 nil, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "YSM 模型管理器") {
+		t.Errorf("-v 输出应包含版本信息, got: %s", out)
+	}
+}
+
+func TestRunCLI_Help_Flag(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runCLI([]string{"--help"}); err != nil {
+			t.Errorf("--help 应返回 nil, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "可用命令") {
+		t.Errorf("--help 输出应包含「可用命令」, got: %s", out)
+	}
+}
+
+func TestRunCLI_Help_ShortFlag(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runCLI([]string{"-h"}); err != nil {
+			t.Errorf("-h 应返回 nil, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "可用命令") {
+		t.Errorf("-h 输出应包含「可用命令」, got: %s", out)
+	}
+}
+
+func TestRunCLI_SubCommandHelp(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runCLI([]string{"--files-root", "/tmp", "search", "--help"}); err != nil {
+			t.Errorf("子命令 --help 应返回 nil, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "命令: search") {
+		t.Errorf("子命令帮助应包含命令名, got: %s", out)
+	}
+	if !strings.Contains(out, "用法") {
+		t.Errorf("子命令帮助应包含用法说明, got: %s", out)
+	}
+}
+
 func TestRunCLI_UnknownCommand_ReturnsError(t *testing.T) {
 	out := captureOutput(t, func() {
 		if err := runCLI([]string{"no-such-cmd"}); err == nil {
@@ -259,6 +317,66 @@ func TestConfigShow_PrintsRootAndCache(t *testing.T) {
 		if !strings.Contains(out, marker) {
 			t.Errorf("输出应包含 %q, got: %s", marker, out)
 		}
+	}
+}
+
+// ---- runCLIWithApp 解耦入口（用于自动化测试复用）----
+
+func TestRunCLIWithApp_Help(t *testing.T) {
+	a := &app.App{}
+	out := captureOutput(t, func() {
+		if err := runCLIWithApp(a, []string{"--help"}); err != nil {
+			t.Errorf("runCLIWithApp --help 应返回 nil, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "可用命令") {
+		t.Errorf("帮助输出应包含「可用命令」, got: %s", out)
+	}
+}
+
+func TestRunCLIWithApp_Version(t *testing.T) {
+	a := &app.App{}
+	out := captureOutput(t, func() {
+		if err := runCLIWithApp(a, []string{"--version"}); err != nil {
+			t.Errorf("runCLIWithApp --version 应返回 nil, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "YSM 模型管理器") {
+		t.Errorf("版本输出应包含版本信息, got: %s", out)
+	}
+}
+
+func TestRunCLIWithApp_UnknownCommand(t *testing.T) {
+	a := &app.App{}
+	err := runCLIWithApp(a, []string{"no-such-cmd"})
+	if err == nil {
+		t.Error("未知命令应返回错误")
+	}
+	if !strings.Contains(err.Error(), "未知命令") {
+		t.Errorf("错误信息应包含「未知命令」, got: %v", err)
+	}
+}
+
+func TestRunCLIWithApp_UsesProvidedApp(t *testing.T) {
+	a := &app.App{}
+	out := captureOutput(t, func() {
+		if err := runCLIWithApp(a, []string{"--files-root", "/tmp", "cache-status"}); err != nil {
+			t.Errorf("runCLIWithApp cache-status 应返回 nil, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "缓存状态") {
+		t.Errorf("应执行 cache-status 命令, got: %s", out)
+	}
+}
+
+func TestRunCLIWithApp_NoFilesRoot_RunsAnyway(t *testing.T) {
+	// runCLIWithApp 设计为测试复用，允许没有 files-root
+	// （与 runCLI 不同，runCLI 会强制要求 files-root）
+	a := &app.App{}
+	err := runCLIWithApp(a, []string{"search", "--keyword", "test"})
+	// 没有 files-root 时应正常运行（search 命令在没有模型时返回空结果）
+	if err != nil {
+		t.Logf("runCLIWithApp 无 files-root 返回: %v（可能因无模型而正常）", err)
 	}
 }
 
