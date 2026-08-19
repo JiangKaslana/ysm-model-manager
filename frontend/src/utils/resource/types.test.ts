@@ -33,6 +33,7 @@ describe("RESOURCE_TYPES 标签映射", () => {
       LITEMATIC: "litematic",
       MAID: "maid-model",
       MOD_MODEL: "mod-model", // ADR-105 软合并合集壳
+      VANILLA_ASSETS: "vanilla-assets", // ADR-105 软合并合集壳
     });
   });
 });

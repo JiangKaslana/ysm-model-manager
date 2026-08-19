@@ -582,6 +582,54 @@ func TestResolveInstDirTargetSubdir_MissingFallback(t *testing.T) {
 	}
 }
 
+// ===== vanilla-assets 原版资源合集软合并（2026-08-20：resourcepack/shaderpack 收合集壳）=====
+// resolveInstDirTargetSubdir 对 vanilla-assets 子类型（resourcepack/shaderpack）走各自
+// installDir 推导（零继承自描述）：resourcepack → instDir/resourcepacks、
+// shaderpack → instDir/shaderpacks（各自目录，非共享）。
+
+func TestResolveInstDirTargetSubdir_VanillaAssetsResourcepack(t *testing.T) {
+	if types.RegistryType("vanilla-assets") == nil {
+		t.Skip("注册表暂无 vanilla-assets 条目，跳过")
+	}
+	instDir := t.TempDir()
+	rpDir := filepath.Join(instDir, "resourcepacks")
+	if err := os.MkdirAll(rpDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTargetSubdir(instDir, "vanilla-assets", "resourcepack"); got != rpDir {
+		t.Errorf("vanilla-assets+resourcepack = %q, 期望 %q", got, rpDir)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_VanillaAssetsShaderpack(t *testing.T) {
+	if types.RegistryType("vanilla-assets") == nil {
+		t.Skip("注册表暂无 vanilla-assets 条目，跳过")
+	}
+	instDir := t.TempDir()
+	spDir := filepath.Join(instDir, "shaderpacks")
+	if err := os.MkdirAll(spDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTargetSubdir(instDir, "vanilla-assets", "shaderpack"); got != spDir {
+		t.Errorf("vanilla-assets+shaderpack = %q, 期望 %q", got, spDir)
+	}
+}
+
+func TestResolveInstDirTargetSubdir_VanillaAssetsEmptyFallback(t *testing.T) {
+	// subdir="" → default 槽 resourcepack 的 installDir 推导（resourcepacks/ → instDir/resourcepacks）
+	if types.RegistryType("vanilla-assets") == nil {
+		t.Skip("注册表暂无 vanilla-assets 条目，跳过")
+	}
+	instDir := t.TempDir()
+	rpDir := filepath.Join(instDir, "resourcepacks")
+	if err := os.MkdirAll(rpDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveInstDirTargetSubdir(instDir, "vanilla-assets", ""); got != rpDir {
+		t.Errorf("vanilla-assets 空 subdir（default=resourcepack）= %q, 期望 %q", got, rpDir)
+	}
+}
+
 func TestResolveInstDirTargetSubdir_EmptyKeepsBase(t *testing.T) {
 	instDir := t.TempDir()
 	skin := filepath.Join(instDir, "3d-skin")

@@ -16,6 +16,7 @@ export const RESOURCE_TYPES: Record<string, string> = {
   LITEMATIC: "litematic",
   MAID: "maid-model",
   MOD_MODEL: "mod-model", // ADR-105 软合并：模组模型合集壳（nav 展开 ysm/maid 子类型）
+  VANILLA_ASSETS: "vanilla-assets", // ADR-105 软合并：原版资源合集壳（nav 展开 资源包/光影包）
 };
 
 /** 资源类型显示标签（内部 ID → 中文名） */
@@ -29,6 +30,7 @@ export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   litematic: "投影",
   "maid-model": "车万女仆",
   "mod-model": "模组模型", // ADR-105 软合并合集壳（nav 展开用）
+  "vanilla-assets": "原版资源合集", // ADR-105 软合并合集壳（nav 展开用）
 };
 
 /** JSON 条目（缺 id 的脏数据过滤掉，防 undefined 混入类型列表） */

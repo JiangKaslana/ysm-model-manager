@@ -358,3 +358,54 @@ func TestSubtypesFor_ModModel(t *testing.T) {
 		t.Error("ysm 应为 default 槽")
 	}
 }
+
+// ===== vanilla-assets 原版资源合集软合并（2026-08-20：resourcepack/shaderpack 收合集壳）=====
+// vanilla-assets 挂 subtypes [resourcepack, shaderpack]（各自 installDir 不同、
+// detector 不同——零继承自描述），resourcepack/shaderpack 独立 rtype 保留。
+
+func TestSubtypesFor_VanillaAssets(t *testing.T) {
+	subs := SubtypesFor("vanilla-assets")
+	if len(subs) != 2 {
+		t.Fatalf("SubtypesFor(vanilla-assets) = %d 项，期望 2 项（resourcepack/shaderpack）：%v", len(subs), subs)
+	}
+	want := []string{"resourcepack", "shaderpack"}
+	for i, w := range want {
+		if subs[i].Name != w {
+			t.Errorf("subtypes[%d].Name = %q，期望 %q", i, subs[i].Name, w)
+		}
+	}
+	// 零继承自描述：extensions/detector/zipEntries/preview/installDir/scanDir 必须完整
+	for _, s := range subs {
+		if len(s.Extensions) == 0 || s.Detector == "" || len(s.ZipEntries) == 0 || s.Preview == "" {
+			t.Errorf("subtype %s 自描述不完整（ADR-105 零继承）：%+v", s.Name, s)
+		}
+		if s.InstallDir == "" || s.ScanDir == "" {
+			t.Errorf("subtype %s 缺 installDir/scanDir（各自声明）", s.Name)
+		}
+	}
+	// resourcepack 认 pack.mcmeta（mcmeta detector）；shaderpack 认 shaders/（shader detector）
+	rp := SubtypeByDir("vanilla-assets", "resourcepack")
+	if rp == nil || !rp.MatchZipEntry("pack.mcmeta") || rp.Detector != "mcmeta" {
+		t.Errorf("resourcepack subtype 应认 pack.mcmeta 指纹 + mcmeta detector：%+v", rp)
+	}
+	if rp.InstallDir != "resourcepacks/" || rp.ScanDir != "resourcepacks" {
+		t.Errorf("resourcepack subtype 目录应各自声明（resourcepacks/）：%+v", rp)
+	}
+	sp := SubtypeByDir("vanilla-assets", "shaderpack")
+	if sp == nil || !sp.MatchZipEntry("shaders/foo.fsh") || sp.Detector != "shader" {
+		t.Errorf("shaderpack subtype 应认 shaders/ 指纹 + shader detector：%+v", sp)
+	}
+	if sp.InstallDir != "shaderpacks/" || sp.ScanDir != "shaderpacks" {
+		t.Errorf("shaderpack subtype 目录应各自声明（shaderpacks/）：%+v", sp)
+	}
+	// 软合并：独立 rtype 保留
+	for _, id := range []string{"resourcepack", "shaderpack"} {
+		if rt := RegistryType(id); rt == nil {
+			t.Errorf("软合并后独立 rtype %s 应保留", id)
+		}
+	}
+	// default 槽：resourcepack（在前）
+	if !rp.Default {
+		t.Error("resourcepack 应为 default 槽")
+	}
+}

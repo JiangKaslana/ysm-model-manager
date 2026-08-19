@@ -8,6 +8,46 @@
   ],
   "resourceTypes": [
     {
+      "id": "vanilla-assets",
+      "name": "原版资源合集",
+      "icon": "🎨",
+      "group": "minecraft",
+      "extensions": [".zip", ".7z"],
+      "storageSubDir": "vanilla-assets",
+      "configField": "ResourcepackRoot",
+      "installDir": "resourcepacks/",
+      "scanDir": "resourcepacks",
+      "instanceLevel": false,
+      "preview": "thumbnail",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".vanilla-assets", "match": "suffix" }],
+      "subtypes": [
+        {
+          "name": "resourcepack", "label": "资源包", "icon": "🎨",
+          "userImportable": true, "default": true,
+          "extensions": [".zip", ".7z"],
+          "detector": "mcmeta",
+          "zipEntries": [{ "name": "pack.mcmeta", "match": "exact" }],
+          "preview": "thumbnail",
+          "installDir": "resourcepacks/", "scanDir": "resourcepacks"
+        },
+        {
+          "name": "shaderpack", "label": "光影包", "icon": "☀️",
+          "userImportable": true,
+          "extensions": [".zip", ".7z"],
+          "detector": "shader",
+          "zipEntries": [{ "name": "shaders/", "match": "prefix" }, { "name": "shaders", "match": "exact" }],
+          "preview": "thumbnail",
+          "installDir": "shaderpacks/", "scanDir": "shaderpacks"
+        }
+      ],
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
+    },
+    {
       "id": "resourcepack",
       "name": "资源包",
       "icon": "🎨",
