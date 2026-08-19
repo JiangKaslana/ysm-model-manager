@@ -47,6 +47,12 @@ ADR-104 将 subtypes 注册表化后，subtype 仅有 `name/label/userImportable
 - 光影包 subtype 化明确列为 future work，未排期（依赖实际用户场景驱动）；
 - 前端 `MMD_SUBTYPES` 派生逻辑需同步（icon/preview 字段新增可选消费）。
 
+**全资源自描述一致性审查（2026-08-20，用户裁定「先移植、后去重」）**：
+- ✅ 8 类型 detector ↔ zipEntries 全部匹配（mcmeta↔pack.mcmeta / shader↔shaders/ / ysm↔ysm.json+models/ / zipentry↔各后缀指纹），自洽；
+- ✅ zipEntries 全部为内容指纹、无任何 `.zip` 引用，区分度正常（用户「zipEntries 全员 zip」印象实为 extensions 的 `.zip`，字段已核实）；
+- ✅ mmd-skin 顶层 extensions = subtypes 扩展集并集（EntityPlayer 全量、其余子集），无冲突；
+- 🔜 **去重候选（后置，未实施）**：`.zip` 在 8/8 类型 extensions 中全员存在、零识别区分度——是容器准入标记（`importer_file.go:69` 硬编码 `ext==.zip||.7z` 触发内容检测，与注册表无关）。候选去重方向：从 extensions 移除 `.zip` 或改为顶层声明一次；影响面 `ExtBelongsTo(".zip")` 歧义兜底，须与 importer 容器触发解耦后实施。
+
 ## 4. 数据溯源
 
 - 现象：MMD 导入只能识别「是 mmd-skin」，无法按 subtype 校验内容；shaderpack 内部 `.vsh/.fsh/.glsl` 混在 `shaders/` 无法分离。
