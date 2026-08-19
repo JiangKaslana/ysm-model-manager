@@ -4,13 +4,16 @@
 // 渲染与 handler 见 preview-menu.ts；测试遍历本表 + 适配器真实注入项断言结构与
 // dock 渲染（preview-menu-items.test.ts，对齐 MikuMikuAR 声明式菜单测试范式）。
 //
-// 能力驱动显示（用户 2026-08-16 决策）：
+// 能力驱动显示（用户 2026-08-16 决策 + 2026-08-19 环境拆组）：
 // - 有骨骼/模型工具（适配器注入 model 组项）→ 显示「🧍 模型」
 // - 有动作/播放（适配器注入 motion 组项）→ 显示「💃 动作」
-// - 有场景/相机/环境能力（shared 模式 + sky/ground cap）→ 显示「🌍 场景」
+// - 有环境能力（shared 模式 + sky/ground cap）→ 显示「🌍 环境」
+//   （环境体量 > 全部场景设置：sky/ground/env/fog/reflector 聚合一面板，
+//    后续地面/水面系统继续膨胀也不挤占场景组）
+// - 有场景/相机能力（shared 模式）→ 显示「🎛️ 场景」
 
 export type PreviewMenuItemKind = "panel" | "action" | "divider";
-export type PreviewMenuGroupId = "model" | "motion" | "scene";
+export type PreviewMenuGroupId = "model" | "motion" | "env" | "scene";
 
 export interface PreviewMenuItemDef {
   /** 稳定 id；渲染为 data-testid="preview-<id>"，必要时保留 legacyTestId 兼容既有 e2e 选择器 */
@@ -48,7 +51,11 @@ export interface PreviewMenuGroupDef {
 export const PREVIEW_MENU_GROUPS: PreviewMenuGroupDef[] = [
   { id: "model", icon: "🧍", fallback: "模型" },
   { id: "motion", icon: "💃", fallback: "动作" },
-  { id: "scene", icon: "🌍", fallback: "场景" },
+  // 环境独立成组（2026-08-19 拆组）：体量 > 全部场景设置（sky/ground/env/fog/reflector），
+  // 且地面/水面系统后续会持续膨胀，单独 root 按钮避免场景组挤爆
+  { id: "env", icon: "🌍", fallback: "环境" },
+  // 场景组只留相机/灯光/阴影/后处理（icon 换 🎛️ 与 🌍 环境区分）
+  { id: "scene", icon: "🎛️", fallback: "场景" },
 ];
 
 /**
@@ -74,7 +81,7 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     labelKey: "preview.environment",
     fallback: "环境",
     kind: "panel",
-    dockGroup: "scene",
+    dockGroup: "env",
     requiresEnvironment: true,
     legacyTestId: "env-menu-btn",
   },

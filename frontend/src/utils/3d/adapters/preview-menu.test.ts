@@ -72,14 +72,14 @@ describe("mountPreviewRootMenu", () => {
     expect(overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
   });
 
-  it("点击 scene 组（多 panel：camera + lighting）→ 组根视图列项，点击 camera 下钻出现 select", () => {
+  it("点击 scene 组（多 panel：camera + lighting + shadow + postproc）→ 组根视图列项，点击 camera 下钻出现 select", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    // 多 panel：进入组根视图，camera + lighting + environment 三行均出现
+    // 多 panel：进入组根视图，camera + lighting 均出现（environment 已拆到 🌍 环境组）
     expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="preview-lighting"]')).not.toBeNull();
     // 点击 camera 下钻：出现 select 控件
@@ -139,6 +139,22 @@ describe("mountPreviewRootMenu", () => {
     // 注入的 action 行 → 无箭头（点击直接执行）
     const actRow = overlay.querySelector('[data-testid="preview-act"]');
     expect(actRow!.querySelector('[data-testid="row-chevron"]')).toBeNull();
+    handle.dispose();
+  });
+
+  it("环境拆组：有 env cap → dock-env 独立出现；scene 组不再含 environment 行", () => {
+    const cap = { getMenuControls: () => [] } as never;
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/b.ysm"],
+      getSkyCap: () => cap,
+    }));
+    expect(overlay.querySelector('[data-testid="dock-env"]')).not.toBeNull();
+    // scene 组点击 → 列表中 camera 存在、environment 已拆离
+    const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
+    expect(sceneBtn).not.toBeNull();
+    sceneBtn!.click();
+    expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-environment"]')).toBeNull();
     handle.dispose();
   });
 

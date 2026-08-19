@@ -1284,12 +1284,12 @@
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
 | `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:12` | 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） |
 | `PostprocessingManager()` | `frontend/src/utils/3d/adapters/postprocessing:19` | — |
-| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:12` | — |
-| `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:13` | — |
-| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:15` | — |
-| `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:42` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
-| `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:48` | — |
-| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:60` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
+| `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:15` | — |
+| `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:16` | — |
+| `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:18` | — |
+| `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:45` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
+| `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:51` | — |
+| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:67` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:23` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:183` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
 | `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:191` | 挂载预览底部根菜单，返回句柄 |

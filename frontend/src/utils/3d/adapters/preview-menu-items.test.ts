@@ -308,24 +308,34 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("core 场景组：camera + environment dock 渲染（shared 模式）", () => {
+  it("core 拆组契约：🎛️ 场景组含 camera、🌍 环境组独立（shared 模式 + cap）", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => ["/m/b.ysm"] });
+    // 场景组 root 按钮在 shared 模式出现
     const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
     expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-environment"]')).not.toBeNull();
+    // environment 已拆离 🌍 环境组，不再出现在 🎛️ 场景组根列表
+    expect(overlay.querySelector('[data-testid="preview-environment"]')).toBeNull();
+    // 环境组独立 root 按钮存在（有 fakeCap → requiresEnvironment 放行）
+    const envBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-env"]');
+    expect(envBtn).not.toBeNull();
+    // 单 panel 组 → 快捷直达环境面板（渲染 range 控件，不渲染组根行）
+    envBtn!.click();
+    expect(overlay.querySelectorAll('input[type="range"]').length).toBeGreaterThanOrEqual(2);
     handle.dispose();
   });
 
-  it("能力驱动：无 siblings → model dock 仍显示（路径输入兜底）；selfMode + 无环境能力 → 无 🌍 组", () => {
+  it("能力驱动：无 siblings → model dock 仍显示（路径输入兜底）；selfMode + 无环境能力 → 无 🌍/🎛️ 组", () => {
     // 无 siblings → switch 不再被过滤（needsSiblings 已移除），dock-model 始终可见
     const noSib = mountWith([], {});
     expect(noSib.overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
     noSib.handle.dispose();
-    // selfMode → camera(sharedOnly) 过滤；无 cap → environment(requiresEnvironment) 过滤 → 🌍 组空
+    // selfMode → camera/lighting/shadow/postproc(sharedOnly) 过滤 → 🎛️ 场景组空；
+    // 无 cap → environment(requiresEnvironment) 过滤 → 🌍 环境组空 → 两组 dock 均不渲染
     const noScene = mountWith([], { selfMode: true, getSkyCap: () => null, getGroundCap: () => null });
     expect(noScene.overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
+    expect(noScene.overlay.querySelector('[data-testid="dock-env"]')).toBeNull();
     noScene.handle.dispose();
   });
 
