@@ -280,6 +280,7 @@ function main() {
 
   if (fail) {
     console.log(`\n退出码 1（${flagged.length} 个符号消费者 ${MIN_CONSUMERS > 0 ? `≤ ${MIN_CONSUMERS}` : '= 0'}，--strict 阻断）。`);
+    console.log('→ 修复: 对每个 orphan 符号，删 export 或补充 import 方');
     process.exit(1);
   }
   console.log(flagged.length ? `\n（审计模式不阻断，--strict 可升级为 ERROR）` : '\n✅ 无孤儿导出。');

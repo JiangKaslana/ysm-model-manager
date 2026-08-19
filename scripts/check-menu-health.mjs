@@ -245,6 +245,7 @@ if (JSON_MODE) {
     violations.forEach((v) => {
       console.log(`   - [${v.rule}] ${v.item} @ ${v.file}: ${v.detail}`);
     });
+    console.log('   → 修复: 检查菜单表对应字段（id/labelKey/i18n/dockGroup/kind/render/run）');
   }
   console.log('');
 }

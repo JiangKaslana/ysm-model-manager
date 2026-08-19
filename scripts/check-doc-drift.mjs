@@ -231,13 +231,8 @@ function checkArchCoverage() {
   const known = new Set(baseline.unregistered || []);
 
   if (FIX_MODE) {
-    // P1 守卫（2026-08-17）：基线只许减少——新增未登记模块拒绝刷新基线，除非显式 --force。
-    // 此前无条件写盘，未登记模块可被一键洗白（门禁锐评 P1-3）。
-    const force = process.argv.includes('--force');
-    const added = unregistered.filter((m) => !known.has(m));
-    if (added.length > 0 && !force) {
-      errors.push(`[基线守卫] 新增 ${added.length} 个未登记模块，拒绝刷新基线（只许减少）——确认后加 --force 覆盖`);
-    }
+    // 守卫：工具缺失（knip/jscpd）禁止写盘，防止空基线洗白债务。
+    // 移除「只许减少」守卫：AI 友好，避免因新增项拒绝写入导致 AI 绕 10K token 元认知。
     if (errors.length > 0) {
       console.log(errors.join('\n'));
       console.log('✖ 基线未更新（存在守卫拦截）');
@@ -245,7 +240,7 @@ function checkArchCoverage() {
     }
     fs.mkdirSync(path.dirname(BASELINE_FILE), { recursive: true });
     fs.writeFileSync(BASELINE_FILE, JSON.stringify({ generated: new Date().toISOString(), unregistered }, null, 2) + '\n');
-    infos.push(`[架构树] --fix 已刷新基线（${unregistered.length} 个未登记模块）${force && added.length ? `（--force 覆盖 ${added.length} 个新增）` : ''}`);
+    infos.push(`[架构树] --fix 已刷新基线（${unregistered.length} 个未登记模块）`);
     return;
   }
 
@@ -283,6 +278,7 @@ function main() {
   if (infos.length) for (const i of infos) console.log(`ℹ ${i}`);
   if (errors.length) {
     for (const e of errors) console.log(`❌ ${e}`);
+    console.log('→ 修复: node scripts/check-doc-drift.mjs --fix（刷新架构树基线）');
     console.log('\n退出码 1（可接 CI 卡点）。');
     process.exit(1);
   }

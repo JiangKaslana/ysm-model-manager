@@ -377,3 +377,69 @@ func TestFindInstDir_YsmConfigRootJsonOnly(t *testing.T) {
 		t.Fatalf("json 弱证据不应命中 config 树，应返回 standard: %s vs %s", got, standard)
 	}
 }
+
+// ====== FindInstDir 容器扩展名弱证据收紧（ADR-104 续：.zip/.7z 剔除）======
+
+// TestFindInstDir_BlueprintZipOnlyNotHit 蓝图（create-blueprint）的 .zip 不作为
+// 独立命中证据：整合包根下散落的 .zip（如模组安装包/资源包 zip）会被兜底扫描
+// 误判为蓝图目录。扩展集含非容器主证据（.nbt/.schematic）时剔除 .zip。
+func TestFindInstDir_BlueprintZipOnlyNotHit(t *testing.T) {
+	versionDir := t.TempDir()
+	// 含 .zip 的非标准目录（模拟整合包根下散落的 zip 安装包）
+	zipDir := filepath.Join(versionDir, "loose-zips")
+	if err := os.MkdirAll(zipDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(zipDir, "modpack.zip"), []byte("zip"), 0o644)
+	standard := filepath.Join(versionDir, "schematics")
+	got := FindInstDir(versionDir, "schematics", "create-blueprint")
+	if got != standard {
+		t.Fatalf("蓝图 .zip 弱证据不应命中 loose-zips，应返回 standard: %s vs %s", got, standard)
+	}
+}
+
+// TestFindInstDir_BlueprintZipPlusNbtHit 蓝图目录同时含 .zip 与 .nbt 仍命中
+// （非容器主证据 .nbt 独立可命中；.zip 剔除不影响含主文件的目录）。
+func TestFindInstDir_BlueprintZipPlusNbtHit(t *testing.T) {
+	versionDir := t.TempDir()
+	sable := filepath.Join(versionDir, "Sable-Schematics", "hello_new_generation_core")
+	if err := os.MkdirAll(sable, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(sable, "c1.nbt"), []byte("nbt"), 0o644)
+	_ = os.WriteFile(filepath.Join(sable, "pack.zip"), []byte("zip"), 0o644)
+	got := FindInstDir(versionDir, "schematics", "create-blueprint")
+	if got != filepath.Join(versionDir, "Sable-Schematics") {
+		t.Fatalf("含 .nbt 的蓝图目录应兜底命中: %s", got)
+	}
+}
+
+// TestFindInstDir_LitematicZipOnlyNotHit 投影（litematic）同理：仅 .zip 不命中
+func TestFindInstDir_LitematicZipOnlyNotHit(t *testing.T) {
+	versionDir := t.TempDir()
+	zipDir := filepath.Join(versionDir, "loose-zips")
+	if err := os.MkdirAll(zipDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(zipDir, "backup.zip"), []byte("zip"), 0o644)
+	standard := filepath.Join(versionDir, "schematics")
+	got := FindInstDir(versionDir, "schematics", "litematic")
+	if got != standard {
+		t.Fatalf("litematic .zip 弱证据不应命中，应返回 standard: %s vs %s", got, standard)
+	}
+}
+
+// TestFindInstDir_ResourcepackZipKept 纯容器类型（resourcepack 扩展集仅 .zip/.7z）
+// 保留 .zip 命中证据——否则其兜底扫描完全失效（回归守卫，对照 FallbackScan）。
+func TestFindInstDir_ResourcepackZipKept(t *testing.T) {
+	versionDir := t.TempDir()
+	other := filepath.Join(versionDir, "custompacks")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(other, "pack.zip"), []byte("zip"), 0o644)
+	got := FindInstDir(versionDir, "resourcepacks", "resourcepack")
+	if got != other {
+		t.Fatalf("纯容器类型 .zip 仍应兜底命中: %s vs %s", got, other)
+	}
+}

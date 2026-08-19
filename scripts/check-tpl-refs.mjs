@@ -122,6 +122,7 @@ function main() {
       console.log(`  [BROKEN] ${b.id} — ${b.file}:${b.line} 引用但模板/源码中无 id 定义`);
     }
     console.log(`\n共 ${broken.length} 条断链（JS 引用的 id 从未渲染，事件绑定静默失效）`);
+    console.log('→ 修复: 在模板中添加对应 id 的定义，或删除 JS 中未使用的 id 引用');
   } else {
     console.log('全部 id 引用均有定义');
   }

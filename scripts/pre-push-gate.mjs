@@ -367,7 +367,7 @@ async function main() {
 
     const t1 = Date.now();
     // 对齐 doctor 全量：go test 同时跑 ./internal/app/（2026-08-14 修复漏测）
-    const goTest = await shAsync('go test -race ./go/... ./internal/app/ -count=1 -timeout 10m');
+    const goTest = await shAsync('go test -race ./go/... ./internal/app/ -count=1 -timeout 60s');
     record('go test', goTest.rc === 0, { time: Date.now() - t1, tail: goTest.rc ? goTest.out.trim().split('\n').slice(-4).join('\n') : '' });
 
     const tV = Date.now();

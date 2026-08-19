@@ -120,6 +120,7 @@ function main() {
 
   if (STRICT && results.length) {
     console.log('\n退出码 1（--strict 模式阻断）。');
+    console.log('→ 修复: 重命名非布尔前缀的变量（建议 is/has/can/should/visible 前缀）');
     process.exit(1);
   }
   console.log(results.length ? '\n（WARN 级不阻断，加 --strict 可升级为 ERROR）' : '✅ 布尔命名全部合规。');

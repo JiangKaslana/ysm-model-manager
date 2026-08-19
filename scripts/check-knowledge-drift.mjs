@@ -424,6 +424,7 @@ function main() {
 
   if (errors.length) {
     for (const e of errors) console.log(`❌ ${e}`);
+    console.log('→ 修复: 按上方错误更新对应知识卡，或检查 docs/knowledge/ 下文件与源码引用一致性');
     console.log(`\n退出码 1（可接 CI 卡点）。`);
     process.exit(1);
   } else {

@@ -208,6 +208,7 @@ function main() {
   if (errors.length) {
     for (const e of errors.slice(0, 25)) console.log(`❌ ${e}`);
     if (errors.length > 25) console.log(`  … 其余 ${errors.length - 25} 条（--json 全量）`);
+    console.log('→ 修复: node scripts/check-deadcode-baseline.mjs --update-baseline（接受现状）或删除未引用导出');
     console.log('\n退出码 1（新增死代码/重复代码阻断）。');
     process.exit(1);
   }

@@ -57,18 +57,36 @@ func dirContainsFlag(root, flag string) bool {
 // ADR-095 收紧：.json 不再作为独立的「含该类型文件」证据（config 目录下模组
 // 配置文件泛滥，ysm 的扩展名含 .json 时 config 树会被误判为模型目录）；ysm 的
 // json 证据以 ysm.json 标志文件替代（解压型模型目录无 .ysm 主文件）。
+//
+// ADR-104 续收紧：容器扩展名（.zip/.7z）同样不作为独立命中证据——整合包根下
+// 散落的 .zip（模组安装包/资源包 zip）会被兜底扫描误判为蓝图/投影目录。仅当该
+// 类型扩展集还存在非容器主证据（如 .nbt/.schematic/.litematic/.ysm/.pmx）时
+// 剔除；纯容器类型（resourcepack/shaderpack 扩展集仅 .zip/.7z）保留，否则其
+// 兜底扫描完全失效（回归守卫 TestFindInstDir_ResourcepackZipKept）。
 func FindInstDir(versionDir, subDir, rtype string) string {
 	standard := filepath.Join(versionDir, subDir)
 	exts := SupportedExtsForType(rtype)
 	extSet := make(map[string]bool)
+	// 容器扩展名（zip/7z 可包裹任意资源，属弱证据）
+	containerExts := map[string]bool{".zip": true, ".7z": true}
+	hasNonContainer := false
 	for _, e := range exts {
 		low := strings.ToLower(e)
 		if low == ".json" {
 			continue // ADR-095：.json 弱证据，仅以 ysm.json 标志文件识别
 		}
 		extSet[low] = true
+		if !containerExts[low] {
+			hasNonContainer = true
+		}
 	}
-	// hit 判定：扩展名命中（剔除 .json）或 ysm 标志文件命中
+	// ADR-104 续：有非容器主证据时剔除容器弱证据；纯容器类型保留
+	if hasNonContainer {
+		for c := range containerExts {
+			delete(extSet, c)
+		}
+	}
+	// hit 判定：扩展名命中（剔除 .json/.zip/.7z 弱证据）或 ysm 标志文件命中
 	// 消费注册表 detector 字段（ADR-065 合规），不硬编码 rtype。
 	rt := RegistryType(rtype)
 	isYsm := rt != nil && rt.Detector == "ysm"

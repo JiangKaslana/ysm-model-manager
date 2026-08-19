@@ -176,6 +176,7 @@ function main() {
     for (const m of c) console.log(`   ${m}`);
   });
   console.log('\n退出码 1（可接 CI 卡点）。');
+  console.log('→ 修复: 检查环中包的 import 链，拆分或重构打破循环依赖');
   process.exit(1);
 }
 

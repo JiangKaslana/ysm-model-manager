@@ -148,6 +148,7 @@ function main() {
       console.log(`          ${w.msg}`);
     }
     console.log(`\n共 ${warns.length} 条隐患`);
+    console.log('→ 修复: 改用静态 import（顶层 import），或确保动态 import 有 try/catch 错误处理');
   } else {
     console.log('全部动态导入均符合规范（有失败处理 / 非轻量工具 / 无 .js 后缀残留）');
   }

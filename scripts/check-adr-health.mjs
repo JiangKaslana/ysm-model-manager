@@ -197,6 +197,7 @@ function main() {
 
   if (errors.length) {
     for (const e of errors) console.log(`\n❌ ${e}`);
+    console.log('→ 修复: 调整 ADR 文件状态标记与登记表一致，或运行 node scripts/new-adr.mjs 更新登记表');
     console.log('\n退出码 1（可接 CI 卡点）。');
     process.exit(1);
   }
