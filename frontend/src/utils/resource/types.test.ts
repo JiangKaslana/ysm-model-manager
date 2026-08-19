@@ -249,7 +249,10 @@ describe("MMD_SUBTYPES — 用户可导入子目录（ADR-104 注册表派生）
     expect(MMD_SUBTYPES[0].subdir).toBe("");
     // label 与注册表一致（派生前置校验，防 JSON 缺 label 显示空）
     expect(MMD_SUBTYPES[0].label).toBe("PMX 模型 (EntityPlayer)");
-    expect(MMD_SUBTYPES[1]).toEqual({ label: "场景 (SceneModel)", subdir: "SceneModel" });
+    expect(MMD_SUBTYPES[1]).toEqual({ label: "场景 (SceneModel)", subdir: "SceneModel", icon: "🏗️" });
+    // ADR-105：icon 来自 subtype 自声明（零继承）
+    expect(MMD_SUBTYPES[0].icon).toBe("🧍");
+    expect(MMD_SUBTYPES[5].icon).toBe("🎨"); // shader
   });
 });
 

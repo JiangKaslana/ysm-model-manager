@@ -61,17 +61,69 @@ type ResourceType struct {
 	NestedModelDir bool              `json:"nestedModelDir"`     // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
 }
 
-// ResourceSubType 资源类型的用途子类（ADR-104：大类→小类→防御检验三层架构）。
+// ResourceSubType 资源类型的用途子类（ADR-104/105：大类→小类→防御检验三层架构）。
 // 小类是映射整合包路径的单元（如 mmd-skin 的 3d-skin/SceneModel），
 // userImportable=false 表示系统内置目录（DefaultAnim/DefaultMorph 模组自动生成，
 // 同步需识别保留但前端导入下拉不列出）；default=true 表示默认槽（EntityPlayer）。
+//
+// ADR-105 零继承自描述：每个 subtype 自带 icon/extensions/detector/zipEntries/preview，
+// 识别链路 = 物理路径定位 subtype + subtype 自声明内容校验，绝不回溯父类型补全。
+// 缺字段 = 无该能力（如 shader preview="none" 表示不可 3D 预览）。
 type ResourceSubType struct {
-	Name           string `json:"name"`                 // 子目录名（PascalCase 规范名，如 SceneModel/shader）
-	Label          string `json:"label"`                // 显示名（前端下拉/分组用）
-	UserImportable bool   `json:"userImportable"`       // 用户可导入（false=系统内置目录）
-	Default        bool   `json:"default"`              // 默认槽（根下文件归属，如 EntityPlayer）
-	InstallDir     string `json:"installDir,omitempty"` // 小类整合包存储目录模板（如 3d-skin/SceneModel/；空=无独立目录）
-	ScanDir        string `json:"scanDir,omitempty"`    // 小类整合包扫描目录（如 3d-skin/SceneModel；空=无独立目录）
+	Name           string          `json:"name"`                 // 子目录名（PascalCase 规范名，如 SceneModel/shader）
+	Label          string          `json:"label"`                // 显示名（前端下拉/分组用）
+	Icon           string          `json:"icon"`                 // 图标（ADR-105 自声明，如 🧍/🎬）
+	UserImportable bool            `json:"userImportable"`       // 用户可导入（false=系统内置目录）
+	Default        bool            `json:"default"`              // 默认槽（根下文件归属，如 EntityPlayer）
+	Extensions     []string        `json:"extensions"`           // 该子类接受的扩展名（ADR-105 自声明）
+	Detector       string          `json:"detector"`             // 识别器（ysm/mcmeta/shader/zipentry/extension，ADR-105 自声明）
+	ZipEntries     []ZipEntryMatch `json:"zipEntries"`           // 内容指纹（导入校验用，ADR-105 自声明）
+	Preview        string          `json:"preview"`              // 预览能力（"3d"/"thumbnail"/"none"，ADR-105 自声明）
+	InstallDir     string          `json:"installDir,omitempty"` // 小类整合包存储目录模板（如 3d-skin/SceneModel/；空=无独立目录）
+	ScanDir        string          `json:"scanDir,omitempty"`    // 小类整合包扫描目录（如 3d-skin/SceneModel；空=无独立目录）
+}
+
+// AcceptsExt 判断文件扩展名（含点、大小写不敏感）是否被本子类接受。
+// ADR-105 零继承内容校验：仅本子类自声明 extensions 参与判定——
+// CustomAnim.AcceptsExt(".pmx") = false（角色模型不该进动画目录），
+// 与父类型 mmd-skin 的扩展集无关。
+func (st *ResourceSubType) AcceptsExt(ext string) bool {
+	ext = strings.ToLower(ext)
+	for _, e := range st.Extensions {
+		if strings.ToLower(e) == ext {
+			return true
+		}
+	}
+	return false
+}
+
+// MatchZipEntry 检测 ZIP 条目名是否命中本子类的特征条目（小写不敏感）。
+// ADR-105 零继承：仅本子类自声明 zipEntries 参与匹配，不合并父类型指纹——
+// CustomAnim 命中 walk.vmd 不命中 hero.pmx（父 mmd-skin 的 .pmx 指纹不继承）。
+func (st *ResourceSubType) MatchZipEntry(name string) bool {
+	low := strings.ToLower(name)
+	segs := strings.Split(strings.ReplaceAll(low, "\\", "/"), "/")
+	for i := range segs {
+		seg := strings.Join(segs[i:], "/")
+		for _, m := range st.ZipEntries {
+			mlow := strings.ToLower(m.Name)
+			switch m.Match {
+			case "prefix":
+				if strings.HasPrefix(seg, mlow) {
+					return true
+				}
+			case "suffix":
+				if strings.HasSuffix(seg, mlow) {
+					return true
+				}
+			default: // "exact"
+				if seg == mlow {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名

@@ -42,6 +42,19 @@ func SubtypeNames(rtype string) []string {
 	return out
 }
 
+// SubtypeByDir 按目录名（大小写不敏感）查 rtype 的用途子类。
+// ADR-105 消费入口：importer/scanner 经物理路径定位 subtype 后取自描述字段
+// （extensions/zipEntries/preview）做内容校验；未知类型/未知子目录返回 nil。
+func SubtypeByDir(rtype, name string) *ResourceSubType {
+	for _, s := range SubtypesFor(rtype) {
+		if strings.EqualFold(s.Name, name) {
+			cp := s
+			return &cp
+		}
+	}
+	return nil
+}
+
 // IsSubDirName 判断目录名是否为 rtype 的用途子目录（大小写不敏感，ADR-104）。
 // 替代旧 IsMMDSubDir 的 rtype 感知判定：scanner/instance/sync 在已知 rtype
 // 上下文下用本函数；未知类型恒 false。

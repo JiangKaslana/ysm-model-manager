@@ -111,6 +111,17 @@ func (a *App) importModelFileMMD(fileName, subpath, mmdSubdir, base64Data string
 	if mmdSubdir != "" && !types.IsMMDSubDir(mmdSubdir) {
 		return types.AppError{Code: types.ErrInvalidPath, Operation: "导入模型", SourcePath: mmdSubdir, Reason: "非法 MMD 用途子目录", Suggestion: "仅允许: EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/shader"}
 	}
+	// ADR-105 零继承内容校验：文件扩展名必须被目标 subtype 自声明接受——
+	// CustomAnim 目录只收 .vmd/.zip，角色模型 .pmx 导入动画目录应被拒绝
+	// （物理路径定位 subtype + subtype 自声明校验，不回溯父级 mmd-skin 扩展集）
+	if mmdSubdir != "" {
+		if sub := types.SubtypeByDir("mmd-skin", mmdSubdir); sub != nil && len(sub.Extensions) > 0 {
+			ext := strings.ToLower(filepath.Ext(fileName))
+			if !sub.AcceptsExt(ext) {
+				return types.AppError{Code: types.ErrUnsupportedType, Operation: "导入模型", SourcePath: fileName, Reason: fmt.Sprintf("文件格式与用途子目录 %s 不匹配", mmdSubdir), Suggestion: "仅允许: " + strings.Join(sub.Extensions, " / ")}
+			}
+		}
+	}
 	// 拼接子目录：mmdSubdir 在前，subpath 在后（如有）。
 	fullSubpath := mmdSubdir
 	if subpath != "" {

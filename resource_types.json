@@ -205,14 +205,78 @@
       "dirLevelSync": true,
       "subDirGrouping": true,
       "subtypes": [
-        { "name": "EntityPlayer", "label": "PMX 模型 (EntityPlayer)", "userImportable": true, "default": true, "installDir": "3d-skin/EntityPlayer/" },
-        { "name": "SceneModel", "label": "场景 (SceneModel)", "userImportable": true, "installDir": "3d-skin/SceneModel/" },
-        { "name": "CustomAnim", "label": "自定义动画 (CustomAnim)", "userImportable": true, "installDir": "3d-skin/CustomAnim/" },
-        { "name": "CustomMorph", "label": "自定义表情 (CustomMorph)", "userImportable": true, "installDir": "3d-skin/CustomMorph/" },
-        { "name": "StageAnim", "label": "舞台 (StageAnim)", "userImportable": true, "installDir": "3d-skin/StageAnim/" },
-        { "name": "shader", "label": "着色器 (shader)", "userImportable": true, "installDir": "3d-skin/shader/" },
-        { "name": "DefaultAnim", "label": "默认动画 (DefaultAnim)", "userImportable": false, "installDir": "3d-skin/DefaultAnim/" },
-        { "name": "DefaultMorph", "label": "默认表情 (DefaultMorph)", "userImportable": false, "installDir": "3d-skin/DefaultMorph/" }
+        {
+          "name": "EntityPlayer", "label": "PMX 模型 (EntityPlayer)", "icon": "🧍",
+          "userImportable": true, "default": true,
+          "extensions": [".pmx", ".pmd", ".vmd", ".vpd", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "3d-skin/EntityPlayer/", "scanDir": "3d-skin/EntityPlayer"
+        },
+        {
+          "name": "SceneModel", "label": "场景 (SceneModel)", "icon": "🏗️",
+          "userImportable": true,
+          "extensions": [".pmx", ".pmd", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "3d-skin/SceneModel/", "scanDir": "3d-skin/SceneModel"
+        },
+        {
+          "name": "CustomAnim", "label": "自定义动画 (CustomAnim)", "icon": "🎬",
+          "userImportable": true,
+          "extensions": [".vmd", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "3d-skin/CustomAnim/", "scanDir": "3d-skin/CustomAnim"
+        },
+        {
+          "name": "CustomMorph", "label": "自定义表情 (CustomMorph)", "icon": "😊",
+          "userImportable": true,
+          "extensions": [".vpd", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "3d-skin/CustomMorph/", "scanDir": "3d-skin/CustomMorph"
+        },
+        {
+          "name": "StageAnim", "label": "舞台 (StageAnim)", "icon": "🎭",
+          "userImportable": true,
+          "extensions": [".vmd", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "3d-skin/StageAnim/", "scanDir": "3d-skin/StageAnim"
+        },
+        {
+          "name": "shader", "label": "着色器 (shader)", "icon": "🎨",
+          "userImportable": true,
+          "extensions": [".glsl", ".vsh", ".fsh", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".glsl", "match": "suffix" }],
+          "preview": "none",
+          "installDir": "3d-skin/shader/", "scanDir": "3d-skin/shader"
+        },
+        {
+          "name": "DefaultAnim", "label": "默认动画 (DefaultAnim)", "icon": "🎞️",
+          "userImportable": false,
+          "extensions": [".vmd", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "3d-skin/DefaultAnim/", "scanDir": "3d-skin/DefaultAnim"
+        },
+        {
+          "name": "DefaultMorph", "label": "默认表情 (DefaultMorph)", "icon": "🙂",
+          "userImportable": false,
+          "extensions": [".vpd", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "3d-skin/DefaultMorph/", "scanDir": "3d-skin/DefaultMorph"
+        }
       ],
       "installExts": [".pmx", ".pmd", ".vmd", ".vpd", ".json", ".png", ".tga", ".spa", ".sph"],
       "actions": [

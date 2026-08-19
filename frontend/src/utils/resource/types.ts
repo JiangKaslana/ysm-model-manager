@@ -104,21 +104,23 @@ export const GROUP_TYPE_OPTIONS: Record<string, Array<{ rtype: string; label: st
 })();
 
 /**
- * MMD 子类型目录选项（ADR-094 位置路由 + ADR-104 注册表派生）。
+ * MMD 子类型目录选项（ADR-094 位置路由 + ADR-104/105 注册表派生）。
  * ⚠️ 大小写约定：subdir 字段恒驼峰原样（如 SceneModel/CustomAnim），消费方比较
  * 统一 toLowerCase()（renderer/app-nav 同款）。
  * 派生规则：从 resource_types.json 的 mmd-skin.subtypes[] 取 userImportable=true 项，
- * default 槽（EntityPlayer，storageSubDir 同款）subdir=""，其余 subdir=name。
+ * default 槽（EntityPlayer，storageSubDir 同款）subdir=""，其余 subdir=name；
+ * icon 来自 subtype 自声明（ADR-105 零继承）。
  * DefaultAnim/DefaultMorph 系统内置目录 userImportable=false 天然不列出——
  * Go 端同步识别保留（SubtypeNames 全量），前端下拉仅用户可导入项。
  */
-export const MMD_SUBTYPES: Array<{ label: string; subdir: string }> = (() => {
+export const MMD_SUBTYPES: Array<{ label: string; subdir: string; icon: string }> = (() => {
   const mmd = (resourceTypesJson as {
     resourceTypes?: Array<{
       id?: string;
       subtypes?: Array<{
         name?: string;
         label?: string;
+        icon?: string;
         userImportable?: boolean;
         default?: boolean;
       }>;
@@ -129,6 +131,7 @@ export const MMD_SUBTYPES: Array<{ label: string; subdir: string }> = (() => {
     .map((s) => ({
       label: s.label || s.name || "",
       subdir: s.default ? "" : s.name || "",
+      icon: s.icon || "🎭",
     }));
 })();
 
