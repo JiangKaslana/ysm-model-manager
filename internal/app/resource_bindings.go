@@ -23,8 +23,9 @@ import (
 
 // LoadResourceTypes 加载资源类型注册表
 func (a *App) LoadResourceTypes() string {
-	data, err := loadBundledData("resource_types.json")
-	if err != nil {
+	// 单源化：直接返回 go/types 内嵌的 resource_types.json（internal/app 复用同一 embed）
+	data := types.BundledRegistryJSON()
+	if len(data) == 0 {
 		return "{}"
 	}
 	return string(data)
@@ -153,18 +154,10 @@ func (a *App) SetVoxelMaxBlocks(limit int) error {
 
 // DetectResourceType 检测指定文件的资源类型
 func (a *App) DetectResourceType(path string) string {
-	var registry types.ResourceTypeRegistry
-	if data, err := loadBundledData("resource_types.json"); err == nil {
-		// json.Unmarshal 忽略 err——损坏 JSON → 空注册表 →
-		// 检测全部返回 ""（静默失效）；显式 log + 回退嵌入基线
-		if uerr := json.Unmarshal(data, &registry); uerr != nil {
-			log.Printf("[app] DetectResourceType: resource_types.json 解析失败: %v, 回退嵌入基线", uerr)
-			registry = *types.LoadRegistry()
-		}
-	} else {
-		registry = *types.LoadRegistry()
-	}
-	return packs.DetectResourceType(path, &registry)
+	// 单源化：registry 直接来自 go/types 内嵌的 resource_types.json
+	// （internal/app 复用 types.BundledRegistryJSON 同一 embed），解析失败兜底 LoadRegistry
+	registry := types.LoadRegistry()
+	return packs.DetectResourceType(path, registry)
 }
 
 // GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。

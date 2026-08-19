@@ -35,7 +35,7 @@
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `texture_cache/` | 纹理缓存管理（KTX2/PNG 缓存，支持后台编码与快速命中） 〔源码 1: texture_cache.go · 测试 1〕 |
 | `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 5〕 |
-| `types/` | 共享类型 + 注册表 〔源码 7: bedrock.go config.go embed_probe.go extensions.go findinst.go resource.go types.go · 测试 8〕 |
+| `types/` | 共享类型 + 注册表 〔源码 6: bedrock.go config.go extensions.go findinst.go resource.go types.go · 测试 9〕 |
 | `updater/` | 自动更新 〔源码 3: updater.go updater_other.go updater_windows.go · 测试 8〕 |
 | `version/` | 版本号 〔源码 1: version.go · 测试 1〕 |
 | `watcher/` | 文件监听 〔源码 1: watcher.go · 测试 2〕 |
@@ -49,7 +49,7 @@
 
 | 包 | 用途 |
 |----|------|
-| `app/` | Wails Binding 入口（app.go / resource_bindings.go） 〔源码 38 · 测试 15〕 |
+| `app/` | Wails Binding 入口（app.go / resource_bindings.go） 〔源码 37 · 测试 15〕 |
 
 <!-- /GEN: internal-structure -->
 
@@ -93,6 +93,7 @@
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
 | `opencode.json` | OpenCode AI 编辑器配置（IDE 集成） |
+| `resource_types.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |
 | `workshop_sites.json` | 工坊站点配置 |

@@ -454,10 +454,9 @@ func (a *App) GetInstanceSyncStatus(instanceName string) string {
 	var registry struct {
 		ResourceTypes []instance.ResourceTypeInfo `json:"resourceTypes"`
 	}
-	if data, err := loadBundledData("resource_types.json"); err == nil {
-		// json.Unmarshal 忽略 err——外部 resource_types.json
-		// 损坏时 registry 为空、同步页静默显示空（旁路解析绕过 types.LoadRegistry 的
-		// 嵌入基线回退）；显式 log + 回退嵌入基线，与 Go 其它路径行为一致
+	if data := types.BundledRegistryJSON(); len(data) > 0 {
+		// json.Unmarshal 忽略 err——内嵌 resource_types.json 损坏时 registry 为空、
+		// 同步页静默显示空；显式 log + 回退 LoadRegistry，与 Go 其它路径行为一致
 		if uerr := json.Unmarshal(data, &registry); uerr != nil {
 			log.Printf("[app] resource_types.json 解析失败: %v, 回退嵌入基线", uerr)
 			if rt := types.LoadRegistry(); rt != nil {

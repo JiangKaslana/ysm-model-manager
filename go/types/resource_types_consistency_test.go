@@ -6,98 +6,72 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
+	"reflect"
 	"testing"
+
+	"ysm-model-manager/go/types"
 )
 
-// TestResourceTypesEmbedJSONConsistency 确保 embed.go 编译期内嵌数据与根
-// resource_types.json 逐字段一致（历史曾漂移：create-blueprint.name「蓝图」vs「蓝图 / 结构」）。
-// 任一方新增/修改资源类型时，另一侧不同步即构建失败。
+// TestResourceTypesEmbedJSONConsistency 验证单源化契约：
+// LoadRegistry()（单源：仓库根 resource_types.json，经 root embed.go 注入 go/types 的 bundledRegistryJSON，
+// build 即同步）产出的注册表，与直接解码仓库根 resource_types.json 得到的注册表逐类型完全一致。
+//
+// 旧设计存在两份副本（root JSON + 手工 embeddedRegistryJSON），不同步会弹平大类或卡死新格式同步；
+// 单源化后二者同源，旧手工副本已删除。TestMain 已将根文件注入 bundledRegistryJSON，
+// 此处再强制 SetRegistryPath 指向根文件并清空包级缓存，使 LoadRegistry 重读根文件——
+// 从而验证「文件→结构体」与「LoadRegistry→结构体」两条路径零差异。
+// 任一字段漂移（误改某处、漏改结构标签、副本再次分裂）即失败，永久消灭双副本漂移。
 func TestResourceTypesEmbedJSONConsistency(t *testing.T) {
-	// 读取根 resource_types.json
+	// 读取仓库根 resource_types.json（单一事实来源）
 	jsonPath := filepath.Join("..", "..", "resource_types.json")
 	raw, err := os.ReadFile(jsonPath)
 	if err != nil {
 		t.Fatalf("read resource_types.json: %v", err)
 	}
-	var wrapper struct {
-		ResourceTypes []map[string]any `json:"resourceTypes"`
-	}
-	if err := json.Unmarshal(raw, &wrapper); err != nil {
+
+	// 直接解码根文件 → 结构体（与 LoadRegistry 同构，避免 map/struct 字段不对称）
+	var fileReg types.ResourceTypeRegistry
+	if err := json.Unmarshal(raw, &fileReg); err != nil {
 		t.Fatalf("parse resource_types.json: %v", err)
 	}
-	fromJSON := wrapper.ResourceTypes
-
-	// 从 embed 源文件提取内嵌 JSON（字符串常量 `` 内容）
-	embedPath := filepath.Join("..", "..", "go", "types", "resource_types_embed.go")
-	src, err := os.ReadFile(embedPath)
-	if err != nil {
-		t.Fatalf("read resource_types_embed.go: %v", err)
-	}
-	embedJSON := extractEmbeddedJSON(string(src))
-	if embedJSON == "" {
-		t.Fatal("could not extract JSON from resource_types_embed.go")
-	}
-	var embedWrapper struct {
-		ResourceTypes []map[string]any `json:"resourceTypes"`
-	}
-	if err := json.Unmarshal([]byte(embedJSON), &embedWrapper); err != nil {
-		t.Fatalf("parse embed JSON: %v", err)
-	}
-	fromEmbedSlice := embedWrapper.ResourceTypes
-
-	if len(fromJSON) != len(fromEmbedSlice) {
-		t.Fatalf("length mismatch: JSON=%d embed=%d", len(fromJSON), len(fromEmbedSlice))
+	if len(fileReg.ResourceTypes) == 0 {
+		t.Fatalf("root resource_types.json decoded to 0 types (unexpected)")
 	}
 
-	// 按 id 建立索引比对
-	byID := make(map[string]map[string]any, len(fromJSON))
-	for _, item := range fromJSON {
-		id, _ := item["id"].(string)
-		byID[id] = item
-	}
-	byIDEmbed := make(map[string]map[string]any, len(fromEmbedSlice))
-	for _, item := range fromEmbedSlice {
-		id, _ := item["id"].(string)
-		byIDEmbed[id] = item
+	// 强制 LoadRegistry 重读根文件（清空包级缓存、指向根路径），走应用真实加载路径
+	types.SetRegistryPath(jsonPath)
+	defer types.SetRegistryPath("")
+	reg := types.LoadRegistry()
+	if len(reg.ResourceTypes) == 0 {
+		t.Fatalf("LoadRegistry() returned 0 types (fallback baseline empty?)")
 	}
 
-	for id, jv := range byID {
-		ev, ok := byIDEmbed[id]
+	// 按 id 建索引比对（忽略顺序，去重不改变语义）
+	byIDFile := make(map[string]types.ResourceType, len(fileReg.ResourceTypes))
+	for _, rt := range fileReg.ResourceTypes {
+		if _, dup := byIDFile[rt.ID]; dup {
+			t.Fatalf("root resource_types.json 含重复 id %q（数据缺陷，需先修源）", rt.ID)
+		}
+		byIDFile[rt.ID] = rt
+	}
+	byIDReg := make(map[string]types.ResourceType, len(reg.ResourceTypes))
+	for _, rt := range reg.ResourceTypes {
+		byIDReg[rt.ID] = rt
+	}
+
+	for id, fv := range byIDFile {
+		rv, ok := byIDReg[id]
 		if !ok {
-			t.Errorf("id %q present in JSON but missing in embed", id)
+			t.Errorf("id %q present in root JSON but missing in LoadRegistry()", id)
 			continue
 		}
-		jb, _ := json.Marshal(jv)
-		eb, _ := json.Marshal(ev)
-		if string(jb) != string(eb) {
-			t.Errorf("mismatch for id %q\n  JSON:   %s\n  Embed:  %s", id, jb, eb)
+		if !reflect.DeepEqual(fv, rv) {
+			t.Errorf("mismatch for id %q\n  root JSON:   %+v\n  LoadRegistry: %+v", id, fv, rv)
 		}
 	}
-	for id := range byIDEmbed {
-		if _, ok := byID[id]; !ok {
-			t.Errorf("id %q present in embed but missing in JSON", id)
+	for id := range byIDReg {
+		if _, ok := byIDFile[id]; !ok {
+			t.Errorf("id %q present in LoadRegistry() but missing in root JSON", id)
 		}
 	}
-}
-
-// extractEmbeddedJSON 从 resource_types_embed.go 中提取 []byte(`...`) 内的 JSON。
-// 找 embeddedRegistryJSON = []byte(`...`) 的模式，返回 “ 之间的内容。
-func extractEmbeddedJSON(src string) string {
-	const prefix = "embeddedRegistryJSON = []byte("
-	idx := strings.Index(src, prefix)
-	if idx < 0 {
-		return ""
-	}
-	rest := src[idx+len(prefix):]
-	// 去掉开头的反引号
-	if len(rest) > 0 && rest[0] == '`' {
-		rest = rest[1:]
-	}
-	// 找结尾的反引号
-	end := strings.LastIndex(rest, "`")
-	if end < 0 {
-		return ""
-	}
-	return rest[:end]
 }

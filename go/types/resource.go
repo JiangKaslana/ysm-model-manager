@@ -10,6 +10,17 @@ import (
 	"sync"
 )
 
+// bundledRegistryJSON 是编译期内嵌的 resource_types.json（单一事实来源）。
+// 由根包 main 在 init() 中经 embed.go 读取并注入（types.SetBundledRegistryJSON），
+// 与 internal/app 共用同一份 root embed，彻底取代旧的手工副本 resource_types_embed.go
+// （曾因不同步导致分类被回退弹平）。测试/未注入场景下由 loadRegistryBytes 回退读取仓库根 resource_types.json。
+var bundledRegistryJSON []byte
+
+// SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。
+func SetBundledRegistryJSON(b []byte) {
+	bundledRegistryJSON = b
+}
+
 // ResourceTypeRegistry 资源类型注册表
 type ResourceTypeRegistry struct {
 	ResourceGroups []ResourceGroup `json:"resourceGroups,omitempty"` // 分组元数据（ADR-092）
@@ -123,7 +134,7 @@ func LoadRegistry() *ResourceTypeRegistry {
 		// 复用 reg 解码基线会得到「基线 + 损坏文件残留字段」的混合注册表
 		// （baseline 缺 configFallback 等字段时残留值存活），违反「回退=干净基线」契约
 		var baseline ResourceTypeRegistry
-		if err := json.Unmarshal(embeddedRegistryJSON, &baseline); err != nil {
+		if err := json.Unmarshal(bundledRegistryJSON, &baseline); err != nil {
 			// 嵌入基线本身损坏（生成文件被破坏）时仍不 panic，但标记空表避免二次解析
 			log.Printf("[types] 嵌入基线解析也失败: %v", err)
 			registry = &ResourceTypeRegistry{}
@@ -137,7 +148,7 @@ func LoadRegistry() *ResourceTypeRegistry {
 	if len(reg.ResourceTypes) == 0 {
 		log.Printf("[types] 外部注册表为空（%d 条目），回退嵌入基线", len(reg.ResourceTypes))
 		var baseline ResourceTypeRegistry
-		if err := json.Unmarshal(embeddedRegistryJSON, &baseline); err != nil {
+		if err := json.Unmarshal(bundledRegistryJSON, &baseline); err != nil {
 			registry = &ResourceTypeRegistry{}
 			return registry
 		}
@@ -170,7 +181,8 @@ func LoadRegistry() *ResourceTypeRegistry {
 // loadRegistryBytes 按优先级解析注册表字节：
 //  1. 显式路径（SetRegistryPath 设置的测试/自定义绝对路径）；
 //  2. exe 同级 / 上级目录（部署 / updater 热更位），彻底摆脱对 cwd 的依赖；
-//  3. 编译期嵌入的基线 embeddedRegistryJSON。
+//  3. 编译期嵌入的单源字节 bundledRegistryJSON（由根包 main 经 embed.go 注入，等同仓库根 resource_types.json）。
+//  4. 测试/未注入场景：仓库根 resource_types.json（go/types 包目录的 ../../resource_types.json）。
 //
 // 默认 registryPath 为相对名 "resource_types.json" 时视为未显式设置，跳过 cwd 裸读。
 func loadRegistryBytes() []byte {
@@ -190,7 +202,21 @@ func loadRegistryBytes() []byte {
 			}
 		}
 	}
-	return embeddedRegistryJSON
+	if len(bundledRegistryJSON) > 0 {
+		return bundledRegistryJSON
+	}
+	// 测试/未注入场景：从 go/types 包目录回退读取仓库根 resource_types.json
+	if b, err := os.ReadFile(filepath.Join("..", "..", "resource_types.json")); err == nil {
+		return b
+	}
+	return bundledRegistryJSON
+}
+
+// BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。
+// internal/app 复用同一 embed（LoadResourceTypes / DetectResourceType / 同步状态），
+// 避免双嵌与副本漂移。
+func BundledRegistryJSON() []byte {
+	return bundledRegistryJSON
 }
 
 // RegistryType 按 id 查找资源类型，不存在时返回 nil
