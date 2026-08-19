@@ -28,6 +28,7 @@ type CmdContext struct {
 	App       *app.App
 	FilesRoot string
 	Args      []string
+	JsonMode  bool
 }
 
 // CliCommand 命令注册结构
@@ -67,7 +68,7 @@ func GetAllCommands() []CliCommand {
 }
 
 // DispatchCommand 分发命令执行
-func DispatchCommand(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, linkMode, theme string) error, filesRoot string, commandArgs []string, requireFilesRoot bool) error {
+func DispatchCommand(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, linkMode, theme string) error, filesRoot string, jsonMode bool, commandArgs []string, requireFilesRoot bool) error {
 	if len(commandArgs) == 0 {
 		return nil
 	}
@@ -97,7 +98,7 @@ func DispatchCommand(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, li
 		}
 	}
 
-	ctx := &CmdContext{App: a, FilesRoot: filesRoot, Args: commandArgs[1:]}
+	ctx := &CmdContext{App: a, FilesRoot: filesRoot, Args: commandArgs[1:], JsonMode: jsonMode}
 	if err := cmd.Run(ctx); err != nil {
 		return err
 	}

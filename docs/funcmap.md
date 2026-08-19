@@ -68,33 +68,33 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RunCLI()` | `go/cli/cli:17` | RunCLI 执行 CLI 模式 |
-| `ExecuteCLIWithApp()` | `go/cli/cli:45` | ExecuteCLIWithApp 执行 CLI 命令 |
+| `RunCLI()` | `go/cli/cli:18` | RunCLI 执行 CLI 模式 |
+| `ExecuteCLIWithApp()` | `go/cli/cli:76` | ExecuteCLIWithApp 执行 CLI 命令 |
 | `NewJsonSuccess()` | `go/cli/json:38` | NewJsonSuccess 创建成功响应 |
 | `NewJsonError()` | `go/cli/json:49` | NewJsonError 创建错误响应 |
 | `NewJsonNotSupported()` | `go/cli/json:80` | NewJsonNotSupported 创建平台不支持响应 |
 | `JsonResponse.ToJson()` | `go/cli/json:93` | ToJson 将响应序列化为 JSON 字符串 |
-| `IsCommandAllowed()` | `go/cli/json:125` | IsCommandAllowed 检查命令是否在白名单中 |
-| `GetAllowedCommands()` | `go/cli/json:130` | GetAllowedCommands 返回允许的命令列表 |
+| `IsCommandAllowed()` | `go/cli/json:127` | IsCommandAllowed 检查命令是否在白名单中 |
+| `GetAllowedCommands()` | `go/cli/json:132` | GetAllowedCommands 返回允许的命令列表 |
 | `JsonResponse()` | `go/cli/json:11` | JsonResponse 统一 JSON 输出协议 |
 | `JsonError()` | `go/cli/json:21` | JsonError 错误详情 |
 | `TimingInfo()` | `go/cli/json:28` | TimingInfo 耗时统计 |
 | `MetaInfo()` | `go/cli/json:33` | MetaInfo 元信息 |
-| `RegisterCommand()` | `go/cli/registry:43` | RegisterCommand 注册一个 CLI 子命令 |
-| `GetCommand()` | `go/cli/registry:55` | GetCommand 获取已注册的命令 |
-| `GetAllCommands()` | `go/cli/registry:61` | GetAllCommands 获取所有已注册命令 |
-| `DispatchCommand()` | `go/cli/registry:70` | DispatchCommand 分发命令执行 |
+| `RegisterCommand()` | `go/cli/registry:44` | RegisterCommand 注册一个 CLI 子命令 |
+| `GetCommand()` | `go/cli/registry:56` | GetCommand 获取已注册的命令 |
+| `GetAllCommands()` | `go/cli/registry:62` | GetAllCommands 获取所有已注册命令 |
+| `DispatchCommand()` | `go/cli/registry:71` | DispatchCommand 分发命令执行 |
 | `AppAdapter()` | `go/cli/registry:10` | AppAdapter CLI 所需的 App 功能接口 |
 | `AppConfigData()` | `go/cli/registry:16` | AppConfigData 应用配置数据 |
 | `CmdContext()` | `go/cli/registry:27` | CmdContext 统一命令执行上下文 |
-| `CliCommand()` | `go/cli/registry:34` | CliCommand 命令注册结构 |
+| `CliCommand()` | `go/cli/registry:35` | CliCommand 命令注册结构 |
 | `ErrParam.Error()` | `go/cli/shared:25` | — |
 | `ErrParam.Unwrap()` | `go/cli/shared:32` | — |
 | `ErrRuntime.Error()` | `go/cli/shared:40` | — |
 | `ErrRuntime.Unwrap()` | `go/cli/shared:47` | — |
 | `ExitCodeOf()` | `go/cli/shared:50` | ExitCodeOf 根据错误类型返回退出码 |
 | `PrintError()` | `go/cli/shared:59` | PrintError 输出错误到 stderr |
-| `ParseCommandArgs()` | `go/cli/shared:68` | ParseCommandArgs 从参数中提取 files-root 和命令参数 返回: filesRoot, commandArgs（不含 files-root 的剩余参数） |
+| `ParseCommandArgs()` | `go/cli/shared:68` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
 | `ErrParam()` | `go/cli/shared:20` | ErrParam 参数错误（exit code 2） |
 | `ErrRuntime()` | `go/cli/shared:35` | ErrRuntime 运行时业务错误（exit code 1） |
 | `Bridge.ExecuteCLI()` | `go/cli/wails_bridge:20` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） 前端调用: await window.Bridge.ExecuteCLI(command, ar |
@@ -714,8 +714,8 @@
 | `App.GetAppVersion()` | `internal/app/app:236` | GetAppVersion 返回当前版本号 |
 | `App()` | `internal/app/app:28` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
-| `App.ExecuteCLI()` | `internal/app/cli_bridge:37` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
-| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:121` | GetAllowedCLICommands 返回允许的 CLI 命令列表 |
+| `App.ExecuteCLI()` | `internal/app/cli_bridge:39` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
+| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:123` | GetAllowedCLICommands 返回允许的 CLI 命令列表 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
@@ -1045,20 +1045,20 @@
 | `CLIData()` | `frontend/src/services/cli-bridge:25` | CLI 响应数据 |
 | `CLIResponse()` | `frontend/src/services/cli-bridge:34` | CLI 统一响应 |
 | `ALLOWED_CLI_COMMANDS()` | `frontend/src/services/cli-bridge:44` | 允许的 CLI 命令白名单（与后端保持同步） |
-| `AllowedCLICommand()` | `frontend/src/services/cli-bridge:65` | — |
-| `executeCLI()` | `frontend/src/services/cli-bridge:75` | 执行 CLI 命令（核心入口） |
-| `getAllowedCLICommands()` | `frontend/src/services/cli-bridge:123` | 获取允许的 CLI 命令列表 |
-| `cliSearch()` | `frontend/src/services/cli-bridge:139` | 搜索模型 |
-| `cliList()` | `frontend/src/services/cli-bridge:148` | 列出所有模型 |
-| `cliAnalyze()` | `frontend/src/services/cli-bridge:153` | 分析模型 |
-| `cliVerify()` | `frontend/src/services/cli-bridge:158` | 验证模型 |
-| `cliBenchmark()` | `frontend/src/services/cli-bridge:163` | 基准测试 |
-| `cliSingleBench()` | `frontend/src/services/cli-bridge:168` | 单模型基准测试 |
-| `cliPerfLog()` | `frontend/src/services/cli-bridge:173` | 性能日志 |
-| `cliCacheStatus()` | `frontend/src/services/cli-bridge:178` | 缓存状态查询 |
-| `cliCacheVerify()` | `frontend/src/services/cli-bridge:183` | 缓存验证 |
-| `buildArgsMap()` | `frontend/src/services/cli-bridge:190` | 构建参数 map（过滤 undefined 和 null） |
-| `parseCLIResponse()` | `frontend/src/services/cli-bridge:201` | 解析 CLI JSON 响应 |
+| `AllowedCLICommand()` | `frontend/src/services/cli-bridge:67` | — |
+| `executeCLI()` | `frontend/src/services/cli-bridge:77` | 执行 CLI 命令（核心入口） |
+| `getAllowedCLICommands()` | `frontend/src/services/cli-bridge:125` | 获取允许的 CLI 命令列表 |
+| `cliSearch()` | `frontend/src/services/cli-bridge:141` | 搜索模型 |
+| `cliList()` | `frontend/src/services/cli-bridge:150` | 列出所有模型 |
+| `cliAnalyze()` | `frontend/src/services/cli-bridge:155` | 分析模型 |
+| `cliVerify()` | `frontend/src/services/cli-bridge:160` | 验证模型 |
+| `cliBenchmark()` | `frontend/src/services/cli-bridge:165` | 基准测试 |
+| `cliSingleBench()` | `frontend/src/services/cli-bridge:170` | 单模型基准测试 |
+| `cliPerfLog()` | `frontend/src/services/cli-bridge:175` | 性能日志 |
+| `cliCacheStatus()` | `frontend/src/services/cli-bridge:180` | 缓存状态查询 |
+| `cliCacheVerify()` | `frontend/src/services/cli-bridge:185` | 缓存验证 |
+| `buildArgsMap()` | `frontend/src/services/cli-bridge:192` | 构建参数 map（过滤 undefined 和 null） |
+| `parseCLIResponse()` | `frontend/src/services/cli-bridge:203` | 解析 CLI JSON 响应 |
 | `ServiceName()` | `frontend/src/services/registry:11` | 已知服务名（新服务先在 app-modules.ts 注册，再在此登记） |
 | `register()` | `frontend/src/services/registry:18` | 注册一个服务（.ts 调用方：register("name", impl as X) 声明类型；重复注册覆盖旧实例并告警） |
 | `get()` | `frontend/src/services/registry:24` | 获取一个服务（.ts 调用方：get&lt;X&gt;("name") 断言期望类型；未注册抛错，错误含服务名） |

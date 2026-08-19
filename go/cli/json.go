@@ -119,6 +119,8 @@ var jsonAllowedCommands = map[string]bool{
 	"cache-diag":       true,
 	"config-show":      true,
 	"gui-flow":         true,
+	"resource-scan":    true,
+	"repo-audit":       true,
 }
 
 // IsCommandAllowed 检查命令是否在白名单中

@@ -63,15 +63,17 @@ func PrintError(err error) {
 	fmt.Fprintf(os.Stderr, "❌ %v\n", err)
 }
 
-// ParseCommandArgs 从参数中提取 files-root 和命令参数
-// 返回: filesRoot, commandArgs（不含 files-root 的剩余参数）
-func ParseCommandArgs(args []string) (filesRoot string, commandArgs []string) {
+// ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数
+// 返回: filesRoot, jsonMode, commandArgs（不含全局参数的剩余参数）
+func ParseCommandArgs(args []string) (filesRoot string, jsonMode bool, commandArgs []string) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--files-root" && i+1 < len(args) {
 			filesRoot = args[i+1]
 			i++
 		} else if strings.HasPrefix(args[i], "--files-root=") {
 			filesRoot = strings.TrimPrefix(args[i], "--files-root=")
+		} else if args[i] == "--json" {
+			jsonMode = true
 		} else {
 			commandArgs = append(commandArgs, args[i])
 		}

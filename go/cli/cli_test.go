@@ -731,9 +731,12 @@ func TestExport_InvalidPath(t *testing.T) {
 
 func TestParseCommandArgs_Basic(t *testing.T) {
 	args := []string{"--files-root", "/models", "search", "--keyword", "test"}
-	filesRoot, cmdArgs := ParseCommandArgs(args)
+	filesRoot, jsonMode, cmdArgs := ParseCommandArgs(args)
 	if filesRoot != "/models" {
 		t.Errorf("filesRoot 应为 /models, got: %s", filesRoot)
+	}
+	if jsonMode {
+		t.Error("不应启用 jsonMode")
 	}
 	if len(cmdArgs) != 3 {
 		t.Errorf("应有 3 个命令参数, got: %d", len(cmdArgs))
@@ -742,9 +745,12 @@ func TestParseCommandArgs_Basic(t *testing.T) {
 
 func TestParseCommandArgs_InlineFormat(t *testing.T) {
 	args := []string{"--files-root=/models", "list"}
-	filesRoot, cmdArgs := ParseCommandArgs(args)
+	filesRoot, jsonMode, cmdArgs := ParseCommandArgs(args)
 	if filesRoot != "/models" {
 		t.Errorf("filesRoot 应为 /models, got: %s", filesRoot)
+	}
+	if jsonMode {
+		t.Error("不应启用 jsonMode")
 	}
 	if len(cmdArgs) != 1 || cmdArgs[0] != "list" {
 		t.Errorf("命令参数应只有 list, got: %v", cmdArgs)
@@ -753,9 +759,12 @@ func TestParseCommandArgs_InlineFormat(t *testing.T) {
 
 func TestParseCommandArgs_NoFilesRoot(t *testing.T) {
 	args := []string{"search", "--keyword", "test"}
-	filesRoot, cmdArgs := ParseCommandArgs(args)
+	filesRoot, jsonMode, cmdArgs := ParseCommandArgs(args)
 	if filesRoot != "" {
 		t.Errorf("无 files-root 应为空, got: %s", filesRoot)
+	}
+	if jsonMode {
+		t.Error("不应启用 jsonMode")
 	}
 	if len(cmdArgs) != 3 {
 		t.Errorf("应有 3 个命令参数, got: %d", len(cmdArgs))
@@ -926,7 +935,7 @@ func TestAllCommandsRegistered(t *testing.T) {
 
 func TestDispatchCommand_RequiresFilesRoot(t *testing.T) {
 	a := app.NewApp()
-	err := DispatchCommand(a, a.SaveAppConfig, "", []string{"search"}, true)
+	err := DispatchCommand(a, a.SaveAppConfig, "", false, []string{"search"}, true)
 	if err == nil {
 		t.Error("requireFilesRoot=true 且 filesRoot 为空时应返回错误")
 	}
@@ -937,7 +946,7 @@ func TestDispatchCommand_RequiresFilesRoot(t *testing.T) {
 
 func TestDispatchCommand_AllowsEmptyFilesRoot(t *testing.T) {
 	a := app.NewApp()
-	err := DispatchCommand(a, a.SaveAppConfig, "", []string{"cache-status"}, false)
+	err := DispatchCommand(a, a.SaveAppConfig, "", false, []string{"cache-status"}, false)
 	if err != nil {
 		t.Logf("无 files-root 时 dispatch 返回: %v（可能正常）", err)
 	}
@@ -946,7 +955,7 @@ func TestDispatchCommand_AllowsEmptyFilesRoot(t *testing.T) {
 func TestDispatchCommand_UnknownCommand(t *testing.T) {
 	a := app.NewApp()
 	dir := t.TempDir()
-	err := DispatchCommand(a, a.SaveAppConfig, dir, []string{"no-such-cmd"}, false)
+	err := DispatchCommand(a, a.SaveAppConfig, dir, false, []string{"no-such-cmd"}, false)
 	if err == nil {
 		t.Error("未知命令应返回错误")
 	}
@@ -958,7 +967,7 @@ func TestDispatchCommand_UnknownCommand(t *testing.T) {
 func TestDispatchCommand_SubCommandHelp(t *testing.T) {
 	a := app.NewApp()
 	out := captureOutput(t, func() {
-		err := DispatchCommand(a, a.SaveAppConfig, "", []string{"search", "--help"}, false)
+		err := DispatchCommand(a, a.SaveAppConfig, "", false, []string{"search", "--help"}, false)
 		if err != nil {
 			t.Errorf("--help 应返回 nil, got: %v", err)
 		}
@@ -970,7 +979,7 @@ func TestDispatchCommand_SubCommandHelp(t *testing.T) {
 
 func TestDispatchCommand_EmptyCommandList(t *testing.T) {
 	a := app.NewApp()
-	err := DispatchCommand(a, a.SaveAppConfig, "", nil, false)
+	err := DispatchCommand(a, a.SaveAppConfig, "", false, nil, false)
 	if err != nil {
 		t.Errorf("空命令列表应返回 nil, got: %v", err)
 	}
@@ -1046,9 +1055,12 @@ func TestCmdContext_Construction(t *testing.T) {
 
 func TestParseCommandArgs_LeadingFilesRoot(t *testing.T) {
 	args := []string{"--files-root", "/repo", "search", "--keyword", "x"}
-	filesRoot, cmdArgs := ParseCommandArgs(args)
+	filesRoot, jsonMode, cmdArgs := ParseCommandArgs(args)
 	if filesRoot != "/repo" {
 		t.Errorf("filesRoot 应为 /repo, got: %s", filesRoot)
+	}
+	if jsonMode {
+		t.Error("不应启用 jsonMode")
 	}
 	expected := []string{"search", "--keyword", "x"}
 	if len(cmdArgs) != len(expected) {
@@ -1063,9 +1075,12 @@ func TestParseCommandArgs_LeadingFilesRoot(t *testing.T) {
 
 func TestParseCommandArgs_TrailingFilesRoot(t *testing.T) {
 	args := []string{"search", "--keyword", "x", "--files-root", "/repo"}
-	filesRoot, cmdArgs := ParseCommandArgs(args)
+	filesRoot, jsonMode, cmdArgs := ParseCommandArgs(args)
 	if filesRoot != "/repo" {
 		t.Errorf("filesRoot 应为 /repo, got: %s", filesRoot)
+	}
+	if jsonMode {
+		t.Error("不应启用 jsonMode")
 	}
 	if len(cmdArgs) != 3 || cmdArgs[0] != "search" {
 		t.Errorf("cmdArgs 应为 [search --keyword x], got: %v (len=%d)", cmdArgs, len(cmdArgs))
@@ -1075,11 +1090,43 @@ func TestParseCommandArgs_TrailingFilesRoot(t *testing.T) {
 func TestParseCommandArgs_MultipleFilesRoot(t *testing.T) {
 	// 只保留最后一个
 	args := []string{"--files-root", "/first", "search", "--files-root", "/second"}
-	filesRoot, cmdArgs := ParseCommandArgs(args)
+	filesRoot, jsonMode, cmdArgs := ParseCommandArgs(args)
 	if filesRoot != "/second" {
 		t.Errorf("应保留最后一个 filesRoot /second, got: %s", filesRoot)
 	}
+	if jsonMode {
+		t.Error("不应启用 jsonMode")
+	}
 	if len(cmdArgs) != 1 || cmdArgs[0] != "search" {
 		t.Errorf("cmdArgs 应只剩 search, got: %v", cmdArgs)
+	}
+}
+
+func TestParseCommandArgs_JsonMode(t *testing.T) {
+	args := []string{"--files-root", "/repo", "--json", "search", "--keyword", "x"}
+	filesRoot, jsonMode, cmdArgs := ParseCommandArgs(args)
+	if filesRoot != "/repo" {
+		t.Errorf("filesRoot 应为 /repo, got: %s", filesRoot)
+	}
+	if !jsonMode {
+		t.Error("应启用 jsonMode")
+	}
+	expected := []string{"search", "--keyword", "x"}
+	if len(cmdArgs) != len(expected) {
+		t.Fatalf("cmdArgs 长度应为 %d, got: %d (%v)", len(expected), len(cmdArgs), cmdArgs)
+	}
+}
+
+func TestParseCommandArgs_JsonModeWithoutFilesRoot(t *testing.T) {
+	args := []string{"--json", "list", "--format", "table"}
+	filesRoot, jsonMode, cmdArgs := ParseCommandArgs(args)
+	if filesRoot != "" {
+		t.Errorf("filesRoot 应为空, got: %s", filesRoot)
+	}
+	if !jsonMode {
+		t.Error("应启用 jsonMode")
+	}
+	if len(cmdArgs) != 3 {
+		t.Errorf("应有 3 个命令参数, got: %d", len(cmdArgs))
 	}
 }

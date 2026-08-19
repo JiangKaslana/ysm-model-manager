@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"runtime"
 	"sort"
 
 	"ysm-model-manager/go/version"
@@ -25,7 +26,7 @@ func RunCLI(args []string) error {
 		return nil
 	}
 
-	filesRoot, commandArgs := ParseCommandArgs(args)
+	filesRoot, jsonMode, commandArgs := ParseCommandArgs(args)
 
 	if len(commandArgs) == 0 {
 		printCLIHelp()
@@ -34,11 +35,41 @@ func RunCLI(args []string) error {
 
 	if filesRoot == "" {
 		printCLIHelp()
+		if jsonMode {
+			resp := NewJsonError(commandArgs[0], &ErrParam{Err: fmt.Errorf("--files-root 参数不能为空")}, 0)
+			fmt.Println(resp.ToJson())
+		}
 		return &ErrParam{Err: fmt.Errorf("--files-root 参数不能为空")}
 	}
 
 	a := app.NewApp()
-	return DispatchCommand(a, a.SaveAppConfig, filesRoot, commandArgs, true)
+
+	// 全局 --json 模式：捕获输出并包装为 JSON 响应
+	if jsonMode {
+		outputBuf, restoreStdout := captureStdout()
+		err := DispatchCommand(a, a.SaveAppConfig, filesRoot, jsonMode, commandArgs, true)
+		restoreStdout()
+
+		cmdName := commandArgs[0]
+		elapsed := float64(0)
+
+		if err != nil {
+			resp := NewJsonError(cmdName, err, elapsed)
+			fmt.Println(resp.ToJson())
+		} else {
+			resp := NewJsonSuccess(cmdName, map[string]interface{}{
+				"output":    outputBuf.String(),
+				"lines":     splitLines(outputBuf.String()),
+				"filesRoot": filesRoot,
+			}, elapsed)
+			// 覆盖平台信息（使用 CLI 运行平台）
+			resp.Meta.Platform = runtime.GOOS
+			fmt.Println(resp.ToJson())
+		}
+		return err
+	}
+
+	return DispatchCommand(a, a.SaveAppConfig, filesRoot, jsonMode, commandArgs, true)
 }
 
 // ExecuteCLIWithApp 执行 CLI 命令
@@ -53,14 +84,14 @@ func ExecuteCLIWithApp(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, 
 		return nil
 	}
 
-	filesRoot, commandArgs := ParseCommandArgs(args)
+	filesRoot, jsonMode, commandArgs := ParseCommandArgs(args)
 
 	if len(commandArgs) == 0 {
 		printCLIHelp()
 		return nil
 	}
 
-	return DispatchCommand(a, saveConfigFn, filesRoot, commandArgs, false)
+	return DispatchCommand(a, saveConfigFn, filesRoot, jsonMode, commandArgs, false)
 }
 
 // printVersion 打印版本信息
@@ -94,6 +125,7 @@ func printCLIHelp() {
 	fmt.Println()
 	fmt.Println("全局选项:")
 	fmt.Println("  --files-root <路径>    模型仓库根目录 (必填)")
+	fmt.Println("  --json                 全局 JSON 输出模式")
 	fmt.Println("  --help, -h             显示帮助信息")
 	fmt.Println("  --version, -v          显示版本号")
 	fmt.Println()
