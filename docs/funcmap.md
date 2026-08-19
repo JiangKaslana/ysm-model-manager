@@ -43,10 +43,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 127 | 473 |
-| frontend/views | 105 | 296 |
+| frontend/views | 106 | 297 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **419** | **1775** |
+| **合计** | **420** | **1776** |
 
 ## Go·头像
 
@@ -1703,10 +1703,11 @@
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:20` | 初始化诊断页所有功能 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:21` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
+| `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:17` | 绑定性能面板按钮点击事件 |
 | `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:29` | 初始化 GitHub 页 |
@@ -1765,8 +1766,8 @@
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |
 | `instancesHTML()` | `frontend/src/views/app-content/tpl:49` | — |
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:74` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:138` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:169` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:157` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:188` | — |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |

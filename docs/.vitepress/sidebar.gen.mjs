@@ -790,6 +790,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-102：CLI 内嵌模式回归与诊断协同平台",
+        "link": "/adr/ADR-102-cli-embedded-return-diagnostic-platform"
+      },
+      {
         "text": "ADR-101: MMD 场景加载性能分析与优化方向",
         "link": "/adr/ADR-101-mmd-loading-perf"
       },
