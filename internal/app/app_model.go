@@ -4,7 +4,9 @@
 package app
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -183,6 +185,86 @@ func (a *App) readFileBytesBatchConcurrent(paths []string) map[string][]byte {
 	}
 	close(taskCh)
 
+	wg.Wait()
+	return result
+}
+
+// ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。
+type ReadFileMeta struct {
+	Data []byte `json:"data"` // 文件内容（Wails 自动 base64）
+	Hash string `json:"hash"` // SHA256 十六进制
+}
+
+// readFileWithHash 读取文件并计算 SHA256，返回 data 和 hex hash。
+func (a *App) readFileWithHash(path string) ([]byte, string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, ""
+	}
+	h := sha256.Sum256(data)
+	hash := hex.EncodeToString(h[:])
+	return data, hash
+}
+
+// ReadFileBytesBatchWithMeta 批量读取文件并返回内容 + SHA256 哈希。
+// 一次 RPC 完成数据读取和 hash 计算，避免前端额外算 hash 或二次 RPC。
+// 路径守卫和行为与 ReadFileBytesBatch 一致。
+func (a *App) ReadFileBytesBatchWithMeta(paths []string) map[string]ReadFileMeta {
+	if len(paths) <= 4 {
+		result := make(map[string]ReadFileMeta, len(paths))
+		for _, p := range paths {
+			if !a.isPathInRootOrSelf(p) {
+				continue
+			}
+			data, hash := a.readFileWithHash(p)
+			if data == nil {
+				continue
+			}
+			result[p] = ReadFileMeta{Data: data, Hash: hash}
+		}
+		return result
+	}
+	// 并发读取
+	type readTask struct {
+		index int
+		path  string
+	}
+	validPaths := make([]readTask, 0, len(paths))
+	for i, p := range paths {
+		if a.isPathInRootOrSelf(p) {
+			validPaths = append(validPaths, readTask{index: i, path: p})
+		}
+	}
+	result := make(map[string]ReadFileMeta, len(validPaths))
+	if len(validPaths) == 0 {
+		return result
+	}
+	workers := runtime.NumCPU()
+	if workers < 2 {
+		workers = 2
+	}
+	taskCh := make(chan readTask, len(validPaths))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for task := range taskCh {
+				data, hash := a.readFileWithHash(task.path)
+				if data == nil {
+					continue
+				}
+				mu.Lock()
+				result[task.path] = ReadFileMeta{Data: data, Hash: hash}
+				mu.Unlock()
+			}
+		}()
+	}
+	for _, task := range validPaths {
+		taskCh <- task
+	}
+	close(taskCh)
 	wg.Wait()
 	return result
 }

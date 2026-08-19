@@ -38,3 +38,18 @@ export interface QueueStatusInfo {
     "remaining": number;
     "running": boolean;
 }
+
+/**
+ * ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。
+ */
+export interface ReadFileMeta {
+    /**
+     * 文件内容（Wails 自动 base64）
+     */
+    "data": string | null;
+
+    /**
+     * SHA256 十六进制
+     */
+    "hash": string;
+}

@@ -489,6 +489,14 @@ export function HasCachedTexture(hash: string): $CancellablePromise<boolean> {
 }
 
 /**
+ * HasCachedTextures 批量检查多个哈希是否已有 KTX2 缓存。
+ * 一次 RPC 返回所有检查结果，map[hash] → 是否存在。
+ */
+export function HasCachedTextures(hashes: string[] | null): $CancellablePromise<{ [_ in string]?: boolean } | null> {
+    return $Call.ByID(2757635171, hashes);
+}
+
+/**
  * ========== YSM 检测 ==========
  */
 export function HasYSMMod(modsDir: string): $CancellablePromise<boolean> {
@@ -792,6 +800,15 @@ export function ReadFileBytes(path: string): $CancellablePromise<string | null> 
  */
 export function ReadFileBytesBatch(paths: string[] | null): $CancellablePromise<{ [_ in string]?: string | null } | null> {
     return $Call.ByID(1632485740, paths);
+}
+
+/**
+ * ReadFileBytesBatchWithMeta 批量读取文件并返回内容 + SHA256 哈希。
+ * 一次 RPC 完成数据读取和 hash 计算，避免前端额外算 hash 或二次 RPC。
+ * 路径守卫和行为与 ReadFileBytesBatch 一致。
+ */
+export function ReadFileBytesBatchWithMeta(paths: string[] | null): $CancellablePromise<{ [_ in string]?: $models.ReadFileMeta } | null> {
+    return $Call.ByID(919610209, paths);
 }
 
 /**

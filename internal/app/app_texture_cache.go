@@ -92,3 +92,16 @@ func (a *App) GetCachedTextureByHash(hash string) (string, error) {
 	}
 	return base64.StdEncoding.EncodeToString(data), nil
 }
+
+// HasCachedTextures 批量检查多个哈希是否已有 KTX2 缓存。
+// 一次 RPC 返回所有检查结果，map[hash] → 是否存在。
+func (a *App) HasCachedTextures(hashes []string) map[string]bool {
+	result := make(map[string]bool, len(hashes))
+	for _, h := range hashes {
+		ok, err := texture_cache.HasCached(h)
+		if err == nil {
+			result[h] = ok
+		}
+	}
+	return result
+}

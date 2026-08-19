@@ -9,5 +9,6 @@ export {
 export type {
     CachedTextureResult,
     DownloadTask,
-    QueueStatusInfo
+    QueueStatusInfo,
+    ReadFileMeta
 } from "./models.js";
