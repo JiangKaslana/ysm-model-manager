@@ -103,11 +103,11 @@ test.describe("侧栏 push/pull 菜单", () => {
     // 固定 waitForTimeout(300) 纯属多余且是 flake 源——改 expect.poll 轮询菜单项数
     await expect
       .poll(async () => getMenuItems(page, "sidebar-push-menu"), { timeout: 3000 })
-      .toBe(8);
+      .toBe(9);
 
-    // 下拉菜单应包含资源类型选项（全部/YSM/MMD/VRC/资源包/光影包/蓝图/投影 = 8 项）
+    // 下拉菜单应包含资源类型选项（全部 + 8 种资源类型 = 9 项，含 maid-model 兜底追加）
     const itemCount = await getMenuItems(page, "sidebar-push-menu");
-    expect(itemCount).toBe(8);
+    expect(itemCount).toBe(9);
   });
 
   test("点击拉取按钮 → 下拉菜单显示资源类型选项", async ({ page }) => {
@@ -118,9 +118,9 @@ test.describe("侧栏 push/pull 菜单", () => {
     expect(clicked).toBe(true);
     await expect
       .poll(async () => getMenuItems(page, "sidebar-pull-menu"), { timeout: 3000 })
-      .toBe(8);
+      .toBe(9);
 
     const itemCount = await getMenuItems(page, "sidebar-pull-menu");
-    expect(itemCount).toBe(8);
+    expect(itemCount).toBe(9);
   });
 });

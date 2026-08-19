@@ -19,14 +19,29 @@ test.describe("文件树交互", () => {
     expect(fileCount).toBeGreaterThan(0);
   });
 
-  test("点击资源类型子标签 → 切换类型", async ({ page }) => {
-    const subtabs = page.locator('[data-testid="content-subtab"]');
-    await expect(subtabs.first()).toBeVisible({ timeout: 5000 });
-    const count = await subtabs.count();
-    expect(count).toBeGreaterThanOrEqual(3);
-    await subtabs.nth(1).click();
-    // 弱断言改实断言：点击后该标签应有 active 高亮（切换生效）
-    await expect(subtabs.nth(1)).toHaveClass(/active/, { timeout: 3000 });
+  test("导航栏切换资源类型 → 文件树重建", async ({ page }) => {
+    // ADR-092/094：资源类型切换改走 app-nav 双下拉（大类 + 子类型），
+    // 替代旧 content-subtab 本地标签。验证下拉渲染 + 切换后文件树重建。
+    const groupSel = page.locator('[data-testid="nav-group-select"]');
+    await expect(groupSel.first()).toBeVisible({ timeout: 5000 });
+
+    // 切换组 → 触发 fillSubtypes + apply → repo:rtype-changed → 文件树重建
+    const changed = await page.evaluate(() => {
+      const nav = document.querySelector("app-nav");
+      const g = nav?.shadowRoot?.querySelector('[data-testid="nav-group-select"]') as HTMLSelectElement | null;
+      if (!g || g.options.length < 2) return false;
+      g.selectedIndex = (g.selectedIndex + 1) % g.options.length;
+      g.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    });
+    expect(changed).toBe(true);
+
+    // 等待文件树重建完成
+    await page.waitForTimeout(500);
+
+    // 验证切换后文件树仍渲染（新类型 mock 数据可能不同，但 tree-file 应存在）
+    const fileCount = await waitForTreeCount(page, "tree-file", 5000);
+    expect(fileCount).toBeGreaterThan(0);
   });
 
   test("文件树目录展开/折叠", async ({ page }) => {

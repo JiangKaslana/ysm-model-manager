@@ -31,6 +31,8 @@ const BINDINGS_FILE = BIND_MODULE
 
 // 框架生命周期方法（带 context/application 参数），Wails 不生成绑定，应排除
 const FRAMEWORK_METHODS = new Set(['ServiceStartup', 'ServiceShutdown']);
+// 首方注入方法：Go 端调用注入，不要求前端 JS 存在对应绑定
+const SERVER_INJECTED = new Set(['SetAllowedCommands']);
 
 /** 括号配对：从 open 位置找到与之匹配的右括号（跳过嵌套层级），找不到返回文本末尾。 */
 function matchingParen(text, open) {
@@ -198,6 +200,7 @@ if (jsResult.missing) {
 
 // Go 有但 JS 没有，或 Go/JS 粗略 arity 不一致（签名漂移），或 arity 一致但参数类型漂移
 for (const [name, f] of Object.entries(goExports).sort(([a], [b]) => a.localeCompare(b))) {
+  if (SERVER_INJECTED.has(name)) continue;
   if (!(name in jsExports)) {
     issues.push({ type: 'missing_in_js', func: name, go_file: f.file });
   } else if (f.arity !== jsExports[name].arity) {
