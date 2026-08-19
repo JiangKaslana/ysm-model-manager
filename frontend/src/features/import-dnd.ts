@@ -154,6 +154,8 @@ export function bindTreeDnD(container: HTMLElement): () => void {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     if (hintEl && !_dropBusy) hintEl.style.display = "flex";
+    // eslint-disable-next-line no-console
+    console.log("[dnd] dragover OK", { types: [...(e.dataTransfer.types || [])], target: (e.target as HTMLElement)?.tagName, isEditable: isEditable(e.target) });
   };
 
   const onDragLeave = (e: DragEvent): void => {
@@ -163,6 +165,13 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   };
 
   const onDrop = (e: DragEvent): void => {
+    // eslint-disable-next-line no-console
+    console.log("[dnd] drop fired", {
+      files: e.dataTransfer?.files?.length ?? 0,
+      items: e.dataTransfer?.items?.length ?? 0,
+      types: e.dataTransfer?.types ? [...e.dataTransfer.types] : [],
+      hasFiles: !!(e.dataTransfer?.files && e.dataTransfer.files.length > 0),
+    });
     if (hintEl) hintEl.style.display = "none";
     void handleTreeDrop(e, isBusy, setBusy).catch((err) => {
       console.error("[tree-dnd] 拖放处理失败:", err);
