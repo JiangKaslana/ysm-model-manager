@@ -114,7 +114,8 @@ func parseOptimizationEntries(lines []string) []optEntry {
 					problem: cols[2],
 					action:  cols[3],
 					effect:  cols[4],
-					commit:  cols[5],
+					// md 中 commit 常用反引号包裹（`` `fd068ac` ``），解析时清理，避免终端输出带反引号
+					commit: strings.Trim(cols[5], "`"),
 				})
 			}
 		}

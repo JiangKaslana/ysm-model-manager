@@ -1326,6 +1326,17 @@ func TestParseOptimizationEntries(t *testing.T) {
 	if entries[1].date != "2026-08-18" || entries[1].area != "MMD dispose" {
 		t.Errorf("次条解析不符: %+v", entries[1])
 	}
+
+	// md 中 commit 用反引号包裹（真实 optimization_log.md 如此）——解析时应清理反引号
+	backtickMd := strings.Join([]string{
+		"| 日期 | 领域 | 问题 | 做了什么 | 效果 | 提交 |",
+		"|------|------|------|---------|------|------|",
+		"| 2026-08-01 | A | B | C | D | `abc123` |",
+	}, "\n")
+	got := parseOptimizationEntries(strings.Split(backtickMd, "\n"))
+	if len(got) != 1 || got[0].commit != "abc123" {
+		t.Errorf("反引号 commit 应被清理, got %+v", got)
+	}
 }
 
 func TestSplitTableRow(t *testing.T) {
