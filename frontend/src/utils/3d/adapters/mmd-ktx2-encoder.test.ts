@@ -138,6 +138,26 @@ describe("encodeAndCacheTexture", () => {
     );
   });
 
+  it("超大纹理（>4096²）跳过编码 → 记 warn 而非 fail", async () => {
+    // 注入直接抛 TextureTooLargeError 的实现（encodeToKTX2 的尺寸守卫行为）
+    const { TextureTooLargeError } = await import("./mmd-ktx2-encoder.ts");
+    hoisted.ktx2EncodeMock.mockRejectedValue(new TextureTooLargeError(8192, 8192));
+
+    const port = makePort();
+    const ok = await encodeAndCacheTexture("hash_big", "blob:test", port);
+
+    expect(ok).toBe(false);
+    expect(hoisted.addOpLogMock).toHaveBeenCalledWith(
+      "ktx2-encode", "hash_big", "warn",
+      expect.stringContaining("纹理过大 8192x8192"),
+    );
+    // 不落盘、不误报 fail
+    expect(hoisted.saveTextureMock).not.toHaveBeenCalled();
+    expect(hoisted.addOpLogMock).not.toHaveBeenCalledWith(
+      "ktx2-encode", "hash_big", "fail", expect.any(String),
+    );
+  });
+
   it("编码结果转 base64 正确处理二进制数据", async () => {
     // 模拟编码返回 256 字节数据（覆盖 charCodeAt 0-255）
     const largeBuffer = new Uint8Array(256);

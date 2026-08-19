@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 127 | 475 |
+| 前端·工具 | 127 | 476 |
 | frontend/views | 106 | 297 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **420** | **1782** |
+| **合计** | **420** | **1783** |
 
 ## Go·头像
 
@@ -1228,9 +1228,10 @@
 | `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:69` | 取消所有待执行的编码（已在执行的不受影响） |
 | `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:81` | 重置编码器状态（测试用） |
 | `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:181` | 测试用：注入编码实现（默认走本地 WASM） |
-| `encodeToKTX2()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:190` | 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。 |
-| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:220` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
-| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:268` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
+| `TextureTooLargeError()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:193` | 超大纹理跳过编码的标记错误（encodeAndCacheTexture 据此记 warn 而非 fail） |
+| `encodeToKTX2()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:205` | 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。 |
+| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:239` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
+| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:289` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:63` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:82` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:108` | — |

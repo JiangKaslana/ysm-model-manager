@@ -183,11 +183,30 @@ export function __setEncodeImplForTest(fn: typeof encodeImpl): void {
 }
 
 /**
+ * 单纹理像素上限：超过则跳过 KTX2 编码。
+ * Node 实证：4096²（64MB RGBA）可编码，8192²（256MB RGBA）在 WASM 编码时
+ * 内存峰值超限 → abort(undefined)。跳过超大纹理避免编码崩溃（PNG 仍正常渲染）。
+ */
+const MAX_KTX2_PIXELS = 4096 * 4096;
+
+/** 超大纹理跳过编码的标记错误（encodeAndCacheTexture 据此记 warn 而非 fail） */
+export class TextureTooLargeError extends Error {
+  constructor(width: number, height: number) {
+    super(`纹理过大 ${width}x${height}，跳过 KTX2 编码（上限 ${MAX_KTX2_PIXELS} 像素）`);
+    this.name = "TextureTooLargeError";
+  }
+}
+
+/**
  * 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。
  * 直接调 BasisEncoder API 并用 `slice(0, n)` 复制真实长度——
  * 不使用 loaders.gl 的 KTX2BasisWriter.encode（其 4.4.4 返回 subarray().buffer，体积虚胖到原始 RGBA 大小）。
  */
 export async function encodeToKTX2(img: { data: Uint8Array; width: number; height: number }): Promise<ArrayBuffer> {
+  // 超大纹理直接跳过（不加载 WASM、不 abort），PNG 原样渲染
+  if (img.width * img.height > MAX_KTX2_PIXELS) {
+    throw new TextureTooLargeError(img.width, img.height);
+  }
   const module = await loadBasisModule();
   const enc = new module.BasisEncoder();
   try {
@@ -249,7 +268,9 @@ export async function encodeAndCacheTexture(
   } catch (e) {
     // 编码失败静默降级，不影响已有纹理
     if (port.addOpLog) {
-      void port.addOpLog("ktx2-encode", hash, "fail", e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      // 超大纹理跳过：非错误，记 warn（避免误报失败刷屏）
+      void port.addOpLog("ktx2-encode", hash, e instanceof TextureTooLargeError ? "warn" : "fail", msg);
     }
     return false;
   } finally {
