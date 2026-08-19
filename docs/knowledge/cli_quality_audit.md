@@ -26,7 +26,7 @@ use_when:
 
 ## 概览
 
-本文档记录 YSM 项目 Go CLI 层（`go/cli/` + `internal/app/` + `frontend/src/services/`）代码审核的**高频问题模式**与**修复 Checklist**。2026-08-19 两轮审核发现 27 个问题（4 阻塞级 / 9 高危 / 11 中危 / 3 低危），全部修复并沉淀为可复用的排查清单。
+本文档记录 YSM 项目 Go CLI 层（`go/cli/` + `internal/app/` + `frontend/src/services/`）代码审核的**高频问题模式**与**修复 Checklist**。2026-08-19 多轮审核发现 27 个问题（4 阻塞级 / 9 高危 / 11 中危 / 3 低危），规律六扩展审计又发现 **20 处 `json.Marshal` 吞错**（绑定层 13 + CLI 层 3 + go/packs 跨包 4），全部修复并沉淀为可复用的排查清单。
 
 ## 核心规律（6 条）
 
@@ -99,6 +99,29 @@ restoreFunc()         // 显式调用
 - 序列化函数一律返回 `(T, error)`
 - 调用方必须检查 error，错误时输出有意义的 fallback 响应
 - 前端能看到明确的 `error.code` + `error.message`
+
+**扩展审计（20 处吞错全景）**：本规律是全仓级反模式，不止 CLI 层：
+
+| 层 | 数量 | 典型位置 | 修法 |
+|----|------|----------|------|
+| 绑定层（`internal/app/`） | 13 | `GetAllowedCLICommands` / `ReadPackMeta` / `marshalVoxelData` / `ReadSchematic` / `ReadNbtStructure` / `ReadLitematicMeta` / `FindDuplicateFiles` / `CountDuplicateFiles` / `SyncResourcesToInstance` / `BuildSyncItems` / `AnalyzeModelDetail` / `ResetWorkshopSites` / `ListPackModels` | 统一 `marshalJSON`/`marshalJSONIndent` helper（失败返回带 error 字段的合法 JSON） |
+| CLI 层（`go/cli/`） | 3 | `runSearch` / `printYSMAnalysis` / `runList` | 复用 `ToJson()` fallback 模式，失败输出有意义错误 |
+| 跨包（`go/packs/`） | 4 | `mcmeta.go` `ReadShaderpackLang`（os.Stat / zip.OpenReader / langData 空 / 正常返回） | 抽 `marshalShaderpackResult` helper（失败返回 `{"error":...}` 合法 JSON） |
+
+**附带发现**：`printYSMAnalysis` 的 `json.MarshalIndent(meta, "  ", "  ")` 缩进参数写错——prefix 应为 `""` 而非 `"  "`（每行前多两个空格）。
+
+**检查锚**：`grep -rn "data, _ := json.Marshal\|result, _ := json.Marshal" go/ internal/` 应为零结果。
+
+### 规律七：同类反模式跨包残留（修复要全仓扫）
+
+**现象**：规律六修复聚焦 CLI 层（`go/cli/` + `internal/app/`），但 `go/packs/mcmeta.go` 还有 4 处同类 `data, _ := json.Marshal`——修一层漏一层。
+
+**根因**：反模式往往跨包分布，按"本次改动范围"排查会漏掉同构代码。
+
+**对策**：
+- 修复反模式时用 `grep -rn "<模式>" go/ internal/` **全仓扫描**同类，不限定当前改动文件
+- 每修一类，顺手清掉所有同构调用点（本次：20 处吞错一次清完）
+- 沉淀到 audit-framework 反模式表（锚点可 grep 的模式）
 
 ## 快速排查 Checklist
 
