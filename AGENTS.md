@@ -235,6 +235,7 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 | `file-bench` | 测试大文件读取性能（单文件/批量/IPC） | `file-bench --dir ./mmd/模型目录 --iterations 3` |
 | `scan-dir` | 扫描目录结构统计资产 | `scan-dir --dir ./mmd` |
 | `analyze-mmd` | 分析 MMD 模型资产（贴图/PMX/VMD） | `analyze-mmd --dir ./mmd/子言` |
+| `concurrent-bench` | **并发能力基准测试**（串行 vs 并行对比） | `concurrent-bench --workers 8 --max-models 30` |
 
 ### 缓存管理命令
 
@@ -333,6 +334,22 @@ go run . --cli --files-root ./models gui-flow --model ./ysm/player.ysm --verbose
 
 # 流程阶段:
 # ① 配置加载 → ② 模型扫描 → ③ 模型分析 → ④ 纹理缓存检查 → ⑤ 数据准备(IPC预估) → ⑥ 渲染预估
+```
+
+### 场景 7：并发能力测试（实战 Go goroutine）
+
+```bash
+# 并发基准测试（默认 4 workers，最多 20 个模型）
+go run . --cli --files-root ./models concurrent-bench
+
+# 大规模并发测试
+go run . --cli --files-root ./models concurrent-bench --workers 8 --max-models 30
+
+# 输出示例:
+#   串行: 16955ms
+#   并行(2 workers): 10055ms (1.7x 加速)
+#   并行(4 workers): 6301ms (2.7x 加速)
+#   并行(8 workers): 4538ms (3.7x 加速)
 ```
 
 ## 输出格式

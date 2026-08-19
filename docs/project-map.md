@@ -88,6 +88,7 @@
 | `README.md` | 项目说明（面向用户） |
 | `cli.go` | CLI 模式核心框架（cliCommand 类型、cliCommands 注册表、runCLI 入口） |
 | `cli_cache.go` | CLI 缓存管理命令（cache-status、cache-verify、cache-clear、cache-diag） |
+| `cli_concurrent.go` | CLI 并发基准测试命令（concurrent-bench，串行 vs 并行对比） |
 | `cli_config.go` | CLI 配置管理命令（config-show） |
 | `cli_flow.go` | CLI GUI 流程模拟命令（gui-flow，模拟配置→扫描→分析→缓存→渲染） |
 | `cli_mmd.go` | CLI MMD 专用命令（file-bench、scan-dir、analyze-mmd） |
