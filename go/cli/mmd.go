@@ -509,6 +509,7 @@ func runAnalyzeMMD(ctx *CmdContext) error {
 	}
 
 	var walkErrCount int
+	var walkTotalDirs int
 
 	err = filepath.Walk(*modelDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -516,6 +517,7 @@ func runAnalyzeMMD(ctx *CmdContext) error {
 			return nil
 		}
 		if info.IsDir() {
+			walkTotalDirs++
 			return nil
 		}
 
@@ -545,6 +547,14 @@ func runAnalyzeMMD(ctx *CmdContext) error {
 
 	if err != nil {
 		return newRuntimeErrf("分析目录失败: %v", err)
+	}
+
+	// 错误率过高时提前返回（>50% 目录无法访问说明系统性问题）
+	if walkTotalDirs > 0 {
+		errRate := float64(walkErrCount) / float64(walkTotalDirs)
+		if errRate > 0.5 {
+			return newRuntimeErrf("扫描错误率过高: %d/%d 目录无法访问 (%.0f%%)", walkErrCount, walkTotalDirs, errRate*100)
+		}
 	}
 
 	if walkErrCount > 0 {
