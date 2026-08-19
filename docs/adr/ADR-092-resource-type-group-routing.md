@@ -1,9 +1,9 @@
 # ADR-092：资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并
 
-- **状态**：🔄 部分采纳（group 层第 1 层已落地；MMD 子类型化为后续）
+- **状态**：🔄 部分采纳（group 层第 1 层已落地；MMD 子类型物理目录预建于 ADR-103）
 - **日期**：2026-08-18
 - **决策人**：Jieling（人类首席架构师）、AI 代理
-- **相关**：`ADR-066 通用资源预览, ADR-067 压缩容器资源检测, resource_types.json 单一事实来源`
+- **相关**：`ADR-066 通用资源预览, ADR-067 压缩容器资源检测, ADR-103 注册表加载单源化, resource_types.json 单一事实来源`
 - **落地进度（2026-08-18 追加）**：group 字段 + resourceGroups 顶层数组已写入 `resource_types.json`（第 1 层通用分组）；Go 侧 `GroupOf` / `GroupStorageRoot` / `GroupLabel` 已实现并接入 `GetRepoRoot` / MkdirAll；前端 `GROUP_META` / `GROUP_OF` / `groupStorageRootOf` 已派生并接入 path-cards 显示；schema 校验已纳入 group（可选 + 白名单）。**MMD 段冻结点已用 `upstream/MC-MMD-rust` 真实源码解冻（见 §4 溯源补充）。**
 
 ---
@@ -42,6 +42,10 @@
 - **负面 / 改动面**：两级路径影响落盘 / 读取点——`internal/app/app.go`（MkdirAll）、`internal/app/resource_bindings.go:184`（`GetRepoRoot`，**仓库根唯一收敛点**，sync 经 `app_install_instance.go` 自动跟随、**无需改 sync 内部**）、`frontend/src/views/app-content/settings/path-cards.ts:225`（`filesRoot + "/" + storageSubDir`）；均统一改走 `GroupStorageRoot`。**第 1 层已全部落地（2026-08-18）。**
 - **风险与缓解**：① 存量单级目录兼容性——靠 `GroupStorageRoot` 回退兜底，不触发 mass-move；② `maid-model` 注册需补 full schema（扩展名 / 检测器），否则扫描不到（**第 2 层后续**）；③ MMD 子类型化（mmd-scene/mmd-anim/mmd-morph/mmd-stage/mmd-shader）第 2 层实现时需与 `installExts` / `dirLevelSync` 协同对齐。
 - **已知遗留**：VRM 独立策略为临时态，待用户确认后再决定是否纳入某 group；`subFolders` 与现有 `installExts` / `dirLevelSync` 的协同需实现时对齐。
+
+**落地补充（2026-08-19，见 ADR-103）**：
+- 本 ADR 依赖的「注册表运行态加载」此前因 `loadRegistryBytes()` 的 exe 旁僵尸扫描分支（见 ADR-058 缺口）而**未真正生效**——`group` 字段运行态恒为空，两层路由在磁盘上退化成单层扁平目录。ADR-103 移除该分支后，本 ADR 的两层路由才端到端贯通。
+- **MMD 子类型物理目录预建落地**：`EnsureStorageDirs` 对 `subDirGrouping` 类型（mmd-skin）遍历 `go/types` 的 `MMDSubDirs()` 单一事实来源（8 个用途子目录：EntityPlayer / SceneModel / DefaultAnim / CustomAnim / StageAnim / DefaultMorph / CustomMorph / shader），在保存根路径时铺满 `FilesRoot/mmd/{全部用途子目录}`，填补本 ADR 原列「MMD 子类型化为后续」的物理落盘环节。子类型**路由/识别**层（mmd-scene / mmd-anim 等分类型）仍属后续，未在本轮落地。
 
 ## 4. 数据溯源
 

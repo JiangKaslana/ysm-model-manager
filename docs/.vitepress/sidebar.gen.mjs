@@ -790,6 +790,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-103：注册表加载单源化与僵尸覆盖分支清理",
+        "link": "/adr/ADR-103-registry-load-single-source"
+      },
+      {
         "text": "ADR-102：CLI 内嵌模式回归与诊断协同平台",
         "link": "/adr/ADR-102-cli-embedded-return-diagnostic-platform"
       },

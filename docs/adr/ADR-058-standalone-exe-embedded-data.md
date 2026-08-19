@@ -38,6 +38,10 @@ ZIP 发布包长期附带 4 份社区数据文件（`creators.json` / `resource_
 **已知遗留**：
 - 网页版（Web 端）仍以独立 JSON import 方式引用数据（`frontend/src/backend/browser-adapter.ts`），与桌面内嵌路径并存，见 ADR-049 / ADR-053。
 
+**决策落地补充（2026-08-19，见 ADR-103）**：
+- 本 ADR 第 2 条「**不再读取 exe 旁/上级目录**」在代码侧**长期未被执行**——`go/types/resource.go` 的 `loadRegistryBytes()` 仍保留 exe 旁/上级目录扫描分支（旧 zip 部署残党），且 `bin/resource_types.json` 这份无 `group` 字段的 stale 快照被该分支最先命中，静默遮蔽嵌入单源，导致用户多次主推分类/路由改动「不生效」。
+- ADR-103 已移除该僵尸扫描分支、删除 `bin/resource_types.json`，使本 ADR 的「不再读取 exe 旁文件」决策**真正闭合**。本 ADR 的意图正确，缺口在于当年改 `loadRegistryBytes` 时未同步删除旧分支。
+
 ## 4. 数据溯源
 
 - v1.12.0 发布说明（`docs/releases/v1.12.0.md`）：纯 exe 交付 + 用户数据分离 + CLI 共享内嵌数据。
