@@ -77,7 +77,7 @@ export async function createYsm3D(
         fillShotPanel: fillYsmShotPanel,
         attachBoneSelect: attachYsmBoneSelect,
       },
-      fillPlayPanel,
+      fillPlayPanel: fillMmdPlayPanel,
     }),
     path,
     withPreviewExtras({ siblings: opts.siblings }),

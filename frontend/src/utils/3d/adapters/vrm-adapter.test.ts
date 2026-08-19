@@ -6,23 +6,28 @@
 // @pixiv/three-vrm 全 mock；three 用真实实现（Box3/Vector3/LoadingManager）。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as THREE from "three";
+import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { PreviewMenuHandle } from "./preview-menu.ts";
 
 // ---- DOM mock（vitest 无默认 document）----
 const mockElements: Map<string, HTMLElement> = new Map();
 vi.stubGlobal("document", {
   createElement: (tag: string): HTMLElement => {
+    const childNodes: unknown[] = [];
     const el = {
       tagName: tag,
       innerHTML: "",
-      childNodes: [],
-      parentElement: null,
+      childNodes: childNodes as unknown as NodeListOf<ChildNode>,
       style: {},
-      remove: () => { el.parentElement = null; },
-      appendChild: (child: HTMLElement) => { el.childNodes.push(child); child.parentElement = el; },
+      remove: () => { Object.defineProperty(el, "parentElement", { value: null, configurable: true }); },
+      appendChild: (child: HTMLElement) => {
+        childNodes.push(child);
+        Object.defineProperty(child, "parentElement", { value: el, configurable: true });
+      },
       querySelector: () => null,
     } as unknown as HTMLElement;
-    Object.defineProperty(el, "parentNode", { get: () => el.parentElement, configurable: true });
+    Object.defineProperty(el, "parentElement", { value: null, configurable: true });
+    Object.defineProperty(el, "parentNode", { get: () => (el as { parentElement: HTMLElement | null }).parentElement, configurable: true });
     mockElements.set(tag + Date.now(), el);
     return el;
   },
@@ -199,12 +204,12 @@ function makeCtx() {
         minDistance: 0,
         maxDistance: 0,
         update: vi.fn(),
-      },
+      } as unknown as OrbitControls,
       viewContainer: document.createElement("div"),
       loadingEl,
       overlay,
       menu: { setAdapterItems: vi.fn(), openPanel: vi.fn() } as unknown as PreviewMenuHandle,
-      renderer: { domElement: document.createElement("div") },
+      renderer: { domElement: document.createElement("div") } as unknown as THREE.WebGLRenderer,
     },
     scene,
     camera,

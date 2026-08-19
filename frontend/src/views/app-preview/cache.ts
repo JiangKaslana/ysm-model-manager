@@ -45,7 +45,7 @@ export function cacheGet(path: string): CacheValue | null {
 }
 
 /** 收集缓存值中全部 blob URL（evict 释放用） */
-function collectBlobUrls(v: CacheValue | undefined): Set<string> {
+export function collectBlobUrls(v: CacheValue | undefined): Set<string> {
   const s = new Set<string>();
   if (!v) return s;
   const geo = v.geometry as { textures?: string[]; texture?: string } | undefined;

@@ -1,6 +1,7 @@
 // ===== <app-tree> 入口 — 生命周期编排 =====
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
+import { safeGet } from "../../utils/dom/storage.ts";
 import { treeCSS } from "./app-tree-styles.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { refreshAdoptedStyleSheets } from "../../utils/dom/css-hmr.ts";
@@ -104,7 +105,7 @@ export class AppTree extends WebComponentBase {
     try {
       Object.assign(
         this._dirOpen,
-        JSON.parse(localStorage.getItem("at_dirs") || "{}"),
+        JSON.parse(safeGet("at_dirs") || "{}"),
       );
     } catch (_) {}
 

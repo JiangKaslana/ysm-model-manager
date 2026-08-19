@@ -21,6 +21,7 @@ import {
   cacheGet,
   cacheSet,
   cacheSetEvictHandler,
+  collectBlobUrls,
 } from "./cache.ts";
 import { getApp } from "../../backend/app.ts";
 import { resolveWebMode } from "../../backend/platform.ts";
@@ -74,18 +75,7 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
 // 注册缓存淘汰回调：释放 blob URL（Set 去重：重复 URL 只 revoke 一次，revoke 幂等无害）
 cacheSetEvictHandler((key, val) => {
   if (!val) return;
-  const urls = new Set<string>();
-  // geometry.textures 数组中的 blob URL
-  const geo = val.geometry as BedrockGeometry | undefined;
-  if (geo?.textures) for (const u of geo.textures) urls.add(u);
-  if (geo?.texture) urls.add(geo.texture);
-  if (val.texture) urls.add(val.texture);
-  // 作者头像 blob URL（preview-wasm 为头像 createObjectURL）：
-  // authors[].avatarUrl 与 avatars 记录可能指向同一 URL，Set 天然去重
-  for (const au of val.authors || []) {
-    if (typeof au === "object" && au.avatarUrl) urls.add(au.avatarUrl);
-  }
-  for (const u of Object.values(val.avatars || {})) urls.add(u);
+  const urls = collectBlobUrls(val);
   for (const u of urls) {
     if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
   }

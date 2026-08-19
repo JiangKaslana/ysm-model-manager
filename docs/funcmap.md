@@ -39,14 +39,14 @@
 | frontend/backend | 19 | 101 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 98 |
-| 前端·服务 | 2 | 26 |
+| 前端·服务 | 2 | 17 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 127 | 473 |
-| frontend/views | 105 | 295 |
+| frontend/views | 105 | 296 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **419** | **1782** |
+| **合计** | **419** | **1774** |
 
 ## Go·头像
 
@@ -923,11 +923,11 @@
 | `MenuDef()` | `frontend/src/core/menu-defs:19` | 单类菜单的完整声明 |
 | `MENU_DEFS()` | `frontend/src/core/menu-defs:25` | 四类右键菜单的声明式规格（唯一事实来源） |
 | `getMenuDef()` | `frontend/src/core/menu-defs:113` | 测试辅助：按 type 取声明（不存在返回 undefined） |
-| `sanitizePage()` | `frontend/src/core/page-store:29` | — |
-| `PAGE_WHITELIST()` | `frontend/src/core/page-store:27` | — |
-| `resolveInitialPage()` | `frontend/src/core/page-store:39` | — |
-| `PageStore()` | `frontend/src/core/page-store:59` | — |
-| `registerPageStore()` | `frontend/src/core/page-store:66` | 注册页面状态同步（由 registerGlobalHandlers 统一调用，bus.on 的 unsub 收集进 unsubs 清理） |
+| `sanitizePage()` | `frontend/src/core/page-store:30` | — |
+| `PAGE_WHITELIST()` | `frontend/src/core/page-store:28` | — |
+| `resolveInitialPage()` | `frontend/src/core/page-store:40` | — |
+| `PageStore()` | `frontend/src/core/page-store:54` | — |
+| `registerPageStore()` | `frontend/src/core/page-store:61` | 注册页面状态同步（由 registerGlobalHandlers 统一调用，bus.on 的 unsub 收集进 unsubs 清理） |
 
 ## 前端·特性
 
@@ -1037,25 +1037,16 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `CLIArgs()` | `frontend/src/services/cli-bridge:12` | CLI 命令参数（统一格式：key-value map） |
-| `CLIStatus()` | `frontend/src/services/cli-bridge:15` | CLI 响应状态 |
-| `CLIError()` | `frontend/src/services/cli-bridge:18` | CLI 错误详情 |
-| `CLIData()` | `frontend/src/services/cli-bridge:25` | CLI 响应数据 |
 | `CLIResponse()` | `frontend/src/services/cli-bridge:34` | CLI 统一响应 |
 | `ALLOWED_CLI_COMMANDS()` | `frontend/src/services/cli-bridge:44` | 允许的 CLI 命令白名单（与后端保持同步） |
-| `AllowedCLICommand()` | `frontend/src/services/cli-bridge:67` | — |
 | `executeCLI()` | `frontend/src/services/cli-bridge:77` | 执行 CLI 命令（核心入口） |
 | `getAllowedCLICommands()` | `frontend/src/services/cli-bridge:125` | 获取允许的 CLI 命令列表 |
 | `cliSearch()` | `frontend/src/services/cli-bridge:141` | 搜索模型 |
 | `cliList()` | `frontend/src/services/cli-bridge:150` | 列出所有模型 |
 | `cliAnalyze()` | `frontend/src/services/cli-bridge:155` | 分析模型 |
-| `cliVerify()` | `frontend/src/services/cli-bridge:160` | 验证模型 |
-| `cliBenchmark()` | `frontend/src/services/cli-bridge:165` | 基准测试 |
-| `cliSingleBench()` | `frontend/src/services/cli-bridge:170` | 单模型基准测试 |
-| `cliPerfLog()` | `frontend/src/services/cli-bridge:175` | 性能日志 |
-| `cliCacheStatus()` | `frontend/src/services/cli-bridge:180` | 缓存状态查询 |
-| `cliCacheVerify()` | `frontend/src/services/cli-bridge:185` | 缓存验证 |
-| `buildArgsMap()` | `frontend/src/services/cli-bridge:192` | 构建参数 map（过滤 undefined 和 null） |
-| `parseCLIResponse()` | `frontend/src/services/cli-bridge:203` | 解析 CLI JSON 响应 |
+| `cliCacheStatus()` | `frontend/src/services/cli-bridge:160` | 缓存状态查询 |
+| `buildArgsMap()` | `frontend/src/services/cli-bridge:167` | 构建参数 map（过滤 undefined 和 null） |
+| `parseCLIResponse()` | `frontend/src/services/cli-bridge:178` | 解析 CLI JSON 响应 |
 | `ServiceName()` | `frontend/src/services/registry:11` | 已知服务名（新服务先在 app-modules.ts 注册，再在此登记） |
 | `register()` | `frontend/src/services/registry:18` | 注册一个服务（.ts 调用方：register("name", impl as X) 声明类型；重复注册覆盖旧实例并告警） |
 | `get()` | `frontend/src/services/registry:24` | 获取一个服务（.ts 调用方：get&lt;X&gt;("name") 断言期望类型；未注册抛错，错误含服务名） |
@@ -1276,11 +1267,11 @@
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:39` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:91` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:333` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:347` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:352` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:381` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:93` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:335` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:349` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:354` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:383` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
@@ -1800,6 +1791,7 @@
 | `CacheValue()` | `frontend/src/views/app-preview/cache:10` | 缓存条目值 |
 | `cacheSetEvictHandler()` | `frontend/src/views/app-preview/cache:39` | 注册 evict 回调，淘汰条目时调用 |
 | `cacheGet()` | `frontend/src/views/app-preview/cache:43` | — |
+| `collectBlobUrls()` | `frontend/src/views/app-preview/cache:48` | 收集缓存值中全部 blob URL（evict 释放用） |
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
 | `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:18` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
@@ -1957,8 +1949,8 @@
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:18` | — |
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
-| `appTreeStyle()` | `frontend/src/views/app-tree/index:10` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:58` | — |
+| `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:59` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
 | `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |

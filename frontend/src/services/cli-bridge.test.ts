@@ -34,6 +34,7 @@ vi.mock("../backend/web-common.ts", () => ({
 }));
 
 import { getApp } from "../backend/app.ts";
+import type { AppBindings } from "../backend/types.ts";
 import { resolveWebMode } from "../backend/platform.ts";
 import { WebUnsupportedError } from "../backend/web-common.ts";
 
@@ -55,7 +56,7 @@ describe("CLI Bridge - 命令执行", () => {
           meta: { platform: "windows" },
         })
       ),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -85,7 +86,7 @@ describe("CLI Bridge - 命令执行", () => {
           timing: { total_ms: 50 },
         })
       ),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -122,7 +123,7 @@ describe("CLI Bridge - 网页版降级", () => {
           meta: { platform: "web" },
         })
       ),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -140,7 +141,7 @@ describe("CLI Bridge - 网页版降级", () => {
       ExecuteCLI: vi.fn().mockImplementation(() => {
         throw new WebUnsupportedError("ExecuteCLI");
       }),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -156,7 +157,7 @@ describe("CLI Bridge - 命令列表", () => {
     const commands = ["search", "list", "analyze"];
     const mockApp = {
       GetAllowedCLICommands: vi.fn().mockResolvedValue(JSON.stringify(commands)),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -189,7 +190,7 @@ describe("CLI Bridge - 便捷方法", () => {
       ExecuteCLI: vi.fn().mockResolvedValue(
         JSON.stringify({ status: "success", command: "search", data: {} })
       ),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -206,7 +207,7 @@ describe("CLI Bridge - 便捷方法", () => {
       ExecuteCLI: vi.fn().mockResolvedValue(
         JSON.stringify({ status: "success", command: "list", data: {} })
       ),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -220,7 +221,7 @@ describe("CLI Bridge - 便捷方法", () => {
       ExecuteCLI: vi.fn().mockResolvedValue(
         JSON.stringify({ status: "success", command: "analyze", data: {} })
       ),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -236,7 +237,7 @@ describe("CLI Bridge - 便捷方法", () => {
       ExecuteCLI: vi.fn().mockResolvedValue(
         JSON.stringify({ status: "success", command: "cache-status", data: {} })
       ),
-    };
+    } as unknown as AppBindings;
 
     vi.mocked(getApp).mockResolvedValue(mockApp);
 
@@ -288,7 +289,7 @@ describe("CLI Bridge - 参数构建", () => {
 
   it("过滤 null 值", () => {
     const result = buildArgsMap({
-      keyword: null,
+      keyword: null as unknown as string | undefined,
       valid: "yes",
     });
 

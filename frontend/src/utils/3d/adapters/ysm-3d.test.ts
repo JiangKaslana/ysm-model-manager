@@ -217,7 +217,7 @@ describe("buildYsmScene 面板填充与骨骼拾取", () => {
     expect(panels.attachBoneSelect).toHaveBeenCalledTimes(1);
     // 第二个参数是回调，core 调用它时触发 openPanel
     if (capturedCb) {
-      capturedCb("hip");
+      (capturedCb as (id: string) => void)("hip");
     }
     expect(ctx.menu.openPanel).toHaveBeenCalledWith("hip");
   });

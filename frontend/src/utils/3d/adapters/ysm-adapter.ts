@@ -60,6 +60,8 @@ export interface YsmAdapterOptions {
   listAllFilePaths?: (dir: string) => Promise<string[] | null>;
   /** base64 文本读取（读 .animation.json 字节用；对齐 VRM readFn 注入模式） */
   readTextFile?: (path: string) => Promise<string | null>;
+  /** 播放面板填充回调（视图层注入；复用 fillMmdPlayPanel，解除 utils→views 分层违规 R1） */
+  fillPlayPanel?: (list: HTMLElement, bridge: MmdPlayBridge) => void;
 }
 
 /** 骨骼拾取状态（bone-raycast 需要的最小 state） */

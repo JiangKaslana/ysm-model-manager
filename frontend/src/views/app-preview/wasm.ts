@@ -322,7 +322,7 @@ export async function doDecodeYsmViaWasm(
   try {
     devLog("[YSM] 加载 WASM 模块...");
     const ok = await initYSMParser();
-    console.log(`[YSM] WASM init: ${ok ? "✅" : "❌"}`);
+    devLog(`[YSM] WASM init: ${ok ? "✅" : "❌"}`);
     if (!ok) {
       cacheSet(modelPath, { _wasmFailed: true });
       return null;
@@ -333,7 +333,7 @@ export async function doDecodeYsmViaWasm(
     try {
       files = (await decodeYsmFileFromMemory(bytes)) || [];
       if (files?.length) {
-        console.log(`[YSM] ✅ 原始字节解码成功: ${files.length} 文件`);
+        devLog(`[YSM] ✅ 原始字节解码成功: ${files.length} 文件`);
       }
     } catch (e) {
       // 不静默吞错：abort/trap/out of memory 等硬崩溃信号需留痕便于排查
@@ -343,14 +343,14 @@ export async function doDecodeYsmViaWasm(
 
     // 快路径失败 → 尝试 MEMFS（callMain，能处理 V3 文本头部等特殊格式）
     if (!files?.length) {
-      console.log("[YSM] 原始字节解码失败，尝试 MEMFS 文件路径解码...");
+      devLog("[YSM] 原始字节解码失败，尝试 MEMFS 文件路径解码...");
       try {
         files = (await decodeYsmFile(bytes)) || [];
         if (files?.length) {
-          console.log(`[YSM] ✅ MEMFS 解码成功: ${files.length} 文件`);
+          devLog(`[YSM] ✅ MEMFS 解码成功: ${files.length} 文件`);
         }
       } catch (e2) {
-        console.log(`[YSM] MEMFS 解码异常: ${e2 instanceof Error ? e2.message : String(e2)}`);
+        devLog(`[YSM] MEMFS 解码异常: ${e2 instanceof Error ? e2.message : String(e2)}`);
       }
     }
 
@@ -360,27 +360,27 @@ export async function doDecodeYsmViaWasm(
         const rebuilt = stripYsgpTextHeader(bytes, tryVer ?? undefined);
         if (rebuilt === bytes || !rebuilt) continue;
         const verLabel = tryVer ? `V${tryVer}` : "V2(自动)";
-        console.log(`[YSM] 原始解码失败，尝试剥离文本头部(${verLabel})...`);
+        devLog(`[YSM] 原始解码失败，尝试剥离文本头部(${verLabel})...`);
         try {
           files = (await decodeYsmFileFromMemory(rebuilt)) || [];
           if (files?.length) {
             break;
           }
         } catch (e3) {
-          console.log(`[YSM] 剥离${verLabel}解码异常: ${e3 instanceof Error ? e3.message : String(e3)}`);
+          devLog(`[YSM] 剥离${verLabel}解码异常: ${e3 instanceof Error ? e3.message : String(e3)}`);
         }
       }
     }
 
     if (!files?.length) {
-      console.log("[YSM] 内存解析返回空（跳过 callMain 直接回退 Go CLI）");
+      devLog("[YSM] 内存解析返回空（跳过 callMain 直接回退 Go CLI）");
     }
-    console.log(`[YSM] 输出 ${files?.length || 0} 文件`);
+    devLog(`[YSM] 输出 ${files?.length || 0} 文件`);
     if (files?.length) {
-      console.log(`[YSM] 文件: ${files.map((f) => f.path).join(", ")}`);
+      devLog(`[YSM] 文件: ${files.map((f) => f.path).join(", ")}`);
     }
     if (!files?.length) {
-      console.log("[YSM] ❌ WASM 解码失败，无输出文件");
+      devLog("[YSM] ❌ WASM 解码失败，无输出文件");
       cacheSet(modelPath, { _wasmFailed: true });
       return null;
     }
@@ -671,13 +671,13 @@ export async function doDecodeYsmViaWasm(
 
     // 无 ysm.json → WASM 无法确定纹理映射，交 Go 处理（有启发式匹配）
     if (!geometry && !ysmMeta) {
-      console.log("[YSM] 无 ysm.json 引导，移交 Go 确保纹理正确映射");
+      devLog("[YSM] 无 ysm.json 引导，移交 Go 确保纹理正确映射");
       cacheSet(modelPath, { _wasmFailed: true });
       return null;
     }
 
     if (!geometry && files?.length > 0) {
-      console.log(`[YSM] ⚠️ WASM 解码成功但几何体解析为空，回退 Go CLI`);
+      devLog(`[YSM] ⚠️ WASM 解码成功但几何体解析为空，回退 Go CLI`);
       cacheSet(modelPath, { _wasmFailed: true });
       return null;
     }
