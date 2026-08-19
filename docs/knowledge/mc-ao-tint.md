@@ -5,6 +5,7 @@ tier: leaf
 category: utils
 source_files:
   - frontend/src/utils/3d/adapters/pack-model-adapter.ts
+  - frontend/src/utils/3d/mc-tints.ts
 reference_files:
   - PrismarineJS/prismarine-viewer viewer/lib/models.js (getSectionGeometry)  # 仅只读参考，不引入其渲染器
 use_when:

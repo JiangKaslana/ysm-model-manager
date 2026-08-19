@@ -4,9 +4,7 @@ name: WASM 解析器 ysm-parser
 tier: architecture
 category: utils
 source_files:
-  - frontend/src/wasm/ysm-parser.ts
-  - frontend/src/wasm/ysm-glue-data.js
-  - frontend/src/wasm/ysm-wasm-data.js
+  - frontend/src/wasm/
   - internal/app/wasm_decoder.go
   - go/avatar/avatar.go
 use_when:

@@ -4,16 +4,8 @@ name: 场景能力注册表 scene-capability-registry
 tier: architecture
 category: utils
 source_files:
-  - frontend/src/utils/3d/caps/scene-capability-registry.ts
-  - frontend/src/utils/3d/caps/scene-capability.ts
-  - frontend/src/utils/3d/caps/sky-capability.ts
-  - frontend/src/utils/3d/caps/ground-capability.ts
-  - frontend/src/utils/3d/caps/environment-capability.ts
-  - frontend/src/utils/3d/caps/fog-capability.ts
-  - frontend/src/utils/3d/caps/shadow-capability.ts
-  - frontend/src/utils/3d/caps/reflector-capability.ts
-  - frontend/src/utils/3d/caps/light-capability.ts
-  - frontend/src/utils/3d/caps/postprocessing-capability.ts
+  - frontend/src/utils/3d/caps/
+  - frontend/src/utils/3d/adapters/scene-registry.ts
 tests:
   - frontend/src/utils/3d/caps/scene-capability-registry.test.ts
   - frontend/src/utils/3d/caps/ground-capability.test.ts

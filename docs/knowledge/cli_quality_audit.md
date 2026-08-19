@@ -4,14 +4,11 @@ name: CLI 质量摸排 Checklist
 tier: architecture
 category: go
 source_files:
-  - go/cli/shared.go
-  - go/cli/cli.go
-  - go/cli/registry.go
-  - go/cli/resource.go
-  - go/cli/cache.go
-  - go/cli/concurrent.go
+  - go/cli/
   - internal/app/cli_bridge.go
   - frontend/src/services/cli-bridge.ts
+tests:
+  - frontend/src/services/cli-bridge.test.ts
 use_when:
   - CLI
   - 质量摸排

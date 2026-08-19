@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 92 张知识卡
+> 总计: 96 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -19,7 +19,7 @@
 
 - **resource-registry**（资源注册表 registry）：`resource_types.json` 是 YSM 资源类型定义的单一事实来源（Single Source of Truth）。所有资源类型、子目录、扩展名的定义均以此处为准。
 
-## core（12 张）
+## core（13 张）
 
 *核心基础设施（事件总线、页面状态、Wails 桥接）*
 
@@ -28,6 +28,7 @@
 | 🏗 android-bridge | Android 桥接层：存储授权 + 目录选择器 | architecture | Android, 存储授权, 目录选择, MANAGE_EXTERNAL_STORAGE, 权限, 选择目录, SAF, android-bridge, pickDirectory |
 | 🏗 android-events | Android 系统事件消费（back/网络/存储授权） | architecture | android:back, 返回键, 弹窗, 退出, 系统事件, ScreenLocked, NetworkChanged, permissionGranted, closeActiveDialog, registerAndroidEvents |
 | 🏗 backend-idb | 浏览器后端 IndexedDB 封装 | architecture | IndexedDB, 网页版, backend, 模型库, browser adapter, web mode |
+| 🏗 backend_web | 网页版后端 backend-web | architecture | 网页版, 浏览器模式, web mode, IndexedDB, IDB, 浏览器后端, browser adapter, 跨域隔离, COI, NBT 解析, 体素, 体素颜色, Web CLI, 社区下载, 网页版文件系统, 网页版仓库 |
 | 🏗 event-bus | 事件总线 bus.ts | architecture | 事件, 事件总线, 通信, emit, 跨组件通信, bus |
 | 🏗 global-handlers | 全局事件处理 global-handlers | architecture | 全局事件, 拖拽导入, 拖拽提示, 同步缺失, 清空整合包, 导出清单 |
 | 🏗 i18n | 国际化 i18n 模块 | architecture | 翻译, 多语言, i18n, t(), 语言切换, lang:changed |
@@ -43,6 +44,7 @@
 - **android-bridge**（Android 桥接层：存储授权 + 目录选择器）：Android 专属的 Java ↔ 前端桥（`WailsJSBridge` 以 `wails` 名注册到 WebView，桌面端无此桥返回 `null`）与跨平台目录选择器。解决 Android 上 Wails 官方**拒绝目录选择**（…
 - **android-events**（Android 系统事件消费（back/网络/存储授权））：前端消费 Java 层经 Wails 事件总线转发的 `android:*` 系统事件（ADR-046 P2，参照 MikuMikuAR ADR-017 A3-04）。桌面端无 Java 层，这些事件永不触发，注册无害。生命周期由 `reg…
 - **backend-idb**（浏览器后端 IndexedDB 封装）：`backend/` 目录是 YSM 网页版的后端抽象层（ADR-049 Phase 1-2），在桌面/Android 走 Wails Go 绑定、网页版走 `browser-adapter.ts` + `idb.ts` 的同一接口。`id…
+- **backend_web**（网页版后端 backend-web）：`frontend/src/backend/` 是 YSM 网页版（ADR-049 Web Edition）的后端抽象层。在桌面/Android 环境下走 Wails Go 绑定替代，网页版使用 `browser-adapter.ts` +…
 - **event-bus**（事件总线 bus.ts）：`bus.ts` 是 YSM 前端的唯一事件中枢，基于发布/订阅模式。所有跨组件、跨页面的异步通信都经过此总线，避免组件间直接耦合。
 - **global-handlers**（全局事件处理 global-handlers）：`core/handlers/global.ts` 是全应用唯一的 core 全局 handler 注册入口（致命陷阱 #2 的解法）：app-content 的 `connectedCallback` 调一次 `registerGloba…
 - **i18n**（国际化 i18n 模块）：`i18n` 模块是 YSM 前端的唯一翻译层，基于 ADR-045 设计。`t.ts` 提供纯函数式翻译（按 key 查表），`locale.ts` 管理语言状态、持久化与异步加载。支持简体中文（基准）、英语、日语三种语言，语言偏好持久化…
@@ -145,7 +147,7 @@
 - **go-ysm-parser**（YSM 解析 go/ysm）：`go/ysm/` 包负责解析 YSM（Yuan's Sketch Model）格式文件，提取模型元数据并生成结构化摘要。
 - **wails-bindings**（Wails Binding API 总览 internal/app）：`internal/app/` 是 Go 端唯一的 Wails Binding 入口层：所有导出给前端的方法都定义在 `*App` 上，业务逻辑下沉到 `go/*` 包，本层只做参数转发与窗口/事件/对话框编排。前端统一经 `getApp(…
 
-## ui（20 张）
+## ui（21 张）
 
 *前端 UI 组件（tree、sidebar、preview、content）*
 
@@ -171,6 +173,7 @@
 | 🍃 shared-styles | 共享样式 shared-styles | leaf | 共享样式, 按钮样式, btn-base, focus-visible, tree 样式, Shadow DOM 样式, CSS 变量 |
 | 🏗 test-utils | 测试工具 test-utils（G-1 抗脆弱测试基础设施） | architecture | 测试工具, testid, getByTestId, waitFor, 组件测试, mock, G-1 |
 | 🍃 ui-slide-menu | ADR 去桶化 slide-menu 外壳组件 | leaf | slide-menu, slide 菜单, 去桶化, ADR 卡片, 两级菜单, 轻量导航栈, createSlideMenu, slideRow, 行组件 |
+| 🏗 ui_components | UI 组件库 ui-components | architecture | UI 组件, UI 组件库, 卡片组件, 折叠面板, 加载动画, 滑块, 行组件, 预设, 图标, 幻灯片菜单, 组件样式 |
 
 ### 摘要
 
@@ -193,8 +196,9 @@
 - **shared-styles**（共享样式 shared-styles）：两个样式模块为 Shadow DOM 组件提供可复用的 CSS 字符串：`utils/dom/css.ts` 导出全应用统一的按钮体系 `.btn-base` 与通用 focus-visible 规则；`views/app-tree/app…
 - **test-utils**（测试工具 test-utils（G-1 抗脆弱测试基础设施））：`frontend/src/test-utils/` 是组件测试统一工具层（ADR-035 G-1 / Design.md §19.1）。查询走 `data-testid` 稳定钩子（不绑定 CSS 类/文案），等待走轮询（替代固定 sle…
 - **ui-slide-menu**（ADR 去桶化 slide-menu 外壳组件）：`frontend/src/ui/ui-slide-menu.ts` 是 ADR 去桶化（ADR-075/076）配套新增的**通用 slide-menu 卡片外壳组件**，复刻 MikuMikuAR 的 slide-menu 视觉卡片（m…
+- **ui_components**（UI 组件库 ui-components）：`frontend/src/ui/` 是前端 Web Components 的通用 UI 组件库，提供可复用的展示型组件：卡片、折叠面板、加载动画、行排列、滑块、幻灯片菜单、图标等。所有组件为无业务逻辑的纯 UI 层。
 
-## utils（22 张）
+## utils（24 张）
 
 *工具函数（display、fmt、dom、animation）*
 
@@ -202,11 +206,13 @@
 |------|------|------|--------|
 | 🏗 animation-system | 动画系统 animation | architecture | 动画, 骨骼动画, 关键帧, 动画播放, Molang, 数字滚动, stagger 入场, 关闭动画 |
 | 🍃 bone-tools | 跨格式骨骼工具层 bone-tools | leaf | 骨骼工具, 骨骼树, 骨骼列表, 骨骼拾取, 骨骼显隐, BoneNode, BoneTree, buildBoneTree, makeBonePanelRenderer |
+| 🏗 core_utils | 核心工具函数 core-utils | architecture | 工具函数, 工具方法, 纯函数, 防抖, 深拷贝, 类型守卫, 格式化, UUID, 响应式, 键盘导航, 虚拟网格, 数学计算, 路径工具 |
 | 🍃 dom-storage | localStorage 安全读写 safeGet/safeSet | leaf | localStorage, 隐私模式, safeGet, safeSet, storage |
 | 🍃 format-ysm-anim-config | YSM 动画分组与配置菜单提取 | leaf | 动画分组, 配置菜单, ysm.json, extra_animation, summarize |
 | 🍃 mc-ao-tint | MC 环境光遮蔽(AO) 权重 + biome 配色 参考实现 | leaf | MC 方块模型 AO / 平滑光照, biome tint / 草叶水配色 / 4 类 tint, pack-model-adapter 材质升级后续（ADR-080）, 顶点色遮蔽权重 |
 | 🏗 model2d | 2D 预览渲染 model2d | architecture | 2D 预览, 骨骼图, Canvas 渲染, 前视图, 骨骼热区, 鼠标拾取, 线框图 |
 | 🏗 model3d | 3D 预览渲染 model3d | architecture | 3D 预览, Three.js, 相机, 骨骼渲染, 自由相机, 3D 截图, 纹理加载, spec 兜底, OrbitControls |
+| 🏗 perception | 3D 感知系统 perception | architecture | 自主动画, 自动跳舞, 眨眼, 呼吸, 视线追踪, 口型同步, 节拍检测, 模型感知, 自动运动 |
 | 🏗 preview_core | 统一 3D 预览核心 preview-core | architecture | 3D 预览, 统一预览外壳, 程序化天空 / sky / 背景 / scene.background, PreviewAdapter 适配器, 全模型预览（YSM / VRM / MMD / Litematic）, mount3D |
 | 🏗 scene_capability_registry | 场景能力注册表 scene-capability-registry | architecture | 场景能力 / cap / registry / SceneCapability, 3D 菜单控件声明式渲染（getMenuControls）, 新增 3D 能力（雾/阴影/反射/环境/灯光/后处理）, 3D 会话生命周期（createAll / loadAll / setPreset / saveAll / dispose）, 「光」指代消歧（light 是光源，fog/shadow/reflector 不是） |
 | 🍃 utils-array | 数组工具 moveItem | leaf | 数组排序, 拖拽排序, moveItem, 列表 reorder |
@@ -227,10 +233,12 @@
 
 - **animation-system**（动画系统 animation）：前端动画体系分两层：**模型骨骼动画**（基岩版 animation.json 解析 + 关键帧插值求值）与 **UI 动效**（数字里程表滚动、stagger 入场延迟）。UI 层的 CSS 动画可被全局 `no-animations` …
 - **bone-tools**（跨格式骨骼工具层 bone-tools）：`frontend/src/utils/3d/bone-tools.ts` 是 ADR-072 落地后新增的**跨格式骨骼工具层**，屏蔽 YSM spec 扁平 bones 声明与 VRM humanoid Object3D 层级树两种形…
+- **core_utils**（核心工具函数 core-utils）：`utils/core/` 是全前端最基础的纯函数工具层，不依赖任何前端框架或业务模块。按 ADR-044 策略 A 收敛自多包重复实现，统一入口。
 - **dom-storage**（localStorage 安全读写 safeGet/safeSet）：`localStorage` 安全读写工具层（ADR-044 策略 A），收敛项目内所有 `localStorage` 调用，避免隐私模式/存储禁用下裸调抛错中断启动链（`initTheme`/`applyUIPrefs`/`setting…
 - **format-ysm-anim-config**（YSM 动画分组与配置菜单提取）：前端镜像 Go 端 `appendAnimGroupsAndConfigs` 逻辑的纯函数模块（`summary.go`）。加密 `.ysm` 经 WASM 解码后，`ysm.json` 的 `properties` 字段可读，但原 `wa…
 - **model2d**（2D 预览渲染 model2d）：Canvas 2D 渲染基岩版模型骨骼的线框/正交投影图（前视图 + 可选 Y 轴旋转），是预览面板的轻量视图；与 [model3d](./model3d.md) 共享同一套 Bedrock 几何口径。
 - **model3d**（3D 预览渲染 model3d）：前端 Three.js 3D 渲染层（`frontend/src/utils/3d/`），采用 **RenderSession 对象化架构**（ADR-052 落地）。核心入口 `renderModel3D()` 现为薄壳，实际逻辑在 `R…
+- **perception**（3D 感知系统 perception）：`utils/3d/perception/` 是实现模型「自主生命感」的感知层子系统：让 Minecraft 角色自动眨眼、呼吸、注视、对口型、随音乐律动。
 - **preview_core**（统一 3D 预览核心 preview-core）：ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚手架（旧实现各内联 ~250 行同构），成为所有富格式 3D 预览的**单一事实来源外壳**。内容差异经 `PreviewAdapter.bui…
 - **scene_capability_registry**（场景能力注册表 scene-capability-registry）：ADR-073 扩展落地的**场景能力注册表**：所有场景能力（Sky / Ground / Environment / Fog / Shadow / Reflector / Light / Postprocessing）由统一注册表**创…
 - **utils-array**（数组工具 moveItem）：纯函数层数组操作工具，从 `site/edit.ts` 的拖拽排序 drop 逻辑抽出，供单测覆盖（ADR-023 L3）。

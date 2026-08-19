@@ -4,17 +4,10 @@ name: 统一 3D 预览核心 preview-core
 tier: architecture
 category: utils
 source_files:
-  - frontend/src/utils/3d/adapters/mount-preview-core.ts
+  - frontend/src/utils/3d/adapters/
+  - frontend/src/utils/3d/bone-tools.ts
   - frontend/src/utils/3d/caps/sky-capability.ts
   - frontend/src/utils/3d/caps/ground-capability.ts
-  - frontend/src/utils/3d/adapters/preview-menu.ts
-  - frontend/src/utils/3d/adapters/preview-menu-defs.ts
-  - frontend/src/utils/3d/adapters/vrm-bone-ui.ts
-  - frontend/src/utils/3d/bone-tools.ts
-  - frontend/src/utils/3d/adapters/ysm-adapter.ts
-  - frontend/src/utils/3d/adapters/vrm-adapter.ts
-  - frontend/src/utils/3d/adapters/mmd-adapter.ts
-  - frontend/src/utils/3d/adapters/litematic-adapter.ts
 tests:
   - frontend/src/utils/3d/adapters/mmd-adapter.test.ts
   - frontend/src/utils/3d/adapters/ysm-3d.test.ts

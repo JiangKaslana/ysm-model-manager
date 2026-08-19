@@ -7,6 +7,7 @@ source_files:
   - frontend/src/utils/animation/animation.ts
   - frontend/src/utils/animation/animate.ts
   - frontend/src/utils/animation/stagger.ts
+  - frontend/src/utils/3d/ysm-animation-player.ts
 tests:
   - frontend/src/utils/animation/animate.test.ts
   - frontend/src/utils/animation/animation.test.ts

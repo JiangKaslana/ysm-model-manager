@@ -1205,6 +1205,10 @@ export const autoSidebar = [
             "link": "/knowledge/android-events"
           },
           {
+            "text": "网页版后端 backend-web",
+            "link": "/knowledge/backend_web"
+          },
+          {
             "text": "浏览器后端 IndexedDB 封装",
             "link": "/knowledge/backend-idb"
           },
@@ -1453,6 +1457,10 @@ export const autoSidebar = [
             "link": "/knowledge/test-utils"
           },
           {
+            "text": "UI 组件库 ui-components",
+            "link": "/knowledge/ui_components"
+          },
+          {
             "text": "ADR 去桶化 slide-menu 外壳组件",
             "link": "/knowledge/ui-slide-menu"
           }
@@ -1501,6 +1509,10 @@ export const autoSidebar = [
             "link": "/knowledge/bone-tools"
           },
           {
+            "text": "核心工具函数 core-utils",
+            "link": "/knowledge/core_utils"
+          },
+          {
             "text": "localStorage 安全读写 safeGet/safeSet",
             "link": "/knowledge/dom-storage"
           },
@@ -1519,6 +1531,10 @@ export const autoSidebar = [
           {
             "text": "3D 预览渲染 model3d",
             "link": "/knowledge/model3d"
+          },
+          {
+            "text": "3D 感知系统 perception",
+            "link": "/knowledge/perception"
           },
           {
             "text": "统一 3D 预览核心 preview-core",
