@@ -7,7 +7,7 @@
 // 关闭统一走 SlideMenu header ✕（根级）/ ←（子级），外部点击关闭。
 
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
-import { createSlideMenu, type SlideMenuView } from "../../../ui/ui-slide-menu.ts";
+import { createSlideMenu, type SlideMenuView, type SlideMenuHandle } from "../../../ui/ui-slide-menu.ts";
 import { buildCameraControls, type CameraControlBridge } from "./camera-controls.ts";
 import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
@@ -16,7 +16,7 @@ import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { RESOURCE_TYPE_LABELS } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
-import type { MenuControlDef } from "../caps/scene-capability.ts";
+import type { MenuControlDef, SceneCapability } from "../caps/scene-capability.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
@@ -256,8 +256,9 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   };
 
   // ---- core 填充器 ----
-  const fillers: Record<string, (list: HTMLElement) => void> = {
-    environment: (list) => fillEnvironment(list, ctx),
+  // environment 需要 menu 句柄实现两级下钻；其余 filler 仅 list 即可。
+  const fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void> = {
+    environment: (list, _menu) => fillEnvironment(list, ctx, menu),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
     switch: (list) => fillSwitch(list, ctx, hideMenu),
     lighting: (list) => fillLighting(list, ctx),
@@ -275,7 +276,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     list.innerHTML = "";
     try {
       if (def.render) def.render(list, hideMenu);
-      else fillers[def.id]?.(list);
+      else fillers[def.id]?.(list, menu);
     } catch (err) {
       console.error("[preview-menu] renderPanel FAILED", def.id, err);
       const errRow = document.createElement("div");
@@ -390,12 +391,56 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
 /** 环境面板（ADR-075 + 统一注册表）：只渲染环境类能力（sky/ground/environment/fog/reflector）
  *  独立面板排除项：light → lighting；shadow → shadow；postprocessing → postproc；避免同一能力控件双面板重复。
- *  每个 cap 的控件之间画分隔线，视觉分组。 */
-function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
+ *
+ *  两级菜单（2026-08-20 改造）：
+ *  - 第一层（环境根视图）：每个 cap 渲染一行摘要 = 主控件 + 名称 + ›
+ *    · environment/fog/reflector：第一个控件是 *-enabled toggle → 第一层放该 toggle
+ *    · sky：无 enabled toggle，第一个控件是 sky-time slider → 第一层直接放该 slider
+ *    · ground：仅一个 visible toggle、无数值 → 纯 toggle 行，无 ›
+ *  - › 点击 → menu.navigate(subView)，subView 渲染该 cap 的完整 getMenuControls()
+ *  - 无 menu 句柄（旧调用路径）→ 回退到平铺渲染，保持向后兼容 */
+function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMenuHandle): void {
   const ENV_IDS = new Set(["sky", "ground", "environment", "fog", "reflector"]);
-  const allCaps = sceneCapabilityRegistry.getAll().filter((cap) => ENV_IDS.has(cap.id));
-  const controls: MenuControlDef[] = [];
-  if (allCaps.length > 0) {
+  let allCaps = sceneCapabilityRegistry.getAll().filter((cap) => ENV_IDS.has(cap.id));
+
+  // 注册表为空时回退到 ctx getter（测试场景）：把 skyCap/groundCap 当 cap 用
+  if (allCaps.length === 0) {
+    const skyCap = ctx.getSkyCap();
+    const groundCap = ctx.getGroundCap();
+    const fallback: SceneCapability[] = [];
+    if (skyCap && "getMenuControls" in skyCap) {
+      // 包装一层注入 id（fake cap 无 id 字段；注册表路径的 cap 自带 id）
+      fallback.push({
+        ...(skyCap as unknown as SceneCapability),
+        id: "sky",
+        labelKey: "preview.timeOfDay",
+        icon: "🌤️",
+        descKey: "",
+      });
+    }
+    if (groundCap && "getMenuControls" in groundCap) {
+      fallback.push({
+        ...(groundCap as unknown as SceneCapability),
+        id: "ground",
+        labelKey: "preview.ground",
+        icon: "🟫",
+        descKey: "",
+      });
+    }
+    allCaps = fallback;
+  }
+
+  if (allCaps.length === 0) {
+    const row = document.createElement("div");
+    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+    row.textContent = tr("preview.noEnvironment", "进入 3D 后再打开环境面板");
+    list.appendChild(row);
+    return;
+  }
+
+  // 无 menu 句柄 → 旧平铺路径（legacy 调用方）；collectAllControls 复用 allCaps
+  const collectAllControls = (): MenuControlDef[] => {
+    const controls: MenuControlDef[] = [];
     allCaps.forEach((cap, idx) => {
       if (idx > 0) {
         controls.push({
@@ -409,21 +454,119 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx): void {
       }
       controls.push(...cap.getMenuControls());
     });
-  } else {
-    // 注册表为空时回退到 ctx getter（测试场景）
-    const skyCap = ctx.getSkyCap();
-    const groundCap = ctx.getGroundCap();
-    if (skyCap && "getMenuControls" in skyCap) controls.push(...(skyCap as unknown as { getMenuControls(): MenuControlDef[] }).getMenuControls());
-    if (groundCap && "getMenuControls" in groundCap) controls.push(...(groundCap as unknown as { getMenuControls(): MenuControlDef[] }).getMenuControls());
-  }
-  if (controls.length === 0) {
-    const row = document.createElement("div");
-    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    row.textContent = tr("preview.noEnvironment", "进入 3D 后再打开环境面板");
-    list.appendChild(row);
+    return controls;
+  };
+
+  if (!menu) {
+    renderCapControls(list, collectAllControls());
     return;
   }
-  renderCapControls(list, controls);
+
+  // 按 ENV_IDS 声明顺序渲染（注册顺序 = 菜单渲染顺序，见 scene_capability_registry 知识卡）
+  const orderedIds = ["sky", "ground", "environment", "fog", "reflector"];
+  const orderedCaps = orderedIds
+    .map((id) => allCaps.find((c) => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c));
+
+  orderedCaps.forEach((cap) => {
+    const controls = cap.getMenuControls();
+    if (controls.length === 0) return;
+
+    // 第一层摘要行：第一个非 divider 控件作为该行的"主控件"
+    const primaryIdx = controls.findIndex((c) => c.kind !== "divider");
+    if (primaryIdx === -1) return;
+    const primary = controls[primaryIdx];
+    const hasSubPanel = controls.length > 1;
+
+    const row = document.createElement("div");
+    row.className = "slide-item";
+    row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+
+    // 主控件渲染（toggle/slider 各自一行内控件）
+    const renderPrimaryInline = (): void => {
+      if (primary.kind === "toggle") {
+        const label = document.createElement("span");
+        label.className = "slide-label";
+        label.textContent = tr(primary.labelKey, primary.fallback);
+        label.style.cssText = "flex:1;font-size:12px";
+        const toggle = createHeaderToggle({
+          value: primary.getValue() as boolean,
+          onChange: (v: boolean): void => primary.setValue(v),
+          bind: (): boolean => primary.getValue() as boolean,
+        });
+        row.append(label, toggle);
+      } else if (primary.kind === "slider") {
+        // sky 特例：第一层直接放 sky-time slider（无 toggle）
+        const head = document.createElement("div");
+        head.style.cssText = "display:flex;flex-direction:column;gap:2px;flex:1;min-width:0";
+        const nameRow = document.createElement("div");
+        nameRow.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.85)";
+        const name = document.createElement("span");
+        name.className = "slide-label";
+        name.textContent = tr(primary.labelKey, primary.fallback);
+        const val = document.createElement("span");
+        const numVal = primary.getValue() as number;
+        val.textContent = primary.slider?.unit === "h"
+          ? `${String(Math.floor(numVal)).padStart(2, "0")}:${String(Math.round((numVal % 1) * 60)).padStart(2, "0")}`
+          : primary.slider?.unit === "%"
+            ? `${Math.round(numVal * 100)}%`
+            : primary.slider?.unit
+              ? `${numVal}${primary.slider.unit}`
+              : numVal.toFixed(2);
+        nameRow.append(name, val);
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = String(primary.slider?.min ?? 0);
+        slider.max = String(primary.slider?.max ?? 1);
+        slider.step = String(primary.slider?.step ?? 0.01);
+        slider.value = String(numVal);
+        slider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+        slider.oninput = (): void => {
+          const v = Number(slider.value);
+          primary.setValue(v);
+          val.textContent = primary.slider?.unit === "h"
+            ? `${String(Math.floor(v)).padStart(2, "0")}:${String(Math.round((v % 1) * 60)).padStart(2, "0")}`
+            : primary.slider?.unit === "%"
+              ? `${Math.round(v * 100)}%`
+              : primary.slider?.unit
+                ? `${v}${primary.slider.unit}`
+                : v.toFixed(2);
+        };
+        head.append(nameRow, slider);
+        row.appendChild(head);
+      } else {
+        // primary 是 select/button 等非 toggle/slider → 退化：整行点击下钻，不内联渲染
+        const label = document.createElement("span");
+        label.className = "slide-label";
+        label.textContent = tr(cap.labelKey, cap.id);
+        label.style.cssText = "flex:1;font-size:12px";
+        row.appendChild(label);
+      }
+    };
+
+    renderPrimaryInline();
+
+    // › 下钻箭头（仅当该 cap 有子面板时显示）
+    if (hasSubPanel) {
+      const chev = document.createElement("span");
+      chev.textContent = "›";
+      chev.dataset.testid = "row-chevron";
+      chev.style.cssText = "margin-left:auto;font-size:18px;font-weight:700;opacity:0.5;cursor:pointer;user-select:none;padding:0 4px";
+      chev.onclick = (e: MouseEvent): void => {
+        e.stopPropagation();
+        menu.navigate({
+          title: tr(cap.labelKey, cap.id),
+          render: (subList: HTMLElement): void => {
+            subList.innerHTML = "";
+            renderCapControls(subList, controls);
+          },
+        });
+      };
+      row.appendChild(chev);
+    }
+
+    list.appendChild(row);
+  });
 }
 
 /** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮；
