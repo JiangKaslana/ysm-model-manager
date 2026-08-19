@@ -18,6 +18,8 @@ import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
 import type { MenuControlDef, SceneCapability } from "../caps/scene-capability.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
+import { ENV_PRESET_LINKAGE, type EnvPresetId } from "../caps/environment-capability.ts";
+import type { FogCapability } from "../caps/fog-capability.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
@@ -81,6 +83,8 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
       body.style.display = collapsed ? "none" : "block";
       arrow.textContent = collapsed ? "▸" : "▾";
     };
+    // 防御性：防止 header 点击冒泡到 SlideMenu 导航/关闭行为
+    header.addEventListener("click", (e: MouseEvent): void => e.stopPropagation());
     section.append(header, body);
     list.appendChild(section);
     sectionMap.set(group, { section, body });
@@ -500,6 +504,80 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
     renderCapControls(list, collectAllControls());
     return;
   }
+
+  // ── 预设快捷栏（第一层顶部）──
+  // 一排按钮：☀️工作室 / 🌅日落 / 🌙夜景 / 🌳森林 / 🌤️天空
+  // 点击 → ENV_PRESET_LINKAGE 联动 sky/fog/env，再 navigate 到 environment 子面板让用户看效果
+  const presetBar = document.createElement("div");
+  presetBar.style.cssText = "display:flex;gap:4px;padding:6px 10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.08)";
+  const PRESET_ORDER: Array<{ id: Exclude<EnvPresetId, "custom">; icon: string; labelKey: string }> = [
+    { id: "studio", icon: "☀️", labelKey: "preview.presetQuickStudio" },
+    { id: "sunset", icon: "🌅", labelKey: "preview.presetQuickSunset" },
+    { id: "night", icon: "🌙", labelKey: "preview.presetQuickNight" },
+    { id: "forest", icon: "🌳", labelKey: "preview.presetQuickForest" },
+    { id: "sky", icon: "🌤️", labelKey: "preview.presetQuickSky" },
+  ];
+
+  const applyPresetLinkage = (presetId: Exclude<EnvPresetId, "custom">): void => {
+    const link = ENV_PRESET_LINKAGE[presetId];
+    if (!link) return;
+
+    // sky 联动
+    if (link.sky) {
+      const skyCap = sceneCapabilityRegistry.getById("sky") as (SkyCapability & { setTime?(h: number): void; setCloudCoverage?(v: number, regen?: boolean): void }) | null;
+      if (skyCap) {
+        skyCap.setTime?.(link.sky.time);
+        skyCap.setCloudCoverage?.(link.sky.cloud, true);
+      } else {
+        // 回退 ctx getter（测试场景）
+        const fromCtx = ctx.getSkyCap() as (SkyCapability & { setTime?(h: number): void; setCloudCoverage?(v: number, regen?: boolean): void }) | null;
+        if (fromCtx) {
+          fromCtx.setTime?.(link.sky.time);
+          fromCtx.setCloudCoverage?.(link.sky.cloud, true);
+        }
+      }
+    }
+
+    // fog 联动
+    if (link.fog) {
+      const fogCap = sceneCapabilityRegistry.getById("fog") as FogCapability | null;
+      const target = fogCap ?? null;
+      if (target) {
+        target.setEnabled(link.fog.enabled);
+        if (link.fog.mode) target.setMode(link.fog.mode);
+        if (link.fog.density !== undefined) target.setDensity(link.fog.density);
+        if (link.fog.near !== undefined || link.fog.far !== undefined) {
+          target.setLinearRange(link.fog.near, link.fog.far);
+        }
+      }
+    }
+
+    // environment 联动：切 preset + intensity
+    const envCap = sceneCapabilityRegistry.getById("environment") as (import("../caps/environment-capability.ts").EnvironmentCapability) | null;
+    if (envCap) {
+      envCap.setPresetId(presetId);
+      if (link.envIntensity !== undefined) envCap.setIntensity(link.envIntensity);
+    }
+  };
+
+  PRESET_ORDER.forEach((p) => {
+    const btn = document.createElement("button");
+    btn.style.cssText = "flex:1;min-width:48px;padding:4px 6px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;background:transparent;color:rgba(255,255,255,0.85);cursor:pointer;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px";
+    const ic = document.createElement("span");
+    ic.textContent = p.icon;
+    ic.style.cssText = "font-size:14px";
+    const lb = document.createElement("span");
+    lb.textContent = tr(p.labelKey, p.id);
+    btn.append(ic, lb);
+    btn.onclick = (e: MouseEvent): void => {
+      e.stopPropagation();
+      applyPresetLinkage(p.id);
+      // 应用后刷新当前视图（让第一层各 cap 的主控件读最新值）
+      menu.refresh();
+    };
+    presetBar.appendChild(btn);
+  });
+  list.appendChild(presetBar);
 
   // 按 ENV_IDS 声明顺序渲染（注册顺序 = 菜单渲染顺序，见 scene_capability_registry 知识卡）
   const orderedIds = ["sky", "ground", "environment", "fog", "reflector"];

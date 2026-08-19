@@ -75,6 +75,55 @@ export const ENV_PRESETS: Record<Exclude<EnvPresetId, "custom">, EnvPreset> = {
 /** preset=custom 时 select 里展示的 label（不进 ENV_PRESETS，无程序化 canvas 参数） */
 const CUSTOM_PRESET_LABEL = "自定义 HDR";
 
+/**
+ * 预设快捷联动表：选某预设时，除切 environment.preset 外，一并联动 sky/fog/env 参数，
+ * 让「日落」「夜景」等预设呈现完整氛围，而非只换一张 envMap。
+ *
+ * 字段语义：
+ *  - sky: { time, cloud } — 调 SkyCapability.setTime / setCloudCoverage
+ *  - fog: { enabled, mode?, density?, near?, far? } — 调 FogCapability 对应 setter
+ *  - envIntensity: number — 调 EnvironmentCapability.setIntensity
+ *  - 仅列需要改的字段；未列的字段保持用户当前值（不覆盖）
+ */
+export interface EnvPresetLinkage {
+  sky?: { time: number; cloud: number };
+  fog?: {
+    enabled: boolean;
+    mode?: "linear" | "exp2";
+    density?: number;
+    near?: number;
+    far?: number;
+  };
+  envIntensity?: number;
+}
+
+export const ENV_PRESET_LINKAGE: Record<Exclude<EnvPresetId, "custom">, EnvPresetLinkage> = {
+  sky: {
+    sky: { time: 9, cloud: 0.1 },
+    envIntensity: 1.0,
+  },
+  studio: {
+    sky: { time: 12, cloud: 0.0 },
+    fog: { enabled: false },
+    envIntensity: 1.6,
+  },
+  sunset: {
+    sky: { time: 18, cloud: 0.6 },
+    fog: { enabled: true, mode: "linear", density: 0.02, near: 50, far: 800 },
+    envIntensity: 1.4,
+  },
+  night: {
+    sky: { time: 22, cloud: 0.0 },
+    fog: { enabled: true, mode: "exp2", density: 0.015 },
+    envIntensity: 0.7,
+  },
+  forest: {
+    sky: { time: 10, cloud: 0.4 },
+    fog: { enabled: true, mode: "exp2", density: 0.03 },
+    envIntensity: 1.1,
+  },
+};
+
 export interface EnvironmentParams {
   enabled: boolean;
   preset: EnvPresetId;
