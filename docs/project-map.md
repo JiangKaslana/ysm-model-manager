@@ -94,6 +94,7 @@
 | `cli_mmd.go` | CLI MMD 专用命令（file-bench、scan-dir、analyze-mmd） |
 | `cli_model.go` | CLI 模型管理命令（search、analyze、list、verify、benchmark、export） |
 | `cli_shared.go` | CLI 共享工具函数（parseFlags、formatSize、min、max） |
+| `cli_test.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
 | `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |
