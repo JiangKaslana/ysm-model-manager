@@ -1,4 +1,4 @@
-﻿// ===== ja locale (ADR-045) =====
+// ===== ja locale (ADR-045) =====
 // Japanese translation matching all keys in zh-CN.ts / en.ts.
 // Placeholders like {n} / {path} / {mirror} must be kept verbatim.
 
@@ -877,6 +877,13 @@ export const ja: Record<string, string> = {
   "preview.fogGroupParams": "霧パラメータ",
   "preview.reflectorGroupParams": "反射パラメータ",
   "preview.skyGroupAdvanced": "詳細設定",
+  "preview.postprocessingGroupColor": "色彩と露出",
+  "preview.postprocessingGroupBloom": "ブルーム",
+  "preview.postprocessingGroupSsao": "環境光遮蔽 (SSAO)",
+  "preview.postprocessingGroupReflection": "反射モード",
+  "preview.postprocessingGroupSsr": "SSR パラメータ",
+  "preview.lightGroupParams": "光源パラメータ",
+  "preview.shadowGroupParams": "陰影パラメータ",
   "preview.postprocessing": "ポストプロセス",
   "preview.postprocessingDesc": "ブルーム / SSAO / トーンマッピング / 露出",
   "preview.toneMapping": "トーンマッピング",

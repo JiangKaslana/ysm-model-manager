@@ -1,4 +1,4 @@
-﻿// ===== en locale (ADR-045) =====
+// ===== en locale (ADR-045) =====
 // Complete translation matching all keys in zh-CN.ts.
 
 export const en: Record<string, string> = {
@@ -876,6 +876,13 @@ export const en: Record<string, string> = {
   "preview.fogGroupParams": "Fog Parameters",
   "preview.reflectorGroupParams": "Reflection Parameters",
   "preview.skyGroupAdvanced": "Advanced",
+  "preview.postprocessingGroupColor": "Color & Exposure",
+  "preview.postprocessingGroupBloom": "Bloom",
+  "preview.postprocessingGroupSsao": "Ambient Occlusion (SSAO)",
+  "preview.postprocessingGroupReflection": "Reflection Mode",
+  "preview.postprocessingGroupSsr": "SSR Parameters",
+  "preview.lightGroupParams": "Light Parameters",
+  "preview.shadowGroupParams": "Shadow Parameters",
   "preview.postprocessing": "Post-processing",
   "preview.postprocessingDesc": "Bloom / SSAO / Tone mapping / Exposure",
   "preview.toneMapping": "Tone Mapping",
