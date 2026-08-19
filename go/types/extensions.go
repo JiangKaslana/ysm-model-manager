@@ -13,15 +13,34 @@ import (
 // 单一事实来源：sync_dirlevel（同步保留层级）与 instance.BuildSyncItems（展示分组）
 // 均引用本集合。含 DefaultAnim/DefaultMorph 模组系统内置目录——用户不导入，
 // 但已存在时同步需识别保留、展示需归属分组。
-var mmdSubdirNames = map[string]bool{
-	"entityplayer": true,
-	"scenemodel":   true,
-	"defaultanim":  true,
-	"customanim":   true,
-	"stageanim":    true,
-	"defaultmorph": true,
-	"custommorph":  true,
-	"shader":       true,
+// mmdSubDirList 为规范名（PascalCase），MMDSubDirs() 供 EnsureStorageDirs 预建整棵
+// 类型树、展示分批复用；mmdSubdirNames 由本列表派生（小写键）供 IsMMDSubDir 查询。
+var mmdSubDirList = []string{
+	"EntityPlayer",
+	"SceneModel",
+	"DefaultAnim",
+	"CustomAnim",
+	"StageAnim",
+	"DefaultMorph",
+	"CustomMorph",
+	"shader",
+}
+
+var mmdSubdirNames = func() map[string]bool {
+	m := make(map[string]bool, len(mmdSubDirList))
+	for _, s := range mmdSubDirList {
+		m[strings.ToLower(s)] = true
+	}
+	return m
+}()
+
+// MMDSubDirs 返回 MC-MMD 用途子目录规范名切片（只读副本，防调用方篡改）。
+// EnsureStorageDirs 预建 subDirGrouping 类型时复用，确保整棵类型树（EntityPlayer/
+// SceneModel/CustomAnim/…）立即出现在磁盘，而非仅默认 storageSubDir。
+func MMDSubDirs() []string {
+	out := make([]string, len(mmdSubDirList))
+	copy(out, mmdSubDirList)
+	return out
 }
 
 // IsMMDSubDir 判断目录名是否为 MC-MMD 用途子目录（大小写不敏感）
