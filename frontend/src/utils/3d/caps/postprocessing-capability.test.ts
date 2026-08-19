@@ -1,0 +1,264 @@
+// @vitest-environment node
+// ===== PostprocessingCapability 测试（utils/3d/caps/postprocessing-capability.ts）=====
+// 覆盖：构造默认值、启用禁用、Bloom/SSAO/色彩映射/SSR 参数、预设、持久化、getMenuControls。
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import * as THREE from "three";
+import {
+  PostprocessingCapability,
+  DEFAULT_POSTPROC_PARAMS,
+  POSTPROC_PRESETS,
+} from "./postprocessing-capability.ts";
+
+// 拦截 buildComposer（内部依赖 EffectComposer/Pass 等，node 不可用）
+beforeEach(() => {
+  vi.spyOn(PostprocessingCapability.prototype as unknown as { buildComposer: () => void }, "buildComposer").mockImplementation(() => {
+    // no-op
+  });
+});
+
+function makeFakeRenderer() {
+  return {
+    toneMapping: THREE.ACESFilmicToneMapping,
+    toneMappingExposure: 1,
+    outputColorSpace: THREE.SRGBColorSpace,
+    domElement: { style: {}, width: 512, height: 512, tagName: "CANVAS" } as unknown as HTMLCanvasElement,
+    getSize: () => ({ width: 512, height: 512 }),
+    getPixelRatio: () => 1,
+    capabilities: { isWebGL2: true, maxTextures: 16 },
+    properties: new Map(),
+    info: { autoReset: true, memory: { textures: 0, geometries: 0 }, render: { calls: 0, triangles: 0, points: 0, frame: 0 }, reset: () => {} },
+    getContext: () => null,
+  } as unknown as THREE.WebGLRenderer;
+}
+
+function newCap(opts: { enabled?: boolean; params?: Partial<import("./postprocessing-capability.ts").PostprocessingParams> } = {}) {
+  const scene = new THREE.Scene();
+  const renderer = makeFakeRenderer();
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  return new PostprocessingCapability({ scene, renderer, camera, params: opts.params, enabled: opts.enabled });
+}
+
+describe("PostprocessingCapability — 构造与默认值", () => {
+  it("构造默认值完整", () => {
+    const cap = newCap();
+    expect(cap.isEnabled()).toBe(false);
+    // 通过 getMenuControls 暴露的 getter 验证参数
+    const controls = cap.getMenuControls();
+    const toneMapping = controls.find((c) => c.id === "pp-toneMapping")!;
+    expect(toneMapping.getValue()).toBe("aces");
+    const exposure = controls.find((c) => c.id === "pp-exposure")!;
+    expect(exposure.getValue()).toBe(1.0);
+    const bloomStr = controls.find((c) => c.id === "pp-bloom-strength")!;
+    expect(bloomStr.getValue()).toBe(0.6);
+    const ssaoEn = controls.find((c) => c.id === "pp-ssao-enabled")!;
+    expect(ssaoEn.getValue()).toBe(false);
+  });
+
+  it("enabled:true 初始启用", () => {
+    const cap = newCap({ enabled: true });
+    expect(cap.isEnabled()).toBe(true);
+  });
+
+  it("params 覆盖生效", () => {
+    const cap = newCap({ params: { bloomStrength: 1.2, exposure: 1.5, toneMapping: "reinhard" } });
+    const controls = cap.getMenuControls();
+    const bloomStr = controls.find((c) => c.id === "pp-bloom-strength")!;
+    expect(bloomStr.getValue()).toBe(1.2);
+    const exposure = controls.find((c) => c.id === "pp-exposure")!;
+    expect(exposure.getValue()).toBe(1.5);
+    const toneMapping = controls.find((c) => c.id === "pp-toneMapping")!;
+    expect(toneMapping.getValue()).toBe("reinhard");
+  });
+});
+
+describe("PostprocessingCapability — 启用/禁用", () => {
+  it("setEnabled 切换", () => {
+    const cap = newCap();
+    cap.setEnabled(true);
+    expect(cap.isEnabled()).toBe(true);
+    cap.setEnabled(false);
+    expect(cap.isEnabled()).toBe(false);
+  });
+});
+
+describe("PostprocessingCapability — Bloom 参数", () => {
+  it("Bloom 强度/阈值/半径读写", () => {
+    const cap = newCap();
+    cap.setBloomStrength(1.5);
+    cap.setBloomThreshold(0.7);
+    cap.setBloomRadius(0.8);
+    const controls = cap.getMenuControls();
+    expect(controls.find((c) => c.id === "pp-bloom-strength")!.getValue()).toBe(1.5);
+    expect(controls.find((c) => c.id === "pp-bloom-threshold")!.getValue()).toBe(0.7);
+    expect(controls.find((c) => c.id === "pp-bloom-radius")!.getValue()).toBe(0.8);
+  });
+
+  it("Bloom 跟随体积光联动开关", () => {
+    const cap = newCap();
+    cap.setBloomFollowVolumetric(false);
+    const ctrl = cap.getMenuControls().find((c) => c.id === "pp-bloom-follow")!;
+    expect(ctrl.getValue()).toBe(false);
+    cap.setBloomFollowVolumetric(true);
+    expect(ctrl.getValue()).toBe(true);
+  });
+});
+
+describe("PostprocessingCapability — SSAO", () => {
+  it("SSAO 开关/半径/距离读写", () => {
+    const cap = newCap();
+    cap.setSSAOEnabled(true);
+    cap.setSSAORadius(12);
+    cap.setSSAOMinDist(0.01);
+    cap.setSSAOMaxDist(0.5);
+    const controls = cap.getMenuControls();
+    expect(controls.find((c) => c.id === "pp-ssao-enabled")!.getValue()).toBe(true);
+    expect(controls.find((c) => c.id === "pp-ssao-radius")!.getValue()).toBe(12);
+    expect(controls.find((c) => c.id === "pp-ssao-mindist")!.getValue()).toBe(0.01);
+    expect(controls.find((c) => c.id === "pp-ssao-maxdist")!.getValue()).toBe(0.5);
+  });
+});
+
+describe("PostprocessingCapability — 色彩映射与曝光", () => {
+  it("setToneMapping 切换", () => {
+    const cap = newCap();
+    cap.setToneMapping("linear");
+    const ctrl = cap.getMenuControls().find((c) => c.id === "pp-toneMapping")!;
+    expect(ctrl.getValue()).toBe("linear");
+    cap.setToneMapping("none");
+    expect(ctrl.getValue()).toBe("none");
+  });
+
+  it("setExposure 读写", () => {
+    const cap = newCap();
+    cap.setExposure(2.0);
+    const ctrl = cap.getMenuControls().find((c) => c.id === "pp-exposure")!;
+    expect(ctrl.getValue()).toBe(2.0);
+  });
+});
+
+describe("PostprocessingCapability — SSR 反射", () => {
+  it("setReflectionMode 切换三档", () => {
+    const cap = newCap();
+    cap.setReflectionMode("envmap+ssr");
+    const ctrl = cap.getMenuControls().find((c) => c.id === "pp-reflection-mode")!;
+    expect(ctrl.getValue()).toBe("envmap+ssr");
+    cap.setReflectionMode("ssr-only");
+    expect(ctrl.getValue()).toBe("ssr-only");
+    cap.setReflectionMode("envmap-only");
+    expect(ctrl.getValue()).toBe("envmap-only");
+  });
+
+  it("SSR 参数读写", () => {
+    const cap = newCap();
+    cap.setSSROpacity(0.7);
+    cap.setSSRMaxDistance(300);
+    cap.setSSRThickness(0.03);
+    cap.setSSRBlur(false);
+    cap.setSSRDistanceAttenuation(false);
+    cap.setSSRFresnel(false);
+    cap.setSSRBouncing(true);
+    const controls = cap.getMenuControls();
+    expect(controls.find((c) => c.id === "pp-ssr-opacity")!.getValue()).toBe(0.7);
+    expect(controls.find((c) => c.id === "pp-ssr-maxdistance")!.getValue()).toBe(300);
+    expect(controls.find((c) => c.id === "pp-ssr-thickness")!.getValue()).toBe(0.03);
+    expect(controls.find((c) => c.id === "pp-ssr-blur")!.getValue()).toBe(false);
+    expect(controls.find((c) => c.id === "pp-ssr-distanceAttenuation")!.getValue()).toBe(false);
+    expect(controls.find((c) => c.id === "pp-ssr-fresnel")!.getValue()).toBe(false);
+    expect(controls.find((c) => c.id === "pp-ssr-bouncing")!.getValue()).toBe(true);
+  });
+});
+
+describe("PostprocessingCapability — 持久化", () => {
+  beforeEach(() => { localStorage.clear(); });
+  afterEach(() => { localStorage.clear(); });
+
+  it("saveState / loadState 完整周期", () => {
+    const cap = newCap({ enabled: true, params: {
+      bloomStrength: 1.2, bloomThreshold: 0.7, bloomRadius: 0.8, bloomFollowVolumetric: false,
+      ssaoEnabled: true, ssaoRadius: 12, ssaoMinDist: 0.01, ssaoMaxDist: 0.5,
+      toneMapping: "reinhard", exposure: 1.5,
+      reflectionMode: "envmap+ssr", ssrOpacity: 0.7, ssrMaxDistance: 300, ssrThickness: 0.03,
+      ssrBlur: false, ssrDistanceAttenuation: false, ssrFresnel: false, ssrBouncing: true,
+      reflectorDisableWhenSSR: false,
+    } });
+    cap.saveState();
+    const cap2 = newCap();
+    cap2.loadState();
+    expect(cap2.isEnabled()).toBe(true);
+    const c = cap2.getMenuControls();
+    expect(c.find((x) => x.id === "pp-bloom-strength")!.getValue()).toBe(1.2);
+    expect(c.find((x) => x.id === "pp-ssao-enabled")!.getValue()).toBe(true);
+    expect(c.find((x) => x.id === "pp-toneMapping")!.getValue()).toBe("reinhard");
+    expect(c.find((x) => x.id === "pp-exposure")!.getValue()).toBe(1.5);
+    expect(c.find((x) => x.id === "pp-reflection-mode")!.getValue()).toBe("envmap+ssr");
+    expect(c.find((x) => x.id === "pp-ssr-bouncing")!.getValue()).toBe(true);
+  });
+
+  it("loadState 空存储时保持默认值", () => {
+    const cap = newCap({ params: { bloomStrength: 2.0 } });
+    cap.loadState();
+    const ctrl = cap.getMenuControls().find((x) => x.id === "pp-bloom-strength")!;
+    expect(ctrl.getValue()).toBe(2.0);
+  });
+});
+
+describe("PostprocessingCapability — getMenuControls 结构", () => {
+  it("返回完整控件列表", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    expect(controls.length).toBeGreaterThanOrEqual(18);
+    // 总开关
+    expect(controls.find((c) => c.id === "pp-enabled")).toBeDefined();
+    // 色彩与曝光组
+    expect(controls.find((c) => c.id === "pp-toneMapping")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-exposure")).toBeDefined();
+    // Bloom 组
+    expect(controls.find((c) => c.id === "pp-bloom-strength")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-bloom-threshold")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-bloom-radius")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-bloom-follow")).toBeDefined();
+    // SSAO 组
+    expect(controls.find((c) => c.id === "pp-ssao-enabled")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssao-radius")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssao-mindist")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssao-maxdist")).toBeDefined();
+    // 反射模式组
+    expect(controls.find((c) => c.id === "pp-reflection-mode")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-reflector-disable-when-ssr")).toBeDefined();
+    // SSR 参数组
+    expect(controls.find((c) => c.id === "pp-ssr-opacity")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssr-maxdistance")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssr-thickness")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssr-blur")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssr-distanceAttenuation")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssr-fresnel")).toBeDefined();
+    expect(controls.find((c) => c.id === "pp-ssr-bouncing")).toBeDefined();
+  });
+
+  it("toggle 开关同步状态", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    const enabledCtrl = controls.find((c) => c.id === "pp-enabled")!;
+    enabledCtrl.setValue(true);
+    expect(cap.isEnabled()).toBe(true);
+    enabledCtrl.setValue(false);
+    expect(cap.isEnabled()).toBe(false);
+  });
+});
+
+describe("PostprocessingCapability — 预设数据完整性", () => {
+  it("DEFAULT_POSTPROC_PARAMS 默认值完整", () => {
+    expect(DEFAULT_POSTPROC_PARAMS.enabled).toBe(false);
+    expect(typeof DEFAULT_POSTPROC_PARAMS.bloomStrength).toBe("number");
+    expect(typeof DEFAULT_POSTPROC_PARAMS.ssaoEnabled).toBe("boolean");
+    expect(typeof DEFAULT_POSTPROC_PARAMS.reflectionMode).toBe("string");
+    expect(typeof DEFAULT_POSTPROC_PARAMS.exposure).toBe("number");
+  });
+
+  it("POSTPROC_PRESETS 覆盖所有模型类型", () => {
+    const expectedTypes = ["default", "ysm", "vrm", "mmd", "litematic", "resourcepack", "mmd-scene"];
+    for (const t of expectedTypes) {
+      expect(POSTPROC_PRESETS[t]).toBeDefined();
+    }
+  });
+});
