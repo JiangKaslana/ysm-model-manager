@@ -549,11 +549,13 @@ func runAnalyzeMMD(ctx *CmdContext) error {
 		return newRuntimeErrf("分析目录失败: %v", err)
 	}
 
-	// 错误率过高时提前返回（>50% 目录无法访问说明系统性问题）
-	if walkTotalDirs > 0 {
-		errRate := float64(walkErrCount) / float64(walkTotalDirs)
+	// 错误率过高时提前返回（>50% 路径无法访问说明系统性问题）
+	// 分母 = 错误数 + 成功目录数（总尝试路径），与分子同口径：
+	// 文件级瞬时错误（如扫描中被删）不虚高分子，避免误中止整个分析
+	if walkTotalDirs+walkErrCount > 0 {
+		errRate := float64(walkErrCount) / float64(walkTotalDirs+walkErrCount)
 		if errRate > 0.5 {
-			return newRuntimeErrf("扫描错误率过高: %d/%d 目录无法访问 (%.0f%%)", walkErrCount, walkTotalDirs, errRate*100)
+			return newRuntimeErrf("扫描错误率过高: %d/%d 路径无法访问 (%.0f%%)", walkErrCount, walkTotalDirs+walkErrCount, errRate*100)
 		}
 	}
 
