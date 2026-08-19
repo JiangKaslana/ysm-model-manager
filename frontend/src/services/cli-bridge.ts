@@ -1,0 +1,214 @@
+// ===== CLI Bridge 前端封装层（ADR-XXX Phase 1 打通期）=====
+// 封装 Wails ExecuteCLI 调用，处理 JSON 响应，提供类型安全的命令接口。
+// 网页版（browserAdapter）走 web 降级实现，桌面/Android 走 Wails 原逻辑。
+
+import { getApp } from "../backend/app.ts";
+import { resolveWebMode } from "../backend/platform.ts";
+import { WebUnsupportedError } from "../backend/web-common.ts";
+
+// ===== 类型定义 =====
+
+/** CLI 命令参数（统一格式：key-value map） */
+export type CLIArgs = Record<string, string | number | boolean | undefined>;
+
+/** CLI 响应状态 */
+export type CLIStatus = "success" | "error" | "not_supported";
+
+/** CLI 错误详情 */
+export interface CLIError {
+  code: string;
+  message: string;
+  details?: string;
+}
+
+/** CLI 响应数据 */
+export interface CLIData {
+  output?: string;
+  lines?: string[];
+  platform?: string;
+  filesRoot?: string;
+  [key: string]: unknown;
+}
+
+/** CLI 统一响应 */
+export interface CLIResponse {
+  status: CLIStatus;
+  command: string;
+  data?: CLIData;
+  error?: CLIError;
+  timing?: { total_ms: number };
+  meta?: { platform: string };
+}
+
+/** 允许的 CLI 命令白名单（与后端保持同步） */
+export const ALLOWED_CLI_COMMANDS = [
+  "search",
+  "analyze",
+  "list",
+  "verify",
+  "benchmark",
+  "export",
+  "file-bench",
+  "single-bench",
+  "concurrent-bench",
+  "scan-dir",
+  "analyze-mmd",
+  "perf-log",
+  "cache-status",
+  "cache-verify",
+  "cache-clear",
+  "cache-diag",
+  "config-show",
+  "gui-flow",
+] as const;
+
+export type AllowedCLICommand = (typeof ALLOWED_CLI_COMMANDS)[number];
+
+// ===== 核心 API =====
+
+/**
+ * 执行 CLI 命令（核心入口）
+ * @param command 命令名（必须在白名单中）
+ * @param args 命令参数
+ * @returns 统一 JSON 响应
+ */
+export async function executeCLI(command: string, args: CLIArgs = {}): Promise<CLIResponse> {
+  // 参数校验
+  if (!ALLOWED_CLI_COMMANDS.includes(command as AllowedCLICommand)) {
+    return {
+      status: "not_supported",
+      command,
+      error: {
+        code: "command_not_allowed",
+        message: `命令 [${command}] 不在白名单中`,
+      },
+      meta: { platform: resolveWebMode() ? "web" : "native" },
+    };
+  }
+
+  try {
+    const app = await getApp();
+    const argsMap = buildArgsMap(args);
+
+    // 调用 Wails 绑定（返回 JSON 字符串）
+    const rawResp = await app.ExecuteCLI(command, argsMap);
+    return parseCLIResponse(rawResp);
+  } catch (err) {
+    // 捕获 browserAdapter 抛出的 WebUnsupportedError
+    if (err instanceof WebUnsupportedError) {
+      return {
+        status: "not_supported",
+        command,
+        error: {
+          code: "web_not_supported",
+          message: err.message,
+        },
+        meta: { platform: "web" },
+      };
+    }
+    return {
+      status: "error",
+      command,
+      error: {
+        code: "call_failed",
+        message: err instanceof Error ? err.message : String(err),
+      },
+    };
+  }
+}
+
+/**
+ * 获取允许的 CLI 命令列表
+ */
+export async function getAllowedCLICommands(): Promise<string[]> {
+  if (resolveWebMode()) {
+    return [...ALLOWED_CLI_COMMANDS];
+  }
+  try {
+    const app = await getApp();
+    const raw = await app.GetAllowedCLICommands();
+    return JSON.parse(raw);
+  } catch {
+    return [...ALLOWED_CLI_COMMANDS];
+  }
+}
+
+// ===== 便捷方法 =====
+
+/** 搜索模型 */
+export function cliSearch(args: {
+  keyword?: string;
+  format?: string;
+  type?: string;
+} = {}): Promise<CLIResponse> {
+  return executeCLI("search", args);
+}
+
+/** 列出所有模型 */
+export function cliList(args: { format?: string } = {}): Promise<CLIResponse> {
+  return executeCLI("list", args);
+}
+
+/** 分析模型 */
+export function cliAnalyze(args: { model: string }): Promise<CLIResponse> {
+  return executeCLI("analyze", args);
+}
+
+/** 验证模型 */
+export function cliVerify(args: { repair?: boolean } = {}): Promise<CLIResponse> {
+  return executeCLI("verify", args);
+}
+
+/** 基准测试 */
+export function cliBenchmark(args: { iterations?: number } = {}): Promise<CLIResponse> {
+  return executeCLI("benchmark", args);
+}
+
+/** 单模型基准测试 */
+export function cliSingleBench(args: { model: string; iterations?: number }): Promise<CLIResponse> {
+  return executeCLI("single-bench", args);
+}
+
+/** 性能日志 */
+export function cliPerfLog(): Promise<CLIResponse> {
+  return executeCLI("perf-log", {});
+}
+
+/** 缓存状态查询 */
+export function cliCacheStatus(): Promise<CLIResponse> {
+  return executeCLI("cache-status", {});
+}
+
+/** 缓存验证 */
+export function cliCacheVerify(args: { dir?: string; verbose?: boolean } = {}): Promise<CLIResponse> {
+  return executeCLI("cache-verify", args);
+}
+
+// ===== 内部工具（导出供测试使用） =====
+
+/** 构建参数 map（过滤 undefined 和 null） */
+export function buildArgsMap(args: CLIArgs): Record<string, string | number | boolean> {
+  const result: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (value !== undefined && value !== null) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/** 解析 CLI JSON 响应 */
+export function parseCLIResponse(raw: string): CLIResponse {
+  try {
+    return JSON.parse(raw) as CLIResponse;
+  } catch {
+    return {
+      status: "error",
+      command: "unknown",
+      error: {
+        code: "parse_error",
+        message: `无法解析 CLI 响应: ${raw.slice(0, 200)}`,
+      },
+    };
+  }
+}

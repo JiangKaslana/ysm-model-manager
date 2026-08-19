@@ -33,8 +33,9 @@ import { WebUnsupportedError, webCommonBindings } from "./web-common.ts";
 import { webFsBindings } from "./web-fs.ts";
 import { webStoreBindings } from "./web-store.ts";
 import { webCommunityBindings } from "./web-community.ts";
+import { webCliBindings } from "./web-cli.ts";
 
-// 注册表驱动装配：由四个职责模块自注册的 binding 片段合并而成。
+// 注册表驱动装配：由五个职责模块自注册的 binding 片段合并而成。
 // 不加 Record<string, ...> 注解：让 typeof webImpls 保留字面量键（供下方类型级对账校验），
 // 用 satisfies 兜住原注解契约（每个实现都是 (...args: never[]) => Promise<unknown>）
 const webImpls = {
@@ -42,6 +43,7 @@ const webImpls = {
   ...webFsBindings,
   ...webStoreBindings,
   ...webCommunityBindings,
+  ...webCliBindings,
 } satisfies Record<string, (...args: never[]) => Promise<unknown>>;
 
 // 类型级对账：webImpls 的键（排除网页版专属扩展白名单）必须 ⊆ AppBindings 导出键。
