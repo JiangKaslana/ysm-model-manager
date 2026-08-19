@@ -100,6 +100,7 @@ export const ENV_PRESET_BY_MODEL: Record<string, Partial<EnvironmentParams>> = {
   ysm: { preset: "sky", intensity: 1.0 },
   vrm: { preset: "studio", intensity: ENV_PRESETS.studio.defaultIntensity },
   mmd: { preset: "studio", intensity: ENV_PRESETS.studio.defaultIntensity },
+  "mmd-scene": { preset: "sky", intensity: 1.1 },
   litematic: { preset: "forest", intensity: ENV_PRESETS.forest.defaultIntensity },
   resourcepack: { preset: "sky", intensity: 1.0 },
 };

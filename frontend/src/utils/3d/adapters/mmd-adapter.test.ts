@@ -362,7 +362,7 @@ describe("buildMmdScene 主路径", () => {
     built.dispose();
   });
 
-  it("无 VMD → 无播放按钮，静态渲染照常", async () => {
+  it("无 VMD → 播放按钮仍注册（空态引导选择动作库）", async () => {
     vi.spyOn(URL, "createObjectURL")
       .mockImplementation(() => "blob:mock-url");
     const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
@@ -373,8 +373,9 @@ describe("buildMmdScene 主路径", () => {
     const { ctx } = makeCtx();
     const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), makeMmdPanels());
     expect(hoisted.vmdParseMock).not.toHaveBeenCalled();
-    // 无 VMD → 不注册 play 菜单项
-    expect(registeredItems(ctx).find((i) => i.id === "play")).toBeUndefined();
+    // play 始终注册（支持用户配置自定义动作库，空态引导选择）
+    const playItem = registeredItems(ctx).find((i) => i.id === "play");
+    expect(playItem).toBeDefined();
     // 空 mixer 的 updateWithMixer 无害
     built.update!(0.016);
     expect(hoisted.mmdUpdateWithMixerMock).toHaveBeenCalled();

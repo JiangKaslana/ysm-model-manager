@@ -336,6 +336,7 @@ export async function buildVrmScene(
               motionAction.play();
               motionAction.paused = !motionPlaying;
             },
+            animDir: null,
           }
         : null,
     }),

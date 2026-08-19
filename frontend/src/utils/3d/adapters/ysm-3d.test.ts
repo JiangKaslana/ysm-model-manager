@@ -387,6 +387,7 @@ describe("ysmMenuItems 独立菜单表测试", () => {
         toggle: vi.fn(),
         currentIndex: () => 0,
         select: vi.fn(),
+        animDir: null,
       },
       fillPlayPanel: vi.fn(),
     };

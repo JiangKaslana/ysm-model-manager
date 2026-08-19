@@ -51,6 +51,10 @@ export const FOG_PRESETS: Record<string, Partial<FogParams>> = {
     // toon 材质高光易被雾褪：整体更薄
     enabled: false, mode: "linear", color: 0xd6e0f0, near: 80, far: 500, density: 0.005,
   },
+  "mmd-scene": {
+    // 场景模型：大范围雾（80 ~ 1500），营造纵深感
+    enabled: false, mode: "linear", color: 0xd0daed, near: 100, far: 1500, density: 0.003,
+  },
   litematic: {
     // 体素大场景：线性雾营造距离感
     enabled: false, mode: "linear", color: 0xc0d4f0, near: 30, far: 800, density: 0.004,

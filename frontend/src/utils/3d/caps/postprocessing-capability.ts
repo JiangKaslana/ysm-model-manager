@@ -139,6 +139,12 @@ export const POSTPROC_PRESETS: Record<string, Partial<PostprocessingParams>> = {
     ssaoEnabled: false, toneMapping: "aces", exposure: 1.0,
     reflectionMode: "envmap-only",
   },
+  "mmd-scene": {
+    // 场景模型：Bloom 稍强出氛围，SSAO 中档增加纵深，SSR 开（场景地面反射）
+    enabled: false, bloomStrength: 0.9, bloomThreshold: 0.55, bloomRadius: 0.9,
+    ssaoEnabled: false, ssaoRadius: 15, toneMapping: "aces", exposure: 1.0,
+    reflectionMode: "envmap-only",
+  },
 };
 
 export class PostprocessingCapability implements SceneCapability, PostprocessingLike {

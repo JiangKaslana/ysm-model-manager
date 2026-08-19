@@ -18,7 +18,7 @@ export interface PmxVertexData {
   positions: Float32Array;   // xyz * count
   normals: Float32Array;     // xyz * count
   uvs: Float32Array;         // uv * count
-  boneIndices: Uint8Array;   // bone indices[4] * count (packed: 4 * uint8)
+  boneIndices: Uint8Array | Uint16Array | Uint32Array; // bone indices[4] * count（宽度随 boneIndexSize：1/2/4 字节）
   boneWeights: Float32Array;  // weights[4] * count
 }
 
@@ -380,16 +380,24 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
 
   // === Vertices ===
   // PMX 规范：position(12) + normal(12) + [UV(8)] + [ExtraUV(8)] + deform + [extended(4)]
+  // ⚠️ deform 的骨骼索引大小随全局 boneCount（reader.boneIndexSize：1/2/4 字节），
+  // vertexSize 必须同步动态计算，否则 boneCount>127 时顶点数据错位、蒙皮错乱
+  const boneIndexSize = reader.boneIndexSize;
+  /** 对齐到 4 字节（PMX deform 的 padding 规则） */
+  const align4 = (n: number): number => Math.ceil(n / 4) * 4;
   let vertexSize = 12 + 12;
   if (hasUV) vertexSize += 8;
   if (hasExtraUV) vertexSize += 8;
-  // PMX 规范 deform 大小：BDEF1=8(1+3pad+4weight), BDEF2=8(2+2pad+4weight), BDEF4=20(4+16weights)
+  // PMX 规范 deform 大小（随 boneIndexSize）：
+  //   BDEF1 = align4(indexSize + 4)   （1 索引 + padding + 1 权重）
+  //   BDEF2 = align4(2×indexSize) + 4 （2 索引 + padding + 1 权重）
+  //   BDEF4 = 4×indexSize + 16        （4 索引 + 4 权重）
   if (boneWeightType === 2) {
-    vertexSize += 8;
+    vertexSize += align4(boneIndexSize + 4);
   } else if (boneWeightType === 1) {
-    vertexSize += 8;
+    vertexSize += align4(2 * boneIndexSize) + 4;
   } else {
-    vertexSize += 20;
+    vertexSize += 4 * boneIndexSize + 16;
   }
   if (hasExtendedDeform) vertexSize += 4;
 
@@ -397,10 +405,24 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     const positions = new Float32Array(vertexCount * 3);
     const normals = new Float32Array(vertexCount * 3);
     const uvs = hasUV ? new Float32Array(vertexCount * 2) : new Float32Array(0);
-    const boneIndices = new Uint8Array(vertexCount * 4);
+    // 骨骼索引数组宽度随 boneIndexSize（>255 骨骼时 2/4 字节，Uint8 会截断）
+    const boneIndices = boneIndexSize === 2
+      ? new Uint16Array(vertexCount * 4)
+      : boneIndexSize === 4
+        ? new Uint32Array(vertexCount * 4)
+        : new Uint8Array(vertexCount * 4);
     const boneWeights = new Float32Array(vertexCount * 4);
 
     const vertexDataStart = struct.vertex.pos + 8; // skip blockSize(4) + count(4)
+
+    /** 按 boneIndexSize 读骨骼索引（小端） */
+    const readBoneIdx = (view: DataView, off: number): number => {
+      switch (boneIndexSize) {
+        case 2: return view.getUint16(off, true);
+        case 4: return view.getUint32(off, true);
+        default: return view.getUint8(off);
+      }
+    };
 
     for (let i = 0; i < vertexCount; i++) {
       const vOffset = vertexDataStart + i * vertexSize;
@@ -427,45 +449,45 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
       }
       if (hasExtraUV) cursor += 8;
 
-      // Bone weights and indices (严格 PMX 规范)
+      // Bone weights and indices (严格 PMX 规范，索引大小随 boneIndexSize)
       if (boneWeightType === 2) {
-        // BDEF1: 1 byte index + 3 bytes padding + 4 bytes weight = 8 bytes
-        const bi = u8view[cursor];
+        // BDEF1: index(indexSize) + padding(align4- indexSize) + weight(4) = align4(indexSize)+4
+        const bi = readBoneIdx(view, cursor);
         boneIndices[i * 4] = bi;
         boneIndices[i * 4 + 1] = bi;
         boneIndices[i * 4 + 2] = bi;
         boneIndices[i * 4 + 3] = bi;
-        const w = view.getFloat32(cursor + 4, true);
+        const w = view.getFloat32(cursor + align4(boneIndexSize), true);
         boneWeights[i * 4] = w;
         boneWeights[i * 4 + 1] = 0;
         boneWeights[i * 4 + 2] = 0;
         boneWeights[i * 4 + 3] = 0;
-        cursor += 8;
+        cursor += align4(boneIndexSize) + 4;
       } else if (boneWeightType === 1) {
-        // BDEF2: 2 bytes indices + 2 bytes padding + 4 bytes weight = 8 bytes
-        const bi0 = u8view[cursor];
-        const bi1 = u8view[cursor + 1];
+        // BDEF2: 2×index(indexSize) + padding + weight(4) = align4(2×indexSize)+4
+        const bi0 = readBoneIdx(view, cursor);
+        const bi1 = readBoneIdx(view, cursor + boneIndexSize);
         boneIndices[i * 4] = bi0;
         boneIndices[i * 4 + 1] = bi1;
         boneIndices[i * 4 + 2] = 0;
         boneIndices[i * 4 + 3] = 0;
-        const w = view.getFloat32(cursor + 4, true);
+        const w = view.getFloat32(cursor + align4(2 * boneIndexSize), true);
         boneWeights[i * 4] = w;
         boneWeights[i * 4 + 1] = 1 - w;
         boneWeights[i * 4 + 2] = 0;
         boneWeights[i * 4 + 3] = 0;
-        cursor += 8;
+        cursor += align4(2 * boneIndexSize) + 4;
       } else {
-        // BDEF4: 4 bytes indices + 16 bytes weights = 20 bytes
-        boneIndices[i * 4] = u8view[cursor];
-        boneIndices[i * 4 + 1] = u8view[cursor + 1];
-        boneIndices[i * 4 + 2] = u8view[cursor + 2];
-        boneIndices[i * 4 + 3] = u8view[cursor + 3];
-        boneWeights[i * 4] = view.getFloat32(cursor + 4, true);
-        boneWeights[i * 4 + 1] = view.getFloat32(cursor + 8, true);
-        boneWeights[i * 4 + 2] = view.getFloat32(cursor + 12, true);
-        boneWeights[i * 4 + 3] = view.getFloat32(cursor + 16, true);
-        cursor += 20;
+        // BDEF4: 4×index(indexSize) + 4×weight(4) = 4×indexSize+16
+        boneIndices[i * 4] = readBoneIdx(view, cursor);
+        boneIndices[i * 4 + 1] = readBoneIdx(view, cursor + boneIndexSize);
+        boneIndices[i * 4 + 2] = readBoneIdx(view, cursor + 2 * boneIndexSize);
+        boneIndices[i * 4 + 3] = readBoneIdx(view, cursor + 3 * boneIndexSize);
+        boneWeights[i * 4] = view.getFloat32(cursor + 4 * boneIndexSize, true);
+        boneWeights[i * 4 + 1] = view.getFloat32(cursor + 4 * boneIndexSize + 4, true);
+        boneWeights[i * 4 + 2] = view.getFloat32(cursor + 4 * boneIndexSize + 8, true);
+        boneWeights[i * 4 + 3] = view.getFloat32(cursor + 4 * boneIndexSize + 12, true);
+        cursor += 4 * boneIndexSize + 16;
       }
 
       if (hasExtendedDeform) cursor += 4;

@@ -41,6 +41,7 @@ import { buildLipMorphIndices } from "../perception/lipsync.ts"; // 多 morph in
 import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK）
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
+import { getCustomAnimPath, filterAnimFiles, ANIM_LIB_SUBDIR } from "./mmd-anim-library.ts";
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** 并发读取纹理的分片大小（fallback 路径：readFileBytesBatch 失败时降级）
@@ -625,9 +626,25 @@ export async function buildMmdScene(
     }
   }
 
-  // ---- VMD 动作（同目录 .vmd）：批量读取 + VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
+  // ---- VMD 动作（同目录 + CustomAnim 子目录）：批量读取 + VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
   const mixer = new THREE.AnimationMixer(mesh);
   const clips: Array<{ label: string; clip: THREE.AnimationClip }> = [];
+  // 复用 ADR-094 位置路由：自动解析 CustomAnim 子目录路径（与导航栏文件树同源）
+  const customAnimPath = await getCustomAnimPath();
+  if (customAnimPath) {
+    try {
+      const animFiles = (await port.listAllFilePaths(customAnimPath)) || [];
+      const extraAnims = filterAnimFiles(animFiles);
+      if (extraAnims.length > 0) {
+        vmdPaths.push(...extraAnims.filter((p) => p.toLowerCase().endsWith(".vmd")));
+        vpdPaths.push(...extraAnims.filter((p) => p.toLowerCase().endsWith(".vpd")));
+        void mmdDiag(port, "anim-lib-scan", customAnimPath, "ok",
+          `found=${extraAnims.length} (vmd=${extraAnims.filter((p) => p.toLowerCase().endsWith(".vmd")).length})`);
+      }
+    } catch (e) {
+      void mmdDiag(port, "anim-lib-scan", customAnimPath, "fail", e instanceof Error ? e.message : String(e));
+    }
+  }
   // ADR-101：批量读取 VMD/VPD（1 次 RPC 替代 N 次 readFileBytes）
   const allAnimPaths = [...vmdPaths, ...vpdPaths];
   const animBatch = allAnimPaths.length > 0 ? await port.readFileBytesBatch(allAnimPaths) : {};
@@ -722,26 +739,29 @@ export async function buildMmdScene(
         if (m) m.needsUpdate = true; // 透明状态变更需重编译着色器
       },
     },
-    play:
-      clips.length > 0
-        ? {
-            clips,
-            isPlaying: () => playing,
-            toggle: () => {
-              playing = !playing;
-              // AnimationAction 的暂停是 paused 属性（无 pause() 方法），play() 兼容重置
-              if (action) action.paused = !playing;
-            },
-            currentIndex: () => curIdx,
-            select: (i) => {
-              if (i === curIdx) return;
-              curIdx = i;
-              action?.stop();
-              action = mixer.clipAction(clips[i].clip);
-              if (playing) action.play();
-            },
-          }
-        : null,
+    play: {
+      clips,
+      isPlaying: () => playing,
+      toggle: () => {
+        if (clips.length === 0) return;
+        playing = !playing;
+        // AnimationAction 的暂停是 paused 属性（无 pause() 方法），play() 兼容重置
+        if (action) action.paused = !playing;
+      },
+      currentIndex: () => curIdx,
+      select: (i) => {
+        if (i === curIdx || i >= clips.length) return;
+        curIdx = i;
+        action?.stop();
+        action = mixer.clipAction(clips[i].clip);
+        if (playing) action.play();
+      },
+      animDir: customAnimPath,
+      requestReload: () => {
+        // 重新加载：重建场景以重新扫描 CustomAnim 目录
+        void ctx.menu.refreshDock();
+      },
+    },
     // ADR-077: 骨骼面板（MMD 特有：THREE.Bone 无几何，拾取走距离法）——收编为根菜单 bones 项
     bonePanel: boneTree
       ? {
@@ -964,8 +984,8 @@ export interface MmdMenuItemsOpts {
   screenshot: (() => Promise<string | null>) | null;
   /** 材质面板桥（mmd-materials.ts 纯逻辑层，ADR-072） */
   material: MaterialControlBridge;
-  /** 播放/动作桥；null（无同目录 VMD）→ 不注入 play 项 */
-  play: MmdPlayBridge | null;
+  /** 播放/动作桥；始终创建（无 clip 时空态引导用户配置自定义动作库） */
+  play: MmdPlayBridge;
   /** 骨骼面板依赖；null（无 pmx.bones / skeleton）→ 不注入 bones 项 */
   bonePanel: {
     /** 已构建骨骼树（buildBoneTree 产物） */
@@ -1018,18 +1038,17 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
       render: (list) => o.panels?.buildMaterialControls?.(list, o.material),
     },
   ];
-  if (o.play) {
-    items.push({
-      id: "play",
-      icon: "▶️",
-      labelKey: "preview.mmdPlay",
-      fallback: "播放",
-      kind: "panel",
-      legacyTestId: "mmd-play-entry",
-      dockGroup: "motion", // 底栏 💃 动作组
-      render: (list) => o.panels?.fillPlayPanel?.(list, o.play!),
-    });
-  }
+  // MMD 始终注入 play 项（支持用户配置的自定义动作库，空态引导选择）
+  items.push({
+    id: "play",
+    icon: "▶️",
+    labelKey: "preview.mmdPlay",
+    fallback: "播放",
+    kind: "panel",
+    legacyTestId: "mmd-play-entry",
+    dockGroup: "motion", // 底栏 💃 动作组
+    render: (list) => o.panels?.fillPlayPanel?.(list, o.play),
+  });
   if (o.bonePanel) {
     items.push({
       id: "bones",

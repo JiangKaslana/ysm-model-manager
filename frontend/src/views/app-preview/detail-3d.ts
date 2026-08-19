@@ -9,7 +9,9 @@ import { esc } from "../../utils/dom/html.ts";
 import { readVrmMeta } from "../../utils/3d/adapters/vrm-adapter.ts";
 import { createVrm3D } from "./vrm-3d.ts";
 import { createMmd3D } from "./mmd-3d.ts";
+import { createScene3D } from "./scene-3d.ts";
 import { resolveMmdSiblings } from "./mmd-siblings.ts";
+import { resolveSceneSiblings } from "./scene-siblings.ts";
 import { nextDetailGen, getDetailGen } from "./detail.ts";
 import { t } from "../../core/i18n/t.ts";
 import type { PreviewCtx } from "./utils.ts";
@@ -110,6 +112,35 @@ export async function showMmdPreview(
       void (async () => {
         const siblings = await resolveMmdSiblings();
         await createMmd3D(path, { siblings });
+      })();
+    };
+  }
+}
+
+/** 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） */
+export async function showScenePreview(
+  ctx: PreviewCtx,
+  path: string,
+): Promise<void> {
+  nextDetailGen();
+  const basename = path.split(/[/\\]/).pop() || "";
+  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>🏗️ ${t("preview.sceneModel") || "场景"}</h3>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
+    <div><strong>${renderFormattedText(basename || "")}</strong></div>
+    <div style="font-size:11px;color:var(--muted);display:flex;gap:4px;align-items:center">
+      <span style="background:rgba(124,131,255,0.2);color:#7c83ff;padding:1px 6px;border-radius:4px;font-weight:500">SceneModel</span>
+      <span>场景模型</span>
+    </div>
+    <button class="preview-fab" id="btn-scene-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}" style="background:linear-gradient(135deg,#7c83ff 0%,#4a55d6 100%)"><span class="preview-ic">🏗️</span></button>
+  </div>
+</div>`;
+  const fab = ctx.root.querySelector<HTMLElement>("#btn-scene-3d");
+  if (fab) {
+    fab.onclick = (): void => {
+      void (async () => {
+        const siblings = await resolveSceneSiblings();
+        await createScene3D(path, { siblings });
       })();
     };
   }

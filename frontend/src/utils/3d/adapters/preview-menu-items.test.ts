@@ -68,6 +68,7 @@ function fakeMmdOpts(overrides: Partial<MmdMenuItemsOpts> = {}): MmdMenuItemsOpt
       toggle: vi.fn(),
       currentIndex: () => 0,
       select: vi.fn(),
+      animDir: null,
     },
     bonePanel: null,
     panels: {
@@ -216,13 +217,14 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
     vrmItems.forEach((d) => expect(d.dockGroup, `${d.id}.dockGroup`).toBe("model"));
   });
 
-  it("mmd model/material 恒定；play/bones 条件注入", () => {
+  it("mmd model/material/play 恒定；bones 条件注入", () => {
     const withAll = mmdMenuItems(fakeMmdOpts({ bonePanel: fakeBonePanel() }));
     expectContainsAtLeast(extractIds(withAll), ["bones", "material", "model", "play", "shot"], "mmd 全注入");
-    // 无 VMD → 无 play；无 pmx.bones → 无 bones
-    const slim = mmdMenuItems(fakeMmdOpts({ play: null }));
-    expectNotContains(extractIds(slim), ["play"], "mmd 无 VMD");
-    expectContainsAtLeast(extractIds(slim), ["material", "model", "shot"], "mmd 无 play 必需项");
+    // play 始终注入（支持用户配置自定义动作库，空态引导选择）
+    const slim = mmdMenuItems(fakeMmdOpts({ play: { clips: [], isPlaying: () => false, toggle: vi.fn(), currentIndex: () => 0, select: vi.fn(), animDir: null } }));
+    expectContainsAtLeast(extractIds(slim), ["play", "material", "model", "shot"], "mmd play 始终存在（空态）");
+    // 无 pmx.bones → 无 bones
+    expectNotContains(extractIds(slim), ["bones"], "mmd 无 bones 时不注入");
   });
 
   it("legacyTestId 锚点齐全（既有 e2e 选择器兼容契约）", () => {

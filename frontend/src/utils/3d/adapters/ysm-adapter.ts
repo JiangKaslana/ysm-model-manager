@@ -222,6 +222,7 @@ export async function buildYsmScene(
             toggle: () => animPlayer?.toggle(),
             currentIndex: () => animPlayer?.currentIndex() ?? 0,
             select: (i: number) => animPlayer?.selectClip(i),
+            animDir: null,
           };
         }
       }

@@ -16,6 +16,12 @@ const appPreviewStyle: CSSStyleSheet = (() => {
 })();
 export { appPreviewStyle };
 import { RESOURCE_TYPES, isYsmWasmPreview, extOf } from "../../utils/resource/types.ts";
+
+/** 检测路径是否属于 MMD SceneModel 子目录 */
+function isSceneModelPath(path: string): boolean {
+  const normalized = path.replace(/\\/g, "/");
+  return /(^|\/)SceneModel(\/|$)/i.test(normalized);
+}
 import { modelDetailHTML } from "./tpl.ts";
 import {
   cacheGet,
@@ -29,10 +35,11 @@ import { t } from "../../core/i18n/t.ts";
 import { type PreviewCtx, type DecodedYsm } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { showModelDetail, showResourcePack, showShaderpack, showSimplePreview } from "./detail.ts";
-import { showVrmMeta, showMmdPreview } from "./detail-3d.ts";
+import { showVrmMeta, showMmdPreview, showScenePreview } from "./detail-3d.ts";
 import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from "./litematic-meta.ts";
 import { cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
 import { cleanupMmd3D, invalidateMmdPreview } from "./mmd-3d.ts";
+import { cleanupScene3D, invalidateScenePreview } from "./scene-3d.ts";
 import { cleanupPack3D, invalidatePackPreview } from "./pack-3d.ts";
 import { cleanupEmpty3D, invalidateEmptyPreview } from "./empty-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
@@ -61,7 +68,14 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   [RESOURCE_TYPES.LITEMATIC]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.BLUEPRINT]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.SHADER]: (ctx, path, meta) => showShaderpack(ctx, path, meta),
-  [RESOURCE_TYPES.MMD]: (ctx, path, meta) => showMmdPreview(ctx, path, meta),
+  [RESOURCE_TYPES.MMD]: (ctx, path, meta) => {
+    // 场景模型（SceneModel 子目录）走独立入口，与角色模型完全隔离
+    if (isSceneModelPath(path)) {
+      showScenePreview(ctx, path);
+    } else {
+      showMmdPreview(ctx, path, meta);
+    }
+  },
   [RESOURCE_TYPES.VRC]: (ctx, path, meta) => {
     // .vrm 直引 three-vrm meta 卡 + FAB 进 3D；.vrca/.zip 暂不直接加载 → 简单预览
     if (extOf(path) === ".vrm") {
@@ -113,6 +127,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
         invalidateLitematicPreview();
         invalidateVrmPreview();
         invalidateMmdPreview();
+        invalidateScenePreview();
         invalidatePackPreview();
         invalidateEmptyPreview();
         try {
@@ -138,6 +153,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
     cleanupLitematic3D();
     cleanupVrm3D();
     cleanupMmd3D();
+    cleanupScene3D();
     cleanupPack3D();
     cleanupEmpty3D();
   }

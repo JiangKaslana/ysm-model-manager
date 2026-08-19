@@ -796,6 +796,7 @@ describe("vrmMenuItems 结构", () => {
         toggle: vi.fn(),
         currentIndex: () => 0,
         select: vi.fn(),
+        animDir: null,
       },
     });
 

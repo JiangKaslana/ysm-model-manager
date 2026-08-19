@@ -152,6 +152,14 @@ export const LIGHT_PRESETS: Record<string, Partial<LightParams>> = {
     spotlight: { ...DEFAULT_SPOTLIGHT, enabled: false, intensity: 1.8, angle: 30 },
     volumetric: { ...DEFAULT_VOLUMETRIC, enabled: false, opacity: 0.4 },
   },
+  "mmd-scene": {
+    // 场景模型：光照更均匀，体积光锥启用营造氛围
+    key: { ...DEFAULT_KEY, intensity: 1.2 },
+    fill: { ...DEFAULT_FILL, intensity: 0.55 },
+    rim: { ...DEFAULT_RIM, intensity: 0.4 },
+    spotlight: { ...DEFAULT_SPOTLIGHT, enabled: false, intensity: 1.6, angle: 40, penumbra: 0.6 },
+    volumetric: { ...DEFAULT_VOLUMETRIC, enabled: false, opacity: 0.35, fogPower: 1.0 },
+  },
 };
 
 /* ============ 体积光锥 shader（两交叉 PlaneGeometry + Cone 遮罩） ============ */
