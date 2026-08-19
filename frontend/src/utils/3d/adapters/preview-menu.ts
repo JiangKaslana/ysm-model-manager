@@ -51,25 +51,24 @@ const tr = (key: string, fallback: string): string => {
 
 /** 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 */
 function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void {
-  // 分组折叠：同一 group 的连续控件归入一个可折叠 section，header 点击切换展开/收起。
+  // 分组折叠：同一 group 的控件归入一个可折叠 section（Map 查找表支持非连续同 group 归并），header 点击切换展开/收起。
   // group 为 undefined 的控件直接挂到 list（无 section 包裹），保持向后兼容。
-  let currentSection: HTMLElement | null = null;
-  let currentGroup: string | undefined = undefined;
+  const sectionMap = new Map<string, { section: HTMLElement; body: HTMLElement }>();
 
   const ensureSection = (group: string | undefined): HTMLElement | null => {
     if (group === undefined) return null;
-    if (group === currentGroup && currentSection) return currentSection;
+    const existing = sectionMap.get(group);
+    if (existing) return existing.body;
     // 新分组：创建 section + header
-    currentGroup = group;
     const section = document.createElement("div");
     section.className = "cap-section";
     section.style.cssText = "border-top:1px solid rgba(255,255,255,0.08)";
     const header = document.createElement("div");
     header.className = "cap-section-header";
-    header.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+    header.style.cssText = "display:flex;align-items:center;gap:6px;padding:8px 10px;min-height:32px;cursor:pointer;user-select:none;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
     const arrow = document.createElement("span");
     arrow.textContent = "▾";
-    arrow.style.cssText = "font-size:10px;transition:transform 0.15s";
+    arrow.style.cssText = "font-size:10px;display:inline-block";
     const title = document.createElement("span");
     title.textContent = tr(group, group);
     header.append(arrow, title);
@@ -84,11 +83,13 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
     };
     section.append(header, body);
     list.appendChild(section);
-    currentSection = body;
+    sectionMap.set(group, { section, body });
     return body;
   };
 
   for (const c of controls) {
+    // target 为 section body（有 group）或 null（无 group，挂到 list 顶层）。
+    // divider 无 group 时挂顶层作为组间视觉分隔；有 group 时挂 body 内作为组内分隔。
     const target = ensureSection(c.group);
     if (c.kind === "divider") {
       const hr = document.createElement("div");
@@ -574,8 +575,10 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
                 ? `${v}${primary.slider.unit}`
                 : v.toFixed(2);
         };
-        // slider 点击不冒泡到 row（sky 第一层 slider 整行就是它自己，但保持一致性仍 stop）
+        // slider 所有指针事件不冒泡到 row，防 mousedown→drag→mouseup 冒泡触发整行下钻
         slider.addEventListener("click", (e: MouseEvent): void => e.stopPropagation());
+        slider.addEventListener("mousedown", (e: MouseEvent): void => e.stopPropagation());
+        slider.addEventListener("touchstart", (e: TouchEvent): void => e.stopPropagation());
         head.append(nameRow, slider);
         row.appendChild(head);
       } else {

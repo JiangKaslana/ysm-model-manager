@@ -72,9 +72,10 @@ afterEach(() => {
 // ===== bindTreeDnD 绑定/清理 =====
 
 describe("bindTreeDnD 绑定与清理", () => {
-  it("调用后容器注册 dragover + drop listener，cleanup 后移除", () => {
-    const addSpy = vi.spyOn(container, "addEventListener");
-    const removeSpy = vi.spyOn(container, "removeEventListener");
+  it("调用后 document 注册 dragover + drop listener，cleanup 后移除", () => {
+    // ADR-060 组件化后绑定提升到 document 层（WebView2 ShadowRoot drop 限制，7e3229dd）
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
     const cleanup = bindTreeDnD(container);
     expect(addSpy).toHaveBeenCalledWith("dragover", expect.any(Function));
     expect(addSpy).toHaveBeenCalledWith("drop", expect.any(Function));
@@ -88,6 +89,7 @@ describe("bindTreeDnD 绑定与清理", () => {
   it("hint 与容器同为 shadow root 子节点 → 拖拽显示 / drop 隐藏（getRootNode 查找）", () => {
     // <app-tree> 中 #tree 与 .tree-drop-hint 都是 shadow root 直接子节点，
     // 旧 parentElement 查找返回 null → hint 永不显示；此用例锁死修复行为。
+    // 事件在 document 层监听（7e3229dd），故从 document 派发。
     const host = document.createElement("div");
     const sr = host.attachShadow({ mode: "open" });
     sr.innerHTML = '<div id="tree"></div><div class="tree-drop-hint"></div>';
@@ -98,12 +100,12 @@ describe("bindTreeDnD 绑定与清理", () => {
 
     const over = makeDragEvent("dragover", { types: ["Files"] });
     Object.defineProperty(over, "target", { value: tree, configurable: true });
-    tree.dispatchEvent(over);
+    document.dispatchEvent(over);
     expect(hint.style.display).toBe("flex");
 
     const drop = makeDragEvent("drop", { types: ["Files"] });
     Object.defineProperty(drop, "target", { value: tree, configurable: true });
-    tree.dispatchEvent(drop);
+    document.dispatchEvent(drop);
     expect(hint.style.display).toBe("none");
 
     cleanup();
