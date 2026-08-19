@@ -48,7 +48,11 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - `mount3D(adapter, path, opts?)` — 主入口，`cleanupPreview()` 旧会话后建新
 - `cleanupPreview()` / `invalidatePreview()` / `switchPreview(path)`
 - `buildCameraControls(topBar, bridge)` — 通用相机控件（旋转模式/速度/重置），已收进根菜单 `camera` 项（sharedOnly）
-- `mountPreviewRootMenu(overlay, ctx)` → `PreviewMenuHandle`（`dispose`/`setAdapterItems`/`openPanel`）+ `PREVIEW_MENU_DEFS`（`preview-menu-defs.ts` / `preview-menu.ts`）— **ADR-076 v3 声明式根菜单**（顶栏砍掉，⚙️ 按钮 + 弹出菜单，项表驱动；core 项 close/switch/environment/camera；**适配器项经 `PreviewBuildCtx.menu.setAdapterItems` 注入**；legacyTestId `ysm-close-3d`/`env-menu-btn`/`mmd-switch` + 适配器项 `ysm-model-entry`/`mmd-model-entry` 等保留兼容 e2e）
+- `mountPreviewRootMenu(overlay, ctx)` → `PreviewMenuHandle`（`dispose`/`setAdapterItems`/`openPanel`/`refreshDock`）+ `PREVIEW_MENU_GROUPS` + `CORE_MENU_ITEMS`（`preview-menu-defs.ts` / `preview-menu.ts`）— **ADR-076 v3 声明式根菜单**（顶栏砍掉，⚙️ 按钮 + 弹出菜单，项表驱动；core 项 close/switch/environment/camera/lighting/shadow/postproc；**适配器项经 `PreviewBuildCtx.menu.setAdapterItems` 注入**；legacyTestId `ysm-close-3d`/`env-menu-btn`/`mmd-switch` + 适配器项 `ysm-model-entry`/`mmd-model-entry` 等保留兼容 e2e）
+
+  **2026-08-19 环境拆组**：环境体量 > 全部场景设置，故将 `environment` 从 `scene` 组拆出，独立成 `env` 组（🌍 环境）。scene 组 icon 换 🎛️ 避免双 🌍 混淆。dock 按钮顺序：🧍 模型 → 💃 动作 → 🌍 环境 → 🎛️ 场景。组内仅一个 panel 项时自动快捷直达面板（不渲染组根视图），故 env 组（单 environment 项）点击直接进环境面板。
+
+  **2026-08-19 下钻箭头**：组根视图（多 panel 列表）中，`kind === "panel"` 的行右侧显示 `>` 装饰性箭头（`data-testid="row-chevron"`），提示该行可点击进入下级面板。action 型行无箭头。渲染见 `makeRow(def, { chevron: def.kind === "panel" })`。
 - 契约接口：`PreviewBuildCtx`（外壳句柄 + **`menu: PreviewMenuHandle` 注册通道**）、`PreviewScene`（内容契约：`update`/`dispose`/`resetCamera`/`extraControls`…）、`PreviewAdapter`（`id`/`mode`/`build`/`onClose`）、`PreviewHandle`、`CameraControlBridge`
 
 ## 与其他子系统关系
@@ -63,20 +67,24 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - **天空落点（已实现，ADR-073 L1）**：统一核心在 shared 模式创建 `renderer` 后立即 `new SkyCapability({ scene, renderer }).apply()`（`mount-preview-core.ts`），复用 Three 官方 `Sky`（Preetham 散射）。YSM / VRM / MMD / Litematic 因共用同一 `ctx.scene` **零改动继承**——即「MMD 有天空 → YSM/VRM 自动获得」在 Three 域内的真·自动机制。能力层 `frontend/src/utils/3d/caps/sky-capability.ts` 封装 uniform 管线 + 可选 IBL（`setEnvironmentEnabled`，默认关）+ 会话级 tone mapping（dispose 还原）。`scene.background` 纯色保留为禁用天空时的兜底。
 - **self 模式**（`adapter.mode === "self"`，如个别单例）：核心仅提供外壳、不创建 `scene`，背景由适配器自管
 
-## 验证状态与迭代清单（2026-08-16）
+## 验证状态与迭代清单（2026-08-19）
 
 - **ADR-076 v3 声明式根菜单（Phase 1+2 已落地，Phase 3 待立项）**：
   - **Phase 1**：顶栏整块砍掉，预览控件收进 overlay 内 ⚙️ 根菜单（`PREVIEW_MENU_DEFS` 表驱动，对齐 ADR-021 范式）。`mount3D` 内 `mountPreviewRootMenu(overlay, ctx)` 挂 ⚙️ 按钮（`preview-menu-btn`）+ 弹出（`ysm-preview-menu`）；`close` 复刻原 `closeBtn` 分支（`cleanupFn?fullCleanup:closeOverlay`），`fullCleanup` 内 `menuHandle.dispose()` 解绑 `document` 监听；`switchTo` 成功后 `currentPath = newPath` 同步高亮。三语 locale 补齐 7 键。
-  - **Phase 2**：ysM/mmd 底部导航脚手架删除（`buildYsm/MmdBottomNav` + `mkNavBtn` + 两份 togglePopup/closePopup），适配器经 `PreviewBuildCtx.menu.setAdapterItems` 注入专属项——ysM：model/截图/骨骼；mmd：model/材质/播放（+ADR-077 bones 并行落地经仲裁收编）。切换归 core switch 项、相机归 core camera 项，消灭双入口。测试：`preview-menu.test.ts` 新增（12 例）+ 三测试重写（30 例全绿）。顺带修复 ysm 两处现存缺陷（navBuilder 死参数——底部导航从未挂载；骨骼按钮点击找不存在的 `#ysm-3d-panel`——无效）。
+  - **Phase 2**：ysM/mmd 底部导航脚手架删除（`buildYsm/MmdBottomNav` + `mkNavBtn` + 两份 togglePopup/closePopup），适配器经 `PreviewBuildCtx.menu.setAdapterItems` 注入专属项——ysM：model/截图/骨骼；mmd：model/材质/播放（+ADR-077 bones 并行落地经仲裁收编）。切换归 core switch 项、相机归 core camera 项，消灭双入口。测试：`preview-menu.test.ts` 新增（14 例）+ `preview-menu-items.test.ts`（24 例全绿）。顺带修复 ysm 两处现存缺陷（navBuilder 死参数——底部导航从未挂载；骨骼按钮点击找不存在的 `#ysm-3d-panel`——无效）。
+  - **Phase 2 后续（2026-08-19）**：
+    - **环境拆组**：environment 从 scene 组拆出，独立为 env 组（🌍 环境），场景组 icon 换 🎛️。dock 按钮顺序：🧍 → 💃 → 🌍 → 🎛️。组定义 `PREVIEW_MENU_GROUPS` 新增 `{ id: "env", icon: "🌍", fallback: "环境" }`，`PreviewMenuGroupId` 扩展 `"env"`。`CORE_MENU_ITEMS` 中 environment 项 `dockGroup` 从 `"scene"` 改为 `"env"`。地面/水面系统后续继续膨胀时，往 env 组加 panel 项即可（组内多 panel 自动走组根视图 → 下钻导航）。
+    - **下钻箭头**：panel 型行右侧加 `>` 装饰性箭头（`data-testid="row-chevron"`），提示可点击进入下级面板。`makeRow(def, { chevron: def.kind === "panel" })` 实现，action 型行无箭头。
   - **Phase 3 待立项**：vrm/litematic `extraControls` 单按钮（骨骼/分层/切换）收编为菜单项后删除 topBar 容器；ADR-074 S2 VRM 骨骼面板已接 UI（topBar 骨骼按钮开关面板，经 `makeBonePanelRenderer` 通用外壳），ysm 骨骼面板同构落地（ADR-077）。
 
 - **L1 程序化天空已落地并目视验证**：`task dev` / `npm run dev:web` 跑通，天空渲染正常、四种模型（YSM/VRM/MMD/Litematic）零改动继承。用户评定「效果一般但能跑，作为基线收口，后续迭代」。
 - **基线参数**（`sky-capability.ts` 默认值）：`scale 12000`（相机 maxDistance 5000 留余量）、`turbidity 8 / rayleigh 2 / mieCoefficient 0.005 / mieDirectionalG 0.8`、`cloudCoverage 0`、默认太阳方位、`ACESFilmicToneMapping` + 曝光 0.5（会话级，dispose 还原）、IBL `scene.environment` 默认关。
 - **已知观感短板（后续迭代项，非阻断）**：
-  1. ✅ 时间-of-day 滑块已收进**环境菜单**（🌍 环境按钮 → 滑出面板 `createSlideMenu`，与云量/IBL/地面开关并列；`preview.timeOfDay` i18n 三语，代码层 `tr` 兜底）；默认 9:00；`oninput` 经闭包 `skyCap?.setTime(hour)`，0-24 映射日出/正午/日落，夜间转暗；
+  1. ✅ 时间-of-day 滑块已收进**环境菜单**（🌍 环境根按钮 → 快捷直达面板，与云量/IBL/地面开关并列；`preview.timeOfDay` i18n 三语，代码层 `tr` 兜底）；默认 9:00；`oninput` 经闭包 `skyCap?.setTime(hour)`，0-24 映射日出/正午/日落，夜间转暗；
   2. ✅ IBL 已默认开启（`environment: true`，2026-08-16 目视验证通过，模型反射/环境光更真实）；如需关闭调 `setEnvironmentEnabled(false)`；
   3. ✅ 按模型类别散射/曝光预设已落地（`MODEL_SKY_PRESETS` 表 + `setPreset(adapter.id)`：ysm/vrm/mmd/litematic 各自 turbidity/rayleigh/exposure；数值为初始合理值，待目视微调）；
-  4. ✅ 云量滑块已收进**环境菜单**（`skyCap.setCloudCoverage(v)`，0-1 映射晴空→多云，oninput 实时改天空、onchange 松手刷新 IBL；`preview.cloudCoverage` i18n 三语，代码层 `tr` 兜底）。重构背景：原顶栏滑块被批「塞垃圾」，统一收进 🌍 环境菜单面板；三语键 `preview.envMenu/timeOfDay/cloudCoverage/environmentLight` 已入库，但保留 `tr` 代码兜底防并行 locale 竞争退化显示原始键名。
+  4. ✅ 云量滑块已收进**环境菜单**（`skyCap.setCloudCoverage(v)`，0-1 映射晴空→多云，oninput 实时改天空、onchange 松手刷新 IBL；`preview.cloudCoverage` i18n 三语，代码层 `tr` 兜底）。重构背景：原顶栏滑块被批「塞垃圾」，统一收进 🌍 环境根菜单面板（环境独立成组后，地水系统同样收进此面板，不再挤占场景组）；三语键 `preview.envMenu/timeOfDay/cloudCoverage/environmentLight` 已入库，但保留 `tr` 代码兜底防并行 locale 竞争退化显示原始键名。
+  5. ✅ **下钻箭头**：组根视图中 panel 型行右侧加 `>` 装饰箭头（`data-testid="row-chevron"`），与「🌍 环境组单 panel 快捷直达（不显示组根视图）」配合——多 panel 组（如 🎛️ 场景）的 camera/lighting/shadow/postproc 行均有箭头，提示可点击进入下级面板。
 
 > **已知坑（构建期 capability 引用）**：环境菜单在 `if(!selfMode)` **之前**构建，此时 `skyCap`/`groundCap` 尚未赋值（仍为 `null`）。正确模式已改**getter 式 `PreviewMenuCtx`**（`preview-menu.ts`）：菜单项表通过 getter 在菜单渲染时按需取值，规避构建期 `null` 收窄报 `Property does not exist on type 'never'`；字面量默认值（time=9、IBL=true）只作为初始 UI 显示值，交互处理器写在 `oninput`/`onChange` 闭包内用 `skyCap?.`。地面行 `value: true`、IBL 行 `value: true` 即此口径。
 
