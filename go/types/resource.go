@@ -112,9 +112,9 @@ func SetRegistryPath(path string) {
 	registry = nil
 }
 
-// LoadRegistry 加载资源类型注册表
-// 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径），
-// 文件不存在或读取失败时回退到编译时嵌入的默认数据。
+// LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。
+// 仅当 SetRegistryPath 显式指定外部绝对路径时才读取外部文件（测试/显式覆盖）；
+// 默认回退到编译时嵌入数据，不再扫描 exe 旁目录，杜绝旧快照遮蔽导致的漂移。
 // 加锁替代 sync.Once：避免 SetRegistryPath 重置 once 与 Do 之间的竞争。
 func LoadRegistry() *ResourceTypeRegistry {
 	registryMu.Lock()
@@ -178,28 +178,20 @@ func LoadRegistry() *ResourceTypeRegistry {
 	return registry
 }
 
-// loadRegistryBytes 按优先级解析注册表字节：
-//  1. 显式路径（SetRegistryPath 设置的测试/自定义绝对路径）；
-//  2. exe 同级 / 上级目录（部署 / updater 热更位），彻底摆脱对 cwd 的依赖；
-//  3. 编译期嵌入的单源字节 bundledRegistryJSON（由根包 main 经 embed.go 注入，等同仓库根 resource_types.json）。
-//  4. 测试/未注入场景：仓库根 resource_types.json（go/types 包目录的 ../../resource_types.json）。
+// loadRegistryBytes 解析注册表字节，单一事实来源为编译期嵌入：
+//  1. 显式路径（SetRegistryPath 设置的测试/自定义绝对路径，仅测试与显式覆盖使用）；
+//  2. 编译期嵌入的单源字节 bundledRegistryJSON（由根包 main 经 embed.go 注入，等同仓库根 resource_types.json）。
+//  3. 测试/未注入场景回退：仓库根 resource_types.json（go/types 包目录的 ../../resource_types.json）。
 //
-// 默认 registryPath 为相对名 "resource_types.json" 时视为未显式设置，跳过 cwd 裸读。
+// 注意：不再扫描 exe 同级/上级目录寻找 resource_types.json。
+// 旧部署模型（zip 附带数据 JSON、updater 覆盖 exe 旁文件）已于 2026-08 废弃
+// （见 internal/app/bundled_data.go：纯 exe 发布），
+// 残留的 exe 旁快照会静默遮蔽嵌入单源，导致「改了 root JSON 却不生效」
+// （本轮用户主推 6 次分类改动失败的根因）。嵌入单源即权威，杜绝漂移。
 func loadRegistryBytes() []byte {
 	if registryPath != "" && registryPath != "resource_types.json" {
 		if b, err := os.ReadFile(registryPath); err == nil {
 			return b
-		}
-	}
-	if exe, err := os.Executable(); err == nil {
-		exeDir := filepath.Dir(exe)
-		for _, cand := range []string{
-			filepath.Join(exeDir, "resource_types.json"),
-			filepath.Join(exeDir, "..", "resource_types.json"),
-		} {
-			if b, err := os.ReadFile(cand); err == nil {
-				return b
-			}
 		}
 	}
 	if len(bundledRegistryJSON) > 0 {
