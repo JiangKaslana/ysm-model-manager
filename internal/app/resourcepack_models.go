@@ -6,7 +6,6 @@ package app
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"io"
 	"log"
 	"sort"
@@ -67,8 +66,7 @@ func (a *App) ListPackModels(path string) string {
 		}
 	}
 	sort.Strings(out)
-	data, _ := json.Marshal(out)
-	return string(data)
+	return marshalJSON("ListPackModels", out, "[]")
 }
 
 // ReadPackEntry 读取容器内条目内容（base64 字符串）。

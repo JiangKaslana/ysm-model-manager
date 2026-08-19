@@ -51,8 +51,7 @@ func (a *App) ReadPackMeta(path string) string {
 	if meta.Pack.MaxFormat != nil {
 		result["max_format"] = []int{meta.Pack.MaxFormat.Min, meta.Pack.MaxFormat.Max}
 	}
-	data, _ := json.Marshal(result)
-	return string(data)
+	return marshalJSON("ReadPackMeta", result, "{}")
 }
 
 // ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名
@@ -82,7 +81,11 @@ func marshalVoxelData(tag, fnName, path string, buildFn func(string, int) (*type
 		log.Printf("[%s] %s 失败 %s: %v", tag, fnName, path, err)
 		return voxelErrorJSON(fnName, err)
 	}
-	result, _ := json.Marshal(data)
+	result, merr := json.Marshal(data)
+	if merr != nil {
+		log.Printf("[%s] %s 序列化失败 %s: %v", tag, fnName, path, merr)
+		return voxelErrorJSON(fnName, merr)
+	}
 	return string(result)
 }
 
@@ -111,8 +114,7 @@ func (a *App) ReadSchematic(path string) string {
 	if result == nil {
 		return "{}"
 	}
-	data, _ := json.Marshal(result)
-	return string(data)
+	return marshalJSON("ReadSchematic", result, "{}")
 }
 
 // ReadNbtStructure 读取 .nbt 结构文件基本信息
@@ -121,8 +123,7 @@ func (a *App) ReadNbtStructure(path string) string {
 	if result == nil {
 		return "{}"
 	}
-	data, _ := json.Marshal(result)
-	return string(data)
+	return marshalJSON("ReadNbtStructure", result, "{}")
 }
 
 // ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图）
@@ -132,8 +133,7 @@ func (a *App) ReadLitematicMeta(path string) string {
 		log.Printf("[litematic] ParseMeta 失败 %s: %v", path, err)
 		return "{}"
 	}
-	data, _ := json.Marshal(meta)
-	return string(data)
+	return marshalJSON("ReadLitematicMeta", meta, "{}")
 }
 
 // GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置）
@@ -491,6 +491,27 @@ func findDuplicateErrorJSON(msg string) string {
 	return string(data)
 }
 
+// marshalJSON 序列化为紧凑 JSON，失败时返回 fallback（非空串）+ 记录日志。
+// 统一替代 data, _ := json.Marshal 模式，避免前端 JSON.parse("") 抛异常而无法定位问题（规律六）。
+func marshalJSON(tag string, v interface{}, fallback string) string {
+	data, err := json.Marshal(v)
+	if err != nil {
+		log.Printf("[%s] JSON 序列化失败: %v", tag, err)
+		return fallback
+	}
+	return string(data)
+}
+
+// marshalJSONIndent 序列化为缩进 JSON，失败时返回 fallback + 记录日志。
+func marshalJSONIndent(tag string, v interface{}, fallback string) string {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		log.Printf("[%s] JSON 序列化失败: %v", tag, err)
+		return fallback
+	}
+	return string(data)
+}
+
 // FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。
 // 契约（见 docs/wails-bindings.md）：成功 → DedupGroup[]；失败 → {error: string}。
 func (a *App) FindDuplicateFiles(dir string) string {
@@ -504,8 +525,7 @@ func (a *App) FindDuplicateFiles(dir string) string {
 		log.Printf("[dedup] FindDuplicateFiles 扫描失败: %v", err)
 		return findDuplicateErrorJSON(err.Error())
 	}
-	data, _ := json.Marshal(groups)
-	return string(data)
+	return marshalJSON("FindDuplicateFiles", groups, findDuplicateErrorJSON("JSON 序列化失败"))
 }
 
 // CountDuplicateFiles 快速统计重复文件数量。
@@ -519,8 +539,7 @@ func (a *App) CountDuplicateFiles(dir string) string {
 		log.Printf("[dedup] CountDuplicateFiles 扫描失败: %v", err)
 		return findDuplicateErrorJSON(err.Error())
 	}
-	data, _ := json.Marshal(map[string]int{"groups": groups, "extra": extra})
-	return string(data)
+	return marshalJSON("CountDuplicateFiles", map[string]int{"groups": groups, "extra": extra}, findDuplicateErrorJSON("JSON 序列化失败"))
 }
 
 // InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache）

@@ -622,12 +622,12 @@
 | `App.RelinkCustomDir()` | `internal/app/app_install_instance:252` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
 | `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:272` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
 | `App.SyncResources()` | `internal/app/app_install_instance:316` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install_instance:355` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:373` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:411` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:428` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:448` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:500` | ========== YSM 检测 ========== |
+| `App.PushResourceToInstance()` | `internal/app/app_install_instance:354` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:372` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:410` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:427` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:447` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:498` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |
@@ -656,23 +656,23 @@
 | `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:360` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
 | `App.SaveScreenshotFile()` | `internal/app/app_model:422` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `ReadFileMeta()` | `internal/app/app_model:193` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
-| `App.ExportBoneStructures()` | `internal/app/app_scan:27` | ========== 批量导出骨骼结构 ========== |
-| `App.ExportModelStructureJSON()` | `internal/app/app_scan:83` | ExportModelStructureJSON 导出单模型骨骼结构 |
-| `App.SearchModels()` | `internal/app/app_scan:122` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
-| `App.ScanModelEntries()` | `internal/app/app_scan:286` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
-| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:308` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
-| `App.ClearScanCache()` | `internal/app/app_scan:324` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
-| `App.ListModelAuthors()` | `internal/app/app_scan:329` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
-| `App.GenerateRepoIndex()` | `internal/app/app_scan:338` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
-| `App.ScanLocalAuthors()` | `internal/app/app_scan:346` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:355` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:359` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:365` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:382` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:391` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:467` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:512` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
-| `progressReader.Read()` | `internal/app/app_scan:582` | — |
+| `App.ExportBoneStructures()` | `internal/app/app_scan:26` | ========== 批量导出骨骼结构 ========== |
+| `App.ExportModelStructureJSON()` | `internal/app/app_scan:82` | ExportModelStructureJSON 导出单模型骨骼结构 |
+| `App.SearchModels()` | `internal/app/app_scan:120` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
+| `App.ScanModelEntries()` | `internal/app/app_scan:284` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
+| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:306` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
+| `App.ClearScanCache()` | `internal/app/app_scan:322` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
+| `App.ListModelAuthors()` | `internal/app/app_scan:327` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
+| `App.GenerateRepoIndex()` | `internal/app/app_scan:336` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
+| `App.ScanLocalAuthors()` | `internal/app/app_scan:344` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
+| `App.ListVersionInstances()` | `internal/app/app_scan:353` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:357` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:363` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:380` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:389` | — |
+| `App.OpenFolder()` | `internal/app/app_scan:465` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:510` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
+| `progressReader.Read()` | `internal/app/app_scan:580` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -692,14 +692,14 @@
 | `App.SaveWorkshopPresetsBySite()` | `internal/app/app_workshop:192` | SaveWorkshopPresetsBySite 只替换指定站点的搜索词，其他站点不动 |
 | `App.LoadGitHubRepos()` | `internal/app/app_workshop:205` | — |
 | `App.ResetWorkshopConfigs()` | `internal/app/app_workshop:216` | — |
-| `App.ExportWorkshopSitesCSV()` | `internal/app/app_workshop:234` | ========== CSV 导出/导入 ========== |
-| `App.ExportWorkshopSitesJSONFile()` | `internal/app/app_workshop:246` | — |
-| `App.ValidateWorkshopSites()` | `internal/app/app_workshop:259` | — |
-| `App.ImportWorkshopSitesCSV()` | `internal/app/app_workshop:275` | — |
-| `App.ExportWorkshopCreatorsJSONFile()` | `internal/app/app_workshop:301` | — |
-| `App.BackupWorkshopCreators()` | `internal/app/app_workshop:308` | — |
-| `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:321` | — |
-| `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:363` | — |
+| `App.ExportWorkshopSitesCSV()` | `internal/app/app_workshop:237` | ========== CSV 导出/导入 ========== |
+| `App.ExportWorkshopSitesJSONFile()` | `internal/app/app_workshop:249` | — |
+| `App.ValidateWorkshopSites()` | `internal/app/app_workshop:262` | — |
+| `App.ImportWorkshopSitesCSV()` | `internal/app/app_workshop:278` | — |
+| `App.ExportWorkshopCreatorsJSONFile()` | `internal/app/app_workshop:304` | — |
+| `App.BackupWorkshopCreators()` | `internal/app/app_workshop:311` | — |
+| `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:324` | — |
+| `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:366` | — |
 | `NewApp()` | `internal/app/app:61` | — |
 | `App.SetApp()` | `internal/app/app:87` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
 | `App.GetYSMRepoRoot()` | `internal/app/app:90` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
@@ -730,12 +730,12 @@
 | `cookieJar.Cookies()` | `internal/app/proxy:160` | — |
 | `App.LoadResourceTypes()` | `internal/app/resource_bindings:25` | LoadResourceTypes 加载资源类型注册表 |
 | `App.ReadPackMeta()` | `internal/app/resource_bindings:34` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
-| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:59` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
-| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:99` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
-| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:104` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
-| `App.ReadSchematic()` | `internal/app/resource_bindings:109` | ReadSchematic 读取 .schematic 文件基本信息 |
-| `App.ReadNbtStructure()` | `internal/app/resource_bindings:119` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
-| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:129` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
+| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:58` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
+| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:102` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
+| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:107` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
+| `App.ReadSchematic()` | `internal/app/resource_bindings:112` | ReadSchematic 读取 .schematic 文件基本信息 |
+| `App.ReadNbtStructure()` | `internal/app/resource_bindings:121` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
+| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:130` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
 | `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:140` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
 | `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:145` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
 | `App.DetectResourceType()` | `internal/app/resource_bindings:155` | DetectResourceType 检测指定文件的资源类型 |
@@ -751,12 +751,12 @@
 | `App.ImportByType()` | `internal/app/resource_bindings:438` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
 | `App.DeleteResourcePack()` | `internal/app/resource_bindings:455` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
 | `App.DeleteModelDir()` | `internal/app/resource_bindings:466` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:496` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:513` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:527` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:533` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
-| `App.ListPackModels()` | `internal/app/resourcepack_models:50` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
-| `App.ReadPackEntry()` | `internal/app/resourcepack_models:76` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:517` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:533` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:546` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:552` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
+| `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |
 | `App.GetWasmBinary()` | `internal/app/wasm_embed:5` | GetWasmBinary 返回内嵌的 YSMParser.wasm 字节（供前端 WebView2 使用）。 |
 

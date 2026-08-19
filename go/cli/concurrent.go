@@ -103,7 +103,9 @@ func runConcurrentBench(ctx *CmdContext) error {
 
 	for _, wc := range workerCounts {
 		result := benchParallelAnalyze(ctx.App, ysmModels, wc)
-		result.Speedup = float64(serialResult.Duration) / float64(result.Duration)
+		if result.Duration > 0 {
+			result.Speedup = float64(serialResult.Duration) / float64(result.Duration)
+		}
 		parallelResults = append(parallelResults, result)
 
 		speedupStr := fmt.Sprintf("%.1fx", result.Speedup)

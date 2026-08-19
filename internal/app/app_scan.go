@@ -4,7 +4,6 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -112,8 +111,7 @@ func (a *App) ExportModelStructureJSON(modelPath string) string {
 			Cubes: len(b.Cubes), TexIdx: 0,
 		})
 	}
-	data, _ := json.MarshalIndent(info, "", "  ")
-	return string(data)
+	return marshalJSONIndent("AnalyzeModelDetail", info, "{}")
 }
 
 // ========== 高级搜索 ==========

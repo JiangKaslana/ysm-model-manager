@@ -220,7 +220,10 @@ func (a *App) ResetWorkshopConfigs() ([]types.WorkshopSite, error) {
 		return nil, fmt.Errorf("备份创作者数据失败，中止重置: %w", err)
 	}
 	sites := defaultWorkshopSites()
-	data, _ := json.MarshalIndent(sites, "", "  ")
+	data, merr := json.MarshalIndent(sites, "", "  ")
+	if merr != nil {
+		return nil, fmt.Errorf("序列化站点数据失败: %w", merr)
+	}
 	if err := fsutil.WriteFileAtomic(workshopSitesPath(), data); err != nil {
 		return nil, err
 	}

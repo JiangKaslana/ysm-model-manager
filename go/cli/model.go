@@ -46,7 +46,10 @@ func runSearch(ctx *CmdContext) error {
 	if *outputFormat == "table" {
 		printSearchTable(results)
 	} else {
-		data, _ := json.MarshalIndent(results, "", "  ")
+		data, err := json.MarshalIndent(results, "", "  ")
+		if err != nil {
+			return newRuntimeErrf("JSON 序列化失败: %v", err)
+		}
 		fmt.Printf("✅ 找到 %d 个模型:\n", len(results))
 		fmt.Println(string(data))
 	}
@@ -126,7 +129,11 @@ func printBedrockAnalysis(model types.BedrockModel) {
 
 // printYSMAnalysis 打印 YSM 模型分析结果
 func printYSMAnalysis(meta interface{}) {
-	data, _ := json.MarshalIndent(meta, "  ", "  ")
+	data, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		fmt.Printf("❌ YSM 模型分析结果序列化失败: %v\n", err)
+		return
+	}
 	fmt.Println("📋 YSM 模型分析结果:")
 	fmt.Println(strings.Repeat("-", 50))
 	fmt.Println(string(data))
@@ -150,7 +157,10 @@ func runList(ctx *CmdContext) error {
 	}
 
 	if *outputFormat == "json" {
-		data, _ := json.MarshalIndent(entries, "", "  ")
+		data, err := json.MarshalIndent(entries, "", "  ")
+		if err != nil {
+			return newRuntimeErrf("JSON 序列化失败: %v", err)
+		}
 		fmt.Println(string(data))
 		return nil
 	}

@@ -141,7 +141,10 @@ func (a *App) GetAllowedCLICommands() string {
 	if a.allowedCommands == nil {
 		a.allowedCommands = []string{}
 	}
-	result, _ := json.Marshal(a.allowedCommands)
+	result, err := json.Marshal(a.allowedCommands)
+	if err != nil {
+		return "[]" // 空数组兜底，前端至少拿到合法 JSON
+	}
 	return string(result)
 }
 
