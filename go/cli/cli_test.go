@@ -1174,3 +1174,27 @@ func TestParseCommandArgs_JsonModeWithoutFilesRoot(t *testing.T) {
 		t.Errorf("应有 3 个命令参数, got: %d", len(cmdArgs))
 	}
 }
+
+// TestJsonDataPayload 验证 --json 响应 data 载荷构造（规律六：成功/失败共用 jsonDataPayload，
+// output 为空返回 nil——omitempty 省略，前端以 status/error 为准）
+func TestJsonDataPayload(t *testing.T) {
+	// 空 output：返回 nil（data 省略）
+	if got := jsonDataPayload("", "/repo"); got != nil {
+		t.Errorf("空 output 应返回 nil, got: %v", got)
+	}
+	// 非空 output：含 output/lines/filesRoot（lines 按行切分）
+	got := jsonDataPayload("line1\nline2\n", "/repo")
+	if got == nil {
+		t.Fatal("非空 output 应返回非 nil Payload")
+	}
+	if got["filesRoot"] != "/repo" {
+		t.Errorf("filesRoot 应为 /repo, got: %v", got["filesRoot"])
+	}
+	if got["output"] != "line1\nline2\n" {
+		t.Errorf("output 应原样保留, got: %v", got["output"])
+	}
+	lines, ok := got["lines"].([]string)
+	if !ok || len(lines) != 2 || lines[0] != "line1" || lines[1] != "line2" {
+		t.Errorf("lines 应按行切分, got: %v", got["lines"])
+	}
+}

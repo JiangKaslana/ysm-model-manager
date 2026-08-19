@@ -53,13 +53,12 @@ func RunCLI(args []string) error {
 
 		if err != nil {
 			resp := NewJsonError(cmdName, err, elapsed)
+			// 规律六「错误信息不能丢」在 CLI --json 层的落地：失败分支同样带上捕获的输出，
+			// 否则 gui-flow 等命令失败时前端/gate 拿不到阶段明细，无法定位具体失败阶段。
+			resp.Data = jsonDataPayload(outputBuf.String(), filesRoot)
 			fmt.Println(resp.ToJson())
 		} else {
-			resp := NewJsonSuccess(cmdName, map[string]interface{}{
-				"output":    outputBuf.String(),
-				"lines":     splitLines(outputBuf.String()),
-				"filesRoot": filesRoot,
-			}, elapsed)
+			resp := NewJsonSuccess(cmdName, jsonDataPayload(outputBuf.String(), filesRoot), elapsed)
 			resp.Meta.Platform = runtime.GOOS
 			fmt.Println(resp.ToJson())
 		}
@@ -155,4 +154,18 @@ func printCommandHelp(cmdName string) {
 	fmt.Println()
 	fmt.Println("详细参数请查看 AGENTS.md 的 CLI 模式使用说明章节。")
 	fmt.Println("或在命令前加 --help 查看具体选项。")
+}
+
+// jsonDataPayload 构造 CLI --json 响应（json.go JsonResponse.Data）的业务数据载荷。
+// 成功/失败分支共用（DRY），保证两者 output 口径一致。output 为空时返回 nil——
+// Data 带 `json:"data,omitempty"`，nil 会被省略，前端以 status/error 为准。
+func jsonDataPayload(output, filesRoot string) map[string]interface{} {
+	if output == "" {
+		return nil
+	}
+	return map[string]interface{}{
+		"output":    output,
+		"lines":     splitLines(output),
+		"filesRoot": filesRoot,
+	}
 }
