@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark light" />
+  <title>YSM Model Manager Next</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="资源导航">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">YM</div>
+        <div>
+          <strong>YSM Manager</strong>
+          <span>Next</span>
+        </div>
+      </div>
+
+      <nav class="nav-group" id="filterNav">
+        <button class="nav-item is-active" data-filter="all">
+          <span>全部资源</span><b id="count-all">0</b>
+        </button>
+        <button class="nav-item" data-filter="ysm">
+          <span>YSM 模型</span><b id="count-ysm">0</b>
+        </button>
+        <button class="nav-item" data-filter="mmd">
+          <span>MMD</span><b id="count-mmd">0</b>
+        </button>
+        <button class="nav-item" data-filter="blueprint">
+          <span>蓝图 / 投影</span><b id="count-blueprint">0</b>
+        </button>
+        <button class="nav-item" data-filter="vrm">
+          <span>VRM / VRChat</span><b id="count-vrm">0</b>
+        </button>
+        <button class="nav-item" data-filter="archive">
+          <span>压缩资源</span><b id="count-archive">0</b>
+        </button>
+      </nav>
+
+      <div class="sidebar-section-title">工作区</div>
+      <nav class="nav-group muted-nav">
+        <button class="nav-item" disabled><span>实例</span><small>迁移中</small></button>
+        <button class="nav-item" disabled><span>同步</span><small>迁移中</small></button>
+        <button class="nav-item" disabled><span>设置</span><small>迁移中</small></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="status-dot" id="runtimeDot"></span>
+        <span id="runtimeLabel">检测运行环境…</span>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="library-path-wrap">
+          <label for="libraryRoot">模型库</label>
+          <input id="libraryRoot" type="text" spellcheck="false" autocomplete="off" placeholder="输入模型库目录，例如 D:\\Models\\YSM" />
+          <button id="scanButton" class="primary-button">扫描</button>
+        </div>
+        <button id="refreshButton" class="icon-button" title="刷新" aria-label="刷新">↻</button>
+      </header>
+
+      <section class="commandbar" aria-label="列表工具栏">
+        <div class="search-box">
+          <span aria-hidden="true">⌕</span>
+          <input id="searchInput" type="search" placeholder="搜索名称、路径、子目录…" autocomplete="off" />
+        </div>
+        <select id="sortSelect" aria-label="排序">
+          <option value="name">名称</option>
+          <option value="modified">最近修改</option>
+          <option value="size">文件大小</option>
+        </select>
+        <button id="disabledToggle" class="toggle-button" aria-pressed="false">显示已禁用</button>
+      </section>
+
+      <section class="summary-strip" aria-label="资源摘要">
+        <div><span>资源</span><strong id="summaryCount">0</strong></div>
+        <div><span>当前结果</span><strong id="visibleCount">0</strong></div>
+        <div><span>总大小</span><strong id="summarySize">0 B</strong></div>
+        <div><span>索引版本</span><strong id="revisionValue">0</strong></div>
+        <div class="summary-message" id="summaryMessage">尚未扫描</div>
+      </section>
+
+      <section class="content-grid">
+        <div class="list-panel">
+          <div class="list-head" aria-hidden="true">
+            <span>名称</span>
+            <span>类型</span>
+            <span>大小</span>
+            <span>修改时间</span>
+            <span>状态</span>
+          </div>
+
+          <div id="modelScroll" class="model-scroll" tabindex="0" aria-label="模型列表">
+            <div id="emptyState" class="empty-state">
+              <strong>选择一个模型库开始</strong>
+              <span>列表使用虚拟滚动，资源很多时也不会一次创建数千个 DOM 节点。</span>
+            </div>
+            <div id="modelSpacer" class="model-spacer"></div>
+            <div id="modelLayer" class="model-layer"></div>
+          </div>
+        </div>
+
+        <aside class="detail-panel" id="detailPanel" aria-label="资源详情">
+          <div class="detail-empty" id="detailEmpty">
+            <strong>未选择资源</strong>
+            <span>点击列表中的项目查看文件信息。</span>
+          </div>
+          <div class="detail-content" id="detailContent" hidden>
+            <div class="detail-kicker" id="detailType">YSM</div>
+            <h2 id="detailName">—</h2>
+            <dl>
+              <div><dt>作者</dt><dd id="detailAuthor">—</dd></div>
+              <div><dt>大小</dt><dd id="detailSize">—</dd></div>
+              <div><dt>修改时间</dt><dd id="detailModified">—</dd></div>
+              <div><dt>子目录</dt><dd id="detailSubdir">—</dd></div>
+              <div><dt>状态</dt><dd id="detailStatus">—</dd></div>
+            </dl>
+            <label class="path-label">完整路径</label>
+            <code id="detailPath" class="path-code">—</code>
+          </div>
+        </aside>
+      </section>
+
+      <footer class="statusbar">
+        <span id="statusText">就绪</span>
+        <span id="errorText"></span>
+      </footer>
+    </main>
+  </div>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>

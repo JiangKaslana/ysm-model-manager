@@ -1,0 +1,57 @@
+name: Rust next desktop
+
+on:
+  push:
+    paths:
+      - 'rust-core/**'
+      - 'rust-index/**'
+      - 'desktop-next/**'
+      - 'resource_types.json'
+      - '.github/workflows/rust-next.yml'
+  pull_request:
+    paths:
+      - 'rust-core/**'
+      - 'rust-index/**'
+      - 'desktop-next/**'
+      - 'resource_types.json'
+      - '.github/workflows/rust-next.yml'
+
+jobs:
+  index:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: rust-index
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  ui-static:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check desktop-next/ui/app.js
+      - name: Tauri config JSON
+        run: python -m json.tool desktop-next/src-tauri/tauri.conf.json > /dev/null
+
+  tauri-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Rust formatting
+        working-directory: desktop-next/src-tauri
+        run: cargo fmt --check
+      - name: Compile Tauri shell
+        run: cargo check --manifest-path desktop-next/src-tauri/Cargo.toml
