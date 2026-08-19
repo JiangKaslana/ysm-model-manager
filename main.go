@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"ysm-model-manager/go/cli"
 	"ysm-model-manager/internal/app"
 )
 
@@ -16,11 +17,11 @@ var assets embed.FS
 func main() {
 	// ---- CLI Mode: 独立运行，脱离 Wails GUI，用于测试或自动化 ----
 	if len(os.Args) > 1 && os.Args[1] == "--cli" {
-		if err := runCLI(os.Args[2:]); err != nil {
-			PrintError(err)
-			os.Exit(exitCodeOf(err))
+		if err := cli.RunCLI(os.Args[2:]); err != nil {
+			cli.PrintError(err)
+			os.Exit(cli.ExitCodeOf(err))
 		}
-		os.Exit(ExitSuccess)
+		os.Exit(cli.ExitSuccess)
 		return
 	}
 	// ---- End CLI Mode ----

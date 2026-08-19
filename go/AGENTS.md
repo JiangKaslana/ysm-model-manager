@@ -27,6 +27,7 @@ node scripts/doctor.mjs         # 发版前全量闸门
 | `types` | 跨包共享类型定义 |
 | `litematic` | MCEdit Lite 图格式支持 |
 | `internal/app` | Wails 应用入口与绑定注册 |
+| `cli` | CLI 命令（脱离 GUI 的模型管理/诊断/缓存操作） |
 | `executil` | 外部进程执行辅助（隐藏窗口等） |
 
 - **新文件放对应包**，不按行数机械切包；一个包内一个文件放一个可独立工作的功能

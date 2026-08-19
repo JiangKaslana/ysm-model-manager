@@ -419,6 +419,6 @@ go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm
 
 ## 源码参考
 
-- 命令定义与实现：[`cli.go`](./cli.go)
+- 命令定义与实现：[`go/cli/`](./go/cli/)（入口 `main.go` 经 `cli.RunCLI` 接线）
 - 缓存包：[`go/texture_cache/`](./go/texture_cache/)
 - 应用配置：[`go/types/config.go`](./go/types/config.go)

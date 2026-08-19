@@ -141,6 +141,16 @@ export const autoSidebar = [
         ]
       },
       {
+        "text": "📐 参考",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "通用骨骼工具层架构经验",
+            "link": "/guide/bone-tools-architecture"
+          }
+        ]
+      },
+      {
         "text": "其他",
         "collapsed": true,
         "items": [
@@ -151,10 +161,6 @@ export const autoSidebar = [
           {
             "text": "🧱 YSM 模型管理器 — 用户指南",
             "link": "/guide/用户指南"
-          },
-          {
-            "text": "通用骨骼工具层架构经验",
-            "link": "/guide/bone-tools-architecture"
           }
         ]
       }

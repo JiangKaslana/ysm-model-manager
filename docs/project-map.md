@@ -13,6 +13,7 @@
 | 包 | 用途 |
 |----|------|
 | `avatar/` | 创作者头像提取与缓存 〔源码 4: avatar.go avatar_decode.go avatar_extract.go avatar_zip.go · 测试 4〕 |
+| `cli/` | CLI 命令（脱离 GUI 的模型管理/诊断/缓存操作，入口 main.go 经 cli.RunCLI 接线） 〔源码 9: cache.go cli.go concurrent.go config.go flow.go mmd.go model.go perf.go shared.go · 测试 1〕 |
 | `container/` | 统一容器桥接层（zip/7z/目录 Entry-Reader 抽象，ADR-068） 〔源码 1: container.go · 测试 2〕 |
 | `dedup/` | 文件去重检测（纯函数，不绑回收站/UI） 〔源码 1: dedup.go · 测试 3〕 |
 | `download/` | 纯下载逻辑（不依赖 Wails runtime） 〔源码 1: download.go · 测试 5〕 |
@@ -86,16 +87,6 @@
 |------|------|
 | `AGENTS.md` | AI 入口手册（硬约束 + 导航） |
 | `README.md` | 项目说明（面向用户） |
-| `cli.go` | CLI 模式核心框架（cliCommand 类型、cliCommands 注册表、runCLI 入口） |
-| `cli_cache.go` | CLI 缓存管理命令（cache-status、cache-verify、cache-clear、cache-diag） |
-| `cli_concurrent.go` | CLI 并发基准测试命令（concurrent-bench，串行 vs 并行对比） |
-| `cli_config.go` | CLI 配置管理命令（config-show） |
-| `cli_flow.go` | CLI GUI 流程模拟命令（gui-flow，模拟配置→扫描→分析→缓存→渲染） |
-| `cli_mmd.go` | CLI MMD 专用命令（file-bench、scan-dir、analyze-mmd） |
-| `cli_model.go` | CLI 模型管理命令（search、analyze、list、verify、benchmark、export） |
-| `cli_perf.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
-| `cli_shared.go` | CLI 共享工具函数（parseFlags、formatSize、min、max） |
-| `cli_test.go` | CLI 单元测试（runCLI 入口、cache 命令、export/analyze/config-show 等） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
 | `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |
