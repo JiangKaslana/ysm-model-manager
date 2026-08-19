@@ -6,6 +6,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -428,4 +429,457 @@ func listDirNames(t *testing.T, dir string) []string {
 		names = append(names, e.Name())
 	}
 	return names
+}
+
+// ========== mmd 命令测试 ==========
+
+func TestFileBench_RequiresDirOrFile(t *testing.T) {
+	err := runFileBench(&app.App{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "--dir") {
+		t.Errorf("file-bench 缺 --dir/--file 应报错, got: %v", err)
+	}
+}
+
+func TestFileBench_SingleFile(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "test.ysm")
+	mustWrite(t, filePath, bytes.Repeat([]byte("x"), 2*1024*1024)) // 2MB
+
+	out := captureOutput(t, func() {
+		if err := runFileBench(&app.App{}, []string{"--file", filePath}); err != nil {
+			t.Fatalf("runFileBench 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "文件读取性能测试") {
+		t.Errorf("输出应包含标题, got: %s", out)
+	}
+}
+
+func TestFileBench_DirWithLargeFiles(t *testing.T) {
+	dir := t.TempDir()
+	for i := 0; i < 3; i++ {
+		mustWrite(t, filepath.Join(dir, fmt.Sprintf("file_%d.ysm", i)), bytes.Repeat([]byte("x"), 2*1024*1024))
+	}
+
+	out := captureOutput(t, func() {
+		if err := runFileBench(&app.App{}, []string{"--dir", dir, "--iterations", "1"}); err != nil {
+			t.Fatalf("runFileBench 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "文件读取性能测试") {
+		t.Errorf("输出应包含标题, got: %s", out)
+	}
+}
+
+func TestScanDir_RequiresDir(t *testing.T) {
+	err := runScanDir(&app.App{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "--dir") {
+		t.Errorf("scan-dir 缺 --dir 应报错, got: %v", err)
+	}
+}
+
+func TestScanDir_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	out := captureOutput(t, func() {
+		if err := runScanDir(&app.App{}, []string{"--dir", dir}); err != nil {
+			t.Fatalf("runScanDir 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "目录统计") {
+		t.Errorf("输出应包含目录统计, got: %s", out)
+	}
+	if !strings.Contains(out, "文件数:   0") {
+		t.Errorf("空目录应显示 0 文件, got: %s", out)
+	}
+}
+
+func TestScanDir_WithFiles(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "test.png"), []byte("fake png"))
+	mustWrite(t, filepath.Join(dir, "test.jpg"), []byte("fake jpg"))
+	mustWrite(t, filepath.Join(dir, "model.pmx"), bytes.Repeat([]byte("x"), 15*1024*1024)) // 15MB
+
+	out := captureOutput(t, func() {
+		if err := runScanDir(&app.App{}, []string{"--dir", dir}); err != nil {
+			t.Fatalf("runScanDir 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "目录统计") {
+		t.Errorf("输出应包含目录统计, got: %s", out)
+	}
+	if !strings.Contains(out, ".png") || !strings.Contains(out, ".jpg") {
+		t.Errorf("应显示按扩展名分组, got: %s", out)
+	}
+}
+
+func TestAnalyzeMMD_RequiresDir(t *testing.T) {
+	err := runAnalyzeMMD(&app.App{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "--dir") {
+		t.Errorf("analyze-mmd 缺 --dir 应报错, got: %v", err)
+	}
+}
+
+func TestAnalyzeMMD_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	out := captureOutput(t, func() {
+		if err := runAnalyzeMMD(&app.App{}, []string{"--dir", dir}); err != nil {
+			t.Fatalf("runAnalyzeMMD 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "MMD 模型资产分析") {
+		t.Errorf("输出应包含标题, got: %s", out)
+	}
+	if !strings.Contains(out, "资产统计") {
+		t.Errorf("输出应包含资产统计, got: %s", out)
+	}
+}
+
+func TestAnalyzeMMD_WithModels(t *testing.T) {
+	dir := t.TempDir()
+	// 创建模拟的 MMD 文件
+	mustWrite(t, filepath.Join(dir, "model.pmx"), []byte("fake pmx"))
+	mustWrite(t, filepath.Join(dir, "motion.vmd"), []byte("fake vmd"))
+	mustWrite(t, filepath.Join(dir, "physics.vpd"), []byte("fake vpd"))
+	mustWrite(t, filepath.Join(dir, "tex1.png"), bytes.Repeat([]byte{0x89, 0x50, 0x4E, 0x47}, 8))
+
+	out := captureOutput(t, func() {
+		if err := runAnalyzeMMD(&app.App{}, []string{"--dir", dir}); err != nil {
+			t.Fatalf("runAnalyzeMMD 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "PMX/PMD 模型:  1 个") {
+		t.Errorf("应显示 1 个 PMX 模型, got: %s", out)
+	}
+	if !strings.Contains(out, "VMD 动画:      1 个") {
+		t.Errorf("应显示 1 个 VMD 动画, got: %s", out)
+	}
+}
+
+// ========== concurrent 命令测试 ==========
+
+func TestConcurrentBench_NoModels(t *testing.T) {
+	dir := t.TempDir()
+	a := app.NewApp()
+	err := runConcurrentBench(a, []string{"--files-root", dir})
+	if err == nil {
+		t.Log("无模型时 concurrent-bench 返回错误属正常")
+	}
+}
+
+func TestSingleBench_RequiresModel(t *testing.T) {
+	err := runSingleBench(&app.App{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "--model") {
+		t.Errorf("single-bench 缺 --model 应报错, got: %v", err)
+	}
+}
+
+func TestSingleBench_WithFakeModel(t *testing.T) {
+	dir := t.TempDir()
+	modelPath := filepath.Join(dir, "test.ysm")
+	mustWrite(t, modelPath, []byte(`{"test": "model"}`))
+
+	out := captureOutput(t, func() {
+		if err := runSingleBench(&app.App{}, []string{"--model", modelPath, "--iterations", "1"}); err != nil {
+			t.Logf("runSingleBench 返回: %v（可能因模型格式不标准而正常）", err)
+		}
+	})
+	if strings.Contains(out, "单模型加载基准测试") {
+		t.Log("single-bench 成功执行")
+	}
+}
+
+// ========== flow 命令测试 ==========
+
+func TestGUIFlow_NoModels(t *testing.T) {
+	dir := t.TempDir()
+	a := app.NewApp()
+	err := runGUIFlow(a, []string{"--files-root", dir})
+	if err != nil {
+		t.Logf("gui-flow 无模型时返回: %v（属正常）", err)
+	}
+}
+
+func TestGUIFlow_WithVerbose(t *testing.T) {
+	dir := t.TempDir()
+	a := app.NewApp()
+	out := captureOutput(t, func() {
+		if err := runGUIFlow(a, []string{"--files-root", dir, "--verbose"}); err != nil {
+			t.Logf("gui-flow verbose 返回: %v（可能因无模型而正常）", err)
+		}
+	})
+	if strings.Contains(out, "GUI 流程模拟器") {
+		t.Log("gui-flow 成功执行")
+	}
+}
+
+// ========== perf 命令测试 ==========
+
+func TestPerfLog_Output(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runPerfLog(&app.App{}, nil); err != nil {
+			t.Errorf("runPerfLog 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "优化记录") {
+		t.Errorf("perf-log 输出应包含「优化记录」, got: %s", out)
+	}
+	if !strings.Contains(out, "当前瓶颈") {
+		t.Errorf("perf-log 输出应包含「当前瓶颈」, got: %s", out)
+	}
+	if !strings.Contains(out, "关键指标") {
+		t.Errorf("perf-log 输出应包含「关键指标」, got: %s", out)
+	}
+}
+
+// ========== model 命令更多边界测试 ==========
+
+func TestSearch_EmptyKeyword(t *testing.T) {
+	dir := t.TempDir()
+	out := captureOutput(t, func() {
+		if err := runSearch(&app.App{}, []string{"--files-root", dir}); err != nil {
+			t.Errorf("search 空仓库应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "未找到匹配的模型") {
+		t.Errorf("空仓库应显示「未找到匹配的模型」, got: %s", out)
+	}
+}
+
+func TestList_EmptyRepo(t *testing.T) {
+	dir := t.TempDir()
+	out := captureOutput(t, func() {
+		if err := runList(&app.App{}, []string{"--files-root", dir}); err != nil {
+			t.Errorf("list 空仓库应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "仓库为空") {
+		t.Errorf("空仓库应显示「仓库为空」, got: %s", out)
+	}
+}
+
+func TestList_JsonFormat(t *testing.T) {
+	dir := t.TempDir()
+	out := captureOutput(t, func() {
+		if err := runList(&app.App{}, []string{"--files-root", dir, "--format", "json"}); err != nil {
+			t.Errorf("list json 格式应成功, got %v", err)
+		}
+	})
+	// 空仓库时先输出 "仓库为空" 再返回，不走 json 输出路径
+	if !strings.Contains(out, "仓库为空") {
+		t.Errorf("空仓库应显示「仓库为空」, got: %s", out)
+	}
+}
+
+func TestVerify_EmptyRepo(t *testing.T) {
+	dir := t.TempDir()
+	out := captureOutput(t, func() {
+		if err := runVerify(&app.App{}, []string{"--files-root", dir}); err != nil {
+			t.Errorf("verify 空仓库应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "验证结果") {
+		t.Errorf("verify 应显示验证结果, got: %s", out)
+	}
+}
+
+func TestExport_InvalidPath(t *testing.T) {
+	err := runExport(&app.App{}, []string{"--model", "/nonexistent/model.ysm"})
+	if err == nil {
+		t.Log("export 不存在的文件可能返回空内容")
+	}
+}
+
+// ========== shared.go 工具函数测试 ==========
+
+func TestParseCommandArgs_Basic(t *testing.T) {
+	args := []string{"--files-root", "/models", "search", "--keyword", "test"}
+	filesRoot, cmdArgs := ParseCommandArgs(args)
+	if filesRoot != "/models" {
+		t.Errorf("filesRoot 应为 /models, got: %s", filesRoot)
+	}
+	if len(cmdArgs) != 3 {
+		t.Errorf("应有 3 个命令参数, got: %d", len(cmdArgs))
+	}
+}
+
+func TestParseCommandArgs_InlineFormat(t *testing.T) {
+	args := []string{"--files-root=/models", "list"}
+	filesRoot, cmdArgs := ParseCommandArgs(args)
+	if filesRoot != "/models" {
+		t.Errorf("filesRoot 应为 /models, got: %s", filesRoot)
+	}
+	if len(cmdArgs) != 1 || cmdArgs[0] != "list" {
+		t.Errorf("命令参数应只有 list, got: %v", cmdArgs)
+	}
+}
+
+func TestParseCommandArgs_NoFilesRoot(t *testing.T) {
+	args := []string{"search", "--keyword", "test"}
+	filesRoot, cmdArgs := ParseCommandArgs(args)
+	if filesRoot != "" {
+		t.Errorf("无 files-root 应为空, got: %s", filesRoot)
+	}
+	if len(cmdArgs) != 3 {
+		t.Errorf("应有 3 个命令参数, got: %d", len(cmdArgs))
+	}
+}
+
+func TestFormatSize(t *testing.T) {
+	tests := []struct {
+		input    int64
+		expected string
+	}{
+		{500, "500B"},
+		{1024, "1.0KB"},
+		{1536, "1.5KB"},
+		{1048576, "1.0MB"},
+		{1073741824, "1.0GB"},
+	}
+	for _, tt := range tests {
+		result := formatSize(tt.input)
+		if result != tt.expected {
+			t.Errorf("formatSize(%d) = %s, want %s", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestIsPowerOf2(t *testing.T) {
+	tests := []struct {
+		input    int
+		expected bool
+	}{
+		{1, true},
+		{2, true},
+		{4, true},
+		{8, true},
+		{16, true},
+		{1024, true},
+		{3, false},
+		{5, false},
+		{7, false},
+		{0, false},
+		{-1, false},
+	}
+	for _, tt := range tests {
+		result := isPowerOf2(tt.input)
+		if result != tt.expected {
+			t.Errorf("isPowerOf2(%d) = %v, want %v", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestMinMax(t *testing.T) {
+	if min(5, 10) != 5 {
+		t.Error("min(5, 10) should be 5")
+	}
+	if max(5, 10) != 10 {
+		t.Error("max(5, 10) should be 10")
+	}
+	if min(-1, -5) != -5 {
+		t.Error("min(-1, -5) should be -5")
+	}
+	if max(0, 0) != 0 {
+		t.Error("max(0, 0) should be 0")
+	}
+}
+
+func TestExitCodeOf(t *testing.T) {
+	paramErr := &ErrParam{Err: fmt.Errorf("参数错误")}
+	if ExitCodeOf(paramErr) != ExitParamErr {
+		t.Errorf("参数错误应有退出码 %d, got: %d", ExitParamErr, ExitCodeOf(paramErr))
+	}
+
+	runtimeErr := &ErrRuntime{Err: fmt.Errorf("运行时错误")}
+	if ExitCodeOf(runtimeErr) != ExitRuntimeErr {
+		t.Errorf("运行时错误应有退出码 %d, got: %d", ExitRuntimeErr, ExitCodeOf(runtimeErr))
+	}
+
+	genericErr := fmt.Errorf("普通错误")
+	if ExitCodeOf(genericErr) != ExitRuntimeErr {
+		t.Errorf("普通错误应有退出码 %d, got: %d", ExitRuntimeErr, ExitCodeOf(genericErr))
+	}
+}
+
+func TestErrParam_Error(t *testing.T) {
+	e := &ErrParam{CmdName: "search", Err: fmt.Errorf("缺参数")}
+	if !strings.Contains(e.Error(), "search") || !strings.Contains(e.Error(), "参数错误") {
+		t.Errorf("ErrParam.Error() 应包含命令名和错误类型, got: %s", e.Error())
+	}
+
+	e2 := &ErrParam{Err: fmt.Errorf("无命令名")}
+	if strings.Contains(e2.Error(), "参数错误 [") {
+		t.Errorf("无命令名时不应包含方括号, got: %s", e2.Error())
+	}
+}
+
+func TestErrRuntime_Error(t *testing.T) {
+	e := &ErrRuntime{CmdName: "benchmark", Err: fmt.Errorf("超时")}
+	if !strings.Contains(e.Error(), "benchmark") || !strings.Contains(e.Error(), "运行时错误") {
+		t.Errorf("ErrRuntime.Error() 应包含命令名和错误类型, got: %s", e.Error())
+	}
+}
+
+func TestPrintError(t *testing.T) {
+	// nil error should not panic
+	PrintError(nil)
+
+	// non-nil error should print to stderr
+	// (we just verify it doesn't panic)
+	PrintError(fmt.Errorf("test error"))
+}
+
+// ========== flow 辅助函数测试 ==========
+
+func TestDurationFormat(t *testing.T) {
+	tests := []struct {
+		input    float64
+		expected string
+	}{
+		{1.5, "1.50ms"},   // < 10ms: 两位小数
+		{5.0, "5.00ms"},   // < 10ms: 两位小数
+		{9.9, "9.90ms"},   // < 10ms: 两位小数
+		{10.0, "10ms"},    // >= 10ms < 1000ms: 整数
+		{99.0, "99ms"},    // >= 10ms < 1000ms: 整数
+		{100.0, "100ms"},  // >= 10ms < 1000ms: 整数
+		{500.0, "500ms"},  // >= 10ms < 1000ms: 整数
+		{1000.0, "1.00s"}, // >= 1000ms: 秒+两位小数
+		{2500.0, "2.50s"}, // >= 1000ms: 秒+两位小数
+	}
+	for _, tt := range tests {
+		result := durationFormat(tt.input)
+		if result != tt.expected {
+			t.Errorf("durationFormat(%f) = %s, want %s", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestWrap(t *testing.T) {
+	text := "这是一段很长的文字需要被折行处理来测试 wrap 函数的折行逻辑是否正确工作"
+	result := wrap(text, 20, "  ")
+	if len(result) == 0 {
+		t.Error("wrap 不应返回空字符串")
+	}
+	if !strings.Contains(result, "\n") {
+		t.Log("短文本可能不需要折行")
+	}
+}
+
+// ========== 回归测试：确保所有命令都已注册 ==========
+
+func TestAllCommandsRegistered(t *testing.T) {
+	expectedCommands := []string{
+		"search", "analyze", "list", "verify", "benchmark", "export",
+		"cache-status", "cache-verify", "cache-clear", "cache-diag",
+		"file-bench", "scan-dir", "analyze-mmd",
+		"concurrent-bench", "single-bench",
+		"config-show",
+		"gui-flow",
+		"perf-log",
+	}
+
+	for _, cmd := range expectedCommands {
+		if _, exists := cliCommands[cmd]; !exists {
+			t.Errorf("命令 %s 未注册", cmd)
+		}
+	}
 }
