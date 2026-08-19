@@ -214,6 +214,41 @@ export class SkyCapability implements SceneCapability {
     if (regenerate && this.enabled && this.params.environment) this.regenerateEnvironment();
   }
 
+  // ── 昼夜循环动画（2026-08-20）──
+  // requestAnimationFrame 循环递增 timeOfDay，让用户预览全天光照变化。
+  // 速度：约 1 小时/秒（24 秒一圈），夜间会自然转暗。
+  private autoRotateId: number | null = null;
+  private autoRotateLastTs: number | null = null;
+  private static readonly AUTO_ROTATE_HOURS_PER_SEC = 1;
+
+  /** 启动昼夜循环；已在跑则 no-op */
+  startAutoRotate(): void {
+    if (this.autoRotateId !== null) return;
+    this.autoRotateLastTs = null;
+    const tick = (ts: number): void => {
+      if (this.autoRotateLastTs === null) this.autoRotateLastTs = ts;
+      const dt = (ts - this.autoRotateLastTs) / 1000; // 秒
+      this.autoRotateLastTs = ts;
+      const next = this.params.timeOfDay + dt * SkyCapability.AUTO_ROTATE_HOURS_PER_SEC;
+      this.setTime(next);
+      this.autoRotateId = requestAnimationFrame(tick);
+    };
+    this.autoRotateId = requestAnimationFrame(tick);
+  }
+
+  /** 停止昼夜循环；未在跑则 no-op */
+  stopAutoRotate(): void {
+    if (this.autoRotateId === null) return;
+    cancelAnimationFrame(this.autoRotateId);
+    this.autoRotateId = null;
+    this.autoRotateLastTs = null;
+  }
+
+  /** 当前是否正在昼夜循环 */
+  isAutoRotating(): boolean {
+    return this.autoRotateId !== null;
+  }
+
   /** 由 timeOfDay 推导太阳 elevation/azimuth（单一事实来源，避免与 setSun 双写冲突） */
   private syncSunFromTime(): void {
     const { elevation, azimuth } = this.hourToSun(this.params.timeOfDay);
@@ -287,6 +322,19 @@ export class SkyCapability implements SceneCapability {
         getValue: () => this.isEnvironmentEnabled(),
         setValue: (v) => this.setEnvironmentEnabled(v as boolean),
       },
+      {
+        id: "sky-auto-rotate",
+        kind: "toggle",
+        labelKey: "preview.skyAutoRotate",
+        fallback: "昼夜循环",
+        hintKey: "preview.skyAutoRotateHint",
+        group: "preview.skyGroupAdvanced",
+        getValue: () => this.isAutoRotating(),
+        setValue: (v) => {
+          if (v) this.startAutoRotate();
+          else this.stopAutoRotate();
+        },
+      },
     ];
   }
 
@@ -316,6 +364,7 @@ export class SkyCapability implements SceneCapability {
   }
 
   dispose(): void {
+    this.stopAutoRotate();
     this.detach();
     if (this.renderTarget) {
       this.renderTarget.dispose();

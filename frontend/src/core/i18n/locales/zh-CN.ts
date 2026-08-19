@@ -885,6 +885,8 @@ export const zhCN: Record<string, string> = {
   "preview.presetQuickNight": "夜景",
   "preview.presetQuickForest": "森林",
   "preview.presetQuickSky": "天空",
+  "preview.skyAutoRotate": "昼夜循环",
+  "preview.skyAutoRotateHint": "自动推进时间，预览全天光照变化",
   "preview.postprocessingGroupColor": "色彩与曝光",
   "preview.postprocessingGroupBloom": "辉光 (Bloom)",
   "preview.postprocessingGroupSsao": "环境光遮蔽 (SSAO)",
