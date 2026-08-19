@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -346,6 +347,9 @@ func runSingleBench(ctx *CmdContext) error {
 	fs := newCmdFlagSet("single-bench")
 	modelPath := fs.String("model", "", "指定模型路径（必填）")
 	iterations := fs.Int("iterations", 3, "重复测试次数")
+	baseline := fs.String("baseline", "", "对比基准 JSON 文件（[{name,ms}]），任一阶段退化超 --threshold 时返回失败")
+	saveBaseline := fs.String("save-baseline", "", "把本次各阶段平均耗时写入该 JSON 文件（供后续 --baseline 对比）")
+	thresholdPct := fs.Float64("threshold", 50, "退化阈值百分比（默认 50），配合 --baseline 使用")
 	_, err := parseFlags(fs, ctx.Args)
 	if err != nil {
 		return err
@@ -388,6 +392,7 @@ func runSingleBench(ctx *CmdContext) error {
 	fmt.Println("📊 汇总分析")
 	fmt.Println(strings.Repeat("=", 70))
 
+	avg := avgBenchStages(allStages)
 	if *iterations > 1 {
 		printAverageStages(allStages)
 	} else {
@@ -399,6 +404,116 @@ func runSingleBench(ctx *CmdContext) error {
 
 	printOptimizationHints(allStages[0])
 
+	// C-1：基准对比 / 保存（供 CI 判定性能退化，复用 file-bench --baseline 语义）
+	if *baseline != "" {
+		if err := compareSingleBenchBaseline(*baseline, avg, *thresholdPct); err != nil {
+			return err
+		}
+	}
+	if *saveBaseline != "" {
+		if err := saveBenchBaseline(*saveBaseline, avg); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// benchStageMs single-bench 基准 JSON 条目（[{name,ms}]）
+type benchStageMs struct {
+	Name string  `json:"name"`
+	Ms   float64 `json:"ms"`
+}
+
+// avgBenchStages 计算多次迭代的各阶段平均耗时
+func avgBenchStages(allStages [][]singleBenchStage) []singleBenchStage {
+	if len(allStages) == 0 {
+		return nil
+	}
+	n := len(allStages)
+	out := make([]singleBenchStage, len(allStages[0]))
+	for i := range allStages[0] {
+		var total time.Duration
+		for _, s := range allStages {
+			if i < len(s) {
+				total += s[i].Duration
+			}
+		}
+		out[i] = singleBenchStage{Name: allStages[0][i].Name, Duration: total / time.Duration(n)}
+	}
+	return out
+}
+
+// msOf 阶段耗时转毫秒
+func msOf(s singleBenchStage) float64 {
+	return float64(s.Duration.Microseconds()) / 1000
+}
+
+// compareSingleBenchBaseline 与基准 JSON 对比：任一阶段退化超 thresholdPct % 返回错误（供 CI 判定）
+func compareSingleBenchBaseline(baselinePath string, stages []singleBenchStage, thresholdPct float64) error {
+	data, err := os.ReadFile(baselinePath)
+	if err != nil {
+		return newRuntimeErrf("无法读取基准文件 %s: %v", baselinePath, err)
+	}
+	var base []benchStageMs
+	if err := json.Unmarshal(data, &base); err != nil {
+		fmt.Printf("❌ 基准文件格式错误: %s\n%s\n", baselinePath, err)
+		return newRuntimeErrf("基准文件格式错误: %v", err)
+	}
+	baseMap := map[string]float64{}
+	for _, b := range base {
+		baseMap[b.Name] = b.Ms
+	}
+
+	fmt.Println("\n📉 与基准对比（threshold " + fmt.Sprintf("%.0f%%", thresholdPct) + "）:")
+	fmt.Println("   " + strings.Repeat("-", 62))
+
+	var degraded int
+	for _, s := range stages {
+		now := msOf(s)
+		baseMs, ok := baseMap[s.Name]
+		if !ok {
+			fmt.Printf("   🆕 %-16s %8.2fms（无基准，跳过）\n", s.Name, now)
+			continue
+		}
+		ratio := 0.0
+		if baseMs > 0 {
+			ratio = (now - baseMs) / baseMs * 100
+		}
+		mark := "✅"
+		switch {
+		case ratio > thresholdPct:
+			mark = "🔴 退化"
+			degraded++
+		case ratio > 0:
+			mark = "🟡"
+		case ratio < 0:
+			mark = "🟢 更快"
+		}
+		fmt.Printf("   %s %-16s %8.2f → %8.2fms (%+6.1f%%)\n", mark, s.Name, baseMs, now, ratio)
+	}
+
+	if degraded > 0 {
+		return newRuntimeErrf("%d 个阶段相对基准退化超过 %.0f%%", degraded, thresholdPct)
+	}
+	fmt.Println("   ✅ 无阶段退化超过阈值")
+	return nil
+}
+
+// saveBenchBaseline 把本次平均耗时保存为基准 JSON（[-name,ms]）
+func saveBenchBaseline(path string, stages []singleBenchStage) error {
+	list := make([]benchStageMs, 0, len(stages))
+	for _, s := range stages {
+		list = append(list, benchStageMs{Name: s.Name, Ms: msOf(s)})
+	}
+	data, err := json.MarshalIndent(list, "", "  ")
+	if err != nil {
+		return newRuntimeErrf("序列化基准失败: %v", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return newRuntimeErrf("写入基准失败 %s: %v", path, err)
+	}
+	fmt.Printf("\n💾 基准已保存到: %s\n", path)
 	return nil
 }
 

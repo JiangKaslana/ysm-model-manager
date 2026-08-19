@@ -6,12 +6,14 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"ysm-model-manager/go/texture_cache"
 	"ysm-model-manager/internal/app"
@@ -1196,5 +1198,151 @@ func TestJsonDataPayload(t *testing.T) {
 	lines, ok := got["lines"].([]string)
 	if !ok || len(lines) != 2 || lines[0] != "line1" || lines[1] != "line2" {
 		t.Errorf("lines 应按行切分, got: %v", got["lines"])
+	}
+}
+
+// ===== C-1 single-bench 基准对比相关单测 =====
+
+func TestAvgBenchStages(t *testing.T) {
+	all := [][]singleBenchStage{
+		{
+			{Name: "① 文件读取", Duration: 10 * time.Millisecond},
+			{Name: "② JSON 解析", Duration: 100 * time.Millisecond},
+		},
+		{
+			{Name: "① 文件读取", Duration: 20 * time.Millisecond},
+			{Name: "② JSON 解析", Duration: 200 * time.Millisecond},
+		},
+	}
+	avg := avgBenchStages(all)
+	if len(avg) != 2 {
+		t.Fatalf("avg 应含 2 阶段, got %d", len(avg))
+	}
+	if avg[0].Duration != 15*time.Millisecond {
+		t.Errorf("① 平均应为 15ms, got %v", avg[0].Duration)
+	}
+	if avg[1].Duration != 150*time.Millisecond {
+		t.Errorf("② 平均应为 150ms, got %v", avg[1].Duration)
+	}
+}
+
+func TestCompareSingleBenchBaseline(t *testing.T) {
+	dir := t.TempDir()
+	base := []benchStageMs{
+		{Name: "① 文件读取", Ms: 10},
+		{Name: "② JSON 解析", Ms: 100},
+	}
+	data, err := json.Marshal(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseFile := filepath.Join(dir, "baseline.json")
+	if err := os.WriteFile(baseFile, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stages := []singleBenchStage{
+		{Name: "① 文件读取", Duration: 10 * time.Millisecond},
+		{Name: "② JSON 解析", Duration: 100 * time.Millisecond},
+	}
+	// 无退化 → 通过
+	if err := compareSingleBenchBaseline(baseFile, stages, 50); err != nil {
+		t.Fatalf("无退化应通过, got %v", err)
+	}
+	// ② 退化到 200ms（2x > 1.5x 阈值）→ 应报错
+	stages[1].Duration = 200 * time.Millisecond
+	if err := compareSingleBenchBaseline(baseFile, stages, 50); err == nil {
+		t.Fatal("退化超阈值应报错")
+	}
+	// 基准文件缺失 → 应报错
+	if err := compareSingleBenchBaseline(filepath.Join(dir, "nope.json"), stages, 50); err == nil {
+		t.Fatal("缺失基准文件应报错")
+	}
+	// 基准格式非法 → 应报错
+	bad := filepath.Join(dir, "bad.json")
+	os.WriteFile(bad, []byte("not json"), 0o644)
+	if err := compareSingleBenchBaseline(bad, stages, 50); err == nil {
+		t.Fatal("格式非法基准应报错")
+	}
+}
+
+func TestSaveBenchBaseline_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "b.json")
+	stages := []singleBenchStage{{Name: "① 文件读取", Duration: 10 * time.Millisecond}}
+	if err := saveBenchBaseline(p, stages); err != nil {
+		t.Fatalf("保存失败: %v", err)
+	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []benchStageMs
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("roundtrip 解析失败: %v", err)
+	}
+	if len(got) != 1 || got[0].Name != "① 文件读取" || got[0].Ms != 10 {
+		t.Fatalf("roundtrip 内容不符: %+v", got)
+	}
+}
+
+// ===== C-2 perf-log 文档驱动（optimization_log.md 表格）单测 =====
+
+const perfLogSample = `---
+kind: optimization_log
+name: 优化记录
+---
+
+# 优化记录
+
+## 优化日志
+
+| 日期 | 领域 | 问题 | 做了什么 | 效果 | 提交 |
+|------|------|------|---------|------|------|
+| 2026-08-19 | KTX2 缓存 | 加载变慢 | 优化 X | 加载 1 次 RPC | fd068ac |
+| 2026-08-18 | MMD dispose | 内存泄漏 | dispose 细化 | 不再闪退 | 80679cd7 |
+
+## 当前瓶颈
+
+- **纹理编码**：首次编码慢
+- **SHA256**：大文件有延迟
+
+## 关键指标
+
+| 指标 | 优化前 | 优化后 | 目标 |
+|------|--------|--------|------|
+| 单模型 GPU 内存 | 1-2GB | 1-2GB | ~200MB |
+`
+
+func TestParseOptimizationEntries(t *testing.T) {
+	entries := parseOptimizationEntries(strings.Split(perfLogSample, "\n"))
+	if len(entries) != 2 {
+		t.Fatalf("期望解析 2 条记录, got %d", len(entries))
+	}
+	first := entries[0]
+	if first.date != "2026-08-19" || first.area != "KTX2 缓存" || first.commit != "fd068ac" {
+		t.Errorf("首条解析不符: %+v", first)
+	}
+	if entries[1].date != "2026-08-18" || entries[1].area != "MMD dispose" {
+		t.Errorf("次条解析不符: %+v", entries[1])
+	}
+}
+
+func TestSplitTableRow(t *testing.T) {
+	cols := splitTableRow(" | a | b | c | ")
+	if len(cols) != 3 || cols[0] != "a" || cols[2] != "c" {
+		t.Fatalf("splitTableRow 结果不符: %#v", cols)
+	}
+}
+
+func TestPerfLogSections(t *testing.T) {
+	lines := strings.Split(perfLogSample, "\n")
+	bottlenecks := extractBulletSection(lines, "当前瓶颈")
+	if len(bottlenecks) != 2 || !strings.Contains(bottlenecks[0], "纹理编码") {
+		t.Fatalf("当前瓶颈提取不符: %#v", bottlenecks)
+	}
+	metrics := extractTableSection(lines, "关键指标")
+	if len(metrics) != 1 || !strings.Contains(metrics[0], "GPU 内存") {
+		t.Fatalf("关键指标提取不符: %#v", metrics)
 	}
 }
