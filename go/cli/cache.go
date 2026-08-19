@@ -111,9 +111,14 @@ func runCacheVerify(ctx *CmdContext) error {
 		cacheSize int64
 	}
 	var texInfos []texInfo
+	var walkErrors []string
 
 	err = filepath.Walk(*modelDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
+			walkErrors = append(walkErrors, fmt.Sprintf("%s: %v", path, err))
+			return nil
+		}
+		if info.IsDir() {
 			return nil
 		}
 
@@ -168,6 +173,14 @@ func runCacheVerify(ctx *CmdContext) error {
 		return newRuntimeErrf("扫描目录失败: %v", err)
 	}
 
+	if len(walkErrors) > 0 {
+		fmt.Printf("⚠️  访问异常 %d 处:\n", len(walkErrors))
+		for _, w := range walkErrors {
+			fmt.Printf("   - %s\n", w)
+		}
+		fmt.Println()
+	}
+
 	fmt.Printf("📊 贴图统计:\n")
 	fmt.Printf("   贴图总数: %d\n", len(textureFiles))
 	fmt.Printf("   原始总大小: %s\n\n", formatSize(totalSize))
@@ -207,11 +220,15 @@ func runCacheVerify(ctx *CmdContext) error {
 		for _, ti := range texInfos {
 			if ti.cached {
 				relPath := strings.TrimPrefix(ti.path, *modelDir)
+				compressionRatio := 0.0
+				if ti.size > 0 {
+					compressionRatio = float64(ti.cacheSize) / float64(ti.size) * 100
+				}
 				fmt.Printf("   ✅ %s\n", relPath)
 				fmt.Printf("      原始: %s → 缓存(KTX2): %s (压缩率: %.0f%%)\n",
 					formatSize(ti.size),
 					formatSize(ti.cacheSize),
-					float64(ti.cacheSize)/float64(ti.size)*100)
+					compressionRatio)
 			}
 		}
 		fmt.Println()

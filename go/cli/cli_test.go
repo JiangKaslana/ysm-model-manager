@@ -963,7 +963,7 @@ func TestAllCommandsRegistered(t *testing.T) {
 
 func TestDispatchCommand_RequiresFilesRoot(t *testing.T) {
 	a := app.NewApp()
-	err := DispatchCommand(a, a.SaveAppConfig, "", false, []string{"search"}, true)
+	err := DispatchCommand(a, a.SaveAppConfig, "", []string{"search"}, true)
 	if err == nil {
 		t.Error("requireFilesRoot=true 且 filesRoot 为空时应返回错误")
 	}
@@ -974,7 +974,7 @@ func TestDispatchCommand_RequiresFilesRoot(t *testing.T) {
 
 func TestDispatchCommand_AllowsEmptyFilesRoot(t *testing.T) {
 	a := app.NewApp()
-	err := DispatchCommand(a, a.SaveAppConfig, "", false, []string{"cache-status"}, false)
+	err := DispatchCommand(a, a.SaveAppConfig, "", []string{"cache-status"}, false)
 	if err != nil {
 		t.Logf("无 files-root 时 dispatch 返回: %v（可能正常）", err)
 	}
@@ -983,7 +983,7 @@ func TestDispatchCommand_AllowsEmptyFilesRoot(t *testing.T) {
 func TestDispatchCommand_UnknownCommand(t *testing.T) {
 	a := app.NewApp()
 	dir := t.TempDir()
-	err := DispatchCommand(a, a.SaveAppConfig, dir, false, []string{"no-such-cmd"}, false)
+	err := DispatchCommand(a, a.SaveAppConfig, dir, []string{"no-such-cmd"}, false)
 	if err == nil {
 		t.Error("未知命令应返回错误")
 	}
@@ -995,7 +995,7 @@ func TestDispatchCommand_UnknownCommand(t *testing.T) {
 func TestDispatchCommand_SubCommandHelp(t *testing.T) {
 	a := app.NewApp()
 	out := captureOutput(t, func() {
-		err := DispatchCommand(a, a.SaveAppConfig, "", false, []string{"search", "--help"}, false)
+		err := DispatchCommand(a, a.SaveAppConfig, "", []string{"search", "--help"}, false)
 		if err != nil {
 			t.Errorf("--help 应返回 nil, got: %v", err)
 		}
@@ -1007,7 +1007,7 @@ func TestDispatchCommand_SubCommandHelp(t *testing.T) {
 
 func TestDispatchCommand_EmptyCommandList(t *testing.T) {
 	a := app.NewApp()
-	err := DispatchCommand(a, a.SaveAppConfig, "", false, nil, false)
+	err := DispatchCommand(a, a.SaveAppConfig, "", nil, false)
 	if err != nil {
 		t.Errorf("空命令列表应返回 nil, got: %v", err)
 	}
@@ -1127,6 +1127,22 @@ func TestParseCommandArgs_MultipleFilesRoot(t *testing.T) {
 	}
 	if len(cmdArgs) != 1 || cmdArgs[0] != "search" {
 		t.Errorf("cmdArgs 应只剩 search, got: %v", cmdArgs)
+	}
+}
+
+// TestRunCLI_JsonMode_OutputsJsonResponse 验证 --json 全局开关输出统一 JsonResponse 协议
+func TestRunCLI_JsonMode_OutputsJsonResponse(t *testing.T) {
+	dir := t.TempDir()
+	out := captureOutput(t, func() {
+		if err := RunCLI([]string{"--files-root", dir, "--json", "list"}); err != nil {
+			t.Logf("RunCLI --json list 返回: %v（空仓库属正常）", err)
+		}
+	})
+	if !strings.Contains(out, `"status"`) || !strings.Contains(out, `"command"`) {
+		t.Errorf("--json 输出应包含 status/command 字段, got: %s", out)
+	}
+	if !strings.Contains(out, `"list"`) {
+		t.Errorf("--json 输出应包含命令名 list, got: %s", out)
 	}
 }
 

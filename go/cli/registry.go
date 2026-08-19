@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"ysm-model-manager/internal/app"
 )
@@ -11,7 +12,6 @@ type CmdContext struct {
 	App       *app.App
 	FilesRoot string
 	Args      []string
-	JsonMode  bool
 }
 
 // CliCommand 命令注册结构
@@ -24,9 +24,11 @@ type CliCommand struct {
 var cliCommands = map[string]CliCommand{}
 
 // RegisterCommand 注册一个 CLI 子命令
+// 重复注册会输出警告并跳过，不再 panic（init() 阶段 panic 无法 recover）
 func RegisterCommand(name, description string, run func(ctx *CmdContext) error) {
 	if _, exists := cliCommands[name]; exists {
-		panic(fmt.Sprintf("CLI 命令 %q 重复注册", name))
+		fmt.Fprintf(os.Stderr, "[WARN] CLI 命令 %q 重复注册，跳过\n", name)
+		return
 	}
 	cliCommands[name] = CliCommand{
 		Name:        name,
@@ -51,7 +53,7 @@ func GetAllCommands() []CliCommand {
 }
 
 // DispatchCommand 分发命令执行
-func DispatchCommand(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, linkMode, theme string) error, filesRoot string, jsonMode bool, commandArgs []string, requireFilesRoot bool) error {
+func DispatchCommand(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, linkMode, theme string) error, filesRoot string, commandArgs []string, requireFilesRoot bool) error {
 	if len(commandArgs) == 0 {
 		return nil
 	}
@@ -81,7 +83,7 @@ func DispatchCommand(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, li
 		}
 	}
 
-	ctx := &CmdContext{App: a, FilesRoot: filesRoot, Args: commandArgs[1:], JsonMode: jsonMode}
+	ctx := &CmdContext{App: a, FilesRoot: filesRoot, Args: commandArgs[1:]}
 	if err := cmd.Run(ctx); err != nil {
 		return err
 	}

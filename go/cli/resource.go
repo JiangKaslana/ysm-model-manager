@@ -26,6 +26,7 @@ type resourceScanResult struct {
 	ByExtension map[string]extSummary `json:"by_extension"`
 	LargeFiles  []largeFileEntry      `json:"large_files,omitempty"`
 	Stats       resourceStats         `json:"stats"`
+	Warnings    []string              `json:"warnings,omitempty"`
 }
 
 type extSummary struct {
@@ -73,6 +74,7 @@ func runResourceScan(ctx *CmdContext) error {
 
 	err = filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("访问异常: %s (%v)", path, err))
 			return nil
 		}
 
@@ -112,14 +114,15 @@ func runResourceScan(ctx *CmdContext) error {
 
 	// 输出结果
 	if *output != "" {
-		if jsonBytes, err := json.MarshalIndent(result, "", "  "); err == nil {
-			if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
-				return newRuntimeErrf("保存 JSON 文件失败: %v", err)
-			}
-			fmt.Printf("💾 资源扫描结果已保存到: %s\n", *output)
-			return nil
+		jsonBytes, jsonErr := json.MarshalIndent(result, "", "  ")
+		if jsonErr != nil {
+			return newRuntimeErrf("JSON 序列化失败: %v", jsonErr)
 		}
-		return newRuntimeErrf("JSON 序列化失败: %v", err)
+		if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
+			return newRuntimeErrf("保存 JSON 文件失败: %v", err)
+		}
+		fmt.Printf("💾 资源扫描结果已保存到: %s\n", *output)
+		return nil
 	}
 
 	// 文本输出
@@ -244,6 +247,7 @@ func runRepoAudit(ctx *CmdContext) error {
 
 	err = filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("访问异常: %s (%v)", path, err))
 			return nil
 		}
 		if info.IsDir() {
@@ -259,10 +263,14 @@ func runRepoAudit(ctx *CmdContext) error {
 			largestFile = path
 		}
 
-		// 简单完整性检查
+		// 完整性检查：.json 验证可解析，.ysm 验证非空
 		if ext == ".ysm" || ext == ".json" {
 			result.Completeness.Checked++
-			result.Completeness.Valid++
+			if isModelFileValid(path, ext) {
+				result.Completeness.Valid++
+			} else {
+				result.Completeness.Invalid++
+			}
 		}
 
 		// 类型统计
@@ -302,6 +310,16 @@ func runRepoAudit(ctx *CmdContext) error {
 	result.Cache.CacheFiles = stats.FileCount
 	result.Cache.CacheSize = stats.TotalSize
 
+	// 估算缓存命中率（缓存文件数 / 模型文件数，用于前端展示非零默认值）
+	if result.Resources.TotalFiles > 0 {
+		result.Cache.Hits = stats.FileCount
+		result.Cache.Misses = result.Resources.TotalFiles - stats.FileCount
+		if result.Cache.Misses < 0 {
+			result.Cache.Misses = 0
+		}
+		result.Cache.HitRate = float64(stats.FileCount) / float64(result.Resources.TotalFiles) * 100
+	}
+
 	// 计算健康分数 (0-100)
 	result.Score = calculateAuditScore(result)
 
@@ -310,14 +328,15 @@ func runRepoAudit(ctx *CmdContext) error {
 
 	// 输出结果
 	if *output != "" {
-		if jsonBytes, err := json.MarshalIndent(result, "", "  "); err == nil {
-			if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
-				return newRuntimeErrf("保存 JSON 文件失败: %v", err)
-			}
-			fmt.Printf("💾 审计结果已保存到: %s\n", *output)
-			return nil
+		jsonBytes, jsonErr := json.MarshalIndent(result, "", "  ")
+		if jsonErr != nil {
+			return newRuntimeErrf("JSON 序列化失败: %v", jsonErr)
 		}
-		return newRuntimeErrf("JSON 序列化失败: %v", err)
+		if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
+			return newRuntimeErrf("保存 JSON 文件失败: %v", err)
+		}
+		fmt.Printf("💾 审计结果已保存到: %s\n", *output)
+		return nil
 	}
 
 	// 文本输出
@@ -371,6 +390,24 @@ func generateAuditWarnings(result *repoAuditResult) {
 		result.Warnings = append(result.Warnings,
 			fmt.Sprintf("缓存大小已达 %s，建议定期清理", formatSize(result.Cache.CacheSize)))
 	}
+}
+
+// isModelFileValid 验证模型文件完整性
+// .json: 必须是合法 JSON
+// .ysm: 必须非空且包含 JSON 内容
+func isModelFileValid(path, ext string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	if len(data) == 0 {
+		return false
+	}
+	if ext == ".json" || ext == ".ysm" {
+		var v interface{}
+		return json.Unmarshal(data, &v) == nil
+	}
+	return true
 }
 
 // printRepoAuditResult 打印仓库审计结果

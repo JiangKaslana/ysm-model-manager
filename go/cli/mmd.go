@@ -103,12 +103,14 @@ func runFileBench(ctx *CmdContext) error {
 	}
 
 	var files []string
+	var walkErrCount int
 
 	if *filePath != "" {
 		files = append(files, *filePath)
 	} else if *testDir != "" {
 		filepath.Walk(*testDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
+				walkErrCount++
 				return nil
 			}
 			if !info.IsDir() {
@@ -119,6 +121,9 @@ func runFileBench(ctx *CmdContext) error {
 			}
 			return nil
 		})
+		if walkErrCount > 0 {
+			fmt.Printf("⚠️  扫描跳过 %d 个异常路径\n", walkErrCount)
+		}
 	} else {
 		return newParamErrf("请指定 --dir 或 --file 参数")
 	}
@@ -332,8 +337,11 @@ func runScanDir(ctx *CmdContext) error {
 
 	threshold := cliScanLargeFileThreshold
 
+	var walkErrors []string
+
 	err = filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			walkErrors = append(walkErrors, fmt.Sprintf("%s: %v", path, err))
 			return nil
 		}
 
@@ -362,6 +370,14 @@ func runScanDir(ctx *CmdContext) error {
 
 	if err != nil {
 		return newRuntimeErrf("扫描目录失败: %v", err)
+	}
+
+	if len(walkErrors) > 0 {
+		fmt.Printf("⚠️  扫描跳过 %d 个异常路径:\n", len(walkErrors))
+		for _, w := range walkErrors {
+			fmt.Printf("   - %s\n", w)
+		}
+		fmt.Println()
 	}
 
 	result := scanDirResult{
@@ -492,8 +508,11 @@ func runAnalyzeMMD(ctx *CmdContext) error {
 		".ktx2": true,
 	}
 
+	var walkErrCount int
+
 	err = filepath.Walk(*modelDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			walkErrCount++
 			return nil
 		}
 		if info.IsDir() {
@@ -526,6 +545,10 @@ func runAnalyzeMMD(ctx *CmdContext) error {
 
 	if err != nil {
 		return newRuntimeErrf("分析目录失败: %v", err)
+	}
+
+	if walkErrCount > 0 {
+		fmt.Printf("⚠️  扫描跳过 %d 个异常路径\n", walkErrCount)
 	}
 
 	fmt.Printf("📊 资产统计:\n")

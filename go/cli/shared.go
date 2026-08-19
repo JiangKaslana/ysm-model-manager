@@ -170,7 +170,7 @@ func captureStdout() (*outputBuffer, func()) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	buf := &outputBuffer{}
+	buf := &outputBuffer{done: make(chan struct{})}
 	go func() {
 		buf.readFrom(r)
 	}()

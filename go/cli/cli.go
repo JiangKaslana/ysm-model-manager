@@ -44,8 +44,8 @@ func RunCLI(args []string) error {
 	if jsonMode {
 		start := time.Now()
 		outputBuf, restoreStdout := captureStdout()
-		err := DispatchCommand(a, a.SaveAppConfig, filesRoot, jsonMode, commandArgs, true)
-		restoreStdout()
+		defer restoreStdout()
+		err := DispatchCommand(a, a.SaveAppConfig, filesRoot, commandArgs, true)
 
 		cmdName := commandArgs[0]
 		elapsed := float64(time.Since(start).Milliseconds())
@@ -65,7 +65,7 @@ func RunCLI(args []string) error {
 		return err
 	}
 
-	return DispatchCommand(a, a.SaveAppConfig, filesRoot, jsonMode, commandArgs, true)
+	return DispatchCommand(a, a.SaveAppConfig, filesRoot, commandArgs, true)
 }
 
 // ExecuteCLIWithApp 执行 CLI 命令
@@ -80,14 +80,14 @@ func ExecuteCLIWithApp(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, 
 		return nil
 	}
 
-	filesRoot, jsonMode, commandArgs := ParseCommandArgs(args)
+	filesRoot, _, commandArgs := ParseCommandArgs(args)
 
 	if len(commandArgs) == 0 {
 		printCLIHelp()
 		return nil
 	}
 
-	return DispatchCommand(a, saveConfigFn, filesRoot, jsonMode, commandArgs, false)
+	return DispatchCommand(a, saveConfigFn, filesRoot, commandArgs, false)
 }
 
 // printVersion 打印版本信息

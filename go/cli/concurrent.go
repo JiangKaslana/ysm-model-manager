@@ -34,6 +34,13 @@ func runConcurrentBench(ctx *CmdContext) error {
 		return err
 	}
 
+	if *workers < 1 {
+		return newParamErrf("workers 必须 >= 1，当前: %d", *workers)
+	}
+	if *maxModels < 1 {
+		return newParamErrf("max-models 必须 >= 1，当前: %d", *maxModels)
+	}
+
 	fmt.Println("⚡ 并发能力基准测试")
 	fmt.Println(strings.Repeat("=", 70))
 	fmt.Printf("   Worker 数量: %d\n", *workers)

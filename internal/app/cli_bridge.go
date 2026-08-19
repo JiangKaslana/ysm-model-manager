@@ -83,13 +83,21 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 	}
 
 	// 3. 执行命令并捕获输出
+	// 子进程加 --json：RunCLI 的 jsonMode 分支输出统一 JsonResponse 协议（成功/失败均为 JSON）
+	cmdArgs = append(cmdArgs, "--json")
 	output, execErr := executeCLICommand(cmdArgs)
-	elapsed := float64(time.Since(start).Milliseconds())
 
-	// 4. 构建响应
+	// 4. 透传子进程 JSON 响应（协议由 go/cli/json.go 定义，前端统一消费）
+	if output != "" {
+		return output
+	}
+
+	// 兜底：子进程无 stdout 输出（异常路径），构造错误响应
+	elapsed := float64(time.Since(start).Milliseconds())
+	errCode := "unknown_error"
+	errMsg := "命令执行失败"
 	if execErr != nil {
-		errCode := "unknown_error"
-		errMsg := execErr.Error()
+		errMsg = execErr.Error()
 		// 根据退出码判断错误类型
 		exitCode := getExitCode(execErr)
 		if exitCode == 2 {
@@ -97,18 +105,11 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 		} else if exitCode == 1 {
 			errCode = "runtime_error"
 		}
-		return makeJsonResponse("error", command, nil, map[string]string{
-			"code":    errCode,
-			"message": errMsg,
-		}, elapsed)
 	}
-
-	return makeJsonResponse("success", command, map[string]interface{}{
-		"output":    output,
-		"lines":     splitLines(output),
-		"platform":  runtime.GOOS,
-		"filesRoot": filesRoot,
-	}, nil, elapsed)
+	return makeJsonResponse("error", command, nil, map[string]string{
+		"code":    errCode,
+		"message": errMsg,
+	}, elapsed)
 }
 
 // GetAllowedCLICommands 返回可用 CLI 命令列表

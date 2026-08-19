@@ -80,11 +80,11 @@
 | `JsonError()` | `go/cli/json:22` | JsonError 错误详情 |
 | `TimingInfo()` | `go/cli/json:29` | TimingInfo 耗时统计 |
 | `MetaInfo()` | `go/cli/json:34` | MetaInfo 元信息 |
-| `RegisterCommand()` | `go/cli/registry:27` | RegisterCommand 注册一个 CLI 子命令 |
-| `GetCommand()` | `go/cli/registry:39` | GetCommand 获取已注册的命令 |
-| `GetAllCommands()` | `go/cli/registry:45` | GetAllCommands 获取所有已注册命令 |
-| `DispatchCommand()` | `go/cli/registry:54` | DispatchCommand 分发命令执行 |
-| `CmdContext()` | `go/cli/registry:10` | CmdContext 统一命令执行上下文 |
+| `RegisterCommand()` | `go/cli/registry:28` | RegisterCommand 注册一个 CLI 子命令 重复注册会输出警告并跳过，不再 panic（init() 阶段 panic 无法 recover） |
+| `GetCommand()` | `go/cli/registry:41` | GetCommand 获取已注册的命令 |
+| `GetAllCommands()` | `go/cli/registry:47` | GetAllCommands 获取所有已注册命令 |
+| `DispatchCommand()` | `go/cli/registry:56` | DispatchCommand 分发命令执行 |
+| `CmdContext()` | `go/cli/registry:11` | CmdContext 统一命令执行上下文 |
 | `CliCommand()` | `go/cli/registry:18` | CliCommand 命令注册结构 |
 | `ErrParam.Error()` | `go/cli/shared:25` | — |
 | `ErrParam.Unwrap()` | `go/cli/shared:32` | — |
@@ -712,7 +712,7 @@
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
 | `App.SetAllowedCommands()` | `internal/app/cli_bridge:15` | SetAllowedCommands 注入可用 CLI 命令列表（由 main.go 调用 cli.GetAllowedCommands() 提供） 避免 app→cli 循环依赖 |
 | `App.ExecuteCLI()` | `internal/app/cli_bridge:31` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
-| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:116` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
+| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:117` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
