@@ -1,4 +1,4 @@
-﻿// @vitest-environment node
+// @vitest-environment node
 // ===== app-content 页面模板测试 =====
 // 覆盖：repository/instances/settings/downloads/diagnostics/recycle/github/workshop HTML 生成
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -43,9 +43,8 @@ describe("app-content 模板", () => {
     expect(html).not.toContain('data-tab="recycle"');
     expect(html).not.toContain('data-tab="dedup"');
     expect(html).not.toContain('data-tab="oldest"');
-    // 文件树/导入 tab 保留
+    // 文件树 tab 保留（导入 tab 已从模板中移除）
     expect(html).toContain('data-tab="tree"');
-    expect(html).toContain('data-tab="import"');
     isViewerModeMock.mockReturnValue(false);
   });
 
