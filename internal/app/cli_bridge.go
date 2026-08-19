@@ -34,10 +34,11 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 	// 1. 检查命令是否在可用列表中
 	if !a.isCommandAllowed(command) {
 		elapsed := float64(time.Since(start).Milliseconds())
-		return makeJsonResponse("not_supported", command, nil, map[string]string{
+		resp, _ := makeJsonResponse("not_supported", command, nil, map[string]string{
 			"code":    "platform_not_supported",
 			"message": fmt.Sprintf("当前平台不支持命令 [%s]: 该命令未开放给前端调用", command),
 		}, elapsed)
+		return resp
 	}
 
 	// 2. 构建参数数组
@@ -79,6 +80,9 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 			if val {
 				cmdArgs = append(cmdArgs, "--"+k)
 			}
+		default:
+			// 不支持的类型（nil, int, map 等）静默跳过，防止前端参数丢失
+			fmt.Fprintf(os.Stderr, "[WARN] ExecuteCLI: 跳过不支持的参数类型 %T (key=%s)\n", v, k)
 		}
 	}
 
@@ -106,10 +110,14 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 			errCode = "runtime_error"
 		}
 	}
-	return makeJsonResponse("error", command, nil, map[string]string{
+	resp, err := makeJsonResponse("error", command, nil, map[string]string{
 		"code":    errCode,
 		"message": errMsg,
 	}, elapsed)
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","command":%q,"error":{"code":"json_failed","message":%q}}`, command, err.Error())
+	}
+	return resp
 }
 
 // GetAllowedCLICommands 返回可用 CLI 命令列表
@@ -161,8 +169,8 @@ func getExitCode(err error) int {
 	return -1
 }
 
-// makeJsonResponse 创建 JSON 响应
-func makeJsonResponse(status, command string, data interface{}, errResp interface{}, elapsed float64) string {
+// makeJsonResponse 创建 JSON 响应（返回 error 而非静默吞错）
+func makeJsonResponse(status, command string, data interface{}, errResp interface{}, elapsed float64) (string, error) {
 	resp := map[string]interface{}{
 		"status":  status,
 		"command": command,
@@ -175,25 +183,9 @@ func makeJsonResponse(status, command string, data interface{}, errResp interfac
 	if errResp != nil {
 		resp["error"] = errResp
 	}
-	result, _ := json.Marshal(resp)
-	return string(result)
-}
-
-// splitLines 将字符串按行分割
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			line := s[start:i]
-			if len(line) > 0 {
-				lines = append(lines, line)
-			}
-			start = i + 1
-		}
+	result, err := json.Marshal(resp)
+	if err != nil {
+		return "", fmt.Errorf("JSON 序列化失败: %w", err)
 	}
-	if start < len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
+	return string(result), nil
 }

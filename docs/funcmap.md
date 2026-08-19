@@ -39,14 +39,14 @@
 | frontend/backend | 19 | 101 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 98 |
-| 前端·服务 | 2 | 17 |
+| 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 127 | 473 |
 | frontend/views | 105 | 296 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **419** | **1774** |
+| **合计** | **419** | **1775** |
 
 ## Go·头像
 
@@ -93,7 +93,7 @@
 | `ExitCodeOf()` | `go/cli/shared:51` | ExitCodeOf 根据错误类型返回退出码 |
 | `PrintError()` | `go/cli/shared:60` | PrintError 输出错误到 stderr |
 | `ParseCommandArgs()` | `go/cli/shared:69` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
-| `outputBuffer.String()` | `go/cli/shared:209` | — |
+| `outputBuffer.String()` | `go/cli/shared:214` | — |
 | `ErrParam()` | `go/cli/shared:21` | ErrParam 参数错误（exit code 2） |
 | `ErrRuntime()` | `go/cli/shared:36` | ErrRuntime 运行时业务错误（exit code 1） |
 
@@ -712,7 +712,7 @@
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
 | `App.SetAllowedCommands()` | `internal/app/cli_bridge:15` | SetAllowedCommands 注入可用 CLI 命令列表（由 main.go 调用 cli.GetAllowedCommands() 提供） 避免 app→cli 循环依赖 |
 | `App.ExecuteCLI()` | `internal/app/cli_bridge:31` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
-| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:117` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
+| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:125` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
@@ -1038,15 +1038,16 @@
 |------|--------|------|
 | `CLIArgs()` | `frontend/src/services/cli-bridge:12` | CLI 命令参数（统一格式：key-value map） |
 | `CLIResponse()` | `frontend/src/services/cli-bridge:34` | CLI 统一响应 |
-| `ALLOWED_CLI_COMMANDS()` | `frontend/src/services/cli-bridge:44` | 允许的 CLI 命令白名单（与后端保持同步） |
-| `executeCLI()` | `frontend/src/services/cli-bridge:77` | 执行 CLI 命令（核心入口） |
-| `getAllowedCLICommands()` | `frontend/src/services/cli-bridge:125` | 获取允许的 CLI 命令列表 |
-| `cliSearch()` | `frontend/src/services/cli-bridge:141` | 搜索模型 |
-| `cliList()` | `frontend/src/services/cli-bridge:150` | 列出所有模型 |
-| `cliAnalyze()` | `frontend/src/services/cli-bridge:155` | 分析模型 |
-| `cliCacheStatus()` | `frontend/src/services/cli-bridge:160` | 缓存状态查询 |
-| `buildArgsMap()` | `frontend/src/services/cli-bridge:167` | 构建参数 map（过滤 undefined 和 null） |
-| `parseCLIResponse()` | `frontend/src/services/cli-bridge:178` | 解析 CLI JSON 响应 |
+| `ALLOWED_CLI_COMMANDS()` | `frontend/src/services/cli-bridge:44` | 允许的 CLI 命令默认白名单（网页版降级 + 首次加载缓存用） |
+| `resetDynamicCommandsCache()` | `frontend/src/services/cli-bridge:72` | 重置动态白名单缓存（供测试使用） |
+| `executeCLI()` | `frontend/src/services/cli-bridge:117` | 执行 CLI 命令（核心入口） |
+| `getAllowedCLICommands()` | `frontend/src/services/cli-bridge:166` | 获取允许的 CLI 命令列表（优先使用动态缓存） |
+| `cliSearch()` | `frontend/src/services/cli-bridge:181` | 搜索模型 |
+| `cliList()` | `frontend/src/services/cli-bridge:190` | 列出所有模型 |
+| `cliAnalyze()` | `frontend/src/services/cli-bridge:195` | 分析模型 |
+| `cliCacheStatus()` | `frontend/src/services/cli-bridge:200` | 缓存状态查询 |
+| `buildArgsMap()` | `frontend/src/services/cli-bridge:207` | 构建参数 map（过滤 undefined 和 null） |
+| `parseCLIResponse()` | `frontend/src/services/cli-bridge:218` | 解析 CLI JSON 响应 |
 | `ServiceName()` | `frontend/src/services/registry:11` | 已知服务名（新服务先在 app-modules.ts 注册，再在此登记） |
 | `register()` | `frontend/src/services/registry:18` | 注册一个服务（.ts 调用方：register("name", impl as X) 声明类型；重复注册覆盖旧实例并告警） |
 | `get()` | `frontend/src/services/registry:24` | 获取一个服务（.ts 调用方：get&lt;X&gt;("name") 断言期望类型；未注册抛错，错误含服务名） |

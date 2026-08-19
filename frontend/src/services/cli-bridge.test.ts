@@ -13,6 +13,7 @@ import {
   ALLOWED_CLI_COMMANDS,
   parseCLIResponse,
   buildArgsMap,
+  resetDynamicCommandsCache,
 } from "./cli-bridge.ts";
 
 // Mock getApp 和 resolveWebMode
@@ -42,6 +43,7 @@ import { WebUnsupportedError } from "../backend/web-common.ts";
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(resolveWebMode).mockReturnValue(false);
+  resetDynamicCommandsCache();
 });
 
 describe("CLI Bridge - 命令执行", () => {

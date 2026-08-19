@@ -144,7 +144,10 @@ func TestGetAllowedCLICommands(t *testing.T) {
 // TestMakeJsonResponse 测试 JSON 响应构建
 func TestMakeJsonResponse(t *testing.T) {
 	t.Run("success response", func(t *testing.T) {
-		result := makeJsonResponse("success", "test-cmd", map[string]string{"key": "value"}, nil, 100.0)
+		result, err := makeJsonResponse("success", "test-cmd", map[string]string{"key": "value"}, nil, 100.0)
+		if err != nil {
+			t.Fatalf("makeJsonResponse 返回错误: %v", err)
+		}
 
 		var resp map[string]interface{}
 		if err := json.Unmarshal([]byte(result), &resp); err != nil {
@@ -166,7 +169,10 @@ func TestMakeJsonResponse(t *testing.T) {
 
 	t.Run("error response", func(t *testing.T) {
 		errData := map[string]string{"code": "test_error", "message": "test error message"}
-		result := makeJsonResponse("error", "test-cmd", nil, errData, 50.0)
+		result, err := makeJsonResponse("error", "test-cmd", nil, errData, 50.0)
+		if err != nil {
+			t.Fatalf("makeJsonResponse 返回错误: %v", err)
+		}
 
 		var resp map[string]interface{}
 		if err := json.Unmarshal([]byte(result), &resp); err != nil {
@@ -187,7 +193,10 @@ func TestMakeJsonResponse(t *testing.T) {
 	})
 
 	t.Run("timing info", func(t *testing.T) {
-		result := makeJsonResponse("success", "cmd", nil, nil, 123.456)
+		result, err := makeJsonResponse("success", "cmd", nil, nil, 123.456)
+		if err != nil {
+			t.Fatalf("makeJsonResponse 返回错误: %v", err)
+		}
 
 		var resp map[string]interface{}
 		if err := json.Unmarshal([]byte(result), &resp); err != nil {
@@ -209,7 +218,10 @@ func TestMakeJsonResponse(t *testing.T) {
 	})
 
 	t.Run("meta info", func(t *testing.T) {
-		result := makeJsonResponse("success", "cmd", nil, nil, 0.0)
+		result, err := makeJsonResponse("success", "cmd", nil, nil, 0.0)
+		if err != nil {
+			t.Fatalf("makeJsonResponse 返回错误: %v", err)
+		}
 
 		var resp map[string]interface{}
 		if err := json.Unmarshal([]byte(result), &resp); err != nil {
@@ -229,34 +241,14 @@ func TestMakeJsonResponse(t *testing.T) {
 			t.Error("meta.platform 不应为空")
 		}
 	})
-}
 
-// TestSplitLines 测试字符串分行
-func TestSplitLines(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected []string
-	}{
-		{"", []string{}},
-		{"single line", []string{"single line"}},
-		{"line1\nline2", []string{"line1", "line2"}},
-		{"line1\nline2\nline3", []string{"line1", "line2", "line3"}},
-		{"\nline2", []string{"line2"}},
-		{"line1\n", []string{"line1"}},
-	}
-
-	for _, tt := range tests {
-		result := splitLines(tt.input)
-		if len(result) != len(tt.expected) {
-			t.Errorf("splitLines(%q): 期望 %d 行, 实际 %d 行: %v", tt.input, len(tt.expected), len(result), result)
-			continue
+	t.Run("serialization error", func(t *testing.T) {
+		// 使用 chan 类型触发 json.Marshal 错误（chan 不可序列化）
+		_, err := makeJsonResponse("success", "cmd", make(chan int), nil, 0.0)
+		if err == nil {
+			t.Error("期望序列化错误，但返回 nil")
 		}
-		for i, line := range result {
-			if line != tt.expected[i] {
-				t.Errorf("splitLines(%q)[%d]: 期望 %q, 实际 %q", tt.input, i, tt.expected[i], line)
-			}
-		}
-	}
+	})
 }
 
 // TestAllowedCommandsCount 测试注入的命令列表与注册表保持一致（SetAllowedCommands 注入后）

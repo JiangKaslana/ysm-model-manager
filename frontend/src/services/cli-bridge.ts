@@ -40,7 +40,7 @@ export interface CLIResponse {
   meta?: { platform: string };
 }
 
-/** 允许的 CLI 命令白名单（与后端保持同步） */
+/** 允许的 CLI 命令默认白名单（网页版降级 + 首次加载缓存用） */
 export const ALLOWED_CLI_COMMANDS = [
   "search",
   "analyze",
@@ -64,6 +64,46 @@ export const ALLOWED_CLI_COMMANDS = [
   "repo-audit",
 ] as const;
 
+/** 动态白名单缓存（从后端 GetAllowedCLICommands 拉取，null=未拉取） */
+let cachedDynamicCommands: Set<string> | null = null;
+let dynamicFetchPromise: Promise<Set<string>> | null = null;
+
+/** 重置动态白名单缓存（供测试使用） */
+export function resetDynamicCommandsCache(): void {
+  cachedDynamicCommands = null;
+  dynamicFetchPromise = null;
+}
+
+/** 从后端拉取并缓存动态命令列表 */
+async function fetchDynamicCommands(): Promise<Set<string>> {
+  if (cachedDynamicCommands) return cachedDynamicCommands;
+  if (dynamicFetchPromise) return dynamicFetchPromise;
+
+  dynamicFetchPromise = (async () => {
+    try {
+      const app = await getApp();
+      const raw = await app.GetAllowedCLICommands();
+      const list: string[] = JSON.parse(raw);
+      cachedDynamicCommands = new Set(list);
+    } catch {
+      // 拉取失败，使用硬编码列表
+      cachedDynamicCommands = new Set(ALLOWED_CLI_COMMANDS);
+    }
+    return cachedDynamicCommands;
+  })();
+
+  return dynamicFetchPromise;
+}
+
+/** 检查命令是否在白名单中（优先使用动态列表） */
+async function isCommandAllowed(command: string): Promise<boolean> {
+  if (resolveWebMode()) {
+    return ALLOWED_CLI_COMMANDS.includes(command as AllowedCLICommand);
+  }
+  const allowed = await fetchDynamicCommands();
+  return allowed.has(command);
+}
+
 type AllowedCLICommand = (typeof ALLOWED_CLI_COMMANDS)[number];
 
 // ===== 核心 API =====
@@ -75,8 +115,9 @@ type AllowedCLICommand = (typeof ALLOWED_CLI_COMMANDS)[number];
  * @returns 统一 JSON 响应
  */
 export async function executeCLI(command: string, args: CLIArgs = {}): Promise<CLIResponse> {
-  // 参数校验
-  if (!ALLOWED_CLI_COMMANDS.includes(command as AllowedCLICommand)) {
+  // 动态白名单校验（优先后端拉取，降级硬编码列表）
+  const allowed = await isCommandAllowed(command);
+  if (!allowed) {
     return {
       status: "not_supported",
       command,
@@ -120,16 +161,15 @@ export async function executeCLI(command: string, args: CLIArgs = {}): Promise<C
 }
 
 /**
- * 获取允许的 CLI 命令列表
+ * 获取允许的 CLI 命令列表（优先使用动态缓存）
  */
 export async function getAllowedCLICommands(): Promise<string[]> {
   if (resolveWebMode()) {
     return [...ALLOWED_CLI_COMMANDS];
   }
   try {
-    const app = await getApp();
-    const raw = await app.GetAllowedCLICommands();
-    return JSON.parse(raw);
+    const allowed = await fetchDynamicCommands();
+    return [...allowed];
   } catch {
     return [...ALLOWED_CLI_COMMANDS];
   }

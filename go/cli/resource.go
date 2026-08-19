@@ -16,6 +16,20 @@ func init() {
 	RegisterCommand("repo-audit", "仓库健康审计（完整性 + 缓存 + 资产）", runRepoAudit)
 }
 
+// 审计相关阈值常量（可配置化：后续可接入 config.json）
+const (
+	// 完整性阈值：低于此百分比触发警告
+	warnCompletenessPct = 95.0
+	// 大文件警告阈值：超过此大小触发警告
+	warnLargeFileMB = 100
+	// 超大文件扣分阈值
+	scoreLargeFileMB = 500
+	// 缓存大小警告阈值
+	warnCacheSizeGB = 1
+	// 健康分数下限：多问题叠加不低于此值
+	scoreFloor = 30
+)
+
 // resourceScanResult 资源扫描结果
 type resourceScanResult struct {
 	Timestamp   string                `json:"timestamp"`
@@ -132,16 +146,17 @@ func runResourceScan(ctx *CmdContext) error {
 }
 
 // classifyResource 按扩展名分类统计资源
+// 注意：.json 不直接归为模型（可能是配置/索引文件），仅 .ysm 视为模型格式
 func classifyResource(ext string, stats *resourceStats) {
 	switch ext {
-	case ".ysm", ".json":
+	case ".ysm":
+		stats.Models++
+	case ".pmx", ".pmd", ".x":
 		stats.Models++
 	case ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds", ".ktx2":
 		stats.Textures++
 	case ".vmd", ".bvh":
 		stats.Animations++
-	case ".pmx", ".pmd", ".x":
-		stats.Models++
 	case ".fx", ".cg", ".glsl":
 		stats.Effects++
 	default:
@@ -273,15 +288,19 @@ func runRepoAudit(ctx *CmdContext) error {
 			}
 		}
 
-		// 类型统计
+		// 类型统计（与 classifyResource 口径一致）
 		typeName := "other"
 		switch ext {
-		case ".ysm", ".json", ".pmx", ".pmd":
+		case ".ysm":
 			typeName = "model"
 		case ".png", ".jpg", ".dds", ".ktx2":
 			typeName = "texture"
 		case ".vmd", ".bvh":
 			typeName = "animation"
+		case ".pmx", ".pmd":
+			typeName = "model"
+		default:
+			// .json / .cfg 等归为其他，避免虚高模型数
 		}
 		resources[typeName]++
 
@@ -310,14 +329,20 @@ func runRepoAudit(ctx *CmdContext) error {
 	result.Cache.CacheFiles = stats.FileCount
 	result.Cache.CacheSize = stats.TotalSize
 
-	// 估算缓存命中率（缓存文件数 / 模型文件数，用于前端展示非零默认值）
-	if result.Resources.TotalFiles > 0 {
+	// 缓存估算：以模型文件数为基准（缓存主要服务模型贴图）
+	modelFileCount := resources["model"]
+	if modelFileCount > 0 {
+		// 命中率 = 缓存文件数 / 模型文件数（上限 100%）
+		hitRate := float64(stats.FileCount) / float64(modelFileCount) * 100
+		if hitRate > 100 {
+			hitRate = 100
+		}
+		result.Cache.HitRate = hitRate
 		result.Cache.Hits = stats.FileCount
-		result.Cache.Misses = result.Resources.TotalFiles - stats.FileCount
+		result.Cache.Misses = modelFileCount - stats.FileCount
 		if result.Cache.Misses < 0 {
 			result.Cache.Misses = 0
 		}
-		result.Cache.HitRate = float64(stats.FileCount) / float64(result.Resources.TotalFiles) * 100
 	}
 
 	// 计算健康分数 (0-100)
@@ -345,6 +370,7 @@ func runRepoAudit(ctx *CmdContext) error {
 }
 
 // calculateAuditScore 计算健康分数
+// 扣分有下限（scoreFloor），避免多问题叠加直接归零失去区分度
 func calculateAuditScore(result repoAuditResult) int {
 	score := 100
 
@@ -361,32 +387,32 @@ func calculateAuditScore(result repoAuditResult) int {
 		score -= 20 // 没有缓存
 	}
 
-	// 大文件警告
-	if result.Resources.LargestSize > 500*1024*1024 {
+	// 大文件扣分
+	if result.Resources.LargestSize > int64(scoreLargeFileMB)*1024*1024 {
 		score -= 10
 	}
 
-	if score < 0 {
-		score = 0
+	if score < scoreFloor {
+		score = scoreFloor
 	}
 	return score
 }
 
-// generateAuditWarnings 生成审计警告
+// generateAuditWarnings 生成审计警告（阈值用常量定义，便于统一调整）
 func generateAuditWarnings(result *repoAuditResult) {
-	if result.Completeness.Percentage < 95 {
+	if result.Completeness.Percentage < warnCompletenessPct {
 		result.Warnings = append(result.Warnings,
-			fmt.Sprintf("模型完整性 %.1f%% 低于 95%% 阈值", result.Completeness.Percentage))
+			fmt.Sprintf("模型完整性 %.1f%% 低于 %.0f%% 阈值", result.Completeness.Percentage, warnCompletenessPct))
 	}
 	if result.Resources.TotalFiles > 0 && result.Cache.CacheFiles == 0 {
 		result.Warnings = append(result.Warnings,
 			"无纹理缓存，首次加载性能可能较慢")
 	}
-	if result.Resources.LargestSize > 100*1024*1024 {
+	if result.Resources.LargestSize > int64(warnLargeFileMB)*1024*1024 {
 		result.Warnings = append(result.Warnings,
 			fmt.Sprintf("存在超大文件 (%s)，可能影响加载性能", formatSize(result.Resources.LargestSize)))
 	}
-	if result.Cache.CacheSize > 1024*1024*1024 {
+	if result.Cache.CacheSize > int64(warnCacheSizeGB)*1024*1024*1024 {
 		result.Warnings = append(result.Warnings,
 			fmt.Sprintf("缓存大小已达 %s，建议定期清理", formatSize(result.Cache.CacheSize)))
 	}

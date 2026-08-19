@@ -37,6 +37,9 @@ func runConcurrentBench(ctx *CmdContext) error {
 	if *workers < 1 {
 		return newParamErrf("workers 必须 >= 1，当前: %d", *workers)
 	}
+	if *workers > 256 {
+		return newParamErrf("workers 必须 <= 256，当前: %d（过高会导致调度开销超过收益）", *workers)
+	}
 	if *maxModels < 1 {
 		return newParamErrf("max-models 必须 >= 1，当前: %d", *maxModels)
 	}

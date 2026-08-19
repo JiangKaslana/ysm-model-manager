@@ -169,7 +169,12 @@ func max(a, b int) int {
 // 返回缓冲区和恢复函数（幂等：可安全调用多次）
 func captureStdout() (*outputBuffer, func()) {
 	orig := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		// Pipe 创建失败，返回一个空 buffer 和空恢复函数（不捕获输出）
+		fmt.Fprintf(os.Stderr, "[WARN] captureStdout: os.Pipe 失败: %v\n", err)
+		return &outputBuffer{done: make(chan struct{})}, func() {}
+	}
 	os.Stdout = w
 
 	buf := &outputBuffer{done: make(chan struct{})}
