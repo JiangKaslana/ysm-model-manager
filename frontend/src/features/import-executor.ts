@@ -208,9 +208,11 @@ export const importFolder = async (
 export const executeCollected = async (
   collected: CollectedEntry[],
 ): Promise<{ folders: number; singles: number }> => {
-  dbg("dnd", "executeCollected in", { total: collected.length });
+  const log = (msg: string) =>
+    getApp().then((app) => app.AddOpLog?.("import", msg, "", "", 0, "ok", "")).catch(() => {});
+  log(`执行导入 ${collected.length} 个条目`);
   const { folders, singles } = groupCollected(collected);
-  dbg("dnd", "grouped", { folders: folders.length, singles: singles.length });
+  log(`分组: folders=${folders.length} singles=${singles.length}`);
   for (const g of folders) {
     await importFolder(g.dir, g.files);
   }

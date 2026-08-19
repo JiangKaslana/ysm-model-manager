@@ -11,7 +11,6 @@ import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { executeCollected, importWebFilesWithToast } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
-import { dbg } from "../utils/debug/debug.ts";
 
 const DROP_EXTS_STR = ALL_EXTS.join(" ");
 
@@ -46,6 +45,11 @@ export async function handleTreeDrop(
     return;
   }
   setBusy(true);
+
+  // 写环形日志面板（Go AddOpLog）——非阻塞，失败静默
+  const logDrop = (msg: string) =>
+    getApp().then((app) => app.AddOpLog?.("drop", msg, "", "", 0, "ok", "")).catch(() => {});
+
   try {
     // 网页版：无本地文件系统 → 拖入文件直接写入 IndexedDB 模型库
     if (resolveWebMode()) {
@@ -59,6 +63,7 @@ export async function handleTreeDrop(
         return;
       }
       await importWebFilesWithToast(files);
+      logDrop(`网页版导入 ${files.length} 个文件`);
       return;
     }
 
@@ -87,8 +92,8 @@ export async function handleTreeDrop(
     } else {
       collected = baseFiles;
     }
-    dbg("dnd", "collected", { total: collected.length, names: collected.map((c) => c.file.name) });
     if (collected.length === 0) {
+      logDrop("drop: 收集 0 文件（webkitGetAsEntry fallback 也空）");
       bus.emit("toast:show", {
         msg: "📂 " + t("import.noSupportedFiles") + "（" + DROP_EXTS_STR + "）",
         duration: 3000,
@@ -96,6 +101,7 @@ export async function handleTreeDrop(
       });
       return;
     }
+    logDrop(`drop: 收集 ${collected.length} 文件 [${collected.slice(0, 3).map((c) => c.file.name).join(", ")}]`);
 
     // oversize 逐文件过滤
     const oversized = collected.filter((c) => c.file.size > MAX_IMPORT_BYTES);
@@ -110,10 +116,10 @@ export async function handleTreeDrop(
     }
 
     const total = collected.length;
-    dbg("dnd", "before execute", { total, oversized: oversized.length });
     const r = await executeCollected(collected);
-    dbg("dnd", "execute result", r);
+    logDrop(`drop: 导入完成 folders=${r.folders} singles=${r.singles}`);
     if (r.folders === 0 && r.singles === 0 && total > 0) {
+      logDrop("drop: execute 返回 0 成功但 total>0（全部被 filter 过滤）");
       bus.emit("toast:show", {
         msg: "📂 " + t("import.noSupportedFiles") + "（" + DROP_EXTS_STR + "）",
         duration: 3000,
@@ -156,11 +162,6 @@ export function bindTreeDnD(container: HTMLElement): () => void {
 
   const onDrop = (e: DragEvent): void => {
     if (hintEl) hintEl.style.display = "none";
-    dbg("dnd", "drop", {
-      files: e.dataTransfer?.files?.length ?? 0,
-      items: e.dataTransfer?.items?.length ?? 0,
-      types: e.dataTransfer?.types ? [...e.dataTransfer.types] : [],
-    });
     void handleTreeDrop(e, isBusy, setBusy).catch((err) => {
       console.error("[tree-dnd] 拖放处理失败:", err);
       bus.emit("toast:show", {
