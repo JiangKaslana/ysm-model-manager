@@ -42,7 +42,11 @@ impl ModelIndex {
         self.entries.is_empty()
     }
 
-    pub fn refresh(&mut self, root: impl AsRef<std::path::Path>, policy: &ScanPolicy) -> IndexDelta {
+    pub fn refresh(
+        &mut self,
+        root: impl AsRef<std::path::Path>,
+        policy: &ScanPolicy,
+    ) -> IndexDelta {
         self.apply_report(scan_fast(root, policy))
     }
 
