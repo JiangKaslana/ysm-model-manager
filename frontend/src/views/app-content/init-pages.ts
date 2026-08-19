@@ -122,7 +122,6 @@ function bindTabs(
             const { recycleHTML } = await import("./tpl-recycle.ts");
             container.innerHTML = recycleHTML();
             const recycleCleanup = initRecycleBin(host as never);
-            host._unsubs = host._unsubs || [];
             if (recycleCleanup) host._unsubs.push(recycleCleanup);
           } else if (tab === "dedup") {
             let dedupType = safeGet("repo_rtype") || RESOURCE_TYPES.YSM;
@@ -154,13 +153,11 @@ function bindTabs(
               }
             });
             // 组件卸载时清理
-            host._unsubs = host._unsubs || [];
             host._unsubs.push(_unsub);
           } else if (tab === "oldest") {
             const oldestCleanup = await loadOldestModel(container, (s) =>
               esc(s),
             );
-            host._unsubs = host._unsubs || [];
             if (oldestCleanup) host._unsubs.push(oldestCleanup);
           }
         } catch (e) {
