@@ -12,6 +12,7 @@ import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
 import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
+import { dbg } from "../utils/debug/debug.ts";
 
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = File & { _relPath?: string };
@@ -207,7 +208,9 @@ export const importFolder = async (
 export const executeCollected = async (
   collected: CollectedEntry[],
 ): Promise<{ folders: number; singles: number }> => {
+  dbg("dnd", "executeCollected in", { total: collected.length });
   const { folders, singles } = groupCollected(collected);
+  dbg("dnd", "grouped", { folders: folders.length, singles: singles.length });
   for (const g of folders) {
     await importFolder(g.dir, g.files);
   }

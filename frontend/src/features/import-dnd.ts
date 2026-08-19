@@ -11,6 +11,7 @@ import { ALL_EXTS } from "../utils/resource/extensions.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { executeCollected, importWebFilesWithToast } from "./import-executor.ts";
 import { collectFiles, type CollectedFile } from "./dnd-collector.ts";
+import { dbg } from "../utils/debug/debug.ts";
 
 const DROP_EXTS_STR = ALL_EXTS.join(" ");
 
@@ -86,6 +87,7 @@ export async function handleTreeDrop(
     } else {
       collected = baseFiles;
     }
+    dbg("dnd", "collected", { total: collected.length, names: collected.map((c) => c.file.name) });
     if (collected.length === 0) {
       bus.emit("toast:show", {
         msg: "📂 " + t("import.noSupportedFiles") + "（" + DROP_EXTS_STR + "）",
@@ -108,7 +110,9 @@ export async function handleTreeDrop(
     }
 
     const total = collected.length;
+    dbg("dnd", "before execute", { total, oversized: oversized.length });
     const r = await executeCollected(collected);
+    dbg("dnd", "execute result", r);
     if (r.folders === 0 && r.singles === 0 && total > 0) {
       bus.emit("toast:show", {
         msg: "📂 " + t("import.noSupportedFiles") + "（" + DROP_EXTS_STR + "）",
@@ -152,6 +156,11 @@ export function bindTreeDnD(container: HTMLElement): () => void {
 
   const onDrop = (e: DragEvent): void => {
     if (hintEl) hintEl.style.display = "none";
+    dbg("dnd", "drop", {
+      files: e.dataTransfer?.files?.length ?? 0,
+      items: e.dataTransfer?.items?.length ?? 0,
+      types: e.dataTransfer?.types ? [...e.dataTransfer.types] : [],
+    });
     void handleTreeDrop(e, isBusy, setBusy).catch((err) => {
       console.error("[tree-dnd] 拖放处理失败:", err);
       bus.emit("toast:show", {
