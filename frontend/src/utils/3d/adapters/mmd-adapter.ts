@@ -397,6 +397,7 @@ export async function buildMmdScene(
 
   // ---- KTX2 纹理替换（post-load）：有 KTX2 缓存时用压缩纹理替换已加载的 PNG 纹理 ----
   // 通过 HasCachedTextures 批量检查缓存（1 次 RPC 替代 N 次串行 HasCachedTexture）
+  let cachedHashes: Set<string> | null = null;
   if (blobUrlToHash.size > 0 && ctx.renderer) {
     const { getApp } = await import("../../../backend/app.ts");
     const app = await getApp();
@@ -407,7 +408,7 @@ export async function buildMmdScene(
       // 收集所有纹理 hash → 批量检查缓存
       const allHashes = [...new Set(blobUrlToHash.values())];
       const cacheStatus = await hasCachedBatch(allHashes);
-      const cachedHashes = new Set(allHashes.filter((h) => cacheStatus[h]));
+      cachedHashes = new Set(allHashes.filter((h) => cacheStatus[h]));
       if (cachedHashes.size > 0) {
         const ktx2Loader = new KTX2Loader()
           .setTranscoderPath("/basis/")
@@ -447,13 +448,23 @@ export async function buildMmdScene(
         }
         // 并行执行所有替换
         await Promise.all(replaceTasks);
+        // 命中日志（环形日志可见性：缓存是否真正生效）
+        await mmdDiag(port, "ktx2-replace", "cache-hit", "ok", `cached=${cachedHashes.size} replaced=${replaceTasks.length} total=${allHashes.length}`);
+      } else {
+        await mmdDiag(port, "ktx2-replace", "cache-miss", "warn", `total=${allHashes.length}（缓存未命中，将后台编码）`);
       }
     }
   }
 
   // ---- 后台 KTX2 编码：未缓存的纹理在后台编码并保存到 Go 侧缓存 ----
   if (blobUrlToHash.size > 0 && port.getCachedTexture) {
-    scheduleBackgroundEncoding(blobUrlToHash, port);
+    // 已缓存的 hash 跳过编码（防重复落盘/重复 WASM 编码）；cachedHashes 为 null 表示替换链路未执行（无 renderer），全量调度
+    const toEncode = cachedHashes
+      ? new Map([...blobUrlToHash].filter(([, h]) => !cachedHashes!.has(h)))
+      : blobUrlToHash;
+    if (toEncode.size > 0) {
+      scheduleBackgroundEncoding(toEncode, port);
+    }
   }
 
   // ---- VMD 动作（同目录 .vmd）：批量读取 + VmdObject.ParseFromBuffer 直解字节，坏文件跳过不阻断 ----
