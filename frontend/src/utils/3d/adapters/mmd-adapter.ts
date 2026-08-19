@@ -13,6 +13,7 @@ import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import { scheduleBackgroundEncoding, cancelPendingEncodings } from "./mmd-ktx2-encoder.ts";
 import { getTextureDecoder, applyWorkerDecodedTextures, type DecodedTexture } from "./mmd-texture-decoder.ts";
+import { createPmxParser, buildPmxSceneSliced, type PmxParser, type PmxBuildResult } from "./mmd-pmx-parser.ts";
 import { Ktx2TextureLoader } from "./mmd-ktx2-texture-loader.ts";
 import { startMainThreadWatch, formatLongTask } from "../../../utils/main-thread-watch.ts";
 import type {
@@ -200,6 +201,11 @@ export async function buildMmdScene(
   if (!b64) throw new Error("ReadFileBytes 返回空");
   const bytes = b64ToBytes(b64);
   const modelBase = (path.split(/[/\\]/).pop() || "").toLowerCase();
+
+  // ---- PMX 二进制解析 Worker（与纹理读取/解码并行，把 ~5s 解析从主线程搬走）----
+  const pmxParser: PmxParser = createPmxParser();
+  const pmxParsePromise = pmxParser.parse(bytesToArrayBuffer(bytes));
+  void mmdDiag(port, "pmx-parse-dispatch", path, "ok", "PMX binary parse dispatched to worker");
 
   // ---- 同目录文件清单：ListAllFilePaths 递归列全部文件（不能用 ScanModelEntries——
   // 它只返回主文件条目，纹理/VMD 拿不到，URLModifier 全放行导致纹理 502）----
@@ -442,25 +448,69 @@ export async function buildMmdScene(
     manager.addHandler(/\.(png|jpe?g|bmp|gif|webp)$/i, ktx2DirectLoader);
   }
 
-  const loader = new MMDLoader(manager);
-  tParseStart = performance.now();
+  // ---- Worker PMX 解析路径：优先用 Worker 解析结果构建，失败 fallback 到 MMDLoader ----
+  let workerBuilt: PmxBuildResult | null = null;
+  let workerParseOk = false;
+  let pmxParsedData: import("./mmd-pmx-parser.worker.ts").PmxParseResponse | null = null;
   try {
-    mmd = await loader.loadAsync(path);
-  } catch (e) {
-    // 加载失败：回收已建 blob（模型 + 已读纹理），避免 WebView2 会话期内泄漏内存
-    for (const url of blobUrls) URL.revokeObjectURL(url);
-    await mmdDiag(port, "parse", path, "fail", e instanceof Error ? e.message : String(e));
-    throw e;
+    const pmxResult = await pmxParsePromise;
+    pmxParsedData = pmxResult;
+    if (pmxResult.ok && pmxResult.vertices && pmxResult.faces) {
+      workerParseOk = true;
+      workerBuilt = await buildPmxSceneSliced(pmxResult, { texUrlMap: texMap });
+      if (workerBuilt) {
+        await mmdDiag(port, "pmx-worker-build", path, "ok",
+          `vertices=${pmxResult.vertices.count} faces=${pmxResult.faces.count} bones=${pmxResult.bones?.length ?? 0} mats=${pmxResult.materials?.length ?? 0} (Worker path)`);
+      }
+    } else if (!pmxResult.ok) {
+      await mmdDiag(port, "pmx-worker-build", path, "warn",
+        `Worker parse failed: ${pmxResult.error ?? "unknown"} (fallback to MMDLoader)`);
+    }
+  } catch {
+    await mmdDiag(port, "pmx-worker-build", path, "warn", "Worker parse threw, fallback to MMDLoader");
   }
-  await mmdDiag(
-    port,
-    "parse",
-    path,
-    "ok",
-    `bones=${mmd?.pmx?.bones?.length ?? 0} mats=${mmd?.pmx?.materials?.length ?? 0} morphs=${mmd?.pmx?.morphs?.length ?? 0}`,
-  );
-  tParseEnd = performance.now();
-  const mesh = mmd!.mesh;
+
+  let mesh: THREE.SkinnedMesh;
+  if (workerBuilt) {
+    // ---- Worker 路径：直接用 Worker 构建的场景，跳过 MMDLoader ----
+    mesh = workerBuilt.mesh;
+    tParseStart = performance.now();
+    tParseEnd = tParseStart; // Worker 路径解析已完成
+    // 创建轻量 mmd 适配器：给 post-load 代码（骨骼树/材质面板/语义映射）提供必要数据
+    mmd = {
+      mesh: workerBuilt.mesh,
+      pmx: pmxParsedData ? {
+        bones: pmxParsedData.bones ?? [],
+        materials: pmxParsedData.materials ?? [],
+        morphs: pmxParsedData.morphs ?? [],
+      } : undefined,
+      updateWithMixer: () => {}, // Worker 路径跳过 MMD 物理/IK 更新
+      dispose: () => {},
+    } as unknown as Awaited<ReturnType<MMDLoader["loadAsync"]>>;
+    pmxParser.dispose();
+  } else {
+    // ---- Fallback 路径：MMDLoader 主线程解析 ----
+    const loader = new MMDLoader(manager);
+    tParseStart = performance.now();
+    try {
+      mmd = await loader.loadAsync(path);
+    } catch (e) {
+      // 加载失败：回收已建 blob（模型 + 已读纹理），避免 WebView2 会话期内泄漏内存
+      for (const url of blobUrls) URL.revokeObjectURL(url);
+      await mmdDiag(port, "parse", path, "fail", e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+    await mmdDiag(
+      port,
+      "parse",
+      path,
+      "ok",
+      `bones=${mmd?.pmx?.bones?.length ?? 0} mats=${mmd?.pmx?.materials?.length ?? 0} morphs=${mmd?.pmx?.morphs?.length ?? 0}`,
+    );
+    tParseEnd = performance.now();
+    mesh = mmd!.mesh;
+    pmxParser.dispose();
+  }
 
   // ---- 应用 Worker 解码纹理：替换主线程解码的 HTMLImageElement 纹理为 ImageBitmap ----
   if (decodedTexturesPromise) {
