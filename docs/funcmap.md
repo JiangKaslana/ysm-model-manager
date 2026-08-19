@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 130 | 488 |
+| 前端·工具 | 131 | 490 |
 | frontend/views | 106 | 297 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **423** | **1795** |
+| **合计** | **424** | **1797** |
 
 ## Go·头像
 
@@ -1239,6 +1239,8 @@
 | `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:230` | 测试用：注入编码实现（默认走本地 WASM） |
 | `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:241` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
 | `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:291` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
+| `Ktx2TextureLoaderDeps()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:20` | 拦截 loader 依赖注入（装配方提供） |
+| `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:51` | — |
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:8` | 主线程 → Worker 的请求 |
 | `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:16` | Worker → 主线程的响应 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:63` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
