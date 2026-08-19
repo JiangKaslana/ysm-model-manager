@@ -86,12 +86,12 @@
 |------|------|
 | `AGENTS.md` | AI 入口手册（硬约束 + 导航） |
 | `README.md` | 项目说明（面向用户） |
-| `cli.go` | CLI 模式入口（脱离 Wails GUI 独立运行，支持 --cli/--files-root/--keyword 参数） |
-| `cli_cache.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
-| `cli_config.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
-| `cli_mmd.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
-| `cli_model.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
-| `cli_shared.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `cli.go` | CLI 模式核心框架（cliCommand 类型、cliCommands 注册表、runCLI 入口） |
+| `cli_cache.go` | CLI 缓存管理命令（cache-status、cache-verify、cache-clear、cache-diag） |
+| `cli_config.go` | CLI 配置管理命令（config-show） |
+| `cli_mmd.go` | CLI MMD 专用命令（file-bench、scan-dir、analyze-mmd） |
+| `cli_model.go` | CLI 模型管理命令（search、analyze、list、verify、benchmark、export） |
+| `cli_shared.go` | CLI 共享工具函数（parseFlags、formatSize、min、max） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
 | `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |
