@@ -125,53 +125,102 @@ async function blobUrlToBase64(blobUrl: string): Promise<string> {
 }
 
 // ===== 本地 basis_encoder WASM 加载与 KTX2 编码（绕开 loaders.gl 的 subarray().buffer 假成功 bug）=====
+// 核心实现已抽取到 mmd-ktx2-basis.ts（主线程与 Worker 共用，无 DOM 依赖）。
+// 本文件保留编码调度/并发/缓存逻辑，并在此处导出兼容符号。
 
-/** BasisEncoder 实例的最小接口（embind 运行时提供） */
-interface BasisEncoderLike {
-  setCreateKTX2File(v: boolean): void;
-  setKTX2UASTCSupercompression(v: boolean): void;
-  setKTX2SRGBTransferFunc(v: boolean): void;
-  setSliceSourceImage(slice: number, data: Uint8Array, w: number, h: number, premultiply: boolean): void;
-  setPerceptual(v: boolean): void;
-  setMipSRGB(v: boolean): void;
-  setQualityLevel(v: number): void;
-  setUASTC(v: boolean): void;
-  setMipGen(v: boolean): void;
-  /** 编码到 dst，返回写入的字节数（负数=失败） */
-  encode(dst: Uint8Array): number;
-  delete(): void;
+export { TextureTooLargeError, MAX_KTX2_PIXELS } from "./mmd-ktx2-basis.ts";
+import { encodeToKTX2Basis, TextureTooLargeError, MAX_KTX2_PIXELS } from "./mmd-ktx2-basis.ts";
+// type-only import：不产生运行时 import（worker 文件含 self.onmessage，主线程不能执行它）
+import type { Ktx2EncodeRequest, Ktx2EncodeResponse } from "./mmd-ktx2-worker.ts";
+
+/** Worker 池大小（与 MAX_CONCURRENT 对齐：3 个并行编码线程） */
+const KTX2_WORKER_COUNT = 3;
+
+/** 单次编码超时（ms）：4096² 实测 ~10s，120s 仅兜底防 worker 僵尸 */
+const KTX2_ENCODE_TIMEOUT_MS = 120_000;
+
+let ktx2Workers: Worker[] | null = null;
+let nextWorkerIdx = 0;
+let encodeRequestSeq = 0;
+const pendingEncode = new Map<number, {
+  resolve: (b: ArrayBuffer) => void;
+  reject: (e: unknown) => void;
+  timer: ReturnType<typeof setTimeout>;
+}>();
+
+/** 懒创建 Worker 池；不支持（非浏览器/被屏蔽）返回 null → 调用方降级同步编码 */
+function getKtx2WorkerPool(): Worker[] | null {
+  if (ktx2Workers) return ktx2Workers;
+  if (typeof Worker === "undefined") return null;
+  try {
+    const pool: Worker[] = [];
+    for (let i = 0; i < KTX2_WORKER_COUNT; i++) {
+      const w = new Worker(new URL("./mmd-ktx2-worker.ts", import.meta.url), { type: "module" });
+      w.onmessage = (e: MessageEvent<Ktx2EncodeResponse>) => {
+        const { id, ok, buffer, error } = e.data;
+        const p = pendingEncode.get(id);
+        if (!p) return;
+        pendingEncode.delete(id);
+        clearTimeout(p.timer);
+        if (ok && buffer) p.resolve(buffer);
+        else p.reject(new Error(error ?? "KTX2 worker 编码失败"));
+      };
+      // worker 崩溃 → 终止整池并让在途任务降级（对齐 web-stats 降级契约）
+      w.onerror = () => {
+        terminateKtx2Workers();
+      };
+      pool.push(w);
+    }
+    ktx2Workers = pool;
+    return pool;
+  } catch {
+    ktx2Workers = null;
+    return null;
+  }
 }
 
-/** 初始化后的 basis 模块（含 BasisEncoder 构造器） */
-interface BasisModuleLike {
-  BasisEncoder: new () => BasisEncoderLike;
-  initializeBasis(): void;
+/** 终止全部 KTX2 worker，在途任务全部 reject（降级同步路径） */
+function terminateKtx2Workers(): void {
+  if (ktx2Workers) {
+    for (const w of ktx2Workers) w.terminate();
+    ktx2Workers = null;
+  }
+  for (const [, p] of pendingEncode) {
+    clearTimeout(p.timer);
+    p.reject(new Error("KTX2 worker 终止"));
+  }
+  pendingEncode.clear();
 }
-
-let basisModulePromise: Promise<BasisModuleLike> | null = null;
 
 /**
- * 加载并初始化本地 basis_encoder（缓存单例）。
- * fetch 项目 public/basis/ 下的 js + wasm，执行 Emscripten 模块工厂。
+ * 主线程编码入口：优先走 Worker（mmd-ktx2-worker.ts）避免 WASM 同步编码阻塞 UI；
+ * Worker 不可用（测试/受限环境）时降级同步编码。
+ * 测试注入点 __setEncodeImplForTest 会整体替换此函数，故测试不触碰 Worker。
  */
-async function loadBasisModule(): Promise<BasisModuleLike> {
-  if (basisModulePromise) return basisModulePromise;
-  basisModulePromise = (async () => {
-    const [jsText, wasmBinary] = await Promise.all([
-      (await fetch("/basis/basis_encoder.js")).text(),
-      (await fetch("/basis/basis_encoder.wasm")).arrayBuffer(),
-    ]);
-    // Emscripten UMD 产物：`var BASIS = (function(){...})()` 定义模块工厂。
-    // 用 Function 执行并在末尾返回工厂（避开浏览器 script 全局注入，测试环境同样可用）。
-    const factory = new Function(`${jsText}\nreturn typeof BASIS !== "undefined" ? BASIS : undefined;`) as () => unknown;
-    const BASIS = factory() as (opts: { wasmBinary: ArrayBuffer }) => Promise<BasisModuleLike>;
-    const module = await BASIS({ wasmBinary });
-    module.initializeBasis();
-    return module;
-  })();
-  // 失败后允许下次重试
-  basisModulePromise.catch(() => { basisModulePromise = null; });
-  return basisModulePromise;
+export async function encodeToKTX2(img: { data: Uint8Array; width: number; height: number }): Promise<ArrayBuffer> {
+  // 超大纹理直接跳过（主线程先拦，语义清晰；worker 内 encodeToKTX2Basis 也有双保险）
+  if (img.width * img.height > MAX_KTX2_PIXELS) {
+    throw new TextureTooLargeError(img.width, img.height);
+  }
+  const pool = getKtx2WorkerPool();
+  if (!pool) {
+    // 降级：同步编码（测试环境 / Worker 被屏蔽）
+    return encodeToKTX2Basis(img);
+  }
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    const id = ++encodeRequestSeq;
+    const w = pool[nextWorkerIdx % pool.length];
+    nextWorkerIdx = (nextWorkerIdx + 1) % pool.length;
+    const timer = setTimeout(() => {
+      pendingEncode.delete(id);
+      reject(new Error(`KTX2 编码超时（${KTX2_ENCODE_TIMEOUT_MS}ms）`));
+    }, KTX2_ENCODE_TIMEOUT_MS);
+    pendingEncode.set(id, { resolve, reject, timer });
+    // blobUrlToImageData 返回 new Uint8Array(imageData.data.buffer)，保证是 ArrayBuffer（非 SharedArrayBuffer）
+    const dataBuf = img.data.buffer as ArrayBuffer;
+    const req: Ktx2EncodeRequest = { id, width: img.width, height: img.height, data: dataBuf };
+    w.postMessage(req, [dataBuf]); // transfer：零拷贝，避免 64MB 大数组复制阻塞主线程
+  });
 }
 
 /** 测试注入点：替换编码实现（默认走本地 WASM） */
@@ -180,53 +229,6 @@ let encodeImpl: (img: { data: Uint8Array; width: number; height: number }) => Pr
 /** 测试用：注入编码实现（默认走本地 WASM） */
 export function __setEncodeImplForTest(fn: typeof encodeImpl): void {
   encodeImpl = fn;
-}
-
-/**
- * 单纹理像素上限：超过则跳过 KTX2 编码。
- * Node 实证：4096²（64MB RGBA）可编码，8192²（256MB RGBA）在 WASM 编码时
- * 内存峰值超限 → abort(undefined)。跳过超大纹理避免编码崩溃（PNG 仍正常渲染）。
- */
-const MAX_KTX2_PIXELS = 4096 * 4096;
-
-/** 超大纹理跳过编码的标记错误（encodeAndCacheTexture 据此记 warn 而非 fail） */
-export class TextureTooLargeError extends Error {
-  constructor(width: number, height: number) {
-    super(`纹理过大 ${width}x${height}，跳过 KTX2 编码（上限 ${MAX_KTX2_PIXELS} 像素）`);
-    this.name = "TextureTooLargeError";
-  }
-}
-
-/**
- * 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。
- * 直接调 BasisEncoder API 并用 `slice(0, n)` 复制真实长度——
- * 不使用 loaders.gl 的 KTX2BasisWriter.encode（其 4.4.4 返回 subarray().buffer，体积虚胖到原始 RGBA 大小）。
- */
-export async function encodeToKTX2(img: { data: Uint8Array; width: number; height: number }): Promise<ArrayBuffer> {
-  // 超大纹理直接跳过（不加载 WASM、不 abort），PNG 原样渲染
-  if (img.width * img.height > MAX_KTX2_PIXELS) {
-    throw new TextureTooLargeError(img.width, img.height);
-  }
-  const module = await loadBasisModule();
-  const enc = new module.BasisEncoder();
-  try {
-    enc.setCreateKTX2File(true);
-    enc.setKTX2UASTCSupercompression(true);
-    enc.setKTX2SRGBTransferFunc(true);
-    enc.setSliceSourceImage(0, img.data, img.width, img.height, false);
-    enc.setPerceptual(false);
-    enc.setMipSRGB(false);
-    enc.setQualityLevel(128); // 质量 1-255，128 是平衡值
-    enc.setUASTC(false); // ETC1S（更小，兼容性更好）
-    enc.setMipGen(false); // 预览不需要 mipmap
-    const out = new Uint8Array(img.width * img.height * 4);
-    const n = enc.encode(out);
-    if (n <= 0) throw new Error(`BasisEncoder.encode 返回 ${n}`);
-    // slice 复制真实压缩数据（subarray 是视图，.buffer 会带整个底层 ArrayBuffer）
-    return out.slice(0, n).buffer as ArrayBuffer;
-  } finally {
-    enc.delete();
-  }
 }
 
 /**
