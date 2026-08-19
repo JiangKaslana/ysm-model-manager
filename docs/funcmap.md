@@ -1247,8 +1247,8 @@
 | `PmxBuildResult()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:43` | Builder 产出 |
 | `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:52` | PMX 解析器管理器 |
 | `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:60` | 创建 PMX 解析器（Worker） |
-| `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:109` | 从 Worker 解析结果构建 Three.js 场景对象。 |
-| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:232` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
+| `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:118` | 从 Worker 解析结果构建 Three.js 场景对象。 |
+| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:241` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
 | `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:10` | 主线程 → Worker 请求 |
 | `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:16` | 顶点数据（交织存储，GPU 友好） |
 | `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:26` | 面数据 |

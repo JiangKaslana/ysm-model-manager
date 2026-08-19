@@ -58,6 +58,15 @@ export interface PmxParser {
 
 /** 创建 PMX 解析器（Worker） */
 export function createPmxParser(): PmxParser {
+  // 降级守卫：测试/受限环境无 Worker（vitest node）——返回 always-fail parser，
+  // 调用方（mmd-adapter）会 fallback 到 MMDLoader 主路径（对齐 web-stats 降级契约）
+  if (typeof Worker === "undefined") {
+    return {
+      parse: () => Promise.resolve({ id: 0, ok: false, error: "Worker 不可用（测试/受限环境）" }),
+      dispose: () => undefined,
+    };
+  }
+
   const worker = new Worker(
     new URL("./mmd-pmx-parser.worker.ts", import.meta.url),
     { type: "module" },
