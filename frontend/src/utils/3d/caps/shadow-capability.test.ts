@@ -207,6 +207,15 @@ describe("ShadowCapability — getMenuControls 结构", () => {
     mapSizeCtrl.setValue("2048");
     expect(cap.getMapSize()).toBe(2048);
   });
+
+  it("非总开关控件均含 group 字段", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    controls.filter((c) => c.id !== "shadow-enabled").forEach((c) => {
+      expect(c.group).toBeDefined();
+      expect(c.group!.startsWith("preview.")).toBe(true);
+    });
+  });
 });
 
 describe("ShadowCapability — 预设数据完整性", () => {

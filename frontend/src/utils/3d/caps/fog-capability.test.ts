@@ -173,6 +173,16 @@ describe("FogCapability — getMenuControls 结构", () => {
     modeCtrl.setValue("exp2");
     expect(cap.getMode()).toBe("exp2");
   });
+
+  it("非总开关控件均含 group 字段", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    controls.filter((c) => c.id !== "fog-enabled").forEach((c) => {
+      expect(c.group).toBeDefined();
+      expect(typeof c.group).toBe("string");
+      expect(c.group!.startsWith("preview.")).toBe(true);
+    });
+  });
 });
 
 describe("FogCapability — 预设数据完整性", () => {

@@ -167,6 +167,15 @@ describe("ReflectorCapability — getMenuControls 结构", () => {
     enabledCtrl.setValue(false);
     expect(cap.isEnabled()).toBe(false);
   });
+
+  it("非总开关控件均含 group 字段", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    controls.filter((c) => c.id !== "reflector-enabled").forEach((c) => {
+      expect(c.group).toBeDefined();
+      expect(c.group!.startsWith("preview.")).toBe(true);
+    });
+  });
 });
 
 describe("ReflectorCapability — 预设数据完整性", () => {

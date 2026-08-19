@@ -536,9 +536,12 @@ export class LightCapability implements SceneCapability {
   /** 切换体积光锥引擎（预留：当前仅 "cone"） */
   setVolumetricEngine(engine: "cone" | "postprocess"): void {
     this.volumetricEngine = engine;
-    // 当前仅支持 cone 模式；postprocess 模式下体积光锥暂不渲染（占位）
-    if (engine === "postprocess" && this.coneGroup?.parent) {
-      this.coneGroup.parent.remove(this.coneGroup);
+    // postprocess 模式暂不渲染体积光锥，同步关闭 volumetric.enabled 避免 toggle 状态矛盾
+    if (engine === "postprocess") {
+      this.params.volumetric.enabled = false;
+      if (this.coneGroup?.parent) {
+        this.coneGroup.parent.remove(this.coneGroup);
+      }
     } else if (engine === "cone" && this.params.volumetric.enabled && this.params.spotlight.enabled) {
       this.rebuildCone();
       if (this.coneGroup && !this.coneGroup.parent) {
@@ -686,6 +689,8 @@ export class LightCapability implements SceneCapability {
       ambientIntensity: this.params.ambient.intensity,
       spotlightEnabled: this.params.spotlight.enabled,
       volumetricEnabled: this.params.volumetric.enabled,
+      volumetricEngine: this.volumetricEngine,
+      currentPreset: this.currentPreset,
     });
   }
 
@@ -700,6 +705,12 @@ export class LightCapability implements SceneCapability {
     if (typeof state.ambientIntensity === "number") this.params.ambient.intensity = state.ambientIntensity;
     if (typeof state.spotlightEnabled === "boolean") this.params.spotlight.enabled = state.spotlightEnabled;
     if (typeof state.volumetricEnabled === "boolean") this.params.volumetric.enabled = state.volumetricEnabled;
+    if (state.volumetricEngine === "cone" || state.volumetricEngine === "postprocess") {
+      this.volumetricEngine = state.volumetricEngine;
+    }
+    if (typeof state.currentPreset === "string") {
+      this.setPreset(state.currentPreset);
+    }
     this.syncLightsFromParams();
   }
 

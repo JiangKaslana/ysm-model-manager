@@ -244,6 +244,18 @@ describe("PostprocessingCapability — getMenuControls 结构", () => {
     enabledCtrl.setValue(false);
     expect(cap.isEnabled()).toBe(false);
   });
+
+  it("非总开关控件均含 group 字段（5 组：Color/Bloom/SSAO/Reflection/SSR）", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    controls.filter((c) => c.id !== "pp-enabled").forEach((c) => {
+      expect(c.group).toBeDefined();
+      expect(c.group!.startsWith("preview.postprocessingGroup")).toBe(true);
+    });
+    // 确认 5 个 group 分组都存在
+    const groups = new Set(controls.map((c) => c.group).filter(Boolean));
+    expect(groups.size).toBe(5);
+  });
 });
 
 describe("PostprocessingCapability — 预设数据完整性", () => {
