@@ -89,7 +89,7 @@
 | `cli.go` | CLI 模式核心框架（cliCommand 类型、cliCommands 注册表、runCLI 入口） |
 | `cli_cache.go` | CLI 缓存管理命令（cache-status、cache-verify、cache-clear、cache-diag） |
 | `cli_config.go` | CLI 配置管理命令（config-show） |
-| `cli_flow.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
+| `cli_flow.go` | CLI GUI 流程模拟命令（gui-flow，模拟配置→扫描→分析→缓存→渲染） |
 | `cli_mmd.go` | CLI MMD 专用命令（file-bench、scan-dir、analyze-mmd） |
 | `cli_model.go` | CLI 模型管理命令（search、analyze、list、verify、benchmark、export） |
 | `cli_shared.go` | CLI 共享工具函数（parseFlags、formatSize、min、max） |
