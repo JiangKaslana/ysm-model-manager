@@ -88,27 +88,35 @@
 
 ---
 
-## 三、阶段规划
+## 三、三阶段计划与现状对照（2026-08-19 校准）
 
+> 人类设计师提出三阶段计划（清理期 → 深化期 → 打通期），本表逐项对照当前源码，标注已落地 / 进行中 / 待办。
 > 原则：先做「复用现有能力、零新依赖」的，再做「需要新基建」的。每阶段完成即验证（go build + go test ./go/cli/...）。
 
-### Phase 1：报告聚合（方向 A）
+### Phase 1：清理期（1-2 天）
 
-- 目标：`health-report` 命令，聚合 verify/cache/analyze/bench 结果，JSON 可机器读。
-- 产出：`go/cli/report.go` + 单测（复用现有命令函数，不重写逻辑）。
-- 验收：`health-report --format json` 输出合法 JSON；对空仓库、正常仓库都有明确输出。
+| 项 | 计划 | 现状 | 结论 |
+|----|------|------|------|
+| ① | 消除 parseFilesRoot 重复调用 | `parseFilesRoot` 已不存在（grep 无结果）；命令统一经 `CmdContext.FilesRoot` 取根目录，不再从 args 反取 | ✅ 已落地（872347f3 重构吸收） |
+| ② | 业务错误统一 ErrRuntime 包装 | `ErrParam`（exit 2）/ `ErrRuntime`（exit 1）分级 + `newParamErrf`/`newRuntimeErrf` helper（shared.go:92-99） | ✅ 已落地 |
+| ③ | 补充错误类型测试覆盖 | `TestErrParam_Error` / `TestParseFlags_InvalidFlag` / iterations 校验测试等（cli_test.go） | ✅ 已落地 |
 
-### Phase 2：基线回归（方向 B）
+### Phase 2：深化期（3-5 天）
 
-- 目标：`single-bench` 支持 `--baseline` 对比 + 阈值失败；JSON 输出结构稳定。
-- 产出：baseline 文件格式约定（版本号字段，防格式漂移）+ pre-push 集成脚本（可选开关）。
-- 验收：故意改慢单模型加载，pre-push 能拦住。
+| 项 | 计划 | 现状 | 结论 |
+|----|------|------|------|
+| ① | 实现 CmdContext 统一命令上下文 | `CmdContext{App, FilesRoot, Args}` 已定义（registry.go），全部命令签名 `runXxx(ctx *CmdContext)` | ✅ 已落地 |
+| ② | 全局 --json 输出格式开关 | `json.go` 已有 `JsonResponse` 统一协议（Status/Command/Data/Error/Timing/Meta + `NewJsonSuccess/Error/NotSupported` + `ToJson`），但入口级全局 `--json` 开关未接入 RunCLI | 🟡 协议已建，全局开关待接 |
+| ③ | 新增 resource-scan / repo-audit 命令 | 无此二命令（现有 `scan-dir` / `analyze-mmd` / `verify` 可作地基） | ❌ 待办 |
+| ④ | 命令文件按场景拆分到子包 | `go/cli/` 已拆 13 个文件（含 json/registry/wails_bridge），但仍为单包 `package cli` | 🟡 文件级拆分完成，子包化未做 |
 
-### Phase 3：写能力与 REPL（方向 D + E，择机并行）
+### Phase 3：打通期（5-7 天）
 
-- 目标：`import`/`cleanup --dry-run` 先落地；REPL 作为体验升级。
-- 产出：写操作统一走 `confirm` helper（`--dry-run` 默认开）；REPL 复用 `dispatchCommand` 单次分发。
-- 验收：写操作全部有 dry-run 与确认；REPL 连续 5 条命令无状态污染。
+| 项 | 计划 | 现状 | 结论 |
+|----|------|------|------|
+| ① | Wails 绑定 CLI 执行能力到前端 | `go/cli/wails_bridge.go`（Bridge 服务，`ExecuteCLI`/`IsCommandAllowed`）+ `internal/app/cli_bridge.go`（167 行，`ExecuteCLI`/`GetAllowedCLICommands` 绑定）+ main.go 注册 `&cli.Bridge{}` + app.go 接线 | 🟡 后端桥已写（**工作区未提交**），前端绑定未生成 |
+| ② | 统一 JSON 输出协议 | `JsonResponse` 协议已建（json.go）；命令输出是否全部走它未完全落地（model.go 仍有局部 `--format json/table`） | 🟡 协议已建，全量接入待办 |
+| ③ | CLI↔GUI 双向联动 | Bridge 已注册 main.go，前端消费待生成绑定（bindings 目录无 ExecuteCLI） | 🟡 服务端就绪，前端未接 |
 
 ### 暂缓：pipeline（方向 C）
 
@@ -116,7 +124,29 @@
 
 ---
 
-## 四、治理红线（CLI 专属）
+## 四、隔壁大倡议实施情况（2026-08-19 调研）
+
+> 并行会话的「大倡议」= **CLI↔GUI 桥接 + 统一 JSON 输出协议**（对应 Phase 3 ①②③）。ADR-035 是前端组件测试立项，与 CLI 无关；CLI 桥接尚未写 ADR。
+
+**已在工作区（未提交）的实现**：
+
+| 文件 | 内容 | 状态 |
+|------|------|------|
+| `go/cli/wails_bridge.go` | Bridge 服务：`ExecuteCLI`（白名单命令 → JSON 响应）、`IsCommandAllowed` | 🆕 未提交 |
+| `go/cli/json.go` | `JsonResponse` 统一 JSON 协议 + `NewJsonSuccess/Error/NotSupported` + `IsCommandAllowed`/`GetAllowedCommands` | 🆕 未提交 |
+| `go/cli/registry.go` | `CmdContext` / `CliCommand` / `RegisterCommand` 迁移至此 | 🆕 未提交 |
+| `internal/app/cli_bridge.go` | Wails 绑定：`ExecuteCLI`（参数 map → 白名单 → 捕获 stdout）+ `GetAllowedCLICommands` | 🆕 未提交 |
+| `main.go` / `app.go` / `cli.go` / `shared.go` | Bridge 注册接线 + `ExecuteCLIWithApp` 导出 | ✏️ 已改未提交 |
+
+**实施差距**：
+1. **前端绑定未生成**——`frontend/bindings/` 无 ExecuteCLI 消费（需 `npm run generate:bindings`，带 `-ts`）；
+2. **未提交**——全部为工作区 ?? / M 状态，需等桥接自测通过后提交；
+3. **未写 ADR**——桥接契约（白名单机制、JSON 协议版本、stdout 捕获边界）建议立项 ADR，防回潮；
+4. **全局 --json 开关未接入口**——协议层已就绪，`RunCLI` 级开关待做（Phase 2 ②）。
+
+---
+
+## 五、治理红线（CLI 专属）
 
 | 红线 | 说明 |
 |------|------|
@@ -128,7 +158,7 @@
 
 ---
 
-## 五、相关链接
+## 六、相关链接
 
 - 命令使用说明：`AGENTS.md` 末尾「CLI 模式使用说明」
 - 源码：`go/cli/`（入口 `cli.go`，`main.go` 经 `cli.RunCLI` 接线）

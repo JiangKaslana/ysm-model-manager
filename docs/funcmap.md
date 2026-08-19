@@ -8,7 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 11 |
-| go/cli | 4 | 28 |
+| go/cli | 5 | 43 |
 | go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 15 |
@@ -46,7 +46,7 @@
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **417** | **1761** |
+| **合计** | **418** | **1776** |
 
 ## Go·头像
 
@@ -69,24 +69,35 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `RunCLI()` | `go/cli/cli:17` | RunCLI 执行 CLI 模式（从命令行参数） 返回的 error 用于映射到正确的退出码 |
-| `ExecuteCLIWithApp()` | `go/cli/cli:48` | ExecuteCLIWithApp 执行 CLI 命令（使用 AppAdapter 接口） 返回 error 用于错误处理 |
-| `NewJsonSuccess()` | `go/cli/json:39` | NewJsonSuccess 创建成功响应 |
-| `NewJsonError()` | `go/cli/json:50` | NewJsonError 创建错误响应 |
-| `NewJsonNotSupported()` | `go/cli/json:81` | NewJsonNotSupported 创建平台不支持响应 |
-| `JsonResponse.ToJson()` | `go/cli/json:94` | ToJson 将响应序列化为 JSON 字符串 |
-| `IsCommandAllowed()` | `go/cli/json:119` | IsCommandAllowed 检查命令是否在白名单中 |
-| `GetAllowedCommands()` | `go/cli/json:124` | GetAllowedCommands 返回允许的命令列表 |
-| `JsonResponse()` | `go/cli/json:12` | JsonResponse 统一 JSON 输出协议 |
-| `JsonError()` | `go/cli/json:22` | JsonError 错误详情 |
-| `TimingInfo()` | `go/cli/json:29` | TimingInfo 耗时统计 |
-| `MetaInfo()` | `go/cli/json:34` | MetaInfo 元信息 |
-| `RegisterCommand()` | `go/cli/registry:31` | RegisterCommand 注册一个 CLI 子命令 |
-| `GetCommand()` | `go/cli/registry:43` | GetCommand 获取已注册的命令 |
-| `GetAllCommands()` | `go/cli/registry:49` | GetAllCommands 获取所有已注册命令（用于帮助信息） |
-| `DispatchCommand()` | `go/cli/registry:58` | DispatchCommand 分发命令执行 |
-| `AppAdapter()` | `go/cli/registry:8` | AppAdapter CLI 需要的 App 接口（由 internal/app 实现） |
-| `CmdContext()` | `go/cli/registry:14` | CmdContext 统一命令执行上下文 |
-| `CliCommand()` | `go/cli/registry:21` | CliCommand 命令注册结构 |
+| `ExecuteCLIWithApp()` | `go/cli/cli:48` | ExecuteCLIWithApp 执行 CLI 命令（使用任意 App 对象） 返回 error 用于错误处理 |
+| `NewJsonSuccess()` | `go/cli/json:38` | NewJsonSuccess 创建成功响应 |
+| `NewJsonError()` | `go/cli/json:49` | NewJsonError 创建错误响应 |
+| `NewJsonNotSupported()` | `go/cli/json:80` | NewJsonNotSupported 创建平台不支持响应 |
+| `JsonResponse.ToJson()` | `go/cli/json:93` | ToJson 将响应序列化为 JSON 字符串 |
+| `IsCommandAllowed()` | `go/cli/json:125` | IsCommandAllowed 检查命令是否在白名单中 |
+| `GetAllowedCommands()` | `go/cli/json:130` | GetAllowedCommands 返回允许的命令列表 |
+| `JsonResponse()` | `go/cli/json:11` | JsonResponse 统一 JSON 输出协议 |
+| `JsonError()` | `go/cli/json:21` | JsonError 错误详情 |
+| `TimingInfo()` | `go/cli/json:28` | TimingInfo 耗时统计 |
+| `MetaInfo()` | `go/cli/json:33` | MetaInfo 元信息 |
+| `CmdContext.GetApp()` | `go/cli/registry:62` | GetApp 获取 App 适配器 |
+| `CmdContext.DoScanModelEntries()` | `go/cli/registry:70` | DoScanModelEntries 扫描模型（使用回调） |
+| `CmdContext.DoLoadAppConfig()` | `go/cli/registry:78` | DoLoadAppConfig 加载配置（使用回调） |
+| `CmdContext.DoGetYSMModels()` | `go/cli/registry:86` | DoGetYSMModels 获取 YSM 模型列表 |
+| `CmdContext.DoAnalyzeYSMFile()` | `go/cli/registry:94` | DoAnalyzeYSMFile 分析 YSM 文件 |
+| `CmdContext.DoReadMMDFile()` | `go/cli/registry:102` | DoReadMMDFile 读取 MMD 文件 |
+| `CmdContext.DoListResourcepacks()` | `go/cli/registry:110` | DoListResourcepacks 列出资源包 |
+| `RegisterCommand()` | `go/cli/registry:128` | RegisterCommand 注册一个 CLI 子命令 |
+| `GetCommand()` | `go/cli/registry:140` | GetCommand 获取已注册的命令 |
+| `GetAllCommands()` | `go/cli/registry:146` | GetAllCommands 获取所有已注册命令（用于帮助信息） |
+| `DispatchCommand()` | `go/cli/registry:155` | DispatchCommand 分发命令执行 |
+| `AppAdapter()` | `go/cli/registry:9` | AppAdapter CLI 所需的 App 功能接口 由 internal/app.App 实现，避免循环导入 |
+| `ModelAnalyzer()` | `go/cli/registry:15` | ModelAnalyzer 模型分析接口 |
+| `BedrockModelInfo()` | `go/cli/registry:21` | BedrockModelInfo 模型信息 |
+| `ModelEntry()` | `go/cli/registry:28` | ModelEntry 模型扫描结果 |
+| `AppConfigData()` | `go/cli/registry:36` | AppConfigData 应用配置数据 |
+| `CmdContext()` | `go/cli/registry:47` | CmdContext 统一命令执行上下文 |
+| `CliCommand()` | `go/cli/registry:118` | CliCommand 命令注册结构 |
 | `ErrParam.Error()` | `go/cli/shared:25` | — |
 | `ErrParam.Unwrap()` | `go/cli/shared:32` | — |
 | `ErrRuntime.Error()` | `go/cli/shared:40` | — |
@@ -96,6 +107,10 @@
 | `ParseCommandArgs()` | `go/cli/shared:68` | ParseCommandArgs 从参数中提取 files-root 和命令参数 返回: filesRoot, commandArgs（不含 files-root 的剩余参数） |
 | `ErrParam()` | `go/cli/shared:20` | ErrParam 参数错误（exit code 2） |
 | `ErrRuntime()` | `go/cli/shared:35` | ErrRuntime 运行时业务错误（exit code 1） |
+| `Bridge.ExecuteCLI()` | `go/cli/wails_bridge:18` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） 前端调用: await window.Bridge.ExecuteCLI(command, ar |
+| `Bridge.GetAllowedCLICommands()` | `go/cli/wails_bridge:84` | GetAllowedCLICommands 返回允许的 CLI 命令列表（Wails 绑定） |
+| `outputBuffer.String()` | `go/cli/wails_bridge:133` | — |
+| `Bridge()` | `go/cli/wails_bridge:12` | Bridge Wails ↔ CLI 桥接服务 作为独立 Wails 服务注册，避免 internal/app → go/cli 循环导入 |
 
 ## go/container
 
@@ -700,19 +715,19 @@
 | `App.BackupWorkshopCreators()` | `internal/app/app_workshop:308` | — |
 | `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:321` | — |
 | `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:363` | — |
-| `NewApp()` | `internal/app/app:57` | — |
-| `App.SetApp()` | `internal/app/app:83` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
-| `App.GetYSMRepoRoot()` | `internal/app/app:91` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录（实现 AppAdapter 接口） |
-| `App.SetMainWindow()` | `internal/app/app:99` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
-| `App.ServiceStartup()` | `internal/app/app:102` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:198` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:233` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:238` | GetAppVersion 返回当前版本号 |
-| `App()` | `internal/app/app:29` | — |
+| `NewApp()` | `internal/app/app:56` | — |
+| `App.SetApp()` | `internal/app/app:82` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
+| `App.GetYSMRepoRoot()` | `internal/app/app:91` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
+| `App.SetMainWindow()` | `internal/app/app:103` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
+| `App.ServiceStartup()` | `internal/app/app:106` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
+| `App.ServiceShutdown()` | `internal/app/app:202` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:237` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:242` | GetAppVersion 返回当前版本号 |
+| `App()` | `internal/app/app:28` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
-| `App.ExecuteCLI()` | `internal/app/cli_bridge:16` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） 前端调用: await window.ExecuteCLI(command, args) 参数: |
-| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:104` | GetAllowedCLICommands 返回允许的 CLI 命令列表（Wails 绑定） |
-| `outputBuffer.String()` | `internal/app/cli_bridge:163` | — |
+| `App.ExecuteCLI()` | `internal/app/cli_bridge:28` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
+| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:108` | GetAllowedCLICommands 返回允许的 CLI 命令列表 |
+| `outputBuffer.String()` | `internal/app/cli_bridge:183` | — |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
