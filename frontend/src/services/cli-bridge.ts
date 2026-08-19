@@ -60,6 +60,8 @@ export const ALLOWED_CLI_COMMANDS = [
   "cache-diag",
   "config-show",
   "gui-flow",
+  "resource-scan",
+  "repo-audit",
 ] as const;
 
 export type AllowedCLICommand = (typeof ALLOWED_CLI_COMMANDS)[number];

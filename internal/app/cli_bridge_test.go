@@ -261,6 +261,7 @@ func TestAllowedCommandsCount(t *testing.T) {
 		"scan-dir", "analyze-mmd", "perf-log",
 		"cache-status", "cache-verify", "cache-clear", "cache-diag",
 		"config-show", "gui-flow",
+		"resource-scan", "repo-audit",
 	}
 
 	if bridgeCount != len(expectedCommands) {

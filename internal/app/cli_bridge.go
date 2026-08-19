@@ -31,6 +31,8 @@ var allowedCLICommands = map[string]bool{
 	"cache-diag":       true,
 	"config-show":      true,
 	"gui-flow":         true,
+	"resource-scan":    true,
+	"repo-audit":       true,
 }
 
 // ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定）
