@@ -2,16 +2,17 @@
 
 # 知识卡索引
 
-> 总计: 90 张知识卡
+> 总计: 91 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
-## config（1 张）
+## config（2 张）
 
 *配置与注册表（resource_types、AppConfig）*
 
 | 标识 | 名称 | tier | 关键词 |
 |------|------|------|--------|
+| 🏗 optimization_log | 优化记录 optimization-log | architecture | 优化, 性能, 瓶颈, 优化记录, optimization, perf, KTX2, 纹理缓存, 加载速度, 内存, GPU 内存, 闪退, 泄漏, dispose |
 | 🏗 resource-registry | 资源注册表 registry | architecture | 资源类型, 注册表, resource_types, registry, 文件类型 |
 
 ### 摘要

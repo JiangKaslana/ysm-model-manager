@@ -1573,6 +1573,10 @@ export const autoSidebar = [
         "collapsed": true,
         "items": [
           {
+            "text": "优化记录 optimization-log",
+            "link": "/knowledge/optimization_log"
+          },
+          {
             "text": "资源注册表 registry",
             "link": "/knowledge/resource-registry"
           }
