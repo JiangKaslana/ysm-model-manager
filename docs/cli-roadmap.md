@@ -3,7 +3,7 @@
 > 面向项目维护者（人类 + AI）的 CLI 发展路线图：现状盘点、方向探索、阶段规划。
 > 定位：CLI 是 GUI 之外的「第二操作面」——脱壳诊断、批量运维、自动化落地的武器库。
 > 原则：复用已有函数优先，通用化、统一、长治久安（见 AGENTS.md 用户偏好）。
-> 最后校准：2026-08-19（Phase A 落地后更新；ADR-102 已采纳）。
+> 最后校准：2026-08-19（Phase A/B/C 全部落地；ADR-102 已采纳）。
 
 ---
 
@@ -38,12 +38,12 @@
 | 能力 | 现状 | 缺口 |
 |------|------|------|
 | 查询/分析 | ✅ 完备 | — |
-| 性能诊断 | ✅ 完备（single-bench 是地基 + 前端已消费） | 缺基线回归（防性能倒退）→ Phase B |
+| 性能诊断 | ✅ 完备（single-bench 是地基 + 前端已消费 + `--baseline` 基准回归） | — |
 | 汇总报告 | ⚠️ 单命令输出 / repo-audit 轻度聚合 | 缺一键全仓体检报告（方向 A） |
 | 写/运维 | ❌ 无 | 缺导入/清理/同步/转换等写能力 |
 | 批量/流水线 | ❌ 无 | 缺 scan→analyze→export→report 串联 |
 | 交互体验 | ⚠️ 单命令执行 | 缺 REPL 连续操作 |
-| GUI↔CLI 桥接 | ✅ 后端桥 + 前端消费已实现 | Phase B 影子测试体系待落地 |
+| GUI↔CLI 桥接 | ✅ 后端桥 + 前端消费 + B 门禁/回归 + C 性能护栏全落地 | — |
 
 ---
 
@@ -134,26 +134,26 @@
 | ④ | ADR 立项 | ADR-102 已采纳（CLI 内嵌模式回归与诊断协同平台），标注与 ADR-059 修订演进关系 | ✅ 已落地（98137076） |
 | ⑤ | 单测 | `perf.test.ts` 5 用例全绿（single-bench/gui-flow/perf-log 解析渲染 + 错误分支 + 代际守卫） | ✅ 已落地（ee3aca73） |
 
-### Phase B：影子测试体系（3-5 天）— 🟡 待落地
+### Phase B：影子测试体系（3-5 天）— ✅ 已完成
 
 > 目标：CLI 成为 GUI 的「无头验证替身」——Go 后端改动先让 CLI 跑一遍，再让人点 GUI。
 > 核心洞察：CLI 和 GUI 共享同一个 `app.App` 业务层，`gui-flow` 跑通 ≈ 后端加载链健康。
 
 | 项 | 计划 | 关键点 | 状态 |
 |----|------|--------|------|
-| ① | `gui-flow` 契约测试 | `tests/cli-gui-flow-contract.mjs`：跑 `gui-flow --json`，断言配置/扫描/分析三阶段 success + 总耗时 < 阈值；集成 `for f in tests/*.mjs; do node "$f"; done` | ⏳ 待落地 |
-| ② | `single-bench` 回归守卫 | `scripts/perf-gate.mjs`：首次存 baseline.json，后续对比每阶段 delta，超 +50% 告警；可选 `YSM_SKIP_GATE=1` 跳过 | ⏳ 待落地 |
-| ③ | 前端「性能回归」指示器 | 开发模式 `task dev` 启动后自动跑一次 `single-bench`，退化时环形日志标红 | ⏳ 待落地 |
+| ① | `gui-flow` 契约测试 | 静态契约 `tests/test_cli_gui_flow_contract.mjs`（白名单 + 输出格式↔前端正则锚定）进每次 push 门禁；真跑门禁 `scripts/gui-flow-gate.mjs`（配置/扫描必绿、有模型强验全链路、无模型降级）独立 CI/手动触发 | ✅ 已落地（e0f70090） |
+| ② | `single-bench` 回归守卫 | `scripts/perf-gate.mjs`：`--init` 建 baseline 锚点 + 逐阶段阈值对比（默认 1.5x）。fixtures 小模型耗时 ms 级噪声无锚定价值——须真实模型库建锚点 | ✅ 已落地（c01220a3） |
+| ③ | 前端「性能回归」指示器 | 规划设想 dev 启动自动跑 single-bench 退化标红；已由 perf.ts 趋势图（按需看）+ perf-gate（显式对比）覆盖，判定不单独做（真跑慢 + 落盘副作用） | ✅ 已收敛 |
 
-### Phase C：性能护栏闭环（5-7 天）— 🟡 待落地
+### Phase C：性能护栏闭环（5-7 天）— ✅ 已完成
 
 > 目标：形成「诊断→优化→验证→锁住」闭环；baseline 文件纳入 git 作为性能锚点。
 
 | 项 | 计划 | 关键点 | 状态 |
 |----|------|--------|------|
-| ① | `single-bench --baseline` 增强（Go 侧） | 新增 `--baseline`/`--threshold` 参数：对比上次结果输出每阶段 delta，超阈值 exit 1 供 CI 判定；复用 `file-bench` 已有 `loadAndCompareBenchmark` 模式 | ⏳ 待落地 |
-| ② | `perf-log` 从文件驱动 | 当前 `perf.go` 硬编码 Go 结构体 → 改为解析 `docs/knowledge/optimization_log.md`；文档与 CLI 单一事实来源 | ⏳ 待落地 |
-| ③ | 前端「性能趋势图」 | 每次 `single-bench` 结果存 IndexedDB → 时间线折线图（每阶段一条线） | ⏳ 待落地 |
+| ① | `single-bench --baseline` 增强（Go 侧） | 新增 `--baseline`/`--save-baseline`/`--threshold` 参数：逐阶段输出「基准→当前」delta，退化超阈值报错（CI exit 1）；基准 JSON `[{name,ms}]`；`avgBenchStages` 复用 | ✅ 已落地（e834d6f9） |
+| ② | `perf-log` 从文件驱动 | `perf.go` 改解析 `docs/knowledge/optimization_log.md` 表格（AI 改文档即同步 CLI）；`findOptimizationLog` 向上定位仓库根，兼容 go test / CLI 双 cwd | ✅ 已落地（e834d6f9） |
+| ③ | 前端「性能趋势图」 | perf.ts 每次 single-bench 存历史（localStorage `safeSet` 收敛封装，量小不引 IndexedDB 新基建）+ 原生 SVG 折线（每阶段一条线 + 图例 + 网格） | ✅ 已落地（0f75132c） |
 
 ### 暂缓：pipeline（方向 C-原）
 
@@ -184,7 +184,25 @@
 
 ---
 
-## 五、治理红线（CLI 专属）
+## 五、Phase B/C 落地记录（2026-08-19）
+
+> CLI 从「沉睡的金矿」到「通车」——诊断可视化(A) → 加载链门禁+回归守卫(B) → 性能护栏闭环(C) 全部落地。
+
+| 提交 | 阶段 | 内容 |
+|------|------|------|
+| `e0f70090` | B-1 | 静态契约 `tests/test_cli_gui_flow_contract.mjs`（进门禁）+ 真跑门禁 `scripts/gui-flow-gate.mjs` |
+| `c01220a3` | B-2 | single-bench 回归守卫 `scripts/perf-gate.mjs`（baseline 锚点 + 阈值对比） |
+| `0f75132c` | B-3 | 前端性能趋势图（localStorage 历史 + SVG 折线） |
+| `e834d6f9` | C-1/C-2 | single-bench `--baseline` 对比 + perf-log 改 `optimization_log.md` 文档驱动 |
+
+**关键决策**：
+- 门禁分层：静态契约（无副作用）进每次 push 门禁；`gui-flow-gate` / `perf-gate` 真跑（有 `SaveAppConfig` 落盘副作用 + `go run` 慢）保持独立 CI/手动触发，不堆进 pre-push。
+- B-3 趋势图存 localStorage `safeSet`（复用既有存储收敛）而非 IndexedDB——历史量小，避免新基建，符合「复用优先」。
+- 附随排查修复：`--json` 失败分支原本丢弃命令输出（规律六），重构 `jsonDataPayload` 成功/失败共用并补单测（`5af09b32`）；门禁漂移修复（deadcode 基线 / 知识卡 / project-map，`8872d1cc`）。
+
+---
+
+## 六、治理红线（CLI 专属）
 
 | 红线 | 说明 |
 |------|------|
@@ -196,7 +214,7 @@
 
 ---
 
-## 六、相关链接
+## 七、相关链接
 
 - 命令使用说明：`AGENTS.md` 末尾「CLI 模式使用说明」
 - 源码：`go/cli/`（入口 `cli.go`，`main.go` 经 `cli.RunCLI` 接线）
