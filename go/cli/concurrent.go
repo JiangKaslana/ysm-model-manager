@@ -452,32 +452,11 @@ type benchStageJSON struct {
 	Note       string  `json:"note,omitempty"`
 }
 
-// runSingleBenchJSON 单模型基准测试 JSON 模式：静默运行，输出结构化数据
-func runSingleBenchJSON(ctx *CmdContext, modelPath string, iterations int, baseline, saveBaseline string, thresholdPct float64) error {
-	var allStages [][]singleBenchStage
-	totalStart := time.Now()
-
-	var modelSize int64
-	if info, err := os.Stat(modelPath); err == nil {
-		modelSize = info.Size()
-	}
-
-	for iter := 0; iter < iterations; iter++ {
-		stages := runSingleModelBench(ctx.App, modelPath, ctx.FilesRoot)
-		allStages = append(allStages, stages)
-	}
-
-	totalDuration := time.Since(totalStart)
-	avg := avgBenchStages(allStages)
-
-	// 检测模型格式
-	modelFormat := detectModelFormat(modelPath)
-
-	// 构建 JSON 输出
+// stagesToJSON 将平均阶段列表转换为 JSON 结构，同时识别瓶颈
+func stagesToJSON(avg []singleBenchStage) ([]benchStageJSON, string) {
 	var stageJSON []benchStageJSON
 	var bottleneckName string
 	var maxMs float64
-
 	for _, s := range avg {
 		ms := float64(s.Duration.Microseconds()) / 1000
 		status := "ok"
@@ -502,6 +481,31 @@ func runSingleBenchJSON(ctx *CmdContext, modelPath string, iterations int, basel
 			Note:       s.Notes,
 		})
 	}
+	return stageJSON, bottleneckName
+}
+
+// runSingleBenchJSON 单模型基准测试 JSON 模式：静默运行，输出结构化数据
+func runSingleBenchJSON(ctx *CmdContext, modelPath string, iterations int, baseline, saveBaseline string, thresholdPct float64) error {
+	var allStages [][]singleBenchStage
+	totalStart := time.Now()
+
+	var modelSize int64
+	if info, err := os.Stat(modelPath); err == nil {
+		modelSize = info.Size()
+	}
+
+	for iter := 0; iter < iterations; iter++ {
+		stages := runSingleModelBench(ctx.App, modelPath, ctx.FilesRoot)
+		allStages = append(allStages, stages)
+	}
+
+	totalDuration := time.Since(totalStart)
+	avg := avgBenchStages(allStages)
+
+	// 检测模型格式
+	modelFormat := detectModelFormat(modelPath)
+
+	stageJSON, bottleneckName := stagesToJSON(avg)
 
 	hints := generateHints(avg)
 

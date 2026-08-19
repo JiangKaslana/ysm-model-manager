@@ -471,9 +471,11 @@ export async function buildMmdScene(
   }
 
   let mesh: THREE.SkinnedMesh;
+  let workerMode = false;
   if (workerBuilt) {
     // ---- Worker 路径：直接用 Worker 构建的场景，跳过 MMDLoader ----
     mesh = workerBuilt.mesh;
+    workerMode = true;
     tParseStart = performance.now();
     tParseEnd = tParseStart; // Worker 路径解析已完成
     // 创建轻量 mmd 适配器：给 post-load 代码（骨骼树/材质面板/语义映射）提供必要数据
@@ -484,9 +486,25 @@ export async function buildMmdScene(
         materials: pmxParsedData.materials ?? [],
         morphs: pmxParsedData.morphs ?? [],
       } : undefined,
-      updateWithMixer: () => {}, // Worker 路径跳过 MMD 物理/IK 更新
+      updateWithMixer: () => {
+        if (workerMode) {
+          // Worker 路径：无 Cannon.js 物理引擎，跳过物理/IK 更新
+          // VMD 中的布料/头发物理效果会丢失，需要日志提示
+        }
+      },
       dispose: () => {},
     } as unknown as Awaited<ReturnType<MMDLoader["loadAsync"]>>;
+
+    // Worker 路径日志：记录物理/IK 限制
+    if (pmxParsedData?.bones && pmxParsedData.bones.some(b => b.hasIK)) {
+      await mmdDiag(port, "worker-limit", path, "warn",
+        "Worker 路径：包含 IK 骨骼的模型，IK 计算将在主线程 fallback 模式下可用");
+    }
+    if (pmxParsedData?.rigidBodies && pmxParsedData.rigidBodies.length > 0) {
+      await mmdDiag(port, "worker-limit", path, "warn",
+        `Worker 路径：含 ${pmxParsedData.rigidBodies.length} 个刚体，物理模拟需 MMDLoader fallback`);
+    }
+
     pmxParser.dispose();
   } else {
     // ---- Fallback 路径：MMDLoader 主线程解析 ----
@@ -860,7 +878,12 @@ export async function buildMmdScene(
           const pose = vpdPoses[index];
           if (!pose) return;
           try {
-            applyVPD(mmd!, pose.vpd, { ik: true, grant: true });
+            if (workerMode) {
+              // Worker 路径：轻量 mmd 无 IK 支持，直接操作 mesh 骨骼
+              applyVPDToMesh(mesh!, pose.vpd);
+            } else {
+              applyVPD(mmd!, pose.vpd, { ik: true, grant: true });
+            }
           } catch {
             /* 单个 VPD 应用失败不阻断预览 */
           }
@@ -878,6 +901,60 @@ export async function buildMmdScene(
       for (const url of blobUrls) URL.revokeObjectURL(url);
     }
   }
+}
+
+/**
+ * Worker 路径下的 VPD 姿势应用：
+ * 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响），
+ * 但不依赖 MMDLoader 产出的完整 MMD 对象（没有 physics/ikSolver/grantSolver）。
+ *
+ * VPD 数据结构: {
+ *   bones: { [boneName]: { position?: [x,y,z], rotation: [x,y,z,w] } },
+ *   morphs: { [morphName]: weight }
+ * }
+ *
+ * 坐标转换：VPD 用 MMD 坐标系，转换到 Three.js:
+ *   position: (x, y, z) → (x, y, -z)  // 翻转 Z
+ *   rotation: (rx, ry, rz, rw) → (-rx, -ry, rz, rw)  // 翻转 X/Y
+ */
+export function applyVPDToMesh(mesh: THREE.SkinnedMesh, vpd: VpdObject): void {
+  const vpdBones = vpd?.bones;
+  if (!vpdBones) return;
+
+  // 建立骨骼名 → bone 对象的映射（O(1) 查找）
+  const bonesByName = new Map<string, THREE.Bone>();
+  mesh.skeleton?.bones.forEach(b => {
+    if (b.name) bonesByName.set(b.name, b);
+  });
+
+  // VPD 骨骼变换（含坐标系转换）
+  const position = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  for (const [name, transform] of Object.entries(vpdBones)) {
+    const bone = bonesByName.get(name);
+    if (!bone || !transform) continue;
+
+    if (transform.position !== undefined) {
+      position.set(transform.position[0], transform.position[1], -transform.position[2]);
+      bone.position.add(position);
+    }
+    rotation.set(-transform.rotation[0], -transform.rotation[1], transform.rotation[2], transform.rotation[3]);
+    bone.quaternion.multiply(rotation);
+  }
+
+  // Morph 影响
+  if (vpd.morphs) {
+    const dict = mesh.morphTargetDictionary;
+    for (const [name, weight] of Object.entries(vpd.morphs)) {
+      const index = dict?.[name];
+      if (index !== undefined && mesh.morphTargetInfluences) {
+        mesh.morphTargetInfluences[index] = weight;
+      }
+    }
+  }
+
+  mesh.updateMatrixWorld(true);
+  bonesByName.clear();
 }
 
 /** mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 */

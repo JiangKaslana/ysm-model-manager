@@ -323,34 +323,7 @@ func runPerfSnapshot(ctx *CmdContext) error {
 	totalDuration := time.Since(totalStart)
 	avg := avgBenchStages(allStages)
 
-	// 构建 bench JSON
-	var stageJSON []benchStageJSON
-	var bottleneckName string
-	var maxMs float64
-	for _, s := range avg {
-		ms := float64(s.Duration.Microseconds()) / 1000
-		status := "ok"
-		if ms > 100 {
-			status = "bottleneck"
-		} else if ms > 50 {
-			status = "warn"
-		} else if ms > 10 {
-			status = "slow"
-		}
-		isBottleneck := ms > maxMs
-		if isBottleneck {
-			maxMs = ms
-			bottleneckName = s.Name
-		}
-		stageJSON = append(stageJSON, benchStageJSON{
-			Name:       s.Name,
-			Ms:         ms,
-			Bytes:      s.Bytes,
-			Status:     status,
-			Bottleneck: isBottleneck && ms > 10,
-			Note:       s.Notes,
-		})
-	}
+	stageJSON, bottleneckName := stagesToJSON(avg)
 
 	benchResult := &singleBenchJSON{
 		Model:      targetModel,

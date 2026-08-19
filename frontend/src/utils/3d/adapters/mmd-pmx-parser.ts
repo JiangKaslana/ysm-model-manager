@@ -24,13 +24,6 @@ function yieldToFrame(): Promise<void> {
   });
 }
 
-/** 同步时间片检查：超出预算则让出一帧，重置计时 */
-async function checkBudget(startTime: number): Promise<void> {
-  if (performance.now() - startTime > FRAME_BUDGET_MS) {
-    await yieldToFrame();
-  }
-}
-
 /** Builder 配置 */
 export interface PmxBuilderConfig {
   /** 纹理路径 → blob URL 映射（复用 MMDLoader 的 URLModifier 逻辑） */
@@ -278,7 +271,7 @@ export async function buildPmxSceneSliced(
     geometry.setAttribute("skinWeight", weightAttr);
   }
   geometry.setIndex(new THREE.BufferAttribute(faces.indices, 1));
-  await checkBudget(frameStart);
+  if (performance.now() - frameStart > FRAME_BUDGET_MS) await yieldToFrame();
 
   // --- Step 2: Materials（切片） ---
   const materialCount = pmxMaterials?.length ?? 1;
@@ -311,7 +304,7 @@ export async function buildPmxSceneSliced(
     }
     materials.push(mat);
   }
-  await checkBudget(frameStart);
+  if (performance.now() - frameStart > FRAME_BUDGET_MS) await yieldToFrame();
 
   // --- Step 3: Bones 切片 ---
   const bones: THREE.Bone[] = [];
@@ -345,7 +338,7 @@ export async function buildPmxSceneSliced(
       }
     }
   }
-  await checkBudget(frameStart);
+  if (performance.now() - frameStart > FRAME_BUDGET_MS) await yieldToFrame();
 
   // --- Step 4: Skeleton + SkinnedMesh ---
   const skeleton = new THREE.Skeleton(bones);
