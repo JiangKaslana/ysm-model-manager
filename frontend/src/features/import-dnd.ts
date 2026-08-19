@@ -35,6 +35,8 @@ export async function handleTreeDrop(
   setBusy: (v: boolean) => void,
 ): Promise<void> {
   e.preventDefault();
+  // eslint-disable-next-line no-console
+  console.log("[dnd] handleTreeDrop called", { busy: isBusy(), targetTag: (e.target as HTMLElement)?.tagName });
   if (isEditable(e.target)) return;
 
   if (isBusy()) {
@@ -188,6 +190,8 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   container.addEventListener("dragover", onDragOver);
   container.addEventListener("dragleave", onDragLeave);
   container.addEventListener("drop", onDrop);
+  // eslint-disable-next-line no-console
+  console.log("[dnd] bound listeners to", container.id, container.tagName, "has drop:", typeof container.onclick);
   return () => {
     container.removeEventListener("dragover", onDragOver);
     container.removeEventListener("dragleave", onDragLeave);
