@@ -852,6 +852,7 @@ export const ja: Record<string, string> = {
    "preview.spotlight": "スポットライト",
    "preview.keyIntensity": "キーライト",
    "preview.ambientIntensity": "アンビエント",
+   "preview.volumetric": "体積光",
    "preview.volumetricCone": "体積光コーン",
    "preview.coneAngle": "コーン角",
    "preview.lightPreset": "ライトプリセット",

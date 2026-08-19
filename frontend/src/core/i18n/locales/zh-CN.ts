@@ -854,6 +854,7 @@ export const zhCN: Record<string, string> = {
    "preview.spotlight": "顶光",
    "preview.keyIntensity": "主光强度",
    "preview.ambientIntensity": "环境光强度",
+   "preview.volumetric": "体积光",
    "preview.volumetricCone": "体积光锥",
    "preview.coneAngle": "锥角",
    "preview.lightPreset": "灯光预设",

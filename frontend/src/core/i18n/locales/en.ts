@@ -851,6 +851,7 @@ export const en: Record<string, string> = {
    "preview.spotlight": "Spotlight",
    "preview.keyIntensity": "Key Light",
    "preview.ambientIntensity": "Ambient",
+   "preview.volumetric": "Volumetric",
    "preview.volumetricCone": "Volumetric Cone",
    "preview.coneAngle": "Cone Angle",
    "preview.lightPreset": "Light Preset",

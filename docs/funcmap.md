@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 136 | 521 |
+| 前端·工具 | 136 | 523 |
 | frontend/views | 109 | 307 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **428** | **1824** |
+| **合计** | **428** | **1826** |
 
 ## Go·头像
 
@@ -1280,9 +1280,9 @@
 | `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:45` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:51` | — |
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:67` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:23` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:222` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:230` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:25` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:224` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:232` | 挂载预览底部根菜单，返回句柄 |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:29` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
@@ -1336,10 +1336,12 @@
 | `EnvPresetId()` | `frontend/src/utils/3d/caps/environment-capability:20` | — |
 | `EnvPreset()` | `frontend/src/utils/3d/caps/environment-capability:22` | — |
 | `ENV_PRESETS()` | `frontend/src/utils/3d/caps/environment-capability:43` | — |
-| `EnvironmentParams()` | `frontend/src/utils/3d/caps/environment-capability:78` | — |
-| `DEFAULT_ENV_PARAMS()` | `frontend/src/utils/3d/caps/environment-capability:89` | — |
-| `ENV_PRESET_BY_MODEL()` | `frontend/src/utils/3d/caps/environment-capability:98` | 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） |
-| `EnvironmentCapability()` | `frontend/src/utils/3d/caps/environment-capability:229` | — |
+| `EnvPresetLinkage()` | `frontend/src/utils/3d/caps/environment-capability:88` | 预设快捷联动表：选某预设时，除切 environment.preset 外，一并联动 sky/fog/env 参数， 让「日落」「夜景」等预设呈现完整氛围，而非只换一张 envMa |
+| `ENV_PRESET_LINKAGE()` | `frontend/src/utils/3d/caps/environment-capability:100` | — |
+| `EnvironmentParams()` | `frontend/src/utils/3d/caps/environment-capability:127` | — |
+| `DEFAULT_ENV_PARAMS()` | `frontend/src/utils/3d/caps/environment-capability:138` | — |
+| `ENV_PRESET_BY_MODEL()` | `frontend/src/utils/3d/caps/environment-capability:147` | 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） |
+| `EnvironmentCapability()` | `frontend/src/utils/3d/caps/environment-capability:278` | — |
 | `FogMode()` | `frontend/src/utils/3d/caps/fog-capability:15` | — |
 | `FogParams()` | `frontend/src/utils/3d/caps/fog-capability:17` | — |
 | `DEFAULT_FOG_PARAMS()` | `frontend/src/utils/3d/caps/fog-capability:30` | — |
