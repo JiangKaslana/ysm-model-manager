@@ -12,6 +12,7 @@ import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import { scheduleBackgroundEncoding, cancelPendingEncodings } from "./mmd-ktx2-encoder.ts";
+import { startMainThreadWatch, formatLongTask } from "../../../utils/main-thread-watch.ts";
 import type {
   MmdBottomNavCtx,
   MmdPlayBridge,
@@ -185,6 +186,12 @@ export async function buildMmdScene(
 ): Promise<PreviewScene> {
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🎭</div><div>' + t("preview.loadingModel") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div id="ysm-mmd-progress" style="height:100%;width:5%;background:var(--accent,#7c83ff);border-radius:2px;transition:width 0.2s"></div></div>';
+
+  // 主线程长任务观测（ADR-101 观测增强）：>50ms 同步阻塞塞环形日志，
+  // 排查卡顿不再依赖 DevTools trace；dispose / build 失败时断开。
+  const stopLongTaskWatch = startMainThreadWatch((info) => {
+    void mmdDiag(port, "main-thread", formatLongTask(info), "warn");
+  });
 
   const b64 = await port.readFileBytes(path);
   await mmdDiag(port, "read-model", path, b64 ? "ok" : "fail", b64 ? `bytes=${b64.length}` : "ReadFileBytes 返回空（路径语义/守卫？）");
@@ -682,6 +689,8 @@ export async function buildMmdScene(
       } finally {
         // 取消排队中的后台 KTX2 编码（已开始的会因 blob revoke 在 Image onerror 处静默降级）
         cancelPendingEncodings();
+        // 断开主线程长任务观测
+        stopLongTaskWatch();
         // 始终回收 blob URL，无论上面是否抛错（revokeObjectURL 幂等）
         for (const url of blobUrls) URL.revokeObjectURL(url);
       }
@@ -717,6 +726,7 @@ export async function buildMmdScene(
   } finally {
     // build 失败时兜底回收 blobUrls（build 成功由 dispose 负责回收）
     if (!buildSucceeded) {
+      stopLongTaskWatch(); // 失败时同样断开观测，防泄漏（成功由 dispose 断开）
       for (const url of blobUrls) URL.revokeObjectURL(url);
     }
   }
