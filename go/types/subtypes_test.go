@@ -251,3 +251,57 @@ func TestResourceSubType_AcceptsExt(t *testing.T) {
 		t.Error("shader.AcceptsExt(.pmx) = true，期望 false")
 	}
 }
+
+// ===== create-blueprint 软合并（2026-08-20：蓝图+投影共享 schematics/ 目录）=====
+// create-blueprint 挂 subtypes [blueprint, litematic]（整合包侧共享 schematics/），
+// litematic 独立 rtype 保留（仓库侧 storageSubDir=litematics、LitematicRoot 不变）。
+
+func TestSubtypesFor_CreateBlueprint(t *testing.T) {
+	subs := SubtypesFor("create-blueprint")
+	if len(subs) != 2 {
+		t.Fatalf("SubtypesFor(create-blueprint) = %d 项，期望 2 项（blueprint/litematic）：%v", len(subs), subs)
+	}
+	want := []string{"blueprint", "litematic"}
+	for i, w := range want {
+		if subs[i].Name != w {
+			t.Errorf("subtypes[%d].Name = %q，期望 %q", i, subs[i].Name, w)
+		}
+	}
+	// 零继承自描述：extensions/detector/zipEntries/preview 必须完整
+	for _, s := range subs {
+		if len(s.Extensions) == 0 || s.Detector == "" || len(s.ZipEntries) == 0 || s.Preview == "" {
+			t.Errorf("subtype %s 自描述不完整（ADR-105 零继承）：%+v", s.Name, s)
+		}
+	}
+	// blueprint 认 .nbt/.schematic；litematic 认 .litematic（扩展名互不歧义）
+	bp := SubtypeByDir("create-blueprint", "blueprint")
+	if bp == nil || !bp.AcceptsExt(".nbt") || !bp.AcceptsExt(".schematic") || bp.AcceptsExt(".litematic") {
+		t.Errorf("blueprint 应认 .nbt/.schematic 不认 .litematic：%+v", bp)
+	}
+	lt := SubtypeByDir("create-blueprint", "litematic")
+	if lt == nil || !lt.AcceptsExt(".litematic") || lt.AcceptsExt(".nbt") {
+		t.Errorf("litematic 应认 .litematic 不认 .nbt：%+v", lt)
+	}
+	// 软合并：litematic 仍是独立 rtype（仓库侧目录/配置保留）
+	if rt := RegistryType("litematic"); rt == nil {
+		t.Error("软合并后 litematic 独立 rtype 应保留（storageSubDir=litematics、LitematicRoot）")
+	}
+	// 默认槽：blueprint 为 default（.nbt/.schematic 主证据在前）
+	if !bp.Default {
+		t.Error("blueprint 应为 default 槽")
+	}
+}
+
+func TestSubtypes_CreateBlueprintFingerprint(t *testing.T) {
+	// 指纹自声明（零继承）：blueprint 命中 floor.nbt 不命中 walk.litematic
+	bp := SubtypeByDir("create-blueprint", "blueprint")
+	if bp == nil {
+		t.Fatal("blueprint subtype 不存在")
+	}
+	if !bp.MatchZipEntry("hello_new_generation_core/floor.nbt") {
+		t.Error("blueprint.MatchZipEntry(.../floor.nbt) = false，期望 true（.nbt 指纹）")
+	}
+	if bp.MatchZipEntry("build.litematic") {
+		t.Error("blueprint.MatchZipEntry(build.litematic) = true，期望 false（.litematic 非蓝图指纹）")
+	}
+}

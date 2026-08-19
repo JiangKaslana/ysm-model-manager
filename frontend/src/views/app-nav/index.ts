@@ -7,7 +7,7 @@ import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { t } from "../../core/i18n/t.ts";
 import { getApp } from "../../backend/app.ts";
 import { can } from "../../utils/dom/capabilities.ts";
-import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, MMD_SUBTYPES } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, GROUP_META, GROUP_OF, GROUP_TYPE_OPTIONS, type GroupTypeOption } from "../../utils/resource/types.ts";
 import { shortLabelOf } from "../../utils/resource/short-label.ts";
 import { navCSS } from "./tpl.ts";
 
@@ -152,19 +152,16 @@ class AppNav extends WebComponentBase {
         .map((g) => `<option value="${g.gid}">${g.label}</option>`)
         .join("");
 
-      // 子类型选项：mmd 组用 MMD_SUBTYPES（ADR-104 注册表 subtypes 派生，
-      // userImportable 过滤后 6 项；旧硬编码列表已退役），其余用 GROUP_TYPE_OPTIONS
-      // （注册表派生资源类型）——两类选项均为注册表单一事实来源，新增子目录只改 JSON。
-      // ⚠️ 特殊分支：此处比较的是「组 id "mmd"」，不能用 RESOURCE_TYPES.MMD——
-      // 那是「类型 id "mmd-skin"」（types.ts:11），两者不相等。ADR-094 初版误用
-      // 类型 id 比较导致本分支恒 false 成死代码，mmd 组只剩 1 个 "MMD" 选项；
-      // 2026-08-18 修复为组 id 比较。日后改组命名先查 GROUP_META 键（resource_types.json）。
-      const buildSubtypeOptions = (group: string): Array<{ label: string; rtype: string; subdir: string }> => {
-        if (group === "mmd") {
-          return MMD_SUBTYPES.map((s) => ({ label: s.label, rtype: RESOURCE_TYPES.MMD, subdir: s.subdir }));
-        }
-        return (GROUP_TYPE_OPTIONS[group] || []).map((o) => ({ label: o.label, rtype: o.rtype, subdir: "" }));
-      };
+      // 子类型选项：统一走 GROUP_TYPE_OPTIONS（ADR-104/105 注册表派生）——
+      // rtype 声明 subtypes 时自动展开（mmd-skin → 6 子类、create-blueprint →
+      // 蓝图/投影），无 subtypes 平铺单选项；被吸收的独立 rtype（litematic）不再单独出现。
+      // 旧 mmd 特判分支已退役（GROUP_TYPE_OPTIONS 通用化覆盖）。
+      const buildSubtypeOptions = (group: string): GroupTypeOption[] =>
+        (GROUP_TYPE_OPTIONS[group] || []).map((o) => ({
+          label: o.label,
+          rtype: o.rtype,
+          subdir: o.subdir,
+        }));
       const fillSubtypes = (group: string): void => {
         const opts = buildSubtypeOptions(group);
         subtypeSel.innerHTML = opts

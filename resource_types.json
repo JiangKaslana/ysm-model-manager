@@ -117,6 +117,26 @@
       "hashable": true,
       "scanInstance": true,
       "dirLevelSync": true,
+      "subtypes": [
+        {
+          "name": "blueprint", "label": "蓝图", "icon": "⚙️",
+          "userImportable": true, "default": true,
+          "extensions": [".nbt", ".schematic", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".nbt", "match": "suffix" }, { "name": ".schematic", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "schematics/", "scanDir": "schematics"
+        },
+        {
+          "name": "litematic", "label": "投影", "icon": "📐",
+          "userImportable": true,
+          "extensions": [".litematic", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".litematic", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "schematics/", "scanDir": "schematics"
+        }
+      ],
       "actions": [
         "import",
         "delete",

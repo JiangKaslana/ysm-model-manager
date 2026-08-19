@@ -11,6 +11,7 @@ import {
   VOXEL_RPC_BY_EXT,
   GROUP_META,
   GROUP_OF,
+  GROUP_TYPE_OPTIONS,
   groupLabelOf,
   groupStorageRootOf,
   MMD_SUBTYPES,
@@ -207,6 +208,34 @@ describe("GROUP_OF 类型→分组映射", () => {
   it("MMD/VRM 各自独立分组", () => {
     expect(GROUP_OF["mmd-skin"]).toBe("mmd");
     expect(GROUP_OF["vrchat-avatar"]).toBe("vrm");
+  });
+});
+
+describe("GROUP_TYPE_OPTIONS — 子类型展开（ADR-105 软合并）", () => {
+  it("create-blueprint 展开为 蓝图(default槽)/投影 两个子选项（litematic 独立 rtype 被吸收）", () => {
+    const mod = GROUP_TYPE_OPTIONS["minecraft-mod"] || [];
+    const rtypes = mod.map((o) => o.rtype);
+    // ysm/maid-model 平铺保留；create-blueprint 展开；litematic 独立 rtype 不再单独出现
+    expect(rtypes).toContain("ysm");
+    expect(rtypes).toContain("maid-model");
+    expect(rtypes).toContain("create-blueprint");
+    expect(rtypes).not.toContain("litematic");
+    // create-blueprint 子选项：蓝图 default 槽 subdir=""，投影 subdir="litematic"
+    const bp = mod.filter((o) => o.rtype === "create-blueprint");
+    expect(bp.map((o) => o.subdir)).toEqual(["", "litematic"]);
+    expect(bp.map((o) => o.label)).toEqual(["蓝图", "投影"]);
+  });
+
+  it("mmd 组仍展开 6 子类型（行为不变）", () => {
+    const mmd = GROUP_TYPE_OPTIONS["mmd"] || [];
+    expect(mmd.length).toBe(6);
+    expect(mmd[0].subdir).toBe(""); // EntityPlayer 默认槽
+    expect(mmd[1].subdir).toBe("SceneModel");
+  });
+
+  it("无 subtypes 的组（minecraft）保持平铺", () => {
+    const mc = GROUP_TYPE_OPTIONS["minecraft"] || [];
+    expect(mc.map((o) => o.rtype)).toEqual(["resourcepack", "shaderpack"]);
   });
 });
 
