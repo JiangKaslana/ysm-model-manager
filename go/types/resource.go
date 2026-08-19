@@ -23,16 +23,7 @@ func SetBundledRegistryJSON(b []byte) {
 
 // ResourceTypeRegistry 资源类型注册表
 type ResourceTypeRegistry struct {
-	ResourceGroups []ResourceGroup `json:"resourceGroups,omitempty"` // 分组元数据（ADR-092）
-	ResourceTypes  []ResourceType  `json:"resourceTypes"`
-}
-
-// ResourceGroup 资源分组元数据（ADR-092 顶层 resourceGroups 数组）
-type ResourceGroup struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Icon  string `json:"icon"`
-	Order int    `json:"order"`
+	ResourceTypes []ResourceType `json:"resourceTypes"`
 }
 
 // ResourceType 一种受支持的资源类型定义

@@ -59,29 +59,26 @@ export const ALL_RESOURCE_TYPES: string[] = registryEntries
   .filter((id): id is string => typeof id === "string" && id.length > 0);
 
 // ===== 资源分组派生（ADR-092：FilesRoot/{group}/{storageSubDir} 两层路由）=====
-// 从 resource_types.json 顶层 resourceGroups + 各类型 group 字段派生。
-// 无 group 字段的类型回退空串（单级平铺，向后兼容，不强制迁移旧目录）。
+// 从各类型 group 字段派生，消除 resourceGroups 冗余源。
+// 组 = 所有类型的 group 字段去重集合，新资源注册后自动入组。
 
-interface ResourceGroupEntry {
-  id?: string;
-  name?: string;
-  icon?: string;
-  order?: number;
-}
-
-const resourceGroupsJson = resourceTypesJson as {
-  resourceGroups?: ResourceGroupEntry[];
+/** 分组显示名/图标映射（group id → 显示数据），无 resourceGroups 后轻量内联 */
+const GROUP_LABELS: Record<string, { name: string; icon: string }> = {
+  minecraft: { name: "Minecraft 原版", icon: "⛏️" },
+  "minecraft-mod": { name: "Minecraft 模组", icon: "🧩" },
+  mmd: { name: "MMD", icon: "🎭" },
+  other: { name: "其他", icon: "📦" },
 };
 
-/** 分组元数据（id → {name, icon, order}），从 resourceGroups 派生 */
+/** 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 */
 export const GROUP_META: Record<string, { name: string; icon: string; order: number }> = {};
-for (const g of resourceGroupsJson.resourceGroups ?? []) {
-  if (!g.id) continue;
-  GROUP_META[g.id] = {
-    name: g.name || g.id,
-    icon: g.icon || "📦",
-    order: typeof g.order === "number" ? g.order : 9,
-  };
+const groupSeen: string[] = [];
+for (const t of registryEntries) {
+  const gid = t.group || "";
+  if (!gid || GROUP_META[gid]) continue;
+  const meta = GROUP_LABELS[gid] || { name: gid, icon: "📦" };
+  GROUP_META[gid] = { name: meta.name, icon: meta.icon, order: groupSeen.length };
+  groupSeen.push(gid);
 }
 
 /** 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） */

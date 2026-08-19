@@ -354,16 +354,21 @@ func GroupStorageRoot(rtype string) string {
 	return sub
 }
 
-// GroupLabel 返回分组显示名（ADR-092 resourceGroups 元数据）；未知分组返回空串。
+// GroupLabel 返回分组显示名（从 resourceTypes 各类型 group 字段派生，消除 resourceGroups 冗余源）；
+// 未知分组返回空串。
 func GroupLabel(group string) string {
 	if group == "" {
 		return ""
 	}
-	reg := LoadRegistry()
-	for _, g := range reg.ResourceGroups {
-		if g.ID == group {
-			return g.Name
-		}
+	// 分组显示名直接映射（resourceGroups 已删除，组由 types 的 group 字段隐含定义）
+	labels := map[string]string{
+		"minecraft":     "Minecraft 原版",
+		"minecraft-mod": "Minecraft 模组",
+		"mmd":           "MMD",
+		"other":         "其他",
+	}
+	if l, ok := labels[group]; ok {
+		return l
 	}
 	return ""
 }

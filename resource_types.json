@@ -1,10 +1,4 @@
 {
-  "resourceGroups": [
-    { "id": "minecraft", "name": "Minecraft 原版", "icon": "⛏️", "order": 0 },
-    { "id": "minecraft-mod", "name": "Minecraft 模组", "icon": "🧩", "order": 1 },
-    { "id": "mmd", "name": "MMD", "icon": "🎭", "order": 2 },
-    { "id": "other", "name": "其他", "icon": "📦", "order": 9 }
-  ],
   "resourceTypes": [
     {
       "id": "vanilla-assets",
@@ -12,7 +6,6 @@
       "icon": "🎨",
       "group": "minecraft",
       "extensions": [".zip", ".7z"],
-      "storageSubDir": "vanilla-assets",
       "configField": "ResourcepackRoot",
       "installDir": "resourcepacks/",
       "scanDir": "resourcepacks",
@@ -107,7 +100,6 @@
       "icon": "🧍",
       "group": "minecraft-mod",
       "extensions": [".zip", ".7z"],
-      "storageSubDir": "mod-model",
       "configField": "MmdRoot",
       "installDir": "versions/{instance}/mod-model/",
       "scanDir": "config/yes_steve_model/custom",
@@ -152,7 +144,6 @@
         ".7z",
         ".json"
       ],
-      "storageSubDir": "ysm",
       "configField": "YsmRoot",
       "installDir": "versions/{instance}/ysm/",
       "scanDir": "config/yes_steve_model/custom",
@@ -182,7 +173,6 @@
         ".schematic",
         ".zip"
       ],
-      "storageSubDir": "create-blueprint",
       "configField": "SchematicRoot",
       "installDir": "schematics/",
       "scanDir": "schematics",
@@ -257,7 +247,6 @@
       "extensions": [
         ".zip"
       ],
-      "storageSubDir": "maid-model",
       "installDir": "tlm_custom_pack/",
       "scanDir": "tlm_custom_pack",
       "instanceLevel": true,

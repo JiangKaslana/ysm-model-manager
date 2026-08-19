@@ -177,7 +177,7 @@ describe("VOXEL_RPC_BY_EXT voxelFn 映射", () => {
 });
 
 // ===== ADR-092 资源分组派生层 =====
-// GROUP_META / GROUP_OF / groupStorageRootOf 从 resource_types.json 的 resourceGroups + 各类型 group 字段派生。
+// GROUP_META / GROUP_OF / groupStorageRootOf 从各类型 group 字段派生（resourceGroups 已删除）。
 // 守护：每个类型都有合法分组；两层路由 {group}/{storageSubDir} 与 JSON 单一事实来源一致。
 
 describe("GROUP_META 分组元数据", () => {
@@ -185,12 +185,15 @@ describe("GROUP_META 分组元数据", () => {
     expect(GROUP_META["minecraft"]).toMatchObject({ name: "Minecraft 原版" });
     expect(GROUP_META["minecraft-mod"]).toMatchObject({ name: "Minecraft 模组" });
     expect(GROUP_META["mmd"]).toMatchObject({ name: "MMD" });
-    expect(GROUP_META["other"]).toMatchObject({ name: "其他" });
   });
 
-  it("分组按 order 有确定顺序（vrm 组已并入 mmd，ADR-105 续）", () => {
+  it("分组按首次出现顺序排列（resourceGroups 已删除，从 types 的 group 字段派生）", () => {
     const groups = Object.values(GROUP_META).sort((a, b) => a.order - b.order);
-    expect(groups.map((g) => g.order)).toEqual([0, 1, 2, 9]);
+    expect(groups.map((g) => g.order)).toEqual([0, 1, 2]);
+  });
+
+  it("无类型使用的分组不出现（other 组无类型，不展示）", () => {
+    expect(GROUP_META["other"]).toBeUndefined();
   });
 });
 

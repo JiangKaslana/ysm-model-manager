@@ -250,9 +250,7 @@ func migrateFlatStorageToGrouped(filesRoot string) {
 	reg := types.LoadRegistry()
 	moved := 0
 	for _, rt := range reg.ResourceTypes {
-		if rt.StorageSubDir == "" {
-			continue
-		}
+		subDir := types.StorageSubDir(rt.ID)
 		// 目标路径：FilesRoot/{group}/{storageSubDir}
 		targetRel := types.GroupStorageRoot(rt.ID)
 		targetPath := filepath.Join(filesRoot, targetRel)
@@ -261,7 +259,7 @@ func migrateFlatStorageToGrouped(filesRoot string) {
 			continue
 		}
 		// 检查扁平源路径：FilesRoot/{storageSubDir}
-		flatPath := filepath.Join(filesRoot, rt.StorageSubDir)
+		flatPath := filepath.Join(filesRoot, subDir)
 		srcInfo, err := os.Stat(flatPath)
 		if err != nil || !srcInfo.IsDir() {
 			continue
@@ -273,10 +271,10 @@ func migrateFlatStorageToGrouped(filesRoot string) {
 			continue
 		}
 		if err := os.Rename(flatPath, targetPath); err != nil {
-			log.Printf("[migrate] 迁移 %s → %s 失败: %v", rt.StorageSubDir, targetRel, err)
+			log.Printf("[migrate] 迁移 %s → %s 失败: %v", subDir, targetRel, err)
 			continue
 		}
-		log.Printf("[migrate] 已迁移: %s → %s", rt.StorageSubDir, targetRel)
+		log.Printf("[migrate] 已迁移: %s → %s", subDir, targetRel)
 		moved++
 	}
 	if moved > 0 {

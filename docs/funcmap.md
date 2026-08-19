@@ -30,7 +30,7 @@
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 10 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 6 | 80 |
+| Go·类型 | 6 | 79 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -46,7 +46,7 @@
 | frontend/views | 110 | 309 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **433** | **1847** |
+| **合计** | **433** | **1846** |
 
 ## Go·头像
 
@@ -460,33 +460,32 @@
 | `StorageSubDir()` | `go/types/extensions:321` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
 | `GroupOf()` | `go/types/extensions:330` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
 | `GroupStorageRoot()` | `go/types/extensions:342` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
-| `GroupLabel()` | `go/types/extensions:358` | GroupLabel 返回分组显示名（ADR-092 resourceGroups 元数据）；未知分组返回空串。 |
-| `SubDirMap()` | `go/types/extensions:378` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
-| `SubDirAll()` | `go/types/extensions:390` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:402` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:372` | SubDirEntry 资源类型的版本子目录信息 |
+| `GroupLabel()` | `go/types/extensions:359` | GroupLabel 返回分组显示名（从 resourceTypes 各类型 group 字段派生，消除 resourceGroups 冗余源）； 未知分组返回空串。 |
+| `SubDirMap()` | `go/types/extensions:383` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
+| `SubDirAll()` | `go/types/extensions:395` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:407` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:377` | SubDirEntry 资源类型的版本子目录信息 |
 | `FindInstDir()` | `go/types/findinst:66` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `SetBundledRegistryJSON()` | `go/types/resource:20` | SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。 |
-| `ResourceSubType.AcceptsExt()` | `go/types/resource:90` | AcceptsExt 判断文件扩展名（含点、大小写不敏感）是否被本子类接受。 |
-| `ResourceSubType.MatchZipEntry()` | `go/types/resource:103` | MatchZipEntry 检测 ZIP 条目名是否命中本子类的特征条目（小写不敏感）。 |
-| `ResourceType.MatchZipEntry()` | `go/types/resource:139` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
-| `SetRegistryPath()` | `go/types/resource:174` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
-| `LoadRegistry()` | `go/types/resource:185` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
-| `BundledRegistryJSON()` | `go/types/resource:276` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
-| `RegistryType()` | `go/types/resource:283` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:304` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:400` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `ResourceSubType.AcceptsExt()` | `go/types/resource:81` | AcceptsExt 判断文件扩展名（含点、大小写不敏感）是否被本子类接受。 |
+| `ResourceSubType.MatchZipEntry()` | `go/types/resource:94` | MatchZipEntry 检测 ZIP 条目名是否命中本子类的特征条目（小写不敏感）。 |
+| `ResourceType.MatchZipEntry()` | `go/types/resource:130` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
+| `SetRegistryPath()` | `go/types/resource:165` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
+| `LoadRegistry()` | `go/types/resource:176` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
+| `BundledRegistryJSON()` | `go/types/resource:267` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
+| `RegistryType()` | `go/types/resource:274` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:295` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:391` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:25` | ResourceTypeRegistry 资源类型注册表 |
-| `ResourceGroup()` | `go/types/resource:31` | ResourceGroup 资源分组元数据（ADR-092 顶层 resourceGroups 数组） |
-| `ResourceType()` | `go/types/resource:39` | ResourceType 一种受支持的资源类型定义 |
-| `ResourceSubType()` | `go/types/resource:72` | ResourceSubType 资源类型的用途子类（ADR-104/105：大类→小类→防御检验三层架构）。 |
-| `ZipEntryMatch()` | `go/types/resource:130` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:298` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:389` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:407` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:424` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:430` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:438` | VoxelGroup 同一颜色的方块组 |
+| `ResourceType()` | `go/types/resource:30` | ResourceType 一种受支持的资源类型定义 |
+| `ResourceSubType()` | `go/types/resource:63` | ResourceSubType 资源类型的用途子类（ADR-104/105：大类→小类→防御检验三层架构）。 |
+| `ZipEntryMatch()` | `go/types/resource:121` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
+| `FormatRange()` | `go/types/resource:289` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:380` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:398` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:415` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:421` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:429` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:125` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:173` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:179` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
@@ -1722,21 +1721,21 @@
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:23` | 资源类型显示标签（内部 ID → 中文名） |
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:57` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
-| `GROUP_META()` | `frontend/src/utils/resource/types:77` | 分组元数据（id → {name, icon, order}），从 resourceGroups 派生 |
-| `GROUP_OF()` | `frontend/src/utils/resource/types:88` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
-| `groupLabelOf()` | `frontend/src/utils/resource/types:94` | 分组 id → 显示名 |
-| `GroupTypeOption()` | `frontend/src/utils/resource/types:107` | 大类(group) → 其下资源类型/子类型选项（ADR-092/094/105 双下拉导航第二级）。 |
-| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:112` | — |
-| `MMD_SUBTYPES()` | `frontend/src/utils/resource/types:167` | MMD 子类型目录选项（ADR-094 位置路由 + ADR-104/105 注册表派生）。 |
-| `groupStorageRootOf()` | `frontend/src/utils/resource/types:194` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
-| `extOf()` | `frontend/src/utils/resource/types:207` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:251` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:276` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:281` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:287` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:298` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:311` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `matchZipEntryTS()` | `frontend/src/utils/resource/types:331` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `GROUP_META()` | `frontend/src/utils/resource/types:74` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
+| `GROUP_OF()` | `frontend/src/utils/resource/types:85` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
+| `groupLabelOf()` | `frontend/src/utils/resource/types:91` | 分组 id → 显示名 |
+| `GroupTypeOption()` | `frontend/src/utils/resource/types:104` | 大类(group) → 其下资源类型/子类型选项（ADR-092/094/105 双下拉导航第二级）。 |
+| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:109` | — |
+| `MMD_SUBTYPES()` | `frontend/src/utils/resource/types:164` | MMD 子类型目录选项（ADR-094 位置路由 + ADR-104/105 注册表派生）。 |
+| `groupStorageRootOf()` | `frontend/src/utils/resource/types:191` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
+| `extOf()` | `frontend/src/utils/resource/types:204` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:248` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:273` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:278` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:284` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:295` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:308` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:328` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
 
