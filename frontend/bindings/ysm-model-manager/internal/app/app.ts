@@ -251,6 +251,18 @@ export function EnqueueDownloads(tasks: $models.DownloadTask[] | null): $Cancell
 }
 
 /**
+ * EnsureStorageDirs 预创建所有注册资源类型的存储子目录
+ * （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。
+ * 修复惰性创建的体感问题：用户指定仓库根路径后期望整棵类型树立即出现在磁盘，
+ * 而非等到首次导入某类型才逐个 MkdirAll。
+ * 仅当 GetRepoRoot 返回非空路径才建——空串（未配置/平台默认不可达）跳过，
+ * 避免在工作目录裸建；已存在目录为 MkdirAll no-op，幂等安全。
+ */
+export function EnsureStorageDirs(): $CancellablePromise<void> {
+    return $Call.ByID(3449365602);
+}
+
+/**
  * ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定）
  */
 export function ExecuteCLI(command: string, args: { [_ in string]?: any } | null): $CancellablePromise<string> {
@@ -325,7 +337,8 @@ export function GenerateRepoIndex(repoPath: string): $CancellablePromise<string>
 }
 
 /**
- * GetAllowedCLICommands 返回允许的 CLI 命令列表
+ * GetAllowedCLICommands 返回可用 CLI 命令列表
+ * 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见
  */
 export function GetAllowedCLICommands(): $CancellablePromise<string> {
     return $Call.ByID(4049775249);
@@ -1046,6 +1059,14 @@ export function SelectImportFile(filter: string, title: string): $CancellablePro
  */
 export function SelectImportZip(): $CancellablePromise<string> {
     return $Call.ByID(3551213909);
+}
+
+/**
+ * SetAllowedCommands 注入可用 CLI 命令列表（由 main.go 调用 cli.GetAllowedCommands() 提供）
+ * 避免 app→cli 循环依赖：命令注册表单一事实来源在 go/cli，前端可见列表经此注入
+ */
+export function SetAllowedCommands(cmds: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(4179505329, cmds);
 }
 
 /**

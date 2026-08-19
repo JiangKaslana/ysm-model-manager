@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"ysm-model-manager/go/texture_cache"
+	"ysm-model-manager/go/types"
 	"ysm-model-manager/internal/app"
 )
 
@@ -551,13 +553,17 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 	})
 
 	validateStart := time.Now()
-	validateModelData(model)
+	issues, validateMsg := validateModelData(model)
 	validateDuration := time.Since(validateStart)
 
+	validateIcon := "✅"
+	if issues > 0 {
+		validateIcon = "⚠️"
+	}
 	stages = append(stages, singleBenchStage{
 		Name:     "③ 数据验证",
 		Duration: validateDuration,
-		Notes:    "✅ 模型结构校验",
+		Notes:    fmt.Sprintf("%s %s", validateIcon, validateMsg),
 	})
 
 	geoStart := time.Now()
@@ -584,22 +590,37 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 
 	ipcStart := time.Now()
 	ipcSize := (geoSize + texSize) * 4 / 3
+	_, _ = json.Marshal(model) // 模拟序列化开销
 	ipcDuration := time.Since(ipcStart)
 
 	stages = append(stages, singleBenchStage{
 		Name:     "⑥ IPC 传输模拟",
 		Duration: ipcDuration,
 		Bytes:    ipcSize,
-		Notes:    fmt.Sprintf("📦 估算 %s (Base64)", formatSize(ipcSize)),
+		Notes:    fmt.Sprintf("📦 估算 %s (Base64)，含序列化", formatSize(ipcSize)),
 	})
 
 	cacheStart := time.Now()
+	cacheNotes := "🔍 缓存目录不可用"
+	if hash, err := texture_cache.TextureHash(modelPath); err == nil {
+		if cached, ok, _ := texture_cache.ReadCached(hash); ok && cached != nil {
+			cacheNotes = fmt.Sprintf("✅ 缓存命中 (%s, %s)", formatSize(int64(len(cached))), hash[:12]+"...")
+		} else {
+			cacheStats := texture_cache.GetCacheStats()
+			cacheNotes = fmt.Sprintf("⚠️ 缓存未命中（总缓存: %d 个文件, %s）",
+				cacheStats.FileCount, formatSize(cacheStats.TotalSize))
+		}
+	} else {
+		cacheStats := texture_cache.GetCacheStats()
+		cacheNotes = fmt.Sprintf("⚠️ 哈希计算失败（总缓存: %d 个文件, %s）",
+			cacheStats.FileCount, formatSize(cacheStats.TotalSize))
+	}
 	cacheDuration := time.Since(cacheStart)
 
 	stages = append(stages, singleBenchStage{
 		Name:     "⑦ 缓存检查",
 		Duration: cacheDuration,
-		Notes:    "🔍 检查纹理缓存命中",
+		Notes:    cacheNotes,
 	})
 
 	return stages
@@ -747,19 +768,94 @@ func printOptimizationHints(stages []singleBenchStage) {
 	fmt.Println("   4. 量化改进：每次优化后重跑 single-bench")
 }
 
-// validateModelData 验证模型数据
-func validateModelData(model interface{}) {
-	// 轻量验证
+// validateModelData 验证模型结构一致性，返回问题数和诊断信息
+func validateModelData(model types.BedrockModel) (int, string) {
+	var issues int
+	var msgs []string
+
+	// 1. 骨骼数与 BoneCount 字段一致性
+	if model.BoneCount > 0 && model.BoneCount != len(model.Bones) {
+		issues++
+		msgs = append(msgs, fmt.Sprintf("骨骼数不一致: 声明 %d vs 实际 %d", model.BoneCount, len(model.Bones)))
+	}
+
+	// 2. 立方块数一致性
+	var totalCubes int
+	for _, b := range model.Bones {
+		totalCubes += len(b.Cubes)
+	}
+	if model.CubeCount > 0 && model.CubeCount != totalCubes {
+		issues++
+		msgs = append(msgs, fmt.Sprintf("立方块数不一致: 声明 %d vs 实际 %d", model.CubeCount, totalCubes))
+	}
+
+	// 3. 纹理数组与名称数组长度一致性
+	if len(model.Textures) > 0 && len(model.TextureNames) > 0 && len(model.Textures) != len(model.TextureNames) {
+		issues++
+		msgs = append(msgs, fmt.Sprintf("纹理名称数(%d) 与纹理数据数(%d) 不匹配", len(model.TextureNames), len(model.Textures)))
+	}
+
+	// 4. 孤立纹理（有数据但无名称）
+	for i, tex := range model.Textures {
+		if tex != "" && i < len(model.TextureNames) && model.TextureNames[i] == "" {
+			issues++
+			msgs = append(msgs, fmt.Sprintf("纹理[%d] 有数据但无名称", i))
+		}
+	}
+
+	// 5. 骨骼父子关系检查（根骨骼数量）
+	var rootCount int
+	for _, b := range model.Bones {
+		if b.Parent == "" {
+			rootCount++
+		}
+	}
+	if len(model.Bones) > 0 && rootCount == 0 {
+		issues++
+		msgs = append(msgs, "无根骨骼（所有骨骼都有 parent）")
+	}
+
+	if issues == 0 {
+		return 0, fmt.Sprintf("✅ 结构校验通过: %d 骨骼, %d 立方块, %d 纹理",
+			len(model.Bones), totalCubes, len(model.Textures))
+	}
+	return issues, "⚠️ 校验发现问题: " + strings.Join(msgs, "; ")
 }
 
-// prepareGeometryData 准备几何数据
-func prepareGeometryData(model interface{}) int64 {
-	// 返回估算大小
-	return 0
+// prepareGeometryData 计算几何数据实际估算大小
+func prepareGeometryData(model types.BedrockModel) int64 {
+	var size int64
+
+	// 骨骼元数据: name + parent + pivot[3] + rotation[3] ≈ 96 字节/骨骼
+	size += int64(len(model.Bones)) * 96
+
+	// 立方块数据: origin[3] + size[3] + pivot[3] + uv[2] + rotation[3] + inflate + mirror + texSlot ≈ 96 字节/块
+	var totalCubes int
+	for _, b := range model.Bones {
+		totalCubes += len(b.Cubes)
+	}
+	size += int64(totalCubes) * 96
+
+	// 动画数据: JSON 字符串原始长度
+	for _, anim := range model.Animations {
+		size += int64(len(anim))
+	}
+
+	return size
 }
 
-// prepareTextureData 准备纹理数据
-func prepareTextureData(model interface{}) int64 {
-	// 返回估算大小
-	return 0
+// prepareTextureData 估算纹理数据大小（base64 解码后）
+func prepareTextureData(model types.BedrockModel) int64 {
+	var size int64
+
+	if model.Texture != "" {
+		size += int64(len(model.Texture)) * 3 / 4
+	}
+	for _, tex := range model.Textures {
+		if tex != "" {
+			size += int64(len(tex)) * 3 / 4
+		}
+	}
+
+	return size
 }
