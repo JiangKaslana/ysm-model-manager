@@ -12,6 +12,8 @@ import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import { scheduleBackgroundEncoding, cancelPendingEncodings } from "./mmd-ktx2-encoder.ts";
+import { getTextureDecoder, applyWorkerDecodedTextures, type DecodedTexture } from "./mmd-texture-decoder.ts";
+import { Ktx2TextureLoader } from "./mmd-ktx2-texture-loader.ts";
 import { startMainThreadWatch, formatLongTask } from "../../../utils/main-thread-watch.ts";
 import type {
   MmdBottomNavCtx,
@@ -210,6 +212,10 @@ export async function buildMmdScene(
   const texKtx2Map = new Map<string, string>();
   // 纹理内容哈希：纹理相对路径 → SHA256（用于 KTX2 缓存查找）
   const texHashMap = new Map<string, string>();
+  // Worker 解码任务：纹理相对路径 → 原始字节（并行解码，与 PMX 解析同时进行）
+  const decodeTasks: Array<{ relPath: string; bytes: ArrayBuffer; mimeType: string }> = [];
+  // Worker 解码结果 Promise（try 块外声明，确保 loadAsync 后可访问）
+  let decodedTexturesPromise: Promise<Map<string, DecodedTexture>> | null = null;
   // 模型本体也注册 blob：MMDLoader 内部 FileLoader 从 URL 读字节（WebView2 读不了磁盘路径），
   // URLModifier 拦截模型 URL → blob 后才可加载。
   const modelBlobUrl = URL.createObjectURL(new Blob([bytesToArrayBuffer(bytes)]));
@@ -282,6 +288,17 @@ export async function buildMmdScene(
       const blob = new Blob([bytesToArrayBuffer(texBytes)]);
       const url = URL.createObjectURL(blob);
       blobUrls.push(url);
+      // 收集 Worker 解码任务（与 PMX 解析并行，避免主线程 Decode Image 阻塞）
+      // TGA 跳过：浏览器 createImageBitmap 不支持 TGA
+      if (!p.toLowerCase().endsWith(".tga")) {
+        const ext = p.split(".").pop()?.toLowerCase() || "";
+        const mimeMap: Record<string, string> = {
+          png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+          bmp: "image/bmp", gif: "image/gif", webp: "image/webp",
+        };
+        const mime = mimeMap[ext] || "image/png";
+        decodeTasks.push({ relPath: rel || baseName, bytes: bytesToArrayBuffer(texBytes), mimeType: mime });
+      }
       // 键1：相对目录路径（PMX 内记录如 "textures/face.png"，对齐 URLModifier 收到的 fullPath）
       texMap.set(rel, url);
       // 键2：basename 兜底（同名不同子目录由最长后缀匹配区分）
@@ -294,6 +311,13 @@ export async function buildMmdScene(
         texHashMap.set(rel, texHashBatch[p]);
         blobUrlToHash.set(url, texHashBatch[p]);
       }
+    }
+    // ---- Worker 纹理解码：与 MMDLoader 解析并行执行，主线程解码被 Worker 接管 ----
+    if (decodeTasks.length > 0) {
+      const decoder = getTextureDecoder();
+      decodedTexturesPromise = decoder.decodeAll(decodeTasks);
+      void mmdDiag(port, "tex-decode-dispatch", dirPath, "ok",
+        `dispatched=${decodeTasks.length} textures to decode workers`);
     }
     // 同目录 VMD 动作文件（模型加载后逐个解析）
     vmdPaths.push(...files.filter((p) => p.toLowerCase().endsWith(".vmd")));
@@ -377,6 +401,47 @@ export async function buildMmdScene(
     return best ?? url;
   });
 
+  // ---- KTX2 直载（方案 A）：拦截 loadTextureResource 的 loader 选择（getHandler），
+  // 缓存命中时材质构建阶段直接拿 CompressedTexture，PNG 解码从加载路径消失 ----
+  if (ctx.renderer) {
+    const ktx2DirectLoader = new Ktx2TextureLoader({
+      resolveHash: (url: string): string | undefined => {
+        const lower = url.toLowerCase().replace(/\\/g, "/");
+        const base = lower.split("/").pop() ?? "";
+        // toon 排除：toon 走 getRotatedImage(t.image)（canvas 旋转），
+        // CompressedTexture 的 image 是 mipmap 数组无法 drawImage → 不直载
+        if (base.startsWith("toon") || lower.includes("/toon/")) return undefined;
+        // texHashMap: rel → hash；用 basename 最长后缀匹配（同名冲突取目录上下文最深者）
+        let best: string | undefined;
+        let bestLen = -1;
+        for (const [rel, hash] of texHashMap) {
+          const rl = rel.toLowerCase();
+          if (rl.endsWith(base) && rl.length > bestLen) {
+            best = hash;
+            bestLen = rl.length;
+          }
+        }
+        return best;
+      },
+      getCachedTextureByHash: async (hash: string): Promise<string | null> => {
+        try {
+          const { getApp } = await import("../../../backend/app.ts");
+          const app = await getApp();
+          const fn = (app as unknown as Record<string, (h: string) => Promise<string>>)["GetCachedTextureByHash"];
+          if (typeof fn !== "function") return null;
+          const b64 = await fn(hash);
+          return b64 || null;
+        } catch {
+          return null; // 绑定不可用 → 回退原 loader
+        }
+      },
+      ktx2Loader: new KTX2Loader().setTranscoderPath("/basis/").detectSupport(ctx.renderer),
+      fallbackLoader: new THREE.TextureLoader(manager),
+    });
+    // png/jpg/bmp/gif/webp 命中（tga 由 TGALoader 处理，天然不拦截）
+    manager.addHandler(/\.(png|jpe?g|bmp|gif|webp)$/i, ktx2DirectLoader);
+  }
+
   const loader = new MMDLoader(manager);
   tParseStart = performance.now();
   try {
@@ -396,6 +461,24 @@ export async function buildMmdScene(
   );
   tParseEnd = performance.now();
   const mesh = mmd!.mesh;
+
+  // ---- 应用 Worker 解码纹理：替换主线程解码的 HTMLImageElement 纹理为 ImageBitmap ----
+  if (decodedTexturesPromise) {
+    try {
+      const decoded = await decodedTexturesPromise;
+      if (decoded.size > 0) {
+        const { replaced, total } = applyWorkerDecodedTextures(mesh, decoded, blobUrlToRel);
+        if (replaced > 0) {
+          await mmdDiag(port, "tex-decode-apply", path, "ok",
+            `worker-decoded=${replaced}/${total} textures (${decoded.size} bitmaps from workers)`);
+        }
+      }
+    } catch {
+      await mmdDiag(port, "tex-decode-apply", path, "warn",
+        "Worker 解码纹理应用失败，使用主线程 fallback");
+    }
+  }
+
   let buildSucceeded = false;
   try {
     ctx.scene!.add(mesh);

@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 131 | 490 |
+| 前端·工具 | 133 | 499 |
 | frontend/views | 106 | 297 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **424** | **1797** |
+| **合计** | **426** | **1806** |
 
 ## Go·头像
 
@@ -1220,11 +1220,11 @@
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:378` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:64` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:174` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:181` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:736` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:763` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:66` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:176` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:183` | — |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:819` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:846` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
 | `BasisModuleLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:29` | 初始化后的 basis 模块（含 BasisEncoder 构造器） |
 | `loadBasisModule()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:40` | 加载并初始化本地 basis_encoder（缓存单例）。 |
@@ -1243,6 +1243,15 @@
 | `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:51` | — |
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:8` | 主线程 → Worker 的请求 |
 | `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:16` | Worker → 主线程的响应 |
+| `TexDecodeRequest()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:7` | 主线程 → Worker 的请求 |
+| `TexDecodeResponse()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:15` | Worker → 主线程的响应 |
+| `TexDecodeConfig()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:15` | 解码器配置 |
+| `DecodedTexture()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:23` | 解码结果条目 |
+| `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:34` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
+| `createTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:42` | 创建纹理解码器（Worker 池） |
+| `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:138` | 获取共享解码器（懒创建） |
+| `disposeTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:146` | 释放共享解码器 |
+| `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:158` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 遍历 mesh 的所有材质，将命中的 blob:HTMLImageElement 纹理替换为 I |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:63` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:82` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:108` | — |
