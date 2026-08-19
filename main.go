@@ -17,8 +17,10 @@ func main() {
 	// ---- CLI Mode: 独立运行，脱离 Wails GUI，用于测试或自动化 ----
 	if len(os.Args) > 1 && os.Args[1] == "--cli" {
 		if err := runCLI(os.Args[2:]); err != nil {
-			os.Exit(1)
+			PrintError(err)
+			os.Exit(exitCodeOf(err))
 		}
+		os.Exit(ExitSuccess)
 		return
 	}
 	// ---- End CLI Mode ----

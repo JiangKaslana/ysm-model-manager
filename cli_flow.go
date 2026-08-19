@@ -1,9 +1,7 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -27,10 +25,12 @@ type guiFlowResult struct {
 
 // runGUIFlow 模拟 GUI 完整加载流程
 func runGUIFlow(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("gui-flow", flag.ExitOnError)
+	fs := newCmdFlagSet("gui-flow")
 	modelPath := fs.String("model", "", "指定模型路径（可选，不填则用第一个）")
 	verbose := fs.Bool("verbose", false, "详细输出每个阶段的细节")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	filesRoot := parseFilesRoot(args)
 
@@ -88,7 +88,9 @@ func runGUIFlow(a *app.App, args []string) error {
 
 	// ============ 汇总报告 ============
 	totalDuration := time.Since(totalStart)
-	printFlowReport(results, totalDuration, *verbose)
+	if err := printFlowReport(results, totalDuration, *verbose); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -309,7 +311,7 @@ func runPhaseRenderEstimate(a *app.App, modelPath string, verbose bool) guiFlowR
 }
 
 // printFlowReport 打印流程报告
-func printFlowReport(results []guiFlowResult, totalDuration time.Duration, verbose bool) {
+func printFlowReport(results []guiFlowResult, totalDuration time.Duration, verbose bool) error {
 	fmt.Println()
 	fmt.Println("📊 流程报告")
 	fmt.Println(strings.Repeat("-", 70))
@@ -344,7 +346,7 @@ func printFlowReport(results []guiFlowResult, totalDuration time.Duration, verbo
 	if failCount > 0 {
 		fmt.Println()
 		fmt.Println("⚠️  有阶段失败，请检查上述输出")
-		os.Exit(1)
+		return fmt.Errorf("有 %d 个阶段失败", failCount)
 	} else {
 		fmt.Println()
 		fmt.Println("🎉 GUI 流程模拟完成！")
@@ -354,6 +356,8 @@ func printFlowReport(results []guiFlowResult, totalDuration time.Duration, verbo
 		fmt.Println("   - 缓存未命中属正常现象，首次加载后会自动编码生成")
 		fmt.Println("   - 使用 'cache-status' 查看缓存状态")
 	}
+
+	return nil
 }
 
 // estimateGeometrySize 估算几何体大小

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,7 +23,7 @@ func init() {
 
 // runSearch 执行搜索命令
 func runSearch(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("search", flag.ExitOnError)
+	fs := newCmdFlagSet("search")
 	keyword := fs.String("keyword", "", "搜索关键词")
 	minBones := fs.Int("min-bones", 0, "最小骨骼数")
 	maxBones := fs.Int("max-bones", 0, "最大骨骼数")
@@ -33,7 +32,9 @@ func runSearch(a *app.App, args []string) error {
 	minTex := fs.Int("min-tex", 0, "最小贴图尺寸")
 	maxTex := fs.Int("max-tex", 0, "最大贴图尺寸")
 	outputFormat := fs.String("format", "json", "输出格式: json 或 table")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	filesRoot := parseFilesRoot(args)
 	results := a.SearchModels(filesRoot, *keyword, *minBones, *maxBones, *minCubes, *maxCubes, *minTex, *maxTex)
@@ -70,9 +71,11 @@ func printSearchTable(results []types.SearchResult) {
 
 // runAnalyze 执行分析命令
 func runAnalyze(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("analyze", flag.ExitOnError)
+	fs := newCmdFlagSet("analyze")
 	modelPath := fs.String("model", "", "模型文件或目录路径")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	if *modelPath == "" {
 		return fmt.Errorf("--model 参数不能为空")
@@ -134,10 +137,12 @@ func printYSMAnalysis(meta interface{}) {
 
 // runList 执行列表命令
 func runList(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	fs := newCmdFlagSet("list")
 	limit := fs.Int("limit", 0, "显示条目数上限 (0=全部)")
 	outputFormat := fs.String("format", "table", "输出格式: json 或 table")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	filesRoot := parseFilesRoot(args)
 	entries := a.ScanModelEntries(filesRoot)
@@ -192,9 +197,11 @@ func runList(a *app.App, args []string) error {
 
 // runVerify 执行验证命令
 func runVerify(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("verify", flag.ExitOnError)
+	fs := newCmdFlagSet("verify")
 	repair := fs.Bool("repair", false, "尝试自动修复问题")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	filesRoot := parseFilesRoot(args)
 	entries := a.ScanModelEntries(filesRoot)
@@ -274,9 +281,11 @@ func runVerify(a *app.App, args []string) error {
 
 // runBenchmark 执行性能基准测试
 func runBenchmark(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("benchmark", flag.ExitOnError)
+	fs := newCmdFlagSet("benchmark")
 	iterations := fs.Int("iterations", 3, "迭代次数")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	filesRoot := parseFilesRoot(args)
 
@@ -355,11 +364,13 @@ func printBenchmarkResults(name string, times []time.Duration) {
 
 // runExport 执行导出命令
 func runExport(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("export", flag.ExitOnError)
+	fs := newCmdFlagSet("export")
 	modelPath := fs.String("model", "", "模型文件路径")
 	outputPath := fs.String("output", "", "输出文件路径")
 	format := fs.String("format", "json", "导出格式: json 或 bone-structure")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	if *modelPath == "" {
 		return fmt.Errorf("--model 参数不能为空")

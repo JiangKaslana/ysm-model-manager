@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -89,13 +88,15 @@ func avgDuration(durations []time.Duration) time.Duration {
 
 // runFileBench 测试大文件读取性能（支持 JSON 输出和基准对比）
 func runFileBench(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("file-bench", flag.ExitOnError)
+	fs := newCmdFlagSet("file-bench")
 	testDir := fs.String("dir", "", "测试目录路径（扫描此目录下的大文件）")
 	filePath := fs.String("file", "", "单个测试文件路径")
 	iterations := fs.Int("iterations", 3, "迭代次数")
 	output := fs.String("output", "", "输出文件路径（JSON 格式，用于基准对比）")
 	compare := fs.String("compare", "", "对比基准文件路径")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	var files []string
 
@@ -298,11 +299,13 @@ type largeFile struct {
 
 // runScanDir 扫描目录结构（支持 JSON 输出）
 func runScanDir(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("scan-dir", flag.ExitOnError)
+	fs := newCmdFlagSet("scan-dir")
 	dirPath := fs.String("dir", "", "目录路径")
 	detail := fs.Bool("detail", false, "显示详细文件列表")
 	output := fs.String("output", "", "输出文件路径（JSON 格式）")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	if *dirPath == "" {
 		return fmt.Errorf("--dir 参数不能为空")
@@ -449,9 +452,11 @@ func runScanDir(a *app.App, args []string) error {
 
 // runAnalyzeMMD 分析 MMD 模型资产
 func runAnalyzeMMD(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("analyze-mmd", flag.ExitOnError)
+	fs := newCmdFlagSet("analyze-mmd")
 	modelDir := fs.String("dir", "", "MMD 模型目录路径")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	if *modelDir == "" {
 		return fmt.Errorf("--dir 参数不能为空")

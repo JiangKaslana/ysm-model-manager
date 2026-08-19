@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,10 +26,12 @@ type concurrentBenchResult struct {
 
 // runConcurrentBench 运行并发基准测试
 func runConcurrentBench(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("concurrent-bench", flag.ExitOnError)
+	fs := newCmdFlagSet("concurrent-bench")
 	workers := fs.Int("workers", 4, "并发 worker 数量")
 	maxModels := fs.Int("max-models", 20, "最多测试的模型数量")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	filesRoot := parseFilesRoot(args)
 
@@ -343,10 +344,12 @@ type singleBenchStage struct {
 
 // runSingleBench 单模型加载基准测试
 func runSingleBench(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("single-bench", flag.ExitOnError)
+	fs := newCmdFlagSet("single-bench")
 	modelPath := fs.String("model", "", "指定模型路径（必填）")
 	iterations := fs.Int("iterations", 3, "重复测试次数")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	if *modelPath == "" {
 		return fmt.Errorf("必须指定 --model 参数")

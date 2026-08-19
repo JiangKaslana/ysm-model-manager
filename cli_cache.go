@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -75,10 +74,12 @@ func runCacheStatus(a *app.App, args []string) error {
 
 // runCacheVerify 检查模型贴图的缓存命中情况
 func runCacheVerify(a *app.App, args []string) error {
-	fs := flag.NewFlagSet("cache-verify", flag.ExitOnError)
+	fs := newCmdFlagSet("cache-verify")
 	modelDir := fs.String("dir", "", "MMD 模型目录路径")
 	verbose := fs.Bool("verbose", false, "显示详细的缓存命中信息")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	if *modelDir == "" {
 		return fmt.Errorf("--dir 参数不能为空")
@@ -241,9 +242,11 @@ func runCacheVerify(a *app.App, args []string) error {
 func runCacheClear(a *app.App, args []string) error {
 	_ = a
 
-	fs := flag.NewFlagSet("cache-clear", flag.ExitOnError)
+	fs := newCmdFlagSet("cache-clear")
 	yes := fs.Bool("yes", false, "跳过确认，直接清空")
-	parseFlags(fs, args)
+	if err := parseFlags(fs, args); err != nil {
+		return err
+	}
 
 	stats := texture_cache.GetCacheStats()
 
