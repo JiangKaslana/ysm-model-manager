@@ -266,7 +266,6 @@ func runRepoAudit(ctx *CmdContext) error {
 		}
 
 		// 类型统计
-		classifyResource(ext, &resourceStats{})
 		typeName := "other"
 		switch ext {
 		case ".ysm", ".json", ".pmx", ".pmd":

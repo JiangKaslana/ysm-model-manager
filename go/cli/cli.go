@@ -4,15 +4,11 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"time"
 
 	"ysm-model-manager/go/version"
 	"ysm-model-manager/internal/app"
 )
-
-// printFn 可替换的打印函数
-var printFn = func(a ...any) {
-	fmt.Println(a...)
-}
 
 // RunCLI 执行 CLI 模式
 func RunCLI(args []string) error {
@@ -46,12 +42,13 @@ func RunCLI(args []string) error {
 
 	// 全局 --json 模式：捕获输出并包装为 JSON 响应
 	if jsonMode {
+		start := time.Now()
 		outputBuf, restoreStdout := captureStdout()
 		err := DispatchCommand(a, a.SaveAppConfig, filesRoot, jsonMode, commandArgs, true)
 		restoreStdout()
 
 		cmdName := commandArgs[0]
-		elapsed := float64(0)
+		elapsed := float64(time.Since(start).Milliseconds())
 
 		if err != nil {
 			resp := NewJsonError(cmdName, err, elapsed)
@@ -62,7 +59,6 @@ func RunCLI(args []string) error {
 				"lines":     splitLines(outputBuf.String()),
 				"filesRoot": filesRoot,
 			}, elapsed)
-			// 覆盖平台信息（使用 CLI 运行平台）
 			resp.Meta.Platform = runtime.GOOS
 			fmt.Println(resp.ToJson())
 		}

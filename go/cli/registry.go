@@ -6,23 +6,6 @@ import (
 	"ysm-model-manager/internal/app"
 )
 
-// AppAdapter CLI 所需的 App 功能接口
-type AppAdapter interface {
-	GetYSMRepoRoot() string
-	SaveAppConfig(filesRoot, rpRoot, mcRoot, linkMode, theme string) error
-}
-
-// AppConfigData 应用配置数据
-type AppConfigData struct {
-	FilesRoot   string
-	McRoot      string
-	LinkMode    string
-	Theme       string
-	YsmRoot     string
-	MmdRoot     string
-	CustomRoots map[string]string
-}
-
 // CmdContext 统一命令执行上下文
 type CmdContext struct {
 	App       *app.App

@@ -161,3 +161,68 @@ func max(a, b int) int {
 	}
 	return b
 }
+
+// ========== 输出捕获工具 ==========
+
+// captureStdout 捕获 stdout 输出
+func captureStdout() (*outputBuffer, func()) {
+	orig := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	buf := &outputBuffer{}
+	go func() {
+		buf.readFrom(r)
+	}()
+
+	return buf, func() {
+		w.Close()
+		os.Stdout = orig
+	}
+}
+
+// outputBuffer 输出缓冲区
+type outputBuffer struct {
+	data []byte
+	done chan struct{}
+}
+
+func (b *outputBuffer) readFrom(r *os.File) {
+	buf := make([]byte, 4096)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			b.data = append(b.data, buf[:n]...)
+		}
+		if err != nil {
+			break
+		}
+	}
+	close(b.done)
+}
+
+func (b *outputBuffer) String() string {
+	if b.done != nil {
+		<-b.done
+	}
+	return string(b.data)
+}
+
+// splitLines 将字符串按行分割
+func splitLines(s string) []string {
+	var lines []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			line := s[start:i]
+			if len(line) > 0 {
+				lines = append(lines, line)
+			}
+			start = i + 1
+		}
+	}
+	if start < len(s) {
+		lines = append(lines, s[start:])
+	}
+	return lines
+}

@@ -109,7 +109,7 @@ func TestGetAllowedCLICommands(t *testing.T) {
 		t.Fatalf("JSON 解析失败: %v", err)
 	}
 
-	expectedCount := 18 // 与 allowedCLICommands 数量一致
+	expectedCount := 20 // 与 allowedCLICommands 数量一致
 	if len(commands) != expectedCount {
 		t.Errorf("期望 %d 个命令, 实际 %d 个: %v", expectedCount, len(commands), commands)
 	}

@@ -8,7 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 11 |
-| go/cli | 5 | 32 |
+| go/cli | 4 | 28 |
 | go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 15 |
@@ -46,7 +46,7 @@
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **420** | **1785** |
+| **合计** | **419** | **1781** |
 
 ## Go·头像
 
@@ -68,8 +68,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RunCLI()` | `go/cli/cli:18` | RunCLI 执行 CLI 模式 |
-| `ExecuteCLIWithApp()` | `go/cli/cli:76` | ExecuteCLIWithApp 执行 CLI 命令 |
+| `RunCLI()` | `go/cli/cli:14` | RunCLI 执行 CLI 模式 |
+| `ExecuteCLIWithApp()` | `go/cli/cli:72` | ExecuteCLIWithApp 执行 CLI 命令 |
 | `NewJsonSuccess()` | `go/cli/json:38` | NewJsonSuccess 创建成功响应 |
 | `NewJsonError()` | `go/cli/json:49` | NewJsonError 创建错误响应 |
 | `NewJsonNotSupported()` | `go/cli/json:80` | NewJsonNotSupported 创建平台不支持响应 |
@@ -80,14 +80,12 @@
 | `JsonError()` | `go/cli/json:21` | JsonError 错误详情 |
 | `TimingInfo()` | `go/cli/json:28` | TimingInfo 耗时统计 |
 | `MetaInfo()` | `go/cli/json:33` | MetaInfo 元信息 |
-| `RegisterCommand()` | `go/cli/registry:44` | RegisterCommand 注册一个 CLI 子命令 |
-| `GetCommand()` | `go/cli/registry:56` | GetCommand 获取已注册的命令 |
-| `GetAllCommands()` | `go/cli/registry:62` | GetAllCommands 获取所有已注册命令 |
-| `DispatchCommand()` | `go/cli/registry:71` | DispatchCommand 分发命令执行 |
-| `AppAdapter()` | `go/cli/registry:10` | AppAdapter CLI 所需的 App 功能接口 |
-| `AppConfigData()` | `go/cli/registry:16` | AppConfigData 应用配置数据 |
-| `CmdContext()` | `go/cli/registry:27` | CmdContext 统一命令执行上下文 |
-| `CliCommand()` | `go/cli/registry:35` | CliCommand 命令注册结构 |
+| `RegisterCommand()` | `go/cli/registry:27` | RegisterCommand 注册一个 CLI 子命令 |
+| `GetCommand()` | `go/cli/registry:39` | GetCommand 获取已注册的命令 |
+| `GetAllCommands()` | `go/cli/registry:45` | GetAllCommands 获取所有已注册命令 |
+| `DispatchCommand()` | `go/cli/registry:54` | DispatchCommand 分发命令执行 |
+| `CmdContext()` | `go/cli/registry:10` | CmdContext 统一命令执行上下文 |
+| `CliCommand()` | `go/cli/registry:18` | CliCommand 命令注册结构 |
 | `ErrParam.Error()` | `go/cli/shared:25` | — |
 | `ErrParam.Unwrap()` | `go/cli/shared:32` | — |
 | `ErrRuntime.Error()` | `go/cli/shared:40` | — |
@@ -95,11 +93,9 @@
 | `ExitCodeOf()` | `go/cli/shared:50` | ExitCodeOf 根据错误类型返回退出码 |
 | `PrintError()` | `go/cli/shared:59` | PrintError 输出错误到 stderr |
 | `ParseCommandArgs()` | `go/cli/shared:68` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
+| `outputBuffer.String()` | `go/cli/shared:204` | — |
 | `ErrParam()` | `go/cli/shared:20` | ErrParam 参数错误（exit code 2） |
 | `ErrRuntime()` | `go/cli/shared:35` | ErrRuntime 运行时业务错误（exit code 1） |
-| `Bridge.ExecuteCLI()` | `go/cli/wails_bridge:20` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） 前端调用: await window.Bridge.ExecuteCLI(command, ar |
-| `outputBuffer.String()` | `go/cli/wails_bridge:121` | — |
-| `Bridge()` | `go/cli/wails_bridge:14` | Bridge Wails ↔ CLI 桥接服务 作为独立 Wails 服务注册，避免 internal/app → go/cli 循环导入 |
 
 ## go/container
 

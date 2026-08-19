@@ -127,6 +127,7 @@ func (a *App) GetAllowedCLICommands() string {
 		"scan-dir", "analyze-mmd", "perf-log",
 		"cache-status", "cache-verify", "cache-clear", "cache-diag",
 		"config-show", "gui-flow",
+		"resource-scan", "repo-audit",
 	}
 	result, _ := json.Marshal(commands)
 	return string(result)
