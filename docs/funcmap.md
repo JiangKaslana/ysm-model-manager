@@ -679,7 +679,7 @@
 | `App.CheckFileExists()` | `internal/app/app_scan:389` | — |
 | `App.OpenFolder()` | `internal/app/app_scan:465` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:514` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
-| `progressReader.Read()` | `internal/app/app_scan:631` | — |
+| `progressReader.Read()` | `internal/app/app_scan:632` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |

@@ -20,6 +20,7 @@ import (
 )
 
 // captureOutput 捕获调用期间的 stdout 输出
+// 修复：在 fn() 执行前启动异步 reader，避免 Windows pipe 缓冲区满导致 fmt.Println 阻塞死锁
 func captureOutput(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stdout
@@ -29,12 +30,20 @@ func captureOutput(t *testing.T, fn func()) string {
 	}
 	os.Stdout = w
 	t.Cleanup(func() { os.Stdout = old })
+
+	var out strings.Builder
+	readerDone := make(chan struct{})
+	go func() {
+		defer close(readerDone)
+		io.Copy(&out, r)
+	}()
+
 	fn()
 	if err := w.Close(); err != nil {
 		t.Fatalf("关闭写端: %v", err)
 	}
-	out, _ := io.ReadAll(r)
-	return string(out)
+	<-readerDone
+	return out.String()
 }
 
 // withTempCache 将 texture_cache.CacheDir 重定向到临时目录并返回该目录

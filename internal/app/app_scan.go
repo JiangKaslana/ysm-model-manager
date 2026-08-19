@@ -516,11 +516,10 @@ func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
 }
 
 // resolveInstDirTargetSubdir 在 resolveInstDirTarget 基准之上精确一层 MMD 用途子目录：
-//  1. 查注册表 subtypes，命中子类（subdir="" 时取 default 槽）且该子类声明了
-//     installDir → 走候选 A/B 标准推导（如 3d-skin/SceneModel/ → instDir/3d-skin/SceneModel）；
-//  2. 否则回退 base + subdir 拼接（子类无 installDir / 目录未创建 / 非注册表子类名）；
-//  3. subdir 空且无默认槽目录 → 返回 base。
-//
+// 1. 查注册表 subtypes，命中子类（subdir="" 时取 default 槽）且该子类声明了
+//    installDir → 走候选 A/B 标准推导（如 3d-skin/SceneModel/ → instDir/3d-skin/SceneModel）；
+// 2. 否则回退 base + subdir 拼接（子类无 installDir / 目录未创建 / 非注册表子类名）；
+// 3. subdir 空且无默认槽目录 → 返回 base。
 // 位置路由口径与 scanner（SubDir 填充）、同步（SyncResourcesDirLevel 保留层级）一致
 // （ADR-104：子类路径全部注册表驱动，新增子目录只改 JSON）。
 func resolveInstDirTargetSubdir(instDir, rtype, subdir string) string {

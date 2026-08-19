@@ -150,6 +150,8 @@ node scripts/doctor.mjs --docs        # 改文档时用，轻量秒级（仅文�
 node scripts/doctor.mjs               # 改代码 / 发版前，全量闸门（编译+构建+文件+红线+Git）
 ```
 
+> **Go 测试务必带显式超时**，否则死循环/死锁会硬卡到终端超时（默认无上限）。`cli` 包因 `os.Pipe()` + `captureOutput` 历史问题，最容易踩坑；已修复异步 reader，但仍建议始终加 `-timeout`。
+
 ## 开发启动（四模式，勿混）
 
 ```bash
