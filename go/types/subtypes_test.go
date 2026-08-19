@@ -1,6 +1,7 @@
 package types
 
 import (
+	"sort"
 	"strings"
 	"testing"
 )
@@ -467,5 +468,94 @@ func TestSubtypesFor_VanillaAssets(t *testing.T) {
 	// default 槽：resourcepack（在前）
 	if !rp.Default {
 		t.Error("resourcepack 应为 default 槽")
+	}
+}
+
+// ===== 软合并字段一致性（ADR-105 审核 P1#3）=====
+// 对每个 subtype，若其 name 匹配独立 rtype id，断言两者关键字段一致。
+// 字段差异可记录：subtype 无 storageSubDir/configField（各司其职）。
+
+func TestSubtypes_SoftMergedFieldConsistency(t *testing.T) {
+	// 待检查的字段：这些字段在 subtype 和独立 rtype 中语义应一致
+	type fieldCheck struct {
+		subName  string                    // subtype 字段名
+		rtField  func(*ResourceType) any   // 独立 rtype 取值
+		subField func(ResourceSubType) any // subtype 取值
+		label    string
+	}
+	checks := []fieldCheck{
+		{"detector", func(rt *ResourceType) any { return rt.Detector }, func(s ResourceSubType) any { return s.Detector }, "detector"},
+		{"preview", func(rt *ResourceType) any { return rt.Preview }, func(s ResourceSubType) any { return s.Preview }, "preview"},
+		{"installDir", func(rt *ResourceType) any { return rt.InstallDir }, func(s ResourceSubType) any { return s.InstallDir }, "installDir"},
+		{"scanDir", func(rt *ResourceType) any { return rt.ScanDir }, func(s ResourceSubType) any { return s.ScanDir }, "scanDir"},
+	}
+	reg := LoadRegistry()
+	for _, parent := range reg.ResourceTypes {
+		if len(parent.SubTypes) == 0 {
+			continue
+		}
+		for _, sub := range parent.SubTypes {
+			rt := RegistryType(sub.Name)
+			if rt == nil {
+				continue // name 不匹配任何独立 rtype，跳过
+			}
+			t.Run(parent.ID+"→"+sub.Name, func(t *testing.T) {
+				// 扩展名一致性（排序后逐元素比较）
+				subExts := make([]string, len(sub.Extensions))
+				copy(subExts, sub.Extensions)
+				sort.Strings(subExts)
+				rtExts := make([]string, len(rt.Extensions))
+				copy(rtExts, rt.Extensions)
+				sort.Strings(rtExts)
+				if len(subExts) != len(rtExts) {
+					t.Errorf("extensions 长度不一致：subtype=%v, rtype=%v", subExts, rtExts)
+				} else {
+					for i := range subExts {
+						if !strings.EqualFold(subExts[i], rtExts[i]) {
+							t.Errorf("extensions[%d] 不一致：subtype=%q, rtype=%q", i, subExts[i], rtExts[i])
+						}
+					}
+				}
+				// zipEntries 一致性（按 Name 匹配后比对）
+				subZip := make(map[string]string, len(sub.ZipEntries))
+				for _, z := range sub.ZipEntries {
+					subZip[strings.ToLower(z.Name)] = z.Match
+				}
+				rtZip := make(map[string]string, len(rt.ZipEntries))
+				for _, z := range rt.ZipEntries {
+					rtZip[strings.ToLower(z.Name)] = z.Match
+				}
+				for k, v := range subZip {
+					if rv, ok := rtZip[k]; !ok {
+						t.Errorf("zipEntries subtype 有 %q=%q，rtype 无", k, v)
+					} else if !strings.EqualFold(v, rv) {
+						t.Errorf("zipEntries %q match 不一致：subtype=%q, rtype=%q", k, v, rv)
+					}
+				}
+				for k, v := range rtZip {
+					if _, ok := subZip[k]; !ok {
+						t.Errorf("zipEntries rtype 有 %q=%q，subtype 无（注意：这可能是独立 rtype 特有的条目，需确认）", k, v)
+					}
+				}
+				// 标量字段一致性
+				for _, c := range checks {
+					rv := c.rtField(rt)
+					sv := c.subField(sub)
+					if rv != sv {
+						// installDir/scanDir 允许 subtype 有而 rtype 无（子类型重写整合包路径）
+						if sv == "" {
+							continue
+						}
+						// VRM 寄生（vrchat-avatar→mmd-skin）：subtype 的 installDir/scanDir 指向
+						// 3d-skin/EntityPlayer/（MC-MMD 加载路径），独立 rtype 的指向 vrchat-avatars/
+						// （仓库侧存储路径）——设计意图不同，允许差异。
+						if sub.Name == "vrchat-avatar" && (c.label == "installDir" || c.label == "scanDir") {
+							continue
+						}
+						t.Errorf("%s 不一致：subtype=%v, rtype=%v", c.label, sv, rv)
+					}
+				}
+			})
+		}
 	}
 }
