@@ -42,6 +42,7 @@ import { sceneRegistry } from "./scene-registry.ts";
 import { fitCameraToRoots } from "../camera-setup.ts";
 import { assembleBoneSelectInfo, getMeshBoneId } from "../bone-raycast.ts";
 import { cullModelGroups } from "../frustum-cull.ts";
+import { logWarn } from "../../core/log.ts";
 import { bindInputHandlers } from "./input-and-animation.ts";
 import type { InputOptions } from "./input-and-animation.ts";
 import { type SemanticBoneMap } from "../semantic-bones.ts";
@@ -134,9 +135,15 @@ export interface PreviewHandle {
 const DRAG_ROTATE_SENSITIVITY = 0.003; // 自身旋转模式拖拽灵敏度（rad/px）
 const DEFAULT_CAM_SPEED = 20;
 const TIP_AUTO_DISMISS_MS = 6000;
+/** perFrame 回调单次执行超过该阈值（ms）即告警（仅测回调段，非整帧） */
+const PER_FRAME_WARN_MS = 50;
+/** 告警节流间隔：持续超阈值帧最多每 N ms 报一条，防刷屏加重卡顿 */
+const PER_FRAME_WARN_THROTTLE_MS = 5000;
 
 let _handle: PreviewHandle | null = null;
 let _gen = 0;
+/** 上次 perFrame 告警时间戳（节流用） */
+let _lastPerFrameWarnTs = 0;
 
 /** 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） */
   // ===== §2 公开 API =====
@@ -497,12 +504,15 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         ctr.target.copy(cam.position).addScaledVector(_camDir, 10);
         ctr.update();
       }
-      // perFrame 阈值报警：单帧 >50ms 即 warn（主线程长任务，对齐 main-thread-watch 口径但内嵌零依赖）
+      // perFrame 回调阈值告警（仅测回调段耗时，非整帧——cull/postProc/render 不纳入）；
+      // 节流：持续超阈值帧最多每 PER_FRAME_WARN_THROTTLE_MS 报一条，防低端机刷屏
       const pfStart = performance.now();
       if (perFrame) perFrame(dt);
       const pfMs = performance.now() - pfStart;
-      if (pfMs > 50) {
-        console.warn(`[perFrame] 阻塞 ${pfMs.toFixed(1)}ms (>50ms 阈值)`);
+      const pfNow = performance.now();
+      if (pfMs > PER_FRAME_WARN_MS && pfNow - _lastPerFrameWarnTs > PER_FRAME_WARN_THROTTLE_MS) {
+        _lastPerFrameWarnTs = pfNow;
+        logWarn("perFrame", `阻塞 ${pfMs.toFixed(1)}ms (>${PER_FRAME_WARN_MS}ms 阈值)`);
       }
       // 视锥裁剪：Group 级 BoundingSphere 测试，visible=false 后 Three.js 跳过整组遍历
       cullModelGroups(cam);
