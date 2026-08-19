@@ -321,6 +321,8 @@ export const ja: Record<string, string> = {
   "diagnostics.perfGuiResult": "GUI フロー結果",
   "diagnostics.perfHistResult": "最適化履歴",
   "diagnostics.perfTotal": "総所要時間",
+  "diagnostics.perfTrendTitle": "パフォーマンス傾向（段階ごとの所要時間）",
+  "diagnostics.perfTrendNoData": "傾向データなし——single-bench を2回以上実行すると折れ線グラフを表示",
   "diagnostics.perfNoData": "結果はまだありません。上記のボタンで実行",
   "diagnostics.perfRunning": "実行中…",
   "diagnostics.perfFail": "実行に失敗しました",

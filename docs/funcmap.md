@@ -1709,7 +1709,7 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:17` | 绑定性能面板按钮点击事件 |
+| `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:18` | 绑定性能面板按钮点击事件 |
 | `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:29` | 初始化 GitHub 页 |

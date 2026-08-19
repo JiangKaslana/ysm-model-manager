@@ -295,6 +295,8 @@
   "diagnostics.perfGuiResult": "GUI flow result",
   "diagnostics.perfHistResult": "Optimization history",
   "diagnostics.perfTotal": "Total time",
+  "diagnostics.perfTrendTitle": "Performance trend (stage time)",
+  "diagnostics.perfTrendNoData": "No trend yet — run single-bench twice or more to show the chart",
   "diagnostics.perfNoData": "No results yet, run with the buttons above",
   "diagnostics.perfRunning": "Running…",
   "diagnostics.perfFail": "Execution failed",

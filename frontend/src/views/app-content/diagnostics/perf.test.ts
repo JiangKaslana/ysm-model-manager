@@ -155,6 +155,30 @@ describe("single-bench 面板", () => {
     const out = root.getElementById("diag-perf-single") as HTMLElement;
     expect(out.querySelector(".diag-stat-error")).toBeTruthy();
   });
+
+  it("运行两次后渲染趋势 SVG 折线（历史持久化）", async () => {
+    localStorage.clear();
+    executeCLI.mockResolvedValue({
+      status: "success",
+      command: "single-bench",
+      data: { output: SINGLE_OUTPUT },
+    });
+    const root = makeRoot();
+    initPerfPanel(root, esc);
+    const run = () => {
+      (root.getElementById("diag-perf-model") as HTMLInputElement).value = "./y.ysm";
+      (root.getElementById("diag-perf-run") as HTMLElement).click();
+    };
+    run(); await new Promise((r) => setTimeout(r, 10));
+    // 仅 1 条历史：无趋势折线（<2 条提示）
+    const out1 = root.getElementById("diag-perf-single") as HTMLElement;
+    expect(out1.innerHTML).not.toContain("<svg");
+    run(); await new Promise((r) => setTimeout(r, 10));
+    // ≥2 条：渲染趋势 SVG 折线
+    const out2 = root.getElementById("diag-perf-single") as HTMLElement;
+    expect(out2.innerHTML).toContain("<svg");
+    expect(out2.innerHTML).toContain("<polyline");
+  });
 });
 
 describe("gui-flow 面板", () => {
