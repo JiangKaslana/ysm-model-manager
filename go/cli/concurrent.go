@@ -25,15 +25,14 @@ type concurrentBenchResult struct {
 }
 
 // runConcurrentBench 运行并发基准测试
-func runConcurrentBench(a *app.App, args []string) error {
+func runConcurrentBench(ctx *CmdContext) error {
 	fs := newCmdFlagSet("concurrent-bench")
 	workers := fs.Int("workers", 4, "并发 worker 数量")
 	maxModels := fs.Int("max-models", 20, "最多测试的模型数量")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
-
-	filesRoot := parseFilesRoot(args)
 
 	fmt.Println("⚡ 并发能力基准测试")
 	fmt.Println(strings.Repeat("=", 70))
@@ -43,9 +42,9 @@ func runConcurrentBench(a *app.App, args []string) error {
 
 	// 1. 扫描模型
 	fmt.Println("\n📊 Phase 0: 准备测试数据...")
-	entries := a.ScanModelEntries(filesRoot)
+	entries := ctx.App.ScanModelEntries(ctx.FilesRoot)
 	if len(entries) == 0 {
-		return fmt.Errorf("未找到任何模型")
+		return newRuntimeErrf("未找到任何模型")
 	}
 
 	// 过滤 YSM 模型
@@ -77,7 +76,7 @@ func runConcurrentBench(a *app.App, args []string) error {
 	fmt.Println("📊 Phase 1: 串行模型分析")
 	fmt.Println(strings.Repeat("-", 70))
 
-	serialResult := benchSerialAnalyze(a, ysmModels)
+	serialResult := benchSerialAnalyze(ctx.App, ysmModels)
 	fmt.Printf("   串行耗时: %.2fms\n", float64(serialResult.Duration.Microseconds())/1000)
 	fmt.Printf("   平均/模型: %.2fms\n", float64(serialResult.Duration.Microseconds())/1000/float64(len(ysmModels)))
 
@@ -94,7 +93,7 @@ func runConcurrentBench(a *app.App, args []string) error {
 	}
 
 	for _, wc := range workerCounts {
-		result := benchParallelAnalyze(a, ysmModels, wc)
+		result := benchParallelAnalyze(ctx.App, ysmModels, wc)
 		result.Speedup = float64(serialResult.Duration) / float64(result.Duration)
 		parallelResults = append(parallelResults, result)
 
@@ -119,7 +118,7 @@ func runConcurrentBench(a *app.App, args []string) error {
 	fmt.Println("📊 Phase 3: 并发文件读取")
 	fmt.Println(strings.Repeat("-", 70))
 
-	collectFiles := collectTestFiles(filesRoot, 50)
+	collectFiles := collectTestFiles(ctx.FilesRoot, 50)
 	if len(collectFiles) > 0 {
 		fileResult := benchParallelRead(collectFiles, *workers)
 		serialFileResult := benchSerialRead(collectFiles)
@@ -189,16 +188,10 @@ func benchParallelAnalyze(a *app.App, models []string, workers int) concurrentBe
 		close(resultCh)
 	}()
 
-	var totalWork time.Duration
-	var modelCount int
-	for d := range resultCh {
-		totalWork += d
-		modelCount++
+	for range resultCh {
 	}
 
 	elapsed := time.Since(start)
-	_ = totalWork
-	_ = modelCount
 
 	return concurrentBenchResult{
 		Name:        fmt.Sprintf("parallel-%d", workers),
@@ -343,19 +336,18 @@ type singleBenchStage struct {
 }
 
 // runSingleBench 单模型加载基准测试
-func runSingleBench(a *app.App, args []string) error {
+func runSingleBench(ctx *CmdContext) error {
 	fs := newCmdFlagSet("single-bench")
 	modelPath := fs.String("model", "", "指定模型路径（必填）")
 	iterations := fs.Int("iterations", 3, "重复测试次数")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
 	if *modelPath == "" {
-		return fmt.Errorf("必须指定 --model 参数")
+		return newParamErrf("必须指定 --model 参数")
 	}
-
-	filesRoot := parseFilesRoot(args)
 
 	fmt.Println("🎯 单模型加载基准测试")
 	fmt.Println(strings.Repeat("=", 70))
@@ -375,7 +367,7 @@ func runSingleBench(a *app.App, args []string) error {
 			fmt.Printf("\n📝 迭代 %d/%d\n", iter+1, *iterations)
 		}
 
-		stages := runSingleModelBench(a, *modelPath, filesRoot)
+		stages := runSingleModelBench(ctx.App, *modelPath, ctx.FilesRoot)
 		allStages = append(allStages, stages)
 
 		// 打印本次迭代
@@ -478,7 +470,6 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 	// Stage 6: IPC 传输模拟
 	ipcStart := time.Now()
 	ipcSize := (geoSize + texSize) * 4 / 3 // Base64 膨胀
-	_ = ipcSize
 	ipcDuration := time.Since(ipcStart)
 
 	stages = append(stages, singleBenchStage{

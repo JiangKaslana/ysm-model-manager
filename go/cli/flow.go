@@ -24,15 +24,15 @@ type guiFlowResult struct {
 }
 
 // runGUIFlow 模拟 GUI 完整加载流程
-func runGUIFlow(a *app.App, args []string) error {
+func runGUIFlow(ctx *CmdContext) error {
 	fs := newCmdFlagSet("gui-flow")
 	modelPath := fs.String("model", "", "指定模型路径（可选，不填则用第一个）")
 	verbose := fs.Bool("verbose", false, "详细输出每个阶段的细节")
-	if err := parseFlags(fs, args); err != nil {
+	filesRoot := ctx.FilesRoot
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
-
-	filesRoot := parseFilesRoot(args)
 
 	fmt.Println("🎮 GUI 流程模拟器")
 	fmt.Println(strings.Repeat("=", 70))
@@ -44,10 +44,10 @@ func runGUIFlow(a *app.App, args []string) error {
 	totalStart := time.Now()
 
 	// ============ Phase 1: 配置加载 ============
-	results = append(results, runPhaseConfigLoad(a, filesRoot))
+	results = append(results, runPhaseConfigLoad(ctx.App, filesRoot))
 
 	// ============ Phase 2: 模型扫描 ============
-	results = append(results, runPhaseModelScan(a, filesRoot))
+	results = append(results, runPhaseModelScan(ctx.App, filesRoot))
 
 	// 如果指定了模型，使用它；否则用扫描到的第一个
 	targetModel := *modelPath
@@ -66,17 +66,17 @@ func runGUIFlow(a *app.App, args []string) error {
 
 	// ============ Phase 3: 模型分析（Go 侧）============
 	if targetModel != "" {
-		results = append(results, runPhaseModelAnalyze(a, targetModel))
+		results = append(results, runPhaseModelAnalyze(ctx.App, targetModel))
 
 		// ============ Phase 4: 纹理缓存检查 ============
 		results = append(results, runPhaseTextureCache(targetModel))
 
 		// ============ Phase 5: 数据准备（IPC 传输模拟）============
-		results = append(results, runPhaseDataPrep(a, targetModel))
+		results = append(results, runPhaseDataPrep(ctx.App, targetModel))
 
 		// ============ Phase 6: 渲染预估 ============
 		if *verbose {
-			results = append(results, runPhaseRenderEstimate(a, targetModel, *verbose))
+			results = append(results, runPhaseRenderEstimate(ctx.App, targetModel, *verbose))
 		}
 	} else {
 		results = append(results, guiFlowResult{
@@ -346,7 +346,7 @@ func printFlowReport(results []guiFlowResult, totalDuration time.Duration, verbo
 	if failCount > 0 {
 		fmt.Println()
 		fmt.Println("⚠️  有阶段失败，请检查上述输出")
-		return fmt.Errorf("有 %d 个阶段失败", failCount)
+		return newRuntimeErrf("有 %d 个阶段失败", failCount)
 	} else {
 		fmt.Println()
 		fmt.Println("🎉 GUI 流程模拟完成！")

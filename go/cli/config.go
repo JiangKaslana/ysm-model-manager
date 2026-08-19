@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"ysm-model-manager/go/texture_cache"
-	"ysm-model-manager/internal/app"
 )
 
 func init() {
@@ -12,15 +11,13 @@ func init() {
 }
 
 // runConfigShow 查看当前配置
-func runConfigShow(a *app.App, args []string) error {
-	_ = args
-
-	filesRoot := parseFilesRoot(args)
+func runConfigShow(ctx *CmdContext) error {
+	filesRoot := ctx.FilesRoot
 	if filesRoot == "" {
 		filesRoot = "."
 	}
 
-	cfg := a.LoadAppConfig()
+	cfg := ctx.App.LoadAppConfig()
 
 	fmt.Printf("⚙️  当前配置\n\n")
 	fmt.Printf("📁 根目录: %s\n\n", filesRoot)

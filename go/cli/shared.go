@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"ysm-model-manager/internal/app"
 )
 
 // exitCode 退出码常量
@@ -86,9 +88,19 @@ func newCmdFlagSet(name string) *flag.FlagSet {
 	return fs
 }
 
-// parseFlags 从参数中提取 --files-root 并解析命令 flags
-// 返回参数错误（*ErrParam）或 nil
-func parseFlags(fs *flag.FlagSet, args []string) error {
+// newParamErrf 创建参数错误（exit code 2）
+func newParamErrf(format string, args ...any) error {
+	return &ErrParam{Err: fmt.Errorf(format, args...)}
+}
+
+// newRuntimeErrf 创建运行时错误（exit code 1）
+func newRuntimeErrf(format string, args ...any) error {
+	return &ErrRuntime{Err: fmt.Errorf(format, args...)}
+}
+
+// parseFlags 解析命令 flags（自动剥离 --files-root 全局参数）
+// 返回提取的 filesRoot 和解析错误（*ErrParam）或 nil
+func parseFlags(fs *flag.FlagSet, args []string) (filesRoot string, err error) {
 	var filtered []string
 	skipNext := false
 	for i, arg := range args {
@@ -98,32 +110,21 @@ func parseFlags(fs *flag.FlagSet, args []string) error {
 		}
 		if arg == "--files-root" {
 			if i+1 < len(args) {
+				filesRoot = args[i+1]
 				skipNext = true
 			}
 			continue
 		}
 		if strings.HasPrefix(arg, "--files-root=") {
+			filesRoot = strings.TrimPrefix(arg, "--files-root=")
 			continue
 		}
 		filtered = append(filtered, arg)
 	}
-	if err := fs.Parse(filtered); err != nil {
-		return &ErrParam{Err: err}
+	if err2 := fs.Parse(filtered); err2 != nil {
+		return filesRoot, &ErrParam{Err: err2}
 	}
-	return nil
-}
-
-// parseFilesRoot 从参数中提取 --files-root
-func parseFilesRoot(args []string) string {
-	for i, arg := range args {
-		if arg == "--files-root" && i+1 < len(args) {
-			return args[i+1]
-		}
-		if strings.HasPrefix(arg, "--files-root=") {
-			return strings.TrimPrefix(arg, "--files-root=")
-		}
-	}
-	return ""
+	return filesRoot, nil
 }
 
 // isPowerOf2 检查是否为 2 的幂
@@ -159,4 +160,11 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// CmdContext 统一命令执行上下文
+type CmdContext struct {
+	App       *app.App
+	FilesRoot string
+	Args      []string
 }

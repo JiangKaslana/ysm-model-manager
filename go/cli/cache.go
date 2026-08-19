@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"ysm-model-manager/go/texture_cache"
-	"ysm-model-manager/internal/app"
 )
 
 func init() {
@@ -19,9 +18,7 @@ func init() {
 }
 
 // runCacheStatus 查看纹理缓存状态
-func runCacheStatus(a *app.App, args []string) error {
-	_ = a
-	_ = args
+func runCacheStatus(ctx *CmdContext) error {
 
 	stats := texture_cache.GetCacheStats()
 	files, _ := texture_cache.ListCacheFiles()
@@ -73,16 +70,17 @@ func runCacheStatus(a *app.App, args []string) error {
 }
 
 // runCacheVerify 检查模型贴图的缓存命中情况
-func runCacheVerify(a *app.App, args []string) error {
+func runCacheVerify(ctx *CmdContext) error {
 	fs := newCmdFlagSet("cache-verify")
 	modelDir := fs.String("dir", "", "MMD 模型目录路径")
 	verbose := fs.Bool("verbose", false, "显示详细的缓存命中信息")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
 	if *modelDir == "" {
-		return fmt.Errorf("--dir 参数不能为空")
+		return newParamErrf("--dir 参数不能为空")
 	}
 
 	fmt.Printf("🔍 检查模型贴图缓存: %s\n\n", *modelDir)
@@ -114,7 +112,7 @@ func runCacheVerify(a *app.App, args []string) error {
 	}
 	var texInfos []texInfo
 
-	err := filepath.Walk(*modelDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(*modelDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -167,7 +165,7 @@ func runCacheVerify(a *app.App, args []string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("扫描目录失败: %w", err)
+		return newRuntimeErrf("扫描目录失败: %v", err)
 	}
 
 	fmt.Printf("📊 贴图统计:\n")
@@ -239,12 +237,11 @@ func runCacheVerify(a *app.App, args []string) error {
 }
 
 // runCacheClear 清空纹理缓存
-func runCacheClear(a *app.App, args []string) error {
-	_ = a
-
+func runCacheClear(ctx *CmdContext) error {
 	fs := newCmdFlagSet("cache-clear")
 	yes := fs.Bool("yes", false, "跳过确认，直接清空")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
@@ -270,9 +267,9 @@ func runCacheClear(a *app.App, args []string) error {
 		}
 	}
 
-	err := texture_cache.ClearCache()
+	err = texture_cache.ClearCache()
 	if err != nil {
-		return fmt.Errorf("清空缓存失败: %w", err)
+		return newRuntimeErrf("清空缓存失败: %v", err)
 	}
 
 	fmt.Printf("✅ 已清空 %d 个缓存文件\n", stats.FileCount)
@@ -283,10 +280,7 @@ func runCacheClear(a *app.App, args []string) error {
 }
 
 // runCacheDiag 诊断缓存流程
-func runCacheDiag(a *app.App, args []string) error {
-	_ = a
-	_ = args
-
+func runCacheDiag(ctx *CmdContext) error {
 	fmt.Printf("🔍 缓存流程诊断\n")
 	fmt.Println(strings.Repeat("=", 60))
 
@@ -297,7 +291,7 @@ func runCacheDiag(a *app.App, args []string) error {
 	if dir == "" {
 		fmt.Printf("   ❌ 缓存目录不可用\n")
 		fmt.Printf("   💡 原因: os.UserConfigDir() 返回空（可能是权限问题或平台不支持）\n")
-		return fmt.Errorf("缓存目录不可用")
+		return newRuntimeErrf("缓存目录不可用")
 	}
 
 	_, err := os.Stat(dir)

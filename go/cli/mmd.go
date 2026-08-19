@@ -87,14 +87,15 @@ func avgDuration(durations []time.Duration) time.Duration {
 }
 
 // runFileBench 测试大文件读取性能（支持 JSON 输出和基准对比）
-func runFileBench(a *app.App, args []string) error {
+func runFileBench(ctx *CmdContext) error {
 	fs := newCmdFlagSet("file-bench")
 	testDir := fs.String("dir", "", "测试目录路径（扫描此目录下的大文件）")
 	filePath := fs.String("file", "", "单个测试文件路径")
 	iterations := fs.Int("iterations", 3, "迭代次数")
 	output := fs.String("output", "", "输出文件路径（JSON 格式，用于基准对比）")
 	compare := fs.String("compare", "", "对比基准文件路径")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
@@ -108,17 +109,15 @@ func runFileBench(a *app.App, args []string) error {
 				return nil
 			}
 			if !info.IsDir() {
-				ext := strings.ToLower(filepath.Ext(path))
 				size := info.Size()
 				if size > 1*1024*1024 {
 					files = append(files, path)
 				}
-				_ = ext
 			}
 			return nil
 		})
 	} else {
-		return fmt.Errorf("请指定 --dir 或 --file 参数")
+		return newParamErrf("请指定 --dir 或 --file 参数")
 	}
 
 	if len(files) == 0 {
@@ -163,7 +162,7 @@ func runFileBench(a *app.App, args []string) error {
 
 		for i := 0; i < *iterations; i++ {
 			start := time.Now()
-			data := a.ReadFileBytes(fi.path)
+			data := ctx.App.ReadFileBytes(fi.path)
 			readTimes[i] = time.Since(start)
 			_ = data
 		}
@@ -186,7 +185,7 @@ func runFileBench(a *app.App, args []string) error {
 		batchTimes := make([]time.Duration, *iterations)
 		for i := 0; i < *iterations; i++ {
 			start := time.Now()
-			results := a.ReadFileBytesBatch(paths)
+			results := ctx.App.ReadFileBytesBatch(paths)
 			batchTimes[i] = time.Since(start)
 			_ = results
 		}
@@ -203,7 +202,7 @@ func runFileBench(a *app.App, args []string) error {
 	}
 
 	fmt.Println("\n📊 IPC 传输开销测量:")
-	overheadEstimate := calculateIPCOverhead(a, benchItems, *iterations)
+	overheadEstimate := calculateIPCOverhead(ctx.App, benchItems, *iterations)
 	fmt.Printf("   原始大小:     %s\n", formatSize(totalSize))
 	fmt.Printf("   Base64 膨胀:  %s (+%.0f%%)\n", formatSize(overheadEstimate.Base64Size), overheadEstimate.InflationRatio*100)
 	fmt.Printf("   序列化开销:   ~%s\n", durationFormat(overheadEstimate.SerDescOverheadMs))
@@ -298,17 +297,18 @@ type largeFile struct {
 }
 
 // runScanDir 扫描目录结构（支持 JSON 输出）
-func runScanDir(a *app.App, args []string) error {
+func runScanDir(ctx *CmdContext) error {
 	fs := newCmdFlagSet("scan-dir")
 	dirPath := fs.String("dir", "", "目录路径")
 	detail := fs.Bool("detail", false, "显示详细文件列表")
 	output := fs.String("output", "", "输出文件路径（JSON 格式）")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
 	if *dirPath == "" {
-		return fmt.Errorf("--dir 参数不能为空")
+		return newParamErrf("--dir 参数不能为空")
 	}
 
 	fmt.Printf("📁 扫描目录: %s\n\n", *dirPath)
@@ -327,7 +327,7 @@ func runScanDir(a *app.App, args []string) error {
 
 	threshold := cliScanLargeFileThreshold
 
-	err := filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -356,7 +356,7 @@ func runScanDir(a *app.App, args []string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("扫描目录失败: %w", err)
+		return newRuntimeErrf("扫描目录失败: %v", err)
 	}
 
 	result := scanDirResult{
@@ -385,7 +385,7 @@ func runScanDir(a *app.App, args []string) error {
 			fmt.Printf("💾 JSON 已保存到: %s\n\n", *output)
 			return nil
 		} else {
-			return fmt.Errorf("JSON 序列化失败: %w", err)
+			return newRuntimeErrf("JSON 序列化失败: %v", err)
 		}
 	}
 
@@ -451,15 +451,16 @@ func runScanDir(a *app.App, args []string) error {
 }
 
 // runAnalyzeMMD 分析 MMD 模型资产
-func runAnalyzeMMD(a *app.App, args []string) error {
+func runAnalyzeMMD(ctx *CmdContext) error {
 	fs := newCmdFlagSet("analyze-mmd")
 	modelDir := fs.String("dir", "", "MMD 模型目录路径")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
 	if *modelDir == "" {
-		return fmt.Errorf("--dir 参数不能为空")
+		return newParamErrf("--dir 参数不能为空")
 	}
 
 	fmt.Printf("🎭 MMD 模型资产分析: %s\n\n", *modelDir)
@@ -484,7 +485,7 @@ func runAnalyzeMMD(a *app.App, args []string) error {
 		".ktx2": true,
 	}
 
-	err := filepath.Walk(*modelDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(*modelDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -517,7 +518,7 @@ func runAnalyzeMMD(a *app.App, args []string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("分析目录失败: %w", err)
+		return newRuntimeErrf("分析目录失败: %v", err)
 	}
 
 	fmt.Printf("📊 资产统计:\n")

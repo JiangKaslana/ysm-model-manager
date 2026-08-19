@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"ysm-model-manager/go/types"
-	"ysm-model-manager/internal/app"
 )
 
 func init() {
@@ -22,7 +21,7 @@ func init() {
 }
 
 // runSearch 执行搜索命令
-func runSearch(a *app.App, args []string) error {
+func runSearch(ctx *CmdContext) error {
 	fs := newCmdFlagSet("search")
 	keyword := fs.String("keyword", "", "搜索关键词")
 	minBones := fs.Int("min-bones", 0, "最小骨骼数")
@@ -32,12 +31,12 @@ func runSearch(a *app.App, args []string) error {
 	minTex := fs.Int("min-tex", 0, "最小贴图尺寸")
 	maxTex := fs.Int("max-tex", 0, "最大贴图尺寸")
 	outputFormat := fs.String("format", "json", "输出格式: json 或 table")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
-	filesRoot := parseFilesRoot(args)
-	results := a.SearchModels(filesRoot, *keyword, *minBones, *maxBones, *minCubes, *maxCubes, *minTex, *maxTex)
+	results := ctx.App.SearchModels(ctx.FilesRoot, *keyword, *minBones, *maxBones, *minCubes, *maxCubes, *minTex, *maxTex)
 
 	if len(results) == 0 {
 		fmt.Println("📭 未找到匹配的模型")
@@ -70,28 +69,27 @@ func printSearchTable(results []types.SearchResult) {
 }
 
 // runAnalyze 执行分析命令
-func runAnalyze(a *app.App, args []string) error {
+func runAnalyze(ctx *CmdContext) error {
 	fs := newCmdFlagSet("analyze")
 	modelPath := fs.String("model", "", "模型文件或目录路径")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
 	if *modelPath == "" {
-		return fmt.Errorf("--model 参数不能为空")
+		return newParamErrf("--model 参数不能为空")
 	}
 
-	filesRoot := parseFilesRoot(args)
-
-	model := a.AnalyzeBedrockModel(*modelPath)
+	model := ctx.App.AnalyzeBedrockModel(*modelPath)
 	if model.BoneCount == 0 {
-		meta := a.AnalyzeYSMModel(*modelPath)
+		meta := ctx.App.AnalyzeYSMModel(*modelPath)
 		printYSMAnalysis(meta)
 	} else {
 		printBedrockAnalysis(model)
 	}
 
-	structure := a.ExportModelStructureJSON(*modelPath)
+	structure := ctx.App.ExportModelStructureJSON(*modelPath)
 	if structure != "" {
 		fmt.Println("\n📊 模型结构预览:")
 		previewLen := min(500, len(structure))
@@ -101,7 +99,6 @@ func runAnalyze(a *app.App, args []string) error {
 		}
 	}
 
-	_ = filesRoot
 	return nil
 }
 
@@ -136,16 +133,16 @@ func printYSMAnalysis(meta interface{}) {
 }
 
 // runList 执行列表命令
-func runList(a *app.App, args []string) error {
+func runList(ctx *CmdContext) error {
 	fs := newCmdFlagSet("list")
 	limit := fs.Int("limit", 0, "显示条目数上限 (0=全部)")
 	outputFormat := fs.String("format", "table", "输出格式: json 或 table")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
-	filesRoot := parseFilesRoot(args)
-	entries := a.ScanModelEntries(filesRoot)
+	entries := ctx.App.ScanModelEntries(ctx.FilesRoot)
 
 	if len(entries) == 0 {
 		fmt.Println("📭 仓库为空")
@@ -196,15 +193,15 @@ func runList(a *app.App, args []string) error {
 }
 
 // runVerify 执行验证命令
-func runVerify(a *app.App, args []string) error {
+func runVerify(ctx *CmdContext) error {
 	fs := newCmdFlagSet("verify")
 	repair := fs.Bool("repair", false, "尝试自动修复问题")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
-	filesRoot := parseFilesRoot(args)
-	entries := a.ScanModelEntries(filesRoot)
+	entries := ctx.App.ScanModelEntries(ctx.FilesRoot)
 
 	fmt.Println("🔍 开始验证模型完整性...")
 	fmt.Println()
@@ -218,7 +215,7 @@ func runVerify(a *app.App, args []string) error {
 	)
 
 	for _, entry := range entries {
-		model := a.AnalyzeBedrockModel(entry.Path)
+		model := ctx.App.AnalyzeBedrockModel(entry.Path)
 		hasError := false
 		hasWarning := false
 
@@ -280,14 +277,13 @@ func runVerify(a *app.App, args []string) error {
 }
 
 // runBenchmark 执行性能基准测试
-func runBenchmark(a *app.App, args []string) error {
+func runBenchmark(ctx *CmdContext) error {
 	fs := newCmdFlagSet("benchmark")
 	iterations := fs.Int("iterations", 3, "迭代次数")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
-
-	filesRoot := parseFilesRoot(args)
 
 	fmt.Printf("⚡ 性能基准测试\n")
 	fmt.Printf("   迭代次数: %d\n\n", *iterations)
@@ -296,7 +292,7 @@ func runBenchmark(a *app.App, args []string) error {
 	scanTimes := make([]time.Duration, *iterations)
 	for i := 0; i < *iterations; i++ {
 		start := time.Now()
-		entries := a.ScanModelEntries(filesRoot)
+		entries := ctx.App.ScanModelEntries(ctx.FilesRoot)
 		scanTimes[i] = time.Since(start)
 		fmt.Printf("   迭代 %d: %v (发现 %d 个模型)\n", i+1, scanTimes[i], len(entries))
 	}
@@ -306,7 +302,7 @@ func runBenchmark(a *app.App, args []string) error {
 	searchTimes := make([]time.Duration, *iterations)
 	for i := 0; i < *iterations; i++ {
 		start := time.Now()
-		results := a.SearchModels(filesRoot, "", 0, 0, 0, 0, 0, 0)
+		results := ctx.App.SearchModels(ctx.FilesRoot, "", 0, 0, 0, 0, 0, 0)
 		searchTimes[i] = time.Since(start)
 		fmt.Printf("   迭代 %d: %v (找到 %d 个结果)\n", i+1, searchTimes[i], len(results))
 	}
@@ -316,19 +312,19 @@ func runBenchmark(a *app.App, args []string) error {
 	keywordTimes := make([]time.Duration, *iterations)
 	for i := 0; i < *iterations; i++ {
 		start := time.Now()
-		results := a.SearchModels(filesRoot, "model", 0, 0, 0, 0, 0, 0)
+		results := ctx.App.SearchModels(ctx.FilesRoot, "model", 0, 0, 0, 0, 0, 0)
 		keywordTimes[i] = time.Since(start)
 		fmt.Printf("   迭代 %d: %v (找到 %d 个结果)\n", i+1, keywordTimes[i], len(results))
 	}
 	printBenchmarkResults("关键词搜索", keywordTimes)
 
-	entries := a.ScanModelEntries(filesRoot)
+	entries := ctx.App.ScanModelEntries(ctx.FilesRoot)
 	if len(entries) > 0 {
 		fmt.Println("\n📊 Benchmark 4: 单模型分析")
 		analyzeTimes := make([]time.Duration, min(*iterations, len(entries)))
 		for i := 0; i < len(analyzeTimes); i++ {
 			start := time.Now()
-			_ = a.AnalyzeBedrockModel(entries[i].Path)
+			_ = ctx.App.AnalyzeBedrockModel(entries[i].Path)
 			analyzeTimes[i] = time.Since(start)
 			fmt.Printf("   迭代 %d: %v\n", i+1, analyzeTimes[i])
 		}
@@ -363,38 +359,39 @@ func printBenchmarkResults(name string, times []time.Duration) {
 }
 
 // runExport 执行导出命令
-func runExport(a *app.App, args []string) error {
+func runExport(ctx *CmdContext) error {
 	fs := newCmdFlagSet("export")
 	modelPath := fs.String("model", "", "模型文件路径")
 	outputPath := fs.String("output", "", "输出文件路径")
 	format := fs.String("format", "json", "导出格式: json 或 bone-structure")
-	if err := parseFlags(fs, args); err != nil {
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
 		return err
 	}
 
 	if *modelPath == "" {
-		return fmt.Errorf("--model 参数不能为空")
+		return newParamErrf("--model 参数不能为空")
 	}
 
 	var content string
 	switch *format {
 	case "bone-structure":
-		structure, err := a.ExportBoneStructures(filepath.Dir(*modelPath))
+		structure, err := ctx.App.ExportBoneStructures(filepath.Dir(*modelPath))
 		if err != nil {
-			return fmt.Errorf("导出骨骼结构失败: %w", err)
+			return newRuntimeErrf("导出骨骼结构失败: %v", err)
 		}
 		content = structure
 	default:
-		content = a.ExportModelStructureJSON(*modelPath)
+		content = ctx.App.ExportModelStructureJSON(*modelPath)
 	}
 
 	if content == "" {
-		return fmt.Errorf("导出内容为空")
+		return newRuntimeErrf("导出内容为空")
 	}
 
 	if *outputPath != "" {
 		if err := os.WriteFile(*outputPath, []byte(content), 0644); err != nil {
-			return fmt.Errorf("写入文件失败: %w", err)
+			return newRuntimeErrf("写入文件失败: %v", err)
 		}
 		fmt.Printf("✅ 已导出到: %s\n", *outputPath)
 	} else {

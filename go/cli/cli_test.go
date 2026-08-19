@@ -155,7 +155,7 @@ func TestRunCLI_MissingFilesRoot_ReturnsError(t *testing.T) {
 func TestCacheStatus_EmptyCache(t *testing.T) {
 	withTempCache(t)
 	out := captureOutput(t, func() {
-		if err := runCacheStatus(&app.App{}, nil); err != nil {
+		if err := runCacheStatus(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
 			t.Fatalf("runCacheStatus 应成功, got %v", err)
 		}
 	})
@@ -171,7 +171,7 @@ func TestCacheStatus_CountsKtx2Only(t *testing.T) {
 	mustWrite(t, filepath.Join(dir, "notes.txt"), []byte("ignore-me")) // 非 ktx2 应忽略
 
 	out := captureOutput(t, func() {
-		if err := runCacheStatus(&app.App{}, nil); err != nil {
+		if err := runCacheStatus(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
 			t.Fatalf("runCacheStatus 应成功, got %v", err)
 		}
 	})
@@ -188,7 +188,7 @@ func TestCacheStatus_CountsKtx2Only(t *testing.T) {
 func TestCacheClear_EmptyCache(t *testing.T) {
 	withTempCache(t)
 	out := captureOutput(t, func() {
-		if err := runCacheClear(&app.App{}, []string{"--yes"}); err != nil {
+		if err := runCacheClear(&CmdContext{App: &app.App{}, Args: []string{"--yes"}}); err != nil {
 			t.Fatalf("runCacheClear 应成功, got %v", err)
 		}
 	})
@@ -203,7 +203,7 @@ func TestCacheClear_YesDeletesFiles(t *testing.T) {
 		mustWrite(t, filepath.Join(dir, h+".ktx2"), []byte("x"))
 	}
 	out := captureOutput(t, func() {
-		if err := runCacheClear(&app.App{}, []string{"--yes"}); err != nil {
+		if err := runCacheClear(&CmdContext{App: &app.App{}, Args: []string{"--yes"}}); err != nil {
 			t.Fatalf("runCacheClear 应成功, got %v", err)
 		}
 	})
@@ -220,7 +220,7 @@ func TestCacheClear_CancelKeepsFiles(t *testing.T) {
 	mustWrite(t, filepath.Join(dir, "keep.ktx2"), []byte("x"))
 	withStdin(t, "n\n") // 确认时输入非 y → 取消
 	out := captureOutput(t, func() {
-		if err := runCacheClear(&app.App{}, nil); err != nil {
+		if err := runCacheClear(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
 			t.Fatalf("runCacheClear 应成功, got %v", err)
 		}
 	})
@@ -235,7 +235,7 @@ func TestCacheClear_CancelKeepsFiles(t *testing.T) {
 // ---- cache-verify ----
 
 func TestCacheVerify_RequiresDir(t *testing.T) {
-	err := runCacheVerify(&app.App{}, nil)
+	err := runCacheVerify(&CmdContext{App: &app.App{}, Args: nil})
 	if err == nil || !strings.Contains(err.Error(), "--dir") {
 		t.Errorf("cache-verify 缺 --dir 应报错, got: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestCacheVerify_NoTextures(t *testing.T) {
 	withTempCache(t)
 	dir := t.TempDir()
 	out := captureOutput(t, func() {
-		if err := runCacheVerify(&app.App{}, []string{"--dir", dir}); err != nil {
+		if err := runCacheVerify(&CmdContext{App: &app.App{}, Args: []string{"--dir", dir}}); err != nil {
 			t.Fatalf("runCacheVerify 应成功, got %v", err)
 		}
 	})
@@ -259,7 +259,7 @@ func TestCacheVerify_ReportsMiss(t *testing.T) {
 	dir := t.TempDir()
 	mustWrite(t, filepath.Join(dir, "tex.png"), bytes.Repeat([]byte{0x89, 0x50, 0x4E, 0x47}, 8))
 	out := captureOutput(t, func() {
-		if err := runCacheVerify(&app.App{}, []string{"--dir", dir}); err != nil {
+		if err := runCacheVerify(&CmdContext{App: &app.App{}, Args: []string{"--dir", dir}}); err != nil {
 			t.Fatalf("runCacheVerify 应成功, got %v", err)
 		}
 	})
@@ -276,7 +276,7 @@ func TestCacheVerify_ReportsMiss(t *testing.T) {
 func TestCacheDiag_ReportsSuccess(t *testing.T) {
 	withTempCache(t)
 	out := captureOutput(t, func() {
-		if err := runCacheDiag(&app.App{}, nil); err != nil {
+		if err := runCacheDiag(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
 			t.Fatalf("runCacheDiag 应成功, got %v", err)
 		}
 	})
@@ -290,14 +290,14 @@ func TestCacheDiag_ReportsSuccess(t *testing.T) {
 // ---- 参数校验错误路径（不触碰 app 状态）----
 
 func TestExport_RequiresModel(t *testing.T) {
-	err := runExport(&app.App{}, nil)
+	err := runExport(&CmdContext{App: &app.App{}, Args: nil})
 	if err == nil || !strings.Contains(err.Error(), "--model") {
 		t.Errorf("export 缺 --model 应报错, got: %v", err)
 	}
 }
 
 func TestAnalyze_RequiresModel(t *testing.T) {
-	err := runAnalyze(&app.App{}, nil)
+	err := runAnalyze(&CmdContext{App: &app.App{}, Args: nil})
 	if err == nil || !strings.Contains(err.Error(), "--model") {
 		t.Errorf("analyze 缺 --model 应报错, got: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestAnalyze_RequiresModel(t *testing.T) {
 func TestConfigShow_PrintsRootAndCache(t *testing.T) {
 	withTempCache(t)
 	out := captureOutput(t, func() {
-		if err := runConfigShow(&app.App{}, nil); err != nil {
+		if err := runConfigShow(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
 			t.Fatalf("runConfigShow 应成功, got %v", err)
 		}
 	})
@@ -434,7 +434,7 @@ func listDirNames(t *testing.T, dir string) []string {
 // ========== mmd 命令测试 ==========
 
 func TestFileBench_RequiresDirOrFile(t *testing.T) {
-	err := runFileBench(&app.App{}, nil)
+	err := runFileBench(&CmdContext{App: &app.App{}, Args: nil})
 	if err == nil || !strings.Contains(err.Error(), "--dir") {
 		t.Errorf("file-bench 缺 --dir/--file 应报错, got: %v", err)
 	}
@@ -446,7 +446,7 @@ func TestFileBench_SingleFile(t *testing.T) {
 	mustWrite(t, filePath, bytes.Repeat([]byte("x"), 2*1024*1024)) // 2MB
 
 	out := captureOutput(t, func() {
-		if err := runFileBench(&app.App{}, []string{"--file", filePath}); err != nil {
+		if err := runFileBench(&CmdContext{App: &app.App{}, Args: []string{"--file", filePath}}); err != nil {
 			t.Fatalf("runFileBench 应成功, got %v", err)
 		}
 	})
@@ -462,7 +462,7 @@ func TestFileBench_DirWithLargeFiles(t *testing.T) {
 	}
 
 	out := captureOutput(t, func() {
-		if err := runFileBench(&app.App{}, []string{"--dir", dir, "--iterations", "1"}); err != nil {
+		if err := runFileBench(&CmdContext{App: &app.App{}, Args: []string{"--dir", dir, "--iterations", "1"}}); err != nil {
 			t.Fatalf("runFileBench 应成功, got %v", err)
 		}
 	})
@@ -472,7 +472,7 @@ func TestFileBench_DirWithLargeFiles(t *testing.T) {
 }
 
 func TestScanDir_RequiresDir(t *testing.T) {
-	err := runScanDir(&app.App{}, nil)
+	err := runScanDir(&CmdContext{App: &app.App{}, Args: nil})
 	if err == nil || !strings.Contains(err.Error(), "--dir") {
 		t.Errorf("scan-dir 缺 --dir 应报错, got: %v", err)
 	}
@@ -481,7 +481,7 @@ func TestScanDir_RequiresDir(t *testing.T) {
 func TestScanDir_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	out := captureOutput(t, func() {
-		if err := runScanDir(&app.App{}, []string{"--dir", dir}); err != nil {
+		if err := runScanDir(&CmdContext{App: &app.App{}, Args: []string{"--dir", dir}}); err != nil {
 			t.Fatalf("runScanDir 应成功, got %v", err)
 		}
 	})
@@ -500,7 +500,7 @@ func TestScanDir_WithFiles(t *testing.T) {
 	mustWrite(t, filepath.Join(dir, "model.pmx"), bytes.Repeat([]byte("x"), 15*1024*1024)) // 15MB
 
 	out := captureOutput(t, func() {
-		if err := runScanDir(&app.App{}, []string{"--dir", dir}); err != nil {
+		if err := runScanDir(&CmdContext{App: &app.App{}, Args: []string{"--dir", dir}}); err != nil {
 			t.Fatalf("runScanDir 应成功, got %v", err)
 		}
 	})
@@ -513,7 +513,7 @@ func TestScanDir_WithFiles(t *testing.T) {
 }
 
 func TestAnalyzeMMD_RequiresDir(t *testing.T) {
-	err := runAnalyzeMMD(&app.App{}, nil)
+	err := runAnalyzeMMD(&CmdContext{App: &app.App{}, Args: nil})
 	if err == nil || !strings.Contains(err.Error(), "--dir") {
 		t.Errorf("analyze-mmd 缺 --dir 应报错, got: %v", err)
 	}
@@ -522,7 +522,7 @@ func TestAnalyzeMMD_RequiresDir(t *testing.T) {
 func TestAnalyzeMMD_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	out := captureOutput(t, func() {
-		if err := runAnalyzeMMD(&app.App{}, []string{"--dir", dir}); err != nil {
+		if err := runAnalyzeMMD(&CmdContext{App: &app.App{}, Args: []string{"--dir", dir}}); err != nil {
 			t.Fatalf("runAnalyzeMMD 应成功, got %v", err)
 		}
 	})
@@ -543,7 +543,7 @@ func TestAnalyzeMMD_WithModels(t *testing.T) {
 	mustWrite(t, filepath.Join(dir, "tex1.png"), bytes.Repeat([]byte{0x89, 0x50, 0x4E, 0x47}, 8))
 
 	out := captureOutput(t, func() {
-		if err := runAnalyzeMMD(&app.App{}, []string{"--dir", dir}); err != nil {
+		if err := runAnalyzeMMD(&CmdContext{App: &app.App{}, Args: []string{"--dir", dir}}); err != nil {
 			t.Fatalf("runAnalyzeMMD 应成功, got %v", err)
 		}
 	})
@@ -560,14 +560,14 @@ func TestAnalyzeMMD_WithModels(t *testing.T) {
 func TestConcurrentBench_NoModels(t *testing.T) {
 	dir := t.TempDir()
 	a := app.NewApp()
-	err := runConcurrentBench(a, []string{"--files-root", dir})
+	err := runConcurrentBench(&CmdContext{App: a, FilesRoot: dir, Args: []string{"--files-root", dir}})
 	if err == nil {
 		t.Log("无模型时 concurrent-bench 返回错误属正常")
 	}
 }
 
 func TestSingleBench_RequiresModel(t *testing.T) {
-	err := runSingleBench(&app.App{}, nil)
+	err := runSingleBench(&CmdContext{App: &app.App{}, Args: nil})
 	if err == nil || !strings.Contains(err.Error(), "--model") {
 		t.Errorf("single-bench 缺 --model 应报错, got: %v", err)
 	}
@@ -579,7 +579,7 @@ func TestSingleBench_WithFakeModel(t *testing.T) {
 	mustWrite(t, modelPath, []byte(`{"test": "model"}`))
 
 	out := captureOutput(t, func() {
-		if err := runSingleBench(&app.App{}, []string{"--model", modelPath, "--iterations", "1"}); err != nil {
+		if err := runSingleBench(&CmdContext{App: &app.App{}, Args: []string{"--model", modelPath, "--iterations", "1"}}); err != nil {
 			t.Logf("runSingleBench 返回: %v（可能因模型格式不标准而正常）", err)
 		}
 	})
@@ -593,7 +593,7 @@ func TestSingleBench_WithFakeModel(t *testing.T) {
 func TestGUIFlow_NoModels(t *testing.T) {
 	dir := t.TempDir()
 	a := app.NewApp()
-	err := runGUIFlow(a, []string{"--files-root", dir})
+	err := runGUIFlow(&CmdContext{App: a, FilesRoot: dir, Args: []string{"--files-root", dir}})
 	if err != nil {
 		t.Logf("gui-flow 无模型时返回: %v（属正常）", err)
 	}
@@ -603,7 +603,7 @@ func TestGUIFlow_WithVerbose(t *testing.T) {
 	dir := t.TempDir()
 	a := app.NewApp()
 	out := captureOutput(t, func() {
-		if err := runGUIFlow(a, []string{"--files-root", dir, "--verbose"}); err != nil {
+		if err := runGUIFlow(&CmdContext{App: a, FilesRoot: dir, Args: []string{"--files-root", dir, "--verbose"}}); err != nil {
 			t.Logf("gui-flow verbose 返回: %v（可能因无模型而正常）", err)
 		}
 	})
@@ -616,7 +616,7 @@ func TestGUIFlow_WithVerbose(t *testing.T) {
 
 func TestPerfLog_Output(t *testing.T) {
 	out := captureOutput(t, func() {
-		if err := runPerfLog(&app.App{}, nil); err != nil {
+		if err := runPerfLog(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
 			t.Errorf("runPerfLog 应成功, got %v", err)
 		}
 	})
@@ -636,7 +636,7 @@ func TestPerfLog_Output(t *testing.T) {
 func TestSearch_EmptyKeyword(t *testing.T) {
 	dir := t.TempDir()
 	out := captureOutput(t, func() {
-		if err := runSearch(&app.App{}, []string{"--files-root", dir}); err != nil {
+		if err := runSearch(&CmdContext{App: &app.App{}, FilesRoot: dir, Args: []string{"--files-root", dir}}); err != nil {
 			t.Errorf("search 空仓库应成功, got %v", err)
 		}
 	})
@@ -648,7 +648,7 @@ func TestSearch_EmptyKeyword(t *testing.T) {
 func TestList_EmptyRepo(t *testing.T) {
 	dir := t.TempDir()
 	out := captureOutput(t, func() {
-		if err := runList(&app.App{}, []string{"--files-root", dir}); err != nil {
+		if err := runList(&CmdContext{App: &app.App{}, FilesRoot: dir, Args: []string{"--files-root", dir}}); err != nil {
 			t.Errorf("list 空仓库应成功, got %v", err)
 		}
 	})
@@ -660,7 +660,7 @@ func TestList_EmptyRepo(t *testing.T) {
 func TestList_JsonFormat(t *testing.T) {
 	dir := t.TempDir()
 	out := captureOutput(t, func() {
-		if err := runList(&app.App{}, []string{"--files-root", dir, "--format", "json"}); err != nil {
+		if err := runList(&CmdContext{App: &app.App{}, FilesRoot: dir, Args: []string{"--files-root", dir, "--format", "json"}}); err != nil {
 			t.Errorf("list json 格式应成功, got %v", err)
 		}
 	})
@@ -673,7 +673,7 @@ func TestList_JsonFormat(t *testing.T) {
 func TestVerify_EmptyRepo(t *testing.T) {
 	dir := t.TempDir()
 	out := captureOutput(t, func() {
-		if err := runVerify(&app.App{}, []string{"--files-root", dir}); err != nil {
+		if err := runVerify(&CmdContext{App: &app.App{}, FilesRoot: dir, Args: []string{"--files-root", dir}}); err != nil {
 			t.Errorf("verify 空仓库应成功, got %v", err)
 		}
 	})
@@ -683,7 +683,7 @@ func TestVerify_EmptyRepo(t *testing.T) {
 }
 
 func TestExport_InvalidPath(t *testing.T) {
-	err := runExport(&app.App{}, []string{"--model", "/nonexistent/model.ysm"})
+	err := runExport(&CmdContext{App: &app.App{}, Args: []string{"--model", "/nonexistent/model.ysm"}})
 	if err == nil {
 		t.Log("export 不存在的文件可能返回空内容")
 	}
@@ -881,5 +881,172 @@ func TestAllCommandsRegistered(t *testing.T) {
 		if _, exists := cliCommands[cmd]; !exists {
 			t.Errorf("命令 %s 未注册", cmd)
 		}
+	}
+}
+
+// ========== dispatchCommand 路由测试 ==========
+
+func TestDispatchCommand_RequiresFilesRoot(t *testing.T) {
+	a := app.NewApp()
+	err := dispatchCommand(a, "", []string{"search"}, true)
+	if err == nil {
+		t.Error("requireFilesRoot=true 且 filesRoot 为空时应返回错误")
+	}
+	if !strings.Contains(err.Error(), "files-root") {
+		t.Errorf("错误信息应包含 files-root, got: %v", err)
+	}
+}
+
+func TestDispatchCommand_AllowsEmptyFilesRoot(t *testing.T) {
+	a := app.NewApp()
+	err := dispatchCommand(a, "", []string{"cache-status"}, false)
+	if err != nil {
+		t.Logf("无 files-root 时 dispatch 返回: %v（可能正常）", err)
+	}
+}
+
+func TestDispatchCommand_UnknownCommand(t *testing.T) {
+	a := app.NewApp()
+	dir := t.TempDir()
+	out := captureOutput(t, func() {
+		err := dispatchCommand(a, dir, []string{"no-such-cmd"}, false)
+		if err == nil {
+			t.Error("未知命令应返回错误")
+		}
+		if !strings.Contains(err.Error(), "未知命令") {
+			t.Errorf("错误应包含「未知命令」, got: %v", err)
+		}
+	})
+	if !strings.Contains(out, "未知命令") {
+		t.Errorf("输出应包含「未知命令」, got: %s", out)
+	}
+}
+
+func TestDispatchCommand_SubCommandHelp(t *testing.T) {
+	a := app.NewApp()
+	out := captureOutput(t, func() {
+		err := dispatchCommand(a, "", []string{"search", "--help"}, false)
+		if err != nil {
+			t.Errorf("--help 应返回 nil, got: %v", err)
+		}
+	})
+	if !strings.Contains(out, "命令: search") {
+		t.Errorf("子命令帮助应包含命令名, got: %s", out)
+	}
+}
+
+func TestDispatchCommand_EmptyCommandList(t *testing.T) {
+	a := app.NewApp()
+	err := dispatchCommand(a, "", nil, false)
+	if err != nil {
+		t.Errorf("空命令列表应返回 nil, got: %v", err)
+	}
+}
+
+// ========== parseFlags 测试 ==========
+
+func TestParseFlags_ExtractsFilesRoot(t *testing.T) {
+	fs := newCmdFlagSet("test")
+	fs.String("keyword", "", "关键词")
+	filesRoot, err := parseFlags(fs, []string{"--files-root", "/models", "--keyword", "warrior"})
+	if err != nil {
+		t.Fatalf("解析应成功, got: %v", err)
+	}
+	if filesRoot != "/models" {
+		t.Errorf("filesRoot 应为 /models, got: %s", filesRoot)
+	}
+}
+
+func TestParseFlags_ExtractsFilesRootInline(t *testing.T) {
+	fs := newCmdFlagSet("test")
+	filesRoot, err := parseFlags(fs, []string{"--files-root=/models", "search"})
+	if err != nil {
+		t.Fatalf("解析应成功, got: %v", err)
+	}
+	if filesRoot != "/models" {
+		t.Errorf("filesRoot 应为 /models, got: %s", filesRoot)
+	}
+}
+
+func TestParseFlags_NoFilesRoot(t *testing.T) {
+	fs := newCmdFlagSet("test")
+	fs.String("keyword", "", "关键词")
+	filesRoot, err := parseFlags(fs, []string{"--keyword", "test"})
+	if err != nil {
+		t.Fatalf("解析应成功, got: %v", err)
+	}
+	if filesRoot != "" {
+		t.Errorf("filesRoot 应为空, got: %s", filesRoot)
+	}
+}
+
+func TestParseFlags_InvalidFlag(t *testing.T) {
+	fs := newCmdFlagSet("test")
+	_, err := parseFlags(fs, []string{"--no-such-flag", "value"})
+	if err == nil {
+		t.Error("无效 flag 应返回错误")
+	}
+	var pe *ErrParam
+	if !strings.Contains(fmt.Sprintf("%v", err), "参数错误") {
+		t.Logf("无效 flag 应被包装为 ErrParam, got: %T", err)
+	}
+	_ = pe
+}
+
+// ========== CmdContext 测试 ==========
+
+func TestCmdContext_Construction(t *testing.T) {
+	a := app.NewApp()
+	ctx := &CmdContext{App: a, FilesRoot: "/test", Args: []string{"--verbose"}}
+	if ctx.App != a {
+		t.Error("App 字段应正确赋值")
+	}
+	if ctx.FilesRoot != "/test" {
+		t.Errorf("FilesRoot 应为 /test, got: %s", ctx.FilesRoot)
+	}
+	if len(ctx.Args) != 1 || ctx.Args[0] != "--verbose" {
+		t.Errorf("Args 应为 [--verbose], got: %v", ctx.Args)
+	}
+}
+
+// ========== ParseCommandArgs 边界测试 ==========
+
+func TestParseCommandArgs_LeadingFilesRoot(t *testing.T) {
+	args := []string{"--files-root", "/repo", "search", "--keyword", "x"}
+	filesRoot, cmdArgs := ParseCommandArgs(args)
+	if filesRoot != "/repo" {
+		t.Errorf("filesRoot 应为 /repo, got: %s", filesRoot)
+	}
+	expected := []string{"search", "--keyword", "x"}
+	if len(cmdArgs) != len(expected) {
+		t.Fatalf("cmdArgs 长度应为 %d, got: %d (%v)", len(expected), len(cmdArgs), cmdArgs)
+	}
+	for i, v := range expected {
+		if cmdArgs[i] != v {
+			t.Errorf("cmdArgs[%d] 应为 %s, got: %s", i, v, cmdArgs[i])
+		}
+	}
+}
+
+func TestParseCommandArgs_TrailingFilesRoot(t *testing.T) {
+	args := []string{"search", "--keyword", "x", "--files-root", "/repo"}
+	filesRoot, cmdArgs := ParseCommandArgs(args)
+	if filesRoot != "/repo" {
+		t.Errorf("filesRoot 应为 /repo, got: %s", filesRoot)
+	}
+	if len(cmdArgs) != 3 || cmdArgs[0] != "search" {
+		t.Errorf("cmdArgs 应为 [search --keyword x], got: %v (len=%d)", cmdArgs, len(cmdArgs))
+	}
+}
+
+func TestParseCommandArgs_MultipleFilesRoot(t *testing.T) {
+	// 只保留最后一个
+	args := []string{"--files-root", "/first", "search", "--files-root", "/second"}
+	filesRoot, cmdArgs := ParseCommandArgs(args)
+	if filesRoot != "/second" {
+		t.Errorf("应保留最后一个 filesRoot /second, got: %s", filesRoot)
+	}
+	if len(cmdArgs) != 1 || cmdArgs[0] != "search" {
+		t.Errorf("cmdArgs 应只剩 search, got: %v", cmdArgs)
 	}
 }

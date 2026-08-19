@@ -7,15 +7,13 @@ package cli
 import (
 	"fmt"
 	"strings"
-
-	"ysm-model-manager/internal/app"
 )
 
 func init() {
 	RegisterCommand("perf-log", "输出优化记录日志（按时间倒序，含问题/做法/效果/提交）", runPerfLog)
 }
 
-func runPerfLog(a *app.App, args []string) error {
+func runPerfLog(ctx *CmdContext) error {
 	// 优化日志数据，与 docs/knowledge/optimization_log.md 同步
 	entries := []struct {
 		date    string
