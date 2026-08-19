@@ -34,7 +34,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 26 | 199 |
+| Go(internal)·应用入口 | 26 | 200 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 19 | 101 |
 | 前端·核心 | 18 | 36 |
@@ -46,7 +46,7 @@
 | frontend/views | 106 | 297 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **420** | **1778** |
+| **合计** | **420** | **1779** |
 
 ## Go·头像
 
@@ -568,19 +568,19 @@
 | `App.CacheModelAvatars()` | `internal/app/app_avatar:130` | CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式） |
 | `App.GetConfigPath()` | `internal/app/app_config:59` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
 | `App.SaveAppConfig()` | `internal/app/app_config:129` | — |
-| `App.SetDownloadMirror()` | `internal/app/app_config:195` | — |
-| `App.SaveThresholds()` | `internal/app/app_config:204` | SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。 |
-| `App.LoadAppConfig()` | `internal/app/app_config:236` | — |
-| `App.GetSubDirMap()` | `internal/app/app_config:257` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
-| `App.CurrentVersion()` | `internal/app/app_config:261` | — |
-| `App.CheckUpdate()` | `internal/app/app_config:263` | — |
-| `App.DoUpdate()` | `internal/app/app_config:290` | — |
-| `App.RestartApplication()` | `internal/app/app_config:308` | — |
-| `App.SaveWindowPosition()` | `internal/app/app_config:343` | — |
-| `App.GetWindowPosition()` | `internal/app/app_config:357` | — |
-| `App.SelectDirectory()` | `internal/app/app_config:390` | ========== 目录选择 ========== |
-| `App.GetMinecraftPaths()` | `internal/app/app_config:453` | — |
-| `App.ValidateMinecraftDir()` | `internal/app/app_config:455` | — |
+| `App.SetDownloadMirror()` | `internal/app/app_config:199` | — |
+| `App.SaveThresholds()` | `internal/app/app_config:208` | SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。 |
+| `App.LoadAppConfig()` | `internal/app/app_config:240` | — |
+| `App.GetSubDirMap()` | `internal/app/app_config:261` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
+| `App.CurrentVersion()` | `internal/app/app_config:265` | — |
+| `App.CheckUpdate()` | `internal/app/app_config:267` | — |
+| `App.DoUpdate()` | `internal/app/app_config:294` | — |
+| `App.RestartApplication()` | `internal/app/app_config:312` | — |
+| `App.SaveWindowPosition()` | `internal/app/app_config:347` | — |
+| `App.GetWindowPosition()` | `internal/app/app_config:361` | — |
+| `App.SelectDirectory()` | `internal/app/app_config:394` | ========== 目录选择 ========== |
+| `App.GetMinecraftPaths()` | `internal/app/app_config:457` | — |
+| `App.ValidateMinecraftDir()` | `internal/app/app_config:459` | — |
 | `NewDownloadQueue()` | `internal/app/app_download:51` | NewDownloadQueue 创建串行下载队列（回调由 App 初始化时注入） |
 | `App.EnqueueDownloads()` | `internal/app/app_download:56` | — |
 | `App.CancelQueue()` | `internal/app/app_download:86` | — |
@@ -743,20 +743,21 @@
 | `App.DetectResourceType()` | `internal/app/resource_bindings:156` | DetectResourceType 检测指定文件的资源类型 |
 | `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:169` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
 | `App.GetRepoRoot()` | `internal/app/resource_bindings:184` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
-| `App.ToggleResourcePack()` | `internal/app/resource_bindings:281` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
-| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:327` | IsResourcePackEnabled 检查资源包是否启用 |
-| `App.SelectImportZip()` | `internal/app/resource_bindings:332` | SelectImportZip 打开文件选择器选取 .zip 文件 |
-| `App.SelectImportFile()` | `internal/app/resource_bindings:345` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
-| `App.SetResourceRoot()` | `internal/app/resource_bindings:367` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
-| `App.ResetResourceRoot()` | `internal/app/resource_bindings:387` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
-| `App.ImportResourcePack()` | `internal/app/resource_bindings:418` | ImportResourcePack 使用策略模式导入资源包 |
-| `App.ImportByType()` | `internal/app/resource_bindings:431` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:448` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
-| `App.DeleteModelDir()` | `internal/app/resource_bindings:459` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:510` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:526` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:539` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:545` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:220` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
+| `App.ToggleResourcePack()` | `internal/app/resource_bindings:316` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
+| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:362` | IsResourcePackEnabled 检查资源包是否启用 |
+| `App.SelectImportZip()` | `internal/app/resource_bindings:367` | SelectImportZip 打开文件选择器选取 .zip 文件 |
+| `App.SelectImportFile()` | `internal/app/resource_bindings:380` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
+| `App.SetResourceRoot()` | `internal/app/resource_bindings:402` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
+| `App.ResetResourceRoot()` | `internal/app/resource_bindings:422` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
+| `App.ImportResourcePack()` | `internal/app/resource_bindings:453` | ImportResourcePack 使用策略模式导入资源包 |
+| `App.ImportByType()` | `internal/app/resource_bindings:466` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:483` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
+| `App.DeleteModelDir()` | `internal/app/resource_bindings:494` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:545` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:561` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:574` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:580` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |

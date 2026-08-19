@@ -188,6 +188,10 @@ func (a *App) SaveAppConfig(filesRoot, rpRoot, mcRoot, linkMode, theme string) e
 		if err := a.restartWatcher(ysmRoot, cfg.McRoot); err != nil {
 			return err
 		}
+		// 预创建所有类型存储子目录：用户改根路径后期望整棵类型树立即落在磁盘
+		if err := a.EnsureStorageDirs(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

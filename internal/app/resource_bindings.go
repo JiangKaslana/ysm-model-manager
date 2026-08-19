@@ -211,6 +211,41 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 	return "", nil
 }
 
+// EnsureStorageDirs 预创建所有注册资源类型的存储子目录
+// （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。
+// 修复惰性创建的体感问题：用户指定仓库根路径后期望整棵类型树立即出现在磁盘，
+// 而非等到首次导入某类型才逐个 MkdirAll。
+// 仅当 GetRepoRoot 返回非空路径才建——空串（未配置/平台默认不可达）跳过，
+// 避免在工作目录裸建；已存在目录为 MkdirAll no-op，幂等安全。
+func (a *App) EnsureStorageDirs() error {
+	registry := types.LoadRegistry()
+	if len(registry.ResourceTypes) == 0 {
+		return nil
+	}
+	var firstErr error
+	for _, rt := range registry.ResourceTypes {
+		root, err := a.GetRepoRoot(rt.ID)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			log.Printf("[storage] GetRepoRoot(%s) 失败，跳过预创建: %v", rt.ID, err)
+			continue
+		}
+		if root == "" {
+			// 未配置 / 平台默认不可达：跳过，避免裸建
+			continue
+		}
+		if err := os.MkdirAll(root, 0755); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			log.Printf("[storage] 预创建目录失败 %s: %v", root, err)
+		}
+	}
+	return firstErr
+}
+
 // repoDirAccessible 校验目录真实存在且可读（防未授权/未创建时静默假成功）。
 // 与 writableDir 不同：仓库目录只读即可（查看器模式），不做可写性探针。
 func repoDirAccessible(dir string) bool {
