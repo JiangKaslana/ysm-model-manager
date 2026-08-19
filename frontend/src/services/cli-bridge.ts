@@ -85,11 +85,13 @@ async function fetchDynamicCommands(): Promise<Set<string>> {
       const raw = await app.GetAllowedCLICommands();
       const list: string[] = JSON.parse(raw);
       cachedDynamicCommands = new Set(list);
+      return cachedDynamicCommands;
     } catch {
-      // 拉取失败，使用硬编码列表
-      cachedDynamicCommands = new Set(ALLOWED_CLI_COMMANDS);
+      // 拉取失败：本次调用用硬编码列表兜底，但不持久化缓存——
+      // 下次调用会重新拉取后端，避免一次性故障导致整会话拒绝新命令
+      dynamicFetchPromise = null;
+      return new Set(ALLOWED_CLI_COMMANDS);
     }
-    return cachedDynamicCommands;
   })();
 
   return dynamicFetchPromise;

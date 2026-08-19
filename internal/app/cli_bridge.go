@@ -34,10 +34,13 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 	// 1. 检查命令是否在可用列表中
 	if !a.isCommandAllowed(command) {
 		elapsed := float64(time.Since(start).Milliseconds())
-		resp, _ := makeJsonResponse("not_supported", command, nil, map[string]string{
+		resp, err := makeJsonResponse("not_supported", command, nil, map[string]string{
 			"code":    "platform_not_supported",
 			"message": fmt.Sprintf("当前平台不支持命令 [%s]: 该命令未开放给前端调用", command),
 		}, elapsed)
+		if err != nil {
+			return fmt.Sprintf(`{"status":"not_supported","command":%q,"error":{"code":"json_failed","message":%q}}`, command, err.Error())
+		}
 		return resp
 	}
 
@@ -92,7 +95,8 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 	output, execErr := executeCLICommand(cmdArgs)
 
 	// 4. 透传子进程 JSON 响应（协议由 go/cli/json.go 定义，前端统一消费）
-	if output != "" {
+	// execErr 非空时仅透传合法 JSON 响应，防止异常部分输出掩盖真实错误
+	if output != "" && (execErr == nil || isValidJsonResponse(output)) {
 		return output
 	}
 
@@ -118,6 +122,17 @@ func (a *App) ExecuteCLI(command string, args map[string]interface{}) string {
 		return fmt.Sprintf(`{"status":"error","command":%q,"error":{"code":"json_failed","message":%q}}`, command, err.Error())
 	}
 	return resp
+}
+
+// isValidJsonResponse 判断字符串是否为含 status 字段的合法 JSON 响应
+// 用于子进程异常退出时区分「完整 JSON 错误文档」与「部分/非 JSON 输出」
+func isValidJsonResponse(s string) bool {
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		return false
+	}
+	_, ok := m["status"]
+	return ok
 }
 
 // GetAllowedCLICommands 返回可用 CLI 命令列表

@@ -13,6 +13,7 @@ import {
   ALLOWED_CLI_COMMANDS,
   parseCLIResponse,
   buildArgsMap,
+  resetDynamicCommandsCache,
 } from "./cli-bridge.ts";
 
 // Mock getApp 和 resolveWebMode
@@ -42,6 +43,7 @@ import { WebUnsupportedError } from "../backend/web-common.ts";
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(resolveWebMode).mockReturnValue(false);
+  resetDynamicCommandsCache();
 });
 
 describe("CLI Bridge - 命令执行", () => {
@@ -181,6 +183,74 @@ describe("CLI Bridge - 命令列表", () => {
     const result = await getAllowedCLICommands();
 
     expect(result).toEqual(ALLOWED_CLI_COMMANDS);
+  });
+});
+
+describe("CLI Bridge - 动态白名单", () => {
+  it("动态列表放行硬编码列表之外的新命令", async () => {
+    const mockApp = {
+      GetAllowedCLICommands: vi.fn().mockResolvedValue(
+        JSON.stringify(["new-cmd", "search", "list"])
+      ),
+      ExecuteCLI: vi.fn().mockResolvedValue(
+        JSON.stringify({ status: "success", command: "new-cmd", data: {} })
+      ),
+    } as unknown as AppBindings;
+
+    vi.mocked(getApp).mockResolvedValue(mockApp);
+
+    const result = await executeCLI("new-cmd");
+
+    expect(result.status).toBe("success");
+    expect(mockApp.ExecuteCLI).toHaveBeenCalledWith("new-cmd", {});
+  });
+
+  it("动态列表缺失的硬编码命令被拒绝（native 模式以动态列表为准）", async () => {
+    const mockApp = {
+      GetAllowedCLICommands: vi.fn().mockResolvedValue(
+        JSON.stringify(["only-other"])
+      ),
+    } as unknown as AppBindings;
+
+    vi.mocked(getApp).mockResolvedValue(mockApp);
+
+    const result = await executeCLI("search");
+
+    expect(result.status).toBe("not_supported");
+    expect(result.error?.code).toBe("command_not_allowed");
+  });
+
+  it("拉取失败时回退硬编码列表（本次调用），不持久化缓存，下次重试后端", async () => {
+    // 独立 mock 状态，避免与其它用例的 mock 队列交互
+    vi.mocked(getApp).mockReset();
+
+    // 第一次调用：后端拉取失败
+    vi.mocked(getApp).mockRejectedValueOnce(new Error("连接失败"));
+
+    // 失败回退：硬编码命令放行（但执行时 getApp 仍失败 → call_failed），新命令被拒
+    const hardcoded = await executeCLI("search");
+    expect(hardcoded.status).toBe("error");
+    expect(hardcoded.error?.code).toBe("call_failed");
+
+    const outside = await executeCLI("new-cmd");
+    expect(outside.status).toBe("not_supported");
+    expect(outside.error?.code).toBe("command_not_allowed");
+
+    // 后端恢复：不持久化缓存 → 下次调用重新拉取，动态新命令放行
+    vi.mocked(getApp).mockReset();
+    const mockApp = {
+      GetAllowedCLICommands: vi.fn().mockResolvedValue(
+        JSON.stringify(["new-cmd", "search"])
+      ),
+      ExecuteCLI: vi.fn().mockResolvedValue(
+        JSON.stringify({ status: "success", command: "new-cmd", data: {} })
+      ),
+    } as unknown as AppBindings;
+    vi.mocked(getApp).mockResolvedValue(mockApp);
+
+    const retry = await executeCLI("new-cmd");
+    expect(retry.status).toBe("success");
+    expect(mockApp.ExecuteCLI).toHaveBeenCalledWith("new-cmd", {});
   });
 });
 

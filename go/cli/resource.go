@@ -148,19 +148,33 @@ func runResourceScan(ctx *CmdContext) error {
 // classifyResource 按扩展名分类统计资源
 // 注意：.json 不直接归为模型（可能是配置/索引文件），仅 .ysm 视为模型格式
 func classifyResource(ext string, stats *resourceStats) {
-	switch ext {
-	case ".ysm":
+	switch classifyResourceTypeName(ext) {
+	case "model":
 		stats.Models++
-	case ".pmx", ".pmd", ".x":
-		stats.Models++
-	case ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds", ".ktx2":
+	case "texture":
 		stats.Textures++
-	case ".vmd", ".bvh":
+	case "animation":
 		stats.Animations++
-	case ".fx", ".cg", ".glsl":
+	case "effect":
 		stats.Effects++
 	default:
 		stats.Others++
+	}
+}
+
+// classifyResourceTypeName 将扩展名映射到类型字符串（供 JSON 输出和 classifyResource 共用）
+func classifyResourceTypeName(ext string) string {
+	switch ext {
+	case ".ysm", ".pmx", ".pmd", ".x":
+		return "model"
+	case ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds", ".ktx2":
+		return "texture"
+	case ".vmd", ".bvh":
+		return "animation"
+	case ".fx", ".cg", ".glsl":
+		return "effect"
+	default:
+		return "other"
 	}
 }
 
@@ -289,19 +303,7 @@ func runRepoAudit(ctx *CmdContext) error {
 		}
 
 		// 类型统计（与 classifyResource 口径一致）
-		typeName := "other"
-		switch ext {
-		case ".ysm":
-			typeName = "model"
-		case ".png", ".jpg", ".dds", ".ktx2":
-			typeName = "texture"
-		case ".vmd", ".bvh":
-			typeName = "animation"
-		case ".pmx", ".pmd":
-			typeName = "model"
-		default:
-			// .json / .cfg 等归为其他，避免虚高模型数
-		}
+		typeName := classifyResourceTypeName(ext)
 		resources[typeName]++
 
 		return nil
@@ -419,19 +421,24 @@ func generateAuditWarnings(result *repoAuditResult) {
 }
 
 // isModelFileValid 验证模型文件完整性
-// .json: 必须是合法 JSON
+// .json: 必须是合法 JSON（流式解析，避免大文件全量读入内存）
 // .ysm: 必须非空且包含 JSON 内容
 func isModelFileValid(path, ext string) bool {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return false
 	}
-	if len(data) == 0 {
+	defer f.Close()
+
+	st, err := f.Stat()
+	if err != nil || st.Size() == 0 {
 		return false
 	}
+
 	if ext == ".json" || ext == ".ysm" {
 		var v interface{}
-		return json.Unmarshal(data, &v) == nil
+		dec := json.NewDecoder(f)
+		return dec.Decode(&v) == nil
 	}
 	return true
 }

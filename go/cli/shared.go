@@ -173,7 +173,9 @@ func captureStdout() (*outputBuffer, func()) {
 	if err != nil {
 		// Pipe 创建失败，返回一个空 buffer 和空恢复函数（不捕获输出）
 		fmt.Fprintf(os.Stderr, "[WARN] captureStdout: os.Pipe 失败: %v\n", err)
-		return &outputBuffer{done: make(chan struct{})}, func() {}
+		done := make(chan struct{})
+		close(done) // 确保 String() 不阻塞
+		return &outputBuffer{done: done}, func() {}
 	}
 	os.Stdout = w
 
@@ -218,7 +220,7 @@ func (b *outputBuffer) String() string {
 	return string(b.data)
 }
 
-// splitLines 将字符串按行分割
+// splitLines 将字符串按行分割（跳过空行，首尾一致）
 func splitLines(s string) []string {
 	var lines []string
 	start := 0
@@ -232,7 +234,10 @@ func splitLines(s string) []string {
 		}
 	}
 	if start < len(s) {
-		lines = append(lines, s[start:])
+		line := s[start:]
+		if len(line) > 0 {
+			lines = append(lines, line)
+		}
 	}
 	return lines
 }
