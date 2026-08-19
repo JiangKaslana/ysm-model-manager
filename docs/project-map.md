@@ -93,6 +93,7 @@
 | `cli_flow.go` | CLI GUI 流程模拟命令（gui-flow，模拟配置→扫描→分析→缓存→渲染） |
 | `cli_mmd.go` | CLI MMD 专用命令（file-bench、scan-dir、analyze-mmd） |
 | `cli_model.go` | CLI 模型管理命令（search、analyze、list、verify、benchmark、export） |
+| `cli_perf.go` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `cli_shared.go` | CLI 共享工具函数（parseFlags、formatSize、min、max） |
 | `cli_test.go` | CLI 单元测试（runCLI 入口、cache 命令、export/analyze/config-show 等） |
 | `creators.json` | 创作者数据 |
