@@ -8,7 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 11 |
-| go/cli | 2 | 12 |
+| go/cli | 2 | 11 |
 | go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 15 |
@@ -46,7 +46,7 @@
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **414** | **1741** |
+| **合计** | **414** | **1740** |
 
 ## Go·头像
 
@@ -68,18 +68,17 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RegisterCommand()` | `go/cli/cli:21` | RegisterCommand 注册一个 CLI 子命令（供各文件的 init() 调用） |
-| `RunCLI()` | `go/cli/cli:35` | RunCLI 执行 CLI 模式 返回的 error 用于映射到正确的退出码 支持: --help, --version, &lt;command&gt; --help |
-| `ErrParam.Error()` | `go/cli/shared:27` | — |
-| `ErrParam.Unwrap()` | `go/cli/shared:34` | — |
-| `ErrRuntime.Error()` | `go/cli/shared:42` | — |
-| `ErrRuntime.Unwrap()` | `go/cli/shared:49` | — |
-| `ExitCodeOf()` | `go/cli/shared:52` | ExitCodeOf 根据错误类型返回退出码 |
-| `PrintError()` | `go/cli/shared:61` | PrintError 输出错误到 stderr |
-| `ParseCommandArgs()` | `go/cli/shared:70` | ParseCommandArgs 从参数中提取 files-root 和命令参数 返回: filesRoot, commandArgs（不含 files-root 的剩余参数） |
-| `RunCommand()` | `go/cli/shared:96` | RunCommand 统一的命令执行框架 参数:   - cmdName: 命令名（用于错误消息）   - a: 已初始化的 App 实例   - setup: 注册 flag 的 |
-| `ErrParam()` | `go/cli/shared:22` | ErrParam 参数错误（exit code 2） |
-| `ErrRuntime()` | `go/cli/shared:37` | ErrRuntime 运行时业务错误（exit code 1） |
+| `RegisterCommand()` | `go/cli/cli:22` | RegisterCommand 注册一个 CLI 子命令（供各文件的 init() 调用） |
+| `RunCLI()` | `go/cli/cli:36` | RunCLI 执行 CLI 模式 返回的 error 用于映射到正确的退出码 支持: --help, --version, &lt;command&gt; --help |
+| `ErrParam.Error()` | `go/cli/shared:25` | — |
+| `ErrParam.Unwrap()` | `go/cli/shared:32` | — |
+| `ErrRuntime.Error()` | `go/cli/shared:40` | — |
+| `ErrRuntime.Unwrap()` | `go/cli/shared:47` | — |
+| `ExitCodeOf()` | `go/cli/shared:50` | ExitCodeOf 根据错误类型返回退出码 |
+| `PrintError()` | `go/cli/shared:59` | PrintError 输出错误到 stderr |
+| `ParseCommandArgs()` | `go/cli/shared:68` | ParseCommandArgs 从参数中提取 files-root 和命令参数 返回: filesRoot, commandArgs（不含 files-root 的剩余参数） |
+| `ErrParam()` | `go/cli/shared:20` | ErrParam 参数错误（exit code 2） |
+| `ErrRuntime()` | `go/cli/shared:35` | ErrRuntime 运行时业务错误（exit code 1） |
 
 ## go/container
 

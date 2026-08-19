@@ -7,8 +7,6 @@ import (
 	"io"
 	"os"
 	"strings"
-
-	"ysm-model-manager/internal/app"
 )
 
 // exitCode 退出码常量
@@ -79,43 +77,6 @@ func ParseCommandArgs(args []string) (filesRoot string, commandArgs []string) {
 		}
 	}
 	return
-}
-
-// RunCommand 统一的命令执行框架
-// 参数:
-//   - cmdName: 命令名（用于错误消息）
-//   - a: 已初始化的 App 实例
-//   - setup: 注册 flag 的函数（声明参数但不调用 Parse）
-//   - args: 从命令行传入的参数（已剥离 --files-root）
-//   - exec: 实际执行逻辑，在 flag 解析成功后调用
-//
-// 返回:
-//   - *ErrParam: 参数错误（exit 2）
-//   - *ErrRuntime: 业务错误（exit 1）
-//   - nil: 成功
-func RunCommand(cmdName string, a *app.App, setup func(fs *flag.FlagSet), args []string,
-	exec func(a *app.App, fs *flag.FlagSet) error) error {
-
-	fs := flag.NewFlagSet(cmdName, flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	if setup != nil {
-		setup(fs)
-	}
-
-	if err := fs.Parse(args); err != nil {
-		return &ErrParam{CmdName: cmdName, Err: err}
-	}
-
-	if err := exec(a, fs); err != nil {
-		var pe *ErrParam
-		if errors.As(err, &pe) {
-			return pe
-		}
-		return &ErrRuntime{CmdName: cmdName, Err: err}
-	}
-
-	return nil
 }
 
 // newCmdFlagSet 创建统一配置的 FlagSet（ContinueOnError + 静默输出）

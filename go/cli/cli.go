@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"sort"
 
 	"ysm-model-manager/go/version"
 	"ysm-model-manager/internal/app"
@@ -159,7 +160,13 @@ func printCLIHelp() {
 	fmt.Println("可用命令:")
 
 	// 按字母顺序排序显示
-	for name, cmd := range cliCommands {
+	var names []string
+	for name := range cliCommands {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		cmd := cliCommands[name]
 		fmt.Printf("  %-18s %s\n", name, cmd.Description)
 	}
 

@@ -380,6 +380,34 @@ func TestRunCLIWithApp_NoFilesRoot_RunsAnyway(t *testing.T) {
 	}
 }
 
+// ---- help 输出稳定性 ----
+
+func TestPrintCLIHelp_CommandsSorted(t *testing.T) {
+	out := captureOutput(t, func() {
+		printCLIHelp()
+	})
+	var got []string
+	for _, line := range strings.Split(out, "\n") {
+		if len(line) < 20 || line[:2] != "  " {
+			continue
+		}
+		// 命令行格式: "  %-18s %s"，name 占第 3~20 字符
+		name := strings.TrimSpace(line[2:20])
+		if _, ok := cliCommands[name]; ok {
+			got = append(got, name)
+		}
+	}
+	if len(got) == 0 {
+		t.Fatal("help 输出未解析到任何命令")
+	}
+	for i := 1; i < len(got); i++ {
+		if got[i-1] > got[i] {
+			t.Errorf("help 命令列表应按字母序, got %v", got)
+			break
+		}
+	}
+}
+
 // ---- helpers ----
 
 func mustWrite(t *testing.T, path string, data []byte) {

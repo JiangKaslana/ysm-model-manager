@@ -239,6 +239,7 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 | `analyze-mmd` | 分析 MMD 模型资产（贴图/PMX/VMD） | `analyze-mmd --dir ./mmd/子言` |
 | `single-bench` | **单模型加载基准测试**（优化基础，单模型快=所有场景快） | `single-bench --model ./ysm/player.ysm --iterations 3` |
 | `concurrent-bench` | 并发能力基准测试（串行 vs 并行对比，建议先优化单模型） | `concurrent-bench --workers 8 --max-models 30` |
+| `perf-log` | 输出优化记录日志（按时间倒序：问题/做法/效果/提交） | `perf-log` |
 
 ### 缓存管理命令
 
