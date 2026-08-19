@@ -790,6 +790,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-105：subtype 完整自描述化：零继承识别单元（MMD 落地，光影包预留）",
+        "link": "/adr/ADR-105-subtype-self-describing"
+      },
+      {
         "text": "ADR-104：资源类型子类层（subtypes）统一：大类/小类/防御性检验三层架构",
         "link": "/adr/ADR-104-resource-subtype-layer"
       },
