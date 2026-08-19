@@ -45,11 +45,21 @@ func SubtypeNames(rtype string) []string {
 // IsSubDirName 判断目录名是否为 rtype 的用途子目录（大小写不敏感，ADR-104）。
 // 替代旧 IsMMDSubDir 的 rtype 感知判定：scanner/instance/sync 在已知 rtype
 // 上下文下用本函数；未知类型恒 false。
+// ⚠️ 热路径零分配：直接遍历 LoadRegistry 缓存（返回指针，无拷贝），
+// 不复用 SubtypesFor/RegistryType（各自深拷贝切片，sync 树遍历每目录
+// 调用一次时会累积分配）。
 func IsSubDirName(rtype, name string) bool {
-	for _, s := range SubtypesFor(rtype) {
-		if strings.EqualFold(s.Name, name) {
-			return true
+	reg := LoadRegistry()
+	for i := range reg.ResourceTypes {
+		if reg.ResourceTypes[i].ID != rtype {
+			continue
 		}
+		for _, s := range reg.ResourceTypes[i].SubTypes {
+			if strings.EqualFold(s.Name, name) {
+				return true
+			}
+		}
+		return false
 	}
 	return false
 }

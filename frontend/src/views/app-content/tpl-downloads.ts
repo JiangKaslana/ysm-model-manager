@@ -33,12 +33,7 @@ export function downloadsHTML(): string {
   <div id="dl-mmd-subdir-wrap" style="display:none;align-items:center;gap:4px;margin-top:2px">
     <span style="font-size:10px;color:var(--muted)">📂 ${t("import.mmdSubdir")}</span>
     <select id="dl-mmd-subdir" style="padding:3px 5px;border-radius:4px;border:1px solid var(--bd);background:var(--surf);color:var(--txt);font-size:10px">
-      <option value="">PMX 模型 (EntityPlayer)</option>
-      <option value="SceneModel">场景 (SceneModel)</option>
-      <option value="CustomAnim">自定义动画 (CustomAnim)</option>
-      <option value="CustomMorph">自定义表情 (CustomMorph)</option>
-      <option value="StageAnim">舞台 (StageAnim)</option>
-      <option value="shader">着色器 (shader)</option>
+      ${mmdSubdirOptions}
     </select>
   </div>
   <div id="dl-tips" style="display:none;font-size:10px;color:var(--muted);padding:4px 8px;margin:2px 0;border-radius:4px;border-left:3px solid var(--accent);background:var(--surf);line-height:1.5;max-height:60px;overflow-y:auto"></div>
