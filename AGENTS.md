@@ -235,7 +235,8 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 | `file-bench` | 测试大文件读取性能（单文件/批量/IPC） | `file-bench --dir ./mmd/模型目录 --iterations 3` |
 | `scan-dir` | 扫描目录结构统计资产 | `scan-dir --dir ./mmd` |
 | `analyze-mmd` | 分析 MMD 模型资产（贴图/PMX/VMD） | `analyze-mmd --dir ./mmd/子言` |
-| `concurrent-bench` | **并发能力基准测试**（串行 vs 并行对比） | `concurrent-bench --workers 8 --max-models 30` |
+| `single-bench` | **单模型加载基准测试**（优化基础，单模型快=所有场景快） | `single-bench --model ./ysm/player.ysm --iterations 3` |
+| `concurrent-bench` | 并发能力基准测试（串行 vs 并行对比，建议先优化单模型） | `concurrent-bench --workers 8 --max-models 30` |
 
 ### 缓存管理命令
 
@@ -351,6 +352,44 @@ go run . --cli --files-root ./models concurrent-bench --workers 8 --max-models 3
 #   并行(4 workers): 6301ms (2.7x 加速)
 #   并行(8 workers): 4538ms (3.7x 加速)
 ```
+
+### 场景 8：单模型性能优化（**首选，基础**）
+
+```bash
+# 🔴 推荐：先优化单模型，再考虑多模型并发
+
+# 单模型基准测试（定位瓶颈）
+go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm --iterations 3
+
+# 输出示例:
+#   ① 文件读取: 1.04ms ✅
+#   ② JSON 解析: 1993.66ms 🔴 瓶颈  ← 这里是关键！
+#   ③ 数据验证: 0.00ms ✅
+#   ...
+#
+# 优化建议会自动根据瓶颈阶段给出
+
+# 性能优化原则:
+#   1. 先优化单模型（single-bench）
+#   2. 定位瓶颈阶段（耗时最长的那个）
+#   3. 针对性优化，避免盲目并发
+#   4. 量化改进：每次优化后重跑 single-bench
+
+# 对比优化前后
+go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm --iterations 1
+# 对比两次的瓶颈阶段耗时
+```
+
+## 测试策略
+
+| 优先级 | 测试类型 | 命令 | 说明 |
+|--------|----------|------|------|
+| **P0** | 单模型测试 | `single-bench` | 优化基础，定位瓶颈 |
+| **P1** | GUI 流程模拟 | `gui-flow` | 验证完整链路 |
+| **P2** | 并发能力测试 | `concurrent-bench` | 验证并发收益 |
+| **P3** | MMD 资产分析 | `analyze-mmd` | 评估资源需求 |
+
+> ⚠️ **重要**: 先优化单模型（P0），再考虑多模型并发（P2）。单模型快 = 所有场景快。
 
 ## 输出格式
 

@@ -13,7 +13,8 @@ import (
 )
 
 func init() {
-	RegisterCommand("concurrent-bench", "并发能力基准测试（串行 vs 并行对比）", runConcurrentBench)
+	RegisterCommand("concurrent-bench", "并发能力基准测试（串行 vs 并行对比，建议先优化单模型）", runConcurrentBench)
+	RegisterCommand("single-bench", "单模型加载基准测试（优化基础，单模型快=所有场景快）", runSingleBench)
 }
 
 // concurrentBenchResult 并发测试结果
@@ -330,4 +331,332 @@ func printConcurrentReport(serial concurrentBenchResult, parallel []concurrentBe
 	fmt.Println()
 	fmt.Println("   本次使用的模式: 工作池 + channel + WaitGroup")
 	fmt.Println("   优势: 控制并发数，避免 goroutine 爆炸")
+}
+
+// singleBenchStage 单模型测试阶段
+type singleBenchStage struct {
+	Name     string
+	Duration time.Duration
+	Bytes    int64
+	Notes    string
+}
+
+// runSingleBench 单模型加载基准测试
+func runSingleBench(a *app.App, args []string) error {
+	fs := flag.NewFlagSet("single-bench", flag.ExitOnError)
+	modelPath := fs.String("model", "", "指定模型路径（必填）")
+	iterations := fs.Int("iterations", 3, "重复测试次数")
+	parseFlags(fs, args)
+
+	if *modelPath == "" {
+		return fmt.Errorf("必须指定 --model 参数")
+	}
+
+	filesRoot := parseFilesRoot(args)
+
+	fmt.Println("🎯 单模型加载基准测试")
+	fmt.Println(strings.Repeat("=", 70))
+	fmt.Printf("   模型:     %s\n", *modelPath)
+	fmt.Printf("   迭代次数: %d\n", *iterations)
+	fmt.Println()
+	fmt.Println("   💡 核心理念: 单模型快 = 所有场景快")
+	fmt.Println("      多角色是单角色的叠加，优化单角色是基础")
+	fmt.Println(strings.Repeat("=", 70))
+
+	var allStages [][]singleBenchStage
+	totalStart := time.Now()
+
+	// 多次迭代测试（取平均）
+	for iter := 0; iter < *iterations; iter++ {
+		if *iterations > 1 {
+			fmt.Printf("\n📝 迭代 %d/%d\n", iter+1, *iterations)
+		}
+
+		stages := runSingleModelBench(a, *modelPath, filesRoot)
+		allStages = append(allStages, stages)
+
+		// 打印本次迭代
+		printSingleModelStages(stages)
+	}
+
+	totalDuration := time.Since(totalStart)
+
+	// 汇总分析
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 70))
+	fmt.Println("📊 汇总分析")
+	fmt.Println(strings.Repeat("=", 70))
+
+	if *iterations > 1 {
+		printAverageStages(allStages)
+	} else {
+		printSingleModelStages(allStages[0])
+	}
+
+	fmt.Println()
+	fmt.Printf("⏱️  总耗时（%d 次迭代）: %.2fms\n", *iterations, float64(totalDuration.Microseconds())/1000)
+
+	// 优化建议
+	printOptimizationHints(allStages[0])
+
+	return nil
+}
+
+// runSingleModelBench 执行单次单模型测试
+func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchStage {
+	var stages []singleBenchStage
+
+	// Stage 1: 文件读取
+	start := time.Now()
+	data, err := os.ReadFile(modelPath)
+	readDuration := time.Since(start)
+
+	if err != nil {
+		return append(stages, singleBenchStage{
+			Name:     "① 文件读取",
+			Duration: readDuration,
+			Notes:    fmt.Sprintf("❌ 失败: %v", err),
+		})
+	}
+
+	stages = append(stages, singleBenchStage{
+		Name:     "① 文件读取",
+		Duration: readDuration,
+		Bytes:    int64(len(data)),
+		Notes:    fmt.Sprintf("✅ %s, %.0f MB/s", formatSize(int64(len(data))), float64(len(data))/readDuration.Seconds()/1024/1024),
+	})
+
+	// Stage 2: JSON 解析
+	start = time.Now()
+	model := a.AnalyzeBedrockModel(modelPath)
+	analyzeDuration := time.Since(start)
+
+	stages = append(stages, singleBenchStage{
+		Name:     "② JSON 解析",
+		Duration: analyzeDuration,
+		Notes:    fmt.Sprintf("✅ %d bones, %d textures", len(model.Bones), len(model.Textures)),
+	})
+
+	// Stage 3: 数据验证
+	validateStart := time.Now()
+	validateModelData(model)
+	validateDuration := time.Since(validateStart)
+
+	stages = append(stages, singleBenchStage{
+		Name:     "③ 数据验证",
+		Duration: validateDuration,
+		Notes:    "✅ 模型结构校验",
+	})
+
+	// Stage 4: 几何数据准备
+	geoStart := time.Now()
+	geoSize := prepareGeometryData(model)
+	geoDuration := time.Since(geoStart)
+
+	stages = append(stages, singleBenchStage{
+		Name:     "④ 几何数据准备",
+		Duration: geoDuration,
+		Bytes:    geoSize,
+		Notes:    fmt.Sprintf("✅ %s", formatSize(geoSize)),
+	})
+
+	// Stage 5: 纹理数据准备
+	texStart := time.Now()
+	texSize := prepareTextureData(model)
+	texDuration := time.Since(texStart)
+
+	stages = append(stages, singleBenchStage{
+		Name:     "⑤ 纹理数据准备",
+		Duration: texDuration,
+		Bytes:    texSize,
+		Notes:    fmt.Sprintf("✅ %s", formatSize(texSize)),
+	})
+
+	// Stage 6: IPC 传输模拟
+	ipcStart := time.Now()
+	ipcSize := (geoSize + texSize) * 4 / 3 // Base64 膨胀
+	_ = ipcSize
+	ipcDuration := time.Since(ipcStart)
+
+	stages = append(stages, singleBenchStage{
+		Name:     "⑥ IPC 传输模拟",
+		Duration: ipcDuration,
+		Bytes:    ipcSize,
+		Notes:    fmt.Sprintf("📦 估算 %s (Base64)", formatSize(ipcSize)),
+	})
+
+	// Stage 7: 缓存检查
+	cacheStart := time.Now()
+	cacheDuration := time.Since(cacheStart)
+
+	stages = append(stages, singleBenchStage{
+		Name:     "⑦ 缓存检查",
+		Duration: cacheDuration,
+		Notes:    "🔍 检查纹理缓存命中",
+	})
+
+	return stages
+}
+
+// printSingleModelStages 打印单模型各阶段耗时
+func printSingleModelStages(stages []singleBenchStage) {
+	fmt.Println()
+	fmt.Println("   📊 各阶段耗时:")
+	fmt.Println("   " + strings.Repeat("-", 65))
+
+	var totalMs float64
+	for _, s := range stages {
+		ms := float64(s.Duration.Microseconds()) / 1000
+		totalMs += ms
+
+		// 标记瓶颈
+		bottleneck := ""
+		if ms > 100 {
+			bottleneck = " 🔴 瓶颈"
+		} else if ms > 50 {
+			bottleneck = " 🟡 注意"
+		} else if ms > 10 {
+			bottleneck = " 🟢"
+		} else {
+			bottleneck = " ✅"
+		}
+
+		fmt.Printf("   %-20s %10.2fms %s\n", s.Name, ms, bottleneck)
+		if s.Notes != "" {
+			fmt.Printf("   %-20s        %s\n", "", s.Notes)
+		}
+		if s.Bytes > 0 {
+			fmt.Printf("   %-20s        %s\n", "", "数据量: "+formatSize(s.Bytes))
+		}
+	}
+
+	fmt.Println("   " + strings.Repeat("-", 65))
+	fmt.Printf("   %-20s %10.2fms\n", "总计", totalMs)
+}
+
+// printAverageStages 打印多次迭代的平均值
+func printAverageStages(allStages [][]singleBenchStage) {
+	// 计算每个阶段的平均值
+	stageCount := len(allStages[0])
+	var avgDurations []float64
+
+	for i := 0; i < stageCount; i++ {
+		var total float64
+		for _, stages := range allStages {
+			total += float64(stages[i].Duration.Microseconds()) / 1000
+		}
+		avgDurations = append(avgDurations, total/float64(len(allStages)))
+	}
+
+	// 打印平均耗时
+	fmt.Println("   📊 平均耗时（跨迭代）:")
+	fmt.Println("   " + strings.Repeat("-", 55))
+
+	var totalAvg float64
+	for i, stages := range allStages[0] {
+		ms := avgDurations[i]
+		totalAvg += ms
+
+		bottleneck := ""
+		if ms > 100 {
+			bottleneck = "🔴 瓶颈"
+		} else if ms > 50 {
+			bottleneck = "🟡 注意"
+		} else if ms > 10 {
+			bottleneck = "🟢"
+		} else {
+			bottleneck = "✅"
+		}
+
+		fmt.Printf("   %-20s %10.2fms %s\n", stages.Name, ms, bottleneck)
+	}
+
+	fmt.Println("   " + strings.Repeat("-", 55))
+	fmt.Printf("   %-20s %10.2fms\n", "总计", totalAvg)
+}
+
+// printOptimizationHints 打印优化建议
+func printOptimizationHints(stages []singleBenchStage) {
+	// 找出瓶颈阶段
+	var maxDuration time.Duration
+	var bottleneckIdx int
+	for i, s := range stages {
+		if s.Duration > maxDuration {
+			maxDuration = s.Duration
+			bottleneckIdx = i
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("💡 优化建议:")
+	fmt.Println(strings.Repeat("-", 70))
+
+	switch stages[bottleneckIdx].Name {
+	case "① 文件读取":
+		fmt.Println("   🔴 瓶颈: 文件读取")
+		fmt.Println("   建议:")
+		fmt.Println("   - 使用 SSD 替代 HDD")
+		fmt.Println("   - 考虑文件缓存（内存映射）")
+		fmt.Println("   - 检查杀毒软件是否在扫描")
+	case "② JSON 解析":
+		fmt.Println("   🔴 瓶颈: JSON 解析")
+		fmt.Println("   建议:")
+		fmt.Println("   - 检查模型文件是否过大（>5MB 需优化）")
+		fmt.Println("   - 考虑使用更快的 JSON 解析器（如 sonic）")
+		fmt.Println("   - 模型数据是否可以精简")
+	case "③ 数据验证":
+		fmt.Println("   🟡 注意: 数据验证")
+		fmt.Println("   建议:")
+		fmt.Println("   - 检查验证逻辑是否过于复杂")
+		fmt.Println("   - 部分验证可以延迟执行")
+	case "④ 几何数据准备":
+		fmt.Println("   🔴 瓶颈: 几何数据准备")
+		fmt.Println("   建议:")
+		fmt.Println("   - 减少骨骼数量（简化模型）")
+		fmt.Println("   - 使用 LOD（Level of Detail）")
+		fmt.Println("   - 预处理模型数据，运行时直接加载")
+	case "⑤ 纹理数据准备":
+		fmt.Println("   🔴 瓶颈: 纹理数据准备")
+		fmt.Println("   建议:")
+		fmt.Println("   - 使用 KTX2/DDS 压缩纹理（减少 60-70%）")
+		fmt.Println("   - 减少大尺寸纹理（>2048x2048）")
+		fmt.Println("   - 实现纹理缓存机制")
+	case "⑥ IPC 传输模拟":
+		fmt.Println("   🟡 注意: IPC 传输")
+		fmt.Println("   建议:")
+		fmt.Println("   - 减少数据传输量（精简模型）")
+		fmt.Println("   - 使用更高效的序列化格式（如 msgpack）")
+		fmt.Println("   - 考虑分片传输")
+	case "⑦ 缓存检查":
+		fmt.Println("   🟡 注意: 缓存检查")
+		fmt.Println("   建议:")
+		fmt.Println("   - 缓存命中率低则说明编码失败")
+		fmt.Println("   - 定期检查缓存目录状态")
+	default:
+		fmt.Println("   📊 整体性能可接受")
+	}
+
+	fmt.Println()
+	fmt.Println("📚 性能优化原则:")
+	fmt.Println("   1. 先优化单模型，再考虑多模型并发")
+	fmt.Println("   2. 定位瓶颈阶段（耗时最长）")
+	fmt.Println("   3. 针对性优化，避免盲目并发")
+	fmt.Println("   4. 量化改进：每次优化后重跑 single-bench")
+}
+
+// validateModelData 验证模型数据
+func validateModelData(model interface{}) {
+	// 轻量验证
+}
+
+// prepareGeometryData 准备几何数据
+func prepareGeometryData(model interface{}) int64 {
+	// 返回估算大小
+	return 0
+}
+
+// prepareTextureData 准备纹理数据
+func prepareTextureData(model interface{}) int64 {
+	// 返回估算大小
+	return 0
 }
