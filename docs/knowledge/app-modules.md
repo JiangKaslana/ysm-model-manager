@@ -5,6 +5,7 @@ tier: architecture
 category: ui
 source_files:
   - frontend/src/app-modules.ts
+  - frontend/src/utils/module-loader.ts
 tests:
   - frontend/src/app-modules.test.ts
 use_when:

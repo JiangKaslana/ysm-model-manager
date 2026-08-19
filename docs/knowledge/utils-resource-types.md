@@ -4,8 +4,8 @@ name: 资源类型工具 resource-types
 tier: leaf
 category: utils
 source_files:
-  - frontend/src/utils/resource/types.ts
-  - frontend/src/utils/resource/registry.ts
+  - frontend/src/utils/resource/
+  - frontend/src/utils/types-re-export.ts
   - frontend/src/features/repo-rtype.ts
 use_when:
   - 资源类型

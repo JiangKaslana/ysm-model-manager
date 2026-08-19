@@ -4,15 +4,7 @@ name: 主内容页 app-content
 tier: architecture
 category: ui
 source_files:
-  - frontend/src/views/app-content/index.ts
-  - frontend/src/views/app-content/init-github.ts
-  - frontend/src/views/app-content/init-pages.ts
-  - frontend/src/views/app-content/init-preview.ts
-  - frontend/src/views/app-content/init-workshop.ts
-  - frontend/src/views/app-content/tpl.ts
-  - frontend/src/views/app-content/content-css.ts
-  - frontend/src/views/app-content/content-layout.ts
-  - frontend/src/views/app-content/content-repo.ts
+  - frontend/src/views/app-content/
   - frontend/src/views/app-content/content-creator.ts
   - frontend/src/views/app-content/content-diag.ts
   - frontend/src/views/app-content/content-util.ts

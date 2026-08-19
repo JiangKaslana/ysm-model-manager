@@ -4,8 +4,7 @@ name: 整合包同步页 app-sync-manager
 tier: architecture
 category: ui
 source_files:
-  - frontend/src/views/app-sync-manager/index.ts
-  - frontend/src/views/app-sync-manager/tpl.ts
+  - frontend/src/views/app-sync-manager/
 tests:
   - frontend/src/views/app-sync-manager/index.test.ts
 use_when:

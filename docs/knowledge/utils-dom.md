@@ -4,7 +4,7 @@ name: DOM 工具 dom
 tier: leaf
 category: utils
 source_files:
-  - frontend/src/utils/dom/html.ts
+  - frontend/src/utils/dom/
 use_when:
   - esc
   - HTML 转义

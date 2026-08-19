@@ -4,43 +4,7 @@ name: 预览面板 app-preview
 tier: architecture
 category: ui
 source_files:
-  - frontend/src/views/app-preview/index.ts
-  - frontend/src/views/app-preview/tpl.ts
-  - frontend/src/views/app-preview/loader.ts
-  - frontend/src/views/app-preview/detail.ts
-  - frontend/src/views/app-preview/skeleton.ts
-  - frontend/src/views/app-preview/skeleton-render.ts
-  - frontend/src/views/app-preview/skeleton-utils.ts
-  - frontend/src/views/app-preview/zoom.ts
-  - frontend/src/views/app-preview/wasm.ts
-  - frontend/src/views/app-preview/litematic-3d.ts
-  - frontend/src/views/app-preview/litematic-meta.ts
-  - frontend/src/views/app-preview/cache.ts
-  - frontend/src/views/app-preview/model3d-loader.ts
-  - frontend/src/views/app-preview/screenshot-renderer.ts
-  - frontend/src/views/app-preview/geometry.ts
-  - frontend/src/views/app-preview/utils.ts
-  - frontend/src/views/app-preview/css.ts
-  - frontend/src/views/app-preview/bone-names.ts
-  - frontend/src/views/app-preview/parse-ysm-json.ts
-  - frontend/src/views/app-preview/texture-order.ts
-  - frontend/src/views/app-preview/skeleton-fill-panel.ts
-  - frontend/src/views/app-preview/detail-3d.ts
-  - frontend/src/views/app-preview/mmd-3d.ts
-  - frontend/src/views/app-preview/mmd-controls.ts
-  - frontend/src/views/app-preview/mmd-siblings.ts
-  - frontend/src/utils/3d/adapters/mount-preview-core.ts
-  - frontend/src/utils/3d/adapters/mmd-adapter.ts
-  - frontend/src/utils/3d/adapters/cleanup-3d.ts
-  - frontend/src/utils/3d/adapters/switch-preview.ts
-  - frontend/src/utils/3d/adapters/input-and-animation.ts
-  - frontend/src/utils/3d/adapters/postprocessing.ts
-  - frontend/src/utils/3d/adapters/litematic-adapter.ts
-  - frontend/src/views/app-preview/vrm-3d.ts
-  - frontend/src/utils/3d/adapters/vrm-adapter.ts
-  - frontend/src/views/app-preview/ysm-3d.ts
-  - frontend/src/utils/3d/adapters/ysm-adapter.ts
-  - frontend/src/views/app-preview/ysm-controls.ts
+  - frontend/src/views/app-preview/
 tests:
   - frontend/src/views/app-nav/index.test.ts
   - frontend/src/views/app-preview/utils.test.ts

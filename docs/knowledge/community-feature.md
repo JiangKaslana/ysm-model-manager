@@ -4,13 +4,7 @@ name: 社区下载 community
 tier: architecture
 category: feature
 source_files:
-  - frontend/src/features/community/data.ts
-  - frontend/src/features/community/download-queue-progress.ts
-  - frontend/src/features/community/download-queue-store.ts
-  - frontend/src/features/community/download-queue.ts
-  - frontend/src/features/community/download-tasks.ts
-  - frontend/src/features/community/events.ts
-  - frontend/src/features/community/render.ts
+  - frontend/src/features/community/
   - frontend/src/utils/gh-links.ts
 tests:
   - frontend/src/features/community/data.test.ts

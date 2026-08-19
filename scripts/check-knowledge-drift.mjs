@@ -18,6 +18,7 @@
  *
  * 用法：
  *   node scripts/check-knowledge-drift.mjs                  # 文本报告（被动：卡间/卡→源码引用漂移）
+ *   node scripts/check-knowledge-drift.mjs --verbose         # 文本报告 + 未覆盖文件完整清单
  *   node scripts/check-knowledge-drift.mjs --json           # JSON（CI 用，doctor --docs 调用）
  *   node scripts/check-knowledge-drift.mjs --affected <f>…  # 主动：源码变更即列出受影响知识卡（治未病）
  *     # 常与 git 联动：git diff --name-only | xargs -I{} node scripts/check-knowledge-drift.mjs --affected {}
@@ -34,6 +35,7 @@ import { parseFrontmatter, getScalar, getList, parseSourceFiles } from './_lib/f
 const KC_DIR = path.join(ROOT, 'docs', 'knowledge');
 
 const JSON_OUT = process.argv.includes('--json');
+const VERBOSE = process.argv.includes('--verbose');
 const AFFECTED_MODE = process.argv.includes('--affected');
 const _aIdx = process.argv.indexOf('--affected');
 const AFFECTED_PATHS = _aIdx >= 0 ? process.argv.slice(_aIdx + 1) : [];
@@ -296,12 +298,14 @@ function checkKnowledgeCoverage() {
   // 扫描源码文件，未覆盖的按顶层目录分组
   const byDir = new Map();
   let total = 0;
+  const uncoveredFiles = [];
   for (const root of SOURCE_ROOTS) {
     for (const f of walkSources(path.join(ROOT, root))) {
       const rel = toPosix(path.relative(ROOT, f));
       const hit = [...referenced].some((entry) => covers(rel, entry));
       if (hit) continue;
       total++;
+      uncoveredFiles.push(rel);
       const top = rel.split('/').slice(0, 2).join('/');
       byDir.set(top, (byDir.get(top) || 0) + 1);
     }
@@ -313,6 +317,21 @@ function checkKnowledgeCoverage() {
     .map(([d, n]) => `${d}×${n}`)
     .join('  ');
   warns.push(`代码→卡片覆盖盲区：${total} 个源码文件未被任何知识卡引用（TOP: ${topSummary}）。非阻断提醒，建议补登知识卡。`);
+  // --verbose 时输出完整文件列表
+  if (VERBOSE) {
+    const indent = '  ';
+    console.log(`\n${indent}未覆盖文件清单（${total} 个）：`);
+    const bySub = new Map();
+    for (const f of uncoveredFiles) {
+      const sub = f.split('/').slice(0, 3).join('/');
+      if (!bySub.has(sub)) bySub.set(sub, []);
+      bySub.get(sub).push(f);
+    }
+    for (const [sub, files] of [...bySub.entries()].sort((a, b) => b[1].length - a[1].length)) {
+      console.log(`${indent}${indent}${sub} ×${files.length}`);
+      for (const f of files) console.log(`${indent}${indent}${indent}- ${f}`);
+    }
+  }
 }
 
 // ── 主动防御：源码变更即标记受影响知识卡 ──────────────

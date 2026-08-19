@@ -5,6 +5,7 @@ tier: leaf
 category: core
 source_files:
   - frontend/src/app-modules.ts
+  - frontend/src/theme-core.ts
   - frontend/css/variables.css
 use_when:
   - 主题

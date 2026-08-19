@@ -4,7 +4,7 @@ name: 顶部导航 app-nav
 tier: leaf
 category: ui
 source_files:
-  - frontend/src/views/app-nav/index.ts
+  - frontend/src/views/app-nav/
 use_when:
   - 导航栏
   - 导航

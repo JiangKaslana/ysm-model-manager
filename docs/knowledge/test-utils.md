@@ -4,10 +4,7 @@ name: 测试工具 test-utils（G-1 抗脆弱测试基础设施）
 tier: architecture
 category: ui
 source_files:
-  - frontend/src/test-utils/index.ts
-  - frontend/src/test-utils/events.ts
-  - frontend/src/test-utils/query-by-testid.ts
-  - frontend/src/test-utils/render.ts
+  - frontend/src/test-utils/
 tests:
   - frontend/src/views/app-nav/index.test.ts
   - frontend/src/views/app-resource-manager/index.test.ts
