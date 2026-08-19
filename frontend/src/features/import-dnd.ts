@@ -145,14 +145,30 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   const isBusy = () => _dropBusy;
   const setBusy = (v: boolean) => { _dropBusy = v; };
 
-  // 在 ShadowRoot 顶层绑定（避开 overflow:auto 容器吞 drop 的 WebView2 已知问题）；
-  // hint 同样需从 getRootNode() 查找，而非 container.parentElement。
-  const rootNode = container.getRootNode() as Document | ShadowRoot;
-  const hintEl = rootNode instanceof ShadowRoot
-    ? rootNode.querySelector<HTMLElement>(".tree-drop-hint")
-    : (rootNode as Document).querySelector<HTMLElement>(".tree-drop-hint");
+  // hint 与 #tree 同为 <app-tree> shadow root 的直接子节点：parentElement 对
+  // shadow root 子节点返回 null（ShadowRoot 非 Element），必须从 getRootNode()
+  // 查找，否则 hint 永远不显示（ADR-060 组件化回归）。
+  const hintEl = (container.getRootNode() as ParentNode).querySelector<HTMLElement>(".tree-drop-hint");
+
+  // WebView2 在 Shadow DOM 内的 drop 事件存在已知限制（overflow:auto 容器吞 drop），
+  // 因此在 document 层监听，通过 e.target 判断是否命中 app-tree 子树。
+  // 这样 drop 事件不受 ShadowRoot 边界影响，始终能触发。
+  const isInTree = (el: EventTarget | null): boolean => {
+    if (!el) return false;
+    const node = el as Node;
+    // 向上遍历 shadow boundary
+    let current: Node | null = node;
+    while (current) {
+      if (current === container || current === hintEl) return true;
+      const root = current.getRootNode();
+      if (root === current) break; // 已到 document 根，不再有 shadow boundary
+      current = current.parentElement;
+    }
+    return false;
+  };
 
   const onDragOver = (e: DragEvent): void => {
+    if (!isInTree(e.target)) return;
     if (isEditable(e.target)) return;
     if (!e.dataTransfer?.types?.includes("Files")) return;
     e.preventDefault();
@@ -163,12 +179,13 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   };
 
   const onDragLeave = (e: DragEvent): void => {
-    // 仅在真正离开容器时隐藏（不是移到子元素）
+    if (!isInTree(e.target)) return;
     if (!(e.currentTarget === e.relatedTarget || (e.relatedTarget as HTMLElement | null)?.closest?.(container.tagName === "APP-TREE" ? "app-tree" : ".list"))) return;
     if (hintEl) hintEl.style.display = "none";
   };
 
   const onDrop = (e: DragEvent): void => {
+    if (!isInTree(e.target)) return;
     // eslint-disable-next-line no-console
     console.log("[dnd] drop fired", {
       files: e.dataTransfer?.files?.length ?? 0,
@@ -189,14 +206,14 @@ export function bindTreeDnD(container: HTMLElement): () => void {
     });
   };
 
-  rootNode.addEventListener("dragover", onDragOver as EventListener);
-  rootNode.addEventListener("dragleave", onDragLeave as EventListener);
-  rootNode.addEventListener("drop", onDrop as EventListener);
+  document.addEventListener("dragover", onDragOver);
+  document.addEventListener("dragleave", onDragLeave);
+  document.addEventListener("drop", onDrop);
   // eslint-disable-next-line no-console
-  console.log("[dnd] bound listeners to rootNode", rootNode.constructor.name);
+  console.log("[dnd] bound listeners to document");
   return () => {
-    rootNode.removeEventListener("dragover", onDragOver as EventListener);
-    rootNode.removeEventListener("dragleave", onDragLeave as EventListener);
-    rootNode.removeEventListener("drop", onDrop as EventListener);
+    document.removeEventListener("dragover", onDragOver);
+    document.removeEventListener("dragleave", onDragLeave);
+    document.removeEventListener("drop", onDrop);
   };
 }
