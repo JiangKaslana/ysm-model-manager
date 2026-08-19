@@ -253,8 +253,7 @@ func ReadShaderpackLang(path string) string {
 
 	info, err := os.Stat(path)
 	if err != nil {
-		data, _ := json.Marshal(result)
-		return string(data)
+		return marshalShaderpackResult(result)
 	}
 
 	var langData []byte
@@ -278,8 +277,7 @@ func ReadShaderpackLang(path string) string {
 	} else if strings.HasSuffix(strings.ToLower(path), ".zip") {
 		r, err := zip.OpenReader(path)
 		if err != nil {
-			data, _ := json.Marshal(result)
-			return string(data)
+			return marshalShaderpackResult(result)
 		}
 		defer r.Close()
 		for _, f := range r.File {
@@ -302,8 +300,7 @@ func ReadShaderpackLang(path string) string {
 	}
 
 	if len(langData) == 0 {
-		data, _ := json.Marshal(result)
-		return string(data)
+		return marshalShaderpackResult(result)
 	}
 
 	// 解析 .lang 文件（key=value 格式）
@@ -337,6 +334,16 @@ func ReadShaderpackLang(path string) string {
 
 	result["name"] = name
 	result["entries"] = entries
-	data, _ := json.Marshal(result)
+	return marshalShaderpackResult(result)
+}
+
+// marshalShaderpackResult 序列化光影包 lang 读取结果（规律六：不吞错）
+// json.Marshal 对 map[string]interface{} 几乎不可能失败，但失败时仍返回
+// 带 error 字段的合法 JSON，避免前端拿到空串 → JSON.parse("") 抛异常
+func marshalShaderpackResult(result map[string]interface{}) string {
+	data, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Sprintf(`{"name":"","entries":{},"error":%q}`, err.Error())
+	}
 	return string(data)
 }
