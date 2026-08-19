@@ -81,6 +81,16 @@ func NewApp() *App {
 // SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器
 func (a *App) SetApp(app *application.App) { a.app = app }
 
+// GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录
+func (a *App) GetYSMRepoRoot() string {
+	config := a.LoadAppConfig()
+	// 优先从 CustomRoots 获取，其次使用 FilesRoot
+	if root, ok := config.CustomRoots["ysm"]; ok && root != "" {
+		return root
+	}
+	return config.FilesRoot
+}
+
 // SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。
 // 注意：ServiceStartup 在 app.Run() 早期被调用，此时窗口尚未成为 Current，
 // Window.Current() 会返回 nil 导致空指针；故改用直接持有的窗口引用。

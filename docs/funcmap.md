@@ -8,7 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 11 |
-| go/cli | 5 | 43 |
+| go/cli | 5 | 32 |
 | go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 15 |
@@ -34,19 +34,19 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 26 | 199 |
+| Go(internal)·应用入口 | 26 | 198 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
-| frontend/backend | 18 | 100 |
+| frontend/backend | 19 | 101 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 20 | 98 |
-| 前端·服务 | 1 | 6 |
+| 前端·服务 | 2 | 26 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 127 | 473 |
 | frontend/views | 105 | 295 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **418** | **1776** |
+| **合计** | **420** | **1785** |
 
 ## Go·头像
 
@@ -68,8 +68,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RunCLI()` | `go/cli/cli:17` | RunCLI 执行 CLI 模式（从命令行参数） 返回的 error 用于映射到正确的退出码 |
-| `ExecuteCLIWithApp()` | `go/cli/cli:48` | ExecuteCLIWithApp 执行 CLI 命令（使用任意 App 对象） 返回 error 用于错误处理 |
+| `RunCLI()` | `go/cli/cli:17` | RunCLI 执行 CLI 模式 |
+| `ExecuteCLIWithApp()` | `go/cli/cli:45` | ExecuteCLIWithApp 执行 CLI 命令 |
 | `NewJsonSuccess()` | `go/cli/json:38` | NewJsonSuccess 创建成功响应 |
 | `NewJsonError()` | `go/cli/json:49` | NewJsonError 创建错误响应 |
 | `NewJsonNotSupported()` | `go/cli/json:80` | NewJsonNotSupported 创建平台不支持响应 |
@@ -80,24 +80,14 @@
 | `JsonError()` | `go/cli/json:21` | JsonError 错误详情 |
 | `TimingInfo()` | `go/cli/json:28` | TimingInfo 耗时统计 |
 | `MetaInfo()` | `go/cli/json:33` | MetaInfo 元信息 |
-| `CmdContext.GetApp()` | `go/cli/registry:62` | GetApp 获取 App 适配器 |
-| `CmdContext.DoScanModelEntries()` | `go/cli/registry:70` | DoScanModelEntries 扫描模型（使用回调） |
-| `CmdContext.DoLoadAppConfig()` | `go/cli/registry:78` | DoLoadAppConfig 加载配置（使用回调） |
-| `CmdContext.DoGetYSMModels()` | `go/cli/registry:86` | DoGetYSMModels 获取 YSM 模型列表 |
-| `CmdContext.DoAnalyzeYSMFile()` | `go/cli/registry:94` | DoAnalyzeYSMFile 分析 YSM 文件 |
-| `CmdContext.DoReadMMDFile()` | `go/cli/registry:102` | DoReadMMDFile 读取 MMD 文件 |
-| `CmdContext.DoListResourcepacks()` | `go/cli/registry:110` | DoListResourcepacks 列出资源包 |
-| `RegisterCommand()` | `go/cli/registry:128` | RegisterCommand 注册一个 CLI 子命令 |
-| `GetCommand()` | `go/cli/registry:140` | GetCommand 获取已注册的命令 |
-| `GetAllCommands()` | `go/cli/registry:146` | GetAllCommands 获取所有已注册命令（用于帮助信息） |
-| `DispatchCommand()` | `go/cli/registry:155` | DispatchCommand 分发命令执行 |
-| `AppAdapter()` | `go/cli/registry:9` | AppAdapter CLI 所需的 App 功能接口 由 internal/app.App 实现，避免循环导入 |
-| `ModelAnalyzer()` | `go/cli/registry:15` | ModelAnalyzer 模型分析接口 |
-| `BedrockModelInfo()` | `go/cli/registry:21` | BedrockModelInfo 模型信息 |
-| `ModelEntry()` | `go/cli/registry:28` | ModelEntry 模型扫描结果 |
-| `AppConfigData()` | `go/cli/registry:36` | AppConfigData 应用配置数据 |
-| `CmdContext()` | `go/cli/registry:47` | CmdContext 统一命令执行上下文 |
-| `CliCommand()` | `go/cli/registry:118` | CliCommand 命令注册结构 |
+| `RegisterCommand()` | `go/cli/registry:43` | RegisterCommand 注册一个 CLI 子命令 |
+| `GetCommand()` | `go/cli/registry:55` | GetCommand 获取已注册的命令 |
+| `GetAllCommands()` | `go/cli/registry:61` | GetAllCommands 获取所有已注册命令 |
+| `DispatchCommand()` | `go/cli/registry:70` | DispatchCommand 分发命令执行 |
+| `AppAdapter()` | `go/cli/registry:10` | AppAdapter CLI 所需的 App 功能接口 |
+| `AppConfigData()` | `go/cli/registry:16` | AppConfigData 应用配置数据 |
+| `CmdContext()` | `go/cli/registry:27` | CmdContext 统一命令执行上下文 |
+| `CliCommand()` | `go/cli/registry:34` | CliCommand 命令注册结构 |
 | `ErrParam.Error()` | `go/cli/shared:25` | — |
 | `ErrParam.Unwrap()` | `go/cli/shared:32` | — |
 | `ErrRuntime.Error()` | `go/cli/shared:40` | — |
@@ -107,10 +97,9 @@
 | `ParseCommandArgs()` | `go/cli/shared:68` | ParseCommandArgs 从参数中提取 files-root 和命令参数 返回: filesRoot, commandArgs（不含 files-root 的剩余参数） |
 | `ErrParam()` | `go/cli/shared:20` | ErrParam 参数错误（exit code 2） |
 | `ErrRuntime()` | `go/cli/shared:35` | ErrRuntime 运行时业务错误（exit code 1） |
-| `Bridge.ExecuteCLI()` | `go/cli/wails_bridge:18` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） 前端调用: await window.Bridge.ExecuteCLI(command, ar |
-| `Bridge.GetAllowedCLICommands()` | `go/cli/wails_bridge:84` | GetAllowedCLICommands 返回允许的 CLI 命令列表（Wails 绑定） |
-| `outputBuffer.String()` | `go/cli/wails_bridge:133` | — |
-| `Bridge()` | `go/cli/wails_bridge:12` | Bridge Wails ↔ CLI 桥接服务 作为独立 Wails 服务注册，避免 internal/app → go/cli 循环导入 |
+| `Bridge.ExecuteCLI()` | `go/cli/wails_bridge:20` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） 前端调用: await window.Bridge.ExecuteCLI(command, ar |
+| `outputBuffer.String()` | `go/cli/wails_bridge:121` | — |
+| `Bridge()` | `go/cli/wails_bridge:14` | Bridge Wails ↔ CLI 桥接服务 作为独立 Wails 服务注册，避免 internal/app → go/cli 循环导入 |
 
 ## go/container
 
@@ -717,17 +706,16 @@
 | `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:363` | — |
 | `NewApp()` | `internal/app/app:56` | — |
 | `App.SetApp()` | `internal/app/app:82` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
-| `App.GetYSMRepoRoot()` | `internal/app/app:91` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
-| `App.SetMainWindow()` | `internal/app/app:103` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
-| `App.ServiceStartup()` | `internal/app/app:106` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
-| `App.ServiceShutdown()` | `internal/app/app:202` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
-| `App.OpenInBrowser()` | `internal/app/app:237` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
-| `App.GetAppVersion()` | `internal/app/app:242` | GetAppVersion 返回当前版本号 |
+| `App.GetYSMRepoRoot()` | `internal/app/app:85` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
+| `App.SetMainWindow()` | `internal/app/app:97` | SetMainWindow 注入主窗口实例，避免依赖 Window.Current()。 |
+| `App.ServiceStartup()` | `internal/app/app:100` | ServiceStartup 对应 v2 的 startup，在 app.Run() 期间由框架调用 |
+| `App.ServiceShutdown()` | `internal/app/app:196` | ServiceShutdown 对应 v2 的 shutdown，在应用退出前由框架调用 |
+| `App.OpenInBrowser()` | `internal/app/app:231` | OpenInBrowser 在系统默认浏览器中打开链接（而非 WebView2 内嵌） |
+| `App.GetAppVersion()` | `internal/app/app:236` | GetAppVersion 返回当前版本号 |
 | `App()` | `internal/app/app:28` | — |
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
-| `App.ExecuteCLI()` | `internal/app/cli_bridge:28` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
-| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:108` | GetAllowedCLICommands 返回允许的 CLI 命令列表 |
-| `outputBuffer.String()` | `internal/app/cli_bridge:183` | — |
+| `App.ExecuteCLI()` | `internal/app/cli_bridge:37` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
+| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:121` | GetAllowedCLICommands 返回允许的 CLI 命令列表 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
@@ -818,7 +806,7 @@
 | `onStatsProgress()` | `frontend/src/backend/browser-adapter` | — |
 | `getStatsPoolSize()` | `frontend/src/backend/browser-adapter` | — |
 | `prefetchStatsWorker()` | `frontend/src/backend/browser-adapter` | — |
-| `browserAdapter()` | `frontend/src/backend/browser-adapter:68` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
+| `browserAdapter()` | `frontend/src/backend/browser-adapter:70` | 浏览器后端（Proxy 动态形状，未实现 binding 一律 fail-fast） |
 | `isCrossOriginIsolated()` | `frontend/src/backend/coi-sw:14` | 当前是否已跨源隔离（SW 补头后 crossOriginIsolated=true；供多线程 WASM 分支） |
 | `registerCoiServiceWorker()` | `frontend/src/backend/coi-sw:19` | 注册 COI SW（网页版）：首次注册后 reload 一次让浏览器重新导航经 SW（解锁跨源隔离） |
 | `ZipEntryMeta()` | `frontend/src/backend/extract:33` | ZIP 中央目录条目元数据（pre-parse 产物） |
@@ -863,6 +851,7 @@
 | `nbtVoxelView()` | `frontend/src/backend/voxel-parse:396` | 对齐 voxel.go:286-382 BuildNbtVoxelData：structure NBT 体素视图。 |
 | `schematicVoxelView()` | `frontend/src/backend/voxel-parse:561` | 对齐 voxel.go:384-491 BuildSchematicVoxelData：schematic 体素视图。 |
 | `decodeVoxelNbt()` | `frontend/src/backend/voxel-parse:649` | 纯函数：base64 字节 → NBT root（IO 与解码解耦——本函数无任何 IO，输入 b64 字符串 输出解析后的 root 对象；readVoxelJson 等装配层只 |
+| `webCliBindings()` | `frontend/src/backend/web-cli:34` | 网页版 CLI 绑定 |
 | `WebUnsupportedError()` | `frontend/src/backend/web-common:8` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
 | `WEB_ROOT()` | `frontend/src/backend/web-common:16` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |
 | `isWebPath()` | `frontend/src/backend/web-common:27` | 校验是否为 /web/ 虚拟仓库路径（含 type 段与至少一个后续段） |
@@ -1050,6 +1039,26 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `CLIArgs()` | `frontend/src/services/cli-bridge:12` | CLI 命令参数（统一格式：key-value map） |
+| `CLIStatus()` | `frontend/src/services/cli-bridge:15` | CLI 响应状态 |
+| `CLIError()` | `frontend/src/services/cli-bridge:18` | CLI 错误详情 |
+| `CLIData()` | `frontend/src/services/cli-bridge:25` | CLI 响应数据 |
+| `CLIResponse()` | `frontend/src/services/cli-bridge:34` | CLI 统一响应 |
+| `ALLOWED_CLI_COMMANDS()` | `frontend/src/services/cli-bridge:44` | 允许的 CLI 命令白名单（与后端保持同步） |
+| `AllowedCLICommand()` | `frontend/src/services/cli-bridge:65` | — |
+| `executeCLI()` | `frontend/src/services/cli-bridge:75` | 执行 CLI 命令（核心入口） |
+| `getAllowedCLICommands()` | `frontend/src/services/cli-bridge:123` | 获取允许的 CLI 命令列表 |
+| `cliSearch()` | `frontend/src/services/cli-bridge:139` | 搜索模型 |
+| `cliList()` | `frontend/src/services/cli-bridge:148` | 列出所有模型 |
+| `cliAnalyze()` | `frontend/src/services/cli-bridge:153` | 分析模型 |
+| `cliVerify()` | `frontend/src/services/cli-bridge:158` | 验证模型 |
+| `cliBenchmark()` | `frontend/src/services/cli-bridge:163` | 基准测试 |
+| `cliSingleBench()` | `frontend/src/services/cli-bridge:168` | 单模型基准测试 |
+| `cliPerfLog()` | `frontend/src/services/cli-bridge:173` | 性能日志 |
+| `cliCacheStatus()` | `frontend/src/services/cli-bridge:178` | 缓存状态查询 |
+| `cliCacheVerify()` | `frontend/src/services/cli-bridge:183` | 缓存验证 |
+| `buildArgsMap()` | `frontend/src/services/cli-bridge:190` | 构建参数 map（过滤 undefined 和 null） |
+| `parseCLIResponse()` | `frontend/src/services/cli-bridge:201` | 解析 CLI JSON 响应 |
 | `ServiceName()` | `frontend/src/services/registry:11` | 已知服务名（新服务先在 app-modules.ts 注册，再在此登记） |
 | `register()` | `frontend/src/services/registry:18` | 注册一个服务（.ts 调用方：register("name", impl as X) 声明类型；重复注册覆盖旧实例并告警） |
 | `get()` | `frontend/src/services/registry:24` | 获取一个服务（.ts 调用方：get&lt;X&gt;("name") 断言期望类型；未注册抛错，错误含服务名） |
