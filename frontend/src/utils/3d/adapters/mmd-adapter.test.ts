@@ -641,6 +641,7 @@ describe("批量读取降级", () => {
     const port: MmdDataPort = {
       ...makePort(),
       readFileBytesBatch: vi.fn().mockRejectedValue(new Error("batch RPC failed")),
+      readFileBytesBatchWithMeta: vi.fn().mockRejectedValue(new Error("meta batch RPC failed")),
     };
 
     const { ctx } = makeCtx();
@@ -677,6 +678,7 @@ describe("批量读取降级", () => {
     const port: MmdDataPort = {
       ...makePort(),
       readFileBytesBatch: vi.fn().mockRejectedValue(new Error("batch RPC failed")),
+      readFileBytesBatchWithMeta: vi.fn().mockRejectedValue(new Error("meta batch RPC failed")),
     };
 
     const { ctx } = makeCtx();
