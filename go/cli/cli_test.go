@@ -589,6 +589,44 @@ func TestSingleBench_WithFakeModel(t *testing.T) {
 	}
 }
 
+// ---- iterations 参数校验（--iterations 0/负值 必须拒绝，防 allStages[0] 越界 panic）----
+
+func TestSingleBench_RejectsInvalidIterations(t *testing.T) {
+	for _, it := range []string{"0", "-1"} {
+		err := runSingleBench(&CmdContext{App: &app.App{}, Args: []string{"--model", "test.ysm", "--iterations", it}})
+		if err == nil || !strings.Contains(err.Error(), "--iterations") {
+			t.Errorf("single-bench --iterations %s 应报错, got: %v", it, err)
+		}
+		if _, ok := err.(*ErrParam); !ok {
+			t.Errorf("single-bench --iterations %s 应为 ErrParam, got: %T", it, err)
+		}
+	}
+}
+
+func TestFileBench_RejectsInvalidIterations(t *testing.T) {
+	for _, it := range []string{"0", "-1"} {
+		err := runFileBench(&CmdContext{App: &app.App{}, Args: []string{"--dir", ".", "--iterations", it}})
+		if err == nil || !strings.Contains(err.Error(), "--iterations") {
+			t.Errorf("file-bench --iterations %s 应报错, got: %v", it, err)
+		}
+		if _, ok := err.(*ErrParam); !ok {
+			t.Errorf("file-bench --iterations %s 应为 ErrParam, got: %T", it, err)
+		}
+	}
+}
+
+func TestBenchmark_RejectsInvalidIterations(t *testing.T) {
+	for _, it := range []string{"0", "-1"} {
+		err := runBenchmark(&CmdContext{App: &app.App{}, Args: []string{"--iterations", it}})
+		if err == nil || !strings.Contains(err.Error(), "--iterations") {
+			t.Errorf("benchmark --iterations %s 应报错, got: %v", it, err)
+		}
+		if _, ok := err.(*ErrParam); !ok {
+			t.Errorf("benchmark --iterations %s 应为 ErrParam, got: %T", it, err)
+		}
+	}
+}
+
 // ========== flow 命令测试 ==========
 
 func TestGUIFlow_NoModels(t *testing.T) {
