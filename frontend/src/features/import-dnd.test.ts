@@ -109,6 +109,36 @@ describe("bindTreeDnD 绑定与清理", () => {
     cleanup();
     host.remove();
   });
+
+  it("drop 目标是 shadow DOM 深层后代（真实拖放场景）→ 仍被识别为树内（parentNode 跨 shadow 边界）", () => {
+    // 回归锁：isInTree 旧实现用 parentElement 上溯，遇 shadow 边界顶部返回 null，
+    // 对 shadow DOM 内任何深层目标都判 false → 真实拖放永不触发（ADR-060 组件化后
+    // 树内容全在 shadow root 内）。改用 parentNode 跨 shadow 边界（经 host）上溯。
+    const host = document.createElement("app-tree");
+    const sr = host.attachShadow({ mode: "open" });
+    sr.innerHTML =
+      '<div id="tree"><div class="item"><span>deep target</span></div></div>' +
+      '<div class="tree-drop-hint"></div>';
+    document.body.appendChild(host);
+    const tree = sr.getElementById("tree") as HTMLElement;
+    const deep = tree.querySelector(".item span") as HTMLElement;
+    const hint = sr.querySelector(".tree-drop-hint") as HTMLElement;
+    const cleanup = bindTreeDnD(tree);
+
+    const over = makeDragEvent("dragover", { types: ["Files"] });
+    Object.defineProperty(over, "target", { value: deep, configurable: true });
+    document.dispatchEvent(over);
+    expect(over.defaultPrevented).toBe(true);
+    expect(hint.style.display).toBe("flex");
+
+    const drop = makeDragEvent("drop", { types: ["Files"] });
+    Object.defineProperty(drop, "target", { value: deep, configurable: true });
+    document.dispatchEvent(drop);
+    expect(hint.style.display).toBe("none");
+
+    cleanup();
+    host.remove();
+  });
 });
 
 // ===== dragover 行为 =====

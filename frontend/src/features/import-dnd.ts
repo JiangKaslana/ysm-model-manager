@@ -156,13 +156,16 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   const isInTree = (el: EventTarget | null): boolean => {
     if (!el) return false;
     const node = el as Node;
-    // 向上遍历 shadow boundary
+    // 向上遍历 shadow boundary。⚠️ 必须用 parentNode 而非 parentElement：
+    // parentElement 遇 shadow 边界顶部返回 null（ShadowRoot 非 Element），
+    // 对 shadow DOM 内任何深层目标都判 false → 真实拖放永不触发。
+    // parentNode 会经 host 跨出 shadow root，继续上溯到容器。
     let current: Node | null = node;
     while (current) {
       if (current === container || current === hintEl) return true;
       const root = current.getRootNode();
       if (root === current) break; // 已到 document 根，不再有 shadow boundary
-      current = current.parentElement;
+      current = current.parentNode;
     }
     return false;
   };

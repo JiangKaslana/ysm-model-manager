@@ -337,6 +337,9 @@ func GroupOf(rtype string) string {
 // GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：
 //   - 有 group：FilesRoot/{group}/{storageSubDir}
 //   - 无 group（向后兼容）：FilesRoot/{storageSubDir}（单级平铺，不强制迁移旧目录）
+//   - 软合并壳类型（vanilla-assets/mod-model）无 storageSubDir，回退到 typeId；
+//     其实际存储由 subtypes 的 installDir/scanDir 处理，消费方（app.go EnsureStorageDirs）
+//     已通过 `if rt.StorageSubDir != ""` 跳过壳类型。
 //
 // 返回的是相对于 FilesRoot 的子路径（不含 FilesRoot 本身），调用方自行 Join。
 func GroupStorageRoot(rtype string) string {
