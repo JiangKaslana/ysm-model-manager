@@ -11,17 +11,13 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
-vi.mock("@loaders.gl/textures", () => ({
-  KTX2BasisWriter: { encode: hoisted.ktx2EncodeMock },
-}));
-
 vi.mock("../../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     SaveCachedTexture: hoisted.saveTextureMock,
   }),
 }));
 
-import { encodeAndCacheTexture, scheduleBackgroundEncoding, cancelPendingEncodings, resetEncoderState } from "./mmd-ktx2-encoder.ts";
+import { encodeAndCacheTexture, scheduleBackgroundEncoding, cancelPendingEncodings, resetEncoderState, __setEncodeImplForTest } from "./mmd-ktx2-encoder.ts";
 import type { MmdDataPort } from "./mmd-adapter.ts";
 
 // ===== 辅助函数 =====
@@ -104,6 +100,7 @@ describe("encodeAndCacheTexture", () => {
     vi.clearAllMocks();
     hoisted.ktx2EncodeMock.mockResolvedValue(new Uint8Array([0xab, 0xcd, 0xef]).buffer);
     hoisted.saveTextureMock.mockResolvedValue(undefined);
+    __setEncodeImplForTest(hoisted.ktx2EncodeMock);
     installDomMocks();
   });
 
@@ -117,11 +114,11 @@ describe("encodeAndCacheTexture", () => {
 
     expect(ok).toBe(true);
     expect(hoisted.ktx2EncodeMock).toHaveBeenCalledOnce();
-    // 本地 basis 库注入：loaders.gl 默认从 CDN/相对路径拉取会 404（BasisEncoderModule is not a function），
-    // encode options 必须显式映射到项目 public/basis/（ADR 防回归）
-    const encodeOpts = hoisted.ktx2EncodeMock.mock.calls[0][1] as { modules?: Record<string, string> };
-    expect(encodeOpts?.modules?.["basis_encoder.js"]).toBe("/basis/basis_encoder.js");
-    expect(encodeOpts?.modules?.["basis_encoder.wasm"]).toBe("/basis/basis_encoder.wasm");
+    // 编码实现接收解码后的 ImageData（含像素数据），由本地 WASM 编码为 KTX2
+    const imgArg = hoisted.ktx2EncodeMock.mock.calls[0][0] as { data: Uint8Array; width: number; height: number };
+    expect(imgArg.width).toBe(1);
+    expect(imgArg.height).toBe(1);
+    expect(imgArg.data).toBeInstanceOf(Uint8Array);
     expect(hoisted.saveTextureMock).toHaveBeenCalledWith("hash123", expect.any(String));
     expect(hoisted.addOpLogMock).toHaveBeenCalledWith(
       "ktx2-encode", "hash123", "ok", expect.stringContaining("bytes="),
@@ -186,6 +183,7 @@ describe("scheduleBackgroundEncoding", () => {
     vi.clearAllMocks();
     hoisted.ktx2EncodeMock.mockResolvedValue(new Uint8Array([0x01]).buffer);
     hoisted.saveTextureMock.mockResolvedValue(undefined);
+    __setEncodeImplForTest(hoisted.ktx2EncodeMock);
     installDomMocks();
     // 启用 fake timers 以便精确控制异步流程
     vi.useFakeTimers();
@@ -289,6 +287,7 @@ describe("并发控制与取消", () => {
     vi.clearAllMocks();
     hoisted.ktx2EncodeMock.mockResolvedValue(new Uint8Array([0x01]).buffer);
     hoisted.saveTextureMock.mockResolvedValue(undefined);
+    __setEncodeImplForTest(hoisted.ktx2EncodeMock);
     installDomMocks();
     vi.useFakeTimers();
   });
@@ -413,6 +412,7 @@ describe("resetEncoderState", () => {
     installDomMocks();
     hoisted.ktx2EncodeMock.mockResolvedValue(new Uint8Array([0x01]).buffer);
     hoisted.saveTextureMock.mockResolvedValue(undefined);
+    __setEncodeImplForTest(hoisted.ktx2EncodeMock);
     vi.useFakeTimers();
   });
 

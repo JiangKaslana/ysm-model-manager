@@ -6,6 +6,12 @@
 // 编码失败静默降级，不影响已有 PNG 纹理。
 //
 // P1-1 优化：并发控制（MAX_CONCURRENT=3）+ 取消机制 + 幂等调度
+//
+// ⚠️ 不直接使用 @loaders.gl/textures 的 KTX2BasisWriter.encode：
+// 其 4.4.4 实现返回 `basisFileData.subarray(0, n).buffer`——subarray 是视图，
+// `.buffer` 是整个底层 ArrayBuffer（原始 RGBA 大小），导致缓存写入"原始大小 +
+// 零填充"的假 KTX2（魔数合法但体积虚胖）。这里直接调 BasisEncoder API，
+// 用 `slice(0, n)` 复制出真实长度的压缩数据。
 
 // 使用动态 import 加载 KTX2BasisWriter（含 BasisEncoder WASM）
 import type { MmdDataPort } from "./mmd-adapter.ts";
@@ -118,6 +124,92 @@ async function blobUrlToBase64(blobUrl: string): Promise<string> {
   });
 }
 
+// ===== 本地 basis_encoder WASM 加载与 KTX2 编码（绕开 loaders.gl 的 subarray().buffer 假成功 bug）=====
+
+/** BasisEncoder 实例的最小接口（embind 运行时提供） */
+interface BasisEncoderLike {
+  setCreateKTX2File(v: boolean): void;
+  setKTX2UASTCSupercompression(v: boolean): void;
+  setKTX2SRGBTransferFunc(v: boolean): void;
+  setSliceSourceImage(slice: number, data: Uint8Array, w: number, h: number, premultiply: boolean): void;
+  setPerceptual(v: boolean): void;
+  setMipSRGB(v: boolean): void;
+  setQualityLevel(v: number): void;
+  setUASTC(v: boolean): void;
+  setMipGen(v: boolean): void;
+  /** 编码到 dst，返回写入的字节数（负数=失败） */
+  encode(dst: Uint8Array): number;
+  delete(): void;
+}
+
+/** 初始化后的 basis 模块（含 BasisEncoder 构造器） */
+interface BasisModuleLike {
+  BasisEncoder: new () => BasisEncoderLike;
+  initializeBasis(): void;
+}
+
+let basisModulePromise: Promise<BasisModuleLike> | null = null;
+
+/**
+ * 加载并初始化本地 basis_encoder（缓存单例）。
+ * fetch 项目 public/basis/ 下的 js + wasm，执行 Emscripten 模块工厂。
+ */
+async function loadBasisModule(): Promise<BasisModuleLike> {
+  if (basisModulePromise) return basisModulePromise;
+  basisModulePromise = (async () => {
+    const [jsText, wasmBinary] = await Promise.all([
+      (await fetch("/basis/basis_encoder.js")).text(),
+      (await fetch("/basis/basis_encoder.wasm")).arrayBuffer(),
+    ]);
+    // Emscripten UMD 产物：`var BASIS = (function(){...})()` 定义模块工厂。
+    // 用 Function 执行并在末尾返回工厂（避开浏览器 script 全局注入，测试环境同样可用）。
+    const factory = new Function(`${jsText}\nreturn typeof BASIS !== "undefined" ? BASIS : undefined;`) as () => unknown;
+    const BASIS = factory() as (opts: { wasmBinary: ArrayBuffer }) => Promise<BasisModuleLike>;
+    const module = await BASIS({ wasmBinary });
+    module.initializeBasis();
+    return module;
+  })();
+  // 失败后允许下次重试
+  basisModulePromise.catch(() => { basisModulePromise = null; });
+  return basisModulePromise;
+}
+
+/** 测试注入点：替换编码实现（默认走本地 WASM） */
+let encodeImpl: (img: { data: Uint8Array; width: number; height: number }) => Promise<ArrayBuffer> = encodeToKTX2;
+
+/** 测试用：注入编码实现（默认走本地 WASM） */
+export function __setEncodeImplForTest(fn: typeof encodeImpl): void {
+  encodeImpl = fn;
+}
+
+/**
+ * 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。
+ * 直接调 BasisEncoder API 并用 `slice(0, n)` 复制真实长度——
+ * 不使用 loaders.gl 的 KTX2BasisWriter.encode（其 4.4.4 返回 subarray().buffer，体积虚胖到原始 RGBA 大小）。
+ */
+export async function encodeToKTX2(img: { data: Uint8Array; width: number; height: number }): Promise<ArrayBuffer> {
+  const module = await loadBasisModule();
+  const enc = new module.BasisEncoder();
+  try {
+    enc.setCreateKTX2File(true);
+    enc.setKTX2UASTCSupercompression(true);
+    enc.setKTX2SRGBTransferFunc(true);
+    enc.setSliceSourceImage(0, img.data, img.width, img.height, false);
+    enc.setPerceptual(false);
+    enc.setMipSRGB(false);
+    enc.setQualityLevel(128); // 质量 1-255，128 是平衡值
+    enc.setUASTC(false); // ETC1S（更小，兼容性更好）
+    enc.setMipGen(false); // 预览不需要 mipmap
+    const out = new Uint8Array(img.width * img.height * 4);
+    const n = enc.encode(out);
+    if (n <= 0) throw new Error(`BasisEncoder.encode 返回 ${n}`);
+    // slice 复制真实压缩数据（subarray 是视图，.buffer 会带整个底层 ArrayBuffer）
+    return out.slice(0, n).buffer as ArrayBuffer;
+  } finally {
+    enc.delete();
+  }
+}
+
 /**
  * 将单个 PNG 纹理编码为 KTX2 并缓存。
  * @param hash 纹理内容的 SHA256 hash（来自 GetCachedTexture）
@@ -135,24 +227,8 @@ export async function encodeAndCacheTexture(
   try {
     // 解码 PNG → ImageData
     const imageData = await blobUrlToImageData(pngBlobUrl);
-    // 动态导入 KTX2BasisWriter（运行时加载 encode 函数）
-    const { KTX2BasisWriter } = await import("@loaders.gl/textures");
-    // 编码为 KTX2（Basis Universal）
-    // modules 注入本地 basis 库：loaders.gl 默认从 `modules/textures/src/libs/` 相对路径或 CDN
-    // 拉取 basis_encoder（vite 下 404 → BasisEncoderModule is not a function），
-    // 显式映射到项目 public/basis/（与 KTX2Loader transcoderPath 同源）。
-    const ktx2Buffer = await (KTX2BasisWriter as unknown as { encode: (img: unknown, opts?: unknown) => Promise<ArrayBuffer> }).encode(imageData, {
-      "ktx2-basis-writer": {
-        qualityLevel: 128, // 质量 1-255，128 是平衡值
-        encodeUASTC: false, // 用 ETC1S（更小，兼容性更好）
-        mipmaps: false, // 不需要 mipmap，预览用
-        useSRGB: false,
-      },
-      modules: {
-        "basis_encoder.js": "/basis/basis_encoder.js",
-        "basis_encoder.wasm": "/basis/basis_encoder.wasm",
-      },
-    });
+    // 本地 WASM 编码为 KTX2（绕开 loaders.gl 4.4.4 subarray().buffer 假成功 bug，见文件头注释）
+    const ktx2Buffer = await encodeImpl(imageData);
     // 将 KTX2 ArrayBuffer 转为 base64（分块避免栈溢出，O(n) 替代 O(n²) 字符串拼接）
     const ktx2Bytes = new Uint8Array(ktx2Buffer);
     const ktx2B64 = bytesToBase64(ktx2Bytes);

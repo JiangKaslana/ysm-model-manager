@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
-| 前端·工具 | 127 | 473 |
+| 前端·工具 | 127 | 475 |
 | frontend/views | 106 | 297 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **420** | **1780** |
+| **合计** | **420** | **1782** |
 
 ## Go·头像
 
@@ -1223,12 +1223,14 @@
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:63` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:173` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:180` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:712` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:739` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
-| `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:63` | 取消所有待执行的编码（已在执行的不受影响） |
-| `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:75` | 重置编码器状态（测试用） |
-| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:128` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
-| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:192` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:715` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:742` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:69` | 取消所有待执行的编码（已在执行的不受影响） |
+| `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:81` | 重置编码器状态（测试用） |
+| `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:181` | 测试用：注入编码实现（默认走本地 WASM） |
+| `encodeToKTX2()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:190` | 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。 |
+| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:220` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
+| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:268` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:63` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:82` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:108` | — |

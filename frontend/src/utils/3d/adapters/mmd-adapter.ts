@@ -11,7 +11,7 @@ import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
-import { scheduleBackgroundEncoding } from "./mmd-ktx2-encoder.ts";
+import { scheduleBackgroundEncoding, cancelPendingEncodings } from "./mmd-ktx2-encoder.ts";
 import type {
   MmdBottomNavCtx,
   MmdPlayBridge,
@@ -282,7 +282,8 @@ export async function buildMmdScene(
       // 反向映射：blob URL → 相对路径（post-load KTX2 替换溯源）
       blobUrlToRel.set(url, rel);
       // 存储 hash（来自 readFileBytesBatchWithMeta 的 Go 侧 SHA256，免费）
-      if (texHashBatch[p]) {
+      // TGA 不参与 KTX2 编码：浏览器 Image 无法解码 TGA（blobUrlToImageData 必然 onerror），跳过
+      if (texHashBatch[p] && !p.toLowerCase().endsWith(".tga")) {
         texHashMap.set(rel, texHashBatch[p]);
         blobUrlToHash.set(url, texHashBatch[p]);
       }
@@ -668,6 +669,8 @@ export async function buildMmdScene(
       } catch {
         /* 前置步骤抛错 → 吞掉，确保后续清理继续 */
       } finally {
+        // 取消排队中的后台 KTX2 编码（已开始的会因 blob revoke 在 Image onerror 处静默降级）
+        cancelPendingEncodings();
         // 始终回收 blob URL，无论上面是否抛错（revokeObjectURL 幂等）
         for (const url of blobUrls) URL.revokeObjectURL(url);
       }
