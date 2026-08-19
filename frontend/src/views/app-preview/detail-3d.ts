@@ -12,8 +12,11 @@ import { createMmd3D } from "./mmd-3d.ts";
 import { createScene3D } from "./scene-3d.ts";
 import { resolveMmdSiblings } from "./mmd-siblings.ts";
 import { resolveSceneSiblings } from "./scene-siblings.ts";
+import { resolveMorphSiblings } from "./morph-siblings.ts";
+import { resolveStageSiblings } from "./stage-siblings.ts";
 import { nextDetailGen, getDetailGen } from "./detail.ts";
 import { t } from "../../core/i18n/t.ts";
+import { bus } from "../../bus.ts";
 import type { PreviewCtx } from "./utils.ts";
 
 /** 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） */
@@ -142,6 +145,131 @@ export async function showScenePreview(
         const siblings = await resolveSceneSiblings();
         await createScene3D(path, { siblings });
       })();
+    };
+  }
+}
+
+/** 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） */
+export async function showMorphPreview(
+  ctx: PreviewCtx,
+  path: string,
+): Promise<void> {
+  nextDetailGen();
+  const basename = path.split(/[/\\]/).pop() || "";
+  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>😊 ${t("preview.customMorph") || "自定义表情"}</h3>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
+    <div><strong>${renderFormattedText(basename || "")}</strong></div>
+    <div style="font-size:11px;color:var(--muted);display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+      <span style="background:rgba(80,200,120,0.2);color:#50c878;padding:1px 6px;border-radius:4px;font-weight:500">CustomMorph</span>
+      <span>VPD 姿势</span>
+      <span style="background:rgba(100,100,100,0.2);color:#aaa;padding:1px 6px;border-radius:4px">单帧 morph</span>
+    </div>
+    <div id="morph-siblings" style="max-height:160px;overflow-y:auto;border:1px solid var(--bd);border-radius:6px;padding:6px;margin-top:4px"></div>
+    <button class="preview-fab" id="btn-morph-apply" title="应用表情" aria-label="应用表情" style="background:linear-gradient(135deg,#50c878 0%,#2ea043 100%)"><span class="preview-ic">😊</span></button>
+  </div>
+</div>`;
+  // 加载兄弟列表
+  try {
+    const siblings = await resolveMorphSiblings();
+    const container = ctx.root.querySelector<HTMLElement>("#morph-siblings");
+    if (container && siblings.length > 0) {
+      const items = siblings.map((p) => {
+        const name = p.split(/[/\\]/).pop() || p;
+        const active = p === path;
+        return `<div class="morph-item" data-path="${esc(p)}" style="padding:4px 6px;cursor:pointer;border-radius:4px;font-size:12px;display:flex;align-items:center;gap:6px;${active ? "background:rgba(80,200,120,0.15);color:#50c878;font-weight:600" : ""}hover:background:rgba(255,255,255,0.05)">
+          <span style="font-size:10px;color:var(--muted)">◉</span>
+          <span>${esc(name)}</span>
+        </div>`;
+      }).join("");
+      container.innerHTML = `<div style="color:var(--muted);font-size:11px;margin-bottom:4px">全部 ${siblings.length} 个表情姿势</div>${items}`;
+      // 点击兄弟列表项切换
+      container.querySelectorAll<HTMLElement>(".morph-item").forEach((el) => {
+        el.onclick = () => {
+          const p = el.dataset.path || "";
+          bus.emit("model:select", { path: p, isDir: false });
+        };
+      });
+    } else if (container) {
+      container.innerHTML = `<div style="color:var(--muted);font-size:11px;padding:4px">暂无其他表情姿势</div>`;
+    }
+  } catch { /* 兄弟列表加载失败不阻断 */ }
+  // 应用 FAB
+  const fab = ctx.root.querySelector<HTMLElement>("#btn-morph-apply");
+  if (fab) {
+    fab.onclick = (): void => {
+      // 广播 morph:apply 事件，由当前活跃的 3D 预览器消费（若有）
+      bus.emit("morph:apply", { path });
+      bus.emit("toast:show", {
+        msg: `😊 已发送应用请求：${basename}`,
+        duration: 2000,
+        type: "info",
+      });
+    };
+  }
+}
+
+/** 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） */
+export async function showStagePreview(
+  ctx: PreviewCtx,
+  path: string,
+): Promise<void> {
+  nextDetailGen();
+  const basename = path.split(/[/\\]/).pop() || "";
+  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>🎤 ${t("preview.stageAnim") || "舞台"}</h3>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
+    <div><strong>${renderFormattedText(basename || "")}</strong></div>
+    <div style="font-size:11px;color:var(--muted);display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+      <span style="background:rgba(255,160,80,0.2);color:#ffa050;padding:1px 6px;border-radius:4px;font-weight:500">StageAnim</span>
+      <span>舞台表演包</span>
+    </div>
+    <div id="stage-contents" style="max-height:200px;overflow-y:auto;border:1px solid var(--bd);border-radius:6px;padding:6px;margin-top:4px"></div>
+    <button class="preview-fab" id="btn-stage-load" title="加载舞台" aria-label="加载舞台" style="background:linear-gradient(135deg,#ffa050 0%,#e67e22 100%)"><span class="preview-ic">🎤</span></button>
+  </div>
+</div>`;
+  // 加载舞台内容
+  try {
+    const contents = await resolveStageSiblings();
+    const container = ctx.root.querySelector<HTMLElement>("#stage-contents");
+    if (container) {
+      if (contents.length === 0) {
+        container.innerHTML = `<div style="color:var(--muted);font-size:11px;padding:4px">舞台包为空或目录不存在</div>`;
+      } else {
+        const vmdCount = contents.filter((c) => c.kind === "vmd").length;
+        const audioCount = contents.filter((c) => c.kind === "audio").length;
+        const configCount = contents.filter((c) => c.kind === "config").length;
+        container.innerHTML = `<div style="color:var(--muted);font-size:11px;margin-bottom:6px">📊 包含: ${vmdCount} 动作 / ${audioCount} 音频 / ${configCount} 配置</div>` +
+          contents.map((c) => {
+            const name = c.path.split(/[/\\]/).pop() || c.path;
+            const icon = c.kind === "vmd" ? "🎬" : c.kind === "audio" ? "🎵" : c.kind === "config" ? "⚙️" : "📄";
+            const color = c.kind === "vmd" ? "#ffa050" : c.kind === "audio" ? "#80c0ff" : "#c0c0c0";
+            return `<div class="stage-item" data-path="${esc(c.path)}" style="padding:3px 6px;cursor:pointer;border-radius:4px;font-size:12px;display:flex;align-items:center;gap:6px;border-left:3px solid ${color}">
+              <span>${icon}</span>
+              <span>${esc(name)}</span>
+              <span style="color:var(--muted);font-size:10px;margin-left:auto">${c.kind}</span>
+            </div>`;
+          }).join("");
+        // 点击舞台项切换
+        container.querySelectorAll<HTMLElement>(".stage-item").forEach((el) => {
+          el.onclick = () => {
+            const p = el.dataset.path || "";
+            bus.emit("model:select", { path: p, isDir: false });
+          };
+        });
+      }
+    }
+  } catch { /* 舞台内容加载失败不阻断 */ }
+  // 加载舞台 FAB
+  const fab = ctx.root.querySelector<HTMLElement>("#btn-stage-load");
+  if (fab) {
+    fab.onclick = (): void => {
+      bus.emit("stage:load", { path });
+      bus.emit("toast:show", {
+        msg: `🎤 已发送舞台加载请求：${basename}`,
+        duration: 2000,
+        type: "info",
+      });
     };
   }
 }

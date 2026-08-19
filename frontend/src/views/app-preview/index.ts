@@ -22,6 +22,18 @@ function isSceneModelPath(path: string): boolean {
   const normalized = path.replace(/\\/g, "/");
   return /(^|\/)SceneModel(\/|$)/i.test(normalized);
 }
+
+/** 检测路径是否属于 MMD CustomMorph 子目录 */
+function isCustomMorphPath(path: string): boolean {
+  const normalized = path.replace(/\\/g, "/");
+  return /(^|\/)CustomMorph(\/|$)/i.test(normalized);
+}
+
+/** 检测路径是否属于 MMD StageAnim 子目录 */
+function isStageAnimPath(path: string): boolean {
+  const normalized = path.replace(/\\/g, "/");
+  return /(^|\/)StageAnim(\/|$)/i.test(normalized);
+}
 import { modelDetailHTML } from "./tpl.ts";
 import {
   cacheGet,
@@ -35,7 +47,7 @@ import { t } from "../../core/i18n/t.ts";
 import { type PreviewCtx, type DecodedYsm } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { showModelDetail, showResourcePack, showShaderpack, showSimplePreview } from "./detail.ts";
-import { showVrmMeta, showMmdPreview, showScenePreview } from "./detail-3d.ts";
+import { showVrmMeta, showMmdPreview, showScenePreview, showMorphPreview, showStagePreview } from "./detail-3d.ts";
 import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from "./litematic-meta.ts";
 import { cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
 import { cleanupMmd3D, invalidateMmdPreview } from "./mmd-3d.ts";
@@ -69,8 +81,12 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   [RESOURCE_TYPES.BLUEPRINT]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.SHADER]: (ctx, path, meta) => showShaderpack(ctx, path, meta),
   [RESOURCE_TYPES.MMD]: (ctx, path, meta) => {
-    // 场景模型（SceneModel 子目录）走独立入口，与角色模型完全隔离
-    if (isSceneModelPath(path)) {
+    // MMD 子类型分流：SceneModel / CustomMorph / StageAnim 各走独立入口
+    if (isCustomMorphPath(path)) {
+      showMorphPreview(ctx, path);
+    } else if (isStageAnimPath(path)) {
+      showStagePreview(ctx, path);
+    } else if (isSceneModelPath(path)) {
       showScenePreview(ctx, path);
     } else {
       showMmdPreview(ctx, path, meta);
