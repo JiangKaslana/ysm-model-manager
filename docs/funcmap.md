@@ -30,7 +30,7 @@
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 10 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 6 | 70 |
+| Go·类型 | 6 | 71 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -46,7 +46,7 @@
 | frontend/views | 106 | 297 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **420** | **1776** |
+| **合计** | **420** | **1777** |
 
 ## Go·头像
 
@@ -461,22 +461,23 @@
 | `AllSubDirs()` | `go/types/extensions:338` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
 | `SubDirEntry()` | `go/types/extensions:308` | SubDirEntry 资源类型的版本子目录信息 |
 | `FindInstDir()` | `go/types/findinst:60` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
-| `ResourceType.MatchZipEntry()` | `go/types/resource:62` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
-| `SetRegistryPath()` | `go/types/resource:97` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
-| `LoadRegistry()` | `go/types/resource:108` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
-| `RegistryType()` | `go/types/resource:199` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:220` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:316` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
-| `ResourceTypeRegistry()` | `go/types/resource:14` | ResourceTypeRegistry 资源类型注册表 |
-| `ResourceGroup()` | `go/types/resource:20` | ResourceGroup 资源分组元数据（ADR-092 顶层 resourceGroups 数组） |
-| `ResourceType()` | `go/types/resource:28` | ResourceType 一种受支持的资源类型定义 |
-| `ZipEntryMatch()` | `go/types/resource:53` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:214` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:305` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:323` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:340` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:346` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:354` | VoxelGroup 同一颜色的方块组 |
+| `ResourceType.MatchZipEntry()` | `go/types/resource:67` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
+| `SetRegistryPath()` | `go/types/resource:102` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
+| `LoadRegistry()` | `go/types/resource:113` | LoadRegistry 加载资源类型注册表 优先读取外部 JSON 文件（可通过 SetRegistryPath 自定义路径）， 文件不存在或读取失败时回退到编译时嵌入的默认数据 |
+| `BundledRegistryJSON()` | `go/types/resource:204` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
+| `RegistryType()` | `go/types/resource:211` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:232` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:328` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `ResourceTypeRegistry()` | `go/types/resource:19` | ResourceTypeRegistry 资源类型注册表 |
+| `ResourceGroup()` | `go/types/resource:25` | ResourceGroup 资源分组元数据（ADR-092 顶层 resourceGroups 数组） |
+| `ResourceType()` | `go/types/resource:33` | ResourceType 一种受支持的资源类型定义 |
+| `ZipEntryMatch()` | `go/types/resource:58` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
+| `FormatRange()` | `go/types/resource:226` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:317` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:335` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:352` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:358` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:366` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:125` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:173` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:179` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
@@ -627,7 +628,7 @@
 | `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:410` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
 | `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:427` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
 | `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:447` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:498` | ========== YSM 检测 ========== |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:497` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |
@@ -729,32 +730,32 @@
 | `cookieJar.SetCookies()` | `internal/app/proxy:138` | — |
 | `cookieJar.Cookies()` | `internal/app/proxy:160` | — |
 | `App.LoadResourceTypes()` | `internal/app/resource_bindings:25` | LoadResourceTypes 加载资源类型注册表 |
-| `App.ReadPackMeta()` | `internal/app/resource_bindings:34` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
-| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:58` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
-| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:102` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
-| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:107` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
-| `App.ReadSchematic()` | `internal/app/resource_bindings:112` | ReadSchematic 读取 .schematic 文件基本信息 |
-| `App.ReadNbtStructure()` | `internal/app/resource_bindings:121` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
-| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:130` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
-| `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:140` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
-| `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:145` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
-| `App.DetectResourceType()` | `internal/app/resource_bindings:155` | DetectResourceType 检测指定文件的资源类型 |
-| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:176` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
-| `App.GetRepoRoot()` | `internal/app/resource_bindings:191` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
-| `App.ToggleResourcePack()` | `internal/app/resource_bindings:288` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
-| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:334` | IsResourcePackEnabled 检查资源包是否启用 |
-| `App.SelectImportZip()` | `internal/app/resource_bindings:339` | SelectImportZip 打开文件选择器选取 .zip 文件 |
-| `App.SelectImportFile()` | `internal/app/resource_bindings:352` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
-| `App.SetResourceRoot()` | `internal/app/resource_bindings:374` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
-| `App.ResetResourceRoot()` | `internal/app/resource_bindings:394` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
-| `App.ImportResourcePack()` | `internal/app/resource_bindings:425` | ImportResourcePack 使用策略模式导入资源包 |
-| `App.ImportByType()` | `internal/app/resource_bindings:438` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:455` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
-| `App.DeleteModelDir()` | `internal/app/resource_bindings:466` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:517` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:533` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:546` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:552` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.ReadPackMeta()` | `internal/app/resource_bindings:35` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
+| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:59` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
+| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:103` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
+| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:108` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
+| `App.ReadSchematic()` | `internal/app/resource_bindings:113` | ReadSchematic 读取 .schematic 文件基本信息 |
+| `App.ReadNbtStructure()` | `internal/app/resource_bindings:122` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
+| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:131` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
+| `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:141` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
+| `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:146` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
+| `App.DetectResourceType()` | `internal/app/resource_bindings:156` | DetectResourceType 检测指定文件的资源类型 |
+| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:169` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
+| `App.GetRepoRoot()` | `internal/app/resource_bindings:184` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
+| `App.ToggleResourcePack()` | `internal/app/resource_bindings:281` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
+| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:327` | IsResourcePackEnabled 检查资源包是否启用 |
+| `App.SelectImportZip()` | `internal/app/resource_bindings:332` | SelectImportZip 打开文件选择器选取 .zip 文件 |
+| `App.SelectImportFile()` | `internal/app/resource_bindings:345` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
+| `App.SetResourceRoot()` | `internal/app/resource_bindings:367` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
+| `App.ResetResourceRoot()` | `internal/app/resource_bindings:387` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
+| `App.ImportResourcePack()` | `internal/app/resource_bindings:418` | ImportResourcePack 使用策略模式导入资源包 |
+| `App.ImportByType()` | `internal/app/resource_bindings:431` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:448` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
+| `App.DeleteModelDir()` | `internal/app/resource_bindings:459` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:510` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:526` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:539` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:545` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |

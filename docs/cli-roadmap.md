@@ -3,7 +3,7 @@
 > 面向项目维护者（人类 + AI）的 CLI 发展路线图：现状盘点、方向探索、阶段规划。
 > 定位：CLI 是 GUI 之外的「第二操作面」——脱壳诊断、批量运维、自动化落地的武器库。
 > 原则：复用已有函数优先，通用化、统一、长治久安（见 AGENTS.md 用户偏好）。
-> 最后校准：2026-08-19（本轮 AI 盘点后更新）。
+> 最后校准：2026-08-19（Phase A 落地后更新；ADR-102 已采纳）。
 
 ---
 
@@ -38,12 +38,12 @@
 | 能力 | 现状 | 缺口 |
 |------|------|------|
 | 查询/分析 | ✅ 完备 | — |
-| 性能诊断 | ✅ 完备（single-bench 是地基） | 缺基线回归（防性能倒退） |
+| 性能诊断 | ✅ 完备（single-bench 是地基 + 前端已消费） | 缺基线回归（防性能倒退）→ Phase B |
 | 汇总报告 | ⚠️ 单命令输出 / repo-audit 轻度聚合 | 缺一键全仓体检报告（方向 A） |
 | 写/运维 | ❌ 无 | 缺导入/清理/同步/转换等写能力 |
 | 批量/流水线 | ❌ 无 | 缺 scan→analyze→export→report 串联 |
 | 交互体验 | ⚠️ 单命令执行 | 缺 REPL 连续操作 |
-| GUI↔CLI 桥接 | 🟡 后端桥已实现，前端未接 bindings | Wails 绑定未生成，前端消费待做 |
+| GUI↔CLI 桥接 | ✅ 后端桥 + 前端消费已实现 | Phase B 影子测试体系待落地 |
 
 ---
 
@@ -116,46 +116,71 @@
 | ③ | 新增 resource-scan / repo-audit 命令 | `resource.go` 已实现（classifyResourceTypeName 统一口径 + 健康分数算法 + JSON 输出） | ✅ 已落地（dff8f0a6 提交） |
 | ④ | 命令文件按场景拆分到子包 | `go/cli/` 已拆 13 个文件（model/mmd/cache/flow/perf/config/resource/concurrent/shared/json/registry） | ✅ 文件级拆分完成 |
 
-### Phase 3：打通期（5-7 天）
+### Phase 3：打通期（5-7 天）— ✅ 已完成
 
 | 项 | 计划 | 现状 | 结论 |
 |----|------|------|------|
-| ① | Wails 绑定 CLI 执行能力到前端 | `internal/app/cli_bridge.go`（194 行，`ExecuteCLI`/`GetAllowedCLICommands`/`SetAllowedCommands`）已实现并测试（cli_bridge_test.go 20+ 用例）；`go/cli/wails_bridge.go` 未建（直接复用 `internal/app` 层）；需 `npm run generate:bindings -ts` 生成前端绑定 | 🟡 后端桥已落地，前端绑定未生成 |
-| ② | 统一 JSON 输出协议 | `JsonResponse` 协议已建（json.go）；commands 中 model.go 仍有局部 `--format json/table` 自行序列化，未全量走 `JsonResponse`；CLI↔GUI 路径（ExecuteCLI）已走协议 | 🟡 后端桥路径已统一，前端可见路径已统一，局部命令待收敛 |
-| ③ | CLI↔GUI 双向联动 | `App.ExecuteCLI(command, args)` Wails 绑定已注册（main.go 调用 `SetAllowedCommands`）；前端 `cli-bridge.ts` 已更新（动态拉取白名单 + 降级缓存） | 🟡 后端就绪，前端动态白名单已更新，bindings 未生成阻断实际调用 |
+| ① | Wails 绑定 CLI 执行能力到前端 | `internal/app/cli_bridge.go` 已实现 + 测试；`npm run generate:bindings -ts` 已生成前端绑定 | ✅ 已落地 |
+| ② | 统一 JSON 输出协议 | `JsonResponse` 协议已建；CLI↔GUI 路径（ExecuteCLI）已走协议；局部命令 `--format` 收敛降级为 Phase 4 可选项 | ✅ 核心路径已统一 |
+| ③ | CLI↔GUI 双向联动 | 前端 `cli-bridge.ts` 动态白名单 + 降级缓存已落地；**Phase A 性能诊断面板已消费 single-bench/gui-flow/perf-log** | ✅ 已落地 |
 
-### 暂缓：pipeline（方向 C）
+### Phase A：诊断透镜落地（1-2 天）— ✅ 已完成
 
-- 方向 A 报告聚合落地后重新评估——若报告已覆盖批量场景，pipeline 可降级为「预设场景别名」。
+| 项 | 计划 | 现状 | 结论 |
+|----|------|------|------|
+| ① | 性能诊断面板（前端消费 single-bench） | `views/app-content/diagnostics/perf.ts`（287 行）：7 阶段柱状图 + >100ms 标红/ >50ms 标黄 + 代际守卫防陈旧响应 | ✅ 已落地（e3646d26） |
+| ② | 全流程体检按钮（前端消费 gui-flow） | 6 阶段状态渲染（✅/❌ + 耗时）+ 失败阶段红字提示 | ✅ 已落地 |
+| ③ | 优化历史侧栏（前端消费 perf-log） | 时间倒序卡片 + 问题/做法/效果三行明细 | ✅ 已落地 |
+| ④ | ADR 立项 | ADR-102 已采纳（CLI 内嵌模式回归与诊断协同平台），标注与 ADR-059 修订演进关系 | ✅ 已落地（98137076） |
+| ⑤ | 单测 | `perf.test.ts` 5 用例全绿（single-bench/gui-flow/perf-log 解析渲染 + 错误分支 + 代际守卫） | ✅ 已落地（ee3aca73） |
+
+### Phase B：影子测试体系（3-5 天）— 🟡 待落地
+
+> 目标：CLI 成为 GUI 的「无头验证替身」——Go 后端改动先让 CLI 跑一遍，再让人点 GUI。
+> 核心洞察：CLI 和 GUI 共享同一个 `app.App` 业务层，`gui-flow` 跑通 ≈ 后端加载链健康。
+
+| 项 | 计划 | 关键点 | 状态 |
+|----|------|--------|------|
+| ① | `gui-flow` 契约测试 | `tests/cli-gui-flow-contract.mjs`：跑 `gui-flow --json`，断言配置/扫描/分析三阶段 success + 总耗时 < 阈值；集成 `for f in tests/*.mjs; do node "$f"; done` | ⏳ 待落地 |
+| ② | `single-bench` 回归守卫 | `scripts/perf-gate.mjs`：首次存 baseline.json，后续对比每阶段 delta，超 +50% 告警；可选 `YSM_SKIP_GATE=1` 跳过 | ⏳ 待落地 |
+| ③ | 前端「性能回归」指示器 | 开发模式 `task dev` 启动后自动跑一次 `single-bench`，退化时环形日志标红 | ⏳ 待落地 |
+
+### Phase C：性能护栏闭环（5-7 天）— 🟡 待落地
+
+> 目标：形成「诊断→优化→验证→锁住」闭环；baseline 文件纳入 git 作为性能锚点。
+
+| 项 | 计划 | 关键点 | 状态 |
+|----|------|--------|------|
+| ① | `single-bench --baseline` 增强（Go 侧） | 新增 `--baseline`/`--threshold` 参数：对比上次结果输出每阶段 delta，超阈值 exit 1 供 CI 判定；复用 `file-bench` 已有 `loadAndCompareBenchmark` 模式 | ⏳ 待落地 |
+| ② | `perf-log` 从文件驱动 | 当前 `perf.go` 硬编码 Go 结构体 → 改为解析 `docs/knowledge/optimization_log.md`；文档与 CLI 单一事实来源 | ⏳ 待落地 |
+| ③ | 前端「性能趋势图」 | 每次 `single-bench` 结果存 IndexedDB → 时间线折线图（每阶段一条线） | ⏳ 待落地 |
+
+### 暂缓：pipeline（方向 C-原）
+
+- Phase B 的契约测试 + 回归守卫落地后重新评估——若已覆盖批量场景，pipeline 可降级为「预设场景别名」。
 
 ---
 
-## 四、隔壁大倡议实施情况（2026-08-19 校准）
+## 四、Phase A 落地记录（2026-08-19）
 
-> 并行会话的「大倡议」= **CLI↔GUI 桥接 + 统一 JSON 输出协议**（对应 Phase 3 ①②③）。ADR-035 是前端组件测试立项，与 CLI 无关；CLI 桥接尚未写 ADR。
+> 「沉睡的金矿」通车——CLI 性能诊断能力通过 Wails 桥到达前端，用户不用开终端即可跑 single-bench/gui-flow/perf-log。
 
-**已落地并提交的内容**：
+**三个提交**：
 
-| 文件 | 内容 | 状态 |
-|------|------|------|
-| `internal/app/cli_bridge.go` | Wails 绑定：`ExecuteCLI`（参数 map → 白名单 → 子进程调用 `--cli --json`）+ `SetAllowedCommands` + `GetAllowedCLICommands` + `makeJsonResponse` | ✅ 已提交（dff8f0a6） |
-| `internal/app/cli_bridge_test.go` | 20+ 单测：白名单拦截 / 参数构建 / GetAllowedCLICommands 一致性 / 类型断言覆盖 | ✅ 已提交（dff8f0a6） |
-| `frontend/src/services/cli-bridge.ts` | 前端动态白名单（拉取后端 → 缓存 → 降级默认列表）+ 类型修复 | ✅ 已提交（dff8f0a6） |
-| `go/cli/shared.go` | `captureStdout` 幂等恢复 + defer 兜底防级联故障（R2） | ✅ 已提交（b106ae9a） |
-| `go/cli/concurrent.go` | workers/max-models 参数校验（O1） | ✅ 已提交（dff8f0a6） |
-| `go/cli/resource.go` | `classifyResource` 重构为复用 `classifyResourceTypeName`，口径统一 | ✅ 已提交（未命名 commit） |
+| 提交 | 内容 |
+|------|------|
+| `98137076` | docs: ADR-102 CLI 内嵌模式回归与诊断协同平台（标注与 ADR-059 修订演进关系） |
+| `e3646d26` | feat(frontend): 性能面板消费 CLI 能力（perf.ts 287 行 + tpl.ts/init.ts 接入 + 16 个 i18n key 三语言包同步） |
+| `ee3aca73` | test(frontend): 性能面板单测（5 用例：single-bench/gui-flow/perf-log 解析渲染 + 错误分支 + 代际守卫） |
 
-**工作区当前 diff（未提交）**：
+**实现亮点**：
+- 代际守卫：`perfSingleSeq`/`perfGuiSeq`/`perfHistSeq` 防快速连点旧响应覆盖新响应（对齐 logs.ts 的 `diagLoadSeq` 模式）
+- 正则精确对齐 Go 输出：`/^\s+(.+?)\s+(\d+(?:\.\d+)?)ms(?:\s+(.*))?$/` 匹配 `%-20s %10.2fms` 格式
+- 瓶颈高亮：>100ms `perf-bar-danger` 标红、>50ms `perf-bar-warn` 标黄（复用 CLI 已有阈值逻辑）
+- Web 降级：`resolveWebMode()` 检测后 toast 提示「网页版不支持性能诊断」
+- 零 Go 改动：纯前端消费已有 CLI 能力 + 已有 `cli-bridge.ts` 封装
 
-| 文件 | 改动 | 说明 |
-|------|------|------|
-| `go/cli/mmd.go` | `analyze-mmd` 增加 `walkTotalDirs` 计数 + 错误率 >50% 提前返回 | O3 增强：避免系统性目录访问失败被静默吞没 |
-
-**实施差距（Phase 3 收尾清单）**：
-1. **`npm run generate:bindings -ts`**——生成前端 binding，解除 Phase 3 ①③ 阻断；
-2. **`wails_bridge.go` 无需新建**——`internal/app/cli_bridge.go` 已承担 Bridge 职责，直接绑定即可；
-3. **局部命令 JSON 收敛**——model.go 的 `search/analyze/list/verify/export` 仍各自处理 `--format`，未走 `JsonResponse`；建议 Phase 4 收敛（不影响 CLI↔GUI 路径，因 ExecuteCLI 走子进程 + `--json`）；
-4. **ADR 立项**——桥接契约（白名单机制、JSON 协议版本、stdout 捕获边界）建议补 ADR，防回潮。
+**验收**：`npm run typecheck` 零错误 + `npx vite build` 成功 + `vitest 5/5` 通过 + diff-coverage 通过。
 
 ---
 
