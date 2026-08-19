@@ -91,6 +91,10 @@ export function diagnosticsHTML(): string {
 <span class="diag-btn-icon">⚡</span>
 <span>${t("diagnostics.conflict")}</span>
 </button>
+<button class="diag-btn" data-diag="perf">
+<span class="diag-btn-icon">⏱️</span>
+<span>${t("diagnostics.perfTitle")}</span>
+</button>
 <div class="diag-left-spacer"></div>
 <button class="diag-btn diag-btn-action" id="diag-copy" title="${t("diagnostics.copyLog")}">
 <span>${t("diagnostics.copyLog")}</span>
@@ -120,6 +124,21 @@ export function diagnosticsHTML(): string {
 <div id="diag-conflict-list"><div class="stat-row" style="padding:24px 12px;color:var(--muted);font-size:var(--fs-sm);text-align:center;flex-direction:column;gap:12px">${t("diagnostics.scanHint")}
 <button class="btn-base accent" id="diag-scan-conflict" style="margin-top:4px">⚡ ${t("diagnostics.startScan")}</button>
 </div></div></div>
+<div class="diag-panel" id="diag-perf" style="display:none">
+<div class="perf-wrap" style="overflow-y:auto;flex:1;padding:10px 12px">
+<div class="perf-controls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 0 10px;border-bottom:1px solid var(--bd)">
+<button class="btn-base accent" id="diag-perf-run">⚡ ${t("diagnostics.perfRunSingle")}</button>
+<input id="diag-perf-model" type="text" placeholder="📁 ${t("diagnostics.perfModelPlaceholder")}" style="flex:1;min-width:150px;font-size:var(--fs-sm);padding:4px 8px;border-radius:4px;border:1px solid var(--bd);background:var(--bg);color:var(--txt)">
+<label for="diag-perf-iter" style="font-size:var(--fs-sm);color:var(--muted)">${t("diagnostics.perfIterations")}</label>
+<input id="diag-perf-iter" type="number" min="1" step="1" value="3" style="width:56px;font-size:var(--fs-sm);padding:4px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--bg);color:var(--txt)">
+<button class="btn-base" id="diag-perf-gui">🩺 ${t("diagnostics.perfRunGui")}</button>
+<button class="btn-base" id="diag-perf-log">🗒️ ${t("diagnostics.perfPerfLog")}</button>
+</div>
+<div id="diag-perf-single"></div>
+<div id="diag-perf-gui"></div>
+<div id="diag-perf-hist"></div>
+</div>
+</div>
 <div class="diag-panel" id="diag-oldest" style="display:none">
 <div class="diag-panel-header">
 <span>👴 ${t("repo.tab.oldest")}</span>

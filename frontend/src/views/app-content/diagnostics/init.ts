@@ -8,6 +8,7 @@ import { can } from "../../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { loadDiagnosticsLogs, loadRuntimeLogs, type EscFn } from "./logs.ts";
 import { scanConflicts } from "./conflicts.ts";
+import { initPerfPanel } from "./perf.ts";
 
 // 对外 API 兼容：startDedup 已迁至 dedup.ts（外部仍从本文件 import，见 init-pages.ts / init.test.ts）
 export { startDedup } from "./dedup.ts";
@@ -142,6 +143,8 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
   root
     .getElementById("diag-scan-conflict")
     ?.addEventListener("click", () => scanConflicts(root, esc));
+  // 性能面板：single-bench / gui-flow / perf-log（ADR-040 拆到 perf.ts）
+  initPerfPanel(root, esc);
   // 左栏按钮切换
   root.querySelectorAll(".diag-btn[data-diag]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -152,12 +155,14 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
       const logPanel = root.getElementById("diag-log") as HTMLElement | null;
       const runtimePanel = root.getElementById("diag-runtime") as HTMLElement | null;
       const conflictPanel = root.getElementById("diag-conflict") as HTMLElement | null;
+      const perfPanel = root.getElementById("diag-perf") as HTMLElement | null;
       if (logPanel) logPanel.style.display = name === "log" ? "" : "none";
       if (runtimePanel) runtimePanel.style.display = name === "runtime" ? "" : "none";
       if (conflictPanel) conflictPanel.style.display = name === "conflict" ? "" : "none";
+      if (perfPanel) perfPanel.style.display = name === "perf" ? "" : "none";
       // 重启入场动画
       const activePanel =
-        name === "log" ? logPanel : name === "runtime" ? runtimePanel : conflictPanel;
+        name === "log" ? logPanel : name === "runtime" ? runtimePanel : name === "conflict" ? conflictPanel : perfPanel;
       if (activePanel) {
         activePanel.style.animation = "none";
         void activePanel.offsetHeight;
