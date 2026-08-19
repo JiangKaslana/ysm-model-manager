@@ -214,6 +214,8 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 | 参数 | 说明 |
 |------|------|
 | `--files-root <路径>` | **必填**，模型仓库根目录 |
+| `--help`, `-h` | 显示帮助信息（全局或子命令） |
+| `--version`, `-v` | 显示版本号 |
 
 ## 命令列表
 
@@ -390,6 +392,24 @@ go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm --ite
 | **P3** | MMD 资产分析 | `analyze-mmd` | 评估资源需求 |
 
 > ⚠️ **重要**: 先优化单模型（P0），再考虑多模型并发（P2）。单模型快 = 所有场景快。
+
+## 快速入门
+
+```bash
+# 查看帮助信息
+go run . --cli --help
+
+# 查看版本号
+go run . --cli --version
+
+# 查看子命令帮助
+go run . --cli --files-root ./models search --help
+
+# 常用命令速查
+go run . --cli --files-root ./models list --format table
+go run . --cli --files-root ./models search --keyword warrior
+go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm
+```
 
 ## 输出格式
 

@@ -9,9 +9,6 @@ source_files:
   - internal/app/app_model.go
   - internal/app/app_texture_cache.go
   - go/texture_cache/texture_cache.go
-tests:
-  - frontend/src/utils/3d/adapters/mmd-adapter.test.ts
-  - frontend/src/utils/3d/adapters/mmd-ktx2-encoder.test.ts
 use_when:
   - 优化
   - 性能
