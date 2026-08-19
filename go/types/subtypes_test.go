@@ -8,7 +8,6 @@ import (
 // ===== Subtypes 注册表子类层（ADR-104：大类→小类→防御检验三层架构）=====
 
 func TestSubtypesFor_MmdSkin(t *testing.T) {
-	// mmd-skin 挂 8 个用途子目录（含 DefaultAnim/DefaultMorph 系统内置）
 	rt := RegistryType("mmd-skin")
 	if rt == nil {
 		t.Fatal("RegistryType(mmd-skin) = nil，注册表缺条目")
@@ -17,12 +16,12 @@ func TestSubtypesFor_MmdSkin(t *testing.T) {
 	if len(subs) == 0 {
 		t.Fatal("SubtypesFor(mmd-skin) = 空，注册表缺 subtypes 数据")
 	}
+	if len(subs) != len(rt.SubTypes) {
+		t.Fatalf("SubtypesFor(mmd-skin) 共 %d 项，期望 %d 项（来自 JSON）：%v", len(subs), len(rt.SubTypes), subs)
+	}
 	want := []string{
 		"EntityPlayer", "SceneModel", "CustomAnim", "CustomMorph",
-		"StageAnim", "shader", "DefaultAnim", "DefaultMorph",
-	}
-	if len(subs) != len(want) {
-		t.Fatalf("SubtypesFor(mmd-skin) 共 %d 项，期望 %d 项：%v", len(subs), len(want), subs)
+		"StageAnim", "shader", "DefaultAnim", "DefaultMorph", "vrchat-avatar",
 	}
 	// 顺序 = 注册表声明顺序（前端组序依赖，EntityPlayer 默认槽在前）
 	for i, w := range want {
@@ -39,6 +38,47 @@ func TestSubtypesFor_MmdSkin(t *testing.T) {
 	// EntityPlayer 为默认槽
 	if !subs[0].Default || subs[0].Name != "EntityPlayer" {
 		t.Errorf("subtypes[0] 应为默认槽 EntityPlayer，got %+v", subs[0])
+	}
+}
+
+func TestSubtypes_MmdVrmParasite(t *testing.T) {
+	// ADR-105 续（VRM 寄生）：vrchat-avatar 是 mmd-skin 的 subtype——
+	// 整合包侧 installDir=3d-skin/EntityPlayer/（MC-MMD 加载 VRM），
+	// 仓库侧独立 rtype 保留（vrchat 目录/VrcRoot 配置不变），group 归 mmd。
+	rt := RegistryType("mmd-skin")
+	if rt == nil {
+		t.Fatal("mmd-skin 条目缺失")
+	}
+	vrm := SubtypeByDir("mmd-skin", "vrchat-avatar")
+	if vrm == nil {
+		t.Fatal("vrchat-avatar 应为 mmd-skin 的 subtype（寄生 EntityPlayer）")
+	}
+	// 零继承自描述
+	if len(vrm.Extensions) == 0 || vrm.Detector == "" || len(vrm.ZipEntries) == 0 || vrm.Preview == "" {
+		t.Errorf("vrchat-avatar subtype 自描述不完整：%+v", vrm)
+	}
+	// 整合包侧寄生目录：3d-skin/EntityPlayer/（与 EntityPlayer 同目录，靠扩展名区分）
+	if vrm.InstallDir != "3d-skin/EntityPlayer/" || vrm.ScanDir != "3d-skin/EntityPlayer" {
+		t.Errorf("vrchat-avatar installDir/scanDir 应指向 3d-skin/EntityPlayer/：%+v", vrm)
+	}
+	// 指纹：认 .vrm/.vrca，不认 .pmx（与 EntityPlayer 靠扩展名区分）
+	if !vrm.AcceptsExt(".vrm") || !vrm.AcceptsExt(".vrca") || !vrm.MatchZipEntry("hero.vrm") {
+		t.Errorf("vrchat-avatar 应认 .vrm/.vrca 指纹：%+v", vrm)
+	}
+	if vrm.AcceptsExt(".pmx") {
+		t.Error("vrchat-avatar 不应认 .pmx（EntityPlayer 专属）")
+	}
+	// 仓库侧独立 rtype 保留
+	rtVrc := RegistryType("vrchat-avatar")
+	if rtVrc == nil {
+		t.Fatal("vrchat-avatar 独立 rtype 应保留（软合并）")
+	}
+	if rtVrc.Group != "mmd" {
+		t.Errorf("vrchat-avatar group = %q，期望 mmd（vrm 组归并）", rtVrc.Group)
+	}
+	// 非默认槽（EntityPlayer 仍是默认）
+	if vrm.Default {
+		t.Error("vrchat-avatar 不应为 default 槽")
 	}
 }
 
@@ -82,8 +122,12 @@ func TestIsSubDirName(t *testing.T) {
 func TestSubtypeNames_MatchesSubdirNames(t *testing.T) {
 	// 子目录名集合（小写）与 MMDSubDirs 同源：任何子目录名小写化后都在集合中
 	names := SubtypeNames("mmd-skin")
-	if len(names) != 8 {
-		t.Fatalf("SubtypeNames(mmd-skin) = %d 项，期望 8 项：%v", len(names), names)
+	rt := RegistryType("mmd-skin")
+	if rt == nil {
+		t.Fatal("mmd-skin 条目缺失")
+	}
+	if len(names) != len(rt.SubTypes) {
+		t.Fatalf("SubtypeNames(mmd-skin) = %d 项，期望 %d 项（来自 JSON）：%v", len(names), len(rt.SubTypes), names)
 	}
 	set := make(map[string]bool, len(names))
 	for _, n := range names {
@@ -102,8 +146,12 @@ func TestSubtypeNames_MatchesSubdirNames(t *testing.T) {
 
 func TestSubtypes_SelfDescribingFields(t *testing.T) {
 	subs := SubtypesFor("mmd-skin")
-	if len(subs) != 8 {
-		t.Fatalf("SubtypesFor(mmd-skin) = %d 项，期望 8 项", len(subs))
+	rt := RegistryType("mmd-skin")
+	if rt == nil {
+		t.Fatal("mmd-skin 条目缺失")
+	}
+	if len(subs) != len(rt.SubTypes) {
+		t.Fatalf("SubtypesFor(mmd-skin) = %d 项，期望 %d 项（来自 JSON）：%v", len(subs), len(rt.SubTypes), subs)
 	}
 	// 全部 subtype 必须完整自描述：icon/extensions/detector/preview 非空
 	for _, s := range subs {
@@ -258,8 +306,12 @@ func TestResourceSubType_AcceptsExt(t *testing.T) {
 
 func TestSubtypesFor_CreateBlueprint(t *testing.T) {
 	subs := SubtypesFor("create-blueprint")
-	if len(subs) != 2 {
-		t.Fatalf("SubtypesFor(create-blueprint) = %d 项，期望 2 项（blueprint/litematic）：%v", len(subs), subs)
+	rt := RegistryType("create-blueprint")
+	if rt == nil {
+		t.Fatal("create-blueprint 条目缺失")
+	}
+	if len(subs) != len(rt.SubTypes) {
+		t.Fatalf("SubtypesFor(create-blueprint) = %d 项，期望 %d 项（来自 JSON）：%v", len(subs), len(rt.SubTypes), subs)
 	}
 	want := []string{"blueprint", "litematic"}
 	for i, w := range want {
@@ -312,8 +364,12 @@ func TestSubtypes_CreateBlueprintFingerprint(t *testing.T) {
 
 func TestSubtypesFor_ModModel(t *testing.T) {
 	subs := SubtypesFor("mod-model")
-	if len(subs) != 2 {
-		t.Fatalf("SubtypesFor(mod-model) = %d 项，期望 2 项（ysm/maid-model）：%v", len(subs), subs)
+	rt := RegistryType("mod-model")
+	if rt == nil {
+		t.Fatal("mod-model 条目缺失")
+	}
+	if len(subs) != len(rt.SubTypes) {
+		t.Fatalf("SubtypesFor(mod-model) = %d 项，期望 %d 项（来自 JSON）：%v", len(subs), len(rt.SubTypes), subs)
 	}
 	// name 直接复用独立 rtype id（ysm/maid-model）——前端 nav 展开后 rtype 零映射路由
 	want := []string{"ysm", "maid-model"}
@@ -365,8 +421,12 @@ func TestSubtypesFor_ModModel(t *testing.T) {
 
 func TestSubtypesFor_VanillaAssets(t *testing.T) {
 	subs := SubtypesFor("vanilla-assets")
-	if len(subs) != 2 {
-		t.Fatalf("SubtypesFor(vanilla-assets) = %d 项，期望 2 项（resourcepack/shaderpack）：%v", len(subs), subs)
+	rt := RegistryType("vanilla-assets")
+	if rt == nil {
+		t.Fatal("vanilla-assets 条目缺失")
+	}
+	if len(subs) != len(rt.SubTypes) {
+		t.Fatalf("SubtypesFor(vanilla-assets) = %d 项，期望 %d 项（来自 JSON）：%v", len(subs), len(rt.SubTypes), subs)
 	}
 	want := []string{"resourcepack", "shaderpack"}
 	for i, w := range want {

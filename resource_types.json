@@ -3,7 +3,6 @@
     { "id": "minecraft", "name": "Minecraft 原版", "icon": "⛏️", "order": 0 },
     { "id": "minecraft-mod", "name": "Minecraft 模组", "icon": "🧩", "order": 1 },
     { "id": "mmd", "name": "MMD", "icon": "🎭", "order": 2 },
-    { "id": "vrm", "name": "VRM", "icon": "🥽", "order": 3 },
     { "id": "other", "name": "其他", "icon": "📦", "order": 9 }
   ],
   "resourceTypes": [
@@ -376,6 +375,15 @@
           "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
           "preview": "3d",
           "installDir": "3d-skin/DefaultMorph/", "scanDir": "3d-skin/DefaultMorph"
+        },
+        {
+          "name": "vrchat-avatar", "label": "VRM 模型", "icon": "🥽",
+          "userImportable": true,
+          "extensions": [".vrca", ".vrm", ".zip"],
+          "detector": "zipentry",
+          "zipEntries": [{ "name": ".vrca", "match": "suffix" }, { "name": ".vrm", "match": "suffix" }],
+          "preview": "3d",
+          "installDir": "3d-skin/EntityPlayer/", "scanDir": "3d-skin/EntityPlayer"
         }
       ],
       "installExts": [".pmx", ".pmd", ".vmd", ".vpd", ".json", ".png", ".tga", ".spa", ".sph"],
@@ -389,7 +397,7 @@
       "id": "vrchat-avatar",
       "name": "VRChat 模型",
       "icon": "🥽",
-      "group": "vrm",
+      "group": "mmd",
       "extensions": [
         ".vrca",
         ".vrm",

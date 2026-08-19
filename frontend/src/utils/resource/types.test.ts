@@ -185,13 +185,12 @@ describe("GROUP_META 分组元数据", () => {
     expect(GROUP_META["minecraft"]).toMatchObject({ name: "Minecraft 原版" });
     expect(GROUP_META["minecraft-mod"]).toMatchObject({ name: "Minecraft 模组" });
     expect(GROUP_META["mmd"]).toMatchObject({ name: "MMD" });
-    expect(GROUP_META["vrm"]).toMatchObject({ name: "VRM" });
     expect(GROUP_META["other"]).toMatchObject({ name: "其他" });
   });
 
-  it("分组按 order 有确定顺序", () => {
+  it("分组按 order 有确定顺序（vrm 组已并入 mmd，ADR-105 续）", () => {
     const groups = Object.values(GROUP_META).sort((a, b) => a.order - b.order);
-    expect(groups.map((g) => g.order)).toEqual([0, 1, 2, 3, 9]);
+    expect(groups.map((g) => g.order)).toEqual([0, 1, 2, 9]);
   });
 });
 
@@ -207,9 +206,9 @@ describe("GROUP_OF 类型→分组映射", () => {
     expect(GROUP_OF["litematic"]).toBe("minecraft-mod");
   });
 
-  it("MMD/VRM 各自独立分组", () => {
+  it("MMD 生态归 mmd（VRM 寄生并入，vrm 组删除）", () => {
     expect(GROUP_OF["mmd-skin"]).toBe("mmd");
-    expect(GROUP_OF["vrchat-avatar"]).toBe("vrm");
+    expect(GROUP_OF["vrchat-avatar"]).toBe("mmd");
   });
 });
 
@@ -237,11 +236,14 @@ describe("GROUP_TYPE_OPTIONS — 子类型展开（ADR-105 软合并）", () => 
     expect(maid).toEqual({ rtype: "maid-model", label: "车万女仆", subdir: "" });
   });
 
-  it("mmd 组仍展开 6 子类型（EntityPlayer 等无独立 rtype → 保留父 id + subdir）", () => {
+  it("mmd 组展开 7 子类型（6 用途 + vrchat-avatar 寄生，ADR-105 续）", () => {
     const mmd = GROUP_TYPE_OPTIONS["mmd"] || [];
-    expect(mmd.length).toBe(6);
+    expect(mmd.length).toBe(7);
     expect(mmd[0]).toEqual({ rtype: "mmd-skin", label: "PMX 模型 (EntityPlayer)", subdir: "" });
     expect(mmd[1]).toEqual({ rtype: "mmd-skin", label: "场景 (SceneModel)", subdir: "SceneModel" });
+    // vrchat-avatar 寄生：子类型名匹配独立 rtype → 路由到独立 id
+    const vrm = mmd.find((o) => o.label === "VRM 模型");
+    expect(vrm).toEqual({ rtype: "vrchat-avatar", label: "VRM 模型", subdir: "" });
   });
 
   it("无 subtypes 的组（minecraft）保持平铺", () => {
@@ -254,7 +256,7 @@ describe("groupStorageRootOf 两层路由", () => {
   it("有 group 时返回 {group}/{storageSubDir}", () => {
     expect(groupStorageRootOf("resourcepack")).toBe("minecraft/resourcepacks");
     expect(groupStorageRootOf("mmd-skin")).toBe("mmd/EntityPlayer");
-    expect(groupStorageRootOf("vrchat-avatar")).toBe("vrm/vrchat");
+    expect(groupStorageRootOf("vrchat-avatar")).toBe("mmd/vrchat"); // ADR-105 续：VRM 归并 mmd 组
   });
 
   it("无 group 字段时回退单级 storageSubDir（向后兼容）", () => {
@@ -277,11 +279,11 @@ describe("groupLabelOf 分组显示名", () => {
 });
 
 describe("MMD_SUBTYPES — 用户可导入子目录（ADR-104 注册表派生）", () => {
-  it("钉住 6 项，且不含模组内置目录 DefaultAnim/DefaultMorph", () => {
+  it("钉住 7 项，且不含模组内置目录 DefaultAnim/DefaultMorph（含 vrchat-avatar 寄生）", () => {
     // ADR-104：MMD_SUBTYPES 从 resource_types.json mmd-skin.subtypes[] 派生，
     // userImportable=false（DefaultAnim/DefaultMorph 系统内置）天然不列出——
-    // 数据源单一（注册表），不再需要 Go 端 mmdSubdirNames 8 项对齐注释。
-    expect(MMD_SUBTYPES).toHaveLength(6);
+    // 数据源单一（注册表），不再需要 Go 端 mmdSubdirNames 对齐注释。
+    expect(MMD_SUBTYPES).toHaveLength(7);
     const subdirs = MMD_SUBTYPES.map((s) => s.subdir.toLowerCase());
     expect(subdirs).not.toContain("defaultanim");
     expect(subdirs).not.toContain("defaultmorph");

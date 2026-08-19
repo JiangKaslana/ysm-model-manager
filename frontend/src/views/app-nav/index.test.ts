@@ -85,11 +85,11 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     const subtypeSel = root.querySelector<HTMLSelectElement>("#nav-subtype-select");
     expect(groupSel).not.toBeNull();
     expect(subtypeSel).not.toBeNull();
-    // 切到 mmd 大类 → 子类型下拉应填充 MMD_SUBTYPES
+    // 切到 mmd 大类 → 子类型下拉应填充 MMD_SUBTYPES（含 vrchat-avatar 寄生共 7 项）
     groupSel!.value = "mmd";
     groupSel!.dispatchEvent(new Event("change"));
     const opts = subtypeSel!.querySelectorAll("option");
-    expect(opts.length).toBe(6);
+    expect(opts.length).toBe(7);
     expect((opts[0] as HTMLOptionElement).dataset.subdir).toBe(""); // PMX 模型 (EntityPlayer)
     expect((opts[1] as HTMLOptionElement).dataset.subdir).toBe("SceneModel");
     expect((opts[5] as HTMLOptionElement).dataset.subdir).toBe("shader");

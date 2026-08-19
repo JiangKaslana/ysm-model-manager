@@ -143,7 +143,7 @@ func TestGroupOf(t *testing.T) {
 		{"create-blueprint", "minecraft-mod"},
 		{"litematic", "minecraft-mod"},
 		{"mmd-skin", "mmd"},
-		{"vrchat-avatar", "vrm"},
+		{"vrchat-avatar", "mmd"}, // ADR-105 续：VRM 寄生 3d-skin/EntityPlayer/，归并 mmd 组（vrm 组删除）
 	}
 	for _, c := range cases {
 		if got := GroupOf(c.rtype); got != c.want {
@@ -165,7 +165,7 @@ func TestGroupStorageRoot(t *testing.T) {
 		{"create-blueprint", "minecraft-mod/create-blueprint"},
 		{"litematic", "minecraft-mod/litematics"},
 		{"mmd-skin", "mmd/EntityPlayer"}, // storageSubDir 统一整合包同款名（消 mmd/mmd 冗余）
-		{"vrchat-avatar", "vrm/vrchat"},
+		{"vrchat-avatar", "mmd/vrchat"},  // ADR-105 续：VRM 归并 mmd 组（仓库侧 vrchat 目录不变）
 	}
 	for _, c := range cases {
 		if got := GroupStorageRoot(c.rtype); got != c.want {
