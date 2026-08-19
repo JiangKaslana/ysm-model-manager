@@ -93,7 +93,7 @@
 | `ExitCodeOf()` | `go/cli/shared:51` | ExitCodeOf 根据错误类型返回退出码 |
 | `PrintError()` | `go/cli/shared:60` | PrintError 输出错误到 stderr |
 | `ParseCommandArgs()` | `go/cli/shared:69` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
-| `outputBuffer.String()` | `go/cli/shared:214` | — |
+| `outputBuffer.String()` | `go/cli/shared:216` | — |
 | `ErrParam()` | `go/cli/shared:21` | ErrParam 参数错误（exit code 2） |
 | `ErrRuntime()` | `go/cli/shared:36` | ErrRuntime 运行时业务错误（exit code 1） |
 
@@ -712,7 +712,7 @@
 | `SetEmbedded()` | `internal/app/assets:16` | SetEmbedded 由根包 main 的 init() 注入编译期嵌入的静态资产。 |
 | `App.SetAllowedCommands()` | `internal/app/cli_bridge:15` | SetAllowedCommands 注入可用 CLI 命令列表（由 main.go 调用 cli.GetAllowedCommands() 提供） 避免 app→cli 循环依赖 |
 | `App.ExecuteCLI()` | `internal/app/cli_bridge:31` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
-| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:125` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
+| `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:128` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
 | `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
 | `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |

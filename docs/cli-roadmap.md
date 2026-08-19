@@ -3,6 +3,7 @@
 > 面向项目维护者（人类 + AI）的 CLI 发展路线图：现状盘点、方向探索、阶段规划。
 > 定位：CLI 是 GUI 之外的「第二操作面」——脱壳诊断、批量运维、自动化落地的武器库。
 > 原则：复用已有函数优先，通用化、统一、长治久安（见 AGENTS.md 用户偏好）。
+> 最后校准：2026-08-19（本轮 AI 盘点后更新）。
 
 ---
 
@@ -18,6 +19,10 @@
 | 缓存管理 | `cache-status` / `cache-verify` / `cache-clear` / `cache-diag` | 状态、命中检查、清空、流程诊断 |
 | 配置/流程 | `config-show` / `gui-flow` | 配置查看 / 模拟 GUI 完整加载流程 |
 | 日志 | `perf-log` | 优化记录日志（时间倒序） |
+| 仓库审计 | `resource-scan` / `repo-audit` | 资产分布扫描 / 健康分数 + 完整性 + 缓存聚合 |
+
+**测试覆盖**：`go test ./go/cli/...` 全绿（0.27s，40+ 用例）。
+**源码规模**：`go/cli/` 共 13 个文件，约 115KB，全部 `package cli`。
 
 ### 1.2 架构现状
 
@@ -28,16 +33,17 @@
 
 ### 1.3 定位判断
 
-> 现状是「只读诊断工具」：查询、分析、测性能。**没有写能力，没有自动化落地。**
+> 现状是「只读诊断工具 + 轻量审计」：查询、分析、测性能、健康评分。**没有写能力，没有自动化落地。**
 
 | 能力 | 现状 | 缺口 |
 |------|------|------|
 | 查询/分析 | ✅ 完备 | — |
 | 性能诊断 | ✅ 完备（single-bench 是地基） | 缺基线回归（防性能倒退） |
-| 汇总报告 | ⚠️ 单命令输出 | 缺一键全仓体检报告 |
+| 汇总报告 | ⚠️ 单命令输出 / repo-audit 轻度聚合 | 缺一键全仓体检报告（方向 A） |
 | 写/运维 | ❌ 无 | 缺导入/清理/同步/转换等写能力 |
 | 批量/流水线 | ❌ 无 | 缺 scan→analyze→export→report 串联 |
 | 交互体验 | ⚠️ 单命令执行 | 缺 REPL 连续操作 |
+| GUI↔CLI 桥接 | 🟡 后端桥已实现，前端未接 bindings | Wails 绑定未生成，前端消费待做 |
 
 ---
 
@@ -106,17 +112,17 @@
 | 项 | 计划 | 现状 | 结论 |
 |----|------|------|------|
 | ① | 实现 CmdContext 统一命令上下文 | `CmdContext{App, FilesRoot, Args}` 已定义（registry.go），全部命令签名 `runXxx(ctx *CmdContext)` | ✅ 已落地 |
-| ② | 全局 --json 输出格式开关 | `json.go` 已有 `JsonResponse` 统一协议（Status/Command/Data/Error/Timing/Meta + `NewJsonSuccess/Error/NotSupported` + `ToJson`），但入口级全局 `--json` 开关未接入 RunCLI | 🟡 协议已建，全局开关待接 |
-| ③ | 新增 resource-scan / repo-audit 命令 | 无此二命令（现有 `scan-dir` / `analyze-mmd` / `verify` 可作地基） | ❌ 待办 |
-| ④ | 命令文件按场景拆分到子包 | `go/cli/` 已拆 13 个文件（含 json/registry/wails_bridge），但仍为单包 `package cli` | 🟡 文件级拆分完成，子包化未做 |
+| ② | 全局 --json 输出格式开关 | `json.go` 已有 `JsonResponse` 统一协议；`RunCLI` 入口级 `--json` 分支已接入（cli.go:44-66） | ✅ 已落地 |
+| ③ | 新增 resource-scan / repo-audit 命令 | `resource.go` 已实现（classifyResourceTypeName 统一口径 + 健康分数算法 + JSON 输出） | ✅ 已落地（dff8f0a6 提交） |
+| ④ | 命令文件按场景拆分到子包 | `go/cli/` 已拆 13 个文件（model/mmd/cache/flow/perf/config/resource/concurrent/shared/json/registry） | ✅ 文件级拆分完成 |
 
 ### Phase 3：打通期（5-7 天）
 
 | 项 | 计划 | 现状 | 结论 |
 |----|------|------|------|
-| ① | Wails 绑定 CLI 执行能力到前端 | `go/cli/wails_bridge.go`（Bridge 服务，`ExecuteCLI`/`IsCommandAllowed`）+ `internal/app/cli_bridge.go`（167 行，`ExecuteCLI`/`GetAllowedCLICommands` 绑定）+ main.go 注册 `&cli.Bridge{}` + app.go 接线 | 🟡 后端桥已写（**工作区未提交**），前端绑定未生成 |
-| ② | 统一 JSON 输出协议 | `JsonResponse` 协议已建（json.go）；命令输出是否全部走它未完全落地（model.go 仍有局部 `--format json/table`） | 🟡 协议已建，全量接入待办 |
-| ③ | CLI↔GUI 双向联动 | Bridge 已注册 main.go，前端消费待生成绑定（bindings 目录无 ExecuteCLI） | 🟡 服务端就绪，前端未接 |
+| ① | Wails 绑定 CLI 执行能力到前端 | `internal/app/cli_bridge.go`（194 行，`ExecuteCLI`/`GetAllowedCLICommands`/`SetAllowedCommands`）已实现并测试（cli_bridge_test.go 20+ 用例）；`go/cli/wails_bridge.go` 未建（直接复用 `internal/app` 层）；需 `npm run generate:bindings -ts` 生成前端绑定 | 🟡 后端桥已落地，前端绑定未生成 |
+| ② | 统一 JSON 输出协议 | `JsonResponse` 协议已建（json.go）；commands 中 model.go 仍有局部 `--format json/table` 自行序列化，未全量走 `JsonResponse`；CLI↔GUI 路径（ExecuteCLI）已走协议 | 🟡 后端桥路径已统一，前端可见路径已统一，局部命令待收敛 |
+| ③ | CLI↔GUI 双向联动 | `App.ExecuteCLI(command, args)` Wails 绑定已注册（main.go 调用 `SetAllowedCommands`）；前端 `cli-bridge.ts` 已更新（动态拉取白名单 + 降级缓存） | 🟡 后端就绪，前端动态白名单已更新，bindings 未生成阻断实际调用 |
 
 ### 暂缓：pipeline（方向 C）
 
@@ -124,25 +130,32 @@
 
 ---
 
-## 四、隔壁大倡议实施情况（2026-08-19 调研）
+## 四、隔壁大倡议实施情况（2026-08-19 校准）
 
 > 并行会话的「大倡议」= **CLI↔GUI 桥接 + 统一 JSON 输出协议**（对应 Phase 3 ①②③）。ADR-035 是前端组件测试立项，与 CLI 无关；CLI 桥接尚未写 ADR。
 
-**已在工作区（未提交）的实现**：
+**已落地并提交的内容**：
 
 | 文件 | 内容 | 状态 |
 |------|------|------|
-| `go/cli/wails_bridge.go` | Bridge 服务：`ExecuteCLI`（白名单命令 → JSON 响应）、`IsCommandAllowed` | 🆕 未提交 |
-| `go/cli/json.go` | `JsonResponse` 统一 JSON 协议 + `NewJsonSuccess/Error/NotSupported` + `IsCommandAllowed`/`GetAllowedCommands` | 🆕 未提交 |
-| `go/cli/registry.go` | `CmdContext` / `CliCommand` / `RegisterCommand` 迁移至此 | 🆕 未提交 |
-| `internal/app/cli_bridge.go` | Wails 绑定：`ExecuteCLI`（参数 map → 白名单 → 捕获 stdout）+ `GetAllowedCLICommands` | 🆕 未提交 |
-| `main.go` / `app.go` / `cli.go` / `shared.go` | Bridge 注册接线 + `ExecuteCLIWithApp` 导出 | ✏️ 已改未提交 |
+| `internal/app/cli_bridge.go` | Wails 绑定：`ExecuteCLI`（参数 map → 白名单 → 子进程调用 `--cli --json`）+ `SetAllowedCommands` + `GetAllowedCLICommands` + `makeJsonResponse` | ✅ 已提交（dff8f0a6） |
+| `internal/app/cli_bridge_test.go` | 20+ 单测：白名单拦截 / 参数构建 / GetAllowedCLICommands 一致性 / 类型断言覆盖 | ✅ 已提交（dff8f0a6） |
+| `frontend/src/services/cli-bridge.ts` | 前端动态白名单（拉取后端 → 缓存 → 降级默认列表）+ 类型修复 | ✅ 已提交（dff8f0a6） |
+| `go/cli/shared.go` | `captureStdout` 幂等恢复 + defer 兜底防级联故障（R2） | ✅ 已提交（b106ae9a） |
+| `go/cli/concurrent.go` | workers/max-models 参数校验（O1） | ✅ 已提交（dff8f0a6） |
+| `go/cli/resource.go` | `classifyResource` 重构为复用 `classifyResourceTypeName`，口径统一 | ✅ 已提交（未命名 commit） |
 
-**实施差距**：
-1. **前端绑定未生成**——`frontend/bindings/` 无 ExecuteCLI 消费（需 `npm run generate:bindings`，带 `-ts`）；
-2. **未提交**——全部为工作区 ?? / M 状态，需等桥接自测通过后提交；
-3. **未写 ADR**——桥接契约（白名单机制、JSON 协议版本、stdout 捕获边界）建议立项 ADR，防回潮；
-4. **全局 --json 开关未接入口**——协议层已就绪，`RunCLI` 级开关待做（Phase 2 ②）。
+**工作区当前 diff（未提交）**：
+
+| 文件 | 改动 | 说明 |
+|------|------|------|
+| `go/cli/mmd.go` | `analyze-mmd` 增加 `walkTotalDirs` 计数 + 错误率 >50% 提前返回 | O3 增强：避免系统性目录访问失败被静默吞没 |
+
+**实施差距（Phase 3 收尾清单）**：
+1. **`npm run generate:bindings -ts`**——生成前端 binding，解除 Phase 3 ①③ 阻断；
+2. **`wails_bridge.go` 无需新建**——`internal/app/cli_bridge.go` 已承担 Bridge 职责，直接绑定即可；
+3. **局部命令 JSON 收敛**——model.go 的 `search/analyze/list/verify/export` 仍各自处理 `--format`，未走 `JsonResponse`；建议 Phase 4 收敛（不影响 CLI↔GUI 路径，因 ExecuteCLI 走子进程 + `--json`）；
+4. **ADR 立项**——桥接契约（白名单机制、JSON 协议版本、stdout 捕获边界）建议补 ADR，防回潮。
 
 ---
 

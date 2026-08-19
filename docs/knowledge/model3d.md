@@ -4,27 +4,8 @@ name: 3D 预览渲染 model3d
 tier: architecture
 category: utils
 source_files:
-  - frontend/src/utils/3d/model3d.ts
-  - frontend/src/utils/3d/session-state.ts
-  - frontend/src/utils/3d/mesh.ts
-  - frontend/src/utils/3d/keymap.ts
-  - frontend/src/utils/3d/debug-render.ts
-  - frontend/src/utils/3d/camera-control.ts
-  - frontend/src/utils/3d/bone-raycast.ts
-  - frontend/src/utils/3d/cube-mesh.ts
-  - frontend/src/utils/3d/model-group-builder.ts
-  - frontend/src/utils/3d/quaternion.ts
-  - frontend/src/utils/3d/spec-builder.ts
-  - frontend/src/utils/3d/bone-list.ts
-  - frontend/src/utils/3d/bone-visibility.ts
-  - frontend/src/utils/3d/camera-setup.ts
-  - frontend/src/utils/3d/cleanup-helper.ts
-  - frontend/src/utils/3d/mesh-builder.ts
-  - frontend/src/utils/3d/render-loop.ts
-  - frontend/src/utils/3d/scene-lights.ts
-  - frontend/src/utils/3d/session-state.ts
+  - frontend/src/utils/3d/
   - frontend/src/views/app-preview/model3d-loader.ts
-  - frontend/src/utils/3d/model3d-spec.ts
 tests:
   - frontend/src/utils/3d/model3d-spec.test.ts
 use_when:

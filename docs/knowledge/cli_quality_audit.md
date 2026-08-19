@@ -12,8 +12,6 @@ source_files:
   - go/cli/concurrent.go
   - internal/app/cli_bridge.go
   - frontend/src/services/cli-bridge.ts
-tests:
-  - frontend/src/services/cli-bridge.test.ts
 use_when:
   - CLI
   - 质量摸排
