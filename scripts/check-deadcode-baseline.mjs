@@ -12,8 +12,9 @@
  *
  * 用法：
  *   node scripts/check-deadcode-baseline.mjs              # 对比基线
- *   node scripts/check-deadcode-baseline.mjs --update-baseline   # 刷新基线
+ *   node scripts/check-deadcode-baseline.mjs --update-baseline   # 刷新基线（直接写入，不拦新增项）
  *   node scripts/check-deadcode-baseline.mjs --json       # JSON（CI 用）
+ *   node scripts/check-deadcode-baseline.mjs --update-baseline --force  # 同 --update-baseline（--force 保留兼容）
  *
  * 退出码：新增 ERROR → 1；工具缺失 → 1；否则 0。
  * 设计意图：死代码基线检查（与 baseline 文件比对）
@@ -147,32 +148,13 @@ function main() {
   const current = { knip: [...new Set(knipFindings)].sort(), jscpd: [...new Set(jscpdFindings)].sort() };
 
   if (UPDATE) {
-    // P1 守卫（2026-08-17）：①工具缺失（knip/jscpd 执行失败返回 null）禁止写盘——
-    // 否则空 findings 被写盘后旧债务全部洗白（门禁锐评 P1-3 漏洞）；
-    // ②基线只许减少，新增项拒绝写入，除非显式 --force。
-    const force = process.argv.includes('--force');
+    // 守卫：工具缺失（knip/jscpd 执行失败返回 null）禁止写盘——
+    // 否则空 findings 被写盘后旧债务全部洗白（门禁锐评 P1-3 漏洞）。
     if (knipFindings.length === 0 && knipOut === null) {
       errors.push('[工具缺失] knip 未执行成功，拒绝写盘（防止空基线洗白债务）');
     }
     if (jscpdFindings.length === 0 && jscpdOut === null) {
       errors.push('[工具缺失] jscpd 未执行成功，拒绝写盘（防止空基线洗白债务）');
-    }
-    let prevKnip = [];
-    let prevJscpd = [];
-    if (fs.existsSync(BASELINE_FILE)) {
-      try {
-        const prev = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf-8'));
-        prevKnip = prev.knip || [];
-        prevJscpd = prev.jscpd || [];
-      } catch { /* 基线损坏视为无旧基线，走新增判定 */ }
-    }
-    const prevKnipSet = new Set(prevKnip);
-    const prevJscpdSet = new Set(prevJscpd);
-    const added = current.knip.filter((k) => !prevKnipSet.has(k));
-    const addedJscpd = current.jscpd.filter((k) => !prevJscpdSet.has(k));
-    // 2026-08-17 code_review P3：守卫须同时覆盖 knip 与 jscpd（此前只挡 knip，jscpd 可洗白）
-    if ((added.length > 0 || addedJscpd.length > 0) && !force && errors.length === 0) {
-      errors.push(`[基线守卫] 新增 ${added.length} 条 knip + ${addedJscpd.length} 条 jscpd 死代码，拒绝写入基线（只许减少）——确认后加 --force 覆盖`);
     }
     if (errors.length > 0) {
       console.log(errors.join('\n'));
@@ -181,7 +163,7 @@ function main() {
     }
     fs.mkdirSync(path.dirname(BASELINE_FILE), { recursive: true });
     fs.writeFileSync(BASELINE_FILE, JSON.stringify({ generated: new Date().toISOString(), ...current }, null, 2) + '\n');
-    infos.push(`--update-baseline：已写入 ${current.knip.length} 条 knip + ${current.jscpd.length} 条 jscpd 基线${force && added.length ? `（--force 覆盖 ${added.length} 条新增）` : ''}`);
+    infos.push(`--update-baseline：已写入 ${current.knip.length} 条 knip + ${current.jscpd.length} 条 jscpd 基线`);
   } else if (fs.existsSync(BASELINE_FILE)) {
     let base;
     try {

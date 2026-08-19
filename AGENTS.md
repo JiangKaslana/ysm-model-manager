@@ -152,6 +152,19 @@ node scripts/doctor.mjs               # 改代码 / 发版前，全量闸门（�
 
 > **Go 测试务必带显式超时**，否则死循环/死锁会硬卡到终端超时（默认无上限）。`cli` 包因 `os.Pipe()` + `captureOutput` 历史问题，最容易踩坑；已修复异步 reader，但仍建议始终加 `-timeout`。
 
+### ⏱ 测试时间参考（AI 排程用）
+
+| 命令 | 实测耗时 | 建议 -timeout | 说明 |
+|------|----------|---------------|------|
+| `go build ./go/...` | < 10s | 无需 | 编译失败立即 exit 1，不会卡 |
+| `go test ./go/...` | ~7s | `-timeout 60s` | 全量 Go 测试 |
+| `go test ./go/cli` | ~0.3s | `-timeout 20s` | CLI 单包，最快 |
+| `go test -race ./go/...` | ~15s | `-timeout 120s` | 竞态检测，pre-push 用 |
+| `cd frontend && npm run typecheck` | ~10s | 无需 | tsc --noEmit |
+| `cd frontend && npx vite build` | ~5s | 无需 | 前端构建 |
+| `node scripts/doctor.mjs` | ~45s | 无需 | 全量闸门（发版前跑，阶段中别跑） |
+| `node scripts/doctor.mjs --docs` | ~3s | 无需 | 文档轻量版 |
+
 ## 开发启动（四模式，勿混）
 
 ```bash
