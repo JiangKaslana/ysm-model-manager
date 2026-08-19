@@ -81,12 +81,14 @@ export const MOCK_DATA = {
   PullSingleResourceFromInstance: undefined,
   GetMinecraftPaths: [],
   ClearScanCache: undefined,
+  EnsureStorageDirs: undefined,
   // P2 修复（子代理审计）：github 页 _initGithub→loadRepos 调用 LoadGitHubRepos，
   // 原 MOCK_DATA 无此键 → mock bridge 返回 undefined → 抛 TypeError → 页面显示
   // 「加载失败」，但导航测试只断言 active class → 假绿；补空数组（无仓库正常态）
   LoadGitHubRepos: [],
   // settings relink 依赖 SetLinkMode（community.ts 已解构），一并补齐
   SetLinkMode: undefined,
+  SetAllowedCommands: undefined,
   // 对齐 binding 契约 PackInfo 非空对象——原 null 类型不符（子代理审计 P2）
   GetPackInfo: {
     name: "测试资源包",

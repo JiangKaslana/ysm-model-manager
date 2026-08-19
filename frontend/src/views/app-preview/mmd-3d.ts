@@ -27,6 +27,16 @@ async function makeMmdPort(): Promise<MmdDataPort> {
         return {};
       }
     },
+    // KTX2 缓存管线依赖 hash：一次 RPC 拿回数据+hash，缺失则 blobUrlToHash 恒空 → 编码/替换全短路
+    readFileBytesBatchWithMeta: async (paths) => {
+      try {
+        const batchFn = (App as unknown as Record<string, (x: string[]) => Promise<Record<string, { data: string | null; hash: string } | null>>>)["ReadFileBytesBatchWithMeta"];
+        if (typeof batchFn !== "function") return {};
+        return await batchFn(paths);
+      } catch {
+        return {};
+      }
+    },
     listAllFilePaths: (d) =>
       (App as unknown as Record<string, (x: string) => Promise<string[] | null>>)["ListAllFilePaths"](d),
     addOpLog: async (op, msg, status, err) => {
