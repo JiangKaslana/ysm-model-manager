@@ -8,87 +8,18 @@ import (
 	"ysm-model-manager/internal/app"
 )
 
-// cliCommand CLI 子命令定义
-type cliCommand struct {
-	Name        string
-	Description string
-	Run         func(ctx *CmdContext) error
-}
-
-// cliCommands 注册所有 CLI 子命令（由各文件的 init() 自注册）
-var cliCommands = map[string]cliCommand{}
-
-// RegisterCommand 注册一个 CLI 子命令（供各文件的 init() 调用）
-func RegisterCommand(name, description string, run func(ctx *CmdContext) error) {
-	if _, exists := cliCommands[name]; exists {
-		panic(fmt.Sprintf("CLI 命令 %q 重复注册", name))
-	}
-	cliCommands[name] = cliCommand{
-		Name:        name,
-		Description: description,
-		Run:         run,
-	}
-}
-
-// dispatchCommand 内部路由：根据命令名查找并执行命令
-// requireFilesRoot=true 时，filesRoot 为空会返回 ErrParam（生产路径）
-// requireFilesRoot=false 时，允许 filesRoot 为空（测试复用路径）
-func dispatchCommand(a *app.App, filesRoot string, commandArgs []string, requireFilesRoot bool) error {
-	if len(commandArgs) == 0 {
-		printCLIHelp()
-		return nil
-	}
-
-	cmdName := commandArgs[0]
-
-	// 子命令 --help
-	if len(commandArgs) > 1 && (commandArgs[1] == "--help" || commandArgs[1] == "-h") {
-		printCommandHelp(cmdName)
-		return nil
-	}
-
-	cmd, exists := cliCommands[cmdName]
-	if !exists {
-		fmt.Printf("❌ 未知命令: %s\n\n", cmdName)
-		printCLIHelp()
-		return &ErrParam{CmdName: cmdName,
-			Err: fmt.Errorf("未知命令: %s", cmdName)}
-	}
-
-	if requireFilesRoot && filesRoot == "" {
-		return &ErrParam{CmdName: cmdName,
-			Err: fmt.Errorf("--files-root 参数不能为空")}
-	}
-
-	if filesRoot != "" {
-		if err := a.SaveAppConfig(filesRoot, "", "", "", ""); err != nil {
-			return &ErrRuntime{CmdName: cmdName,
-				Err: fmt.Errorf("初始化配置失败: %w", err)}
-		}
-	}
-
-	fmt.Printf("🚀 CLI Mode: %s\n", cmd.Name)
-	fmt.Printf("   根目录: %s\n\n", filesRoot)
-
-	ctx := &CmdContext{App: a, FilesRoot: filesRoot, Args: commandArgs[1:]}
-	if err := cmd.Run(ctx); err != nil {
-		return err
-	}
-
-	return nil
+// printFn 可替换的打印函数
+var printFn = func(a ...any) {
+	fmt.Println(a...)
 }
 
 // RunCLI 执行 CLI 模式
-// 返回的 error 用于映射到正确的退出码
-// 支持: --help, --version, <command> --help
 func RunCLI(args []string) error {
-	// 全局 --version
 	if len(args) > 0 && (args[0] == "--version" || args[0] == "-v") {
 		printVersion()
 		return nil
 	}
 
-	// 全局 --help (无参数时)
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		printCLIHelp()
 		return nil
@@ -101,19 +32,22 @@ func RunCLI(args []string) error {
 		return nil
 	}
 
-	return dispatchCommand(app.NewApp(), filesRoot, commandArgs, true)
+	if filesRoot == "" {
+		printCLIHelp()
+		return &ErrParam{Err: fmt.Errorf("--files-root 参数不能为空")}
+	}
+
+	a := app.NewApp()
+	return DispatchCommand(a, a.SaveAppConfig, filesRoot, commandArgs, true)
 }
 
-// runCLIWithApp 使用预初始化的 App 执行 CLI 模式（用于测试）
-// 与 RunCLI 的区别：filesRoot 可空（便于无文件根的单测场景）
-func runCLIWithApp(a *app.App, args []string) error {
-	// --version
+// ExecuteCLIWithApp 执行 CLI 命令
+func ExecuteCLIWithApp(a *app.App, saveConfigFn func(filesRoot, rpRoot, mcRoot, linkMode, theme string) error, args []string) error {
 	if len(args) > 0 && (args[0] == "--version" || args[0] == "-v") {
 		printVersion()
 		return nil
 	}
 
-	// --help
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		printCLIHelp()
 		return nil
@@ -126,7 +60,7 @@ func runCLIWithApp(a *app.App, args []string) error {
 		return nil
 	}
 
-	return dispatchCommand(a, filesRoot, commandArgs, false)
+	return DispatchCommand(a, saveConfigFn, filesRoot, commandArgs, false)
 }
 
 // printVersion 打印版本信息

@@ -57,7 +57,6 @@ func runConcurrentBench(ctx *CmdContext) error {
 	}
 
 	if len(ysmModels) == 0 {
-		// 如果没有 YSM，用其他模型
 		for _, e := range entries {
 			ysmModels = append(ysmModels, e.Path)
 			if len(ysmModels) >= *maxModels {
@@ -80,7 +79,7 @@ func runConcurrentBench(ctx *CmdContext) error {
 	fmt.Printf("   串行耗时: %.2fms\n", float64(serialResult.Duration.Microseconds())/1000)
 	fmt.Printf("   平均/模型: %.2fms\n", float64(serialResult.Duration.Microseconds())/1000/float64(len(ysmModels)))
 
-	// 3. 并行测试（不同 worker 数）
+	// 3. 并行测试
 	fmt.Println()
 	fmt.Println(strings.Repeat("-", 70))
 	fmt.Println("📊 Phase 2: 并行模型分析")
@@ -163,7 +162,6 @@ func benchParallelAnalyze(a *app.App, models []string, workers int) concurrentBe
 
 	var wg sync.WaitGroup
 
-	// 启动 worker
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
@@ -176,13 +174,11 @@ func benchParallelAnalyze(a *app.App, models []string, workers int) concurrentBe
 		}()
 	}
 
-	// 发送任务
 	for _, path := range models {
 		modelCh <- path
 	}
 	close(modelCh)
 
-	// 收集结果
 	go func() {
 		wg.Wait()
 		close(resultCh)
@@ -294,7 +290,6 @@ func printConcurrentReport(serial concurrentBenchResult, parallel []concurrentBe
 			status)
 	}
 
-	// 建议
 	fmt.Println()
 	fmt.Println("💡 并发建议:")
 	best := parallel[0]
@@ -315,7 +310,6 @@ func printConcurrentReport(serial concurrentBenchResult, parallel []concurrentBe
 		fmt.Println("   💡 原因: 单线程已能跑满，或 I/O 成为瓶颈")
 	}
 
-	// Go 并发特性说明
 	fmt.Println()
 	fmt.Println("📚 Go 并发知识点:")
 	fmt.Println("   - goroutine: 轻量级协程，创建成本低（KB 级）")
@@ -364,7 +358,6 @@ func runSingleBench(ctx *CmdContext) error {
 	var allStages [][]singleBenchStage
 	totalStart := time.Now()
 
-	// 多次迭代测试（取平均）
 	for iter := 0; iter < *iterations; iter++ {
 		if *iterations > 1 {
 			fmt.Printf("\n📝 迭代 %d/%d\n", iter+1, *iterations)
@@ -373,13 +366,11 @@ func runSingleBench(ctx *CmdContext) error {
 		stages := runSingleModelBench(ctx.App, *modelPath, ctx.FilesRoot)
 		allStages = append(allStages, stages)
 
-		// 打印本次迭代
 		printSingleModelStages(stages)
 	}
 
 	totalDuration := time.Since(totalStart)
 
-	// 汇总分析
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 70))
 	fmt.Println("📊 汇总分析")
@@ -394,7 +385,6 @@ func runSingleBench(ctx *CmdContext) error {
 	fmt.Println()
 	fmt.Printf("⏱️  总耗时（%d 次迭代）: %.2fms\n", *iterations, float64(totalDuration.Microseconds())/1000)
 
-	// 优化建议
 	printOptimizationHints(allStages[0])
 
 	return nil
@@ -404,7 +394,6 @@ func runSingleBench(ctx *CmdContext) error {
 func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchStage {
 	var stages []singleBenchStage
 
-	// Stage 1: 文件读取
 	start := time.Now()
 	data, err := os.ReadFile(modelPath)
 	readDuration := time.Since(start)
@@ -424,7 +413,6 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 		Notes:    fmt.Sprintf("✅ %s, %.0f MB/s", formatSize(int64(len(data))), float64(len(data))/readDuration.Seconds()/1024/1024),
 	})
 
-	// Stage 2: JSON 解析
 	start = time.Now()
 	model := a.AnalyzeBedrockModel(modelPath)
 	analyzeDuration := time.Since(start)
@@ -435,7 +423,6 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 		Notes:    fmt.Sprintf("✅ %d bones, %d textures", len(model.Bones), len(model.Textures)),
 	})
 
-	// Stage 3: 数据验证
 	validateStart := time.Now()
 	validateModelData(model)
 	validateDuration := time.Since(validateStart)
@@ -446,7 +433,6 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 		Notes:    "✅ 模型结构校验",
 	})
 
-	// Stage 4: 几何数据准备
 	geoStart := time.Now()
 	geoSize := prepareGeometryData(model)
 	geoDuration := time.Since(geoStart)
@@ -458,7 +444,6 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 		Notes:    fmt.Sprintf("✅ %s", formatSize(geoSize)),
 	})
 
-	// Stage 5: 纹理数据准备
 	texStart := time.Now()
 	texSize := prepareTextureData(model)
 	texDuration := time.Since(texStart)
@@ -470,9 +455,8 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 		Notes:    fmt.Sprintf("✅ %s", formatSize(texSize)),
 	})
 
-	// Stage 6: IPC 传输模拟
 	ipcStart := time.Now()
-	ipcSize := (geoSize + texSize) * 4 / 3 // Base64 膨胀
+	ipcSize := (geoSize + texSize) * 4 / 3
 	ipcDuration := time.Since(ipcStart)
 
 	stages = append(stages, singleBenchStage{
@@ -482,7 +466,6 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 		Notes:    fmt.Sprintf("📦 估算 %s (Base64)", formatSize(ipcSize)),
 	})
 
-	// Stage 7: 缓存检查
 	cacheStart := time.Now()
 	cacheDuration := time.Since(cacheStart)
 
@@ -506,7 +489,6 @@ func printSingleModelStages(stages []singleBenchStage) {
 		ms := float64(s.Duration.Microseconds()) / 1000
 		totalMs += ms
 
-		// 标记瓶颈
 		bottleneck := ""
 		if ms > 100 {
 			bottleneck = " 🔴 瓶颈"
@@ -533,7 +515,6 @@ func printSingleModelStages(stages []singleBenchStage) {
 
 // printAverageStages 打印多次迭代的平均值
 func printAverageStages(allStages [][]singleBenchStage) {
-	// 计算每个阶段的平均值
 	stageCount := len(allStages[0])
 	var avgDurations []float64
 
@@ -545,7 +526,6 @@ func printAverageStages(allStages [][]singleBenchStage) {
 		avgDurations = append(avgDurations, total/float64(len(allStages)))
 	}
 
-	// 打印平均耗时
 	fmt.Println("   📊 平均耗时（跨迭代）:")
 	fmt.Println("   " + strings.Repeat("-", 55))
 
@@ -574,7 +554,6 @@ func printAverageStages(allStages [][]singleBenchStage) {
 
 // printOptimizationHints 打印优化建议
 func printOptimizationHints(stages []singleBenchStage) {
-	// 找出瓶颈阶段
 	var maxDuration time.Duration
 	var bottleneckIdx int
 	for i, s := range stages {

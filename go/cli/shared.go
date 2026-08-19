@@ -7,8 +7,6 @@ import (
 	"io"
 	"os"
 	"strings"
-
-	"ysm-model-manager/internal/app"
 )
 
 // exitCode 退出码常量
@@ -160,11 +158,4 @@ func max(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// CmdContext 统一命令执行上下文
-type CmdContext struct {
-	App       *app.App
-	FilesRoot string
-	Args      []string
 }

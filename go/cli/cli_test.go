@@ -133,13 +133,12 @@ func TestRunCLI_SubCommandHelp(t *testing.T) {
 }
 
 func TestRunCLI_UnknownCommand_ReturnsError(t *testing.T) {
-	out := captureOutput(t, func() {
-		if err := RunCLI([]string{"no-such-cmd"}); err == nil {
-			t.Error("未知命令应返回错误")
-		}
-	})
-	if !strings.Contains(out, "未知命令") {
-		t.Errorf("输出应包含「未知命令」, got: %s", out)
+	err := RunCLI([]string{"--files-root", "/tmp", "no-such-cmd"})
+	if err == nil {
+		t.Error("未知命令应返回错误")
+	}
+	if !strings.Contains(err.Error(), "未知命令") {
+		t.Errorf("错误应包含「未知命令」, got: %v", err)
 	}
 }
 
@@ -321,13 +320,13 @@ func TestConfigShow_PrintsRootAndCache(t *testing.T) {
 	}
 }
 
-// ---- runCLIWithApp 解耦入口（用于自动化测试复用）----
+// ---- ExecuteCLIWithApp 解耦入口（用于自动化测试复用）----
 
 func TestRunCLIWithApp_Help(t *testing.T) {
 	a := &app.App{}
 	out := captureOutput(t, func() {
-		if err := runCLIWithApp(a, []string{"--help"}); err != nil {
-			t.Errorf("runCLIWithApp --help 应返回 nil, got %v", err)
+		if err := ExecuteCLIWithApp(a, a.SaveAppConfig, []string{"--help"}); err != nil {
+			t.Errorf("ExecuteCLIWithApp --help 应返回 nil, got %v", err)
 		}
 	})
 	if !strings.Contains(out, "可用命令") {
@@ -338,8 +337,8 @@ func TestRunCLIWithApp_Help(t *testing.T) {
 func TestRunCLIWithApp_Version(t *testing.T) {
 	a := &app.App{}
 	out := captureOutput(t, func() {
-		if err := runCLIWithApp(a, []string{"--version"}); err != nil {
-			t.Errorf("runCLIWithApp --version 应返回 nil, got %v", err)
+		if err := ExecuteCLIWithApp(a, a.SaveAppConfig, []string{"--version"}); err != nil {
+			t.Errorf("ExecuteCLIWithApp --version 应返回 nil, got %v", err)
 		}
 	})
 	if !strings.Contains(out, "YSM 模型管理器") {
@@ -349,7 +348,7 @@ func TestRunCLIWithApp_Version(t *testing.T) {
 
 func TestRunCLIWithApp_UnknownCommand(t *testing.T) {
 	a := &app.App{}
-	err := runCLIWithApp(a, []string{"no-such-cmd"})
+	err := ExecuteCLIWithApp(a, a.SaveAppConfig, []string{"no-such-cmd"})
 	if err == nil {
 		t.Error("未知命令应返回错误")
 	}
@@ -362,8 +361,8 @@ func TestRunCLIWithApp_UsesProvidedApp(t *testing.T) {
 	a := &app.App{}
 	out := captureOutput(t, func() {
 		// 不传 --files-root：避免触发 SaveAppConfig 落盘真实用户配置（文件头约束）
-		if err := runCLIWithApp(a, []string{"cache-status"}); err != nil {
-			t.Errorf("runCLIWithApp cache-status 应返回 nil, got %v", err)
+		if err := ExecuteCLIWithApp(a, a.SaveAppConfig, []string{"cache-status"}); err != nil {
+			t.Errorf("ExecuteCLIWithApp cache-status 应返回 nil, got %v", err)
 		}
 	})
 	if !strings.Contains(out, "缓存状态") {
@@ -372,13 +371,13 @@ func TestRunCLIWithApp_UsesProvidedApp(t *testing.T) {
 }
 
 func TestRunCLIWithApp_NoFilesRoot_RunsAnyway(t *testing.T) {
-	// runCLIWithApp 设计为测试复用，允许没有 files-root
+	// ExecuteCLIWithApp 设计为测试复用，允许没有 files-root
 	// （与 runCLI 不同，runCLI 会强制要求 files-root）
 	a := &app.App{}
-	err := runCLIWithApp(a, []string{"search", "--keyword", "test"})
+	err := ExecuteCLIWithApp(a, a.SaveAppConfig, []string{"search", "--keyword", "test"})
 	// 没有 files-root 时应正常运行（search 命令在没有模型时返回空结果）
 	if err != nil {
-		t.Logf("runCLIWithApp 无 files-root 返回: %v（可能因无模型而正常）", err)
+		t.Logf("ExecuteCLIWithApp 无 files-root 返回: %v（可能因无模型而正常）", err)
 	}
 }
 
@@ -923,11 +922,11 @@ func TestAllCommandsRegistered(t *testing.T) {
 	}
 }
 
-// ========== dispatchCommand 路由测试 ==========
+// ========== DispatchCommand 路由测试 ==========
 
 func TestDispatchCommand_RequiresFilesRoot(t *testing.T) {
 	a := app.NewApp()
-	err := dispatchCommand(a, "", []string{"search"}, true)
+	err := DispatchCommand(a, a.SaveAppConfig, "", []string{"search"}, true)
 	if err == nil {
 		t.Error("requireFilesRoot=true 且 filesRoot 为空时应返回错误")
 	}
@@ -938,7 +937,7 @@ func TestDispatchCommand_RequiresFilesRoot(t *testing.T) {
 
 func TestDispatchCommand_AllowsEmptyFilesRoot(t *testing.T) {
 	a := app.NewApp()
-	err := dispatchCommand(a, "", []string{"cache-status"}, false)
+	err := DispatchCommand(a, a.SaveAppConfig, "", []string{"cache-status"}, false)
 	if err != nil {
 		t.Logf("无 files-root 时 dispatch 返回: %v（可能正常）", err)
 	}
@@ -947,24 +946,19 @@ func TestDispatchCommand_AllowsEmptyFilesRoot(t *testing.T) {
 func TestDispatchCommand_UnknownCommand(t *testing.T) {
 	a := app.NewApp()
 	dir := t.TempDir()
-	out := captureOutput(t, func() {
-		err := dispatchCommand(a, dir, []string{"no-such-cmd"}, false)
-		if err == nil {
-			t.Error("未知命令应返回错误")
-		}
-		if !strings.Contains(err.Error(), "未知命令") {
-			t.Errorf("错误应包含「未知命令」, got: %v", err)
-		}
-	})
-	if !strings.Contains(out, "未知命令") {
-		t.Errorf("输出应包含「未知命令」, got: %s", out)
+	err := DispatchCommand(a, a.SaveAppConfig, dir, []string{"no-such-cmd"}, false)
+	if err == nil {
+		t.Error("未知命令应返回错误")
+	}
+	if !strings.Contains(err.Error(), "未知命令") {
+		t.Errorf("错误应包含「未知命令」, got: %v", err)
 	}
 }
 
 func TestDispatchCommand_SubCommandHelp(t *testing.T) {
 	a := app.NewApp()
 	out := captureOutput(t, func() {
-		err := dispatchCommand(a, "", []string{"search", "--help"}, false)
+		err := DispatchCommand(a, a.SaveAppConfig, "", []string{"search", "--help"}, false)
 		if err != nil {
 			t.Errorf("--help 应返回 nil, got: %v", err)
 		}
@@ -976,7 +970,7 @@ func TestDispatchCommand_SubCommandHelp(t *testing.T) {
 
 func TestDispatchCommand_EmptyCommandList(t *testing.T) {
 	a := app.NewApp()
-	err := dispatchCommand(a, "", nil, false)
+	err := DispatchCommand(a, a.SaveAppConfig, "", nil, false)
 	if err != nil {
 		t.Errorf("空命令列表应返回 nil, got: %v", err)
 	}
