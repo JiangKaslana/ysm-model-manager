@@ -61,31 +61,30 @@ export async function handleTreeDrop(
       return;
     }
 
-    // 桌面版：collectFiles 异步收集
-    const items = Array.from(e.dataTransfer?.items || []);
-    let collected: CollectedFile[] = [];
-    if (items.length > 0) {
-      collected = await collectFiles(items, false);
-    }
+    // 桌面版：优先用 dataTransfer.files（WebView2 可靠）；
+    // webkitGetAsEntry 在 WebView2 中对文件条目可能返回 null，仅作为目录收集的补充。
+    // 策略：先用 files 收集所有散文件，再尝试 items → webkitGetAsEntry 补充目录条目。
+    const baseFiles: CollectedFile[] = Array.from(e.dataTransfer?.files || []).map((f) => ({
+      file: f,
+      relPath: (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name,
+    }));
 
-    // WebView2 兜底：合并 dataTransfer.files，name+size+lastModified 去重
-    const seen = new Set(collected.map((c) => c.file.name + ":" + c.file.size + ":" + c.file.lastModified));
-    for (const f of Array.from(e.dataTransfer?.files || [])) {
-      const key = f.name + ":" + f.size + ":" + f.lastModified;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      collected.push({
-        file: f,
-        relPath:
-          (f as File & { webkitRelativePath?: string }).webkitRelativePath ||
-          f.name,
-      });
-    }
-    if (collected.length === 0) {
-      collected = Array.from(e.dataTransfer?.files || []).map((f) => ({
-        file: f,
-        relPath: f.name,
-      }));
+    const items = Array.from(e.dataTransfer?.items || []);
+    let collected: CollectedFile[];
+    if (items.length > 0) {
+      const viaItems = await collectFiles(items, false);
+      // 合并：items 路径来的补充到 baseFiles，去重
+      const seen = new Set(baseFiles.map((c) => c.file.name + ":" + c.file.size + ":" + c.file.lastModified));
+      for (const c of viaItems) {
+        const key = c.file.name + ":" + c.file.size + ":" + c.file.lastModified;
+        if (!seen.has(key)) {
+          seen.add(key);
+          baseFiles.push(c);
+        }
+      }
+      collected = baseFiles;
+    } else {
+      collected = baseFiles;
     }
     if (collected.length === 0) {
       bus.emit("toast:show", {
