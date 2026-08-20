@@ -1,7 +1,6 @@
 use std::{
     error::Error,
-    fmt,
-    fs,
+    fmt, fs,
     path::{Path, PathBuf},
 };
 
@@ -169,7 +168,8 @@ fn same_path(a: &Path, b: &Path) -> Result<bool, FileOpError> {
 
 #[cfg(windows)]
 fn path_eq(a: &Path, b: &Path) -> bool {
-    a.to_string_lossy().eq_ignore_ascii_case(&b.to_string_lossy())
+    a.to_string_lossy()
+        .eq_ignore_ascii_case(&b.to_string_lossy())
 }
 
 #[cfg(not(windows))]
