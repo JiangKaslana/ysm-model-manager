@@ -142,8 +142,9 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 	}
 	ext := strings.ToLower(filepath.Ext(path))
 	// ADR-067：.zip/.7z 是通用容器，任何类型都可能被包裹——
-	// zipentry detector 在 isContainer 时按 zipEntries 内容指纹判定（裸文件按扩展名）
-	isContainer := ext == ".zip" || ext == ".7z"
+	// zipentry detector 在 isContainer 时按 zipEntries 内容指纹判定（裸文件按扩展名）。
+	// 容器集合单源：types.IsContainerExt（ContainerExts），禁止魔法字符串。
+	isContainer := types.IsContainerExt(ext)
 
 	for _, rt := range registry.ResourceTypes {
 		extOK := hasExt(ext, rt.Extensions)
@@ -221,7 +222,7 @@ func isYsmFile(path string) bool {
 		// 注册表声明 .json 为 YSM 扩展，但只有 ysm.json 算独立模型文件
 		return strings.EqualFold(filepath.Base(path), "ysm.json")
 	}
-	if ext != ".zip" && ext != ".7z" {
+	if !types.IsContainerExt(ext) {
 		return false
 	}
 	// .zip/.7z 统一走 container（ADR-068）：任意层级段后缀匹配（ADR-082 S1 与

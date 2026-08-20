@@ -66,7 +66,8 @@ func ImportFromBase64(fileName, base64Data string, opts ImportOptions, rootFn fu
 
 	// 类型检测：优先内容检测（ZIP/7z 可能为 YSM/资源包/光影包），回退扩展名匹配
 	rtype := ""
-	if ext == ".zip" || ext == ".7z" {
+	// 容器集合单源：types.IsContainerExt
+	if types.IsContainerExt(ext) {
 		rtype = DetectZipType(data)
 	}
 	// DetectZipType 无特征返回空（ADR-082 续）：扩展名不属于当前 rtype 注册表扩展名集合时，

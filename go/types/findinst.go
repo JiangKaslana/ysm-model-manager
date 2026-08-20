@@ -67,8 +67,8 @@ func FindInstDir(versionDir, subDir, rtype string) string {
 	standard := filepath.Join(versionDir, subDir)
 	exts := SupportedExtsForType(rtype)
 	extSet := make(map[string]bool)
-	// 容器扩展名（zip/7z 可包裹任意资源，属弱证据）
-	containerExts := map[string]bool{".zip": true, ".7z": true}
+	// 容器扩展名（zip/7z 可包裹任意资源，属弱证据）——
+	// 容器集合单源：types.IsContainerExt / ContainerExts，禁止硬编码 map。
 	hasNonContainer := false
 	for _, e := range exts {
 		low := strings.ToLower(e)
@@ -76,13 +76,13 @@ func FindInstDir(versionDir, subDir, rtype string) string {
 			continue // ADR-095：.json 弱证据，仅以 ysm.json 标志文件识别
 		}
 		extSet[low] = true
-		if !containerExts[low] {
+		if !IsContainerExt(low) {
 			hasNonContainer = true
 		}
 	}
 	// ADR-104 续：有非容器主证据时剔除容器弱证据；纯容器类型保留
 	if hasNonContainer {
-		for c := range containerExts {
+		for _, c := range ContainerExts() {
 			delete(extSet, c)
 		}
 	}
