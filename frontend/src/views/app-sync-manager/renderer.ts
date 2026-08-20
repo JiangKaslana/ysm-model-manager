@@ -279,8 +279,11 @@ async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<
       const raw = it.path || "";
       const p = raw.replace(/\\/g, "/");
       if (!p) return;
-      // 展开 key 用后端原始绝对路径（与 data-path 一致，dirOpen 由 events 按 data-path 写入）
-      if (dirOpen[raw] && it.status === "synced") {
+      // 展开 key 用后端原始绝对路径（与 data-path 一致，dirOpen 由 events 按 data-path 写入）。
+      // 不限定 status：missing 条目 path 是仓库绝对路径（内部文件就在仓库），
+      // optional/extra 条目 path 是整合包路径——各自侧文件都存在，均可展开查看；
+      // 扫描失败 scanSubEntries 静默返回 []。
+      if (dirOpen[raw]) {
         scanned[p] = await scanSubEntries(raw, rtype);
       }
     }),

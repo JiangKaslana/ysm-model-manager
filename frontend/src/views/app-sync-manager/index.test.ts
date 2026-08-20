@@ -305,7 +305,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     unmountElement(el);
   });
 
-  it("dirLevelSync 类型（create-blueprint）→ 文件夹行 + 展开扫出子文件（层级展示）", async () => {
+  it("dirLevelSync 类型（create-blueprint）→ 文件夹行 + 展开扫出子文件（missing 条目也可展开）", async () => {
     const el = document.createElement("app-sync-manager");
     el.setAttribute("instance", "test");
     document.body.appendChild(el);
@@ -323,16 +323,17 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     };
     self._selectedType = "create-blueprint";
     self._typeConfig = [{ id: "create-blueprint", name: "蓝图", icon: "⚙️", dirLevelSync: true }];
+    // 真实场景：蓝图在仓库、整合包缺失 → missing；path 为仓库绝对路径
     self._allItems = [
-      { path: "schematics/hello_new_generation_core", name: "hello_new_generation_core", status: "synced", type: "create-blueprint", icon: "⚙️", size: 4096 },
+      { path: "D:/YSM管理器测试文件夹/minecraft-mod/create-blueprint/hello_new_generation_core", name: "hello_new_generation_core", status: "missing", type: "create-blueprint", icon: "⚙️", size: 4096 },
     ];
     self._filteredItems = self._allItems;
     self._repoRoots = { "create-blueprint": "/repo" };
     self._dirOpen = {};
 
     mocks.ScanModelEntriesWithLabel.mockResolvedValue([
-      { Name: "建筑.nbt", Path: "/repo/schematics/hello_new_generation_core/建筑.nbt", Size: 2048 },
-      { Name: "建筑.schematic", Path: "/repo/schematics/hello_new_generation_core/建筑.schematic", Size: 1024 },
+      { Name: "建筑.nbt", Path: "D:/YSM管理器测试文件夹/minecraft-mod/create-blueprint/hello_new_generation_core/建筑.nbt", Size: 2048 },
+      { Name: "建筑.schematic", Path: "D:/YSM管理器测试文件夹/minecraft-mod/create-blueprint/hello_new_generation_core/建筑.schematic", Size: 1024 },
     ]);
 
     self._doRender();
@@ -341,7 +342,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     let dirs = el.querySelectorAll(".sm-dir");
     expect(dirs.length).toBe(1);
     expect(el.querySelectorAll(".sm-file").length).toBe(0);
-    // 点击展开
+    // 点击展开（missing 条目也应能扫描出仓库内 nbt）
     (dirs[0] as HTMLElement).click();
     await sleep(300);
     dirs = el.querySelectorAll(".sm-dir");
