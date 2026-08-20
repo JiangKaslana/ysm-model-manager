@@ -110,5 +110,12 @@ export function createGazeController() {
     prevCamPos = null;
   }
 
-  return { apply, reset };
+  /** 销毁：释放 Three.js 对象引用（quaternion/position 快照），防止模型移除后内存泄漏 */
+  function dispose(): void {
+    snaps?.clear();
+    snaps = null;
+    prevCamPos = null;
+  }
+
+  return { apply, reset, dispose };
 }

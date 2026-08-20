@@ -388,15 +388,19 @@ func BuildNbtVoxelData(path string, maxBlocks int) (*types.LitematicVoxelData, e
 
 // buildBedrockVoxelData 基岩版 1.21+ structure 体素聚合。
 // 格式（对齐 parseBedrockStructure:329 的字段口径）：
-//   sub_levels[]: {
-//     local_bounds: {min_x,min_y,min_z,max_x,max_y,max_z},   // 子结构包围盒（相对结构原点）
-//     blocks: [{ local_pos: {x,y,z}, palette_id: int }],     // local_pos 相对 local_bounds.min
-//     block_palette: [{ Name: string, Properties: {...} }],  // palette_id 引用索引
-//     entities / block_entities
-//   }
+//
+//	sub_levels[]: {
+//	  local_bounds: {min_x,min_y,min_z,max_x,max_y,max_z},   // 子结构包围盒（相对结构原点）
+//	  blocks: [{ local_pos: {x,y,z}, palette_id: int }],     // local_pos 相对 local_bounds.min
+//	  block_palette: [{ Name: string, Properties: {...} }],  // palette_id 引用索引
+//	  entities / block_entities
+//	}
+//
 // 全局坐标 = local_bounds.min + local_pos，再整体平移使聚合 min 归零
 // （与 Java 版 structure 的 size/blocks.pos「相对结构原点」语义一致，
-//   实测样本 local_bounds.min 恒为 0，公式退化即 local_pos 本身）。
+//
+//	实测样本 local_bounds.min 恒为 0，公式退化即 local_pos 本身）。
+//
 // 空气判定按 palette 颜色为空（MapColor 对 air 系返回 ""），与 Java 分支口径一致。
 func buildBedrockVoxelData(subLevels []any, maxBlocks int) (*types.LitematicVoxelData, error) {
 	// 第一遍：聚合全局包围盒 + 各 sub_level 遍历信息（origin=local_bounds.min）
@@ -549,7 +553,20 @@ func BuildSchematicVoxelData(path string, maxBlocks int) (*types.LitematicVoxelD
 		}
 	}
 
-	total := w * h * l
+	// ⚠️ w/h/l 来自 NBT int32（可达 2^31-1），三者乘积可溢出 int。
+	// 溢出后 total 变为负数（循环不执行→静默返回空数据）或小正数（循环次数错误→
+	// 坐标计算 w*l 也溢出→y/z 坐标错乱→渲染错位方块）。
+	// 用 int64 计算并钳到合理上限（512M 方块 ≈ 800³，远超任何合理投影）。
+	total64 := int64(w) * int64(h) * int64(l)
+	const maxSchematicBlocks = 512_000_000
+	if total64 < 0 || total64 > maxSchematicBlocks {
+		return nil, fmt.Errorf("schematic 尺寸 %d×%d×%d 超出合理范围（溢出或过大）", w, h, l)
+	}
+	total := int(total64)
+	// w*l 用于坐标反推 y := (i-1)/(w*l)，同样可能溢出 int（w=1e6, l=1e6→1e12）。
+	// 预计算为 int64，坐标除法用 int64 算术（下方闭包内引用 wl64）。
+	wl64 := int64(w) * int64(l)
+
 	if blockDataBA == nil && blocksBA == nil {
 		return nil, fmt.Errorf("schematic has no Blocks or BlockData")
 	}
@@ -575,7 +592,7 @@ func BuildSchematicVoxelData(path string, maxBlocks int) (*types.LitematicVoxelD
 				// 坐标由索引反推（范围 [0, size-1]），超出 int16 表示范围直接转换会
 				// 静默回绕——与 buildRegionInfo 的 int16 口径一致，越界跳过该方块
 				x := (i - 1) % w
-				y := (i - 1) / (w * l)
+				y := int(int64(i-1) / wl64)
 				z := ((i - 1) / w) % l
 				if x < -32768 || x > 32767 || y < -32768 || y > 32767 || z < -32768 || z > 32767 {
 					continue
@@ -612,7 +629,7 @@ func BuildSchematicVoxelData(path string, maxBlocks int) (*types.LitematicVoxelD
 			}
 			// int16 坐标守卫：与 v2 路径一致（见 v2 注释），越界跳过该方块
 			x := (i - 1) % w
-			y := (i - 1) / (w * l)
+			y := int(int64(i-1) / wl64)
 			z := ((i - 1) / w) % l
 			if x < -32768 || x > 32767 || y < -32768 || y > 32767 || z < -32768 || z > 32767 {
 				continue

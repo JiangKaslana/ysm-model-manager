@@ -941,8 +941,8 @@ export async function buildMmdScene(
         mixer.stopAllAction();
         mixer.uncacheRoot(mesh); // 释放 PropertyMixer 缓存，对齐 vrm-adapter（ADR-084 L2）
         cameraMixer?.stopAllAction(); // 轨道相机动画清理
-        breath.reset();
-        gaze.reset();
+        breath.dispose();
+        gaze.dispose();
         blink.dispose();
         lipSync.dispose();
         autoDance.dispose();

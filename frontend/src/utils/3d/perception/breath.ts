@@ -102,5 +102,11 @@ export function createBreathController() {
     state = null;
   }
 
-  return { apply, reset };
+  /** 销毁：释放 Three.js 对象引用（position/quaternion 快照），防止模型移除后内存泄漏 */
+  function dispose(): void {
+    state?.resting.clear();
+    state = null;
+  }
+
+  return { apply, reset, dispose };
 }

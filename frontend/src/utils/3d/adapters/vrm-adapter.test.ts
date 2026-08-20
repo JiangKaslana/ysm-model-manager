@@ -67,12 +67,14 @@ vi.mock("../perception/breath.ts", () => ({
   createBreathController: vi.fn(() => ({
     apply: vi.fn(),
     reset: vi.fn(),
+    dispose: vi.fn(),
   })),
 }));
 vi.mock("../perception/gaze.ts", () => ({
   createGazeController: vi.fn(() => ({
     apply: vi.fn(),
     reset: vi.fn(),
+    dispose: vi.fn(),
   })),
 }));
 vi.mock("../perception/blink.ts", () => ({

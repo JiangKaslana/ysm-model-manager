@@ -172,8 +172,11 @@ function _writeHeap(data: Uint8Array): number {
   const len = src.length;
   const ptr = wasmModule!._malloc(len);
   if (!ptr) throw new Error("malloc 失败 (" + len + " bytes)");
-  const heap = _getHeap();
-  heap.set(src, ptr);
+  // ⚠️ _malloc 可能触发 WASM 内存增长（growMemory），此时 HEAPU8 会被新的
+  // ArrayBuffer 替换（旧 buffer 被分离/detached）。必须在写入前重新获取最新 HEAPU8，
+  // 而非在 _malloc 之前缓存——否则 heap.set() 写入已分离的 buffer，数据丢失且
+  // 不报错（静默损坏：WASM 解码输出全乱，前端渲染花屏/白屏，难以定位）。
+  _getHeap().set(src, ptr);
   return ptr;
 }
 

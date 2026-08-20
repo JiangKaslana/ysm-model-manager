@@ -398,8 +398,8 @@ export async function buildVrmScene(
         /* 面板清理不阻断 dispose */
       }
       unregisterModelRoot(vrm.scene);
-      breath.reset();
-      gaze?.reset();
+      breath.dispose();
+      gaze?.dispose();
       blink.dispose();
       footIK.dispose();
       motionMixer?.stopAllAction(); // 停掉 VRMA 动画 mixer，避免释放后残留 action

@@ -311,7 +311,7 @@ export async function buildYsmScene(
         debugState.debugGroup = null;
       }
       animPlayer?.dispose();
-      breath?.reset();
+      breath?.dispose();
     },
     resetCamera(): void {
       ctx.camera!.position.copy(initCamPos);

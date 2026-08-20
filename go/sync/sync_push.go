@@ -93,7 +93,11 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 }
 
 // PullResources 拉取整合包多余资源回仓库
+// 持 InstallLock：从实例目录复制文件回仓库，与 SyncToggleStatus/RelinkDir
+// 等并发操作同一实例目录文件互斥（ADR-056 共享单锁）
 func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, error) {
+	installer.InstallLock.Lock()
+	defer installer.InstallLock.Unlock()
 	// 找出 extra 的文件并复制到全局
 	// 对 YSM/MMD 使用文件夹级同步
 	var result types.ResourceSyncResult
@@ -190,7 +194,10 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 }
 
 // PullSingleResource 拉取单个资源（文件夹/文件）回仓库
+// 持 InstallLock：从实例目录复制文件回仓库，与并发同步操作互斥（ADR-056）
 func PullSingleResource(globalDir, targetDir, srcPath string) error {
+	installer.InstallLock.Lock()
+	defer installer.InstallLock.Unlock()
 	// 文件夹级拉取：整体复制文件夹到全局（保留相对 targetDir 的子类层级）。
 	// 越界（srcPath 不在 targetDir 内）直接报错——与文件分支 mapSrcToGlobal 严格口径
 	// 一致；旧行为退化为 basename 会把越界目录错误落到 globalDir 根（丢子类层级 + 同名覆盖）。

@@ -12,6 +12,7 @@ import (
 
 	"ysm-model-manager/go/dedup"
 	"ysm-model-manager/go/fileops"
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/importer"
 	"ysm-model-manager/go/installer"
 	"ysm-model-manager/go/litematic"
@@ -488,7 +489,10 @@ func (a *App) saveConfig(cfg types.AppConfig) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(dest, data, 0644); err != nil {
+	// ADR-044 策略 A：原子写（CreateTemp + rename）——
+	// 原 os.WriteFile 直写在磁盘满/IO 中断/崩溃时留半截 JSON，
+	// 下次 loadAppConfig 解析失败 → 用户配置静默"丢失"（与 tags 已统一走 WriteFileAtomic）
+	if err := fsutil.WriteFileAtomic(dest, data); err != nil {
 		return err
 	}
 	// update in-memory cache

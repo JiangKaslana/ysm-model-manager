@@ -2,6 +2,18 @@
 // tryFetchModels + 进度条
 
 /**
+ * HTML 转义（防 XSS）
+ */
+function escHTML(s: string): string {
+  return (s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * 创建进度条 UI（插入到 searchResults 容器）
  */
 export function showProgress(
@@ -14,12 +26,16 @@ export function showProgress(
   const clamped = Number.isFinite(pct)
     ? Math.min(100, Math.max(0, Math.round(pct)))
     : 0;
+  // P3 修复（审核发现）：label 未经转义直接拼入 innerHTML——当前调用方
+  // 全部使用硬编码字符串（无 XSS 风险），但函数是 export 的公共 API，
+  // 未来若传入用户可控数据即构成 XSS；统一转义（硬编码字符串转义无副作用）
+  const safeLabel = escHTML(label || "");
   searchResults.innerHTML =
     '<div class="gh-progress-box">' +
     '<div class="gh-progress-label">' +
     '<span class="gh-progress-spin">⏳</span> ' +
     '<span class="gh-progress-text">' +
-    (label || "") +
+    safeLabel +
     "</span></div>" +
     '<div class="gh-progress-track">' +
     '<div class="gh-progress-fill' +

@@ -387,7 +387,7 @@ func TestBuildVoxelData_PaletteMissingName(t *testing.T) {
 // =========================================================================
 
 func TestBuildSchematicVoxelData_NegativeWidth(t *testing.T) {
-	// Width=-1, H=1, L=1 → total=-1 → 循环 i < total 不执行（静默无方块）
+	// Width=-1, H=1, L=1 → total64=-1 → 溢出/负值守卫拒绝（防坐标计算错误）
 	root := nbtCompound("",
 		nbtInt("Version", 1),
 		nbtInt("Width", int32(-1)),
@@ -398,11 +398,11 @@ func TestBuildSchematicVoxelData_NegativeWidth(t *testing.T) {
 	)
 	path := writeGzNbt(t, root)
 	result, err := BuildSchematicVoxelData(path, 100)
-	if err != nil {
-		t.Fatalf("负维度应无 panic: %v", err)
+	if err == nil {
+		t.Fatalf("负维度应返回错误（溢出守卫）")
 	}
-	if len(result.Groups) != 0 {
-		t.Errorf("负维度应无方块（静默跳过）, 得到 %d 组", len(result.Groups))
+	if result != nil {
+		t.Errorf("负维度应返回 nil result, 得到 %+v", result)
 	}
 }
 
