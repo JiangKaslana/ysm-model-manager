@@ -108,6 +108,10 @@ dl { display: grid; gap: 10px; margin: 0; }
 dl div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; border-bottom: 1px solid #22282e; padding-bottom: 8px; }
 dt { color: var(--faint); font-size: 10px; }
 dd { margin: 0; color: #c4ccd4; font-size: 10px; overflow-wrap: anywhere; }
+#detailHash { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 9px; line-height: 1.45; word-break: break-all; user-select: text; }
+.hash-button { width: 100%; height: 30px; margin-top: 12px; border: 1px solid #3b625a; border-radius: 5px; background: #172722; color: #bfe9df; cursor: pointer; font-size: 10px; font-weight: 650; }
+.hash-button:hover:not(:disabled) { background: #1b322b; border-color: #4d7d72; }
+.hash-button:disabled { color: var(--faint); border-color: var(--line); background: var(--surface); cursor: default; }
 .path-label { display: block; margin: 17px 0 7px; color: var(--faint); font-size: 10px; }
 .path-code { display: block; padding: 9px; border: 1px solid var(--line); border-radius: 5px; background: #101317; color: #aeb8c2; font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; user-select: text; }
 
