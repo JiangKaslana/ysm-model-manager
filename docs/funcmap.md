@@ -1206,12 +1206,12 @@
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:378` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:68` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:178` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:185` | — |
-| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:978` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1019` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1046` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:69` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:179` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:186` | — |
+| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:980` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1021` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1048` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `resolveMmdSubdirPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:22` | 从 MMD 默认仓库根回溯到 group 根，再拼接目标子目录。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:31` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:44` | 从文件列表中筛选动作文件（.vmd / .vpd） |
@@ -1351,8 +1351,8 @@
 | `FOG_PRESETS()` | `frontend/src/utils/3d/caps/fog-capability:40` | 模型类别雾预设：材质特性不同，雾浓度/远近做合理初始值 |
 | `FogCapability()` | `frontend/src/utils/3d/caps/fog-capability:68` | — |
 | `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:15` | — |
-| `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:28` | — |
-| `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:36` | — |
+| `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:34` | — |
+| `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:45` | — |
 | `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:32` | ============ 参数类型 ============ |
 | `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:42` | — |
 | `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:47` | — |
@@ -1975,7 +1975,7 @@
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:71` | — |
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:90` | 单个整合包卡片头部。 |
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
-| `bindEvents()` | `frontend/src/views/app-sync-manager/events:17` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮） |
+| `bindEvents()` | `frontend/src/views/app-sync-manager/events:17` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮 / dir-level 文件夹展开折叠） |
 | `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:25` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
 | `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:67` | — |
 | `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
