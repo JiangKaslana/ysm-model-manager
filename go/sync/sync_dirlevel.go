@@ -65,9 +65,10 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceSyncResult {
 	result := types.ResourceSyncResult{}
 
-	// 收集一个目录下的资源单元（子文件夹 + 顶层平铺模型文件）
-	collectEntries := func(rootDir string) map[string]string {
-		entries := make(map[string]string)
+	// collectUnits 收集一个目录下的同步单元（顶层平铺模型文件 + 含模型文件的子文件夹）。
+	// 返回 key → 绝对路径（key 为小写文件名/文件夹名）。
+	collectUnits := func(rootDir string) map[string]string {
+		units := make(map[string]string)
 		// 先扫描顶层平铺模型文件
 		if topEntries, err := os.ReadDir(rootDir); err == nil {
 			for _, e := range topEntries {
@@ -80,7 +81,7 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 				base := types.NormalizeResourceName(low)
 				if types.IsTypeModelFile(base, rtype) {
 					key := strings.TrimSuffix(low, filepath.Ext(low))
-					entries[key] = filepath.Join(rootDir, e.Name())
+					units[key] = filepath.Join(rootDir, e.Name())
 				}
 			}
 		}
@@ -97,20 +98,47 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 			if fsutil.IsRecycleDir(path) {
 				return filepath.SkipDir
 			}
-			// ADR-092 路线 B：MC-MMD 子目录（EntityPlayer/SceneModel/CustomAnim 等）
-			// 作为独立同步单元保留层级，不展平——其内部模型文件夹随目录整体走
-			// （否则 EntityPlayer/角色A 会被展平为 3d-skin/角色A，丢 EntityPlayer 层）。
-			// 消费注册表 subDirGrouping 字段 + subtypes 子目录集合（ADR-104），
-			// 不硬编码 rtype / 不硬编码子目录名。
+			// 子类目录由 collectEntries 单独处理（带前缀），此处不下钻
 			if types.IsSubDirGrouping(rtype) && types.IsSubDirName(rtype, info.Name()) {
-				name := strings.ToLower(info.Name())
-				entries[name] = path
 				return filepath.SkipDir
 			}
 			if isDirTypeModelFolder(path, rtype) {
 				name := strings.ToLower(info.Name())
 				// 文件夹优先于平铺文件（同名时覆盖）
-				entries[name] = path
+				units[name] = path
+				return filepath.SkipDir
+			}
+			return nil
+		})
+		return units
+	}
+
+	// collectEntries 收集整棵仓库树的同步单元：
+	// - 顶层单元（平铺模型文件 + 模型文件夹）
+	// - subDirGrouping 类型（mmd-skin）：MC-MMD 子类目录（EntityPlayer/SceneModel/CustomAnim 等）
+	//   内部的模型文件夹/平铺文件作为同步单元，key 带子类前缀保留层级（entityplayer/角色a），
+	//   与仓库树（app-tree）的 group 根回溯口径对齐（ADR-092/ADR-094/ADR-096）；
+	//   子类目录本身不作为单元，避免「目录存在即已同步」假象，也避免 push 整目录与
+	//   内部模型重复。消费注册表 subDirGrouping 字段 + subtypes 子目录集合（ADR-104），
+	//   不硬编码 rtype / 不硬编码子目录名。
+	collectEntries := func(rootDir string) map[string]string {
+		entries := collectUnits(rootDir)
+		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				log.Printf("[sync] Walk 错误 %s: %v", path, err)
+				return nil
+			}
+			if !info.IsDir() || path == rootDir {
+				return nil
+			}
+			if fsutil.IsRecycleDir(path) {
+				return filepath.SkipDir
+			}
+			if types.IsSubDirGrouping(rtype) && types.IsSubDirName(rtype, info.Name()) {
+				name := strings.ToLower(info.Name())
+				for k, v := range collectUnits(path) {
+					entries[name+"/"+k] = v
+				}
 				return filepath.SkipDir
 			}
 			return nil

@@ -18,6 +18,25 @@ import (
 // Logger 导入日志回调（薄壳注入 App.logger.Add）
 type Logger func(name, src, dst string, size int64, status, msg string)
 
+// subDirTarget 解析 dir-level 同步单元的整合包目标目录：
+// 源路径相对 globalDir 的首段为用途子类目录时（EntityPlayer/SceneModel 等），
+// 目标 = targetDir/<子类>（保留层级）；否则目标 = targetDir。
+// 与 SyncResourcesDirLevel 的「子类内部模型作为带前缀单元」口径对称（ADR-096）。
+func subDirTarget(rtype, globalDir, targetDir, srcPath string) string {
+	if !types.IsSubDirGrouping(rtype) {
+		return targetDir
+	}
+	rel, err := filepath.Rel(globalDir, srcPath)
+	if err != nil {
+		return targetDir
+	}
+	seg := strings.Split(rel, string(filepath.Separator))[0]
+	if types.IsSubDirName(rtype, seg) {
+		return filepath.Join(targetDir, seg)
+	}
+	return targetDir
+}
+
 // PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel）
 func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) (int, error) {
 	count := 0
@@ -27,13 +46,25 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 	// 用文件夹级同步检测 missing，然后完整复制整个文件夹（含纹理等配套文件）
 	if types.IsDirLevelSync(rtype) {
 		dirResult := SyncResourcesDirLevel(globalDir, targetDir, rtype)
-		for _, missingDir := range dirResult.Missing {
-			if err := installer.InstallDir(missingDir, targetDir, globalDir, linkMode, rtype); err == nil {
+		for _, missing := range dirResult.Missing {
+			// 目录单元（模型文件夹，如 EntityPlayer/角色A）→ 落位到
+			// targetDir/<子类> 保留层级（InstallDir 只加 basename，需 subDirTarget）；
+			// 平铺文件单元（如 CustomAnim 内的 .vmd/.vpd 动作）→ 单文件安装，
+			// Install 内部按 filesRoot 相对路径保留子类层级（CustomAnim/walk.vmd）
+			fi, stErr := os.Stat(missing)
+			var err error
+			if stErr == nil && !fi.IsDir() {
+				err = installer.Install(missing, targetDir, globalDir, linkMode)
+			} else {
+				dst := subDirTarget(rtype, globalDir, targetDir, missing)
+				err = installer.InstallDir(missing, dst, globalDir, linkMode, rtype)
+			}
+			if err == nil {
 				count++
 			} else {
 				failed++
 				if logger != nil {
-					logger(filepath.Base(missingDir), missingDir, targetDir, 0, "failed", "推送失败: "+err.Error())
+					logger(filepath.Base(missing), missing, targetDir, 0, "failed", "推送失败: "+err.Error())
 				}
 			}
 		}
@@ -77,24 +108,36 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 		fi, stErr := os.Stat(src)
 		isDir := stErr == nil && fi.IsDir()
 		if types.IsDirLevelSync(rtype) {
+			// 相对 targetDir 映射到 globalDir，保留子类层级（3d-skin/EntityPlayer/角色A →
+			// mmd/EntityPlayer/角色A）；越界无法映射时回退文件名（旧行为）
+			rel, relErr := filepath.Rel(targetDir, src)
+			if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				rel = filepath.Base(src)
+			}
+			dstPath := filepath.Join(globalDir, rel)
 			if isDir {
-				folderName := filepath.Base(src)
-				dstDir := filepath.Join(globalDir, folderName)
 				// 递归复制整个目录（保留相对路径）——MMD/YSM 模型文件夹的深层子目录
 				// （textures/toon 等）不能丢弃；失败时 copyDirRecursive 已回滚清理
-				if err := copyDirRecursive(src, dstDir); err != nil {
+				if err := copyDirRecursive(src, dstPath); err != nil {
 					failed++
 					if logger != nil {
-						logger(folderName, src, dstDir, 0, "failed", "拉取失败: "+err.Error())
+						logger(filepath.Base(src), src, dstPath, 0, "failed", "拉取失败: "+err.Error())
 					}
 					continue
 				}
 				count++
 			} else {
-				if err := copyFile(src, filepath.Join(globalDir, filepath.Base(src))); err != nil {
+				if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
 					failed++
 					if logger != nil {
-						logger(filepath.Base(src), src, globalDir, 0, "failed", "拉取失败: "+err.Error())
+						logger(filepath.Base(src), src, filepath.Dir(dstPath), 0, "failed", "创建目录失败: "+err.Error())
+					}
+					continue
+				}
+				if err := copyFile(src, dstPath); err != nil {
+					failed++
+					if logger != nil {
+						logger(filepath.Base(src), src, dstPath, 0, "failed", "拉取失败: "+err.Error())
 					}
 					continue
 				}
@@ -148,11 +191,14 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 
 // PullSingleResource 拉取单个资源（文件夹/文件）回仓库
 func PullSingleResource(globalDir, targetDir, srcPath string) error {
-	// 文件夹级拉取：整体复制文件夹到全局
+	// 文件夹级拉取：整体复制文件夹到全局（保留相对 targetDir 的子类层级）
 	fi, stErr := os.Stat(srcPath)
 	if stErr == nil && fi.IsDir() {
-		folderName := filepath.Base(srcPath)
-		dstDir := filepath.Join(globalDir, folderName)
+		rel, relErr := filepath.Rel(targetDir, srcPath)
+		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			rel = filepath.Base(srcPath)
+		}
+		dstDir := filepath.Join(globalDir, rel)
 		// 递归复制整个目录（保留相对路径），深层子目录（textures/toon 等）一并拉取
 		return copyDirRecursive(srcPath, dstDir)
 	}
@@ -168,15 +214,17 @@ func PullSingleResource(globalDir, targetDir, srcPath string) error {
 }
 
 // PushSingleResource 推送单个资源到整合包：
-// 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install
+// 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。
+// 子类内部模型（EntityPlayer/角色A）落位到 customDir/<子类>，保留层级。
 func PushSingleResource(filePath, customDir, globalDir, linkMode, rtype string) error {
 	fi, stErr := os.Stat(filePath)
 	if stErr == nil && fi.IsDir() {
-		return installer.InstallDir(filePath, customDir, globalDir, linkMode, rtype)
+		return installer.InstallDir(filePath, subDirTarget(rtype, globalDir, customDir, filePath), globalDir, linkMode, rtype)
 	}
 	ext := strings.ToLower(filepath.Ext(filePath))
 	if ext == ".json" || ext == ".pmx" || ext == ".pmd" {
-		return installer.InstallDir(filepath.Dir(filePath), customDir, globalDir, linkMode, rtype)
+		dir := filepath.Dir(filePath)
+		return installer.InstallDir(dir, subDirTarget(rtype, globalDir, customDir, dir), globalDir, linkMode, rtype)
 	}
 	return installer.Install(filePath, customDir, globalDir, linkMode)
 }
