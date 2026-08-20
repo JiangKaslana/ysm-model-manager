@@ -8,7 +8,10 @@ use std::{
     fmt, fs, io,
     path::{Component, Path, PathBuf},
     process,
-    sync::{atomic::{AtomicU64, Ordering}, Mutex, OnceLock},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex, OnceLock,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -145,8 +148,7 @@ pub fn move_to_managed_recycle(
     let items_root = prepare_items_root(&recycle_root)?;
     let (id, container) = create_container(&items_root)?;
     let payload = container.join(PAYLOAD_NAME);
-    let deleted_at_ms = now_ms();
-    let meta = encode_metadata(&relative, deleted_at_ms);
+    let meta = encode_metadata(&relative, now_ms());
 
     if let Err(error) = fs::write(container.join(META_FILE), meta) {
         let _ = fs::remove_dir_all(&container);
@@ -173,16 +175,14 @@ pub fn list_recycle(
         return Err(ManagedRecycleError::RootRequired);
     }
     let root = fs::canonicalize(root)?;
-    let recycle_root = match existing_recycle_root(&root)? {
-        Some(path) => path,
-        None => return Ok(Vec::new()),
+    let Some(recycle_root) = existing_recycle_root(&root)? else {
+        return Ok(Vec::new());
     };
 
     let mut entries = Vec::new();
     if let Some(items_root) = existing_items_root(&recycle_root)? {
-        for child in fs::read_dir(&items_root)? {
-            let child = child?;
-            let path = child.path();
+        for child in fs::read_dir(items_root)? {
+            let path = child?.path();
             let metadata = fs::symlink_metadata(&path)?;
             if metadata.file_type().is_symlink() || !metadata.is_dir() {
                 continue;
@@ -193,11 +193,11 @@ pub fn list_recycle(
         }
     }
 
-    // Development builds before managed recycle stored payloads directly in `.recycle`.
-    // Surface those entries for visibility, but never guess an original path for automatic restore.
+    // Early development builds stored payloads directly in `.recycle`. Keep them visible,
+    // but never guess an original directory for automatic restore.
     for child in fs::read_dir(&recycle_root)? {
         let child = child?;
-        if child.file_name() == OsStr::new(ITEMS_DIR) {
+        if child.file_name().to_string_lossy() == ITEMS_DIR {
             continue;
         }
         let path = child.path();
@@ -233,7 +233,11 @@ pub fn restore_recycled(
     id: &str,
 ) -> Result<RestoreOutcome, ManagedRecycleError> {
     let _guard = op_lock()?;
-    if id.is_empty() || !id.bytes().all(|byte| byte.is_ascii_hexdigit() || byte == b'-') {
+    if id.is_empty()
+        || !id
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() || byte == b'-')
+    {
         return Err(ManagedRecycleError::InvalidId);
     }
 
@@ -247,27 +251,28 @@ pub fn restore_recycled(
     let items_root = existing_items_root(&recycle_root)?
         .ok_or_else(|| ManagedRecycleError::InvalidMetadata(recycle_root.join(ITEMS_DIR)))?;
     let container = items_root.join(id);
-    let container_meta = fs::symlink_metadata(&container)
+    let metadata = fs::symlink_metadata(&container)
         .map_err(|_| ManagedRecycleError::InvalidMetadata(container.clone()))?;
-    if container_meta.file_type().is_symlink() || !container_meta.is_dir() {
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err(ManagedRecycleError::UnsafePath(container));
     }
     let canonical_container = fs::canonicalize(&container)?;
-    if !path_starts_with(&canonical_container, &items_root) || path_eq(&canonical_container, &items_root)
+    if !path_starts_with(&canonical_container, &items_root)
+        || path_eq(&canonical_container, &items_root)
     {
         return Err(ManagedRecycleError::UnsafePath(container));
     }
 
     let entry = read_managed_entry(&container)?;
-    let target = root.join(&entry.original_relative);
     validate_relative(&entry.original_relative)?;
+    let target = root.join(&entry.original_relative);
     prepare_restore_parent(&root, target.parent().unwrap_or(&root))?;
     ensure_absent(&target)?;
 
     let payload = entry.stored_path;
     fs::rename(&payload, &target)?;
     let _ = fs::remove_file(container.join(META_FILE));
-    fs::remove_dir(&container)?;
+    let _ = fs::remove_dir(&container);
 
     Ok(RestoreOutcome {
         id: id.to_string(),
@@ -289,9 +294,9 @@ fn read_managed_entry(container: &Path) -> Result<ManagedRecycleEntry, ManagedRe
         .ok_or_else(|| ManagedRecycleError::InvalidMetadata(meta_path.clone()))?;
     validate_relative(&relative)?;
 
-    let payload_meta = fs::symlink_metadata(&payload)
+    let metadata = fs::symlink_metadata(&payload)
         .map_err(|_| ManagedRecycleError::InvalidMetadata(payload.clone()))?;
-    if payload_meta.file_type().is_symlink() {
+    if metadata.file_type().is_symlink() {
         return Err(ManagedRecycleError::UnsafePath(payload));
     }
 
@@ -301,7 +306,7 @@ fn read_managed_entry(container: &Path) -> Result<ManagedRecycleEntry, ManagedRe
         stored_path: payload.clone(),
         deleted_at_ms,
         size: tree_size(&payload)?,
-        is_dir: payload_meta.is_dir(),
+        is_dir: metadata.is_dir(),
         restorable: true,
     })
 }
@@ -430,10 +435,10 @@ fn decode_os(value: &str) -> Option<OsString> {
     if bytes.len() % 2 != 0 {
         return None;
     }
-    let wide: Vec<u16> = bytes
+    let wide = bytes
         .chunks_exact(2)
         .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-        .collect();
+        .collect::<Vec<_>>();
     Some(OsString::from_wide(&wide))
 }
 
@@ -471,10 +476,11 @@ fn validate_relative(path: &Path) -> Result<(), ManagedRecycleError> {
     if path.as_os_str().is_empty() {
         return Err(ManagedRecycleError::UnsafePath(path.to_path_buf()));
     }
-    for component in path.components() {
-        if !matches!(component, Component::Normal(_)) {
-            return Err(ManagedRecycleError::UnsafePath(path.to_path_buf()));
-        }
+    if path
+        .components()
+        .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(ManagedRecycleError::UnsafePath(path.to_path_buf()));
     }
     Ok(())
 }
@@ -507,8 +513,7 @@ fn prepare_restore_parent(root: &Path, parent: &Path) -> Result<(), ManagedRecyc
 }
 
 fn reject_symlink_source(path: &Path) -> Result<(), ManagedRecycleError> {
-    let metadata = fs::symlink_metadata(path)?;
-    if metadata.file_type().is_symlink() {
+    if fs::symlink_metadata(path)?.file_type().is_symlink() {
         return Err(ManagedRecycleError::UnsafePath(path.to_path_buf()));
     }
     Ok(())
@@ -650,7 +655,6 @@ mod tests {
         let first = move_to_managed_recycle(&root.0, &model).unwrap();
         fs::write(&model, b"second").unwrap();
         let second = move_to_managed_recycle(&root.0, &model).unwrap();
-
         assert_ne!(first.id, second.id);
         assert_eq!(list_recycle(&root.0).unwrap().len(), 2);
     }
@@ -671,7 +675,7 @@ mod tests {
     }
 
     #[test]
-    fn restore_collision_is_rejected_without_losing_recycled_payload() {
+    fn restore_collision_keeps_recycled_payload() {
         let root = TempRoot::new("restore-collision");
         let model = root.0.join("hero.ysm");
         fs::write(&model, b"old").unwrap();
@@ -717,8 +721,7 @@ mod tests {
         fs::write(&model, b"x").unwrap();
         let moved = move_to_managed_recycle(&root.0, &model).unwrap();
         assert_eq!(moved.original_relative, PathBuf::from("角色/琪亚娜.ysm"));
-        let restored = restore_recycled(&root.0, &moved.id).unwrap();
-        assert!(restored.after.exists());
+        assert!(restore_recycled(&root.0, &moved.id).unwrap().after.exists());
     }
 
     #[cfg(unix)]
