@@ -66,7 +66,12 @@ impl ModelIndex {
     /// Regular file events only rescan the file's containing directory and then keep the exact
     /// path from that small report. A directory-level event falls back to a full refresh because
     /// a directory create/move can change an arbitrary number of descendants at once.
-    pub fn apply_paths(&mut self, root: &Path, policy: &ScanPolicy, paths: &[PathBuf]) -> IndexDelta {
+    pub fn apply_paths(
+        &mut self,
+        root: &Path,
+        policy: &ScanPolicy,
+        paths: &[PathBuf],
+    ) -> IndexDelta {
         let mut unique_paths = HashSet::with_capacity(paths.len());
         let mut pending = HashMap::<PathBuf, Option<ModelEntry>>::new();
         let mut errors = Vec::new();
@@ -208,7 +213,11 @@ impl ModelIndex {
     }
 }
 
-fn inspect_file(root: &Path, path: &Path, policy: &ScanPolicy) -> (Option<ModelEntry>, Vec<ScanError>) {
+fn inspect_file(
+    root: &Path,
+    path: &Path,
+    policy: &ScanPolicy,
+) -> (Option<ModelEntry>, Vec<ScanError>) {
     if path_is_ignored(root, path) || !path.is_file() {
         return (None, Vec::new());
     }
