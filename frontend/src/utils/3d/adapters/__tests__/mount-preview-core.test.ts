@@ -12,6 +12,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as THREE from "three";
+import { mountPreviewRootMenu, type PreviewMenuCtx } from "../preview-menu.ts";
+import { sceneRegistry } from "../scene-registry.ts";
 
 // ── 模块级 mock ──────────────────────────────────────────────────────────
 // three/addons/controls/OrbitControls.js：需要 fake 类（constructor / target / enableRotate / update / dispose）
@@ -185,6 +187,7 @@ vi.mock("../scene-registry.ts", () => {
   return {
     sceneRegistry: {
       count: vi.fn(() => entries.size),
+      get: vi.fn((id: string) => entries.get(id)),
       pickModelByObject: vi.fn(() => null),
       setActive: vi.fn(() => {}),
       setMenuSink: vi.fn(() => {}),
@@ -651,6 +654,89 @@ describe("代际守卫（_gen）", () => {
     // 正确做法：每个会话应有独立的 handle 引用，cleanup 只清自己的。
     // BUG: 模块级 _handle 竞态——一个会话的 cleanup 会误杀另一会话。
     expect(hasActivePreview()).toBe(false);
+    cleanupPreview();
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// describe 8: unloadRole 真实路径（角色面板卸载，code_review P2/P3 回归守卫）
+// 经 mock 的 mountPreviewRootMenu 捕获 mount3D 注入的 ctx.unloadRole，
+// 驱动真实实现：断言内容层 dispose / 注册表注销 / 焦点转移决策 / dock 清空。
+// ──────────────────────────────────────────────────────────────────────
+describe("unloadRole 真实路径（角色面板卸载）", () => {
+  /** mock sceneRegistry 的内部 entries map（真实类型无此属性，测试直接预置/读取角色） */
+  function mockEntries(): Map<string, any> {
+    return (sceneRegistry as unknown as { _entries: Map<string, any> })._entries;
+  }
+
+  /** 取最近一次 mount3D 传给 mountPreviewRootMenu 的 ctx（含真实 unloadRole 引用） */
+  function lastMenuCtx(): PreviewMenuCtx {
+    const calls = vi.mocked(mountPreviewRootMenu).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    return calls[calls.length - 1][1] as PreviewMenuCtx;
+  }
+
+  it("卸载当前活跃角色：内容层 dispose + 注册表注销 + 新活跃无专属项时清空 dock 适配器项", async () => {
+    const adapter = syncAdapter();
+    await mount3D(adapter as PreviewAdapter, "/model.ysm");
+    const entry = mockEntries().get("/model.ysm");
+    expect(entry).toBeDefined();
+    const disposeSpy = entry.built.dispose;
+
+    // 预置第二个角色（menuItems null）模拟 cooperate 双角色——卸载后它成为新活跃
+    mockEntries().set("/second.ysm", {
+      path: "/second.ysm",
+      built: { dispose: vi.fn() },
+      menuItems: null,
+      roots: [],
+    });
+
+    const ctx = lastMenuCtx();
+    expect(ctx.unloadRole).toBeDefined();
+    ctx.unloadRole!("/model.ysm");
+
+    // 内容层 GPU 释放 + 注册表注销（真实 unloadRole 内 splice + unregister）
+    expect(disposeSpy).toHaveBeenCalled();
+    expect(sceneRegistry.unregister).toHaveBeenCalledWith("/model.ysm");
+    // 新活跃角色 menuItems === null → 显式清空 dock 适配器项（P2 修复：不残留已卸载角色的菜单）
+    const handle = vi.mocked(mountPreviewRootMenu).mock.results.at(-1)!.value as any;
+    expect(handle.setAdapterItems).toHaveBeenCalledWith([]);
+    cleanupPreview();
+  });
+
+  it("新活跃角色有专属项 → 走 setActive 换菜单（不误清空 dock）", async () => {
+    const adapter = syncAdapter();
+    await mount3D(adapter as PreviewAdapter, "/a.ysm");
+    // 预置带 menuItems 的第二个角色（mock getActiveId 返回第一个 key = 该角色）
+    mockEntries().set("/b.ysm", {
+      path: "/b.ysm",
+      built: { dispose: vi.fn() },
+      menuItems: [{ id: "model", kind: "panel", dockGroup: "model", icon: "x", labelKey: "", fallback: "m", render: () => {} }],
+      roots: [],
+    });
+
+    const ctx = lastMenuCtx();
+    ctx.unloadRole!("/a.ysm");
+
+    expect(sceneRegistry.setActive).toHaveBeenCalledWith("/b.ysm");
+    const handle = vi.mocked(mountPreviewRootMenu).mock.results.at(-1)!.value as any;
+    expect(handle.setAdapterItems).not.toHaveBeenCalled();
+    cleanupPreview();
+  });
+
+  it("卸载最后一个角色：内容层 dispose + dock 适配器项清空（无残留菜单）", async () => {
+    const adapter = syncAdapter();
+    await mount3D(adapter as PreviewAdapter, "/only.ysm");
+    const entry = mockEntries().get("/only.ysm");
+    const disposeSpy = entry.built.dispose;
+
+    const ctx = lastMenuCtx();
+    ctx.unloadRole!("/only.ysm");
+
+    expect(disposeSpy).toHaveBeenCalled();
+    expect(sceneRegistry.getActiveId()).toBeUndefined();
+    const handle = vi.mocked(mountPreviewRootMenu).mock.results.at(-1)!.value as any;
+    expect(handle.setAdapterItems).toHaveBeenCalledWith([]);
     cleanupPreview();
   });
 });

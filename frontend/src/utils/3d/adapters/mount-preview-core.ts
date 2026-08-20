@@ -696,6 +696,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   function unloadRole(id: string): void {
     const entry = sceneRegistry.get(id);
     if (!entry) return;
+    // 卸载的是当前会话内容层源时，perFrame 指向其 update——先记下以便停掉
+    // rAF 回调，避免每帧驱动已 dispose 的内容层（空场景 session 半死状态，P3）
+    const wasCurrentSource = built === entry.built;
     for (const r of entry.roots) {
       if (scene) scene.remove(r);
     }
@@ -706,8 +709,20 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
     sceneRegistry.unregister(id);
     const next = sceneRegistry.getActiveId();
-    if (next) sceneRegistry.setActive(next);
-    else menuHandle.setAdapterItems([]);
+    if (next) {
+      // setActive 仅在 menuItems truthy 时换菜单；新活跃角色无专属项时显式清空
+      // dock 适配器项，杜绝残留已卸载角色的菜单绑定到已 dispose 内容层（P2）
+      const ne = sceneRegistry.get(next);
+      if (ne?.menuItems) sceneRegistry.setActive(next);
+      else menuHandle.setAdapterItems([]);
+    } else {
+      menuHandle.setAdapterItems([]);
+    }
+    if (wasCurrentSource && perFrame) {
+      const idx = _globalPerFrames.indexOf(perFrame);
+      if (idx >= 0) _globalPerFrames.splice(idx, 1);
+      perFrame = null;
+    }
     if (camera && controls) {
       const roots = sceneRegistry.visibleRoots();
       if (roots.length) fitCameraToRoots(roots, camera, controls);
