@@ -52,7 +52,7 @@ const tr = (key: string, fallback: string): string => {
 };
 
 /** 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 */
-function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void {
+export function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void {
   // 分组折叠：同一 group 的控件归入一个可折叠 section（Map 查找表支持非连续同 group 归并），header 点击切换展开/收起。
   // group 为 undefined 的控件直接挂到 list（无 section 包裹），保持向后兼容。
   const sectionMap = new Map<string, { section: HTMLElement; body: HTMLElement }>();
