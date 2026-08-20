@@ -65,8 +65,10 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		// appendItem 组装同步条目：类型/资源包文件夹过滤 + .disabled/.ban 禁用判定 +
 		// icon 选择，收敛 Synced/Missing/Extra 三分支逐字重复（索引 6.8c）。
 		// defaultStatus 为分支默认状态；isLegacy 仅 Extra 分支传（旧仓库硬链接检测），其余传 nil。
+		// relRoot 为条目所属侧的根（Synced/Missing 传 globalDir，Extra 传 instDir），
+		// 用于子类分组判定——同一路径跨仓库/整合包两侧须各按自己的根算相对路径。
 		isDirLevel := types.IsDirLevelSync(rt.ID)
-		appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool) {
+		appendItem := func(p string, defaultStatus types.SyncStatus, isLegacy func(string) bool, relRoot string) {
 			// 目录级类型：SyncResourcesDirLevel 返回的文件夹条目（如 hello_new_generation_core）
 			// 无扩展名，需按目录放行——展示粒度与操作粒度一致
 			isDirEntry := false
@@ -92,12 +94,12 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 				status = types.SyncStatusLegacy
 				icon = "🔗"
 			}
-			// ADR-096：MMD 展示分组——dirLevel 条目若位于用途子目录内
-			// （EntityPlayer/SceneModel/CustomAnim 等）填 SubDir，前端按组分批展示；
-			// 根下条目 SubDir=""（= EntityPlayer 默认）。
+			// ADR-096：MMD 展示分组——dirLevel 条目按所属侧根（relRoot）算相对路径，
+			// 首个路径段为用途子类目录（EntityPlayer/SceneModel/CustomAnim 等）时填
+			// SubDir，前端按组分批展示；根下条目 SubDir=""（= EntityPlayer 默认）。
 			subDir := ""
 			if types.IsSubDirGrouping(rt.ID) {
-				if rel, err := filepath.Rel(instDir, p); err == nil && rel != "." {
+				if rel, err := filepath.Rel(relRoot, p); err == nil && rel != "." {
 					// ADR-104：rtype 感知子目录判定（替代旧 IsMMDSubDir 全局判定）
 					if seg := strings.Split(rel, string(filepath.Separator))[0]; types.IsSubDirName(rt.ID, seg) {
 						subDir = seg
@@ -111,18 +113,18 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		}
 
 		for _, p := range result.Synced {
-			appendItem(p, types.SyncStatusSynced, nil)
+			appendItem(p, types.SyncStatusSynced, nil, globalDir)
 		}
 		for _, p := range result.Missing {
 			// Missing 分支补 disabled 检测——原仅 Synced 分支
 			// 识别 .disabled/.ban，全局仓库禁用模型（m.ysm.ban）在实例缺失时显示为
 			// 普通 missing（可推送外观）而非 disabled，三分支口径已统一
-			appendItem(p, types.SyncStatusMissing, nil)
+			appendItem(p, types.SyncStatusMissing, nil, globalDir)
 		}
 		for _, p := range result.Extra {
 			appendItem(p, types.SyncStatusOptional, func(p string) bool {
 				return ysmsync.GetLinkType(p) == types.LinkHard
-			})
+			}, instDir)
 		}
 		// 兜底 Walk（IsScanInstance）已移除——ADR-064 阶段二：SyncResources 相对路径
 		// 对比全树递归收集所有受支持文件（含嵌套），同名不同目录不再 map 去重丢失，
