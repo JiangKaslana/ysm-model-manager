@@ -882,6 +882,7 @@ export const en: Record<string, string> = {
   "preview.presetQuickNight": "Night",
   "preview.presetQuickForest": "Forest",
   "preview.presetQuickSky": "Sky",
+  "preview.skyTimeline": "Light Timeline",
   "preview.skyAutoRotate": "Day-Night Cycle",
   "preview.skyAutoRotateHint": "Auto-advances time to preview lighting across the day",
   "preview.envHdrPreview": "HDR Preview",

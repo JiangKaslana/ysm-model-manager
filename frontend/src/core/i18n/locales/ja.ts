@@ -883,6 +883,7 @@ export const ja: Record<string, string> = {
   "preview.presetQuickNight": "夜景",
   "preview.presetQuickForest": "森林",
   "preview.presetQuickSky": "空",
+  "preview.skyTimeline": "光タイムライン",
   "preview.skyAutoRotate": "昼夜サイクル",
   "preview.skyAutoRotateHint": "時間を自動的に進め、一日の光照変化をプレビュー",
   "preview.envHdrPreview": "HDR プレビュー",

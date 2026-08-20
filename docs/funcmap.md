@@ -43,10 +43,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 95 |
 | 前端·工具 | 136 | 525 |
-| frontend/views | 109 | 307 |
+| frontend/views | 109 | 310 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **428** | **1828** |
+| **合计** | **428** | **1831** |
 
 ## Go·头像
 
@@ -1976,7 +1976,7 @@
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:17` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮） |
 | `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:24` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:51` | — |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:55` | — |
 | `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:29` | 统一推送 / 拉取单文件操作。 |
 | `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:20` | — |
@@ -1989,11 +1989,14 @@
 | `loadData()` | `frontend/src/views/app-sync-manager/store:43` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
 | `applyFilter()` | `frontend/src/views/app-sync-manager/store:66` | 应用类型 + MMD 子目录 + 状态筛选，写入 self._filteredItems。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
-| `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:23` | 容器骨架 |
-| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:61` | 状态筛选标签 HTML |
-| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:90` | 列表项 HTML |
-| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:148` | 空状态 HTML |
-| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:162` | 加载中 |
+| `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:21` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
+| `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:29` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |
+| `syncFileRowHTML()` | `frontend/src/views/app-sync-manager/tpl:89` | 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） |
+| `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:114` | 容器骨架 |
+| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:157` | 状态筛选标签 HTML |
+| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:186` | 列表项 HTML |
+| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:244` | 空状态 HTML |
+| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:258` | 加载中 |
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |

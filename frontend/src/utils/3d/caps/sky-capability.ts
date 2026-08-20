@@ -265,6 +265,18 @@ export class SkyCapability implements SceneCapability {
     return { elevation, azimuth };
   }
 
+  /**
+   * 当前 timeOfDay 对应的太阳归一化坐标 (x: 0-1 经度, y: 0-1 纬度，0=底 1=顶)。
+   * 供时间轴标记太阳位置；与 ENV_PRESETS.sunPos 同一口径。
+   */
+  getSunPosition(): { x: number; y: number } {
+    const { elevation, azimuth } = this.hourToSun(this.params.timeOfDay);
+    // azimuth 90~270 → x 0~1；elevation -70~70 → y 0~1（70=顶 1.0，-70=底 0.0）
+    const x = (azimuth - 90) / 180;
+    const y = (elevation + 70) / 140;
+    return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+  }
+
   /** 按时间设置太阳位置（time-of-day），联动天空与 IBL 环境 */
   setTime(hour: number): void {
     this.params.timeOfDay = ((hour % 24) + 24) % 24;
@@ -292,6 +304,15 @@ export class SkyCapability implements SceneCapability {
   /** 返回菜单控件定义（框架自动渲染） */
   getMenuControls(): MenuControlDef[] {
     return [
+      // 可视化时间轴：昼夜色带 + 太阳位置标记，拖动调 timeOfDay
+      {
+        id: "sky-timeline",
+        kind: "timeline",
+        labelKey: "preview.skyTimeline",
+        fallback: "光影时间轴",
+        getValue: () => this.getTimeOfDay(),
+        setValue: (v) => this.setTime(v as number),
+      },
       // 第一层主控件：time 无 group，直接挂面板顶部
       {
         id: "sky-time",
