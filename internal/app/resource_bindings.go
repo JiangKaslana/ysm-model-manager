@@ -187,6 +187,13 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 	if root := specificRoot(cfg, rtype); root != "" {
 		return root, nil
 	}
+	// subDirGrouping 类型（mmd-skin）回退到 group 根（FilesRoot/{group}/），
+	// 与 repoRootForSync 口径一致，避免把默认子类（EntityPlayer）当根。
+	if types.IsSubDirGrouping(rtype) && cfg.FilesRoot != "" {
+		if group := types.GroupOf(rtype); group != "" {
+			return filepath.Join(cfg.FilesRoot, group), nil
+		}
+	}
 	subDir := types.GroupStorageRoot(rtype) // ADR-092 两层路由：FilesRoot/{group}/{storageSubDir}
 	// 2. FilesRoot + 分组存储子目录
 	if cfg.FilesRoot != "" {
@@ -212,12 +219,13 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 }
 
 // repoRootForSync 返回资源类型的整合包同步基准目录：
-// - 用户显式配置的专属根（specificRoot，如 MmdRoot）优先；
-// - subDirGrouping 类型（mmd-skin）回退到 FilesRoot/<group>（group 根，
-//   EntityPlayer/SceneModel/CustomAnim 平铺其下）——与仓库树（app-tree）的
-//   group 根回溯口径一致，SyncResourcesDirLevel 以子类目录内部模型为同步单元，
-//   避免把默认子类（EntityPlayer）当根导致模型目录被误判为顶层同步条目；
-// - 其余走 GetRepoRoot（FilesRoot + GroupStorageRoot / 平台默认）。
+//   - 用户显式配置的专属根（specificRoot，如 MmdRoot）优先；
+//   - subDirGrouping 类型（mmd-skin）回退到 FilesRoot/<group>（group 根，
+//     EntityPlayer/SceneModel/CustomAnim 平铺其下）——与仓库树（app-tree）的
+//     group 根回溯口径一致，SyncResourcesDirLevel 以子类目录内部模型为同步单元，
+//     避免把默认子类（EntityPlayer）当根导致模型目录被误判为顶层同步条目；
+//   - 其余走 GetRepoRoot（FilesRoot + GroupStorageRoot / 平台默认）。
+//
 // 未配置 FilesRoot 或 group 缺失时回退 GetRepoRoot（保持旧行为）。
 func (a *App) repoRootForSync(rtype string) (string, error) {
 	cfg := a.LoadAppConfig()
@@ -262,10 +270,11 @@ func (a *App) EnsureStorageDirs() error {
 		}
 		// subDirGrouping 类型（如 mmd-skin）：预建全部用途子目录
 		// （EntityPlayer/SceneModel/CustomAnim/…），而非仅默认 storageSubDir，
-		// 使整棵类型树立即可见。base = root 去掉末段，兼容各类型专属覆写路径。
+		// 使整棵类型树立即可见。GetRepoRoot 对 subDirGrouping 已返回 group 根，
+		// 故 base = root 直接铺 subtype 子目录。
 		// ADR-104：子目录集合从注册表 subtypes 派生（不硬编码 MMD）。
 		if types.IsSubDirGrouping(rt.ID) {
-			base := filepath.Dir(root)
+			base := root
 			for _, sub := range types.SubtypeNames(rt.ID) {
 				dir := filepath.Join(base, sub)
 				if err := os.MkdirAll(dir, 0755); err != nil {

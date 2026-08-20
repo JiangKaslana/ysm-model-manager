@@ -70,12 +70,10 @@ export async function loadEntries(
     let filesRoot = await GetRepoRoot(rtype || "");
     if (!filesRoot) return { filesRoot: "", entries: [] };
     // ADR-094 位置路由：MMD 子类型扫子目录。
-    // storageSubDir=EntityPlayer（仓库与整合包同款名），GetRepoRoot 返回 FilesRoot/mmd/EntityPlayer。
-    // 但子类型（SceneModel/CustomAnim 等）平铺在 FilesRoot/mmd/ 下（group 根），需回溯到 group 根再拼子类。
-    // 默认子类（EntityPlayer）即 GetRepoRoot 本身，subdir 为空。
+    // subDirGrouping 类型的 GetRepoRoot 已返回 group 根（FilesRoot/mmd/），
+    // 子类型（SceneModel/CustomAnim 等）平铺其下，直接拼 subdir 即可。
     if (subdir) {
-      const groupRoot = filesRoot.replace(/[/\\]+$/, "").split(/[/\\]/).slice(0, -1).join("/");
-      filesRoot = groupRoot + "/" + subdir.replace(/^[/\\]+/, "");
+      filesRoot = filesRoot.replace(/[/\\]+$/, "") + "/" + subdir.replace(/^[/\\]+/, "");
     }
 
     const raw = await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[rtype] || rtype);

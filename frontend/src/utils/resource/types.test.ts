@@ -267,7 +267,7 @@ describe("GROUP_TYPE_OPTIONS — 子类型展开（ADR-105 软合并）", () => 
 describe("groupStorageRootOf 两层路由", () => {
   it("有 group 时返回 {group}/{storageSubDir}", () => {
     expect(groupStorageRootOf("resourcepack")).toBe("minecraft/resourcepacks");
-    expect(groupStorageRootOf("mmd-skin")).toBe("mmd/EntityPlayer");
+    expect(groupStorageRootOf("mmd-skin")).toBe("mmd"); // subDirGrouping 回退到 group 根
     expect(groupStorageRootOf("vrchat-avatar")).toBe("mmd/vrchat"); // ADR-105 续：VRM 归并 mmd 组
     expect(groupStorageRootOf("maid-model")).toBe("minecraft-mod/maid-model"); // 仓库侧语义化名，游戏侧 tlm_custom_pack
   });

@@ -190,9 +190,15 @@ export const MMD_SUBTYPES: Array<{ label: string; subdir: string; icon: string }
  */
 export function groupStorageRootOf(typeId: string): string {
   const group = GROUP_OF[typeId];
-  const sub = (resourceTypesJson as {
-    resourceTypes?: Array<{ id?: string; storageSubDir?: string }>;
-  }).resourceTypes?.find((t) => t.id === typeId)?.storageSubDir || typeId;
+  const rt = (resourceTypesJson as {
+    resourceTypes?: Array<{ id?: string; storageSubDir?: string; subDirGrouping?: boolean }>;
+  }).resourceTypes?.find((t) => t.id === typeId);
+  // subDirGrouping 类型（mmd-skin）的仓库侧在 group 根下平铺子目录，
+  // 不再通过 storageSubDir 多包一层（EntityPlayer 等 subtype 各自独立）。
+  if (rt?.subDirGrouping && group) {
+    return group;
+  }
+  const sub = rt?.storageSubDir || typeId;
   return group ? `${group}/${sub}` : sub;
 }
 

@@ -347,6 +347,11 @@ func GroupStorageRoot(rtype string) string {
 	if rt == nil {
 		return rtype
 	}
+	// subDirGrouping 类型（如 mmd-skin）的仓库侧在 group 根下平铺子目录，
+	// 不再通过 storageSubDir 多包一层（EntityPlayer 等 subtype 各自独立）。
+	if IsSubDirGrouping(rtype) {
+		return rt.Group
+	}
 	sub := rt.StorageSubDir
 	if sub == "" {
 		sub = rtype
