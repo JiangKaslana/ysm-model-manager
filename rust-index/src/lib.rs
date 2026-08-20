@@ -64,9 +64,10 @@ impl ModelIndex {
 
     /// Apply a batch of filesystem event paths without rescanning the whole library.
     ///
-    /// Regular file events inspect only the exact file metadata. A directory-level event falls
-    /// back to a full refresh because a directory create/move can change an arbitrary number of
-    /// descendants at once.
+    /// Regular file events inspect only the exact file metadata. A relevant directory-level event
+    /// falls back to a full refresh because a directory create/move can change an arbitrary number
+    /// of descendants at once. Events inside scanner-ignored trees are discarded before that
+    /// fallback, so `.recycle` traffic never turns a soft-delete into a full-library rescan.
     pub fn apply_paths(
         &mut self,
         root: &Path,
@@ -79,6 +80,9 @@ impl ModelIndex {
 
         for path in paths {
             if !unique_paths.insert(path.clone()) || !path.starts_with(root) {
+                continue;
+            }
+            if path_is_ignored(root, path) {
                 continue;
             }
 
@@ -274,19 +278,13 @@ fn path_is_ignored(root: &Path, path: &Path) -> bool {
         return true;
     };
 
-    let mut components = relative.components().peekable();
-    while let Some(component) = components.next() {
-        if components.peek().is_none() {
-            break;
-        }
-        if let Component::Normal(name) = component {
-            let name = name.to_string_lossy();
-            if name.eq_ignore_ascii_case(".recycle") || name == ".github" {
-                return true;
-            }
-        }
-    }
-    false
+    relative.components().any(|component| {
+        let Component::Normal(name) = component else {
+            return false;
+        };
+        let name = name.to_string_lossy();
+        name.eq_ignore_ascii_case(".recycle") || name == ".github"
+    })
 }
 
 fn strip_disable_suffix(name: &str) -> &str {
@@ -485,6 +483,36 @@ mod tests {
         assert_eq!(delta.updated.len(), 1);
         assert_eq!(delta.updated[0].path, ysm);
         assert_eq!(delta.revision, initial_revision + 1);
+    }
+
+    #[test]
+    fn recycle_directory_events_are_ignored_without_full_refresh() {
+        let temp = TempRoot::new("recycle-events");
+        let model = temp.0.join("hero.ysm");
+        fs::write(&model, b"hero").unwrap();
+
+        let policy = policy();
+        let mut index = ModelIndex::new();
+        index.refresh(&temp.0, &policy);
+        let initial_revision = index.revision();
+        let initial_snapshot = index.snapshot();
+
+        let recycle = temp.0.join(".recycle");
+        let recycled_model = recycle.join("ModelA");
+        fs::create_dir_all(&recycled_model).unwrap();
+        fs::write(recycled_model.join("ysm.json"), b"{}").unwrap();
+
+        let delta = index.apply_paths(
+            &temp.0,
+            &policy,
+            &[recycle.clone(), recycled_model.clone()],
+        );
+        assert_eq!(delta.revision, initial_revision);
+        assert!(delta.added.is_empty());
+        assert!(delta.updated.is_empty());
+        assert!(delta.removed.is_empty());
+        assert!(delta.errors.is_empty());
+        assert_eq!(index.snapshot().entries, initial_snapshot.entries);
     }
 
     #[test]
