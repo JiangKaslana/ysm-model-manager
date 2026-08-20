@@ -273,13 +273,19 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     faceCount?: number;
     morphs?: Uint8Array; // 已序列化变形区（可选，缺省不写 morph 块数据）
     morphCount?: number; // morph 块 count（默认 1，与 bones 对齐；多 morph 时传实际数量）
+    materials?: Uint8Array; // 已序列化材质区
+    materialCount?: number; // 材质块 count（默认 1）
+    rigidBodies?: Uint8Array; // 已序列化刚体区
+    rigidBodyCount?: number; // 刚体块 count（默认 1）
+    joints?: Uint8Array; // 已序列化关节区
+    jointCount?: number; // 关节块 count（默认 1）
   }): ArrayBuffer {
     const w = new ByteWriter();
     // --- 头部（权威字节序）---
     w.push(0x50, 0x4d, 0x58, 0x20); // "PMX "
     w.float32(2.0);                 // version
     w.push(8);                      // globalsCount
-    w.push(0);                      // encoding = utf-8
+    w.push(1);                      // encoding = UTF-8（权威：1=UTF-8，0=UTF-16LE）
     w.push(0);                      // additionalVec4Count
     w.push(opts.vertexIndexSize ?? 1); // vertexIndexSize
     w.push(1);                      // textureIndexSize
@@ -310,8 +316,13 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     w.int32(opts.faceCount ?? 0);
     // --- 纹理块：count=0 ---
     w.int32(0);
-    // --- 材质块：count=0 ---
-    w.int32(0);
+    // --- 材质块：count + 数据 ---
+    if (opts.materials) {
+      w.int32(opts.materialCount ?? 1);
+      w.push(...opts.materials);
+    } else {
+      w.int32(0);
+    }
     // --- 骨骼块：count + 数据 ---
     if (opts.bones) {
       w.int32(1);
@@ -328,11 +339,79 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     }
     // --- 显示帧块（displayFrame）：count=0 ---
     w.int32(0);
-    // --- 刚体块（rigidBody）：count=0 ---
-    w.int32(0);
-    // --- 关节块（joint）：count=0 ---
-    w.int32(0);
+    // --- 刚体块（rigidBody）：count + 数据 ---
+    if (opts.rigidBodies) {
+      w.int32(opts.rigidBodyCount ?? 1);
+      w.push(...opts.rigidBodies);
+    } else {
+      w.int32(0);
+    }
+    // --- 关节块（joint）：count + 数据 ---
+    if (opts.joints) {
+      w.int32(opts.jointCount ?? 1);
+      w.push(...opts.joints);
+    } else {
+      w.int32(0);
+    }
     return w.toArrayBuffer();
+  }
+
+  /** 序列化一条材质（权威字段顺序，englishName 非空以覆盖光标错位场景） */
+  function materialBytes(): Uint8Array {
+    const w = new ByteWriter();
+    w.text("mat0"); w.text("Mat0_EN"); // name + englishName（旧实现漏读 englishName）
+    w.float32(1); w.float32(1); w.float32(1); w.float32(1); // diffuse
+    w.float32(0.5); w.float32(0.5); w.float32(0.5);          // specular
+    w.float32(10);                                           // shininess
+    w.float32(0.2); w.float32(0.2); w.float32(0.2);          // ambient
+    w.push(0);                                               // flag
+    w.float32(0); w.float32(0); w.float32(0); w.float32(0);  // edgeColor
+    w.float32(0);                                            // edgeSize
+    w.push(0); // textureIndex = -1 (1 字节有符号)
+    w.push(0); // sphereTextureIndex = -1
+    w.push(0); // sphereMode
+    w.push(0); // isSharedToon = false
+    w.push(0); // toonTextureIndex（非 shared → textureIndex 大小）
+    w.text(""); // comment
+    w.int32(0); // indexCount
+    return new Uint8Array(w.toArrayBuffer());
+  }
+
+  /** 序列化一条刚体（权威字段顺序：englishName + collisionMask 2 字节） */
+  function rigidBodyBytes(): Uint8Array {
+    const w = new ByteWriter();
+    w.text("rb0"); w.text("Rb0_EN"); // name + englishName（旧实现漏读）
+    w.push(0);  // boneIndex = 0
+    w.push(1);  // collisionGroup
+    w.push(0xff); w.push(0xff); // collisionMask（2 字节 uint16，旧实现按 1 字节读错位）
+    w.push(0);  // shapeType = sphere
+    w.float32(1); w.float32(1); w.float32(1); // shapeSize
+    w.float32(0); w.float32(0); w.float32(0); // position
+    w.float32(0); w.float32(0); w.float32(0); // rotation
+    w.float32(1); // mass
+    w.float32(0); // linearDamping
+    w.float32(0); // angularDamping
+    w.float32(0.5); // friction
+    w.float32(0); // restitution
+    w.push(0); // mode
+    return new Uint8Array(w.toArrayBuffer());
+  }
+
+  /** 序列化一条关节（权威字段顺序：englishName + type 前移 + 无条件读全部约束） */
+  function jointBytes(): Uint8Array {
+    const w = new ByteWriter();
+    w.text("jt0"); w.text("Jt0_EN"); // name + englishName（旧实现漏读）
+    w.push(0); // type = Spring6dof
+    w.push(0); w.push(1); // rigidBodyIndexA / B
+    w.float32(0); w.float32(0); w.float32(0); // position
+    w.float32(0); w.float32(0); w.float32(0); // rotation
+    w.float32(-1); w.float32(-1); w.float32(-1); // positionMin
+    w.float32(1); w.float32(1); w.float32(1); // positionMax
+    w.float32(-1); w.float32(-1); w.float32(-1); // rotationMin
+    w.float32(1); w.float32(1); w.float32(1); // rotationMax
+    w.float32(0); w.float32(0); w.float32(0); // springPosition
+    w.float32(0); w.float32(0); w.float32(0); // springRotation
+    return new Uint8Array(w.toArrayBuffer());
   }
 
   it("头部正确：globalsCount=8 + 4 字符串读过后，顶点块 count 定位正确（无 blockSize 前缀）", () => {
@@ -409,5 +488,44 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     expect(out.bones?.length).toBe(1);
     expect(out.bones![0].name).toBe("after");
     expect(out.bones![0].position).toEqual([7, 8, 9]);
+  });
+
+  it("材质非零块（englishName 非空）：光标不错位（材质后骨骼仍正确）", () => {
+    const bone = boneBytes({ name: "matBone", position: [3, 4, 5], parent: 0, flag: 0 });
+    const buf = buildPmx({ materials: materialBytes(), bones: bone });
+    const out = parsePMX(buf);
+    expect(out.ok).toBe(true);
+    expect(out.materials?.length).toBe(1);
+    expect(out.materials![0].name).toBe("mat0");
+    // 材质后骨骼光标不错位（若漏读 englishName 会偏移）
+    expect(out.bones?.length).toBe(1);
+    expect(out.bones![0].name).toBe("matBone");
+    expect(out.bones![0].position).toEqual([3, 4, 5]);
+  });
+
+  it("刚体非零块（englishName + collisionMask 2 字节）：光标不错位（刚体后关节仍正确）", () => {
+    const buf = buildPmx({
+      rigidBodies: rigidBodyBytes(),
+      joints: jointBytes(),
+    });
+    const out = parsePMX(buf);
+    expect(out.ok).toBe(true);
+    expect(out.rigidBodies?.length).toBe(1);
+    expect(out.rigidBodies![0].name).toBe("rb0");
+    expect(out.rigidBodies![0].collisionGroup).toBe(0xffff); // 2 字节 mask 读全
+    // 刚体后关节光标不错位（若漏 englishName/collisionMask 错位会越界或垃圾）
+    expect(out.joints?.length).toBe(1);
+    expect(out.joints![0].name).toBe("jt0");
+    expect(out.joints![0].rigidBodyIndexA).toBe(0);
+    expect(out.joints![0].rigidBodyIndexB).toBe(1);
+  });
+
+  it("编码字节 1=UTF-8：非 ASCII 名字正确解码（权威映射 0=UTF-16LE/1=UTF-8）", () => {
+    // buildPmx 已写 encoding=1（UTF-8），用非 ASCII 名字验证解码路径
+    const bone = boneBytes({ name: "センター", position: [0, 0, 0], parent: -1, flag: 0 });
+    const buf = buildPmx({ bones: bone });
+    const out = parsePMX(buf);
+    expect(out.ok).toBe(true);
+    expect(out.bones?.[0].name).toBe("センター");
   });
 });

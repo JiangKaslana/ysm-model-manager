@@ -437,7 +437,9 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     return { id: 0, ok: false, error: `无效 globalsCount: ${globalsCount}` };
   }
   const encodingByte = reader.readUint8();
-  reader.encoding = encodingByte === 0 ? "utf-8" : "utf-16";
+  // 权威编码映射（babylon-mmd pmxObject.ts）：0=UTF-16LE，1=UTF-8，2=ShiftJis(PMD 兼容)
+  // ⚠️ 旧实现 `0 ? utf-8 : utf-16` 是反的——真实 PMX 大多 0=UTF-16LE，名字会解成乱码
+  reader.encoding = encodingByte === 1 ? "utf-8" : "utf-16";
   // additionalVec4Count：额外 UV 组数（0-4 直接值，非位标志——旧实现当位标志用是错的）
   reader.additionalFlags = reader.readUint8();
   // 索引大小从头部声明取（PMX 2.0 每类 1 字节），非 count 反推（旧 indexSizeFor 有符号阈值也是错的）
@@ -455,12 +457,9 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   reader.readString(); // englishComment
 
   // === 顶点布局（PMX 2.0：第一组 UV 恒在；additionalVec4Count 为额外 4-float 组数）===
-  const additionalVec4Count = reader.additionalFlags;
   // 每顶点字节布局（weightType 每顶点独立，从顶点数据读，非头部 flag 推断）：
   // position(12) + normal(12) + uv(8) + additionalVec4×16 + weightType(1) + deform + edgeScale(4)
-  const baseVertexHead = 12 + 12 + 8 + additionalVec4Count * 16;
-  // deform 大小随 boneIndexSize（BDEF1/BDEF2/BDEF4 三种）
-  const align4 = (n: number): number => Math.ceil(n / 4) * 4;
+  const additionalVec4Count = reader.additionalFlags;
   const boneIndexSize = reader.boneIndexSize;
 
   // === Vertices（无 blockSize 前缀：count 后直接数据，顺序解析）===
@@ -556,10 +555,17 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   }
 
   // === Materials ===
+  // 权威字段顺序（babylon-mmd pmxReader）：
+  //   name(text) + englishName(text) + diffuse(4) + specular(3) + shininess(1)
+  //   + ambient(3) + flag(1) + edgeColor(4) + edgeSize(1)
+  //   + textureIndex + sphereTextureIndex + sphereTextureMode(1)
+  //   + isSharedToon(1) + toonTextureIndex(shared?1:index) + comment(text) + indexCount(int32)
+  // ⚠️ 旧实现漏 englishName、flag 位置错（在 textureIndex 后）、缺 toonFlag/comment/indexCount
   const matCount = reader.readInt32();
   const materials: PmxMaterialData[] = [];
   for (let i = 0; i < matCount; i++) {
     const name = reader.readString();
+    reader.readString(); // englishName（本解析不消费）
     const diffuse: [number, number, number, number] = [
       reader.readFloat32(), reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
     ];
@@ -570,16 +576,19 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     const ambient: [number, number, number] = [
       reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
     ];
-    const textureIndex = reader.readTextureIndex();
-    const toonIndex = reader.readTextureIndex();
     const flags = reader.readUint8();
     const edgeColor: [number, number, number, number] = [
       reader.readFloat32(), reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
     ];
     const edgeSize = reader.readFloat32();
+    const textureIndex = reader.readTextureIndex();
     const sphereIndex = reader.readTextureIndex();
     const sphereMode = reader.readUint8();
     const sharedToon = reader.readUint8();
+    // toonTextureIndex：shared 时 1 字节，否则 textureIndex 大小
+    const toonIndex = sharedToon === 1 ? reader.readUint8() : reader.readTextureIndex();
+    reader.readString(); // comment（本解析不消费）
+    reader.readInt32();  // indexCount（本解析不消费）
     materials.push({
       name, diffuse, specular, shininess, ambient,
       textureIndex, toonIndex, flags, edgeColor, edgeSize,
@@ -662,13 +671,19 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   }
 
   // === Rigid Bodies ===
+  // 权威字段顺序（babylon-mmd pmxReader）：
+  //   name(text) + englishName(text) + boneIndex + collisionGroup(1) + collisionMask(2/uint16)
+  //   + shapeType(1) + shapeSize(3) + shapePosition(3) + shapeRotation(3)
+  //   + mass + linearDamping + angularDamping + repulsion + friction + mode(1)
+  // ⚠️ 旧实现漏 englishName、collisionMask 按 1 字节读（实为 uint16）
   const rbCount = reader.readInt32();
   const rigidBodies: PmxRigidBodyData[] = [];
   for (let i = 0; i < rbCount; i++) {
     const name = reader.readString();
+    reader.readString(); // englishName（本解析不消费）
     const boneIndex = reader.readBoneIndex();
-    const group = reader.readUint8();
-    const collisionGroup = reader.readUint8();
+    const group = reader.readUint8();       // collisionGroup
+    const collisionGroup = reader.readUint16(); // collisionMask（2 字节）
     const shapeType = reader.readUint8();
     const shapeSize: [number, number, number] = [
       reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
@@ -693,36 +708,50 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   }
 
   // === Joints ===
+  // === Joints ===
+  // 权威字段顺序（babylon-mmd pmxReader _ParseJoints）：
+  //   name(text) + englishName(text) + type(1) + rbA + rbB
+  //   + position(3) + rotation(3) + positionMin(3) + positionMax(3)
+  //   + rotationMin(3) + rotationMax(3) + springPosition(3) + springRotation(3)
+  // ⚠️ 旧实现漏 englishName、type 读在 rbA/rbB 之后、且用 flag 条件读约束——
+  // 权威为无条件读全部字段，条件读会在部分关节上漏读导致光标错位
   const jointCount = reader.readInt32();
   const joints: PmxJointData[] = [];
   for (let i = 0; i < jointCount; i++) {
     const name = reader.readString();
+    reader.readString(); // englishName（本解析不消费）
+    const type = reader.readUint8();
     const rbA = reader.readJointIndex();
     const rbB = reader.readJointIndex();
-    const type = reader.readUint8();
     const position: [number, number, number] = [
       reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
     ];
     const rotation: [number, number, number] = [
       reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
     ];
-    const joint: PmxJointData = { name, rigidBodyIndexA: rbA, rigidBodyIndexB: rbB, type, position, rotation };
-
-    if ((type & 0x01) !== 0) {
-      joint.positionMin = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-      joint.positionMax = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-    }
-    if ((type & 0x02) !== 0) {
-      joint.rotationMin = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-      joint.rotationMax = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-    }
-    if ((type & 0x04) !== 0) {
-      joint.springPosition = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-    }
-    if ((type & 0x08) !== 0) {
-      joint.springRotation = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-    }
-    joints.push(joint);
+    const positionMin: [number, number, number] = [
+      reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
+    ];
+    const positionMax: [number, number, number] = [
+      reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
+    ];
+    const rotationMin: [number, number, number] = [
+      reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
+    ];
+    const rotationMax: [number, number, number] = [
+      reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
+    ];
+    const springPosition: [number, number, number] = [
+      reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
+    ];
+    const springRotation: [number, number, number] = [
+      reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
+    ];
+    joints.push({
+      name, rigidBodyIndexA: rbA, rigidBodyIndexB: rbB, type, position, rotation,
+      positionMin, positionMax, rotationMin, rotationMax,
+      springPosition, springRotation,
+    });
   }
 
   return {

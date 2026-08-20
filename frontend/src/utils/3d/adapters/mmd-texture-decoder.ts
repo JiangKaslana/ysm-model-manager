@@ -25,6 +25,12 @@ export interface DecodedTexture {
   bitmap: ImageBitmap;
   width: number;
   height: number;
+  /**
+   * 引用计数：每个包装该 bitmap 的 THREE.Texture 占 1。
+   * 同一 relPath 可能被多材质/多纹理槽共享（如 map 与 emissiveMap 用同一贴图），
+   * dispose 监听须计数递减、归零才 close——否则一个纹理释放会误伤仍在用的共享位图（review P2）。
+   */
+  refCount: number;
 }
 
 /**
@@ -110,6 +116,7 @@ export function createTextureDecoder(config: TexDecodeConfig = {}): TextureDecod
                 bitmap: resp.bitmap,
                 width: resp.width!,
                 height: resp.height!,
+                refCount: 0,
               });
             }
             completed++;
@@ -191,9 +198,14 @@ export function applyWorkerDecodedTextures(
         newTex.colorSpace = THREE.SRGBColorSpace;
         // P2 修复（审计 Unit 3）：ImageBitmap 已按正确方向解码，flipY=true 会上下翻转
         newTex.flipY = false;
-        // P1 修复（审计 Unit 3）：three Texture.dispose() 不关闭 ImageBitmap →
-        // 每次切模型 GPU 位图泄漏。监听 dispose 事件在纹理释放时 close。
-        newTex.addEventListener("dispose", () => decodedTex.bitmap.close());
+        // P1/P2 修复（审计 Unit 3）：three Texture.dispose() 不关闭 ImageBitmap → GPU 位图泄漏。
+        // 同一 relPath 可能被多纹理共享（map/emissiveMap 等），引用计数归零才 close——
+        // 否则一个纹理释放会误伤仍在用的共享位图。
+        decodedTex.refCount++;
+        newTex.addEventListener("dispose", () => {
+          decodedTex.refCount--;
+          if (decodedTex.refCount <= 0) decodedTex.bitmap.close();
+        });
         newTex.needsUpdate = true;
         (mat as unknown as Record<string, unknown>)["map"] = newTex;
         mat.needsUpdate = true;
@@ -238,8 +250,13 @@ export function applyWorkerDecodedTextures(
       newTex.format = tex.format;
       newTex.type = tex.type;
       newTex.colorSpace = tex.colorSpace;
-      // P1 修复（审计 Unit 3）：纹理释放时 close ImageBitmap，防 GPU 位图泄漏
-      newTex.addEventListener("dispose", () => decodedTex.bitmap.close());
+      // P1/P2 修复（审计 Unit 3）：纹理释放时 close ImageBitmap，防 GPU 位图泄漏；
+      // 引用计数归零才 close（共享位图防误伤）
+      decodedTex.refCount++;
+      newTex.addEventListener("dispose", () => {
+        decodedTex.refCount--;
+        if (decodedTex.refCount <= 0) decodedTex.bitmap.close();
+      });
 
       (mat as unknown as Record<string, unknown>)[key] = newTex;
       tex.dispose();
