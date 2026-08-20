@@ -86,14 +86,14 @@ describe("createSlideMenu", () => {
     const h = createSlideMenu();
     const backBtn = h.root.querySelector(".slide-back")!;
     expect(backBtn.getAttribute("role")).toBe("button");
-    expect(backBtn.tabIndex).toBe(0);
+    expect((backBtn as HTMLElement).tabIndex).toBe(0);
   });
 
   it("默认 back 按钮 glyph 为 ✕，title 属性为『关闭』", () => {
     const h = createSlideMenu();
     const backBtn = h.root.querySelector(".slide-back")!;
     expect(backBtn.textContent).toBe("✕");
-    expect(backBtn.title).toBe("关闭");
+    expect((backBtn as HTMLElement).title).toBe("关闭");
   });
 
   it("opts.closeIcon 覆盖默认关闭 glyph", () => {
@@ -135,7 +135,7 @@ describe("createSlideMenu", () => {
     expect(title.textContent).toBe("子菜单");
     expect(h.list.textContent).toBe("sub-row");
     expect(backBtn.textContent).toBe("←");
-    expect(backBtn.title).toBe("返回");
+    expect((backBtn as HTMLElement).title).toBe("返回");
   });
 
   it("back() 从子集返回根，恢复关闭 glyph ✕", () => {
@@ -148,7 +148,7 @@ describe("createSlideMenu", () => {
     expect(title.textContent).toBe("主菜单");
     expect(h.list.textContent).toBe("root-row");
     expect(backBtn.textContent).toBe("✕");
-    expect(backBtn.title).toBe("关闭");
+    expect((backBtn as HTMLElement).title).toBe("关闭");
   });
 
   it("根级 back() 触发关闭回调（而非返回）", () => {
@@ -165,7 +165,7 @@ describe("createSlideMenu", () => {
     h.home(makeView("主菜单", "root-row"));
     h.navigate(makeView("子菜单", "sub-row"));
     const backBtn = h.root.querySelector(".slide-back")!;
-    backBtn.click();
+    (backBtn as HTMLElement).click();
     expect(h.root.querySelector(".slide-title")!.textContent).toBe("主菜单");
     expect(h.list.textContent).toBe("root-row");
   });
@@ -209,7 +209,7 @@ describe("createSlideMenu", () => {
     const onClose = vi.fn();
     h.setOnClose(onClose);
     const backBtn = h.root.querySelector(".slide-back")!;
-    backBtn.click();
+    (backBtn as HTMLElement).click();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

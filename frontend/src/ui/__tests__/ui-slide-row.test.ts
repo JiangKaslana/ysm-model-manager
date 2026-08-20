@@ -114,7 +114,7 @@ describe("图标渲染", () => {
   });
 
   it("iconFactory 返回 null → 不追加子节点", () => {
-    const factory = () => null as HTMLElement | null;
+    const factory = () => (null as unknown as HTMLElement);
     const container = makeContainer();
     const row = slideRow(
       container,
@@ -425,11 +425,11 @@ describe("整行 click", () => {
 
     // 用 spy 让 getSelection 返回非空
     const original = window.getSelection;
-    vi.spyOn(window, "getSelection").mockReturnValueOnce({
+    const selSpy = vi.spyOn(window, "getSelection").mockReturnValueOnce({
       toString: () => "选中的文字",
     } as Selection);
     row.click();
-    window.getSelection.mockRestore?.();
+    selSpy.mockRestore();
     expect(hits.length).toBe(0);
   });
 });
@@ -655,11 +655,11 @@ describe("headerToggle 路径", () => {
       { value: false, onChange: vi.fn() },
     );
     const original = window.getSelection;
-    vi.spyOn(window, "getSelection").mockReturnValueOnce({
+    const selSpy2 = vi.spyOn(window, "getSelection").mockReturnValueOnce({
       toString: () => "sel",
     } as Selection);
     row.click();
-    window.getSelection.mockRestore?.();
+    selSpy2.mockRestore();
     expect(hits.length).toBe(0);
   });
 

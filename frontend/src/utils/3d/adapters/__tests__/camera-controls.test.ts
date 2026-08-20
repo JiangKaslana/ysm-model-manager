@@ -51,7 +51,7 @@ describe("buildCameraControls", () => {
     const spans = list.querySelectorAll(":scope > span");
     expect(spans.length).toBeGreaterThanOrEqual(2);
     const select = list.querySelector("select");
-    const slider = list.querySelector("input[type=range]");
+    const slider = list.querySelector("input[type=range]") as HTMLInputElement;
     const button = list.querySelector("button");
     expect(select).not.toBeNull();
     expect(slider).not.toBeNull();
@@ -62,8 +62,8 @@ describe("buildCameraControls", () => {
     expect(select!.querySelectorAll("option").length).toBe(2);
 
     // 滑条区间
-    expect(slider!.min).toBe("2");
-    expect(slider!.max).toBe("200");
+    expect(slider.min).toBe("2");
+    expect(slider.max).toBe("200");
 
     // 旋转标签含 i18n key
     expect(spans[0].textContent).toContain("preview.cameraRotation");
@@ -71,8 +71,8 @@ describe("buildCameraControls", () => {
 
   it("初始值：根据 bridge.getOrbit/getSpeed 设置默认值", () => {
     buildCameraControls(list, bridge);
-    const select = list.querySelector("select")!;
-    const slider = list.querySelector("input[type=range]")!;
+    const select = list.querySelector("select")! as HTMLSelectElement;
+    const slider = list.querySelector("input[type=range]")! as HTMLInputElement;
 
     expect(bridge.getOrbit).toHaveBeenCalledTimes(1);
     expect(select.value).toBe("true");
@@ -86,7 +86,7 @@ describe("buildCameraControls", () => {
 
   it("orbit toggle：改变下拉 → 调用 setOrbit 并写入 td-rot-mode", () => {
     buildCameraControls(list, bridge);
-    const select = list.querySelector("select")!;
+    const select = list.querySelector("select")! as HTMLSelectElement;
 
     select.value = "false";
     select.dispatchEvent(new Event("change"));
@@ -104,8 +104,8 @@ describe("buildCameraControls", () => {
 
   it("speed slider：拖动 → 调用 setSpeed 并更新数值显示", () => {
     buildCameraControls(list, bridge);
-    const slider = list.querySelector("input[type=range]")!;
-    const spdVal = list.querySelectorAll(":scope > span")[2]!;
+    const slider = list.querySelector("input[type=range]")! as HTMLInputElement;
+    const spdVal = list.querySelectorAll(":scope > span")[2] as HTMLElement;
 
     slider.value = "50";
     slider.dispatchEvent(new Event("input"));
@@ -124,8 +124,8 @@ describe("buildCameraControls", () => {
     expect(bridge.getSpeed).toHaveBeenCalledTimes(2);
 
     // 通过 UI 动作验证其余三个写接口被触达
-    const select = list.querySelector("select")!;
-    const slider = list.querySelector("input[type=range]")!;
+    const select = list.querySelector("select")! as HTMLSelectElement;
+    const slider = list.querySelector("input[type=range]")! as HTMLInputElement;
     const resetBtn = list.querySelector("button")!;
 
     select.value = "false";
@@ -161,8 +161,8 @@ describe("buildCameraControls", () => {
     // 构造阶段应不抛错
     expect(() => buildCameraControls(list, brittle)).not.toThrow();
 
-    const select = list.querySelector("select")!;
-    const slider = list.querySelector("input[type=range]")!;
+    const select = list.querySelector("select")! as HTMLSelectElement;
+    const slider = list.querySelector("input[type=range]")! as HTMLInputElement;
     const resetBtn = list.querySelector("button")!;
 
     // 此时点击 UI 会抛 ReferenceError —— 但控件本身渲染完成
@@ -178,7 +178,7 @@ describe("buildCameraControls", () => {
     });
     // String(NaN) 合法，控件仍可渲染
     expect(() => buildCameraControls(list, bridgeBad)).not.toThrow();
-    const slider = list.querySelector("input[type=range]")!;
+    const slider = list.querySelector("input[type=range]")! as HTMLInputElement;
     // input range 遇到非法 value 会回退到 min
     expect(slider.value).not.toBe("");
   });

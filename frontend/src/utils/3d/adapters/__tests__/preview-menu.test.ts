@@ -133,7 +133,7 @@ describe("renderCapControls", () => {
     ]);
     // 顶层 dividers（margin: 4px 10px 的 hr）
     const dividers = Array.from(list.children).filter(
-      (el) => el.style.margin === "4px 10px",
+      (el) => (el as HTMLElement).style.margin === "4px 10px",
     );
     expect(dividers.length).toBe(1);
   });
@@ -148,7 +148,7 @@ describe("renderCapControls", () => {
     const body = list.querySelector(".cap-section-body") as HTMLElement;
     // body 内应包含一个 divider + 两个 slide-item
     const children = Array.from(body.children);
-    const divider = children.find((el) => el.style.margin === "4px 10px");
+    const divider = children.find((el) => (el as HTMLElement).style.margin === "4px 10px");
     expect(divider).not.toBeUndefined();
     expect(body.querySelectorAll(".slide-item").length).toBe(2);
   });
