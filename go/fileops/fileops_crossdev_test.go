@@ -1,0 +1,112 @@
+package fileops
+
+// ===== MoveModelFile 跨设备（EXDEV）fallback 测试 =====
+// os.Rename 跨卷返回 EXDEV → 回退「复制 + 删除源」。
+// 用可注入的 renameForMove 强制触发，验证：
+//   1. 单文件移动：目标存在、源清理、内容一致
+//   2. 被禁单文件（文件名带 .ban 后缀，重命名约定）跨设备移动后禁用态保留
+//   3. 无关兄弟 `<src>.ban`（另一个撞名被禁模型）不被触碰
+
+import (
+	"os"
+	"path/filepath"
+	"syscall"
+	"testing"
+)
+
+// forceEXDEV 替换 renameForMove 使每次 rename 返回 EXDEV（跨设备错误），
+// 返回恢复函数。
+func forceEXDEV(t *testing.T) {
+	t.Helper()
+	orig := renameForMove
+	renameForMove = func(string, string) error { return syscall.EXDEV }
+	t.Cleanup(func() { renameForMove = orig })
+}
+
+func TestMoveModelFile_CrossDeviceFallback(t *testing.T) {
+	forceEXDEV(t)
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.ysm")
+	dstDir := filepath.Join(dir, "sub")
+	if err := os.WriteFile(src, []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := MoveModelFile(dir, src, dstDir); err != nil {
+		t.Fatalf("跨设备 fallback 失败: %v", err)
+	}
+	// 目标存在且内容一致
+	dst := filepath.Join(dstDir, "m.ysm")
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("目标不存在/不可读: %v", err)
+	}
+	if string(got) != "content" {
+		t.Errorf("内容不一致: got %q", got)
+	}
+	// 源已清理
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Errorf("源应已删除，got err=%v", err)
+	}
+}
+
+func TestMoveModelFile_CrossDeviceBannedKeepsSuffix(t *testing.T) {
+	// 禁用态 = 文件名重命名约定（ToggleModelEnable：path → path+".ban"），
+	// 被禁单文件本身以 .ban 结尾，跨设备移动后后缀必须随文件名保留
+	forceEXDEV(t)
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.ysm.ban")
+	dstDir := filepath.Join(dir, "sub")
+	if err := os.WriteFile(src, []byte("banned"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := MoveModelFile(dir, src, dstDir); err != nil {
+		t.Fatalf("跨设备 fallback 失败: %v", err)
+	}
+	dst := filepath.Join(dstDir, "m.ysm.ban")
+	if _, err := os.Stat(dst); err != nil {
+		t.Errorf("禁用态后缀未保留（目标 m.ysm.ban 缺失）: %v", err)
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Errorf("源应已删除，got err=%v", err)
+	}
+}
+
+func TestMoveModelFile_CrossDeviceIgnoresUnrelatedBanSibling(t *testing.T) {
+	// 兄弟 `<src>.ban` 属于另一个撞名的被禁模型（重命名约定下被禁模型本身
+	// 就叫 `<name>.ysm.ban`，旁边不可能同时存在 src 和 src.ban 是同一模型）——
+	// fallback 不得复制也不得删除该兄弟
+	forceEXDEV(t)
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.ysm")
+	banSibling := src + ".ban" // 无关的被禁模型
+	if err := os.WriteFile(src, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(banSibling, []byte("unrelated"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := MoveModelFile(dir, src, dstDirOf(t, dir)); err != nil {
+		t.Fatalf("跨设备 fallback 失败: %v", err)
+	}
+	// 兄弟 .ban 未被删除（源侧保留）
+	if _, err := os.Stat(banSibling); err != nil {
+		t.Errorf("无关兄弟 .ban 不应被删除: %v", err)
+	}
+	// 兄弟 .ban 未被复制到目标
+	dstBan := filepath.Join(dir, "sub", "m.ysm.ban")
+	if _, err := os.Stat(dstBan); !os.IsNotExist(err) {
+		t.Errorf("无关兄弟 .ban 不应被复制到目标: %v", err)
+	}
+}
+
+func dstDirOf(t *testing.T, dir string) string {
+	t.Helper()
+	dstDir := filepath.Join(dir, "sub")
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	return dstDir
+}

@@ -132,6 +132,10 @@ func RenameFile(oldPath, newName string) error {
 
 // ========== 模型移动/复制 ==========
 
+// renameForMove 可注入的 rename 实现（测试用：替换为返回 EXDEV 以强制触发
+// 跨设备 copy+delete fallback；生产走 os.Rename）
+var renameForMove = os.Rename
+
 // MoveModelFile 移动 src 到 dstDir（保留原名）
 // root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）；
 // ADR-038 D3：src 为 ysm.json 时提升为移动整个模型目录（整组语义）；目录直接整组移动
@@ -212,10 +216,10 @@ func MoveModelFile(root, src, dstDir string) error {
 	if _, err := os.Stat(dst); err == nil {
 		return fmt.Errorf("目标已存在: %s", dst)
 	}
-	if err := os.Rename(src, dst); err != nil {
+	if err := renameForMove(src, dst); err != nil {
 		// 跨设备/跨卷移动：os.Rename 返回 EXDEV，回退到复制+删除源。
-		// 目录分支由 copyDirRecursive 随遍历自然携带 .ban；单文件分支的
-		// .ban 是同级兄弟文件（`<name>.ysm.ban`），copyFile 不携带，须显式复制
+		// .ban 禁用态是文件名重命名约定（ToggleModelEnable 把 path 重命名为
+		// path+".ban"），后缀随文件/目录名自然携带，无需额外处理兄弟文件
 		if !fsutil.IsCrossDeviceErr(err) {
 			return err
 		}
@@ -231,22 +235,11 @@ func MoveModelFile(root, src, dstDir string) error {
 			if cpErr := copyFile(src, dst); cpErr != nil {
 				return cpErr
 			}
-			// 携带兄弟 .ban 状态文件（对齐 CopyModelFile 语义）：丢失会让被禁
-			// 模型恢复可见（scanner 剥 .ban 后缀），且源侧残留孤儿状态文件（P2）
-			banSrc := src + ".ban"
-			if _, sErr := os.Stat(banSrc); sErr == nil {
-				if cpErr := copyFile(banSrc, dst+".ban"); cpErr != nil {
-					_ = os.Remove(dst)
-					return fmt.Errorf("跨设备移动：复制禁用标记失败: %w", cpErr)
-				}
-			}
 		}
 		// 复制成功，尽力删除源；删除失败时数据已安全到达目标，返回错误但不回滚复制
 		if rmErr := os.RemoveAll(src); rmErr != nil {
 			return fmt.Errorf("跨设备移动：复制成功但删除源失败: %w", rmErr)
 		}
-		// 源 .ban 一并删除，源侧不残留孤儿状态文件
-		_ = os.Remove(src + ".ban")
 		return nil
 	}
 	return nil
