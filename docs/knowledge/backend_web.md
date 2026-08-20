@@ -39,15 +39,15 @@ use_when:
 | IndexedDB 存储 | `idb.ts` | 网页版持久化存储（模型库/配置/缓存），基于 IndexedDB |
 | 平台检测 | `platform.ts` | 运行时平台判定（桌面/网页/Android） |
 | 跨域隔离 | `coi-sw.ts` | COOP/COEP 跨域隔离 Service Worker，支持 SharedArrayBuffer |
-| 文件系统 | `web-fs.ts` | 网页版虚拟文件系统（OPFS 或 IDB 兜底） |
+| 文件系统 | `web-fs.ts` | 网页版虚拟文件系统（OPFS 或 IDB 兜底），含 zip 路径清洗 + DetectZipType 50MB 守卫 |
 | 仓库存储 | `web-store.ts` | 网页版模型仓库数据（扫描/索引/缓存） |
 | 统计 | `web-stats.ts` | 网页版模型批量统计（Web Worker 协同） |
 | 社区下载 | `web-community.ts` | 网页版社区/创意工坊下载 |
 | CLI 桥 | `web-cli.ts` | 网页版 CLI 模拟（纯前端，不需要 Go 后端） |
 | 通用工具 | `web-common.ts` | 网页版公共工具函数 |
 | 提取 | `extract.ts` | 网页版 ZIP 提取 |
-| NBT 解析 | `nbt-parse.ts` | 网页版 NBT 格式解析（Litematic 等） |
-| 体素 | `voxel-parse.ts` | 网页版体素数据解析 |
+| NBT 解析 | `nbt-parse.ts` | 网页版 NBT 格式解析（Litematic 等），含 list 长度 OOM 守卫 |
+| 体素 | `voxel-parse.ts` | 网页版体素数据解析，含 per-axis 上限 + total 512M 守卫 |
 | 体素颜色 | `voxel-colors.ts` | 体素颜色映射表 |
 | 体素颜色数据 | `voxel-colors-data.ts` | 体素颜色数据（Litematic 块色） |
 | 包元数据 | `pack-meta.ts` | 网页版资源包/光影包元数据解析 |
@@ -72,3 +72,4 @@ const app = getApp();  // 桌面: window.go.main.App, 网页版: browserAdapter
 - 桌面端不走 `backend/` 目录（仅 `app.ts` 做平台分流）
 - 所有 `web-*` 文件仅在 `MODE === 'web'` 时生效，桌面端 `getApp()` 直接返回 Wails 绑定
 - `browser-adapter.ts` 实现 `App` 接口的全部方法，是网页版唯一的事实后端
+- **安全契约**（CodeReview 第六轮）：zip entry 路径经 `sanitizeZipEntryPath` 清洗；`DetectZipType` 超 50MB base64 静默返回空；NBT list 长度按 `minPayloadBytes` 校验；体素 per-axis/total 有上限守卫
