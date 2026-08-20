@@ -14,6 +14,7 @@ import {
   DEFAULT_ENV_PARAMS,
   ENV_PRESETS,
   ENV_PRESET_BY_MODEL,
+  type EnvPresetId,
 } from "./environment-capability.ts";
 
 // 拦截 buildEnvironment（所有实例共享原型，PMREM/canvas 在 node 不可用）
@@ -216,11 +217,13 @@ describe("EnvironmentCapability — getMenuControls 结构", () => {
     expect(enabledCtrl).toBeDefined();
     expect(enabledCtrl!.kind).toBe("toggle");
     expect(enabledCtrl!.getValue()).toBe(true);
-    // 检查预设选择器
+    // 检查预设缩略图
     const presetCtrl = controls.find((c) => c.id === "env-preset");
     expect(presetCtrl).toBeDefined();
-    expect(presetCtrl!.kind).toBe("select");
-    expect(presetCtrl!.select?.length).toBeGreaterThanOrEqual(6); // 5 preset + custom
+    expect(presetCtrl!.kind).toBe("preset-thumb");
+    expect(presetCtrl!.thumb).toBeDefined();
+    expect(presetCtrl!.thumb!.options.length).toBe(5); // 5 presets (no custom)
+    expect(presetCtrl!.thumb!.activeValue()).toBe("sky");
     // 检查强度滑块
     const intensityCtrl = controls.find((c) => c.id === "env-intensity");
     expect(intensityCtrl).toBeDefined();
@@ -294,16 +297,17 @@ describe("EnvironmentCapability — getMenuControls 结构", () => {
     expect(pickCtrl.button?.disabled?.()).toBe(true);
   });
 
-  it("预设选择器列出所有预设 + custom", () => {
+  it("预设选择器列出所有预设（5个，不含 custom）", () => {
     const cap = newCap();
     const controls = cap.getMenuControls();
     const presetCtrl = controls.find((c) => c.id === "env-preset")!;
-    const values = presetCtrl.select!.map((o) => o.value);
-    // 所有 ENV_PRESETS 的 key 都应出现
+    expect(presetCtrl.kind).toBe("preset-thumb");
+    const values = presetCtrl.thumb!.options.map((o) => o.value);
+    // 所有 ENV_PRESETS 的 key 都应出现（不含 custom）
     for (const key of Object.keys(ENV_PRESETS)) {
       expect(values).toContain(key);
     }
-    expect(values).toContain("custom");
+    expect(values).not.toContain("custom");
   });
 
   it("非总开关控件均含 group 字段", () => {
@@ -313,6 +317,46 @@ describe("EnvironmentCapability — getMenuControls 结构", () => {
       expect(c.group).toBeDefined();
       expect(c.group!.startsWith("preview.env")).toBe(true);
     });
+  });
+
+  it("getPresetThumbnail 返回非空 dataURL（对每个预设）", () => {
+    const cap = newCap();
+    // 在 node 环境，drawEnvEquirect 会调用 document.createElement — 拦截它
+    // 用 vi.spyOn 替换整个 getPresetThumbnail 的 canvas 创建逻辑不现实，
+    // 直接 mock canvas context：在 jsdom 环境下 document 存在；node 环境下我们需要 mock。
+    // 策略：vi.stubGlobal 临时提供 document
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        clearRect: () => {},
+        createLinearGradient: () => ({ addColorStop: () => {} }),
+        fillRect: () => {},
+        createRadialGradient: () => ({ addColorStop: () => {} }),
+        beginPath: () => {},
+        arc: () => {},
+        fill: () => {},
+      }),
+      toDataURL: () => "data:image/png;base64,mock-thumb",
+    } as unknown as HTMLCanvasElement;
+    vi.stubGlobal("document", { createElement: (tag: string) => (tag === "canvas" ? mockCanvas : null as unknown as HTMLElement) });
+    try {
+      for (const id of Object.keys(ENV_PRESETS) as Array<Exclude<EnvPresetId, "custom">>) {
+        const dataUrl = cap.getPresetThumbnail(id, 64);
+        expect(typeof dataUrl).toBe("string");
+        expect(dataUrl!.startsWith("data:image/png;base64,")).toBe(true);
+      }
+      expect(cap.getPresetThumbnail("custom" as EnvPresetId, 64)).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("activeValue 返回当前 presetId", () => {
+    const cap = newCap({ params: { preset: "sunset" } });
+    const controls = cap.getMenuControls();
+    const presetCtrl = controls.find((c) => c.id === "env-preset")!;
+    expect(presetCtrl.thumb!.activeValue()).toBe("sunset");
   });
 });
 

@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 136 | 527 |
-| frontend/views | 110 | 315 |
+| 前端·工具 | 136 | 528 |
+| frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **429** | **1842** |
+| **合计** | **429** | **1845** |
 
 ## Go·头像
 
@@ -1289,8 +1289,8 @@
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:67` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:25` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu:55` | 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:402` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:410` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:451` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:459` | 挂载预览底部根菜单，返回句柄 |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:29` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
@@ -1349,6 +1349,7 @@
 | `EnvironmentParams()` | `frontend/src/utils/3d/caps/environment-capability:127` | — |
 | `DEFAULT_ENV_PARAMS()` | `frontend/src/utils/3d/caps/environment-capability:138` | — |
 | `ENV_PRESET_BY_MODEL()` | `frontend/src/utils/3d/caps/environment-capability:147` | 模型类别环境默认 preset（YSM 方块=sky，VRM/MMD=studio 柔光更友好，体素=forest） |
+| `drawEnvEquirect()` | `frontend/src/utils/3d/caps/environment-capability:158` | 给 canvas 2D ctx 填充 equirectangular 环境贴图（程序化） |
 | `EnvironmentCapability()` | `frontend/src/utils/3d/caps/environment-capability:278` | — |
 | `FogMode()` | `frontend/src/utils/3d/caps/fog-capability:15` | — |
 | `FogParams()` | `frontend/src/utils/3d/caps/fog-capability:17` | — |
@@ -1379,9 +1380,9 @@
 | `SceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:27` | 注册表：管理所有场景能力的工厂和实例 |
 | `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:106` | 全局单例（模块级单例 + 运行时状态隔离） |
 | `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:14` | 菜单控件定义（声明式，由框架渲染为 DOM） |
-| `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:59` | ============ 场景能力统一接口 ============ |
-| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:118` | 保存 JSON 到 localStorage |
-| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:123` | 从 localStorage 加载 JSON |
+| `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:66` | ============ 场景能力统一接口 ============ |
+| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:125` | 保存 JSON 到 localStorage |
+| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:130` | 从 localStorage 加载 JSON |
 | `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:24` | ============ 参数类型 ============ |
 | `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:39` | — |
 | `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:49` | 预设（setPreset 套用到不同模型类别） |
@@ -1871,10 +1872,11 @@
 | `LoadModelOpts()` | `frontend/src/views/app-preview/loader:11` | loadModelData 选项（Bedrock 通用模型加载控制） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:25` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
 | `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:139` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
-| `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:31` | — |
-| `createMaid3D()` | `frontend/src/views/app-preview/maid-3d:41` | 打开车万女仆 3D 预览（Bedrock generic 模式）。 |
-| `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:74` | 关闭活跃女仆 3D 预览 |
-| `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:79` | 作废在途女仆 3D 加载 |
+| `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:36` | — |
+| `createMaid3D()` | `frontend/src/views/app-preview/maid-3d:46` | 打开车万女仆 3D 预览（Bedrock generic 模式）。 |
+| `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:77` | 关闭活跃女仆 3D 预览 |
+| `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:82` | 作废在途女仆 3D 加载 |
+| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:91` | 车万女仆详情预览（简化版：基本信息卡 + FAB 进 3D）。 |
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:79` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:84` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `appendMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:89` | 同台追加 MMD 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |
@@ -1921,7 +1923,8 @@
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
 | `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:33` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
-| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:51` | 加载模型 2D 骨骼线条图 + 统计面板 |
+| `setActive3DClose()` | `frontend/src/views/app-preview/skeleton:39` | 设置当前活跃的 3D 全屏 overlay 关闭函数（maid/通用 Bedrock 模型复用此机制）。 |
+| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:56` | 加载模型 2D 骨骼线条图 + 统计面板 |
 | `resolveStageSiblings()` | `frontend/src/views/app-preview/stage-siblings:16` | 扫描 StageAnim 目录下所有资源文件（VMD + 音频）；失败返回 [] |
 | `resolveStageVmdList()` | `frontend/src/views/app-preview/stage-siblings:44` | 仅获取 StageAnim 下所有 VMD 文件路径列表 |
 | `resolveStageAudioList()` | `frontend/src/views/app-preview/stage-siblings:50` | 仅获取 StageAnim 下所有音频文件路径列表 |

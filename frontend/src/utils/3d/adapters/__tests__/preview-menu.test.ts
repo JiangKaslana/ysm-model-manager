@@ -13,6 +13,7 @@ const mk = (
     slider?: NonNullable<MenuControlDef["slider"]>;
     select?: NonNullable<MenuControlDef["select"]>;
     button?: NonNullable<MenuControlDef["button"]>;
+    thumb?: NonNullable<MenuControlDef["thumb"]>;
     getValue?: () => number | string | boolean | null;
     setValue?: (v: number | string | boolean) => void;
   } = {},
@@ -25,7 +26,8 @@ const mk = (
   slider: opts.slider,
   select: opts.select,
   button: opts.button,
-  getValue: opts.getValue ?? (() => (kind === "toggle" ? true : kind === "image" ? "http://x/y.png" : kind === "color" ? 0xff0000 : kind === "timeline" ? 12 : 0.5)),
+  thumb: opts.thumb,
+  getValue: opts.getValue ?? (() => (kind === "toggle" ? true : kind === "image" ? "http://x/y.png" : kind === "color" ? 0xff0000 : kind === "timeline" ? 12 : kind === "preset-thumb" ? "" : 0.5)),
   setValue: opts.setValue ?? (() => {}),
 });
 
@@ -421,5 +423,84 @@ describe("renderCapControls", () => {
     const body = list.querySelector(".cap-section-body") as HTMLElement;
     // body 内：toggle a1 + toggle a2 + divider + slider a3 = 4
     expect(body.children.length).toBe(4);
+  });
+
+  // ===== preset-thumb =====
+
+  it("preset-thumb：渲染出 img + label 按钮行", () => {
+    const list = mkList();
+    renderCapControls(list, [
+      mk("preset-thumb", {
+        thumb: {
+          size: 64,
+          options: [
+            { value: "a", label: "选项A", getThumb: () => "data:image/png;base64,abc" },
+            { value: "b", label: "选项B", getThumb: () => null },
+          ],
+          activeValue: () => "a",
+          onSelect: () => {},
+        },
+      }),
+    ]);
+    const items = list.querySelectorAll(".slide-item");
+    expect(items.length).toBe(1);
+    const btns = items[0].querySelectorAll("button");
+    expect(btns.length).toBe(2);
+    // 第一格有 img（有 dataURL）
+    const img = btns[0].querySelector("img") as HTMLImageElement;
+    expect(img).not.toBeNull();
+    expect(img.src).toContain("abc");
+    // 第二格也有 img（placeholder，无 dataURL 时也渲染 img）
+    const img2 = btns[1].querySelector("img") as HTMLImageElement;
+    expect(img2).not.toBeNull();
+    // 每个 button 内有 span 标签
+    for (const b of btns) {
+      expect(b.querySelector("span")).not.toBeNull();
+    }
+  });
+
+  it("preset-thumb：active 格有 accent 高亮样式", () => {
+    const list = mkList();
+    renderCapControls(list, [
+      mk("preset-thumb", {
+        thumb: {
+          size: 64,
+          options: [
+            { value: "a", label: "A", getThumb: () => "data:x" },
+            { value: "b", label: "B", getThumb: () => "data:y" },
+          ],
+          activeValue: () => "b",
+          onSelect: () => {},
+        },
+      }),
+    ]);
+    const btns = list.querySelectorAll("button");
+    expect(btns.length).toBe(2);
+    // 第二个（active）应该有 accent border
+    expect((btns[1] as HTMLElement).style.borderColor).toContain("accent");
+    // 第一个不应该有 accent border
+    expect((btns[0] as HTMLElement).style.borderColor).not.toContain("accent");
+  });
+
+  it("preset-thumb：点击调用 onSelect", () => {
+    const list = mkList();
+    let lastSelected = "";
+    renderCapControls(list, [
+      mk("preset-thumb", {
+        thumb: {
+          size: 64,
+          options: [
+            { value: "sky", label: "天空", getThumb: () => "data:x" },
+            { value: "sunset", label: "日落", getThumb: () => "data:y" },
+          ],
+          activeValue: () => "sky",
+          onSelect: (v) => { lastSelected = v; },
+        },
+      }),
+    ]);
+    const btns = list.querySelectorAll("button");
+    expect(btns.length).toBe(2);
+    btns[1].click();
+    expect(lastSelected).toBe("sunset");
   });
 });

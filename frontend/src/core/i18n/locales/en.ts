@@ -864,6 +864,7 @@ export const en: Record<string, string> = {
   "preview.environment": "Environment",
   "preview.environmentDesc": "Environment map: procedural sky/studio presets or custom HDR",
   "preview.envPreset": "Environment Preset",
+  "preview.envPresetThumbnail": "Preset Preview",
   "preview.envIntensity": "Environment Intensity",
   "preview.envHistogram": "Luminance Histogram",
   "preview.envPickHdr": "Custom HDR",

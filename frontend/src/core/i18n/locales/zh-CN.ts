@@ -867,6 +867,7 @@ export const zhCN: Record<string, string> = {
   "preview.environment": "环境",
   "preview.environmentDesc": "环境贴图：程序化天空/工作室等预设光照或自定义 HDR",
   "preview.envPreset": "环境预设",
+  "preview.envPresetThumbnail": "预设预览",
   "preview.envIntensity": "环境强度",
   "preview.envHistogram": "亮度直方图",
   "preview.envPickHdr": "自定义 HDR",

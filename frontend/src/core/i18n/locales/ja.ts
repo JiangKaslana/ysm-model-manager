@@ -865,6 +865,7 @@ export const ja: Record<string, string> = {
   "preview.environment": "環境",
   "preview.environmentDesc": "環境マップ：プロシージャルな空/スタジオ等のプリセットまたはカスタム HDR",
   "preview.envPreset": "環境プリセット",
+  "preview.envPresetThumbnail": "プリセットプレビュー",
   "preview.envIntensity": "環境強度",
   "preview.envHistogram": "輝度ヒストグラム",
   "preview.envPickHdr": "カスタム HDR",

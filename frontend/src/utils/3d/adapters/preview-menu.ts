@@ -394,6 +394,55 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
       }
       row.appendChild(canvas);
       (target ?? list).appendChild(row);
+      continue;
+    }
+    if (c.kind === "preset-thumb") {
+      // 缩略图网格：水平排列的 button 行，每张图是程序化 equirect 截图
+      const thumb = c.thumb;
+      if (!thumb) continue;
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+      const label = document.createElement("span");
+      label.className = "slide-label";
+      label.textContent = tr(c.labelKey, c.fallback);
+      label.style.cssText = "font-size:12px;color:rgba(255,255,255,0.7)";
+      row.appendChild(label);
+      const grid = document.createElement("div");
+      grid.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
+      const activeVal = thumb.activeValue();
+      for (const opt of thumb.options) {
+        const btn = document.createElement("button");
+        btn.style.cssText =
+          "display:flex;flex-direction:column;align-items:center;gap:2px;background:transparent;border:2px solid rgba(255,255,255,0.12);border-radius:6px;cursor:pointer;padding:2px";
+        const isActive = opt.value === activeVal;
+        if (isActive) {
+          btn.style.borderColor = "var(--accent,#7c83ff)";
+          btn.style.background = "rgba(124,131,255,0.15)";
+        }
+        const img = document.createElement("img");
+        const dataUrl = opt.getThumb();
+        img.src = dataUrl ?? "";
+        img.alt = opt.label;
+        img.style.cssText = `width:${thumb.size}px;height:${Math.max(1, Math.floor(thumb.size / 2))}px;object-fit:cover;display:block;border-radius:4px`;
+        if (!dataUrl) {
+          // placeholder
+          img.style.background = "rgba(255,255,255,0.08)";
+          img.style.minWidth = `${thumb.size}px`;
+        }
+        const span = document.createElement("span");
+        span.style.cssText = "font-size:9px;color:rgba(255,255,255,0.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72px";
+        span.textContent = opt.label;
+        btn.append(img, span);
+        btn.onclick = (e: MouseEvent): void => {
+          e.stopPropagation();
+          thumb.onSelect(opt.value);
+        };
+        grid.appendChild(btn);
+      }
+      row.appendChild(grid);
+      (target ?? list).appendChild(row);
+      continue;
     }
   }
 }

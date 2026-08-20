@@ -155,7 +155,7 @@ export const ENV_PRESET_BY_MODEL: Record<string, Partial<EnvironmentParams>> = {
 };
 
 /** 给 canvas 2D ctx 填充 equirectangular 环境贴图（程序化） */
-function drawEnvEquirect(canvas: HTMLCanvasElement, p: EnvPreset): void {
+export function drawEnvEquirect(canvas: HTMLCanvasElement, p: EnvPreset): void {
   const W = canvas.width;
   const H = canvas.height;
   const ctx = canvas.getContext("2d")!;
@@ -470,6 +470,18 @@ export class EnvironmentCapability implements SceneCapability {
     return canvas.toDataURL("image/png");
   }
 
+  /** 从程序化预设生成缩略图 dataURL（thumbW×thumbH/2，2:1 比例）。custom 预设返回 null。 */
+  getPresetThumbnail(id: EnvPresetId, thumbW: number): string | null {
+    if (id === "custom") return null;
+    const preset = ENV_PRESETS[id as Exclude<EnvPresetId, "custom">];
+    if (!preset) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = thumbW;
+    canvas.height = Math.max(1, Math.floor(thumbW / 2));
+    drawEnvEquirect(canvas, preset);
+    return canvas.toDataURL("image/png");
+  }
+
   /* -------- 内部：重建环境贴图 -------- */
 
   /** 把 backgroundSrcTex 或 程序化 CanvasTexture 挂到 scene.background（useAsBackground=true 时）；
@@ -710,13 +722,6 @@ export class EnvironmentCapability implements SceneCapability {
   /* -------- 菜单控件（声明式驱动）-------- */
 
   getMenuControls(): MenuControlDef[] {
-    const presetOptions: Array<{ value: string; label: string }> = [
-      ...(Object.keys(ENV_PRESETS) as Array<Exclude<EnvPresetId, "custom">>).map(
-        (id) => ({ value: id, label: ENV_PRESETS[id].label }),
-      ),
-      // custom 最后加一个（不进 ENV_PRESETS，因为没程序化 canvas 参数）
-      { value: "custom", label: CUSTOM_PRESET_LABEL },
-    ];
     return [
       // 总开关：无 group，直接挂面板顶部
       {
@@ -727,16 +732,28 @@ export class EnvironmentCapability implements SceneCapability {
         getValue: () => this.isEnabled(),
         setValue: (v) => this.setEnabled(v as boolean),
       },
-      // 预设组
+      // 预设缩略图网格
       {
         id: "env-preset",
-        kind: "select",
-        labelKey: "preview.envPreset",
-        fallback: "环境预设",
+        kind: "preset-thumb",
+        labelKey: "preview.envPresetThumbnail",
+        fallback: "预设预览",
         group: "preview.envGroupPreset",
-        select: presetOptions,
-        getValue: () => this.getPresetId(),
-        setValue: (v) => this.setPresetId(v as EnvPresetId),
+        thumb: {
+          size: 64,
+          options: ((): Array<{ value: string; label: string; getThumb: () => string | null }> => {
+            const keys = Object.keys(ENV_PRESETS) as Array<Exclude<EnvPresetId, "custom">>;
+            return keys.map((id) => ({
+              value: id,
+              label: ENV_PRESETS[id].label,
+              getThumb: () => this.getPresetThumbnail(id, 64),
+            }));
+          })(),
+          activeValue: () => this.getPresetId(),
+          onSelect: (v) => this.setPresetId(v as EnvPresetId),
+        },
+        getValue: () => "",
+        setValue: () => { /* 由 thumb.onSelect 处理 */ },
       },
       // 自定义 HDR 组
       {

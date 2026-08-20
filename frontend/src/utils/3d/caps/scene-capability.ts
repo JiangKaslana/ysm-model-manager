@@ -8,7 +8,7 @@
 /* ============ 菜单控件定义 ============ */
 
 /** 单个菜单控件类型 */
-type MenuControlKind = "toggle" | "slider" | "select" | "button" | "divider" | "image" | "color" | "timeline" | "histogram";
+type MenuControlKind = "toggle" | "slider" | "select" | "button" | "divider" | "image" | "color" | "timeline" | "histogram" | "preset-thumb";
 
 /** 菜单控件定义（声明式，由框架渲染为 DOM） */
 export interface MenuControlDef {
@@ -47,6 +47,13 @@ export interface MenuControlDef {
     action: () => void | Promise<void>;
     /** 是否禁用（异步加载中禁用） */
     disabled?: () => boolean;
+  };
+  /** preset-thumb 配置（kind=preset-thumb 时生效） */
+  thumb?: {
+    size: number;
+    options: Array<{ value: string; label: string; getThumb: () => string | null }>;
+    activeValue: () => string;
+    onSelect: (value: string) => void;
   };
   /** 读取当前值（框架调用，渲染初始状态；button/image 忽略，image 可返回 null 跳过渲染） */
   getValue: () => number | string | boolean | null | number[];
