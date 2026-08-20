@@ -9,7 +9,7 @@ import {
 // happy-dom 不自动触发 rAF；同步执行以模拟 paint 前效果
 beforeAll(() => {
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-    cb();
+    cb(0);
     return 1;
   });
 });
@@ -180,7 +180,7 @@ describe("buildPresetChipGroup", () => {
       paddingBottom: 6,
     });
 
-    const group = container.querySelector(".preset-group")!;
+    const group = container.querySelector(".preset-group")! as HTMLElement;
     expect(group.style.paddingBottom).toBe("6px");
   });
 

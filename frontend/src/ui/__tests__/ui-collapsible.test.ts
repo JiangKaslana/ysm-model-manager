@@ -6,7 +6,7 @@ import { addCollapsible, addSectionTitle, addPresetChip } from "../ui-collapsibl
 beforeAll(() => {
   vi.spyOn(window, "requestAnimationFrame").mockImplementation(
     (cb) => {
-      cb();
+      cb(0);
       return 1;
     },
   );
@@ -348,7 +348,7 @@ describe("addCollapsible", () => {
     const { header } = render({
       headerToggle: { value: false, onChange },
     });
-    const toggle = header.querySelector(".header-toggle")!;
+    const toggle = header.querySelector(".header-toggle") as HTMLElement;
     toggle.click();
     expect(onChange).toHaveBeenCalledWith(true);
   });

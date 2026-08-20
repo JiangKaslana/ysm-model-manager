@@ -156,7 +156,7 @@ describe("bind 自更新", () => {
 
   it("bind 返回非 boolean 被 !! 规范化", () => {
     let val: unknown = 0;
-    const bind = () => val;
+    const bind = () => val as boolean;
     let capturedUpdater: (() => void) | null = null;
     setControlRegistry((fn) => { capturedUpdater = fn; });
 

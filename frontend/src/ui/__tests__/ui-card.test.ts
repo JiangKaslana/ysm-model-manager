@@ -5,7 +5,7 @@ import { cardContainer } from "../ui-card.ts";
 // happy-dom 不自动触发 rAF；同步执行
 beforeAll(() => {
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-    cb();
+    cb(0);
     return 1;
   });
 });
@@ -95,9 +95,9 @@ describe("cardContainer", () => {
       card.textContent = "styled";
     });
 
-    const lcard = container.querySelector(".lcard");
-    expect(lcard!.style.backgroundColor).toBe("#fff");
-    expect(lcard!.style.borderRadius).toBe("8px");
+    const lcard = container.querySelector(".lcard") as HTMLElement;
+    expect(lcard.style.backgroundColor).toBe("#fff");
+    expect(lcard.style.borderRadius).toBe("8px");
   });
 
   it("fn 回调可对卡片添加自定义 class", () => {
