@@ -10,8 +10,7 @@ use ysm_model_manager_core::{
     hydrate_hashes as hydrate_entry_hashes, ModelEntry, ScanError, ScanPolicy,
 };
 use ysm_model_manager_fileops::{
-    move_to_recycle as move_to_recycle_file,
-    toggle_model_enable as toggle_model_enable_file,
+    move_to_recycle as move_to_recycle_file, toggle_model_enable as toggle_model_enable_file,
 };
 use ysm_model_manager_index::{IndexDelta, IndexSnapshot, ModelIndex};
 
