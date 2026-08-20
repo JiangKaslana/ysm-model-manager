@@ -13,6 +13,7 @@
     selectedPath: '',
     hashingPath: '',
     togglingPath: '',
+    recyclingPath: '',
     revision: 0,
     root: '',
     scanning: false,
@@ -24,8 +25,8 @@
     'summaryMessage', 'modelScroll', 'modelSpacer', 'modelLayer', 'emptyState', 'statusText',
     'errorText', 'runtimeDot', 'runtimeLabel', 'detailEmpty', 'detailContent', 'detailType',
     'detailName', 'detailAuthor', 'detailSize', 'detailModified', 'detailSubdir', 'detailStatus',
-    'detailHash', 'enableButton', 'hashButton', 'detailPath', 'count-all', 'count-ysm', 'count-mmd',
-    'count-blueprint', 'count-vrm', 'count-archive',
+    'detailHash', 'enableButton', 'hashButton', 'recycleButton', 'detailPath', 'count-all', 'count-ysm',
+    'count-mmd', 'count-blueprint', 'count-vrm', 'count-archive',
   ];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
   const invoke = window.__TAURI__?.core?.invoke;
@@ -177,6 +178,7 @@
     state.entries = Array.from(byPath.values());
     state.revision = Number(delta.revision) || state.revision;
     if (source === 'hash') state.hashingPath = '';
+    if (source === 'recycle') state.recyclingPath = '';
     updateCounts();
     applyFilters();
 
@@ -188,7 +190,7 @@
       el.summaryMessage.textContent = updated ? `SHA-256 已缓存 · ${updated} 项` : 'SHA-256 未写入';
       el.statusText.textContent = updated ? '后台 SHA-256 计算完成' : 'SHA-256 计算未产生可用结果';
       el.errorText.textContent = errors ? `${errors} 个哈希错误` : '';
-    } else if (source === 'toggle') {
+    } else if (source === 'toggle' || source === 'recycle') {
       el.errorText.textContent = errors ? `${errors} 个索引更新错误` : '';
     } else {
       el.summaryMessage.textContent = `自动同步 · +${added}  更新 ${updated}  移除 ${removed}`;
@@ -209,6 +211,7 @@
       state.selectedPath = '';
       state.hashingPath = '';
       state.togglingPath = '';
+      state.recyclingPath = '';
       el.detailEmpty.hidden = false;
       el.detailContent.hidden = true;
       return;
@@ -225,14 +228,18 @@
     el.detailHash.textContent = entry.hash || '未计算';
     el.detailPath.textContent = entry.path;
 
+    const recycling = state.recyclingPath === entry.path;
     const hashing = state.hashingPath === entry.path;
-    el.hashButton.disabled = Boolean(entry.hash) || hashing;
+    el.hashButton.disabled = Boolean(entry.hash) || hashing || recycling;
     el.hashButton.textContent = entry.hash ? 'SHA-256 已缓存' : hashing ? '计算中…' : '计算 SHA-256';
 
     const toggling = state.togglingPath === entry.path;
-    el.enableButton.disabled = toggling;
+    el.enableButton.disabled = toggling || recycling;
     el.enableButton.classList.toggle('is-enable', entry.disabled);
     el.enableButton.textContent = toggling ? '处理中…' : entry.disabled ? '启用' : '禁用';
+
+    el.recycleButton.disabled = recycling || toggling;
+    el.recycleButton.textContent = recycling ? '处理中…' : '移到回收区';
   }
 
   function setScanning(active, label = '') {
@@ -284,7 +291,7 @@
 
   async function hydrateSelectedHash() {
     const entry = state.entries.find((item) => item.path === state.selectedPath);
-    if (!entry || entry.hash || state.hashingPath === entry.path) return;
+    if (!entry || entry.hash || state.hashingPath === entry.path || state.recyclingPath === entry.path) return;
 
     state.hashingPath = entry.path;
     syncSelection();
@@ -318,7 +325,7 @@
 
   async function toggleSelectedEnable() {
     const entry = state.entries.find((item) => item.path === state.selectedPath);
-    if (!entry || state.togglingPath === entry.path) return;
+    if (!entry || state.togglingPath === entry.path || state.recyclingPath === entry.path) return;
 
     const previousPath = entry.path;
     state.togglingPath = previousPath;
@@ -362,6 +369,47 @@
       syncSelection();
       el.errorText.textContent = String(error);
       el.statusText.textContent = '启用/禁用操作失败';
+    }
+  }
+
+  async function recycleSelected() {
+    const entry = state.entries.find((item) => item.path === state.selectedPath);
+    if (!entry || state.recyclingPath === entry.path || state.togglingPath === entry.path) return;
+
+    const confirmed = window.confirm(`确定将「${entry.name}」移到仓库回收区？\n\n不会永久删除，文件会保留在 .recycle 中。`);
+    if (!confirmed) return;
+
+    const previousPath = entry.path;
+    state.recyclingPath = previousPath;
+    state.hashingPath = '';
+    state.togglingPath = '';
+    syncSelection();
+    el.errorText.textContent = '';
+    el.statusText.textContent = '正在移到回收区';
+
+    if (!isTauri) {
+      state.entries = state.entries.filter((item) => item.path !== previousPath);
+      state.selectedPath = '';
+      state.recyclingPath = '';
+      updateCounts();
+      applyFilters();
+      el.summaryMessage.textContent = '浏览器预览：已移到回收区';
+      el.statusText.textContent = el.summaryMessage.textContent;
+      return;
+    }
+
+    try {
+      const payload = await invoke('move_to_recycle', { path: previousPath });
+      state.selectedPath = '';
+      state.recyclingPath = '';
+      applyDelta(payload.delta, 'recycle');
+      el.summaryMessage.textContent = '已移到回收区';
+      el.statusText.textContent = `已移到回收区 · ${payload.after}`;
+    } catch (error) {
+      state.recyclingPath = '';
+      syncSelection();
+      el.errorText.textContent = String(error);
+      el.statusText.textContent = '移到回收区失败';
     }
   }
 
@@ -429,6 +477,7 @@
   el.refreshButton.addEventListener('click', refreshRoot);
   el.enableButton.addEventListener('click', toggleSelectedEnable);
   el.hashButton.addEventListener('click', hydrateSelectedHash);
+  el.recycleButton.addEventListener('click', recycleSelected);
   el.libraryRoot.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !state.scanning) scanRoot(el.libraryRoot.value);
   });
