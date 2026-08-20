@@ -476,6 +476,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       const now = performance.now();
       const dt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
+      // 推进水面波纹动画（wetness>0 时 visible）
+      groundCap?.update(dt);
       const cam = camera as THREE.PerspectiveCamera;
       const sc = scene as THREE.Scene;
       const rd = renderer as THREE.WebGLRenderer;

@@ -51,6 +51,7 @@ export class GroundCapability implements SceneCapability {
   private scene: THREE.Scene;
   private grid: THREE.GridHelper;
   private water: THREE.Mesh; // 半透明水面叠加层（wetness>0 时显示）
+  private waterTime: { value: number }; // 水面波纹动画 time uniform
   private params: GroundParams;
   private enabled: boolean;
 
@@ -72,7 +73,7 @@ export class GroundCapability implements SceneCapability {
     this.grid.name = "ysm-ground";
 
     // 半透明水面：PlaneGeometry 旋转到水平，MeshStandardMaterial 半透明
-    const waterGeo = new THREE.PlaneGeometry(this.params.size, this.params.size);
+    const waterGeo = new THREE.PlaneGeometry(this.params.size, this.params.size, 32, 32);
     const waterMat = new THREE.MeshStandardMaterial({
       color: this.params.waterColor,
       transparent: true,
@@ -81,11 +82,53 @@ export class GroundCapability implements SceneCapability {
       metalness: 0.3,
       depthWrite: false, // 不遮挡网格
     });
+
+    // ── 水面波纹动画 ──
+    // onBeforeCompile 注入 time uniform + vertex shader 波动函数；
+    // update(dt) 推进 time uniform，render loop 调用。
+    this.waterTime = { value: 0 };
+    waterMat.onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
+      shader.uniforms["uTime"] = this.waterTime;
+      // vertex shader：注入 time uniform + 波动函数，扰动 position.z（水面 local Y）
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <common>",
+        `#include <common>
+         uniform float uTime;
+         float wave(vec2 p, vec2 dir, float freq, float speed, float amp) {
+           return amp * sin(dot(p, dir) * freq + uTime * speed);
+         }`,
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+         // PlaneGeometry 顶点在 local XY 平面，rotation.x=-π/2 后 local Y→world Z
+         // 扰动 transformed.z 模拟水面波动
+         vec2 wpos = transformed.xy;
+         float h = 0.0;
+         h += wave(wpos, normalize(vec2(1.0, 0.3)), 0.8, 1.2, 0.08);
+         h += wave(wpos, normalize(vec2(-0.4, 1.0)), 1.1, 0.9, 0.05);
+         h += wave(wpos, normalize(vec2(0.2, -0.8)), 1.6, 1.5, 0.03);
+         transformed.z += h;`,
+      );
+      // fragment shader：扰动法线让反射闪烁（轻微）
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <common>",
+        `#include <common>
+         uniform float uTime;`,
+      );
+    };
+    waterMat.needsUpdate = true;
+
     this.water = new THREE.Mesh(waterGeo, waterMat);
     this.water.rotation.x = -Math.PI / 2; // 水平
     this.water.position.y = 0.01; // 略高于网格避免 z-fighting
     this.water.name = "ysm-ground-water";
     this.water.visible = this.params.wetness > 0;
+  }
+
+  /** 推进水面波纹动画（render loop 调用） */
+  update(dt: number): void {
+    this.waterTime.value += dt;
   }
 
   /** 挂入场景（对齐 SkyCapability.apply 口径） */
