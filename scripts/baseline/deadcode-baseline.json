@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-20T08:27:45.132Z",
+  "generated": "2026-08-20T08:43:07.159Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|dependencies|@loaders.gl/textures",
@@ -61,6 +61,7 @@
     "src/ui/ui-helpers.ts|types|TrailingAction",
     "src/ui/ui-slide-menu-styles.ts|exports|slideMenuCss",
     "src/ui/ui-slide-menu-styles.ts|exports|slideMenuStyleSheet",
+    "src/utils/3d/adapters/__tests__/mount-preview-core.test.ts|unresolved|./mount-preview-core.ts",
     "src/utils/3d/adapters/mmd-adapter.ts|exports|applyVPDToMesh",
     "src/utils/3d/adapters/mmd-ktx2-basis.ts|exports|loadBasisModule",
     "src/utils/3d/adapters/mmd-ktx2-basis.ts|types|BasisEncoderLike",

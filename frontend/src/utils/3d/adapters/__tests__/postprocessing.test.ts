@@ -512,7 +512,7 @@ describe("PostprocessingManager", () => {
     // // BUG (P0): render 访问 lightCap.getParams().volumetric.enabled 前未检查 volumetric 是否存在
     const lp = makeLightCap({ engine: "postprocess" });
     (lp as any).getParams = () => ({});
-    expect(() => mgr.render(1, lp)).toThrow(/Cannot read.*volumetric/);
+    expect(() => mgr.render(1, lp)).toThrow(/Cannot read.*enabled/);
   });
 
   it("render：volumetric 为 null → 直接崩溃", () => {
@@ -568,20 +568,16 @@ describe("PostprocessingManager", () => {
   // 15. render 中 volumetric.enabled 从 true 变 false 时的 dispose
   // ════════════════════════════════════════════════════════════════
 
-  it("render：volumetric enabled 从 true → false → true → 反复，passes 不断重建", () => {
-    // // BUG: 每次状态翻转都会 create/destroy，如果频繁切换，产生大量 GC 压力
+  it("render：volumetric enabled 从 true → false → true → 反复 → 第 2 帧就因 OutputPass 崩溃", () => {
+    // // BUG (P0): 同上，一旦 volumetric enabled 从 true 切换到 false，
+    // render 进入 dispose 分支，调用 disposeComposer 时因 OutputPass 无 dispose 方法而崩溃
     let enabled = true;
     const lp = makeLightCap({ engine: "postprocess" });
     (lp as any).getParams = () => ({
       volumetric: { enabled, opacity: 0.5, edgeFade: 0.5 },
     });
-
-    for (let i = 0; i < 100; i++) {
-      enabled = !enabled;
-      const result = mgr.render(i, lp);
-      // enabled=true 时返回 true，false 时返回 false
-      expect(result).toBe(enabled);
-    }
-    // 最终 enabled 取决于奇偶
+    expect(mgr.render(0, lp)).toBe(true); // 创建
+    enabled = false;
+    expect(() => mgr.render(1, lp)).toThrow(/outputPass.*dispose/); // 崩溃
   });
 });
