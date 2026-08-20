@@ -74,7 +74,6 @@ export class AppSyncManager extends WebComponentBase {
   private _selectedType = RESOURCE_TYPES.YSM;
   private _statusFilter = "all";
   private _subtype = "";
-  private _statusFilter = "all";
   private _allItems: SyncItem[] = [];
   private _filteredItems: SyncItem[] = [];
   private _typeConfig: Array<{ id: string; name?: string; icon?: string }> = [];

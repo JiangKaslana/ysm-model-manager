@@ -191,6 +191,64 @@ func TestBuildSyncItems_MmdSubdirGrouping(t *testing.T) {
 	}
 }
 
+// TestBuildSyncItems_SubtypePathLimit 路径限定：subtype 非空时只扫该子目录，
+// 其他子目录（CustomAnim）的文件不应出现在结果中。
+// 与 TestBuildSyncItems_MmdSubdirGrouping 对照——后者 subtype="" 扫全目录，
+// 本测试 subtype="EntityPlayer" 应只返回 EntityPlayer 下的条目。
+func TestBuildSyncItems_SubtypePathLimit(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "mmd")
+	instDir := filepath.Join(base, "inst", "3d-skin")
+	// globalDir 下两个子目录都有文件
+	if err := os.MkdirAll(filepath.Join(globalDir, "EntityPlayer"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(globalDir, "CustomAnim"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(globalDir, "EntityPlayer", "角色A.pmx"), []byte("a"), 0644)
+	_ = os.WriteFile(filepath.Join(globalDir, "CustomAnim", "动作B.vmd"), []byte("b"), 0644)
+	// instDir 同构
+	if err := os.MkdirAll(filepath.Join(instDir, "EntityPlayer"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(instDir, "CustomAnim"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(instDir, "EntityPlayer", "角色A.pmx"), []byte("a"), 0644)
+	_ = os.WriteFile(filepath.Join(instDir, "CustomAnim", "动作B.vmd"), []byte("b"), 0644)
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+
+	// subtype="EntityPlayer" → 路径限定到 EntityPlayer，CustomAnim 的 vmd 应被排除
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "mmd-skin", Icon: "🎭"}}, map[string]string{"mmd-skin": globalDir}, "EntityPlayer")
+	for _, it := range items {
+		if strings.Contains(it.Path, "CustomAnim") {
+			t.Errorf("EntityPlayer 路径限定：CustomAnim 条目不应出现: %s", it.Path)
+		}
+	}
+	foundPMX := false
+	for _, it := range items {
+		if strings.HasSuffix(it.Path, "角色A.pmx") {
+			foundPMX = true
+		}
+	}
+	if !foundPMX {
+		t.Errorf("EntityPlayer 路径限定：角色A.pmx 应出现，实际 %+v", items)
+	}
+	// 对照：subtype="" 时应包含 CustomAnim
+	itemsAll := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "mmd-skin", Icon: "🎭"}}, map[string]string{"mmd-skin": globalDir}, "")
+	foundVMD := false
+	for _, it := range itemsAll {
+		if strings.HasSuffix(it.Path, "动作B.vmd") {
+			foundVMD = true
+		}
+	}
+	if !foundVMD {
+		t.Errorf("subtype 为空时应返回全目录：动作B.vmd 应出现，实际 %+v", itemsAll)
+	}
+}
+
 // TestBuildSyncItems_DisabledThreeBranches 三分支口径一致：
 // Synced .disabled / Missing .ban / Extra .ban（L85-88/L105-108/新增 Extra 分支）均应标 Disabled ⛔
 func TestBuildSyncItems_DisabledThreeBranches(t *testing.T) {

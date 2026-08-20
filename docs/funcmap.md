@@ -1245,7 +1245,7 @@
 | `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:45` | PMX 解析器管理器 |
 | `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:53` | 创建 PMX 解析器（Worker） |
 | `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:123` | 从 Worker 解析结果构建 Three.js 场景对象。 |
-| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:245` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
+| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:256` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
 | `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:10` | 主线程 → Worker 请求 |
 | `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:16` | 顶点数据（交织存储，GPU 友好） |
 | `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:26` | 面数据 |
@@ -1282,8 +1282,8 @@
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
-| `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:12` | 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） |
-| `PostprocessingManager()` | `frontend/src/utils/3d/adapters/postprocessing:19` | — |
+| `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:18` | 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） |
+| `PostprocessingManager()` | `frontend/src/utils/3d/adapters/postprocessing:25` | — |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:15` | — |
 | `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:16` | — |
 | `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:18` | — |
