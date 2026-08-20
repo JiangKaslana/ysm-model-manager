@@ -502,11 +502,7 @@ mod tests {
         fs::create_dir_all(&recycled_model).unwrap();
         fs::write(recycled_model.join("ysm.json"), b"{}").unwrap();
 
-        let delta = index.apply_paths(
-            &temp.0,
-            &policy,
-            &[recycle.clone(), recycled_model.clone()],
-        );
+        let delta = index.apply_paths(&temp.0, &policy, &[recycle.clone(), recycled_model.clone()]);
         assert_eq!(delta.revision, initial_revision);
         assert!(delta.added.is_empty());
         assert!(delta.updated.is_empty());
