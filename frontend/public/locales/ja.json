@@ -530,6 +530,8 @@
   "syncManager.emptyType": "この統合パックにリソースファイルはありません",
   "syncManager.rmTitle": "リソース管理",
   "syncManager.curTypeHint": "タイプ選択は左サイドバーへ移動（グローバル切替）",
+  "ctx.emptyRtype": "❌ パックにタイプ情報がありません、右クリック操作は無効です",
+  "ctx.missingPath": "❌ パックディレクトリが見つかりません",
   "diagnostics.logsCleared": "ログをクリアしました",
   "diagnostics.opImport": "インポート",
   "diagnostics.opScan": "スキャン",

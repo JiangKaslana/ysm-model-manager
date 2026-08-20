@@ -97,14 +97,23 @@ func FindInstDir(versionDir, subDir, rtype string) string {
 		return isYsm && dirContainsFlag(root, "ysm.json")
 	}
 	// 标准目录存在且包含该类型文件 → 标准优先返回（行为不变）
-	if info, err := os.Stat(standard); err == nil && info.IsDir() &&
-		hit(standard) {
-		return standard
+	if info, err := os.Stat(standard); err == nil && info.IsDir() {
+		if hit(standard) {
+			return standard
+		}
+		// 标准目录存在但无该类型文件：
+		// 纯容器类型（resourcepack/shaderpack，扩展集仅 .zip/.7z）直接返回标准目录——
+		// 容器证据无法区分「整合包其他目录里的压缩包」与「本类型资源包」，兜底会
+		// 误命中 mods/缓存目录（标准 resourcepacks 为空时误报 extra）。
+		// 非容器类型（create-blueprint 的 .nbt 等）保持兜底（P5：Sable-Schematics）。
+		if !hasNonContainer {
+			return standard
+		}
 	}
 	if len(extSet) == 0 && !isYsm {
 		return standard // 没有扩展名信息，返回标准路径（ysm 仍可经标志文件判定）
 	}
-	// 标准目录不存在 / 存在但无该类型文件 → 兜底扫描其他子目录
+	// 标准目录不存在 / 存在但无该类型文件（非容器类型）→ 兜底扫描其他子目录
 	entries, err := os.ReadDir(versionDir)
 	if err != nil {
 		return standard

@@ -443,3 +443,27 @@ func TestFindInstDir_ResourcepackZipKept(t *testing.T) {
 		t.Fatalf("纯容器类型 .zip 仍应兜底命中: %s vs %s", got, other)
 	}
 }
+
+// TestFindInstDir_ResourcepackStandardEmptyNoFallback 标准 resourcepacks 目录存在但空
+// 时，纯容器类型（resourcepack）不得兜底扫描——容器证据无法区分其他目录里的 .zip，
+// 兜底会误命中 mods/缓存目录，导致侧边栏把整合包无关压缩包报成 extra（用户场景：
+// 整合包 resourcepacks 为空却扫出 30 个可拉取文件）。对照 StandardEmptyFallback
+// （create-blueprint 非容器类型仍需兜底 Sable-Schematics）。
+func TestFindInstDir_ResourcepackStandardEmptyNoFallback(t *testing.T) {
+	versionDir := t.TempDir()
+	// 标准 resourcepacks 存在但为空
+	if err := os.MkdirAll(filepath.Join(versionDir, "resourcepacks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// 其他目录含 .zip（如 mods 里的压缩包/缓存）——修复前兜底会误命中这里
+	other := filepath.Join(versionDir, "downloads")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(other, "mod-pack.zip"), []byte("zip"), 0o644)
+	got := FindInstDir(versionDir, "resourcepacks", "resourcepack")
+	want := filepath.Join(versionDir, "resourcepacks")
+	if got != want {
+		t.Fatalf("标准 resourcepacks 存在时应返回标准目录（不兜底误命中）: %s vs %s", got, want)
+	}
+}

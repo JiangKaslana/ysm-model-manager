@@ -373,8 +373,8 @@
 | `PushResources()` | `go/sync/sync_push:41` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
 | `PullResources()` | `go/sync/sync_push:96` | PullResources 拉取整合包多余资源回仓库 |
 | `PullSingleResource()` | `go/sync/sync_push:193` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
-| `PushSingleResource()` | `go/sync/sync_push:226` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。 |
-| `SyncCustomToRepo()` | `go/sync/sync_push:240` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
+| `PushSingleResource()` | `go/sync/sync_push:229` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。 |
+| `SyncCustomToRepo()` | `go/sync/sync_push:249` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:19` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
@@ -682,7 +682,7 @@
 | `App.CheckFileExists()` | `internal/app/app_scan:389` | — |
 | `App.OpenFolder()` | `internal/app/app_scan:465` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:514` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
-| `progressReader.Read()` | `internal/app/app_scan:636` | — |
+| `progressReader.Read()` | `internal/app/app_scan:647` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -916,7 +916,7 @@
 | `registerErrorDiary()` | `frontend/src/core/error-diary:51` | 注册 UI 报错落日记功能。 |
 | `registerAndroidEvents()` | `frontend/src/core/handlers/android-events:17` | 注册 Android 系统事件消费，push 取消订阅函数到 unsubs |
 | `registerGlobalHandlers()` | `frontend/src/core/handlers/global:12` | 注册所有 core 全局 handler，返回 unsub 函数数组（features/views 层注册由 app-content 编排） |
-| `registerInstanceOps()` | `frontend/src/core/handlers/instance-ops:10` | 注册整合包操作 handler，push 返回的取消订阅函数到 unsubs |
+| `registerInstanceOps()` | `frontend/src/core/handlers/instance-ops:11` | 注册整合包操作 handler，push 返回的取消订阅函数到 unsubs |
 | `requireMcRoot()` | `frontend/src/core/handlers/require-mcroot:12` | 读取游戏根目录（mcRoot），空时发 warn toast 并返回 null。 |
 | `registerSync()` | `frontend/src/core/handlers/sync:10` | 注册同步 handler，push 返回的取消订阅函数到 unsubs |
 | `SUPPORTED_LANGS()` | `frontend/src/core/i18n/locale:11` | 支持的语言列表（规划清单） |
@@ -1967,8 +1967,8 @@
 | `placeholderHTML()` | `frontend/src/views/app-resource-manager/tpl:159` | 空状态占位 |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:166` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:199` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:164` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:197` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
