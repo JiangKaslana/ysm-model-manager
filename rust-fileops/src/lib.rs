@@ -5,6 +5,7 @@ use std::{
 };
 
 const BAN_SUFFIX: &str = ".ban";
+const RECYCLE_DIR: &str = ".recycle";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToggleOutcome {
@@ -13,11 +14,20 @@ pub struct ToggleOutcome {
     pub after: PathBuf,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecycleOutcome {
+    pub before: PathBuf,
+    pub after: PathBuf,
+}
+
 #[derive(Debug)]
 pub enum FileOpError {
     EmptyPath,
+    RootRequired,
     RootOperation,
     OutsideRoot(PathBuf),
+    AlreadyRecycled(PathBuf),
+    UnsafeRecycleRoot(PathBuf),
     TargetExists(PathBuf),
     Io(std::io::Error),
 }
@@ -26,8 +36,13 @@ impl fmt::Display for FileOpError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EmptyPath => write!(f, "参数为空"),
-            Self::RootOperation => write!(f, "不能对资源根目录执行启用/禁用操作"),
+            Self::RootRequired => write!(f, "该操作需要资源根目录"),
+            Self::RootOperation => write!(f, "不能对资源根目录执行此操作"),
             Self::OutsideRoot(path) => write!(f, "拒绝操作仓库外路径: {}", path.display()),
+            Self::AlreadyRecycled(path) => write!(f, "资源已经位于回收区: {}", path.display()),
+            Self::UnsafeRecycleRoot(path) => {
+                write!(f, "回收区路径不是安全的仓库内目录: {}", path.display())
+            }
             Self::TargetExists(path) => write!(f, "目标已存在: {}", path.display()),
             Self::Io(error) => error.fmt(f),
         }
@@ -113,6 +128,54 @@ pub fn toggle_model_enable(
     }
 }
 
+/// Move one indexed resource into the repository-local `.recycle` directory.
+///
+/// `ysm.json` is treated as a directory-model entry point and therefore moves its whole parent
+/// directory when that parent is strictly below the repository root. A root-level `ysm.json`
+/// falls back to moving only the file, so the repository root itself can never be moved.
+pub fn move_to_recycle(
+    root: impl AsRef<Path>,
+    path: impl AsRef<Path>,
+) -> Result<RecycleOutcome, FileOpError> {
+    let root = root.as_ref();
+    let path = path.as_ref();
+    if path.as_os_str().is_empty() {
+        return Err(FileOpError::EmptyPath);
+    }
+    if root.as_os_str().is_empty() {
+        return Err(FileOpError::RootRequired);
+    }
+
+    let root = fs::canonicalize(root)?;
+    let source = guard_source(&root, path)?;
+    let recycle_root = prepare_recycle_root(&root)?;
+
+    if path_starts_with(&source, &recycle_root) {
+        return Err(FileOpError::AlreadyRecycled(source));
+    }
+
+    let mut movable = source;
+    if is_ysm_entry_json(&movable) {
+        let parent = movable.parent().unwrap_or(&root);
+        if is_strictly_inside(&root, parent)? {
+            movable = parent.to_path_buf();
+        }
+    }
+
+    if path_eq(&movable, &root) {
+        return Err(FileOpError::RootOperation);
+    }
+
+    let file_name = movable.file_name().ok_or(FileOpError::RootOperation)?;
+    let target = unique_recycle_target(&recycle_root, file_name)?;
+    fs::rename(&movable, &target)?;
+
+    Ok(RecycleOutcome {
+        before: movable,
+        after: target,
+    })
+}
+
 fn enable_banned_parent(
     root: &Path,
     source: &Path,
@@ -152,6 +215,51 @@ fn guard_source(root: &Path, path: &Path) -> Result<PathBuf, FileOpError> {
         return Err(FileOpError::OutsideRoot(path.to_path_buf()));
     }
     Ok(source)
+}
+
+fn prepare_recycle_root(root: &Path) -> Result<PathBuf, FileOpError> {
+    let recycle = root.join(RECYCLE_DIR);
+    match fs::symlink_metadata(&recycle) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                return Err(FileOpError::UnsafeRecycleRoot(recycle));
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            fs::create_dir(&recycle)?;
+        }
+        Err(error) => return Err(FileOpError::Io(error)),
+    }
+
+    let canonical = fs::canonicalize(&recycle)?;
+    if !path_starts_with(&canonical, root) || path_eq(&canonical, root) {
+        return Err(FileOpError::UnsafeRecycleRoot(recycle));
+    }
+    Ok(canonical)
+}
+
+fn unique_recycle_target(root: &Path, name: &std::ffi::OsStr) -> Result<PathBuf, FileOpError> {
+    let direct = root.join(name);
+    if !path_exists(&direct)? {
+        return Ok(direct);
+    }
+
+    let base = name.to_string_lossy();
+    for index in 1_u32..=10_000 {
+        let candidate = root.join(format!("{base}.{index}"));
+        if !path_exists(&candidate)? {
+            return Ok(candidate);
+        }
+    }
+    Err(FileOpError::TargetExists(direct))
+}
+
+fn path_exists(path: &Path) -> Result<bool, FileOpError> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(FileOpError::Io(error)),
+    }
 }
 
 fn is_strictly_inside(root: &Path, path: &Path) -> Result<bool, FileOpError> {
@@ -395,6 +503,84 @@ mod tests {
         assert!(root.exists());
     }
 
+    #[test]
+    fn recycle_moves_regular_file_under_hidden_repository_directory() {
+        let root = TempRoot::new("recycle-file");
+        let model = root.0.join("hero.ysm");
+        fs::write(&model, b"x").unwrap();
+
+        let outcome = move_to_recycle(&root.0, &model).unwrap();
+        assert_eq!(outcome.before.file_name().unwrap(), "hero.ysm");
+        assert_eq!(outcome.after.parent().unwrap().file_name().unwrap(), RECYCLE_DIR);
+        assert!(outcome.after.exists());
+        assert!(!model.exists());
+    }
+
+    #[test]
+    fn recycle_ysm_json_moves_whole_model_directory() {
+        let root = TempRoot::new("recycle-ysm-dir");
+        let model_dir = root.0.join("ModelA");
+        fs::create_dir_all(&model_dir).unwrap();
+        let ysm = model_dir.join("ysm.json");
+        fs::write(&ysm, b"{}").unwrap();
+        fs::write(model_dir.join("texture.png"), b"png").unwrap();
+
+        let outcome = move_to_recycle(&root.0, &ysm).unwrap();
+        assert_eq!(outcome.before.file_name().unwrap(), "ModelA");
+        assert_eq!(outcome.after.file_name().unwrap(), "ModelA");
+        assert!(outcome.after.join("ysm.json").exists());
+        assert!(outcome.after.join("texture.png").exists());
+        assert!(!model_dir.exists());
+    }
+
+    #[test]
+    fn recycle_root_level_ysm_json_never_moves_repository_root() {
+        let root = TempRoot::new("recycle-root-ysm");
+        let ysm = root.0.join("ysm.json");
+        fs::write(&ysm, b"{}").unwrap();
+
+        let outcome = move_to_recycle(&root.0, &ysm).unwrap();
+        assert_eq!(outcome.before.file_name().unwrap(), "ysm.json");
+        assert!(outcome.after.exists());
+        assert!(root.0.exists());
+    }
+
+    #[test]
+    fn recycle_collision_gets_stable_numeric_suffix_instead_of_overwrite() {
+        let root = TempRoot::new("recycle-collision");
+        let first = root.0.join("hero.ysm");
+        fs::write(&first, b"first").unwrap();
+        let first_outcome = move_to_recycle(&root.0, &first).unwrap();
+        assert_eq!(first_outcome.after.file_name().unwrap(), "hero.ysm");
+
+        let second = root.0.join("hero.ysm");
+        fs::write(&second, b"second").unwrap();
+        let second_outcome = move_to_recycle(&root.0, &second).unwrap();
+        assert_eq!(second_outcome.after.file_name().unwrap(), "hero.ysm.1");
+        assert_eq!(fs::read(first_outcome.after).unwrap(), b"first");
+        assert_eq!(fs::read(second_outcome.after).unwrap(), b"second");
+    }
+
+    #[test]
+    fn recycle_rejects_outside_root_and_already_recycled_resource() {
+        let root = TempRoot::new("recycle-guard");
+        let outside = TempRoot::new("recycle-outside");
+        let external = outside.0.join("external.ysm");
+        fs::write(&external, b"x").unwrap();
+        assert!(matches!(
+            move_to_recycle(&root.0, &external),
+            Err(FileOpError::OutsideRoot(_))
+        ));
+
+        let model = root.0.join("hero.ysm");
+        fs::write(&model, b"x").unwrap();
+        let recycled = move_to_recycle(&root.0, &model).unwrap();
+        assert!(matches!(
+            move_to_recycle(&root.0, recycled.after),
+            Err(FileOpError::AlreadyRecycled(_))
+        ));
+    }
+
     #[cfg(unix)]
     #[test]
     fn rejects_symlink_that_escapes_root() {
@@ -412,5 +598,23 @@ mod tests {
             Err(FileOpError::OutsideRoot(_))
         ));
         assert!(external.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn recycle_rejects_symlinked_recycle_root() {
+        use std::os::unix::fs::symlink;
+
+        let root = TempRoot::new("recycle-symlink-root");
+        let outside = TempRoot::new("recycle-symlink-outside");
+        symlink(&outside.0, root.0.join(RECYCLE_DIR)).unwrap();
+        let model = root.0.join("hero.ysm");
+        fs::write(&model, b"x").unwrap();
+
+        assert!(matches!(
+            move_to_recycle(&root.0, &model),
+            Err(FileOpError::UnsafeRecycleRoot(_))
+        ));
+        assert!(model.exists());
     }
 }
