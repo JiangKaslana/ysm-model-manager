@@ -17,7 +17,7 @@ import * as THREE from "three";
 // three/addons/controls/OrbitControls.js：需要 fake 类（constructor / target / enableRotate / update / dispose）
 vi.mock("three/addons/controls/OrbitControls.js", () => ({
   OrbitControls: vi.fn(
-    function FakeOrbitControls(_cam: any, _el: any) {
+    function FakeOrbitControls(this: any, _cam: any, _el: any) {
       this.enableRotate = true;
       this.enableDamping = false;
       this.dampingFactor = 0.1;
@@ -71,7 +71,7 @@ vi.mock("../../caps/fog-capability.ts", () => ({ FogCapability: vi.fn() }));
 vi.mock("../../caps/shadow-capability.ts", () => ({ ShadowCapability: vi.fn() }));
 vi.mock("../../caps/reflector-capability.ts", () => ({ ReflectorCapability: vi.fn() }));
 vi.mock("../../caps/environment-capability.ts", () => ({
-  EnvironmentCapability: vi.fn(function () {
+  EnvironmentCapability: vi.fn(function (this: any) {
     this.apply = vi.fn();
     this.dispose = vi.fn();
     this.setPreset = vi.fn();
@@ -318,9 +318,9 @@ function resetGlobalMocks() {
   });
   globalThis.requestAnimationFrame = fakeRaf;
   globalThis.cancelAnimationFrame = fakeCancelAnimationFrame;
-  globalThis.setTimeout = fakeSetTimeout;
-  globalThis.clearTimeout = fakeClearTimeout;
-  globalThis.performance = { now: vi.fn(() => 1700000000000) };
+  (globalThis as any).setTimeout = fakeSetTimeout;
+  (globalThis as any).clearTimeout = fakeClearTimeout;
+  (globalThis as any).performance = { now: vi.fn(() => 1700000000000) };
   fakeAppendChild.mockImplementation((child: any) => child);
 }
 
@@ -331,7 +331,7 @@ afterEach(resetGlobalMocks);
 function makeAdapter(opts: {
   sync?: boolean;
   reject?: unknown;
-  scene?: Partial<import("./mount-preview-core.ts").PreviewScene>;
+  scene?: Partial<import("../mount-preview-core.ts").PreviewScene>;
 } = {}): any {
   return {
     id: "test-adapter",

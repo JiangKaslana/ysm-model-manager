@@ -5,7 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as THREE from "three";
-import type { EffectComposer, RenderPass, UnrealBloomPass, OutputPass } from "three/examples/jsm/postprocessing";
 import { PostprocessingManager } from "../postprocessing.ts";
 import type { LightCapability } from "../../caps/light-capability.ts";
 

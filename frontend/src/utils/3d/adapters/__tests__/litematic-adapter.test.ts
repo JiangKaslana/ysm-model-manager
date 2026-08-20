@@ -10,7 +10,7 @@ import type { PreviewMenuItemDef } from "../preview-menu-defs.ts";
 // ===== 测试夹具 =====
 
 /** 构造一次符合 LitematicMenuRenderArgs 的 DOM 元素集合 */
-function makeEls(): Record<keyof Parameters<typeof litematicMenuItems>[0], HTMLElement | HTMLSelectElement | HTMLInputElement> {
+function makeEls(): Parameters<typeof litematicMenuItems>[0] {
   return {
     sep: document.createElement("span"),
     axisLabel: document.createElement("span"),

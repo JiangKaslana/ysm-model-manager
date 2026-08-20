@@ -77,28 +77,7 @@ function fakeElement() {
 }
 
 // ── 工具：构造一个"干净完整"的 CleanupContext ─────────────────────────
-function makeFullContext(): CleanupContext & {
-  menuHandle: { dispose: ReturnType<typeof vi.fn> };
-  renderer: {
-    dispose: ReturnType<typeof vi.fn>;
-    domElement: ReturnType<typeof fakeElement>;
-    info: { memory: { geometries: number; textures: number } };
-  };
-  scene: THREE.Scene & { traverse: ReturnType<typeof vi.fn> };
-  controls: { dispose: ReturnType<typeof vi.fn> };
-  overlay: ReturnType<typeof fakeElement>;
-  adapter: { onClose: ReturnType<typeof vi.fn> };
-  allBuilt: Array<{ dispose: ReturnType<typeof vi.fn> }>;
-  skyCap: { dispose: ReturnType<typeof vi.fn> } | null;
-  groundCap: { dispose: ReturnType<typeof vi.fn> } | null;
-  lightCap: { dispose: ReturnType<typeof vi.fn> } | null;
-  fogCap: { dispose: ReturnType<typeof vi.fn> } | null;
-  shadowCap: { dispose: ReturnType<typeof vi.fn> } | null;
-  reflectorCap: { dispose: ReturnType<typeof vi.fn> } | null;
-  environmentCap: { dispose: ReturnType<typeof vi.fn> } | null;
-  postProc: { dispose: ReturnType<typeof vi.fn> } | null;
-  postProcCap: { dispose: ReturnType<typeof vi.fn> } | null;
-} {
+function makeFullContext() {
   const mesh = new THREE.Mesh(
     new THREE.BufferGeometry(),
     new THREE.MeshBasicMaterial(),
@@ -148,7 +127,7 @@ function makeFullContext(): CleanupContext & {
     nullHandle: vi.fn(),
     adapter: { onClose: vi.fn() },
     getTipTimeoutId: () => 0,
-  };
+  } as any;
 }
 
 // ── 清除全局 spy（避免跨用例污染） ─────────────────────────────────
@@ -275,7 +254,7 @@ describe("CleanupContext 各步骤 mock 验证", () => {
 describe("空/部分 context 降级", () => {
   it("renderer 缺失：跳过 GPU 段（renderer.dispose / domElement 事件 / info.memory 日志）", () => {
     const ctx = makeFullContext();
-    ctx.renderer = undefined;
+    (ctx as any).renderer = undefined;
     runFullCleanup(ctx);
 
     // renderer.dispose 不叫
@@ -288,7 +267,7 @@ describe("空/部分 context 降级", () => {
 
   it("scene 缺失：跳过 traverse", () => {
     const ctx = makeFullContext();
-    ctx.scene = undefined;
+    (ctx as any).scene = undefined;
     runFullCleanup(ctx);
 
     expect(ctx.scene?.traverse as any).toBeUndefined();
@@ -296,7 +275,7 @@ describe("空/部分 context 降级", () => {
 
   it("controls 缺失：跳过 controls.dispose", () => {
     const ctx = makeFullContext();
-    ctx.controls = undefined;
+    (ctx as any).controls = undefined;
     runFullCleanup(ctx);
 
     // 不抛错且正常走完

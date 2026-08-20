@@ -18,7 +18,7 @@ function mkFakeRenderer(): THREE.WebGLRenderer {
   } as unknown as THREE.WebGLRenderer;
 }
 
-function mkPostProc(): { setSize: ReturnType<typeof vi.fn> } & Record<string, unknown> {
+function mkPostProc(): import("../postprocessing.ts").PostprocessingLike {
   return { setSize: vi.fn() } as unknown as import("../postprocessing.ts").PostprocessingLike;
 }
 
