@@ -110,3 +110,51 @@ func dstDirOf(t *testing.T, dir string) string {
 	}
 	return dstDir
 }
+
+func TestMoveModelFile_CrossDeviceBannedDirKeepsSuffix(t *testing.T) {
+	// 整组禁用（ADR-038 D3.7）：目录重命名为 `父目录.ban`——目录名带 .ban
+	// 后缀，跨设备移动后整组禁用态必须随目录名保留
+	forceEXDEV(t)
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "modelA.ban")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "m.ysm"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dstDir := filepath.Join(dir, "sub")
+	if err := MoveModelFile(dir, srcDir, dstDir); err != nil {
+		t.Fatalf("跨设备 fallback 失败: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstDir, "modelA.ban", "m.ysm")); err != nil {
+		t.Errorf("整组禁用后缀未保留: %v", err)
+	}
+	if _, err := os.Stat(srcDir); !os.IsNotExist(err) {
+		t.Errorf("源应已删除: %v", err)
+	}
+}
+
+func TestMoveModelFile_CrossDeviceDirNestedBanSurvives(t *testing.T) {
+	// 启用目录内含文件级被禁条目（重命名约定：loose.ysm.ban）——
+	// 跨设备移动经 copyDirRecursive 递归复制，嵌套 .ban 必须随树保留
+	forceEXDEV(t)
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "modelA")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "loose.ysm.ban"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dstDir := filepath.Join(dir, "sub")
+	if err := MoveModelFile(dir, srcDir, dstDir); err != nil {
+		t.Fatalf("跨设备 fallback 失败: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstDir, "modelA", "loose.ysm.ban")); err != nil {
+		t.Errorf("嵌套 .ban 未保留: %v", err)
+	}
+	if _, err := os.Stat(srcDir); !os.IsNotExist(err) {
+		t.Errorf("源应已删除: %v", err)
+	}
+}

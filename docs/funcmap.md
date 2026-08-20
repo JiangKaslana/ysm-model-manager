@@ -181,7 +181,7 @@
 | `RenameFile()` | `go/fileops/fileops:110` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
 | `MoveModelFile()` | `go/fileops/fileops:142` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
 | `CopyModelFile()` | `go/fileops/fileops:250` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:354` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `DeleteModelFile()` | `go/fileops/fileops:347` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
 | `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
@@ -834,11 +834,11 @@
 | `idbSet()` | `frontend/src/backend/idb:167` | 写入单 key（QuotaExceededError 走 onabort，必须监听否则 Promise 永不 settle） |
 | `idbDel()` | `frontend/src/backend/idb:184` | 删除单 key |
 | `idbKeys()` | `frontend/src/backend/idb:205` | 前缀扫描（MikuMikuAR 模式：dir:&lt;stem&gt;: / file:&lt;stem&gt;: 遍历模型库） 性能优化（R1 万级 key 门槛）：真实浏览器用 IDBKeyRange |
-| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:213` | 解析 NBT 根 compound，返回全部顶层标签。 |
-| `parseNbtRootExact()` | `frontend/src/backend/nbt-parse:236` | ADR-070 M2：精确 LongArray 变体——LongArray 输出 bigint[]（精确 64 位）， 供 voxel 打包位解码（BlockStates）使用。其 |
-| `litematicMetaView()` | `frontend/src/backend/nbt-parse:288` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
-| `nbtStructureView()` | `frontend/src/backend/nbt-parse:322` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
-| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:443` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
+| `parseNbtRoot()` | `frontend/src/backend/nbt-parse:240` | 解析 NBT 根 compound，返回全部顶层标签。 |
+| `parseNbtRootExact()` | `frontend/src/backend/nbt-parse:263` | ADR-070 M2：精确 LongArray 变体——LongArray 输出 bigint[]（精确 64 位）， 供 voxel 打包位解码（BlockStates）使用。其 |
+| `litematicMetaView()` | `frontend/src/backend/nbt-parse:315` | .litematic 视图：根 Version/MinecraftDataVersion + Metadata compound → LitematicMeta JSON 形状。 |
+| `nbtStructureView()` | `frontend/src/backend/nbt-parse:349` | .nbt 视图：对齐 ParseNbtStructure（parser.go:267）。 |
+| `schematicSummaryView()` | `frontend/src/backend/nbt-parse:470` | .schematic 视图：对齐 ParseSchematicSummary（parser.go:173）。 |
 | `findZipEntry()` | `frontend/src/backend/pack-meta:23` | zip entries 中按小写名找条目（对齐 go 端 strings.ToLower(f.Name) 匹配—— zip 内路径大小写不敏感：PACK.MCMETA / Lang |
 | `parsePackMetaJson()` | `frontend/src/backend/pack-meta:99` | pack.mcmeta 字节 → meta 对象（对齐 internal/app ReadPackMeta 的 result 形状： pack_format / descripti |
 | `packPngToThumbnail()` | `frontend/src/backend/pack-meta:132` | pack.png 字节 → data URL base64 缩略图（10MB 限额；空/超限 → ""，对齐 go 截断探测置空） |
@@ -851,14 +851,14 @@
 | `resolveBlockName()` | `frontend/src/backend/voxel-colors:107` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
 | `VoxelGroup()` | `frontend/src/backend/voxel-parse:36` | 输出形状（对齐 types.VoxelGroup / LitematicVoxelData json tag） |
 | `VoxelData()` | `frontend/src/backend/voxel-parse:41` | — |
-| `readVarInt()` | `frontend/src/backend/voxel-parse:58` | 对齐 voxel.go:531-549 readVarInt：返回 {value, offset}（shift≥64 截断防溢出 wrap） |
-| `extractBits()` | `frontend/src/backend/voxel-parse:77` | 对齐 nbt.go:299-327 extractBits：从 LongArray（精确 bigint[]，小端位序）按 bitOffset 取 bitCount 位，支持跨 64 |
-| `bitsPerEntry()` | `frontend/src/backend/voxel-parse:97` | 对齐 nbt.go:329-338 bitsPerEntry：palette 大小 → 每方块位数（≥2，单条目返回 0） |
-| `unpackBlockStates()` | `frontend/src/backend/voxel-parse:109` | 打包位解码：expectedCount 个方块索引 → palette 索引数组。 |
-| `litematicVoxelView()` | `frontend/src/backend/voxel-parse:323` | 对齐 voxel.go:92-171 BuildVoxelData：.litematic 体素视图。 |
-| `nbtVoxelView()` | `frontend/src/backend/voxel-parse:396` | 对齐 voxel.go:286-382 BuildNbtVoxelData：structure NBT 体素视图。 |
-| `schematicVoxelView()` | `frontend/src/backend/voxel-parse:561` | 对齐 voxel.go:384-491 BuildSchematicVoxelData：schematic 体素视图。 |
-| `decodeVoxelNbt()` | `frontend/src/backend/voxel-parse:649` | 纯函数：base64 字节 → NBT root（IO 与解码解耦——本函数无任何 IO，输入 b64 字符串 输出解析后的 root 对象；readVoxelJson 等装配层只 |
+| `readVarInt()` | `frontend/src/backend/voxel-parse:62` | 对齐 voxel.go:531-549 readVarInt：返回 {value, offset}（shift≥64 截断防溢出 wrap） |
+| `extractBits()` | `frontend/src/backend/voxel-parse:81` | 对齐 nbt.go:299-327 extractBits：从 LongArray（精确 bigint[]，小端位序）按 bitOffset 取 bitCount 位，支持跨 64 |
+| `bitsPerEntry()` | `frontend/src/backend/voxel-parse:101` | 对齐 nbt.go:329-338 bitsPerEntry：palette 大小 → 每方块位数（≥2，单条目返回 0） |
+| `unpackBlockStates()` | `frontend/src/backend/voxel-parse:113` | 打包位解码：expectedCount 个方块索引 → palette 索引数组。 |
+| `litematicVoxelView()` | `frontend/src/backend/voxel-parse:327` | 对齐 voxel.go:92-171 BuildVoxelData：.litematic 体素视图。 |
+| `nbtVoxelView()` | `frontend/src/backend/voxel-parse:404` | 对齐 voxel.go:286-382 BuildNbtVoxelData：structure NBT 体素视图。 |
+| `schematicVoxelView()` | `frontend/src/backend/voxel-parse:572` | 对齐 voxel.go:384-491 BuildSchematicVoxelData：schematic 体素视图。 |
+| `decodeVoxelNbt()` | `frontend/src/backend/voxel-parse:666` | 纯函数：base64 字节 → NBT root（IO 与解码解耦——本函数无任何 IO，输入 b64 字符串 输出解析后的 root 对象；readVoxelJson 等装配层只 |
 | `webCliBindings()` | `frontend/src/backend/web-cli:34` | 网页版 CLI 绑定 |
 | `WebUnsupportedError()` | `frontend/src/backend/web-common:8` | 网页版专属错误：binding 浏览器端未实现（Phase 3 能力门控隐藏对应 UI） |
 | `WEB_ROOT()` | `frontend/src/backend/web-common:16` | 网页版虚拟仓库根（路径语义与桌面一致：/web/&lt;type&gt;/&lt;name&gt;/&lt;rel&gt;） |

@@ -151,9 +151,10 @@ func TestCopyDirRecursive_SymlinkRejected(t *testing.T) {
 	}
 }
 
-// CopyModelFile 的 .ban 复制失败（.ban 为符号链接被 copyFile 拒绝）：
-// 已复制的 dst 应回滚，错误应透出
-func TestCopyModelFile_BanCopySymlinkRejected(t *testing.T) {
+// CopyModelFile 不再把兄弟 `<src>.ban` 当作禁用标记（.ban 是文件名重命名约定，
+// 后缀随文件名自然携带；兄弟 .ban 属于撞名的无关被禁模型）：
+// 兄弟 symlink 不应被复制，也不应导致复制失败
+func TestCopyModelFile_IgnoresBanSibling(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "m.ysm")
 	if err := os.WriteFile(src, []byte("x"), 0644); err != nil {
@@ -167,11 +168,14 @@ func TestCopyModelFile_BanCopySymlinkRejected(t *testing.T) {
 		t.Skipf("os.Symlink 不可用（需权限）: %v", err)
 	}
 	dstDir := filepath.Join(dir, "sub")
-	if err := CopyModelFile(dir, src, dstDir); err == nil {
-		t.Fatal(".ban 复制失败应透出错误")
+	if err := CopyModelFile(dir, src, dstDir); err != nil {
+		t.Fatalf("兄弟 .ban 不应影响复制: %v", err)
 	}
-	// 已复制的 dst 应被回滚
-	if _, err := os.Stat(filepath.Join(dstDir, "m.ysm")); !os.IsNotExist(err) {
-		t.Fatalf(".ban 复制失败后 dst 应回滚: %v", err)
+	// dst 存在；兄弟 .ban 未被复制
+	if _, err := os.Stat(filepath.Join(dstDir, "m.ysm")); err != nil {
+		t.Fatalf("dst 缺失: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstDir, "m.ysm.ban")); !os.IsNotExist(err) {
+		t.Fatalf("兄弟 .ban 不应被复制: %v", err)
 	}
 }

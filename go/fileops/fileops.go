@@ -321,16 +321,9 @@ func CopyModelFile(root, src, dstDir string) error {
 	if err := copyFile(src, dst); err != nil {
 		return err
 	}
-	// 复制 .ban 状态文件（如果存在）
-	banSrc := src + ".ban"
-	if _, err := os.Stat(banSrc); err == nil {
-		// .ban 副本写入失败不再吞掉——禁用状态丢失需透出错误（模型已复制但状态不一致）。
-		// 同时回滚已复制的 dst，避免「目标已存在」阻塞重试（与目录路径整树回滚语义对齐）
-		if err := copyFile(banSrc, dst+".ban"); err != nil {
-			_ = os.Remove(dst)
-			return fmt.Errorf("复制禁用标记失败: %w", err)
-		}
-	}
+	// .ban 禁用态是文件名重命名约定（ToggleModelEnable：path → path+".ban"），
+	// 后缀随文件/目录名自然携带——不再处理兄弟 `<src>.ban`（那属于撞名的
+	// 无关被禁模型，复制/失败回滚均会误伤；与 MoveModelFile 语义对齐）
 	return nil
 }
 
