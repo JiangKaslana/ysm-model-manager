@@ -16,21 +16,22 @@
     scanning: false,
   };
 
-  const el = Object.fromEntries([
+  const ids = [
     'filterNav', 'libraryRoot', 'scanButton', 'refreshButton', 'searchInput', 'sortSelect',
     'disabledToggle', 'summaryCount', 'visibleCount', 'summarySize', 'revisionValue',
     'summaryMessage', 'modelScroll', 'modelSpacer', 'modelLayer', 'emptyState', 'statusText',
     'errorText', 'runtimeDot', 'runtimeLabel', 'detailEmpty', 'detailContent', 'detailType',
     'detailName', 'detailAuthor', 'detailSize', 'detailModified', 'detailSubdir', 'detailStatus',
     'detailPath', 'count-all', 'count-ysm', 'count-mmd', 'count-blueprint', 'count-vrm', 'count-archive',
-  ].map((id) => [id, document.getElementById(id)]));
-
+  ];
+  const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
   const invoke = window.__TAURI__?.core?.invoke;
+  const listen = window.__TAURI__?.event?.listen;
   const isTauri = typeof invoke === 'function';
 
   function resourceKind(entry) {
-    const ext = entry.ext.toLowerCase();
-    if (ext === '.ysm' || (ext === '.json' && entry.name.toLowerCase().includes('ysm'))) return 'ysm';
+    const ext = String(entry.ext || '').toLowerCase();
+    if (ext === '.ysm' || (ext === '.json' && String(entry.name).toLowerCase().includes('ysm'))) return 'ysm';
     if (['.pmx', '.pmd', '.vmd', '.vpd'].includes(ext)) return 'mmd';
     if (['.nbt', '.schematic', '.litematic'].includes(ext)) return 'blueprint';
     if (['.vrm', '.vrca'].includes(ext)) return 'vrm';
@@ -39,12 +40,12 @@
   }
 
   function fileLabel(entry) {
-    const ext = entry.ext.replace('.', '').toUpperCase();
+    const ext = String(entry.ext || '').replace('.', '').toUpperCase();
     return ext.slice(0, 4) || 'FILE';
   }
 
   function authorFromName(name) {
-    const match = /^\[([^\]]+)\]/.exec(name);
+    const match = /^\[([^\]]+)\]/.exec(String(name));
     return match ? match[1] : '未标注';
   }
 
@@ -123,7 +124,7 @@
               <span title="${escapeHtml(entry.path)}">${escapeHtml(entry.subdir || authorFromName(entry.name))}</span>
             </span>
           </div>
-          <span class="cell-muted">${escapeHtml(entry.ext.toUpperCase())}</span>
+          <span class="cell-muted">${escapeHtml(String(entry.ext).toUpperCase())}</span>
           <span class="cell-muted">${formatBytes(entry.size)}</span>
           <span class="cell-muted">${formatDate(entry.modTimeMs)}</span>
           <span class="status-chip${disabled}">${entry.disabled ? '已禁用' : '启用'}</span>
@@ -158,12 +159,30 @@
     applyFilters();
 
     const errorCount = Array.isArray(snapshot.errors) ? snapshot.errors.length : 0;
-    if (delta) {
-      el.summaryMessage.textContent = `+${delta.added}  更新 ${delta.updated}  移除 ${delta.removed}`;
-    } else {
-      el.summaryMessage.textContent = `索引已载入 · ${state.entries.length} 项`;
-    }
+    el.summaryMessage.textContent = delta
+      ? `+${delta.added}  更新 ${delta.updated}  移除 ${delta.removed}`
+      : `索引已载入 · ${state.entries.length} 项`;
     el.errorText.textContent = errorCount ? `${errorCount} 个扫描错误` : '';
+  }
+
+  function applyDelta(delta) {
+    const byPath = new Map(state.entries.map((entry) => [entry.path, entry]));
+    for (const path of delta.removed || []) byPath.delete(path);
+    for (const entry of delta.updated || []) byPath.set(entry.path, entry);
+    for (const entry of delta.added || []) byPath.set(entry.path, entry);
+
+    state.entries = Array.from(byPath.values());
+    state.revision = Number(delta.revision) || state.revision;
+    updateCounts();
+    applyFilters();
+
+    const added = delta.added?.length || 0;
+    const updated = delta.updated?.length || 0;
+    const removed = delta.removed?.length || 0;
+    const errors = delta.errors?.length || 0;
+    el.summaryMessage.textContent = `自动同步 · +${added}  更新 ${updated}  移除 ${removed}`;
+    el.errorText.textContent = errors ? `${errors} 个监听/扫描错误` : '';
+    el.statusText.textContent = `文件监听已同步 · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`;
   }
 
   function selectEntry(path) {
@@ -211,8 +230,7 @@
     try {
       const payload = await invoke('scan_library', { root });
       setSnapshot(payload.snapshot, payload.delta);
-      const elapsed = Math.round(performance.now() - started);
-      el.statusText.textContent = `扫描完成 · ${elapsed} ms`;
+      el.statusText.textContent = `扫描完成并开始监听 · ${Math.round(performance.now() - started)} ms`;
     } catch (error) {
       el.errorText.textContent = String(error);
       el.statusText.textContent = '扫描失败';
@@ -226,12 +244,12 @@
       setBrowserPreview();
       return;
     }
-    setScanning(true, '刷新增量索引');
+    setScanning(true, '手动校验完整索引');
     const started = performance.now();
     try {
       const payload = await invoke('refresh_library');
       setSnapshot(payload.snapshot, payload.delta);
-      el.statusText.textContent = `刷新完成 · ${Math.round(performance.now() - started)} ms`;
+      el.statusText.textContent = `完整校验完成 · ${Math.round(performance.now() - started)} ms`;
     } catch (error) {
       el.errorText.textContent = String(error);
       el.statusText.textContent = '刷新失败';
@@ -308,10 +326,18 @@
 
   if (isTauri) {
     el.runtimeDot.classList.add('online');
-    el.runtimeLabel.textContent = 'Tauri / Rust';
+    el.runtimeLabel.textContent = 'Tauri / Rust · watcher';
     invoke('library_snapshot')
       .then((snapshot) => setSnapshot(snapshot))
       .catch(() => {});
+
+    if (typeof listen === 'function') {
+      listen('library-delta', (event) => applyDelta(event.payload)).catch(() => {});
+      listen('library-watch-error', (event) => {
+        el.errorText.textContent = String(event.payload || '文件监听失败');
+        el.statusText.textContent = '文件监听异常';
+      }).catch(() => {});
+    }
   } else {
     el.runtimeLabel.textContent = 'Browser preview';
     setBrowserPreview();
