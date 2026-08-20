@@ -13,7 +13,7 @@ import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
-import { RESOURCE_TYPE_LABELS } from "../../resource/types.ts";
+import { RESOURCE_TYPE_LABELS, resolveTypeSafe } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { t } from "../../../core/i18n/t.ts";
 import type { MenuControlDef, SceneCapability } from "../caps/scene-capability.ts";
@@ -990,9 +990,12 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       }
       shown.forEach((p) => {
         const isCur = norm(p) === norm(cur);
-        // 同类型（当前目录 tab 或类型 tab 与当前会话 rtype 一致）→ 可追加；
-        // 跨类型追加需换适配器（switchExternal 无 keepInScene 通道），不提供 ➕
-        const sameType = !viaType || activeTab === ctx.getCurrentRtype?.();
+        // 同类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型
+        // （resolveTypeSafe 解析，歧义扩展名/异类型不提供 ➕，防跨类型追加走错适配器）
+        const candType = resolveTypeSafe(p);
+        const sameType = viaType
+          ? activeTab === ctx.getCurrentRtype?.()
+          : !!candType && candType === ctx.getCurrentRtype?.();
         const row = document.createElement("div");
         row.className = "ysm-preview-menu-row";
         row.dataset.testid = "preview-switch-item";

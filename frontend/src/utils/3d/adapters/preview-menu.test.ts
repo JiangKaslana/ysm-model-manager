@@ -252,6 +252,7 @@ describe("mountPreviewRootMenu", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
       getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "ysm",
       switchTo,
     }));
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
@@ -261,6 +262,55 @@ describe("mountPreviewRootMenu", () => {
     const appendBtns = overlay.querySelectorAll('[data-testid="preview-switch-append"]');
     expect(appendBtns.length).toBe(1);
     (appendBtns[0] as HTMLElement).click();
+    expect(switchTo).toHaveBeenCalledWith("/m/b.ysm", { keepInScene: true });
+    handle.dispose();
+  });
+
+  it("switch 面板：当前目录 tab 跨类型兄弟行无 ➕（逐行类型判定）", () => {
+    const switchTo = vi.fn();
+    const switchExternal = vi.fn(async () => {});
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm", "/m/b.vrm"],
+      getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "ysm",
+      switchTo,
+      switchExternal,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    modelBtn!.click();
+    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
+    // /m/b.vrm 是跨类型兄弟：无 ➕；行本体点击走跨类型替换（switchExternal）
+    expect(overlay.querySelector('[data-testid="preview-switch-append"]')).toBeNull();
+    const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
+    (rows[1] as HTMLElement).click();
+    expect(switchExternal).toHaveBeenCalledWith("/m/b.vrm", ["/m/a.ysm", "/m/b.vrm"]);
+    handle.dispose();
+  });
+
+  it("switch 面板：类型 tab 同类型候选有 ➕，点击追加 → switchTo keepInScene", async () => {
+    const switchTo = vi.fn();
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm"],
+      getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "ysm",
+      getTypeTabs: () => ["ysm", "vrm"],
+      getModelsByType: async () => ["/m/b.ysm"],
+      switchTo,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    modelBtn!.click();
+    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
+    // 切到 ysm 类型 tab（与当前会话同类型）
+    const tabs = overlay.querySelectorAll('[data-testid="preview-switch-tab"]');
+    const ysmTab = Array.from(tabs).find((t) => (t as HTMLElement).dataset.rtype === "ysm") as HTMLElement;
+    ysmTab.click();
+    await vi.waitFor(() => {
+      expect(overlay.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(1);
+    });
+    // 同类型候选：有 ➕；点击追加 → keepInScene
+    const appendBtn = overlay.querySelector('[data-testid="preview-switch-append"]') as HTMLElement;
+    expect(appendBtn).not.toBeNull();
+    appendBtn.click();
     expect(switchTo).toHaveBeenCalledWith("/m/b.ysm", { keepInScene: true });
     handle.dispose();
   });
