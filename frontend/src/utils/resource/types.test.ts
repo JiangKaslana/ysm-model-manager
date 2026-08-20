@@ -29,7 +29,8 @@ describe("RESOURCE_TYPES 标签映射", () => {
       VRC: "vrchat-avatar",
       PACK: "resourcepack",
       SHADER: "shaderpack",
-      BLUEPRINT: "create-blueprint",
+      BLUEPRINT: "blueprint",
+      CREATE_BLUEPRINT: "create-blueprint",
       LITEMATIC: "litematic",
       MAID: "maid-model",
       MOD_MODEL: "mod-model", // ADR-105 软合并合集壳
@@ -49,7 +50,7 @@ describe("RESOURCE_TYPE_LABELS 显示标签", () => {
     expect(RESOURCE_TYPE_LABELS["ysm"]).toBe("YSM 模型");
     expect(RESOURCE_TYPE_LABELS["resourcepack"]).toBe("资源包");
     expect(RESOURCE_TYPE_LABELS["shaderpack"]).toBe("光影包");
-    expect(RESOURCE_TYPE_LABELS["create-blueprint"]).toBe("蓝图");
+    expect(RESOURCE_TYPE_LABELS["create-blueprint"]).toBe("蓝图/结构");
   });
 });
 
@@ -100,7 +101,7 @@ describe("AMBIGUOUS_EXTS 歧义扩展名集合", () => {
     expect(AMBIGUOUS_EXTS.has(".ysm")).toBe(false);
     expect(AMBIGUOUS_EXTS.has(".pmx")).toBe(false);
     expect(AMBIGUOUS_EXTS.has(".vrca")).toBe(false);
-    expect(AMBIGUOUS_EXTS.has(".nbt")).toBe(false);
+    expect(AMBIGUOUS_EXTS.has(".nbt")).toBe(true); // create-blueprint 壳与 blueprint 叶同声明 .nbt，歧义
   });
 
   it("与 resource_types.json 派生一致（新增类型自动纳入）", () => {
@@ -122,7 +123,7 @@ describe("resolveTypeSafe 安全解析", () => {
   it("单归属扩展名直接命中", () => {
     expect(resolveTypeSafe("model.ysm")).toBe("ysm");
     expect(resolveTypeSafe("avatar.pmx")).toBe("mmd-skin");
-    expect(resolveTypeSafe("build.nbt")).toBe("create-blueprint");
+    expect(resolveTypeSafe("build.nbt")).toBeNull(); // .nbt 同时属于 create-blueprint 壳与 blueprint 叶，歧义回退 Go
     expect(resolveTypeSafe("proj.litematic")).toBe("litematic");
   });
 
@@ -226,19 +227,20 @@ describe("GROUP_TYPE_OPTIONS — 子类型展开（ADR-105 软合并）", () => 
   it("create-blueprint 展开：蓝图→父 id、投影→独立 rtype litematic（路由精确）", () => {
     const mod = GROUP_TYPE_OPTIONS["minecraft-mod"] || [];
     const rtypes = mod.map((o) => o.rtype);
-    // 展开自父类型：mod-model→[ysm, maid-model]、create-blueprint→[create-blueprint(蓝图), litematic(投影)]
+    // 展开自父类型：mod-model→[ysm, maid-model]、create-blueprint→[blueprint(蓝图), litematic(投影)]
     expect(rtypes).toContain("ysm");
     expect(rtypes).toContain("maid-model");
-    expect(rtypes).toContain("create-blueprint");
+    expect(rtypes).toContain("blueprint");
     expect(rtypes).toContain("litematic");
-    // 父壳本身不平铺（mod-model 不单独出现）
+    // 父壳本身不平铺（mod-model/create-blueprint 不单独出现）
     expect(rtypes).not.toContain("mod-model");
+    expect(rtypes).not.toContain("create-blueprint");
     // 投影子选项 rtype 指向独立 rtype litematic（仓库侧 GetRepoRoot 路由正确）
     const proj = mod.find((o) => o.label === "投影");
     expect(proj).toEqual({ rtype: "litematic", label: "投影", subdir: "" });
-    // 蓝图子选项保留父 id + default 槽 subdir=""
+    // 蓝图子选项路由到独立 rtype blueprint（软合并：subtype name 匹配独立 id）
     const bp = mod.find((o) => o.label === "蓝图");
-    expect(bp).toEqual({ rtype: "create-blueprint", label: "蓝图", subdir: "" });
+    expect(bp).toEqual({ rtype: "blueprint", label: "蓝图", subdir: "" });
     // 模组模型合集子选项指向独立 rtype
     const ysm = mod.find((o) => o.label === "YSM 模型");
     expect(ysm).toEqual({ rtype: "ysm", label: "YSM 模型", subdir: "" });

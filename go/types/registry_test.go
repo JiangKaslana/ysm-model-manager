@@ -67,13 +67,13 @@ func TestExtBelongsTo(t *testing.T) {
 	// mmd/vrc/蓝图/投影/车万女仆 新增 .zip 包裹识别；ADR-105 mod-model/vanilla-assets
 	// 合集壳也声明容器扩展名；前端 AMBIGUOUS_EXTS 由此派生歧义集）
 	ids = ExtBelongsTo(".zip")
-	if len(ids) != 10 {
-		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 10 类（含 mod-model/vanilla-assets 合集壳）", ids)
+	if len(ids) != 11 {
+		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 11 类（含 mod-model/vanilla-assets 合集壳 + blueprint）", ids)
 	}
 	// 应包含全部类型（顺序不定）
 	expectedAll := map[string]bool{
 		"ysm": false, "resourcepack": false, "shaderpack": false,
-		"create-blueprint": false, "litematic": false,
+		"create-blueprint": false, "blueprint": false, "litematic": false,
 		"mmd-skin": false, "vrchat-avatar": false, "maid-model": false,
 		"mod-model": false, "vanilla-assets": false,
 	}

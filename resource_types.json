@@ -173,13 +173,11 @@
       "name": "蓝图 / 结构",
       "icon": "⚙️",
       "group": "minecraft-mod",
-      "storageSubDir": "schematics",
       "extensions": [
         ".nbt",
         ".schematic",
         ".zip"
       ],
-      "configField": "SchematicRoot",
       "installDir": "schematics/",
       "scanDir": "schematics",
       "instanceLevel": false,
@@ -212,6 +210,36 @@
           "installDir": "schematics/", "scanDir": "schematics"
         }
       ],
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
+    },
+    {
+      "id": "blueprint",
+      "name": "蓝图",
+      "icon": "⚙️",
+      "group": "minecraft-mod",
+      "storageSubDir": "schematics",
+      "extensions": [
+        ".nbt",
+        ".schematic",
+        ".zip"
+      ],
+      "installDir": "schematics/",
+      "scanDir": "schematics",
+      "instanceLevel": false,
+      "preview": "3d",
+      "detector": "zipentry",
+      "zipEntries": [
+        { "name": ".nbt", "match": "suffix" },
+        { "name": ".schematic", "match": "suffix" }
+      ],
+      "hashable": true,
+      "scanInstance": true,
+      "dirLevelSync": true,
+      "configField": "SchematicRoot",
       "actions": [
         "import",
         "delete",

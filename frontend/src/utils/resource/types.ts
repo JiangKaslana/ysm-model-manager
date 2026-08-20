@@ -12,7 +12,8 @@ export const RESOURCE_TYPES: Record<string, string> = {
   VRC: "vrchat-avatar",
   PACK: "resourcepack",
   SHADER: "shaderpack",
-  BLUEPRINT: "create-blueprint",
+  BLUEPRINT: "blueprint",
+  CREATE_BLUEPRINT: "create-blueprint",
   LITEMATIC: "litematic",
   MAID: "maid-model",
   MOD_MODEL: "mod-model", // ADR-105 软合并：模组模型合集壳（nav 展开 ysm/maid 子类型）
@@ -26,7 +27,8 @@ export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   "vrchat-avatar": "VRC",
   resourcepack: "资源包",
   shaderpack: "光影包",
-  "create-blueprint": "蓝图",
+  "create-blueprint": "蓝图/结构",
+  "blueprint": "蓝图",
   litematic: "投影",
   "maid-model": "车万女仆",
   "mod-model": "模组模型", // ADR-105 软合并合集壳（nav 展开用）
