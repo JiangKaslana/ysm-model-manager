@@ -511,7 +511,10 @@ mod tests {
 
         let outcome = move_to_recycle(&root.0, &model).unwrap();
         assert_eq!(outcome.before.file_name().unwrap(), "hero.ysm");
-        assert_eq!(outcome.after.parent().unwrap().file_name().unwrap(), RECYCLE_DIR);
+        assert_eq!(
+            outcome.after.parent().unwrap().file_name().unwrap(),
+            RECYCLE_DIR
+        );
         assert!(outcome.after.exists());
         assert!(!model.exists());
     }
