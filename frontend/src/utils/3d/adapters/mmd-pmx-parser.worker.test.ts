@@ -418,7 +418,11 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     w.push(0); // type = Spring6dof
     const writeIdx = (v: number): void => {
       if (ris === 2) { w.push(v & 0xff); w.push((v >> 8) & 0xff); }
-      else if (ris === 4) { w.int32(v); }
+      else if (ris === 4) {
+        // PMX 刚体索引为 u32——用无符号位运算写 4 字节（setInt32 对 ≥2^31 值抛 RangeError，
+        // 含 0xffffffff 无刚体哨兵；review P3）
+        w.push(v & 0xff); w.push((v >> 8) & 0xff); w.push((v >> 16) & 0xff); w.push((v >>> 24) & 0xff);
+      }
       else { w.push(v & 0xff); }
     };
     writeIdx(opts?.rbA ?? 0);
@@ -576,6 +580,18 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     expect(out.joints?.length).toBe(1);
     expect(out.joints![0].rigidBodyIndexA).toBe(0x0102);
     expect(out.joints![0].rigidBodyIndexB).toBe(0x7fff);
+  });
+
+  it("rigidBodyIndexSize=4：关节索引按 4 字节读（含 0xffffffff 位模式，锁 u32 无符号写 + 有符号读哨兵）", () => {
+    const jt = jointBytes({ rigidBodyIndexSize: 4, rbA: 0xffffffff, rbB: 0x00000100 });
+    const buf = buildPmx({ rigidBodyIndexSize: 4, joints: jt });
+    const out = parsePMX(buf);
+    expect(out.ok).toBe(true);
+    expect(out.joints?.length).toBe(1);
+    // 4 字节位模式 0xffffffff：权威按 getInt32 有符号读（babylon-mmd _getNonVertexIndex），
+    // PMX 无刚体哨兵 = -1。0x100 读回完整。
+    expect(out.joints![0].rigidBodyIndexA).toBe(-1);
+    expect(out.joints![0].rigidBodyIndexB).toBe(0x100);
   });
 
   it("编码字节 1=UTF-8：非 ASCII 名字正确解码（权威映射 0=UTF-16LE/1=UTF-8）", () => {
