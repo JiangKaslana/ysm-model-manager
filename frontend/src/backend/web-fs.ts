@@ -932,22 +932,22 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
         out.push(f);
         continue;
       }
+      // 安全审计：先用 sanitizeZipEntryPath 清洗路径，再判断公共前缀
+      // 避免恶意 zip 的 `..` 段干扰 findCommonTopDir（CodeReview 第五轮发现）
+      const sanitizedMetas = metas.map((m) => {
+        const { realName } = gbkDecodeEntry(m);
+        return { fflateKey: realName ? (sanitizeZipEntryPath(realName) ?? "") : "", _meta: m };
+      }).filter((m) => m.fflateKey !== "");
       // 检测 zip 内是否有公共顶层目录（如 "狐狸/ysm.json" → 公共前缀 "狐狸/"）
       // 扁平 zip（"ysm.json" + "models/main.json"）无公共前缀 → 用 zipStem 防碎片化
-      const topLevelDir = findCommonTopDir(metas);
+      const topLevelDir = findCommonTopDir(sanitizedMetas);
       const prefix = topLevelDir ? "" : f.name.replace(/\.zip$/i, "");
       const expanded: File[] = [];
-      for (const m of metas) {
+      for (const sm of sanitizedMetas) {
+        const m = sm._meta;
         const raw = entries[m.fflateKey];
         if (!raw) continue;
-        const { realName } = gbkDecodeEntry(m);
-        if (!realName || realName.endsWith("/")) continue;
-        // 安全审计：zip entry 路径穿越防护——恶意 zip 可含 `../` 段，
-        // 不经清洗直接用作 webkitRelativePath 会导致 IndexedDB key 逃出模型组命名空间
-        // （如 `file:ysm/stem/../../other/file` 与其他模型组 key 冲突 → 数据损坏）。
-        // 浏览器设置的 webkitRelativePath（文件夹拖入）不含 `..`，此防护仅针对 zip 解压路径
-        const sanitized = sanitizeZipEntryPath(realName);
-        if (!sanitized) continue; // 路径含 `..` 或绝对路径 → 跳过该条目
+        const sanitized = sm.fflateKey; // 已清洗路径
         // webkitRelativePath：有公共前缀则保留原样；扁平 zip 用 zipStem 作公共前缀
         // slice() 两用：① TS 泛型 Uint8Array<ArrayBufferLike>→Uint8Array<ArrayBuffer> 过 BlobPart 类型关；
         // ② 隔离 entries[m.fflateKey] 底层 buffer，防 File 与 entries 共享后被改写（内容竞态）
