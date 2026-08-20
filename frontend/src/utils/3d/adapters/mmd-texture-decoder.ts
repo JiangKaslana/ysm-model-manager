@@ -192,7 +192,10 @@ export function applyWorkerDecodedTextures(
       | { relPath: string; blobUrl: string }
       | undefined;
     if (pending) {
-      const decodedTex = decoded.get(pending.relPath);
+      // basename 兜底：PMX 存储平铺文件名("face.png")但磁盘在子目录("textures/face.png")时
+      // pendingTexture.relPath(PMX路径) 与 decodeTasks[].relPath(适配器计算的rel) 不匹配
+      const decodedTex = decoded.get(pending.relPath)
+        ?? decoded.get(pending.relPath.split("/").pop() ?? "");
       if (decodedTex) {
         const newTex = new THREE.Texture(decodedTex.bitmap);
         newTex.colorSpace = THREE.SRGBColorSpace;

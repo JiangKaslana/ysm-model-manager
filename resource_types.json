@@ -7,6 +7,7 @@
       "group": "minecraft",
       "groupLabel": "Minecraft 原版",
       "groupIcon": "⛏️",
+      "storageSubDir": "resourcepacks",
       "extensions": [".zip", ".7z"],
       "configField": "ResourcepackRoot",
       "installDir": "resourcepacks/",
@@ -103,6 +104,7 @@
       "group": "minecraft-mod",
       "groupLabel": "Minecraft 模组",
       "groupIcon": "🧩",
+      "storageSubDir": "mod-models",
       "extensions": [".zip", ".7z"],
       "configField": "MmdRoot",
       "installDir": "versions/{instance}/mod-model/",
@@ -142,6 +144,7 @@
       "name": "YSM 模型",
       "icon": "💎",
       "group": "minecraft-mod",
+      "storageSubDir": "ysm",
       "extensions": [
         ".ysm",
         ".zip",
@@ -172,6 +175,7 @@
       "name": "蓝图 / 结构",
       "icon": "⚙️",
       "group": "minecraft-mod",
+      "storageSubDir": "schematics",
       "extensions": [
         ".nbt",
         ".schematic",
@@ -248,6 +252,7 @@
       "name": "车万女仆模型",
       "icon": "🧸",
       "group": "minecraft-mod",
+      "storageSubDir": "tlm_custom_pack",
       "extensions": [
         ".zip"
       ],

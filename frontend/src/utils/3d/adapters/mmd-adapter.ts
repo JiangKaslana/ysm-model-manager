@@ -544,6 +544,9 @@ export async function buildMmdScene(
         if (replaced > 0) {
           await mmdDiag(port, "tex-decode-apply", path, "ok",
             `worker-decoded=${replaced}/${total} textures (${decoded.size} bitmaps from workers)`);
+        } else {
+          await mmdDiag(port, "tex-decode-apply", path, "warn",
+            `decoded=${decoded.size} bitmaps but replaced=0 (PMX路径与磁盘路径可能不匹配, pendingTexture keys=[...查环形日志tex-decode-dispatch])`);
         }
       }
     } catch {
