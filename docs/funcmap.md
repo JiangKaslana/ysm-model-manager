@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 136 | 528 |
+| 前端·工具 | 136 | 529 |
 | frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **429** | **1847** |
+| **合计** | **429** | **1848** |
 
 ## Go·头像
 
@@ -1272,12 +1272,13 @@
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:83` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:109` | — |
 | `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:119` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:160` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:165` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:179` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:184` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:189` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:205` | — |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:163` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:168` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
+| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:182` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:194` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:200` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:205` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:221` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |

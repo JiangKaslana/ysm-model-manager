@@ -324,8 +324,8 @@ function resetGlobalMocks() {
   fakeAppendChild.mockImplementation((child: any) => child);
 }
 
-beforeEach(resetGlobalMocks);
-afterEach(resetGlobalMocks);
+beforeEach(() => { resetGlobalMocks(); _resetSingletons(); });
+afterEach(() => { resetGlobalMocks(); _resetSingletons(); });
 
 // ── 测试辅助：构造最小 PreviewAdapter ────────────────────────────────────
 function makeAdapter(opts: {
@@ -378,6 +378,7 @@ import {
   switchPreview,
   invalidatePreview,
   hasActivePreview,
+  _resetSingletons,
   type PreviewAdapter,
   type Mount3DOptions,
 } from "../mount-preview-core.ts";

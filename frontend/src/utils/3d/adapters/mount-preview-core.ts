@@ -140,37 +140,65 @@ const PER_FRAME_WARN_MS = 50;
 /** 告警节流间隔：持续超阈值帧最多每 N ms 报一条，防刷屏加重卡顿 */
 const PER_FRAME_WARN_THROTTLE_MS = 5000;
 
-let _handle: PreviewHandle | null = null;
 let _gen = 0;
-/** 上一会话的 scene（用于增量清理，避免 cleanupPreview 销毁 renderer 导致黑屏） */
-let _lastScene: THREE.Scene | null = null;
-let _lastSceneBaseline: Set<THREE.Object3D> | null = null;
 /** 上次 perFrame 告警时间戳（节流用） */
 let _lastPerFrameWarnTs = 0;
 
+/** 模块级全局 overlay（仅 cleanupPreview 时才移除，多次 mount3D 复用同一 DOM） */
+let _singletonOverlay: HTMLElement | null = null;
+let _singletonBody: HTMLElement | null = null;
+/** 共享 scene（所有模型共用一个 scene，不同格式模型叠加在同一 WebGL context） */
+let _singletonScene: THREE.Scene | null = null;
+/** 共享 camera / renderer / controls（第一次 mount3D 创建，后续复用） */
+let _singletonCamera: THREE.PerspectiveCamera | null = null;
+let _singletonRenderer: THREE.WebGLRenderer | null = null;
+let _singletonControls: OrbitControls | null = null;
+/** 所有已挂载的 PreviewHandle（cooperate 模式下多模型各自独立） */
+const _handles: Array<{ handle: PreviewHandle; gen: number }> = [];
+/** rAF 全局唯一标识和 perFrame 回调列表（共享同一 renderer） */
+let _globalAnimId = 0;
+let _globalPerFrames: Array<(dt: number) => void> = [];
+
 /** 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） */
-  // ===== §2 公开 API =====
-  export function invalidatePreview(): void {
+export function invalidatePreview(): void {
   _gen++;
 }
 
-/** 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */
+/** 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） */
 export function cleanupPreview(): void {
-  _gen++; // 作废在途加载
-  if (_handle) {
-    _handle.cleanup();
-    _handle = null;
+  _gen++;
+  for (const h of _handles) {
+    try { h.handle.cleanup(); } catch (_) {}
   }
+  _handles.length = 0;
+  // renderer/canvas/overlay 保留（下次 mount3D 直接复用，不重建 DOM）
+  _singletonScene = null;
+  _singletonCamera = null;
+  _singletonRenderer = null;
+  _singletonControls = null;
+}
+
+/** 测试用：重置所有模块级单例状态（不影响生产代码路径） */
+export function _resetSingletons(): void {
+  _singletonOverlay = null;
+  _singletonBody = null;
+  _singletonScene = null;
+  _singletonCamera = null;
+  _singletonRenderer = null;
+  _singletonControls = null;
+  _globalAnimId = 0;
+  _globalPerFrames.length = 0;
 }
 
 /** 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op */
 export async function switchPreview(path: string, options?: { keepInScene?: boolean }): Promise<void> {
-  await _handle?.switchTo?.(path, options);
+  const active = _handles[_handles.length - 1];
+  await active?.handle.switchTo?.(path, options);
 }
 
 /** 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） */
 export function hasActivePreview(): boolean {
-  return _handle !== null;
+  return _handles.length > 0;
 }
 
 /** mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） */
@@ -192,15 +220,8 @@ export interface Mount3DOptions {
 
 export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount3DOptions = {}): Promise<void> {
   const cooperate = opts.cooperate === true;
-  // 复用外壳（renderer/canvas/overlay 存活），只清理内容层，避免重建 DOM 导致黑屏窗口期。
-  // cleanupPreview() 会 dispose renderer + 移除 overlay，重建期间 canvas 消失→黑屏。
-  // 此处只做增量清理：dispose built + 移除旧 scene children，renderer 保持运行不闪烁。
-  if (!cooperate && _lastScene && _lastSceneBaseline) {
-    const stale = _lastScene.children.filter((c): boolean => !_lastSceneBaseline!.has(c));
-    for (const c of stale) _lastScene.remove(c);
-  }
-  // 🥉 ui/ 库样式（light-DOM 场景）：overlay 是 document.body 下的普通 DOM 非 shadow，
-  // 注入一次即可让声明式根菜单控件用上 mode-btn/setting-select 透明样式（幂等，§19）
+  // 复用单例外壳（renderer/canvas/overlay/scene 存活），首次 mount3D 创建，后续复用。
+  // cooperate=true 时多个模型叠加在同一 scene；cooperate=false 时先清除旧模型再加载新模型。
   installUiComponentsStyles();
   const myGen = ++_gen;
   const selfMode = adapter.mode === "self";
@@ -238,7 +259,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   // 保留 PostprocessingManager 引用做回退（外部 cleanupCtx 老字段兼容）。接口一致：render/setSize/dispose
   let postProc: PostprocessingLike | null = null;
   let postProcCap: PostprocessingCapability | null = null;
-  let animId = 0;
   let perFrame: ((dt: number) => void) | null = null;
   let onKeyDown: (e: KeyboardEvent) => void = () => {};
   let onKeyUp: (e: KeyboardEvent) => void = () => {};
@@ -249,11 +269,22 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   // R1-P2-1：提升为 let，使 cleanupCtx（块外构建）可访问 click 处理器
   let onUnifiedPick: ((e: MouseEvent) => void) | null = null;
 
-  const overlay = document.createElement("div");
-  overlay.id = "ysm-overlay-3d"; // 对齐旧 skeleton overlay 定位（测试/样式钩子）
-  overlay.style.cssText =
-    "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#1a1b2e;display:flex;flex-direction:column";
-  document.body.appendChild(overlay);
+  // 单例外壳：首次创建，后续 mount3D 复用同一 DOM（避免重建导致黑屏）
+  let overlay = _singletonOverlay;
+  let body = _singletonBody;
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "ysm-overlay-3d";
+    overlay.style.cssText =
+      "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#1a1b2e;display:flex;flex-direction:column";
+    document.body.appendChild(overlay);
+    body = document.createElement("div");
+    body.style.cssText = "flex:1;display:flex;position:relative;overflow:hidden";
+    overlay.appendChild(body);
+    _singletonOverlay = overlay;
+    _singletonBody = body;
+  }
+  // viewContainer 始终追加到 body（共享受单例 body）
 
   // 顶栏已移除（ADR-076 v2，用户 2026-08-16 决策）：预览控件全部收进
   // 声明式根菜单（⚙️ 按钮 → mountPreviewRootMenu），彻底告别顶栏滑块垃圾。
@@ -277,16 +308,15 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getSpeed: () => camSpeed,
     setSpeed: (n: number) => { camSpeed = n; },
     // built 在 try 块内声明，此处经模块级 _handle（PreviewHandle 含 resetCamera? 契约）延迟调用
-    reset: () => { _handle?.resetCamera?.(); },
+    reset: () => { _handles[_handles.length - 1]?.handle.resetCamera?.(); },
   };
 
-  // 主体：body(flex row) 内放 viewContainer
-  const body = document.createElement("div");
-  body.style.cssText = "flex:1;display:flex;flex-direction:row;position:relative;overflow:hidden";
-  const viewContainer = document.createElement("div");
-  viewContainer.style.cssText = "flex:1;position:relative;overflow:hidden";
-  body.appendChild(viewContainer);
-  overlay.appendChild(body);
+  // viewContainer：共享受单例 body，每次 mount3D 追加一个新的（多模型叠加）
+  const newContainer = document.createElement("div");
+  newContainer.className = "preview-view-container";
+  newContainer.style.cssText = "flex:1;position:relative;overflow:hidden";
+  body!.appendChild(newContainer);
+  const viewContainer = newContainer;
 
   // 声明式根菜单（⚙️）：core 在 overlay 内自建（预览全屏盖住 app 外壳，主程序 nav.settings 够不着），
   // 全部控件以 CORE_MENU_ITEMS + 适配器注入项表驱动渲染（preview-menu-defs.ts），
@@ -308,7 +338,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       else closeOverlay();
     },
     switchTo: (p: string, options?: { keepInScene?: boolean }) => {
-      void _handle?.switchTo?.(p, options);
+      const active = _handles[_handles.length - 1];
+      void active?.handle.switchTo?.(p, options);
     },
     switchExternal: opts.switchExternal ? (p: string, s?: string[]): void => { void opts.switchExternal!(p, s); } : undefined,
   });
@@ -332,26 +363,39 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   function closeOverlay(): void {
     aborted = true;
     document.removeEventListener("keydown", escH);
-    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    _handle = null;
+    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    // 从模块级 handles 列表移除当前 session
+    const idx = _handles.findIndex(h => h.gen === myGen);
+    if (idx >= 0) _handles.splice(idx, 1);
     adapter.onClose?.();
   }
   document.addEventListener("keydown", escH);
 
   if (!selfMode) {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color("#1a1b2e");
-    camera = new THREE.PerspectiveCamera(
-      50,
-      viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1),
-      0.05,
-      5000,
-    );
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.domElement.style.touchAction = "none"; // ADR-047：触屏拖拽旋转需禁手势默认
-    viewContainer.appendChild(renderer.domElement);
+    // 复用单例 scene（多模型共享同一场景）
+    if (!_singletonScene) {
+      _singletonScene = new THREE.Scene();
+      _singletonScene.background = new THREE.Color("#1a1b2e");
+    }
+    scene = _singletonScene;
+    // 复用单例 camera（多模型共用同一相机，controls 控制同一套）
+    const ar = viewContainer.clientWidth / Math.max(viewContainer.clientHeight, 1);
+    if (!_singletonCamera) {
+      _singletonCamera = new THREE.PerspectiveCamera(50, ar, 0.05, 5000);
+    } else {
+      _singletonCamera.aspect = ar;
+      _singletonCamera.updateProjectionMatrix();
+    }
+    camera = _singletonCamera;
+    // 复用单例 renderer（唯一 WebGL context）
+    if (!_singletonRenderer) {
+      _singletonRenderer = new THREE.WebGLRenderer({ antialias: true });
+      _singletonRenderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+      _singletonRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      _singletonRenderer.domElement.style.touchAction = "none";
+      viewContainer.appendChild(_singletonRenderer.domElement);
+    }
+    renderer = _singletonRenderer;
     // 程序化能力（ADR-073 L1 + 统一注册表）：由 registry 统一创建并持久化
     const caps = sceneCapabilityRegistry.createAll({ scene, renderer, camera });
     skyCap = (sceneCapabilityRegistry.getById("sky") as SkyCapability) ?? null;
@@ -397,14 +441,18 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // ADR-085 S3：caps 创建后触发 refreshDock()，修复 litematic/pack 的 environment 项时序缺失
     // （菜单先于 caps 挂载，挂载时 requiresEnvironment 被过滤；此处重渲染补回）
     menuHandle.refreshDock();
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.minDistance = 0.1;
-    controls.maxDistance = 5000;
-    controls.update();
-    orbitTarget = (controls as OrbitControls).target.clone();
-    controls.enableRotate = true;
+    // 复用单例 controls（多模型共用同一套相机控制）
+    if (!_singletonControls) {
+      _singletonControls = new OrbitControls(camera, renderer.domElement);
+      _singletonControls.enableDamping = true;
+      _singletonControls.dampingFactor = 0.1;
+      _singletonControls.minDistance = 0.1;
+      _singletonControls.maxDistance = 5000;
+      _singletonControls.update();
+      orbitTarget = (_singletonControls as OrbitControls).target.clone();
+      _singletonControls.enableRotate = true;
+    }
+    controls = _singletonControls;
 
     // ===== §4a 输入绑定（WASD 键盘 + 拖拽自转 + resize）=====
     const inputOpts: InputOptions = {
@@ -478,60 +526,73 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     const _up = new THREE.Vector3(0, 1, 0);
     const _right = new THREE.Vector3();
     const _move = new THREE.Vector3();
-    // ===== §4b rAF 渲染管线（animate loop + postprocess composer）=====
-  function animate(): void {
-      if (isDisposed.v) return;
-      animId = requestAnimationFrame(animate);
-      const now = performance.now();
-      const dt = Math.min((now - lastTime) / 1000, 0.1);
-      lastTime = now;
-      // 推进水面波纹动画（wetness>0 时 visible）
-      groundCap?.update(dt);
-      const cam = camera as THREE.PerspectiveCamera;
-      const sc = scene as THREE.Scene;
-      const rd = renderer as THREE.WebGLRenderer;
-      const ctr = controls as OrbitControls;
-      const ot = orbitTarget as THREE.Vector3;
-      cam.getWorldDirection(_camDir);
-      _forward.set(_camDir.x, 0, _camDir.z).normalize();
-      _right.crossVectors(_forward, _up).normalize();
-      _move.set(0, 0, 0);
-      if (keys["w"] || keys["arrowup"]) _move.add(_forward);
-      if (keys["s"] || keys["arrowdown"]) _move.sub(_forward);
-      if (keys["a"] || keys["arrowleft"]) _move.sub(_right);
-      if (keys["d"] || keys["arrowright"]) _move.add(_right);
-      if (keys[" "]) _move.y += 1;
-      if (keys["shift"]) _move.y -= 1;
-      if (_move.length() > 0) {
-        _move.normalize().multiplyScalar(camSpeed * dt);
-        cam.position.add(_move);
-        if (orbitMode) ot.add(_move);
+    // ===== §4b rAF 渲染管线（全局唯一 loop，所有 session 共享同一 renderer）=====
+    // 首个 session 启动 loop，后续 session 追加 perFrame 回调；cleanupPreview 停止
+    if (_globalAnimId === 0) {
+      let lastTime = performance.now();
+      // rAF 每帧复用 Vector3 实例，避免 5 次 GC 分配（R1-P1-1）
+      const _camDir = new THREE.Vector3();
+      const _forward = new THREE.Vector3();
+      const _up = new THREE.Vector3(0, 1, 0);
+      const _right = new THREE.Vector3();
+      const _move = new THREE.Vector3();
+      function animate(): void {
+        _globalAnimId = requestAnimationFrame(animate);
+        const now = performance.now();
+        const dt = Math.min((now - lastTime) / 1000, 0.1);
+        lastTime = now;
+        // 推进水面波纹动画（wetness>0 时 visible）
+        const activeSession = _handles[_handles.length - 1];
+        groundCap?.update(dt);
+        const cam = camera as THREE.PerspectiveCamera;
+        const sc = scene as THREE.Scene;
+        const rd = renderer as THREE.WebGLRenderer;
+        const ctr = controls as OrbitControls;
+        const ot = orbitTarget as THREE.Vector3;
+        cam.getWorldDirection(_camDir);
+        _forward.set(_camDir.x, 0, _camDir.z).normalize();
+        _right.crossVectors(_forward, _up).normalize();
+        _move.set(0, 0, 0);
+        if (keys["w"] || keys["arrowup"]) _move.add(_forward);
+        if (keys["s"] || keys["arrowdown"]) _move.sub(_forward);
+        if (keys["a"] || keys["arrowleft"]) _move.sub(_right);
+        if (keys["d"] || keys["arrowright"]) _move.add(_right);
+        if (keys[" "]) _move.y += 1;
+        if (keys["shift"]) _move.y -= 1;
+        if (_move.length() > 0) {
+          _move.normalize().multiplyScalar(camSpeed * dt);
+          cam.position.add(_move);
+          if (orbitMode) ot.add(_move);
+        }
+        if (orbitMode && ctr && ot) {
+          ctr.target.copy(ot);
+          ctr.update();
+          ot.copy(ctr.target);
+        } else if (ctr && cam) {
+          ctr.target.copy(cam.position).addScaledVector(_camDir, 10);
+          ctr.update();
+        }
+        // 驱动所有 session 的 perFrame 回调
+        for (const fn of _globalPerFrames) {
+          const pfStart = performance.now();
+          try { fn(dt); } catch (_) {}
+          const pfMs = performance.now() - pfStart;
+          const pfNow = performance.now();
+          if (pfMs > PER_FRAME_WARN_MS && pfNow - _lastPerFrameWarnTs > PER_FRAME_WARN_THROTTLE_MS) {
+            _lastPerFrameWarnTs = pfNow;
+            logWarn("perFrame", `阻塞 ${pfMs.toFixed(1)}ms (>${PER_FRAME_WARN_MS}ms 阈值)`);
+          }
+        }
+        // 视锥裁剪
+        cullModelGroups(cam);
+        // ADR-081 L2：后处理体积光管线
+        const rendered = postProc ? postProc.render(dt, lightCap) : false;
+        if (!rendered) rd.render(sc, cam);
       }
-      if (orbitMode) {
-        ctr.target.copy(ot);
-        ctr.update();
-        ot.copy(ctr.target);
-      } else {
-        ctr.target.copy(cam.position).addScaledVector(_camDir, 10);
-        ctr.update();
-      }
-      // perFrame 回调阈值告警（仅测回调段耗时，非整帧——cull/postProc/render 不纳入）；
-      // 节流：持续超阈值帧最多每 PER_FRAME_WARN_THROTTLE_MS 报一条，防低端机刷屏
-      const pfStart = performance.now();
-      if (perFrame) perFrame(dt);
-      const pfMs = performance.now() - pfStart;
-      const pfNow = performance.now();
-      if (pfMs > PER_FRAME_WARN_MS && pfNow - _lastPerFrameWarnTs > PER_FRAME_WARN_THROTTLE_MS) {
-        _lastPerFrameWarnTs = pfNow;
-        logWarn("perFrame", `阻塞 ${pfMs.toFixed(1)}ms (>${PER_FRAME_WARN_MS}ms 阈值)`);
-      }
-      // 视锥裁剪：Group 级 BoundingSphere 测试，visible=false 后 Three.js 跳过整组遍历
-      cullModelGroups(cam);
-      // ADR-081 L2：后处理体积光管线——委托 PostprocessingManager
-      const rendered = postProc ? postProc.render(dt, lightCap) : false;
-      if (!rendered) rd.render(sc, cam);
+      animate();
     }
-    animate();
+    // 注册本 session 的 perFrame 回调
+    if (perFrame) _globalPerFrames.push(perFrame);
   }
 
   // 操作提示条（自动消失，两种模式通用）
@@ -555,7 +616,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   const cleanupCtx: CleanupContext = {
     menuHandle,
     isDisposed,
-    animId,
+    animId: _globalAnimId,
     onKeyDown,
     onKeyUp,
     getEscH: () => escH,
@@ -580,7 +641,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     scene,
     controls,
     overlay,
-    nullHandle: () => { _handle = null; },
+    nullHandle: () => {
+      const idx = _handles.findIndex(h => h.gen === myGen);
+      if (idx >= 0) _handles.splice(idx, 1);
+    },
     adapter,
     getTipTimeoutId: () => tipTimeoutId,
   };
@@ -610,7 +674,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getCurrentRtype: () => opts.rtype ?? adapter.id,
     getPerFrame: () => perFrame,
     setPerFrame: (f) => { perFrame = f; },
-    getHandle: () => _handle,
+    getHandle: () => _handles[_handles.length - 1]?.handle ?? null,
     aborted,
     isDisposed,
     myGen,
@@ -622,8 +686,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     if (myGen !== _gen) return;
 
     if (scene) sceneBaseline = new Set(scene.children);
-    // 暂存上次的 scene + baseline，供下次 mount3D 增量清理（避免 fullCleanup 销毁 renderer 导致黑屏）
-    if (scene) { _lastScene = scene; _lastSceneBaseline = sceneBaseline; }
     built = await adapter.build(
       {
         scene,
@@ -637,7 +699,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         menu: menuHandle,
         // 延迟闭包：build 时 _handle 尚未赋值，菜单点击（build 之后）时已就绪；
         // 无活跃会话时 no-op（与 switchPreview 同口径）
-        switchTo: (p: string, options?: { keepInScene?: boolean }): Promise<void> => _handle?.switchTo?.(p, options) ?? Promise.resolve(),
+        switchTo: (p: string, options?: { keepInScene?: boolean }): Promise<void> => {
+          const active = _handles[_handles.length - 1];
+          return active?.handle.switchTo?.(p, options) ?? Promise.resolve();
+        },
       },
       path,
     );
@@ -695,7 +760,31 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // ADR-076 v2 Phase 3：适配器控件全部经声明式根菜单注入（ctx.menu.setAdapterItems / built.menuItems）
     // 不再有 topBar 或 sidePanel 额外挂载
 
-    function fullCleanup(): void { runFullCleanup(cleanupCtx); _lastScene = null; _lastSceneBaseline = null; }
+    function fullCleanup(): void {
+      // 只清理内容层（dispose built + 移除 scene children），保留 renderer/canvas/overlay 存活
+      // 避免销毁 WebGL context 导致黑屏窗口期
+      if (scene && sceneBaseline) {
+        const stale = scene.children.filter((c): boolean => !sceneBaseline!.has(c));
+        for (const c of stale) scene.remove(c);
+      }
+      for (const b of allBuilt) {
+        try { b.dispose(); } catch (_) {}
+      }
+      allBuilt.length = 0;
+      sceneRegistry.reset();
+      // 清掉 loadingEl
+      if (loadingEl.parentNode) loadingEl.remove();
+      // 从全局 perFrame 回调列表移除本 session
+      if (perFrame) {
+        const idx = _globalPerFrames.indexOf(perFrame);
+        if (idx >= 0) _globalPerFrames.splice(idx, 1);
+      }
+      // 如果所有 session 都清理完了，停止 rAF
+      if (_globalPerFrames.length === 0) {
+        cancelAnimationFrame(_globalAnimId);
+        _globalAnimId = 0;
+      }
+    }
 
     // 审核 #2：复用 escH 可变引用，switchTo 后旧 handler 被替换，新 handler 在 cleanup 时通过 getter 正确卸载
     // R1-P1-2：先保存旧引用再替换，否则 removeEventListener 移除的是新函数（从未注册过），旧函数仍残留
@@ -706,7 +795,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     document.removeEventListener("keydown", oldEscH);
     document.addEventListener("keydown", escH);
     cleanupFn = fullCleanup;
-    _handle = {
+    const sessionHandle = {
       cleanup: fullCleanup,
       resetCamera: built.resetCamera,
       setRotationMode: built.setRotationMode,
@@ -716,8 +805,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       screenshot: built.screenshot,
       // 当前会话内切换模型：复用外壳（renderer/rAF/controls/灯光）重建内容层（ADR-066 §5.6）
       // 支持 keepInScene 模式：true 时不移除旧模型，新模型追加到同一场景（多模型同台）
-      switchTo: (newPath, options) => switchToSession(switchCtx, newPath, options),
+      switchTo: (newPath: string, options?: { keepInScene?: boolean }) => switchToSession(switchCtx, newPath, options),
     };
+    _handles.push({ handle: sessionHandle, gen: myGen });
   } catch (e) {
     document.removeEventListener("keydown", escH);
     built?.dispose();
