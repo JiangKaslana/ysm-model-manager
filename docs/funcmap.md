@@ -1967,8 +1967,8 @@
 | `placeholderHTML()` | `frontend/src/views/app-resource-manager/tpl:159` | 空状态占位 |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:159` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:192` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:166` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:199` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |

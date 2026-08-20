@@ -91,6 +91,7 @@ export function bindCardEvents(
       // 读 localStorage 恢复选中并比对 emitKey；若此处不更新 _lastEmittedPkg，去重恒真失效，
       // reload 后再次 emit package:selected，app-content 反复重建 <app-sync-manager>
       // （丢用户状态/闪烁回归）。
+      // 点击允许 fallback 到 YSM（预览/选择无害），与右键拒绝 fallback 形成对称设计
       _lastEmittedPkg =
         (st.instances[0]?.rtype || RESOURCE_TYPES.YSM) + ":" + pkg.name;
       try {
@@ -115,9 +116,15 @@ export function bindCardEvents(
     // 否则 MMD/VRC 等其他类型的整合包右键会按 YSM 逻辑处理，
     // 导致打开错误目录（config/yes_steve_model/custom 而非 3d-skin/EntityPlayer）
     // 或导出/清空错误的文件列表。
+    // ⚠️ 设计意图：点击路径允许 fallback（预览无害），右键路径拒绝 fallback（操作危险）。
     const rtype = pkg.rtype || "";
     if (!rtype) {
-      console.error("[sidebar] 右键菜单缺少 rtype，实例:", name, "dir:", pkg.dir);
+      bus.emit("toast:show", {
+        msg: "❌ 整合包数据异常，缺少类型信息",
+        duration: 3000,
+        type: "error",
+      });
+      console.warn("[sidebar] 右键菜单缺少 rtype，实例:", name, "dir:", pkg.dir);
       return;
     }
     bus.emit("ctx:show", {
