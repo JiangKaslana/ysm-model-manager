@@ -5,6 +5,7 @@ on:
     paths:
       - 'rust-core/**'
       - 'rust-index/**'
+      - 'rust-fileops/**'
       - 'desktop-next/**'
       - 'resource_types.json'
       - '.github/workflows/rust-next.yml'
@@ -12,6 +13,7 @@ on:
     paths:
       - 'rust-core/**'
       - 'rust-index/**'
+      - 'rust-fileops/**'
       - 'desktop-next/**'
       - 'resource_types.json'
       - '.github/workflows/rust-next.yml'
@@ -37,6 +39,30 @@ jobs:
           key: rust-index-${{ runner.os }}-${{ hashFiles('rust-index/Cargo.toml', 'rust-core/Cargo.toml', 'resource_types.json') }}
           restore-keys: |
             rust-index-${{ runner.os }}-
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  fileops:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: rust-fileops
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Cache Rust fileops build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust-fileops/target
+          key: rust-fileops-${{ runner.os }}-${{ hashFiles('rust-fileops/Cargo.toml') }}
+          restore-keys: |
+            rust-fileops-${{ runner.os }}-
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
@@ -67,7 +93,7 @@ jobs:
             ~\.cargo\registry
             ~\.cargo\git
             desktop-next\src-tauri\target
-          key: tauri-next-${{ runner.os }}-${{ hashFiles('desktop-next/src-tauri/Cargo.toml', 'rust-index/Cargo.toml', 'rust-core/Cargo.toml', 'resource_types.json') }}
+          key: tauri-next-${{ runner.os }}-${{ hashFiles('desktop-next/src-tauri/Cargo.toml', 'rust-fileops/Cargo.toml', 'rust-index/Cargo.toml', 'rust-core/Cargo.toml', 'resource_types.json') }}
           restore-keys: |
             tauri-next-${{ runner.os }}-
       - name: Rust formatting
