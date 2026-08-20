@@ -351,6 +351,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
+    // roles 加入 model 组后 dock 先入组根视图，点击 switch 行进入面板
+    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
@@ -366,6 +368,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     // 点击 model 打开 switch 面板，应显示空态文字，路径输入框保留（P2-1 补回）
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     modelBtn!.click();
+    // roles 加入 model 组后 dock 先入组根视图，点击 switch 行进入面板
+    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     expect(popup.textContent).toContain("无其他模型");

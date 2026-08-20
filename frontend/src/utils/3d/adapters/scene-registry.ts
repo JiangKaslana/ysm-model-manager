@@ -17,8 +17,8 @@ interface MenuItemsSink {
   setAdapterItems(items: PreviewMenuItemDef[]): void;
 }
 
-/** 单条模型记录 */
-interface ModelEntry {
+/** 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） */
+export interface ModelEntry {
   id: string;
   path: string;
   /** 资源类型（如 ysm/mmd-skin/vrchat-avatar），取自 opts.rtype ?? adapter.id */

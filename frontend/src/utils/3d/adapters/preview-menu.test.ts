@@ -211,6 +211,8 @@ describe("mountPreviewRootMenu", () => {
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
+    // roles 加入 model 组后 dock 先入组根视图，点击 switch 行进入面板
+    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     // 空态提示
@@ -230,6 +232,8 @@ describe("mountPreviewRootMenu", () => {
     }));
     const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
     modelBtn!.click();
+    // roles 加入 model 组后 dock 先入组根视图，点击 switch 行进入面板
+    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     // 兄弟项渲染

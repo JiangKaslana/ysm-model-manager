@@ -19,6 +19,7 @@ import { t } from "../../../core/i18n/t.ts";
 import type { MenuControlDef, SceneCapability } from "../caps/scene-capability.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 import { ENV_PRESET_LINKAGE, type EnvPresetId } from "../caps/environment-capability.ts";
+import { sceneRegistry, type ModelEntry } from "./scene-registry.ts";
 import type { FogCapability } from "../caps/fog-capability.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
@@ -43,6 +44,8 @@ export interface PreviewMenuCtx {
   /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标，由 app 层 openModel3DFullscreen 提供）。
    *  第二参透传 siblings，切换后新会话「当前目录」tab 有候选（P1-2） */
   switchExternal?: (path: string, siblings?: string[]) => Promise<void> | void;
+  /** 卸载已加载角色（mount3D 注入：移除 roots + dispose + 注册表注销 + 相机重算） */
+  unloadRole?: (id: string) => void;
 }
 
 /** i18n 安全取值：键缺失时回退，杜绝菜单项退化显示原始键名 */
@@ -529,6 +532,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     environment: (list, _menu) => fillEnvironment(list, ctx, menu),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
     switch: (list) => fillSwitch(list, ctx, hideMenu),
+    roles: (list, menu) => fillRoles(list, ctx, hideMenu, makeRow, makePanelView, menu!),
     lighting: (list) => fillLighting(list, ctx),
     shadow: (list) => fillShadow(list, ctx),
     postproc: (list) => fillPostprocessing(list, ctx),
@@ -1056,6 +1060,138 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
   btn.onclick = goByPath;
   inputRow.append(input, btn);
   list.appendChild(inputRow);
+}
+
+/**
+ * 角色面板（MikuMikuAR buildModelRootItems 移植，2026-08-20）：
+ * 顶部列出已加载角色（sceneRegistry），行首 radio 切换焦点、点名字进详情
+ * （按该角色 menuItems 的 model 组 panel 能力显示——vrm/mmd/ysm 各显所能，
+ * 间接解决不同格式可查看内容不一致的问题）、行尾 ⚙ 进工具面板（卸载角色，
+ * 少用但重要）；底部复用 fillSwitch 加载入口（siblings + 类型 tab + 手动路径）。
+ */
+function fillRoles(
+  list: HTMLElement,
+  ctx: PreviewMenuCtx,
+  closePopup: () => void,
+  makeRow: (def: PreviewMenuItemDef, opts?: { chevron?: boolean }) => HTMLElement,
+  makePanelView: (def: PreviewMenuItemDef) => SlideMenuView,
+  menu: SlideMenuHandle,
+): void {
+  list.innerHTML = "";
+  const base = (e: ModelEntry): string => e.path.split(/[/\\]/).pop() || e.path;
+
+  // ---- 角色列表区（radio 焦点 + 名字详情 + ⚙ 工具）----
+  const rolesBox = document.createElement("div");
+  rolesBox.dataset.testid = "preview-roles-list";
+  rolesBox.style.cssText = "max-height:220px;overflow-y:auto";
+  list.appendChild(rolesBox);
+
+  const renderRoles = (): void => {
+    rolesBox.innerHTML = "";
+    const entries = sceneRegistry.getAll();
+    if (entries.length === 0) {
+      const empty = document.createElement("div");
+      empty.dataset.testid = "preview-roles-empty";
+      empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+      empty.textContent = tr("preview.noRoles", "（无已加载角色）");
+      rolesBox.appendChild(empty);
+      return;
+    }
+    const activeId = sceneRegistry.getActiveId();
+    for (const e of entries) {
+      const isActive = e.id === activeId;
+      const row = document.createElement("div");
+      row.dataset.testid = "preview-role-row";
+      row.dataset.roleId = e.id;
+      row.style.cssText =
+        "display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px" +
+        (isActive ? ";background:rgba(124,131,255,0.25)" : "");
+      // 行首 radio：点击切换焦点（对齐 MikuMikuAR leading 按钮）
+      const radio = document.createElement("button");
+      radio.dataset.testid = "preview-role-focus";
+      radio.textContent = isActive ? "●" : "○";
+      radio.title = tr("preview.roleFocus", "设为焦点");
+      radio.style.cssText =
+        "width:18px;height:18px;flex-shrink:0;background:transparent;border:none;cursor:pointer;font-size:14px;line-height:1" +
+        (isActive ? ";color:#7c83ff" : ";color:rgba(255,255,255,0.5)");
+      radio.onclick = (ev): void => {
+        ev.stopPropagation();
+        sceneRegistry.setActive(e.id);
+        renderRoles();
+      };
+      // 角色名：点击 → 详情子面板（该角色能力内的 model 组面板项）
+      const name = document.createElement("span");
+      name.dataset.testid = "preview-role-name";
+      name.textContent = base(e);
+      name.title = e.path;
+      name.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      row.onclick = (): void => {
+        menu.navigate(roleDetailView(e));
+      };
+      // 行尾 ⚙：工具面板（卸载角色等少用但重要操作）
+      const tools = document.createElement("button");
+      tools.dataset.testid = "preview-role-tools";
+      tools.textContent = "⚙";
+      tools.title = tr("preview.roleTools", "模型工具");
+      tools.style.cssText =
+        "width:22px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.08);border:none;border-radius:4px;cursor:pointer;font-size:13px;line-height:1";
+      tools.onclick = (ev): void => {
+        ev.stopPropagation();
+        menu.navigate(toolsView(e));
+      };
+      row.append(radio, name, tools);
+      rolesBox.appendChild(row);
+    }
+  };
+
+  // ---- 角色详情子面板：该角色 menuItems 的 model 组 panel 项（各适配器能力内显示）----
+  const roleDetailView = (e: ModelEntry): SlideMenuView => ({
+    title: base(e),
+    render: (l) => {
+      l.innerHTML = "";
+      const items = (e.menuItems ?? []).filter((d) => d.kind === "panel" && d.dockGroup === "model");
+      if (items.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+        empty.textContent = tr("preview.roleNoDetail", "（该角色无可查看项）");
+        l.appendChild(empty);
+        return;
+      }
+      items.forEach((def) => {
+        const row = makeRow(def, { chevron: true });
+        row.onclick = (): void => {
+          menu.navigate(makePanelView(def));
+        };
+        l.appendChild(row);
+      });
+    },
+  });
+
+  // ---- 工具子面板：少用但重要（卸载角色）----
+  const toolsView = (e: ModelEntry): SlideMenuView => ({
+    title: `${base(e)} ${tr("preview.roleTools", "模型工具")}`,
+    render: (l) => {
+      l.innerHTML = "";
+      const unload = document.createElement("div");
+      unload.dataset.testid = "preview-role-unload";
+      unload.textContent = "🗑 " + tr("preview.unloadRole", "卸载角色");
+      unload.style.cssText =
+        "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:#ff7b7b";
+      unload.onclick = (): void => {
+        ctx.unloadRole?.(e.id);
+        closePopup();
+      };
+      l.appendChild(unload);
+    },
+  });
+
+  renderRoles();
+
+  // ---- 分隔线 + 加载入口（复用 switch 面板：siblings + 类型 tab + 手动输入）----
+  const sep = document.createElement("div");
+  sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
+  list.appendChild(sep);
+  fillSwitch(list, ctx, closePopup);
 }
 
 /** 灯光面板（ADR-081 L1 + 统一注册表）：从 light cap 的 getMenuControls() 自动渲染 */

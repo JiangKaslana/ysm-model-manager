@@ -342,6 +342,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       void active?.handle.switchTo?.(p, options);
     },
     switchExternal: opts.switchExternal ? (p: string, s?: string[]): void => { void opts.switchExternal!(p, s); } : undefined,
+    unloadRole,
   });
   // ADR-093 T5：注册表菜单 sink（selectModel 时按活跃模型换菜单项）
   sceneRegistry.setMenuSink({ setAdapterItems: (items) => menuHandle.setAdapterItems(items) });
@@ -680,6 +681,33 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     myGen,
     getGen: () => _gen,
   };
+
+  /**
+   * 卸载单个角色（角色面板 ⚙ → 卸载角色，MikuMikuAR buildModelToolsLevel 移植）：
+   * 移除其场景根节点 + 释放内容层 GPU + 注册表注销（焦点自动转移）+ 相机取景重算。
+   * 函数声明提升：引用 allBuilt（§4 声明）在调用时已初始化。
+   */
+  function unloadRole(id: string): void {
+    const entry = sceneRegistry.get(id);
+    if (!entry) return;
+    for (const r of entry.roots) {
+      if (scene) scene.remove(r);
+    }
+    const bi = allBuilt.indexOf(entry.built);
+    if (bi >= 0) {
+      const [removed] = allBuilt.splice(bi, 1);
+      try { removed.dispose(); } catch (_) { /* 防御性：个别适配器 dispose 抛错不阻塞 */ }
+    }
+    sceneRegistry.unregister(id);
+    const next = sceneRegistry.getActiveId();
+    if (next) sceneRegistry.setActive(next);
+    else menuHandle.setAdapterItems([]);
+    if (camera && controls) {
+      const roots = sceneRegistry.visibleRoots();
+      if (roots.length) fitCameraToRoots(roots, camera, controls);
+    }
+    menuHandle.refreshDock();
+  }
 
   try {
     // 代际守卫：await 期间用户已点其他文件 / 被 invalidate，丢弃本次挂载

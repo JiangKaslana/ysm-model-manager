@@ -76,6 +76,16 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     legacyTestId: "mmd-switch",
   },
   {
+    id: "roles",
+    icon: "🎭",
+    labelKey: "preview.roles",
+    fallback: "角色",
+    kind: "panel",
+    /** 已加载角色列表（MikuMikuAR buildModelRootItems 移植）：焦点切换 + 详情 + 工具 + 加载入口 */
+    dockGroup: "model",
+    legacyTestId: "ysm-roles-entry",
+  },
+  {
     id: "environment",
     icon: "🌍",
     labelKey: "preview.environment",
