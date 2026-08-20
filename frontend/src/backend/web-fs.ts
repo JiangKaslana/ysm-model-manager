@@ -1194,10 +1194,11 @@ export const webFsBindings = {
   // DetectZipType：base64 → 字节 → 内容指纹（extract.ts detectZipType，对齐 Go 语义）
   DetectZipType: (base64Data: string) => {
     if (!base64Data) return Promise.resolve("");
-    // 安全审计：base64 大小守卫——atob 对超大字符串（>~130MB 解码后）可能导致内存压力，
+    // 安全审计：base64 大小守卫——atob 对超大字符串（>~133MB 解码后）可能导致内存压力，
     // 且 MAX_IMPORT_BYTES=100MB 的文件 base64 约 133MB，远超类型检测所需
     // （detectZipType 只读 local file header 文件名段，前几 KB 足够识别）
-    if (base64Data.length > 10 * 1024 * 1024) return Promise.resolve("");
+    // 50MB base64 ≈ 37.5MB 原始，覆盖绝大多数合法 zip；>50MB 的 zip 类型检测静默返回 ""
+    if (base64Data.length > 50 * 1024 * 1024) return Promise.resolve("");
     try {
       const bin = atob(base64Data);
       const bytes = new Uint8Array(bin.length);

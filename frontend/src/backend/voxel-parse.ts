@@ -53,8 +53,6 @@ const INT16_MAX = 32767;
 const INT16_MIN = -32768;
 /** 对齐 Go maxSchematicBlocks 512M（schematic w*h*l 总量上限，防溢出/挂起） */
 const MAX_SCHEMATIC_BLOCKS = 512_000_000;
-/** schematic 单轴上限（≈ cube root of MAX_SCHEMATIC_BLOCKS） */
-const MAX_SCHEMATIC_AXIS = 1024;
 
 // ===== 位解码（对齐 nbt.go extractBits / bitsPerEntry + voxel.go readVarInt）=====
 
@@ -575,9 +573,10 @@ export function schematicVoxelView(root: Record<string, unknown>, maxBlocks: num
   const l = asNumber(root["Length"]);
   if (w === undefined || h === undefined || l === undefined) return null;
   // 对齐 Go voxel.go:556-564：维度上限（int32 可达 2^31-1，乘积可溢出——Go 用 int64 钳制）
+  // 网页版用 JavaScript Number（双精度浮点，安全整数 2^53-1），512M 远小于安全范围，
+  // 只需总块数守卫即可防溢出（不额外加 per-axis 上限，避免与 Go 功能分叉——2048×1×1 等长条 schematic 应放行）
   if (!Number.isInteger(w) || !Number.isInteger(h) || !Number.isInteger(l)) return null;
   if (w <= 0 || h <= 0 || l <= 0) return null;
-  if (w > MAX_SCHEMATIC_AXIS || h > MAX_SCHEMATIC_AXIS || l > MAX_SCHEMATIC_AXIS) return null;
   const total = w * h * l;
   if (total > MAX_SCHEMATIC_BLOCKS) return null;
 
