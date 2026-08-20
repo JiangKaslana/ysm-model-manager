@@ -23,6 +23,12 @@ class ByteWriter {
     new DataView(b.buffer).setUint16(0, v, true);
     this.push(...b);
   }
+  /** u32 小端写（PMX 刚体索引等无符号 4 字节字段；与 uint16 对称） */
+  uint32(v: number): void {
+    const b = new Uint8Array(4);
+    new DataView(b.buffer).setUint32(0, v, true);
+    this.push(...b);
+  }
   float32(v: number): void {
     const b = new Uint8Array(4);
     new DataView(b.buffer).setFloat32(0, v, true);
@@ -419,9 +425,11 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     const writeIdx = (v: number): void => {
       if (ris === 2) { w.push(v & 0xff); w.push((v >> 8) & 0xff); }
       else if (ris === 4) {
-        // PMX 刚体索引为 u32——用无符号位运算写 4 字节（setInt32 对 ≥2^31 值抛 RangeError，
-        // 含 0xffffffff 无刚体哨兵；review P3）
-        w.push(v & 0xff); w.push((v >> 8) & 0xff); w.push((v >> 16) & 0xff); w.push((v >>> 24) & 0xff);
+        // PMX 刚体索引按 u32 位模式序列化（0xffffffff 无刚体哨兵），
+        // 显式无符号小端写；与解析侧有符号 readInt32 读回 -1 哨兵对应。
+        // 注：setInt32 对 ≥2^31 值取 ToInt32 包装并不抛错（byteOffset 越界才抛），
+        // 这里用 uint32 仅为语义明确 + 与 uint16 对称。
+        w.uint32(v);
       }
       else { w.push(v & 0xff); }
     };
