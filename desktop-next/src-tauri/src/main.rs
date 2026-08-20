@@ -123,7 +123,11 @@ fn hydrate_hashes(
         .snapshot()
         .entries
         .into_iter()
-        .filter(|entry| requested.contains(&entry.path) && entry.hash.is_empty())
+        .filter(|entry| {
+            requested.contains(&entry.path)
+                && entry.hash.is_empty()
+                && state.policy.should_hash_ext(&entry.ext)
+        })
         .collect();
     let count = candidates.len();
     if count == 0 {
@@ -172,7 +176,7 @@ fn hydrate_hashes(
             removed: Vec::new(),
             errors: errors.into_iter().map(error_dto).collect(),
         };
-        let _ = app.emit("library-delta", payload);
+        let _ = app.emit("hash-hydrated", payload);
     });
 
     Ok(count)
