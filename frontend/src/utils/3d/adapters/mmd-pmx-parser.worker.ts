@@ -658,19 +658,25 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   }
 
   // === Display Frames ===
+  // 权威字段顺序（babylon-mmd pmxReader _ParseDisplayFrames）：
+  //   name(text) + englishName(text) + isSpecialFrame(1) + elementsCount(int32)
+  //   + 每元素 [frameType(1: 0=Bone, 1=Morph) + index(boneIndex | morphIndex)]
+  // ⚠️ 旧实现漏 englishName、把 isSpecialFrame 当 type、且每元素多读 value(float32)——
+  // 光标每元素漂移 4 字节，displayFrame 在块序里先于 rigidBody/joint，连累后续全部错位越界
   const dfCount = reader.readInt32();
   const displayFrames: PmxDisplayFrameData[] = [];
   for (let i = 0; i < dfCount; i++) {
     const name = reader.readString();
-    const type = reader.readUint8();
+    reader.readString(); // englishName（本解析不消费）
+    reader.readUint8();  // isSpecialFrame（本解析不消费）
     const elementCount = reader.readInt32();
     const elements: PmxDisplayFrameData["elements"] = [];
     for (let j = 0; j < elementCount; j++) {
-      const index = type === 1 ? reader.readBoneIndex() : reader.readMorphIndex();
-      const value = reader.readFloat32();
-      elements.push({ index, value });
+      const frameType = reader.readUint8(); // 0=Bone, 1=Morph
+      const index = frameType === 0 ? reader.readBoneIndex() : reader.readMorphIndex();
+      elements.push({ index, value: frameType });
     }
-    displayFrames.push({ name, type, elements });
+    displayFrames.push({ name, type: 0, elements });
   }
 
   // === Rigid Bodies ===

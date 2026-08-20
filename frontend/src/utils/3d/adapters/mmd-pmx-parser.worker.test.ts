@@ -287,6 +287,8 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     rigidBodyCount?: number; // 刚体块 count（默认 1）
     joints?: Uint8Array; // 已序列化关节区
     jointCount?: number; // 关节块 count（默认 1）
+    displayFrames?: Uint8Array; // 已序列化显示帧区
+    displayFrameCount?: number; // 显示帧块 count（默认 1）
   }): ArrayBuffer {
     const w = new ByteWriter();
     // --- 头部（权威字节序）---
@@ -345,8 +347,13 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     } else {
       w.int32(0);
     }
-    // --- 显示帧块（displayFrame）：count=0 ---
-    w.int32(0);
+    // --- 显示帧块（displayFrame）：count + 数据 ---
+    if (opts.displayFrames) {
+      w.int32(opts.displayFrameCount ?? 1);
+      w.push(...opts.displayFrames);
+    } else {
+      w.int32(0);
+    }
     // --- 刚体块（rigidBody）：count + 数据 ---
     if (opts.rigidBodies) {
       w.int32(opts.rigidBodyCount ?? 1);
@@ -443,6 +450,18 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     w.float32(1); w.float32(1); w.float32(1); // rotationMax
     w.float32(0); w.float32(0); w.float32(0); // springPosition
     w.float32(0); w.float32(0); w.float32(0); // springRotation
+    return new Uint8Array(w.toArrayBuffer());
+  }
+
+  /** 序列化一条显示帧（权威字段顺序：name + englishName + isSpecialFrame(1) + 元素[frameType(1)+index]）
+   *  旧实现漏 englishName/isSpecialFrame 且每元素多读 value(float32)——光标漂移 4 字节/元素 */
+  function displayFrameBytes(): Uint8Array {
+    const w = new ByteWriter();
+    w.text("df0"); w.text("Df0_EN"); // name + englishName（旧实现漏读）
+    w.push(0);  // isSpecialFrame = false
+    w.int32(2); // 2 个元素
+    w.push(0); w.push(0); // frameType=0(Bone) + boneIndex=0
+    w.push(1); w.push(1); // frameType=1(Morph) + morphIndex=1
     return new Uint8Array(w.toArrayBuffer());
   }
 
@@ -600,6 +619,31 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     // PMX 无刚体哨兵 = -1。0x100 读回完整。
     expect(out.joints![0].rigidBodyIndexA).toBe(-1);
     expect(out.joints![0].rigidBodyIndexB).toBe(0x100);
+  });
+
+  it("displayFrame 非零块（englishName + isSpecialFrame + 元素无多余 value）：光标不错位", () => {
+    // displayFrame 在块序里先于 rigidBody/joint——若漏 englishName/isSpecialFrame
+    // 或每元素多读 value(float32) 会漂移，连累后续刚体/关节错位越界（真实 PMX 失败根源）
+    const df = displayFrameBytes();
+    const rb = rigidBodyBytes();
+    const jt = jointBytes();
+    const buf = buildPmx({
+      displayFrames: df,
+      rigidBodies: rb,
+      joints: jt,
+    });
+    const out = parsePMX(buf);
+    expect(out.ok).toBe(true);
+    expect(out.displayFrames?.length).toBe(1);
+    expect(out.displayFrames![0].name).toBe("df0");
+    expect(out.displayFrames![0].elements.length).toBe(2);
+    expect(out.displayFrames![0].elements[0].value).toBe(0); // frameType=Bone
+    expect(out.displayFrames![0].elements[1].value).toBe(1); // frameType=Morph
+    // displayFrame 后 rigidBody/joint 光标不错位（旧实现每元素多读 4 字节会连累这里）
+    expect(out.rigidBodies?.length).toBe(1);
+    expect(out.rigidBodies![0].name).toBe("rb0");
+    expect(out.joints?.length).toBe(1);
+    expect(out.joints![0].name).toBe("jt0");
   });
 
   it("编码字节 1=UTF-8：非 ASCII 名字正确解码（权威映射 0=UTF-16LE/1=UTF-8）", () => {
