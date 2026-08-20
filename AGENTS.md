@@ -23,7 +23,7 @@ git push --verbose 2>&1 | Select-Object -Last 50    # 仅在完成多轮对话�
 git log --oneline -5 -- <file>	# 这个文件是不是最近被谁提交了
 git reflog # 我确认改过但没了
 git checkout -- <file>	#想精确恢复某个文件
-
+git commit --amend  #提交内容的描述不够不完整
 # 恢复（从本地缓存取出）
 git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留在暂存区（staged）
 ```
