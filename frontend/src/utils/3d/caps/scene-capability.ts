@@ -8,7 +8,7 @@
 /* ============ 菜单控件定义 ============ */
 
 /** 单个菜单控件类型 */
-type MenuControlKind = "toggle" | "slider" | "select" | "button" | "divider" | "image";
+type MenuControlKind = "toggle" | "slider" | "select" | "button" | "divider" | "image" | "color" | "timeline";
 
 /** 菜单控件定义（声明式，由框架渲染为 DOM） */
 export interface MenuControlDef {

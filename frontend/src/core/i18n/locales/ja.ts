@@ -925,6 +925,7 @@ export const ja: Record<string, string> = {
   "preview.fogNear": "近距離",
   "preview.fogFar": "遠距離",
   "preview.fogDensity": "密度",
+  "preview.fogColor": "霧色",
   "preview.fogDesc": "霧：線形/指数フォグで奥行き感を演出",
   "preview.shadow": "影",
   "preview.shadowType": "影タイプ",

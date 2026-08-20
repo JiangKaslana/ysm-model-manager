@@ -924,6 +924,7 @@ export const en: Record<string, string> = {
   "preview.fogNear": "Near",
   "preview.fogFar": "Far",
   "preview.fogDensity": "Density",
+  "preview.fogColor": "Fog Color",
   "preview.fogDesc": "Fog: linear/exponential depth haze",
   "preview.shadow": "Shadow",
   "preview.shadowType": "Shadow Type",

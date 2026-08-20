@@ -144,6 +144,10 @@ export class FogCapability implements SceneCapability {
     else this.applyFog();
   }
 
+  getColor(): number {
+    return this.params.color;
+  }
+
   /** 线性雾：near / far；传任一即可 */
   setLinearRange(near?: number, far?: number): void {
     if (near !== undefined) this.params.near = near;
@@ -230,6 +234,15 @@ export class FogCapability implements SceneCapability {
         slider: { min: 0.001, max: 0.1, step: 0.001 },
         getValue: () => this.params.density,
         setValue: (v) => this.setDensity(v as number),
+      },
+      {
+        id: "fog-color",
+        kind: "color",
+        labelKey: "preview.fogColor",
+        fallback: "雾色",
+        group: "preview.fogGroupParams",
+        getValue: () => this.getColor(),
+        setValue: (v) => this.setColor(v as number),
       },
     ];
   }

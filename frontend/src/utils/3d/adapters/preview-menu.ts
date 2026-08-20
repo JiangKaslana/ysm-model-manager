@@ -232,6 +232,123 @@ function renderCapControls(list: HTMLElement, controls: MenuControlDef[]): void 
       img.style.cssText = "width:100%;border-radius:6px;border:1px solid rgba(255,255,255,0.12);display:block";
       row.appendChild(img);
       (target ?? list).appendChild(row);
+      continue;
+    }
+    if (c.kind === "color") {
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+      const label = document.createElement("span");
+      label.className = "slide-label";
+      label.textContent = tr(c.labelKey, c.fallback);
+      label.style.cssText = "flex:1;font-size:12px";
+      const hex = c.getValue() as number;
+      // number 0xRRGGBB → "#rrggbb"
+      const toHexStr = (v: number): string => {
+        const s = (v >>> 0).toString(16).padStart(6, "0").slice(-6);
+        return `#${s}`;
+      };
+      const picker = document.createElement("input");
+      picker.type = "color";
+      picker.value = toHexStr(hex);
+      picker.style.cssText = "width:28px;height:20px;padding:0;border:1px solid rgba(255,255,255,0.2);border-radius:4px;cursor:pointer;background:transparent";
+      picker.oninput = (): void => {
+        const h = picker.value; // "#rrggbb"
+        c.setValue(parseInt(h.slice(1), 16));
+      };
+      row.append(label, picker);
+      (target ?? list).appendChild(row);
+      continue;
+    }
+    if (c.kind === "timeline") {
+      // 可视化时间轴：昼夜色带 + 太阳位置标记 + 可拖动调 timeOfDay
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+
+      // 顶部：当前时间数字 + 标签
+      const head = document.createElement("div");
+      head.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.85)";
+      const name = document.createElement("span");
+      name.className = "slide-label";
+      name.textContent = tr(c.labelKey, c.fallback);
+      const val = document.createElement("span");
+      const numVal = c.getValue() as number;
+      const fmtTime = (h: number): string =>
+        `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+      val.textContent = fmtTime(numVal);
+      head.append(name, val);
+
+      // 昼夜色带（0h 夜 → 6h 晨 → 12h 午 → 18h 暮 → 24h 夜）
+      const bandH = 28;
+      const band = document.createElement("div");
+      band.style.cssText = `position:relative;width:100%;height:${bandH}px;border-radius:6px;overflow:hidden;cursor:pointer;touch-action:none`;
+      const canvas = document.createElement("canvas");
+      canvas.width = 240;
+      canvas.height = bandH;
+      canvas.style.cssText = "width:100%;height:100%;display:block";
+      const cctx = canvas.getContext("2d");
+      if (cctx) {
+        // 简化昼夜渐变：黑→蓝→浅蓝→橙→深蓝→黑
+        const stops = [
+          { t: 0.0, c: "#04060f" },
+          { t: 0.25, c: "#1a2b4a" }, // 6h 晨
+          { t: 0.5, c: "#9bc4e8" },  // 12h 午
+          { t: 0.75, c: "#ff8a5c" }, // 18h 暮
+          { t: 1.0, c: "#04060f" },
+        ];
+        const grad = cctx.createLinearGradient(0, 0, canvas.width, 0);
+        for (const s of stops) grad.addColorStop(s.t, s.c);
+        cctx.fillStyle = grad;
+        cctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // 太阳位置标记（顶部圆点，y 由 elevation 决定）
+      const marker = document.createElement("div");
+      marker.style.cssText = "position:absolute;width:10px;height:10px;border-radius:50%;background:#fff4c2;border:1px solid rgba(0,0,0,0.3);box-shadow:0 0 6px rgba(255,244,194,0.8);transform:translate(-50%,-50%);pointer-events:none;transition:left 0.1s,top 0.1s";
+
+      const updateMarker = (hour: number): void => {
+        const h = ((hour % 24) + 24) % 24;
+        // 昼夜对称：12h 太阳最高（y=4px），0h/24h 最低（y=bandH-4px）
+        const dayProg = Math.sin(((h - 6) / 12) * Math.PI); // -1~1
+        const xPct = (h / 24) * 100;
+        const yPx = bandH / 2 - dayProg * (bandH / 2 - 4);
+        marker.style.left = `${xPct}%`;
+        marker.style.top = `${yPx}px`;
+      };
+      updateMarker(numVal);
+
+      band.append(canvas, marker);
+
+      // 拖动处理（pointer events，支持触屏）
+      let dragging = false;
+      const setFromPointer = (clientX: number): void => {
+        const rect = band.getBoundingClientRect();
+        const px = Math.max(0, Math.min(rect.width, clientX - rect.left));
+        const hour = (px / rect.width) * 24;
+        c.setValue(hour);
+        val.textContent = fmtTime(hour);
+        updateMarker(hour);
+      };
+      band.addEventListener("pointerdown", (e: PointerEvent): void => {
+        dragging = true;
+        band.setPointerCapture(e.pointerId);
+        setFromPointer(e.clientX);
+      });
+      band.addEventListener("pointermove", (e: PointerEvent): void => {
+        if (!dragging) return;
+        setFromPointer(e.clientX);
+      });
+      band.addEventListener("pointerup", (e: PointerEvent): void => {
+        dragging = false;
+        try { band.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      });
+      band.addEventListener("pointercancel", (): void => {
+        dragging = false;
+      });
+
+      row.append(head, band);
+      (target ?? list).appendChild(row);
     }
   }
 }
