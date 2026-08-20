@@ -246,8 +246,12 @@ func LoadRegistry() *ResourceTypeRegistry {
 }
 
 // validateRegistrySchema 注册表 schema 守卫（P0）：
-//  1. 装饰壳类型（有 subtypes 且非 subDirGrouping）禁止携带 storageSubDir / configField——
-//     subDirGrouping 类型（如 mmd-skin）是真实落盘叶、subtypes 是其用途子目录，豁免壳判定
+//  1. 装饰壳类型（有 subtypes 且非 subDirGrouping）字段白名单——壳只管分组/识别/展示，
+//     落盘与配置字段（storageSubDir/configField/configFallback/isDir/hashable/
+//     installExts/nestedModelDir）归叶类型独占。豁免：installDir/scanDir（整合包
+//     实例扫描按壳聚合消费，browser-adapter 契约钉死 create-blueprint→schematics）、
+//     instanceLevel（schema 必填）、scanInstance/dirLevelSync（遗留标记，消费者见
+//     ADR-064 与同步管理器按壳读取）。
 //  2. storageSubDir 全局唯一——重复值意味着两个叶类型落盘到同一路径，存储冲突
 //  3. configField 全局唯一——重复值意味着两个类型声明同一配置槽，查询歧义
 //  4. configFallback 引用完整性——回退字段必须指向已声明的 configField，消除孤儿回退
@@ -259,7 +263,7 @@ func LoadRegistry() *ResourceTypeRegistry {
 func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
 	var violations []string
 
-	// 守卫 1：装饰壳类型（有 subtypes 且非 subDirGrouping）禁止带 storageSubDir / configField
+	// 守卫 1：装饰壳类型（有 subtypes 且非 subDirGrouping）字段白名单
 	for _, rt := range reg.ResourceTypes {
 		if len(rt.SubTypes) > 0 && !rt.SubDirGrouping {
 			if rt.StorageSubDir != "" {
@@ -269,6 +273,26 @@ func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
 			if rt.ConfigField != "" {
 				violations = append(violations, fmt.Sprintf(
 					"壳类型 %s 越权携带 configField=%q——壳不应声明配置字段", rt.ID, rt.ConfigField))
+			}
+			if rt.ConfigFallback != "" {
+				violations = append(violations, fmt.Sprintf(
+					"壳类型 %s 越权携带 configFallback=%q——回退链归叶类型", rt.ID, rt.ConfigFallback))
+			}
+			if rt.IsDir {
+				violations = append(violations, fmt.Sprintf(
+					"壳类型 %s 越权携带 isDir=true——目录型落盘归叶类型", rt.ID))
+			}
+			if rt.Hashable {
+				violations = append(violations, fmt.Sprintf(
+					"壳类型 %s 越权携带 hashable=true——哈希策略归叶类型", rt.ID))
+			}
+			if len(rt.InstallExts) > 0 {
+				violations = append(violations, fmt.Sprintf(
+					"壳类型 %s 越权携带 installExts=%v——安装白名单归叶类型", rt.ID, rt.InstallExts))
+			}
+			if rt.NestedModelDir {
+				violations = append(violations, fmt.Sprintf(
+					"壳类型 %s 越权携带 nestedModelDir=true——嵌套模型目录归叶类型", rt.ID))
 			}
 		}
 	}

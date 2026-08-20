@@ -20,8 +20,6 @@ const VALID_ACTIONS = new Set(['import', 'toggle', 'delete', 'openFolder', 'view
 const VALID_CONFIG_FIELDS = new Set([
   'YsmRoot', 'ResourcepackRoot', 'ShaderpackRoot', 'SchematicRoot', 'LitematicRoot', 'MmdRoot', 'VrcRoot',
 ]);
-// storageSubDir 非必填：纯装饰壳类型（vanilla-assets/mod-model/create-blueprint）无仓库货位，
-// 由独立 rtype 各自声明 storageSubDir；schema 只保留可选的、真实落地类型才有的字段。
 const REQUIRED_FIELDS = ['id', 'name', 'icon', 'extensions', 'installDir', 'instanceLevel', 'preview', 'detector', 'actions', 'scanDir'];
 // ADR-092：合法分组 id 白名单（resourceGroups 顶层数组派生）
 const VALID_GROUPS = new Set(['minecraft', 'minecraft-mod', 'mmd', 'vrm', 'other']);
@@ -217,17 +215,29 @@ function validate() {
   // ===== P0 守卫硬断言（与 go/types validateRegistrySchema 对齐）=====
   // 壳/叶职责分离 + 字段唯一归属：违规直接 FAIL，CI 拦在提交前。
 
-  // 守卫 1：装饰壳类型（有 subtypes 且非 subDirGrouping）禁止 storageSubDir / configField。
-  // subDirGrouping 类型（如 mmd-skin）是真实落盘叶、subtypes 是用途子目录，豁免。
+  // 守卫 1：装饰壳类型（有 subtypes 且非 subDirGrouping）字段白名单——
+  // 壳只管分组/识别/展示，落盘与配置字段归叶类型独占。豁免：installDir/scanDir
+  // （整合包实例扫描按壳聚合消费，browser-adapter 契约钉死 create-blueprint→schematics）、
+  // instanceLevel（REQUIRED_FIELDS 必填）、scanInstance/dirLevelSync（遗留标记，
+  // Go 侧 validateRegistrySchema 同款豁免：同步管理器按壳读取 dirLevelSync）。
+  const SHELL_FORBIDDEN_FIELDS = [
+    'storageSubDir', 'configField', 'configFallback',
+    'isDir', 'hashable', 'installExts', 'nestedModelDir',
+  ];
   for (const rt of types) {
     const hasSubtypes = Array.isArray(rt?.subtypes) && rt.subtypes.length > 0;
     const isSubDirGrouping = rt?.subDirGrouping === true;
-    if (hasSubtypes && !isSubDirGrouping) {
-      if (rt?.storageSubDir) {
-        errors.push(`${rt.id}: 壳类型（subtypes 且非 subDirGrouping）禁止携带 storageSubDir='${rt.storageSubDir}'`);
-      }
-      if (rt?.configField) {
-        errors.push(`${rt.id}: 壳类型（subtypes 且非 subDirGrouping）禁止携带 configField='${rt.configField}'`);
+    if (!hasSubtypes || isSubDirGrouping) continue;
+    for (const f of SHELL_FORBIDDEN_FIELDS) {
+      const v = rt?.[f];
+      const present = Array.isArray(v)
+        ? v.length > 0
+        : typeof v === 'boolean'
+          ? v
+          : v !== undefined && v !== '';
+      if (present) {
+        const val = Array.isArray(v) ? JSON.stringify(v) : `${v}`;
+        errors.push(`${rt.id}: 壳类型（subtypes 且非 subDirGrouping）禁止携带 '${f}'=${val}（落地/配置归叶）`);
       }
     }
   }
@@ -256,6 +266,74 @@ function validate() {
   for (const rt of types) {
     if (rt?.configFallback && !cfgFieldOwners.has(rt.configFallback)) {
       errors.push(`${rt.id}: configFallback '${rt.configFallback}' 引用了不存在的 configField（孤儿回退）`);
+    }
+  }
+
+  // 守卫 5：组元数据完整性——每个出现的 group 恰好一个 groupLabel/groupIcon 携带者，
+  // 且组有成员必有标签（组的元数据是全局概念，禁止 per-type 双写或零写静默丢失）。
+  const groupLabelOwners = new Map(); // group → [types]
+  const groupIconOwners = new Map(); // group → [types]
+  for (const rt of types) {
+    if (!rt?.group) continue;
+    if (rt.groupLabel) {
+      const list = groupLabelOwners.get(rt.group) ?? [];
+      list.push(rt.id);
+      groupLabelOwners.set(rt.group, list);
+    }
+    if (rt.groupIcon) {
+      const list = groupIconOwners.get(rt.group) ?? [];
+      list.push(rt.id);
+      groupIconOwners.set(rt.group, list);
+    }
+  }
+  for (const rt of types) {
+    if (!rt?.group) continue;
+    if (!groupLabelOwners.has(rt.group)) {
+      errors.push(`group '${rt.group}' 有成员但无 groupLabel 携带者（应恰好 1 个类型携带）`);
+    }
+    if (!groupIconOwners.has(rt.group)) {
+      errors.push(`group '${rt.group}' 有成员但无 groupIcon 携带者（应恰好 1 个类型携带）`);
+    }
+  }
+  for (const [g, owners] of groupLabelOwners) {
+    if (owners.length > 1) {
+      errors.push(`group '${g}' 的 groupLabel 被多个类型携带（应恰好 1 个）: ${owners.join(', ')}`);
+    }
+  }
+  for (const [g, owners] of groupIconOwners) {
+    if (owners.length > 1) {
+      errors.push(`group '${g}' 的 groupIcon 被多个类型携带（应恰好 1 个）: ${owners.join(', ')}`);
+    }
+  }
+
+  // 守卫 6：storageSubDir × scanDir/installDir 跨组撞车——仓库侧目录（FilesRoot）与
+  // 整合包侧目录（实例内）语义不同，跨组相同字符串 = 复制粘贴错误。同组豁免：
+  // MC 生态内同组类型合法共享整合包目录（如 blueprint/litematic 都读 schematics/，
+  // Create 与 Litematica 共用）。同类型自身 storageSubDir === scanDir 亦豁免
+  // （如 blueprint 两侧都叫 schematics）。历史案例：create-blueprint 壳 installDir
+  // 'schematics/' 与 blueprint 叶 storageSubDir='schematics' 撞车（壳白名单已禁）。
+  const storageSubDirOwnerOf = new Map(); // subdir → typeId
+  const typeGroupOf = new Map(); // typeId → group
+  for (const rt of types) {
+    if (rt?.storageSubDir) storageSubDirOwnerOf.set(rt.storageSubDir, rt.id);
+    if (rt?.id) typeGroupOf.set(rt.id, rt.group ?? '');
+  }
+  for (const rt of types) {
+    for (const f of ['scanDir', 'installDir']) {
+      const v = rt?.[f] ? String(rt[f]).replace(/\/+$/, '') : '';
+      if (!v) continue;
+      const owner = storageSubDirOwnerOf.get(v);
+      if (owner && owner !== rt.id && typeGroupOf.get(owner) !== rt?.group) {
+        errors.push(`${rt.id}.${f}='${rt[f]}' 与 ${owner}.storageSubDir 撞车（跨组仓库/整合包目录混淆）`);
+      }
+    }
+  }
+
+  // 守卫 7（单向）：installDir 含 {instance} 占位符 ⇒ instanceLevel=true
+  // （{instance} 只在实例化场景有意义；instanceLevel=false 是全局库类型，不应出现占位符）
+  for (const rt of types) {
+    if (rt?.installDir?.includes('{instance}') && rt?.instanceLevel !== true) {
+      errors.push(`${rt.id}: installDir 含 {instance} 必须 instanceLevel=true`);
     }
   }
 

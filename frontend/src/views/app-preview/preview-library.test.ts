@@ -22,6 +22,8 @@ const NO_3D_TYPES = new Set<string>([
   "maid-model", // ADR-095 车万女仆：preview: "none"，无 3D opener（隔壁新增类型，豁免表同步）
   "vanilla-assets", // ADR-105 软合并合集壳：原版资源合集（展开为资源包/光影包子类型，本身无 3D）
   "mod-model", // ADR-105 软合并合集壳：模组模型合集（展开为 YSM/车万女仆子类型，本身无 3D）
+  "create-blueprint", // ADR-105 壳正名（dd5b7610）：合集壳展开为 blueprint/litematic 子类型，
+  // 3D opener 注册在叶 blueprint（litematic-3d.ts），壳本身无 3D
 ]);
 
 describe("preview-library _openers 覆盖率", () => {

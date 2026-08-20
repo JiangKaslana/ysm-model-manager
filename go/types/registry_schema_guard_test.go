@@ -92,6 +92,59 @@ func TestSchemaGuard_LeafTypeWithStorageSubDir_NoWarn(t *testing.T) {
 	}
 }
 
+func TestSchemaGuard_ShellTypeWithScanDirs_NoWarn(t *testing.T) {
+	// 豁免：壳带 installDir/scanDir 合法——整合包实例扫描按壳聚合消费
+	// （browser-adapter 契约钉死 create-blueprint→schematics），非落盘越权
+	payload := `{
+		"resourceTypes": [
+			{
+				"id": "shell-dir", "name": "壳聚合", "group": "g",
+				"installDir": "schematics/", "scanDir": "schematics",
+				"instanceLevel": false, "scanInstance": true, "dirLevelSync": true,
+				"subtypes": [{"name": "Sub", "label": "子", "extensions": [".x"]}]
+			}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if len(violations) != 0 {
+		t.Fatalf("壳带 installDir/scanDir + 豁免标记不应触发违规，实际: %v", violations)
+	}
+}
+
+func TestSchemaGuard_ShellTypeWithHashable_Warns(t *testing.T) {
+	// 壳带 hashable（哈希策略）→ 白名单违规（叶 blueprint 已覆写，壳不得双写）
+	payload := `{
+		"resourceTypes": [
+			{
+				"id": "shell-hash", "name": "壳越权哈希", "group": "g",
+				"hashable": true,
+				"subtypes": [{"name": "Sub", "label": "子", "extensions": [".x"]}]
+			}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if !hasViolation(violations, "hashable") {
+		t.Fatalf("期望壳越权 hashable 违规，实际: %v", violations)
+	}
+}
+
+func TestSchemaGuard_ShellTypeWithConfigFallback_Warns(t *testing.T) {
+	// 壳带 configFallback（回退链）→ 白名单违规
+	payload := `{
+		"resourceTypes": [
+			{
+				"id": "shell-fb", "name": "壳越权回退", "group": "g",
+				"configFallback": "MmdRoot",
+				"subtypes": [{"name": "Sub", "label": "子", "extensions": [".x"]}]
+			}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if !hasViolation(violations, "configFallback") {
+		t.Fatalf("期望壳越权 configFallback 违规，实际: %v", violations)
+	}
+}
+
 // ===== 守卫 2：storageSubDir 全局唯一 =====
 
 func TestSchemaGuard_DuplicateStorageSubDir_Warns(t *testing.T) {

@@ -136,18 +136,17 @@ describe("loadModelData — WASM 解码路径（.ysm）", () => {
 });
 
 describe("loadModelData — Go 兜底路径", () => {
-  it(".json 解压目录 → 优先 WASM 解码（decode 被调用）", async () => {
-    const decoded = geo();
-    const decode = vi.fn().mockResolvedValue({
-      geometry: decoded,
-      authors: [{ name: "作者A" }],
-    });
+  it(".json（解压目录）→ 直接走 Go，不经 WASM（WASM 仅 .ysm 二进制格式）", async () => {
+    const goModel = geo();
+    AnalyzeMock.mockResolvedValue(goModel);
+    const decode = vi.fn();
 
     const r = await loadModelData("/m/b.json", ctx({ decode }));
 
-    expect(decode).toHaveBeenCalledWith("/m/b.json");
-    expect(r.model).toBe(decoded);
-    expect(r.decodedBy).toBe("🧠 WASM 内置解码");
+    expect(decode).not.toHaveBeenCalled();
+    expect(AnalyzeMock).toHaveBeenCalledWith("/m/b.json");
+    expect(r.model).toBe(goModel);
+    expect(r.decodedBy).toBe("📦 Go 原生解析");
   });
 
   it(".json 且 WASM 失败 → 回退 Go", async () => {
@@ -218,18 +217,19 @@ describe("loadModelData — Go 兜底路径", () => {
 });
 
 describe("loadModelData — authors 填补", () => {
-  it(".json：WASM 几何为空但带 authors → 走 Go 后填补（Go 无 authors 字段）", async () => {
+  it(".ysm：WASM 无几何但带 authors → 走 Go 后由 WASM authors 填补（Go 无 authors 字段）", async () => {
     const goModel = geo();
     AnalyzeMock.mockResolvedValue(goModel);
     const decode = vi.fn().mockResolvedValue({
-      geometry: null, // WASM 无法解出几何 → 回退 Go，authors 留待填补
+      geometry: null, // WASM 无法解出几何 → 回退 Go，authors 保留待填补
       authors: [{ name: "作者B" }],
       avatars: { 作者B: "blob:y" },
     });
 
-    const r = await loadModelData("/m/c.json", ctx({ decode }));
+    const r = await loadModelData("/m/c.ysm", ctx({ decode }));
 
-    expect(AnalyzeMock).toHaveBeenCalledWith("/m/c.json");
+    expect(decode).toHaveBeenCalledWith("/m/c.ysm");
+    expect(AnalyzeMock).toHaveBeenCalledWith("/m/c.ysm");
     expect(r.model).toBe(goModel);
     expect(goModel._authors).toEqual([{ name: "作者B" }]);
     expect(goModel._avatars).toEqual({ 作者B: "blob:y" });

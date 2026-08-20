@@ -183,7 +183,6 @@
         { "name": ".nbt", "match": "suffix" },
         { "name": ".schematic", "match": "suffix" }
       ],
-      "hashable": true,
       "scanInstance": true,
       "dirLevelSync": true,
       "subtypes": [

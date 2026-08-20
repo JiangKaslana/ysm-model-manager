@@ -97,11 +97,14 @@ describe("AMBIGUOUS_EXTS 歧义扩展名集合", () => {
   });
 
   it("单归属扩展名不歧义", () => {
-    // ysm 独有 / resourcepack 独有——S1 后 4 类加了 .zip 但 .pmx/.vrca/.nbt 仍单归属
+    // ysm 独有 / resourcepack 独有——S1 后 4 类加了 .zip 但 .pmx/.vrca/.nbt 仍单归属。
+    // .nbt/.schematic 现归 blueprint 叶独占（dd5b7610 壳正名后 create-blueprint 壳
+    // 识别走 zipEntries 指纹，extensions 收窄为 .zip，不再与叶共享扩展名声明）
     expect(AMBIGUOUS_EXTS.has(".ysm")).toBe(false);
     expect(AMBIGUOUS_EXTS.has(".pmx")).toBe(false);
     expect(AMBIGUOUS_EXTS.has(".vrca")).toBe(false);
-    expect(AMBIGUOUS_EXTS.has(".nbt")).toBe(true); // create-blueprint 壳与 blueprint 叶同声明 .nbt，歧义
+    expect(AMBIGUOUS_EXTS.has(".nbt")).toBe(false); // 单归属 blueprint 叶，可直判
+    expect(AMBIGUOUS_EXTS.has(".schematic")).toBe(false);
   });
 
   it("与 resource_types.json 派生一致（新增类型自动纳入）", () => {
@@ -123,7 +126,7 @@ describe("resolveTypeSafe 安全解析", () => {
   it("单归属扩展名直接命中", () => {
     expect(resolveTypeSafe("model.ysm")).toBe("ysm");
     expect(resolveTypeSafe("avatar.pmx")).toBe("mmd-skin");
-    expect(resolveTypeSafe("build.nbt")).toBeNull(); // .nbt 同时属于 create-blueprint 壳与 blueprint 叶，歧义回退 Go
+    expect(resolveTypeSafe("build.nbt")).toBe("blueprint"); // .nbt 单归属 blueprint 叶，直判
     expect(resolveTypeSafe("proj.litematic")).toBe("litematic");
   });
 
@@ -148,7 +151,9 @@ describe("resolveTypeSafe 安全解析", () => {
 // 守护：体素类扩展名必须全部有 RPC 映射，且映射 key 不得指向非体素扩展名（防注册表扩展名漂移）。
 
 describe("VOXEL_RPC_BY_EXT voxelFn 映射", () => {
-  const voxelTypeIds = ["create-blueprint", "litematic"];
+  // 体素 RPC 落在叶类型上：blueprint 叶（.nbt/.schematic）+ litematic 叶（.litematic）。
+  // create-blueprint 壳识别走 zipEntries 指纹，扩展名声明归叶（dd5b7610 壳正名）。
+  const voxelTypeIds = ["blueprint", "litematic"];
   const voxelExts = new Set<string>();
   for (const rt of resourceTypesJson.resourceTypes) {
     if (voxelTypeIds.includes(rt.id)) {

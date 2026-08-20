@@ -88,7 +88,8 @@ describe("browserAdapter — Phase 2 模型库（IndexedDB）", () => {
   });
 
   it("DetectResourceType：扩展名直判（单归属）+ 已导入模型判定（ADR-066 web 识别层）", async () => {
-    expect(await browserAdapter.DetectResourceType("/web/create-blueprint/建筑/建筑.nbt")).toBe("create-blueprint");
+    // .nbt 单归属 blueprint 叶（dd5b7610 壳正名后识别归叶；create-blueprint 壳走 zipEntries 指纹）
+    expect(await browserAdapter.DetectResourceType("/web/blueprint/建筑/建筑.nbt")).toBe("blueprint");
     expect(await browserAdapter.DetectResourceType("/web/litematic/投影/a.litematic")).toBe("litematic");
     expect(await browserAdapter.DetectResourceType("/web/mmd-skin/角色/a.pmx")).toBe("mmd-skin");
     expect(await browserAdapter.DetectResourceType("/web/vrchat-avatar/角色/a.vrm")).toBe("vrchat-avatar");

@@ -50,7 +50,7 @@ describe("RESOURCE_EXTS", () => {
   it("has known type ysm", () => expect(RESOURCE_EXTS.ysm).toContain(".ysm"));
   it("has litematic type", () => expect(RESOURCE_EXTS.litematic).toContain(".litematic"));
   it("mmd has pmx", () => expect(RESOURCE_EXTS["mmd-skin"]).toContain(".pmx"));
-  it("blueprint has schematic", () => expect(RESOURCE_EXTS["create-blueprint"]).toContain(".schematic"));
+  it("blueprint leaf has schematic", () => expect(RESOURCE_EXTS.blueprint).toContain(".schematic"));
 });
 
 describe("ALL_EXTS", () => {
