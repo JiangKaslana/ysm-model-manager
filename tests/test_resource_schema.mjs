@@ -197,6 +197,51 @@ function validate() {
     }
   }
 
+  // ===== P0 守卫硬断言（与 go/types validateRegistrySchema 对齐）=====
+  // 壳/叶职责分离 + 字段唯一归属：违规直接 FAIL，CI 拦在提交前。
+
+  // 守卫 1：装饰壳类型（有 subtypes 且非 subDirGrouping）禁止 storageSubDir / configField。
+  // subDirGrouping 类型（如 mmd-skin）是真实落盘叶、subtypes 是用途子目录，豁免。
+  for (const rt of types) {
+    const hasSubtypes = Array.isArray(rt?.subtypes) && rt.subtypes.length > 0;
+    const isSubDirGrouping = rt?.subDirGrouping === true;
+    if (hasSubtypes && !isSubDirGrouping) {
+      if (rt?.storageSubDir) {
+        errors.push(`${rt.id}: 壳类型（subtypes 且非 subDirGrouping）禁止携带 storageSubDir='${rt.storageSubDir}'`);
+      }
+      if (rt?.configField) {
+        errors.push(`${rt.id}: 壳类型（subtypes 且非 subDirGrouping）禁止携带 configField='${rt.configField}'`);
+      }
+    }
+  }
+
+  // 守卫 2/3：storageSubDir / configField 全局唯一
+  const subDirOwners = new Map(); // storageSubDir → 首个声明者
+  const cfgFieldOwners = new Map(); // configField → 首个声明者
+  for (const rt of types) {
+    if (rt?.storageSubDir) {
+      if (subDirOwners.has(rt.storageSubDir)) {
+        errors.push(`${rt.id}: storageSubDir '${rt.storageSubDir}' 与 '${subDirOwners.get(rt.storageSubDir)}' 重复（全局唯一）`);
+      } else {
+        subDirOwners.set(rt.storageSubDir, rt.id);
+      }
+    }
+    if (rt?.configField) {
+      if (cfgFieldOwners.has(rt.configField)) {
+        errors.push(`${rt.id}: configField '${rt.configField}' 与 '${cfgFieldOwners.get(rt.configField)}' 重复（全局唯一）`);
+      } else {
+        cfgFieldOwners.set(rt.configField, rt.id);
+      }
+    }
+  }
+
+  // 守卫 4：configFallback 引用完整性——必须指向已声明的 configField
+  for (const rt of types) {
+    if (rt?.configFallback && !cfgFieldOwners.has(rt.configFallback)) {
+      errors.push(`${rt.id}: configFallback '${rt.configFallback}' 引用了不存在的 configField（孤儿回退）`);
+    }
+  }
+
   return errors;
 }
 

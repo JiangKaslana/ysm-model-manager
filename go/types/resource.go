@@ -246,19 +246,22 @@ func LoadRegistry() *ResourceTypeRegistry {
 }
 
 // validateRegistrySchema 注册表 schema 守卫（P0）：
-//  1. 壳类型（有 subtypes）禁止携带 storageSubDir / configField（壳不落盘、不持配置）
+//  1. 装饰壳类型（有 subtypes 且非 subDirGrouping）禁止携带 storageSubDir / configField——
+//     subDirGrouping 类型（如 mmd-skin）是真实落盘叶、subtypes 是其用途子目录，豁免壳判定
 //  2. storageSubDir 全局唯一——重复值意味着两个叶类型落盘到同一路径，存储冲突
 //  3. configField 全局唯一——重复值意味着两个类型声明同一配置槽，查询歧义
+//  4. configFallback 引用完整性——回退字段必须指向已声明的 configField，消除孤儿回退
 //
 // 返回违规描述列表（空 = 合规）。守卫本身不落日志、不改数据：
 // LoadRegistry 侧对每条违规 log.Printf 告警（WARN 级，不阻断——生产注册表可能
-// 含历史债，硬 fail 会让 IsSupportedExt 全线失效）；测试侧直接断言返回值。
+// 含历史债，硬 fail 会让 IsSupportedExt 全线失效）；真实注册表的硬断言由 schema
+// 契约测试（tests/test_resource_schema.mjs）承担，CI 拦在提交前。
 func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
 	var violations []string
 
-	// 守卫 1：壳类型禁止带 storageSubDir / configField
+	// 守卫 1：装饰壳类型（有 subtypes 且非 subDirGrouping）禁止带 storageSubDir / configField
 	for _, rt := range reg.ResourceTypes {
-		if len(rt.SubTypes) > 0 {
+		if len(rt.SubTypes) > 0 && !rt.SubDirGrouping {
 			if rt.StorageSubDir != "" {
 				violations = append(violations, fmt.Sprintf(
 					"壳类型 %s 越权携带 storageSubDir=%q——壳不应声明存储路径", rt.ID, rt.StorageSubDir))
@@ -295,6 +298,21 @@ func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
 		if len(owners) > 1 {
 			violations = append(violations, fmt.Sprintf(
 				"configField=%q 被多个类型声明: %v——配置槽查询歧义", cfg, owners))
+		}
+	}
+
+	// 守卫 4：configFallback 必须指向已声明的 configField
+	declaredFields := make(map[string]bool, len(reg.ResourceTypes))
+	for _, rt := range reg.ResourceTypes {
+		if rt.ConfigField != "" {
+			declaredFields[rt.ConfigField] = true
+		}
+	}
+	for _, rt := range reg.ResourceTypes {
+		if rt.ConfigFallback != "" && !declaredFields[rt.ConfigFallback] {
+			violations = append(violations, fmt.Sprintf(
+				"configFallback=%q 引用了不存在的 configField（类型 %s）——孤儿回退",
+				rt.ConfigFallback, rt.ID))
 		}
 	}
 

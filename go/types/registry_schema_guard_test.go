@@ -155,6 +155,58 @@ func TestSchemaGuard_CleanRegistry_NoWarn(t *testing.T) {
 	}
 }
 
+// ===== subDirGrouping 豁免：真实落盘叶允许 configField（mmd-skin 形态）=====
+
+func TestSchemaGuard_SubDirGroupingTypeWithConfigField_NoWarn(t *testing.T) {
+	// subDirGrouping 类型（有 subtypes 但真实落盘）不算装饰壳——configField 合法
+	payload := `{
+		"resourceTypes": [
+			{
+				"id": "mmd-skin", "name": "MMD", "group": "mmd",
+				"subDirGrouping": true,
+				"configField": "MmdRoot",
+				"subtypes": [
+					{"name": "EntityPlayer", "label": "角色", "extensions": [".pmx"]},
+					{"name": "SceneModel", "label": "场景", "extensions": [".pmx"]}
+				]
+			}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if hasViolation(violations, "越权") {
+		t.Fatalf("subDirGrouping 类型带 configField 不应触发壳越权违规，实际: %v", violations)
+	}
+}
+
+// ===== 守卫 4：configFallback 引用完整性 =====
+
+func TestSchemaGuard_ConfigFallbackResolves_NoWarn(t *testing.T) {
+	// VrcRoot→MmdRoot 形态：回退字段指向已声明的 configField
+	payload := `{
+		"resourceTypes": [
+			{"id": "mmd", "name": "MMD", "group": "mmd", "configField": "MmdRoot", "storageSubDir": "mmd", "extensions": [".pmx"]},
+			{"id": "vrc", "name": "VRC", "group": "mmd", "configField": "VrcRoot", "configFallback": "MmdRoot", "storageSubDir": "vrc", "extensions": [".vrm"]}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if hasViolation(violations, "孤儿回退") {
+		t.Fatalf("configFallback 指向存在字段不应触发孤儿回退违规，实际: %v", violations)
+	}
+}
+
+func TestSchemaGuard_ConfigFallbackOrphan_Warns(t *testing.T) {
+	// configFallback 指向无人声明的字段 → 孤儿回退
+	payload := `{
+		"resourceTypes": [
+			{"id": "vrc", "name": "VRC", "group": "mmd", "configField": "VrcRoot", "configFallback": "GhostRoot", "storageSubDir": "vrc", "extensions": [".vrm"]}
+		]
+	}`
+	violations := guardViolations(t, payload)
+	if !hasViolation(violations, "GhostRoot") || !hasViolation(violations, "孤儿回退") {
+		t.Fatalf("期望 configFallback 孤儿回退违规，实际: %v", violations)
+	}
+}
+
 // ===== 集成：LoadRegistry 完整链路——守卫只告警不阻断、不改数据 =====
 
 func TestSchemaGuard_LoadRegistryIntegration(t *testing.T) {
