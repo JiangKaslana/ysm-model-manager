@@ -349,6 +349,52 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
 
       row.append(head, band);
       (target ?? list).appendChild(row);
+      continue;
+    }
+    if (c.kind === "histogram") {
+      // 亮度直方图：16 个柱子，值 = number[]
+      const raw = c.getValue();
+      const data = Array.isArray(raw) ? (raw as number[]) : [];
+      const row = document.createElement("div");
+      row.className = "slide-item";
+      row.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+
+      const label = document.createElement("span");
+      label.className = "slide-label";
+      label.textContent = tr(c.labelKey, c.fallback);
+      label.style.cssText = "font-size:12px;color:rgba(255,255,255,0.85)";
+      row.appendChild(label);
+
+      const canvas = document.createElement("canvas");
+      const W = 240, H = 48;
+      canvas.width = W;
+      canvas.height = H;
+      canvas.style.cssText = "width:100%;height:auto;border-radius:6px;border:1px solid rgba(255,255,255,0.12);display:block";
+      const hctx = canvas.getContext("2d");
+      if (hctx) {
+        // 清背景
+        hctx.fillStyle = "rgba(0,0,0,0.3)";
+        hctx.fillRect(0, 0, W, H);
+        if (data.length > 0) {
+          const max = Math.max(...data, 1);
+          const barW = W / data.length;
+          const accent = "var(--accent,#7c83ff)";
+          for (let i = 0; i < data.length; i++) {
+            const barH = (data[i] / max) * (H - 4);
+            const x = i * barW;
+            const y = H - barH;
+            // 渐变：低亮度偏蓝，高亮度偏白
+            const t = i / Math.max(1, data.length - 1);
+            const r = Math.round(t * 255);
+            const g = Math.round(t * 255);
+            const b = Math.round(120 + t * 135);
+            hctx.fillStyle = `rgb(${r},${g},${b})`;
+            hctx.fillRect(x + 1, y, Math.max(1, barW - 2), barH);
+          }
+        }
+      }
+      row.appendChild(canvas);
+      (target ?? list).appendChild(row);
     }
   }
 }

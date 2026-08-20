@@ -25,12 +25,15 @@ export interface SyncFile {
 }
 
 /** 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮）
- * 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 events 处理。 */
+ * 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 events 处理。
+ * @param path 展示路径 key（用于展开状态与树形展示）
+ * @param opPath 后端可用的绝对路径（data-path，push/pull 直接消费） */
 export function syncDirRowHTML(
   path: string,
   syncItem: SyncItem,
   shouldOpen: boolean,
   index: number,
+  opPath?: string,
 ): string {
   const statusIcon =
     syncItem.status === "synced" ? "✅" :
@@ -58,7 +61,7 @@ export function syncDirRowHTML(
   const arrow = shouldOpen ? "▾" : "▸";
   return (
     '<div class="sm-item sm-dir" data-path="' +
-    esc(path) +
+    esc(opPath || path) +
     '" data-status="' +
     esc(syncItem.status) +
     '" data-type="' +

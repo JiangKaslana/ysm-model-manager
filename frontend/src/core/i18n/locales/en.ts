@@ -862,6 +862,7 @@ export const en: Record<string, string> = {
   "preview.environmentDesc": "Environment map: procedural sky/studio presets or custom HDR",
   "preview.envPreset": "Environment Preset",
   "preview.envIntensity": "Environment Intensity",
+  "preview.envHistogram": "Luminance Histogram",
   "preview.envPickHdr": "Custom HDR",
   "preview.envPickHdrBtn": "Choose HDR File",
   "preview.envPickHdrHint": "Supports .hdr (Radiance RGBE) equirectangular panoramas",

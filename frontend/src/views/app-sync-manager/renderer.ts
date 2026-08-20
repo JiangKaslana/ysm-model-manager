@@ -3,7 +3,7 @@
 // 不处理数据加载、不绑事件、不调用 Go 桥接。
 // 依赖 DAG：index → renderer ← events（events 点击触发 render）
 
-import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS, MMD_SUBTYPES } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 import { shortLabelOf } from "../../utils/resource/short-label.ts";
 import { t } from "../../core/i18n/t.ts";
 import { esc } from "../../utils/dom/html.ts";
@@ -130,17 +130,9 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
     listEl.innerHTML = emptyHTML(hint);
     return;
   }
-  // ADR-095 后续：MMD 按用途子目录分组展示（角色/场景/动画…分开，不再平铺一锅）。
-  // 子目录来自 Go 侧 ResourceSyncItem.SubDir（BuildSyncItems 按注册表 subtypes 判定填充，
-  // ADR-104）；根下条目 SubDir="" 归 EntityPlayer 默认槽组。
-  // 组序/标签均来自注册表派生的 MMD_SUBTYPES（userImportable 过滤 6 项）。
-  if (self._selectedType === RESOURCE_TYPES.MMD) {
-    listEl.innerHTML = renderMMDGroups(self._filteredItems);
-    return;
-  }
-  // dirLevelSync 类型（ysm / create-blueprint / maid-model / vrchat-avatar…）：
-  // 按路径天然层级展示（文件夹=SyncItem 本身，展开后扫仓库子条目显示内部文件）。
-  // 无仓库根时兜底走平铺（repoRoot 加载失败不阻断列表）。
+  // dirLevelSync 类型（ysm / mmd-skin / create-blueprint / maid-model / vrchat-avatar…）：
+  // 按路径天然层级展示（subdir 非空时提为顶层文件夹；文件夹=SyncItem 本身，
+  // 展开后扫仓库子条目显示内部文件）。无仓库根时兜底走平铺。
   if (isDirLevelSync(self)) {
     if (!self._repoRoots[self._selectedType]) {
       listEl.innerHTML = self._filteredItems.map((it, i) => itemHTML(it, i)).join("");
@@ -158,10 +150,12 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
 // 层级由路径天然分段（与 app-tree buildTree 同构），不再按 rtype 逐个特判。
 
 interface SyncTreeNode {
-  sync?: SyncItem;      // 有值 = 文件夹行（带状态 + 操作按钮）
+  sync?: SyncItem;      // 有值 = 模型/文件行（带状态 + 操作按钮）
   file?: SyncItem;      // 有值 = 文件行（复用 itemHTML）
   files?: Array<{ name: string; path: string; size: number }>;
-  [key: string]: SyncTreeNode | SyncItem | Array<{ name: string; path: string; size: number }> | undefined;
+  /** subdir 分组文件夹（mmd-skin 的 EntityPlayer/SceneModel 等）：无同步状态，纯分组导航 */
+  _group?: boolean;
+  [key: string]: SyncTreeNode | SyncItem | Array<{ name: string; path: string; size: number }> | boolean | undefined;
 }
 interface SyncTreeRow {
   type: "dir" | "file";
@@ -179,12 +173,11 @@ function isDirLevelSync(self: SyncRenderSelf): boolean {
   return cfg?.dirLevelSync === true;
 }
 
-/** 从仓库根扫描某个路径下的子条目（dir-level 展开用）；失败静默返回 [] */
-async function scanSubEntries(repoRoot: string, rtype: string, relPath: string): Promise<Array<{ name: string; path: string; size: number }>> {
+/** 扫描某绝对目录的子条目（dir-level 展开用，SyncItem.path 即仓库/整合包绝对路径）；失败静默返回 [] */
+async function scanSubEntries(absDir: string, rtype: string): Promise<Array<{ name: string; path: string; size: number }>> {
   try {
     const { ScanModelEntriesWithLabel } = await getApp();
-    const dir = repoRoot.replace(/\\/g, "/") + "/" + relPath.replace(/^[/\\]+/, "").replace(/\\/g, "/");
-    const raw = (await ScanModelEntriesWithLabel(dir, RESOURCE_TYPE_LABELS[rtype] || rtype)) as Array<{
+    const raw = (await ScanModelEntriesWithLabel(absDir, RESOURCE_TYPE_LABELS[rtype] || rtype)) as Array<{
       Name?: string; Path?: string; Size?: number;
     }>;
     return (raw || []).filter((e) => e.Name || e.Path).map((e) => {
@@ -197,7 +190,10 @@ async function scanSubEntries(repoRoot: string, rtype: string, relPath: string):
   }
 }
 
-/** 将 SyncItems 拼成嵌套树（文件夹 = dirLevel 项本身；文件 = Scan 子条目） */
+/** 将 SyncItems 拼成嵌套树（文件夹 = subdir 分组 + 模型文件夹行；文件 = Scan 子条目）
+ * 展示 key 由 SyncItem.subdir（后端按各自侧根算好的子类分组）+ SyncItem.name（叶子名）
+ * 组成，不再用绝对路径逐段解析——避免 subdir 提层时路径重复拼接（CustomAnim/CustomAnim/CustomAnim）。
+ * 展开状态与操作（data-path）一律用 SyncItem.path（绝对路径），push/pull 直接消费。 */
 function buildSyncTree(
   items: SyncItem[],
   scanned: Record<string, Array<{ name: string; path: string; size: number }>>,
@@ -208,21 +204,19 @@ function buildSyncTree(
   for (const it of items) {
     const p = pathOf(it);
     if (!p) continue;
-    const parts = p.split("/").filter(Boolean);
-    let node = root;
-    for (let i = 0; i < parts.length - 1; i++) {
-      const seg = parts[i];
-      if (!node[seg] || (node[seg] as SyncTreeNode).file) {
-        node[seg] = {};
+    // subdir 非空时提为顶层分组文件夹（mmd-skin 的用途子目录），叶子用后端名
+    const topLevel = (it.subdir && it.subdir.trim()) ? it.subdir.trim() : null;
+    const leafName = it.name || p.split("/").filter(Boolean).pop() || "";
+    let node: SyncTreeNode = root;
+    if (topLevel) {
+      if (!root[topLevel]) {
+        root[topLevel] = { _group: true } as SyncTreeNode;
       }
-      node = (node[seg] as SyncTreeNode);
+      node = root[topLevel] as SyncTreeNode;
     }
-    const last = parts[parts.length - 1];
-    if (!last) continue;
-    const files = scanned[p];
-    node[last] = {
+    node[leafName] = {
       sync: it,
-      files: files?.map((f) => ({
+      files: scanned[p]?.map((f) => ({
         name: f.name,
         path: p + "/" + f.name,
         size: f.size,
@@ -242,7 +236,8 @@ function flattenSyncTree(node: SyncTreeNode, dirOpen: Record<string, boolean>, d
     const key = prefix ? prefix + "/" + k : k;
     if (v.sync) {
       rows.push({ type: "dir", key, sync: v.sync, indent: depth * 16 + 10 });
-      if (dirOpen[key]) {
+      // 展开 key 用后端绝对路径（sync.path，与 data-path 一致）
+      if (dirOpen[v.sync.path || ""]) {
         if (v.files && v.files.length) {
           for (const f of v.files) {
             // 子文件继承父 SyncItem 的状态（用于 itemHTML 渲染），补 fileName/fileSize
@@ -257,6 +252,13 @@ function flattenSyncTree(node: SyncTreeNode, dirOpen: Record<string, boolean>, d
           }
         }
       }
+    } else if (v._group) {
+      // subdir 分组文件夹行：无同步状态、无操作按钮，纯分组导航；展开后显示内部模型
+      const pseudo: SyncItem = { path: key, name: key, status: "", type: "", icon: "📁", size: 0 };
+      rows.push({ type: "dir", key, sync: pseudo, indent: depth * 16 + 10 });
+      if (dirOpen[key]) {
+        rows.push(...flattenSyncTree(v, dirOpen, depth + 1, key));
+      }
     } else if (v.file) {
       rows.push({ type: "file", key, sync: v.file, indent: depth * 16 + 10 });
     } else {
@@ -269,16 +271,17 @@ function flattenSyncTree(node: SyncTreeNode, dirOpen: Record<string, boolean>, d
 /** 渲染 dirLevelSync 层级列表（文件夹行带状态/按钮；展开后扫描显示内部文件） */
 async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<string> {
   if (!items.length) return "";
-  const repoRoot = self._repoRoots[self._selectedType] || "";
   const rtype = self._selectedType || "";
   const dirOpen = self._dirOpen || {};
   const scanned: Record<string, Array<{ name: string; path: string; size: number }>> = {};
   await Promise.all(
     items.map(async (it) => {
-      const p = (it.path || "").replace(/\\/g, "/");
+      const raw = it.path || "";
+      const p = raw.replace(/\\/g, "/");
       if (!p) return;
-      if (dirOpen[p] && it.status === "synced" && repoRoot) {
-        scanned[p] = await scanSubEntries(repoRoot, rtype, p);
+      // 展开 key 用后端原始绝对路径（与 data-path 一致，dirOpen 由 events 按 data-path 写入）
+      if (dirOpen[raw] && it.status === "synced") {
+        scanned[p] = await scanSubEntries(raw, rtype);
       }
     }),
   );
@@ -287,8 +290,9 @@ async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<
   let html = "";
   rows.forEach((r, i) => {
     if (r.type === "dir" && r.sync) {
-      const shouldOpen = dirOpen[r.key] === true;
-      html += syncDirRowHTML(r.key, r.sync, shouldOpen, i);
+      const shouldOpen = dirOpen[r.sync.path] === true;
+      // data-path 用后端绝对路径（SyncItem.path），push/pull 直接消费
+      html += syncDirRowHTML(r.key, r.sync, shouldOpen, i, r.sync.path);
     } else if (r.type === "file" && r.sync) {
       // 子文件行：用父 SyncItem 的状态渲染，但 name 用 fileName、size 用 fileSize
       const subFile: SyncItem = {
@@ -306,42 +310,3 @@ async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<
   return html;
 }
 
-/** MMD 子目录组名 → 显示标签（MMD_SUBTYPES 优先，系统内置 DefaultAnim/DefaultMorph 显示原名） */
-function mmdGroupLabel(subdir: string): string {
-  if (!subdir) return MMD_SUBTYPES[0]?.label || "EntityPlayer";
-  const hit = MMD_SUBTYPES.find((s) => s.subdir.toLowerCase() === subdir.toLowerCase());
-  return hit ? hit.label : subdir;
-}
-
-/** MMD 分组渲染：组头 + 组内条目；组序按 MMD_SUBTYPES（根、场景、动画…），未知归尾 */
-function renderMMDGroups(items: SyncItem[]): string {
-  const groups = new Map<string, SyncItem[]>();
-  for (const it of items) {
-    const key = (it.subdir || "").toLowerCase();
-    const arr = groups.get(key) || [];
-    arr.push(it);
-    groups.set(key, arr);
-  }
-  // 组排序：MMD_SUBTYPES 定义的 subdir 顺序（含根 ""），未知组追加尾部
-  const order = new Map<string, number>();
-  MMD_SUBTYPES.forEach((s, i) => order.set(s.subdir.toLowerCase(), i));
-  const keys = Array.from(groups.keys()).sort(
-    (a, b) =>
-      (order.has(a) ? order.get(a)! : 99) - (order.has(b) ? order.get(b)! : 99),
-  );
-  let html = "";
-  for (const key of keys) {
-    const list = groups.get(key)!;
-    const label = mmdGroupLabel(key);
-    html +=
-      '<div class="sm-group-head" style="display:flex;align-items:center;gap:4px;' +
-      "padding:3px 10px;color:var(--muted);font-size:var(--fs-xs);" +
-      'border-bottom:1px solid var(--bd);background:var(--hover)">' +
-      esc(label) +
-      ' <span style="opacity:0.7">(' +
-      list.length +
-      ")</span></div>";
-    html += list.map((it, i) => itemHTML(it, i)).join("");
-  }
-  return html;
-}

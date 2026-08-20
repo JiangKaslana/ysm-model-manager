@@ -557,6 +557,67 @@ export class EnvironmentCapability implements SceneCapability {
     }
   }
 
+  /**
+   * 计算当前环境贴图的 16-bin 亮度直方图。
+   * 数据源：customHdrTex（custom HDR 分支）或 backgroundSrcTex 的 canvas（程序化预设）。
+   * 返回 number[16]，每个 bin 是该亮度区间的像素数；无数据源时返回全 0 数组。
+   */
+  getLuminanceHistogram(): number[] {
+    const BINS = 16;
+    const hist = new Array<number>(BINS).fill(0);
+
+    // 优先用 customHdrTex（HalfFloatType DataTexture）
+    if (this.customHdrTex) {
+      const img = this.customHdrTex.image as { data: Uint16Array; width: number; height: number } | undefined;
+      if (img && img.data && img.width && img.height) {
+        const src = img.data;
+        // 半浮点 reinterpret：Uint16Array → ArrayBuffer → Float32Array
+        const buf = new ArrayBuffer(src.length * 2);
+        new Uint16Array(buf).set(src);
+        const f32 = new Float32Array(buf);
+        const total = img.width * img.height;
+        // 降采样：每 16 个像素取 1 个（大 HDR 2k+ 时性能考量）
+        const stride = Math.max(1, Math.floor(total / 4096));
+        for (let i = 0; i < total; i += stride) {
+          const r = f32[i * 3];
+          const g = f32[i * 3 + 1];
+          const b = f32[i * 3 + 2];
+          // Relative luminance (Rec. 601)
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          // Reinhard-ish 映射到 [0,1) 区间
+          const mapped = lum / (1 + lum);
+          const bin = Math.min(BINS - 1, Math.floor(mapped * BINS));
+          hist[bin]++;
+        }
+        return hist;
+      }
+    }
+
+    // 程序化预设：从 backgroundSrcTex 的 canvas 读像素
+    if (this.backgroundSrcTex) {
+      const canvas = this.backgroundSrcTex.image as HTMLCanvasElement | undefined;
+      if (canvas && canvas.getContext) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          const w = canvas.width;
+          const h = canvas.height;
+          const data = ctx.getImageData(0, 0, w, h).data;
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i] / 255;
+            const g = data[i + 1] / 255;
+            const b = data[i + 2] / 255;
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            const bin = Math.min(BINS - 1, Math.floor(lum * BINS));
+            hist[bin]++;
+          }
+          return hist;
+        }
+      }
+    }
+
+    return hist;
+  }
+
   private disposeEnvironment(): void {
     if (this.envRT) {
       this.envRT.dispose();
@@ -743,6 +804,15 @@ export class EnvironmentCapability implements SceneCapability {
         slider: { min: 0, max: 3, step: 0.05 },
         getValue: () => this.getIntensity(),
         setValue: (v) => this.setIntensity(v as number),
+      },
+      {
+        id: "env-histogram",
+        kind: "histogram",
+        labelKey: "preview.envHistogram",
+        fallback: "亮度直方图",
+        group: "preview.envGroupBackground",
+        getValue: () => this.getLuminanceHistogram(),
+        setValue: () => { /* 只读 */ },
       },
     ];
   }

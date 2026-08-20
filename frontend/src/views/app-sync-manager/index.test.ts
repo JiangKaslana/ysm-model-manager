@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { getByTestId, getAllByTestId, waitFor, sleep, mountCustomElement, unmountElement } from "../../test-utils/index.ts";
 import { bus } from "../../bus.ts";
+import type { SyncItem } from "./tpl.ts";
 
 // getApp 全绑定 mock（P1 修复：mocks 提为 vi.hoisted 可引用，原内联 vi.fn 无法精确断言）
 const { mocks } = vi.hoisted(() => {
@@ -148,60 +149,56 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     unmountElement(el);
   });
 
-  it("mmd-skin 按用途子目录分组展示（ADR-095 后续：角色/场景/动画分开）", async () => {
+  it("mmd-skin 走 sync tree：subdir 作为顶层文件夹（SceneModel/CustomAnim 平行可见）", async () => {
     const el = document.createElement("app-sync-manager");
     el.setAttribute("instance", "test");
     document.body.appendChild(el);
-    // 初始渲染稳定（状态筛选栏恒在，不依赖列表内容）
     await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
-    bus.emit("repo:rtype-changed", "ysm");
-    await sleep(200);
-    // 覆盖下一次 loadData：mmd 条目含 subdir
-    mocks.GetInstanceSyncStatus.mockResolvedValueOnce(
-      JSON.stringify([
-        { path: "x/3d-skin/SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "mmd-skin", icon: "🎭", size: 10, subdir: "SceneModel" },
-        { path: "x/3d-skin/角色A.pmx", name: "角色A", status: "missing", type: "mmd-skin", icon: "🎭", size: 20 },
-        { path: "x/3d-skin/CustomAnim/动作.pmx", name: "动作", status: "synced", type: "mmd-skin", icon: "🎭", size: 30, subdir: "CustomAnim" },
-      ]),
-    );
-    bus.emit("repo:rtype-changed", "mmd-skin");
-    await sleep(500);
-    // 组头存在：根（PMX 模型 (EntityPlayer)）+ SceneModel + CustomAnim
-    const heads = el.querySelectorAll(".sm-group-head");
-    const texts = Array.from(heads).map((h) => h.textContent || "");
-    expect(texts.some((s) => s.includes("PMX 模型"))).toBe(true);
-    expect(texts.some((s) => s.includes("SceneModel"))).toBe(true);
-    expect(texts.some((s) => s.includes("CustomAnim"))).toBe(true);
-    // 恢复全局状态（防模块级 _lastSelectedType 泄漏到后续用例）
-    bus.emit("repo:rtype-changed", "ysm");
-    await sleep(100);
-    unmountElement(el);
-  });
 
-  it("repo:subdir-changed → 列表按 MMD 子目录过滤（ADR-095 后续）", async () => {
-    const el = document.createElement("app-sync-manager");
-    el.setAttribute("instance", "test");
-    document.body.appendChild(el);
-    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
-    bus.emit("repo:rtype-changed", "ysm");
-    await sleep(200);
-    mocks.GetInstanceSyncStatus.mockResolvedValueOnce(
-      JSON.stringify([
-        { path: "x/3d-skin/SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "mmd-skin", icon: "🎭", size: 10, subdir: "SceneModel" },
-        { path: "x/3d-skin/角色A.pmx", name: "角色A", status: "missing", type: "mmd-skin", icon: "🎭", size: 20 },
-      ]),
-    );
-    bus.emit("repo:rtype-changed", "mmd-skin");
-    await sleep(500);
-    // 选 SceneModel 子目录 → 只剩该组条目
-    bus.emit("repo:subdir-changed", "SceneModel");
+    // 驱动私有状态：mmd-skin 条目含 subdir
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
+      _typeConfig: Array<{ id: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _repoRoots: Record<string, string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "mmd-skin";
+    self._typeConfig = [{ id: "mmd-skin", dirLevelSync: true }];
+    self._allItems = [
+      { path: "x/3d-skin/SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "mmd-skin", icon: "🎭", size: 10, subdir: "SceneModel" },
+      { path: "x/3d-skin/角色A.pmx", name: "角色A", status: "missing", type: "mmd-skin", icon: "🎭", size: 20 },
+      { path: "x/3d-skin/CustomAnim/动作.pmx", name: "动作", status: "synced", type: "mmd-skin", icon: "🎭", size: 30, subdir: "CustomAnim" },
+    ];
+    self._filteredItems = self._allItems;
+    self._repoRoots = { "mmd-skin": "/repo" };
+    self._dirOpen = {};
+    mocks.ScanModelEntriesWithLabel.mockResolvedValue([]);
+
+    self._doRender();
     await sleep(100);
-    const items = el.querySelectorAll(".sm-item");
-    expect(items.length).toBe(1);
-    expect((items[0] as HTMLElement).textContent || "").toContain("舞台");
-    // 恢复全局状态（防泄漏到后续用例）
+    // 顶层文件夹：SceneModel、CustomAnim、角色A（根下无 subdir 的条目也成文件夹）
+    let dirs = el.querySelectorAll(".sm-dir");
+    expect(dirs.length).toBe(3);
+    // data-path = 后端绝对路径（供 push/pull 消费）；分组文件夹用 subdir 名、根下条目用原始 path
+    const dirKeys = Array.from(dirs).map((d) => (d as HTMLElement).dataset.path || "");
+    expect(dirKeys).toEqual(expect.arrayContaining(["SceneModel", "CustomAnim", "x/3d-skin/角色A.pmx"]));
+    // 未展开无子文件
+    expect(el.querySelectorAll(".sm-file").length).toBe(0);
+    // 展开 SceneModel → 出现子文件（无 scan 时 files=[]，但文件夹仍可见）
+    (dirs[0] as HTMLElement).click();
+    await sleep(200);
+    // 文件夹行仍在，且箭头变为 ▾
+    dirs = el.querySelectorAll(".sm-dir");
+    expect((dirs[0] as HTMLElement).querySelector(".sm-dir-arrow")?.textContent).toBe("▾");
+    // 展开后 SceneModel 组下出现内部模型行（舞台），data-path 用后端绝对路径
+    expect(dirs.length).toBe(4);
+    const keysAfter = Array.from(dirs).map((d) => (d as HTMLElement).dataset.path || "");
+    expect(keysAfter).toEqual(expect.arrayContaining(["x/3d-skin/SceneModel/舞台.pmx"]));
+    // 恢复全局状态
     bus.emit("repo:rtype-changed", "ysm");
-    bus.emit("repo:subdir-changed", "");
     await sleep(100);
     unmountElement(el);
   });

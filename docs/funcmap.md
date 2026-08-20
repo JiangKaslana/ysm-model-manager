@@ -41,12 +41,12 @@
 | 前端·特性 | 16 | 77 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
-| frontend/ui | 18 | 99 |
-| 前端·工具 | 136 | 527 |
+| frontend/ui | 18 | 95 |
+| 前端·工具 | 136 | 526 |
 | frontend/views | 109 | 310 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **428** | **1837** |
+| **合计** | **428** | **1832** |
 
 ## Go·头像
 
@@ -370,11 +370,11 @@
 | `ListVersionsFunc()` | `go/sync/sync_discovery:13` | ListVersionsFunc 列出版本实例（函数类型，测试时可注入 mock） |
 | `CompareGlobalInstanceHashes()` | `go/sync/sync_hash:29` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录，返回每个实例的 Missing / Extra / Synced 状态。 |
 | `HasModInDirFn()` | `go/sync/sync_hash:19` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
-| `PushResources()` | `go/sync/sync_push:41` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
-| `PullResources()` | `go/sync/sync_push:96` | PullResources 拉取整合包多余资源回仓库 |
-| `PullSingleResource()` | `go/sync/sync_push:193` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
-| `PushSingleResource()` | `go/sync/sync_push:219` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。 |
-| `SyncCustomToRepo()` | `go/sync/sync_push:233` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
+| `PushResources()` | `go/sync/sync_push:22` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
+| `PullResources()` | `go/sync/sync_push:65` | PullResources 拉取整合包多余资源回仓库 |
+| `PullSingleResource()` | `go/sync/sync_push:150` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
+| `PushSingleResource()` | `go/sync/sync_push:172` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install |
+| `SyncCustomToRepo()` | `go/sync/sync_push:185` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:19` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
@@ -751,21 +751,21 @@
 | `App.DetectResourceType()` | `internal/app/resource_bindings:156` | DetectResourceType 检测指定文件的资源类型 |
 | `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:169` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
 | `App.GetRepoRoot()` | `internal/app/resource_bindings:184` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
-| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:242` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
-| `App.ToggleResourcePack()` | `internal/app/resource_bindings:358` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
-| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:404` | IsResourcePackEnabled 检查资源包是否启用 |
-| `App.SelectImportZip()` | `internal/app/resource_bindings:409` | SelectImportZip 打开文件选择器选取 .zip 文件 |
-| `App.SelectImportFile()` | `internal/app/resource_bindings:422` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
-| `App.SetResourceRoot()` | `internal/app/resource_bindings:444` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
-| `App.ResetResourceRoot()` | `internal/app/resource_bindings:464` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
-| `App.ImportResourcePack()` | `internal/app/resource_bindings:495` | ImportResourcePack 使用策略模式导入资源包 |
-| `App.ImportByType()` | `internal/app/resource_bindings:508` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:525` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
-| `App.DeleteModelDir()` | `internal/app/resource_bindings:536` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:587` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:603` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:616` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:622` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:220` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
+| `App.ToggleResourcePack()` | `internal/app/resource_bindings:336` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
+| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:382` | IsResourcePackEnabled 检查资源包是否启用 |
+| `App.SelectImportZip()` | `internal/app/resource_bindings:387` | SelectImportZip 打开文件选择器选取 .zip 文件 |
+| `App.SelectImportFile()` | `internal/app/resource_bindings:400` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
+| `App.SetResourceRoot()` | `internal/app/resource_bindings:422` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
+| `App.ResetResourceRoot()` | `internal/app/resource_bindings:442` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
+| `App.ImportResourcePack()` | `internal/app/resource_bindings:473` | ImportResourcePack 使用策略模式导入资源包 |
+| `App.ImportByType()` | `internal/app/resource_bindings:486` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:503` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
+| `App.DeleteModelDir()` | `internal/app/resource_bindings:514` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:565` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:581` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:594` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:600` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |
@@ -1098,12 +1098,8 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `ControlUpdater()` | `frontend/src/ui/control-registry:9` | — |
-| `setControlRegistry()` | `frontend/src/ui/control-registry:20` | 接入外部控件更新系统。传入 null 可取消接入（内部注册表不受影响）。 |
-| `registerControl()` | `frontend/src/ui/control-registry:29` | 注册一个控件更新回调（需唯一 id）。 |
-| `getControl()` | `frontend/src/ui/control-registry:35` | 按 id 获取已注册的更新回调，未注册返回 undefined。 |
-| `unregisterControl()` | `frontend/src/ui/control-registry:40` | 按 id 移除已注册的更新回调，成功返回 true，未命中返回 false（重复 unregister 不抛错）。 |
-| `clearControls()` | `frontend/src/ui/control-registry:53` | 清空所有已注册的控件。不取消外部系统接入。 |
-| `getControlCount()` | `frontend/src/ui/control-registry:58` | 当前已注册控件数量。 |
+| `setControlRegistry()` | `frontend/src/ui/control-registry:17` | 接入外部控件更新系统（如 ysm 的响应式链路）。 |
+| `registerControl()` | `frontend/src/ui/control-registry:22` | 注册一个控件更新回调。未接入外部系统时静默忽略。 |
 | `ROLE()` | `frontend/src/ui/dom-contract:6` | 渲染层 role 常量 |
 | `ARIA_ATTR()` | `frontend/src/ui/dom-contract:17` | aria 属性名常量 |
 | `COLLAPSIBLE()` | `frontend/src/ui/dom-contract:29` | collapsible（folder）组件契约 |
@@ -1255,8 +1251,7 @@
 | `PmxJointData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:108` | — |
 | `PmxDisplayFrameData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:123` | — |
 | `PmxReader()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:130` | — |
-| `parseBones()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:350` | — |
-| `parsePMX()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:417` | — |
+| `parseBones()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:349` | — |
 | `TexDecodeRequest()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:7` | 主线程 → Worker 的请求 |
 | `TexDecodeResponse()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:15` | Worker → 主线程的响应 |
 | `TexDecodeConfig()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:15` | 解码器配置 |
@@ -1289,8 +1284,8 @@
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:67` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:25` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu:55` | 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:403` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:411` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:357` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:365` | 挂载预览底部根菜单，返回句柄 |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:29` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
@@ -1996,13 +1991,13 @@
 | `applyFilter()` | `frontend/src/views/app-sync-manager/store:66` | 应用类型 + MMD 子目录 + 状态筛选，写入 self._filteredItems。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:21` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
-| `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:31` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |
-| `syncFileRowHTML()` | `frontend/src/views/app-sync-manager/tpl:92` | 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） |
-| `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:117` | 容器骨架 |
-| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:160` | 状态筛选标签 HTML |
-| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:189` | 列表项 HTML |
-| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:247` | 空状态 HTML |
-| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:261` | 加载中 |
+| `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:29` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |
+| `syncFileRowHTML()` | `frontend/src/views/app-sync-manager/tpl:89` | 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） |
+| `containerHTML()` | `frontend/src/views/app-sync-manager/tpl:114` | 容器骨架 |
+| `statusTabHTML()` | `frontend/src/views/app-sync-manager/tpl:157` | 状态筛选标签 HTML |
+| `itemHTML()` | `frontend/src/views/app-sync-manager/tpl:186` | 列表项 HTML |
+| `emptyHTML()` | `frontend/src/views/app-sync-manager/tpl:244` | 空状态 HTML |
+| `loadingHTML()` | `frontend/src/views/app-sync-manager/tpl:258` | 加载中 |
 | `treeCSS()` | `frontend/src/views/app-tree/app-tree-styles:3` | — |
 | `AuthorInfo()` | `frontend/src/views/app-tree/authors:5` | 作者统计（Go ListModelAuthors 返回） |
 | `loadAuthors()` | `frontend/src/views/app-tree/authors:13` | 从 Go 端加载作者列表 |

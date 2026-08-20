@@ -8,7 +8,7 @@
 /* ============ 菜单控件定义 ============ */
 
 /** 单个菜单控件类型 */
-type MenuControlKind = "toggle" | "slider" | "select" | "button" | "divider" | "image" | "color" | "timeline";
+type MenuControlKind = "toggle" | "slider" | "select" | "button" | "divider" | "image" | "color" | "timeline" | "histogram";
 
 /** 菜单控件定义（声明式，由框架渲染为 DOM） */
 export interface MenuControlDef {
@@ -49,7 +49,7 @@ export interface MenuControlDef {
     disabled?: () => boolean;
   };
   /** 读取当前值（框架调用，渲染初始状态；button/image 忽略，image 可返回 null 跳过渲染） */
-  getValue: () => number | string | boolean | null;
+  getValue: () => number | string | boolean | null | number[];
   /** 设置值（框架调用，用户交互时触发；button 忽略） */
   setValue: (v: number | string | boolean) => void;
 }
