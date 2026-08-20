@@ -31,8 +31,9 @@ invariant_anchors:
 - 模型移动/复制（**目录感知**：`ysm.json` 提升为父目录整组操作，ADR-038 D3）
 - 模型删除（目录感知：`ysm.json` 整组删父目录，守卫拒绝时回退单文件）
 - **文件夹整组导入统一**（`folder_import.go` / `WriteModelFolder`）：不区分 YSM 解压目录与普通文件夹，只要组内含至少 1 个支持文件即整体入仓，**保留嵌套子目录层级**
-- 启用/禁用（`.ban` 标记，目录级 `.ban` 整组禁用，ADR-038 D3.7）
+- 启用/禁用（`.ban` 是**文件名重命名约定**：`ToggleModelEnable` 把 `path` 重命名为 `path+".ban"`，目录级 `.ban` 整组禁用，ADR-038 D3.7）
 - 预览图/纹理提取（zip/7z/ysm/json 容器）
+- **跨设备移动 fallback**：`MoveModelFile` 在 `os.Rename` 返回 EXDEV 时自动回退到 copy+delete（`renameForMove` 可注入，供测试强制触发）
 
 ## 文件夹整组导入（folder_import.go）
 
@@ -53,16 +54,16 @@ invariant_anchors:
 
 | 操作 | `src` 为 ysm.json 时 | 守卫 |
 |------|---------------------|------|
-| `MoveModelFile` | 提升父目录整组移动 | — |
-| `CopyModelFile` | 提升父目录整组复制（递归，含 .ban） | root 路径安全校验 |
+| `MoveModelFile` | 提升父目录整组移动（EXDEV 时 copy+delete fallback） | — |
+| `CopyModelFile` | 提升父目录整组复制（递归；嵌套 `.ban` 随树复制） | root 路径安全校验 |
 | `DeleteModelFile(root, path)` | 提升父目录整组删除 | 父目录必须严格深于仓库根；根级回退单文件、仓库外显式拒绝 |
 | `ToggleModelEnable(root, path)` | 提升父目录级 .ban | 根级回退文件级 .ban；父目录 .ban 识别对称 |
 
 ## 对外 API / 入口
 
 - `CreateDir` / `RenameDir` / `RemoveDir` / `RenameFile` — 基础 CRUD（`RenameFile` 对 `ysm.json` 特判禁止改名）
-- `MoveModelFile(src, dstDir)` — 模型移动，单次 `os.Rename`（不做跨设备复制回退，与 `go/recycle.moveEx` 的 EXDEV 回退不同）
-- `CopyModelFile(root, src, dstDir)` — 模型复制（目录递归、防覆盖、随带 `.ban`）
+- `MoveModelFile(root, src, dstDir)` — 模型移动（目录感知）；`os.Rename` 跨设备（EXDEV）时自动回退 copy+delete（`renameForMove` 可注入供测试强制触发，见不变量）
+- `CopyModelFile(root, src, dstDir)` — 模型复制（目录递归、防覆盖）；`.ban` 禁用态随文件名/目录名自然携带，不处理兄弟 `<src>.ban`
 - `WriteModelFolder(repoRoot, subpath, folderName, files)` — 文件夹整组导入（薄壳 `App.ImportModelFolder` 转发，成功后 `scanner.InvalidateCache()`）
 - `DeleteModelFile(root, path)` — 目录感知删除（D3.6 单入口）
 - `ToggleModelEnable(root, path)` / `IsFileBanned(path)` — 启用禁用（D3.7 目录级 .ban）
@@ -81,7 +82,9 @@ invariant_anchors:
 - 目录提升必须带 root 守卫：父目录 = 仓库根 → 回退文件级；父目录在仓库外 → 显式拒绝
 - `WriteModelFolder` 不覆盖已存在目录；组内至少 1 个支持文件；每个 `RelPath` 必须落在 `dstRoot` 内
 - `.ban` 检测大小写不敏感（Windows `.BAN` 兼容）
+- **`.ban` 是文件名重命名约定**（`ToggleModelEnable` 把 `path` 重命名为 `path+".ban"`），后缀随文件/目录名自然携带——`MoveModelFile` / `CopyModelFile` **不再处理兄弟 `<src>.ban`**（那属于撞名的无关被禁模型，复制/失败回滚均会误伤）
 - **`CopyModelFile` 拒绝目录自嵌套复制**（P2 修复：`dstDir` 位于 `src` 子树内时原实现 WalkDir 递归自嵌套无限膨胀至 ENAMETOOLONG——复制前校验 `filepath.Rel(src, dstDir)` 无 `..` 前缀即拒绝）
+- **`MoveModelFile` 跨设备 fallback**：`os.Rename` 返回 EXDEV 时自动 copy+delete，`renameForMove` 可注入供测试
 
 ## 相关
 
