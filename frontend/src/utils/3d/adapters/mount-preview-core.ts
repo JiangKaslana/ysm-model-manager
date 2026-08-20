@@ -364,6 +364,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   function closeOverlay(): void {
     aborted = true;
     document.removeEventListener("keydown", escH);
+    // 早期路径（cleanupFn 尚未赋值）：清理 tip 定时器 + 菜单，再拆 overlay
+    if (tipTimeoutId) {
+      clearTimeout(tipTimeoutId);
+      tipTimeoutId = undefined as unknown as ReturnType<typeof setTimeout>;
+    }
+    menuHandle.dispose();
     if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
     // 从模块级 handles 列表移除当前 session
     const idx = _handles.findIndex(h => h.gen === myGen);
@@ -530,13 +536,13 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // ===== §4b rAF 渲染管线（全局唯一 loop，所有 session 共享同一 renderer）=====
     // 首个 session 启动 loop，后续 session 追加 perFrame 回调；cleanupPreview 停止
     if (_globalAnimId === 0) {
-      let lastTime = performance.now();
       // rAF 每帧复用 Vector3 实例，避免 5 次 GC 分配（R1-P1-1）
       const _camDir = new THREE.Vector3();
       const _forward = new THREE.Vector3();
       const _up = new THREE.Vector3(0, 1, 0);
       const _right = new THREE.Vector3();
       const _move = new THREE.Vector3();
+      let lastTime = performance.now();
       function animate(): void {
         _globalAnimId = requestAnimationFrame(animate);
         const now = performance.now();
@@ -602,7 +608,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   tip.textContent = "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
   overlay.insertBefore(tip, body);
   // 审核 #3：保存 timeoutId 供 cleanup 时 clearTimeout
-  let tipTimeoutId = setTimeout(() => {
+  let tipTimeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
     if (tip.parentNode) tip.remove();
   }, TIP_AUTO_DISMISS_MS);
 
@@ -789,8 +795,20 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // 不再有 topBar 或 sidePanel 额外挂载
 
     function fullCleanup(): void {
-      // 只清理内容层（dispose built + 移除 scene children），保留 renderer/canvas/overlay 存活
-      // 避免销毁 WebGL context 导致黑屏窗口期
+      // P0 修复：中止/退出路径完整拆除 DOM + 解绑监听，防泄漏
+      // ① ESC 监听器（escH 经 L792 可能已被替换，移除当前引用）
+      document.removeEventListener("keydown", escH);
+      // ② 提示条定时器
+      if (tipTimeoutId) {
+        clearTimeout(tipTimeoutId);
+        tipTimeoutId = undefined as unknown as ReturnType<typeof setTimeout>;
+      }
+      // ③ 声明式根菜单（移除 dock/popup + 解绑 view click 监听）
+      menuHandle.dispose();
+      // ④ viewContainer（含 loadingEl；首次挂载时可能含 renderer.domElement）
+      if (viewContainer.parentNode) viewContainer.parentNode.removeChild(viewContainer);
+      // ⑤ 只清理内容层（dispose built + 移除 scene children），保留 renderer/canvas/overlay 存活
+      //    避免销毁 WebGL context 导致黑屏窗口期
       if (scene && sceneBaseline) {
         const stale = scene.children.filter((c): boolean => !sceneBaseline!.has(c));
         for (const c of stale) scene.remove(c);
@@ -800,7 +818,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       }
       allBuilt.length = 0;
       sceneRegistry.reset();
-      // 清掉 loadingEl
+      // 清掉 loadingEl（已从 viewContainer 一并移除，此处为兜底）
       if (loadingEl.parentNode) loadingEl.remove();
       // 从全局 perFrame 回调列表移除本 session
       if (perFrame) {

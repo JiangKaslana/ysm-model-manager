@@ -38,12 +38,15 @@ func GetInstanceStatusWith(mcRoot, repoDir string, scanFn ScanFunc, listFn ListV
 
 	repoEntries := scanFn(repoDir)
 	repoByHash := make(map[string][]types.ModelEntry)
+	// 预构建禁用哈希集合（循环不变量：一次遍历，后续每个 instance 复用）
+	bannedHashes := make(map[string]bool)
 	for _, e := range repoEntries {
 		if e.Hash == "" {
 			continue
 		}
-		// 跳过禁用的模型（.ban），它们不应出现在缺失列表中
+		// 禁用的模型（.ban）不应出现在缺失列表，同时归入 bannedHashes
 		if strings.HasSuffix(strings.ToLower(e.Name), ".ban") {
+			bannedHashes[e.Hash] = true
 			continue
 		}
 		repoByHash[e.Hash] = append(repoByHash[e.Hash], e)
@@ -75,13 +78,6 @@ func GetInstanceStatusWith(mcRoot, repoDir string, scanFn ScanFunc, listFn ListV
 				for _, e := range entries {
 					status.Missing = append(status.Missing, e.Path)
 				}
-			}
-		}
-		// 预构建禁用哈希集合
-		bannedHashes := make(map[string]bool)
-		for _, re := range repoEntries {
-			if strings.HasSuffix(strings.ToLower(re.Name), ".ban") && re.Hash != "" {
-				bannedHashes[re.Hash] = true
 			}
 		}
 

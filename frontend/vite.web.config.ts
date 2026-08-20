@@ -2,28 +2,11 @@
 // 与主应用（vite.config.js，Wails 打包）分离：独立产物 dist-web。
 // 双入口：index.html（主 UI，Tier 1 MODE=web 判定走 browserAdapter）+ web.html（Spike 调试页）。
 // base 对齐 GitHub Pages 项目页子路径：文档站 /ysm-model-manager/ 根 + 网页版 /ysm-model-manager/app/。
-// 复用 vite.config.js 的 wails-bindings-resolve 逻辑（bindings 以 .ts 生成、.js 后缀 import）。
+// 复用 vite-wails-bindings-resolve.ts 的 wails-bindings-resolve 插件（bindings 以 .ts 生成、.js 后缀 import）。
 import { defineConfig } from "vite";
-import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { resolve } from "path";
-
-// 与 vite.config.js 中同名 wailsBindingsResolve 插件逐字重复（唯一差异：本文件加了 TS 参数类型注解）。
-// 改动必须两边同步；后续可抽公共模块（如 shared/wails-bindings-resolve.ts）统一维护。
-const wailsBindingsResolve = {
-  name: "wails-bindings-resolve",
-  resolveId(source: string, importer: string | undefined) {
-    if (!importer) return null;
-    if (!source.includes("/bindings/") || !source.endsWith(".js")) return null;
-    const tsSource = source.replace(/\.js$/, ".ts");
-    const dir = resolve(importer, "..");
-    const tsPath = resolve(dir, tsSource);
-    if (existsSync(tsPath)) {
-      return this.resolve(tsSource, importer, { skipSelf: true });
-    }
-    return null;
-  },
-};
+import { wailsBindingsResolve } from "./vite-wails-bindings-resolve.ts";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 
