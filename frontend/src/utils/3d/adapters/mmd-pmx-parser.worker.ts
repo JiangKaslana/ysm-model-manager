@@ -45,19 +45,19 @@ export interface PmxMaterialData {
   sharedToon: number;
 }
 
-/** 骨骼数据 */
+/** 骨骼数据（字段对齐 @moeru/three-mmd PmxObject.Bone） */
 export interface PmxBoneData {
   name: string;
-  parent: number; // -1 = root
+  englishName: string;
+  parentBoneIndex: number; // -1 = root
   position: [number, number, number];
   rotation: [number, number, number, number]; // quaternion
-  hasPositionOffset: boolean;
-  hasRotationOffset: boolean;
-  positionOffset?: [number, number, number];
-  rotationOffset?: [number, number, number, number];
+  flag: number; // PMX Bone.Flag 原始位（诊断/后续使用）
   hasIK: boolean;
   ikTarget?: number;
-  ikChildren?: Array<{ boneIndex: number; angle: number }>;
+  ikIteration?: number;
+  ikRotationConstraint?: number;
+  ikLinks?: Array<{ boneIndex: number; hasLimitation: boolean }>;
 }
 
 /** Morph 数据 */
@@ -127,7 +127,7 @@ export interface PmxDisplayFrameData {
 }
 
 // ===== 二进制读取器 =====
-class PmxReader {
+export class PmxReader {
   private view: DataView;
   private u8: Uint8Array;
   pos = 0;
@@ -330,6 +330,86 @@ function scanStructure(reader: PmxReader): PmxStructure {
   }
 
   return s;
+}
+
+// ===== 骨骼解析（纯函数，权威字节序对齐 @moeru/three-mmd _ParseBones）=====
+// PMX 2.0 Bone 结构（权威顺序，见 @moeru/three-mmd dist/index.js _ParseBones）：
+//   name(text) → englishName(text) → position(vec3) → parentBoneIndex(index)
+//   → transformOrder(int32) → flag(uint16)
+//   → tailPosition：flag 0x0001 时 boneIndex，否则 vec3（总是存在）
+//   → appendTransform：flag 0x0100|0x0200 时 parentIndex(index) + ratio(float32)
+//   → axisLimit：flag 0x0400 时 vec3
+//   → localVector：flag 0x0800 时 x(vec3) + z(vec3)
+//   → externalParentTransform：flag 0x2000 时 int32
+//   → IK：flag 0x0020 时 target(index) + iteration(int32) + rotationConstraint(float32)
+//     + linksCount(int32) + links[{ boneIndex(index), limitation?[min vec3, max vec3] }]
+// ⚠️ 旧实现错在：缺 englishName/transformOrder（顺序错位）、flag 位含义错
+// （0x01/0x02/0x10 误判 positionOffset/rotationOffset/IK，实为 tailIndex/rotatable/controllable）、
+// IK 结构错（childCount uint8 + angle，实为 iteration int32 + rotationConstraint + links）。
+export function parseBones(reader: PmxReader, boneCount: number): PmxBoneData[] {
+  const bones: PmxBoneData[] = [];
+  for (let i = 0; i < boneCount; i++) {
+    const name = reader.readString();
+    const englishName = reader.readString();
+    const position: [number, number, number] = [
+      reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
+    ];
+    const parentBoneIndex = reader.readBoneIndex();
+    reader.readInt32(); // transformOrder（变形层级，本解析不消费）
+    const flag = reader.readUint16();
+    const rotation: [number, number, number, number] = [0, 0, 0, 1];
+
+    // tailPosition（总是存在）
+    if ((flag & 0x0001) !== 0) {
+      reader.readBoneIndex(); // UseBoneIndexAsTailPosition
+    } else {
+      reader.readFloat32(); reader.readFloat32(); reader.readFloat32();
+    }
+
+    // appendTransform（0x0100 HasAppendRotate | 0x0200 HasAppendMove）
+    if ((flag & 0x0300) !== 0) {
+      reader.readBoneIndex(); // parentIndex
+      reader.readFloat32();   // ratio
+    }
+    // axisLimit（0x0400 HasAxisLimit）
+    if ((flag & 0x0400) !== 0) {
+      reader.readFloat32(); reader.readFloat32(); reader.readFloat32();
+    }
+    // localVector（0x0800 HasLocalVector）
+    if ((flag & 0x0800) !== 0) {
+      for (let k = 0; k < 6; k++) reader.readFloat32(); // x vec3 + z vec3
+    }
+    // externalParentTransform（0x2000 IsExternalParentTransformed）
+    if ((flag & 0x2000) !== 0) {
+      reader.readInt32();
+    }
+
+    const bone: PmxBoneData = {
+      name, englishName, parentBoneIndex, position, rotation, flag,
+      hasIK: false,
+    };
+
+    // IK（0x0020 IsIkEnabled）
+    if ((flag & 0x0020) !== 0) {
+      bone.hasIK = true;
+      bone.ikTarget = reader.readBoneIndex();
+      bone.ikIteration = reader.readInt32();
+      bone.ikRotationConstraint = reader.readFloat32();
+      const linksCount = reader.readInt32();
+      bone.ikLinks = [];
+      for (let j = 0; j < linksCount; j++) {
+        const linkBoneIndex = reader.readBoneIndex();
+        const hasLimitation = reader.readUint8() === 1;
+        if (hasLimitation) {
+          for (let k = 0; k < 6; k++) reader.readFloat32(); // min vec3 + max vec3
+        }
+        bone.ikLinks.push({ boneIndex: linkBoneIndex, hasLimitation });
+      }
+    }
+
+    bones.push(bone);
+  }
+  return bones;
 }
 
 // ===== PMX 解析 =====
@@ -561,45 +641,7 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
 
   // === Bones ===
   reader.pos = struct.bone.pos + 8;
-  const bones: PmxBoneData[] = [];
-  for (let i = 0; i < boneCount; i++) {
-    const name = reader.readString();
-    const parent = reader.readBoneIndex();
-    const position: [number, number, number] = [
-      reader.readFloat32(), reader.readFloat32(), reader.readFloat32(),
-    ];
-    const rotation: [number, number, number, number] = [0, 0, 0, 1];
-    const flags = reader.readUint16();
-
-    const hasPositionOffset = (flags & 0x01) !== 0;
-    const hasRotationOffset = (flags & 0x02) !== 0;
-    const hasIK = (flags & 0x10) !== 0;
-
-    const bone: PmxBoneData = {
-      name, parent, position, rotation,
-      hasPositionOffset, hasRotationOffset, hasIK,
-    };
-
-    if (hasPositionOffset) {
-      bone.positionOffset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-    }
-    if (hasRotationOffset) {
-      bone.rotationOffset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-    }
-    if (hasIK) {
-      bone.ikTarget = reader.readBoneIndex();
-      const ikChildCount = reader.readUint8();
-      bone.ikChildren = [];
-      for (let j = 0; j < ikChildCount; j++) {
-        bone.ikChildren.push({
-          boneIndex: reader.readBoneIndex(),
-          angle: reader.readFloat32(),
-        });
-      }
-    }
-
-    bones.push(bone);
-  }
+  const bones = parseBones(reader, boneCount);
 
   // === Rigid Bodies ===
   reader.pos = struct.rigidBody.pos + 8;

@@ -855,6 +855,7 @@
   "preview.fogNear": "近距",
   "preview.fogFar": "远距",
   "preview.fogDensity": "雾密度",
+  "preview.fogColor": "雾色",
   "preview.fogDesc": "雾效：线性/指数雾，营造距离感",
   "preview.shadow": "阴影",
   "preview.shadowType": "阴影类型",

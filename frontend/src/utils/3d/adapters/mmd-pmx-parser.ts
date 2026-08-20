@@ -203,24 +203,12 @@ export function buildPmxScene(
       const bone = new THREE.Bone();
       bone.name = pmxBone.name;
       bone.position.set(pmxBone.position[0], pmxBone.position[1], pmxBone.position[2]);
-
-      if (pmxBone.hasPositionOffset && pmxBone.positionOffset) {
-        bone.position.x += pmxBone.positionOffset[0];
-        bone.position.y += pmxBone.positionOffset[1];
-        bone.position.z += pmxBone.positionOffset[2];
-      }
-
-      if (pmxBone.hasRotationOffset && pmxBone.rotationOffset) {
-        const q = pmxBone.rotationOffset;
-        bone.quaternion.set(q[0], q[1], q[2], q[3]);
-      }
-
       bones.push(bone);
     }
 
     // 构建父子关系
     for (let i = 0; i < pmxBones.length; i++) {
-      const parent = pmxBones[i].parent;
+      const parent = pmxBones[i].parentBoneIndex;
       if (parent >= 0 && parent < bones.length) {
         bones[parent].add(bones[i]);
       }
@@ -316,15 +304,6 @@ export async function buildPmxSceneSliced(
       const bone = new THREE.Bone();
       bone.name = pmxBone.name;
       bone.position.set(pmxBone.position[0], pmxBone.position[1], pmxBone.position[2]);
-      if (pmxBone.hasPositionOffset && pmxBone.positionOffset) {
-        bone.position.x += pmxBone.positionOffset[0];
-        bone.position.y += pmxBone.positionOffset[1];
-        bone.position.z += pmxBone.positionOffset[2];
-      }
-      if (pmxBone.hasRotationOffset && pmxBone.rotationOffset) {
-        const q = pmxBone.rotationOffset;
-        bone.quaternion.set(q[0], q[1], q[2], q[3]);
-      }
       bones.push(bone);
     }
 
@@ -332,7 +311,7 @@ export async function buildPmxSceneSliced(
     const relSlice = Math.max(1, Math.ceil(pmxBones.length / 4));
     for (let i = 0; i < pmxBones.length; i++) {
       if (i > 0 && i % relSlice === 0) await yieldToFrame();
-      const parent = pmxBones[i].parent;
+      const parent = pmxBones[i].parentBoneIndex;
       if (parent >= 0 && parent < bones.length) {
         bones[parent].add(bones[i]);
       }
