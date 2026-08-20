@@ -220,7 +220,18 @@ export function buildPmxScene(
 
   // --- 5. 创建 SkinnedMesh ---
   const mesh = new THREE.SkinnedMesh(geometry, materials.length === 1 ? materials[0] : materials);
-  mesh.add(bones[0] ?? new THREE.Bone());
+  // ⚠️ 必须挂载**所有**根骨骼（parentBoneIndex < 0），而非只 bones[0]：PMX 常有多个根
+  //（如「操作中心」+「全ての親」），漏挂的根及其整棵子树成为孤儿 → matrixWorld 不更新
+  // → Skeleton.calculateInverses() 基于 identity 算逆矩阵 → 蒙皮把顶点拉到骨骼世界位置
+  //（角色「空气」/几何放大 N 倍）。真实模型（子言-馬尾版）实测两个根，漏挂全部子骨骼。
+  let rootAdded = false;
+  for (let i = 0; i < bones.length; i++) {
+    if (pmxBones && pmxBones[i] && pmxBones[i].parentBoneIndex < 0) {
+      mesh.add(bones[i]);
+      rootAdded = true;
+    }
+  }
+  if (!rootAdded) mesh.add(bones[0] ?? new THREE.Bone());
   mesh.bind(skeleton);
 
   return { mesh, geometry, materials, bones, skeleton };
@@ -325,7 +336,16 @@ export async function buildPmxSceneSliced(
   // --- Step 4: Skeleton + SkinnedMesh ---
   const skeleton = new THREE.Skeleton(bones);
   const mesh = new THREE.SkinnedMesh(geometry, materials.length === 1 ? materials[0] : materials);
-  mesh.add(bones[0] ?? new THREE.Bone());
+  // ⚠️ 同 buildPmxScene：挂载**所有**根骨骼（PMX 常有多根，如 操作中心+全ての親），
+  // 漏挂 → 孤儿骨骼 matrixWorld 不更新 → calculateInverses 用 identity → 蒙皮拉飞（空气角色）
+  let rootAdded = false;
+  for (let i = 0; i < bones.length; i++) {
+    if (pmxBones && pmxBones[i] && pmxBones[i].parentBoneIndex < 0) {
+      mesh.add(bones[i]);
+      rootAdded = true;
+    }
+  }
+  if (!rootAdded) mesh.add(bones[0] ?? new THREE.Bone());
   mesh.bind(skeleton);
 
   return { mesh, geometry, materials, bones, skeleton };
