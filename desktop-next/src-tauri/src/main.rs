@@ -361,6 +361,12 @@ fn metadata_equal(a: &ModelEntry, b: &ModelEntry) -> bool {
 
 fn entry_dto(entry: ModelEntry) -> EntryDto {
     let lower = entry.name.to_ascii_lowercase();
+    let parent_banned = entry
+        .path
+        .parent()
+        .and_then(Path::file_name)
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.to_ascii_lowercase().ends_with(".ban"));
     EntryDto {
         name: entry.name,
         size: entry.size,
@@ -369,7 +375,7 @@ fn entry_dto(entry: ModelEntry) -> EntryDto {
         hash: entry.hash,
         mod_time_ms: entry.mod_time_ms,
         subdir: entry.subdir,
-        disabled: lower.ends_with(".ban") || lower.ends_with(".disabled"),
+        disabled: lower.ends_with(".ban") || lower.ends_with(".disabled") || parent_banned,
     }
 }
 
