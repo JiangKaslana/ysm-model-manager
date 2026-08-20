@@ -38,6 +38,7 @@ import type { PostprocessingCapability } from "../caps/postprocessing-capability
 import { runFullCleanup, type CleanupContext } from "./cleanup-3d.ts";
 import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts";
 import type { SwitchContext } from "./switch-preview.ts";
+import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import { fitCameraToRoots } from "../camera-setup.ts";
 import { assembleBoneSelectInfo, getMeshBoneId } from "../bone-raycast.ts";
@@ -889,7 +890,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // 掩盖用户主动关闭的意图（旧实现 skeleton.ts 的 gen 守卫，迁移到核心统一承担）。
     if (aborted || myGen !== _gen) return;
     console.error("[preview 3D] 加载失败:", e);
-    loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`;
+    loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;
     bus.emit("toast:show", {
       msg: "❌ " + friendlyError(e, t("preview.loadFailed")),
       duration: 5000,

@@ -7,6 +7,7 @@ import { openFullPreview } from "./zoom.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { registerAndroidBackHandler } from "../../utils/dom/android-bridge.ts";
@@ -182,5 +183,5 @@ export async function loadModel2D(
     const btn3d = ctx.root.getElementById("btn-3d-preview");
     if (btn3d) btn3d.onclick = (): void => { _toggle3D(); };
     if (_prefer3D) requestAnimationFrame(() => btn3d?.click());
-  } catch (e) { container.innerHTML = `<div class="ysm-error-title" style="color:#ff6b6b">🏗️ ${t("preview.skeletonStructure")}</div><div class="ysm-error-body">⚠️ ${t("preview.parseFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`; }
+  } catch (e) { container.innerHTML = `<div class="ysm-error-title" style="color:#ff6b6b">🏗️ ${t("preview.skeletonStructure")}</div><div class="ysm-error-body">⚠️ ${t("preview.parseFailed")}: ${esc(safeErrorMessage(e))}</div>`; }
 }

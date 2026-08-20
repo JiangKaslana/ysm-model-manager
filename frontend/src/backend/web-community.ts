@@ -10,6 +10,7 @@ import workshopGithubJson from "../../../workshop-github.json" with { type: "jso
 import workshopSitesJson from "../../../workshop_sites.json" with { type: "json" };
 // 网页版头像提取复用前端 YSM 解包能力（替代 Go ExtractAvatarURI，ADR-049 缺口补齐）
 import { decodeYsmFile } from "../wasm/ysm-parser.ts";
+import { safeErrorMessage } from "../utils/safe-error-msg.ts";
 import { scanWebModels, readWebFile, collectAllWebEntries, typeFromWebDir } from "./web-fs.ts";
 import { WEB_ROOT, arrayBufferToBase64 } from "./web-common.ts";
 import { safeGet, safeSet, safeRemove } from "../utils/dom/storage.ts";
@@ -280,7 +281,7 @@ export const webCommunityBindings = {
     try {
       imported = JSON.parse(jsonContent) as WorkshopCreator[];
     } catch (e) {
-      return Promise.reject(new Error("导入 JSON 解析失败: " + String(e)));
+      return Promise.reject(new Error("导入 JSON 解析失败: " + safeErrorMessage(e)));
     }
     if (!Array.isArray(imported) || imported.length < 20) {
       return Promise.reject(new Error(`导入数据异常: 仅 ${imported.length} 条 (期望 >=20)`));

@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/paths"
 	"ysm-model-manager/go/types"
 )
 
@@ -67,7 +68,7 @@ func CreateDir(root, dir string) error {
 	if strings.ContainsAny(dir, `\/:*?"<>|`) {
 		return fmt.Errorf("目录名包含非法字符")
 	}
-	if dir == "." || dir == ".." || strings.Contains(dir, ".."+string(filepath.Separator)) || strings.HasSuffix(dir, "..") {
+	if dir == "." || paths.HasTraversal(dir) {
 		return fmt.Errorf("目录名包含非法路径段")
 	}
 	fullPath := filepath.Join(root, dir)
@@ -88,7 +89,7 @@ func RenameDir(oldPath, newName string) error {
 	if strings.ContainsAny(newName, `\/:*?"<>|`) {
 		return fmt.Errorf("目录名包含非法字符")
 	}
-	if newName == "." || newName == ".." || strings.Contains(newName, ".."+string(filepath.Separator)) || strings.HasSuffix(newName, "..") {
+	if newName == "." || paths.HasTraversal(newName) {
 		return fmt.Errorf("目录名包含非法路径段")
 	}
 	parent := filepath.Dir(oldPath)

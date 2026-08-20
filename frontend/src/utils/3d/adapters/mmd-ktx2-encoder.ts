@@ -1,3 +1,5 @@
+import { safeErrorMessage } from "../../safe-error-msg.ts";
+
 // ===== MMD 纹理 KTX2 后台编码器 =====
 // 在浏览器中通过 WASM basis_encoder 将 PNG 纹理编码为 KTX2 格式，
 // 结果通过 SaveCachedTexture 保存到 Go 侧缓存目录。下次加载时直接命中缓存。
@@ -270,7 +272,7 @@ export async function encodeAndCacheTexture(
   } catch (e) {
     // 编码失败静默降级，不影响已有纹理
     if (port.addOpLog) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = safeErrorMessage(e);
       // 超大纹理跳过：非错误，记 warn（避免误报失败刷屏）
       void port.addOpLog("ktx2-encode", hash, e instanceof TextureTooLargeError ? "warn" : "fail", msg);
     }

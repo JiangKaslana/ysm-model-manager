@@ -7,6 +7,7 @@ import { resolveWebMode } from "../../../backend/platform.ts";
 import { bus } from "../../../bus.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 import type { EscFn } from "./logs.ts";
+import { safeErrorMessage } from "../../../utils/safe-error-msg.ts";
 
 // 代际守卫：single-bench/gui-flow/perf-log 三个命令各自可并发/快速连点，旧响应后到会覆盖
 // 新响应（对齐 logs.ts 的 diagLoadSeq 做法）——入口捕获 gen，await 后写 DOM 前比对丢弃陈旧
@@ -220,7 +221,7 @@ async function runSingleBench(root: ShadowRoot, esc: EscFn): Promise<void> {
   } catch (e) {
     if (gen !== perfSingleSeq) return;
     console.error("[diagnostics] single-bench 失败:", e);
-    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${String(e)}`, esc);
+    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${safeErrorMessage(e)}`, esc);
   }
 }
 
@@ -312,7 +313,7 @@ async function runGuiFlow(root: ShadowRoot, esc: EscFn): Promise<void> {
   } catch (e) {
     if (gen !== perfGuiSeq) return;
     console.error("[diagnostics] gui-flow 失败:", e);
-    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${String(e)}`, esc);
+    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${safeErrorMessage(e)}`, esc);
   }
 }
 
@@ -377,6 +378,6 @@ async function runPerfLog(root: ShadowRoot, esc: EscFn): Promise<void> {
   } catch (e) {
     if (gen !== perfHistSeq) return;
     console.error("[diagnostics] perf-log 失败:", e);
-    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${String(e)}`, esc);
+    out.innerHTML = errorHTML(`${t("diagnostics.perfFail")}: ${safeErrorMessage(e)}`, esc);
   }
 }

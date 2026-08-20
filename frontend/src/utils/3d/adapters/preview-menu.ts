@@ -7,6 +7,7 @@
 // 关闭统一走 SlideMenu header ✕（根级）/ ←（子级），外部点击关闭。
 
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS, type PreviewMenuItemDef, type PreviewMenuGroupDef } from "./preview-menu-defs.ts";
+import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { createSlideMenu, type SlideMenuView, type SlideMenuHandle } from "../../../ui/ui-slide-menu.ts";
 import { buildCameraControls, type CameraControlBridge } from "./camera-controls.ts";
 import type { SkyCapability } from "../caps/sky-capability.ts";
@@ -556,7 +557,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       console.error("[preview-menu] renderPanel FAILED", def.id, err);
       const errRow = document.createElement("div");
       errRow.style.cssText = "padding:8px 10px;color:#ff7b7b;font-size:12px";
-      errRow.textContent = "面板渲染失败: " + (err instanceof Error ? err.message : String(err));
+      errRow.textContent = "面板渲染失败: " + safeErrorMessage(err);
       list.appendChild(errRow);
     }
   };

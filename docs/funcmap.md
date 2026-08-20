@@ -871,17 +871,17 @@
 | `arrayBufferToBase64()` | `frontend/src/backend/web-common:55` | ArrayBuffer → base64（分块，大文件避免栈溢出） |
 | `base64ToBytes()` | `frontend/src/backend/web-common:66` | base64 → Uint8Array（arrayBufferToBase64 逆操作；非法输入返回 null） |
 | `webCommonBindings()` | `frontend/src/backend/web-common:88` | — |
-| `webCommunityBindings()` | `frontend/src/backend/web-community:235` | — |
-| `typeFromWebDir()` | `frontend/src/backend/web-fs:72` | 从 /web/&lt;type&gt;/... |
-| `FsaAuthState()` | `frontend/src/backend/web-fs:132` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
-| `getFsaAuthState()` | `frontend/src/backend/web-fs:164` | 查询根目录授权状态（不触发权限弹窗） |
-| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:186` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
-| `rescanFsaRoot()` | `frontend/src/backend/web-fs:204` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
-| `selectLocalRepo()` | `frontend/src/backend/web-fs:241` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
-| `scanWebModels()` | `frontend/src/backend/web-fs:253` | — |
-| `readWebFile()` | `frontend/src/backend/web-fs:312` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
-| `scanAllWebModels()` | `frontend/src/backend/web-fs:488` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:524` | — |
+| `webCommunityBindings()` | `frontend/src/backend/web-community:236` | — |
+| `typeFromWebDir()` | `frontend/src/backend/web-fs:73` | 从 /web/&lt;type&gt;/... |
+| `FsaAuthState()` | `frontend/src/backend/web-fs:133` | FSA 授权状态（供 UI 启动引导，不触发权限弹窗） |
+| `getFsaAuthState()` | `frontend/src/backend/web-fs:165` | 查询根目录授权状态（不触发权限弹窗） |
+| `reauthorizeFsaRoot()` | `frontend/src/backend/web-fs:187` | 对持久化句柄重新请求授权（不重选目录）。须用户手势内调用，成功写入内存句柄返回 true |
+| `rescanFsaRoot()` | `frontend/src/backend/web-fs:205` | 启动自愈：恢复持久化句柄并重扫入库（R2 数据互通，参照 MikuMikuAR ScanModelDir） |
+| `selectLocalRepo()` | `frontend/src/backend/web-fs:242` | 网页版授权本地仓库目录：showDirectoryPicker → 递归扫 .ysm → importWebFiles 落 IDB。 |
+| `scanWebModels()` | `frontend/src/backend/web-fs:254` | — |
+| `readWebFile()` | `frontend/src/backend/web-fs:313` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
+| `scanAllWebModels()` | `frontend/src/backend/web-fs:489` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
+| `searchWebModels()` | `frontend/src/backend/web-fs:525` | — |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
 | `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
@@ -967,9 +967,9 @@
 | `DownloadTask()` | `frontend/src/features/community/download-queue` | — |
 | `DownloadState()` | `frontend/src/features/community/download-queue` | — |
 | `QueueError()` | `frontend/src/features/community/download-queue` | — |
-| `QueueControllerOptions()` | `frontend/src/features/community/download-queue:42` | createDownloadQueue 选项 |
-| `QueueController()` | `frontend/src/features/community/download-queue:51` | 队列控制器 |
-| `createDownloadQueue()` | `frontend/src/features/community/download-queue:76` | 创建一个下载队列 UI 控制器。 |
+| `QueueControllerOptions()` | `frontend/src/features/community/download-queue:43` | createDownloadQueue 选项 |
+| `QueueController()` | `frontend/src/features/community/download-queue:52` | 队列控制器 |
+| `createDownloadQueue()` | `frontend/src/features/community/download-queue:77` | 创建一个下载队列 UI 控制器。 |
 | `DOWNLOAD_CONFIRM_BYTES()` | `frontend/src/features/community/download-tasks:7` | 超过该大小需弹窗确认（含边界值本身直接下载） |
 | `DOWNLOAD_REJECT_BYTES()` | `frontend/src/features/community/download-tasks:9` | 超过该大小直接拒绝（含边界值本身需确认） |
 | `DownloadSizeDecision()` | `frontend/src/features/community/download-tasks:11` | — |
@@ -1024,18 +1024,18 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `CLIArgs()` | `frontend/src/services/cli-bridge:12` | CLI 命令参数（统一格式：key-value map） |
-| `CLIResponse()` | `frontend/src/services/cli-bridge:34` | CLI 统一响应 |
-| `ALLOWED_CLI_COMMANDS()` | `frontend/src/services/cli-bridge:44` | 允许的 CLI 命令默认白名单（网页版降级 + 首次加载缓存用） |
-| `resetDynamicCommandsCache()` | `frontend/src/services/cli-bridge:72` | 重置动态白名单缓存（供测试使用） |
-| `executeCLI()` | `frontend/src/services/cli-bridge:119` | 执行 CLI 命令（核心入口） |
-| `getAllowedCLICommands()` | `frontend/src/services/cli-bridge:168` | 获取允许的 CLI 命令列表（优先使用动态缓存） |
-| `cliSearch()` | `frontend/src/services/cli-bridge:183` | 搜索模型 |
-| `cliList()` | `frontend/src/services/cli-bridge:192` | 列出所有模型 |
-| `cliAnalyze()` | `frontend/src/services/cli-bridge:197` | 分析模型 |
-| `cliCacheStatus()` | `frontend/src/services/cli-bridge:202` | 缓存状态查询 |
-| `buildArgsMap()` | `frontend/src/services/cli-bridge:209` | 构建参数 map（过滤 undefined 和 null） |
-| `parseCLIResponse()` | `frontend/src/services/cli-bridge:220` | 解析 CLI JSON 响应 |
+| `CLIArgs()` | `frontend/src/services/cli-bridge:13` | CLI 命令参数（统一格式：key-value map） |
+| `CLIResponse()` | `frontend/src/services/cli-bridge:35` | CLI 统一响应 |
+| `ALLOWED_CLI_COMMANDS()` | `frontend/src/services/cli-bridge:45` | 允许的 CLI 命令默认白名单（网页版降级 + 首次加载缓存用） |
+| `resetDynamicCommandsCache()` | `frontend/src/services/cli-bridge:73` | 重置动态白名单缓存（供测试使用） |
+| `executeCLI()` | `frontend/src/services/cli-bridge:120` | 执行 CLI 命令（核心入口） |
+| `getAllowedCLICommands()` | `frontend/src/services/cli-bridge:169` | 获取允许的 CLI 命令列表（优先使用动态缓存） |
+| `cliSearch()` | `frontend/src/services/cli-bridge:184` | 搜索模型 |
+| `cliList()` | `frontend/src/services/cli-bridge:193` | 列出所有模型 |
+| `cliAnalyze()` | `frontend/src/services/cli-bridge:198` | 分析模型 |
+| `cliCacheStatus()` | `frontend/src/services/cli-bridge:203` | 缓存状态查询 |
+| `buildArgsMap()` | `frontend/src/services/cli-bridge:210` | 构建参数 map（过滤 undefined 和 null） |
+| `parseCLIResponse()` | `frontend/src/services/cli-bridge:221` | 解析 CLI JSON 响应 |
 | `ServiceName()` | `frontend/src/services/registry:11` | 已知服务名（新服务先在 app-modules.ts 注册，再在此登记） |
 | `register()` | `frontend/src/services/registry:18` | 注册一个服务（.ts 调用方：register("name", impl as X) 声明类型；重复注册覆盖旧实例并告警） |
 | `get()` | `frontend/src/services/registry:24` | 获取一个服务（.ts 调用方：get&lt;X&gt;("name") 断言期望类型；未注册抛错，错误含服务名） |
@@ -1711,8 +1711,8 @@
 | `getExts()` | `frontend/src/utils/resource/extensions:48` | 获取某资源类型支持的扩展名 |
 | `isSupportedExt()` | `frontend/src/utils/resource/extensions:53` | 检查扩展名是否被某资源类型支持 |
 | `extBelongsTo()` | `frontend/src/utils/resource/extensions:58` | 返回扩展名所属的资源类型 ID |
-| `ResourceTypeEntry()` | `frontend/src/utils/resource/registry:6` | 资源类型注册表条目（对应 resource_types.json 结构） |
-| `loadResourceRegistry()` | `frontend/src/utils/resource/registry:19` | 加载资源类型注册表（失败不缓存：Go 桥瞬断后下次调用重试，避免整会话降级） |
+| `ResourceTypeEntry()` | `frontend/src/utils/resource/registry:7` | 资源类型注册表条目（对应 resource_types.json 结构） |
+| `loadResourceRegistry()` | `frontend/src/utils/resource/registry:20` | 加载资源类型注册表（失败不缓存：Go 桥瞬断后下次调用重试，避免整会话降级） |
 | `shortLabelOf()` | `frontend/src/utils/resource/short-label:25` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:24` | 资源类型显示标签（内部 ID → 中文名） |
@@ -1854,12 +1854,12 @@
 | `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:125` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
 | `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:154` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
 | `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:214` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
-| `nextDetailGen()` | `frontend/src/views/app-preview/detail:23` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
-| `getDetailGen()` | `frontend/src/views/app-preview/detail:28` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
-| `showModelDetail()` | `frontend/src/views/app-preview/detail:33` | 显示模型详情（YSM 模型） |
-| `showResourcePack()` | `frontend/src/views/app-preview/detail:144` | 显示资源包信息（pack.mcmeta + pack.png） |
-| `showSimplePreview()` | `frontend/src/views/app-preview/detail:186` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
-| `showShaderpack()` | `frontend/src/views/app-preview/detail:204` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
+| `nextDetailGen()` | `frontend/src/views/app-preview/detail:24` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
+| `getDetailGen()` | `frontend/src/views/app-preview/detail:29` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
+| `showModelDetail()` | `frontend/src/views/app-preview/detail:34` | 显示模型详情（YSM 模型） |
+| `showResourcePack()` | `frontend/src/views/app-preview/detail:145` | 显示资源包信息（pack.mcmeta + pack.png） |
+| `showSimplePreview()` | `frontend/src/views/app-preview/detail:187` | 显示简单类型预览（仅图标 + 名称），用于光影包/蓝图/MMD/VRChat 等 |
+| `showShaderpack()` | `frontend/src/views/app-preview/detail:205` | 显示光影包详情（lang/en_US.lang 提取显示名 + 配置项简介），对齐资源管理器渲染口径 |
 | `openEmpty3DFullscreen()` | `frontend/src/views/app-preview/empty-3d:35` | 打开空场景 3D 全屏预览（无需 path）。 |
 | `cleanupEmpty3D()` | `frontend/src/views/app-preview/empty-3d:40` | 清理空场景 3D（WebGL renderer + rAF 循环） |
 | `invalidateEmptyPreview()` | `frontend/src/views/app-preview/empty-3d:45` | 作废在途空场景加载 |
@@ -1872,9 +1872,9 @@
 | `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:44` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:49` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:54` | 任意新预览派发时调用，作废在途体素加载 |
-| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:27` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
-| `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:108` | 显示投影文件详情面板（tab 布局） |
-| `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:232` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
+| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:28` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
+| `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:109` | 显示投影文件详情面板（tab 布局） |
+| `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:233` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `LoadModelOpts()` | `frontend/src/views/app-preview/loader:11` | loadModelData 选项（Bedrock 通用模型加载控制） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:25` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
 | `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:139` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
@@ -1972,8 +1972,8 @@
 | `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:95` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
 | `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:135` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
-| `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:58` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
-| `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:74` | — |
+| `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:59` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
+| `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:75` | — |
 | `PackMetaDetail()` | `frontend/src/views/app-resource-manager/tpl:8` | 详情面板元数据（ReadPackMeta / ReadShaderpackLang 返回 JSON 的兼容视图） |
 | `sidebarHTML()` | `frontend/src/views/app-resource-manager/tpl:21` | 侧栏布局（路径 + 操作栏 + 列表） |
 | `itemHTML()` | `frontend/src/views/app-resource-manager/tpl:63` | 列表项 HTML |
@@ -1995,8 +1995,8 @@
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:90` | 单个整合包卡片头部。 |
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:17` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮 / dir-level 文件夹展开折叠） |
-| `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:25` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:67` | — |
+| `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:26` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:68` | — |
 | `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:29` | 统一推送 / 拉取单文件操作。 |
 | `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:23` | — |

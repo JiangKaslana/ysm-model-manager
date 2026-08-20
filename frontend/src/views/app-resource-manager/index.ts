@@ -10,6 +10,7 @@ import { getApp } from "../../backend/app.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 import { resolveAndroidRepoDir } from "../../utils/dom/directory-picker.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 
@@ -271,7 +272,7 @@ export class AppResourceManager extends WebComponentBase {
               "已复制到 " + this._typeLabel + " 目录",
             );
           } catch (e) {
-            this._toast("error", "导入失败", e instanceof Error ? e.message : String(e));
+            this._toast("error", "导入失败", safeErrorMessage(e));
           } finally {
             this._opBusy = false;
           }
@@ -295,7 +296,7 @@ export class AppResourceManager extends WebComponentBase {
             }
             await OpenFolder(this._rpRoot);
           } catch (e) {
-            this._toast("error", "打开文件夹失败", e instanceof Error ? e.message : String(e));
+            this._toast("error", "打开文件夹失败", safeErrorMessage(e));
           } finally {
             this._opBusy = false;
           }
@@ -338,7 +339,7 @@ export class AppResourceManager extends WebComponentBase {
           (item as HTMLElement).dataset.name || "",
         );
       } catch (e) {
-        this._toast("error", "操作失败", e instanceof Error ? e.message : String(e));
+        this._toast("error", "操作失败", safeErrorMessage(e));
       }
     });
 
@@ -537,7 +538,7 @@ export class AppResourceManager extends WebComponentBase {
               }
               this._toast("ok", t("rm.deleted"));
             } catch (delErr) {
-              this._toast("error", "删除失败", delErr instanceof Error ? delErr.message : String(delErr));
+              this._toast("error", "删除失败", safeErrorMessage(delErr));
             } finally {
               this._opBusy = false;
             }

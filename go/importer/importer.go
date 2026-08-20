@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/paths"
 )
 
 // Handler 资源导入策略接口
@@ -52,10 +53,7 @@ func Get(rtype string) Handler {
 // 此处的检查是防御纵深，防止 importer 被独立使用时出现路径遍历。
 func sanitizePath(path, label string) (string, error) {
 	cleaned := filepath.Clean(path)
-	// filepath.Clean 会规范化路径，但若 path 以 .. 开头（如 ../etc），Clean 后可能仍含 ..。
-	// 此处检查清理后的结果是否仍有 .. 前缀或组件。
-	sep := string(filepath.Separator)
-	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+sep) || strings.Contains(cleaned, sep+".."+sep) || strings.HasSuffix(cleaned, sep+"..") {
+	if paths.HasTraversal(cleaned) {
 		return cleaned, fmt.Errorf("%s 包含非法路径 '..'", label)
 	}
 	return cleaned, nil

@@ -6,6 +6,7 @@
 import { getApp } from "../../backend/app.ts";
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { readVrmMeta } from "../../utils/3d/adapters/vrm-adapter.ts";
 import { createVrm3D } from "./vrm-3d.ts";
 import { createMmd3D } from "./mmd-3d.ts";
@@ -86,7 +87,7 @@ export async function showVrmMeta(
     if (gen !== getDetailGen()) return;
     ctx.root.innerHTML = `<div class="content" id="preview-content">
   <h3>${icon} ${label}</h3>
-  <div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div></div>
+  <div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(safeErrorMessage(e))}</div></div>
 </div>`;
   }
 }

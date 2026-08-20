@@ -10,6 +10,7 @@ import { bus } from "../../bus.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { getApp } from "../../backend/app.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
@@ -140,7 +141,7 @@ export class AppSyncManager extends WebComponentBase {
       this.innerHTML +=
         '<div style="padding:12px;color:var(--err)">' +
         t("sync.renderFailed") + ": " +
-        esc(String(e)) +
+        esc(safeErrorMessage(e)) +
         "</div>";
       bus.emit("toast:show", { msg: "❌ " + friendlyError(e, t("sync.renderFailed")), duration: TOAST_MS_LONG, type: "error" });
     }

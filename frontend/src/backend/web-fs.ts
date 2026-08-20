@@ -24,6 +24,7 @@
 // │  §16 binding 装配        → L1102 webFsBindings（Top 6 注册表驱动）            │
 // └──────────────────────────────────────────────────────────────────────────────┘
 import { idbGet, idbSet, idbKeys, idbDel } from "./idb.ts";
+import { safeErrorMessage } from "../utils/safe-error-msg.ts";
 import { t } from "../core/i18n/t.ts";
 import type { ModelEntry } from "../../bindings/ysm-model-manager/go/types/models.ts";
 // 复用 dnd-shared 的导入白名单（.json 仅放行 ysm.json，其余须 ALL_EXTS 成员），
@@ -345,7 +346,7 @@ async function readVoxelJson(
   } catch (err) {
     // 对齐 Go marshalVoxelData 的 {error} 契约：失败带具体原因，
     // 前端可区分「解析失败」与「空数据」，不再吞成 "{}"
-    return voxelErrorJson(err instanceof Error ? err.message : String(err));
+    return voxelErrorJson(safeErrorMessage(err));
   }
 }
 

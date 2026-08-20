@@ -7,6 +7,7 @@
 // 同时抽出重复的「重算包围盒 → 更新 lightCap target」逻辑为独立函数。
 
 import * as THREE from "three";
+import { safeErrorMessage } from "../../safe-error-msg.ts";
 import type { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { bus } from "../../../bus.ts";
 import { esc } from "../../../utils/dom/html.ts";
@@ -138,7 +139,7 @@ export async function switchToSession(
     console.error("[preview 3D] 切换失败:", e);
     if (!ctx.loadingEl.parentNode) ctx.viewContainer.appendChild(ctx.loadingEl);
     ctx.loadingEl.innerHTML =
-      `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div>`;
+      `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;
     bus.emit("toast:show", {
       msg: "❌ " + friendlyError(e, t("preview.loadFailed")),
       duration: 5000,

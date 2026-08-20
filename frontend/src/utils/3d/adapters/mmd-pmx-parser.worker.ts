@@ -6,6 +6,8 @@
 // PMX 格式规范：https://github.com/v-cfd/mmd/blob/master/mmd/file_format/pmx.md
 // 结构：Header → Vertices → Faces → Textures → Materials → Bones → RigidBodies → Joints → Morphs → DisplayFrames
 
+import { safeErrorMessage } from "../../safe-error-msg.ts";
+
 /** 主线程 → Worker 请求 */
 export interface PmxParseRequest {
   id: number;
@@ -814,7 +816,7 @@ self.onmessage = async (e: MessageEvent<PmxParseRequest>) => {
     const resp: PmxParseResponse = {
       id,
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: safeErrorMessage(err),
     };
     (self as unknown as Worker).postMessage(resp);
   }

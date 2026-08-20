@@ -102,6 +102,30 @@ func IsInside(baseDir, path string) error {
 	return nil
 }
 
+// HasTraversal 检查路径片段是否包含 ".." 遍历组件（统一入口）。
+// 覆盖场景：纯文件名（importer）、目录名（fileops）、子路径（folder_import）。
+// 跨平台：同时检查 / 和 \\，防止未 Clean 的原始输入绕过。
+//
+// 调用方不再各自手写 strings.Contains("../") 等检查——5 种写法收敛为 1 个入口。
+func HasTraversal(p string) bool {
+	if p == "" || p == ".." {
+		return p == ".."
+	}
+	// 前缀: "../" 或 "..\\"
+	if strings.HasPrefix(p, "../") || strings.HasPrefix(p, "..\\") {
+		return true
+	}
+	// 后缀: "/.." 或 "\\.."
+	if strings.HasSuffix(p, "/..") || strings.HasSuffix(p, "\\..") {
+		return true
+	}
+	// 中间段: "/../" 或 "\\..\\"
+	if strings.Contains(p, "/../") || strings.Contains(p, "\\..\\") {
+		return true
+	}
+	return false
+}
+
 // ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记
 // PrismLauncher 实例目录下可能是 minecraft（无点），与 .minecraft 等价
 // 注意：不解析符号链接，调用方需自行处理

@@ -1,5 +1,6 @@
 // ===== 创意工坊数据加载（类型化版 — ADR-014 P3 features）=====
 // tryFetchModels + 进度条
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 
 /**
  * HTML 转义（防 XSS）
@@ -225,10 +226,10 @@ export async function tryFetchModels(
     const reasons = (aggErr as { errors?: Array<{ message?: string }> }).errors
       ? (aggErr as { errors: Array<{ message?: string }> }).errors.map(
           function (e): string {
-            return e.message || String(e);
+            return safeErrorMessage(e);
           },
         )
-      : [(aggErr as Error).message || String(aggErr)];
+      : [safeErrorMessage(aggErr)];
 
     let has404 = false;
     let hasNetwork = false;

@@ -3,6 +3,7 @@
 // 单次 ~10s 的同步编码阻塞主进程（首次加载卡死问题）。
 // 主线程 encodeToKTX2 → postMessage(RGBA + 尺寸) → 本 Worker 编码 → 回传 KTX2 ArrayBuffer。
 import { encodeToKTX2Basis, TextureTooLargeError } from "./mmd-ktx2-basis.ts";
+import { safeErrorMessage } from "../../safe-error-msg.ts";
 
 /** 主线程 → Worker 的请求 */
 export interface Ktx2EncodeRequest {
@@ -30,7 +31,7 @@ self.onmessage = async (e: MessageEvent<Ktx2EncodeRequest>) => {
     const resp: Ktx2EncodeResponse = {
       id,
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: safeErrorMessage(err),
     };
     (self as unknown as Worker).postMessage(resp);
   }

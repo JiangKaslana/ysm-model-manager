@@ -1,5 +1,6 @@
 import { renderFormattedText } from "../../utils/format/mc-format.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { extOf, VOXEL_RPC_BY_EXT } from "../../utils/resource/types.ts";
 import { getApp } from "../../backend/app.ts";
 import { safeGet, safeSet } from "../../utils/dom/storage.ts";
@@ -223,7 +224,7 @@ export async function showLitematic(
     if (gen !== litematicGen) return;
     const detailDiv = ctx.root.getElementById("preview-detail");
     if (detailDiv) {
-      detailDiv.innerHTML = `<div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(e instanceof Error ? e.message : String(e))}</div></div>`;
+      detailDiv.innerHTML = `<div class="dp-placeholder"><div class="big-icon">⚠️</div><div class="dp-hint">${t("preview.readFailed")}: ${esc(safeErrorMessage(e))}</div></div>`;
     }
   }
 }

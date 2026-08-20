@@ -1,6 +1,7 @@
 // ===== WASM 解码层 =====
 // 从 index.ts 拆分：.ysm 文件的前端 WASM 解码逻辑
 import { devLog } from "./utils.ts";
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { stripYsgpTextHeader, type DecodedYsm } from "./utils.ts";
 import { cacheGet, cacheSet } from "./cache.ts";
 import { parseBedrockGeometryFromJSON, type BedrockGeometry } from "./geometry.ts";
@@ -25,7 +26,7 @@ export function decodeYsmViaWasm(modelPath: string): Promise<DecodedYsm | null> 
   // 时产生 unhandled rejection（当前 doDecode 外层 catch 返回 null，不 reject）
   // 不吞错：记录便于排查（devLog 仅 DEV 输出，零运行时开销）
   void p.finally(() => _decodeInFlight.delete(modelPath)).catch((e) =>
-    devLog(`[YSM] in-flight 守卫异常: ${e instanceof Error ? e.message : String(e)}`),
+    devLog(`[YSM] in-flight 守卫异常: ${safeErrorMessage(e)}`),
   );
   return p;
 }
@@ -270,7 +271,7 @@ export async function doDecodeYsmViaWasm(
               }
             }
           } catch (e) {
-            devLog(`[YSM] JSON 合并几何失败: ${e instanceof Error ? e.message : String(e)}`);
+            devLog(`[YSM] JSON 合并几何失败: ${safeErrorMessage(e)}`);
           }
         }
 
@@ -297,7 +298,7 @@ export async function doDecodeYsmViaWasm(
                 au.avatarUrl = URL.createObjectURL(blob);
               }
             } catch (e) {
-              devLog(`[YSM] 头像读取失败: ${e instanceof Error ? e.message : String(e)}`);
+              devLog(`[YSM] 头像读取失败: ${safeErrorMessage(e)}`);
             }
           }
         }
@@ -311,7 +312,7 @@ export async function doDecodeYsmViaWasm(
       return null;
     }
   } catch (e) {
-    devLog(`[YSM] ❌ ${e instanceof Error ? e.message : String(e)}`);
+    devLog(`[YSM] ❌ ${safeErrorMessage(e)}`);
     cacheSet(modelPath, { _wasmFailed: true });
     return null;
   }
@@ -338,7 +339,7 @@ export async function doDecodeYsmViaWasm(
     } catch (e) {
       // 不静默吞错：abort/trap/out of memory 等硬崩溃信号需留痕便于排查
       // （ysm-parser 内部已对硬崩溃 resetYSMParser 重置单例，此处仅记录）
-      devLog(`[YSM] 原始字节解码异常: ${e instanceof Error ? e.message : String(e)}`);
+      devLog(`[YSM] 原始字节解码异常: ${safeErrorMessage(e)}`);
     }
 
     // 快路径失败 → 尝试 MEMFS（callMain，能处理 V3 文本头部等特殊格式）
@@ -350,7 +351,7 @@ export async function doDecodeYsmViaWasm(
           devLog(`[YSM] ✅ MEMFS 解码成功: ${files.length} 文件`);
         }
       } catch (e2) {
-        devLog(`[YSM] MEMFS 解码异常: ${e2 instanceof Error ? e2.message : String(e2)}`);
+        devLog(`[YSM] MEMFS 解码异常: ${safeErrorMessage(e2)}`);
       }
     }
 
@@ -367,7 +368,7 @@ export async function doDecodeYsmViaWasm(
             break;
           }
         } catch (e3) {
-          devLog(`[YSM] 剥离${verLabel}解码异常: ${e3 instanceof Error ? e3.message : String(e3)}`);
+          devLog(`[YSM] 剥离${verLabel}解码异常: ${safeErrorMessage(e3)}`);
         }
       }
     }
@@ -441,7 +442,7 @@ export async function doDecodeYsmViaWasm(
       } catch (e) {
         // 不静默吞错：ysm.json 结构异常时留痕（纹理顺序/动画分组解析失败会被下面的
         // 默认值兜底，devLog 仅 DEV 输出）
-        devLog(`[YSM] ysm.json 元信息解析失败: ${e instanceof Error ? e.message : String(e)}`);
+        devLog(`[YSM] ysm.json 元信息解析失败: ${safeErrorMessage(e)}`);
       }
     }
 
@@ -503,7 +504,7 @@ export async function doDecodeYsmViaWasm(
           }
         }
       } catch (e) {
-        devLog(`[YSM] ysm.json 作者信息解析失败: ${e instanceof Error ? e.message : String(e)}`);
+        devLog(`[YSM] ysm.json 作者信息解析失败: ${safeErrorMessage(e)}`);
       }
     }
 
@@ -578,7 +579,7 @@ export async function doDecodeYsmViaWasm(
                   if (vEnd > uvMaxH) uvMaxH = vEnd;
                 }
               } catch (e) {
-                devLog(`[YSM] ${f.path} faceUV 解析失败: ${e instanceof Error ? e.message : String(e)}`);
+                devLog(`[YSM] ${f.path} faceUV 解析失败: ${safeErrorMessage(e)}`);
               }
             }
           }
@@ -615,7 +616,7 @@ export async function doDecodeYsmViaWasm(
           if (parsed.texHeight > geometry.texHeight) geometry.texHeight = parsed.texHeight;
         }
       } catch (e) {
-        devLog(`[YSM] ❌ ${f.path}: ${e instanceof Error ? e.message : String(e)}`);
+        devLog(`[YSM] ❌ ${f.path}: ${safeErrorMessage(e)}`);
       }
     };
 
@@ -706,7 +707,7 @@ export async function doDecodeYsmViaWasm(
         const { clips } = parseBedrockAnimationJSON(jsonStr);
         if (clips.length > 0) animations.push(...clips);
       } catch (e) {
-        devLog(`[YSM] ❌ ${f.path}: ${e instanceof Error ? e.message : String(e)}`);
+        devLog(`[YSM] ❌ ${f.path}: ${safeErrorMessage(e)}`);
       }
     }
 
@@ -731,7 +732,7 @@ export async function doDecodeYsmViaWasm(
       .catch(() => {});
     return result;
   } catch (e) {
-    devLog(`[YSM] ❌ ${e instanceof Error ? e.message : String(e)}`);
+    devLog(`[YSM] ❌ ${safeErrorMessage(e)}`);
     return null;
   }
 }

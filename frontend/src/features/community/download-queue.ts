@@ -10,6 +10,7 @@ import { currentRepoType } from "../repo-rtype.ts";
 import { renderDisplayName } from "../../utils/dom/display.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../backend/app.ts";
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import {
   STATE,
   notify,
@@ -341,7 +342,7 @@ export function createDownloadQueue({
       STATE.status = "idle";
       notify();
       bus.emit("toast:show", {
-        msg: `❌ ${t("workshop.enqueueFailed")}: ` + (e instanceof Error ? e.message : String(e)),
+        msg: `❌ ${t("workshop.enqueueFailed")}: ` + (safeErrorMessage(e)),
         duration: 4000,
         type: "error",
       });

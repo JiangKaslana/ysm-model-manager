@@ -3,6 +3,8 @@
 // 浏览器 createImageBitmap() 在 Worker 中可用，解码后产出 ImageBitmap（transferable），
 // 主线程拿到后直接喂给 THREE.Texture，跳过 HTMLImageElement 的主线程解码路径。
 
+import { safeErrorMessage } from "../../safe-error-msg.ts";
+
 /** 主线程 → Worker 的请求 */
 export interface TexDecodeRequest {
   id: number;
@@ -41,7 +43,7 @@ self.onmessage = async (e: MessageEvent<TexDecodeRequest>) => {
       id,
       relPath,
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: safeErrorMessage(err),
     };
     (self as unknown as Worker).postMessage(resp);
   }

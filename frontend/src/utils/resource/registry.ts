@@ -1,6 +1,7 @@
 // ===== 资源类型注册表（类型化版 — ADR-014 P2）=====
 // 从 Go 端 resource_types.json 加载
 import { getApp } from "../../backend/app.ts";
+import { safeErrorMessage } from "../safe-error-msg.ts";
 
 /** 资源类型注册表条目（对应 resource_types.json 结构） */
 export interface ResourceTypeEntry {
@@ -38,7 +39,7 @@ export async function loadResourceRegistry(): Promise<ResourceRegistry> {
     }, {});
     return _registry;
   } catch (e) {
-    console.warn("[registry] LoadResourceTypes 失败: %s（本次不缓存，下次调用重试）", e instanceof Error ? e.message : String(e));
+    console.warn("[registry] LoadResourceTypes 失败: %s（本次不缓存，下次调用重试）", safeErrorMessage(e));
     return {};
   }
 }

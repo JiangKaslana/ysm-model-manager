@@ -5,6 +5,7 @@ import { initYSMParser, decodeYsmFileFromMemory } from "../wasm/ysm-parser.ts";
 import { initI18n } from "../core/i18n/locale.ts";
 import { t } from "../core/i18n/t.ts";
 import { summarizeDecoded } from "../utils/format/summarize.ts";
+import { safeErrorMessage } from "../utils/safe-error-msg.ts";
 
 // 本页是独立入口（web.html），不经主 UI 的启动链——需自行加载语言包，
 // 否则 t() 拿到空 bundle 会回落显示裸 key
@@ -69,6 +70,6 @@ async function handle(file: File): Promise<void> {
     }
     if (files.length > 40) append(`  … ${t("web.omitted", { n: files.length - 40 })}`);
   } catch (e) {
-    append(`<span class="err">❌ ${e instanceof Error ? e.message : String(e)}</span>`);
+    append(`<span class="err">❌ ${safeErrorMessage(e)}</span>`);
   }
 }

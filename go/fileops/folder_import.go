@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/paths"
 	"ysm-model-manager/go/types"
 )
 
@@ -32,11 +33,11 @@ func WriteModelFolder(filesRoot, subpath, folderName string, files []types.Impor
 	if folderName == "." || folderName == ".." {
 		return fmt.Errorf("文件夹名非法: %s", folderName)
 	}
-	// 子路径防穿越
+	// 子路径防穿越：统一入口 paths.HasTraversal
 	subpath = strings.Trim(subpath, `\/`)
 	if subpath != "" {
 		clean := filepath.Clean(filepath.FromSlash(subpath))
-		if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.IsAbs(clean) {
+		if paths.HasTraversal(clean) || filepath.IsAbs(clean) {
 			return fmt.Errorf("子路径非法: %s", subpath)
 		}
 	}

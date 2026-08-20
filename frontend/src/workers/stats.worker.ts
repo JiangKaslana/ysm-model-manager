@@ -7,6 +7,7 @@
 // 容量/取消：单批上限由主线程 STATS_BATCH_LIMIT 切分；主线程可 terminate 本 Worker 取消。
 import { idbGet } from "../backend/idb.ts";
 import { parseWebPath } from "../backend/web-common.ts";
+import { safeErrorMessage } from "../utils/safe-error-msg.ts";
 import {
   initYsmParserInWorker,
   initYsmParserInWorkerMt,
@@ -126,7 +127,7 @@ self.onmessage = async (ev: MessageEvent<StatsWorkerRequest>): Promise<void> => 
     post({
       type: "error",
       requestId,
-      message: e instanceof Error ? e.message : String(e),
+      message: safeErrorMessage(e),
     });
   }
 };

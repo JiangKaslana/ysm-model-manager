@@ -24,6 +24,7 @@ import { get } from "../../services/registry.ts";
 import type { loadInstances } from "./loader.ts";
 import type { SidebarInstance } from "./data.ts";
 import { getApp } from "../../backend/app.ts";
+import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 
 // 持久化勾选状态（跨重新渲染保持），按 rtype 隔离避免类型切换串扰
 const _checkedSets = new Map<string, Set<string>>();
@@ -288,7 +289,7 @@ class AppSidebar extends WebComponentBase {
           bus.emit("toast:show", { msg: `✅ 推送完成：${selected.length} 个整合包`, duration: 2500 });
         }
         } catch (err) {
-          bus.emit("toast:show", { msg: "❌ 推送失败: " + (err instanceof Error ? err.message : String(err)), duration: 3000, type: "error" });
+          bus.emit("toast:show", { msg: "❌ 推送失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
         } finally {
           // 意外 throw 也必须恢复按钮与锁（陷阱 #3：按钮卡死根因）
           pushBtn.textContent = "⬆️ 推送所选 ▾";
@@ -337,7 +338,7 @@ class AppSidebar extends WebComponentBase {
         bus.emit("stats:refresh");
         bus.emit("tree:reload");
       } catch (err) {
-        bus.emit("toast:show", { msg: "❌ 拉取失败: " + (err instanceof Error ? err.message : String(err)), duration: 3000, type: "error" });
+        bus.emit("toast:show", { msg: "❌ 拉取失败: " + (safeErrorMessage(err)), duration: 3000, type: "error" });
       } finally {
         // 意外 throw 也必须恢复按钮与锁（陷阱 #3：按钮卡死根因）
         pullBtn.textContent = "⬇️ 拉取所选 ▾";

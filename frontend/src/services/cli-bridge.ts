@@ -5,6 +5,7 @@
 import { getApp } from "../backend/app.ts";
 import { resolveWebMode } from "../backend/platform.ts";
 import { WebUnsupportedError } from "../backend/web-common.ts";
+import { safeErrorMessage } from "../utils/safe-error-msg.ts";
 
 // ===== 类型定义 =====
 
@@ -156,7 +157,7 @@ export async function executeCLI(command: string, args: CLIArgs = {}): Promise<C
       command,
       error: {
         code: "call_failed",
-        message: err instanceof Error ? err.message : String(err),
+        message: safeErrorMessage(err),
       },
     };
   }
