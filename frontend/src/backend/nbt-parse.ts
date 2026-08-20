@@ -49,6 +49,23 @@ function gzipIsizedUpperBound(bytes: Uint8Array): number | null {
   return (bytes[off] | (bytes[off + 1] << 8) | (bytes[off + 2] << 16) | (bytes[off + 3] << 24)) >>> 0;
 }
 
+/** 标签类型的最小 payload 字节数（定长类型返回固定值，变长类型返回 0 表示无法预估） */
+function minPayloadBytes(tagType: number): number {
+  switch (tagType) {
+    case TAG_BYTE: return 1;
+    case TAG_SHORT: return 2;
+    case TAG_INT: return 4;
+    case TAG_LONG: return 8;
+    case TAG_FLOAT: return 4;
+    case TAG_DOUBLE: return 8;
+    case TAG_BYTE_ARRAY: return 4; // int32 长度头
+    case TAG_STRING: return 2; // uint16 长度头
+    case TAG_INT_ARRAY: return 4;
+    case TAG_LONG_ARRAY: return 4;
+    default: return 0; // compound/list 变长，无法预估
+  }
+}
+
 /** 嵌套深度上限（对齐 go/litematic/nbt.go maxNbtDepth 256，防深嵌套栈溢出） */
 const MAX_NBT_DEPTH = 256;
 
@@ -152,7 +169,17 @@ class NbtReader {
       case TAG_LIST: {
         const elemType = this.u8();
         const n = this.i32();
-        if (n < 0 || n > this.data.length - this.off) throw new Error("nbt list 长度异常");
+        if (n < 0) throw new Error("nbt list 长度异常");
+        // 对齐 Go charge(n*16) 预算：定长元素按最小字节数校验，
+        // 变长元素（compound/list）按剩余字节数兜底（防 2^31-1 声明 OOM）
+        const remaining = this.data.length - this.off;
+        const elemMin = minPayloadBytes(elemType);
+        if (elemMin > 0 && n > remaining / elemMin) {
+          throw new Error(`nbt list 长度异常: 声明 ${n} 元素（最小 ${elemMin}B/个），剩余 ${remaining} 字节`);
+        }
+        if (elemMin === 0 && n > remaining) {
+          throw new Error(`nbt list 长度异常: 声明 ${n} 元素，剩余 ${remaining} 字节`);
+        }
         const out: unknown[] = [];
         for (let i = 0; i < n; i++) out.push(this.payload(elemType, depth + 1));
         return out;

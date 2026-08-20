@@ -40,10 +40,10 @@ function loadWebCreators(): WorkshopCreator[] {
 function saveWebCreators(list: WorkshopCreator[] | null): void {
   // null → 清除覆盖层，下次 Load 回退默认（对齐桌面 Save(null) 重置语义）
   if (list === null) {
-    localStorage.removeItem(WEB_CREATORS_KEY);
+    safeRemove(WEB_CREATORS_KEY);
     return;
   }
-  localStorage.setItem(WEB_CREATORS_KEY, JSON.stringify(list));
+  safeSet(WEB_CREATORS_KEY, JSON.stringify(list));
 }
 
 function loadWebSites(): WorkshopSite[] {
@@ -60,10 +60,10 @@ function loadWebSites(): WorkshopSite[] {
 
 function saveWebSites(sites: WorkshopSite[] | null): void {
   if (sites === null) {
-    localStorage.removeItem(WEB_SITES_KEY);
+    safeRemove(WEB_SITES_KEY);
     return;
   }
-  localStorage.setItem(WEB_SITES_KEY, JSON.stringify(sites));
+  safeSet(WEB_SITES_KEY, JSON.stringify(sites));
 }
 
 // B2 契约修复：网页版 GitHub 仓库列表补覆盖层（对齐 Go workshop-github.json 用户覆盖语义）。

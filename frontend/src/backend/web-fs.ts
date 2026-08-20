@@ -892,6 +892,23 @@ function findCommonTopDir(metas: Array<{ fflateKey: string }>): string | null {
 }
 
 /**
+ * 安全审计：zip entry 路径清洗——剥离路径穿越段（`..`）和空段，
+ * 防止恶意 zip 条目名逃出 IndexedDB 模型组命名空间导致数据损坏。
+ * 返回 null 表示路径全部由无效段组成（如纯 `../..`），调用方应跳过该条目。
+ */
+function sanitizeZipEntryPath(name: string): string | null {
+  // 拆分路径段，过滤 `.` 和 `..`（`..` 为路径穿越攻击，必须拒绝）
+  const parts = name.split(/[\/\\]/);
+  const safe: string[] = [];
+  for (const p of parts) {
+    if (p === ".." || p === "") continue; // 跳过空段和父目录引用
+    safe.push(p);
+  }
+  if (safe.length === 0) return null;
+  return safe.join("/");
+}
+
+/**
  * R2 导入增强：把输入里的 .zip 文件解压展平成目录文件，返回新的 File[]。
  * - .zip → extractZip 解出 entries（带相对路径），转成带 webkitRelativePath 的 File[]，
  *   复用文件夹拖入的「同 stem 分组 + 主文件目录收敛」语义，rel 保留子目录层级
@@ -925,13 +942,19 @@ async function expandZipFiles(files: File[]): Promise<File[]> {
         if (!raw) continue;
         const { realName } = gbkDecodeEntry(m);
         if (!realName || realName.endsWith("/")) continue;
+        // 安全审计：zip entry 路径穿越防护——恶意 zip 可含 `../` 段，
+        // 不经清洗直接用作 webkitRelativePath 会导致 IndexedDB key 逃出模型组命名空间
+        // （如 `file:ysm/stem/../../other/file` 与其他模型组 key 冲突 → 数据损坏）。
+        // 浏览器设置的 webkitRelativePath（文件夹拖入）不含 `..`，此防护仅针对 zip 解压路径
+        const sanitized = sanitizeZipEntryPath(realName);
+        if (!sanitized) continue; // 路径含 `..` 或绝对路径 → 跳过该条目
         // webkitRelativePath：有公共前缀则保留原样；扁平 zip 用 zipStem 作公共前缀
         // slice() 两用：① TS 泛型 Uint8Array<ArrayBufferLike>→Uint8Array<ArrayBuffer> 过 BlobPart 类型关；
         // ② 隔离 entries[m.fflateKey] 底层 buffer，防 File 与 entries 共享后被改写（内容竞态）
-        const wf = new File([raw.slice()], realName.split("/").pop() || realName, {
+        const wf = new File([raw.slice()], sanitized.split("/").pop() || sanitized, {
           type: "application/octet-stream",
         });
-        Object.defineProperty(wf, "webkitRelativePath", { value: prefix ? `${prefix}/${realName}` : realName });
+        Object.defineProperty(wf, "webkitRelativePath", { value: prefix ? `${prefix}/${sanitized}` : sanitized });
         expanded.push(wf);
       }
       // 解压空/无有效文件，或解压后无主文件（资源包/光影包 zip）→ 保留原 zip 整体当主文件
@@ -1171,6 +1194,10 @@ export const webFsBindings = {
   // DetectZipType：base64 → 字节 → 内容指纹（extract.ts detectZipType，对齐 Go 语义）
   DetectZipType: (base64Data: string) => {
     if (!base64Data) return Promise.resolve("");
+    // 安全审计：base64 大小守卫——atob 对超大字符串（>~130MB 解码后）可能导致内存压力，
+    // 且 MAX_IMPORT_BYTES=100MB 的文件 base64 约 133MB，远超类型检测所需
+    // （detectZipType 只读 local file header 文件名段，前几 KB 足够识别）
+    if (base64Data.length > 10 * 1024 * 1024) return Promise.resolve("");
     try {
       const bin = atob(base64Data);
       const bytes = new Uint8Array(bin.length);

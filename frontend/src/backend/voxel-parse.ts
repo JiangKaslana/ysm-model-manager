@@ -51,6 +51,10 @@ const MAX_COORD = 32767;
 const MIN_COORD = -32768;
 const INT16_MAX = 32767;
 const INT16_MIN = -32768;
+/** 对齐 Go maxSchematicBlocks 512M（schematic w*h*l 总量上限，防溢出/挂起） */
+const MAX_SCHEMATIC_BLOCKS = 512_000_000;
+/** schematic 单轴上限（≈ cube root of MAX_SCHEMATIC_BLOCKS） */
+const MAX_SCHEMATIC_AXIS = 1024;
 
 // ===== 位解码（对齐 nbt.go extractBits / bitsPerEntry + voxel.go readVarInt）=====
 
@@ -75,7 +79,7 @@ export function readVarInt(data: ArrayLike<number>, offset: number): { value: nu
  * （与 Go 一致——越界位视为 air）。
  */
 export function extractBits(longs: bigint[], bitOffset: number, bitCount: number): number {
-  if (bitCount === 0) return 0;
+  if (bitCount <= 0 || bitOffset < 0) return 0;
   const longIdx = Math.floor(bitOffset / 64);
   const bitPos = bitOffset % 64;
   if (longIdx >= longs.length) return 0;
@@ -334,6 +338,10 @@ export function litematicVoxelView(root: Record<string, unknown>, maxBlocks: num
       if (z !== undefined) encSize[2] = z;
     }
   }
+  // encSize 合理性校验（负值/零值 = 无有效包围盒，但仍输出 size 供降级显示）
+  for (let i = 0; i < 3; i++) {
+    if (!Number.isFinite(encSize[i])) encSize[i] = 0;
+  }
 
   const regions = getCompound(root, "Regions");
   if (!regions) {
@@ -512,6 +520,9 @@ function bedrockVoxelView(subLevels: unknown[], maxBlocks: number): VoxelData | 
   if (!hasBounds) return null;
 
   const size = [gMaxX - gMinX + 1, gMaxY - gMinY + 1, gMaxZ - gMinZ + 1];
+  // 对齐 MAX_REGION_AXIS 守卫：基岩版包围盒维度也须合理
+  if (size[0] <= 0 || size[1] <= 0 || size[2] <= 0) return null;
+  if (size[0] > MAX_REGION_AXIS || size[1] > MAX_REGION_AXIS || size[2] > MAX_REGION_AXIS) return null;
 
   let si = 0;
   let bi = 0;
@@ -563,6 +574,12 @@ export function schematicVoxelView(root: Record<string, unknown>, maxBlocks: num
   const h = asNumber(root["Height"]);
   const l = asNumber(root["Length"]);
   if (w === undefined || h === undefined || l === undefined) return null;
+  // 对齐 Go voxel.go:556-564：维度上限（int32 可达 2^31-1，乘积可溢出——Go 用 int64 钳制）
+  if (!Number.isInteger(w) || !Number.isInteger(h) || !Number.isInteger(l)) return null;
+  if (w <= 0 || h <= 0 || l <= 0) return null;
+  if (w > MAX_SCHEMATIC_AXIS || h > MAX_SCHEMATIC_AXIS || l > MAX_SCHEMATIC_AXIS) return null;
+  const total = w * h * l;
+  if (total > MAX_SCHEMATIC_BLOCKS) return null;
 
   const blocksBA = asByteArray(root["Blocks"]);
   const blockDataBA = asByteArray(root["BlockData"]);
@@ -577,7 +594,7 @@ export function schematicVoxelView(root: Record<string, unknown>, maxBlocks: num
     }
   }
 
-  const total = w * h * l;
+  // total 已在上方经 MAX_SCHEMATIC_BLOCKS 守卫，此处无需重复校验
   if (blockDataBA === undefined && blocksBA === undefined) return null;
 
   // 方块生成器：v1 raw Blocks / v2 varint BlockData 双路径，跳过 air（blockID 0）
@@ -650,5 +667,10 @@ export function decodeVoxelNbt(b64: string): Record<string, unknown> | null {
   if (!b64) return null;
   const bytes = base64ToBytes(b64);
   if (!bytes) return null;
-  return parseNbtRootExact(bytes);
+  // 契约：解析失败返回 null（parseNbtRootExact 对畸形 NBT 会抛错，此处兜底）
+  try {
+    return parseNbtRootExact(bytes);
+  } catch {
+    return null;
+  }
 }
