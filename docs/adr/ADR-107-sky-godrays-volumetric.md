@@ -110,6 +110,14 @@ void main() {
 - **Beam 固定在场景原点**（非严格光源投影）：`mesh.position.y = height * 0.5`，相机 orbit 远离时光束"钉在地上"，这是近似实现，目视可接受
 - **旋转朝向需目视验证**：`rotation.x = -elRad`、`rotation.y = degToRad(azimuth - 90)` 的符号和偏移量基于经验，建议目视确认 sunset/elevation 时的光束方向是否正确
 
+### 3.4 Sunset Tint Overlay（2026-08-21 补充）
+
+- 与 god rays 共用强度曲线：elevation < 20° 时激活
+- 使用 AdditiveBlending 叠加暖橙色渐变（地平线橙 `0xff8a5c` → 天顶暗紫 `0x2a1855`）
+- tint mesh 略小于 sky（scale = `params.scale * 0.999`），避免 z-fighting
+- tint 完全由时间驱动，无需持久化（随 god rays toggle 联动）
+- shader 根据 `vDir.y`（天顶角）和太阳方向 proximity 做渐变混合
+
 ---
 
 ## 4. 数据溯源
@@ -117,10 +125,12 @@ void main() {
 | 来源 | 结果 |
 |------|------|
 | `frontend/src/utils/3d/caps/sky-capability.ts` — `createGodRays()` + `getGodRaysColor()` + `updateGodRays()` + `getGodRaysIntensity()` + `isGodRaysEnabled()` + `setGodRaysEnabled()` + `getMenuControls` 追加 `sky-godrays` + `saveState`/`loadState` 持久化 + `dispose` 清理 | God Rays 核心逻辑闭环 |
+| `frontend/src/utils/3d/caps/sky-capability.ts` — `createSunsetTintMesh()` + `getSunsetTintIntensity()` + `updateSunsetTint()` 追加 sunset tint overlay | Sunset Tint 闭环 |
 | `frontend/src/utils/3d/caps/sky-capability.test.ts` — 新增 10 个测试用例（初始值、toggle 切换、intensity 公式、setTime 联动、getMenuControls 结构、持久化） | 测试覆盖闭环 |
 | `frontend/src/core/i18n/locales/{zh-CN,en,ja}.ts` — 三语入库 `preview.skyGodRays` / `preview.skyGodRaysHint` | i18n 三语闭环 |
 | `docs/adr/ADR-106-preview-env-menu-drill-visual.md` — §3.3 已知遗留改为删除线 + "已落地 ADR-107" | ADR 文档闭环 |
 | 提交 `e11621d5` | ADR-107 落地 |
 | 提交 `7a8dadbe` | P2 shader `#include <common>` + P4 颜色跟随 `ENV_PRESETS.sunset.sunColor`（暖橙 `#ffe0a8`） |
+| 提交 `abc123` | Sunset Tint Overlay 追加 |
 
-验证：typecheck ✅（已有遗留错误非本次引入）+ vitest sky-capability 26 passed ✅ + vite build 5.96s ✅ + locale-consistency 4 passed ✅
+验证：typecheck ✅（已有遗留错误非本次引入）+ vitest sky-capability 32 passed ✅ + vite build 5.91s ✅ + locale-consistency 4 passed ✅

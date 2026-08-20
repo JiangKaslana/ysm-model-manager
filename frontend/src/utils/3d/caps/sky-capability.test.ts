@@ -281,3 +281,60 @@ describe("SkyCapability — God Rays（体积光束）", () => {
     expect(cap2.isGodRaysEnabled()).toBe(true);
   });
 });
+
+describe("SkyCapability — Sunset Tint Overlay", () => {
+  it("构造时自动创建 sunsetTintMesh，geometry 是 PlaneGeometry", () => {
+    const cap = newCap();
+    const mesh = (cap as unknown as { sunsetTintMesh: THREE.Mesh | null }).sunsetTintMesh;
+    expect(mesh).toBeInstanceOf(THREE.Mesh);
+    expect(mesh!.geometry).toBeInstanceOf(THREE.PlaneGeometry);
+    // 初始未挂载
+    expect(mesh!.parent).toBeNull();
+    expect(mesh!.visible).toBe(false);
+  });
+
+  it("getSunsetTintIntensity 与 getGodRaysIntensity 返回相同值（复用同一段逻辑）", () => {
+    const cap = newCap({ params: { elevation: -10 } });
+    const tintIntensity = (cap as unknown as { getSunsetTintIntensity: () => number }).getSunsetTintIntensity();
+    const godRaysIntensity = cap.getGodRaysIntensity();
+    expect(tintIntensity).toBe(godRaysIntensity);
+
+    // 通过 setTime 间接设置 elevation
+    cap.setTime(10); // 上午，elevation 约 28°
+    expect((cap as unknown as { getSunsetTintIntensity: () => number }).getSunsetTintIntensity()).toBe(
+      cap.getGodRaysIntensity()
+    );
+  });
+
+  it("setTime(18) 时 sunsetTint intensity > 0", () => {
+    const cap = newCap();
+    cap.setTime(18);
+    expect((cap as unknown as { getSunsetTintIntensity: () => number }).getSunsetTintIntensity()).toBeGreaterThan(0);
+  });
+
+  it("setTime(12) 时 sunsetTint intensity = 0", () => {
+    const cap = newCap();
+    cap.setTime(12);
+    expect((cap as unknown as { getSunsetTintIntensity: () => number }).getSunsetTintIntensity()).toBe(0);
+  });
+
+  it("saveState/loadState 不存 tint（tint 完全由时间驱动，无需持久化）", () => {
+    const cap = newCap({ params: { timeOfDay: 18 } });
+    cap.saveState();
+    const cap2 = newCap();
+    cap2.loadState();
+    // tint 不持久化，由时间重新计算
+    expect(cap2.getTimeOfDay()).toBe(18);
+    expect((cap2 as unknown as { getSunsetTintIntensity: () => number }).getSunsetTintIntensity()).toBeGreaterThan(
+      0
+    );
+  });
+
+  it("godRays 关闭时 tint mesh 不挂载", () => {
+    const cap = newCap();
+    cap.setGodRaysEnabled(false);
+    cap.setTime(18);
+    const mesh = (cap as unknown as { sunsetTintMesh: THREE.Mesh | null }).sunsetTintMesh;
+    expect(mesh?.parent).toBeNull();
+  });
+});

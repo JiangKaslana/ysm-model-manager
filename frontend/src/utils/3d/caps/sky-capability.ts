@@ -100,6 +100,8 @@ export class SkyCapability implements SceneCapability {
   private godRays: THREE.Group | null = null;
   private godRaysEnabled: boolean;
   private godRaysTime: { value: number };
+  /** Sunset Tint Overlay（日落暖色渐变）*/
+  private sunsetTintMesh: THREE.Mesh | null = null;
 
   constructor(opts: {
     scene: THREE.Scene;
@@ -122,6 +124,8 @@ export class SkyCapability implements SceneCapability {
     this.godRaysEnabled = false;
     this.godRaysTime = { value: 0 };
     this.createGodRays();
+    // Sunset Tint 初始化
+    this.createSunsetTintMesh();
   }
 
   /** 确保 PMREMGenerator 已创建（延迟到首次需要时） */
@@ -154,8 +158,9 @@ export class SkyCapability implements SceneCapability {
     this.renderer.toneMappingExposure = this.params.exposure;
     if (this.params.environment) this.regenerateEnvironment();
     else this.clearEnvironment();
-    // 更新 god rays
+    // 更新 god rays 和 sunset tint
     this.updateGodRays();
+    this.updateSunsetTint();
   }
 
   private writeUniforms(sky: Sky): void {
@@ -306,8 +311,9 @@ export class SkyCapability implements SceneCapability {
     this.writeUniforms(this.sky);
     this.writeUniforms(this.envSky);
     if (this.params.environment) this.regenerateEnvironment();
-    // 更新 god rays
+    // 更新 god rays 和 sunset tint
     this.updateGodRays();
+    this.updateSunsetTint();
   }
 
   getTimeOfDay(): number {
@@ -325,6 +331,77 @@ export class SkyCapability implements SceneCapability {
   }
 
   // ── God Rays ──
+
+  /** 创建 sunset tint overlay mesh */
+  private createSunsetTintMesh(): void {
+    const scale = this.params.scale * 0.999; // 略小于 sky，避免 z-fighting
+
+    const geometry = new THREE.PlaneGeometry(scale, scale);
+
+    const sunsetPreset = ENV_PRESETS.sunset;
+    const uniforms = {
+      uIntensity: { value: 0 },
+      uSunPosition: { value: new THREE.Vector3() },
+      uTintHorizon: { value: new THREE.Color(sunsetPreset.horizon) }, // 0xff8a5c 橙
+      uTintZenith: { value: new THREE.Color(sunsetPreset.zenith) }, // 0x2a1855 暗蓝紫
+    };
+
+    const material = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: `
+        #include <common>
+        varying vec3 vDir;
+        void main() {
+          vDir = normalize((modelMatrix * vec4(position, 1.0)).xyz);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying vec3 vDir;
+        uniform float uIntensity;
+        uniform vec3 uSunPosition;
+        uniform vec3 uTintHorizon;
+        uniform vec3 uTintZenith;
+
+        void main() {
+          vec3 dir = normalize(vDir);
+          // 地平线混合：direction.y 越低越接近地平线
+          float horizonBlend = max(0.0, 1.0 - dir.y);
+          // 太阳方向加强：靠近太阳的方向 tint 更强
+          float sunProximity = max(0.0, dot(dir, normalize(uSunPosition)));
+          float sunBoost = smoothstep(-0.5, 1.0, sunProximity);
+          // 综合 tint 强度
+          float tintStrength = uIntensity * mix(horizonBlend * 0.8, 1.0, sunBoost * 0.3);
+          vec3 tintColor = mix(uTintZenith, uTintHorizon, horizonBlend);
+          gl_FragColor = vec4(tintColor * tintStrength, tintStrength * 0.6);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.BackSide,
+    });
+
+    this.sunsetTintMesh = new THREE.Mesh(geometry, material);
+    this.sunsetTintMesh.visible = false;
+  }
+
+  /** 获取 sunset tint intensity（与 god rays 共用同一强度曲线） */
+  getSunsetTintIntensity(): number {
+    return this.getGodRaysIntensity();
+  }
+
+  /** 更新 sunset tint mesh 的 uniform */
+  private updateSunsetTint(): void {
+    if (!this.sunsetTintMesh) return;
+    const intensity = this.getSunsetTintIntensity();
+    const mat = this.sunsetTintMesh.material as THREE.ShaderMaterial;
+    if (mat.uniforms) {
+      mat.uniforms.uIntensity.value = intensity;
+      mat.uniforms.uSunPosition.value.copy(this.sky.material.uniforms["sunPosition"].value);
+    }
+  }
 
   /** 创建体积光束 geometry + material */
   private createGodRays(): void {
@@ -441,6 +518,15 @@ export class SkyCapability implements SceneCapability {
       this.godRays.parent.remove(this.godRays);
       this.godRays.visible = false;
     }
+
+    // 同步 sunset tint mesh 的挂载状态
+    if (intensity > 0 && this.godRaysEnabled && this.sunsetTintMesh && !this.sunsetTintMesh.parent) {
+      this.scene.add(this.sunsetTintMesh);
+      this.sunsetTintMesh.visible = true;
+    } else if (this.sunsetTintMesh && (intensity === 0 || !this.godRaysEnabled) && this.sunsetTintMesh.parent) {
+      this.sunsetTintMesh.parent.remove(this.sunsetTintMesh);
+      this.sunsetTintMesh.visible = false;
+    }
   }
 
   /** 是否启用 god rays */
@@ -549,7 +635,7 @@ export class SkyCapability implements SceneCapability {
     if (this.sky.parent) this.sky.parent.remove(this.sky);
     this.clearEnvironment();
     if (this.godRays?.parent) this.godRays.parent.remove(this.godRays);
-    this.godRays?.visible;
+    if (this.sunsetTintMesh?.parent) this.sunsetTintMesh.parent.remove(this.sunsetTintMesh);
   }
 
   dispose(): void {
@@ -576,6 +662,13 @@ export class SkyCapability implements SceneCapability {
         }
       });
       this.godRays = null;
+    }
+    // 释放 sunset tint mesh
+    if (this.sunsetTintMesh) {
+      this.sunsetTintMesh.geometry.dispose();
+      const mat = this.sunsetTintMesh.material;
+      if (mat instanceof THREE.ShaderMaterial) mat.dispose();
+      this.sunsetTintMesh = null;
     }
   }
 }
