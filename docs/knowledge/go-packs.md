@@ -32,7 +32,7 @@ invariant_anchors:
 
 - `ReadPackMeta(path string) (*types.PackMeta, string, error)` — 从目录或 .zip 读取 pack.mcmeta，返回解析结果 + pack.png 的 data URI 缩略图；自动去 UTF-8 BOM；找不到 mcmeta 报错
 - `DetectResourceType(path string, registry *types.ResourceTypeRegistry) string` — 按扩展名筛候选类型后，用注册表 `detector` 字段做内容判定：`"ysm"`（zip 内含 ysm.json 或 models/）、`"mcmeta"`（zip 内含 pack.mcmeta）、`"shader"`（zip 内含 shaders/）、**`"zipentry"`（ADR-067：裸文件按扩展名直判；`.zip` 容器按 `rt.ZipEntries` 内容指纹匹配 `matchZipArchive`）**，其余按扩展名直接命中
-- `ReadShaderpackLang(path string) string` — 从光影包（目录或 zip）读 `lang/en_US.lang`，返回 `{name, entries}` JSON 字符串，name 供前端展示（空时前端用文件名兜底）；**lang 文件设 1MB 上限**（P3 修复：dir 分支 stat 预检 + zip 分支 limit+1 截断探测，超限置空返回空 name——原 `os.ReadFile`/`io.ReadAll` 全量读入，畸形/超大 lang 可拖垮内存）
+- `ReadShaderpackLang(path string) string` — 从光影包（目录或 zip）读 `lang/en_us.lang`，返回 `{name, entries}` JSON 字符串，name 供前端展示（空时前端用文件名兜底）；**lang 文件设 1MB 上限**（P3 修复：dir 分支 stat 预检 + zip 分支 limit+1 截断探测，超限置空返回空 name——原 `os.ReadFile`/`io.ReadAll` 全量读入，畸形/超大 lang 可拖垮内存）；**统一小写比较**（CodeReview 第六轮：原 `low == "lang/en_US.lang"` 永远不成立，因 `low` 已 `ToLower`，不可能含大写 US）
 
 ## 与其他子系统关系
 
