@@ -9,7 +9,10 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use ysm_model_manager_core::{
     hydrate_hashes as hydrate_entry_hashes, ModelEntry, ScanError, ScanPolicy,
 };
-use ysm_model_manager_fileops::toggle_model_enable as toggle_model_enable_file;
+use ysm_model_manager_fileops::{
+    move_to_recycle as move_to_recycle_file,
+    toggle_model_enable as toggle_model_enable_file,
+};
 use ysm_model_manager_index::{IndexDelta, IndexSnapshot, ModelIndex};
 
 struct AppState {
@@ -85,6 +88,14 @@ struct TogglePayload {
     delta: LibraryDeltaDto,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecyclePayload {
+    before: String,
+    after: String,
+    delta: LibraryDeltaDto,
+}
+
 #[tauri::command]
 fn scan_library(
     root: String,
@@ -150,6 +161,33 @@ fn toggle_model_enable(path: String, state: State<'_, AppState>) -> Result<Toggl
         before: display_path(&outcome.before),
         after: display_path(&outcome.after),
         selected_path: display_path(&selected_after),
+        delta: delta_dto(delta),
+    })
+}
+
+#[tauri::command]
+fn move_to_recycle(path: String, state: State<'_, AppState>) -> Result<RecyclePayload, String> {
+    let root = state
+        .root
+        .lock()
+        .map_err(lock_error)?
+        .clone()
+        .ok_or_else(|| "尚未选择模型库目录".to_string())?;
+    let requested = PathBuf::from(path);
+
+    // Keep the index lock across the move for the same reason as enable/disable: the command
+    // should return the first authoritative delta, while watcher events become harmless no-ops.
+    let mut index = state.index.lock().map_err(lock_error)?;
+    let outcome = move_to_recycle_file(&root, &requested)
+        .map_err(|error| format!("移到回收区失败：{error}"))?;
+
+    // Only reconcile the vanished source. Feeding the new `.recycle` directory path back into
+    // apply_paths would classify a directory move as structural and trigger a needless full scan.
+    let delta = index.apply_paths(&root, &state.policy, std::slice::from_ref(&outcome.before));
+
+    Ok(RecyclePayload {
+        before: display_path(&outcome.before),
+        after: display_path(&outcome.after),
         delta: delta_dto(delta),
     })
 }
@@ -407,6 +445,7 @@ fn main() {
             refresh_library,
             library_snapshot,
             toggle_model_enable,
+            move_to_recycle,
             hydrate_hashes
         ])
         .run(tauri::generate_context!())
