@@ -3,7 +3,7 @@
 // 「全ての親」），漏挂的根及整棵子树成为孤儿 → matrixWorld 不更新 →
 // calculateInverses() 用 identity 算逆矩阵 → 蒙皮把顶点拉到骨骼世界位置
 //（「空气角色」/几何放大 N 倍）。本测试锁死 attachRootBones：所有根骨骼
-// 都挂到 mesh，且蒙皮矩阵恢复 identity。
+// 都挂到 mesh，且子树骨骼 matrixWorld 平移非零（判别性断言，见 assertRootsAttached）。
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
@@ -57,9 +57,13 @@ function assertRootsAttached(mesh: THREE.SkinnedMesh, pmx: PmxParseResponse): vo
   // 乘积照样 I，测不出回归）。真正判别：漏挂的根及其子树 matrixWorld 停留 identity
   //（平移零），挂载后子骨骼应有非零世界平移。这里不调 skeleton.update()（只刷新
   // matrixWorld），确保断言基于 bind 时算出的 inverse 对应的 matrixWorld。
+  // ⚠️ review 四轮 P2：按 name 从 skeleton.bones 解析（不能用 pmx.bones 的索引直接
+  // 索引 skeleton.bones——两数组 1:1 对齐从未验证，fixture 改名或切片版剪枝会
+  // undefined 崩溃 / 假通过）。
   mesh.updateMatrixWorld(true);
-  const childIdx = pmx.bones!.findIndex((b) => b.name === "child");
-  const childPos = mesh.skeleton.bones[childIdx].getWorldPosition(new THREE.Vector3());
+  const childBone = mesh.skeleton.bones.find((b) => b.name === "child");
+  expect(childBone).toBeDefined(); // 找不到 → 可读失败信息，而非 undefined 崩溃
+  const childPos = childBone!.getWorldPosition(new THREE.Vector3());
   expect(childPos.lengthSq()).toBeGreaterThan(0.01); // 漏挂根 → 子树 identity → 零平移 → 失败
 }
 
