@@ -81,6 +81,7 @@ struct TogglePayload {
     enabled: bool,
     before: String,
     after: String,
+    selected_path: String,
     delta: LibraryDeltaDto,
 }
 
@@ -126,12 +127,24 @@ fn toggle_model_enable(
         .map_err(lock_error)?
         .clone()
         .ok_or_else(|| "尚未选择模型库目录".to_string())?;
+    let requested = PathBuf::from(path);
+    let requested_canonical = std::fs::canonicalize(&requested)
+        .map_err(|error| format!("无法解析待切换资源路径：{error}"))?;
 
     // Hold the index lock across the rename so watcher callbacks cannot reconcile the same
     // filesystem event before this command has produced the authoritative delta for the caller.
     let mut index = state.index.lock().map_err(lock_error)?;
-    let outcome = toggle_model_enable_file(&root, PathBuf::from(path))
+    let outcome = toggle_model_enable_file(&root, &requested)
         .map_err(|error| format!("启用/禁用失败：{error}"))?;
+
+    let selected_after = if requested_canonical == outcome.before {
+        outcome.after.clone()
+    } else if let Ok(relative) = requested_canonical.strip_prefix(&outcome.before) {
+        outcome.after.join(relative)
+    } else {
+        outcome.after.clone()
+    };
+
     let changed_paths = [outcome.before.clone(), outcome.after.clone()];
     let delta = index.apply_paths(&root, &state.policy, &changed_paths);
 
@@ -139,6 +152,7 @@ fn toggle_model_enable(
         enabled: outcome.enabled,
         before: display_path(&outcome.before),
         after: display_path(&outcome.after),
+        selected_path: display_path(&selected_after),
         delta: delta_dto(delta),
     })
 }
