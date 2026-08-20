@@ -8,8 +8,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  // 等待残留的 setTimeout(overlay.remove, 200) 走完，避免脏 DOM
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  // 直接清空 body 即可，任何挂起的 setTimeout(overlay.remove, 200) 回调操作 detached 元素安全无害
   document.body.innerHTML = "";
 });
 
@@ -127,7 +126,9 @@ describe("失败路径", () => {
       // 吃掉错误
     }
     // 等 200ms setTimeout 走完
-    await new Promise((r) => setTimeout(r, 250));
+    await vi.waitFor(() => {
+      expect(document.body.querySelector(".loading-overlay")).toBeNull();
+    }, { timeout: 500, interval: 10 });
     expect(document.body.querySelector(".loading-overlay")).toBeNull();
   });
 });
@@ -148,8 +149,9 @@ describe("finally 清理", () => {
 
   it("fn resolve 后 200ms 内 overlay 从 DOM 移除", async () => {
     await withLoadingIndicator("ok", () => Promise.resolve(undefined));
-    await new Promise((r) => setTimeout(r, 250));
-    expect(document.body.querySelector(".loading-overlay")).toBeNull();
+    await vi.waitFor(() => {
+      expect(document.body.querySelector(".loading-overlay")).toBeNull();
+    }, { timeout: 500, interval: 10 });
   });
 });
 
@@ -165,8 +167,9 @@ describe("同步异常", () => {
     } catch (e) {
       expect(e).toBe(err);
     }
-    await new Promise((r) => setTimeout(r, 250));
-    expect(document.body.querySelector(".loading-overlay")).toBeNull();
+    await vi.waitFor(() => {
+      expect(document.body.querySelector(".loading-overlay")).toBeNull();
+    }, { timeout: 500, interval: 10 });
   });
 });
 
