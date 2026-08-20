@@ -11,6 +11,7 @@
     sort: 'name',
     showDisabled: false,
     selectedPath: '',
+    hashingPath: '',
     revision: 0,
     root: '',
     scanning: false,
@@ -22,7 +23,8 @@
     'summaryMessage', 'modelScroll', 'modelSpacer', 'modelLayer', 'emptyState', 'statusText',
     'errorText', 'runtimeDot', 'runtimeLabel', 'detailEmpty', 'detailContent', 'detailType',
     'detailName', 'detailAuthor', 'detailSize', 'detailModified', 'detailSubdir', 'detailStatus',
-    'detailPath', 'count-all', 'count-ysm', 'count-mmd', 'count-blueprint', 'count-vrm', 'count-archive',
+    'detailHash', 'hashButton', 'detailPath', 'count-all', 'count-ysm', 'count-mmd',
+    'count-blueprint', 'count-vrm', 'count-archive',
   ];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
   const invoke = window.__TAURI__?.core?.invoke;
@@ -165,7 +167,7 @@
     el.errorText.textContent = errorCount ? `${errorCount} 个扫描错误` : '';
   }
 
-  function applyDelta(delta) {
+  function applyDelta(delta, source = 'watch') {
     const byPath = new Map(state.entries.map((entry) => [entry.path, entry]));
     for (const path of delta.removed || []) byPath.delete(path);
     for (const entry of delta.updated || []) byPath.set(entry.path, entry);
@@ -173,6 +175,7 @@
 
     state.entries = Array.from(byPath.values());
     state.revision = Number(delta.revision) || state.revision;
+    if (source === 'hash') state.hashingPath = '';
     updateCounts();
     applyFilters();
 
@@ -180,9 +183,15 @@
     const updated = delta.updated?.length || 0;
     const removed = delta.removed?.length || 0;
     const errors = delta.errors?.length || 0;
-    el.summaryMessage.textContent = `自动同步 · +${added}  更新 ${updated}  移除 ${removed}`;
-    el.errorText.textContent = errors ? `${errors} 个监听/扫描错误` : '';
-    el.statusText.textContent = `文件监听已同步 · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`;
+    if (source === 'hash') {
+      el.summaryMessage.textContent = updated ? `SHA-256 已缓存 · ${updated} 项` : 'SHA-256 未写入';
+      el.statusText.textContent = updated ? '后台 SHA-256 计算完成' : 'SHA-256 计算未产生可用结果';
+      el.errorText.textContent = errors ? `${errors} 个哈希错误` : '';
+    } else {
+      el.summaryMessage.textContent = `自动同步 · +${added}  更新 ${updated}  移除 ${removed}`;
+      el.errorText.textContent = errors ? `${errors} 个监听/扫描错误` : '';
+      el.statusText.textContent = `文件监听已同步 · ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`;
+    }
   }
 
   function selectEntry(path) {
@@ -195,6 +204,7 @@
     const entry = state.entries.find((item) => item.path === state.selectedPath);
     if (!entry) {
       state.selectedPath = '';
+      state.hashingPath = '';
       el.detailEmpty.hidden = false;
       el.detailContent.hidden = true;
       return;
@@ -208,7 +218,12 @@
     el.detailModified.textContent = formatDate(entry.modTimeMs);
     el.detailSubdir.textContent = entry.subdir || '根目录';
     el.detailStatus.textContent = entry.disabled ? '已禁用' : '启用';
+    el.detailHash.textContent = entry.hash || '未计算';
     el.detailPath.textContent = entry.path;
+
+    const hashing = state.hashingPath === entry.path;
+    el.hashButton.disabled = Boolean(entry.hash) || hashing;
+    el.hashButton.textContent = entry.hash ? 'SHA-256 已缓存' : hashing ? '计算中…' : '计算 SHA-256';
   }
 
   function setScanning(active, label = '') {
@@ -255,6 +270,40 @@
       el.statusText.textContent = '刷新失败';
     } finally {
       setScanning(false, el.statusText.textContent);
+    }
+  }
+
+  async function hydrateSelectedHash() {
+    const entry = state.entries.find((item) => item.path === state.selectedPath);
+    if (!entry || entry.hash || state.hashingPath === entry.path) return;
+
+    state.hashingPath = entry.path;
+    syncSelection();
+    el.errorText.textContent = '';
+    el.statusText.textContent = 'SHA-256 已转入后台线程计算';
+
+    if (!isTauri) {
+      const bytes = new TextEncoder().encode(entry.path);
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      entry.hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+      state.hashingPath = '';
+      syncSelection();
+      el.statusText.textContent = '浏览器预览：模拟 SHA-256 完成';
+      return;
+    }
+
+    try {
+      const count = await invoke('hydrate_hashes', { paths: [entry.path] });
+      if (!count) {
+        state.hashingPath = '';
+        syncSelection();
+        el.statusText.textContent = '该资源无需计算 SHA-256，或已有缓存';
+      }
+    } catch (error) {
+      state.hashingPath = '';
+      syncSelection();
+      el.errorText.textContent = String(error);
+      el.statusText.textContent = 'SHA-256 任务启动失败';
     }
   }
 
@@ -320,6 +369,7 @@
 
   el.scanButton.addEventListener('click', () => scanRoot(el.libraryRoot.value));
   el.refreshButton.addEventListener('click', refreshRoot);
+  el.hashButton.addEventListener('click', hydrateSelectedHash);
   el.libraryRoot.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !state.scanning) scanRoot(el.libraryRoot.value);
   });
@@ -332,7 +382,8 @@
       .catch(() => {});
 
     if (typeof listen === 'function') {
-      listen('library-delta', (event) => applyDelta(event.payload)).catch(() => {});
+      listen('library-delta', (event) => applyDelta(event.payload, 'watch')).catch(() => {});
+      listen('hash-hydrated', (event) => applyDelta(event.payload, 'hash')).catch(() => {});
       listen('library-watch-error', (event) => {
         el.errorText.textContent = String(event.payload || '文件监听失败');
         el.statusText.textContent = '文件监听异常';
