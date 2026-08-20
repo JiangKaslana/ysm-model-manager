@@ -9,6 +9,7 @@ build = "build.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+notify = "8"
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = [] }
 ysm-model-manager-core = { path = "../../rust-core" }
