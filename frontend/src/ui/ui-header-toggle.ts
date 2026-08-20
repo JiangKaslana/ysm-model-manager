@@ -68,7 +68,7 @@ export function createHeaderToggle(config: HeaderToggleConfig): HTMLLabelElement
             cached = v;
             input.checked = v;
         };
-        registerControl(update);
+        registerControl("header-toggle-bind", update);
     }
 
     return toggle;

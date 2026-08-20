@@ -41,12 +41,12 @@
 | 前端·特性 | 16 | 77 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
-| frontend/ui | 18 | 95 |
+| frontend/ui | 18 | 99 |
 | 前端·工具 | 136 | 526 |
 | frontend/views | 109 | 310 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **428** | **1832** |
+| **合计** | **428** | **1836** |
 
 ## Go·头像
 
@@ -1098,8 +1098,12 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `ControlUpdater()` | `frontend/src/ui/control-registry:9` | — |
-| `setControlRegistry()` | `frontend/src/ui/control-registry:17` | 接入外部控件更新系统（如 ysm 的响应式链路）。 |
-| `registerControl()` | `frontend/src/ui/control-registry:22` | 注册一个控件更新回调。未接入外部系统时静默忽略。 |
+| `setControlRegistry()` | `frontend/src/ui/control-registry:20` | 接入外部控件更新系统。传入 null 可取消接入（内部注册表不受影响）。 |
+| `registerControl()` | `frontend/src/ui/control-registry:29` | 注册一个控件更新回调（需唯一 id）。 |
+| `getControl()` | `frontend/src/ui/control-registry:35` | 按 id 获取已注册的更新回调，未注册返回 undefined。 |
+| `unregisterControl()` | `frontend/src/ui/control-registry:40` | 按 id 移除已注册的更新回调，成功返回 true，未命中返回 false（重复 unregister 不抛错）。 |
+| `clearControls()` | `frontend/src/ui/control-registry:53` | 清空所有已注册的控件。不取消外部系统接入。 |
+| `getControlCount()` | `frontend/src/ui/control-registry:58` | 当前已注册控件数量。 |
 | `ROLE()` | `frontend/src/ui/dom-contract:6` | 渲染层 role 常量 |
 | `ARIA_ATTR()` | `frontend/src/ui/dom-contract:17` | aria 属性名常量 |
 | `COLLAPSIBLE()` | `frontend/src/ui/dom-contract:29` | collapsible（folder）组件契约 |

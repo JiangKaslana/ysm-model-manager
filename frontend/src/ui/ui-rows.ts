@@ -145,7 +145,7 @@ export function initControl<T>(
     };
     // 解耦：原 getCurrentRenderingContext()?.registerControl(...) 改为可选注入的注册表。
     // 未接入外部系统时 bind 仍会在挂载时通过下方 update() 即时初始化一次。
-    registerControl(update);
+    registerControl("slider-row-bind", update);
     update();
 }
 

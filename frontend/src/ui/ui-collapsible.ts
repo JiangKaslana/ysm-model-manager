@@ -230,7 +230,7 @@ export function addPresetChip(
     // === 自更新支持 ===
     if (opts?.onUpdate) {
         const update = () => opts.onUpdate!(btn);
-        registerControl(update);
+        registerControl("preset-chip-update", update);
         update();
     }
 
