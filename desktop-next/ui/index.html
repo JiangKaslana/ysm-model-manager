@@ -119,7 +119,10 @@
               <div><dt>状态</dt><dd id="detailStatus">—</dd></div>
               <div><dt>SHA-256</dt><dd id="detailHash">未计算</dd></div>
             </dl>
-            <button id="hashButton" class="hash-button" type="button">计算 SHA-256</button>
+            <div class="detail-actions">
+              <button id="enableButton" class="action-button state-action" type="button">禁用</button>
+              <button id="hashButton" class="action-button hash-action" type="button">计算 SHA-256</button>
+            </div>
             <label class="path-label">完整路径</label>
             <code id="detailPath" class="path-code">—</code>
           </div>
