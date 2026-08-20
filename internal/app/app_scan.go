@@ -566,7 +566,18 @@ func resolveInstallDirStandard(instDir, installDir string) string {
 	}
 	instName := filepath.Base(instDir)
 	rel := strings.ReplaceAll(installDir, "{instance}", instName)
-	trimmed := strings.TrimPrefix(rel, "versions/"+instName+"/")
+	// ⚠️ 毒舌审核 P0：TrimPrefix 前缀匹配陷阱——
+	// rel="versions/my-instance-extra/3d-skin" 时，
+	// TrimPrefix("versions/"+instName+"/") 中 instName="my-instance-extra" 不会误匹配。
+	// 但若 instName 本身是另一个实例名的前缀（如 instName="my-instance"，
+	// rel="versions/my-instance-extra/3d-skin"），TrimPrefix 会错误截断。
+	// 用 HasPrefix + 精确长度截取替代 TrimPrefix，避免实例名含连字符时的错位。
+	var trimmed string
+	if strings.HasPrefix(rel, "versions/"+instName+string(filepath.Separator)) {
+		trimmed = rel[len("versions/"+instName+string(filepath.Separator)):]
+	} else {
+		trimmed = rel
+	}
 	mcRoot := filepath.Dir(filepath.Dir(instDir))
 	for _, c := range []string{
 		filepath.Join(instDir, trimmed),

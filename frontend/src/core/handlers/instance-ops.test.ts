@@ -164,7 +164,7 @@ describe("registerInstanceOps — instance:export-list", () => {
     bus.emit("instance:export-list", { name: "TestPack", rtype: "" });
     await flush();
 
-    expect(toasts.some((t) => t.msg.includes("请指定资源类型") && t.type === "error")).toBe(true);
+    expect(toasts.some((t) => t.msg.includes("整合包缺少类型信息") && t.type === "error")).toBe(true);
     expect(mocks.ListVersionInstances).not.toHaveBeenCalled();
   });
 });
@@ -241,7 +241,7 @@ describe("registerInstanceOps — instance:clear", () => {
     bus.emit("instance:clear", { name: "TestPack", rtype: "" });
     await flush();
 
-    expect(toasts.some((t) => t.msg.includes("请指定资源类型") && t.type === "error")).toBe(true);
+    expect(toasts.some((t) => t.msg.includes("整合包缺少类型信息") && t.type === "error")).toBe(true);
     expect(mocks.CountInstanceResources).not.toHaveBeenCalled();
     expect(mocks.modalConfirm).not.toHaveBeenCalled();
   });

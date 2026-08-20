@@ -113,18 +113,16 @@ export function bindCardEvents(
     const nameEl = vc.querySelector(".name");
     const name = nameEl ? nameEl.textContent.replace(/^📦\s*/, "") : "";
     // P0 修复：rtype 必须明确指定，不能 fallback 到 YSM——
-    // 否则 MMD/VRC 等其他类型的整合包右键会按 YSM 逻辑处理，
-    // 导致打开错误目录（config/yes_steve_model/custom 而非 3d-skin/EntityPlayer）
-    // 或导出/清空错误的文件列表。
-    // ⚠️ 设计意图：点击路径允许 fallback（预览无害），右键路径拒绝 fallback（操作危险）。
+    // 否则 MMD/VRC 等右键操作会按 YSM 逻辑处理，打开错误目录。
+    // 点击允许 fallback（预览无害），右键拒绝（操作危险）。
     const rtype = pkg.rtype || "";
     if (!rtype) {
-      bus.emit("toast:show", {
-        msg: "❌ 整合包数据异常，缺少类型信息",
-        duration: 3000,
-        type: "error",
-      });
-      console.warn("[sidebar] 右键菜单缺少 rtype，实例:", name, "dir:", pkg.dir);
+      bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: 3000, type: "error" });
+      return;
+    }
+    const path = pkg.dir || "";
+    if (!path) {
+      bus.emit("toast:show", { msg: t("ctx.missingPath"), duration: 3000, type: "error" });
       return;
     }
     bus.emit("ctx:show", {
@@ -132,7 +130,7 @@ export function bindCardEvents(
       y: e.clientY,
       type: "instance",
       instanceName: name,
-      path: pkg.dir || "",
+      path,
       rtype,
       // 阶段 1：透传全局 MMD 用途子目录选择（repo_subdir，app-nav 持久化），
       // 使「打开文件夹」精确到 3d-skin/{subdir}；非 MMD 类型恒 ""，行为不变

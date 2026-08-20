@@ -5,6 +5,7 @@ import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
 import { getApp } from "../../backend/app.ts";
 import { requireMcRoot } from "./require-mcroot.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
+import { t } from "../../core/i18n/t.ts";
 
 /** 注册整合包操作 handler，push 返回的取消订阅函数到 unsubs */
 export function registerInstanceOps(unsubs: Array<() => void>): void {
@@ -24,11 +25,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         // 否则用户右键「复制模型清单」会导出整合包所有类型的文件，
         // 而不是当前选中类型（如 MMD）的文件。
         if (!rtype) {
-          bus.emit("toast:show", {
-            msg: "❌ 请指定资源类型（rtype 为空）",
-            duration: 3000,
-            type: "error",
-          });
+          bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: 3000, type: "error" });
           return;
         }
 
@@ -114,11 +111,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         // 否则用户右键「清空此整合包的模型」会误删所有类型的文件，
         // 而不是当前选中类型（如 MMD）的文件。
         if (!rtype) {
-          bus.emit("toast:show", {
-            msg: "❌ 请指定资源类型（rtype 为空）",
-            duration: 3000,
-            type: "error",
-          });
+          bus.emit("toast:show", { msg: t("ctx.emptyRtype"), duration: 3000, type: "error" });
           return;
         }
 

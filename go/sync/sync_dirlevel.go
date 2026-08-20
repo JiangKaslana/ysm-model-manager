@@ -118,7 +118,11 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 			}
 			if !info.IsDir() {
 				// 顶层平铺模型文件（path 直接在 rootDir 下）
-				if filepath.Dir(path) == rootDir {
+				// ⚠️ 必须 filepath.Clean 两侧再比较——Windows 下 filepath.Dir
+				// "C:\repo\a.txt" → "C:\repo"，但 rootDir 可能来自不同来源导致
+				// 大小写不一致（"C:\Repo" vs "C:\repo"），字符串相等会失败，
+				// 顶层模型文件被静默漏掉。
+				if filepath.Clean(filepath.Dir(path)) == filepath.Clean(rootDir) {
 					low := strings.ToLower(info.Name())
 					base := types.NormalizeResourceName(low)
 					if types.IsTypeModelFile(base, rtype) {

@@ -223,13 +223,22 @@ func PullSingleResource(globalDir, targetDir, srcPath string) error {
 // 不依赖 IsDirLevelSync(rtype) 是因为本函数是通用入口（前端传任意 rtype），
 // 由调用方保证 rtype 与 filePath 匹配。若 rtype 不匹配，InstallDir 内部会按
 // installDir/scanDir 推导目标路径，不会出错但可能路径不对——这是调用方责任。
+//
+// ⚠️ 毒舌审核 P0：原硬编码 ext == ".json" 会误判普通 readme.json 为 YSM 文件夹级安装。
+// 改为 IsYsmEntryJSON 精确匹配 ysm.json，避免非 YSM 场景的 .json 误触发。
 func PushSingleResource(filePath, customDir, globalDir, linkMode, rtype string) error {
 	fi, stErr := os.Stat(filePath)
 	if stErr == nil && fi.IsDir() {
 		return installer.InstallDir(filePath, subDirTarget(rtype, globalDir, customDir, filePath), globalDir, linkMode, rtype)
 	}
 	ext := strings.ToLower(filepath.Ext(filePath))
-	if ext == ".json" || ext == ".pmx" || ext == ".pmd" {
+	// .pmx/.pmd 一律视为 MMD 文件夹级安装（整个父目录）
+	if ext == ".pmx" || ext == ".pmd" {
+		dir := filepath.Dir(filePath)
+		return installer.InstallDir(dir, subDirTarget(rtype, globalDir, customDir, dir), globalDir, linkMode, rtype)
+	}
+	// .json 仅 ysm.json 视为 YSM 文件夹级入口（防 readme.json 等误判）
+	if ext == ".json" && types.IsYsmEntryJSON(filePath) {
 		dir := filepath.Dir(filePath)
 		return installer.InstallDir(dir, subDirTarget(rtype, globalDir, customDir, dir), globalDir, linkMode, rtype)
 	}

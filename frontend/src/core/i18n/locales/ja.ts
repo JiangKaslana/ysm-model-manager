@@ -574,6 +574,9 @@ export const ja: Record<string, string> = {
   "syncManager.emptyType": "この統合パックにリソースファイルはありません",
   "syncManager.rmTitle": "リソース管理",
   "syncManager.curTypeHint": "タイプ選択は左サイドバーへ移動（グローバル切替）",
+  // P0 修正: 右クリックメニュー rtype ガード トースト（i18n 準拠）
+  "ctx.emptyRtype": "❌ パックにタイプ情報がありません、右クリック操作は無効です",
+  "ctx.missingPath": "❌ パックディレクトリが見つかりません",
 
   // ── Diagnostics Operation Types ──
   "diagnostics.logsCleared": "ログをクリアしました",
