@@ -113,8 +113,23 @@ impl ScanPolicy {
     }
 }
 
+/// Compatibility scan matching the existing Go scanner contract.
+/// Directories ending in `.ban` are not descended into.
 pub fn scan_fast(root: impl AsRef<Path>, policy: &ScanPolicy) -> ScanReport {
-    let root = root.as_ref().to_path_buf();
+    scan_impl(root.as_ref(), policy, false)
+}
+
+/// Stateful-index scan used by the new desktop shell.
+///
+/// Unlike [`scan_fast`], this intentionally descends into `.ban` directories so disabled
+/// directory-based models remain discoverable and can be re-enabled after a restart. The UI
+/// decides whether to display them; compatibility callers keep using `scan_fast`.
+pub fn scan_index(root: impl AsRef<Path>, policy: &ScanPolicy) -> ScanReport {
+    scan_impl(root.as_ref(), policy, true)
+}
+
+fn scan_impl(root: &Path, policy: &ScanPolicy, include_banned_dirs: bool) -> ScanReport {
+    let root = root.to_path_buf();
     if root.as_os_str().is_empty() {
         return ScanReport::default();
     }
@@ -122,12 +137,13 @@ pub fn scan_fast(root: impl AsRef<Path>, policy: &ScanPolicy) -> ScanReport {
     let mut errors = Vec::new();
     let mut candidates = Vec::new();
 
-    let walk = WalkDir::new(&root).process_read_dir(|_, _, _, children| {
+    let walk = WalkDir::new(&root).process_read_dir(move |_, _, _, children| {
         for child in children
             .iter_mut()
             .filter_map(|result| result.as_mut().ok())
         {
-            if child.file_type.is_dir() && should_skip_dir_name(&child.file_name.to_string_lossy())
+            if child.file_type.is_dir()
+                && should_skip_dir_name(&child.file_name.to_string_lossy(), include_banned_dirs)
             {
                 child.read_children = None;
             }
@@ -313,10 +329,10 @@ fn extension_of(name: &str) -> String {
         .unwrap_or_default()
 }
 
-fn should_skip_dir_name(name: &str) -> bool {
+fn should_skip_dir_name(name: &str, include_banned_dirs: bool) -> bool {
     name.eq_ignore_ascii_case(".recycle")
         || name == ".github"
-        || name.to_ascii_lowercase().ends_with(".ban")
+        || (!include_banned_dirs && name.to_ascii_lowercase().ends_with(".ban"))
 }
 
 fn first_relative_component(root: &Path, path: &Path) -> Option<String> {
@@ -423,6 +439,28 @@ mod tests {
         assert!(report.entries.iter().any(|entry| entry.name == "a.ysm"));
         assert!(report.entries.iter().any(|entry| entry.name == "ysm.json"));
         assert!(!report.entries.iter().any(|entry| entry.name == "anim.json"));
+        assert!(!report
+            .entries
+            .iter()
+            .any(|entry| entry.path.starts_with(&banned_dir)));
+    }
+
+    #[test]
+    fn index_scan_discovers_banned_directories_without_changing_compat_scan() {
+        let root = TempRoot::new("index-disabled");
+        let banned_dir = root.path().join("ModelA.ban");
+        fs::create_dir_all(&banned_dir).unwrap();
+        fs::write(banned_dir.join("ysm.json"), b"{}").unwrap();
+        fs::write(banned_dir.join("ignored.txt"), b"x").unwrap();
+
+        let compat = scan_fast(root.path(), &policy());
+        assert!(compat.entries.is_empty());
+
+        let indexed = scan_index(root.path(), &policy());
+        assert!(indexed.errors.is_empty(), "{:?}", indexed.errors);
+        assert_eq!(indexed.entries.len(), 1);
+        assert_eq!(indexed.entries[0].name, "ysm.json");
+        assert!(indexed.entries[0].path.starts_with(&banned_dir));
     }
 
     #[test]
