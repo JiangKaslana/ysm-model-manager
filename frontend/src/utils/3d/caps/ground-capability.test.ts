@@ -55,12 +55,19 @@ describe("GroundCapability", () => {
 });
 
 describe("GroundCapability — getMenuControls 分组", () => {
-  it("仅含总开关控件，无子控件需 group", () => {
+  it("总开关无 group；水面参数组含 group", () => {
     const scene = new THREE.Scene();
     const cap = new GroundCapability({ scene });
     const controls = cap.getMenuControls();
-    expect(controls.length).toBe(1);
+    // 总开关 + 3 个水面参数
+    expect(controls.length).toBe(4);
     expect(controls[0]!.id).toBe("ground-visible");
     expect(controls[0]!.group).toBeUndefined();
+    // 水面参数组：湿润度/水色/不透明度
+    const waterControls = controls.filter((c) => c.group === "preview.groundGroupWater");
+    expect(waterControls.length).toBe(3);
+    expect(waterControls.map((c) => c.id).sort()).toEqual(
+      ["ground-wetness", "ground-water-color", "ground-water-opacity"].sort(),
+    );
   });
 });

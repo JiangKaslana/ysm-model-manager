@@ -23,6 +23,12 @@ export interface GroundParams {
   colorGrid: number;
   /** 地面初始可见 */
   visible: boolean;
+  /** 湿润度 0=干 1=完全湿润；>0 时叠加半透明水面 Mesh */
+  wetness: number;
+  /** 水面颜色（湿润时叠加层底色） */
+  waterColor: number;
+  /** 水面不透明度 0=透明 1=不透明 */
+  waterOpacity: number;
 }
 
 export const DEFAULT_GROUND_PARAMS: GroundParams = {
@@ -31,6 +37,9 @@ export const DEFAULT_GROUND_PARAMS: GroundParams = {
   colorCenter: 0x444466,
   colorGrid: 0x333355,
   visible: true,
+  wetness: 0,
+  waterColor: 0x335577,
+  waterOpacity: 0.6,
 };
 
 export class GroundCapability implements SceneCapability {
@@ -41,6 +50,7 @@ export class GroundCapability implements SceneCapability {
 
   private scene: THREE.Scene;
   private grid: THREE.GridHelper;
+  private water: THREE.Mesh; // 半透明水面叠加层（wetness>0 时显示）
   private params: GroundParams;
   private enabled: boolean;
 
@@ -60,17 +70,35 @@ export class GroundCapability implements SceneCapability {
     );
     this.grid.visible = this.params.visible;
     this.grid.name = "ysm-ground";
+
+    // 半透明水面：PlaneGeometry 旋转到水平，MeshStandardMaterial 半透明
+    const waterGeo = new THREE.PlaneGeometry(this.params.size, this.params.size);
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: this.params.waterColor,
+      transparent: true,
+      opacity: this.params.waterOpacity * this.params.wetness,
+      roughness: 0.2, // 湿润表面低粗糙度 → 高反射
+      metalness: 0.3,
+      depthWrite: false, // 不遮挡网格
+    });
+    this.water = new THREE.Mesh(waterGeo, waterMat);
+    this.water.rotation.x = -Math.PI / 2; // 水平
+    this.water.position.y = 0.01; // 略高于网格避免 z-fighting
+    this.water.name = "ysm-ground-water";
+    this.water.visible = this.params.wetness > 0;
   }
 
   /** 挂入场景（对齐 SkyCapability.apply 口径） */
   apply(): void {
     if (!this.enabled) return;
     if (!this.grid.parent) this.scene.add(this.grid);
+    if (!this.water.parent) this.scene.add(this.water);
   }
 
-  /** 地面显隐开关 */
+  /** 地面显隐开关（水面跟随） */
   setVisible(v: boolean): void {
     this.grid.visible = v;
+    this.water.visible = v && this.params.wetness > 0;
   }
 
   getVisible(): boolean {
@@ -80,7 +108,35 @@ export class GroundCapability implements SceneCapability {
   setEnabled(v: boolean): void {
     this.enabled = v;
     if (v) this.apply();
-    else if (this.grid.parent) this.grid.parent.remove(this.grid);
+    else {
+      if (this.grid.parent) this.grid.parent.remove(this.grid);
+      if (this.water.parent) this.water.parent.remove(this.water);
+    }
+  }
+
+  // ── 水面参数（湿润表面模式）──
+  setWetness(v: number): void {
+    this.params.wetness = Math.max(0, Math.min(1, v));
+    const mat = this.water.material as THREE.MeshStandardMaterial;
+    mat.opacity = this.params.waterOpacity * this.params.wetness;
+    this.water.visible = this.grid.visible && this.params.wetness > 0;
+  }
+  getWetness(): number {
+    return this.params.wetness;
+  }
+  setWaterColor(hex: number): void {
+    this.params.waterColor = hex;
+    (this.water.material as THREE.MeshStandardMaterial).color.setHex(hex);
+  }
+  getWaterColor(): number {
+    return this.params.waterColor;
+  }
+  setWaterOpacity(v: number): void {
+    this.params.waterOpacity = Math.max(0, Math.min(1, v));
+    (this.water.material as THREE.MeshStandardMaterial).opacity = this.params.waterOpacity * this.params.wetness;
+  }
+  getWaterOpacity(): number {
+    return this.params.waterOpacity;
   }
 
   isEnabled(): boolean {
@@ -90,6 +146,7 @@ export class GroundCapability implements SceneCapability {
   /** 返回菜单控件定义（框架自动渲染） */
   getMenuControls(): MenuControlDef[] {
     return [
+      // 顶部主控件：地面显隐
       {
         id: "ground-visible",
         kind: "toggle",
@@ -97,6 +154,36 @@ export class GroundCapability implements SceneCapability {
         fallback: "地面",
         getValue: () => this.getVisible(),
         setValue: (v) => this.setVisible(v as boolean),
+      },
+      // 水面参数组（湿润表面模式）
+      {
+        id: "ground-wetness",
+        kind: "slider",
+        labelKey: "preview.groundWetness",
+        fallback: "湿润度",
+        group: "preview.groundGroupWater",
+        slider: { min: 0, max: 1, step: 0.05 },
+        getValue: () => this.getWetness(),
+        setValue: (v) => this.setWetness(v as number),
+      },
+      {
+        id: "ground-water-color",
+        kind: "color",
+        labelKey: "preview.groundWaterColor",
+        fallback: "水色",
+        group: "preview.groundGroupWater",
+        getValue: () => this.getWaterColor(),
+        setValue: (v) => this.setWaterColor(v as number),
+      },
+      {
+        id: "ground-water-opacity",
+        kind: "slider",
+        labelKey: "preview.groundWaterOpacity",
+        fallback: "不透明度",
+        group: "preview.groundGroupWater",
+        slider: { min: 0, max: 1, step: 0.05 },
+        getValue: () => this.getWaterOpacity(),
+        setValue: (v) => this.setWaterOpacity(v as number),
       },
     ];
   }
@@ -106,6 +193,9 @@ export class GroundCapability implements SceneCapability {
     persistState(this.id, {
       visible: this.params.visible,
       enabled: this.enabled,
+      wetness: this.params.wetness,
+      waterColor: this.params.waterColor,
+      waterOpacity: this.params.waterOpacity,
     });
   }
 
@@ -118,14 +208,20 @@ export class GroundCapability implements SceneCapability {
       this.params.visible = state.visible;
       this.grid.visible = state.visible;
     }
+    if (typeof state.wetness === "number") this.setWetness(state.wetness);
+    if (typeof state.waterColor === "number") this.setWaterColor(state.waterColor);
+    if (typeof state.waterOpacity === "number") this.setWaterOpacity(state.waterOpacity);
   }
 
   /** 移除并释放（GridHelper 材质可能是数组，遍历 dispose） */
   dispose(): void {
     if (this.grid.parent) this.grid.parent.remove(this.grid);
+    if (this.water.parent) this.water.parent.remove(this.water);
     this.grid.geometry.dispose();
     const mat = this.grid.material;
     if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
     else mat.dispose();
+    this.water.geometry.dispose();
+    (this.water.material as THREE.Material).dispose();
   }
 }

@@ -161,7 +161,7 @@ describe("renderCapControls", () => {
     renderCapControls(list, [
       mk("toggle", {
         getValue: () => lastValue,
-        setValue: (v: boolean) => { lastValue = v; },
+        setValue: (v: number | string | boolean) => { lastValue = v as boolean; },
       }),
     ]);
     const items = list.querySelectorAll(".slide-item");
@@ -238,7 +238,7 @@ describe("renderCapControls", () => {
           { value: "c", label: "Option C" },
         ],
         getValue: () => lastValue,
-        setValue: (v: string) => { lastValue = v; },
+        setValue: (v: number | string | boolean) => { lastValue = v as string; },
       }),
     ]);
     const sel = list.querySelector("select") as HTMLSelectElement;
@@ -329,7 +329,7 @@ describe("renderCapControls", () => {
     renderCapControls(list, [
       mk("color", {
         getValue: () => lastVal,
-        setValue: (v: number) => { lastVal = v; },
+        setValue: (v: number | string | boolean) => { lastVal = v as number; },
       }),
     ]);
     const picker = list.querySelector("input[type=color]") as HTMLInputElement;
@@ -347,7 +347,7 @@ describe("renderCapControls", () => {
     renderCapControls(list, [
       mk("timeline", {
         getValue: () => lastHour,
-        setValue: (v: number) => { lastHour = v; },
+        setValue: (v: number | string | boolean) => { lastHour = v as number; },
       }),
     ]);
     const items = list.querySelectorAll(".slide-item");
@@ -372,7 +372,7 @@ describe("renderCapControls", () => {
     renderCapControls(list, [
       mk("timeline", {
         getValue: () => lastHour,
-        setValue: (v: number) => { lastHour = v; },
+        setValue: (v: number | string | boolean) => { lastHour = v as number; },
       }),
     ]);
     const items = list.querySelectorAll(".slide-item");

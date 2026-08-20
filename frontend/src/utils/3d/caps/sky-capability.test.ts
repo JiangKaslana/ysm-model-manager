@@ -185,7 +185,8 @@ describe("SkyCapability — getMenuControls 结构", () => {
   it("非主控件均含 group 字段（云量/环境贴图/昼夜循环）", () => {
     const cap = newCap();
     const controls = cap.getMenuControls();
-    controls.filter((c) => c.id !== "sky-time").forEach((c) => {
+    // sky-time/sky-timeline 是顶层主控件，无 group；其余控件必须含 group 且以 preview.sky 开头
+    controls.filter((c) => c.id !== "sky-time" && c.id !== "sky-timeline").forEach((c) => {
       expect(c.group).toBeDefined();
       expect(c.group!.startsWith("preview.sky")).toBe(true);
     });
