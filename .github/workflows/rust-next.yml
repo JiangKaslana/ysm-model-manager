@@ -27,6 +27,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Cache Rust index build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust-index/target
+          key: rust-index-${{ runner.os }}-${{ hashFiles('rust-index/Cargo.toml', 'rust-core/Cargo.toml', 'resource_types.json') }}
+          restore-keys: |
+            rust-index-${{ runner.os }}-
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
@@ -50,6 +60,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+      - name: Cache Tauri build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~\.cargo\registry
+            ~\.cargo\git
+            desktop-next\src-tauri\target
+          key: tauri-next-${{ runner.os }}-${{ hashFiles('desktop-next/src-tauri/Cargo.toml', 'rust-index/Cargo.toml', 'rust-core/Cargo.toml', 'resource_types.json') }}
+          restore-keys: |
+            tauri-next-${{ runner.os }}-
       - name: Rust formatting
         working-directory: desktop-next/src-tauri
         run: cargo fmt --check
