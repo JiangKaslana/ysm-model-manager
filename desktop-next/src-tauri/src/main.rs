@@ -1,9 +1,10 @@
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::{
     path::{Path, PathBuf},
     sync::Mutex,
 };
-use tauri::State;
+use tauri::{AppHandle, Emitter, Manager, State};
 use ysm_model_manager_core::{ModelEntry, ScanError, ScanPolicy};
 use ysm_model_manager_index::{IndexDelta, IndexSnapshot, ModelIndex};
 
@@ -11,9 +12,10 @@ struct AppState {
     policy: ScanPolicy,
     index: Mutex<ModelIndex>,
     root: Mutex<Option<PathBuf>>,
+    watcher: Mutex<Option<RecommendedWatcher>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct EntryDto {
     name: String,
@@ -26,14 +28,14 @@ struct EntryDto {
     disabled: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ErrorDto {
     path: String,
     message: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LibrarySnapshotDto {
     revision: u64,
@@ -42,7 +44,7 @@ struct LibrarySnapshotDto {
     errors: Vec<ErrorDto>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DeltaSummary {
     revision: u64,
@@ -52,18 +54,33 @@ struct DeltaSummary {
     errors: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RefreshPayload {
     snapshot: LibrarySnapshotDto,
     delta: DeltaSummary,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LibraryDeltaDto {
+    revision: u64,
+    added: Vec<EntryDto>,
+    updated: Vec<EntryDto>,
+    removed: Vec<String>,
+    errors: Vec<ErrorDto>,
+}
+
 #[tauri::command]
-fn scan_library(root: String, state: State<'_, AppState>) -> Result<RefreshPayload, String> {
+fn scan_library(
+    root: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<RefreshPayload, String> {
     let root = normalize_root(&root)?;
     let payload = refresh_at(&root, &state)?;
-    *state.root.lock().map_err(lock_error)? = Some(root);
+    *state.root.lock().map_err(lock_error)? = Some(root.clone());
+    restart_watcher(&app, &root, &state)?;
     Ok(payload)
 }
 
@@ -95,12 +112,74 @@ fn refresh_at(root: &Path, state: &AppState) -> Result<RefreshPayload, String> {
     })
 }
 
+fn restart_watcher(app: &AppHandle, root: &Path, state: &AppState) -> Result<(), String> {
+    let app_for_events = app.clone();
+    let mut watcher = notify::recommended_watcher(move |result| {
+        handle_fs_event(&app_for_events, result);
+    })
+    .map_err(|error| format!("无法启动模型库监听：{error}"))?;
+
+    watcher
+        .watch(root, RecursiveMode::Recursive)
+        .map_err(|error| format!("无法监听模型库目录 {}：{error}", root.display()))?;
+
+    *state.watcher.lock().map_err(lock_error)? = Some(watcher);
+    Ok(())
+}
+
+fn handle_fs_event(app: &AppHandle, result: notify::Result<Event>) {
+    let event = match result {
+        Ok(event) => event,
+        Err(error) => {
+            let _ = app.emit("library-watch-error", error.to_string());
+            return;
+        }
+    };
+
+    if matches!(event.kind, EventKind::Access(_)) || event.paths.is_empty() {
+        return;
+    }
+
+    let state = app.state::<AppState>();
+    let root = match state.root.lock() {
+        Ok(root) => root.clone(),
+        Err(_) => return,
+    };
+    let Some(root) = root else {
+        return;
+    };
+
+    let delta = match state.index.lock() {
+        Ok(mut index) => index.apply_paths(&root, &state.policy, &event.paths),
+        Err(_) => return,
+    };
+
+    if delta.added.is_empty()
+        && delta.updated.is_empty()
+        && delta.removed.is_empty()
+        && delta.errors.is_empty()
+    {
+        return;
+    }
+
+    let _ = app.emit("library-delta", delta_dto(delta));
+}
+
 fn normalize_root(input: &str) -> Result<PathBuf, String> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return Err("模型库路径不能为空".to_string());
     }
+
     let path = PathBuf::from(trimmed);
+    let path = if path.is_absolute() {
+        path
+    } else {
+        std::env::current_dir()
+            .map_err(|error| format!("无法解析当前目录：{error}"))?
+            .join(path)
+    };
+
     if !path.is_dir() {
         return Err(format!("目录不存在或不可读：{}", path.display()));
     }
@@ -123,6 +202,20 @@ fn delta_summary(delta: &IndexDelta) -> DeltaSummary {
         updated: delta.updated.len(),
         removed: delta.removed.len(),
         errors: delta.errors.len(),
+    }
+}
+
+fn delta_dto(delta: IndexDelta) -> LibraryDeltaDto {
+    LibraryDeltaDto {
+        revision: delta.revision,
+        added: delta.added.into_iter().map(entry_dto).collect(),
+        updated: delta.updated.into_iter().map(entry_dto).collect(),
+        removed: delta
+            .removed
+            .into_iter()
+            .map(|path| display_path(&path))
+            .collect(),
+        errors: delta.errors.into_iter().map(error_dto).collect(),
     }
 }
 
@@ -164,6 +257,7 @@ fn main() {
             policy,
             index: Mutex::new(ModelIndex::new()),
             root: Mutex::new(None),
+            watcher: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             scan_library,
