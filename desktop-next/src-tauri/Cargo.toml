@@ -13,4 +13,5 @@ notify = "8"
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = [] }
 ysm-model-manager-core = { path = "../../rust-core" }
+ysm-model-manager-fileops = { path = "../../rust-fileops" }
 ysm-model-manager-index = { path = "../../rust-index" }
