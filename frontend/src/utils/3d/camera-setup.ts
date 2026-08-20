@@ -13,11 +13,9 @@ export function fitCameraToScene(
   camera: THREE.PerspectiveCamera,
   controls: OrbitControls,
 ): { initCamPos: THREE.Vector3; initCamTarget: THREE.Vector3 } {
-  scene.updateMatrixWorld();
-  const box = new THREE.Box3();
-  scene.traverse((child) => {
-    if ((child as THREE.Mesh).isMesh) box.expandByObject(child);
-  });
+  // 使用 setFromObject 而非 traverse+expandByObject：前者会正确应用父节点 scale，
+  // 后者只计算局部包围盒，忽略 rootGroup.scale = 1/16（基岩标准），导致相机拉远 16 倍。
+  const box = new THREE.Box3().setFromObject(scene);
 
   if (!box.isEmpty()) {
     const center = new THREE.Vector3();
