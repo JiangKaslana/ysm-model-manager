@@ -199,14 +199,21 @@ describe("PostprocessingManager", () => {
   // 3. render() 开关交替
   // ════════════════════════════════════════════════════════════════
 
-  it("render：开关交替切换 → 每次启用都重新创建 passes（但 dispose 会因 OutputPass 无 dispose 而崩溃）", () => {
-    // // BUG (P0): disposeComposer 调用 this.outputPass?.dispose()，但 Three.js OutputPass 没有 dispose 方法
-    // ?. 只保护 null/undefined，无法保护"对象存在但方法不存在"——直接 TypeError 崩溃
+  it("render：开关交替切换 → dispose 不再崩溃，重新启用时重建 passes", () => {
+    // P0-1 修复：OutputPass 无 dispose 方法，防御性调用避免崩溃
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp); // 创建 composer
-    // 切换到 cone 触发 dispose → 崩溃
+    const firstComposer = (mgr as any).composer;
+    expect(firstComposer).toBeTruthy();
+    // 切换到 cone 触发 dispose → 不再崩溃
     (lp as any).getVolumetricEngine = () => "cone";
-    expect(() => mgr.render(2, lp)).toThrow(/outputPass.*dispose/);
+    expect(() => mgr.render(2, lp)).not.toThrow();
+    expect((mgr as any).composer).toBeNull();
+    // 切回 postprocess → 重建 composer
+    (lp as any).getVolumetricEngine = () => "postprocess";
+    expect(mgr.render(3, lp)).toBe(true);
+    expect((mgr as any).composer).toBeTruthy();
+    expect((mgr as any).composer).not.toBe(firstComposer);
   });
 
   it("render：重复调用（同状态）→ 不重复创建 composer", () => {
@@ -232,55 +239,57 @@ describe("PostprocessingManager", () => {
     expect((mgr as any).bloomPass.resolution.y).toBe(1080);
   });
 
-  it("setSize：composer 未创建（首次调用前）→ 静默忽略", () => {
-    // // BUG: setSize 在 composer 未创建时静默 no-op，不会报错也不会缓存尺寸
+  it("setSize：composer 未创建（首次调用前）→ 缓存尺寸，render 时应用", () => {
+    // P1-1 修复：setSize 在 composer 未创建时缓存尺寸，首次 render 时应用
     mgr.setSize(1920, 1080);
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp);
     const c = (mgr as any).composer;
-    expect(c.width).toBe(800); // 仍是 domElement 尺寸，setSize 被忽略
-    expect(c.height).toBe(600);
+    expect(c.width).toBe(1920); // 缓存的尺寸生效
+    expect(c.height).toBe(1080);
   });
 
-  it("setSize：传入 0 → 无保护地传给 EffectComposer", () => {
-    // // BUG: setSize 不像 render 那样 clamp 到 1，0 会直接传给 setSize
+  it("setSize：传入 0 → clamp 到 1", () => {
+    // P1-2 修复：setSize clamp 到 [1, 8192]
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp);
     expect(() => mgr.setSize(0, 0)).not.toThrow();
     const c = (mgr as any).composer;
-    expect(c.width).toBe(0); // 已接受 0，真实 EffectComposer.setSize 可能出错
-    expect(c.height).toBe(0);
+    expect(c.width).toBe(1);
+    expect(c.height).toBe(1);
   });
 
-  it("setSize：传入负数 → 无保护地传入", () => {
-    // // BUG: 同上，负数也通过
+  it("setSize：传入负数 → clamp 到 1", () => {
+    // P1-2 修复：同上
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp);
     expect(() => mgr.setSize(-100, -100)).not.toThrow();
     const c = (mgr as any).composer;
-    expect(c.width).toBe(-100);
-    expect(c.height).toBe(-100);
+    expect(c.width).toBe(1);
+    expect(c.height).toBe(1);
   });
 
-  it("setSize：传入 Infinity / NaN → 无保护地传入", () => {
+  it("setSize：传入 Infinity / NaN → clamp 到 8192 / 1", () => {
+    // P1-2 修复：Infinity → 8192，NaN → 1
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp);
     expect(() => mgr.setSize(Infinity, NaN)).not.toThrow();
     const c = (mgr as any).composer;
-    expect(c.width).toBe(Infinity);
-    expect(Number.isNaN(c.height)).toBe(true);
+    expect(c.width).toBe(8192);
+    expect(c.height).toBe(1);
   });
 
   // ════════════════════════════════════════════════════════════════
   // 5. dispose
   // ════════════════════════════════════════════════════════════════
 
-  it("dispose：调用后崩溃（OutputPass 无 dispose 方法）", () => {
-    // // BUG (P0): disposeComposer 中 this.outputPass?.dispose() 因 OutputPass 无 dispose 方法而抛 TypeError
+  it("dispose：调用后不再崩溃（OutputPass 防御性调用）", () => {
+    // P0-1 修复：OutputPass 无 dispose 方法，防御性调用避免崩溃
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp);
-    expect(() => mgr.dispose()).toThrow(/outputPass.*dispose/);
-    // 因为抛错，内部状态可能未完全置空
+    expect(() => mgr.dispose()).not.toThrow();
+    expect((mgr as any).composer).toBeNull();
+    expect((mgr as any).outputPass).toBeNull();
   });
 
   it("dispose：重复调用不报错", () => {
@@ -293,12 +302,17 @@ describe("PostprocessingManager", () => {
   // 6. dispose 后调用其他方法
   // ════════════════════════════════════════════════════════════════
 
-  it("dispose 后 setSize → 静默忽略，不报错也不警告", () => {
-    // // BUG: dispose 后 setSize 静默 no-op，无任何错误/警告，调用方无法感知
+  it("dispose 后 setSize → 缓存尺寸，下次 render 时应用", () => {
+    // P1-1 修复：dispose 后 setSize 缓存到 _pending，下次 render 创建时应用
     mgr.dispose();
-    expect(() => mgr.setSize(1920, 1080)).not.toThrow();
-    // 无副作用：无法从外部判断已 dispose
+    mgr.setSize(1920, 1080);
     expect((mgr as any).composer).toBeNull();
+    // 下次 render 时用缓存的尺寸创建
+    const lp = makeLightCap({ engine: "postprocess" });
+    mgr.render(1, lp);
+    const c = (mgr as any).composer;
+    expect(c.width).toBe(1920);
+    expect(c.height).toBe(1080);
   });
 
   it("dispose 后 render(volumetric=postprocess) → 会重新创建 composer", () => {
@@ -358,44 +372,41 @@ describe("PostprocessingManager", () => {
     expect(bloom.radius).toBeCloseTo(0.6, 6);
   });
 
-  it("render：opacity 极大值 → strength 无限增大，无上限", () => {
-    // // BUG: strength = opacity * 1.5 无上界，opacity=100 → strength=150，GPU 过载
+  it("render：opacity 极大值 → strength/clamp 到上限", () => {
+    // P1-3 修复：opacity clamp 到 [0,1]，edgeFade 同
     const lp = makeLightCap({
       engine: "postprocess",
       volumetric: { enabled: true, opacity: 1000, edgeFade: 1000 },
     });
     mgr.render(1, lp);
     const bloom = (mgr as any).bloomPass;
-    expect(bloom.strength).toBe(1500);
-    expect(bloom.radius).toBe(500.1);
+    expect(bloom.strength).toBe(1.5); // 1 * 1.5
+    expect(bloom.radius).toBe(0.6); // 1 * 0.5 + 0.1
+    expect(bloom.threshold).toBe(0.2); // max(0.1, 0.5 - 1*0.3)
   });
 
-  it("render：opacity 极小负值 → threshold 仍被 Math.max 兜底（负 opacity 使 strength 变负）", () => {
-    // Math.max(0.1, 0.5 - (-10)*0.3) = Math.max(0.1, 3.5) = 3.5
-    // strength = -10 * 1.5 = -15 → 负 strength 在 Three.js 中会导致 Bloom 反向增强
-    // // BUG (P1): 无负值保护，负 opacity 导致 strength 为负，渲染异常
+  it("render：opacity 极小负值 → clamp 到 0", () => {
+    // P1-3 修复：负 opacity clamp 到 0
     const lp = makeLightCap({
       engine: "postprocess",
       volumetric: { enabled: true, opacity: -10, edgeFade: 0 },
     });
     mgr.render(1, lp);
     const bloom = (mgr as any).bloomPass;
-    expect(bloom.threshold).toBe(3.5);
-    expect(bloom.strength).toBe(-15);
+    expect(bloom.threshold).toBeCloseTo(0.5, 6); // max(0.1, 0.5 - 0*0.3)
+    expect(bloom.strength).toBe(0); // 0 * 1.5
   });
 
-  it("render：opacity=Infinity → threshold 被 max 兜底到 0.1，但 strength 无限增大", () => {
-    // Math.max(0.1, 0.5 - Infinity*0.3) = Math.max(0.1, -Infinity) = 0.1
-    // strength = Infinity * 1.5 = Infinity → GPU 可能过载
-    // // BUG (P1): strength 无上限，Infinity 直接传播
+  it("render：opacity=Infinity → clamp 到 1", () => {
+    // P1-3 修复：Infinity clamp 到 1
     const lp = makeLightCap({
       engine: "postprocess",
       volumetric: { enabled: true, opacity: Infinity, edgeFade: Infinity },
     });
     mgr.render(1, lp);
     const bloom = (mgr as any).bloomPass;
-    expect(bloom.strength).toBe(Infinity);
-    expect(bloom.threshold).toBe(0.1);
+    expect(bloom.strength).toBe(1.5); // 1 * 1.5
+    expect(bloom.threshold).toBeCloseTo(0.2, 6);
   });
 
   // ════════════════════════════════════════════════════════════════
@@ -422,14 +433,14 @@ describe("PostprocessingManager", () => {
     expect(c.height).toBe(1);
   });
 
-  it("render：composer 创建时使用 domElement 尺寸而非 setSize 参数", () => {
-    // // BUG: composer 创建时硬编码从 domElement 读宽高，忽略任何先前 setSize
+  it("render：composer 创建时使用缓存的 setSize 尺寸", () => {
+    // P1-1 修复：composer 创建时优先使用缓存的 setSize 尺寸
     mgr.setSize(1920, 1080);
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp);
     const c = (mgr as any).composer;
-    expect(c.width).toBe(800); // domElement.width
-    expect(c.height).toBe(600); // domElement.height
+    expect(c.width).toBe(1920);
+    expect(c.height).toBe(1080);
   });
 
   it("setPixelRatio：使用 window.devicePixelRatio 并 clamp 到 2", () => {
@@ -453,15 +464,14 @@ describe("PostprocessingManager", () => {
   // 9. OutputPass dispose 问题
   // ════════════════════════════════════════════════════════════════
 
-  it("disposeComposer：OutputPass 无 dispose 方法 → 直接 TypeError 崩溃", () => {
-    // // BUG (P0): disposeComposer 中 this.outputPass?.dispose() 调用时，
-    // outputPass 对象存在但无 dispose 方法。?. 只保护 null/undefined，
-    // 不保护"方法不存在"——直接 TypeError。
+  it("disposeComposer：OutputPass 无 dispose 方法 → 防御性调用避免崩溃", () => {
+    // P0-1 修复：disposeComposer 中防御性检查 typeof === "function" 再调用
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp);
     const op = (mgr as any).outputPass;
     expect(typeof op.dispose).toBe("undefined");
-    expect(() => mgr.dispose()).toThrow(/outputPass.*dispose/);
+    expect(() => mgr.dispose()).not.toThrow(); // 不再崩溃
+    expect((mgr as any).outputPass).toBeNull();
   });
 
   // ════════════════════════════════════════════════════════════════
@@ -507,23 +517,28 @@ describe("PostprocessingManager", () => {
   // 12. 空/非法 volumetric 参数
   // ════════════════════════════════════════════════════════════════
 
-  it("render：volumetric 属性缺失 → 直接崩溃（无防御）", () => {
-    // // BUG (P0): render 访问 lightCap.getParams().volumetric.enabled 前未检查 volumetric 是否存在
+  it("render：volumetric 属性缺失 → 不崩溃，返回 false", () => {
+    // P0-2 修复：vol?.enabled === true 防御 null/undefined
     const lp = makeLightCap({ engine: "postprocess" });
     (lp as any).getParams = () => ({});
-    expect(() => mgr.render(1, lp)).toThrow(/Cannot read.*enabled/);
+    expect(() => mgr.render(1, lp)).not.toThrow();
+    expect(mgr.render(1, lp)).toBe(false);
   });
 
-  it("render：volumetric 为 null → 直接崩溃", () => {
+  it("render：volumetric 为 null → 不崩溃，返回 false", () => {
+    // P0-2 修复：同上
     const lp = makeLightCap({ engine: "postprocess" });
     (lp as any).getParams = () => ({ volumetric: null });
-    expect(() => mgr.render(1, lp)).toThrow(/Cannot read.*enabled/);
+    expect(() => mgr.render(1, lp)).not.toThrow();
+    expect(mgr.render(1, lp)).toBe(false);
   });
 
-  it("render：volumetric 为 undefined → 直接崩溃", () => {
+  it("render：volumetric 为 undefined → 不崩溃，返回 false", () => {
+    // P0-2 修复：同上
     const lp = makeLightCap({ engine: "postprocess" });
     (lp as any).getParams = () => ({ volumetric: undefined });
-    expect(() => mgr.render(1, lp)).toThrow(/Cannot read.*enabled/);
+    expect(() => mgr.render(1, lp)).not.toThrow();
+    expect(mgr.render(1, lp)).toBe(false);
   });
 
   // ════════════════════════════════════════════════════════════════
@@ -551,25 +566,24 @@ describe("PostprocessingManager", () => {
   // 14. 构造后多次 setSize 再首次 render
   // ════════════════════════════════════════════════════════════════
 
-  it("setSize 多次调用在 render 前 → 全部静默丢失", () => {
-    // // BUG: setSize 在 composer 未创建时不缓存任何值
+  it("setSize 多次调用在 render 前 → 缓存最后一次，render 时应用", () => {
+    // P1-1 修复：setSize 在 composer 未创建时缓存最后一次尺寸
     mgr.setSize(100, 100);
     mgr.setSize(200, 200);
     mgr.setSize(300, 300);
     const lp = makeLightCap({ engine: "postprocess" });
     mgr.render(1, lp);
     const c = (mgr as any).composer;
-    expect(c.width).toBe(800); // 全部丢失
-    expect(c.height).toBe(600);
+    expect(c.width).toBe(300); // 最后一次 setSize 生效
+    expect(c.height).toBe(300);
   });
 
   // ════════════════════════════════════════════════════════════════
   // 15. render 中 volumetric.enabled 从 true 变 false 时的 dispose
   // ════════════════════════════════════════════════════════════════
 
-  it("render：volumetric enabled 从 true → false → true → 反复 → 第 2 帧就因 OutputPass 崩溃", () => {
-    // // BUG (P0): 同上，一旦 volumetric enabled 从 true 切换到 false，
-    // render 进入 dispose 分支，调用 disposeComposer 时因 OutputPass 无 dispose 方法而崩溃
+  it("render：volumetric enabled 从 true → false → true → 反复 → 不再崩溃", () => {
+    // P0-1 修复：OutputPass 防御性调用后，volumetric enabled 切换不再崩溃
     let enabled = true;
     const lp = makeLightCap({ engine: "postprocess" });
     (lp as any).getParams = () => ({
@@ -577,6 +591,10 @@ describe("PostprocessingManager", () => {
     });
     expect(mgr.render(0, lp)).toBe(true); // 创建
     enabled = false;
-    expect(() => mgr.render(1, lp)).toThrow(/outputPass.*dispose/); // 崩溃
+    expect(() => mgr.render(1, lp)).not.toThrow(); // 不再崩溃，dispose 成功
+    expect((mgr as any).composer).toBeNull();
+    enabled = true;
+    expect(mgr.render(2, lp)).toBe(true); // 重建
+    expect((mgr as any).composer).toBeTruthy();
   });
 });

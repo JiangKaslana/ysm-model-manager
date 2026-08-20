@@ -8,6 +8,12 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { LightCapability } from "../caps/light-capability.ts";
 
+/** 数值 clamp 辅助 */
+function clamp(v: number, min: number, max: number): number {
+  if (Number.isNaN(v)) return min;
+  return Math.min(Math.max(v, min), max);
+}
+
 /** 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） */
 export interface PostprocessingLike {
   /** 每帧渲染；返回 true 表示已接管渲染（composer.render），false 表示调用方需 renderer.render */
@@ -21,6 +27,8 @@ export class PostprocessingManager implements PostprocessingLike {
   private renderPass: RenderPass | null = null;
   private bloomPass: UnrealBloomPass | null = null;
   private outputPass: OutputPass | null = null;
+  private _pendingWidth: number | null = null;
+  private _pendingHeight: number | null = null;
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -32,14 +40,16 @@ export class PostprocessingManager implements PostprocessingLike {
   }
 
   render(dt: number, lightCap: LightCapability | null): boolean {
+    const params = lightCap?.getParams();
+    const vol = params?.volumetric;
     const usePostProc = lightCap &&
       lightCap.getVolumetricEngine() === "postprocess" &&
-      lightCap.getParams().volumetric.enabled;
+      vol?.enabled === true;
 
     if (usePostProc) {
       if (!this.composer) {
-        const w = Math.max(this.renderer.domElement.width, 1);
-        const h = Math.max(this.renderer.domElement.height, 1);
+        const w = this._pendingWidth ?? Math.max(this.renderer.domElement.width, 1);
+        const h = this._pendingHeight ?? Math.max(this.renderer.domElement.height, 1);
         this.composer = new EffectComposer(this.renderer);
         this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.composer.setSize(w, h);
@@ -49,12 +59,16 @@ export class PostprocessingManager implements PostprocessingLike {
         this.composer.addPass(this.bloomPass);
         this.outputPass = new OutputPass();
         this.composer.addPass(this.outputPass);
+        this._pendingWidth = null;
+        this._pendingHeight = null;
       }
       if (this.bloomPass) {
-        const vol = lightCap!.getParams().volumetric;
-        this.bloomPass.threshold = Math.max(0.1, 0.5 - vol.opacity * 0.3);
-        this.bloomPass.strength = vol.opacity * 1.5;
-        this.bloomPass.radius = vol.edgeFade * 0.5 + 0.1;
+        const v = vol!;
+        const opacity = clamp(v.opacity, 0, 1);
+        const edgeFade = clamp(v.edgeFade, 0, 1);
+        this.bloomPass.threshold = Math.max(0.1, 0.5 - opacity * 0.3);
+        this.bloomPass.strength = opacity * 1.5;
+        this.bloomPass.radius = edgeFade * 0.5 + 0.1;
       }
       this.composer.render(dt);
       return true;
@@ -67,11 +81,17 @@ export class PostprocessingManager implements PostprocessingLike {
   }
 
   setSize(width: number, height: number): void {
+    const w = clamp(width, 1, 8192);
+    const h = clamp(height, 1, 8192);
     if (this.composer) {
-      this.composer.setSize(width, height);
+      this.composer.setSize(w, h);
       if (this.bloomPass) {
-        this.bloomPass.resolution = new THREE.Vector2(width, height);
+        this.bloomPass.resolution = new THREE.Vector2(w, h);
       }
+    } else {
+      // composer 未创建时缓存尺寸，首次 render 时应用（P1-1 修复）
+      this._pendingWidth = w;
+      this._pendingHeight = h;
     }
   }
 
@@ -84,7 +104,10 @@ export class PostprocessingManager implements PostprocessingLike {
     this.renderPass = null;
     this.bloomPass?.dispose();
     this.bloomPass = null;
-    this.outputPass?.dispose();
+    // OutputPass 无 dispose 方法（Three.js 版本差异），防御性调用
+    if (typeof this.outputPass?.dispose === "function") {
+      this.outputPass.dispose();
+    }
     this.outputPass = null;
     this.composer?.dispose();
     this.composer = null;
