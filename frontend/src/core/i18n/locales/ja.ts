@@ -795,6 +795,7 @@ export const ja: Record<string, string> = {
   "preview.unloadRole": "キャラクターをアンロード",
   "preview.noRoles": "（読み込み済みキャラクターなし）",
   "preview.roleNoDetail": "（表示できる項目がありません）",
+  "preview.appendModel": "シーンに追加",
   "preview.library": "ライブラリ",
   "preview.libraryLoading": "ライブラリを読み込み中…",
   "preview.libraryEmpty": "（ライブラリは空です）",

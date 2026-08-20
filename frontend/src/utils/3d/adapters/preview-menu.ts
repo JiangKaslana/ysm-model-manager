@@ -990,6 +990,9 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       }
       shown.forEach((p) => {
         const isCur = norm(p) === norm(cur);
+        // 同类型（当前目录 tab 或类型 tab 与当前会话 rtype 一致）→ 可追加；
+        // 跨类型追加需换适配器（switchExternal 无 keepInScene 通道），不提供 ➕
+        const sameType = !viaType || activeTab === ctx.getCurrentRtype?.();
         const row = document.createElement("div");
         row.className = "ysm-preview-menu-row";
         row.dataset.testid = "preview-switch-item";
@@ -1002,11 +1005,25 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         const lb = document.createElement("span");
         lb.textContent = p.split(/[/\\]/).pop() || p;
         row.append(ic, lb);
+        // 行尾「➕ 追加」：keepInScene 多角色同框（角色面板内打通追加加载）。
+        // 当前项与跨类型候选不显示；stopPropagation 防触发行本体替换语义。
+        if (!isCur && sameType) {
+          const append = document.createElement("button");
+          append.dataset.testid = "preview-switch-append";
+          append.textContent = "➕";
+          append.title = tr("preview.appendModel", "追加到场景");
+          append.style.cssText =
+            "width:22px;height:22px;flex-shrink:0;background:rgba(255,255,255,0.08);border:none;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;margin-left:auto";
+          append.onclick = (ev): void => {
+            ev.stopPropagation();
+            closePopup();
+            void ctx.switchTo(p, { keepInScene: true });
+          };
+          row.appendChild(append);
+        }
         row.onclick = (): void => {
           closePopup();
-          // 同类型（当前目录 tab 或类型 tab 与当前会话 rtype 一致）→ switchTo 复用外壳；
-          // 跨类型 → switchExternal 整段重建，并透传 siblings（P1-1 / P1-2）
-          const sameType = !viaType || activeTab === ctx.getCurrentRtype?.();
+          // 同类型 → switchTo 复用外壳；跨类型 → switchExternal 整段重建，并透传 siblings（P1-1 / P1-2）
           if (!sameType && ctx.switchExternal) {
             void ctx.switchExternal(p, ctx.getSiblings());
           } else {

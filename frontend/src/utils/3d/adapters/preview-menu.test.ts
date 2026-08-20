@@ -246,5 +246,53 @@ describe("mountPreviewRootMenu", () => {
     expect(switchTo).toHaveBeenCalledWith("/m/b.ysm");
     handle.dispose();
   });
+
+  it("switch 面板：候选行带 ➕ 追加按钮，点击追加 → switchTo keepInScene（多角色同框）", () => {
+    const switchTo = vi.fn();
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
+      getCurrentPath: () => "/m/a.ysm",
+      switchTo,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    modelBtn!.click();
+    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
+    // 当前项（/m/a.ysm）无 ➕，兄弟项（/m/b.ysm）有 ➕
+    const appendBtns = overlay.querySelectorAll('[data-testid="preview-switch-append"]');
+    expect(appendBtns.length).toBe(1);
+    (appendBtns[0] as HTMLElement).click();
+    expect(switchTo).toHaveBeenCalledWith("/m/b.ysm", { keepInScene: true });
+    handle.dispose();
+  });
+
+  it("switch 面板：类型 tab 跨类型候选行无 ➕（跨类型追加需换适配器）", async () => {
+    const switchTo = vi.fn();
+    const switchExternal = vi.fn(async () => {});
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm"],
+      getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "ysm",
+      getTypeTabs: () => ["ysm", "vrm"],
+      getModelsByType: async () => ["/m/x.vrm"],
+      switchTo,
+      switchExternal,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    modelBtn!.click();
+    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
+    // 切到 vrm 类型 tab（懒加载候选）
+    const tabs = overlay.querySelectorAll('[data-testid="preview-switch-tab"]');
+    const vrmTab = Array.from(tabs).find((t) => (t as HTMLElement).dataset.rtype === "vrm") as HTMLElement;
+    vrmTab.click();
+    await vi.waitFor(() => {
+      expect(overlay.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(1);
+    });
+    // 跨类型候选：无 ➕ 追加按钮
+    expect(overlay.querySelector('[data-testid="preview-switch-append"]')).toBeNull();
+    // 行本体点击仍是跨类型替换（switchExternal）
+    (overlay.querySelector('[data-testid="preview-switch-item"]') as HTMLElement).click();
+    expect(switchExternal).toHaveBeenCalledWith("/m/x.vrm", ["/m/a.ysm"]);
+    handle.dispose();
+  });
 });
 

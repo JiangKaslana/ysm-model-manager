@@ -794,6 +794,7 @@ export const en: Record<string, string> = {
   "preview.unloadRole": "Unload character",
   "preview.noRoles": "(no loaded characters)",
   "preview.roleNoDetail": "(nothing to view for this character)",
+  "preview.appendModel": "Append to scene",
   "preview.library": "Library",
   "preview.libraryLoading": "Loading library…",
   "preview.libraryEmpty": "(empty library)",

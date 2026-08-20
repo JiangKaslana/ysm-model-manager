@@ -726,6 +726,7 @@
   "preview.unloadRole": "卸载角色",
   "preview.noRoles": "（无已加载角色）",
   "preview.roleNoDetail": "（该角色无可查看项）",
+  "preview.appendModel": "追加到场景",
   "preview.library": "资源库",
   "preview.libraryLoading": "加载资源库…",
   "preview.libraryEmpty": "（资源库为空）",
