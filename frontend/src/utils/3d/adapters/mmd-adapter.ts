@@ -539,7 +539,13 @@ export async function buildMmdScene(
   if (decodedTexturesPromise) {
     try {
       const decoded = await decodedTexturesPromise;
-      if (decoded.size > 0) {
+      // 临时诊断：检查 materials 上是否有 pendingTexture
+      const allMats2: THREE.Material[] = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+      const pendingMats = allMats2.filter(m => (m.userData as Record<string, unknown>)?.pendingTexture);
+      if (pendingMats.length === 0 && decoded.size > 0) {
+        await mmdDiag(port, "tex-decode-apply", path, "warn",
+          `decoded=${decoded.size} bitmaps but 0 materials have pendingTexture! mats=${allMats2.length} userDatas=[${allMats2.map(m => Object.keys(m.userData || {}).join(",")).join("|")}]`);
+      } else if (decoded.size > 0) {
         const { replaced, total } = applyWorkerDecodedTextures(mesh, decoded, blobUrlToRel);
         if (replaced > 0) {
           await mmdDiag(port, "tex-decode-apply", path, "ok",

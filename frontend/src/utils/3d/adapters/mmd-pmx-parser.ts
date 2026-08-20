@@ -283,10 +283,13 @@ export async function buildPmxSceneSliced(
     if (pmxMat && pmxMat.textureIndex >= 0 && parsed.textures) {
       const texPath = parsed.textures[pmxMat.textureIndex];
       if (texPath) {
-        const blobUrl = config.texUrlMap.get(texPath) ?? config.texUrlMap.get(texPath.split("/").pop() ?? "");
+        // PMX 原始大小写 vs texMap key 全是 lowercase → 统一 toLowerCase 再查
+        const normalizedPath = texPath.toLowerCase().replace(/\\/g, "/");
+        const blobUrl = config.texUrlMap.get(normalizedPath)
+          ?? config.texUrlMap.get(normalizedPath.split("/").pop() ?? "");
         if (blobUrl) {
           // 纹理延后到 Worker 解码完成后同步应用，避免 TextureLoader.load() 竞态
-          mat.userData.pendingTexture = { relPath: texPath, blobUrl };
+          mat.userData.pendingTexture = { relPath: normalizedPath, blobUrl };
         }
       }
     }
