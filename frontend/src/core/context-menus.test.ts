@@ -384,6 +384,39 @@ describe("菜单项点击行为", () => {
       ),
     ).toBe(true);
   });
+
+  // P0 修复：多类型 rtype 菜单行为测试——防 fallback 到 YSM
+  it("instance MMD 打开文件夹 → 透传 mmd-skin rtype", async () => {
+    const payload = showMenu("instance", {
+      ...payloadCtx("instance"),
+      rtype: RESOURCE_TYPES.MMD,
+      path: "/packs/mmd-pack",
+    });
+    const item = payload.items.find((i) => i.action === "instance.open-folder");
+    item!.onClick!();
+    await vi.waitFor(() => expect(openFolderMock).toHaveBeenCalled());
+    expect(openFolderMock).toHaveBeenCalledWith("/packs/mmd-pack", RESOURCE_TYPES.MMD, "");
+  });
+
+  it("instance VRC 复制模型清单 → 透传 vrchat-avatar rtype", () => {
+    clickItem("instance", "instance.export-list", {
+      rtype: "vrchat-avatar",
+    });
+    expect(emitted).toContainEqual({
+      e: "instance:export-list",
+      p: { name: "测试整合包", rtype: "vrchat-avatar" },
+    });
+  });
+
+  it("instance 清空模型 → 透传 rtype（非 YSM）", () => {
+    clickItem("instance", "instance.clear", {
+      rtype: "resourcepack",
+    });
+    expect(emitted).toContainEqual({
+      e: "instance:clear",
+      p: { name: "测试整合包", rtype: "resourcepack" },
+    });
+  });
 });
 
 describe("异步 handler（batch / file 动态 import 分支）", () => {

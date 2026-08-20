@@ -19,6 +19,19 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         } = await getApp();
         const mcRoot = await requireMcRoot();
         if (!mcRoot) return;
+
+        // P0 修复：rtype 必须明确指定，不能 fallback 到遍历全部类型——
+        // 否则用户右键「复制模型清单」会导出整合包所有类型的文件，
+        // 而不是当前选中类型（如 MMD）的文件。
+        if (!rtype) {
+          bus.emit("toast:show", {
+            msg: "❌ 请指定资源类型（rtype 为空）",
+            duration: 3000,
+            type: "error",
+          });
+          return;
+        }
+
         const instances = (await ListVersionInstances(mcRoot)) ?? [];
         const ins = instances.find((i) => i.Name === insName);
         if (!ins?.VersionDir) {
@@ -36,20 +49,11 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
 
         let dirs: string[] = [];
         let labels: string[] = [];
-        if (rtype) {
-          if (subDirAll[rtype]) {
-            dirs = [ins.VersionDir + "/" + subDirAll[rtype]];
-            labels = [rtype];
-          }
-          // P3 修复（审核发现）：rtype 指定但未命中映射时，原实现静默遍历全部类型——
-          // 用户选「导出 MMD」却把整合包所有类型都复制出来；现保持 dirs 为空，
-          // 走下方 totalFiles===0 的「没有资源文件」info toast，不静默扩大范围
-        } else {
-          for (const [rt, sub] of Object.entries(subDirAll)) {
-            dirs.push(ins.VersionDir + "/" + sub);
-            labels.push(rt);
-          }
+        if (subDirAll[rtype]) {
+          dirs = [ins.VersionDir + "/" + subDirAll[rtype]];
+          labels = [rtype];
         }
+        // rtype 指定但未命中映射时，dirs 为空 → totalFiles===0 → 「没有资源文件」info toast
 
         let allLines: string[] = [`📦 ${insName}`];
         let totalFiles = 0;
@@ -95,7 +99,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
     }),
   );
 
-  // 清空整合包内指定类型的文件；未指定 rtype 时清空全部
+  // 清空整合包内指定类型的文件；未指定 rtype 时拒绝操作（P0 修复）
   unsubs.push(
     bus.on("instance:clear", async ({ name: insName, rtype }) => {
       try {
@@ -105,10 +109,23 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
         } = await getApp();
         const mcRoot = await requireMcRoot();
         if (!mcRoot) return;
+
+        // P0 修复：rtype 必须明确指定，不能 fallback 到清空全部——
+        // 否则用户右键「清空此整合包的模型」会误删所有类型的文件，
+        // 而不是当前选中类型（如 MMD）的文件。
+        if (!rtype) {
+          bus.emit("toast:show", {
+            msg: "❌ 请指定资源类型（rtype 为空）",
+            duration: 3000,
+            type: "error",
+          });
+          return;
+        }
+
         // 先统计数量——传入 rtype 限定范围
         let totalCount = 0;
         try {
-          totalCount = await CountInstanceResources(insName, rtype || "");
+          totalCount = await CountInstanceResources(insName, rtype);
         } catch (countErr) {
           // 统计失败不静默：显示「没有资源」会误导用户以为整合包为空
           bus.emit("toast:show", {
@@ -126,11 +143,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
           });
           return;
         }
-        const typeLabel = rtype
-          ? // P3 修复（子代理审计）：内联 label map 与 RESOURCE_TYPE_LABELS 完全重复
-            // （标签改一处另一处漂移）；复用 types.ts 单一来源
-            RESOURCE_TYPE_LABELS[rtype] || rtype
-          : "全部";
+        const typeLabel = RESOURCE_TYPE_LABELS[rtype] || rtype;
         const confirmed = await modalConfirm({
           title: "清空整合包",
           icon: "🗑️",
@@ -147,7 +160,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
           return;
         }
         try {
-          const count = await ClearInstanceResources(insName, rtype || "");
+          const count = await ClearInstanceResources(insName, rtype);
           bus.emit("stats:refresh");
           bus.emit("toast:show", {
             msg: `🗑️ ${insName}: 已清空 ${count} 个文件（移入回收站）`,

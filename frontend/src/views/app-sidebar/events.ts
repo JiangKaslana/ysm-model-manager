@@ -111,13 +111,22 @@ export function bindCardEvents(
     if (!pkg) return;
     const nameEl = vc.querySelector(".name");
     const name = nameEl ? nameEl.textContent.replace(/^📦\s*/, "") : "";
+    // P0 修复：rtype 必须明确指定，不能 fallback 到 YSM——
+    // 否则 MMD/VRC 等其他类型的整合包右键会按 YSM 逻辑处理，
+    // 导致打开错误目录（config/yes_steve_model/custom 而非 3d-skin/EntityPlayer）
+    // 或导出/清空错误的文件列表。
+    const rtype = pkg.rtype || "";
+    if (!rtype) {
+      console.error("[sidebar] 右键菜单缺少 rtype，实例:", name, "dir:", pkg.dir);
+      return;
+    }
     bus.emit("ctx:show", {
       x: e.clientX,
       y: e.clientY,
       type: "instance",
       instanceName: name,
-      path: pkg?.dir || "",
-      rtype: pkg?.rtype || RESOURCE_TYPES.YSM,
+      path: pkg.dir || "",
+      rtype,
       // 阶段 1：透传全局 MMD 用途子目录选择（repo_subdir，app-nav 持久化），
       // 使「打开文件夹」精确到 3d-skin/{subdir}；非 MMD 类型恒 ""，行为不变
       subdir: safeGet("repo_subdir") || "",

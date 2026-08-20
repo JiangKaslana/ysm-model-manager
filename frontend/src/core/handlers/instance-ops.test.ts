@@ -109,7 +109,7 @@ describe("registerInstanceOps — instance:export-list", () => {
     await register();
     const { toasts } = spyEvents();
 
-    bus.emit("instance:export-list", { name: "Ghost", rtype: "" });
+    bus.emit("instance:export-list", { name: "Ghost", rtype: "ysm" });
     await flush();
 
     expect(toasts.some((t) => t.msg === "未找到整合包" && t.type === "error")).toBe(true);
@@ -121,7 +121,7 @@ describe("registerInstanceOps — instance:export-list", () => {
     (requireMcRoot as ReturnType<typeof vi.fn>).mockResolvedValueOnce("");
     await register();
 
-    bus.emit("instance:export-list", { name: "TestPack", rtype: "" });
+    bus.emit("instance:export-list", { name: "TestPack", rtype: "ysm" });
     await flush();
 
     expect(mocks.ListVersionInstances).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe("registerInstanceOps — instance:export-list", () => {
       configurable: true,
     });
 
-    bus.emit("instance:export-list", { name: "TestPack", rtype: "" });
+    bus.emit("instance:export-list", { name: "TestPack", rtype: "ysm" });
     await flush();
     await flush();
 
@@ -151,10 +151,21 @@ describe("registerInstanceOps — instance:export-list", () => {
     await register();
     const { toasts } = spyEvents();
 
-    bus.emit("instance:export-list", { name: "TestPack", rtype: "" });
+    bus.emit("instance:export-list", { name: "TestPack", rtype: "ysm" });
     await flush();
 
     expect(toasts.some((t) => t.msg === "该整合包没有资源文件" && t.type === "info")).toBe(true);
+  });
+
+  it("rtype 为空 → error toast，不调后端", async () => {
+    await register();
+    const { toasts } = spyEvents();
+
+    bus.emit("instance:export-list", { name: "TestPack", rtype: "" });
+    await flush();
+
+    expect(toasts.some((t) => t.msg.includes("请指定资源类型") && t.type === "error")).toBe(true);
+    expect(mocks.ListVersionInstances).not.toHaveBeenCalled();
   });
 });
 
@@ -188,7 +199,7 @@ describe("registerInstanceOps — instance:clear", () => {
     await register();
     const { toasts } = spyEvents();
 
-    bus.emit("instance:clear", { name: "TestPack", rtype: "" });
+    bus.emit("instance:clear", { name: "TestPack", rtype: "ysm" });
     await flush();
 
     expect(mocks.modalConfirm).toHaveBeenCalled();
@@ -216,11 +227,23 @@ describe("registerInstanceOps — instance:clear", () => {
     await register();
     const { toasts } = spyEvents();
 
-    bus.emit("instance:clear", { name: "TestPack", rtype: "" });
+    bus.emit("instance:clear", { name: "TestPack", rtype: "ysm" });
     await flush();
     await flush();
 
     expect(toasts.some((t) => t.msg.includes("清空失败") && t.type === "error")).toBe(true);
+  });
+
+  it("rtype 为空 → error toast，不调后端", async () => {
+    await register();
+    const { toasts } = spyEvents();
+
+    bus.emit("instance:clear", { name: "TestPack", rtype: "" });
+    await flush();
+
+    expect(toasts.some((t) => t.msg.includes("请指定资源类型") && t.type === "error")).toBe(true);
+    expect(mocks.CountInstanceResources).not.toHaveBeenCalled();
+    expect(mocks.modalConfirm).not.toHaveBeenCalled();
   });
 
   it("registerInstanceOps 返回 unsub 函数可清理", async () => {

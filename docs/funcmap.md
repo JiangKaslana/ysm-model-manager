@@ -1261,11 +1261,11 @@
 | `TexDecodeResponse()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:15` | Worker → 主线程的响应 |
 | `TexDecodeConfig()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:15` | 解码器配置 |
 | `DecodedTexture()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:23` | 解码结果条目 |
-| `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:34` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
-| `createTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:42` | 创建纹理解码器（Worker 池） |
-| `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:142` | 获取共享解码器（懒创建） |
-| `disposeTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:150` | 释放共享解码器 |
-| `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:162` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
+| `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:40` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
+| `createTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:48` | 创建纹理解码器（Worker 池） |
+| `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:149` | 获取共享解码器（懒创建） |
+| `disposeTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:157` | 释放共享解码器 |
+| `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:169` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:64` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:83` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:109` | — |
@@ -1967,8 +1967,8 @@
 | `placeholderHTML()` | `frontend/src/views/app-resource-manager/tpl:159` | 空状态占位 |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:150` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:183` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:159` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:192` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
