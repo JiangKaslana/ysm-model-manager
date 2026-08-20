@@ -1340,7 +1340,7 @@
 | `showModelGroup()` | `frontend/src/utils/3d/bone-visibility:29` | 按索引显示单个模型组件（idx &lt; 0 = 全部显示，NaN 防御）。 |
 | `registerFreeCameraDrag()` | `frontend/src/utils/3d/camera-control:19` | 注册 free 模式 pointer drag 监听器。 |
 | `fitCameraToScene()` | `frontend/src/utils/3d/camera-setup:11` | 根据场景包围盒适配相机位置和 controls.target。 |
-| `fitCameraToRoots()` | `frontend/src/utils/3d/camera-setup:48` | 按给定根节点列表（多模型同框）计算并集包围盒并返回相机初始位姿。 |
+| `fitCameraToRoots()` | `frontend/src/utils/3d/camera-setup:52` | 按给定根节点列表（多模型同框）计算并集包围盒并返回相机初始位姿。 |
 | `EnvPresetId()` | `frontend/src/utils/3d/caps/environment-capability:20` | — |
 | `EnvPreset()` | `frontend/src/utils/3d/caps/environment-capability:22` | — |
 | `ENV_PRESETS()` | `frontend/src/utils/3d/caps/environment-capability:43` | — |
