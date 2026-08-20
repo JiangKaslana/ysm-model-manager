@@ -1212,6 +1212,10 @@ export const autoSidebar = [
       {
         "text": "ADR-001：升级至 Wails 3",
         "link": "/adr/ADR-001-wails3-migration"
+      },
+      {
+        "text": "ADR-109：代码审查 Checklist",
+        "link": "/adr/adr-109-code-review-checklist"
       }
     ]
   },
@@ -1659,6 +1663,10 @@ export const autoSidebar = [
           {
             "text": "Vitest 环境切换规则",
             "link": "/knowledge/vitest-env-switch"
+          },
+          {
+            "text": "WASM 内存管理陷阱",
+            "link": "/knowledge/wasm-memory-pitfalls"
           }
         ]
       }
