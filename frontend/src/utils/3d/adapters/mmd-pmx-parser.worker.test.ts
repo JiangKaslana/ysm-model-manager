@@ -278,7 +278,8 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     rigidBodyIndexSize?: number;
     vertices?: Array<{ pos: [number, number, number]; normal?: [number, number, number]; uv?: [number, number] }>;
     bones?: Uint8Array; // 已序列化骨骼区（可选，缺省不写 bone 块数据）
-    faceCount?: number;
+    faceCount?: number; // 面块 count = 索引总数（权威语义，非三角形数）
+    faceIndices?: number[]; // 面索引数据（按 vertexIndexSize 写；缺省不写数据区）
     morphs?: Uint8Array; // 已序列化变形区（可选，缺省不写 morph 块数据）
     morphCount?: number; // morph 块 count（默认 1，与 bones 对齐；多 morph 时传实际数量）
     materials?: Uint8Array; // 已序列化材质区
@@ -322,8 +323,17 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
       w.float32(0); // edgeScale
     }
 
-    // --- 面块：count=0 ---
-    w.int32(opts.faceCount ?? 0);
+    // --- 面块：count（索引总数）+ 索引数据 ---
+    const faceCount = opts.faceCount ?? 0;
+    w.int32(faceCount);
+    if (opts.faceIndices) {
+      const vis = opts.vertexIndexSize ?? 1;
+      for (const idx of opts.faceIndices) {
+        if (vis === 2) { w.push(idx & 0xff); w.push((idx >> 8) & 0xff); }
+        else if (vis === 4) { w.uint32(idx); }
+        else { w.push(idx & 0xff); }
+      }
+    }
     // --- 纹理块：count=0 ---
     w.int32(0);
     // --- 材质块：count + 数据 ---
@@ -509,6 +519,25 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     expect(out.vertices?.positions[3]).toBeCloseTo(2); // 第 2 个顶点 x
     expect(out.bones?.length).toBe(1);
     expect(out.bones![0].position).toEqual([10, 20, 30]);
+  });
+
+  it("face 非零块：count = 索引总数（非三角形数，权威 _ParseIndices 语义），光标不错位", () => {
+    // 3 个索引 = 1 个三角形：count 写 3（非 1）——旧实现 count*3 会多读 9 个索引越界
+    const bone = boneBytes({ name: "afterFace", position: [5, 6, 7], parent: 0, flag: 0 });
+    const buf = buildPmx({
+      faceCount: 3,
+      faceIndices: [0, 1, 2],
+      bones: bone,
+    });
+    const out = parsePMX(buf);
+    expect(out.ok).toBe(true);
+    expect(out.faces?.count).toBe(3);
+    expect(out.faces!.indices.length).toBe(3);
+    expect(Array.from(out.faces!.indices)).toEqual([0, 1, 2]);
+    // face 后骨骼光标不错位（旧实现多读 3 倍索引会连累这里）
+    expect(out.bones?.length).toBe(1);
+    expect(out.bones![0].name).toBe("afterFace");
+    expect(out.bones![0].position).toEqual([5, 6, 7]);
   });
 
   it("morph type 0/2/3 字节布局对齐权威：光标不错位（morph 后骨骼仍正确）", () => {

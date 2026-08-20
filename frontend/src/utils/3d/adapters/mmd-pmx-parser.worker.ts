@@ -532,14 +532,18 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   })();
 
   // === Faces（无 blockSize 前缀：count 后直接数据，顺序解析）===
+  // ⚠️ count = 索引总数（非三角形数）——权威 _ParseIndices（babylon-mmd）：
+  //   `indicesCount = getInt32(); new ArrayBuffer(indicesCount * vertexIndexSize)`，
+  //   ground truth 实测 indices.length === count（308064 索引 = 102688 三角形）。
+  //   旧实现 `faceCount * 3` 把 count 当三角形数，多读 3 倍 → 真实 PMX 必然越界
   const faceCount = reader.readInt32();
   const faceData = (() => {
     if (faceCount === 0) {
       return { count: 0, indices: new Uint32Array(0) } as PmxFaceData;
     }
-    const indices = new Uint32Array(faceCount * 3);
+    const indices = new Uint32Array(faceCount);
     const indexSize = reader.vertexIndexSize; // 面索引用 vertexIndexSize（头部声明）
-    for (let i = 0; i < faceCount * 3; i++) {
+    for (let i = 0; i < faceCount; i++) {
       switch (indexSize) {
         case 1: indices[i] = reader.readUint8(); break;
         case 2: indices[i] = reader.readUint16(); break;

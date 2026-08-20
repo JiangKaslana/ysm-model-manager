@@ -1357,8 +1357,8 @@
 | `FOG_PRESETS()` | `frontend/src/utils/3d/caps/fog-capability:40` | 模型类别雾预设：材质特性不同，雾浓度/远近做合理初始值 |
 | `FogCapability()` | `frontend/src/utils/3d/caps/fog-capability:68` | — |
 | `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:15` | — |
-| `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:34` | — |
-| `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:45` | — |
+| `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:36` | — |
+| `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:48` | — |
 | `DirectionalLightParams()` | `frontend/src/utils/3d/caps/light-capability:32` | ============ 参数类型 ============ |
 | `AmbientLightParams()` | `frontend/src/utils/3d/caps/light-capability:42` | — |
 | `SpotlightParams()` | `frontend/src/utils/3d/caps/light-capability:47` | — |
