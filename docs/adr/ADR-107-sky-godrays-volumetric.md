@@ -26,6 +26,7 @@ ADR-106 §3.3 已知遗留了「体积光 god rays」未实现的问题。当前
 
 **Vertex Shader**：
 ```glsl
+#include <common>
 varying vec2 vUv;
 void main() {
   vUv = uv;
@@ -56,7 +57,7 @@ void main() {
 
 - 只在太阳 elevation < 20° 时可见
 - 强度随太阳高度降低而增强：`intensity = clamp((20 - elevation) / 30, 0, 1)`
-- 颜色 = 日出日落色 `vec3(1.0, 0.6, 0.2)`（橙金色）
+- 颜色 = `ENV_PRESETS.sunset.sunColor`（`0xffe0a8` 暖橙），由 `getGodRaysColor()` 读取
 
 ### 2.3 位置与朝向
 
@@ -106,6 +107,8 @@ void main() {
 
 - 未实现 sun elevation < 0（太阳在地平线下）时的反向光束（从下往上打）——当前仅支持 elevation > 0 时的向下光束
 - 后续可升级为 post-process 体积光管线（与 `light-capability.ts` 预留的 `setVolumetricEngine` 对齐）
+- **Beam 固定在场景原点**（非严格光源投影）：`mesh.position.y = height * 0.5`，相机 orbit 远离时光束"钉在地上"，这是近似实现，目视可接受
+- **旋转朝向需目视验证**：`rotation.x = -elRad`、`rotation.y = degToRad(azimuth - 90)` 的符号和偏移量基于经验，建议目视确认 sunset/elevation 时的光束方向是否正确
 
 ---
 
@@ -113,9 +116,11 @@ void main() {
 
 | 来源 | 结果 |
 |------|------|
-| `frontend/src/utils/3d/caps/sky-capability.ts` — `createGodRays()` + `updateGodRays()` + `getGodRaysIntensity()` + `isGodRaysEnabled()` + `setGodRaysEnabled()` + `getMenuControls` 追加 `sky-godrays` + `saveState`/`loadState` 持久化 + `dispose` 清理 | God Rays 核心逻辑闭环 |
+| `frontend/src/utils/3d/caps/sky-capability.ts` — `createGodRays()` + `getGodRaysColor()` + `updateGodRays()` + `getGodRaysIntensity()` + `isGodRaysEnabled()` + `setGodRaysEnabled()` + `getMenuControls` 追加 `sky-godrays` + `saveState`/`loadState` 持久化 + `dispose` 清理 | God Rays 核心逻辑闭环 |
 | `frontend/src/utils/3d/caps/sky-capability.test.ts` — 新增 10 个测试用例（初始值、toggle 切换、intensity 公式、setTime 联动、getMenuControls 结构、持久化） | 测试覆盖闭环 |
 | `frontend/src/core/i18n/locales/{zh-CN,en,ja}.ts` — 三语入库 `preview.skyGodRays` / `preview.skyGodRaysHint` | i18n 三语闭环 |
 | `docs/adr/ADR-106-preview-env-menu-drill-visual.md` — §3.3 已知遗留改为删除线 + "已落地 ADR-107" | ADR 文档闭环 |
+| 提交 `e11621d5` | ADR-107 落地 |
+| 提交 `7a8dadbe` | P2 shader `#include <common>` + P4 颜色跟随 `ENV_PRESETS.sunset.sunColor`（暖橙 `#ffe0a8`） |
 
-验证：typecheck ✅（已有遗留错误非本次引入）+ vitest sky-capability 26 passed ✅ + vite build 5.95s ✅ + locale-consistency 4 passed ✅
+验证：typecheck ✅（已有遗留错误非本次引入）+ vitest sky-capability 26 passed ✅ + vite build 5.96s ✅ + locale-consistency 4 passed ✅
