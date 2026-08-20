@@ -719,11 +719,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     } else {
       menuHandle.setAdapterItems([]);
     }
-    if (wasCurrentSource && perFrame) {
-      const idx = _globalPerFrames.indexOf(perFrame);
-      if (idx >= 0) _globalPerFrames.splice(idx, 1);
-      perFrame = null;
-    }
     if (camera && controls) {
       const roots = sceneRegistry.visibleRoots();
       if (roots.length) fitCameraToRoots(roots, camera, controls);
