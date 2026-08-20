@@ -233,8 +233,72 @@ func LoadRegistry() *ResourceTypeRegistry {
 			reg.ResourceTypes = deduped
 		}
 	}
+	// P0 注册表 schema 守卫（ADR-105 续）：壳/叶职责分离 + 字段唯一归属。
+	// 壳类型（len(SubTypes) > 0）禁止携带 storageSubDir/configField——
+	// 壳只管分组，存储路径与配置字段归叶类型独占。守卫无条件执行（单条目注册表
+	// 同样受检），违反则逐条 log.Printf 告警、不阻断加载（避免生产环境因历史债
+	// 直接瘫痪）；守卫测试直接断言 validateRegistrySchema 的返回值。
+	for _, v := range validateRegistrySchema(&reg) {
+		log.Printf("[types][WARN] %s", v)
+	}
 	registry = &reg
 	return registry
+}
+
+// validateRegistrySchema 注册表 schema 守卫（P0）：
+//  1. 壳类型（有 subtypes）禁止携带 storageSubDir / configField（壳不落盘、不持配置）
+//  2. storageSubDir 全局唯一——重复值意味着两个叶类型落盘到同一路径，存储冲突
+//  3. configField 全局唯一——重复值意味着两个类型声明同一配置槽，查询歧义
+//
+// 返回违规描述列表（空 = 合规）。守卫本身不落日志、不改数据：
+// LoadRegistry 侧对每条违规 log.Printf 告警（WARN 级，不阻断——生产注册表可能
+// 含历史债，硬 fail 会让 IsSupportedExt 全线失效）；测试侧直接断言返回值。
+func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
+	var violations []string
+
+	// 守卫 1：壳类型禁止带 storageSubDir / configField
+	for _, rt := range reg.ResourceTypes {
+		if len(rt.SubTypes) > 0 {
+			if rt.StorageSubDir != "" {
+				violations = append(violations, fmt.Sprintf(
+					"壳类型 %s 越权携带 storageSubDir=%q——壳不应声明存储路径", rt.ID, rt.StorageSubDir))
+			}
+			if rt.ConfigField != "" {
+				violations = append(violations, fmt.Sprintf(
+					"壳类型 %s 越权携带 configField=%q——壳不应声明配置字段", rt.ID, rt.ConfigField))
+			}
+		}
+	}
+
+	// 守卫 2：storageSubDir 全局唯一
+	subDirOwners := make(map[string][]string) // storageSubDir → []typeID
+	for _, rt := range reg.ResourceTypes {
+		if rt.StorageSubDir != "" {
+			subDirOwners[rt.StorageSubDir] = append(subDirOwners[rt.StorageSubDir], rt.ID)
+		}
+	}
+	for subDir, owners := range subDirOwners {
+		if len(owners) > 1 {
+			violations = append(violations, fmt.Sprintf(
+				"storageSubDir=%q 被多个类型声明: %v——存储路径冲突", subDir, owners))
+		}
+	}
+
+	// 守卫 3：configField 全局唯一
+	configOwners := make(map[string][]string) // configField → []typeID
+	for _, rt := range reg.ResourceTypes {
+		if rt.ConfigField != "" {
+			configOwners[rt.ConfigField] = append(configOwners[rt.ConfigField], rt.ID)
+		}
+	}
+	for cfg, owners := range configOwners {
+		if len(owners) > 1 {
+			violations = append(violations, fmt.Sprintf(
+				"configField=%q 被多个类型声明: %v——配置槽查询歧义", cfg, owners))
+		}
+	}
+
+	return violations
 }
 
 // loadRegistryBytes 解析注册表字节，单一事实来源为编译期嵌入：
