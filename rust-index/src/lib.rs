@@ -1,6 +1,8 @@
 use std::{
     collections::{HashMap, HashSet},
+    fs,
     path::{Component, Path, PathBuf},
+    time::UNIX_EPOCH,
 };
 
 use ysm_model_manager_core::{scan_fast, ModelEntry, ScanError, ScanPolicy, ScanReport};
@@ -62,9 +64,9 @@ impl ModelIndex {
 
     /// Apply a batch of filesystem event paths without rescanning the whole library.
     ///
-    /// Regular file events only rescan the file's containing directory and then keep the exact
-    /// path from that small report. A directory-level event falls back to a full refresh because
-    /// a directory create/move can change an arbitrary number of descendants at once.
+    /// Regular file events inspect only the exact file metadata. A directory-level event falls
+    /// back to a full refresh because a directory create/move can change an arbitrary number of
+    /// descendants at once.
     pub fn apply_paths(
         &mut self,
         root: &Path,
@@ -85,8 +87,10 @@ impl ModelIndex {
             }
 
             if path.exists() {
-                let (entry, mut path_errors) = inspect_file(root, path, policy);
-                errors.append(&mut path_errors);
+                let (entry, path_error) = inspect_file(root, path, policy);
+                if let Some(error) = path_error {
+                    errors.push(error);
+                }
                 pending.insert(path.clone(), entry);
             } else {
                 pending.insert(path.clone(), None);
@@ -216,18 +220,53 @@ fn inspect_file(
     root: &Path,
     path: &Path,
     policy: &ScanPolicy,
-) -> (Option<ModelEntry>, Vec<ScanError>) {
-    if path_is_ignored(root, path) || !path.is_file() {
-        return (None, Vec::new());
+) -> (Option<ModelEntry>, Option<ScanError>) {
+    if path_is_ignored(root, path) {
+        return (None, None);
     }
 
-    let parent = path.parent().unwrap_or(root);
-    let report = scan_fast(parent, policy);
-    let mut entry = report.entries.into_iter().find(|entry| entry.path == path);
-    if let Some(entry) = entry.as_mut() {
-        entry.subdir = mmd_subdir(root, path);
+    let metadata = match fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return (None, None),
+        Err(error) => {
+            return (
+                None,
+                Some(ScanError {
+                    path: path.to_path_buf(),
+                    message: format!("metadata failed: {error}"),
+                }),
+            )
+        }
+    };
+    if !metadata.is_file() {
+        return (None, None);
     }
-    (entry, report.errors)
+
+    let Some(file_name) = path.file_name() else {
+        return (None, None);
+    };
+    let name = file_name.to_string_lossy().into_owned();
+    let restored = strip_disable_suffix(&name);
+    let ext = extension_of(restored);
+    if ext.is_empty() || !policy.supports_ext(&ext) {
+        return (None, None);
+    }
+    if ext == ".json" && !restored.eq_ignore_ascii_case("ysm.json") {
+        return (None, None);
+    }
+
+    (
+        Some(ModelEntry {
+            name,
+            size: i64::try_from(metadata.len()).unwrap_or(i64::MAX),
+            path: path.to_path_buf(),
+            ext,
+            hash: String::new(),
+            mod_time_ms: system_time_to_unix_ms(metadata.modified().unwrap_or(UNIX_EPOCH)),
+            subdir: mmd_subdir(root, path),
+        }),
+        None,
+    )
 }
 
 fn path_is_ignored(root: &Path, path: &Path) -> bool {
@@ -251,6 +290,32 @@ fn path_is_ignored(root: &Path, path: &Path) -> bool {
         }
     }
     false
+}
+
+fn strip_disable_suffix(name: &str) -> &str {
+    let lower = name.to_ascii_lowercase();
+    if lower.ends_with(".ban") {
+        &name[..name.len() - 4]
+    } else if lower.ends_with(".disabled") {
+        &name[..name.len() - ".disabled".len()]
+    } else {
+        name
+    }
+}
+
+fn extension_of(name: &str) -> String {
+    Path::new(name)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| format!(".{}", ext.to_ascii_lowercase()))
+        .unwrap_or_default()
+}
+
+fn system_time_to_unix_ms(time: std::time::SystemTime) -> i64 {
+    match time.duration_since(UNIX_EPOCH) {
+        Ok(duration) => i64::try_from(duration.as_millis()).unwrap_or(i64::MAX),
+        Err(error) => -i64::try_from(error.duration().as_millis()).unwrap_or(i64::MAX),
+    }
 }
 
 fn mmd_subdir(root: &Path, path: &Path) -> String {
@@ -285,7 +350,7 @@ fn metadata_equal(a: &ModelEntry, b: &ModelEntry) -> bool {
 mod tests {
     use super::*;
     use std::{
-        fs, process,
+        process,
         sync::atomic::{AtomicU64, Ordering},
         time::{SystemTime, UNIX_EPOCH},
     };
@@ -440,5 +505,29 @@ mod tests {
         let delta = index.apply_paths(&temp.0, &policy, std::slice::from_ref(&model));
         assert_eq!(delta.added.len(), 1);
         assert_eq!(delta.added[0].subdir, "EntityPlayer");
+    }
+
+    #[test]
+    fn localized_inspection_preserves_disable_and_json_filters() {
+        let temp = TempRoot::new("localized-filters");
+        let disabled = temp.0.join("hero.ysm.disabled");
+        let ignored_json = temp.0.join("animation.json");
+        let ysm_json = temp.0.join("ysm.json");
+        fs::write(&disabled, b"ysm").unwrap();
+        fs::write(&ignored_json, b"{}").unwrap();
+        fs::write(&ysm_json, b"{}").unwrap();
+
+        let policy = policy();
+        let mut index = ModelIndex::new();
+        let delta = index.apply_paths(
+            &temp.0,
+            &policy,
+            &[disabled.clone(), ignored_json.clone(), ysm_json.clone()],
+        );
+
+        assert_eq!(delta.added.len(), 2);
+        assert!(delta.added.iter().any(|entry| entry.path == disabled));
+        assert!(delta.added.iter().any(|entry| entry.path == ysm_json));
+        assert!(!delta.added.iter().any(|entry| entry.path == ignored_json));
     }
 }
