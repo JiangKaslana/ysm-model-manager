@@ -109,3 +109,4 @@ tests/port-verification/report-*.txt
 
 # 实验性 POC 产物（ADR-080 Java 模型渲染 POC，已复刻进主工程）
 poc/
+dev/null
