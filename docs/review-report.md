@@ -118,23 +118,23 @@
 - STATE 单一事实来源 + subscribe/notify，`enqueue` 同步置 status 防竞态；`destroy = unsub` 与 events.ts 的 `externalCleanup`（cancel + destroy）完整配对 —— [download-queue.ts#L662](../frontend/src/features/community/download-queue.ts#L662)、[events.ts#L293-L297](../frontend/src/features/community/events.ts#L293-L297)
 - `isDownloading()` 并发守卫覆盖三个下载入口 —— [events.ts#L149](../frontend/src/features/community/events.ts#L149)、[L218](../frontend/src/features/community/events.ts#L218)
 - 单文件下载 4MB 确认 / 10MB 拒绝的尺寸守卫 —— [events.ts#L259-L277](../frontend/src/features/community/events.ts#L259-L277)
-- import-queue 先拿 DnDLock 再清 pending 队列，锁被占用时不丢文件；回调 API 全部 Promise 化且 onerror 分支齐全（陷阱 #10 达标）—— [import-queue.ts#L818-L820](../frontend/src/features/import-queue.ts#L818-L820)、[L554-L602](../frontend/src/features/import-queue.ts#L554-L602)
-- `initImportQueue` 返回清理函数，由 app-content `_cleanupImportQueue` 在切页时调用，配对成立 —— [import-queue.ts#L857-L861](../frontend/src/features/import-queue.ts#L857-L861)
+- import-queue 先拿 DnDLock 再清 pending 队列，锁被占用时不丢文件；回调 API 全部 Promise 化且 onerror 分支齐全（陷阱 #10 达标）—— import-queue.ts（已重构为 import-dnd.ts + import-executor.ts）、L$LINE（已重构）
+- `initImportQueue` 返回清理函数，由 app-content `_cleanupImportQueue` 在切页时调用，配对成立 —— import-queue.ts（已重构为 import-dnd.ts + import-executor.ts）
 
 **风险：**
 
 | 级别 | 文件 | 观察 | 建议 |
 |------|------|------|------|
-| 🟠 高 P2 | [import-queue.ts#L446-L462](../frontend/src/features/import-queue.ts#L446-L462) | **覆盖导入用错文件名**：导入用 `finalName`（重命名对话框结果）触发 FILE_EXISTS，但覆盖确认框文案与 `ImportModelFileOverwriteTo(newName, …)` 都用 `newName`（对话框打开前的名字）。用户改过名时：确认框报的名字是错的，覆盖目标也是错的（newName 可能根本不存在），真正冲突的 finalName 原封不动 | 覆盖路径统一用 `finalName`（确认文案与 API 参数同改） |
-| 🟠 高 P2 | [import-queue.ts#L456-L496](../frontend/src/features/import-queue.ts#L456-L496) | **覆盖成功路径缺刷新事件**：对比正常导入路径（[L412-L422](../frontend/src/features/import-queue.ts#L412-L422)），覆盖分支不发 `stats:refresh` / `tree:reload`、不失效 `repoFiles` 缓存 → 覆盖导入完成后树视图/统计不更新，队列冲突标记（⚠️）也不消除 | 覆盖成功块补三行：两个 emit + `repoFiles = null; loadRepoFiles()` |
-| 🟠 高 P2 | [import-queue.ts#L583-L594](../frontend/src/features/import-queue.ts#L583-L594) | **文件夹拖入 >100 文件静默截断**：`dirReader.readEntries` 单次最多返回 100 条（浏览器 API 契约），当前只调用一次；拖入含 >100 个模型的文件夹时多余文件无声丢失，无任何提示 | 循环调用 `readEntries` 直到返回空数组再 resolve（MDN 标准做法） |
-| 🟡 中 P3 | [import-queue.ts#L361](../frontend/src/features/import-queue.ts#L361)、[L734](../frontend/src/features/import-queue.ts#L734) | `dl-import` / `dl-reimport` 按钮无 `_importing` 并发守卫，连点弹出多个重命名对话框（后果取决于 modal 单例行为） | 入口加 `_importing` 标志，finally 复位（同 preview-skeleton `_saving` 模式） |
-| 🟡 中 P3 | [import-queue.ts#L113-L121](../frontend/src/features/import-queue.ts#L113-L121) | `showForm` 为临时文件 emit `model:select`——与 app-preview 的 P2（无过期守卫）是同一竞态的上游触发点：快速切换队列文件时旧请求摘要会写进新面板 | 与 app-preview P2 修复合并：preview-detail 加 generation counter 后此处自然安全 |
+| 🟠 高 P2 | import-queue.ts（已重构为 import-dnd.ts + import-executor.ts） | **覆盖导入用错文件名**：导入用 `finalName`（重命名对话框结果）触发 FILE_EXISTS，但覆盖确认框文案与 `ImportModelFileOverwriteTo(newName, …)` 都用 `newName`（对话框打开前的名字）。用户改过名时：确认框报的名字是错的，覆盖目标也是错的（newName 可能根本不存在），真正冲突的 finalName 原封不动 | 覆盖路径统一用 `finalName`（确认文案与 API 参数同改） |
+| 🟠 高 P2 | import-queue.ts（已重构为 import-dnd.ts + import-executor.ts） | **覆盖成功路径缺刷新事件**：对比正常导入路径（L$LINE（已重构）），覆盖分支不发 `stats:refresh` / `tree:reload`、不失效 `repoFiles` 缓存 → 覆盖导入完成后树视图/统计不更新，队列冲突标记（⚠️）也不消除 | 覆盖成功块补三行：两个 emit + `repoFiles = null; loadRepoFiles()` |
+| 🟠 高 P2 | import-queue.ts（已重构为 import-dnd.ts + import-executor.ts） | **文件夹拖入 >100 文件静默截断**：`dirReader.readEntries` 单次最多返回 100 条（浏览器 API 契约），当前只调用一次；拖入含 >100 个模型的文件夹时多余文件无声丢失，无任何提示 | 循环调用 `readEntries` 直到返回空数组再 resolve（MDN 标准做法） |
+| 🟡 中 P3 | import-queue.ts（已重构）、L734（已重构） | `dl-import` / `dl-reimport` 按钮无 `_importing` 并发守卫，连点弹出多个重命名对话框（后果取决于 modal 单例行为） | 入口加 `_importing` 标志，finally 复位（同 preview-skeleton `_saving` 模式） |
+| 🟡 中 P3 | import-queue.ts（已重构为 import-dnd.ts + import-executor.ts） | `showForm` 为临时文件 emit `model:select`——与 app-preview 的 P2（无过期守卫）是同一竞态的上游触发点：快速切换队列文件时旧请求摘要会写进新面板 | 与 app-preview P2 修复合并：preview-detail 加 generation counter 后此处自然安全 |
 | 🟡 中 P3 | [events.ts#L198-L199](../frontend/src/features/community/events.ts#L198-L199) | **右键菜单 label 双重转义**：调用侧已 `esc(m.name)`，而 context-menu 组件渲染时再 `_esc(item.label)`（[context-menu.ts#L93](../frontend/src/views/context-menu/index.ts#L93)）→ 文件名含 `&`/`'`/`"` 时菜单显示乱码（`&amp;amp;`） | menu:show 契约传原文、转义职责归组件侧：events.ts 去掉 esc |
 | 🟢 低 P4 | [events.ts#L150-L162](../frontend/src/features/community/events.ts#L150-L162) | 批量下载（选中/全选）不做尺寸守卫，与单文件的 4MB/10MB 守卫行为不一致（超大文件入队后由后端拒绝，用户体验割裂） | 批量入口同样过滤 >10MB 并 toast 告知跳过数量 |
-| 🟢 低 P4 | [import-queue.ts#L532-L536](../frontend/src/features/import-queue.ts#L532-L536) | `enqueueFile` 去重仅按文件名：文件夹导入时不同子目录的同名文件被误判重复而跳过 | 去重键改为 `relPath \|\| name` |
-| 🟢 低 P4 | [import-queue.ts#L478-L480](../frontend/src/features/import-queue.ts#L478-L480) | 覆盖路径重置 `currentFile/currentBase64/currentFileName` 但漏 `currentRelPath`（正常路径 [L439](../frontend/src/features/import-queue.ts#L439) 有重置），下一文件可能继承上一文件的子目录 | 补 `currentRelPath = ""` |
-| 🟢 低 P4 | [import-queue.ts#L834](../frontend/src/features/import-queue.ts#L834) | DnDLock 成功分支延迟 1s 释放、onerror 分支立即释放，时序不对称（无功能影响） | 统一释放时机或注释说明 1s 意图 |
+| 🟢 低 P4 | import-queue.ts（已重构为 import-dnd.ts + import-executor.ts） | `enqueueFile` 去重仅按文件名：文件夹导入时不同子目录的同名文件被误判重复而跳过 | 去重键改为 `relPath \|\| name` |
+| 🟢 低 P4 | import-queue.ts（已重构为 import-dnd.ts + import-executor.ts） | 覆盖路径重置 `currentFile/currentBase64/currentFileName` 但漏 `currentRelPath`（正常路径 L439（已重构） 有重置），下一文件可能继承上一文件的子目录 | 补 `currentRelPath = ""` |
+| 🟢 低 P4 | import-queue.ts（已重构） | DnDLock 成功分支延迟 1s 释放、onerror 分支立即释放，时序不对称（无功能影响） | 统一释放时机或注释说明 1s 意图 |
 | 🟢 低 P4 | [events.ts#L67](../frontend/src/features/community/events.ts#L67) | `onAllDone` 里 200ms `setTimeout` 刷新列表，视图已销毁时定时器仍会跑（操作 detached DOM，无害） | 定时器纳入 destroy 清理或回调内校验 `sr.isConnected` |
 
 **心理模拟记录（4 模型）：**
