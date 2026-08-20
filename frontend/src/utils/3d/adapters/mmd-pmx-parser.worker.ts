@@ -133,6 +133,7 @@ export class PmxReader {
   pos = 0;
   public encoding: "utf-8" | "utf-16" = "utf-8";
   public additionalFlags = 0;
+  public vertexIndexSize = 1;
   public boneIndexSize = 1;
   public textureIndexSize = 1;
   public materialIndexSize = 1;
@@ -212,6 +213,15 @@ export class PmxReader {
   }
 
   // --- 可变大小索引 ---
+  readVertexIndex(): number {
+    switch (this.vertexIndexSize) {
+      case 1: return this.readInt8();
+      case 2: return this.readInt16();
+      case 4: return this.readInt32();
+      default: return -1;
+    }
+  }
+
   readBoneIndex(): number {
     switch (this.boneIndexSize) {
       case 1: return this.readInt8();
@@ -274,13 +284,6 @@ export class PmxReader {
 
   readBlockSize(): number {
     return this.readInt32();
-  }
-
-  // 计算索引大小：根据 count 确定最小字节数
-  static indexSizeFor(count: number): number {
-    if (count <= 127) return 1;
-    if (count <= 32767) return 2;
-    return 4;
   }
 }
 
@@ -413,79 +416,59 @@ export function parseBones(reader: PmxReader, boneCount: number): PmxBoneData[] 
 }
 
 // ===== PMX 解析 =====
-function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
+export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   const reader = new PmxReader(buffer);
 
-  // --- Header ---
+  // --- Header（权威字节序，对齐 @moeru/three-mmd _ParseHeader / babylon-mmd pmxReader）---
+  // 顺序：magic(4) → version(4) → globalsCount(1) → encoding(1) → additionalVec4Count(1)
+  // → 6×indexSize(1 each) → [globalsCount>8 时补读] → 4 模型字符串(text)
+  // ⚠️ 旧实现只读 magic/version/encoding/additionalFlags 就跳进数据块，跳过了
+  // globalsCount + 6×indexSize + 4 模型字符串 → 头部错位 → 真实 PMX 必解析失败
+  // → 全部回退 MMDLoader（「Worker 优化」从未生效，审计 P0）
   const magic = new TextDecoder("ascii").decode(new Uint8Array(buffer, 0, 4));
   if (magic !== "PMX ") {
     return { id: 0, ok: false, error: `无效 PMX 文件：magic="${magic}"` };
   }
+  reader.pos = 4; // magic 已用 buffer 直读校验，reader 须跳过这 4 字节再顺序读
 
   const version = `${reader.readFloat32().toFixed(2)}`;
+  const globalsCount = reader.readUint8();
+  if (globalsCount < 8) {
+    return { id: 0, ok: false, error: `无效 globalsCount: ${globalsCount}` };
+  }
   const encodingByte = reader.readUint8();
   reader.encoding = encodingByte === 0 ? "utf-8" : "utf-16";
+  // additionalVec4Count：额外 UV 组数（0-4 直接值，非位标志——旧实现当位标志用是错的）
   reader.additionalFlags = reader.readUint8();
-  const headerEnd = reader.position;
+  // 索引大小从头部声明取（PMX 2.0 每类 1 字节），非 count 反推（旧 indexSizeFor 有符号阈值也是错的）
+  reader.vertexIndexSize = reader.readUint8();
+  reader.textureIndexSize = reader.readUint8();
+  reader.materialIndexSize = reader.readUint8();
+  reader.boneIndexSize = reader.readUint8();
+  reader.morphIndexSize = reader.readUint8();
+  reader.rigidBodyIndexSize = reader.readUint8();
+  for (let i = 8; i < globalsCount; ++i) reader.readUint8(); // 高位版本扩展 globals
+  // 4 个模型信息字符串（跳过，本解析不消费）
+  reader.readString(); // modelName
+  reader.readString(); // englishModelName
+  reader.readString(); // comment
+  reader.readString(); // englishComment
 
-  // --- 结构预扫描：记录所有 block 位置和 count ---
-  reader.pos = headerEnd;
-  const struct = scanStructure(reader);
-
-  // 从预扫描结果提取 count
-  const vertexCount = struct.vertex.count;
-  const faceCount = struct.face.count;
-  const texCount = struct.texture.count;
-  const matCount = struct.material.count;
-  const boneCount = struct.bone.count;
-  const rbCount = struct.rigidBody.count;
-  const jointCount = struct.joint.count;
-  const morphCount = struct.morph.count;
-  const dfCount = struct.displayFrame.count;
-
-  // 根据预扫描结果确定全局索引大小
-  reader.boneIndexSize = PmxReader.indexSizeFor(boneCount);
-  reader.textureIndexSize = PmxReader.indexSizeFor(texCount);
-  reader.materialIndexSize = PmxReader.indexSizeFor(matCount);
-  reader.rigidBodyIndexSize = PmxReader.indexSizeFor(rbCount);
-  reader.jointIndexSize = PmxReader.indexSizeFor(jointCount);
-  reader.morphIndexSize = PmxReader.indexSizeFor(morphCount);
-  reader.displayFrameIndexSize = PmxReader.indexSizeFor(Math.max(boneCount, morphCount));
-
-  // 解析顶点布局 flag
-  const hasUV = (reader.additionalFlags & 0x01) !== 0;
-  const hasExtraUV = (reader.additionalFlags & 0x02) !== 0;
-  const boneWeightType = (reader.additionalFlags >> 3) & 0x03;
-  const hasExtendedDeform = (reader.additionalFlags & 0x80) !== 0;
-
-  // === Vertices ===
-  // PMX 规范：position(12) + normal(12) + [UV(8)] + [ExtraUV(8)] + deform + [extended(4)]
-  // ⚠️ deform 的骨骼索引大小随全局 boneCount（reader.boneIndexSize：1/2/4 字节），
-  // vertexSize 必须同步动态计算，否则 boneCount>127 时顶点数据错位、蒙皮错乱
-  const boneIndexSize = reader.boneIndexSize;
-  /** 对齐到 4 字节（PMX deform 的 padding 规则） */
+  // === 顶点布局（PMX 2.0：第一组 UV 恒在；additionalVec4Count 为额外 4-float 组数）===
+  const additionalVec4Count = reader.additionalFlags;
+  // 每顶点字节布局（weightType 每顶点独立，从顶点数据读，非头部 flag 推断）：
+  // position(12) + normal(12) + uv(8) + additionalVec4×16 + weightType(1) + deform + edgeScale(4)
+  const baseVertexHead = 12 + 12 + 8 + additionalVec4Count * 16;
+  // deform 大小随 boneIndexSize（BDEF1/BDEF2/BDEF4 三种）
   const align4 = (n: number): number => Math.ceil(n / 4) * 4;
-  let vertexSize = 12 + 12;
-  if (hasUV) vertexSize += 8;
-  if (hasExtraUV) vertexSize += 8;
-  // PMX 规范 deform 大小（随 boneIndexSize）：
-  //   BDEF1 = align4(indexSize + 4)   （1 索引 + padding + 1 权重）
-  //   BDEF2 = align4(2×indexSize) + 4 （2 索引 + padding + 1 权重）
-  //   BDEF4 = 4×indexSize + 16        （4 索引 + 4 权重）
-  if (boneWeightType === 2) {
-    vertexSize += align4(boneIndexSize + 4);
-  } else if (boneWeightType === 1) {
-    vertexSize += align4(2 * boneIndexSize) + 4;
-  } else {
-    vertexSize += 4 * boneIndexSize + 16;
-  }
-  if (hasExtendedDeform) vertexSize += 4;
+  const boneIndexSize = reader.boneIndexSize;
 
+  // === Vertices（无 blockSize 前缀：count 后直接数据，顺序解析）===
+  const vertexCount = reader.readInt32();
   const vertexData = (() => {
     const positions = new Float32Array(vertexCount * 3);
     const normals = new Float32Array(vertexCount * 3);
-    const uvs = hasUV ? new Float32Array(vertexCount * 2) : new Float32Array(0);
-    // 骨骼索引数组宽度随 boneIndexSize（>255 骨骼时 2/4 字节，Uint8 会截断）
+    const uvs = new Float32Array(vertexCount * 2);
     const boneIndices = boneIndexSize === 2
       ? new Uint16Array(vertexCount * 4)
       : boneIndexSize === 4
@@ -493,122 +476,87 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
         : new Uint8Array(vertexCount * 4);
     const boneWeights = new Float32Array(vertexCount * 4);
 
-    const vertexDataStart = struct.vertex.pos + 8; // skip blockSize(4) + count(4)
-
-    /** 按 boneIndexSize 读骨骼索引（小端） */
-    const readBoneIdx = (view: DataView, off: number): number => {
-      switch (boneIndexSize) {
-        case 2: return view.getUint16(off, true);
-        case 4: return view.getUint32(off, true);
-        default: return view.getUint8(off);
-      }
-    };
-
     for (let i = 0; i < vertexCount; i++) {
-      const vOffset = vertexDataStart + i * vertexSize;
-      const u8view = new Uint8Array(buffer, vOffset, vertexSize);
-      const view = new DataView(buffer, vOffset, vertexSize);
-
-      // Position (12 bytes)
-      positions[i * 3] = view.getFloat32(0, true);
-      positions[i * 3 + 1] = view.getFloat32(4, true);
-      positions[i * 3 + 2] = view.getFloat32(8, true);
-
-      // Normal (12 bytes)
-      normals[i * 3] = view.getFloat32(12, true);
-      normals[i * 3 + 1] = view.getFloat32(16, true);
-      normals[i * 3 + 2] = view.getFloat32(20, true);
-
-      let cursor = 24;
-
-      // UV (8 bytes)
-      if (hasUV) {
-        uvs[i * 2] = view.getFloat32(cursor, true);
-        uvs[i * 2 + 1] = view.getFloat32(cursor + 4, true);
-        cursor += 8;
+      // position(12) + normal(12) + uv(8)
+      positions[i * 3] = reader.readFloat32();
+      positions[i * 3 + 1] = reader.readFloat32();
+      positions[i * 3 + 2] = reader.readFloat32();
+      normals[i * 3] = reader.readFloat32();
+      normals[i * 3 + 1] = reader.readFloat32();
+      normals[i * 3 + 2] = reader.readFloat32();
+      uvs[i * 2] = reader.readFloat32();
+      uvs[i * 2 + 1] = reader.readFloat32();
+      // additionalVec4（额外 UV 组数 × 4 float）
+      for (let j = 0; j < additionalVec4Count; j++) {
+        reader.readFloat32(); reader.readFloat32(); reader.readFloat32(); reader.readFloat32();
       }
-      if (hasExtraUV) cursor += 8;
-
-      // Bone weights and indices (严格 PMX 规范，索引大小随 boneIndexSize)
-      if (boneWeightType === 2) {
-        // BDEF1: index(indexSize) + padding(align4- indexSize) + weight(4) = align4(indexSize)+4
-        const bi = readBoneIdx(view, cursor);
-        boneIndices[i * 4] = bi;
-        boneIndices[i * 4 + 1] = bi;
-        boneIndices[i * 4 + 2] = bi;
-        boneIndices[i * 4 + 3] = bi;
-        const w = view.getFloat32(cursor + align4(boneIndexSize), true);
-        boneWeights[i * 4] = w;
-        boneWeights[i * 4 + 1] = 0;
-        boneWeights[i * 4 + 2] = 0;
-        boneWeights[i * 4 + 3] = 0;
-        cursor += align4(boneIndexSize) + 4;
-      } else if (boneWeightType === 1) {
-        // BDEF2: 2×index(indexSize) + padding + weight(4) = align4(2×indexSize)+4
-        const bi0 = readBoneIdx(view, cursor);
-        const bi1 = readBoneIdx(view, cursor + boneIndexSize);
-        boneIndices[i * 4] = bi0;
-        boneIndices[i * 4 + 1] = bi1;
-        boneIndices[i * 4 + 2] = 0;
-        boneIndices[i * 4 + 3] = 0;
-        const w = view.getFloat32(cursor + align4(2 * boneIndexSize), true);
-        boneWeights[i * 4] = w;
-        boneWeights[i * 4 + 1] = 1 - w;
-        boneWeights[i * 4 + 2] = 0;
-        boneWeights[i * 4 + 3] = 0;
-        cursor += align4(2 * boneIndexSize) + 4;
+      // weightType：每顶点独立（0=BDEF1, 1=BDEF2, 2=BDEF4, 3=SDEF, 4=QDEF）
+      // ⚠️ 旧实现从头部 flag 推断全局 weightType——权威是每顶点独立 1 字节（对齐 babylon-mmd pmxReader.ts:241）
+      const weightType = reader.readUint8();
+      const o = i * 4;
+      if (weightType === 0) {
+        // BDEF1：1 索引复制到 4 槽，权重 [1,0,0,0]
+        const bi = reader.readBoneIndex();
+        boneIndices[o] = bi; boneIndices[o + 1] = bi; boneIndices[o + 2] = bi; boneIndices[o + 3] = bi;
+        boneWeights[o] = 1; boneWeights[o + 1] = 0; boneWeights[o + 2] = 0; boneWeights[o + 3] = 0;
+      } else if (weightType === 1) {
+        // BDEF2：2 索引 + 1 权重
+        const bi0 = reader.readBoneIndex();
+        const bi1 = reader.readBoneIndex();
+        const w = reader.readFloat32();
+        boneIndices[o] = bi0; boneIndices[o + 1] = bi1; boneIndices[o + 2] = 0; boneIndices[o + 3] = 0;
+        boneWeights[o] = w; boneWeights[o + 1] = 1 - w; boneWeights[o + 2] = 0; boneWeights[o + 3] = 0;
+      } else if (weightType === 2) {
+        // BDEF4：4 索引 + 4 权重
+        for (let k = 0; k < 4; k++) boneIndices[o + k] = reader.readBoneIndex();
+        for (let k = 0; k < 4; k++) boneWeights[o + k] = reader.readFloat32();
+      } else if (weightType === 3) {
+        // SDEF：2 索引 + 权重 + c(3) + r0(3) + r1(3)（c/r0/r1 本解析不消费，跳过）
+        const bi0 = reader.readBoneIndex();
+        const bi1 = reader.readBoneIndex();
+        const w = reader.readFloat32();
+        for (let k = 0; k < 9; k++) reader.readFloat32(); // c + r0 + r1
+        boneIndices[o] = bi0; boneIndices[o + 1] = bi1; boneIndices[o + 2] = 0; boneIndices[o + 3] = 0;
+        boneWeights[o] = w; boneWeights[o + 1] = 1 - w; boneWeights[o + 2] = 0; boneWeights[o + 3] = 0;
       } else {
-        // BDEF4: 4×index(indexSize) + 4×weight(4) = 4×indexSize+16
-        boneIndices[i * 4] = readBoneIdx(view, cursor);
-        boneIndices[i * 4 + 1] = readBoneIdx(view, cursor + boneIndexSize);
-        boneIndices[i * 4 + 2] = readBoneIdx(view, cursor + 2 * boneIndexSize);
-        boneIndices[i * 4 + 3] = readBoneIdx(view, cursor + 3 * boneIndexSize);
-        boneWeights[i * 4] = view.getFloat32(cursor + 4 * boneIndexSize, true);
-        boneWeights[i * 4 + 1] = view.getFloat32(cursor + 4 * boneIndexSize + 4, true);
-        boneWeights[i * 4 + 2] = view.getFloat32(cursor + 4 * boneIndexSize + 8, true);
-        boneWeights[i * 4 + 3] = view.getFloat32(cursor + 4 * boneIndexSize + 12, true);
-        cursor += 4 * boneIndexSize + 16;
+        // QDEF（4）：同 BDEF4
+        for (let k = 0; k < 4; k++) boneIndices[o + k] = reader.readBoneIndex();
+        for (let k = 0; k < 4; k++) boneWeights[o + k] = reader.readFloat32();
       }
-
-      if (hasExtendedDeform) cursor += 4;
+      reader.readFloat32(); // edgeScale
     }
 
     return { count: vertexCount, positions, normals, uvs, boneIndices, boneWeights };
   })();
 
-  // === Faces ===
-  const faceIndexSize = PmxReader.indexSizeFor(vertexCount);
+  // === Faces（无 blockSize 前缀：count 后直接数据，顺序解析）===
+  const faceCount = reader.readInt32();
   const faceData = (() => {
     if (faceCount === 0) {
       return { count: 0, indices: new Uint32Array(0) } as PmxFaceData;
     }
-    const faceDataStart = struct.face.pos + 8; // skip blockSize(4) + count(4)
     const indices = new Uint32Array(faceCount * 3);
-    const totalBytes = faceCount * 3 * faceIndexSize;
-    const faceView = new DataView(buffer, faceDataStart, totalBytes);
-    const faceU8 = new Uint8Array(buffer, faceDataStart, totalBytes);
-
+    const indexSize = reader.vertexIndexSize; // 面索引用 vertexIndexSize（头部声明）
     for (let i = 0; i < faceCount * 3; i++) {
-      const off = i * faceIndexSize;
-      switch (faceIndexSize) {
-        case 1: indices[i] = faceU8[off]; break;
-        case 2: indices[i] = faceView.getUint16(off, true); break;
-        case 4: indices[i] = faceView.getUint32(off, true); break;
-        default: indices[i] = 0;
+      switch (indexSize) {
+        case 1: indices[i] = reader.readUint8(); break;
+        case 2: indices[i] = reader.readUint16(); break;
+        case 4: indices[i] = reader.readUint32(); break;
+        default: reader.readUint8(); indices[i] = 0;
       }
     }
     return { count: faceCount, indices } as PmxFaceData;
   })();
 
   // === Textures ===
-  reader.pos = struct.texture.pos + 8;
+  const texCount = reader.readInt32();
   const textures: string[] = [];
   for (let i = 0; i < texCount; i++) {
     textures.push(reader.readString());
   }
 
   // === Materials ===
-  reader.pos = struct.material.pos + 8;
+  const matCount = reader.readInt32();
   const materials: PmxMaterialData[] = [];
   for (let i = 0; i < matCount; i++) {
     const name = reader.readString();
@@ -640,11 +588,81 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   }
 
   // === Bones ===
-  reader.pos = struct.bone.pos + 8;
+  const boneCount = reader.readInt32();
   const bones = parseBones(reader, boneCount);
 
+  // === Morphs（无 blockSize 前缀：count 后直接数据，顺序解析）===
+  // 权威头部：name(text) + englishName(text) + category(int8) + type(int8) + elementCount(int32)
+  // ⚠️ 旧实现只读 name + type(uint8) + elementCount——漏 englishName/category 且 type 用 uint8 读错
+  const morphCount = reader.readInt32();
+  const morphs: PmxMorphData[] = [];
+  for (let i = 0; i < morphCount; i++) {
+    const name = reader.readString();
+    reader.readString(); // englishName（本解析不消费）
+    reader.readInt8();   // category（本解析不消费）
+    const type = reader.readInt8();
+    const elementCount = reader.readInt32();
+    const elements: PmxMorphData["elements"] = [];
+    for (let j = 0; j < elementCount; j++) {
+      let index = 0;
+      let offset: [number, number, number] = [0, 0, 0];
+      if (type === 0) {
+        // GroupMorph：morphIndex + ratio(float32)
+        index = reader.readMorphIndex();
+        reader.readFloat32();
+      } else if (type === 1) {
+        // VertexMorph：vertexIndex + position(3×float32)
+        index = reader.readVertexIndex();
+        offset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
+      } else if (type === 2) {
+        // BoneMorph：boneIndex + position(3×float32) + rotation(4×float32)
+        index = reader.readBoneIndex();
+        offset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
+        reader.pos += 16; // rotation 4×float32
+      } else if (type >= 3 && type <= 7) {
+        // UvMorph + AdditionalUvMorph1-4：vertexIndex + offsets(4×float32)
+        index = reader.readVertexIndex();
+        reader.pos += 16; // 4×float32
+      } else if (type === 8) {
+        // MaterialMorph：materialIndex + type(uint8) + diffuse(4)+specular(3)+shininess(1)
+        //   + ambient(3) + edgeColor(4) + edgeSize(1) + textureColor(4)
+        //   + sphereTextureColor(4) + toonTextureColor(4)
+        index = reader.readMaterialIndex();
+        reader.pos += 1 + 16 + 12 + 4 + 12 + 16 + 4 + 16 + 16 + 16;
+      } else if (type === 9) {
+        // FlipMorph：morphIndex + ratio(float32)
+        index = reader.readMorphIndex();
+        reader.readFloat32();
+      } else if (type === 10) {
+        // ImpulseMorph：rigidBodyIndex + isLocal(uint8) + velocity(3×float32) + torque(3×float32)
+        index = reader.readRigidBodyIndex();
+        reader.pos += 1 + 12 + 12;
+      } else {
+        throw new Error(`未知 morph type: ${type}`);
+      }
+      elements.push({ index, offset });
+    }
+    morphs.push({ name, type, elements });
+  }
+
+  // === Display Frames ===
+  const dfCount = reader.readInt32();
+  const displayFrames: PmxDisplayFrameData[] = [];
+  for (let i = 0; i < dfCount; i++) {
+    const name = reader.readString();
+    const type = reader.readUint8();
+    const elementCount = reader.readInt32();
+    const elements: PmxDisplayFrameData["elements"] = [];
+    for (let j = 0; j < elementCount; j++) {
+      const index = type === 1 ? reader.readBoneIndex() : reader.readMorphIndex();
+      const value = reader.readFloat32();
+      elements.push({ index, value });
+    }
+    displayFrames.push({ name, type, elements });
+  }
+
   // === Rigid Bodies ===
-  reader.pos = struct.rigidBody.pos + 8;
+  const rbCount = reader.readInt32();
   const rigidBodies: PmxRigidBodyData[] = [];
   for (let i = 0; i < rbCount; i++) {
     const name = reader.readString();
@@ -675,7 +693,7 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   }
 
   // === Joints ===
-  reader.pos = struct.joint.pos + 8;
+  const jointCount = reader.readInt32();
   const joints: PmxJointData[] = [];
   for (let i = 0; i < jointCount; i++) {
     const name = reader.readString();
@@ -705,52 +723,6 @@ function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
       joint.springRotation = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
     }
     joints.push(joint);
-  }
-
-  // === Morphs ===
-  reader.pos = struct.morph.pos + 8;
-  const morphs: PmxMorphData[] = [];
-  for (let i = 0; i < morphCount; i++) {
-    const name = reader.readString();
-    const type = reader.readUint8();
-    const elementCount = reader.readInt32();
-    const elements: PmxMorphData["elements"] = [];
-    for (let j = 0; j < elementCount; j++) {
-      const index = reader.readMorphIndex();
-      let offset: [number, number, number] = [0, 0, 0];
-      if (type === 1) {
-        offset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-      } else if (type === 2) {
-        offset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-        reader.pos += 4;
-      } else if (type === 3) {
-        offset = [reader.readFloat32(), reader.readFloat32(), 0];
-      } else {
-        offset = [reader.readFloat32(), reader.readFloat32(), reader.readFloat32()];
-        if (type === 0) {
-          const subCount = reader.readInt32();
-          reader.pos += subCount * 4;
-        }
-      }
-      elements.push({ index, offset });
-    }
-    morphs.push({ name, type, elements });
-  }
-
-  // === Display Frames ===
-  reader.pos = struct.displayFrame.pos + 8;
-  const displayFrames: PmxDisplayFrameData[] = [];
-  for (let i = 0; i < dfCount; i++) {
-    const name = reader.readString();
-    const type = reader.readUint8();
-    const elementCount = reader.readInt32();
-    const elements: PmxDisplayFrameData["elements"] = [];
-    for (let j = 0; j < elementCount; j++) {
-      const index = type === 1 ? reader.readBoneIndex() : reader.readMorphIndex();
-      const value = reader.readFloat32();
-      elements.push({ index, value });
-    }
-    displayFrames.push({ name, type, elements });
   }
 
   return {

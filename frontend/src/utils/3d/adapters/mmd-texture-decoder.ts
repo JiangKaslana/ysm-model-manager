@@ -189,6 +189,11 @@ export function applyWorkerDecodedTextures(
       if (decodedTex) {
         const newTex = new THREE.Texture(decodedTex.bitmap);
         newTex.colorSpace = THREE.SRGBColorSpace;
+        // P2 修复（审计 Unit 3）：ImageBitmap 已按正确方向解码，flipY=true 会上下翻转
+        newTex.flipY = false;
+        // P1 修复（审计 Unit 3）：three Texture.dispose() 不关闭 ImageBitmap →
+        // 每次切模型 GPU 位图泄漏。监听 dispose 事件在纹理释放时 close。
+        newTex.addEventListener("dispose", () => decodedTex.bitmap.close());
         newTex.needsUpdate = true;
         (mat as unknown as Record<string, unknown>)["map"] = newTex;
         mat.needsUpdate = true;
@@ -223,7 +228,9 @@ export function applyWorkerDecodedTextures(
       newTex.offset = tex.offset;
       newTex.center = tex.center;
       newTex.rotation = tex.rotation;
-      newTex.flipY = tex.flipY;
+      // P2 修复（审计 Unit 3）：不再复制旧 flipY（ImageElement 默认 true）——
+      // ImageBitmap 已按正确方向解码，flipY=true 会上下翻转
+      newTex.flipY = false;
       newTex.generateMipmaps = tex.generateMipmaps;
       newTex.minFilter = tex.minFilter;
       newTex.magFilter = tex.magFilter;
@@ -231,6 +238,8 @@ export function applyWorkerDecodedTextures(
       newTex.format = tex.format;
       newTex.type = tex.type;
       newTex.colorSpace = tex.colorSpace;
+      // P1 修复（审计 Unit 3）：纹理释放时 close ImageBitmap，防 GPU 位图泄漏
+      newTex.addEventListener("dispose", () => decodedTex.bitmap.close());
 
       (mat as unknown as Record<string, unknown>)[key] = newTex;
       tex.dispose();
