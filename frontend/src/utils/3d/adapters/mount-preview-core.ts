@@ -142,6 +142,9 @@ const PER_FRAME_WARN_THROTTLE_MS = 5000;
 
 let _handle: PreviewHandle | null = null;
 let _gen = 0;
+/** 上一会话的 scene（用于增量清理，避免 cleanupPreview 销毁 renderer 导致黑屏） */
+let _lastScene: THREE.Scene | null = null;
+let _lastSceneBaseline: Set<THREE.Object3D> | null = null;
 /** 上次 perFrame 告警时间戳（节流用） */
 let _lastPerFrameWarnTs = 0;
 
@@ -189,7 +192,13 @@ export interface Mount3DOptions {
 
 export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount3DOptions = {}): Promise<void> {
   const cooperate = opts.cooperate === true;
-  if (!cooperate) cleanupPreview(); // 复用：再次创建先清旧的（同台模式不清理，保留旧模型）
+  // 复用外壳（renderer/canvas/overlay 存活），只清理内容层，避免重建 DOM 导致黑屏窗口期。
+  // cleanupPreview() 会 dispose renderer + 移除 overlay，重建期间 canvas 消失→黑屏。
+  // 此处只做增量清理：dispose built + 移除旧 scene children，renderer 保持运行不闪烁。
+  if (!cooperate && _lastScene && _lastSceneBaseline) {
+    const stale = _lastScene.children.filter((c): boolean => !_lastSceneBaseline!.has(c));
+    for (const c of stale) _lastScene.remove(c);
+  }
   // 🥉 ui/ 库样式（light-DOM 场景）：overlay 是 document.body 下的普通 DOM 非 shadow，
   // 注入一次即可让声明式根菜单控件用上 mode-btn/setting-select 透明样式（幂等，§19）
   installUiComponentsStyles();
@@ -308,7 +317,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
 
   const loadingEl = document.createElement("div");
   loadingEl.style.cssText =
-    "position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,0.6);font-size:14px;gap:12px;z-index:10;background:rgba(26,27,46,0.9)";
+    "position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,0.6);font-size:14px;gap:12px;z-index:10";
   viewContainer.appendChild(loadingEl);
 
   // ===== §4 基础设施创建（scene/camera/renderer/OrbitControls/灯光/resize）=====
@@ -613,6 +622,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     if (myGen !== _gen) return;
 
     if (scene) sceneBaseline = new Set(scene.children);
+    // 暂存上次的 scene + baseline，供下次 mount3D 增量清理（避免 fullCleanup 销毁 renderer 导致黑屏）
+    if (scene) { _lastScene = scene; _lastSceneBaseline = sceneBaseline; }
     built = await adapter.build(
       {
         scene,
@@ -684,7 +695,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // ADR-076 v2 Phase 3：适配器控件全部经声明式根菜单注入（ctx.menu.setAdapterItems / built.menuItems）
     // 不再有 topBar 或 sidePanel 额外挂载
 
-    function fullCleanup(): void { runFullCleanup(cleanupCtx); }
+    function fullCleanup(): void { runFullCleanup(cleanupCtx); _lastScene = null; _lastSceneBaseline = null; }
 
     // 审核 #2：复用 escH 可变引用，switchTo 后旧 handler 被替换，新 handler 在 cleanup 时通过 getter 正确卸载
     // R1-P1-2：先保存旧引用再替换，否则 removeEventListener 移除的是新函数（从未注册过），旧函数仍残留
