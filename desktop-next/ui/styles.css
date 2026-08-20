@@ -119,6 +119,8 @@ dd { margin: 0; color: #c4ccd4; font-size: 10px; overflow-wrap: anywhere; }
 .state-action.is-enable:hover:not(:disabled) { background: #1b322b; border-color: #4d7d72; }
 .hash-action { border-color: #3b625a; background: #172722; color: #bfe9df; }
 .hash-action:hover:not(:disabled) { background: #1b322b; border-color: #4d7d72; }
+.recycle-action { grid-column: 1 / -1; height: 28px; border-color: #4b4141; background: #1d1919; color: #bfa9a9; font-weight: 560; }
+.recycle-action:hover:not(:disabled) { border-color: #675050; background: #261c1c; color: #dcc1c1; }
 .path-label { display: block; margin: 17px 0 7px; color: var(--faint); font-size: 10px; }
 .path-code { display: block; padding: 9px; border: 1px solid var(--line); border-radius: 5px; background: #101317; color: #aeb8c2; font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; user-select: text; }
 
