@@ -565,6 +565,20 @@ export async function buildMmdScene(
   try {
     ctx.scene!.add(mesh);
     registerModelRoot(mesh);
+
+    // [diag-mesh-debug] 临时诊断：mesh 加入场景后的状态
+    {
+      const geo = mesh.geometry;
+      geo.computeBoundingBox();
+      const bb = geo.boundingBox!;
+      const posAttr = geo.getAttribute("position") as THREE.BufferAttribute | undefined;
+      const idx = geo.index;
+      const allMats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+      const hasMap = allMats.filter(m => (m as THREE.MeshStandardMaterial).map).length;
+      await mmdDiag(port, "mesh-debug", path, "warn",
+        `posAttr=${posAttr?.count ?? "null"} idx=${idx?.count ?? "null"} bb=${bb.min.toArray().map(v=>v.toFixed(1))}/${bb.max.toArray().map(v=>v.toFixed(1))} visible=${mesh.visible} frustumCulled=${mesh.frustumCulled} mats=${allMats.length} hasMap=${hasMap} wm=${mesh.matrixWorld.elements[12].toFixed(1)},${mesh.matrixWorld.elements[13].toFixed(1)},${mesh.matrixWorld.elements[14].toFixed(1)} worldPos=${mesh.getWorldPosition(new THREE.Vector3()).toArray().map(v=>v.toFixed(1))}`);
+    }
+
   ctx.loadingEl.remove(); // 加载完成，移除占位（对齐 vrm-adapter 口径）
 
   // ---- KTX2 纹理替换（post-load）：有 KTX2 缓存时用压缩纹理替换已加载的 PNG 纹理 ----

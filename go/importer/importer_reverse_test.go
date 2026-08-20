@@ -611,7 +611,7 @@ func TestImportFromBase64_RtypeRouting(t *testing.T) {
 		{"zip 无特征 → 报错", "p.zip", buildZip("random.txt"), "", true},
 		{"pmx 扩展名 → mmd-skin", "model.pmx", []byte("pmx"), "mmd-skin", false},
 		{"vrm 扩展名 → vrchat-avatar", "model.vrm", []byte("vrm"), "vrchat-avatar", false},
-		{"nbt 扩展名 → create-blueprint", "build.nbt", []byte("nbt"), "create-blueprint", false},
+		{"nbt 扩展名 → blueprint", "build.nbt", []byte("nbt"), "blueprint", false},
 		{"litematic 扩展名 → litematic", "build.litematic", []byte("li"), "litematic", false},
 	}
 	for _, tc := range tests {

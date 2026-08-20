@@ -154,7 +154,7 @@ func TestFindInstDir_StandardEmptyFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = os.WriteFile(filepath.Join(sable, "c1.nbt"), []byte("nbt"), 0644)
-	got := FindInstDir(versionDir, "schematics", "create-blueprint")
+	got := FindInstDir(versionDir, "schematics", "blueprint")
 	if got != filepath.Join(versionDir, "Sable-Schematics") {
 		t.Fatalf("标准目录空时应兜底到 Sable-Schematics: %s", got)
 	}
@@ -168,7 +168,7 @@ func TestFindInstDir_StandardNonEmptyStays(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = os.WriteFile(filepath.Join(std, "top.nbt"), []byte("nbt"), 0644)
-	got := FindInstDir(versionDir, "schematics", "create-blueprint")
+	got := FindInstDir(versionDir, "schematics", "blueprint")
 	if got != std {
 		t.Fatalf("标准目录含 .nbt 应返回标准目录: %s vs %s", got, std)
 	}
@@ -392,7 +392,7 @@ func TestFindInstDir_BlueprintZipOnlyNotHit(t *testing.T) {
 	}
 	_ = os.WriteFile(filepath.Join(zipDir, "modpack.zip"), []byte("zip"), 0o644)
 	standard := filepath.Join(versionDir, "schematics")
-	got := FindInstDir(versionDir, "schematics", "create-blueprint")
+	got := FindInstDir(versionDir, "schematics", "blueprint")
 	if got != standard {
 		t.Fatalf("蓝图 .zip 弱证据不应命中 loose-zips，应返回 standard: %s vs %s", got, standard)
 	}
@@ -408,7 +408,7 @@ func TestFindInstDir_BlueprintZipPlusNbtHit(t *testing.T) {
 	}
 	_ = os.WriteFile(filepath.Join(sable, "c1.nbt"), []byte("nbt"), 0o644)
 	_ = os.WriteFile(filepath.Join(sable, "pack.zip"), []byte("zip"), 0o644)
-	got := FindInstDir(versionDir, "schematics", "create-blueprint")
+	got := FindInstDir(versionDir, "schematics", "blueprint")
 	if got != filepath.Join(versionDir, "Sable-Schematics") {
 		t.Fatalf("含 .nbt 的蓝图目录应兜底命中: %s", got)
 	}

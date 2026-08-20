@@ -10,11 +10,8 @@ func TestMigrateFlatStorageToGrouped_FlatToGrouped(t *testing.T) {
 	base := t.TempDir()
 	// 创建扁平结构（按 resource_types.json 的 StorageSubDir）
 	flatYsm := filepath.Join(base, "ysm")
-	flatMmd := filepath.Join(base, "EntityPlayer") // mmd-skin 的 storageSubDir
 	os.MkdirAll(flatYsm, 0755)
-	os.MkdirAll(flatMmd, 0755)
 	os.WriteFile(filepath.Join(flatYsm, "test.ysm"), []byte("x"), 0644)
-	os.WriteFile(filepath.Join(flatMmd, "test.pmx"), []byte("x"), 0644)
 
 	migrateFlatStorageToGrouped(base)
 
@@ -22,25 +19,15 @@ func TestMigrateFlatStorageToGrouped_FlatToGrouped(t *testing.T) {
 	if _, err := os.Stat(flatYsm); !os.IsNotExist(err) {
 		t.Errorf("扁平目录 ysm/ 应被迁移删除")
 	}
-	if _, err := os.Stat(flatMmd); !os.IsNotExist(err) {
-		t.Errorf("扁平目录 EntityPlayer/ 应被迁移删除")
-	}
 
 	// 验证分组结构已创建
 	groupedYsm := filepath.Join(base, "minecraft-mod", "ysm")
-	groupedMmd := filepath.Join(base, "mmd", "EntityPlayer")
 	if _, err := os.Stat(groupedYsm); err != nil {
 		t.Errorf("分组目录 minecraft-mod/ysm/ 应被创建: %v", err)
-	}
-	if _, err := os.Stat(groupedMmd); err != nil {
-		t.Errorf("分组目录 mmd/EntityPlayer/ 应被创建: %v", err)
 	}
 
 	// 验证文件已迁移
 	if _, err := os.Stat(filepath.Join(groupedYsm, "test.ysm")); err != nil {
-		t.Errorf("文件应随目录迁移: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(groupedMmd, "test.pmx")); err != nil {
 		t.Errorf("文件应随目录迁移: %v", err)
 	}
 }

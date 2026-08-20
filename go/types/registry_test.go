@@ -115,7 +115,7 @@ func TestSupportedExtsForType(t *testing.T) {
 
 func TestStorageSubDir(t *testing.T) {
 	// 已知类型
-	expectedIDs := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "create-blueprint"}
+	expectedIDs := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint"}
 	for _, id := range expectedIDs {
 		dir := StorageSubDir(id)
 		if dir == "" {
@@ -269,7 +269,7 @@ func TestSubDirMap(t *testing.T) {
 func TestSubDirAll(t *testing.T) {
 	m := SubDirAll()
 	// 应覆盖所有已知类型
-	expected := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "create-blueprint"}
+	expected := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint"}
 	for _, id := range expected {
 		if _, ok := m[id]; !ok {
 			t.Errorf("SubDirAll 缺少类型 %q", id)
@@ -291,7 +291,7 @@ func TestAllSubDirs(t *testing.T) {
 		entryMap[e.RType] = e.SubDir
 	}
 	// 应覆盖所有已知类型
-	expected := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "create-blueprint"}
+	expected := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint"}
 	for _, id := range expected {
 		if _, ok := entryMap[id]; !ok {
 			t.Errorf("AllSubDirs 缺少类型 %q", id)
