@@ -790,6 +790,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-106：3D 预览环境菜单两级下钻与可视化控件扩展",
+        "link": "/adr/ADR-106-preview-env-menu-drill-visual"
+      },
+      {
         "text": "ADR-105：subtype 完整自描述化：零继承识别单元（MMD 落地，光影包预留）",
         "link": "/adr/ADR-105-subtype-self-describing"
       },

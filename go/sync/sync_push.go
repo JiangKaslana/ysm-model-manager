@@ -191,12 +191,14 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 
 // PullSingleResource 拉取单个资源（文件夹/文件）回仓库
 func PullSingleResource(globalDir, targetDir, srcPath string) error {
-	// 文件夹级拉取：整体复制文件夹到全局（保留相对 targetDir 的子类层级）
+	// 文件夹级拉取：整体复制文件夹到全局（保留相对 targetDir 的子类层级）。
+	// 越界（srcPath 不在 targetDir 内）直接报错——与文件分支 mapSrcToGlobal 严格口径
+	// 一致；旧行为退化为 basename 会把越界目录错误落到 globalDir 根（丢子类层级 + 同名覆盖）。
 	fi, stErr := os.Stat(srcPath)
 	if stErr == nil && fi.IsDir() {
 		rel, relErr := filepath.Rel(targetDir, srcPath)
 		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-			rel = filepath.Base(srcPath)
+			return fmt.Errorf("路径 %s 不在目标目录 %s 内", srcPath, targetDir)
 		}
 		dstDir := filepath.Join(globalDir, rel)
 		// 递归复制整个目录（保留相对路径），深层子目录（textures/toon 等）一并拉取

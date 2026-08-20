@@ -435,6 +435,28 @@ func TestPullSingleResource_Dir_SiblingOutside(t *testing.T) {
 	}
 }
 
+// TestPullSingleResource_DirOutside_Rejected 审核意见 1 回归：越界目录
+// （srcPath 不在 targetDir 内）应直接报错——对齐文件分支 mapSrcToGlobal 严格口径，
+// 不再退化为 basename 把越界目录错误落到 globalDir 根（丢子类层级 + 同名覆盖）。
+func TestPullSingleResource_DirOutside_Rejected(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	targetDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	_ = os.MkdirAll(globalDir, 0755)
+	_ = os.MkdirAll(targetDir, 0755)
+	outside := filepath.Join(base, "outside-pack")
+	_ = os.MkdirAll(outside, 0755)
+	_ = os.WriteFile(filepath.Join(outside, "m.pmx"), []byte("m"), 0644)
+
+	err := PullSingleResource(globalDir, targetDir, outside)
+	if err == nil {
+		t.Fatal("越界目录应报错，实际 nil")
+	}
+	if _, err := os.Stat(filepath.Join(globalDir, "outside-pack")); err == nil {
+		t.Fatal("越界目录不应退化为 basename 落到 globalDir 根")
+	}
+}
+
 // =====================================================================
 // 七、isSyncAllowed 边界
 // =====================================================================
