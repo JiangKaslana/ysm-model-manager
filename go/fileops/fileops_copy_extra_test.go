@@ -2,7 +2,8 @@
 // 覆盖：copyFile 的 Lstat 失败、符号链接源拒绝、MkdirAll 失败、io.Copy 失败
 // （源为目录）、Rename 失败（目标为已存在目录）+ 半截 tmp 清理；
 // copyDirRecursive 的整树回滚（目标已存在、树内符号链接）；
-// CopyModelFile 的 .ban 复制失败回滚（.ban 为符号链接）。
+// CopyModelFile 忽略兄弟 `<src>.ban`（.ban 是文件名重命名约定，
+// 兄弟 .ban 属撞名的无关被禁模型，不复制也不报错——与 MoveModelFile 对齐）。
 package fileops
 
 import (
