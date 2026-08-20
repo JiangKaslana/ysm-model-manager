@@ -44,7 +44,7 @@ function syntheticPmx(): PmxParseResponse {
   };
 }
 
-/** 断言：所有根骨骼都挂到 mesh.children，且全部骨骼蒙皮矩阵恢复 identity */
+/** 断言：所有根骨骼都挂到 mesh.children，且子骨骼 matrixWorld 平移非零（漏挂 → identity → 零平移 → 失败） */
 function assertRootsAttached(mesh: THREE.SkinnedMesh, pmx: PmxParseResponse): void {
   // 所有根骨骼（parent < 0）都在 mesh.children
   const rootNames = pmx.bones!.filter((b) => b.parentBoneIndex < 0).map((b) => b.name);
@@ -52,21 +52,15 @@ function assertRootsAttached(mesh: THREE.SkinnedMesh, pmx: PmxParseResponse): vo
   for (const name of rootNames) {
     expect(childNames).toContain(name);
   }
-  // 全部骨骼 updateMatrixWorld 后，matrixWorld × boneInverse 应为 identity（蒙皮正确）
+  // 判别性断言（review 三轮 P3：identity 断言是同义反复——skeleton.update() 会按当前
+  // matrixWorld 重算 boneInverse，乘积恒为 I；漏挂时孤儿骨骼 matrixWorld 也是 identity，
+  // 乘积照样 I，测不出回归）。真正判别：漏挂的根及其子树 matrixWorld 停留 identity
+  //（平移零），挂载后子骨骼应有非零世界平移。这里不调 skeleton.update()（只刷新
+  // matrixWorld），确保断言基于 bind 时算出的 inverse 对应的 matrixWorld。
   mesh.updateMatrixWorld(true);
-  mesh.skeleton.update();
-  for (let i = 0; i < mesh.skeleton.bones.length; i++) {
-    const mw = mesh.skeleton.bones[i].matrixWorld;
-    const inv = mesh.skeleton.boneInverses[i];
-    const prod = mw.clone().multiply(inv);
-    const e = prod.elements;
-    for (let r = 0; r < 4; r++) {
-      for (let c = 0; c < 4; c++) {
-        const expected = r === c ? 1 : 0;
-        expect(Math.abs(e[c * 4 + r] - expected)).toBeLessThan(1e-3);
-      }
-    }
-  }
+  const childIdx = pmx.bones!.findIndex((b) => b.name === "child");
+  const childPos = mesh.skeleton.bones[childIdx].getWorldPosition(new THREE.Vector3());
+  expect(childPos.lengthSq()).toBeGreaterThan(0.01); // 漏挂根 → 子树 identity → 零平移 → 失败
 }
 
 describe("buildPmxScene — 多根骨骼挂载", () => {
