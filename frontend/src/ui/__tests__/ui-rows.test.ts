@@ -23,7 +23,7 @@ import {
 // ===================================================================
 beforeAll(() => {
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-        cb();
+        cb(0);
         return 1;
     });
 });
@@ -90,7 +90,7 @@ describe("addToggleRow", () => {
         const onChange = vi.fn();
         addToggleRow(container, "行", false, onChange);
         const row = container.firstElementChild!;
-        const left = row.querySelector(".toggle-left")!;
+        const left = row.querySelector(".toggle-left") as HTMLElement;
         left.click();
         expect(onChange).toHaveBeenCalledWith(true);
     });
@@ -109,7 +109,7 @@ describe("addToggleRow", () => {
         const container = mkContainer();
         const onChange = vi.fn();
         addToggleRow(container, "行", false, onChange);
-        const toggleLabel = container.querySelector(".toggle")!;
+        const toggleLabel = container.querySelector(".toggle") as HTMLElement;
         toggleLabel.click();
         // .toggle 被 closest 拦截：row 级 click handler 直接 return，
         // 不会执行 toggle.checked 翻转 + onChange 调用
@@ -279,7 +279,6 @@ describe("addSliderRow", () => {
 
     it("非有限 value 回落到 min", () => {
         const container = mkContainer();
-        // @ts-expect-error NaN 用于测试防御
         addSliderRow(container, "A", NaN, 0, 100, 1, vi.fn());
         const val = container.querySelector(".cs-value")!.textContent;
         expect(val).toBe("0");
@@ -320,7 +319,7 @@ describe("toggleRow", () => {
         const onChange = vi.fn();
         const onSave = vi.fn();
         toggleRow(container, "T", false, "✓", onChange, onSave);
-        const left = container.querySelector(".toggle-left")!;
+        const left = container.querySelector(".toggle-left") as HTMLElement;
         left.click();
         expect(onChange).toHaveBeenCalledWith(true);
         expect(onSave).toHaveBeenCalled();
@@ -336,7 +335,7 @@ describe("addModeRow", () => {
         addModeRow(container, "模式", [
             { value: "a", label: "模式A" },
             { value: "b", label: "模式B" },
-        ], "a");
+        ], "a", vi.fn());
         const row = container.firstElementChild!;
         expect(row.className).toBe("type-row");
         const btns = row.querySelectorAll(".mode-btn");
@@ -345,7 +344,7 @@ describe("addModeRow", () => {
 
     it("标签渲染到 .type-label", () => {
         const container = mkContainer();
-        addModeRow(container, "模式选择", [{ value: "x", label: "X" }], "x");
+        addModeRow(container, "模式选择", [{ value: "x", label: "X" }], "x", vi.fn());
         expect(container.querySelector(".type-label")!.textContent).toBe("模式选择");
     });
 
@@ -354,7 +353,7 @@ describe("addModeRow", () => {
         addModeRow(container, "M", [
             { value: "a", label: "A" },
             { value: "b", label: "B" },
-        ], "b");
+        ], "b", vi.fn());
         const btns = container.querySelectorAll(".mode-btn");
         expect(btns[0].className).toBe("mode-btn");
         expect(btns[1].className).toBe("mode-btn active");
@@ -394,7 +393,7 @@ describe("addEmptyRow", () => {
     it("hint 时渲染双行结构", () => {
         const container = mkContainer();
         addEmptyRow(container, "无数据", "点击扫描刷新");
-        const el = container.firstElementChild!;
+        const el = container.firstElementChild as HTMLElement;
         expect(el.style.flexDirection).toBe("column");
         const main = el.firstChild! as HTMLElement;
         const sub = el.lastChild! as HTMLElement;
@@ -455,7 +454,7 @@ describe("addDangerRow", () => {
         const container = mkContainer();
         const onClick = vi.fn();
         addDangerRow(container, "🗑", "删除", onClick);
-        const row = container.querySelector(".slide-item")!;
+        const row = container.querySelector(".slide-item") as HTMLElement;
         row.click();
         expect(onClick).toHaveBeenCalled();
     });
@@ -624,7 +623,7 @@ describe("addDisabledRow", () => {
     it("基本渲染：生成 .cs-row，opacity=0.4 + pointer-events=none", () => {
         const container = mkContainer();
         addDisabledRow(container, "不可用");
-        const row = container.firstElementChild!;
+        const row = container.firstElementChild as HTMLElement;
         expect(row.className).toBe("cs-row");
         expect(row.style.opacity).toBe("0.4");
         expect(row.style.pointerEvents).toBe("none");
@@ -651,7 +650,7 @@ describe("addDisabledRow", () => {
     it("pointer-events: none 使得 click 事件无法触发", () => {
         const container = mkContainer();
         addDisabledRow(container, "禁用", "值");
-        const row = container.firstElementChild!;
+        const row = container.firstElementChild as HTMLElement;
         let clickCount = 0;
         row.addEventListener("click", () => { clickCount++; });
         // happy-dom 中 pointer-events 不阻止 dispatchEvent，
@@ -700,7 +699,7 @@ describe("addInlineToggleRow", () => {
         const container = mkContainer();
         const onChange = vi.fn();
         addInlineToggleRow(container, "T", false, onChange);
-        const sw = container.querySelector(".toggle-switch")!;
+        const sw = container.querySelector(".toggle-switch") as HTMLElement;
         sw.click();
         expect(sw.classList.contains("active")).toBe(true);
         expect(onChange).toHaveBeenCalledWith(true);
@@ -710,7 +709,7 @@ describe("addInlineToggleRow", () => {
         const container = mkContainer();
         const onChange = vi.fn();
         addInlineToggleRow(container, "T", true, onChange);
-        const sw = container.querySelector(".toggle-switch")!;
+        const sw = container.querySelector(".toggle-switch") as HTMLElement;
         sw.click();
         expect(sw.classList.contains("active")).toBe(false);
         expect(onChange).toHaveBeenCalledWith(false);

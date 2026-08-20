@@ -82,7 +82,7 @@ describe("addColorSliderRow", () => {
 
         const widths = Array.from(
             container.querySelectorAll(".cs-fill"),
-        ).map((el) => el.style.width);
+        ).map((el) => (el as HTMLElement).style.width);
         expect(widths[0]).toContain("33");
         expect(widths[1]).toContain("66");
         expect(widths[2]).toContain("99");
@@ -92,7 +92,7 @@ describe("addColorSliderRow", () => {
         const container = document.createElement("div");
         addColorSliderRow(container, "C", [0, 0.5, 1], vi.fn());
 
-        const swatch = container.querySelector(".clr-swatch")!;
+        const swatch = container.querySelector(".clr-swatch") as HTMLElement;
         expect(swatch.style.background).toBe("rgb(0, 128, 255)");
     });
 
@@ -254,7 +254,7 @@ describe("addVector3SliderRow", () => {
         expect(iconBox).not.toBeNull();
         const fb = iconBox!.querySelector(".cs-icon-fallback");
         expect(fb).not.toBeNull();
-        expect(txt(fb!)).toBe("V");
+        expect(txt(fb as HTMLElement)).toBe("V");
     });
 
     it("非有限轴值回落到 min，越界值被钳到 [min, max]", () => {
@@ -320,7 +320,7 @@ describe("addVector3SliderRow", () => {
             undefined, undefined, onDragEnd,
         );
 
-        const bar = container.querySelector(".cs-bar")!;
+        const bar = container.querySelector(".cs-bar") as HTMLElement;
         bar.focus();
         bar.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
         expect(onDragEnd).toHaveBeenCalled();
@@ -523,7 +523,7 @@ describe("addModeSlider", () => {
         expect(iconBox).not.toBeNull();
         const fb = iconBox!.querySelector(".cs-icon-fallback");
         expect(fb).not.toBeNull();
-        expect(txt(fb!)).toBe("M");
+        expect(txt(fb as HTMLElement)).toBe("M");
     });
 
     it("testId 被写入 row 的 data-testid", () => {
@@ -587,7 +587,7 @@ describe("addModeSlider", () => {
         );
 
         expect(txt(container.querySelector(".cs-value"))).toBe("OnlyOne");
-        const fill = container.querySelector(".cs-fill")!;
+        const fill = container.querySelector(".cs-fill") as HTMLElement;
         expect(fill.style.width).toBe("100%");
     });
 });
