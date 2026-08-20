@@ -108,6 +108,20 @@ describe("角色面板（roles）", () => {
     handle.dispose();
   });
 
+  it("radio 切到无 menuItems 角色 → 显式清空 dock 适配器项（P2：不残留上一角色菜单）", () => {
+    const a = regRole("/m/a.ysm"); // 无 menuItems
+    regRole("/m/b.ysm"); // 无 menuItems（active）
+    const handle = mountPreviewRootMenu(overlay, makeCtx());
+    const spy = vi.spyOn(handle, "setAdapterItems");
+    (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
+    (overlay.querySelector('[data-testid="preview-roles"]') as HTMLElement).click();
+    const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="${a}"]`);
+    (aRow!.querySelector('[data-testid="preview-role-focus"]') as HTMLElement).click();
+    // setActive 对 menuItems 空角色不换菜单——fillRoles 显式清空 dock 项
+    expect(spy).toHaveBeenCalledWith([]);
+    handle.dispose();
+  });
+
   it("点击角色名 → 详情子面板按该角色 menuItems（model 组 panel）列出，点击项渲染其面板", () => {
     const matPanel: PreviewMenuItemDef = {
       id: "material",

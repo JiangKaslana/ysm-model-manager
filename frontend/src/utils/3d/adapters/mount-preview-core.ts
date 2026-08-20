@@ -526,13 +526,6 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     onDragPointerMove = handlers.onDragPointerMove;
     onResize = handlers.onResize;
 
-    let lastTime = performance.now();
-    // rAF 每帧复用 Vector3 实例，避免 5 次 GC 分配（R1-P1-1）
-    const _camDir = new THREE.Vector3();
-    const _forward = new THREE.Vector3();
-    const _up = new THREE.Vector3(0, 1, 0);
-    const _right = new THREE.Vector3();
-    const _move = new THREE.Vector3();
     // ===== §4b rAF 渲染管线（全局唯一 loop，所有 session 共享同一 renderer）=====
     // 首个 session 启动 loop，后续 session 追加 perFrame 回调；cleanupPreview 停止
     if (_globalAnimId === 0) {
@@ -699,14 +692,22 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // 卸载的是当前会话内容层源时，perFrame 指向其 update——先记下以便停掉
     // rAF 回调，避免每帧驱动已 dispose 的内容层（空场景 session 半死状态，P3）
     const wasCurrentSource = built === entry.built;
+    // 无条件释放内容层 GPU：cooperate 跨 session 场景下 allBuilt 可能不含
+    // entry.built（角色面板显示注册表全部角色，可卸载另一 session 注册的），
+    // 以 allBuilt 命中与否决定 dispose 会漏释放（P3 round2）
+    try { entry.built.dispose(); } catch (_) { /* 防御性：个别适配器 dispose 抛错不阻塞 */ }
+    const bi = allBuilt.indexOf(entry.built);
+    if (bi >= 0) allBuilt.splice(bi, 1);
     for (const r of entry.roots) {
       if (scene) scene.remove(r);
     }
-    const bi = allBuilt.indexOf(entry.built);
-    if (bi >= 0) {
-      const [removed] = allBuilt.splice(bi, 1);
-      try { removed.dispose(); } catch (_) { /* 防御性：个别适配器 dispose 抛错不阻塞 */ }
+    // 停掉持有该 built 的 perFrame（无论归属哪个 session；_globalPerFrames 按引用移除）
+    const upd = entry.built.update;
+    if (upd) {
+      const fnIdx = _globalPerFrames.indexOf(upd);
+      if (fnIdx >= 0) _globalPerFrames.splice(fnIdx, 1);
     }
+    if (wasCurrentSource) perFrame = null;
     sceneRegistry.unregister(id);
     const next = sceneRegistry.getActiveId();
     if (next) {

@@ -528,11 +528,14 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   // ---- core 填充器 ----
   // environment 需要 menu 句柄实现两级下钻；其余 filler 仅 list 即可。
+  // menuHandleOut：roles 面板 radio 切换焦点后需清空 dock 适配器项，但 handle
+  // 在函数末尾才构造——先声明占位，fillRoles 点击回调经闭包取用（调用时已赋值）。
+  let menuHandleOut: PreviewMenuHandle | null = null;
   const fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void> = {
     environment: (list, _menu) => fillEnvironment(list, ctx, menu),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
     switch: (list) => fillSwitch(list, ctx, hideMenu),
-    roles: (list, menu) => fillRoles(list, ctx, hideMenu, makeRow, makePanelView, menu!),
+    roles: (list, menu) => fillRoles(list, ctx, hideMenu, makeRow, makePanelView, menu!, (items) => menuHandleOut?.setAdapterItems(items)),
     lighting: (list) => fillLighting(list, ctx),
     shadow: (list) => fillShadow(list, ctx),
     postproc: (list) => fillPostprocessing(list, ctx),
@@ -648,7 +651,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   renderDock();
 
-  return {
+  const handle: PreviewMenuHandle = {
     dispose: (): void => {
       viewEl.removeEventListener("click", onViewClick);
       menu.dispose();
@@ -659,6 +662,8 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     openPanel,
     refreshDock: renderDock, // ADR-085 S3：caps 创建后调用，修复 litematic/pack environment 项时序
   };
+  menuHandleOut = handle;
+  return handle;
 }
 
 /** 环境面板（ADR-075 + 统一注册表）：只渲染环境类能力（sky/ground/environment/fog/reflector）
@@ -1076,6 +1081,7 @@ function fillRoles(
   makeRow: (def: PreviewMenuItemDef, opts?: { chevron?: boolean }) => HTMLElement,
   makePanelView: (def: PreviewMenuItemDef) => SlideMenuView,
   menu: SlideMenuHandle,
+  setAdapterItems: (items: PreviewMenuItemDef[]) => void,
 ): void {
   list.innerHTML = "";
   const base = (e: ModelEntry): string => e.path.split(/[/\\]/).pop() || e.path;
@@ -1117,6 +1123,9 @@ function fillRoles(
       radio.onclick = (ev): void => {
         ev.stopPropagation();
         sceneRegistry.setActive(e.id);
+        // setActive 仅在 menuItems truthy 时经 menuSink 换菜单；无专属项的角色
+        // 需显式清空 dock 适配器项，避免残留上一角色的菜单（code_review P2）
+        if (!e.menuItems) setAdapterItems([]);
         renderRoles();
       };
       // 角色名：点击 → 详情子面板（该角色能力内的 model 组面板项）
