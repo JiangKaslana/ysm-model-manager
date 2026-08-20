@@ -591,8 +591,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       }
       animate();
     }
-    // 注册本 session 的 perFrame 回调
-    if (perFrame) _globalPerFrames.push(perFrame);
+    // perFrame 注册统一走 setPerFrame（初次 mount 在 build 成功后、切换在
+    // switchToSession 内）——此处不再一次性 push：执行时 perFrame 尚未赋值（P3）
   }
 
   // 操作提示条（自动消失，两种模式通用）
@@ -683,6 +683,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         if (idx >= 0) _globalPerFrames.splice(idx, 1);
       }
       perFrame = f;
+      // P3 对称维护：新回调非空时重新注册，否则列表与 perFrame 引用脱节
+      // （初次 mount 与切换统一经 setPerFrame 注册，取代 595 行的一次性 push）
+      if (f) _globalPerFrames.push(f);
     },
     getHandle: () => _handles[_handles.length - 1]?.handle ?? null,
     aborted,
@@ -792,7 +795,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         : [];
       environmentCap.syncMeshIntensity(roots);
     }
-    perFrame = built.update ?? null;
+    switchCtx.setPerFrame(built.update ?? null);
   // ===== §4c 生命周期管理（cooperate/switchTo/代际守卫）=====
   // 记录初始模型到追加列表（cooperate 模式下 fullCleanup 需逐一 dispose）
     if (built) allBuilt.push(built);

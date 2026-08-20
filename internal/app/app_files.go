@@ -82,7 +82,7 @@ func (a *App) GetPackInfo(dirPath string) types.PackInfo {
 
 // findMoveRoot 找到同时包含 src 和 dstDir 的合法仓库根。
 // 遍历所有已配置根（FilesRoot + McRoot + 各类型专属根 + CustomRoots），
-// 返回第一个同时包含两者的根；全部不匹配返回空串（fileops 层 root="" 跳过校验）。
+// 返回第一个同时包含两者的根；全部不匹配返回空串（调用方 fail-closed 拒绝）。
 func (a *App) findMoveRoot(src, dstDir string) string {
 	cfg := a.LoadAppConfig()
 	roots := []string{
@@ -139,14 +139,23 @@ func (a *App) findMoveRoot(src, dstDir string) string {
 }
 
 // MoveModelFile 移动（findMoveRoot 遍历所有已配置根做路径安全校验，
-// 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug）
+// 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug。
+// fail-closed：无匹配根时拒绝，不向 fileops 传空 root 跳过校验）
 func (a *App) MoveModelFile(src, dstDir string) error {
-	return fileops.MoveModelFile(a.findMoveRoot(src, dstDir), src, dstDir)
+	root := a.findMoveRoot(src, dstDir)
+	if root == "" {
+		return fmt.Errorf("源与目标必须位于同一仓库根内: %s -> %s", src, dstDir)
+	}
+	return fileops.MoveModelFile(root, src, dstDir)
 }
 
-// CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验）
+// CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验，fail-closed）
 func (a *App) CopyModelFile(src, dstDir string) error {
-	return fileops.CopyModelFile(a.findMoveRoot(src, dstDir), src, dstDir)
+	root := a.findMoveRoot(src, dstDir)
+	if root == "" {
+		return fmt.Errorf("源与目标必须位于同一仓库根内: %s -> %s", src, dstDir)
+	}
+	return fileops.CopyModelFile(root, src, dstDir)
 }
 
 // ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联）

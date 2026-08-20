@@ -213,11 +213,13 @@ export async function switchToSession(
     if (roots.length) fitCameraToRoots(roots, ctx.camera, ctx.controls);
   }
 
-  // 审核修复 #2：切换完成后更新 sceneBaseline 为当前 scene 子节点快照，
-  // 否则下次切换/灯光同步仍以首次 mount 的旧快照为基准，
-  // 导致 syncLightTargetFromContent / applyMeshCasts 遍历已 dispose 的 detached 对象
+  // 审核修复 #2：切换后更新 sceneBaseline，但须排除本次构建的内容层增量——
+  // 若把完整 scene（含刚构建的模型）作为基线，下次切换的 stale 差量
+  // （children - baseline）会把旧模型视为基线、永不移除 → 幽灵网格累积（P1）
   if (ctx.setSceneBaseline && ctx.scene) {
-    ctx.setSceneBaseline(new Set(ctx.scene.children));
+    const added = beforeBuild ? ctx.scene.children.filter((c) => !beforeBuild.has(c)) : [];
+    const addedSet = new Set(added);
+    ctx.setSceneBaseline(new Set(ctx.scene.children.filter((c) => !addedSet.has(c))));
   }
 
   const handle = ctx.getHandle();

@@ -180,8 +180,8 @@
 | `RemoveDir()` | `go/fileops/fileops:103` | RemoveDir 递归删除目录 |
 | `RenameFile()` | `go/fileops/fileops:110` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
 | `MoveModelFile()` | `go/fileops/fileops:138` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:245` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:349` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `CopyModelFile()` | `go/fileops/fileops:257` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:361` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
 | `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
@@ -280,7 +280,7 @@
 | `ParseNbtStructure()` | `go/litematic/parser:267` | — |
 | `BuildVoxelData()` | `go/litematic/voxel:92` | BuildVoxelData 构建体素渲染数据（按颜色分组） |
 | `BuildNbtVoxelData()` | `go/litematic/voxel:286` | — |
-| `BuildSchematicVoxelData()` | `go/litematic/voxel:524` | — |
+| `BuildSchematicVoxelData()` | `go/litematic/voxel:528` | — |
 
 ## Go·日志
 
@@ -607,12 +607,12 @@
 | `App.FindPreviewImage()` | `internal/app/app_files:63` | ========== 预览提取 ========== |
 | `App.ExtractPreviewTexture()` | `internal/app/app_files:67` | — |
 | `App.GetPackInfo()` | `internal/app/app_files:72` | ========== 包信息 ========== |
-| `App.MoveModelFile()` | `internal/app/app_files:143` | MoveModelFile 移动（findMoveRoot 遍历所有已配置根做路径安全校验， 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug） |
-| `App.CopyModelFile()` | `internal/app/app_files:148` | CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验） |
-| `App.ImportModelFolder()` | `internal/app/app_files:156` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模 |
-| `App.RevealInExplorer()` | `internal/app/app_files:194` | ========== 在资源管理器中显示 ========== |
-| `App.ToggleModelEnable()` | `internal/app/app_files:223` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
-| `App.IsFileBanned()` | `internal/app/app_files:231` | — |
+| `App.MoveModelFile()` | `internal/app/app_files:144` | MoveModelFile 移动（findMoveRoot 遍历所有已配置根做路径安全校验， 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug。 |
+| `App.CopyModelFile()` | `internal/app/app_files:153` | CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验，fail-closed） |
+| `App.ImportModelFolder()` | `internal/app/app_files:165` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模 |
+| `App.RevealInExplorer()` | `internal/app/app_files:203` | ========== 在资源管理器中显示 ========== |
+| `App.ToggleModelEnable()` | `internal/app/app_files:232` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
+| `App.IsFileBanned()` | `internal/app/app_files:240` | — |
 | `App.InstallModelFile()` | `internal/app/app_install_import:19` | ========== 安装 ========== |
 | `App.InstallModelTo()` | `internal/app/app_install_import:23` | — |
 | `App.InstallModelWithOverlay()` | `internal/app/app_install_import:33` | — |
@@ -1294,7 +1294,7 @@
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:29` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:80` | 会话内切换模型（复用外壳重建内容层）。 |
-| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:240` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:242` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
 | `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:26` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:92` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:111` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
