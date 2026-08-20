@@ -40,8 +40,8 @@ export const DIR_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       const { folder, dstDir } = resolved;
       const { CopyModelFile } = await getApp();
       await CopyModelFile(ctx.dir || "", dstDir);
-      refreshUI();
       toast(`✅ 已复制文件夹到 ${folder}`, 3000);
+      refreshUI();
     } catch (e) {
       toast("❌ " + friendlyError(e, "复制失败"), 4000, "error");
     }

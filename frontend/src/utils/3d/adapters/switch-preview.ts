@@ -30,7 +30,11 @@ export interface SwitchContext {
   scene: THREE.Scene | undefined;
   /** 可变：build 后赋值为 scene.children 快照 */
   getSceneBaseline: () => Set<THREE.Object3D> | null;
-  /** 审核修复 #2：切换后更新 baseline，防止灯光/阴影操作引用已释放的旧对象 */
+  /**
+   * 切换后更新基线快照：必须排除本次构建的内容层增量（保持「装饰基线」
+   * 语义）——若把完整 scene 作基线，下次切换的 stale 差量会把旧模型视为
+   * 基线、永不移除（幽灵网格累积）；同时防灯光/阴影遍历已释放的 detached 对象
+   */
   setSceneBaseline?: (s: Set<THREE.Object3D>) => void;
   /** 可变：build 后赋值 */
   getBuilt: () => PreviewScene | null;

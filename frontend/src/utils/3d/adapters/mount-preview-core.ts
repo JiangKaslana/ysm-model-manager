@@ -608,7 +608,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let cleanupFn: (() => void) | null = null;
   // switchTo 支持（ADR-066 §5.6）：提升 built 到 try 外，复用外壳重建内容层
   let built: PreviewScene | null = null;
-  /** 首次 build 前 scene 子节点快照（shared 模式）：switchTo 时移除旧内容层添加的增量，防场景累积（审核 #1） */
+  /** scene 子节点基线快照（shared 模式）：区分「场景固有装饰」与「内容层增量」——
+   *  首次 build 前捕获，切换后经 setSceneBaseline 更新为排除增量的快照；
+   *  switchTo 时用差量移除旧内容层，防场景累积 */
   let sceneBaseline: Set<THREE.Object3D> | null = null;
   /** cooperate 模式下已追加的内容句柄列表（fullCleanup 时逐一 dispose） */
   const allBuilt: PreviewScene[] = [];
@@ -675,8 +677,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getCurrentRtype: () => opts.rtype ?? adapter.id,
     getPerFrame: () => perFrame,
     setPerFrame: (f) => {
-      // 审核修复 #1：切换模型时先从全局 perFrame 列表移除旧回调，
-      // 否则已 dispose 的旧内容层 update 持续执行（GPU 资源泄漏 + 空跑）
+      // 切换模型时先从全局 perFrame 列表移除旧回调（防已 dispose 的旧内容层
+      // update 持续执行），再注册新回调——移除/注册对称维护，初次 mount 与
+      // 切换统一经此注册（rAF 引导块不再一次性 push）
       const old = perFrame;
       if (old) {
         const idx = _globalPerFrames.indexOf(old);

@@ -203,9 +203,11 @@ export async function statsFromJsonBytes(
       if (parsed.texWidth > texW) texW = parsed.texWidth;
       if (parsed.texHeight > texH) texH = parsed.texHeight;
     }
+    const texProcessed = new Set<string>();
     for (const tf of texFiles) {
       const name = filePathOf(tf);
-      if (!name) continue;
+      if (!name || texProcessed.has(name)) continue;
+      texProcessed.add(name);
       const prefixed = name.startsWith("textures/") || name.startsWith("textures\\") ? name : "textures/" + name;
       const raw = (await readRel(prefixed)) ?? (await readRel(name));
       if (!raw) continue;

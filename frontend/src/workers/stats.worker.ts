@@ -93,7 +93,13 @@ self.onmessage = async (ev: MessageEvent<StatsWorkerRequest>): Promise<void> => 
   const msg = ev.data as StatsWorkerRequest;
   if (!msg || msg.type !== "stats") return;
   const { requestId, paths } = msg;
-  const total = paths?.length || 0;
+  // 防御性校验：协议要求 paths 为 string[]，但 postMessage 可接收任意结构化数据
+  // 非数组时 for...of 会抛 TypeError → 被外层 catch 捕获为误导性 "error" 响应
+  if (!Array.isArray(paths)) {
+    post({ type: "error", requestId, message: "paths 不是数组" });
+    return;
+  }
+  const total = paths.length;
   try {
     // ADR-079 M4：跨源隔离（SharedArrayBuffer 可用）→ pthread 多线程 WASM（WASM 线程池
     // 并行处理本批多模型）；否则单线程 WASM。crossOriginIsolated 在 worker 全局可读。

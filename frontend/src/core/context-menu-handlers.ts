@@ -150,6 +150,8 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
       }
       if (fail > 0) {
         toast(`❌ ${fail} 个文件移入回收站失败：${friendlyError(lastErr, "移动失败")}`, 5000, "error");
+      } else {
+        toast(`✅ ${ctx.paths.length} 个文件已移入回收站`, 3000);
       }
       refreshUI();
     } catch (e) {

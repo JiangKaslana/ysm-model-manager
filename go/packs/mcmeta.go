@@ -283,7 +283,10 @@ func ReadShaderpackLang(path string) string {
 		defer r.Close()
 		for _, f := range r.File {
 			low := strings.ToLower(f.Name)
-			if low == "lang/en_us.lang" || low == "lang/en_US.lang" {
+			// 统一小写比较——原 `low == "lang/en_US.lang"` 永远不成立
+			// （low 已 ToLower，不可能含大写 US），属死代码；
+			// 与 ReadPackMeta 的 pack.mcmeta/pack.png 比较口径对齐
+			if low == "lang/en_us.lang" {
 				rc, err := f.Open()
 				if err != nil {
 					continue

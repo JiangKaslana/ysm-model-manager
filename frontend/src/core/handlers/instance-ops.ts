@@ -162,7 +162,7 @@ export function registerInstanceOps(unsubs: Array<() => void>): void {
           });
         } catch (err) {
           bus.emit("toast:show", {
-            msg: `❌ 清空失败: ${String(err)}`,
+            msg: `❌ 清空失败: ${friendlyError(err, "清空失败")}`,
             duration: 5000,
             type: "error",
           });
