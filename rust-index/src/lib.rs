@@ -1,6 +1,21 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::{Component, Path, PathBuf},
+};
 
 use ysm_model_manager_core::{scan_fast, ModelEntry, ScanError, ScanPolicy, ScanReport};
+
+const MMD_SUBDIRS: &[&str] = &[
+    "EntityPlayer",
+    "SceneModel",
+    "DefaultAnim",
+    "CustomAnim",
+    "StageAnim",
+    "DefaultMorph",
+    "CustomMorph",
+    "shader",
+];
 
 #[derive(Debug, Clone, Default)]
 pub struct IndexSnapshot {
@@ -42,12 +57,91 @@ impl ModelIndex {
         self.entries.is_empty()
     }
 
-    pub fn refresh(
-        &mut self,
-        root: impl AsRef<std::path::Path>,
-        policy: &ScanPolicy,
-    ) -> IndexDelta {
+    pub fn refresh(&mut self, root: impl AsRef<Path>, policy: &ScanPolicy) -> IndexDelta {
         self.apply_report(scan_fast(root, policy))
+    }
+
+    /// Apply a batch of filesystem event paths without rescanning the whole library.
+    ///
+    /// Regular file events only rescan the file's containing directory and then keep the exact
+    /// path from that small report. A directory-level event falls back to a full refresh because
+    /// a directory create/move can change an arbitrary number of descendants at once.
+    pub fn apply_paths(&mut self, root: &Path, policy: &ScanPolicy, paths: &[PathBuf]) -> IndexDelta {
+        let mut unique_paths = HashSet::with_capacity(paths.len());
+        let mut pending = HashMap::<PathBuf, Option<ModelEntry>>::new();
+        let mut errors = Vec::new();
+
+        for path in paths {
+            if !unique_paths.insert(path.clone()) || !path.starts_with(root) {
+                continue;
+            }
+
+            if path.is_dir() {
+                return self.refresh(root, policy);
+            }
+
+            if path.exists() {
+                let (entry, mut path_errors) = inspect_file(root, path, policy);
+                errors.append(&mut path_errors);
+                pending.insert(path.clone(), entry);
+            } else {
+                pending.insert(path.clone(), None);
+            }
+        }
+
+        let mut added = Vec::new();
+        let mut updated = Vec::new();
+        let mut removed = HashSet::new();
+
+        for (path, next_entry) in pending {
+            match next_entry {
+                Some(mut entry) => match self.entries.get(&entry.path) {
+                    Some(previous) if metadata_equal(previous, &entry) => {
+                        entry.hash.clone_from(&previous.hash);
+                        self.entries.insert(entry.path.clone(), entry);
+                    }
+                    Some(_) => {
+                        updated.push(entry.clone());
+                        self.entries.insert(entry.path.clone(), entry);
+                    }
+                    None => {
+                        added.push(entry.clone());
+                        self.entries.insert(entry.path.clone(), entry);
+                    }
+                },
+                None => {
+                    let to_remove: Vec<PathBuf> = self
+                        .entries
+                        .keys()
+                        .filter(|existing| *existing == &path || existing.starts_with(&path))
+                        .cloned()
+                        .collect();
+                    for existing in to_remove {
+                        self.entries.remove(&existing);
+                        removed.insert(existing);
+                    }
+                }
+            }
+        }
+
+        added.sort_by(|a, b| a.path.cmp(&b.path));
+        updated.sort_by(|a, b| a.path.cmp(&b.path));
+        let mut removed: Vec<PathBuf> = removed.into_iter().collect();
+        removed.sort();
+
+        if !added.is_empty() || !updated.is_empty() || !removed.is_empty() {
+            self.revision = self.revision.saturating_add(1);
+        }
+
+        self.errors = errors.clone();
+
+        IndexDelta {
+            revision: self.revision,
+            added,
+            updated,
+            removed,
+            errors,
+        }
     }
 
     pub fn apply_report(&mut self, report: ScanReport) -> IndexDelta {
@@ -114,6 +208,63 @@ impl ModelIndex {
     }
 }
 
+fn inspect_file(root: &Path, path: &Path, policy: &ScanPolicy) -> (Option<ModelEntry>, Vec<ScanError>) {
+    if path_is_ignored(root, path) || !path.is_file() {
+        return (None, Vec::new());
+    }
+
+    let parent = path.parent().unwrap_or(root);
+    let report = scan_fast(parent, policy);
+    let mut entry = report.entries.into_iter().find(|entry| entry.path == path);
+    if let Some(entry) = entry.as_mut() {
+        entry.subdir = mmd_subdir(root, path);
+    }
+    (entry, report.errors)
+}
+
+fn path_is_ignored(root: &Path, path: &Path) -> bool {
+    let Ok(relative) = path.strip_prefix(root) else {
+        return true;
+    };
+
+    let mut components = relative.components().peekable();
+    while let Some(component) = components.next() {
+        if components.peek().is_none() {
+            break;
+        }
+        if let Component::Normal(name) = component {
+            let name = name.to_string_lossy();
+            if name.eq_ignore_ascii_case(".recycle")
+                || name == ".github"
+                || name.to_ascii_lowercase().ends_with(".ban")
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn mmd_subdir(root: &Path, path: &Path) -> String {
+    let Ok(relative) = path.strip_prefix(root) else {
+        return String::new();
+    };
+
+    for component in relative.components() {
+        let Component::Normal(name) = component else {
+            continue;
+        };
+        let name = name.to_string_lossy();
+        if let Some(canonical) = MMD_SUBDIRS
+            .iter()
+            .find(|candidate| candidate.eq_ignore_ascii_case(&name))
+        {
+            return (*canonical).to_string();
+        }
+    }
+    String::new()
+}
+
 fn metadata_equal(a: &ModelEntry, b: &ModelEntry) -> bool {
     a.name == b.name
         && a.size == b.size
@@ -125,6 +276,49 @@ fn metadata_equal(a: &ModelEntry, b: &ModelEntry) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        process,
+        sync::atomic::{AtomicU64, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+
+    struct TempRoot(PathBuf);
+
+    impl TempRoot {
+        fn new(label: &str) -> Self {
+            let nonce = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let path = std::env::temp_dir().join(format!(
+                "ysm-rust-index-{label}-{}-{timestamp}-{nonce}",
+                process::id()
+            ));
+            fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for TempRoot {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn policy() -> ScanPolicy {
+        ScanPolicy::from_registry_json(
+            r#"{
+              "resourceTypes": [
+                {"id":"ysm","extensions":[".ysm",".json"],"hashable":true},
+                {"id":"mmd","extensions":[".pmx"],"hashable":true}
+              ]
+            }"#,
+        )
+        .unwrap()
+    }
 
     fn entry(path: &str, size: i64, mod_time_ms: i64, hash: &str) -> ModelEntry {
         ModelEntry {
@@ -180,5 +374,63 @@ mod tests {
         assert_eq!(delta.updated.len(), 1);
         assert_eq!(delta.updated[0].path, PathBuf::from("a.ysm"));
         assert_eq!(delta.removed, vec![PathBuf::from("b.ysm")]);
+    }
+
+    #[test]
+    fn file_event_updates_only_the_touched_entry() {
+        let temp = TempRoot::new("file-event");
+        let a = temp.0.join("a.ysm");
+        let b = temp.0.join("b.ysm");
+        fs::write(&a, b"a").unwrap();
+        fs::write(&b, b"bbbb").unwrap();
+
+        let policy = policy();
+        let mut index = ModelIndex::new();
+        index.refresh(&temp.0, &policy);
+        let initial_revision = index.revision();
+
+        fs::write(&a, b"aaaaaa").unwrap();
+        let delta = index.apply_paths(&temp.0, &policy, std::slice::from_ref(&a));
+
+        assert_eq!(delta.revision, initial_revision + 1);
+        assert_eq!(delta.updated.len(), 1);
+        assert_eq!(delta.updated[0].path, a);
+        assert!(delta.added.is_empty());
+        assert!(delta.removed.is_empty());
+        assert_eq!(index.len(), 2);
+    }
+
+    #[test]
+    fn removal_event_drops_a_missing_path_without_full_refresh() {
+        let temp = TempRoot::new("remove-event");
+        let a = temp.0.join("a.ysm");
+        let b = temp.0.join("b.ysm");
+        fs::write(&a, b"a").unwrap();
+        fs::write(&b, b"b").unwrap();
+
+        let policy = policy();
+        let mut index = ModelIndex::new();
+        index.refresh(&temp.0, &policy);
+        fs::remove_file(&a).unwrap();
+
+        let delta = index.apply_paths(&temp.0, &policy, std::slice::from_ref(&a));
+        assert_eq!(delta.removed, vec![a]);
+        assert_eq!(index.len(), 1);
+        assert_eq!(index.snapshot().entries[0].path, b);
+    }
+
+    #[test]
+    fn localized_scan_restores_mmd_subdir_from_library_root() {
+        let temp = TempRoot::new("mmd-subdir");
+        let dir = temp.0.join("mmd").join("EntityPlayer");
+        fs::create_dir_all(&dir).unwrap();
+        let model = dir.join("hero.pmx");
+        fs::write(&model, b"pmx").unwrap();
+
+        let policy = policy();
+        let mut index = ModelIndex::new();
+        let delta = index.apply_paths(&temp.0, &policy, std::slice::from_ref(&model));
+        assert_eq!(delta.added.len(), 1);
+        assert_eq!(delta.added[0].subdir, "EntityPlayer");
     }
 }
