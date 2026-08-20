@@ -59,11 +59,12 @@ describe("mountPreviewRootMenu", () => {
     document.body.appendChild(overlay);
   });
 
-  it("挂载底部 dock 按钮（能力驱动：有 siblings → model；shared → scene）", () => {
+  it("挂载底部 dock 按钮（能力驱动：有 siblings → model/motion；shared → scene）", () => {
     mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     expect(overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
     expect(overlay.querySelector('[data-testid="dock-scene"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="dock-motion"]')).toBeNull();
+    // camera 在 motion 组（sharedOnly），shared 模式下 dock-motion 出现
+    expect(overlay.querySelector('[data-testid="dock-motion"]')).not.toBeNull();
   });
 
   it("selfMode → scene 组隐藏；model 组始终显示（路径输入兜底）", () => {
@@ -72,19 +73,16 @@ describe("mountPreviewRootMenu", () => {
     expect(overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
   });
 
-  it("点击 scene 组（多 panel：camera + lighting + shadow + postproc）→ 组根视图列项，点击 camera 下钻出现 select", () => {
+  it("点击 scene 组（多 panel：lighting + shadow + postproc）→ 组根视图列项；camera 已在 motion 组", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    // 多 panel：进入组根视图，camera + lighting 均出现（environment 已拆到 🌍 环境组）
-    expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
+    // camera 已移至 motion 组，不再出现在 scene 组
+    expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
     expect(overlay.querySelector('[data-testid="preview-lighting"]')).not.toBeNull();
-    // 点击 camera 下钻：出现 select 控件
-    (overlay.querySelector('[data-testid="preview-camera"]') as HTMLElement).click();
-    expect(popup.querySelector("select")).not.toBeNull();
     handle.dispose();
   });
 
@@ -149,18 +147,19 @@ describe("mountPreviewRootMenu", () => {
       getSkyCap: () => cap,
     }));
     expect(overlay.querySelector('[data-testid="dock-env"]')).not.toBeNull();
-    // scene 组点击 → 列表中 camera 存在、environment 已拆离
+    // scene 组点击 → environment 已拆离，camera 已移至 motion 组
     const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
-    expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
     expect(overlay.querySelector('[data-testid="preview-environment"]')).toBeNull();
     handle.dispose();
   });
 
   it("setAdapterItems 注入 motion 组项 → dock-motion 按钮出现", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx());
-    expect(overlay.querySelector('[data-testid="dock-motion"]')).toBeNull();
+    // camera 在 motion 组（sharedOnly，selfMode=false 时不过滤），dock-motion 已存在
+    expect(overlay.querySelector('[data-testid="dock-motion"]')).not.toBeNull();
     handle.setAdapterItems([
       {
         id: "play",

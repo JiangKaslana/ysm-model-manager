@@ -102,7 +102,7 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     fallback: "视图",
     kind: "panel",
     sharedOnly: true,
-    dockGroup: "scene",
+    dockGroup: "motion",
   },
   {
     id: "lighting",

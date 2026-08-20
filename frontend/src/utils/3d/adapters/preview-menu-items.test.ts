@@ -284,12 +284,14 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     });
     expect(overlay.querySelector('[data-testid="preview-switch"]')).not.toBeNull(); // core switch
 
-    // 单 panel 组（play）→ 快捷直达面板，不渲染组根行
+    // 多 panel 组（play + perception）→ 渲染组根行列表
     const motionBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-motion"]');
     expect(motionBtn).not.toBeNull();
     motionBtn!.click();
-    expect(overlay.querySelector('[data-testid="preview-play"]')).toBeNull();
-    expect(overlay.querySelector("#mmd-play-btn")).not.toBeNull();
+    const adapterDockMotion = deriveTestIds(items.filter((d) => d.dockGroup === "motion"));
+    adapterDockMotion.forEach((tid) => {
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+    });
     handle.dispose();
   });
 
@@ -310,15 +312,20 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("core 拆组契约：🎛️ 场景组含 camera、🌍 环境组独立（shared 模式 + cap）", () => {
+  it("core 拆组契约：🎛️ 场景组含 lighting/shadow/postproc、🌍 环境组独立（shared 模式 + cap）", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => ["/m/b.ysm"] });
-    // 场景组 root 按钮在 shared 模式出现
+    // 场景组 root 按钮在 shared 模式出现（camera 已移至 motion 组）
     const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
-    expect(overlay.querySelector('[data-testid="preview-camera"]')).not.toBeNull();
+    // camera 不再在场景组（已移至 motion 组）
+    expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
     // environment 已拆离 🌍 环境组，不再出现在 🎛️ 场景组根列表
     expect(overlay.querySelector('[data-testid="preview-environment"]')).toBeNull();
+    // 场景组应有 lighting/shadow/postproc（sharedOnly）
+    expect(overlay.querySelector('[data-testid="preview-lighting"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-shadow"]')).not.toBeNull();
+    expect(overlay.querySelector('[data-testid="preview-postproc"]')).not.toBeNull();
     // 环境组独立 root 按钮存在（有 fakeCap → requiresEnvironment 放行）
     const envBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-env"]');
     expect(envBtn).not.toBeNull();

@@ -13,6 +13,7 @@ import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import { scheduleBackgroundEncoding, cancelPendingEncodings } from "./mmd-ktx2-encoder.ts";
+import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { getTextureDecoder, applyWorkerDecodedTextures, type DecodedTexture } from "./mmd-texture-decoder.ts";
 import { createPmxParser, buildPmxSceneSliced, type PmxParser, type PmxBuildResult } from "./mmd-pmx-parser.ts";
 import { Ktx2TextureLoader } from "./mmd-ktx2-texture-loader.ts";
@@ -41,6 +42,7 @@ import { createAutoDanceController } from "../perception/autodance.ts"; // 语�
 import { buildLipMorphIndices } from "../perception/lipsync.ts"; // 多 morph index 提取
 import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK）
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
+import { buildPerceptionControls, type PerceptionState, type PerceptionCapability } from "./perception-controls.ts";
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import { getCustomAnimPath, filterAnimFiles, ANIM_LIB_SUBDIR } from "./mmd-anim-library.ts";
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
@@ -339,7 +341,7 @@ export async function buildMmdScene(
       `files=${files.length} tex=${files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext))).length} vmd=${vmdPaths.length}`,
     );
   } catch (e) {
-    await mmdDiag(port, "list-files", dirPath, "fail", e instanceof Error ? e.message : String(e));
+    await mmdDiag(port, "list-files", dirPath, "fail", safeErrorMessage(e));
     /* 目录不可列 → 白模降级，不阻断模型渲染 */
   }
 
@@ -520,7 +522,7 @@ export async function buildMmdScene(
     } catch (e) {
       // 加载失败：回收已建 blob（模型 + 已读纹理），避免 WebView2 会话期内泄漏内存
       for (const url of blobUrls) URL.revokeObjectURL(url);
-      await mmdDiag(port, "parse", path, "fail", e instanceof Error ? e.message : String(e));
+      await mmdDiag(port, "parse", path, "fail", safeErrorMessage(e));
       throw e;
     }
     await mmdDiag(
@@ -669,7 +671,7 @@ export async function buildMmdScene(
           `found=${extraAnims.length} (vmd=${extraAnims.filter((p) => p.toLowerCase().endsWith(".vmd")).length})`);
       }
     } catch (e) {
-      void mmdDiag(port, "anim-lib-scan", customAnimPath, "fail", e instanceof Error ? e.message : String(e));
+      void mmdDiag(port, "anim-lib-scan", customAnimPath, "fail", safeErrorMessage(e));
     }
   }
   // ADR-101：批量读取 VMD/VPD（1 次 RPC 替代 N 次 readFileBytes）
@@ -781,6 +783,15 @@ export async function buildMmdScene(
   const boneTree = mmd?.pmx?.bones && mesh.skeleton
     ? buildBoneTree(mmdBonesToBoneNodes(mmd?.pmx.bones, mesh.skeleton.bones))
     : null;
+  // 感知层状态：各模块开关（adapter build 创建，面板 UI 双向绑定）
+  const perceptionState: PerceptionState = { breath: true, gaze: true, blink: true, lipSync: true, autoDance: true };
+  const perceptionCaps: PerceptionCapability[] = [
+    { id: "breath", labelKey: "preview.perceptionBreath", fallback: "呼吸" },
+    { id: "gaze", labelKey: "preview.perceptionGaze", fallback: "注视" },
+    { id: "blink", labelKey: "preview.perceptionBlink", fallback: "眨眼" },
+    { id: "lipSync", labelKey: "preview.perceptionLipSync", fallback: "口型" },
+    { id: "autoDance", labelKey: "preview.perceptionAutoDance", fallback: "律动" },
+  ];
   const items = mmdMenuItems({
     navCtx,
     panels,
@@ -840,6 +851,7 @@ export async function buildMmdScene(
           cleanupRef: bonePanelRef,
         }
       : null,
+    perception: { state: perceptionState, caps: perceptionCaps },
   });
   ctx.menu.setAdapterItems(items);
 
@@ -887,13 +899,13 @@ export async function buildMmdScene(
       mmd?.updateWithMixer(dt, mixer, { ik: true, grant: true });
       if (semanticBones) {
         // 待机呼吸：有动画播放时暂停（避免与动画打架）
-        if (!action || action.paused) breath.apply(dt, semanticBones);
+        if ((!action || action.paused) && perceptionState.breath) breath.apply(dt, semanticBones);
         // 注视追踪：始终生效（动画中头也跟随相机，增强生命力）
-        gaze.apply(dt, semanticBones, ctx.camera!.position);
+        if (perceptionState.gaze) gaze.apply(dt, semanticBones, ctx.camera!.position);
       }
       // 眨眼：随机间隔触发 morph（待机态，有动画时暂停避免冲突）
       const blinkEntry = semanticMorphs.blink;
-      if (blinkEntry && mesh.morphTargetDictionary && mesh.morphTargetInfluences && (!action || action.paused)) {
+      if (blinkEntry && mesh.morphTargetDictionary && mesh.morphTargetInfluences && (!action || action.paused) && perceptionState.blink) {
         const idx = mesh.morphTargetDictionary[blinkEntry.name];
         if (idx !== undefined) {
           blink.apply(dt, (weight: number) => { mesh.morphTargetInfluences![idx] = weight; });
@@ -901,7 +913,7 @@ export async function buildMmdScene(
       }
       // LipSync：待机态下多 morph 驱动（open/close/pucker/smile）
       // 当前用呼吸相位模拟，后续可接入 Web Audio API 真实振幅
-      if (lipIndices && (!action || action.paused)) {
+      if (lipIndices && (!action || action.paused) && perceptionState.lipSync) {
         lipSyncTime += dt;
         const breathPhase = Math.sin(lipSyncTime / 2.5 * Math.PI * 2);
         // 张嘴随呼吸相位变化，其他音素静默
@@ -919,7 +931,7 @@ export async function buildMmdScene(
       const isIdle = !action || action.paused;
       // Foot IK：待机态下锚定双足（在 AutoDance 之前，防足部偏移被覆盖）
       footIK.apply(dt, isIdle);
-      if (isIdle) {
+      if (isIdle && perceptionState.autoDance) {
         autoDance.apply(dt, semanticBones ?? {});
       }
     },
@@ -1082,6 +1094,11 @@ export interface MmdMenuItemsOpts {
   } | null;
   /** 面板填充回调（视图层注入；缺失则 render 退化为 no-op，解除 utils→views 分层违规 R1） */
   panels?: MmdPanelHooks;
+  /** 感知层状态（adapter build 创建，面板 UI 双向绑定） */
+  perception?: {
+    state: PerceptionState;
+    caps: PerceptionCapability[];
+  };
 }
 
 /**
@@ -1154,6 +1171,17 @@ export function mmdMenuItems(o: MmdMenuItemsOpts): PreviewMenuItemDef[] {
           scene: o.bonePanel!.scene!,
         });
       },
+    });
+  }
+  if (o.perception) {
+    items.push({
+      id: "perception",
+      icon: "👁️",
+      labelKey: "preview.perception",
+      fallback: "感知",
+      kind: "panel",
+      dockGroup: "motion",
+      render: (list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
     });
   }
   return items;

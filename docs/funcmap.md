@@ -23,7 +23,7 @@
 | Go·Litematic | 4 | 9 |
 | Go·日志 | 2 | 13 |
 | Go·包管理 | 1 | 3 |
-| Go·路径 | 1 | 5 |
+| Go·路径 | 1 | 6 |
 | Go·回收站 | 2 | 19 |
 | go/scanner | 1 | 10 |
 | Go·同步 | 7 | 23 |
@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 137 | 533 |
+| 前端·工具 | 139 | 536 |
 | frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **428** | **1847** |
+| **合计** | **430** | **1851** |
 
 ## Go·头像
 
@@ -174,15 +174,15 @@
 | `FindPreviewImage()` | `go/fileops/fileops_preview:24` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
 | `ExtractPreviewTexture()` | `go/fileops/fileops_preview:50` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
 | `GetPackInfo()` | `go/fileops/fileops_preview:157` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
-| `SetConfigFunc()` | `go/fileops/fileops:27` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `CreateDir()` | `go/fileops/fileops:60` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
-| `RenameDir()` | `go/fileops/fileops:78` | RenameDir 重命名目录（仅改末段，保持父目录） |
-| `RemoveDir()` | `go/fileops/fileops:103` | RemoveDir 递归删除目录 |
-| `RenameFile()` | `go/fileops/fileops:110` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
-| `MoveModelFile()` | `go/fileops/fileops:142` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:250` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:347` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
-| `WriteModelFolder()` | `go/fileops/folder_import:20` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
+| `SetConfigFunc()` | `go/fileops/fileops:28` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `CreateDir()` | `go/fileops/fileops:61` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
+| `RenameDir()` | `go/fileops/fileops:79` | RenameDir 重命名目录（仅改末段，保持父目录） |
+| `RemoveDir()` | `go/fileops/fileops:104` | RemoveDir 递归删除目录 |
+| `RenameFile()` | `go/fileops/fileops:111` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
+| `MoveModelFile()` | `go/fileops/fileops:143` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
+| `CopyModelFile()` | `go/fileops/fileops:251` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:348` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `WriteModelFolder()` | `go/fileops/folder_import:21` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
 
@@ -222,22 +222,22 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ImportFromBase64()` | `go/importer/importer_file:38` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
+| `ImportFromBase64()` | `go/importer/importer_file:39` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
 | `WriteFileAtomic()` | `go/importer/importer_file:127` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
 | `DetectZipType()` | `go/importer/importer_file:143` | DetectZipType 扫描容器条目名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries （exact/pr |
-| `ImportOptions()` | `go/importer/importer_file:28` | ImportOptions 导入选项 |
-| `ImportLogger()` | `go/importer/importer_file:34` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
-| `Register()` | `go/importer/importer:37` | Register 注册导入策略（线程安全） |
-| `Get()` | `go/importer/importer:44` | Get 获取指定类型的导入策略（线程安全） |
-| `NewSimpleCopy()` | `go/importer/importer:72` | NewSimpleCopy 创建简单文件复制导入器 |
-| `SimpleCopyImporter.Type()` | `go/importer/importer:76` | — |
-| `SimpleCopyImporter.Import()` | `go/importer/importer:78` | — |
-| `NewDirectoryCopy()` | `go/importer/importer:273` | NewDirectoryCopy 创建文件夹复制导入器 |
-| `DirectoryCopyImporter.Type()` | `go/importer/importer:277` | — |
-| `DirectoryCopyImporter.Import()` | `go/importer/importer:282` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
-| `Handler()` | `go/importer/importer:24` | Handler 资源导入策略接口 |
-| `SimpleCopyImporter()` | `go/importer/importer:67` | — |
-| `DirectoryCopyImporter()` | `go/importer/importer:268` | — |
+| `ImportOptions()` | `go/importer/importer_file:29` | ImportOptions 导入选项 |
+| `ImportLogger()` | `go/importer/importer_file:35` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
+| `Register()` | `go/importer/importer:38` | Register 注册导入策略（线程安全） |
+| `Get()` | `go/importer/importer:45` | Get 获取指定类型的导入策略（线程安全） |
+| `NewSimpleCopy()` | `go/importer/importer:70` | NewSimpleCopy 创建简单文件复制导入器 |
+| `SimpleCopyImporter.Type()` | `go/importer/importer:74` | — |
+| `SimpleCopyImporter.Import()` | `go/importer/importer:76` | — |
+| `NewDirectoryCopy()` | `go/importer/importer:271` | NewDirectoryCopy 创建文件夹复制导入器 |
+| `DirectoryCopyImporter.Type()` | `go/importer/importer:275` | — |
+| `DirectoryCopyImporter.Import()` | `go/importer/importer:280` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
+| `Handler()` | `go/importer/importer:25` | Handler 资源导入策略接口 |
+| `SimpleCopyImporter()` | `go/importer/importer:65` | — |
+| `DirectoryCopyImporter()` | `go/importer/importer:266` | — |
 
 ## Go·安装
 
@@ -315,7 +315,8 @@
 | `ErrPathEscalation.Error()` | `go/paths/safe:40` | — |
 | `ErrPathEscalation.Unwrap()` | `go/paths/safe:46` | Unwrap 暴露分类哨兵：errors.Is(err, ErrNotInside) 等可直接判断， 无需文本匹配错误文案。 |
 | `IsInside()` | `go/paths/safe:51` | IsInside 检查 path 是否在 baseDir 下，防止路径遍历。 |
-| `ContainsMinecraftMarker()` | `go/paths/safe:108` | ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记 PrismLauncher 实例目录下可能是 minecra |
+| `HasTraversal()` | `go/paths/safe:110` | HasTraversal 检查路径片段是否包含 ".." 遍历组件（统一入口）。 |
+| `ContainsMinecraftMarker()` | `go/paths/safe:132` | ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记 PrismLauncher 实例目录下可能是 minecra |
 | `ErrPathEscalation()` | `go/paths/safe:32` | ErrPathEscalation 路径越权错误 |
 
 ## Go·回收站
@@ -1207,12 +1208,12 @@
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:378` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:70` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:180` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:187` | — |
-| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1035` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1076` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1108` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:71` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:181` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:188` | — |
+| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1036` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1077` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1109` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `resolveMmdSubdirPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:22` | 从 MMD 默认仓库根回溯到 group 根，再拼接目标子目录。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:31` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:44` | 从文件列表中筛选动作文件（.vmd / .vpd） |
@@ -1225,37 +1226,37 @@
 | `encodeToKTX2Basis()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:81` | 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。 |
 | `TextureTooLargeError()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder` | — |
 | `MAX_KTX2_PIXELS()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder` | — |
-| `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:69` | 取消所有待执行的编码（已在执行的不受影响） |
-| `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:81` | 重置编码器状态（测试用） |
-| `encodeToKTX2()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:200` | 主线程编码入口：优先走 Worker（mmd-ktx2-worker.ts）避免 WASM 同步编码阻塞 UI； Worker 不可用（测试/受限环境）时降级同步编码。 |
-| `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:230` | 测试用：注入编码实现（默认走本地 WASM） |
-| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:241` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
-| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:291` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
+| `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:71` | 取消所有待执行的编码（已在执行的不受影响） |
+| `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:83` | 重置编码器状态（测试用） |
+| `encodeToKTX2()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:202` | 主线程编码入口：优先走 Worker（mmd-ktx2-worker.ts）避免 WASM 同步编码阻塞 UI； Worker 不可用（测试/受限环境）时降级同步编码。 |
+| `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:232` | 测试用：注入编码实现（默认走本地 WASM） |
+| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:243` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
+| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:293` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
 | `Ktx2TextureLoaderDeps()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:20` | 拦截 loader 依赖注入（装配方提供） |
 | `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:68` | — |
-| `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:8` | 主线程 → Worker 的请求 |
-| `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:16` | Worker → 主线程的响应 |
+| `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:9` | 主线程 → Worker 的请求 |
+| `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:17` | Worker → 主线程的响应 |
 | `PmxBuilderConfig()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:28` | Builder 配置 |
 | `PmxBuildResult()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:36` | Builder 产出 |
 | `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:45` | PMX 解析器管理器 |
 | `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:53` | 创建 PMX 解析器（Worker） |
 | `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:123` | 从 Worker 解析结果构建 Three.js 场景对象。 |
 | `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:256` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
-| `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:10` | 主线程 → Worker 请求 |
-| `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:16` | 顶点数据（交织存储，GPU 友好） |
-| `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:26` | 面数据 |
-| `PmxMaterialData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:32` | 材质数据 |
-| `PmxBoneData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:49` | 骨骼数据（字段对齐 @moeru/three-mmd PmxObject.Bone） |
-| `PmxMorphData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:64` | Morph 数据 |
-| `PmxParseResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:71` | Worker → 主线程响应 |
-| `PmxRigidBodyData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:91` | — |
-| `PmxJointData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:108` | — |
-| `PmxDisplayFrameData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:123` | — |
-| `PmxReader()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:130` | — |
-| `parseBones()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:352` | — |
-| `parsePMX()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:419` | — |
-| `TexDecodeRequest()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:7` | 主线程 → Worker 的请求 |
-| `TexDecodeResponse()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:15` | Worker → 主线程的响应 |
+| `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:12` | 主线程 → Worker 请求 |
+| `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:18` | 顶点数据（交织存储，GPU 友好） |
+| `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:28` | 面数据 |
+| `PmxMaterialData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:34` | 材质数据 |
+| `PmxBoneData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:51` | 骨骼数据（字段对齐 @moeru/three-mmd PmxObject.Bone） |
+| `PmxMorphData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:66` | Morph 数据 |
+| `PmxParseResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:73` | Worker → 主线程响应 |
+| `PmxRigidBodyData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:93` | — |
+| `PmxJointData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:110` | — |
+| `PmxDisplayFrameData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:125` | — |
+| `PmxReader()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:132` | — |
+| `parseBones()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:354` | — |
+| `parsePMX()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:421` | — |
+| `TexDecodeRequest()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:9` | 主线程 → Worker 的请求 |
+| `TexDecodeResponse()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:17` | Worker → 主线程的响应 |
 | `TexDecodeConfig()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:15` | 解码器配置 |
 | `DecodedTexture()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:23` | 解码结果条目 |
 | `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:40` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
@@ -1263,17 +1264,17 @@
 | `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:149` | 获取共享解码器（懒创建） |
 | `disposeTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:157` | 释放共享解码器 |
 | `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:169` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:64` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:83` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:109` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:119` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:163` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:168` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
-| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:182` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:194` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:200` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:205` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:221` | — |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:65` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:84` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:110` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:120` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:164` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:169` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
+| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:183` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:195` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:201` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:206` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:222` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1288,35 +1289,35 @@
 | `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:45` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:51` | — |
 | `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:67` | core 固定菜单项（不依赖适配器注入）： - switch：模型组（有 siblings 才显示） - environment / camera：场景组（shared 模式才显示 |
-| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:26` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
-| `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu:58` | 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 |
-| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:454` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
-| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:462` | 挂载预览底部根菜单，返回句柄 |
+| `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:27` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
+| `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu:59` | 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 |
+| `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:455` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
+| `mountPreviewRootMenu()` | `frontend/src/utils/3d/adapters/preview-menu:463` | 挂载预览底部根菜单，返回句柄 |
 | `ModelEntry()` | `frontend/src/utils/3d/adapters/scene-registry:21` | 单条模型记录（角色面板 fillRoles 消费：path/rtype/menuItems/roots） |
 | `sceneRegistry()` | `frontend/src/utils/3d/adapters/scene-registry:161` | 模块级单例（随活跃会话 reset） |
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
-| `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:29` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
-| `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:84` | 会话内切换模型（复用外壳重建内容层）。 |
-| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:246` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
-| `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:26` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:92` | VRM meta 归一化信息（meta 卡展示用） |
-| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:111` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
-| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:171` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:181` | — |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:434` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:465` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
+| `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:30` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
+| `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:85` | 会话内切换模型（复用外壳重建内容层）。 |
+| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:247` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:27` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:93` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:112` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:172` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:182` | — |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:444` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:480` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:21` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:31` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
 | `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:157` | 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:39` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:99` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:344` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:358` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:363` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:392` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:40` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:100` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:352` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:366` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:371` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:405` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
@@ -1491,6 +1492,8 @@
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
 | `LoopContext()` | `frontend/src/utils/3d/render-loop:12` | loop 所需的运行时上下文接口 |
 | `startRenderLoop()` | `frontend/src/utils/3d/render-loop:45` | 启动渲染循环并立即渲染一帧。 |
+| `Disposable()` | `frontend/src/utils/3d/resource-registry:14` | 可释放资源接口（Three.js Texture/Material/Geometry/Controls 等均满足） |
+| `ResourceRegistry()` | `frontend/src/utils/3d/resource-registry:22` | 资源注册表：集中跟踪 + 批量释放 GPU 资源。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |
@@ -1729,6 +1732,7 @@
 | `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:303` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
 | `resolveTypeSafe()` | `frontend/src/utils/resource/types:316` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
 | `matchZipEntryTS()` | `frontend/src/utils/resource/types:336` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `safeErrorMessage()` | `frontend/src/utils/safe-error-msg:19` | 从任意错误对象提取可读消息字符串。 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
 
@@ -1758,7 +1762,7 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:18` | 绑定性能面板按钮点击事件 |
+| `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:19` | 绑定性能面板按钮点击事件 |
 | `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:29` | 初始化 GitHub 页 |
@@ -1845,11 +1849,11 @@
 | `collectBlobUrls()` | `frontend/src/views/app-preview/cache:48` | 收集缓存值中全部 blob URL（evict 释放用） |
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
-| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:23` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
-| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:95` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
-| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:124` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
-| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:153` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
-| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:213` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
+| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:24` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
+| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:96` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
+| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:125` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
+| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:154` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
+| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:214` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
 | `nextDetailGen()` | `frontend/src/views/app-preview/detail:23` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
 | `getDetailGen()` | `frontend/src/views/app-preview/detail:28` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
 | `showModelDetail()` | `frontend/src/views/app-preview/detail:33` | 显示模型详情（YSM 模型） |
@@ -1924,9 +1928,9 @@
 | `sec()` | `frontend/src/views/app-preview/skeleton-utils:6` | 面板分区标题（3D overlay 信息面板使用） gap=false 用于面板首个分区（panel 已有 padding-top，避免顶部 10+12=22px 过空） |
 | `iRow()` | `frontend/src/views/app-preview/skeleton-utils:15` | 信息行：标签 | 值 |
 | `buildDepthMap()` | `frontend/src/views/app-preview/skeleton-utils:26` | 构建骨骼层级深度映射（用于骨骼列表缩进渲染） parentId 为空的骨骼深度为 0，其余递归计算 |
-| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:33` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
-| `setActive3DClose()` | `frontend/src/views/app-preview/skeleton:39` | 设置当前活跃的 3D 全屏 overlay 关闭函数（maid/通用 Bedrock 模型复用此机制）。 |
-| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:56` | 加载模型 2D 骨骼线条图 + 统计面板 |
+| `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:34` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
+| `setActive3DClose()` | `frontend/src/views/app-preview/skeleton:40` | 设置当前活跃的 3D 全屏 overlay 关闭函数（maid/通用 Bedrock 模型复用此机制）。 |
+| `loadModel2D()` | `frontend/src/views/app-preview/skeleton:57` | 加载模型 2D 骨骼线条图 + 统计面板 |
 | `resolveStageSiblings()` | `frontend/src/views/app-preview/stage-siblings:16` | 扫描 StageAnim 目录下所有资源文件（VMD + 音频）；失败返回 [] |
 | `resolveStageVmdList()` | `frontend/src/views/app-preview/stage-siblings:44` | 仅获取 StageAnim 下所有 VMD 文件路径列表 |
 | `resolveStageAudioList()` | `frontend/src/views/app-preview/stage-siblings:50` | 仅获取 StageAnim 下所有音频文件路径列表 |
@@ -1954,8 +1958,8 @@
 | `VrmMaterialControlBridge()` | `frontend/src/views/app-preview/vrm-controls:15` | 材质控制桥：复用 vrm-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在本文件 |
 | `buildVrmMaterialControls()` | `frontend/src/views/app-preview/vrm-controls:27` | 在 container 渲染 VRM 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `makeVrmPanelRenderer()` | `frontend/src/views/app-preview/vrm-controls:94` | VRM 菜单面板渲染器（声明式菜单 item.render 回调） |
-| `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:19` | — |
-| `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:91` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
+| `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:20` | — |
+| `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:92` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
 | `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:42` | — |
 | `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:55` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
 | `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:88` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |

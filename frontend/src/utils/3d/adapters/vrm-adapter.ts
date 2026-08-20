@@ -17,6 +17,7 @@ import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消
 import { createBlinkController } from "../perception/blink.ts"; // 语义表情消费方：程序化生命力 L1.5
 import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK，格式无关）
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
+import { buildPerceptionControls, type PerceptionState, type PerceptionCapability } from "./perception-controls.ts";
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { BoneTree } from "../bone-tools.ts";
@@ -296,6 +297,14 @@ export async function buildVrmScene(
     vrmMaterials.push(...mats);
   });
 
+  // 感知层状态：各模块开关（adapter build 创建，面板 UI 双向绑定）
+  const perceptionState: PerceptionState = { breath: true, gaze: true, blink: true, lipSync: false, autoDance: false };
+  const perceptionCaps: PerceptionCapability[] = [
+    { id: "breath", labelKey: "preview.perceptionBreath", fallback: "呼吸" },
+    { id: "gaze", labelKey: "preview.perceptionGaze", fallback: "注视" },
+    { id: "blink", labelKey: "preview.perceptionBlink", fallback: "眨眼" },
+  ];
+
   ctx.menu.setAdapterItems(
     vrmMenuItems({
       panels,
@@ -339,6 +348,7 @@ export async function buildVrmScene(
             animDir: null,
           }
         : null,
+      perception: { state: perceptionState, caps: perceptionCaps },
     }),
   );
 
@@ -374,14 +384,14 @@ export async function buildVrmScene(
       // 动画播放时暂停程序化生命力（避免与 VRMA 姿态/表情打架，对齐 MMD 口径）
       const animActive = !!motionAction && !motionAction.paused;
       if (semanticBones) {
-        if (!animActive) breath.apply(dt, semanticBones);
+        if (!animActive && perceptionState.breath) breath.apply(dt, semanticBones);
         // 注视追踪：原生 lookAt 优先（VRM 内部处理 head 旋转限幅），fallback 才走语义骨骼
-        if (!animActive && !useNativeLookAt) gaze!.apply(dt, semanticBones, ctx.camera!.position);
+        if (!animActive && !useNativeLookAt && perceptionState.gaze) gaze!.apply(dt, semanticBones, ctx.camera!.position);
       }
       // Foot IK：待机态下锚定双足（在眨眼之前，先稳定姿态再驱动表情）
       footIK.apply(dt, !animActive);
       // 眨眼：多表情统一写入（动画播放时暂停，避免覆盖 VRMA 表情轨）
-      if (exprMgr && blinkExpressionNames.length > 0 && !animActive) {
+      if (exprMgr && blinkExpressionNames.length > 0 && !animActive && perceptionState.blink) {
         const mgr = exprMgr;
         blink.apply(dt, (weight: number) => {
           for (const name of blinkExpressionNames) {
@@ -456,6 +466,11 @@ export interface VrmMenuItemsOpts {
   play?: MmdPlayBridge | null;
   /** 面板填充回调（视图层注入；缺失则 render 退化为 no-op，解除 utils→views 分层违规 R1） */
   panels?: VrmPanelHooks;
+  /** 感知层状态（adapter build 创建，面板 UI 双向绑定） */
+  perception?: {
+    state: PerceptionState;
+    caps: PerceptionCapability[];
+  };
 }
 
 /**
@@ -535,6 +550,17 @@ export function vrmMenuItems(o: VrmMenuItemsOpts): PreviewMenuItemDef[] {
       render: (list): void => {
         o.panels?.fillPlayPanel?.(list, o.play!);
       },
+    });
+  }
+  if (o.perception) {
+    items.push({
+      id: "perception",
+      icon: "👁️",
+      labelKey: "preview.perception",
+      fallback: "感知",
+      kind: "panel",
+      dockGroup: "motion",
+      render: (list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
     });
   }
   return items;

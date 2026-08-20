@@ -28,6 +28,7 @@ import { sceneRegistry } from "./scene-registry.ts";
 import type { BedrockGeometry } from "../../../views/app-preview/geometry.ts";
 import type { PreviewScene, PreviewBuildCtx, PreviewAdapter } from "./mount-preview-core.ts";
 import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用骨骼面板
+import { buildPerceptionControls, type PerceptionState, type PerceptionCapability } from "./perception-controls.ts";
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import { createYsmAnimPlayer, type YsmAnimPlayer } from "../ysm-animation-player.ts";
 import { parseBedrockAnimationJSON } from "../../animation/animation.ts";
@@ -254,6 +255,12 @@ export async function buildYsmScene(
     screenshot: () =>
       Promise.resolve(screenshotFromRenderer(ctx.renderer!, ctx.scene, ctx.camera)),
   };
+  // 感知层状态：YSM 只有呼吸模块
+  const perceptionState: PerceptionState = { breath: true, gaze: false, blink: false, lipSync: false, autoDance: false };
+  const perceptionCaps: PerceptionCapability[] = [
+    { id: "breath", labelKey: "preview.perceptionBreath", fallback: "呼吸" },
+  ];
+
   const menuItems = ysmMenuItems({
     controlsCtx,
     panels: opts.panels,
@@ -266,6 +273,7 @@ export async function buildYsmScene(
     },
     play: animBridge ?? undefined,
     fillPlayPanel: opts.fillPlayPanel,
+    perception: { state: perceptionState, caps: perceptionCaps },
   });
   ctx.menu.setAdapterItems(menuItems);
 
@@ -333,7 +341,7 @@ export async function buildYsmScene(
     update: (dt: number): void => {
       animPlayer?.apply(dt);
       // 动画播放时暂停感知层（与 VRM VRMA 口径一致）
-      if (semanticBones && !animPlayer?.isAnimActive()) {
+      if (semanticBones && !animPlayer?.isAnimActive() && perceptionState.breath) {
         breath?.apply(dt, semanticBones);
       }
     },
@@ -381,6 +389,11 @@ export interface YsmMenuItemsOpts {
   play?: MmdPlayBridge | null | undefined;
   /** 播放面板填充回调（视图层注入；复用 fillMmdPlayPanel，解除 utils→views 分层违规 R1） */
   fillPlayPanel?: (list: HTMLElement, bridge: MmdPlayBridge) => void;
+  /** 感知层状态（adapter build 创建，面板 UI 双向绑定） */
+  perception?: {
+    state: PerceptionState;
+    caps: PerceptionCapability[];
+  };
 }
 
 /**
@@ -445,6 +458,17 @@ export function ysmMenuItems(o: YsmMenuItemsOpts): PreviewMenuItemDef[] {
       render: (list) => {
         o.fillPlayPanel?.(list, o.play!);
       },
+    });
+  }
+  if (o.perception) {
+    items.push({
+      id: "perception",
+      icon: "👁️",
+      labelKey: "preview.perception",
+      fallback: "感知",
+      kind: "panel",
+      dockGroup: "motion",
+      render: (list) => buildPerceptionControls(list, o.perception!.state, o.perception!.caps),
     });
   }
   return items;

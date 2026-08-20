@@ -113,9 +113,9 @@ describe("buildYsmScene（shared 装配）", () => {
     expect(mocks.buildYsmObject).toHaveBeenCalledTimes(1);
     expect(ctx.scene.add).toHaveBeenCalledWith(rootGroup);
 
-    // ADR-076 v2 Phase 2：适配器经 ctx.menu.setAdapterItems 注入 model / 截图 / 骨骼 三项
+    // ADR-076 v2 Phase 2：适配器经 ctx.menu.setAdapterItems 注入 model / 截图 / 骨骼 / 感知 四项
     const items = registeredItems(ctx.menu);
-    expect(items.map((i) => i.id)).toEqual(["model", "shot", "bones"]);
+    expect(items.map((i) => i.id)).toEqual(["model", "shot", "bones", "perception"]);
     items.forEach((i) => expect(i.kind).toBe("panel"));
     items.forEach((i) => expect(typeof i.render).toBe("function"));
 
