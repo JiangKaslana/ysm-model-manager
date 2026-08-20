@@ -84,7 +84,8 @@ export class SkyCapability implements SceneCapability {
 
   private scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
-  private pmrem: THREE.PMREMGenerator;
+  /** PMREMGenerator 延迟创建（构造函数不依赖 WebGL，node 测试友好） */
+  private pmrem: THREE.PMREMGenerator | null = null;
   private sky: Sky;
   private envScene: THREE.Scene;
   private envSky: Sky;
@@ -106,11 +107,19 @@ export class SkyCapability implements SceneCapability {
     this.enabled = opts.enabled ?? true;
     this.prevToneMapping = this.renderer.toneMapping;
     this.prevExposure = this.renderer.toneMappingExposure;
-    this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    // Sky 是 Mesh + ShaderMaterial，纯数据对象，构造函数不依赖 WebGL
     this.sky = this.createSky();
     this.envSky = this.createSky();
     this.envScene = new THREE.Scene();
     this.envScene.add(this.envSky);
+  }
+
+  /** 确保 PMREMGenerator 已创建（延迟到首次需要时） */
+  private ensurePMREM(): THREE.PMREMGenerator {
+    if (!this.pmrem) {
+      this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    }
+    return this.pmrem;
   }
 
   private createSky(): Sky {
@@ -155,7 +164,7 @@ export class SkyCapability implements SceneCapability {
     this.envSky.material.uniforms["showSunDisc"].value = 0;
     try {
       if (this.renderTarget) this.renderTarget.dispose();
-      this.renderTarget = this.pmrem.fromScene(this.envScene);
+      this.renderTarget = this.ensurePMREM().fromScene(this.envScene);
       this.scene.environment = this.renderTarget.texture;
     } catch (e) {
       console.error("[sky] 环境贴图生成失败:", e);
@@ -397,6 +406,6 @@ export class SkyCapability implements SceneCapability {
     (this.sky.material as THREE.Material).dispose();
     this.envSky.geometry.dispose();
     (this.envSky.material as THREE.Material).dispose();
-    this.pmrem.dispose();
+    this.pmrem?.dispose();
   }
 }

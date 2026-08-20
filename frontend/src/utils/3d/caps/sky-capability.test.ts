@@ -1,6 +1,11 @@
 // @vitest-environment node
 // ===== SkyCapability 测试（utils/3d/caps/sky-capability.ts）=====
 // 覆盖：构造默认值、时间/云量/环境 IBL、启用禁用、预设、持久化、getMenuControls。
+//
+// 设计说明：
+// - PMREMGenerator 已从构造函数延迟到 apply() 时创建，构造函数不再依赖 WebGL。
+//   node 环境可直接构造，构造函数无需 mock。
+// - 但 apply() 仍需要 WebGL（Sky 3D 对象 + PMREMGenerator），保留 spyOn 拦截。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as THREE from "three";
 import {
