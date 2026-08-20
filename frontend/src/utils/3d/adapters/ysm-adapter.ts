@@ -118,7 +118,7 @@ export async function buildYsmScene(
   registerModelRoot(obj.rootGroup);
 
   // 相机取景 + 记录初始位置（resetCamera 恢复）
-  fitCameraToScene(ctx.scene, ctx.camera, ctx.controls);
+  fitCameraToScene(obj.rootGroup, ctx.camera, ctx.controls);
   const initCamPos = ctx.camera.position.clone();
   const initCamTarget = ctx.controls.target.clone();
 

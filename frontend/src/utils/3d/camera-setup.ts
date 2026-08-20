@@ -5,22 +5,16 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 /**
- * 根据场景包围盒适配相机位置和 controls.target。
+ * 根据内容根节点的包围盒适配相机位置和 controls.target。
+ * @param contentRoot 模型内容根节点（不含 sky/ground 等能力组件）
  * @returns { initCamPos, initCamTarget } 初始状态的深拷贝，供 resetCamera 使用
  */
 export function fitCameraToScene(
-  scene: THREE.Scene,
+  contentRoot: THREE.Object3D | null,
   camera: THREE.PerspectiveCamera,
   controls: OrbitControls,
 ): { initCamPos: THREE.Vector3; initCamTarget: THREE.Vector3 } {
-  // 只计算最新添加的内容节点（模型），排除 sky/ground/capability 等辅助组件。
-  // 之前用 setFromObject(scene) 会包含 sky（scale=12000），导致相机距离错误放大。
-  // 使用「build 前后差量」语义：取最后一个新增的顶层根节点。
-  const children = scene.children;
-  const contentRoot = children[children.length - 1];
-  const box = contentRoot
-    ? new THREE.Box3().setFromObject(contentRoot)
-    : new THREE.Box3();
+  const box = contentRoot ? new THREE.Box3().setFromObject(contentRoot) : new THREE.Box3();
 
   if (!box.isEmpty()) {
     const center = new THREE.Vector3();
@@ -28,14 +22,10 @@ export function fitCameraToScene(
     const size = new THREE.Vector3();
     box.getSize(size);
     const dist = Math.max(size.x, size.y, size.z) * 1.5 + 2;
-    // 调试日志：验证包围盒尺寸和相机距离
-    console.log('[Camera] Box size (after scale):', size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2));
-    console.log('[Camera] Camera distance:', dist.toFixed(2));
     // 模型包围盒适配：相机放 Z- 侧（模型正面；历史曾用 +Z/YSMViewer 默认，实际 YSM 模型脸朝 Z-）
     camera.position.set(center.x, center.y, center.z - dist);
     camera.lookAt(center);
     controls.target.copy(center);
-    console.log('[Camera] Camera position:', camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2));
   } else {
     camera.position.set(0, 80, -120);
     controls.target.set(0, 80, 0);
