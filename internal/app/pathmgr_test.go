@@ -150,3 +150,58 @@ func TestGetRepoRoot_PlatformDefault(t *testing.T) {
 		}
 	})
 }
+
+// TestRepoRootForSync 整合包同步基准目录解析：
+// subDirGrouping 类型（mmd-skin）用 group 根（FilesRoot/mmd）而非默认子类
+// （FilesRoot/mmd/EntityPlayer），与仓库树 group 根回溯口径对齐；专属根优先。
+func TestRepoRootForSync(t *testing.T) {
+	base := t.TempDir()
+
+	t.Run("mmd-skin 用 group 根（未配置专属）", func(t *testing.T) {
+		a := repoApp(t, types.AppConfig{FilesRoot: base})
+		got, err := a.repoRootForSync("mmd-skin")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := filepath.Join(base, "mmd")
+		if got != want {
+			t.Errorf("repoRootForSync(mmd-skin) 应为 group 根, got %q want %q", got, want)
+		}
+	})
+
+	t.Run("专属 MmdRoot 优先", func(t *testing.T) {
+		override := filepath.Join(base, "mmd-override")
+		a := repoApp(t, types.AppConfig{FilesRoot: base, MmdRoot: override})
+		got, err := a.repoRootForSync("mmd-skin")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != override {
+			t.Errorf("专属 MmdRoot 应优先, got %q want %q", got, override)
+		}
+	})
+
+	t.Run("非 subDirGrouping 走 GetRepoRoot", func(t *testing.T) {
+		a := repoApp(t, types.AppConfig{FilesRoot: base})
+		got, err := a.repoRootForSync("ysm")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := filepath.Join(base, types.GroupStorageRoot("ysm"))
+		if got != want {
+			t.Errorf("ysm 应走 GetRepoRoot, got %q want %q", got, want)
+		}
+	})
+
+	t.Run("FilesRoot 为空回退 GetRepoRoot（不 panic）", func(t *testing.T) {
+		a := repoApp(t, types.AppConfig{})
+		got, err := a.repoRootForSync("mmd-skin")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, _ := a.GetRepoRoot("mmd-skin")
+		if got != want {
+			t.Errorf("FilesRoot 空应回退 GetRepoRoot, got %q want %q", got, want)
+		}
+	})
+}

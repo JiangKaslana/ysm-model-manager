@@ -4,6 +4,7 @@ package instance
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"ysm-model-manager/go/types"
@@ -152,6 +153,41 @@ func TestBuildSyncItems_UnknownTypeSkip(t *testing.T) {
 	ins := &types.VersionInstance{Name: "t", VersionDir: t.TempDir()}
 	if items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "no-such-type", Icon: "x"}}, map[string]string{"no-such-type": "/x"}); len(items) != 0 {
 		t.Fatalf("未知类型无 ScanDir 应跳过，实际 %d 条", len(items))
+	}
+}
+
+// TestBuildSyncItems_MmdSubdirGrouping mmd-skin（subDirGrouping）子类内部模型带 SubDir 分组：
+// globalDir = group 根（mmd），EntityPlayer/角色A 缺失 → Path 含子类层级、SubDir=EntityPlayer。
+// 验证「子类独立拼完整路径」——模型条目不再被展平为顶层（双源污染根因的回归守卫）。
+func TestBuildSyncItems_MmdSubdirGrouping(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "mmd") // group 根
+	instDir := filepath.Join(base, "inst", "3d-skin")
+	if err := os.MkdirAll(filepath.Join(globalDir, "EntityPlayer", "角色A"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(globalDir, "EntityPlayer", "角色A", "a.pmx"), []byte("a"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(instDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "mmd-skin", Icon: "🎭"}}, map[string]string{"mmd-skin": globalDir})
+	found := false
+	for _, it := range items {
+		if strings.HasSuffix(it.Path, filepath.Join("EntityPlayer", "角色A")) {
+			found = true
+			if it.SubDir != "EntityPlayer" {
+				t.Fatalf("角色A 应 SubDir=EntityPlayer，实际 %q", it.SubDir)
+			}
+			if it.Status != types.SyncStatusMissing {
+				t.Fatalf("角色A 应 Missing，实际 %q", it.Status)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("应产出 EntityPlayer/角色A 条目: %+v", items)
 	}
 }
 
