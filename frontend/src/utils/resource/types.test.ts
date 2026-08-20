@@ -267,6 +267,7 @@ describe("groupStorageRootOf 两层路由", () => {
     expect(groupStorageRootOf("resourcepack")).toBe("minecraft/resourcepacks");
     expect(groupStorageRootOf("mmd-skin")).toBe("mmd/EntityPlayer");
     expect(groupStorageRootOf("vrchat-avatar")).toBe("mmd/vrchat"); // ADR-105 续：VRM 归并 mmd 组
+    expect(groupStorageRootOf("maid-model")).toBe("minecraft-mod/maid-model"); // 仓库侧语义化名，游戏侧 tlm_custom_pack
   });
 
   it("软合并壳类型回退到 typeId（vanilla-assets/mod-model 无 storageSubDir）", () => {

@@ -164,8 +164,9 @@ func TestGroupStorageRoot(t *testing.T) {
 		{"ysm", "minecraft-mod/ysm"},
 		{"create-blueprint", "minecraft-mod/create-blueprint"},
 		{"litematic", "minecraft-mod/litematics"},
-		{"mmd-skin", "mmd/EntityPlayer"}, // storageSubDir 统一整合包同款名（消 mmd/mmd 冗余）
-		{"vrchat-avatar", "mmd/vrchat"},  // ADR-105 续：VRM 归并 mmd 组（仓库侧 vrchat 目录不变）
+		{"mmd-skin", "mmd/EntityPlayer"},           // storageSubDir 统一整合包同款名（消 mmd/mmd 冗余）
+		{"vrchat-avatar", "mmd/vrchat"},            // ADR-105 续：VRM 归并 mmd 组（仓库侧 vrchat 目录不变）
+		{"maid-model", "minecraft-mod/maid-model"}, // 仓库侧语义化目录名 maid-model；游戏侧 installDir/scanDir 仍为 tlm_custom_pack
 	}
 	for _, c := range cases {
 		if got := GroupStorageRoot(c.rtype); got != c.want {

@@ -20,7 +20,9 @@ const VALID_ACTIONS = new Set(['import', 'toggle', 'delete', 'openFolder', 'view
 const VALID_CONFIG_FIELDS = new Set([
   'YsmRoot', 'ResourcepackRoot', 'ShaderpackRoot', 'SchematicRoot', 'LitematicRoot', 'MmdRoot', 'VrcRoot',
 ]);
-const REQUIRED_FIELDS = ['id', 'name', 'icon', 'extensions', 'installDir', 'instanceLevel', 'preview', 'detector', 'actions', 'storageSubDir', 'scanDir'];
+// storageSubDir 非必填：纯装饰壳类型（vanilla-assets/mod-model/create-blueprint）无仓库货位，
+// 由独立 rtype 各自声明 storageSubDir；schema 只保留可选的、真实落地类型才有的字段。
+const REQUIRED_FIELDS = ['id', 'name', 'icon', 'extensions', 'installDir', 'instanceLevel', 'preview', 'detector', 'actions', 'scanDir'];
 // ADR-092：合法分组 id 白名单（resourceGroups 顶层数组派生）
 const VALID_GROUPS = new Set(['minecraft', 'minecraft-mod', 'mmd', 'vrm', 'other']);
 
