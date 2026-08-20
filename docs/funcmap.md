@@ -1387,11 +1387,11 @@
 | `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:39` | — |
 | `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:49` | 预设（setPreset 套用到不同模型类别） |
 | `ShadowCapability()` | `frontend/src/utils/3d/caps/shadow-capability:94` | ============ ShadowCapability ============ |
-| `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:27` | — |
-| `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:48` | — |
-| `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:63` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
-| `MODEL_SKY_PRESETS()` | `frontend/src/utils/3d/caps/sky-capability:71` | 按模型类别的散射/曝光预设（ADR-073 #3）。 |
-| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:80` | — |
+| `SkyParams()` | `frontend/src/utils/3d/caps/sky-capability:28` | — |
+| `DEFAULT_SKY_PARAMS()` | `frontend/src/utils/3d/caps/sky-capability:49` | — |
+| `SkyModelType()` | `frontend/src/utils/3d/caps/sky-capability:64` | 模型类别标识（取 PreviewAdapter.id：ysm/vrm/mmd/litematic） |
+| `MODEL_SKY_PRESETS()` | `frontend/src/utils/3d/caps/sky-capability:72` | 按模型类别的散射/曝光预设（ADR-073 #3）。 |
+| `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:81` | — |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
 | `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:55` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |

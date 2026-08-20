@@ -23,6 +23,7 @@ import {
   persistState,
   restoreState,
 } from "./scene-capability.ts";
+import { ENV_PRESETS } from "./environment-capability.ts";
 
 export interface SkyParams {
   /** 太阳高度角（度，0=地平线，90=天顶） */
@@ -337,7 +338,7 @@ export class SkyCapability implements SceneCapability {
 
     // 自定义 shader material
     const uniforms = {
-      uColor: { value: new THREE.Color(1.0, 0.6, 0.2) }, // 日出日落色
+      uColor: { value: new THREE.Color(1.0, 0.7, 0.3) }, // 默认日出日落暖橙
       uIntensity: { value: 0 },
       uTime: this.godRaysTime,
     };
@@ -345,6 +346,7 @@ export class SkyCapability implements SceneCapability {
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader: `
+        #include <common>
         varying vec2 vUv;
         void main() {
           vUv = uv;
@@ -392,6 +394,13 @@ export class SkyCapability implements SceneCapability {
     this.godRays.visible = false;
   }
 
+  /** 获取 god rays 太阳色（跟随 sunset 预设的 sunColor） */
+  private getGodRaysColor(): THREE.Color {
+    // 日落预设的 sunColor = 0xffe0a8（暖橙），最贴合日出日落光束
+    const sunsetPreset = ENV_PRESETS.sunset;
+    return new THREE.Color(sunsetPreset.sunColor);
+  }
+
   /** 获取 god rays intensity（0~1，elevation<20° 时激活） */
   getGodRaysIntensity(): number {
     if (this.params.elevation > 20) return 0;
@@ -421,6 +430,11 @@ export class SkyCapability implements SceneCapability {
 
     // 挂载/卸载
     if (intensity > 0 && !this.godRays.parent) {
+      // 挂载时初始化颜色为 sunset 预设的 sunColor
+      const mat = this.godRays.children[0] as THREE.Mesh;
+      if (mat.material instanceof THREE.ShaderMaterial) {
+        mat.material.uniforms.uColor.value.copy(this.getGodRaysColor());
+      }
       this.scene.add(this.godRays);
       this.godRays.visible = true;
     } else if (intensity === 0 && this.godRays.parent) {
