@@ -12,6 +12,7 @@
     showDisabled: false,
     selectedPath: '',
     hashingPath: '',
+    togglingPath: '',
     revision: 0,
     root: '',
     scanning: false,
@@ -23,7 +24,7 @@
     'summaryMessage', 'modelScroll', 'modelSpacer', 'modelLayer', 'emptyState', 'statusText',
     'errorText', 'runtimeDot', 'runtimeLabel', 'detailEmpty', 'detailContent', 'detailType',
     'detailName', 'detailAuthor', 'detailSize', 'detailModified', 'detailSubdir', 'detailStatus',
-    'detailHash', 'hashButton', 'detailPath', 'count-all', 'count-ysm', 'count-mmd',
+    'detailHash', 'enableButton', 'hashButton', 'detailPath', 'count-all', 'count-ysm', 'count-mmd',
     'count-blueprint', 'count-vrm', 'count-archive',
   ];
   const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
@@ -187,6 +188,8 @@
       el.summaryMessage.textContent = updated ? `SHA-256 已缓存 · ${updated} 项` : 'SHA-256 未写入';
       el.statusText.textContent = updated ? '后台 SHA-256 计算完成' : 'SHA-256 计算未产生可用结果';
       el.errorText.textContent = errors ? `${errors} 个哈希错误` : '';
+    } else if (source === 'toggle') {
+      el.errorText.textContent = errors ? `${errors} 个索引更新错误` : '';
     } else {
       el.summaryMessage.textContent = `自动同步 · +${added}  更新 ${updated}  移除 ${removed}`;
       el.errorText.textContent = errors ? `${errors} 个监听/扫描错误` : '';
@@ -205,6 +208,7 @@
     if (!entry) {
       state.selectedPath = '';
       state.hashingPath = '';
+      state.togglingPath = '';
       el.detailEmpty.hidden = false;
       el.detailContent.hidden = true;
       return;
@@ -224,6 +228,11 @@
     const hashing = state.hashingPath === entry.path;
     el.hashButton.disabled = Boolean(entry.hash) || hashing;
     el.hashButton.textContent = entry.hash ? 'SHA-256 已缓存' : hashing ? '计算中…' : '计算 SHA-256';
+
+    const toggling = state.togglingPath === entry.path;
+    el.enableButton.disabled = toggling;
+    el.enableButton.classList.toggle('is-enable', entry.disabled);
+    el.enableButton.textContent = toggling ? '处理中…' : entry.disabled ? '启用' : '禁用';
   }
 
   function setScanning(active, label = '') {
@@ -307,6 +316,55 @@
     }
   }
 
+  async function toggleSelectedEnable() {
+    const entry = state.entries.find((item) => item.path === state.selectedPath);
+    if (!entry || state.togglingPath === entry.path) return;
+
+    const previousPath = entry.path;
+    state.togglingPath = previousPath;
+    state.hashingPath = '';
+    syncSelection();
+    el.errorText.textContent = '';
+    el.statusText.textContent = entry.disabled ? '正在启用资源' : '正在禁用资源';
+
+    if (!isTauri) {
+      const disabled = !entry.disabled;
+      entry.disabled = disabled;
+      entry.name = disabled && !entry.name.toLowerCase().endsWith('.ban')
+        ? `${entry.name}.ban`
+        : !disabled && entry.name.toLowerCase().endsWith('.ban')
+          ? entry.name.slice(0, -4)
+          : entry.name;
+      entry.path = disabled && !entry.path.toLowerCase().endsWith('.ban')
+        ? `${entry.path}.ban`
+        : !disabled && entry.path.toLowerCase().endsWith('.ban')
+          ? entry.path.slice(0, -4)
+          : entry.path;
+      state.selectedPath = entry.path;
+      state.togglingPath = '';
+      updateCounts();
+      applyFilters();
+      el.summaryMessage.textContent = disabled ? '浏览器预览：资源已禁用' : '浏览器预览：资源已启用';
+      el.statusText.textContent = el.summaryMessage.textContent;
+      return;
+    }
+
+    try {
+      const payload = await invoke('toggle_model_enable', { path: previousPath });
+      state.selectedPath = payload.selectedPath || payload.after;
+      state.togglingPath = '';
+      applyDelta(payload.delta, 'toggle');
+      const label = payload.enabled ? '资源已启用' : '资源已禁用';
+      el.summaryMessage.textContent = label;
+      el.statusText.textContent = label;
+    } catch (error) {
+      state.togglingPath = '';
+      syncSelection();
+      el.errorText.textContent = String(error);
+      el.statusText.textContent = '启用/禁用操作失败';
+    }
+  }
+
   function setBrowserPreview() {
     state.root = '浏览器预览（未连接 Rust）';
     el.libraryRoot.value = state.root;
@@ -369,6 +427,7 @@
 
   el.scanButton.addEventListener('click', () => scanRoot(el.libraryRoot.value));
   el.refreshButton.addEventListener('click', refreshRoot);
+  el.enableButton.addEventListener('click', toggleSelectedEnable);
   el.hashButton.addEventListener('click', hydrateSelectedHash);
   el.libraryRoot.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !state.scanning) scanRoot(el.libraryRoot.value);
