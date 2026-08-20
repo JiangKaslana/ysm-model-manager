@@ -406,10 +406,11 @@ export function GetInstanceStatus(mcRoot: string, repoDir: string): $Cancellable
 
 /**
  * GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表）
+ * subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDirGrouping 类型有效——路径限定。
  * GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/instance，此处仅注入依赖）
  */
-export function GetInstanceSyncStatus(instanceName: string): $CancellablePromise<string> {
-    return $Call.ByID(839308247, instanceName);
+export function GetInstanceSyncStatus(instanceName: string, subtype: string): $CancellablePromise<string> {
+    return $Call.ByID(839308247, instanceName, subtype);
 }
 
 export function GetLinkMode(): $CancellablePromise<string> {

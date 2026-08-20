@@ -257,7 +257,7 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `BuildSyncItems()` | `go/instance/instance:24` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） |
+| `BuildSyncItems()` | `go/instance/instance:26` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
 | `ResourceTypeInfo()` | `go/instance/instance:17` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
 
 ## go/internal
@@ -638,8 +638,8 @@
 | `App.PullResourceFromInstance()` | `internal/app/app_install_instance:372` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
 | `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:410` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
 | `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:427` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:447` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/ins |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:497` | ========== YSM 检测 ========== |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:448` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:498` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |
@@ -1245,7 +1245,7 @@
 | `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:45` | PMX 解析器管理器 |
 | `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:53` | 创建 PMX 解析器（Worker） |
 | `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:123` | 从 Worker 解析结果构建 Three.js 场景对象。 |
-| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:234` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
+| `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:245` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
 | `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:10` | 主线程 → Worker 请求 |
 | `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:16` | 顶点数据（交织存储，GPU 友好） |
 | `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:26` | 面数据 |
@@ -1272,12 +1272,12 @@
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:83` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:109` | — |
 | `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:119` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core` | — |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:158` | 清理活跃 3D 预览（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:167` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:172` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:177` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:193` | — |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:160` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:165` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:179` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:184` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:189` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:205` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -2003,7 +2003,7 @@
 | `SyncStoreSelf()` | `frontend/src/views/app-sync-manager/store:14` | — |
 | `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:20` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
 | `loadData()` | `frontend/src/views/app-sync-manager/store:43` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
-| `applyFilter()` | `frontend/src/views/app-sync-manager/store:66` | 应用类型 + MMD 子目录 + 状态筛选，写入 self._filteredItems。 |
+| `applyFilter()` | `frontend/src/views/app-sync-manager/store:66` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:21` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
 | `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:31` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |

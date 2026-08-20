@@ -270,14 +270,15 @@ func TestResourceSubType_AcceptsExt(t *testing.T) {
 	for _, s := range subs {
 		byName[s.Name] = s
 	}
-	// EntityPlayer 接受 .pmx/.pmd/.vmd/.vpd/.zip，拒绝 .nbt
+	// EntityPlayer 接受 .pmx/.pmd/.zip（路径定意图：角色模型槽），拒绝 .vmd/.vpd/.nbt
 	ep := byName["EntityPlayer"]
 	for _, ok := range []struct {
 		ext  string
 		want bool
 	}{
-		{".pmx", true}, {".PMX", true}, {".pmd", true}, {".vmd", true},
-		{".vpd", true}, {".zip", true}, {".nbt", false}, {".txt", false},
+		{".pmx", true}, {".PMX", true}, {".pmd", true},
+		{".vmd", false}, {".vpd", false},
+		{".zip", true}, {".nbt", false}, {".txt", false},
 	} {
 		if got := ep.AcceptsExt(ok.ext); got != ok.want {
 			t.Errorf("EntityPlayer.AcceptsExt(%s) = %v，期望 %v", ok.ext, got, ok.want)

@@ -443,8 +443,9 @@ func (a *App) PushSingleResourceToInstance(rtype, instanceName, filePath string)
 // ========== 整合包全类型同步状态 ==========
 
 // GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表）
+// subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDirGrouping 类型有效——路径限定。
 // GetInstanceSyncStatus 整合包同步状态（组装逻辑已下沉 go/instance，此处仅注入依赖）
-func (a *App) GetInstanceSyncStatus(instanceName string) string {
+func (a *App) GetInstanceSyncStatus(instanceName string, subtype string) string {
 	cfg := a.LoadAppConfig()
 	if cfg.McRoot == "" {
 		return "[]"
@@ -489,7 +490,7 @@ func (a *App) GetInstanceSyncStatus(instanceName string) string {
 		roots[rt.ID], _ = a.repoRootForSync(rt.ID)
 	}
 
-	items := instance.BuildSyncItems(targetIns, registry.ResourceTypes, roots)
+	items := instance.BuildSyncItems(targetIns, registry.ResourceTypes, roots, subtype)
 	return marshalJSON("BuildSyncItems", items, `{"error":"json marshal failed"}`)
 }
 

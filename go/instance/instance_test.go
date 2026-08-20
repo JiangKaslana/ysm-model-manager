@@ -33,7 +33,7 @@ func TestBuildSyncItems_Basic(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(instDir, "extra.ysm"), []byte("x"), 0644)
 
 	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir})
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir}, "")
 	if len(items) == 0 {
 		t.Fatal("应产出同步状态项")
 	}
@@ -56,11 +56,11 @@ func TestBuildSyncItems_Basic(t *testing.T) {
 func TestBuildSyncItems_EmptyInputs(t *testing.T) {
 	// 无资源类型 → 空
 	ins := &types.VersionInstance{Name: "t", VersionDir: t.TempDir()}
-	if items := BuildSyncItems(ins, nil, map[string]string{}); len(items) != 0 {
+	if items := BuildSyncItems(ins, nil, map[string]string{}, ""); len(items) != 0 {
 		t.Fatalf("无资源类型应返回空，实际 %d", len(items))
 	}
 	// 资源类型 root 为空 → 跳过该类型
-	if items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": ""}); len(items) != 0 {
+	if items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": ""}, ""); len(items) != 0 {
 		t.Fatalf("root 为空应跳过，实际 %d", len(items))
 	}
 }
@@ -93,7 +93,7 @@ func TestBuildSyncItems_SyncedPackFolderExactlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	ins := &types.VersionInstance{VersionDir: base}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "resourcepack", Icon: "🎨"}}, map[string]string{"resourcepack": globalDir})
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "resourcepack", Icon: "🎨"}}, map[string]string{"resourcepack": globalDir}, "")
 	count := 0
 	for _, it := range items {
 		if it.Name == "PackA" {
@@ -128,7 +128,7 @@ func TestBuildSyncItems_InstExtraFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	ins := &types.VersionInstance{VersionDir: base}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "resourcepack", Icon: "🎨"}}, map[string]string{"resourcepack": globalDir})
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "resourcepack", Icon: "🎨"}}, map[string]string{"resourcepack": globalDir}, "")
 	// 应恰好 1 条：pack-user.zip（optional），notes.txt 被过滤
 	if len(items) != 1 {
 		t.Fatalf("兜底 Walk 应添加 1 条（pack-user.zip），实际 %d 条: %+v", len(items), items)
@@ -143,7 +143,7 @@ func TestBuildSyncItems_InstExtraFile(t *testing.T) {
 
 // TestBuildSyncItems_NilInstance 导出入口 nil 守卫（L27-29）——nil 不应 panic
 func TestBuildSyncItems_NilInstance(t *testing.T) {
-	if items := BuildSyncItems(nil, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": "/x"}); items != nil {
+	if items := BuildSyncItems(nil, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": "/x"}, ""); items != nil {
 		t.Fatalf("nil instance 应返回 nil，实际 %v", items)
 	}
 }
@@ -151,7 +151,7 @@ func TestBuildSyncItems_NilInstance(t *testing.T) {
 // TestBuildSyncItems_UnknownTypeSkip SubDirMap 返回空 → 该类型直接跳过（L63-65）
 func TestBuildSyncItems_UnknownTypeSkip(t *testing.T) {
 	ins := &types.VersionInstance{Name: "t", VersionDir: t.TempDir()}
-	if items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "no-such-type", Icon: "x"}}, map[string]string{"no-such-type": "/x"}); len(items) != 0 {
+	if items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "no-such-type", Icon: "x"}}, map[string]string{"no-such-type": "/x"}, ""); len(items) != 0 {
 		t.Fatalf("未知类型无 ScanDir 应跳过，实际 %d 条", len(items))
 	}
 }
@@ -173,7 +173,7 @@ func TestBuildSyncItems_MmdSubdirGrouping(t *testing.T) {
 		t.Fatal(err)
 	}
 	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "mmd-skin", Icon: "🎭"}}, map[string]string{"mmd-skin": globalDir})
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "mmd-skin", Icon: "🎭"}}, map[string]string{"mmd-skin": globalDir}, "")
 	found := false
 	for _, it := range items {
 		if strings.HasSuffix(it.Path, filepath.Join("EntityPlayer", "角色A")) {
@@ -219,7 +219,7 @@ func TestBuildSyncItems_DisabledThreeBranches(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(instDir, "active.ysm"), []byte("x"), 0644)
 
 	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir})
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir}, "")
 	byName := map[string]types.ResourceSyncItem{}
 	for _, it := range items {
 		byName[it.Name] = it
@@ -265,7 +265,7 @@ func TestBuildSyncItems_ExtraHardLinkLegacy(t *testing.T) {
 		t.Skipf("无法创建硬链接（文件系统不支持）: %v", err)
 	}
 	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir})
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir}, "")
 	found := 0
 	for _, it := range items {
 		if it.Name == "legacy.ysm" && it.Status == types.SyncStatusLegacy {
@@ -299,7 +299,7 @@ func TestBuildSyncItems_YsmJSONEntryOnly(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(globalDir, "anim.json"), []byte("{}"), 0644)
 
 	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir})
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir}, "")
 	byName := map[string]types.ResourceSyncItem{}
 	for _, it := range items {
 		byName[it.Name] = it
@@ -328,7 +328,7 @@ func TestBuildSyncItems_SyncedFileNoDup(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(globalDir, "pack.zip"), []byte("zip"), 0644)
 	_ = os.WriteFile(filepath.Join(instDir, "pack.zip"), []byte("zip"), 0644)
 	ins := &types.VersionInstance{VersionDir: base}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "resourcepack", Icon: "🎨"}}, map[string]string{"resourcepack": globalDir})
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "resourcepack", Icon: "🎨"}}, map[string]string{"resourcepack": globalDir}, "")
 	count := 0
 	for _, it := range items {
 		if it.Name == "pack.zip" {

@@ -44,7 +44,7 @@ export async function loadData(self: SyncStoreSelf): Promise<void> {
   const gen = self._gen;
   try {
     const { GetInstanceSyncStatus } = await getApp();
-    const json = await GetInstanceSyncStatus(self._instance);
+    const json = await GetInstanceSyncStatus(self._instance, self._subtype || "");
     if (gen !== self._gen) return;
     self._allItems = (JSON.parse(json) as SyncItem[]) || [];
   } catch {
@@ -59,18 +59,14 @@ export async function loadData(self: SyncStoreSelf): Promise<void> {
 }
 
 /**
- * 应用类型 + MMD 子目录 + 状态筛选，写入 self._filteredItems。
- * subdir 过滤（ADR-095 后续）：app-nav MMD 下拉选子目录后仅显示该组；
- * 非 MMD 类型 _subdirFilter 恒 "" 不过滤。
+ * 应用类型 + 状态筛选，写入 self._filteredItems。
+ * 子目录过滤已由后端路径限定处理（GetInstanceSyncStatus 走 subtype 参数），
+ * 前端不再需要 MMD 子目录过滤——回归事实源（resource_types.json subtype.scanDir）。
  */
 export function applyFilter(self: SyncStoreSelf): void {
   let items = self._allItems;
   if (self._selectedType) {
     items = items.filter((i) => i.type === self._selectedType);
-  }
-  if (self._subdirFilter) {
-    const want = self._subdirFilter.toLowerCase();
-    items = items.filter((i) => (i.subdir || "").toLowerCase() === want);
   }
   if (self._statusFilter !== "all") {
     items = items.filter((i) => i.status === self._statusFilter);

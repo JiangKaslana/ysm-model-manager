@@ -21,7 +21,9 @@ type ResourceTypeInfo struct {
 }
 
 // BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入）
-func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, filesRoots map[string]string) []types.ResourceSyncItem {
+// subtype 指定子类型目录名（如 EntityPlayer/SceneModel），仅 subDirGrouping 类型（mmd-skin）有效；
+// 非空时路径限定到 subtype 子目录，避免扫全目录（清单式扫路径限定目录，与仓库侧同构）。
+func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, filesRoots map[string]string, subtype string) []types.ResourceSyncItem {
 	// 导出函数无 nil 守卫——直接解引用 ins.VersionDir 会 panic。
 	// 当前唯一调用方保证非 nil，但防御范式（ADR-044②）要求导出入口自守卫
 	if ins == nil {
@@ -52,6 +54,14 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		}
 		// 整合包子目录——先试标准目录，再兜底扫描
 		instDir := types.FindInstDir(ins.VersionDir, subDir, rt.ID)
+
+		// ADR-094 续：subtype 路径限定——清单式扫路径限定目录而非全目录。
+		// 仅 subDirGrouping 类型（mmd-skin）有效：subtype 非空时，instDir 和 globalDir
+		// 下钻到 subtype 子目录（如 3d-skin/EntityPlayer），与仓库侧路由同构。
+		if subtype != "" && types.IsSubDirGrouping(rt.ID) && types.IsSubDirName(rt.ID, subtype) {
+			instDir = filepath.Join(instDir, subtype)
+			globalDir = filepath.Join(globalDir, subtype)
+		}
 		// ADR-064 审核修复：dir-level 类型（ysm/MMD/蓝图）展示与操作同走
 		// SyncResourcesDirLevel（文件夹粒度），否则展示文件条目、操作却是整个文件夹，
 		// UI 粒度不一致误导；file-level 类型走 SyncResources（相对路径对比）
