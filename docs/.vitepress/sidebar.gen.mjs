@@ -790,6 +790,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-107：天空体积光束 god rays（日出/日落）",
+        "link": "/adr/ADR-107-sky-godrays-volumetric"
+      },
+      {
         "text": "ADR-106：3D 预览环境菜单两级下钻与可视化控件扩展",
         "link": "/adr/ADR-106-preview-env-menu-drill-visual"
       },

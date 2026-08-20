@@ -820,6 +820,8 @@
   "preview.skyTimeline": "光影时间轴",
   "preview.skyAutoRotate": "昼夜循环",
   "preview.skyAutoRotateHint": "自动推进时间，预览全天光照变化",
+  "preview.skyGodRays": "体积光束",
+  "preview.skyGodRaysHint": "日出日落时从太阳方向投射的体积光",
   "preview.envHdrPreview": "HDR 预览",
   "preview.postprocessingGroupColor": "色彩与曝光",
   "preview.postprocessingGroupBloom": "辉光 (Bloom)",

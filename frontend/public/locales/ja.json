@@ -820,6 +820,8 @@
   "preview.skyTimeline": "光タイムライン",
   "preview.skyAutoRotate": "昼夜サイクル",
   "preview.skyAutoRotateHint": "時間を自動的に進め、一日の光照変化をプレビュー",
+  "preview.skyGodRays": "神の光",
+  "preview.skyGodRaysHint": "日出/日落時の太陽からの Volumetric ビーム",
   "preview.envHdrPreview": "HDR プレビュー",
   "preview.postprocessingGroupColor": "色彩と露出",
   "preview.postprocessingGroupBloom": "ブルーム",

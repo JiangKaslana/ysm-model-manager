@@ -890,6 +890,8 @@ export const en: Record<string, string> = {
   "preview.skyTimeline": "Light Timeline",
   "preview.skyAutoRotate": "Day-Night Cycle",
   "preview.skyAutoRotateHint": "Auto-advances time to preview lighting across the day",
+  "preview.skyGodRays": "God Rays",
+  "preview.skyGodRaysHint": "Volumetric light beams from sun at sunrise/sunset",
   "preview.envHdrPreview": "HDR Preview",
   "preview.postprocessingGroupColor": "Color & Exposure",
   "preview.postprocessingGroupBloom": "Bloom",

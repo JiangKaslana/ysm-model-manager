@@ -12,6 +12,7 @@
 // - IBL 环境联动（scene.environment）默认开启（2026-08-16 目视验证通过，模型反射/环境光更真实）；
 //   如需关闭调用 setEnvironmentEnabled(false)。
 // - 实现 SceneCapability 统一接口，支持注册表自动发现 + 菜单控件 + 持久化。
+// - God Rays（体积光束，ADR-107）：日出日落时从太阳方向向下投射的半透明光束。
 
 import * as THREE from "three";
 import { RESOURCE_TYPES } from "../../resource/types.ts";
@@ -94,6 +95,10 @@ export class SkyCapability implements SceneCapability {
   private enabled: boolean;
   private prevToneMapping: THREE.ToneMapping;
   private prevExposure: number;
+  /** God Rays（体积光束）*/
+  private godRays: THREE.Group | null = null;
+  private godRaysEnabled: boolean;
+  private godRaysTime: { value: number };
 
   constructor(opts: {
     scene: THREE.Scene;
@@ -112,6 +117,10 @@ export class SkyCapability implements SceneCapability {
     this.envSky = this.createSky();
     this.envScene = new THREE.Scene();
     this.envScene.add(this.envSky);
+    // God Rays 初始化（默认禁用）
+    this.godRaysEnabled = false;
+    this.godRaysTime = { value: 0 };
+    this.createGodRays();
   }
 
   /** 确保 PMREMGenerator 已创建（延迟到首次需要时） */
@@ -129,7 +138,7 @@ export class SkyCapability implements SceneCapability {
     return sky;
   }
 
-  /** 应用天空到场景（背景 + 可选 IBL + tone mapping） */
+  /** 应用天空到场景（背景 + 可选 IBL + tone mapping + god rays） */
   apply(): void {
     this.syncSunFromTime();
     this.writeUniforms(this.sky);
@@ -144,6 +153,8 @@ export class SkyCapability implements SceneCapability {
     this.renderer.toneMappingExposure = this.params.exposure;
     if (this.params.environment) this.regenerateEnvironment();
     else this.clearEnvironment();
+    // 更新 god rays
+    this.updateGodRays();
   }
 
   private writeUniforms(sky: Sky): void {
@@ -294,6 +305,8 @@ export class SkyCapability implements SceneCapability {
     this.writeUniforms(this.sky);
     this.writeUniforms(this.envSky);
     if (this.params.environment) this.regenerateEnvironment();
+    // 更新 god rays
+    this.updateGodRays();
   }
 
   getTimeOfDay(): number {
@@ -308,6 +321,124 @@ export class SkyCapability implements SceneCapability {
   /** 当前云量（ADR-085 S2：菜单初始化惰性读，消灭硬编码 "0%"） */
   getCloudCoverage(): number {
     return this.params.cloudCoverage;
+  }
+
+  // ── God Rays ──
+
+  /** 创建体积光束 geometry + material */
+  private createGodRays(): void {
+    const scale = this.params.scale;
+    const width = scale * 0.3;
+    const height = scale * 0.4;
+
+    // 两个交叉 PlaneGeometry 模拟体积光束
+    const geo1 = new THREE.PlaneGeometry(width, height, 1, 1);
+    const geo2 = new THREE.PlaneGeometry(width, height, 1, 1);
+
+    // 自定义 shader material
+    const uniforms = {
+      uColor: { value: new THREE.Color(1.0, 0.6, 0.2) }, // 日出日落色
+      uIntensity: { value: 0 },
+      uTime: this.godRaysTime,
+    };
+
+    const material = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying vec2 vUv;
+        uniform vec3 uColor;
+        uniform float uIntensity;
+        uniform float uTime;
+
+        void main() {
+          // 垂直衰减：底部（vUv.y=0）最亮，顶部（vUv.y=1）衰减到 0
+          float verticalFade = 1.0 - vUv.y;
+          verticalFade = pow(verticalFade, 1.5);
+          // 径向衰减：中心最亮，边缘透明
+          float radialDist = abs(vUv.x - 0.5) * 2.0; // 0=中心, 1=边缘
+          float radialFade = 1.0 - radialDist * radialDist;
+          // 微动画：time 驱动轻微偏移
+          float shimmer = sin(uTime * 2.0 + vUv.y * 6.28) * 0.05 + 1.0;
+          float alpha = uIntensity * verticalFade * radialFade * shimmer;
+          if (alpha < 0.01) discard;
+          gl_FragColor = vec4(uColor * alpha, alpha);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+
+    const mesh1 = new THREE.Mesh(geo1, material);
+    const mesh2 = new THREE.Mesh(geo2, material);
+    mesh2.rotation.z = Math.PI / 2; // 第二个 plane 旋转 90 度
+
+    // 放置于场景中心上方，朝向下方
+    mesh1.position.y = height * 0.5;
+    mesh2.position.y = height * 0.5;
+
+    this.godRays = new THREE.Group();
+    this.godRays.add(mesh1);
+    this.godRays.add(mesh2);
+    this.godRays.visible = false;
+  }
+
+  /** 获取 god rays intensity（0~1，elevation<20° 时激活） */
+  getGodRaysIntensity(): number {
+    if (this.params.elevation > 20) return 0;
+    return Math.min(1, Math.max(0, (20 - this.params.elevation) / 30));
+  }
+
+  /** 按太阳位置更新 god rays 旋转和 intensity */
+  private updateGodRays(): void {
+    if (!this.godRays) return;
+    if (!this.godRaysEnabled) {
+      if (this.godRays.parent) this.godRays.parent.remove(this.godRays);
+      this.godRays.visible = false;
+      return;
+    }
+    const { elevation, azimuth } = this.hourToSun(this.params.timeOfDay);
+    const elRad = THREE.MathUtils.degToRad(elevation);
+    // 旋转 group：先绕 X 轴调整仰角，再绕 Y 轴调整方位
+    this.godRays.rotation.x = -elRad; // 负：仰角越高，beam 越往下压
+    this.godRays.rotation.y = THREE.MathUtils.degToRad(azimuth - 90); // 0°=东, 90°=南
+
+    // 更新 intensity
+    const intensity = this.getGodRaysIntensity();
+    const mat = this.godRays.children[0] as THREE.Mesh;
+    if (mat.material instanceof THREE.ShaderMaterial && mat.material.uniforms?.uIntensity) {
+      mat.material.uniforms.uIntensity.value = intensity;
+    }
+
+    // 挂载/卸载
+    if (intensity > 0 && !this.godRays.parent) {
+      this.scene.add(this.godRays);
+      this.godRays.visible = true;
+    } else if (intensity === 0 && this.godRays.parent) {
+      this.godRays.parent.remove(this.godRays);
+      this.godRays.visible = false;
+    }
+  }
+
+  /** 是否启用 god rays */
+  isGodRaysEnabled(): boolean {
+    return this.godRaysEnabled;
+  }
+
+  /** 切换 god rays 开关 */
+  setGodRaysEnabled(v: boolean): void {
+    this.godRaysEnabled = v;
+    if (!this.enabled) return;
+    this.updateGodRays();
   }
 
   /** 返回菜单控件定义（框架自动渲染） */
@@ -365,6 +496,16 @@ export class SkyCapability implements SceneCapability {
           else this.stopAutoRotate();
         },
       },
+      {
+        id: "sky-godrays",
+        kind: "toggle",
+        labelKey: "preview.skyGodRays",
+        fallback: "体积光束",
+        hintKey: "preview.skyGodRaysHint",
+        group: "preview.skyGroupAdvanced",
+        getValue: () => this.isGodRaysEnabled(),
+        setValue: (v) => this.setGodRaysEnabled(v as boolean),
+      },
     ];
   }
 
@@ -375,6 +516,7 @@ export class SkyCapability implements SceneCapability {
       cloudCoverage: this.params.cloudCoverage,
       environment: this.params.environment,
       enabled: this.enabled,
+      godRaysEnabled: this.godRaysEnabled,
     });
   }
 
@@ -386,11 +528,14 @@ export class SkyCapability implements SceneCapability {
     if (typeof state.timeOfDay === "number") this.params.timeOfDay = state.timeOfDay;
     if (typeof state.cloudCoverage === "number") this.params.cloudCoverage = state.cloudCoverage;
     if (typeof state.environment === "boolean") this.params.environment = state.environment;
+    if (typeof state.godRaysEnabled === "boolean") this.godRaysEnabled = state.godRaysEnabled;
   }
 
   private detach(): void {
     if (this.sky.parent) this.sky.parent.remove(this.sky);
     this.clearEnvironment();
+    if (this.godRays?.parent) this.godRays.parent.remove(this.godRays);
+    this.godRays?.visible;
   }
 
   dispose(): void {
@@ -407,5 +552,16 @@ export class SkyCapability implements SceneCapability {
     this.envSky.geometry.dispose();
     (this.envSky.material as THREE.Material).dispose();
     this.pmrem?.dispose();
+    // 释放 god rays
+    if (this.godRays) {
+      this.godRays.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          const mat = child.material;
+          if (mat instanceof THREE.ShaderMaterial) mat.dispose();
+        }
+      });
+      this.godRays = null;
+    }
   }
 }

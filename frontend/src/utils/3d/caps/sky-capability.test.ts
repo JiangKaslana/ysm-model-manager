@@ -214,3 +214,70 @@ describe("SkyCapability — 预设数据完整性", () => {
     }
   });
 });
+
+describe("SkyCapability — God Rays（体积光束）", () => {
+  it("初始 godRaysEnabled=false", () => {
+    const cap = newCap();
+    expect(cap.isGodRaysEnabled()).toBe(false);
+  });
+
+  it("setGodRaysEnabled 切换", () => {
+    const cap = newCap();
+    cap.setGodRaysEnabled(true);
+    expect(cap.isGodRaysEnabled()).toBe(true);
+    cap.setGodRaysEnabled(false);
+    expect(cap.isGodRaysEnabled()).toBe(false);
+  });
+
+  it("getGodRaysIntensity: elevation=-10 → 1", () => {
+    const cap = newCap({ params: { elevation: -10 } });
+    expect(cap.getGodRaysIntensity()).toBe(1);
+  });
+
+  it("getGodRaysIntensity: elevation=10 → ~0.33", () => {
+    const cap = newCap({ params: { elevation: 10 } });
+    expect(cap.getGodRaysIntensity()).toBeCloseTo(0.33, 1);
+  });
+
+  it("getGodRaysIntensity: elevation=20 → 0", () => {
+    const cap = newCap({ params: { elevation: 20 } });
+    expect(cap.getGodRaysIntensity()).toBe(0);
+  });
+
+  it("getGodRaysIntensity: elevation=-20 → 1", () => {
+    const cap = newCap({ params: { elevation: -20 } });
+    expect(cap.getGodRaysIntensity()).toBe(1);
+  });
+
+  it("setTime(sunset=18) 时 intensity>0", () => {
+    const cap = newCap();
+    cap.setTime(18);
+    // 日落时 intensity 应 > 0
+    expect(cap.getGodRaysIntensity()).toBeGreaterThan(0);
+  });
+
+  it("setTime(noon=12) 时 intensity=0", () => {
+    const cap = newCap();
+    cap.setTime(12);
+    // 正午 elevation 应 > 20°, intensity=0
+    expect(cap.getGodRaysIntensity()).toBe(0);
+  });
+
+  it("getMenuControls 包含 sky-godrays toggle", () => {
+    const cap = newCap();
+    const controls = cap.getMenuControls();
+    const godraysCtrl = controls.find((c) => c.id === "sky-godrays");
+    expect(godraysCtrl).toBeDefined();
+    expect(godraysCtrl!.kind).toBe("toggle");
+    expect(godraysCtrl!.getValue()).toBe(false);
+  });
+
+  it("saveState/loadState 持久化 godRaysEnabled", () => {
+    const cap = newCap({ params: { timeOfDay: 18 } });
+    cap.setGodRaysEnabled(true);
+    cap.saveState();
+    const cap2 = newCap();
+    cap2.loadState();
+    expect(cap2.isGodRaysEnabled()).toBe(true);
+  });
+});
