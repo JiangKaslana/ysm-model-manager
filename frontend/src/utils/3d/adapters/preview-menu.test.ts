@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS } from "./preview-menu-defs.ts";
 import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
-import { deriveTestIds } from "../../../../test-utils/self-healing.ts";
+import { deriveTestIds } from "../../../test-utils/self-healing.ts";
 
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
   return {

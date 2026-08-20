@@ -257,7 +257,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.ysm"],
     });
-    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
     // 自愈：从真实菜单表推导期望选择器（ysm 项 + core 同组项）
@@ -274,7 +275,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.pmx"],
     });
-    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
     // 自愈：从真实菜单表推导 🧍 组期望选择器
@@ -282,10 +284,12 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     adapterDockModel.forEach((tid) => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
     });
-    expect(overlay.querySelector('[data-testid="preview-switch"]')).not.toBeNull(); // core switch
+    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
+    expect(overlay.querySelector(`[data-testid="preview-${switchId}"]`)).not.toBeNull();
 
     // 多 panel 组（play + perception）→ 渲染组根行列表
-    const motionBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-motion"]');
+    const motionGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "motion")!.id;
+    const motionBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${motionGroupId}"]`);
     expect(motionBtn).not.toBeNull();
     motionBtn!.click();
     const adapterDockMotion = deriveTestIds(items.filter((d) => d.dockGroup === "motion"));
@@ -300,7 +304,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.vrm"],
     });
-    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
     // 自愈：从真实菜单表推导期望选择器
@@ -308,26 +313,33 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     adapterDock.forEach((tid) => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
     });
-    expect(overlay.querySelector('[data-testid="preview-switch"]')).not.toBeNull();
+    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
+    expect(overlay.querySelector(`[data-testid="preview-${switchId}"]`)).not.toBeNull();
     handle.dispose();
   });
 
   it("core 拆组契约：🎛️ 场景组含 lighting/shadow/postproc、🌍 环境组独立（shared 模式 + cap）", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => ["/m/b.ysm"] });
-    // 场景组 root 按钮在 shared 模式出现（camera 已移至 motion 组）
-    const sceneBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-scene"]');
+    // 场景组 root 按钮从 PREVIEW_MENU_GROUPS 推导
+    const sceneGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "scene")!.id;
+    const sceneBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${sceneGroupId}"]`);
     expect(sceneBtn).not.toBeNull();
     sceneBtn!.click();
-    // camera 不再在场景组（已移至 motion 组）
-    expect(overlay.querySelector('[data-testid="preview-camera"]')).toBeNull();
-    // environment 已拆离 🌍 环境组，不再出现在 🎛️ 场景组根列表
-    expect(overlay.querySelector('[data-testid="preview-environment"]')).toBeNull();
-    // 场景组应有 lighting/shadow/postproc（sharedOnly）
-    expect(overlay.querySelector('[data-testid="preview-lighting"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-shadow"]')).not.toBeNull();
-    expect(overlay.querySelector('[data-testid="preview-postproc"]')).not.toBeNull();
+    // scene 组菜单项从 CORE_MENU_ITEMS 推导（camera 已移至 motion，environment 已拆离）
+    const sceneCoreItems = CORE_MENU_ITEMS.filter(
+      (d) => d.dockGroup === "scene" && d.id !== "camera" && d.id !== "environment",
+    );
+    for (const eid of deriveTestIds(sceneCoreItems)) {
+      expect(overlay.querySelector(`[data-testid="${eid}"]`), eid).not.toBeNull();
+    }
+    // camera / environment 从 CORE_MENU_ITEMS 推导 testId，验证不在 scene 组渲染
+    const camId = CORE_MENU_ITEMS.find((d) => d.id === "camera")!.id;
+    const envId = CORE_MENU_ITEMS.find((d) => d.id === "environment")!.id;
+    expect(overlay.querySelector(`[data-testid="preview-${camId}"]`)).toBeNull();
+    expect(overlay.querySelector(`[data-testid="preview-${envId}"]`)).toBeNull();
     // 环境组独立 root 按钮存在（有 fakeCap → requiresEnvironment 放行）
-    const envBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-env"]');
+    const envGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "env")!.id;
+    const envBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${envGroupId}"]`);
     expect(envBtn).not.toBeNull();
     // 单 panel 组 → 快捷直达环境面板（渲染 range 控件，不渲染组根行）
     envBtn!.click();
@@ -338,13 +350,16 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
   it("能力驱动：无 siblings → model dock 仍显示（路径输入兜底）；selfMode + 无环境能力 → 无 🌍/🎛️ 组", () => {
     // 无 siblings → switch 不再被过滤（needsSiblings 已移除），dock-model 始终可见
     const noSib = mountWith([], {});
-    expect(noSib.overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
+    const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
+    expect(noSib.overlay.querySelector(`[data-testid="dock-${modelGroupId}"]`)).not.toBeNull();
     noSib.handle.dispose();
     // selfMode → camera/lighting/shadow/postproc(sharedOnly) 过滤 → 🎛️ 场景组空；
     // 无 cap → environment(requiresEnvironment) 过滤 → 🌍 环境组空 → 两组 dock 均不渲染
     const noScene = mountWith([], { selfMode: true, getSkyCap: () => null, getGroundCap: () => null });
-    expect(noScene.overlay.querySelector('[data-testid="dock-scene"]')).toBeNull();
-    expect(noScene.overlay.querySelector('[data-testid="dock-env"]')).toBeNull();
+    const sceneGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "scene")!.id;
+    const envGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "env")!.id;
+    expect(noScene.overlay.querySelector(`[data-testid="dock-${sceneGroupId}"]`)).toBeNull();
+    expect(noScene.overlay.querySelector(`[data-testid="dock-${envGroupId}"]`)).toBeNull();
     noScene.handle.dispose();
   });
 
@@ -355,11 +370,12 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
       getCurrentPath: () => "/m/a.ysm",
       switchTo,
     });
-    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // roles 加入 model 组后 dock 先入组根视图，点击 switch 行进入面板
-    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
+    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
+    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
@@ -371,12 +387,13 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
 
   it("无 siblings → dock-model 可见（类型 tab 兜底），面板内显示空态（路径输入保留）", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => [] });
-    expect(overlay.querySelector('[data-testid="dock-model"]')).not.toBeNull();
+    const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
+    expect(overlay.querySelector(`[data-testid="dock-${modelGroupId}"]`)).not.toBeNull();
     // 点击 model 打开 switch 面板，应显示空态文字，路径输入框保留（P2-1 补回）
-    const modelBtn = overlay.querySelector<HTMLElement>('[data-testid="dock-model"]');
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     modelBtn!.click();
-    // roles 加入 model 组后 dock 先入组根视图，点击 switch 行进入面板
-    (overlay.querySelector('[data-testid="preview-switch"]') as HTMLElement).click();
+    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
+    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     expect(popup.textContent).toContain("无其他模型");
