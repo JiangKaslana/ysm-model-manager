@@ -110,12 +110,6 @@ export class GroundCapability implements SceneCapability {
          h += wave(wpos, normalize(vec2(0.2, -0.8)), 1.6, 1.5, 0.03);
          transformed.z += h;`,
       );
-      // fragment shader：扰动法线让反射闪烁（轻微）
-      shader.fragmentShader = shader.fragmentShader.replace(
-        "#include <common>",
-        `#include <common>
-         uniform float uTime;`,
-      );
     };
     waterMat.needsUpdate = true;
 
