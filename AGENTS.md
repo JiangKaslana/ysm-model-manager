@@ -6,9 +6,9 @@
 ## 硬约束
 
 > 500 行文件先 grep 定位再读。核实符号：当前源码 > `docs/adr/` > `docs/knowledge/` > `docs/archive/architecture.md`。
-> 先写测试再写代码（TDD）,改完即验，验完路径限定提交：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`（tsc --noEmit，ADR-014 门槛）。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）。
-> 有失败就修复，超出职责的就报告；通过则直接 `git add <source files>` → 提交对应的文件夹，**无需手动打 `git status --short`**（pre-commit 自动输出本次 commit diff 统计）。先提交 `docs/`，捎带了无关文件也别怕。
-> 放弃低效的 `git stash` / `git stash push` / `git stash pop` 指令（`list` / `show` 只读不受限）。需要临时回退时用 `git commit` + `git reset --soft HEAD~1`。
+> 先写测试再写代码（TDD）,改完即验，跳过既有问题，修复失败，路径限定提交：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`或`tsc --noEmit`。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）。
+> （pre-commit 自动输出本次 commit diff 统计）。先提交 `docs/`，捎带了无关文件也别怕。
+> 需要临时回退时用 `git commit` + `git reset --soft HEAD~1`，记录这个文件的问题，放弃丢失文件的 `git stash` / `git stash push` / `git stash pop` 指令（`list` / `show` 只读不受限）。
 > 查日志/排查卡顿：往**环形日志面板**塞日志，而非死盯 console。
 > 连续修改时，从下往上修改可避免行号变化的影响。
 > 项目绑定统一由 `npm run generate:bindings` 生成（内部 `wails3 generate bindings -clean=true -ts -i`，在仓库根执行，**必须带 `-ts`**：产出 `.ts`，前端以 `.js` 后缀 import、由 vite `wailsBindingsResolve` 重定向；无 `-ts` 生成会产出 `.js` 并清掉 git 跟踪的 `.ts`，属回归红线。契约见 `docs/architecture.md` §绑定模式）。
@@ -16,8 +16,8 @@
 
 ```bash
 # 暂存（本地缓存）一次性打全可锁定成果。
-git add <路径限定-测试pass..> & git commit -- <files> "<type>: <简短描述>"    # pre-commit 自动同步文档/索引（秒级），勿 --no-verify 跳过
-# ⚠️ 并行会话活跃时（git status 可见他人改动）：用路径限定提交防共享 index 串台——
+git add <路径限定-测试pass..> & git commit -- <files> "<type>: <简短描述>"    # pre-commit 自动同步文档/索引（秒级），需要时可 --no-verify 跳过
+# ⚠️ 并行会话活跃时（git status 可见他人改动）：用路径限定提交自己的改动——
 git add <自己的文件...> && git commit -m "<type>: <简短描述>" -- <自己的文件...>
 git push --verbose 2>&1 | Select-Object -Last 50    # 仅在完成多轮对话后再推送，推送成功后，监控Acton 是否返回报错信息。
 git log --oneline -5 -- <file>	# 这个文件是不是最近被谁提交了
@@ -26,7 +26,6 @@ git checkout -- <file>	#想精确恢复某个文件
 
 # 恢复（从本地缓存取出）
 git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留在暂存区（staged）
-git reset HEAD~1                      # 撤销最近一条 commit，把改动放回工作区（unstaged）
 ```
 
 ## 场景路由（遇到时优先查，别猜）
