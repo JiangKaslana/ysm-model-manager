@@ -99,6 +99,7 @@ function makeEntry(over: Partial<TreeEntry> = {}): TreeEntry {
 interface VM {
   _rootAttr: string;
   _typeFilter: string | null;
+  _subdirAttr: string;
   _batchBusy: boolean;
   _toggleBusy: boolean;
   _entries: TreeEntry[];
@@ -111,6 +112,7 @@ function makeVM(entries: TreeEntry[] = []): VM {
   return {
     _rootAttr: "ysm",
     _typeFilter: null,
+    _subdirAttr: "",
     _batchBusy: false,
     _toggleBusy: false,
     _entries: entries,
@@ -446,5 +448,27 @@ describe("bindBusEvents — 树刷新", () => {
     expect(ClearScanCacheMock).toHaveBeenCalled();
     expect(vm._filesRoot).toBe("/repo");
     expect(vm._renderTree).toHaveBeenCalled();
+  });
+
+  it("tree:reload → 保留 _subdirAttr（ADR-094，不丢失子目录上下文）", async () => {
+    const vm = makeVM();
+    vm._rootAttr = "mmd-skin";
+    vm._subdirAttr = "EntityPlayer";
+    let loadedArgs: [string, string?] = ["mmd-skin"];
+    getRegistryMock.mockImplementation((name: string) =>
+      name === "loadEntries"
+        ? async (...args: [string, string?]) => {
+            loadedArgs = args;
+            return { filesRoot: "/repo/mmd/EntityPlayer", entries: [] as TreeEntry[] };
+          }
+        : undefined,
+    );
+    await bind(vm);
+
+    bus.emit("tree:reload");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(loadedArgs).toEqual(["mmd-skin", "EntityPlayer"]);
+    expect(vm._filesRoot).toBe("/repo/mmd/EntityPlayer");
   });
 });

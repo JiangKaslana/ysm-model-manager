@@ -278,7 +278,11 @@ async function reload(vm: AppTree): Promise<void> {
   const gen = vm._gen; // P2-1 代际捕获（不 ++，避免打断 connected 初始渲染）
   try {
     const rtype = vm._rootAttr || vm._typeFilter || "";
-    const r = await get<typeof loadEntries>("loadEntries")(rtype);
+    // ADR-094：reload 须保留当前 subdir，与 _load() 口径一致——漏传会回退到 group 根扫描，
+    // 使 mmd-skin EntityPlayer 选中态在导入/删除/同步后"退化"为展示所有子文件夹的根视图。
+    const r = vm._subdirAttr
+      ? await get<typeof loadEntries>("loadEntries")(rtype, vm._subdirAttr)
+      : await get<typeof loadEntries>("loadEntries")(rtype);
     if (gen !== vm._gen) return; // P2-1 root 切换/新加载已发起 → 丢弃过期结果
     if (r) {
       vm._filesRoot = r.filesRoot;
