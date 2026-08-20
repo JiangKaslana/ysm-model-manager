@@ -62,7 +62,10 @@ func (tm *TrashManager) MoveEx(src string) *MoveResult {
 
 // uniqueDest 冲突后缀循环：目标已存在时在扩展名前追加 (1)、(2)… 重试，
 // 返回首个不存在的目标路径。每次候选（含初始 dst）先经 guard 越权校验；
-// os.Stat 非「不存在」错误（权限 EACCES 等）直接返回，避免静默跳过冲突检测。
+// os.Lstat 非「不存在」错误（权限 EACCES 等）直接返回，避免静默跳过冲突检测。
+// 使用 Lstat 而非 Stat：避免跟随符号链接——目标位置的悬空符号链接（target 不存在）
+// 经 Stat 会返回 IsNotExist=true，误判为「路径空闲」导致 rename 覆盖悬空链接；
+// Lstat 检测链接本身存在，正确生成编号后缀路径（与 moveEx/Restore 的 Lstat 语义对齐）。
 // 收敛 moveEx / Restore 两份逐字重复的冲突后缀循环（索引 6.8b）。
 func uniqueDest(dst string, guard func(string) error) (string, error) {
 	if err := guard(dst); err != nil {
@@ -71,7 +74,7 @@ func uniqueDest(dst string, guard func(string) error) (string, error) {
 	ext := filepath.Ext(dst)
 	base := dst[:len(dst)-len(ext)]
 	for i := 1; ; i++ {
-		if _, err := os.Stat(dst); os.IsNotExist(err) {
+		if _, err := os.Lstat(dst); os.IsNotExist(err) {
 			return dst, nil
 		} else if err != nil {
 			// 非「不存在」错误（权限等）直接返回，避免静默跳过冲突检测
@@ -265,6 +268,26 @@ func (tm *TrashManager) Restore(src string) error {
 	})
 	if err != nil {
 		return err
+	}
+	// 符号链接处理：恢复链接本身而非跟随读取目标内容（与 moveEx 的 Lstat 语义对齐）。
+	// moveEx 对符号链接直接删除不入回收站，但若回收站已有历史符号链接条目（手动放入/旧版本遗留），
+	// Restore 需正确处理：读取链接目标 → 重建链接 → 删除回收站侧旧链接。
+	if info, statErr := os.Lstat(src); statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+		target, readErr := os.Readlink(src)
+		if readErr != nil {
+			return fmt.Errorf("读取符号链接目标失败 %s: %w", src, readErr)
+		}
+		// 删除回收站侧旧链接（unlink，不影响链接目标）
+		if removeErr := os.Remove(src); removeErr != nil {
+			return fmt.Errorf("删除回收站符号链接失败 %s: %w", src, removeErr)
+		}
+		// 在原位置重建符号链接
+		if linkErr := os.Symlink(target, dst); linkErr != nil {
+			// 回滚：恢复回收站侧链接
+			_ = os.Symlink(target, src)
+			return fmt.Errorf("恢复符号链接失败 %s -> %s: %w", dst, target, linkErr)
+		}
+		return nil
 	}
 	// 优先瞬时移动（同分区原子操作）；跨设备时回退复制后删，语义不变
 	// 与 moveEx 共用 renameForMove/copyDirForMove/copyFileForMove 注入点，

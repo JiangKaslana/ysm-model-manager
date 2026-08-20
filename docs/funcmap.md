@@ -36,7 +36,7 @@
 | Go·YSM 核心 | 7 | 26 |
 | Go(internal)·应用入口 | 26 | 200 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
-| frontend/backend | 19 | 101 |
+| frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 16 | 77 |
 | 前端·服务 | 2 | 18 |
@@ -46,7 +46,7 @@
 | frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **429** | **1849** |
+| **合计** | **428** | **1847** |
 
 ## Go·头像
 
@@ -329,16 +329,16 @@
 | `TrashManager.RecycleDir()` | `go/recycle/recycle:44` | RecycleDir 返回回收站目录路径 |
 | `TrashManager.Move()` | `go/recycle/recycle:49` | Move 移动文件到回收站 |
 | `TrashManager.MoveEx()` | `go/recycle/recycle:55` | MoveEx 移动文件到回收站，返回操作详情 |
-| `TrashManager.List()` | `go/recycle/recycle:182` | List 列出回收站中的文件。 |
-| `TrashManager.Restore()` | `go/recycle/recycle:242` | Restore 从回收站恢复到原目录 |
-| `TrashManager.Delete()` | `go/recycle/recycle:311` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `TrashManager.Empty()` | `go/recycle/recycle:331` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `TrashManager.List()` | `go/recycle/recycle:185` | List 列出回收站中的文件。 |
+| `TrashManager.Restore()` | `go/recycle/recycle:245` | Restore 从回收站恢复到原目录 |
+| `TrashManager.Delete()` | `go/recycle/recycle:334` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `TrashManager.Empty()` | `go/recycle/recycle:354` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
 | `Move()` | `go/recycle/recycle:49` | Move 移动文件到回收站 |
 | `MoveEx()` | `go/recycle/recycle:55` | MoveEx 移动文件到回收站，返回操作详情 |
-| `List()` | `go/recycle/recycle:182` | List 列出回收站中的文件。 |
-| `Restore()` | `go/recycle/recycle:242` | Restore 从回收站恢复到原目录 |
-| `Delete()` | `go/recycle/recycle:311` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
-| `Empty()` | `go/recycle/recycle:331` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
+| `List()` | `go/recycle/recycle:185` | List 列出回收站中的文件。 |
+| `Restore()` | `go/recycle/recycle:245` | Restore 从回收站恢复到原目录 |
+| `Delete()` | `go/recycle/recycle:334` | Delete 永久删除回收站中的文件 ADR-038 D3.4：整组合并条目 Path 指向目录，os.Remove 无法删非空目录 → 目录用 RemoveAll |
+| `Empty()` | `go/recycle/recycle:354` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
 | `MoveResult()` | `go/recycle/recycle:17` | MoveResult 回收操作结果 |
 | `TrashManager()` | `go/recycle/recycle:23` | TrashManager 可配置的回收站管理器 |
 
@@ -594,9 +594,9 @@
 | `NewDownloadQueue()` | `internal/app/app_download:51` | NewDownloadQueue 创建串行下载队列（回调由 App 初始化时注入） |
 | `App.EnqueueDownloads()` | `internal/app/app_download:56` | — |
 | `App.CancelQueue()` | `internal/app/app_download:86` | — |
-| `App.QueueStatus()` | `internal/app/app_download:103` | — |
-| `App.DownloadFromGitHub()` | `internal/app/app_download:256` | — |
-| `App.GetModelTexSizes()` | `internal/app/app_download:267` | GetModelTexSizes 扫描仓库文件提取纹理尺寸（轻量级，不解析完整模型） |
+| `App.QueueStatus()` | `internal/app/app_download:106` | — |
+| `App.DownloadFromGitHub()` | `internal/app/app_download:259` | — |
+| `App.GetModelTexSizes()` | `internal/app/app_download:270` | GetModelTexSizes 扫描仓库文件提取纹理尺寸（轻量级，不解析完整模型） |
 | `QueueStatusInfo()` | `internal/app/app_download:18` | QueueStatusInfo 队列状态（替代多返回值，Wails 自动映射为 JS object） |
 | `DownloadTask()` | `internal/app/app_download:24` | DownloadTask 下载队列任务 |
 | `DownloadQueue()` | `internal/app/app_download:33` | DownloadQueue 串行下载队列 回调注入替代 *App 反向引用（ADR-002 P1：打破 DownloadQueue ↔ App 循环，解锁独立测试） |
@@ -847,10 +847,8 @@
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
 | `AppBindings()` | `frontend/src/backend/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
-| `BLOCK_COLOR_MAP()` | `frontend/src/backend/voxel-colors-data:7` | 方块名（去命名空间）→ 近似十六进制颜色（对齐 go/litematic/block_colors.go blockColorMap） |
-| `BLOCK_VARIANT_NAMES()` | `frontend/src/backend/voxel-colors-data:305` | "id:data" → 注册名（对齐 go/litematic/block_ids_data.go blockVariantNames，schematic v1 数字 ID 解析） |
-| `mapColor()` | `frontend/src/backend/voxel-colors:90` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
-| `resolveBlockName()` | `frontend/src/backend/voxel-colors:105` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
+| `mapColor()` | `frontend/src/backend/voxel-colors:91` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
+| `resolveBlockName()` | `frontend/src/backend/voxel-colors:106` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
 | `VoxelGroup()` | `frontend/src/backend/voxel-parse:36` | 输出形状（对齐 types.VoxelGroup / LitematicVoxelData json tag） |
 | `VoxelData()` | `frontend/src/backend/voxel-parse:41` | — |
 | `readVarInt()` | `frontend/src/backend/voxel-parse:58` | 对齐 voxel.go:531-549 readVarInt：返回 {value, offset}（shift≥64 截断防溢出 wrap） |
@@ -1012,8 +1010,8 @@
 | `ImportHistory()` | `frontend/src/features/import-executor:38` | — |
 | `directImport()` | `frontend/src/features/import-executor:96` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
 | `importFolder()` | `frontend/src/features/import-executor:139` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
-| `executeCollected()` | `frontend/src/features/import-executor:208` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:232` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `executeCollected()` | `frontend/src/features/import-executor:214` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:238` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:42` | 加载资历最深、仓库评分、热力图和每日推荐 |
 | `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |

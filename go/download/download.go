@@ -321,10 +321,10 @@ func (d *Downloader) FromGitHubAPIWithChecksum(ctx context.Context, apiURL, save
 	return d.downloadTo(ctx, apiURL, savePath, "application/vnd.github.v3.raw", onProgress, expectedSHA256)
 }
 
-// isBinaryContentType 判断 Content-Type 是否非"HTML 错误页"。
-// 真实风险：服务端 502/503/404 返回 `text/html` 错误页被当文件装盘。
-// 策略：仅明确拒绝 HTML 类型，其余全部放行——避免误伤文本文件（.json / .ysm 配置等）与未知类型。
-// 空 Content-Type（HTTP/1.0 常见）放行。
+// isBinaryContentType 判断 Content-Type 是否非"错误页"。
+// 真实风险：服务端 502/503/404 返回 HTML/XML 错误页被当文件装盘。
+// 策略：拒绝 HTML + XML 类型（反向代理常见 XML 错误页），其余全部放行——
+// 避免误伤文本文件（.json / .ysm 配置等）与未知类型。空 Content-Type（HTTP/1.0 常见）放行。
 func isBinaryContentType(ct string) bool {
 	if ct == "" {
 		return true

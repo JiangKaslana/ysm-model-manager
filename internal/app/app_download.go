@@ -85,7 +85,6 @@ func (a *App) EnqueueDownloads(tasks []DownloadTask) error {
 
 func (a *App) CancelQueue() {
 	a.queue.mu.Lock()
-	defer a.queue.mu.Unlock()
 	a.queue.cancelled = true
 	// 递增代际：使在途 process goroutine 退出时不再复位 running / 发 done，
 	// 避免「取消后立即重新入队」启动新 goroutine 时双 process 并发（P1 竞态）
@@ -96,6 +95,10 @@ func (a *App) CancelQueue() {
 	}
 	a.queue.tasks = nil
 	a.queue.running = false
+	a.queue.mu.Unlock()
+	// 事件发在锁外：防止事件处理器同步回调 QueueStatus / EnqueueDownloads 时
+	// 抢同一把锁造成死锁（Wails Event.Emit 虽非阻塞，但安全口径与 processForEpoch 对齐——
+	// processForEpoch 的 emitFn 均在 mu.Unlock 之后调用）
 	log.Printf("[queue] emit queue:status cancelled")
 	a.app.Event.Emit("queue:status", "cancelled", 0, "")
 }

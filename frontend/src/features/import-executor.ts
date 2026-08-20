@@ -141,12 +141,18 @@ export const importFolder = async (
   files: CollectedEntry[],
 ): Promise<void> => {
   // 并发守护：与 directImport 的 _inFlight 对称，阻止同一文件夹重复提交
-  if (_inFlight.has(dir)) {
+  // BUG-FIX（审核 2026-08-20）：原 key 仅用 dir（顶层文件夹名），不同来源的同名
+  // 文件夹（如分别从 Desktop 和 Documents 拖入两个 "model" 文件夹）会误碰撞——
+  // 第二个导入被 "busy" 拦截而实际并非同一文件夹。修复：key 追加首文件指纹
+  // （name+size+lastModified），与 directImport 的 key 构造范式对齐，保证跨源唯一
+  const firstFile = files.length > 0 ? files[0].file : null;
+  const dirKey = dir + ":" + (firstFile ? firstFile.name + ":" + firstFile.size + ":" + firstFile.lastModified : "");
+  if (_inFlight.has(dirKey)) {
     // P2 修复（子代理审计）：同上——busy 命中静默 return 零反馈，改 toast
     toast(t("import.busyImporting"), "warn", 2000);
     return;
   }
-  _inFlight.add(dir);
+  _inFlight.add(dirKey);
   const parts = dir.split("/");
   const folderName = parts[parts.length - 1] || "模型";
   const subpath = parts.slice(0, -1).join("/");
@@ -196,7 +202,7 @@ export const importFolder = async (
       toast("❌ " + t("import.failed") + ": " + friendlyError(e), "error", 4000);
     }
   } finally {
-    _inFlight.delete(dir);
+    _inFlight.delete(dirKey);
   }
 };
 
