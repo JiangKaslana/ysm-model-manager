@@ -345,6 +345,12 @@ export class GroundCapability implements SceneCapability {
     if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
     else mat.dispose();
     this.water.geometry.dispose();
-    (this.water.material as THREE.Material).dispose();
+    // 审核修复 #4：释放法线贴图 DataTexture（generateNormalMap 生成的 256×256 纹理）
+    // 原代码仅 dispose material，normalMap 纹理未释放导致 GPU 内存泄漏
+    const waterMat = this.water.material as THREE.MeshStandardMaterial;
+    if (waterMat.normalMap) {
+      try { waterMat.normalMap.dispose(); } catch (_) { /* 防御性释放 */ }
+    }
+    waterMat.dispose();
   }
 }

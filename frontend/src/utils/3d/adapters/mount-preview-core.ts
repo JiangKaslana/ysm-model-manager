@@ -652,6 +652,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   const switchCtx: SwitchContext = {
     scene,
     getSceneBaseline: () => sceneBaseline,
+    setSceneBaseline: (s) => { sceneBaseline = s; },
     getBuilt: () => built,
     setBuilt: (s) => { built = s; },
     allBuilt,
@@ -673,7 +674,16 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     setCurrentPath: (p) => { currentPath = p; },
     getCurrentRtype: () => opts.rtype ?? adapter.id,
     getPerFrame: () => perFrame,
-    setPerFrame: (f) => { perFrame = f; },
+    setPerFrame: (f) => {
+      // 审核修复 #1：切换模型时先从全局 perFrame 列表移除旧回调，
+      // 否则已 dispose 的旧内容层 update 持续执行（GPU 资源泄漏 + 空跑）
+      const old = perFrame;
+      if (old) {
+        const idx = _globalPerFrames.indexOf(old);
+        if (idx >= 0) _globalPerFrames.splice(idx, 1);
+      }
+      perFrame = f;
+    },
     getHandle: () => _handles[_handles.length - 1]?.handle ?? null,
     aborted,
     isDisposed,

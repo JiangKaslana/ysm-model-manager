@@ -74,16 +74,79 @@ func (a *App) GetPackInfo(dirPath string) types.PackInfo {
 }
 
 // ========== 模型移动/复制 ==========
-// MoveModelFile 移动（root 传 FilesRoot 做路径安全校验，对齐 CopyModelFile）
-func (a *App) MoveModelFile(src, dstDir string) error {
+// MoveModelFile / CopyModelFile 根路径校验：原实现硬编码 cfg.FilesRoot，
+// 但用户可能为某些资源类型配置了自定义根（MmdRoot/VrcRoot 等），这些自定义根
+// 可能不在 FilesRoot 之下（如独立的 D:\MMD-Models 目录）。
+// 修复：findMoveRoot 遍历所有已配置根，找到同时包含 src 和 dstDir 的那个根，
+// 与 isPathInRootOrSelf 的多根校验口径一致。
+
+// findMoveRoot 找到同时包含 src 和 dstDir 的合法仓库根。
+// 遍历所有已配置根（FilesRoot + McRoot + 各类型专属根 + CustomRoots），
+// 返回第一个同时包含两者的根；全部不匹配返回空串（fileops 层 root="" 跳过校验）。
+func (a *App) findMoveRoot(src, dstDir string) string {
 	cfg := a.LoadAppConfig()
-	return fileops.MoveModelFile(cfg.FilesRoot, src, dstDir)
+	roots := []string{
+		cfg.FilesRoot,
+		cfg.McRoot,
+		cfg.ResourcepackRoot,
+		cfg.ShaderpackRoot,
+		cfg.SchematicRoot,
+		cfg.LitematicRoot,
+		cfg.MmdRoot,
+		cfg.VrcRoot,
+	}
+	// CustomRoots 中的自定义根（如 MmdRoot 迁移后的 CustomRoots["mmd-skin"]）
+	if cfg.CustomRoots != nil {
+		for _, r := range cfg.CustomRoots {
+			if r != "" {
+				roots = append(roots, r)
+			}
+		}
+	}
+	absSrc, err := filepath.Abs(src)
+	if err != nil {
+		return ""
+	}
+	absDst, err := filepath.Abs(dstDir)
+	if err != nil {
+		return ""
+	}
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		absRoot, err := filepath.Abs(root)
+		if err != nil {
+			continue
+		}
+		relSrc, err := filepath.Rel(absRoot, absSrc)
+		if err != nil {
+			continue // 不同卷
+		}
+		if relSrc == ".." || strings.HasPrefix(relSrc, ".."+string(filepath.Separator)) {
+			continue // src 不在此根内
+		}
+		relDst, err := filepath.Rel(absRoot, absDst)
+		if err != nil {
+			continue
+		}
+		if relDst == ".." || strings.HasPrefix(relDst, ".."+string(filepath.Separator)) {
+			continue // dstDir 不在此根内
+		}
+		return root // 找到同时包含 src 和 dstDir 的根
+	}
+	return ""
 }
 
-// CopyModelFile 复制（root 传 FilesRoot 做路径安全校验）
+// MoveModelFile 移动（findMoveRoot 遍历所有已配置根做路径安全校验，
+// 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug）
+func (a *App) MoveModelFile(src, dstDir string) error {
+	return fileops.MoveModelFile(a.findMoveRoot(src, dstDir), src, dstDir)
+}
+
+// CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验）
 func (a *App) CopyModelFile(src, dstDir string) error {
-	cfg := a.LoadAppConfig()
-	return fileops.CopyModelFile(cfg.FilesRoot, src, dstDir)
+	return fileops.CopyModelFile(a.findMoveRoot(src, dstDir), src, dstDir)
 }
 
 // ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联）

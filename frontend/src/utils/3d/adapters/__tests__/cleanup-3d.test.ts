@@ -183,23 +183,24 @@ describe("runFullCleanup 全链路调用", () => {
     expect(textureCache.disposeAll).toHaveBeenCalledTimes(1);
     expect(clearModelRoots).toHaveBeenCalledTimes(1);
 
-    // ⑩ 各 cap dispose
-    expect(ctx.skyCap!.dispose).toHaveBeenCalledTimes(1);
-    expect(ctx.groundCap!.dispose).toHaveBeenCalledTimes(1);
-    expect(ctx.lightCap!.dispose).toHaveBeenCalledTimes(1);
-    expect(ctx.fogCap!.dispose).toHaveBeenCalledTimes(1);
-    expect(ctx.shadowCap!.dispose).toHaveBeenCalledTimes(1);
-    expect(ctx.reflectorCap!.dispose).toHaveBeenCalledTimes(1);
-    expect(ctx.environmentCap!.dispose).toHaveBeenCalledTimes(1);
+    // ⑩ 审核修复 #3：各 cap dispose 由 sceneCapabilityRegistry.dispose 统一处理，
+    //    不再逐个调用（避免双重 dispose）
+    expect(ctx.skyCap!.dispose).not.toHaveBeenCalled();
+    expect(ctx.groundCap!.dispose).not.toHaveBeenCalled();
+    expect(ctx.lightCap!.dispose).not.toHaveBeenCalled();
+    expect(ctx.fogCap!.dispose).not.toHaveBeenCalled();
+    expect(ctx.shadowCap!.dispose).not.toHaveBeenCalled();
+    expect(ctx.reflectorCap!.dispose).not.toHaveBeenCalled();
+    expect(ctx.environmentCap!.dispose).not.toHaveBeenCalled();
 
-    // ⑪ 后处理
+    // ⑪ 后处理（postProcCap/postProc 仍单独 dispose，因为它们不在 registry 遍历范围内）
     expect(ctx.postProcCap!.dispose).toHaveBeenCalledTimes(1);
     expect(ctx.postProc!.dispose).toHaveBeenCalledTimes(1);
     expect(ctx.nullPostProc).toHaveBeenCalledTimes(1);
 
-    // ⑫ renderer / controls / overlay / adapter
-    expect(ctx.renderer.dispose).toHaveBeenCalledTimes(1);
-    expect(ctx.controls.dispose).toHaveBeenCalledTimes(1);
+    // ⑫ 审核修复 #3：renderer/controls 为模块级单例，不再在此 dispose（避免黑屏）
+    expect(ctx.renderer.dispose).not.toHaveBeenCalled();
+    expect(ctx.controls.dispose).not.toHaveBeenCalled();
     expect(ctx.overlay.parentNode.removeChild).toHaveBeenCalledTimes(1);
     expect(ctx.nullHandle).toHaveBeenCalledTimes(1);
     expect(ctx.adapter.onClose).toHaveBeenCalledTimes(1);
@@ -229,25 +230,25 @@ describe("CleanupContext 各步骤 mock 验证", () => {
     expect(escCount).toBe(1);
   });
 
-  it("scene traverse 对几何 + 材质调用 dispose", () => {
+  it("审核修复 #3：scene traverse 不再被调用（renderer/controls 为单例不复原）", () => {
     const ctx = makeFullContext();
-
-    // 用纯 fake 对象模拟"一个带几何/材质的 mesh"，避免真实 THREE 对象副作用
+  
+    // 用纯 fake 对象模拟“一个带几何/材质的 mesh”，避免真实 THREE 对象副作用
     const fakeGeom = { dispose: vi.fn(), _isFakeGeom: true };
     const fakeMat = { dispose: vi.fn(), _isFakeMat: true };
     const fakeMesh = { geometry: fakeGeom, material: fakeMat, _isFakeMesh: true };
-
+  
     ctx.scene = {
       type: "Scene",
       traverse: vi.fn((cb: (obj: any) => void) => cb(fakeMesh)),
     } as any;
-
+  
     runFullCleanup(ctx);
-
-    expect(ctx.scene.traverse).toHaveBeenCalledTimes(1);
-    // safeDisposeMat 内部会调 material.dispose()（几何先，材质后）
-    expect(fakeGeom.dispose).toHaveBeenCalledTimes(1);
-    expect(fakeMat.dispose).toHaveBeenCalledTimes(1);
+  
+    // 审核修复 #3：不再遍历 scene dispose 几何/材质（已由 allBuilt dispose + registry dispose 覆盖）
+    expect(ctx.scene.traverse).not.toHaveBeenCalled();
+    expect(fakeGeom.dispose).not.toHaveBeenCalled();
+    expect(fakeMat.dispose).not.toHaveBeenCalled();
   });
 });
 
@@ -360,17 +361,19 @@ describe("空/部分 context 降级", () => {
     expect(() => runFullCleanup(ctx)).not.toThrow();
     expect(badDispose).toHaveBeenCalledTimes(1);
     expect(goodDispose).toHaveBeenCalledTimes(1);
-    // 后续 cap dispose 仍执行
-    expect(ctx.skyCap!.dispose).toHaveBeenCalledTimes(1);
+    // 审核修复 #3：各 cap dispose 由 registry 统一处理，不再逐个调用
+    // nullPostProc 仍会被调用
+    expect(ctx.nullPostProc).toHaveBeenCalledTimes(1);
   });
 
-  it("scene.traverse 不存在：跳过几何/材质 dispose", () => {
+  it("scene.traverse 不存在：不抛错（审核修复 #3：不再遍历 scene）", () => {
     const ctx = makeFullContext();
     // scene 没有 traverse 方法
     ctx.scene = { type: "Scene", children: [] } as any;
 
     expect(() => runFullCleanup(ctx)).not.toThrow();
-    expect(ctx.renderer!.dispose).toHaveBeenCalledTimes(1);
+    // 审核修复 #3：renderer 为单例不再 dispose
+    expect(ctx.renderer!.dispose).not.toHaveBeenCalled();
   });
 });
 
@@ -388,8 +391,8 @@ describe("幂等性：重复调用不抛错", () => {
     expect(ctx.menuHandle.dispose).toHaveBeenCalledTimes(2);
     expect(sceneRegistry.reset).toHaveBeenCalledTimes(2);
 
-    // renderer.dispose 只执行一次（第一次完整链路）
-    expect(ctx.renderer!.dispose).toHaveBeenCalledTimes(1);
+    // renderer.dispose 不再被调用（审核修复 #3：renderer 为模块级单例，不复原）
+    expect(ctx.renderer!.dispose).not.toHaveBeenCalled();
   });
 
   it("第一次已释放后再构造 context 调用依然不抛错", () => {

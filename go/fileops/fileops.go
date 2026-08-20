@@ -212,7 +212,32 @@ func MoveModelFile(root, src, dstDir string) error {
 	if _, err := os.Stat(dst); err == nil {
 		return fmt.Errorf("目标已存在: %s", dst)
 	}
-	return os.Rename(src, dst)
+	if err := os.Rename(src, dst); err != nil {
+		// 跨设备/跨卷移动：os.Rename 返回 EXDEV，回退到复制+删除源
+		// （.ban 状态文件作为普通文件随目录/单文件自然携带，无需单独处理）
+		if !fsutil.IsCrossDeviceErr(err) {
+			return err
+		}
+		info, statErr := os.Stat(src)
+		if statErr != nil {
+			return statErr
+		}
+		if info.IsDir() {
+			if cpErr := copyDirRecursive(src, dst); cpErr != nil {
+				return cpErr
+			}
+		} else {
+			if cpErr := copyFile(src, dst); cpErr != nil {
+				return cpErr
+			}
+		}
+		// 复制成功，尽力删除源；删除失败时数据已安全到达目标，返回错误但不回滚复制
+		if rmErr := os.RemoveAll(src); rmErr != nil {
+			return fmt.Errorf("跨设备移动：复制成功但删除源失败: %w", rmErr)
+		}
+		return nil
+	}
+	return nil
 }
 
 // CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验）

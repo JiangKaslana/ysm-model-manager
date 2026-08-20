@@ -30,6 +30,8 @@ export interface SwitchContext {
   scene: THREE.Scene | undefined;
   /** 可变：build 后赋值为 scene.children 快照 */
   getSceneBaseline: () => Set<THREE.Object3D> | null;
+  /** 审核修复 #2：切换后更新 baseline，防止灯光/阴影操作引用已释放的旧对象 */
+  setSceneBaseline?: (s: Set<THREE.Object3D>) => void;
   /** 可变：build 后赋值 */
   getBuilt: () => PreviewScene | null;
   setBuilt: (s: PreviewScene | null) => void;
@@ -209,6 +211,13 @@ export async function switchToSession(
   if (keep && ctx.scene && ctx.camera && ctx.controls) {
     const roots = sceneRegistry.visibleRoots();
     if (roots.length) fitCameraToRoots(roots, ctx.camera, ctx.controls);
+  }
+
+  // 审核修复 #2：切换完成后更新 sceneBaseline 为当前 scene 子节点快照，
+  // 否则下次切换/灯光同步仍以首次 mount 的旧快照为基准，
+  // 导致 syncLightTargetFromContent / applyMeshCasts 遍历已 dispose 的 detached 对象
+  if (ctx.setSceneBaseline && ctx.scene) {
+    ctx.setSceneBaseline(new Set(ctx.scene.children));
   }
 
   const handle = ctx.getHandle();

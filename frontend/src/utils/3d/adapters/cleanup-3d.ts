@@ -103,21 +103,15 @@ export function runFullCleanup(ctx: CleanupContext): void {
   ctx.allBuilt.length = 0;
   ctx.nullBuilt();
   // 程序化天空（ADR-073 L1）：还原 tone mapping 并释放 PMREM/几何/材质
-  // 统一注册表：保存状态后由 registry 统一 dispose
+  // 统一注册表：保存状态后由 registry 统一 dispose（已遍历所有能力，无需再逐个 dispose）
   try { sceneCapabilityRegistry.saveAll(); } catch (_) { /* 防御性 */ }
   try { sceneCapabilityRegistry.dispose(); } catch (_) { /* 防御性释放 */ }
   // P0 纹理缓存池：session 结束释放所有缓存纹理
   try { textureCache.disposeAll(); } catch (_) { /* 防御性释放 */ }
   // 视锥裁剪：清空模型根节点注册
   try { clearModelRoots(); } catch (_) { /* 防御性释放 */ }
-  // 兼容旧 cleanupCtx 引用（cleanupCtx 内仍有 skyCap/groundCap/lightCap）
-  try { ctx.skyCap?.dispose(); } catch (_) { /* 防御性释放 */ }
-  try { ctx.groundCap?.dispose(); } catch (_) { /* 防御性释放 */ }
-  try { ctx.lightCap?.dispose(); } catch (_) { /* 防御性释放 */ }
-  try { ctx.fogCap?.dispose(); } catch (_) { /* 防御性释放 */ }
-  try { ctx.shadowCap?.dispose(); } catch (_) { /* 防御性释放 */ }
-  try { ctx.reflectorCap?.dispose(); } catch (_) { /* 防御性释放 */ }
-  try { ctx.environmentCap?.dispose(); } catch (_) { /* 防御性释放 */ }
+  // 审核修复 #3：不再逐个 dispose 各能力（已由 sceneCapabilityRegistry.dispose 统一处理），
+  // 避免双重 dispose 导致 SkyCapability 重复还原 toneMapping / PMREM 等问题
   // 后处理体积光管线（ADR-081 L2）：释放 EffectComposer + bloom
   try {
     ctx.postProcCap?.dispose();
@@ -125,24 +119,9 @@ export function runFullCleanup(ctx: CleanupContext): void {
     ctx.nullPostProc();
   } catch (_) { /* 防御性释放 */ }
   // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
-  if (ctx.renderer) {
-    const sc = ctx.scene as THREE.Scene | undefined;
-    if (sc && typeof (sc as unknown as { traverse?: unknown }).traverse === "function") {
-      sc.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (mesh.geometry) {
-          try { mesh.geometry.dispose(); } catch (_) { /* 防御性释放 */ }
-        }
-        const mat = (mesh as unknown as { material?: THREE.Material | THREE.Material[] }).material;
-        if (mat) {
-          if (Array.isArray(mat)) mat.forEach((m) => safeDisposeMat(m));
-          else safeDisposeMat(mat);
-        }
-      });
-    }
-    ctx.renderer.dispose();
-    ctx.controls?.dispose();
-  }
+  // 审核修复 #3：不销毁 renderer/controls（它们是模块级单例，由 mount-preview-core 复用）。
+  // 仅移除本 session 添加的 DOM 子节点（viewContainer 含 renderer.domElement）。
+  // renderer/controls 的 dispose 由 _resetSingletons 或下次 mount 时自然处理。
   if (ctx.overlay.parentNode) ctx.overlay.parentNode.removeChild(ctx.overlay);
   ctx.nullHandle();
   ctx.adapter.onClose?.();

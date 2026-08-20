@@ -82,6 +82,12 @@ func emitScanError(format string, args ...any) {
 		return // 窗口内同错误已上报过，去重
 	}
 	dedupSeen[msg] = now
+	// 顺手清理过期条目（窗口外不会再匹配，防止长期运行会话内存缓慢增长）
+	for k, t := range dedupSeen {
+		if now.Sub(t) >= scanErrorDedupWindow {
+			delete(dedupSeen, k)
+		}
+	}
 	dedupMu.Unlock()
 	if errorSink != nil {
 		errorSink(msg)

@@ -196,7 +196,12 @@ type ReadFileMeta struct {
 }
 
 // readFileWithHash 读取文件并计算 SHA256，返回 data 和 hex hash。
+// 路径守卫：与 ReadFileBytes 对齐（防御性编程——当前调用方已校验，但
+// 未来新增调用方可能遗漏，此处兜底防止越权读取）。
 func (a *App) readFileWithHash(path string) ([]byte, string) {
+	if !a.isPathInRootOrSelf(path) {
+		return nil, ""
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, ""
@@ -277,6 +282,12 @@ func (a *App) AnalyzeBedrockModel(modelPath string) types.BedrockModel {
 			break
 		}
 	}
+	// 路径守卫：AnalyzeBedrockModel 是 Wails binding（public method），
+	// 前端可传任意路径——原实现无校验，可读取系统任意文件（如 /etc/passwd）。
+	// 与 ReadFileBytes 对齐 isPathInRootOrSelf（扫描能列出的文件就能分析）。
+	if !a.isPathInRootOrSelf(modelPath) {
+		return types.BedrockModel{}
+	}
 	ext := strings.ToLower(filepath.Ext(modelPath))
 	if ext == ".ysm" {
 		return a.runYSMParserOnFile(modelPath)
@@ -328,6 +339,11 @@ func (a *App) GetModel3DSpec(modelPath string) string {
 			modelPath = modelPath[:len(modelPath)-len(suffix)]
 			break
 		}
+	}
+	// 路径守卫：GetModel3DSpec 是 Wails binding，原实现无校验可读取系统任意文件。
+	// 与 ReadFileBytes/AnalyzeBedrockModel 对齐 isPathInRootOrSelf。
+	if !a.isPathInRootOrSelf(modelPath) {
+		return "{}"
 	}
 	// 多组件路径（YSMViewer 式）：.ysm（WASM 解码）/ .zip / 解压目录 ysm.json
 	// 各自组件独立构建，合并 spec.models；纹理 texIdx 由解析层全局化（组件 i → i），
