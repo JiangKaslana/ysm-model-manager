@@ -22,7 +22,7 @@ export async function loadTypeConfig(self: SyncStoreSelf): Promise<void> {
   try {
     const { LoadResourceTypes } = await getApp();
     const raw = await LoadResourceTypes();
-    const parsed = JSON.parse(raw) as { resourceTypes?: Array<{ id: string; name?: string; icon?: string }> };
+    const parsed = JSON.parse(raw) as { resourceTypes?: Array<{ id: string; name?: string; icon?: string; dirLevelSync?: boolean }> };
     if (gen !== self._gen) return;
     self._typeConfig = parsed.resourceTypes || [];
   } catch {

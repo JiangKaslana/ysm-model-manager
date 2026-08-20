@@ -13,7 +13,7 @@ interface EventCallbacks {
   doPerformOp: (op: "push" | "pull", path: string) => Promise<void>;
 }
 
-/** 绑定所有 DOM 事件（状态筛选 / 单行操作按钮） */
+/** 绑定所有 DOM 事件（状态筛选 / 单行操作按钮 / dir-level 文件夹展开折叠） */
 export function bindEvents(self: EventSelf, cb: EventCallbacks): void {
   // 状态标签切换
   self.querySelectorAll(".sm-status-tab").forEach((btn) => {
@@ -33,6 +33,16 @@ export function bindEvents(self: EventSelf, cb: EventCallbacks): void {
       const action = (btn as HTMLElement).dataset.action;
       if (action === "push") cb.doPerformOp("push", path);
       else if (action === "pull") cb.doPerformOp("pull", path);
+    });
+  });
+
+  // dir-level 文件夹行：点击整行切换展开/折叠（箭头 + 内部文件可见性）
+  self.querySelectorAll(".sm-dir").forEach((row) => {
+    (row as HTMLElement).addEventListener("click", () => {
+      const path = (row as HTMLElement).dataset.path || "";
+      const dirOpen = self._dirOpen || {};
+      dirOpen[path] = !dirOpen[path];
+      cb.doRender();
     });
   });
 }

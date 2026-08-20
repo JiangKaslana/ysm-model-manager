@@ -31,6 +31,8 @@ const { mocks } = vi.hoisted(() => {
     ),
     PushSingleResourceToInstance: vi.fn().mockResolvedValue(undefined),
     PullSingleResourceFromInstance: vi.fn().mockResolvedValue(undefined),
+    GetRepoRoot: vi.fn().mockResolvedValue("/repo"),
+    ScanModelEntriesWithLabel: vi.fn().mockResolvedValue([]),
   };
   return { mocks };
 });
@@ -41,6 +43,8 @@ vi.mock("../../backend/app.ts", () => ({
     GetInstanceSyncStatus: mocks.GetInstanceSyncStatus,
     PushSingleResourceToInstance: mocks.PushSingleResourceToInstance,
     PullSingleResourceFromInstance: mocks.PullSingleResourceFromInstance,
+    GetRepoRoot: mocks.GetRepoRoot,
+    ScanModelEntriesWithLabel: mocks.ScanModelEntriesWithLabel,
   }),
 }));
 
@@ -58,8 +62,6 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
   afterEach(() => {
     document.body.innerHTML = "";
     // 2026-08-17 isolate:false 审核模式发现：全局残留会让 5000ms waitFor 渲染超时
-    // （前一文件的 vi.stubGlobal/window 挂载未还原）。补 unstubAllGlobals 防御
-    // 跨文件污染——与隔壁清理规范（vi.stubGlobal + unstubAllGlobals 配对）对齐。
     vi.unstubAllGlobals();
   });
 
@@ -303,6 +305,61 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     expect(errToast).toBeTruthy();
     expect(errToast!.msg).toContain("boom");
     offToast(); // 卸载监听器，防跨测试文件泄漏
+    unmountElement(el);
+  });
+
+  it("dirLevelSync 类型（create-blueprint）→ 文件夹行 + 展开扫出子文件（层级展示）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+
+    // 直接驱动组件私有状态（绕过 mock 链的多重 getApp 调用，避免 mockResolvedValue 被 afterEach 还原污染）
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: Array<{ path: string; name: string; status: string; type: string; icon: string; size: number }>;
+      _filteredItems: Array<{ path: string; name: string; status: string; type: string; icon: string; size: number }>;
+      _typeConfig: Array<{ id: string; name: string; icon: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _repoRoots: Record<string, string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "create-blueprint";
+    self._typeConfig = [{ id: "create-blueprint", name: "蓝图", icon: "⚙️", dirLevelSync: true }];
+    self._allItems = [
+      { path: "schematics/hello_new_generation_core", name: "hello_new_generation_core", status: "synced", type: "create-blueprint", icon: "⚙️", size: 4096 },
+    ];
+    self._filteredItems = self._allItems;
+    self._repoRoots = { "create-blueprint": "/repo" };
+    self._dirOpen = {};
+
+    mocks.ScanModelEntriesWithLabel.mockResolvedValue([
+      { Name: "建筑.nbt", Path: "/repo/schematics/hello_new_generation_core/建筑.nbt", Size: 2048 },
+      { Name: "建筑.schematic", Path: "/repo/schematics/hello_new_generation_core/建筑.schematic", Size: 1024 },
+    ]);
+
+    self._doRender();
+    await sleep(100);
+    // 未展开：只有文件夹行
+    let dirs = el.querySelectorAll(".sm-dir");
+    expect(dirs.length).toBe(1);
+    expect(el.querySelectorAll(".sm-file").length).toBe(0);
+    // 点击展开
+    (dirs[0] as HTMLElement).click();
+    await sleep(300);
+    dirs = el.querySelectorAll(".sm-dir");
+    const arrow = (dirs[0] as HTMLElement).querySelector(".sm-dir-arrow");
+    expect(arrow?.textContent).toBe("▾");
+    expect(el.querySelectorAll(".sm-file").length).toBe(2);
+    expect(Array.from(el.querySelectorAll(".sm-file")).map((f) => f.textContent || "")).toEqual(
+      expect.arrayContaining([expect.stringContaining("建筑.nbt"), expect.stringContaining("建筑.schematic")]),
+    );
+    // 点击折叠
+    (dirs[0] as HTMLElement).click();
+    await sleep(300);
+    dirs = el.querySelectorAll(".sm-dir");
+    expect((dirs[0] as HTMLElement).querySelector(".sm-dir-arrow")?.textContent).toBe("▸");
+    expect(el.querySelectorAll(".sm-file").length).toBe(0);
     unmountElement(el);
   });
 });

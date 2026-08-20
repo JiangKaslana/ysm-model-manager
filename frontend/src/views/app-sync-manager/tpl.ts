@@ -17,6 +17,97 @@ export interface SyncItem {
   subdir?: string;
 }
 
+/** 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） */
+export interface SyncFile {
+  name: string;
+  path: string;      // 相对父目录的完整路径（用于 data-path）
+  size: number;
+}
+
+/** 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮）
+ * 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 events 处理。 */
+export function syncDirRowHTML(
+  path: string,
+  syncItem: SyncItem,
+  shouldOpen: boolean,
+  index: number,
+): string {
+  const statusIcon =
+    syncItem.status === "synced" ? "✅" :
+    syncItem.status === "legacy" ? "🔗" :
+    syncItem.status === "missing" ? "⬇️" :
+    syncItem.status === "disabled" ? "⛔" :
+    syncItem.status === "optional" ? "📤" : "·";
+  const statusColor =
+    syncItem.status === "synced" ? "var(--sz-green)" :
+    syncItem.status === "missing" ? "var(--accent)" :
+    syncItem.status === "legacy" ? "var(--muted)" :
+    syncItem.status === "optional" ? "var(--sm-optional)" : "var(--muted)";
+  const sizeStr = syncItem.size > 0 ? formatBytes(syncItem.size) : "";
+  let actionBtn = "";
+  if (syncItem.status === "missing") {
+    actionBtn =
+      '<button class="sm-item-btn" data-testid="sm-push" data-action="push" style="border:1px solid var(--accent);color:var(--accent)">' + t("syncManager.push") + '</button>';
+  } else if (syncItem.status === "optional") {
+    actionBtn =
+      '<button class="sm-item-btn" data-testid="sm-pull" data-action="pull" style="border:1px solid var(--sm-optional);color:var(--sm-optional)">' + t("syncManager.pull") + '</button>';
+  } else if (syncItem.status === "legacy") {
+    actionBtn =
+      '<button class="sm-item-btn" data-action="pull" style="border:1px solid var(--muted);color:var(--muted);font-size:var(--fs-tiny)">' + t("syncManager.pullHere") + '</button>';
+  }
+  const arrow = shouldOpen ? "▾" : "▸";
+  return (
+    '<div class="sm-item sm-dir" data-path="' +
+    esc(path) +
+    '" data-status="' +
+    esc(syncItem.status) +
+    '" data-type="' +
+    esc(syncItem.type) +
+    '" style="animation:fadeSlideUp .2s ease both;animation-delay:' +
+    stagger(index || 0, 30, 300) +
+    'ms">' +
+    '<span class="sm-dir-arrow" style="flex-shrink:0;width:14px;text-align:center;cursor:pointer;color:var(--muted)">' +
+    arrow +
+    "</span>" +
+    '<span style="flex-shrink:0;font-size:var(--fs-base)">' +
+    (syncItem.icon || "📁") +
+    "</span>" +
+    '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)">' +
+    renderFormattedText(syncItem.name) +
+    "</span>" +
+    (sizeStr
+      ? '<span style="flex-shrink:0;color:var(--muted);font-size:var(--fs-tiny)">' +
+        sizeStr +
+        "</span>"
+      : "") +
+    actionBtn +
+    "</div>"
+  );
+}
+
+/** 子条目行 HTML（scan 出的内部文件：无状态、无按钮，纯展示层级结构） */
+export function syncFileRowHTML(f: SyncFile, indent: number): string {
+  const sizeStr = f.size > 0 ? formatBytes(f.size) : "";
+  return (
+    '<div class="sm-item sm-file" data-path="' +
+    esc(f.path) +
+    '" style="padding-left:' +
+    (indent * 16 + 24) +
+    'px">' +
+    '<span style="flex-shrink:0;width:14px;text-align:center;color:var(--muted)">·</span>' +
+    '<span style="flex-shrink:0;font-size:var(--fs-tiny)">📄</span>' +
+    '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">' +
+    f.name +
+    "</span>" +
+    (sizeStr
+      ? '<span style="flex-shrink:0;color:var(--muted);font-size:var(--fs-tiny)">' +
+        sizeStr +
+        "</span>"
+      : "") +
+    "</div>"
+  );
+}
+
 /**
  * 容器骨架
  */
@@ -32,6 +123,11 @@ export function containerHTML(): string {
     ".sm-empty{animation:fade-in .2s ease}" +
     ".sm-list{animation:fade-in .15s ease}" +
     ".sm-loading{display:flex;flex-direction:column;gap:8px;padding:12px}" +
+    ".sm-dir{cursor:pointer}" +
+    ".sm-dir .sm-dir-arrow{transition:color var(--tr-fast)}" +
+    ".sm-dir:hover{background:var(--hover)}" +
+    ".sm-file{cursor:default}" +
+    ".sm-file:hover{background:transparent}" +
     ".sm-shimmer{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--bd) 25%,var(--hover) 50%,var(--bd) 75%);background-size:200% 100%;animation:sk-shimmer 1.5s infinite}" +
     ".sm-shimmer-w80{width:80%}" +
     ".sm-shimmer-w60{width:60%}" +

@@ -11,6 +11,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { getApp } from "../../backend/app.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import {
   containerHTML,
@@ -30,8 +31,12 @@ export interface SyncManagerSelf {
   _singleBusy: boolean;
   _allItems: SyncItem[];
   _filteredItems: SyncItem[];
-  _typeConfig: Array<{ id: string; name?: string; icon?: string }>;
+  _typeConfig: Array<{ id: string; name?: string; icon?: string; dirLevelSync?: boolean }>;
   _loading: boolean;
+  /** 展开/折叠状态（dir-level 层级展示用，key = item path） */
+  _dirOpen: Record<string, boolean>;
+  /** 各资源类型在 FilesRoot 下的仓库根路径缓存 */
+  _repoRoots: Record<string, string>;
   isConnected?: boolean;
   innerHTML: string;
   querySelector(sel: string): HTMLElement | null;
@@ -47,6 +52,17 @@ import { LAST_TYPE_KEY, _lastSelectedType, setLastSelectedType } from "./state.t
 // 状态主键统一 repo_rtype（state.ts），LAST_TYPE_KEY 仅历史兼容。
 
 const TOAST_MS_LONG = 5000;
+
+/** 按需加载当前 rtype 的 FilesRoot 仓库根路径（缓存到 _repoRoots，供 renderer 建树时扫描子条目） */
+async function loadRepoRoots(self: SyncManagerSelf, rtype: string): Promise<void> {
+  if (self._repoRoots[rtype]) return;
+  try {
+    const { GetRepoRoot } = await getApp();
+    self._repoRoots[rtype] = (await GetRepoRoot(rtype || "")) || "";
+  } catch {
+    self._repoRoots[rtype] = "";
+  }
+}
 
 export class AppSyncManager extends WebComponentBase {
   static get observedAttributes(): string[] {
@@ -65,6 +81,8 @@ export class AppSyncManager extends WebComponentBase {
   private _gen = 0;
   private _unsubs: Array<() => void> = [];
   private _singleBusy = false;
+  private _dirOpen: Record<string, boolean> = {};
+  private _repoRoots: Record<string, string> = {};
 
   connectedCallback(): void {
     this._instance = this.getAttribute("instance") || "";
@@ -110,6 +128,7 @@ export class AppSyncManager extends WebComponentBase {
 
     await loadTypeConfig(self);
     await loadData(self);
+    await loadRepoRoots(self, this._selectedType);
 
     if (gen !== this._gen || !this.isConnected) return;
 
@@ -131,14 +150,10 @@ export class AppSyncManager extends WebComponentBase {
       const gen = this._gen;
       dbg("sync-manager", "stats:refresh 收到");
       loadData(self)
-        .then(() => {
+        .then(async () => {
           if (gen !== this._gen) return;
+          await loadRepoRoots(self, this._selectedType);
           dbg("sync-manager", "_loadData 完成, items:", this._allItems ? this._allItems.length : 0);
-          if (this._allItems) {
-            const counts: Record<string, number> = {};
-            this._allItems.forEach((i: SyncItem) => { counts[i.status] = (counts[i.status] || 0) + 1; });
-            dbg("sync-manager", "重渲染, 计数:", counts);
-          }
           this._doRender();
         })
         .catch((err) => {
@@ -159,8 +174,11 @@ export class AppSyncManager extends WebComponentBase {
       this._subdirFilter = ""; // 切类型重置子目录过滤（非 mmd 类型 subdir 无意义）
       const gen = this._gen;
       loadData(self)
-        .then(() => {
+        .then(async () => {
           if (gen !== this._gen) return;
+          // 类型切换时重新加载类型配置，确保 _typeConfig 反映最新注册表（dirLevelSync 等字段生效）
+          await loadTypeConfig(self);
+          await loadRepoRoots(self, rt);
           this._doRender();
         })
         .catch((err) => {
@@ -188,15 +206,19 @@ export class AppSyncManager extends WebComponentBase {
     const doLoadData = () => loadData(self);
     const doEmitStats = () => bus.emit("stats:refresh");
 
-    render(self);
-    bindEvents(self, {
-      doRender: () => this._doRender(),
-      doPerformOp: (op, path) => performSingleOp(self, op, path, {
-        doLoadData,
-        doRender: () => this._doRender(),
-        doEmitStats,
-      }),
-    });
+    // render 已改为 async（内部 await renderList，确保列表 HTML 就绪后再绑事件）
+    render(self)
+      .then(() => {
+        bindEvents(self, {
+          doRender: () => this._doRender(),
+          doPerformOp: (op, path) => performSingleOp(self, op, path, {
+            doLoadData,
+            doRender: () => this._doRender(),
+            doEmitStats,
+          }),
+        });
+      })
+      .catch((e) => console.error("[sync-manager] render 失败:", e));
   }
 }
 
