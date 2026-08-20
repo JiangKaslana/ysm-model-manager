@@ -327,7 +327,7 @@
         {
           "name": "EntityPlayer", "label": "PMX 模型 (EntityPlayer)", "icon": "🧍",
           "userImportable": true, "default": true,
-          "extensions": [".pmx", ".pmd", ".vmd", ".vpd", ".zip"],
+          "extensions": [".pmx", ".pmd", ".zip"],
           "detector": "zipentry",
           "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
           "preview": "3d",

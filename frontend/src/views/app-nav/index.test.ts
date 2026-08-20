@@ -90,7 +90,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     groupSel!.dispatchEvent(new Event("change"));
     const opts = subtypeSel!.querySelectorAll("option");
     expect(opts.length).toBe(7);
-    expect((opts[0] as HTMLOptionElement).dataset.subdir).toBe(""); // PMX 模型 (EntityPlayer)
+    expect((opts[0] as HTMLOptionElement).dataset.subdir).toBe("EntityPlayer"); // PMX 模型 (EntityPlayer)
     expect((opts[1] as HTMLOptionElement).dataset.subdir).toBe("SceneModel");
     expect((opts[5] as HTMLOptionElement).dataset.subdir).toBe("shader");
     // 其余大类不受影响：minecraft 组 = 资源包/光影包 2 项

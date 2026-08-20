@@ -132,11 +132,13 @@ export const GROUP_TYPE_OPTIONS: Record<string, GroupTypeOption[]> = (() => {
           // 子类型名匹配独立 rtype（软合并：litematic/ysm/maid-model）→ 路由到独立 id
           (result[g] ||= []).push({ rtype: name, label: s.label || name, subdir: "" });
         } else {
-          // 无独立 rtype（EntityPlayer/blueprint）→ 保留父 id + subdir=子类型名（default 槽 ""）
+          // 无独立 rtype（EntityPlayer/blueprint）→ 保留父 id + subdir=子类型名
+          // default 槽（EntityPlayer 等）也传子目录名——"路径定意图"：EntityPlayer
+          // 就是 mmd/EntityPlayer 目录，跟其他子目录一样对待（default 不特殊化）
           (result[g] ||= []).push({
             rtype: t.id,
             label: s.label || name || "",
-            subdir: s.default ? "" : name,
+            subdir: name,
           });
         }
       }
@@ -156,7 +158,7 @@ export const GROUP_TYPE_OPTIONS: Record<string, GroupTypeOption[]> = (() => {
  * ⚠️ 大小写约定：subdir 字段恒驼峰原样（如 SceneModel/CustomAnim），消费方比较
  * 统一 toLowerCase()（renderer/app-nav 同款）。
  * 派生规则：从 resource_types.json 的 mmd-skin.subtypes[] 取 userImportable=true 项，
- * default 槽（EntityPlayer，storageSubDir 同款）subdir=""，其余 subdir=name；
+ * default 槽（EntityPlayer 等）也传子目录名——"路径定意图"路由统一，不特殊化；
  * icon 来自 subtype 自声明（ADR-105 零继承）。
  * DefaultAnim/DefaultMorph 系统内置目录 userImportable=false 天然不列出——
  * Go 端同步识别保留（SubtypeNames 全量），前端下拉仅用户可导入项。
@@ -178,7 +180,7 @@ export const MMD_SUBTYPES: Array<{ label: string; subdir: string; icon: string }
     .filter((s) => s.userImportable !== false)
     .map((s) => ({
       label: s.label || s.name || "",
-      subdir: s.default ? "" : s.name || "",
+      subdir: s.name || "",
       icon: s.icon || "🎭",
     }));
 })();

@@ -256,7 +256,7 @@ describe("GROUP_TYPE_OPTIONS — 子类型展开（ADR-105 软合并）", () => 
   it("mmd 组展开 7 子类型（6 用途 + vrchat-avatar 寄生，ADR-105 续）", () => {
     const mmd = GROUP_TYPE_OPTIONS["mmd"] || [];
     expect(mmd.length).toBe(7);
-    expect(mmd[0]).toEqual({ rtype: "mmd-skin", label: "PMX 模型 (EntityPlayer)", subdir: "" });
+    expect(mmd[0]).toEqual({ rtype: "mmd-skin", label: "PMX 模型 (EntityPlayer)", subdir: "EntityPlayer" });
     expect(mmd[1]).toEqual({ rtype: "mmd-skin", label: "场景 (SceneModel)", subdir: "SceneModel" });
     // vrchat-avatar 寄生：子类型名匹配独立 rtype → 路由到独立 id
     const vrm = mmd.find((o) => o.label === "VRM 模型");
@@ -314,8 +314,8 @@ describe("MMD_SUBTYPES — 用户可导入子目录（ADR-104 注册表派生）
     const subdirs = MMD_SUBTYPES.map((s) => s.subdir.toLowerCase());
     expect(subdirs).not.toContain("defaultanim");
     expect(subdirs).not.toContain("defaultmorph");
-    // 首个默认 EntityPlayer（default 槽 subdir=""），其余为平铺子目录
-    expect(MMD_SUBTYPES[0].subdir).toBe("");
+    // 首个默认 EntityPlayer 也传子目录名（"路径定意图"不特殊化 default 槽）
+    expect(MMD_SUBTYPES[0].subdir).toBe("EntityPlayer");
     // label 与注册表一致（派生前置校验，防 JSON 缺 label 显示空）
     expect(MMD_SUBTYPES[0].label).toBe("PMX 模型 (EntityPlayer)");
     expect(MMD_SUBTYPES[1]).toEqual({ label: "场景 (SceneModel)", subdir: "SceneModel", icon: "🏗️" });
