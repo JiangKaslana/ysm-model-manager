@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs,
     path::{Component, Path, PathBuf},
 };
 
@@ -286,7 +285,7 @@ fn metadata_equal(a: &ModelEntry, b: &ModelEntry) -> bool {
 mod tests {
     use super::*;
     use std::{
-        process,
+        fs, process,
         sync::atomic::{AtomicU64, Ordering},
         time::{SystemTime, UNIX_EPOCH},
     };
