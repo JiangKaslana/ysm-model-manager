@@ -6,7 +6,8 @@
 // 通用外壳（overlay/renderer/循环/释放）由 mount-preview-core.ts 拥有。
 
 import * as THREE from "three";
-import { MMDLoader, VmdObject, buildAnimation, VPDLoader, applyVPD, type VpdObject } from "@moeru/three-mmd";
+import { MMDLoader, VmdObject, buildAnimation, buildCameraAnimation, VPDLoader, applyVPD, type VpdObject } from "@moeru/three-mmd";
+import { MMDAmmoPlugin } from "@moeru/three-mmd-physics-ammo"; // 官方 Ammo.js 物理后端（PhysicsService 实装，非自研 cannon）
 import { t } from "../../../core/i18n/t.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
@@ -509,7 +510,10 @@ export async function buildMmdScene(
     pmxParser.dispose();
   } else {
     // ---- Fallback 路径：MMDLoader 主线程解析 ----
-    const loader = new MMDLoader(manager);
+    // 注册官方 Ammo.js 物理后端（@moeru/three-mmd-physics-ammo）：MMD.update 的
+    // this.physics?.update(delta) 才有实体——之前 physics 从未安装（createPhysicsPlugin
+    // 零引用），刚体/布料/头发物理全部丢失。官方后端一行 register，PMX 物理语义全保留。
+    const loader = new MMDLoader(manager).register(MMDAmmoPlugin);
     tParseStart = performance.now();
     try {
       mmd = await loader.loadAsync(path);
@@ -648,6 +652,9 @@ export async function buildMmdScene(
   // ADR-101：批量读取 VMD/VPD（1 次 RPC 替代 N 次 readFileBytes）
   const allAnimPaths = [...vmdPaths, ...vpdPaths];
   const animBatch = allAnimPaths.length > 0 ? await port.readFileBytesBatch(allAnimPaths) : {};
+  /** 轨道相机：每个 VMD 对应的相机动画 clip（无相机关键帧 → null），与 clips 下标对齐。
+   *  取数组而非单个：select 切换动作时相机轨道须跟随所选 VMD，不能永远播首个相机的轨道。 */
+  const cameraClips: Array<THREE.AnimationClip | null> = [];
   for (const v of vmdPaths) {
     try {
       const vmdB64 = animBatch[v] ?? null;
@@ -659,8 +666,15 @@ export async function buildMmdScene(
         label: (v.split(/[/\\]/).pop() || "").replace(/\.vmd$/i, "") || "motion",
         clip: buildAnimation(vmd, mesh),
       });
+      // 轨道相机：同一 VMD 携带相机关键帧（位置/旋转/距离/fov）→ 构建相机动画轨道；
+      // 与骨骼动画下标对齐，select 切换时据此重绑相机轨道
+      if (vmd.cameraKeyFrames && vmd.cameraKeyFrames.length > 0) {
+        cameraClips.push(buildCameraAnimation(vmd));
+      } else {
+        cameraClips.push(null);
+      }
     } catch {
-      /* 单个 VMD 损坏 → 跳过，其余照常 */
+      /* 单个 VMD 损坏 → 跳过，其余照常（clips/cameraClips 都未 push，下标保持对齐） */
     }
   }
   // 同目录 VPD 姿势文件：加载并缓存（applyVPD 直接修改骨骼变换，非动画 clip）
@@ -688,6 +702,25 @@ export async function buildMmdScene(
   if (clips.length > 0) {
     action = mixer.clipAction(clips[0].clip); // 默认 LoopRepeat 循环
     action.play();
+  }
+
+  // ---- 轨道相机（VMD 相机关键帧 → buildCameraAnimation 驱动相机位置/旋转/fov/注视点）----
+  // 驱动根与真实相机分离：cameraAnimRoot 只承载动画 track（target.position/.quaternion/.position/.fov），
+  // 每帧把结果同步到 ctx.camera / ctx.controls.target——不污染共享相机对象，且可独立暂停。
+  // ⚠️ target 子对象必须命名 "target"：three 的 PropertyBinding.findNode 按 name 在子树
+  // 查找 track 节点（非自定义属性），否则 `target.position` 轨道解析失败（静默 no-op）。
+  const cameraAnimRoot = new THREE.PerspectiveCamera();
+  const cameraAnimTarget = new THREE.Object3D();
+  cameraAnimTarget.name = "target";
+  cameraAnimRoot.add(cameraAnimTarget);
+  let cameraMixer: THREE.AnimationMixer | null = null;
+  let cameraAction: THREE.AnimationAction | null = null;
+  // 首个携带相机关键帧的 VMD → 默认播放它的相机轨道（后续 select 可重绑到其他 VMD 的轨道）
+  const firstCameraClip = cameraClips.find((c) => c !== null) ?? null;
+  if (firstCameraClip) {
+    cameraMixer = new THREE.AnimationMixer(cameraAnimRoot);
+    cameraAction = cameraMixer.clipAction(firstCameraClip);
+    cameraAction.play();
   }
 
   // 包围盒定相机（MMD Y-up、单位约厘米，原点一般在脚底；尺寸差由相机距离吸收，不缩放模型）
@@ -747,6 +780,9 @@ export async function buildMmdScene(
         playing = !playing;
         // AnimationAction 的暂停是 paused 属性（无 pause() 方法），play() 兼容重置
         if (action) action.paused = !playing;
+        // 轨道相机联动（P2 审核）：暂停/恢复须同步相机轨道，否则模型停在原姿态而相机
+        // 轨道继续前进，画面与动作永久错位
+        if (cameraAction) cameraAction.paused = !playing;
       },
       currentIndex: () => curIdx,
       select: (i) => {
@@ -755,6 +791,15 @@ export async function buildMmdScene(
         action?.stop();
         action = mixer.clipAction(clips[i].clip);
         if (playing) action.play();
+        // 轨道相机联动（P2 审核）：切换到另一 VMD 时重绑相机轨道——cameraClips 与 clips
+        // 下标对齐；目标无相机关键帧（null）→ 停掉旧相机轨道，避免上一个动作的镜头
+        // 继续播放在新动作上
+        if (cameraMixer) {
+          cameraAction?.stop();
+          const nextCamClip = cameraClips[i] ?? null;
+          cameraAction = nextCamClip ? cameraMixer.clipAction(nextCamClip) : null;
+          if (cameraAction && playing) cameraAction.play();
+        }
       },
       animDir: customAnimPath,
       requestReload: () => {
@@ -800,6 +845,21 @@ export async function buildMmdScene(
   const result: PreviewScene = {
     // MMD 动态部分（VMD 动画 + IK/追加变换姿态解算）靠 updateWithMixer 驱动；静态模型摆正初始姿势
     update: (dt: number): void => {
+      // 轨道相机：推进相机动画并同步到真实相机/controls（VMD 相机关键帧驱动，ADR 轨道相机）。
+      // ⚠️ 必须在 mesh.visible 守卫之前执行：相机动画本身就会移动相机（视锥随之变化），
+      // 若挂在模型可见性之后，轨道把模型甩出视锥 → visible=false → 相机动画冻结 →
+      // 模型永远留在视锥外（僵死态）。相机是相机侧状态，与模型可见性无关。
+      if (cameraMixer && cameraAction && !cameraAction.paused) {
+        cameraMixer.update(dt);
+        const cam = ctx.camera;
+        if (cam) {
+          cam.position.copy(cameraAnimRoot.position);
+          cam.quaternion.copy(cameraAnimRoot.quaternion);
+          cam.fov = cameraAnimRoot.fov;
+          cam.updateProjectionMatrix();
+        }
+        if (ctx.controls) ctx.controls.target.copy(cameraAnimTarget.position);
+      }
       if (!mesh.visible) return; // Frustum Culling 不可见 → 跳过 IK/感知层，省 CPU
       mmd?.updateWithMixer(dt, mixer, { ik: true, grant: true });
       if (semanticBones) {
@@ -857,6 +917,7 @@ export async function buildMmdScene(
         unregisterModelRoot(mesh);
         mixer.stopAllAction();
         mixer.uncacheRoot(mesh); // 释放 PropertyMixer 缓存，对齐 vrm-adapter（ADR-084 L2）
+        cameraMixer?.stopAllAction(); // 轨道相机动画清理
         breath.reset();
         gaze.reset();
         blink.dispose();

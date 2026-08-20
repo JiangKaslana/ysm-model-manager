@@ -15,11 +15,14 @@ const hoisted = vi.hoisted(() => {
     readBytesMock: vi.fn(),
     listPathsMock: vi.fn(),
     loaderLoadAsyncMock: vi.fn(),
+    loaderRegisterMock: vi.fn(),
     mmdUpdateMock: vi.fn(),
     mmdUpdateWithMixerMock: vi.fn(),
     mmdDisposeMock: vi.fn(),
     vmdParseMock: vi.fn(),
     buildAnimMock: vi.fn(),
+    buildCameraAnimMock: vi.fn(),
+    ammoPluginMock: vi.fn(),
     managerInstances,
   };
 });
@@ -33,12 +36,20 @@ vi.mock("../../../backend/app.ts", () => ({
 vi.mock("@moeru/three-mmd", () => ({
   MMDLoader: class {
     loadAsync = hoisted.loaderLoadAsyncMock;
+    register = (...args: unknown[]) => {
+      hoisted.loaderRegisterMock(...args);
+      return this; // 链式：真实 register 返回 this，适配器 new MMDLoader().register() 继续链上 loadAsync
+    };
     constructor(manager: { resolveURL: (url: string) => string }) {
       hoisted.managerInstances.push(manager);
     }
   },
   VmdObject: { ParseFromBuffer: hoisted.vmdParseMock },
   buildAnimation: hoisted.buildAnimMock,
+  buildCameraAnimation: hoisted.buildCameraAnimMock,
+}));
+vi.mock("@moeru/three-mmd-physics-ammo", () => ({
+  MMDAmmoPlugin: hoisted.ammoPluginMock,
 }));
 
 import { buildMmdScene, type MmdDataPort, type MmdPanelHooks } from "./mmd-adapter.ts";
@@ -213,6 +224,20 @@ describe("buildMmdScene 主路径", () => {
     expect(revokeURL).toHaveBeenCalledTimes(1);
   });
 
+  it("主线程 MMDLoader 路径注册 MMDAmmoPlugin 物理后端（PhysicsService 经官方 ammo 后端接入）", async () => {
+    vi.spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+    hoisted.listPathsMock.mockResolvedValue(["/mmd/miku/miku.pmx"]);
+    const { ctx } = makeCtx();
+    const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), makeMmdPanels());
+    // 主线程 MMDLoader 路径必须注册物理插件：MMD.update 的 this.physics?.update 才有实体
+    expect(hoisted.loaderRegisterMock).toHaveBeenCalledWith(hoisted.ammoPluginMock);
+    built.dispose();
+    expect(revokeURL).toHaveBeenCalled();
+  });
+
   it("同名纹理在不同子目录 → 最长后缀匹配各归其位（不串贴图）", async () => {
     let counter = 0;
     vi.spyOn(URL, "createObjectURL")
@@ -326,6 +351,46 @@ describe("buildMmdScene 主路径", () => {
 
     built.dispose();
     expect(hoisted.mmdDisposeMock).toHaveBeenCalled();
+  });
+
+  it("VMD 含相机关键帧 → 轨道相机：buildCameraAnimation 驱动相机位置/旋转/fov/注视点", async () => {
+    vi.spyOn(URL, "createObjectURL")
+      .mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    hoisted.readBytesMock.mockImplementation((p: string) => Promise.resolve(btoa(p)));
+    hoisted.listPathsMock.mockResolvedValue([
+      "/mmd/miku/miku.pmx",
+      "/mmd/miku/camera.vmd",
+    ]);
+    // VMD 含相机关键帧（cameraKeyFrames 非空）→ 触发轨道相机分支
+    hoisted.vmdParseMock.mockReturnValue({
+      cameraKeyFrames: [{ frameNumber: 0 }, { frameNumber: 30 }],
+    });
+    hoisted.buildAnimMock.mockReturnValue(new THREE.AnimationClip("dance", -1, []));
+    hoisted.buildCameraAnimMock.mockReturnValue(
+      new THREE.AnimationClip("cam", -1, [
+        new THREE.VectorKeyframeTrack("target.position", [0, 1], [1, 2, 3, 4, 5, 6]),
+        new THREE.VectorKeyframeTrack(".position", [0, 1], [0, 0, 0, 10, 0, 0]),
+        new THREE.QuaternionKeyframeTrack(".quaternion", [0, 1], [0, 0, 0, 1, 0, 0, 0, 1]),
+        new THREE.NumberKeyframeTrack(".fov", [0, 1], [45, 60]),
+      ]),
+    );
+
+    const { ctx, camera } = makeCtx();
+    const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), makeMmdPanels());
+    expect(hoisted.buildCameraAnimMock).toHaveBeenCalledTimes(1);
+
+    // update 推进相机动画 → 相机位置/旋转/fov/controls.target 被轨道相机接管。
+    // 步长 0.5（非 1.0）：mixer.update(dt) 是 time += dt，dt=1.0 恰好等于 clip duration=1，
+    // LoopRepeat 回绕到 t=0（取首帧）；真实 rAF 每帧 ~0.016s 不会踩边界。0.5 → t=0.5 插值中点。
+    built.update!(0.5);
+    const cam = camera as THREE.PerspectiveCamera;
+    expect(cam.position.x).toBeCloseTo(5, 1); // .position [0,0,0]→[10,0,0] 中点
+    expect(cam.fov).toBeCloseTo(52.5, 1);     // .fov 45→60 中点
+    expect((ctx.controls as unknown as { target: THREE.Vector3 }).target.x).toBeCloseTo(2.5, 1); // target.position [1,2,3]→[4,5,6] 中点
+
+    built.dispose();
+    expect(revokeURL).toHaveBeenCalled();
   });
 
   it("多个 VMD → select 切换动作，坏文件跳过其余照常", async () => {
