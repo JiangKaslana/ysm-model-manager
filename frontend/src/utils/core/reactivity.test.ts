@@ -29,6 +29,8 @@ afterEach(() => {
   for (const fn of q) fn();
   unsubscribeAll();
   vi.unstubAllGlobals();
+  // 恢复 spyOn（订阅者抛错测试的 console.error spy），失败路径也不泄漏
+  vi.restoreAllMocks();
 });
 
 function flushRaf(): void {
@@ -89,7 +91,7 @@ describe("scheduleRefresh / subscribe", () => {
     flushRaf();
     expect(errSpy).toHaveBeenCalled();
     expect(good).toHaveBeenCalledTimes(1);
-    errSpy.mockRestore();
+    // 恢复统一走 afterEach 的 vi.restoreAllMocks()
   });
 
   it("纯 () => void 签名订阅者兼容（多余参数被忽略）", () => {

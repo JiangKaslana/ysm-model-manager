@@ -64,17 +64,21 @@ describe("delay / waitForFrame", () => {
 
   it("waitForFrame 在 rAF 回调后 resolve", async () => {
     // 直接 stub 全局 rAF 为立即执行回调（node 无 rAF；stubGlobal 的 unknown
-    // 参数推断会把闭包变量收窄成 never，绕开它手动赋值 + 恢复）
+    // 参数推断会把闭包变量收窄成 never，绕开它手动赋值）
     const orig = globalThis.requestAnimationFrame;
     (globalThis as { requestAnimationFrame?: (fn: (t: number) => void) => number }).requestAnimationFrame = (fn) => {
       fn(16);
       return 1;
     };
-    const spy = vi.fn();
-    waitForFrame().then(spy);
-    await Promise.resolve();
-    expect(spy).toHaveBeenCalledTimes(1);
-    (globalThis as { requestAnimationFrame?: (fn: (t: number) => void) => number }).requestAnimationFrame = orig;
+    try {
+      const spy = vi.fn();
+      waitForFrame().then(spy);
+      await Promise.resolve();
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      // 断言失败也须恢复全局 rAF，避免泄漏 stub 污染同 worker 后续 rAF 依赖测试
+      (globalThis as { requestAnimationFrame?: (fn: (t: number) => void) => number }).requestAnimationFrame = orig;
+    }
   });
 });
 
