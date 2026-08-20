@@ -953,7 +953,8 @@ export const en: Record<string, string> = {
   "preview.groundGroupWater": "Water Surface",
   "preview.groundWetness": "Wetness",
   "preview.groundWaterColor": "Water Color",
-  "preview.groundWaterOpacity": "Opacity",
+  
+  "preview.groundNormalStrength": "Normal Strength",
   "preview.sky": "Sky",
   "preview.skyDesc": "Procedural atmospheric sky with time-of-day control",
   "preview.timeOfDay": "Time of Day",

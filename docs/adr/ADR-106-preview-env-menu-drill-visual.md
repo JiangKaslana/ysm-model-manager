@@ -114,7 +114,7 @@ SkyCapability 加 `startAutoRotate/stopAutoRotate/isAutoRotating` 接口：`requ
 ### 3.3 已知遗留
 
 - **体积光 god rays** 未实现（sun 低于地平线时投射体积光束，配合 sunset 预设）
-- **水面法线贴图** 未实现（给水面 Mesh 加法线贴图，让反射更真实）
+- ~~**水面法线贴图** 未实现~~（程序化 DataTexture 生成，编码波浪偏导数，已落地）
 - ~~**环境预设缩略图** 未实现~~（env-preset select 改为缩略图网格，已落地 [ADR-110](./ADR-110-env-preset-thumbnail.md)）
 
 ---

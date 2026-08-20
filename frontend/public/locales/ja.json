@@ -883,7 +883,7 @@
   "preview.groundGroupWater": "水面",
   "preview.groundWetness": "湿潤度",
   "preview.groundWaterColor": "水色",
-  "preview.groundWaterOpacity": "不透明度",
+  "preview.groundNormalStrength": "ノーマル強度",
   "preview.sky": "空",
   "preview.skyDesc": "時間帯を制御できるプログラマティック大気散乱空",
   "preview.timeOfDay": "時間帯",

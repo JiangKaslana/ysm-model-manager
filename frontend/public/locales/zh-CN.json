@@ -883,7 +883,7 @@
   "preview.groundGroupWater": "水面",
   "preview.groundWetness": "湿润度",
   "preview.groundWaterColor": "水色",
-  "preview.groundWaterOpacity": "不透明度",
+  "preview.groundNormalStrength": "法线强度",
   "preview.sky": "天空",
   "preview.skyDesc": "程序化大气散射天空，支持时间-of-day 控制",
   "preview.timeOfDay": "时间",

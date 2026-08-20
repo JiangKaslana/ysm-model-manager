@@ -29,6 +29,8 @@ export interface GroundParams {
   waterColor: number;
   /** 水面不透明度 0=透明 1=不透明 */
   waterOpacity: number;
+  /** 法线贴图强度 0=无效果 1=完全按波浪法线 */
+  normalStrength: number;
 }
 
 export const DEFAULT_GROUND_PARAMS: GroundParams = {
@@ -40,6 +42,7 @@ export const DEFAULT_GROUND_PARAMS: GroundParams = {
   wetness: 0,
   waterColor: 0x335577,
   waterOpacity: 0.6,
+  normalStrength: 0.3,
 };
 
 export class GroundCapability implements SceneCapability {
@@ -113,6 +116,12 @@ export class GroundCapability implements SceneCapability {
     };
     waterMat.needsUpdate = true;
 
+    // 程序化法线贴图：让水面 PBR 光照/反射随波浪变化更真实
+    const normalMap = this.generateNormalMap(256);
+    waterMat.normalMap = normalMap;
+    waterMat.normalScale = new THREE.Vector2(this.params.normalStrength, this.params.normalStrength);
+    waterMat.needsUpdate = true;
+
     this.water = new THREE.Mesh(waterGeo, waterMat);
     this.water.rotation.x = -Math.PI / 2; // 水平
     this.water.position.y = 0.01; // 略高于网格避免 z-fighting
@@ -176,6 +185,71 @@ export class GroundCapability implements SceneCapability {
     return this.params.waterOpacity;
   }
 
+  // ── 法线贴图强度 ──
+  setNormalStrength(v: number): void {
+    this.params.normalStrength = Math.max(0, Math.min(1, v));
+    const mat = this.water.material as THREE.MeshStandardMaterial;
+    const s = new THREE.Vector2(this.params.normalStrength, this.params.normalStrength);
+    mat.normalScale.copy(s);
+  }
+  getNormalStrength(): number {
+    return this.params.normalStrength;
+  }
+
+  // ── 程序化法线贴图生成 ──
+  private generateNormalMap(size: number): THREE.DataTexture {
+    const data = new Uint8Array(size * size * 4);
+    const sz = this.params.size;
+
+    for (let v = 0; v < size; v++) {
+      for (let u = 0; u < size; u++) {
+        // 归一化到波浪空间
+        const x = (u / size - 0.5) * sz * 2;
+        const y = (v / size - 0.5) * sz * 2;
+
+        let dhdx = 0, dhdy = 0;
+
+        // Wave 1: dir=(1,0.3) normalized, freq=0.8, amp=0.08
+        const d1 = new THREE.Vector2(1, 0.3).normalize();
+        const p1 = new THREE.Vector2(x, y);
+        const phase1 = p1.dot(d1) * 0.8;
+        dhdx += 0.08 * Math.cos(phase1) * d1.x * 0.8;
+        dhdy += 0.08 * Math.cos(phase1) * d1.y * 0.8;
+
+        // Wave 2: dir=(-0.4,1) normalized, freq=1.1, amp=0.05
+        const d2 = new THREE.Vector2(-0.4, 1).normalize();
+        const p2 = new THREE.Vector2(x, y);
+        const phase2 = p2.dot(d2) * 1.1;
+        dhdx += 0.05 * Math.cos(phase2) * d2.x * 1.1;
+        dhdy += 0.05 * Math.cos(phase2) * d2.y * 1.1;
+
+        // Wave 3: dir=(0.2,-0.8) normalized, freq=1.6, amp=0.03
+        const d3 = new THREE.Vector2(0.2, -0.8).normalize();
+        const p3 = new THREE.Vector2(x, y);
+        const phase3 = p3.dot(d3) * 1.6;
+        dhdx += 0.03 * Math.cos(phase3) * d3.x * 1.6;
+        dhdy += 0.03 * Math.cos(phase3) * d3.y * 1.6;
+
+        // 组合法线：N = (-dh/dx, -dh/dy, 1) 归一化
+        const nx = -dhdx;
+        const ny = -dhdy;
+        const nz = 1;
+        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        const nnx = nx / len;
+        const nny = ny / len;
+
+        // 编码到 RGB
+        const idx = (v * size + u) * 4;
+        data[idx] = Math.round((nnx * 0.5 + 0.5) * 255);       // R
+        data[idx + 1] = Math.round((nny * 0.5 + 0.5) * 255);   // G
+        data[idx + 2] = 255;                                     // B (朝上)
+        data[idx + 3] = 255;                                     // A
+      }
+    }
+
+    return new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+  }
+
   isEnabled(): boolean {
     return this.enabled;
   }
@@ -222,6 +296,16 @@ export class GroundCapability implements SceneCapability {
         getValue: () => this.getWaterOpacity(),
         setValue: (v) => this.setWaterOpacity(v as number),
       },
+      {
+        id: "ground-normal-strength",
+        kind: "slider",
+        labelKey: "preview.groundNormalStrength",
+        fallback: "法线强度",
+        group: "preview.groundGroupWater",
+        slider: { min: 0, max: 1, step: 0.05 },
+        getValue: () => this.getNormalStrength(),
+        setValue: (v) => this.setNormalStrength(v as number),
+      },
     ];
   }
 
@@ -233,6 +317,7 @@ export class GroundCapability implements SceneCapability {
       wetness: this.params.wetness,
       waterColor: this.params.waterColor,
       waterOpacity: this.params.waterOpacity,
+      normalStrength: this.params.normalStrength,
     });
   }
 
@@ -248,6 +333,7 @@ export class GroundCapability implements SceneCapability {
     if (typeof state.wetness === "number") this.setWetness(state.wetness);
     if (typeof state.waterColor === "number") this.setWaterColor(state.waterColor);
     if (typeof state.waterOpacity === "number") this.setWaterOpacity(state.waterOpacity);
+    if (typeof state.normalStrength === "number") this.setNormalStrength(state.normalStrength);
   }
 
   /** 移除并释放（GridHelper 材质可能是数组，遍历 dispose） */
