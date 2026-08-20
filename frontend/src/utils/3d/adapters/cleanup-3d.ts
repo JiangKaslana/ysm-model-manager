@@ -79,14 +79,14 @@ export function runFullCleanup(ctx: CleanupContext): void {
   if (ctx.isDisposed.v) return;
   ctx.isDisposed.v = true;
   cancelAnimationFrame(ctx.animId);
-  // tip 自动消失定时器（审核 #3）：防止 cleanup 后回调执行
+  // tip 自动消失定时器：防止 cleanup 后回调执行
   const tipId = ctx.getTipTimeoutId();
   if (tipId) clearTimeout(tipId);
   document.removeEventListener("keydown", ctx.onKeyDown);
   document.removeEventListener("keyup", ctx.onKeyUp);
-  // 当前 ESC 处理函数（审核 #2）：switchTo 后 escH 被重新赋值，通过 getter 读取最新值
+  // 当前 ESC 处理函数：switchTo 后 escH 被重新赋值，通过 getter 读取最新值
   document.removeEventListener("keydown", ctx.getEscH());
-  // renderer.domElement 上的拖拽监听（审核 #1）：之前遗漏，cleanup 链中完全缺失
+  // renderer.domElement 上的拖拽监听：之前遗漏，cleanup 链中完全缺失
   ctx.renderer?.domElement?.removeEventListener("pointerdown", ctx.onDragPointerDown);
   window.removeEventListener("pointerup", ctx.onDragPointerUp);
   window.removeEventListener("pointermove", ctx.onDragPointerMove);
@@ -110,7 +110,7 @@ export function runFullCleanup(ctx: CleanupContext): void {
   try { textureCache.disposeAll(); } catch (_) { /* 防御性释放 */ }
   // 视锥裁剪：清空模型根节点注册
   try { clearModelRoots(); } catch (_) { /* 防御性释放 */ }
-  // 审核修复 #3：不再逐个 dispose 各能力（已由 sceneCapabilityRegistry.dispose 统一处理），
+  // 不再逐个 dispose 各能力（已由 sceneCapabilityRegistry.dispose 统一处理），
   // 避免双重 dispose 导致 SkyCapability 重复还原 toneMapping / PMREM 等问题
   // 后处理体积光管线（ADR-081 L2）：释放 EffectComposer + bloom
   try {
@@ -119,7 +119,6 @@ export function runFullCleanup(ctx: CleanupContext): void {
     ctx.nullPostProc();
   } catch (_) { /* 防御性释放 */ }
   // 防御性遍历：释放内容层可能遗漏的几何/材质/纹理
-  // 审核修复 #3：不销毁 renderer/controls（它们是模块级单例，由 mount-preview-core 复用）。
   // 仅移除本 session 添加的 DOM 子节点（viewContainer 含 renderer.domElement）。
   // renderer/controls 的 dispose 由 _resetSingletons 或下次 mount 时自然处理。
   if (ctx.overlay.parentNode) ctx.overlay.parentNode.removeChild(ctx.overlay);

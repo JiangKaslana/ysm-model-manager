@@ -155,7 +155,7 @@ export async function switchToSession(
   ctx.setBuilt(next);
   // P3-1：非同台模式旧 built 已在上方 dispose，allBuilt 只保留当前活跃项——
   // 否则每次切换累积已释放的 PreviewScene 引用，长时间频繁切换内存泄漏。
-  // 大审核 #1 修正：清空前必须先 dispose allBuilt 中的其余条目（keep=true 追加的
+  // 清空前必须先 dispose allBuilt 中的其余条目（keep=true 追加的
   // 多模型 m1/m2 在步骤 2 被移出 scene 但从未 dispose）——否则其 GPU 资源孤儿泄漏，
   // 且 sceneRegistry 残留计数虚高（误触 MAX_MODELS 拦截）。
   if (!keep) {
@@ -217,7 +217,7 @@ export async function switchToSession(
     if (roots.length) fitCameraToRoots(roots, ctx.camera, ctx.controls);
   }
 
-  // 审核修复 #2：切换后更新 sceneBaseline，但须排除本次构建的内容层增量——
+  // 切换后更新 sceneBaseline，但须排除本次构建的内容层增量——
   // 若把完整 scene（含刚构建的模型）作为基线，下次切换的 stale 差量
   // （children - baseline）会把旧模型视为基线、永不移除 → 幽灵网格累积（P1）
   if (ctx.setSceneBaseline && ctx.scene) {

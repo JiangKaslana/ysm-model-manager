@@ -225,7 +225,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   installUiComponentsStyles();
   const myGen = ++_gen;
   const selfMode = adapter.mode === "self";
-  /** 当前模型路径（审核 #4：切换成功后「当前」项须指向新模型，原 path 移回候选）。
+  /** 当前模型路径：切换成功后「当前」项须指向新模型，原 path 移回候选。
    *  siblings 不再 mount 时一次性过滤——getSiblings 基于 currentPath 动态过滤，
    *  切换模型即「变更 filter 路径」，全程轻量不重扫。 */
   let currentPath = path;
@@ -354,7 +354,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
 
   // ===== §4 基础设施创建（scene/camera/renderer/OrbitControls/灯光/resize）=====
   let aborted = false;
-  // 可变 ESC 处理函数：switchTo 后重新赋值（审核 #2：防止旧 handler 被替换后新 handler 永不卸载）
+  // 可变 ESC 处理函数：switchTo 后重新赋值
   let escH = (e: KeyboardEvent): void => {
     if (e.key === "Escape") {
       if (cleanupFn) cleanupFn();
@@ -600,7 +600,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   tip.style.cssText = "padding:6px 12px;background:rgba(124,131,255,0.2);color:#fff;font-size:12px;text-align:center;flex-shrink:0;font-weight:500";
   tip.textContent = "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
   overlay.insertBefore(tip, body);
-  // 审核 #3：保存 timeoutId 供 cleanup 时 clearTimeout
+  // 保存 timeoutId 供 cleanup 时 clearTimeout
   let tipTimeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
     if (tip.parentNode) tip.remove();
   }, TIP_AUTO_DISMISS_MS);
@@ -859,7 +859,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       }
     }
 
-    // 审核 #2：复用 escH 可变引用，switchTo 后旧 handler 被替换，新 handler 在 cleanup 时通过 getter 正确卸载
+    // 复用 escH 可变引用，switchTo 后旧 handler 被替换，新 handler 在 cleanup 时通过 getter 正确卸载
     // R1-P1-2：先保存旧引用再替换，否则 removeEventListener 移除的是新函数（从未注册过），旧函数仍残留
     const oldEscH = escH;
     escH = (e: KeyboardEvent): void => {

@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 136 | 530 |
+| 前端·工具 | 137 | 533 |
 | frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **427** | **1844** |
+| **合计** | **428** | **1847** |
 
 ## Go·头像
 
@@ -1277,6 +1277,9 @@
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
+| `PerceptionState()` | `frontend/src/utils/3d/adapters/perception-controls:7` | 感知层状态：各模块开关（adapter build 时创建，update 循环读取，面板 UI 写入） |
+| `PerceptionCapability()` | `frontend/src/utils/3d/adapters/perception-controls:16` | 可用感知模块描述（由 adapter 按实际能力填写） |
+| `buildPerceptionControls()` | `frontend/src/utils/3d/adapters/perception-controls:37` | 在感知面板内渲染开关行（对齐 camera-controls.ts 范式）。 |
 | `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:18` | 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） |
 | `PostprocessingManager()` | `frontend/src/utils/3d/adapters/postprocessing:25` | — |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:15` | — |

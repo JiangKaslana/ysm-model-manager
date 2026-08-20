@@ -167,7 +167,7 @@ export async function buildYsmScene(
     id: b.id,
     name: b.name,
     parentId: b.parentId ?? null,
-    // 审核修复：ysm 有 boneGroupMap（boneId → Group），必须传 object——
+    // ysm 有 boneGroupMap（boneId → Group），必须传 object——
     // 否则骨骼面板显隐（toggleBoneVisible）/坐标（getBonePosition）/拾取联动
     // （pickBone objectToId）全部 no-op，面板退化成纯列表。
     object: obj.boneGroupMap.get(b.id),
@@ -346,7 +346,7 @@ export function makeYsmAdapter(path: string, opts: YsmAdapterOptions): PreviewAd
     id: RESOURCE_TYPES.YSM,
     // shared 模式（§5.7）：核心提供 renderer/scene/camera/controls/rAF，适配器只注入内容
     onClose: opts.onClose,
-    // 审核修复：必须用 build 传入的 path（switchTo(newPath) 重建内容层的换模型入口），
+    // 必须用 build 传入的 path（switchTo(newPath) 重建内容层的换模型入口），
     // 闭包 path 仅是首次挂载的初始值——否则 switchTo 对 YSM 加载同一旧模型（假切换）。
     build(ctx: PreviewBuildCtx, buildPath: string): Promise<PreviewScene> {
       return buildYsmScene(ctx, buildPath, opts);
