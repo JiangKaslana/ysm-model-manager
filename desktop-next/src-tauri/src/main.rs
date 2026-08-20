@@ -117,10 +117,7 @@ fn library_snapshot(state: State<'_, AppState>) -> Result<LibrarySnapshotDto, St
 }
 
 #[tauri::command]
-fn toggle_model_enable(
-    path: String,
-    state: State<'_, AppState>,
-) -> Result<TogglePayload, String> {
+fn toggle_model_enable(path: String, state: State<'_, AppState>) -> Result<TogglePayload, String> {
     let root = state
         .root
         .lock()
