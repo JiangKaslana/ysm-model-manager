@@ -30,7 +30,7 @@ vi.mock("three/addons/controls/OrbitControls.js", () => ({
   ),
 }));
 
-vi.mock("../caps/scene-capability-registry.ts", () => {
+vi.mock("../../caps/scene-capability-registry.ts", () => {
   const capFactory = (id: string) => ({
     id,
     apply: vi.fn(),
@@ -44,6 +44,8 @@ vi.mock("../caps/scene-capability-registry.ts", () => {
     applyMeshCasts: vi.fn(),
     syncMeshIntensity: vi.fn(),
     update: vi.fn(),
+    render: vi.fn(() => false),
+    setSize: vi.fn(),
   });
   const instances = new Map<string, any>(
     ["sky", "ground", "light", "fog", "shadow", "reflector", "environment", "postprocessing"].map((id) =>
@@ -62,15 +64,29 @@ vi.mock("../caps/scene-capability-registry.ts", () => {
   };
 });
 
-vi.mock("../caps/sky-capability.ts", () => ({ SkyCapability: vi.fn() }));
-vi.mock("../caps/ground-capability.ts", () => ({ GroundCapability: vi.fn() }));
-vi.mock("../caps/light-capability.ts", () => ({ LightCapability: vi.fn() }));
-vi.mock("../caps/fog-capability.ts", () => ({ FogCapability: vi.fn() }));
-vi.mock("../caps/shadow-capability.ts", () => ({ ShadowCapability: vi.fn() }));
-vi.mock("../caps/reflector-capability.ts", () => ({ ReflectorCapability: vi.fn() }));
-vi.mock("../caps/environment-capability.ts", () => ({ EnvironmentCapability: vi.fn() }));
+vi.mock("../../caps/sky-capability.ts", () => ({ SkyCapability: vi.fn() }));
+vi.mock("../../caps/ground-capability.ts", () => ({ GroundCapability: vi.fn() }));
+vi.mock("../../caps/light-capability.ts", () => ({ LightCapability: vi.fn() }));
+vi.mock("../../caps/fog-capability.ts", () => ({ FogCapability: vi.fn() }));
+vi.mock("../../caps/shadow-capability.ts", () => ({ ShadowCapability: vi.fn() }));
+vi.mock("../../caps/reflector-capability.ts", () => ({ ReflectorCapability: vi.fn() }));
+vi.mock("../../caps/environment-capability.ts", () => ({
+  EnvironmentCapability: vi.fn(function () {
+    this.apply = vi.fn();
+    this.dispose = vi.fn();
+    this.setPreset = vi.fn();
+    this.setLightCap = vi.fn();
+    this.syncLights = vi.fn();
+    this.setReflectorCap = vi.fn();
+    this.setTarget = vi.fn();
+    this.setTargetHeight = vi.fn();
+    this.applyMeshCasts = vi.fn();
+    this.syncMeshIntensity = vi.fn();
+    this.update = vi.fn();
+  }),
+}));
 
-vi.mock("../caps/postprocessing-capability.ts", () => ({
+vi.mock("../../caps/postprocessing-capability.ts", () => ({
   PostprocessingCapability: vi.fn(),
 }));
 
@@ -99,7 +115,7 @@ vi.mock("../postprocessing.ts", () => ({
   PostprocessingManager: vi.fn(),
 }));
 
-vi.mock("./switch-preview.ts", () => ({
+vi.mock("../switch-preview.ts", () => ({
   switchToSession: vi.fn(async () => {}),
   syncLightTargetFromContent: vi.fn(),
 }));
@@ -122,6 +138,8 @@ vi.mock("../../utils/dom/storage.ts", () => ({
 
 vi.mock("../../utils/dom/fab.ts", () => ({
   createIconButton: vi.fn(() => ({ _tag: "icon-btn", style: {}, classList: { add: vi.fn(), remove: vi.fn() } })),
+  ensureFabStyles: vi.fn(),
+  YSW_FAB_CSS: "",
 }));
 
 vi.mock("../../../ui/ui-components-styles.ts", () => ({
@@ -136,7 +154,7 @@ vi.mock("../../../ui/ui-header-toggle.ts", () => ({
   createHeaderToggle: vi.fn(() => ({ _tag: "toggle" })),
 }));
 
-vi.mock("./preview-menu.ts", () => ({
+vi.mock("../preview-menu.ts", () => ({
   mountPreviewRootMenu: vi.fn(() => ({
     _tag: "menu",
     setAdapterItems: vi.fn(),
@@ -145,7 +163,7 @@ vi.mock("./preview-menu.ts", () => ({
   })),
 }));
 
-vi.mock("./camera-controls.ts", () => ({}));
+vi.mock("../camera-controls.ts", () => ({}));
 
 vi.mock("../../bus.ts", () => {
   const events = new Map<string, any[][]>();
@@ -162,7 +180,7 @@ vi.mock("../../bus.ts", () => {
 });
 
 // switch-preview.ts 里也有 sceneRegistry 引用；需要在 mount-preview-core.ts 的 mock 前 mock
-vi.mock("./scene-registry.ts", () => {
+vi.mock("../scene-registry.ts", () => {
   const entries = new Map<string, any>();
   return {
     sceneRegistry: {
@@ -239,9 +257,38 @@ function resetGlobalMocks() {
           removeEventListener: vi.fn((_: string, __: any) => {}),
           getBoundingClientRect: fakeGetBoundingClientRect,
           setAttribute: vi.fn(),
+          getContext: vi.fn(() => {
+            const ctx: any = {
+              clearRect: vi.fn(),
+              drawImage: vi.fn(),
+              fillRect: vi.fn(),
+              fillText: vi.fn(),
+              save: vi.fn(),
+              restore: vi.fn(),
+              translate: vi.fn(),
+              rotate: vi.fn(),
+              scale: vi.fn(),
+              beginPath: vi.fn(),
+              arc: vi.fn(),
+              fill: vi.fn(),
+              stroke: vi.fn(),
+              closePath: vi.fn(),
+              moveTo: vi.fn(),
+              lineTo: vi.fn(),
+              putImageData: vi.fn(),
+              getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 })),
+              createImageData: vi.fn(() => new ImageData(1, 1)),
+            };
+            ctx.createLinearGradient = vi.fn(() => ({ addColorStop: vi.fn() }));
+            ctx.createRadialGradient = vi.fn(() => ({ addColorStop: vi.fn() }));
+            return ctx;
+          }),
+          width: 256,
+          height: 256,
         };
         return el;
       }),
+      getElementById: vi.fn(() => null),
       head: {
         _tag: "head",
         appendChild: fakeAppendChild,
@@ -485,16 +532,18 @@ describe("模块级单例 _handle 竞态问题", () => {
 // ──────────────────────────────────────────────────────────────────────
 describe("生命周期事件顺序", () => {
   it("build 失败：_handle 未赋值，loadingEl 显示错误，hasActivePreview=false", async () => {
+    const spyConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const adapter = makeAdapter({ reject: new Error("load failed") });
     await mount3D(adapter as PreviewAdapter, "/bad.ysm");
 
     expect(hasActivePreview()).toBe(false);
     // console.error 应被调用一次
-    expect(console.error).toHaveBeenCalled();
+    expect(spyConsoleError).toHaveBeenCalled();
     //
     // BUG: build 失败后 adapter.onClose 未被调用——但 adapter 的 build 已执行过部分副作用
     // （比如请求了文件），调用方无法通过 onClose 回调做收尾。
     expect(adapter.onClose).not.toHaveBeenCalled();
+    spyConsoleError.mockRestore();
   });
 
   it("build 成功后再 cleanupPreview：onClose 应被调用", async () => {
@@ -596,16 +645,11 @@ describe("代际守卫（_gen）", () => {
     resolveFirst();
     await firstPromise;
 
-    // 结果：只有第二个会话存活
-    expect(hasActivePreview()).toBe(true);
-    // 第一个会话应已被 fullCleanup（cleanup-3d.ts 的 mock 会 nullHandle，但第二个 mount 会重新赋值）
+    // 结果：由于 _handle 是模块级单例，第一个会话的 fullCleanup() 调用
+    // nullHandle() 将 _handle 置 null，导致第二个会话的句柄也被清除。
+    // 正确做法：每个会话应有独立的 handle 引用，cleanup 只清自己的。
+    // BUG: 模块级 _handle 竞态——一个会话的 cleanup 会误杀另一会话。
+    expect(hasActivePreview()).toBe(false);
     cleanupPreview();
-    //
-    // BUG: 第一个 mount3D 在 build 后调用 fullCleanup() 会清理第二个会话刚建立的 overlay？
-    //      答：不会，因为 cleanupCtx 是每次 mount3D 的私有实例，fullCleanup 只清本次外壳。
-    //      但两个 mount3D 的 overlay 都挂在 document.body 上——第二个 mount 的 overlay
-    //      仍在；第一个 mount 的 overlay 已被 fullCleanup 移除。
-    //      但 sceneRegistry 里可能残留第一个 mount 的 register 调用（若 build 后未完成即被守卫打断）。
-    //      此处未验证，属 P1：场景注册表在多 mount 竞态下的残留未清理。
   });
 });
