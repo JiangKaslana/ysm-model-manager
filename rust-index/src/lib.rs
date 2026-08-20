@@ -5,7 +5,7 @@ use std::{
     time::UNIX_EPOCH,
 };
 
-use ysm_model_manager_core::{scan_fast, ModelEntry, ScanError, ScanPolicy, ScanReport};
+use ysm_model_manager_core::{scan_index, ModelEntry, ScanError, ScanPolicy, ScanReport};
 
 const MMD_SUBDIRS: &[&str] = &[
     "EntityPlayer",
@@ -59,7 +59,7 @@ impl ModelIndex {
     }
 
     pub fn refresh(&mut self, root: impl AsRef<Path>, policy: &ScanPolicy) -> IndexDelta {
-        self.apply_report(scan_fast(root, policy))
+        self.apply_report(scan_index(root, policy))
     }
 
     /// Apply a batch of filesystem event paths without rescanning the whole library.
@@ -281,10 +281,7 @@ fn path_is_ignored(root: &Path, path: &Path) -> bool {
         }
         if let Component::Normal(name) = component {
             let name = name.to_string_lossy();
-            if name.eq_ignore_ascii_case(".recycle")
-                || name == ".github"
-                || name.to_ascii_lowercase().ends_with(".ban")
-            {
+            if name.eq_ignore_ascii_case(".recycle") || name == ".github" {
                 return true;
             }
         }
@@ -447,6 +444,47 @@ mod tests {
         assert_eq!(delta.updated.len(), 1);
         assert_eq!(delta.updated[0].path, PathBuf::from("a.ysm"));
         assert_eq!(delta.removed, vec![PathBuf::from("b.ysm")]);
+    }
+
+    #[test]
+    fn refresh_keeps_entries_inside_banned_directories() {
+        let temp = TempRoot::new("banned-refresh");
+        let banned_dir = temp.0.join("ModelA.ban");
+        fs::create_dir_all(&banned_dir).unwrap();
+        let ysm = banned_dir.join("ysm.json");
+        fs::write(&ysm, b"{}").unwrap();
+
+        let policy = policy();
+        let mut index = ModelIndex::new();
+        let first = index.refresh(&temp.0, &policy);
+        assert_eq!(first.added.len(), 1);
+        assert_eq!(index.snapshot().entries[0].path, ysm);
+
+        let second = index.refresh(&temp.0, &policy);
+        assert!(second.added.is_empty());
+        assert!(second.updated.is_empty());
+        assert!(second.removed.is_empty());
+        assert_eq!(index.len(), 1);
+    }
+
+    #[test]
+    fn file_event_inside_banned_directory_is_inspected_locally() {
+        let temp = TempRoot::new("banned-file-event");
+        let banned_dir = temp.0.join("ModelA.ban");
+        fs::create_dir_all(&banned_dir).unwrap();
+        let ysm = banned_dir.join("ysm.json");
+        fs::write(&ysm, b"{}").unwrap();
+
+        let policy = policy();
+        let mut index = ModelIndex::new();
+        index.refresh(&temp.0, &policy);
+        let initial_revision = index.revision();
+
+        fs::write(&ysm, b"{\"changed\":true}").unwrap();
+        let delta = index.apply_paths(&temp.0, &policy, std::slice::from_ref(&ysm));
+        assert_eq!(delta.updated.len(), 1);
+        assert_eq!(delta.updated[0].path, ysm);
+        assert_eq!(delta.revision, initial_revision + 1);
     }
 
     #[test]
