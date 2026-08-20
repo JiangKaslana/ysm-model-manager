@@ -87,9 +87,7 @@ pub fn toggle_model_enable(
     let mut target_source = source.clone();
     if is_ysm_entry_json(&source) {
         let parent = source.parent().unwrap_or(root);
-        if root.as_os_str().is_empty() {
-            target_source = parent.to_path_buf();
-        } else if is_strictly_inside(root, parent)? {
+        if root.as_os_str().is_empty() || is_strictly_inside(root, parent)? {
             target_source = parent.to_path_buf();
         }
     }
