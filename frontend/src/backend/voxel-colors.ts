@@ -1,8 +1,10 @@
 // ===== 网页版方块配色（ADR-070 M2：voxel groups 的 color 来源）=====
 // 纯 TS 平移 go/litematic/block_colors.go（MapColor）与 go/litematic/block_ids.go
 // （ResolveBlockName）。数据表（BLOCK_COLOR_MAP / BLOCK_VARIANT_NAMES）由 Go 源
-// 一次性生成（voxel-colors-data.ts），本文件只做算法平移。
-import { BLOCK_COLOR_MAP, BLOCK_VARIANT_NAMES } from "./voxel-colors-data.ts";
+// 一次性生成（voxel-colors-data.json），本文件只做算法平移。
+import data from "./voxel-colors-data.json";
+const BLOCK_COLOR_MAP: Record<string, string> = data.BLOCK_COLOR_MAP;
+const BLOCK_VARIANT_NAMES: Record<string, string> = data.BLOCK_VARIANT_NAMES;
 
 // 对齐 block_colors.go fuzzyMatch：方块后缀命中时尝试去掉后缀再匹配
 const BLOCK_SUFFIXES = [

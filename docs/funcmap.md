@@ -847,8 +847,8 @@
 | `isWebEntryMode()` | `frontend/src/backend/platform:19` | Tier 1：旧 web 短路标记 / vite MODE=web 构建 |
 | `resolveWebMode()` | `frontend/src/backend/platform:28` | 同步判定：当前是否应路由到 browser adapter（网页版） |
 | `AppBindings()` | `frontend/src/backend/types:6` | Wails v3 生成的 App 绑定模块形状（bindings 目录下 app.ts） |
-| `mapColor()` | `frontend/src/backend/voxel-colors:91` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
-| `resolveBlockName()` | `frontend/src/backend/voxel-colors:106` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
+| `mapColor()` | `frontend/src/backend/voxel-colors:92` | 对齐 go/litematic/block_colors.go MapColor：方块注册名 → 近似十六进制颜色。 |
+| `resolveBlockName()` | `frontend/src/backend/voxel-colors:107` | 对齐 go/litematic/block_ids.go ResolveBlockName：schematic v1 数字 ID → 注册名（优先 "id:data" 变体，回退 |
 | `VoxelGroup()` | `frontend/src/backend/voxel-parse:36` | 输出形状（对齐 types.VoxelGroup / LitematicVoxelData json tag） |
 | `VoxelData()` | `frontend/src/backend/voxel-parse:41` | — |
 | `readVarInt()` | `frontend/src/backend/voxel-parse:58` | 对齐 voxel.go:531-549 readVarInt：返回 {value, offset}（shift≥64 截断防溢出 wrap） |
