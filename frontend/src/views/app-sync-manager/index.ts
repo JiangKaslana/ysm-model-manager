@@ -11,6 +11,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { safeGet } from "../../utils/dom/storage.ts";
 import { getApp } from "../../backend/app.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import {
@@ -134,6 +135,11 @@ export class AppSyncManager extends WebComponentBase {
 
     this._loading = false;
     try {
+      // 初始化时从 localStorage 同步全局 MMD 子目录选择
+      const savedSubdir = safeGet("repo_subdir") || "";
+      if (savedSubdir && this._selectedType === RESOURCE_TYPES.MMD) {
+        this._subdirFilter = savedSubdir;
+      }
       this._doRender();
     } catch (e) {
       console.error("[sync-manager] _render 出错:", e);

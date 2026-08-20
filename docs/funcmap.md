@@ -1991,8 +1991,8 @@
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:90` | 单个整合包卡片头部。 |
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:17` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮 / dir-level 文件夹展开折叠） |
-| `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:25` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:67` | — |
+| `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:26` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:68` | — |
 | `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
 | `performSingleOp()` | `frontend/src/views/app-sync-manager/network:29` | 统一推送 / 拉取单文件操作。 |
 | `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:23` | — |
