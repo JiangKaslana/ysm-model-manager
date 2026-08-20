@@ -54,6 +54,7 @@ import { cleanupMmd3D, invalidateMmdPreview } from "./mmd-3d.ts";
 import { cleanupScene3D, invalidateScenePreview } from "./scene-3d.ts";
 import { cleanupPack3D, invalidatePackPreview } from "./pack-3d.ts";
 import { cleanupEmpty3D, invalidateEmptyPreview } from "./empty-3d.ts";
+import { cleanupMaid3D, invalidateMaidPreview, showMaidPreview } from "./maid-3d.ts";
 import { closeActive3DOverlay } from "./skeleton.ts";
 import { esc } from "../../utils/dom/html.ts";
 import type { BedrockGeometry } from "./geometry.ts";
@@ -77,6 +78,7 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   // showResourcePack 从未渲染，看不到 pack.png/描述；P2 修复对齐 YSM/VRM/MMD 详情+FAB 模式）
   [RESOURCE_TYPES.PACK]: (ctx, path) => showResourcePack(ctx, path),
   [RESOURCE_TYPES.YSM]: (ctx, path) => showModelDetail(ctx, path),
+  [RESOURCE_TYPES.MAID]: (ctx, path) => showMaidPreview(ctx, path),
   [RESOURCE_TYPES.LITEMATIC]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.BLUEPRINT]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.SHADER]: (ctx, path, meta) => showShaderpack(ctx, path, meta),
@@ -146,6 +148,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
         invalidateScenePreview();
         invalidatePackPreview();
         invalidateEmptyPreview();
+        invalidateMaidPreview();
         try {
           if (isDir) {
             await this._showPackInfo(path);
@@ -172,6 +175,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
     cleanupScene3D();
     cleanupPack3D();
     cleanupEmpty3D();
+    cleanupMaid3D();
   }
 
   private _render(): void {

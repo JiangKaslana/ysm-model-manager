@@ -62,6 +62,12 @@ export interface YsmAdapterOptions {
   readTextFile?: (path: string) => Promise<string | null>;
   /** 播放面板填充回调（视图层注入；复用 fillMmdPlayPanel，解除 utils→views 分层违规 R1） */
   fillPlayPanel?: (list: HTMLElement, bridge: MmdPlayBridge) => void;
+  /**
+   * 渲染模式（ADR-Bedrock 通用化）：
+   * - "ysm"（默认）：启用 YSM 专属特性（动画扫描、语义骨骼、呼吸控制）
+   * - "generic"：纯 Bedrock 渲染，跳过 YSM 专属特性（用于车万女仆等通用 Bedrock 模型）
+   */
+  mode?: "ysm" | "generic";
 }
 
 /** 骨骼拾取状态（bone-raycast 需要的最小 state） */
@@ -172,11 +178,13 @@ export async function buildYsmScene(
   ctx.loadingEl.remove();
 
   // ---- YSM 骨骼动画（ADR-100 L1+L2）：扫描同目录 .animation.json ----
+  // ADR-Bedrock 通用化：generic 模式跳过动画/语义骨骼/呼吸（女仆等通用 Bedrock 模型）
+  const isGenericMode = opts.mode === "generic";
   let animPlayer: YsmAnimPlayer | null = null;
   let animBridge: MmdPlayBridge | null = null;
   let semanticBones: import("../semantic-bones.ts").SemanticBoneMap | null = null;
   let breath: ReturnType<typeof createBreathController> | null = null;
-  if (opts.listAllFilePaths && opts.readTextFile) {
+  if (!isGenericMode && opts.listAllFilePaths && opts.readTextFile) {
     try {
       const specBones = (spec as Spec3D).models?.flatMap((m) => m.bones ?? []) ?? [];
       // 语义骨骼映射（L2）

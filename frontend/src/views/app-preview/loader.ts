@@ -1,24 +1,37 @@
 // ===== 模型数据加载（唯一入口）=====
 // 供给 skeleton.ts 和 screenshot-renderer.ts 使用
 import { cacheGet, cacheSet } from "./cache.ts";
-import { matchTypeByExt, RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { extOf } from "../../utils/resource/types.ts";
 import { getApp } from "../../backend/app.ts";
 import { parseBedrockAnimationJSON } from "../../utils/animation/animation.ts";
 import type { YsmDecoder, PreviewDebugger } from "./utils.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 
+/** loadModelData 选项（Bedrock 通用模型加载控制） */
+export interface LoadModelOpts {
+  /** 跳过 WASM 解码（用于非 YSM 格式的 Bedrock 模型，如车万女仆） */
+  skipWasm?: boolean;
+}
+
 /**
  * 加载模型几何数据 + 纹理（优先路径，阻塞渲染）
- * 统一路径：缓存 → WASM 解码 → Go AnalyzeBedrockModel 兜底
+ * 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底
  * 作者/头像延迟到 fillAuthorsAsync（不阻塞首帧渲染）
+ *
+ * ADR: .zip/.7z/.json 等通用 Bedrock 格式直接走 Go 解析路径，
+ * WASM 仅用于 .ysm 二进制格式（YSM 专属）。非 YSM Bedrock 模型
+ * （如车万女仆 .zip）可传 skipWasm 直接跳过 WASM 尝试。
  */
 export async function loadModelData(
   modelPath: string,
   ctx: YsmDecoder & PreviewDebugger,
+  opts: LoadModelOpts = {},
 ): Promise<{ model: BedrockGeometry | null; decodedBy: string }> {
   let model: BedrockGeometry | null = null;
   let _decodedBy = "";
-  const isWasmCapable = matchTypeByExt(modelPath, RESOURCE_TYPES.YSM);
+  const ext = extOf(modelPath);
+  // WASM 仅对 .ysm 二进制格式有意义；.zip/.7z/.json 通用格式走 Go
+  const isWasmCapable = !opts.skipWasm && ext === ".ysm";
   let _wasmAuthors: BedrockGeometry["_authors"] = [];
   let _wasmAvatars: Record<string, string> = {};
 

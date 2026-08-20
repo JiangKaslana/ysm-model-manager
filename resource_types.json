@@ -127,7 +127,7 @@
           "extensions": [".zip"],
           "detector": "zipentry",
           "zipEntries": [{ "name": "maid_model.json", "match": "suffix" }, { "name": "chair_model.json", "match": "suffix" }],
-          "preview": "none",
+          "preview": "3d",
           "installDir": "tlm_custom_pack/", "scanDir": "tlm_custom_pack"
         }
       ],
@@ -254,7 +254,7 @@
       "installDir": "tlm_custom_pack/",
       "scanDir": "tlm_custom_pack",
       "instanceLevel": true,
-      "preview": "none",
+      "preview": "3d",
       "detector": "zipentry",
       "zipEntries": [
         { "name": "maid_model.json", "match": "suffix" },

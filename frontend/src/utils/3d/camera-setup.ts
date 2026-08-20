@@ -13,9 +13,14 @@ export function fitCameraToScene(
   camera: THREE.PerspectiveCamera,
   controls: OrbitControls,
 ): { initCamPos: THREE.Vector3; initCamTarget: THREE.Vector3 } {
-  // 使用 setFromObject 而非 traverse+expandByObject：前者会正确应用父节点 scale，
-  // 后者只计算局部包围盒，忽略 rootGroup.scale = 1/16（基岩标准），导致相机拉远 16 倍。
-  const box = new THREE.Box3().setFromObject(scene);
+  // 只计算最新添加的内容节点（模型），排除 sky/ground/capability 等辅助组件。
+  // 之前用 setFromObject(scene) 会包含 sky（scale=12000），导致相机距离错误放大。
+  // 使用「build 前后差量」语义：取最后一个新增的顶层根节点。
+  const children = scene.children;
+  const contentRoot = children[children.length - 1];
+  const box = contentRoot
+    ? new THREE.Box3().setFromObject(contentRoot)
+    : new THREE.Box3();
 
   if (!box.isEmpty()) {
     const center = new THREE.Vector3();

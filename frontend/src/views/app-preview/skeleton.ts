@@ -35,6 +35,11 @@ export function closeActive3DOverlay(): void {
   _active3DClose = null;
 }
 
+/** 设置当前活跃的 3D 全屏 overlay 关闭函数（maid/通用 Bedrock 模型复用此机制）。 */
+export function setActive3DClose(fn: (() => void) | null): void {
+  _active3DClose = fn;
+}
+
 /** 连点/多菜单触发时忽略并发（防重复保存文件） */
 function makeShotGuard(shotBtn: HTMLElement): {
   saving: boolean; setSaving: (v: boolean) => void; setIcon: (icon: string) => void;
