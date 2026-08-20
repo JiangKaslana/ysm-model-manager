@@ -9,6 +9,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use ysm_model_manager_core::{
     hydrate_hashes as hydrate_entry_hashes, ModelEntry, ScanError, ScanPolicy,
 };
+use ysm_model_manager_fileops::toggle_model_enable as toggle_model_enable_file;
 use ysm_model_manager_index::{IndexDelta, IndexSnapshot, ModelIndex};
 
 struct AppState {
@@ -74,6 +75,15 @@ struct LibraryDeltaDto {
     errors: Vec<ErrorDto>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TogglePayload {
+    enabled: bool,
+    before: String,
+    after: String,
+    delta: LibraryDeltaDto,
+}
+
 #[tauri::command]
 fn scan_library(
     root: String,
@@ -103,6 +113,34 @@ fn library_snapshot(state: State<'_, AppState>) -> Result<LibrarySnapshotDto, St
     let root = state.root.lock().map_err(lock_error)?.clone();
     let snapshot = state.index.lock().map_err(lock_error)?.snapshot();
     Ok(snapshot_dto(snapshot, root.as_deref()))
+}
+
+#[tauri::command]
+fn toggle_model_enable(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<TogglePayload, String> {
+    let root = state
+        .root
+        .lock()
+        .map_err(lock_error)?
+        .clone()
+        .ok_or_else(|| "尚未选择模型库目录".to_string())?;
+
+    // Hold the index lock across the rename so watcher callbacks cannot reconcile the same
+    // filesystem event before this command has produced the authoritative delta for the caller.
+    let mut index = state.index.lock().map_err(lock_error)?;
+    let outcome = toggle_model_enable_file(&root, PathBuf::from(path))
+        .map_err(|error| format!("启用/禁用失败：{error}"))?;
+    let changed_paths = [outcome.before.clone(), outcome.after.clone()];
+    let delta = index.apply_paths(&root, &state.policy, &changed_paths);
+
+    Ok(TogglePayload {
+        enabled: outcome.enabled,
+        before: display_path(&outcome.before),
+        after: display_path(&outcome.after),
+        delta: delta_dto(delta),
+    })
 }
 
 #[tauri::command]
@@ -351,6 +389,7 @@ fn main() {
             scan_library,
             refresh_library,
             library_snapshot,
+            toggle_model_enable,
             hydrate_hashes
         ])
         .run(tauri::generate_context!())
