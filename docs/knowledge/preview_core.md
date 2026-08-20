@@ -21,7 +21,7 @@ use_when:
   - mount3D
 invariant_anchors:
   - frontend/src/utils/3d/adapters/mount-preview-core.ts|mount3D
-  - frontend/src/utils/3d/adapters/mount-preview-core.ts|scene.background
+  - frontend/src/utils/3d/adapters/mount-preview-core.ts|_singletonScene.background
   - frontend/src/utils/3d/caps/sky-capability.ts|SkyCapability
   - frontend/src/utils/3d/adapters/mount-preview-core.ts|PreviewAdapter
 ---

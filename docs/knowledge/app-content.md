@@ -15,7 +15,6 @@ source_files:
   - frontend/src/views/app-content/diagnostics/dedup.ts
   - frontend/src/views/app-content/diagnostics/conflicts.ts
   - frontend/src/views/app-content/settings/init.ts
-  - frontend/src/views/app-content/tpl-downloads.ts
   - frontend/src/views/app-content/tpl-recycle.ts
   - frontend/src/views/app-content/tpl-settings.ts
   - frontend/src/views/app-content/tpl-settings-about.ts

@@ -4,17 +4,14 @@ name: 导入队列 import-queue
 tier: architecture
 category: feature
 source_files:
-  - frontend/src/features/import-queue.ts
-  - frontend/src/features/import-queue-data.ts
-  - frontend/src/features/import-queue-events.ts
-  - frontend/src/features/import-queue-render.ts
+  - frontend/src/features/import-dnd.ts
   - frontend/src/features/dnd-shared.ts
   - frontend/src/features/dnd-collector.ts
   - frontend/src/features/import-executor.ts
 tests:
   - frontend/src/features/dnd-shared.test.ts
   - frontend/src/features/import-executor.test.ts
-  - frontend/src/features/import-queue.test.ts
+  - frontend/src/features/import-dnd.test.ts
 use_when:
   - 导入
   - 导入队列
@@ -24,7 +21,7 @@ use_when:
   - 覆盖导入
   - import
 invariant_anchors:
-  - frontend/src/features/import-queue-data.ts|normalizeRepoName
+  - frontend/src/features/dnd-shared.ts|isImportableFile
 ---
 
 # 导入队列 import-queue

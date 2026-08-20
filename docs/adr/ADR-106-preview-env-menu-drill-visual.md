@@ -115,7 +115,7 @@ SkyCapability 加 `startAutoRotate/stopAutoRotate/isAutoRotating` 接口：`requ
 
 - ~~**体积光 god rays** 未实现~~（已落地 [ADR-107](./ADR-107-sky-godrays-volumetric.md)，日出日落时从太阳方向向下投射的体积光束）
 - ~~**水面法线贴图** 未实现~~（程序化 DataTexture 生成，编码波浪偏导数，已落地）
-- ~~**环境预设缩略图** 未实现~~（env-preset select 改为缩略图网格，已落地 [ADR-110](./ADR-110-env-preset-thumbnail.md)）
+- ~~**环境预设缩略图** 未实现~~（env-preset select 改为缩略图网格，已落地）
 
 ---
 
