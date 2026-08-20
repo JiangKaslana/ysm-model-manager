@@ -790,6 +790,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-108：相机取景包围盒计算策略",
+        "link": "/adr/ADR-108-camera-framing-bounding-box"
+      },
+      {
         "text": "ADR-107：天空体积光束 god rays（日出/日落）",
         "link": "/adr/ADR-107-sky-godrays-volumetric"
       },
