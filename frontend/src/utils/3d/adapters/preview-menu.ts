@@ -378,7 +378,6 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
         if (data.length > 0) {
           const max = Math.max(...data, 1);
           const barW = W / data.length;
-          const accent = "var(--accent,#7c83ff)";
           for (let i = 0; i < data.length; i++) {
             const barH = (data[i] / max) * (H - 4);
             const x = i * barW;

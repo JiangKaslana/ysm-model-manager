@@ -571,17 +571,15 @@ export class EnvironmentCapability implements SceneCapability {
       const img = this.customHdrTex.image as { data: Uint16Array; width: number; height: number } | undefined;
       if (img && img.data && img.width && img.height) {
         const src = img.data;
-        // 半浮点 reinterpret：Uint16Array → ArrayBuffer → Float32Array
-        const buf = new ArrayBuffer(src.length * 2);
-        new Uint16Array(buf).set(src);
-        const f32 = new Float32Array(buf);
         const total = img.width * img.height;
-        // 降采样：每 16 个像素取 1 个（大 HDR 2k+ 时性能考量）
+        // 降采样：每 ~4096 个像素取 1 个（大 HDR 2k+ 时性能考量）
         const stride = Math.max(1, Math.floor(total / 4096));
+        // half-float (Uint16) → float32 逐元素转换
+        const hf = (THREE.DataUtils as unknown as { halfToFloat: (u: number) => number }).halfToFloat;
         for (let i = 0; i < total; i += stride) {
-          const r = f32[i * 3];
-          const g = f32[i * 3 + 1];
-          const b = f32[i * 3 + 2];
+          const r = hf(src[i * 3]);
+          const g = hf(src[i * 3 + 1]);
+          const b = hf(src[i * 3 + 2]);
           // Relative luminance (Rec. 601)
           const lum = 0.299 * r + 0.587 * g + 0.114 * b;
           // Reinhard-ish 映射到 [0,1) 区间
@@ -597,20 +595,24 @@ export class EnvironmentCapability implements SceneCapability {
     if (this.backgroundSrcTex) {
       const canvas = this.backgroundSrcTex.image as HTMLCanvasElement | undefined;
       if (canvas && canvas.getContext) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const w = canvas.width;
-          const h = canvas.height;
-          const data = ctx.getImageData(0, 0, w, h).data;
-          for (let i = 0; i < data.length; i += 4) {
-            const r = data[i] / 255;
-            const g = data[i + 1] / 255;
-            const b = data[i + 2] / 255;
-            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-            const bin = Math.min(BINS - 1, Math.floor(lum * BINS));
-            hist[bin]++;
+        try {
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            const w = canvas.width;
+            const h = canvas.height;
+            const data = ctx.getImageData(0, 0, w, h).data;
+            for (let i = 0; i < data.length; i += 4) {
+              const r = data[i] / 255;
+              const g = data[i + 1] / 255;
+              const b = data[i + 2] / 255;
+              const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+              const bin = Math.min(BINS - 1, Math.floor(lum * BINS));
+              hist[bin]++;
+            }
+            return hist;
           }
-          return hist;
+        } catch {
+          // canvas tainted (cross-origin) 或 getImageData 抛错 → 静默返回全 0
         }
       }
     }
