@@ -449,6 +449,9 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
   reader.boneIndexSize = reader.readUint8();
   reader.morphIndexSize = reader.readUint8();
   reader.rigidBodyIndexSize = reader.readUint8();
+  // ⚠️ PMX 头部无独立 jointIndexSize：关节索引复用 rigidBodyIndexSize（babylon-mmd getRigidBodyIndex）。
+  // 旧实现 jointIndexSize 恒为默认 1——>255 刚体模型（2/4 字节索引）关节解析错位
+  reader.jointIndexSize = reader.rigidBodyIndexSize;
   for (let i = 8; i < globalsCount; ++i) reader.readUint8(); // 高位版本扩展 globals
   // 4 个模型信息字符串（跳过，本解析不消费）
   reader.readString(); // modelName
@@ -697,8 +700,10 @@ export function parsePMX(buffer: ArrayBuffer): PmxParseResponse {
     const mass = reader.readFloat32();
     const linearDamping = reader.readFloat32();
     const angularDamping = reader.readFloat32();
-    const friction = reader.readFloat32();
+    // ⚠️ 权威顺序：restitution(repulsion) 在 friction 前（PMX 2.0 规范：质量/线阻尼/角阻尼/反発力/摩擦力/模式）
+    // 旧实现 friction 在前——交换后物理参数与文件一致
     const restitution = reader.readFloat32();
+    const friction = reader.readFloat32();
     const mode = reader.readUint8();
     rigidBodies.push({
       name, boneIndex, group, collisionGroup, shapeType, shapeSize,

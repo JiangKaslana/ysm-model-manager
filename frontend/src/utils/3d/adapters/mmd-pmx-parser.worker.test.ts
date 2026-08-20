@@ -268,6 +268,7 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
   function buildPmx(opts: {
     vertexIndexSize?: number;
     boneIndexSize?: number;
+    textureIndexSize?: number;
     vertices?: Array<{ pos: [number, number, number]; normal?: [number, number, number]; uv?: [number, number] }>;
     bones?: Uint8Array; // 已序列化骨骼区（可选，缺省不写 bone 块数据）
     faceCount?: number;
@@ -288,7 +289,7 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     w.push(1);                      // encoding = UTF-8（权威：1=UTF-8，0=UTF-16LE）
     w.push(0);                      // additionalVec4Count
     w.push(opts.vertexIndexSize ?? 1); // vertexIndexSize
-    w.push(1);                      // textureIndexSize
+    w.push(opts.textureIndexSize ?? 1); // textureIndexSize
     w.push(1);                      // materialIndexSize
     w.push(opts.boneIndexSize ?? 1);  // boneIndexSize
     w.push(1);                      // morphIndexSize
@@ -356,10 +357,12 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     return w.toArrayBuffer();
   }
 
-  /** 序列化一条材质（权威字段顺序，englishName 非空以覆盖光标错位场景） */
-  function materialBytes(): Uint8Array {
+  /** 序列化一条材质（权威字段顺序，englishName 非空以覆盖光标错位场景）
+   *  textureIndexSize>1 时 toonIndex 分支（sharedToon ? 1字节 : textureIndexSize）才会产生宽度差异 */
+  function materialBytes(opts?: { textureIndexSize?: number; sharedToon?: number; name?: string }): Uint8Array {
     const w = new ByteWriter();
-    w.text("mat0"); w.text("Mat0_EN"); // name + englishName（旧实现漏读 englishName）
+    const tis = opts?.textureIndexSize ?? 1;
+    w.text(opts?.name ?? "mat0"); w.text("Mat0_EN"); // name + englishName（旧实现漏读 englishName）
     w.float32(1); w.float32(1); w.float32(1); w.float32(1); // diffuse
     w.float32(0.5); w.float32(0.5); w.float32(0.5);          // specular
     w.float32(10);                                           // shininess
@@ -367,11 +370,19 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     w.push(0);                                               // flag
     w.float32(0); w.float32(0); w.float32(0); w.float32(0);  // edgeColor
     w.float32(0);                                            // edgeSize
-    w.push(0); // textureIndex = -1 (1 字节有符号)
-    w.push(0); // sphereTextureIndex = -1
+    w.push(0); // textureIndex = -1（按 textureIndexSize 写足字节）
+    if (tis === 2) w.push(0);
+    w.push(0); // sphereTextureIndex
+    if (tis === 2) w.push(0);
     w.push(0); // sphereMode
-    w.push(0); // isSharedToon = false
-    w.push(0); // toonTextureIndex（非 shared → textureIndex 大小）
+    const sharedToon = opts?.sharedToon ?? 0;
+    w.push(sharedToon); // isSharedToon
+    if (sharedToon === 1) {
+      w.push(0); // toonTextureIndex（shared → 1 字节）
+    } else {
+      w.push(0); // toonTextureIndex（非 shared → textureIndexSize 字节）
+      if (tis === 2) w.push(0);
+    }
     w.text(""); // comment
     w.int32(0); // indexCount
     return new Uint8Array(w.toArrayBuffer());
@@ -391,8 +402,8 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     w.float32(1); // mass
     w.float32(0); // linearDamping
     w.float32(0); // angularDamping
+    w.float32(0); // restitution（反発力，权威在 friction 前）
     w.float32(0.5); // friction
-    w.float32(0); // restitution
     w.push(0); // mode
     return new Uint8Array(w.toArrayBuffer());
   }
@@ -501,6 +512,30 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     expect(out.bones?.length).toBe(1);
     expect(out.bones![0].name).toBe("matBone");
     expect(out.bones![0].position).toEqual([3, 4, 5]);
+  });
+
+  it("textureIndexSize=2：toonIndex 条件分支（sharedToon 1字节 vs 2字节）光标不错位", () => {
+    // 锁 toonIndex 分支：sharedToon=1 时 1 字节、=0 时 textureIndexSize(2) 字节——
+    // 若条件写反（1→2字节）会在 2 字节材质上错位
+    const mShared = materialBytes({ textureIndexSize: 2, sharedToon: 1, name: "shared" });
+    const mPlain = materialBytes({ textureIndexSize: 2, sharedToon: 0, name: "plain" });
+    const bone = boneBytes({ name: "after2", position: [1, 2, 3], parent: 0, flag: 0 });
+    const buf = buildPmx({
+      textureIndexSize: 2,
+      materials: new Uint8Array([...mShared, ...mPlain]),
+      materialCount: 2,
+      bones: bone,
+    });
+    const out = parsePMX(buf);
+    expect(out.ok).toBe(true);
+    expect(out.materials?.length).toBe(2);
+    expect(out.materials![0].name).toBe("shared");
+    expect(out.materials![0].sharedToon).toBe(1);
+    expect(out.materials![1].name).toBe("plain");
+    expect(out.materials![1].sharedToon).toBe(0);
+    expect(out.bones?.length).toBe(1);
+    expect(out.bones![0].name).toBe("after2");
+    expect(out.bones![0].position).toEqual([1, 2, 3]);
   });
 
   it("刚体非零块（englishName + collisionMask 2 字节）：光标不错位（刚体后关节仍正确）", () => {
