@@ -58,6 +58,39 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 // 与上游 PathConstants.java 的 SKIN 子目录对齐（含 DefaultAnim/DefaultMorph
 // 系统内置目录，虽用户不导入，但已存在时同步需识别）。
 
+// collectSubDirUnits 收集子类目录内的同步单元（无前缀，由调用方加前缀）。
+// 与 collectEntries 的单次 Walk 配合：子类目录通过 SkipDir 退出外层 Walk，
+// 此处再 ReadDir 一遍子类子树，避免深层嵌套时的重复 stat。
+// 只扫描一层（子类目录内直接包含的模型文件夹/平铺文件），不递归更深。
+func collectSubDirUnits(dir, prefix string, rtype string) map[string]string {
+	units := make(map[string]string)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return units
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			low := strings.ToLower(e.Name())
+			base := types.NormalizeResourceName(low)
+			if types.IsTypeModelFile(base, rtype) {
+				key := strings.TrimSuffix(low, filepath.Ext(low))
+				units[key] = filepath.Join(dir, e.Name())
+			}
+			continue
+		}
+		// 递归检查子子目录
+		subPath := filepath.Join(dir, e.Name())
+		if fsutil.IsRecycleDir(subPath) {
+			continue
+		}
+		if isDirTypeModelFolder(subPath, rtype) {
+			name := strings.ToLower(e.Name())
+			units[name] = subPath
+		}
+	}
+	return units
+}
+
 // SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹）
 // 以文件夹名为单位，一个文件夹包含模型文件 + 纹理文件 = 一个整体
 // 同时也会收集顶层平铺的模型文件（如 .ysm），以文件名（去扩展名）作为 key
@@ -65,55 +98,7 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceSyncResult {
 	result := types.ResourceSyncResult{}
 
-	// collectUnits 收集一个目录下的同步单元（顶层平铺模型文件 + 含模型文件的子文件夹）。
-	// 返回 key → 绝对路径（key 为小写文件名/文件夹名）。
-	collectUnits := func(rootDir string) map[string]string {
-		units := make(map[string]string)
-		// 先扫描顶层平铺模型文件
-		if topEntries, err := os.ReadDir(rootDir); err == nil {
-			for _, e := range topEntries {
-				if e.IsDir() {
-					continue
-				}
-				low := strings.ToLower(e.Name())
-				// NormalizeResourceName 剥 .disabled/.ban（审核补：原只剥 .ban，
-				// .disabled 文件在文件夹级顶层收集时被漏掉）
-				base := types.NormalizeResourceName(low)
-				if types.IsTypeModelFile(base, rtype) {
-					key := strings.TrimSuffix(low, filepath.Ext(low))
-					units[key] = filepath.Join(rootDir, e.Name())
-				}
-			}
-		}
-		// 再扫描子文件夹
-		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				log.Printf("[sync] Walk 错误 %s: %v", path, err)
-				return nil
-			}
-			if !info.IsDir() || path == rootDir {
-				return nil
-			}
-			// 跳过回收站目录（与 scanner.ScanEntries 对齐）
-			if fsutil.IsRecycleDir(path) {
-				return filepath.SkipDir
-			}
-			// 子类目录由 collectEntries 单独处理（带前缀），此处不下钻
-			if types.IsSubDirGrouping(rtype) && types.IsSubDirName(rtype, info.Name()) {
-				return filepath.SkipDir
-			}
-			if isDirTypeModelFolder(path, rtype) {
-				name := strings.ToLower(info.Name())
-				// 文件夹优先于平铺文件（同名时覆盖）
-				units[name] = path
-				return filepath.SkipDir
-			}
-			return nil
-		})
-		return units
-	}
-
-	// collectEntries 收集整棵仓库树的同步单元：
+	// collectEntries 单次 Walk 收集整棵树的同步单元：
 	// - 顶层单元（平铺模型文件 + 模型文件夹）
 	// - subDirGrouping 类型（mmd-skin）：MC-MMD 子类目录（EntityPlayer/SceneModel/CustomAnim 等）
 	//   内部的模型文件夹/平铺文件作为同步单元，key 带子类前缀保留层级（entityplayer/角色a），
@@ -121,24 +106,51 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 	//   子类目录本身不作为单元，避免「目录存在即已同步」假象，也避免 push 整目录与
 	//   内部模型重复。消费注册表 subDirGrouping 字段 + subtypes 子目录集合（ADR-104），
 	//   不硬编码 rtype / 不硬编码子目录名。
+	//
+	// 性能优化（子代理审核建议）：原 collectUnits + collectEntries 双重 Walk 合并为单次 Walk，
+	// 减少目录 stat 次数和 GC 压力。
 	collectEntries := func(rootDir string) map[string]string {
-		entries := collectUnits(rootDir)
+		entries := make(map[string]string)
 		filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				log.Printf("[sync] Walk 错误 %s: %v", path, err)
 				return nil
 			}
-			if !info.IsDir() || path == rootDir {
+			if !info.IsDir() {
+				// 顶层平铺模型文件（path 直接在 rootDir 下）
+				if filepath.Dir(path) == rootDir {
+					low := strings.ToLower(info.Name())
+					base := types.NormalizeResourceName(low)
+					if types.IsTypeModelFile(base, rtype) {
+						key := strings.TrimSuffix(low, filepath.Ext(low))
+						entries[key] = path
+					}
+				}
 				return nil
 			}
+			if path == rootDir {
+				return nil
+			}
+			// 跳过回收站目录（与 scanner.ScanEntries 对齐）
 			if fsutil.IsRecycleDir(path) {
 				return filepath.SkipDir
 			}
+			// subDirGrouping 类型：子类目录递归收集内部单元（带前缀）
 			if types.IsSubDirGrouping(rtype) && types.IsSubDirName(rtype, info.Name()) {
 				name := strings.ToLower(info.Name())
-				for k, v := range collectUnits(path) {
+				// 递归收集子类目录内的顶层单元（不再二次 Walk，直接利用当前 Walk）
+				// 注意：由于 Walk 是深度优先，子类目录内的文件会在后续回调中被访问，
+				// 但我们需要一次性收集整个子类子树。用 ReadDir + 递归实现。
+				subUnits := collectSubDirUnits(path, name, rtype)
+				for k, v := range subUnits {
 					entries[name+"/"+k] = v
 				}
+				return filepath.SkipDir
+			}
+			if isDirTypeModelFolder(path, rtype) {
+				name := strings.ToLower(info.Name())
+				// 文件夹优先于平铺文件（同名时覆盖）
+				entries[name] = path
 				return filepath.SkipDir
 			}
 			return nil

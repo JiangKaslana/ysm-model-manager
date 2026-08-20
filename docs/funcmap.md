@@ -363,7 +363,7 @@
 |------|--------|------|
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:65` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:98` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
@@ -373,8 +373,8 @@
 | `PushResources()` | `go/sync/sync_push:41` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） |
 | `PullResources()` | `go/sync/sync_push:96` | PullResources 拉取整合包多余资源回仓库 |
 | `PullSingleResource()` | `go/sync/sync_push:193` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 |
-| `PushSingleResource()` | `go/sync/sync_push:221` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。 |
-| `SyncCustomToRepo()` | `go/sync/sync_push:235` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
+| `PushSingleResource()` | `go/sync/sync_push:226` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。 |
+| `SyncCustomToRepo()` | `go/sync/sync_push:240` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:19` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
@@ -682,7 +682,7 @@
 | `App.CheckFileExists()` | `internal/app/app_scan:389` | — |
 | `App.OpenFolder()` | `internal/app/app_scan:465` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:514` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
-| `progressReader.Read()` | `internal/app/app_scan:632` | — |
+| `progressReader.Read()` | `internal/app/app_scan:636` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |

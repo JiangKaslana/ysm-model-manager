@@ -523,6 +523,10 @@ func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
 //
 // 位置路由口径与 scanner（SubDir 填充）、同步（SyncResourcesDirLevel 保留层级）一致
 // （ADR-104：子类路径全部注册表驱动，新增子目录只改 JSON）。
+//
+// ⚠️ 多 Default 子类竞争：注册表应保证每个 rtype 最多一个 Default=true 的子类。
+// 当前 SubtypesFor 返回顺序为注册表声明顺序，first-wins 语义——若有多个 Default，
+// 取最先声明的那个。这是一个隐式约定，后续若需支持多 Default 需改为显式 subdir 必传。
 func resolveInstDirTargetSubdir(instDir, rtype, subdir string) string {
 	base := resolveInstDirTarget(instDir, rtype)
 	subdir = strings.Trim(strings.TrimSpace(subdir), `\/`)

@@ -218,6 +218,11 @@ func PullSingleResource(globalDir, targetDir, srcPath string) error {
 // PushSingleResource 推送单个资源到整合包：
 // 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。
 // 子类内部模型（EntityPlayer/角色A）落位到 customDir/<子类>，保留层级。
+//
+// 扩展名判断说明：.json 用于 YSM（ysm.json 是文件夹级入口），.pmx/.pmd 用于 MMD。
+// 不依赖 IsDirLevelSync(rtype) 是因为本函数是通用入口（前端传任意 rtype），
+// 由调用方保证 rtype 与 filePath 匹配。若 rtype 不匹配，InstallDir 内部会按
+// installDir/scanDir 推导目标路径，不会出错但可能路径不对——这是调用方责任。
 func PushSingleResource(filePath, customDir, globalDir, linkMode, rtype string) error {
 	fi, stErr := os.Stat(filePath)
 	if stErr == nil && fi.IsDir() {
