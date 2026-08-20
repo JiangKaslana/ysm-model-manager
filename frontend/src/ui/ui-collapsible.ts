@@ -122,7 +122,7 @@ export function addCollapsible(
     if (isOpen) {
         requestAnimationFrame(() => applyState(true));
     } else {
-        panel.style.maxHeight = '0';
+        applyState(false); // 统一走 applyState，确保 panel.inert 等状态同步（P1-1 修复）
     }
 }
 
@@ -230,7 +230,8 @@ export function addPresetChip(
     // === 自更新支持 ===
     if (opts?.onUpdate) {
         const update = () => opts.onUpdate!(btn);
-        registerControl("preset-chip-update", update);
+        // 用 label 做 id 后缀保证唯一性（预设 chip 的 label 通常不重复）
+        registerControl(`preset-chip-update:${label}`, update);
         update();
     }
 

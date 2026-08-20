@@ -144,18 +144,16 @@ describe("addCollapsible", () => {
     expect(panel.style.maxHeight).toBe("0");
   });
 
-  it("默认折叠时 panel.inert 未显式设置（源码仅通过 applyState 设置 inert）", () => {
+  it("默认折叠时 panel.inert=true（applyState 同步设置，防键盘聚焦到隐藏内容）", () => {
     const { panel } = render();
-    // 初始折叠时源码不经过 applyState，仅设 panel.style.maxHeight='0'
-    // inert 属性保持元素默认值（false），这是源码的实际行为
-    expect(panel.inert).toBe(false);
+    // 初始折叠时 applyState(false) 同步设置 inert=true（P1-1 修复）
+    expect(panel.inert).toBe(true);
   });
 
-  it("默认折叠时 arrow 无旋转（applyState 未执行，保持空值）", () => {
+  it("默认折叠时 arrow 旋转 0deg（applyState 同步设置）", () => {
     const { arrow } = render();
-    // 初始折叠时源码只设 panel.style.maxHeight='0'，未调用 applyState，
-    // arrow.style.transform 保持空字符串（等价于无旋转）
-    expect(arrow.style.transform).toBe("");
+    // 初始折叠时 applyState(false) 同步设置 transform=rotate(0deg)（P1-1 修复）
+    expect(arrow.style.transform).toBe("rotate(0deg)");
   });
 
   it("defaultOpen=true：初始展开", () => {

@@ -116,6 +116,9 @@ export function addToggleRow(
 // initControl — 控件自更新注册 + 立即初始化
 // ===================================================================
 
+// 递增计数器，为每个 initControl 调用生成唯一 id，防止多实例注册 ID 互相覆盖
+let _initControlSeq = 0;
+
 /**
  * 封装 registerControl + immediate update 模式。
  * `apply` 返回 true 表示值已变更，用于更新缓存。
@@ -145,7 +148,9 @@ export function initControl<T>(
     };
     // 解耦：原 getCurrentRenderingContext()?.registerControl(...) 改为可选注入的注册表。
     // 未接入外部系统时 bind 仍会在挂载时通过下方 update() 即时初始化一次。
-    registerControl("slider-row-bind", update);
+    // 使用递增计数器确保每个行控件有唯一 id，避免多实例互相覆盖（P1-2 修复）。
+    const _rowId = ++_initControlSeq;
+    registerControl(`slider-row-bind:${_rowId}`, update);
     update();
 }
 
@@ -239,7 +244,9 @@ export function addSliderRow(
             onDragEndCb?.(v);
         },
     });
-    controller.bind(bar);
+    const disposeSlider = controller.bind(bar);
+    // 保存 Disposable 到 row 元素，供上层清理时调用（P1-1 修复）
+    (row as unknown as Record<string, unknown>).__disposeSlider = () => disposeSlider.dispose();
 
     // cs-top 四分区域相对步进：左→右 = 减大步 → 减小步 → 加小步 → 加大步
     top.addEventListener('click', (e) => {
