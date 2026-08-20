@@ -1,11 +1,14 @@
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::{
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Mutex,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
-use ysm_model_manager_core::{ModelEntry, ScanError, ScanPolicy};
+use ysm_model_manager_core::{
+    hydrate_hashes as hydrate_entry_hashes, ModelEntry, ScanError, ScanPolicy,
+};
 use ysm_model_manager_index::{IndexDelta, IndexSnapshot, ModelIndex};
 
 struct AppState {
@@ -100,6 +103,79 @@ fn library_snapshot(state: State<'_, AppState>) -> Result<LibrarySnapshotDto, St
     let root = state.root.lock().map_err(lock_error)?.clone();
     let snapshot = state.index.lock().map_err(lock_error)?.snapshot();
     Ok(snapshot_dto(snapshot, root.as_deref()))
+}
+
+#[tauri::command]
+fn hydrate_hashes(
+    paths: Vec<String>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
+    if paths.is_empty() {
+        return Ok(0);
+    }
+
+    let requested: HashSet<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+    let candidates: Vec<ModelEntry> = state
+        .index
+        .lock()
+        .map_err(lock_error)?
+        .snapshot()
+        .entries
+        .into_iter()
+        .filter(|entry| requested.contains(&entry.path) && entry.hash.is_empty())
+        .collect();
+    let count = candidates.len();
+    if count == 0 {
+        return Ok(0);
+    }
+
+    let policy = state.policy.clone();
+    std::thread::spawn(move || {
+        let mut hydrated = candidates;
+        let errors = hydrate_entry_hashes(&mut hydrated, &policy);
+        let state = app.state::<AppState>();
+
+        let (revision, applied) = {
+            let mut index = match state.index.lock() {
+                Ok(index) => index,
+                Err(_) => return,
+            };
+            let current: HashMap<PathBuf, ModelEntry> = index
+                .snapshot()
+                .entries
+                .into_iter()
+                .map(|entry| (entry.path.clone(), entry))
+                .collect();
+            let mut applied = Vec::new();
+
+            for entry in hydrated {
+                let still_current = current
+                    .get(&entry.path)
+                    .is_some_and(|latest| metadata_equal(latest, &entry));
+                if still_current && !entry.hash.is_empty() {
+                    index.replace_entry(entry.clone());
+                    applied.push(entry);
+                }
+            }
+            (index.revision(), applied)
+        };
+
+        if applied.is_empty() && errors.is_empty() {
+            return;
+        }
+
+        let payload = LibraryDeltaDto {
+            revision,
+            added: Vec::new(),
+            updated: applied.into_iter().map(entry_dto).collect(),
+            removed: Vec::new(),
+            errors: errors.into_iter().map(error_dto).collect(),
+        };
+        let _ = app.emit("library-delta", payload);
+    });
+
+    Ok(count)
 }
 
 fn refresh_at(root: &Path, state: &AppState) -> Result<RefreshPayload, String> {
@@ -219,6 +295,14 @@ fn delta_dto(delta: IndexDelta) -> LibraryDeltaDto {
     }
 }
 
+fn metadata_equal(a: &ModelEntry, b: &ModelEntry) -> bool {
+    a.name == b.name
+        && a.size == b.size
+        && a.ext == b.ext
+        && a.mod_time_ms == b.mod_time_ms
+        && a.subdir == b.subdir
+}
+
 fn entry_dto(entry: ModelEntry) -> EntryDto {
     let lower = entry.name.to_ascii_lowercase();
     EntryDto {
@@ -262,7 +346,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             scan_library,
             refresh_library,
-            library_snapshot
+            library_snapshot,
+            hydrate_hashes
         ])
         .run(tauri::generate_context!())
         .expect("failed to run YSM Model Manager Next");
