@@ -269,6 +269,7 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     vertexIndexSize?: number;
     boneIndexSize?: number;
     textureIndexSize?: number;
+    rigidBodyIndexSize?: number;
     vertices?: Array<{ pos: [number, number, number]; normal?: [number, number, number]; uv?: [number, number] }>;
     bones?: Uint8Array; // 已序列化骨骼区（可选，缺省不写 bone 块数据）
     faceCount?: number;
@@ -293,7 +294,7 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     w.push(1);                      // materialIndexSize
     w.push(opts.boneIndexSize ?? 1);  // boneIndexSize
     w.push(1);                      // morphIndexSize
-    w.push(1);                      // rigidBodyIndexSize
+    w.push(opts.rigidBodyIndexSize ?? 1); // rigidBodyIndexSize
     w.text("");                     // modelName
     w.text("");                     // englishModelName
     w.text("");                     // comment
@@ -408,12 +409,20 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     return new Uint8Array(w.toArrayBuffer());
   }
 
-  /** 序列化一条关节（权威字段顺序：englishName + type 前移 + 无条件读全部约束） */
-  function jointBytes(): Uint8Array {
+  /** 序列化一条关节（权威字段顺序：englishName + type 前移 + 无条件读全部约束）
+   *  rigidBodyIndexSize>1 时索引写足宽度（>255 刚体模型，锁 jointIndexSize 复用修复） */
+  function jointBytes(opts?: { rigidBodyIndexSize?: number; rbA?: number; rbB?: number }): Uint8Array {
     const w = new ByteWriter();
+    const ris = opts?.rigidBodyIndexSize ?? 1;
     w.text("jt0"); w.text("Jt0_EN"); // name + englishName（旧实现漏读）
     w.push(0); // type = Spring6dof
-    w.push(0); w.push(1); // rigidBodyIndexA / B
+    const writeIdx = (v: number): void => {
+      if (ris === 2) { w.push(v & 0xff); w.push((v >> 8) & 0xff); }
+      else if (ris === 4) { w.int32(v); }
+      else { w.push(v & 0xff); }
+    };
+    writeIdx(opts?.rbA ?? 0);
+    writeIdx(opts?.rbB ?? 1);
     w.float32(0); w.float32(0); w.float32(0); // position
     w.float32(0); w.float32(0); w.float32(0); // rotation
     w.float32(-1); w.float32(-1); w.float32(-1); // positionMin
@@ -548,11 +557,25 @@ describe("parsePMX — 头部与块流程（权威无 blockSize 结构）", () =
     expect(out.rigidBodies?.length).toBe(1);
     expect(out.rigidBodies![0].name).toBe("rb0");
     expect(out.rigidBodies![0].collisionGroup).toBe(0xffff); // 2 字节 mask 读全
+    // 刚体物理参数：restitution 在 friction 前（权威顺序）——锁字段交换回归
+    expect(out.rigidBodies![0].restitution).toBe(0);
+    expect(out.rigidBodies![0].friction).toBeCloseTo(0.5);
     // 刚体后关节光标不错位（若漏 englishName/collisionMask 错位会越界或垃圾）
     expect(out.joints?.length).toBe(1);
     expect(out.joints![0].name).toBe("jt0");
     expect(out.joints![0].rigidBodyIndexA).toBe(0);
     expect(out.joints![0].rigidBodyIndexB).toBe(1);
+  });
+
+  it("rigidBodyIndexSize=2：关节索引按 2 字节读（>255 刚体模型，锁 jointIndexSize 复用修复）", () => {
+    // jointIndexSize 复用 rigidBodyIndexSize（旧实现恒 1）——2 字节索引 0x0102 若按 1 字节读会截断
+    const jt = jointBytes({ rigidBodyIndexSize: 2, rbA: 0x0102, rbB: 0x7fff });
+    const buf = buildPmx({ rigidBodyIndexSize: 2, joints: jt });
+    const out = parsePMX(buf);
+    expect(out.ok).toBe(true);
+    expect(out.joints?.length).toBe(1);
+    expect(out.joints![0].rigidBodyIndexA).toBe(0x0102);
+    expect(out.joints![0].rigidBodyIndexB).toBe(0x7fff);
   });
 
   it("编码字节 1=UTF-8：非 ASCII 名字正确解码（权威映射 0=UTF-16LE/1=UTF-8）", () => {
