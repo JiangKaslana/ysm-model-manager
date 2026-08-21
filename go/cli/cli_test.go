@@ -1398,3 +1398,126 @@ func TestPerfLogSections(t *testing.T) {
 		t.Fatalf("关键指标提取不符: %#v", metrics)
 	}
 }
+
+// ---- tags 薄壳 ----
+
+func TestTags_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runTags(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runTags 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "tags") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestTags_UnknownSubcommand_Errors(t *testing.T) {
+	err := runTags(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+func TestTagsSet_RequiresModel(t *testing.T) {
+	err := runTagsSet(&CmdContext{App: &app.App{}, Args: []string{"--tags", "a"}})
+	if err == nil || !strings.Contains(err.Error(), "--model") {
+		t.Errorf("缺 --model 应报错, got: %v", err)
+	}
+}
+
+func TestTagsSet_RequiresTags(t *testing.T) {
+	err := runTagsSet(&CmdContext{App: &app.App{}, Args: []string{"--model", "x"}})
+	if err == nil || !strings.Contains(err.Error(), "--tags") {
+		t.Errorf("缺 --tags 应报错, got: %v", err)
+	}
+}
+
+func TestTagsGet_RequiresModel(t *testing.T) {
+	err := runTagsGet(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--model") {
+		t.Errorf("缺 --model 应报错, got: %v", err)
+	}
+}
+
+func TestTagsBy_RequiresTag(t *testing.T) {
+	err := runTagsBy(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--tag") {
+		t.Errorf("缺 --tag 应报错, got: %v", err)
+	}
+}
+
+// ---- recycle 薄壳 ----
+
+func TestRecycle_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runRecycle(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runRecycle 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "recycle") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestRecycle_UnknownSubcommand_Errors(t *testing.T) {
+	err := runRecycle(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+func TestRecycleRestore_RequiresPath(t *testing.T) {
+	err := runRecycleRestore(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--path") {
+		t.Errorf("缺 --path 应报错, got: %v", err)
+	}
+}
+
+func TestRecycleEmpty_YesFlagRuns(t *testing.T) {
+	// EmptyRecycleBin("") 在零值 App 上会走 LoadAppConfig 空配置路径，
+	// 返回 (0, nil) 或错误——薄壳只验证 --yes 路径不 panic、不卡确认
+	out := captureOutput(t, func() {
+		_ = runRecycleEmpty(&CmdContext{App: &app.App{}, Args: []string{"--yes"}})
+	})
+	// 不断言具体输出，只确保不卡在确认提示
+	if strings.Contains(out, "确认") {
+		t.Errorf("--yes 应跳过确认, got: %s", out)
+	}
+}
+
+// ---- install 薄壳 ----
+
+func TestInstall_RequiresModel(t *testing.T) {
+	err := runInstall(&CmdContext{App: &app.App{}, Args: []string{"--mc-root", "/mc"}})
+	if err == nil || !strings.Contains(err.Error(), "--model") {
+		t.Errorf("缺 --model 应报错, got: %v", err)
+	}
+}
+
+func TestInstall_RequiresMcRootOrCustomDir(t *testing.T) {
+	err := runInstall(&CmdContext{App: &app.App{}, Args: []string{"--model", "x.ysm"}})
+	if err == nil || !strings.Contains(err.Error(), "--mc-root") {
+		t.Errorf("缺 --mc-root/--custom-dir 应报错, got: %v", err)
+	}
+}
+
+// ---- link-mode 薄壳 ----
+
+func TestLinkMode_InvalidMode_Errors(t *testing.T) {
+	err := runLinkMode(&CmdContext{App: &app.App{}, Args: []string{"--mode", "bogus"}})
+	if err == nil || !strings.Contains(err.Error(), "无效模式") {
+		t.Errorf("无效模式应报错, got: %v", err)
+	}
+}
+
+func TestLinkMode_NoMode_PrintsCurrent(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runLinkMode(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runLinkMode 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "链接模式") {
+		t.Errorf("应打印当前链接模式, got: %s", out)
+	}
+}
