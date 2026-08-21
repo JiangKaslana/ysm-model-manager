@@ -794,6 +794,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-112：FBX 格式接入与独立预览地基",
+        "link": "/adr/ADR-112-fbx-loader-preview-foundation"
+      },
+      {
         "text": "ADR-111：variants 解耦——类别—格式分层，角色模型合并 PMX/VRM",
         "link": "/adr/ADR-111-variants-decouple"
       },

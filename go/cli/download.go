@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"ysm-model-manager/internal/app"
 )
@@ -62,6 +63,11 @@ func runDownloadEnqueue(ctx *CmdContext) error {
 	}
 	if *url == "" {
 		return newParamErrf("download enqueue: --url 参数不能为空")
+	}
+	// 前置 scheme 校验：app 层 EnqueueDownloads 也会校验，
+	// 但 CLI 层早报错能给更友好的错误信息（不进队列才拒绝）
+	if !strings.HasPrefix(*url, "https://") {
+		return newParamErrf("download enqueue: --url 必须以 https:// 开头")
 	}
 	if *saveDir == "" {
 		return newParamErrf("download enqueue: --save-dir 参数不能为空")

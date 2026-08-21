@@ -1206,12 +1206,12 @@
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:378` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:71` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:181` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:188` | — |
-| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1036` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1077` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1109` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:72` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:182` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:189` | — |
+| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1048` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1089` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1121` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:12` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:24` | 从文件列表中筛选动作文件（.vmd / .vpd） |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
@@ -1711,23 +1711,23 @@
 | `loadResourceRegistry()` | `frontend/src/utils/resource/registry:20` | 加载资源类型注册表（失败不缓存：Go 桥瞬断后下次调用重试，避免整会话降级） |
 | `shortLabelOf()` | `frontend/src/utils/resource/short-label:25` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
-| `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:21` | 资源类型显示标签（内部 ID → 中文名） |
-| `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:60` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
-| `GROUP_META()` | `frontend/src/utils/resource/types:70` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
-| `GROUP_OF()` | `frontend/src/utils/resource/types:86` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
-| `groupLabelOf()` | `frontend/src/utils/resource/types:92` | 分组 id → 显示名 |
-| `GroupTypeOption()` | `frontend/src/utils/resource/types:102` | 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。 |
-| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:107` | — |
-| `groupStorageRootOf()` | `frontend/src/utils/resource/types:123` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
-| `extOf()` | `frontend/src/utils/resource/types:137` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `NO_3D_TYPES()` | `frontend/src/utils/resource/types:186` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:191` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:216` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:221` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:227` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:238` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:251` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `matchZipEntryTS()` | `frontend/src/utils/resource/types:301` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:22` | 资源类型显示标签（内部 ID → 中文名） |
+| `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:62` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
+| `GROUP_META()` | `frontend/src/utils/resource/types:72` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
+| `GROUP_OF()` | `frontend/src/utils/resource/types:88` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
+| `groupLabelOf()` | `frontend/src/utils/resource/types:94` | 分组 id → 显示名 |
+| `GroupTypeOption()` | `frontend/src/utils/resource/types:104` | 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。 |
+| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:109` | — |
+| `groupStorageRootOf()` | `frontend/src/utils/resource/types:125` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
+| `extOf()` | `frontend/src/utils/resource/types:139` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
+| `NO_3D_TYPES()` | `frontend/src/utils/resource/types:188` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:193` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:218` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:223` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:229` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:240` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:253` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:303` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `safeErrorMessage()` | `frontend/src/utils/safe-error-msg:19` | 从任意错误对象提取可读消息字符串。 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |

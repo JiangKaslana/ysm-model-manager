@@ -74,13 +74,16 @@ func runConfigMirror(ctx *CmdContext) error {
 		return err
 	}
 
-	if err := ctx.App.SetDownloadMirror(strings.TrimSpace(*url)); err != nil {
+	// 统一 trim：存储、空判、显示三处用同一个值，避免空白输入误报"已设置"
+	mirror := strings.TrimSpace(*url)
+
+	if err := ctx.App.SetDownloadMirror(mirror); err != nil {
 		return newRuntimeErrf("设置镜像失败: %w", err)
 	}
-	if *url == "" {
+	if mirror == "" {
 		fmt.Println("✅ 已清除下载镜像")
 	} else {
-		fmt.Printf("✅ 下载镜像已设置为: %s\n", *url)
+		fmt.Printf("✅ 下载镜像已设置为: %s\n", mirror)
 	}
 	return nil
 }
