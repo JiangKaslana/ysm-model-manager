@@ -23,10 +23,25 @@ export interface MmdVariantGroups {
   variantMap: Record<string, { items: string[]; count: number }>;
 }
 
-/** 从 Go 加载整合包实例列表，转换为 render 需要的格式 */
-export async function loadInstances(
-  rtype: string,
-): Promise<SidebarInstance[]> {
+/** 在途去重表（2026-08-21）：同 rtype 的并发 loadInstances 共享一次请求——
+ * 点击整合包时多组件并发触发 reload，重复 IPC 会让 Go 侧重复扫描在途重叠
+ * （30s 缓存扫完才 Store，重叠请求双双真扫 → 操作日志同秒重复条目）。
+ * 前端在途去重 + go/scanner 航班合并双层防御。 */
+const _inflight = new Map<string, Promise<SidebarInstance[]>>();
+
+/** 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） */
+export function loadInstances(rtype: string): Promise<SidebarInstance[]> {
+  const key = rtype || RESOURCE_TYPES.YSM;
+  const running = _inflight.get(key);
+  if (running) return running;
+  const p = doLoadInstances(key).finally(() => {
+    _inflight.delete(key);
+  });
+  _inflight.set(key, p);
+  return p;
+}
+
+async function doLoadInstances(rtypeActual: string): Promise<SidebarInstance[]> {
   try {
     const {
       LoadAppConfig,
@@ -43,8 +58,7 @@ export async function loadInstances(
     const rawInstances = await ListVersionInstances(mcRoot);
     if (!rawInstances || !rawInstances.length) return [];
 
-    // 只按当前资源类型查询同步状态
-    const rtypeActual = rtype || RESOURCE_TYPES.YSM;
+    // 只按当前资源类型查询同步状态（rtypeActual 已在入口归一）
     const filesRoot = await GetRepoRoot(rtypeActual);
     const statusList = await GetResourceInstanceStatus(
       rtypeActual,

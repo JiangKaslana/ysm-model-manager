@@ -43,6 +43,29 @@ type scanCacheEntry struct {
 	expiresAt time.Time
 }
 
+// ========== 在途合并（single-flight）==========
+// 背景（2026-08-21）：点击整合包时前端多组件并发请求实例状态，同目录扫描在途重叠——
+// 缓存「扫完才 Store」让重叠请求双双真扫（操作日志同秒出现两条相同目录记录）。
+// 同目录并发扫描共享一次 walk：首个请求注册航班走盘，后续请求等待并取克隆结果，
+// 返回 hit=true 让薄壳不重复记扫描日志（唯一真扫的 owner 返回 hit=false）。
+
+// inFlight 在途航班表：dir → *scanFlight
+var inFlight sync.Map
+
+// walkCount 真实走盘次数（诊断/测试用：验证在途合并与缓存效果）
+var walkCount atomic.Int64
+
+// flightJoins 并入在途航班的等待方计数（诊断/测试用）
+var flightJoins atomic.Int64
+
+// walkStartHook 走盘开始钩子（仅测试注入：制造确定性在途重叠；生产恒 nil）
+var walkStartHook func()
+
+type scanFlight struct {
+	wg      sync.WaitGroup
+	entries []types.ModelEntry
+}
+
 const scanCacheTTL = 30 * time.Second
 
 // configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
@@ -206,6 +229,24 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 		// 一整个 []ModelEntry）持续滞留，内存增长；Load 命中过期时顺手 Delete
 		scanCache.Delete(dir)
 	}
+	// 在途合并：同目录并发扫描共享一次 walk——首个调用方注册航班成为 owner，
+	// 后续调用方并入航班等待，取克隆结果且 hit=true（薄壳不重复记扫描日志）
+	fl := &scanFlight{}
+	fl.wg.Add(1)
+	if prev, loaded := inFlight.LoadOrStore(dir, fl); loaded {
+		other := prev.(*scanFlight)
+		flightJoins.Add(1)
+		other.wg.Wait()
+		return append([]types.ModelEntry{}, other.entries...), true
+	}
+	defer func() {
+		inFlight.Delete(dir)
+		fl.wg.Done()
+	}()
+	walkCount.Add(1)
+	if walkStartHook != nil {
+		walkStartHook()
+	}
 	entries := []types.ModelEntry{}
 	// 根目录级 walk 失败标记——目录不存在/无权限时 WalkDir
 	// 仅回调一次 err 后结束，原实现打印后返回空列表并照常 Store 进缓存 30s，
@@ -293,6 +334,8 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 	// 克隆 slice 后 Store，避免 sync.Map.Load 读到 WalkDir 中途
 	// append 的部分写入（单线程 Wails 场景安全，但并发扫描无 race）
 	stored := append([]types.ModelEntry(nil), entries...)
+	// 航班结果供等待方克隆取用（须在 wg.Done 前写入——defer 于函数返回时放行等待方）
+	fl.entries = stored
 	// 整目录失败（walkFailed）不写缓存——失败结果带 30s TTL 缓存会
 	// 让「目录不可读」持续显示为空（用户修好权限后 30s 内仍假空）；
 	// 仅缓存完整扫描结果

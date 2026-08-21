@@ -1370,10 +1370,10 @@
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:40` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
 | `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:100` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:355` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:369` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:374` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:408` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:363` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:377` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:382` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:416` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `b64ToBytes()` | `frontend/src/utils/3d/base64:6` | base64 → Uint8Array（Go []byte 的 base64 序列化） |
 | `bytesToArrayBuffer()` | `frontend/src/utils/3d/base64:15` | Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView&lt;ArrayBuffer&gt;，规避 SharedArrayBuffer 泛型） |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
@@ -1903,7 +1903,7 @@
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:4` | Bedrock 方块 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
-| `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:63` | 从 JSON 字符串解析 Bedrock geometry |
+| `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:66` | 从 JSON 字符串解析 Bedrock geometry |
 | `appPreviewStyle()` | `frontend/src/views/app-preview/index:9` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:26` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:44` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
@@ -1914,7 +1914,7 @@
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:233` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `LoadModelOpts()` | `frontend/src/views/app-preview/loader:11` | loadModelData 选项（Bedrock 通用模型加载控制） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:25` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
-| `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:139` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
+| `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:141` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
 | `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:36` | — |
 | `createMaid3D()` | `frontend/src/views/app-preview/maid-3d:46` | 打开车万女仆 3D 预览（Bedrock generic 模式）。 |
 | `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:77` | 关闭活跃女仆 3D 预览 |

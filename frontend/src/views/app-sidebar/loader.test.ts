@@ -136,4 +136,40 @@ describe("loadInstances", () => {
     expect(result[2].status).toBe("missing");
     expect(result[2].missing).toBe(1);
   });
+
+  it("并发同 rtype → 在途去重：只发一次状态请求（空 rtype 归一到 ysm 同键）", async () => {
+    const { LoadAppConfig, ListVersionInstances, GetResourceInstanceStatus, GetRepoRoot } = mockBindings();
+    LoadAppConfig.mockResolvedValue({ mcRoot: "/mc" });
+    ListVersionInstances.mockResolvedValue([{ Name: "A", VersionDir: "/v/a", Exists: true }]);
+    GetRepoRoot.mockResolvedValue("/repo");
+    // 挂起状态请求制造在途窗口；resolvers 收集全部请求的放行器
+    const resolvers: Array<() => void> = [];
+    GetResourceInstanceStatus.mockImplementation(
+      () => new Promise((resolve) => { resolvers.push(() => resolve([])); }),
+    );
+    const p1 = loadInstances("ysm");
+    const p2 = loadInstances("ysm");
+    const p3 = loadInstances(""); // 空 rtype 回退 ysm → 与 p1/p2 同键合并（入口同步判定）
+    // 等首个请求真正到达状态接口（loadInstances 前置还有数步 await）
+    await vi.waitFor(() => {
+      expect(GetResourceInstanceStatus).toHaveBeenCalled();
+    });
+    resolvers.forEach((r) => r());
+    const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+    expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(1);
+    expect(r1.map((i) => i.name)).toEqual(["A"]);
+    expect(r2).toEqual(r1); // 等待方共享同一结果
+    expect(r3).toEqual(r1);
+  });
+
+  it("完成后同 rtype 再次请求 → 重新发起（在途表清理，不陈旧共享）", async () => {
+    const { LoadAppConfig, ListVersionInstances, GetResourceInstanceStatus, GetRepoRoot } = mockBindings();
+    LoadAppConfig.mockResolvedValue({ mcRoot: "/mc" });
+    ListVersionInstances.mockResolvedValue([{ Name: "A", VersionDir: "/v/a", Exists: true }]);
+    GetRepoRoot.mockResolvedValue("/repo");
+    GetResourceInstanceStatus.mockResolvedValue([]);
+    await loadInstances("ysm");
+    await loadInstances("ysm");
+    expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(2);
+  });
 });
