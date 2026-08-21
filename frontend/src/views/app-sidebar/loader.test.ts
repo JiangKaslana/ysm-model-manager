@@ -172,4 +172,31 @@ describe("loadInstances", () => {
     await loadInstances("ysm");
     expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(2);
   });
+
+  it("变异后刷新 force=true → 绕过在途去重，重新发起请求（sync/导入完成场景）", async () => {
+    const { LoadAppConfig, ListVersionInstances, GetResourceInstanceStatus, GetRepoRoot } = mockBindings();
+    LoadAppConfig.mockResolvedValue({ mcRoot: "/mc" });
+    ListVersionInstances.mockResolvedValue([{ Name: "A", VersionDir: "/v/a", Exists: true }]);
+    GetRepoRoot.mockResolvedValue("/repo");
+    // 首次请求挂起（变异前的在途读请求）
+    const resolvers: Array<() => void> = [];
+    GetResourceInstanceStatus.mockImplementation(
+      () => new Promise((resolve) => { resolvers.push(() => resolve([])); }),
+    );
+    const p1 = loadInstances("ysm");
+    await vi.waitFor(() => {
+      expect(GetResourceInstanceStatus).toHaveBeenCalled();
+    });
+    // 变异完成触发的刷新：force=true 不得并入 p1，必须新发请求拿最新数据
+    const p2 = loadInstances("ysm", { force: true });
+    await vi.waitFor(() => {
+      expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(2);
+    });
+    // force 请求仍在途时，普通读请求恢复去重 → 并入 p2（force 只对变异刷新生效）
+    const p3 = loadInstances("ysm");
+    expect(p3).toBe(p2);
+    resolvers.forEach((r) => r());
+    await Promise.all([p1, p2]);
+    expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(2);
+  });
 });

@@ -82,10 +82,12 @@ class AppSidebar extends WebComponentBase {
     this._renderLayout();
 
     // 监听刷新事件（300ms 防抖，防止短时间内多次重载）
+    // force=true：stats:refresh 由变异操作（sync 拉取/删除/导入/启停）完成后触发，
+    // 必须绕过 loadInstances 在途去重——否则并入变异前发起的在途请求，拿到旧实例列表
     this._unsubs.push(
       bus.on("stats:refresh", () => {
         clearTimeout(this._debounceTimer ?? undefined);
-        this._debounceTimer = setTimeout(() => this._reload(), 300);
+        this._debounceTimer = setTimeout(() => this._reload(true), 300);
       }),
     );
 
@@ -361,7 +363,7 @@ class AppSidebar extends WebComponentBase {
     this._restoreCheckboxes();
   }
 
-  private async _reload(): Promise<void> {
+  private async _reload(force = false): Promise<void> {
     if (this._loading) {
       // 丢弃语义会导致 rtype 快速切换时 _instances 与 _rtype 错配：
       // 记下补跑请求，当前完成后用最新 rtype 再跑一次
@@ -371,7 +373,7 @@ class AppSidebar extends WebComponentBase {
     this._loading = true;
     const gen = ++this._reloadGen;
     try {
-      const instances = await get<typeof loadInstances>("loadInstances")(this._rtype);
+      const instances = await get<typeof loadInstances>("loadInstances")(this._rtype, force ? { force: true } : undefined);
       if (gen !== this._reloadGen) return; // 已被更新的重载取代，丢弃过期结果
       this._instances = instances;
       dbg(

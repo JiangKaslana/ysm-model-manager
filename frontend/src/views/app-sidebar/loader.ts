@@ -29,11 +29,16 @@ export interface MmdVariantGroups {
  * 前端在途去重 + go/scanner 航班合并双层防御。 */
 const _inflight = new Map<string, Promise<SidebarInstance[]>>();
 
-/** 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） */
-export function loadInstances(rtype: string): Promise<SidebarInstance[]> {
+/** 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并）
+ *  @param opts.force 变异后刷新（sync 拉取/导入/启停完成）传 true，跳过在途去重——
+ *  去重只服务「读并发」（多组件同时触发 reload），若变异完成的刷新并入变异前发起的
+ *  在途请求，会拿到变更前的旧实例列表（缺/多余的状态卡住到下次触发）。 */
+export function loadInstances(rtype: string, opts?: { force?: boolean }): Promise<SidebarInstance[]> {
   const key = rtype || RESOURCE_TYPES.YSM;
-  const running = _inflight.get(key);
-  if (running) return running;
+  if (!opts?.force) {
+    const running = _inflight.get(key);
+    if (running) return running;
+  }
   const p = doLoadInstances(key).finally(() => {
     _inflight.delete(key);
   });

@@ -205,7 +205,9 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 	}
 	// 记录扫描开始时间（进入时），TTL 从此时刻算，不被扫描耗时侵蚀
 	startTime := time.Now()
+retry:
 	// 记录进入时代际：扫描期间若缓存被失效，Store 前比对并丢弃结果
+	// （retry 重来会重新捕获——失效后的等待方对齐「无航班」的 fresh 语义）
 	gen := cacheGen.Load()
 	// 记录进入时 per-key 版本——InvalidatePath 只递增本 key，
 	// Store 前比对 keyVersion 防止「刚失效又被本目录在途扫描重新 Store」
@@ -237,7 +239,15 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 		other := prev.(*scanFlight)
 		flightJoins.Add(1)
 		other.wg.Wait()
-		return append([]types.ModelEntry{}, other.entries...), true
+		// 等待方失效守卫（与 owner Store 前同口径）：航班期间缓存被失效
+		// （InvalidateCache/InvalidatePath 在 import/enable/disable 完成时触发）时，
+		// 不得吞下失效前的旧扫描结果——重比版本，变了就 retry 重来
+		// （重新捕获版本 → 查缓存（已清）→ 注册新航班/自己走盘，对齐无航班行为）
+		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
+		if cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
+			return append([]types.ModelEntry{}, other.entries...), true
+		}
+		goto retry
 	}
 	defer func() {
 		inFlight.Delete(dir)

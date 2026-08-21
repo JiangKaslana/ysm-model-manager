@@ -183,3 +183,79 @@ func TestScanEntriesWithHit_WaitersGetClone(t *testing.T) {
 		t.Fatal("等待方切片与 owner 共享底层数组——必须克隆")
 	}
 }
+
+func TestScanEntriesWithHit_WaiterInvalidatedDuringFlight_Rescans(t *testing.T) {
+	InvalidateCache()
+	walkCount.Store(0)
+	flightJoins.Store(0)
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.ysm"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	ownerStarted := make(chan struct{}, 1)
+	release := make(chan struct{})
+	walkStartHook = func() {
+		select {
+		case ownerStarted <- struct{}{}:
+		default:
+		}
+		<-release
+	}
+	defer func() { walkStartHook = nil }()
+
+	var wg sync.WaitGroup
+	hits := make([]bool, 2)
+	var ownerEntries, waiterEntries []types.ModelEntry
+	// owner 先跑成为航班 owner
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		entries, hit := ScanEntriesWithHit(dir)
+		hits[0] = hit
+		ownerEntries = entries
+	}()
+	<-ownerStarted
+	// 等待方并入航班
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		entries, hit := ScanEntriesWithHit(dir)
+		hits[1] = hit
+		waiterEntries = entries
+	}()
+	// 等待方并入航班（flightJoins 在 waiter 捕获 gen 并 join 后才 +1——
+	// 用它作同步点，确保 InvalidateCache 发生在 waiter 捕获 gen 之后，否则
+	// waiter 捕获的是失效后的 gen，比对相等会合法拿到旧结果，测不到守卫）
+	for i := 0; i < 500; i++ {
+		if flightJoins.Load() >= 1 {
+			break
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	if flightJoins.Load() < 1 {
+		t.Fatal("等待方未并入航班（flightJoins 仍为 0）")
+	}
+	// 航班在途期间缓存被失效（模拟 import/enable/disable 完成时 InvalidatePath）
+	InvalidateCache()
+	close(release)
+	wg.Wait()
+
+	// 等待方不得吞下失效前的旧结果：应 retry 重扫（walkCount=2：owner 1 次 + 等待方重扫 1 次）
+	if got := walkCount.Load(); got != 2 {
+		t.Fatalf("失效后等待方应重扫，期望 walk=2，实际 %d", got)
+	}
+	if len(ownerEntries) != 1 || len(waiterEntries) != 1 {
+		t.Fatalf("双方各应 1 条目: owner=%d waiter=%d", len(ownerEntries), len(waiterEntries))
+	}
+	// 重扫的等待方 hit=false（真扫，不记「缓存命中」日志）；owner 也 hit=false
+	for i, h := range hits {
+		if h {
+			t.Fatalf("调用方 %d 应 hit=false（真扫），实际 true", i)
+		}
+	}
+	if inflightLen() != 0 {
+		t.Fatalf("扫描结束后在途航班应清空，剩余 %d", inflightLen())
+	}
+}
