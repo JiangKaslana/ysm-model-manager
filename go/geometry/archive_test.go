@@ -376,14 +376,18 @@ func TestParseFromZip_MaidModelNamespaceFilter(t *testing.T) {
 	if model == nil {
 		t.Fatal("应解析成功")
 	}
-	// 只有 ns_a 的 head 骨骼（ns_b 被过滤）
+	// 只保留首个 namespace（ns_a 或 ns_b 取决于 map 迭代顺序——MakeZipBytes 用 Go map
+	// 构造，ZIP 条目序随机，不得钉死 head；发现4 P3 去顺序依赖）
 	if model.BoneCount != 1 {
 		t.Errorf("BoneCount = %d, 期望 1（仅首个 namespace）", model.BoneCount)
 	}
-	if model.BoneCount > 0 && model.Bones[0].Name != "head" {
-		t.Errorf("骨骼名 = %q, 期望 head", model.Bones[0].Name)
+	if model.BoneCount > 0 {
+		n := model.Bones[0].Name
+		if n != "head" && n != "marisa" {
+			t.Errorf("骨骼名 = %q, 期望 head（ns_a）或 marisa（ns_b）", n)
+		}
 	}
-	// 只有 ns_a 的纹理
+	// 只有首个 namespace 的纹理
 	if len(pngs) != 1 {
 		t.Errorf("纹理数 = %d, 期望 1（仅首个 namespace）", len(pngs))
 	}

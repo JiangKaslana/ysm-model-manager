@@ -460,6 +460,14 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if strings.Contains(low, "ysm.json") {
 				continue
 			}
+			// maid-model 命名空间过滤：置于 Open 之前 + 动画分支之前（与 collectArchiveFiles
+			// 同口径）——被拒条目不 Open（无 reader 泄漏，发现2）+ 外来命名空间的动画/控制器
+			// JSON 一并跳过（发现5，两条路径不再漂移）
+			if maidNs != "" {
+				if !strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json") {
+					continue
+				}
+			}
 			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
 				rc, err := e.Open()
 				if err != nil {
@@ -479,12 +487,6 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			rc, err := e.Open()
 			if err != nil {
 				continue
-			}
-			// maid-model 命名空间过滤：只处理首个 namespace 的 entity JSON
-			if maidNs != "" {
-				if !strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json") {
-					continue
-				}
 			}
 			buf := readLimitedEntry(rc)
 			if isArmModelName(e.Name()) {
