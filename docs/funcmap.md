@@ -43,11 +43,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 137 | 538 |
+| 前端·工具 | 137 | 540 |
 | frontend/views | 115 | 329 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **438** | **1884** |
+| **合计** | **438** | **1886** |
 
 ## Go·头像
 
@@ -1228,25 +1228,26 @@
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在根菜单 camera 面板内追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:29` | — |
 | `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:68` | — |
-| `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:23` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `FBX_TARGET_MAX_DIM()` | `frontend/src/utils/3d/adapters/fbx-adapter:30` | FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160）， 与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 |
-| `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:33` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |
-| `normalizeFbxScale()` | `frontend/src/utils/3d/adapters/fbx-adapter:49` | Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时， 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀 |
-| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:116` | 构建 FBX 内容场景（ADR-112 地基）。 |
-| `FbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:16` | FBX 解析器管理器（接口对齐 PmxParser） |
-| `createFbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:25` | 创建 FBX 解析器（Worker）。测试/受限环境无 Worker → always-fail 降级守卫， 调用方（fbx-adapter）会 fallback 到主线程 FBX |
-| `FbxSceneBuilderConfig()` | `frontend/src/utils/3d/adapters/fbx-parser:90` | 场景重建配置 |
-| `buildFbxSceneFromData()` | `frontend/src/utils/3d/adapters/fbx-parser:247` | 从 worker 产出的纯数据重建 Three.js 场景（FBX worker 路径的主线程构建器） |
+| `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:24` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `FBX_TARGET_MAX_DIM()` | `frontend/src/utils/3d/adapters/fbx-adapter:31` | FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160）， 与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 |
+| `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:34` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |
+| `normalizeFbxScale()` | `frontend/src/utils/3d/adapters/fbx-adapter:50` | Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时， 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀 |
+| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:154` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `FbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:17` | FBX 解析器管理器（接口对齐 PmxParser） |
+| `createFbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:26` | 创建 FBX 解析器（Worker）。测试/受限环境无 Worker → always-fail 降级守卫， 调用方（fbx-adapter）会 fallback 到主线程 FBX |
+| `FbxSceneBuilderConfig()` | `frontend/src/utils/3d/adapters/fbx-parser:91` | 场景重建配置 |
+| `buildFbxSceneFromData()` | `frontend/src/utils/3d/adapters/fbx-parser:261` | 从 worker 产出的纯数据重建 Three.js 场景（FBX worker 路径的主线程构建器） 按 nodes 层级还原：非 mesh 节点建 Group、mesh 节点建 |
 | `FbxParseRequest()` | `frontend/src/utils/3d/adapters/fbx-parser.worker:17` | 主线程 → Worker 请求 |
 | `FbxParseResponse()` | `frontend/src/utils/3d/adapters/fbx-parser.worker:23` | Worker → 主线程响应 |
-| `FbxGeometryData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:10` | — |
-| `FbxMaterialData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:21` | — |
-| `FbxSkeletonData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:37` | — |
-| `FbxMeshData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:48` | — |
-| `FbxClipData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:61` | — |
-| `FbxSceneData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:71` | — |
-| `captureTextureName()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:78` | — |
-| `fbxSceneToData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:174` | — |
+| `FbxGeometryData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:16` | — |
+| `FbxMaterialData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:29` | — |
+| `FbxSkeletonData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:45` | — |
+| `FbxMeshData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:56` | — |
+| `FbxNodeData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:65` | 场景节点（非骨骼：Group 或 Mesh；parent = nodes 下标，-1 = 根） |
+| `FbxClipData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:78` | — |
+| `FbxSceneData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:88` | — |
+| `captureTextureName()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:95` | — |
+| `fbxSceneToData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:202` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1744,21 +1745,22 @@
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:28` | 资源类型显示标签（内部 ID → 中文名） |
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:68` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
 | `resolvePreviewKey()` | `frontend/src/utils/resource/types:77` | 按 variants 解析预览路由 key（ADR-111：类别—格式分层）。 |
-| `GROUP_META()` | `frontend/src/utils/resource/types:93` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
-| `GROUP_OF()` | `frontend/src/utils/resource/types:109` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
-| `groupLabelOf()` | `frontend/src/utils/resource/types:115` | 分组 id → 显示名 |
-| `GroupTypeOption()` | `frontend/src/utils/resource/types:125` | 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。 |
-| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:130` | — |
-| `groupStorageRootOf()` | `frontend/src/utils/resource/types:146` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
-| `extOf()` | `frontend/src/utils/resource/types:160` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `NO_3D_TYPES()` | `frontend/src/utils/resource/types:209` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:214` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:239` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:244` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:250` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:261` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:274` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `matchZipEntryTS()` | `frontend/src/utils/resource/types:324` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `resolvePreviewKeyToRtype()` | `frontend/src/utils/resource/types:93` | 预览键反解为资源类型 ID（ADR-111 逆向）。 |
+| `GROUP_META()` | `frontend/src/utils/resource/types:106` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
+| `GROUP_OF()` | `frontend/src/utils/resource/types:122` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
+| `groupLabelOf()` | `frontend/src/utils/resource/types:128` | 分组 id → 显示名 |
+| `GroupTypeOption()` | `frontend/src/utils/resource/types:138` | 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。 |
+| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:143` | — |
+| `groupStorageRootOf()` | `frontend/src/utils/resource/types:159` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
+| `extOf()` | `frontend/src/utils/resource/types:173` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
+| `NO_3D_TYPES()` | `frontend/src/utils/resource/types:222` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:227` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:252` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:257` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:263` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:274` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:287` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:337` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `safeErrorMessage()` | `frontend/src/utils/safe-error-msg:19` | 从任意错误对象提取可读消息字符串。 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
@@ -1948,7 +1950,7 @@
 | `getRegisteredRoutes()` | `frontend/src/views/app-preview/preview-library:31` | 返回已注册的路由类型列表（供测试/CI 验证 _openers 覆盖率，审核 P3） |
 | `OpenModel3DOptions()` | `frontend/src/views/app-preview/preview-library:36` | openModel3DFullscreen 选项（ADR-093 T4：cooperate 统一多模型同台追加入口） |
 | `openModel3DFullscreen()` | `frontend/src/views/app-preview/preview-library:56` | 通用「打开一个模型 3D」路由：探测类型 → 查注册表派发 opener（跨类型换角色）。 |
-| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:107` | 给 mount3D opts 注入「跨类型换角色」入口 + 按类型懒加载数据源。各 createXxx3D 统一经此接入 |
+| `withPreviewExtras()` | `frontend/src/views/app-preview/preview-library:110` | 给 mount3D opts 注入「跨类型换角色」入口 + 按类型懒加载数据源。各 createXxx3D 统一经此接入 |
 | `createScene3D()` | `frontend/src/views/app-preview/scene-3d:82` | 打开场景 MMD 3D 预览（独立入口，只加载 SceneModel 目录下的 PMX/PMD） |
 | `cleanupScene3D()` | `frontend/src/views/app-preview/scene-3d:87` | 清理场景 3D（WebGL renderer + rAF 循环） |
 | `invalidateScenePreview()` | `frontend/src/views/app-preview/scene-3d:92` | 任意新预览派发时调用，作废在途场景加载 |

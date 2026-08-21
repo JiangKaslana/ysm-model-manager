@@ -84,6 +84,19 @@ export function resolvePreviewKey(filePath: string, rtype: string): string {
   return rtype;
 }
 
+/**
+ * 预览键反解为资源类型 ID（ADR-111 逆向）。
+ * 角色面板类型 tab 传入的是预览键（如 "mmd"），但 Go 侧 ScanModelEntriesFiltered
+ * 需要真实资源类型 ID（如 "EntityPlayer"）才能命中扩展名白名单过滤。
+ * 未命中时回退 previewKey 自身（兼容已是资源类型 ID 的场景）。
+ */
+export function resolvePreviewKeyToRtype(previewKey: string): string {
+  const entry = registryEntries.find((t) =>
+    t.variants?.some((v) => v.preview === previewKey),
+  );
+  return entry?.id ?? previewKey;
+}
+
 // ===== 资源分组派生（ADR-092：FilesRoot/{group}/{storageSubDir} 两层路由）=====
 // 从各类型 group 字段派生，消除 resourceGroups 冗余源。
 // 组 = 所有类型的 group 字段去重集合，新资源注册后自动入组。

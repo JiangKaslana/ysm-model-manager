@@ -12,7 +12,7 @@
 // 全程轻量获取文件——不再全量扫描各仓库、不再按扩展名分类贴标签。
 
 import { getApp } from "../../backend/app.ts";
-import { RESOURCE_TYPE_LABELS, resolvePreviewKey } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPE_LABELS, resolvePreviewKey, resolvePreviewKeyToRtype } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { switchPreview, hasActivePreview } from "../../utils/3d/adapters/mount-preview-core.ts";
 
@@ -92,11 +92,14 @@ interface PreviewExtras extends Mount3DOptions {
  */
 async function scanModelsByType(rtype: string, subtype = ""): Promise<string[]> {
   try {
+    // 预览键反解为真实资源类型 ID（"mmd" → "EntityPlayer"），
+    // 使 Go 侧 ScanModelEntriesFiltered 命中扩展名白名单过滤
+    const realRtype = resolvePreviewKeyToRtype(rtype);
     const { GetRepoRoot, ScanModelEntriesFiltered } = await getApp();
-    const root = await GetRepoRoot(rtype);
+    const root = await GetRepoRoot(realRtype);
     if (!root) return [];
-    const label = RESOURCE_TYPE_LABELS[rtype] || rtype;
-    const raw = (await ScanModelEntriesFiltered(root, rtype, subtype, label)) as Array<{ Path?: string }>;
+    const label = RESOURCE_TYPE_LABELS[realRtype] || realRtype;
+    const raw = (await ScanModelEntriesFiltered(root, realRtype, subtype, label)) as Array<{ Path?: string }>;
     return (raw || []).map((e) => e.Path).filter((p): p is string => !!p);
   } catch {
     return [];
