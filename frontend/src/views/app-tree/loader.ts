@@ -86,9 +86,9 @@ export async function loadEntries(
 
     const entries: TreeEntry[] = raw.map((e, i) => {
       let relPath = e.Path;
-      const normRoot = filesRoot ? filesRoot.replace(/\\/g, "/") : "";
+      const normRoot = filesRoot ? filesRoot.replace(/\\/g, "/").replace(/\/+$/, "") : "";
       const normPath = e.Path.replace(/\\/g, "/");
-      if (normRoot && normPath.startsWith(normRoot)) {
+      if (normRoot && (normPath.startsWith(normRoot + "/") || normPath === normRoot)) {
         relPath = normPath.slice(normRoot.length).replace(/^[/\\]+/, "");
       }
       return {
