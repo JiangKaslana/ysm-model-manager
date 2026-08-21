@@ -9,7 +9,7 @@
 
 ## 一、现状盘点（2026-08-21）
 
-### 1.1 命令清单（36 个顶层命令，按域）
+### 1.1 命令清单（37 个顶层命令，按域）
 
 > **完整命令参考（含子命令/选项）以 [`docs/cli-commands.md`](./cli-commands.md) 为准**——
 > 由 `scripts/gen-cli-doc.mjs` 从 `go/cli/` 注册表自动生成，`tests/test_cli_doc_parity.mjs`
@@ -45,7 +45,7 @@
 | 查询/分析 | ✅ 完备 | — |
 | 性能诊断 | ✅ 完备（single-bench 是地基 + 前端已消费 + `--baseline` 基准回归） | — |
 | 汇总报告 | ⚠️ 单命令输出 / repo-audit 轻度聚合 | 缺一键全仓体检报告（方向 A） |
-| 写/运维 | ✅ 已落地（install/tags/fileops/recycle/instance/config mirror） | 缺 `dedup` CLI 暴露（go/dedup 有函数未接命令） |
+| 写/运维 | ✅ 已落地（install/tags/fileops/recycle/instance/config mirror/dedup clean） | — |
 | 批量/流水线 | ❌ 无 | 缺 scan→analyze→export→report 串联 |
 | 交互体验 | ⚠️ 单命令执行 | 缺 REPL 连续操作 |
 | GUI↔CLI 桥接 | ✅ 后端桥 + 前端消费 + B 门禁/回归 + C 性能护栏全落地 | — |
