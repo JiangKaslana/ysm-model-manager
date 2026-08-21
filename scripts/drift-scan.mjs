@@ -215,6 +215,35 @@ const RULES = [
     regex: /time\.After\(\d+\s*\*\s*time\.(Second|Minute|Hour)\)/,
     exclude: [/test/],
   },
+  {
+    id: "TIMER_LEAK",
+    severity: "warn",
+    desc: "定时器泄漏风险：setTimeout/setInterval 赋值后无对应 clear",
+    glob: "*.ts",
+    regex: /\b(\w+)\s*=\s*(?:window\.)?(?:setInterval|setTimeout)\(/,
+    exclude: [/test/],
+    filter: (line, content, lineIdx) => {
+      const trimmed = line.trim();
+      // 排除注释行
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) return false;
+      // 提取变量名
+      const m = trimmed.match(/\b(\w+)\s*=\s*(?:window\.)?(?:setInterval|setTimeout)\(/);
+      if (!m) return false;
+      const varName = m[1];
+      // 排除常见非泄漏模式：r, resolve, reject（Promise 延迟）
+      if (["r", "resolve", "reject", "next", "t"].includes(varName)) return false;
+      // 检查同文件是否有对应的 clearTimeout/clearInterval（多种模式）
+      // 1. 直接调用：clearTimeout(timer)
+      // 2. 对象属性：clearTimeout(xxx.timer) 或 clearTimeout(this.timer)
+      // 3. 批量清理：timers.forEach(clearTimeout) 或 arr.forEach(t => clearTimeout(t))
+      const clearRegex = new RegExp(
+        `clear(?:Timeout|Interval)\\s*\\([^)]*\\b${varName}\\b[^)]*\\)` +
+        `|forEach\\s*\\(\\s*clear(?:Timeout|Interval)\\s*\\)` +
+        `|forEach\\s*\\([^)]*=>\\s*clear(?:Timeout|Interval)\\s*\\([^)]*\\b${varName}\\b`
+      );
+      return !clearRegex.test(content);
+    },
+  },
 ];
 
 // ===== 主逻辑 =====
