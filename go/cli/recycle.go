@@ -59,13 +59,20 @@ func runRecycleList(ctx *CmdContext) error {
 	fmt.Printf("%-40s %-12s %s\n", "名称", "大小", "路径")
 	fmt.Println(strings.Repeat("-", 80))
 	for _, e := range entries {
-		name := e.Name
-		if len(name) > 38 {
-			name = name[:35] + "..."
-		}
+		name := truncateRunes(e.Name, 35)
 		fmt.Printf("%-40s %-12s %s\n", name, formatSize(e.Size), e.Path)
 	}
 	return nil
+}
+
+// truncateRunes 按 rune 截断字符串，避免截断多字节 UTF-8（中文模型名）产生乱码。
+// 超过 maxRunes 时尾部加 "..."。
+func truncateRunes(s string, maxRunes int) string {
+	r := []rune(s)
+	if len(r) <= maxRunes {
+		return s
+	}
+	return string(r[:maxRunes]) + "..."
 }
 
 // runRecycleRestore 从回收站恢复文件

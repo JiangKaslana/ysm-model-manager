@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"ysm-model-manager/internal/app"
@@ -99,6 +100,12 @@ func runTagsSet(ctx *CmdContext) error {
 		}
 	}
 
+	// 拦截「全分隔符/全空白」输入：解析后空切片会触发 SetModelTags 的 delete 分支，
+	// 静默清空该模型所有标签——属数据丢失边界，应报错而非误操作
+	if len(tags) == 0 {
+		return newParamErrf("tags set: --tags 解析后无有效标签")
+	}
+
 	if err := ctx.App.SetModelTags(*modelPath, tags); err != nil {
 		return newRuntimeErrf("设置标签失败: %w", err)
 	}
@@ -189,14 +196,15 @@ func runTagsCount(ctx *CmdContext) error {
 		return nil
 	}
 	fmt.Printf("🏷️  标签使用统计:\n")
-	// AllTags 已按使用次数降序，但只返回标签名；逐个查 ListByTag 取计数
-	counts := make(map[string]int, len(all))
+	// AllTags 已按使用次数降序，但只返回标签名；逐个查 ListByTag 取计数。
+	// ListByTag 失败时跳过该标签并打印警告，不记误导性 0 计数
 	for _, t := range all {
-		paths, _ := ctx.App.ListByTag(t)
-		counts[t] = len(paths)
-	}
-	for _, t := range all {
-		fmt.Printf("  %-20s %d\n", t, counts[t])
+		paths, lerr := ctx.App.ListByTag(t)
+		if lerr != nil {
+			fmt.Fprintf(os.Stderr, "⚠️  统计标签 %q 失败: %v\n", t, lerr)
+			continue
+		}
+		fmt.Printf("  %-20s %d\n", t, len(paths))
 	}
 	return nil
 }

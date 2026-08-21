@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 139 | 535 |
+| 前端·工具 | 139 | 533 |
 | frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **430** | **1844** |
+| **合计** | **430** | **1842** |
 
 ## Go·头像
 
@@ -1208,10 +1208,8 @@
 | `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1036` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
 | `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1077` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1109` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
-| `resolveMmdSubdirPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:23` | 从 MMD 默认仓库根回溯到 group 根，再拼接目标子目录。 |
-| `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:32` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
-| `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:45` | 从文件列表中筛选动作文件（.vmd / .vpd） |
-| `ANIM_LIB_SUBDIR()` | `frontend/src/utils/3d/adapters/mmd-anim-library:53` | 动作库子目录名（导出供 UI 展示） |
+| `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:12` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
+| `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:24` | 从文件列表中筛选动作文件（.vmd / .vpd） |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
 | `BasisModuleLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:29` | 初始化后的 basis 模块（含 BasisEncoder 构造器） |
 | `loadBasisModule()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:40` | 加载并初始化本地 basis_encoder（缓存单例）。 |
@@ -1893,8 +1891,8 @@
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:21` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:50` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） |
 | `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:152` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
-| `resolveMorphSiblings()` | `frontend/src/views/app-preview/morph-siblings:12` | CustomMorph 目录下所有 VPD 姿势文件（含子目录）；失败返回 [] |
-| `resolveMorphAnimSiblings()` | `frontend/src/views/app-preview/morph-siblings:30` | CustomMorph 目录下所有 VMD 动画文件（含子目录）；失败返回 [] |
+| `resolveMorphSiblings()` | `frontend/src/views/app-preview/morph-siblings:6` | CustomMorph 目录下所有 VPD 姿势文件（含子目录）；失败返回 [] |
+| `resolveMorphAnimSiblings()` | `frontend/src/views/app-preview/morph-siblings:22` | CustomMorph 目录下所有 VMD 动画文件（含子目录）；失败返回 [] |
 | `createPack3D()` | `frontend/src/views/app-preview/pack-3d:30` | 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） |
 | `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:50` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |
@@ -1924,9 +1922,9 @@
 | `closeActive3DOverlay()` | `frontend/src/views/app-preview/skeleton:34` | 关闭当前活跃的 3D 全屏 overlay（若存在）。供 app-preview/index.ts 切换模型前调用。 |
 | `setActive3DClose()` | `frontend/src/views/app-preview/skeleton:40` | 设置当前活跃的 3D 全屏 overlay 关闭函数（maid/通用 Bedrock 模型复用此机制）。 |
 | `loadModel2D()` | `frontend/src/views/app-preview/skeleton:57` | 加载模型 2D 骨骼线条图 + 统计面板 |
-| `resolveStageSiblings()` | `frontend/src/views/app-preview/stage-siblings:16` | 扫描 StageAnim 目录下所有资源文件（VMD + 音频）；失败返回 [] |
-| `resolveStageVmdList()` | `frontend/src/views/app-preview/stage-siblings:44` | 仅获取 StageAnim 下所有 VMD 文件路径列表 |
-| `resolveStageAudioList()` | `frontend/src/views/app-preview/stage-siblings:50` | 仅获取 StageAnim 下所有音频文件路径列表 |
+| `resolveStageSiblings()` | `frontend/src/views/app-preview/stage-siblings:13` | 扫描 StageAnim 目录下所有资源文件（VMD + 音频 + config）；失败返回 [] |
+| `resolveStageVmdList()` | `frontend/src/views/app-preview/stage-siblings:39` | 仅获取 StageAnim 下所有 VMD 文件路径列表 |
+| `resolveStageAudioList()` | `frontend/src/views/app-preview/stage-siblings:45` | 仅获取 StageAnim 下所有音频文件路径列表 |
 | `OrderedTexInput()` | `frontend/src/views/app-preview/texture-order:7` | — |
 | `buildOrderedTexKeys()` | `frontend/src/views/app-preview/texture-order:21` | 计算 3D 渲染/纹理选择器用的有序纹理名列表 |
 | `ModelDetailMeta()` | `frontend/src/views/app-preview/tpl:6` | 模型统计元数据（modelDetailHTML 入参） |
@@ -2021,8 +2019,8 @@
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:59` | — |
-| `TreeEntry()` | `frontend/src/views/app-tree/loader:11` | 树条目（loader 转换后的渲染格式） |
-| `loadEntries()` | `frontend/src/views/app-tree/loader:64` | 从 Go 后端加载仓库文件列表，返回格式化的 entries |
+| `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |
+| `loadEntries()` | `frontend/src/views/app-tree/loader:67` | 从 Go 后端加载仓库文件列表，返回格式化的 entries 扁平化架构下每个 MMD 子类型为独立顶级类型，直接用 subdir 作为类型 ID 查表 |
 | `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |
 | `TreeNode()` | `frontend/src/views/app-tree/render:31` | buildTree 嵌套节点（文件夹 = 子节点对象，文件 = { _e: entry }） |
 | `RenderMode()` | `frontend/src/views/app-tree/render:37` | 渲染模式 |
