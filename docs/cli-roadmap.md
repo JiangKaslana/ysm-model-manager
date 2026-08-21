@@ -9,7 +9,7 @@
 
 ## 一、现状盘点（2026-08-21）
 
-### 1.1 命令清单（37 个顶层命令，按域）
+### 1.1 命令清单（38 个顶层命令，按域）
 
 > **完整命令参考（含子命令/选项）以 [`docs/cli-commands.md`](./cli-commands.md) 为准**——
 > 由 `scripts/gen-cli-doc.mjs` 从 `go/cli/` 注册表自动生成，`tests/test_cli_doc_parity.mjs`
@@ -22,7 +22,7 @@
 | 性能基准 | `single-bench` / `concurrent-bench` / `gui-flow` / `perf-log` / `perf-snapshot` |
 | 缓存管理 | `cache-status` / `cache-verify` / `cache-clear` / `cache-diag` |
 | 配置/流程 | `config` / `config-show` / `link-mode` |
-| 资源仓库 | `scan` / `resource-scan` / `repo-audit` / `avatar` / `creator` / `workshop` / `instance` / `recycle` / `download` |
+| 资源仓库 | `scan` / `resource-scan` / `repo-audit` / `health-report` / `dedup` / `avatar` / `creator` / `workshop` / `instance` / `recycle` / `download` |
 
 **测试覆盖**：`go test ./go/cli/...` 全绿（0.27s，40+ 用例）。
 **源码规模**：`go/cli/` 共 23 个文件，全部 `package cli`。
@@ -44,7 +44,7 @@
 |------|------|------|
 | 查询/分析 | ✅ 完备 | — |
 | 性能诊断 | ✅ 完备（single-bench 是地基 + 前端已消费 + `--baseline` 基准回归） | — |
-| 汇总报告 | ⚠️ 单命令输出 / repo-audit 轻度聚合 | 缺一键全仓体检报告（方向 A） |
+| 汇总报告 | ✅ **已落地**（`health-report`：完整性+缓存+资源+去重聚合 + 可选 --bench 性能基线，方向 A 完成） | — |
 | 写/运维 | ✅ 已落地（install/tags/fileops/recycle/instance/config mirror/dedup clean） | — |
 | 批量/流水线 | ❌ 无 | 缺 scan→analyze→export→report 串联 |
 | 交互体验 | ⚠️ 单命令执行 | 缺 REPL 连续操作 |
@@ -57,14 +57,17 @@
 
 > 来自 2026-08-19 评审后的前景讨论，按「复用现有能力、统一入口」排序。
 
-### 方向 A：模型仓库一键体检报告 🎯（首推）
+### 方向 A：模型仓库一键体检报告 🎯（首推）— ✅ 已落地（2026-08-21）
 
 **一句话**：复用现有命令的能力，合成一份「仓库健康报告」。
 
-- 复用：`verify`（完整性）+ `cache-verify`（缓存命中）+ `analyze-mmd`（超大贴图）+ `single-bench`（性能基线）。
-- 形态：`health-report --format table|json`，输出到 stdout 或 `--output health.json`。
-- 价值：GUI 的「仓库健康度」是前端算的，CLI 用同一批 Go 侧能力算后端报告——脚本/CI 可消费。
-- 落地要点：抽一个 `collectHealthMetrics(app)` 复用函数，各命令调用它，避免三处重复。
+- 落地：`health-report [--dir X] [--output health.json] [--bench]`（`go/cli/health.go`）
+  - 聚合：完整性 + 缓存 + 资源 + **去重**（`dedup.FindDuplicateFiles`），`--bench` 追加首模型 single-bench 性能基线
+  - 复用：核心走 `collectRepoHealth`（自 `repo-audit` 抽出，一次遍历出审计结构，**双命令同源防双轨漂移**）
+  - 替代了原规划里的 `verify+cache-verify+analyze-mmd` 手工串联——`collectRepoHealth`（含完整性/缓存/资源）
+    + dedup 去重占比 80% 体检需求，超大贴图维度留作 `--bench`/`analyze-mmd` 专项
+- 契约：`tests/test_cli_doc_parity.mjs` 命令数 38 锁定入册
+- 遗留：GUI「仓库健康度」面板仍由前端自算，后续可消费 `health-report --json`（复用同源口径）
 
 ### 方向 B：基准回归门禁（防性能倒退）
 

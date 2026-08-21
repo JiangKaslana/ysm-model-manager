@@ -166,3 +166,39 @@ func TestDedupClean_Yes_MovesToRecycle(t *testing.T) {
 		t.Errorf("回收站目录应存在: %v", err)
 	}
 }
+
+// clean --dir 指向仓库根外时拒绝（回收站固定在仓库根内，防越界移动）
+func TestDedupClean_RejectsDirOutsideRepo(t *testing.T) {
+	repoDir := t.TempDir()
+	outside := t.TempDir() // 仓库根外的独立目录
+	mustWrite(t, filepath.Join(outside, "a.ysm"), []byte("out content"))
+	mustWrite(t, filepath.Join(outside, "b.ysm"), []byte("out content"))
+
+	err := runDedupClean(&CmdContext{App: &app.App{}, FilesRoot: repoDir, Args: []string{"--dir", outside}})
+	if err == nil || !strings.Contains(err.Error(), "仓库根内") {
+		t.Errorf("clean 扫仓库外目录应拒绝, got: %v", err)
+	}
+}
+
+// --output 写盘后不展开打印重复组（结果存文件，stdout 只留摘要）
+func TestDedupScan_OutputWritesFileWithoutExpansion(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "a.ysm"), []byte("same x"))
+	mustWrite(t, filepath.Join(dir, "b.ysm"), []byte("same x"))
+	outFile := filepath.Join(dir, "dup.json")
+
+	out := captureOutput(t, func() {
+		if err := runDedupScan(&CmdContext{App: &app.App{}, FilesRoot: dir, Args: []string{"--dir", dir, "--output", outFile}}); err != nil {
+			t.Fatalf("scan --output 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "已保存到") {
+		t.Errorf("应打印保存提示, got: %s", out)
+	}
+	if strings.Contains(out, "副本") {
+		t.Errorf("--output 后不应展开打印重复组, got: %s", out)
+	}
+	if _, err := os.Stat(outFile); err != nil {
+		t.Errorf("JSON 结果文件应存在: %v", err)
+	}
+}

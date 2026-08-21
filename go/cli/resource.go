@@ -241,25 +241,12 @@ type auditResourceSummary struct {
 	LargestSize int64          `json:"largest_size,omitempty"`
 }
 
-// runRepoAudit 执行仓库健康审计
-func runRepoAudit(ctx *CmdContext) error {
-	fs := newCmdFlagSet("repo-audit")
-	dirPath := fs.String("dir", ctx.FilesRoot, "目录路径（默认使用 --files-root）")
-	output := fs.String("output", "", "输出文件路径（JSON 格式）")
-	_, err := parseFlags(fs, ctx.Args)
-	if err != nil {
-		return err
-	}
-
-	if *dirPath == "" {
-		return newParamErrf("--dir 参数不能为空")
-	}
-
-	fmt.Printf("🔍 仓库审计: %s\n\n", *dirPath)
-
+// collectRepoHealth 仓库健康审计核心（repo-audit / health-report 共用，防双轨口径漂移）。
+// 一次遍历得出：资源统计 / 完整性 / 缓存状态 / 健康分数 / 警告（规律五落地：审计逻辑单实现）。
+func collectRepoHealth(dirPath string) (repoAuditResult, error) {
 	result := repoAuditResult{
 		Timestamp:    time.Now().UTC().Format(time.RFC3339),
-		Directory:    *dirPath,
+		Directory:    dirPath,
 		Completeness: auditCompleteness{},
 		Cache:        auditCacheStatus{},
 		Resources: auditResourceSummary{
@@ -274,7 +261,7 @@ func runRepoAudit(ctx *CmdContext) error {
 	var largestSize int64
 	resources := map[string]int{}
 
-	err = filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			result.Warnings = append(result.Warnings, fmt.Sprintf("访问异常: %s (%v)", path, err))
 			return nil
@@ -308,9 +295,8 @@ func runRepoAudit(ctx *CmdContext) error {
 
 		return nil
 	})
-
 	if err != nil {
-		return newRuntimeErrf("扫描目录失败: %v", err)
+		return result, newRuntimeErrf("扫描目录失败: %v", err)
 	}
 
 	result.Resources.TotalSize = totalSize
@@ -353,11 +339,36 @@ func runRepoAudit(ctx *CmdContext) error {
 	// 生成警告
 	generateAuditWarnings(&result)
 
+	return result, nil
+}
+
+// runRepoAudit 执行仓库健康审计
+func runRepoAudit(ctx *CmdContext) error {
+	fs := newCmdFlagSet("repo-audit")
+	dirPath := fs.String("dir", ctx.FilesRoot, "目录路径（默认使用 --files-root）")
+	output := fs.String("output", "", "输出文件路径（JSON 格式）")
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
+		return err
+	}
+
+	if *dirPath == "" {
+		return newParamErrf("--dir 参数不能为空")
+	}
+
+	fmt.Printf("🔍 仓库审计: %s\n\n", *dirPath)
+
+	// 核心逻辑复用 collectRepoHealth（同一实现，防双轨漂移）
+	result, err := collectRepoHealth(*dirPath)
+	if err != nil {
+		return err
+	}
+
 	// 输出结果
 	if *output != "" {
-		jsonBytes, jsonErr := json.MarshalIndent(result, "", "  ")
+		jsonBytes, jsonErr := marshalAuditJSON(result)
 		if jsonErr != nil {
-			return newRuntimeErrf("JSON 序列化失败: %v", jsonErr)
+			return jsonErr
 		}
 		if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
 			return newRuntimeErrf("保存 JSON 文件失败: %v", err)
@@ -441,6 +452,15 @@ func isModelFileValid(path, ext string) bool {
 		return dec.Decode(&v) == nil
 	}
 	return true
+}
+
+// marshalAuditJSON 序列化审计/体检结果（规律六：JSON 序列化错误不吞）
+func marshalAuditJSON(v interface{}) ([]byte, error) {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return nil, newRuntimeErrf("JSON 序列化失败: %v", err)
+	}
+	return data, nil
 }
 
 // printRepoAuditResult 打印仓库审计结果

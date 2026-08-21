@@ -259,7 +259,7 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 
 ## 命令列表
 
-> **完整命令参考（37 个顶层命令，含分类/子命令/选项）见 [`docs/cli-commands.md`](./docs/cli-commands.md)**。
+> **完整命令参考（38 个顶层命令，含分类/子命令/选项）见 [`docs/cli-commands.md`](./docs/cli-commands.md)**。
 > 该文档由 `node scripts/gen-cli-doc.mjs` 从 `go/cli/` 命令注册表**自动生成**（单一事实来源 = 源码注册），
 > pre-commit 自动同步、`--check` 已接入 doctor 防漂移——新增命令只需改源码注册，无需在此手动维护。
 
@@ -270,7 +270,7 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 | 模型管理 | `search` / `analyze` / `list` / `verify` / `export` / `install` / `tags` / `move` / `copy` / `rename` / `toggle` | [docs/cli-commands.md](./docs/cli-commands.md) |
 | 性能诊断 | `single-bench` / `concurrent-bench` / `gui-flow` / `perf-log` / `perf-snapshot` / `file-bench` | 同上 |
 | 缓存管理 | `cache-status` / `cache-verify` / `cache-clear` / `cache-diag` | 同上 |
-| 资源仓库 | `scan` / `scan-dir` / `analyze-mmd` / `resource-scan` / `repo-audit` / `dedup` / `avatar` / `creator` / `workshop` / `instance` / `recycle` / `download` | 同上 |
+| 资源仓库 | `scan` / `scan-dir` / `analyze-mmd` / `resource-scan` / `repo-audit` / `health-report` / `dedup` / `avatar` / `creator` / `workshop` / `instance` / `recycle` / `download` | 同上 |
 | 配置 | `config` / `config-show` / `link-mode` | 同上 |
 
 ## 常用场景

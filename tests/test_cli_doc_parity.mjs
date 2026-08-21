@@ -73,12 +73,12 @@ must(
   'AGENTS.md 未引用 docs/cli-commands.md（CLI 命令列表入口应指向生成文档）',
 );
 
-// ── 5) GEN 标记 + 命令数下限（37 个顶层命令，2026-08 校准）──
+// ── 5) GEN 标记 + 命令数下限（38 个顶层命令，2026-08 校准）──
 must(
   docText.includes('<!-- GEN: cli-commands -->') && docText.includes('<!-- /GEN: cli-commands -->'),
   'docs/cli-commands.md 缺失 GEN 标记区（<!-- GEN: cli-commands -->）',
 );
-must(registered.size >= 37, `顶层命令数异常（期望 ≥37，实际 ${registered.size}）——注册表被大量删除时需人工确认`);
+must(registered.size >= 38, `顶层命令数异常（期望 ≥38，实际 ${registered.size}）——注册表被大量删除时需人工确认`);
 
 // ── 汇总结论 ──
 if (errors.length) {

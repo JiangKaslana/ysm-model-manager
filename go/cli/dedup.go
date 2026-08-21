@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"ysm-model-manager/go/dedup"
 	"ysm-model-manager/go/recycle"
@@ -111,9 +112,12 @@ func runDedupScan(ctx *CmdContext) error {
 			return jsonErr
 		}
 		if err := os.WriteFile(*output, jsonBytes, 0o644); err != nil {
-			return newRuntimeErrf("保存扫描结果失败: %v", err)
+			return newRuntimeErrf("保存扫描结果失败: %w", err)
 		}
-		fmt.Printf("💾 扫描结果已保存到: %s\n", *output)
+		fmt.Printf("💾 扫描结果已保存到: %s（组 %d，多余 %d，可回收 %s）\n",
+			*output, result.Groups, result.ExtraFiles, formatSize(result.Reclaim))
+		// --output 本意是「结果存文件别刷屏」：写盘后只打印摘要，不在 stdout 展开每组
+		return nil
 	}
 
 	if len(groups) == 0 {
@@ -156,8 +160,10 @@ func runDedupCount(ctx *CmdContext) error {
 
 // runDedupClean 把重复组中「保留第一个（路径字典序）」之外的文件移入回收站。
 // 无 --yes = dry-run 预览；--yes 实际执行。写操作红线：默认只读。
+// 回收站固定在仓库根（--files-root/.recycle）下，--dir 只允许指向仓库根内子目录。
 func runDedupClean(ctx *CmdContext) error {
 	fs := newCmdFlagSet("dedup clean")
+	dir := fs.String("dir", "", "扫描目录（缺省用 --files-root，须在仓库根内）")
 	yes := fs.Bool("yes", false, "实际执行（缺省为 dry-run 预览）")
 	_, err := parseFlags(fs, ctx.Args)
 	if err != nil {
@@ -170,24 +176,31 @@ func runDedupClean(ctx *CmdContext) error {
 	if err != nil {
 		return newParamErrf("无法解析仓库根 %q: %v", ctx.FilesRoot, err)
 	}
+	scanDir, err := resolveDedupDir(ctx, *dir)
+	if err != nil {
+		return err
+	}
+	// 路径守卫：扫描目录必须在仓库根内——回收站固定在 root/.recycle，
+	// 允许扫仓库外目录会把外部文件移进本仓库回收站（越界移动）。
+	rel, err := filepath.Rel(root, scanDir)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return newParamErrf("clean: 扫描目录必须在仓库根内: %s", scanDir)
+	}
 
-	groups, err := dedup.FindDuplicateFiles(root, true)
+	groups, err := dedup.FindDuplicateFiles(scanDir, true)
 	if err != nil {
 		return newRuntimeErrf("扫描重复文件失败: %v", err)
 	}
 
 	// 每组按路径排序后保留第一个（确定性，与 recycle.DeduplicateEntries 口径一致）
-	type victim struct{ from, to string }
-	var victims []victim
+	var victims []string
 	for _, g := range groups {
 		files := make([]string, 0, len(g.Files))
 		for _, f := range g.Files {
 			files = append(files, f.Path)
 		}
 		sort.Strings(files)
-		for _, f := range files[1:] {
-			victims = append(victims, victim{from: f, to: filepath.Join(root, ".recycle")})
-		}
+		victims = append(victims, files[1:]...)
 	}
 
 	if len(victims) == 0 {
@@ -197,17 +210,17 @@ func runDedupClean(ctx *CmdContext) error {
 
 	if !*yes {
 		fmt.Printf("🛡️  dry-run 预览（加 --yes 执行）: 将移入回收站 %d 个文件\n", len(victims))
-		for _, v := range victims {
-			fmt.Printf("  → %s\n", v.from)
+		for _, f := range victims {
+			fmt.Printf("  → %s\n", f)
 		}
 		return nil
 	}
 
 	moved := 0
 	var failures []string
-	for _, v := range victims {
-		if err := moveToRecycle(v.from, root); err != nil {
-			failures = append(failures, fmt.Sprintf("%s: %v", v.from, err))
+	for _, f := range victims {
+		if err := recycle.Move(f, root); err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", f, err))
 			continue
 		}
 		moved++
@@ -219,11 +232,6 @@ func runDedupClean(ctx *CmdContext) error {
 	return nil
 }
 
-// moveToRecycle 将 src 移入 root/.recycle（复用 go/recycle 包级函数）
-func moveToRecycle(src, root string) error {
-	return recycle.Move(src, root)
-}
-
 // shortHash 截取 SHA256 前 12 位展示
 func shortHash(h string) string {
 	if len(h) <= 12 {
@@ -232,11 +240,11 @@ func shortHash(h string) string {
 	return h[:12] + "…"
 }
 
-// marshalDedupJSON 序列化场景结果（规律六：错误不吞）
+// marshalDedupJSON 序列化场景结果（规律六：错误不吞 + %w 保留错误链）
 func marshalDedupJSON(v interface{}) ([]byte, error) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		return nil, newRuntimeErrf("JSON 序列化失败: %v", err)
+		return nil, newRuntimeErrf("JSON 序列化失败: %w", err)
 	}
 	return data, nil
 }
