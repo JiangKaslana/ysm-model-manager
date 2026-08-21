@@ -199,8 +199,10 @@ export function DeleteFromRecycle(src: string): $CancellablePromise<void> {
 /**
  * DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）：
  * 统一入口——根据 rtype.isDir 决定语义：
- *   isDir=true:  删除文件所在父文件夹（MMD/EntityPlayer 等目录型资源）
- *   isDir=false: src 为 ysm.json 时整组删除父目录，否则删除单文件（ysm 等）
+ * 
+ * 	isDir=true:  删除文件所在父文件夹（MMD/EntityPlayer 等目录型资源）
+ * 	isDir=false: src 为 ysm.json 时整组删除父目录，否则删除单文件（ysm 等）
+ * 
  * 守卫根传类型特定仓库根：防根级 ysm.json 清空整个仓库；
  * 路径守卫拒绝 rel=="." 或 rel 含 ".." 前缀的越权路径。
  */
@@ -904,6 +906,15 @@ export function RenameFile(oldPath: string, newName: string): $CancellablePromis
 
 export function ReplaceWorkshopCreatorsFromJSON(jsonContent: string): $CancellablePromise<number> {
     return $Call.ByID(1355854287, jsonContent);
+}
+
+/**
+ * RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。
+ * 契约（与 FindDuplicateFiles 同模式）：成功 → repoaudit.HealthReport；失败 → {error: string}。
+ * 与 CLI health-report 同源（go/repoaudit 唯一实现），GUI/CLI 双端消双轨。
+ */
+export function RepoHealthAudit(dir: string): $CancellablePromise<string> {
+    return $Call.ByID(3995157004, dir);
 }
 
 /**

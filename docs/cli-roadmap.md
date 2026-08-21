@@ -68,6 +68,8 @@
     + dedup 去重占比 80% 体检需求，超大贴图维度留作 `--bench`/`analyze-mmd` 专项
 - 契约：`tests/test_cli_doc_parity.mjs` 命令数 38 锁定入册
 - 遗留：GUI「仓库健康度」面板仍由前端自算，后续可消费 `health-report --json`（复用同源口径）
+- **2026-08-21 已消双轨**：审计核心下沉 `go/repoaudit`（Audit/HealthReportFor 唯一实现），
+  CLI `repo-audit`/`health-report` 与 GUI 新绑定 `RepoHealthAudit(dir)` 同源——GUI/CLI 双端不再各写一套。
 
 ### 方向 B：基准回归门禁（防性能倒退）
 

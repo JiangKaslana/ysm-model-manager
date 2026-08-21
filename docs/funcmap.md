@@ -349,9 +349,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Audit()` | `go/repoaudit/repoaudit:93` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
-| `HealthReportFor()` | `go/repoaudit/repoaudit:188` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
-| `Classify()` | `go/repoaudit/repoaudit:286` | Classify 将扩展名映射到资源类型字符串（导出供 resource-scan/审计共用，唯一实现防双轨） |
+| `Audit()` | `go/repoaudit/repoaudit:95` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
+| `HealthReportFor()` | `go/repoaudit/repoaudit:196` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
+| `Classify()` | `go/repoaudit/repoaudit:294` | Classify 将扩展名映射到资源类型字符串（导出供 resource-scan/审计共用，唯一实现防双轨） |
 | `Result()` | `go/repoaudit/repoaudit:35` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
 | `Completeness()` | `go/repoaudit/repoaudit:46` | Completeness 完整性统计 |
 | `CacheStatus()` | `go/repoaudit/repoaudit:54` | CacheStatus 缓存状态 |
@@ -777,12 +777,12 @@
 | `App.ResetResourceRoot()` | `internal/app/resource_bindings:433` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
 | `App.ImportResourcePack()` | `internal/app/resource_bindings:467` | ImportResourcePack 使用策略模式导入资源包 |
 | `App.ImportByType()` | `internal/app/resource_bindings:480` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:498` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义：   isDir=true:  删除文件 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:555` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:571` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:584` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.RepoHealthAudit()` | `internal/app/resource_bindings:591` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:609` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:500` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:557` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:573` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:586` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.RepoHealthAudit()` | `internal/app/resource_bindings:593` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:611` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |

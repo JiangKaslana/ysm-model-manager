@@ -8,27 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"ysm-model-manager/go/texture_cache"
+	"ysm-model-manager/go/repoaudit"
 )
 
 func init() {
 	RegisterCommandC("resource-scan", CatResource, "扫描模型仓库资源，统计资产分布", runResourceScan)
 	RegisterCommandC("repo-audit", CatResource, "仓库健康审计（完整性 + 缓存 + 资产）", runRepoAudit)
 }
-
-// 审计相关阈值常量（可配置化：后续可接入 config.json）
-const (
-	// 完整性阈值：低于此百分比触发警告
-	warnCompletenessPct = 95.0
-	// 大文件警告阈值：超过此大小触发警告
-	warnLargeFileMB = 100
-	// 超大文件扣分阈值
-	scoreLargeFileMB = 500
-	// 缓存大小警告阈值
-	warnCacheSizeGB = 1
-	// 健康分数下限：多问题叠加不低于此值
-	scoreFloor = 30
-)
 
 // resourceScanResult 资源扫描结果
 type resourceScanResult struct {
@@ -116,7 +102,7 @@ func runResourceScan(ctx *CmdContext) error {
 			})
 		}
 
-		// 按类型分类统计
+		// 按类型分类统计（与审计共用 repoaudit.classifyResourceTypeName 口径）
 		classifyResource(ext, &result.Stats)
 
 		return nil
@@ -146,9 +132,10 @@ func runResourceScan(ctx *CmdContext) error {
 }
 
 // classifyResource 按扩展名分类统计资源
-// 注意：.json 不直接归为模型（可能是配置/索引文件），仅 .ysm 视为模型格式
+// 注意：.json 不直接归为模型（可能是配置/索引文件），仅 .ysm 视为模型格式。
+// 分类字符串口径与 repoaudit.classifyResourceTypeName 一致（唯一实现，防双轨漂移）。
 func classifyResource(ext string, stats *resourceStats) {
-	switch classifyResourceTypeName(ext) {
+	switch repoaudit.Classify(ext) {
 	case "model":
 		stats.Models++
 	case "texture":
@@ -159,22 +146,6 @@ func classifyResource(ext string, stats *resourceStats) {
 		stats.Effects++
 	default:
 		stats.Others++
-	}
-}
-
-// classifyResourceTypeName 将扩展名映射到类型字符串（供 JSON 输出和 classifyResource 共用）
-func classifyResourceTypeName(ext string) string {
-	switch ext {
-	case ".ysm", ".pmx", ".pmd", ".x":
-		return "model"
-	case ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds", ".ktx2":
-		return "texture"
-	case ".vmd", ".bvh":
-		return "animation"
-	case ".fx", ".cg", ".glsl":
-		return "effect"
-	default:
-		return "other"
 	}
 }
 
@@ -206,143 +177,7 @@ func printResourceScanResult(result resourceScanResult) {
 	}
 }
 
-// repoAuditResult 仓库审计结果
-type repoAuditResult struct {
-	Timestamp    string               `json:"timestamp"`
-	Directory    string               `json:"directory"`
-	Completeness auditCompleteness    `json:"completeness"`
-	Cache        auditCacheStatus     `json:"cache"`
-	Resources    auditResourceSummary `json:"resources"`
-	Score        int                  `json:"score"`
-	Warnings     []string             `json:"warnings,omitempty"`
-}
-
-type auditCompleteness struct {
-	Checked    int     `json:"checked"`
-	Valid      int     `json:"valid"`
-	Invalid    int     `json:"invalid"`
-	Percentage float64 `json:"percentage"`
-}
-
-type auditCacheStatus struct {
-	CacheDir   string  `json:"cache_dir"`
-	CacheFiles int     `json:"cache_files"`
-	CacheSize  int64   `json:"cache_size"`
-	HitRate    float64 `json:"hit_rate"`
-	Hits       int     `json:"hits"`
-	Misses     int     `json:"misses"`
-}
-
-type auditResourceSummary struct {
-	TotalFiles  int            `json:"total_files"`
-	TotalSize   int64          `json:"total_size"`
-	ByType      map[string]int `json:"by_type"`
-	LargestFile string         `json:"largest_file,omitempty"`
-	LargestSize int64          `json:"largest_size,omitempty"`
-}
-
-// collectRepoHealth 仓库健康审计核心（repo-audit / health-report 共用，防双轨口径漂移）。
-// 一次遍历得出：资源统计 / 完整性 / 缓存状态 / 健康分数 / 警告（规律五落地：审计逻辑单实现）。
-func collectRepoHealth(dirPath string) (repoAuditResult, error) {
-	result := repoAuditResult{
-		Timestamp:    time.Now().UTC().Format(time.RFC3339),
-		Directory:    dirPath,
-		Completeness: auditCompleteness{},
-		Cache:        auditCacheStatus{},
-		Resources: auditResourceSummary{
-			ByType: make(map[string]int),
-		},
-		Warnings: make([]string, 0),
-	}
-
-	// 1. 资源扫描（复用 resource-scan 逻辑）
-	var totalSize int64
-	var largestFile string
-	var largestSize int64
-	resources := map[string]int{}
-
-	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			result.Warnings = append(result.Warnings, fmt.Sprintf("访问异常: %s (%v)", path, err))
-			return nil
-		}
-		if info.IsDir() {
-			return nil
-		}
-		ext := strings.ToLower(filepath.Ext(path))
-		size := info.Size()
-		result.Resources.TotalFiles++
-		totalSize += size
-
-		if size > largestSize {
-			largestSize = size
-			largestFile = path
-		}
-
-		// 完整性检查：.json 验证可解析，.ysm 验证非空
-		if ext == ".ysm" || ext == ".json" {
-			result.Completeness.Checked++
-			if isModelFileValid(path, ext) {
-				result.Completeness.Valid++
-			} else {
-				result.Completeness.Invalid++
-			}
-		}
-
-		// 类型统计（与 classifyResource 口径一致）
-		typeName := classifyResourceTypeName(ext)
-		resources[typeName]++
-
-		return nil
-	})
-	if err != nil {
-		return result, newRuntimeErrf("扫描目录失败: %v", err)
-	}
-
-	result.Resources.TotalSize = totalSize
-	result.Resources.ByType = resources
-	result.Resources.LargestFile = largestFile
-	result.Resources.LargestSize = largestSize
-
-	// 计算完整性百分比
-	if result.Completeness.Checked > 0 {
-		result.Completeness.Percentage = float64(result.Completeness.Valid) / float64(result.Completeness.Checked) * 100
-	} else {
-		result.Completeness.Percentage = 100.0
-	}
-
-	// 缓存状态
-	stats := texture_cache.GetCacheStats()
-	result.Cache.CacheDir = stats.Dir
-	result.Cache.CacheFiles = stats.FileCount
-	result.Cache.CacheSize = stats.TotalSize
-
-	// 缓存估算：以模型文件数为基准（缓存主要服务模型贴图）
-	modelFileCount := resources["model"]
-	if modelFileCount > 0 {
-		// 命中率 = 缓存文件数 / 模型文件数（上限 100%）
-		hitRate := float64(stats.FileCount) / float64(modelFileCount) * 100
-		if hitRate > 100 {
-			hitRate = 100
-		}
-		result.Cache.HitRate = hitRate
-		result.Cache.Hits = stats.FileCount
-		result.Cache.Misses = modelFileCount - stats.FileCount
-		if result.Cache.Misses < 0 {
-			result.Cache.Misses = 0
-		}
-	}
-
-	// 计算健康分数 (0-100)
-	result.Score = calculateAuditScore(result)
-
-	// 生成警告
-	generateAuditWarnings(&result)
-
-	return result, nil
-}
-
-// runRepoAudit 执行仓库健康审计
+// runRepoAudit 执行仓库健康审计（核心逻辑在 repoaudit 共享包，CLI 只做参数/输出薄壳）
 func runRepoAudit(ctx *CmdContext) error {
 	fs := newCmdFlagSet("repo-audit")
 	dirPath := fs.String("dir", ctx.FilesRoot, "目录路径（默认使用 --files-root）")
@@ -358,10 +193,9 @@ func runRepoAudit(ctx *CmdContext) error {
 
 	fmt.Printf("🔍 仓库审计: %s\n\n", *dirPath)
 
-	// 核心逻辑复用 collectRepoHealth（同一实现，防双轨漂移）
-	result, err := collectRepoHealth(*dirPath)
+	result, err := repoaudit.Audit(*dirPath)
 	if err != nil {
-		return err
+		return newRuntimeErrf("审计失败: %v", err)
 	}
 
 	// 输出结果
@@ -371,7 +205,7 @@ func runRepoAudit(ctx *CmdContext) error {
 			return jsonErr
 		}
 		if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
-			return newRuntimeErrf("保存 JSON 文件失败: %v", err)
+			return newRuntimeErrf("保存审计 JSON 失败: %v", err)
 		}
 		fmt.Printf("💾 审计结果已保存到: %s\n", *output)
 		return nil
@@ -380,78 +214,6 @@ func runRepoAudit(ctx *CmdContext) error {
 	// 文本输出
 	printRepoAuditResult(result)
 	return nil
-}
-
-// calculateAuditScore 计算健康分数
-// 扣分有下限（scoreFloor），避免多问题叠加直接归零失去区分度
-func calculateAuditScore(result repoAuditResult) int {
-	score := 100
-
-	// 完整性扣分
-	if result.Completeness.Percentage < 100 {
-		score -= int((100 - result.Completeness.Percentage) * 0.5)
-	}
-	if result.Completeness.Invalid > 0 {
-		score -= result.Completeness.Invalid * 5
-	}
-
-	// 缓存扣分
-	if result.Resources.TotalFiles > 0 && result.Cache.CacheFiles == 0 {
-		score -= 20 // 没有缓存
-	}
-
-	// 大文件扣分
-	if result.Resources.LargestSize > int64(scoreLargeFileMB)*1024*1024 {
-		score -= 10
-	}
-
-	if score < scoreFloor {
-		score = scoreFloor
-	}
-	return score
-}
-
-// generateAuditWarnings 生成审计警告（阈值用常量定义，便于统一调整）
-func generateAuditWarnings(result *repoAuditResult) {
-	if result.Completeness.Percentage < warnCompletenessPct {
-		result.Warnings = append(result.Warnings,
-			fmt.Sprintf("模型完整性 %.1f%% 低于 %.0f%% 阈值", result.Completeness.Percentage, warnCompletenessPct))
-	}
-	if result.Resources.TotalFiles > 0 && result.Cache.CacheFiles == 0 {
-		result.Warnings = append(result.Warnings,
-			"无纹理缓存，首次加载性能可能较慢")
-	}
-	if result.Resources.LargestSize > int64(warnLargeFileMB)*1024*1024 {
-		result.Warnings = append(result.Warnings,
-			fmt.Sprintf("存在超大文件 (%s)，可能影响加载性能", formatSize(result.Resources.LargestSize)))
-	}
-	if result.Cache.CacheSize > int64(warnCacheSizeGB)*1024*1024*1024 {
-		result.Warnings = append(result.Warnings,
-			fmt.Sprintf("缓存大小已达 %s，建议定期清理", formatSize(result.Cache.CacheSize)))
-	}
-}
-
-// isModelFileValid 验证模型文件完整性
-// .json: 必须是合法 JSON（流式解析，避免大文件全量读入内存）
-// .ysm: 必须非空且包含 JSON 内容
-func isModelFileValid(path, ext string) bool {
-	f, err := os.Open(path)
-	if err != nil {
-		return false
-	}
-	defer f.Close()
-
-	st, err := f.Stat()
-	if err != nil || st.Size() == 0 {
-		return false
-	}
-
-	if ext == ".json" || ext == ".ysm" {
-		var v interface{}
-		dec := json.NewDecoder(f)
-		return dec.Decode(&v) == nil
-	}
-	return true
 }
 
 // marshalAuditJSON 序列化审计/体检结果（规律六：JSON 序列化错误不吞 + %w 保留错误链）
@@ -464,7 +226,7 @@ func marshalAuditJSON(v interface{}) ([]byte, error) {
 }
 
 // printRepoAuditResult 打印仓库审计结果
-func printRepoAuditResult(result repoAuditResult) {
+func printRepoAuditResult(result repoaudit.Result) {
 	fmt.Printf("🏥 仓库健康审计报告:\n")
 	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 

@@ -5,32 +5,18 @@ import (
 	"os"
 	"path/filepath"
 
-	"ysm-model-manager/go/dedup"
+	"ysm-model-manager/go/repoaudit"
 )
 
 func init() {
 	RegisterCommandC("health-report", CatResource, "一键全仓体检报告（完整性+缓存+资源+去重，--bench 追加性能基线）", runHealthReport)
 }
 
-// healthReportJSON health-report 的 JSON 载荷：复用 repo-audit 的审计结构（collectRepoHealth 同源），
-// 追加去重（Dedup）与可选性能基线（Bench）维度。
+// healthReportJSON health-report 的 JSON 载荷：内嵌 repoaudit.HealthReport
+// （审计+去重同源，GUI 绑定与 CLI 共用），追加可选性能基线（Bench）。
 type healthReportJSON struct {
-	Timestamp    string               `json:"timestamp"`
-	Directory    string               `json:"directory"`
-	Score        int                  `json:"score"`
-	Completeness auditCompleteness    `json:"completeness"`
-	Cache        auditCacheStatus     `json:"cache"`
-	Resources    auditResourceSummary `json:"resources"`
-	Dedup        dedupSummary         `json:"dedup"`
-	Bench        *benchEntry          `json:"bench,omitempty"`
-	Warnings     []string             `json:"warnings,omitempty"`
-}
-
-// dedupSummary 去重维度汇总
-type dedupSummary struct {
-	Groups     int   `json:"groups"`
-	ExtraFiles int   `json:"extra_files"`
-	Reclaim    int64 `json:"reclaim_bytes"`
+	repoaudit.HealthReport
+	Bench *benchEntry `json:"bench,omitempty"`
 }
 
 // benchEntry 性能基线条目（--bench 时填充）
@@ -42,9 +28,9 @@ type benchEntry struct {
 }
 
 // runHealthReport 一键全仓体检报告（roadmap 方向 A）：
-// collectRepoHealth（完整性+缓存+资源+分数，与 repo-audit 同源防双轨）+ dedup 去重汇总。
-// --bench 追加首模型 single-bench 性能基线（默认关闭——单模型基准真跑耗时高，
-// 体检走「先健康后性能」两级，常规体检不必拉性能）。
+// 复用 repoaudit.HealthReportFor（与 repo-audit / GUI 绑定同源防双轨），CLI 只做
+// --bench 性能基线追加与输出。--bench 默认关闭——单模型基准真跑耗时高，
+// 体检走「先健康后性能」两级，常规体检不必拉性能。
 func runHealthReport(ctx *CmdContext) error {
 	fs := newCmdFlagSet("health-report")
 	dirPath := fs.String("dir", "", "仓库目录（默认使用 --files-root）")
@@ -66,34 +52,14 @@ func runHealthReport(ctx *CmdContext) error {
 		return newParamErrf("无法解析扫描目录 %q: %v", *dirPath, err)
 	}
 
-	// 1. 复用 repo-audit 核心（同源口径）
-	audit, err := collectRepoHealth(scanDir)
+	// 1. 完整体检（审计+去重，与 GUI 绑定同源）
+	base, err := repoaudit.HealthReportFor(scanDir)
 	if err != nil {
 		return err
 	}
+	report := healthReportJSON{HealthReport: base}
 
-	report := healthReportJSON{
-		Timestamp:    audit.Timestamp,
-		Directory:    audit.Directory,
-		Score:        audit.Score,
-		Completeness: audit.Completeness,
-		Cache:        audit.Cache,
-		Resources:    audit.Resources,
-		Warnings:     audit.Warnings,
-	}
-
-	// 2. 去重维度（复用 go/dedup，与 dedup 命令同库）
-	if groups, err := dedup.FindDuplicateFiles(scanDir, true); err != nil {
-		return newRuntimeErrf("去重扫描失败: %v", err)
-	} else {
-		for _, g := range groups {
-			report.Dedup.Groups++
-			report.Dedup.ExtraFiles += len(g.Files) - 1
-			report.Dedup.Reclaim += g.Size * int64(len(g.Files)-1)
-		}
-	}
-
-	// 3. 可选性能基线（首模型 single-bench，默认关）
+	// 2. 可选性能基线（首模型 single-bench，默认关）
 	if *bench {
 		target := scanFirstModel(scanDir)
 		if target == "" {
