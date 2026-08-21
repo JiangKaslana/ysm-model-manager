@@ -728,8 +728,8 @@
 | `App.ImportWorkshopSitesCSV()` | `internal/app/app_workshop:278` | — |
 | `App.ExportWorkshopCreatorsJSONFile()` | `internal/app/app_workshop:304` | — |
 | `App.BackupWorkshopCreators()` | `internal/app/app_workshop:311` | — |
-| `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:324` | — |
-| `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:366` | — |
+| `App.MergeWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:326` | — |
+| `App.ReplaceWorkshopCreatorsFromJSON()` | `internal/app/app_workshop:368` | — |
 | `NewApp()` | `internal/app/app:61` | — |
 | `App.SetApp()` | `internal/app/app:87` | SetApp 注入 Wails 3 应用实例，供 service 方法访问窗口/事件/对话框/浏览器管理器 |
 | `App.GetYSMRepoRoot()` | `internal/app/app:90` | GetYSMRepoRoot 返回当前配置的 YSM 仓库根目录 |
@@ -1870,14 +1870,14 @@
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |
 | `saveBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:21` | 保存浏览模式到 localStorage |
 | `cycleBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:30` | 循环切换浏览模式 |
-| `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:8` | 创作者身份识别结果 |
-| `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:15` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
-| `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:22` | — |
-| `getTagFromRole()` | `frontend/src/views/app-content/workshop-data:48` | — |
-| `parseDescTags()` | `frontend/src/views/app-content/workshop-data:53` | — |
-| `loadFavs()` | `frontend/src/views/app-content/workshop-data:63` | — |
-| `isFaved()` | `frontend/src/views/app-content/workshop-data:75` | — |
-| `toggleFav()` | `frontend/src/views/app-content/workshop-data:79` | — |
+| `CreatorIdentity()` | `frontend/src/views/app-content/workshop-data:9` | 创作者身份识别结果 |
+| `CreatorIdentityInput()` | `frontend/src/views/app-content/workshop-data:16` | 创作者输入（role/tag 可空，_fromLocal 为运行时附加字段） |
+| `getCreatorIdentity()` | `frontend/src/views/app-content/workshop-data:23` | — |
+| `getTagFromRole()` | `frontend/src/views/app-content/workshop-data:49` | — |
+| `parseDescTags()` | `frontend/src/views/app-content/workshop-data:54` | — |
+| `loadFavs()` | `frontend/src/views/app-content/workshop-data:64` | — |
+| `isFaved()` | `frontend/src/views/app-content/workshop-data:76` | — |
+| `toggleFav()` | `frontend/src/views/app-content/workshop-data:80` | — |
 | `openSite()` | `frontend/src/views/app-content/workshop-site-opener:18` | 打开站点（外链/内嵌/窗口） |
 | `bindSiteEvents()` | `frontend/src/views/app-content/workshop-site-opener:69` | 绑定站点打开相关事件 |
 | `WorkshopRefs()` | `frontend/src/views/app-content/workshop-tabs:19` | 创意工坊页的共享 ref 集合——单一事实来源。 |
@@ -2080,16 +2080,16 @@
 | `AppTree()` | `frontend/src/views/app-tree/index:59` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:67` | 从 Go 后端加载仓库文件列表，返回格式化的 entries 扁平化架构下每个 MMD 子类型为独立顶级类型，直接用 subdir 作为类型 ID 查表 |
-| `TreeRow()` | `frontend/src/views/app-tree/render:21` | 扁平化行（虚拟滚动数据单元） |
-| `TreeNode()` | `frontend/src/views/app-tree/render:31` | buildTree 嵌套节点（文件夹 = 子节点对象，文件 = { _e: entry }） |
-| `RenderMode()` | `frontend/src/views/app-tree/render:37` | 渲染模式 |
-| `getRenderMode()` | `frontend/src/views/app-tree/render:43` | Get render mode from localStorage, default to 'grid' |
-| `setRenderMode()` | `frontend/src/views/app-tree/render:53` | Set render mode to localStorage |
-| `buildTree()` | `frontend/src/views/app-tree/render:60` | — |
-| `flattenVisible()` | `frontend/src/views/app-tree/render:118` | — |
-| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:264` | 断开虚拟滚动相关监听 |
-| `renderTree()` | `frontend/src/views/app-tree/render:273` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:340` | — |
+| `TreeRow()` | `frontend/src/views/app-tree/render:22` | 扁平化行（虚拟滚动数据单元） |
+| `TreeNode()` | `frontend/src/views/app-tree/render:32` | buildTree 嵌套节点（文件夹 = 子节点对象，文件 = { _e: entry }） |
+| `RenderMode()` | `frontend/src/views/app-tree/render:38` | 渲染模式 |
+| `getRenderMode()` | `frontend/src/views/app-tree/render:44` | Get render mode from localStorage, default to 'grid' |
+| `setRenderMode()` | `frontend/src/views/app-tree/render:49` | Set render mode to localStorage |
+| `buildTree()` | `frontend/src/views/app-tree/render:54` | — |
+| `flattenVisible()` | `frontend/src/views/app-tree/render:112` | — |
+| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:258` | 断开虚拟滚动相关监听 |
+| `renderTree()` | `frontend/src/views/app-tree/render:267` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:334` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |

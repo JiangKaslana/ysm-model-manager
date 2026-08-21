@@ -275,7 +275,7 @@ func isYsmFile(path string) bool {
 	}
 	defer r.Close()
 	for _, e := range r.Entries() {
-		segs := strings.Split(strings.ReplaceAll(strings.ToLower(e.Name()), "\\", "/"), "/")
+		segs := strings.Split(filepath.ToSlash(strings.ToLower(e.Name())), "/")
 		for i := range segs {
 			seg := strings.Join(segs[i:], "/")
 			if seg == "ysm.json" || strings.HasPrefix(seg, "models/") {

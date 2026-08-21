@@ -424,7 +424,7 @@ func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL st
 	}
 
 	if repoPath != "" {
-		normalized := strings.ReplaceAll(relPath, "\\", "/")
+		normalized := filepath.ToSlash(relPath)
 		if branch == "" {
 			branch = "main"
 		}

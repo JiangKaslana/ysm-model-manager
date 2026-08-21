@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -476,13 +477,13 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	if len(modelOrder) > 0 {
 		orderMap := make(map[string]int, len(modelOrder))
 		for i, p := range modelOrder {
-			orderMap[strings.ReplaceAll(p, "\\", "/")] = i
+			orderMap[filepath.ToSlash(p)] = i
 		}
 		sort.SliceStable(geoFiles, func(i, j int) bool {
 			// 查询键须与 orderMap 键同口径（"\\"→"/" 归一化）：Windows 工具
 			// 产出的归档条目名可能含反斜杠，原实现未归一化导致声明序排序失效
-			ai, oki := orderMap[strings.ReplaceAll(geoFiles[i].name, "\\", "/")]
-			aj, okj := orderMap[strings.ReplaceAll(geoFiles[j].name, "\\", "/")]
+			ai, oki := orderMap[filepath.ToSlash(geoFiles[i].name)]
+			aj, okj := orderMap[filepath.ToSlash(geoFiles[j].name)]
 			if oki && okj {
 				return ai < aj
 			}
@@ -498,7 +499,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	}
 	if len(modelOrder) > 0 {
 		for i, p := range modelOrder {
-			p = strings.ReplaceAll(p, "\\", "/")
+			p = filepath.ToSlash(p)
 			if idx := strings.LastIndex(p, "/"); idx >= 0 {
 				p = p[idx+1:]
 			}
@@ -525,7 +526,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		// 按模型文件位置设置 cube 纹理索引
 		// geoName 须先归一化 "\\"→"/" 再取 basename：条目名含反斜杠时
 		// 原实现取不到 basename → texIdxMap 永不命中 → TexSlot 绑定失效
-		geoName := strings.ReplaceAll(gf.name, "\\", "/")
+		geoName := filepath.ToSlash(gf.name)
 		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
 			geoName = geoName[idx+1:]
 		}
@@ -643,7 +644,7 @@ func ParseComponentsFromZip(data []byte, size int64) ([]types.BedrockModel, []st
 func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string) ([]types.BedrockModel, []string, error) {
 	orderMap := make(map[string]int, len(modelOrder))
 	for i, p := range modelOrder {
-		orderMap[strings.ReplaceAll(p, "\\", "/")] = i
+		orderMap[filepath.ToSlash(p)] = i
 	}
 	// 排序：main 优先 + modelOrder 相对序；modelOrder 为空（ysm.json 无 player.model
 	// 声明或解析失败）时回退 IsMainModelName 优先 + 路径字典序——与 WASM 路径同口径（P2）。
@@ -654,8 +655,8 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string) ([]type
 			return mi
 		}
 		if len(modelOrder) > 0 {
-			ai, oki := orderMap[strings.ReplaceAll(geoFiles[i].name, "\\", "/")]
-			aj, okj := orderMap[strings.ReplaceAll(geoFiles[j].name, "\\", "/")]
+			ai, oki := orderMap[filepath.ToSlash(geoFiles[i].name)]
+			aj, okj := orderMap[filepath.ToSlash(geoFiles[j].name)]
 			if oki && okj {
 				return ai < aj
 			}
@@ -682,7 +683,7 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string) ([]type
 			continue
 		}
 		texSlot := len(texOrder) + undeclSeq
-		if j, declared := orderMap[strings.ReplaceAll(gf.name, "\\", "/")]; declared && len(texOrder) > 0 {
+		if j, declared := orderMap[filepath.ToSlash(gf.name)]; declared && len(texOrder) > 0 {
 			if j < len(texOrder) {
 				texSlot = j // 已声明且在纹理声明范围内：贴 texArr[j]
 			} else {
@@ -699,7 +700,7 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string) ([]type
 			}
 		}
 		// TrimSuffix 先 .geo.json 后 .json：main.geo.json → "main" 而非 "main.geo"（P2）
-		geoName := strings.ReplaceAll(gf.name, "\\", "/")
+		geoName := filepath.ToSlash(gf.name)
 		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
 			geoName = geoName[idx+1:]
 		}

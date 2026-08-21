@@ -79,7 +79,7 @@ func isSafeAvatarPath(ap string) bool {
 	// 分隔写法也拒绝（filepath.Join 在 Windows 上解析到 avatar/ 内，改动前正常工作）；
 	// 归一化后合法反斜杠路径放行，逃逸形态 `avatar\..\x` 折叠为 `avatar/../x` 被既有
 	// `..` 段检查拒绝（顺带封住 Windows 反斜杠逃逸）
-	ap = strings.ReplaceAll(ap, "\\", "/")
+	ap = filepath.ToSlash(ap)
 	clean := path.Clean(strings.ToLower(strings.TrimSpace(ap)))
 	if clean == "avatar" {
 		return true

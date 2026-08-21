@@ -9,6 +9,7 @@ import (
 	"archive/zip"
 	"io"
 	"log"
+	"path/filepath"
 	"strings"
 
 	"ysm-model-manager/go/container"
@@ -17,10 +18,10 @@ import (
 
 // ReadFileFromZip 从 ZIP 读取指定路径的文件。
 func ReadFileFromZip(zr *zip.Reader, target string) []byte {
-	target = strings.ReplaceAll(target, "\\", "/")
+	target = filepath.ToSlash(target)
 	targetLower := strings.ToLower(target)
 	for _, f := range zr.File {
-		p := strings.ReplaceAll(f.Name, "\\", "/")
+		p := filepath.ToSlash(f.Name)
 		// 裸 HasSuffix 会让 sub/avatar/alice.png 命中 avatar/alice.png、
 		// x/ysm.json 先于根 ysm.json 被取到——改为「精确路径或根下 target/ 前缀」匹配
 		if !matchAvatarZipEntry(p, targetLower) {
@@ -52,13 +53,13 @@ func ReadFileFromZip(zr *zip.Reader, target string) []byte {
 // ReadFileFromContainer 从统一容器读取指定路径的文件（ADR-068：
 // 容器打开统一走 container，替代 zip.NewReader + ReadFileFromZip 的 zip 专用路径）。
 func ReadFileFromContainer(r container.Reader, target string) []byte {
-	target = strings.ReplaceAll(target, "\\", "/")
+	target = filepath.ToSlash(target)
 	targetLower := strings.ToLower(target)
 	for _, e := range r.Entries() {
 		if e.IsDir() {
 			continue
 		}
-		p := strings.ReplaceAll(e.Name(), "\\", "/")
+		p := filepath.ToSlash(e.Name())
 		if !matchAvatarZipEntry(p, targetLower) {
 			continue
 		}
@@ -107,6 +108,6 @@ func matchAvatarZipEntry(p, targetLower string) bool {
 // 先于真实 ysm.json 出现在文件列表，元数据解析会取到错误内容；zip 分支 matchAvatarZipEntry
 // 裸名匹配仅认 "/ysm.json" 后缀，两分支口径不一致（本次对齐）。
 func isYSMJSONPath(p string) bool {
-	low := strings.ToLower(strings.ReplaceAll(p, "\\", "/"))
+	low := strings.ToLower(filepath.ToSlash(p))
 	return low == "ysm.json" || strings.HasSuffix(low, "/ysm.json")
 }

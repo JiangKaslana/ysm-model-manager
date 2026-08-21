@@ -561,7 +561,7 @@ jobs:
               if ext != ".ysm" && ext != ".zip" && ext != ".7z" && ext != ".nbt" && ext != ".schematic" && ext != ".litematic" { return nil }
               if strings.Contains(p, "/.github") { return nil }
               rel, _ := filepath.Rel(".", p)
-              rel = strings.ReplaceAll(rel, "\\", "/")
+              rel = filepath.ToSlash(rel)
               fi, _ := d.Info()
               size := int64(0)
               if fi != nil { size = fi.Size() }

@@ -95,7 +95,7 @@ type ZipEntryMatch struct {
 func (rt *ResourceType) MatchZipEntry(name string) bool {
 	low := strings.ToLower(name)
 	// 段后缀：a/b/c → [a/b/c, b/c, c]（zip 条目名标准为 /，反斜杠归一）
-	segs := strings.Split(strings.ReplaceAll(low, "\\", "/"), "/")
+	segs := strings.Split(filepath.ToSlash(low), "/")
 	for i := range segs {
 		seg := strings.Join(segs[i:], "/")
 		for _, m := range rt.ZipEntries {
