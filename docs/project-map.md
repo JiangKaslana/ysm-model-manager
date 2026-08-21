@@ -31,7 +31,7 @@
 | `paths/` | 路径安全 〔源码 1: safe.go · 测试 2〕 |
 | `recycle/` | 回收站管理 〔源码 2: recycle.go recycle_clean.go · 测试 9〕 |
 | `repoaudit/` | 仓库健康审计核心（GUI 绑定层与 CLI 共用，防双轨口径漂移） 〔源码 1: repoaudit.go · 测试 1〕 |
-| `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 1: scanner.go · 测试 4〕 |
+| `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 1: scanner.go · 测试 5〕 |
 | `sync/` | 整合包同步 〔源码 7: sync.go sync_diff.go sync_dirlevel.go sync_discovery.go sync_hash.go sync_push.go sync_relink.go · 测试 9〕 |
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `texture_cache/` | 纹理缓存管理（KTX2/PNG 缓存，支持后台编码与快速命中） 〔源码 1: texture_cache.go · 测试 1〕 |

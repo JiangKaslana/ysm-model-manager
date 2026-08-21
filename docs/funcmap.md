@@ -43,11 +43,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 135 | 532 |
+| 前端·工具 | 137 | 538 |
 | frontend/views | 114 | 328 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **435** | **1877** |
+| **合计** | **437** | **1883** |
 
 ## Go·头像
 
@@ -308,9 +308,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ReadPackMeta()` | `go/packs/mcmeta:36` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
-| `DetectResourceType()` | `go/packs/mcmeta:143` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:316` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `ReadPackMeta()` | `go/packs/mcmeta:35` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
+| `DetectResourceType()` | `go/packs/mcmeta:142` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:333` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 
@@ -365,16 +365,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetErrorSink()` | `go/scanner/scanner:69` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
-| `SetConfigFunc()` | `go/scanner/scanner:100` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `InvalidateCache()` | `go/scanner/scanner:125` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
-| `InvalidatePath()` | `go/scanner/scanner:140` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:171` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:178` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:310` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:364` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:394` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:457` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `SetErrorSink()` | `go/scanner/scanner:92` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
+| `SetConfigFunc()` | `go/scanner/scanner:123` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `InvalidateCache()` | `go/scanner/scanner:148` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
+| `InvalidatePath()` | `go/scanner/scanner:163` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
+| `ScanEntries()` | `go/scanner/scanner:194` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:201` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:353` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:407` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:437` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:500` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -484,28 +484,28 @@
 | `SubDirEntry()` | `go/types/extensions:336` | SubDirEntry 资源类型的版本子目录信息 |
 | `FindInstDir()` | `go/types/findinst:66` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `SetBundledRegistryJSON()` | `go/types/resource:20` | SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。 |
-| `ResourceType.EffectiveExtensions()` | `go/types/resource:77` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |
-| `ResourceType.MatchZipEntry()` | `go/types/resource:95` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
-| `SetRegistryPath()` | `go/types/resource:130` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
-| `LoadRegistry()` | `go/types/resource:141` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
-| `BundledRegistryJSON()` | `go/types/resource:295` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
-| `RegistryType()` | `go/types/resource:302` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `ResourceTypeRegistry.FindByID()` | `go/types/resource:308` | FindByID 按 id 查找资源类型，不存在时返回 nil（深拷贝） |
-| `ModKeywordsFor()` | `go/types/resource:327` | ModKeywordsFor 从注册表查询资源类型的 mod 文件名关键词（ADR-110）：   - 类型自身有 mod.jarKeywords → 返回   - 类型无声明但所 |
-| `ModMetaFor()` | `go/types/resource:354` | ModMetaFor 从注册表查询内容检测型资源类型的 mod 信息（ADR-110）：   - 类型有 mod.modId → 返回 (modId, displayName) |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:369` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:465` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `ResourceType.EffectiveExtensions()` | `go/types/resource:78` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |
+| `ResourceType.MatchZipEntry()` | `go/types/resource:96` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
+| `SetRegistryPath()` | `go/types/resource:131` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
+| `LoadRegistry()` | `go/types/resource:142` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
+| `BundledRegistryJSON()` | `go/types/resource:296` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
+| `RegistryType()` | `go/types/resource:303` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `ResourceTypeRegistry.FindByID()` | `go/types/resource:309` | FindByID 按 id 查找资源类型，不存在时返回 nil（深拷贝） |
+| `ModKeywordsFor()` | `go/types/resource:328` | ModKeywordsFor 从注册表查询资源类型的 mod 文件名关键词（ADR-110）：   - 类型自身有 mod.jarKeywords → 返回   - 类型无声明但所 |
+| `ModMetaFor()` | `go/types/resource:355` | ModMetaFor 从注册表查询内容检测型资源类型的 mod 信息（ADR-110）：   - 类型有 mod.modId → 返回 (modId, displayName) |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:370` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:466` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:25` | ResourceTypeRegistry 资源类型注册表 |
 | `ResourceType()` | `go/types/resource:30` | ResourceType 一种受支持的资源类型定义 |
-| `ModRequirement()` | `go/types/resource:61` | ModRequirement mod 依赖声明（ADR-110）：   - JarKeywords：文件名关键词匹配（如 "mmdskin" 匹配 mmdskin-1.0.jar） |
-| `Variant()` | `go/types/resource:70` | Variant 格式变体声明（ADR-111：variants 解耦）： 同一资源类型内不同格式变体的预览器路由。 |
-| `ZipEntryMatch()` | `go/types/resource:86` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:363` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:454` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:472` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:489` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:495` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:503` | VoxelGroup 同一颜色的方块组 |
+| `ModRequirement()` | `go/types/resource:62` | ModRequirement mod 依赖声明（ADR-110）：   - JarKeywords：文件名关键词匹配（如 "mmdskin" 匹配 mmdskin-1.0.jar） |
+| `Variant()` | `go/types/resource:71` | Variant 格式变体声明（ADR-111：variants 解耦）： 同一资源类型内不同格式变体的预览器路由。 |
+| `ZipEntryMatch()` | `go/types/resource:87` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
+| `FormatRange()` | `go/types/resource:364` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:455` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:473` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:490` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:496` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:504` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:125` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:173` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:179` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
@@ -1228,11 +1228,17 @@
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在根菜单 camera 面板内追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:29` | — |
 | `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:68` | — |
-| `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:19` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `FBX_TARGET_MAX_DIM()` | `frontend/src/utils/3d/adapters/fbx-adapter:26` | FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160）， 与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 |
-| `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:29` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |
-| `normalizeFbxScale()` | `frontend/src/utils/3d/adapters/fbx-adapter:45` | Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时， 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀 |
-| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:82` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:23` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `FBX_TARGET_MAX_DIM()` | `frontend/src/utils/3d/adapters/fbx-adapter:30` | FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160）， 与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 |
+| `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:33` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |
+| `normalizeFbxScale()` | `frontend/src/utils/3d/adapters/fbx-adapter:49` | Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时， 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀 |
+| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:116` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `FbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:16` | FBX 解析器管理器（接口对齐 PmxParser） |
+| `createFbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:25` | 创建 FBX 解析器（Worker）。测试/受限环境无 Worker → always-fail 降级守卫， 调用方（fbx-adapter）会 fallback 到主线程 FBX |
+| `FbxSceneBuilderConfig()` | `frontend/src/utils/3d/adapters/fbx-parser:90` | 场景重建配置 |
+| `buildFbxSceneFromData()` | `frontend/src/utils/3d/adapters/fbx-parser:247` | 从 worker 产出的纯数据重建 Three.js 场景（FBX worker 路径的主线程构建器） |
+| `FbxParseRequest()` | `frontend/src/utils/3d/adapters/fbx-parser.worker:17` | 主线程 → Worker 请求 |
+| `FbxParseResponse()` | `frontend/src/utils/3d/adapters/fbx-parser.worker:23` | Worker → 主线程响应 |
 | `FbxGeometryData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:10` | — |
 | `FbxMaterialData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:21` | — |
 | `FbxSkeletonData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:37` | — |
@@ -1348,7 +1354,7 @@
 | `PmxJoint()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:111` | — |
 | `PmxObject()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:127` | — |
 | `PmxReader()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader:62` | PmxReader is a static class that parses PMX data |
-| `FBXLoader()` | `frontend/src/utils/3d/adapters/vendor/fbx/FBXLoader:78` | A loader for the FBX format. |
+| `FBXLoader()` | `frontend/src/utils/3d/adapters/vendor/fbx/FBXLoader:79` | A loader for the FBX format. |
 | `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:29` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:86` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:105` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
@@ -1913,7 +1919,7 @@
 | `createMaid3D()` | `frontend/src/views/app-preview/maid-3d:46` | 打开车万女仆 3D 预览（Bedrock generic 模式）。 |
 | `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:77` | 关闭活跃女仆 3D 预览 |
 | `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:82` | 作废在途女仆 3D 加载 |
-| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:91` | 车万女仆详情预览（简化版：基本信息卡 + FAB 进 3D）。 |
+| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:91` | 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。 |
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:78` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:83` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `appendMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:88` | 同台追加 MMD 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |
@@ -2017,8 +2023,8 @@
 | `bindFooter()` | `frontend/src/views/app-sidebar/events:195` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
-| `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
-| `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:147` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
+| `loadInstances()` | `frontend/src/views/app-sidebar/loader:33` | 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） |
+| `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:161` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
 | `renderVersionCards()` | `frontend/src/views/app-sidebar/render:8` | — |
 | `sidebarCSS()` | `frontend/src/views/app-sidebar/sidebar-css:3` | — |
 | `headerHTML()` | `frontend/src/views/app-sidebar/tpl:7` | — |

@@ -1,7 +1,9 @@
 // ===== FBX 内容适配器（ADR-112：独立 FBX 预览地基）=====
-// 经 Go 绑定 ReadFileBytes 取字节 → blob URL → three FBXLoader 解析 →
-// 挂入核心场景 + 灯光 + 包围盒定相机；AnimationMixer 播内嵌 animations，
-// 经核心 perFrame 循环驱动。通用外壳（overlay/renderer/循环/释放）由 mount-preview-core.ts 拥有。
+// 经 Go 绑定 ReadFileBytes 取字节；fbx-worker=1 时走 worker（官方 FBXLoader 源码副本
+// vendor/fbx/，零解析改动 → fbxSceneToData 纯数据回主线程重建），否则主线程
+// blob URL → FBXLoader 解析。归一化后挂入核心场景 + 包围盒定相机；
+// AnimationMixer 播内嵌 animations，经核心 perFrame 循环驱动。
+// 通用外壳（overlay/renderer/循环/释放）由 mount-preview-core.ts 拥有。
 //
 // 关键边界：FBX 是「模型 + 骨架 + 内嵌动画」完整容器，≠ MMD 动画格式。
 // 本适配器只做独立预览；FBX→PMX 重定向（骨骼映射 + 单位换算）属 ADR-112 明确推迟的重活。
@@ -14,6 +16,8 @@ import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { recordLoadTrace } from "../load-trace.ts";
 import { disposeMaterial } from "../mesh.ts";
 import { b64ToBytes, bytesToArrayBuffer } from "../base64.ts";
+import { safeGet } from "../../dom/storage.ts"; // ADR-044：localStorage 统一走安全读写
+import { buildFbxSceneFromData, createFbxParser } from "./fbx-parser.ts";
 
 /** FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface FbxDataPort {
@@ -73,45 +77,24 @@ async function fbxDiag(
   }
 }
 
-/**
- * 构建 FBX 内容场景（ADR-112 地基）。
- * @param ctx   统一预览上下文（核心提供 scene/camera/controls/renderer）
- * @param path  FBX 文件绝对路径（Wails 下经 Go RPC 取字节，浏览器读不了本地盘）
- * @param port  数据端口（readFileBytes / 可选诊断日志）
- */
-export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: FbxDataPort): Promise<PreviewScene> {
-  // 1) 取字节 → blob URL（Wails 读不了本地盘，必须经 Go RPC 取字节再包 URL）
-  const tStart = performance.now();
-  const b64 = await port.readFileBytes(path);
-  if (!b64) {
-    throw new Error("FBX 字节读取失败（ReadFileBytes 返回空）");
-  }
-  const blobUrl = URL.createObjectURL(
-    new Blob([bytesToArrayBuffer(b64ToBytes(b64))], { type: "application/octet-stream" }),
-  );
-
-  // 2) 加载（默认 LoadingManager：内嵌纹理自动处理；外链纹理为 ADR-112 🟡 后续）
+/** 主线程 FBXLoader 加载（worker 降级路径；内嵌纹理自动处理，外链纹理为 ADR-112 🟡 后续） */
+async function loadFbxViaBlob(
+  blobUrl: string,
+): Promise<THREE.Group & { animations: THREE.AnimationClip[] }> {
   const manager = new THREE.LoadingManager();
   const loader = new FBXLoader(manager);
-  let group: THREE.Group & { animations: THREE.AnimationClip[] };
-  try {
-    group = await new Promise<THREE.Group & { animations: THREE.AnimationClip[] }>((resolve, reject) => {
-      loader.load(
-        blobUrl,
-        (g) => resolve(g as THREE.Group & { animations: THREE.AnimationClip[] }),
-        undefined,
-        (e) => reject(e instanceof Error ? e : new Error(safeErrorMessage(e))),
-      );
-    });
-    await fbxDiag(port, "fbx-load", `已加载 ${path}`, "ok");
-  } catch (e) {
-    await fbxDiag(port, "fbx-load", "FBX 解析失败", "fail", safeErrorMessage(e));
-    throw e;
-  } finally {
-    URL.revokeObjectURL(blobUrl);
-  }
-  const tLoadEnd = performance.now();
-  // 加载剖析
+  return new Promise<THREE.Group & { animations: THREE.AnimationClip[] }>((resolve, reject) => {
+    loader.load(
+      blobUrl,
+      (g) => resolve(g as THREE.Group & { animations: THREE.AnimationClip[] }),
+      undefined,
+      (e) => reject(e instanceof Error ? e : new Error(safeErrorMessage(e))),
+    );
+  });
+}
+
+/** 加载剖析统计（mesh/纹理数；worker 与 blob 两路径共用） */
+function countFbxStats(group: THREE.Object3D): { meshCount: number; texCount: number } {
   let meshCount = 0, texCount = 0;
   group.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) {
@@ -121,6 +104,69 @@ export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: Fb
       else if (mat) texCount++;
     }
   });
+  return { meshCount, texCount };
+}
+
+/**
+ * 构建 FBX 内容场景（ADR-112 地基）。
+ * @param ctx   统一预览上下文（核心提供 scene/camera/controls/renderer）
+ * @param path  FBX 文件绝对路径（Wails 下经 Go RPC 取字节，浏览器读不了本地盘）
+ * @param port  数据端口（readFileBytes / 可选诊断日志）
+ */
+export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: FbxDataPort): Promise<PreviewScene> {
+  // 1) 取字节 → ArrayBuffer + blob URL（Wails 读不了本地盘，必须经 Go RPC 取字节再包 URL）
+  const tStart = performance.now();
+  const b64 = await port.readFileBytes(path);
+  if (!b64) {
+    throw new Error("FBX 字节读取失败（ReadFileBytes 返回空）");
+  }
+  const bytes = bytesToArrayBuffer(b64ToBytes(b64));
+  const blobUrl = URL.createObjectURL(
+    new Blob([bytes], { type: "application/octet-stream" }),
+  );
+
+  // 2) 加载：fbx-worker=1 走 worker —— 官方 FBXLoader 源码副本解析（vendor/fbx/，零解析改动），
+  //    场景经 fbxSceneToData 纯数据回主线程重建；未开启/worker 解析失败 → 降级主线程 blob 路径
+  //    （开关模式镜像 mmd-adapter.ts:mmd-pmx-worker，ADR-044 安全读写）
+  let group: THREE.Group & { animations: THREE.AnimationClip[] };
+  try {
+    const useFbxWorker = safeGet("fbx-worker") === "1";
+    if (useFbxWorker) {
+      await fbxDiag(port, "fbx-parse-dispatch", "FBX 派发 worker 解析", "ok");
+      const parser = createFbxParser();
+      const resp = await parser.parse(bytes);
+      parser.dispose();
+      if (resp.ok && resp.data) {
+        group = buildFbxSceneFromData(resp.data) as THREE.Group & { animations: THREE.AnimationClip[] };
+        const { meshCount } = countFbxStats(group);
+        await fbxDiag(
+          port,
+          "fbx-worker-build",
+          `worker 解析完成：${meshCount} mesh / ${group.animations?.length ?? 0} 动画`,
+          "ok",
+        );
+      } else {
+        await fbxDiag(
+          port,
+          "fbx-worker-build",
+          `worker 解析失败，降级主线程：${resp.error ?? "未知错误"}`,
+          "warn",
+        );
+        group = await loadFbxViaBlob(blobUrl);
+      }
+    } else {
+      group = await loadFbxViaBlob(blobUrl);
+    }
+    await fbxDiag(port, "fbx-load", `已加载 ${path}`, "ok");
+  } catch (e) {
+    await fbxDiag(port, "fbx-load", "FBX 解析失败", "fail", safeErrorMessage(e));
+    throw e;
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
+  const tLoadEnd = performance.now();
+  // 加载剖析
+  const { meshCount, texCount } = countFbxStats(group);
   recordLoadTrace({
     ts: Date.now(),
     format: "fbx",
