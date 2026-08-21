@@ -40,6 +40,7 @@
     "@pixiv/three-vrm-animation": "^3.5.5",
     "@wailsio/runtime": "^3.0.0-alpha.97",
     "fflate": "~0.8.2",
+    "molangjs": "^1.7.0",
     "three": "^0.185.1"
   },
   "knip": {

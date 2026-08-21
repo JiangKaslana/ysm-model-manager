@@ -842,6 +842,10 @@ export const autoSidebar = [
         "link": "/adr/ADR-101-mmd-loading-perf"
       },
       {
+        "text": "ADR-101：YSM 骨骼动画 Molang 求值器（L4）",
+        "link": "/adr/ADR-101-ysm-molang-evaluator"
+      },
+      {
         "text": "ADR-100：YSM 骨骼动画播放——L1 基础播放",
         "link": "/adr/ADR-100-ysm-bone-animation"
       },
