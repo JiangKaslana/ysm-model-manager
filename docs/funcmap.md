@@ -1787,9 +1787,9 @@
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:49` | 仓库体检：调 Go 端 RepoHealthAudit（同源审计）并渲染结果。 |
-| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:84` | 解析 RepoHealthAudit 返回的 JSON 字符串；无效返回 null |
-| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:100` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
-| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:153` | 字节大小人性化（与 Go 端 formatSize 同口径，纯展示） |
+| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:98` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
+| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:115` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
+| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:168` | 字节大小人性化（与 Go 端 formatSize 同口径，纯展示） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |

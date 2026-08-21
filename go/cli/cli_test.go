@@ -645,6 +645,27 @@ func TestSingleBench_RejectsInvalidIterations(t *testing.T) {
 	}
 }
 
+// parseStageName：阶段②「模型解析」按格式切换（MMD 不再误导为 JSON 解析）
+func TestParseStageName_ByFormat(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{"model.ysm", "② JSON 解析"},
+		{"model.json", "② JSON 解析"},
+		{"mmd/子言/model.pmx", "② PMX 解析"},
+		{"model.pmd", "② PMX 解析"},
+		{"model.vrm", "② 模型解析"},
+		{"model.gltf", "② 模型解析"},
+		{"model.unknown", "② 模型解析"},
+	}
+	for _, c := range cases {
+		if got := parseStageName(c.path); got != c.want {
+			t.Errorf("parseStageName(%s) = %q, want %q", c.path, got, c.want)
+		}
+	}
+}
+
 func TestFileBench_RejectsInvalidIterations(t *testing.T) {
 	for _, it := range []string{"0", "-1"} {
 		err := runFileBench(&CmdContext{App: &app.App{}, Args: []string{"--dir", ".", "--iterations", it}})

@@ -433,10 +433,10 @@ func runPerfSnapshot(ctx *CmdContext) error {
 				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.7),
 				Area:     area,
 			})
-		case "② JSON 解析":
+		case "② JSON 解析", "② PMX 解析", "② 模型解析":
 			recommendations = append(recommendations, perfRecommendation{
 				Priority: "high",
-				Action:   "考虑 sonic 解析器或精简模型数据",
+				Action:   fmt.Sprintf("%s 是当前瓶颈：考虑更快的解析路径（YSM 用 sonic；PMX 用预解析缓存）", strings.TrimPrefix(s.Name, "② ")),
 				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.5),
 				Area:     area,
 			})
@@ -454,10 +454,10 @@ func runPerfSnapshot(ctx *CmdContext) error {
 				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.6),
 				Area:     area,
 			})
-		case "⑥ IPC 传输模拟":
+		case "⑥ 序列化模拟":
 			recommendations = append(recommendations, perfRecommendation{
 				Priority: "medium",
-				Action:   "使用 msgpack 或分片传输",
+				Action:   "使用 msgpack 或精简嵌套结构（Wails binding 走 JSON 序列化）",
 				Impact:   fmt.Sprintf("预计减少 %.1fms", ms*0.3),
 				Area:     area,
 			})

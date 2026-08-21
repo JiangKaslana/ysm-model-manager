@@ -566,6 +566,19 @@ func detectModelFormat(path string) string {
 	}
 }
 
+// parseStageName 阶段②「模型解析」的名称按格式切换——
+// 历史硬编码「② JSON 解析」对 MMD(.pmx/.pmd 二进制解析)构成误导（用户以为 JSON 慢，实为 PMX 解析慢）。
+func parseStageName(path string) string {
+	switch detectModelFormat(path) {
+	case "YSM", "JSON":
+		return "② JSON 解析"
+	case "PMX", "PMD":
+		return "② PMX 解析"
+	default:
+		return "② 模型解析"
+	}
+}
+
 // generateHints 根据各阶段耗时生成 AI 友好的优化建议
 func generateHints(stages []singleBenchStage) []string {
 	var hints []string
@@ -577,16 +590,16 @@ func generateHints(stages []singleBenchStage) []string {
 		switch s.Name {
 		case "① 文件读取":
 			hints = append(hints, fmt.Sprintf("文件读取 %.1fms：检查磁盘速度，考虑缓存或 SSD", ms))
-		case "② JSON 解析":
-			hints = append(hints, fmt.Sprintf("JSON 解析 %.1fms：模型可能过大，考虑精简数据或使用更快的解析器", ms))
+		case "② JSON 解析", "② PMX 解析", "② 模型解析":
+			hints = append(hints, fmt.Sprintf("%s %.1fms：模型可能过大，考虑精简数据或使用更快的解析器", s.Name, ms))
 		case "③ 数据验证":
 			hints = append(hints, fmt.Sprintf("数据验证 %.1fms：考虑延迟非关键验证", ms))
 		case "④ 几何数据准备":
 			hints = append(hints, fmt.Sprintf("几何数据准备 %.1fms：考虑简化模型或 LOD", ms))
 		case "⑤ 纹理数据准备":
 			hints = append(hints, fmt.Sprintf("纹理数据准备 %.1fms：使用 KTX2/DDS 压缩可减少 60-70%%", ms))
-		case "⑥ IPC 传输模拟":
-			hints = append(hints, fmt.Sprintf("IPC 传输 %.1fms：减少数据量或使用更高效的序列化", ms))
+		case "⑥ 序列化模拟":
+			hints = append(hints, fmt.Sprintf("序列化 %.1fms：减少数据量或使用更高效的序列化（Wails binding 走 JSON）", ms))
 		case "⑦ 缓存检查":
 			hints = append(hints, fmt.Sprintf("缓存检查 %.1fms：确保纹理缓存正常命中", ms))
 		}
@@ -723,9 +736,9 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 	analyzeDuration := time.Since(start)
 
 	stages = append(stages, singleBenchStage{
-		Name:     "② JSON 解析",
+		Name:     parseStageName(modelPath),
 		Duration: analyzeDuration,
-		Notes:    fmt.Sprintf("✅ %d bones, %d textures", len(model.Bones), len(model.Textures)),
+		Notes:    fmt.Sprintf("✅ %d bones, %d textures (%s)", len(model.Bones), len(model.Textures), detectModelFormat(modelPath)),
 	})
 
 	validateStart := time.Now()
@@ -770,10 +783,10 @@ func runSingleModelBench(a *app.App, modelPath, filesRoot string) []singleBenchS
 	ipcDuration := time.Since(ipcStart)
 
 	stages = append(stages, singleBenchStage{
-		Name:     "⑥ IPC 传输模拟",
+		Name:     "⑥ 序列化模拟",
 		Duration: ipcDuration,
 		Bytes:    ipcSize,
-		Notes:    fmt.Sprintf("📦 估算 %s (Base64)，含序列化", formatSize(ipcSize)),
+		Notes:    fmt.Sprintf("📦 估算 %s（Wails binding 走 JSON 序列化；Base64 4/3 膨胀为历史假设，仅量级参考）", formatSize(ipcSize)),
 	})
 
 	cacheStart := time.Now()
@@ -898,11 +911,11 @@ func printOptimizationHints(stages []singleBenchStage) {
 		fmt.Println("   - 使用 SSD 替代 HDD")
 		fmt.Println("   - 考虑文件缓存（内存映射）")
 		fmt.Println("   - 检查杀毒软件是否在扫描")
-	case "② JSON 解析":
-		fmt.Println("   🔴 瓶颈: JSON 解析")
+	case "② JSON 解析", "② PMX 解析", "② 模型解析":
+		fmt.Printf("   🔴 瓶颈: %s\n", stages[bottleneckIdx].Name)
 		fmt.Println("   建议:")
 		fmt.Println("   - 检查模型文件是否过大（>5MB 需优化）")
-		fmt.Println("   - 考虑使用更快的 JSON 解析器（如 sonic）")
+		fmt.Println("   - 考虑使用更快的解析器（YSM/JSON 用 sonic；PMX 考虑预解析缓存）")
 		fmt.Println("   - 模型数据是否可以精简")
 	case "③ 数据验证":
 		fmt.Println("   🟡 注意: 数据验证")
@@ -921,12 +934,12 @@ func printOptimizationHints(stages []singleBenchStage) {
 		fmt.Println("   - 使用 KTX2/DDS 压缩纹理（减少 60-70%）")
 		fmt.Println("   - 减少大尺寸纹理（>2048x2048）")
 		fmt.Println("   - 实现纹理缓存机制")
-	case "⑥ IPC 传输模拟":
-		fmt.Println("   🟡 注意: IPC 传输")
+	case "⑥ 序列化模拟":
+		fmt.Println("   🟡 注意: 序列化")
 		fmt.Println("   建议:")
 		fmt.Println("   - 减少数据传输量（精简模型）")
 		fmt.Println("   - 使用更高效的序列化格式（如 msgpack）")
-		fmt.Println("   - 考虑分片传输")
+		fmt.Println("   - Wails binding 走 JSON 序列化，减少嵌套结构可提升吞吐")
 	case "⑦ 缓存检查":
 		fmt.Println("   🟡 注意: 缓存检查")
 		fmt.Println("   建议:")

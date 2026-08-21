@@ -294,7 +294,7 @@ func runPhaseRenderEstimate(a *app.App, modelPath string, verbose bool) guiFlowR
 		Duration: elapsed,
 		Success:  true,
 		Description: fmt.Sprintf(
-			"%s\n   骨骼: %d, 纹理: %d\n   预估首帧: %.0f-%.0fms",
+			"%s\n   ⚠️ CLI 估算值（无渲染管线，仅按骨骼/纹理数粗估；真实首帧须在 GUI 验证）\n   骨骼: %d, 纹理: %d\n   预估首帧: %.0f-%.0fms",
 			renderEstimate,
 			boneCount, texCount,
 			float64(boneCount)*0.01+50, // 粗略估计
