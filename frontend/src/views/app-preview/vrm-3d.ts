@@ -9,10 +9,9 @@ import { getApp } from "../../backend/app.ts";
 import { makeVrmPanelRenderer } from "./vrm-controls.ts";
 import { fillMmdPlayPanel } from "./mmd-controls.ts";
 import { withPreviewExtras, registerReRoute, openModel3DFullscreen } from "./preview-library.ts";
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
-// 注册跨类型换角色路由（资源库面板/导航 FAB 选中 VRM 时派发到此）
-registerReRoute(RESOURCE_TYPES.VRM, (path) => createVrm3D(path));
+// 注册跨类型换角色路由（ADR-111：按 variants preview key 路由，.vrm→"vrm"）
+registerReRoute("vrm", (path) => createVrm3D(path));
 
 /** 数据读取注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 async function readFileBytes(path: string): Promise<string | null> {

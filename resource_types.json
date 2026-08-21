@@ -314,11 +314,11 @@
       "variants": [
         {
           "ext": ".pmx",
-          "preview": "mmd"
+          "preview": "mmd-scene"
         },
         {
           "ext": ".pmd",
-          "preview": "mmd"
+          "preview": "mmd-scene"
         },
         {
           "ext": ".vrm",
@@ -534,7 +534,7 @@
       ],
       "storageSubDir": "FBX",
       "configField": "MmdRoot",
-      "instanceDir": "CustomAnim",
+      "instanceDir": "FBX",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "extension",

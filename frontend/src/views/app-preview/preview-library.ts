@@ -12,7 +12,7 @@
 // 全程轻量获取文件——不再全量扫描各仓库、不再按扩展名分类贴标签。
 
 import { getApp } from "../../backend/app.ts";
-import { RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPE_LABELS, resolvePreviewKey } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { switchPreview, hasActivePreview } from "../../utils/3d/adapters/mount-preview-core.ts";
 
@@ -67,7 +67,9 @@ export async function openModel3DFullscreen(path: string, options?: OpenModel3DO
   } catch {
     /* 类型探测失败 */
   }
-  const opener = _openers[rtype];
+  // ADR-111：按 variants 解析预览 key（.pmx→mmd、.vrm→vrm），无变体回退 rtype
+  const routeKey = resolvePreviewKey(path, rtype);
+  const opener = _openers[routeKey];
   if (opener) {
     await opener(path, siblings);
     return;

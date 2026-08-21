@@ -47,6 +47,7 @@ interface ResourceTypeIdEntry {
     userImportable?: boolean;
     default?: boolean;
   }>;
+  variants?: Array<{ ext: string; preview: string }>;
 }
 
 const registryEntries: ResourceTypeIdEntry[] =
@@ -60,6 +61,21 @@ if (registryEntries.length === 0) {
 export const ALL_RESOURCE_TYPES: string[] = registryEntries
   .map((t) => t.id)
   .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+/**
+ * 按 variants 解析预览路由 key（ADR-111：类别—格式分层）。
+ * 同一 rtype 内不同格式变体（如 .pmx→mmd、.vrm→vrm）分发到不同适配器。
+ * 无 variants 或未命中时回退 rtype 自身（兼容无变体类型）。
+ */
+export function resolvePreviewKey(filePath: string, rtype: string): string {
+  const entry = registryEntries.find((t) => t.id === rtype);
+  if (entry?.variants?.length) {
+    const ext = "." + (filePath.split(".").pop()?.toLowerCase() || "");
+    const variant = entry.variants.find((v) => v.ext === ext);
+    if (variant) return variant.preview;
+  }
+  return rtype;
+}
 
 // ===== 资源分组派生（ADR-092：FilesRoot/{group}/{storageSubDir} 两层路由）=====
 // 从各类型 group 字段派生，消除 resourceGroups 冗余源。

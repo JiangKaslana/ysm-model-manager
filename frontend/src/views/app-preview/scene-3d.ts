@@ -12,8 +12,8 @@ import { getApp } from "../../backend/app.ts";
 import { fillMmdModelPanel, fillMmdPlayPanel, fillMmdShotPanel, buildMaterialControls } from "./mmd-controls.ts";
 import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
 
-// 注册跨类型换角色路由：场景模型走 "SceneModel" 独立路由
-registerReRoute("SceneModel", (path) => createScene3D(path));
+// 注册跨类型换角色路由（ADR-111：按 variants preview key 路由，SceneModel .pmx/.pmd→"mmd-scene"）
+registerReRoute("mmd-scene", (path) => createScene3D(path));
 
 /** 数据端口注入（与 mmd-3d.ts 同款实现，复用同一批 Go RPC） */
 async function makeScenePort(): Promise<MmdDataPort> {
