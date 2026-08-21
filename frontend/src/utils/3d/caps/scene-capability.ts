@@ -103,24 +103,6 @@ export interface SceneCapability {
 
 const STORAGE_PREFIX = "ysm-scene-cap-";
 
-/** 安全读取（隐私模式降级 null） */
-function safeGet(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-/** 安全写入（隐私模式降级静默） */
-function safeSet(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // 静默
-  }
-}
-
 /** 保存 JSON 到 localStorage */
 export function persistState(capId: string, state: Record<string, unknown>): void {
   safeSet(STORAGE_PREFIX + capId, JSON.stringify(state));

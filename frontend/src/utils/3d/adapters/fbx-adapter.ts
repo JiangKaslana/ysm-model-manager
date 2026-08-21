@@ -48,17 +48,6 @@ async function fbxDiag(
   }
 }
 
-/** 释放单材质及其贴图（geometry 在外层 traverse 释放） */
-function disposeMaterial(mat: THREE.Material): void {
-  const m = mat as THREE.Material & {
-    map?: THREE.Texture | null;
-    emissiveMap?: THREE.Texture | null;
-    normalMap?: THREE.Texture | null;
-  };
-  for (const tex of [m.map, m.emissiveMap, m.normalMap]) tex?.dispose();
-  mat.dispose();
-}
-
 /**
  * 构建 FBX 内容场景（ADR-112 地基）。
  * @param ctx   统一预览上下文（核心提供 scene/camera/controls/renderer）

@@ -43,11 +43,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 148 | 558 |
+| 前端·工具 | 131 | 515 |
 | frontend/views | 114 | 328 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **446** | **1895** |
+| **合计** | **429** | **1852** |
 
 ## Go·头像
 
@@ -1221,7 +1221,7 @@
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:29` | — |
 | `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:68` | — |
 | `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:17` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:68` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:57` | 构建 FBX 内容场景（ADR-112 地基）。 |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1414,8 +1414,8 @@
 | `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:106` | 全局单例（模块级单例 + 运行时状态隔离） |
 | `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:14` | 菜单控件定义（声明式，由框架渲染为 DOM） |
 | `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:66` | ============ 场景能力统一接口 ============ |
-| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:125` | 保存 JSON 到 localStorage |
-| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:130` | 从 localStorage 加载 JSON |
+| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:107` | 保存 JSON 到 localStorage |
+| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:112` | 从 localStorage 加载 JSON |
 | `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:24` | ============ 参数类型 ============ |
 | `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:39` | — |
 | `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:49` | 预设（setPreset 套用到不同模型类别） |
@@ -1527,10 +1527,6 @@
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:75` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:86` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:99` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
-| `LoopContext()` | `frontend/src/utils/3d/render-loop:12` | loop 所需的运行时上下文接口 |
-| `startRenderLoop()` | `frontend/src/utils/3d/render-loop:45` | 启动渲染循环并立即渲染一帧。 |
-| `Disposable()` | `frontend/src/utils/3d/resource-registry:14` | 可释放资源接口（Three.js Texture/Material/Geometry/Controls 等均满足） |
-| `ResourceRegistry()` | `frontend/src/utils/3d/resource-registry:22` | 资源注册表：集中跟踪 + 批量释放 GPU 资源。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |
@@ -1554,9 +1550,6 @@
 | `resolveSemanticMorphs()` | `frontend/src/utils/3d/semantic-morphs:70` | 从 morph 名列表 + 候选表解析语义 morph 映射（MMD 等无标准语义的格式走此路）。 |
 | `mmdSemanticMorphMap()` | `frontend/src/utils/3d/semantic-morphs:87` | MMD 特化：pmx.morphs[].name 列表 → 语义 morph 映射。 |
 | `getSemanticMorph()` | `frontend/src/utils/3d/semantic-morphs:95` | 取语义 morph 条目（消费方唯一入口；缺失返回 null）。 |
-| `RendererState()` | `frontend/src/utils/3d/session-state:7` | 模块级渲染器状态引用 |
-| `resetRendererState()` | `frontend/src/utils/3d/session-state:18` | 复位所有模块级渲染器引用为 null。 |
-| `detachRendererCanvas()` | `frontend/src/utils/3d/session-state:28` | 从 DOM 中移除 renderer 的 canvas 元素（安全，已 detached 时不操作）。 |
 | `Vec3()` | `frontend/src/utils/3d/spec-builder:23` | vec3 — Go threejs/spec.go L55 |
 | `Cube2D()` | `frontend/src/utils/3d/spec-builder:30` | Cube2D — Go types/bedrock.go Cube2D |
 | `BedrockModel()` | `frontend/src/utils/3d/spec-builder:56` | BedrockModel — Go types/bedrock.go BedrockModel |
@@ -1602,47 +1595,11 @@
 | `lerp()` | `frontend/src/utils/core/clamp:18` | 线性插值。 |
 | `lerpArray()` | `frontend/src/utils/core/clamp:23` | 逐元素线性插值数组。 |
 | `clampPct()` | `frontend/src/utils/core/clamp:28` | 百分比钳制到 [0, 100]。 |
-| `ensureArray()` | `frontend/src/utils/core/collections:5` | 确保值为数组；非数组则包裹为单元素数组。 |
-| `filterKeys()` | `frontend/src/utils/core/collections:10` | 按谓词过滤对象键，返回仅含满足条件键值对的新对象。 |
-| `Cache()` | `frontend/src/utils/core/collections:30` | 轻量泛型缓存——Map 封装，统一 get/set/has/delete/clear 接口。 |
-| `allSettledFilter()` | `frontend/src/utils/core/collections:58` | 等待全部 promise 结束，仅返回 fulfilled 结果（rejected 被静默丢弃）。 |
 | `debounce()` | `frontend/src/utils/core/debounce:8` | 函数防抖：在等待指定时间后才执行函数，如果在等待期间再次调用则重置计时器。 |
-| `deepClone()` | `frontend/src/utils/core/deep-clone:9` | 深拷贝对象（基于 JSON 序列化）。 |
 | `Disposable()` | `frontend/src/utils/core/disposable:5` | 可释放资源的统一契约。 |
 | `addDisposableListener()` | `frontend/src/utils/core/disposable:13` | 添加事件监听器并返回 Disposable，便于在 dispose 链路中统一释放。 |
-| `formatTimestamp()` | `frontend/src/utils/core/format-timestamp:6` | 格式化日期为 HH:MM:SS.mmm 字符串。 |
-| `formatTime()` | `frontend/src/utils/core/format:7` | 格式化秒数为 `MM:SS.CC` 字符串（分:秒.百分秒）。 |
-| `formatError()` | `frontend/src/utils/core/format:21` | 将任意错误值转换为人类可读字符串，带截断保护。 |
-| `guardNum()` | `frontend/src/utils/core/guards:7` | 将 undefined/NaN/非数字归一为 fallback，防止 NaN 污染数学类型与 CSS 串。 |
-| `jsonStringify()` | `frontend/src/utils/core/json-stringify:4` | Format a value as pretty-printed JSON (2-space indent). |
-| `jsonParse()` | `frontend/src/utils/core/json-stringify:11` | Safely parse JSON; returns null on failure instead of throwing. |
-| `NavKeyKind()` | `frontend/src/utils/core/keyboard-nav:15` | 导航按键分类：垂直移动 / 水平移动，供 perKeySkip 差异化判断 |
-| `KeyboardNavOptions()` | `frontend/src/utils/core/keyboard-nav:17` | — |
-| `createKeyboardNav()` | `frontend/src/utils/core/keyboard-nav:63` | — |
 | `logWarn()` | `frontend/src/utils/core/log:5` | 统一告警日志。tag 用于按模块聚合排查；err 可为任意错误值。 |
 | `logError()` | `frontend/src/utils/core/log:11` | 统一错误日志。 |
-| `dist2d()` | `frontend/src/utils/core/math-geometry:5` | 2D 欧几里得距离。 |
-| `dist3d()` | `frontend/src/utils/core/math-geometry:12` | 3D 欧几里得距离。 |
-| `degToRad()` | `frontend/src/utils/core/math-geometry:23` | 角度 → 弧度。 |
-| `radToDeg()` | `frontend/src/utils/core/math-geometry:28` | 弧度 → 角度。 |
-| `normPath()` | `frontend/src/utils/core/path:15` | 标准化路径：反斜杠 → 正斜杠，去掉尾部斜杠。 |
-| `getBaseName()` | `frontend/src/utils/core/path:45` | 跨平台取路径末段文件名。 |
-| `getDirPath()` | `frontend/src/utils/core/path:55` | 跨平台取父目录路径。根目录（无 `/`）返回空字符串。 |
-| `isUnderRoot()` | `frontend/src/utils/core/path:67` | 路径归属判定（唯一实现，基于 normPath）。 |
-| `computeLibraryRef()` | `frontend/src/utils/core/path:83` | 纯函数：计算文件路径相对于 libraryRoot 的引用标识（相对路径）。 |
-| `scheduleRefresh()` | `frontend/src/utils/core/reactivity:24` | 安排一次刷新（RAF 去抖）。 |
-| `subscribe()` | `frontend/src/utils/core/reactivity:49` | 注册一个刷新订阅者。返回取消订阅函数。 |
-| `unsubscribeAll()` | `frontend/src/utils/core/reactivity:59` | 清空所有刷新订阅者。供场景/视图重入时调用，避免旧订阅者泄漏。 |
-| `reactive()` | `frontend/src/utils/core/reactivity:75` | — |
-| `readonly()` | `frontend/src/utils/core/reactivity:116` | Passthrough readonly — store 层通过约定保证不可变，不做深冻结。 |
-| `safeCall()` | `frontend/src/utils/core/safe-call:19` | 安全执行同步函数；异常时记录 logWarn(tag, msg, err) 并返回 undefined。 |
-| `safeCallVoid()` | `frontend/src/utils/core/safe-call:29` | 同 safeCall，但 fn 无返回值。 |
-| `safeCallAsync()` | `frontend/src/utils/core/safe-call:43` | 安全执行异步函数；异常时记录 logWarn(tag, msg, err)，返回的 Promise 解析为 undefined（不 reject）。 |
-| `setKey()` | `frontend/src/utils/core/set-key:8` | 泛型键值写入工具，避免大量 `obj[key] = value` 重复。 |
-| `generateUuid()` | `frontend/src/utils/core/uuid:7` | 生成 UUID v4 字符串（格式：xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx）。 |
-| `VirtualGridOptions()` | `frontend/src/utils/core/virtual-grid:6` | — |
-| `VirtualGridHandle()` | `frontend/src/utils/core/virtual-grid:21` | — |
-| `createVirtualGrid()` | `frontend/src/utils/core/virtual-grid:34` | — |
 | `dbg()` | `frontend/src/utils/debug/debug:38` | 输出调试日志（保留 tag 用于过滤） |
 | `safeStr()` | `frontend/src/utils/debug/debug:61` | 任意值 → 可读字符串（200 字符截断；供单测导出的纯函数） |
 | `WailsAndroidBridge()` | `frontend/src/utils/dom/android-bridge:7` | — |
