@@ -1521,3 +1521,135 @@ func TestLinkMode_NoMode_PrintsCurrent(t *testing.T) {
 		t.Errorf("应打印当前链接模式, got: %s", out)
 	}
 }
+
+// ---- instance 薄壳 ----
+
+func TestInstance_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runInstance(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runInstance 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "instance") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestInstance_UnknownSubcommand_Errors(t *testing.T) {
+	err := runInstance(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+func TestInstanceSync_RequiresInstance(t *testing.T) {
+	err := runInstanceSync(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--instance") {
+		t.Errorf("缺 --instance 应报错, got: %v", err)
+	}
+}
+
+func TestInstancePush_RequiresInstance(t *testing.T) {
+	err := runInstancePush(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--instance") {
+		t.Errorf("缺 --instance 应报错, got: %v", err)
+	}
+}
+
+func TestInstancePull_RequiresInstance(t *testing.T) {
+	err := runInstancePull(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--instance") {
+		t.Errorf("缺 --instance 应报错, got: %v", err)
+	}
+}
+
+// ---- creator 薄壳 ----
+
+func TestCreator_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runCreator(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runCreator 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "creator") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestCreator_UnknownSubcommand_Errors(t *testing.T) {
+	err := runCreator(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+// ---- workshop 薄壳 ----
+
+func TestWorkshop_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runWorkshop(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runWorkshop 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "workshop") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestWorkshop_UnknownSubcommand_Errors(t *testing.T) {
+	err := runWorkshop(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+// ---- fileops 薄壳 ----
+
+func TestMove_RequiresSrc(t *testing.T) {
+	err := runMove(&CmdContext{App: &app.App{}, Args: []string{"--dst", "/d"}})
+	if err == nil || !strings.Contains(err.Error(), "--src") {
+		t.Errorf("缺 --src 应报错, got: %v", err)
+	}
+}
+
+func TestMove_RequiresDst(t *testing.T) {
+	err := runMove(&CmdContext{App: &app.App{}, Args: []string{"--src", "/s"}})
+	if err == nil || !strings.Contains(err.Error(), "--dst") {
+		t.Errorf("缺 --dst 应报错, got: %v", err)
+	}
+}
+
+func TestCopy_RequiresSrc(t *testing.T) {
+	err := runCopy(&CmdContext{App: &app.App{}, Args: []string{"--dst", "/d"}})
+	if err == nil || !strings.Contains(err.Error(), "--src") {
+		t.Errorf("缺 --src 应报错, got: %v", err)
+	}
+}
+
+func TestCopy_RequiresDst(t *testing.T) {
+	err := runCopy(&CmdContext{App: &app.App{}, Args: []string{"--src", "/s"}})
+	if err == nil || !strings.Contains(err.Error(), "--dst") {
+		t.Errorf("缺 --dst 应报错, got: %v", err)
+	}
+}
+
+func TestRename_RequiresPath(t *testing.T) {
+	err := runRename(&CmdContext{App: &app.App{}, Args: []string{"--name", "n"}})
+	if err == nil || !strings.Contains(err.Error(), "--path") {
+		t.Errorf("缺 --path 应报错, got: %v", err)
+	}
+}
+
+func TestRename_RequiresName(t *testing.T) {
+	err := runRename(&CmdContext{App: &app.App{}, Args: []string{"--path", "/p"}})
+	if err == nil || !strings.Contains(err.Error(), "--name") {
+		t.Errorf("缺 --name 应报错, got: %v", err)
+	}
+}
+
+func TestToggle_RequiresPath(t *testing.T) {
+	err := runToggle(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--path") {
+		t.Errorf("缺 --path 应报错, got: %v", err)
+	}
+}
