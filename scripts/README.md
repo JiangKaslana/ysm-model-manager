@@ -108,6 +108,7 @@
 | `gen-docs-index.mjs` | 分区索引：**`docs/adr/index.md` 单文件承载全部**（状态分布 + 登记表 + 使用规则 + 状态分组，整文件重写，ADR 双文件合并后 README 为指针页）+ releases 最近版本/版本全览（GEN 标记区），knowledge 委托校验 |
 | `gen-project-map.mjs` | 项目结构地图生成（`docs/project-map.md`）：扫描磁盘目录，目录用途直接维护在 `docs/project-map.md` 表格内（脚本读回复用，无外部基线，消除双源漂移）；4 个 GEN 标记区；`--check` 已挂 doctor 防漂移；未登记用途的新目录 WARN 提醒 |
 | `gen-cli-doc.mjs` | **CLI 命令参考生成（`docs/cli-commands.md`）**：静态提取 `go/cli/` 的 `RegisterCommandC` 注册表 + `print*Usage` 子命令文本 → 命令/分类/子命令/选项表格（GEN 区）；单一事实来源 = 源码注册，新增命令改源码即同步；`--check` 已挂 doctor/pre-push，配套 `tests/test_cli_doc_parity.mjs` 锁注册表↔文档双向一致 |
+| `gen-cli-completion.mjs` | **CLI shell 补全生成（`completions/ysm.bash` / `_ysm.ps1` / `_ysm`）**：与 gen-cli-doc 同源（`_lib/cli-registry.mjs` 共享解析层），生成 bash/pwsh/zsh 三份 Tab 补全（顶层命令/子命令/选项）；`--check` 已挂 doctor/pre-push，配套 `tests/test_cli_completion_parity.mjs`；pre-commit 快照已含 `completions/` 自动 stage |
 | `gen-guide-gap.mjs` | 指南覆盖缺口扫描：提取 app-modules.ts 组件/服务功能面，与 docs/guide 对照列出缺口（WARN 不阻断；`--strict` 缺口时退出码 1） |
 | `build-novel-index.mjs` | 小说总索引生成（`docs/novel/index.md`）：扫 `docs/novel/` 目录树（act-\* + 01..10 区域 + appendix），整文件重写；区域文件夹内**禁放 README**（索引唯一来源即本脚本）；`--check` 已挂 doctor 防漂移 |
 | `gen-vitepress-sidebar.mjs` | VitePress 侧边栏生成：扫 `docs/` 全量 md 按目录树组织导航 → `docs/.vitepress/sidebar.gen.mjs`（勿手改），`docs/package.json` build 脚本前置调用（ADR-022） |

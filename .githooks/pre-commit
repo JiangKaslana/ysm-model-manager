@@ -44,11 +44,11 @@ cd "$ROOT"
 GEN_SNAP="/tmp/ysm_gen_snap_before_$$.txt"
 GEN_SNAP_AFTER="/tmp/ysm_gen_snap_after_$$.txt"
 snap_docs() {
-  if find docs/ frontend/public/locales/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > "$1"; then
+  if find docs/ frontend/public/locales/ completions/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > "$1"; then
     [ -s "$1" ] || node -e '
       const fs=require("fs"),path=require("path");
       const out=[];
-      for (const base of ["docs","frontend/public/locales"]) {
+      for (const base of ["docs","frontend/public/locales","completions"]) {
         if (!fs.existsSync(base)) continue;
         const walk=(d)=>{for(const e of fs.readdirSync(d)){const p=path.join(d,e),s=fs.statSync(p);if(s.isDirectory())walk(p);else out.push(`${s.mtimeMs} ${s.size} ${p}`);}};
         walk(base);
@@ -71,6 +71,7 @@ gen-knowledge-symbols.mjs
 gen-knowledge-adr.mjs
 gen-knowledge-tests.mjs
 gen-cli-doc.mjs
+gen-cli-completion.mjs
 generate-locale-json.mjs'
 echo "$GEN_CMDS" | while IFS= read -r line; do
   [ -z "$line" ] && continue
@@ -83,10 +84,10 @@ done
 # 未提交 docs/locales 半成品扫进本次 commit。改为 gen 前后快照对比，只 add 变化文件。
 ADD_FAIL=""
 if [ -f "$GEN_SNAP" ]; then
-  find docs/ frontend/public/locales/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > /tmp/ysm_gen_snap_after.txt || node -e '
+  find docs/ frontend/public/locales/ completions/ -type f -printf '%T@ %s %p\n' 2>/dev/null | sort > /tmp/ysm_gen_snap_after.txt || node -e '
 const fs=require("fs"),path=require("path");
 const out=[];
-for(const base of ["docs","frontend/public/locales"]){if(!fs.existsSync(base))continue;const w=(d)=>{for(const e of fs.readdirSync(d)){const p=path.join(d,e),s=fs.statSync(p);if(s.isDirectory())w(p);else out.push(`${s.mtimeMs} ${s.size} ${p}`);}};w(base);}
+for(const base of ["docs","frontend/public/locales","completions"]){if(!fs.existsSync(base))continue;const w=(d)=>{for(const e of fs.readdirSync(d)){const p=path.join(d,e),s=fs.statSync(p);if(s.isDirectory())w(p);else out.push(`${s.mtimeMs} ${s.size} ${p}`);}};w(base);}
 fs.writeFileSync("/tmp/ysm_gen_snap_after.txt",out.sort().join("\n"));' 2>/dev/null || true
   # diff 快照：新增/内容变化的文件（`>` 侧），路径取第 4 列（diff 行比快照行多 1 个 `>` 前缀）
   diff "$GEN_SNAP" /tmp/ysm_gen_snap_after.txt 2>/dev/null | grep '^>' | awk '{print $4}' | sort -u > /tmp/ysm_gen_to_stage.txt
@@ -97,8 +98,8 @@ while IFS= read -r p; do
   done < /tmp/ysm_gen_to_stage.txt
   rm -f "$GEN_SNAP" /tmp/ysm_gen_snap_after.txt
 else
-  # 快照缺失（find 异常）→ 兜底只 stage 已跟踪 docs/locales 的修改（-u 不 stage 新文件）
-  git add -u docs/ frontend/public/locales/ 2>/dev/null || ADD_FAIL="$ADD_FAIL docs/locales"
+  # 快照缺失（find 异常）→ 兜底只 stage 已跟踪 docs/locales/completions 的修改（-u 不 stage 新文件）
+  git add -u docs/ frontend/public/locales/ completions/ 2>/dev/null || ADD_FAIL="$ADD_FAIL docs/locales/completions"
 fi
 
 if [ -n "$ADD_FAIL" ]; then

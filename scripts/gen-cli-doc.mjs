@@ -6,8 +6,9 @@
  * 本脚本把 `go/cli/` 的 `RegisterCommandC` 注册表 + `print*Usage` 子命令文本设为
  * 唯一事实来源，静态提取顶层命令/分类/子命令/选项，生成 docs/cli-commands.md 的
  * GEN 区——新增命令只改源码注册，文档自动跟上，消灭手动同步。
+ * 解析逻辑收拢在 scripts/_lib/cli-registry.mjs 共享层（与 gen-cli-completion 同源，防双轨）。
  *
- * 依赖：零依赖（node:fs / node:path + scripts/_lib/scan-files.mjs 共享层）。
+ * 依赖：零依赖（node:fs / node:path + scripts/_lib/scan-files.mjs + cli-registry.mjs 共享层）。
  *
  * 用法：
  *   node scripts/gen-cli-doc.mjs            # 写入 docs/cli-commands.md
@@ -19,152 +20,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, readText, writeText } from './_lib/scan-files.mjs';
+import { parseCliCommands, CAT_NAMES, CAT_ORDER } from './_lib/cli-registry.mjs';
 
-const CLI_DIR = path.join(ROOT, 'go', 'cli');
 const OUT = path.join(ROOT, 'docs', 'cli-commands.md');
 
 const CHECK = process.argv.includes('--check');
 const JSON_OUT = process.argv.includes('--json');
-
-/* ---------------- 提取：注册表（唯一事实来源） ---------------- */
-
-/** 顶层命令注册：RegisterCommandC("name", CatX, "desc", runFn)。支持跨行。 */
-const CMD_RE = /RegisterCommandC\(\s*"([a-z0-9-]+)"\s*,\s*(\w+)\s*,\s*"((?:[^"\\]|\\.)*)"\s*,\s*(\w+)\s*\)/g;
-
-/** 按 `\nfunc ` 切函数块（Go 顶层声明不缩进，函数体内嵌闭包缩进，不会误切）。 */
-function funcBlocks(text) {
-  return text
-    .split(/\n(?=func )/)
-    .map((p) => {
-      const m = p.match(/^func (\w+)\(/);
-      return m ? { name: m[1], body: p } : null;
-    })
-    .filter(Boolean);
-}
-
-/** 取名称精确匹配的函数体（如 runTags）。 */
-function findFunc(blocks, name) {
-  return blocks.find((b) => b.name === name);
-}
-
-/**
- * 提取 flag：fs.String/Bool/Int/Float64/Var 调用 → { flag, type, help, def }。
- * 括号配对截取调用文本，取首字符串为 flag 名、末字符串为 help、
- * 若有三个字符串则中间为字符串字面量默认值。
- */
-function extractFlags(body) {
-  const flags = [];
-  const re = /fs\.(String|Bool|Int|Float64|StringVar|BoolVar|IntVar|Float64Var)\(/g;
-  let m;
-  while ((m = re.exec(body))) {
-    let depth = 0;
-    let i = m.index + m[0].length;
-    for (; i < body.length; i++) {
-      if (body[i] === '(') depth++;
-      else if (body[i] === ')') {
-        if (depth === 0) break;
-        depth--;
-      }
-    }
-    const call = body.slice(m.index, i + 1);
-    const nameM = call.match(/\(\s*"([^"]+)"/);
-    if (!nameM) continue;
-    const strs = [...call.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((a) => a[1]);
-    const entry = {
-      flag: nameM[1],
-      type: m[1].toLowerCase().replace(/var$/, ''),
-      help: strs.length >= 2 ? strs[strs.length - 1] : '',
-      def: '',
-    };
-    // 三字符串形态：name, 默认值, help（默认值为字符串字面量）
-    if (strs.length >= 3) entry.def = strs[strs.length - 2];
-    else if (!entry.help && strs.length >= 2) entry.def = strs[strs.length - 1];
-    flags.push(entry);
-  }
-  return flags;
-}
-
-/** 提取函数体内子命令（父命令统一 `switch sub {` 分发，case "xxx" 即子命令；排除 *format/ext 等值 switch）。 */
-function extractSubcommands(body) {
-  const out = [];
-  const sw = body.indexOf('switch sub {');
-  if (sw < 0) return out;
-  const re = /case\s+"([a-z0-9-]+)":/g;
-  let m;
-  while ((m = re.exec(body.slice(sw)))) out.push(m[1]);
-  return out;
-}
-
-/** 收集全部 print*Usage 函数体中的 `  <子命令>  <描述>` 行，按 Usage 函数名归档（Go 源码 fmt.Println 包裹）。 */
-function collectSubDescByFunc() {
-  const byFunc = {};
-  for (const f of fs.readdirSync(CLI_DIR)) {
-    if (!f.endsWith('.go') || f.endsWith('_test.go')) continue;
-    const text = readText(path.join(CLI_DIR, f));
-    for (const fn of funcBlocks(text)) {
-      if (!/^print\w+Usage$/.test(fn.name)) continue;
-      const desc = {};
-      const re = /fmt\.Println\("  ([a-z0-9-]+)\s{2,}([^"]*)"\)/g;
-      let m;
-      while ((m = re.exec(fn.body))) desc[m[1]] = m[2].trim();
-      byFunc[fn.name] = desc;
-    }
-  }
-  return byFunc;
-}
-
-/** 从 run 函数体中找它实际调用的 print*Usage 函数名（父命令 → 其专属子命令描述表）。 */
-function findUsageFunc(body) {
-  const m = body.match(/print(\w+)Usage\(\)/);
-  return m ? `print${m[1]}Usage` : null;
-}
-
-/* ---------------- 解析 ---------------- */
-
-/** 分类名常量（与 go/cli/registry.go 一致）。 */
-const CAT_NAMES = {
-  CatModel: '模型管理',
-  CatPerf: '性能诊断',
-  CatCache: '缓存管理',
-  CatResource: '资源仓库',
-  CatConfig: '配置',
-  CatOther: '其他',
-};
-/** 分类展示顺序（与 go/cli/cli.go printCLIHelp 一致）。 */
-const CAT_ORDER = ['CatModel', 'CatPerf', 'CatCache', 'CatResource', 'CatConfig', 'CatOther'];
-
-function parse() {
-  const regs = [];
-  const blocks = [];
-  for (const f of fs.readdirSync(CLI_DIR)) {
-    if (!f.endsWith('.go') || f.endsWith('_test.go')) continue;
-    const text = readText(path.join(CLI_DIR, f));
-    blocks.push(...funcBlocks(text));
-    let m;
-    const local = new RegExp(CMD_RE.source, 'g');
-    while ((m = local.exec(text))) {
-      regs.push({ name: m[1], category: m[2], description: m[3], runFn: m[4], file: f });
-    }
-  }
-
-  const subDescByFunc = collectSubDescByFunc();
-  const commands = regs.map((r) => {
-    const fn = findFunc(blocks, r.runFn);
-    const body = fn ? fn.body : '';
-    const subs = extractSubcommands(body);
-    const usageFn = findUsageFunc(body);
-    const subDesc = (usageFn && subDescByFunc[usageFn]) || {};
-    return {
-      name: r.name,
-      category: r.category,
-      description: r.description,
-      subcommands: subs.map((s) => ({ name: s, desc: subDesc[s] || '' })),
-      flags: extractFlags(body),
-    };
-  });
-  commands.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  return commands;
-}
 
 /* ---------------- 渲染 ---------------- */
 
@@ -217,7 +78,7 @@ function renderCommands(commands) {
 
 /* ---------------- 主流程 ---------------- */
 
-const commands = parse();
+const commands = parseCliCommands();
 const body = renderCommands(commands);
 
 const md = `# CLI 命令参考
