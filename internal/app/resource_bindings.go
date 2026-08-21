@@ -591,6 +591,9 @@ func (a *App) InvalidateScanCache() {
 // 契约（与 FindDuplicateFiles 同模式）：成功 → repoaudit.HealthReport；失败 → {error: string}。
 // 与 CLI health-report 同源（go/repoaudit 唯一实现），GUI/CLI 双端消双轨。
 func (a *App) RepoHealthAudit(dir string) string {
+	if dir == "" {
+		return findDuplicateErrorJSON("请先配置仓库目录")
+	}
 	if !a.isPathInRootOrSelf(dir) {
 		return findDuplicateErrorJSON("路径超出仓库目录")
 	}
