@@ -44,10 +44,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
 | 前端·工具 | 137 | 538 |
-| frontend/views | 114 | 328 |
+| frontend/views | 115 | 329 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **437** | **1883** |
+| **合计** | **438** | **1884** |
 
 ## Go·头像
 
@@ -1811,7 +1811,7 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-workshop:154` | app-content 组件接口（供 workshop/github 初始化函数访问） |
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:29` | — |
-| `initSettings()` | `frontend/src/views/app-content/settings/init:29` | 初始化设置页所有事件绑定 |
+| `initSettings()` | `frontend/src/views/app-content/settings/init:30` | 初始化设置页所有事件绑定 |
 | `initKeymap()` | `frontend/src/views/app-content/settings/keymap:129` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
 | `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:52` | — |
@@ -1827,6 +1827,7 @@
 | `initTheme()` | `frontend/src/views/app-content/settings/theme:24` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
 | `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:11` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
 | `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:51` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
+| `initWorkerPrefs()` | `frontend/src/views/app-content/settings/worker-prefs:34` | 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:38` | 本地创作者（绑定 + 运行时附加字段） |
