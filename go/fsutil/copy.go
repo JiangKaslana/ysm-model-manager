@@ -25,16 +25,24 @@ import (
 // 同目录 tmp+rename 天然跨分区兼容（tmp 与 dst 同盘），无需 EXDEV 特殊分支。
 // 返回普通 error；不追踪 symlink（上层 walk 负责 symlink 策略）。
 func CopyFile(src, dst string) error {
+	// 前置检查：拒绝目录源——Windows 上 os.Open 目录后即使 Close，句柄释放有延迟，
+	// 会阻塞 TempDir 清理（TestCopyFile_SrcIsDir）。提前 Stat 拒绝，避免打开目录句柄。
+	if fi, err := os.Stat(src); err != nil {
+		return err
+	} else if fi.IsDir() {
+		return fmt.Errorf("源为目录: %s", src)
+	}
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	defer in.Close()
 	if err := os.MkdirAll(filepath.Dir(dst), DirPerms); err != nil {
+		in.Close()
 		return err
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(dst), ".copy-*.tmp")
 	if err != nil {
+		in.Close()
 		return err
 	}
 	tmpName := tmp.Name()
@@ -46,6 +54,13 @@ func CopyFile(src, dst string) error {
 		}
 	}()
 	if _, err := io.Copy(tmp, in); err != nil {
+		in.Close()
+		return err
+	}
+	// 读取完成后立即关闭源文件——Windows 上文件被进程持有句柄时
+	// os.Rename 无法覆盖（Access is denied），src/dst 同目录场景尤其会触发。
+	// defer Close 在函数退出时才执行，太晚了。
+	if err := in.Close(); err != nil {
 		return err
 	}
 	// Sync 确保数据落盘后再 Close+Rename（与 installer/recycle/importer 的

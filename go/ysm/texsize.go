@@ -163,19 +163,25 @@ func extractTexSizeFromGeometryBytes(data []byte) (w, h int) {
 // ScanFiles 读取目录下所有支持的文件条目（供 ScanModelTexSizes 使用）
 func ScanFiles(filesRoot string) []ModelEntry {
 	var entries []ModelEntry
-	filepath.Walk(filesRoot, func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(filesRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			log.Printf("[ysm] Walk 错误 (忽略): %v", err)
 			return nil
 		}
-		if info.IsDir() {
+		if d.IsDir() {
+			// 深度限制：与 extracted.go:266 口径一致（10 层），
+			// 避免畸形仓库深层嵌套目录导致遍历耗时过长
+			rel, relErr := filepath.Rel(filesRoot, path)
+			if relErr == nil && strings.Count(rel, string(filepath.Separator)) > 10 {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".ysm" || ext == ".zip" || ext == ".7z" {
 			entries = append(entries, ModelEntry{
 				Path: path,
-				Name: info.Name(),
+				Name: d.Name(),
 			})
 		}
 		return nil

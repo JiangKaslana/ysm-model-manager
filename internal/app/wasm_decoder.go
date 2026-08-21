@@ -17,6 +17,7 @@ import (
 
 	"ysm-model-manager/go/avatar"
 	"ysm-model-manager/go/executil"
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/geometry"
 	"ysm-model-manager/go/types"
 	"ysm-model-manager/go/ysm"
@@ -122,7 +123,7 @@ func runYSMNodeJSDecode(ysmData []byte) []decodedYSMExtra {
 
 	// 写入 WASM 和胶水代码
 	glueFile := filepath.Join(tmpDir, "YSMParser_patched.js")
-	if err := os.WriteFile(glueFile, []byte(gluePatched), 0644); err != nil {
+	if err := os.WriteFile(glueFile, []byte(gluePatched), fsutil.FilePerms); err != nil {
 		return nil
 	}
 
@@ -154,7 +155,7 @@ main().catch(e=>{console.error(e);process.exit(1)});
 `, glueFile, wasmB64, ysmB64)
 
 	scriptPath := filepath.Join(tmpDir, "decode.cjs")
-	if err := os.WriteFile(scriptPath, []byte(script), 0644); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(script), fsutil.FilePerms); err != nil {
 		return nil
 	}
 
@@ -286,9 +287,9 @@ func decodeYSMViaNodeJS(ysmData []byte) *types.BedrockModel {
 		tn := path.Base(f.Path)
 		lowTn := strings.ToLower(tn)
 		if strings.HasSuffix(lowTn, ".png") {
-			tn = tn[:len(tn)-4]
+			tn = strings.TrimSuffix(tn, ".png")
 		} else if strings.HasSuffix(lowTn, ".jpg") {
-			tn = tn[:len(tn)-4]
+			tn = strings.TrimSuffix(tn, ".jpg")
 		}
 		texRaws = append(texRaws, ysmTexItem{name: tn, raw: f.Data, mime: mime})
 	}

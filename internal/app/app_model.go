@@ -24,9 +24,7 @@ import (
 	"ysm-model-manager/go/ysm"
 )
 
-// bedrockReadMax 受限整读上限（对齐 fileops maxPreviewRead 50MB 口径，
-// 防 YSMParser 被篡改输出 GB 级 JSON 撑爆内存）
-const bedrockReadMax = 50 << 20
+// 受限整读上限共用 types.MaxReadLimit（50MB 口径，防 YSMParser 被篡改输出 GB 级 JSON 撑爆内存）
 
 // readLimitedFileBedrock 受限整读 JSON 文件（仅用于 parseBedrockGeometry 输入）
 // 返回 nil 表示读失败或超限（对齐 fileops readLimitedFile 风格）
@@ -35,7 +33,7 @@ func readLimitedFileBedrock(path string) []byte {
 	if err != nil {
 		return nil
 	}
-	return fsutil.ReadLimitedEntry(f, bedrockReadMax)
+	return fsutil.ReadLimitedEntry(f, types.MaxReadLimit)
 }
 
 func (a *App) AnalyzeYSMModel(path string) ysm.YSMModelMeta {
@@ -74,7 +72,7 @@ func (a *App) SavePreviewTempFile(base64Data string) (string, error) {
 		return "", err
 	}
 	tmpDir := filepath.Join(os.TempDir(), "ysm-preview")
-	os.MkdirAll(tmpDir, 0755)
+	os.MkdirAll(tmpDir, fsutil.DirPerms)
 	tmpFile, err := os.CreateTemp(tmpDir, "preview-*.ysm")
 	if err != nil {
 		return "", err
@@ -443,7 +441,7 @@ func (a *App) SaveScreenshotFile(filename string, base64Data string) error {
 		return fmt.Errorf("文件名不能包含路径")
 	}
 	tmpDir := filepath.Join(os.TempDir(), "ysm-preview")
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+	if err := os.MkdirAll(tmpDir, fsutil.DirPerms); err != nil {
 		return err
 	}
 	dest := filepath.Join(tmpDir, clean)

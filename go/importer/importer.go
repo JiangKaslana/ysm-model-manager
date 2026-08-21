@@ -8,8 +8,6 @@ package importer
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -52,6 +50,12 @@ func Get(rtype string) Handler {
 // 注意：上层调用（installer.Install）已通过 paths.IsInside 做了严格校验，
 // 此处的检查是防御纵深，防止 importer 被独立使用时出现路径遍历。
 func sanitizePath(path, label string) (string, error) {
+	// NUL 字节防御——与 fsutil.WriteFileAtomic 对齐（防御纵深，跨平台行为一致）：
+	// Linux filepath.Abs/Clean 会静默截断 NUL 后内容，Windows OS 层拒绝但 Go 层不拦截。
+	// 显式拒绝避免 "safe.ysm\x00.exe" → "safe.ysm" 的静默截断攻击面。
+	if strings.Contains(path, "\x00") {
+		return "", fmt.Errorf("%s 含 NUL 字节", label)
+	}
 	cleaned := filepath.Clean(path)
 	if paths.HasTraversal(cleaned) {
 		return cleaned, fmt.Errorf("%s 包含非法路径 '..'", label)
@@ -116,56 +120,13 @@ func (s *SimpleCopyImporter) Import(srcPath, dstDir string) string {
 		return ""
 	}
 
-	// 文件导入：先复制到临时文件再原子改名，避免复制中断时
-	// 破坏已存在的目标文件（原 os.Create 直接截断目标，半截数据覆盖原文件后失败即丢数据；
-	// 对齐 copyDir 的 ADR-028 原子替换模式，CreateTemp 保证并发导入互不干扰）
-	srcFile, err := os.Open(srcPath)
-	if err != nil {
-		return fmt.Sprintf("打开源文件失败: %v", err)
-	}
-	defer srcFile.Close()
-
+	// 文件导入：收敛到 fsutil.CopyFile（ADR-044 策略 A）——
+	// tmp+rename 原子落地 + Sync 落盘 + Chmod 0644 + rename 前关闭源文件句柄
+	// （Windows 同目录复制兼容：defer Close 太晚导致 rename Access is denied）。
+	// 原 50 行手写 tmp+sync+chmod+rename 实现与 fsutil.CopyFile 完全重复，收敛后单一实现。
 	dstPath := filepath.Join(dstDir, filepath.Base(srcPath))
-	tmpFile, err := os.CreateTemp(dstDir, ".import-*.tmp")
-	if err != nil {
-		return fmt.Sprintf("创建临时文件失败: %v", err)
-	}
-	tmpName := tmpFile.Name()
-	// 任一失败分支清理临时文件，不留残渣
-	cleanup := func() {
-		tmpFile.Close()
-		os.Remove(tmpName)
-	}
-	if _, err := io.Copy(tmpFile, srcFile); err != nil {
-		cleanup()
+	if err := fsutil.CopyFile(srcPath, dstPath); err != nil {
 		return fmt.Sprintf("复制文件失败: %v", err)
-	}
-	// BUG(INFO-SAME-DIR) 修复：在 rename 前显式关闭 srcFile——
-	// Windows 上文件被进程持有句柄时 os.Rename 无法覆盖（Access is denied），
-	// src==dst 场景（同目录自拷贝）尤其会触发。defer Close 在函数退出时才执行，
-	// 太晚了。读取完成后立即关闭。
-	if err := srcFile.Close(); err != nil {
-		cleanup()
-		return fmt.Sprintf("关闭源文件失败: %v", err)
-	}
-	// Sync + 显式 Close 检查——defer 吞掉 Close 错误时，
-	// ENOSPC/EIO 落盘失败被误判成功，损坏文件留盘（与 recycle/installer 同款反模式）
-	if err := tmpFile.Sync(); err != nil {
-		cleanup()
-		return fmt.Sprintf("复制文件失败: %v", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpName)
-		return fmt.Sprintf("复制文件失败: %v", err)
-	}
-	if err := os.Chmod(tmpName, fsutil.FilePerms); err != nil {
-		log.Printf("[importer] 设置权限失败 %s: %v", tmpName, err)
-	}
-	// 原子替换：os.Rename 在 Windows 上可覆盖已存在文件（MOVEFILE_REPLACE_EXISTING）；
-	// 目标已存在为目录时失败，此时清理临时文件
-	if err := os.Rename(tmpName, dstPath); err != nil {
-		os.Remove(tmpName)
-		return fmt.Sprintf("移动目标文件失败: %v", err)
 	}
 	return ""
 }

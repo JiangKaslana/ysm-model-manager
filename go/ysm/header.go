@@ -346,6 +346,11 @@ func parseInt(s string) int {
 	for _, c := range s[start:] {
 		if c >= '0' && c <= '9' {
 			n = n*10 + int(c-'0')
+			// 溢出守卫：畸形头部如 <format>99999999999999999999 静默溢出为负数/零，
+			// 钳到 0 让调用方按「未声明」处理（format/crypto 版本号合理值 < 100）
+			if n > 1<<20 {
+				return 0
+			}
 		} else {
 			return 0
 		}

@@ -457,6 +457,8 @@ func TestInstanceDirMatchesStorageSubDir(t *testing.T) {
 		"mmd-shader":   true,
 		"DefaultAnim":  true,
 		"DefaultMorph": true,
+		// fbx: instanceDir=CustomAnim（整合包内对齐 MC-MMD 动画目录），storageSubDir=FBX（存储组织目录，与 CustomAnim 类型同名冲突故独立）
+		"fbx": true,
 	}
 	for _, rt := range reg.ResourceTypes {
 		if knownExceptions[rt.ID] {

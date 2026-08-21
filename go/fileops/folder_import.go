@@ -88,6 +88,10 @@ func writeModelFolderFiles(dstRoot string, files []types.ImportFileItem) error {
 		if err != nil {
 			return fmt.Errorf("base64 解码失败: %s", f.RelPath)
 		}
+		// 单文件上限（防恶意 base64 解码后膨胀撑爆内存——与 readLimitedFile 同口径）
+		if int64(len(data)) > previewReadLimit() {
+			return fmt.Errorf("文件过大 (%d 字节): %s", len(data), f.RelPath)
+		}
 		rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(f.RelPath)))
 		if rel == "." {
 			continue

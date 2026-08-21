@@ -82,15 +82,14 @@ describe("buildCubeMeshData", () => {
     expect(mesh!.positions).not.toContain(-5);
   });
 
-  it("mirror=true → UV 水平翻转（u0↔u2、u4↔u6）", () => {
-    const cube = buildCube({
-      uv: [0, 0],
-      mirror: true,
-    });
-    const mesh = buildCubeMeshData(cube, bonePivot, 16, 16, "root", 0);
-    expect(mesh).not.toBeNull();
-    // expandBoxUV 产生非零 UV，mirror 翻转后仍有效
-    expect(mesh!.uvs.some((u) => u !== 0)).toBe(true);
+  it("mirror=true → UV 水平翻转（每面 u0↔u2、u4↔u6）", () => {
+    const a = buildCubeMeshData(buildCube({ uv: [0, 0] }), bonePivot, 16, 16, "root", 0)!;
+    const b = buildCubeMeshData(buildCube({ uv: [0, 0], mirror: true }), bonePivot, 16, 16, "root", 0)!;
+    // East 面（前 8 个 UV 值）u 分量交换：镜像后 b[0]=a[2]、b[2]=a[0]（v 分量不变）
+    // 若 mirror 分支被删，b 与 a 全等，本断言必失败——验证真实翻转行为
+    expect(b!.uvs[0]).toBe(a!.uvs[2]);
+    expect(b!.uvs[2]).toBe(a!.uvs[0]);
+    expect(b!.uvs[1]).toBe(a!.uvs[1]);
   });
 
   it('meshID = boneID + "_" + cubeIdx', () => {

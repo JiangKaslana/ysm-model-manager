@@ -53,6 +53,12 @@ func ImportFromBase64(fileName, base64Data string, opts ImportOptions, rootFn fu
 	if strings.ContainsAny(fileName, `\/`) {
 		return types.AppError{Code: types.ErrFileNameInvalid, Operation: "导入模型", SourcePath: fileName, Reason: "文件名包含非法路径分隔符", Suggestion: "请使用纯文件名，不要包含路径"}
 	}
+	// base64 预大小守卫：先检查编码长度上界再解码，避免超大 base64 字符串
+	// 解码后才命中 len(data) > MaxImportSize 检查、白白分配 GB 级内存（峰值内存尖刺）。
+	// base64 解码后大小 ≤ len(base64Data)*3/4，上界超限时直接拒绝无需解码。
+	if int64(len(base64Data))*3/4 > types.MaxImportSize {
+		return types.AppError{Code: types.ErrFileTooLarge, Operation: "导入模型", SourcePath: fileName, Reason: "文件大小超过 500MB 限制", Suggestion: "请压缩文件至 500MB 以内"}
+	}
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
 		return types.AppError{Code: types.ErrDecodeFailed, Operation: "导入模型", Reason: "Base64 解码失败", Suggestion: "文件可能已损坏，请重新下载"}

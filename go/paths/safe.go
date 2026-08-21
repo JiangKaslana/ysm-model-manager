@@ -71,6 +71,9 @@ func IsInside(baseDir, path string) error {
 	if err != nil {
 		return &ErrPathEscalation{
 			Path: path, BaseDir: baseDir, Reason: "无法解析基准路径: " + err.Error(),
+			// 注意：只用一个 %w（ErrResolveBase），底层 err 用 %v 格式化。
+			// 双 %w 会创建多错误包装（Unwrap() []error），errors.Unwrap() 返回 nil，
+			// 破坏 Unwrap 链（TestIsInside_RelFailureSentinel_Windows）。
 			cause: fmt.Errorf("%w: %v", ErrResolveBase, err),
 		}
 	}

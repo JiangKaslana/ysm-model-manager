@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"ysm-model-manager/go/fsutil"
 )
 
 // androidPathManager Android 实现：应用沙盒私有目录
@@ -80,7 +82,7 @@ func (androidPathManager) DefaultRepoRoot() string {
 // writableDir 可写性探针：MkdirAll 对已存在目录不报错（即使不可写），
 // 必须以实际写文件验证——CreateTemp 成功即证明可写，随即清理
 func writableDir(dir string) bool {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, fsutil.DirPerms); err != nil {
 		return false
 	}
 	probe, err := os.CreateTemp(dir, ".ysm-probe-*")

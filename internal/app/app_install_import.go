@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/importer"
 	"ysm-model-manager/go/installer"
 	ysmsync "ysm-model-manager/go/sync"
@@ -152,7 +153,7 @@ func (a *App) importModelFileWithSubpath(fileName, subpath, base64Data string, o
 	// - subpath 允许嵌套目录（folder/sub 保持目录结构），逐段拒绝空/. /.. 段
 	// - fileName 拒绝 .. 序列与路径分隔符（仅纯文件名）
 	if subpath != "" {
-		for _, seg := range strings.Split(strings.ReplaceAll(subpath, "\\", "/"), "/") {
+		for _, seg := range strings.Split(filepath.ToSlash(subpath), "/") {
 			if seg == "" || seg == "." || seg == ".." {
 				return types.AppError{Code: types.ErrInvalidPath, Operation: "导入模型", SourcePath: subpath, Reason: "非法子目录路径", Suggestion: "子目录仅支持纯目录名层级"}
 			}
@@ -174,7 +175,7 @@ func (a *App) importModelFileWithSubpath(fileName, subpath, base64Data string, o
 	}
 	destPath := filepath.Join(root, subpath, fileName)
 	destDir := filepath.Dir(destPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, fsutil.DirPerms); err != nil {
 		return types.AppError{Code: types.ErrMkdirFailed, Operation: "导入模型", TargetPath: destDir, Reason: "无法创建目标目录", Suggestion: "请检查磁盘权限或空间"}
 	}
 	if !overwrite {

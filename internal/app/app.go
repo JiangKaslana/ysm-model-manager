@@ -267,7 +267,7 @@ func migrateFlatStorageToGrouped(filesRoot string) {
 		}
 		// 源存在且目标不存在，执行迁移
 		// 先创建目标父目录（Rename 要求目标父目录已存在）
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(targetPath), fsutil.DirPerms); err != nil {
 			log.Printf("[migrate] 创建目标父目录 %s 失败: %v", filepath.Dir(targetPath), err)
 			continue
 		}

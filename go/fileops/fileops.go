@@ -100,11 +100,28 @@ func RenameDir(oldPath, newName string) error {
 	return os.Rename(oldPath, newPath)
 }
 
-// RemoveDir 递归删除目录
+// RemoveDir 递归删除目录（基础安全校验——拒绝空路径/NUL/穿越段/根目录；
+// 仓库归属校验由调用方 isPathInRoot 负责，此处为纵深防御）
 func RemoveDir(dir string) error {
 	opMu.Lock()
 	defer opMu.Unlock()
-	return os.RemoveAll(strings.TrimSpace(dir))
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return fmt.Errorf("目录路径为空")
+	}
+	if strings.ContainsRune(dir, 0) {
+		return fmt.Errorf("目录路径包含非法空字节")
+	}
+	clean := filepath.Clean(dir)
+	// 拒绝相对路径穿越（.. / . / ../foo）——合法调用方应传入绝对路径
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("目录路径包含非法路径段")
+	}
+	// 拒绝磁盘根目录（C:\ / / 等）——防误删整个驱动器
+	if filepath.Dir(clean) == clean {
+		return fmt.Errorf("不能删除根目录")
+	}
+	return os.RemoveAll(clean)
 }
 
 // RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名）
@@ -183,8 +200,14 @@ func MoveModelFile(root, src, dstDir string) error {
 	liftToParent := false
 	if types.IsYsmEntryJSON(filepath.Base(src)) {
 		if root != "" {
-			absRoot, _ := filepath.Abs(root)
-			absSrc, _ := filepath.Abs(src)
+			absRoot, err := filepath.Abs(root)
+			if err != nil {
+				return fmt.Errorf("解析仓库根路径失败: %w", err)
+			}
+			absSrc, err := filepath.Abs(src)
+			if err != nil {
+				return fmt.Errorf("解析源文件路径失败: %w", err)
+			}
 			if rel, err := filepath.Rel(absRoot, filepath.Dir(absSrc)); err == nil && rel == "." {
 				liftToParent = false // 根级 ysm.json：单文件移动（走下方通用路径）
 			} else {

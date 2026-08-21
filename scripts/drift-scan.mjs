@@ -3,20 +3,24 @@
  * drift-scan.mjs — 双轨漂移自动检测脚本
  *
  * 检测维度：
- * 1. Go 同函数名多处定义（同名函数在不同包/文件）
- * 2. Go 硬编码常量（0755/0644/50<<20 等）
- * 3. Go 内联切片操作（[:len(...)-N] 模式）
- * 4. 前端硬编码常量（与 Go 端同逻辑不同实现）
- * 5. 重复字符串模式（非法字符集等）
+ * 1. Go 硬编码常量（0755/0644/50<<20/超时魔数 等）
+ * 2. Go 内联切片操作（[:len(...)-N] 模式）
+ * 3. Go 内联路径归一化（应统一 filepath.ToSlash）
+ * 4. Go 错误链断裂（%v 格式化 err → 应 %w）
+ * 5. Go 资源泄漏风险（os.Open/os.Create 无 defer close）
+ * 6. Go 重复函数实现（copyDirRecursive/formatSize 等）
+ * 7. 前端硬编码常量（与 Go 端同逻辑不同实现）
+ * 8. 重复字符串模式（非法字符集等）
  *
- * 用法：node scripts/drift-scan.mjs [--json] [--fix-hint]
+ * 用法：node scripts/drift-scan.mjs [--json]
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1");
-const GO_DIR = join(ROOT, "go");
+// Go 扫描根：go/（共享层）+ internal/（GUI 轨，最活跃消费侧）+ cmd/（小工具）；根 main.go 为 CLI 薄壳不入扫
+const GO_ROOTS = [join(ROOT, "go"), join(ROOT, "internal"), join(ROOT, "cmd")];
 const FE_DIR = join(ROOT, "frontend", "src");
 
 // ===== 工具函数 =====
@@ -72,7 +76,7 @@ const RULES = [
     severity: "warn",
     desc: "硬编码目录权限 0755（应使用 fsutil.DirPerms）",
     glob: "*.go",
-    regex: /os\.MkdirAll\([^,]+,\s*0755\)/,
+    regex: /os\.MkdirAll\([^,]+,\s*(?:0o)?0755\)/,
     exclude: [/test/],
   },
   {
@@ -80,7 +84,7 @@ const RULES = [
     severity: "warn",
     desc: "硬编码文件权限 0644（应使用 fsutil.FilePerms）",
     glob: "*.go",
-    regex: /os\.WriteFile\([^,]+,[^,]+,\s*0644\)/,
+    regex: /os\.WriteFile\([^,]+,[^,]+,\s*(?:0o)?0644\)/,
     exclude: [/test/],
     // 排除 heredoc 字符串（如 GitHub Actions workflow）
     filter: (line) => !line.startsWith("os.WriteFile(\"index.json\""),
@@ -152,6 +156,58 @@ const RULES = [
     regex: /^func copyDirRecursive\(/,
     exclude: [/fsutil\/copy\.go/, /test/],
   },
+  {
+    id: "ERROR_WRAP_V",
+    severity: "warn",
+    desc: "错误链断裂：fmt.Errorf 使用 %v 格式化 err（应使用 %w 保留错误链）",
+    glob: "*.go",
+    regex: /fmt\.Errorf\([^)]*%v[^)]*,\s*err\)/,
+    exclude: [/test/],
+    filter: (line) => !line.startsWith("//"),
+  },
+  {
+    id: "FD_LEAK_RISK",
+    severity: "warn",
+    desc: "资源泄漏风险：os.Open/os.Create 后无 defer close 或显式 close",
+    glob: "*.go",
+    regex: /os\.(Open|Create)\(/,
+    exclude: [/test/],
+    filter: (line, content, lineIdx) => {
+      const lines = content.split("\n");
+      const trimmed = line.trim();
+
+      // 排除注释行
+      if (trimmed.startsWith("//")) return false;
+
+      // 排除 return os.Open(...) 模式（调用方负责 close）
+      if (trimmed.startsWith("return os.Open") || trimmed.startsWith("return os.Create")) return false;
+
+      // 提取变量名（f, err := os.Open(...)）
+      const varMatch = trimmed.match(/^(\w+),\s*(?:err|_)\s*:=\s*os\.(Open|Create)\(/);
+      if (!varMatch) return false; // 无变量赋值，跳过
+      const varName = varMatch[1];
+
+      // 检查当前行及后 15 行是否有 defer close 或显式 close
+      for (let i = lineIdx; i < Math.min(lineIdx + 16, lines.length); i++) {
+        if (lines[i].includes(`${varName}.Close()`)) {
+          return false;
+        }
+        // 所有权转移豁免：传给 ReadLimitedEntry 等自管 close 的封装函数（内部 defer Close）
+        if (lines[i].includes(`ReadLimitedEntry(${varName}`)) {
+          return false;
+        }
+      }
+      return true;
+    },
+  },
+  {
+    id: "HARDCODED_TIMEOUT",
+    severity: "info",
+    desc: "散落超时魔数（建议提取为命名常量）",
+    glob: "*.go",
+    regex: /time\.After\(\d+\s*\*\s*time\.(Second|Minute|Hour)\)/,
+    exclude: [/test/],
+  },
 ];
 
 // ===== 主逻辑 =====
@@ -161,9 +217,9 @@ function scan() {
 
   for (const rule of RULES) {
     const isGo = rule.glob === "*.go";
-    const dir = isGo ? GO_DIR : FE_DIR;
+    const roots = isGo ? GO_ROOTS : [FE_DIR];
     const ext = isGo ? ".go" : ".ts";
-    const files = walkFiles(dir, ext);
+    const files = roots.flatMap((d) => walkFiles(d, ext));
 
     for (const file of files) {
       const content = readSrc(file);
@@ -184,7 +240,9 @@ function scan() {
 
 function formatOutput(findings, json) {
   if (json) {
-    console.log(JSON.stringify(findings, null, 2));
+    // 剥离 RegExp/函数字段（JSON 序列化会静默丢成 {}），机器输出保留有效字段
+    const clean = findings.map(({ regex, exclude, filter, ...rest }) => rest);
+    console.log(JSON.stringify(clean, null, 2));
     return;
   }
 
@@ -236,8 +294,8 @@ const jsonMode = args.includes("--json");
 const findings = scan();
 formatOutput(findings, jsonMode);
 
-// 有严重问题时退出码 1
+// 有严重问题时退出码 1（--json 只是输出格式开关，不改失败语义，CI 集成可依赖 exit code）
 const hasError = findings.some((f) => f.severity === "error");
-if (hasError && !jsonMode) {
+if (hasError) {
   process.exit(1);
 }

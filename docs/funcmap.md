@@ -192,8 +192,8 @@
 |------|--------|------|
 | `StripBOM()` | `go/fsutil/bom:12` | StripBOM 移除 data 前缀的 UTF-8 BOM；无 BOM 时原样返回（bytes.TrimPrefix 语义）。 |
 | `CopyFile()` | `go/fsutil/copy:27` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
-| `CopyDirRecursive()` | `go/fsutil/copy:98` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
-| `CopyDirOptions()` | `go/fsutil/copy:80` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
+| `CopyDirRecursive()` | `go/fsutil/copy:105` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
+| `CopyDirOptions()` | `go/fsutil/copy:87` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_other:14` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_windows:18` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `FormatSize()` | `go/fsutil/format:7` | FormatSize 人性化字节大小（B/KB/MB/GB 分级）。 |
@@ -319,8 +319,8 @@
 | `ErrPathEscalation.Error()` | `go/paths/safe:40` | — |
 | `ErrPathEscalation.Unwrap()` | `go/paths/safe:46` | Unwrap 暴露分类哨兵：errors.Is(err, ErrNotInside) 等可直接判断， 无需文本匹配错误文案。 |
 | `IsInside()` | `go/paths/safe:51` | IsInside 检查 path 是否在 baseDir 下，防止路径遍历。 |
-| `HasTraversal()` | `go/paths/safe:110` | HasTraversal 检查路径片段是否包含 ".." 遍历组件（统一入口）。 |
-| `ContainsMinecraftMarker()` | `go/paths/safe:132` | ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记 PrismLauncher 实例目录下可能是 minecra |
+| `HasTraversal()` | `go/paths/safe:113` | HasTraversal 检查路径片段是否包含 ".." 遍历组件（统一入口）。 |
+| `ContainsMinecraftMarker()` | `go/paths/safe:135` | ContainsMinecraftMarker 检查路径中是否包含 .minecraft 或 minecraft 标记 PrismLauncher 实例目录下可能是 minecra |
 | `ErrPathEscalation()` | `go/paths/safe:32` | ErrPathEscalation 路径越权错误 |
 
 ## Go·回收站

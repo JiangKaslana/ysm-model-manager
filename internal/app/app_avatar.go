@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"ysm-model-manager/go/avatar"
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
 
@@ -26,7 +27,7 @@ func (a *App) BatchExtractCreatorAvatars() (map[string]string, error) {
 	}
 	cacheDir := avatar.CacheDir()
 	if cacheDir != "" {
-		os.MkdirAll(cacheDir, 0755)
+		os.MkdirAll(cacheDir, fsutil.DirPerms)
 	}
 
 	entries := a.ScanModelEntries(a.ysmRoot())
@@ -34,7 +35,7 @@ func (a *App) BatchExtractCreatorAvatars() (map[string]string, error) {
 	for _, e := range entries {
 		name := e.Name
 		if strings.HasSuffix(strings.ToLower(name), ".ban") {
-			name = name[:len(name)-4]
+			name = types.StripBanSuffix(name)
 		}
 		if strings.HasPrefix(name, "[") {
 			if idx := strings.Index(name, "]"); idx > 0 {
@@ -88,7 +89,7 @@ func (a *App) DebugExtractCreatorAvatar(authorName string) map[string]string {
 	for _, e := range entries {
 		name := e.Name
 		if strings.HasSuffix(strings.ToLower(name), ".ban") {
-			name = name[:len(name)-4]
+			name = types.StripBanSuffix(name)
 		}
 		if strings.HasPrefix(name, "[") {
 			if idx := strings.Index(name, "]"); idx > 0 {
@@ -111,7 +112,7 @@ func (a *App) DebugExtractCreatorAvatar(authorName string) map[string]string {
 	info["step"] = "found_model"
 	cacheDir := avatar.CacheDir()
 	if cacheDir != "" {
-		os.MkdirAll(cacheDir, 0755)
+		os.MkdirAll(cacheDir, fsutil.DirPerms)
 	}
 	safe := avatar.SafeName(authorName)
 	info["step"] = "extracting"

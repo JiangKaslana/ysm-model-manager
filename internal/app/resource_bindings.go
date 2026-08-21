@@ -174,7 +174,7 @@ func (a *App) GetDefaultRepoRoot() string {
 		return ""
 	}
 	// 尝试创建（查看器模式：定位即创建）；失败不影响返回（可能已存在只读场景）
-	_ = os.MkdirAll(root, 0755)
+	_ = os.MkdirAll(root, fsutil.DirPerms)
 	// 目录存在且可读才返回（未授权时 os.Open 失败 → 空串，前端走引导）
 	if !repoDirAccessible(root) {
 		return ""
@@ -247,7 +247,7 @@ func (a *App) EnsureStorageDirs() error {
 			// 未配置 / 平台默认不可达：跳过，避免裸建
 			continue
 		}
-		if err := os.MkdirAll(root, 0755); err != nil {
+		if err := os.MkdirAll(root, fsutil.DirPerms); err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -418,7 +418,7 @@ func (a *App) SetResourceRoot(rtype, path string) error {
 	if path != "" {
 		abs, err := filepath.Abs(filepath.Clean(path))
 		if err != nil {
-			return fmt.Errorf("路径异常: %v", err)
+			return fmt.Errorf("路径异常: %w", err)
 		}
 		path = abs
 	}
@@ -446,7 +446,7 @@ func (a *App) saveConfig(cfg types.AppConfig) error {
 		return err
 	}
 	dest := configPath()
-	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dest), fsutil.DirPerms); err != nil {
 		return err
 	}
 	// ADR-044 策略 A：原子写（CreateTemp + rename）——
