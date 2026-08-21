@@ -32,7 +32,7 @@
 | `instanceDir` | `CustomAnim` | 路径消歧双保险（`DetectResourceType` Phase 1） |
 | `configField` | `MmdRoot` | 复用 MMD 根配置 |
 | `preview` | `"3d"` | 自动脱离 `NO_3D_TYPES`，走 3D opener |
-| `detector` | `"ext"` | 纯扩展名判定（FBX 无 zip 指纹） |
+| `detector` | `"extension"` | 纯扩展名判定（FBX 无 zip 指纹） |
 
 Go 侧 `DetectResourceType`（`go/packs/mcmeta.go:142`）读全动态 `ResourceTypeRegistry`（源自 `resource_types.json`，无静态常量表），**加 JSON 即自动识别，无需改 Go 代码**。前端 `ALL_RESOURCE_TYPES` / `RESOURCE_CAPS` / `NO_3D_TYPES` / `AMBIGUOUS_EXTS` 均构建期内联派生，**仅手写 `RESOURCE_TYPES` / `RESOURCE_TYPE_LABELS` 需同步补 `fbx`**。
 

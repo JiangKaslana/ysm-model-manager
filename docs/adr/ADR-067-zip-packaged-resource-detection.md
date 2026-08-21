@@ -11,7 +11,7 @@
 
 全资源预览器（ADR-066）落地 P0「注册表驱动派发」后，暴露出更深一层的墙：**所有资源都能被 `.zip`（乃至 `.7z`）包裹**，但当前 Go 端 `DetectResourceType` 对「zip 化变体」的识别覆盖极不完整。
 
-实测两类检测路径对 mmd-skin / EntityPlayer (VRM) / blueprint / litematic 的 `.zip` 包裹**均失效**：
+实测两类检测路径对 EntityPlayer / SceneModel（含 `.vrm`）/ blueprint / litematic 的 `.zip` 包裹**均失效**：
 
 | 路径 | 代码 | 卡点 |
 |------|------|------|
@@ -28,7 +28,7 @@
 
 ### 2.1 S1 — Schema（双文件同步）
 
-对 mmd-skin / EntityPlayer (VRM) / blueprint / litematic 四类，在 `resource_types.json`（根，前端事实来源）**同步**做三处改动：
+对 EntityPlayer / SceneModel / blueprint / litematic 四类，在 `resource_types.json`（根，前端事实来源）**同步**做三处改动：
 
 1. `extensions` 追加 `.zip`（使扫描层能发现 zip 化资源、且通过 `mcmeta.go:145` 的 `hasExt` 门槛）；
 2. `detector` 由 `"extension"` 改为 `"zipentry"`（裸文件按扩展名、容器按内容指纹，杜绝盲判）；
@@ -36,13 +36,12 @@
 
 | 类型 | 新增 extensions | detector | zipEntries |
 |------|----------------|----------|------------|
-| mmd-skin | `.zip` | `zipentry` | `[{name:".pmx",match:"suffix"},{name:".pmd",match:"suffix"}]` |
-| EntityPlayer (VRM) | `.zip` | `zipentry` | `[{name:".vrca",match:"suffix"},{name:".vrm",match:"suffix"}]` |
+| EntityPlayer | `.zip` | `zipentry` | `[{name:".pmx",match:"suffix"},{name:".pmd",match:"suffix"},{name:".vrm",match:"suffix"}]` |
+| SceneModel | `.zip` | `zipentry` | `[{name:".pmx",match:"suffix"},{name:".pmd",match:"suffix"},{name:".vrm",match:"suffix"}]` |
 | blueprint | `.zip` | `zipentry` | `[{name:".nbt",match:"suffix"},{name:".schematic",match:"suffix"}]` |
 | litematic | `.zip` | `zipentry` | `[{name:".litematic",match:"suffix"}]` |
 
-> 注：`mmd-skin` / `EntityPlayer` 为 `isDir: true`（目录型资源），zip 化指「导入含模型文件的 `.zip`」。
-
+> 注：`EntityPlayer` / `SceneModel` 为 `isDir: true`（目录型资源），zip 化指「导入含模型文件的 `.zip`」。（2026-08-21 更新：原 `mmd-skin` / `vrchat-avatar` 类型已随 ADR-111 variants 解耦退役，`.vrm` 并入 EntityPlayer/SceneModel。）
 ### 2.2 S2 — Go 检测核心（最小侵入）
 
 `mcmeta.go` 仅新增一个 switch case + 一个 helper，并**行为保持**地把 `hasExt` 提到循环内（不改变准入语义）：
@@ -104,7 +103,7 @@ func matchZipArchive(path string, rt *types.ResourceType) bool {
 
 ### 2.3 S3 — 冲突优先级（零代码，设计规则）
 
-一个 `.zip` 可能同时满足多个 `zipEntries`（如同时含 `ysm.json` 与 `model.pmx`）。消解规则 = **注册表顺序即优先级**：`DetectResourceType` 与 `MatchZipEntry` 均按注册表顺序遍历、首命中胜出。当前顺序 `[resourcepack, shaderpack, ysm, create-blueprint, litematic, mmd-skin, vrchat-avatar]`，使 ysm（唯一根标记 `ysm.json`/`models/`）天然排在 mmd 之前 → YSM 更具体者优先，符合直觉。该规则已隐含于现有遍历逻辑，无需额外代码。
+一个 `.zip` 可能同时满足多个 `zipEntries`（如同时含 `ysm.json` 与 `model.pmx`）。消解规则 = **注册表顺序即优先级**：`DetectResourceType` 与 `MatchZipEntry` 均按注册表顺序遍历、首命中胜出。当前顺序 `[resourcepack, shaderpack, ysm, maid-model, blueprint, litematic, EntityPlayer, SceneModel, CustomAnim, CustomMorph, StageAnim, mmd-shader, DefaultAnim, DefaultMorph, fbx]`（15 类，2026-08-21 核对），使 ysm（唯一根标记 `ysm.json`/`models/`）天然排在 MMD 之前 → YSM 更具体者优先，符合直觉。该规则已隐含于现有遍历逻辑，无需额外代码。
 
 ### 2.4 S4 — 前端安全契约（本批已落地 ✅）
 

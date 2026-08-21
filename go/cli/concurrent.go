@@ -182,9 +182,13 @@ func benchParallelAnalyze(a *app.App, models []string, workers int) concurrentBe
 		go func() {
 			defer wg.Done()
 			for path := range modelCh {
-				s := time.Now()
-				_ = a.AnalyzeBedrockModel(path)
-				resultCh <- time.Since(s)
+				// recover 防单个畸形模型 panic 导致 resultCh 永不关闭、主循环永久阻塞
+				func() {
+					defer func() { _ = recover() }()
+					s := time.Now()
+					_ = a.AnalyzeBedrockModel(path)
+					resultCh <- time.Since(s)
+				}()
 			}
 		}()
 	}
@@ -307,6 +311,10 @@ func printConcurrentReport(serial concurrentBenchResult, parallel []concurrentBe
 
 	fmt.Println()
 	fmt.Println("💡 并发建议:")
+	if len(parallel) == 0 {
+		fmt.Println("   ⚠️ 无并行测试结果，无法给出建议")
+		return
+	}
 	best := parallel[0]
 	for _, p := range parallel {
 		if p.Speedup > best.Speedup {

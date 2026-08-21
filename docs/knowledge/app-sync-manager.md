@@ -28,7 +28,7 @@ invariant_anchors:
 
 ## 核心职责
 
-- `index.ts` — `<app-sync-manager>` 组件：`observedAttributes: ["instance", "default-type"]`；`_loadTypeConfig` 读类型配置（图标/名称）、`_loadData` 调 `GetInstanceSyncStatus` 拉全量条目、`_render` 渲染「模型类（ysm/mmd-skin/EntityPlayer）| 资源类（resourcepack/shaderpack/blueprint/litematic）」类型标签 + 状态筛选标签（全部/已同步/待推送/已禁用/可拉取/旧仓库遗留）+ 条目列表；`_pushSingleFile` / `_pullSingleFile` 单文件同步，由 `_singleBusy` 在途守卫防连点并发（`finally` 复位）
+- `index.ts` — `<app-sync-manager>` 组件（拆分模式）：`observedAttributes: ["instance", "default-type"]`；`store.ts` 的 `loadTypeConfig` 调 `LoadResourceTypes` 拉类型配置（失败 toast + 空数组降级；过期代际静默丢弃）、`_loadData` 调 `GetInstanceSyncStatus` 拉全量条目，`renderer.ts` 的 `render` 渲染「当前类型只读指示（`shortLabelOf`，类型选择已全局化到 app-nav 下拉）+ 状态筛选标签」（全部/已同步/待推送/已禁用/可拉取/旧仓库遗留）+ 条目列表；`_pushSingleFile` / `_pullSingleFile` 单文件同步，由 `_singleBusy` 在途守卫防连点并发（`finally` 复位）
 - `_init` 代际计数 `_gen`：每次进入自增，`await` 类型配置与数据后若 `gen !== this._gen` 直接返回，丢弃 instance 快速切换产生的过期渲染与订阅
 - `tpl.ts` — 模板：`containerHTML` / `itemHTML` / `statusTabHTML` / `emptyHTML` / `loadingHTML` + `SyncItem` 类型
 

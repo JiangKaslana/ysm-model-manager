@@ -41,7 +41,8 @@ func TestHealthReport_BadModelLowersScore(t *testing.T) {
 	mustWrite(t, filepath.Join(dir, "broken.ysm"), []byte("this is not json"))
 
 	good := t.TempDir()
-	mustWrite(t, filepath.Join(good, "ok.ysm"), []byte(`{"name": "ok"}`))
+	// 好模型须通过 isModelFileValid 加严校验（合法 JSON + format_version）
+	mustWrite(t, filepath.Join(good, "ok.ysm"), []byte(`{"format_version": "1.8.0", "name": "ok"}`))
 
 	badOut := captureOutput(t, func() {
 		if err := runHealthReport(&CmdContext{App: &app.App{}, FilesRoot: dir, Args: []string{"--dir", dir}}); err != nil {

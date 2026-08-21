@@ -77,8 +77,8 @@ export const ALL_RESOURCE_TYPES: string[] = registryEntries
 export function resolvePreviewKey(filePath: string, rtype: string): string {
   const entry = registryEntries.find((t) => t.id === rtype);
   if (entry?.variants?.length) {
-    const ext = "." + (filePath.split(".").pop()?.toLowerCase() || "");
-    const variant = entry.variants.find((v) => v.ext === ext);
+    // 复用 extOf 统一扩展名提取口径（split(".") 对无扩展名文件名会误产出 ".Makefile"）
+    const variant = entry.variants.find((v) => v.ext === extOf(filePath));
     if (variant) return variant.preview;
   }
   return rtype;

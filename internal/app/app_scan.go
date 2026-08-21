@@ -458,6 +458,13 @@ func (a *App) isPathInRootOrSelf(path string) bool {
 		cfg.MmdRoot,
 		cfg.VrcRoot,
 	}
+	// CustomRoots（新机制）：所有已配置的类型专属根自动纳入，
+	// 新增类型/自定义根无需同步本函数（旧字段历史兼容保留）
+	if cfg.CustomRoots != nil {
+		for _, root := range cfg.CustomRoots {
+			roots = append(roots, root)
+		}
+	}
 	clean := filepath.Clean(path)
 	for _, root := range roots {
 		if root == "" {

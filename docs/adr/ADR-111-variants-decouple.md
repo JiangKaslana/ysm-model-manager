@@ -75,11 +75,11 @@
 
 ### 2.4 SceneModel 同步加 variants
 
-SceneModel 也声明了 `.pmx/.pmd/.vrm`，同步加 variants：
+SceneModel 也声明了 `.pmx/.pmd/.vrm`，同步加 variants（预览 key 用 `mmd-scene`——SceneModel 注册表 `preview` 字段即 `mmd-scene`，与 EntityPlayer 的 `mmd` 区分场景模型渲染）：
 ```jsonc
 "variants": [
-  { "ext": ".pmx", "preview": "mmd" },
-  { "ext": ".pmd", "preview": "mmd" },
+  { "ext": ".pmx", "preview": "mmd-scene" },
+  { "ext": ".pmd", "preview": "mmd-scene" },
   { "ext": ".vrm", "preview": "vrm" }
 ]
 ```
@@ -113,18 +113,20 @@ SceneModel 也声明了 `.pmx/.pmd/.vrm`，同步加 variants：
 
 ## 4. 实施分阶段
 
-### 阶段 A：schema + 注册表（本 ADR）
+> **落地追踪（2026-08-21 更新）**：阶段 A ✅ 已落地、阶段 B ✅ 已落地、阶段 C ❌ 未开始（需用户手动合并或迁移脚本，不影响新数据）。
+
+### 阶段 A：schema + 注册表（✅ 已落地）
 
 1. `ResourceType` struct 加 `Variants []Variant` 字段
 2. `resource_types.json`：EntityPlayer / SceneModel 加 variants，删除 vrm 条目
 3. 前端 `RESOURCE_TYPES` 常量调整
 
-### 阶段 B：预览路由重构
+### 阶段 B：预览路由重构（✅ 已落地）
 
 1. 前端 3D 预览层查 variants 分发 adapter
 2. 删除 `RESOURCE_TYPES.VRM` 相关路由
 
-### 阶段 C：存量迁移（可选）
+### 阶段 C：存量迁移（❌ 未开始）
 
 1. 用户手动合并 `mmd/VRM/` → `mmd/PMX/`
 2. 或写迁移脚本自动处理

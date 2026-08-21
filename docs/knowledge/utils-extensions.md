@@ -29,7 +29,7 @@ use_when:
 
 ## 对外 API / 入口
 
-- `RESOURCE_EXTS: Record<string, string[]>` — 15 类映射（与 `resource_types.json` 对齐）：ysm/mmd-skin→EntityPlayer/resourcepack/shaderpack/blueprint/litematic/maid-model/fbx 等，完整列表见 `extensions.ts` 源码
+- `RESOURCE_EXTS: Record<string, string[]>` — 15 类映射（与 `resource_types.json` 对齐）：resourcepack/shaderpack/ysm/maid-model/blueprint/litematic/EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/mmd-shader/DefaultAnim/DefaultMorph/fbx，完整列表见 `extensions.ts` 源码
 - `ALL_EXTS: string[]` — 全部扩展名去重列表（按 RESOURCE_EXTS 出现顺序）
 - `getExts(rtype: string): string[]` — 取某类型的扩展名列表，未知类型返回 `[]`
 - `isSupportedExt(ext: string): boolean` — 扩展名是否被支持（大小写不敏感）

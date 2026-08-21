@@ -278,7 +278,7 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 			}
 			ops = append(ops, renameOp{src: p, dst: newPath})
 		} else if !shouldBeBanned && isCurrentlyBanned {
-			newPath := p[:len(p)-4]
+			newPath := types.StripBanSuffix(p)
 			// 启用分支补目标存在性检查——与禁用分支「存在即跳过」
 			// 对称；原 os.Rename 会静默覆盖既有同名文件（内容不同则数据丢失，仅 Windows
 			// 目标被占用时失败）；目标已存在且非 .ban 时跳过本次改名

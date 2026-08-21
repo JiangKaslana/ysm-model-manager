@@ -330,4 +330,8 @@ describe("resolvePreviewKey 按 variants 分发预览器", () => {
   it("未知 rtype 回退 rtype 自身", () => {
     expect(resolvePreviewKey("/repo/unknown.xyz", "unknown-type")).toBe("unknown-type");
   });
+
+  it("无扩展名文件（如 Makefile）回退 rtype——不入 variants 误匹配", () => {
+    expect(resolvePreviewKey("/repo/Makefile", "EntityPlayer")).toBe("EntityPlayer");
+  });
 });

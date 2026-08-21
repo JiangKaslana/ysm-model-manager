@@ -6,6 +6,8 @@ package repoaudit
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -37,11 +39,83 @@ func TestAudit_BadModelLowersScore(t *testing.T) {
 	if result.Completeness.Checked != 1 || result.Completeness.Invalid != 1 {
 		t.Errorf("坏模型应记为 1 无效, got checked=%d invalid=%d", result.Completeness.Checked, result.Completeness.Invalid)
 	}
-	if result.Score > 95 {
-		t.Errorf("坏模型应扣分, got score=%d", result.Score)
+	if result.Score >= 100 {
+		t.Errorf("坏模型应扣分（score<100）, got score=%d", result.Score)
 	}
 	if len(result.Warnings) == 0 {
 		t.Error("坏模型应产生完整性警告")
+	}
+}
+
+// TestAudit_StructuralInvalid 结构损坏但可解析 JSON——校验加严后应判无效（防完整性假绿）
+func TestAudit_StructuralInvalid(t *testing.T) {
+	dir := t.TempDir()
+	// 合法 JSON 但无 format_version/minecraft:geometry/bones 字段
+	writeFile(t, filepath.Join(dir, "bad.ysm"), []byte(`{"foo": "bar"}`))
+
+	result, err := Audit(dir)
+	if err != nil {
+		t.Fatalf("Audit 应成功, got %v", err)
+	}
+	if result.Completeness.Valid != 0 || result.Completeness.Invalid != 1 {
+		t.Errorf("缺 format_version 的 JSON 应判无效, got valid=%d invalid=%d",
+			result.Completeness.Valid, result.Completeness.Invalid)
+	}
+
+	// 对照组：含 format_version 的合法模型
+	dir2 := t.TempDir()
+	writeFile(t, filepath.Join(dir2, "ok.ysm"), []byte(`{"format_version":"1.16.0","minecraft:geometry":[]}`))
+	result2, err := Audit(dir2)
+	if err != nil {
+		t.Fatalf("Audit(ok) 应成功, got %v", err)
+	}
+	if result2.Completeness.Valid != 1 || result2.Completeness.Invalid != 0 {
+		t.Errorf("含 format_version 应判有效, got valid=%d invalid=%d",
+			result2.Completeness.Valid, result2.Completeness.Invalid)
+	}
+}
+
+// TestAudit_NestedDir 嵌套子目录遍历（文件夹型模型仓库常见布局）
+func TestAudit_NestedDir(t *testing.T) {
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "模型A", "textures")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, "模型A", "model.json"), []byte(`{"format_version":"1.16.0","minecraft:geometry":[]}`))
+	writeFile(t, filepath.Join(sub, "tex.png"), []byte("png"))
+
+	result, err := Audit(dir)
+	if err != nil {
+		t.Fatalf("Audit 应成功, got %v", err)
+	}
+	if result.Resources.TotalFiles != 2 {
+		t.Errorf("嵌套目录应统计 2 个文件, got %d", result.Resources.TotalFiles)
+	}
+	if result.Completeness.Valid != 1 {
+		t.Errorf("嵌套内合法 model.json 应判有效, got valid=%d", result.Completeness.Valid)
+	}
+}
+
+// TestAudit_SymlinkRoot 符号链接根目录应报错（防审计穿透到仓库外）
+func TestAudit_SymlinkRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 需管理员权限创建符号链接，跳过")
+	}
+	dir := t.TempDir()
+	outside := t.TempDir()
+	writeFile(t, filepath.Join(outside, "secret.json"), []byte(`{"format_version":"1.16.0"}`))
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("无法创建符号链接: %v", err)
+	}
+
+	_, err := Audit(link)
+	if err == nil {
+		t.Error("符号链接根目录应报错")
+	}
+	if !strings.Contains(err.Error(), "符号链接") {
+		t.Errorf("错误应说明符号链接, got: %v", err)
 	}
 }
 

@@ -47,8 +47,8 @@ invariant_anchors:
 - `shouldEnterForm(name, base64)`（dnd-shared.ts）：**仅 `ysm.json` 返回 true**；`.ysm`/`.zip`/`.7z` 及其他注册扩展名一律 false → 走 `directImport` 保留原名，ZIP 内容类型检测下沉 Go 端 `importer.DetectZipType`
 - 命名表单：`parseModelName` 预填作者/作品/角色/日期，实时预览；勾选「读取作者」调 `ExtractYSMHeaderFromBase64` 自动填作者与 tips；`SavePreviewTempFile` 存临时文件后 `bus.emit("model:select")` 驱动右侧预览
 - 队列状态：本地 `fileQueue`（待处理）+ 全局 `ImportHistory.records`（已导入，渲染数据源）；`enqueueFile` 对两者做重名去重；仓库已有文件名缓存 `repoFiles`（`ScanModelEntries` 加载）用于队列行 ⚠️ 重名预警
-- 表单落盘：`showRenameDialog(null, newName)` 确认最终名 → 按 `currentRepoType()` 分流：`mmd-skin` 走 `ImportModelFileToMMD(finalName, subpath, mmdSubdir, base64)`（ADR-096 P2，按用途子目录落位），其他类型走 `ImportModelFileTo(finalName, subpath, base64)`；捕获 `FILE_EXISTS`/「文件已存在」后 `modalConfirm` 二次确认走覆盖分支（MMD 走 `ImportModelFileOverwriteToMMD`）
-- **MMD 用途子目录下拉（ADR-096 P2）**：`tpl-downloads.ts` 新增 `#dl-mmd-subdir` 下拉，仅 `mmd-skin` 类型显示（`currentRepoType() === "mmd-skin"` 条件渲染）；选项与 `MMD_SUBTYPES` 对齐（EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/Shader）
+- 表单落盘：`showRenameDialog(null, newName)` 确认最终名 → 调 `ImportModelFileTo(finalName, subpath, base64)`（后端 `app_install_import.go` 内部按注册表路由类型；MMD 用途子目录经 `subpath`/`mmdSubdir` 参数落位）；捕获 `FILE_EXISTS`/「文件已存在」后 `modalConfirm` 二次确认走覆盖分支 `ImportModelFileOverwriteTo`（2026-08-21 更新：原 `mmd-skin` 专属 `ImportModelFileToMMD`/`ImportModelFileOverwriteToMMD` 绑定前端已不再调用，仅存 Go 侧实现，类型退役后统一走通用导入）
+- 单文件/文件夹直导统一走 `directImport` → `ImportModelFile` / `importFolder` → `ImportModelFolder`（见 import-executor.ts）；**MMD 用途子目录选择（ADR-096 P2）已全局化到 app-nav 双下拉**（`repo_rtype` / `repo_subdir` 落盘 + `repo:rtype-changed` 广播），选项与 MMD 子类型对齐（EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/Shader），不再有下载页局部下拉（原 `#dl-mmd-subdir` 仅 `mmd-skin` 条件渲染已移除）
 - 已导入项 ✂️ 按钮 → `showRenameDialog` + `RenameFile`，成功后 `ImportHistory.rename` 同步历史
 
 ## 对外 API / 入口

@@ -58,7 +58,7 @@ invariant_anchors:
 - 复制中断/失败会删除半截目标文件，成功后 `chmod FilePerms`（0644，走 `fsutil.FilePerms` 全仓单点）；`src == dst` 直接返回
 - **原子文件替换模式**（审计发现）：写入文件时先写入 `.tmp` 临时文件，成功后 `os.Rename` 原子替换目标文件；失败时删除临时文件，不破坏原文件（`linkOrCopyLocked` / `symlinkOrCopyLocked` 的 `.link-tmp` / `.symlink-tmp` 模式）。`copyFileLocked` 同为原子替换（`.copy-tmp` + Rename，失败仅删 tmp）——知识卡旧文「copyFileLocked 失败删除半截目标文件」已被原子替换取代，属陈旧描述。
 - **TOCTOU 缩小模式**（审计发现）：文件存在性检查（`os.Stat`）和写入操作（`os.WriteFile`/`os.Rename`）应在**同一函数内**完成，缩小时间窗口。`InstallWithOverlay` 的防覆盖检查在 `InstallWithOverlay` 内（`installer.go:249-251`），靠 `installLock` 临界区闭合 TOCTOU——**未下沉到 `copyFileLocked`**（源码注释明确「不能下沉——会破坏 Install/RelinkDir 的覆盖替换语义」；知识卡旧文「检查已移入 copyFileLocked」记录的是被回退的方案，已修正）。
-- `installDirRecursive` 单个文件失败不中断整棵树，逐条记日志并聚合成一条错误返回；扩展名白名单：`mmd-skin` → `.pmx/.pmd/.png/.tga/.spa/.sph`，`ysm` → `.json/.png/.jpg/.jpeg`，其余 rtype 全放行
+- `installDirRecursive` 单个文件失败不中断整棵树，逐条记日志并聚合成一条错误返回；扩展名白名单**注册表驱动**（`types.InstallExtsFor(rtype)`，来自 `resource_types.json` 的 `installExts`）：`ysm` → `.json/.png/.jpg/.jpeg`；`EntityPlayer` 等在无 `installExts` 时不设白名单，全部非可执行文件放行（仅 `.exe/.bat/.dll/.cmd/.scr/.pif/.com/.msi/.ps1/.vbs` 黑名单拦截）
 - 扩展名校验兼容 `.ban` 变体（先剥 `.ban` 再判 `types.IsSupportedExt`）
 - `InstallDir` 回滚时仅删除本次新建目录（`!dstExisted`），失败路径返回复合错误（含原始安装错误 + 回滚错误），调用方可区分「安装失败」与「安装失败+回滚失败留残渣」两种状态（P2 修复）
 - **同步删除备案（2026-08-11 审计评估）**：源（仓库）文件删除后，整合包实例中的副本**不自动镜像删除**——安装侧语义为「落地不删目标」（同源幂等 / 异源原子替换），清理走显式入口 `ClearInstanceResources` → `clearInstanceDir` → `RemoveRepoDuplicates`（只删仓库同名副本，**明确保留整合包用户自装资源**，recycle_clean.go 注释「仓库没有此文件，跳过（整合包自带资源）」）。若在 InstallDir 加同步删除会误删用户自装同名资源，与既有「保留自装」语义冲突——**有意不做，勿复活**。

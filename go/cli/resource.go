@@ -116,7 +116,7 @@ func runResourceScan(ctx *CmdContext) error {
 	})
 
 	if err != nil {
-		return newRuntimeErrf("扫描目录失败: %v", err)
+		return newRuntimeErrf("扫描目录失败: %w", err)
 	}
 
 	// 输出结果

@@ -19,14 +19,18 @@ func TestRegistry(t *testing.T) {
 	if got := Get("blueprint"); got == nil {
 		t.Fatal("Get('blueprint') = nil, want handler")
 	}
-	if got := Get("vrm"); got == nil {
-		t.Fatal("Get('vrm') = nil, want handler")
+	if got := Get("SceneModel"); got == nil {
+		t.Fatal("Get('SceneModel') = nil, want handler")
 	}
 	if got := Get("ysm"); got == nil {
 		t.Fatal("Get('ysm') = nil, want handler")
 	}
 	if got := Get("litematic"); got == nil {
 		t.Fatal("Get('litematic') = nil, want handler")
+	}
+	// 防回归：vrm 独立类型已随 ADR-111 退役
+	if got := Get("vrm"); got != nil {
+		t.Fatalf("Get('vrm') = %v, want nil（已并入 EntityPlayer variants）", got)
 	}
 	if got := Get("nonexistent"); got != nil {
 		t.Fatalf("Get('nonexistent') = %v, want nil", got)
@@ -42,7 +46,7 @@ func TestType(t *testing.T) {
 		{"shaderpack", "shaderpack"},
 		{"blueprint", "blueprint"},
 		{"EntityPlayer", "EntityPlayer"},
-		{"vrm", "vrm"},
+		{"SceneModel", "SceneModel"},
 	}
 	for _, tc := range tests {
 		h := Get(tc.rtype)
@@ -52,6 +56,10 @@ func TestType(t *testing.T) {
 		if got := h.Type(); got != tc.want {
 			t.Errorf("Type() = %q, want %q", got, tc.want)
 		}
+	}
+	// 防回归：vrm 独立类型已随 ADR-111 退役，注册表不得复活
+	if h := Get("vrm"); h != nil {
+		t.Errorf("Get('vrm') = %v, want nil（vrm 已并入 EntityPlayer variants）", h)
 	}
 }
 

@@ -46,10 +46,10 @@ invariant_anchors:
 
 - `Register` / `Get` — 导入策略注册表（`Handler` 接口：`Type() string`、`Import(srcPath, dstDir) string`，返回空串即成功）
 - `NewSimpleCopy` — 单文件/目录复制策略（`SimpleCopyImporter`）
-- `NewDirectoryCopy` — 以文件夹为单位的复制策略（`DirectoryCopyImporter`：mmd-skin）
+- `NewDirectoryCopy` — 以文件夹为单位的复制策略（`DirectoryCopyImporter`：EntityPlayer 等目录型类型）
 - `ImportFromBase64(fileName, base64Data, ImportOptions{SkipCheck, Overwrite}, rootFn, logger)` — base64 导入核心
 - `DetectZipType(data []byte) string` — ZIP 内容类型检测
-- `init()` 注册：resourcepack / shaderpack / blueprint / mmd-skin(目录) / EntityPlayer / ysm / litematic
+- `init()` 注册：resourcepack / shaderpack / blueprint / EntityPlayer / SceneModel / CustomAnim / CustomMorph / StageAnim / mmd-shader / DefaultAnim / DefaultMorph / maid-model / ysm / litematic
 
 ## 与其他子系统关系
 
