@@ -2,7 +2,6 @@
   "generated": "2026-08-21T10:11:49.539Z",
   "knip": [
     "package.json|binaries|wails3",
-    "package.json|dependencies|@loaders.gl/textures",
     "package.json|devDependencies|jscpd",
     "src/backend/idb.ts|exports|STORES",
     "src/backend/voxel-parse.ts|types|VoxelGroup",
