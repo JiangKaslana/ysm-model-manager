@@ -99,6 +99,15 @@ describe("runHealthAudit", () => {
     expect(list.innerHTML).not.toContain("解析失败");
   });
 
+  it("真解析失败（非法 JSON）→ 展示解析失败文案", async () => {
+    getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => "not json") });
+    const list = document.createElement("div");
+    await runHealthAudit(list, esc, "/repo");
+    await waitFor(() => expect(list.innerHTML).toContain("❌"));
+    expect(list.innerHTML).toContain("解析失败");
+    expect(list.innerHTML).not.toContain("路径超出仓库目录");
+  });
+
   it("调用异常 → 展示错误（friendlyError）", async () => {
     getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => Promise.reject(new Error("boom"))) });
     const list = document.createElement("div");
