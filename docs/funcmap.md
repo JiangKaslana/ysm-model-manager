@@ -371,10 +371,10 @@
 | `InvalidatePath()` | `go/scanner/scanner:163` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
 | `ScanEntries()` | `go/scanner/scanner:194` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:201` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:353` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:407` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:437` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:500` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ComputeFileHash()` | `go/scanner/scanner:363` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:417` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:447` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:510` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -2024,8 +2024,8 @@
 | `bindFooter()` | `frontend/src/views/app-sidebar/events:195` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
-| `loadInstances()` | `frontend/src/views/app-sidebar/loader:33` | 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） |
-| `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:161` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
+| `loadInstances()` | `frontend/src/views/app-sidebar/loader:36` | 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） 去重只服务「读并发」（多组件同时触发 reload），若变异完成的刷新并入变异前发起 |
+| `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:166` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |
 | `renderVersionCards()` | `frontend/src/views/app-sidebar/render:8` | — |
 | `sidebarCSS()` | `frontend/src/views/app-sidebar/sidebar-css:3` | — |
 | `headerHTML()` | `frontend/src/views/app-sidebar/tpl:7` | — |

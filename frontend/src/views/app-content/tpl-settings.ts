@@ -40,6 +40,7 @@ export function settingsHTML(): string {
 <div class="repo-tabs">
 <button class="stg-tab active" data-tab="basic">⚙️ ${t("settings.basic")}</button>
 <button class="stg-tab" data-tab="ui">🎨 ${t("settings.appearance")}</button>
+<button class="stg-tab" data-tab="parser">🧩 ${t("settings.parser")}</button>
 <button class="stg-tab" data-tab="about">ℹ️ ${t("settings.about")}</button>
 <button class="stg-tab" data-tab="credits">🙏 ${t("settings.credits")}</button>
 </div>
@@ -287,7 +288,18 @@ export function settingsHTML(): string {
   <div style="margin-top:8px"><button class="btn-base sm" id="td-keymap-reset">↩️ ${t("settings.preview3d.resetKeys")}</button></div>
 </div>
 
-<div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:330ms">
+</div>
+</div>
+<!-- /stg-tab-ui -->
+
+<!-- stg-tab-parser -->
+<div class="repo-tab-body" id="stg-tab-parser" style="display:none;overflow-y:auto">
+<div class="stg-page" style="padding:16px 20px">
+
+<div class="section-title stg-title">🧩 ${t("settings.parser")}</div>
+<div style="font-size:var(--fs-sm);color:var(--muted);line-height:1.7;margin-bottom:12px">${t("settings.parserDesc")}</div>
+
+<div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:0ms">
   <div class="setting-row">
     <span class="label">🧩 ${t("settings.preview3d.fbxWorker")}</span>
     <label class="stg-label" style="gap:8px">
@@ -297,7 +309,7 @@ export function settingsHTML(): string {
   <div class="stg-hint">${t("settings.preview3d.fbxWorkerHint")}</div>
 </div>
 
-<div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:360ms">
+<div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:60ms">
   <div class="setting-row">
     <span class="label">🧩 ${t("settings.preview3d.mmdWorker")}</span>
     <label class="stg-label" style="gap:8px">
@@ -309,7 +321,7 @@ export function settingsHTML(): string {
 
 </div>
 </div>
-<!-- /stg-tab-ui -->
+<!-- /stg-tab-parser -->
 
 ${aboutHTML()}
 ${creditsHTML()}

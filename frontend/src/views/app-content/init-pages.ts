@@ -251,7 +251,7 @@ function bindTabs(
  * 初始化设置页
  */
 export async function initSettingsPage(host: AppContentHost): Promise<void> {
-  bindTabs(host, ".stg-tab", "stg", ["basic", "ui", "about", "credits"]);
+  bindTabs(host, ".stg-tab", "stg", ["basic", "ui", "parser", "about", "credits"]);
   try {
     await initSettings(host._root);
   } catch (e) {
