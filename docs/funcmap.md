@@ -352,7 +352,7 @@
 |------|--------|------|
 | `Audit()` | `go/repoaudit/repoaudit:115` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
 | `HealthReportFor()` | `go/repoaudit/repoaudit:228` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
-| `Classify()` | `go/repoaudit/repoaudit:329` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
+| `Classify()` | `go/repoaudit/repoaudit:340` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
 | `Result()` | `go/repoaudit/repoaudit:55` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
 | `Completeness()` | `go/repoaudit/repoaudit:66` | Completeness 完整性统计 |
 | `CacheStatus()` | `go/repoaudit/repoaudit:74` | CacheStatus 缓存状态 |
@@ -1228,9 +1228,9 @@
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:73` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:183` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:190` | — |
-| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1087` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1128` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1160` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1090` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1131` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1163` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:12` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:24` | 从文件列表中筛选动作文件（.vmd / .vpd） |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |

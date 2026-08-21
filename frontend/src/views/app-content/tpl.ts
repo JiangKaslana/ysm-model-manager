@@ -133,10 +133,12 @@ export function diagnosticsHTML(): string {
 <input id="diag-perf-iter" type="number" min="1" step="1" value="3" style="width:56px;font-size:var(--fs-sm);padding:4px 6px;border-radius:4px;border:1px solid var(--bd);background:var(--bg);color:var(--txt)">
 <button class="btn-base" id="diag-perf-gui">🩺 ${t("diagnostics.perfRunGui")}</button>
 <button class="btn-base" id="diag-perf-log">🗒️ ${t("diagnostics.perfPerfLog")}</button>
+<button class="btn-base" id="diag-perf-refresh-trace">🔍 ${t("diagnostics.loadTraceRefresh")}</button>
 </div>
 <div id="diag-perf-single"></div>
 <div id="diag-perf-gui"></div>
 <div id="diag-perf-hist"></div>
+<div id="diag-load-trace"></div>
 </div>
 </div>
 <div class="diag-panel" id="diag-oldest" style="display:none">

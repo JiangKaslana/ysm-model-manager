@@ -5,7 +5,8 @@
 //  - perf-log：优化历史卡片渲染
 // mock cli-bridge.executeCLI（web 模式在测试环境视为 native，resolveWebMode=false）
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { initPerfPanel } from "./perf.ts";
+import { initPerfPanel, renderLoadTraceSection } from "./perf.ts";
+import { recordLoadTrace, clearLoadTraces } from "../../../utils/3d/load-trace.ts";
 
 const { executeCLI, resolveWebMode } = vi.hoisted(() => ({
   executeCLI: vi.fn(),
@@ -79,11 +80,13 @@ function makeRoot(): ShadowRoot {
     <button class="diag-btn" id="diag-perf-run">运行</button>
     <button class="diag-btn" id="diag-perf-gui">体检</button>
     <button class="diag-btn" id="diag-perf-log">历史</button>
+    <button class="diag-btn" id="diag-perf-refresh-trace">刷新</button>
     <input id="diag-perf-model">
     <input id="diag-perf-iter">
     <div id="diag-perf-single"></div>
     <div id="diag-perf-gui"></div>
     <div id="diag-perf-hist"></div>
+    <div id="diag-load-trace"></div>
   `;
   (el as unknown as { getElementById: (id: string) => HTMLElement | null }).getElementById =
     (id: string) => el.querySelector(`#${id}`);
@@ -217,5 +220,52 @@ describe("perf-log 面板", () => {
     expect(out.textContent).toContain("KTX2 缓存");
     expect(out.textContent).toContain("fd068ac");
     expect(out.textContent).toContain("加载 1 次 RPC 替代 N+1 次");
+  });
+});
+
+describe("加载剖析面板", () => {
+  it("无 trace → 显示暂无加载记录", async () => {
+    const root = makeRoot();
+    renderLoadTraceSection(root, esc);
+    const out = root.getElementById("diag-load-trace") as HTMLElement;
+    expect(out.textContent).toContain("暂无加载记录");
+  });
+
+  it("有 trace → 渲染甘特图 + 资产信息", async () => {
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "mmd",
+      path: "./ysm/player.ysm",
+      stages: [
+        { name: "读取", ms: 12, status: "ok" },
+        { name: "解析", ms: 1993, status: "ok" },
+        { name: "纹理加载", ms: 342, status: "ok" },
+        { name: "build", ms: 89, status: "ok" },
+      ],
+      assets: { files: 12, textures: 8, bones: 142, materials: 23, morphs: 89, animations: 3, pmxWorker: true, ktx2Hits: 5, ktx2Total: 8 },
+      textureDetails: [{ path: "body.png", size: "1024x1024" }, { path: "face.png", size: "512x512" }],
+      gpuMb: 12.4,
+      ok: true,
+    });
+    const root = makeRoot();
+    renderLoadTraceSection(root, esc);
+    const out = root.getElementById("diag-load-trace") as HTMLElement;
+    expect(out.innerHTML).toContain("<svg");
+    expect(out.textContent).toContain("player.ysm");
+    expect(out.textContent).toContain("142"); // bones
+    expect(out.textContent).toContain("23"); // materials
+    expect(out.textContent).toContain("12.4"); // gpuMb
+    expect(out.textContent).toContain("KTX2");
+    expect(out.innerHTML).toContain("body.png");
+  });
+
+  it("刷新按钮 → 调用 renderLoadTraceSection", async () => {
+    clearLoadTraces();
+    const root = makeRoot();
+    initPerfPanel(root, esc);
+    (root.getElementById("diag-perf-refresh-trace") as HTMLElement).click();
+    await Promise.resolve();
+    const out = root.getElementById("diag-load-trace") as HTMLElement;
+    expect(out.textContent).toContain("暂无加载记录");
   });
 });

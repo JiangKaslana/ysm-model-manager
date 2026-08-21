@@ -88,6 +88,23 @@ export const contentDiagCSS: string = `
 .perf-hist-body { display:block; font-size:var(--fs-xs); color:var(--muted); white-space:pre-wrap; }
 :host-context(.no-animations) .perf-hist-card { animation:none !important; }
 
+/* ===== 加载剖析面板 ===== */
+.perf-trace-meta { font-size:var(--fs-xs);color:var(--muted);word-break:break-all; }
+.perf-gantt-wrap { padding:6px 2px; }
+.perf-asset-grid { display:flex;flex-wrap:wrap;gap:4px 12px;padding:6px 2px;font-size:var(--fs-xs); }
+.perf-asset-item { color:var(--txt);white-space:nowrap; }
+.perf-badge-ok { color:var(--status-success);font-weight:600; }
+.perf-badge-warn { color:var(--warning,#b8860b); }
+.perf-tex-section { font-size:var(--fs-xs);color:var(--muted);padding:4px 2px;line-height:1.6; }
+.perf-tex-row { display:flex;align-items:center;gap:6px;padding:1px 0; }
+.perf-tex-name { flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt); }
+.perf-tex-size { color:var(--muted);font-size:var(--fs-xs);flex-shrink:0; }
+.perf-ktx2-badge { font-size:8px;padding:0 3px;border-radius:3px;background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent);flex-shrink:0; }
+.perf-tex-more { color:var(--muted);font-size:var(--fs-xs);padding:2px 0; }
+.perf-no-data { color:var(--muted);font-size:var(--fs-sm);padding:12px 2px;text-align:center; }
+.perf-no-hint { color:var(--muted);font-size:var(--fs-xs);padding:2px 2px 8px;text-align:center;opacity:.7; }
+.perf-trace-hint { color:var(--muted);font-size:var(--fs-xs);padding:4px 2px 8px;text-align:center;opacity:.6;border-top:1px solid var(--bd);margin-top:6px; }
+
 /* ===== 设置页卡片三栏网格 ===== */
 .stg-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
 .stg-card { background:var(--surf); border:1px solid var(--bd); border-radius:var(--radius-lg); overflow:hidden; animation:fadeSlideUp var(--tr-enter) both; }

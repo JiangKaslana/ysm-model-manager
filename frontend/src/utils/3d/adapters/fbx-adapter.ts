@@ -11,6 +11,7 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import { screenshotFromRenderer } from "../screenshot.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
+import { recordLoadTrace } from "../load-trace.ts";
 
 /** FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface FbxDataPort {
@@ -66,6 +67,7 @@ function disposeMaterial(mat: THREE.Material): void {
  */
 export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: FbxDataPort): Promise<PreviewScene> {
   // 1) 取字节 → blob URL（Wails 读不了本地盘，必须经 Go RPC 取字节再包 URL）
+  const tStart = performance.now();
   const b64 = await port.readFileBytes(path);
   if (!b64) {
     throw new Error("FBX 字节读取失败（ReadFileBytes 返回空）");
@@ -94,6 +96,25 @@ export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: Fb
   } finally {
     URL.revokeObjectURL(blobUrl);
   }
+  const tLoadEnd = performance.now();
+  // 加载剖析
+  let meshCount = 0, texCount = 0;
+  group.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) {
+      meshCount++;
+      const mat = (o as THREE.Mesh).material;
+      if (Array.isArray(mat)) texCount += mat.length;
+      else if (mat) texCount++;
+    }
+  });
+  recordLoadTrace({
+    ts: Date.now(),
+    format: "fbx",
+    path,
+    stages: [{ name: "加载", ms: Math.round(tLoadEnd - tStart), status: "ok" }],
+    assets: { files: 1, textures: texCount, materials: texCount, animations: group.animations?.length ?? 0, fbxAnimations: group.animations?.length ?? 0 },
+    ok: true,
+  });
 
   if (ctx.scene) ctx.scene.add(group);
 

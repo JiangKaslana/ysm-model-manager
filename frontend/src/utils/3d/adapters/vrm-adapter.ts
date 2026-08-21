@@ -16,6 +16,7 @@ import { createBreathController } from "../perception/breath.ts"; // 语义骨�
 import { createGazeController } from "../perception/gaze.ts"; // 语义骨骼消费方：程序化生命力 L2
 import { createBlinkController } from "../perception/blink.ts"; // 语义表情消费方：程序化生命力 L1.5
 import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK，格式无关）
+import { recordLoadTrace } from "../load-trace.ts";
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 import { buildPerceptionControls, type PerceptionState, type PerceptionCapability } from "./perception-controls.ts";
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
@@ -279,7 +280,6 @@ export async function buildVrmScene(
   ctx.controls!.maxDistance = maxDim * 12;
   ctx.controls!.update();
 
-
   // ADR-074 S2 骨骼面板接入：经 ctx.menu.setAdapterItems 注入 ⚙️ 根菜单专属项（ADR-076 v2 Phase 2）。
   // 旧版经 extraControls 加「🦴 骨骼」按钮 → querySelector("#preview-panel") 恒 null（core 仅在适配器
   // 返回 extraPanel 时才建 #preview-panel），按钮实为死按钮——改走声明式根菜单契约（对齐 ysm-adapter）。
@@ -372,7 +372,25 @@ export async function buildVrmScene(
   const blink = createBlinkController();
   // 程序化足部锚地（Foot IK）：待机态下保持双足贴地，防悬空/穿模（格式无关，与 MMD 共用）
   const footIK = createFootIKController(boneTree, semanticBones);
-
+  // 加载剖析：结构化 trace 写入全局 store（perf 面板甘特图消费）
+  recordLoadTrace({
+    ts: Date.now(),
+    format: "vrm",
+    path,
+    stages: [
+      { name: "读取", ms: Math.round(tParseStart - tStart), status: "ok" },
+      { name: "解析", ms: Math.round(tParseEnd - tParseStart), status: "ok" },
+    ],
+    assets: {
+      files: 1,
+      textures: vrmMaterials.length,
+      bones: boneTree.roots.length,
+      materials: vrmMaterials.length,
+      animations: motionClips.length,
+      vrmaClips: motionClips.length,
+    },
+    ok: true,
+  });
   return {
     // VRM 动态部分（VRMA 动画 + SpringBone/表情/LookAt/MToon UV）靠 vrm.update 驱动
     update: (dt: number): void => {

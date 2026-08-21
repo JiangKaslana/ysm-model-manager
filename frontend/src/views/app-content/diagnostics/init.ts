@@ -8,7 +8,7 @@ import { can } from "../../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { loadDiagnosticsLogs, loadRuntimeLogs, type EscFn } from "./logs.ts";
 import { scanConflicts } from "./conflicts.ts";
-import { initPerfPanel } from "./perf.ts";
+import { initPerfPanel, renderLoadTraceSection } from "./perf.ts";
 import { runHealthAudit } from "./health.ts";
 
 // 对外 API 兼容：startDedup 已迁至 dedup.ts（外部仍从本文件 import，见 init-pages.ts / init.test.ts）
@@ -186,6 +186,7 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
       }
       if (name === "log") loadDiagnosticsLogs(root, esc);
       if (name === "runtime") loadRuntimeLogs(root, esc);
+      if (name === "perf") renderLoadTraceSection(root, esc);
     });
   });
 

@@ -19,6 +19,7 @@ import { getTextureDecoder, applyWorkerDecodedTextures, type DecodedTexture } fr
 import { createPmxParser, buildPmxSceneSliced, type PmxParser, type PmxBuildResult } from "./mmd-pmx-parser.ts";
 import { Ktx2TextureLoader } from "./mmd-ktx2-texture-loader.ts";
 import { startMainThreadWatch, formatLongTask } from "../../../utils/main-thread-watch.ts";
+import { recordLoadTrace } from "../load-trace.ts";
 import type {
   MmdBottomNavCtx,
   MmdPlayBridge,
@@ -224,6 +225,9 @@ export async function buildMmdScene(
   // 它只返回主文件条目，纹理/VMD 拿不到，URLModifier 全放行导致纹理 502）----
   const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
   const texMap = new Map<string, string>();
+  // 加载剖析追踪变量（trace 在函数末尾消费，需提前声明）
+  let _traceFiles = 0;
+  let _traceGpuMb = 0;
   const blobUrls: string[] = [];
   const vmdPaths: string[] = [];
   const vpdPaths: string[] = []; // 同目录 VPD 姿势文件
@@ -246,6 +250,7 @@ export async function buildMmdScene(
   const blobUrlToHash = new Map<string, string>();
   try {
     const files = (await port.listAllFilePaths(dirPath)) || [];
+    _traceFiles = files.length;
     // ADR-101：批量读取纹理（1 次 RPC 替代 N 次 readFileBytes，减少 Go↔JS IPC 往返）
     const texFiles = files.filter((p) => TEXTURE_EXTS.some((ext) => p.toLowerCase().endsWith(ext)));
     // 优先用 readFileBytesBatchWithMeta（数据 + hash 一次性返回），降级到 readFileBytesBatch
@@ -358,6 +363,7 @@ export async function buildMmdScene(
   const manager = new THREE.LoadingManager();
   // 诊断（环形日志）：MMD 加载三段耗时。完整 perf 在 manager.onLoad 输出——
   // 纹理完成时才有 texture 值（loadAsync resolve 后贴图仍异步解码，build 结束往往未完成）。
+  let tStart = performance.now();
   let textureLoadedAt = 0;
   let tParseStart = 0;
   let tParseEnd = 0;
@@ -398,6 +404,7 @@ export async function buildMmdScene(
       if (w && h) gpuBytes += w * h * 4 * n;
     }
     const gpuMb = (gpuBytes / (1024 * 1024)).toFixed(1);
+    _traceGpuMb = parseFloat(gpuMb);
     void mmdDiag(
       port,
       "perf",
@@ -1021,6 +1028,41 @@ export async function buildMmdScene(
   // 诊断（环形日志）：build 段结束打点；完整 perf 由 manager.onLoad 在纹理完成时输出（见上）
   tBuildEnd = performance.now();
   buildSucceeded = true;
+  // 加载剖析：结构化 trace 写入全局 store（perf 面板甘特图消费）
+  const _stages: import("../load-trace.ts").LoadTraceStage[] = [];
+  if (tParseStart > 0) _stages.push({ name: "读取", ms: Math.round(tParseStart - tStart), status: "ok" });
+  if (tParseEnd > 0) _stages.push({ name: "解析", ms: Math.round(tParseEnd - tParseStart), status: "ok" });
+  if (textureLoadedAt > 0) _stages.push({ name: "纹理加载", ms: Math.round(textureLoadedAt - tParseEnd), status: "ok" });
+  if (tBuildEnd > tParseEnd) _stages.push({ name: "build", ms: Math.round(tBuildEnd - tParseEnd), status: "ok" });
+  const _mats = Array.isArray(mmd?.mesh?.material) ? mmd.mesh.material : mmd?.mesh?.material ? [mmd.mesh.material] : [];
+  const _texDetails: import("../load-trace.ts").LoadTraceTexture[] = [];
+  for (const m of _mats) {
+    const img = (m as { map?: { image?: HTMLImageElement } })?.map?.image;
+    if (img?.width && img?.height) {
+      const src = (m as { map?: { source?: { src?: string } } })?.map?.source?.src ?? "";
+      _texDetails.push({ path: src.split("/").pop() ?? "texture", size: `${img.width}x${img.height}` });
+    }
+  }
+  recordLoadTrace({
+    ts: Date.now(),
+    format: "mmd",
+    path,
+    stages: _stages,
+    assets: {
+      files: _traceFiles,
+      textures: _texDetails.length,
+      bones: mmd?.pmx?.bones?.length ?? 0,
+      materials: mmd?.pmx?.materials?.length ?? _mats.length,
+      morphs: mmd?.pmx?.morphs?.length ?? 0,
+      animations: clips.length,
+      pmxWorker: usePmxWorker,
+      ktx2Hits: cachedHashes?.size ?? 0,
+      ktx2Total: blobUrlToHash.size,
+    },
+    textureDetails: _texDetails,
+    gpuMb: _traceGpuMb,
+    ok: true,
+  });
   return result;
   } finally {
     // build 失败时兜底回收 blobUrls（build 成功由 dispose 负责回收）
