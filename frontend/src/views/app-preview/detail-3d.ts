@@ -11,6 +11,7 @@ import { readVrmMeta } from "../../utils/3d/adapters/vrm-adapter.ts";
 import { createVrm3D } from "./vrm-3d.ts";
 import { createMmd3D } from "./mmd-3d.ts";
 import { createFbx3D } from "./fbx-3d.ts";
+import { resolveFbxSiblings } from "./fbx-siblings.ts";
 import { createScene3D } from "./scene-3d.ts";
 import { resolveMmdSiblings } from "./mmd-siblings.ts";
 import { resolveSceneSiblings } from "./scene-siblings.ts";
@@ -142,7 +143,11 @@ export async function showFbxPreview(
   const fab = ctx.root.querySelector<HTMLElement>("#btn-fbx-3d");
   if (fab) {
     fab.onclick = (): void => {
-      void createFbx3D(path);
+      // 3D 内换模型（ADR-066 §5.6）：先取同类型 FBX 候选列表，随 siblings 传入渲染 topBar 切换下拉
+      void (async () => {
+        const siblings = await resolveFbxSiblings();
+        await createFbx3D(path, { siblings });
+      })();
     };
   }
 }

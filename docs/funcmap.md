@@ -44,10 +44,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
 | 前端·工具 | 147 | 551 |
-| frontend/views | 111 | 321 |
+| frontend/views | 113 | 323 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **440** | **1878** |
+| **合计** | **442** | **1880** |
 
 ## Go·头像
 
@@ -1878,12 +1878,12 @@
 | `collectBlobUrls()` | `frontend/src/views/app-preview/cache:48` | 收集缓存值中全部 blob URL（evict 释放用） |
 | `cacheSet()` | `frontend/src/views/app-preview/cache:65` | — |
 | `previewCSS()` | `frontend/src/views/app-preview/css:2` | — |
-| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:25` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
-| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:97` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
-| `showFbxPreview()` | `frontend/src/views/app-preview/detail-3d:126` | 显示 FBX 预览卡（文件名 + FAB 进 3D；FBX 无标准 meta 读取，保持简单形态，ADR-112） |
-| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:151` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
-| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:180` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
-| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:240` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
+| `showVrmMeta()` | `frontend/src/views/app-preview/detail-3d:26` | 显示 VRM meta 卡（名称/作者/许可/版本/缩略图 + FAB 进 3D，对齐 YSM 模式） |
+| `showMmdPreview()` | `frontend/src/views/app-preview/detail-3d:98` | 显示 MMD 预览卡（文件名 + FAB 进 3D；PMX/PMD 无标准 meta 读取，保持简单形态） |
+| `showFbxPreview()` | `frontend/src/views/app-preview/detail-3d:127` | 显示 FBX 预览卡（文件名 + FAB 进 3D；FBX 无标准 meta 读取，保持简单形态，ADR-112） |
+| `showScenePreview()` | `frontend/src/views/app-preview/detail-3d:156` | 显示场景 MMD 预览卡（独立入口，与角色模型完全隔离） |
+| `showMorphPreview()` | `frontend/src/views/app-preview/detail-3d:185` | 显示 CustomMorph 预览卡（VPD 表情姿势 + 兄弟列表 + 应用 FAB） |
+| `showStagePreview()` | `frontend/src/views/app-preview/detail-3d:245` | 显示 StageAnim 预览卡（舞台包：VMD + 音频 + 配置） |
 | `nextDetailGen()` | `frontend/src/views/app-preview/detail:24` | 跨文件共享代际：自增并返回（detail-3d.ts 等 3D 入口复用，保证快速切换时在途请求互相作废） |
 | `getDetailGen()` | `frontend/src/views/app-preview/detail:29` | 跨文件共享代际：读取当前值（detail-3d.ts 过期守卫用） |
 | `showModelDetail()` | `frontend/src/views/app-preview/detail:34` | 显示模型详情（YSM 模型） |
@@ -1896,6 +1896,7 @@
 | `createFbx3D()` | `frontend/src/views/app-preview/fbx-3d:40` | 打开 FBX 3D 预览（独立资产：模型 + 内嵌动画）；siblings 透传同类型候选（ADR-066 §5.6） |
 | `cleanupFbx3D()` | `frontend/src/views/app-preview/fbx-3d:45` | 清理 FBX 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateFbxPreview()` | `frontend/src/views/app-preview/fbx-3d:50` | 任意新预览派发时调用，作废在途 FBX 加载 |
+| `resolveFbxSiblings()` | `frontend/src/views/app-preview/fbx-siblings:10` | 同类型 FBX 模型候选（GetRepoRoot(fbx) → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:4` | Bedrock 方块 |
 | `BedrockBone()` | `frontend/src/views/app-preview/geometry:15` | Bedrock 骨骼 |
 | `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:30` | 解析后的 Bedrock geometry |
@@ -1950,6 +1951,7 @@
 | `resolveSceneSiblings()` | `frontend/src/views/app-preview/scene-siblings:6` | 场景模型候选（只扫 SceneModel 子目录）；失败返回 [] |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:13` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:19` | — |
+| `resolveSiblingsByType()` | `frontend/src/views/app-preview/siblings:13` | 解析某资源类型的同目录候选主文件路径列表。 |
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:18` | — |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-render` | — |
