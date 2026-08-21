@@ -11,12 +11,30 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"ysm-model-manager/go/dedup"
 	"ysm-model-manager/go/texture_cache"
 	"ysm-model-manager/go/types"
 )
+
+// extToTypeID 预计算的 ext→注册表类型 id 映射，避免 Classify 热路径每文件遍历注册表。
+// sync.Once 延迟构建——首次 Classify 调用时初始化。
+var (
+	extToTypeID   map[string]string
+	extToTypeIDMu sync.Once
+)
+
+func initExtMap() {
+	extToTypeID = make(map[string]string)
+	reg := types.LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		for _, e := range rt.EffectiveExtensions() {
+			extToTypeID[strings.ToLower(e)] = rt.ID
+		}
+	}
+}
 
 // 审计相关阈值常量
 const (
@@ -172,15 +190,16 @@ func Audit(dirPath string) (Result, error) {
 	result.Cache.CacheFiles = stats.FileCount
 	result.Cache.CacheSize = stats.TotalSize
 
-	modelFileCount := resources["model"]
-	if modelFileCount > 0 {
-		hitRate := float64(stats.FileCount) / float64(modelFileCount) * 100
+	// 缓存命中率：缓存文件数 / 仓库总文件数（口径稳定，不依赖类型分类）
+	totalFiles := result.Resources.TotalFiles
+	if totalFiles > 0 {
+		hitRate := float64(stats.FileCount) / float64(totalFiles) * 100
 		if hitRate > 100 {
 			hitRate = 100
 		}
 		result.Cache.HitRate = hitRate
 		result.Cache.Hits = stats.FileCount
-		result.Cache.Misses = modelFileCount - stats.FileCount
+		result.Cache.Misses = totalFiles - stats.FileCount
 		if result.Cache.Misses < 0 {
 			result.Cache.Misses = 0
 		}
@@ -294,17 +313,14 @@ func isModelFileValid(path, ext string) bool {
 // Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。
 // 注册表驱动——新增类型只需在 resource_types.json 添加条目，无需改本函数。
 // 未命中任何类型 → "other"。导出供 resource-scan/审计共用，唯一实现防双轨。
+// 性能：首次调用 sync.Once 构建预计算 ext→id map，后续 O(1) 查表。
 func Classify(ext string) string {
-	ext = strings.ToLower(strings.TrimSpace(ext))
-	reg := types.LoadRegistry()
-	for _, rt := range reg.ResourceTypes {
-		for _, e := range rt.EffectiveExtensions() {
-			if ext == strings.ToLower(e) {
-				return rt.ID
-			}
-		}
+	extToTypeIDMu.Do(initExtMap)
+	id, ok := extToTypeID[strings.ToLower(strings.TrimSpace(ext))]
+	if !ok {
+		return "other"
 	}
-	return "other"
+	return id
 }
 
 // formatSize 人性化字节大小（本地实现，纯展示不参与口径）

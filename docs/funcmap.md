@@ -349,15 +349,15 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Audit()` | `go/repoaudit/repoaudit:96` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
-| `HealthReportFor()` | `go/repoaudit/repoaudit:197` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
-| `Classify()` | `go/repoaudit/repoaudit:297` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
-| `Result()` | `go/repoaudit/repoaudit:36` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
-| `Completeness()` | `go/repoaudit/repoaudit:47` | Completeness 完整性统计 |
-| `CacheStatus()` | `go/repoaudit/repoaudit:55` | CacheStatus 缓存状态 |
-| `ResourceSummary()` | `go/repoaudit/repoaudit:65` | ResourceSummary 资源统计 |
-| `DedupSummary()` | `go/repoaudit/repoaudit:74` | DedupSummary 去重维度汇总（HealthReport 追加） |
-| `HealthReport()` | `go/repoaudit/repoaudit:81` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
+| `Audit()` | `go/repoaudit/repoaudit:114` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
+| `HealthReportFor()` | `go/repoaudit/repoaudit:216` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
+| `Classify()` | `go/repoaudit/repoaudit:317` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
+| `Result()` | `go/repoaudit/repoaudit:54` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
+| `Completeness()` | `go/repoaudit/repoaudit:65` | Completeness 完整性统计 |
+| `CacheStatus()` | `go/repoaudit/repoaudit:73` | CacheStatus 缓存状态 |
+| `ResourceSummary()` | `go/repoaudit/repoaudit:83` | ResourceSummary 资源统计 |
+| `DedupSummary()` | `go/repoaudit/repoaudit:92` | DedupSummary 去重维度汇总（HealthReport 追加） |
+| `HealthReport()` | `go/repoaudit/repoaudit:99` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
 
 ## go/scanner
 
@@ -1860,8 +1860,8 @@
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |
 | `instancesHTML()` | `frontend/src/views/app-content/tpl:47` | — |
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:70` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:161` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:192` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:163` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:194` | — |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |
