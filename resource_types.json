@@ -370,6 +370,9 @@
       "group": "mmd",
       "extensions": [
         ".vmd",
+        ".mp3",
+        ".ogg",
+        ".wav",
         ".zip"
       ],
       "storageSubDir": "StageAnim",
@@ -381,6 +384,18 @@
       "zipEntries": [
         {
           "name": ".vmd",
+          "match": "suffix"
+        },
+        {
+          "name": ".mp3",
+          "match": "suffix"
+        },
+        {
+          "name": ".ogg",
+          "match": "suffix"
+        },
+        {
+          "name": ".wav",
           "match": "suffix"
         }
       ],
