@@ -303,7 +303,7 @@ describe("groupLabelOf 分组显示名", () => {
 });
 
 // ===== resolvePreviewKey（ADR-111：variants 解耦）=====
-import { resolvePreviewKey } from "./types.ts";
+import { resolvePreviewKey, extOf } from "./types.ts";
 
 describe("resolvePreviewKey 按 variants 分发预览器", () => {
   it("EntityPlayer .pmx → mmd", () => {
@@ -332,6 +332,10 @@ describe("resolvePreviewKey 按 variants 分发预览器", () => {
   });
 
   it("无扩展名文件（如 Makefile）回退 rtype——不入 variants 误匹配", () => {
+    // 根因：extOf 对无点路径返回空串（旧实现 split('.').pop() 会产出整段路径垃圾值）；
+    // 空串与任一 variant.ext（.pmx/.pmd/.vrm）不匹配 → 回退 rtype
+    expect(extOf("/repo/Makefile")).toBe("");
+    expect(extOf("Makefile")).toBe("");
     expect(resolvePreviewKey("/repo/Makefile", "EntityPlayer")).toBe("EntityPlayer");
   });
 });

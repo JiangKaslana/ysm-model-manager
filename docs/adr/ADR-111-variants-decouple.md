@@ -75,7 +75,7 @@
 
 ### 2.4 SceneModel 同步加 variants
 
-SceneModel 也声明了 `.pmx/.pmd/.vrm`，同步加 variants（预览 key 用 `mmd-scene`——SceneModel 注册表 `preview` 字段即 `mmd-scene`，与 EntityPlayer 的 `mmd` 区分场景模型渲染）：
+SceneModel 也声明了 `.pmx/.pmd/.vrm`，同步加 variants（预览 key 用 `mmd-scene`——SceneModel variants 的 `preview` 值即 `mmd-scene`，与 EntityPlayer 的 `mmd` 区分场景模型渲染；注意顶层 `preview` 字段仍为 `"3d"`，勿混）：
 ```jsonc
 "variants": [
   { "ext": ".pmx", "preview": "mmd-scene" },

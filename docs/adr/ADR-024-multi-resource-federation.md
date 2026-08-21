@@ -73,7 +73,7 @@
 ### 负面 / 遗留
 
 - ⚠️ **图标 SVG 化未完成**：决策确立内联 SVG 库方向，但 `resource_types.json` 的 `icon` 字段现仍为 emoji，迁移为开放项。
-- ⚠️ 部分资源类型 `preview: none`，仅显示文件名，未实现专用预览（当前注册表中 `detector: zipentry/ext` 的容器型资源多为此类；`mmd` 组 9 类型及 `fbx` 均已支持 3D 预览）。
+- ⚠️ 部分资源类型 `preview: none`，仅显示文件名，未实现专用预览（当前注册表中仅 `mmd-shader` 为 `preview: none`；`mmd` 组角色/场景类（EntityPlayer/SceneModel）与 `fbx` 为 3D 预览，动画/表情/舞台类（CustomAnim/CustomMorph/StageAnim/DefaultAnim/DefaultMorph）为缩略图预览）。
 - 增添「新增类型须同步四处消费链」的一致性维护成本（由 `test_resource_schema.mjs` + `go/types/registry_test.go` 守护，见 `docs/architecture.md` §5）。
 
 ### 数据溯源

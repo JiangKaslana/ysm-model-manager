@@ -184,7 +184,12 @@ func benchParallelAnalyze(a *app.App, models []string, workers int) concurrentBe
 			for path := range modelCh {
 				// recover 防单个畸形模型 panic 导致 resultCh 永不关闭、主循环永久阻塞
 				func() {
-					defer func() { _ = recover() }()
+					defer func() {
+						if r := recover(); r != nil {
+							// 保留诊断（哪个模型 + 异常值）；该模型不计入并行耗时
+							fmt.Fprintf(os.Stderr, "⚠️ 模型分析 panic 已跳过（%s）: %v\n", path, r)
+						}
+					}()
 					s := time.Now()
 					_ = a.AnalyzeBedrockModel(path)
 					resultCh <- time.Since(s)
