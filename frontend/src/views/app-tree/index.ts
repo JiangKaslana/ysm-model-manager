@@ -355,7 +355,8 @@ export class AppTree extends WebComponentBase {
         })))
           return;
         const rtype = this._rootAttr || RESOURCE_TYPES.YSM;
-        const isDirModel = [RESOURCE_TYPES.MMD, RESOURCE_TYPES.VRM].includes(rtype);
+        // ADR-111：VRM 已合并进 EntityPlayer 的 variants，isDirModel 只需检查 MMD
+        const isDirModel = [RESOURCE_TYPES.MMD].includes(rtype);
         this._deleteSelected(paths, isDirModel);
       }
     }) as unknown as EventListener;

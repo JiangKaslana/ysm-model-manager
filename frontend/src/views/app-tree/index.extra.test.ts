@@ -56,6 +56,10 @@ const entriesByType: Record<string, TreeEntry[]> = {
   "vrm": [
     { name: "v1.vrm", path: "v1.vrm", fullPath: "/repo/v1.vrm", type: "vrm", banned: false, size: 1, modTime: 0 },
   ],
+  // ADR-111：VRM 已合并进 EntityPlayer 的 variants，用 "resourcepack" 测试 root 切换
+  "resourcepack": [
+    { name: "v1.zip", path: "v1.zip", fullPath: "/repo/v1.zip", type: "resourcepack", banned: false, size: 1, modTime: 0 },
+  ],
 };
 
 const entriesData: TreeEntry[] = [];
@@ -305,11 +309,12 @@ describe("app-tree index 入口生命周期（补位）", () => {
         : Promise.resolve({ filesRoot: "/repo", entries: entriesByType[rtype] ?? [] });
     el.setAttribute("root", RESOURCE_TYPES.MMD);
     await sleep0(); // 第一次变更的 _load 已发起并挂起
-    el.setAttribute("root", RESOURCE_TYPES.VRM);
+    // ADR-111：VRM 已合并进 EntityPlayer 的 variants，用 PACK 作为第二类型测试切换
+    el.setAttribute("root", RESOURCE_TYPES.PACK);
     await sleep0(); // 第二次变更完成渲染
     d.resolve({ filesRoot: "/repo", entries: entriesByType[RESOURCE_TYPES.MMD] });
     await sleep0(); // 第一次变更恢复 → gen 不匹配 → 丢弃渲染
-    expect(loader.mock.calls.map((c) => c[0])).toEqual([RESOURCE_TYPES.MMD, RESOURCE_TYPES.VRM]);
+    expect(loader.mock.calls.map((c) => c[0])).toEqual([RESOURCE_TYPES.MMD, RESOURCE_TYPES.PACK]);
     // 代际守卫只丢弃过期"渲染"：DOM 是最新 root（v1）；_entries 会被过期 _load 写回
     //（下次渲染前总会被新 _load 覆盖，实际无泄漏面）
     await waitFor(() => queryAllByTestId(el.shadowRoot!, "tree-file").length === 1);
@@ -356,10 +361,11 @@ describe("app-tree index 入口生命周期（补位）", () => {
 
   it("挂载期间 root 已在途切换（pendingRoot）→ 补加载最新 root", async () => {
     const el = document.createElement("app-tree") as unknown as AppTree;
-    el.setAttribute("root", RESOURCE_TYPES.VRM); // 未连接 → attributeChangedCallback 只置 pending
+    // ADR-111：VRM 已合并进 EntityPlayer 的 variants，用 "resourcepack" 测试 pendingRoot
+    el.setAttribute("root", "resourcepack"); // 未连接 → attributeChangedCallback 只置 pending
     document.body.appendChild(el);
     await waitFor(() => (el as unknown as { _ready: boolean })._ready === true);
-    expect(loader.mock.calls.map((c) => c[0])).toEqual([RESOURCE_TYPES.VRM, RESOURCE_TYPES.VRM]);
+    expect(loader.mock.calls.map((c) => c[0])).toEqual(["resourcepack", "resourcepack"]);
     expect(bindings.ClearScanCache).toHaveBeenCalledTimes(1);
     await waitFor(() => queryAllByTestId(el.shadowRoot!, "tree-file").length === 1);
     expectSingleRow(el, "v1");
@@ -369,7 +375,8 @@ describe("app-tree index 入口生命周期（补位）", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     (bindings.ClearScanCache as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("cache boom"));
     const el = document.createElement("app-tree") as unknown as AppTree;
-    el.setAttribute("root", RESOURCE_TYPES.VRM);
+    // ADR-111：VRM 已合并进 EntityPlayer 的 variants，用 "resourcepack" 测试 pendingRoot
+    el.setAttribute("root", "resourcepack");
     document.body.appendChild(el);
     await waitFor(() => (el as unknown as { _ready: boolean })._ready === true);
     expect(consoleSpy).toHaveBeenCalledWith("[Tree pendingRoot Error]", expect.anything());

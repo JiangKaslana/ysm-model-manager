@@ -91,8 +91,8 @@ describe("browserAdapter — Phase 2 模型库（IndexedDB）", () => {
     // .nbt 单归属 blueprint（flat 架构：blueprint 独立顶级类型）
     expect(await browserAdapter.DetectResourceType("/web/blueprint/建筑/建筑.nbt")).toBe("blueprint");
     expect(await browserAdapter.DetectResourceType("/web/litematic/投影/a.litematic")).toBe("litematic");
-    expect(await browserAdapter.DetectResourceType("/web/EntityPlayer/角色/a.pmx")).toBe("EntityPlayer");
-    expect(await browserAdapter.DetectResourceType("/web/vrm/角色/a.vrm")).toBe("vrm");
+    expect(await browserAdapter.DetectResourceType("/web/3d-skin/角色/a.pmx")).toBe("EntityPlayer");
+    expect(await browserAdapter.DetectResourceType("/web/3d-skin/角色/a.vrm")).toBe("EntityPlayer"); // ADR-111: .vrm 是 EntityPlayer 的 variant
     expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.ysm")).toBe("ysm");
     expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.png")).toBe(""); // 辅助文件无类型
   });

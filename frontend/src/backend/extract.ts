@@ -54,7 +54,8 @@ export interface ExtractResult {
 }
 
 /** detectZipType 返回值 */
-export type ZipType = typeof RESOURCE_TYPES.YSM | typeof RESOURCE_TYPES.PACK | typeof RESOURCE_TYPES.SHADER | typeof RESOURCE_TYPES.BLUEPRINT | typeof RESOURCE_TYPES.LITEMATIC | typeof RESOURCE_TYPES.MMD | typeof RESOURCE_TYPES.VRM | null;
+// ADR-111：VRM 已合并进 EntityPlayer 的 variants，ZipType 不再含独立 VRM
+export type ZipType = typeof RESOURCE_TYPES.YSM | typeof RESOURCE_TYPES.PACK | typeof RESOURCE_TYPES.SHADER | typeof RESOURCE_TYPES.BLUEPRINT | typeof RESOURCE_TYPES.LITEMATIC | typeof RESOURCE_TYPES.MMD | null;
 
 // --- 中央目录预解析（fflateKey 对齐，处理 gpf bit 11 / 中文文件名）---
 

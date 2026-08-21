@@ -30,6 +30,7 @@ describe("RESOURCE_TYPES 标签映射", () => {
       BLUEPRINT: "blueprint",
       LITEMATIC: "litematic",
       MAID: "maid-model",
+      FBX: "fbx",
     });
   });
 });
@@ -211,9 +212,9 @@ describe("GROUP_TYPE_OPTIONS — 平铺展示各类型", () => {
     expect(rtypes).toContain("maid-model");
   });
 
-  it("mmd 组：8 个独立 MMD 类型", () => {
+  it("mmd 组：9 个独立 MMD 类型（含 fbx）", () => {
     const mmd = GROUP_TYPE_OPTIONS["mmd"] || [];
-    expect(mmd.length).toBe(8); // EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/mmd-shader/DefaultAnim/DefaultMorph
+    expect(mmd.length).toBe(9); // EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/mmd-shader/DefaultAnim/DefaultMorph/fbx
     const rtypes = mmd.map((o) => o.rtype);
     expect(rtypes).toContain("EntityPlayer");
     expect(rtypes).toContain("SceneModel");
@@ -223,6 +224,7 @@ describe("GROUP_TYPE_OPTIONS — 平铺展示各类型", () => {
     expect(rtypes).toContain("mmd-shader");
     expect(rtypes).toContain("DefaultAnim");
     expect(rtypes).toContain("DefaultMorph");
+    expect(rtypes).toContain("fbx");
   });
 
   it("所有选项 subdir 为空（平铺，无子目录展开）", () => {
@@ -290,5 +292,35 @@ describe("groupLabelOf 分组显示名", () => {
   it("未知分组返回空串", () => {
     expect(groupLabelOf("nonexistent")).toBe("");
     expect(groupLabelOf("")).toBe("");
+  });
+});
+
+// ===== resolvePreviewKey（ADR-111：variants 解耦）=====
+import { resolvePreviewKey } from "./types.ts";
+
+describe("resolvePreviewKey 按 variants 分发预览器", () => {
+  it("EntityPlayer .pmx → mmd", () => {
+    expect(resolvePreviewKey("/repo/model.pmx", "EntityPlayer")).toBe("mmd");
+  });
+
+  it("EntityPlayer .vrm → vrm", () => {
+    expect(resolvePreviewKey("/repo/avatar.vrm", "EntityPlayer")).toBe("vrm");
+  });
+
+  it("SceneModel .pmx → mmd-scene", () => {
+    expect(resolvePreviewKey("/repo/scene.pmx", "SceneModel")).toBe("mmd-scene");
+  });
+
+  it("无 variants 的类型回退 rtype 自身", () => {
+    expect(resolvePreviewKey("/repo/pack.zip", "resourcepack")).toBe("resourcepack");
+  });
+
+  it("variants 未命中扩展名回退 rtype", () => {
+    // .vrca 不在 EntityPlayer variants 里，回退 "EntityPlayer"
+    expect(resolvePreviewKey("/repo/avatar.vrca", "EntityPlayer")).toBe("EntityPlayer");
+  });
+
+  it("未知 rtype 回退 rtype 自身", () => {
+    expect(resolvePreviewKey("/repo/unknown.xyz", "unknown-type")).toBe("unknown-type");
   });
 });

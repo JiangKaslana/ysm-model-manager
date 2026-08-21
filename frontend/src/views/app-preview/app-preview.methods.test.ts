@@ -182,25 +182,28 @@ describe("_showModelDetail — 类型分流", () => {
 
   it("VRC .vrm → showVrmMeta（meta 卡）", async () => {
     const el = mountPreview();
-    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.VRM);
+    // ADR-111：.vrm 现在被检测为 EntityPlayer，但 resolvePreviewKey 会路由到 "vrm"
+    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.MMD);
     await el._showModelDetail("/repo/avatar.vrm");
     expect(detailSpies.showVrmMeta).toHaveBeenCalledWith(
       el,
       "/repo/avatar.vrm",
-      expect.objectContaining({ icon: "📦", label: "vrm" }),
+      expect.objectContaining({ icon: "📦", label: "EntityPlayer" }),
     );
     expect(detailSpies.showSimplePreview).not.toHaveBeenCalled();
     unmountElement(el);
   });
 
-  it("VRC .vrca → showSimplePreview（handler 内 .vrm 分支收口）", async () => {
+  it("VRC .vrca → 未识别类型（.vrca 不在注册表 extensions 里）", async () => {
     const el = mountPreview();
-    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.VRM);
+    // ADR-111：.vrca 已从注册表移除（私有格式无解析器），DetectResourceType 返回空
+    appObj.DetectResourceType.mockResolvedValue("");
     await el._showModelDetail("/repo/avatar.vrca");
+    // 空 rtype 走 unrecognizedType 分支：toast + showSimplePreview
     expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
       el,
       "/repo/avatar.vrca",
-      expect.objectContaining({ icon: "📦", label: "vrm" }),
+      expect.objectContaining({ icon: "❓" }),
     );
     expect(detailSpies.showVrmMeta).not.toHaveBeenCalled();
     unmountElement(el);

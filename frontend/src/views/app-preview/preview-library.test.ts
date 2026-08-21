@@ -2,12 +2,13 @@
 // 审核 P3：验证所有 preview="3d" 的资源类型要么有 3D opener，要么在显式豁免列表中。
 // 各 createXxx3D 包装器在模块加载时 registerReRoute，测试通过 import 触发注册。
 //
-// 派生化原则：NO_3D_TYPES / NEED_3D_TYPES 全部从 resource_types.json preview 字段
-// 单一事实来源派生，禁止手写快照——新增资源类型只改 JSON 即可自动纳入测试覆盖。
+// ADR-111 更新：opener 现在使用 variants preview keys（如 "mmd", "vrm", "mmd-scene"）
+// 而不是资源类型 ID。测试需要理解 variants 路由机制。
 
 import { describe, it, expect } from "vitest";
 import { ALL_RESOURCE_TYPES, NO_3D_TYPES } from "../../utils/resource/types.ts";
 import { getRegisteredRoutes } from "./preview-library.ts";
+import resourceTypesJson from "../../../../resource_types.json";
 
 // 触发注册（import 即有 side effect：模块加载时调用 registerReRoute）
 import "./ysm-3d.ts";
@@ -15,8 +16,19 @@ import "./mmd-3d.ts";
 import "./vrm-3d.ts";
 import "./pack-3d.ts";
 import "./litematic-3d.ts"; // 投影/蓝图已注册 opener
-import "./scene-3d.ts"; // 场景模型已注册 opener (SceneModel)
+import "./scene-3d.ts"; // 场景模型已注册 opener (mmd-scene)
 import "./maid-3d.ts"; // 车万女仆已注册 opener (maid-model)
+import "./fbx-3d.ts"; // FBX 已注册 opener (fbx)
+
+// 从 resource_types.json 提取所有 variants preview keys
+const allPreviewKeys = new Set<string>();
+for (const rt of resourceTypesJson.resourceTypes) {
+  if (rt.variants) {
+    for (const v of rt.variants) {
+      allPreviewKeys.add(v.preview);
+    }
+  }
+}
 
 describe("preview-library _openers 注册表一致性", () => {
   it("所有 preview='3d' 的类型要么有 3D opener，要么在 NO_3D_TYPES 豁免列表中", () => {
@@ -26,20 +38,35 @@ describe("preview-library _openers 注册表一致性", () => {
     const missing: string[] = [];
 
     for (const rtype of need3d) {
-      if (!registered.has(rtype)) {
-        missing.push(rtype);
+      // ADR-111：检查类型本身或其 variants preview keys 是否有 opener
+      const rt = resourceTypesJson.resourceTypes.find((t: any) => t.id === rtype);
+      const hasVariants = rt?.variants && rt.variants.length > 0;
+
+      if (hasVariants) {
+        // 有 variants：检查所有 preview keys 是否都有 opener
+        const previewKeys = rt.variants.map((v: any) => v.preview);
+        const allCovered = previewKeys.every((key: string) => registered.has(key));
+        if (!allCovered) {
+          missing.push(rtype);
+        }
+      } else {
+        // 无 variants：检查类型 ID 本身是否有 opener
+        if (!registered.has(rtype)) {
+          missing.push(rtype);
+        }
       }
     }
 
     expect(missing, `preview=3d 但缺少 3D opener 的类型: ${missing.join(", ")}`).toEqual([]);
   });
 
-  it("已注册的 opener 类型全部在已知资源类型列表中", () => {
+  it("已注册的 opener 类型全部在已知资源类型列表或 variants preview keys 中", () => {
     const known = new Set(ALL_RESOURCE_TYPES);
     const registered = getRegisteredRoutes();
-    const unknown = registered.filter((t) => !known.has(t));
+    // ADR-111：opener 现在使用 variants preview keys，需要同时检查资源类型 ID 和 preview keys
+    const unknown = registered.filter((t) => !known.has(t) && !allPreviewKeys.has(t));
 
-    expect(unknown, `已注册但不在已知类型列表中的类型: ${unknown.join(", ")}`).toEqual([]);
+    expect(unknown, `已注册但不在已知类型列表或 preview keys 中的类型: ${unknown.join(", ")}`).toEqual([]);
   });
 
   it("preview=none 的类型不应注册 3D opener", () => {

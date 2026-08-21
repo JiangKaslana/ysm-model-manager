@@ -36,7 +36,6 @@ export function footerHTML(): string {
 const SYNC_TYPE_MENU: ReadonlyArray<{ id: string; icon: string; labelKey?: string; label?: string }> = [
   { id: RESOURCE_TYPES.YSM, icon: typeIconOf(RESOURCE_TYPES.YSM), label: "YSM" },
   { id: RESOURCE_TYPES.MMD, icon: typeIconOf(RESOURCE_TYPES.MMD), label: "MMD" },
-  { id: RESOURCE_TYPES.VRM, icon: typeIconOf(RESOURCE_TYPES.VRM), label: "VRM" },
   { id: RESOURCE_TYPES.PACK, icon: typeIconOf(RESOURCE_TYPES.PACK), labelKey: "rtype.pack" },
   { id: RESOURCE_TYPES.SHADER, icon: typeIconOf(RESOURCE_TYPES.SHADER), labelKey: "rtype.shader" },
   { id: RESOURCE_TYPES.BLUEPRINT, icon: typeIconOf(RESOURCE_TYPES.BLUEPRINT), labelKey: "rtype.blueprint" },
@@ -88,9 +87,9 @@ function skeletonHTML(): string {
 /** 无模组徽章的模组名（≠资源类型短标签）：
  *  MMD 组下 PMX 模型/场景模型/动画/表情/舞台/着色器共用 MMD Skin 模组，
  *  缺失时统一提示「无MMD」，避免把「场景模型」这类资源类型名误当模组名（语义塌陷）。
- *  vrm 虽同属 mmd 组但由 MmdRoot 统一配置，保持 shortLabelOf 的 "VRM"。 */
+ *  ADR-111：VRM 已合并进 EntityPlayer 的 variants，不再需要特殊处理 */
 function noModLabelOf(rtype: string): string {
-  if (GROUP_OF[rtype] === "mmd" && rtype !== RESOURCE_TYPES.VRM) {
+  if (GROUP_OF[rtype] === "mmd") {
     return shortLabelOf(RESOURCE_TYPES.MMD);
   }
   return shortLabelOf(rtype) || rtype;

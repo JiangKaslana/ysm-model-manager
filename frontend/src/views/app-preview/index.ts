@@ -64,8 +64,14 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   [RESOURCE_TYPES.LITEMATIC]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.BLUEPRINT]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.SHADER]: (ctx, path, meta) => showShaderpack(ctx, path, meta),
-  // MMD 角色模型（EntityPlayer）
-  [RESOURCE_TYPES.MMD]: (ctx, path, meta) => showMmdPreview(ctx, path, meta),
+  // MMD 角色模型（EntityPlayer）— ADR-111：按 variants 分发，.vrm 走 VRM meta 卡
+  [RESOURCE_TYPES.MMD]: (ctx, path, meta) => {
+    if (extOf(path) === ".vrm") {
+      showVrmMeta(ctx, path, meta);
+    } else {
+      showMmdPreview(ctx, path, meta);
+    }
+  },
   // MMD 独立顶级类型（后端 DetectResourceType 路径消歧命中时直接路由）
   "SceneModel": (ctx, path) => showScenePreview(ctx, path),
   "CustomMorph": (ctx, path) => showMorphPreview(ctx, path),
@@ -76,14 +82,6 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   "mmd-shader": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
   // FBX 独立预览（ADR-112：模型 + 内嵌动画，物理落 CustomAnim 目录）
   "fbx": (ctx, path, meta) => showFbxPreview(ctx, path, meta),
-  // VRM：.vrm 直引 three-vrm meta 卡 + FAB 进 3D；.vrca/.zip 暂不直接加载 → 简单预览
-  [RESOURCE_TYPES.VRM]: (ctx, path, meta) => {
-    if (extOf(path) === ".vrm") {
-      showVrmMeta(ctx, path, meta);
-    } else {
-      showSimplePreview(ctx, path, meta);
-    }
-  },
 };
 
 // 注册缓存淘汰回调：释放 blob URL（Set 去重：重复 URL 只 revoke 一次，revoke 幂等无害）
