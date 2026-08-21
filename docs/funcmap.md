@@ -560,7 +560,7 @@
 | `IsYSMJar()` | `go/ysm/ysm:14` | IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml） |
 | `IsModJar()` | `go/ysm/ysm:21` | IsModJar 内容检测单个 jar 是否是指定 mod（读取 META-INF/mods.toml / neoforge.mods.toml 的 [[mods]] 块，按 mo |
 | `HasYSMMod()` | `go/ysm/ysm:86` | HasYSMMod 检查 mods 目录是否有 YSM 模组（先做文件名过滤避免对每个 JAR 打开 ZIP） |
-| `HasModInDir()` | `go/ysm/ysm:125` | HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar |
+| `HasModInDir()` | `go/ysm/ysm:134` | HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar |
 
 ## Go(internal)·应用入口
 
@@ -1985,7 +1985,7 @@
 | `headerHTML()` | `frontend/src/views/app-sidebar/tpl:7` | — |
 | `footerHTML()` | `frontend/src/views/app-sidebar/tpl:26` | — |
 | `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:71` | — |
-| `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:90` | 单个整合包卡片头部。 |
+| `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:101` | 单个整合包卡片头部。 |
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:17` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮 / dir-level 文件夹展开折叠） |
 | `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:26` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |

@@ -41,7 +41,7 @@ ADR-092 为资源类型引入 `group` 分组，并将 mmd-skin 归入 `mmd` 组�
   - `SyncResourcesDirLevel` 增加 `mmd-skin` 专用分支（`mmdSubdirNames` 识别），其他 rtype 不受影响；
   - `FindInstDir` 找 `3d-skin` 目录（更宽），递归扫描范围扩大。
 - **已知遗留**：
-  - 存量仓库迁移脚本未实现（模型直接放根 → 移入 EntityPlayer）；
+  - ~~存量仓库迁移脚本未实现（模型直接放根 → 移入 EntityPlayer）~~——**已取消**：ADR-104 扁平化后各 MMD 子类型为独立顶级类型，仓库侧按 `storageSubDir` 分目录存储，不再需要根→子目录迁移脚本；
   - 前端子类型标签 UI 未落地（文件树已能分组，标签为纯增强）；
   - `DefaultAnim`/`DefaultMorph` 系统内置目录（首次运行 zip 释放，用户不导入）已纳入同步识别，但无仓库类型入口。
 

@@ -86,7 +86,7 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
     }
     try {
       const { OpenInstanceFolder } = await getApp();
-      // 扁平化架构下，打开精确到 {instanceDir}（如 EntityPlayer）；
+      // 扁平化架构下，打开精确到 {instanceDir}（如 3d-skin）；
       // subdir 参数保留为 Wails 绑定兼容，已不参与路由
       await OpenInstanceFolder(ctx.path, ctx.rtype || "", ctx.subdir || "");
     } catch (e) {

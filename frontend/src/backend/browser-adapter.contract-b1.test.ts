@@ -118,8 +118,8 @@ describe("契约 B1 — GetSubDirMap 字段对齐 Go types.SubDirAll (rt.Instanc
       if (!rt.instanceDir) continue;
       expect(map[rt.id], `${rt.id} 的 instanceDir`).toBe(rt.instanceDir);
     }
-    // 防快照守卫：无任何 instanceDir 以废弃壳层前缀开头
-    const deprecated = ["3d-skin/", "mmd-skin/", "{instance}", "{installDir}"];
+    // 防快照守卫：无任何 instanceDir 以废弃壳层前缀开头（3d-skin 是 MMD 合法值）
+    const deprecated = ["mmd-skin/", "{instance}", "{installDir}"];
     for (const rt of reg) {
       if (!rt.instanceDir) continue;
       for (const prefix of deprecated) {

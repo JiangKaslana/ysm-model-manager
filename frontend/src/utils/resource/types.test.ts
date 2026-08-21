@@ -274,7 +274,8 @@ describe("groupStorageRootOf 两层路由（从 JSON 动态派生，防快照漂
   });
 
   it("防快照守卫：无废弃壳层前缀", () => {
-    const deprecated = ["3d-skin/", "mmd-skin/", "{instance}", "{installDir}"];
+    // 3d-skin 是 MMD 合法 instanceDir（ADR-094 资源树根），不在此列
+    const deprecated = ["mmd-skin/", "{instance}", "{installDir}"];
     for (const rt of rts) {
       const root = groupStorageRootOf(rt.id);
       for (const prefix of deprecated) {

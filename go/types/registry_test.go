@@ -290,8 +290,8 @@ func TestSubDirMap(t *testing.T) {
 	if got := SubDirMap("unknown"); got != "" {
 		t.Errorf("SubDirMap('unknown') = %q, 期望 ''", got)
 	}
-	// 防快照守卫：无废弃壳层前缀
-	deprecated := []string{"3d-skin/", "mmd-skin/", "{instance}", "{installDir}"}
+	// 防快照守卫：无废弃壳层前缀（3d-skin 是 MMD 合法 instanceDir，不在此列）
+	deprecated := []string{"mmd-skin/", "{instance}", "{installDir}"}
 	for _, rt := range reg.ResourceTypes {
 		if rt.InstanceDir == "" {
 			continue
@@ -396,16 +396,15 @@ func TestLoadRegistry_CorruptFallbackToEmbedded(t *testing.T) {
 //
 // 历史教训：21 次路径语义反复横跳，每次都是"注册表一改 → 测试快照必挂"。
 // 本守卫确保：
-//  1. 没有任何 instanceDir 以废弃前缀开头（3d-skin/、mmd-skin/、{instance}、{installDir}）
+//  1. 没有任何 instanceDir 以废弃前缀开头（mmd-skin/、{instance}、{installDir}）
+//     注：3d-skin 是 MMD 类型的合法 instanceDir（ADR-094 资源树根），不作为废弃前缀
 //  2. 没有任何 storageSubDir 以废弃前缀开头
-//  3. 非 YSM 类型的 instanceDir 必须等于 storageSubDir（扁平化后不再分叉）
 //
 // 只要有人再抄旧快照，此守卫直接红，让"改注册表必挂"成为历史。
 // ============================================================================
 
 // deprecatedInstanceDirPrefixes 已废弃的壳层前缀，扁平化架构下不应出现
 var deprecatedInstanceDirPrefixes = []string{
-	"3d-skin/",
 	"mmd-skin/",
 	"{instance}",
 	"{installDir}",
@@ -443,6 +442,7 @@ func TestNoDeprecatedStorageSubDirPrefixes(t *testing.T) {
 //   - maid-model: instanceDir=tlm_custom_pack（车万女仆使用 TLM 标准目录名）
 //   - litematic: instanceDir=schematics（投影复用蓝图目录）
 //   - vrchat-avatar: instanceDir=vrchat-avatars（实例侧用全名，仓库侧用缩写）
+//   - MMD 各类型: instanceDir=3d-skin（ADR-094 MC-MMD 资源树根），storageSubDir 各不同
 func TestInstanceDirMatchesStorageSubDir(t *testing.T) {
 	reg := LoadRegistry()
 	knownExceptions := map[string]bool{
@@ -450,6 +450,15 @@ func TestInstanceDirMatchesStorageSubDir(t *testing.T) {
 		"maid-model":    true,
 		"litematic":     true,
 		"vrchat-avatar": true,
+		// MMD 类型：instanceDir 统一为 3d-skin（MC-MMD 资源树根），storageSubDir 按用途分
+		"EntityPlayer": true,
+		"SceneModel":   true,
+		"CustomAnim":   true,
+		"CustomMorph":  true,
+		"StageAnim":    true,
+		"mmd-shader":   true,
+		"DefaultAnim":  true,
+		"DefaultMorph": true,
 	}
 	for _, rt := range reg.ResourceTypes {
 		if knownExceptions[rt.ID] {
