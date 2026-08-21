@@ -65,4 +65,17 @@ Go 侧 `DetectResourceType`（`go/packs/mcmeta.go:142`）读全动态 `ResourceT
 - `frontend/src/utils/resource/types.ts` → `RESOURCE_CAPS`/`NO_3D_TYPES` 派生自 JSON，仅 `RESOURCE_TYPES`/`RESOURCE_TYPE_LABELS` 手写。
 - `frontend/src/views/app-preview/index.ts:56-85 PREVIEW_HANDLERS` → 新增 `fbx` 分支落点。
 
+## 5. 拓展落地追踪（Living）
+
+> 本 ADR 仅定「独立预览地基」，体验层拓展按价值/成本分级逐步落地，状态在此滚动更新。
+
+- ✅ **P0-1 同类型 FBX 切换（siblings）— 2026-08-21 落地，commit `a0b4e9eb`**
+  - 抽通用底座 `siblings.ts: resolveSiblingsByType(rtype, extRe)`：`GetRepoRoot(rtype)` → `ScanModelEntries` → 扩展名过滤 → 容错降级 `[]`（全类型可复用，非 FBX 专属）。
+  - 新增 `fbx-siblings.ts: resolveFbxSiblings()` 委托通用底座，按 `.fbx`（含大写）过滤。
+  - `detail-3d.ts` 的 `showFbxPreview` FAB 点击 `await resolveFbxSiblings()` 后 `createFbx3D(path, { siblings })`，复用核心 `Mount3DOptions.siblings` 链路（topBar 渲染切换下拉），与 MMD/VRM/Litematic 体验对齐。
+  - 测试 `siblings.test.ts` + `fbx-siblings.test.ts` 全覆盖（TDD）；复用既有单例渲染容器，零额外 GPU 开销。
+  - 运行时依赖 `GetRepoRoot("fbx")` 返回有效根（fbx 的 `configField: MmdRoot`）；上游未配置则优雅降级为空下拉，主预览不受影响。
+- 🟡 **P1 待办（ADR-112 §3 负面项）**：外链纹理 blob 重定向、`Box3` 尺度归一防 DCC 单位（cm/m）异常、截图面板 UI 接入（`makeShotPanelRenderer`）。
+- 🔴 **P2 待定（取决于 3d-skin）**：FBX→PMX 重定向（骨骼映射 + 单位换算 + 四元数）——仅当 3d-skin 要求「FBX 动画驱动 PMX 等同 VMD 槽位」时单列专项 ADR。
+
 <!-- 文件名: fbx-loader-preview-foundation.md → 实际文件 ADR-112-fbx-loader-preview-foundation.md -->

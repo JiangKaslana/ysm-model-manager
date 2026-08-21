@@ -44,10 +44,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
 | 前端·工具 | 147 | 551 |
-| frontend/views | 113 | 323 |
+| frontend/views | 114 | 327 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **442** | **1880** |
+| **合计** | **443** | **1884** |
 
 ## Go·头像
 
@@ -1786,6 +1786,10 @@
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
+| `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:49` | 仓库体检：调 Go 端 RepoHealthAudit（同源审计）并渲染结果。 |
+| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:84` | 解析 RepoHealthAudit 返回的 JSON 字符串；无效返回 null |
+| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:100` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
+| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:153` | 字节大小人性化（与 Go 端 formatSize 同口径，纯展示） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:21` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
@@ -1848,8 +1852,8 @@
 | `repositoryHTML()` | `frontend/src/views/app-content/tpl:9` | — |
 | `instancesHTML()` | `frontend/src/views/app-content/tpl:47` | — |
 | `diagnosticsHTML()` | `frontend/src/views/app-content/tpl:70` | — |
-| `githubHTML()` | `frontend/src/views/app-content/tpl:153` | ===== GitHub 仓库页面 ===== |
-| `workshopHTML()` | `frontend/src/views/app-content/tpl:184` | — |
+| `githubHTML()` | `frontend/src/views/app-content/tpl:161` | ===== GitHub 仓库页面 ===== |
+| `workshopHTML()` | `frontend/src/views/app-content/tpl:192` | — |
 | `extractAvatars()` | `frontend/src/views/app-content/workshop-avatar:13` | 提取创作者头像（后台批量） 无参全量：BatchExtractCreatorAvatars() 扫全部模型一次性灌满 host._avatarCache； 先前按「当前站点/作者限 |
 | `BrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:5` | 创作者频道浏览模式 |
 | `loadBrowseMode()` | `frontend/src/views/app-content/workshop-browse-mode:10` | 从 localStorage 加载浏览模式 |
