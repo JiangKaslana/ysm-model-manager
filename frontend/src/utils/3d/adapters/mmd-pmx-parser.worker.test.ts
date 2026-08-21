@@ -765,12 +765,24 @@ describe("pmxObjectToResponse — 转换器（权威 PmxObject → PmxParseRespo
     expect(r.vertices!.boneWeights[1]).toBeCloseTo(0.4);
   });
 
-  it("vertexIndexSize=2 → boneIndices 为 Uint16Array（宽度随头部声明）", () => {
+  it("boneIndexSize=2 → boneIndices 为 Uint16Array（宽度随骨骼索引声明，非顶点索引）", () => {
+    // review P3：宽度必须随头部 boneIndexSize——否则 >255 骨骼模型（vertexIndexSize=1
+    // 但 boneIndexSize=2）的索引写进 Uint8Array 被截断，蒙皮静默损坏
     const pmx = syntheticPmx({ vertices: [vertex(0, { boneIndices: 258, boneWeights: null })] });
-    pmx.header.vertexIndexSize = 2;
+    pmx.header.vertexIndexSize = 1; // 顶点索引 1 字节（不参与骨骼索引宽度）
+    pmx.header.boneIndexSize = 2;   // 骨骼索引 2 字节（>127 骨骼）
     const r = pmxObjectToResponse(pmx, 0);
     expect(r.vertices!.boneIndices).toBeInstanceOf(Uint16Array);
-    expect(r.vertices!.boneIndices[0]).toBe(258);
+    expect(r.vertices!.boneIndices[0]).toBe(258); // 不截断
+  });
+
+  it("boneIndexSize < vertexIndexSize：骨骼索引宽度仍随 boneIndexSize", () => {
+    const pmx = syntheticPmx({ vertices: [vertex(0, { boneIndices: 300, boneWeights: null })] });
+    pmx.header.vertexIndexSize = 4;
+    pmx.header.boneIndexSize = 2;
+    const r = pmxObjectToResponse(pmx, 0);
+    expect(r.vertices!.boneIndices).toBeInstanceOf(Uint16Array);
+    expect(r.vertices!.boneIndices[0]).toBe(300);
   });
 
   it("faces：indices 转 Uint32Array + count = 索引总数", () => {

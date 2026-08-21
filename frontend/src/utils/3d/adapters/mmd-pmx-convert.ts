@@ -18,14 +18,19 @@ import type {
 /** 顶点骨骼数据展平为 4 列压缩数组（BDEF4/QDEF 原样；BDEF1/2/SDEF 展开补零） */
 function flattenBoneData(
   vertices: PmxObject["vertices"],
-  vertexIndexSize: number,
+  boneIndexSize: number,
 ): { boneIndices: Uint8Array | Uint16Array | Uint32Array; boneWeights: Float32Array } {
   const count = vertices.length;
-  const idxArr = vertexIndexSize <= 1
-    ? new Uint8Array(count * 4)
-    : vertexIndexSize === 2
-      ? new Uint16Array(count * 4)
-      : new Uint32Array(count * 4);
+  // PMX 2.0：顶点蒙皮骨骼索引宽度随头部 boneIndexSize（非 vertexIndexSize）——
+  // 否则 >255 骨骼模型的索引写进 Uint8Array 被截断，蒙皮静默损坏
+  let idxArr: Uint8Array | Uint16Array | Uint32Array;
+  if (boneIndexSize <= 1) {
+    idxArr = new Uint8Array(count * 4);
+  } else if (boneIndexSize === 2) {
+    idxArr = new Uint16Array(count * 4);
+  } else {
+    idxArr = new Uint32Array(count * 4);
+  }
   const weights = new Float32Array(count * 4);
   for (let i = 0; i < count; i++) {
     const bw = vertices[i].boneWeight;
@@ -55,7 +60,7 @@ function flattenBoneData(
   return { boneIndices: idxArr, boneWeights: weights };
 }
 
-function convertVertices(vertices: PmxObject["vertices"], vertexIndexSize: number): PmxVertexData {
+function convertVertices(vertices: PmxObject["vertices"], boneIndexSize: number): PmxVertexData {
   const count = vertices.length;
   const positions = new Float32Array(count * 3);
   const normals = new Float32Array(count * 3);
@@ -73,7 +78,7 @@ function convertVertices(vertices: PmxObject["vertices"], vertexIndexSize: numbe
     uvs[u] = v.uv[0];
     uvs[u + 1] = v.uv[1];
   }
-  const { boneIndices, boneWeights } = flattenBoneData(vertices, vertexIndexSize);
+  const { boneIndices, boneWeights } = flattenBoneData(vertices, boneIndexSize);
   return { count, positions, normals, uvs, boneIndices, boneWeights };
 }
 
@@ -198,7 +203,7 @@ export function pmxObjectToResponse(pmx: PmxObject, id: number): PmxParseRespons
       encoding: pmx.header.encoding === 1 ? "utf-8" : "utf-16",
       additionalDataFlags: pmx.header.additionalVec4Count,
     },
-    vertices: convertVertices(pmx.vertices, pmx.header.vertexIndexSize),
+    vertices: convertVertices(pmx.vertices, pmx.header.boneIndexSize),
     faces: { count: pmx.indices.length, indices: Uint32Array.from(pmx.indices) },
     textures: pmx.textures ?? [],
     materials: (pmx.materials ?? []).map(convertMaterial),

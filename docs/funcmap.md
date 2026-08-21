@@ -1235,7 +1235,7 @@
 | `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:68` | — |
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:9` | 主线程 → Worker 的请求 |
 | `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:17` | Worker → 主线程的响应 |
-| `pmxObjectToResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-convert:189` | 权威 PmxObject → PmxParseResponse（压缩数组可 transferable；id 由调用方填入） |
+| `pmxObjectToResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-convert:194` | 权威 PmxObject → PmxParseResponse（压缩数组可 transferable；id 由调用方填入） |
 | `PmxBuilderConfig()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:28` | Builder 配置 |
 | `PmxBuildResult()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:36` | Builder 产出 |
 | `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:45` | PMX 解析器管理器 |
