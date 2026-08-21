@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"runtime"
 	"sort"
 	"time"
@@ -105,17 +107,27 @@ func printCLIHelp() {
 	fmt.Println("用法:")
 	fmt.Println("  app --cli --files-root <路径> <命令> [选项]")
 	fmt.Println()
-	fmt.Println("可用命令:")
+	fmt.Println("可用命令（按分类分组）:")
 
-	// 按字母顺序排序显示
-	var names []string
-	for name := range cliCommands {
-		names = append(names, name)
+	// 按 category 聚合，每个 category 内按命令名字母序
+	byCat := map[string][]CliCommand{}
+	for _, cmd := range cliCommands {
+		byCat[cmd.Category] = append(byCat[cmd.Category], cmd)
 	}
-	sort.Strings(names)
-	for _, name := range names {
-		cmd := cliCommands[name]
-		fmt.Printf("  %-18s %s\n", name, cmd.Description)
+
+	// category 显示顺序固定
+	catOrder := []string{CatModel, CatPerf, CatCache, CatResource, CatConfig, CatOther}
+	for _, cat := range catOrder {
+		cmds := byCat[cat]
+		if len(cmds) == 0 {
+			continue
+		}
+		// 组内字母序
+		sort.Slice(cmds, func(i, j int) bool { return cmds[i].Name < cmds[j].Name })
+		fmt.Printf("\n  [%s]\n", cat)
+		for _, cmd := range cmds {
+			fmt.Printf("  %-18s %s\n", cmd.Name, cmd.Description)
+		}
 	}
 
 	fmt.Println()
@@ -146,14 +158,44 @@ func printCommandHelp(cmdName string) {
 	}
 
 	fmt.Printf("📖 命令: %s\n", cmd.Name)
+	fmt.Printf("   分类: %s\n", cmd.Category)
 	fmt.Println()
 	fmt.Printf("说明: %s\n", cmd.Description)
 	fmt.Println()
 	fmt.Println("用法:")
 	fmt.Printf("  app --cli --files-root <路径> %s [选项...]\n", cmdName)
 	fmt.Println()
+
+	// 嵌套子命令：打印子命令列表
+	if len(cmd.Subcommands) > 0 {
+		fmt.Println("子命令:")
+		// 按子命令名字母序
+		var subNames []string
+		for name := range cmd.Subcommands {
+			subNames = append(subNames, name)
+		}
+		sort.Strings(subNames)
+		for _, name := range subNames {
+			sub := cmd.Subcommands[name]
+			fmt.Printf("  %-14s %s\n", name, sub.Description)
+		}
+		fmt.Println()
+		fmt.Printf("示例: app --cli --files-root <路径> %s %s ...\n", cmdName, subNames[0])
+		return
+	}
+
+	// 反射 FlagSet 打印真实 flag 用法
+	if cmd.Flags != nil {
+		fmt.Println("选项:")
+		// PrintDefaults 输出到 FlagSet 的 output（默认 stderr），
+		// newCmdFlagSet 已 SetOutput(io.Discard)，这里临时重定向到 stdout
+		cmd.Flags.SetOutput(os.Stdout)
+		cmd.Flags.PrintDefaults()
+		cmd.Flags.SetOutput(io.Discard)
+		fmt.Println()
+	}
+
 	fmt.Println("详细参数请查看 AGENTS.md 的 CLI 模式使用说明章节。")
-	fmt.Println("或在命令前加 --help 查看具体选项。")
 }
 
 // jsonDataPayload 构造 CLI --json 响应（json.go JsonResponse.Data）的业务数据载荷。

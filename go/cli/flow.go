@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	RegisterCommand("gui-flow", "模拟 GUI 完整加载流程（配置→扫描→加载→渲染预估）", runGUIFlow)
+	RegisterCommandC("gui-flow", CatPerf, "模拟 GUI 完整加载流程（配置→扫描→加载→渲染预估）", runGUIFlow)
 }
 
 // guiFlowResult GUI 流程各阶段结果

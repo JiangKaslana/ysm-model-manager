@@ -15,8 +15,8 @@ import (
 )
 
 func init() {
-	RegisterCommand("concurrent-bench", "并发能力基准测试（串行 vs 并行对比，建议先优化单模型）", runConcurrentBench)
-	RegisterCommand("single-bench", "单模型加载基准测试（优化基础，单模型快=所有场景快）", runSingleBench)
+	RegisterCommandC("concurrent-bench", CatPerf, "并发能力基准测试（串行 vs 并行对比，建议先优化单模型）", runConcurrentBench)
+	RegisterCommandC("single-bench", CatPerf, "单模型加载基准测试（优化基础，单模型快=所有场景快）", runSingleBench)
 }
 
 // concurrentBenchResult 并发测试结果

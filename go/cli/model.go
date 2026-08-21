@@ -12,12 +12,12 @@ import (
 )
 
 func init() {
-	RegisterCommand("search", "搜索模型（支持关键词过滤）", runSearch)
-	RegisterCommand("analyze", "分析单个模型的详细信息", runAnalyze)
-	RegisterCommand("list", "列出所有模型的摘要信息", runList)
-	RegisterCommand("verify", "验证模型文件完整性", runVerify)
-	RegisterCommand("benchmark", "性能基准测试", runBenchmark)
-	RegisterCommand("export", "导出模型结构信息", runExport)
+	RegisterCommandC("search", CatModel, "搜索模型（支持关键词过滤）", runSearch)
+	RegisterCommandC("analyze", CatModel, "分析单个模型的详细信息", runAnalyze)
+	RegisterCommandC("list", CatModel, "列出所有模型的摘要信息", runList)
+	RegisterCommandC("verify", CatModel, "验证模型文件完整性", runVerify)
+	RegisterCommandC("benchmark", CatModel, "性能基准测试", runBenchmark)
+	RegisterCommandC("export", CatModel, "导出模型结构信息", runExport)
 }
 
 // runSearch 执行搜索命令

@@ -12,8 +12,8 @@ import (
 )
 
 func init() {
-	RegisterCommand("resource-scan", "扫描模型仓库资源，统计资产分布", runResourceScan)
-	RegisterCommand("repo-audit", "仓库健康审计（完整性 + 缓存 + 资产）", runRepoAudit)
+	RegisterCommandC("resource-scan", CatResource, "扫描模型仓库资源，统计资产分布", runResourceScan)
+	RegisterCommandC("repo-audit", CatResource, "仓库健康审计（完整性 + 缓存 + 资产）", runRepoAudit)
 }
 
 // 审计相关阈值常量（可配置化：后续可接入 config.json）

@@ -398,25 +398,57 @@ func TestPrintCLIHelp_CommandsSorted(t *testing.T) {
 	out := captureOutput(t, func() {
 		printCLIHelp()
 	})
-	var got []string
+
+	// 分组输出格式："[分类]" 行 + "  %-18s %s" 命令行。
+	// 解析出每个分类下的命令名列表，验证组内字母序 + 全覆盖。
+	var (
+		curCat   string
+		gotByCat = map[string][]string{}
+		seenCats []string
+	)
 	for _, line := range strings.Split(out, "\n") {
-		if len(line) < 20 || line[:2] != "  " {
+		// 分类标题行: "  [模型管理]"
+		if strings.HasPrefix(line, "  [") && strings.HasSuffix(line, "]") {
+			curCat = strings.TrimSuffix(strings.TrimPrefix(line, "  ["), "]")
+			seenCats = append(seenCats, curCat)
 			continue
 		}
 		// 命令行格式: "  %-18s %s"，name 占第 3~20 字符
+		if len(line) < 20 || line[:2] != "  " || curCat == "" {
+			continue
+		}
 		name := strings.TrimSpace(line[2:20])
 		if _, ok := cliCommands[name]; ok {
-			got = append(got, name)
+			gotByCat[curCat] = append(gotByCat[curCat], name)
 		}
 	}
-	if len(got) == 0 {
-		t.Fatal("help 输出未解析到任何命令")
+
+	// 所有已注册命令都应出现在 help 中
+	total := 0
+	for _, names := range gotByCat {
+		total += len(names)
 	}
-	for i := 1; i < len(got); i++ {
-		if got[i-1] > got[i] {
-			t.Errorf("help 命令列表应按字母序, got %v", got)
-			break
+	if total != len(cliCommands) {
+		t.Errorf("help 命令数 %d != 已注册数 %d", total, len(cliCommands))
+	}
+
+	// 每个分类内应按字母序
+	for cat, names := range gotByCat {
+		if len(names) == 0 {
+			t.Errorf("分类 %q 未解析到任何命令", cat)
+			continue
 		}
+		for i := 1; i < len(names); i++ {
+			if names[i-1] > names[i] {
+				t.Errorf("分类 %q 命令列表应按字母序, got %v", cat, names)
+				break
+			}
+		}
+	}
+
+	// 至少有一个分类被解析到
+	if len(seenCats) == 0 {
+		t.Fatal("help 输出未解析到任何分类标题")
 	}
 }
 

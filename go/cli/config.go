@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	RegisterCommand("config-show", "查看当前配置", runConfigShow)
+	RegisterCommandC("config-show", CatConfig, "查看当前配置", runConfigShow)
 }
 
 // runConfigShow 查看当前配置

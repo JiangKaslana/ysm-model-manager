@@ -12,9 +12,9 @@ import (
 )
 
 func init() {
-	RegisterCommand("file-bench", "测试大文件读取性能（模拟 MMD/PMX/VRM 加载）", runFileBench)
-	RegisterCommand("scan-dir", "扫描 MMD 目录结构并统计资产", runScanDir)
-	RegisterCommand("analyze-mmd", "分析 MMD 模型资产（贴图、PMX、VMD 等）", runAnalyzeMMD)
+	RegisterCommandC("file-bench", CatPerf, "测试大文件读取性能（模拟 MMD/PMX/VRM 加载）", runFileBench)
+	RegisterCommandC("scan-dir", CatResource, "扫描 MMD 目录结构并统计资产", runScanDir)
+	RegisterCommandC("analyze-mmd", CatResource, "分析 MMD 模型资产（贴图、PMX、VMD 等）", runAnalyzeMMD)
 }
 
 // CLI 阈值常量

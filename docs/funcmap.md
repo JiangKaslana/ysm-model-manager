@@ -8,7 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 11 |
-| go/cli | 4 | 28 |
+| go/cli | 4 | 31 |
 | go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 15 |
@@ -46,7 +46,7 @@
 | frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **430** | **1843** |
+| **合计** | **430** | **1846** |
 
 ## Go·头像
 
@@ -68,8 +68,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RunCLI()` | `go/cli/cli:14` | RunCLI 执行 CLI 模式 |
-| `ExecuteCLIWithApp()` | `go/cli/cli:72` | ExecuteCLIWithApp 执行 CLI 命令 |
+| `RunCLI()` | `go/cli/cli:16` | RunCLI 执行 CLI 模式 |
+| `ExecuteCLIWithApp()` | `go/cli/cli:74` | ExecuteCLIWithApp 执行 CLI 命令 |
 | `NewJsonSuccess()` | `go/cli/json:39` | NewJsonSuccess 创建成功响应 |
 | `NewJsonError()` | `go/cli/json:50` | NewJsonError 创建错误响应 |
 | `NewJsonNotSupported()` | `go/cli/json:81` | NewJsonNotSupported 创建平台不支持响应 |
@@ -80,12 +80,15 @@
 | `JsonError()` | `go/cli/json:22` | JsonError 错误详情 |
 | `TimingInfo()` | `go/cli/json:29` | TimingInfo 耗时统计 |
 | `MetaInfo()` | `go/cli/json:34` | MetaInfo 元信息 |
-| `RegisterCommand()` | `go/cli/registry:28` | RegisterCommand 注册一个 CLI 子命令 重复注册会输出警告并跳过，不再 panic（init() 阶段 panic 无法 recover） |
-| `GetCommand()` | `go/cli/registry:41` | GetCommand 获取已注册的命令 |
-| `GetAllCommands()` | `go/cli/registry:47` | GetAllCommands 获取所有已注册命令 |
-| `DispatchCommand()` | `go/cli/registry:56` | DispatchCommand 分发命令执行 |
-| `CmdContext()` | `go/cli/registry:11` | CmdContext 统一命令执行上下文 |
-| `CliCommand()` | `go/cli/registry:18` | CliCommand 命令注册结构 |
+| `RegisterCommand()` | `go/cli/registry:45` | RegisterCommand 注册一个 CLI 子命令（默认归入 CatOther） 重复注册会输出警告并跳过，不再 panic（init() 阶段 panic 无法 recov |
+| `RegisterCommandC()` | `go/cli/registry:50` | RegisterCommandC 注册带分类的 CLI 子命令 |
+| `RegisterSubcommand()` | `go/cli/registry:67` | RegisterSubcommand 为父命令注册嵌套子命令。 |
+| `DispatchSubcommand()` | `go/cli/registry:91` | DispatchSubcommand 在父命令 Run 内调用：取 ctx.Args[0] 作子命令名分发。 |
+| `GetCommand()` | `go/cli/registry:100` | GetCommand 获取已注册的命令 |
+| `GetAllCommands()` | `go/cli/registry:106` | GetAllCommands 获取所有已注册命令 |
+| `DispatchCommand()` | `go/cli/registry:115` | DispatchCommand 分发命令执行 |
+| `CmdContext()` | `go/cli/registry:12` | CmdContext 统一命令执行上下文 |
+| `CliCommand()` | `go/cli/registry:19` | CliCommand 命令注册结构 |
 | `ErrParam.Error()` | `go/cli/shared:26` | — |
 | `ErrParam.Unwrap()` | `go/cli/shared:33` | — |
 | `ErrRuntime.Error()` | `go/cli/shared:41` | — |
@@ -378,12 +381,12 @@
 | `SyncCustomToRepo()` | `go/sync/sync_push:232` | SyncCustomToRepo 同步整合包自定义目录的模型到仓库（哈希/名称去重） |
 | `Logger()` | `go/sync/sync_push:19` | Logger 导入日志回调（薄壳注入 App.logger.Add） |
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
-| `GetInstanceStatus()` | `go/sync/sync:26` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） |
-| `GetInstanceStatusWith()` | `go/sync/sync:31` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） |
-| `SyncToggleStatus()` | `go/sync/sync:143` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:302` | — |
-| `SortEntries()` | `go/sync/sync:353` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:360` | GetLinkType 判断文件的链接类型 |
+| `GetInstanceStatus()` | `go/sync/sync:27` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.C |
+| `GetInstanceStatusWith()` | `go/sync/sync:33` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomD |
+| `SyncToggleStatus()` | `go/sync/sync:156` | SyncToggleStatus 同步启用/禁用状态 |
+| `SyncResources()` | `go/sync/sync:315` | — |
+| `SortEntries()` | `go/sync/sync:366` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:373` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
@@ -621,18 +624,18 @@
 | `App.CountInstanceResources()` | `internal/app/app_install_instance:26` | CountInstanceResources 统计指定整合包中可清空的资源文件数 只统计仓库中已有的文件（同 clearInstanceDir 逻辑） rtype 为空时统计全部类 |
 | `App.ClearInstanceResources()` | `internal/app/app_install_instance:66` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
 | `App.DeduplicateCustomDir()` | `internal/app/app_install_instance:152` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
-| `App.GetInstanceStatus()` | `internal/app/app_install_instance:195` | ========== 状态同步 ========== |
-| `App.GetResourceInstanceStatus()` | `internal/app/app_install_instance:207` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
-| `App.SyncModelToggleStatus()` | `internal/app/app_install_instance:247` | — |
-| `App.RelinkCustomDir()` | `internal/app/app_install_instance:252` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
-| `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:272` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
-| `App.SyncResources()` | `internal/app/app_install_instance:316` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install_instance:354` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:372` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:410` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:427` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:448` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:498` | ========== YSM 检测 ========== |
+| `App.GetInstanceStatus()` | `internal/app/app_install_instance:197` | ========== 状态同步 ========== GetInstanceStatus 获取整合包状态（按资源类型限定路径） rtype: 资源类型 ID，用于解析特定子目录；为 |
+| `App.GetResourceInstanceStatus()` | `internal/app/app_install_instance:209` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
+| `App.SyncModelToggleStatus()` | `internal/app/app_install_instance:257` | — |
+| `App.RelinkCustomDir()` | `internal/app/app_install_instance:262` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
+| `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:282` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
+| `App.SyncResources()` | `internal/app/app_install_instance:326` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
+| `App.PushResourceToInstance()` | `internal/app/app_install_instance:364` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:382` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:420` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:437` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:458` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:508` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |
