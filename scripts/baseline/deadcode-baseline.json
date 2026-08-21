@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-21T10:11:49.539Z",
+  "generated": "2026-08-21T12:01:42.492Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|jscpd",
@@ -82,6 +82,9 @@
     "src/utils/3d/caps/light-capability.ts|types|AmbientLightParams",
     "src/utils/3d/caps/sky-capability.ts|types|SkyModelType",
     "src/utils/3d/cleanup-helper.ts|exports|safeDisposeRenderer",
+    "src/utils/3d/load-trace.ts|types|LoadTraceAssets",
+    "src/utils/3d/load-trace.ts|types|LoadTraceStage",
+    "src/utils/3d/load-trace.ts|types|LoadTraceTexture",
     "src/utils/3d/model2d.ts|types|BedrockBone",
     "src/utils/3d/model3d-spec.ts|types|SpecBone",
     "src/utils/3d/model3d-spec.ts|types|SpecMeshData",
