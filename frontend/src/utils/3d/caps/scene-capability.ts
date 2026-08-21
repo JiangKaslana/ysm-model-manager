@@ -5,6 +5,8 @@
 //   2. 在 registry.add() 注册一行
 // 菜单/持久化/生命周期全部由框架驱动，零手工 wiring。
 
+import { safeGet, safeSet } from "../../dom/storage.ts";
+
 /* ============ 菜单控件定义 ============ */
 
 /** 单个菜单控件类型 */

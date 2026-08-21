@@ -4,7 +4,6 @@ name: 3D 区审核与修复模式提炼
 tier: leaf
 category: ui
 source_files:
-  - frontend/src/utils/3d/render-loop.ts
   - frontend/src/utils/3d/debug-render.ts
   - frontend/src/utils/3d/model-group-builder.ts
   - frontend/src/utils/3d/adapters/mount-preview-core.ts

@@ -192,8 +192,8 @@
 |------|--------|------|
 | `StripBOM()` | `go/fsutil/bom:12` | StripBOM 移除 data 前缀的 UTF-8 BOM；无 BOM 时原样返回（bytes.TrimPrefix 语义）。 |
 | `CopyFile()` | `go/fsutil/copy:27` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
-| `CopyDirRecursive()` | `go/fsutil/copy:97` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
-| `CopyDirOptions()` | `go/fsutil/copy:79` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
+| `CopyDirRecursive()` | `go/fsutil/copy:98` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
+| `CopyDirOptions()` | `go/fsutil/copy:80` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_other:14` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_windows:18` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `FormatSize()` | `go/fsutil/format:7` | FormatSize 人性化字节大小（B/KB/MB/GB 分级）。 |
@@ -630,18 +630,18 @@
 | `App.RevealInExplorer()` | `internal/app/app_files:203` | ========== 在资源管理器中显示 ========== |
 | `App.ToggleModelEnable()` | `internal/app/app_files:232` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
 | `App.IsFileBanned()` | `internal/app/app_files:240` | — |
-| `App.InstallModelFile()` | `internal/app/app_install_import:19` | ========== 安装 ========== |
-| `App.InstallModelTo()` | `internal/app/app_install_import:23` | — |
-| `App.InstallModelWithOverlay()` | `internal/app/app_install_import:33` | — |
-| `App.SyncCustomToRepo()` | `internal/app/app_install_import:38` | SyncCustomToRepo 同步整合包自定义目录到仓库（执行逻辑下沉 go/sync） |
-| `App.ImportModelFile()` | `internal/app/app_install_import:42` | — |
-| `App.DetectZipType()` | `internal/app/app_install_import:47` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
-| `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:55` | — |
-| `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:63` | — |
-| `App.ImportModelFileTo()` | `internal/app/app_install_import:83` | — |
-| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:87` | — |
-| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:94` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
-| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:99` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
+| `App.InstallModelFile()` | `internal/app/app_install_import:20` | ========== 安装 ========== |
+| `App.InstallModelTo()` | `internal/app/app_install_import:24` | — |
+| `App.InstallModelWithOverlay()` | `internal/app/app_install_import:34` | — |
+| `App.SyncCustomToRepo()` | `internal/app/app_install_import:39` | SyncCustomToRepo 同步整合包自定义目录到仓库（执行逻辑下沉 go/sync） |
+| `App.ImportModelFile()` | `internal/app/app_install_import:43` | — |
+| `App.DetectZipType()` | `internal/app/app_install_import:48` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
+| `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:56` | — |
+| `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:64` | — |
+| `App.ImportModelFileTo()` | `internal/app/app_install_import:84` | — |
+| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:88` | — |
+| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:95` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
+| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:100` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
 | `App.CountInstanceResources()` | `internal/app/app_install_instance:26` | CountInstanceResources 统计指定整合包中可清空的资源文件数 只统计仓库中已有的文件（同 clearInstanceDir 逻辑） rtype 为空时统计全部类 |
 | `App.ClearInstanceResources()` | `internal/app/app_install_instance:66` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
 | `App.DeduplicateCustomDir()` | `internal/app/app_install_instance:152` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
@@ -744,8 +744,8 @@
 | `App.ExecuteCLI()` | `internal/app/cli_bridge:31` | ExecuteCLI 执行 CLI 命令并返回 JSON 响应（Wails 绑定） |
 | `App.GetAllowedCLICommands()` | `internal/app/cli_bridge:140` | GetAllowedCLICommands 返回可用 CLI 命令列表 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见 |
 | `CoopCoepMiddleware()` | `internal/app/coi_middleware:10` | CoopCoepMiddleware 注入 COOP/COEP 响应头（ADR-079 M2：桌面 Wails 解锁 SharedArrayBuffer → 支持 pthread |
-| `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:43` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
-| `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:72` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
+| `androidPathManager.AppDataRoot()` | `internal/app/pathmgr_android:45` | AppDataRoot 按候选序返回第一个可写目录；全不可写返回错误—— 直接返回 HOME/Getwd 可能退化为不可写的文件系统根 "/"（P2 审核发现）， 配置/标签将静默 |
+| `androidPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_android:74` | DefaultRepoRoot Android 固定公共仓库根：外部存储根 + 应用名。 |
 | `desktopPathManager.AppDataRoot()` | `internal/app/pathmgr_desktop:10` | — |
 | `desktopPathManager.DefaultRepoRoot()` | `internal/app/pathmgr_desktop:15` | DefaultRepoRoot 桌面无默认公共仓库——路径由用户在设置页配置（GetRepoRoot 走 FilesRoot） |
 | `App.NavigatePlazaWindow()` | `internal/app/plaza_window:40` | — |

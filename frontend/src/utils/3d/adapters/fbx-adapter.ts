@@ -12,6 +12,7 @@ import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import { screenshotFromRenderer } from "../screenshot.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { recordLoadTrace } from "../load-trace.ts";
+import { disposeMaterial } from "../mesh.ts";
 
 /** FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface FbxDataPort {
