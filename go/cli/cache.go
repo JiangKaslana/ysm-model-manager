@@ -324,7 +324,7 @@ func runCacheDiag(ctx *CmdContext) error {
 	}
 
 	testDir := filepath.Join(dir, ".diag_test")
-	err = os.MkdirAll(testDir, 0755)
+	err = os.MkdirAll(testDir, fsutil.DirPerms)
 	if err != nil {
 		fmt.Printf("   ❌ 无法创建子目录: %v\n", err)
 		fmt.Printf("   💡 可能是权限不足，请检查目录的写入权限\n")

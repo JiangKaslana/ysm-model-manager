@@ -91,7 +91,7 @@ func (s *Store) save() error {
 		return fmt.Errorf("序列化标签失败: %w", err)
 	}
 	dir := filepath.Dir(s.path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, fsutil.DirPerms); err != nil {
 		return fmt.Errorf("创建标签目录失败: %w", err)
 	}
 	// ADR-044 策略 A：落盘统一走 fsutil.WriteFileAtomic（CreateTemp + rename 原子替换）——

@@ -30,7 +30,7 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 	defer in.Close()
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), DirPerms); err != nil {
 		return err
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(dst), ".copy-*.tmp")
@@ -88,7 +88,7 @@ type CopyDirOptions struct {
 // 失败按 opts.Rollback 整树回滚。与 sync/fileops/recycle 的 copyDirRecursive
 // 语义对齐（新增类型/调用方只需传选项，不再各自实现）。
 func CopyDirRecursive(src, dst string, opts CopyDirOptions) error {
-	if err := os.MkdirAll(dst, 0755); err != nil {
+	if err := os.MkdirAll(dst, DirPerms); err != nil {
 		return err
 	}
 	err := filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
@@ -120,7 +120,7 @@ func CopyDirRecursive(src, dst string, opts CopyDirOptions) error {
 		}
 		target := filepath.Join(dst, rel)
 		if d.IsDir() {
-			return os.MkdirAll(target, 0755)
+			return os.MkdirAll(target, DirPerms)
 		}
 		if !opts.Overwrite {
 			if _, err := os.Stat(target); err == nil {

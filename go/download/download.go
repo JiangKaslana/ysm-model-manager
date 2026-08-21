@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
 
@@ -146,7 +147,7 @@ func (d *Downloader) downloadTo(ctx context.Context, url, savePath, accept strin
 	m.Lock()
 	defer m.Unlock()
 
-	if err := os.MkdirAll(filepath.Dir(savePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(savePath), fsutil.DirPerms); err != nil {
 		return fmt.Errorf("创建目录失败 %s: %w", filepath.Dir(savePath), err)
 	}
 
@@ -342,7 +343,7 @@ func isBinaryContentType(ct string) bool {
 
 // ResolveSavePath 从 GitHub raw URL 解析存储路径和回退源。
 func ResolveSavePath(rawURL, saveDir string) (savePath string, jsdURL, apiURL string) {
-	if err := os.MkdirAll(saveDir, 0755); err != nil {
+	if err := os.MkdirAll(saveDir, fsutil.DirPerms); err != nil {
 		log.Printf("[download] 创建保存目录失败 %s: %v", saveDir, err)
 		return "", "", ""
 	}

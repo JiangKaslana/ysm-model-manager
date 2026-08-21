@@ -16,6 +16,7 @@ import (
 
 	"ysm-model-manager/go/container"
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/types"
 )
 
 // ExtractAvatarURI 从模型文件中提取指定所有者的头像 data URI。
@@ -369,8 +370,7 @@ func readLimitedModel(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	const maxModelBytes = 50 << 20
-	data := fsutil.ReadLimitedEntry(f, maxModelBytes)
+	data := fsutil.ReadLimitedEntry(f, types.MaxReadLimit)
 	if data == nil {
 		return nil, fmt.Errorf("模型文件读取失败或超过上限: %s", path)
 	}
