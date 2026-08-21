@@ -163,8 +163,8 @@ func TestRepoRootForSync(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// GroupStorageRoot("EntityPlayer") = "mmd/EntityPlayer"
-		want := filepath.Join(base, "mmd", "EntityPlayer")
+		// 用生产函数派生期望值（而非手写快照），注册表改了测试自动跟
+		want := filepath.Join(base, types.GroupStorageRoot("EntityPlayer"))
 		if got != want {
 			t.Errorf("repoRootForSync(EntityPlayer) 应为 group/storageSubDir, got %q want %q", got, want)
 		}

@@ -27,6 +27,8 @@ import {
   importWebFiles,
   WEB_ROOT,
 } from "./browser-adapter.ts";
+// 派生化数据源：从 resource_types.json 派生测试期望，禁止手写快照
+import resourceTypesJson from "../../../resource_types.json" with { type: "json" };
 // 模块级日志环重置钩子：webImportLogs/webRuntimeLogs 是共享模块图里的模块级数组，
 // 隔离残留（先跑文件 push 的日志）会让「AddImportLog 仅入导入环」断言环长度失真
 import { __resetWebLogStateForTest } from "./web-store.ts";
@@ -96,17 +98,27 @@ describe("契约 B1 — ListByTag 查询规范化对齐 Go tags.go:205 (trimTag)
 });
 
 describe("契约 B1 — GetSubDirMap 字段对齐 Go types.SubDirAll (rt.InstanceDir)", () => {
-  it("返回整合包实例子目录 rt.InstanceDir（非 storageSubDir），web 已对齐", async () => {
+  it("返回整合包实例子目录 rt.InstanceDir（非 storageSubDir），所有类型从 JSON 派生验证", async () => {
     const map = (await browserAdapter.GetSubDirMap()) as Record<string, string>;
-    // Go SubDirAll() 返回 id → rt.InstanceDir（见 extensions.go:344）；web 同样使用 rt.instanceDir（web-fs.ts getWebSubDirMap）
-    expect(map.ysm).toBe("config/yes_steve_model/custom"); // Go 契约守门：instanceDir 非 storageSubDir
-    expect(map["blueprint"]).toBe("schematics"); // 契约守门
-    expect(map.litematic).toBe("schematics"); // 契约守门
-    expect(map["EntityPlayer"]).toBe("EntityPlayer"); // 契约守门：instanceDir 扁平路径
-    expect(map["vrchat-avatar"]).toBe("vrchat-avatars"); // 契约守门
-    // storageSubDir 与 instanceDir 相同者（resourcepack/shaderpack）两实现一致
-    expect(map.resourcepack).toBe("resourcepacks");
-    expect(map.shaderpack).toBe("shaderpacks");
+    // Go SubDirAll() 返回 id → rt.InstanceDir（见 extensions.go:344）；
+    // web 同样使用 rt.instanceDir（web-fs.ts getWebSubDirMap）
+    // 从 resource_types.json 派生期望，禁止手写快照
+    const rtj = resourceTypesJson as {
+      resourceTypes?: Array<{ id: string; instanceDir?: string }>;
+    };
+    const reg = rtj.resourceTypes ?? [];
+    for (const rt of reg) {
+      if (!rt.instanceDir) continue;
+      expect(map[rt.id], `${rt.id} 的 instanceDir`).toBe(rt.instanceDir);
+    }
+    // 防快照守卫：无任何 instanceDir 以废弃壳层前缀开头
+    const deprecated = ["3d-skin/", "mmd-skin/", "{instance}", "{installDir}"];
+    for (const rt of reg) {
+      if (!rt.instanceDir) continue;
+      for (const prefix of deprecated) {
+        expect(rt.instanceDir.startsWith(prefix), `${rt.id} 不应含废弃前缀 ${prefix}`).toBe(false);
+      }
+    }
   });
 });
 

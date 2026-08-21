@@ -3,6 +3,7 @@ package types
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -259,17 +260,20 @@ func TestSubDirMap(t *testing.T) {
 
 func TestSubDirAll(t *testing.T) {
 	m := SubDirAll()
-	expected := []string{"ysm", "maid-model", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint", "litematic", "EntityPlayer", "SceneModel"}
-	for _, id := range expected {
-		if _, ok := m[id]; !ok {
-			t.Errorf("SubDirAll 缺少类型 %q", id)
+	// 用注册表派生而非手写快照：断言每个有 InstanceDir 的类型都出现在 map 中
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		if rt.InstanceDir == "" {
+			continue
 		}
-	}
-	if m["resourcepack"] != "resourcepacks" {
-		t.Errorf("SubDirAll['resourcepack'] = %q, 期望 'resourcepacks'", m["resourcepack"])
-	}
-	if m["ysm"] != "config/yes_steve_model/custom" {
-		t.Errorf("SubDirAll['ysm'] = %q, 期望 'config/yes_steve_model/custom'", m["ysm"])
+		if _, ok := m[rt.ID]; !ok {
+			t.Errorf("SubDirAll 缺少类型 %q（instanceDir=%q）", rt.ID, rt.InstanceDir)
+		}
+		// 值必须等于 rt.InstanceDir（单一事实源）
+		if m[rt.ID] != rt.InstanceDir {
+			t.Errorf("SubDirAll[%q] = %q, 期望 %q（与注册表 InstanceDir 不一致）",
+				rt.ID, m[rt.ID], rt.InstanceDir)
+		}
 	}
 }
 
@@ -279,14 +283,18 @@ func TestAllSubDirs(t *testing.T) {
 	for _, e := range entries {
 		entryMap[e.RType] = e.SubDir
 	}
-	expected := []string{"ysm", "maid-model", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint", "litematic", "EntityPlayer", "SceneModel"}
-	for _, id := range expected {
-		if _, ok := entryMap[id]; !ok {
-			t.Errorf("AllSubDirs 缺少类型 %q", id)
+	// 用注册表派生：所有有 InstanceDir 的类型都必须出现
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		if rt.InstanceDir == "" {
+			continue
 		}
-	}
-	if entryMap["resourcepack"] != "resourcepacks" {
-		t.Errorf("AllSubDirs resourcepack = %q, 期望 'resourcepacks'", entryMap["resourcepack"])
+		if _, ok := entryMap[rt.ID]; !ok {
+			t.Errorf("AllSubDirs 缺少类型 %q（instanceDir=%q）", rt.ID, rt.InstanceDir)
+		}
+		if entryMap[rt.ID] != rt.InstanceDir {
+			t.Errorf("AllSubDirs[%q] = %q, 期望 %q", rt.ID, entryMap[rt.ID], rt.InstanceDir)
+		}
 	}
 }
 
@@ -329,5 +337,76 @@ func TestLoadRegistry_CorruptFallbackToEmbedded(t *testing.T) {
 	}
 	if got := StorageSubDir("ysm"); got == "" {
 		t.Error("损坏 JSON 回退嵌入基线后 ysm StorageSubDir 应非空")
+	}
+}
+
+// ============================================================================
+// 防快照守卫：禁止 instanceDir / storageSubDir 包含已废弃的壳层前缀
+//
+// 历史教训：21 次路径语义反复横跳，每次都是"注册表一改 → 测试快照必挂"。
+// 本守卫确保：
+//  1. 没有任何 instanceDir 以废弃前缀开头（3d-skin/、mmd-skin/、{instance}、{installDir}）
+//  2. 没有任何 storageSubDir 以废弃前缀开头
+//  3. 非 YSM 类型的 instanceDir 必须等于 storageSubDir（扁平化后不再分叉）
+//
+// 只要有人再抄旧快照，此守卫直接红，让"改注册表必挂"成为历史。
+// ============================================================================
+
+// deprecatedInstanceDirPrefixes 已废弃的壳层前缀，扁平化架构下不应出现
+var deprecatedInstanceDirPrefixes = []string{
+	"3d-skin/",
+	"mmd-skin/",
+	"{instance}",
+	"{installDir}",
+}
+
+// TestNoDeprecatedInstanceDirPrefixes 防快照守卫：instanceDir 不含废弃前缀
+func TestNoDeprecatedInstanceDirPrefixes(t *testing.T) {
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		for _, prefix := range deprecatedInstanceDirPrefixes {
+			if strings.HasPrefix(rt.InstanceDir, prefix) {
+				t.Errorf("类型 %q 的 instanceDir %q 含废弃前缀 %q，应移除壳层",
+					rt.ID, rt.InstanceDir, prefix)
+			}
+		}
+	}
+}
+
+// TestNoDeprecatedStorageSubDirPrefixes 防快照守卫：storageSubDir 不含废弃前缀
+func TestNoDeprecatedStorageSubDirPrefixes(t *testing.T) {
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		for _, prefix := range deprecatedInstanceDirPrefixes {
+			if strings.HasPrefix(rt.StorageSubDir, prefix) {
+				t.Errorf("类型 %q 的 storageSubDir %q 含废弃前缀 %q，应移除壳层",
+					rt.ID, rt.StorageSubDir, prefix)
+			}
+		}
+	}
+}
+
+// TestInstanceDirMatchesStorageSubDir 防快照守卫：扁平化后 instanceDir 与 storageSubDir 语义一致
+// 已知例外（设计合理，非壳层残留）：
+//   - ysm: instanceDir=config/yes_steve_model/custom（版本隔离无关的固定偏移）
+//   - maid-model: instanceDir=tlm_custom_pack（车万女仆使用 TLM 标准目录名）
+//   - litematic: instanceDir=schematics（投影复用蓝图目录）
+//   - vrchat-avatar: instanceDir=vrchat-avatars（实例侧用全名，仓库侧用缩写）
+func TestInstanceDirMatchesStorageSubDir(t *testing.T) {
+	reg := LoadRegistry()
+	knownExceptions := map[string]bool{
+		"ysm":           true,
+		"maid-model":    true,
+		"litematic":     true,
+		"vrchat-avatar": true,
+	}
+	for _, rt := range reg.ResourceTypes {
+		if knownExceptions[rt.ID] {
+			continue
+		}
+		if rt.InstanceDir != rt.StorageSubDir {
+			t.Errorf("类型 %q: instanceDir=%q ≠ storageSubDir=%q，扁平化后应一致（非已知例外）",
+				rt.ID, rt.InstanceDir, rt.StorageSubDir)
+		}
 	}
 }
