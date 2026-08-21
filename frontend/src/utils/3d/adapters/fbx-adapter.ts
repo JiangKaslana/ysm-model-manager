@@ -18,6 +18,7 @@ import { disposeMaterial } from "../mesh.ts";
 import { b64ToBytes, bytesToArrayBuffer } from "../base64.ts";
 import { safeGet } from "../../dom/storage.ts"; // ADR-044：localStorage 统一走安全读写
 import { buildFbxSceneFromData, createFbxParser } from "./fbx-parser.ts";
+import type { FbxSceneData } from "./fbx-scene-to-data.ts";
 
 /** FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface FbxDataPort {
@@ -108,6 +109,43 @@ function countFbxStats(group: THREE.Object3D): { meshCount: number; texCount: nu
 }
 
 /**
+ * 构建 worker 路径的 texUrlMap：把捕获的纹理文件名映射到 blob URL。
+ * worker 只登记文件名（TextureNameProxyLoader 拦截加载），主线程须读真实字节
+ * （Wails 读不了本地盘，必须经 Go RPC readFileBytes 取）→ blob URL 才能挂贴图；
+ * 此前 texUrlMap 从未构建 → worker 路径纹理恒缺失（codereview 批次2 P2）。
+ * 纹理按 FBX 同目录解析（捕获端只留 basename）；读失败跳过，不阻塞渲染。
+ */
+async function buildFbxTexUrlMap(
+  data: FbxSceneData,
+  fbxPath: string,
+  port: FbxDataPort,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const dir = fbxPath.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
+  const names = new Set<string>();
+  for (const nd of data.nodes) {
+    if (!nd.isMesh || !nd.mesh) continue;
+    for (const m of nd.mesh.materials) {
+      for (const k of ["map", "normalMap", "specularMap", "alphaMap", "emissiveMap"]) {
+        const n = (m as unknown as Record<string, unknown>)[k];
+        if (typeof n === "string") names.add(n);
+      }
+    }
+  }
+  for (const name of names) {
+    try {
+      // 磁盘文件名大小写可能不一致 → 原样 + lowercase 双试
+      let b64 = await port.readFileBytes(`${dir}/${name}`);
+      if (!b64) b64 = await port.readFileBytes(`${dir}/${name.toLowerCase()}`);
+      if (!b64) continue;
+      const bytes = bytesToArrayBuffer(b64ToBytes(b64));
+      map.set(name, URL.createObjectURL(new Blob([bytes], { type: "image/png" })));
+    } catch { /* 单个纹理读取失败跳过，不阻断渲染 */ }
+  }
+  return map;
+}
+
+/**
  * 构建 FBX 内容场景（ADR-112 地基）。
  * @param ctx   统一预览上下文（核心提供 scene/camera/controls/renderer）
  * @param path  FBX 文件绝对路径（Wails 下经 Go RPC 取字节，浏览器读不了本地盘）
@@ -137,7 +175,10 @@ export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: Fb
       const resp = await parser.parse(bytes);
       parser.dispose();
       if (resp.ok && resp.data) {
-        group = buildFbxSceneFromData(resp.data) as THREE.Group & { animations: THREE.AnimationClip[] };
+        // texUrlMap：worker 只登记纹理文件名，主线程读真实字节建 blob URL 挂贴图
+        // （发现1 P2：此前从不构建 → worker 路径纹理恒缺失，静默回归）
+        const texUrlMap = await buildFbxTexUrlMap(resp.data, path, port);
+        group = buildFbxSceneFromData(resp.data, { texUrlMap }) as THREE.Group & { animations: THREE.AnimationClip[] };
         const { meshCount } = countFbxStats(group);
         await fbxDiag(
           port,

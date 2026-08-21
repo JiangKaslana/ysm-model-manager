@@ -38,10 +38,13 @@ class TextureNameProxyLoader extends THREE.Loader {
   }
 }
 
-/** 匹配全部扩展名（.png/.jpg/.tga/.dds/...），保证任何纹理都被捕获而非走 DOM 解码 */
+/** 匹配扩展名（.png/.jpg/.tga/.dds/...），保证任何纹理都被捕获而非走 DOM 解码——
+ *  正则须匹配「文件名末尾扩展名」而非锚定开头：FBXLoader 以 `.${extension}`
+ *  （点前缀扩展名）查 getHandler，旧 `/^\./` 恰能命中该形态，但对「完整文件名」
+ *  形态（texture.png）失配，属侥幸覆盖；`/\.\w+$/i` 两种形态均命中（codereview 批次2） */
 function createTextureCaptureManager(): THREE.LoadingManager {
   const manager = new THREE.LoadingManager();
-  manager.addHandler(/^\./, new TextureNameProxyLoader());
+  manager.addHandler(/\.\w+$/i, new TextureNameProxyLoader());
   return manager;
 }
 
@@ -58,8 +61,9 @@ self.onmessage = (e: MessageEvent<FbxParseRequest>) => {
     const pushBuffer = (arr: { buffer: ArrayBufferLike } | undefined): void => {
       if (arr) transferables.push(arr.buffer as ArrayBuffer);
     };
-    for (const mesh of data.meshes) {
-      const g = mesh.geometry;
+    for (const nd of data.nodes) {
+      if (!nd.isMesh || !nd.mesh) continue;
+      const g = nd.mesh.geometry;
       pushBuffer(g.position);
       pushBuffer(g.normal);
       pushBuffer(g.uv);
@@ -68,9 +72,10 @@ self.onmessage = (e: MessageEvent<FbxParseRequest>) => {
       pushBuffer(g.skinIndex);
       pushBuffer(g.skinWeight);
       pushBuffer(g.index);
-      if (mesh.skeleton) {
-        pushBuffer(mesh.skeleton.boneInverses);
-        pushBuffer(mesh.skeleton.bindMatrix);
+      for (const mt of g.morphTargets ?? []) pushBuffer(mt.positions);
+      if (nd.mesh.skeleton) {
+        pushBuffer(nd.mesh.skeleton.boneInverses);
+        pushBuffer(nd.mesh.skeleton.bindMatrix);
       }
     }
     for (const clip of data.animations) {

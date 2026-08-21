@@ -3,7 +3,7 @@
 // 重建 Three.js 场景。本测试锁定重建契约：几何/材质/骨骼层级/boneInverses/
 // bindMatrix/动画轨道类路由/texUrlMap 缺省时不挂纹理。
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { buildFbxSceneFromData } from "./fbx-parser.ts";
 import type { FbxSceneData, FbxSkeletonData } from "./fbx-scene-to-data.ts";
@@ -26,39 +26,44 @@ function makeSkeleton(): FbxSkeletonData {
 
 function makeSceneData(partial?: Partial<FbxSceneData>): FbxSceneData {
   return {
-    meshes: [
+    nodes: [
       {
         name: "Body",
+        parent: -1,
+        isMesh: true,
         transform: { position: [1, 2, 3], quaternion: [0, 0, 0, 1], scale: [1, 1, 1] },
-        geometry: {
-          position: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-          normal: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]),
-          uv: new Float32Array([0, 0, 1, 0, 0, 1]),
-          skinIndex: new Uint16Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]),
-          skinWeight: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]),
-          index: new Uint32Array([0, 1, 2]),
+        mesh: {
+          name: "Body",
+          geometry: {
+            position: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+            normal: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]),
+            uv: new Float32Array([0, 0, 1, 0, 0, 1]),
+            skinIndex: new Uint16Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]),
+            skinWeight: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]),
+            index: new Uint32Array([0, 1, 2]),
+          },
+          materials: [
+            {
+              type: "MeshPhongMaterial",
+              name: "skin",
+              color: [0.1, 0.2, 0.3],
+              emissive: [0, 0, 0],
+              specular: [1, 1, 1],
+              shininess: 32,
+              map: "skin.png",
+            },
+            {
+              type: "MeshLambertMaterial",
+              name: "shadow",
+              color: [0.5, 0.5, 0.5],
+              emissive: [0, 0, 0],
+              transparent: true,
+              opacity: 0.6,
+            },
+          ],
+          hasSkeleton: true,
+          skeleton: makeSkeleton(),
         },
-        materials: [
-          {
-            type: "MeshPhongMaterial",
-            name: "skin",
-            color: [0.1, 0.2, 0.3],
-            emissive: [0, 0, 0],
-            specular: [1, 1, 1],
-            shininess: 32,
-            map: "skin.png",
-          },
-          {
-            type: "MeshLambertMaterial",
-            name: "shadow",
-            color: [0.5, 0.5, 0.5],
-            emissive: [0, 0, 0],
-            transparent: true,
-            opacity: 0.6,
-          },
-        ],
-        hasSkeleton: true,
-        skeleton: makeSkeleton(),
       },
     ],
     animations: [
@@ -163,18 +168,110 @@ describe("buildFbxSceneFromData", () => {
     expect(clip.tracks[2]).toBeInstanceOf(THREE.NumberKeyframeTrack);
   });
 
-  it("空数据退化：无 mesh 无动画返回空 group", () => {
-    const group = buildFbxSceneFromData({ meshes: [], animations: [] });
+  it("空数据退化：无节点无动画返回空 group", () => {
+    const group = buildFbxSceneFromData({ nodes: [], animations: [] });
     expect(group.children.length).toBe(0);
     expect((group as THREE.Group & { animations: THREE.AnimationClip[] }).animations.length).toBe(0);
   });
 
   it("普通 Mesh（无骨骼）不构建 Skeleton", () => {
     const scene = makeSceneData();
-    scene.meshes[0].hasSkeleton = false;
-    scene.meshes[0].skeleton = undefined;
+    scene.nodes[0].mesh!.hasSkeleton = false;
+    scene.nodes[0].mesh!.skeleton = undefined;
     const mesh = buildFbxSceneFromData(scene).children[0] as THREE.Mesh;
     expect(mesh.type).toBe("Mesh");
     expect((mesh as THREE.Mesh & { isSkinnedMesh?: boolean }).isSkinnedMesh).not.toBe(true);
+  });
+
+  it("节点层级重建：mesh 挂到祖先 Group 下，祖先变换保留（发现2）", () => {
+    const scene = makeSceneData({
+      nodes: [
+        {
+          name: "Armature",
+          parent: -1,
+          isMesh: false,
+          transform: { position: [10, 0, 0], quaternion: [0, 0, 0, 1], scale: [2, 2, 2] },
+        },
+        {
+          name: "Body",
+          parent: 0,
+          isMesh: true,
+          transform: { position: [1, 2, 3], quaternion: [0, 0, 0, 1], scale: [1, 1, 1] },
+          mesh: makeSceneData().nodes[0].mesh,
+        },
+      ],
+      animations: [],
+    });
+    const group = buildFbxSceneFromData(scene);
+    expect(group.children.length).toBe(1);
+    const armature = group.children[0] as THREE.Group;
+    expect(armature.name).toBe("Armature");
+    expect(armature.position.toArray()).toEqual([10, 0, 0]);
+    expect(armature.children.length).toBe(1);
+    const mesh = armature.children[0] as THREE.Mesh;
+    expect(mesh.name).toBe("Body");
+    // 祖先变换参与世界矩阵（挂到 Group 下而非根），蒙皮 bind 不丢祖先链路
+    armature.updateMatrixWorld(true);
+    expect(mesh.matrixWorld.elements[0]).toBeCloseTo(2, 6);
+  });
+
+  it("morph 目标重建：geometry.morphAttributes.position + morphTargetsRelative（发现4）", () => {
+    const scene = makeSceneData();
+    scene.nodes[0].mesh!.geometry.morphTargets = [
+      { name: "smile", positions: new Float32Array([1, 0, 0, 1, 0, 0, 1, 0, 0]) },
+    ];
+    const mesh = buildFbxSceneFromData(scene).children[0] as THREE.Mesh;
+    const geo = mesh.geometry as THREE.BufferGeometry;
+    expect(geo.morphTargetsRelative).toBe(true);
+    const morphPos = geo.morphAttributes.position;
+    expect(morphPos).toBeDefined();
+    expect(morphPos!.length).toBe(1);
+    expect(morphPos![0].name).toBe("smile");
+    expect(Array.from(morphPos![0].array as Float32Array)).toEqual([1, 0, 0, 1, 0, 0, 1, 0, 0]);
+  });
+
+  it("texUrlMap 应用：map + normalMap 两槽位分别挂纹理（发现1）", async () => {
+    // happy-dom 无真实图片解码，TextureLoader.load 的 onLoad 永不触发 → mock 同步回调
+    const loadSpy = vi
+      .spyOn(THREE.TextureLoader.prototype, "load")
+      .mockImplementation(function (this: THREE.TextureLoader, _url: string, onLoad) {
+        // 返回类型断言收敛：Texture<unknown> → 原型签名的 Texture<HTMLImageElement>
+        const tex = new THREE.Texture() as ReturnType<typeof THREE.TextureLoader.prototype.load>;
+        onLoad?.(tex);
+        return tex;
+      });
+    try {
+      const scene = makeSceneData();
+      scene.nodes[0].mesh!.materials[0] = {
+        type: "MeshPhongMaterial",
+        name: "skin",
+        color: [0.1, 0.2, 0.3],
+        emissive: [0, 0, 0],
+        map: "body.png",
+        normalMap: "body_n.png",
+      };
+      // 1×1 像素 PNG（最小合法文件）
+      const pngB64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+      const toBlob = (): string => {
+        const bin = atob(pngB64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+      };
+      const texUrlMap = new Map([
+        ["body.png", toBlob()],
+        ["body_n.png", toBlob()],
+      ]);
+      const group = buildFbxSceneFromData(scene, { texUrlMap });
+      const mesh = group.children[0] as THREE.Mesh;
+      const mat = mesh.material as THREE.MeshPhongMaterial;
+      // mock 同步回调 → 无需等待真实异步加载
+      expect(mat.map).not.toBeNull();
+      expect(mat.normalMap).not.toBeNull();
+      expect(loadSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      loadSpy.mockRestore();
+    }
   });
 });

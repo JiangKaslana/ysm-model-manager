@@ -1,9 +1,15 @@
 // ===== FBX worker 场景序列化（ADR-112）=====
 // FBXLoader.parse()（vendor/fbx/FBXLoader.ts 官方源码副本）直接产出 THREE.Group，
 // worker 内无法跨线程回传 THREE 对象：fbxSceneToData 把 Group 抽成纯数据
-// （几何数组 / 材质参数 / 骨骼 + boneInverses / 动画轨道 / 纹理文件名），
-// 主线程凭 FbxSceneData 重建场景。纹理文件名由 worker 端 manager handler
+// （节点层级 / 几何数组 / 材质参数 / 骨骼 + boneInverses / 动画轨道 / 纹理文件名 /
+// morph 目标），主线程凭 FbxSceneData 重建场景。纹理文件名由 worker 端 manager handler
 // 经 captureTextureName 登记（镜像 mmd-pmx-parser.worker.ts 的纯数据契约）。
+//
+// 层级契约（codereview 批次2）：FBX 场景是完整模型树——mesh 常挂在携带祖先变换的
+// Group 下（Null/LimbNode/根节点），动画轨道可命名非 mesh 节点。序列化保留全部
+// 非骨骼节点（Group + Mesh）的父子索引与局部变换，重建端按树形还原，避免展平
+// 丢祖先变换（放置错位 / 蒙皮 bind 错位）。骨骼节点不序列化——由 skeleton.bones
+// 数据单独重建并挂到 mesh（既有契约，动画轨道经名字可达）。
 
 import * as THREE from "three";
 
@@ -16,6 +22,8 @@ export interface FbxGeometryData {
   skinIndex?: Uint16Array;
   skinWeight?: Float32Array;
   index?: Uint32Array;
+  /** morph 目标（FBX BlendShape → 位置增量 + 名称；重建时 morphTargetsRelative=true） */
+  morphTargets?: Array<{ name: string; positions: Float32Array }>;
 }
 
 export interface FbxMaterialData {
@@ -47,15 +55,24 @@ export interface FbxSkeletonData {
 
 export interface FbxMeshData {
   name: string;
+  geometry: FbxGeometryData;
+  materials: FbxMaterialData[];
+  hasSkeleton: boolean;
+  skeleton?: FbxSkeletonData;
+}
+
+/** 场景节点（非骨骼：Group 或 Mesh；parent = nodes 下标，-1 = 根） */
+export interface FbxNodeData {
+  name: string;
+  parent: number;
+  isMesh: boolean;
   transform: {
     position: number[];
     quaternion: number[];
     scale: number[];
   };
-  geometry: FbxGeometryData;
-  materials: FbxMaterialData[];
-  hasSkeleton: boolean;
-  skeleton?: FbxSkeletonData;
+  /** isMesh=true 时的网格数据 */
+  mesh?: FbxMeshData;
 }
 
 export interface FbxClipData {
@@ -69,7 +86,7 @@ export interface FbxClipData {
 }
 
 export interface FbxSceneData {
-  meshes: FbxMeshData[];
+  nodes: FbxNodeData[];
   animations: FbxClipData[];
 }
 
@@ -128,6 +145,15 @@ function serializeGeometry(geo: THREE.BufferGeometry): FbxGeometryData {
   if (skinIndex) out.skinIndex = Uint16Array.from(skinIndex.array as ArrayLike<number>);
   const index = geo.getIndex();
   if (index) out.index = Uint32Array.from(index.array as ArrayLike<number>);
+  // morph 目标（FBX BlendShape）：vendor addMorphTargets 以 position 增量形式
+  // 存入 geometry.morphAttributes.position（morphTargetsRelative=true），每项带名称
+  const morphAttrs = geo.morphAttributes?.position;
+  if (morphAttrs && morphAttrs.length > 0) {
+    out.morphTargets = morphAttrs.map((attr, i) => ({
+      name: (attr.name as string) || `morph${i}`,
+      positions: Float32Array.from(attr.array as ArrayLike<number>),
+    }));
+  }
   return out;
 }
 
@@ -152,11 +178,6 @@ function serializeMesh(mesh: THREE.Mesh): FbxMeshData {
   const geo = mesh.geometry as THREE.BufferGeometry;
   const out: FbxMeshData = {
     name: mesh.name,
-    transform: {
-      position: [mesh.position.x, mesh.position.y, mesh.position.z],
-      quaternion: [mesh.quaternion.x, mesh.quaternion.y, mesh.quaternion.z, mesh.quaternion.w],
-      scale: [mesh.scale.x, mesh.scale.y, mesh.scale.z],
-    },
     geometry: serializeGeometry(geo),
     materials: materialsArray
       .filter((m): m is THREE.Material => Boolean(m))
@@ -171,14 +192,43 @@ function serializeMesh(mesh: THREE.Mesh): FbxMeshData {
   return out;
 }
 
+/** 判定是否保留为场景节点：Group（非骨骼）与 Mesh；灯光/相机等旁路对象不参与重建 */
+function isSceneNode(obj: THREE.Object3D): boolean {
+  if ((obj as THREE.Bone).isBone) return false;
+  if ((obj as THREE.Mesh).isMesh) return true;
+  return (obj as THREE.Group).isGroup === true;
+}
+
 export function fbxSceneToData(group: THREE.Object3D): FbxSceneData {
-  const meshes: FbxMeshData[] = [];
+  // 先序遍历收集节点 + 建 object→index 映射（父索引据此解析；根容器自身不序列化——
+  // 重建端新建根 Group，根容器作为子节点会多一层无意义嵌套；被跳过的骨骼/灯光
+  // 作为父时映射缺失 → 子节点挂到 -1（根），退化为展平但保留自身变换）
+  const order: THREE.Object3D[] = [];
+  const indexOf = new Map<THREE.Object3D, number>();
   group.traverse((obj) => {
-    if ((obj as THREE.Mesh).isMesh) meshes.push(serializeMesh(obj as THREE.Mesh));
+    if (obj === group) return;
+    if (isSceneNode(obj)) {
+      indexOf.set(obj, order.length);
+      order.push(obj);
+    }
+  });
+  const nodes: FbxNodeData[] = order.map((obj) => {
+    const node: FbxNodeData = {
+      name: obj.name,
+      parent: obj.parent ? (indexOf.get(obj.parent) ?? -1) : -1,
+      isMesh: (obj as THREE.Mesh).isMesh === true,
+      transform: {
+        position: [obj.position.x, obj.position.y, obj.position.z],
+        quaternion: [obj.quaternion.x, obj.quaternion.y, obj.quaternion.z, obj.quaternion.w],
+        scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+      },
+    };
+    if (node.isMesh) node.mesh = serializeMesh(obj as THREE.Mesh);
+    return node;
   });
   const anims = (group as THREE.Object3D & { animations?: THREE.AnimationClip[] }).animations;
   return {
-    meshes,
+    nodes,
     animations: (anims ?? []).map((clip) => ({
       name: clip.name,
       duration: clip.duration,

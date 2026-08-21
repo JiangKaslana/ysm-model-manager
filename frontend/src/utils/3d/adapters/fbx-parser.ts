@@ -10,6 +10,7 @@ import type {
   FbxMeshData,
   FbxGeometryData,
   FbxSkeletonData,
+  FbxMaterialData,
 } from "./fbx-scene-to-data.ts";
 
 /** FBX 解析器管理器（接口对齐 PmxParser） */
@@ -112,21 +113,25 @@ function buildGeometry(geo: FbxGeometryData): THREE.BufferGeometry {
   if (geo.index) {
     geometry.setIndex(new THREE.BufferAttribute(geo.index, 1));
   }
+  // morph 目标重建（FBX BlendShape）：vendor addMorphTargets 以 position 增量 +
+  // morphTargetsRelative=true 存储，须同口径还原，否则 morphTargetInfluences 轨道
+  // 驱动空数组（脸部/表情动画静默缺失——codereview 批次2）
+  if (geo.morphTargets && geo.morphTargets.length > 0) {
+    geometry.morphTargetsRelative = true;
+    geometry.morphAttributes.position = geo.morphTargets.map((mt) => {
+      const attr = new THREE.BufferAttribute(mt.positions, 3);
+      attr.name = mt.name;
+      return attr;
+    });
+  }
   return geometry;
 }
 
 /** 按序列化材质类型还原（FBXLoader 默认 Phong；unknown 类型回退 Phong） */
-function buildMaterial(mat: {
-  type: string;
-  name?: string;
-  color: number[];
-  specular?: number[];
-  shininess?: number;
-  emissive: number[];
-  transparent?: boolean;
-  opacity?: number;
-  map?: string;
-}): THREE.Material {
+/** 材质纹理槽位（与 FbxMaterialData 序列化字段一一对应） */
+const TEX_SLOTS = ["map", "normalMap", "specularMap", "alphaMap", "emissiveMap"] as const;
+
+function buildMaterial(mat: FbxMaterialData): THREE.Material {
   let material: THREE.Material;
   const base = {
     name: mat.name,
@@ -156,8 +161,12 @@ function buildMaterial(mat: {
       break;
     }
   }
-  // 纹理文件名暂存 userData；texUrlMap 命中时异步加载，避免阻塞场景重建
-  if (mat.map) material.userData.textureName = mat.map;
+  // 纹理文件名暂存 userData（5 槽位）；texUrlMap 命中时异步加载，避免阻塞场景重建
+  const slots = {} as Record<string, string>;
+  for (const slot of TEX_SLOTS) {
+    if (mat[slot]) slots[slot] = mat[slot];
+  }
+  if (Object.keys(slots).length > 0) material.userData.textureNames = slots;
   return material;
 }
 
@@ -165,17 +174,22 @@ function applyTexture(
   material: THREE.Material,
   texUrlMap: ReadonlyMap<string, string> | undefined,
 ): void {
-  const name = material.userData.textureName as string | undefined;
-  if (!name || !texUrlMap) return;
-  // FBX 文件内大小写可能与磁盘不一致 → 双查（原样 + lowercase）
-  const blobUrl = texUrlMap.get(name) ?? texUrlMap.get(name.toLowerCase());
-  if (!blobUrl) return;
+  const names = material.userData.textureNames as Record<string, string> | undefined;
+  if (!names || !texUrlMap) return;
   const texLoader = new THREE.TextureLoader();
-  texLoader.load(blobUrl, (texture) => {
-    texture.colorSpace = THREE.SRGBColorSpace;
-    (material as THREE.MeshPhongMaterial).map = texture;
-    material.needsUpdate = true;
-  });
+  for (const slot of TEX_SLOTS) {
+    const name = names[slot];
+    if (!name) continue;
+    // FBX 文件内大小写可能与磁盘不一致 → 双查（原样 + lowercase）
+    const blobUrl = texUrlMap.get(name) ?? texUrlMap.get(name.toLowerCase());
+    if (!blobUrl) continue;
+    texLoader.load(blobUrl, (texture) => {
+      // 法线贴图保持线性空间，其余贴图转 sRGB（三色纹理）
+      texture.colorSpace = slot === "normalMap" ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+      (material as unknown as Record<string, THREE.Texture>)[slot] = texture;
+      material.needsUpdate = true;
+    });
+  }
 }
 
 function buildSkeleton(skel: FbxSkeletonData): { bones: THREE.Bone[]; skeleton: THREE.Skeleton } {
@@ -229,9 +243,6 @@ function buildMesh(
   }
 
   mesh.name = meshData.name;
-  mesh.position.fromArray(meshData.transform.position);
-  mesh.quaternion.fromArray(meshData.transform.quaternion);
-  mesh.scale.fromArray(meshData.transform.scale);
   return mesh;
 }
 
@@ -243,13 +254,38 @@ function buildTrack(name: string, times: Float32Array, values: Float32Array): TH
   return new THREE.VectorKeyframeTrack(name, times, values);
 }
 
-/** 从 worker 产出的纯数据重建 Three.js 场景（FBX worker 路径的主线程构建器） */
+/** 从 worker 产出的纯数据重建 Three.js 场景（FBX worker 路径的主线程构建器）
+ *  按 nodes 层级还原：非 mesh 节点建 Group、mesh 节点建 Mesh/SkinnedMesh，
+ *  依 parent 索引挂接（codereview 批次2：FBX 网格常挂在带祖先变换的 Group 下，
+ *  展平会丢放置/蒙皮 bind；动画轨道命名非 mesh 节点也需要其在场景树中存在） */
 export function buildFbxSceneFromData(data: FbxSceneData, config: FbxSceneBuilderConfig = {}): THREE.Group {
   const texUrlMap = config.texUrlMap;
+  const built: Array<THREE.Object3D | null> = data.nodes.map(() => null);
+  // 第一遍：创建节点（Group 或 Mesh）
+  data.nodes.forEach((node, i) => {
+    if (node.isMesh && node.mesh) {
+      built[i] = buildMesh(node.mesh, texUrlMap);
+    } else {
+      const g = new THREE.Group();
+      g.name = node.name;
+      built[i] = g;
+    }
+  });
+  // 第二遍：应用局部变换 + 按 parent 索引挂接（parent=-1 → 挂根）
   const group = new THREE.Group();
-  for (const meshData of data.meshes) {
-    group.add(buildMesh(meshData, texUrlMap));
-  }
+  data.nodes.forEach((node, i) => {
+    const obj = built[i];
+    if (!obj) return;
+    obj.name = node.name;
+    obj.position.fromArray(node.transform.position);
+    obj.quaternion.fromArray(node.transform.quaternion);
+    obj.scale.fromArray(node.transform.scale);
+    if (node.parent >= 0 && node.parent < built.length && built[node.parent]) {
+      built[node.parent]!.add(obj);
+    } else {
+      group.add(obj);
+    }
+  });
   const clips = data.animations.map(
     (clip) =>
       new THREE.AnimationClip(

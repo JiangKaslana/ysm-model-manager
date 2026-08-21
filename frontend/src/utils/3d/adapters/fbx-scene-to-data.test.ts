@@ -8,7 +8,14 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import * as THREE from "three";
-import { fbxSceneToData, captureTextureName } from "./fbx-scene-to-data.ts";
+import { fbxSceneToData, captureTextureName, type FbxSceneData } from "./fbx-scene-to-data.ts";
+
+/** 取场景数据中首个 mesh 节点（新契约：mesh 内嵌在 nodes 的 isMesh 节点上） */
+function firstMesh(data: FbxSceneData): NonNullable<FbxSceneData["nodes"][number]["mesh"]> {
+  const node = data.nodes.find((n) => n.isMesh);
+  if (!node?.mesh) throw new Error("无 mesh 节点");
+  return node.mesh;
+}
 
 /** 合成一个带 position 的 BufferGeometry 的最小网格 */
 function plainMesh(meshName = "mesh0"): THREE.Mesh {
@@ -50,9 +57,9 @@ function skinnedMesh(): THREE.SkinnedMesh {
 }
 
 describe("fbxSceneToData — 几何/材质/纹理文件名", () => {
-  it("空组 → 空数据（无 mesh 无动画）", () => {
+  it("空组 → 空数据（无节点无动画）", () => {
     const data = fbxSceneToData(new THREE.Group());
-    expect(data.meshes).toEqual([]);
+    expect(data.nodes).toEqual([]);
     expect(data.animations).toEqual([]);
   });
 
@@ -62,12 +69,14 @@ describe("fbxSceneToData — 几何/材质/纹理文件名", () => {
     const group = new THREE.Group();
     group.add(mesh);
     const data = fbxSceneToData(group);
-    expect(data.meshes).toHaveLength(1);
-    const m = data.meshes[0];
+    expect(data.nodes).toHaveLength(1); // 根容器不序列化，仅 mesh
+    const meshNode = data.nodes[0];
+    expect(meshNode.isMesh).toBe(true);
+    const m = meshNode.mesh!;
     expect(m.name).toBe("mesh0");
-    expect(m.transform.position).toEqual([1, 2, 3]);
-    expect(m.transform.quaternion).toEqual([0, 0, 0, 1]);
-    expect(m.transform.scale).toEqual([1, 1, 1]);
+    expect(meshNode.transform.position).toEqual([1, 2, 3]);
+    expect(meshNode.transform.quaternion).toEqual([0, 0, 0, 1]);
+    expect(meshNode.transform.scale).toEqual([1, 1, 1]);
     expect(Array.from(m.geometry.position)).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
     expect(Array.from(m.geometry.normal!)).toEqual([0, 0, 1, 0, 0, 1, 0, 0, 1]);
     expect(Array.from(m.geometry.uv!)).toEqual([0, 0, 1, 0, 0, 1]);
@@ -85,7 +94,7 @@ describe("fbxSceneToData — 几何/材质/纹理文件名", () => {
     mat.emissive.set(0.1, 0.1, 0);
     group.add(mesh);
     const data = fbxSceneToData(group);
-    expect(data.meshes[0].materials[0]).toMatchObject({
+    expect(firstMesh(data).materials[0]).toMatchObject({
       type: "MeshPhongMaterial",
       color: [1, 0.5, 0.25],
       specular: [0.2, 0.2, 0.2],
@@ -106,8 +115,8 @@ describe("fbxSceneToData — 几何/材质/纹理文件名", () => {
     mat.normalMap = normalMap;
     group.add(mesh);
     const data = fbxSceneToData(group);
-    expect(data.meshes[0].materials[0].map).toBe("body_diffuse.png");
-    expect(data.meshes[0].materials[0].normalMap).toBe("body_normal.png");
+    expect(firstMesh(data).materials[0].map).toBe("body_diffuse.png");
+    expect(firstMesh(data).materials[0].normalMap).toBe("body_normal.png");
   });
 
   it("多材质数组：逐项序列化（FBX multi-material）", () => {
@@ -120,9 +129,9 @@ describe("fbxSceneToData — 几何/材质/纹理文件名", () => {
     mesh.material = [m0, m1];
     group.add(mesh);
     const data = fbxSceneToData(group);
-    expect(data.meshes[0].materials).toHaveLength(2);
-    expect(data.meshes[0].materials[0].color).toEqual([0.1, 0.2, 0.3]);
-    expect(data.meshes[0].materials[1].color).toEqual([0.4, 0.5, 0.6]);
+    expect(firstMesh(data).materials).toHaveLength(2);
+    expect(firstMesh(data).materials[0].color).toEqual([0.1, 0.2, 0.3]);
+    expect(firstMesh(data).materials[1].color).toEqual([0.4, 0.5, 0.6]);
   });
 });
 
@@ -131,7 +140,7 @@ describe("fbxSceneToData — 骨骼（SkinnedMesh borrow 模式）", () => {
     const group = new THREE.Group();
     group.add(skinnedMesh());
     const data = fbxSceneToData(group);
-    const m = data.meshes[0];
+    const m = firstMesh(data);
     expect(m.hasSkeleton).toBe(true);
     expect(m.skeleton).toBeDefined();
     expect(m.skeleton!.bones).toHaveLength(2);
@@ -150,11 +159,50 @@ describe("fbxSceneToData — 骨骼（SkinnedMesh borrow 模式）", () => {
     const group = new THREE.Group();
     group.add(skinnedMesh());
     const data = fbxSceneToData(group);
-    const g = data.meshes[0].geometry;
+    const g = firstMesh(data).geometry;
     expect(g.skinIndex).toBeInstanceOf(Uint16Array);
     expect(Array.from(g.skinIndex!)).toEqual([0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]);
     expect(g.skinWeight).toBeInstanceOf(Float32Array);
     expect(Array.from(g.skinWeight!)).toEqual([1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0]);
+  });
+});
+
+describe("fbxSceneToData — 节点层级（发现2）", () => {
+  it("祖先 Group 保留：mesh 的 parent 指向 Armature 节点，transform 独立序列化", () => {
+    const mesh = plainMesh();
+    mesh.position.set(1, 2, 3);
+    const armature = new THREE.Group();
+    armature.name = "Armature";
+    armature.position.set(10, 0, 0);
+    armature.add(mesh);
+    const group = new THREE.Group();
+    group.add(armature);
+    const data = fbxSceneToData(group);
+    // 根容器不序列化 → Armature(0) → mesh(1)
+    expect(data.nodes).toHaveLength(2);
+    expect(data.nodes[0].isMesh).toBe(false);
+    expect(data.nodes[0].name).toBe("Armature");
+    expect(data.nodes[0].parent).toBe(-1);
+    expect(data.nodes[0].transform.position).toEqual([10, 0, 0]);
+    const meshNode = data.nodes[1];
+    expect(meshNode.isMesh).toBe(true);
+    expect(meshNode.parent).toBe(0); // 挂在 Armature 下，非根
+    expect(meshNode.transform.position).toEqual([1, 2, 3]);
+  });
+
+  it("morph 目标序列化：morphAttributes.position 增量 + 名称（发现4）", () => {
+    const mesh = plainMesh();
+    const geo = mesh.geometry as THREE.BufferGeometry;
+    geo.morphTargetsRelative = true;
+    const smile = new THREE.BufferAttribute(new Float32Array([1, 0, 0, 1, 0, 0, 1, 0, 0]), 3);
+    smile.name = "smile";
+    geo.morphAttributes.position = [smile];
+    const group = new THREE.Group();
+    group.add(mesh);
+    const data = fbxSceneToData(group);
+    expect(firstMesh(data).geometry.morphTargets).toEqual([
+      { name: "smile", positions: new Float32Array([1, 0, 0, 1, 0, 0, 1, 0, 0]) },
+    ]);
   });
 });
 
