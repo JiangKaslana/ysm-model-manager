@@ -81,7 +81,7 @@ func runRename(ctx *CmdContext) error {
 		return nil
 	}
 	if err := ctx.App.RenameFile(*path, *newName); err != nil {
-		return newRuntimeErrf("重命名失败（目录: %v / 文件: %v）", dirErr, err)
+		return newRuntimeErrf("重命名失败（目录: %v / 文件: %w）", dirErr, err)
 	}
 	fmt.Printf("✅ 已重命名文件: %s -> %s\n", *path, *newName)
 	return nil
