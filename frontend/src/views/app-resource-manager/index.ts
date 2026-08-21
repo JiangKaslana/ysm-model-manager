@@ -511,17 +511,11 @@ export class AppResourceManager extends WebComponentBase {
                 danger: true,
               }))) return;
               if (gen !== this._detailGen) return; // 等待确认期间用户已切换条目
-              // 从配置读取 isDir 字段，文件夹型资源（如 EntityPlayer/vrm）删整个目录
-              const type = _findType(this._rtype);
-              const isDirModel = type && type.isDir;
-              const { DeleteResourcePack, DeleteModelDir } =
+              // ADR-111 统一删除入口：DeleteResourcePack 已按 rtype.isDir 决定语义
+              const { DeleteResourcePack } =
                 await getApp();
               if (gen !== this._detailGen) return; // getApp await 后再次校验
-              if (isDirModel) {
-                await DeleteModelDir(path);
-              } else {
-                await DeleteResourcePack(path);
-              }
+              await DeleteResourcePack(path, this._rtype);
               if (gen !== this._detailGen) return; // 删除完成前用户已切换
               await this._loadList();
               if (this._contentEl) {

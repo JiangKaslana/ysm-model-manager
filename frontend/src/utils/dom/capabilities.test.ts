@@ -10,7 +10,7 @@ const KEY = "__YSM_BACKEND__";
 const webImplKeys = [
   "ScanModelEntries",
   "ToggleModelEnable",
-  "DeleteModelDir",
+  "DeleteResourcePack",
   "RenameFile",
   "ReadPackMeta",
   "GetNbtVoxelData",
@@ -29,7 +29,7 @@ afterEach(() => {
 describe("can() — 三级能力门控", () => {
   it("桌面（声明 go）→ 恒 true（Go 桥全量可用）", () => {
     vi.stubGlobal(KEY, "go");
-    expect(can("DeleteModelDir")).toBe(true);
+    expect(can("DeleteResourcePack")).toBe(true);
     expect(can("MoveModelFile")).toBe(true);
   });
 
@@ -51,7 +51,7 @@ describe("can() — 三级能力门控", () => {
     // Android Java 桥：window.wails 带 requestStoragePermission（android-bridge.ts:13-16 检测）
     vi.stubGlobal(KEY, undefined);
     vi.stubGlobal("window", { wails: { requestStoragePermission: () => {} } });
-    expect(can("DeleteModelDir")).toBe(false);
+    expect(can("DeleteResourcePack")).toBe(false);
     expect(can("ToggleModelEnable")).toBe(false);
     expect(can("ScanModelEntries")).toBe(false);
   });

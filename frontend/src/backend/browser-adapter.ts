@@ -48,7 +48,7 @@ const webImpls = {
 
 // 类型级对账：webImpls 的键（排除网页版专属扩展白名单）必须 ⊆ AppBindings 导出键。
 // 拼错键 / 漏实现（webImpls 没有但调用方误以为有）会在编译期暴露 TS2344。
-type WebImplGoKeys = Exclude<keyof typeof webImpls, "SelectLocalRepo" | "GetFsaAuthState">;
+type WebImplGoKeys = Exclude<keyof typeof webImpls, "SelectLocalRepo" | "GetFsaAuthState" | "DeleteModelDir">;
 type AssertSubset<T extends keyof AppBindings> = T;
 type _WebImplKeyCheck = AssertSubset<WebImplGoKeys>;
 

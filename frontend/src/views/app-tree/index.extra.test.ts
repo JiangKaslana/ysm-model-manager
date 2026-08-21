@@ -41,7 +41,6 @@ const bindToolbarEventsMock = vi.mocked(bindToolbarEvents);
 const bindings = {
   ListModelAuthors: vi.fn().mockResolvedValue([] as unknown[]),
   ClearScanCache: vi.fn().mockResolvedValue(undefined),
-  DeleteModelDir: vi.fn().mockResolvedValue(undefined),
   DeleteResourcePack: vi.fn().mockResolvedValue(undefined),
   GetRepoRoot: vi.fn().mockResolvedValue("/repo"),
   ScanModelEntriesWithLabel: vi.fn().mockResolvedValue([]),
@@ -196,8 +195,8 @@ describe("app-tree index 入口生命周期（补位）", () => {
     modalConfirmMock.mockResolvedValue(true);
     dispatchKey("Delete");
     await waitFor(() => (bindings.DeleteResourcePack as ReturnType<typeof vi.fn>).mock.calls.length === 2);
-    expect(bindings.DeleteResourcePack).toHaveBeenNthCalledWith(1, "/repo/a.ysm");
-    expect(bindings.DeleteResourcePack).toHaveBeenNthCalledWith(2, "/repo/b.ysm");
+    expect(bindings.DeleteResourcePack).toHaveBeenNthCalledWith(1, "/repo/a.ysm", RESOURCE_TYPES.YSM);
+    expect(bindings.DeleteResourcePack).toHaveBeenNthCalledWith(2, "/repo/b.ysm", RESOURCE_TYPES.YSM);
     expect(bindings.ClearScanCache).toHaveBeenCalled();
     await waitFor(() => (loader as ReturnType<typeof vi.fn>).mock.calls.length === 2); // mount 1 + 删除后 1
     expect(selectState.keys.size).toBe(0);
@@ -211,14 +210,13 @@ describe("app-tree index 入口生命周期（补位）", () => {
     expect(queryAllByTestId(el.shadowRoot!, "tree-file").length).toBe(2);
   });
 
-  it("Delete 目录类型（root=MMD）→ 走 DeleteModelDir", async () => {
+  it("Delete 统一走 DeleteResourcePack 并传 rtype", async () => {
     const el = await mountEl();
     (el as unknown as { _rootAttr: string })._rootAttr = RESOURCE_TYPES.MMD;
     selectState.keys.add("/repo/a.ysm");
     dispatchKey("Delete");
-    await waitFor(() => (bindings.DeleteModelDir as ReturnType<typeof vi.fn>).mock.calls.length === 1);
-    expect(bindings.DeleteModelDir).toHaveBeenCalledWith("/repo/a.ysm");
-    expect(bindings.DeleteResourcePack).not.toHaveBeenCalled();
+    await waitFor(() => (bindings.DeleteResourcePack as ReturnType<typeof vi.fn>).mock.calls.length === 1);
+    expect(bindings.DeleteResourcePack).toHaveBeenCalledWith("/repo/a.ysm", RESOURCE_TYPES.MMD);
   });
 
   it("Delete 部分删除失败 → ok/fail 计数进 toast", async () => {

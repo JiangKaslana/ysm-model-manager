@@ -336,8 +336,8 @@ export class AppTree extends WebComponentBase {
           });
           return;
         }
-        // 能力门控：web 已实现 DeleteModelDir（IDB 整组删）→ 解锁；Android viewer 封禁
-        if (!can("DeleteModelDir")) {
+        // 能力门控：统一走 DeleteResourcePack（已按 rtype.isDir 决定语义）
+        if (!can("DeleteResourcePack")) {
           bus.emit("toast:show", {
             msg: "网页版不支持删除模型",
             duration: 3000,
@@ -355,28 +355,25 @@ export class AppTree extends WebComponentBase {
         })))
           return;
         const rtype = this._rootAttr || RESOURCE_TYPES.YSM;
-        // ADR-111：VRM 已合并进 EntityPlayer 的 variants，isDirModel 只需检查 MMD
-        const isDirModel = [RESOURCE_TYPES.MMD].includes(rtype);
-        this._deleteSelected(paths, isDirModel);
+        this._deleteSelected(paths, rtype);
       }
     }) as unknown as EventListener;
     // 只注册 document 级：shadow 内组合键事件会 composed 冒泡，双注册会导致 Delete 双触发
     document.addEventListener("keydown", this._keydownHandler as unknown as EventListener);
   }
 
-  async _deleteSelected(paths: string[], isDirModel: boolean): Promise<void> {
+  async _deleteSelected(paths: string[], rtype: string): Promise<void> {
     if (this._deleting) return; // 并发守卫：连点 Delete 只执行第一次
     this._deleting = true;
     const gen = this._gen; // P2-1 代际捕获：删除期间 root 切换/新加载 → 丢弃过期渲染
     try {
       let ok = 0,
         fail = 0;
-      const { DeleteModelDir, DeleteResourcePack } =
+      const { DeleteResourcePack } =
         await getApp();
       for (const p of paths) {
         try {
-          if (isDirModel) await DeleteModelDir(p);
-          else await DeleteResourcePack(p);
+          await DeleteResourcePack(p, rtype);
           ok++;
         } catch {
           fail++;

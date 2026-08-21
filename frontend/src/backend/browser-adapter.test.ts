@@ -549,11 +549,11 @@ describe("browserAdapter — ADR-049 桥接增强 Batch 1（纯前端可复现�
     expect((await browserAdapter.GetModelTags(p)) as string[]).toEqual([]);
   });
 
-  it("DeleteModelDir / RemoveDir：删除模型组（dir + file + 标记）", async () => {
+  it("DeleteResourcePack / RemoveDir：删除模型组（dir + file + 标记）", async () => {
     await importWebFiles([new File([enc2.encode("Y")], "狐狸.ysm")], "ysm");
     const p = "/web/ysm/狐狸/狐狸.ysm";
     await browserAdapter.SetModelTags(p, ["临时"]);
-    await browserAdapter.DeleteModelDir(p);
+    await browserAdapter.DeleteResourcePack(p, "ysm");
     expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
     expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(false);
     expect(idbMock._store.has("dir:ysm/狐狸:")).toBe(false);
@@ -756,12 +756,12 @@ describe("browserAdapter — 桥接增强边界/异常分支补全（审核补�
     expect(hit[0].hasError).toBe(false);
   });
 
-  it("DeleteModelDir 清理 ban 标记（dir+file+ban/tags 整组清理）", async () => {
+  it("DeleteResourcePack 清理 ban 标记（dir+file+ban/tags 整组清理）", async () => {
     await importWebFiles([new File([enc3.encode("Y")], "狐狸.ysm")], "ysm");
     const p = "/web/ysm/狐狸/狐狸.ysm";
     await browserAdapter.ToggleModelEnable(p); // 置 ban
     expect(await browserAdapter.IsFileBanned(p)).toBe(true);
-    await browserAdapter.DeleteModelDir(p);
+    await browserAdapter.DeleteResourcePack(p, "ysm");
     expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
     expect(idbMock._store.has("ban:/web/ysm/狐狸/狐狸.ysm")).toBe(false);
     expect(idbMock._store.has("file:ysm/狐狸/狐狸.ysm")).toBe(false);
@@ -994,7 +994,7 @@ describe("browserAdapter — 三向一致性/边界补测（审核补充）", ()
 
   it("错误路径：非 /web/ 路径的删除/重命名 → reject（无效路径拒绝，模型不受影响）", async () => {
     await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
-    await expect(browserAdapter.DeleteModelDir("/repo/ysm/狐狸/狐狸.ysm")).rejects.toThrow("无效路径");
+    await expect(browserAdapter.DeleteResourcePack("/repo/ysm/狐狸/狐狸.ysm", "ysm")).rejects.toThrow("无效路径");
     await expect(browserAdapter.RemoveDir("/repo/ysm/狐狸")).rejects.toThrow("无效路径");
     await expect(browserAdapter.RenameDir("/repo/ysm/狐狸", "猫")).rejects.toThrow("无效路径");
     await expect(browserAdapter.RenameFile("/repo/ysm/狐狸/狐狸.ysm", "猫.ysm")).rejects.toThrow("无效路径");
@@ -1044,8 +1044,8 @@ describe("browserAdapter — 三向一致性/边界补测（审核补充）", ()
   it("重复操作：删除已删模型组幂等（不抛错）", async () => {
     await importWebFiles([new File([e4.encode("Y")], "狐狸.ysm")], "ysm");
     const p = "/web/ysm/狐狸/狐狸.ysm";
-    await browserAdapter.DeleteModelDir(p);
-    await expect(browserAdapter.DeleteModelDir(p)).resolves.toBeUndefined();
+    await browserAdapter.DeleteResourcePack(p, "ysm");
+    await expect(browserAdapter.DeleteResourcePack(p, "ysm")).resolves.toBeUndefined();
     expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
   });
 
@@ -1117,15 +1117,15 @@ describe("R1 文件层级读取（P-A 多段路径，蓝图 docs/roadmap/web-edi
     expect(entries[0].Path).toBe("/web/ysm/分类1/大猫/狐狸.ysm");
   });
 
-  it("多段组：DeleteModelDir 整组删除 + 幂等", async () => {
+  it("多段组：DeleteResourcePack 整组删除 + 幂等", async () => {
     const fMain = new File([enc.encode("YSM")], "狐狸.ysm");
     Object.defineProperty(fMain, "webkitRelativePath", { value: "分类1/狐狸/狐狸.ysm" });
     await importWebFiles([fMain], "ysm");
-    await browserAdapter.DeleteModelDir("/web/ysm/分类1/狐狸/狐狸.ysm");
+    await browserAdapter.DeleteResourcePack("/web/ysm/分类1/狐狸/狐狸.ysm", "ysm");
     expect(await browserAdapter.ScanModelEntries("/web/ysm")).toHaveLength(0);
     expect(idbMock._store.has("dir:ysm/分类1/狐狸:")).toBe(false);
     // 幂等：重复删除不抛错（组已删 → 格式合法但 dir 无匹配 → 静默通过）
-    await expect(browserAdapter.DeleteModelDir("/web/ysm/分类1/狐狸/狐狸.ysm")).resolves.toBeUndefined();
+    await expect(browserAdapter.DeleteResourcePack("/web/ysm/分类1/狐狸/狐狸.ysm", "ysm")).resolves.toBeUndefined();
   });
 
   it("多段组：RenameFile 组内文件（含子目录 rel）rekey", async () => {

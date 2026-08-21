@@ -1287,7 +1287,15 @@ export const webFsBindings = {
       rest[4] ?? 0,
       rest[5] ?? 0,
     ),
-  // 删除模型组（dir + file + 标记）
+  // ADR-111 统一删除入口（web 侧）：接收 rtype 参数但 web 模式按模型粒度删除
+  DeleteResourcePack: async (path: string, _rtype: string) => {
+    if (!isWebPath(path)) {
+      return Promise.reject(new Error(t("webFs.deleteInvalidPath", { path })));
+    }
+    const pm = await parseWebModelPath(path);
+    if (pm) await deleteWebModel(pm.type, pm.name);
+  },
+  // 删除模型组（dir + file + 标记）——向后兼容包装
   DeleteModelDir: async (path: string) => {
     // 格式校验区分「非法路径」（reject）与「合法但组已删」（幂等通过，对齐桌面重复删除不报错）：
     // dir 反向匹配依赖 dir key 存在性，组删除后解析为 null——此时不得误报无效路径

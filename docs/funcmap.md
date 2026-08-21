@@ -25,6 +25,7 @@
 | Go·包管理 | 1 | 3 |
 | Go·路径 | 1 | 6 |
 | Go·回收站 | 2 | 19 |
+| go/repoaudit | 1 | 9 |
 | go/scanner | 1 | 10 |
 | Go·同步 | 7 | 23 |
 | Go·标签 | 1 | 8 |
@@ -46,7 +47,7 @@
 | frontend/views | 111 | 321 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **439** | **1869** |
+| **合计** | **440** | **1878** |
 
 ## Go·头像
 
@@ -343,6 +344,20 @@
 | `Empty()` | `go/recycle/recycle:354` | Empty 清空回收站 采用 RemoveAll 删除整个 .recycle 目录后重建，确保所有子目录和文件均被清理 |
 | `MoveResult()` | `go/recycle/recycle:17` | MoveResult 回收操作结果 |
 | `TrashManager()` | `go/recycle/recycle:23` | TrashManager 可配置的回收站管理器 |
+
+## go/repoaudit
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `Audit()` | `go/repoaudit/repoaudit:93` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
+| `HealthReportFor()` | `go/repoaudit/repoaudit:188` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
+| `Classify()` | `go/repoaudit/repoaudit:286` | Classify 将扩展名映射到资源类型字符串（导出供 resource-scan/审计共用，唯一实现防双轨） |
+| `Result()` | `go/repoaudit/repoaudit:35` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
+| `Completeness()` | `go/repoaudit/repoaudit:46` | Completeness 完整性统计 |
+| `CacheStatus()` | `go/repoaudit/repoaudit:54` | CacheStatus 缓存状态 |
+| `ResourceSummary()` | `go/repoaudit/repoaudit:64` | ResourceSummary 资源统计 |
+| `DedupSummary()` | `go/repoaudit/repoaudit:73` | DedupSummary 去重维度汇总（HealthReport 追加） |
+| `HealthReport()` | `go/repoaudit/repoaudit:80` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
 
 ## go/scanner
 
@@ -740,34 +755,34 @@
 | `App.PlazaZoomReset()` | `internal/app/plaza_window:139` | — |
 | `cookieJar.SetCookies()` | `internal/app/proxy:138` | — |
 | `cookieJar.Cookies()` | `internal/app/proxy:160` | — |
-| `App.LoadResourceTypes()` | `internal/app/resource_bindings:26` | LoadResourceTypes 加载资源类型注册表 |
-| `App.ReadPackMeta()` | `internal/app/resource_bindings:36` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
-| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:60` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
-| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:104` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
-| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:109` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
-| `App.ReadSchematic()` | `internal/app/resource_bindings:114` | ReadSchematic 读取 .schematic 文件基本信息 |
-| `App.ReadNbtStructure()` | `internal/app/resource_bindings:123` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
-| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:132` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
-| `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:142` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
-| `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:147` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
-| `App.DetectResourceType()` | `internal/app/resource_bindings:157` | DetectResourceType 检测指定文件的资源类型 |
-| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:170` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
-| `App.GetRepoRoot()` | `internal/app/resource_bindings:185` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
-| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:227` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
-| `App.ToggleResourcePack()` | `internal/app/resource_bindings:326` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
-| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:372` | IsResourcePackEnabled 检查资源包是否启用 |
-| `App.SelectImportZip()` | `internal/app/resource_bindings:377` | SelectImportZip 打开文件选择器选取 .zip 文件 |
-| `App.SelectImportFile()` | `internal/app/resource_bindings:390` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
-| `App.SetResourceRoot()` | `internal/app/resource_bindings:412` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
-| `App.ResetResourceRoot()` | `internal/app/resource_bindings:432` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
-| `App.ImportResourcePack()` | `internal/app/resource_bindings:466` | ImportResourcePack 使用策略模式导入资源包 |
-| `App.ImportByType()` | `internal/app/resource_bindings:479` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:496` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。 |
-| `App.DeleteModelDir()` | `internal/app/resource_bindings:507` | DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹 路径守卫：限制在 FilesRoot 内，防止删除系统目录 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:558` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:574` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:587` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:593` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.LoadResourceTypes()` | `internal/app/resource_bindings:27` | LoadResourceTypes 加载资源类型注册表 |
+| `App.ReadPackMeta()` | `internal/app/resource_bindings:37` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
+| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:61` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
+| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:105` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
+| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:110` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
+| `App.ReadSchematic()` | `internal/app/resource_bindings:115` | ReadSchematic 读取 .schematic 文件基本信息 |
+| `App.ReadNbtStructure()` | `internal/app/resource_bindings:124` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
+| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:133` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
+| `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:143` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
+| `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:148` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
+| `App.DetectResourceType()` | `internal/app/resource_bindings:158` | DetectResourceType 检测指定文件的资源类型 |
+| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:171` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
+| `App.GetRepoRoot()` | `internal/app/resource_bindings:186` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
+| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:228` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
+| `App.ToggleResourcePack()` | `internal/app/resource_bindings:327` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
+| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:373` | IsResourcePackEnabled 检查资源包是否启用 |
+| `App.SelectImportZip()` | `internal/app/resource_bindings:378` | SelectImportZip 打开文件选择器选取 .zip 文件 |
+| `App.SelectImportFile()` | `internal/app/resource_bindings:391` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
+| `App.SetResourceRoot()` | `internal/app/resource_bindings:413` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
+| `App.ResetResourceRoot()` | `internal/app/resource_bindings:433` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
+| `App.ImportResourcePack()` | `internal/app/resource_bindings:467` | ImportResourcePack 使用策略模式导入资源包 |
+| `App.ImportByType()` | `internal/app/resource_bindings:480` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:498` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义：   isDir=true:  删除文件 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:555` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:571` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:584` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.RepoHealthAudit()` | `internal/app/resource_bindings:591` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:609` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |

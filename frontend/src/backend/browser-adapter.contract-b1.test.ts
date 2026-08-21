@@ -158,11 +158,11 @@ describe("契约 B1 — ClearImportLogs/ClearRuntimeLogs 双环分离对齐 Go a
   });
 });
 
-describe("契约 B1 — DeleteModelDir 标记清理对齐 Go resource_bindings.go:428", () => {
+describe("契约 B1 — DeleteResourcePack 标记清理对齐 Go resource_bindings.go", () => {
   it("删除后标签被清除（web 行为）；注意 Go os.RemoveAll 不触碰 tags.json，残留孤立标签 → 与 Go 偏差", async () => {
     const p = await importOne("狐狸.ysm");
     await browserAdapter.SetModelTags(p, ["临时"] as never);
-    await browserAdapter.DeleteModelDir(p);
+    await browserAdapter.DeleteResourcePack(p, "ysm");
     expect((await browserAdapter.ScanModelEntries("/web/ysm")) as unknown[]).toHaveLength(0);
     // web 主动清理 tags（browser-adapter.ts:396）；Go 契约下 tags.json 仍残留该 path 的孤立标签
     // 此处断言 web 实际行为（已清理），用于揭示与 Go 的差异：web 比 Go 更积极清理

@@ -18,6 +18,7 @@ import (
 	"ysm-model-manager/go/litematic"
 	"ysm-model-manager/go/packs"
 	"ysm-model-manager/go/paths"
+	"ysm-model-manager/go/repoaudit"
 	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/types"
 )
@@ -489,34 +490,32 @@ func (a *App) ImportByType(rtype, srcPath string) string {
 }
 
 // DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）：
-// src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。
-// 统一委托 fileops.DeleteModelFile，消除与 DeleteModelDir 的双轨语义。
-// 守卫根传类型特定仓库根（ysm 用 a.ysmRoot()）：防根级 ysm.json 清空整个 ysm 仓库；
-// 守卫拒绝时 fileops 内部回退单文件删除。
-func (a *App) DeleteResourcePack(path string) error {
-	if err := fileops.DeleteModelFile(a.ysmRoot(), path); err != nil {
-		return err
+// 统一入口——根据 rtype.isDir 决定语义：
+//
+//	isDir=true:  删除文件所在父文件夹（MMD/EntityPlayer 等目录型资源）
+//	isDir=false: src 为 ysm.json 时整组删除父目录，否则删除单文件（ysm 等）
+//
+// 守卫根传类型特定仓库根：防根级 ysm.json 清空整个仓库；
+// 路径守卫拒绝 rel=="." 或 rel 含 ".." 前缀的越权路径。
+func (a *App) DeleteResourcePack(path, rtype string) error {
+	rt := types.RegistryType(rtype)
+	if rt != nil && rt.IsDir {
+		// 目录型资源：删除父文件夹（合并原 DeleteModelDir 语义）
+		root := a.ysmRoot()
+		clean := filepath.Clean(filepath.Dir(path))
+		rel, err := filepath.Rel(root, clean)
+		if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+			return fmt.Errorf("路径超出仓库目录")
+		}
+		if err := os.RemoveAll(clean); err != nil {
+			return err
+		}
+	} else {
+		// 文件型资源：ysm.json → 父目录删除；其他 → 单文件删除
+		if err := fileops.DeleteModelFile(a.ysmRoot(), path); err != nil {
+			return err
+		}
 	}
-	// 删除后失效扫描缓存——否则 30s 内已删文件仍出现在扫描结果（陈旧缓存"复活"）
-	scanner.InvalidateCache()
-	return nil
-}
-
-// DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹
-// 路径守卫：限制在 FilesRoot 内，防止删除系统目录
-func (a *App) DeleteModelDir(path string) error {
-	root := a.ysmRoot()
-	clean := filepath.Clean(filepath.Dir(path))
-	rel, err := filepath.Rel(root, clean)
-	// `rel == "."`（clean 即根目录本身）同样拒绝——原 `strings.HasPrefix(rel, "..")`
-	// 对 `"."` 不成立 → 传入仓库根路径时可 `os.RemoveAll` 整删整个 ysm 仓库
-	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
-		return fmt.Errorf("路径超出仓库目录")
-	}
-	if err := os.RemoveAll(clean); err != nil {
-		return err
-	}
-	// 删除后失效扫描缓存——否则 30s 内已删文件夹仍出现在扫描结果
 	scanner.InvalidateCache()
 	return nil
 }
@@ -586,6 +585,25 @@ func (a *App) CountDuplicateFiles(dir string) string {
 // InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache）
 func (a *App) InvalidateScanCache() {
 	a.ClearScanCache()
+}
+
+// RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。
+// 契约（与 FindDuplicateFiles 同模式）：成功 → repoaudit.HealthReport；失败 → {error: string}。
+// 与 CLI health-report 同源（go/repoaudit 唯一实现），GUI/CLI 双端消双轨。
+func (a *App) RepoHealthAudit(dir string) string {
+	if !a.isPathInRootOrSelf(dir) {
+		return findDuplicateErrorJSON("路径超出仓库目录")
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return findDuplicateErrorJSON(fmt.Sprintf("无法解析路径: %v", err))
+	}
+	report, err := repoaudit.HealthReportFor(abs)
+	if err != nil {
+		log.Printf("[repoaudit] 体检失败 %s: %v", abs, err)
+		return findDuplicateErrorJSON(err.Error())
+	}
+	return marshalJSON("RepoHealthAudit", report, findDuplicateErrorJSON("JSON 序列化失败"))
 }
 
 // InstallResourceToInstance 将资源文件安装到指定整合包

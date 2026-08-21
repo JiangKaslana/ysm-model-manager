@@ -197,22 +197,15 @@ export function DeleteFromRecycle(src: string): $CancellablePromise<void> {
 }
 
 /**
- * DeleteModelDir 删除文件夹型资源（MMD 模型等），删除文件所在父文件夹
- * 路径守卫：限制在 FilesRoot 内，防止删除系统目录
- */
-export function DeleteModelDir(path: string): $CancellablePromise<void> {
-    return $Call.ByID(2959912528, path);
-}
-
-/**
  * DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）：
- * src 为 ysm.json 时整组删除父目录（文件夹型模型），否则删除单文件。
- * 统一委托 fileops.DeleteModelFile，消除与 DeleteModelDir 的双轨语义。
- * 守卫根传类型特定仓库根（ysm 用 a.ysmRoot()）：防根级 ysm.json 清空整个 ysm 仓库；
- * 守卫拒绝时 fileops 内部回退单文件删除。
+ * 统一入口——根据 rtype.isDir 决定语义：
+ *   isDir=true:  删除文件所在父文件夹（MMD/EntityPlayer 等目录型资源）
+ *   isDir=false: src 为 ysm.json 时整组删除父目录，否则删除单文件（ysm 等）
+ * 守卫根传类型特定仓库根：防根级 ysm.json 清空整个仓库；
+ * 路径守卫拒绝 rel=="." 或 rel 含 ".." 前缀的越权路径。
  */
-export function DeleteResourcePack(path: string): $CancellablePromise<void> {
-    return $Call.ByID(395621705, path);
+export function DeleteResourcePack(path: string, rtype: string): $CancellablePromise<void> {
+    return $Call.ByID(395621705, path, rtype);
 }
 
 /**
@@ -399,9 +392,11 @@ export function GetImportLogs(): $CancellablePromise<types$0.ImportLog[] | null>
 
 /**
  * ========== 状态同步 ==========
+ * GetInstanceStatus 获取整合包状态（按资源类型限定路径）
+ * rtype: 资源类型 ID，用于解析特定子目录；为空时使用 ins.CustomDir（向后兼容）
  */
-export function GetInstanceStatus(mcRoot: string, repoDir: string): $CancellablePromise<types$0.InstanceStatus[] | null> {
-    return $Call.ByID(4224028016, mcRoot, repoDir);
+export function GetInstanceStatus(mcRoot: string, repoDir: string, rtype: string): $CancellablePromise<types$0.InstanceStatus[] | null> {
+    return $Call.ByID(4224028016, mcRoot, repoDir, rtype);
 }
 
 /**
@@ -469,7 +464,7 @@ export function GetRepoRoot(rtype: string): $CancellablePromise<string> {
 
 /**
  * GetResourceInstanceStatus 按资源类型获取整合包同步状态
- * repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导）
+ * 统一走 GetInstanceStatus 路径，通过 rtype 限定实例侧扫描子目录 + 仓库侧扩展名过滤
  */
 export function GetResourceInstanceStatus(rtype: string, mcRoot: string, repoDir: string): $CancellablePromise<types$0.InstanceStatus[] | null> {
     return $Call.ByID(779607888, rtype, mcRoot, repoDir);
@@ -743,23 +738,12 @@ export function OpenInBrowser(url: string): $CancellablePromise<void> {
 }
 
 /**
- * OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录
+ * OpenInstanceFolder 按资源类型打开整合包内资源存储目录
  * 
- * 方案 A（ADR-095）：不再用 SubDirMap/FindInstDir 作为唯一探测手段。
- * 原实现取 scanDir（如 config/yes_steve_model/custom）拼 instDir——scanDir 是
- * 「模组从哪加载文件」，且 FindInstDir 的包含性判定含 .json（ysm 类型扩展名），
- * config 目录下成堆模组配置文件会误命中 → 右键打开的是 config 而非资源包目录。
- * 改为「installDir 标准推导 → scanDir 存在性回溯 → FindInstDir 兜底」三级：
- *  1. 候选 A/B：installDir（资源存储目录模板）推导——resourcepacks/shaderpacks/
- *     3d-skin/tlm 等标准目录直接命中，config 零参与；
- *  2. 候选 C：scanDir 存在性回溯（逐级上溯找存在的目录）——ysm 的模型真身在
- *     config 树内（config/yes_steve_model[/custom]），standard 不存在时逐级上溯；
- *  3. 候选 D：FindInstDir 兜底扫描——接住 Sable-Schematics/hello_new_generation_core
- *     等非标准目录（与计数/列表链路同款逻辑，弥合「显示对但打开错」的裂口）。
+ * 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_steve_model/custom）
+ * 拼 instDir/instanceDir 作为打开目标；目录不存在也不回退（用户手动放错位置由他负责）。
  * 
- * subdir 参数：子类型独立后，subdir 不再参与路由；保留签名为 Wails 绑定兼容。
- * 
- * 全部落空回退 instDir。
+ * subdir 参数：保留签名为 Wails 绑定兼容，已不参与路由。
  */
 export function OpenInstanceFolder(instDir: string, rtype: string, subdir: string): $CancellablePromise<void> {
     return $Call.ByID(2384592956, instDir, rtype, subdir);
