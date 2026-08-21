@@ -157,6 +157,7 @@ interface RawResourceType {
   extensions?: string[];
   preview?: string;
   detector?: string;
+  instanceDir?: string;
   zipEntries?: { name?: string; match?: string }[];
 }
 
@@ -176,6 +177,15 @@ for (const t of rawTypes) {
     preview: t.preview || "none",
   };
 }
+
+/**
+ * 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。
+ * preview !== "3d" 的类型不走 3D opener 注册，由调用方自行处理回退。
+ * 单一事实来源：新增类型只需改 JSON，测试/逻辑自动跟随，无需手改豁免列表。
+ */
+export const NO_3D_TYPES: ReadonlySet<string> = new Set(
+  Object.values(RESOURCE_CAPS).filter((cap) => cap.preview !== "3d").map((cap) => cap.id),
+);
 
 /** 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） */
 export function matchTypeByExt(path: string, typeId: string): boolean {
@@ -241,7 +251,37 @@ export const AMBIGUOUS_EXTS: Set<string> = (() => {
 export function resolveTypeSafe(path: string): string | null {
   const ext = extOf(path);
   if (!ext) return null;
-  return AMBIGUOUS_EXTS.has(ext) ? null : resolveTypeByExt(path);
+  return AMBIGUOUS_EXTS.has(ext) ? resolveTypeByPath(path) : resolveTypeByExt(path);
+}
+
+/**
+ * 路径消歧（对齐 Go detectByPathDisambiguation）：遍历文件所有祖先目录，
+ * 检查是否匹配某类型的 instanceDir。解决 MMD 子类型共享扩展名的歧义。
+ * 仅在扩展名也匹配时才返回——确保不会跨组误判。
+ */
+export function resolveTypeByPath(path: string): string | null {
+  const ext = extOf(path);
+  if (!ext) return null;
+
+  const normPath = path.replace(/\\/g, "/").toLowerCase();
+  const segments = normPath.split("/");
+  // 收集祖先目录（从直接父目录到根）
+  const ancestors: string[] = [];
+  for (let i = segments.length - 1; i >= 1; i--) {
+    ancestors.push(segments.slice(0, i).join("/"));
+  }
+
+  for (const t of rawTypes) {
+    if (!t.id || !t.instanceDir) continue;
+    if (!t.extensions?.includes(ext)) continue;
+    const instDirNorm = t.instanceDir.toLowerCase();
+    for (const anc of ancestors) {
+      if (anc === instDirNorm || anc.endsWith("/" + instDirNorm)) {
+        return t.id;
+      }
+    }
+  }
+  return null;
 }
 
 /** ZIP 条目任意层级段后缀（ADR-082 S1 前端同构）：a/b/c → [a/b/c, b/c, c] */

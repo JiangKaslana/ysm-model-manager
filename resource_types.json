@@ -7,7 +7,10 @@
       "group": "minecraft",
       "groupLabel": "Minecraft 原版",
       "groupIcon": "⛏️",
-      "extensions": [".zip", ".7z"],
+      "extensions": [
+        ".zip",
+        ".7z"
+      ],
       "storageSubDir": "resourcepacks",
       "configField": "ResourcepackRoot",
       "instanceDir": "resourcepacks",
@@ -15,15 +18,28 @@
       "preview": "thumbnail",
       "detector": "mcmeta",
       "scanInstance": true,
-      "zipEntries": [{ "name": "pack.mcmeta", "match": "exact" }],
-      "actions": ["import", "toggle", "delete", "openFolder"]
+      "zipEntries": [
+        {
+          "name": "pack.mcmeta",
+          "match": "exact"
+        }
+      ],
+      "actions": [
+        "import",
+        "toggle",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "shaderpack",
       "name": "光影包",
       "icon": "☀️",
       "group": "minecraft",
-      "extensions": [".zip", ".7z"],
+      "extensions": [
+        ".zip",
+        ".7z"
+      ],
       "storageSubDir": "shaderpacks",
       "configField": "ShaderpackRoot",
       "instanceDir": "shaderpacks",
@@ -31,8 +47,22 @@
       "preview": "thumbnail",
       "detector": "shader",
       "scanInstance": true,
-      "zipEntries": [{ "name": "shaders/", "match": "prefix" }, { "name": "shaders", "match": "exact" }],
-      "actions": ["import", "toggle", "delete", "openFolder"]
+      "zipEntries": [
+        {
+          "name": "shaders/",
+          "match": "prefix"
+        },
+        {
+          "name": "shaders",
+          "match": "exact"
+        }
+      ],
+      "actions": [
+        "import",
+        "toggle",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "ysm",
@@ -41,7 +71,12 @@
       "group": "minecraft-mod",
       "groupLabel": "Minecraft 模组",
       "groupIcon": "🧩",
-      "extensions": [".ysm", ".zip", ".7z", ".json"],
+      "extensions": [
+        ".ysm",
+        ".zip",
+        ".7z",
+        ".json"
+      ],
       "configField": "YsmRoot",
       "instanceDir": "config/yes_steve_model/custom",
       "instanceLevel": true,
@@ -49,62 +84,128 @@
       "detector": "ysm",
       "hashable": true,
       "dirLevelSync": true,
-      "installExts": [".json", ".png", ".jpg", ".jpeg"],
-      "zipEntries": [{ "name": "ysm.json", "match": "suffix" }, { "name": "models/", "match": "prefix" }],
-      "actions": ["view", "import", "delete"]
+      "installExts": [
+        ".json",
+        ".png",
+        ".jpg",
+        ".jpeg"
+      ],
+      "zipEntries": [
+        {
+          "name": "ysm.json",
+          "match": "suffix"
+        },
+        {
+          "name": "models/",
+          "match": "prefix"
+        }
+      ],
+      "actions": [
+        "view",
+        "import",
+        "delete"
+      ]
     },
     {
       "id": "maid-model",
       "name": "车万女仆模型",
       "icon": "🧸",
       "group": "minecraft-mod",
-      "extensions": [".zip"],
+      "extensions": [
+        ".zip"
+      ],
       "storageSubDir": "maid-model",
       "instanceDir": "tlm_custom_pack",
       "instanceLevel": true,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [{ "name": "maid_model.json", "match": "suffix" }, { "name": "chair_model.json", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": "maid_model.json",
+          "match": "suffix"
+        },
+        {
+          "name": "chair_model.json",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
       "nestedModelDir": true,
-      "installExts": [".json", ".png", ".js"],
-      "actions": ["import", "delete", "openFolder"]
+      "installExts": [
+        ".json",
+        ".png",
+        ".js"
+      ],
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "blueprint",
       "name": "蓝图",
       "icon": "⚙️",
       "group": "minecraft-mod",
-      "extensions": [".nbt", ".schematic", ".zip"],
+      "extensions": [
+        ".nbt",
+        ".schematic",
+        ".zip"
+      ],
       "storageSubDir": "schematics",
       "instanceDir": "schematics",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".nbt", "match": "suffix" }, { "name": ".schematic", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".nbt",
+          "match": "suffix"
+        },
+        {
+          "name": ".schematic",
+          "match": "suffix"
+        }
+      ],
       "hashable": true,
       "scanInstance": true,
       "dirLevelSync": true,
       "configField": "SchematicRoot",
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "litematic",
       "name": "投影",
       "icon": "📐",
       "group": "minecraft-mod",
-      "extensions": [".litematic", ".zip"],
+      "extensions": [
+        ".litematic",
+        ".zip"
+      ],
       "storageSubDir": "litematics",
       "configField": "LitematicRoot",
       "instanceDir": "schematics",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".litematic", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".litematic",
+          "match": "suffix"
+        }
+      ],
       "hashable": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "EntityPlayer",
@@ -113,143 +214,255 @@
       "group": "mmd",
       "groupLabel": "MMD",
       "groupIcon": "🎭",
-      "extensions": [".pmx", ".pmd", ".zip"],
+      "extensions": [
+        ".pmx",
+        ".pmd",
+        ".zip"
+      ],
       "storageSubDir": "EntityPlayer",
       "configField": "MmdRoot",
       "instanceDir": "EntityPlayer",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".pmx",
+          "match": "suffix"
+        },
+        {
+          "name": ".pmd",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "SceneModel",
       "name": "场景模型",
       "icon": "🏗️",
       "group": "mmd",
-      "extensions": [".pmx", ".pmd", ".zip"],
+      "extensions": [
+        ".pmx",
+        ".pmd",
+        ".zip"
+      ],
       "storageSubDir": "SceneModel",
       "configField": "MmdRoot",
       "instanceDir": "SceneModel",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".pmx",
+          "match": "suffix"
+        },
+        {
+          "name": ".pmd",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "CustomAnim",
       "name": "自定义动画",
       "icon": "🎬",
       "group": "mmd",
-      "extensions": [".vmd", ".zip"],
+      "extensions": [
+        ".vmd",
+        ".zip"
+      ],
       "storageSubDir": "CustomAnim",
       "configField": "MmdRoot",
       "instanceDir": "CustomAnim",
       "instanceLevel": false,
-      "preview": "3d",
+      "preview": "thumbnail",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".vmd",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "CustomMorph",
       "name": "自定义表情",
       "icon": "😊",
       "group": "mmd",
-      "extensions": [".vpd", ".zip"],
+      "extensions": [
+        ".vpd",
+        ".zip"
+      ],
       "storageSubDir": "CustomMorph",
       "configField": "MmdRoot",
       "instanceDir": "CustomMorph",
       "instanceLevel": false,
-      "preview": "3d",
+      "preview": "thumbnail",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".vpd",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "StageAnim",
       "name": "舞台动画",
       "icon": "🎭",
       "group": "mmd",
-      "extensions": [".vmd", ".zip"],
+      "extensions": [
+        ".vmd",
+        ".zip"
+      ],
       "storageSubDir": "StageAnim",
       "configField": "MmdRoot",
       "instanceDir": "StageAnim",
       "instanceLevel": false,
-      "preview": "3d",
+      "preview": "thumbnail",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".vmd",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "mmd-shader",
       "name": "MMD 着色器",
       "icon": "🎨",
       "group": "mmd",
-      "extensions": [".glsl", ".vsh", ".fsh", ".zip"],
+      "extensions": [
+        ".glsl",
+        ".vsh",
+        ".fsh",
+        ".zip"
+      ],
       "storageSubDir": "shader",
       "configField": "MmdRoot",
       "instanceDir": "shader",
       "instanceLevel": false,
       "preview": "none",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".glsl", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".glsl",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "DefaultAnim",
       "name": "默认动画",
       "icon": "🎞️",
       "group": "mmd",
-      "extensions": [".vmd", ".zip"],
+      "extensions": [
+        ".vmd",
+        ".zip"
+      ],
       "storageSubDir": "DefaultAnim",
       "configField": "MmdRoot",
       "instanceDir": "DefaultAnim",
       "instanceLevel": false,
-      "preview": "3d",
+      "preview": "thumbnail",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".vmd",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "DefaultMorph",
       "name": "默认表情",
       "icon": "🙂",
       "group": "mmd",
-      "extensions": [".vpd", ".zip"],
+      "extensions": [
+        ".vpd",
+        ".zip"
+      ],
       "storageSubDir": "DefaultMorph",
       "configField": "MmdRoot",
       "instanceDir": "DefaultMorph",
       "instanceLevel": false,
-      "preview": "3d",
+      "preview": "thumbnail",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".vpd",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
       "dirLevelSync": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     },
     {
       "id": "vrchat-avatar",
       "name": "VRChat 模型",
       "icon": "🥽",
       "group": "mmd",
-      "extensions": [".vrca", ".vrm", ".zip"],
+      "extensions": [
+        ".vrca",
+        ".vrm",
+        ".zip"
+      ],
       "storageSubDir": "vrchat",
       "configField": "VrcRoot",
       "configFallback": "MmdRoot",
@@ -257,9 +470,22 @@
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [{ "name": ".vrca", "match": "suffix" }, { "name": ".vrm", "match": "suffix" }],
+      "zipEntries": [
+        {
+          "name": ".vrca",
+          "match": "suffix"
+        },
+        {
+          "name": ".vrm",
+          "match": "suffix"
+        }
+      ],
       "isDir": true,
-      "actions": ["import", "delete", "openFolder"]
+      "actions": [
+        "import",
+        "delete",
+        "openFolder"
+      ]
     }
   ]
 }
