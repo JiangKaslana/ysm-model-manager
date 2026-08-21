@@ -12,11 +12,10 @@ import { getApp } from "../../backend/app.ts";
  */
 export async function resolveSiblingsByType(rtype: string, extRe: RegExp): Promise<string[]> {
   try {
-    const App = await getApp();
-    const app = App as unknown as Record<string, (a: string) => Promise<unknown>>;
-    const root = (await app["GetRepoRoot"](rtype)) as string;
+    const app = await getApp();
+    const root = await app.GetRepoRoot(rtype);
     if (!root) return [];
-    const entries = (await app["ScanModelEntries"](root)) as Array<{ Path?: string }> | null;
+    const entries = await app.ScanModelEntries(root);
     return (entries || [])
       .map((e) => e.Path || "")
       .filter((p) => extRe.test(p));

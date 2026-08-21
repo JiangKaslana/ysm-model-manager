@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"ysm-model-manager/go/dedup"
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/texture_cache"
 	"ysm-model-manager/go/types"
 )
@@ -135,12 +136,23 @@ func Audit(dirPath string) (Result, error) {
 	var largestSize int64
 	resources := map[string]int{}
 
-	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(dirPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			result.Warnings = append(result.Warnings, fmt.Sprintf("访问异常: %s (%v)", path, err))
 			return nil
 		}
-		if info.IsDir() {
+		// 符号链接守卫：拒绝根目录符号链接，跳过子树内符号链接（与 dedup 包对齐）
+		if d.Type()&os.ModeSymlink != 0 {
+			if path == dirPath {
+				return fmt.Errorf("审计根目录是符号链接: %s", dirPath)
+			}
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, ierr := d.Info()
+		if ierr != nil {
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(path))
@@ -323,16 +335,5 @@ func Classify(ext string) string {
 	return id
 }
 
-// formatSize 人性化字节大小（本地实现，纯展示不参与口径）
-func formatSize(bytes int64) string {
-	switch {
-	case bytes < 1024:
-		return fmt.Sprintf("%dB", bytes)
-	case bytes < 1024*1024:
-		return fmt.Sprintf("%.1fKB", float64(bytes)/1024)
-	case bytes < 1024*1024*1024:
-		return fmt.Sprintf("%.1fMB", float64(bytes)/(1024*1024))
-	default:
-		return fmt.Sprintf("%.1fGB", float64(bytes)/(1024*1024*1024))
-	}
-}
+// formatSize 人性化字节大小——委托至 fsutil.FormatSize（单一事实来源）。
+func formatSize(bytes int64) string { return fsutil.FormatSize(bytes) }

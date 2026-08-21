@@ -14,7 +14,7 @@
 | Go·下载 | 1 | 15 |
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 14 |
-| Go·文件系统 | 8 | 16 |
+| Go·文件系统 | 9 | 17 |
 | Go·几何 | 2 | 8 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 9 |
@@ -47,7 +47,7 @@
 | frontend/views | 114 | 328 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **444** | **1892** |
+| **合计** | **445** | **1893** |
 
 ## Go·头像
 
@@ -88,16 +88,16 @@
 | `DispatchCommand()` | `go/cli/registry:73` | DispatchCommand 分发命令执行 |
 | `CmdContext()` | `go/cli/registry:11` | CmdContext 统一命令执行上下文 |
 | `CliCommand()` | `go/cli/registry:18` | CliCommand 命令注册结构 |
-| `ErrParam.Error()` | `go/cli/shared:26` | — |
-| `ErrParam.Unwrap()` | `go/cli/shared:33` | — |
-| `ErrRuntime.Error()` | `go/cli/shared:41` | — |
-| `ErrRuntime.Unwrap()` | `go/cli/shared:48` | — |
-| `ExitCodeOf()` | `go/cli/shared:51` | ExitCodeOf 根据错误类型返回退出码 |
-| `PrintError()` | `go/cli/shared:60` | PrintError 输出错误到 stderr |
-| `ParseCommandArgs()` | `go/cli/shared:69` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
-| `outputBuffer.String()` | `go/cli/shared:216` | — |
-| `ErrParam()` | `go/cli/shared:21` | ErrParam 参数错误（exit code 2） |
-| `ErrRuntime()` | `go/cli/shared:36` | ErrRuntime 运行时业务错误（exit code 1） |
+| `ErrParam.Error()` | `go/cli/shared:28` | — |
+| `ErrParam.Unwrap()` | `go/cli/shared:35` | — |
+| `ErrRuntime.Error()` | `go/cli/shared:43` | — |
+| `ErrRuntime.Unwrap()` | `go/cli/shared:50` | — |
+| `ExitCodeOf()` | `go/cli/shared:53` | ExitCodeOf 根据错误类型返回退出码 |
+| `PrintError()` | `go/cli/shared:62` | PrintError 输出错误到 stderr |
+| `ParseCommandArgs()` | `go/cli/shared:71` | ParseCommandArgs 从参数中提取 files-root、--json 开关和命令参数 返回: filesRoot, jsonMode, commandArgs（不含全 |
+| `outputBuffer.String()` | `go/cli/shared:207` | — |
+| `ErrParam()` | `go/cli/shared:23` | ErrParam 参数错误（exit code 2） |
+| `ErrRuntime()` | `go/cli/shared:38` | ErrRuntime 运行时业务错误（exit code 1） |
 
 ## go/container
 
@@ -196,6 +196,7 @@
 | `CopyDirOptions()` | `go/fsutil/copy:72` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_other:14` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_windows:18` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
+| `FormatSize()` | `go/fsutil/format:7` | FormatSize 人性化字节大小（B/KB/MB/GB 分级）。 |
 | `IsHardLink()` | `go/fsutil/hardlink_other:15` | IsHardLink 判断路径是否为硬链接（nlink &gt; 1）。 |
 | `IsHardLink()` | `go/fsutil/hardlink_windows:14` | IsHardLink 判断路径是否为硬链接（NumberOfLinks &gt; 1）。 |
 | `WalkAllFiles()` | `go/fsutil/walk:13` | WalkAllFiles 递归遍历目录返回所有文件的完整路径（不限制扩展名） skipRecycle 为 true 时跳过 .recycle 子目录 |
@@ -349,15 +350,15 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `Audit()` | `go/repoaudit/repoaudit:114` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
-| `HealthReportFor()` | `go/repoaudit/repoaudit:216` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
-| `Classify()` | `go/repoaudit/repoaudit:317` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
-| `Result()` | `go/repoaudit/repoaudit:54` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
-| `Completeness()` | `go/repoaudit/repoaudit:65` | Completeness 完整性统计 |
-| `CacheStatus()` | `go/repoaudit/repoaudit:73` | CacheStatus 缓存状态 |
-| `ResourceSummary()` | `go/repoaudit/repoaudit:83` | ResourceSummary 资源统计 |
-| `DedupSummary()` | `go/repoaudit/repoaudit:92` | DedupSummary 去重维度汇总（HealthReport 追加） |
-| `HealthReport()` | `go/repoaudit/repoaudit:99` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
+| `Audit()` | `go/repoaudit/repoaudit:115` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
+| `HealthReportFor()` | `go/repoaudit/repoaudit:228` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
+| `Classify()` | `go/repoaudit/repoaudit:329` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
+| `Result()` | `go/repoaudit/repoaudit:55` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
+| `Completeness()` | `go/repoaudit/repoaudit:66` | Completeness 完整性统计 |
+| `CacheStatus()` | `go/repoaudit/repoaudit:74` | CacheStatus 缓存状态 |
+| `ResourceSummary()` | `go/repoaudit/repoaudit:84` | ResourceSummary 资源统计 |
+| `DedupSummary()` | `go/repoaudit/repoaudit:93` | DedupSummary 去重维度汇总（HealthReport 追加） |
+| `HealthReport()` | `go/repoaudit/repoaudit:100` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
 
 ## go/scanner
 
@@ -778,11 +779,11 @@
 | `App.ImportResourcePack()` | `internal/app/resource_bindings:467` | ImportResourcePack 使用策略模式导入资源包 |
 | `App.ImportByType()` | `internal/app/resource_bindings:480` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
 | `App.DeleteResourcePack()` | `internal/app/resource_bindings:500` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:557` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:573` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:586` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.RepoHealthAudit()` | `internal/app/resource_bindings:593` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:614` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:571` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:587` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:600` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.RepoHealthAudit()` | `internal/app/resource_bindings:607` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:628` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |
@@ -1217,8 +1218,8 @@
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在根菜单 camera 面板内追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:29` | — |
 | `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:68` | — |
-| `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:16` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:67` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:17` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:68` | 构建 FBX 内容场景（ADR-112 地基）。 |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1227,9 +1228,9 @@
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:73` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:183` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:190` | — |
-| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1084` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1125` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1157` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1087` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1128` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1160` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:12` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:24` | 从文件列表中筛选动作文件（.vmd / .vpd） |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
@@ -1327,13 +1328,13 @@
 | `PmxJoint()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:111` | — |
 | `PmxObject()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:127` | — |
 | `PmxReader()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader:62` | PmxReader is a static class that parses PMX data |
-| `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:27` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:93` | VRM meta 归一化信息（meta 卡展示用） |
-| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:112` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
-| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:172` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:182` | — |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:461` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:497` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
+| `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:28` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:94` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:113` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:173` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:183` | — |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:462` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:498` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:21` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:31` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
@@ -1793,10 +1794,10 @@
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
-| `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:49` | 仓库体检：调 Go 端 RepoHealthAudit（同源审计）并渲染结果。 |
-| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:98` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
-| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:115` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
-| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:168` | 字节大小人性化（与 Go 端 formatSize 同口径，纯展示） |
+| `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:50` | 仓库体检：调 Go 端 RepoHealthAudit（同源审计）并渲染结果。 |
+| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
+| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:116` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
+| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:169` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |

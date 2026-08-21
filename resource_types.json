@@ -532,9 +532,9 @@
       "extensions": [
         ".fbx"
       ],
-      "storageSubDir": "FBX",
+      "storageSubDir": "CustomAnim",
       "configField": "MmdRoot",
-      "instanceDir": "FBX",
+      "instanceDir": "CustomAnim",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "extension",

@@ -503,16 +503,30 @@ func (a *App) DeleteResourcePack(path, rtype string) error {
 		// 目录型资源：删除父文件夹（合并原 DeleteModelDir 语义）
 		root := a.ysmRoot()
 		clean := filepath.Clean(filepath.Dir(path))
-		rel, err := filepath.Rel(root, clean)
+		// 符号链接解析后校验——防精心构造的链接绕过路径守卫删除仓库外目录
+		realClean, errC := filepath.EvalSymlinks(clean)
+		if errC != nil {
+			// 目标不存在时回退原始路径（允许删除悬空链接）
+			realClean = clean
+		}
+		realRoot, errR := filepath.EvalSymlinks(root)
+		if errR != nil {
+			realRoot = root
+		}
+		rel, err := filepath.Rel(realRoot, realClean)
 		if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
 			return fmt.Errorf("路径超出仓库目录")
 		}
-		if err := os.RemoveAll(clean); err != nil {
+		if err := os.RemoveAll(realClean); err != nil {
 			return err
 		}
 	} else {
-		// 文件型资源：ysm.json → 父目录删除；其他 → 单文件删除
-		if err := fileops.DeleteModelFile(a.ysmRoot(), path); err != nil {
+		// 文件型资源：按 rtype 获取对应仓库根（非 ysm 类型可能在其他根下）
+		repoRoot, _ := a.GetRepoRoot(rtype)
+		if repoRoot == "" {
+			repoRoot = a.ysmRoot()
+		}
+		if err := fileops.DeleteModelFile(repoRoot, path); err != nil {
 			return err
 		}
 	}
