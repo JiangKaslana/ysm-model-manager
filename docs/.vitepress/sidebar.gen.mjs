@@ -276,6 +276,10 @@ export const autoSidebar = [
         "link": "/releases/v1.12.0"
       },
       {
+        "text": "v1.13.0 — 虚拟滚动 + 架构文档重构 + 代码健康度治理",
+        "link": "/releases/v1.13.0"
+      },
+      {
         "text": "v1.2.0 — 开发者对比（技术细节）",
         "link": "/releases/v1.2.0-compare"
       },
