@@ -12,12 +12,12 @@
 //   - reflectionMode 三档：envmap-only (SSR off) / envmap+ssr (默认，SSR 叠上 envmap 反射当屏外 fallback) / ssr-only (SSR 无屏外补全)
 
 import * as THREE from "three";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
-import { SSRPass } from "three/examples/jsm/postprocessing/SSRPass.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
+import { SSRPass } from "three/addons/postprocessing/SSRPass.js";
 import type { LightCapability } from "./light-capability.ts";
 import type { ReflectorCapability } from "./reflector-capability.ts";
 import type { PostprocessingLike } from "../adapters/postprocessing.ts";

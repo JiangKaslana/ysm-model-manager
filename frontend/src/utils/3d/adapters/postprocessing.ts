@@ -2,10 +2,10 @@
 // EffectComposer + UnrealBloomPass 生命周期管理：延迟创建、每帧参数同步、释放。
 // 仅在 volumetric engine=postprocess 且启用时激活，否则无开销。
 import * as THREE from "three";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import type { LightCapability } from "../caps/light-capability.ts";
 
 /** 数值 clamp 辅助 */

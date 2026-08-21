@@ -16,7 +16,7 @@ Object.defineProperty(globalThis, "window", {
 });
 
 // ── 顶层 mock：Three.js post-processing 模块（避免真实 GPU 依赖） ───
-vi.mock("three/examples/jsm/postprocessing/EffectComposer.js", () => {
+vi.mock("three/addons/postprocessing/EffectComposer.js", () => {
   class FakeEffectComposer {
     public passes: any[] = [];
     public width = 0;
@@ -36,7 +36,7 @@ vi.mock("three/examples/jsm/postprocessing/EffectComposer.js", () => {
   return { EffectComposer: FakeEffectComposer };
 });
 
-vi.mock("three/examples/jsm/postprocessing/RenderPass.js", () => {
+vi.mock("three/addons/postprocessing/RenderPass.js", () => {
   class FakeRenderPass {
     constructor(public scene: THREE.Scene, public camera: THREE.PerspectiveCamera) {}
     dispose() { this._disposed = true; }
@@ -45,7 +45,7 @@ vi.mock("three/examples/jsm/postprocessing/RenderPass.js", () => {
   return { RenderPass: FakeRenderPass };
 });
 
-vi.mock("three/examples/jsm/postprocessing/UnrealBloomPass.js", () => {
+vi.mock("three/addons/postprocessing/UnrealBloomPass.js", () => {
   class FakeUnrealBloomPass {
     threshold = 0;
     strength = 0;
@@ -63,7 +63,7 @@ vi.mock("three/examples/jsm/postprocessing/UnrealBloomPass.js", () => {
   return { UnrealBloomPass: FakeUnrealBloomPass };
 });
 
-vi.mock("three/examples/jsm/postprocessing/OutputPass.js", () => {
+vi.mock("three/addons/postprocessing/OutputPass.js", () => {
   // OutputPass 在 Three.js 中通常没有 dispose 方法
   class FakeOutputPass {
     constructor() {}
