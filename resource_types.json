@@ -232,6 +232,7 @@
       "extensions": [
         ".pmx",
         ".pmd",
+        ".vrm",
         ".zip"
       ],
       "storageSubDir": "PMX",
@@ -247,6 +248,10 @@
         },
         {
           "name": ".pmd",
+          "match": "suffix"
+        },
+        {
+          "name": ".vrm",
           "match": "suffix"
         }
       ],
@@ -269,6 +274,7 @@
       "extensions": [
         ".pmx",
         ".pmd",
+        ".vrm",
         ".zip"
       ],
       "storageSubDir": "SceneModel",
@@ -284,6 +290,10 @@
         },
         {
           "name": ".pmd",
+          "match": "suffix"
+        },
+        {
+          "name": ".vrm",
           "match": "suffix"
         }
       ],
