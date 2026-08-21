@@ -76,17 +76,25 @@ func TestHealthReport_ReportsDuplicates(t *testing.T) {
 	}
 }
 
-// --output 写 JSON 且字段完整（去重/完整性/分数都在）
+// --output 写 JSON 且字段完整（去重/完整性/分数都在），写盘后不刷屏全量报告
 func TestHealthReport_OutputJSON(t *testing.T) {
 	dir := t.TempDir()
 	mustWrite(t, filepath.Join(dir, "a.ysm"), []byte("dup content"))
 	mustWrite(t, filepath.Join(dir, "b.ysm"), []byte("dup content"))
 	outFile := filepath.Join(dir, "health.json")
 
-	err := runHealthReport(&CmdContext{App: &app.App{}, FilesRoot: dir, Args: []string{"--dir", dir, "--output", outFile}})
-	if err != nil {
-		t.Fatalf("--output 应成功, got %v", err)
+	out := captureOutput(t, func() {
+		if err := runHealthReport(&CmdContext{App: &app.App{}, FilesRoot: dir, Args: []string{"--dir", dir, "--output", outFile}}); err != nil {
+			t.Fatalf("--output 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "已保存到") {
+		t.Errorf("应打印保存提示, got: %s", out)
 	}
+	if strings.Contains(out, "健康体检") || strings.Contains(out, "完整性") || strings.Contains(out, "去重:") {
+		t.Errorf("--output 写盘后不应刷屏全量报告, got: %s", out)
+	}
+
 	data, err := os.ReadFile(outFile)
 	if err != nil {
 		t.Fatalf("读取 JSON 失败: %v", err)

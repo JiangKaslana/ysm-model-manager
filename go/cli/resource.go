@@ -128,9 +128,9 @@ func runResourceScan(ctx *CmdContext) error {
 
 	// 输出结果
 	if *output != "" {
-		jsonBytes, jsonErr := json.MarshalIndent(result, "", "  ")
+		jsonBytes, jsonErr := marshalAuditJSON(result)
 		if jsonErr != nil {
-			return newRuntimeErrf("JSON 序列化失败: %v", jsonErr)
+			return jsonErr
 		}
 		if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
 			return newRuntimeErrf("保存 JSON 文件失败: %v", err)
@@ -454,11 +454,11 @@ func isModelFileValid(path, ext string) bool {
 	return true
 }
 
-// marshalAuditJSON 序列化审计/体检结果（规律六：JSON 序列化错误不吞）
+// marshalAuditJSON 序列化审计/体检结果（规律六：JSON 序列化错误不吞 + %w 保留错误链）
 func marshalAuditJSON(v interface{}) ([]byte, error) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		return nil, newRuntimeErrf("JSON 序列化失败: %v", err)
+		return nil, newRuntimeErrf("JSON 序列化失败: %w", err)
 	}
 	return data, nil
 }

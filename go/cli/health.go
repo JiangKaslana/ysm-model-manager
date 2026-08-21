@@ -114,7 +114,8 @@ func runHealthReport(ctx *CmdContext) error {
 		}
 	}
 
-	// 输出
+	// 输出：--output 写盘后只打摘要（与 dedup scan --output 口径一致，不刷屏）；
+	// 无 --output 才走 printHealthReport 全量报告。
 	if *output != "" {
 		jsonBytes, jsonErr := marshalAuditJSON(report)
 		if jsonErr != nil {
@@ -123,7 +124,8 @@ func runHealthReport(ctx *CmdContext) error {
 		if err := os.WriteFile(*output, jsonBytes, 0o644); err != nil {
 			return newRuntimeErrf("保存体检报告失败: %w", err)
 		}
-		fmt.Printf("💾 体检报告已保存到: %s\n", *output)
+		fmt.Printf("💾 体检报告已保存到: %s（健康分 %d）\n", *output, report.Score)
+		return nil
 	}
 
 	printHealthReport(report)

@@ -2009,8 +2009,8 @@
 | `sidebarCSS()` | `frontend/src/views/app-sidebar/sidebar-css:3` | — |
 | `headerHTML()` | `frontend/src/views/app-sidebar/tpl:7` | — |
 | `footerHTML()` | `frontend/src/views/app-sidebar/tpl:26` | — |
-| `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:71` | — |
-| `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:101` | 单个整合包卡片头部。 |
+| `listContainerHTML()` | `frontend/src/views/app-sidebar/tpl:70` | — |
+| `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:100` | 单个整合包卡片头部。 |
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:17` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮 / dir-level 文件夹展开折叠） |
 | `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:26` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
