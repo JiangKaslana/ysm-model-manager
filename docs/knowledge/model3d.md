@@ -82,7 +82,7 @@ export function computeBoneLocalPos(
 - 默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降）
 - **3D 操作键位 / 相机偏好持久化**（localStorage）：键位存 `KeyboardEvent.code` 物理键，相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）
 - **材质为 ysmview 风格**：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true`
-- **debug 叠加层**（`debug-render.ts`）：`setDebugMode("normal"|"pivot"|"bone")` 循环切换，`rebuildDebug()` 重建叠加层
+- **debug 叠加层**（`debug-render.ts`）：`state.debugMode = "normal"|"pivot"|"bone"` 切换，`rebuildDebug(scene, rootGroup, boneGroupMap, spec, state)` 重建叠加层
 - **cleanup**（`cleanup-helper.ts`）：资源释放工具，遍历子对象并调用 `geometry/material/texture` 的 `dispose()`，确保 WebGL 资源完全释放
 
 ## 骨骼/几何层
@@ -134,8 +134,8 @@ export function computeBoneLocalPos(
 | 机制 | 落点 | 说明 |
 |------|------|------|
 | 会话外壳 | `mount-preview-core.ts` `mount3D` | 一个预览面板 = 一个会话（renderer/rAF/controls 单例） |
-| 模型切换 | `switch-preview.ts` `switchTo` | 复用外壳重建内容层（ADR-066 §5.6） |
-| 多模型同框 | `switchTo(path, { keepInScene: true })` | 旧内容不移除，新模型 add 进同一 scene（上限 `MAX_MODELS=8`，超量 toast 拒绝） |
+| 模型切换 | `switch-preview.ts` `switchToSession` | 复用外壳重建内容层（ADR-066 §5.6）；对外暴露为 `switchPreview`（mount-preview-core.ts） |
+| 多模型同框 | `switchPreview(path, { keepInScene: true })` | 旧内容不移除，新模型 add 进同一 scene（上限 `MAX_MODELS=8`，超量 toast 拒绝） |
 | 场景注册表 | `scene-registry.ts` `sceneRegistry` | 每模型 `roots`/`visible`/`built`/`boneMaps`/`menuItems` 元数据；相机多包围盒累加（`fitCameraToRoots`）、拾取归属、上限计数单一事实来源 |
 | 拾取 dispatch | 统一拾取器（仅 `registry.count() >= 2` 激活） | 射线命中 → `pickModelByObject` 沿父链反查归属 → `setActive` 切活跃模型 + 换菜单（ADR-093 T5） |
 

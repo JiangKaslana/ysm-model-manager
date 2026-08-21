@@ -1311,6 +1311,10 @@ export const autoSidebar = [
             "link": "/knowledge/doctor_gate_overlap"
           },
           {
+            "text": "仓库审计 go/repoaudit",
+            "link": "/knowledge/go_repoaudit"
+          },
+          {
             "text": "Android 平台守卫（Go 侧）",
             "link": "/knowledge/go-android-platform-guard"
           },
@@ -1587,6 +1591,10 @@ export const autoSidebar = [
           {
             "text": "统一 3D 预览核心 preview-core",
             "link": "/knowledge/preview_core"
+          },
+          {
+            "text": "安全错误消息提取 utils",
+            "link": "/knowledge/safe_error_msg"
           },
           {
             "text": "场景能力注册表 scene-capability-registry",

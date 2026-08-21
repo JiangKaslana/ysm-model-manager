@@ -40,7 +40,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - **渲染基座（shared 模式）**：创建 `scene` / `camera` / `renderer` / `OrbitControls` / 灯光，驱动 rAF 循环、WASD/拖拽自转、resize、ESC 关闭、GPU 资源释放
 - **适配器注入**：内容层经 `PreviewAdapter.build()` 挂进 `ctx.scene`；每帧 `update(dt)` 驱动动态部分（VRM SpringBone、动画）
 - **VRM 动画播放（VRMA）**：`vrm-adapter` 注册 `VRMAnimationLoaderPlugin`，加载同目录 `.vrma`（`listAllFilePaths` 经端口注入，0 backend import），`createVRMAnimationClip` → `THREE.AnimationMixer`；每帧严格 `mixer.update(dt)` → `vrm.update(dt)`（后者内部已含 humanoid / springBone 更新，禁止手动 `vrm.humanoid.update()` 否则 T-pose 回归）；播放时暂停呼吸 / 视线 / 眨眼（与 MMD 行为对齐），复用 `MmdPlayBridge` + `fillMmdPlayPanel` 渲染播放 / 暂停 / 选片面板，无 `.vrma` 时优雅降级（面板不显示）
-- **3D 内模型切换**：`switchTo(path)` 复用外壳重建内容层（ADR-066 §5.6）；`switchTo(path, { keepInScene: true })` 同台追加（多角色同框，`MAX_MODELS=8` 上限）；角色面板（🧍 模型组 🎭 roles）列出已加载角色（`sceneRegistry`），支持焦点切换 / 详情 / 卸载 / 追加
+- **3D 内模型切换**：`switchToSession(path)` 复用外壳重建内容层（ADR-066 §5.6），对外暴露为 `switchPreview`；`switchPreview(path, { keepInScene: true })` 同台追加（多角色同框，`MAX_MODELS=8` 上限）；角色面板（🧍 模型组 🎭 roles）列出已加载角色（`sceneRegistry`），支持焦点切换 / 详情 / 卸载 / 追加
 - **在途作废**：`invalidatePreview()` / `_gen` 防止并发加载竞态
 
 ## 对外 API / 入口

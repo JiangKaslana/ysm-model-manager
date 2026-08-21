@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 96 张知识卡
+> 总计: 98 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -77,7 +77,7 @@
 - **resource-packs**（资源包功能 resource-packs）：**已删除（2026-08-18）**。原 `frontend/src/features/resource-packs.ts` 是一个薄 wrapper，把仓库页的各类资源包 tab 统一委托给 `<app-resource-manager…
 - **version-updater**（版本更新 version-updater）：`version-updater.ts` 是应用自更新的前端入口：启动时静默检查（受 6 小时频次限制）→ 发现新版本以可点击 toast 通知；设置页按钮手动检查 → 弹出带更新日志的 `modalConfirm` → 调 `DoUpda…
 
-## go（30 张）
+## go（31 张）
 
 *Go 后端包（安装、下载、回收站、YSM 解析等）*
 
@@ -112,6 +112,7 @@
 | 🍃 go-version | 版本号 go/version | leaf | 版本, version, 更新, ldflags |
 | 🏗 go-watcher | 文件监听 go/watcher | architecture | 监听, 文件变化, 刷新, watcher |
 | 🏗 go-ysm-parser | YSM 解析 go/ysm | architecture | YSM, 解析, 摘要, ysm 文件, 元数据 |
+| 🏗 go_repoaudit | 仓库审计 go/repoaudit | architecture | 仓库审计, 健康分数, 完整性检查, 缓存命中率, repoaudit, health-report, 去重 |
 | 🏗 wails-bindings | Wails Binding API 总览 internal/app | architecture | API, Binding, 接口, Go 方法, 调用后端, 有哪些方法, App 方法, getApp, 方法签名, app.ts 绑定 |
 
 ### 摘要
@@ -145,6 +146,7 @@
 - **go-version**（版本号 go/version）：`go/version/` 只有一件事：持有应用版本号。默认 `"dev"`，发版构建时通过 `-ldflags -X` 注入正式版本，供界面展示与自动更新的版本比较。
 - **go-watcher**（文件监听 go/watcher）：`go/watcher/` 包监听资源目录的文件系统变化，触发前端资源树刷新。
 - **go-ysm-parser**（YSM 解析 go/ysm）：`go/ysm/` 包负责解析 YSM（Yuan's Sketch Model）格式文件，提取模型元数据并生成结构化摘要。
+- **go_repoaudit**（仓库审计 go/repoaudit）：`go/repoaudit/` 包提供仓库健康审计核心逻辑——资源扫描、完整性校验、缓存状态、健康分数、警告生成、去重汇总。从 `go/cli`（原 `resource.go` 的 `collectRepoHealth`）提取为独立包，CL…
 - **wails-bindings**（Wails Binding API 总览 internal/app）：`internal/app/` 是 Go 端唯一的 Wails Binding 入口层：所有导出给前端的方法都定义在 `*App` 上，业务逻辑下沉到 `go/*` 包，本层只做参数转发与窗口/事件/对话框编排。前端统一经 `getApp(…
 
 ## ui（21 张）
@@ -198,7 +200,7 @@
 - **ui-slide-menu**（ADR 去桶化 slide-menu 外壳组件）：`frontend/src/ui/ui-slide-menu.ts` 是 ADR 去桶化（ADR-075/076）配套新增的**通用 slide-menu 卡片外壳组件**，复刻 MikuMikuAR 的 slide-menu 视觉卡片（m…
 - **ui_components**（UI 组件库 ui-components）：`frontend/src/ui/` 是前端 Web Components 的通用 UI 组件库，提供可复用的展示型组件：卡片、折叠面板、加载动画、行排列、滑块、幻灯片菜单、图标等。所有组件为无业务逻辑的纯 UI 层。
 
-## utils（24 张）
+## utils（25 张）
 
 *工具函数（display、fmt、dom、animation）*
 
@@ -214,6 +216,7 @@
 | 🏗 model3d | 3D 预览渲染 model3d | architecture | 3D 预览, Three.js, 相机, 骨骼渲染, 自由相机, 3D 截图, 纹理加载, spec 兜底, OrbitControls |
 | 🏗 perception | 3D 感知系统 perception | architecture | 自主动画, 自动跳舞, 眨眼, 呼吸, 视线追踪, 口型同步, 节拍检测, 模型感知, 自动运动 |
 | 🏗 preview_core | 统一 3D 预览核心 preview-core | architecture | 3D 预览, 统一预览外壳, 程序化天空 / sky / 背景 / scene.background, PreviewAdapter 适配器, 全模型预览（YSM / VRM / MMD / Litematic）, mount3D |
+| 🍃 safe_error_msg | 安全错误消息提取 utils | leaf | 错误消息, Worker 错误, catch, safeErrorMessage, 异常提取 |
 | 🏗 scene_capability_registry | 场景能力注册表 scene-capability-registry | architecture | 场景能力 / cap / registry / SceneCapability, 3D 菜单控件声明式渲染（getMenuControls）, 新增 3D 能力（雾/阴影/反射/环境/灯光/后处理）, 3D 会话生命周期（createAll / loadAll / setPreset / saveAll / dispose）, 「光」指代消歧（light 是光源，fog/shadow/reflector 不是） |
 | 🍃 utils-array | 数组工具 moveItem | leaf | 数组排序, 拖拽排序, moveItem, 列表 reorder |
 | 🍃 utils-display | 文件名显示 display | leaf | 文件名, 文件名显示, 美化文件名, renderDisplayName, 作者标签, 作品标签, 文件名着色, 搜索高亮, ban 文件 |
@@ -240,6 +243,7 @@
 - **model3d**（3D 预览渲染 model3d）：前端 Three.js 3D 渲染层（`frontend/src/utils/3d/`），**单会话架构**：场景/相机/渲染器/控制器由统一预览核心 `mount3D`（ADR-066）持有单实例，模型内容经适配器（ysm/vrm/mmd…
 - **perception**（3D 感知系统 perception）：`utils/3d/perception/` 是实现模型「自主生命感」的感知层子系统：让 Minecraft 角色自动眨眼、呼吸、注视、对口型、随音乐律动。
 - **preview_core**（统一 3D 预览核心 preview-core）：ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚手架（旧实现各内联 ~250 行同构），成为所有富格式 3D 预览的**单一事实来源外壳**。内容差异经 `PreviewAdapter.bui…
+- **safe_error_msg**（安全错误消息提取 utils）：`frontend/src/utils/safe-error-msg.ts` 提供轻量级错误消息提取函数 `safeErrorMessage`，从任意错误对象中安全提取可读消息字符串。与 `errors.ts` 的 `friendlyErr…
 - **scene_capability_registry**（场景能力注册表 scene-capability-registry）：ADR-073 扩展落地的**场景能力注册表**：所有场景能力（Sky / Ground / Environment / Fog / Shadow / Reflector / Light / Postprocessing）由统一注册表**创…
 - **utils-array**（数组工具 moveItem）：纯函数层数组操作工具，从 `site/edit.ts` 的拖拽排序 drop 逻辑抽出，供单测覆盖（ADR-023 L3）。
 - **utils-display**（文件名显示 display）：模型文件名解析 + 美化显示管线。YSM 社区文件名遵循 `[作者]【作品】角色 日期.ext` 命名约定，本模块把它解析为结构化字段，并在原文件名上原位着色（作者/作品/日期各自样式），是 UI 侧文件名展示的唯一入口。
