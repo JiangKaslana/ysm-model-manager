@@ -104,37 +104,13 @@ func HasYSMMod(modsDir string) bool {
 	return false
 }
 
-// 各资源类型的 mod 文件名关键词
-var ModKeywords = map[string][]string{
-	"ysm":          {"yes_steve_model", "ysm-"},
-	"EntityPlayer": {"mmdskin", "mmd-skin"},
-	"vrm":          {"mmdskin"},
-}
-
-// ModGroupKeywords 组级 mod 文件名关键词：同组多个子类型共享同一个底层模组时，
-// 由组统一声明，子类型不必逐个手写（新增 MMD 子类型自动继承）。
-// MMD 组（PMX 模型/场景模型/动画/表情/舞台/着色器）都依赖 MMD Skin 模组
-// （mmdskin/mmd-skin jar），缺失时整组内容都无法在整合包内生效。
-// vrm 例外：它在 ModKeywords 中有独立 "mmdskin" 关键词，优先于组级回退。
-var ModGroupKeywords = map[string][]string{
-	"mmd": {"mmdskin", "mmd-skin"},
-}
-
-// ModMeta 内容检测型资源类型的 mod 识别信息（modId + displayName，读 mods.toml 判定）。
-// ADR-095：maid-model（车万女仆）不用文件名关键词，读 jar 内 mods.toml 确认
-// modId="touhou_little_maid"（TouhouLittleMaid 源码 mods.toml 核实）。
-// blueprint（机械动力 Create）和 litematic 同样需要内容检测，仅凭文件名关键词不可靠。
-var ModMeta = map[string]struct{ ModID, DisplayName string }{
-	"maid-model": {"touhou_little_maid", "Touhou Little Maid"},
-	"blueprint":  {"create", "Create"},
-	"litematic":  {"litematica", "Litematica"},
-}
-
 // HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar
+// ADR-110：mod 依赖从注册表查询（types.ModKeywordsFor / types.ModMetaFor），
+// 消除 Go 硬编码（旧 ModKeywords/ModGroupKeywords/ModMeta 已删除）。
 func HasModInDir(modsDir, rtype string) bool {
-	// ADR-095：内容检测型资源（ModMeta 有 modId/displayName）优先读 mods.toml，
+	// ADR-095：内容检测型资源（注册表 mod.modId 有值）优先读 mods.toml，
 	// 不靠文件名关键词匹配（避免 jar 改名/翻译导致误判）
-	if meta, ok := ModMeta[rtype]; ok {
+	if modID, displayName := types.ModMetaFor(rtype); modID != "" {
 		files, err := os.ReadDir(modsDir)
 		if err != nil {
 			return false
@@ -143,21 +119,16 @@ func HasModInDir(modsDir, rtype string) bool {
 			if f.IsDir() || !strings.HasSuffix(strings.ToLower(f.Name()), ".jar") {
 				continue
 			}
-			if IsModJar(filepath.Join(modsDir, f.Name()), meta.ModID, meta.DisplayName) {
+			if IsModJar(filepath.Join(modsDir, f.Name()), modID, displayName) {
 				return true
 			}
 		}
 		return false
 	}
-	keywords, ok := ModKeywords[rtype]
-	if !ok {
-		// 组级回退（见 ModGroupKeywords）：SceneModel/CustomAnim 等 MMD 子类型与
-		// EntityPlayer 共用 MMD Skin 模组，缺失时同样应判定"无模组"，而非落入默认
-		// "已安装"分支（修复场景模型等徽章误显示 "0" 而非 "无MMD"）
-		keywords, ok = ModGroupKeywords[types.GroupOf(rtype)]
-	}
-	if !ok {
-		// 非模型类（资源包/光影包/蓝图等）默认假设 mod 已安装，由调用方按需处理
+	// ADR-110：从注册表查询 jarKeywords（含组级回退）
+	keywords := types.ModKeywordsFor(rtype)
+	if keywords == nil {
+		// 非模型类（资源包/光影包等）默认假设 mod 已安装，由调用方按需处理
 		return true
 	}
 	files, err := os.ReadDir(modsDir)
@@ -165,8 +136,7 @@ func HasModInDir(modsDir, rtype string) bool {
 		return false
 	}
 	lower := strings.ToLower
-	// 循环不变量提升（审核 P3）：rtype 在遍历中不变，注册表查询（mutex + 线性扫描 +
-	// 3 个切片拷贝）只执行一次，而非每个命中 jar 一次
+	// 循环不变量提升：rtype 在遍历中不变，注册表查询只执行一次
 	rt := types.RegistryType(rtype)
 	for _, f := range files {
 		if f.IsDir() || !strings.HasSuffix(lower(f.Name()), ".jar") {

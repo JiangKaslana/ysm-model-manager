@@ -100,6 +100,9 @@
           "match": "prefix"
         }
       ],
+      "mod": {
+        "jarKeywords": ["yes_steve_model", "ysm-"]
+      },
       "actions": [
         "view",
         "import",
@@ -137,6 +140,10 @@
         ".png",
         ".js"
       ],
+      "mod": {
+        "modId": "touhou_little_maid",
+        "displayName": "Touhou Little Maid"
+      },
       "actions": [
         "import",
         "delete",
@@ -172,6 +179,10 @@
       "scanInstance": true,
       "dirLevelSync": true,
       "configField": "SchematicRoot",
+      "mod": {
+        "modId": "create",
+        "displayName": "Create"
+      },
       "actions": [
         "import",
         "delete",
@@ -201,6 +212,10 @@
       ],
       "hashable": true,
       "dirLevelSync": true,
+      "mod": {
+        "modId": "litematica",
+        "displayName": "Litematica"
+      },
       "actions": [
         "import",
         "delete",
@@ -237,6 +252,9 @@
       ],
       "isDir": true,
       "dirLevelSync": true,
+      "mod": {
+        "jarKeywords": ["mmdskin", "mmd-skin"]
+      },
       "actions": [
         "import",
         "delete",
@@ -475,6 +493,9 @@
         }
       ],
       "isDir": true,
+      "mod": {
+        "jarKeywords": ["mmdskin"]
+      },
       "actions": [
         "import",
         "delete",

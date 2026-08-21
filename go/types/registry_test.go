@@ -470,3 +470,89 @@ func TestInstanceDirMatchesStorageSubDir(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// mod 依赖声明（ADR-110：mod 下沉注册表，消除 Go 硬编码）
+// ============================================================================
+
+// TestModRequirementInRegistry 断言注册表含 mod 字段（jarKeywords / modId）
+func TestModRequirementInRegistry(t *testing.T) {
+	reg := LoadRegistry()
+
+	// 锚点哨兵：已知类型的 mod 依赖硬编码钉死
+	anchors := []struct {
+		id          string
+		jarKeywords []string
+		modID       string
+	}{
+		{"ysm", []string{"yes_steve_model", "ysm-"}, ""},
+		{"EntityPlayer", []string{"mmdskin", "mmd-skin"}, ""},
+		{"vrm", []string{"mmdskin"}, ""},
+		{"maid-model", nil, "touhou_little_maid"},
+		{"blueprint", nil, "create"},
+		{"litematic", nil, "litematica"},
+	}
+	for _, a := range anchors {
+		rt := reg.FindByID(a.id)
+		if rt == nil {
+			t.Fatalf("类型 %q 不存在", a.id)
+		}
+		if rt.Mod == nil {
+			t.Errorf("类型 %q 缺少 mod 字段", a.id)
+			continue
+		}
+		if len(a.jarKeywords) > 0 {
+			if len(rt.Mod.JarKeywords) != len(a.jarKeywords) {
+				t.Errorf("类型 %q jarKeywords 长度 %d，期望 %d", a.id, len(rt.Mod.JarKeywords), len(a.jarKeywords))
+			}
+			for i, kw := range a.jarKeywords {
+				if i < len(rt.Mod.JarKeywords) && rt.Mod.JarKeywords[i] != kw {
+					t.Errorf("类型 %q jarKeywords[%d] = %q，期望 %q", a.id, i, rt.Mod.JarKeywords[i], kw)
+				}
+			}
+		}
+		if a.modID != "" && rt.Mod.ModID != a.modID {
+			t.Errorf("类型 %q modId = %q，期望 %q", a.id, rt.Mod.ModID, a.modID)
+		}
+	}
+}
+
+// TestModKeywordsFor 断言 ModKeywordsFor 从注册表查询（含组级回退）
+func TestModKeywordsFor(t *testing.T) {
+	// ysm：自身声明
+	kws := ModKeywordsFor("ysm")
+	if len(kws) == 0 {
+		t.Fatal("ysm 应有 jarKeywords")
+	}
+	// EntityPlayer：自身声明
+	kws = ModKeywordsFor("EntityPlayer")
+	if len(kws) == 0 {
+		t.Fatal("EntityPlayer 应有 jarKeywords")
+	}
+	// SceneModel：自身无声明，回退到 mmd 组
+	kws = ModKeywordsFor("SceneModel")
+	if len(kws) == 0 {
+		t.Fatal("SceneModel 应回退到 mmd 组的 jarKeywords")
+	}
+	// resourcepack：无 mod 依赖，返回 nil
+	kws = ModKeywordsFor("resourcepack")
+	if kws != nil {
+		t.Errorf("resourcepack 不应有 mod 依赖，got %v", kws)
+	}
+}
+
+// TestModMetaFor 断言 ModMetaFor 从注册表查询内容检测型
+func TestModMetaFor(t *testing.T) {
+	modID, displayName := ModMetaFor("maid-model")
+	if modID != "touhou_little_maid" {
+		t.Errorf("maid-model modId = %q，期望 touhou_little_maid", modID)
+	}
+	if displayName != "Touhou Little Maid" {
+		t.Errorf("maid-model displayName = %q，期望 Touhou Little Maid", displayName)
+	}
+	// ysm：非内容检测型
+	modID, _ = ModMetaFor("ysm")
+	if modID != "" {
+		t.Errorf("ysm 不应有 modId，got %q", modID)
+	}
+}

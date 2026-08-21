@@ -49,6 +49,18 @@ type ResourceType struct {
 	InstallExts    []string        `json:"installExts"`    // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
 	ZipEntries     []ZipEntryMatch `json:"zipEntries"`     // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
 	NestedModelDir bool            `json:"nestedModelDir"` // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
+	Mod            *ModRequirement `json:"mod,omitempty"`  // mod 依赖声明（ADR-110：mod 下沉注册表）
+}
+
+// ModRequirement mod 依赖声明（ADR-110）：
+//   - JarKeywords：文件名关键词匹配（如 "mmdskin" 匹配 mmdskin-1.0.jar）
+//   - ModID/DisplayName：内容检测型（读 mods.toml，如 touhou_little_maid）
+//
+// 两者互斥：有 ModID 时优先内容检测，否则用 JarKeywords 文件名匹配。
+type ModRequirement struct {
+	JarKeywords []string `json:"jarKeywords,omitempty"` // 文件名关键词（小写匹配）
+	ModID       string   `json:"modId,omitempty"`       // mods.toml 中的 modId
+	DisplayName string   `json:"displayName,omitempty"` // mods.toml 中的 displayName
 }
 
 // EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。
@@ -280,6 +292,11 @@ func BundledRegistryJSON() []byte {
 // 底层数组——调用方修改 rt.Extensions 会污染进程级注册表缓存，因此必须深拷贝切片。
 func RegistryType(id string) *ResourceType {
 	reg := LoadRegistry()
+	return reg.FindByID(id)
+}
+
+// FindByID 按 id 查找资源类型，不存在时返回 nil（深拷贝）
+func (reg *ResourceTypeRegistry) FindByID(id string) *ResourceType {
 	for i := range reg.ResourceTypes {
 		if reg.ResourceTypes[i].ID == id {
 			rt := reg.ResourceTypes[i] // 拷贝，防外部篡改进程级缓存
@@ -290,6 +307,47 @@ func RegistryType(id string) *ResourceType {
 		}
 	}
 	return nil
+}
+
+// ModKeywordsFor 从注册表查询资源类型的 mod 文件名关键词（ADR-110）：
+//   - 类型自身有 mod.jarKeywords → 返回
+//   - 类型无声明但所属组有 → 返回组的关键词（组级回退）
+//   - 都没有 → 返回 nil（无 mod 依赖或内容检测型）
+//
+// 取代 go/ysm/ysm.go 的 ModKeywords/ModGroupKeywords 硬编码。
+func ModKeywordsFor(rtype string) []string {
+	rt := RegistryType(rtype)
+	if rt == nil {
+		return nil
+	}
+	// 类型自身声明
+	if rt.Mod != nil && len(rt.Mod.JarKeywords) > 0 {
+		return rt.Mod.JarKeywords
+	}
+	// 组级回退：查同组首个有 mod 声明的类型
+	if rt.Group != "" {
+		reg := LoadRegistry()
+		for i := range reg.ResourceTypes {
+			other := &reg.ResourceTypes[i]
+			if other.Group == rt.Group && other.ID != rt.ID && other.Mod != nil && len(other.Mod.JarKeywords) > 0 {
+				return other.Mod.JarKeywords
+			}
+		}
+	}
+	return nil
+}
+
+// ModMetaFor 从注册表查询内容检测型资源类型的 mod 信息（ADR-110）：
+//   - 类型有 mod.modId → 返回 (modId, displayName)
+//   - 否则返回 ("", "")
+//
+// 取代 go/ysm/ysm.go 的 ModMeta 硬编码。
+func ModMetaFor(rtype string) (modID, displayName string) {
+	rt := RegistryType(rtype)
+	if rt == nil || rt.Mod == nil {
+		return "", ""
+	}
+	return rt.Mod.ModID, rt.Mod.DisplayName
 }
 
 // FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]）
