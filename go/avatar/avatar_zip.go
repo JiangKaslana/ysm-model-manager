@@ -1,7 +1,7 @@
 // Package avatar 创作者头像提取与缓存，不依赖 Wails runtime。
 //
 // 本文件（avatar_zip.go）：ZIP 内文件读取（ReadFileFromZip / ReadFileFromContainer）
-// 与路径匹配（matchZipEntry/isYSMJSONPath），供提取编排复用。拆分自原 avatar.go
+// 与路径匹配（matchAvatarZipEntry/isYSMJSONPath），供提取编排复用。拆分自原 avatar.go
 // （ADR-040 文件行数治理）。
 package avatar
 
@@ -22,7 +22,7 @@ func ReadFileFromZip(zr *zip.Reader, target string) []byte {
 		p := strings.ReplaceAll(f.Name, "\\", "/")
 		// 裸 HasSuffix 会让 sub/avatar/alice.png 命中 avatar/alice.png、
 		// x/ysm.json 先于根 ysm.json 被取到——改为「精确路径或根下 target/ 前缀」匹配
-		if !matchZipEntry(p, targetLower) {
+		if !matchAvatarZipEntry(p, targetLower) {
 			continue
 		}
 		rc, err := f.Open()
@@ -59,7 +59,7 @@ func ReadFileFromContainer(r container.Reader, target string) []byte {
 			continue
 		}
 		p := strings.ReplaceAll(e.Name(), "\\", "/")
-		if !matchZipEntry(p, targetLower) {
+		if !matchAvatarZipEntry(p, targetLower) {
 			continue
 		}
 		rc, err := e.Open()
@@ -82,13 +82,13 @@ func ReadFileFromContainer(r container.Reader, target string) []byte {
 	return nil
 }
 
-// matchZipEntry zip 条目路径匹配：
+// matchAvatarZipEntry avatar zip 条目路径匹配（与 types.MatchZipEntry 注册表驱动不同：
 //   - 精确相等（含目标含路径如 "avatar/alice.png" 时，仅同名同路径命中，杜绝
 //     sub/avatar/alice.png 误命中——P3-3 收紧点）
 //   - 目标以 "/" 结尾（目录级）→ 根下该目录前缀
 //   - 裸文件名（无 "/"，如 "test.png"）→ 任意目录下同名文件（既有契约：avatar/test.png
 //     命中 test.png，avatarCandidates 兼容裸文件名引用）
-func matchZipEntry(p, targetLower string) bool {
+func matchAvatarZipEntry(p, targetLower string) bool {
 	low := strings.ToLower(p)
 	if low == targetLower {
 		return true
@@ -104,7 +104,7 @@ func matchZipEntry(p, targetLower string) bool {
 
 // isYSMJSONPath 判断解码产物路径是否为 ysm.json 清单：精确名或任意目录下的 ysm.json。
 // 原 HasSuffix(low, "ysm.json") 会把 "notysm.json"/"myysm.json" 等误判为清单——若该文件
-// 先于真实 ysm.json 出现在文件列表，元数据解析会取到错误内容；zip 分支 matchZipEntry
+// 先于真实 ysm.json 出现在文件列表，元数据解析会取到错误内容；zip 分支 matchAvatarZipEntry
 // 裸名匹配仅认 "/ysm.json" 后缀，两分支口径不一致（本次对齐）。
 func isYSMJSONPath(p string) bool {
 	low := strings.ToLower(strings.ReplaceAll(p, "\\", "/"))

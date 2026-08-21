@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/internal/app"
 )
 
@@ -225,7 +226,7 @@ func runFileBench(ctx *CmdContext) error {
 			result.Files[i] = fileBenchFile{Path: f.Path, Size: f.Size}
 		}
 		if jsonBytes, err := json.MarshalIndent(result, "", "  "); err == nil {
-			if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
+			if err := os.WriteFile(*output, jsonBytes, fsutil.FilePerms); err != nil {
 				return newRuntimeErrf("保存基准 JSON 失败: %v", err)
 			}
 			fmt.Printf("\n💾 基准已保存到: %s\n", *output)
@@ -402,7 +403,7 @@ func runScanDir(ctx *CmdContext) error {
 
 	if *output != "" {
 		if jsonBytes, err := json.MarshalIndent(result, "", "  "); err == nil {
-			if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
+			if err := os.WriteFile(*output, jsonBytes, fsutil.FilePerms); err != nil {
 				return newRuntimeErrf("保存 JSON 文件失败: %v", err)
 			}
 			fmt.Printf("💾 JSON 已保存到: %s\n\n", *output)

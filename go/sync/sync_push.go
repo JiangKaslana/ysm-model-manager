@@ -107,7 +107,7 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 				}
 				count++
 			} else {
-				if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+				if err := os.MkdirAll(filepath.Dir(dstPath), fsutil.DirPerms); err != nil {
 					failed++
 					if logger != nil {
 						logger(filepath.Base(src), src, filepath.Dir(dstPath), 0, "failed", "创建目录失败: "+err.Error())
@@ -134,7 +134,7 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 			continue
 		}
 		dstDir := filepath.Dir(mapped)
-		if err := os.MkdirAll(dstDir, 0755); err != nil {
+		if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 			failed++
 			if logger != nil {
 				logger(filepath.Base(src), src, dstDir, 0, "failed", "拉取失败: "+err.Error())
@@ -192,7 +192,7 @@ func PullSingleResource(globalDir, targetDir, srcPath string) error {
 		return mapErr
 	}
 	dstDir := filepath.Dir(mapped)
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 		return err
 	}
 	return copyFile(srcPath, filepath.Join(dstDir, filepath.Base(srcPath)))
@@ -282,7 +282,7 @@ func SyncCustomToRepo(customDir, repoDir string, scanFn func(string) []types.Mod
 		}
 		dstPath := filepath.Join(repoDir, rel)
 		dstDir := filepath.Dir(dstPath)
-		if err := os.MkdirAll(dstDir, 0755); err != nil {
+		if err := os.MkdirAll(dstDir, fsutil.DirPerms); err != nil {
 			if logger != nil {
 				logger(e.Name, e.Path, repoDir, 0, "failed", "创建目录失败: "+err.Error())
 			}

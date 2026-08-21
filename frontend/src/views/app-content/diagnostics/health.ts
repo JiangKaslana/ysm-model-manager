@@ -5,6 +5,7 @@
 import { t } from "../../../core/i18n/t.ts";
 import { getApp } from "../../../backend/app.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
+import { formatBytes } from "../../../utils/dom/format.ts";
 import type { EscFn } from "./logs.ts";
 
 // 重入守卫：体检扫描大量 await（Walk 全目录 + SHA256），快速连点并发覆盖 innerHTML
@@ -164,10 +165,5 @@ function formatPct(pct: number, esc: EscFn): string {
   return esc(Number.isFinite(pct) ? pct.toFixed(1) + "%" : "100.0%");
 }
 
-/** 字节大小人性化（与 Go 端 formatSize 同口径，纯展示） */
-export function formatSize(bytes: number): string {
-  if (bytes < 1024) return bytes + "B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + "KB";
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + "MB";
-  return (bytes / (1024 * 1024 * 1024)).toFixed(1) + "GB";
-}
+/** 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） */
+export const formatSize = formatBytes;

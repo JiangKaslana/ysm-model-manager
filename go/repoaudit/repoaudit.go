@@ -300,8 +300,11 @@ func generateAuditWarnings(result *Result) {
 }
 
 // isModelFileValid 验证模型文件完整性
-// .json: 必须是合法 JSON（流式解析，避免大文件全量读入内存）
-// .ysm: 必须非空且包含 JSON 内容
+// .json: 必须合法 JSON 且含 format_version 字段（Bedrock 模型/容器清单均带此字段，
+//
+//	空对象 {} 或任意数组不再放行——防结构损坏文件被标记「有效」造成完整性假绿）
+//
+// .ysm: 同 .json 规则（ysm 容器为 format_version + minecraft:geometry 结构）
 func isModelFileValid(path, ext string) bool {
 	f, err := os.Open(path)
 	if err != nil {
@@ -315,9 +318,19 @@ func isModelFileValid(path, ext string) bool {
 	}
 
 	if ext == ".json" || ext == ".ysm" {
-		var v interface{}
+		var v map[string]interface{}
 		dec := json.NewDecoder(f)
-		return dec.Decode(&v) == nil
+		if err := dec.Decode(&v); err != nil {
+			return false
+		}
+		// 最小结构校验：必须含 format_version（或 minecraft:geometry），
+		// 拒绝空对象/数组等无意义 JSON
+		if _, ok := v["format_version"]; ok {
+			return true
+		}
+		_, hasGeo := v["minecraft:geometry"]
+		_, hasBones := v["bones"]
+		return hasGeo || hasBones
 	}
 	return true
 }

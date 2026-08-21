@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/repoaudit"
 )
 
@@ -124,7 +125,7 @@ func runResourceScan(ctx *CmdContext) error {
 		if jsonErr != nil {
 			return jsonErr
 		}
-		if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
+		if err := os.WriteFile(*output, jsonBytes, fsutil.FilePerms); err != nil {
 			return newRuntimeErrf("保存 JSON 文件失败: %v", err)
 		}
 		fmt.Printf("💾 资源扫描结果已保存到: %s\n", *output)
@@ -197,7 +198,7 @@ func runRepoAudit(ctx *CmdContext) error {
 		if jsonErr != nil {
 			return jsonErr
 		}
-		if err := os.WriteFile(*output, jsonBytes, 0644); err != nil {
+		if err := os.WriteFile(*output, jsonBytes, fsutil.FilePerms); err != nil {
 			return newRuntimeErrf("保存审计 JSON 失败: %v", err)
 		}
 		fmt.Printf("💾 审计结果已保存到: %s\n", *output)

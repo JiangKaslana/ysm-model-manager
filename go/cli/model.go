@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/types"
 )
 
@@ -403,7 +404,7 @@ func runExport(ctx *CmdContext) error {
 	}
 
 	if *outputPath != "" {
-		if err := os.WriteFile(*outputPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(*outputPath, []byte(content), fsutil.FilePerms); err != nil {
 			return newRuntimeErrf("写入文件失败: %v", err)
 		}
 		fmt.Printf("✅ 已导出到: %s\n", *outputPath)

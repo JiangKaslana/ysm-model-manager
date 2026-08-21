@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"ysm-model-manager/go/fsutil"
 )
 
 // exitCode 退出码常量
@@ -133,19 +135,8 @@ func isPowerOf2(n int) bool {
 	return n > 0 && (n&(n-1)) == 0
 }
 
-// formatSize 格式化文件大小
-func formatSize(bytes int64) string {
-	if bytes < 1024 {
-		return fmt.Sprintf("%dB", bytes)
-	}
-	if bytes < 1024*1024 {
-		return fmt.Sprintf("%.1fKB", float64(bytes)/1024)
-	}
-	if bytes < 1024*1024*1024 {
-		return fmt.Sprintf("%.1fMB", float64(bytes)/(1024*1024))
-	}
-	return fmt.Sprintf("%.1fGB", float64(bytes)/(1024*1024*1024))
-}
+// formatSize 格式化文件大小——委托至 fsutil.FormatSize（单一事实来源）。
+func formatSize(bytes int64) string { return fsutil.FormatSize(bytes) }
 
 // min 返回两个整数中的较小值
 func min(a, b int) int {

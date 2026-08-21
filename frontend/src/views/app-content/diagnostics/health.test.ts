@@ -60,7 +60,7 @@ describe("renderHealthReport", () => {
     expect(html).toContain("90.0%");
     expect(html).toContain("缓存文件 <b>5</b>");
     expect(html).toContain("有效: 9");
-    expect(html).toContain("可回收: 4.0KB");
+    expect(html).toContain("可回收: 4.0 KB");
     expect(html).toContain("模型完整性 90.0%");
   });
 
@@ -134,11 +134,11 @@ describe("runHealthAudit", () => {
   });
 });
 
-describe("formatSize", () => {
+describe("formatSize（委托 formatBytes，单一事实来源）", () => {
   it("各量级格式化", () => {
-    expect(formatSize(512)).toBe("512B");
-    expect(formatSize(2048)).toBe("2.0KB");
-    expect(formatSize(5 * 1024 * 1024)).toBe("5.0MB");
-    expect(formatSize(2 * 1024 * 1024 * 1024)).toBe("2.0GB");
+    expect(formatSize(512)).toBe("512 B");
+    expect(formatSize(2048)).toBe("2.0 KB");
+    expect(formatSize(5 * 1024 * 1024)).toBe("5.0 MB");
+    expect(formatSize(2 * 1024 * 1024 * 1024)).toBe("2.0 GB");
   });
 });

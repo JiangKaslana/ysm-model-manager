@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/texture_cache"
 )
 
@@ -335,7 +336,7 @@ func runCacheDiag(ctx *CmdContext) error {
 	fmt.Printf("\n🔐 2. 哈希计算测试\n")
 	testFile := filepath.Join(os.TempDir(), "ysm_cache_test.txt")
 	testContent := []byte("YSM Cache Diagnostic Test Content")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, fsutil.FilePerms); err != nil {
 		fmt.Printf("   ❌ 无法创建测试文件: %v\n", err)
 	} else {
 		hash, err := texture_cache.TextureHash(testFile)

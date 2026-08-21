@@ -170,7 +170,7 @@ func TestSaveAvatarData_CacheDirUnwritable(t *testing.T) {
 	}
 }
 
-// ===== ReadFileFromZip / matchZipEntry 边界补测 =====
+// ===== ReadFileFromZip / matchAvatarZipEntry 边界补测 =====
 
 // nopWriteCloser 供 zip.RegisterCompressor 注册假压缩器（构造不支持算法的条目）。
 type nopWriteCloser struct{ io.Writer }
