@@ -356,6 +356,73 @@ func TestParseComponentsFromZip_MainFirstAndTexSlot(t *testing.T) {
 	}
 }
 
+// ===== maid-model 命名空间过滤（车万女仆 ZIP 含 200+ entity JSON）=====
+
+// 旧版格式 geometry JSON（车万女仆 entity 使用）
+const maidOldFormatGeo = `{"format_version":"1.10.0","geometry.model":{"texturewidth":128,"textureheight":128,"bones":[{"name":"head","pivot":[0,18,0],"cubes":[{"origin":[-4,18,-4],"size":[8,8,8],"uv":[0,12]}]}]}}`
+
+func TestParseFromZip_MaidModelNamespaceFilter(t *testing.T) {
+	// 模拟车万女仆 ZIP：多 namespace，每个含 maid_model.json + entity JSON
+	// 应只加载首个 namespace（按条目序）的 entity，跳过描述符和其他 namespace
+	data := testutil.MakeZipBytes(t, map[string]string{
+		"assets/ns_a/maid_model.json":            `{"pack_name":"ns_a","model_list":[]}`,
+		"assets/ns_a/models/entity/reimu.json":   maidOldFormatGeo,
+		"assets/ns_a/textures/entity/reimu.png":  "PNGDATA_REIMU",
+		"assets/ns_b/maid_model.json":            `{"pack_name":"ns_b","model_list":[]}`,
+		"assets/ns_b/models/entity/marisa.json":  maidOldFormatGeo,
+		"assets/ns_b/textures/entity/marisa.png": "PNGDATA_MARISA",
+	})
+	model, pngs, _ := ParseFromZip(data, int64(len(data)))
+	if model == nil {
+		t.Fatal("应解析成功")
+	}
+	// 只有 ns_a 的 head 骨骼（ns_b 被过滤）
+	if model.BoneCount != 1 {
+		t.Errorf("BoneCount = %d, 期望 1（仅首个 namespace）", model.BoneCount)
+	}
+	if model.BoneCount > 0 && model.Bones[0].Name != "head" {
+		t.Errorf("骨骼名 = %q, 期望 head", model.Bones[0].Name)
+	}
+	// 只有 ns_a 的纹理
+	if len(pngs) != 1 {
+		t.Errorf("纹理数 = %d, 期望 1（仅首个 namespace）", len(pngs))
+	}
+}
+
+func TestParseComponentsFromZip_MaidModelNamespaceFilter(t *testing.T) {
+	// 多组件路径也应只加载首个 namespace
+	data := testutil.MakeZipBytes(t, map[string]string{
+		"assets/ns_a/maid_model.json":           `{"pack_name":"ns_a","model_list":[]}`,
+		"assets/ns_a/models/entity/reimu.json":  maidOldFormatGeo,
+		"assets/ns_b/maid_model.json":           `{"pack_name":"ns_b","model_list":[]}`,
+		"assets/ns_b/models/entity/marisa.json": maidOldFormatGeo,
+	})
+	comps, _, err := ParseComponentsFromZip(data, int64(len(data)))
+	if err != nil {
+		t.Fatalf("ParseComponentsFromZip 失败: %v", err)
+	}
+	// 只有 ns_a 的 1 个组件（ns_b 被过滤）
+	if len(comps) != 1 {
+		t.Errorf("组件数 = %d, 期望 1（仅首个 namespace）", len(comps))
+	}
+}
+
+func TestParseFromZip_NonMaidModelNoFilter(t *testing.T) {
+	// 无 maid_model.json 的 ZIP → 不过滤，所有 JSON 都当 geometry 处理
+	data := testutil.MakeZipBytes(t, map[string]string{
+		"models/a.json": validGeoJSON,
+		"models/b.json": validGeoJSON,
+	})
+	model, _, _ := ParseFromZip(data, int64(len(data)))
+	if model == nil {
+		t.Fatal("应解析成功")
+	}
+	// 两个 JSON 的骨骼都合并
+	if model.BoneCount != 2 {
+		t.Errorf("BoneCount = %d, 期望 2（无 maid-model 不过滤）", model.BoneCount)
+	}
+}
+
 func TestParseComponentsFromZip_MainPriorityOverDeclOrder(t *testing.T) {
 	// ysm.json 声明 arm 在前 → main 仍应排首位（IsMainModelName 优先于 modelOrder）
 	ysmJSON := `{

@@ -114,6 +114,7 @@
       "name": "车万女仆模型",
       "icon": "🧸",
       "group": "minecraft-mod",
+      "priority": 10,
       "extensions": [
         ".zip"
       ],
@@ -412,18 +413,6 @@
       "zipEntries": [
         {
           "name": ".vmd",
-          "match": "suffix"
-        },
-        {
-          "name": ".mp3",
-          "match": "suffix"
-        },
-        {
-          "name": ".ogg",
-          "match": "suffix"
-        },
-        {
-          "name": ".wav",
           "match": "suffix"
         }
       ],

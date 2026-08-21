@@ -84,8 +84,8 @@ export function invalidateMaidPreview(): void {
 }
 
 /**
- * 车万女仆详情预览（简化版：基本信息卡 + FAB 进 3D）。
- * 不同于 YSM 的丰富元数据（作者/动画/配置菜单），女仆模型展示简洁明细。
+ * 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。
+ * 调用 Go 端 AnalyzeBedrockModel 获取骨骼数、方块数、纹理等详细信息。
  * FAB 接线复用 skeleton 的 3D overlay 管理（_active3DClose / android-back）。
  */
 export async function showMaidPreview(
@@ -93,12 +93,58 @@ export async function showMaidPreview(
   path: string,
 ): Promise<void> {
   const basename = path.split(/[/\\]/).pop() || path;
+  // 先显示加载状态
   ctx.root.innerHTML = `<div class="content" id="preview-content">
   <h3>🧸 ${t("preview.modelInfo")}</h3>
   <div class="dp-placeholder">
     <div class="big-icon">🧸</div>
     <div class="dp-hint">${esc(basename)}</div>
     <div class="dp-hint">Bedrock Edition Model</div>
+    <div class="dp-hint" style="margin-top:8px;font-size:11px;color:var(--txt-dim)">⏳ 分析模型数据...</div>
+  </div>
+</div>
+<button class="preview-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">&#x1F3A8;</span></button>`;
+
+  // 调用 Go 端分析模型数据
+  let modelInfo: { boneCount?: number; cubeCount?: number; textureCount?: number; format?: string; texWidth?: number; texHeight?: number } | null = null;
+  try {
+    const { AnalyzeBedrockModel } = await getApp();
+    const model = await AnalyzeBedrockModel(path);
+    if (model) {
+      modelInfo = {
+        boneCount: model.boneCount,
+        cubeCount: model.cubeCount,
+        textureCount: model.textures?.length || (model.texture ? 1 : 0),
+        format: model.format,
+        texWidth: model.texWidth,
+        texHeight: model.texHeight,
+      };
+    }
+  } catch (e) {
+    console.warn("[maid-preview] AnalyzeBedrockModel:", e);
+  }
+
+  // 渲染详细信息
+  const detailRows: string[] = [];
+  if (modelInfo) {
+    if (modelInfo.format) detailRows.push(`<div class="dp-hint">📐 格式版本: ${esc(modelInfo.format)}</div>`);
+    if (modelInfo.boneCount !== undefined) detailRows.push(`<div class="dp-hint">🦴 骨骼数: ${modelInfo.boneCount}</div>`);
+    if (modelInfo.cubeCount !== undefined) detailRows.push(`<div class="dp-hint">📦 方块数: ${modelInfo.cubeCount}</div>`);
+    if (modelInfo.textureCount !== undefined && modelInfo.textureCount > 0) {
+      detailRows.push(`<div class="dp-hint">🎨 纹理数: ${modelInfo.textureCount}</div>`);
+      if (modelInfo.texWidth && modelInfo.texHeight) {
+        detailRows.push(`<div class="dp-hint">📏 纹理尺寸: ${modelInfo.texWidth}×${modelInfo.texHeight}</div>`);
+      }
+    }
+  }
+
+  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>🧸 ${t("preview.modelInfo")}</h3>
+  <div class="dp-placeholder">
+    <div class="big-icon">🧸</div>
+    <div class="dp-hint" style="font-weight:600">${esc(basename)}</div>
+    <div class="dp-hint">Bedrock Edition Model</div>
+    ${detailRows.length > 0 ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px">${detailRows.join("")}</div>` : `<div class="dp-hint" style="margin-top:8px;font-size:11px;color:var(--txt-dim)">⚠️ 无法读取模型数据</div>`}
   </div>
 </div>
 <button class="preview-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">&#x1F3A8;</span></button>`;

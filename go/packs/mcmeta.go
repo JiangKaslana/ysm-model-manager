@@ -151,17 +151,32 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 		return id
 	}
 
-	// Phase 2：扩展名兜底（现有行为，路径消歧未命中时回退）
+	// Phase 2：扩展名兜底——指纹计数竞争，打平按 Priority 裁决（专用指纹类型 > 通用指纹类型）。
+	// 容器只打开一次：zipentry/mcmeta/shader 类型直接数匹配条目数（0 = 不通过），
+	// 其余 detector 走原判定（通过记 1 票）。
+	var bestID string
+	bestCount := 0
+	bestPriority := 0
 	for _, rt := range registry.ResourceTypes {
-		extOK := hasExt(ext, rt.EffectiveExtensions())
-		if !extOK {
+		if !hasExt(ext, rt.EffectiveExtensions()) {
 			continue
 		}
-		if detectorPasses(path, ext, isContainer, &rt) {
-			return rt.ID
+		count := 0
+		if isContainer && (rt.Detector == "zipentry" || rt.Detector == "mcmeta" || rt.Detector == "shader") {
+			count = matchZipArchiveCount(path, &rt)
+		} else if detectorPasses(path, ext, isContainer, &rt) {
+			count = 1
+		}
+		if count == 0 {
+			continue
+		}
+		if count > bestCount || (count == bestCount && rt.Priority > bestPriority) {
+			bestCount = count
+			bestPriority = rt.Priority
+			bestID = rt.ID
 		}
 	}
-	return ""
+	return bestID
 }
 
 // detectByPathDisambiguation 路径消歧：遍历文件所有祖先目录，检查是否匹配某类型的 InstanceDir。
@@ -186,18 +201,33 @@ func detectByPathDisambiguation(path string, ext string, isContainer bool, regis
 	}
 
 	for _, rt := range registry.ResourceTypes {
-		if rt.InstanceDir == "" {
+		// 路径消歧认两条路径：InstanceDir（整合包安装目录）+ StorageSubDir（仓库目录）。
+		// 仓库内的 maid-model/*.zip 祖先目录即 storageSubDir，必须能打赢内容指纹兜底。
+		candidates := []string{rt.InstanceDir, rt.StorageSubDir}
+		hasCandidate := false
+		for _, c := range candidates {
+			if c != "" {
+				hasCandidate = true
+				break
+			}
+		}
+		if !hasCandidate {
 			continue
 		}
 		if !hasExt(ext, rt.EffectiveExtensions()) {
 			continue
 		}
-		instDirNorm := filepath.ToSlash(strings.ToLower(rt.InstanceDir))
 		for _, anc := range ancestors {
 			ancNorm := filepath.ToSlash(strings.ToLower(anc))
-			if strings.HasSuffix(ancNorm, "/"+instDirNorm) || ancNorm == instDirNorm {
-				if detectorPasses(path, ext, isContainer, &rt) {
-					return rt.ID
+			for _, c := range candidates {
+				if c == "" {
+					continue
+				}
+				cNorm := filepath.ToSlash(strings.ToLower(c))
+				if strings.HasSuffix(ancNorm, "/"+cNorm) || ancNorm == cNorm {
+					if detectorPasses(path, ext, isContainer, &rt) {
+						return rt.ID
+					}
 				}
 			}
 		}
@@ -228,17 +258,29 @@ func detectorPasses(path string, ext string, isContainer bool, rt *types.Resourc
 // 走 container 统一打开——.7z 也参与内容指纹（ADR-067 §3 遗留，原仅 zip；
 // sevenzip 只读但可枚举条目）。条目名统一 lowercase（与 MatchZipEntry 内部 ToLower 幂等）。
 func matchZipArchive(path string, rt *types.ResourceType) bool {
+	return matchZipArchiveCount(path, rt) > 0
+}
+
+// matchZipArchiveCount 返回匹配的条目数（用于多类型竞争时选择更精确的类型）
+func matchZipArchiveCount(path string, rt *types.ResourceType) int {
 	r, err := container.Open(path)
 	if err != nil {
-		return false
+		return 0
 	}
 	defer r.Close()
+	count := 0
+	matchedEntries := make(map[string]bool) // 去重：同一类型只计一次
 	for _, e := range r.Entries() {
-		if rt.MatchZipEntry(e.Name()) {
-			return true
+		entryName := e.Name()
+		if rt.MatchZipEntry(entryName) {
+			// 用条目名去重（避免同一文件被多个规则匹配）
+			if !matchedEntries[entryName] {
+				matchedEntries[entryName] = true
+				count++
+			}
 		}
 	}
-	return false
+	return count
 }
 
 func hasExt(ext string, exts []string) bool {

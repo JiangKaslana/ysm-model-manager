@@ -222,11 +222,30 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 		}
 	}
 
+	// maid-model 命名空间检测（与 parseModelFromEntries 同口径）
+	var maidNs string
+	for _, e := range entries {
+		low := strings.ToLower(e.Name())
+		if strings.HasSuffix(low, "/maid_model.json") {
+			parts := strings.Split(low, "/")
+			if len(parts) >= 3 {
+				maidNs = strings.Join(parts[:len(parts)-1], "/") + "/"
+			}
+			break
+		}
+	}
+
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, ".json") && !e.IsDir() {
 			if strings.Contains(low, "ysm.json") {
 				continue
+			}
+			// maid-model 命名空间过滤：只处理首个 namespace 的 entity JSON
+			if maidNs != "" {
+				if !strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json") {
+					continue
+				}
 			}
 			if strings.Contains(low, "animation") || strings.Contains(low, "controller") {
 				rc, err := e.Open()
@@ -253,6 +272,10 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
 		}
 		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") {
+			// maid-model 命名空间过滤：只收集首个 namespace 的纹理
+			if maidNs != "" && !strings.HasPrefix(low, maidNs) {
+				continue
+			}
 			rc, err := e.Open()
 			if err != nil {
 				continue
@@ -284,6 +307,22 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	logPrefix := "[geometry]"
 	if logTag != "zip" {
 		logPrefix = logPrefix + " " + logTag
+	}
+	// maid-model 命名空间检测：ZIP 含 assets/<namespace>/maid_model.json 时，
+	// 后续 JSON 只处理该命名空间的 entity 文件，跳过描述符和其他命名空间
+	var maidNs string
+	for _, e := range entries {
+		low := strings.ToLower(e.Name())
+		if strings.HasSuffix(low, "/maid_model.json") {
+			parts := strings.Split(low, "/")
+			if len(parts) >= 3 {
+				maidNs = strings.Join(parts[:len(parts)-1], "/") + "/"
+			}
+			break
+		}
+	}
+	if maidNs != "" {
+		log.Printf("%s maid-model 命名空间: %s", logPrefix, maidNs)
 	}
 	var geo *types.BedrockModel
 	var pngs [][]byte
@@ -441,6 +480,12 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if err != nil {
 				continue
 			}
+			// maid-model 命名空间过滤：只处理首个 namespace 的 entity JSON
+			if maidNs != "" {
+				if !strings.HasPrefix(low, maidNs) || strings.HasSuffix(low, "maid_model.json") || strings.HasSuffix(low, "maid_chair.json") || strings.HasSuffix(low, "maid_sound.json") {
+					continue
+				}
+			}
 			buf := readLimitedEntry(rc)
 			if isArmModelName(e.Name()) {
 				continue // 排除第一人称手臂模型 arm.json（与 main 手臂重叠 → 双手臂）
@@ -448,6 +493,10 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
 		}
 		if (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && !e.IsDir() && !strings.Contains(low, "avatar/") {
+			// maid-model 命名空间过滤：只收集首个 namespace 的纹理
+			if maidNs != "" && !strings.HasPrefix(low, maidNs) {
+				continue
+			}
 			rc, err := e.Open()
 			if err != nil {
 				continue
