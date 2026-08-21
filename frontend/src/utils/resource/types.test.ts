@@ -77,7 +77,8 @@ describe("AMBIGUOUS_EXTS 歧义扩展名集合", () => {
 
   it("单归属扩展名不歧义", () => {
     expect(AMBIGUOUS_EXTS.has(".ysm")).toBe(false);
-    expect(AMBIGUOUS_EXTS.has(".pmx")).toBe(false);
+    // .pmx 被 EntityPlayer 和 SceneModel 共享（扁平化后 MMD 类型共享扩展名）
+    expect(AMBIGUOUS_EXTS.has(".pmx")).toBe(true);
     expect(AMBIGUOUS_EXTS.has(".vrca")).toBe(false);
     expect(AMBIGUOUS_EXTS.has(".nbt")).toBe(false);
     expect(AMBIGUOUS_EXTS.has(".schematic")).toBe(false);
@@ -100,14 +101,16 @@ describe("AMBIGUOUS_EXTS 歧义扩展名集合", () => {
 describe("resolveTypeSafe 安全解析", () => {
   it("单归属扩展名直接命中", () => {
     expect(resolveTypeSafe("model.ysm")).toBe("ysm");
-    expect(resolveTypeSafe("avatar.pmx")).toBe("EntityPlayer");
     expect(resolveTypeSafe("build.nbt")).toBe("blueprint");
     expect(resolveTypeSafe("proj.litematic")).toBe("litematic");
+    expect(resolveTypeSafe("old.schematic")).toBe("blueprint");
   });
 
   it("歧义扩展名返回 null（强制回退 Go 内容检测）", () => {
     expect(resolveTypeSafe("pack.zip")).toBeNull();
     expect(resolveTypeSafe("pack.7z")).toBeNull();
+    // .pmx 被 EntityPlayer/SceneModel 共享（扁平化后 MMD 类型共享扩展名）
+    expect(resolveTypeSafe("avatar.pmx")).toBeNull();
   });
 
   it("未知/无扩展名返回 null", () => {
@@ -234,24 +237,35 @@ describe("GROUP_TYPE_OPTIONS — 平铺展示各类型", () => {
   });
 });
 
-describe("groupStorageRootOf 两层路由", () => {
-  it("有 group + storageSubDir → {group}/{storageSubDir}", () => {
-    expect(groupStorageRootOf("resourcepack")).toBe("minecraft/resourcepacks");
-    expect(groupStorageRootOf("vrchat-avatar")).toBe("mmd/vrchat");
-    expect(groupStorageRootOf("maid-model")).toBe("minecraft-mod/maid-model");
-  });
+describe("groupStorageRootOf 两层路由（从 JSON 动态派生，防快照漂移）", () => {
+  // 从 resource_types.json 动态计算期望值，避免手写快照导致 21 次推倒重来
+  const rts = resourceTypesJson.resourceTypes as Array<{
+    id: string;
+    group?: string;
+    storageSubDir?: string;
+  }>;
 
-  it("有 group + 无 storageSubDir → {group}/{typeId} 回退", () => {
-    expect(groupStorageRootOf("EntityPlayer")).toBe("mmd/EntityPlayer");
-    expect(groupStorageRootOf("SceneModel")).toBe("mmd/SceneModel");
-  });
-
-  it("无 group 字段时回退单级 storageSubDir（向后兼容）", () => {
-    expect(groupStorageRootOf("ysm")).toBe("minecraft-mod/ysm");
+  it("所有类型：groupStorageRootOf 与 JSON 派生一致", () => {
+    for (const rt of rts) {
+      const group = rt.group || "";
+      const sub = rt.storageSubDir || rt.id;
+      const expected = group ? `${group}/${sub}` : sub;
+      expect(groupStorageRootOf(rt.id), `${rt.id} 路径漂移`).toBe(expected);
+    }
   });
 
   it("未知 typeId 回退到 typeId 自身", () => {
     expect(groupStorageRootOf("nonexistent")).toBe("nonexistent");
+  });
+
+  it("防快照守卫：无废弃壳层前缀", () => {
+    const deprecated = ["3d-skin/", "mmd-skin/", "{instance}", "{installDir}"];
+    for (const rt of rts) {
+      const root = groupStorageRootOf(rt.id);
+      for (const prefix of deprecated) {
+        expect(root.startsWith(prefix), `${rt.id} 不应含废弃前缀 ${prefix}`).toBe(false);
+      }
+    }
   });
 });
 

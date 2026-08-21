@@ -159,23 +159,37 @@ func TestGroupOf(t *testing.T) {
 }
 
 func TestGroupStorageRoot(t *testing.T) {
-	cases := []struct{ rtype, want string }{
-		{"resourcepack", "minecraft/resourcepacks"},
-		{"shaderpack", "minecraft/shaderpacks"},
-		{"ysm", "minecraft-mod/ysm"},
-		{"blueprint", "minecraft-mod/schematics"},
-		{"litematic", "minecraft-mod/litematics"},
-		{"maid-model", "minecraft-mod/maid-model"},
-		{"EntityPlayer", "mmd/EntityPlayer"},
-		{"vrchat-avatar", "mmd/vrchat"},
-	}
-	for _, c := range cases {
-		if got := GroupStorageRoot(c.rtype); got != c.want {
-			t.Errorf("GroupStorageRoot(%q) = %q, 期望 %q", c.rtype, got, c.want)
+	// 从注册表动态派生期望值，防快照漂移（21 次推倒重来的教训）
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		group := rt.Group
+		sub := rt.StorageSubDir
+		if sub == "" {
+			sub = rt.ID
+		}
+		var want string
+		if group != "" {
+			want = group + "/" + sub
+		} else {
+			want = sub
+		}
+		if got := GroupStorageRoot(rt.ID); got != want {
+			t.Errorf("GroupStorageRoot(%q) = %q, 期望 %q（从注册表动态派生）", rt.ID, got, want)
 		}
 	}
+	// 未知类型回退到 typeId 自身
 	if got := GroupStorageRoot("unknown"); got != "unknown" {
 		t.Errorf("GroupStorageRoot('unknown') = %q, 期望 'unknown'", got)
+	}
+	// 防快照守卫：无废弃壳层前缀
+	deprecated := []string{"3d-skin/", "mmd-skin/", "{instance}", "{installDir}"}
+	for _, rt := range reg.ResourceTypes {
+		root := GroupStorageRoot(rt.ID)
+		for _, prefix := range deprecated {
+			if strings.HasPrefix(root, prefix) {
+				t.Errorf("类型 %q 的 GroupStorageRoot %q 含废弃前缀 %q", rt.ID, root, prefix)
+			}
+		}
 	}
 }
 
@@ -245,16 +259,31 @@ func TestGroupLabel_EachGroupOnce(t *testing.T) {
 }
 
 func TestSubDirMap(t *testing.T) {
-	// 已知类型
-	if got := SubDirMap("resourcepack"); got != "resourcepacks" {
-		t.Errorf("SubDirMap('resourcepack') = %q, 期望 'resourcepacks'", got)
+	// 从注册表动态派生期望值，防快照漂移
+	reg := LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		if rt.InstanceDir == "" {
+			continue
+		}
+		if got := SubDirMap(rt.ID); got != rt.InstanceDir {
+			t.Errorf("SubDirMap(%q) = %q, 期望 %q（从注册表动态派生）", rt.ID, got, rt.InstanceDir)
+		}
 	}
-	if got := SubDirMap("ysm"); got != "config/yes_steve_model/custom" {
-		t.Errorf("SubDirMap('ysm') = %q, 期望 'config/yes_steve_model/custom'", got)
-	}
-	// 未知类型
+	// 未知类型返回空串
 	if got := SubDirMap("unknown"); got != "" {
 		t.Errorf("SubDirMap('unknown') = %q, 期望 ''", got)
+	}
+	// 防快照守卫：无废弃壳层前缀
+	deprecated := []string{"3d-skin/", "mmd-skin/", "{instance}", "{installDir}"}
+	for _, rt := range reg.ResourceTypes {
+		if rt.InstanceDir == "" {
+			continue
+		}
+		for _, prefix := range deprecated {
+			if strings.HasPrefix(rt.InstanceDir, prefix) {
+				t.Errorf("类型 %q 的 InstanceDir %q 含废弃前缀 %q", rt.ID, rt.InstanceDir, prefix)
+			}
+		}
 	}
 }
 

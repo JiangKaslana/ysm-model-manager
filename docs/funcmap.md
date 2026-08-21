@@ -1907,7 +1907,7 @@
 | `createScene3D()` | `frontend/src/views/app-preview/scene-3d:82` | 打开场景 MMD 3D 预览（独立入口，只加载 SceneModel 目录下的 PMX/PMD） |
 | `cleanupScene3D()` | `frontend/src/views/app-preview/scene-3d:87` | 清理场景 3D（WebGL renderer + rAF 循环） |
 | `invalidateScenePreview()` | `frontend/src/views/app-preview/scene-3d:92` | 任意新预览派发时调用，作废在途场景加载 |
-| `resolveSceneSiblings()` | `frontend/src/views/app-preview/scene-siblings:15` | 场景模型候选（只扫 SceneModel 子目录）；失败返回 [] |
+| `resolveSceneSiblings()` | `frontend/src/views/app-preview/scene-siblings:6` | 场景模型候选（只扫 SceneModel 子目录）；失败返回 [] |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:13` | — |
 | `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:19` | — |
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
