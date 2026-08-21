@@ -4,7 +4,7 @@
 > 静态提取生成，**单一事实来源 = 源码注册**。新增命令/子命令/选项只改 `go/cli/` 源码，
 > 重跑本脚本即同步；`--check` 已接入 `doctor.mjs` 防漂移。
 >
-> 顶层命令共 **37** 个。入口姿势与常用场景见根 `AGENTS.md`「CLI 模式使用说明」。
+> 顶层命令共 **38** 个。入口姿势与常用场景见根 `AGENTS.md`「CLI 模式使用说明」。
 
 <!-- GEN: cli-commands -->
 ## 模型管理
@@ -404,6 +404,21 @@ app --cli --files-root <路径> download [选项...]
 | `cancel` | 取消队列中所有任务 |
 | `github` | 从 GitHub 下载（raw URL） |
 
+
+
+### `health-report`
+一键全仓体检报告（完整性+缓存+资源+去重，--bench 追加性能基线）
+
+```bash
+app --cli --files-root <路径> health-report [选项...]
+```
+
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `--dir` | string — 仓库目录（默认使用 --files-root） |
+| `--output` | string — 输出文件路径（JSON 格式） |
+| `--bench` | bool — 追加首个模型的 single-bench 性能基线（默认关闭，耗时高） |
 
 
 ### `instance`

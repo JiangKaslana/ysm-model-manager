@@ -755,3 +755,50 @@ describe("批量读取降级", () => {
     expect(failCount).toBe(1);
   });
 });
+
+describe("mmd-pmx-worker 开关（默认主线程 MMDLoader 完整加载，worker opt-in）", () => {
+  beforeEach(() => {
+    localStorage.removeItem("mmd-pmx-worker");
+  });
+  afterEach(() => {
+    localStorage.removeItem("mmd-pmx-worker");
+  });
+
+  /** 最小加载流程：模型 + 无纹理，返回 port 供断言环形日志 */
+  async function runMinimalLoad() {
+    vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:mock-url");
+    hoisted.readBytesMock.mockResolvedValue(btoa("PMX"));
+    hoisted.listPathsMock.mockResolvedValue(["/mmd/miku/miku.pmx"]);
+    hoisted.loaderLoadAsyncMock.mockImplementation(() => Promise.resolve(fakeMmd()));
+    const port = makePort();
+    const { ctx } = makeCtx();
+    await buildMmdScene(ctx, "/mmd/miku/miku.pmx", port, makeMmdPanels());
+    return port;
+  }
+
+  it("默认（开关未设置）→ 主线程 MMDLoader 路径，不 dispatch worker 解析", async () => {
+    const port = await runMinimalLoad();
+    const calls = (port.addOpLog as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const dispatch = calls.find((c) => c[0] === "pmx-parse-dispatch");
+    expect(dispatch).toBeDefined();
+    expect(String(dispatch![3])).toContain("主线程 MMDLoader 路径");
+    // 完整加载路径：MMDLoader 被调用
+    expect(hoisted.loaderLoadAsyncMock).toHaveBeenCalledWith("/mmd/miku/miku.pmx");
+    // 无 worker 构建日志（worker 路径未启用）
+    expect(calls.find((c) => c[0] === "pmx-worker-build")).toBeUndefined();
+  });
+
+  it("开关 = 1 → dispatch worker 解析；受限环境解析失败时 fallback MMDLoader", async () => {
+    localStorage.setItem("mmd-pmx-worker", "1");
+    const port = await runMinimalLoad();
+    const calls = (port.addOpLog as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const dispatch = calls.find((c) => c[0] === "pmx-parse-dispatch");
+    expect(dispatch).toBeDefined();
+    expect(String(dispatch![3])).toContain("dispatched to worker (mmd-pmx-worker=1)");
+    // 测试环境无 Worker → always-fail parser → worker 路径构建失败并 fallback
+    const workerBuild = calls.find((c) => c[0] === "pmx-worker-build");
+    expect(workerBuild).toBeDefined();
+    expect(workerBuild![2]).toBe("warn");
+    expect(hoisted.loaderLoadAsyncMock).toHaveBeenCalledWith("/mmd/miku/miku.pmx");
+  });
+});

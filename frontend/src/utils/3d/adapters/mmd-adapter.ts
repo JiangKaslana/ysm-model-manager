@@ -14,6 +14,7 @@ import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 import { scheduleBackgroundEncoding, cancelPendingEncodings } from "./mmd-ktx2-encoder.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
+import { safeGet } from "../../dom/storage.ts"; // ADR-044：localStorage 统一走安全读写
 import { getTextureDecoder, applyWorkerDecodedTextures, type DecodedTexture } from "./mmd-texture-decoder.ts";
 import { createPmxParser, buildPmxSceneSliced, type PmxParser, type PmxBuildResult } from "./mmd-pmx-parser.ts";
 import { Ktx2TextureLoader } from "./mmd-ktx2-texture-loader.ts";
@@ -206,10 +207,18 @@ export async function buildMmdScene(
   const bytes = b64ToBytes(b64);
   const modelBase = (path.split(/[/\\]/).pop() || "").toLowerCase();
 
-  // ---- PMX 二进制解析 Worker（与纹理读取/解码并行，把 ~5s 解析从主线程搬走）----
-  const pmxParser: PmxParser = createPmxParser();
-  const pmxParsePromise = pmxParser.parse(bytesToArrayBuffer(bytes));
-  void mmdDiag(port, "pmx-parse-dispatch", path, "ok", "PMX binary parse dispatched to worker");
+  // ---- PMX 二进制解析：开关 mmd-pmx-worker=1 启用 Worker 解析（实验态：无 IK/物理/morph/
+  // toon，ADR-101 方向 C 待评估）；默认主线程 MMDLoader 完整加载（IK/物理/morph/toon 全保留）----
+  const usePmxWorker = safeGet("mmd-pmx-worker") === "1";
+  let pmxParser: PmxParser | null = null;
+  let pmxParsePromise: Promise<import("./mmd-pmx-parser.worker.ts").PmxParseResponse> | null = null;
+  if (usePmxWorker) {
+    pmxParser = createPmxParser();
+    pmxParsePromise = pmxParser.parse(bytesToArrayBuffer(bytes));
+    void mmdDiag(port, "pmx-parse-dispatch", path, "ok", "PMX binary parse dispatched to worker (mmd-pmx-worker=1)");
+  } else {
+    void mmdDiag(port, "pmx-parse-dispatch", path, "ok", "主线程 MMDLoader 路径（mmd-pmx-worker 默认关）");
+  }
 
   // ---- 同目录文件清单：ListAllFilePaths 递归列全部文件（不能用 ScanModelEntries——
   // 它只返回主文件条目，纹理/VMD 拿不到，URLModifier 全放行导致纹理 502）----
@@ -452,26 +461,29 @@ export async function buildMmdScene(
     manager.addHandler(/\.(png|jpe?g|bmp|gif|webp)$/i, ktx2DirectLoader);
   }
 
-  // ---- Worker PMX 解析路径：优先用 Worker 解析结果构建，失败 fallback 到 MMDLoader ----
+  // ---- Worker PMX 解析路径（开关 mmd-pmx-worker=1 时启用）：优先用 Worker 解析结果构建，
+  // 失败 fallback 到 MMDLoader；开关关闭（默认）→ 直接走主线程 MMDLoader 完整路径 ----
   let workerBuilt: PmxBuildResult | null = null;
   let workerParseOk = false;
   let pmxParsedData: import("./mmd-pmx-parser.worker.ts").PmxParseResponse | null = null;
-  try {
-    const pmxResult = await pmxParsePromise;
-    pmxParsedData = pmxResult;
-    if (pmxResult.ok && pmxResult.vertices && pmxResult.faces) {
-      workerParseOk = true;
-      workerBuilt = await buildPmxSceneSliced(pmxResult, { texUrlMap: texMap });
-      if (workerBuilt) {
-        await mmdDiag(port, "pmx-worker-build", path, "ok",
-          `vertices=${pmxResult.vertices.count} faces=${pmxResult.faces.count} bones=${pmxResult.bones?.length ?? 0} mats=${pmxResult.materials?.length ?? 0} (Worker path)`);
+  if (usePmxWorker && pmxParsePromise) {
+    try {
+      const pmxResult = await pmxParsePromise;
+      pmxParsedData = pmxResult;
+      if (pmxResult.ok && pmxResult.vertices && pmxResult.faces) {
+        workerParseOk = true;
+        workerBuilt = await buildPmxSceneSliced(pmxResult, { texUrlMap: texMap });
+        if (workerBuilt) {
+          await mmdDiag(port, "pmx-worker-build", path, "ok",
+            `vertices=${pmxResult.vertices.count} faces=${pmxResult.faces.count} bones=${pmxResult.bones?.length ?? 0} mats=${pmxResult.materials?.length ?? 0} (Worker path)`);
+        }
+      } else if (!pmxResult.ok) {
+        await mmdDiag(port, "pmx-worker-build", path, "warn",
+          `Worker parse failed: ${pmxResult.error ?? "unknown"} (fallback to MMDLoader)`);
       }
-    } else if (!pmxResult.ok) {
-      await mmdDiag(port, "pmx-worker-build", path, "warn",
-        `Worker parse failed: ${pmxResult.error ?? "unknown"} (fallback to MMDLoader)`);
+    } catch {
+      await mmdDiag(port, "pmx-worker-build", path, "warn", "Worker parse threw, fallback to MMDLoader");
     }
-  } catch {
-    await mmdDiag(port, "pmx-worker-build", path, "warn", "Worker parse threw, fallback to MMDLoader");
   }
 
   let mesh: THREE.SkinnedMesh;
@@ -509,7 +521,7 @@ export async function buildMmdScene(
         `Worker 路径：含 ${pmxParsedData.rigidBodies.length} 个刚体，物理模拟需 MMDLoader fallback`);
     }
 
-    pmxParser.dispose();
+    pmxParser?.dispose();
   } else {
     // ---- Fallback 路径：MMDLoader 主线程解析 ----
     // 注册官方 Ammo.js 物理后端（@moeru/three-mmd-physics-ammo）：MMD.update 的
@@ -534,7 +546,7 @@ export async function buildMmdScene(
     );
     tParseEnd = performance.now();
     mesh = mmd!.mesh;
-    pmxParser.dispose();
+    pmxParser?.dispose();
   }
 
   // ---- 应用 Worker 解码纹理：替换主线程解码的 HTMLImageElement 纹理为 ImageBitmap ----
