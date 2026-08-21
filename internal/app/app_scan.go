@@ -530,28 +530,17 @@ func (a *App) OpenFolder(dir string) error {
 	return cmd.Start()
 }
 
-// OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录
+// OpenInstanceFolder 按资源类型打开整合包内资源存储目录
 //
-// 方案 A（ADR-095）：不再用 SubDirMap/FindInstDir 作为唯一探测手段。
-// 原实现取 scanDir（如 config/yes_steve_model/custom）拼 instDir——scanDir 是
-// 「模组从哪加载文件」，且 FindInstDir 的包含性判定含 .json（ysm 类型扩展名），
-// config 目录下成堆模组配置文件会误命中 → 右键打开的是 config 而非资源包目录。
-// 改为「installDir 标准推导 → scanDir 存在性回溯 → FindInstDir 兜底」三级：
-//  1. 候选 A/B：installDir（资源存储目录模板）推导——resourcepacks/shaderpacks/
-//     3d-skin/tlm 等标准目录直接命中，config 零参与；
-//  2. 候选 C：scanDir 存在性回溯（逐级上溯找存在的目录）——ysm 的模型真身在
-//     config 树内（config/yes_steve_model[/custom]），standard 不存在时逐级上溯；
-//  3. 候选 D：FindInstDir 兜底扫描——接住 Sable-Schematics/hello_new_generation_core
-//     等非标准目录（与计数/列表链路同款逻辑，弥合「显示对但打开错」的裂口）。
+// 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_steve_model/custom）
+// 拼 instDir/instanceDir 作为打开目标；目录不存在也不回退（用户手动放错位置由他负责）。
 //
-// subdir 参数：子类型独立后，subdir 不再参与路由；保留签名为 Wails 绑定兼容。
-//
-// 全部落空回退 instDir。
+// subdir 参数：保留签名为 Wails 绑定兼容，已不参与路由。
 func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
 	return a.OpenFolder(resolveInstDirTarget(instDir, rtype))
 }
 
-// resolveInstDirTarget 推导整合包内资源存储目录（ADR-095，纯函数可测）：
+// resolveInstDirTarget 推导整合包内资源存储目录（纯函数可测）：
 // 仅使用 instanceDir（固定偏移，版本隔离无关）。
 // vanilla: instDir/instanceDir；Prism: instDir/instanceDir
 // 未知类型返回 instDir。

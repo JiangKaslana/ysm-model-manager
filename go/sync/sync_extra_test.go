@@ -236,7 +236,7 @@ func TestGetLinkType_RegularFile(t *testing.T) {
 func TestGetInstanceStatus_EmptyPathsExtra(t *testing.T) {
 	// 空路径应返回空切片
 	scanFn := func(dir string) []types.ModelEntry { return nil }
-	result := GetInstanceStatus("", "", scanFn)
+	result := GetInstanceStatus("", "", "", scanFn)
 	if len(result) != 0 {
 		t.Errorf("empty paths should return empty, got %d", len(result))
 	}

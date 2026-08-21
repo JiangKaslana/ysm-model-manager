@@ -164,7 +164,7 @@ func TestBuildSyncItems_IndependentTypes(t *testing.T) {
 
 	// EntityPlayer 全局与实例目录
 	epGlobal := filepath.Join(base, "mmd")
-	epInst := filepath.Join(base, "inst", "3d-skin", "EntityPlayer")
+	epInst := filepath.Join(base, "inst", "EntityPlayer")
 	_ = os.MkdirAll(epGlobal, 0755)
 	_ = os.MkdirAll(epInst, 0755)
 
@@ -207,7 +207,7 @@ func TestBuildSyncItems_IndependentTypes(t *testing.T) {
 	}
 
 	// 独立类型 CustomAnim：不应返回任何 EntityPlayer 条目
-	caInst := filepath.Join(base, "inst", "3d-skin", "CustomAnim")
+	caInst := filepath.Join(base, "inst", "CustomAnim")
 	_ = os.MkdirAll(caInst, 0755)
 	_ = os.WriteFile(filepath.Join(epGlobal, "walk.vmd"), []byte("vmd"), 0644)
 

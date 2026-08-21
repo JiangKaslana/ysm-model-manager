@@ -192,56 +192,80 @@ func (a *App) DeduplicateCustomDir(customDir string) (int, int, error) {
 }
 
 // ========== 状态同步 ==========
-func (a *App) GetInstanceStatus(mcRoot, repoDir string) []types.InstanceStatus {
-	// 扫描日志带类型标签（YSM），与前端术语一致
+// GetInstanceStatus 获取整合包状态（按资源类型限定路径）
+// rtype: 资源类型 ID，用于解析特定子目录；为空时使用 ins.CustomDir（向后兼容）
+func (a *App) GetInstanceStatus(mcRoot, repoDir, rtype string) []types.InstanceStatus {
+	// 扫描日志带类型标签，与前端术语一致
 	label := "模型"
-	if rt := types.RegistryType("ysm"); rt != nil {
+	if rt := types.RegistryType(rtype); rt != nil {
 		label = rt.Name
 	}
 	scanFn := func(dir string) []types.ModelEntry { return a.ScanModelEntriesWithLabel(dir, label) }
-	return ysmsync.GetInstanceStatus(mcRoot, repoDir, scanFn)
+	return ysmsync.GetInstanceStatus(mcRoot, repoDir, rtype, scanFn)
 }
 
 // GetResourceInstanceStatus 按资源类型获取整合包同步状态
-// repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导）
+// 统一走 GetInstanceStatus 路径，通过 rtype 限定实例侧扫描子目录 + 仓库侧扩展名过滤
 func (a *App) GetResourceInstanceStatus(rtype, mcRoot, repoDir string) []types.InstanceStatus {
 	if mcRoot == "" || rtype == "" {
 		return []types.InstanceStatus{}
 	}
+
 	// 扫描日志带类型标签，与前端术语一致
 	label := ""
 	if rt := types.RegistryType(rtype); rt != nil {
 		label = rt.Name
 	}
-	scanFn := func(dir string) []types.ModelEntry { return a.ScanModelEntriesWithLabel(dir, label) }
-	// YSM 走原有逻辑（对比 repo 和 custom 目录）
-	if rtype == "ysm" {
-		if repoDir == "" {
-			repoDir, _ = a.GetRepoRoot("ysm")
-		}
-		if repoDir == "" {
-			return []types.InstanceStatus{}
-		}
-		results := ysmsync.GetInstanceStatus(mcRoot, repoDir, scanFn)
-		for i := range results {
-			modsDir := filepath.Join(results[i].CustomDir, "..", "..", "..", "mods")
-			results[i].HasMod = ysm.HasModInDir(modsDir, rtype)
-		}
-		return results
+
+	// 按资源类型扩展名过滤的 scanFn：仓库侧只收集本类型文件
+	typeExts := types.SupportedExtsForType(rtype)
+	extSet := make(map[string]bool, len(typeExts))
+	for _, e := range typeExts {
+		extSet[strings.ToLower(e)] = true
 	}
 
-	// 其他资源类型：使用下沉的哈希对比逻辑
-	globalDir, _ := a.GetRepoRoot(rtype)
-	if globalDir == "" {
+	scanFn := func(dir string) []types.ModelEntry {
+		all := a.ScanModelEntriesWithLabel(dir, label)
+		if len(extSet) == 0 {
+			return all
+		}
+		// 仅保留本类型扩展名的文件（排除 .recycle 等已由 ScanModelEntries 处理的情况）
+		filtered := make([]types.ModelEntry, 0, len(all))
+		for _, e := range all {
+			ext := strings.ToLower(filepath.Ext(e.Name))
+			if extSet[ext] {
+				filtered = append(filtered, e)
+			}
+		}
+		return filtered
+	}
+
+	// 统一走 GetInstanceStatus：rtype 限定实例侧扫描子目录
+	if repoDir == "" {
+		repoDir, _ = a.GetRepoRoot(rtype)
+	}
+	if repoDir == "" {
 		return []types.InstanceStatus{}
 	}
-	subDir := types.SubDirMap(rtype)
-	if subDir == "" {
-		return []types.InstanceStatus{}
+
+	results := ysmsync.GetInstanceStatus(mcRoot, repoDir, rtype, scanFn)
+
+	// 为 YSM 类型补充 HasMod 检测
+	if rtype == "ysm" {
+		instances := a.ListVersionInstances(mcRoot)
+		insMap := make(map[string]*types.VersionInstance)
+		for i := range instances {
+			insMap[instances[i].Name] = &instances[i]
+		}
+		for i := range results {
+			if ins, ok := insMap[results[i].Name]; ok {
+				modsDir := filepath.Join(ins.VersionDir, "mods")
+				results[i].HasMod = ysm.HasModInDir(modsDir, rtype)
+			}
+		}
 	}
-	return ysmsync.CompareGlobalInstanceHashes(mcRoot, globalDir, subDir, rtype,
-		scanFn, ysmsync.ListVersions,
-		func(modsDir string) bool { return ysm.HasModInDir(modsDir, rtype) })
+
+	return results
 }
 
 func (a *App) SyncModelToggleStatus(instanceCustomDir, filesRoot string) (int, int, error) {

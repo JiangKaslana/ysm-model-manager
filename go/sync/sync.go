@@ -23,17 +23,25 @@ import (
 type ScanFunc func(dir string) []types.ModelEntry
 
 // GetInstanceStatus 获取整合包状态（使用真实 ListVersions）
-func GetInstanceStatus(mcRoot, repoDir string, scanFn ScanFunc) []types.InstanceStatus {
-	return GetInstanceStatusWith(mcRoot, repoDir, scanFn, ListVersions)
+// rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomDir（向后兼容）
+func GetInstanceStatus(mcRoot, repoDir, rtype string, scanFn ScanFunc) []types.InstanceStatus {
+	return GetInstanceStatusWith(mcRoot, repoDir, rtype, scanFn, ListVersions)
 }
 
 // GetInstanceStatusWith 可注入的整合包状态获取（测试用）
-func GetInstanceStatusWith(mcRoot, repoDir string, scanFn ScanFunc, listFn ListVersionsFunc) []types.InstanceStatus {
+// rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomDir（向后兼容）
+func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listFn ListVersionsFunc) []types.InstanceStatus {
 	if mcRoot == "" || repoDir == "" {
 		return []types.InstanceStatus{}
 	}
 	if scanFn == nil || listFn == nil {
 		return []types.InstanceStatus{}
+	}
+
+	// 预解析子目录（rtype 不为空时使用 FindInstDir 限定路径）
+	var subDir string
+	if rtype != "" {
+		subDir = types.SubDirMap(rtype)
 	}
 
 	repoEntries := scanFn(repoDir)
@@ -56,7 +64,12 @@ func GetInstanceStatusWith(mcRoot, repoDir string, scanFn ScanFunc, listFn ListV
 	var results []types.InstanceStatus
 
 	for _, ins := range instances {
-		customEntries := scanFn(ins.CustomDir)
+		// 按资源类型限定扫描路径：rtype 不为空时使用 FindInstDir 解析子目录
+		scanDir := ins.CustomDir
+		if rtype != "" && subDir != "" {
+			scanDir = types.FindInstDir(ins.VersionDir, subDir, rtype)
+		}
+		customEntries := scanFn(scanDir)
 		customByHash := make(map[string]bool)
 		for _, c := range customEntries {
 			if c.Hash != "" {
@@ -66,7 +79,7 @@ func GetInstanceStatusWith(mcRoot, repoDir string, scanFn ScanFunc, listFn ListV
 
 		status := types.InstanceStatus{
 			Name:      ins.Name,
-			CustomDir: ins.CustomDir,
+			CustomDir: scanDir,
 			Missing:   []string{},
 			Extra:     []string{},
 			Disabled:  []string{},

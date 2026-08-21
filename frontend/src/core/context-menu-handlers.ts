@@ -86,8 +86,8 @@ export const HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
     }
     try {
       const { OpenInstanceFolder } = await getApp();
-      // 阶段 1：subdir（MMD 用途子目录）透传，打开精确到 3d-skin/{subdir}；
-      // 非 MMD 类型 subdir 恒 ""，Go 端回退原推导
+      // 扁平化架构下，打开精确到 {instanceDir}（如 EntityPlayer）；
+      // subdir 参数保留为 Wails 绑定兼容，已不参与路由
       await OpenInstanceFolder(ctx.path, ctx.rtype || "", ctx.subdir || "");
     } catch (e) {
       toast(`❌ ${friendlyError(e, "打开文件夹失败")}`, 3000, "error");

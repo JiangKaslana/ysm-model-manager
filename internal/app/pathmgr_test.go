@@ -153,7 +153,7 @@ func TestGetRepoRoot_PlatformDefault(t *testing.T) {
 
 // TestRepoRootForSync 整合包同步基准目录解析：
 // 扁平化架构下，所有类型统一走 GetRepoRoot，返回 FilesRoot/{group}/{storageSubDir}。
-// MMD 子类型（EntityPlayer 等）共享 3d-skin 目录，专属根优先。
+// MMD 子类型（EntityPlayer 等）各自独立，专属 MmdRoot 优先。
 func TestRepoRootForSync(t *testing.T) {
 	base := t.TempDir()
 
@@ -163,8 +163,8 @@ func TestRepoRootForSync(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// GroupStorageRoot("EntityPlayer") = "mmd/3d-skin"
-		want := filepath.Join(base, "mmd", "3d-skin")
+		// GroupStorageRoot("EntityPlayer") = "mmd/EntityPlayer"
+		want := filepath.Join(base, "mmd", "EntityPlayer")
 		if got != want {
 			t.Errorf("repoRootForSync(EntityPlayer) 应为 group/storageSubDir, got %q want %q", got, want)
 		}

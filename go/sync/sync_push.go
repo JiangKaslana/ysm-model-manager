@@ -88,7 +88,7 @@ func PullResources(rtype, globalDir, targetDir string, logger Logger) (int, erro
 		fi, stErr := os.Stat(src)
 		isDir := stErr == nil && fi.IsDir()
 		if types.IsDirLevelSync(rtype) {
-			// 相对 targetDir 映射到 globalDir，保留子类层级（3d-skin/EntityPlayer/角色A →
+			// 相对 targetDir 映射到 globalDir，保留子目录层级（EntityPlayer/角色A →
 			// mmd/EntityPlayer/角色A）；越界无法映射时回退文件名（旧行为）
 			rel, relErr := filepath.Rel(targetDir, src)
 			if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {

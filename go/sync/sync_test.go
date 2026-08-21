@@ -44,7 +44,7 @@ func mockListVersions(mcRoot string) []types.VersionInstance {
 func TestGetInstanceStatus_MissingModels(t *testing.T) {
 	// custom 为空 → 所有 repo 模型都是缺失
 	scanFn := mockScanDir("/repo", repoEntries, nil)
-	results := GetInstanceStatusWith("/mc", "/repo", scanFn, mockListVersions)
+	results := GetInstanceStatusWith("/mc", "/repo", "", scanFn, mockListVersions)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 instance, got %d", len(results))
 	}
@@ -69,7 +69,7 @@ func TestGetInstanceStatus_AllSynced(t *testing.T) {
 		{Name: "model_c.ysm", Path: "/c/ins1/model_c.ysm", Hash: "hash_c"},
 	}
 	scanFn := mockScanDir("/repo", repoEntries, customEntries)
-	results := GetInstanceStatusWith("/mc", "/repo", scanFn, mockListVersions)
+	results := GetInstanceStatusWith("/mc", "/repo", "", scanFn, mockListVersions)
 
 	if len(results) != 1 {
 		t.Fatalf("expected 1 instance, got %d", len(results))
@@ -93,7 +93,7 @@ func TestGetInstanceStatus_ExtraModels(t *testing.T) {
 		{Name: "extra_model.ysm", Path: "/c/ins1/extra_model.ysm", Hash: "hash_extra"},
 	}
 	scanFn := mockScanDir("/repo", repoEntries, customEntries)
-	results := GetInstanceStatusWith("/mc", "/repo", scanFn, mockListVersions)
+	results := GetInstanceStatusWith("/mc", "/repo", "", scanFn, mockListVersions)
 
 	ins1 := results[0]
 	if len(ins1.Extra) != 1 {
@@ -114,7 +114,7 @@ func TestGetInstanceStatus_BannedModelsSkipped(t *testing.T) {
 		{Name: "model_d.ysm", Path: "/c/ins1/model_d.ysm", Hash: "hash_d"},
 	}
 	scanFn := mockScanDir("/repo", repoEntries, customEntries)
-	results := GetInstanceStatusWith("/mc", "/repo", scanFn, mockListVersions)
+	results := GetInstanceStatusWith("/mc", "/repo", "", scanFn, mockListVersions)
 
 	ins1 := results[0]
 	foundDisabled := false
@@ -140,12 +140,12 @@ func TestGetInstanceStatus_BannedModelsSkipped(t *testing.T) {
 }
 
 func TestGetInstanceStatus_EmptyPaths(t *testing.T) {
-	results := GetInstanceStatusWith("", "/repo", mockScanDir("/repo", repoEntries, nil), mockListVersions)
+	results := GetInstanceStatusWith("", "/repo", "", mockScanDir("/repo", repoEntries, nil), mockListVersions)
 	if len(results) != 0 {
 		t.Errorf("expected 0 results for empty mcRoot, got %d", len(results))
 	}
 
-	results = GetInstanceStatusWith("/mc", "", mockScanDir("", repoEntries, nil), mockListVersions)
+	results = GetInstanceStatusWith("/mc", "", "", mockScanDir("", repoEntries, nil), mockListVersions)
 	if len(results) != 0 {
 		t.Errorf("expected 0 results for empty repoDir, got %d", len(results))
 	}
@@ -162,7 +162,7 @@ func TestGetInstanceStatus_DuplicateHash(t *testing.T) {
 		{Name: "model_a_v1.ysm", Path: "/c/ins1/model_a_v1.ysm", Hash: "hash_a"},
 	}
 	scanFn := mockScanDir("/repo", dupRepoEntries, customEntries)
-	results := GetInstanceStatusWith("/mc", "/repo", scanFn, mockListVersions)
+	results := GetInstanceStatusWith("/mc", "/repo", "", scanFn, mockListVersions)
 
 	ins1 := results[0]
 	// hash_a 已存在（无论有几个同 hash 的 repo 文件），hash_b missing

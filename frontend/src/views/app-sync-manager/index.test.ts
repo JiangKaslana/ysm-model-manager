@@ -169,9 +169,9 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     self._selectedType = "EntityPlayer";
     self._typeConfig = [{ id: "EntityPlayer", dirLevelSync: true }];
     self._allItems = [
-      { path: "x/3d-skin/SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "EntityPlayer", icon: "🎭", size: 10, subdir: "SceneModel" },
-      { path: "x/3d-skin/角色A.pmx", name: "角色A", status: "missing", type: "EntityPlayer", icon: "🎭", size: 20 },
-      { path: "x/3d-skin/CustomAnim/动作.pmx", name: "动作", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, subdir: "CustomAnim" },
+      { path: "SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "EntityPlayer", icon: "🎭", size: 10, subdir: "SceneModel" },
+      { path: "角色A.pmx", name: "角色A", status: "missing", type: "EntityPlayer", icon: "🎭", size: 20 },
+      { path: "CustomAnim/动作.pmx", name: "动作", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, subdir: "CustomAnim" },
     ];
     self._filteredItems = self._allItems;
     self._repoRoots = { "EntityPlayer": "/repo" };
@@ -185,7 +185,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     expect(dirs.length).toBe(3);
     // data-path = 后端绝对路径（供 push/pull 消费）；分组文件夹用 subdir 名、根下条目用原始 path
     const dirKeys = Array.from(dirs).map((d) => (d as HTMLElement).dataset.path || "");
-    expect(dirKeys).toEqual(expect.arrayContaining(["SceneModel", "CustomAnim", "x/3d-skin/角色A.pmx"]));
+    expect(dirKeys).toEqual(expect.arrayContaining(["SceneModel", "CustomAnim", "角色A.pmx"]));
     // 未展开无子文件
     expect(el.querySelectorAll(".sm-file").length).toBe(0);
     // 展开 SceneModel → 出现子文件（无 scan 时 files=[]，但文件夹仍可见）
@@ -197,7 +197,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     // 展开后 SceneModel 组下出现内部模型行（舞台），data-path 用后端绝对路径
     expect(dirs.length).toBe(4);
     const keysAfter = Array.from(dirs).map((d) => (d as HTMLElement).dataset.path || "");
-    expect(keysAfter).toEqual(expect.arrayContaining(["x/3d-skin/SceneModel/舞台.pmx"]));
+    expect(keysAfter).toEqual(expect.arrayContaining(["SceneModel/舞台.pmx"]));
     // 恢复全局状态
     bus.emit("repo:rtype-changed", "ysm");
     await sleep(100);

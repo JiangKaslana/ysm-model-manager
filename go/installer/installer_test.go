@@ -209,7 +209,7 @@ func TestInstallDir_TypeFilter(t *testing.T) {
 
 // TestInstallDir_MMDVmdWhiteList：EntityPlayer 作为独立顶级类型，无 installExts 白名单——
 // 所有非可执行文件（pmx/vmd/vpd/json/png/txt）均放行；可执行文件（.exe）由黑名单拦截。
-// ADR-092 第 2 层 A：玩家模型目录内 anims/*.vmd、*.vpd、animations.json 须能装进 3d-skin/EntityPlayer/
+// ADR-092 第 2 层 A：玩家模型目录内 anims/*.vmd、*.vpd、animations.json 须能装进 EntityPlayer/
 func TestInstallDir_MMDVmdWhiteList(t *testing.T) {
 	repo, custom, _, _ := setupTestDirs(t)
 

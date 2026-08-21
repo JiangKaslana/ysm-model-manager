@@ -68,16 +68,17 @@ func listVanillaInstances(mcRoot string) []types.VersionInstance {
 		}
 		name := e.Name()
 		verDir := filepath.Join(versionsDir, name)
-		// ADR-064 锚定：路径走注册表 SubDirMap（原硬编码 config/yes_steve_model/custom）
-		custom := filepath.Join(verDir, types.SubDirMap("ysm"))
+		// CustomDir 指向整合包版本目录根（通用扫描起点）
+		// Exists 检查 YSM custom 子目录是否存在（与 Prism 布局一致）
+		ysmCustom := filepath.Join(verDir, types.SubDirMap("ysm"))
 		exists := true
-		if _, st := os.Stat(custom); os.IsNotExist(st) {
+		if _, st := os.Stat(ysmCustom); os.IsNotExist(st) {
 			exists = false
 		}
 		out = append(out, types.VersionInstance{
 			Name:       name,
 			VersionDir: verDir,
-			CustomDir:  custom,
+			CustomDir:  verDir,
 			Exists:     exists,
 		})
 	}
@@ -101,15 +102,17 @@ func listPrismInstances(instancesDir string) []types.VersionInstance {
 		if mcDir == "" {
 			continue
 		}
-		custom := filepath.Join(mcDir, types.SubDirMap("ysm"))
+		// CustomDir 指向整合包 .minecraft 目录根（通用扫描起点）
+		// Exists 检查 YSM custom 子目录是否存在（与 vanilla 布局一致）
+		ysmCustom := filepath.Join(mcDir, types.SubDirMap("ysm"))
 		exists := true
-		if _, st := os.Stat(custom); os.IsNotExist(st) {
+		if _, st := os.Stat(ysmCustom); os.IsNotExist(st) {
 			exists = false
 		}
 		out = append(out, types.VersionInstance{
 			Name:       name,
 			VersionDir: mcDir,
-			CustomDir:  custom,
+			CustomDir:  mcDir,
 			Exists:     exists,
 		})
 	}

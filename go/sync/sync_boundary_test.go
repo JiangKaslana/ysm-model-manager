@@ -59,7 +59,7 @@ func TestRelinkDir_NilLogger_NoPanicOnFailure(t *testing.T) {
 
 // FIX-3 GetInstanceStatusWith 对 nil scanFn 应返回空而非 panic。
 func TestGetInstanceStatusWith_NilScanFn_ReturnsEmpty(t *testing.T) {
-	results := GetInstanceStatusWith("/mc", "/repo", nil,
+	results := GetInstanceStatusWith("/mc", "/repo", "", nil,
 		func(mcRoot string) []types.VersionInstance { return nil })
 	if results != nil {
 		t.Logf("nil scanFn 期望 nil，实际 len=%d", len(results))
@@ -68,7 +68,7 @@ func TestGetInstanceStatusWith_NilScanFn_ReturnsEmpty(t *testing.T) {
 
 // FIX-4 GetInstanceStatusWith 对 nil listFn 应返回空而非 panic。
 func TestGetInstanceStatusWith_NilListFn_ReturnsEmpty(t *testing.T) {
-	results := GetInstanceStatusWith("/mc", "/repo",
+	results := GetInstanceStatusWith("/mc", "/repo", "",
 		func(dir string) []types.ModelEntry { return nil }, nil)
 	if results != nil {
 		t.Logf("nil listFn 期望 nil，实际 len=%d", len(results))
@@ -542,7 +542,7 @@ func TestSyncCustomToRepo_WhitespaceOnly(t *testing.T) {
 // =====================================================================
 
 func TestGetInstanceStatusWith_EmptyRepoDir(t *testing.T) {
-	results := GetInstanceStatusWith("/mc", "",
+	results := GetInstanceStatusWith("/mc", "", "",
 		func(dir string) []types.ModelEntry { return nil },
 		func(mcRoot string) []types.VersionInstance { return nil })
 	if len(results) != 0 {

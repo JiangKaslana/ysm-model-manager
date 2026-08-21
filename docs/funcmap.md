@@ -678,8 +678,8 @@
 | `App.ListAllFilePaths()` | `internal/app/app_scan:418` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
 | `App.CheckFileExists()` | `internal/app/app_scan:427` | — |
 | `App.OpenFolder()` | `internal/app/app_scan:503` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:550` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
-| `progressReader.Read()` | `internal/app/app_scan:584` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:539` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
+| `progressReader.Read()` | `internal/app/app_scan:573` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |

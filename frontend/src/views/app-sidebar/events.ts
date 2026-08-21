@@ -132,8 +132,8 @@ export function bindCardEvents(
       instanceName: name,
       path,
       rtype,
-      // 阶段 1：透传全局 MMD 用途子目录选择（repo_subdir，app-nav 持久化），
-      // 使「打开文件夹」精确到 3d-skin/{subdir}；非 MMD 类型恒 ""，行为不变
+      // 扁平化架构下，透传全局资源类型选择（rtype），
+      // 使「打开文件夹」精确到 {instanceDir}；subdir 保留兼容
       subdir: safeGet("repo_subdir") || "",
     });
   };
