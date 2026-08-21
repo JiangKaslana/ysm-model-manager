@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -40,11 +41,16 @@ type largeFileEntry struct {
 }
 
 type resourceStats struct {
-	Models     int `json:"models"`
-	Textures   int `json:"textures"`
-	Animations int `json:"animations"`
-	Effects    int `json:"effects"`
-	Others     int `json:"others"`
+	ByType map[string]int `json:"by_type"`
+}
+
+// addClassified 把 Classify 结果累加进动态类型 map
+func addClassified(ext string, stats *resourceStats) {
+	t := repoaudit.Classify(ext)
+	if stats.ByType == nil {
+		stats.ByType = make(map[string]int)
+	}
+	stats.ByType[t]++
 }
 
 // runResourceScan 扫描模型仓库资源
@@ -103,7 +109,7 @@ func runResourceScan(ctx *CmdContext) error {
 		}
 
 		// 按类型分类统计（与审计共用 repoaudit.Classify 口径）
-		classifyResource(ext, &result.Stats)
+		addClassified(ext, &result.Stats)
 
 		return nil
 	})
@@ -131,24 +137,6 @@ func runResourceScan(ctx *CmdContext) error {
 	return nil
 }
 
-// classifyResource 按扩展名分类统计资源
-// 注意：.json 不直接归为模型（可能是配置/索引文件），仅 .ysm 视为模型格式。
-// 分类字符串口径与 repoaudit.Classify 一致（唯一实现，防双轨漂移）。
-func classifyResource(ext string, stats *resourceStats) {
-	switch repoaudit.Classify(ext) {
-	case "model":
-		stats.Models++
-	case "texture":
-		stats.Textures++
-	case "animation":
-		stats.Animations++
-	case "effect":
-		stats.Effects++
-	default:
-		stats.Others++
-	}
-}
-
 // printResourceScanResult 打印资源扫描结果
 func printResourceScanResult(result resourceScanResult) {
 	fmt.Printf("📊 资源扫描结果:\n")
@@ -158,11 +146,16 @@ func printResourceScanResult(result resourceScanResult) {
 	fmt.Printf("  总大小: %s\n\n", formatSize(result.TotalSize))
 
 	fmt.Printf("📦 资源分类:\n")
-	fmt.Printf("  模型: %d\n", result.Stats.Models)
-	fmt.Printf("  贴图: %d\n", result.Stats.Textures)
-	fmt.Printf("  动画: %d\n", result.Stats.Animations)
-	fmt.Printf("  特效: %d\n", result.Stats.Effects)
-	fmt.Printf("  其他: %d\n\n", result.Stats.Others)
+	// 按 id 排序保证输出稳定
+	keys := make([]string, 0, len(result.Stats.ByType))
+	for k := range result.Stats.ByType {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Printf("  %-14s %5d\n", k, result.Stats.ByType[k])
+	}
+	fmt.Println()
 
 	fmt.Printf("📂 按扩展名统计:\n")
 	for ext, summary := range result.ByExtension {

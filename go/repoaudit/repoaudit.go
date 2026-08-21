@@ -15,6 +15,7 @@ import (
 
 	"ysm-model-manager/go/dedup"
 	"ysm-model-manager/go/texture_cache"
+	"ysm-model-manager/go/types"
 )
 
 // 审计相关阈值常量
@@ -145,7 +146,7 @@ func Audit(dirPath string) (Result, error) {
 		}
 
 		// 类型统计（分类口径唯一实现）
-		typeName := classifyResourceTypeName(ext)
+		typeName := Classify(ext)
 		resources[typeName]++
 		return nil
 	})
@@ -290,25 +291,20 @@ func isModelFileValid(path, ext string) bool {
 	return true
 }
 
-// Classify 将扩展名映射到资源类型字符串（导出供 resource-scan/审计共用，唯一实现防双轨）
+// Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。
+// 注册表驱动——新增类型只需在 resource_types.json 添加条目，无需改本函数。
+// 未命中任何类型 → "other"。导出供 resource-scan/审计共用，唯一实现防双轨。
 func Classify(ext string) string {
-	return classifyResourceTypeName(ext)
-}
-
-// classifyResourceTypeName 将扩展名映射到类型字符串（resource-scan 与审计共用口径）
-func classifyResourceTypeName(ext string) string {
-	switch ext {
-	case ".ysm", ".pmx", ".pmd", ".x":
-		return "model"
-	case ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".dds", ".ktx2":
-		return "texture"
-	case ".vmd", ".bvh":
-		return "animation"
-	case ".fx", ".cg", ".glsl":
-		return "effect"
-	default:
-		return "other"
+	ext = strings.ToLower(strings.TrimSpace(ext))
+	reg := types.LoadRegistry()
+	for _, rt := range reg.ResourceTypes {
+		for _, e := range rt.EffectiveExtensions() {
+			if ext == strings.ToLower(e) {
+				return rt.ID
+			}
+		}
 	}
+	return "other"
 }
 
 // formatSize 人性化字节大小（本地实现，纯展示不参与口径）
