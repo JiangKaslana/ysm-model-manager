@@ -19,7 +19,9 @@
     <a href="#main-content" class="skip-link" aria-label="跳过导航，直达主内容">跳过导航</a>
     <div style="display: flex; height: 100vh; overflow: hidden">
       <app-nav aria-label="主导航"></app-nav>
-      <app-content id="main-content" aria-label="主内容区"></app-content>
+      <!-- 跳过链接目标需可聚焦：fragment 跳转不滚动（overflow:hidden），
+           tabindex=-1 让键盘焦点真正移入主内容区（codereview 批次3 P3） -->
+      <app-content id="main-content" tabindex="-1" aria-label="主内容区"></app-content>
     </div>
     <div
       id="global-loader"

@@ -60,6 +60,12 @@ func (a *App) findRecycleRoot(src string) string {
 		cfg.MmdRoot,
 		cfg.VrcRoot,
 	}
+	// CustomRoots 纳入根列表（迁移后废弃字段已清空，recycle 必须查新源——codereview 批次3 P2）
+	if cfg.CustomRoots != nil {
+		for _, r := range cfg.CustomRoots {
+			roots = append(roots, r)
+		}
+	}
 	for _, r := range roots {
 		if r == "" {
 			continue
@@ -238,6 +244,12 @@ func (a *App) allRecycleRoots(cfg types.AppConfig) []string {
 		cfg.LitematicRoot,
 		cfg.MmdRoot,
 		cfg.VrcRoot,
+	}
+	// CustomRoots 纳入根列表（迁移后废弃字段已清空，回收站须查新源——codereview 批次3 P2）
+	if cfg.CustomRoots != nil {
+		for _, r := range cfg.CustomRoots {
+			roots = append(roots, r)
+		}
 	}
 	result := []string{}
 	for _, r := range roots {

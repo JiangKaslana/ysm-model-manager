@@ -361,16 +361,20 @@ export class AppTree extends WebComponentBase {
       }
 
       // ArrowUp/Down — 方向键导航文件列表（不按住 Ctrl/Shift 时单选移动）
+      // 焦点范围守卫（codereview 批次3 P1）：必须限定在树自身内——document 级监听
+      // 会把全局方向键都劫持（3D 预览相机移动 / app-nav 导航 / 面板滚动都会误触发
+      // 换选 + model:select 重载）；非树内焦点直接放行
       if (
         (e.key === "ArrowDown" || e.key === "ArrowUp") &&
         !e.ctrlKey && !e.metaKey && !e.altKey &&
-        target?.tagName !== "INPUT" && target?.tagName !== "TEXTAREA"
+        target?.tagName !== "INPUT" && target?.tagName !== "TEXTAREA" &&
+        target && this._root.contains(target)
       ) {
-        e.preventDefault();
         const container = this._root.getElementById("tree");
         if (!container) return;
         const fileRows = (container._vsRows || []).filter(r => r.type === "file");
         if (!fileRows.length) return;
+        e.preventDefault();
 
         const currentIdx = fileRows.findIndex(r => r.key === selectState.lastKey);
         const nextIdx = e.key === "ArrowDown"

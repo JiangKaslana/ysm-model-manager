@@ -43,11 +43,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 137 | 540 |
+| 前端·工具 | 138 | 543 |
 | frontend/views | 115 | 329 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **438** | **1886** |
+| **合计** | **439** | **1889** |
 
 ## Go·头像
 
@@ -667,11 +667,11 @@
 | `App.ClearRuntimeLogs()` | `internal/app/app_install_log:30` | ClearRuntimeLogs 清空运行时日志缓冲 |
 | `App.MoveToRecycle()` | `internal/app/app_install_recycle:17` | ========== 回收站 ========== |
 | `App.MoveToRecycleEx()` | `internal/app/app_install_recycle:38` | — |
-| `App.ClearCustomDir()` | `internal/app/app_install_recycle:85` | — |
-| `App.ListRecycleBin()` | `internal/app/app_install_recycle:157` | — |
-| `App.RestoreFromRecycle()` | `internal/app/app_install_recycle:174` | — |
-| `App.DeleteFromRecycle()` | `internal/app/app_install_recycle:195` | — |
-| `App.EmptyRecycleBin()` | `internal/app/app_install_recycle:211` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
+| `App.ClearCustomDir()` | `internal/app/app_install_recycle:91` | — |
+| `App.ListRecycleBin()` | `internal/app/app_install_recycle:163` | — |
+| `App.RestoreFromRecycle()` | `internal/app/app_install_recycle:180` | — |
+| `App.DeleteFromRecycle()` | `internal/app/app_install_recycle:201` | — |
+| `App.EmptyRecycleBin()` | `internal/app/app_install_recycle:217` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
 | `App.AnalyzeYSMModel()` | `internal/app/app_model:39` | — |
 | `App.ExtractYsmSummary()` | `internal/app/app_model:43` | — |
 | `App.ExtractYSMHeader()` | `internal/app/app_model:57` | — |
@@ -1598,16 +1598,19 @@
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:22` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
 | `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:41` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
-| `Vec3()` | `frontend/src/utils/animation/animation:9` | 三维向量 [x, y, z] |
-| `Keyframe()` | `frontend/src/utils/animation/animation:12` | 关键帧 |
-| `BoneChannels()` | `frontend/src/utils/animation/animation:20` | 单骨骼三通道 |
-| `AnimationClip()` | `frontend/src/utils/animation/animation:27` | 动画剪辑 |
-| `BoneTransform()` | `frontend/src/utils/animation/animation:36` | 骨骼变换（evaluateClip 结果值） |
-| `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:46` | 骨骼层级节点 |
-| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:207` | 解析完整的基岩版动画 JSON 字符串 |
-| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:304` | 在指定时间 t 对一组关键帧求值 |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:350` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
-| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:483` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `Vec3()` | `frontend/src/utils/animation/animation:12` | 三维向量 [x, y, z] |
+| `MolangAxes()` | `frontend/src/utils/animation/animation:15` | Molang 轴三元组（null = 该轴为纯数字，取 Keyframe 对应轴值） |
+| `Keyframe()` | `frontend/src/utils/animation/animation:18` | 关键帧 |
+| `BoneChannels()` | `frontend/src/utils/animation/animation:29` | 单骨骼三通道 |
+| `AnimationClip()` | `frontend/src/utils/animation/animation:36` | 动画剪辑 |
+| `BoneTransform()` | `frontend/src/utils/animation/animation:45` | 骨骼变换（evaluateClip 结果值） |
+| `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:55` | 骨骼层级节点 |
+| `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:244` | 解析完整的基岩版动画 JSON 字符串 |
+| `evaluateKeyframes()` | `frontend/src/utils/animation/animation:353` | 在指定时间 t 对一组关键帧求值 |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:400` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:533` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `MolangFn()` | `frontend/src/utils/animation/molang:14` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |
+| `compileMolang()` | `frontend/src/utils/animation/molang:38` | 编译 Molang 表达式为求值闭包。 |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
 | `swallowError()` | `frontend/src/utils/core/async:11` | 吞掉 promise 的异常并记录日志（比空 `.catch(() =&gt; {})` 可调试）。 |
@@ -1803,10 +1806,10 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:266` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:273` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:281` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:285` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:265` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:272` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:280` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:284` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:143` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |

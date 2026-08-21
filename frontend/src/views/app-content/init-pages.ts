@@ -125,7 +125,6 @@ function bindTabs(
   /** 切 tab 核心逻辑（click/keyboard 共用） */
   const activate = async (targetBtn: HTMLElement): Promise<void> => {
     const tab = targetBtn.dataset.tab || "";
-    const targetIdx = tabs.indexOf(targetBtn);
     // 切换按钮态
     tabs.forEach((t, i) => {
       const isActive = t === targetBtn;
