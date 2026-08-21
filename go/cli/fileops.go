@@ -73,13 +73,15 @@ func runRename(ctx *CmdContext) error {
 		return newParamErrf("rename: --name 参数不能为空")
 	}
 
-	// 优先尝试 RenameDir（目录重命名），失败再尝试 RenameFile（文件重命名）
-	if err := ctx.App.RenameDir(*path, *newName); err == nil {
+	// 优先尝试 RenameDir（目录重命名），失败再尝试 RenameFile（文件重命名）。
+	// 保留 RenameDir 的错误：两者都失败时合并错误信息，避免丢失根因。
+	dirErr := ctx.App.RenameDir(*path, *newName)
+	if dirErr == nil {
 		fmt.Printf("✅ 已重命名目录: %s -> %s\n", *path, *newName)
 		return nil
 	}
 	if err := ctx.App.RenameFile(*path, *newName); err != nil {
-		return newRuntimeErrf("重命名失败: %w", err)
+		return newRuntimeErrf("重命名失败（目录: %v / 文件: %v）", dirErr, err)
 	}
 	fmt.Printf("✅ 已重命名文件: %s -> %s\n", *path, *newName)
 	return nil
