@@ -9,6 +9,13 @@ import resourceTypesJson from "../../../../resource_types.json" with { type: "js
 export const RESOURCE_TYPES: Record<string, string> = {
   YSM: "ysm",
   MMD: "EntityPlayer",
+  SCENE: "SceneModel",
+  CUSTOM_ANIM: "CustomAnim",
+  CUSTOM_MORPH: "CustomMorph",
+  STAGE: "StageAnim",
+  MMD_SHADER: "mmd-shader",
+  DEFAULT_ANIM: "DefaultAnim",
+  DEFAULT_MORPH: "DefaultMorph",
   PACK: "resourcepack",
   SHADER: "shaderpack",
   BLUEPRINT: "blueprint",

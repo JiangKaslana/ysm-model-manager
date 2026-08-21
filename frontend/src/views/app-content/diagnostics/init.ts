@@ -9,6 +9,7 @@ import { friendlyError } from "../../../utils/dom/errors.ts";
 import { loadDiagnosticsLogs, loadRuntimeLogs, type EscFn } from "./logs.ts";
 import { scanConflicts } from "./conflicts.ts";
 import { initPerfPanel } from "./perf.ts";
+import { runHealthAudit } from "./health.ts";
 
 // 对外 API 兼容：startDedup 已迁至 dedup.ts（外部仍从本文件 import，见 init-pages.ts / init.test.ts）
 export { startDedup } from "./dedup.ts";
@@ -145,6 +146,19 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
     ?.addEventListener("click", () => scanConflicts(root, esc));
   // 性能面板：single-bench / gui-flow / perf-log（ADR-040 拆到 perf.ts）
   initPerfPanel(root, esc);
+  // 仓库体检：Go 端 RepoHealthAudit（同源审计），点击执行；缺省仓库根由后端解析
+  root.getElementById("diag-scan-health")?.addEventListener("click", async () => {
+    const list = root.getElementById("diag-health-list") as HTMLElement | null;
+    if (!list) return;
+    let filesRoot = "";
+    try {
+      const { GetRepoRoot } = await getApp();
+      filesRoot = (await GetRepoRoot("ysm")) || "";
+    } catch {
+      // 拿不到根则后端按空解析（跳过错误，体检容错）
+    }
+    await runHealthAudit(list, esc, filesRoot);
+  });
   // 左栏按钮切换
   root.querySelectorAll(".diag-btn[data-diag]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -156,13 +170,15 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
       const runtimePanel = root.getElementById("diag-runtime") as HTMLElement | null;
       const conflictPanel = root.getElementById("diag-conflict") as HTMLElement | null;
       const perfPanel = root.getElementById("diag-perf") as HTMLElement | null;
+      const healthPanel = root.getElementById("diag-health") as HTMLElement | null;
       if (logPanel) logPanel.style.display = name === "log" ? "" : "none";
       if (runtimePanel) runtimePanel.style.display = name === "runtime" ? "" : "none";
       if (conflictPanel) conflictPanel.style.display = name === "conflict" ? "" : "none";
       if (perfPanel) perfPanel.style.display = name === "perf" ? "" : "none";
+      if (healthPanel) healthPanel.style.display = name === "health" ? "" : "none";
       // 重启入场动画
       const activePanel =
-        name === "log" ? logPanel : name === "runtime" ? runtimePanel : name === "conflict" ? conflictPanel : perfPanel;
+        name === "log" ? logPanel : name === "runtime" ? runtimePanel : name === "conflict" ? conflictPanel : name === "perf" ? perfPanel : healthPanel;
       if (activePanel) {
         activePanel.style.animation = "none";
         void activePanel.offsetHeight;

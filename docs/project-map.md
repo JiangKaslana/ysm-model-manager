@@ -30,13 +30,13 @@
 | `packs/` | 资源包元数据读取（pack.mcmeta / 光影包 lang / 资源类型检测） 〔源码 1: mcmeta.go · 测试 4 · 子目录 1: testdata/〕 |
 | `paths/` | 路径安全 〔源码 1: safe.go · 测试 2〕 |
 | `recycle/` | 回收站管理 〔源码 2: recycle.go recycle_clean.go · 测试 9〕 |
-| `repoaudit/` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） 〔源码 1: repoaudit.go · 测试 1〕 |
+| `repoaudit/` | 仓库健康审计核心（GUI 绑定层与 CLI 共用，防双轨口径漂移） 〔源码 1: repoaudit.go · 测试 1〕 |
 | `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 1: scanner.go · 测试 4〕 |
 | `sync/` | 整合包同步 〔源码 7: sync.go sync_diff.go sync_dirlevel.go sync_discovery.go sync_hash.go sync_push.go sync_relink.go · 测试 9〕 |
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `texture_cache/` | 纹理缓存管理（KTX2/PNG 缓存，支持后台编码与快速命中） 〔源码 1: texture_cache.go · 测试 1〕 |
 | `threejs/` | 3D 骨骼计算（对齐 YSMViewer 口径） 〔源码 3: spec-bones.go spec-cube.go spec.go · 测试 5〕 |
-| `types/` | 共享类型 + 注册表 〔源码 6: bedrock.go config.go extensions.go findinst.go resource.go types.go · 测试 14〕 |
+| `types/` | 共享类型 + 注册表 〔源码 6: bedrock.go config.go extensions.go findinst.go resource.go types.go · 测试 13〕 |
 | `updater/` | 自动更新 〔源码 3: updater.go updater_other.go updater_windows.go · 测试 8〕 |
 | `version/` | 版本号 〔源码 1: version.go · 测试 1〕 |
 | `watcher/` | 文件监听 〔源码 1: watcher.go · 测试 2〕 |

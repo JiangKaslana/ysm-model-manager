@@ -1,0 +1,127 @@
+// ===== 诊断页：仓库体检（health.ts）测试 =====
+// 覆盖：parseHealthReport（合法/非法/后端错误）/ renderHealthReport（分数环/维度/警告/转义）
+//      / runHealthAudit（成功渲染 / 后端错误 / 解析失败 / 调用异常 + 重入守卫）
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { waitFor } from "../../../test-utils/index.ts";
+import { runHealthAudit, parseHealthReport, renderHealthReport, formatSize } from "./health.ts";
+
+const { getApp } = vi.hoisted(() => ({ getApp: vi.fn() }));
+vi.mock("../../../backend/app.ts", () => ({ getApp }));
+
+const esc = (s: unknown): string =>
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+
+/** 构造一份合法体检报告（PowerShell 少引号转义，用对象拼接） */
+function buildReport() {
+  return {
+    timestamp: "2026-08-21T00:00:00Z",
+    directory: "/repo",
+    score: 85,
+    completeness: { checked: 10, valid: 9, invalid: 1, percentage: 90 },
+    cache: { cache_dir: "/cache", cache_files: 5, cache_size: 1024, hit_rate: 50 },
+    resources: { total_files: 12, total_size: 2048, by_type: { model: 10, texture: 2 } },
+    dedup: { groups: 1, extra_files: 2, reclaim_bytes: 4096 },
+    warnings: ["模型完整性 90.0% 低于 95% 阈值"],
+  };
+}
+
+beforeEach(() => {
+  getApp.mockReset();
+});
+
+describe("parseHealthReport", () => {
+  it("合法 JSON 且含 score/completeness → 解析成功", () => {
+    const r = parseHealthReport(JSON.stringify(buildReport()));
+    expect(r).not.toBeNull();
+    expect(r?.score).toBe(85);
+    expect(r?.dedup.groups).toBe(1);
+  });
+
+  it("非法 JSON → null", () => {
+    expect(parseHealthReport("not json")).toBeNull();
+  });
+
+  it("缺 score 字段 → null（后端错误/{error:...} 形态）", () => {
+    expect(parseHealthReport(JSON.stringify({ error: "路径超出仓库目录" }))).toBeNull();
+  });
+});
+
+describe("renderHealthReport", () => {
+  it("渲染分数环 + 各维度 + 警告", () => {
+    const html = renderHealthReport(buildReport(), esc);
+    expect(html).toContain("85");
+    expect(html).toContain("90.0%");
+    expect(html).toContain("缓存文件 <b>5</b>");
+    expect(html).toContain("有效: 9");
+    expect(html).toContain("可回收: 4.0KB");
+    expect(html).toContain("模型完整性 90.0%");
+  });
+
+  it("告警文本转义（防注入）", () => {
+    const r = buildReport();
+    r.warnings = ['<script>alert(1)</script>'];
+    const html = renderHealthReport(r, esc);
+    expect(html).not.toContain("<script>alert(1)");
+    expect(html).toContain("&lt;script");
+  });
+
+  it("目录路径转义", () => {
+    const r = buildReport();
+    r.directory = '/repo/<b>evil</b>';
+    const html = renderHealthReport(r, esc);
+    expect(html).not.toContain("<b>evil");
+    expect(html).toContain("&lt;b>evil");
+  });
+});
+
+describe("runHealthAudit", () => {
+  it("成功：RepoHealthAudit 返回 JSON → 渲染到容器", async () => {
+    getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => JSON.stringify(buildReport())) });
+    const list = document.createElement("div");
+    await runHealthAudit(list, esc, "/repo");
+    await waitFor(() => expect(list.innerHTML).toContain("85"));
+    expect(list.innerHTML).toContain("健康");
+    expect(list.innerHTML).toContain("数据源");
+  });
+
+  it("后端错误 JSON（未 rendering 分数环，展示错误信息）", async () => {
+    getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => JSON.stringify({ error: "路径超出仓库目录" })) });
+    const list = document.createElement("div");
+    await runHealthAudit(list, esc, "");
+    await waitFor(() => expect(list.innerHTML).toContain("❌"));
+  });
+
+  it("调用异常 → 展示错误（friendlyError）", async () => {
+    getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => Promise.reject(new Error("boom"))) });
+    const list = document.createElement("div");
+    await runHealthAudit(list, esc, "/repo");
+    await waitFor(() => expect(list.innerHTML).toContain("❌"));
+  });
+
+  it("重入守卫：并发第二次调用直接返回", async () => {
+    let resolveFn: (v: string) => void = () => {};
+    getApp.mockResolvedValue({
+      RepoHealthAudit: vi.fn(
+        () =>
+          new Promise<string>((res) => {
+            resolveFn = res;
+          }),
+      ),
+    });
+    const list = document.createElement("div");
+    const p1 = runHealthAudit(list, esc, "/repo");
+    await runHealthAudit(list, esc, "/repo"); // 第二次应被守卫吞掉
+    resolveFn(JSON.stringify(buildReport()));
+    await p1;
+    await waitFor(() => expect(list.innerHTML).toContain("85"));
+  });
+});
+
+describe("formatSize", () => {
+  it("各量级格式化", () => {
+    expect(formatSize(512)).toBe("512B");
+    expect(formatSize(2048)).toBe("2.0KB");
+    expect(formatSize(5 * 1024 * 1024)).toBe("5.0MB");
+    expect(formatSize(2 * 1024 * 1024 * 1024)).toBe("2.0GB");
+  });
+});

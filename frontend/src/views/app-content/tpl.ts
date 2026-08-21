@@ -91,6 +91,10 @@ export function diagnosticsHTML(): string {
 <span class="diag-btn-icon">⏱️</span>
 <span>${t("diagnostics.perfTitle")}</span>
 </button>
+<button class="diag-btn" data-diag="health">
+<span class="diag-btn-icon">🩺</span>
+<span>${t("diagnostics.healthTitle")}</span>
+</button>
 <div class="diag-left-spacer"></div>
 <button class="diag-btn diag-btn-action" id="diag-copy" title="${t("diagnostics.copyLog")}">
 <span>${t("diagnostics.copyLog")}</span>
@@ -142,6 +146,10 @@ export function diagnosticsHTML(): string {
 </div>
 <div id="diag-oldest-list"><div class="stat-row" style="padding:12px;color:var(--muted);font-size:var(--fs-sm)">${t("diagnostics.refreshHint")}</div></div>
 </div>
+<div class="diag-panel" id="diag-health" style="display:none">
+<div id="diag-health-list"><div class="stat-row" style="padding:24px 12px;color:var(--muted);font-size:var(--fs-sm);text-align:center;flex-direction:column;gap:12px">${t("diagnostics.healthHint")}
+<button class="btn-base accent" id="diag-scan-health" style="margin-top:4px">🩺 ${t("diagnostics.healthRun")}</button>
+</div></div></div>
 </div>
 </div>
 </div>

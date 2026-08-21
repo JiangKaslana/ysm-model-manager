@@ -1743,24 +1743,24 @@
 | `loadResourceRegistry()` | `frontend/src/utils/resource/registry:20` | 加载资源类型注册表（失败不缓存：Go 桥瞬断后下次调用重试，避免整会话降级） |
 | `shortLabelOf()` | `frontend/src/utils/resource/short-label:26` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
-| `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:21` | 资源类型显示标签（内部 ID → 中文名） |
-| `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:61` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
-| `resolvePreviewKey()` | `frontend/src/utils/resource/types:70` | 按 variants 解析预览路由 key（ADR-111：类别—格式分层）。 |
-| `GROUP_META()` | `frontend/src/utils/resource/types:86` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
-| `GROUP_OF()` | `frontend/src/utils/resource/types:102` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
-| `groupLabelOf()` | `frontend/src/utils/resource/types:108` | 分组 id → 显示名 |
-| `GroupTypeOption()` | `frontend/src/utils/resource/types:118` | 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。 |
-| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:123` | — |
-| `groupStorageRootOf()` | `frontend/src/utils/resource/types:139` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
-| `extOf()` | `frontend/src/utils/resource/types:153` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `NO_3D_TYPES()` | `frontend/src/utils/resource/types:202` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:207` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:232` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:237` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:243` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:254` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:267` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `matchZipEntryTS()` | `frontend/src/utils/resource/types:317` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:28` | 资源类型显示标签（内部 ID → 中文名） |
+| `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:68` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
+| `resolvePreviewKey()` | `frontend/src/utils/resource/types:77` | 按 variants 解析预览路由 key（ADR-111：类别—格式分层）。 |
+| `GROUP_META()` | `frontend/src/utils/resource/types:93` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
+| `GROUP_OF()` | `frontend/src/utils/resource/types:109` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
+| `groupLabelOf()` | `frontend/src/utils/resource/types:115` | 分组 id → 显示名 |
+| `GroupTypeOption()` | `frontend/src/utils/resource/types:125` | 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。 |
+| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:130` | — |
+| `groupStorageRootOf()` | `frontend/src/utils/resource/types:146` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
+| `extOf()` | `frontend/src/utils/resource/types:160` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
+| `NO_3D_TYPES()` | `frontend/src/utils/resource/types:209` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:214` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:239` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:244` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:250` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:261` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:274` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:324` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `safeErrorMessage()` | `frontend/src/utils/safe-error-msg:19` | 从任意错误对象提取可读消息字符串。 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
@@ -1791,7 +1791,7 @@
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:100` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
 | `formatSize()` | `frontend/src/views/app-content/diagnostics/health:153` | 字节大小人性化（与 Go 端 formatSize 同口径，纯展示） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:21` | 初始化诊断页所有功能 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
