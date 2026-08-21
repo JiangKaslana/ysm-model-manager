@@ -226,6 +226,57 @@ Java → JS 事件通过 `bridge.emitEvent` → Wails CustomEvent 通道（**勿
 
 `cmd/`：`updater/`（编译为 `go/updater/ysm-updater-helper.exe` 被 embed）；构建脚本在 `scripts/`（`build-release.ps1`/`build-release.sh`、`build-darwin.sh`、`build-linux.sh`、`build-android.ps1` / `build-android-so.ps1`）。
 
+### 3.5 CLI 与 GUI 双入口解耦（`go/cli/` 注册表 ≠ Wails 绑定）
+
+> **核心命题**：项目存在**两条互不依赖的命令执行路径**，共用底层业务包但入口完全不同。新 AI 接手时最容易混淆这两条路径，误以为 `go/cli` 注册表是前端可消费的 API 契约。**此节即为此画红线。**
+
+**路径对照**：
+
+| 维度 | CLI 路径 | GUI 路径 |
+|------|----------|----------|
+| 入口文件 | `main.go`（`//go:build cli`，`RunCLI`） | `main.go`（`//go:build !cli`，`wails.Run`） |
+| 分发机制 | `go/cli/registry.go` 的 `CliCommand` map + `DispatchCommand` | Wails v3 Service 反射绑定（`*app.App` 导出方法自动暴露） |
+| 命令来源 | 22 个 `.go` 文件各 `init()` → `RegisterCommandC(name, category, desc, run)` | `internal/app/*.go` 中 `func (a *App) MethodName(...)` 签名即契约 |
+| 参数解析 | 各命令内 `flag` / `strconv` 手动解析，无统一 schema | Wails 自动 JSON 序列化，前端按绑定签名传参 |
+| 前端可达性 | **不可达**（`Run` 字段是 Go 闭包，无 JSON 序列化） | **可达**（`npm run generate:bindings` 产出 `.ts`，前端 import） |
+| 共享层 | 共用 `go/` 业务包（`scanner`、`installer`、`tags`、`texture_cache` 等） | 同左 |
+
+**`CliCommand` 结构体的能力边界**（`go/cli/registry.go:18`）：
+
+```go
+type CliCommand struct {
+    Name        string   // 命令名
+    Category    string   // 分类（CatModel/CatPerf/CatCache/CatResource/CatConfig/CatOther）
+    Description string   // 帮助文本
+    Run         func(ctx *CmdContext) error  // 执行闭包
+}
+```
+
+**注册表不携带的元数据**（新 AI 勿据此推断功能）：
+- ❌ **Flags 列表**：`--format json`、`--model`、`--iterations` 等选项描述写在各自 `print*Usage()` 函数的字符串里，`gen-cli-doc.mjs` 用正则提取——**加 flag 必须同步改 `print*Usage` 和 `parse*Flags` 两处**，否则文档过期/解析失效。
+- ❌ **子命令结构**：无结构化子命令描述，靠 `printSubcommands()` 打印。
+- ❌ **版本/废弃标记**：无 `deprecated` / `since` 字段。
+- ❌ **权限/前置条件**：是否必须 `--files-root` 由 `DispatchCommand` 全局判断，不区分命令。
+- ❌ **JSON schema 导出**：注册表无对外 schema，前端无法通过绑定消费。
+
+**前端消费/不消费的判断依据**：
+
+`internal/app` 绑定注册表（~610 行）中包含一个 `get_all_commands` 绑定方法，但**前端 `main.ts` 中零引用**。这不是遗漏，而是设计如此：
+1. `CliCommand.Run` 是 `func(*CmdContext) error`——Go 闭包，无法序列化过 Wails JSON 桥
+2. 前端需要的模型查询操作（`ListModels`、`SearchModels`、`AnalyzeYSMModel`）已有独立绑定，不需要走 CLI 注册表
+3. `get_all_commands` 的存在仅供 CLI 自检/自动化脚本使用，不在前端消费范围内
+
+**新 AI 高危误判清单**（踩坑预警）：
+
+| 误判 | 真相 | 后果 |
+|------|------|------|
+| 看到 `get_all_commands` 绑定 → 以为前端有 CLI 面板 | `main.ts` 零引用，是预留未用 | 白做，写一套从未被调用的前端面板 |
+| 看到 `GetAllCommands()` → 试图把注册表暴露给前端 | `Run` 字段无法序列化，整表无 flags 元数据 | 违反绑定契约，编译报错 |
+| 看到 `print*Usage()` 里的 flag 描述 → 以为改这里就够 | 还要同步改 `parse*Flags()` | CLI 加了 flag 但解析不到，静默失败 |
+| 看到 CLI 和 GUI 共享业务包 → 以为"一个修好另一个就好" | 入口参数校验/错误处理/输出格式各自独立 | 漏修入口层，GUI 仍挂 |
+
+**注册表 ↔ 文档的自动同步**：`scripts/gen-cli-doc.mjs` 消费 `RegisterCommandC` 调用 + `print*Usage` 正则，生成 `docs/cli-commands.md`；`tests/test_cli_doc_parity.mjs` 锁双向一致；pre-commit 阶段 `--check` 守护。新增 CLI 命令只需改 `go/cli/*.go` 源码 + 重跑 `node scripts/gen-cli-doc.mjs`，文档自动跟上。
+
 ---
 
 ## 4. YSM 模型解析与渲染（Three.js + YSMParser WASM）
