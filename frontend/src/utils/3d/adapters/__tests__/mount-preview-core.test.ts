@@ -228,6 +228,8 @@ vi.mock("../cleanup-3d.ts", () => {
 });
 
 // ── 测试环境初始化 ──────────────────────────────────────────────────────
+/** document.createElement 创建的元素注册表（外壳单例断言用：统计 view-container 数量） */
+const createdElements: Array<{ _tag: string; className?: string }> = [];
 const fakeDocAdd = vi.fn();
 const fakeDocRemove = vi.fn();
 const fakeWinAdd = vi.fn();
@@ -241,11 +243,13 @@ const fakeAppendChild = vi.fn((child: any) => child);
 
 function resetGlobalMocks() {
   vi.clearAllMocks();
+  createdElements.length = 0;
   Object.defineProperty(globalThis, "document", {
     value: {
       createElement: vi.fn((tag: string) => {
         const el: any = {
           _tag: tag,
+          className: "",
           parentNode: null,
           style: { cssText: "" },
           textContent: "",
@@ -289,6 +293,7 @@ function resetGlobalMocks() {
           width: 256,
           height: 256,
         };
+        createdElements.push(el);
         return el;
       }),
       getElementById: vi.fn(() => null),
@@ -446,6 +451,35 @@ describe("cleanupPreview 幂等 / 重复卸载", () => {
     const adapter2 = syncAdapter();
     await mount3D(adapter2 as PreviewAdapter, "/b.ysm");
     expect(hasActivePreview()).toBe(true);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// describe 3b: 外壳单例复用（viewContainer 随外壳初始化只建一次）
+// ──────────────────────────────────────────────────────────────────────
+describe("外壳单例复用（viewContainer 随外壳初始化只建一次）", () => {
+  it("连续两次 mount3D（同台复用外壳）只创建一个 preview-view-container（回归：多次 mount3D 曾反复 new 空容器）", async () => {
+    await mount3D(syncAdapter() as PreviewAdapter, "/a.ysm");
+    await mount3D(syncAdapter() as PreviewAdapter, "/b.ysm");
+    const viewContainers = createdElements.filter(
+      (e) => e._tag === "div" && e.className === "preview-view-container",
+    );
+    expect(viewContainers.length).toBe(1);
+    cleanupPreview();
+  });
+
+  it("cleanupPreview 后重新 mount：重建外壳（重新创建唯一 view-container）", async () => {
+    // 首次 mount + 清理（外壳拆除）
+    await mount3D(syncAdapter() as PreviewAdapter, "/a.ysm");
+    cleanupPreview();
+    // 清掉首次的外壳创建记录，验证重建仍只建一个
+    createdElements.length = 0;
+    await mount3D(syncAdapter() as PreviewAdapter, "/b.ysm");
+    const viewContainers = createdElements.filter(
+      (e) => e._tag === "div" && e.className === "preview-view-container",
+    );
+    expect(viewContainers.length).toBe(1);
+    cleanupPreview();
   });
 });
 

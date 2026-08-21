@@ -148,6 +148,8 @@ let _lastPerFrameWarnTs = 0;
 /** 模块级全局 overlay（仅 cleanupPreview 时才移除，多次 mount3D 复用同一 DOM） */
 let _singletonOverlay: HTMLElement | null = null;
 let _singletonBody: HTMLElement | null = null;
+/** 共享视窗容器（.preview-view-container：canvas 所在格子）：随外壳首次创建、后续复用 */
+let _singletonViewContainer: HTMLElement | null = null;
 /** 共享 scene（所有模型共用一个 scene，不同格式模型叠加在同一 WebGL context） */
 let _singletonScene: THREE.Scene | null = null;
 /** 共享 camera / renderer / controls（第一次 mount3D 创建，后续复用） */
@@ -173,10 +175,12 @@ export function cleanupPreview(): void {
   }
   _handles.length = 0;
   // renderer/canvas/overlay 保留（下次 mount3D 直接复用，不重建 DOM）
-  // 但 _singletonOverlay/_singletonBody 必须清零：handle.cleanup→fullCleanup 已从 DOM 移除它们，
-  // 保留旧引用会导致下次 mount3D 复用已脱离文档的 detached element（测试 afterEach 尤其敏感）。
+  // 但 _singletonOverlay/_singletonBody/_singletonViewContainer 必须清零：handle.cleanup→
+  // fullCleanup 已从 DOM 移除它们，保留旧引用会导致下次 mount3D 复用已脱离文档的
+  // detached element（测试 afterEach 尤其敏感）。
   _singletonOverlay = null;
   _singletonBody = null;
+  _singletonViewContainer = null;
   _singletonScene = null;
   _singletonCamera = null;
   _singletonRenderer = null;
@@ -187,6 +191,7 @@ export function cleanupPreview(): void {
 export function _resetSingletons(): void {
   _singletonOverlay = null;
   _singletonBody = null;
+  _singletonViewContainer = null;
   _singletonScene = null;
   _singletonCamera = null;
   _singletonRenderer = null;
@@ -291,7 +296,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     _singletonOverlay = overlay;
     _singletonBody = body;
   }
-  // viewContainer 始终追加到 body（共享受单例 body）
+  // viewContainer 复用模块级单例（与 scene/canvas 同寿命；创建逻辑见下方 §3 UI 装配）
 
   // 顶栏已移除（ADR-076 v2，用户 2026-08-16 决策）：预览控件全部收进
   // 声明式根菜单（⚙️ 按钮 → mountPreviewRootMenu），彻底告别顶栏滑块垃圾。
@@ -318,12 +323,17 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     reset: () => { _handles[_handles.length - 1]?.handle.resetCamera?.(); },
   };
 
-  // viewContainer：共享受单例 body，每次 mount3D 追加一个新的（多模型叠加）
-  const newContainer = document.createElement("div");
-  newContainer.className = "preview-view-container";
-  newContainer.style.cssText = "flex:1;position:relative;overflow:hidden";
-  body!.appendChild(newContainer);
-  const viewContainer = newContainer;
+  // viewContainer：与 scene/canvas 同属共享外壳——首次 mount3D 创建，后续复用同一
+  // 视窗（多模型同台共用同一 canvas，而非每次 mount3D 新建空容器；回归：曾反复 new
+  // 容器导致同台后多出空白分屏）
+  if (!_singletonViewContainer) {
+    const c = document.createElement("div");
+    c.className = "preview-view-container";
+    c.style.cssText = "flex:1;position:relative;overflow:hidden";
+    body!.appendChild(c);
+    _singletonViewContainer = c;
+  }
+  const viewContainer = _singletonViewContainer;
 
   // 声明式根菜单（⚙️）：core 在 overlay 内自建（预览全屏盖住 app 外壳，主程序 nav.settings 够不着），
   // 全部控件以 CORE_MENU_ITEMS + 适配器注入项表驱动渲染（preview-menu-defs.ts），
@@ -850,6 +860,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
       _singletonOverlay = null;
       _singletonBody = null;
+      _singletonViewContainer = null;
       // ⑥ 只清理内容层（dispose built + 移除 scene children），保留 renderer/canvas 存活
       //    避免销毁 WebGL context 导致黑屏窗口期
       if (scene && sceneBaseline) {

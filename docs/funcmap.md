@@ -821,11 +821,11 @@
 | `registerCoiServiceWorker()` | `frontend/src/backend/coi-sw:19` | 注册 COI SW（网页版）：首次注册后 reload 一次让浏览器重新导航经 SW（解锁跨源隔离） |
 | `ZipEntryMeta()` | `frontend/src/backend/extract:33` | ZIP 中央目录条目元数据（pre-parse 产物） |
 | `ExtractResult()` | `frontend/src/backend/extract:49` | extractZip 返回值 |
-| `ZipType()` | `frontend/src/backend/extract:57` | detectZipType 返回值 |
-| `parseZipCentralDir()` | `frontend/src/backend/extract:62` | 解析 ZIP 中央目录，返回每个 entry 的 fflateKey + 原始文件名字节 |
-| `extractZip()` | `frontend/src/backend/extract:141` | 解压 ZIP 数据，返回 {entries, metas}。 |
-| `gbkDecodeEntry()` | `frontend/src/backend/extract:177` | 尝试 GBK 解码 fflateKey 的原始字节（当 gpf bit 11 未设时）。 |
-| `detectZipType()` | `frontend/src/backend/extract:195` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
+| `ZipType()` | `frontend/src/backend/extract:58` | detectZipType 返回值 |
+| `parseZipCentralDir()` | `frontend/src/backend/extract:63` | 解析 ZIP 中央目录，返回每个 entry 的 fflateKey + 原始文件名字节 |
+| `extractZip()` | `frontend/src/backend/extract:142` | 解压 ZIP 数据，返回 {entries, metas}。 |
+| `gbkDecodeEntry()` | `frontend/src/backend/extract:178` | 尝试 GBK 解码 fflateKey 的原始字节（当 gpf bit 11 未设时）。 |
+| `detectZipType()` | `frontend/src/backend/extract:196` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
 | `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |
@@ -1265,13 +1265,13 @@
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:84` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:110` | — |
 | `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:120` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:164` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:169` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
-| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:187` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:199` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:205` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:210` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:228` | — |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:166` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:171` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
+| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:191` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:204` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:210` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:215` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:233` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1726,7 +1726,7 @@
 | `extBelongsTo()` | `frontend/src/utils/resource/extensions:58` | 返回扩展名所属的资源类型 ID |
 | `ResourceTypeEntry()` | `frontend/src/utils/resource/registry:7` | 资源类型注册表条目（对应 resource_types.json 结构） |
 | `loadResourceRegistry()` | `frontend/src/utils/resource/registry:20` | 加载资源类型注册表（失败不缓存：Go 桥瞬断后下次调用重试，避免整会话降级） |
-| `shortLabelOf()` | `frontend/src/utils/resource/short-label:25` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
+| `shortLabelOf()` | `frontend/src/utils/resource/short-label:26` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:21` | 资源类型显示标签（内部 ID → 中文名） |
 | `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:61` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
