@@ -45,7 +45,7 @@ invariant_anchors:
 - `index.ts` — `<app-sidebar>` 生命周期编排：`observedAttributes: ["rtype"]`、订阅刷新事件、全选/同步所选（推送走 `sync:download:missing` 事件 + correlation token，拉取直调 `PullResourceFromInstance`）、`_reload` 带 `_loading` 并发守卫
 - `tpl.ts` — 布局模板：`headerHTML` / `footerHTML` / `listContainerHTML` / `vcHeaderHTML`（版本卡片头）
 - `data.ts` — 数据层类型：`SidebarInstance` 接口
-- `loader.ts` — `loadInstances(rtype)`：调 Go 拉取实例与同步状态并转换为渲染格式（含 MMD `.pmx` 变体按父文件夹聚合 `groupMmdVariants`），前后派发 `loading:start` / `loading:end`
+- `loader.ts` — `loadInstances(rtype)`：调 Go 拉取实例与同步状态并转换为渲染格式（含 MMD `.pmx` 变体按父文件夹聚合 `groupMmdVariants`），前后派发 `loading:start` / `loading:end`；**同 rtype 在途请求合并**（2026-08-21：`_inflight` 表按归一后 rtype 键去重并发调用，空 rtype 回退 ysm 同键——配合 go/scanner 在途合并，治点击整合包时多组件并发触发的重复扫描刷屏）
 - `render.ts` — `renderVersionCards`：卡片逐个 `createElement` 入场（40ms 阶梯延迟）
 - `events.ts` — `bindCardEvents`（事件委托在 `#vg`，点击派发 `package:selected`、右键派发 `ctx:show` type=instance；localStorage `sb_selectedName_<rtype>` 恢复选中）+ `bindFooter`（MC 路径按钮、完全同步计数动画）
 - `sidebar-css.ts` — Shadow DOM 样式表（adoptedStyleSheets）
