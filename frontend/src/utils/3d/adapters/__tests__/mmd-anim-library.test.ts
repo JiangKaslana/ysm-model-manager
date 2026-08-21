@@ -1,52 +1,9 @@
 // ===== MMD 动画库路径解析与文件过滤 单元测试 =====
-// 覆盖：resolveMmdSubdirPath（路径拼接/边界）、filterAnimFiles（vmd/vpd 过滤/大小写/边界）、ANIM_LIB_SUBDIR 导出。
+// 覆盖：filterAnimFiles（vmd/vpd 过滤/大小写/边界）
 // @vitest-environment node
 
 import { describe, it, expect } from "vitest";
-import { resolveMmdSubdirPath, filterAnimFiles, ANIM_LIB_SUBDIR } from "../mmd-anim-library";
-
-// ---- resolveMmdSubdirPath ----
-describe("resolveMmdSubdirPath", () => {
-  it("从 EntityPlayer 子目录回溯到 group 根再拼 CustomAnim", () => {
-    const result = resolveMmdSubdirPath("FilesRoot/mmd/EntityPlayer", "CustomAnim");
-    expect(result).toBe("FilesRoot/mmd/CustomAnim");
-  });
-
-  it("使用 Windows 反斜杠分隔符也能正确回溯", () => {
-    const result = resolveMmdSubdirPath("FilesRoot\\mmd\\EntityPlayer", "CustomAnim");
-    expect(result).toBe("FilesRoot/mmd/CustomAnim");
-  });
-
-  it("混合正斜杠与反斜杠的分隔符", () => {
-    const result = resolveMmdSubdirPath("FilesRoot/mmd\\EntityPlayer", "CustomAnim");
-    expect(result).toBe("FilesRoot/mmd/CustomAnim");
-  });
-
-  it("repoRoot 末尾有连续斜杠时先去除再回溯", () => {
-    const result = resolveMmdSubdirPath("FilesRoot/mmd/EntityPlayer///", "CustomAnim");
-    expect(result).toBe("FilesRoot/mmd/CustomAnim");
-  });
-
-  it("subdir 开头带斜杠时先去除再拼接", () => {
-    const result = resolveMmdSubdirPath("FilesRoot/mmd/EntityPlayer", "/CustomAnim");
-    expect(result).toBe("FilesRoot/mmd/CustomAnim");
-  });
-
-  it("subdir 开头带连续斜杠时全部去除", () => {
-    const result = resolveMmdSubdirPath("FilesRoot/mmd/EntityPlayer", "//\\CustomAnim");
-    expect(result).toBe("FilesRoot/mmd/CustomAnim");
-  });
-
-  it("repoRoot 只有两段时回溯到根后拼接", () => {
-    const result = resolveMmdSubdirPath("mmd/EntityPlayer", "CustomAnim");
-    expect(result).toBe("mmd/CustomAnim");
-  });
-
-  it("repoRoot 只有单层时回溯为空串再拼接 subdir", () => {
-    const result = resolveMmdSubdirPath("EntityPlayer", "CustomAnim");
-    expect(result).toBe("/CustomAnim");
-  });
-});
+import { filterAnimFiles } from "../mmd-anim-library";
 
 // ---- filterAnimFiles ----
 describe("filterAnimFiles", () => {
@@ -96,12 +53,5 @@ describe("filterAnimFiles", () => {
   it("扩展名嵌入中间不被误匹配（只检查 endWith）", () => {
     const files = ["vmd_inside.txt", "file.vmd.bak"];
     expect(filterAnimFiles(files)).toEqual([]);
-  });
-});
-
-// ---- ANIM_LIB_SUBDIR ----
-describe("ANIM_LIB_SUBDIR", () => {
-  it("导出子目录名为 CustomAnim", () => {
-    expect(ANIM_LIB_SUBDIR).toBe("CustomAnim");
   });
 });

@@ -1,6 +1,5 @@
 // ===== Go 数据加载层 =====
 import { t } from "../../core/i18n/t.ts";
-import { getExts } from "../../utils/resource/extensions.ts";
 import { RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
@@ -60,50 +59,38 @@ function maybePromptAndroidStorage(): void {
   bridge.requestStoragePermission?.();
 }
 
-/** 从 Go 后端加载仓库文件列表，返回格式化的 entries */
+/** 从 Go 后端加载仓库文件列表，返回格式化的 entries
+ *  @param rtype 资源类型 ID（如 "ysm"/"EntityPlayer"）
+ *  @param subdir 可选：覆盖类型 ID（如 "SceneModel"/"CustomAnim"），
+ *  扁平化架构下每个 MMD 子类型为独立顶级类型，直接用 subdir 作为类型 ID 查表
+ */
 export async function loadEntries(
   rtype: string,
   subdir?: string,
 ): Promise<{ filesRoot: string; entries: TreeEntry[] }> {
   try {
-    const { GetRepoRoot, ScanModelEntriesWithLabel, IsFileBanned } = await getApp();
-    let filesRoot = await GetRepoRoot(rtype || "");
+    const { GetRepoRoot, ScanModelEntriesFiltered, IsFileBanned } = await getApp();
+    // 扁平化架构：subdir 作为实际类型 ID 覆盖 rtype
+    const targetType = subdir || rtype;
+    let filesRoot = await GetRepoRoot(targetType || "");
     if (!filesRoot) return { filesRoot: "", entries: [] };
-    // ADR-094 位置路由：MMD 子类型扫子目录。
-    // subDirGrouping 类型的 GetRepoRoot 已返回 group 根（FilesRoot/mmd/），
-    // 子类型（SceneModel/CustomAnim 等）平铺其下，直接拼 subdir 即可。
-    if (subdir) {
-      filesRoot = filesRoot.replace(/[/\\]+$/, "") + "/" + subdir.replace(/^[/\\]+/, "");
-    }
 
-    const raw = await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[rtype] || rtype);
+    const label = RESOURCE_TYPE_LABELS[targetType] || targetType;
+    const raw = await ScanModelEntriesFiltered(filesRoot, targetType, "", label);
     if (!raw || !raw.length) return { filesRoot, entries: [] };
-
-    // 按类型过滤扩展名（防止共享仓库中混入其他类型的文件）
-    const exts = getExts(rtype);
-    const filtered = exts.length
-      ? raw.filter((e) => {
-          let name = e.Name.toLowerCase();
-          // 去掉 .ban 后缀再判断
-          name = name.replace(/\.ban$/, "");
-          return exts.some((ext) => name.endsWith(ext));
-        })
-      : raw;
 
     // 并发检查禁用状态
     const bannedResults = await Promise.all(
-      filtered.map((e) => IsFileBanned(e.Path).catch(() => false)),
+      raw.map((e) => IsFileBanned(e.Path).catch(() => false)),
     );
 
-    const entries: TreeEntry[] = filtered.map((e, i) => {
+    const entries: TreeEntry[] = raw.map((e, i) => {
       let relPath = e.Path;
       const normRoot = filesRoot ? filesRoot.replace(/\\/g, "/") : "";
       const normPath = e.Path.replace(/\\/g, "/");
       if (normRoot && normPath.startsWith(normRoot)) {
         relPath = normPath.slice(normRoot.length).replace(/^[/\\]+/, "");
       }
-      // ADR-096：subdir 仅作元数据保留，不参与 relPath 拼接。
-      // 文件树分组已由目录结构天然实现（ADR-094 子目录扫描），无需前缀。
       return {
         name: e.Name,
         path: relPath,

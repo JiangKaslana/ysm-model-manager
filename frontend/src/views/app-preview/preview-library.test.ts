@@ -14,14 +14,19 @@ import "./ysm-3d.ts";
 import "./mmd-3d.ts";
 import "./vrm-3d.ts";
 import "./pack-3d.ts";
-import "./litematic-3d.ts"; // P2-2：投影/蓝图已注册 opener，一并触发注册
+import "./litematic-3d.ts"; // 投影/蓝图已注册 opener
+import "./scene-3d.ts"; // 场景模型已注册 opener (SceneModel)
+import "./maid-3d.ts"; // 车万女仆已注册 opener (maid-model)
 
-/** 已知无 3D 预览能力的资源类型（走 YSM 兜底回退或 toast 提示） */
+/** 已知无 3D 预览能力的资源类型（动画/着色器/光影包等非 3D 模型类型） */
 const NO_3D_TYPES = new Set<string>([
-  "shaderpack",
-  "maid-model", // ADR-095 车万女仆：preview: "none"，无 3D opener（隔壁新增类型，豁免表同步）
-  "resourcepack", // 资源包：无 3D 预览能力
-  "litematic", // 投影：3D opener 在 litematic-3d.ts（若有）
+  "shaderpack", // 光影包：无 3D 预览
+  "CustomAnim", // 自定义动画：.vmd 动画文件，非 3D 模型
+  "CustomMorph", // 自定义表情：.vmd 表情文件，非 3D 模型
+  "StageAnim", // 舞台动画：.vmd 舞台动画文件，非 3D 模型
+  "DefaultAnim", // 默认动画：.vmd 动画文件，非 3D 模型
+  "DefaultMorph", // 默认表情：.vmd 表情文件，非 3D 模型
+  "mmd-shader", // MMD 着色器：.glsl 着色器文件，非 3D 模型
 ]);
 
 describe("preview-library _openers 覆盖率", () => {

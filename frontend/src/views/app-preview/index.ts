@@ -16,24 +16,6 @@ const appPreviewStyle: CSSStyleSheet = (() => {
 })();
 export { appPreviewStyle };
 import { RESOURCE_TYPES, isYsmWasmPreview, extOf } from "../../utils/resource/types.ts";
-
-/** 检测路径是否属于 MMD SceneModel 子目录 */
-function isSceneModelPath(path: string): boolean {
-  const normalized = path.replace(/\\/g, "/");
-  return /(^|\/)SceneModel(\/|$)/i.test(normalized);
-}
-
-/** 检测路径是否属于 MMD CustomMorph 子目录 */
-function isCustomMorphPath(path: string): boolean {
-  const normalized = path.replace(/\\/g, "/");
-  return /(^|\/)CustomMorph(\/|$)/i.test(normalized);
-}
-
-/** 检测路径是否属于 MMD StageAnim 子目录 */
-function isStageAnimPath(path: string): boolean {
-  const normalized = path.replace(/\\/g, "/");
-  return /(^|\/)StageAnim(\/|$)/i.test(normalized);
-}
 import { modelDetailHTML } from "./tpl.ts";
 import {
   cacheGet,
@@ -82,20 +64,25 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   [RESOURCE_TYPES.LITEMATIC]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.BLUEPRINT]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.SHADER]: (ctx, path, meta) => showShaderpack(ctx, path, meta),
+  // MMD 角色模型（EntityPlayer）——路径兜底：DetectResourceType 可能因扩展名重叠
+  // 返回 EntityPlayer 而非子类型 ID，内置轻量路径检测防错派
   [RESOURCE_TYPES.MMD]: (ctx, path, meta) => {
-    // MMD 子类型分流：SceneModel / CustomMorph / StageAnim 各走独立入口
-    if (isCustomMorphPath(path)) {
-      showMorphPreview(ctx, path);
-    } else if (isStageAnimPath(path)) {
-      showStagePreview(ctx, path);
-    } else if (isSceneModelPath(path)) {
-      showScenePreview(ctx, path);
-    } else {
-      showMmdPreview(ctx, path, meta);
-    }
+    const norm = path.replace(/\\/g, "/");
+    if (/SceneModel/i.test(norm)) showScenePreview(ctx, path);
+    else if (/CustomMorph/i.test(norm)) showMorphPreview(ctx, path);
+    else if (/StageAnim/i.test(norm)) showStagePreview(ctx, path);
+    else showMmdPreview(ctx, path, meta);
   },
+  // MMD 独立顶级类型（DetectResourceType 命中时直接路由，无需路径兜底）
+  "SceneModel": (ctx, path) => showScenePreview(ctx, path),
+  "CustomMorph": (ctx, path) => showMorphPreview(ctx, path),
+  "StageAnim": (ctx, path) => showStagePreview(ctx, path),
+  "CustomAnim": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
+  "DefaultAnim": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
+  "DefaultMorph": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
+  "mmd-shader": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
+  // VRC：.vrm 直引 three-vrm meta 卡 + FAB 进 3D；.vrca/.zip 暂不直接加载 → 简单预览
   [RESOURCE_TYPES.VRC]: (ctx, path, meta) => {
-    // .vrm 直引 three-vrm meta 卡 + FAB 进 3D；.vrca/.zip 暂不直接加载 → 简单预览
     if (extOf(path) === ".vrm") {
       showVrmMeta(ctx, path, meta);
     } else {

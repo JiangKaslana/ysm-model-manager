@@ -1,6 +1,6 @@
 // @vitest-environment node
 // ===== 文件树数据加载层测试 =====
-// 覆盖：loadEntries 空 repoRoot / 空 raw / 扩展名过滤 / banned / relPath / 异常 toast
+// 覆盖：loadEntries 空 repoRoot / 空 raw / banned / relPath / 异常 toast / subdir 覆盖类型 ID
 // mock 基线来自 e2e/mock-data.ts（共享单源：改 Go 数据只改一处，防双源漂移），
 // 测试专用值用 override 覆盖（如反斜杠路径用例）。
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -11,29 +11,24 @@ import type { Bus } from "../../bus.ts";
 
 const { mocks } = vi.hoisted(() => {
   const mocks = {
-    getExts: vi.fn(),
     GetRepoRoot: vi.fn(),
-    ScanModelEntriesWithLabel: vi.fn(),
+    ScanModelEntriesFiltered: vi.fn(),
     IsFileBanned: vi.fn(),
     getAndroidBridge: vi.fn(),
   };
   return { mocks };
 });
 
-vi.mock("../../utils/resource/extensions.ts", () => ({
-  getExts: mocks.getExts,
-}));
-
-vi.mock("../../utils/resource/types.ts", () => ({
-  RESOURCE_TYPE_LABELS: { ysm: "YSM模型", pack: "资源包" },
-}));
-
 vi.mock("../../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     GetRepoRoot: mocks.GetRepoRoot,
-    ScanModelEntriesWithLabel: mocks.ScanModelEntriesWithLabel,
+    ScanModelEntriesFiltered: mocks.ScanModelEntriesFiltered,
     IsFileBanned: mocks.IsFileBanned,
   }),
+}));
+
+vi.mock("../../utils/resource/types.ts", () => ({
+  RESOURCE_TYPE_LABELS: { ysm: "YSM模型", pack: "资源包", SceneModel: "场景模型" },
 }));
 
 vi.mock("../../utils/dom/errors.ts", () => ({
@@ -57,10 +52,10 @@ beforeEach(async () => {
   vi.resetModules();
   bus = (await import("../../bus.ts")).bus;
   vi.clearAllMocks();
-  mocks.getExts.mockReturnValue([".ysm", ".zip"]);
   // 共享基线：GetRepoRoot 取 MOCK_DATA 值（"/e2e/repo"），与 e2e 一致
   mocks.GetRepoRoot.mockResolvedValue(MOCK_DATA.GetRepoRoot);
   mocks.IsFileBanned.mockResolvedValue(false);
+  mocks.ScanModelEntriesFiltered.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -79,23 +74,21 @@ describe("loadEntries", () => {
     const { loadEntries } = await import("./loader.ts");
     const r = await loadEntries("ysm");
     expect(r).toEqual({ filesRoot: "", entries: [] });
-    expect(mocks.ScanModelEntriesWithLabel).not.toHaveBeenCalled();
+    expect(mocks.ScanModelEntriesFiltered).not.toHaveBeenCalled();
   });
 
   it("扫描结果为空 → 空 entries", async () => {
-    mocks.ScanModelEntriesWithLabel.mockResolvedValue([]);
     const { loadEntries } = await import("./loader.ts");
     const r = await loadEntries("ysm");
     expect(r).toEqual({ filesRoot: MOCK_DATA.GetRepoRoot, entries: [] });
   });
 
-  it("按扩展名过滤（.ban 后缀先剥离）并计算相对路径、并入 banned 状态", async () => {
+  it("后端已按类型过滤扩展名，前端直接消费结果并计算相对路径/禁用状态", async () => {
     // Path 前缀与共享基线 GetRepoRoot（/e2e/repo）一致，动态拼接防再次硬编码漂移
     const repo = MOCK_DATA.GetRepoRoot;
-    mocks.ScanModelEntriesWithLabel.mockResolvedValue([
+    mocks.ScanModelEntriesFiltered.mockResolvedValue([
       { Name: "a.ysm", Path: `${repo}/sub/a.ysm`, Size: 10, ModTime: 1 },
       { Name: "b.ban", Path: `${repo}/sub/b.ban`, Size: 10, ModTime: 1 },
-      { Name: "c.txt", Path: `${repo}/sub/c.txt`, Size: 10, ModTime: 1 },
       { Name: "d.ysm", Path: `${repo}/sub/d.ysm`, Size: 10, ModTime: 1 },
     ]);
     mocks.IsFileBanned.mockImplementation((p: string) =>
@@ -104,19 +97,19 @@ describe("loadEntries", () => {
     const { loadEntries } = await import("./loader.ts");
     const r = await loadEntries("ysm");
 
-    // b.ban 剥离后缀后为 "b"，不匹配 .ysm/.zip → 过滤；c.txt 直接过滤
-    expect(r.entries).toHaveLength(2);
+    // 3 条全部保留（后端 ScanModelEntriesFiltered 已过滤，前端不再过滤）
+    expect(r.entries).toHaveLength(3);
     expect(r.entries[0]).toMatchObject({
       name: "a.ysm",
       path: "sub/a.ysm", // 去掉 repoRoot 前缀
       fullPath: `${repo}/sub/a.ysm`,
       banned: false,
     });
-    expect(r.entries[1]).toMatchObject({ name: "d.ysm", path: "sub/d.ysm", banned: true });
+    expect(r.entries[2]).toMatchObject({ name: "d.ysm", path: "sub/d.ysm", banned: true });
   });
 
   it("banned 检查失败兜底为 false（不中断加载）", async () => {
-    mocks.ScanModelEntriesWithLabel.mockResolvedValue([
+    mocks.ScanModelEntriesFiltered.mockResolvedValue([
       { Name: "a.ysm", Path: `${MOCK_DATA.GetRepoRoot}/a.ysm`, Size: 0, ModTime: 0 },
     ]);
     mocks.IsFileBanned.mockRejectedValue(new Error("lock"));
@@ -127,7 +120,7 @@ describe("loadEntries", () => {
 
   it("仓库根路径带反斜杠时也能剥离前缀", async () => {
     mocks.GetRepoRoot.mockResolvedValue("C:\\repo");
-    mocks.ScanModelEntriesWithLabel.mockResolvedValue([
+    mocks.ScanModelEntriesFiltered.mockResolvedValue([
       { Name: "a.ysm", Path: "C:\\repo\\sub\\a.ysm", Size: 0, ModTime: 0 },
     ]);
     const { loadEntries } = await import("./loader.ts");
@@ -135,8 +128,8 @@ describe("loadEntries", () => {
     expect(r.entries[0].path).toBe("sub/a.ysm");
   });
 
-  it("ScanModelEntriesWithLabel 抛错 → error toast + 空结果", async () => {
-    mocks.ScanModelEntriesWithLabel.mockRejectedValue(new Error("boom"));
+  it("ScanModelEntriesFiltered 抛错 → error toast + 空结果", async () => {
+    mocks.ScanModelEntriesFiltered.mockRejectedValue(new Error("boom"));
     const toasts = spyToasts();
     const { loadEntries } = await import("./loader.ts");
     const r = await loadEntries("ysm");
@@ -148,21 +141,16 @@ describe("loadEntries", () => {
 // ---- maybePromptAndroidStorage（经 loadEntries 失败路径触发，ADR-046 P2）----
 // 库加载失败时若 Android 未授权 → 引导 requestStoragePermission（5s 节流）。
 // _lastStoragePromptAt / _lastErrorToastAt 是模块级节流变量：fake 时间从真实
-// 基线起步每用例递增 60s（>5s 窗口）自然过期，保证 > 上一用例（含前一个
-// describe 在真实时间触发的）残留时间戳，避免 resetModules 连 bus.ts 一起
-// 重置导致 loader 新实例与 spy 的 bus 实例分叉（toast 收不到）。
-const realStartMs = Date.now(); // 捕获真实基线（fake timers 之前）
+// 基线起步每用例递增 60s（>5s 窗口）自然过期。
+const realStartMs = Date.now();
 describe("maybePromptAndroidStorage（loadEntries 失败触发）", () => {
   let fakeMs = 0;
   beforeEach(() => {
     fakeMs += 60_000;
     vi.useFakeTimers();
     vi.setSystemTime(new Date(realStartMs + fakeMs));
-    // 显式制造 loadEntries 失败：maybePromptAndroidStorage 的入口是 loadEntries 的
-    // catch 分支，须保证本组每用例都抛错（发 error toast + 触发引导判断）。
-    // 原实现依赖前序用例「ScanModelEntriesWithLabel 抛错」的 mockRejectedValue 残留，
-    // isolate:true 顺序恰好生效，shuffle 打乱后失效 → 3 用例偶发挂。
-    mocks.ScanModelEntriesWithLabel.mockRejectedValue(new Error("load-fail"));
+    // 显式制造 loadEntries 失败
+    mocks.ScanModelEntriesFiltered.mockRejectedValue(new Error("load-fail"));
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -182,7 +170,6 @@ describe("maybePromptAndroidStorage（loadEntries 失败触发）", () => {
     const toasts = spyToasts();
     const { loadEntries } = await import("./loader.ts");
     await loadEntries("ysm");
-    // 仍走 error toast（loadEntries 自身错误出口），但无权限引导 toast
     expect(toasts.some((t) => t.type === "error")).toBe(true);
     expect(toasts.some((t) => t.type === "warn")).toBe(false);
   });
@@ -207,43 +194,46 @@ describe("maybePromptAndroidStorage（loadEntries 失败触发）", () => {
     const bridge = makeBridge(false);
     const { loadEntries } = await import("./loader.ts");
     await loadEntries("ysm");
-    // 不推进时间，立即再次失败 → 节流吞掉第二次引导
     await loadEntries("ysm");
     expect(bridge.requestStoragePermission).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("ADR-094 subdir 路由", () => {
+describe("扁平化 subdir 路由", () => {
   beforeEach(() => {
     mocks.GetRepoRoot.mockReset();
-    mocks.ScanModelEntriesWithLabel.mockReset();
+    mocks.ScanModelEntriesFiltered.mockReset();
   });
 
-  it("ADR-094: mmd 子类型 subdir 从 group 根拼接（GetRepoRoot 已返回 group 根 /repo/mmd/）", async () => {
-    // 模拟 EntityPlayer: GetRepoRoot 对 subDirGrouping 返回 group 根
-    mocks.GetRepoRoot.mockResolvedValue("/repo/mmd/");
-    mocks.ScanModelEntriesWithLabel.mockResolvedValue([
+  it("subdir 作为类型 ID 直接查表 — GetRepoRoot(\"SceneModel\") 而非拼接路径", async () => {
+    mocks.GetRepoRoot.mockResolvedValue("/repo/mmd/SceneModel");
+    mocks.ScanModelEntriesFiltered.mockResolvedValue([
       { Name: "a.pmx", Path: "/repo/mmd/SceneModel/场景1/a.pmx", Size: 1, ModTime: 1 },
     ]);
     const { loadEntries } = await import("./loader.ts");
     const r = await loadEntries("EntityPlayer", "SceneModel");
-    expect(mocks.ScanModelEntriesWithLabel).toHaveBeenCalledWith(
+    expect(mocks.GetRepoRoot).toHaveBeenCalledWith("SceneModel");
+    expect(mocks.ScanModelEntriesFiltered).toHaveBeenCalledWith(
       "/repo/mmd/SceneModel",
-      expect.any(String),
+      "SceneModel",
+      "",
+      "场景模型",
     );
     expect(r.filesRoot).toBe("/repo/mmd/SceneModel");
   });
 
-  it("ADR-094: 无 subdir 时直接扫 group 根（GetRepoRoot 已返回 group 根）", async () => {
-    mocks.GetRepoRoot.mockResolvedValue("/repo/mmd/");
-    mocks.ScanModelEntriesWithLabel.mockResolvedValue([]);
+  it("无 subdir 时直接用 rtype 查表", async () => {
+    mocks.GetRepoRoot.mockResolvedValue("/repo/ysm");
+    mocks.ScanModelEntriesFiltered.mockResolvedValue([]);
     const { loadEntries } = await import("./loader.ts");
-    const r = await loadEntries("EntityPlayer");
-    expect(mocks.ScanModelEntriesWithLabel).toHaveBeenCalledWith(
-      "/repo/mmd/",
-      expect.any(String),
+    const r = await loadEntries("ysm");
+    expect(mocks.GetRepoRoot).toHaveBeenCalledWith("ysm");
+    expect(mocks.ScanModelEntriesFiltered).toHaveBeenCalledWith(
+      "/repo/ysm",
+      "ysm",
+      "",
+      "YSM模型",
     );
-    expect(r.filesRoot).toBe("/repo/mmd/");
+    expect(r.filesRoot).toBe("/repo/ysm");
   });
 });
-

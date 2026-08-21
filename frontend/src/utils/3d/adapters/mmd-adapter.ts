@@ -44,7 +44,7 @@ import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部�
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
 import { buildPerceptionControls, type PerceptionState, type PerceptionCapability } from "./perception-controls.ts";
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
-import { getCustomAnimPath, filterAnimFiles, ANIM_LIB_SUBDIR } from "./mmd-anim-library.ts";
+import { getCustomAnimPath, filterAnimFiles } from "./mmd-anim-library.ts";
 // import { createBlinkController } from "../perception/blink.ts"; // 待 three-mmd 暴露 morph 权重 API 后接入
 
 /** 并发读取纹理的分片大小（fallback 路径：readFileBytesBatch 失败时降级）
