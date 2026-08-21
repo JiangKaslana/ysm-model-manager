@@ -163,7 +163,14 @@ const RULES = [
     glob: "*.go",
     regex: /fmt\.Errorf\([^)]*%v[^)]*,\s*err\)/,
     exclude: [/test/],
-    filter: (line) => !line.startsWith("//"),
+    filter: (line) => {
+      if (line.startsWith("//")) return false;
+      // 伴生 %w 时豁免：单个 fmt.Errorf 内已有 %w 保留主链，%v 仅格式化伴生参数
+      // （双 %w 会创建 Unwrap() []error 多错误包装，errors.Unwrap() 返回 nil，
+      //  破坏 Unwrap 链——go/paths 已有实证，测试 TestIsInside_RelFailureSentinel_Windows）
+      if (line.includes("%w")) return false;
+      return true;
+    },
   },
   {
     id: "FD_LEAK_RISK",
