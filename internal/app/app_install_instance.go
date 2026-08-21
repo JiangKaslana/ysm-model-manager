@@ -230,10 +230,10 @@ func (a *App) GetResourceInstanceStatus(rtype, mcRoot, repoDir string) []types.I
 			return all
 		}
 		// 仅保留本类型扩展名的文件（排除 .recycle 等已由 ScanModelEntries 处理的情况）
+		// 使用 e.Ext（scanner 已从去 .ban/.disabled 后的路径计算），避免 filepath.Ext(e.Name) 把 .ban 当扩展名
 		filtered := make([]types.ModelEntry, 0, len(all))
 		for _, e := range all {
-			ext := strings.ToLower(filepath.Ext(e.Name))
-			if extSet[ext] {
+			if extSet[strings.ToLower(e.Ext)] {
 				filtered = append(filtered, e)
 			}
 		}

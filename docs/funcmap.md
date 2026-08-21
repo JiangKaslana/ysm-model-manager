@@ -381,10 +381,10 @@
 | `RelinkDir()` | `go/sync/sync_relink:18` | RelinkDir 按哈希比对重链接实例目录与仓库（原子替换，失败回滚） |
 | `GetInstanceStatus()` | `go/sync/sync:27` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.C |
 | `GetInstanceStatusWith()` | `go/sync/sync:33` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomD |
-| `SyncToggleStatus()` | `go/sync/sync:156` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:315` | — |
-| `SortEntries()` | `go/sync/sync:366` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:373` | GetLinkType 判断文件的链接类型 |
+| `SyncToggleStatus()` | `go/sync/sync:202` | SyncToggleStatus 同步启用/禁用状态 |
+| `SyncResources()` | `go/sync/sync:361` | — |
+| `SortEntries()` | `go/sync/sync:412` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:419` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签

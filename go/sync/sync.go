@@ -48,17 +48,27 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 	repoByHash := make(map[string][]types.ModelEntry)
 	// 预构建禁用哈希集合（循环不变量：一次遍历，后续每个 instance 复用）
 	bannedHashes := make(map[string]bool)
+	// 预构建 relKey 映射（非哈希类型回退：MMD/VRC 等 ShouldHashExt 为 false 的类型用路径+大小比对）
+	repoByRelKey := make(map[string][]types.ModelEntry)
 	for _, e := range repoEntries {
-		if e.Hash == "" {
-			continue
-		}
 		// 禁用的模型（.ban）不应出现在缺失列表，同时归入 bannedHashes
 		if strings.HasSuffix(strings.ToLower(e.Name), ".ban") {
-			bannedHashes[e.Hash] = true
+			if e.Hash != "" {
+				bannedHashes[e.Hash] = true
+			}
 			continue
 		}
-		repoByHash[e.Hash] = append(repoByHash[e.Hash], e)
+		if e.Hash != "" {
+			repoByHash[e.Hash] = append(repoByHash[e.Hash], e)
+		}
+		// relKey 始终构建（哈希命中优先，哈希空时回退 relKey）
+		if rel := relKey(repoDir, e.Path); rel != "" {
+			repoByRelKey[rel] = append(repoByRelKey[rel], e)
+		}
 	}
+
+	// 决定对比模式：有哈希条目走哈希对比，否则走 relKey 回退
+	useHash := len(repoByHash) > 0
 
 	instances := listFn(mcRoot)
 	var results []types.InstanceStatus
@@ -70,10 +80,15 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 			scanDir = types.FindInstDir(ins.VersionDir, subDir, rtype)
 		}
 		customEntries := scanFn(scanDir)
+
 		customByHash := make(map[string]bool)
+		customByRelKey := make(map[string]bool)
 		for _, c := range customEntries {
 			if c.Hash != "" {
 				customByHash[c.Hash] = true
+			}
+			if rel := relKey(scanDir, c.Path); rel != "" {
+				customByRelKey[rel] = true
 			}
 		}
 
@@ -86,33 +101,75 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 			HasYSM:    ysm.HasYSMMod(filepath.Join(ins.VersionDir, "mods")),
 		}
 
-		for hash, entries := range repoByHash {
-			if !customByHash[hash] {
-				for _, e := range entries {
-					status.Missing = append(status.Missing, e.Path)
+		if useHash {
+			// 哈希对比路径（YSM/蓝图等有哈希的类型）
+			for hash, entries := range repoByHash {
+				if !customByHash[hash] {
+					for _, e := range entries {
+						status.Missing = append(status.Missing, e.Path)
+					}
 				}
 			}
-		}
 
-		for _, c := range customEntries {
-			if c.Hash == "" {
-				continue
-			}
-			if bannedHashes[c.Hash] {
-				// 仓库已禁用此模型 → 标记为已禁用，不入额外
-				name := c.Name
-				if strings.HasSuffix(strings.ToLower(name), ".ban") {
-					name = name[:len(name)-4]
+			for _, c := range customEntries {
+				if c.Hash == "" {
+					continue
 				}
-				status.Disabled = append(status.Disabled, name)
-			} else if _, found := repoByHash[c.Hash]; !found {
-				// 仓库中没有此哈希 → 额外
-				name := c.Name
-				if strings.HasSuffix(strings.ToLower(name), ".ban") {
-					name = name[:len(name)-4]
+				if bannedHashes[c.Hash] {
+					name := c.Name
+					if strings.HasSuffix(strings.ToLower(name), ".ban") {
+						name = name[:len(name)-4]
+					}
+					status.Disabled = append(status.Disabled, name)
+				} else if _, found := repoByHash[c.Hash]; !found {
+					name := c.Name
+					if strings.HasSuffix(strings.ToLower(name), ".ban") {
+						name = name[:len(name)-4]
+					}
+					status.Extra = append(status.Extra, name)
 				}
-				status.Extra = append(status.Extra, name)
 			}
+
+			// Synced 口径：custom 中命中仓库哈希的文件数
+			syncedCount := 0
+			for _, c := range customEntries {
+				if c.Hash != "" {
+					if _, found := repoByHash[c.Hash]; found {
+						syncedCount++
+					}
+				}
+			}
+			status.Synced = syncedCount
+		} else {
+			// relKey 回退路径（MMD/VRC 等无哈希类型）
+			// Missing: 仓库有但实例没有的 relKey
+			for rel, entries := range repoByRelKey {
+				if !customByRelKey[rel] {
+					for _, e := range entries {
+						status.Missing = append(status.Missing, e.Path)
+					}
+				}
+			}
+
+			// Extra + Disabled: 实例有但仓库没有的 relKey
+			for _, c := range customEntries {
+				if rel := relKey(scanDir, c.Path); rel != "" {
+					if _, found := repoByRelKey[rel]; !found {
+						status.Extra = append(status.Extra, c.Name)
+					}
+				}
+			}
+
+			// Synced: 实例中 relKey 命中仓库的文件数
+			syncedCount := 0
+			for _, c := range customEntries {
+				if rel := relKey(scanDir, c.Path); rel != "" {
+					if _, found := repoByRelKey[rel]; found {
+						syncedCount++
+					}
+				}
+			}
+			status.Synced = syncedCount
 		}
 
 		// 收集 custom 目录下每个文件的链接类型
@@ -128,17 +185,6 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 				LinkType: linkType,
 			})
 		}
-		// 统一口径：Synced = custom 目录中命中仓库哈希的文件数
-		// （与 CompareGlobalInstanceHashes 的 matchedCount 一致，不再用 len(Files) 的存量口径）
-		syncedCount := 0
-		for _, c := range customEntries {
-			if c.Hash != "" {
-				if _, found := repoByHash[c.Hash]; found {
-					syncedCount++
-				}
-			}
-		}
-		status.Synced = syncedCount
 
 		if len(status.Missing) == 0 && len(status.Extra) == 0 {
 			status.Status = "complete"
