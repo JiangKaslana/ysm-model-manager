@@ -109,7 +109,6 @@ describe("角色面板（roles）", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx());
     const spy = vi.spyOn(handle, "setAdapterItems");
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
-    (overlay.querySelector('[data-testid="preview-roles"]') as HTMLElement).click();
     const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="${a}"]`);
     (aRow!.querySelector('[data-testid="preview-role-focus"]') as HTMLElement).click();
     // setActive 对 menuItems 空角色不换菜单——fillRoles 显式清空 dock 项
@@ -132,8 +131,7 @@ describe("角色面板（roles）", () => {
     regRole("/m/a.ysm", [matPanel]);
     const handle = mountPreviewRootMenu(overlay, makeCtx());
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
-    (overlay.querySelector('[data-testid="preview-roles"]') as HTMLElement).click();
-    const aRow = overlay.querySelector('[data-testid="preview-role-row"][data-role-id="m1"]');
+    const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="m1"]`);
     (aRow!.querySelector('[data-testid="preview-role-name"]') as HTMLElement).click();
     // 详情子面板：material 行出现（makeRow 的 testid = preview-<id>）
     const matRow = overlay.querySelector('[data-testid="preview-material"]');
@@ -161,7 +159,7 @@ describe("角色面板（roles）", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
     expect(overlay.querySelector('[data-testid="preview-roles-empty"]')).not.toBeNull();
-    // 加载入口（switch 面板的路径输入）仍保留
+    // 加载入口（角色面板内嵌 fillSwitch 的路径输入）仍保留
     expect(overlay.querySelector("input[type='text']")).not.toBeNull();
     handle.dispose();
   });

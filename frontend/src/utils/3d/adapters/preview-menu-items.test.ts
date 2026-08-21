@@ -239,7 +239,7 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
       "mmd-bones-entry",
       "vrm-material-entry",
       "vrm-bones-entry",
-      "mmd-switch",
+      "ysm-roles-entry",
       "env-menu-btn",
     ].forEach((anchor) => expect(legacies, `缺锚点 ${anchor}`).toContain(anchor));
   });
@@ -284,8 +284,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     adapterDockModel.forEach((tid) => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
     });
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    expect(overlay.querySelector(`[data-testid="preview-${switchId}"]`)).not.toBeNull();
+    const rolesId = CORE_MENU_ITEMS.find((d) => d.id === "roles")!.id;
+    expect(overlay.querySelector(`[data-testid="preview-${rolesId}"]`)).not.toBeNull();
 
     // 多 panel 组（play + perception）→ 渲染组根行列表
     const motionGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "motion")!.id;
@@ -348,7 +348,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
   });
 
   it("能力驱动：无 siblings → model dock 仍显示（路径输入兜底）；selfMode + 无环境能力 → 无 🌍/🎛️ 组", () => {
-    // 无 siblings → switch 不再被过滤（needsSiblings 已移除），dock-model 始终可见
+    // roles 为模型组恒定 core 项（内嵌加载入口含路径兜底），dock-model 始终可见
     const noSib = mountWith([], {});
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     expect(noSib.overlay.querySelector(`[data-testid="dock-${modelGroupId}"]`)).not.toBeNull();

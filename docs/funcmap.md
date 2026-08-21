@@ -43,11 +43,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 132 | 518 |
+| 前端·工具 | 132 | 521 |
 | frontend/views | 114 | 328 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **432** | **1863** |
+| **合计** | **432** | **1866** |
 
 ## Go·头像
 
@@ -220,7 +220,7 @@
 | `IsMainModelName()` | `go/geometry/archive:616` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
 | `ParseComponentsFromZip()` | `go/geometry/archive:628` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
 | `ParseComponentsFrom7z()` | `go/geometry/archive:723` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
-| `ParseBedrockGeometry()` | `go/geometry/parse:25` | ParseBedrockGeometry 解析标准 Bedrock geometry JSON（minecraft:geometry 格式） 注意：data 大小不应超过 maxP |
+| `ParseBedrockGeometry()` | `go/geometry/parse:188` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
 
@@ -1229,7 +1229,10 @@
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:29` | — |
 | `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:68` | — |
 | `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:18` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:58` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `FBX_TARGET_MAX_DIM()` | `frontend/src/utils/3d/adapters/fbx-adapter:34` | FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160）， 与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 |
+| `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:37` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |
+| `normalizeFbxScale()` | `frontend/src/utils/3d/adapters/fbx-adapter:53` | Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时， 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀 |
+| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:95` | 构建 FBX 内容场景（ADR-112 地基）。 |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |

@@ -29,6 +29,43 @@ function b64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
+/** FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160），
+ *  与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 100× 均收敛于此。 */
+export const FBX_TARGET_MAX_DIM = 160;
+
+/** Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） */
+export interface FbxScaleInfo {
+  /** 实际应用的均匀缩放系数（1 = 未缩放） */
+  factor: number;
+  /** 缩放后包围盒尺寸 */
+  size: THREE.Vector3;
+  /** 缩放后包围盒中心 */
+  center: THREE.Vector3;
+}
+
+/**
+ * Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时，
+ * 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀缩放组根节点，
+ * 使包围盒最长边贴合 FBX_TARGET_MAX_DIM；等比缩放不破坏宽高比，
+ * 骨骼动画在局部空间运算，组缩放不干扰 AnimationClip。
+ * 空组 / 零尺寸 / 非有限值退化：factor=1 原样返回，不抛错。
+ */
+export function normalizeFbxScale(group: THREE.Group): FbxScaleInfo {
+  const box = new THREE.Box3().setFromObject(group);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  if (!Number.isFinite(maxDim) || maxDim <= 0) {
+    return { factor: 1, size, center };
+  }
+  const factor = FBX_TARGET_MAX_DIM / maxDim;
+  group.scale.multiplyScalar(factor);
+  // 组根节点等比缩放（绕组本地原点），包围盒尺寸与中心随之等比放大
+  size.multiplyScalar(factor);
+  center.multiplyScalar(factor);
+  return { factor, size, center };
+}
+
 /** Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView<ArrayBuffer>，规避 SharedArrayBuffer 泛型） */
 function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -105,6 +142,13 @@ export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: Fb
     assets: { files: 1, textures: texCount, materials: texCount, animations: group.animations?.length ?? 0, fbxAnimations: group.animations?.length ?? 0 },
     ok: true,
   });
+
+  // ADR-112 P1 尺度归一：DCC 导出单位混乱（cm/m 差 100×）→ 包围盒最长边归一至 FBX_TARGET_MAX_DIM。
+  // 否则小模型穿近平面（near=0.05 恒值）看不见、大模型顶爆场景能力（雾距 50-800 厘米尺度）。
+  const scaleInfo = normalizeFbxScale(group);
+  if (scaleInfo.factor !== 1) {
+    await fbxDiag(port, "fbx-scale", `尺度归一 ×${scaleInfo.factor.toFixed(3)}`, "warn");
+  }
 
   if (ctx.scene) ctx.scene.add(group);
 

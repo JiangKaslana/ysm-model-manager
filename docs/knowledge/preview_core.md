@@ -48,7 +48,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - `mount3D(adapter, path, opts?)` — 主入口，`cleanupPreview()` 旧会话后建新
 - `cleanupPreview()` / `invalidatePreview()` / `switchPreview(path)`
 - `buildCameraControls(topBar, bridge)` — 通用相机控件（旋转模式/速度/重置），已收进根菜单 `camera` 项（sharedOnly）
-- `mountPreviewRootMenu(overlay, ctx)` → `PreviewMenuHandle`（`dispose`/`setAdapterItems`/`openPanel`/`refreshDock`）+ `PREVIEW_MENU_GROUPS` + `CORE_MENU_ITEMS`（`preview-menu-defs.ts` / `preview-menu.ts`）— **ADR-076 v3 声明式根菜单**（顶栏砍掉，⚙️ 按钮 + 弹出菜单，项表驱动；core 项 close/switch/environment/camera/lighting/shadow/postproc；**适配器项经 `PreviewBuildCtx.menu.setAdapterItems` 注入**；legacyTestId `ysm-close-3d`/`env-menu-btn`/`mmd-switch` + 适配器项 `ysm-model-entry`/`mmd-model-entry` 等保留兼容 e2e）
+- `mountPreviewRootMenu(overlay, ctx)` → `PreviewMenuHandle`（`dispose`/`setAdapterItems`/`openPanel`/`refreshDock`）+ `PREVIEW_MENU_GROUPS` + `CORE_MENU_ITEMS`（`preview-menu-defs.ts` / `preview-menu.ts`）— **ADR-076 v3 声明式根菜单**（顶栏砍掉，⚙️ 按钮 + 弹出菜单，项表驱动；core 项 roles/environment/camera/lighting/shadow/postproc；**适配器项经 `PreviewBuildCtx.menu.setAdapterItems` 注入**；legacyTestId `ysm-close-3d`/`env-menu-btn`/`ysm-roles-entry` + 适配器项 `ysm-model-entry`/`mmd-model-entry` 等保留兼容 e2e）
 
   **2026-08-19 环境拆组**：环境体量 > 全部场景设置，故将 `environment` 从 `scene` 组拆出，独立成 `env` 组（🌍 环境）。scene 组 icon 换 🎛️ 避免双 🌍 混淆。dock 按钮顺序：🧍 模型 → 💃 动作 → 🌍 环境 → 🎛️ 场景。组内仅一个 panel 项时自动快捷直达面板（不渲染组根视图），故 env 组（单 environment 项）点击直接进环境面板。
 

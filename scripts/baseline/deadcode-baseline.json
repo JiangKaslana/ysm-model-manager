@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-21T13:23:34.726Z",
+  "generated": "2026-08-21T13:54:48.603Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|jscpd",
@@ -154,9 +154,9 @@
     "src/ui/ui-advanced-rows.ts#src/ui/ui-advanced-rows.ts",
     "src/ui/ui-advanced-rows.ts#src/ui/ui-rows.ts",
     "src/utils/3d/adapters/__tests__/input-and-animation.test.ts#src/utils/3d/adapters/__tests__/input-and-animation.test.ts",
-    "src/utils/3d/adapters/fbx-adapter.ts#src/utils/3d/adapters/mmd-adapter.ts",
     "src/utils/3d/adapters/fbx-adapter.ts#src/utils/3d/adapters/pack-model-adapter.ts",
     "src/utils/3d/adapters/fbx-adapter.ts#src/utils/3d/adapters/vrm-adapter.ts",
+    "src/utils/3d/adapters/fbx-adapter.ts#src/utils/3d/parse-java-model.ts",
     "src/utils/3d/adapters/mmd-adapter.test.ts#src/utils/3d/adapters/mmd-adapter.test.ts",
     "src/utils/3d/adapters/mmd-adapter.test.ts#src/utils/3d/adapters/vrm-adapter.test.ts",
     "src/utils/3d/adapters/mmd-adapter.ts#src/utils/3d/adapters/vrm-adapter.ts",
