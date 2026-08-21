@@ -458,7 +458,7 @@ index.ts（编排：constructor → shadow → connected→disconnected）
 
 ### 6.5 其他前端目录
 
-`core/`（context-menus 13.7KB、handler-dnd 10.6KB、handler-sync 10.8KB、handler-upload、theme、page-store、menu-defs）、`features/`（import-queue 30.8KB、community/download-queue 21.4KB、oldest-models、recycle-bin、version-updater、dnd-state）、`utils/`（3d/model3d 25.8KB、model2d 19.4KB、animation、summarize、display、extensions、resource-types 等 20+ 模块）、`utils/dom/`（android-bridge、directory-picker、esc、dom 等）、`dialogs/`（modal/rename/batch-rename/tag-editor/adv-filter）、`services/registry.ts`、`backend/`（app.ts / platform.ts / browser-adapter.ts / idb.ts / types.ts）、`wasm/`、`css/`、`web-spike/`（ADR-049 Phase 0 调试页）、`views/`（app-content/app-preview/app-tree/app-sidebar/app-resource-manager/app-sync-manager/app-nav/app-toast）。
+`core/`（context-menus 13.7KB、handler-dnd 10.6KB、handler-sync 10.8KB、handler-upload、theme、page-store、menu-defs）、`features/`（import-queue 30.8KB、community/download-queue 21.4KB、oldest-models、recycle-bin、version-updater、dnd-state）、`utils/`（3d/ 含 adapters 适配器层 + caps 能力层 + perception 感知层共 138 文件、model2d 19.4KB、animation、summarize、display、extensions、resource-types 等 20+ 模块）、`utils/dom/`（android-bridge、directory-picker、esc、dom 等）、`dialogs/`（modal/rename/batch-rename/tag-editor/adv-filter）、`services/registry.ts`、`backend/`（app.ts / platform.ts / browser-adapter.ts / idb.ts / types.ts）、`wasm/`、`css/`、`web-spike/`（ADR-049 Phase 0 调试页）、`views/`（app-content/app-preview/app-tree/app-sidebar/app-resource-manager/app-sync-manager/app-nav/app-toast）。
 
 ### 6.6 网页版架构（Web Edition / 查看器模式）
 
@@ -489,10 +489,103 @@ index.ts（编排：constructor → shadow → connected→disconnected）
 
 ## 7. 预览系统（3D + 2D）
 
-- **3D 预览**：`app-preview/skeleton.ts` 调用 `views/app-preview/model3d-loader.ts` → `GetModel3DSpec`（Go）→ `utils/3d/model3d.ts` 构建 Three.js `BufferGeometry`（见 §4 标准）。`app-preview/litematic-3d.ts` 处理 voxel 预览。
-- **2D 预览**：`utils/model2d.ts`（~19.4KB）处理平铺/网格 2D 缩略图。
-- **缓存**：`utils/preview-cache.ts` 预览缓存 FIFO（75 行）；`views/app-preview/model3d-loader.ts` LRU 20 条 spec 缓存。
-- **截图**：`utils/screenshot-renderer.ts` 无头截图 + 批量截图（~100 行）；Go 端 `app_files.go:ExtractPreviewTexture` 提取预览纹理。
+### 7.1 统一预览核心（ADR-066）
+
+`frontend/src/utils/3d/adapters/mount-preview-core.ts`（928 行）是**所有富格式 3D 预览的单一事实来源外壳**，持有单实例 renderer / scene / camera / OrbitControls / rAF 循环 / 灯光 / 场景能力。内容差异经 `PreviewAdapter.build(ctx, path)` 挂进同一 `ctx.scene`：
+
+```
+mount3D(adapter, path, opts?)
+  ├── cleanupPreview()          ← 旧会话清理
+  ├── sceneCapabilityRegistry.createAll({scene, renderer, camera})  ← 8 个能力
+  ├── adapter.build(ctx, path)  ← 内容层挂进 ctx.scene
+  ├── fitCameraToRoots()        ← 相机取景
+  └── requestAnimationFrame 循环 ← 每帧 update(dt) 驱动动态部分
+```
+
+**契约接口**：`PreviewBuildCtx`（外壳句柄 + `menu: PreviewMenuHandle` 注册通道）、`PreviewScene`（`update`/`dispose`/`resetCamera`/`extraControls`…）、`PreviewAdapter`（`id`/`mode`/`build`/`onClose`）、`PreviewHandle`。
+
+**会话内切换**：`switchPreview(path)` 复用外壳重建内容层（ADR-066 §5.6）；`switchPreview(path, { keepInScene: true })` 同台追加多模型。
+
+### 7.2 适配器矩阵（6 种格式）
+
+| 适配器 | 文件 | 底层库 | 特殊能力 |
+|--------|------|--------|----------|
+| YSM | `ysm-adapter.ts`（475 行） | Go `GetModel3DSpec` binding | 骨骼组树 + cube mesh + 感知层（呼吸/注视） |
+| VRM | `vrm-adapter.ts`（585 行） | `@pixiv/three-vrm` + `GLTFLoader` | SpringBone / lookAt / 表情 / VRMA 动画 / 感知层（呼吸/眨眼/注视） |
+| MMD | `mmd-adapter.ts`（1242 行） | `@moeru/three-mmd` + `MMDAmmoPlugin` | PMX 物理（Ammo.js）/ VMD 动画 / VPD 姿势 / KTX2 纹理 / 感知层全开 |
+| Litematic | `litematic-adapter.ts`（401 行） | 自研 voxel mesh | 分层控制 / 方块统计 |
+| FBX | `fbx-adapter.ts`（173 行） | `FBXLoader` | 静态模型预览 |
+| 资源包模型 | `pack-model-adapter.ts`（246 行） | `TextureLoader` | MC 资源包内模型预览 |
+
+### 7.3 场景能力注册表（ADR-073）
+
+`caps/scene-capability-registry.ts`：8 个能力按注册顺序创建，工厂模式，生命周期由框架驱动：
+
+| # | 能力 | 文件 | 规模 | 底层 Three 扩展 |
+|---|------|------|------|----------------|
+| 1 | 天空 | `sky-capability.ts` | 674 行 | `Sky`（Preetham 散射） |
+| 2 | 地面 | `ground-capability.ts` | 356 行 | — |
+| 3 | 环境 | `environment-capability.ts` | 898 行 | `RGBELoader`（HDR IBL）+ PMREMGenerator |
+| 4 | 雾效 | `fog-capability.ts` | 282 行 | `THREE.FogExp2` |
+| 5 | 阴影 | `shadow-capability.ts` | 549 行 | `PCFSoftShadowMap` |
+| 6 | 反射 | `reflector-capability.ts` | 304 行 | `Reflector` |
+| 7 | 后处理 | `postprocessing-capability.ts` | 775 行 | `EffectComposer` + Bloom/SSAO/SSR |
+| 8 | 灯光 | `light-capability.ts` | 790 行 | 环境光 + 方向光 + 体积光 |
+
+**关键收益**：新增能力只需实现 `SceneCapability` 接口 + 注册一行；所有适配器零改动继承全部能力（共用同一 `ctx.scene`）。
+
+### 7.4 多模型同框（ADR-093）
+
+同一 scene 内叠加多个模型（上限 `MAX_MODELS=8`）：
+
+- **场景注册表** `scene-registry.ts`：每模型存 `roots`/`visible`/`built`/`boneMaps`/`menuItems` 元数据
+- **相机累加** `fitCameraToRoots(registry.visibleRoots(), ...)`：只框可见注册模型
+- **拾取 dispatch**：统一拾取器（仅 `count >= 2` 激活）→ `pickModelByObject` 沿父链反查归属 → `setActive` 切活跃模型 + 换菜单
+- **统一路由** `openModel3DFullscreen(path, { cooperate? })`：跨类型追加入口
+
+### 7.5 感知层（程序化生命力）
+
+`utils/3d/perception/`：让模型「活起来」的自主行为子系统，纯逻辑零 DOM：
+
+| 层级 | 模块 | 驱动目标 |
+|------|------|----------|
+| L1 | `breath.ts` | 躯干正弦微位移（chest/spine/shoulders） |
+| L1.5 | `blink.ts` | 周期性 morph 权重（眼睛闭合） |
+| L2 | `gaze.ts` | 头部/眼球追踪相机 |
+| L2 | `lipsync.ts` | 音频能量 → 嘴部 morph viseme |
+| L3 | `autodance.ts` | BPM 节拍 → 12 根骨骼律动（hips/spine/arms/shoulders） |
+
+**跨格式统一**：`semantic-bones.ts`（324 行）提供 23 个语义骨骼 id（对齐 VRM humanoid），VRM 零匹配直接产映射、MMD 经候选名表匹配（日/英/全半角变体）、YSM 经 Blockbench 命名候选表。宽容缺省：匹配不到直接缺省，消费方优雅降级。
+
+### 7.6 KTX2 纹理压缩管线
+
+`mmd-ktx2-encoder.ts` + `mmd-ktx2-basis.ts` + `mmd-ktx2-worker.ts`：
+
+- PNG → WASM `BasisEncoder` → KTX2 → base64 → Go `SaveCachedTexture` 缓存
+- 3 个 Web Worker 异步编码（Transferable 零拷贝）+ 信号量并发控制（MAX=3）+ 幂等去重
+- 超大纹理跳过、Worker 不可用降级同步、编码失败静默降级
+- 下次加载直接命中 Go 缓存，跳过 PNG 解码
+
+### 7.7 物理引擎（Ammo.js）
+
+MMD 适配器通过 `MMDAmmoPlugin` 一行注册：`new MMDLoader(manager).register(MMDAmmoPlugin)`。PMX 模型的刚体/布料/头发物理全部保留。
+
+### 7.8 骨骼工具链
+
+| 模块 | 职责 |
+|------|------|
+| `bone-tools.ts` | 跨格式骨骼抽象（BoneTree / BoneNode） |
+| `semantic-bones.ts` | 语义骨骼映射（VRM/MMD/YSM 三格式统一） |
+| `ik-solver.ts` | CCD IK 求解器（关节约束 + 极向量 + 阻尼） |
+| `mmd-foot-ik.ts` | MMD 待机态双足锚地（防悬空/穿模） |
+| `bone-raycast.ts` | 骨骼射线拾取 + 层级路径组装 |
+| `model-group-builder.ts` | 骨骼组树构建（YSM spec → Group 层级） |
+
+### 7.9 2D 预览 + 缓存 + 截图
+
+- **2D 预览**：`utils/3d/model2d.ts`（~19.4KB）处理平铺/网格 2D 缩略图（Canvas 2D 正交投影）。
+- **缓存**：`utils/preview-cache.ts` 预览缓存 FIFO；`model3d-loader.ts` LRU 20 条 spec 缓存；`texture-cache.ts` 纹理引用计数池（跨模型复用，session 结束统一释放）。
+- **截图**：`utils/3d/screenshot.ts` 纯函数（接收 renderer+scene+camera）+ `screenshot-renderer.ts` 离屏多角度；Go 端 `app_files.go:ExtractPreviewTexture` 提取预览纹理。
 
 ---
 
@@ -710,6 +803,11 @@ app-content/community/core.ts:35-36
 
 | 日期 | 变动 | 影响 |
 |------|------|------|
+| **2026-08-18** | **多模型同框引擎**（ADR-093） | `scene-registry.ts` 场景注册表（每模型 roots/visible/boneMaps/menuItems 元数据）；`fitCameraToRoots` 多包围盒累加取景；`pickModelByObject` 统一拾取 dispatch；`openModel3DFullscreen({ cooperate })` 统一路由入口；`MAX_MODELS=8` GPU 上限 |
+| **2026-08-16** | **联邦 3D 渲染能力**（ADR-073） | `caps/` 8 个场景能力（Sky/Ground/Environment/Fog/Shadow/Reflector/Postprocessing/Light）由 `scene-capability-registry.ts` 工厂注册表驱动；所有适配器零改动继承；程序化天空（Preetham 散射）+ HDR IBL + Bloom/SSAO/SSR 后处理 + 镜面反射落地 |
+| **2026-08-15** | **统一预览核心**（ADR-066 P3） | `mount-preview-core.ts`（928 行）收缴 vrm/litematic 复制脚手架，成为所有富格式 3D 预览的单一外壳；`PreviewAdapter` 适配器模式（ysm/vrm/mmd/litematic/fbx/pack-model 6 种格式）；声明式根菜单（ADR-076）+ 感知层开关面板 |
+| **2026-08-11** | **感知层 + 语义骨骼** | `perception/` 自主行为子系统（呼吸 L1 / 眨眼 L1.5 / 注视 L2 / 口型 L2 / 自动跳舞 L3）；`semantic-bones.ts` 跨格式语义骨骼映射（VRM 零匹配 / MMD 候选名表 / YSM 候选名表）；CCD IK 求解器 + MMD 足部锚地 |
+| **2026-08-11** | **RenderSession 对象化 → 删除**（ADR-052 P2 收尾） | render-session.ts 470 行生产无调用方，已删除；「实例字段封装、显式 dispose」思想由 ADR-066 统一核心继承；`model3d.ts` 缩为 Spec 类型枢纽（70 行） |
 | **2026-08-09** | **v1.11.0：Android 全平台支持**（ADR-046 P1+P2 / ADR-047） | 构建管线扩展为四平台矩阵（Windows / macOS / Linux / Android arm64）；`PathManager` 平台抽象层（`pathmgr_{desktop,android}.go`）；Android Java 宿主层（`MainActivity.java` + `WailsJSBridge.java`）；`MANAGE_EXTERNAL_STORAGE` 授权闭环 + 系统事件（back/网络/battery/屏幕/主题）；Pointer Events 统一触屏交互；查看器模式能力门控 (`isViewerMode()`) |
 | **2026-08-10** | **网页版 backend adapter**（ADR-049） | `browser-adapter.ts` Proxy 同形状绑定 + `idb.ts` IndexedDB 模型库；`platform.ts` Tier 分层判定；`web.html` + `vite.web.config.ts` 纯静态托管；`resolveWebMode()` 路由业务调用零改动 |
 | 2026-08-04 | 前端文档/架构归位 | 渲染片段从 copilot-instructions 迁移；前端路线图/计划类文档收归架构与设计规范体系 |
