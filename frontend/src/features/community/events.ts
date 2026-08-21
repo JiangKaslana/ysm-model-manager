@@ -3,7 +3,8 @@
 import { bus } from "../../bus.ts";
 import { t } from "../../core/i18n/t.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
-import { renderModelList, filterModels, type WorkshopModel } from "./render.ts";
+import { buildModelRow, filterModels, isModelMissing, type WorkshopModel } from "./render.ts";
+import { createVirtualList } from "./virtual-list.ts";
 import { createDownloadQueue } from "./download-queue.ts";
 import { buildDownloadTasks, classifyDownloadSize } from "./download-tasks.ts";
 import { ICONS } from "../../utils/icon/workshop-icons.ts";
@@ -25,7 +26,7 @@ export interface RepoEventsContext {
 
 /** 绑定返回值 */
 export interface RepoEventsHandle {
-  renderList: (filter?: string) => DocumentFragment;
+  renderList: (filter?: string) => void;
   updateSelectedUI: () => void;
   cleanup: () => Promise<void>;
 }
@@ -79,18 +80,34 @@ export function bindRepoEvents(
   });
 
   // ============================================================
-  //  列表渲染
+  //  列表渲染（虚拟滚动：社区上线后模型索引可顶到 2000 级）
   // ============================================================
-  const renderList = (filter = ""): DocumentFragment => {
-    const filtered = filterModels(models, filter, showAll, localMap);
-    return renderModelList(
-      filtered,
-      dlPrefix,
-      localMap,
-      showAll,
-      selectedSet,
-      esc,
-    );
+  // 行高：gh-icon-btn 28px + padding 6*2 + margin-bottom 2 ≈ 42px（定高，虚拟化依赖）
+  const GH_ROW_H = 42;
+  // 当前筛选关键词 / 筛选结果（搜索、全选依赖）
+  let currentFilter = "";
+  let currentFiltered: WorkshopModel[] = [];
+  // 虚拟列表：sr 为滚动容器，#gh-repo-list 为列表容器（zero-height 时自动全量回退）
+  const listEl = sr.querySelector("#gh-repo-list") as HTMLElement | null;
+  const virtualList = listEl
+    ? createVirtualList<WorkshopModel>({
+        scrollEl: sr,
+        listEl,
+        rowH: GH_ROW_H,
+        renderItem: (m) =>
+          buildModelRow(m, { dlPrefix, localMap, showAll, selectedSet, esc }),
+        renderEmpty: () => {
+          const empty = document.createElement("div");
+          empty.className = "gh-empty";
+          return empty;
+        },
+      })
+    : null;
+
+  const renderList = (filter?: string): void => {
+    if (filter !== undefined) currentFilter = filter;
+    currentFiltered = filterModels(models, currentFilter, showAll, localMap);
+    virtualList?.refresh(currentFiltered);
   };
 
   const updateSelectedUI = (): void => {
@@ -115,8 +132,7 @@ export function bindRepoEvents(
   const srch = sr.querySelector("#gh-repo-srch") as HTMLInputElement | null;
   if (srch) {
     srch.addEventListener("input", () => {
-      const list = sr.querySelector("#gh-repo-list");
-      if (list) list.replaceChildren(renderList(srch.value));
+      renderList(srch.value);
     });
   }
 
@@ -127,9 +143,7 @@ export function bindRepoEvents(
       showAll = !showAll;
       toggleBtn.textContent = showAll ? t("workshop.showAll") : t("workshop.showMissing");
       toggleBtn.classList.toggle("active", showAll);
-      const list = sr.querySelector("#gh-repo-list");
-      const inp = sr.querySelector("#gh-repo-srch") as HTMLInputElement | null;
-      if (list) list.replaceChildren(renderList(inp?.value || ""));
+      renderList();
     });
   }
 
@@ -184,18 +198,19 @@ export function bindRepoEvents(
   if (selAllCb) {
     selAllCb.addEventListener("change", () => {
       const checked = selAllCb.checked;
-      selContainer?.querySelectorAll(".gh-sel").forEach((cb) => {
-        const input = cb as HTMLInputElement;
-        input.checked = checked;
-        if (checked) selectedSet.add(input.dataset.name || "");
-        else selectedSet.delete(input.dataset.name || "");
-      });
+      // 虚拟化后 DOM 只含可见行 → 遍历当前筛选结果中的缺失项（exists 行无复选框）
+      for (const m of currentFiltered) {
+        if (isModelMissing(m, localMap)) {
+          if (checked) selectedSet.add(m.name);
+          else selectedSet.delete(m.name);
+        }
+      }
       updateSelectedUI();
+      renderList(); // 重渲同步可见行复选框状态
     });
   }
 
   // ==== 右键模型行 → 查看索引信息 ====
-  const listEl = sr.querySelector("#gh-repo-list") as HTMLElement | null;
   if (listEl) {
     listEl.addEventListener("contextmenu", (e: MouseEvent) => {
       // P1 修复：closest 匹配 `.gh-row` 而非 `[data-name]`——下载按钮自身带 data-name，
@@ -354,6 +369,8 @@ export function bindRepoEvents(
   const externalCleanup = async (): Promise<void> => {
     // 先置位，阻断在途 setTimeout/await 回调（ADR-044 ① 代际守卫）
     disposed = true;
+    // 卸载虚拟列表（移除 sr 上的 scroll 监听）
+    virtualList?.destroy();
     // 移除所有 DOM 事件监听器
     // P4 修复（子代理审计）：选择器补 .gh-cancel-queue——由 handleFileStart 动态
     // innerHTML 注入并 addEventListener（download-queue.ts:440），原遗漏导致

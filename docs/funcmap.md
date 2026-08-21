@@ -39,15 +39,15 @@
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
-| 前端·特性 | 15 | 74 |
+| 前端·特性 | 17 | 82 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 131 | 515 |
+| 前端·工具 | 132 | 518 |
 | frontend/views | 114 | 328 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **429** | **1852** |
+| **合计** | **432** | **1863** |
 
 ## Go·头像
 
@@ -962,6 +962,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
+| `showProgress()` | `frontend/src/features/community/data:9` | 创建进度条 UI（插入到 searchResults 容器） |
+| `FetchModelsResult()` | `frontend/src/features/community/data:42` | 抓取结果 |
+| `tryFetchModels()` | `frontend/src/features/community/data:55` | 从 GitHub 获取 index.json（并发竞速：同时请求所有镜像源，取最快响应） |
 | `ProgressGuardHooks()` | `frontend/src/features/community/download-queue-progress:16` | createProgressGuard 依赖注入（controller 提供查找与收口回调） |
 | `ProgressGuard()` | `frontend/src/features/community/download-queue-progress:24` | 进度条守卫控制器 |
 | `createProgressGuard()` | `frontend/src/features/community/download-queue-progress:40` | — |
@@ -993,20 +996,25 @@
 | `classifyDownloadSize()` | `frontend/src/features/community/download-tasks:14` | 下载大小策略：≤4MB 直接下；4–10MB 需确认；&gt;10MB 拒绝 |
 | `DownloadCandidate()` | `frontend/src/features/community/download-tasks:24` | 下载候选（结构类型，兼容 WorkshopModel） |
 | `buildDownloadTasks()` | `frontend/src/features/community/download-tasks:31` | 选中集 → 下载任务列表（路径统一转正斜杠；未匹配的选中项静默跳过） |
-| `RepoEventsContext()` | `frontend/src/features/community/events:15` | bindRepoEvents 上下文 |
-| `RepoEventsHandle()` | `frontend/src/features/community/events:27` | 绑定返回值 |
-| `bindRepoEvents()` | `frontend/src/features/community/events:40` | 绑定仓库模型页面的所有事件。 |
+| `RepoEventsContext()` | `frontend/src/features/community/events:16` | bindRepoEvents 上下文 |
+| `RepoEventsHandle()` | `frontend/src/features/community/events:28` | 绑定返回值 |
+| `bindRepoEvents()` | `frontend/src/features/community/events:41` | 绑定仓库模型页面的所有事件。 |
 | `WorkshopModel()` | `frontend/src/features/community/render:10` | 工坊模型条目（index.json 结构） |
 | `WorkshopSite()` | `frontend/src/features/community/render:18` | 工坊站点 |
 | `isModelMissing()` | `frontend/src/features/community/render:28` | 判断模型是否缺失（本地不存在） |
 | `countMissing()` | `frontend/src/features/community/render:44` | 计算缺失数量 |
 | `filterModels()` | `frontend/src/features/community/render:55` | 过滤模型列表：关键词匹配（模型名）+ 「仅显示缺失」开关。 |
-| `renderModelList()` | `frontend/src/features/community/render:99` | 渲染模型列表（DocumentFragment） |
-| `SITE_GROUP_ORDER()` | `frontend/src/features/community/render:195` | 站点分组展示顺序（renderCardsHTML 使用） |
-| `groupSites()` | `frontend/src/features/community/render:200` | 按 group 分组站点（缺省 browse）。纯函数，供单测覆盖（ADR-023 L3）。 |
-| `renderCardsHTML()` | `frontend/src/features/community/render:217` | 生成左栏站点卡片 HTML |
-| `renderRepoHeaderHTML()` | `frontend/src/features/community/render:267` | 生成仓库模型页面的头部 HTML（含返回按钮、计数、筛选按钮等） |
+| `ModelRowCtx()` | `frontend/src/features/community/render:91` | 单行构建上下文（renderModelList / buildModelRow 共用） |
+| `buildModelRow()` | `frontend/src/features/community/render:100` | 构建单行模型行（虚拟列表 renderItem 用） |
+| `renderModelList()` | `frontend/src/features/community/render:176` | 渲染模型列表（DocumentFragment） |
+| `SITE_GROUP_ORDER()` | `frontend/src/features/community/render:210` | 站点分组展示顺序（renderCardsHTML 使用） |
+| `groupSites()` | `frontend/src/features/community/render:215` | 按 group 分组站点（缺省 browse）。纯函数，供单测覆盖（ADR-023 L3）。 |
+| `renderCardsHTML()` | `frontend/src/features/community/render:232` | 生成左栏站点卡片 HTML |
+| `renderRepoHeaderHTML()` | `frontend/src/features/community/render:282` | 生成仓库模型页面的头部 HTML（含返回按钮、计数、筛选按钮等） |
 | `showRepoModels()` | `frontend/src/features/community/show-repo-models:25` | 显示 GitHub 仓库模型列表（比对本地已有文件） 包含：本地扫描、sourceLabel构建、countMissing、renderRepoHeaderHTML、bindRep |
+| `VirtualListOpts()` | `frontend/src/features/community/virtual-list:8` | — |
+| `VirtualList()` | `frontend/src/features/community/virtual-list:21` | — |
+| `createVirtualList()` | `frontend/src/features/community/virtual-list:31` | — |
 | `CollectedFile()` | `frontend/src/features/dnd-collector:6` | 收集结果条目 |
 | `collectFiles()` | `frontend/src/features/dnd-collector:35` | 递归收集 DataTransferItem[] 或 FileSystemEntry[] 中的文件。 |
 | `getExt()` | `frontend/src/features/dnd-shared:4` | — |
@@ -1674,6 +1682,9 @@
 | `safeGet()` | `frontend/src/utils/dom/storage:7` | 安全读：存储不可用时返回 null（调用方走默认值回退） |
 | `safeSet()` | `frontend/src/utils/dom/storage:16` | 安全写：存储不可用时静默忽略持久化（不中断调用方） |
 | `safeRemove()` | `frontend/src/utils/dom/storage:25` | 安全删：存储不可用时静默忽略（不中断调用方） |
+| `VS_BUFFER()` | `frontend/src/utils/dom/virtual-scroll:8` | 可见行缓冲：上下各多渲染 BUFFER 行，保证快速滚动不露白 |
+| `calcVisibleRange()` | `frontend/src/utils/dom/virtual-scroll:17` | 根据滚动位置计算可见行范围。 |
+| `installScrollSync()` | `frontend/src/utils/dom/virtual-scroll:36` | 在滚动容器上安装监听，滚动时经 rAF 合并后触发重渲（一帧最多一次）。 |
 | `WebComponentBase()` | `frontend/src/utils/dom/web-component-base:7` | — |
 | `renderFormattedText()` | `frontend/src/utils/format/mc-format:45` | 将含 Minecraft § 分节符的文本渲染为带颜色的 HTML。 |
 | `PackMeta()` | `frontend/src/utils/format/pack-format:95` | ReadPackMeta 返回的 JSON 对象（仅覆盖用到的字段） |
@@ -1758,7 +1769,7 @@
 | `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:123` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
 | `formatSize()` | `frontend/src/views/app-content/diagnostics/health:176` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:23` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
@@ -1770,10 +1781,10 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:196` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:203` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:211` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:215` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:271` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:278` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:286` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:290` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:143` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
@@ -2034,7 +2045,7 @@
 | `updateSelectCount()` | `frontend/src/views/app-tree/events:18` | — |
 | `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
-| `AppTree()` | `frontend/src/views/app-tree/index:59` | — |
+| `AppTree()` | `frontend/src/views/app-tree/index:61` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |
 | `loadEntries()` | `frontend/src/views/app-tree/loader:67` | 从 Go 后端加载仓库文件列表，返回格式化的 entries 扁平化架构下每个 MMD 子类型为独立顶级类型，直接用 subdir 作为类型 ID 查表 |
 | `TreeRow()` | `frontend/src/views/app-tree/render:22` | 扁平化行（虚拟滚动数据单元） |

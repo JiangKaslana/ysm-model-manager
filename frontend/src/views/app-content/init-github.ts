@@ -242,8 +242,8 @@ export function initGithubPage(host: AppContentHost): void {
           localMap,
         });
         host._setRepoEventsCleanup(cleanup);
-        const listContainer = resultsBody.querySelector("#gh-repo-list");
-        if (listContainer) listContainer.appendChild(renderList());
+        // 初始渲染（renderList 内部经虚拟列表写入 #gh-repo-list）
+        renderList();
       }
     } catch (e) {
       // P3 修复（审核）：renderModels 是 fire-and-forget async（showRepo 不 await），

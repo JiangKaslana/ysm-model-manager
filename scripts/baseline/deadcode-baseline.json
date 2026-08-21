@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-21T12:25:17.051Z",
+  "generated": "2026-08-21T13:23:34.726Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|jscpd",
@@ -97,6 +97,7 @@
     "src/utils/3d/semantic-morphs.ts|exports|MMD_SEMANTIC_MORPH_CANDIDATES",
     "src/utils/3d/semantic-morphs.ts|exports|SEMANTIC_MORPH_IDS",
     "src/utils/animation/animation.ts|types|BoneChannels",
+    "src/utils/dom/virtual-scroll.ts|exports|VS_BUFFER",
     "src/utils/format/summarize.ts|types|SummaryAuthor",
     "src/utils/resource/types.ts|exports|matchTypeByExt",
     "src/views/app-preview/fbx-3d.ts|exports|cleanupFbx3D",
@@ -142,7 +143,6 @@
     "src/core/handlers/instance-ops.test.ts#src/core/handlers/instance-ops.test.ts",
     "src/core/handlers/instance-ops.test.ts#src/core/handlers/sync.test.ts",
     "src/core/handlers/instance-ops.ts#src/core/handlers/instance-ops.ts",
-    "src/features/community/data.ts#src/utils/dom/html.ts",
     "src/features/community/download-queue.test.ts#src/features/community/download-queue.test.ts",
     "src/features/version-updater.test.ts#src/features/version-updater.test.ts",
     "src/ui/__tests__/ui-advanced-rows.test.ts#src/ui/__tests__/ui-advanced-rows.test.ts",
@@ -183,6 +183,7 @@
     "src/utils/3d/ysm-animation-player.test.ts#src/utils/3d/ysm-animation-player.test.ts",
     "src/utils/dom/dialogs/rename.ts#src/utils/dom/dialogs/tag-editor.ts",
     "src/utils/dom/directory-picker.ts#src/utils/dom/directory-picker.ts",
+    "src/utils/dom/virtual-scroll.ts#src/views/app-tree/virtual-scroll.ts",
     "src/utils/format/ysm-anim-config.ts#src/views/app-preview/wasm.ts",
     "src/utils/resource/types.test.ts#src/utils/resource/types.ts",
     "src/views/app-content/diagnostics/perf.ts#src/views/app-content/diagnostics/perf.ts",

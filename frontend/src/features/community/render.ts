@@ -87,6 +87,83 @@ function createIconBtn(
   return btn;
 }
 
+/** 单行构建上下文（renderModelList / buildModelRow 共用） */
+export interface ModelRowCtx {
+  dlPrefix: string;
+  localMap: Map<string, string>;
+  showAll: boolean;
+  selectedSet: Set<string>;
+  esc: (s: string) => string;
+}
+
+/** 构建单行模型行（虚拟列表 renderItem 用） */
+export function buildModelRow(m: WorkshopModel, ctx: ModelRowCtx): HTMLElement {
+  const { dlPrefix, localMap, selectedSet, esc } = ctx;
+  const exists = !isModelMissing(m, localMap);
+  const row = document.createElement("div");
+  row.dataset.name = m.name;
+  row.dataset.testid = "gh-row";
+  row.className = "gh-row" + (exists ? " gh-row-exists" : " gh-row-missing");
+
+  // 列1: 复选框(缺失时) + 名称
+  const nameWrap = document.createElement("div");
+  nameWrap.style.cssText =
+    "display:flex;align-items:center;gap:6px;min-width:0";
+  if (!exists) {
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "gh-sel gh-cb";
+    cb.dataset.testid = "gh-cb";
+    cb.dataset.name = m.name;
+    cb.checked = selectedSet.has(m.name);
+    nameWrap.appendChild(cb);
+  }
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "gh-name";
+  nameSpan.dataset.testid = "gh-name";
+  nameSpan.innerHTML = renderDisplayName(m.name);
+  nameWrap.appendChild(nameSpan);
+  row.appendChild(nameWrap);
+
+  // 列2: 大小 + B站搜索按钮
+  const metaCell = document.createElement("div");
+  metaCell.className = "gh-meta";
+  const sizeSpan = document.createElement("span");
+  sizeSpan.className = "gh-size";
+  // P4（审核发现）：`m.size || 0` 属 truthiness 数值判断，按数值守卫范式用 ?? 0
+  sizeSpan.textContent = formatBytes(m.size ?? 0);
+  metaCell.appendChild(sizeSpan);
+  const searchBtn = createIconBtn(
+    ICONS.SEARCH,
+    "search-bili",
+    t("workshop.bilibiliSearch"),
+  );
+  searchBtn.dataset.testid = "gh-search-bili";
+  metaCell.appendChild(searchBtn);
+  row.appendChild(metaCell);
+
+  // 列3: 下载按钮或已有徽章
+  const actionsCell = document.createElement("div");
+  actionsCell.className = "gh-actions";
+  if (exists) {
+    const badge = document.createElement("span");
+    badge.className = "gh-badge";
+    badge.innerHTML = ICONS.CHECKMARK + " " + t("workshop.exists");
+    actionsCell.appendChild(badge);
+  } else {
+    const dlBtn = createIconBtn(ICONS.DOWNLOAD, "download");
+    dlBtn.classList.add("gh-dl-btn");
+    dlBtn.dataset.testid = "gh-dl";
+    dlBtn.dataset.url = dlPrefix + m.path.replace(/\\/g, "/");
+    dlBtn.dataset.name = m.name;
+    dlBtn.dataset.size = String(m.size || 0);
+    actionsCell.appendChild(dlBtn);
+  }
+  row.appendChild(actionsCell);
+
+  return row;
+}
+
 /**
  * 渲染模型列表（DocumentFragment）
  * @param filtered 已筛选的模型数组
@@ -114,69 +191,7 @@ export function renderModelList(
   }
 
   filtered.forEach((m) => {
-    const exists = !isModelMissing(m, localMap);
-    const row = document.createElement("div");
-    row.dataset.name = m.name;
-    row.dataset.testid = "gh-row";
-    row.className = "gh-row" + (exists ? " gh-row-exists" : " gh-row-missing");
-
-    // 列1: 复选框(缺失时) + 名称
-    const nameWrap = document.createElement("div");
-    nameWrap.style.cssText =
-      "display:flex;align-items:center;gap:6px;min-width:0";
-    if (!exists) {
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.className = "gh-sel gh-cb";
-      cb.dataset.testid = "gh-cb";
-      cb.dataset.name = m.name;
-      cb.checked = selectedSet.has(m.name);
-      nameWrap.appendChild(cb);
-    }
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "gh-name";
-    nameSpan.dataset.testid = "gh-name";
-    nameSpan.innerHTML = renderDisplayName(m.name);
-    nameWrap.appendChild(nameSpan);
-    row.appendChild(nameWrap);
-
-    // 列2: 大小 + B站搜索按钮
-    const metaCell = document.createElement("div");
-    metaCell.className = "gh-meta";
-    const sizeSpan = document.createElement("span");
-    sizeSpan.className = "gh-size";
-    // P4（审核发现）：`m.size || 0` 属 truthiness 数值判断，按数值守卫范式用 ?? 0
-    sizeSpan.textContent = formatBytes(m.size ?? 0);
-    metaCell.appendChild(sizeSpan);
-    const searchBtn = createIconBtn(
-      ICONS.SEARCH,
-      "search-bili",
-      t("workshop.bilibiliSearch"),
-    );
-    searchBtn.dataset.testid = "gh-search-bili";
-    metaCell.appendChild(searchBtn);
-    row.appendChild(metaCell);
-
-    // 列3: 下载按钮或已有徽章
-    const actionsCell = document.createElement("div");
-    actionsCell.className = "gh-actions";
-    if (exists) {
-      const badge = document.createElement("span");
-      badge.className = "gh-badge";
-      badge.innerHTML = ICONS.CHECKMARK + " " + t("workshop.exists");
-      actionsCell.appendChild(badge);
-    } else {
-      const dlBtn = createIconBtn(ICONS.DOWNLOAD, "download");
-      dlBtn.classList.add("gh-dl-btn");
-      dlBtn.dataset.testid = "gh-dl";
-      dlBtn.dataset.url = dlPrefix + m.path.replace(/\\/g, "/");
-      dlBtn.dataset.name = m.name;
-      dlBtn.dataset.size = String(m.size || 0);
-      actionsCell.appendChild(dlBtn);
-    }
-    row.appendChild(actionsCell);
-
-    frag.appendChild(row);
+    frag.appendChild(buildModelRow(m, { dlPrefix, localMap, showAll, selectedSet, esc }));
   });
 
   return frag;

@@ -74,9 +74,8 @@ function mount(ms: WorkshopModel[] = models): {
 } {
   const { sr, ctx } = makeSr(ms);
   const handle = bindRepoEvents(sr, ctx);
-  (sr.querySelector('[data-testid="gh-list"]') as HTMLElement).replaceChildren(
-    handle.renderList(),
-  );
+  // renderList 内部经虚拟列表写入 #gh-repo-list（jsdom 零高度 → 自动全量回退）
+  handle.renderList();
   return { sr, ctx, handle };
 }
 

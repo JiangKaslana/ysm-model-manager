@@ -117,7 +117,6 @@ export async function showRepoModels(
   });
   setRepoEventsCleanup(cleanup);
 
-  // 初始渲染
-  const listContainer = searchResults.querySelector("#gh-repo-list");
-  if (listContainer) listContainer.appendChild(renderList());
+  // 初始渲染（renderList 内部经虚拟列表写入 #gh-repo-list）
+  renderList();
 }
