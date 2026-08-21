@@ -102,7 +102,7 @@ func runResourceScan(ctx *CmdContext) error {
 			})
 		}
 
-		// 按类型分类统计（与审计共用 repoaudit.classifyResourceTypeName 口径）
+		// 按类型分类统计（与审计共用 repoaudit.Classify 口径）
 		classifyResource(ext, &result.Stats)
 
 		return nil
@@ -133,7 +133,7 @@ func runResourceScan(ctx *CmdContext) error {
 
 // classifyResource 按扩展名分类统计资源
 // 注意：.json 不直接归为模型（可能是配置/索引文件），仅 .ysm 视为模型格式。
-// 分类字符串口径与 repoaudit.classifyResourceTypeName 一致（唯一实现，防双轨漂移）。
+// 分类字符串口径与 repoaudit.Classify 一致（唯一实现，防双轨漂移）。
 func classifyResource(ext string, stats *resourceStats) {
 	switch repoaudit.Classify(ext) {
 	case "model":

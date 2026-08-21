@@ -60,10 +60,19 @@ export async function runHealthAudit(
     const { RepoHealthAudit } = await getApp();
     const raw = await RepoHealthAudit(filesRoot || "");
     const report = parseHealthReport(raw);
+    if (report instanceof Error) {
+      // 后端业务错误（如路径超出仓库目录），展示原文案
+      list.innerHTML =
+        '<div class="stat-row diag-msg diag-msg-error">❌ ' +
+        esc(report.message) +
+        "</div>";
+      _healthBusy = false;
+      return;
+    }
     if (!report) {
       list.innerHTML =
         '<div class="stat-row diag-msg diag-msg-error">❌ ' +
-        esc(friendlyError(new Error(t("diagnostics.healthParseFailed")), t("diagnostics.healthParseFailed"))) +
+        esc(t("diagnostics.healthParseFailed")) +
         "</div>";
       _healthBusy = false;
       return;
@@ -80,12 +89,18 @@ export async function runHealthAudit(
   }
 }
 
-/** 解析 RepoHealthAudit 返回的 JSON 字符串；无效返回 null */
-export function parseHealthReport(raw: string): HealthReport | null {
+/** 解析 RepoHealthAudit 返回的 JSON 字符串。
+ * 返回有三种形态：
+ *  - HealthReport（含 score/completeness）→ 正常报告
+ *  - {error: string} → 后端业务错误（路径校验等），返回 Error 对象供调用方区分展示
+ *  - 非法 JSON / 其他 → null（真正的解析失败）
+ */
+export function parseHealthReport(raw: string): HealthReport | Error | null {
   try {
-    const parsed = JSON.parse(raw) as HealthReport;
-    if (typeof parsed.score !== "number" || !parsed.completeness) return null;
-    return parsed;
+    const parsed = JSON.parse(raw) as HealthReport & { error?: string };
+    if (typeof parsed.score === "number" && parsed.completeness) return parsed;
+    if (parsed.error) return new Error(parsed.error);
+    return null;
   } catch {
     return null;
   }

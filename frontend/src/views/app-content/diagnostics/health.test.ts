@@ -33,16 +33,23 @@ describe("parseHealthReport", () => {
   it("合法 JSON 且含 score/completeness → 解析成功", () => {
     const r = parseHealthReport(JSON.stringify(buildReport()));
     expect(r).not.toBeNull();
-    expect(r?.score).toBe(85);
-    expect(r?.dedup.groups).toBe(1);
+    expect(r).not.toBeInstanceOf(Error);
+    if (r && !(r instanceof Error)) {
+      expect(r.score).toBe(85);
+      expect(r.dedup.groups).toBe(1);
+    }
   });
 
   it("非法 JSON → null", () => {
     expect(parseHealthReport("not json")).toBeNull();
   });
 
-  it("缺 score 字段 → null（后端错误/{error:...} 形态）", () => {
-    expect(parseHealthReport(JSON.stringify({ error: "路径超出仓库目录" }))).toBeNull();
+  it("后端业务错误 {error: string} → Error 实例（非 null 也非 HealthReport）", () => {
+    const err = parseHealthReport(JSON.stringify({ error: "路径超出仓库目录" }));
+    expect(err).toBeInstanceOf(Error);
+    if (err instanceof Error) {
+      expect(err.message).toBe("路径超出仓库目录");
+    }
   });
 });
 
@@ -84,11 +91,12 @@ describe("runHealthAudit", () => {
     expect(list.innerHTML).toContain("数据源");
   });
 
-  it("后端错误 JSON（未 rendering 分数环，展示错误信息）", async () => {
+  it("后端业务错误 {error: string} → 展示原文案（非'解析失败'）", async () => {
     getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => JSON.stringify({ error: "路径超出仓库目录" })) });
     const list = document.createElement("div");
     await runHealthAudit(list, esc, "");
-    await waitFor(() => expect(list.innerHTML).toContain("❌"));
+    await waitFor(() => expect(list.innerHTML).toContain("路径超出仓库目录"));
+    expect(list.innerHTML).not.toContain("解析失败");
   });
 
   it("调用异常 → 展示错误（friendlyError）", async () => {
