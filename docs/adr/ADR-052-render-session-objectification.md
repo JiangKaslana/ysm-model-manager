@@ -4,6 +4,7 @@
 - **日期**：2026-08-11
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`ADR-004 3D 渲染管线,ADR-034 十二轮审计剩余债`
+- **后续状态**：RenderSession 落地后生产无调用方，render-session.ts（470 行）与 renderer-setup.ts 随 ADR-052 P2 收尾删除，`model3d.ts` 缩为 Spec 类型枢纽；现行架构为 ADR-066 统一预览核心（单会话）+ ADR-093 多模型同框（sceneRegistry）。本 ADR 的「实例字段封装、显式 dispose」思想已被统一核心继承。
 
 ---
 

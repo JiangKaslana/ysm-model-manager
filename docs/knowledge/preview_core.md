@@ -59,7 +59,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 
 - **适配器**：`ysm-adapter` / `vrm-adapter`（`GLTFLoader`）/ `mmd-adapter`（`@moeru/three-mmd`）/ `litematic-adapter` 各自实现 `PreviewAdapter`，`build()` 进 `ctx.scene`
 - **数据层**：YSM 经 `model3d-loader`（`GetModel3DSpec` 唯一事实来源 + WASM 兜底）；MMD 经 `@moeru/three-mmd`；VRM / Litematic 各加载器
-- **旧并行链路（死代码，勿同步）**：`model3d.ts` 的 `RenderSession`（ADR-052）曾存在于 `frontend/src/utils/3d/`（renderer-setup.ts 已随 ADR-052 P2 收尾删除）。`renderModel3D` 已无生产调用（仅定义 + 测试），属死代码；程序化天空**仅落统一核心**，不触碰此链路以免波及其测试。
+- **旧并行链路（已全部删除，勿再建）**：`RenderSession` / `renderModel3D`（ADR-052）曾存在于 `frontend/src/utils/3d/`；render-session.ts（470 行）与 renderer-setup.ts 均随 ADR-052 P2 收尾删除（生产无调用方），`model3d.ts` 缩为 Spec 类型枢纽。程序化天空**仅落统一核心**。
 
 ## 不变量
 
@@ -90,6 +90,6 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 
 ## 相关
 
-- `model3d.md`（RenderSession 旧链路，背景原设于 renderer-setup.ts:44，该文件已删除）
+- `model3d.md`（3D 渲染层基础设施卡：Spec 类型枢纽 + 坐标口径 + 渲染管线，单会话架构）
 - `app-preview.md`（预览面板组件：2D 骨骼 / 3D / 缩略图）
 - 程序化天空落地见本卡「不变量」（能力层 `frontend/src/utils/3d/caps/sky-capability.ts`，经统一核心 shared 模式注入；旧 renderer-setup.ts 为死代码已删除不触碰）

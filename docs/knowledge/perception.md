@@ -36,19 +36,16 @@ use_when:
 
 ## 对外 API / 入口
 
-各模块通过 `RenderSession` 的感知生命周期注册：
+**无全局注册器**。每个感知模块导出工厂函数（如 `createBreathController()`），闭包封装状态，返回含 `update`/`dispose` 的控制器；适配器（ysm/vrm/mmd）在 `build()` 内实例化控制器，把 `update` 并入内容层 `PreviewScene.update` 每帧驱动（宽容缺省：语义骨骼缺失时静默跳过）。
 
-```
-perception.createAll(session, audioContext?) → void
-perception.loadAll(session, state) → void
-perception.dispose() → void
-```
+感知开关面板：`adapters/perception-controls.ts` 的 `buildPerceptionControls(list, state, caps)` 渲染开关行，作为适配器菜单项注入（state/caps 经 `PreviewScene.perception` 提供）。
 
 ## 与其他子系统关系
 
-- **model3d**（`model3d.ts`）— 感知层挂载在 3D 渲染会话的 `RenderSession` 生命周期上
-- **animation-system**（`animation.ts`）— 感知动画驱动依赖骨骼动画插值系统
-- **preview_core**（`mount-preview-core.ts`）— 统一核心在 shared 模式下创建感知实例
+- **perception-controls**（`adapters/perception-controls.ts`）— 感知开关面板渲染（适配器菜单项）
+- **semantic-bones**（`semantic-bones.ts`）— 语义骨骼映射（chest/spine/eyes/mouth…），感知驱动的主要骨骼来源
+- **preview_core**（`mount-preview-core.ts`）— 统一预览核心持有会话；感知控制器由各适配器 build 内实例化，不直接依赖核心
+- **model3d**（`model3d.ts` 类型枢纽）— 骨骼数据结构供感知控制器消费
 
 ## 不变量
 

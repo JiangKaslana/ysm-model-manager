@@ -352,7 +352,7 @@
 |------|--------|------|
 | `Audit()` | `go/repoaudit/repoaudit:115` | Audit 仓库健康审计核心：资源扫描 + 完整性 + 缓存 + 健康分数 + 警告，一次遍历。 |
 | `HealthReportFor()` | `go/repoaudit/repoaudit:228` | HealthReportFor 完整体检（审计 + 去重），GUI 绑定与 CLI health-report 同一载荷 |
-| `Classify()` | `go/repoaudit/repoaudit:340` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
+| `Classify()` | `go/repoaudit/repoaudit:342` | Classify 将扩展名映射到注册表资源类型 id（如 "ysm"/"fbx"/"blueprint"）。 |
 | `Result()` | `go/repoaudit/repoaudit:55` | Result 仓库审计结果（结构对齐原 go/cli repoAuditResult） |
 | `Completeness()` | `go/repoaudit/repoaudit:66` | Completeness 完整性统计 |
 | `CacheStatus()` | `go/repoaudit/repoaudit:74` | CacheStatus 缓存状态 |
@@ -698,9 +698,9 @@
 | `App.ListFileNames()` | `internal/app/app_scan:401` | — |
 | `App.ListAllFilePaths()` | `internal/app/app_scan:418` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
 | `App.CheckFileExists()` | `internal/app/app_scan:427` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:512` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:548` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
-| `progressReader.Read()` | `internal/app/app_scan:582` | — |
+| `App.OpenFolder()` | `internal/app/app_scan:519` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:555` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
+| `progressReader.Read()` | `internal/app/app_scan:589` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -1795,9 +1795,9 @@
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
 | `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:50` | 仓库体检：调 Go 端 RepoHealthAudit（同源审计）并渲染结果。 |
-| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:99` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
-| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:116` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
-| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:169` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
+| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:97` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
+| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:123` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
+| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:176` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
 | `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
