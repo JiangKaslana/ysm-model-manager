@@ -13,6 +13,7 @@ source_files:
   - frontend/src/views/app-content/diagnostics/init.ts
   - frontend/src/views/app-content/diagnostics/logs.ts
   - frontend/src/views/app-content/diagnostics/dedup.ts
+  - frontend/src/views/app-content/diagnostics/health.ts
   - frontend/src/views/app-content/diagnostics/conflicts.ts
   - frontend/src/views/app-content/settings/init.ts
   - frontend/src/views/app-content/tpl-recycle.ts
@@ -74,6 +75,7 @@ invariant_anchors:
 - `content-util.ts` — 杂项：回收站动画（`.recy-*`）/ 资源管理器（`.rm-*`）/ 预览拖拽（`.preview-resize-handle`）/ 主题选择器（`.theme-*`）/ 响应式 `@media (max-width:768px)`
 - `community-data.ts` — 社区数据层：`loadCommunityData`（并发 `App.LoadWorkshopSites` / `LoadWorkshopCreators` / `ListModelAuthors` / `ScanLocalAuthors`）、`fetchCommunityCreators` / `mergeCommunityCreators` / `fetchCommunitySites` / `mergeCommunitySites` / `fillSearch` / `DEFAULT_COMMUNITY_URL`
 - `diagnostics/init.ts` — 诊断页 `initDiagnostics` 与 `startDedup` 去重流程（派发 `model:select` / `stats:refresh` / `tree:reload`）
+- `diagnostics/health.ts` — 仓库体检面板：调 Go 端 `RepoHealthAudit`（go/repoaudit 同源，GUI/CLI 消双轨），渲染分数环/完整性/缓存/资源/去重/警告
 - `settings/init.ts` — 设置页 `initSettings`：直接解构 bindings（`LoadAppConfig` / `SaveAppConfig` / `SelectDirectory` / `GetMinecraftPaths` / `SetLinkMode`），配置变更派发 `config:updated` / `stats:refresh` / `toast:show`，并接入 `initVersionUpdater`；「启动默认页面」下拉读写 localStorage `ui-default-page`，显示值兜底 `repository`（与 `resolveInitialPage` 的兜底一致）
 - `site-view.ts` — 站点视图 `renderSiteView`：组装 `SiteViewState` 后委托 `site/` 子模块渲染与绑定；行内编辑选择器排除预设卡片（`[data-idx][data-fld]:not([data-edit='preset'])`，防预设 label 输入污染创作者对象，P2 修复）；拖拽 drop 用 `realIdx` 在 `allCreators` 全量数组上重排（防站点子集覆盖清空其他站点，P2 修复）
 - `site/types.ts` / `site/render.ts` / `site/events.ts` / `site/edit.ts` / `site/drag.ts` — 站点视图拆分：状态类型 `SiteViewState` / `CleanupFn`、`createCrCard` + `buildSiteHtml` 渲染、`bindBrowseEvents` 浏览交互、`bindEditEvents` 编辑模式、`bindDragEvents` 卡片拖拽排序；各 bind 均返回 `CleanupFn`
