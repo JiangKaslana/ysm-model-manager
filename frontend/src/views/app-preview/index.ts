@@ -64,16 +64,9 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   [RESOURCE_TYPES.LITEMATIC]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.BLUEPRINT]: (ctx, path) => showLitematic(ctx, path),
   [RESOURCE_TYPES.SHADER]: (ctx, path, meta) => showShaderpack(ctx, path, meta),
-  // MMD 角色模型（EntityPlayer）——路径兜底：DetectResourceType 可能因扩展名重叠
-  // 返回 EntityPlayer 而非子类型 ID，内置轻量路径检测防错派
-  [RESOURCE_TYPES.MMD]: (ctx, path, meta) => {
-    const norm = path.replace(/\\/g, "/");
-    if (/SceneModel/i.test(norm)) showScenePreview(ctx, path);
-    else if (/CustomMorph/i.test(norm)) showMorphPreview(ctx, path);
-    else if (/StageAnim/i.test(norm)) showStagePreview(ctx, path);
-    else showMmdPreview(ctx, path, meta);
-  },
-  // MMD 独立顶级类型（DetectResourceType 命中时直接路由，无需路径兜底）
+  // MMD 角色模型（EntityPlayer）
+  [RESOURCE_TYPES.MMD]: (ctx, path, meta) => showMmdPreview(ctx, path, meta),
+  // MMD 独立顶级类型（后端 DetectResourceType 路径消歧命中时直接路由）
   "SceneModel": (ctx, path) => showScenePreview(ctx, path),
   "CustomMorph": (ctx, path) => showMorphPreview(ctx, path),
   "StageAnim": (ctx, path) => showStagePreview(ctx, path),

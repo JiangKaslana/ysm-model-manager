@@ -161,3 +161,101 @@ func TestDetectResourceType_ZipEntry_SevenZipNoFallback(t *testing.T) {
 		t.Fatalf("坏 .7z 应返回空（不再兜底 ysm），实际 %q", got)
 	}
 }
+
+// ===== 路径消歧测试 =====
+// MMD 子类型共享扩展名（EntityPlayer/SceneModel 都 .pmx/.pmd；
+// CustomAnim/StageAnim/DefaultAnim 都 .vmd；CustomMorph/DefaultMorph 都 .vpd）。
+// 路径消歧：当父目录名匹配类型 InstanceDir 时，优先命中该类型。
+func TestDetectResourceType_PathDisambiguation_MMD(t *testing.T) {
+	reg := &types.ResourceTypeRegistry{
+		ResourceTypes: []types.ResourceType{
+			{ID: "EntityPlayer", Extensions: []string{".pmx", ".pmd", ".zip"}, Detector: "zipentry",
+				InstanceDir: "EntityPlayer",
+				ZipEntries:  []types.ZipEntryMatch{{Name: ".pmx", Match: "suffix"}, {Name: ".pmd", Match: "suffix"}}},
+			{ID: "SceneModel", Extensions: []string{".pmx", ".pmd", ".zip"}, Detector: "zipentry",
+				InstanceDir: "SceneModel",
+				ZipEntries:  []types.ZipEntryMatch{{Name: ".pmx", Match: "suffix"}, {Name: ".pmd", Match: "suffix"}}},
+			{ID: "CustomAnim", Extensions: []string{".vmd", ".zip"}, Detector: "zipentry",
+				InstanceDir: "CustomAnim",
+				ZipEntries:  []types.ZipEntryMatch{{Name: ".vmd", Match: "suffix"}}},
+			{ID: "CustomMorph", Extensions: []string{".vpd", ".zip"}, Detector: "zipentry",
+				InstanceDir: "CustomMorph",
+				ZipEntries:  []types.ZipEntryMatch{{Name: ".vpd", Match: "suffix"}}},
+			{ID: "StageAnim", Extensions: []string{".vmd", ".zip"}, Detector: "zipentry",
+				InstanceDir: "StageAnim",
+				ZipEntries:  []types.ZipEntryMatch{{Name: ".vmd", Match: "suffix"}}},
+		},
+	}
+
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		// EntityPlayer 目录下的 .pmx → 命中 EntityPlayer
+		{`D:\repo\mmd\EntityPlayer\角色.pmx`, "EntityPlayer"},
+		// SceneModel 目录下的 .pmx → 命中 SceneModel（不再被 EntityPlayer 抢走）
+		{`D:\repo\mmd\SceneModel\场景.pmx`, "SceneModel"},
+		// SceneModel 目录下的 .pmd → 命中 SceneModel
+		{`D:\repo\mmd\SceneModel\舞台.pmd`, "SceneModel"},
+		// CustomAnim 目录下的 .vmd → 命中 CustomAnim
+		{`D:\repo\mmd\CustomAnim\dance.vmd`, "CustomAnim"},
+		// StageAnim 目录下的 .vmd → 命中 StageAnim
+		{`D:\repo\mmd\StageAnim\stage.vmd`, "StageAnim"},
+		// CustomMorph 目录下的 .vpd → 命中 CustomMorph
+		{`D:\repo\mmd\CustomMorph\blink.vpd`, "CustomMorph"},
+		// 多层嵌套：InstanceDir 作为路径末尾
+		{`D:\repo\mmd\SceneModel\sub\子场景.pmx`, "SceneModel"},
+	} {
+		if got := DetectResourceType(tc.path, reg); got != tc.want {
+			t.Errorf("路径消歧: DetectResourceType(%s) = %q, 期望 %q", tc.path, got, tc.want)
+		}
+	}
+}
+
+// 无路径消歧时的兜底：InstanceDir 不匹配时回退扩展名遍历
+func TestDetectResourceType_PathDisambiguation_NoMatch(t *testing.T) {
+	reg := &types.ResourceTypeRegistry{
+		ResourceTypes: []types.ResourceType{
+			{ID: "EntityPlayer", Extensions: []string{".pmx"}, Detector: "zipentry",
+				InstanceDir: "EntityPlayer",
+				ZipEntries:  []types.ZipEntryMatch{{Name: ".pmx", Match: "suffix"}}},
+			{ID: "SceneModel", Extensions: []string{".pmx"}, Detector: "zipentry",
+				InstanceDir: "SceneModel",
+				ZipEntries:  []types.ZipEntryMatch{{Name: ".pmx", Match: "suffix"}}},
+		},
+	}
+
+	// 父目录名不匹配任何 InstanceDir → 回退扩展名兜底（注册表首个匹配）
+	if got := DetectResourceType(`D:\repo\other\model.pmx`, reg); got == "" {
+		t.Error("无 InstanceDir 匹配时应回退扩展名兜底，不应返回空")
+	}
+
+	// InstanceDir 为空的类型（不参与路径消歧）→ 回退扩展名兜底
+	reg2 := &types.ResourceTypeRegistry{
+		ResourceTypes: []types.ResourceType{
+			{ID: "no-path", Extensions: []string{".dat"}, Detector: "extension"},
+		},
+	}
+	if got := DetectResourceType(`data.dat`, reg2); got != "no-path" {
+		t.Errorf("InstanceDir 为空时应走扩展名兜底，实际 %q", got)
+	}
+}
+
+// 跨组隔离：路径消歧只在扩展名匹配时生效，防止跨组误判
+func TestDetectResourceType_PathDisambiguation_CrossGroup(t *testing.T) {
+	reg := &types.ResourceTypeRegistry{
+		ResourceTypes: []types.ResourceType{
+			{ID: "EntityPlayer", Extensions: []string{".pmx"}, Detector: "zipentry",
+				InstanceDir: "EntityPlayer",
+				ZipEntries:  []types.ZipEntryMatch{{Name: ".pmx", Match: "suffix"}}},
+			// resourcepack 的 InstanceDir 可能也叫 "EntityPlayer"，但扩展名不匹配 → 不应被路径消歧误命中
+			{ID: "resourcepack", Extensions: []string{".zip"}, Detector: "mcmeta",
+				InstanceDir: "EntityPlayer"},
+		},
+	}
+
+	// .pmx 在 EntityPlayer 目录 → 应命中 EntityPlayer（不是 resourcepack，因为扩展名不匹配）
+	if got := DetectResourceType(`D:\repo\mmd\EntityPlayer\role.pmx`, reg); got != "EntityPlayer" {
+		t.Errorf(".pmx 在 EntityPlayer 目录应命中 EntityPlayer，实际 %q", got)
+	}
+}

@@ -136,50 +136,92 @@ func ReadPackMeta(path string) (*types.PackMeta, string, error) {
 }
 
 // DetectResourceType 检测文件属于哪种资源类型
+// Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir，
+// 解决 MMD 子类型共享扩展名（EntityPlayer/SceneModel 都 .pmx）的歧义。
+// Phase 2（扩展名兜底）：按现有逻辑遍历，路径消歧未命中时使用。
 func DetectResourceType(path string, registry *types.ResourceTypeRegistry) string {
 	if registry == nil || len(registry.ResourceTypes) == 0 {
 		return ""
 	}
 	ext := strings.ToLower(filepath.Ext(path))
-	// ADR-067：.zip/.7z 是通用容器，任何类型都可能被包裹——
-	// zipentry detector 在 isContainer 时按 zipEntries 内容指纹判定（裸文件按扩展名）。
-	// 容器集合单源：types.IsContainerExt（ContainerExts），禁止魔法字符串。
 	isContainer := types.IsContainerExt(ext)
 
+	// Phase 1：路径消歧——当类型共享扩展名时，用 InstanceDir 区分
+	if id := detectByPathDisambiguation(path, ext, isContainer, registry); id != "" {
+		return id
+	}
+
+	// Phase 2：扩展名兜底（现有行为，路径消歧未命中时回退）
 	for _, rt := range registry.ResourceTypes {
 		extOK := hasExt(ext, rt.EffectiveExtensions())
 		if !extOK {
-			continue // 准入语义与改动前完全一致
+			continue
 		}
-		// detector 小写归一（外部 registry 可能写 "YSM"），防 #11 误分类
-		switch strings.ToLower(rt.Detector) {
-		case "ysm":
-			if isYsmFile(path) {
-				return rt.ID
-			}
-		case "mcmeta", "shader": // ADR-082 S2：容器统一走 container.Open + 注册表指纹——
-			// 原 hasMcmeta/hasShaders 用 zip.OpenReader 只支持 .zip，.7z 材质包/光影包
-			// 无法内容识别；统一后 .7z 也参与指纹（matchZipArchive 走 container.Open）。
-			// 非容器（裸文件）不识别——resourcepack/shaderpack extensions 全为容器扩展名。
-			if isContainer && matchZipArchive(path, &rt) {
-				return rt.ID
-			}
-		case "zipentry": // ADR-067：裸文件按扩展名、容器按 zipEntries 内容指纹
-			if isContainer {
-				if matchZipArchive(path, &rt) {
-					return rt.ID
-				}
-			} else if extOK {
-				return rt.ID
-			}
-		case "", "extension":
-			return rt.ID
-		default:
-			// 未知 detector 值：按扩展名兜底（保持与旧行为一致，不把文件错误归入内容型）
+		if detectorPasses(path, ext, isContainer, &rt) {
 			return rt.ID
 		}
 	}
 	return ""
+}
+
+// detectByPathDisambiguation 路径消歧：遍历文件所有祖先目录，检查是否匹配某类型的 InstanceDir。
+// 仅在扩展名也匹配时才返回——确保路径消歧不会跨组误判（如 .pmx 只在 MMD 组内消歧）。
+func detectByPathDisambiguation(path string, ext string, isContainer bool, registry *types.ResourceTypeRegistry) string {
+	dir := filepath.Dir(path)
+	if dir == "." {
+		return ""
+	}
+
+	// 收集所有祖先目录（从根到直接父目录），逐层检查 InstanceDir 匹配
+	// Windows 盘符根（如 "D:"）filepath.Dir 返回自身，需显式终止
+	var ancestors []string
+	d := dir
+	for d != "." && d != string(filepath.Separator) {
+		ancestors = append([]string{d}, ancestors...)
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
+		}
+		d = parent
+	}
+
+	for _, rt := range registry.ResourceTypes {
+		if rt.InstanceDir == "" {
+			continue
+		}
+		if !hasExt(ext, rt.EffectiveExtensions()) {
+			continue
+		}
+		instDirNorm := filepath.ToSlash(strings.ToLower(rt.InstanceDir))
+		for _, anc := range ancestors {
+			ancNorm := filepath.ToSlash(strings.ToLower(anc))
+			if strings.HasSuffix(ancNorm, "/"+instDirNorm) || ancNorm == instDirNorm {
+				if detectorPasses(path, ext, isContainer, &rt) {
+					return rt.ID
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// detectorPasses 检查文件是否通过指定类型的 detector 判定（抽公共逻辑供两条路径复用）
+func detectorPasses(path string, ext string, isContainer bool, rt *types.ResourceType) bool {
+	switch strings.ToLower(rt.Detector) {
+	case "ysm":
+		return isYsmFile(path)
+	case "mcmeta", "shader":
+		return isContainer && matchZipArchive(path, rt)
+	case "zipentry":
+		if isContainer {
+			return matchZipArchive(path, rt)
+		}
+		return hasExt(ext, rt.EffectiveExtensions())
+	case "", "extension":
+		return hasExt(ext, rt.EffectiveExtensions())
+	default:
+		return hasExt(ext, rt.EffectiveExtensions())
+	}
 }
 
 // matchZipArchive 打开容器（.zip/.7z）并按 rt.ZipEntries 内容指纹匹配（ADR-067/068）：
