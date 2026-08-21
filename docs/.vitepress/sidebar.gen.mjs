@@ -794,6 +794,14 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-111：variants 解耦——类别—格式分层，角色模型合并 PMX/VRM",
+        "link": "/adr/ADR-111-variants-decouple"
+      },
+      {
+        "text": "ADR-110：mod 依赖下沉注册表，消除 Go 硬编码",
+        "link": "/adr/ADR-110-mod-registry"
+      },
+      {
         "text": "ADR-108：相机取景包围盒计算策略",
         "link": "/adr/ADR-108-camera-framing-bounding-box"
       },
