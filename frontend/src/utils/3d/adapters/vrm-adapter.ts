@@ -18,6 +18,7 @@ import { createBlinkController } from "../perception/blink.ts"; // 语义表情�
 import { createFootIKController } from "../mmd-foot-ik.ts"; // 程序化足部锚地（待机态 IK，格式无关）
 import { recordLoadTrace } from "../load-trace.ts";
 import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截图走共享 renderer（通用化）
+import { b64ToBytes } from "../base64.ts";
 import { buildPerceptionControls, type PerceptionState, type PerceptionCapability } from "./perception-controls.ts";
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
@@ -51,15 +52,6 @@ import {
 } from "../vrm-materials.ts";
 import type { VrmMaterialControlBridge } from "../../../views/app-preview/vrm-controls.ts";
 import type { MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
-
-/** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
-function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const len = bin.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
 
 /** 把 THREE.Texture / HTMLImageElement 转 dataURL（meta 卡缩略图） */
 function imageToDataURL(img: unknown): string {

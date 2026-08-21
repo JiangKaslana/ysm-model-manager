@@ -20,6 +20,7 @@ import { createPmxParser, buildPmxSceneSliced, type PmxParser, type PmxBuildResu
 import { Ktx2TextureLoader } from "./mmd-ktx2-texture-loader.ts";
 import { startMainThreadWatch, formatLongTask } from "../../../utils/main-thread-watch.ts";
 import { recordLoadTrace } from "../load-trace.ts";
+import { b64ToBytes, bytesToArrayBuffer } from "../base64.ts";
 import type {
   MmdBottomNavCtx,
   MmdPlayBridge,
@@ -54,20 +55,6 @@ import { getCustomAnimPath, filterAnimFiles } from "./mmd-anim-library.ts";
  * 若项目纹理数量大或网络/磁盘 I/O 慢，可调大（如 8/16）；内存紧张则调小（如 2）。
  * ADR-101：对齐后端 goroutine 池设计哲学。 */
 const TEXTURE_READ_CHUNK_SIZE = 4;
-
-/** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
-function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const len = bin.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-
-/** Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView<ArrayBuffer>，规避 SharedArrayBuffer 泛型） */
-function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-}
 
 /** MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface MmdDataPort {

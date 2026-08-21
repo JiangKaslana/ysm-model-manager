@@ -13,20 +13,12 @@ import { screenshotFromRenderer } from "../screenshot.ts";
 import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { recordLoadTrace } from "../load-trace.ts";
 import { disposeMaterial } from "../mesh.ts";
+import { b64ToBytes, bytesToArrayBuffer } from "../base64.ts";
 
 /** FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface FbxDataPort {
   readFileBytes(path: string): Promise<string | null>;
   addOpLog?(op: string, msg: string, status: "ok" | "fail" | "warn", err?: string): Promise<void>;
-}
-
-/** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
-function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const len = bin.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
 }
 
 /** FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160），
@@ -64,11 +56,6 @@ export function normalizeFbxScale(group: THREE.Group): FbxScaleInfo {
   size.multiplyScalar(factor);
   center.multiplyScalar(factor);
   return { factor, size, center };
-}
-
-/** Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView<ArrayBuffer>，规避 SharedArrayBuffer 泛型） */
-function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 /** 环形日志面板诊断（AGENTS.md：排查卡顿往环形日志塞日志而非死盯 console）；失败静默不阻断 */

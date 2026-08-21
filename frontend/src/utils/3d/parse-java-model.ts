@@ -8,6 +8,8 @@
 // - 输出 UV 为 Three.js 域（flipY=true 加载纹理）：v_three = 1 - v_mc
 // - 顶点顺序/UV 角映射：prismarine-viewer（与 MC 渲染一致）
 
+import { b64ToBytes } from "./base64.ts";
+
 // ===== 面 → 4 顶点（[x?, y?, z?, u角, v角]，u/v 为 MC 语义 0/1 角）=====
 const ELEM_FACES: Record<string, { dir: [number, number, number]; corners: [number, number, number, number, number][] }> = {
   up: {
@@ -71,15 +73,6 @@ export interface JavaModelResult {
 export type PackEntryReader = (entry: string) => Promise<string | null>;
 
 // ===== 工具 =====
-
-/** base64 → Uint8Array（Go []byte 序列化格式） */
-export function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const len = bin.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
 
 /** base64 → UTF-8 文本（JSON 含中文描述等，不能直接用 atob） */
 function b64ToText(b64: string): string {

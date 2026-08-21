@@ -43,11 +43,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 133 | 522 |
+| 前端·工具 | 135 | 532 |
 | frontend/views | 114 | 328 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **433** | **1867** |
+| **合计** | **435** | **1877** |
 
 ## Go·头像
 
@@ -215,11 +215,11 @@
 |------|--------|------|
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:74` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:84` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:634` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:644` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `IsMainModelName()` | `go/geometry/archive:657` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:669` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:764` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
+| `ParseFromZip()` | `go/geometry/archive:642` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:652` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `IsMainModelName()` | `go/geometry/archive:665` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:677` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:772` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
 | `ParseBedrockGeometry()` | `go/geometry/parse:188` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -308,9 +308,9 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ReadPackMeta()` | `go/packs/mcmeta:35` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
-| `DetectResourceType()` | `go/packs/mcmeta:142` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:291` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `ReadPackMeta()` | `go/packs/mcmeta:36` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
+| `DetectResourceType()` | `go/packs/mcmeta:143` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:316` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 
@@ -1232,18 +1232,26 @@
 | `FBX_TARGET_MAX_DIM()` | `frontend/src/utils/3d/adapters/fbx-adapter:26` | FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160）， 与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 |
 | `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:29` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |
 | `normalizeFbxScale()` | `frontend/src/utils/3d/adapters/fbx-adapter:45` | Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时， 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀 |
-| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:87` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:82` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `FbxGeometryData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:10` | — |
+| `FbxMaterialData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:21` | — |
+| `FbxSkeletonData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:37` | — |
+| `FbxMeshData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:48` | — |
+| `FbxClipData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:61` | — |
+| `FbxSceneData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:71` | — |
+| `captureTextureName()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:78` | — |
+| `fbxSceneToData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:174` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:378` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:59` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:169` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:176` | — |
-| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1076` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1117` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1149` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:60` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:170` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:177` | — |
+| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1077` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1118` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1150` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:12` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:24` | 从文件列表中筛选动作文件（.vmd / .vpd） |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
@@ -1260,8 +1268,8 @@
 | `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:232` | 测试用：注入编码实现（默认走本地 WASM） |
 | `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:243` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
 | `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:293` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
-| `Ktx2TextureLoaderDeps()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:20` | 拦截 loader 依赖注入（装配方提供） |
-| `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:60` | — |
+| `Ktx2TextureLoaderDeps()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:21` | 拦截 loader 依赖注入（装配方提供） |
+| `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:61` | — |
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:9` | 主线程 → Worker 的请求 |
 | `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:17` | Worker → 主线程的响应 |
 | `pmxObjectToResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-convert:194` | 权威 PmxObject → PmxParseResponse（压缩数组可 transferable；id 由调用方填入） |
@@ -1340,13 +1348,14 @@
 | `PmxJoint()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:111` | — |
 | `PmxObject()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:127` | — |
 | `PmxReader()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader:62` | PmxReader is a static class that parses PMX data |
-| `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:28` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:85` | VRM meta 归一化信息（meta 卡展示用） |
-| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:104` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
-| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:164` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:174` | — |
-| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:453` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:489` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
+| `FBXLoader()` | `frontend/src/utils/3d/adapters/vendor/fbx/FBXLoader:78` | A loader for the FBX format. |
+| `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:29` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:86` | VRM meta 归一化信息（meta 卡展示用） |
+| `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:105` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |
+| `VrmPanelHooks()` | `frontend/src/utils/3d/adapters/vrm-adapter:165` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildVrmScene()` | `frontend/src/utils/3d/adapters/vrm-adapter:175` | — |
+| `VrmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/vrm-adapter:454` | vrmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `vrmMenuItems()` | `frontend/src/utils/3d/adapters/vrm-adapter:490` | VRM 声明式根菜单专属项（ADR-076 v2 Phase 2）：🦴 骨骼 + 🎨 材质。 |
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:21` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:31` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
@@ -1355,10 +1364,10 @@
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:40` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
 | `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:100` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:352` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:366` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:371` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:405` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:355` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:369` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:374` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:408` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `b64ToBytes()` | `frontend/src/utils/3d/base64:6` | base64 → Uint8Array（Go []byte 的 base64 序列化） |
 | `bytesToArrayBuffer()` | `frontend/src/utils/3d/base64:15` | Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView&lt;ArrayBuffer&gt;，规避 SharedArrayBuffer 泛型） |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
@@ -1513,13 +1522,13 @@
 | `Spec3D()` | `frontend/src/utils/3d/model3d:39` | — |
 | `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:44` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
 | `BoneMaps()` | `frontend/src/utils/3d/model3d:58` | 骨骼层级映射（dispatch 拾取归属用，ADR-093 T5） |
-| `JavaModelFace()` | `frontend/src/utils/3d/parse-java-model:42` | 单面解析产物（像素坐标 + Three 域 UV） |
-| `JavaModelResult()` | `frontend/src/utils/3d/parse-java-model:57` | — |
-| `PackEntryReader()` | `frontend/src/utils/3d/parse-java-model:71` | 条目读取器：Go binding ReadPackEntry 包装（返回 base64 或 null） |
-| `modelEntryFor()` | `frontend/src/utils/3d/parse-java-model:91` | 模型名 → 条目路径（无命名空间默认 minecraft） |
-| `parseJavaModel()` | `frontend/src/utils/3d/parse-java-model:308` | 解析资源包内 block/item 模型（parent 链递归）。 |
-| `isRenderableModel()` | `frontend/src/utils/3d/parse-java-model:337` | 判定模型是否"完整可渲染"：至少一个面有纹理或纯色（纯模板如 cube/cube_all 返回 false） |
-| `INTERNALS()` | `frontend/src/utils/3d/parse-java-model:342` | — |
+| `JavaModelFace()` | `frontend/src/utils/3d/parse-java-model:44` | 单面解析产物（像素坐标 + Three 域 UV） |
+| `JavaModelResult()` | `frontend/src/utils/3d/parse-java-model:59` | — |
+| `PackEntryReader()` | `frontend/src/utils/3d/parse-java-model:73` | 条目读取器：Go binding ReadPackEntry 包装（返回 base64 或 null） |
+| `modelEntryFor()` | `frontend/src/utils/3d/parse-java-model:93` | 模型名 → 条目路径（无命名空间默认 minecraft） |
+| `parseJavaModel()` | `frontend/src/utils/3d/parse-java-model:310` | 解析资源包内 block/item 模型（parent 链递归）。 |
+| `isRenderableModel()` | `frontend/src/utils/3d/parse-java-model:339` | 判定模型是否"完整可渲染"：至少一个面有纹理或纯色（纯模板如 cube/cube_all 返回 false） |
+| `INTERNALS()` | `frontend/src/utils/3d/parse-java-model:344` | — |
 | `BeatDetectorLike()` | `frontend/src/utils/3d/perception/autodance:18` | 节拍 detector 接口（抽象，解耦具体实现） |
 | `AutoDanceOptions()` | `frontend/src/utils/3d/perception/autodance:26` | AutoDance 配置 |
 | `createAutoDanceController()` | `frontend/src/utils/3d/perception/autodance:69` | — |
@@ -1577,8 +1586,8 @@
 | `setVrmMaterialVisible()` | `frontend/src/utils/3d/vrm-materials:38` | 材质显隐：Material.visible（MToon/标准/基础均支持） |
 | `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
-| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:21` | YSM 骨骼动画播放器接口 |
-| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:53` | 构建 YSM 骨骼动画播放器。 |
+| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:25` | YSM 骨骼动画播放器接口 |
+| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:57` | 构建 YSM 骨骼动画播放器。 |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:22` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
 | `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:41` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
@@ -1591,6 +1600,7 @@
 | `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:207` | 解析完整的基岩版动画 JSON 字符串 |
 | `evaluateKeyframes()` | `frontend/src/utils/animation/animation:304` | 在指定时间 t 对一组关键帧求值 |
 | `evaluateClip()` | `frontend/src/utils/animation/animation:350` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:483` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
 | `swallowError()` | `frontend/src/utils/core/async:11` | 吞掉 promise 的异常并记录日志（比空 `.catch(() =&gt; {})` 可调试）。 |
