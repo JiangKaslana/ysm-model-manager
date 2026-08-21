@@ -8,6 +8,36 @@
 
 ---
 
+## 0. 后续变更记录 (2026-08-21 更新)
+
+> **⚠️ 重要**：本 ADR 的多项决策已被后续架构演进部分取代或补充：
+>
+> **1. `vrchat-avatar` (VRM) 独立分组已被取代**（ADR-111 variants 解耦）：
+> - `vrchat-avatar` 作为独立类型已退役。
+> - VRM 文件（`.vrm`）现已归入 **`EntityPlayer`** 类型的 `variants` 字段中，作为玩家模型的一种变体。
+> - VRM 不再属于独立的 `vrm` 组，而是属于 `mmd` 组。
+>
+> **2. MMD 类型已完全拆分**（P1-5 审计发现）：
+> - 原决策中「第 2 层后续」的 MMD 子类型化，**实际上已经落地**，且超出了原 ADR 的预期。
+> - 原先的 `mmd-skin` 单类型已拆分为 **9 个独立的顶级资源类型**：
+>   - `EntityPlayer` (玩家模型)
+>   - `SceneModel` (场景模型)
+>   - `CustomAnim` (自定义动画)
+>   - `CustomMorph` (自定义表情)
+>   - `StageAnim` (舞台动画)
+>   - `mmd-shader` (MMD 着色器)
+>   - `DefaultAnim` (默认动画)
+>   - `DefaultMorph` (默认表情)
+>   - `fbx` (FBX 模型)
+> - 这 9 个类型全部归入 `mmd` 组，各自拥有独立的 `storageSubDir`、`extensions`、`detector` 等字段。
+>
+> **3. `resourceGroups` 顶层数组未落地**（P1-3 审计发现）：
+> - 原决策承诺的在 JSON 顶层新增 `resourceGroups` 数组**从未实现**。
+> - 当前分组元数据（名称、图标、排序）是从每个类型的 `group` / `groupLabel` / `groupIcon` 字段**动态派生**的（见 `frontend/src/utils/resource/types.ts` 和 `go/types/extensions.go`）。
+> - 这在实践上可行，但与原决策的「顶层数组单一权威」叙事不符。
+
+---
+
 ## 1. 背景（Context）
 
 `resource_types.json`（仓库根，单一事实来源）当前登记 7 类资源，每类仅有一个 `storageSubDir`——即 `FilesRoot` 下的**叶子目录**，类型之间**完全平铺、无更高层分组**（已读源码确认：根 `resource_types.json` 7 个条目均无 `group` 字段；`frontend/src/utils/resource/types.ts:9-17` 的 `RESOURCE_TYPES` 亦无 group 维度）。

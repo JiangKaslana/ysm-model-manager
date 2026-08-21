@@ -49,7 +49,7 @@ invariant_anchors:
 - `NewDirectoryCopy` — 以文件夹为单位的复制策略（`DirectoryCopyImporter`：mmd-skin）
 - `ImportFromBase64(fileName, base64Data, ImportOptions{SkipCheck, Overwrite}, rootFn, logger)` — base64 导入核心
 - `DetectZipType(data []byte) string` — ZIP 内容类型检测
-- `init()` 注册：resourcepack / shaderpack / create-blueprint / mmd-skin(目录) / vrchat-avatar / ysm / litematic
+- `init()` 注册：resourcepack / shaderpack / blueprint / mmd-skin(目录) / EntityPlayer / ysm / litematic
 
 ## 与其他子系统关系
 

@@ -81,8 +81,8 @@ use_when:
 - 注册表加载是加锁单例（`registryMu`，实现注释「加锁替代 sync.Once」——避免 SetRegistryPath 重置与 Once.Do 竞争；行为上仍是单例）；默认**不读 cwd 裸文件名**，避免部署时工作目录漂移读到旧 JSON
 - 外部 JSON 解析失败时**回退嵌入基线**并记录告警（P2 修复：原实现缓存空注册表，进程生命周期内所有扩展名查询静默失效）；仅当嵌入基线也损坏才缓存空表（**回退路径已有测试**：`TestLoadRegistry_CorruptFallbackToEmbedded` 钉住损坏外部 JSON 回退基线，P3 补测）
 - `RepoRoot` 为旧版字段（v1.6.4+ 弃用），仅用于配置迁移，新功能不得使用
-- `resource_types_embed.go` 由脚本从 `resource_types.json` 生成（头部有 DO NOT EDIT 标记），手改会被覆盖（**2026-08-09 发现生成文件与源漂移一处**：`create-blueprint.name` 生成侧 `"蓝图"` vs 源 `"蓝图 / 结构"`——生成脚本不在仓库内，已手动同步；后续源改 name 需注意 embed 同步，建议一致性测试覆盖 Name 字段）；**`zipEntries`/`detector` 双副本由 `resource_types_consistency_test.go` 逐字段强约束**（ADR-067 S1 双文件同步的守卫）
-- 新增资源类型只改 `resource_types.json`，Go 端不手写 StorageSubDir/扩展名条目（治理红线：注册表优先）。`ShouldHashExt` 是已知例外：硬编码 `.ysm/.zip/.7z/.json/.nbt/.schematic/.litematic`（MMD/VRC 大文件跳过哈希的性能决策，注册表无 hash 开关字段），已有测试钉住清单（`TestShouldHashExt_PinnedList`），若注册表新增 hash 字段应改注册表驱动
+- 单一权威来源为仓库根 `resource_types.json`，编译期通过 `go:embed` 内嵌为内存镜像（替代历史 `resource_types_embed.go`），`zipEntries`/`detector` 双副本由 `resource_types_consistency_test.go` 逐字段强约束（ADR-067 S1 双文件同步的守卫）
+- 新增资源类型只改 `resource_types.json`，Go 端不手写 StorageSubDir/扩展名条目（治理红线：注册表优先）。`ShouldHashExt` 已改为注册表驱动（检查 `rt.Hashable` 字段），非 `blueprint`/`litematic` 等类型默认 `Hashable: false`（与 JSON 中 `hashable` 字段语义一致）。已有测试钉住清单（`TestShouldHashExt_FromRegistry`），新增类型只需在 JSON 中声明 `hashable: true/false`
 - **ADR-051 单一事实来源**：`AppError.Code` 类型是 `ErrorCode` 枚举（不是 `string`），强制所有错误码必须从 15 个常量中选取；前端 `friendlyError`（`utils/dom/errors.ts`）直接消费 Code 做 i18n 映射，不再维护独立正则分类表；前端 `CODE_KEYS` 表必须与本卡的 ErrorCode 表同步，任一新增/改名须两处同时更新
 
 ## 相关

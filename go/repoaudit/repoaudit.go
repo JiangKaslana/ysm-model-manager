@@ -33,13 +33,13 @@ const (
 
 // Result 仓库审计结果（结构对齐原 go/cli repoAuditResult）
 type Result struct {
-	Timestamp    string          `json:"timestamp"`
-	Directory    string          `json:"directory"`
-	Completeness Completeness    `json:"completeness"`
-	Cache        CacheStatus     `json:"cache"`
-	Resources    ResourceSummary `json:"resources"`
-	Score        int             `json:"score"`
-	Warnings     []string        `json:"warnings,omitempty"`
+	Timestamp    string               `json:"timestamp"`
+	Directory    string               `json:"directory"`
+	Completeness Completeness         `json:"completeness"`
+	Cache        CacheStatus          `json:"cache"`
+	Resources    ResourceSummary      `json:"resources"`
+	Score        int                  `json:"score"`
+	Warnings     []string             `json:"warnings,omitempty"`
 }
 
 // Completeness 完整性统计

@@ -1,9 +1,20 @@
 # ADR-024: 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表）
 
-- **状态**：✅ 已采纳
+- **状态**：🔄 部分采纳（基础联邦架构仍有效，但部分资源类型定义已过时）
 - **日期**：2026-08-04（决策时间线：联邦愿景 2025-06-07 起草 / P7 多资源计划 2026-06-10 定稿 / 注册表现行落地）
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`resource_types.json`（单一事实来源）/ `go/types/`（注册表运行时）/ `internal/app/resource_bindings.go` / 原 `docs/archive/vision.md` + `docs/archive/design/plan-p7-multi-resource.md`（已迁本 ADR）
+
+---
+
+## 0. 后续变更记录 (2026-08-21 更新)
+
+> **⚠️ 重要**：本 ADR 中关于具体资源类型的描述已过时。
+> - 原「7 类资源」现已扩展为 **15 类资源**。
+> - `create-blueprint` 已改名为 `blueprint`。
+> - `vrchat-avatar` 已退役，VRM 文件（`.vrm`）现已归入 `EntityPlayer` 类型的 `variants` 字段。
+> - `mmd-skin` 单类型已拆分为 **9 个独立顶级类型**（EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/mmd-shader/DefaultAnim/DefaultMorph/fbx），全部归入 `mmd` 组。
+> - 本 ADR 确立的「联邦制资源架构」与「注册表优先」核心原则仍然有效，后续变更均在此基础上进行。
 
 ---
 

@@ -33,7 +33,7 @@ invariant_anchors:
 ## 对外 API / 入口
 
 `resource-types.ts`（同步常量，知识卡旧文「resource-types.ts」文件名漂移，实际为 `types.ts`）：
-- `RESOURCE_TYPES: Record<string, string>` — 7 个 ID 常量：YSM/MMD/VRC/PACK/SHADER/BLUEPRINT/LITEMATIC → "ysm" / "mmd-skin" / "vrchat-avatar" / "resourcepack" / "shaderpack" / "create-blueprint" / "litematic"
+- `RESOURCE_TYPES: Record<string, string>` — 7 个 ID 常量：YSM/MMD/VRC/PACK/SHADER/BLUEPRINT/LITEMATIC → "ysm" / "mmd-skin" / "vrchat-avatar" / "resourcepack" / "shaderpack" / "blueprint" / "litematic"
 - `RESOURCE_TYPE_LABELS: Record<string, string>` — ID → 中文标签（模型/MMD/VRC/资源包/光影包/蓝图/投影；**与 JSON `name` 是不同文案**——LABELS 为缩写「模型」，JSON name 为「YSM 模型」，同一类型 UI 不同处显示不同，P4 观察）
 - `ALL_RESOURCE_TYPES: string[]` — 全部 ID 列表
 - **能力元数据派生层（ADR-066 P0 + ADR-067 S4，由 `resource_types.json` 派生，单一事实来源）**：

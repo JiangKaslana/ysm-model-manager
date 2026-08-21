@@ -332,7 +332,7 @@ ReadFileBytes(Go, base64) → atob → Uint8Array
 
 ## 5. 资源类型系统（`resource_types.json` 单一事实来源）
 
-位于**仓库根**（约 3.4KB），顶层唯一键 `resourceTypes`（数组，8 项）：`resourcepack / shaderpack / ysm / create-blueprint / litematic / mmd-skin / vrchat-avatar / maid-model`。
+位于**仓库根**（约 3.4KB），顶层唯一键 `resourceTypes`（数组，15 项）：`resourcepack / shaderpack / ysm / blueprint / litematic / EntityPlayer / SceneModel / CustomAnim / CustomMorph / StageAnim / mmd-shader / DefaultAnim / DefaultMorph / fbx / maid-model`。
 
 每项字段：`id, name, icon, extensions[], storageSubDir, configField, configFallback?, installDir, scanDir, instanceLevel, preview(3d|thumbnail|none), detector(mcmeta|shader|ysm|zipentry|extension), isDir?, actions[]`。
 

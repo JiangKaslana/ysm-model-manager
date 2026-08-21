@@ -7,6 +7,16 @@
 
 ---
 
+## 0. 后续变更记录 (2026-08-21 更新)
+
+> **⚠️ 重要**：本 ADR 中关于 `MMDSubDirs()`、`IsSubDirGrouping`、`subDirGrouping` 类型的描述已过时。
+> - 这些函数/类型已在后续的架构扁平化中被全部移除。
+> - 当前的真实机制是：`EnsureStorageDirs` 遍历**注册表中全部类型**，对每个类型调用其 `instanceDir` 实现来确定需要创建的目录。
+> - MMD 的 8 个用途子目录（EntityPlayer/SceneModel/.../shader）现在是 JSON 中**8 个独立的顶级资源类型**，而非 `mmd-skin` 的子类型。
+> - 这意味着「MMD 子目录预建」的逻辑已从「硬编码遍历 `MMDSubDirs()`」变为「遍历注册表中 mmd 组所有类型的 `instanceDir`」，完全注册表驱动。
+
+---
+
 ## 1. 背景（Context）
 
 `resource_types.json`（仓库根，单一事实来源）是资源类型注册表的权威定义。但**运行态加载长期走一条多源优先级链**，在「纯 exe 嵌入发布」（ADR-058，2026-08 起）之后逐渐腐化：

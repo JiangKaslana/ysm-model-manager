@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-21T08:22:12.376Z",
+  "generated": "2026-08-21T10:11:49.539Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|dependencies|@loaders.gl/textures",
@@ -187,6 +187,7 @@
     "src/utils/dom/dialogs/rename.ts#src/utils/dom/dialogs/tag-editor.ts",
     "src/utils/dom/directory-picker.ts#src/utils/dom/directory-picker.ts",
     "src/utils/format/ysm-anim-config.ts#src/views/app-preview/wasm.ts",
+    "src/utils/resource/types.test.ts#src/utils/resource/types.ts",
     "src/views/app-content/diagnostics/perf.ts#src/views/app-content/diagnostics/perf.ts",
     "src/views/app-content/site/edit.ts#src/views/app-content/site/edit.ts",
     "src/views/app-preview/fbx-3d.ts#src/views/app-preview/ysm-3d.ts",
