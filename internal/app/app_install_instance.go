@@ -250,8 +250,8 @@ func (a *App) GetResourceInstanceStatus(rtype, mcRoot, repoDir string) []types.I
 
 	results := ysmsync.GetInstanceStatus(mcRoot, repoDir, rtype, scanFn)
 
-	// 为 YSM 类型补充 HasMod 检测
-	if rtype == "ysm" {
+	// 补充 HasMod 检测：检查整合包的 mods 目录是否包含指定类型的模组
+	if len(results) > 0 {
 		instances := a.ListVersionInstances(mcRoot)
 		insMap := make(map[string]*types.VersionInstance)
 		for i := range instances {

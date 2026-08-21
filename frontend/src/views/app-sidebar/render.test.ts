@@ -91,6 +91,17 @@ describe("vcHeaderHTML 徽章 chips（真实实现）", () => {
     expect(html).toContain('<span class="tag gray">🚫 无custom-type</span>');
   });
 
+  it("MMD 子类型（场景模型）无模组 → 统一显示 无MMD，不显 无场景模型", () => {
+    const html = vcHeaderHTML("P", 0, 5, 0, "missing", 0, false, "SceneModel");
+    expect(html).toContain('<span class="tag gray">🚫 无MMD</span>');
+    expect(html).not.toContain("无场景模型");
+  });
+
+  it("vrchat-avatar 虽在 mmd 组但保持独立 VRC 标签", () => {
+    const html = vcHeaderHTML("P", 0, 5, 0, "missing", 0, false, "vrchat-avatar");
+    expect(html).toContain('<span class="tag gray">🚫 无VRC</span>');
+  });
+
   it("hasMod && 全零 → 显 '0' 标签", () => {
     const html = vcHeaderHTML("P", 0, 0, 0, "complete");
     expect(html).toContain('<span class="tag">0</span>');

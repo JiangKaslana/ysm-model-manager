@@ -111,11 +111,23 @@ var ModKeywords = map[string][]string{
 	"vrchat-avatar": {"vrchat"},
 }
 
+// ModGroupKeywords 组级 mod 文件名关键词：同组多个子类型共享同一个底层模组时，
+// 由组统一声明，子类型不必逐个手写（新增 MMD 子类型自动继承）。
+// MMD 组（PMX 模型/场景模型/动画/表情/舞台/着色器）都依赖 MMD Skin 模组
+// （mmdskin/mmd-skin jar），缺失时整组内容都无法在整合包内生效。
+// vrchat-avatar 例外：它在 ModKeywords 中有独立 "vrchat" 关键词，优先于组级回退。
+var ModGroupKeywords = map[string][]string{
+	"mmd": {"mmdskin", "mmd-skin"},
+}
+
 // ModMeta 内容检测型资源类型的 mod 识别信息（modId + displayName，读 mods.toml 判定）。
 // ADR-095：maid-model（车万女仆）不用文件名关键词，读 jar 内 mods.toml 确认
 // modId="touhou_little_maid"（TouhouLittleMaid 源码 mods.toml 核实）。
+// blueprint（机械动力 Create）和 litematic 同样需要内容检测，仅凭文件名关键词不可靠。
 var ModMeta = map[string]struct{ ModID, DisplayName string }{
 	"maid-model": {"touhou_little_maid", "Touhou Little Maid"},
+	"blueprint":  {"create", "Create"},
+	"litematic":  {"litematica", "Litematica"},
 }
 
 // HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar
@@ -138,6 +150,12 @@ func HasModInDir(modsDir, rtype string) bool {
 		return false
 	}
 	keywords, ok := ModKeywords[rtype]
+	if !ok {
+		// 组级回退（见 ModGroupKeywords）：SceneModel/CustomAnim 等 MMD 子类型与
+		// EntityPlayer 共用 MMD Skin 模组，缺失时同样应判定"无模组"，而非落入默认
+		// "已安装"分支（修复场景模型等徽章误显示 "0" 而非 "无MMD"）
+		keywords, ok = ModGroupKeywords[types.GroupOf(rtype)]
+	}
 	if !ok {
 		// 非模型类（资源包/光影包/蓝图等）默认假设 mod 已安装，由调用方按需处理
 		return true

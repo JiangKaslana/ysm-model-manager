@@ -1,5 +1,5 @@
 // ===== sidebar HTML 模板 =====
-import { ALL_RESOURCE_TYPES, RESOURCE_TYPES, typeIconOf } from "../../utils/resource/types.ts";
+import { ALL_RESOURCE_TYPES, GROUP_OF, RESOURCE_TYPES, typeIconOf } from "../../utils/resource/types.ts";
 import { shortLabelOf } from "../../utils/resource/short-label.ts";
 import { esc } from "../../utils/dom/html.ts";
 import { t } from "../../core/i18n/t.ts";
@@ -85,6 +85,17 @@ function skeletonHTML(): string {
   return h;
 }
 
+/** 无模组徽章的模组名（≠资源类型短标签）：
+ *  MMD 组下 PMX 模型/场景模型/动画/表情/舞台/着色器共用 MMD Skin 模组，
+ *  缺失时统一提示「无MMD」，避免把「场景模型」这类资源类型名误当模组名（语义塌陷）。
+ *  vrchat-avatar 虽同属 mmd 组但走独立 vrchat 模组，保持 shortLabelOf 的 "VRC"。 */
+function noModLabelOf(rtype: string): string {
+  if (GROUP_OF[rtype] === "mmd" && rtype !== RESOURCE_TYPES.VRC) {
+    return shortLabelOf(RESOURCE_TYPES.MMD);
+  }
+  return shortLabelOf(rtype) || rtype;
+}
+
 /** 单个整合包卡片头部。
  *  idx 用于绑定安装缺失按钮的 data-idx */
 export function vcHeaderHTML(
@@ -103,7 +114,7 @@ export function vcHeaderHTML(
     (missing > 0 && hasMod ? `<span class="tag red">${missing}</span> ` : "") +
     (extra > 0 ? `<span class="tag orange">${extra}</span>` : "") +
     (!hasMod
-      ? `<span class="tag gray">🚫 ${t("sidebar.noMods", { type: shortLabelOf(rtype) || rtype })}</span>`
+      ? `<span class="tag gray">🚫 ${t("sidebar.noMods", { type: noModLabelOf(rtype) })}</span>`
       : allZero
         ? `<span class="tag">0</span>`
         : "");

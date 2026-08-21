@@ -137,6 +137,43 @@ func TestHasModInDir(t *testing.T) {
 	}
 }
 
+// MMD 组所有子类型（场景模型/动画/表情/舞台/着色器）与 PMX 模型共用 MMD Skin
+// 模组（mmdskin/mmd-skin），缺失时应同样判定"无模组"——此前只有 EntityPlayer 有
+// ModKeywords 关键词，其余子类型落入默认 true（侧栏徽章误显示 "0" 而非 "无MMD"）。
+func TestHasModInDir_MMDSubtypes(t *testing.T) {
+	mmdSubtypes := []string{
+		"SceneModel", "CustomAnim", "CustomMorph", "StageAnim",
+		"DefaultAnim", "DefaultMorph", "mmd-shader",
+	}
+
+	modsDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(modsDir, "MMDSkin-1.0.jar"), []byte("x"), 0644)
+	for _, rt := range mmdSubtypes {
+		if !HasModInDir(modsDir, rt) {
+			t.Errorf("含 mmdskin jar 时 MMD 子类型 %q 应识别为 true", rt)
+		}
+	}
+
+	// 无 mod 的目录 → 所有 MMD 子类型都应 false（回归：此前 SceneModel 等误返回 true）
+	empty := t.TempDir()
+	for _, rt := range mmdSubtypes {
+		if HasModInDir(empty, rt) {
+			t.Errorf("无 mod 时 MMD 子类型 %q 应返回 false（此前误判为已装模组）", rt)
+		}
+	}
+
+	// vrchat-avatar 虽同属 mmd 组，但走独立 "vrchat" 关键词，不应被组级 mmdskin 覆盖
+	vrcDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(vrcDir, "mmdskin-1.0.jar"), []byte("x"), 0644)
+	if HasModInDir(vrcDir, "vrchat-avatar") {
+		t.Fatal("vrchat-avatar 不应被 mmdskin 关键词误识别")
+	}
+	_ = os.WriteFile(filepath.Join(vrcDir, "vrchat-1.0.jar"), []byte("x"), 0644)
+	if !HasModInDir(vrcDir, "vrchat-avatar") {
+		t.Fatal("vrchat-avatar 含 vrchat 关键词应识别为 true")
+	}
+}
+
 // ====== AnalyzeYSMModel ======
 
 const validModelJSON = `{
