@@ -15,9 +15,11 @@
     <script type="module" src="src/app-modules.ts"></script>
   </head>
   <body style="margin: 0; overflow: hidden">
+    <!-- 跳过链接：键盘用户直达主内容 -->
+    <a href="#main-content" class="skip-link" aria-label="跳过导航，直达主内容">跳过导航</a>
     <div style="display: flex; height: 100vh; overflow: hidden">
-      <app-nav></app-nav>
-      <app-content></app-content>
+      <app-nav aria-label="主导航"></app-nav>
+      <app-content id="main-content" aria-label="主内容区"></app-content>
     </div>
     <div
       id="global-loader"

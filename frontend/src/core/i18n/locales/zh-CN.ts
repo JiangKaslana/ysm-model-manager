@@ -823,7 +823,6 @@ export const zhCN: Record<string, string> = {
   // ── 预览 ──
   "preview.title3d": "3D 预览",
   "preview.modelInfo": "模型信息",
-  "preview.switchModel": "切换模型",
   "preview.roles": "角色",
   "preview.roleFocus": "设为焦点",
   "preview.roleTools": "模型工具",

@@ -153,10 +153,11 @@ export function flattenVisible(
       const entryKey = e.fullPath || e.path;
       const selCls = selectState.keys.has(entryKey) ? " selected" : "";
       const nmCls = isYsmName(e.name) ? " ysm" : "";
-      // 根据模式选择模板
+      // 根据模式选择模板（aria-level 最小为 1）
+      const ariaLevel = depth + 1;
       const html =
         mode === "list"
-          ? listFileRowHTML(e, nmHtml, fileIcon(e.name), nmCls, indent, selCls)
+          ? listFileRowHTML(e, nmHtml, fileIcon(e.name), nmCls, indent, selCls, ariaLevel)
           : fileRowHTML(
               e,
               nmHtml,
@@ -165,6 +166,7 @@ export function flattenVisible(
               nmCls,
               indent,
               selCls,
+              ariaLevel,
             );
       rows.push({
         id: ++_rowIdCounter,
@@ -180,7 +182,8 @@ export function flattenVisible(
       const sub = dirEntries(node[k] as TreeNode);
       const hasEnabled = sub.some((e) => !e.banned);
       const hasDisabled = sub.some((e) => e.banned);
-      // 根据模式选择模板
+      // 根据模式选择模板（aria-level 最小为 1）
+      const ariaLevel = depth + 1;
       const html =
         mode === "list"
           ? listFolderRowHTML(
@@ -191,6 +194,7 @@ export function flattenVisible(
               hasEnabled,
               hasDisabled,
               indent,
+              ariaLevel,
             )
           : folderRowHTML(
               k,
@@ -200,6 +204,7 @@ export function flattenVisible(
               hasEnabled,
               hasDisabled,
               indent,
+              ariaLevel,
             );
       rows.push({
         id: ++_rowIdCounter,

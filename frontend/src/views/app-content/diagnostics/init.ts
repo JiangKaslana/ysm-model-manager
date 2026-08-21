@@ -6,6 +6,7 @@ import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
 import { can } from "../../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
+import { RESOURCE_TYPES } from "../../../utils/resource/types.ts";
 import { loadDiagnosticsLogs, loadRuntimeLogs, type EscFn } from "./logs.ts";
 import { scanConflicts } from "./conflicts.ts";
 import { initPerfPanel, renderLoadTraceSection } from "./perf.ts";
@@ -153,7 +154,7 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
     let filesRoot = "";
     try {
       const { GetRepoRoot } = await getApp();
-      filesRoot = (await GetRepoRoot("ysm")) || "";
+      filesRoot = (await GetRepoRoot(RESOURCE_TYPES.YSM)) || "";
     } catch {
       // 拿不到根则后端按空解析（跳过错误，体检容错）
     }

@@ -46,10 +46,10 @@ describe("CORE_MENU_ITEMS 表结构", () => {
     });
   });
 
-  it("契约锚点：camera=sharedOnly，switch 始终可见 dock（路径输入兜底）", () => {
+  it("契约锚点：camera=sharedOnly，roles 为模型组唯一 core 项（加载入口内嵌，dock 始终可见）", () => {
     expect(CORE_MENU_ITEMS.find((d) => d.id === "camera")?.sharedOnly).toBe(true);
-    // switch 不再设 needsSiblings：dock 始终显示，面板内按 siblings 是否为空切换模式
-    expect(CORE_MENU_ITEMS.find((d) => d.id === "switch")?.needsSiblings).toBeUndefined();
+    // 独立 switch 项已撤除（2026-08-21 合并）：模型组 core 项仅 roles，面板底部内嵌加载入口
+    expect(CORE_MENU_ITEMS.filter((d) => d.dockGroup === "model").map((d) => d.id)).toEqual(["roles"]);
   });
 });
 
@@ -93,7 +93,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("点击 model 组（多 panel：switch + adapter model）→ 组根视图列项，点击项下钻面板", () => {
+  it("点击 model 组（多 panel：roles + adapter model）→ 组根视图列项，点击项下钻面板", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const adapterModelItem = {
       id: "model",
@@ -138,10 +138,10 @@ describe("mountPreviewRootMenu", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // switch 为 panel 行 → 有下钻箭头（switch 从 CORE_MENU_ITEMS 推导）
-    const switchItem = CORE_MENU_ITEMS.find((d) => d.id === "switch")!;
-    const switchRow = overlay.querySelector(`[data-testid="preview-${switchItem.id}"]`);
-    expect(switchRow!.querySelector('[data-testid="row-chevron"]')).not.toBeNull();
+    // roles 为 panel 行 → 有下钻箭头（roles 从 CORE_MENU_ITEMS 推导）
+    const rolesItem = CORE_MENU_ITEMS.find((d) => d.id === "roles")!;
+    const rolesRow = overlay.querySelector(`[data-testid="preview-${rolesItem.id}"]`);
+    expect(rolesRow!.querySelector('[data-testid="row-chevron"]')).not.toBeNull();
     // 注入的 action 行 → 无箭头（点击直接执行）
     const actRow = overlay.querySelector(`[data-testid="preview-${actItem.id}"]`);
     expect(actRow!.querySelector('[data-testid="row-chevron"]')).toBeNull();
@@ -218,15 +218,13 @@ describe("mountPreviewRootMenu", () => {
     document.body.click();
   });
 
-  it("switch 面板：无 siblings → 显示空态（路径输入仍在，类型 tab 由 adapter 注入）", () => {
+  it("角色面板加载入口：无 siblings → 显示空态（路径输入仍在，类型 tab 由 adapter 注入）", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => [] }));
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
+    // 模型组仅 roles 一个 core 项 → 单 panel 快捷直达角色面板（内嵌加载入口）
     modelBtn!.click();
-    // switch 从 CORE_MENU_ITEMS 推导 testId
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     // 空态提示
@@ -237,7 +235,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("switch 面板：siblings 存在 → 列兄弟项（路径输入行保留）", () => {
+  it("角色面板加载入口：siblings 存在 → 列兄弟项（路径输入行保留）", () => {
     const switchTo = vi.fn();
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
@@ -246,8 +244,6 @@ describe("mountPreviewRootMenu", () => {
     }));
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     // 兄弟项渲染
@@ -271,8 +267,6 @@ describe("mountPreviewRootMenu", () => {
     }));
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     // 当前项（/m/a.ysm）无 ➕，兄弟项（/m/b.ysm）有 ➕
     const appendBtns = overlay.querySelectorAll('[data-testid="preview-switch-append"]');
     expect(appendBtns.length).toBe(1);
@@ -281,7 +275,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("switch 面板：当前目录 tab 跨类型兄弟行无 ➕（逐行类型判定）", () => {
+  it("角色面板加载入口：当前目录 tab 跨类型兄弟行无 ➕（逐行类型判定）", () => {
     const switchTo = vi.fn();
     const switchExternal = vi.fn(async () => {});
     const handle = mountPreviewRootMenu(overlay, makeCtx({
@@ -293,8 +287,6 @@ describe("mountPreviewRootMenu", () => {
     }));
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     // /m/b.vrm 是跨类型兄弟：无 ➕；行本体点击走跨类型替换（switchExternal）
     expect(overlay.querySelector('[data-testid="preview-switch-append"]')).toBeNull();
     const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
@@ -303,7 +295,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("switch 面板：类型 tab 同类型候选有 ➕，点击追加 → switchTo keepInScene", async () => {
+  it("角色面板加载入口：类型 tab 同类型候选有 ➕，点击追加 → switchTo keepInScene", async () => {
     const switchTo = vi.fn();
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/a.ysm"],
@@ -315,8 +307,6 @@ describe("mountPreviewRootMenu", () => {
     }));
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     // 切到 ysm 类型 tab（与当前会话同类型）
     const tabs = overlay.querySelectorAll('[data-testid="preview-switch-tab"]');
     const ysmTab = Array.from(tabs).find((t) => (t as HTMLElement).dataset.rtype === "ysm") as HTMLElement;
@@ -332,7 +322,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("switch 面板：类型 tab 跨类型候选行无 ➕（跨类型追加需换适配器）", async () => {
+  it("角色面板加载入口：类型 tab 跨类型候选行无 ➕（跨类型追加需换适配器）", async () => {
     const switchTo = vi.fn();
     const switchExternal = vi.fn(async () => {});
     const handle = mountPreviewRootMenu(overlay, makeCtx({
@@ -346,8 +336,6 @@ describe("mountPreviewRootMenu", () => {
     }));
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     // 切到 vrm 类型 tab（懒加载候选）
     const tabs = overlay.querySelectorAll('[data-testid="preview-switch-tab"]');
     const vrmTab = Array.from(tabs).find((t) => (t as HTMLElement).dataset.rtype === "vrm") as HTMLElement;

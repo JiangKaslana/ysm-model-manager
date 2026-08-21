@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"ysm-model-manager/go/dedup"
@@ -213,9 +212,9 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 	return "", nil
 }
 
-// repoRootForSync 返回资源类型的整合包同步基准目录。
-// 壳-叶架构已移除：所有类型统一走 GetRepoRoot。
-func (a *App) repoRootForSync(rtype string) (string, error) {
+// filesRootForSync 返回资源类型的整合包同步基准目录（FilesRoot/{group}/{storageSubDir}）。
+// 壳-叶架构已移除：所有类型统一走 GetRepoRoot（语义即 FilesRoot 派生路径）。
+func (a *App) filesRootForSync(rtype string) (string, error) {
 	return a.GetRepoRoot(rtype)
 }
 
@@ -234,7 +233,7 @@ func (a *App) EnsureStorageDirs() error {
 	for _, rt := range registry.ResourceTypes {
 		root, err := a.GetRepoRoot(rt.ID)
 		// 诊断打点：打印每个类型的路由推导，定位"目录扁平散开"问题
-		log.Printf("[storage] EnsureStorageDirs: id=%s group=%q sub=%q groupRoot=%q -> repoRoot=%q err=%v",
+		log.Printf("[storage] EnsureStorageDirs: id=%s group=%q sub=%q groupRoot=%q -> filesRoot=%q err=%v",
 			rt.ID, rt.Group, rt.StorageSubDir, types.GroupStorageRoot(rt.ID), root, err)
 		if err != nil {
 			if firstErr == nil {
@@ -273,10 +272,9 @@ func repoDirAccessible(dir string) bool {
 }
 
 // specificRoot 返回资源类型的专属覆写路径。
-// ADR-095：优先从 cfg.CustomRoots map 读取，其次回退到 AppConfig 旧字段（反射读取）。
+// ADR-095：从 cfg.CustomRoots map 读取（迁移后唯一事实源）。
 // 先查 rtype 自身 key，再查 rt.ConfigFallback（如 vrc → EntityPlayer），都无则返回空串。
 func specificRoot(cfg types.AppConfig, rtype string) string {
-	// 1. 优先从 CustomRoots map 读取（新方式）
 	if cfg.CustomRoots != nil {
 		if root := cfg.CustomRoots[rtype]; root != "" {
 			return root
@@ -289,32 +287,6 @@ func specificRoot(cfg types.AppConfig, rtype string) string {
 		}
 	}
 
-	// 2. 回退到 AppConfig 旧字段（向后兼容）
-	rt := types.RegistryType(rtype)
-	if rt != nil && rt.ConfigField != "" {
-		if root := getConfigFieldByReflection(cfg, rt.ConfigField); root != "" {
-			return root
-		}
-		if rt.ConfigFallback != "" {
-			if root := getConfigFieldByReflection(cfg, rt.ConfigFallback); root != "" {
-				return root
-			}
-		}
-	}
-
-	return ""
-}
-
-// getConfigFieldByReflection 通过反射读取 AppConfig 中指定字段的值
-func getConfigFieldByReflection(cfg types.AppConfig, fieldName string) string {
-	v := reflect.ValueOf(cfg)
-	f := v.FieldByName(fieldName)
-	if !f.IsValid() {
-		return ""
-	}
-	if f.Kind() == reflect.String {
-		return f.String()
-	}
 	return ""
 }
 
@@ -522,11 +494,11 @@ func (a *App) DeleteResourcePack(path, rtype string) error {
 		}
 	} else {
 		// 文件型资源：按 rtype 获取对应仓库根（非 ysm 类型可能在其他根下）
-		repoRoot, _ := a.GetRepoRoot(rtype)
-		if repoRoot == "" {
-			repoRoot = a.ysmRoot()
+		filesRoot, _ := a.GetRepoRoot(rtype)
+		if filesRoot == "" {
+			filesRoot = a.ysmRoot()
 		}
-		if err := fileops.DeleteModelFile(repoRoot, path); err != nil {
+		if err := fileops.DeleteModelFile(filesRoot, path); err != nil {
 			return err
 		}
 	}

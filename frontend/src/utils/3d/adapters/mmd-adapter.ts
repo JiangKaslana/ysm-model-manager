@@ -786,7 +786,7 @@ export async function buildMmdScene(
   // MMDToon 材质对光有响应，补环境 + 主光 + 半球光（对齐 vrm-adapter 灯位）
 
   // ---- 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放 ----
-  // 切换模型归 core switch 项（needsSiblings），相机归 core camera 项（sharedOnly）。
+  // 切换模型归 core roles 项（角色面板内嵌加载入口），相机归 core camera 项（sharedOnly）。
   // 菜单表提取为可导出 mmdMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
   const navCtx: MmdBottomNavCtx = {
     mmd: mmd!,

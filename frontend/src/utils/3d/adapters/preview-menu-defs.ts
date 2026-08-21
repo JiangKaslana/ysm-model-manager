@@ -27,13 +27,11 @@ export interface PreviewMenuItemDef {
   danger?: boolean;
   /** 仅 shared 模式显示（self 模式相机由适配器底部导航提供，避免双份） */
   sharedOnly?: boolean;
-  /** 仅 siblings.length > 0 显示（3D 内模型切换） */
-  needsSiblings?: boolean;
   /** 仅环境能力可用（skyCap/groundCap 任一非空）时显示 */
   requiresEnvironment?: boolean;
   /** 归属底栏分组（🧍 模型 / 💃 动作 / 🌍 场景）；无 dockGroup 的项只出现在设置聚合视图 */
   dockGroup?: PreviewMenuGroupId;
-  /** 面板型保留 legacy data-testid（兼容既有 e2e 选择器，如 preview-close-3d / env-menu-btn / mmd-switch） */
+  /** 面板型保留 legacy data-testid（兼容既有 e2e 选择器，如 preview-close-3d / env-menu-btn / ysm-roles-entry） */
   legacyTestId?: string;
   /** panel 型：子面板填充（适配器注入的专属项必需；core 固定项走 fillers 映射） */
   render?: (list: HTMLElement, closePopup: () => void) => void;
@@ -60,21 +58,12 @@ export const PREVIEW_MENU_GROUPS: PreviewMenuGroupDef[] = [
 
 /**
  * core 固定菜单项（不依赖适配器注入）：
- * - switch：模型组（有 siblings 才显示）
+ * - roles：模型组唯一 core 项（已加载角色管理 + 底部内嵌加载入口 fillSwitch；
+ *   2026-08-21 合并：独立 switch 项撤除，加载入口收编进角色面板，消灭双入口）
  * - environment / camera：场景组（shared 模式才显示）
  * close 不在此表——关闭由 SlideMenu header 的 ✕ 承担（legacy preview-close-3d 挂在关闭按钮）。
  */
 export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
-  {
-    id: "switch",
-    icon: "🔁",
-    labelKey: "preview.switchModel",
-    fallback: "切换模型",
-    kind: "panel",
-    /** 始终显示 dock 按钮：面板内按 siblings 是否为空切换列表/路径模式 */
-    dockGroup: "model",
-    legacyTestId: "mmd-switch",
-  },
   {
     id: "roles",
     icon: "🎭",

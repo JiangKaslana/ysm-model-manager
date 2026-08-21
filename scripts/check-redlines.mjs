@@ -205,6 +205,12 @@ function runChecks() {
       //   channelColors 为功能性 R/G/B 通道指示映射（非设计期调色板）。
       .filter((l) => { const [f] = parseRgLine(l); return !/voxel-colors-data\.ts$/.test(f) && !/voxel-parse\.ts$/.test(f) && !/ui-advanced-rows\.ts$/.test(f); })
       .filter((l) => { const [f] = parseRgLine(l); return !/litematic-(meta|3d)\.ts$/.test(f) && !/mc-format\.ts$/.test(f) && !/summarize\.ts$/.test(f) && !/zoom\.ts$/.test(f) && !/skeleton\.ts$/.test(f); })
+      // 诊断数据可视化色豁免（颜色即数据/算法色，非设计期 UI 调色板）：
+      // - diagnostics/perf.ts：STAGE_COLORS 性能图阶段分类调色板 + 甘特图耗时阈值分级色，
+      //   诊断图表内嵌配色；且甘特色注入 SVG presentation attribute（var() 在该位置不保证解析），
+      //   与六主题语义无关，强塞主题块属过度工程；
+      // - app-preview/detail-3d.ts：舞台文件类型（vmd/audio/config）点缀色，资源类别识别的数据语义色。
+      .filter((l) => { const [f] = parseRgLine(l); return !/diagnostics\/perf\.ts$/.test(f) && !/app-preview\/detail-3d\.ts$/.test(f); })
       .filter((l) => !/style\.cssText/.test(l))
       .filter((l) => !/style\.\w+\s*=\s*["'`]/.test(l))
       .filter((l) => !/style=["'][^"']*[;#](?:[0-9a-fA-F]{3}){1,2}/.test(l))
@@ -228,7 +234,11 @@ function runChecks() {
     rgTracked('"ysm"|"mmd-skin"|"vrchat-avatar"', 'frontend/src', ['*.js', '*.ts'])
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('.test.'); })
       .filter((l) => { const [f] = parseRgLine(l); return !f.includes('utils/resource/types'); })
-      .filter((l) => !/:\d+:\s*(?:\/\/|\/\*|\*)/.test(l)),
+      .filter((l) => !/:\d+:\s*(?:\/\/|\/\*|\*)/.test(l))
+      // ysm-adapter 渲染模式类型联合豁免："ysm" | "generic" 是渲染模式判别器的类型层字面量联合，
+      // 非传给后端的资源类型 ID（运行时仅比较 "generic"，"ysm" 为缺省模式名）。
+      // RESOURCE_TYPES 为 Record<string,string>、值类型是 string，替换为运行时常量会丢失字面量类型安全。
+      .filter((l) => !/"ysm"\s*\|\s*"generic"/.test(l)),
     'RESOURCE_TYPES');
 
   // R8 innerHTML XSS 风险：

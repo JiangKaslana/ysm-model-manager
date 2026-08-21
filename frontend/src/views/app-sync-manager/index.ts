@@ -37,7 +37,7 @@ export interface SyncManagerSelf {
   /** 展开/折叠状态（dir-level 层级展示用，key = item path） */
   _dirOpen: Record<string, boolean>;
   /** 各资源类型在 FilesRoot 下的仓库根路径缓存 */
-  _repoRoots: Record<string, string>;
+  _filesRoots: Record<string, string>;
   isConnected?: boolean;
   innerHTML: string;
   querySelector(sel: string): HTMLElement | null;
@@ -54,14 +54,14 @@ import { LAST_TYPE_KEY, _lastSelectedType, setLastSelectedType } from "./state.t
 
 const TOAST_MS_LONG = 5000;
 
-/** 按需加载当前 rtype 的 FilesRoot 仓库根路径（缓存到 _repoRoots，供 renderer 建树时扫描子条目） */
+/** 按需加载当前 rtype 的 FilesRoot 仓库根路径（缓存到 _filesRoots，供 renderer 建树时扫描子条目） */
 async function loadRepoRoots(self: SyncManagerSelf, rtype: string): Promise<void> {
-  if (self._repoRoots[rtype]) return;
+  if (self._filesRoots[rtype]) return;
   try {
     const { GetRepoRoot } = await getApp();
-    self._repoRoots[rtype] = (await GetRepoRoot(rtype || "")) || "";
+    self._filesRoots[rtype] = (await GetRepoRoot(rtype || "")) || "";
   } catch {
-    self._repoRoots[rtype] = "";
+    self._filesRoots[rtype] = "";
   }
 }
 
@@ -83,7 +83,7 @@ export class AppSyncManager extends WebComponentBase {
   private _unsubs: Array<() => void> = [];
   private _singleBusy = false;
   private _dirOpen: Record<string, boolean> = {};
-  private _repoRoots: Record<string, string> = {};
+  private _filesRoots: Record<string, string> = {};
 
   connectedCallback(): void {
     this._instance = this.getAttribute("instance") || "";

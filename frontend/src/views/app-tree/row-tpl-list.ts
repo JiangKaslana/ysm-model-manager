@@ -12,9 +12,11 @@ export function listFileRowHTML(
   nmCls = "",
   indent: number | null | undefined = null,
   rowCls = "",
+  ariaLevel = 1,
 ): string {
   const { p, fp, checked, ban, typeIcon, pad } = fileRowCommon(e, icon, indent);
-  return `<div class="fl-list${ban}${rowCls}" data-path="${p}" data-fullpath="${fp}"${pad}>
+  const selected = rowCls.includes("selected");
+  return `<div class="fl-list${ban}${rowCls}" role="treeitem" aria-level="${ariaLevel}" aria-selected="${selected}" data-path="${p}" data-fullpath="${fp}"${pad}>
 <span class="ck${checked}" data-path="${p}" data-fullpath="${fp}"></span>
 <span class="ficon">${typeIcon}</span>
 <span class="nm${nmCls}">${nmHtml}</span>
@@ -30,11 +32,12 @@ export function listFolderRowHTML(
   hasEnabled: boolean,
   hasDisabled: boolean,
   indent: number | null | undefined,
+  ariaLevel = 1,
 ): string {
   const { fi, nc, lk, ar, ac, ckCls, dispName, pad } = folderRowCommon(
     k, full, isOpen, isLocked, hasEnabled, hasDisabled, indent,
   );
-  return `<div class="fh-list${lk}" data-dir="${esc(full)}"${pad}>
+  return `<div class="fh-list${lk}" role="treeitem" aria-level="${ariaLevel}" aria-expanded="${isOpen}" data-dir="${esc(full)}"${pad}>
 <span class="ck${ckCls}" data-dir="${esc(full)}"></span>
 <span class="ar${ac}">${ar}</span>
 <span class="nm" style="color:${nc}">${fi} ${dispName}</span></div>`;

@@ -163,7 +163,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
       _filteredItems: SyncItem[];
       _typeConfig: Array<{ id: string; dirLevelSync: boolean }>;
       _dirOpen: Record<string, boolean>;
-      _repoRoots: Record<string, string>;
+      _filesRoots: Record<string, string>;
       _doRender: () => void;
     };
     self._selectedType = "EntityPlayer";
@@ -174,7 +174,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
       { path: "CustomAnim/动作.pmx", name: "动作", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, subdir: "CustomAnim" },
     ];
     self._filteredItems = self._allItems;
-    self._repoRoots = { "EntityPlayer": "/repo" };
+    self._filesRoots = { "EntityPlayer": "/repo" };
     self._dirOpen = {};
     mocks.ScanModelEntriesWithLabel.mockResolvedValue([]);
 
@@ -319,7 +319,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
       _filteredItems: Array<{ path: string; name: string; status: string; type: string; icon: string; size: number }>;
       _typeConfig: Array<{ id: string; name: string; icon: string; dirLevelSync: boolean }>;
       _dirOpen: Record<string, boolean>;
-      _repoRoots: Record<string, string>;
+      _filesRoots: Record<string, string>;
       _doRender: () => void;
     };
     self._selectedType = "blueprint";
@@ -329,7 +329,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
       { path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core", name: "hello_new_generation_core", status: "missing", type: "blueprint", icon: "⚙️", size: 4096 },
     ];
     self._filteredItems = self._allItems;
-    self._repoRoots = { "blueprint": "/repo" };
+    self._filesRoots = { "blueprint": "/repo" };
     self._dirOpen = {};
 
     mocks.ScanModelEntriesWithLabel.mockResolvedValue([

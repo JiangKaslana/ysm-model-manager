@@ -155,6 +155,15 @@ const RULES = [
     glob: "*.go",
     regex: /^func copyDirRecursive\(/,
     exclude: [/fsutil\/copy\.go/, /test/],
+    // 薄包装降噪：函数体若委托 fsutil.CopyDirRecursive 即为已收敛适配器（ADR-044），
+    // 仅标记真正独立实现（如 importer.go 的原子整树复制，语义独特暂不可收敛）。
+    filter: (line, content, lineIdx) => {
+      const lines = content.split("\n");
+      for (let i = lineIdx; i < Math.min(lineIdx + 20, lines.length); i++) {
+        if (lines[i].includes("fsutil.CopyDirRecursive")) return false;
+      }
+      return true;
+    },
   },
   {
     id: "ERROR_WRAP_V",

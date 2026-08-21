@@ -263,7 +263,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     modelBtn!.click();
     // 自愈：从真实菜单表推导期望选择器（ysm 项 + core 同组项）
     const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
-    const coreDock = deriveTestIds(CORE_MENU_ITEMS.filter((d) => d.dockGroup === "model" && d.id === "switch"));
+    const coreDock = deriveTestIds(CORE_MENU_ITEMS.filter((d) => d.dockGroup === "model"));
     [...adapterDock, ...coreDock].forEach((tid) => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
     });
@@ -299,7 +299,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("vrm 数组：🧍 模型组从菜单表推导，骨骼与 core switch 同行渲染（自适应）", () => {
+  it("vrm 数组：🧍 模型组从菜单表推导，骨骼与 core roles 同行渲染（自适应）", () => {
     const items = vrmMenuItems(fakeVrmOpts());
     const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.vrm"],
@@ -313,8 +313,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     adapterDock.forEach((tid) => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
     });
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    expect(overlay.querySelector(`[data-testid="preview-${switchId}"]`)).not.toBeNull();
+    const rolesId = CORE_MENU_ITEMS.find((d) => d.id === "roles")!.id;
+    expect(overlay.querySelector(`[data-testid="preview-${rolesId}"]`)).not.toBeNull();
     handle.dispose();
   });
 
@@ -363,7 +363,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     noScene.handle.dispose();
   });
 
-  it("提供 siblings → 🧍 组出现切换模型；选中条目触发 switchTo（换角色）", async () => {
+  it("提供 siblings → 🧍 组角色面板内嵌加载入口列候选；选中条目触发 switchTo（换角色）", async () => {
     const switchTo = vi.fn();
     const { overlay, handle } = mountWith([], {
       getSiblings: () => ["/m/a.ysm", "/m/b.vrm"],
@@ -373,9 +373,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
+    // 无适配器项 → 模型组仅 roles → 单 panel 快捷直达角色面板（内嵌加载入口）
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
@@ -385,15 +384,13 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("无 siblings → dock-model 可见（类型 tab 兜底），面板内显示空态（路径输入保留）", () => {
+  it("无 siblings → dock-model 可见（类型 tab 兜底），角色面板加载入口显示空态（路径输入保留）", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => [] });
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     expect(overlay.querySelector(`[data-testid="dock-${modelGroupId}"]`)).not.toBeNull();
-    // 点击 model 打开 switch 面板，应显示空态文字，路径输入框保留（P2-1 补回）
+    // 点击 model 快捷直达角色面板，加载入口应显示空态文字，路径输入框保留（P2-1 补回）
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     expect(popup.textContent).toContain("无其他模型");
@@ -457,12 +454,12 @@ describe("面板渲染（安全 panel 逐个打开）", () => {
     handle.dispose();
   });
 
-  it("core switch 面板：siblings 行渲染", () => {
+  it("core roles 面板：内嵌加载入口渲染 siblings 行", () => {
     const { overlay, handle } = mountWith([], {
       getSiblings: () => ["/m/b.ysm"],
       getCurrentPath: () => "/m/b.ysm",
     });
-    handle.openPanel("switch");
+    handle.openPanel("roles");
     expect(overlay.textContent).toContain("b.ysm");
     handle.dispose();
   });

@@ -42,7 +42,10 @@ class AppNav extends WebComponentBase {
       this._current = sanitizePage(page);
       safeSet("nav_page", this._current);
       this.shadowRoot!.querySelectorAll(".nav-item").forEach((el) => {
-        el.classList.toggle("active", (el as HTMLElement).dataset.page === this._current);
+        const isActive = (el as HTMLElement).dataset.page === this._current;
+        el.classList.toggle("active", isActive);
+        if (isActive) el.setAttribute("aria-current", "page");
+        else el.removeAttribute("aria-current");
       });
     });
     // 语言切换时重渲染导航标签
@@ -104,7 +107,7 @@ class AppNav extends WebComponentBase {
       <div class="menu">
         <div class="menu-head" data-menu-head title="${this._collapsed ? t("nav.expand") : t("nav.collapse")}">
           <div class="menu-label">🧭 ${t("nav.label")}</div>
-          <button class="nav-toggle" data-testid="nav-toggle" aria-hidden="true">${this._collapsed ? "»" : "«"}</button>
+          <button class="nav-toggle" data-testid="nav-toggle" title="${this._collapsed ? t("nav.expand") : t("nav.collapse")}">${this._collapsed ? "»" : "«"}</button>
         </div>
         <div class="nav-repo-sel" data-testid="nav-repo-sel">
           <select id="nav-group-select" data-testid="nav-group-select" title="资源大类"></select>
@@ -112,8 +115,8 @@ class AppNav extends WebComponentBase {
         </div>
         ${items
           .map(
-            (item) => `
-          <div class="nav-item ${item.id === this._current ? "active" : ""}" data-testid="nav-item" data-page="${item.id}" title="${t(item.key)}">
+            (item, idx) => `
+          <div class="nav-item ${item.id === this._current ? "active" : ""}" data-testid="nav-item" data-page="${item.id}" title="${t(item.key)}" role="button" tabindex="0" data-nav-idx="${idx}">
             <span class="icon">${item.icon}</span>
             <span class="nav-text">${t(item.key)}</span>
           </div>
@@ -128,17 +131,37 @@ class AppNav extends WebComponentBase {
       <div class="version" id="nav-version">${t("common.loading")}</div>
     `;
 
-    this.shadowRoot!.querySelectorAll(".nav-item").forEach((el) => {
-      (el as HTMLElement).onclick = () => {
-        const page = (el as HTMLElement).dataset.page as PageName;
-        // P2 修复（e2e 时序反推）：nav_page 持久化原依赖 nav:changed 回环写入——
-        // app-content 未挂载时 nav:changed 无人消费 → 回环不触发 → 上次停留页不落盘。
-        // 点击时同步写入，事件丢失时下次启动仍能经 resolveInitialPage 恢复。
-        // P3 修复（子代理审计）：safeSet 收敛裸调（storage.ts 红线：全项目统一经
-        // 本模块读写）
+    const navItems = Array.from(this.shadowRoot!.querySelectorAll<HTMLElement>(".nav-item"));
+    navItems.forEach((el) => {
+      const activate = (): void => {
+        const page = el.dataset.page as PageName;
         safeSet("nav_page", page);
         bus.emit("nav:changed", { page });
+        // 切到仓库页时，将焦点传递到内容区搜索框（app-content 渲染完成后）
+        if (page === "repository") {
+          queueMicrotask(() => this._focusRepoSearch());
+        }
       };
+      el.onclick = activate;
+      el.addEventListener("keydown", (e) => {
+        const idx = navItems.indexOf(el);
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          const next = e.key === "ArrowDown"
+            ? (idx + 1) % navItems.length
+            : (idx - 1 + navItems.length) % navItems.length;
+          navItems[next].focus();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activate();
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          navItems[0].focus();
+        } else if (e.key === "End") {
+          e.preventDefault();
+          navItems[navItems.length - 1].focus();
+        }
+      });
     });
 
     // —— 资源切换器：大类 + 子类型双下拉（ADR-092 派生，对齐仓库页旧 subtabs 逻辑）——
@@ -250,6 +273,27 @@ class AppNav extends WebComponentBase {
     }
     const { openModel3DFullscreen } = await import("../../views/app-preview/preview-library.ts");
     await openModel3DFullscreen(path);
+  }
+
+  /**
+   * 切到仓库页后将焦点传至搜索框。
+   * 因 app-content 用 innerHTML 整体替换，app-tree 挂载是异步的，
+   * 这里用渐进重试（最多 500ms 超时，避免永久轮询）。
+   */
+  private _focusRepoSearch(): void {
+    let tries = 0;
+    const tryFocus = (): void => {
+      const appContent = document.querySelector("app-content");
+      const appTree = appContent?.shadowRoot?.querySelector("app-tree");
+      const srch = appTree?.shadowRoot?.getElementById("srch") as HTMLInputElement | null;
+      if (srch) {
+        srch.focus();
+        srch.select();
+        return;
+      }
+      if (++tries < 20) setTimeout(tryFocus, 25);
+    };
+    tryFocus();
   }
 
   /**

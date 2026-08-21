@@ -342,7 +342,7 @@ func (a *App) SyncResources(rtype, instanceName string) string {
 	if cfg.McRoot == "" {
 		return `{"synced":[],"missing":[],"extra":[]}`
 	}
-	globalDir, _ := a.repoRootForSync(rtype)
+	globalDir, _ := a.filesRootForSync(rtype)
 	if globalDir == "" {
 		return `{"synced":[],"missing":[],"extra":[]}`
 	}
@@ -380,7 +380,7 @@ func (a *App) PushResourceToInstance(rtype, instanceName string) (int, error) {
 	if cfg.McRoot == "" {
 		return 0, fmt.Errorf("请先设置游戏根目录")
 	}
-	globalDir, _ := a.repoRootForSync(rtype)
+	globalDir, _ := a.filesRootForSync(rtype)
 	if globalDir == "" {
 		return 0, fmt.Errorf("未设置%s目录", rtype)
 	}
@@ -398,7 +398,7 @@ func (a *App) PullResourceFromInstance(rtype, instanceName string) (int, error) 
 	if cfg.McRoot == "" {
 		return 0, fmt.Errorf("请先设置游戏根目录")
 	}
-	globalDir, _ := a.repoRootForSync(rtype)
+	globalDir, _ := a.filesRootForSync(rtype)
 	if globalDir == "" {
 		return 0, fmt.Errorf("未设置%s目录", rtype)
 	}
@@ -436,7 +436,7 @@ func (a *App) PullSingleResourceFromInstance(rtype, srcPath, instanceName string
 	if cfg.McRoot == "" {
 		return fmt.Errorf("请先设置游戏根目录")
 	}
-	globalDir, _ := a.repoRootForSync(rtype)
+	globalDir, _ := a.filesRootForSync(rtype)
 	if globalDir == "" {
 		return fmt.Errorf("未设置目录")
 	}
@@ -453,7 +453,7 @@ func (a *App) PushSingleResourceToInstance(rtype, instanceName, filePath string)
 	if cfg.McRoot == "" {
 		return fmt.Errorf("请先设置游戏根目录")
 	}
-	globalDir, _ := a.repoRootForSync(rtype)
+	globalDir, _ := a.filesRootForSync(rtype)
 	if globalDir == "" {
 		return fmt.Errorf("未设置 %s 类型的仓库目录", rtype)
 	}
@@ -511,7 +511,7 @@ func (a *App) GetInstanceSyncStatus(instanceName string, subtype string) string 
 	// 收集各资源类型的仓库根目录（同步基准：subDirGrouping 类型用 group 根，与仓库树对齐）
 	roots := map[string]string{}
 	for _, rt := range registry.ResourceTypes {
-		roots[rt.ID], _ = a.repoRootForSync(rt.ID)
+		roots[rt.ID], _ = a.filesRootForSync(rt.ID)
 	}
 
 	items := instance.BuildSyncItems(targetIns, registry.ResourceTypes, roots, subtype)

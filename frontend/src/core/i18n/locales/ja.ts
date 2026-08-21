@@ -821,7 +821,6 @@ export const ja: Record<string, string> = {
   // ── Preview ──
   "preview.title3d": "3Dプレビュー",
   "preview.modelInfo": "モデル情報",
-  "preview.switchModel": "モデル切替",
   "preview.roles": "キャラクター",
   "preview.roleFocus": "焦点に設定",
   "preview.roleTools": "モデルツール",

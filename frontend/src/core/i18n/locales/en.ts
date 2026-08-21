@@ -820,7 +820,6 @@ export const en: Record<string, string> = {
   // ── Preview ──
   "preview.title3d": "3D Preview",
   "preview.modelInfo": "Model Info",
-  "preview.switchModel": "Switch Model",
   "preview.roles": "Characters",
   "preview.roleFocus": "Set as focus",
   "preview.roleTools": "Model tools",

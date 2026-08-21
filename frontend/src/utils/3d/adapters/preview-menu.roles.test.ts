@@ -64,12 +64,9 @@ describe("角色面板（roles）", () => {
     document.body.appendChild(overlay);
   });
 
-  it("模型组根视图列出 preview-roles 行，点击进入角色面板", () => {
+  it("模型组仅 roles 单 panel → dock-model 快捷直达角色面板（不渲染组根行）", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
-    const rolesRow = overlay.querySelector('[data-testid="preview-roles"]');
-    expect(rolesRow).not.toBeNull();
-    (rolesRow as HTMLElement).click();
     expect(overlay.querySelector('[data-testid="preview-roles-list"]')).not.toBeNull();
     handle.dispose();
   });
@@ -79,7 +76,6 @@ describe("角色面板（roles）", () => {
     const b = regRole("/m/b.ysm"); // b 为 active（register 即置活跃）
     const handle = mountPreviewRootMenu(overlay, makeCtx());
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
-    (overlay.querySelector('[data-testid="preview-roles"]') as HTMLElement).click();
     const rows = overlay.querySelectorAll('[data-testid="preview-role-row"]');
     expect(rows.length).toBe(2);
     const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="${a}"]`);
@@ -99,7 +95,6 @@ describe("角色面板（roles）", () => {
     expect(sceneRegistry.getActiveId()).not.toBe(a);
     const handle = mountPreviewRootMenu(overlay, makeCtx());
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
-    (overlay.querySelector('[data-testid="preview-roles"]') as HTMLElement).click();
     const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="${a}"]`);
     (aRow!.querySelector('[data-testid="preview-role-focus"]') as HTMLElement).click();
     expect(sceneRegistry.getActiveId()).toBe(a);
@@ -153,8 +148,7 @@ describe("角色面板（roles）", () => {
     regRole("/m/a.ysm");
     const handle = mountPreviewRootMenu(overlay, makeCtx({ unloadRole }));
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
-    (overlay.querySelector('[data-testid="preview-roles"]') as HTMLElement).click();
-    const aRow = overlay.querySelector('[data-testid="preview-role-row"][data-role-id="m1"]');
+    const aRow = overlay.querySelector(`[data-testid="preview-role-row"][data-role-id="m1"]`);
     (aRow!.querySelector('[data-testid="preview-role-tools"]') as HTMLElement).click();
     const unload = overlay.querySelector('[data-testid="preview-role-unload"]');
     expect(unload).not.toBeNull();
@@ -166,7 +160,6 @@ describe("角色面板（roles）", () => {
   it("无已加载角色 → 空态提示（加载入口仍在）", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
-    (overlay.querySelector('[data-testid="preview-roles"]') as HTMLElement).click();
     expect(overlay.querySelector('[data-testid="preview-roles-empty"]')).not.toBeNull();
     // 加载入口（switch 面板的路径输入）仍保留
     expect(overlay.querySelector("input[type='text']")).not.toBeNull();

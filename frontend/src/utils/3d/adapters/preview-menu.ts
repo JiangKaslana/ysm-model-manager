@@ -537,7 +537,6 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   const fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void> = {
     environment: (list, _menu) => fillEnvironment(list, ctx, menu),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
-    switch: (list) => fillSwitch(list, ctx, hideMenu),
     roles: (list, menu) => fillRoles(list, ctx, hideMenu, makeRow, makePanelView, menu!, (items) => menuHandleOut?.setAdapterItems(items)),
     lighting: (list) => fillLighting(list, ctx),
     shadow: (list) => fillShadow(list, ctx),
@@ -600,7 +599,6 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       const groupItems = allItems
         .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
         .filter((d) => !(d.sharedOnly && ctx.selfMode))
-        .filter((d) => !(d.needsSiblings && ctx.getSiblings().length === 0))
         .filter((d) => !(d.requiresEnvironment && !sceneCapabilityRegistry.getById("sky") && !sceneCapabilityRegistry.getById("ground") && !ctx.getSkyCap() && !ctx.getGroundCap()));
       if (groupItems.length === 0) return;
 

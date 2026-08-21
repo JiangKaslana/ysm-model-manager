@@ -13,8 +13,8 @@ export async function getCustomAnimPath(): Promise<string | null> {
   try {
     const { getApp } = await import("../../../backend/app.ts");
     const { GetRepoRoot } = await getApp();
-    const repoRoot = await GetRepoRoot("CustomAnim");
-    return repoRoot || null;
+    const filesRoot = await GetRepoRoot("CustomAnim");
+    return filesRoot || null;
   } catch {
     return null;
   }
