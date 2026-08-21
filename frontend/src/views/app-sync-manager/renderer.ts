@@ -130,7 +130,7 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
     listEl.innerHTML = emptyHTML(hint);
     return;
   }
-  // dirLevelSync 类型（ysm / EntityPlayer / blueprint / maid-model / vrchat-avatar…）：
+  // dirLevelSync 类型（ysm / EntityPlayer / blueprint / maid-model / vrm…）：
   // 按路径天然层级展示（subdir 非空时提为顶层文件夹；文件夹=SyncItem 本身，
   // 展开后扫仓库子条目显示内部文件）。无仓库根时兜底走平铺。
   if (isDirLevelSync(self)) {
@@ -145,7 +145,7 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
   listEl.innerHTML = self._filteredItems.map((it, i) => itemHTML(it, i)).join("");
 }
 
-// ===== dirLevelSync 层级展示（ysm / blueprint / maid-model / vrchat-avatar…）=====
+// ===== dirLevelSync 层级展示（ysm / blueprint / maid-model / vrm…）=====
 // 文件夹 = SyncItem 本身；展开后 ScanModelEntriesWithLabel 扫仓库子目录，显示内部文件。
 // 层级由路径天然分段（与 app-tree buildTree 同构），不再按 rtype 逐个特判。
 

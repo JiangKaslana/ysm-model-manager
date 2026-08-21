@@ -97,9 +97,9 @@ describe("vcHeaderHTML 徽章 chips（真实实现）", () => {
     expect(html).not.toContain("无场景模型");
   });
 
-  it("vrchat-avatar 虽在 mmd 组但保持独立 VRC 标签", () => {
-    const html = vcHeaderHTML("P", 0, 5, 0, "missing", 0, false, "vrchat-avatar");
-    expect(html).toContain('<span class="tag gray">🚫 无VRC</span>');
+  it("vrm 虽在 mmd 组但保持独立 VRM 标签", () => {
+    const html = vcHeaderHTML("P", 0, 5, 0, "missing", 0, false, "vrm");
+    expect(html).toContain('<span class="tag gray">🚫 无VRM</span>');
   });
 
   it("hasMod && 全零 → 显 '0' 标签", () => {

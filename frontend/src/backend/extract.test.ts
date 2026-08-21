@@ -176,7 +176,7 @@ describe("detectZipType", () => {
     expect(detectZipType(buildMinimalZip("a/build.schematic", new TextEncoder().encode("x")))).toBe("blueprint");
     expect(detectZipType(buildMinimalZip("project/a.litematic", new TextEncoder().encode("x")))).toBe("litematic");
     expect(detectZipType(buildMinimalZip("model/a.pmx", new TextEncoder().encode("x")))).toBe("EntityPlayer");
-    expect(detectZipType(buildMinimalZip("avatar/a.vrca", new TextEncoder().encode("x")))).toBe("vrchat-avatar");
+    expect(detectZipType(buildMinimalZip("avatar/a.vrm", new TextEncoder().encode("x")))).toBe("vrm");
   });
 
   it("无可识别文件的 ZIP → null（识别不出就是识别不出，不假装 YSM）", () => {

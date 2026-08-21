@@ -162,15 +162,11 @@ func TestHasModInDir_MMDSubtypes(t *testing.T) {
 		}
 	}
 
-	// vrchat-avatar 虽同属 mmd 组，但走独立 "vrchat" 关键词，不应被组级 mmdskin 覆盖
+	// vrm 在 ModKeywords 中有独立 "mmdskin" 关键词，含 mmdskin jar 应识别为 true
 	vrcDir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(vrcDir, "mmdskin-1.0.jar"), []byte("x"), 0644)
-	if HasModInDir(vrcDir, "vrchat-avatar") {
-		t.Fatal("vrchat-avatar 不应被 mmdskin 关键词误识别")
-	}
-	_ = os.WriteFile(filepath.Join(vrcDir, "vrchat-1.0.jar"), []byte("x"), 0644)
-	if !HasModInDir(vrcDir, "vrchat-avatar") {
-		t.Fatal("vrchat-avatar 含 vrchat 关键词应识别为 true")
+	if !HasModInDir(vrcDir, "vrm") {
+		t.Fatal("vrm 含 mmdskin 关键词应识别为 true")
 	}
 }
 

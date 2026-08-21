@@ -182,12 +182,12 @@ describe("_showModelDetail — 类型分流", () => {
 
   it("VRC .vrm → showVrmMeta（meta 卡）", async () => {
     const el = mountPreview();
-    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.VRC);
+    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.VRM);
     await el._showModelDetail("/repo/avatar.vrm");
     expect(detailSpies.showVrmMeta).toHaveBeenCalledWith(
       el,
       "/repo/avatar.vrm",
-      expect.objectContaining({ icon: "📦", label: "vrchat-avatar" }),
+      expect.objectContaining({ icon: "📦", label: "vrm" }),
     );
     expect(detailSpies.showSimplePreview).not.toHaveBeenCalled();
     unmountElement(el);
@@ -195,12 +195,12 @@ describe("_showModelDetail — 类型分流", () => {
 
   it("VRC .vrca → showSimplePreview（handler 内 .vrm 分支收口）", async () => {
     const el = mountPreview();
-    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.VRC);
+    appObj.DetectResourceType.mockResolvedValue(RESOURCE_TYPES.VRM);
     await el._showModelDetail("/repo/avatar.vrca");
     expect(detailSpies.showSimplePreview).toHaveBeenCalledWith(
       el,
       "/repo/avatar.vrca",
-      expect.objectContaining({ icon: "📦", label: "vrchat-avatar" }),
+      expect.objectContaining({ icon: "📦", label: "vrm" }),
     );
     expect(detailSpies.showVrmMeta).not.toHaveBeenCalled();
     unmountElement(el);

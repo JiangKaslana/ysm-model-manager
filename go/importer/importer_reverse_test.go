@@ -610,7 +610,7 @@ func TestImportFromBase64_RtypeRouting(t *testing.T) {
 		// ADR-082 续：zip 无特征 → 空 rtype → 报错（识别不出就是识别不出，不假装 ysm）
 		{"zip 无特征 → 报错", "p.zip", buildZip("random.txt"), "", true},
 		{"pmx 扩展名 → EntityPlayer", "model.pmx", []byte("pmx"), "EntityPlayer", false},
-		{"vrm 扩展名 → vrchat-avatar", "model.vrm", []byte("vrm"), "vrchat-avatar", false},
+		{"vrm 扩展名 → vrm", "model.vrm", []byte("vrm"), "vrm", false},
 		{"nbt 扩展名 → blueprint", "build.nbt", []byte("nbt"), "blueprint", false},
 		{"litematic 扩展名 → litematic", "build.litematic", []byte("li"), "litematic", false},
 	}

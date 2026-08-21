@@ -106,16 +106,16 @@ func HasYSMMod(modsDir string) bool {
 
 // 各资源类型的 mod 文件名关键词
 var ModKeywords = map[string][]string{
-	"ysm":           {"yes_steve_model", "ysm-"},
-	"EntityPlayer":  {"mmdskin", "mmd-skin"},
-	"vrchat-avatar": {"vrchat"},
+	"ysm":          {"yes_steve_model", "ysm-"},
+	"EntityPlayer": {"mmdskin", "mmd-skin"},
+	"vrm":          {"mmdskin"},
 }
 
 // ModGroupKeywords 组级 mod 文件名关键词：同组多个子类型共享同一个底层模组时，
 // 由组统一声明，子类型不必逐个手写（新增 MMD 子类型自动继承）。
 // MMD 组（PMX 模型/场景模型/动画/表情/舞台/着色器）都依赖 MMD Skin 模组
 // （mmdskin/mmd-skin jar），缺失时整组内容都无法在整合包内生效。
-// vrchat-avatar 例外：它在 ModKeywords 中有独立 "vrchat" 关键词，优先于组级回退。
+// vrm 例外：它在 ModKeywords 中有独立 "mmdskin" 关键词，优先于组级回退。
 var ModGroupKeywords = map[string][]string{
 	"mmd": {"mmdskin", "mmd-skin"},
 }

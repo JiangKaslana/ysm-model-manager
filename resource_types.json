@@ -219,7 +219,7 @@
         ".pmd",
         ".zip"
       ],
-      "storageSubDir": "EntityPlayer",
+      "storageSubDir": "PMX",
       "configField": "MmdRoot",
       "instanceDir": "3d-skin",
       "instanceLevel": false,
@@ -454,27 +454,21 @@
       ]
     },
     {
-      "id": "vrchat-avatar",
-      "name": "VRChat 模型",
+      "id": "vrm",
+      "name": "VRM 模型",
       "icon": "🥽",
       "group": "mmd",
       "extensions": [
-        ".vrca",
         ".vrm",
         ".zip"
       ],
-      "storageSubDir": "vrchat",
-      "configField": "VrcRoot",
-      "configFallback": "MmdRoot",
-      "instanceDir": "vrchat-avatars",
+      "storageSubDir": "VRM",
+      "configField": "MmdRoot",
+      "instanceDir": "3d-skin",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
       "zipEntries": [
-        {
-          "name": ".vrca",
-          "match": "suffix"
-        },
         {
           "name": ".vrm",
           "match": "suffix"

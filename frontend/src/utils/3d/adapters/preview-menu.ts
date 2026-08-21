@@ -32,13 +32,13 @@ export interface PreviewMenuCtx {
   getCamBridge: () => CameraControlBridge;
   getSiblings: () => string[];
   getCurrentPath: () => string;
-  /** 当前会话资源类型（如 ysm/EntityPlayer/vrchat-avatar/resourcepack；空串未知）——类型 tab 点击时判断同类型走 switchTo */
+  /** 当前会话资源类型（如 ysm/EntityPlayer/vrm/resourcepack；空串未知）——类型 tab 点击时判断同类型走 switchTo */
   getCurrentRtype?: () => string;
   /** 当前会话子类型（如 EntityPlayer/CustomAnim；空串未知）——传递给 getModelsByType 做扩展名隔离 */
   getCurrentSubtype?: () => string;
   /** 按资源类型（+可选子类型）扫描候选模型路径（点击切换模型的类型 tab 时懒加载；缺省回退 siblings） */
   getModelsByType?: (rtype: string, subtype?: string) => Promise<string[]>;
-  /** 类型 tab 列表（如 ["ysm","EntityPlayer","vrchat-avatar","resourcepack"]；缺省仅「当前目录」tab） */
+  /** 类型 tab 列表（如 ["ysm","EntityPlayer","vrm","resourcepack"]；缺省仅「当前目录」tab） */
   getTypeTabs?: () => string[];
   /** 3D 渲染器容器：点击该区域关闭菜单（不再全局点击杀弹窗） */
   getViewContainer: () => HTMLElement;

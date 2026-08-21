@@ -23,7 +23,7 @@ func TestAllExts(t *testing.T) {
 		t.Errorf(".zip 出现 %d 次，期望 1 次（去重）", count)
 	}
 	// 已知扩展名存在于结果中
-	known := []string{".ysm", ".vrca", ".nbt"}
+	known := []string{".ysm", ".vrm", ".nbt"}
 	for _, ext := range known {
 		found := false
 		for _, e := range exts {
@@ -77,7 +77,7 @@ func TestExtBelongsTo(t *testing.T) {
 	expectedAll := map[string]bool{
 		"ysm": false, "resourcepack": false, "shaderpack": false,
 		"blueprint": false, "litematic": false,
-		"vrchat-avatar": false, "maid-model": false,
+		"vrm": false, "maid-model": false,
 		"EntityPlayer": false, "SceneModel": false,
 		"CustomAnim": false, "CustomMorph": false,
 		"StageAnim": false, "mmd-shader": false,
@@ -119,7 +119,7 @@ func TestSupportedExtsForType(t *testing.T) {
 }
 
 func TestStorageSubDir(t *testing.T) {
-	expectedIDs := []string{"ysm", "maid-model", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint", "litematic"}
+	expectedIDs := []string{"ysm", "maid-model", "vrm", "resourcepack", "shaderpack", "blueprint", "litematic"}
 	for _, id := range expectedIDs {
 		dir := StorageSubDir(id)
 		if dir == "" {
@@ -146,7 +146,7 @@ func TestGroupOf(t *testing.T) {
 		{"litematic", "minecraft-mod"},
 		{"maid-model", "minecraft-mod"},
 		{"EntityPlayer", "mmd"},
-		{"vrchat-avatar", "mmd"},
+		{"vrm", "mmd"},
 	}
 	for _, c := range cases {
 		if got := GroupOf(c.rtype); got != c.want {
@@ -168,8 +168,8 @@ func TestGroupStorageRoot(t *testing.T) {
 		{"blueprint", "minecraft-mod/schematics"},
 		{"litematic", "minecraft-mod/litematics"},
 		{"maid-model", "minecraft-mod/maid-model"},
-		{"EntityPlayer", "mmd/EntityPlayer"},
-		{"vrchat-avatar", "mmd/vrchat"},
+		{"EntityPlayer", "mmd/PMX"},
+		{"vrm", "mmd/VRM"},
 	}
 	for _, c := range anchors {
 		if got := GroupStorageRoot(c.rtype); got != c.want {
@@ -441,15 +441,15 @@ func TestNoDeprecatedStorageSubDirPrefixes(t *testing.T) {
 //   - ysm: instanceDir=config/yes_steve_model/custom（版本隔离无关的固定偏移）
 //   - maid-model: instanceDir=tlm_custom_pack（车万女仆使用 TLM 标准目录名）
 //   - litematic: instanceDir=schematics（投影复用蓝图目录）
-//   - vrchat-avatar: instanceDir=vrchat-avatars（实例侧用全名，仓库侧用缩写）
+//   - vrm: instanceDir=3d-skin（MC-MMD 资源树根），storageSubDir=VRM
 //   - MMD 各类型: instanceDir=3d-skin（ADR-094 MC-MMD 资源树根），storageSubDir 各不同
 func TestInstanceDirMatchesStorageSubDir(t *testing.T) {
 	reg := LoadRegistry()
 	knownExceptions := map[string]bool{
-		"ysm":           true,
-		"maid-model":    true,
-		"litematic":     true,
-		"vrchat-avatar": true,
+		"ysm":        true,
+		"maid-model": true,
+		"litematic":  true,
+		"vrm":        true,
 		// MMD 类型：instanceDir 统一为 3d-skin（MC-MMD 资源树根），storageSubDir 按用途分
 		"EntityPlayer": true,
 		"SceneModel":   true,

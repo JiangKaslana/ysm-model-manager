@@ -9,7 +9,7 @@ import resourceTypesJson from "../../../../resource_types.json" with { type: "js
 export const RESOURCE_TYPES: Record<string, string> = {
   YSM: "ysm",
   MMD: "EntityPlayer",
-  VRC: "vrchat-avatar",
+  VRM: "vrm",
   PACK: "resourcepack",
   SHADER: "shaderpack",
   BLUEPRINT: "blueprint",
@@ -28,7 +28,7 @@ export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   "mmd-shader": "MMD 着色器",
   DefaultAnim: "默认动画",
   DefaultMorph: "默认表情",
-  "vrchat-avatar": "VRC",
+  "vrm": "VRM",
   resourcepack: "资源包",
   shaderpack: "光影包",
   blueprint: "蓝图",

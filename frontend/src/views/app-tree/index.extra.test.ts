@@ -53,8 +53,8 @@ const entriesByType: Record<string, TreeEntry[]> = {
   "EntityPlayer": [
     { name: "m1.mmd", path: "m1.mmd", fullPath: "/repo/m1.mmd", type: "EntityPlayer", banned: false, size: 1, modTime: 0 },
   ],
-  "vrchat-avatar": [
-    { name: "v1.vrc", path: "v1.vrc", fullPath: "/repo/v1.vrc", type: "vrchat-avatar", banned: false, size: 1, modTime: 0 },
+  "vrm": [
+    { name: "v1.vrm", path: "v1.vrm", fullPath: "/repo/v1.vrm", type: "vrm", banned: false, size: 1, modTime: 0 },
   ],
 };
 
@@ -305,11 +305,11 @@ describe("app-tree index 入口生命周期（补位）", () => {
         : Promise.resolve({ filesRoot: "/repo", entries: entriesByType[rtype] ?? [] });
     el.setAttribute("root", RESOURCE_TYPES.MMD);
     await sleep0(); // 第一次变更的 _load 已发起并挂起
-    el.setAttribute("root", RESOURCE_TYPES.VRC);
+    el.setAttribute("root", RESOURCE_TYPES.VRM);
     await sleep0(); // 第二次变更完成渲染
     d.resolve({ filesRoot: "/repo", entries: entriesByType[RESOURCE_TYPES.MMD] });
     await sleep0(); // 第一次变更恢复 → gen 不匹配 → 丢弃渲染
-    expect(loader.mock.calls.map((c) => c[0])).toEqual([RESOURCE_TYPES.MMD, RESOURCE_TYPES.VRC]);
+    expect(loader.mock.calls.map((c) => c[0])).toEqual([RESOURCE_TYPES.MMD, RESOURCE_TYPES.VRM]);
     // 代际守卫只丢弃过期"渲染"：DOM 是最新 root（v1）；_entries 会被过期 _load 写回
     //（下次渲染前总会被新 _load 覆盖，实际无泄漏面）
     await waitFor(() => queryAllByTestId(el.shadowRoot!, "tree-file").length === 1);
@@ -356,10 +356,10 @@ describe("app-tree index 入口生命周期（补位）", () => {
 
   it("挂载期间 root 已在途切换（pendingRoot）→ 补加载最新 root", async () => {
     const el = document.createElement("app-tree") as unknown as AppTree;
-    el.setAttribute("root", RESOURCE_TYPES.VRC); // 未连接 → attributeChangedCallback 只置 pending
+    el.setAttribute("root", RESOURCE_TYPES.VRM); // 未连接 → attributeChangedCallback 只置 pending
     document.body.appendChild(el);
     await waitFor(() => (el as unknown as { _ready: boolean })._ready === true);
-    expect(loader.mock.calls.map((c) => c[0])).toEqual([RESOURCE_TYPES.VRC, RESOURCE_TYPES.VRC]);
+    expect(loader.mock.calls.map((c) => c[0])).toEqual([RESOURCE_TYPES.VRM, RESOURCE_TYPES.VRM]);
     expect(bindings.ClearScanCache).toHaveBeenCalledTimes(1);
     await waitFor(() => queryAllByTestId(el.shadowRoot!, "tree-file").length === 1);
     expectSingleRow(el, "v1");
@@ -369,7 +369,7 @@ describe("app-tree index 入口生命周期（补位）", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     (bindings.ClearScanCache as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("cache boom"));
     const el = document.createElement("app-tree") as unknown as AppTree;
-    el.setAttribute("root", RESOURCE_TYPES.VRC);
+    el.setAttribute("root", RESOURCE_TYPES.VRM);
     document.body.appendChild(el);
     await waitFor(() => (el as unknown as { _ready: boolean })._ready === true);
     expect(consoleSpy).toHaveBeenCalledWith("[Tree pendingRoot Error]", expect.anything());

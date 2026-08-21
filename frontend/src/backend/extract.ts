@@ -54,7 +54,7 @@ export interface ExtractResult {
 }
 
 /** detectZipType 返回值 */
-export type ZipType = typeof RESOURCE_TYPES.YSM | typeof RESOURCE_TYPES.PACK | typeof RESOURCE_TYPES.SHADER | typeof RESOURCE_TYPES.BLUEPRINT | typeof RESOURCE_TYPES.LITEMATIC | typeof RESOURCE_TYPES.MMD | typeof RESOURCE_TYPES.VRC | null;
+export type ZipType = typeof RESOURCE_TYPES.YSM | typeof RESOURCE_TYPES.PACK | typeof RESOURCE_TYPES.SHADER | typeof RESOURCE_TYPES.BLUEPRINT | typeof RESOURCE_TYPES.LITEMATIC | typeof RESOURCE_TYPES.MMD | typeof RESOURCE_TYPES.VRM | null;
 
 // --- 中央目录预解析（fflateKey 对齐，处理 gpf bit 11 / 中文文件名）---
 

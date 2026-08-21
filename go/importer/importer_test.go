@@ -19,8 +19,8 @@ func TestRegistry(t *testing.T) {
 	if got := Get("blueprint"); got == nil {
 		t.Fatal("Get('blueprint') = nil, want handler")
 	}
-	if got := Get("vrchat-avatar"); got == nil {
-		t.Fatal("Get('vrchat-avatar') = nil, want handler")
+	if got := Get("vrm"); got == nil {
+		t.Fatal("Get('vrm') = nil, want handler")
 	}
 	if got := Get("ysm"); got == nil {
 		t.Fatal("Get('ysm') = nil, want handler")
@@ -42,7 +42,7 @@ func TestType(t *testing.T) {
 		{"shaderpack", "shaderpack"},
 		{"blueprint", "blueprint"},
 		{"EntityPlayer", "EntityPlayer"},
-		{"vrchat-avatar", "vrchat-avatar"},
+		{"vrm", "vrm"},
 	}
 	for _, tc := range tests {
 		h := Get(tc.rtype)
@@ -190,7 +190,7 @@ func TestDirectoryCopyImporter_Import_Dir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	imp := NewDirectoryCopy("vrchat-avatar")
+	imp := NewDirectoryCopy("vrm")
 	// 传入文件夹本体
 	errMsg := imp.Import(modelDir, dstDir)
 	if errMsg != "" {

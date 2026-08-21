@@ -40,7 +40,7 @@ func TestIsDirLevelSync(t *testing.T) {
 		{"litematic", true},
 		{"EntityPlayer", true},
 		{"maid-model", true},
-		{"vrchat-avatar", false},
+		{"vrm", false},
 		{"unknown", false},
 		{"", false},
 	}
@@ -65,7 +65,7 @@ func TestIsScanInstance(t *testing.T) {
 		{"ysm", false},
 		{"litematic", false},
 		{"EntityPlayer", false},
-		{"vrchat-avatar", false},
+		{"vrm", false},
 		{"unknown", false},
 		{"", false},
 	}

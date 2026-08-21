@@ -12,7 +12,7 @@ import { withPreviewExtras, registerReRoute, openModel3DFullscreen } from "./pre
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
 // 注册跨类型换角色路由（资源库面板/导航 FAB 选中 VRM 时派发到此）
-registerReRoute(RESOURCE_TYPES.VRC, (path) => createVrm3D(path));
+registerReRoute(RESOURCE_TYPES.VRM, (path) => createVrm3D(path));
 
 /** 数据读取注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
 async function readFileBytes(path: string): Promise<string | null> {

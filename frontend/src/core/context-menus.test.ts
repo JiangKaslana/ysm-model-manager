@@ -398,13 +398,13 @@ describe("菜单项点击行为", () => {
     expect(openFolderMock).toHaveBeenCalledWith("/packs/mmd-pack", RESOURCE_TYPES.MMD, "");
   });
 
-  it("instance VRC 复制模型清单 → 透传 vrchat-avatar rtype", () => {
+  it("instance VRM 复制模型清单 → 透传 vrm rtype", () => {
     clickItem("instance", "instance.export-list", {
-      rtype: "vrchat-avatar",
+      rtype: "vrm",
     });
     expect(emitted).toContainEqual({
       e: "instance:export-list",
-      p: { name: "测试整合包", rtype: "vrchat-avatar" },
+      p: { name: "测试整合包", rtype: "vrm" },
     });
   });
 

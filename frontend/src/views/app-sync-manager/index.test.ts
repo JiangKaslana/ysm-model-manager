@@ -15,7 +15,7 @@ const { mocks } = vi.hoisted(() => {
           { id: "ysm", name: "YSM 模型", icon: "💎" },
           { id: "EntityPlayer", name: "PMX 模型", icon: "🎭" },
           { id: "SceneModel", name: "场景模型", icon: "🏰" },
-          { id: "vrchat-avatar", name: "VRC 模型", icon: "🥽" },
+          { id: "vrm", name: "VRM 模型", icon: "🥽" },
           { id: "resourcepack", name: "资源包", icon: "🎨" },
           { id: "shaderpack", name: "光影包", icon: "☀️" },
           { id: "blueprint", name: "蓝图", icon: "⚙️" },

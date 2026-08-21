@@ -21,7 +21,7 @@ interface MenuItemsSink {
 export interface ModelEntry {
   id: string;
   path: string;
-  /** 资源类型（如 ysm/EntityPlayer/vrchat-avatar），取自 opts.rtype ?? adapter.id */
+  /** 资源类型（如 ysm/EntityPlayer/vrm），取自 opts.rtype ?? adapter.id */
   rtype: string;
   /** build 前后 scene.children 差量捕获的顶层根节点（隐藏/取景/归属用；差量漏捕时为 []） */
   roots: THREE.Object3D[];

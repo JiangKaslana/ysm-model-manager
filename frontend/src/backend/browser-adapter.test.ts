@@ -92,7 +92,7 @@ describe("browserAdapter — Phase 2 模型库（IndexedDB）", () => {
     expect(await browserAdapter.DetectResourceType("/web/blueprint/建筑/建筑.nbt")).toBe("blueprint");
     expect(await browserAdapter.DetectResourceType("/web/litematic/投影/a.litematic")).toBe("litematic");
     expect(await browserAdapter.DetectResourceType("/web/EntityPlayer/角色/a.pmx")).toBe("EntityPlayer");
-    expect(await browserAdapter.DetectResourceType("/web/vrchat-avatar/角色/a.vrm")).toBe("vrchat-avatar");
+    expect(await browserAdapter.DetectResourceType("/web/vrm/角色/a.vrm")).toBe("vrm");
     expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.ysm")).toBe("ysm");
     expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.png")).toBe(""); // 辅助文件无类型
   });

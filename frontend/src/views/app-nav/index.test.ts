@@ -76,7 +76,7 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
   it("mmd 组渲染 MMD 独立顶级类型选项（ADR-094 回归：flat 架构平铺）", async () => {
     // 钉住：mmd 大类下拉应显示所有 MMD 独立类型
     // （EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/mmd-shader/
-    //  DefaultAnim/DefaultMorph/vrchat-avatar 共 9 项）
+    //  DefaultAnim/DefaultMorph/vrm 共 9 项）
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
     await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);

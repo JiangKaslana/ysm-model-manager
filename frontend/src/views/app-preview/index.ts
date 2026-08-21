@@ -74,8 +74,8 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   "DefaultAnim": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
   "DefaultMorph": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
   "mmd-shader": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
-  // VRC：.vrm 直引 three-vrm meta 卡 + FAB 进 3D；.vrca/.zip 暂不直接加载 → 简单预览
-  [RESOURCE_TYPES.VRC]: (ctx, path, meta) => {
+  // VRM：.vrm 直引 three-vrm meta 卡 + FAB 进 3D；.vrca/.zip 暂不直接加载 → 简单预览
+  [RESOURCE_TYPES.VRM]: (ctx, path, meta) => {
     if (extOf(path) === ".vrm") {
       showVrmMeta(ctx, path, meta);
     } else {

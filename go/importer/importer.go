@@ -421,7 +421,7 @@ func init() {
 	Register(NewDirectoryCopy("DefaultAnim"))
 	Register(NewDirectoryCopy("DefaultMorph"))
 	Register(NewDirectoryCopy("maid-model"))
-	Register(NewSimpleCopy("vrchat-avatar"))
+	Register(NewSimpleCopy("vrm"))
 	Register(NewSimpleCopy("ysm"))
 	Register(NewSimpleCopy("litematic"))
 }

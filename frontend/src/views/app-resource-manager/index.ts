@@ -511,7 +511,7 @@ export class AppResourceManager extends WebComponentBase {
                 danger: true,
               }))) return;
               if (gen !== this._detailGen) return; // 等待确认期间用户已切换条目
-              // 从配置读取 isDir 字段，文件夹型资源（如 EntityPlayer/vrchat-avatar）删整个目录
+              // 从配置读取 isDir 字段，文件夹型资源（如 EntityPlayer/vrm）删整个目录
               const type = _findType(this._rtype);
               const isDirModel = type && type.isDir;
               const { DeleteResourcePack, DeleteModelDir } =
