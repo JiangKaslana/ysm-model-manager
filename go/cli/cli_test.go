@@ -1653,3 +1653,140 @@ func TestToggle_RequiresPath(t *testing.T) {
 		t.Errorf("缺 --path 应报错, got: %v", err)
 	}
 }
+
+// ---- download 薄壳 ----
+
+func TestDownload_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runDownload(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runDownload 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "download") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestDownload_UnknownSubcommand_Errors(t *testing.T) {
+	err := runDownload(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+func TestDownloadEnqueue_RequiresURL(t *testing.T) {
+	err := runDownloadEnqueue(&CmdContext{App: &app.App{}, Args: []string{"--save-dir", "/d"}})
+	if err == nil || !strings.Contains(err.Error(), "--url") {
+		t.Errorf("缺 --url 应报错, got: %v", err)
+	}
+}
+
+func TestDownloadEnqueue_RequiresSaveDir(t *testing.T) {
+	err := runDownloadEnqueue(&CmdContext{App: &app.App{}, Args: []string{"--url", "https://x"}})
+	if err == nil || !strings.Contains(err.Error(), "--save-dir") {
+		t.Errorf("缺 --save-dir 应报错, got: %v", err)
+	}
+}
+
+func TestDownloadGitHub_RequiresURL(t *testing.T) {
+	err := runDownloadGitHub(&CmdContext{App: &app.App{}, Args: []string{"--save-dir", "/d"}})
+	if err == nil || !strings.Contains(err.Error(), "--url") {
+		t.Errorf("缺 --url 应报错, got: %v", err)
+	}
+}
+
+func TestDownloadGitHub_RequiresSaveDir(t *testing.T) {
+	err := runDownloadGitHub(&CmdContext{App: &app.App{}, Args: []string{"--url", "https://x"}})
+	if err == nil || !strings.Contains(err.Error(), "--save-dir") {
+		t.Errorf("缺 --save-dir 应报错, got: %v", err)
+	}
+}
+
+// ---- avatar 薄壳 ----
+
+func TestAvatar_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runAvatar(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runAvatar 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "avatar") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestAvatar_UnknownSubcommand_Errors(t *testing.T) {
+	err := runAvatar(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+func TestAvatarCached_RequiresAuthor(t *testing.T) {
+	err := runAvatarCached(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--author") {
+		t.Errorf("缺 --author 应报错, got: %v", err)
+	}
+}
+
+func TestAvatarCache_RequiresModel(t *testing.T) {
+	err := runAvatarCache(&CmdContext{App: &app.App{}, Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--model") {
+		t.Errorf("缺 --model 应报错, got: %v", err)
+	}
+}
+
+// ---- scan 薄壳 ----
+
+func TestScan_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runScan(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runScan 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "scan") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestScan_UnknownSubcommand_Errors(t *testing.T) {
+	err := runScan(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+func TestScanModels_EmptyDir_Errors(t *testing.T) {
+	// ctx.FilesRoot 为空 + --dir 未指定 → dir 解析为空 → 报错
+	err := runScanModels(&CmdContext{App: &app.App{}, FilesRoot: "", Args: nil})
+	if err == nil || !strings.Contains(err.Error(), "--dir") {
+		t.Errorf("空目录应报错, got: %v", err)
+	}
+}
+
+// ---- config 父命令薄壳 ----
+
+func TestConfig_NoSubcommand_PrintsUsage(t *testing.T) {
+	out := captureOutput(t, func() {
+		if err := runConfig(&CmdContext{App: &app.App{}, Args: nil}); err != nil {
+			t.Fatalf("runConfig 应成功, got %v", err)
+		}
+	})
+	if !strings.Contains(out, "config") || !strings.Contains(out, "子命令") {
+		t.Errorf("无子命令应打印用法, got: %s", out)
+	}
+}
+
+func TestConfig_UnknownSubcommand_Errors(t *testing.T) {
+	err := runConfig(&CmdContext{App: &app.App{}, Args: []string{"nope"}})
+	if err == nil || !strings.Contains(err.Error(), "未知子命令") {
+		t.Errorf("未知子命令应报错, got: %v", err)
+	}
+}
+
+func TestConfigLinkMode_InvalidMode_Errors(t *testing.T) {
+	err := runConfigLinkMode(&CmdContext{App: &app.App{}, Args: []string{"--mode", "bogus"}})
+	if err == nil || !strings.Contains(err.Error(), "无效模式") {
+		t.Errorf("无效模式应报错, got: %v", err)
+	}
+}
