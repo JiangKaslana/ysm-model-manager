@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
@@ -20,11 +19,6 @@ type CliCommand struct {
 	Name        string
 	Category    string
 	Description string
-	// Flags 命令的 FlagSet，供 per-command --help 反射 PrintDefaults。
-	// 可选：命令实现里 fs := newCmdFlagSet(name); ... cmd.Flags = fs 注册。
-	Flags *flag.FlagSet
-	// Subcommands 嵌套子命令映射（key=子命令名）。非空时 Run 应自行分发 ctx.Args[0]。
-	Subcommands map[string]CliCommand
 	Run         func(ctx *CmdContext) error
 }
 
@@ -58,42 +52,6 @@ func RegisterCommandC(name, category, description string, run func(ctx *CmdConte
 		Description: description,
 		Run:         run,
 	}
-}
-
-// RegisterSubcommand 为父命令注册嵌套子命令。
-// 父命令必须先通过 RegisterCommand/RegisterCommandC 注册。
-// 父命令的 Run 负责从 ctx.Args[0] 取子命令名再分发；
-// 若子命令未命中，父命令应打印自身子命令列表。
-func RegisterSubcommand(parent, subName, subDesc string, subRun func(ctx *CmdContext) error) {
-	parentCmd, exists := cliCommands[parent]
-	if !exists {
-		fmt.Fprintf(os.Stderr, "[WARN] 父命令 %q 未注册，无法挂载子命令 %q\n", parent, subName)
-		return
-	}
-	if parentCmd.Subcommands == nil {
-		parentCmd.Subcommands = map[string]CliCommand{}
-	}
-	if _, dup := parentCmd.Subcommands[subName]; dup {
-		fmt.Fprintf(os.Stderr, "[WARN] 子命令 %q.%q 重复注册，跳过\n", parent, subName)
-		return
-	}
-	parentCmd.Subcommands[subName] = CliCommand{
-		Name:        subName,
-		Category:    parentCmd.Category,
-		Description: subDesc,
-		Run:         subRun,
-	}
-	cliCommands[parent] = parentCmd // map value 是 struct，需写回
-}
-
-// DispatchSubcommand 在父命令 Run 内调用：取 ctx.Args[0] 作子命令名分发。
-// 无子命令或未命中时返回 (nil, false)，由父命令自行处理（打印子命令列表或报错）。
-func DispatchSubcommand(ctx *CmdContext, parent CliCommand) (CliCommand, bool) {
-	if len(ctx.Args) == 0 || parent.Subcommands == nil {
-		return CliCommand{}, false
-	}
-	sub, ok := parent.Subcommands[ctx.Args[0]]
-	return sub, ok
 }
 
 // GetCommand 获取已注册的命令

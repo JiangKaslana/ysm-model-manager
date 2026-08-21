@@ -8,7 +8,7 @@
 | 模块 | 文件数 | 导出符号数 |
 |------|--------|-----------|
 | Go·头像 | 4 | 11 |
-| go/cli | 4 | 31 |
+| go/cli | 4 | 29 |
 | go/container | 1 | 26 |
 | Go·去重 | 1 | 5 |
 | Go·下载 | 1 | 15 |
@@ -46,7 +46,7 @@
 | frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **430** | **1846** |
+| **合计** | **430** | **1844** |
 
 ## Go·头像
 
@@ -68,8 +68,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `RunCLI()` | `go/cli/cli:16` | RunCLI 执行 CLI 模式 |
-| `ExecuteCLIWithApp()` | `go/cli/cli:74` | ExecuteCLIWithApp 执行 CLI 命令 |
+| `RunCLI()` | `go/cli/cli:14` | RunCLI 执行 CLI 模式 |
+| `ExecuteCLIWithApp()` | `go/cli/cli:72` | ExecuteCLIWithApp 执行 CLI 命令 |
 | `NewJsonSuccess()` | `go/cli/json:39` | NewJsonSuccess 创建成功响应 |
 | `NewJsonError()` | `go/cli/json:50` | NewJsonError 创建错误响应 |
 | `NewJsonNotSupported()` | `go/cli/json:81` | NewJsonNotSupported 创建平台不支持响应 |
@@ -80,15 +80,13 @@
 | `JsonError()` | `go/cli/json:22` | JsonError 错误详情 |
 | `TimingInfo()` | `go/cli/json:29` | TimingInfo 耗时统计 |
 | `MetaInfo()` | `go/cli/json:34` | MetaInfo 元信息 |
-| `RegisterCommand()` | `go/cli/registry:45` | RegisterCommand 注册一个 CLI 子命令（默认归入 CatOther） 重复注册会输出警告并跳过，不再 panic（init() 阶段 panic 无法 recov |
-| `RegisterCommandC()` | `go/cli/registry:50` | RegisterCommandC 注册带分类的 CLI 子命令 |
-| `RegisterSubcommand()` | `go/cli/registry:67` | RegisterSubcommand 为父命令注册嵌套子命令。 |
-| `DispatchSubcommand()` | `go/cli/registry:91` | DispatchSubcommand 在父命令 Run 内调用：取 ctx.Args[0] 作子命令名分发。 |
-| `GetCommand()` | `go/cli/registry:100` | GetCommand 获取已注册的命令 |
-| `GetAllCommands()` | `go/cli/registry:106` | GetAllCommands 获取所有已注册命令 |
-| `DispatchCommand()` | `go/cli/registry:115` | DispatchCommand 分发命令执行 |
-| `CmdContext()` | `go/cli/registry:12` | CmdContext 统一命令执行上下文 |
-| `CliCommand()` | `go/cli/registry:19` | CliCommand 命令注册结构 |
+| `RegisterCommand()` | `go/cli/registry:39` | RegisterCommand 注册一个 CLI 子命令（默认归入 CatOther） 重复注册会输出警告并跳过，不再 panic（init() 阶段 panic 无法 recov |
+| `RegisterCommandC()` | `go/cli/registry:44` | RegisterCommandC 注册带分类的 CLI 子命令 |
+| `GetCommand()` | `go/cli/registry:58` | GetCommand 获取已注册的命令 |
+| `GetAllCommands()` | `go/cli/registry:64` | GetAllCommands 获取所有已注册命令 |
+| `DispatchCommand()` | `go/cli/registry:73` | DispatchCommand 分发命令执行 |
+| `CmdContext()` | `go/cli/registry:11` | CmdContext 统一命令执行上下文 |
+| `CliCommand()` | `go/cli/registry:18` | CliCommand 命令注册结构 |
 | `ErrParam.Error()` | `go/cli/shared:26` | — |
 | `ErrParam.Unwrap()` | `go/cli/shared:33` | — |
 | `ErrRuntime.Error()` | `go/cli/shared:41` | — |
@@ -625,17 +623,17 @@
 | `App.ClearInstanceResources()` | `internal/app/app_install_instance:66` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
 | `App.DeduplicateCustomDir()` | `internal/app/app_install_instance:152` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
 | `App.GetInstanceStatus()` | `internal/app/app_install_instance:197` | ========== 状态同步 ========== GetInstanceStatus 获取整合包状态（按资源类型限定路径） rtype: 资源类型 ID，用于解析特定子目录；为 |
-| `App.GetResourceInstanceStatus()` | `internal/app/app_install_instance:209` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 repoDir 仅对 YSM 类型生效（其他类型从全局资源目录推导） |
-| `App.SyncModelToggleStatus()` | `internal/app/app_install_instance:257` | — |
-| `App.RelinkCustomDir()` | `internal/app/app_install_instance:262` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
-| `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:282` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
-| `App.SyncResources()` | `internal/app/app_install_instance:326` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
-| `App.PushResourceToInstance()` | `internal/app/app_install_instance:364` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
-| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:382` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
-| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:420` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
-| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:437` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
-| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:458` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
-| `App.HasYSMMod()` | `internal/app/app_install_instance:508` | ========== YSM 检测 ========== |
+| `App.GetResourceInstanceStatus()` | `internal/app/app_install_instance:209` | GetResourceInstanceStatus 按资源类型获取整合包同步状态 统一走 GetInstanceStatus 路径，通过 rtype 限定实例侧扫描子目录 + 仓库 |
+| `App.SyncModelToggleStatus()` | `internal/app/app_install_instance:271` | — |
+| `App.RelinkCustomDir()` | `internal/app/app_install_instance:276` | RelinkCustomDir 重新应用链接模式到指定目录（兼容旧版） |
+| `App.RelinkAllInstanceResources()` | `internal/app/app_install_instance:296` | RelinkAllInstanceResources 重新应用链接模式到整合包所有资源类型目录 |
+| `App.SyncResources()` | `internal/app/app_install_instance:340` | SyncResources 获取全局 ↔ 整合包的资源同步状态 |
+| `App.PushResourceToInstance()` | `internal/app/app_install_instance:378` | PushResourceToInstance 将全局中缺失的资源推送到整合包 PushResourceToInstance 推送缺失资源到整合包（执行循环下沉 go/sync） |
+| `App.PullResourceFromInstance()` | `internal/app/app_install_instance:396` | PullResourceFromInstance 拉取整合包多余资源回仓库（执行循环下沉 go/sync） |
+| `App.PullSingleResourceFromInstance()` | `internal/app/app_install_instance:434` | PullSingleResourceFromInstance 从整合包拉取单个 extra 文件/文件夹到全局仓库 PullSingleResourceFromInstance 从 |
+| `App.PushSingleResourceToInstance()` | `internal/app/app_install_instance:451` | PushSingleResourceToInstance 推送单个资源到整合包（分派核心下沉 go/sync） |
+| `App.GetInstanceSyncStatus()` | `internal/app/app_install_instance:472` | GetInstanceSyncStatus 获取整合包下所有资源类型的同步状态（扁平列表） subtype 可选，指定子类型目录名（如 EntityPlayer），仅 subDir |
+| `App.HasYSMMod()` | `internal/app/app_install_instance:522` | ========== YSM 检测 ========== |
 | `App.SetLinkMode()` | `internal/app/app_install_link:11` | ========== 链接模式 ========== |
 | `App.GetLinkMode()` | `internal/app/app_install_link:38` | — |
 | `App.AddImportLog()` | `internal/app/app_install_log:8` | ========== 日志 ========== |
