@@ -560,7 +560,7 @@
 | `IsYSMJar()` | `go/ysm/ysm:14` | IsYSMJar 检查单个 jar 是否是 YSM 模组（支持 mods.toml 和 neoforge.mods.toml） |
 | `IsModJar()` | `go/ysm/ysm:21` | IsModJar 内容检测单个 jar 是否是指定 mod（读取 META-INF/mods.toml / neoforge.mods.toml 的 [[mods]] 块，按 mo |
 | `HasYSMMod()` | `go/ysm/ysm:86` | HasYSMMod 检查 mods 目录是否有 YSM 模组（先做文件名过滤避免对每个 JAR 打开 ZIP） |
-| `HasModInDir()` | `go/ysm/ysm:122` | HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar |
+| `HasModInDir()` | `go/ysm/ysm:125` | HasModInDir 检查 mods 目录是否有匹配指定类型关键词的 jar |
 
 ## Go(internal)·应用入口
 
