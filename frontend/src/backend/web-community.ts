@@ -14,6 +14,7 @@ import { safeErrorMessage } from "../utils/safe-error-msg.ts";
 import { scanWebModels, readWebFile, collectAllWebEntries, typeFromWebDir } from "./web-fs.ts";
 import { WEB_ROOT, arrayBufferToBase64 } from "./web-common.ts";
 import { safeGet, safeSet, safeRemove } from "../utils/dom/storage.ts";
+import { stripBanSuffix } from "../utils/dom/display.ts";
 
 // --- 社区/工坊数据（ADR-049 桥接增强 Batch 2）---
 // 网页版无 Go 侧磁盘配置文件：bundled JSON 作默认，localStorage 作用户覆盖层
@@ -27,7 +28,7 @@ function cloneJson<T>(v: T): T {
 }
 
 function loadWebCreators(): WorkshopCreator[] {
-  const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_CREATORS_KEY) : null;
+  const ov = safeGet(WEB_CREATORS_KEY);
   if (ov !== null) {
     try {
       return JSON.parse(ov) as WorkshopCreator[];
@@ -48,7 +49,7 @@ function saveWebCreators(list: WorkshopCreator[] | null): void {
 }
 
 function loadWebSites(): WorkshopSite[] {
-  const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_SITES_KEY) : null;
+  const ov = safeGet(WEB_SITES_KEY);
   if (ov !== null) {
     try {
       return JSON.parse(ov) as WorkshopSite[];
@@ -70,7 +71,7 @@ function saveWebSites(sites: WorkshopSite[] | null): void {
 // B2 契约修复：网页版 GitHub 仓库列表补覆盖层（对齐 Go workshop-github.json 用户覆盖语义）。
 // 此前为纯 bundled 只读，与 Go「用户配置优先」契约不一致（contract-b2 测试暴露）。
 function loadWebGitHubRepos(): WorkshopCreator[] {
-  const ov = typeof localStorage !== "undefined" ? localStorage.getItem(WEB_GITHUB_KEY) : null;
+  const ov = safeGet(WEB_GITHUB_KEY);
   if (ov !== null) {
     try {
       return JSON.parse(ov) as WorkshopCreator[];
@@ -153,8 +154,7 @@ async function batchExtractCreatorAvatars(): Promise<Record<string, string>> {
 // index.json 内容字符串（调用方在 web 模式触发下载，对齐桌面写盘语义）。
 /** 从文件名提取 [作者] 前缀（去除 .ban 后缀）；非括号名返回 null */
 function extractBracketAuthor(name: string): string | null {
-  let n = name;
-  if (n.toLowerCase().endsWith(".ban")) n = n.slice(0, -4);
+  const n = stripBanSuffix(name);
   if (!n.startsWith("[")) return null;
   const idx = n.indexOf("]");
   if (idx <= 0) return null;

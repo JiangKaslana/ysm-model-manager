@@ -6,6 +6,7 @@ import { countMissing, renderRepoHeaderHTML } from "./render.ts";
 import { bindRepoEvents } from "./events.ts";
 import type { WorkshopModel } from "./render.ts";
 import type { WorkshopSite } from "../../../bindings/ysm-model-manager/go/types/models.ts";
+import { stripBanSuffix } from "../../utils/dom/display.ts";
 
 /**
  * 显示 GitHub 仓库模型列表（比对本地已有文件）
@@ -48,8 +49,7 @@ export async function showRepoModels(
       if (AppM.ClearScanCache) await AppM.ClearScanCache();
       const entries = (await AppM.ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
       entries.forEach((e) => {
-        let n = e.Name || "";
-        if (n.endsWith(".ban")) n = n.slice(0, -4);
+        const n = stripBanSuffix(e.Name || "");
         localMap.set(n, e.Hash || "");
       });
     }

@@ -6,6 +6,7 @@ package app
 
 import (
 	"encoding/base64"
+	"fmt"
 	"os"
 
 	"ysm-model-manager/go/texture_cache"
@@ -22,6 +23,11 @@ type CachedTextureResult struct {
 // 缓存命中时 Format="ktx2" Data=KTX2 base64；未命中时 Format="png" Data=PNG base64。
 // 前端可根据 Format 决定使用 KTX2Loader 还是 TextureLoader。
 func (a *App) GetCachedTexture(path string) (CachedTextureResult, error) {
+	// 路径守卫：Wails binding 可被前端传入任意路径，须限制在合法仓库根内
+	// （与 ReadFileBytes/AnalyzeBedrockModel 对齐 isPathInRootOrSelf）
+	if !a.isPathInRootOrSelf(path) {
+		return CachedTextureResult{}, fmt.Errorf("路径超出仓库目录")
+	}
 	// 计算内容哈希（基于文件内容，非路径）
 	hash, err := texture_cache.TextureHash(path)
 	if err != nil {
@@ -47,6 +53,7 @@ func (a *App) GetCachedTexture(path string) (CachedTextureResult, error) {
 }
 
 // readWithHash 读取原始纹理文件并以 PNG 格式返回。
+// 注意：路径守卫由调用方（GetCachedTexture）负责，本函数为内部辅助。
 func readWithHash(path string, hash string) (CachedTextureResult, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

@@ -131,6 +131,8 @@ export class GroundCapability implements SceneCapability {
 
   /** 推进水面波纹动画（render loop 调用） */
   update(dt: number): void {
+    // P3 修复（审核）：能力未启用或水面不可见时跳过 uniform 推进，避免无谓 GPU 开销
+    if (!this.enabled || this.params.wetness <= 0 || !this.water.visible) return;
     this.waterTime.value += dt;
   }
 

@@ -128,5 +128,9 @@ func (a *App) DebugExtractCreatorAvatar(authorName string) map[string]string {
 
 // CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式）
 func (a *App) CacheModelAvatars(modelPath string) {
+	// 路径守卫：Wails binding 可被前端传入任意路径，须限制在合法仓库根内
+	if !a.isPathInRootOrSelf(modelPath) {
+		return
+	}
 	avatar.CacheAvatarsFromModel(modelPath)
 }

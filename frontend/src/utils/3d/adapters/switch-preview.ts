@@ -138,7 +138,26 @@ export async function switchToSession(
       newPath,
     );
   } catch (e) {
+    // P2 守卫（对齐 mount3D 主流程 gen 守卫）：build 失败迟到且用户已关闭/切换
+    // 预览时不弹错误 toast，避免关闭后 1~2s 突然冒出「加载失败」掩盖用户意图
+    if (ctx.aborted || ctx.isDisposed.v || ctx.myGen !== ctx.getGen()) return;
     console.error("[preview 3D] 切换失败:", e);
+    // P1 修复（审核 ADR-109 Checklist）：build 失败后旧内容层已 dispose（上方 L117）
+    // 但 perFrame 回调仍指向已 dispose 的 update → rAF 每帧驱动已释放对象；
+    // sceneRegistry 残留旧 entry → count 虚高（误触 MAX_MODELS）+ visibleRoots 含
+    // detached root（取景幽灵）；allBuilt 残留已释放引用（GPU 资源孤儿泄漏）
+    ctx.setPerFrame(null);
+    if (keep) {
+      // 同台模式：旧 built 未 dispose（上方 L116 跳过），此处补释放
+      try { ctx.getBuilt()?.dispose(); } catch (_) {}
+    }
+    const prevId = sceneRegistry.getActiveId();
+    if (prevId) sceneRegistry.unregister(prevId);
+    for (const b of ctx.allBuilt) {
+      try { b.dispose(); } catch (_) {}
+    }
+    ctx.allBuilt.length = 0;
+    ctx.setBuilt(null);
     if (!ctx.loadingEl.parentNode) ctx.viewContainer.appendChild(ctx.loadingEl);
     ctx.loadingEl.innerHTML =
       `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;

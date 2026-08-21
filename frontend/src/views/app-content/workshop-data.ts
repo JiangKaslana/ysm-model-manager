@@ -1,6 +1,7 @@
 // ===== 创意工坊数据/配置/工具 =====
 // 依赖 workshop-icons.js 的 SVG 图标
 import { ICONS } from "../../utils/icon/workshop-icons.ts";
+import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 
 const STORAGE_KEY = "ysm-fav-creators";
 
@@ -62,14 +63,14 @@ export function parseDescTags(desc?: string): string[] {
 // ===== 收藏工具 =====
 export function loadFavs(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    return JSON.parse(safeGet(STORAGE_KEY) || "[]");
   } catch {
     return [];
   }
 }
 
 function saveFavs(names: string[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(names));
+  safeSet(STORAGE_KEY, JSON.stringify(names));
 }
 
 export function isFaved(name: string): boolean {

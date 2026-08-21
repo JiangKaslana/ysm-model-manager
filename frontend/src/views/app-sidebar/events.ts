@@ -4,7 +4,7 @@ import { t } from "../../core/i18n/t.ts";
 import { animateNumber } from "../../utils/animation/animate.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import type { SidebarInstance } from "./data.ts";
-import { safeGet } from "../../utils/dom/storage.ts";
+import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { getApp } from "../../backend/app.ts";
 
 // 绑定每个卡片展开/折叠
@@ -94,9 +94,7 @@ export function bindCardEvents(
       // 点击允许 fallback 到 YSM（预览/选择无害），与右键拒绝 fallback 形成对称设计
       _lastEmittedPkg =
         (st.instances[0]?.rtype || RESOURCE_TYPES.YSM) + ":" + pkg.name;
-      try {
-        localStorage.setItem("sb_selectedName_" + (pkg.rtype || RESOURCE_TYPES.YSM), pkg.name);
-      } catch (_) {}
+      safeSet("sb_selectedName_" + (pkg.rtype || RESOURCE_TYPES.YSM), pkg.name);
     }
   };
 
@@ -190,7 +188,7 @@ function restoreSelectedCard(
         bus.emit("package:selected", instances[idx]);
       }
     });
-  } catch (_) {}
+  } catch (e) { console.warn("[sidebar] restoreSelectedCard:", e); }
 }
 
 // 绑定底部按钮 + 路径显示

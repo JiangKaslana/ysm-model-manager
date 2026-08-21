@@ -11,6 +11,7 @@ import { friendlyError } from "../../utils/dom/errors.ts";
 import { t } from "../../core/i18n/t.ts";
 import { esc as escUtil } from "../../utils/dom/html.ts";
 import type { WorkshopModel } from "../../features/community/render.ts";
+import { stripBanSuffix } from "../../utils/dom/display.ts";
 
 /** app-content 组件接口（供 github 初始化函数访问） */
 export interface AppContentHost {
@@ -127,8 +128,7 @@ export function initGithubPage(host: AppContentHost): void {
       if (filesRoot) {
         const entries = (await ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
         entries.forEach((e) => {
-          let n = e.Name || "";
-          if (n.endsWith(".ban")) n = n.slice(0, -4);
+          const n = stripBanSuffix(e.Name || "");
           localMap.set(n, e.Hash || "");
         });
       }

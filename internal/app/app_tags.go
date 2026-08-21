@@ -2,6 +2,8 @@
 package app
 
 import (
+	"fmt"
+
 	"ysm-model-manager/go/tags"
 )
 
@@ -15,11 +17,20 @@ func (a *App) getTagsStore() *tags.Store {
 
 // GetModelTags 返回指定模型文件的所有标签
 func (a *App) GetModelTags(modelPath string) ([]string, error) {
+	// 路径守卫：Wails binding 可被前端传入任意路径，须限制在合法仓库根内
+	// （与 ReadFileBytes 对齐 isPathInRootOrSelf，防止读取系统任意文件的标签）
+	if !a.isPathInRootOrSelf(modelPath) {
+		return nil, fmt.Errorf("路径超出仓库目录")
+	}
 	return a.getTagsStore().GetTags(modelPath)
 }
 
 // SetModelTags 设置指定模型文件的标签列表（覆盖写入）
 func (a *App) SetModelTags(modelPath string, tags []string) error {
+	// 路径守卫：与 GetModelTags 对齐 isPathInRootOrSelf，防止向系统任意文件写入标签
+	if !a.isPathInRootOrSelf(modelPath) {
+		return fmt.Errorf("路径超出仓库目录")
+	}
 	return a.getTagsStore().SetTags(modelPath, tags)
 }
 

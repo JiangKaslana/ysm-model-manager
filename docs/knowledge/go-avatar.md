@@ -15,7 +15,7 @@ use_when:
   - 缩略图
 invariant_anchors:
   - go/avatar/avatar.go|isSafeAvatarPath
-  - go/avatar/avatar.go|strings.ReplaceAll
+  - go/avatar/avatar.go|strings.NewReplacer
 ---
 
 # 头像 go/avatar

@@ -107,7 +107,7 @@ export class AppTree extends WebComponentBase {
         this._dirOpen,
         JSON.parse(safeGet("at_dirs") || "{}"),
       );
-    } catch (_) {}
+    } catch (e) { console.warn("[app-tree] parse at_dirs:", e); }
 
     try {
       this._renderLayout();

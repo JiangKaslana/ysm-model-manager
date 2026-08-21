@@ -7,6 +7,7 @@ import { emptyHTML } from "./tpl.ts";
 import { fileRowHTML, folderRowHTML } from "./row-tpl.ts";
 import { listFileRowHTML, listFolderRowHTML } from "./row-tpl-list.ts";
 import { renderDisplayName } from "../../utils/dom/display.ts";
+import { safeGet, safeSet } from "../../utils/dom/storage.ts";
 import { animateNumber } from "../../utils/animation/animate.ts";
 import { selectState } from "./data.ts";
 import type { TreeEntry } from "./loader.ts";
@@ -41,19 +42,12 @@ const RENDER_MODE_KEY = "ysm-render-mode";
 
 /** Get render mode from localStorage, default to 'grid' */
 export function getRenderMode(): RenderMode {
-  try {
-    const mode = localStorage.getItem(RENDER_MODE_KEY);
-    return mode === "list" ? "list" : "grid";
-  } catch {
-    return "grid";
-  }
+  return safeGet(RENDER_MODE_KEY) === "list" ? "list" : "grid";
 }
 
 /** Set render mode to localStorage */
 export function setRenderMode(mode: RenderMode): void {
-  try {
-    localStorage.setItem(RENDER_MODE_KEY, mode);
-  } catch {}
+  safeSet(RENDER_MODE_KEY, mode);
 }
 
 // ——— 树构建（与原版一致） ———

@@ -315,7 +315,9 @@ func (a *App) BackupWorkshopCreators() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(bakPath, data, 0644); err != nil {
+	// 原子写入（与 saveConfig/tags 对齐）——
+	// 原 os.WriteFile 直写在磁盘满/IO 中断时留半截备份文件
+	if err := fsutil.WriteFileAtomic(bakPath, data); err != nil {
 		return "", err
 	}
 	return bakPath, nil

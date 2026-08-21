@@ -25,18 +25,18 @@ const TD_ROTMODE_KEY = "td-rot-mode";
 
 /** 读取用户自定义键位（无/非法时回退默认） */
 export function loadTdKeymap(): Record<TdKeyAction, string> {
-  try {
-    const raw = localStorage.getItem(TD_KEYMAP_KEY);
-    if (raw) {
+  const raw = safeGet(TD_KEYMAP_KEY);
+  if (raw) {
+    try {
       const parsed = JSON.parse(raw) as Partial<Record<TdKeyAction, string>>;
       const merged: Record<TdKeyAction, string> = { ...DEFAULT_TD_KEYMAP };
       (Object.keys(DEFAULT_TD_KEYMAP) as TdKeyAction[]).forEach((k) => {
         if (typeof parsed[k] === "string" && parsed[k]!.length > 0) merged[k] = parsed[k]!;
       });
       return merged;
+    } catch {
+      /* JSON 解析失败回退默认 */
     }
-  } catch {
-    /* 解析失败回退默认 */
   }
   return { ...DEFAULT_TD_KEYMAP };
 }

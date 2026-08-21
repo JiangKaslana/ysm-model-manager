@@ -223,7 +223,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
       const raw = await LoadResourceTypes();
       const reg = JSON.parse(raw) as { resourceTypes?: Array<{ id: string; name?: string; icon?: string }> };
       this._typeCache = reg.resourceTypes || [];
-    } catch (_) {}
+    } catch (e) { console.warn("[preview] LoadResourceTypes:", e); }
   }
 
   private async _showModelDetail(path: string): Promise<void> {
@@ -244,7 +244,7 @@ class AppPreview extends WebComponentBase implements PreviewCtx {
     try {
       const { DetectResourceType } = await getApp();
       rtype = (await DetectResourceType(path)) || "";
-    } catch (_) {}
+    } catch (e) { console.warn("[preview] DetectResourceType:", e); }
     // 过期守卫：await 期间用户已点其他文件，丢弃本次分流
     if (gen !== this._previewGen) return;
     // ADR-072 D2：注册表驱动查表派发——新增格式 = 注册表一条目 + PREVIEW_HANDLERS 一行，

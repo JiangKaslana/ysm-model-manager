@@ -274,7 +274,7 @@ async function reload(vm: AppTree): Promise<void> {
   try {
     const App = await getApp();
     if (App.ClearScanCache) await App.ClearScanCache();
-  } catch (_) {}
+  } catch (e) { console.warn("[app-tree] ClearScanCache:", e); }
   const gen = vm._gen; // P2-1 代际捕获（不 ++，避免打断 connected 初始渲染）
   try {
     const rtype = vm._rootAttr || vm._typeFilter || "";

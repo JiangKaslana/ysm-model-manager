@@ -80,7 +80,7 @@ export function bindEditEvents(state: SiteViewState, refreshView: () => void): C
         try {
           const parsed = JSON.parse(resourceTypesRaw || "{}") as { resourceTypes?: unknown[] };
           resourceTypes = parsed.resourceTypes || [];
-        } catch (_) {}
+        } catch (e) { console.warn("[site-edit] parse resourceTypes:", e); }
         if (resourceTypes.length) {
           logs.push("类型: " + resourceTypes.length + " 种");
           changed = true;

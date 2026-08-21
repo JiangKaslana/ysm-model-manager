@@ -14,6 +14,7 @@ import (
 	"ysm-model-manager/go/avatar"
 	"ysm-model-manager/go/download"
 	"ysm-model-manager/go/fileops"
+	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/logs"
 	"ysm-model-manager/go/scanner"
 	"ysm-model-manager/go/tags"
@@ -271,8 +272,24 @@ func migrateFlatStorageToGrouped(filesRoot string) {
 			continue
 		}
 		if err := os.Rename(flatPath, targetPath); err != nil {
-			log.Printf("[migrate] 迁移 %s → %s 失败: %v", subDir, targetRel, err)
-			continue
+			// 跨设备回退：os.Rename 在不同分区/盘符时返回 EXDEV/ERROR_NOT_SAME_DEVICE，
+			// 回退到递归复制+删除源（与 installer/recycle 的跨设备处理对齐）
+			if fsutil.IsCrossDeviceErr(err) {
+				if cpErr := fsutil.CopyDirRecursive(flatPath, targetPath, fsutil.CopyDirOptions{
+					RejectSymlink: false,
+					Overwrite:     false,
+					Rollback:      true,
+				}); cpErr != nil {
+					log.Printf("[migrate] 跨设备迁移 %s → %s 失败: %v", subDir, targetRel, cpErr)
+					continue
+				}
+				if rmErr := os.RemoveAll(flatPath); rmErr != nil {
+					log.Printf("[migrate] 跨设备迁移后清理源 %s 失败: %v", flatPath, rmErr)
+				}
+			} else {
+				log.Printf("[migrate] 迁移 %s → %s 失败: %v", subDir, targetRel, err)
+				continue
+			}
 		}
 		log.Printf("[migrate] 已迁移: %s → %s", subDir, targetRel)
 		moved++

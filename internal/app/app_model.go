@@ -451,7 +451,9 @@ func (a *App) SaveScreenshotFile(filename string, base64Data string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dest, data, 0644)
+	// 原子写入（与 importer.WriteFileAtomic 对齐）——
+	// 原 os.WriteFile 直写在磁盘满/IO 中断时留半截文件，前端重试会命中「文件已存在」
+	return fsutil.WriteFileAtomic(dest, data)
 }
 
 func (a *App) runYSMParserOnFile(modelPath string) types.BedrockModel {
