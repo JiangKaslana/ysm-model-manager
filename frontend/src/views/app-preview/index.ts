@@ -29,7 +29,7 @@ import { t } from "../../core/i18n/t.ts";
 import { type PreviewCtx, type DecodedYsm } from "./utils.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { showModelDetail, showResourcePack, showShaderpack, showSimplePreview } from "./detail.ts";
-import { showVrmMeta, showMmdPreview, showScenePreview, showMorphPreview, showStagePreview } from "./detail-3d.ts";
+import { showVrmMeta, showMmdPreview, showScenePreview, showMorphPreview, showStagePreview, showFbxPreview } from "./detail-3d.ts";
 import { showLitematic, cleanupLitematic3D, invalidateLitematicPreview } from "./litematic-meta.ts";
 import { cleanupVrm3D, invalidateVrmPreview } from "./vrm-3d.ts";
 import { cleanupMmd3D, invalidateMmdPreview } from "./mmd-3d.ts";
@@ -74,6 +74,8 @@ const PREVIEW_HANDLERS: Record<string, PreviewShowFn> = {
   "DefaultAnim": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
   "DefaultMorph": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
   "mmd-shader": (ctx, path, meta) => showSimplePreview(ctx, path, meta),
+  // FBX 独立预览（ADR-112：模型 + 内嵌动画，物理落 CustomAnim 目录）
+  "fbx": (ctx, path, meta) => showFbxPreview(ctx, path, meta),
   // VRM：.vrm 直引 three-vrm meta 卡 + FAB 进 3D；.vrca/.zip 暂不直接加载 → 简单预览
   [RESOURCE_TYPES.VRM]: (ctx, path, meta) => {
     if (extOf(path) === ".vrm") {

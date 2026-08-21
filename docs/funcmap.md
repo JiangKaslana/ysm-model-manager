@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 140 | 536 |
+| 前端·工具 | 145 | 541 |
 | frontend/views | 111 | 321 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **432** | **1854** |
+| **合计** | **437** | **1859** |
 
 ## Go·头像
 
@@ -1298,6 +1298,11 @@
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:30` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:87` | 会话内切换模型（复用外壳重建内容层）。 |
 | `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:249` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `Endianness()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/endianness:4` | Endianness utility class for serlization/deserialization |
+| `ConsoleLogger()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/ILogger:6` | A logger that outputs to the console generally, you can use this class as default logger |
+| `MmdDataDeserializer()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/mmdDataDeserializer:5` | DataView wrapper for deserializing MMD data |
+| `PmxObject()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxObject` | — |
+| `PmxReader()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader:62` | PmxReader is a static class that parses PMX data |
 | `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:27` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:93` | VRM meta 归一化信息（meta 卡展示用） |
 | `readVrmMeta()` | `frontend/src/utils/3d/adapters/vrm-adapter:112` | 解析 VRM meta（不渲染 3D，parse 后立即 deepDispose），失败返回 null |

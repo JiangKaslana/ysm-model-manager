@@ -9,18 +9,18 @@ import resourceTypesJson from "../../../../resource_types.json" with { type: "js
 export const RESOURCE_TYPES: Record<string, string> = {
   YSM: "ysm",
   MMD: "EntityPlayer",
-  VRM: "vrm",
   PACK: "resourcepack",
   SHADER: "shaderpack",
   BLUEPRINT: "blueprint",
   LITEMATIC: "litematic",
   MAID: "maid-model",
+  FBX: "fbx",
 };
 
 /** 资源类型显示标签（内部 ID → 中文名） */
 export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   ysm: "YSM 模型",
-  EntityPlayer: "PMX 模型",
+  EntityPlayer: "角色模型",
   SceneModel: "场景模型",
   CustomAnim: "自定义动画",
   CustomMorph: "自定义表情",
@@ -28,12 +28,12 @@ export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   "mmd-shader": "MMD 着色器",
   DefaultAnim: "默认动画",
   DefaultMorph: "默认表情",
-  "vrm": "VRM",
   resourcepack: "资源包",
   shaderpack: "光影包",
   blueprint: "蓝图",
   litematic: "投影",
   "maid-model": "车万女仆",
+  "fbx": "FBX 模型/动画",
 };
 
 /** JSON 条目（缺 id 的脏数据过滤掉，防 undefined 混入类型列表） */

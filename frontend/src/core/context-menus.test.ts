@@ -398,13 +398,13 @@ describe("菜单项点击行为", () => {
     expect(openFolderMock).toHaveBeenCalledWith("/packs/mmd-pack", RESOURCE_TYPES.MMD, "");
   });
 
-  it("instance VRM 复制模型清单 → 透传 vrm rtype", () => {
+  it("instance 复制模型清单 → 透传 rtype", () => {
     clickItem("instance", "instance.export-list", {
-      rtype: "vrm",
+      rtype: "EntityPlayer",
     });
     expect(emitted).toContainEqual({
       e: "instance:export-list",
-      p: { name: "测试整合包", rtype: "vrm" },
+      p: { name: "测试整合包", rtype: "EntityPlayer" },
     });
   });
 

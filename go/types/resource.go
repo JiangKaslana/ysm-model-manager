@@ -38,18 +38,19 @@ type ResourceType struct {
 	StorageSubDir  string          `json:"storageSubDir"`
 	InstanceDir    string          `json:"instanceDir"` // 整合包内实际存放目录（安装+扫描统一路径）
 	InstanceLevel  bool            `json:"instanceLevel"`
-	Preview        string          `json:"preview"`        // "3d" / "thumbnail" / "none"
-	Detector       string          `json:"detector"`       // "ysm" / "mcmeta" / "shader" / "zipentry" / "extension"
-	ConfigField    string          `json:"configField"`    // AppConfig 字段名（如 YsmRoot）
-	ConfigFallback string          `json:"configFallback"` // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
-	IsDir          bool            `json:"isDir"`          // 目录型资源（删除/同步整目录）
-	Hashable       bool            `json:"hashable"`       // 扩展名参与 SHA256 哈希（ShouldHashExt 注册表驱动）
-	DirLevelSync   bool            `json:"dirLevelSync"`   // 文件夹级资源同步（sync.SyncResourcesDirLevel）
-	ScanInstance   bool            `json:"scanInstance"`   // instance 视图额外扫描整合包目录（非模型类型兜底）
-	InstallExts    []string        `json:"installExts"`    // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
-	ZipEntries     []ZipEntryMatch `json:"zipEntries"`     // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
-	NestedModelDir bool            `json:"nestedModelDir"` // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
-	Mod            *ModRequirement `json:"mod,omitempty"`  // mod 依赖声明（ADR-110：mod 下沉注册表）
+	Preview        string          `json:"preview"`            // "3d" / "thumbnail" / "none"
+	Detector       string          `json:"detector"`           // "ysm" / "mcmeta" / "shader" / "zipentry" / "extension"
+	ConfigField    string          `json:"configField"`        // AppConfig 字段名（如 YsmRoot）
+	ConfigFallback string          `json:"configFallback"`     // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
+	IsDir          bool            `json:"isDir"`              // 目录型资源（删除/同步整目录）
+	Hashable       bool            `json:"hashable"`           // 扩展名参与 SHA256 哈希（ShouldHashExt 注册表驱动）
+	DirLevelSync   bool            `json:"dirLevelSync"`       // 文件夹级资源同步（sync.SyncResourcesDirLevel）
+	ScanInstance   bool            `json:"scanInstance"`       // instance 视图额外扫描整合包目录（非模型类型兜底）
+	InstallExts    []string        `json:"installExts"`        // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
+	ZipEntries     []ZipEntryMatch `json:"zipEntries"`         // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
+	NestedModelDir bool            `json:"nestedModelDir"`     // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
+	Mod            *ModRequirement `json:"mod,omitempty"`      // mod 依赖声明（ADR-110：mod 下沉注册表）
+	Variants       []Variant       `json:"variants,omitempty"` // 格式变体（ADR-111：variants 解耦，按扩展名分发预览器）
 }
 
 // ModRequirement mod 依赖声明（ADR-110）：
@@ -61,6 +62,14 @@ type ModRequirement struct {
 	JarKeywords []string `json:"jarKeywords,omitempty"` // 文件名关键词（小写匹配）
 	ModID       string   `json:"modId,omitempty"`       // mods.toml 中的 modId
 	DisplayName string   `json:"displayName,omitempty"` // mods.toml 中的 displayName
+}
+
+// Variant 格式变体声明（ADR-111：variants 解耦）：
+// 同一资源类型内不同格式变体的预览器路由。
+// 例如角色模型（EntityPlayer）内 .pmx 用 mmd 预览器，.vrm 用 vrm 预览器。
+type Variant struct {
+	Ext     string `json:"ext"`     // 扩展名（如 ".pmx"、".vrm"）
+	Preview string `json:"preview"` // 预览器 id（如 "mmd"、"vrm"）
 }
 
 // EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。

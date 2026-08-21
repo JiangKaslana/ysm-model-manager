@@ -10,6 +10,7 @@ import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { readVrmMeta } from "../../utils/3d/adapters/vrm-adapter.ts";
 import { createVrm3D } from "./vrm-3d.ts";
 import { createMmd3D } from "./mmd-3d.ts";
+import { createFbx3D } from "./fbx-3d.ts";
 import { createScene3D } from "./scene-3d.ts";
 import { resolveMmdSiblings } from "./mmd-siblings.ts";
 import { resolveSceneSiblings } from "./scene-siblings.ts";
@@ -117,6 +118,31 @@ export async function showMmdPreview(
         const siblings = await resolveMmdSiblings();
         await createMmd3D(path, { siblings });
       })();
+    };
+  }
+}
+
+/** 显示 FBX 预览卡（文件名 + FAB 进 3D；FBX 无标准 meta 读取，保持简单形态，ADR-112） */
+export async function showFbxPreview(
+  ctx: PreviewCtx,
+  path: string,
+  opts?: { icon?: string; label?: string },
+): Promise<void> {
+  nextDetailGen(); // 无 await 也要作废在途的慢请求回写
+  const icon = (opts && opts.icon) || "🦴";
+  const label = (opts && opts.label) || "FBX 模型/动画";
+  const basename = path.split(/[/\\]/).pop() || "";
+  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>${icon} ${label}</h3>
+  <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:var(--fs-sm)">
+    <div><strong>${renderFormattedText(basename || "")}</strong></div>
+    <button class="preview-fab" id="btn-fbx-3d" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">🎨</span></button>
+  </div>
+</div>`;
+  const fab = ctx.root.querySelector<HTMLElement>("#btn-fbx-3d");
+  if (fab) {
+    fab.onclick = (): void => {
+      void createFbx3D(path);
     };
   }
 }

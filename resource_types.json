@@ -224,7 +224,7 @@
     },
     {
       "id": "EntityPlayer",
-      "name": "PMX 模型",
+      "name": "角色模型",
       "icon": "🧍",
       "group": "mmd",
       "groupLabel": "MMD",
@@ -253,6 +253,20 @@
         {
           "name": ".vrm",
           "match": "suffix"
+        }
+      ],
+      "variants": [
+        {
+          "ext": ".pmx",
+          "preview": "mmd"
+        },
+        {
+          "ext": ".pmd",
+          "preview": "mmd"
+        },
+        {
+          "ext": ".vrm",
+          "preview": "vrm"
         }
       ],
       "isDir": true,
@@ -295,6 +309,20 @@
         {
           "name": ".vrm",
           "match": "suffix"
+        }
+      ],
+      "variants": [
+        {
+          "ext": ".pmx",
+          "preview": "mmd"
+        },
+        {
+          "ext": ".pmd",
+          "preview": "mmd"
+        },
+        {
+          "ext": ".vrm",
+          "preview": "vrm"
         }
       ],
       "isDir": true,
@@ -497,30 +525,20 @@
       ]
     },
     {
-      "id": "vrm",
-      "name": "VRM 模型",
-      "icon": "🥽",
+      "id": "fbx",
+      "name": "FBX 模型/动画",
+      "icon": "🦴",
       "group": "mmd",
       "extensions": [
-        ".vrm",
-        ".zip"
+        ".fbx"
       ],
-      "storageSubDir": "VRM",
+      "storageSubDir": "CustomAnim",
       "configField": "MmdRoot",
-      "instanceDir": "3d-skin",
+      "instanceDir": "CustomAnim",
       "instanceLevel": false,
       "preview": "3d",
-      "detector": "zipentry",
-      "zipEntries": [
-        {
-          "name": ".vrm",
-          "match": "suffix"
-        }
-      ],
-      "isDir": true,
-      "mod": {
-        "jarKeywords": ["mmdskin"]
-      },
+      "detector": "extension",
+      "isDir": false,
       "actions": [
         "import",
         "delete",

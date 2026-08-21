@@ -25,7 +25,6 @@ describe("RESOURCE_TYPES 标签映射", () => {
     expect(RESOURCE_TYPES).toEqual({
       YSM: "ysm",
       MMD: "EntityPlayer",
-      VRM: "vrm",
       PACK: "resourcepack",
       SHADER: "shaderpack",
       BLUEPRINT: "blueprint",
@@ -46,7 +45,7 @@ describe("RESOURCE_TYPE_LABELS 显示标签", () => {
     expect(RESOURCE_TYPE_LABELS["ysm"]).toBe("YSM 模型");
     expect(RESOURCE_TYPE_LABELS["resourcepack"]).toBe("资源包");
     expect(RESOURCE_TYPE_LABELS["shaderpack"]).toBe("光影包");
-    expect(RESOURCE_TYPE_LABELS["EntityPlayer"]).toBe("PMX 模型");
+    expect(RESOURCE_TYPE_LABELS["EntityPlayer"]).toBe("角色模型");
   });
 });
 
@@ -188,10 +187,9 @@ describe("GROUP_OF 类型→分组映射", () => {
     expect(GROUP_OF["litematic"]).toBe("minecraft-mod");
   });
 
-  it("MMD 生态归 mmd（VRM 寄生并入）", () => {
+  it("MMD 生态归 mmd", () => {
     expect(GROUP_OF["EntityPlayer"]).toBe("mmd");
     expect(GROUP_OF["SceneModel"]).toBe("mmd");
-    expect(GROUP_OF["vrm"]).toBe("mmd");
   });
 });
 
@@ -213,9 +211,9 @@ describe("GROUP_TYPE_OPTIONS — 平铺展示各类型", () => {
     expect(rtypes).toContain("maid-model");
   });
 
-  it("mmd 组：8 个独立 MMD 类型 + vrm", () => {
+  it("mmd 组：8 个独立 MMD 类型", () => {
     const mmd = GROUP_TYPE_OPTIONS["mmd"] || [];
-    expect(mmd.length).toBe(9); // EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/mmd-shader/DefaultAnim/DefaultMorph + vrm
+    expect(mmd.length).toBe(8); // EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/mmd-shader/DefaultAnim/DefaultMorph
     const rtypes = mmd.map((o) => o.rtype);
     expect(rtypes).toContain("EntityPlayer");
     expect(rtypes).toContain("SceneModel");
@@ -225,7 +223,6 @@ describe("GROUP_TYPE_OPTIONS — 平铺展示各类型", () => {
     expect(rtypes).toContain("mmd-shader");
     expect(rtypes).toContain("DefaultAnim");
     expect(rtypes).toContain("DefaultMorph");
-    expect(rtypes).toContain("vrm");
   });
 
   it("所有选项 subdir 为空（平铺，无子目录展开）", () => {
@@ -261,8 +258,7 @@ describe("groupStorageRootOf 两层路由（从 JSON 动态派生，防快照漂
       ["shaderpack", "minecraft/shaderpacks"],
       ["ysm", "minecraft-mod/ysm"],
       ["maid-model", "minecraft-mod/maid-model"],
-      ["EntityPlayer", "mmd/EntityPlayer"],
-      ["vrm", "mmd/VRM"],
+      ["EntityPlayer", "mmd/PMX"],
     ];
     for (const [typeId, want] of anchors) {
       expect(groupStorageRootOf(typeId), `${typeId} 锚点`).toBe(want);

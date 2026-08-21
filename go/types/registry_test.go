@@ -71,13 +71,13 @@ func TestExtBelongsTo(t *testing.T) {
 		t.Errorf("ExtBelongsTo('.ysm') = %v, 缺少 ysm", ids)
 	}
 	ids = ExtBelongsTo(".zip")
-	if len(ids) != 15 {
-		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 15 类", ids)
+	if len(ids) != 14 {
+		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 14 类", ids)
 	}
 	expectedAll := map[string]bool{
 		"ysm": false, "resourcepack": false, "shaderpack": false,
 		"blueprint": false, "litematic": false,
-		"vrm": false, "maid-model": false,
+		"maid-model":   false,
 		"EntityPlayer": false, "SceneModel": false,
 		"CustomAnim": false, "CustomMorph": false,
 		"StageAnim": false, "mmd-shader": false,
@@ -146,7 +146,6 @@ func TestGroupOf(t *testing.T) {
 		{"litematic", "minecraft-mod"},
 		{"maid-model", "minecraft-mod"},
 		{"EntityPlayer", "mmd"},
-		{"vrm", "mmd"},
 	}
 	for _, c := range cases {
 		if got := GroupOf(c.rtype); got != c.want {
@@ -169,7 +168,6 @@ func TestGroupStorageRoot(t *testing.T) {
 		{"litematic", "minecraft-mod/litematics"},
 		{"maid-model", "minecraft-mod/maid-model"},
 		{"EntityPlayer", "mmd/PMX"},
-		{"vrm", "mmd/VRM"},
 	}
 	for _, c := range anchors {
 		if got := GroupStorageRoot(c.rtype); got != c.want {
@@ -487,7 +485,6 @@ func TestModRequirementInRegistry(t *testing.T) {
 	}{
 		{"ysm", []string{"yes_steve_model", "ysm-"}, ""},
 		{"EntityPlayer", []string{"mmdskin", "mmd-skin"}, ""},
-		{"vrm", []string{"mmdskin"}, ""},
 		{"maid-model", nil, "touhou_little_maid"},
 		{"blueprint", nil, "create"},
 		{"litematic", nil, "litematica"},
