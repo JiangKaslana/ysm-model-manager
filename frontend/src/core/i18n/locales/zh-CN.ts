@@ -225,6 +225,11 @@ export const zhCN: Record<string, string> = {
   "settings.preview3d.keymap": "操作键位（点击后按任意键重绑）",
   "settings.preview3d.keymapHint": "方向键始终可用作移动兜底；修改即时生效，下次 3D 预览启用。",
   "settings.preview3d.resetKeys": "恢复默认键位",
+  "settings.preview3d.workerCheck": "启用 worker",
+  "settings.preview3d.fbxWorker": "FBX worker 解析",
+  "settings.preview3d.fbxWorkerHint": "开启后 FBX 解析走 Web Worker，异常时自动回退主线程；关闭则始终主线程解析（默认）。",
+  "settings.preview3d.mmdWorker": "MMD PMX worker 解析",
+  "settings.preview3d.mmdWorkerHint": "开启后 PMX 二进制解析走 Worker（实验态）；关闭则走官方 MMDLoader 完整加载（默认）。",
 
   // ── 导入页 ──
   "import.mmdSubdir": "MMD 用途子目录",

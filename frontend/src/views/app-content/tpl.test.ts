@@ -99,6 +99,9 @@ describe("app-content 模板", () => {
     expect(html).toContain("set-animations");
     expect(html).toContain("set-default-page");
     expect(html).toContain("set-advanced-grid");
+    // worker 解析开关（FBX / MMD PMX 逃生舱）
+    expect(html).toContain("set-fbx-worker");
+    expect(html).toContain("set-mmd-worker");
     // 桌面模式不显示网页版 FSA 授权卡片
     expect(html).not.toContain("web-repo-auth-btn");
   });  it("diagnosticsHTML 包含诊断 Tab 与面板", () => {

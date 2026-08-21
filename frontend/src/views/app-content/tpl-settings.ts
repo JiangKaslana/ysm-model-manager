@@ -287,6 +287,26 @@ export function settingsHTML(): string {
   <div style="margin-top:8px"><button class="btn-base sm" id="td-keymap-reset">↩️ ${t("settings.preview3d.resetKeys")}</button></div>
 </div>
 
+<div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:330ms">
+  <div class="setting-row">
+    <span class="label">🧩 ${t("settings.preview3d.fbxWorker")}</span>
+    <label class="stg-label" style="gap:8px">
+      <input type="checkbox" id="set-fbx-worker"> ${t("settings.preview3d.workerCheck")}
+    </label>
+  </div>
+  <div class="stg-hint">${t("settings.preview3d.fbxWorkerHint")}</div>
+</div>
+
+<div class="settings-group" style="margin-bottom:12px;animation:card-in var(--tr-enter) both;animation-delay:360ms">
+  <div class="setting-row">
+    <span class="label">🧩 ${t("settings.preview3d.mmdWorker")}</span>
+    <label class="stg-label" style="gap:8px">
+      <input type="checkbox" id="set-mmd-worker"> ${t("settings.preview3d.workerCheck")}
+    </label>
+  </div>
+  <div class="stg-hint">${t("settings.preview3d.mmdWorkerHint")}</div>
+</div>
+
 </div>
 </div>
 <!-- /stg-tab-ui -->

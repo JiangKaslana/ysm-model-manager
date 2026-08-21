@@ -100,6 +100,8 @@ function makeRoot(): { root: ShadowRoot; el: HTMLDivElement } {
       <option value="repository">repository</option><option value="instances">instances</option>
     </select>
     <select id="set-animations"></select>
+    <input type="checkbox" id="set-fbx-worker">
+    <input type="checkbox" id="set-mmd-worker">
     <input id="td-camspeed"><span id="td-camspeed-val"></span>
     <div id="td-keymap-grid"></div>
     <button id="td-keymap-reset"></button>
@@ -425,6 +427,49 @@ describe("initSettings — UI 偏好（ui-prefs.ts）", () => {
     sel.dispatchEvent(new Event("change"));
     expect(document.documentElement.style.getPropertyValue("--card-padding")).toBe("10px 14px");
     expect(localStorage.getItem("ui-card-density")).toBe("spacious");
+  });
+});
+
+describe("initSettings — 3D 解析 worker 开关（worker-prefs.ts）", () => {
+  it("默认（未配置）→ 两个 worker 开关均不选中", async () => {
+    const { root } = makeRoot();
+    await initSettings(root);
+    expect((root.getElementById("set-fbx-worker") as HTMLInputElement).checked).toBe(false);
+    expect((root.getElementById("set-mmd-worker") as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("localStorage 预置 =1 → 初始化选中对应开关", async () => {
+    localStorage.setItem("fbx-worker", "1");
+    localStorage.setItem("mmd-pmx-worker", "1");
+    const { root } = makeRoot();
+    await initSettings(root);
+    expect((root.getElementById("set-fbx-worker") as HTMLInputElement).checked).toBe(true);
+    expect((root.getElementById("set-mmd-worker") as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("FBX 开关开 → fbx-worker=1 + toast", async () => {
+    const { root } = makeRoot();
+    await initSettings(root);
+    const input = root.getElementById("set-fbx-worker") as HTMLInputElement;
+    input.checked = true;
+    input.dispatchEvent(new Event("change"));
+    expect(localStorage.getItem("fbx-worker")).toBe("1");
+    expect(busEmit).toHaveBeenCalledWith(
+      "toast:show",
+      expect.objectContaining({ msg: expect.stringContaining("已开启") }),
+    );
+  });
+
+  it("MMD 开关开/关 → mmd-pmx-worker=1 / 0", async () => {
+    const { root } = makeRoot();
+    await initSettings(root);
+    const input = root.getElementById("set-mmd-worker") as HTMLInputElement;
+    input.checked = true;
+    input.dispatchEvent(new Event("change"));
+    expect(localStorage.getItem("mmd-pmx-worker")).toBe("1");
+    input.checked = false;
+    input.dispatchEvent(new Event("change"));
+    expect(localStorage.getItem("mmd-pmx-worker")).toBe("0");
   });
 });
 

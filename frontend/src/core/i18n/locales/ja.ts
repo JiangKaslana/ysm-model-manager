@@ -223,6 +223,11 @@ export const ja: Record<string, string> = {
   "settings.preview3d.keymap": "操作キー（クリック→キーで再割り当て）",
   "settings.preview3d.keymapHint": "矢印キーは常に移動のフォールバックとして有効。変更は次の 3D プレビューで反映。",
   "settings.preview3d.resetKeys": "デフォルトキーに戻す",
+  "settings.preview3d.workerCheck": "worker を有効にする",
+  "settings.preview3d.fbxWorker": "FBX worker 解析",
+  "settings.preview3d.fbxWorkerHint": "有効にすると FBX 解析は Web Worker で実行され、失敗時はメインスレッドに自動フォールバック。無効の場合は常にメインスレッドで解析（デフォルト）。",
+  "settings.preview3d.mmdWorker": "MMD PMX worker 解析",
+  "settings.preview3d.mmdWorkerHint": "有効にすると PMX バイナリ解析は Worker で実行（実験的）。無効の場合は公式 MMDLoader の完全ロード（デフォルト）。",
 
   // ── Import Page ──
   "import.mmdSubdir": "MMD 用途サブディレクトリ",
