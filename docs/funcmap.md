@@ -307,7 +307,7 @@
 |------|--------|------|
 | `ReadPackMeta()` | `go/packs/mcmeta:35` | ReadPackMeta 从资源包文件（.zip 或目录）中读取 pack.mcmeta，返回名称和 base64 缩略图 |
 | `DetectResourceType()` | `go/packs/mcmeta:142` | DetectResourceType 检测文件属于哪种资源类型 Phase 1（路径消歧）：检查文件父目录是否匹配某类型的 InstanceDir， 解决 MMD 子类型共享扩展名 |
-| `ReadShaderpackLang()` | `go/packs/mcmeta:284` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
+| `ReadShaderpackLang()` | `go/packs/mcmeta:291` | ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名 返回 {name, entries}，name 为空时前端用文件名兜 |
 
 ## Go·路径
 

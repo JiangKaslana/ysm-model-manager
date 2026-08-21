@@ -254,6 +254,21 @@ describe("groupStorageRootOf 两层路由（从 JSON 动态派生，防快照漂
     }
   });
 
+  it("锚点哨兵：已知类型存储根硬编码钉死（防 JSON 数值漂移）", () => {
+    // 派生化只防结构漂移；storageSubDir/group 值被改错时派生循环自证通过，锚点兜底
+    const anchors: Array<[string, string]> = [
+      ["resourcepack", "minecraft/resourcepacks"],
+      ["shaderpack", "minecraft/shaderpacks"],
+      ["ysm", "minecraft-mod/ysm"],
+      ["maid-model", "minecraft-mod/maid-model"],
+      ["EntityPlayer", "mmd/EntityPlayer"],
+      ["vrchat-avatar", "mmd/vrchat"],
+    ];
+    for (const [typeId, want] of anchors) {
+      expect(groupStorageRootOf(typeId), `${typeId} 锚点`).toBe(want);
+    }
+  });
+
   it("未知 typeId 回退到 typeId 自身", () => {
     expect(groupStorageRootOf("nonexistent")).toBe("nonexistent");
   });

@@ -159,6 +159,23 @@ func TestGroupOf(t *testing.T) {
 }
 
 func TestGroupStorageRoot(t *testing.T) {
+	// 锚点哨兵：已知类型的存储根硬编码钉死（防 JSON 数值漂移——派生化只防结构漂移，
+	// storageSubDir/group 值被改错时派生循环会自证通过，锚点兜底）
+	anchors := []struct{ rtype, want string }{
+		{"resourcepack", "minecraft/resourcepacks"},
+		{"shaderpack", "minecraft/shaderpacks"},
+		{"ysm", "minecraft-mod/ysm"},
+		{"blueprint", "minecraft-mod/schematics"},
+		{"litematic", "minecraft-mod/litematics"},
+		{"maid-model", "minecraft-mod/maid-model"},
+		{"EntityPlayer", "mmd/EntityPlayer"},
+		{"vrchat-avatar", "mmd/vrchat"},
+	}
+	for _, c := range anchors {
+		if got := GroupStorageRoot(c.rtype); got != c.want {
+			t.Errorf("GroupStorageRoot(%q) = %q, 期望 %q（锚点哨兵）", c.rtype, got, c.want)
+		}
+	}
 	// 从注册表动态派生期望值，防快照漂移（21 次推倒重来的教训）
 	reg := LoadRegistry()
 	for _, rt := range reg.ResourceTypes {
