@@ -339,3 +339,39 @@ describe("resolvePreviewKey 按 variants 分发预览器", () => {
     expect(resolvePreviewKey("/repo/Makefile", "EntityPlayer")).toBe("EntityPlayer");
   });
 });
+
+// ===== resolvePreviewKeyToRtype（ADR-111 逆向，批次6 P3 补测）=====
+import { resolvePreviewKeyToRtype } from "./types.ts";
+
+describe("resolvePreviewKeyToRtype 预览键反解资源类型 ID", () => {
+  it("mmd → EntityPlayer（角色面板 tab → 真实 rtype 白名单过滤）", () => {
+    expect(resolvePreviewKeyToRtype("mmd")).toBe("EntityPlayer");
+  });
+
+  it("vrm → EntityPlayer（与 mmd 同归 EntityPlayer，正向/反向一致）", () => {
+    expect(resolvePreviewKeyToRtype("vrm")).toBe("EntityPlayer");
+  });
+
+  it("mmd-scene → SceneModel", () => {
+    expect(resolvePreviewKeyToRtype("mmd-scene")).toBe("SceneModel");
+  });
+
+  it("正向→反向 round-trip：resolvePreviewKey → resolvePreviewKeyToRtype 还原", () => {
+    // 从 JSON 取一条真实 variant 断言正反一致（防 JSON 漂移）
+    const entity = resourceTypesJson.resourceTypes.find((t: any) => t.id === "EntityPlayer");
+    expect(entity?.variants?.length ?? 0).toBeGreaterThan(0);
+    for (const v of entity?.variants || []) {
+      expect(resolvePreviewKeyToRtype(v.preview)).toBe(entity!.id);
+    }
+  });
+
+  it("已是资源类型 ID 的键回退自身（fbx / ysm）", () => {
+    expect(resolvePreviewKeyToRtype("fbx")).toBe("fbx");
+    expect(resolvePreviewKeyToRtype("ysm")).toBe("ysm");
+  });
+
+  it("未知键回退自身（不抛错，静默降级为原键）", () => {
+    expect(resolvePreviewKeyToRtype("totally-unknown-key")).toBe("totally-unknown-key");
+    expect(resolvePreviewKeyToRtype("")).toBe("");
+  });
+});

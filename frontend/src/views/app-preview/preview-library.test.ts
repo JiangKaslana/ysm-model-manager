@@ -5,10 +5,14 @@
 // ADR-111 更新：opener 现在使用 variants preview keys（如 "mmd", "vrm", "mmd-scene"）
 // 而不是资源类型 ID。测试需要理解 variants 路由机制。
 
-import { describe, it, expect } from "vitest";
-import { ALL_RESOURCE_TYPES, NO_3D_TYPES } from "../../utils/resource/types.ts";
-import { getRegisteredRoutes } from "./preview-library.ts";
+import { describe, it, expect, vi } from "vitest";
+import { ALL_RESOURCE_TYPES, NO_3D_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
+import { getRegisteredRoutes, scanModelsByType } from "./preview-library.ts";
 import resourceTypesJson from "../../../../resource_types.json";
+
+// 阻断 Wails runtime 加载链（scanModelsByType 内部 getApp()）——mock 提供绑定
+const { getAppMock } = vi.hoisted(() => ({ getAppMock: vi.fn() }));
+vi.mock("../../backend/app.ts", () => ({ getApp: getAppMock }));
 
 // 触发注册（import 即有 side effect：模块加载时调用 registerReRoute）
 import "./ysm-3d.ts";
@@ -78,5 +82,58 @@ describe("preview-library _openers 注册表一致性", () => {
     const overlap = absolutelyNo3d.filter((t) => registered.has(t));
 
     expect(overlap, `preview=none 但注册了 3D opener 的类型: ${overlap.join(", ")}`).toEqual([]);
+  });
+});
+
+describe("scanModelsByType — 预览键反解后到达 Go 绑定（批次6 P3）", () => {
+  function mockBindings() {
+    const mocks = {
+      GetRepoRoot: vi.fn().mockResolvedValue("/repo"),
+      ScanModelEntriesFiltered: vi.fn().mockResolvedValue([
+        { Path: "/repo/a.pmx" },
+        { Path: "/repo/b.pmx" },
+      ]),
+    };
+    getAppMock.mockResolvedValue(mocks);
+    return mocks;
+  }
+
+  it("mmd 预览键 → 反解为 EntityPlayer 再调用 GetRepoRoot/ScanModelEntriesFiltered", async () => {
+    const { GetRepoRoot, ScanModelEntriesFiltered } = mockBindings();
+    const paths = await scanModelsByType("mmd");
+    // 反解后的真实 rtype 到达 Go 绑定（扩展名白名单过滤的关键——不反解会查空仓库）
+    expect(GetRepoRoot).toHaveBeenCalledWith("EntityPlayer");
+    expect(ScanModelEntriesFiltered).toHaveBeenCalledWith("/repo", "EntityPlayer", "", "角色模型");
+    expect(paths).toEqual(["/repo/a.pmx", "/repo/b.pmx"]);
+  });
+
+  it("已是真实 rtype 的键（fbx）原样透传，不误反解", async () => {
+    const { GetRepoRoot, ScanModelEntriesFiltered } = mockBindings();
+    await scanModelsByType("fbx");
+    expect(GetRepoRoot).toHaveBeenCalledWith("fbx");
+    // label 取 RESOURCE_TYPE_LABELS["fbx"] 的真实值（注册表驱动，勿硬编码简写）
+    expect(ScanModelEntriesFiltered).toHaveBeenCalledWith(
+      "/repo",
+      "fbx",
+      "",
+      RESOURCE_TYPE_LABELS["fbx"] || "fbx",
+    );
+  });
+
+  it("根目录为空 → 提前返回空列表，不调扫描", async () => {
+    const { GetRepoRoot, ScanModelEntriesFiltered } = mockBindings();
+    GetRepoRoot.mockResolvedValue("");
+    const paths = await scanModelsByType("mmd");
+    expect(paths).toEqual([]);
+    expect(ScanModelEntriesFiltered).not.toHaveBeenCalled();
+  });
+
+  it("绑定抛错 → 静默返回空列表（不抛给 3D 预览）", async () => {
+    getAppMock.mockResolvedValue({
+      GetRepoRoot: vi.fn().mockRejectedValue(new Error("boom")),
+      ScanModelEntriesFiltered: vi.fn(),
+    });
+    const paths = await scanModelsByType("mmd");
+    expect(paths).toEqual([]);
   });
 });

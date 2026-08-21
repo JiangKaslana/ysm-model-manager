@@ -84,13 +84,14 @@ interface PreviewExtras extends Mount3DOptions {
 
 /** 按资源类型（+可选子类型）扫描候选模型路径（轻量：GetRepoRoot + ScanModelEntriesFiltered，
  * 复用文件树扫描缓存，不逐文件解析）。供 3D 内切换模型的类型 tab 点击时懒加载。
+ * export 供测试断言「预览键反解后的真实 rtype」到达 Go 绑定（批次6 P3）。
  *
  * 扩展名过滤由后端 ScanModelEntriesFiltered 完成——按 rtype+subtype 的 extensions 白名单
  * 过滤，排除非模型文件（如 EntityPlayer 类型自动排除 .vmd/.vpd 动作文件）。
  * @param rtype 资源类型 id（如 "EntityPlayer"）
  * @param subtype 可选子类型 id（如 "EntityPlayer"），为空时用父类型扩展名
  */
-async function scanModelsByType(rtype: string, subtype = ""): Promise<string[]> {
+export async function scanModelsByType(rtype: string, subtype = ""): Promise<string[]> {
   try {
     // 预览键反解为真实资源类型 ID（"mmd" → "EntityPlayer"），
     // 使 Go 侧 ScanModelEntriesFiltered 命中扩展名白名单过滤
