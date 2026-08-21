@@ -179,11 +179,11 @@
 | `SetConfigFunc()` | `go/fileops/fileops:28` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
 | `CreateDir()` | `go/fileops/fileops:61` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
 | `RenameDir()` | `go/fileops/fileops:79` | RenameDir 重命名目录（仅改末段，保持父目录） |
-| `RemoveDir()` | `go/fileops/fileops:104` | RemoveDir 递归删除目录 |
-| `RenameFile()` | `go/fileops/fileops:111` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
-| `MoveModelFile()` | `go/fileops/fileops:143` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
-| `CopyModelFile()` | `go/fileops/fileops:251` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
-| `DeleteModelFile()` | `go/fileops/fileops:348` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
+| `RemoveDir()` | `go/fileops/fileops:105` | RemoveDir 递归删除目录（基础安全校验——拒绝空路径/NUL/穿越段/根目录； 仓库归属校验由调用方 isPathInRoot 负责，此处为纵深防御） |
+| `RenameFile()` | `go/fileops/fileops:128` | RenameFile 重命名文件（校验非法字符；ysm.json 为模型目录清单，禁止改名） |
+| `MoveModelFile()` | `go/fileops/fileops:160` | MoveModelFile 移动 src 到 dstDir（保留原名） root 用于路径安全校验（空则跳过校验，对齐 CopyModelFile 语义）； ADR-038 D3： |
+| `CopyModelFile()` | `go/fileops/fileops:274` | CopyModelFile 复制 src 到 dstDir（root 用于路径安全校验，空则跳过校验） ADR-038 D3：支持目录递归复制（含 .ban 状态文件）；src 为 |
+| `DeleteModelFile()` | `go/fileops/fileops:371` | DeleteModelFile 删除模型（目录感知，ADR-038 D3.6）： src 为 ysm.json 时删除整个模型目录（整组语义——包内 geometry/animat |
 | `WriteModelFolder()` | `go/fileops/folder_import:21` | WriteModelFolder 写入文件夹整组到仓库（YSM 解压目录或普通模型文件夹）。 |
 
 ## Go·文件系统
@@ -192,8 +192,8 @@
 |------|--------|------|
 | `StripBOM()` | `go/fsutil/bom:12` | StripBOM 移除 data 前缀的 UTF-8 BOM；无 BOM 时原样返回（bytes.TrimPrefix 语义）。 |
 | `CopyFile()` | `go/fsutil/copy:27` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
-| `CopyDirRecursive()` | `go/fsutil/copy:90` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
-| `CopyDirOptions()` | `go/fsutil/copy:72` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
+| `CopyDirRecursive()` | `go/fsutil/copy:97` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
+| `CopyDirOptions()` | `go/fsutil/copy:79` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_other:14` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_windows:18` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `FormatSize()` | `go/fsutil/format:7` | FormatSize 人性化字节大小（B/KB/MB/GB 分级）。 |
@@ -227,21 +227,21 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `ImportFromBase64()` | `go/importer/importer_file:39` | ImportFromBase64 从 base64 导入模型文件（校验 + 类型检测 + 写文件） rootFn 按资源类型返回仓库根目录（薄壳注入 a.GetRepoRoot） |
-| `WriteFileAtomic()` | `go/importer/importer_file:129` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
-| `DetectZipType()` | `go/importer/importer_file:145` | DetectZipType 扫描容器条目名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries （exact/pr |
+| `WriteFileAtomic()` | `go/importer/importer_file:135` | WriteFileAtomic 已提升至 go/fsutil（ADR-044 策略 A：基础设施工具收敛，tags/logs/fileops 共用）。 |
+| `DetectZipType()` | `go/importer/importer_file:151` | DetectZipType 扫描容器条目名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries （exact/pr |
 | `ImportOptions()` | `go/importer/importer_file:29` | ImportOptions 导入选项 |
 | `ImportLogger()` | `go/importer/importer_file:35` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
-| `Register()` | `go/importer/importer:38` | Register 注册导入策略（线程安全） |
-| `Get()` | `go/importer/importer:45` | Get 获取指定类型的导入策略（线程安全） |
-| `NewSimpleCopy()` | `go/importer/importer:70` | NewSimpleCopy 创建简单文件复制导入器 |
-| `SimpleCopyImporter.Type()` | `go/importer/importer:74` | — |
-| `SimpleCopyImporter.Import()` | `go/importer/importer:76` | — |
-| `NewDirectoryCopy()` | `go/importer/importer:271` | NewDirectoryCopy 创建文件夹复制导入器 |
-| `DirectoryCopyImporter.Type()` | `go/importer/importer:275` | — |
-| `DirectoryCopyImporter.Import()` | `go/importer/importer:280` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
-| `Handler()` | `go/importer/importer:25` | Handler 资源导入策略接口 |
-| `SimpleCopyImporter()` | `go/importer/importer:65` | — |
-| `DirectoryCopyImporter()` | `go/importer/importer:266` | — |
+| `Register()` | `go/importer/importer:36` | Register 注册导入策略（线程安全） |
+| `Get()` | `go/importer/importer:43` | Get 获取指定类型的导入策略（线程安全） |
+| `NewSimpleCopy()` | `go/importer/importer:74` | NewSimpleCopy 创建简单文件复制导入器 |
+| `SimpleCopyImporter.Type()` | `go/importer/importer:78` | — |
+| `SimpleCopyImporter.Import()` | `go/importer/importer:80` | — |
+| `NewDirectoryCopy()` | `go/importer/importer:232` | NewDirectoryCopy 创建文件夹复制导入器 |
+| `DirectoryCopyImporter.Type()` | `go/importer/importer:236` | — |
+| `DirectoryCopyImporter.Import()` | `go/importer/importer:241` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
+| `Handler()` | `go/importer/importer:23` | Handler 资源导入策略接口 |
+| `SimpleCopyImporter()` | `go/importer/importer:69` | — |
+| `DirectoryCopyImporter()` | `go/importer/importer:227` | — |
 
 ## Go·安装
 
@@ -589,10 +589,10 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `App.CachedCreatorAvatar()` | `internal/app/app_avatar:17` | CachedCreatorAvatar 检查缓存中是否有作者头像，返回 data URI |
-| `App.BatchExtractCreatorAvatars()` | `internal/app/app_avatar:22` | BatchExtractCreatorAvatars 批量提取所有有本地模型的创作者头像 |
-| `App.DebugExtractCreatorAvatar()` | `internal/app/app_avatar:75` | DebugExtractCreatorAvatar 调试版：提取指定作者头像 |
-| `App.CacheModelAvatars()` | `internal/app/app_avatar:130` | CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式） |
+| `App.CachedCreatorAvatar()` | `internal/app/app_avatar:18` | CachedCreatorAvatar 检查缓存中是否有作者头像，返回 data URI |
+| `App.BatchExtractCreatorAvatars()` | `internal/app/app_avatar:23` | BatchExtractCreatorAvatars 批量提取所有有本地模型的创作者头像 |
+| `App.DebugExtractCreatorAvatar()` | `internal/app/app_avatar:76` | DebugExtractCreatorAvatar 调试版：提取指定作者头像 |
+| `App.CacheModelAvatars()` | `internal/app/app_avatar:131` | CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式） |
 | `App.GetConfigPath()` | `internal/app/app_config:59` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
 | `App.SaveAppConfig()` | `internal/app/app_config:129` | — |
 | `App.SetDownloadMirror()` | `internal/app/app_config:199` | — |
@@ -672,19 +672,19 @@
 | `App.RestoreFromRecycle()` | `internal/app/app_install_recycle:174` | — |
 | `App.DeleteFromRecycle()` | `internal/app/app_install_recycle:195` | — |
 | `App.EmptyRecycleBin()` | `internal/app/app_install_recycle:211` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
-| `App.AnalyzeYSMModel()` | `internal/app/app_model:41` | — |
-| `App.ExtractYsmSummary()` | `internal/app/app_model:45` | — |
-| `App.ExtractYSMHeader()` | `internal/app/app_model:59` | — |
-| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:63` | — |
-| `App.SavePreviewTempFile()` | `internal/app/app_model:71` | — |
-| `App.ReadFileBytes()` | `internal/app/app_model:90` | — |
-| `App.ReadFileBytesBatch()` | `internal/app/app_model:112` | ReadFileBytesBatch 批量读取多个文件（ADR-101：MMD 纹理加载优化）。 |
-| `App.ReadFileBytesBatchWithMeta()` | `internal/app/app_model:217` | ReadFileBytesBatchWithMeta 批量读取文件并返回内容 + SHA256 哈希。 |
-| `App.AnalyzeBedrockModel()` | `internal/app/app_model:277` | — |
-| `App.GetModel3DSpec()` | `internal/app/app_model:335` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:376` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:438` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
-| `ReadFileMeta()` | `internal/app/app_model:193` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
+| `App.AnalyzeYSMModel()` | `internal/app/app_model:39` | — |
+| `App.ExtractYsmSummary()` | `internal/app/app_model:43` | — |
+| `App.ExtractYSMHeader()` | `internal/app/app_model:57` | — |
+| `App.ExtractYSMHeaderFromBase64()` | `internal/app/app_model:61` | — |
+| `App.SavePreviewTempFile()` | `internal/app/app_model:69` | — |
+| `App.ReadFileBytes()` | `internal/app/app_model:88` | — |
+| `App.ReadFileBytesBatch()` | `internal/app/app_model:110` | ReadFileBytesBatch 批量读取多个文件（ADR-101：MMD 纹理加载优化）。 |
+| `App.ReadFileBytesBatchWithMeta()` | `internal/app/app_model:215` | ReadFileBytesBatchWithMeta 批量读取文件并返回内容 + SHA256 哈希。 |
+| `App.AnalyzeBedrockModel()` | `internal/app/app_model:275` | — |
+| `App.GetModel3DSpec()` | `internal/app/app_model:333` | — |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:374` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:436` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `ReadFileMeta()` | `internal/app/app_model:191` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
 | `App.ExportBoneStructures()` | `internal/app/app_scan:26` | ========== 批量导出骨骼结构 ========== |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:82` | ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:120` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
@@ -788,7 +788,7 @@
 | `App.InstallResourceToInstance()` | `internal/app/resource_bindings:628` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
-| `limitedBuffer.Write()` | `internal/app/wasm_decoder:85` | — |
+| `limitedBuffer.Write()` | `internal/app/wasm_decoder:86` | — |
 | `App.GetWasmBinary()` | `internal/app/wasm_embed:5` | GetWasmBinary 返回内嵌的 YSMParser.wasm 字节（供前端 WebView2 使用）。 |
 
 ## 前端·根 (app-modules/bus)
@@ -1220,8 +1220,8 @@
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在根菜单 camera 面板内追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
 | `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:29` | — |
 | `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:68` | — |
-| `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:17` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:57` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:18` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:58` | 构建 FBX 内容场景（ADR-112 地基）。 |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1412,10 +1412,10 @@
 | `SceneCapabilityFactory()` | `frontend/src/utils/3d/caps/scene-capability-registry:20` | 能力工厂：接收 scene/renderer/camera，返回能力实例 |
 | `SceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:27` | 注册表：管理所有场景能力的工厂和实例 |
 | `sceneCapabilityRegistry()` | `frontend/src/utils/3d/caps/scene-capability-registry:106` | 全局单例（模块级单例 + 运行时状态隔离） |
-| `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:14` | 菜单控件定义（声明式，由框架渲染为 DOM） |
-| `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:66` | ============ 场景能力统一接口 ============ |
-| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:107` | 保存 JSON 到 localStorage |
-| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:112` | 从 localStorage 加载 JSON |
+| `MenuControlDef()` | `frontend/src/utils/3d/caps/scene-capability:16` | 菜单控件定义（声明式，由框架渲染为 DOM） |
+| `SceneCapability()` | `frontend/src/utils/3d/caps/scene-capability:68` | ============ 场景能力统一接口 ============ |
+| `persistState()` | `frontend/src/utils/3d/caps/scene-capability:109` | 保存 JSON 到 localStorage |
+| `restoreState()` | `frontend/src/utils/3d/caps/scene-capability:114` | 从 localStorage 加载 JSON |
 | `ShadowParams()` | `frontend/src/utils/3d/caps/shadow-capability:24` | ============ 参数类型 ============ |
 | `DEFAULT_SHADOW_PARAMS()` | `frontend/src/utils/3d/caps/shadow-capability:39` | — |
 | `SHADOW_PRESETS()` | `frontend/src/utils/3d/caps/shadow-capability:49` | 预设（setPreset 套用到不同模型类别） |
