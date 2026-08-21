@@ -35,8 +35,9 @@ invariant_anchors:
 ## 核心职责
 
 - `data.ts` — `tryFetchModels(repo, mirror, onProgress)`：三镜像（raw.githubusercontent / jsDelivr / api.github）延时并发（首个立即、2s/4s 各补一个）+ `Promise.any` 取最快成功；单请求 8s `AbortController` 超时；任一 404 即置 `_earlyExitReason = "NoIndex"` 中止全部；全败时诊断根因抛 `NoIndex`/`RateLimited`/`NetworkOffline`/`AllFailed`。`showProgress` 渲染抓取进度条
-- `render.ts` — `isModelMissing`/`countMissing`（按 hash 或名称比对本地 `localMap`）、`renderModelList`（DOM API 构建行，非字符串拼接）、`renderCardsHTML`（站点卡片按 search/repo/browse 分组）、`renderRepoHeaderHTML`（仓库页头部）
-- `events.ts` — `bindRepoEvents(sr, ctx)`：内部维护 `showAll`/`selectedSet`，返回 `{ renderList, updateSelectedUI, cleanup }`；三个下载入口（单行下载按钮 `handleSingleDownload`、「下载选中」按钮、全选后「下载选中」）全部汇入 `queue.enqueue(tasks)`；单文件 >10MB 拒载、>4MB `modalConfirm` 确认；右键行 → `bus.emit("menu:show")` 展示索引信息；B 站搜索作者走 `parseModelName` 取作者 + `OpenInBrowser`（`parseModelName` 已由动态导入改为顶层静态导入，提交 7bb9f7c）
+- `render.ts` — `isModelMissing`/`countMissing`（按 hash 或名称比对本地 `localMap`）、`buildModelRow`（单行构建器，供虚拟列表 `renderItem` 复用）、`renderModelList`（DOM API 构建行，非字符串拼接）、`renderCardsHTML`（站点卡片按 search/repo/browse 分组）、`renderRepoHeaderHTML`（仓库页头部）
+- `events.ts` — `bindRepoEvents(sr, ctx)`：内部维护 `showAll`/`selectedSet`，返回 `{ renderList, updateSelectedUI, cleanup }`；**虚拟滚动接入**：`renderList` 内部经 `createVirtualList` 写入 `#gh-repo-list`（行高 42px 定高，jsdom 零高度自动全量回退）；全选逻辑改遍历 `currentFiltered` 筛选结果（虚拟化后 DOM 只含可见行，原"遍历 DOM 勾选"会漏选）；三个下载入口（单行下载按钮 `handleSingleDownload`、「下载选中」按钮、全选后「下载选中」）全部汇入 `queue.enqueue(tasks)`；单文件 >10MB 拒载、>4MB `modalConfirm` 确认；右键行 → `bus.emit("menu:show")` 展示索引信息；B 站搜索作者走 `parseModelName` 取作者 + `OpenInBrowser`（`parseModelName` 已由动态导入改为顶层静态导入，提交 7bb9f7c）
+- `virtual-list.ts` — `createVirtualList<T>(opts)`：定高虚拟列表组件（零高度自动全量回退、阈值 60 行以下直接全量、`destroy()` 移除滚动监听）；底层走 `utils/dom/virtual-scroll.ts` 共享原语（`calcVisibleRange` + `installScrollSync`）
 - `download-queue.ts` 族（原单文件 829 行，ADR-040 ≤400 行红线拆分 → 360/299/278）：
   - **`download-tasks.ts`（独立文件，ADR-044 后拆分）**：`buildDownloadTasks`（下载任务构造，含 URL 拼接——**未 encodeURIComponent，文件名含 `#`/`?` 时 URL 截断**，P3 观察）、`classifyDownloadSize`（`DOWNLOAD_CONFIRM_BYTES` 4MB 确认阈值 / `DOWNLOAD_REJECT_BYTES` 10MB 拒载阈值）
   - **`download-queue-store.ts`（299 行，模块级持久层）**：`STATE`（status/total/remaining/currentFile/progress/errorList/_lastDone/_lastDoneSeq）+ `subscribe`/`getState`/`resume`/`enqueueDownloads`/`cancelDownloads`/`isActiveStatus`；脚本加载时一次性 `Events.On` 注册 `queue:status`、`queue:file-start`、`queue:file-done`、`download:progress`（`_registered` 守卫，页面切换不丢事件，致命陷阱 #7 的解法）；`.ysm` 下载成功且文件名含 `[作者]` 前缀时，异步 `CachedCreatorAvatar` →（未命中则 `DebugExtractCreatorAvatar` 后重取）→ 广播 `avatar:refresh`（`_avatarChain` Promise 链串行限并发 1）；`resume()`：切回页面时调 `QueueStatus()` 恢复状态，对 Wails 多返回值的三种映射形态（数组 / `{Remaining,Running}` 对象 / 裸数字）都做兜底解析，仅在 `running` 为真时把 STATE 置回 `downloading`
@@ -65,6 +66,7 @@ invariant_anchors:
 - `STATE.status` 为 `"downloading"` **或** `"enqueued"`（Go 端入队后只发 `enqueued`，从不发 `downloading`，审计修复后守卫统一经 `isActiveStatus` 认两态）时 `enqueueDownloads`/`enqueue`/`cancelDownloads` 直接返回，防止并发双队列与取消静默失效
 - 三个下载入口（单击/多选/全选）统一走 `queue.enqueue` → 模块级 `enqueueDownloads` → `EnqueueDownloads` binding，事件监听只有一组
 - **DOM 事件监听器清理模式**（审计发现）：`events.ts` 的 `bindEvents` 向容器元素注册了 7 个 DOM 事件监听器（click/change/contextmenu/input），`externalCleanup` 必须移除所有监听器。推荐做法：用 `cloneNode(false)` 替换所有绑定元素（`sr.replaceChild(sr.cloneNode(false), sr)`），一次性解除所有事件绑定，比逐个 `removeEventListener` 更可靠（P2）。
+- **虚拟化后全选约束**（提交 3bfdfe63）：DOM 只含可见行，全选逻辑必须遍历 `currentFiltered` 筛选结果（而非 `selContainer.querySelectorAll(".gh-sel")`），否则漏选；`renderList()` 无参调用（内部用 `currentFilter`），不再返回 DocumentFragment
 - `enqueue` 内 Go 入队失败必须回滚 `STATE.status = "idle"` + `notify()` + `cleanupProgressUI()`，防按钮/进度条卡死（致命陷阱 #3）
 - 99% 卡死守护：`_lastPct < 10` 直跳 ≥99% 视为可疑，锁 99% 并起 `_stuckTimer`（小文件 300ms 补 100%，大文件 2s 转菊花）；所有定时器必须经 `stuckGuardReset()` 清理
 - 进度为 `Content-Length ≤ 0`（未知长度）时 `pct` 恒置 0、只显示已下载 MB 数，完成判定只信任 `queue:file-done` / `queue:status=done`，不得据进度条推断 100%（致命陷阱 #6）

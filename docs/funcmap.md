@@ -593,21 +593,21 @@
 | `App.BatchExtractCreatorAvatars()` | `internal/app/app_avatar:23` | BatchExtractCreatorAvatars 批量提取所有有本地模型的创作者头像 |
 | `App.DebugExtractCreatorAvatar()` | `internal/app/app_avatar:76` | DebugExtractCreatorAvatar 调试版：提取指定作者头像 |
 | `App.CacheModelAvatars()` | `internal/app/app_avatar:131` | CacheModelAvatars 从模型文件缓存作者头像（覆盖 .ysm/.zip/.json 等所有格式） |
-| `App.GetConfigPath()` | `internal/app/app_config:59` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
-| `App.SaveAppConfig()` | `internal/app/app_config:129` | — |
-| `App.SetDownloadMirror()` | `internal/app/app_config:199` | — |
-| `App.SaveThresholds()` | `internal/app/app_config:208` | SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。 |
-| `App.LoadAppConfig()` | `internal/app/app_config:240` | — |
-| `App.GetSubDirMap()` | `internal/app/app_config:261` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
-| `App.CurrentVersion()` | `internal/app/app_config:265` | — |
-| `App.CheckUpdate()` | `internal/app/app_config:267` | — |
-| `App.DoUpdate()` | `internal/app/app_config:294` | — |
-| `App.RestartApplication()` | `internal/app/app_config:312` | — |
-| `App.SaveWindowPosition()` | `internal/app/app_config:347` | — |
-| `App.GetWindowPosition()` | `internal/app/app_config:361` | — |
-| `App.SelectDirectory()` | `internal/app/app_config:394` | ========== 目录选择 ========== |
-| `App.GetMinecraftPaths()` | `internal/app/app_config:457` | — |
-| `App.ValidateMinecraftDir()` | `internal/app/app_config:459` | — |
+| `App.GetConfigPath()` | `internal/app/app_config:61` | GetConfigPath 返回应用配置文件路径（跨平台：Windows %APPDATA%，Linux ~/.config，macOS ~/Library/Application |
+| `App.SaveAppConfig()` | `internal/app/app_config:131` | — |
+| `App.SetDownloadMirror()` | `internal/app/app_config:201` | — |
+| `App.SaveThresholds()` | `internal/app/app_config:210` | SaveThresholds 保存运行阈值配置（ADR-062 §2.3：前端设置页写入入口）。 |
+| `App.LoadAppConfig()` | `internal/app/app_config:242` | — |
+| `App.GetSubDirMap()` | `internal/app/app_config:265` | ========== 自动更新 ========== GetSubDirMap 返回资源类型→子目录映射表（前端右键菜单等场景使用） |
+| `App.CurrentVersion()` | `internal/app/app_config:269` | — |
+| `App.CheckUpdate()` | `internal/app/app_config:271` | — |
+| `App.DoUpdate()` | `internal/app/app_config:298` | — |
+| `App.RestartApplication()` | `internal/app/app_config:316` | — |
+| `App.SaveWindowPosition()` | `internal/app/app_config:351` | — |
+| `App.GetWindowPosition()` | `internal/app/app_config:365` | — |
+| `App.SelectDirectory()` | `internal/app/app_config:398` | ========== 目录选择 ========== |
+| `App.GetMinecraftPaths()` | `internal/app/app_config:461` | — |
+| `App.ValidateMinecraftDir()` | `internal/app/app_config:463` | — |
 | `NewDownloadQueue()` | `internal/app/app_download:51` | NewDownloadQueue 创建串行下载队列（回调由 App 初始化时注入） |
 | `App.EnqueueDownloads()` | `internal/app/app_download:56` | — |
 | `App.CancelQueue()` | `internal/app/app_download:86` | — |
@@ -758,34 +758,34 @@
 | `App.PlazaZoomReset()` | `internal/app/plaza_window:139` | — |
 | `cookieJar.SetCookies()` | `internal/app/proxy:138` | — |
 | `cookieJar.Cookies()` | `internal/app/proxy:160` | — |
-| `App.LoadResourceTypes()` | `internal/app/resource_bindings:27` | LoadResourceTypes 加载资源类型注册表 |
-| `App.ReadPackMeta()` | `internal/app/resource_bindings:37` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
-| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:61` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
-| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:105` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
-| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:110` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
-| `App.ReadSchematic()` | `internal/app/resource_bindings:115` | ReadSchematic 读取 .schematic 文件基本信息 |
-| `App.ReadNbtStructure()` | `internal/app/resource_bindings:124` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
-| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:133` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
-| `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:143` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
-| `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:148` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
-| `App.DetectResourceType()` | `internal/app/resource_bindings:158` | DetectResourceType 检测指定文件的资源类型 |
-| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:171` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
-| `App.GetRepoRoot()` | `internal/app/resource_bindings:186` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
-| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:228` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
-| `App.ToggleResourcePack()` | `internal/app/resource_bindings:327` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
-| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:373` | IsResourcePackEnabled 检查资源包是否启用 |
-| `App.SelectImportZip()` | `internal/app/resource_bindings:378` | SelectImportZip 打开文件选择器选取 .zip 文件 |
-| `App.SelectImportFile()` | `internal/app/resource_bindings:391` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
-| `App.SetResourceRoot()` | `internal/app/resource_bindings:413` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
-| `App.ResetResourceRoot()` | `internal/app/resource_bindings:433` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
-| `App.ImportResourcePack()` | `internal/app/resource_bindings:467` | ImportResourcePack 使用策略模式导入资源包 |
-| `App.ImportByType()` | `internal/app/resource_bindings:480` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:500` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:571` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:587` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:600` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.RepoHealthAudit()` | `internal/app/resource_bindings:607` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:628` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.LoadResourceTypes()` | `internal/app/resource_bindings:26` | LoadResourceTypes 加载资源类型注册表 |
+| `App.ReadPackMeta()` | `internal/app/resource_bindings:36` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
+| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:60` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
+| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:104` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
+| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:109` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
+| `App.ReadSchematic()` | `internal/app/resource_bindings:114` | ReadSchematic 读取 .schematic 文件基本信息 |
+| `App.ReadNbtStructure()` | `internal/app/resource_bindings:123` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
+| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:132` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
+| `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:142` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
+| `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:147` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
+| `App.DetectResourceType()` | `internal/app/resource_bindings:157` | DetectResourceType 检测指定文件的资源类型 |
+| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:170` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
+| `App.GetRepoRoot()` | `internal/app/resource_bindings:185` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
+| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:227` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
+| `App.ToggleResourcePack()` | `internal/app/resource_bindings:299` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
+| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:345` | IsResourcePackEnabled 检查资源包是否启用 |
+| `App.SelectImportZip()` | `internal/app/resource_bindings:350` | SelectImportZip 打开文件选择器选取 .zip 文件 |
+| `App.SelectImportFile()` | `internal/app/resource_bindings:363` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
+| `App.SetResourceRoot()` | `internal/app/resource_bindings:385` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
+| `App.ResetResourceRoot()` | `internal/app/resource_bindings:405` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
+| `App.ImportResourcePack()` | `internal/app/resource_bindings:439` | ImportResourcePack 使用策略模式导入资源包 |
+| `App.ImportByType()` | `internal/app/resource_bindings:452` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:472` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:543` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:559` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:572` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.RepoHealthAudit()` | `internal/app/resource_bindings:579` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:600` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:86` | — |
@@ -1781,10 +1781,10 @@
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
-| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:271` | 初始化创意工坊页（委托到 init-workshop.ts） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-pages:278` | 初始化 GitHub 页（委托到 init-github.ts） |
-| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:286` | 记住最后选中的模型路径（供文件树等外部调用） |
-| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:290` | — |
+| `initWorkshopPage()` | `frontend/src/views/app-content/init-pages:266` | 初始化创意工坊页（委托到 init-workshop.ts） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-pages:273` | 初始化 GitHub 页（委托到 init-github.ts） |
+| `rememberModelPath()` | `frontend/src/views/app-content/init-pages:281` | 记住最后选中的模型路径（供文件树等外部调用） |
+| `getLastModelPath()` | `frontend/src/views/app-content/init-pages:285` | — |
 | `initPreviewResize()` | `frontend/src/views/app-content/init-preview:8` | 初始化预览面板拖拽调整宽度 |
 | `initWorkshopPage()` | `frontend/src/views/app-content/init-workshop:37` | 初始化创意工坊页（编排入口） |
 | `resetAvatarConfigLoaded()` | `frontend/src/views/app-content/init-workshop:143` | 供 app-content disconnectedCallback 调用：回收 config-loaded 订阅并复位注册 flag |
@@ -2055,15 +2055,15 @@
 | `setRenderMode()` | `frontend/src/views/app-tree/render:49` | Set render mode to localStorage |
 | `buildTree()` | `frontend/src/views/app-tree/render:54` | — |
 | `flattenVisible()` | `frontend/src/views/app-tree/render:112` | — |
-| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:258` | 断开虚拟滚动相关监听 |
-| `renderTree()` | `frontend/src/views/app-tree/render:267` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:334` | — |
+| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:263` | 断开虚拟滚动相关监听 |
+| `renderTree()` | `frontend/src/views/app-tree/render:272` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:339` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |
-| `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:25` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
+| `listFolderRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:27` | 文件夹行 HTML（紧凑列表模式：arrow + folder icon + name） |
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
-| `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:32` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
+| `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:34` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
 | `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:59` | — |
 | `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:43` | — |
 | `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:237` | — |
