@@ -472,3 +472,15 @@ export function evaluateClip(
 
   return result;
 }
+
+/**
+ * YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。
+ * 单 clip 文件保持文件名口径（不改动既有展示）；多 clip 文件以
+ * 「文件名 · clip 名」区分，无名 clip 用序号兜底。
+ * @param fileBase 动画文件基名（已去 .animation.json 后缀）
+ * @param clips    该文件解析出的全部 clip
+ */
+export function ysmAnimClipLabels(fileBase: string, clips: AnimationClip[]): string[] {
+  if (clips.length <= 1) return [fileBase];
+  return clips.map((clip, i) => `${fileBase} · ${clip.name || `#${i + 1}`}`);
+}

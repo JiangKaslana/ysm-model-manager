@@ -31,7 +31,7 @@ import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用�
 import { buildPerceptionControls, type PerceptionState, type PerceptionCapability } from "./perception-controls.ts";
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import { createYsmAnimPlayer, type YsmAnimPlayer } from "../ysm-animation-player.ts";
-import { parseBedrockAnimationJSON } from "../../animation/animation.ts";
+import { parseBedrockAnimationJSON, ysmAnimClipLabels } from "../../animation/animation.ts";
 import type { MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
 import { ysmSemanticBoneMap } from "../semantic-bones.ts";
 import { createBreathController } from "../perception/breath.ts";
@@ -206,10 +206,13 @@ export async function buildYsmScene(
             const text = [...bin].map((c) => String.fromCharCode(c.charCodeAt(0))).join("");
             const { clips } = parseBedrockAnimationJSON(text);
             if (clips.length > 0) {
-              allClips.push({
-                label: animFile.split(/[/\\]/).pop()!.replace(/\.animation\.json$/i, ""),
-                clip: clips[0],
-              });
+              // L3 全 clip 列表：同一 .animation.json 内多 clip 全部收录
+              // （旧口径只取 clips[0]，多动作定义被静默丢弃——ADR-100 已知遗留）
+              const fileBase = animFile.split(/[/\\]/).pop()!.replace(/\.animation\.json$/i, "");
+              const fileLabels = ysmAnimClipLabels(fileBase, clips);
+              for (let ci = 0; ci < clips.length; ci++) {
+                allClips.push({ label: fileLabels[ci], clip: clips[ci] });
+              }
             }
           } catch { /* 单个文件解析失败跳过 */ }
         }

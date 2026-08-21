@@ -225,4 +225,85 @@ describe("createYsmAnimPlayer", () => {
     // 应该继续向 target 方向旋转（y 增大）
     expect(yAfterStep).toBeGreaterThan(yAfterReset);
   });
+
+  // ---- L3 切 clip 平滑过渡（三通道统一淡入，ADR-100 遗留）----
+
+  /** 常量 position clip 工厂（全程锁定 pos） */
+  function makeConstPosClip(name: string, boneName: string, pos: [number, number, number], length = 1): AnimationClip {
+    return {
+      name,
+      loop: true,
+      length,
+      bones: {
+        [boneName]: {
+          position: [
+            { time: 0, post: pos, pre: pos, lerp: "linear" },
+            { time: length, post: pos, pre: pos, lerp: "linear" },
+          ],
+        },
+      },
+    };
+  }
+
+  it("L3: 切 clip 后 position 通道从当前姿态平滑淡入，而非瞬跳", () => {
+    const bone = makeBone("root");
+    const clipA = makeConstPosClip("a", "root", [1, 0, 0]);
+    const clipB = makeConstPosClip("b", "root", [5, 0, 0]);
+    const player = createYsmAnimPlayer(new Map([["root", bone]]), [clipA, clipB], H, ["a", "b"]);
+
+    for (let i = 0; i < 10; i++) player.apply(0.05);
+    expect(bone.position.x).toBeCloseTo(1.0, 5); // clipA 收敛
+
+    player.selectClip(1);
+    player.apply(0.02); // 一小步：应停在 1→5 途中
+    expect(bone.position.x).toBeGreaterThan(1.0);
+    expect(bone.position.x).toBeLessThan(5.0);
+
+    for (let i = 0; i < 30; i++) player.apply(0.05);
+    expect(bone.position.x).toBeCloseTo(5.0, 4); // 最终收敛到 clipB
+  });
+
+  it("L3: 新 clip 未触及的骨骼渐回 base 姿态，而非钉在旧姿态", () => {
+    const root = makeBone("root");
+    const arm = makeBone("arm");
+    const clipA = makeConstPosClip("a", "arm", [2, 0, 0]); // 动画 arm
+    const clipB = makeConstPosClip("b", "root", [0, 1, 0]); // 只动画 root，不碰 arm
+    const hierarchy: BoneHierarchyNode[] = [{ name: "root" }, { name: "arm", parent: "root" }];
+    const player = createYsmAnimPlayer(
+      new Map([["root", root], ["arm", arm]]),
+      [clipA, clipB],
+      hierarchy,
+      ["a", "b"],
+    );
+
+    for (let i = 0; i < 10; i++) player.apply(0.05);
+    expect(arm.position.x).toBeCloseTo(2.0, 5); // arm 被 clipA 推到 x=2
+
+    player.selectClip(1);
+    player.apply(0.02); // 一小步：arm 应开始回落但仍在途中
+    expect(arm.position.x).toBeGreaterThan(0);
+    expect(arm.position.x).toBeLessThan(2.0);
+
+    for (let i = 0; i < 30; i++) player.apply(0.05);
+    expect(arm.position.x).toBeCloseTo(0, 4); // 渐回 base（构造期姿态）
+  });
+
+  it("L3: 从未被动画触及的骨骼保持构造期 base 偏移", () => {
+    const root = makeBone("root");
+    const free = makeBone("free");
+    free.position.set(1, 2, 3); // base 偏移
+    const clip = makeConstPosClip("a", "root", [4, 0, 0]); // 只动画 root
+    const hierarchy: BoneHierarchyNode[] = [{ name: "root" }, { name: "free", parent: "root" }];
+    const player = createYsmAnimPlayer(
+      new Map([["root", root], ["free", free]]),
+      [clip],
+      hierarchy,
+      ["a"],
+    );
+
+    for (let i = 0; i < 10; i++) player.apply(0.05);
+    expect(free.position.x).toBeCloseTo(1, 5);
+    expect(free.position.y).toBeCloseTo(2, 5);
+    expect(free.position.z).toBeCloseTo(3, 5);
+  });
 });

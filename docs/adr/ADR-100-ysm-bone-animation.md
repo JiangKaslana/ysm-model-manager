@@ -116,8 +116,8 @@ YSM L1 只有 1 个 clip，`clips.length === 1`，下拉框不渲染（与 MMD �
 - **名称匹配局限**：`.animation.json` 的骨骼名必须与 `spec.bones[].name` 完全一致，大小写敏感。不匹配的骨骼静默跳过（不报错）
 - **Group vs Bone**：YSM 骨骼是 `THREE.Group` 层级树（`mesh.ts` 构建），非 `THREE.Bone`。播放器操作 `Object3D.position/quaternion/scale`，不涉及 SkinnedMesh 骨骼蒙皮——静态网格随 Group 变换整体移动，无蒙皮变形效果。对于方块人模型足够，但对精细模型（如有弯折手臂）动画可能看起来僵硬
 - **语义骨骼命中率依赖作者命名**：YSM 无标准命名规范，`YSM_SEMANTIC_CANDIDATES` 覆盖 Blockbench/MC 常见导出名，但自由命名模型命中率低。感知层（呼吸/眨眼）优雅降级（缺省骨骼静默跳过），不影响渲染
-- **多 clip 只取每文件首 clip**：`.animation.json` 可含多个 clip，当前只取 `clips[0]`。若模型有多个动作定义在同一文件，后续 clip 被忽略
-- **切 clip 首帧旋转跳变**：`selectClip` 时 `restQuaternions.clear()` 导致首帧从 rest→目标直接跳变（非平滑过渡）。当前可接受（动画切换本就是离散事件），若需平滑可加过渡帧
+- ~~**多 clip 只取每文件首 clip**~~ → **L3 已修复（2026-08-21）**：同一 `.animation.json` 内全部 clip 收录，标签策略 `ysmAnimClipLabels`（单 clip 保持文件名口径；多 clip 以「文件名 · clip 名」区分）
+- ~~**切 clip 首帧旋转跳变**~~ → **L3 已修复（2026-08-21）**：三通道（rotation/position/scale）统一 alpha 累加混合模型——`selectClip` 清空混合状态，下一帧从**当前姿态**重新采集 rest 淡入新 clip（对齐 YSMViewer「从不硬切」口径）；构造期捕获 base 姿态，新 clip 未触及的骨骼渐回 base（停播骨骼渐回零位，YSMViewer Aura3DRenderer 同款收尾）
 
 ### 已知遗留
 
@@ -139,6 +139,7 @@ YSM L1 只有 1 个 clip，`clips.length === 1`，下拉框不渲染（与 MMD �
 | 4 | `frontend/src/views/app-preview/ysm-3d.ts` | 注入 `listAllFilePaths` + `readTextFile` 端口 | ✅ |
 | 5 | `frontend/src/utils/3d/semantic-bones.ts` | 新增 `YSM_SEMANTIC_CANDIDATES` + `ysmSemanticBoneMap` | ✅ L2 (4d92eac9) |
 | 6 | ADR-100 本文档 | 决策记录 | ✅ |
+| 7 | L3 平滑过渡：`ysm-animation-player.ts` 三通道 alpha 混合 + base 姿态回落；`animation.ts` 新增 `ysmAnimClipLabels`；`ysm-adapter.ts` 全 clip 收录 | 切 clip 淡入 + 未触及骨骼渐回 + 多 clip 列表 | ✅ (2026-08-21) |
 
 ---
 

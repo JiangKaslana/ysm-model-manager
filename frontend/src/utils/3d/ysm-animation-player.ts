@@ -1,4 +1,4 @@
-// ===== YSM 骨骼动画播放器（ADR-100 L1+L2）=====
+// ===== YSM 骨骼动画播放器（ADR-100 L1+L2+L3）=====
 // 把 parseBedrockAnimationJSON 产出的 AnimationClip 驱动到 THREE.Object3D 骨骼节点上。
 // 纯 Three.js 逻辑，0 backend import（ADR-072 边界纯净）。
 //
@@ -7,13 +7,17 @@
 //   - YSM：手动调 parseBedrockAnimationJSON → evaluateClip → 应用 Group 变换
 //
 // YSM 骨骼是 THREE.Group 层级（非 THREE.Bone），变换直接作用在 group.position/quaternion/scale。
-// 旋转用四元数 slerp 路径平滑（避免欧拉角跳变）。
+//
+// L3 混合模型（对齐 YSMViewer 的过渡口径：从不硬切）：
+//   - 三通道（rotation/position/scale）统一 alpha 累加混合：切换/开播时 rest
+//     采集当前姿态，alpha 按 BLEND_RATE 累加到 1（大 dt 单帧即精确到位）。
+//   - 构造期捕获各骨骼 base 姿态；当前 clip 未触及的骨骼目标回落到 base，
+//     实现「停播骨骼渐回零位」（YSMViewer Aura3DRenderer 同款收尾）。
 
 import * as THREE from "three";
 import {
   evaluateClip,
   type AnimationClip,
-  type BoneTransform,
   type BoneHierarchyNode,
 } from "../animation/animation.ts";
 
@@ -64,11 +68,22 @@ export function createYsmAnimPlayer(
   let elapsed = 0;
   let playing = true;
 
-  // slerp 支持：记录每个骨骼的 rest quaternion + 插值进度 alpha
-  // 每次 apply 从 rest 姿态以 alpha 进度球面插值到目标姿态，避免欧拉角跳变
-  const restQuaternions = new Map<string, THREE.Quaternion>();
-  const slerpAlpha = new Map<string, number>();
-  const SLERP_RATE = 5.0; // 插值速率：~0.2s 到达目标
+  // L3 混合状态：base = 构造期姿态（未动画骨骼的回落目标）；
+  // rest = 混合段起点（selectClip/dispose 后从当前姿态重新采集），alpha 累加到 1。
+  interface BonePose { pos: THREE.Vector3; quat: THREE.Quaternion; scale: THREE.Vector3; }
+  const basePose = new Map<string, BonePose>();
+  for (const [name, node] of boneByName) {
+    basePose.set(name, { pos: node.position.clone(), quat: node.quaternion.clone(), scale: node.scale.clone() });
+  }
+  const restPose = new Map<string, BonePose>();
+  const blendAlpha = new Map<string, number>();
+  const BLEND_RATE = 5.0; // 混合速率：~0.2s 到达目标
+
+  // 每帧复用的 scratch（避免骨骼数×帧率级的小对象分配）
+  const _targetQuat = new THREE.Quaternion();
+  const _targetEuler = new THREE.Euler();
+  const _targetPos = new THREE.Vector3();
+  const _targetScale = new THREE.Vector3();
 
   function getClip(): AnimationClip { return clips[currentIdx]; }
 
@@ -87,47 +102,52 @@ export function createYsmAnimPlayer(
 
       const transforms = evaluateClip(clip, elapsed, boneHierarchy, true);
 
-      for (const [boneName, transform] of transforms) {
-        const node = boneByName.get(boneName);
-        if (!node) continue; // 未匹配骨骼静默跳过
+      for (const [boneName, node] of boneByName) {
+        const base = basePose.get(boneName);
+        if (!base) continue;
+        const transform = transforms.get(boneName);
 
-        if (transform.rotation) {
+        // 目标姿态：clip 通道值；缺通道回落 base（停播骨骼渐回零位的来源）
+        if (transform?.rotation) {
           const [rx, ry, rz] = transform.rotation;
-          const targetQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, "XYZ"));
-          let rest = restQuaternions.get(boneName);
-          let alpha = slerpAlpha.get(boneName) ?? 0;
-          if (!rest) {
-            // 首次 apply：保存当前姿态为 rest，alpha 从 0 开始
-            rest = node.quaternion.clone();
-            restQuaternions.set(boneName, rest);
-            alpha = 0;
-          } else {
-            alpha = Math.min(1, alpha + dt * SLERP_RATE);
-          }
-          slerpAlpha.set(boneName, alpha);
-          if (alpha >= 1) {
-            node.quaternion.copy(targetQuat);
-          } else {
-            node.quaternion.copy(rest).slerp(targetQuat, alpha);
-          }
+          _targetQuat.setFromEuler(_targetEuler.set(rx, ry, rz, "XYZ"));
+        } else {
+          _targetQuat.copy(base.quat);
+        }
+        if (transform?.position) {
+          _targetPos.set(transform.position[0], transform.position[1], transform.position[2]);
+        } else {
+          _targetPos.copy(base.pos);
+        }
+        if (transform?.scale) {
+          _targetScale.set(transform.scale[0], transform.scale[1], transform.scale[2]);
+        } else {
+          _targetScale.copy(base.scale);
         }
 
-        if (transform.position) {
-          const [px, py, pz] = transform.position;
-          node.position.set(px, py, pz);
+        let rest = restPose.get(boneName);
+        let alpha = blendAlpha.get(boneName) ?? 0;
+        if (!rest) {
+          // 混合段起点：采集当前姿态；alpha 从本帧 dt 起步（大 dt 单帧精确到位）
+          rest = { pos: node.position.clone(), quat: node.quaternion.clone(), scale: node.scale.clone() };
+          restPose.set(boneName, rest);
+          alpha = Math.min(1, dt * BLEND_RATE);
+        } else {
+          alpha = Math.min(1, alpha + dt * BLEND_RATE);
         }
-        if (transform.scale) {
-          const [sx, sy, sz] = transform.scale;
-          node.scale.set(sx, sy, sz);
-        }
+        blendAlpha.set(boneName, alpha);
+
+        node.quaternion.copy(rest.quat).slerp(_targetQuat, alpha);
+        node.position.copy(rest.pos).lerp(_targetPos, alpha);
+        node.scale.copy(rest.scale).lerp(_targetScale, alpha);
       }
     },
 
     dispose(): void {
       elapsed = 0;
       playing = true;
-      restQuaternions.clear();
-      slerpAlpha.clear();
+      restPose.clear();
+      blendAlpha.clear();
     },
 
     toggle(): void {
@@ -150,8 +170,9 @@ export function createYsmAnimPlayer(
       currentIdx = index;
       elapsed = 0;
       playing = true;
-      restQuaternions.clear();
-      slerpAlpha.clear();
+      // 清空混合状态：下一帧从当前姿态重新采集 rest，实现平滑切入新 clip
+      restPose.clear();
+      blendAlpha.clear();
     },
     isAnimActive(): boolean {
       return playing && elapsed < (getClip().length || Infinity);

@@ -6,6 +6,7 @@ import {
   evaluateKeyframes,
   parseBedrockAnimationJSON,
   evaluateClip,
+  ysmAnimClipLabels,
 } from "./animation.ts";
 import type { Keyframe, AnimationClip } from "./animation.ts";
 
@@ -279,5 +280,29 @@ describe("evaluateClip 变换传播", () => {
     const kf = clip!.bones.b!.position![0];
     expect(kf.post).toEqual([0, 2, 3]); // Infinity 轴 → 0 占位
     expect(kf.post.every((n) => Number.isFinite(n))).toBe(true);
+  });
+});
+
+describe("ysmAnimClipLabels 标签策略（L3 全 clip 列表）", () => {
+  function clipOf(name: string): AnimationClip {
+    return { name, loop: true, length: 1, bones: {} };
+  }
+
+  it("单 clip 保持文件名口径（回归保护：不改动现有展示）", () => {
+    expect(ysmAnimClipLabels("run", [clipOf("animation.model.run")])).toEqual(["run"]);
+  });
+
+  it("多 clip 以「文件名 · clip 名」区分", () => {
+    expect(ysmAnimClipLabels("player", [clipOf("idle"), clipOf("walk")])).toEqual([
+      "player · idle",
+      "player · walk",
+    ]);
+  });
+
+  it("多 clip 中无名 clip 用序号兜底", () => {
+    expect(ysmAnimClipLabels("misc", [clipOf(""), clipOf("jump")])).toEqual([
+      "misc · #1",
+      "misc · jump",
+    ]);
   });
 });
