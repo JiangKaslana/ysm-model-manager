@@ -8,6 +8,7 @@
 > 500 行文件先 grep 定位再读。推荐搜索流程： `docs/knowledge/` > `docs/adr/` > 当前源码 > `docs/archive/architecture.md`。
 > 先写测试再写代码（TDD）,改完即验，跳过既有问题，修复失败，路径限定提交：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`或`tsc --noEmit`。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）。
 > （pre-commit 自动输出本次 commit diff 统计）。先提交 `docs/`，捎带了无关文件也别怕。
+> **提交预授权（2026-08-21）**：各 AI 会话的自有改动验证通过后**必须自主路径限定提交**——用户已预授权，无需等指令，也别攒着指望兄弟会话或用户代提交（改动沤在同一工作区会引发旧缓冲回写/交叉暂存的互相覆盖）；只 `git add` 自己的文件，不带他人已暂存/未暂存内容；与他人改同一文件时在汇报中说明等仲裁。子代理（Task 子任务）例外：改动留工作区由主模型统一提交。
 > 需要临时回退时用 `git commit` + `git reset --soft HEAD~1`，记录这个文件的问题，放弃丢失文件的 `git stash` / `git stash push` / `git stash pop` 指令（`list` / `show` 只读不受限）。
 > 查日志/排查卡顿：往**环形日志面板**塞日志，而非死盯 console。
 > 连续修改时，从下往上修改可避免行号变化的影响。
