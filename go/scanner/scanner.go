@@ -331,10 +331,11 @@ func ComputeFileHash(path string) string {
 // ========== 作者提取 ==========
 
 // stripDisableSuffix 剥离 .ban/.disabled 禁用后缀（口径与 ScanEntries 一致，三处共用防漂移）
+// .ban 剥离委托 types.StripBanSuffix（单一事实来源）。
 func stripDisableSuffix(name string) string {
 	lower := strings.ToLower(name)
 	if strings.HasSuffix(lower, ".ban") {
-		return name[:len(name)-4]
+		return types.StripBanSuffix(name)
 	}
 	if strings.HasSuffix(lower, ".disabled") {
 		return name[:len(name)-len(".disabled")]
@@ -548,7 +549,7 @@ jobs:
               // .json 仅收 ysm.json）；扩展清单与 go/types 注册表（resource_types.json）同步
               lower := strings.ToLower(p)
               restored := ""
-              if strings.HasSuffix(lower, ".ban") { restored = p[:len(p)-4] } else if strings.HasSuffix(lower, ".disabled") { restored = p[:len(p)-9] }
+              if strings.HasSuffix(lower, ".ban") { restored = types.StripBanSuffix(p) } else if strings.HasSuffix(lower, ".disabled") { restored = p[:len(p)-9] }
               ext := strings.ToLower(filepath.Ext(p))
               if restored != "" { ext = strings.ToLower(filepath.Ext(restored)) }
               if ext == ".json" {

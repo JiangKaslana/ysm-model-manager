@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"ysm-model-manager/go/container"
+	"ysm-model-manager/go/types"
 )
 
 // ReadFileFromZip 从 ZIP 读取指定路径的文件。
@@ -33,15 +34,14 @@ func ReadFileFromZip(zr *zip.Reader, target string) []byte {
 		defer rc.Close()
 		// zip-bomb 防线：条目解压后大小未限制，ReadAll 全量读入可 OOM——
 		// readLimitedModel 限的是压缩体积，解压比无界；对齐 readLimitedAvatar
-		// 50MB 上限口径，LimitReader+1 截断探测（ADR-033，防恰 50MB 静默截断）
-		const maxEntrySize = 50 << 20
-		data, err := io.ReadAll(io.LimitReader(rc, maxEntrySize+1))
+		// types.MaxReadLimit 上限口径，LimitReader+1 截断探测（ADR-033，防恰上限值静默截断）
+		data, err := io.ReadAll(io.LimitReader(rc, types.MaxReadLimit+1))
 		if err != nil {
 			log.Printf("[avatar] zip 条目读取失败 %s: %v", f.Name, err)
 			return nil
 		}
-		if len(data) > maxEntrySize {
-			log.Printf("[avatar] zip 条目超限跳过 %s（解压超 50MB）", f.Name)
+		if int64(len(data)) > types.MaxReadLimit {
+			log.Printf("[avatar] zip 条目超限跳过 %s（解压超限）", f.Name)
 			return nil
 		}
 		return data
@@ -67,14 +67,14 @@ func ReadFileFromContainer(r container.Reader, target string) []byte {
 			log.Printf("[avatar] 容器条目打开失败 %s: %v", e.Name(), err)
 			return nil
 		}
-		data, rerr := io.ReadAll(io.LimitReader(rc, 50<<20+1))
+		data, rerr := io.ReadAll(io.LimitReader(rc, types.MaxReadLimit+1))
 		rc.Close()
 		if rerr != nil {
 			log.Printf("[avatar] 容器条目读取失败 %s: %v", e.Name(), rerr)
 			return nil
 		}
-		if len(data) > 50<<20 {
-			log.Printf("[avatar] 容器条目超限跳过 %s（解压超 50MB）", e.Name())
+		if int64(len(data)) > types.MaxReadLimit {
+			log.Printf("[avatar] 容器条目超限跳过 %s（解压超限）", e.Name())
 			return nil
 		}
 		return data

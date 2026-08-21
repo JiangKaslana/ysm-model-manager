@@ -67,7 +67,6 @@ export async function runHealthAudit(
         '<div class="stat-row diag-msg diag-msg-error">❌ ' +
         esc(report.message) +
         "</div>";
-      _healthBusy = false;
       return;
     }
     if (!report) {
@@ -75,7 +74,6 @@ export async function runHealthAudit(
         '<div class="stat-row diag-msg diag-msg-error">❌ ' +
         esc(t("diagnostics.healthParseFailed")) +
         "</div>";
-      _healthBusy = false;
       return;
     }
 
@@ -99,7 +97,16 @@ export async function runHealthAudit(
 export function parseHealthReport(raw: string): HealthReport | Error | null {
   try {
     const parsed = JSON.parse(raw) as HealthReport & { error?: string };
-    if (typeof parsed.score === "number" && parsed.completeness) return parsed;
+    // 最小运行时校验：score/completeness.percentage 必须为 number，
+    // 防后端结构漂移时渲染层 .toFixed() 抛异常白屏
+    if (
+      typeof parsed.score === "number" &&
+      parsed.completeness &&
+      typeof parsed.completeness.percentage === "number" &&
+      typeof parsed.completeness.valid === "number" &&
+      typeof parsed.completeness.invalid === "number"
+    )
+      return parsed;
     if (parsed.error) return new Error(parsed.error);
     return null;
   } catch {

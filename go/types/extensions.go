@@ -93,6 +93,16 @@ func IsYsmEntryJSON(baseName string) bool {
 	return strings.EqualFold(strings.TrimSpace(baseName), "ysm.json")
 }
 
+// StripBanSuffix 剥离 .ban 禁用后缀（大小写不敏感）。
+// 单一事实来源——sync/scanner/ysm/installer 的 .ban 剥离均委托本函数，
+// 防多处内联 `name[:len(name)-4]` 口径漂移。
+func StripBanSuffix(name string) string {
+	if strings.HasSuffix(strings.ToLower(name), ".ban") {
+		return name[:len(name)-4]
+	}
+	return name
+}
+
 // NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）：
 // 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyncAllowed/syncNameKey/
 // instance.extMatch/scanner.stripDisableSuffix 四处内联同义实现收敛于此。

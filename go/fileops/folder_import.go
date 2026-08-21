@@ -26,7 +26,7 @@ func WriteModelFolder(filesRoot, subpath, folderName string, files []types.Impor
 	if filesRoot == "" || folderName == "" {
 		return fmt.Errorf("参数空")
 	}
-	if strings.ContainsAny(folderName, `\/:*?"<>|`) {
+	if fsutil.ContainsIllegalNameChar(folderName) {
 		return fmt.Errorf("文件夹名包含非法字符")
 	}
 	// 拒绝 . / ..（原实现 folderName=="." 会直接写进 repoRoot/subpath，绕过模型文件夹抽象）

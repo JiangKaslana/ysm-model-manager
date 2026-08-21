@@ -65,7 +65,7 @@ func CreateDir(root, dir string) error {
 	if dir == "" {
 		return fmt.Errorf("目录名为空")
 	}
-	if strings.ContainsAny(dir, `\/:*?"<>|`) {
+	if fsutil.ContainsIllegalNameChar(dir) {
 		return fmt.Errorf("目录名包含非法字符")
 	}
 	if dir == "." || paths.HasTraversal(dir) {
@@ -86,7 +86,7 @@ func RenameDir(oldPath, newName string) error {
 	}
 	// 与 RenameFile 对齐，newName 必须通过非法字符 + 穿越校验。
 	// 原实现 `filepath.Join(parent, "../x")` 可逃出父目录/仓库。
-	if strings.ContainsAny(newName, `\/:*?"<>|`) {
+	if fsutil.ContainsIllegalNameChar(newName) {
 		return fmt.Errorf("目录名包含非法字符")
 	}
 	if newName == "." || paths.HasTraversal(newName) {
@@ -116,7 +116,7 @@ func RenameFile(oldPath, newName string) error {
 	if oldPath == "" || newName == "" {
 		return fmt.Errorf("参数为空")
 	}
-	if strings.ContainsAny(newName, `\/:*?"<>|`) {
+	if fsutil.ContainsIllegalNameChar(newName) {
 		return fmt.Errorf("文件名包含非法字符")
 	}
 	// ADR-038 D3：ysm.json 是模型目录清单（游戏按目录名识别模型），禁止单文件改名

@@ -32,10 +32,11 @@ func cleanAbs(path string) string {
 }
 
 // isSupportedModelExt 判断模型文件扩展名是否受支持（含 .ban 变体）
+// .ban 剥离委托 types.StripBanSuffix（单一事实来源）。
 func isSupportedModelExt(src string) bool {
 	ext := strings.ToLower(filepath.Ext(src))
 	if strings.HasSuffix(strings.ToLower(src), ".ban") {
-		ext = strings.ToLower(filepath.Ext(src[:len(src)-4]))
+		ext = strings.ToLower(filepath.Ext(types.StripBanSuffix(src)))
 	}
 	return types.IsSupportedExt(ext)
 }

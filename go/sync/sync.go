@@ -116,17 +116,9 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 					continue
 				}
 				if bannedHashes[c.Hash] {
-					name := c.Name
-					if strings.HasSuffix(strings.ToLower(name), ".ban") {
-						name = name[:len(name)-4]
-					}
-					status.Disabled = append(status.Disabled, name)
+					status.Disabled = append(status.Disabled, types.StripBanSuffix(c.Name))
 				} else if _, found := repoByHash[c.Hash]; !found {
-					name := c.Name
-					if strings.HasSuffix(strings.ToLower(name), ".ban") {
-						name = name[:len(name)-4]
-					}
-					status.Extra = append(status.Extra, name)
+					status.Extra = append(status.Extra, types.StripBanSuffix(c.Name))
 				}
 			}
 
@@ -175,13 +167,9 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 		// 收集 custom 目录下每个文件的链接类型
 		for _, c := range customEntries {
 			linkType := GetLinkType(c.Path)
-			fileName := c.Name
 			// 去掉 .ban 后缀，方便前端匹配
-			if strings.HasSuffix(strings.ToLower(fileName), ".ban") {
-				fileName = fileName[:len(fileName)-4]
-			}
 			status.Files = append(status.Files, types.CustomFileInfo{
-				Name:     fileName,
+				Name:     types.StripBanSuffix(c.Name),
 				LinkType: linkType,
 			})
 		}
@@ -251,7 +239,7 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 		actualPath := p
 		isCurrentlyBanned := strings.HasSuffix(strings.ToLower(p), ".ban")
 		if isCurrentlyBanned {
-			actualPath = p[:len(p)-4]
+			actualPath = types.StripBanSuffix(p)
 		}
 		ext := strings.ToLower(filepath.Ext(actualPath))
 		if !types.IsSupportedExt(ext) {
