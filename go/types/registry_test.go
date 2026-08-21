@@ -304,6 +304,11 @@ func TestSubDirAll(t *testing.T) {
 				rt.ID, m[rt.ID], rt.InstanceDir)
 		}
 	}
+	// 锚点哨兵：ysm 的 instanceDir 是扁平化语义下的特例（config/yes_steve_model/custom），
+	// 钉死防止路径语义漂移（21 次推倒重来的老震中）
+	if got := m["ysm"]; got != "config/yes_steve_model/custom" {
+		t.Errorf("SubDirAll[ysm] = %q, 期望 'config/yes_steve_model/custom'（锚点哨兵）", got)
+	}
 }
 
 func TestAllSubDirs(t *testing.T) {

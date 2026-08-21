@@ -107,6 +107,13 @@ describe("契约 B1 — GetSubDirMap 字段对齐 Go types.SubDirAll (rt.Instanc
       resourceTypes?: Array<{ id: string; instanceDir?: string }>;
     };
     const reg = rtj.resourceTypes ?? [];
+    // 结构断言：防 JSON 漂移导致守卫空转（instanceDir 字段被改名/批量清空时循环 0 断言静默通过）
+    expect(reg.length, "resourceTypes 不应为空").toBeGreaterThan(0);
+    const withInstanceDir = reg.filter((rt) => rt.instanceDir);
+    expect(withInstanceDir.length, "至少应有类型声明 instanceDir").toBeGreaterThan(0);
+    // 锚点哨兵：ysm 的 instanceDir 是扁平化语义下的特例（config/yes_steve_model/custom），
+    // 钉死防止路径语义漂移（21 次推倒重来的老震中）
+    expect(map.ysm, "ysm instanceDir 锚点").toBe("config/yes_steve_model/custom");
     for (const rt of reg) {
       if (!rt.instanceDir) continue;
       expect(map[rt.id], `${rt.id} 的 instanceDir`).toBe(rt.instanceDir);
