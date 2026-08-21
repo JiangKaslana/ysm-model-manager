@@ -146,7 +146,7 @@ func TestDirectoryCopyImporter_Import_SrcEqualsDst(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	importer := NewDirectoryCopy("mmd-skin")
+	importer := NewDirectoryCopy("EntityPlayer")
 	// dstDir 为 modelDir 的父目录 → dstPath == srcDir
 	result := importer.Import(modelDir, tmpDir)
 	if result == "" {
@@ -171,7 +171,7 @@ func TestDirectoryCopyImporter_Import_DstInsideSrc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	importer := NewDirectoryCopy("mmd-skin")
+	importer := NewDirectoryCopy("EntityPlayer")
 	dstDir := filepath.Join(modelDir, "imports")
 	result := importer.Import(modelDir, dstDir)
 	if result == "" {

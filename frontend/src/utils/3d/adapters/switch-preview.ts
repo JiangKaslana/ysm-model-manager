@@ -60,6 +60,8 @@ export interface SwitchContext {
   setCurrentPath: (p: string) => void;
   /** 当前资源类型（注册表 rtype 用；mount3D 注入 opts.rtype ?? adapter.id） */
   getCurrentRtype: () => string;
+  /** 当前子类型（如 EntityPlayer/CustomAnim；空串未知） */
+  getCurrentSubtype?: () => string;
   /** 可变：build 后赋值 */
   getPerFrame: () => ((dt: number) => void) | null;
   setPerFrame: (f: ((dt: number) => void) | null) => void;

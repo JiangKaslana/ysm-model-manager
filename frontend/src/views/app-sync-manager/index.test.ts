@@ -13,11 +13,12 @@ const { mocks } = vi.hoisted(() => {
       JSON.stringify({
         resourceTypes: [
           { id: "ysm", name: "YSM 模型", icon: "💎" },
-          { id: "mmd-skin", name: "MMD 模型", icon: "🎭" },
+          { id: "EntityPlayer", name: "PMX 模型", icon: "🎭" },
+          { id: "SceneModel", name: "场景模型", icon: "🏰" },
           { id: "vrchat-avatar", name: "VRC 模型", icon: "🥽" },
           { id: "resourcepack", name: "资源包", icon: "🎨" },
           { id: "shaderpack", name: "光影包", icon: "☀️" },
-          { id: "create-blueprint", name: "蓝图", icon: "⚙️" },
+          { id: "blueprint", name: "蓝图", icon: "⚙️" },
           { id: "litematic", name: "投影", icon: "📐" },
         ],
       }),
@@ -149,13 +150,13 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     unmountElement(el);
   });
 
-  it("mmd-skin 走 sync tree：subdir 作为顶层文件夹（SceneModel/CustomAnim 平行可见）", async () => {
+  it("EntityPlayer 走 sync tree：subdir 作为顶层文件夹（SceneModel/CustomAnim 平行可见）", async () => {
     const el = document.createElement("app-sync-manager");
     el.setAttribute("instance", "test");
     document.body.appendChild(el);
     await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
 
-    // 驱动私有状态：mmd-skin 条目含 subdir
+    // 驱动私有状态：EntityPlayer 条目含 subdir
     const self = el as unknown as {
       _selectedType: string;
       _allItems: SyncItem[];
@@ -165,15 +166,15 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
       _repoRoots: Record<string, string>;
       _doRender: () => void;
     };
-    self._selectedType = "mmd-skin";
-    self._typeConfig = [{ id: "mmd-skin", dirLevelSync: true }];
+    self._selectedType = "EntityPlayer";
+    self._typeConfig = [{ id: "EntityPlayer", dirLevelSync: true }];
     self._allItems = [
-      { path: "x/3d-skin/SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "mmd-skin", icon: "🎭", size: 10, subdir: "SceneModel" },
-      { path: "x/3d-skin/角色A.pmx", name: "角色A", status: "missing", type: "mmd-skin", icon: "🎭", size: 20 },
-      { path: "x/3d-skin/CustomAnim/动作.pmx", name: "动作", status: "synced", type: "mmd-skin", icon: "🎭", size: 30, subdir: "CustomAnim" },
+      { path: "x/3d-skin/SceneModel/舞台.pmx", name: "舞台", status: "synced", type: "EntityPlayer", icon: "🎭", size: 10, subdir: "SceneModel" },
+      { path: "x/3d-skin/角色A.pmx", name: "角色A", status: "missing", type: "EntityPlayer", icon: "🎭", size: 20 },
+      { path: "x/3d-skin/CustomAnim/动作.pmx", name: "动作", status: "synced", type: "EntityPlayer", icon: "🎭", size: 30, subdir: "CustomAnim" },
     ];
     self._filteredItems = self._allItems;
-    self._repoRoots = { "mmd-skin": "/repo" };
+    self._repoRoots = { "EntityPlayer": "/repo" };
     self._dirOpen = {};
     mocks.ScanModelEntriesWithLabel.mockResolvedValue([]);
 
@@ -305,7 +306,7 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     unmountElement(el);
   });
 
-  it("dirLevelSync 类型（create-blueprint）→ 文件夹行 + 展开扫出子文件（missing 条目也可展开）", async () => {
+  it("dirLevelSync 类型（blueprint）→ 文件夹行 + 展开扫出子文件（missing 条目也可展开）", async () => {
     const el = document.createElement("app-sync-manager");
     el.setAttribute("instance", "test");
     document.body.appendChild(el);
@@ -321,19 +322,19 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
       _repoRoots: Record<string, string>;
       _doRender: () => void;
     };
-    self._selectedType = "create-blueprint";
-    self._typeConfig = [{ id: "create-blueprint", name: "蓝图", icon: "⚙️", dirLevelSync: true }];
+    self._selectedType = "blueprint";
+    self._typeConfig = [{ id: "blueprint", name: "蓝图", icon: "⚙️", dirLevelSync: true }];
     // 真实场景：蓝图在仓库、整合包缺失 → missing；path 为仓库绝对路径
     self._allItems = [
-      { path: "D:/YSM管理器测试文件夹/minecraft-mod/create-blueprint/hello_new_generation_core", name: "hello_new_generation_core", status: "missing", type: "create-blueprint", icon: "⚙️", size: 4096 },
+      { path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core", name: "hello_new_generation_core", status: "missing", type: "blueprint", icon: "⚙️", size: 4096 },
     ];
     self._filteredItems = self._allItems;
-    self._repoRoots = { "create-blueprint": "/repo" };
+    self._repoRoots = { "blueprint": "/repo" };
     self._dirOpen = {};
 
     mocks.ScanModelEntriesWithLabel.mockResolvedValue([
-      { Name: "建筑.nbt", Path: "D:/YSM管理器测试文件夹/minecraft-mod/create-blueprint/hello_new_generation_core/建筑.nbt", Size: 2048 },
-      { Name: "建筑.schematic", Path: "D:/YSM管理器测试文件夹/minecraft-mod/create-blueprint/hello_new_generation_core/建筑.schematic", Size: 1024 },
+      { Name: "建筑.nbt", Path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core/建筑.nbt", Size: 2048 },
+      { Name: "建筑.schematic", Path: "D:/YSM管理器测试文件夹/minecraft-mod/blueprint/hello_new_generation_core/建筑.schematic", Size: 1024 },
     ]);
 
     self._doRender();

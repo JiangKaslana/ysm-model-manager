@@ -10,14 +10,14 @@ func TestRegistry(t *testing.T) {
 	if got := Get("resourcepack"); got == nil {
 		t.Fatal("Get('resourcepack') = nil, want handler")
 	}
-	if got := Get("mmd-skin"); got == nil {
-		t.Fatal("Get('mmd-skin') = nil, want handler")
+	if got := Get("EntityPlayer"); got == nil {
+		t.Fatal("Get('EntityPlayer') = nil, want handler")
 	}
 	if got := Get("shaderpack"); got == nil {
 		t.Fatal("Get('shaderpack') = nil, want handler")
 	}
-	if got := Get("create-blueprint"); got == nil {
-		t.Fatal("Get('create-blueprint') = nil, want handler")
+	if got := Get("blueprint"); got == nil {
+		t.Fatal("Get('blueprint') = nil, want handler")
 	}
 	if got := Get("vrchat-avatar"); got == nil {
 		t.Fatal("Get('vrchat-avatar') = nil, want handler")
@@ -40,8 +40,8 @@ func TestType(t *testing.T) {
 	}{
 		{"resourcepack", "resourcepack"},
 		{"shaderpack", "shaderpack"},
-		{"create-blueprint", "create-blueprint"},
-		{"mmd-skin", "mmd-skin"},
+		{"blueprint", "blueprint"},
+		{"EntityPlayer", "EntityPlayer"},
 		{"vrchat-avatar", "vrchat-avatar"},
 	}
 	for _, tc := range tests {
@@ -161,7 +161,7 @@ func TestDirectoryCopyImporter_Import(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	imp := NewDirectoryCopy("mmd-skin")
+	imp := NewDirectoryCopy("EntityPlayer")
 	// 传入文件夹内任意文件
 	errMsg := imp.Import(filepath.Join(modelDir, "model.pmx"), dstDir)
 	if errMsg != "" {

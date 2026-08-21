@@ -172,10 +172,10 @@ describe("detectZipType", () => {
   });
 
   it("蓝图/投影/MMD/VRC 后缀指纹（ADR-066 web 识别层）", () => {
-    expect(detectZipType(buildMinimalZip("schematics/main.nbt", new TextEncoder().encode("x")))).toBe("create-blueprint");
-    expect(detectZipType(buildMinimalZip("a/build.schematic", new TextEncoder().encode("x")))).toBe("create-blueprint");
+    expect(detectZipType(buildMinimalZip("schematics/main.nbt", new TextEncoder().encode("x")))).toBe("blueprint");
+    expect(detectZipType(buildMinimalZip("a/build.schematic", new TextEncoder().encode("x")))).toBe("blueprint");
     expect(detectZipType(buildMinimalZip("project/a.litematic", new TextEncoder().encode("x")))).toBe("litematic");
-    expect(detectZipType(buildMinimalZip("model/a.pmx", new TextEncoder().encode("x")))).toBe("mmd-skin");
+    expect(detectZipType(buildMinimalZip("model/a.pmx", new TextEncoder().encode("x")))).toBe("EntityPlayer");
     expect(detectZipType(buildMinimalZip("avatar/a.vrca", new TextEncoder().encode("x")))).toBe("vrchat-avatar");
   });
 

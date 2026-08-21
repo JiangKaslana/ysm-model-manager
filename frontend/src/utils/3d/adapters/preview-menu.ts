@@ -32,11 +32,13 @@ export interface PreviewMenuCtx {
   getCamBridge: () => CameraControlBridge;
   getSiblings: () => string[];
   getCurrentPath: () => string;
-  /** 当前会话资源类型（如 ysm/mmd-skin/vrchat-avatar/resourcepack；空串未知）——类型 tab 点击时判断同类型走 switchTo */
+  /** 当前会话资源类型（如 ysm/EntityPlayer/vrchat-avatar/resourcepack；空串未知）——类型 tab 点击时判断同类型走 switchTo */
   getCurrentRtype?: () => string;
-  /** 按资源类型扫描候选模型路径（点击切换模型的类型 tab 时懒加载；缺省回退 siblings） */
-  getModelsByType?: (rtype: string) => Promise<string[]>;
-  /** 类型 tab 列表（如 ["ysm","mmd-skin","vrchat-avatar","resourcepack"]；缺省仅「当前目录」tab） */
+  /** 当前会话子类型（如 EntityPlayer/CustomAnim；空串未知）——传递给 getModelsByType 做扩展名隔离 */
+  getCurrentSubtype?: () => string;
+  /** 按资源类型（+可选子类型）扫描候选模型路径（点击切换模型的类型 tab 时懒加载；缺省回退 siblings） */
+  getModelsByType?: (rtype: string, subtype?: string) => Promise<string[]>;
+  /** 类型 tab 列表（如 ["ysm","EntityPlayer","vrchat-avatar","resourcepack"]；缺省仅「当前目录」tab） */
   getTypeTabs?: () => string[];
   /** 3D 渲染器容器：点击该区域关闭菜单（不再全局点击杀弹窗） */
   getViewContainer: () => HTMLElement;
@@ -116,7 +118,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
       label.textContent = tr(c.labelKey, c.fallback);
       label.style.cssText = "font-size:12px";
       const hint = document.createElement("span");
-      hint.style.cssText = "font-size:10px;color:rgba(255,255,255,0.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+      hint.style.cssText = "font-size:12px;color:rgba(255,255,255,0.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
       hint.textContent = c.hintKey ? tr(c.hintKey, "") : "";
       labelBox.append(label, hint);
       const toggle = createHeaderToggle({
@@ -133,7 +135,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
       row.className = "slide-item";
       row.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
       const head = document.createElement("div");
-      head.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.7)";
+      head.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.7)";
       const name = document.createElement("span");
       name.className = "slide-label";
       name.textContent = tr(c.labelKey, c.fallback);
@@ -164,7 +166,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
       const label = document.createElement("span");
       label.className = "slide-label";
       label.textContent = tr(c.labelKey, c.fallback);
-      label.style.cssText = "flex:1;font-size:12px";
+      label.style.cssText = "flex:1;font-size:13px";
       const sel = document.createElement("select");
       sel.className = "setting-select";
       sel.style.cssText = "font-size:11px;padding:2px 4px";
@@ -187,7 +189,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
       const label = document.createElement("span");
       label.className = "slide-label";
       label.textContent = tr(c.labelKey, c.fallback);
-      label.style.cssText = "flex:1;font-size:12px";
+      label.style.cssText = "flex:1;font-size:13px";
       const btn = document.createElement("button");
       const variant = c.button?.variant ?? "ghost";
       const accent = "var(--accent,#7c83ff)";
@@ -197,7 +199,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
           : `padding:4px 10px;font-size:11px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;background:transparent;color:rgba(255,255,255,0.85);`;
       btn.textContent = c.button?.textKey ? tr(c.button.textKey, c.fallback) : c.fallback;
       const hint = document.createElement("span");
-      hint.style.cssText = "font-size:10px;color:rgba(255,255,255,0.5);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+      hint.style.cssText = "font-size:12px;color:rgba(255,255,255,0.5);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
       const syncHint = (): void => {
         const v = c.button?.getHint ? c.button.getHint() : "";
         hint.textContent = v ?? (c.button?.hintKey ? tr(c.button.hintKey, "") : "");
@@ -245,7 +247,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
       const label = document.createElement("span");
       label.className = "slide-label";
       label.textContent = tr(c.labelKey, c.fallback);
-      label.style.cssText = "flex:1;font-size:12px";
+      label.style.cssText = "flex:1;font-size:13px";
       const hex = c.getValue() as number;
       // number 0xRRGGBB → "#rrggbb"
       const toHexStr = (v: number): string => {
@@ -272,7 +274,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
 
       // 顶部：当前时间数字 + 标签
       const head = document.createElement("div");
-      head.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.85)";
+      head.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.85)";
       const name = document.createElement("span");
       name.className = "slide-label";
       name.textContent = tr(c.labelKey, c.fallback);
@@ -366,7 +368,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
       const label = document.createElement("span");
       label.className = "slide-label";
       label.textContent = tr(c.labelKey, c.fallback);
-      label.style.cssText = "font-size:12px;color:rgba(255,255,255,0.85)";
+      label.style.cssText = "font-size:13px;color:rgba(255,255,255,0.85)";
       row.appendChild(label);
 
       const canvas = document.createElement("canvas");
@@ -410,7 +412,7 @@ export function renderCapControls(list: HTMLElement, controls: MenuControlDef[])
       const label = document.createElement("span");
       label.className = "slide-label";
       label.textContent = tr(c.labelKey, c.fallback);
-      label.style.cssText = "font-size:12px;color:rgba(255,255,255,0.7)";
+      label.style.cssText = "font-size:13px;color:rgba(255,255,255,0.7)";
       row.appendChild(label);
       const grid = document.createElement("div");
       grid.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
@@ -797,7 +799,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
 
   PRESET_ORDER.forEach((p) => {
     const btn = document.createElement("button");
-    btn.style.cssText = "flex:1;min-width:48px;padding:4px 6px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;background:transparent;color:rgba(255,255,255,0.85);cursor:pointer;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px";
+    btn.style.cssText = "flex:1;min-width:48px;padding:4px 6px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;background:transparent;color:rgba(255,255,255,0.85);cursor:pointer;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px";
     const ic = document.createElement("span");
     ic.textContent = p.icon;
     ic.style.cssText = "font-size:14px";
@@ -842,7 +844,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
         const label = document.createElement("span");
         label.className = "slide-label";
         label.textContent = tr(primary.labelKey, primary.fallback);
-        label.style.cssText = "flex:1;font-size:12px";
+        label.style.cssText = "flex:1;font-size:13px";
         const toggle = createHeaderToggle({
           value: primary.getValue() as boolean,
           onChange: (v: boolean): void => primary.setValue(v),
@@ -856,7 +858,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
         const head = document.createElement("div");
         head.style.cssText = "display:flex;flex-direction:column;gap:2px;flex:1;min-width:0";
         const nameRow = document.createElement("div");
-        nameRow.style.cssText = "display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.85)";
+        nameRow.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.85)";
         const name = document.createElement("span");
         name.className = "slide-label";
         name.textContent = tr(primary.labelKey, primary.fallback);
@@ -899,7 +901,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
         const label = document.createElement("span");
         label.className = "slide-label";
         label.textContent = tr(cap.labelKey, cap.id);
-        label.style.cssText = "flex:1;font-size:12px";
+        label.style.cssText = "flex:1;font-size:13px";
         row.appendChild(label);
       }
     };
@@ -948,7 +950,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     b.dataset.rtype = key;
     b.textContent = label;
     b.style.cssText =
-      "font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;color:rgba(255,255,255,0.7);background:transparent" +
+      "font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;color:rgba(255,255,255,0.7);background:transparent" +
       (key === activeTab ? ";background:rgba(124,131,255,0.35);color:#fff" : "");
     b.onclick = (): void => {
       activeTab = key;
@@ -1040,7 +1042,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     if (activeTab === "") {
       draw(ctx.getSiblings(), false);
     } else {
-      void Promise.resolve(ctx.getModelsByType?.(activeTab) ?? Promise.resolve([])).then((paths) => {
+      void Promise.resolve(ctx.getModelsByType?.(activeTab, ctx.getCurrentSubtype?.()) ?? Promise.resolve([])).then((paths) => {
         if (gen !== reqGen) return; // 过期请求丢弃（P1-3）
         if (!listBody.parentNode) return; // 面板已关闭
         draw(paths ?? [], true);
@@ -1067,7 +1069,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
   input.type = "text";
   input.placeholder = tr("preview.switchPathPlaceholder", "输入模型文件路径…");
   input.style.cssText =
-    "flex:1;font-size:12px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);" +
+    "flex:1;font-size:13px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);" +
     "background:rgba(255,255,255,0.06);color:#fff;outline:none";
   const goByPath = (): void => {
     const path = input.value.trim();

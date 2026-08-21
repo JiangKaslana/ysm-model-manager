@@ -452,9 +452,9 @@ describe("bindBusEvents — 树刷新", () => {
 
   it("tree:reload → 保留 _subdirAttr（ADR-094，不丢失子目录上下文）", async () => {
     const vm = makeVM();
-    vm._rootAttr = "mmd-skin";
+    vm._rootAttr = "EntityPlayer";
     vm._subdirAttr = "EntityPlayer";
-    let loadedArgs: [string, string?] = ["mmd-skin"];
+    let loadedArgs: [string, string?] = ["EntityPlayer"];
     getRegistryMock.mockImplementation((name: string) =>
       name === "loadEntries"
         ? async (...args: [string, string?]) => {
@@ -468,7 +468,7 @@ describe("bindBusEvents — 树刷新", () => {
     bus.emit("tree:reload");
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(loadedArgs).toEqual(["mmd-skin", "EntityPlayer"]);
+    expect(loadedArgs).toEqual(["EntityPlayer", "EntityPlayer"]);
     expect(vm._filesRoot).toBe("/repo/mmd/EntityPlayer");
   });
 });

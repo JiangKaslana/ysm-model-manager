@@ -97,7 +97,7 @@ func TestDirectoryCopyImport_CopyDirErrorLocked(t *testing.T) {
 	lockDirExclusive(t, filepath.Join(modelDir, "d"))
 
 	dstDir := filepath.Join(base, "out")
-	msg := NewDirectoryCopy("mmd-skin").Import(modelDir, dstDir)
+	msg := NewDirectoryCopy("EntityPlayer").Import(modelDir, dstDir)
 	if msg == "" {
 		t.Fatal("copyDir 失败应返回错误消息")
 	}

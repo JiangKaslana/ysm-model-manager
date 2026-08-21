@@ -130,7 +130,7 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
     listEl.innerHTML = emptyHTML(hint);
     return;
   }
-  // dirLevelSync 类型（ysm / mmd-skin / create-blueprint / maid-model / vrchat-avatar…）：
+  // dirLevelSync 类型（ysm / EntityPlayer / blueprint / maid-model / vrchat-avatar…）：
   // 按路径天然层级展示（subdir 非空时提为顶层文件夹；文件夹=SyncItem 本身，
   // 展开后扫仓库子条目显示内部文件）。无仓库根时兜底走平铺。
   if (isDirLevelSync(self)) {
@@ -145,7 +145,7 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
   listEl.innerHTML = self._filteredItems.map((it, i) => itemHTML(it, i)).join("");
 }
 
-// ===== dirLevelSync 层级展示（ysm / create-blueprint / maid-model / vrchat-avatar…）=====
+// ===== dirLevelSync 层级展示（ysm / blueprint / maid-model / vrchat-avatar…）=====
 // 文件夹 = SyncItem 本身；展开后 ScanModelEntriesWithLabel 扫仓库子目录，显示内部文件。
 // 层级由路径天然分段（与 app-tree buildTree 同构），不再按 rtype 逐个特判。
 
@@ -153,7 +153,7 @@ interface SyncTreeNode {
   sync?: SyncItem;      // 有值 = 模型/文件行（带状态 + 操作按钮）
   file?: SyncItem;      // 有值 = 文件行（复用 itemHTML）
   files?: Array<{ name: string; path: string; size: number }>;
-  /** subdir 分组文件夹（mmd-skin 的 EntityPlayer/SceneModel 等）：无同步状态，纯分组导航 */
+  /** subdir 分组文件夹（MMD 的 EntityPlayer/SceneModel 等）：无同步状态，纯分组导航 */
   _group?: boolean;
   [key: string]: SyncTreeNode | SyncItem | Array<{ name: string; path: string; size: number }> | boolean | undefined;
 }
@@ -171,6 +171,15 @@ interface SyncTreeRow {
 function isDirLevelSync(self: SyncRenderSelf): boolean {
   const cfg = self._typeConfig.find((c) => c.id === self._selectedType);
   return cfg?.dirLevelSync === true;
+}
+
+/** 统一的展开判断：子项只需提供自身绝对路径 + subdir，函数独立判断是否展开。
+ * 单一事实源——所有 dirOpen 检查走此函数，避免散落的 || groupKey 重复逻辑。 */
+function shouldExpand(syncPath: string, subdir: string | undefined, dirOpen: Record<string, boolean>): boolean {
+  if (dirOpen[syncPath]) return true;
+  const groupKey = subdir?.trim();
+  if (groupKey && dirOpen[groupKey]) return true;
+  return false;
 }
 
 /** 扫描某绝对目录的子条目（dir-level 展开用，SyncItem.path 即仓库/整合包绝对路径）；失败静默返回 [] */
@@ -204,7 +213,7 @@ function buildSyncTree(
   for (const it of items) {
     const p = pathOf(it);
     if (!p) continue;
-    // subdir 非空时提为顶层分组文件夹（mmd-skin 的用途子目录），叶子用后端名
+    // subdir 非空时提为顶层分组文件夹（MMD 的用途子目录），叶子用后端名
     const topLevel = (it.subdir && it.subdir.trim()) ? it.subdir.trim() : null;
     const leafName = it.name || p.split("/").filter(Boolean).pop() || "";
     let node: SyncTreeNode = root;
@@ -236,8 +245,8 @@ function flattenSyncTree(node: SyncTreeNode, dirOpen: Record<string, boolean>, d
     const key = prefix ? prefix + "/" + k : k;
     if (v.sync) {
       rows.push({ type: "dir", key, sync: v.sync, indent: depth * 16 + 10 });
-      // 展开 key 用后端绝对路径（sync.path，与 data-path 一致）
-      if (dirOpen[v.sync.path || ""]) {
+      // 展开判断委托给 shouldExpand——子项独立提供自身路径信息
+      if (shouldExpand(v.sync.path || "", v.sync.subdir, dirOpen)) {
         if (v.files && v.files.length) {
           for (const f of v.files) {
             // 子文件继承父 SyncItem 的状态（用于 itemHTML 渲染），补 fileName/fileSize
@@ -279,11 +288,8 @@ async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<
       const raw = it.path || "";
       const p = raw.replace(/\\/g, "/");
       if (!p) return;
-      // 展开 key 用后端原始绝对路径（与 data-path 一致，dirOpen 由 events 按 data-path 写入）。
-      // 不限定 status：missing 条目 path 是仓库绝对路径（内部文件就在仓库），
-      // optional/extra 条目 path 是整合包路径——各自侧文件都存在，均可展开查看；
-      // 扫描失败 scanSubEntries 静默返回 []。
-      if (dirOpen[raw]) {
+      // 展开判断委托给 shouldExpand——子项独立提供自身路径信息
+      if (shouldExpand(raw, it.subdir, dirOpen)) {
         scanned[p] = await scanSubEntries(raw, rtype);
       }
     }),
@@ -293,7 +299,7 @@ async function renderSyncTree(self: SyncRenderSelf, items: SyncItem[]): Promise<
   let html = "";
   rows.forEach((r, i) => {
     if (r.type === "dir" && r.sync) {
-      const shouldOpen = dirOpen[r.sync.path] === true;
+      const shouldOpen = shouldExpand(r.sync.path || "", r.sync.subdir, dirOpen);
       // data-path 用后端绝对路径（SyncItem.path），push/pull 直接消费
       html += syncDirRowHTML(r.key, r.sync, shouldOpen, i, r.sync.path);
     } else if (r.type === "file" && r.sync) {

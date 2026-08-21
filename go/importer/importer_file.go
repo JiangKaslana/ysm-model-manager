@@ -74,9 +74,11 @@ func ImportFromBase64(fileName, base64Data string, opts ImportOptions, rootFn fu
 	// 用扩展名反查真实类型（ADR-065：扩展名列表注册表驱动，消除手写 .zip/.ysm/.7z/.json
 	// 字面量漂移）。反查仍无结果 → 识别不出就是识别不出：明确报错，不假装 YSM 导入。
 	if rtype == "" {
-		rtypes := types.ExtBelongsTo(ext)
-		if len(rtypes) == 1 {
-			rtype = rtypes[0]
+		if !types.IsContainerExt(ext) {
+			rtypes := types.ExtBelongsTo(ext)
+			if len(rtypes) >= 1 {
+				rtype = rtypes[0]
+			}
 		}
 	}
 	if rtype == "" {

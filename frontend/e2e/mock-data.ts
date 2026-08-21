@@ -38,6 +38,10 @@ export const MOCK_DATA = {
     { Name: "pack-a.zip", Path: "/e2e/repo/pack-a.zip", Size: 4096, ModTime: 0, Ext: ".zip", Hash: "", HasTags: false },
     { Name: "pack-b.zip", Path: "/e2e/repo/pack-b.zip", Size: 8192, ModTime: 0, Ext: ".zip", Hash: "", HasTags: false },
   ],
+  ScanModelEntriesFiltered: [
+    { Name: "model-a.ysm", Path: "/e2e/repo/model-a.ysm", Size: 1024, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
+    { Name: "model-b.ysm", Path: "/e2e/repo/model-b.ysm", Size: 2048, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
+  ],
   ListVersionInstances: [
     { Name: "1.20.1-Fabric", VersionDir: "/e2e/mc/1.20.1-Fabric" },
     { Name: "1.21-NeoForge", VersionDir: "/e2e/mc/1.21-NeoForge" },

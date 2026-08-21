@@ -281,7 +281,7 @@ describe("ReadLitematicMeta — web 实现（ADR-070 M1）", () => {
 
 describe("ReadNbtStructure — web 实现（ADR-070 M1）", () => {
   it("返回兼容 JSON（size/blockCount/entityCount/paletteStats/dataVersion）", async () => {
-    const path = await importAs("create-blueprint", "建筑.nbt", makeNbtStructureGz());
+    const path = await importAs("blueprint", "建筑.nbt", makeNbtStructureGz());
     const meta = JSON.parse(await browserAdapter.ReadNbtStructure(path)) as Record<string, unknown>;
     expect(meta["dataVersion"]).toBe(2566);
     expect(meta["size"]).toEqual([3, 4, 5]);
@@ -295,12 +295,12 @@ describe("ReadNbtStructure — web 实现（ADR-070 M1）", () => {
   });
 
   it("缺 size/blocks/palette → '{}'（对齐 ParseNbtStructure:282-284 判定）", async () => {
-    const path = await importAs("create-blueprint", "空.nbt", gz(nbtRoot(nbtInt("DataVersion", 2566))));
+    const path = await importAs("blueprint", "空.nbt", gz(nbtRoot(nbtInt("DataVersion", 2566))));
     expect(await browserAdapter.ReadNbtStructure(path)).toBe("{}");
   });
 
   it("基岩版 1.21+ sub_levels：聚合 size/blockCount/paletteStats", async () => {
-    const path = await importAs("create-blueprint", "基岩.nbt", makeBedrockStructureGz());
+    const path = await importAs("blueprint", "基岩.nbt", makeBedrockStructureGz());
     const meta = JSON.parse(await browserAdapter.ReadNbtStructure(path)) as Record<string, unknown>;
     // 全局包围盒：min 取各子结构最小、max 取最大 → size = (max-min+1)
     expect(meta["size"]).toEqual([5 - 0 + 1, 6 - 0 + 1, 7 - 0 + 1]); // [6, 7, 8]
@@ -317,7 +317,7 @@ describe("ReadNbtStructure — web 实现（ADR-070 M1）", () => {
 
 describe("ReadSchematic — web 实现（ADR-070 M1）", () => {
   it("返回兼容 JSON（version/size/blockCount/palette/实体计数）", async () => {
-    const path = await importAs("create-blueprint", "建筑.schematic", makeSchematicGz());
+    const path = await importAs("blueprint", "建筑.schematic", makeSchematicGz());
     const meta = JSON.parse(await browserAdapter.ReadSchematic(path)) as Record<string, unknown>;
     expect(meta["version"]).toBe(2);
     expect(meta["dataVersion"]).toBe(2566);
@@ -332,7 +332,7 @@ describe("ReadSchematic — web 实现（ADR-070 M1）", () => {
   });
 
   it("仅剩 ≤1 字段（只含 Version）→ '{}'（对齐 ParseSchematicSummary:261-263）", async () => {
-    const path = await importAs("create-blueprint", "空.schematic", gz(nbtRoot(nbtInt("Version", 2))));
+    const path = await importAs("blueprint", "空.schematic", gz(nbtRoot(nbtInt("Version", 2))));
     expect(await browserAdapter.ReadSchematic(path)).toBe("{}");
   });
 });
@@ -340,16 +340,16 @@ describe("ReadSchematic — web 实现（ADR-070 M1）", () => {
 describe("三个 binding — 失败路径 → '{}'", () => {
   it("文件不存在 → '{}'", async () => {
     expect(await browserAdapter.ReadLitematicMeta("/web/litematic/无/无.litematic")).toBe("{}");
-    expect(await browserAdapter.ReadNbtStructure("/web/create-blueprint/无/无.nbt")).toBe("{}");
-    expect(await browserAdapter.ReadSchematic("/web/create-blueprint/无/无.schematic")).toBe("{}");
+    expect(await browserAdapter.ReadNbtStructure("/web/blueprint/无/无.nbt")).toBe("{}");
+    expect(await browserAdapter.ReadSchematic("/web/blueprint/无/无.schematic")).toBe("{}");
   });
 
   it("非 gzip / 非 NBT 数据 → '{}'", async () => {
     const bad = await importAs("litematic", "坏.litematic", new TextEncoder().encode("not nbt"));
     expect(await browserAdapter.ReadLitematicMeta(bad)).toBe("{}");
-    const badNbt = await importAs("create-blueprint", "坏.nbt", Uint8Array.from([0x01, 0x02, 0x03]));
+    const badNbt = await importAs("blueprint", "坏.nbt", Uint8Array.from([0x01, 0x02, 0x03]));
     expect(await browserAdapter.ReadNbtStructure(badNbt)).toBe("{}");
-    const badSch = await importAs("create-blueprint", "坏.schematic", new TextEncoder().encode("notgzip"));
+    const badSch = await importAs("blueprint", "坏.schematic", new TextEncoder().encode("notgzip"));
     expect(await browserAdapter.ReadSchematic(badSch)).toBe("{}");
   });
 

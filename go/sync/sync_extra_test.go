@@ -123,18 +123,21 @@ func TestIsModelFile_YsmNegative(t *testing.T) {
 	}
 }
 
-func TestIsModelFile_MmdSkin(t *testing.T) {
-	if !types.IsTypeModelFile("model.pmx", "mmd-skin") {
-		t.Error(".pmx should be mmd-skin model")
+func TestIsModelFile_EntityPlayer(t *testing.T) {
+	if !types.IsTypeModelFile("model.pmx", "EntityPlayer") {
+		t.Error(".pmx should be EntityPlayer model")
 	}
-	if !types.IsTypeModelFile("model.pmd", "mmd-skin") {
-		t.Error(".pmd should be mmd-skin model")
+	if !types.IsTypeModelFile("model.pmd", "EntityPlayer") {
+		t.Error(".pmd should be EntityPlayer model")
+	}
+	if !types.IsTypeModelFile("model.zip", "EntityPlayer") {
+		t.Error(".zip should be EntityPlayer model")
 	}
 }
 
-func TestIsModelFile_MmdSkinNegative(t *testing.T) {
-	if types.IsTypeModelFile("model.ysm", "mmd-skin") {
-		t.Error(".ysm should NOT be mmd-skin model")
+func TestIsModelFile_EntityPlayerNegative(t *testing.T) {
+	if types.IsTypeModelFile("model.ysm", "EntityPlayer") {
+		t.Error(".ysm should NOT be EntityPlayer model")
 	}
 }
 

@@ -1,6 +1,6 @@
 // ===== 场景 MMD 同类型候选列表（只扫 SceneModel 目录，与角色模型完全隔离）=====
 // 路径构造复用 app-tree/loader.ts 的 ADR-094 位置路由模式：
-//   GetRepoRoot("mmd-skin") → {FilesRoot}/mmd/EntityPlayer
+//   GetRepoRoot("EntityPlayer") → {FilesRoot}/mmd/EntityPlayer
 //   ↑ 退一级到 group 根 → {FilesRoot}/mmd
 //   + /SceneModel → {FilesRoot}/mmd/SceneModel
 // 与 mmd-siblings.ts 的区别：

@@ -176,7 +176,7 @@ func TestScanLocalAuthors_Branches(t *testing.T) {
 		{ysmDir, "无作者.ysm"},         // 无 [ 前缀 → 跳过
 		{ysmDir, "[作者G.ysm"},        // 有 [ 无 ] → idx<=0 跳过
 		{ysmDir, "[]模型.ysm"},        // 空作者 → 跳过
-		{mmdDir, "[作者E]模型.pmx"},     // 跨类型（mmd-skin）→ 合并 Type
+		{mmdDir, "[作者E]模型.pmx"},     // 跨类型（EntityPlayer）→ 合并 Type
 		{mmdDir, "无作者.pmx"},         // 另一 root 的无 [ 前缀 → 跳过
 	}
 	for _, f := range files {
@@ -186,9 +186,9 @@ func TestScanLocalAuthors_Branches(t *testing.T) {
 	}
 
 	creators := ScanLocalAuthors(map[string]string{
-		"ysm":      ysmDir,
-		"mmd-skin": mmdDir,
-		"vrc":      "", // 空 root → 跳过
+		"ysm":          ysmDir,
+		"EntityPlayer": mmdDir,
+		"vrc":          "", // 空 root → 跳过
 	})
 	if len(creators) != 2 {
 		t.Fatalf("应 2 个创作者（作者E 合并类型 / 作者F）, got %d: %+v", len(creators), creators)
@@ -197,9 +197,9 @@ func TestScanLocalAuthors_Branches(t *testing.T) {
 	if e == nil {
 		t.Fatalf("缺少 作者E: %+v", creators)
 	}
-	// 跨类型合并：Type 须同时含 ysm 与 mmd-skin（集合断言，不依赖拼接顺序——
+	// 跨类型合并：Type 须同时含 ysm 与 EntityPlayer（集合断言，不依赖拼接顺序——
 	// 源码已按 rtype 字典序保证确定性输出，顺序变化不应破坏本用例）
-	for _, want := range []string{"ysm", "mmd-skin"} {
+	for _, want := range []string{"ysm", "EntityPlayer"} {
 		if !strings.Contains(e.Type, want) {
 			t.Errorf("作者E Type = %q, 应包含 %q（跨类型合并）", e.Type, want)
 		}

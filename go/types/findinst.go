@@ -105,7 +105,7 @@ func FindInstDir(versionDir, subDir, rtype string) string {
 		// 纯容器类型（resourcepack/shaderpack，扩展集仅 .zip/.7z）直接返回标准目录——
 		// 容器证据无法区分「整合包其他目录里的压缩包」与「本类型资源包」，兜底会
 		// 误命中 mods/缓存目录（标准 resourcepacks 为空时误报 extra）。
-		// 非容器类型（create-blueprint 的 .nbt 等）保持兜底（P5：Sable-Schematics）。
+		// 非容器类型（blueprint 的 .nbt 等）保持兜底（P5：Sable-Schematics）。
 		if !hasNonContainer {
 			return standard
 		}

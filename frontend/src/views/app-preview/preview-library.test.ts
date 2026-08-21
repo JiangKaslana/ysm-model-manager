@@ -20,10 +20,8 @@ import "./litematic-3d.ts"; // P2-2：投影/蓝图已注册 opener，一并触�
 const NO_3D_TYPES = new Set<string>([
   "shaderpack",
   "maid-model", // ADR-095 车万女仆：preview: "none"，无 3D opener（隔壁新增类型，豁免表同步）
-  "vanilla-assets", // ADR-105 软合并合集壳：原版资源合集（展开为资源包/光影包子类型，本身无 3D）
-  "mod-model", // ADR-105 软合并合集壳：模组模型合集（展开为 YSM/车万女仆子类型，本身无 3D）
-  "create-blueprint", // ADR-105 壳正名（dd5b7610）：合集壳展开为 blueprint/litematic 子类型，
-  // 3D opener 注册在叶 blueprint（litematic-3d.ts），壳本身无 3D
+  "resourcepack", // 资源包：无 3D 预览能力
+  "litematic", // 投影：3D opener 在 litematic-3d.ts（若有）
 ]);
 
 describe("preview-library _openers 覆盖率", () => {

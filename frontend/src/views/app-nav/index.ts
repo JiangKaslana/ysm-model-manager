@@ -152,10 +152,9 @@ class AppNav extends WebComponentBase {
         .map((g) => `<option value="${g.gid}">${g.label}</option>`)
         .join("");
 
-      // 子类型选项：统一走 GROUP_TYPE_OPTIONS（ADR-104/105 注册表派生）——
-      // rtype 声明 subtypes 时自动展开（mmd-skin → 6 子类、create-blueprint →
-      // 蓝图/投影），无 subtypes 平铺单选项；被吸收的独立 rtype（litematic）不再单独出现。
-      // 旧 mmd 特判分支已退役（GROUP_TYPE_OPTIONS 通用化覆盖）。
+      // 子类型选项：统一走 GROUP_TYPE_OPTIONS（从 resource_types.json 派生）——
+      // 各 MMD 类型（EntityPlayer/SceneModel/CustomAnim 等）现为独立顶级类型，
+      // 直接在所属 group 下平铺，不再通过 subtype 展开。
       const buildSubtypeOptions = (group: string): GroupTypeOption[] =>
         (GROUP_TYPE_OPTIONS[group] || []).map((o) => ({
           label: o.label,
@@ -180,8 +179,8 @@ class AppNav extends WebComponentBase {
         // localStorage 写入失败静默忽略（配额/隐私模式下的可接受降级，不阻断切换）
         try { safeSet("repo_rtype", sel.rtype); safeSet("repo_subdir", sel.subdir); } catch { /* 非关键路径 */ }
         bus.emit("repo:rtype-changed", sel.rtype);
-        // ADR-095 后续：MMD 子目录选择单独广播（sync 页按 subdir 过滤列表）；
-        // 非 MMD 组 subdir 恒 ""（apply 时自然重置订阅方过滤）
+        // ADR-095 后续：子目录选择单独广播（sync 页按 subdir 过滤列表）；
+        // 平铺模式下 subdir 恒 ""（apply 时自然重置订阅方过滤）
         bus.emit("repo:subdir-changed", sel.subdir);
       };
       groupSel.addEventListener("change", () => { fillSubtypes(groupSel.value); apply(); });

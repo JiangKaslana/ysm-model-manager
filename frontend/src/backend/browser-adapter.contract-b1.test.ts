@@ -100,9 +100,9 @@ describe("契约 B1 — GetSubDirMap 字段对齐 Go types.SubDirAll (rt.ScanDir
     const map = (await browserAdapter.GetSubDirMap()) as Record<string, string>;
     // Go SubDirAll() 返回 id → rt.ScanDir（见 extensions.go:170）；web 同样使用 rt.scanDir（browser-adapter.ts getWebSubDirMap）
     expect(map.ysm).toBe("config/yes_steve_model/custom"); // Go 契约守门：scanDir 非 storageSubDir
-    expect(map["create-blueprint"]).toBe("schematics"); // 契约守门
+    expect(map["blueprint"]).toBe("schematics"); // 契约守门
     expect(map.litematic).toBe("schematics"); // 契约守门
-    expect(map["mmd-skin"]).toBe("3d-skin"); // 契约守门（ADR-092：mmd 以 3d-skin/ 为安装/扫描根）
+    expect(map["EntityPlayer"]).toBe("3d-skin"); // 契约守门（ADR-092：mmd 以 3d-skin/ 为安装/扫描根）
     expect(map["vrchat-avatar"]).toBe("vrchat-avatars"); // 契约守门
     // storageSubDir 与 scanDir 相同者（resourcepack/shaderpack）两实现一致
     expect(map.resourcepack).toBe("resourcepacks");

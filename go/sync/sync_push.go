@@ -18,25 +18,6 @@ import (
 // Logger 导入日志回调（薄壳注入 App.logger.Add）
 type Logger func(name, src, dst string, size int64, status, msg string)
 
-// subDirTarget 解析 dir-level 同步单元的整合包目标目录：
-// 源路径相对 globalDir 的首段为用途子类目录时（EntityPlayer/SceneModel 等），
-// 目标 = targetDir/<子类>（保留层级）；否则目标 = targetDir。
-// 与 SyncResourcesDirLevel 的「子类内部模型作为带前缀单元」口径对称（ADR-096）。
-func subDirTarget(rtype, globalDir, targetDir, srcPath string) string {
-	if !types.IsSubDirGrouping(rtype) {
-		return targetDir
-	}
-	rel, err := filepath.Rel(globalDir, srcPath)
-	if err != nil {
-		return targetDir
-	}
-	seg := strings.Split(rel, string(filepath.Separator))[0]
-	if types.IsSubDirName(rtype, seg) {
-		return filepath.Join(targetDir, seg)
-	}
-	return targetDir
-}
-
 // PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel）
 func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) (int, error) {
 	count := 0
@@ -47,17 +28,12 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 	if types.IsDirLevelSync(rtype) {
 		dirResult := SyncResourcesDirLevel(globalDir, targetDir, rtype)
 		for _, missing := range dirResult.Missing {
-			// 目录单元（模型文件夹，如 EntityPlayer/角色A）→ 落位到
-			// targetDir/<子类> 保留层级（InstallDir 只加 basename，需 subDirTarget）；
-			// 平铺文件单元（如 CustomAnim 内的 .vmd/.vpd 动作）→ 单文件安装，
-			// Install 内部按 filesRoot 相对路径保留子类层级（CustomAnim/walk.vmd）
 			fi, stErr := os.Stat(missing)
 			var err error
 			if stErr == nil && !fi.IsDir() {
 				err = installer.Install(missing, targetDir, globalDir, linkMode)
 			} else {
-				dst := subDirTarget(rtype, globalDir, targetDir, missing)
-				err = installer.InstallDir(missing, dst, globalDir, linkMode, rtype)
+				err = installer.InstallDir(missing, targetDir, globalDir, linkMode, rtype)
 			}
 			if err == nil {
 				count++
@@ -236,18 +212,18 @@ func PullSingleResource(globalDir, targetDir, srcPath string) error {
 func PushSingleResource(filePath, customDir, globalDir, linkMode, rtype string) error {
 	fi, stErr := os.Stat(filePath)
 	if stErr == nil && fi.IsDir() {
-		return installer.InstallDir(filePath, subDirTarget(rtype, globalDir, customDir, filePath), globalDir, linkMode, rtype)
+		return installer.InstallDir(filePath, customDir, globalDir, linkMode, rtype)
 	}
 	ext := strings.ToLower(filepath.Ext(filePath))
 	// .pmx/.pmd 一律视为 MMD 文件夹级安装（整个父目录）
 	if ext == ".pmx" || ext == ".pmd" {
 		dir := filepath.Dir(filePath)
-		return installer.InstallDir(dir, subDirTarget(rtype, globalDir, customDir, dir), globalDir, linkMode, rtype)
+		return installer.InstallDir(dir, customDir, globalDir, linkMode, rtype)
 	}
 	// .json 仅 ysm.json 视为 YSM 文件夹级入口（防 readme.json 等误判）
 	if ext == ".json" && types.IsYsmEntryJSON(filePath) {
 		dir := filepath.Dir(filePath)
-		return installer.InstallDir(dir, subDirTarget(rtype, globalDir, customDir, dir), globalDir, linkMode, rtype)
+		return installer.InstallDir(dir, customDir, globalDir, linkMode, rtype)
 	}
 	return installer.Install(filePath, customDir, globalDir, linkMode)
 }

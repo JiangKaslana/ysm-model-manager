@@ -60,7 +60,7 @@ export interface CtxShowPayload {
   count?: number;
   paths?: string[];
   rtype?: string;
-  /** MMD 用途子目录（全局 repo_subdir 选择，仅 mmd-skin 有值；阶段 1 打开文件夹精确化） */
+  /** MMD 用途子目录（全局 repo_subdir 选择，MMD 类型可选子目录；阶段 1 打开文件夹精确化） */
   subdir?: string;
 }
 

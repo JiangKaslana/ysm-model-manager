@@ -165,7 +165,7 @@ func TestInstallDir_Hardlink(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(srcDir, "model.pmx"), []byte("pmx"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := InstallDir(srcDir, custom, repo, "hardlink", "mmd-skin"); err != nil {
+	if err := InstallDir(srcDir, custom, repo, "hardlink", "EntityPlayer"); err != nil {
 		t.Fatalf("InstallDir(hardlink) = %v", err)
 	}
 	srcFile := filepath.Join(srcDir, "model.pmx")
@@ -207,8 +207,9 @@ func TestInstallDir_TypeFilter(t *testing.T) {
 	}
 }
 
-// TestInstallDir_MMDVmdWhiteList：mmd-skin 安装白名单须放行 vmd/vpd/json（模型随行动画/表情/槽位映射）
-// 守卫 ADR-092 第 2 层 A：玩家模型目录内 anims/*.vmd、*.vpd、animations.json 须能装进 3d-skin/EntityPlayer/
+// TestInstallDir_MMDVmdWhiteList：EntityPlayer 作为独立顶级类型，无 installExts 白名单——
+// 所有非可执行文件（pmx/vmd/vpd/json/png/txt）均放行；可执行文件（.exe）由黑名单拦截。
+// ADR-092 第 2 层 A：玩家模型目录内 anims/*.vmd、*.vpd、animations.json 须能装进 3d-skin/EntityPlayer/
 func TestInstallDir_MMDVmdWhiteList(t *testing.T) {
 	repo, custom, _, _ := setupTestDirs(t)
 
@@ -218,33 +219,33 @@ func TestInstallDir_MMDVmdWhiteList(t *testing.T) {
 	}
 	// 模型 + 随行动画/表情/槽位映射 + 干扰项
 	for f, data := range map[string]string{
-		"model.pmx":           "pmx",
-		"anims/walk.vmd":      "vmd",
-		"anims/idle.vmd":      "vmd",
-		"happy.vpd":           "vpd",
-		"animations.json":     `{"walk":"anims/walk.vmd"}`,
-		"model.png":           "png",
-		"notes.txt":           "no",
-		"evil.exe":            "MZ",
+		"model.pmx":       "pmx",
+		"anims/walk.vmd":  "vmd",
+		"anims/idle.vmd":  "vmd",
+		"happy.vpd":       "vpd",
+		"animations.json": `{"walk":"anims/walk.vmd"}`,
+		"model.png":       "png",
+		"notes.txt":       "no",
+		"evil.exe":        "MZ",
 	} {
 		if err := os.WriteFile(filepath.Join(srcDir, f), []byte(data), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := InstallDir(srcDir, custom, repo, "copy", "mmd-skin"); err != nil {
-		t.Fatalf("InstallDir(mmd-skin) = %v", err)
+	if err := InstallDir(srcDir, custom, repo, "copy", "EntityPlayer"); err != nil {
+		t.Fatalf("InstallDir(EntityPlayer) = %v", err)
 	}
 	base := filepath.Join(custom, filepath.Base(srcDir))
-	// 白名单内：vmd/vpd/json/png 全部安装
-	for _, want := range []string{"model.pmx", "anims/walk.vmd", "anims/idle.vmd", "happy.vpd", "animations.json", "model.png"} {
+	// EntityPlayer 无 installExts 配置（新架构各 MMD 类型独立），所有非可执行文件均放行
+	for _, want := range []string{"model.pmx", "anims/walk.vmd", "anims/idle.vmd", "happy.vpd", "animations.json", "model.png", "notes.txt"} {
 		if _, err := os.Stat(filepath.Join(base, want)); err != nil {
-			t.Errorf("mmd-skin 白名单应安装 %s: %v", want, err)
+			t.Errorf("EntityPlayer 应安装 %s: %v", want, err)
 		}
 	}
-	// 白名单外：txt/exe 被过滤
-	for _, deny := range []string{"notes.txt", "evil.exe"} {
+	// 可执行文件黑名单仍生效
+	for _, deny := range []string{"evil.exe"} {
 		if _, err := os.Stat(filepath.Join(base, deny)); err == nil {
-			t.Errorf("mmd-skin 白名单应排除 %s", deny)
+			t.Errorf("EntityPlayer 可执行文件黑名单应排除 %s", deny)
 		}
 	}
 }
@@ -363,7 +364,7 @@ func TestInstallDir_Copy(t *testing.T) {
 	}
 
 	dstDir := custom // InstallDir 会再下一层
-	err := InstallDir(srcDir, dstDir, repo, "copy", "mmd-skin")
+	err := InstallDir(srcDir, dstDir, repo, "copy", "EntityPlayer")
 	if err != nil {
 		t.Fatalf("InstallDir() = %v", err)
 	}
@@ -382,7 +383,7 @@ func TestInstallDir_Copy(t *testing.T) {
 
 func TestInstallDir_EmptySrc(t *testing.T) {
 	_, custom, _, _ := setupTestDirs(t)
-	err := InstallDir("", custom, "/tmp", "copy", "mmd-skin")
+	err := InstallDir("", custom, "/tmp", "copy", "EntityPlayer")
 	if err == nil {
 		t.Fatal("空源目录应返回错误")
 	}
@@ -390,7 +391,7 @@ func TestInstallDir_EmptySrc(t *testing.T) {
 
 func TestInstallDir_EmptyDst(t *testing.T) {
 	repo, _, _, _ := setupTestDirs(t)
-	err := InstallDir(repo, "", repo, "copy", "mmd-skin")
+	err := InstallDir(repo, "", repo, "copy", "EntityPlayer")
 	if err == nil {
 		t.Fatal("空目标目录应返回错误")
 	}
@@ -568,7 +569,7 @@ func TestInstallDir_DstExistedRollback(t *testing.T) {
 	}
 
 	// 场景 A：finalDst 本次新建 → 失败后应被回滚删除
-	if err := InstallDir(srcDir, custom, repo, "copy", "mmd-skin"); err == nil {
+	if err := InstallDir(srcDir, custom, repo, "copy", "EntityPlayer"); err == nil {
 		t.Fatal("srcDir 含不可读条目时安装应报错")
 	}
 	finalDst := filepath.Join(custom, "bad_model")
@@ -584,7 +585,7 @@ func TestInstallDir_DstExistedRollback(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("keep"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := InstallDir(srcDir, custom, repo, "copy", "mmd-skin"); err == nil {
+	if err := InstallDir(srcDir, custom, repo, "copy", "EntityPlayer"); err == nil {
 		t.Fatal("srcDir 含不可读条目时安装应报错")
 	}
 	if _, err := os.Stat(marker); err != nil {

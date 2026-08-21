@@ -9,7 +9,7 @@ import (
 	"ysm-model-manager/go/types"
 )
 
-// 文件级分支（非 ysm/mmd-skin）：resourcepack 支持 .zip
+// 文件级分支（非 ysm/EntityPlayer）：resourcepack 支持 .zip
 
 func TestPushResources_CopyMode(t *testing.T) {
 	base := t.TempDir()
@@ -235,7 +235,7 @@ func TestPushResources_FolderLevelMMD(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(globalDir, "mmdmodel"), 0755)
 	_ = os.WriteFile(filepath.Join(globalDir, "mmdmodel", "char.pmx"), []byte("pmx"), 0644)
 
-	count, err := PushResources("mmd-skin", globalDir, targetDir, "copy",
+	count, err := PushResources("EntityPlayer", globalDir, targetDir, "copy",
 		func(name, src, dst string, size int64, status, msg string) {})
 	if err != nil {
 		t.Fatalf("Push MMD 失败: %v", err)
@@ -328,7 +328,7 @@ func TestPullResources_MMDFolderLevel(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(targetDir, "mmd-pack"), 0755)
 	_ = os.WriteFile(filepath.Join(targetDir, "mmd-pack", "m.pmx"), []byte("m"), 0644)
 
-	count, err := PullResources("mmd-skin", globalDir, targetDir,
+	count, err := PullResources("EntityPlayer", globalDir, targetDir,
 		func(name, src, dst string, size int64, status, msg string) {})
 	if err != nil {
 		t.Fatalf("Pull MMD 失败: %v", err)

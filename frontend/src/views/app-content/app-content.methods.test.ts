@@ -1,4 +1,4 @@
-﻿// ===== app-content 方法级补测 =====
+// ===== app-content 方法级补测 =====
 // 覆盖：_render 各页面分支、_bindTabs 懒初始化（import/recycle/dedup/oldest）、
 // _initRepository subtab 切换、_initPreviewResize 拖拽宽度、_initInstances、
 // 事件订阅（repo:search-creator / lang:changed / package:selected）、
@@ -218,7 +218,7 @@ describe("_bindTabs — 仓库 tab 懒初始化", () => {  it("点击 recycle ta
 });
 
 describe("_initRepository — 订阅全局资源类型（ADR-092/094 收敛）", () => {
-  it("repo:rtype-changed → 重建文件树 root=mmd-skin（subdir 从 localStorage 读）", async () => {
+  it("repo:rtype-changed → 重建文件树 root=EntityPlayer（subdir 从 localStorage 读）", async () => {
     const el = mountContent();
     await sleep(50);
     el._current = "repository";
@@ -226,12 +226,12 @@ describe("_initRepository — 订阅全局资源类型（ADR-092/094 收敛）",
     const unsub = bus.on("repo:rtype-changed", () => {});
     try {
       localStorage.setItem("repo_subdir", "SceneModel");
-      bus.emit("repo:rtype-changed", "mmd-skin");
+      bus.emit("repo:rtype-changed", "EntityPlayer");
       await sleep(20);
       // repo_rtype 由导航栏 app-nav 切换器写入（仓库页只订阅重建树，不再落盘）
-      expect(localStorage.getItem("repo_rtype")).not.toBe("mmd-skin");
+      expect(localStorage.getItem("repo_rtype")).not.toBe("EntityPlayer");
       const tree = el.shadowRoot.getElementById("repo-tab-tree");
-      expect(tree?.innerHTML).toContain('root="mmd-skin"');
+      expect(tree?.innerHTML).toContain('root="EntityPlayer"');
       expect(tree?.innerHTML).toContain('subdir="SceneModel"');
     } finally {
       localStorage.removeItem("repo_subdir");

@@ -26,12 +26,12 @@ beforeEach(() => {
 describe("loadResourceRegistry", () => {
   it("成功加载 → 按 id 建 map 并缓存", async () => {
     loadMock.mockResolvedValue(
-      JSON.stringify({ resourceTypes: [{ id: "ysm" }, { id: "mmd-skin" }] }),
+      JSON.stringify({ resourceTypes: [{ id: "ysm" }, { id: "EntityPlayer" }] }),
     );
     const load = await freshLoad();
     const reg = await load();
     expect(reg["ysm"]).toBeTruthy();
-    expect(reg["mmd-skin"]).toBeTruthy();
+    expect(reg["EntityPlayer"]).toBeTruthy();
     // 缓存命中：第二次调用不触发 Go
     await load();
     expect(loadMock).toHaveBeenCalledTimes(1);

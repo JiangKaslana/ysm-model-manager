@@ -9,99 +9,9 @@ import (
 	"strings"
 )
 
-// ===== 子类层查询（ADR-104：大类→小类→防御检验三层架构）=====
-// 子目录集合单一事实来源 = resource_types.json 的 subtypes[]（mmd-skin 挂 8 项），
-// 取代旧硬编码 mmdSubDirList。scanner/instance/sync/resource_bindings/打开文件夹
-// 均经本层查询，新增子目录只改 JSON。
-
-// SubtypesFor 返回 rtype 的全部用途子类（注册表声明顺序，只读副本防调用方篡改）。
-// 非 subDirGrouping 类型 / 未知类型返回空切片。
-func SubtypesFor(rtype string) []ResourceSubType {
-	rt := RegistryType(rtype)
-	if rt == nil {
-		return nil
-	}
-	if len(rt.SubTypes) == 0 {
-		return nil
-	}
-	out := make([]ResourceSubType, len(rt.SubTypes))
-	copy(out, rt.SubTypes)
-	return out
-}
-
-// SubtypeNames 返回 rtype 的子目录规范名切片（如 mmd-skin 的 EntityPlayer/SceneModel/…）
-func SubtypeNames(rtype string) []string {
-	subs := SubtypesFor(rtype)
-	if len(subs) == 0 {
-		return nil
-	}
-	out := make([]string, len(subs))
-	for i, s := range subs {
-		out[i] = s.Name
-	}
-	return out
-}
-
-// SubtypeByDir 按目录名（大小写不敏感）查 rtype 的用途子类。
-// ADR-105 消费入口：importer/scanner 经物理路径定位 subtype 后取自描述字段
-// （extensions/zipEntries/preview）做内容校验；未知类型/未知子目录返回 nil。
-func SubtypeByDir(rtype, name string) *ResourceSubType {
-	for _, s := range SubtypesFor(rtype) {
-		if strings.EqualFold(s.Name, name) {
-			cp := s
-			return &cp
-		}
-	}
-	return nil
-}
-
-// IsSubDirName 判断目录名是否为 rtype 的用途子目录（大小写不敏感，ADR-104）。
-// 替代旧 IsMMDSubDir 的 rtype 感知判定：scanner/instance/sync 在已知 rtype
-// 上下文下用本函数；未知类型恒 false。
-// ⚠️ 热路径零分配：直接遍历 LoadRegistry 缓存（返回指针，无拷贝），
-// 不复用 SubtypesFor/RegistryType（各自深拷贝切片，sync 树遍历每目录
-// 调用一次时会累积分配）。
-func IsSubDirName(rtype, name string) bool {
-	reg := LoadRegistry()
-	for i := range reg.ResourceTypes {
-		if reg.ResourceTypes[i].ID != rtype {
-			continue
-		}
-		for _, s := range reg.ResourceTypes[i].SubTypes {
-			if strings.EqualFold(s.Name, name) {
-				return true
-			}
-		}
-		return false
-	}
-	return false
-}
-
-// MMDSubDirs 返回 MC-MMD 用途子目录规范名切片（只读副本，防调用方篡改）。
-// 从注册表 mmd-skin 的 subtypes 派生（ADR-104 取代硬编码 mmdSubDirList）。
-// EnsureStorageDirs 预建 subDirGrouping 类型时复用，确保整棵类型树（EntityPlayer/
-// SceneModel/CustomAnim/…）立即出现在磁盘，而非仅默认 storageSubDir。
-func MMDSubDirs() []string {
-	return SubtypeNames("mmd-skin")
-}
-
-// IsMMDSubDir 判断目录名是否为 MC-MMD 用途子目录（大小写不敏感）。
-// 兼容壳：从注册表 mmd-skin subtypes 派生（ADR-104），语义不变。
-// 新代码优先用 IsSubDirName(rtype, name)（rtype 感知）；本函数仅保留
-// 给无 rtype 上下文的调用方（如 scanner 根扫描按目录名识别）。
-func IsMMDSubDir(name string) bool {
-	return IsSubDirName("mmd-skin", name)
-}
-
-// IsSubDirGrouping 判断 rtype 是否支持子目录分组（ADR-096）：
-// storage 按用途子目录组织（如 mmd-skin 的 EntityPlayer/SceneModel/CustomAnim），
-// 同步保留层级、前端展示分批。消费注册表 subDirGrouping 字段，不硬编码 rtype。
-func IsSubDirGrouping(rtype string) bool {
-	if rt := RegistryType(rtype); rt != nil {
-		return rt.SubDirGrouping
-	}
-	return false
-}
+// ===== 已移除壳-叶架构（ADR-XXX 大统一）=====
+// SubtypesFor/SubtypeNames/SubtypeByDir/IsSubDirName/MMDSubDirs/IsMMDSubDir/IsSubDirGrouping
+// 全部移除。每个资源类型独立管自己的路径和扩展名，不再共享根目录或父子关系。
 
 // IsNestedModelDir 判断 rtype 是否有嵌套模型目录结构（ADR-095）：
 // 模型入口文件在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）。
@@ -126,13 +36,14 @@ const MaxImportSizeMB = MaxImportSize / (1024 * 1024)
 // `50 << 20` 为单一事实来源，任一包调整上限只改本常量。
 const MaxReadLimit = 50 << 20
 
-// AllExts 返回所有支持的扩展名（去重后）
+// AllExts 返回所有支持的扩展名（去重后）。
+// 壳类型（有 subtypes）自动派生并集——不再依赖手动维护的父级 extensions。
 func AllExts() []string {
 	reg := LoadRegistry()
 	seen := map[string]bool{}
 	var result []string
 	for _, rt := range reg.ResourceTypes {
-		for _, e := range rt.Extensions {
+		for _, e := range rt.EffectiveExtensions() {
 			if !seen[e] {
 				seen[e] = true
 				result = append(result, e)
@@ -160,12 +71,13 @@ func IsContainerExt(ext string) bool {
 	return low == ".zip" || low == ".7z"
 }
 
-// IsSupportedExt 检查扩展名是否被任何资源类型支持
+// IsSupportedExt 检查扩展名是否被任何资源类型支持。
+// 壳类型（有 subtypes）自动派生并集——不再依赖手动维护的父级 extensions。
 func IsSupportedExt(ext string) bool {
 	ext = strings.ToLower(ext)
 	reg := LoadRegistry()
 	for _, rt := range reg.ResourceTypes {
-		for _, e := range rt.Extensions {
+		for _, e := range rt.EffectiveExtensions() {
 			if strings.ToLower(e) == ext {
 				return true
 			}
@@ -238,11 +150,9 @@ func IsTypeModelFile(name, rtype string) bool {
 	return false
 }
 
-// ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配）
+// ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配）。
 // 注册表驱动：任何声明 hashable 的资源类型的扩展名均计入哈希。
-// 跳过非 YSM 类型的大文件（MMD/VRC 文件可达数十 MB，哈希全量太慢）；
-// 蓝图/投影文件（.nbt/.schematic/.litematic）通常较小，计入哈希以支持同步对比。
-// 新增类型只需在 resource_types.json 标 hashable:true，无需改本函数。
+// 壳类型（有 subtypes）自动派生并集——不再依赖手动维护的父级 extensions。
 func ShouldHashExt(ext string) bool {
 	ext = strings.ToLower(ext)
 	reg := LoadRegistry()
@@ -250,7 +160,7 @@ func ShouldHashExt(ext string) bool {
 		if !rt.Hashable {
 			continue
 		}
-		for _, e := range rt.Extensions {
+		for _, e := range rt.EffectiveExtensions() {
 			if strings.ToLower(e) == ext {
 				return true
 			}
@@ -307,31 +217,42 @@ func MatchZipEntry(name string) string {
 	return ""
 }
 
-// ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个）
+// ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个）。
+// 壳类型（有 subtypes）自动派生并集——不再依赖手动维护的父级 extensions。
 func ExtBelongsTo(ext string) []string {
 	ext = strings.ToLower(ext)
 	reg := LoadRegistry()
 	var result []string
 	for _, rt := range reg.ResourceTypes {
-		for _, e := range rt.Extensions {
+		for _, e := range rt.EffectiveExtensions() {
 			if strings.ToLower(e) == ext {
 				result = append(result, rt.ID)
+				break
 			}
 		}
 	}
 	return result
 }
 
-// SupportedExtsForType 返回指定资源类型的所有扩展名
+// SupportedExtsForType 返回指定资源类型的所有扩展名。
+// 当类型挂有 subtypes 时，自动派生所有子类型扩展名的并集（单一事实源：
+// subtype 自声明 extensions 驱动，父类型 extensions 字段仅作文档记录）。
+// 无 subtypes 时直接返回父类型 extensions（独立类型的常规路径）。
 func SupportedExtsForType(rtype string) []string {
-	if rt := RegistryType(rtype); rt != nil {
-		return append([]string(nil), rt.Extensions...)
+	rt := RegistryType(rtype)
+	if rt == nil {
+		rt = RegistryType(strings.ToLower(rtype))
 	}
-	// 小写兜底（向后兼容）
-	if rt := RegistryType(strings.ToLower(rtype)); rt != nil {
-		return append([]string(nil), rt.Extensions...)
+	if rt == nil {
+		return nil
 	}
-	return nil
+	return rt.EffectiveExtensions()
+}
+
+// SupportedExtsForSubtype 返回指定资源类型的扩展名。
+// 壳-叶架构已移除，subtype 参数忽略——保留签名为 Wails 绑定兼容。
+func SupportedExtsForSubtype(rtype, subtype string) []string {
+	return SupportedExtsForType(rtype)
 }
 
 // StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录
@@ -355,20 +276,12 @@ func GroupOf(rtype string) string {
 // GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：
 //   - 有 group：FilesRoot/{group}/{storageSubDir}
 //   - 无 group（向后兼容）：FilesRoot/{storageSubDir}（单级平铺，不强制迁移旧目录）
-//   - 软合并壳类型（vanilla-assets/mod-model/create-blueprint，ADR-105）无 storageSubDir，
-//     回退到 typeId；其实际存储由 subtypes 的 installDir/scanDir 处理，消费方（app.go
-//     LoadConfig 阶段）已通过 `if rt.StorageSubDir != ""` 跳过壳类型。
 //
 // 返回的是相对于 FilesRoot 的子路径（不含 FilesRoot 本身），调用方自行 Join。
 func GroupStorageRoot(rtype string) string {
 	rt := RegistryType(rtype)
 	if rt == nil {
 		return rtype
-	}
-	// subDirGrouping 类型（如 mmd-skin）的仓库侧在 group 根下平铺子目录，
-	// 不再通过 storageSubDir 多包一层（EntityPlayer 等 subtype 各自独立）。
-	if IsSubDirGrouping(rtype) {
-		return rt.Group
 	}
 	sub := rt.StorageSubDir
 	if sub == "" {

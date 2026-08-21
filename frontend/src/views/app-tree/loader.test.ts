@@ -220,13 +220,13 @@ describe("ADR-094 subdir 路由", () => {
   });
 
   it("ADR-094: mmd 子类型 subdir 从 group 根拼接（GetRepoRoot 已返回 group 根 /repo/mmd/）", async () => {
-    // 模拟 mmd-skin: GetRepoRoot 对 subDirGrouping 返回 group 根
+    // 模拟 EntityPlayer: GetRepoRoot 对 subDirGrouping 返回 group 根
     mocks.GetRepoRoot.mockResolvedValue("/repo/mmd/");
     mocks.ScanModelEntriesWithLabel.mockResolvedValue([
       { Name: "a.pmx", Path: "/repo/mmd/SceneModel/场景1/a.pmx", Size: 1, ModTime: 1 },
     ]);
     const { loadEntries } = await import("./loader.ts");
-    const r = await loadEntries("mmd-skin", "SceneModel");
+    const r = await loadEntries("EntityPlayer", "SceneModel");
     expect(mocks.ScanModelEntriesWithLabel).toHaveBeenCalledWith(
       "/repo/mmd/SceneModel",
       expect.any(String),
@@ -238,7 +238,7 @@ describe("ADR-094 subdir 路由", () => {
     mocks.GetRepoRoot.mockResolvedValue("/repo/mmd/");
     mocks.ScanModelEntriesWithLabel.mockResolvedValue([]);
     const { loadEntries } = await import("./loader.ts");
-    const r = await loadEntries("mmd-skin");
+    const r = await loadEntries("EntityPlayer");
     expect(mocks.ScanModelEntriesWithLabel).toHaveBeenCalledWith(
       "/repo/mmd/",
       expect.any(String),

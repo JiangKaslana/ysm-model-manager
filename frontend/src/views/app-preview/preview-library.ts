@@ -80,19 +80,21 @@ interface PreviewExtras extends Mount3DOptions {
   switchExternal?: (path: string) => Promise<void>;
 }
 
-/**
- * 按资源类型扫描候选模型路径（轻量：GetRepoRoot + ScanModelEntriesWithLabel，
+/** 按资源类型（+可选子类型）扫描候选模型路径（轻量：GetRepoRoot + ScanModelEntriesFiltered，
  * 复用文件树扫描缓存，不逐文件解析）。供 3D 内切换模型的类型 tab 点击时懒加载。
- * 注意：返回的 ModelEntry 字段为 Go 风格大写 Path（web-fs.ts scanWebModels 同构），
- * 且 label 需传 RESOURCE_TYPE_LABELS 短标签（对齐 loader.ts 调用约定）。
+ *
+ * 扩展名过滤由后端 ScanModelEntriesFiltered 完成——按 rtype+subtype 的 extensions 白名单
+ * 过滤，排除非模型文件（如 EntityPlayer 类型自动排除 .vmd/.vpd 动作文件）。
+ * @param rtype 资源类型 id（如 "EntityPlayer"）
+ * @param subtype 可选子类型 id（如 "EntityPlayer"），为空时用父类型扩展名
  */
-async function scanModelsByType(rtype: string): Promise<string[]> {
+async function scanModelsByType(rtype: string, subtype = ""): Promise<string[]> {
   try {
-    const { GetRepoRoot, ScanModelEntriesWithLabel } = await getApp();
+    const { GetRepoRoot, ScanModelEntriesFiltered } = await getApp();
     const root = await GetRepoRoot(rtype);
     if (!root) return [];
     const label = RESOURCE_TYPE_LABELS[rtype] || rtype;
-    const raw = (await ScanModelEntriesWithLabel(root, label)) as Array<{ Path?: string }>;
+    const raw = (await ScanModelEntriesFiltered(root, rtype, subtype, label)) as Array<{ Path?: string }>;
     return (raw || []).map((e) => e.Path).filter((p): p is string => !!p);
   } catch {
     return [];

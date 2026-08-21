@@ -147,7 +147,7 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 	isContainer := types.IsContainerExt(ext)
 
 	for _, rt := range registry.ResourceTypes {
-		extOK := hasExt(ext, rt.Extensions)
+		extOK := hasExt(ext, rt.EffectiveExtensions())
 		if !extOK {
 			continue // 准入语义与改动前完全一致
 		}

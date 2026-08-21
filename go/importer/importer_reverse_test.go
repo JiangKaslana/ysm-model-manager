@@ -311,7 +311,7 @@ func TestDirectoryCopyImporter_Import_Errors(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			msg := NewDirectoryCopy("mmd-skin").Import(tc.src, tc.dst)
+			msg := NewDirectoryCopy("EntityPlayer").Import(tc.src, tc.dst)
 			if msg == "" {
 				t.Fatalf("Import(%q, %q) 应报错，实际成功", tc.src, tc.dst)
 			}
@@ -342,7 +342,7 @@ func TestDirectoryCopyImporter_Import_Overwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	msg := NewDirectoryCopy("mmd-skin").Import(modelDir, dstDir)
+	msg := NewDirectoryCopy("EntityPlayer").Import(modelDir, dstDir)
 	if msg != "" {
 		t.Fatalf("覆盖导入应成功，实际: %q", msg)
 	}
@@ -364,7 +364,7 @@ func TestDirectoryCopyImporter_Import_EmptyDir(t *testing.T) {
 	if err := os.MkdirAll(empty, 0755); err != nil {
 		t.Fatal(err)
 	}
-	msg := NewDirectoryCopy("mmd-skin").Import(empty, dstDir)
+	msg := NewDirectoryCopy("EntityPlayer").Import(empty, dstDir)
 	if msg != "" {
 		t.Fatalf("空目录导入应成功，实际: %q", msg)
 	}
@@ -609,7 +609,7 @@ func TestImportFromBase64_RtypeRouting(t *testing.T) {
 		{"zip 内 pack.mcmeta → resourcepack", "p.zip", buildZip("pack.mcmeta"), "resourcepack", false},
 		// ADR-082 续：zip 无特征 → 空 rtype → 报错（识别不出就是识别不出，不假装 ysm）
 		{"zip 无特征 → 报错", "p.zip", buildZip("random.txt"), "", true},
-		{"pmx 扩展名 → mmd-skin", "model.pmx", []byte("pmx"), "mmd-skin", false},
+		{"pmx 扩展名 → EntityPlayer", "model.pmx", []byte("pmx"), "EntityPlayer", false},
 		{"vrm 扩展名 → vrchat-avatar", "model.vrm", []byte("vrm"), "vrchat-avatar", false},
 		{"nbt 扩展名 → blueprint", "build.nbt", []byte("nbt"), "blueprint", false},
 		{"litematic 扩展名 → litematic", "build.litematic", []byte("li"), "litematic", false},
@@ -784,7 +784,7 @@ func TestDirectoryCopyImporter_Import_Symlink(t *testing.T) {
 		t.Skip("环境不支持创建符号链接，跳过")
 	}
 	dst := t.TempDir()
-	imp := NewDirectoryCopy("mmd-skin")
+	imp := NewDirectoryCopy("EntityPlayer")
 	if msg := imp.Import(src, dst); msg != "" {
 		t.Fatalf("Import = %q", msg)
 	}

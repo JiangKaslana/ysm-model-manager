@@ -140,7 +140,7 @@ export function ClosePlazaWindow(): $CancellablePromise<void> {
 }
 
 /**
- * CopyModelFile 复制（root 传 FilesRoot 做路径安全校验）
+ * CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验，fail-closed）
  */
 export function CopyModelFile(src: string, dstDir: string): $CancellablePromise<void> {
     return $Call.ByID(2849400957, src, dstDir);
@@ -574,7 +574,7 @@ export function ImportModelFileTo(fileName: string, subpath: string, base64Data:
 
 /**
  * ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。
- * mmdSubdir: MMD 用途子目录名（如 SceneModel/CustomAnim），对应 MMD_SUBTYPES 的 subdir 字段。
+ * mmdSubdir: MMD 用途子目录名（如 SceneModel/CustomAnim），对应 MMD 独立顶级类型。
  * subpath: 文件在子目录内的相对路径（文件夹导入时保留层级）。
  */
 export function ImportModelFileToMMD(fileName: string, subpath: string, mmdSubdir: string, base64Data: string): $CancellablePromise<void> {
@@ -585,7 +585,7 @@ export function ImportModelFileToMMD(fileName: string, subpath: string, mmdSubdi
  * ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联）
  * folderName = 仓库文件夹名（模型名）；files = 相对路径 → base64 内容
  * rtype 按文件夹内容推断（非硬编码 ysm）：扫主文件扩展名经 ExtBelongsTo 判定，
- * 使 MMD 文件夹落到 mmd-skin 根而非 ysm 根（ADR-092 子类型落位根基）。
+ * 使 MMD 文件夹落到 EntityPlayer 根而非 ysm 根（ADR-092 子类型落位根基）。
  */
 export function ImportModelFolder(folderName: string, subpath: string, files: types$0.ImportFileItem[] | null): $CancellablePromise<void> {
     return $Call.ByID(100876983, folderName, subpath, files);
@@ -708,8 +708,9 @@ export function MergeWorkshopCreatorsFromJSON(jsonContent: string): $Cancellable
 }
 
 /**
- * ========== 模型移动/复制 ==========
- * MoveModelFile 移动（root 传 FilesRoot 做路径安全校验，对齐 CopyModelFile）
+ * MoveModelFile 移动（findMoveRoot 遍历所有已配置根做路径安全校验，
+ * 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug。
+ * fail-closed：无匹配根时拒绝，不向 fileops 传空 root 跳过校验）
  */
 export function MoveModelFile(src: string, dstDir: string): $CancellablePromise<void> {
     return $Call.ByID(1018628389, src, dstDir);
@@ -756,9 +757,7 @@ export function OpenInBrowser(url: string): $CancellablePromise<void> {
  *  3. 候选 D：FindInstDir 兜底扫描——接住 Sable-Schematics/hello_new_generation_core
  *     等非标准目录（与计数/列表链路同款逻辑，弥合「显示对但打开错」的裂口）。
  * 
- * subdir（阶段 1，MMD 子类型对齐）：全局选定 mmd 用途子目录（SceneModel/CustomAnim…）
- * 后，打开文件夹应精确到 3d-skin/{subdir} 而非 3d-skin 根——与扫描/同步链路的
- * 位置路由口径一致；非 MMD 类型 subdir 恒 ""，行为不变。
+ * subdir 参数：子类型独立后，subdir 不再参与路由；保留签名为 Wails 绑定兼容。
  * 
  * 全部落空回退 instDir。
  */
@@ -1021,6 +1020,21 @@ export function ScanLocalAuthors(): $CancellablePromise<types$0.WorkshopCreator[
  */
 export function ScanModelEntries(dir: string): $CancellablePromise<types$0.ModelEntry[] | null> {
     return $Call.ByID(963930825, dir);
+}
+
+/**
+ * ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions
+ * 注册表做类型特定扩展名过滤。前端预览菜单切换模型场景用——EntityPlayer 类型需排除
+ * .vmd/.vpd 动作文件，仅保留 .pmx/.pmd/.zip 模型/容器文件。
+ * 
+ * subtype 参数：按子类型隔离扩展名（如 EntityPlayer → 只有 .pmx/.pmd/.zip，不含 .vmd/.vpd）。
+ * subtype 为空时回退到父类型扩展名（壳类型场景）。
+ * 过滤逻辑：取 types.SupportedExtsForSubtype(rtype, subtype) 白名单，扩展名不匹配的条目直接丢弃。
+ * rtype 为空或注册表无匹配时退化为 ScanModelEntriesWithLabel 行为（不过滤）。
+ * 路径守卫与 ScanModelEntries/ScanModelEntriesWithLabel 完全一致。
+ */
+export function ScanModelEntriesFiltered(dir: string, rtype: string, subtype: string, label: string): $CancellablePromise<types$0.ModelEntry[] | null> {
+    return $Call.ByID(1678370138, dir, rtype, subtype, label);
 }
 
 /**

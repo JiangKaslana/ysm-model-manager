@@ -74,8 +74,8 @@ func TestIsTypeModelFile_YsmJsonScopedByType(t *testing.T) {
 	if IsTypeModelFile("ysm.json", "shaderpack") {
 		t.Error("shaderpack（扩展集仅 .zip）不应放行 ysm.json")
 	}
-	if IsTypeModelFile("ysm.json", "mmd-skin") {
-		t.Error("mmd-skin（扩展集无 .json）不应放行 ysm.json")
+	if IsTypeModelFile("ysm.json", "EntityPlayer") {
+		t.Error("EntityPlayer（扩展集无 .json）不应放行 ysm.json")
 	}
 	// 非 ysm.json 的其余 .json 仍一律不放行（ADR-038 D2 不变）
 	if IsTypeModelFile("geometry.json", "ysm") {
@@ -96,7 +96,7 @@ func TestFindInstDir_StandardDir(t *testing.T) {
 
 // TestShouldHashExt_PinnedList 钉住 ShouldHashExt 的哈希扩展名清单：
 // ShouldHashExt 已注册表驱动（resource_types.json 的 hashable 字段，ysm/
-// create-blueprint/litematic 标 true），本测试钉住其行为结果，防注册表
+// blueprint/litematic 标 true），本测试钉住其行为结果，防注册表
 // 扩展名调整时哈希口径意外漂移（大文件跳过哈希是性能决策）。
 func TestShouldHashExt_PinnedList(t *testing.T) {
 	hashable := []string{".ysm", ".zip", ".7z", ".json", ".nbt", ".schematic", ".litematic"}
@@ -380,7 +380,7 @@ func TestFindInstDir_YsmConfigRootJsonOnly(t *testing.T) {
 
 // ====== FindInstDir 容器扩展名弱证据收紧（ADR-104 续：.zip/.7z 剔除）======
 
-// TestFindInstDir_BlueprintZipOnlyNotHit 蓝图（create-blueprint）的 .zip 不作为
+// TestFindInstDir_BlueprintZipOnlyNotHit 蓝图（blueprint）的 .zip 不作为
 // 独立命中证据：整合包根下散落的 .zip（如模组安装包/资源包 zip）会被兜底扫描
 // 误判为蓝图目录。扩展集含非容器主证据（.nbt/.schematic）时剔除 .zip。
 func TestFindInstDir_BlueprintZipOnlyNotHit(t *testing.T) {
@@ -448,7 +448,7 @@ func TestFindInstDir_ResourcepackZipKept(t *testing.T) {
 // 时，纯容器类型（resourcepack）不得兜底扫描——容器证据无法区分其他目录里的 .zip，
 // 兜底会误命中 mods/缓存目录，导致侧边栏把整合包无关压缩包报成 extra（用户场景：
 // 整合包 resourcepacks 为空却扫出 30 个可拉取文件）。对照 StandardEmptyFallback
-// （create-blueprint 非容器类型仍需兜底 Sable-Schematics）。
+// （blueprint 非容器类型仍需兜底 Sable-Schematics）。
 func TestFindInstDir_ResourcepackStandardEmptyNoFallback(t *testing.T) {
 	versionDir := t.TempDir()
 	// 标准 resourcepacks 存在但为空

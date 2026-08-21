@@ -8,31 +8,32 @@ import resourceTypesJson from "../../../../resource_types.json" with { type: "js
 /** 资源类型 ID（键为类型标签，值为内部 ID） */
 export const RESOURCE_TYPES: Record<string, string> = {
   YSM: "ysm",
-  MMD: "mmd-skin",
+  MMD: "EntityPlayer",
   VRC: "vrchat-avatar",
   PACK: "resourcepack",
   SHADER: "shaderpack",
   BLUEPRINT: "blueprint",
-  CREATE_BLUEPRINT: "create-blueprint",
   LITEMATIC: "litematic",
   MAID: "maid-model",
-  MOD_MODEL: "mod-model", // ADR-105 软合并：模组模型合集壳（nav 展开 ysm/maid 子类型）
-  VANILLA_ASSETS: "vanilla-assets", // ADR-105 软合并：原版资源合集壳（nav 展开 资源包/光影包）
 };
 
 /** 资源类型显示标签（内部 ID → 中文名） */
 export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   ysm: "YSM 模型",
-  "mmd-skin": "MMD",
+  EntityPlayer: "PMX 模型",
+  SceneModel: "场景模型",
+  CustomAnim: "自定义动画",
+  CustomMorph: "自定义表情",
+  StageAnim: "舞台动画",
+  "mmd-shader": "MMD 着色器",
+  DefaultAnim: "默认动画",
+  DefaultMorph: "默认表情",
   "vrchat-avatar": "VRC",
   resourcepack: "资源包",
   shaderpack: "光影包",
-  "create-blueprint": "蓝图/结构",
-  "blueprint": "蓝图",
+  blueprint: "蓝图",
   litematic: "投影",
   "maid-model": "车万女仆",
-  "mod-model": "模组模型", // ADR-105 软合并合集壳（nav 展开用）
-  "vanilla-assets": "原版资源合集", // ADR-105 软合并合集壳（nav 展开用）
 };
 
 /** JSON 条目（缺 id 的脏数据过滤掉，防 undefined 混入类型列表） */
@@ -93,13 +94,10 @@ export function groupLabelOf(group: string): string {
 }
 
 /**
- * 大类(group) → 其下资源类型/子类型选项（ADR-092/094/105 双下拉导航第二级）。
- * 从 resource_types.json 派生：每个 group 下挂的资源类型即选项。
- * ADR-105 软合并通用化：rtype 若声明 subtypes（userImportable 过滤后非空），
- * 展开为子类型选项（如 create-blueprint → 蓝图/投影、mod-model → YSM/车万女仆）；
- * 被吸收的独立 rtype（name 出现在某父类型的 subtypes 中，如 litematic/ysm）不再单独平铺。
- * 子类型名匹配独立 rtype id → 选项 rtype 路由到独立 id、subdir=""（仓库侧 GetRepoRoot 精确）；
- * 否则（EntityPlayer/blueprint 等无独立 rtype）→ 保留父 id + subdir=子类型名。
+ * 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。
+ * 从 resource_types.json 派生：每个 group 下挂的资源类型即选项，平铺展示。
+ * 各 MMD 类型（EntityPlayer/SceneModel/CustomAnim 等）现为独立顶级类型，
+ * 直接在所属 group 下平铺，不再通过 subtype 展开。
  */
 export interface GroupTypeOption {
   rtype: string;
@@ -107,82 +105,14 @@ export interface GroupTypeOption {
   subdir: string;
 }
 export const GROUP_TYPE_OPTIONS: Record<string, GroupTypeOption[]> = (() => {
-  // 被 subtypes 吸收的独立 rtype 集合（软合并：litematic 是 create-blueprint 的 subtype）
-  const absorbed = new Set<string>();
-  // 全部独立 rtype id 集合（子类型名命中 → 路由到独立 id）
-  const independentIds = new Set<string>();
-  for (const t of registryEntries) {
-    if (t.id) independentIds.add(t.id.toLowerCase());
-    for (const s of t.subtypes ?? []) {
-      if (s.name) absorbed.add(s.name.toLowerCase());
-    }
-  }
   const result: Record<string, GroupTypeOption[]> = {};
   for (const t of registryEntries) {
     if (!t.id || !GROUP_OF[t.id]) continue;
     const g = GROUP_OF[t.id];
-    // 被吸收的独立 rtype → 不再单独平铺（由父类型 subtypes 展开呈现）
-    if (absorbed.has(t.id.toLowerCase())) continue;
-    const userSubs = (t.subtypes ?? []).filter((s) => s.userImportable !== false);
-    if (userSubs.length > 0) {
-      // 展开子类型选项
-      for (const s of userSubs) {
-        const name = s.name || "";
-        if (name && independentIds.has(name.toLowerCase())) {
-          // 子类型名匹配独立 rtype（软合并：litematic/ysm/maid-model）→ 路由到独立 id
-          (result[g] ||= []).push({ rtype: name, label: s.label || name, subdir: "" });
-        } else {
-          // 无独立 rtype（EntityPlayer/blueprint）→ 保留父 id + subdir=子类型名
-          // default 槽（EntityPlayer 等）也传子目录名——"路径定意图"：EntityPlayer
-          // 就是 mmd/EntityPlayer 目录，跟其他子目录一样对待（default 不特殊化）
-          (result[g] ||= []).push({
-            rtype: t.id,
-            label: s.label || name || "",
-            subdir: name,
-          });
-        }
-      }
-    } else {
-      (result[g] ||= []).push({
-        rtype: t.id,
-        label: RESOURCE_TYPE_LABELS[t.id] || GROUP_META[g]?.name || t.id,
-        subdir: "",
-      });
-    }
+    const label = RESOURCE_TYPE_LABELS[t.id] || GROUP_META[g]?.name || t.id;
+    (result[g] ||= []).push({ rtype: t.id, label, subdir: "" });
   }
   return result;
-})();
-
-/**
- * MMD 子类型目录选项（ADR-094 位置路由 + ADR-104/105 注册表派生）。
- * ⚠️ 大小写约定：subdir 字段恒驼峰原样（如 SceneModel/CustomAnim），消费方比较
- * 统一 toLowerCase()（renderer/app-nav 同款）。
- * 派生规则：从 resource_types.json 的 mmd-skin.subtypes[] 取 userImportable=true 项，
- * default 槽（EntityPlayer 等）也传子目录名——"路径定意图"路由统一，不特殊化；
- * icon 来自 subtype 自声明（ADR-105 零继承）。
- * DefaultAnim/DefaultMorph 系统内置目录 userImportable=false 天然不列出——
- * Go 端同步识别保留（SubtypeNames 全量），前端下拉仅用户可导入项。
- */
-export const MMD_SUBTYPES: Array<{ label: string; subdir: string; icon: string }> = (() => {
-  const mmd = (resourceTypesJson as {
-    resourceTypes?: Array<{
-      id?: string;
-      subtypes?: Array<{
-        name?: string;
-        label?: string;
-        icon?: string;
-        userImportable?: boolean;
-        default?: boolean;
-      }>;
-    }>;
-  }).resourceTypes?.find((t) => t.id === RESOURCE_TYPES.MMD);
-  return (mmd?.subtypes ?? [])
-    .filter((s) => s.userImportable !== false)
-    .map((s) => ({
-      label: s.label || s.name || "",
-      subdir: s.name || "",
-      icon: s.icon || "🎭",
-    }));
 })();
 
 /**
@@ -193,13 +123,8 @@ export const MMD_SUBTYPES: Array<{ label: string; subdir: string; icon: string }
 export function groupStorageRootOf(typeId: string): string {
   const group = GROUP_OF[typeId];
   const rt = (resourceTypesJson as {
-    resourceTypes?: Array<{ id?: string; storageSubDir?: string; subDirGrouping?: boolean }>;
+    resourceTypes?: Array<{ id?: string; storageSubDir?: string }>;
   }).resourceTypes?.find((t) => t.id === typeId);
-  // subDirGrouping 类型（mmd-skin）的仓库侧在 group 根下平铺子目录，
-  // 不再通过 storageSubDir 多包一层（EntityPlayer 等 subtype 各自独立）。
-  if (rt?.subDirGrouping && group) {
-    return group;
-  }
   const sub = rt?.storageSubDir || typeId;
   return group ? `${group}/${sub}` : sub;
 }

@@ -73,11 +73,10 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     unmountElement(el);
   });
 
-  it("mmd 组渲染 MMC-MMD 子目录细分选项（ADR-094 回归：组 id 比较修复）", async () => {
-    // 钉住：mmd 大类下拉应显示 MMD_SUBTYPES 全量 6 项（PMX 模型/场景/自定义动画/
-    // 自定义表情/舞台/着色器），而非退化为注册表内唯一类型 mmd-skin 的 1 项。
-    // 历史缺陷：buildSubtypeOptions 用 RESOURCE_TYPES.MMD（类型 id "mmd-skin"）
-    // 比较组 id "mmd" 恒 false，MMD_SUBTYPES 分支成死代码。
+  it("mmd 组渲染 MMD 独立顶级类型选项（ADR-094 回归：flat 架构平铺）", async () => {
+    // 钉住：mmd 大类下拉应显示所有 MMD 独立类型
+    // （EntityPlayer/SceneModel/CustomAnim/CustomMorph/StageAnim/mmd-shader/
+    //  DefaultAnim/DefaultMorph/vrchat-avatar 共 9 项）
     const el = mountCustomElement("app-nav");
     const root = el.shadowRoot!;
     await waitFor(() => getAllByTestId(root, "nav-item").length >= 6);
@@ -85,14 +84,15 @@ describe("app-nav（testid 钩子 + 导航交互）", () => {
     const subtypeSel = root.querySelector<HTMLSelectElement>("#nav-subtype-select");
     expect(groupSel).not.toBeNull();
     expect(subtypeSel).not.toBeNull();
-    // 切到 mmd 大类 → 子类型下拉应填充 MMD_SUBTYPES（含 vrchat-avatar 寄生共 7 项）
+    // 切到 mmd 大类 → 子类型下拉应填充 9 个独立类型
     groupSel!.value = "mmd";
     groupSel!.dispatchEvent(new Event("change"));
     const opts = subtypeSel!.querySelectorAll("option");
-    expect(opts.length).toBe(7);
-    expect((opts[0] as HTMLOptionElement).dataset.subdir).toBe("EntityPlayer"); // PMX 模型 (EntityPlayer)
-    expect((opts[1] as HTMLOptionElement).dataset.subdir).toBe("SceneModel");
-    expect((opts[5] as HTMLOptionElement).dataset.subdir).toBe("shader");
+    expect(opts.length).toBe(9);
+    // 所有选项 subdir 为空（flat 架构，各类型独立顶级）
+    for (const o of Array.from(opts)) {
+      expect((o as HTMLOptionElement).dataset.subdir).toBe("");
+    }
     // 其余大类不受影响：minecraft 组 = 资源包/光影包 2 项
     groupSel!.value = "minecraft";
     groupSel!.dispatchEvent(new Event("change"));

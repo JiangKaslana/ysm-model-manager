@@ -168,41 +168,44 @@ func TestListModelAuthors_EmptyEntries(t *testing.T) {
 	}
 }
 
-// TestScanEntries_MMDSubDir ADR-096：扫描 MMD group 根时，文件位于 mmdSubdirNames
-// 命中的用途子目录内 → SubDir 填子目录名；根下文件 / 非 MMD 类型恒为 ""。
+// TestScanEntries_MMDSubDir ADR-096：MMD 类型已独立为顶级类型（EntityPlayer/SceneModel/CustomAnim 等），
+// 不再通过 SubDir 字段区分子类型；所有文件 SubDir 恒为 ""。
+// 本测试验证各独立类型目录下的文件均能被正确扫描。
 func TestScanEntries_MMDSubDir(t *testing.T) {
 	dir := t.TempDir()
-	// 根下文件（EntityPlayer 默认）→ SubDir=""
+	// 根下文件（EntityPlayer 默认）
 	_ = os.WriteFile(filepath.Join(dir, "root.ysm"), []byte("x"), 0644)
-	// SceneModel 子目录 → SubDir="SceneModel"
+	// SceneModel 子目录（独立类型）
 	sceneDir := filepath.Join(dir, "SceneModel")
 	_ = os.MkdirAll(sceneDir, 0755)
 	_ = os.WriteFile(filepath.Join(sceneDir, "scene.ysm"), []byte("x"), 0644)
-	// CustomAnim 子目录 → SubDir="CustomAnim"
+	// CustomAnim 子目录（独立类型）
 	animDir := filepath.Join(dir, "CustomAnim")
 	_ = os.MkdirAll(animDir, 0755)
 	_ = os.WriteFile(filepath.Join(animDir, "anim.ysm"), []byte("x"), 0644)
-	// 非 MMD 子目录名（不命中 mmdSubdirNames）→ SubDir=""
+	// 其他子目录
 	otherDir := filepath.Join(dir, "OtherDir")
 	_ = os.MkdirAll(otherDir, 0755)
 	_ = os.WriteFile(filepath.Join(otherDir, "other.ysm"), []byte("x"), 0644)
 
 	entries := ScanEntries(dir)
-	got := map[string]string{}
+	if len(entries) != 4 {
+		t.Fatalf("应扫到 4 个文件, got %d", len(entries))
+	}
+	// 新架构：SubDir 不再由扫描器填充，所有条目恒为 ""
 	for _, e := range entries {
-		got[e.Name] = e.SubDir
+		if e.SubDir != "" {
+			t.Errorf("文件 %s SubDir 应为空（新架构不再填充）, got %q", e.Name, e.SubDir)
+		}
 	}
-	if got["root.ysm"] != "" {
-		t.Errorf("根下文件 SubDir 应为空, got %q", got["root.ysm"])
+	names := map[string]bool{}
+	for _, e := range entries {
+		names[e.Name] = true
 	}
-	if got["scene.ysm"] != "SceneModel" {
-		t.Errorf("SceneModel 下文件 SubDir 应为 SceneModel, got %q", got["scene.ysm"])
-	}
-	if got["anim.ysm"] != "CustomAnim" {
-		t.Errorf("CustomAnim 下文件 SubDir 应为 CustomAnim, got %q", got["anim.ysm"])
-	}
-	if got["other.ysm"] != "" {
-		t.Errorf("非 MMD 子目录文件 SubDir 应为空, got %q", got["other.ysm"])
+	for _, want := range []string{"root.ysm", "scene.ysm", "anim.ysm", "other.ysm"} {
+		if !names[want] {
+			t.Errorf("未扫到期望文件 %s", want)
+		}
 	}
 }
 

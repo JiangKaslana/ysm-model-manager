@@ -56,15 +56,15 @@ describe("browserAdapter — Phase 2 模型库（IndexedDB）", () => {
   });
 
   it("非 YSM 类型主文件可识别（ADR-066 识别层：.nbt 蓝图 / .litematic 投影 / .pmx MMD）", async () => {
-    await importWebFiles([new File([enc.encode("NBT")], "建筑.nbt")], "create-blueprint");
+    await importWebFiles([new File([enc.encode("NBT")], "建筑.nbt")], "blueprint");
     await importWebFiles([new File([enc.encode("LTM")], "投影.litematic")], "litematic");
-    await importWebFiles([new File([enc.encode("PMX")], "角色.pmx")], "mmd-skin");
+    await importWebFiles([new File([enc.encode("PMX")], "角色.pmx")], "EntityPlayer");
     // 各类型目录都能扫到主文件条目（原实现只认 .ysm/.zip/ysm.json，非 YSM 全不显示）
-    const bp = (await browserAdapter.ScanModelEntries("/web/create-blueprint")) as Array<{ Name: string }>;
+    const bp = (await browserAdapter.ScanModelEntries("/web/blueprint")) as Array<{ Name: string }>;
     expect(bp.map((e) => e.Name)).toContain("建筑.nbt");
     const lt = (await browserAdapter.ScanModelEntries("/web/litematic")) as Array<{ Name: string }>;
     expect(lt.map((e) => e.Name)).toContain("投影.litematic");
-    const mmd = (await browserAdapter.ScanModelEntries("/web/mmd-skin")) as Array<{ Name: string }>;
+    const mmd = (await browserAdapter.ScanModelEntries("/web/EntityPlayer")) as Array<{ Name: string }>;
     expect(mmd.map((e) => e.Name)).toContain("角色.pmx");
     // .ban 禁用模型导入层仍拒绝（不剥后缀当主文件）
     const r = await importWebFiles([new File([enc.encode("X")], "禁用.ysm.ban")], "ysm");
@@ -88,10 +88,10 @@ describe("browserAdapter — Phase 2 模型库（IndexedDB）", () => {
   });
 
   it("DetectResourceType：扩展名直判（单归属）+ 已导入模型判定（ADR-066 web 识别层）", async () => {
-    // .nbt 单归属 blueprint 叶（dd5b7610 壳正名后识别归叶；create-blueprint 壳走 zipEntries 指纹）
+    // .nbt 单归属 blueprint（flat 架构：blueprint 独立顶级类型）
     expect(await browserAdapter.DetectResourceType("/web/blueprint/建筑/建筑.nbt")).toBe("blueprint");
     expect(await browserAdapter.DetectResourceType("/web/litematic/投影/a.litematic")).toBe("litematic");
-    expect(await browserAdapter.DetectResourceType("/web/mmd-skin/角色/a.pmx")).toBe("mmd-skin");
+    expect(await browserAdapter.DetectResourceType("/web/EntityPlayer/角色/a.pmx")).toBe("EntityPlayer");
     expect(await browserAdapter.DetectResourceType("/web/vrchat-avatar/角色/a.vrm")).toBe("vrchat-avatar");
     expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.ysm")).toBe("ysm");
     expect(await browserAdapter.DetectResourceType("/web/ysm/模型/a.png")).toBe(""); // 辅助文件无类型

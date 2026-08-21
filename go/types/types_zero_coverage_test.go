@@ -36,9 +36,9 @@ func TestIsDirLevelSync(t *testing.T) {
 		{"resourcepack", false},
 		{"shaderpack", false},
 		{"ysm", true},
-		{"create-blueprint", true},
+		{"blueprint", true},
 		{"litematic", true},
-		{"mmd-skin", true},
+		{"EntityPlayer", true},
 		{"maid-model", true},
 		{"vrchat-avatar", false},
 		{"unknown", false},
@@ -61,10 +61,10 @@ func TestIsScanInstance(t *testing.T) {
 	}{
 		{"resourcepack", true},
 		{"shaderpack", true},
-		{"create-blueprint", true},
+		{"blueprint", true},
 		{"ysm", false},
 		{"litematic", false},
-		{"mmd-skin", false},
+		{"EntityPlayer", false},
 		{"vrchat-avatar", false},
 		{"unknown", false},
 		{"", false},
@@ -80,7 +80,6 @@ func TestIsScanInstance(t *testing.T) {
 }
 
 func TestInstallExtsFor(t *testing.T) {
-	// ysm 类型安装扩展名
 	exts := InstallExtsFor("ysm")
 	if len(exts) != 4 {
 		t.Fatalf("InstallExtsFor('ysm') 长度 = %d, 期望 4", len(exts))
@@ -95,33 +94,29 @@ func TestInstallExtsFor(t *testing.T) {
 		}
 	}
 
-	// mmd-skin 类型
-	exts = InstallExtsFor("mmd-skin")
+	exts = InstallExtsFor("maid-model")
 	if len(exts) == 0 {
-		t.Fatal("InstallExtsFor('mmd-skin') = 空")
+		t.Fatal("InstallExtsFor('maid-model') = 空")
 	}
-	foundPmx := false
+	foundPng := false
 	for _, e := range exts {
-		if e == ".pmx" {
-			foundPmx = true
+		if e == ".png" {
+			foundPng = true
 			break
 		}
 	}
-	if !foundPmx {
-		t.Errorf("InstallExtsFor('mmd-skin') 缺少 .pmx: %v", exts)
+	if !foundPng {
+		t.Errorf("InstallExtsFor('maid-model') 缺少 .png: %v", exts)
 	}
 
-	// 未知类型返回 nil
 	if exts := InstallExtsFor("unknown"); exts != nil {
 		t.Errorf("InstallExtsFor('unknown') = %v, 期望 nil", exts)
 	}
 
-	// 空类型返回 nil
 	if exts := InstallExtsFor(""); exts != nil {
 		t.Errorf("InstallExtsFor('') = %v, 期望 nil", exts)
 	}
 
-	// 返回的切片应为独立副本（修改不影响注册表）
 	exts = InstallExtsFor("ysm")
 	if len(exts) > 0 {
 		exts[0] = ".hacked"

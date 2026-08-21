@@ -216,7 +216,7 @@ func TestListModelAuthors_BracketEdges(t *testing.T) {
 func TestScanLocalAuthors(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, "[作者C]模型.ysm"), []byte("x"), 0644)
-	creators := ScanLocalAuthors(map[string]string{"ysm": dir, "mmd-skin": ""})
+	creators := ScanLocalAuthors(map[string]string{"ysm": dir, "EntityPlayer": ""})
 	if len(creators) != 1 {
 		t.Fatalf("应 1 个创作者，实际 %d", len(creators))
 	}

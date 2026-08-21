@@ -386,7 +386,7 @@ describe("菜单项点击行为", () => {
   });
 
   // P0 修复：多类型 rtype 菜单行为测试——防 fallback 到 YSM
-  it("instance MMD 打开文件夹 → 透传 mmd-skin rtype", async () => {
+  it("instance MMD 打开文件夹 → 透传 EntityPlayer rtype", async () => {
     const payload = showMenu("instance", {
       ...payloadCtx("instance"),
       rtype: RESOURCE_TYPES.MMD,

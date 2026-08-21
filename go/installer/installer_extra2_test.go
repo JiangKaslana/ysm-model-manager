@@ -177,7 +177,7 @@ func TestInstallDirRecursive_NestedSubdir(t *testing.T) {
 		t.Fatal(err)
 	}
 	finalDst := filepath.Join(mcCustomDir(t), "model")
-	if err := installDirRecursive(srcDir, finalDst, "copy", "mmd-skin", ""); err != nil {
+	if err := installDirRecursive(srcDir, finalDst, "copy", "EntityPlayer", ""); err != nil {
 		t.Fatalf("installDirRecursive = %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(finalDst, "root.pmx")); err != nil {
@@ -186,8 +186,9 @@ func TestInstallDirRecursive_NestedSubdir(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(finalDst, "tex", "tex.png")); err != nil {
 		t.Fatal("嵌套子目录文件应被安装")
 	}
-	if _, err := os.Stat(filepath.Join(finalDst, "ignore.txt")); err == nil {
-		t.Fatal("txt 应被 mmd-skin 类型过滤排除")
+	// EntityPlayer 无 installExts，所有非可执行文件均放行（含 .txt）
+	if _, err := os.Stat(filepath.Join(finalDst, "ignore.txt")); err != nil {
+		t.Fatalf("EntityPlayer 无 installExts 限制，.txt 也应放行: %v", err)
 	}
 }
 

@@ -1,6 +1,6 @@
 // ===== CustomMorph 同类型候选列表（只扫 CustomMorph 目录的 VPD 文件）=====
 // 与 mmd-siblings.ts / scene-siblings.ts 同款路径构造：
-//   GetRepoRoot("mmd-skin") → {FilesRoot}/mmd/EntityPlayer
+//   GetRepoRoot("EntityPlayer") → {FilesRoot}/mmd/EntityPlayer
 //   ↑ 退一级到 group 根 → {FilesRoot}/mmd
 //   + /CustomMorph → {FilesRoot}/mmd/CustomMorph
 import { getApp } from "../../backend/app.ts";

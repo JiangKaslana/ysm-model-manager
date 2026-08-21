@@ -28,95 +28,38 @@ type ResourceTypeRegistry struct {
 
 // ResourceType 一种受支持的资源类型定义
 type ResourceType struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	Icon           string            `json:"icon"`
-	Group          string            `json:"group"`                // 所属分组（ADR-092）：minecraft / minecraft-mod / mmd / vrm / other
-	GroupLabel     string            `json:"groupLabel,omitempty"` // 分组显示名，仅该组首个类型携带（消除双写）
-	GroupIcon      string            `json:"groupIcon,omitempty"`  // 分组图标，同上
-	Extensions     []string          `json:"extensions"`
-	StorageSubDir  string            `json:"storageSubDir"`
-	InstallDir     string            `json:"installDir"`
-	ScanDir        string            `json:"scanDir"`
-	InstanceLevel  bool              `json:"instanceLevel"`
-	Preview        string            `json:"preview"`            // "3d" / "thumbnail" / "none"
-	Detector       string            `json:"detector"`           // "ysm" / "mcmeta" / "shader" / "zipentry" / "extension"
-	ConfigField    string            `json:"configField"`        // AppConfig 字段名（如 YsmRoot）
-	ConfigFallback string            `json:"configFallback"`     // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
-	IsDir          bool              `json:"isDir"`              // 目录型资源（删除/同步整目录）
-	Hashable       bool              `json:"hashable"`           // 扩展名参与 SHA256 哈希（ShouldHashExt 注册表驱动）
-	DirLevelSync   bool              `json:"dirLevelSync"`       // 文件夹级资源同步（sync.SyncResourcesDirLevel）
-	ScanInstance   bool              `json:"scanInstance"`       // instance 视图额外扫描整合包目录（非模型类型兜底）
-	InstallExts    []string          `json:"installExts"`        // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
-	ZipEntries     []ZipEntryMatch   `json:"zipEntries"`         // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
-	SubDirGrouping bool              `json:"subDirGrouping"`     // 子目录分组（ADR-096）：storage 按用途子目录组织（如 mmd-skin 的 EntityPlayer/SceneModel），同步保留层级、展示分批
-	SubTypes       []ResourceSubType `json:"subtypes,omitempty"` // 子类层（ADR-104）：小类映射整合包路径的注册表声明；subDirGrouping 类型必填
-	NestedModelDir bool              `json:"nestedModelDir"`     // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Icon           string          `json:"icon"`
+	Group          string          `json:"group"`                // 所属分组（ADR-092）：minecraft / minecraft-mod / mmd / vrm / other
+	GroupLabel     string          `json:"groupLabel,omitempty"` // 分组显示名，仅该组首个类型携带（消除双写）
+	GroupIcon      string          `json:"groupIcon,omitempty"`  // 分组图标，同上
+	Extensions     []string        `json:"extensions"`
+	StorageSubDir  string          `json:"storageSubDir"`
+	InstallDir     string          `json:"installDir"`
+	ScanDir        string          `json:"scanDir"`
+	InstanceLevel  bool            `json:"instanceLevel"`
+	Preview        string          `json:"preview"`        // "3d" / "thumbnail" / "none"
+	Detector       string          `json:"detector"`       // "ysm" / "mcmeta" / "shader" / "zipentry" / "extension"
+	ConfigField    string          `json:"configField"`    // AppConfig 字段名（如 YsmRoot）
+	ConfigFallback string          `json:"configFallback"` // AppConfig 回退字段名（如 VrcRoot→MmdRoot）
+	IsDir          bool            `json:"isDir"`          // 目录型资源（删除/同步整目录）
+	Hashable       bool            `json:"hashable"`       // 扩展名参与 SHA256 哈希（ShouldHashExt 注册表驱动）
+	DirLevelSync   bool            `json:"dirLevelSync"`   // 文件夹级资源同步（sync.SyncResourcesDirLevel）
+	ScanInstance   bool            `json:"scanInstance"`   // instance 视图额外扫描整合包目录（非模型类型兜底）
+	InstallExts    []string        `json:"installExts"`    // 安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外）
+	ZipEntries     []ZipEntryMatch `json:"zipEntries"`     // ZIP 内容特征条目（importer.DetectZipType 注册表驱动）
+	NestedModelDir bool            `json:"nestedModelDir"` // 嵌套模型目录（ADR-095）：模型入口在 assets/<namespace>/ 下（如 maid-model 的 maid_model.json）
 }
 
-// ResourceSubType 资源类型的用途子类（ADR-104/105：大类→小类→防御检验三层架构）。
-// 小类是映射整合包路径的单元（如 mmd-skin 的 3d-skin/SceneModel），
-// userImportable=false 表示系统内置目录（DefaultAnim/DefaultMorph 模组自动生成，
-// 同步需识别保留但前端导入下拉不列出）；default=true 表示默认槽（EntityPlayer）。
-//
-// ADR-105 零继承自描述：每个 subtype 自带 icon/extensions/detector/zipEntries/preview，
-// 识别链路 = 物理路径定位 subtype + subtype 自声明内容校验，绝不回溯父类型补全。
-// 缺字段 = 无该能力（如 shader preview="none" 表示不可 3D 预览）。
-type ResourceSubType struct {
-	Name           string          `json:"name"`                 // 子目录名（PascalCase 规范名，如 SceneModel/shader）
-	Label          string          `json:"label"`                // 显示名（前端下拉/分组用）
-	Icon           string          `json:"icon"`                 // 图标（ADR-105 自声明，如 🧍/🎬）
-	UserImportable bool            `json:"userImportable"`       // 用户可导入（false=系统内置目录）
-	Default        bool            `json:"default"`              // 默认槽（根下文件归属，如 EntityPlayer）
-	Extensions     []string        `json:"extensions"`           // 该子类接受的扩展名（ADR-105 自声明）
-	Detector       string          `json:"detector"`             // 识别器（ysm/mcmeta/shader/zipentry/extension，ADR-105 自声明）
-	ZipEntries     []ZipEntryMatch `json:"zipEntries"`           // 内容指纹（导入校验用，ADR-105 自声明）
-	Preview        string          `json:"preview"`              // 预览能力（"3d"/"thumbnail"/"none"，ADR-105 自声明）
-	InstallDir     string          `json:"installDir,omitempty"` // 小类整合包存储目录模板（如 3d-skin/SceneModel/；空=无独立目录）
-	ScanDir        string          `json:"scanDir,omitempty"`    // 小类整合包扫描目录（如 3d-skin/SceneModel；空=无独立目录）
-}
-
-// AcceptsExt 判断文件扩展名（含点、大小写不敏感）是否被本子类接受。
-// ADR-105 零继承内容校验：仅本子类自声明 extensions 参与判定——
-// CustomAnim.AcceptsExt(".pmx") = false（角色模型不该进动画目录），
-// 与父类型 mmd-skin 的扩展集无关。
-func (st *ResourceSubType) AcceptsExt(ext string) bool {
-	ext = strings.ToLower(ext)
-	for _, e := range st.Extensions {
-		if strings.ToLower(e) == ext {
-			return true
-		}
+// EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。
+// 单一事实源——代码应通过此函数获取扩展名，而非直接读 rt.Extensions。
+func (rt *ResourceType) EffectiveExtensions() []string {
+	out := make([]string, len(rt.Extensions))
+	for i, e := range rt.Extensions {
+		out[i] = strings.ToLower(e)
 	}
-	return false
-}
-
-// MatchZipEntry 检测 ZIP 条目名是否命中本子类的特征条目（小写不敏感）。
-// ADR-105 零继承：仅本子类自声明 zipEntries 参与匹配，不合并父类型指纹——
-// CustomAnim 命中 walk.vmd 不命中 hero.pmx（父 mmd-skin 的 .pmx 指纹不继承）。
-func (st *ResourceSubType) MatchZipEntry(name string) bool {
-	low := strings.ToLower(name)
-	segs := strings.Split(strings.ReplaceAll(low, "\\", "/"), "/")
-	for i := range segs {
-		seg := strings.Join(segs[i:], "/")
-		for _, m := range st.ZipEntries {
-			mlow := strings.ToLower(m.Name)
-			switch m.Match {
-			case "prefix":
-				if strings.HasPrefix(seg, mlow) {
-					return true
-				}
-			case "suffix":
-				if strings.HasSuffix(seg, mlow) {
-					return true
-				}
-			default: // "exact"
-				if seg == mlow {
-					return true
-				}
-			}
-		}
-	}
-	return false
+	return out
 }
 
 // ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名
@@ -233,11 +176,8 @@ func LoadRegistry() *ResourceTypeRegistry {
 			reg.ResourceTypes = deduped
 		}
 	}
-	// P0 注册表 schema 守卫（ADR-105 续）：壳/叶职责分离 + 字段唯一归属。
-	// 壳类型（len(SubTypes) > 0）禁止携带 storageSubDir/configField——
-	// 壳只管分组，存储路径与配置字段归叶类型独占。守卫无条件执行（单条目注册表
-	// 同样受检），违反则逐条 log.Printf 告警、不阻断加载（避免生产环境因历史债
-	// 直接瘫痪）；守卫测试直接断言 validateRegistrySchema 的返回值。
+	// P0 注册表 schema 守卫：字段唯一归属 + 引用完整性。
+	// 违反则逐条 log.Printf 告警、不阻断加载（避免生产环境因历史债直接瘫痪）。
 	for _, v := range validateRegistrySchema(&reg) {
 		log.Printf("[types][WARN] %s", v)
 	}
@@ -245,16 +185,10 @@ func LoadRegistry() *ResourceTypeRegistry {
 	return registry
 }
 
-// validateRegistrySchema 注册表 schema 守卫（P0）：
-//  1. 装饰壳类型（有 subtypes 且非 subDirGrouping）字段白名单——壳只管分组/识别/展示，
-//     落盘与配置字段（storageSubDir/configField/configFallback/isDir/hashable/
-//     installExts/nestedModelDir）归叶类型独占。豁免：installDir/scanDir（整合包
-//     实例扫描按壳聚合消费，browser-adapter 契约钉死 create-blueprint→schematics）、
-//     instanceLevel（schema 必填）、scanInstance/dirLevelSync（遗留标记，消费者见
-//     ADR-064 与同步管理器按壳读取）。
-//  2. storageSubDir 全局唯一——重复值意味着两个叶类型落盘到同一路径，存储冲突
-//  3. configField 全局唯一——重复值意味着两个类型声明同一配置槽，查询歧义
-//  4. configFallback 引用完整性——回退字段必须指向已声明的 configField，消除孤儿回退
+// validateRegistrySchema 注册表 schema 守卫：
+//  1. storageSubDir 全局唯一——重复值意味着两个类型落盘到同一路径，存储冲突
+//  2. configField 全局唯一——重复值意味着两个类型声明同一配置槽，查询歧义
+//  3. configFallback 引用完整性——回退字段必须指向已声明的 configField，消除孤儿回退
 //
 // 返回违规描述列表（空 = 合规）。守卫本身不落日志、不改数据：
 // LoadRegistry 侧对每条违规 log.Printf 告警（WARN 级，不阻断——生产注册表可能
@@ -263,41 +197,7 @@ func LoadRegistry() *ResourceTypeRegistry {
 func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
 	var violations []string
 
-	// 守卫 1：装饰壳类型（有 subtypes 且非 subDirGrouping）字段白名单
-	for _, rt := range reg.ResourceTypes {
-		if len(rt.SubTypes) > 0 && !rt.SubDirGrouping {
-			if rt.StorageSubDir != "" {
-				violations = append(violations, fmt.Sprintf(
-					"壳类型 %s 越权携带 storageSubDir=%q——壳不应声明存储路径", rt.ID, rt.StorageSubDir))
-			}
-			if rt.ConfigField != "" {
-				violations = append(violations, fmt.Sprintf(
-					"壳类型 %s 越权携带 configField=%q——壳不应声明配置字段", rt.ID, rt.ConfigField))
-			}
-			if rt.ConfigFallback != "" {
-				violations = append(violations, fmt.Sprintf(
-					"壳类型 %s 越权携带 configFallback=%q——回退链归叶类型", rt.ID, rt.ConfigFallback))
-			}
-			if rt.IsDir {
-				violations = append(violations, fmt.Sprintf(
-					"壳类型 %s 越权携带 isDir=true——目录型落盘归叶类型", rt.ID))
-			}
-			if rt.Hashable {
-				violations = append(violations, fmt.Sprintf(
-					"壳类型 %s 越权携带 hashable=true——哈希策略归叶类型", rt.ID))
-			}
-			if len(rt.InstallExts) > 0 {
-				violations = append(violations, fmt.Sprintf(
-					"壳类型 %s 越权携带 installExts=%v——安装白名单归叶类型", rt.ID, rt.InstallExts))
-			}
-			if rt.NestedModelDir {
-				violations = append(violations, fmt.Sprintf(
-					"壳类型 %s 越权携带 nestedModelDir=true——嵌套模型目录归叶类型", rt.ID))
-			}
-		}
-	}
-
-	// 守卫 2：storageSubDir 全局唯一
+	// 守卫 1：storageSubDir 全局唯一
 	subDirOwners := make(map[string][]string) // storageSubDir → []typeID
 	for _, rt := range reg.ResourceTypes {
 		if rt.StorageSubDir != "" {
@@ -311,7 +211,7 @@ func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
 		}
 	}
 
-	// 守卫 3：configField 全局唯一
+	// 守卫 2：configField 全局唯一
 	configOwners := make(map[string][]string) // configField → []typeID
 	for _, rt := range reg.ResourceTypes {
 		if rt.ConfigField != "" {
@@ -325,7 +225,7 @@ func validateRegistrySchema(reg *ResourceTypeRegistry) []string {
 		}
 	}
 
-	// 守卫 4：configFallback 必须指向已声明的 configField
+	// 守卫 3：configFallback 必须指向已声明的 configField
 	declaredFields := make(map[string]bool, len(reg.ResourceTypes))
 	for _, rt := range reg.ResourceTypes {
 		if rt.ConfigField != "" {
@@ -387,12 +287,6 @@ func RegistryType(id string) *ResourceType {
 			rt.Extensions = append([]string(nil), rt.Extensions...)
 			rt.InstallExts = append([]string(nil), rt.InstallExts...)
 			rt.ZipEntries = append([]ZipEntryMatch(nil), rt.ZipEntries...)
-			// SubTypes 深拷贝（含内部切片字段）
-			rt.SubTypes = append([]ResourceSubType(nil), rt.SubTypes...)
-			for j := range rt.SubTypes {
-				rt.SubTypes[j].Extensions = append([]string(nil), rt.SubTypes[j].Extensions...)
-				rt.SubTypes[j].ZipEntries = append([]ZipEntryMatch(nil), rt.SubTypes[j].ZipEntries...)
-			}
 			return &rt
 		}
 	}

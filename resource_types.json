@@ -1,54 +1,13 @@
 {
   "resourceTypes": [
     {
-      "id": "vanilla-assets",
-      "name": "原版资源合集",
+      "id": "resourcepack",
+      "name": "资源包",
       "icon": "🎨",
       "group": "minecraft",
       "groupLabel": "Minecraft 原版",
       "groupIcon": "⛏️",
       "extensions": [".zip", ".7z"],
-      "installDir": "resourcepacks/",
-      "scanDir": "resourcepacks",
-      "instanceLevel": false,
-      "preview": "thumbnail",
-      "detector": "zipentry",
-      "zipEntries": [{ "name": ".vanilla-assets", "match": "suffix" }],
-      "subtypes": [
-        {
-          "name": "resourcepack", "label": "资源包", "icon": "🎨",
-          "userImportable": true, "default": true,
-          "extensions": [".zip", ".7z"],
-          "detector": "mcmeta",
-          "zipEntries": [{ "name": "pack.mcmeta", "match": "exact" }],
-          "preview": "thumbnail",
-          "installDir": "resourcepacks/", "scanDir": "resourcepacks"
-        },
-        {
-          "name": "shaderpack", "label": "光影包", "icon": "☀️",
-          "userImportable": true,
-          "extensions": [".zip", ".7z"],
-          "detector": "shader",
-          "zipEntries": [{ "name": "shaders/", "match": "prefix" }, { "name": "shaders", "match": "exact" }],
-          "preview": "thumbnail",
-          "installDir": "shaderpacks/", "scanDir": "shaderpacks"
-        }
-      ],
-      "actions": [
-        "import",
-        "delete",
-        "openFolder"
-      ]
-    },
-    {
-      "id": "resourcepack",
-      "name": "资源包",
-      "icon": "🎨",
-      "group": "minecraft",
-      "extensions": [
-        ".zip",
-        ".7z"
-      ],
       "storageSubDir": "resourcepacks",
       "configField": "ResourcepackRoot",
       "installDir": "resourcepacks/",
@@ -57,25 +16,15 @@
       "preview": "thumbnail",
       "detector": "mcmeta",
       "scanInstance": true,
-      "zipEntries": [
-        { "name": "pack.mcmeta", "match": "exact" }
-      ],
-      "actions": [
-        "import",
-        "toggle",
-        "delete",
-        "openFolder"
-      ]
+      "zipEntries": [{ "name": "pack.mcmeta", "match": "exact" }],
+      "actions": ["import", "toggle", "delete", "openFolder"]
     },
     {
       "id": "shaderpack",
       "name": "光影包",
       "icon": "☀️",
       "group": "minecraft",
-      "extensions": [
-        ".zip",
-        ".7z"
-      ],
+      "extensions": [".zip", ".7z"],
       "storageSubDir": "shaderpacks",
       "configField": "ShaderpackRoot",
       "installDir": "shaderpacks/",
@@ -84,69 +33,17 @@
       "preview": "thumbnail",
       "detector": "shader",
       "scanInstance": true,
-      "zipEntries": [
-        { "name": "shaders/", "match": "prefix" },
-        { "name": "shaders", "match": "exact" }
-      ],
-      "actions": [
-        "import",
-        "toggle",
-        "delete",
-        "openFolder"
-      ]
-    },
-    {
-      "id": "mod-model",
-      "name": "模组模型合集",
-      "icon": "🧍",
-      "group": "minecraft-mod",
-      "groupLabel": "Minecraft 模组",
-      "groupIcon": "🧩",
-      "extensions": [".zip", ".7z"],
-      "installDir": "versions/{instance}/mod-model/",
-      "scanDir": "config/yes_steve_model/custom",
-      "instanceLevel": true,
-      "preview": "3d",
-      "detector": "zipentry",
-      "zipEntries": [{ "name": ".mod-model", "match": "suffix" }],
-      "subtypes": [
-        {
-          "name": "ysm", "label": "YSM 模型", "icon": "💎",
-          "userImportable": true, "default": true,
-          "extensions": [".ysm", ".zip", ".7z", ".json"],
-          "detector": "ysm",
-          "zipEntries": [{ "name": "ysm.json", "match": "suffix" }, { "name": "models/", "match": "prefix" }],
-          "preview": "3d",
-          "installDir": "versions/{instance}/ysm/", "scanDir": "config/yes_steve_model/custom"
-        },
-        {
-          "name": "maid-model", "label": "车万女仆", "icon": "🧸",
-          "userImportable": true,
-          "extensions": [".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": "maid_model.json", "match": "suffix" }, { "name": "chair_model.json", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "tlm_custom_pack/", "scanDir": "tlm_custom_pack"
-        }
-      ],
-      "actions": [
-        "import",
-        "delete",
-        "openFolder"
-      ]
+      "zipEntries": [{ "name": "shaders/", "match": "prefix" }, { "name": "shaders", "match": "exact" }],
+      "actions": ["import", "toggle", "delete", "openFolder"]
     },
     {
       "id": "ysm",
       "name": "YSM 模型",
       "icon": "💎",
       "group": "minecraft-mod",
-      "storageSubDir": "ysm",
-      "extensions": [
-        ".ysm",
-        ".zip",
-        ".7z",
-        ".json"
-      ],
+      "groupLabel": "Minecraft 模组",
+      "groupIcon": "🧩",
+      "extensions": [".ysm", ".zip", ".7z", ".json"],
       "configField": "YsmRoot",
       "installDir": "versions/{instance}/ysm/",
       "scanDir": "config/yes_steve_model/custom",
@@ -156,100 +53,53 @@
       "hashable": true,
       "dirLevelSync": true,
       "installExts": [".json", ".png", ".jpg", ".jpeg"],
-      "zipEntries": [
-        { "name": "ysm.json", "match": "suffix" },
-        { "name": "models/", "match": "prefix" }
-      ],
-      "actions": [
-        "view",
-        "import",
-        "delete"
-      ]
+      "zipEntries": [{ "name": "ysm.json", "match": "suffix" }, { "name": "models/", "match": "prefix" }],
+      "actions": ["view", "import", "delete"]
     },
     {
-      "id": "create-blueprint",
-      "name": "蓝图 / 结构",
-      "icon": "⚙️",
+      "id": "maid-model",
+      "name": "车万女仆模型",
+      "icon": "🧸",
       "group": "minecraft-mod",
-      "extensions": [
-        ".zip"
-      ],
-      "installDir": "schematics/",
-      "scanDir": "schematics",
-      "instanceLevel": false,
+      "extensions": [".zip"],
+      "storageSubDir": "maid-model",
+      "installDir": "tlm_custom_pack/",
+      "scanDir": "tlm_custom_pack",
+      "instanceLevel": true,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [
-        { "name": ".nbt", "match": "suffix" },
-        { "name": ".schematic", "match": "suffix" }
-      ],
-      "scanInstance": true,
+      "zipEntries": [{ "name": "maid_model.json", "match": "suffix" }, { "name": "chair_model.json", "match": "suffix" }],
+      "isDir": true,
       "dirLevelSync": true,
-      "subtypes": [
-        {
-          "name": "blueprint", "label": "蓝图", "icon": "⚙️",
-          "userImportable": true, "default": true,
-          "extensions": [".nbt", ".schematic", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".nbt", "match": "suffix" }, { "name": ".schematic", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "schematics/", "scanDir": "schematics"
-        },
-        {
-          "name": "litematic", "label": "投影", "icon": "📐",
-          "userImportable": true,
-          "extensions": [".litematic", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".litematic", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "schematics/", "scanDir": "schematics"
-        }
-      ],
-      "actions": [
-        "import",
-        "delete",
-        "openFolder"
-      ]
+      "nestedModelDir": true,
+      "installExts": [".json", ".png", ".js"],
+      "actions": ["import", "delete", "openFolder"]
     },
     {
       "id": "blueprint",
       "name": "蓝图",
       "icon": "⚙️",
       "group": "minecraft-mod",
+      "extensions": [".nbt", ".schematic", ".zip"],
       "storageSubDir": "schematics",
-      "extensions": [
-        ".nbt",
-        ".schematic",
-        ".zip"
-      ],
       "installDir": "schematics/",
       "scanDir": "schematics",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [
-        { "name": ".nbt", "match": "suffix" },
-        { "name": ".schematic", "match": "suffix" }
-      ],
+      "zipEntries": [{ "name": ".nbt", "match": "suffix" }, { "name": ".schematic", "match": "suffix" }],
       "hashable": true,
       "scanInstance": true,
       "dirLevelSync": true,
       "configField": "SchematicRoot",
-      "actions": [
-        "import",
-        "delete",
-        "openFolder"
-      ]
+      "actions": ["import", "delete", "openFolder"]
     },
     {
       "id": "litematic",
       "name": "投影",
       "icon": "📐",
       "group": "minecraft-mod",
-      "extensions": [
-        ".litematic",
-        ".zip"
-      ],
+      "extensions": [".litematic", ".zip"],
       "storageSubDir": "litematics",
       "configField": "LitematicRoot",
       "installDir": "schematics/",
@@ -257,172 +107,155 @@
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [
-        { "name": ".litematic", "match": "suffix" }
-      ],
+      "zipEntries": [{ "name": ".litematic", "match": "suffix" }],
       "hashable": true,
       "dirLevelSync": true,
-      "actions": [
-        "import",
-        "delete",
-        "openFolder"
-      ]
+      "actions": ["import", "delete", "openFolder"]
     },
     {
-      "id": "maid-model",
-      "name": "车万女仆模型",
-      "icon": "🧸",
-      "group": "minecraft-mod",
-      "storageSubDir": "maid-model",
-      "extensions": [
-        ".zip"
-      ],
-      "installDir": "tlm_custom_pack/",
-      "scanDir": "tlm_custom_pack",
-      "instanceLevel": true,
-      "preview": "3d",
-      "detector": "zipentry",
-      "zipEntries": [
-        { "name": "maid_model.json", "match": "suffix" },
-        { "name": "chair_model.json", "match": "suffix" }
-      ],
-      "isDir": true,
-      "dirLevelSync": true,
-      "nestedModelDir": true,
-      "installExts": [".json", ".png", ".js"],
-      "actions": [
-        "import",
-        "delete",
-        "openFolder"
-      ]
-    },
-    {
-      "id": "mmd-skin",
-      "name": "MMD 角色模型",
-      "icon": "🎭",
+      "id": "EntityPlayer",
+      "name": "PMX 模型",
+      "icon": "🧍",
       "group": "mmd",
       "groupLabel": "MMD",
       "groupIcon": "🎭",
-      "extensions": [
-        ".pmx",
-        ".pmd",
-        ".vmd",
-        ".vpd",
-        ".zip"
-      ],
+      "extensions": [".pmx", ".pmd", ".zip"],
       "configField": "MmdRoot",
-      "installDir": "3d-skin/",
-      "scanDir": "3d-skin",
+      "installDir": "3d-skin/EntityPlayer/",
+      "scanDir": "3d-skin/EntityPlayer",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [
-        { "name": ".pmx", "match": "suffix" },
-        { "name": ".pmd", "match": "suffix" }
-      ],
+      "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
       "isDir": true,
       "dirLevelSync": true,
-      "subDirGrouping": true,
-      "subtypes": [
-        {
-          "name": "EntityPlayer", "label": "PMX 模型 (EntityPlayer)", "icon": "🧍",
-          "userImportable": true, "default": true,
-          "extensions": [".pmx", ".pmd", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "3d-skin/EntityPlayer/", "scanDir": "3d-skin/EntityPlayer"
-        },
-        {
-          "name": "SceneModel", "label": "场景 (SceneModel)", "icon": "🏗️",
-          "userImportable": true,
-          "extensions": [".pmx", ".pmd", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "3d-skin/SceneModel/", "scanDir": "3d-skin/SceneModel"
-        },
-        {
-          "name": "CustomAnim", "label": "自定义动画 (CustomAnim)", "icon": "🎬",
-          "userImportable": true,
-          "extensions": [".vmd", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "3d-skin/CustomAnim/", "scanDir": "3d-skin/CustomAnim"
-        },
-        {
-          "name": "CustomMorph", "label": "自定义表情 (CustomMorph)", "icon": "😊",
-          "userImportable": true,
-          "extensions": [".vpd", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "3d-skin/CustomMorph/", "scanDir": "3d-skin/CustomMorph"
-        },
-        {
-          "name": "StageAnim", "label": "舞台 (StageAnim)", "icon": "🎭",
-          "userImportable": true,
-          "extensions": [".vmd", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "3d-skin/StageAnim/", "scanDir": "3d-skin/StageAnim"
-        },
-        {
-          "name": "shader", "label": "着色器 (shader)", "icon": "🎨",
-          "userImportable": true,
-          "extensions": [".glsl", ".vsh", ".fsh", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".glsl", "match": "suffix" }],
-          "preview": "none",
-          "installDir": "3d-skin/shader/", "scanDir": "3d-skin/shader"
-        },
-        {
-          "name": "DefaultAnim", "label": "默认动画 (DefaultAnim)", "icon": "🎞️",
-          "userImportable": false,
-          "extensions": [".vmd", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "3d-skin/DefaultAnim/", "scanDir": "3d-skin/DefaultAnim"
-        },
-        {
-          "name": "DefaultMorph", "label": "默认表情 (DefaultMorph)", "icon": "🙂",
-          "userImportable": false,
-          "extensions": [".vpd", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "3d-skin/DefaultMorph/", "scanDir": "3d-skin/DefaultMorph"
-        },
-        {
-          "name": "vrchat-avatar", "label": "VRM 模型", "icon": "🥽",
-          "userImportable": true,
-          "extensions": [".vrca", ".vrm", ".zip"],
-          "detector": "zipentry",
-          "zipEntries": [{ "name": ".vrca", "match": "suffix" }, { "name": ".vrm", "match": "suffix" }],
-          "preview": "3d",
-          "installDir": "3d-skin/EntityPlayer/", "scanDir": "3d-skin/EntityPlayer"
-        }
-      ],
-      "installExts": [".pmx", ".pmd", ".vmd", ".vpd", ".json", ".png", ".tga", ".spa", ".sph"],
-      "actions": [
-        "import",
-        "delete",
-        "openFolder"
-      ]
+      "actions": ["import", "delete", "openFolder"]
+    },
+    {
+      "id": "SceneModel",
+      "name": "场景模型",
+      "icon": "🏗️",
+      "group": "mmd",
+      "extensions": [".pmx", ".pmd", ".zip"],
+      "configField": "MmdRoot",
+      "installDir": "3d-skin/SceneModel/",
+      "scanDir": "3d-skin/SceneModel",
+      "instanceLevel": false,
+      "preview": "3d",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".pmx", "match": "suffix" }, { "name": ".pmd", "match": "suffix" }],
+      "isDir": true,
+      "dirLevelSync": true,
+      "actions": ["import", "delete", "openFolder"]
+    },
+    {
+      "id": "CustomAnim",
+      "name": "自定义动画",
+      "icon": "🎬",
+      "group": "mmd",
+      "extensions": [".vmd", ".zip"],
+      "configField": "MmdRoot",
+      "installDir": "3d-skin/CustomAnim/",
+      "scanDir": "3d-skin/CustomAnim",
+      "instanceLevel": false,
+      "preview": "3d",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+      "isDir": true,
+      "dirLevelSync": true,
+      "actions": ["import", "delete", "openFolder"]
+    },
+    {
+      "id": "CustomMorph",
+      "name": "自定义表情",
+      "icon": "😊",
+      "group": "mmd",
+      "extensions": [".vpd", ".zip"],
+      "configField": "MmdRoot",
+      "installDir": "3d-skin/CustomMorph/",
+      "scanDir": "3d-skin/CustomMorph",
+      "instanceLevel": false,
+      "preview": "3d",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
+      "isDir": true,
+      "dirLevelSync": true,
+      "actions": ["import", "delete", "openFolder"]
+    },
+    {
+      "id": "StageAnim",
+      "name": "舞台动画",
+      "icon": "🎭",
+      "group": "mmd",
+      "extensions": [".vmd", ".zip"],
+      "configField": "MmdRoot",
+      "installDir": "3d-skin/StageAnim/",
+      "scanDir": "3d-skin/StageAnim",
+      "instanceLevel": false,
+      "preview": "3d",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+      "isDir": true,
+      "dirLevelSync": true,
+      "actions": ["import", "delete", "openFolder"]
+    },
+    {
+      "id": "mmd-shader",
+      "name": "MMD 着色器",
+      "icon": "🎨",
+      "group": "mmd",
+      "extensions": [".glsl", ".vsh", ".fsh", ".zip"],
+      "configField": "MmdRoot",
+      "installDir": "3d-skin/shader/",
+      "scanDir": "3d-skin/shader",
+      "instanceLevel": false,
+      "preview": "none",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".glsl", "match": "suffix" }],
+      "isDir": true,
+      "dirLevelSync": true,
+      "actions": ["import", "delete", "openFolder"]
+    },
+    {
+      "id": "DefaultAnim",
+      "name": "默认动画",
+      "icon": "🎞️",
+      "group": "mmd",
+      "extensions": [".vmd", ".zip"],
+      "configField": "MmdRoot",
+      "installDir": "3d-skin/DefaultAnim/",
+      "scanDir": "3d-skin/DefaultAnim",
+      "instanceLevel": false,
+      "preview": "3d",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".vmd", "match": "suffix" }],
+      "isDir": true,
+      "dirLevelSync": true,
+      "actions": ["import", "delete", "openFolder"]
+    },
+    {
+      "id": "DefaultMorph",
+      "name": "默认表情",
+      "icon": "🙂",
+      "group": "mmd",
+      "extensions": [".vpd", ".zip"],
+      "configField": "MmdRoot",
+      "installDir": "3d-skin/DefaultMorph/",
+      "scanDir": "3d-skin/DefaultMorph",
+      "instanceLevel": false,
+      "preview": "3d",
+      "detector": "zipentry",
+      "zipEntries": [{ "name": ".vpd", "match": "suffix" }],
+      "isDir": true,
+      "dirLevelSync": true,
+      "actions": ["import", "delete", "openFolder"]
     },
     {
       "id": "vrchat-avatar",
       "name": "VRChat 模型",
       "icon": "🥽",
       "group": "mmd",
-      "extensions": [
-        ".vrca",
-        ".vrm",
-        ".zip"
-      ],
+      "extensions": [".vrca", ".vrm", ".zip"],
       "storageSubDir": "vrchat",
       "configField": "VrcRoot",
       "configFallback": "MmdRoot",
@@ -431,16 +264,9 @@
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
-      "zipEntries": [
-        { "name": ".vrca", "match": "suffix" },
-        { "name": ".vrm", "match": "suffix" }
-      ],
+      "zipEntries": [{ "name": ".vrca", "match": "suffix" }, { "name": ".vrm", "match": "suffix" }],
       "isDir": true,
-      "actions": [
-        "import",
-        "delete",
-        "openFolder"
-      ]
+      "actions": ["import", "delete", "openFolder"]
     }
   ]
 }

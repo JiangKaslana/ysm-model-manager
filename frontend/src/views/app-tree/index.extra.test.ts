@@ -50,8 +50,8 @@ const bindings = {
 
 /** 按 rtype 区分的加载数据（root 切换测试用） */
 const entriesByType: Record<string, TreeEntry[]> = {
-  "mmd-skin": [
-    { name: "m1.mmd", path: "m1.mmd", fullPath: "/repo/m1.mmd", type: "mmd-skin", banned: false, size: 1, modTime: 0 },
+  "EntityPlayer": [
+    { name: "m1.mmd", path: "m1.mmd", fullPath: "/repo/m1.mmd", type: "EntityPlayer", banned: false, size: 1, modTime: 0 },
   ],
   "vrchat-avatar": [
     { name: "v1.vrc", path: "v1.vrc", fullPath: "/repo/v1.vrc", type: "vrchat-avatar", banned: false, size: 1, modTime: 0 },

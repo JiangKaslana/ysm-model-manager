@@ -156,96 +156,78 @@ func TestBuildSyncItems_UnknownTypeSkip(t *testing.T) {
 	}
 }
 
-// TestBuildSyncItems_MmdSubdirGrouping mmd-skin（subDirGrouping）子类内部模型带 SubDir 分组：
-// globalDir = group 根（mmd），EntityPlayer/角色A 缺失 → Path 含子类层级、SubDir=EntityPlayer。
-// 验证「子类独立拼完整路径」——模型条目不再被展平为顶层（双源污染根因的回归守卫）。
-func TestBuildSyncItems_MmdSubdirGrouping(t *testing.T) {
+// TestBuildSyncItems_IndependentTypes 壳-叶架构移除后，EntityPlayer/CustomAnim 等
+// 类型现为独立资源类型（不再是 MMD 壳子类型），各自有独立 scanDir 和扩展名。
+// 验证各类型独立运作、互不干扰。
+func TestBuildSyncItems_IndependentTypes(t *testing.T) {
 	base := t.TempDir()
-	globalDir := filepath.Join(base, "mmd") // group 根
-	instDir := filepath.Join(base, "inst", "3d-skin")
-	if err := os.MkdirAll(filepath.Join(globalDir, "EntityPlayer", "角色A"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(globalDir, "EntityPlayer", "角色A", "a.pmx"), []byte("a"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(instDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "mmd-skin", Icon: "🎭"}}, map[string]string{"mmd-skin": globalDir}, "")
-	found := false
-	for _, it := range items {
-		if strings.HasSuffix(it.Path, filepath.Join("EntityPlayer", "角色A")) {
-			found = true
-			if it.SubDir != "EntityPlayer" {
-				t.Fatalf("角色A 应 SubDir=EntityPlayer，实际 %q", it.SubDir)
-			}
-			if it.Status != types.SyncStatusMissing {
-				t.Fatalf("角色A 应 Missing，实际 %q", it.Status)
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("应产出 EntityPlayer/角色A 条目: %+v", items)
-	}
-}
 
-// TestBuildSyncItems_SubtypePathLimit 路径限定：subtype 非空时只扫该子目录，
-// 其他子目录（CustomAnim）的文件不应出现在结果中。
-// 与 TestBuildSyncItems_MmdSubdirGrouping 对照——后者 subtype="" 扫全目录，
-// 本测试 subtype="EntityPlayer" 应只返回 EntityPlayer 下的条目。
-func TestBuildSyncItems_SubtypePathLimit(t *testing.T) {
-	base := t.TempDir()
-	globalDir := filepath.Join(base, "mmd")
-	instDir := filepath.Join(base, "inst", "3d-skin")
-	// globalDir 下两个子目录都有文件
-	if err := os.MkdirAll(filepath.Join(globalDir, "EntityPlayer"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(globalDir, "CustomAnim"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	_ = os.WriteFile(filepath.Join(globalDir, "EntityPlayer", "角色A.pmx"), []byte("a"), 0644)
-	_ = os.WriteFile(filepath.Join(globalDir, "CustomAnim", "动作B.vmd"), []byte("b"), 0644)
-	// instDir 同构
-	if err := os.MkdirAll(filepath.Join(instDir, "EntityPlayer"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(instDir, "CustomAnim"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	_ = os.WriteFile(filepath.Join(instDir, "EntityPlayer", "角色A.pmx"), []byte("a"), 0644)
-	_ = os.WriteFile(filepath.Join(instDir, "CustomAnim", "动作B.vmd"), []byte("b"), 0644)
+	// EntityPlayer 全局与实例目录
+	epGlobal := filepath.Join(base, "mmd")
+	epInst := filepath.Join(base, "inst", "3d-skin", "EntityPlayer")
+	_ = os.MkdirAll(epGlobal, 0755)
+	_ = os.MkdirAll(epInst, 0755)
+
+	// 仓库侧：角色A（两侧都有 → Synced）、角色B（仅仓库 → Missing）
+	epRoleA := filepath.Join(epGlobal, "角色A")
+	_ = os.MkdirAll(epRoleA, 0755)
+	_ = os.WriteFile(filepath.Join(epRoleA, "a.pmx"), []byte("pmx"), 0644)
+	epInstRoleA := filepath.Join(epInst, "角色A")
+	_ = os.MkdirAll(epInstRoleA, 0755)
+	_ = os.WriteFile(filepath.Join(epInstRoleA, "a.pmx"), []byte("pmx"), 0644)
+
+	epRoleB := filepath.Join(epGlobal, "角色B")
+	_ = os.MkdirAll(epRoleB, 0755)
+	_ = os.WriteFile(filepath.Join(epRoleB, "b.pmx"), []byte("pmx"), 0644)
+
+	// 整合包侧独有：角色C（Extra/Optional）
+	epInstRoleC := filepath.Join(epInst, "角色C")
+	_ = os.MkdirAll(epInstRoleC, 0755)
+	_ = os.WriteFile(filepath.Join(epInstRoleC, "c.pmx"), []byte("pmx"), 0644)
 
 	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
 
-	// subtype="EntityPlayer" → 路径限定到 EntityPlayer，CustomAnim 的 vmd 应被排除
-	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "mmd-skin", Icon: "🎭"}}, map[string]string{"mmd-skin": globalDir}, "EntityPlayer")
+	// 独立类型 EntityPlayer：应只包含 EntityPlayer 相关条目
+	items := BuildSyncItems(ins,
+		[]ResourceTypeInfo{{ID: "EntityPlayer", Icon: "🧍"}},
+		map[string]string{"EntityPlayer": epGlobal}, "")
+
+	byName := map[string]types.ResourceSyncItem{}
 	for _, it := range items {
-		if strings.Contains(it.Path, "CustomAnim") {
-			t.Errorf("EntityPlayer 路径限定：CustomAnim 条目不应出现: %s", it.Path)
+		byName[it.Name] = it
+	}
+	if it, ok := byName["角色A"]; !ok || it.Status != types.SyncStatusSynced {
+		t.Errorf("角色A 应 Synced: %+v", it)
+	}
+	if it, ok := byName["角色B"]; !ok || it.Status != types.SyncStatusMissing {
+		t.Errorf("角色B 应 Missing: %+v", it)
+	}
+	if it, ok := byName["角色C"]; !ok || it.Status != types.SyncStatusOptional {
+		t.Errorf("角色C 应 Optional: %+v", it)
+	}
+
+	// 独立类型 CustomAnim：不应返回任何 EntityPlayer 条目
+	caInst := filepath.Join(base, "inst", "3d-skin", "CustomAnim")
+	_ = os.MkdirAll(caInst, 0755)
+	_ = os.WriteFile(filepath.Join(epGlobal, "walk.vmd"), []byte("vmd"), 0644)
+
+	items2 := BuildSyncItems(ins,
+		[]ResourceTypeInfo{{ID: "CustomAnim", Icon: "🎬"}},
+		map[string]string{"CustomAnim": epGlobal}, "")
+
+	for _, it := range items2 {
+		if strings.Contains(it.Path, "EntityPlayer") {
+			t.Errorf("CustomAnim 类型不应返回 EntityPlayer 条目: %s", it.Path)
 		}
 	}
-	foundPMX := false
-	for _, it := range items {
-		if strings.HasSuffix(it.Path, "角色A.pmx") {
-			foundPMX = true
+	foundWalk := false
+	for _, it := range items2 {
+		if it.Name == "walk.vmd" && it.Status == types.SyncStatusMissing {
+			foundWalk = true
 		}
 	}
-	if !foundPMX {
-		t.Errorf("EntityPlayer 路径限定：角色A.pmx 应出现，实际 %+v", items)
-	}
-	// 对照：subtype="" 时应包含 CustomAnim
-	itemsAll := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "mmd-skin", Icon: "🎭"}}, map[string]string{"mmd-skin": globalDir}, "")
-	foundVMD := false
-	for _, it := range itemsAll {
-		if strings.HasSuffix(it.Path, "动作B.vmd") {
-			foundVMD = true
-		}
-	}
-	if !foundVMD {
-		t.Errorf("subtype 为空时应返回全目录：动作B.vmd 应出现，实际 %+v", itemsAll)
+	if !foundWalk {
+		t.Errorf("walk.vmd 应 Missing（CustomAnim 独立类型），实际: %+v", items2)
 	}
 }
 

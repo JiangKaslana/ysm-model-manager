@@ -11,7 +11,7 @@ const { getAppMock, getRepoRootMock, scanEntriesMock } = vi.hoisted(() => ({
 }));
 vi.mock("../../backend/app.ts", () => ({ getApp: getAppMock }));
 vi.mock("../../utils/resource/types.ts", () => ({
-  RESOURCE_TYPES: { MMD: "mmd-skin" },
+  RESOURCE_TYPES: { MMD: "EntityPlayer" },
 }));
 
 import { resolveMmdSiblings } from "./mmd-siblings.ts";
@@ -36,7 +36,7 @@ describe("resolveMmdSiblings", () => {
       "/mmd-root/模型A/a.pmx",
       "/mmd-root/模型B/b.pmd",
     ]);
-    expect(getRepoRootMock).toHaveBeenCalledWith("mmd-skin");
+    expect(getRepoRootMock).toHaveBeenCalledWith("EntityPlayer");
     expect(scanEntriesMock).toHaveBeenCalledWith("/mmd-root");
   });
 

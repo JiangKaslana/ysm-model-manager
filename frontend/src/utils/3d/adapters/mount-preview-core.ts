@@ -211,10 +211,12 @@ export interface Mount3DOptions {
   /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标；app 层 openModel3DFullscreen 注入）。
    *  第二参透传 siblings（当前会话候选），避免切换后新会话「当前目录」tab 为空 */
   switchExternal?: (path: string, siblings?: string[]) => Promise<void>;
-  /** 当前会话资源类型（如 ysm/mmd-skin/vrchat-avatar/resourcepack）；类型 tab 点击时判断同类型走 switchTo */
+  /** 当前会话资源类型（如 ysm/EntityPlayer/vrchat-avatar/resourcepack）；类型 tab 点击时判断同类型走 switchTo */
   rtype?: string;
+  /** 当前会话子类型（如 EntityPlayer/CustomAnim）——用于类型 tab 扫描时按 subtype 隔离扩展名 */
+  subtype?: string;
   /** 按资源类型懒加载候选模型路径（切换模型的类型 tab 点击时；缺省无 tab） */
-  getModelsByType?: (rtype: string) => Promise<string[]>;
+  getModelsByType?: (rtype: string, subtype?: string) => Promise<string[]>;
   /** 类型 tab 列表（有 3D opener 的类型；经 withPreviewExtras 注入，缺省仅「当前目录」tab） */
   getTypeTabs?: () => string[];
 }
@@ -331,7 +333,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getSiblings: () => (opts.siblings ?? []).filter((p) => p !== currentPath),
     getCurrentPath: () => currentPath,
     getCurrentRtype: () => opts.rtype ?? "",
-    getModelsByType: opts.getModelsByType ? (t: string) => opts.getModelsByType!(t) : undefined,
+    getCurrentSubtype: () => opts.subtype ?? "",
+    getModelsByType: opts.getModelsByType ? (t: string, s?: string) => opts.getModelsByType!(t, s) : undefined,
     getTypeTabs: opts.getTypeTabs ? () => opts.getTypeTabs!() : undefined,
     getViewContainer: () => viewContainer,
     close: () => {
@@ -676,6 +679,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getCurrentPath: () => currentPath,
     setCurrentPath: (p) => { currentPath = p; },
     getCurrentRtype: () => opts.rtype ?? adapter.id,
+    getCurrentSubtype: () => opts.subtype ?? "",
     getPerFrame: () => perFrame,
     setPerFrame: (f) => {
       // 切换模型时先从全局 perFrame 列表移除旧回调（防已 dispose 的旧内容层

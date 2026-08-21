@@ -262,7 +262,7 @@ func (a *App) RelinkCustomDir(customDir, filesRoot string) (int, error) {
 }
 
 // relinkDir 重新应用链接模式到单个目录
-// rtype 用于需要文件夹级重新链接的类型（ysm/mmd-skin 等）
+// rtype 用于需要文件夹级重新链接的类型（ysm/EntityPlayer 等）
 // relinkDir 按哈希比对重链接实例目录（执行逻辑下沉 go/sync）
 func (a *App) relinkDir(customDir, filesRoot, rtype string) (int, error) {
 	return ysmsync.RelinkDir(customDir, filesRoot, rtype, a.getLinkMode(), a.ScanModelEntries, a.logger.Add)

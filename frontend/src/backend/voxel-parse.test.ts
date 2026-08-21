@@ -565,12 +565,12 @@ describe("Get*VoxelData — web 实现端到端（ADR-070 M2）", () => {
   });
 
   it("GetNbtVoxelData / GetSchematicVoxelData 端到端", async () => {
-    const nbtPath = await importAs("create-blueprint", "建筑.nbt", makeNbtStructureGz());
+    const nbtPath = await importAs("blueprint", "建筑.nbt", makeNbtStructureGz());
     const nbt = JSON.parse(await browserAdapter.GetNbtVoxelData(nbtPath)) as VoxelData;
     expect(nbt.groups![0].positions).toEqual([[0, 0, 0]]);
     expect(nbt.maxBlocks).toBe(200000);
 
-    const schPath = await importAs("create-blueprint", "建筑.schematic", makeSchematicGz());
+    const schPath = await importAs("blueprint", "建筑.schematic", makeSchematicGz());
     const sch = JSON.parse(await browserAdapter.GetSchematicVoxelData(schPath)) as VoxelData;
     expect(sch.size).toEqual([1, 1, 1]);
     expect(sch.groups![0].positions).toEqual([[0, 0, 0]]);
@@ -586,17 +586,17 @@ describe("Get*VoxelData — web 实现端到端（ADR-070 M2）", () => {
     };
     // 文件不存在
     await errOf(browserAdapter.GetLitematicVoxelData("/web/litematic/无/无.litematic"));
-    await errOf(browserAdapter.GetNbtVoxelData("/web/create-blueprint/无/无.nbt"));
-    await errOf(browserAdapter.GetSchematicVoxelData("/web/create-blueprint/无/无.schematic"));
+    await errOf(browserAdapter.GetNbtVoxelData("/web/blueprint/无/无.nbt"));
+    await errOf(browserAdapter.GetSchematicVoxelData("/web/blueprint/无/无.schematic"));
     // 非 gzip / 非 NBT → 具体解析错误（未知标签/截断）
     const bad = await importAs("litematic", "坏.litematic", new TextEncoder().encode("not nbt"));
     const badErr = await errOf(browserAdapter.GetLitematicVoxelData(bad));
     expect(badErr.length).toBeGreaterThan(0);
     // .nbt 缺 size/blocks/palette
-    const emptyNbt = await importAs("create-blueprint", "空.nbt", gz(nbtRoot(nbtInt("DataVersion", 2566))));
+    const emptyNbt = await importAs("blueprint", "空.nbt", gz(nbtRoot(nbtInt("DataVersion", 2566))));
     await errOf(browserAdapter.GetNbtVoxelData(emptyNbt));
     // .schematic 缺 Width/Height/Length
-    const emptySch = await importAs("create-blueprint", "空.schematic", gz(nbtRoot(nbtInt("Version", 1))));
+    const emptySch = await importAs("blueprint", "空.schematic", gz(nbtRoot(nbtInt("Version", 1))));
     await errOf(browserAdapter.GetSchematicVoxelData(emptySch));
   });
 

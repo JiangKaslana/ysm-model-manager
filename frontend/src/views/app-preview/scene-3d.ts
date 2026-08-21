@@ -2,7 +2,7 @@
 // 与 mmd-3d.ts 的区别：
 // - adapter.id = "mmd-scene"（独立预设：场景模型的天空/光照/阴影预设）
 // - siblings 由 scene-siblings.ts 提供（只扫 SceneModel 目录）
-// - 注册独立路由 "mmd-scene"，不与 "mmd-skin" 混用
+// - 注册独立路由 "mmd-scene"，不与 "EntityPlayer" 混用
 //
 // 内容层复用 buildMmdScene（mmd-adapter.ts），确保 PMX 解析/纹理绑定逻辑一致。
 

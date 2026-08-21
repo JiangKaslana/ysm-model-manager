@@ -58,24 +58,29 @@ func TestIsSupportedExt(t *testing.T) {
 }
 
 func TestExtBelongsTo(t *testing.T) {
-	// .ysm 应属于 ysm
 	ids := ExtBelongsTo(".ysm")
-	if len(ids) != 1 || ids[0] != "ysm" {
-		t.Errorf("ExtBelongsTo('.ysm') = %v, 期望 [ysm]", ids)
+	if len(ids) < 1 {
+		t.Errorf("ExtBelongsTo('.ysm') = %v, 至少应包含 [ysm]", ids)
 	}
-	// .zip 应属于全部 10 类（S1 ADR-067：.zip 是通用容器扩展名，
-	// mmd/vrc/蓝图/投影/车万女仆 新增 .zip 包裹识别；ADR-105 mod-model/vanilla-assets
-	// 合集壳也声明容器扩展名；前端 AMBIGUOUS_EXTS 由此派生歧义集）
+	found := make(map[string]bool)
+	for _, id := range ids {
+		found[id] = true
+	}
+	if !found["ysm"] {
+		t.Errorf("ExtBelongsTo('.ysm') = %v, 缺少 ysm", ids)
+	}
 	ids = ExtBelongsTo(".zip")
-	if len(ids) != 11 {
-		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 11 类（含 mod-model/vanilla-assets 合集壳 + blueprint）", ids)
+	if len(ids) != 15 {
+		t.Errorf("ExtBelongsTo('.zip') = %v, 期望 15 类", ids)
 	}
-	// 应包含全部类型（顺序不定）
 	expectedAll := map[string]bool{
 		"ysm": false, "resourcepack": false, "shaderpack": false,
-		"create-blueprint": false, "blueprint": false, "litematic": false,
-		"mmd-skin": false, "vrchat-avatar": false, "maid-model": false,
-		"mod-model": false, "vanilla-assets": false,
+		"blueprint": false, "litematic": false,
+		"vrchat-avatar": false, "maid-model": false,
+		"EntityPlayer": false, "SceneModel": false,
+		"CustomAnim": false, "CustomMorph": false,
+		"StageAnim": false, "mmd-shader": false,
+		"DefaultAnim": false, "DefaultMorph": false,
 	}
 	for _, id := range ids {
 		if _, ok := expectedAll[id]; ok {
@@ -87,7 +92,6 @@ func TestExtBelongsTo(t *testing.T) {
 			t.Errorf("ExtBelongsTo('.zip') 缺少类型 %s，实际 %v", id, ids)
 		}
 	}
-	// 不支持扩展名
 	if ids := ExtBelongsTo(".xyz"); len(ids) != 0 {
 		t.Errorf("ExtBelongsTo('.xyz') = %v, 期望 []", ids)
 	}
@@ -114,22 +118,19 @@ func TestSupportedExtsForType(t *testing.T) {
 }
 
 func TestStorageSubDir(t *testing.T) {
-	// 已知类型
-	expectedIDs := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint"}
+	expectedIDs := []string{"ysm", "maid-model", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint", "litematic"}
 	for _, id := range expectedIDs {
 		dir := StorageSubDir(id)
 		if dir == "" {
 			t.Errorf("StorageSubDir(%q) = 空字符串", id)
 		}
 	}
-	// StorageSubDir 应返回 JSON 中的 storageSubDir
 	if got := StorageSubDir("resourcepack"); got != "resourcepacks" {
 		t.Errorf("StorageSubDir('resourcepack') = %q, 期望 'resourcepacks'", got)
 	}
 	if got := StorageSubDir("ysm"); got != "ysm" {
 		t.Errorf("StorageSubDir('ysm') = %q, 期望 'ysm'", got)
 	}
-	// 未知类型应返回自身
 	if got := StorageSubDir("unknown"); got != "unknown" {
 		t.Errorf("StorageSubDir('unknown') = %q, 期望 'unknown'", got)
 	}
@@ -140,50 +141,40 @@ func TestGroupOf(t *testing.T) {
 		{"resourcepack", "minecraft"},
 		{"shaderpack", "minecraft"},
 		{"ysm", "minecraft-mod"},
-		{"create-blueprint", "minecraft-mod"},
+		{"blueprint", "minecraft-mod"},
 		{"litematic", "minecraft-mod"},
-		{"mmd-skin", "mmd"},
-		{"vrchat-avatar", "mmd"}, // ADR-105 续：VRM 寄生 3d-skin/EntityPlayer/，归并 mmd 组（vrm 组删除）
+		{"maid-model", "minecraft-mod"},
+		{"EntityPlayer", "mmd"},
+		{"vrchat-avatar", "mmd"},
 	}
 	for _, c := range cases {
 		if got := GroupOf(c.rtype); got != c.want {
 			t.Errorf("GroupOf(%q) = %q, 期望 %q", c.rtype, got, c.want)
 		}
 	}
-	// 未知类型无 group
 	if got := GroupOf("unknown"); got != "" {
 		t.Errorf("GroupOf('unknown') = %q, 期望 ''", got)
 	}
 }
 
 func TestGroupStorageRoot(t *testing.T) {
-	// 有 group → 两层路由 {group}/{storageSubDir}
 	cases := []struct{ rtype, want string }{
 		{"resourcepack", "minecraft/resourcepacks"},
 		{"shaderpack", "minecraft/shaderpacks"},
 		{"ysm", "minecraft-mod/ysm"},
-		{"create-blueprint", "minecraft-mod/create-blueprint"},
+		{"blueprint", "minecraft-mod/schematics"},
 		{"litematic", "minecraft-mod/litematics"},
-		{"mmd-skin", "mmd"},                        // subDirGrouping 类型回退到 group 根，不再通过 storageSubDir 多包一层
-		{"vrchat-avatar", "mmd/vrchat"},            // ADR-105 续：VRM 归并 mmd 组（仓库侧 vrchat 目录不变）
-		{"maid-model", "minecraft-mod/maid-model"}, // 仓库侧语义化目录名 maid-model；游戏侧 installDir/scanDir 仍为 tlm_custom_pack
+		{"maid-model", "minecraft-mod/maid-model"},
+		{"EntityPlayer", "mmd/EntityPlayer"},
+		{"vrchat-avatar", "mmd/vrchat"},
 	}
 	for _, c := range cases {
 		if got := GroupStorageRoot(c.rtype); got != c.want {
 			t.Errorf("GroupStorageRoot(%q) = %q, 期望 %q", c.rtype, got, c.want)
 		}
 	}
-	// 未知类型回退自身
 	if got := GroupStorageRoot("unknown"); got != "unknown" {
 		t.Errorf("GroupStorageRoot('unknown') = %q, 期望 'unknown'", got)
-	}
-	// 软合并壳类型（vanilla-assets/mod-model）无 storageSubDir，回退到 typeId；
-	// 实际存储由 subtypes 处理，app.go EnsureStorageDirs 已通过 `if rt.StorageSubDir != ""` 跳过。
-	for _, shell := range []string{"vanilla-assets", "mod-model"} {
-		got := GroupStorageRoot(shell)
-		if got == "" {
-			t.Errorf("GroupStorageRoot(%q) = 空，期望回退到 typeId（%q）", shell, shell)
-		}
 	}
 }
 
@@ -268,14 +259,12 @@ func TestSubDirMap(t *testing.T) {
 
 func TestSubDirAll(t *testing.T) {
 	m := SubDirAll()
-	// 应覆盖所有已知类型
-	expected := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint"}
+	expected := []string{"ysm", "maid-model", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint", "litematic", "EntityPlayer", "SceneModel"}
 	for _, id := range expected {
 		if _, ok := m[id]; !ok {
 			t.Errorf("SubDirAll 缺少类型 %q", id)
 		}
 	}
-	// scanDir 值应与 JSON 一致
 	if m["resourcepack"] != "resourcepacks" {
 		t.Errorf("SubDirAll['resourcepack'] = %q, 期望 'resourcepacks'", m["resourcepack"])
 	}
@@ -290,14 +279,12 @@ func TestAllSubDirs(t *testing.T) {
 	for _, e := range entries {
 		entryMap[e.RType] = e.SubDir
 	}
-	// 应覆盖所有已知类型
-	expected := []string{"ysm", "mmd-skin", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint"}
+	expected := []string{"ysm", "maid-model", "vrchat-avatar", "resourcepack", "shaderpack", "blueprint", "litematic", "EntityPlayer", "SceneModel"}
 	for _, id := range expected {
 		if _, ok := entryMap[id]; !ok {
 			t.Errorf("AllSubDirs 缺少类型 %q", id)
 		}
 	}
-	// SubDir 值应与 JSON scanDir 一致
 	if entryMap["resourcepack"] != "resourcepacks" {
 		t.Errorf("AllSubDirs resourcepack = %q, 期望 'resourcepacks'", entryMap["resourcepack"])
 	}

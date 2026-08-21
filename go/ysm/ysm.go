@@ -107,7 +107,7 @@ func HasYSMMod(modsDir string) bool {
 // 各资源类型的 mod 文件名关键词
 var ModKeywords = map[string][]string{
 	"ysm":           {"yes_steve_model", "ysm-"},
-	"mmd-skin":      {"mmdskin", "mmd-skin"},
+	"EntityPlayer":  {"mmdskin", "mmd-skin"},
 	"vrchat-avatar": {"vrchat"},
 }
 

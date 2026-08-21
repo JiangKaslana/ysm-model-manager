@@ -95,7 +95,7 @@ func (a *App) findMoveRoot(src, dstDir string) string {
 		cfg.MmdRoot,
 		cfg.VrcRoot,
 	}
-	// CustomRoots 中的自定义根（如 MmdRoot 迁移后的 CustomRoots["mmd-skin"]）
+	// CustomRoots 中的自定义根（如 MmdRoot 迁移后的 CustomRoots["EntityPlayer"]）
 	if cfg.CustomRoots != nil {
 		for _, r := range cfg.CustomRoots {
 			if r != "" {
@@ -161,7 +161,7 @@ func (a *App) CopyModelFile(src, dstDir string) error {
 // ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联）
 // folderName = 仓库文件夹名（模型名）；files = 相对路径 → base64 内容
 // rtype 按文件夹内容推断（非硬编码 ysm）：扫主文件扩展名经 ExtBelongsTo 判定，
-// 使 MMD 文件夹落到 mmd-skin 根而非 ysm 根（ADR-092 子类型落位根基）。
+// 使 MMD 文件夹落到 EntityPlayer 根而非 ysm 根（ADR-092 子类型落位根基）。
 func (a *App) ImportModelFolder(folderName, subpath string, files []types.ImportFileItem) error {
 	rtype := inferFolderType(files)
 	root, _ := a.GetRepoRoot(rtype)

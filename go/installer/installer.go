@@ -289,7 +289,7 @@ func installDirRecursive(srcDir, finalDst, linkMode, rtype, filesRoot string) er
 			return false
 		}
 		// 注册表驱动（Top 3）：安装白名单来自 resource_types.json 的 installExts
-		// （mmd-skin/ysm 声明模型+纹理配套扩展名；空=全部放行，仅可执行文件黑名单除外）。
+		// （EntityPlayer/ysm 声明模型+纹理配套扩展名；空=全部放行，仅可执行文件黑名单除外）。
 		// 新增类型只需改 JSON，无需改本函数。
 		installExts := types.InstallExtsFor(rtype)
 		if len(installExts) == 0 {

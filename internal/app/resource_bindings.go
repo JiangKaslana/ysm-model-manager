@@ -188,13 +188,6 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 	if root := specificRoot(cfg, rtype); root != "" {
 		return root, nil
 	}
-	// subDirGrouping 类型（mmd-skin）回退到 group 根（FilesRoot/{group}/），
-	// 与 repoRootForSync 口径一致，避免把默认子类（EntityPlayer）当根。
-	if types.IsSubDirGrouping(rtype) && cfg.FilesRoot != "" {
-		if group := types.GroupOf(rtype); group != "" {
-			return filepath.Join(cfg.FilesRoot, group), nil
-		}
-	}
 	subDir := types.GroupStorageRoot(rtype) // ADR-092 两层路由：FilesRoot/{group}/{storageSubDir}
 	// 2. FilesRoot + 分组存储子目录
 	if cfg.FilesRoot != "" {
@@ -219,25 +212,9 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 	return "", nil
 }
 
-// repoRootForSync 返回资源类型的整合包同步基准目录：
-//   - 用户显式配置的专属根（specificRoot，如 MmdRoot）优先；
-//   - subDirGrouping 类型（mmd-skin）回退到 FilesRoot/<group>（group 根，
-//     EntityPlayer/SceneModel/CustomAnim 平铺其下）——与仓库树（app-tree）的
-//     group 根回溯口径一致，SyncResourcesDirLevel 以子类目录内部模型为同步单元，
-//     避免把默认子类（EntityPlayer）当根导致模型目录被误判为顶层同步条目；
-//   - 其余走 GetRepoRoot（FilesRoot + GroupStorageRoot / 平台默认）。
-//
-// 未配置 FilesRoot 或 group 缺失时回退 GetRepoRoot（保持旧行为）。
+// repoRootForSync 返回资源类型的整合包同步基准目录。
+// 壳-叶架构已移除：所有类型统一走 GetRepoRoot。
 func (a *App) repoRootForSync(rtype string) (string, error) {
-	cfg := a.LoadAppConfig()
-	if root := specificRoot(cfg, rtype); root != "" {
-		return root, nil
-	}
-	if types.IsSubDirGrouping(rtype) && cfg.FilesRoot != "" {
-		if group := types.GroupOf(rtype); group != "" {
-			return filepath.Join(cfg.FilesRoot, group), nil
-		}
-	}
 	return a.GetRepoRoot(rtype)
 }
 
@@ -269,24 +246,6 @@ func (a *App) EnsureStorageDirs() error {
 			// 未配置 / 平台默认不可达：跳过，避免裸建
 			continue
 		}
-		// subDirGrouping 类型（如 mmd-skin）：预建全部用途子目录
-		// （EntityPlayer/SceneModel/CustomAnim/…），而非仅默认 storageSubDir，
-		// 使整棵类型树立即可见。GetRepoRoot 对 subDirGrouping 已返回 group 根，
-		// 故 base = root 直接铺 subtype 子目录。
-		// ADR-104：子目录集合从注册表 subtypes 派生（不硬编码 MMD）。
-		if types.IsSubDirGrouping(rt.ID) {
-			base := root
-			for _, sub := range types.SubtypeNames(rt.ID) {
-				dir := filepath.Join(base, sub)
-				if err := os.MkdirAll(dir, 0755); err != nil {
-					if firstErr == nil {
-						firstErr = err
-					}
-					log.Printf("[storage] 预创建子目录失败 %s: %v", dir, err)
-				}
-			}
-			continue
-		}
 		if err := os.MkdirAll(root, 0755); err != nil {
 			if firstErr == nil {
 				firstErr = err
@@ -314,7 +273,7 @@ func repoDirAccessible(dir string) bool {
 
 // specificRoot 返回资源类型的专属覆写路径。
 // ADR-095：优先从 cfg.CustomRoots map 读取，其次回退到 AppConfig 旧字段（反射读取）。
-// 先查 rtype 自身 key，再查 rt.ConfigFallback（如 vrc → mmd-skin），都无则返回空串。
+// 先查 rtype 自身 key，再查 rt.ConfigFallback（如 vrc → EntityPlayer），都无则返回空串。
 func specificRoot(cfg types.AppConfig, rtype string) string {
 	// 1. 优先从 CustomRoots map 读取（新方式）
 	if cfg.CustomRoots != nil {
@@ -678,7 +637,7 @@ func (a *App) InstallResourceToInstance(rtype, srcPath, instanceName string) err
 
 	// YSM(.json) 和 MMD(.pmx/.pmd) 模型可能有子文件夹（含动作/纹理等配套文件）
 	// VRM(.vrm) 是自包含格式，单文件即可
-	// 目录型行为由注册表 isDir 驱动（mmd-skin/vrchat-avatar isDir:true）；
+	// 目录型行为由注册表 isDir 驱动（EntityPlayer/vrchat-avatar isDir:true）；
 	// ysm 注册表 isDir:false，但现状 ysm 需要文件夹级推送（含配套文件），
 	// 故显式保留 rtype == "ysm" 维持既有行为不变。
 	rt := types.RegistryType(rtype)

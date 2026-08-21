@@ -318,6 +318,44 @@ func (a *App) ScanModelEntriesWithLabel(dir string, label string) []types.ModelE
 	return entries
 }
 
+// ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions
+// 注册表做类型特定扩展名过滤。前端预览菜单切换模型场景用——EntityPlayer 类型需排除
+// .vmd/.vpd 动作文件，仅保留 .pmx/.pmd/.zip 模型/容器文件。
+//
+// subtype 参数：按子类型隔离扩展名（如 EntityPlayer → 只有 .pmx/.pmd/.zip，不含 .vmd/.vpd）。
+// subtype 为空时回退到父类型扩展名（壳类型场景）。
+// 过滤逻辑：取 types.SupportedExtsForSubtype(rtype, subtype) 白名单，扩展名不匹配的条目直接丢弃。
+// rtype 为空或注册表无匹配时退化为 ScanModelEntriesWithLabel 行为（不过滤）。
+// 路径守卫与 ScanModelEntries/ScanModelEntriesWithLabel 完全一致。
+func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string, label string) []types.ModelEntry {
+	if !a.isPathInRootOrSelf(dir) {
+		return nil
+	}
+	entries, hit := a.scanModelEntriesWithHit(dir)
+	// 按 rtype（+subtype）扩展名白名单过滤
+	if allowedExts := types.SupportedExtsForSubtype(rtype, subtype); len(allowedExts) > 0 {
+		extSet := make(map[string]bool, len(allowedExts))
+		for _, e := range allowedExts {
+			extSet[strings.ToLower(e)] = true
+		}
+		filtered := make([]types.ModelEntry, 0, len(entries))
+		for _, e := range entries {
+			if extSet[strings.ToLower(filepath.Ext(e.Path))] {
+				filtered = append(filtered, e)
+			}
+		}
+		entries = filtered
+	}
+	if !hit {
+		msg := fmt.Sprintf("扫描 %d 个文件", len(entries))
+		if label != "" {
+			msg += " · " + label
+		}
+		a.AddOpLog("scan", msg, dir, "", int64(len(entries)), "success", "")
+	}
+	return entries
+}
+
 // ClearScanCache 清除扫描缓存（下载/导入后调用）
 func (a *App) ClearScanCache() {
 	scanner.InvalidateCache()
@@ -506,54 +544,11 @@ func (a *App) OpenFolder(dir string) error {
 //  3. 候选 D：FindInstDir 兜底扫描——接住 Sable-Schematics/hello_new_generation_core
 //     等非标准目录（与计数/列表链路同款逻辑，弥合「显示对但打开错」的裂口）。
 //
-// subdir（阶段 1，MMD 子类型对齐）：全局选定 mmd 用途子目录（SceneModel/CustomAnim…）
-// 后，打开文件夹应精确到 3d-skin/{subdir} 而非 3d-skin 根——与扫描/同步链路的
-// 位置路由口径一致；非 MMD 类型 subdir 恒 ""，行为不变。
+// subdir 参数：子类型独立后，subdir 不再参与路由；保留签名为 Wails 绑定兼容。
 //
 // 全部落空回退 instDir。
 func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
-	return a.OpenFolder(resolveInstDirTargetSubdir(instDir, rtype, subdir))
-}
-
-// resolveInstDirTargetSubdir 在 resolveInstDirTarget 基准之上精确一层 MMD 用途子目录：
-//  1. 查注册表 subtypes，命中子类（subdir="" 时取 default 槽）且该子类声明了
-//     installDir → 走候选 A/B 标准推导（如 3d-skin/SceneModel/ → instDir/3d-skin/SceneModel）；
-//  2. 否则回退 base + subdir 拼接（子类无 installDir / 目录未创建 / 非注册表子类名）；
-//  3. subdir 空且无默认槽目录 → 返回 base。
-//
-// 位置路由口径与 scanner（SubDir 填充）、同步（SyncResourcesDirLevel 保留层级）一致
-// （ADR-104：子类路径全部注册表驱动，新增子目录只改 JSON）。
-//
-// ⚠️ 多 Default 子类竞争：注册表应保证每个 rtype 最多一个 Default=true 的子类。
-// 当前 SubtypesFor 返回顺序为注册表声明顺序，first-wins 语义——若有多个 Default，
-// 取最先声明的那个。这是一个隐式约定，后续若需支持多 Default 需改为显式 subdir 必传。
-func resolveInstDirTargetSubdir(instDir, rtype, subdir string) string {
-	base := resolveInstDirTarget(instDir, rtype)
-	subdir = strings.Trim(strings.TrimSpace(subdir), `\/`)
-	// 注册表子类命中（subdir="" → default 槽）
-	var sub *types.ResourceSubType
-	for _, s := range types.SubtypesFor(rtype) {
-		if subdir == "" && s.Default {
-			sub = &s
-			break
-		}
-		if subdir != "" && strings.EqualFold(s.Name, subdir) {
-			sub = &s
-			break
-		}
-	}
-	if sub != nil && sub.InstallDir != "" {
-		if c := resolveInstallDirStandard(instDir, sub.InstallDir); c != "" {
-			return c
-		}
-	}
-	if subdir == "" {
-		return base
-	}
-	if c := filepath.Join(base, subdir); isDir(c) {
-		return c
-	}
-	return base
+	return a.OpenFolder(resolveInstDirTarget(instDir, rtype))
 }
 
 // resolveInstallDirStandard 候选 A/B：installDir 模板标准推导（ADR-095）。

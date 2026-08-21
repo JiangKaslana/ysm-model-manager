@@ -349,7 +349,7 @@ func TestCompareGlobalInstanceHashes_NoHashMatchesByNameSize(t *testing.T) {
 		return []types.VersionInstance{{Name: "ins", VersionDir: instDir}}
 	}
 
-	results := CompareGlobalInstanceHashes("mcRoot", globalDir, ".", "mmd-skin", scanFn, listFn, nil)
+	results := CompareGlobalInstanceHashes("mcRoot", globalDir, ".", "EntityPlayer", scanFn, listFn, nil)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 instance, got %d", len(results))
 	}
@@ -482,7 +482,7 @@ func TestSyncResources_RelPathCompare(t *testing.T) {
 
 	t.Run("dir-level 全树递归", func(t *testing.T) {
 		globalDir, instDir := setup(t)
-		result := SyncResources(globalDir, instDir, "create-blueprint")
+		result := SyncResources(globalDir, instDir, "blueprint")
 		if !hasName(result.Missing, "nested.nbt") {
 			t.Errorf("dir-level 同步应收集嵌套文件 nested.nbt 到 Missing: %v", result.Missing)
 		}
@@ -541,7 +541,7 @@ func TestRelKey_EdgeCases(t *testing.T) {
 }
 
 // TestSyncResources_PackFolderOnlyForPackType P5 修复：pack.mcmeta 文件夹收集
-// 仅对资源包类型（detector=mcmeta）生效——蓝图仓库（create-blueprint）里误放的
+// 仅对资源包类型（detector=mcmeta）生效——蓝图仓库（blueprint）里误放的
 // 资源包文件夹不应被当成蓝图同步单元（否则 UI 显示"推送"但目录里没有 .nbt）。
 func TestSyncResources_PackFolderOnlyForPackType(t *testing.T) {
 	globalDir := t.TempDir()
@@ -561,11 +561,11 @@ func TestSyncResources_PackFolderOnlyForPackType(t *testing.T) {
 		return false
 	}
 
-	// create-blueprint：不收集资源包文件夹
-	bp := SyncResources(globalDir, instDir, "create-blueprint")
+	// blueprint：不收集资源包文件夹
+	bp := SyncResources(globalDir, instDir, "blueprint")
 	for _, list := range [][]string{bp.Synced, bp.Missing, bp.Extra} {
 		if hasPack(list) {
-			t.Errorf("create-blueprint 不应收集资源包文件夹 my-pack: %v", list)
+			t.Errorf("blueprint 不应收集资源包文件夹 my-pack: %v", list)
 		}
 	}
 	// ysm（dir-level）：同样不收集

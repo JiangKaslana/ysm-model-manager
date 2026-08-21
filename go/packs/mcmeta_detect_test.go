@@ -62,11 +62,11 @@ func zipentryReg() *types.ResourceTypeRegistry {
 		ResourceTypes: []types.ResourceType{
 			{ID: "ysm", Extensions: []string{".ysm", ".zip", ".7z", ".json"}, Detector: "ysm",
 				ZipEntries: []types.ZipEntryMatch{{Name: "ysm.json", Match: "suffix"}, {Name: "models/", Match: "prefix"}}},
-			{ID: "mmd-skin", Extensions: []string{".pmx", ".pmd", ".zip"}, Detector: "zipentry",
+			{ID: "EntityPlayer", Extensions: []string{".pmx", ".pmd", ".zip"}, Detector: "zipentry",
 				ZipEntries: []types.ZipEntryMatch{{Name: ".pmx", Match: "suffix"}, {Name: ".pmd", Match: "suffix"}}},
 			{ID: "vrchat-avatar", Extensions: []string{".vrca", ".vrm", ".zip"}, Detector: "zipentry",
 				ZipEntries: []types.ZipEntryMatch{{Name: ".vrca", Match: "suffix"}, {Name: ".vrm", Match: "suffix"}}},
-			{ID: "create-blueprint", Extensions: []string{".nbt", ".schematic", ".zip"}, Detector: "zipentry",
+			{ID: "blueprint", Extensions: []string{".nbt", ".schematic", ".zip"}, Detector: "zipentry",
 				ZipEntries: []types.ZipEntryMatch{{Name: ".nbt", Match: "suffix"}, {Name: ".schematic", Match: "suffix"}}},
 			{ID: "litematic", Extensions: []string{".litematic", ".zip"}, Detector: "zipentry",
 				ZipEntries: []types.ZipEntryMatch{{Name: ".litematic", Match: "suffix"}}},
@@ -81,12 +81,12 @@ func TestDetectResourceType_ZipEntry_BareFile(t *testing.T) {
 		path string
 		want string
 	}{
-		{"model.pmx", "mmd-skin"},
-		{"model.pmd", "mmd-skin"},
+		{"model.pmx", "EntityPlayer"},
+		{"model.pmd", "EntityPlayer"},
 		{"avatar.vrca", "vrchat-avatar"},
 		{"avatar.vrm", "vrchat-avatar"},
-		{"build.nbt", "create-blueprint"},
-		{"build.schematic", "create-blueprint"},
+		{"build.nbt", "blueprint"},
+		{"build.schematic", "blueprint"},
 		{"proj.litematic", "litematic"},
 		{"model.xyz", ""}, // 未知扩展名
 	} {
@@ -106,13 +106,13 @@ func TestDetectResourceType_ZipEntry_ZipFingerprint(t *testing.T) {
 	}{
 		// 注意：.pmx 不能放 models/ 目录下——models/ 前缀是 ysm 特有根标记，
 		// 会先命中 ysm（S3 更具体者优先），此处模拟普通 zip 包裹（非 ysm 结构）
-		{"含 .pmx → mmd-skin", map[string]string{"mmd/steve.pmx": "x"}, "mmd-skin"},
-		{"含 .pmd → mmd-skin", map[string]string{"rig/char.pmd": "x"}, "mmd-skin"},
+		{"含 .pmx → EntityPlayer", map[string]string{"mmd/steve.pmx": "x"}, "EntityPlayer"},
+		{"含 .pmd → EntityPlayer", map[string]string{"rig/char.pmd": "x"}, "EntityPlayer"},
 		{"含 .vrca → vrchat-avatar", map[string]string{"avatar.vrca": "x"}, "vrchat-avatar"},
-		{"含 .nbt → create-blueprint", map[string]string{"build/floor.nbt": "x"}, "create-blueprint"},
-		{"含 .schematic → create-blueprint", map[string]string{"house.schematic": "x"}, "create-blueprint"},
+		{"含 .nbt → blueprint", map[string]string{"build/floor.nbt": "x"}, "blueprint"},
+		{"含 .schematic → blueprint", map[string]string{"house.schematic": "x"}, "blueprint"},
 		{"含 .litematic → litematic", map[string]string{"base.litematic": "x"}, "litematic"},
-		{"条目名大小写不敏感（MatchZipEntry 小写归一）", map[string]string{"MODEL.PMX": "x"}, "mmd-skin"},
+		{"条目名大小写不敏感（MatchZipEntry 小写归一）", map[string]string{"MODEL.PMX": "x"}, "EntityPlayer"},
 	} {
 		zipPath := testutil.WriteZipFile(t, "pkg.zip", tc.zip)
 		if got := DetectResourceType(zipPath, reg); got != tc.want {

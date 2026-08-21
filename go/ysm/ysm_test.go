@@ -121,11 +121,11 @@ func TestHasModInDir(t *testing.T) {
 	if HasModInDir(filepath.Join(t.TempDir(), "nope"), "ysm") {
 		t.Fatal("目录不存在应 false")
 	}
-	// mmd-skin：文件名匹配即可
+	// EntityPlayer：文件名匹配即可
 	modsDir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(modsDir, "mmdskin-2.0.jar"), []byte("x"), 0644)
-	if !HasModInDir(modsDir, "mmd-skin") {
-		t.Fatal("mmd-skin 文件名匹配应 true")
+	if !HasModInDir(modsDir, "EntityPlayer") {
+		t.Fatal("EntityPlayer 文件名匹配应 true")
 	}
 	// ysm：需打开 ZIP 确认
 	jar := testutil.WriteZipFile(t, "mod.jar", map[string]string{"META-INF/mods.toml": ysmModToml})

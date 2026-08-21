@@ -306,7 +306,7 @@ func SyncResources(globalDir, instanceDir string, rtype ...string) types.Resourc
 	}
 	// 资源包文件夹（含 pack.mcmeta）作为同步单元——仅资源包类型（detector=mcmeta）
 	// 或空 rtype（旧行为兼容）收集。P5 修复：原实现不分类型一律收集，蓝图仓库
-	// （create-blueprint）里误放的资源包文件夹被当成蓝图 missing 显示"推送"，
+	// （blueprint）里误放的资源包文件夹被当成蓝图 missing 显示"推送"，
 	// 而该目录实际没有任何 .nbt/.schematic（识别错文件）。
 	isPackFolderType := rtypeID == "" || isMcmetaDetectorType(rtypeID)
 
