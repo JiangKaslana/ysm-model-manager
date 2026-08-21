@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 145 | 541 |
+| 前端·工具 | 147 | 550 |
 | frontend/views | 111 | 321 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **437** | **1859** |
+| **合计** | **439** | **1868** |
 
 ## Go·头像
 
@@ -1235,25 +1235,23 @@
 | `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:68` | — |
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:9` | 主线程 → Worker 的请求 |
 | `Ktx2EncodeResponse()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:17` | Worker → 主线程的响应 |
+| `pmxObjectToResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-convert:189` | 权威 PmxObject → PmxParseResponse（压缩数组可 transferable；id 由调用方填入） |
 | `PmxBuilderConfig()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:28` | Builder 配置 |
 | `PmxBuildResult()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:36` | Builder 产出 |
 | `PmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:45` | PMX 解析器管理器 |
 | `createPmxParser()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:53` | 创建 PMX 解析器（Worker） |
 | `buildPmxScene()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:123` | 从 Worker 解析结果构建 Three.js 场景对象。 |
 | `buildPmxSceneSliced()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser:256` | 异步切片版 buildPmxScene：将重负载同步构建拆成 rAF 帧片段。 |
-| `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:12` | 主线程 → Worker 请求 |
-| `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:18` | 顶点数据（交织存储，GPU 友好） |
-| `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:28` | 面数据 |
-| `PmxMaterialData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:34` | 材质数据 |
-| `PmxBoneData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:51` | 骨骼数据（字段对齐 @moeru/three-mmd PmxObject.Bone） |
-| `PmxMorphData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:66` | Morph 数据 |
-| `PmxParseResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:73` | Worker → 主线程响应 |
-| `PmxRigidBodyData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:93` | — |
-| `PmxJointData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:110` | — |
-| `PmxDisplayFrameData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:125` | — |
-| `PmxReader()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:132` | — |
-| `parseBones()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:354` | — |
-| `parsePMX()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:421` | — |
+| `PmxParseRequest()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:17` | 主线程 → Worker 请求 |
+| `PmxVertexData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:23` | 顶点数据（交织存储，GPU 友好） |
+| `PmxFaceData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:33` | 面数据 |
+| `PmxMaterialData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:39` | 材质数据 |
+| `PmxBoneData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:56` | 骨骼数据（字段对齐 @moeru/three-mmd PmxObject.Bone） |
+| `PmxMorphData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:71` | Morph 数据 |
+| `PmxParseResponse()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:78` | Worker → 主线程响应 |
+| `PmxRigidBodyData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:98` | — |
+| `PmxJointData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:115` | — |
+| `PmxDisplayFrameData()` | `frontend/src/utils/3d/adapters/mmd-pmx-parser.worker:130` | — |
 | `TexDecodeRequest()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:9` | 主线程 → Worker 的请求 |
 | `TexDecodeResponse()` | `frontend/src/utils/3d/adapters/mmd-texture-decode.worker:17` | Worker → 主线程的响应 |
 | `TexDecodeConfig()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:15` | 解码器配置 |
@@ -1302,6 +1300,17 @@
 | `ConsoleLogger()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/ILogger:6` | A logger that outputs to the console generally, you can use this class as default logger |
 | `MmdDataDeserializer()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/mmdDataDeserializer:5` | DataView wrapper for deserializing MMD data |
 | `PmxObject()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxObject` | — |
+| `Vec3()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:4` | — |
+| `Vec4()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:5` | — |
+| `PmxHeader()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:7` | — |
+| `PmxVertex()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:21` | — |
+| `PmxMaterial()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:34` | — |
+| `PmxBone()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:53` | — |
+| `PmxMorph()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:73` | — |
+| `PmxDisplayFrame()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:86` | — |
+| `PmxRigidBody()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:93` | — |
+| `PmxJoint()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:111` | — |
+| `PmxObject()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader.d:127` | — |
 | `PmxReader()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/pmxReader:62` | PmxReader is a static class that parses PMX data |
 | `VrmDataPort()` | `frontend/src/utils/3d/adapters/vrm-adapter:27` | VRM 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `VrmMetaInfo()` | `frontend/src/utils/3d/adapters/vrm-adapter:93` | VRM meta 归一化信息（meta 卡展示用） |
