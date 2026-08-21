@@ -7,7 +7,15 @@
 //    localStorage，测试内裸调（beforeEach clear / setItem）会炸；注入内存实现，
 //    happy-dom 环境自带 localStorage（in 判断跳过）。ADR-089 编写约定配套基建。
 import { vi } from "vitest";
+import { TextDecoder as NodeTextDecoder } from "node:util";
 import { zhCN } from "./src/core/i18n/locales/zh-CN.ts";
+
+// 0.5 TextDecoder 兜底（happy-dom 不提供该全局；真实运行时 WebView2/浏览器原生具备）——
+// YSM .animation.json 磁盘兜底扫描等 UTF-8 解码场景测试依赖。
+// 用 typeof 判定而非 in：happy-dom 可能声明属性但未实现。
+if (typeof (globalThis as { TextDecoder?: unknown }).TextDecoder !== "function") {
+  (globalThis as Record<string, unknown>).TextDecoder = NodeTextDecoder;
+}
 
 // 0. idb 层全局共享 mock（2026-08-17，isolate:false 穿透修复）——
 // browser-adapter 系测试原各自 vi.hoisted 独立 store + per-file vi.mock("./idb.ts")，

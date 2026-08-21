@@ -1,5 +1,7 @@
 // ===== preview 工具函数（纯函数，无组件依赖） =====
 
+import type { AnimationClip } from "../../utils/animation/animation.ts";
+
 /** Bedrock 方块 */
 export interface BedrockCube {
   origin: number[];
@@ -43,6 +45,9 @@ export interface BedrockGeometry {
   _avatars?: Record<string, string>;
   _modelPath?: string;
   _texMappingLog?: unknown[];
+  /** 已解析动画 clips（WASM 内嵌解码 / Go 兜底 / 缓存回填统一挂载，供 ysm-adapter 播放；
+   *  区别于 `animations`（Go 透传的原始 JSON 字符串数组） */
+  _animClips?: AnimationClip[];
   animations?: unknown[];
   textures?: string[];
   /** 纹理文件名（去扩展名），与 textures 同序（Go AnalyzeBedrockModel / WASM 解码填充） */

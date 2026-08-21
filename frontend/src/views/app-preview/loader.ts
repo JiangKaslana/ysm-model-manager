@@ -3,7 +3,7 @@
 import { cacheGet, cacheSet } from "./cache.ts";
 import { extOf } from "../../utils/resource/types.ts";
 import { getApp } from "../../backend/app.ts";
-import { parseBedrockAnimationJSON } from "../../utils/animation/animation.ts";
+import { parseBedrockAnimationJSON, type AnimationClip } from "../../utils/animation/animation.ts";
 import type { YsmDecoder, PreviewDebugger } from "./utils.ts";
 import type { BedrockGeometry } from "./geometry.ts";
 
@@ -41,6 +41,11 @@ export async function loadModelData(
   if (cachedGeo?.bones?.length) {
     model = cachedGeo;
     _decodedBy = cached?._decodedBy || "";
+    // 缓存回填动画（此前 WASM/Go 解码时写入缓存的 clips）
+    const cachedAnims = cached?.animations;
+    if (!model._animClips && Array.isArray(cachedAnims) && cachedAnims.length > 0) {
+      model._animClips = cachedAnims as AnimationClip[];
+    }
   }
 
   // .ysm/.json → 前端 WASM 解码
@@ -52,6 +57,11 @@ export async function loadModelData(
       model = decoded.geometry;
       model._authors = _wasmAuthors;
       model._avatars = _wasmAvatars;
+      // 内嵌动画：WASM 已把 .ysm 包内 animations/*.json 解析为 clips——
+      // 单文件模型磁盘没有动画文件，这是动画数据的主来源（修复动作面板空列表）
+      if (Array.isArray(decoded.animations) && decoded.animations.length > 0) {
+        model._animClips = decoded.animations as AnimationClip[];
+      }
       _decodedBy = "🧠 WASM 内置解码";
       cacheSet(modelPath, {
         ...(cacheGet(modelPath) || {}),
@@ -81,6 +91,8 @@ export async function loadModelData(
           if (clips.length > 0) goClips.push(...clips);
         }
       }
+      // Go 兜底路径同样挂载（文件夹/zip 模型的 .animation.json 由 Go 收集透传）
+      if (goClips.length > 0) model._animClips = goClips as AnimationClip[];
       const goTexCount = model.textures?.length || 0;
       model._texMappingLog = [
         {
