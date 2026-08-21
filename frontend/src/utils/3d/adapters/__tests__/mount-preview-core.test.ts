@@ -113,10 +113,6 @@ vi.mock("../../core/i18n/t.ts", () => ({
   t: (key: string) => key,
 }));
 
-vi.mock("../postprocessing.ts", () => ({
-  PostprocessingManager: vi.fn(),
-}));
-
 vi.mock("../switch-preview.ts", () => ({
   switchToSession: vi.fn(async () => {}),
   syncLightTargetFromContent: vi.fn(),

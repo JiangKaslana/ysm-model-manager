@@ -33,7 +33,7 @@ import { FogCapability } from "../caps/fog-capability.ts";
 import { ShadowCapability } from "../caps/shadow-capability.ts";
 import { ReflectorCapability } from "../caps/reflector-capability.ts";
 import { EnvironmentCapability } from "../caps/environment-capability.ts";
-import { PostprocessingManager, type PostprocessingLike } from "./postprocessing.ts";
+import type { PostprocessingLike } from "./postprocessing.ts";
 import type { PostprocessingCapability } from "../caps/postprocessing-capability.ts";
 import { runFullCleanup, type CleanupContext } from "./cleanup-3d.ts";
 import { switchToSession, syncLightTargetFromContent } from "./switch-preview.ts";
@@ -267,8 +267,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   let shadowCap: ShadowCapability | null = null;
   let reflectorCap: ReflectorCapability | null = null;
   let environmentCap: EnvironmentCapability | null = null;
-  // 后处理体积光管线（ADR-081 L2）：抽成 PostprocessingCapability（Registry 驱动），
-  // 保留 PostprocessingManager 引用做回退（外部 cleanupCtx 老字段兼容）。接口一致：render/setSize/dispose
+  // 后处理体积光管线（ADR-081 L2）：PostprocessingCapability（Registry 驱动）
+  // postProc 指向同一 capability，接口 PostprocessingLike：render/setSize/dispose
   let postProc: PostprocessingLike | null = null;
   let postProcCap: PostprocessingCapability | null = null;
   let perFrame: ((dt: number) => void) | null = null;

@@ -15,7 +15,7 @@ import type { FogCapability } from "../caps/fog-capability.ts";
 import { ShadowCapability } from "../caps/shadow-capability.ts";
 import { ReflectorCapability } from "../caps/reflector-capability.ts";
 import { EnvironmentCapability } from "../caps/environment-capability.ts";
-import type { PostprocessingManager, PostprocessingLike } from "./postprocessing.ts";
+import type { PostprocessingLike } from "./postprocessing.ts";
 import type { PostprocessingCapability } from "../caps/postprocessing-capability.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";

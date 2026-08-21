@@ -703,17 +703,17 @@
 | `App.OpenFolder()` | `internal/app/app_scan:519` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:555` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
 | `progressReader.Read()` | `internal/app/app_scan:589` | — |
-| `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
-| `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
-| `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
-| `App.AllTags()` | `internal/app/app_tags:32` | AllTags 返回所有被使用的标签（按使用次数降序） |
-| `App.GetCachedTexture()` | `internal/app/app_texture_cache:24` | GetCachedTexture 读取纹理文件，计算内容哈希，检查 KTX2 缓存。 |
-| `App.SaveCachedTexture()` | `internal/app/app_texture_cache:64` | SaveCachedTexture 保存前端 WASM 编码后的 KTX2 数据到缓存。 |
-| `App.ClearTextureCache()` | `internal/app/app_texture_cache:73` | ClearTextureCache 清空纹理缓存（用户主动清理用）。 |
-| `App.HasCachedTexture()` | `internal/app/app_texture_cache:78` | HasCachedTexture 检查指定纹理的内容哈希是否已有 KTX2 缓存。 |
-| `App.GetCachedTextureByHash()` | `internal/app/app_texture_cache:85` | GetCachedTextureByHash 通过哈希直接读取 KTX2 缓存（不读取原始文件，轻量操作）。 |
-| `App.HasCachedTextures()` | `internal/app/app_texture_cache:98` | HasCachedTextures 批量检查多个哈希是否已有 KTX2 缓存。 |
-| `CachedTextureResult()` | `internal/app/app_texture_cache:15` | CachedTextureResult 是 GetCachedTexture 的返回值。 |
+| `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
+| `App.SetModelTags()` | `internal/app/app_tags:29` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
+| `App.ListByTag()` | `internal/app/app_tags:38` | ListByTag 返回所有打了指定标签的文件路径列表 |
+| `App.AllTags()` | `internal/app/app_tags:43` | AllTags 返回所有被使用的标签（按使用次数降序） |
+| `App.GetCachedTexture()` | `internal/app/app_texture_cache:25` | GetCachedTexture 读取纹理文件，计算内容哈希，检查 KTX2 缓存。 |
+| `App.SaveCachedTexture()` | `internal/app/app_texture_cache:71` | SaveCachedTexture 保存前端 WASM 编码后的 KTX2 数据到缓存。 |
+| `App.ClearTextureCache()` | `internal/app/app_texture_cache:80` | ClearTextureCache 清空纹理缓存（用户主动清理用）。 |
+| `App.HasCachedTexture()` | `internal/app/app_texture_cache:85` | HasCachedTexture 检查指定纹理的内容哈希是否已有 KTX2 缓存。 |
+| `App.GetCachedTextureByHash()` | `internal/app/app_texture_cache:92` | GetCachedTextureByHash 通过哈希直接读取 KTX2 缓存（不读取原始文件，轻量操作）。 |
+| `App.HasCachedTextures()` | `internal/app/app_texture_cache:105` | HasCachedTextures 批量检查多个哈希是否已有 KTX2 缓存。 |
+| `CachedTextureResult()` | `internal/app/app_texture_cache:16` | CachedTextureResult 是 GetCachedTexture 的返回值。 |
 | `App.DefaultWorkshopSites()` | `internal/app/app_workshop:103` | — |
 | `App.SaveWorkshopSites()` | `internal/app/app_workshop:114` | — |
 | `App.LoadWorkshopCreators()` | `internal/app/app_workshop:156` | — |
@@ -1006,7 +1006,7 @@
 | `groupSites()` | `frontend/src/features/community/render:200` | 按 group 分组站点（缺省 browse）。纯函数，供单测覆盖（ADR-023 L3）。 |
 | `renderCardsHTML()` | `frontend/src/features/community/render:217` | 生成左栏站点卡片 HTML |
 | `renderRepoHeaderHTML()` | `frontend/src/features/community/render:267` | 生成仓库模型页面的头部 HTML（含返回按钮、计数、筛选按钮等） |
-| `showRepoModels()` | `frontend/src/features/community/show-repo-models:24` | 显示 GitHub 仓库模型列表（比对本地已有文件） 包含：本地扫描、sourceLabel构建、countMissing、renderRepoHeaderHTML、bindRep |
+| `showRepoModels()` | `frontend/src/features/community/show-repo-models:25` | 显示 GitHub 仓库模型列表（比对本地已有文件） 包含：本地扫描、sourceLabel构建、countMissing、renderRepoHeaderHTML、bindRep |
 | `CollectedFile()` | `frontend/src/features/dnd-collector:6` | 收集结果条目 |
 | `collectFiles()` | `frontend/src/features/dnd-collector:35` | 递归收集 DataTransferItem[] 或 FileSystemEntry[] 中的文件。 |
 | `getExt()` | `frontend/src/features/dnd-shared:4` | — |
@@ -1296,8 +1296,7 @@
 | `PerceptionState()` | `frontend/src/utils/3d/adapters/perception-controls:7` | 感知层状态：各模块开关（adapter build 时创建，update 循环读取，面板 UI 写入） |
 | `PerceptionCapability()` | `frontend/src/utils/3d/adapters/perception-controls:16` | 可用感知模块描述（由 adapter 按实际能力填写） |
 | `buildPerceptionControls()` | `frontend/src/utils/3d/adapters/perception-controls:37` | 在感知面板内渲染开关行（对齐 camera-controls.ts 范式）。 |
-| `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:18` | 后处理对外最小契约（兼容 PostprocessingManager / PostprocessingCapability） |
-| `PostprocessingManager()` | `frontend/src/utils/3d/adapters/postprocessing:25` | — |
+| `PostprocessingLike()` | `frontend/src/utils/3d/adapters/postprocessing:8` | 后处理对外最小契约（PostprocessingCapability 实现此接口） |
 | `PreviewMenuItemKind()` | `frontend/src/utils/3d/adapters/preview-menu-defs:15` | — |
 | `PreviewMenuGroupId()` | `frontend/src/utils/3d/adapters/preview-menu-defs:16` | — |
 | `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:18` | — |
@@ -1313,7 +1312,7 @@
 | `MAX_MODELS()` | `frontend/src/utils/3d/adapters/scene-registry:164` | 同场景最大模型数（超量追加被拒，ADR-093 T6） |
 | `SwitchContext()` | `frontend/src/utils/3d/adapters/switch-preview:30` | 会话内切换所需的外部上下文（原 mount3D 内嵌闭包变量） |
 | `switchToSession()` | `frontend/src/utils/3d/adapters/switch-preview:87` | 会话内切换模型（复用外壳重建内容层）。 |
-| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:249` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
+| `syncLightTargetFromContent()` | `frontend/src/utils/3d/adapters/switch-preview:268` | 重算内容层包围盒，更新灯光 target（ADR-081 L1 + ADR-084 L2）。 |
 | `Endianness()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/endianness:4` | Endianness utility class for serlization/deserialization |
 | `ConsoleLogger()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/ILogger:6` | A logger that outputs to the console generally, you can use this class as default logger |
 | `MmdDataDeserializer()` | `frontend/src/utils/3d/adapters/vendor/babylon-mmd/mmdDataDeserializer:5` | DataView wrapper for deserializing MMD data |
@@ -1695,11 +1694,12 @@
 | `addTagToSet()` | `frontend/src/utils/dom/dialogs/tag-set:19` | 向标签集合添加一个标签（已 trim）： 空输入 → 原样返回；重复 → error「标签已存在」；超长 → error「最多 20 个字符」； 合法 → 排序后返回新数组。错误文 |
 | `resolveAndroidRepoDir()` | `frontend/src/utils/dom/directory-picker:25` | Android 共享仓库目录解析（双端桥接：授权引导 + 定位公共目录）。 |
 | `pickDirectory()` | `frontend/src/utils/dom/directory-picker:65` | 选择目录：桌面走系统对话框；查看器模式（Android/网页版）走授权检查 + 自动定位公共目录 |
-| `ParsedModelName()` | `frontend/src/utils/dom/display:6` | 解析后的模型文件名字段 |
-| `parseModelName()` | `frontend/src/utils/dom/display:45` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
-| `renderDisplayName()` | `frontend/src/utils/dom/display:114` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
-| `renderModelName()` | `frontend/src/utils/dom/display:183` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
-| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:192` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
+| `stripBanSuffix()` | `frontend/src/utils/dom/display:9` | 剥离 .ban 禁用后缀（大小写不敏感）。 |
+| `ParsedModelName()` | `frontend/src/utils/dom/display:14` | 解析后的模型文件名字段 |
+| `parseModelName()` | `frontend/src/utils/dom/display:53` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
+| `renderDisplayName()` | `frontend/src/utils/dom/display:122` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
+| `renderModelName()` | `frontend/src/utils/dom/display:191` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
+| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:200` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `isFileExistsError()` | `frontend/src/utils/dom/errors:87` | 判断错误消息是否为「文件已存在」冲突（索引 4.2 收敛）。 |
@@ -1808,8 +1808,8 @@
 | `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:20` | 初始化性能面板（single-bench / gui-flow / perf-log / 加载剖析） |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf:403` | 渲染加载剖析区段 |
 | `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
-| `AppContentHost()` | `frontend/src/views/app-content/init-github:16` | app-content 组件接口（供 github 初始化函数访问） |
-| `initGithubPage()` | `frontend/src/views/app-content/init-github:29` | 初始化 GitHub 页 |
+| `AppContentHost()` | `frontend/src/views/app-content/init-github:17` | app-content 组件接口（供 github 初始化函数访问） |
+| `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |
 | `AppContentHost()` | `frontend/src/views/app-content/init-pages:17` | app-content 组件接口（供页面初始化函数访问） |
 | `initDiagnosticsPage()` | `frontend/src/views/app-content/init-pages:25` | 初始化诊断页 |
 | `initInstancesPage()` | `frontend/src/views/app-content/init-pages:32` | 初始化实例页 |
@@ -2031,8 +2031,8 @@
 | `placeholderHTML()` | `frontend/src/views/app-resource-manager/tpl:159` | 空状态占位 |
 | `SidebarInstance()` | `frontend/src/views/app-sidebar/data:4` | sidebar 整合包实例（loader 转换后的渲染格式） |
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
-| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:164` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
-| `bindFooter()` | `frontend/src/views/app-sidebar/events:197` | — |
+| `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:162` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
+| `bindFooter()` | `frontend/src/views/app-sidebar/events:195` | — |
 | `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:27` | 从 Go 加载整合包实例列表，转换为 render 需要的格式 |
