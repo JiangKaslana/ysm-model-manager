@@ -158,6 +158,7 @@ const ALL_STATIC_TOOLS = [
   { tool: 'gen-project-map.mjs', args: ['--check'] },
   { tool: 'funcmap.mjs', args: ['--check'] },
   { tool: 'build-novel-index.mjs', args: ['--check'] },
+  { tool: 'gen-cli-doc.mjs', args: ['--check'] },
   'check-script-hygiene.mjs',
   'check-workflow-refs.mjs',
   { tool: 'i18n-check.mjs', args: ['--strict'] },
@@ -172,6 +173,7 @@ const DOC_STATIC_TOOLS = [
   { tool: 'gen-project-map.mjs', args: ['--check'] },
   { tool: 'funcmap.mjs', args: ['--check'] },
   { tool: 'build-novel-index.mjs', args: ['--check'] },
+  { tool: 'gen-cli-doc.mjs', args: ['--check'] },
   'check-script-hygiene.mjs',
   'check-workflow-refs.mjs',
 ];

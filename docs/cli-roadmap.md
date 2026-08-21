@@ -3,47 +3,53 @@
 > 面向项目维护者（人类 + AI）的 CLI 发展路线图：现状盘点、方向探索、阶段规划。
 > 定位：CLI 是 GUI 之外的「第二操作面」——脱壳诊断、批量运维、自动化落地的武器库。
 > 原则：复用已有函数优先，通用化、统一、长治久安（见 AGENTS.md 用户偏好）。
-> 最后校准：2026-08-19（Phase A/B/C 全部落地；ADR-102 已采纳）。
+> 最后校准：2026-08-21（命令清单与文档同步机制全面刷新；写能力命令已长成）。
 
 ---
 
-## 一、现状盘点（2026-08-19）
+## 一、现状盘点（2026-08-21）
 
-### 1.1 命令清单（19 个，按域）
+### 1.1 命令清单（36 个顶层命令，按域）
 
-| 域 | 命令 | 说明 |
-|----|------|------|
-| 模型管理 | `search` / `analyze` / `list` / `verify` / `export` / `benchmark` | 查询、分析、完整性验证、结构导出、性能基准 |
-| MMD 分析 | `file-bench` / `scan-dir` / `analyze-mmd` | 大文件读取性能、目录资产统计、模型资产分析 |
-| 性能基准 | `single-bench` / `concurrent-bench` | 单模型加载基准（优化基础）/ 并发能力对比 |
-| 缓存管理 | `cache-status` / `cache-verify` / `cache-clear` / `cache-diag` | 状态、命中检查、清空、流程诊断 |
-| 配置/流程 | `config-show` / `gui-flow` | 配置查看 / 模拟 GUI 完整加载流程 |
-| 日志 | `perf-log` | 优化记录日志（时间倒序） |
-| 仓库审计 | `resource-scan` / `repo-audit` | 资产分布扫描 / 健康分数 + 完整性 + 缓存聚合 |
+> **完整命令参考（含子命令/选项）以 [`docs/cli-commands.md`](./cli-commands.md) 为准**——
+> 由 `scripts/gen-cli-doc.mjs` 从 `go/cli/` 注册表自动生成，`tests/test_cli_doc_parity.mjs`
+> 锁注册表↔文档双向一致，本文档仅作定位概览不再逐命令维护（防漂移）。
+
+| 域 | 命令 |
+|----|------|
+| 模型管理 | `search` / `analyze` / `list` / `verify` / `export` / `benchmark` / `install` / `tags` / `move` / `copy` / `rename` / `toggle` |
+| MMD 分析 | `file-bench` / `scan-dir` / `analyze-mmd` |
+| 性能基准 | `single-bench` / `concurrent-bench` / `gui-flow` / `perf-log` / `perf-snapshot` |
+| 缓存管理 | `cache-status` / `cache-verify` / `cache-clear` / `cache-diag` |
+| 配置/流程 | `config` / `config-show` / `link-mode` |
+| 资源仓库 | `scan` / `resource-scan` / `repo-audit` / `avatar` / `creator` / `workshop` / `instance` / `recycle` / `download` |
 
 **测试覆盖**：`go test ./go/cli/...` 全绿（0.27s，40+ 用例）。
-**源码规模**：`go/cli/` 共 13 个文件，约 115KB，全部 `package cli`。
+**源码规模**：`go/cli/` 共 23 个文件，全部 `package cli`。
 
 ### 1.2 架构现状
 
-- 入口：`RunCLI` / `runCLIWithApp`（可测入口）→ `dispatchCommand` → `CmdContext{App, FilesRoot, Args}`。
-- 命令自注册：各文件 `init()` 里 `RegisterCommand(name, desc, run)`，新增命令零侵入。
+- 入口：`RunCLI` / `ExecuteCLIWithApp`（可测入口）→ `DispatchCommand` → `CmdContext{App, FilesRoot, Args}`。
+- 命令自注册：各文件 `init()` 里 `RegisterCommandC(name, cat, desc, run)`，新增命令零侵入。
 - 退出码分级：`ErrParam`（参数错，exit 2）/ `ErrRuntime`（业务错，exit 1）/ 其他（0）。
 - 核心优势：**命令天然拿到 `*app.App`**，GUI 与 CLI 共享同一套业务层——CLI 能做的，GUI 链路都能复用。
 
-### 1.3 定位判断
+### 1.3 定位判断（2026-08-21 刷新）
 
-> 现状是「只读诊断工具 + 轻量审计」：查询、分析、测性能、健康评分。**没有写能力，没有自动化落地。**
+> 现状是「只读诊断 + 轻量审计 + **已具备写/运维能力**」：除了查询/分析/测性能/健康评分，
+> `install` / `tags` / `move/copy/rename/toggle` / `recycle` / `instance sync|push|pull` /
+> `config mirror|link-mode` 等写操作已落地（早前「没有写能力」结论已过时）。
 
 | 能力 | 现状 | 缺口 |
 |------|------|------|
 | 查询/分析 | ✅ 完备 | — |
 | 性能诊断 | ✅ 完备（single-bench 是地基 + 前端已消费 + `--baseline` 基准回归） | — |
 | 汇总报告 | ⚠️ 单命令输出 / repo-audit 轻度聚合 | 缺一键全仓体检报告（方向 A） |
-| 写/运维 | ❌ 无 | 缺导入/清理/同步/转换等写能力 |
+| 写/运维 | ✅ 已落地（install/tags/fileops/recycle/instance/config mirror） | 缺 `dedup` CLI 暴露（go/dedup 有函数未接命令） |
 | 批量/流水线 | ❌ 无 | 缺 scan→analyze→export→report 串联 |
 | 交互体验 | ⚠️ 单命令执行 | 缺 REPL 连续操作 |
 | GUI↔CLI 桥接 | ✅ 后端桥 + 前端消费 + B 门禁/回归 + C 性能护栏全落地 | — |
+| **文档同步** | ✅ **已治本**：`gen-cli-doc.mjs` 生成 `docs/cli-commands.md`，AGENTS.md 转指针页，契约测试锁 parity | — |
 
 ---
 
@@ -216,7 +222,8 @@
 
 ## 七、相关链接
 
-- 命令使用说明：`AGENTS.md` 末尾「CLI 模式使用说明」
+- 命令使用说明（完整参考）：[`docs/cli-commands.md`](./cli-commands.md)（由 `scripts/gen-cli-doc.mjs` 从注册表自动生成）
+- 入口姿势与高频场景：`AGENTS.md` 末尾「CLI 模式使用说明」
 - 源码：`go/cli/`（入口 `cli.go`，`main.go` 经 `cli.RunCLI` 接线）
 - 文档登记：`docs/funcmap.md`（go/cli 章节，pre-commit 自动同步）
 - 性能理念：`single-bench` 优先（单模型快 = 所有场景快，P0 测试策略）

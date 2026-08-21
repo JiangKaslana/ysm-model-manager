@@ -70,6 +70,7 @@ gen-knowledge-h1.mjs
 gen-knowledge-symbols.mjs
 gen-knowledge-adr.mjs
 gen-knowledge-tests.mjs
+gen-cli-doc.mjs
 generate-locale-json.mjs'
 echo "$GEN_CMDS" | while IFS= read -r line; do
   [ -z "$line" ] && continue

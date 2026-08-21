@@ -42,7 +42,7 @@ git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留
 | 发布与维护 | `docs/releases/`（发版流程）+ `docs/maintenance.md`（维护手册） |
 | Android 开发 | `docs/android-dev.md`（双端桥/按钮适配清单/构建/坑点） |
 | 特殊创作 | `docs/novel/AGENTS.md` 小说圣经，完成新功能、重构后可以写写 |
-| **CLI 命令使用** | 查本文件末尾「CLI 模式使用说明」章节 | 别猜参数格式，直接查说明 |
+| **CLI 命令使用** | 查 `docs/cli-commands.md`（由 `scripts/gen-cli-doc.mjs` 从注册表自动生成） | 别猜参数格式，直接查说明 |
 | **缓存相关问题** | `texture_cache` 包 + `cache-status`/`cache-verify` 命令 | 别直接删缓存文件，用 `cache-clear` |
 | **性能诊断需求** | `file-bench`/`analyze-mmd`/`scan-dir` 命令 | 别手动统计文件大小，用 CLI 自动分析 |
 
@@ -259,43 +259,19 @@ go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 
 ## 命令列表
 
-### 模型管理命令
+> **完整命令参考（36 个顶层命令，含分类/子命令/选项）见 [`docs/cli-commands.md`](./docs/cli-commands.md)**。
+> 该文档由 `node scripts/gen-cli-doc.mjs` 从 `go/cli/` 命令注册表**自动生成**（单一事实来源 = 源码注册），
+> pre-commit 自动同步、`--check` 已接入 doctor 防漂移——新增命令只需改源码注册，无需在此手动维护。
 
-| 命令 | 说明 | 示例 |
-|------|------|------|
-| `search` | 搜索模型（支持关键词/骨骼/立方块/贴图过滤） | `search --keyword warrior --format table` |
-| `analyze` | 分析单个模型详情 | `analyze --model ./model/ysm.json` |
-| `list` | 列出所有模型摘要 | `list --format json` |
-| `verify` | 验证模型完整性 | `verify --repair` |
-| `benchmark` | 性能基准测试 | `benchmark --iterations 5` |
-| `export` | 导出模型结构 | `export --model ./model/ysm.json --output model.json` |
+### 命令分类总览
 
-### MMD 专用命令
-
-| 命令 | 说明 | 示例 |
-|------|------|------|
-| `file-bench` | 测试大文件读取性能（单文件/批量/IPC） | `file-bench --dir ./mmd/模型目录 --iterations 3` |
-| `scan-dir` | 扫描目录结构统计资产 | `scan-dir --dir ./mmd` |
-| `analyze-mmd` | 分析 MMD 模型资产（贴图/PMX/VMD） | `analyze-mmd --dir ./mmd/子言` |
-| `single-bench` | **单模型加载基准测试**（优化基础，单模型快=所有场景快；`--baseline <json>` 与基准对比、退化超 `--threshold %` 即失败、`--save-baseline <json>` 存锚点，供 CI 防性能倒退） | `single-bench --model ./ysm/player.ysm --iterations 3 --save-baseline bench.json` |
-| `concurrent-bench` | 并发能力基准测试（串行 vs 并行对比，建议先优化单模型） | `concurrent-bench --workers 8 --max-models 30` |
-| `perf-log` | 输出优化记录日志（按时间倒序：问题/做法/效果/提交；**文档驱动**——读 `docs/knowledge/optimization_log.md`，AI 改文档即同步，勿改 Go 硬编码） | `perf-log` |
-
-### 缓存管理命令
-
-| 命令 | 说明 | 示例 |
-|------|------|------|
-| `cache-status` | 查看纹理缓存状态（路径/大小/文件数） | `cache-status` |
-| `cache-verify` | 检查模型贴图缓存命中情况 | `cache-verify --dir ./mmd/子言 --verbose` |
-| `cache-clear` | 清空纹理缓存 | `cache-clear --yes` |
-| `cache-diag` | 诊断缓存流程（目录/哈希/读写/权限） | `cache-diag` |
-
-### 配置管理命令
-
-| 命令 | 说明 | 示例 |
-|------|------|------|
-| `config-show` | 查看当前配置（路径/阈值/窗口状态） | `config-show` |
-| `gui-flow` | **模拟 GUI 完整加载流程**（配置→扫描→分析→缓存→渲染预估） | `gui-flow --verbose` |
+| 分类 | 代表命令 | 完整清单 |
+|------|---------|---------|
+| 模型管理 | `search` / `analyze` / `list` / `verify` / `export` / `install` / `tags` / `move` / `copy` / `rename` / `toggle` | [docs/cli-commands.md](./docs/cli-commands.md) |
+| 性能诊断 | `single-bench` / `concurrent-bench` / `gui-flow` / `perf-log` / `perf-snapshot` / `file-bench` | 同上 |
+| 缓存管理 | `cache-status` / `cache-verify` / `cache-clear` / `cache-diag` | 同上 |
+| 资源仓库 | `scan` / `scan-dir` / `analyze-mmd` / `resource-scan` / `repo-audit` / `avatar` / `creator` / `workshop` / `instance` / `recycle` / `download` | 同上 |
+| 配置 | `config` / `config-show` / `link-mode` | 同上 |
 
 ## 常用场景
 
