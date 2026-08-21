@@ -649,12 +649,12 @@ describe("代际守卫（_gen）", () => {
     resolveFirst();
     await firstPromise;
 
-    // 结果：由于 _handle 是模块级单例，第一个会话的 fullCleanup() 调用
-    // nullHandle() 将 _handle 置 null，导致第二个会话的句柄也被清除。
-    // 正确做法：每个会话应有独立的 handle 引用，cleanup 只清自己的。
-    // BUG: 模块级 _handle 竞态——一个会话的 cleanup 会误杀另一会话。
-    expect(hasActivePreview()).toBe(false);
+    // 结果：第一个会话 myGen(1) !== _gen(2) 走 fullCleanup 分支，不 push 自身 handle；
+    // 模块级已从单 _handle 改为 _handles 数组（每会话独立 handle + gen），
+    // 第二个会话的句柄不再被第一个会话的 cleanup 误杀 → 仍保持活跃。
+    expect(hasActivePreview()).toBe(true);
     cleanupPreview();
+    expect(hasActivePreview()).toBe(false);
   });
 });
 

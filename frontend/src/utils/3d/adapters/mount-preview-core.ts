@@ -173,6 +173,10 @@ export function cleanupPreview(): void {
   }
   _handles.length = 0;
   // renderer/canvas/overlay 保留（下次 mount3D 直接复用，不重建 DOM）
+  // 但 _singletonOverlay/_singletonBody 必须清零：handle.cleanup→fullCleanup 已从 DOM 移除它们，
+  // 保留旧引用会导致下次 mount3D 复用已脱离文档的 detached element（测试 afterEach 尤其敏感）。
+  _singletonOverlay = null;
+  _singletonBody = null;
   _singletonScene = null;
   _singletonCamera = null;
   _singletonRenderer = null;
@@ -460,10 +464,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       _singletonControls.minDistance = 0.1;
       _singletonControls.maxDistance = 5000;
       _singletonControls.update();
-      orbitTarget = (_singletonControls as OrbitControls).target.clone();
       _singletonControls.enableRotate = true;
     }
     controls = _singletonControls;
+    // orbitTarget 是本次 mount 的会话局部变量：复用单例 controls（非首次）时不进上面的 if，
+    // 但必须每次从当前 controls 目标刷新，否则下方 orbitTarget!.copy 读到 undefined。
+    orbitTarget = controls.target.clone();
 
     // ===== §4a 输入绑定（WASD 键盘 + 拖拽自转 + resize）=====
     const inputOpts: InputOptions = {
@@ -839,7 +845,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       menuHandle.dispose();
       // ④ viewContainer（含 loadingEl；首次挂载时可能含 renderer.domElement）
       if (viewContainer.parentNode) viewContainer.parentNode.removeChild(viewContainer);
-      // ⑤ 只清理内容层（dispose built + 移除 scene children），保留 renderer/canvas/overlay 存活
+      // ⑤ overlay 本体移除 + 清模块级单例：fullCleanup 是「完整关闭」语义。
+      // switchTo 的复用外壳走 switch-preview.ts（不经过此处），故移除 overlay 不影响模型内切换。
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      _singletonOverlay = null;
+      _singletonBody = null;
+      // ⑥ 只清理内容层（dispose built + 移除 scene children），保留 renderer/canvas 存活
       //    避免销毁 WebGL context 导致黑屏窗口期
       if (scene && sceneBaseline) {
         const stale = scene.children.filter((c): boolean => !sceneBaseline!.has(c));
