@@ -441,7 +441,12 @@ func (a *App) CheckFileExists(path string) bool {
 // 不能像 isPathInRoot 那样以 ysmRoot 为唯一基准——resourcepack 等兄弟类型根
 // 相对 ysmRoot 是 ../，会被误拒（code_review 修复）。
 // 放行根本身（rel==.，整仓扫描合法）；拒绝 .. 越权、盘符根、其他卷绝对路径。
+// 空串守卫：filepath.Clean("") → "."，会被 filepath.Rel 解析为 CWD——
+// 若 CWD 恰在配置根内则误判合法。源头拦截，保护全部调用方（defense-in-depth）。
 func (a *App) isPathInRootOrSelf(path string) bool {
+	if path == "" {
+		return false
+	}
 	cfg := a.LoadAppConfig()
 	roots := []string{
 		cfg.FilesRoot,
@@ -475,7 +480,11 @@ func (a *App) isPathInRootOrSelf(path string) bool {
 }
 
 // isPathInRoot 检查路径是否在 FilesRoot 内（路径守卫辅助函数）
+// 空串守卫：与 isPathInRootOrSelf 同源修复——filepath.Clean("") → "." 解析为 CWD。
 func (a *App) isPathInRoot(path string) bool {
+	if path == "" {
+		return false
+	}
 	root := a.ysmRoot()
 	if root == "" {
 		return false
