@@ -755,6 +755,10 @@ export const autoSidebar = [
         "link": "/audit-r9-3d-preview-resource-management-2026-08-18"
       },
       {
+        "text": "CLI 命令参考",
+        "link": "/cli-commands"
+      },
+      {
         "text": "CLI 发展规划（Roadmap）",
         "link": "/cli-roadmap"
       },

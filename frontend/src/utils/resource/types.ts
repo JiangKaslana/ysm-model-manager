@@ -259,7 +259,7 @@ export function resolveTypeSafe(path: string): string | null {
  * 检查是否匹配某类型的 instanceDir。解决 MMD 子类型共享扩展名的歧义。
  * 仅在扩展名也匹配时才返回——确保不会跨组误判。
  */
-export function resolveTypeByPath(path: string): string | null {
+function resolveTypeByPath(path: string): string | null {
   const ext = extOf(path);
   if (!ext) return null;
 

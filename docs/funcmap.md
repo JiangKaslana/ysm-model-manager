@@ -42,11 +42,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 139 | 535 |
+| 前端·工具 | 139 | 534 |
 | frontend/views | 110 | 317 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **430** | **1848** |
+| **合计** | **430** | **1847** |
 
 ## Go·头像
 
@@ -1727,7 +1727,6 @@
 | `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:227` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
 | `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:238` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
 | `resolveTypeSafe()` | `frontend/src/utils/resource/types:251` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `resolveTypeByPath()` | `frontend/src/utils/resource/types:262` | 路径消歧（对齐 Go detectByPathDisambiguation）：遍历文件所有祖先目录， 检查是否匹配某类型的 instanceDir。解决 MMD 子类型共享扩展名的 |
 | `matchZipEntryTS()` | `frontend/src/utils/resource/types:301` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `safeErrorMessage()` | `frontend/src/utils/safe-error-msg:19` | 从任意错误对象提取可读消息字符串。 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
