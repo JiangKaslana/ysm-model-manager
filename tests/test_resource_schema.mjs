@@ -20,7 +20,7 @@ const VALID_ACTIONS = new Set(['import', 'toggle', 'delete', 'openFolder', 'view
 const VALID_CONFIG_FIELDS = new Set([
   'YsmRoot', 'ResourcepackRoot', 'ShaderpackRoot', 'SchematicRoot', 'LitematicRoot', 'MmdRoot', 'VrcRoot',
 ]);
-const REQUIRED_FIELDS = ['id', 'name', 'icon', 'extensions', 'installDir', 'instanceLevel', 'preview', 'detector', 'actions', 'scanDir'];
+const REQUIRED_FIELDS = ['id', 'name', 'icon', 'extensions', 'instanceDir', 'instanceLevel', 'preview', 'detector', 'actions'];
 // ADR-092：合法分组 id 白名单（resourceGroups 顶层数组派生）
 const VALID_GROUPS = new Set(['minecraft', 'minecraft-mod', 'mmd', 'vrm', 'other']);
 
@@ -134,12 +134,6 @@ function validate() {
       }
     }
 
-    // installDir 校验
-    const inst = rt?.installDir ?? '';
-    if (inst && !inst.endsWith('/') && !inst.includes('{instance}')) {
-      errors.push(`${prefix}: 'installDir' must end with '/' (got '${inst}')`);
-    }
-
     // instanceLevel 校验
     if (typeof rt?.instanceLevel !== 'boolean') {
       errors.push(`${prefix}: 'instanceLevel' must be boolean`);
@@ -242,9 +236,9 @@ function validate() {
     }
   }
 
-  // 守卫 2/3：storageSubDir / configField 全局唯一
+  // 守卫 2/3：storageSubDir 全局唯一，configField 允许同组共享
   const subDirOwners = new Map(); // storageSubDir → 首个声明者
-  const cfgFieldOwners = new Map(); // configField → 首个声明者
+  const cfgFieldOwners = new Map(); // configField → [首个声明者, 所属组]
   for (const rt of types) {
     if (rt?.storageSubDir) {
       if (subDirOwners.has(rt.storageSubDir)) {
@@ -254,10 +248,11 @@ function validate() {
       }
     }
     if (rt?.configField) {
-      if (cfgFieldOwners.has(rt.configField)) {
-        errors.push(`${rt.id}: configField '${rt.configField}' 与 '${cfgFieldOwners.get(rt.configField)}' 重复（全局唯一）`);
-      } else {
-        cfgFieldOwners.set(rt.configField, rt.id);
+      const existing = cfgFieldOwners.get(rt.configField);
+      if (existing && existing[1] !== rt.group) {
+        errors.push(`${rt.id}: configField '${rt.configField}' 与 '${existing[0]}' 跨组重复（仅限同组共享）`);
+      } else if (!existing) {
+        cfgFieldOwners.set(rt.configField, [rt.id, rt.group]);
       }
     }
   }
@@ -319,21 +314,13 @@ function validate() {
     if (rt?.id) typeGroupOf.set(rt.id, rt.group ?? '');
   }
   for (const rt of types) {
-    for (const f of ['scanDir', 'installDir']) {
+    for (const f of ['scanDir', 'instanceDir']) {
       const v = rt?.[f] ? String(rt[f]).replace(/\/+$/, '') : '';
       if (!v) continue;
       const owner = storageSubDirOwnerOf.get(v);
       if (owner && owner !== rt.id && typeGroupOf.get(owner) !== rt?.group) {
         errors.push(`${rt.id}.${f}='${rt[f]}' 与 ${owner}.storageSubDir 撞车（跨组仓库/整合包目录混淆）`);
       }
-    }
-  }
-
-  // 守卫 7（单向）：installDir 含 {instance} 占位符 ⇒ instanceLevel=true
-  // （{instance} 只在实例化场景有意义；instanceLevel=false 是全局库类型，不应出现占位符）
-  for (const rt of types) {
-    if (rt?.installDir?.includes('{instance}') && rt?.instanceLevel !== true) {
-      errors.push(`${rt.id}: installDir 含 {instance} 必须 instanceLevel=true`);
     }
   }
 

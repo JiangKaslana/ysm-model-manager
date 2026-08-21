@@ -36,8 +36,7 @@ type ResourceType struct {
 	GroupIcon      string          `json:"groupIcon,omitempty"`  // 分组图标，同上
 	Extensions     []string        `json:"extensions"`
 	StorageSubDir  string          `json:"storageSubDir"`
-	InstallDir     string          `json:"installDir"`
-	ScanDir        string          `json:"scanDir"`
+	InstanceDir    string          `json:"instanceDir"` // 整合包内实际存放目录（安装+扫描统一路径）
 	InstanceLevel  bool            `json:"instanceLevel"`
 	Preview        string          `json:"preview"`        // "3d" / "thumbnail" / "none"
 	Detector       string          `json:"detector"`       // "ysm" / "mcmeta" / "shader" / "zipentry" / "extension"

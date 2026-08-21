@@ -551,75 +551,17 @@ func (a *App) OpenInstanceFolder(instDir, rtype, subdir string) error {
 	return a.OpenFolder(resolveInstDirTarget(instDir, rtype))
 }
 
-// resolveInstallDirStandard 候选 A/B：installDir 模板标准推导（ADR-095）。
-// rel 替换 {instance} 后掐掉 "versions/{instance}/" 前缀拼 instDir（候选 A），
-// 或经 mcRoot（instDir 上两级）拼完整 rel（候选 B，vanilla 全局目录）；
-// 任一命中即返回，全部不存在返回 ""。供 rtype 级与子类级 installDir 共用。
-func resolveInstallDirStandard(instDir, installDir string) string {
-	if installDir == "" {
-		return ""
-	}
-	instName := filepath.Base(instDir)
-	rel := strings.ReplaceAll(installDir, "{instance}", instName)
-	// ⚠️ 毒舌审核 P0：TrimPrefix 前缀匹配陷阱——
-	// rel="versions/my-instance-extra/3d-skin" 时，
-	// TrimPrefix("versions/"+instName+"/") 中 instName="my-instance-extra" 不会误匹配。
-	// 但若 instName 本身是另一个实例名的前缀（如 instName="my-instance"，
-	// rel="versions/my-instance-extra/3d-skin"），TrimPrefix 会错误截断。
-	// 用 HasPrefix + 精确长度截取替代 TrimPrefix，避免实例名含连字符时的错位。
-	var trimmed string
-	if strings.HasPrefix(rel, "versions/"+instName+string(filepath.Separator)) {
-		trimmed = rel[len("versions/"+instName+string(filepath.Separator)):]
-	} else {
-		trimmed = rel
-	}
-	mcRoot := filepath.Dir(filepath.Dir(instDir))
-	for _, c := range []string{
-		filepath.Join(instDir, trimmed),
-		filepath.Join(mcRoot, rel),
-	} {
-		if info, err := os.Stat(c); err == nil && info.IsDir() {
-			return c
-		}
-	}
-	return ""
-}
-
 // resolveInstDirTarget 推导整合包内资源存储目录（ADR-095，纯函数可测）：
-// 候选顺序：installDir 标准推导（A/B，复用 resolveInstallDirStandard）→
-// scanDir 存在性回溯（C）→ FindInstDir 兜底扫描（D）→ 回退 instDir。
-// 未知类型（无注册表配置）返回 instDir。
+// 仅使用 instanceDir（固定偏移，版本隔离无关）。
+// vanilla: instDir/instanceDir；Prism: instDir/instanceDir
+// 未知类型返回 instDir。
 func resolveInstDirTarget(instDir, rtype string) string {
 	rt := types.RegistryType(rtype)
 	if rt == nil {
 		return instDir
 	}
-
-	// 候选 A/B：installDir 标准推导（与子类级 resolveInstallDirStandard 同款，
-	// rtype 级与子类级共用一处，杜绝两套口径漂移）
-	if c := resolveInstallDirStandard(instDir, rt.InstallDir); c != "" {
-		return c
-	}
-
-	// 候选 C：scanDir 存在性回溯（逐级上溯，覆盖 ysm 的 config 树：
-	// custom 不存在时上溯到 config/yes_steve_model，再上溯到 config）
-	// ⚠️ 特殊分支：仅 ysm 需要——其模型真身在 config 树内（scanDir 即模组加载目录，
-	// 安装/同步链路锚定它），而 installDir（versions/{instance}/ysm/）在整合包场景
-	// 通常不存在；其余类型 installDir 标准目录在候选 A/B 已命中，此分支自然跳过。
-	if rt.ScanDir != "" {
-		for d := rt.ScanDir; d != "." && d != string(filepath.Separator) && filepath.Dir(d) != d; d = filepath.Dir(d) {
-			if c := filepath.Join(instDir, d); isDir(c) {
-				return c
-			}
-		}
-	}
-
-	// 候选 D：FindInstDir 兜底扫描（非标准目录：Sable-Schematics 等；
-	// scanDir 为空时无扫描基准，直接回退 instDir）
-	if rt.ScanDir != "" {
-		if c := types.FindInstDir(instDir, rt.ScanDir, rtype); c != instDir && isDir(c) {
-			return c
-		}
+	if rt.InstanceDir != "" {
+		return filepath.Join(instDir, rt.InstanceDir)
 	}
 	return instDir
 }

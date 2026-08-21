@@ -459,29 +459,29 @@
 | `GroupStorageRoot()` | `go/types/extensions:281` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
 | `GroupLabel()` | `go/types/extensions:298` | GroupLabel 返回分组显示名（从注册表各类型的 groupLabel 字段派生，消除 resourceGroups 冗余源）； 取该组第一个有 groupLabel 的类型 |
 | `GroupIcon()` | `go/types/extensions:312` | GroupIcon 返回分组图标（从注册表各类型的 groupIcon 字段派生）。 |
-| `SubDirMap()` | `go/types/extensions:332` | SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录 |
-| `SubDirAll()` | `go/types/extensions:344` | SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:356` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirMap()` | `go/types/extensions:337` | SubDirMap 返回指定资源类型在整合包实例版本目录中的实例子目录 |
+| `SubDirAll()` | `go/types/extensions:353` | SubDirAll 返回所有资源类型在整合包实例中的版本子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:365` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
 | `SubDirEntry()` | `go/types/extensions:326` | SubDirEntry 资源类型的版本子目录信息 |
 | `FindInstDir()` | `go/types/findinst:66` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `SetBundledRegistryJSON()` | `go/types/resource:20` | SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。 |
-| `ResourceType.EffectiveExtensions()` | `go/types/resource:57` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |
-| `ResourceType.MatchZipEntry()` | `go/types/resource:75` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
-| `SetRegistryPath()` | `go/types/resource:110` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
-| `LoadRegistry()` | `go/types/resource:121` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
-| `BundledRegistryJSON()` | `go/types/resource:275` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
-| `RegistryType()` | `go/types/resource:282` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:303` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:399` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `ResourceType.EffectiveExtensions()` | `go/types/resource:56` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |
+| `ResourceType.MatchZipEntry()` | `go/types/resource:74` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
+| `SetRegistryPath()` | `go/types/resource:109` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
+| `LoadRegistry()` | `go/types/resource:120` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
+| `BundledRegistryJSON()` | `go/types/resource:274` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
+| `RegistryType()` | `go/types/resource:281` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:302` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:398` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:25` | ResourceTypeRegistry 资源类型注册表 |
 | `ResourceType()` | `go/types/resource:30` | ResourceType 一种受支持的资源类型定义 |
-| `ZipEntryMatch()` | `go/types/resource:66` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:297` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:388` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:406` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:423` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:429` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:437` | VoxelGroup 同一颜色的方块组 |
+| `ZipEntryMatch()` | `go/types/resource:65` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
+| `FormatRange()` | `go/types/resource:296` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:387` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:405` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:422` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:428` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:436` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:125` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:173` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:179` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
@@ -678,7 +678,7 @@
 | `App.CheckFileExists()` | `internal/app/app_scan:427` | — |
 | `App.OpenFolder()` | `internal/app/app_scan:503` | — |
 | `App.OpenInstanceFolder()` | `internal/app/app_scan:550` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录；目录不存在时回退到实例根目录 方案 A（ADR-095）：不再用 SubDirMap/FindInstDi |
-| `progressReader.Read()` | `internal/app/app_scan:642` | — |
+| `progressReader.Read()` | `internal/app/app_scan:584` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:17` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:22` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:27` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -1964,8 +1964,8 @@
 | `fillYsmShotPanel()` | `frontend/src/views/app-preview/ysm-controls:95` | 截图面板：6 角度保存（原视图菜单截图子区，相机控件已归 core 根菜单 camera 项） |
 | `attachYsmBoneSelect()` | `frontend/src/views/app-preview/ysm-controls:135` | 骨骼拾取联动（YSM 特色）：未开根菜单时先打开 model 面板，更新详情框 + 滚动高亮 |
 | `openFullPreview()` | `frontend/src/views/app-preview/zoom:7` | 全窗放大预览（独立函数，不依赖组件实例） |
-| `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:59` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
-| `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:75` | — |
+| `registerResourceManagerGlobal()` | `frontend/src/views/app-resource-manager/index:60` | 全局配置刷新监听：registerGlobalHandlers 统一收集 unsub （替代顶层无守卫注册 — ADR-008 违规点，TS 化后收敛） F8 修复：仅清模块缓存— |
+| `AppResourceManager()` | `frontend/src/views/app-resource-manager/index:76` | — |
 | `PackMetaDetail()` | `frontend/src/views/app-resource-manager/tpl:8` | 详情面板元数据（ReadPackMeta / ReadShaderpackLang 返回 JSON 的兼容视图） |
 | `sidebarHTML()` | `frontend/src/views/app-resource-manager/tpl:21` | 侧栏布局（路径 + 操作栏 + 列表） |
 | `itemHTML()` | `frontend/src/views/app-resource-manager/tpl:63` | 列表项 HTML |

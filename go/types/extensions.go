@@ -328,25 +328,34 @@ type SubDirEntry struct {
 	RType  string
 }
 
-// SubDirMap 返回指定资源类型在整合包实例版本目录中的扫描子目录
+// resolveSubDir 解析资源类型的实例子目录
+func resolveSubDir(rt ResourceType) string {
+	return rt.InstanceDir
+}
+
+// SubDirMap 返回指定资源类型在整合包实例版本目录中的实例子目录
 func SubDirMap(rtype string) string {
-	if rt := RegistryType(rtype); rt != nil && rt.ScanDir != "" {
-		return rt.ScanDir
+	if rt := RegistryType(rtype); rt != nil {
+		if d := resolveSubDir(*rt); d != "" {
+			return d
+		}
 	}
 	// 小写兜底（向后兼容）
-	if rt := RegistryType(strings.ToLower(rtype)); rt != nil && rt.ScanDir != "" {
-		return rt.ScanDir
+	if rt := RegistryType(strings.ToLower(rtype)); rt != nil {
+		if d := resolveSubDir(*rt); d != "" {
+			return d
+		}
 	}
 	return ""
 }
 
-// SubDirAll 返回所有资源类型在整合包实例中的版本扫描子目录映射
+// SubDirAll 返回所有资源类型在整合包实例中的版本子目录映射
 func SubDirAll() map[string]string {
 	reg := LoadRegistry()
 	m := make(map[string]string, len(reg.ResourceTypes))
 	for _, rt := range reg.ResourceTypes {
-		if rt.ScanDir != "" {
-			m[rt.ID] = rt.ScanDir
+		if d := resolveSubDir(rt); d != "" {
+			m[rt.ID] = d
 		}
 	}
 	return m
@@ -357,8 +366,8 @@ func AllSubDirs() []SubDirEntry {
 	reg := LoadRegistry()
 	result := make([]SubDirEntry, 0, len(reg.ResourceTypes))
 	for _, rt := range reg.ResourceTypes {
-		if rt.ScanDir != "" {
-			result = append(result, SubDirEntry{SubDir: rt.ScanDir, RType: rt.ID})
+		if d := resolveSubDir(rt); d != "" {
+			result = append(result, SubDirEntry{SubDir: d, RType: rt.ID})
 		}
 	}
 	return result

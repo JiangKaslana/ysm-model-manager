@@ -24,8 +24,7 @@ func validRegistryJSON(withConfigFallback bool) []byte {
       "extensions": [".ysm", ".zip"],
       "storageSubDir": "ysm",
       "configField": "YsmRoot"` + cfgFallback + `,
-      "installDir": "ysm/",
-      "scanDir": "ysm",
+      "instanceDir": "ysm",
       "instanceLevel": true,
       "preview": "3d",
       "detector": "ysm"
@@ -36,8 +35,7 @@ func validRegistryJSON(withConfigFallback bool) []byte {
       "extensions": [".ct"],
       "storageSubDir": "custom",
       "configField": "CustomRoot",
-      "installDir": "custom/",
-      "scanDir": "custom",
+      "instanceDir": "custom",
       "instanceLevel": false,
       "preview": "none",
       "detector": "extension"
@@ -355,7 +353,7 @@ func TestLoadRegistry_DefaultNameNotReadFromCwd(t *testing.T) {
 	// 但因为默认名被跳过, 这个文件不应被读取
 	dir := t.TempDir()
 	p := filepath.Join(dir, "resource_types.json")
-	markerJSON := []byte(`{"resourceTypes":[{"id":"MARKER-TYPE-UNIQUE","name":"marker","extensions":[".mk"],"storageSubDir":"mk","configField":"MkRoot","installDir":"mk/","scanDir":"mk"}]}`)
+	markerJSON := []byte(`{"resourceTypes":[{"id":"MARKER-TYPE-UNIQUE","name":"marker","extensions":[".mk"],"storageSubDir":"mk","configField":"MkRoot","instanceDir":"mk"}]}`)
 	if err := os.WriteFile(p, markerJSON, 0644); err != nil {
 		t.Fatal(err)
 	}

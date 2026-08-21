@@ -95,16 +95,16 @@ describe("契约 B1 — ListByTag 查询规范化对齐 Go tags.go:205 (trimTag)
   });
 });
 
-describe("契约 B1 — GetSubDirMap 字段对齐 Go types.SubDirAll (rt.ScanDir)", () => {
-  it("返回整合包实例扫描子目录 rt.ScanDir（非 storageSubDir），web 已对齐", async () => {
+describe("契约 B1 — GetSubDirMap 字段对齐 Go types.SubDirAll (rt.InstanceDir)", () => {
+  it("返回整合包实例子目录 rt.InstanceDir（非 storageSubDir），web 已对齐", async () => {
     const map = (await browserAdapter.GetSubDirMap()) as Record<string, string>;
-    // Go SubDirAll() 返回 id → rt.ScanDir（见 extensions.go:170）；web 同样使用 rt.scanDir（browser-adapter.ts getWebSubDirMap）
-    expect(map.ysm).toBe("config/yes_steve_model/custom"); // Go 契约守门：scanDir 非 storageSubDir
+    // Go SubDirAll() 返回 id → rt.InstanceDir（见 extensions.go:344）；web 同样使用 rt.instanceDir（web-fs.ts getWebSubDirMap）
+    expect(map.ysm).toBe("config/yes_steve_model/custom"); // Go 契约守门：instanceDir 非 storageSubDir
     expect(map["blueprint"]).toBe("schematics"); // 契约守门
     expect(map.litematic).toBe("schematics"); // 契约守门
-    expect(map["EntityPlayer"]).toBe("3d-skin"); // 契约守门（ADR-092：mmd 以 3d-skin/ 为安装/扫描根）
+    expect(map["EntityPlayer"]).toBe("3d-skin/EntityPlayer"); // 契约守门：instanceDir 完整路径
     expect(map["vrchat-avatar"]).toBe("vrchat-avatars"); // 契约守门
-    // storageSubDir 与 scanDir 相同者（resourcepack/shaderpack）两实现一致
+    // storageSubDir 与 instanceDir 相同者（resourcepack/shaderpack）两实现一致
     expect(map.resourcepack).toBe("resourcepacks");
     expect(map.shaderpack).toBe("shaderpacks");
   });

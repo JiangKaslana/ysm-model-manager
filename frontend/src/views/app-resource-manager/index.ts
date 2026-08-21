@@ -21,7 +21,8 @@ interface ResourceTypeConfig {
   icon?: string;
   actions?: string[];
   extensions?: string[];
-  installDir?: string;
+  installDir?: string;   // 可选：已废弃，保留兼容
+  instanceDir?: string;  // 整合包内实际存放目录
   isDir?: boolean;
 }
 
@@ -184,12 +185,9 @@ export class AppResourceManager extends WebComponentBase {
     } = await getApp();
     if (gen !== this._initGen) return;
 
-    // 实例隔离路径：当 instance 属性存在时，从 mcRoot + installDir 推导
-    // 注意：整合包传的是版本目录名（如 "1.20.1-Fabric"），用 ListVersionInstances 查实际路径
-    // P2 修复：_rpRoot 先在局部汇总，代际校验通过后统一提交——
-    // 原实现赋值发生在最后一次 gen 校验之前，过期 init 可污染实例字段
+    // 实例隔离路径：当 instance 属性存在时，从 mcRoot + instanceDir 推导
     let rpRoot = "";
-    if (this._instance && type.installDir) {
+    if (this._instance && type.instanceDir) {
       const { LoadAppConfig, ListVersionInstances } =
         await getApp();
       const cfg = await LoadAppConfig();
@@ -197,16 +195,15 @@ export class AppResourceManager extends WebComponentBase {
       if (mcRoot) {
         const all = await ListVersionInstances(mcRoot);
         const match = (all || []).find((i) => i.Name === this._instance);
+        const relPath = type.instanceDir.replace(/\/$/, "");
         if (match) {
-          rpRoot =
-            match.VersionDir +
-            "/" +
-            type.installDir.replace("{instance}", this._instance);
+          rpRoot = relPath
+            ? match.VersionDir + "/" + relPath
+            : match.VersionDir;
         } else {
-          rpRoot =
-            mcRoot +
-            "/" +
-            type.installDir.replace("{instance}", this._instance);
+          rpRoot = relPath
+            ? mcRoot + "/" + relPath
+            : mcRoot;
         }
       }
       // mcRoot 为空：rpRoot 保持默认 ""

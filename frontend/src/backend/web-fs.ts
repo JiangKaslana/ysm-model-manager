@@ -843,11 +843,11 @@ async function moveOrCopyWebModel(src: string, dstDir: string, move: boolean): P
 
 // ===== §14 子目录映射 =====
 async function getWebSubDirMap(): Promise<Record<string, string>> {
-  // 对齐 go/types/extensions.go SubDirAll：返回 rt.ScanDir（整合包实例版本目录扫描子目录），
+  // 对齐 go/types/extensions.go SubDirAll：返回 rt.InstanceDir（整合包实例版本目录子目录），
   // 非 storageSubDir（仓库存储子目录）——B1 契约测试暴露的字段错用
-  const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string; scanDir?: string }> }).resourceTypes ?? [];
+  const rts = (resourceTypesJson as { resourceTypes?: Array<{ id: string; instanceDir?: string }> }).resourceTypes ?? [];
   const map: Record<string, string> = {};
-  for (const r of rts) map[r.id] = r.scanDir ?? "";
+  for (const r of rts) map[r.id] = r.instanceDir ?? "";
   return map;
 }
 

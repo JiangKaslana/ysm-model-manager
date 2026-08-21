@@ -13,7 +13,7 @@ import (
 func TestBuildSyncItems_Basic(t *testing.T) {
 	sub := types.SubDirMap("ysm")
 	if sub == "" {
-		t.Skip("ysm 无 ScanDir 配置，跳过目录构造测试")
+		t.Skip("ysm 无 InstanceDir 配置，跳过目录构造测试")
 	}
 	base := t.TempDir()
 	globalDir := filepath.Join(base, "global")
@@ -152,12 +152,12 @@ func TestBuildSyncItems_NilInstance(t *testing.T) {
 func TestBuildSyncItems_UnknownTypeSkip(t *testing.T) {
 	ins := &types.VersionInstance{Name: "t", VersionDir: t.TempDir()}
 	if items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "no-such-type", Icon: "x"}}, map[string]string{"no-such-type": "/x"}, ""); len(items) != 0 {
-		t.Fatalf("未知类型无 ScanDir 应跳过，实际 %d 条", len(items))
+		t.Fatalf("未知类型无 InstanceDir 应跳过，实际 %d 条", len(items))
 	}
 }
 
 // TestBuildSyncItems_IndependentTypes 壳-叶架构移除后，EntityPlayer/CustomAnim 等
-// 类型现为独立资源类型（不再是 MMD 壳子类型），各自有独立 scanDir 和扩展名。
+// 类型现为独立资源类型（不再是 MMD 壳子类型），各自有独立 instanceDir 和扩展名。
 // 验证各类型独立运作、互不干扰。
 func TestBuildSyncItems_IndependentTypes(t *testing.T) {
 	base := t.TempDir()
@@ -236,7 +236,7 @@ func TestBuildSyncItems_IndependentTypes(t *testing.T) {
 func TestBuildSyncItems_DisabledThreeBranches(t *testing.T) {
 	sub := types.SubDirMap("ysm")
 	if sub == "" {
-		t.Skip("ysm 无 ScanDir 配置，跳过")
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
 	}
 	base := t.TempDir()
 	globalDir := filepath.Join(base, "global")
@@ -285,7 +285,7 @@ func TestBuildSyncItems_DisabledThreeBranches(t *testing.T) {
 func TestBuildSyncItems_ExtraHardLinkLegacy(t *testing.T) {
 	sub := types.SubDirMap("ysm")
 	if sub == "" {
-		t.Skip("ysm 无 ScanDir 配置，跳过")
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
 	}
 	base := t.TempDir()
 	globalDir := filepath.Join(base, "global")
@@ -322,7 +322,7 @@ func TestBuildSyncItems_ExtraHardLinkLegacy(t *testing.T) {
 func TestBuildSyncItems_YsmJSONEntryOnly(t *testing.T) {
 	sub := types.SubDirMap("ysm")
 	if sub == "" {
-		t.Skip("ysm 无 ScanDir 配置，跳过")
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
 	}
 	base := t.TempDir()
 	globalDir := filepath.Join(base, "global")

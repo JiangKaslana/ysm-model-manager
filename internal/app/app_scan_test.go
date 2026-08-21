@@ -344,7 +344,7 @@ func TestIsPathInRootOrSelf_RootItselfAllowed(t *testing.T) {
 }
 
 // ===== inferFolderType（ADR-092 子类型落位根基）=====
-// 文件夹整组导入按内容推断 rtype，MMD 文件夹不再落到 ysm 根。
+// 文件夹整组导入按内容推断 rtype，扁平化后 MMD 文件直接推断到具体子类型。
 
 func TestInferFolderType_MMD(t *testing.T) {
 	files := []types.ImportFileItem{
@@ -352,8 +352,15 @@ func TestInferFolderType_MMD(t *testing.T) {
 		{RelPath: "anims/walk.vmd", Base64: "dm1k"},
 		{RelPath: "textures/model.png", Base64: "cG5n"},
 	}
-	if got := inferFolderType(files); got != "mmd-skin" {
-		t.Errorf("inferFolderType(MMD) = %q, 期望 'mmd-skin'", got)
+	// 扁平化后，.pmx 扩展名会映射到多个 MMD 子类型
+	// 取第一个匹配的类型
+	got := inferFolderType(files)
+	if got == "mmd-skin" {
+		t.Errorf("inferFolderType(MMD) 仍返回壳类型 'mmd-skin'，应该返回具体子类型")
+	}
+	// 验证返回值是有效的资源类型
+	if types.RegistryType(got) == nil {
+		t.Errorf("inferFolderType(MMD) 返回无效类型: %q", got)
 	}
 }
 
@@ -382,10 +389,10 @@ func TestInferFolderType_FallbackYsm(t *testing.T) {
 // 覆盖矩阵：vanilla / Prism 布局 × ysm（installDir 含 {instance} 前缀）/ resourcepack
 // （installDir 为 mcRoot 全局目录）；全部目录不存在 / 未知类型 → 回退 instDir。
 func TestResolveInstDirTarget_VanillaYsm(t *testing.T) {
-	// vanilla 布局：instDir = {mcRoot}/versions/{name}，ysm 存储目录 = instDir/ysm
+	// vanilla 布局：ysm instanceDir = config/yes_steve_model/custom（固定偏移，与版本隔离无关）
 	mcRoot := t.TempDir()
 	instDir := filepath.Join(mcRoot, "versions", "1.20.1-Fabric")
-	ysmDir := filepath.Join(instDir, "ysm")
+	ysmDir := filepath.Join(instDir, "config", "yes_steve_model", "custom")
 	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -395,10 +402,10 @@ func TestResolveInstDirTarget_VanillaYsm(t *testing.T) {
 }
 
 func TestResolveInstDirTarget_VanillaResourcepack(t *testing.T) {
-	// vanilla + resourcepack：installDir=resourcepacks/ 相对 mcRoot；instDir 侧无此目录
+	// resourcepack 现在有 instanceDir，直接返回 instDir/resourcepacks
 	mcRoot := t.TempDir()
 	instDir := filepath.Join(mcRoot, "versions", "1.20.1-Fabric")
-	rpDir := filepath.Join(mcRoot, "resourcepacks")
+	rpDir := filepath.Join(instDir, "resourcepacks")
 	if err := os.MkdirAll(rpDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -408,10 +415,10 @@ func TestResolveInstDirTarget_VanillaResourcepack(t *testing.T) {
 }
 
 func TestResolveInstDirTarget_PrismYsm(t *testing.T) {
-	// Prism 布局：instDir = 整合包 .minecraft 根，ysm 存储目录 = instDir/ysm
+	// Prism 布局：instDir = 整合包 .minecraft 根，ysm instanceDir = config/yes_steve_model/custom
 	base := t.TempDir()
 	instDir := filepath.Join(base, ".minecraft")
-	ysmDir := filepath.Join(instDir, "ysm")
+	ysmDir := filepath.Join(instDir, "config", "yes_steve_model", "custom")
 	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -434,10 +441,11 @@ func TestResolveInstDirTarget_PrismResourcepack(t *testing.T) {
 }
 
 func TestResolveInstDirTarget_NoneExistsFallback(t *testing.T) {
-	// 所有候选都不存在 → 回退 instDir（不得拼出不存在的路径强行打开）
+	// ysm 有 instanceDir，直接返回 instDir/config/yes_steve_model/custom（不检查目录是否存在）
 	instDir := filepath.Join(t.TempDir(), "empty-inst")
-	if got := resolveInstDirTarget(instDir, "ysm"); got != instDir {
-		t.Errorf("无候选存在 = %q, 期望回退 %q", got, instDir)
+	expected := filepath.Join(instDir, "config", "yes_steve_model", "custom")
+	if got := resolveInstDirTarget(instDir, "ysm"); got != expected {
+		t.Errorf("ysm instanceDir 不检查存在性 = %q, 期望 %q", got, expected)
 	}
 }
 
@@ -450,49 +458,37 @@ func TestResolveInstDirTarget_UnknownType(t *testing.T) {
 }
 
 func TestResolveInstDirTarget_YsmConfigTree(t *testing.T) {
-	// 候选 C：ysm 的模型真身在 config 树内（用户环境 [海岛寿司店]v1.1/config/yes_steve_model）。
-	// installDir 推导（instDir/ysm）不存在 → scanDir 存在性回溯命中 config/yes_steve_model。
+	// ysm 有 instanceDir，直接返回 instDir/config/yes_steve_model/custom
 	instDir := t.TempDir()
-	ysmDir := filepath.Join(instDir, "config", "yes_steve_model")
-	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
+	customDir := filepath.Join(instDir, "config", "yes_steve_model", "custom")
+	if err := os.MkdirAll(customDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if got := resolveInstDirTarget(instDir, "ysm"); got != ysmDir {
-		t.Errorf("ysm config 树回溯 = %q, 期望 %q", got, ysmDir)
+	if got := resolveInstDirTarget(instDir, "ysm"); got != customDir {
+		t.Errorf("ysm instanceDir 优先 = %q, 期望 %q", got, customDir)
 	}
 }
 
 func TestResolveInstDirTarget_YsmConfigTreeCustom(t *testing.T) {
-	// 候选 C 逐级回溯：custom 存在时命中最深一层（config/yes_steve_model/custom）
+	// ysm instanceDir 优先，直接返回 instDir/config/yes_steve_model/custom
+	// 即使同时存在 installDir 指定的 ysm 目录，也使用 instanceDir
 	instDir := t.TempDir()
+	// 创建 custom 目录（实际存放路径）
 	custom := filepath.Join(instDir, "config", "yes_steve_model", "custom")
 	if err := os.MkdirAll(custom, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// 同时创建 ysm 目录（installDir 指定的路径），验证不影响结果
+	ysmDir := filepath.Join(instDir, "ysm")
+	os.MkdirAll(ysmDir, 0o755)
 	if got := resolveInstDirTarget(instDir, "ysm"); got != custom {
-		t.Errorf("ysm custom 命中 = %q, 期望 %q", got, custom)
-	}
-}
-
-func TestResolveInstDirTarget_SableBlueprintFallback(t *testing.T) {
-	// 候选 D：蓝图标准目录（schematics）不存在，兜底扫描命中 Sable 非标准目录——
-	// 弥合「列表显示正确（FindInstDir 兜底）但打开回退版本目录」的裂口。
-	instDir := t.TempDir()
-	sable := filepath.Join(instDir, "Sable-Schematics", "hello_new_generation_core")
-	if err := os.MkdirAll(sable, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(sable, "c1.nbt"), []byte("nbt"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTarget(instDir, "create-blueprint"); got != filepath.Join(instDir, "Sable-Schematics") {
-		t.Errorf("Sable 兜底 = %q, 期望 %q", got, filepath.Join(instDir, "Sable-Schematics"))
+		t.Errorf("ysm instanceDir 优先于 installDir = %q, 期望 %q", got, custom)
 	}
 }
 
 func TestResolveInstDirTarget_MaidModelStandard(t *testing.T) {
-	// 候选 A：车万女仆（maid-model，原 tlm 条目合并改名）installDir=tlm_custom_pack/，
-	// 标准目录直接命中，不依赖 scanDir/config 探测。条件测试：注册表条目缺失时跳过。
+	// maid-model 的 instanceDir 是 tlm_custom_pack
+	// 简化后的逻辑直接返回 instanceDir 拼接路径
 	if types.RegistryType("maid-model") == nil {
 		t.Skip("注册表暂无 maid-model 条目，跳过")
 	}
@@ -502,181 +498,7 @@ func TestResolveInstDirTarget_MaidModelStandard(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := resolveInstDirTarget(instDir, "maid-model"); got != packDir {
-		t.Errorf("maid-model 标准命中 = %q, 期望 %q", got, packDir)
-	}
-}
-
-// ===== resolveInstDirTargetSubdir（阶段 1：打开文件夹精确到 MMD 用途子目录）=====
-// 全局选 mmd 子类型（SceneModel/CustomAnim/...）后，打开文件夹应精确到
-// 3d-skin/{subdir} 而非 3d-skin 根；subdir 空 / 目标子目录不存在 → 回退原推导（行为不变）。
-func TestResolveInstDirTargetSubdir_MmdSceneModelHit(t *testing.T) {
-	instDir := t.TempDir()
-	scene := filepath.Join(instDir, "3d-skin", "SceneModel")
-	if err := os.MkdirAll(scene, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", "SceneModel"); got != scene {
-		t.Errorf("mmd SceneModel 命中 = %q, 期望 %q", got, scene)
-	}
-}
-
-// ===== mod-model 模型合集软合并（2026-08-20：ysM/maid 内部结构相同、仅入口不同）=====
-// resolveInstDirTargetSubdir 对 mod-model 子类型（ysm/maid-model）走各自 installDir 推导
-// （零继承自描述）：ysm → instDir/ysm、maid-model → instDir/tlm_custom_pack（与共享
-// schematics/ 的蓝图/投影不同，ysM/maid 物理路径不同，子类型各自声明）。
-
-func TestResolveInstDirTargetSubdir_ModModelYsm(t *testing.T) {
-	if types.RegistryType("mod-model") == nil {
-		t.Skip("注册表暂无 mod-model 条目，跳过")
-	}
-	instDir := t.TempDir()
-	ysmDir := filepath.Join(instDir, "ysm")
-	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// ysm subtype installDir = versions/{instance}/ysm/ → 掐前缀后拼 instDir/ysm
-	if got := resolveInstDirTargetSubdir(instDir, "mod-model", "ysm"); got != ysmDir {
-		t.Errorf("mod-model+ysm = %q, 期望 %q", got, ysmDir)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_ModModelMaid(t *testing.T) {
-	if types.RegistryType("mod-model") == nil {
-		t.Skip("注册表暂无 mod-model 条目，跳过")
-	}
-	instDir := t.TempDir()
-	maidDir := filepath.Join(instDir, "tlm_custom_pack")
-	if err := os.MkdirAll(maidDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// maid-model subtype installDir = tlm_custom_pack/ → instDir/tlm_custom_pack
-	if got := resolveInstDirTargetSubdir(instDir, "mod-model", "maid-model"); got != maidDir {
-		t.Errorf("mod-model+maid-model = %q, 期望 %q", got, maidDir)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_ModModelEmptyFallback(t *testing.T) {
-	// subdir="" → default 槽 ysm 的 installDir 推导（versions/{instance}/ysm/ → instDir/ysm）
-	if types.RegistryType("mod-model") == nil {
-		t.Skip("注册表暂无 mod-model 条目，跳过")
-	}
-	instDir := t.TempDir()
-	ysmDir := filepath.Join(instDir, "ysm")
-	if err := os.MkdirAll(ysmDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTargetSubdir(instDir, "mod-model", ""); got != ysmDir {
-		t.Errorf("mod-model 空 subdir（default=ysm）= %q, 期望 %q", got, ysmDir)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_MissingFallback(t *testing.T) {
-	instDir := t.TempDir()
-	skin := filepath.Join(instDir, "3d-skin")
-	if err := os.MkdirAll(skin, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// SceneModel 子目录不存在 → 回退 3d-skin 根（原推导）
-	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", "SceneModel"); got != skin {
-		t.Errorf("SceneModel 缺失回退 = %q, 期望 %q", got, skin)
-	}
-}
-
-// ===== vanilla-assets 原版资源合集软合并（2026-08-20：resourcepack/shaderpack 收合集壳）=====
-// resolveInstDirTargetSubdir 对 vanilla-assets 子类型（resourcepack/shaderpack）走各自
-// installDir 推导（零继承自描述）：resourcepack → instDir/resourcepacks、
-// shaderpack → instDir/shaderpacks（各自目录，非共享）。
-
-func TestResolveInstDirTargetSubdir_VanillaAssetsResourcepack(t *testing.T) {
-	if types.RegistryType("vanilla-assets") == nil {
-		t.Skip("注册表暂无 vanilla-assets 条目，跳过")
-	}
-	instDir := t.TempDir()
-	rpDir := filepath.Join(instDir, "resourcepacks")
-	if err := os.MkdirAll(rpDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTargetSubdir(instDir, "vanilla-assets", "resourcepack"); got != rpDir {
-		t.Errorf("vanilla-assets+resourcepack = %q, 期望 %q", got, rpDir)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_VanillaAssetsShaderpack(t *testing.T) {
-	if types.RegistryType("vanilla-assets") == nil {
-		t.Skip("注册表暂无 vanilla-assets 条目，跳过")
-	}
-	instDir := t.TempDir()
-	spDir := filepath.Join(instDir, "shaderpacks")
-	if err := os.MkdirAll(spDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTargetSubdir(instDir, "vanilla-assets", "shaderpack"); got != spDir {
-		t.Errorf("vanilla-assets+shaderpack = %q, 期望 %q", got, spDir)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_VanillaAssetsEmptyFallback(t *testing.T) {
-	// subdir="" → default 槽 resourcepack 的 installDir 推导（resourcepacks/ → instDir/resourcepacks）
-	if types.RegistryType("vanilla-assets") == nil {
-		t.Skip("注册表暂无 vanilla-assets 条目，跳过")
-	}
-	instDir := t.TempDir()
-	rpDir := filepath.Join(instDir, "resourcepacks")
-	if err := os.MkdirAll(rpDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTargetSubdir(instDir, "vanilla-assets", ""); got != rpDir {
-		t.Errorf("vanilla-assets 空 subdir（default=resourcepack）= %q, 期望 %q", got, rpDir)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_EmptyKeepsBase(t *testing.T) {
-	instDir := t.TempDir()
-	skin := filepath.Join(instDir, "3d-skin")
-	if err := os.MkdirAll(skin, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// EntityPlayer 默认（subdir=""）且默认槽目录未创建 → 回退 3d-skin 根（阶段 1 行为）
-	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", ""); got != skin {
-		t.Errorf("空 subdir = %q, 期望 %q", got, skin)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_DefaultSlotHit(t *testing.T) {
-	// ADR-104：subdir="" 时查注册表 default 子类（EntityPlayer）installDir 推导——
-	// 默认槽目录存在则精确打开 3d-skin/EntityPlayer，而非 3d-skin 根
-	instDir := t.TempDir()
-	player := filepath.Join(instDir, "3d-skin", "EntityPlayer")
-	if err := os.MkdirAll(player, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", ""); got != player {
-		t.Errorf("EntityPlayer 默认槽命中 = %q, 期望 %q", got, player)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_SubtypeInstallDir(t *testing.T) {
-	// ADR-104：子类 installDir（3d-skin/SceneModel/）标准推导优先于 base+subdir 拼接，
-	// 结果一致（instDir/3d-skin/SceneModel）；非注册表子类名回退拼接路径不变
-	instDir := t.TempDir()
-	scene := filepath.Join(instDir, "3d-skin", "SceneModel")
-	if err := os.MkdirAll(scene, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTargetSubdir(instDir, "mmd-skin", "SceneModel"); got != scene {
-		t.Errorf("SceneModel 子类 installDir = %q, 期望 %q", got, scene)
-	}
-}
-
-func TestResolveInstDirTargetSubdir_NonMmdTypeUnchanged(t *testing.T) {
-	// 非 MMD 类型（resourcepack）subdir 恒 ""，结果与原推导一致
-	instDir := t.TempDir()
-	rp := filepath.Join(instDir, "resourcepacks")
-	if err := os.MkdirAll(rp, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := resolveInstDirTargetSubdir(instDir, "resourcepack", ""); got != rp {
-		t.Errorf("resourcepack = %q, 期望 %q", got, rp)
+		t.Errorf("maid-model instanceDir 命中 = %q, 期望 %q", got, packDir)
 	}
 }
 

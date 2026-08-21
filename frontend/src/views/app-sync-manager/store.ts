@@ -61,7 +61,7 @@ export async function loadData(self: SyncStoreSelf): Promise<void> {
 /**
  * 应用类型 + 状态筛选，写入 self._filteredItems。
  * 子目录过滤已由后端路径限定处理（GetInstanceSyncStatus 走 subtype 参数），
- * 前端不再需要 MMD 子目录过滤——回归事实源（resource_types.json subtype.scanDir）。
+ * 前端不再需要 MMD 子目录过滤——回归事实源（resource_types.json subtype.instanceDir）。
  */
 export function applyFilter(self: SyncStoreSelf): void {
   let items = self._allItems;
