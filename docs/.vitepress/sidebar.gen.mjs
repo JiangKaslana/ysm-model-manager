@@ -1665,6 +1665,10 @@ export const autoSidebar = [
         "collapsed": true,
         "items": [
           {
+            "text": "drift-scan（双轨漂移检测）",
+            "link": "/knowledge/drift-scan"
+          },
+          {
             "text": "可拓展点索引对账（vs HEAD @ d517113c…）",
             "link": "/knowledge/extensibility-index-reconciliation"
           },
