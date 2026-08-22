@@ -152,3 +152,39 @@ func TestMetadata_PartialNameOnly(t *testing.T) {
 		t.Errorf("部分字段应零值, Authors=%d License=%v", len(m.Authors), m.License)
 	}
 }
+
+func TestMetadata_LooseShape_DoesNotBreakCore(t *testing.T) {
+	// code review P2 回归：松散 metadata（license 为字符串、authors 为对象、links 为数组）
+	// 不得拖垮整个 ysm.json 核心解析（纹理顺序/model/projectiles），metadata 解析失败仅忽略
+	r := parseZipWithMetadata(t, `{
+  "metadata": { "license": "CC BY-NC-SA 4.0", "authors": {}, "links": [] },
+  "properties": { "default_texture": "textures/skin.png" },
+  "files": { "player": { "model": { "main": "models/main.json" }, "texture": [ "textures/skin.png" ] } }
+}`)
+	// 核心解析成功：geo 有骨、纹理照常收集
+	if r.geo.BoneCount != 1 {
+		t.Errorf("松散 metadata 不应破坏核心解析: BoneCount=%d", r.geo.BoneCount)
+	}
+	if len(r.pngs) != 1 {
+		t.Errorf("pngs = %d, 期望 1（纹理收集不受影响）", len(r.pngs))
+	}
+	// 松散 metadata 解析失败被忽略 → 保持零值不挂载（不 panic）
+	if r.geo.Metadata != nil {
+		t.Errorf("松散 metadata 应被忽略（不挂载）, 实际 %+v", r.geo.Metadata)
+	}
+}
+
+func TestMetadata_TipsOnly_Mounts(t *testing.T) {
+	// code review P3：谓词含 Tips——仅 tips 的 metadata 也应挂载
+	r := parseZipWithMetadata(t, `{
+  "metadata": { "tips": "作者提示，无名字" },
+  "files": { "player": { "model": { "main": "models/main.json" }, "texture": [ "textures/skin.png" ] } }
+}`)
+	m := r.geo.Metadata
+	if m == nil {
+		t.Fatal("仅 tips 的 metadata 应挂载（谓词含 Tips）")
+	}
+	if m.Tips == "" {
+		t.Error("期望 Tips 非空")
+	}
+}

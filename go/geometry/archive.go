@@ -117,7 +117,9 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			}
 			buf := readLimitedEntry(rc)
 			var ysm struct {
-				Metadata types.YsmMetadata `json:"metadata"`
+				// RawMessage 而非严格类型：松散/畸形 metadata 段不得拖垮核心解析
+				// （code review P2：license 为字符串等会令整个 ysm.json unmarshal 失败）
+				Metadata   json.RawMessage `json:"metadata"`
 				Properties struct {
 					DefaultTexture string `json:"default_texture"`
 				} `json:"properties"`
@@ -559,7 +561,9 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			}
 			buf := readLimitedEntry(rc)
 			var ysm struct {
-				Metadata types.YsmMetadata `json:"metadata"`
+				// RawMessage 而非严格类型：松散/畸形 metadata 段不得拖垮核心解析
+				// （code review P2：license 为字符串等会令整个 ysm.json unmarshal 失败）
+				Metadata   json.RawMessage `json:"metadata"`
 				Properties struct {
 					DefaultTexture string `json:"default_texture"`
 				} `json:"properties"`
@@ -576,7 +580,13 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if err := json.Unmarshal(buf, &ysm); err != nil {
 				log.Printf("%s 解析 ysm.json 失败: %v", logPrefix, err)
 			} else {
-				ysmMeta = ysm.Metadata
+				// metadata 段单独解析 + 容错：失败仅忽略（保持零值不挂载），核心解析不受影响
+				if len(ysm.Metadata) > 0 {
+					if err := json.Unmarshal(ysm.Metadata, &ysmMeta); err != nil {
+						log.Printf("%s metadata 段解析失败（忽略）: %v", logPrefix, err)
+						ysmMeta = types.YsmMetadata{} // 失败即清零：Go json 部分填充会残留非 nil 指针（如 License），防误挂载
+					}
+				}
 				// 解析 texture 顺序
 				if len(ysm.Files.Player.Texture) > 0 {
 					texRaw := string(ysm.Files.Player.Texture)
@@ -1314,7 +1324,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	}
 	// 顺带返回过滤后的 geoFiles（L0/L1 口径、排 arm）：ParseFromZipEntry 复用同一趟解析
 	// 的 geoFiles 做 subPath 匹配，避免二次全量遍历（审核 P3）
-	if geo != nil && (ysmMeta.Name != "" || len(ysmMeta.Authors) > 0 || ysmMeta.License != nil || len(ysmMeta.Links) > 0) {
+	if geo != nil && (ysmMeta.Name != "" || ysmMeta.Tips != "" || len(ysmMeta.Authors) > 0 || ysmMeta.License != nil || len(ysmMeta.Links) > 0) {
 		geo.Metadata = &ysmMeta
 	}
 	return geo, pngs, animJSONs, geoFiles

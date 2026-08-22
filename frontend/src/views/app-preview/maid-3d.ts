@@ -177,7 +177,13 @@ export async function showMaidPreview(
           const contact =
             a.contact && Object.keys(a.contact).length > 0
               ? Object.entries(a.contact)
-                  .map(([p, u]) => `<a href="${esc(u ?? "")}" target="_blank" rel="noopener">${esc(p ?? "")}</a>`)
+                  .map(([p, u]) => {
+                    const url = u ?? "";
+                    // scheme 白名单（http/https/mailto）防 javascript: 等注入（code review P2 XSS）
+                    return /^(https?:|mailto:)/i.test(url)
+                      ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(p ?? "")}</a>`
+                      : esc(p ?? "");
+                  })
                   .join(" · ")
               : "";
           rows.push(
