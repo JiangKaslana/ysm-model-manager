@@ -271,4 +271,49 @@ describe("加载剖析面板", () => {
     const out = root.getElementById("diag-load-trace") as HTMLElement;
     expect(out.textContent).toContain("暂无加载记录");
   });
+
+  it("YSM trace（4 段）→ 渲染骨骼/立方体/纹理 + format=YSM", async () => {
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "ysm",
+      path: "./ysm/maid.ysm",
+      stages: [
+        { name: "读取", ms: 5, status: "ok" },
+        { name: "解析", ms: 120, status: "ok" },
+        { name: "纹理加载", ms: 340, status: "ok" },
+        { name: "build", ms: 89, status: "ok" },
+      ],
+      assets: { files: 1, textures: 4, bones: 96, cubes: 312, materials: 3, animations: 2 },
+      ok: true,
+    });
+    const root = makeRoot();
+    renderLoadTraceSection(root, esc);
+    const out = root.getElementById("diag-load-trace") as HTMLElement;
+    expect(out.innerHTML).toContain("<svg");
+    expect(out.textContent).toContain("maid.ysm");
+    expect(out.textContent).toContain("YSM"); // format 显示
+    expect(out.textContent).toContain("96");  // bones
+    expect(out.textContent).toContain("312"); // cubes
+    expect(out.textContent).toContain("4");   // textures
+    expect(out.textContent).toContain("读取");
+    expect(out.textContent).toContain("build");
+  });
+
+  it("Litematic trace（1 段）→ 渲染阶段名 + materials", async () => {
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "litematic",
+      path: "./blueprints/castle.litematic",
+      stages: [{ name: "读取+构建", ms: 230, status: "ok" }],
+      assets: { files: 1, textures: 0, materials: 12, animations: 0 },
+      ok: true,
+    });
+    const root = makeRoot();
+    renderLoadTraceSection(root, esc);
+    const out = root.getElementById("diag-load-trace") as HTMLElement;
+    expect(out.innerHTML).toContain("<svg");
+    expect(out.textContent).toContain("castle.litematic");
+    expect(out.textContent).toContain("LITEMATIC");
+    expect(out.textContent).toContain("12"); // materials
+  });
 });

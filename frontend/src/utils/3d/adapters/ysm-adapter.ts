@@ -110,11 +110,15 @@ export async function buildYsmScene(
 
   const tStart = performance.now();
   // 数据层：path → model（skeleton 注入的预览面板加载链）
+  const tLoadStart = performance.now();
   const model = await opts.loader(path);
+  const tLoadEnd = performance.now();
   if (!model) throw new Error("模型数据加载失败: " + path);
 
   const texIdx = opts.texIdx ?? 0;
+  const tPreloadStart = performance.now();
   const { texArr, spec, componentTexMap } = await opts.preload(model);
+  const tPreloadEnd = performance.now();
 
   // 内容层：spec → 场景图（§5.7 shared 化，renderModel3D 同款 buildYsmObject）
   const tBuildStart = performance.now();
@@ -332,7 +336,9 @@ export async function buildYsmScene(
       format: "ysm",
       path,
       stages: [
-        { name: "读取+解析+纹理", ms: Math.round(tBuildStart - tStart), status: "ok" },
+        { name: "读取", ms: Math.round(tLoadStart - tStart), status: "ok" },
+        { name: "解析", ms: Math.round(tLoadEnd - tLoadStart), status: "ok" },
+        { name: "纹理加载", ms: Math.round(tPreloadEnd - tPreloadStart), status: "ok" },
         { name: "build", ms: Math.round(tBuildEnd - tBuildStart), status: "ok" },
       ],
       assets: {

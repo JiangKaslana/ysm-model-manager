@@ -40,6 +40,7 @@ vi.mock("../../utils/3d/texture-cache.ts", () => ({
 }));
 
 import { loadTextures, preloadModel } from "./model3d-loader.ts";
+import { getLoadTraces, clearLoadTraces } from "../../utils/3d/load-trace.ts";
 
 /** 可控 Image：src setter 同步触发 onload/onerror（happy-dom 无真实网络） */
 class FakeImage {
@@ -331,6 +332,29 @@ describe("preloadModel / fetchSpec", () => {
     } finally {
       warn.mockRestore();
       vi.unstubAllGlobals();
+    }
+  });
+
+  it("成功加载后 → recordLoadTrace 写入 store（3 段：读取/解析/纹理加载）", async () => {
+    specMock.mockResolvedValue(spec());
+    const model = { _modelPath: "/m/trace.ysm", textures: ["u1.png", "u2.png"], textureNames: ["u1", "u2"], texture: "u1.png" };
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      clearLoadTraces();
+      await preloadModel(model);
+      const traces = getLoadTraces();
+      expect(traces).toHaveLength(1);
+      expect(traces[0]!.path).toBe("/m/trace.ysm");
+      expect(traces[0]!.format).toBe("other");
+      expect(traces[0]!.ok).toBe(true);
+      expect(traces[0]!.stages).toHaveLength(3);
+      expect(traces[0]!.stages![0]!.name).toBe("读取");
+      expect(traces[0]!.stages![1]!.name).toBe("解析");
+      expect(traces[0]!.stages![2]!.name).toBe("纹理加载");
+      expect(traces[0]!.assets!.textures).toBe(2);
+    } finally {
+      vi.unstubAllGlobals();
+      clearLoadTraces();
     }
   });
 });

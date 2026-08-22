@@ -1,5 +1,5 @@
 // ===== 诊断页：性能面板 — 加载剖析（load-trace store 消费层）=====
-// 数据来源：三个 3D adapter（MMD / VRM / FBX）调用 recordLoadTrace() 写入全局内存 store；
+// 数据来源：各 3D adapter（MMD / VRM / FBX / YSM / Litematic）调用 recordLoadTrace() 写入全局内存 store；
 // 本文件消费 store 渲染甘特图 + 资产清单 + 纹理详情。
 // 与 perf-cli.ts 职责隔离：CLI 文本流 ≠ 运行时 trace store，不混在同一文件。
 
@@ -51,6 +51,7 @@ export function renderLoadTraceSection(root: ShadowRoot, esc: EscFn): void {
   const a = latest.assets || {};
   const assetRows = [
     a.bones ? `<span class="perf-asset-item">🦴 ${t("diagnostics.assetsBones")}: ${a.bones}</span>` : "",
+    a.cubes ? `<span class="perf-asset-item">🧊 ${t("diagnostics.assetsCubes")}: ${a.cubes}</span>` : "",
     a.materials ? `<span class="perf-asset-item">🎨 ${t("diagnostics.assetsMats")}: ${a.materials}</span>` : "",
     a.textures ? `<span class="perf-asset-item">🖼 ${t("diagnostics.assetsTex")}: ${a.textures}</span>` : "",
     a.morphs ? `<span class="perf-asset-item">😀 ${t("diagnostics.assetsMorphs")}: ${a.morphs}</span>` : "",
