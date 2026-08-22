@@ -112,6 +112,9 @@ tasks:
   build:rust-bridge:
     summary: Builds the embedded Rust scanner bridge
     internal: true
+    # code review P2：非 Windows 主机交叉构建（build:native 的 platforms [linux, darwin] 路径）
+    # 无 powershell/不产 .dll（Linux 产 .so）——限定 Windows 主机才构建桥 DLL
+    platforms: [windows]
     cmds:
       - cargo build --release --locked --manifest-path rust-wails-bridge/Cargo.toml
       - powershell -NoProfile -Command "New-Item -ItemType Directory -Force 'go/rustbridge/bin' | Out-Null; Copy-Item -Force 'rust-wails-bridge/target/release/ysm_model_manager_wails_bridge.dll' 'go/rustbridge/bin/ysm_model_manager_wails_bridge.dll'"
@@ -123,7 +126,8 @@ tasks:
       - task: common:go:mod:tidy
       # embed 前置：构建内嵌的更新助手 helper（见 build:helper）
       - task: build:helper
-      - task: build:rust-bridge
+      # code review P2：仅 Windows 主机构建 Rust 桥（非 Windows 交叉编译无 powershell/不产 .dll）
+      - '{{if eq OS "windows"}}task: build:rust-bridge{{end}}'
       - task: common:build:frontend
         vars:
           BUILD_FLAGS:

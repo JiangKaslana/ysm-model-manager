@@ -133,6 +133,24 @@ jobs:
           go test -race ./go/... ./internal/app/ -count=1 -timeout 10m | Out-String -Width 400
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Rust 扫描器单测（code review P2：此前 CI 零 Rust 覆盖——rust_backend 路径全被 //go:build 排除）
+        shell: pwsh
+        run: |
+          cargo test --manifest-path rust-core/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --manifest-path rust-wails-bridge/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Rust 桥 DLL + rust_backend Go 测试（Windows 生产路径，code review P2）
+        shell: pwsh
+        run: |
+          cargo build --release --locked --manifest-path rust-wails-bridge/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force 'go/rustbridge/bin' | Out-Null
+          Copy-Item -Force 'rust-wails-bridge/target/release/ysm_model_manager_wails_bridge.dll' 'go/rustbridge/bin/ysm_model_manager_wails_bridge.dll'
+          go test -tags rust_backend ./go/scanner/... -count=1 -timeout 5m | Out-String -Width 400
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Go 覆盖率报告（非阻断，趋势可见）
         shell: pwsh
         run: |

@@ -57,12 +57,23 @@ fn scan_impl(root: &Path, policy: &ScanPolicy, include_banned_dirs: bool) -> Sca
                 if ext == ".json" && !is_model_json_name(restored) {
                     continue;
                 }
+                // Go scanner 契约（go/scanner/scanner.go L345-348）：ysm.json 条目重命名为
+                // 父目录名（UI/同步层对文件夹式模型显示目录名）——Rust 路径必须对齐，
+                // 否则 Windows 生产构建（rust_backend）同一目录产出不同 ModelEntry.Name（code review P2）
+                let display_name = if restored.eq_ignore_ascii_case("ysm.json") {
+                    path.parent()
+                        .and_then(|p| p.file_name())
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or(name.clone())
+                } else {
+                    name
+                };
                 let subdir = first_relative_component(&root, &path)
                     .filter(|name| policy.is_mmd_subdir(name))
                     .unwrap_or_default();
                 let rtype = policy.rtype_for_ext(&ext).to_string();
                 candidates.push(Candidate {
-                    name,
+                    name: display_name,
                     path,
                     ext,
                     subdir,

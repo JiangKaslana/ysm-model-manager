@@ -90,7 +90,19 @@ fn scan_preserves_go_filter_contract() {
         ".ysm"
     );
     assert!(report.entries.iter().any(|e| e.name == "a.ysm"));
-    assert!(report.entries.iter().any(|e| e.name == "ysm.json"));
+    // Go 契约（code review P2）：ysm.json 条目重命名为父目录名（root 目录 basename）
+    let root_name = root
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    assert!(
+        report.entries.iter().any(|e| e.name == root_name),
+        "ysm.json 条目应重命名为父目录名 {}，实际 {:?}",
+        root_name,
+        report.entries.iter().map(|e| e.name.as_str()).collect::<Vec<_>>()
+    );
     assert!(!report.entries.iter().any(|e| e.name == "anim.json"));
     assert!(!report
         .entries
