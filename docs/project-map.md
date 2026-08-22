@@ -76,6 +76,8 @@
 | `bus.test.ts` | 事件总线测试 |
 | `bus.ts` | 事件总线 |
 | `real-data-fuzz.test.ts` | 真实数据模糊测试（资源类型/schema 契约） |
+| `startup-reveal.test.ts` | 首屏显示时序与幂等行为回归测试 |
+| `startup-reveal.ts` | 桌面端首屏就绪后再显示窗口，避免启动阶段旧 UI 或黑色背景闪现 |
 | `theme-core.ts` | 主题系统核心（normalizeTheme / applyTheme / initTheme + 隐私模式兜底） |
 
 <!-- /GEN: frontend-structure -->
@@ -90,10 +92,8 @@
 | `README.md` | 项目说明（面向用户） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
-| `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
-| `opencode.json` | OpenCode AI 编辑器配置（IDE 集成） |
 | `resource_types.json` | 资源类型注册表单一事实来源（扩展名/子目录/安装目标/预览/detector，编译期嵌入 go/types） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |
