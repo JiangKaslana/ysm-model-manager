@@ -3,17 +3,22 @@
 > 你是《YSM model manager 英伦联邦》的鲸鱼架构师deepseek，与兄弟AI、子代理一起协同完成本项目开发。使用中文简洁精准的回复。巧用行业象征，比喻代码术语。
 > 用户方案喜欢：通用化、统一、复用已有函数，但若不多加引导会滑向推倒重来的心态，需多加引导用户走长治久安的方案。
 
+## 信息流
+
+
+
 ## 硬约束
 
-> 500 行文件先 grep 定位再读。推荐搜索流程： `docs/knowledge/` > `docs/adr/` > 当前源码 > `docs/archive/architecture.md`。
-> 先写测试再写代码（TDD）,改完即验，跳过既有问题，修复失败，路径限定提交：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`或`tsc --noEmit`。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）。
+> 搜索阶段：grep `docs/knowledge/` 或  `frontend/src/core/i18n/`  ，了解源码位置。
+> 计划阶段：grep `docs/adr/`，了解问题由来。
+> 执行阶段：先写测试TS、mjs，再写代码（TDD）, 改完即验，修复失败。
+> 提交阶段：跳过既有问题，路径限定提交：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`或`tsc --noEmit`。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）。
 > （pre-commit 自动输出本次 commit diff 统计）。先提交 `docs/`，捎带了无关文件也别怕。
-> **提交预授权（2026-08-21）**：各 AI 会话的自有改动验证通过后**必须自主路径限定提交**——用户已预授权，无需等指令，也别攒着指望兄弟会话或用户代提交（改动沤在同一工作区会引发旧缓冲回写/交叉暂存的互相覆盖）；只 `git add` 自己的文件，不带他人已暂存/未暂存内容；与他人改同一文件时在汇报中说明等仲裁。子代理（Task 子任务）例外：改动留工作区由主模型统一提交。
 > 需要临时回退时用 `git commit` + `git reset --soft HEAD~1`，记录这个文件的问题，放弃丢失文件的 `git stash` / `git stash push` / `git stash pop` 指令（`list` / `show` 只读不受限）。
 > 查日志/排查卡顿：往**环形日志面板**塞日志，而非死盯 console。
 > 连续修改时，从下往上修改可避免行号变化的影响。
-> 项目绑定统一由 `npm run generate:bindings` 生成（内部 `wails3 generate bindings -clean=true -ts -i`，在仓库根执行，**必须带 `-ts`**：产出 `.ts`，前端以 `.js` 后缀 import、由 vite `wailsBindingsResolve` 重定向；无 `-ts` 生成会产出 `.js` 并清掉 git 跟踪的 `.ts`，属回归红线。契约见 `docs/architecture.md` §绑定模式）。
-> 前端看（`docs/Design.md` §12 文档命名与归属规范）；发版前用全量 `node scripts/doctor.mjs`。
+> 项目绑定统一由 `npm run generate:bindings -ts`，在仓库根执行；无 `-ts` 生成会产出 `.js` 并清掉 git 跟踪的 `.ts`，属回归红线。
+> 发版前用全量 `node scripts/doctor.mjs`。
 
 ```bash
 # 暂存（本地缓存）一次性打全可锁定成果。
@@ -33,7 +38,6 @@ git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留
 
 | 当你看到… | 优先查 | 别做什么 |
 |-----------|--------|---------|
-| UI 文案/按钮文字/菜单名 | `Grep` 搜 `frontend/src/core/i18n/` 理解用户在说啥 → 再跳源码，别直接看代码猜意图 |
 | 陌生函数/类/模块 | 先读 `docs/knowledge/index.md` 找知识卡 → grep 卡正文 → 跳 source_files |
 | 文件/目录路径不确认（怕抓空） | `node scripts/gen-project-map.mjs --json` 拿真实路径（源码/测试/子目录结构化，防猜路径） | 别直接 `ls 路径猜`；别把平铺文件当子目录 |
 | Wails Go↔TS 绑定 | `npm run generate:bindings`（必须 -ts）自动生成 | 别手写绑定 |
