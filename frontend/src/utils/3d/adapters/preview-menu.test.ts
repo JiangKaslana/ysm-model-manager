@@ -59,6 +59,9 @@ describe("mountPreviewRootMenu", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     sceneRegistry.reset();
+    // code review P3：全局类型记忆 key 每个测试前清理——断言失败也不污染后续测试
+    // （该 key 跨场景/跨会话共享，泄漏会翻转默认高亮与空状态文案，顺序依赖 flaky）
+    localStorage.removeItem("ysm.preview.lastRtype");
     overlay = document.createElement("div");
     document.body.appendChild(overlay);
   });
@@ -420,7 +423,6 @@ describe("mountPreviewRootMenu", () => {
       expect(overlay.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(1);
     });
     handle.dispose();
-    localStorage.removeItem("ysm.preview.lastRtype");
   });
 
   it("类型 tab 默认高亮：记忆越界但当前模型类型在 tabs → 高亮当前类型（非当前目录）", () => {
@@ -440,12 +442,11 @@ describe("mountPreviewRootMenu", () => {
     const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
     const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
     const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "");
-    // 当前类型 ysm 高亮（记忆越界不污染），当前目录 tab 已移除
+    // 当前类型 ysm 高亮（记忆越界不污染）；「当前目录」tab 保留可达（code review P2）
     expect(ysmTab.style.background).toContain("124");
     expect(ysmTab.style.background).toContain("131");
-    expect(dirTab).toBeUndefined();
+    expect(dirTab).toBeDefined();
     handle.dispose();
-    localStorage.removeItem("ysm.preview.lastRtype");
   });
 
   it("类型 tab 默认高亮：记忆与当前类型均越界 → 高亮第一个类型 tab（无当前目录 tab）", () => {
@@ -462,20 +463,18 @@ describe("mountPreviewRootMenu", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
     const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
-    // 当前目录 tab 已移除：不存在 rtype="" 的按钮
+    // 「当前目录」tab 保留（rtype=""，不持久化——code review P2 恢复混合目录可达）
     const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "");
-    expect(dirTab).toBeUndefined();
+    expect(dirTab).toBeDefined();
     const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
     // 记忆与当前类型都不在 tabs → 高亮第一个类型 tab（ysm）
     expect(ysmTab.style.background).toContain("124");
     expect(ysmTab.style.background).toContain("131");
     handle.dispose();
-    localStorage.removeItem("ysm.preview.lastRtype");
   });
 
   it("类型 tab 默认高亮：无记忆 + 当前类型在 tabs → 直接高亮当前类型", () => {
     const switchTo = vi.fn();
-    localStorage.removeItem("ysm.preview.lastRtype");
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
       getCurrentPath: () => "/m/a.ysm",

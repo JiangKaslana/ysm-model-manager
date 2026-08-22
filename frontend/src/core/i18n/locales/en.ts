@@ -836,6 +836,7 @@ export const en: Record<string, string> = {
   "preview.unloadRole": "Unload character",
   "preview.noRoles": "(no loaded characters)",
   "preview.noOtherModel": "(no other models)",
+  "preview.switchDirTab": "Current Directory",
   "preview.noTypeModel": "(no models of this type)",
   "preview.roleNoDetail": "(nothing to view for this character)",
   "preview.appendModel": "Append to scene",

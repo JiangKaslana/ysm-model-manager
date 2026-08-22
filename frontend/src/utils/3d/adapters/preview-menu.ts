@@ -995,8 +995,9 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       (key === activeTab ? ";background:rgba(124,131,255,0.35);color:#fff" : "");
     b.onclick = (): void => {
       activeTab = key;
-      // 全局记忆：持久化本次选中类型
-      safeSet(PREVIEW_LAST_RTYPE_KEY, key);
+      // 全局记忆：持久化本次选中类型（「当前目录」tab 不持久化——临时视图，
+      // 不污染跨会话类型记忆，code review P2）
+      if (key !== "") safeSet(PREVIEW_LAST_RTYPE_KEY, key);
       // 高亮当前 tab
       for (const tb of Array.from(tabBar.children)) {
         (tb as HTMLElement).style.background = (tb as HTMLElement).dataset.rtype === key
@@ -1007,6 +1008,9 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     };
     tabBar.appendChild(b);
   };
+  // 「当前目录」tab（key=""，不持久化——临时视图）：恢复混合类型目录的兄弟切换
+  // 可达性（code review P2：此前移除后 siblings 视图仅在 rtypes 空时可达，混合目录回归）
+  mkTab("", tr("preview.switchDirTab", "当前目录"));
   for (const r of rtypes) mkTab(r, RESOURCE_TYPE_LABELS[r] || r);
 
   const listBody = document.createElement("div");

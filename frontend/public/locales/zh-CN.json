@@ -768,6 +768,7 @@
   "preview.unloadRole": "卸载角色",
   "preview.noRoles": "（无已加载角色）",
   "preview.noOtherModel": "（无其他模型）",
+  "preview.switchDirTab": "当前目录",
   "preview.noTypeModel": "（该类型暂无模型）",
   "preview.roleNoDetail": "（该角色无可查看项）",
   "preview.appendModel": "追加到场景",
