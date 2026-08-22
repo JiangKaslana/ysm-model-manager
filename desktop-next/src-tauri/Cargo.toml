@@ -1,0 +1,17 @@
+[package]
+name = "ysm-model-manager-next"
+version = "0.2.0"
+edition = "2021"
+publish = false
+build = "build.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+notify = "8"
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+ysm-model-manager-core = { path = "../../rust-core" }
+ysm-model-manager-fileops = { path = "../../rust-fileops" }
+ysm-model-manager-index = { path = "../../rust-index" }

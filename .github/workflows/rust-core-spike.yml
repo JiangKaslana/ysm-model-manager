@@ -1,0 +1,31 @@
+name: Rust core spike
+
+on:
+  push:
+    branches:
+      - refactor/rust-core-spike
+    paths:
+      - "rust-core/**"
+      - ".github/workflows/rust-core-spike.yml"
+  pull_request:
+    paths:
+      - "rust-core/**"
+      - ".github/workflows/rust-core-spike.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust-core
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test

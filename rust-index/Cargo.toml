@@ -1,0 +1,8 @@
+[package]
+name = "ysm-model-manager-index"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+ysm-model-manager-core = { path = "../rust-core" }
