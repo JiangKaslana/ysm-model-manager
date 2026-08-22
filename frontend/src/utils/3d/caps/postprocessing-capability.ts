@@ -384,6 +384,10 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
     }
   }
 
+  setPixelRatio(pixelRatio: number): void {
+    this.composer?.setPixelRatio(pixelRatio);
+  }
+
   /* -------- SceneCapability 接口 -------- */
 
   apply(): void {

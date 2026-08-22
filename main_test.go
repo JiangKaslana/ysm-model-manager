@@ -62,3 +62,9 @@ func TestMainWindowUsesFirstPaintBackground(t *testing.T) {
 		t.Fatalf("startup background = %#v, want %#v", options.BackgroundColour, want)
 	}
 }
+
+func TestMainWindowStaysHiddenUntilFrontendIsReady(t *testing.T) {
+	if !mainWindowOptions().Hidden {
+		t.Fatal("main window must start hidden so the pre-rendered shell is never visible")
+	}
+}

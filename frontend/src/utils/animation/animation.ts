@@ -339,6 +339,40 @@ export function evaluateKeyframes(keyframes: Keyframe[], t: number): Vec3 | null
   ];
 }
 
+/** Allocation-free keyframe evaluation for the per-frame preview hot path. */
+export function evaluateKeyframesInto(keyframes: Keyframe[], t: number, out: Vec3): boolean {
+  if (!keyframes?.length) return false;
+  if (!Number.isFinite(t) || t <= keyframes[0].time) {
+    const value = keyframes[0].post;
+    out[0] = value[0]; out[1] = value[1]; out[2] = value[2];
+    return true;
+  }
+  const last = keyframes[keyframes.length - 1];
+  if (t >= last.time) {
+    out[0] = last.post[0]; out[1] = last.post[1]; out[2] = last.post[2];
+    return true;
+  }
+
+  let lo = 0;
+  let hi = keyframes.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (keyframes[mid].time <= t) lo = mid;
+    else hi = mid;
+  }
+  const a = keyframes[lo];
+  const b = keyframes[hi];
+  if (a.lerp === "step" || b.time <= a.time) {
+    out[0] = a.post[0]; out[1] = a.post[1]; out[2] = a.post[2];
+    return true;
+  }
+  const fraction = (t - a.time) / (b.time - a.time);
+  out[0] = a.post[0] + (b.post[0] - a.post[0]) * fraction;
+  out[1] = a.post[1] + (b.post[1] - a.post[1]) * fraction;
+  out[2] = a.post[2] + (b.post[2] - a.post[2]) * fraction;
+  return true;
+}
+
 /**
  * 对整个动画 clip 在指定时间求值（支持骨骼层级）
  * @param clip 动画剪辑

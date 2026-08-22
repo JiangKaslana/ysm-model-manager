@@ -62,7 +62,9 @@ import { type CameraControlBridge } from "./camera-controls.ts";
 import type { BoneSelectInfo, BoneMaps } from "../model3d.ts";
 import {
   PREVIEW_FRAME_INTERVAL_MS,
+  createAdaptiveRenderBudget,
   previewPixelRatio,
+  sampleAdaptivePixelRatio,
   shouldRenderPreviewFrame,
 } from "../render-budget.ts";
 
@@ -565,6 +567,10 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       const _move = new THREE.Vector3();
       let lastTime = performance.now() - PREVIEW_FRAME_INTERVAL_MS;
       let nextFrameTime = performance.now();
+      const adaptiveBudget = createAdaptiveRenderBudget(
+        previewPixelRatio(window.devicePixelRatio),
+        performance.now(),
+      );
       function animate(): void {
         _globalAnimId = requestAnimationFrame(animate);
         const now = performance.now();
@@ -622,6 +628,13 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         // ADR-081 L2：后处理体积光管线
         const rendered = postProc ? postProc.render(dt, lightCap) : false;
         if (!rendered) rd.render(sc, cam);
+        const nextPixelRatio = sampleAdaptivePixelRatio(adaptiveBudget, now);
+        if (nextPixelRatio !== null) {
+          rd.setPixelRatio(nextPixelRatio);
+          rd.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+          postProc?.setPixelRatio?.(nextPixelRatio);
+          postProc?.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+        }
       }
       animate();
     }

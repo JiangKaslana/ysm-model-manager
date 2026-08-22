@@ -67,6 +67,7 @@ func mainWindowOptions() application.WebviewWindowOptions {
 		Width:            1280,
 		Height:           800,
 		URL:              "/",
+		Hidden:           true,
 		BackgroundColour: application.NewRGB(17, 17, 27),
 	}
 }

@@ -1,82 +1,90 @@
-// ===== YSM 骨骼动画播放器（ADR-100 L1+L2）=====
-// 把 parseBedrockAnimationJSON 产出的 AnimationClip 驱动到 THREE.Object3D 骨骼节点上。
-// 纯 Three.js 逻辑，0 backend import（ADR-072 边界纯净）。
-//
-// 与 VRM VRMA 的差异：
-//   - VRM：GLTFLoader + VRMAnimationLoaderPlugin 自动解析 .vrma → vrmAnimations
-//   - YSM：手动调 parseBedrockAnimationJSON → evaluateClip → 应用 Group 变换
-//
-// YSM 骨骼是 THREE.Group 层级（非 THREE.Bone），变换直接作用在 group.position/quaternion/scale。
-// 旋转用四元数 slerp 路径平滑（避免欧拉角跳变）。
-
 import * as THREE from "three";
 import {
-  evaluateClip,
+  evaluateKeyframesInto,
   type AnimationClip,
-  type BoneTransform,
+  type BoneChannels,
   type BoneHierarchyNode,
+  type Vec3,
 } from "../animation/animation.ts";
 
-/** YSM 骨骼动画播放器接口 */
 export interface YsmAnimPlayer {
-  /** 应用一帧变换到骨骼（由 adapter update 每帧调用，dt 秒） */
   apply(dt: number): void;
-  /** 释放内部状态（dispose 时调用） */
   dispose(): void;
-  /** 播放/暂停切换 */
   toggle(): void;
-  /** 是否正在播放 */
   isPlaying(): boolean;
-  /** 当前时间（秒） */
   getTime(): number;
-  /** 当前 clip 时长（秒） */
   getDuration(): number;
-  /** 当前 clip 索引 */
   currentIndex(): number;
-  /** 可用 clip 列表 */
   clips(): ReadonlyArray<{ label: string }>;
-  /** 总 clip 数 */
   clipCount(): number;
-  /** 切换到指定 clip（0-based index；越界静默忽略） */
   selectClip(index: number): void;
-  /** 是否正在播放有效动画（供感知层判断是否暂停呼吸/眨眼） */
   isAnimActive(): boolean;
 }
 
+interface CompiledTrack {
+  node: THREE.Object3D;
+  channels: BoneChannels;
+  rotation: Vec3;
+  position: Vec3;
+  scale: Vec3;
+  euler: THREE.Euler;
+  targetQuaternion: THREE.Quaternion;
+  restQuaternion: THREE.Quaternion | null;
+  slerpAlpha: number;
+}
+
 /**
- * 构建 YSM 骨骼动画播放器。
- * @param boneByName   spec.bones[].name → THREE.Object3D（骨骼节点，通常是 Group）映射
- * @param clips        动画剪辑列表（至少 1 个）
- * @param boneHierarchy 骨骼层级 [{name, parent}] 供 evaluateClip 传播
- * @param clipLabels   每 clip 的显示名；缺省时用 "Clip 0", "Clip 1"...
+ * Builds a YSM animation player whose per-frame path reuses every temporary object.
+ * boneHierarchy remains in the signature for API compatibility; Three.js already
+ * propagates the local transforms through the Object3D hierarchy.
  */
 export function createYsmAnimPlayer(
   boneByName: Map<string, THREE.Object3D>,
   clips: AnimationClip[],
-  boneHierarchy: BoneHierarchyNode[],
+  _boneHierarchy: BoneHierarchyNode[],
   clipLabels?: string[],
 ): YsmAnimPlayer {
   if (clips.length === 0) throw new Error("YSM animation player requires at least one clip");
 
   const rawLabels = clipLabels ?? clips.map((_, i) => `Clip ${i}`);
-  const labels: readonly { label: string }[] = rawLabels.slice(0, clips.length).map((l) => ({ label: l }));
+  const labels = rawLabels.slice(0, clips.length).map((label) => ({ label }));
+  const compiledClips = clips.map((clip) =>
+    Object.entries(clip.bones).flatMap(([boneName, channels]): CompiledTrack[] => {
+      const node = boneByName.get(boneName);
+      if (!node) return [];
+      return [{
+        node,
+        channels,
+        rotation: [0, 0, 0],
+        position: [0, 0, 0],
+        scale: [1, 1, 1],
+        euler: new THREE.Euler(0, 0, 0, "XYZ"),
+        targetQuaternion: new THREE.Quaternion(),
+        restQuaternion: null,
+        slerpAlpha: 0,
+      }];
+    }),
+  );
+
   let currentIdx = 0;
   let elapsed = 0;
   let playing = true;
+  const slerpRate = 5;
 
-  // slerp 支持：记录每个骨骼的 rest quaternion + 插值进度 alpha
-  // 每次 apply 从 rest 姿态以 alpha 进度球面插值到目标姿态，避免欧拉角跳变
-  const restQuaternions = new Map<string, THREE.Quaternion>();
-  const slerpAlpha = new Map<string, number>();
-  const SLERP_RATE = 5.0; // 插值速率：~0.2s 到达目标
-
-  function getClip(): AnimationClip { return clips[currentIdx]; }
+  const getClip = (): AnimationClip => clips[currentIdx];
+  const resetCompiledState = (): void => {
+    for (const tracks of compiledClips) {
+      for (const track of tracks) {
+        track.restQuaternion = null;
+        track.slerpAlpha = 0;
+      }
+    }
+  };
 
   return {
     apply(dt: number): void {
-      if (!playing || clips.length === 0) return;
+      if (!playing) return;
       const clip = getClip();
-
       elapsed += dt;
       if (clip.loop && clip.length > 0) {
         elapsed = ((elapsed % clip.length) + clip.length) % clip.length;
@@ -85,40 +93,25 @@ export function createYsmAnimPlayer(
         playing = false;
       }
 
-      const transforms = evaluateClip(clip, elapsed, boneHierarchy, true);
-
-      for (const [boneName, transform] of transforms) {
-        const node = boneByName.get(boneName);
-        if (!node) continue; // 未匹配骨骼静默跳过
-
-        if (transform.rotation) {
-          const [rx, ry, rz] = transform.rotation;
-          const targetQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, "XYZ"));
-          let rest = restQuaternions.get(boneName);
-          let alpha = slerpAlpha.get(boneName) ?? 0;
-          if (!rest) {
-            // 首次 apply：保存当前姿态为 rest，alpha 从 0 开始
-            rest = node.quaternion.clone();
-            restQuaternions.set(boneName, rest);
-            alpha = 0;
+      for (const track of compiledClips[currentIdx]) {
+        const { node, channels } = track;
+        if (channels.rotation && evaluateKeyframesInto(channels.rotation, elapsed, track.rotation)) {
+          track.euler.set(track.rotation[0], track.rotation[1], track.rotation[2], "XYZ");
+          track.targetQuaternion.setFromEuler(track.euler);
+          if (!track.restQuaternion) {
+            track.restQuaternion = node.quaternion.clone();
+            track.slerpAlpha = 0;
           } else {
-            alpha = Math.min(1, alpha + dt * SLERP_RATE);
+            track.slerpAlpha = Math.min(1, track.slerpAlpha + dt * slerpRate);
           }
-          slerpAlpha.set(boneName, alpha);
-          if (alpha >= 1) {
-            node.quaternion.copy(targetQuat);
-          } else {
-            node.quaternion.copy(rest).slerp(targetQuat, alpha);
-          }
+          if (track.slerpAlpha >= 1) node.quaternion.copy(track.targetQuaternion);
+          else node.quaternion.copy(track.restQuaternion).slerp(track.targetQuaternion, track.slerpAlpha);
         }
-
-        if (transform.position) {
-          const [px, py, pz] = transform.position;
-          node.position.set(px, py, pz);
+        if (channels.position && evaluateKeyframesInto(channels.position, elapsed, track.position)) {
+          node.position.set(track.position[0], track.position[1], track.position[2]);
         }
-        if (transform.scale) {
-          const [sx, sy, sz] = transform.scale;
-          node.scale.set(sx, sy, sz);
+        if (channels.scale && evaluateKeyframesInto(channels.scale, elapsed, track.scale)) {
+          node.scale.set(track.scale[0], track.scale[1], track.scale[2]);
         }
       }
     },
@@ -126,10 +119,8 @@ export function createYsmAnimPlayer(
     dispose(): void {
       elapsed = 0;
       playing = true;
-      restQuaternions.clear();
-      slerpAlpha.clear();
+      resetCompiledState();
     },
-
     toggle(): void {
       if (elapsed >= getClip().length && !getClip().loop) {
         elapsed = 0;
@@ -138,23 +129,19 @@ export function createYsmAnimPlayer(
         playing = !playing;
       }
     },
-
-    isPlaying(): boolean { return playing; },
-    getTime(): number { return elapsed; },
-    getDuration(): number { return getClip().length || 0; },
-    currentIndex(): number { return currentIdx; },
-    clips(): ReadonlyArray<{ label: string }> { return labels; },
-    clipCount(): number { return clips.length; },
+    isPlaying: () => playing,
+    getTime: () => elapsed,
+    getDuration: () => getClip().length || 0,
+    currentIndex: () => currentIdx,
+    clips: () => labels,
+    clipCount: () => clips.length,
     selectClip(index: number): void {
       if (index < 0 || index >= clips.length) return;
       currentIdx = index;
       elapsed = 0;
       playing = true;
-      restQuaternions.clear();
-      slerpAlpha.clear();
+      resetCompiledState();
     },
-    isAnimActive(): boolean {
-      return playing && elapsed < (getClip().length || Infinity);
-    },
+    isAnimActive: () => playing && elapsed < (getClip().length || Infinity),
   };
 }

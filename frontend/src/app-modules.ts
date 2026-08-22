@@ -12,6 +12,7 @@ import { friendlyError } from "./utils/dom/errors.ts";
 import { checkUpdateSilent } from "./features/version-updater.ts";
 import { applyUIPrefs } from "./views/app-content/settings/ui-prefs.ts";
 import { loadView } from "./utils/module-loader.ts";
+import { revealMainWindow } from "./startup-reveal.ts";
 
 // bus 已在 bus.ts 中挂载 window.bus，此处不再重复赋值
 
@@ -31,7 +32,7 @@ import "./views/app-toast/index.ts";
 // Web Components 动态导入（使用字面量确保 Vite 能在构建时解析路径）
 loadView("app-tree", () => import("./views/app-tree/index.ts"));
 loadView("app-sidebar", () => import("./views/app-sidebar/index.ts"));
-loadView("app-content", () => import("./views/app-content/index.ts"));
+const appContentReady = loadView("app-content", () => import("./views/app-content/index.ts"));
 loadView("app-resource-manager", () => import("./views/app-resource-manager/index.ts"));
 loadView("app-sync-manager", () => import("./views/app-sync-manager/index.ts"));
 
@@ -56,6 +57,7 @@ if (typeof window !== "undefined") {
 
 // 启动初始化
 (async () => {
+ try {
   registerErrorDiary();
   // ADR-079 M1：网页版注册 COI Service Worker（补 COOP/COEP → crossOriginIsolated，
   // 为 pthread WASM 铺路；渐进增强，失败静默降级单线程）
@@ -87,6 +89,10 @@ if (typeof window !== "undefined") {
   import("three").catch((e) => console.warn("[preload] three 预加载失败:", e));
   // 启动 2s 后后台预下载 stats.worker chunk（网页版）：让首次数值搜索不用等下载
   setTimeout(() => prefetchStatsWorker(), 2000);
+ } finally {
+   await appContentReady;
+   await revealMainWindow(() => Window.Show());
+ }
 })();
 
 // node 测试环境无 window，跳过系统主题跟随注册（浏览器语义不变）
