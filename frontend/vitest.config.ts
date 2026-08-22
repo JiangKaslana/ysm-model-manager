@@ -6,10 +6,13 @@ import { defineConfig } from "vitest/config";
 // `// @vitest-environment node` 切 node 环境（成本 ~0ms），依赖 DOM 的保持默认 happy-dom。
 // 源模块顶层 window 副作用须惰性化（typeof window !== "undefined" 守卫），
 // 如 bus.ts / app-modules.ts / debug.ts——否则 import 链在 node 下报 window is not defined。
+// isolate:true（2026-08-22）：解决 isolate:false 混合环境 worker 复用导致的 document 偶发串扰。
+// test-setup.ts 的 idb/three/i18n mock 已兼容双模式，setupFiles 在 isolate:true 下每 worker 重执行。
 export default defineConfig({
   test: {
     include: ["src/**/*.test.{js,ts}"],
     environment: "happy-dom",
+    isolate: true,
     setupFiles: ["./test-setup.ts"],
     coverage: {
       provider: "v8",
