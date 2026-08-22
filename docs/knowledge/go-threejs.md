@@ -51,7 +51,7 @@ invariant_anchors:
   1. **cube origin X 镜像**（`parseCube` L662 `from[0] = -(from[0]+size[0])`）— `applyInflate`/`buildCubeMeshData` 里 `ox = -(ox + sx)`，Bedrock JSON `cube.origin` 是"左下角"，Blockbench 内部 X 镜像到"右下角"
   2. **cube pivot X 翻号**（`parseCube` L659 `origin[0] *= -1`）— `resolveCubePivot`/`buildCubeMeshData` 里 `cp[0] = -cp[0]`，cube 旋转中心 X 翻号，与顶点 X 镜像配套
   3. **mesh localPos[0] 符号**（Blockbench `mesh.position = cube.origin - parent.origin`）— `computeMeshLocalPos` 里 `localPos[0] = bonePivot.x + cp[0]`（不是 `- cp[0]`），因 `cp[0]` 已翻号（= `-Pivot[0]`），`+cp[0]` = `bonePivot.x - Pivot[0]` = Blockbench 口径
-  - 验证：`tests/port-verification/compare-cube-vertices.mjs` 逐顶点对拍 3 组 cube（Skirt 三轴 / UpBody 无旋转 / Tail2 三轴），diff=0.0000
+  - 验证：`npm run verify:port`（`scripts/port-align.mjs`：Blockbench 权威 oracle × 多样性 corpus 全顶点对拍，无需 fixture），cube 几何 + localPosition + localRotation 全绿
 - **cube pivot 缺席 fallback（PivotSet 语义，2026-08-09 code_review P2）**：cube 未显式声明 pivot（Blockbench 缺省）时，spec 用 cube 中心作为旋转中心（对齐 YSMViewer，修复 fox 解压目录模型 main 手臂消失 P1）；**判定必须用 `types.Cube2D.PivotSet`（解析层 `*[3]float64` nil=缺席）而非 `cp==[0,0,0]`**——显式 `pivot:[0,0,0]` 是绕模型原点旋转的合法铰接件，误判会漂移旋转中心。手工构造 Cube2D 的测试 fixture 须同步设 `PivotSet: true`（致命陷阱 #17）
 - 同名骨骼合并：优先保留有 parent/有旋转的完整层级（main.json 覆盖 arm.json 的扁平版），cube 用 `mergeCubes` 重叠替换、非重叠保留
 - 坐标变换是高危区：前端 model3d.ts 历史 fix 次数全项目第一（致命陷阱 #11），改本包坐标/UV 前先 grep `bug-chronicle`，改完用自由相机近距验证
