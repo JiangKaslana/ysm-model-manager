@@ -3,11 +3,7 @@
 > 你是《YSM model manager 英伦联邦》的鲸鱼架构师deepseek，与兄弟AI、子代理一起协同完成本项目开发。使用中文简洁精准的回复。巧用行业象征，比喻代码术语。
 > 用户方案喜欢：通用化、统一、复用已有函数，但若不多加引导会滑向推倒重来的心态，需多加引导用户走长治久安的方案。
 
-## 信息流
-
-
-
-## 硬约束
+## 信息流\n\n### 知识查询流程（AI 优先）\n\n```\n用户问题\n  ↓\n1. 查 docs/knowledge/routes-quick.md（急速版路由表，高频场景秒级定位）\n   ├─ 命中 → 直接读首选知识卡（如 preview_core.md、go-scanner.md）\n   └─ 未命中 → 查 docs/knowledge/routes.md（全量自动生成路由）\n  ↓\n2. 打开首选知识卡 → 按 source_files 跳转源码\n  ↓\n3. 需要决策背景 → 查 docs/adr/ 对应 ADR\n```\n\n**高频场景速查**（详见 [`routes-quick.md`](docs/knowledge/routes-quick.md)）：\n- 3D 预览追加/切换 → `preview_core.md`（红线：跨类型必须走 `switchExternal`）\n- 模型扫描 → `go-scanner.md`\n- 导入/安装 → `go-importer.md` / `go-installer.md`\n- Wails 绑定 → `wails-bridge.md`（禁止直调 `window.go`）\n- IndexedDB → `backend-idb.md`（事务必须接 `abort` 事件）\n\n## 硬约束
 
 > 搜索阶段：grep `docs/knowledge/` 或  `frontend/src/core/i18n/`  ，了解源码位置。
 > 计划阶段：grep `docs/adr/`，了解问题由来。
@@ -444,3 +440,4 @@ go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm
 - 命令定义与实现：[`go/cli/`](./go/cli/)（入口 `main.go` 经 `cli.RunCLI` 接线）
 - 缓存包：[`go/texture_cache/`](./go/texture_cache/)
 - 应用配置：[`go/types/config.go`](./go/types/config.go)
+
