@@ -398,11 +398,21 @@ describe("getPreviewableTypeTabs 3D 切换面板 tab 派生", () => {
 
   it("EntityPlayer 的 variants 展开为 mmd + vrm tab（.pmx/.pmd 同映射 mmd 已去重）", () => {
     const mmdTabs = tabs.filter((t) => t.key === "mmd");
-    const vrmFromEntity = tabs.filter((t) => t.key === "vrm" && t.label === "角色模型");
+    const vrmTabs = tabs.filter((t) => t.key === "vrm");
     expect(mmdTabs.length).toBe(1);
-    // vrm 是 EntityPlayer 与 SceneModel 共享预览格式，tab 去重后至少含一个归属「角色模型」的 vrm
-    expect(vrmFromEntity.length).toBeGreaterThanOrEqual(1);
+    // vrm 是 EntityPlayer 与 SceneModel 共享预览格式，按 key 去重后只保留首个命中（EntityPlayer），
+    // 故 vrm 恰好 1 个 tab、且标签归属「角色模型」（而非 SceneModel 的「场景模型」）。
+    expect(vrmTabs.length).toBe(1);
+    expect(vrmTabs[0].label).toBe("角色模型");
     expect(mmdTabs[0].label).toBe("角色模型");
+  });
+
+  it("tab 的 preview key 全局唯一（共享 preview key 跨类型去重，不出现重复 tab）", () => {
+    const keyCounts = new Map<string, number>();
+    for (const t of tabs) keyCounts.set(t.key, (keyCounts.get(t.key) ?? 0) + 1);
+    for (const [key, count] of keyCounts) {
+      expect(count, `preview key "${key}" 出现 ${count} 次，应唯一`).toBe(1);
+    }
   });
 
   it("无 variants 的 3d 类型用自己的 id 作 key（ysm / fbx / blueprint / maid-model …）", () => {

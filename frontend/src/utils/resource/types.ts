@@ -244,6 +244,7 @@ export interface PreviewTab {
 
 export function getPreviewableTypeTabs(): PreviewTab[] {
   const tabs: PreviewTab[] = [];
+  const seen = new Set<string>();
   for (const t of registryEntries) {
     if (!t.id) continue;
     const cap = RESOURCE_CAPS[t.id];
@@ -252,6 +253,11 @@ export function getPreviewableTypeTabs(): PreviewTab[] {
     const keys = variants.length > 0 ? Array.from(new Set(variants)) : [t.id];
     const label = RESOURCE_TYPE_LABELS[t.id] || t.id;
     for (const key of keys) {
+      // preview key 跨类型共享（如 vrm 同时归属 EntityPlayer / SceneModel），
+      // 按 key 去重保留首个命中类型（JSON 顺序：EntityPlayer 在前 → vrm 标「角色模型」），
+      // 点击该 key 时 resolvePreviewKeyToRtype 仍按文件路径反解到正确 rtype，能力不丢。
+      if (seen.has(key)) continue;
+      seen.add(key);
       tabs.push({ key, label });
     }
   }

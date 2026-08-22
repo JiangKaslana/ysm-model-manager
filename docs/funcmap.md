@@ -1793,13 +1793,13 @@
 | `NO_3D_TYPES()` | `frontend/src/utils/resource/types:222` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
 | `PreviewTab()` | `frontend/src/utils/resource/types:238` | 3D 切换面板类型 tab 的单一事实来源（ADR-111 收口）。 |
 | `getPreviewableTypeTabs()` | `frontend/src/utils/resource/types:245` | — |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:262` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:287` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:292` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:298` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:309` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:322` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `matchZipEntryTS()` | `frontend/src/utils/resource/types:372` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:268` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:293` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:298` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:304` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:315` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:328` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:378` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `safeErrorMessage()` | `frontend/src/utils/safe-error-msg:19` | 从任意错误对象提取可读消息字符串。 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
