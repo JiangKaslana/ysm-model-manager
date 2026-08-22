@@ -104,6 +104,16 @@ description: 项目历史事故浓缩的 17 条避坑教训 — 现象 × 根因
 
 ---
 
+## 18. cube 变换链缺层：Bedrock JSON → 渲染顶点漏 Blockbench X 镜像/翻号
+
+- **现象**：裙子/小部件朝向错误，但主题（无旋转或单轴旋转 cube）正确（实证：wine_fox 21_saint Skirt 48 个三轴非零 cube、01_taisho_maid Tail2.cube#0 `rotation=[-15,-57.25,-90]`，2026-08-22）。根因：cube 从 Bedrock JSON 到渲染顶点须经 **3 层 Blockbench X 镜像/翻号**，咱们只做了 0 层 → 顶点 X 坐标跟 Blockbench 相反，三轴非零 cube 旋转后朝向错位。
+  1. **cube origin X 镜像**（`parseCube` L662 `from[0] = -(from[0]+size[0])`）— 之前 `fx = ox` 直接用，未镜像
+  2. **cube pivot X 翻号**（`parseCube` L659 `origin[0] *= -1`）— 之前 `cp[0]` 不翻号
+  3. **mesh localPos[0] 符号**（Blockbench `mesh.position = cube.origin - parent.origin`）— 之前 `bonePivot.x - cp[0]`，改为 `bonePivot.x + cp[0]`（因 `cp[0]` 已翻号 = `-Pivot[0]`）
+- **规则**：cube 变换链必须逐层对齐 Blockbench 活规范（`parseCube` + `updateGeometry` + `updateTransform`），缺任一层都会导致朝向错误。改完用 `tests/port-verification/compare-cube-vertices.mjs` 逐顶点对拍验证（diff=0）。详见 `docs/knowledge/go-threejs.md` 不变量段、ADR-042 §2.1 裁决。
+
+---
+
 ## 维护约定
 
 - 新增陷阱：`ai-mistake-tracker.mjs` 发现连续修复链 / 高频 fix 文件时，提炼后追加本手册 + 同步 `AGENTS.md` §二 摘要表。
