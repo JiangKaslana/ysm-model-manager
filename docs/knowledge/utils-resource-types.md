@@ -36,7 +36,7 @@ invariant_anchors:
 - `RESOURCE_TYPES: Record<string, string>` — 15 个 ID 常量（与 `resource_types.json` 对齐）：YSM/MMD/SCENE/CUSTOM_ANIM/CUSTOM_MORPH/STAGE/MMD_SHADER/DEFAULT_ANIM/DEFAULT_MORPH/PACK/SHADER/BLUEPRINT/LITEMATIC/MAID/FBX → "ysm"/"EntityPlayer"/"SceneModel"/... 完整列表见 `types.ts` 源码
 - `RESOURCE_TYPE_LABELS: Record<string, string>` — ID → 中文标签（YSM 模型/角色模型/场景模型/自定义动画/... 共 15 项；**与 JSON `name` 是不同文案**——LABELS 为缩写「角色模型」，JSON name 为「MMD 角色模型」，同一类型 UI 不同处显示不同）
 - `ALL_RESOURCE_TYPES: string[]` — 全部 ID 列表
-- **能力元数据派生层（ADR-066 P0 + ADR-067 S4，由 `resource_types.json` 派生，单一事实来源）**：
+- **能力元数据派生层（ADR-066 P0 + ADR-067 S4，由 `resource_types.json` 派生，单一事实来源；T2 起 JSON 解析收口到 `schema.ts` 的 `allResourceTypes`，`types.ts`/`extensions.ts` 同源共享）**：
   - `extOf(path)` — 路径→小写扩展名（含点）
   - `matchTypeByExt(path, typeId)` — 按注册表 extensions 判定归属（不处理歧义，`loader.ts` 的 WASM 能力判定用）
   - `isYsmWasmPreview(path)` — ysm 单文件（`.ysm`/`.json`）走前端 WASM 预览，`.zip`/`.7z` 容器由 Go `FindPreviewImage` 兜底（`index.ts` 缩略图加载用）
@@ -47,7 +47,7 @@ invariant_anchors:
 
 `registry.ts`（异步加载器，知识卡旧文「resource-registry.ts」文件名漂移，实际为 `registry.ts`）：
 - `loadResourceRegistry(): Promise<Record<string, ResourceTypeEntry>>` — 经 `getApp().LoadResourceTypes()` 加载，模块级 `_registry` 缓存；**仅当拿到非空 `resourceTypes` 数组才写缓存**（P2 修复：Go 端错误路径返回 `"{}"` 时原实现会缓存空注册表、整会话降级；现失败/空结果返回 `{}` 不缓存，Go 桥瞬断后下次调用重试）
-- `ResourceTypeEntry` 接口：`{ id, storageSubDir?, label?, [key: string]: unknown }`（`label` 为幽灵字段，JSON 无此字段、全库无消费者读 entry.label；真实 JSON 有 13+ 字段含 `name/icon`，经索引签名读出 `unknown`，消费者需自行 `typeof` 收窄）
+- `ResourceTypeEntry` 接口：`extends ResourceType`（`schema.ts` 唯一完整前端视图：id/name/icon/group/groupLabel/groupIcon/extensions/storageSubDir/configField/instanceDir/preview/detector/variants/zipEntries）+ `[key: string]: unknown` 索引签名（容忍 Go 端未来新增字段，消费者读未知字段需自行 `typeof` 收窄；T2 收敛自原 `{id, storageSubDir?, name?}` 手写子集）
 - 有 vitest 覆盖（registry.test.ts：成功缓存/失败不缓存/空结果不缓存/重复调用仅一次 Go 调用，P2 补测）
 
 ## 与其他子系统关系

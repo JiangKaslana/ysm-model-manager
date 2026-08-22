@@ -41,7 +41,7 @@ use_when:
 
 - `go/types/`: Go 端注册表加载
 - `frontend/src/utils/resource/registry.ts`: 前端资源类型注册表加载（Go `LoadResourceTypes` binding）
-- `frontend/src/utils/resource/types.ts`: 前端类型工具
+- `frontend/src/utils/resource/types.ts`: 前端类型工具；`schema.ts` 为前端唯一 ResourceType 接口 + 单一 JSON 解析点（`types.ts`/`extensions.ts` 同源消费，T2 收敛）
 
 ## 不变量
 
