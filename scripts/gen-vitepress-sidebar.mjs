@@ -24,6 +24,8 @@ import { fileURLToPath } from 'node:url';
 import { toPosix } from './_lib/to-posix.mjs';
 import { parseFrontmatter, getScalar } from './_lib/frontmatter.mjs';
 import { GUIDE_GROUPS } from './_lib/guide-order.mjs';
+// [ADR-114 §被补充] 常量共享层
+import { KNOWLEDGE_ORDER, KNOWLEDGE_NON_CARDS as NON_CARDS } from './_lib/knowledge-cards.mjs';
 
 const DOCS = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'docs');
 const OUT = join(DOCS, '.vitepress', 'sidebar.gen.mjs');
@@ -158,10 +160,11 @@ const adrItems = mdNames('adr')
 
 // ---------- 5. 知识卡（knowledge/，按 category 聚合，折叠） ----------
 // 从卡片 frontmatter 聚合分类（groupBy），表外分类归「其他」并告警，绝不静默丢卡。
-const KNOWLEDGE_ORDER = ['core', 'go', 'ui', 'feature', 'utils', 'config'];
+// [ADR-114 §被补充] KNOWLEDGE_ORDER / NON_CARDS 已从 _lib/knowledge-cards.mjs 引入，
+// 不再本地复制（5 处漂移已消解）。
 function knowledgeItemsBuilder() {
   const groups = new Map();
-  const cards = mdNames('knowledge').filter((f) => !['index.md', 'README.md', 'AGENTS.md'].includes(f));
+  const cards = mdNames('knowledge').filter((f) => !NON_CARDS.has(f));
   for (const f of cards) {
     const rel = join('knowledge', f).replace(/\\/g, '/');
     let cat = '其他';

@@ -34,7 +34,7 @@ use_when:                    # 用户自然语言关键词
 
 ### 查询
 
-1. 用户提问 → 查 `index.md` 枢纽索引定位知识卡
+1. 用户提问 → 查 `routes.md`（AI 意图路由表，自动生成）命中首选知识卡
 2. 打开对应 `kind.md` 获取上下文
 3. 需要源码细节 → 按 `source_files` 路径跳转
 
@@ -108,6 +108,8 @@ node scripts/check-knowledge-drift.mjs --affected <f>…  # 主动：源码变�
 | 脚本 | 用途 |
 |------|------|
 | `scripts/_lib/frontmatter.mjs` | frontmatter 解析共享库 |
+| `scripts/_lib/knowledge-cards.mjs` | 知识卡常量共享层（KNOWLEDGE_ORDER / CATEGORY_LABELS / NON_CARDS） |
 | `scripts/gen-knowledge-index.mjs` | 按分类生成 `index.md` |
+| `scripts/gen-routes.mjs` | AI 意图路由表自动生成（`routes.md`） |
 | `scripts/check-knowledge-drift.mjs` | 知识卡漂移检查（ERROR/WARN） |
 | `scripts/new-knowledge-card.mjs` | 卡片模板生成器 |
