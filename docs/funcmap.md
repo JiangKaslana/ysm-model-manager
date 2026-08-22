@@ -26,6 +26,7 @@
 | Go·路径 | 1 | 6 |
 | Go·回收站 | 2 | 19 |
 | go/repoaudit | 1 | 9 |
+| go/rustbridge | 2 | 3 |
 | go/scanner | 1 | 10 |
 | Go·同步 | 7 | 23 |
 | Go·标签 | 1 | 8 |
@@ -47,7 +48,7 @@
 | frontend/views | 114 | 328 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **435** | **1872** |
+| **合计** | **437** | **1875** |
 
 ## Go·头像
 
@@ -361,6 +362,14 @@
 | `DedupSummary()` | `go/repoaudit/repoaudit:93` | DedupSummary 去重维度汇总（HealthReport 追加） |
 | `HealthReport()` | `go/repoaudit/repoaudit:100` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
 
+## go/rustbridge
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `Scan()` | `go/rustbridge/bridge_windows:24` | — |
+| `ScanError()` | `go/rustbridge/types_windows:7` | — |
+| `ScanResponse()` | `go/rustbridge/types_windows:12` | — |
+
 ## go/scanner
 
 | 符号 | 文件:行 | 说明 |
@@ -371,10 +380,10 @@
 | `InvalidatePath()` | `go/scanner/scanner:140` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
 | `ScanEntries()` | `go/scanner/scanner:171` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:178` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:310` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:364` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:394` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:457` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ComputeFileHash()` | `go/scanner/scanner:320` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:374` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:404` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:467` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
