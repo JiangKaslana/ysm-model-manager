@@ -1,13 +1,13 @@
 // ===== 资源类型注册表（类型化版 — ADR-014 P2）=====
-// 从 Go 端 resource_types.json 加载
+// 从 Go 端 resource_types.json 加载（异步 RPC，与 types.ts/extensions.ts 的静态内联
+// JSON 是两套数据源；T2 仅归一「类型」，数据源保持现状）。
 import { getApp } from "../../backend/app.ts";
 import { safeErrorMessage } from "../safe-error-msg.ts";
+import type { ResourceType } from "./schema.ts";
 
-/** 资源类型注册表条目（对应 resource_types.json 结构） */
-export interface ResourceTypeEntry {
-  id: string;
-  storageSubDir?: string;
-  name?: string;
+/** 资源类型注册表条目（对应 resource_types.json 结构）。extends ResourceType 共享已知字段，
+ *  保留 index signature 以容忍 Go 端未来新增字段。 */
+export interface ResourceTypeEntry extends ResourceType {
   // 其余字段随 Go 端演进
   [key: string]: unknown;
 }

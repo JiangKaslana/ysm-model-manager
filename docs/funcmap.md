@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 143 | 560 |
+| 前端·工具 | 144 | 564 |
 | frontend/views | 117 | 340 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **451** | **1932** |
+| **合计** | **452** | **1936** |
 
 ## Go·头像
 
@@ -1770,36 +1770,40 @@
 | `startMainThreadWatch()` | `frontend/src/utils/main-thread-watch:24` | 启动主线程长任务观测，返回 stop 函数（disconnect + 清回调）。 |
 | `formatLongTask()` | `frontend/src/utils/main-thread-watch:63` | 便捷格式化：LongTaskInfo → 环形日志消息串。 |
 | `loadView()` | `frontend/src/utils/module-loader:13` | 懒加载 Web Component：统一动态 import + 加载失败 toast 反馈。 |
-| `RESOURCE_EXTS()` | `frontend/src/utils/resource/extensions:28` | 每种资源类型对应的扩展名（从 resource_types.json 派生，单一事实来源） |
-| `ALL_EXTS()` | `frontend/src/utils/resource/extensions:33` | 所有支持的扩展名列表（去重，用于 UI 提示文案） |
-| `getExts()` | `frontend/src/utils/resource/extensions:48` | 获取某资源类型支持的扩展名 |
-| `isSupportedExt()` | `frontend/src/utils/resource/extensions:53` | 检查扩展名是否被某资源类型支持 |
-| `extBelongsTo()` | `frontend/src/utils/resource/extensions:58` | 返回扩展名所属的资源类型 ID |
-| `ResourceTypeEntry()` | `frontend/src/utils/resource/registry:7` | 资源类型注册表条目（对应 resource_types.json 结构） |
+| `RESOURCE_EXTS()` | `frontend/src/utils/resource/extensions:16` | 每种资源类型对应的扩展名（从 resource_types.json 派生，单一事实来源） |
+| `ALL_EXTS()` | `frontend/src/utils/resource/extensions:21` | 所有支持的扩展名列表（去重，用于 UI 提示文案） |
+| `getExts()` | `frontend/src/utils/resource/extensions:36` | 获取某资源类型支持的扩展名 |
+| `isSupportedExt()` | `frontend/src/utils/resource/extensions:41` | 检查扩展名是否被某资源类型支持 |
+| `extBelongsTo()` | `frontend/src/utils/resource/extensions:46` | 返回扩展名所属的资源类型 ID |
+| `ResourceTypeEntry()` | `frontend/src/utils/resource/registry:10` | 资源类型注册表条目（对应 resource_types.json 结构）。extends ResourceType 共享已知字段， 保留 index signature 以容忍 G |
 | `loadResourceRegistry()` | `frontend/src/utils/resource/registry:20` | 加载资源类型注册表（失败不缓存：Go 桥瞬断后下次调用重试，避免整会话降级） |
+| `ZipEntryMatch()` | `frontend/src/utils/resource/schema:17` | 压缩容器条目指纹（zipEntries）：name 为段模式，match 为 exact/prefix/suffix |
+| `ResourceTypeVariant()` | `frontend/src/utils/resource/schema:23` | 预览变体（variants：.pmx→mmd / .vrm→vrm / .pmd→mmd 等适配器路由） |
+| `ResourceType()` | `frontend/src/utils/resource/schema:29` | 资源类型（前端消费视图，resource_types.json 字段子集 — 单一事实来源） |
+| `allResourceTypes()` | `frontend/src/utils/resource/schema:55` | 全部资源类型条目（types.ts / extensions.ts 共同消费，单一来源） |
 | `shortLabelOf()` | `frontend/src/utils/resource/short-label:26` | 资源类型短标签：map 命中 → 短名；否则全名（RESOURCE_TYPE_LABELS）→ 原始 id（兜底） |
 | `RESOURCE_TYPES()` | `frontend/src/utils/resource/types:9` | 资源类型 ID（键为类型标签，值为内部 ID） |
 | `RESOURCE_TYPE_LABELS()` | `frontend/src/utils/resource/types:28` | 资源类型显示标签（内部 ID → 中文名） |
-| `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:68` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
-| `resolvePreviewKey()` | `frontend/src/utils/resource/types:77` | 按 variants 解析预览路由 key（ADR-111：类别—格式分层）。 |
-| `resolvePreviewKeyToRtype()` | `frontend/src/utils/resource/types:93` | 预览键反解为资源类型 ID（ADR-111 逆向）。 |
-| `GROUP_META()` | `frontend/src/utils/resource/types:106` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
-| `GROUP_OF()` | `frontend/src/utils/resource/types:122` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
-| `groupLabelOf()` | `frontend/src/utils/resource/types:128` | 分组 id → 显示名 |
-| `GroupTypeOption()` | `frontend/src/utils/resource/types:138` | 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。 |
-| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:143` | — |
-| `groupStorageRootOf()` | `frontend/src/utils/resource/types:159` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
-| `extOf()` | `frontend/src/utils/resource/types:173` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
-| `NO_3D_TYPES()` | `frontend/src/utils/resource/types:222` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
-| `PreviewTab()` | `frontend/src/utils/resource/types:238` | 3D 切换面板类型 tab 的单一事实来源（ADR-111 收口）。 |
-| `getPreviewableTypeTabs()` | `frontend/src/utils/resource/types:245` | — |
-| `matchTypeByExt()` | `frontend/src/utils/resource/types:268` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
-| `typeIconOf()` | `frontend/src/utils/resource/types:293` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
-| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:298` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
-| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:304` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
-| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:315` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
-| `resolveTypeSafe()` | `frontend/src/utils/resource/types:328` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
-| `matchZipEntryTS()` | `frontend/src/utils/resource/types:378` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
+| `ALL_RESOURCE_TYPES()` | `frontend/src/utils/resource/types:47` | 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） |
+| `resolvePreviewKey()` | `frontend/src/utils/resource/types:56` | 按 variants 解析预览路由 key（ADR-111：类别—格式分层）。 |
+| `resolvePreviewKeyToRtype()` | `frontend/src/utils/resource/types:72` | 预览键反解为资源类型 ID（ADR-111 逆向）。 |
+| `GROUP_META()` | `frontend/src/utils/resource/types:85` | 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 |
+| `GROUP_OF()` | `frontend/src/utils/resource/types:100` | 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） |
+| `groupLabelOf()` | `frontend/src/utils/resource/types:106` | 分组 id → 显示名 |
+| `GroupTypeOption()` | `frontend/src/utils/resource/types:116` | 大类(group) → 其下资源类型选项（ADR-092 双下拉导航第二级）。 |
+| `GROUP_TYPE_OPTIONS()` | `frontend/src/utils/resource/types:121` | — |
+| `groupStorageRootOf()` | `frontend/src/utils/resource/types:137` | 资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）。 |
+| `extOf()` | `frontend/src/utils/resource/types:149` | 提取路径扩展名（小写、含点；无扩展名返回空串） |
+| `NO_3D_TYPES()` | `frontend/src/utils/resource/types:184` | 无 3D 预览能力的资源类型集合（从 resource_types.json preview 字段派生）。 |
+| `PreviewTab()` | `frontend/src/utils/resource/types:200` | 3D 切换面板类型 tab 的单一事实来源（ADR-111 收口）。 |
+| `getPreviewableTypeTabs()` | `frontend/src/utils/resource/types:207` | — |
+| `matchTypeByExt()` | `frontend/src/utils/resource/types:230` | 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） |
+| `typeIconOf()` | `frontend/src/utils/resource/types:255` | 资源类型图标（从 resource_types.json 的 icon 字段派生——扩展点残留清单 #3： 原 icon.ts 手写 RTYPE_ICONS 与 JSON 漂移，新 |
+| `isYsmWasmPreview()` | `frontend/src/utils/resource/types:260` | ysm 单文件（.ysm/.json）走前端 WASM 预览；.zip/.7z 容器由 Go FindPreviewImage 兜底 |
+| `VOXEL_RPC_BY_EXT()` | `frontend/src/utils/resource/types:266` | 体素类（蓝图/投影）Go 体素数据 RPC 名称，按扩展名单点映射（ADR-066 解墙） |
+| `AMBIGUOUS_EXTS()` | `frontend/src/utils/resource/types:277` | 歧义扩展名集合：同扩展名归属 ≥2 类型，禁止用 matchTypeByExt / resolveTypeByExt 直接定类型。 |
+| `resolveTypeSafe()` | `frontend/src/utils/resource/types:290` | 安全解析类型（ADR-067）：单归属扩展名直接命中；歧义扩展名（.zip/.7z 等可包裹任意资源） 返回 null，调用方必须回退到 Go DetectResourceType |
+| `matchZipEntryTS()` | `frontend/src/utils/resource/types:340` | 按注册表 zipEntries 指纹匹配 ZIP 条目名，返回命中的资源类型 ID（ADR-082 S4： 前端指纹注册表化，与 Go types.MatchZipEntry 同构 |
 | `safeErrorMessage()` | `frontend/src/utils/safe-error-msg:19` | 从任意错误对象提取可读消息字符串。 |
 | `WorkshopSite()` | `frontend/src/utils/types-re-export` | — |
 | `WorkshopPresetSearch()` | `frontend/src/utils/types-re-export` | — |
