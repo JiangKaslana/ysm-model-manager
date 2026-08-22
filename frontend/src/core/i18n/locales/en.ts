@@ -227,6 +227,8 @@ export const en: Record<string, string> = {
   "settings.preview3d.workerCheck": "Enable worker",
   "settings.preview3d.fbxWorker": "FBX Worker Parsing",
   "settings.preview3d.fbxWorkerHint": "When enabled, FBX parsing runs in a Web Worker with automatic fallback to the main thread; when disabled, parsing always stays on the main thread (default).",
+  "settings.preview3d.frustumCull": "Frustum culling",
+  "settings.preview3d.frustumCullHint": "Culls off-screen model groups by frustum when multiple models share the view (saves rendering). Turn off if culling wrongly hides models; all models stay visible when off.",
   "settings.preview3d.mmdWorker": "MMD PMX Worker Parsing",
   "settings.preview3d.mmdWorkerHint": "When enabled, PMX binary parsing runs in a Worker (experimental); when disabled, uses the full official MMDLoader (default).",
 

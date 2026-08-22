@@ -13,6 +13,8 @@ interface WorkerSwitch {
   storageKey: string;
   onMsg: string;
   offMsg: string;
+  /** 缺省状态（默认 false=opt-in；视锥裁剪 true=默认开，性能保留） */
+  defaultOn?: boolean;
 }
 
 const WORKER_SWITCHES: ReadonlyArray<WorkerSwitch> = [
@@ -28,14 +30,21 @@ const WORKER_SWITCHES: ReadonlyArray<WorkerSwitch> = [
     onMsg: "✅ MMD PMX worker 已开启",
     offMsg: "✅ MMD PMX worker 已关闭",
   },
+  {
+    id: "set-frustum-cull",
+    storageKey: "ysm_3d_frustumCull",
+    onMsg: "✅ 视锥裁剪已开启",
+    offMsg: "✅ 视锥裁剪已关闭",
+    defaultOn: true, // 剔除默认开（多模型同框省渲染）；失误误藏模型时可关
+  },
 ];
 
 /** 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 */
 export function initWorkerPrefs(root: ShadowRoot): void {
-  for (const { id, storageKey, onMsg, offMsg } of WORKER_SWITCHES) {
+  for (const { id, storageKey, onMsg, offMsg, defaultOn } of WORKER_SWITCHES) {
     const input = root.getElementById(id) as HTMLInputElement | null;
     if (!input) continue;
-    input.checked = safeGet(storageKey) === "1";
+    input.checked = (safeGet(storageKey) ?? (defaultOn ? "1" : "0")) === "1";
     input.addEventListener("change", () => {
       const checked = input.checked;
       safeSet(storageKey, checked ? "1" : "0");

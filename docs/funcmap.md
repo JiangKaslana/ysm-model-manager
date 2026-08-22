@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 143 | 555 |
+| 前端·工具 | 143 | 558 |
 | frontend/views | 117 | 339 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **451** | **1926** |
+| **合计** | **451** | **1929** |
 
 ## Go·头像
 
@@ -1483,11 +1483,14 @@
 | `buildCubeMeshData()` | `frontend/src/utils/3d/cube-mesh:64` | 从 Bedrock cube 数据构建 THREE.Mesh 几何数据。 |
 | `mergeCubes()` | `frontend/src/utils/3d/cube-mesh:229` | 合并两组 cube：新 cube 中与旧 cube 空间重叠的替换之，不重叠的追加。 |
 | `rebuildDebug()` | `frontend/src/utils/3d/debug-render:58` | 重建 debug 叠加层（pivot 标记 / 骨骼线框）。 |
-| `registerModelRoot()` | `frontend/src/utils/3d/frustum-cull:16` | 注册模型根节点（adapter 调用） |
-| `unregisterModelRoot()` | `frontend/src/utils/3d/frustum-cull:21` | 注销模型根节点（adapter dispose 时调用） |
-| `getModelRootCount()` | `frontend/src/utils/3d/frustum-cull:27` | 获取当前注册的模型根节点数 |
-| `cullModelGroups()` | `frontend/src/utils/3d/frustum-cull:36` | 对所有已注册的模型根节点做视锥裁剪。 |
-| `clearModelRoots()` | `frontend/src/utils/3d/frustum-cull:68` | 清空所有注册（session 结束时调用） |
+| `registerModelRoot()` | `frontend/src/utils/3d/frustum-cull:17` | 注册模型根节点（adapter 调用） |
+| `unregisterModelRoot()` | `frontend/src/utils/3d/frustum-cull:22` | 注销模型根节点（adapter dispose 时调用） |
+| `getModelRootCount()` | `frontend/src/utils/3d/frustum-cull:28` | 获取当前注册的模型根节点数 |
+| `cullModelGroups()` | `frontend/src/utils/3d/frustum-cull:37` | 对所有已注册的模型根节点做视锥裁剪。 |
+| `clearModelRoots()` | `frontend/src/utils/3d/frustum-cull:69` | 清空所有注册（session 结束时调用） |
+| `isFrustumCullEnabled()` | `frontend/src/utils/3d/frustum-cull:79` | 视锥裁剪开关是否启用（undefined → 默认开；safeGet 隐私模式安全） |
+| `setFrustumCullEnabled()` | `frontend/src/utils/3d/frustum-cull:85` | 设置视锥裁剪开关（设置面板开关调用） |
+| `restoreModelGroupsVisible()` | `frontend/src/utils/3d/frustum-cull:90` | 关闭剔除时恢复所有注册模型根可见性（幂等） |
 | `IKChain()` | `frontend/src/utils/3d/ik-solver:21` | IK 链：从 root 到 endEffector 的 THREE.Object3D 有序数组（含两端） |
 | `IKConfig()` | `frontend/src/utils/3d/ik-solver:24` | IK 求解配置 |
 | `IKResult()` | `frontend/src/utils/3d/ik-solver:42` | IK 求解结果 |
@@ -1871,7 +1874,7 @@
 | `initTheme()` | `frontend/src/views/app-content/settings/theme:24` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
 | `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:11` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
 | `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:51` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
-| `initWorkerPrefs()` | `frontend/src/views/app-content/settings/worker-prefs:34` | 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 |
+| `initWorkerPrefs()` | `frontend/src/views/app-content/settings/worker-prefs:43` | 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:38` | 本地创作者（绑定 + 运行时附加字段） |

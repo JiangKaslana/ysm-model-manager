@@ -42,7 +42,7 @@ import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import { fitCameraToRoots } from "../camera-setup.ts";
 import { assembleBoneSelectInfo, getMeshBoneId } from "../bone-raycast.ts";
-import { cullModelGroups } from "../frustum-cull.ts";
+import { cullModelGroups, isFrustumCullEnabled, restoreModelGroupsVisible } from "../frustum-cull.ts";
 import { logWarn } from "../../core/log.ts";
 import { bindInputHandlers } from "./input-and-animation.ts";
 import type { InputOptions } from "./input-and-animation.ts";
@@ -628,8 +628,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
             logWarn("perFrame", `阻塞 ${pfMs.toFixed(1)}ms (>${PER_FRAME_WARN_MS}ms 阈值)`);
           }
         }
-        // 视锥裁剪
-        cullModelGroups(cam);
+        // 视锥裁剪（设置开关：关 → 跳过并恢复可见性——剔除失误会误藏模型，可关闭）
+        if (isFrustumCullEnabled()) cullModelGroups(cam);
+        else restoreModelGroupsVisible();
         // ADR-081 L2：后处理体积光管线
         const rendered = postProc ? postProc.render(dt, lightCap) : false;
         if (!rendered) rd.render(sc, cam);

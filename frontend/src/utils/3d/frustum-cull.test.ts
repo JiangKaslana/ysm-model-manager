@@ -7,6 +7,9 @@ import {
   cullModelGroups,
   clearModelRoots,
   getModelRootCount,
+  isFrustumCullEnabled,
+  setFrustumCullEnabled,
+  restoreModelGroupsVisible,
 } from "./frustum-cull.ts";
 
 // Mock THREE 的 Frustum/Matrix4 以控制裁剪结果
@@ -135,5 +138,42 @@ describe("frustum-cull", () => {
     // 近处组可见，极远组不可见
     expect(g1.visible).toBe(true);
     expect(g2.visible).toBe(false);
+  });
+
+  describe("视锥裁剪开关", () => {
+    it("默认开启（无存储值 → undefined → true，性能保留）", () => {
+      localStorage.removeItem("ysm_3d_frustumCull");
+      expect(isFrustumCullEnabled()).toBe(true);
+    });
+
+    it("setFrustumCullEnabled 切换读写", () => {
+      setFrustumCullEnabled(false);
+      expect(isFrustumCullEnabled()).toBe(false);
+      setFrustumCullEnabled(true);
+      expect(isFrustumCullEnabled()).toBe(true);
+      localStorage.removeItem("ysm_3d_frustumCull");
+    });
+
+    it("restoreModelGroupsVisible 恢复被剔除的注册根（关剔除时兜底）", () => {
+      const near = makeGroup("near");
+      const g = makeGroup("far");
+      g.position.set(10000, 10000, 10000);
+      registerModelRoot(near);
+      registerModelRoot(g);
+      const scene = new THREE.Scene();
+      scene.add(near);
+      scene.add(g);
+      const cam = makeCamera();
+      cam.position.set(0, 0, 5);
+      cam.lookAt(0, 0, 0);
+      // 多根路径（单根特例不裁剪）：极远组被剔除
+      cullModelGroups(cam);
+      expect(g.visible).toBe(false);
+      restoreModelGroupsVisible();
+      expect(g.visible).toBe(true); // 关剔除时恢复可见
+      expect(near.visible).toBe(true);
+      unregisterModelRoot(g);
+      unregisterModelRoot(near);
+    });
   });
 });
