@@ -172,10 +172,10 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `ToggleModelEnable()` | `go/fileops/fileops_enable:22` | ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 . |
-| `IsFileBanned()` | `go/fileops/fileops_enable:137` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
+| `IsFileBanned()` | `go/fileops/fileops_enable:136` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
 | `FindPreviewImage()` | `go/fileops/fileops_preview:24` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
 | `ExtractPreviewTexture()` | `go/fileops/fileops_preview:50` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
-| `GetPackInfo()` | `go/fileops/fileops_preview:157` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
+| `GetPackInfo()` | `go/fileops/fileops_preview:156` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
 | `SetConfigFunc()` | `go/fileops/fileops:28` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
 | `CreateDir()` | `go/fileops/fileops:61` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
 | `RenameDir()` | `go/fileops/fileops:79` | RenameDir 重命名目录（仅改末段，保持父目录） |

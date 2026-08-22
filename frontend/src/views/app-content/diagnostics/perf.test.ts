@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 // ===== 诊断页：性能面板测试 =====
 // 覆盖：
 //  - single-bench：7 阶段柱状渲染 / 缺 model 错误 / 命令失败兜底 / 代际守卫丢弃陈旧响应
