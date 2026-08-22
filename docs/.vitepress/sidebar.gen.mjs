@@ -798,7 +798,7 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
-        "text": "ADR-115：➕ 追加语义收敛：同类型 switchTo / 跨类型 switchExternal 类型分发（ADR-093 T4-b）",
+        "text": "ADR-115：跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡）",
         "link": "/adr/ADR-115-append-semantics"
       },
       {
@@ -1441,6 +1441,10 @@ export const autoSidebar = [
           {
             "text": "YSM 解析 go/ysm",
             "link": "/knowledge/go-ysm-parser"
+          },
+          {
+            "text": "Rust 桥 rustbridge",
+            "link": "/knowledge/rustbridge"
           },
           {
             "text": "Wails Binding API 总览 internal/app",

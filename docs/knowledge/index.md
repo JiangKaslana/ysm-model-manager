@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 99 张知识卡
+> 总计: 100 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -77,7 +77,7 @@
 - **resource-packs**（资源包功能 resource-packs）：**已删除（2026-08-18）**。原 `frontend/src/features/resource-packs.ts` 是一个薄 wrapper，把仓库页的各类资源包 tab 统一委托给 `<app-resource-manager…
 - **version-updater**（版本更新 version-updater）：`version-updater.ts` 是应用自更新的前端入口：启动时静默检查（受 6 小时频次限制）→ 发现新版本以可点击 toast 通知；设置页按钮手动检查 → 弹出带更新日志的 `modalConfirm` → 调 `DoUpda…
 
-## go（32 张）
+## go（33 张）
 
 *Go 后端包（安装、下载、回收站、YSM 解析等）*
 
@@ -114,6 +114,7 @@
 | 🏗 go-watcher | 文件监听 go/watcher | architecture | 监听, 文件变化, 刷新, watcher |
 | 🏗 go-ysm-parser | YSM 解析 go/ysm | architecture | YSM, 解析, 摘要, ysm 文件, 元数据 |
 | 🏗 go_repoaudit | 仓库审计 go/repoaudit | architecture | 仓库审计, 健康分数, 完整性检查, 缓存命中率, repoaudit, health-report, 去重 |
+| 🏗 rustbridge | Rust 桥 rustbridge | architecture | Rust 扫描器, rust_backend, 桥 DLL, Wails 后端迁移 Rust |
 | 🏗 wails-bindings | Wails Binding API 总览 internal/app | architecture | API, Binding, 接口, Go 方法, 调用后端, 有哪些方法, App 方法, getApp, 方法签名, app.ts 绑定 |
 
 ### 摘要

@@ -43,7 +43,7 @@ permalink: /adr/
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
-| [ADR-115](./ADR-115-append-semantics.md) | ➕ 追加语义收敛：同类型 switchTo / 跨类型 switchExternal 类型分发（ADR-093 T4-b） | ✅ 已采纳 |
+| [ADR-115](./ADR-115-append-semantics.md) | 跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡） | ✅ 已采纳 |
 | [ADR-113](./ADR-113-ysm-molang.md) | YSM 骨骼动画 Molang 求值器与欧拉序修复（L4） | ✅ 已采纳 |
 | [ADR-112](./ADR-112-fbx-loader-preview-foundation.md) | FBX 格式接入与独立预览地基 | ✅ 已采纳 |
 | [ADR-111](./ADR-111-variants-decouple.md) | variants 解耦——类别—格式分层，角色模型合并 PMX/VRM | ✅ 已采纳 |
@@ -156,7 +156,7 @@ permalink: /adr/
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| ADR-115 | ➕ 追加语义收敛：同类型 switchTo / 跨类型 switchExternal 类型分发（ADR-093 T4-b） | ✅ 已采纳 | 2026-08-23 |
+| ADR-115 | 跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡） | ✅ 已采纳 | 2026-08-23 |
 | ADR-114 | 每组件独立纹理（perComponent Textures） | 🔄 部分采纳 | 2026-08-22 |
 | ADR-113 | YSM 骨骼动画 Molang 求值器与欧拉序修复（L4） | ✅ 已采纳 | 2026-08-22 |
 | ADR-112 | FBX 格式接入与独立预览地基 | ✅ 已采纳 | 2026-08-21 |
