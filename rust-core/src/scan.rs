@@ -54,17 +54,19 @@ fn scan_impl(root: &Path, policy: &ScanPolicy, include_banned_dirs: bool) -> Sca
                 if ext.is_empty() || !policy.supports_ext(&ext) {
                     continue;
                 }
-                if ext == ".json" && !restored.eq_ignore_ascii_case("ysm.json") {
+                if ext == ".json" && !is_model_json_name(restored) {
                     continue;
                 }
                 let subdir = first_relative_component(&root, &path)
                     .filter(|name| policy.is_mmd_subdir(name))
                     .unwrap_or_default();
+                let rtype = policy.rtype_for_ext(&ext).to_string();
                 candidates.push(Candidate {
                     name,
                     path,
                     ext,
                     subdir,
+                    rtype,
                 });
             }
             Err(err) => errors.push(ScanError {
@@ -92,6 +94,7 @@ struct Candidate {
     path: PathBuf,
     ext: String,
     subdir: String,
+    rtype: String,
 }
 
 fn resolve_metadata(candidate: Candidate) -> Result<ModelEntry, ScanError> {
@@ -107,6 +110,7 @@ fn resolve_metadata(candidate: Candidate) -> Result<ModelEntry, ScanError> {
         hash: String::new(),
         mod_time_ms: system_time_to_unix_ms(metadata.modified().unwrap_or(UNIX_EPOCH)),
         subdir: candidate.subdir,
+        rtype: candidate.rtype,
     })
 }
 
@@ -126,6 +130,23 @@ fn strip_disable_suffix(name: &str) -> &str {
     } else {
         name
     }
+}
+
+/// `.json` 文件名白名单：ysm.json（新格式声明）+
+/// 旧格式几何约定（main/arm/arrow/info，含 .geo.json 变体）。
+/// 对齐 Go 端 `types.IsYsmEntryJSON` + `isLegacyGeometryName` 双口径。
+fn is_model_json_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    if lower.eq_ignore_ascii_case("ysm.json") {
+        return true;
+    }
+    const LEGACY_BASES: &[&str] = &["main", "arm", "arrow", "info"];
+    for base in LEGACY_BASES {
+        if lower == format!("{base}.json") || lower == format!("{base}.geo.json") {
+            return true;
+        }
+    }
+    false
 }
 
 fn extension_of(name: &str) -> String {

@@ -54,6 +54,8 @@ export function addMeshToBoneGroup(
     if (mti >= 0 && mti < arr.length && arr[mti]) {
       mt = arr[mti];
     } else {
+      // 统一兜底：两条路径（perComponent / 全局回退）都用"找第一张可用纹理"，
+      // 只有整个数组都 null 时才灰色——避免 perComponent 灰色 vs 全局找第一张的不一致
       const fallbackIndex = arr.findIndex((texture) => texture !== null);
       if (fallbackIndex >= 0) mt = arr[fallbackIndex];
       console.warn(
