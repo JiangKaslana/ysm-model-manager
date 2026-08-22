@@ -26,6 +26,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
+import { parseAdrHeader } from './_lib/frontmatter.mjs';
+import { normalizeState, STATE_LABEL } from './_lib/adr-status-categories.mjs';
 
 const ADR_DIR = path.join(ROOT, 'docs/adr');
 const REG_FILE = path.join(ADR_DIR, 'index.md'); // 登记表已并入 index
@@ -38,32 +40,6 @@ const errors = [];
 const warns = [];
 const debts = [];
 const statusRows = [];
-
-// ── 状态归一化 ────────────────────────────────────────
-
-const STATE_ALIASES = {
-  accepted: ['已采纳', '采纳', 'Accepted', 'accepted', '✅'],
-  partial: ['部分采纳', '部分', 'Partially Accepted', 'partially', '🔄'],
-  deprecated: ['已废弃', '废弃', 'Deprecated', 'deprecated', '🧊'],
-  superseded: ['已取代', '取代', 'Superseded', 'superseded', '❌'],
-};
-
-function normalizeState(raw) {
-  if (!raw) return { key: 'unknown', raw: '(未标注状态)' };
-  // 精确优先：'Partially Accepted' 含子串 'Accepted'，必须先判 partial 防误抢
-  if (/Partially Accepted|部分采纳|🔄/.test(raw)) return { key: 'partial', raw: raw.trim() };
-  if (/Deprecated|已废弃|🧊/.test(raw)) return { key: 'deprecated', raw: raw.trim() };
-  // 补 ❌：AGENTS.md 枚举为 `❌ 已取代`，纯 emoji 或英文混写均识别（code_review P2-1）
-  // P3 修复（code_review）：❌ 仅在状态同时含已采纳/✅ 标记时才不算取代——
-  // 原 `/Superseded|已取代|❌/` 分支在 accepted 之前，`✅ 已采纳（❌ 子项未完成）`
-  // 这类带 ❌ 注解的已采纳状态会被误判为 superseded
-  if (/Superseded|已取代/.test(raw) || (/❌/.test(raw) && !/Accepted|已采纳|✅/.test(raw)))
-    return { key: 'superseded', raw: raw.trim() };
-  if (/Accepted|已采纳|✅/.test(raw)) return { key: 'accepted', raw: raw.trim() };
-  return { key: 'unknown', raw: raw.trim() };
-}
-
-const STATE_LABEL = { accepted: '✅ 已采纳', partial: '🔄 部分采纳', deprecated: '🧊 已废弃', superseded: '❌ 已取代', unknown: '❓ 未知' };
 
 // ── 技术债提取 ────────────────────────────────────────
 
@@ -89,6 +65,9 @@ function extractDebt(adr, title, raw) {
 
 // ── 检查 1：状态机 ────────────────────────────────────
 
+// [ADR-114 §被补充] 状态解析统一走共享库 parseAdrHeader（_lib/frontmatter.mjs）
+// + normalizeState（_lib/adr-status-categories.mjs），不再各写一套正则口径。
+
 function checkStatus() {
   if (!fs.existsSync(ADR_DIR)) {
     errors.push('[状态机] docs/adr/ 目录不存在');
@@ -97,22 +76,18 @@ function checkStatus() {
   const files = fs.readdirSync(ADR_DIR).filter((f) => /^ADR-\d{3}-.*\.md$/.test(f)).sort();
   const out = [];
   for (const f of files) {
-    const text = fs.readFileSync(path.join(ADR_DIR, f), 'utf-8');
-    const numM = text.match(/^# ADR-(\d{3})[：:]\s*(.+)$/m);
-    if (!numM) {
-      // P2-4 修复（code_review）：缺标题 ADR 不再静默跳过——标题是状态机/登记同步/债务
-      // 审计的入口，跳过会让该 ADR 完全不进 health 判定（假绿）。口径与
-      // check-doc-drift 的 `缺少 '# ADR-NNN：' 标题` 一致（errors 为模块级，作用域可用）。
-      errors.push(`[状态机] ${f} 缺少 '# ADR-NNN：' 标题`);
+    const hdr = parseAdrHeader(path.join(ADR_DIR, f));
+    if (hdr.error) {
+      // P2-4 修复（code_review）：缺标题/缺状态 ADR 不再静默跳过——该 ADR 完全不进 health 判定=假绿。
+      // 口径与 check-doc-drift 一致。
+      errors.push(`[状态机] ${f} 首部解析失败（${hdr.error}）`);
       continue;
     }
-    const num = parseInt(numM[1], 10);
-    const title = numM[2].trim();
-    const statusM = text.match(/^-\s*\*\*状态\*\*[：:]\s*(.+)$/m);
-    const raw = statusM ? statusM[1].trim() : '(未标注状态)';
+    const { num, title, status: raw } = hdr;
     const { key } = normalizeState(raw);
+    const statusMissing = !raw || raw === '(未标注状态)';
 
-    if (!statusM) warns.push(`[状态机] ${f} 缺少 '- **状态**：' 字段`);
+    if (statusMissing) warns.push(`[状态机] ${f} 缺少 '- **状态**：' 字段`);
     else if (key === 'unknown') errors.push(`[状态机] ${f} 状态值非法: 「${raw}」（应为 已采纳/部分采纳/已废弃/已取代 之一）`);
 
     extractDebt(num, title, raw);

@@ -46,7 +46,9 @@ const FLAG_CHECK = process.argv.includes('--check');
 const FLAG_QUIET = process.argv.includes('--quiet');
 
 // ── 已知勘误注记白名单（人工核对后登记，非取代关系，不再报 ④） ──
-const KNOWN_ERRATA = new Set();
+//   92-111  ADR-092 §0 背景勘误：MMD 目录结构「初稿冻结已解冻」提及 ADR-111，
+//            属勘误注记而非取代（ADR-092 仍有效，ADR-111 是 variants 解耦新决策）
+const KNOWN_ERRATA = new Set(['92-111']);
 
 // [ADR-114 §被补充] 首部解析统一走共享库 parseAdrHeader（_lib/frontmatter.mjs），
 // 兼容 list/blockquote/table 三种格式 + 中文冒号。原局部实现与共享库并行，已消除。
