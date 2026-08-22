@@ -261,7 +261,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 自愈：从真实菜单表推导期望选择器（ysm 项 + core 同组项）
+    // 无加载角色（未注册 sceneRegistry 角色）→ 组根视图列出 ysm 项 + core 同组项（自愈推导）
     const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
     const coreDock = deriveTestIds(CORE_MENU_ITEMS.filter((d) => d.dockGroup === "model"));
     [...adapterDock, ...coreDock].forEach((tid) => {
@@ -279,7 +279,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 自愈：从真实菜单表推导 🧍 组期望选择器
+    // 无加载角色 → 组根视图列出 mmd model 组项（自愈推导）
     const adapterDockModel = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
     adapterDockModel.forEach((tid) => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
@@ -308,7 +308,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 自愈：从真实菜单表推导期望选择器
+    // 无加载角色 → 组根视图列出 vrm model 组项（自愈推导）
     const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
     adapterDock.forEach((tid) => {
       expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();

@@ -597,6 +597,38 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     dock.innerHTML = "";
     const allItems = [...CORE_MENU_ITEMS, ...adapterItems];
     PREVIEW_MENU_GROUPS.forEach((g) => {
+      // 模型组特殊分支：
+      // - 已加载角色（YS'M/PMX/VSM 多角色同框，sceneRegistry 非空）→ 🧍 永远快捷直达 roles 面板。
+      //   单模型实例工具（模型信息/截图/骨骼/材料）保留 dockGroup:"model" 不变，
+      //   下沉到角色详情内可达（fillRoles→roleDetailView 按 dockGroup:"model" 过滤）。
+      // - 无角色（litematic 等单静态模型，sceneRegistry 空）→ 走通用组根分支，
+      //   保证其 model 组专属工具（如切片）仍可达，不丢失能力。
+      if (g.id === "model") {
+        const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
+        if (!rolesDef) return;
+        const modelGroupItems = allItems
+          .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
+          .filter((d) => !(d.sharedOnly && ctx.selfMode))
+          .filter((d) => !(d.requiresEnvironment && !sceneCapabilityRegistry.getById("sky") && !sceneCapabilityRegistry.getById("ground") && !ctx.getSkyCap() && !ctx.getGroundCap()));
+        const rolesLoaded = sceneRegistry.getAll().length > 0;
+        const btn = document.createElement("button");
+        btn.className = "preview-dock-navbtn";
+        btn.dataset.testid = "dock-" + g.id;
+        btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
+        btn.onclick = (e: MouseEvent): void => {
+          e.stopPropagation();
+          if (rolesLoaded) {
+            showMenu(makePanelView(rolesDef));
+          } else {
+            const panels = modelGroupItems.filter((d) => d.kind === "panel");
+            if (panels.length === 1 && modelGroupItems.length === 1) showMenu(makePanelView(panels[0]));
+            else showMenu(makeGroupView(g, modelGroupItems));
+          }
+        };
+        dock.appendChild(btn);
+        return;
+      }
+
       const groupItems = allItems
         .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
         .filter((d) => !(d.sharedOnly && ctx.selfMode))

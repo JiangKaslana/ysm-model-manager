@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CORE_MENU_ITEMS, PREVIEW_MENU_GROUPS } from "./preview-menu-defs.ts";
 import { mountPreviewRootMenu, type PreviewMenuCtx } from "./preview-menu.ts";
+import { sceneRegistry } from "./scene-registry.ts";
 import { deriveTestIds } from "../../../test-utils/self-healing.ts";
 
 function makeCtx(overrides: Partial<PreviewMenuCtx> = {}): PreviewMenuCtx {
@@ -57,6 +58,7 @@ describe("mountPreviewRootMenu", () => {
   let overlay: HTMLElement;
   beforeEach(() => {
     document.body.innerHTML = "";
+    sceneRegistry.reset();
     overlay = document.createElement("div");
     document.body.appendChild(overlay);
   });
@@ -120,7 +122,9 @@ describe("mountPreviewRootMenu", () => {
     expect(popup.querySelector(".slide-list")?.childElementCount ?? 0).toBeGreaterThan(0);
   });
 
-  it("点击 model 组（多 panel：roles + adapter model）→ 组根视图列项，点击项下钻面板", () => {
+  it("🧍 dock 按钮：已有加载角色（YS'M/PMX 多角色）→ 直达 roles 面板，adapter model 项不在 dock 根", () => {
+    // 模拟 YS'M/PMX 加载后 sceneRegistry 非空（角色级管理成为主入口）
+    sceneRegistry.register({ path: "/m/a.ysm", rtype: "ysm", roots: [], built: {} as never });
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const adapterModelItem = {
       id: "model",
@@ -139,18 +143,45 @@ describe("mountPreviewRootMenu", () => {
     modelBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    // model 组菜单项：CORE_MENU_ITEMS + adapter 注入项，均从数据推导
-    const modelCoreItems = CORE_MENU_ITEMS.filter((d) => d.dockGroup === "model");
-    for (const eid of deriveTestIds([...modelCoreItems, adapterModelItem])) {
-      expect(overlay.querySelector(`[data-testid="${eid}"]`), eid).not.toBeNull();
-    }
-    // 点击 adapter model 项 → navigate 下钻面板
+    // 直接进入 roles 面板（角色管理 + 内嵌加载入口），而非组根视图
+    // roles 面板恒含手动路径输入框
+    expect(popup.querySelector("input[type='text']")).not.toBeNull();
+    // 单模型实例工具（adapter model）不再作为 dock 根行出现 → 下沉到角色详情
+    // （dockGroup:"model" 不变，roleDetailView 仍按它过滤该角色 menuItems）
+    expect(overlay.querySelector(`[data-testid="preview-${adapterModelItem.id}"]`)).toBeNull();
+    handle.dispose();
+  });
+
+  it("🧍 dock 按钮：无加载角色（litematic 等单静态模型）→ 组根视图，adapter model 项仍可达", () => {
+    // sceneRegistry 空（litematic 不注册角色）→ 保留组根，保证其专属工具（切片）不丢失
+    const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
+    const adapterModelItem = {
+      id: "model",
+      icon: "🧍",
+      labelKey: "preview.modelInfo",
+      fallback: "模型",
+      kind: "panel" as const,
+      dockGroup: "model" as const,
+      render: (l: HTMLElement) => {
+        l.append("MODEL-PANEL");
+      },
+    };
+    handle.setAdapterItems([adapterModelItem]);
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
+    expect(modelBtn).not.toBeNull();
+    modelBtn!.click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    // 组根视图同时列出 roles 行与 adapter model 行
+    expect(overlay.querySelector(`[data-testid="preview-roles"]`)).not.toBeNull();
+    expect(overlay.querySelector(`[data-testid="preview-${adapterModelItem.id}"]`)).not.toBeNull();
+    // 点击 adapter model 行 → 下钻面板
     (overlay.querySelector(`[data-testid="preview-${adapterModelItem.id}"]`) as HTMLElement).click();
     expect(overlay.textContent).toContain("MODEL-PANEL");
     handle.dispose();
   });
 
-  it("组根视图：panel 行带下钻箭头（row-chevron），action 行不带", () => {
+  it("组根视图：panel 行带下钻箭头（row-chevron），action 行不带（scene 组）", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const actItem = {
       id: "act",
@@ -158,17 +189,17 @@ describe("mountPreviewRootMenu", () => {
       labelKey: "",
       fallback: "执行动作",
       kind: "action" as const,
-      dockGroup: "model" as const,
+      dockGroup: "scene" as const,
       run: vi.fn(),
     };
     handle.setAdapterItems([actItem]);
-    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
-    expect(modelBtn).not.toBeNull();
-    modelBtn!.click();
-    // roles 为 panel 行 → 有下钻箭头（roles 从 CORE_MENU_ITEMS 推导）
-    const rolesItem = CORE_MENU_ITEMS.find((d) => d.id === "roles")!;
-    const rolesRow = overlay.querySelector(`[data-testid="preview-${rolesItem.id}"]`);
-    expect(rolesRow!.querySelector('[data-testid="row-chevron"]')).not.toBeNull();
+    const sceneBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-scene"]`);
+    expect(sceneBtn).not.toBeNull();
+    sceneBtn!.click();
+    // scene 组项含 lighting/shadow/postproc（panel）+ 注入 act（action）→ 组根视图
+    const litItem = CORE_MENU_ITEMS.find((d) => d.id === "lighting")!;
+    const litRow = overlay.querySelector(`[data-testid="preview-${litItem.id}"]`);
+    expect(litRow!.querySelector('[data-testid="row-chevron"]')).not.toBeNull();
     // 注入的 action 行 → 无箭头（点击直接执行）
     const actRow = overlay.querySelector(`[data-testid="preview-${actItem.id}"]`);
     expect(actRow!.querySelector('[data-testid="row-chevron"]')).toBeNull();
