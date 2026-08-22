@@ -314,6 +314,7 @@
   "diagnostics.loadTraceMore": "还有 {n} 条纹理未显示…",
   "diagnostics.loadTraceTexDetail": "纹理详情",
   "diagnostics.assetsBones": "骨骼数",
+  "diagnostics.assetsCubes": "立方体",
   "diagnostics.assetsMats": "材质",
   "diagnostics.assetsTex": "纹理数",
   "diagnostics.assetsMorphs": "Morph",

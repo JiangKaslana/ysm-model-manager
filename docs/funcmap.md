@@ -35,7 +35,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 26 | 202 |
+| Go(internal)·应用入口 | 26 | 204 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
@@ -47,7 +47,7 @@
 | frontend/views | 117 | 338 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **443** | **1909** |
+| **合计** | **443** | **1911** |
 
 ## Go·头像
 
@@ -191,9 +191,9 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `StripBOM()` | `go/fsutil/bom:12` | StripBOM 移除 data 前缀的 UTF-8 BOM；无 BOM 时原样返回（bytes.TrimPrefix 语义）。 |
-| `CopyFile()` | `go/fsutil/copy:27` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
-| `CopyDirRecursive()` | `go/fsutil/copy:105` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
-| `CopyDirOptions()` | `go/fsutil/copy:87` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
+| `CopyFile()` | `go/fsutil/copy:30` | CopyFile 原子复制单文件：先写同目录临时文件再 rename 落地，崩溃/失败不留半截目标。 |
+| `CopyDirRecursive()` | `go/fsutil/copy:115` | CopyDirRecursive 递归复制目录树到 dst（保留相对路径）。 |
+| `CopyDirOptions()` | `go/fsutil/copy:90` | CopyDirOptions 目录递归复制选项（各调用方按自身语义传参） |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_other:14` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `IsCrossDeviceErr()` | `go/fsutil/crossdevice_windows:18` | IsCrossDeviceErr 判断 rename/链接失败是否为跨设备（EXDEV）。 |
 | `FormatSize()` | `go/fsutil/format:7` | FormatSize 人性化字节大小（B/KB/MB/GB 分级）。 |
@@ -233,17 +233,17 @@
 | `DetectZipType()` | `go/importer/importer_file:151` | DetectZipType 扫描容器条目名识别资源类型 注册表驱动（Top 2）：命中规则来自 resource_types.json 的 zipEntries （exact/pr |
 | `ImportOptions()` | `go/importer/importer_file:29` | ImportOptions 导入选项 |
 | `ImportLogger()` | `go/importer/importer_file:35` | ImportLogger 导入日志回调（薄壳注入 App.logger.Add） |
-| `Register()` | `go/importer/importer:36` | Register 注册导入策略（线程安全） |
-| `Get()` | `go/importer/importer:43` | Get 获取指定类型的导入策略（线程安全） |
-| `NewSimpleCopy()` | `go/importer/importer:74` | NewSimpleCopy 创建简单文件复制导入器 |
-| `SimpleCopyImporter.Type()` | `go/importer/importer:78` | — |
-| `SimpleCopyImporter.Import()` | `go/importer/importer:80` | — |
-| `NewDirectoryCopy()` | `go/importer/importer:232` | NewDirectoryCopy 创建文件夹复制导入器 |
-| `DirectoryCopyImporter.Type()` | `go/importer/importer:236` | — |
-| `DirectoryCopyImporter.Import()` | `go/importer/importer:241` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
-| `Handler()` | `go/importer/importer:23` | Handler 资源导入策略接口 |
-| `SimpleCopyImporter()` | `go/importer/importer:69` | — |
-| `DirectoryCopyImporter()` | `go/importer/importer:227` | — |
+| `Register()` | `go/importer/importer:34` | Register 注册导入策略（线程安全） |
+| `Get()` | `go/importer/importer:41` | Get 获取指定类型的导入策略（线程安全） |
+| `NewSimpleCopy()` | `go/importer/importer:72` | NewSimpleCopy 创建简单文件复制导入器 |
+| `SimpleCopyImporter.Type()` | `go/importer/importer:76` | — |
+| `SimpleCopyImporter.Import()` | `go/importer/importer:78` | — |
+| `NewDirectoryCopy()` | `go/importer/importer:149` | NewDirectoryCopy 创建文件夹复制导入器 |
+| `DirectoryCopyImporter.Type()` | `go/importer/importer:153` | — |
+| `DirectoryCopyImporter.Import()` | `go/importer/importer:158` | Import 复制源文件夹到目标目录 srcPath 可以是文件夹内任意文件路径，也可以是文件夹本身 若 srcPath 是文件则取父目录，若是目录则直接使用 |
+| `Handler()` | `go/importer/importer:21` | Handler 资源导入策略接口 |
+| `SimpleCopyImporter()` | `go/importer/importer:67` | — |
+| `DirectoryCopyImporter()` | `go/importer/importer:144` | — |
 
 ## Go·安装
 
@@ -513,27 +513,27 @@
 | `LitematicBlockStat()` | `go/types/resource:490` | LitematicBlockStat 方块类型统计 |
 | `LitematicVoxelData()` | `go/types/resource:496` | LitematicVoxelData 体素渲染数据 |
 | `VoxelGroup()` | `go/types/resource:504` | VoxelGroup 同一颜色的方块组 |
-| `StatusToLevel()` | `go/types/types:125` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
-| `AppError.WithCause()` | `go/types/types:173` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
-| `AppError.Unwrap()` | `go/types/types:179` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
-| `AppError.Error()` | `go/types/types:181` | — |
+| `StatusToLevel()` | `go/types/types:130` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
+| `AppError.WithCause()` | `go/types/types:178` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
+| `AppError.Unwrap()` | `go/types/types:184` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
+| `AppError.Error()` | `go/types/types:186` | — |
 | `WindowState()` | `go/types/types:6` | WindowState 窗口位置 |
 | `AuthorInfo()` | `go/types/types:14` | AuthorInfo 作者信息（含模型计数） |
 | `ModelEntry()` | `go/types/types:21` | ModelEntry 模型文件条目 |
-| `ImportFileItem()` | `go/types/types:36` | ImportFileItem 文件夹型模型整组导入的文件项（ADR-038 关联：解压目录整组导入） |
-| `VersionInstance()` | `go/types/types:42` | VersionInstance 整合包信息 |
-| `SearchResult()` | `go/types/types:50` | SearchResult 模型搜索结果 |
-| `ImportLog()` | `go/types/types:61` | ImportLog 应用操作日志（导入、扫描、下载、同步等） |
-| `RuntimeLog()` | `go/types/types:74` | RuntimeLog 运行时日志（watcher/sync 等标准库 log 输出，诊断页可见） |
-| `LinkType()` | `go/types/types:81` | LinkType 链接类型 |
-| `ErrorCode()` | `go/types/types:92` | ErrorCode 结构化错误码（ADR-051 落地：替代裸字符串拼接，消除前后端双份分类表漂移）。 |
-| `LogLevel()` | `go/types/types:113` | LogLevel 日志级别（诊断页按 Level 过滤；向后兼容——旧日志无此字段时前端按 Status 兜底） |
-| `CustomFileInfo()` | `go/types/types:141` | CustomFileInfo custom 目录下的文件信息 |
-| `InstanceStatus()` | `go/types/types:147` | InstanceStatus 整合包状态 |
-| `AppError()` | `go/types/types:160` | — |
-| `ResourceSyncResult()` | `go/types/types:194` | ResourceSyncResult 资源同步结果 |
-| `SyncStatus()` | `go/types/types:201` | SyncStatus 资源文件同步状态 |
-| `ResourceSyncItem()` | `go/types/types:212` | ResourceSyncItem 单个资源文件的同步状态 |
+| `ImportFileItem()` | `go/types/types:40` | ImportFileItem 文件夹型模型整组导入的文件项（ADR-038 关联：解压目录整组导入） |
+| `VersionInstance()` | `go/types/types:46` | VersionInstance 整合包信息 |
+| `SearchResult()` | `go/types/types:54` | SearchResult 模型搜索结果 |
+| `ImportLog()` | `go/types/types:66` | ImportLog 应用操作日志（导入、扫描、下载、同步等） |
+| `RuntimeLog()` | `go/types/types:79` | RuntimeLog 运行时日志（watcher/sync 等标准库 log 输出，诊断页可见） |
+| `LinkType()` | `go/types/types:86` | LinkType 链接类型 |
+| `ErrorCode()` | `go/types/types:97` | ErrorCode 结构化错误码（ADR-051 落地：替代裸字符串拼接，消除前后端双份分类表漂移）。 |
+| `LogLevel()` | `go/types/types:118` | LogLevel 日志级别（诊断页按 Level 过滤；向后兼容——旧日志无此字段时前端按 Status 兜底） |
+| `CustomFileInfo()` | `go/types/types:146` | CustomFileInfo custom 目录下的文件信息 |
+| `InstanceStatus()` | `go/types/types:152` | InstanceStatus 整合包状态 |
+| `AppError()` | `go/types/types:165` | — |
+| `ResourceSyncResult()` | `go/types/types:199` | ResourceSyncResult 资源同步结果 |
+| `SyncStatus()` | `go/types/types:206` | SyncStatus 资源文件同步状态 |
+| `ResourceSyncItem()` | `go/types/types:217` | ResourceSyncItem 单个资源文件的同步状态 |
 
 ## Go·更新器
 
@@ -696,21 +696,22 @@
 | `App.ExportBoneStructures()` | `internal/app/app_scan:26` | ========== 批量导出骨骼结构 ========== |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:82` | ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:120` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
-| `App.ScanModelEntries()` | `internal/app/app_scan:284` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
-| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:306` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
-| `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:330` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
-| `App.ClearScanCache()` | `internal/app/app_scan:360` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
-| `App.ListModelAuthors()` | `internal/app/app_scan:365` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
-| `App.GenerateRepoIndex()` | `internal/app/app_scan:374` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
-| `App.ScanLocalAuthors()` | `internal/app/app_scan:382` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:391` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:395` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:401` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:418` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:427` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:519` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:555` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
-| `progressReader.Read()` | `internal/app/app_scan:589` | — |
+| `App.SearchAllModels()` | `internal/app/app_scan:261` | SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。 |
+| `App.ScanModelEntries()` | `internal/app/app_scan:378` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
+| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:400` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
+| `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:424` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
+| `App.ClearScanCache()` | `internal/app/app_scan:455` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
+| `App.ListModelAuthors()` | `internal/app/app_scan:460` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
+| `App.GenerateRepoIndex()` | `internal/app/app_scan:469` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
+| `App.ScanLocalAuthors()` | `internal/app/app_scan:477` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
+| `App.ListVersionInstances()` | `internal/app/app_scan:486` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:490` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:496` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:513` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:522` | — |
+| `App.OpenFolder()` | `internal/app/app_scan:614` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:650` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
+| `progressReader.Read()` | `internal/app/app_scan:684` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:29` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:38` | ListByTag 返回所有打了指定标签的文件路径列表 |
@@ -779,21 +780,22 @@
 | `App.DetectResourceType()` | `internal/app/resource_bindings:157` | DetectResourceType 检测指定文件的资源类型 |
 | `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:170` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
 | `App.GetRepoRoot()` | `internal/app/resource_bindings:185` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
-| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:227` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
-| `App.ToggleResourcePack()` | `internal/app/resource_bindings:299` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
-| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:345` | IsResourcePackEnabled 检查资源包是否启用 |
-| `App.SelectImportZip()` | `internal/app/resource_bindings:350` | SelectImportZip 打开文件选择器选取 .zip 文件 |
-| `App.SelectImportFile()` | `internal/app/resource_bindings:363` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
-| `App.SetResourceRoot()` | `internal/app/resource_bindings:385` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
-| `App.ResetResourceRoot()` | `internal/app/resource_bindings:405` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
-| `App.ImportResourcePack()` | `internal/app/resource_bindings:439` | ImportResourcePack 使用策略模式导入资源包 |
-| `App.ImportByType()` | `internal/app/resource_bindings:452` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:472` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:543` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:559` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:572` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.RepoHealthAudit()` | `internal/app/resource_bindings:579` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:600` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.GetAllRepoRoots()` | `internal/app/resource_bindings:217` | GetAllRepoRoots 遍历所有注册资源类型，返回 rtype → root 映射（供跨类型搜索）。 |
+| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:241` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
+| `App.ToggleResourcePack()` | `internal/app/resource_bindings:313` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
+| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:359` | IsResourcePackEnabled 检查资源包是否启用 |
+| `App.SelectImportZip()` | `internal/app/resource_bindings:364` | SelectImportZip 打开文件选择器选取 .zip 文件 |
+| `App.SelectImportFile()` | `internal/app/resource_bindings:377` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
+| `App.SetResourceRoot()` | `internal/app/resource_bindings:399` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
+| `App.ResetResourceRoot()` | `internal/app/resource_bindings:419` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
+| `App.ImportResourcePack()` | `internal/app/resource_bindings:453` | ImportResourcePack 使用策略模式导入资源包 |
+| `App.ImportByType()` | `internal/app/resource_bindings:466` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:486` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:557` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:573` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:586` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.RepoHealthAudit()` | `internal/app/resource_bindings:593` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:614` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:86` | — |
@@ -1259,8 +1261,8 @@
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
-| `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
-| `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:379` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
+| `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:29` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
+| `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:394` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:60` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:170` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:177` | — |
@@ -1377,12 +1379,12 @@
 | `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:157` | 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
-| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:41` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
-| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:101` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
-| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:364` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:378` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
-| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:383` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:417` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
+| `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:42` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
+| `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:102` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
+| `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:393` | 工厂：构造统一 PreviewAdapter（shared 模式） |
+| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:407` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
+| `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:412` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:446` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `b64ToBytes()` | `frontend/src/utils/3d/base64:6` | base64 → Uint8Array（Go []byte 的 base64 序列化） |
 | `bytesToArrayBuffer()` | `frontend/src/utils/3d/base64:15` | Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView&lt;ArrayBuffer&gt;，规避 SharedArrayBuffer 泛型） |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
@@ -1490,10 +1492,10 @@
 | `LoadTraceTexture()` | `frontend/src/utils/3d/load-trace:6` | — |
 | `LoadTraceStage()` | `frontend/src/utils/3d/load-trace:12` | — |
 | `LoadTraceAssets()` | `frontend/src/utils/3d/load-trace:18` | — |
-| `LoadTrace()` | `frontend/src/utils/3d/load-trace:36` | — |
-| `recordLoadTrace()` | `frontend/src/utils/3d/load-trace:50` | — |
-| `getLoadTraces()` | `frontend/src/utils/3d/load-trace:55` | — |
-| `clearLoadTraces()` | `frontend/src/utils/3d/load-trace:59` | — |
+| `LoadTrace()` | `frontend/src/utils/3d/load-trace:38` | — |
+| `recordLoadTrace()` | `frontend/src/utils/3d/load-trace:52` | — |
+| `getLoadTraces()` | `frontend/src/utils/3d/load-trace:57` | — |
+| `clearLoadTraces()` | `frontend/src/utils/3d/load-trace:61` | — |
 | `loadMcTints()` | `frontend/src/utils/3d/mc-tints:29` | 预载 vendored tints 表（幂等；失败抛错由调用方降级兜底）。 |
 | `getTintColorSync()` | `frontend/src/utils/3d/mc-tints:51` | 取某染色类别在某 biome 下的颜色（默认 plains）。 |
 | `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:27` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
@@ -1958,10 +1960,10 @@
 | `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:182` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `fillMmdShotPanel()` | `frontend/src/views/app-preview/mmd-controls:263` | MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。 |
 | `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:9` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
-| `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:11` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
-| `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:23` | Go 返回的 3D spec（models 数组） |
-| `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:52` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） |
-| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:154` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
+| `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:12` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
+| `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:24` | Go 返回的 3D spec（models 数组） |
+| `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:53` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） |
+| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:155` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
 | `resolveMorphSiblings()` | `frontend/src/views/app-preview/morph-siblings:6` | CustomMorph 目录下所有 VPD 姿势文件（含子目录）；失败返回 [] |
 | `resolveMorphAnimSiblings()` | `frontend/src/views/app-preview/morph-siblings:22` | CustomMorph 目录下所有 VMD 动画文件（含子目录）；失败返回 [] |
 | `createPack3D()` | `frontend/src/views/app-preview/pack-3d:30` | 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） |
@@ -2111,8 +2113,8 @@
 | `fileRowHTML()` | `frontend/src/views/app-tree/row-tpl:9` | 文件行 HTML（indent = padding-left，rowCls 用于选中高亮等行级类） |
 | `folderRowHTML()` | `frontend/src/views/app-tree/row-tpl:34` | 文件夹行 HTML（indent = padding-left，扁平化无 .ch 容器） |
 | `bindToolbarEvents()` | `frontend/src/views/app-tree/toolbar-events:59` | — |
-| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:43` | — |
-| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:237` | — |
+| `openAdvFilterDialog()` | `frontend/src/views/app-tree/toolbar-search:42` | — |
+| `pickWebFilesAndImport()` | `frontend/src/views/app-tree/toolbar-search:236` | — |
 | `headerHTML()` | `frontend/src/views/app-tree/tpl:5` | — |
 | `footerHTML()` | `frontend/src/views/app-tree/tpl:29` | — |
 | `emptyHTML()` | `frontend/src/views/app-tree/tpl:37` | — |

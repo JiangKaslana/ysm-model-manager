@@ -340,6 +340,7 @@ export const ja: Record<string, string> = {
   "diagnostics.loadTraceMore": "他 {n} 件のテクスチャを表示中…",
   "diagnostics.loadTraceTexDetail": "テクスチャ詳細",
   "diagnostics.assetsBones": "ボーン数",
+  "diagnostics.assetsCubes": "キューブ",
   "diagnostics.assetsMats": "マテリアル",
   "diagnostics.assetsTex": "テクスチャ数",
   "diagnostics.assetsMorphs": "Morph",

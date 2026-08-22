@@ -36,6 +36,7 @@ import { b64ToBytes } from "../base64.ts";
 import type { MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
 import { ysmSemanticBoneMap } from "../semantic-bones.ts";
 import { createBreathController } from "../perception/breath.ts";
+import { recordLoadTrace } from "../load-trace.ts";
 
 /** 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 */
 export interface YsmAdapterOptions {
@@ -107,6 +108,7 @@ export async function buildYsmScene(
     throw new Error("YSM shared 模式需要核心提供 scene/camera/controls/renderer");
   }
 
+  const tStart = performance.now();
   // 数据层：path → model（skeleton 注入的预览面板加载链）
   const model = await opts.loader(path);
   if (!model) throw new Error("模型数据加载失败: " + path);
@@ -115,7 +117,9 @@ export async function buildYsmScene(
   const { texArr, spec, componentTexMap } = await opts.preload(model);
 
   // 内容层：spec → 场景图（§5.7 shared 化，renderModel3D 同款 buildYsmObject）
+  const tBuildStart = performance.now();
   const obj: YsmObjectHandle = buildYsmObject(spec as Spec3D, texArr, componentTexMap, texIdx);
+  const tBuildEnd = performance.now();
   ctx.scene.add(obj.rootGroup);
   registerModelRoot(obj.rootGroup);
 
@@ -317,6 +321,31 @@ export async function buildYsmScene(
     );
   };
   ctx.renderer!.domElement.addEventListener("keydown", onFKeyDown);
+
+  // 加载剖析：perf 面板甘特图消费（读取+解析+纹理由 preloadModel 上报；本层补 build 段）
+  try {
+    const specTyped = spec as Spec3D;
+    const allBones = specTyped.models?.flatMap(m => m.bones ?? []) ?? [];
+    const texCount = texArr.filter(Boolean).length;
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "ysm",
+      path,
+      stages: [
+        { name: "读取+解析+纹理", ms: Math.round(tBuildStart - tStart), status: "ok" },
+        { name: "build", ms: Math.round(tBuildEnd - tBuildStart), status: "ok" },
+      ],
+      assets: {
+        files: 1,
+        textures: texCount,
+        bones: allBones.length,
+        cubes: (model as { cubeCount?: number }).cubeCount ?? 0,
+        materials: specTyped.models?.length ?? 0,
+        animations: 0,
+      },
+      ok: true,
+    });
+  } catch { /* perf trace 失败不影响渲染 */ }
 
   return {
     dispose(): void {

@@ -314,6 +314,7 @@
   "diagnostics.loadTraceMore": "Showing 10 of {n} more textures…",
   "diagnostics.loadTraceTexDetail": "Texture Details",
   "diagnostics.assetsBones": "Bone Count",
+  "diagnostics.assetsCubes": "Cubes",
   "diagnostics.assetsMats": "Materials",
   "diagnostics.assetsTex": "Texture Count",
   "diagnostics.assetsMorphs": "Morphs",

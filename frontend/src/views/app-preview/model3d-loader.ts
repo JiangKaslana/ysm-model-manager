@@ -6,6 +6,7 @@ import { resolveWebMode } from "../../backend/platform.ts";
 import { decodeYsmViaWasm } from "./wasm.ts";
 import { buildSpecFromGeometryJSON } from "../../utils/3d/spec-builder.ts";
 import { textureCache } from "../../utils/3d/texture-cache.ts";
+import { recordLoadTrace } from "../../utils/3d/load-trace.ts";
 
 /** 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） */
 export interface ModelLike {
@@ -157,7 +158,10 @@ export async function preloadModel(model: ModelLike): Promise<{
   /** ADR-114 perComponent：组件名→Texture 数组（3D 渲染用，每组件独立纹理） */
   componentTexMap: Map<string, (THREE.Texture | null)[]>;
 }> {
+  const tStart = performance.now();
+  const tParseStart = performance.now();
   const spec = await fetchSpec(model);
+  const tParseEnd = performance.now();
   // 实际纹理清单（URL + 名）；多组件走数组，单组件走单一 texture
   const actualUrls = model.textures && model.textures.length > 1
     ? model.textures.filter((u): u is string => Boolean(u))
@@ -205,5 +209,25 @@ export async function preloadModel(model: ModelLike): Promise<{
       }
     }
   }
+  // 加载剖析：perf 面板甘特图消费（读取 → 解析 → 纹理加载 → 构建，构建段由 adapter 补）
+  try {
+    const tLoadEnd = performance.now();
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "other",
+      path: model._modelPath ?? "",
+      stages: [
+        { name: "读取", ms: Math.round(tParseStart - tStart), status: "ok" },
+        { name: "解析", ms: Math.round(tParseEnd - tParseStart), status: "ok" },
+        { name: "纹理加载", ms: Math.round(tLoadEnd - tParseEnd), status: "ok" },
+      ],
+      assets: {
+        files: 1,
+        textures: texArr.filter(Boolean).length,
+        animations: 0,
+      },
+      ok: true,
+    });
+  } catch { /* perf trace 失败不影响加载 */ }
   return { texArr, spec, componentTexMap };
 }

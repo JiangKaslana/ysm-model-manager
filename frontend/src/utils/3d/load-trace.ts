@@ -1,6 +1,6 @@
 // ===== 加载剖析：通用 trace 接口 + 内存 store =====
-// 三个 adapter（MMD / VRM / FBX）各自调用 recordLoadTrace() 写入全局 store；
-// perf.ts 的 renderLoadTraceSection() 消费 store 做甘特图 + 资产清单渲染。
+// 各 3D adapter（MMD / VRM / FBX / YSM / Litematic）各自调用 recordLoadTrace() 写入全局 store；
+// perf-trace.ts 的 renderLoadTraceSection() 消费 store 做甘特图 + 资产清单渲染。
 // 环形日志面板由各个 adapter 的 diag 函数各自写，本模块不干扰。
 
 export interface LoadTraceTexture {
@@ -19,6 +19,8 @@ export interface LoadTraceAssets {
   files?: number;
   textures?: number;
   bones?: number;
+  /** YSM 专用：立方体数（cubeCount） */
+  cubes?: number;
   materials?: number;
   morphs?: number;
   animations?: number;
@@ -35,7 +37,7 @@ export interface LoadTraceAssets {
 
 export interface LoadTrace {
   ts: number;
-  format: "mmd" | "vrm" | "fbx" | "other";
+  format: "mmd" | "vrm" | "fbx" | "ysm" | "litematic" | "other";
   path: string;
   stages: LoadTraceStage[];
   assets?: LoadTraceAssets;
