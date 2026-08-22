@@ -84,6 +84,13 @@ list（`[config,...]`）双形态——先试 `[]struct`（list），失败再�
 纹理 basename 追加到 `texOrder`，模型路径追加到 `modelOrder`，
 让 `texIdxMap` 反推自动覆盖投射物/载具，不再需要"arrow 排序第一"特例排除。
 
+**texSlot 分配**：`texIdxMap` 构建时优先按模型声明的纹理名查 `texOrder`
+位置分配 texSlot；查不到再按 modelOrder 序号兜底（含截断到 texCount-1）。
+旧逻辑按 modelOrder 序号分配，17_mini 的 plane.json（声明 texture.png，
+跟 main 共用）orderIdx=2 被截断到 slot=1（arrow.png），导致 plane
+渲染时用了 arrow 的纹理——"位置对了但贴图怪怪的"。新逻辑让 plane.json
+按声明的 texture.png 查到 slot=0，跟 main 共用同一张纹理。
+
 | 路径 | 实现 | 状态 |
 |------|------|------|
 | ZIP | `archive.go` 解析 `player` + `projectiles` + `vehicles` + `arrow` → `texIdxMap` → `Cube2D.TexSlot` → `MeshData.TexIdx` | ✅ |
