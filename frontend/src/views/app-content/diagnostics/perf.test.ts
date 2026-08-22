@@ -3,6 +3,9 @@
 //  - single-bench：7 阶段柱状渲染 / 缺 model 错误 / 命令失败兜底 / 代际守卫丢弃陈旧响应
 //  - gui-flow：6 阶段状态渲染 / 失败阶段红字提示
 //  - perf-log：优化历史卡片渲染
+//  - 加载剖析：甘特图 + 资产清单渲染（通过 facade perf.ts re-export 路由）
+// 注：业务逻辑已拆至 perf-cli.ts（CLI 三块）/ perf-trace.ts（加载剖析）；
+// 本测试通过 facade initPerfPanel / renderLoadTraceSection 集成验证，保证接口契约不变。
 // mock cli-bridge.executeCLI（web 模式在测试环境视为 native，resolveWebMode=false）
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { initPerfPanel, renderLoadTraceSection } from "./perf.ts";

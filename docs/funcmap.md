@@ -44,10 +44,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
 | 前端·工具 | 140 | 546 |
-| frontend/views | 115 | 331 |
+| frontend/views | 117 | 338 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **441** | **1902** |
+| **合计** | **443** | **1909** |
 
 ## Go·头像
 
@@ -1809,8 +1809,15 @@
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
-| `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:20` | 初始化性能面板（single-bench / gui-flow / perf-log / 加载剖析） |
-| `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf:403` | 渲染加载剖析区段 |
+| `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:20` | 写入某容器 HTML；容器不存在时静默跳过 |
+| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:36` | 结果区段头 |
+| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:134` | — |
+| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:217` | — |
+| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:309` | — |
+| `formatTime()` | `frontend/src/views/app-content/diagnostics/perf-trace:11` | — |
+| `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf-trace:18` | 渲染加载剖析区段（取最近一条 trace 渲染甘特图 + 资产清单） |
+| `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf` | — |
+| `initPerfPanel()` | `frontend/src/views/app-content/diagnostics/perf:14` | 初始化性能面板（single-bench / gui-flow / perf-log / 加载剖析） |
 | `appContentStyle()` | `frontend/src/views/app-content/index:10` | — |
 | `AppContentHost()` | `frontend/src/views/app-content/init-github:17` | app-content 组件接口（供 github 初始化函数访问） |
 | `initGithubPage()` | `frontend/src/views/app-content/init-github:30` | 初始化 GitHub 页 |

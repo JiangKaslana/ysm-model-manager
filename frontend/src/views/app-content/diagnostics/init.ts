@@ -145,7 +145,8 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
   root
     .getElementById("diag-scan-conflict")
     ?.addEventListener("click", () => scanConflicts(root, esc));
-  // 性能面板：single-bench / gui-flow / perf-log（ADR-040 拆到 perf.ts）
+  // 性能面板：single-bench / gui-flow / perf-log（CLI 消费层，perf-cli.ts）+ 加载剖析（trace store 消费层，perf-trace.ts）
+  // ADR-040 拆到 perf.ts 入口；业务逻辑已下沉至 perf-cli.ts / perf-trace.ts
   initPerfPanel(root, esc);
   // 仓库体检：Go 端 RepoHealthAudit（同源审计），点击执行；缺省仓库根由后端解析
   root.getElementById("diag-scan-health")?.addEventListener("click", async () => {
