@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"io"
 	"log"
 	"path/filepath"
 	"sort"
@@ -20,15 +19,6 @@ import (
 // maxExtractSize 单个文件最大读取大小（ZIP/7z 内文件），防止 ZIP 炸弹
 // 共享 types.MaxReadLimit（索引 6.7+5.2，与 fileops/ysm 的 50MB 上限单点）
 const maxExtractSize = types.MaxReadLimit
-
-// readLimitedEntry 读取 zip/7z 单条目：limit+1 探测截断（ADR-033 修复）——
-// 原 `io.ReadAll(io.LimitReader(rc, maxExtractSize))` 截断后 err==nil 静默，
-// 超 50MB 的 PNG/geometry 会被截断后继续使用（损坏数据装盘）。
-// ADR-044 策略 A：实现已收敛至 fsutil.ReadLimitedEntry（本处保留包内转发，调用点零改动）。
-// 读取错误或超限返回 nil，调用方跳过该条目。
-func readLimitedEntry(rc io.ReadCloser) []byte {
-	return fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-}
 
 // isArmModelName 判断模型文件是否为第一人称手臂模型（arm.json / arm.geo.json）。
 // 该类文件是游戏第一人称视角的手臂几何，与 main.json 的手臂重叠，
@@ -62,7 +52,7 @@ func extractFirstPNG(r container.Reader) []byte {
 			if err != nil {
 				continue
 			}
-			buf := readLimitedEntry(rc)
+			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 			if len(buf) > 0 {
 				return buf
 			}
@@ -209,7 +199,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			if err != nil {
 				continue
 			}
-			buf := readLimitedEntry(rc)
+			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 			var ysm struct {
 				// RawMessage 而非严格类型：松散/畸形 metadata 段不得拖垮核心解析
 				// （code review P2：license 为字符串等会令整个 ysm.json unmarshal 失败）
@@ -483,7 +473,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			if err != nil {
 				continue
 			}
-			buf := readLimitedEntry(rc)
+			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 			// 注意：不排除 arm（组件版需要；合并版由调用方 filterArmModels 过滤）
 			geoFiles = append(geoFiles, geoEntry{name: e.Name(), data: buf})
 		}
@@ -496,7 +486,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			if err != nil {
 				continue
 			}
-			pngData := readLimitedEntry(rc)
+			pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 			// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
 			// 头像/预览图仅由 avatar/ 路径与基名前缀排除
 			if len(pngData) > 0 {
@@ -570,7 +560,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if err != nil {
 				continue
 			}
-			buf := readLimitedEntry(rc)
+			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 			// 解析层级：顶层 / pack / chair / decor 四处都可能含 model/model_list，
 			// 分别收集、各自算条目数，取总和最大的那个作为此命名空间的清单来源。
 			//   TLM 真实格式：{pack_name, pack:{model_list:[...]}, chair:{model_list:[...]}}
@@ -653,7 +643,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if err != nil {
 				continue
 			}
-			buf := readLimitedEntry(rc)
+			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 			var ysm struct {
 				// RawMessage 而非严格类型：松散/畸形 metadata 段不得拖垮核心解析
 				// （code review P2：license 为字符串等会令整个 ysm.json unmarshal 失败）
@@ -923,7 +913,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if err != nil {
 				continue
 			}
-			buf := readLimitedEntry(rc)
+			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 			if isArmModelName(e.Name()) {
 				continue // 排除第一人称手臂模型 arm.json（与 main 手臂重叠 → 双手臂）
 			}
@@ -938,7 +928,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if err != nil {
 				continue
 			}
-			pngData := readLimitedEntry(rc)
+			pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 			// 与 .ysm 解压路径口径对齐：不按尺寸过滤小纹理（64×64 合法贴图可 <4KB），
 			// 头像/预览图仅由 avatar/ 路径与基名前缀排除
 			if len(pngData) > 0 {
@@ -1095,7 +1085,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 					if e, abs, hit := tryCandidates(namePart, modelCandidates); hit {
 						// 直接命中 → 存 entry 信息
 						if rc, err := e.Open(); err == nil {
-							buf := readLimitedEntry(rc)
+							buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 							if len(buf) > 0 && !isArmModelName(e.Name()) {
 								l0GeoFiles = append(l0GeoFiles, geoEntry{name: e.Name(), data: buf})
 								l0ModelOrder = append(l0ModelOrder, abs[len(maidNs):])
@@ -1109,7 +1099,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 					if match, ok := nsGeoBasenames[namePart]; ok && len(match) > 0 {
 						first := match[0]
 						if rc, err := first.e.Open(); err == nil {
-							buf := readLimitedEntry(rc)
+							buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 							if len(buf) > 0 && !isArmModelName(first.e.Name()) {
 								l0GeoFiles = append(l0GeoFiles, geoEntry{name: first.e.Name(), data: buf})
 								l0ModelOrder = append(l0ModelOrder, first.path[len(maidNs):])
@@ -1126,7 +1116,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 				modelAbs := strings.ToLower(maidNs + strings.TrimPrefix(filepath.ToSlash(modelRel), "/"))
 				if e, ok := entryByPath[modelAbs]; ok {
 					if rc, err := e.Open(); err == nil {
-						buf := readLimitedEntry(rc)
+						buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 						if len(buf) > 0 && !isArmModelName(e.Name()) {
 							l0GeoFiles = append(l0GeoFiles, geoEntry{name: e.Name(), data: buf})
 							l0ModelOrder = append(l0ModelOrder, filepath.ToSlash(modelRel))
@@ -1143,7 +1133,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 					if e, _, hit := tryCandidates(namePart, textureCandidates); hit {
 						textureRel = ""
 						if rc, err := e.Open(); err == nil {
-							pngData := readLimitedEntry(rc)
+							pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 							if len(pngData) > 0 {
 								tn := e.Name()
 								if idx := strings.LastIndex(tn, "/"); idx >= 0 {
@@ -1162,7 +1152,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 					if match, ok := nsPngBasenames[namePart]; ok && len(match) > 0 {
 						first := match[0]
 						if rc, err := first.e.Open(); err == nil {
-							pngData := readLimitedEntry(rc)
+							pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 							if len(pngData) > 0 {
 								tn := first.e.Name()
 								if idx := strings.LastIndex(tn, "/"); idx >= 0 {
@@ -1184,7 +1174,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 				texAbs := strings.ToLower(maidNs + strings.TrimPrefix(filepath.ToSlash(textureRel), "/"))
 				if e, ok := entryByPath[texAbs]; ok {
 					if rc, err := e.Open(); err == nil {
-						pngData := readLimitedEntry(rc)
+						pngData := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
 						if len(pngData) > 0 {
 							tn := e.Name()
 							if idx := strings.LastIndex(tn, "/"); idx >= 0 {

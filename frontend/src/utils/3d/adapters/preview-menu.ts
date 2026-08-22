@@ -1258,6 +1258,23 @@ function fillRoles(
   fillSwitch(list, ctx, closePopup);
 }
 
+/** 能力面板通用渲染：cap 存在 → renderCapControls；不存在 → 渲染单行 fallback 提示 */
+function fillCapOrFallback(
+  list: HTMLElement,
+  cap: { getMenuControls: () => MenuControlDef[] } | null | undefined,
+  noCapKey: string,
+  noCapFallback: string,
+): void {
+  if (!cap) {
+    const row = document.createElement("div");
+    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+    row.textContent = tr(noCapKey, noCapFallback);
+    list.appendChild(row);
+    return;
+  }
+  renderCapControls(list, cap.getMenuControls());
+}
+
 /** 灯光面板（ADR-081 L1 + 统一注册表）：从 light cap 的 getMenuControls() 自动渲染 */
 function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   const lightFromReg = sceneCapabilityRegistry.getById("light") as import("../caps/light-capability.ts").LightCapability | null;
@@ -1267,39 +1284,17 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
     if (fromCtx && "getMenuControls" in fromCtx) return fromCtx as unknown as import("../caps/light-capability.ts").LightCapability;
     return null;
   })();
-  const noCap = (): void => {
-    const row = document.createElement("div");
-    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    row.textContent = tr("preview.noLightCap", "\u8FDB\u5165 3D \u540E\u518D\u6253\u5F00\u706F\u5149\u9762\u677F");
-    list.appendChild(row);
-  };
-  if (!lightCap) { noCap(); return; }
-
-  renderCapControls(list, lightCap.getMenuControls());
+  fillCapOrFallback(list, lightCap, "preview.noLightCap", "\u8FDB\u5165 3D \u540E\u518D\u6253\u5F00\u706F\u5149\u9762\u677F");
 }
 
 /** 阴影面板：从注册表 shadow cap 的 getMenuControls() 渲染 */
 function fillShadow(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   const fromReg = sceneCapabilityRegistry.getById("shadow") as import("../caps/shadow-capability.ts").ShadowCapability | null;
-  const noCap = (): void => {
-    const row = document.createElement("div");
-    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    row.textContent = tr("preview.noShadowCap", "进入 3D 后再打开阴影面板");
-    list.appendChild(row);
-  };
-  if (!fromReg) { noCap(); return; }
-  renderCapControls(list, fromReg.getMenuControls());
+  fillCapOrFallback(list, fromReg, "preview.noShadowCap", "进入 3D 后再打开阴影面板");
 }
 
 /** 后处理面板：从注册表 postprocessing cap 的 getMenuControls() 渲染 */
-function fillPostprocessing(list: HTMLElement, ctx: PreviewMenuCtx): void {
+function fillPostprocessing(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   const fromReg = sceneCapabilityRegistry.getById("postprocessing") as import("../caps/postprocessing-capability.ts").PostprocessingCapability | null;
-  const noCap = (): void => {
-    const row = document.createElement("div");
-    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    row.textContent = tr("preview.noPostprocCap", "进入 3D 后再打开后处理面板");
-    list.appendChild(row);
-  };
-  if (!fromReg) { noCap(); return; }
-  renderCapControls(list, fromReg.getMenuControls());
+  fillCapOrFallback(list, fromReg, "preview.noPostprocCap", "进入 3D 后再打开后处理面板");
 }

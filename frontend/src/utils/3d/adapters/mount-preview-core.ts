@@ -364,11 +364,15 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     },
     switchTo: (p: string, options?: { keepInScene?: boolean }) => {
       const active = _handles[_handles.length - 1];
-      void active?.handle.switchTo?.(p, options);
+      const r = active?.handle.switchTo?.(p, options);
+      if (r) void r.catch((err: unknown) => logWarn("preview-menu", `switchTo 切换失败: ${String(err)}`));
     },
     switchExternal: opts.switchExternal
       ? (p: string, s?: string[], options?: { keepInScene?: boolean }): void => {
-          void opts.switchExternal!(p, s, options);
+          const r = opts.switchExternal!(p, s, options) as Promise<void> | void;
+          if (r && typeof r.catch === "function") {
+            void r.catch((err: unknown) => logWarn("preview-menu", `switchExternal 切换失败: ${String(err)}`));
+          }
         }
       : undefined,
     unloadRole,
@@ -624,7 +628,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         // 驱动所有 session 的 perFrame 回调
         for (const fn of _globalPerFrames) {
           const pfStart = performance.now();
-          try { fn(dt); } catch (_) {}
+          try { fn(dt); } catch (err) {
+            logWarn("perFrame", `session 回调异常: ${String(err)}`);
+          }
           const pfMs = performance.now() - pfStart;
           const pfNow = performance.now();
           if (pfMs > PER_FRAME_WARN_MS && pfNow - _lastPerFrameWarnTs > PER_FRAME_WARN_THROTTLE_MS) {
