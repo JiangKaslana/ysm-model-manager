@@ -1071,7 +1071,6 @@ export const en: Record<string, string> = {
   "tree.moreImportFile": "Import file",
   "tree.moreImportDir": "📁 Import folder",
   "tree.moreSelectAll": "☑️ Select all",
-  "tree.moreBoneStruct": "Bone structure",
   "tree.moreOpenFolder": "📂 Open folder",
   "tree.moreRefresh": "🔄 Refresh",
   "tree.moreGenIndex": "📇 Generate index",

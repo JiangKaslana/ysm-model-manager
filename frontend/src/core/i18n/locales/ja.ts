@@ -1072,7 +1072,6 @@ export const ja: Record<string, string> = {
   "tree.moreImportFile": "ファイルをインポート",
   "tree.moreImportDir": "📁 フォルダをインポート",
   "tree.moreSelectAll": "☑️ すべて選択",
-  "tree.moreBoneStruct": "ボーン構造",
   "tree.moreOpenFolder": "📂 フォルダを開く",
   "tree.moreRefresh": "🔄 更新",
   "tree.moreGenIndex": "📇 インデックス生成",

@@ -81,52 +81,6 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
     });
   }
 
-  // 批量导出骨骼名
-  $("repo-export")?.addEventListener("click", async () => {
-    try {
-      // 网页版无 Go ExportBoneStructures（fail-fast WebUnsupportedError）→ 门控提示
-      if (resolveWebMode()) {
-        bus.emit("toast:show", {
-          msg: "网页版暂不支持批量导出骨骼名",
-          duration: 3000,
-          type: "warn",
-        });
-        return;
-      }
-      const { ExportBoneStructures, GetRepoRoot } =
-        await getApp();
-      const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
-      if (!filesRoot) {
-        bus.emit("toast:show", {
-          msg: "请先配置存储路径",
-          duration: 2000,
-          type: "warn",
-        });
-        return;
-      }
-      const text = await ExportBoneStructures(filesRoot);
-      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-      const a = document.createElement("a");
-      a.download = `bone-structures-${new Date().toISOString().slice(0, 10)}.txt`;
-      a.href = URL.createObjectURL(blob);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-      bus.emit("toast:show", {
-        msg: "✅ 骨骼结构已导出",
-        duration: 2000,
-        type: "success",
-      });
-    } catch (e) {
-      bus.emit("toast:show", {
-        msg: "❌ " + friendlyError(e),
-        duration: 4000,
-        type: "error",
-      });
-    }
-  });
-
   $("btn-repo")?.addEventListener("click", () => {
     bus.emit("nav:changed", { page: "settings" });
   });
@@ -341,7 +295,7 @@ export function bindToolbarEvents(root: ShadowRoot, vm: AppTree): void {
       } else if (action === "genindex") {
         const btn = item as HTMLButtonElement;
         // ADR-049 桥接增强 Batch 3：GenerateRepoIndex 已桥接（返回 index.json 内容字符串）。
-        // 网页版无磁盘，生成后触发下载；桌面由 Go 写盘，不下载（对齐既有 ExportBoneStructures 范式）。
+        // 网页版无磁盘，生成后触发下载；桌面由 Go 写盘，不下载。
         btn.textContent = "⏳";
         btn.disabled = true;
         try {

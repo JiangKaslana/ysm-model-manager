@@ -1074,7 +1074,6 @@ export const zhCN: Record<string, string> = {
   "tree.moreImportFile": "导入文件",
   "tree.moreImportDir": "📁 导入文件夹",
   "tree.moreSelectAll": "☑️ 全选",
-  "tree.moreBoneStruct": "骨骼结构",
   "tree.moreOpenFolder": "📂 打开文件夹",
   "tree.moreRefresh": "🔄 刷新",
   "tree.moreGenIndex": "📇 生成索引",

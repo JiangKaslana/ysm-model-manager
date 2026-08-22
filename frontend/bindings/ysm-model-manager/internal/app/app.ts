@@ -280,13 +280,7 @@ export function ExecuteCLI(command: string, args: { [_ in string]?: any } | null
 }
 
 /**
- * ========== 批量导出骨骼结构 ==========
- */
-export function ExportBoneStructures(filesRoot: string): $CancellablePromise<string> {
-    return $Call.ByID(2854573701, filesRoot);
-}
-
-/**
+ * ========== 导出单模型骨骼结构 ==========
  * ExportModelStructureJSON 导出单模型骨骼结构
  */
 export function ExportModelStructureJSON(modelPath: string): $CancellablePromise<string> {

@@ -140,7 +140,6 @@ export const MOCK_DATA = {
   // 对齐 binding 契约 Promise<number>（同步文件数）——原 undefined 类型错位
   SyncCustomToRepo: 0,
   GetModelTexSizes: [],
-  ExportBoneStructures: "",
   SearchModels: [],
   GenerateRepoIndex: "",
   // ===== 契约守卫补全：以下 binding 为 e2e 未触达函数，显式占位 undefined（防漏加漂移）=====
