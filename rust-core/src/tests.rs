@@ -1,4 +1,5 @@
 use super::*;
+use super::scan::is_model_json_name;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -67,6 +68,9 @@ fn scan_preserves_go_filter_contract() {
     fs::write(root.path().join("c.ysm.ban"), b"x").unwrap();
     fs::write(root.path().join("anim.json"), b"{}").unwrap();
     fs::write(root.path().join("ysm.json"), b"{}").unwrap();
+    // code review P2：legacy 白名单回退后，main/info 也不得作为扫描条目
+    fs::write(root.path().join("main.json"), b"{}").unwrap();
+    fs::write(root.path().join("info.json"), b"{}").unwrap();
     let recycle = root.path().join(".ReCyClE");
     fs::create_dir_all(&recycle).unwrap();
     fs::write(recycle.join("d.ysm"), b"x").unwrap();
@@ -90,6 +94,11 @@ fn scan_preserves_go_filter_contract() {
         ".ysm"
     );
     assert!(report.entries.iter().any(|e| e.name == "a.ysm"));
+    // b7ef2815 引入的 rtype 字段：扫描条目应带类型（a.ysm → ysm）
+    assert_eq!(
+        report.entries.iter().find(|e| e.name == "a.ysm").unwrap().rtype,
+        "ysm"
+    );
     // Go 契约（code review P2）：ysm.json 条目重命名为父目录名（root 目录 basename）
     let root_name = root
         .path()
@@ -104,6 +113,8 @@ fn scan_preserves_go_filter_contract() {
         report.entries.iter().map(|e| e.name.as_str()).collect::<Vec<_>>()
     );
     assert!(!report.entries.iter().any(|e| e.name == "anim.json"));
+    assert!(!report.entries.iter().any(|e| e.name == "main.json")); // code review P2：legacy 非条目
+    assert!(!report.entries.iter().any(|e| e.name == "info.json"));
     assert!(!report
         .entries
         .iter()
@@ -156,4 +167,35 @@ fn oversized_hashable_file_is_reported_without_hashing() {
     let errors = hydrate_hashes(&mut report.entries, &policy);
     assert_eq!(report.entries[0].hash, "");
     assert_eq!(errors.len(), 1);
+}
+
+#[test]
+fn json_entry_gate_is_ysm_only() {
+    // code review P2：legacy 白名单（main/arm/arrow/info）回退——仅 ysm.json 是扫描条目
+    assert!(is_model_json_name("ysm.json"));
+    assert!(is_model_json_name("YSM.JSON")); // 大小写不敏感（Go EqualFold 同口径）
+    for name in [
+        "main.json",
+        "arm.json",
+        "arrow.json",
+        "info.json",
+        "main.geo.json",
+        "arm.geo.json",
+        "anim.json",
+        "foo.json",
+    ] {
+        assert!(
+            !is_model_json_name(name),
+            "{name} 不应是扫描条目（对齐 Go IsYsmEntryJSON）"
+        );
+    }
+}
+
+#[test]
+fn rtype_first_declared_wins() {
+    // 同一 ext 多类型时取 registry 声明序首个：.json → ysm（首个声明），.zip → other
+    let policy = policy();
+    assert_eq!(policy.rtype_for_ext(".json"), "ysm");
+    assert_eq!(policy.rtype_for_ext(".zip"), "other");
+    assert_eq!(policy.rtype_for_ext(".nbt"), "blueprint");
 }

@@ -143,21 +143,15 @@ fn strip_disable_suffix(name: &str) -> &str {
     }
 }
 
-/// `.json` 文件名白名单：ysm.json（新格式声明）+
-/// 旧格式几何约定（main/arm/arrow/info，含 .geo.json 变体）。
-/// 对齐 Go 端 `types.IsYsmEntryJSON` + `isLegacyGeometryName` 双口径。
-fn is_model_json_name(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
-    if lower.eq_ignore_ascii_case("ysm.json") {
-        return true;
-    }
-    const LEGACY_BASES: &[&str] = &["main", "arm", "arrow", "info"];
-    for base in LEGACY_BASES {
-        if lower == format!("{base}.json") || lower == format!("{base}.geo.json") {
-            return true;
-        }
-    }
-    false
+/// `.json` 文件名白名单：仅 ysm.json（新格式声明）。
+/// 对齐 Go 端 `types.IsYsmEntryJSON`（ADR-038 D2：.json 仅放行 ysm.json，
+/// 包内 geometry/animation/语言 json 不得作为独立条目扫描）。
+/// 旧格式几何（main/arm/arrow/info）是 Go 端 FileInventory.legacyModels 的
+/// **分类**而非扫描条目门禁——此前把 legacy 白名单当条目门禁（code review P2）：
+/// 无目录作用域，resourcepacks/shaderpacks/MMD 子目录里任何叫 info.json/
+/// main.json 的文件都会误成 ysm 模型条目（rtype 解析为第一个声明 .json 的类型）。
+pub(crate) fn is_model_json_name(name: &str) -> bool {
+    name.eq_ignore_ascii_case("ysm.json")
 }
 
 fn extension_of(name: &str) -> String {
