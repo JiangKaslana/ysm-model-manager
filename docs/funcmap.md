@@ -1601,7 +1601,7 @@
 | `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:25` | YSM 骨骼动画播放器接口 |
 | `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:57` | 构建 YSM 骨骼动画播放器。 |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:22` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
-| `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:41` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
+| `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:43` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:12` | 三维向量 [x, y, z] |
 | `MolangAxes()` | `frontend/src/utils/animation/animation:15` | Molang 轴三元组（null = 该轴为纯数字，取 Keyframe 对应轴值） |

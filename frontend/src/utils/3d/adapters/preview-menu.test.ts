@@ -144,8 +144,6 @@ describe("mountPreviewRootMenu", () => {
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     // 直接进入 roles 面板（角色管理 + 内嵌加载入口），而非组根视图
-    // roles 面板恒含手动路径输入框
-    expect(popup.querySelector("input[type='text']")).not.toBeNull();
     // 单模型实例工具（adapter model）不再作为 dock 根行出现 → 下沉到角色详情
     // （dockGroup:"model" 不变，roleDetailView 仍按它过滤该角色 menuItems）
     expect(overlay.querySelector(`[data-testid="preview-${adapterModelItem.id}"]`)).toBeNull();
@@ -287,13 +285,10 @@ describe("mountPreviewRootMenu", () => {
     expect(popup.style.display).toBe("flex");
     // 空态提示
     expect(overlay.textContent).toContain("无其他模型");
-    // 手动路径输入框仍在（P2-1 补回：支持跨类型加载）
-    const input = popup.querySelector("input[type='text']") as HTMLInputElement | null;
-    expect(input).not.toBeNull();
     handle.dispose();
   });
 
-  it("角色面板加载入口：siblings 存在 → 列兄弟项（路径输入行保留）", () => {
+  it("角色面板加载入口：siblings 存在 → 列兄弟项", () => {
     const switchTo = vi.fn();
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
@@ -306,8 +301,6 @@ describe("mountPreviewRootMenu", () => {
     expect(popup.style.display).toBe("flex");
     // 兄弟项渲染
     expect(popup.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(2);
-    // 手动路径输入框保留（P2-1 补回）
-    expect(popup.querySelector("input[type='text']")).not.toBeNull();
     // 点击兄弟项 → switchTo
     const rows = popup.querySelectorAll<HTMLElement>('.ysm-preview-menu-row');
     rows[1].click();

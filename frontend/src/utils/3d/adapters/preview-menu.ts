@@ -977,8 +977,7 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
   });
 }
 
-/** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮；
- *  底部提供手动路径输入支持跨类型切换。 */
+/** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮。 */
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
@@ -1102,37 +1101,6 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
 
   list.append(tabBar, listBody);
   renderRows();
-
-  // 分隔线 + 手动路径输入（支持跨类型加载，无需退出 3D；P2-1 补回）
-  const sep = document.createElement("div");
-  sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
-  list.appendChild(sep);
-
-  const inputRow = document.createElement("div");
-  inputRow.style.cssText = "display:flex;gap:4px;padding:4px 10px 8px";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = tr("preview.switchPathPlaceholder", "输入模型文件路径…");
-  input.style.cssText =
-    "flex:1;font-size:13px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);" +
-    "background:rgba(255,255,255,0.06);color:#fff;outline:none";
-  const goByPath = (): void => {
-    const path = input.value.trim();
-    if (!path) return;
-    closePopup();
-    if (ctx.switchExternal) void ctx.switchExternal(path, ctx.getSiblings());
-    else void ctx.switchTo(path);
-  };
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") goByPath();
-  });
-  const btn = document.createElement("button");
-  btn.className = "ysm-btn";
-  btn.textContent = tr("preview.switchByPath", "手动加载模型");
-  btn.style.cssText = "font-size:12px;padding:4px 10px;white-space:nowrap";
-  btn.onclick = goByPath;
-  inputRow.append(input, btn);
-  list.appendChild(inputRow);
 }
 
 /**
@@ -1140,7 +1108,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
  * 顶部列出已加载角色（sceneRegistry），行首 radio 切换焦点、点名字进详情
  * （按该角色 menuItems 的 model 组 panel 能力显示——vrm/mmd/ysm 各显所能，
  * 间接解决不同格式可查看内容不一致的问题）、行尾 ⚙ 进工具面板（卸载角色，
- * 少用但重要）；底部复用 fillSwitch 加载入口（siblings + 类型 tab + 手动路径）。
+ * 少用但重要）；底部复用 fillSwitch 加载入口（siblings + 类型 tab）。
  */
 function fillRoles(
   list: HTMLElement,

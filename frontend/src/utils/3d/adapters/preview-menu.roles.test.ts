@@ -155,12 +155,10 @@ describe("角色面板（roles）", () => {
     handle.dispose();
   });
 
-  it("无已加载角色 → 空态提示（加载入口仍在）", () => {
+  it("无已加载角色 → 空态提示", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     (overlay.querySelector('[data-testid="dock-model"]') as HTMLElement).click();
     expect(overlay.querySelector('[data-testid="preview-roles-empty"]')).not.toBeNull();
-    // 加载入口（角色面板内嵌 fillSwitch 的路径输入）仍保留
-    expect(overlay.querySelector("input[type='text']")).not.toBeNull();
     handle.dispose();
   });
 });

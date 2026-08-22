@@ -388,14 +388,12 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => [] });
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     expect(overlay.querySelector(`[data-testid="dock-${modelGroupId}"]`)).not.toBeNull();
-    // 点击 model 快捷直达角色面板，加载入口应显示空态文字，路径输入框保留（P2-1 补回）
+    // 点击 model 快捷直达角色面板，加载入口应显示空态文字
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     modelBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     expect(popup.textContent).toContain("无其他模型");
-    // 路径输入保留（跨类型手动加载；类型 tab 由 adapter getTypeTabs 注入）
-    expect(popup.querySelector("input[type='text']")).not.toBeNull();
     handle.dispose();
   });
 });
