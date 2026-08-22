@@ -66,6 +66,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
 - **`scene.background` 兜底（shared 模式，`mount-preview-core.ts:322`）**：核心创建 `scene` 并设 `scene.background = new THREE.Color("#1a1b2e")`；所有适配器 mount 进同一 `ctx.scene`
 - **天空落点（已实现，ADR-073 L1）**：统一核心在 shared 模式创建 `renderer` 后立即 `new SkyCapability({ scene, renderer }).apply()`（`mount-preview-core.ts`），复用 Three 官方 `Sky`（Preetham 散射）。YSM / VRM / MMD / Litematic 因共用同一 `ctx.scene` **零改动继承**——即「MMD 有天空 → YSM/VRM 自动获得」在 Three 域内的真·自动机制。能力层 `frontend/src/utils/3d/caps/sky-capability.ts` 封装 uniform 管线 + 可选 IBL（`setEnvironmentEnabled`，默认关）+ 会话级 tone mapping（dispose 还原）。`scene.background` 纯色保留为禁用天空时的兜底。
 - **self 模式**（`adapter.mode === "self"`，如个别单例）：核心仅提供外壳、不创建 `scene`，背景由适配器自管
+- **dock 🧍 模型组按钮恒定直达 roles 面板（2026-08-22 收口，commit e8d6f5aa）**：`renderDock` 模型组**不再**按 `sceneRegistry` 是否为空分流。生产环境每个 `built` 都经 `mount-preview-core.ts:827` 注册进 `sceneRegistry`，故注册表恒非空——原「无角色→组根视图」兜底分支是**死分支**，且会导致加载模型后 🧍 显示旧组根菜单（与 FAB 直进 roles 不一致）。🧍 永远走 `makePanelView(rolesDef)` 直接开角色面板（角色管理 + 内嵌加载入口 `fillSwitch`）。单模型实例工具（模型信息/截图/骨骼/材料）保留 `dockGroup:"model"` 不变，由 `roleDetailView` 按 `dockGroup==="model"` 过滤，从 dock 根**下沉到角色详情内可达**——YS'M+PMX 同台时天然自洽，且多蓝图/投影等注册的实体也能经各自详情卸载（复用类型无关的 `unloadRole`）。
 
 ## 验证状态与迭代清单（2026-08-19）
 
@@ -77,6 +78,7 @@ ADR-066 落地的**统一 3D 预览核心**，收缴 vrm / litematic 复制脚�
     - **下钻箭头**：panel 型行右侧加 `>` 装饰性箭头（`data-testid="row-chevron"`），提示可点击进入下级面板。`makeRow(def, { chevron: def.kind === "panel" })` 实现，action 型行无箭头。
     - **入口合并（2026-08-21）**：独立 `switch` 项（🔁 切换模型，legacyTestId `mmd-switch`）撤除——其面板（`fillSwitch`：类型 tab + siblings + 手动路径）本是角色面板底部的内嵌加载入口，双入口属重复。模型组 core 项仅余 `roles`（无适配器项时 dock-model 单 panel 快捷直达）；`needsSiblings` 字段随之删除；i18n 键 `preview.switchModel` 三语移除。后续「最近加载」类候选源应作为 `fillSwitch` 的新类型 tab 接入（行渲染/样式复用），勿另起面板。
   - **Phase 3 待立项**：vrm/litematic `extraControls` 单按钮（骨骼/分层/切换）收编为菜单项后删除 topBar 容器；ADR-074 S2 VRM 骨骼面板已接 UI（topBar 骨骼按钮开关面板，经 `makeBonePanelRenderer` 通用外壳），ysm 骨骼面板同构落地（ADR-077）。
+  - **dock 🧍 模型组统一为 roles 入口（2026-08-22，commit e8d6f5aa）**：删掉 `renderDock` 模型组基于 `sceneRegistry` 是否为空的 if/else 分流补丁——生产恒非空使其成死分支，且造成加载模型后 🧍 显示旧组根菜单（与 FAB 直进 roles 不一致）。🧍 永远快捷直达 roles 面板；单模型实例工具（模型信息/截图/骨骼/材料）保留 `dockGroup:"model"`，下沉至角色详情（`roleDetailView` 按该字段过滤）可达。litematic 蓝图切片同步从 `ctx.menu.setAdapterItems`（dock 平铺 sink）搬家到 `buildLitematicScene` 返回值 `menuItems: sliceItems`（角色详情 sink），使蓝图注册进 `sceneRegistry` 的 entry 携带切片、可在其详情内显示与卸载。测试契约见 `preview-menu.test.ts` / `preview-menu-items.test.ts`。
 
 - **L1 程序化天空已落地并目视验证**：`task dev` / `npm run dev:web` 跑通，天空渲染正常、四种模型（YSM/VRM/MMD/Litematic）零改动继承。用户评定「效果一般但能跑，作为基线收口，后续迭代」。
 - **基线参数**（`sky-capability.ts` 默认值）：`scale 12000`（相机 maxDistance 5000 留余量）、`turbidity 8 / rayleigh 2 / mieCoefficient 0.005 / mieDirectionalG 0.8`、`cloudCoverage 0`、默认太阳方位、`ACESFilmicToneMapping` + 曝光 0.5（会话级，dispose 还原）、IBL `scene.environment` 默认关。
