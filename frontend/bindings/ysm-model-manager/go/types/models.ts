@@ -119,7 +119,7 @@ export interface BedrockModel {
     "texture"?: string;
 
     /**
-     * 多纹理 base64 data URI 数组
+     * 多纹理 base64 data URI 数组（全量，2D 预览用）
      */
     "textures"?: string[] | null;
 
@@ -127,6 +127,14 @@ export interface BedrockModel {
      * 纹理文件名（去扩展名），与 Textures 同序
      */
     "textureNames"?: string[] | null;
+
+    /**
+     * ComponentTextures 每组件独立纹理（ADR-114 perComponent）。
+     * key = 组件源模型名（main/arm/arrow/minecart/boat/foxcar/trident）
+     * value = 该组件声明的纹理 base64 data URI 数组（通常 1 张）
+     * 3D 渲染用此字段；为空时 fallback 到 Textures[0]。
+     */
+    "componentTextures"?: { [_ in string]?: string[] | null } | null;
 
     /**
      * 组件源模型文件名（去扩展名，如 main/arm/arrow），UI 组件名用
@@ -150,6 +158,11 @@ export interface BedrockModel {
      * L0/L1 派生的子模型清单（多角色包内切换用）
      */
     "subModels"?: SubModel[] | null;
+
+    /**
+     * ysm.json metadata 段（名称/许可/作者/链接，详情页用）
+     */
+    "metadata"?: YsmMetadata | null;
 }
 
 /**
@@ -459,4 +472,74 @@ export interface WorkshopSite {
     "group": string;
     "searchUrl"?: string;
     "presetSearches"?: WorkshopPresetSearch[] | null;
+}
+
+/**
+ * YsmAuthor 作者条目
+ */
+export interface YsmAuthor {
+    /**
+     * 作者名
+     */
+    "name"?: string;
+
+    /**
+     * 角色（模型原作/动画原作/材质等）
+     */
+    "role"?: string;
+
+    /**
+     * 作者留言
+     */
+    "comment"?: string;
+
+    /**
+     * 头像路径（zip 内相对路径，如 avatar/wmdj.jpg）
+     */
+    "avatar"?: string;
+
+    /**
+     * 联系方式（平台→URL，如 Bilibili/Afdian）
+     */
+    "contact"?: { [_ in string]?: string } | null;
+}
+
+/**
+ * YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}）
+ */
+export interface YsmLicense {
+    "type"?: string;
+    "description"?: string;
+}
+
+/**
+ * YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。
+ * 字段对齐 Modern YSM RawMetadata（RawYsmModel.java L191-208）+ 真实 ysm.json 格式
+ * （wine_fox：license 为 {type} 对象、authors[].contact 为平台→URL map、authors[].avatar 为路径字符串）。
+ */
+export interface YsmMetadata {
+    /**
+     * 模型名（如 "Wine Fox（酒狐）"）
+     */
+    "name"?: string;
+
+    /**
+     * 提示/简介（可含 \n 多行）
+     */
+    "tips"?: string;
+
+    /**
+     * 许可信息
+     */
+    "license"?: YsmLicense | null;
+
+    /**
+     * 作者列表（模型/动画/材质等角色）
+     */
+    "authors"?: YsmAuthor[] | null;
+
+    /**
+     * 附加链接（平台→URL）
+     */
+    "links"?: { [_ in string]?: string } | null;
 }

@@ -759,7 +759,7 @@
   "tree.copyFilename": "ファイル名をコピー",
   "preview.title3d": "3Dプレビュー",
   "preview.modelInfo": "モデル情報",
-  "preview.roles": "キャラクター",
+  "preview.roles": "読み込み済みキャラクター",
   "preview.roleFocus": "焦点に設定",
   "preview.roleTools": "モデルツール",
   "preview.unloadRole": "キャラクターをアンロード",

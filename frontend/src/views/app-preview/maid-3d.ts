@@ -18,6 +18,7 @@ import { setActive3DClose } from "./skeleton.ts";
 import { registerAndroidBackHandler } from "../../utils/dom/android-bridge.ts";
 import type { PreviewCtx } from "./utils.ts";
 import type { BedrockSubModel } from "./geometry.ts";
+import type { YsmMetadata } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 
 /** 数据读取注入 */
 async function readFileBytes(path: string): Promise<string | null> {
@@ -123,6 +124,7 @@ export async function showMaidPreview(
     texWidth?: number;
     texHeight?: number;
     subModels?: BedrockSubModel[];
+    metadata?: YsmMetadata;
   } | null = null;
   try {
     const { AnalyzeBedrockModel } = await getApp();
@@ -136,6 +138,7 @@ export async function showMaidPreview(
         texWidth: model.texWidth as number | undefined,
         texHeight: model.texHeight as number | undefined,
         subModels: model.subModels as BedrockSubModel[] | undefined,
+        metadata: model.metadata ?? undefined,
       };
     }
   } catch (e) {
@@ -160,6 +163,27 @@ export async function showMaidPreview(
       rows.push(`<div class="dp-hint">🎨 纹理数: ${modelInfo.textureCount}</div>`);
       if (modelInfo.texWidth && modelInfo.texHeight) {
         rows.push(`<div class="dp-hint">📏 纹理尺寸: ${modelInfo.texWidth}×${modelInfo.texHeight}</div>`);
+      }
+    }
+    // ysm.json metadata 段（name/license/tips/authors，Modern YSM RawMetadata 对齐）
+    const md = modelInfo?.metadata;
+    if (md) {
+      if (md.name) rows.push(`<div class="dp-hint" style="font-weight:600">🏷️ ${esc(md.name)}</div>`);
+      if (md.license?.type) rows.push(`<div class="dp-hint">📜 许可: ${esc(md.license.type)}</div>`);
+      if (md.tips) rows.push(`<div class="dp-hint" style="white-space:pre-line;font-size:11px">💬 ${esc(md.tips ?? "")}</div>`);
+      if (md.authors && md.authors.length > 0) {
+        rows.push(`<div class="dp-hint" style="font-weight:600;margin-top:6px">✒️ 作者 (${md.authors.length})</div>`);
+        for (const a of md.authors) {
+          const contact =
+            a.contact && Object.keys(a.contact).length > 0
+              ? Object.entries(a.contact)
+                  .map(([p, u]) => `<a href="${esc(u ?? "")}" target="_blank" rel="noopener">${esc(p ?? "")}</a>`)
+                  .join(" · ")
+              : "";
+          rows.push(
+            `<div class="dp-hint" style="font-size:11px;color:var(--muted)">${esc(a.name ?? "")}${a.role ? `（${esc(a.role ?? "")}）` : ""}${contact ? ` — ${contact}` : ""}</div>`,
+          );
+        }
       }
     }
     return rows.join("");

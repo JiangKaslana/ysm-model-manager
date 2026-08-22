@@ -25,5 +25,8 @@ export type {
     WindowState,
     WorkshopCreator,
     WorkshopPresetSearch,
-    WorkshopSite
+    WorkshopSite,
+    YsmAuthor,
+    YsmLicense,
+    YsmMetadata
 } from "./models.js";

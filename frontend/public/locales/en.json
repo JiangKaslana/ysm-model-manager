@@ -759,7 +759,7 @@
   "tree.copyFilename": "Copy Filename",
   "preview.title3d": "3D Preview",
   "preview.modelInfo": "Model Info",
-  "preview.roles": "Characters",
+  "preview.roles": "Loaded Roles",
   "preview.roleFocus": "Set as focus",
   "preview.roleTools": "Model tools",
   "preview.unloadRole": "Unload character",

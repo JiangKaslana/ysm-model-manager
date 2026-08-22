@@ -117,6 +117,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			}
 			buf := readLimitedEntry(rc)
 			var ysm struct {
+				Metadata   types.YsmMetadata `json:"metadata"`
 				Properties struct {
 					DefaultTexture string `json:"default_texture"`
 				} `json:"properties"`
@@ -541,6 +542,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	var pngs [][]byte
 	var pngNames []string
 	var animJSONs []string
+	var ysmMeta types.YsmMetadata // ysm.json metadata 段（循环内填充，return 前挂到 geo）
 
 	var modelOrder []string
 	var texOrder []string
@@ -557,6 +559,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			}
 			buf := readLimitedEntry(rc)
 			var ysm struct {
+				Metadata   types.YsmMetadata `json:"metadata"`
 				Properties struct {
 					DefaultTexture string `json:"default_texture"`
 				} `json:"properties"`
@@ -573,6 +576,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			if err := json.Unmarshal(buf, &ysm); err != nil {
 				log.Printf("%s 解析 ysm.json 失败: %v", logPrefix, err)
 			} else {
+				ysmMeta = ysm.Metadata
 				// 解析 texture 顺序
 				if len(ysm.Files.Player.Texture) > 0 {
 					texRaw := string(ysm.Files.Player.Texture)
@@ -1310,6 +1314,9 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	}
 	// 顺带返回过滤后的 geoFiles（L0/L1 口径、排 arm）：ParseFromZipEntry 复用同一趟解析
 	// 的 geoFiles 做 subPath 匹配，避免二次全量遍历（审核 P3）
+	if geo != nil && (ysmMeta.Name != "" || len(ysmMeta.Authors) > 0 || ysmMeta.License != nil || len(ysmMeta.Links) > 0) {
+		geo.Metadata = &ysmMeta
+	}
 	return geo, pngs, animJSONs, geoFiles
 }
 

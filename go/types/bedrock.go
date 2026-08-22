@@ -19,6 +19,7 @@ type BedrockModel struct {
 	Bones             []Bone2D            `json:"bones,omitempty"`
 	Animations        []string            `json:"animations,omitempty"` // 动画 JSON 字符串数组
 	SubModels         []SubModel          `json:"subModels,omitempty"`  // L0/L1 派生的子模型清单（多角色包内切换用）
+	Metadata          *YsmMetadata        `json:"metadata,omitempty"`   // ysm.json metadata 段（名称/许可/作者/链接，详情页用）
 }
 
 // SubModel 子模型条目（多角色加载）。
@@ -53,4 +54,30 @@ type Cube2D struct {
 	Mirror   bool       `json:"mirror,omitempty"`  // Blockbench 镜像（沿 X 翻转几何）
 	CubeTexW int        `json:"-"`                 // 来源文件 texture_width，不序列化
 	CubeTexH int        `json:"-"`                 // 来源文件 texture_height，不序列化
+}
+
+// YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。
+// 字段对齐 Modern YSM RawMetadata（RawYsmModel.java L191-208）+ 真实 ysm.json 格式
+// （wine_fox：license 为 {type} 对象、authors[].contact 为平台→URL map、authors[].avatar 为路径字符串）。
+type YsmMetadata struct {
+	Name    string            `json:"name,omitempty"`    // 模型名（如 "Wine Fox（酒狐）"）
+	Tips    string            `json:"tips,omitempty"`    // 提示/简介（可含 \n 多行）
+	License *YsmLicense       `json:"license,omitempty"` // 许可信息
+	Authors []YsmAuthor       `json:"authors,omitempty"` // 作者列表（模型/动画/材质等角色）
+	Links   map[string]string `json:"links,omitempty"`   // 附加链接（平台→URL）
+}
+
+// YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}）
+type YsmLicense struct {
+	Type        string `json:"type,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// YsmAuthor 作者条目
+type YsmAuthor struct {
+	Name    string            `json:"name,omitempty"`    // 作者名
+	Role    string            `json:"role,omitempty"`    // 角色（模型原作/动画原作/材质等）
+	Comment string            `json:"comment,omitempty"` // 作者留言
+	Avatar  string            `json:"avatar,omitempty"`  // 头像路径（zip 内相对路径，如 avatar/wmdj.jpg）
+	Contact map[string]string `json:"contact,omitempty"` // 联系方式（平台→URL，如 Bilibili/Afdian）
 }
