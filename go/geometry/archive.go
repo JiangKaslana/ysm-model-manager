@@ -1424,24 +1424,13 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 // ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。
 func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []string) {
-	r, err := container.OpenZipBytes(data, size)
-	if err != nil {
-		return nil, nil, nil
-	}
-	defer r.Close()
-	geo, pngs, anims, _ := parseModelFromEntries(r.Entries(), "zip")
+	geo, pngs, anims, _ := parseModelFromArchive(data, size, false)
 	return geo, pngs, anims
 }
 
 // ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。
 func ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte) {
-	r, err := container.Open7zBytes(data, size)
-	if err != nil {
-		log.Printf("[geometry] 打开 7z 失败: %v", err)
-		return nil, nil
-	}
-	defer r.Close()
-	geo, pngs, _, _ := parseModelFromEntries(r.Entries(), "7z")
+	geo, pngs, _, _ := parseModelFromArchive(data, size, true)
 	return geo, pngs
 }
 
@@ -1454,54 +1443,12 @@ func ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte) {
 //  2. 对 subPath 去掉 "assets/<ns>/" 前缀后，再精确/相对命名空间前缀命中
 //  3. basename 模糊（去 .json/.geo.json，或只截取 lastSegment 去后缀，按 geoFiles basename 字典取首条）
 func ParseFromZipEntry(data []byte, size int64, subPath string) (*types.BedrockModel, [][]byte) {
-	if subPath == "" {
-		return nil, nil
-	}
-	r, err := container.OpenZipBytes(data, size)
-	if err != nil {
-		return nil, nil
-	}
-	defer r.Close()
-	entries := r.Entries()
-	// PNG 全量须与 ParseFromZip 同口径：L0 清单过滤（否则 SubModel.TexSlot = i 会指错纹理数组下标）。
-	// 一趟解析同时拿 pngs + 过滤后 geoFiles（subPath 匹配用），不再二次 collectArchiveFiles 全量遍历（审核 P3）
-	_, pngs, _, geoFiles := parseModelFromEntries(entries, "zip")
-	if len(geoFiles) == 0 {
-		return nil, pngs
-	}
-	if gf, ok := matchGeoEntryBySubPath(geoFiles, subPath); ok {
-		g := ParseBedrockGeometry(gf.data)
-		if g != nil {
-			return g, pngs
-		}
-	}
-	return nil, pngs
+	return parseFromArchiveEntry(data, size, subPath, false)
 }
 
 // ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。
 func ParseFrom7zEntry(data []byte, size int64, subPath string) (*types.BedrockModel, [][]byte) {
-	if subPath == "" {
-		return nil, nil
-	}
-	r, err := container.Open7zBytes(data, size)
-	if err != nil {
-		log.Printf("[geometry] 打开 7z 失败: %v", err)
-		return nil, nil
-	}
-	defer r.Close()
-	entries := r.Entries()
-	// 同 ParseFromZipEntry：一趟解析拿 pngs + 过滤后 geoFiles，不再二次 collectArchiveFiles（审核 P3）
-	_, pngs, _, geoFiles := parseModelFromEntries(entries, "7z")
-	if len(geoFiles) == 0 {
-		return nil, pngs
-	}
-	if gf, ok := matchGeoEntryBySubPath(geoFiles, subPath); ok {
-		g := ParseBedrockGeometry(gf.data)
-		if g != nil {
-			return g, pngs
-		}
-	}
-	return nil, pngs
+	return parseFromArchiveEntry(data, size, subPath, true)
 }
 
 // matchGeoEntryBySubPath 从 geoFiles 中挑一个匹配 subPath 的条目。
@@ -1576,10 +1523,18 @@ func IsMainModelName(name string) bool {
 }
 
 // ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件，
-// 含 arm/载具等组件（不合并、不排除）；main 优先排序，TexSlot 全局化。
+// 含 arm/载具等组件（不合并、不排除）；main 优先排序，perComponent 独立纹理。
 // 供 threejs.BuildMulti 生成多组件 spec。
 func ParseComponentsFromZip(data []byte, size int64) ([]types.BedrockModel, []string, error) {
-	r, err := container.OpenZipBytes(data, size)
+	return parseComponentsFromArchive(data, size, false)
+}
+
+// parseComponentsFromArchive 多组件解析统一实现（zip/7z）：collectArchiveFiles →
+// buildComponents → classifyFileInventory。收敛 ParseComponentsFromZip/7z 的分形双份——
+// 8-22 FileInventory 下沉后 collect/build/classify 循环在 zip/7z 各写一遍，改一处漏一处
+// 即行为分叉（提交 eghrhegpe 0b1ceec0 以来两次同构累积）。
+func parseComponentsFromArchive(data []byte, size int64, sevenZip bool) ([]types.BedrockModel, []string, error) {
+	r, err := openArchiveBytes(data, size, sevenZip)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1589,7 +1544,7 @@ func ParseComponentsFromZip(data []byte, size int64) ([]types.BedrockModel, []st
 	if err != nil {
 		return nil, nil, err
 	}
-	// 文件归属清单（只识别不解析）：每个组件挂同一 zip 清单，前端取任一组件即可得
+	// 文件归属清单（只识别不解析）：每个组件挂同一容器清单，前端取任一组件即可得
 	inv := classifyFileInventory(r.Entries())
 	for i := range models {
 		models[i].FileInventory = inv // 值类型 range 副本不写回，须按索引
@@ -1711,22 +1666,69 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 }
 
 // ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构，
-// 复用 collectArchiveFiles/buildComponents（含 arm、main 优先、TexSlot 全局化）。
+// 复用 parseComponentsFromArchive（含 arm、main 优先、perComponent 独立纹理）。
 func ParseComponentsFrom7z(data []byte, size int64) ([]types.BedrockModel, []string, error) {
-	r, err := container.Open7zBytes(data, size)
+	return parseComponentsFromArchive(data, size, true)
+}
+
+// ===== zip/7z 双份路径收敛（8-22 功能冲刺遗留的分形重复）=====
+// 六入口原先各写 OpenZipBytes/Open7zBytes，7z 失败日志也双份；FileInventory/SubModels/
+// projectiles 每上新功能都要 zip/7z 各改一遍。收敛后单一打开点 + 单一实现，改 bug 只改一处。
+
+// openArchiveBytes 统一 zip/7z 字节打开；7z 失败保留日志（对齐历史 ParseFrom7z/Entry 口径）。
+func openArchiveBytes(data []byte, size int64, sevenZip bool) (container.Reader, error) {
+	if sevenZip {
+		r, err := container.Open7zBytes(data, size)
+		if err != nil {
+			log.Printf("[geometry] 打开 7z 失败: %v", err)
+			return nil, err
+		}
+		return r, nil
+	}
+	return container.OpenZipBytes(data, size)
+}
+
+// archiveLogTag 供 parseModelFromEntries 的 logTag 参数：zip/7z 版统一口径。
+func archiveLogTag(sevenZip bool) string {
+	if sevenZip {
+		return "7z"
+	}
+	return "zip"
+}
+
+// parseModelFromArchive 单模型合并解析统一实现（zip/7z）：open + parseModelFromEntries。
+// ParseFromZip 返回 anims（= pngNames），ParseFrom7z 丢弃——本收敛只消 open 双写，签名各自不变。
+func parseModelFromArchive(data []byte, size int64, sevenZip bool) (*types.BedrockModel, [][]byte, []string, []geoEntry) {
+	r, err := openArchiveBytes(data, size, sevenZip)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil
 	}
 	defer r.Close()
-	modelOrder, texOrder, geoFiles, pngs, pngNames, _ := collectArchiveFiles(r.Entries())
-	models, texNames, err := buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames)
+	return parseModelFromEntries(r.Entries(), archiveLogTag(sevenZip))
+}
+
+// parseFromArchiveEntry 单角色按 subPath 解析统一实现（zip/7z）：open + parseModelFromEntries
+// 一趟拿 pngs + 过滤后 geoFiles（不再二次 collectArchiveFiles，审核 P3），再 matchGeoEntryBySubPath。
+func parseFromArchiveEntry(data []byte, size int64, subPath string, sevenZip bool) (*types.BedrockModel, [][]byte) {
+	if subPath == "" {
+		return nil, nil
+	}
+	r, err := openArchiveBytes(data, size, sevenZip)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil
 	}
-	// 文件归属清单（只识别不解析）：每个组件挂同一 zip 清单，前端取任一组件即可得
-	inv := classifyFileInventory(r.Entries())
-	for i := range models {
-		models[i].FileInventory = inv // 值类型 range 副本不写回，须按索引
+	defer r.Close()
+	entries := r.Entries()
+	// PNG 全量须与 ParseFromZip 同口径：L0 清单过滤（否则 SubModel.TexSlot = i 会指错纹理数组下标）。
+	_, pngs, _, geoFiles := parseModelFromEntries(entries, archiveLogTag(sevenZip))
+	if len(geoFiles) == 0 {
+		return nil, pngs
 	}
-	return models, texNames, nil
+	if gf, ok := matchGeoEntryBySubPath(geoFiles, subPath); ok {
+		g := ParseBedrockGeometry(gf.data)
+		if g != nil {
+			return g, pngs
+		}
+	}
+	return nil, pngs
 }
