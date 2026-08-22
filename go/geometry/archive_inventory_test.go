@@ -69,6 +69,89 @@ func TestClassifyFileInventory_Direct(t *testing.T) {
 	}
 }
 
+// 旧格式 info.json 元数据兜底（无 ysm.json 场景，Modern YSM parseLegacyMetadata 同口径）
+func TestParseLegacyMetadata(t *testing.T) {
+	// 1. 无 ysm.json + info.json → geo.Metadata 从 info.json 解析（name/tips/license(字符串)/authors(字符串数组)）
+	data := makeZipWithFiles(t, map[string]string{
+		"models/main.json":  minimalMainJSON,
+		"textures/skin.png": tinyPNG(),
+		"info.json": `{
+  "name": "旧格式测试模型",
+  "tips": "无 ysm.json 的旧包",
+  "license": "CC BY-NC-SA 4.0",
+  "authors": ["完美冻结", "星屑海螺"]
+}`,
+	})
+	geo, _, _ := ParseFromZip(data, int64(len(data)))
+	if geo == nil {
+		t.Fatal("无 ysm.json 旧格式包应仍能解析出 geo（L1 枚举）")
+	}
+	m := geo.Metadata
+	if m == nil {
+		t.Fatal("期望 info.json 元数据挂载")
+	}
+	if m.Name != "旧格式测试模型" {
+		t.Errorf("Name = %q, 期望 旧格式测试模型", m.Name)
+	}
+	if m.License == nil || m.License.Type != "CC BY-NC-SA 4.0" {
+		t.Errorf("License = %+v, 期望 type=CC BY-NC-SA 4.0（字符串映射）", m.License)
+	}
+	if len(m.Authors) != 2 || m.Authors[0].Name != "完美冻结" || m.Authors[1].Name != "星屑海螺" {
+		t.Errorf("Authors = %+v, 期望 2 条字符串数组映射", m.Authors)
+	}
+	if m.Tips == "" {
+		t.Error("期望 Tips 非空")
+	}
+}
+
+func TestParseLegacyMetadata_NoInfoJSON(t *testing.T) {
+	// 无 ysm.json 也无 info.json → geo.Metadata nil（容错）
+	data := makeZipWithFiles(t, map[string]string{
+		"models/main.json":  minimalMainJSON,
+		"textures/skin.png": tinyPNG(),
+	})
+	geo, _, _ := ParseFromZip(data, int64(len(data)))
+	if geo == nil {
+		t.Fatal("geo 应为非 nil")
+	}
+	if geo.Metadata != nil {
+		t.Errorf("无 info.json 应 nil, 实际 %+v", geo.Metadata)
+	}
+}
+
+func TestParseLegacyMetadata_NewFormatNotOverridden(t *testing.T) {
+	// 有 ysm.json 且含 metadata → info.json 不覆盖（新格式优先）
+	data := makeZipWithFiles(t, map[string]string{
+		"ysm.json":          `{"metadata":{"name":"新格式名"},"files":{"player":{"model":{"main":"models/main.json"},"texture":["textures/skin.png"]}}}`,
+		"models/main.json":  minimalMainJSON,
+		"textures/skin.png": tinyPNG(),
+		"info.json":         `{"name":"旧格式名"}`,
+	})
+	geo, _, _ := ParseFromZip(data, int64(len(data)))
+	if geo == nil {
+		t.Fatal("geo 应为非 nil")
+	}
+	if geo.Metadata == nil || geo.Metadata.Name != "新格式名" {
+		t.Errorf("新格式 metadata 应优先（info.json 不覆盖）, 实际 %+v", geo.Metadata)
+	}
+}
+
+func TestParseLegacyMetadata_Malformed(t *testing.T) {
+	// info.json 畸形（非 JSON）→ nil（容错不阻断）
+	data := makeZipWithFiles(t, map[string]string{
+		"models/main.json":  minimalMainJSON,
+		"textures/skin.png": tinyPNG(),
+		"info.json":         "not-json{{{",
+	})
+	geo, _, _ := ParseFromZip(data, int64(len(data)))
+	if geo == nil {
+		t.Fatal("geo 应为非 nil（畸形 info.json 不阻断）")
+	}
+	if geo.Metadata != nil {
+		t.Errorf("畸形 info.json 应 nil, 实际 %+v", geo.Metadata)
+	}
+}
+
 // isLegacyGeometryName 的 .geo 变体识别（code review P3：与 IsMainModelName/isArmModelName 同口径）
 func TestIsLegacyGeometryName(t *testing.T) {
 	cases := []struct {

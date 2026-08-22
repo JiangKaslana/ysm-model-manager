@@ -145,6 +145,49 @@ func isLegacyGeometryName(lowPath string) bool {
 	return false
 }
 
+// parseLegacyMetadata 旧格式 info.json 元数据（无 ysm.json 场景；Modern YSM
+// parseLegacyMetadata 同口径——name/tips/license(字符串)/authors(字符串数组)）。
+// 缺失/畸形返回 nil（容错，不阻断解析）；license 字符串映射为 License{Type}。
+func parseLegacyMetadata(entries []container.Entry) *types.YsmMetadata {
+	for _, e := range entries {
+		low := strings.ToLower(e.Name())
+		if !strings.HasSuffix(low, "info.json") {
+			continue
+		}
+		rc, err := e.Open()
+		if err != nil {
+			continue
+		}
+		buf := fsutil.ReadLimitedEntry(rc, maxExtractSize)
+		if len(buf) == 0 {
+			continue
+		}
+		var info struct {
+			Name    string   `json:"name"`
+			Tips    string   `json:"tips"`
+			License string   `json:"license"`
+			Authors []string `json:"authors"`
+		}
+		if err := json.Unmarshal(buf, &info); err != nil {
+			continue
+		}
+		m := &types.YsmMetadata{Name: info.Name, Tips: info.Tips}
+		if info.License != "" {
+			m.License = &types.YsmLicense{Type: info.License}
+		}
+		for _, a := range info.Authors {
+			if a != "" {
+				m.Authors = append(m.Authors, types.YsmAuthor{Name: a})
+			}
+		}
+		if m.Name != "" || m.Tips != "" || m.License != nil || len(m.Authors) > 0 {
+			return m
+		}
+		return nil
+	}
+	return nil
+}
+
 // projEntry 收集投射物/载具模型路径 + 声明的纹理名，
 // texIdxMap 构建时用 texName 查 texOrder 位置分配 texSlot。
 type projEntry struct {
@@ -1378,6 +1421,11 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	}
 	if geo != nil {
 		geo.FileInventory = classifyFileInventory(entries)
+	}
+	// 旧格式兜底：无 ysm.json（或 ysm.json 无 metadata）时从 info.json 补元数据
+	// （Modern YSM parseLegacyFormat 同口径；已挂 metadata 不覆盖）
+	if geo != nil && geo.Metadata == nil {
+		geo.Metadata = parseLegacyMetadata(entries)
 	}
 	return geo, pngs, animJSONs, geoFiles
 }
