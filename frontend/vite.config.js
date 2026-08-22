@@ -14,6 +14,9 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
+  worker: {
+    plugins: () => [wasmDataStubs()],
+  },
   // utils/resource/{types,extensions}.ts 直接 import 仓库根 resource_types.json
   // （单一事实来源，构建期内联）。Vite 6 显式 allow 会完全替换默认 workspace root，
   // 必须同时放行 frontend/ 自身（new URL(".", import.meta.url)），否则 dev 首页 403；
