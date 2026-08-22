@@ -163,9 +163,12 @@ export function bindTreeDnD(container: HTMLElement): () => void {
     let current: Node | null = node;
     while (current) {
       if (current === container || current === hintEl) return true;
-      const root = current.getRootNode();
-      if (root === current) break; // 已到 document 根，不再有 shadow boundary
-      current = current.parentNode;
+      if (current.parentNode) {
+        current = current.parentNode;
+        continue;
+      }
+      // ShadowRoot.parentNode is null in real browsers; cross the boundary via host.
+      current = current instanceof ShadowRoot ? current.host : null;
     }
     return false;
   };
