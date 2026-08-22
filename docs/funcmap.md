@@ -1636,8 +1636,8 @@
 | `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:245` | 解析完整的基岩版动画 JSON 字符串 |
 | `evaluateKeyframes()` | `frontend/src/utils/animation/animation:354` | 在指定时间 t 对一组关键帧求值 |
 | `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:388` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:435` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
-| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:568` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:447` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:580` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |

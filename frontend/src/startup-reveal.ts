@@ -9,8 +9,21 @@ export async function revealMainWindow(
     });
   }
 
-  await new Promise<void>((resolve) => nextFrame(() => resolve()));
-  await new Promise<void>((resolve) => nextFrame(() => resolve()));
+  // rAF 等待竞速超时（code review P2）：隐藏窗口下 Chromium/WebView2 节流 rAF，
+  // 两帧永不完成 → 窗口永久不可见；1.5s 超时仍强制 app-ready + show() 兜底
+  const twoFrames = new Promise<void>((resolve) => {
+    let remaining = 2;
+    const done = () => {
+      remaining -= 1;
+      if (remaining <= 0) resolve();
+    };
+    nextFrame(done);
+    nextFrame(done);
+  });
+  const revealTimeout = new Promise<void>((resolve) => {
+    setTimeout(resolve, 1500);
+  });
+  await Promise.race([twoFrames, revealTimeout]);
   document.documentElement.classList.add("app-ready");
 
   try {

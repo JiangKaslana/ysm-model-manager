@@ -387,14 +387,22 @@ export function evaluateKeyframes(keyframes: Keyframe[], t: number): Vec3 | null
 /** Allocation-free keyframe evaluation for the per-frame preview hot path. */
 export function evaluateKeyframesInto(keyframes: Keyframe[], t: number, out: Vec3): boolean {
   if (!keyframes?.length) return false;
+  // Molang 动态轴（code review P2：PR 热路径丢 postMolang——静默回归，冻结在基姿态）：
+  // 与 resolveFramePost 同口径，postMolang 存在时按当前 t 求值；写回 dst 保持低分配
+  const resolvePost = (kf: Keyframe, dst: Vec3): void => {
+    const base = kf.post || [0, 0, 0];
+    const fns = kf.postMolang;
+    dst[0] = fns?.[0] ? fns[0](t) : base[0];
+    dst[1] = fns?.[1] ? fns[1](t) : base[1];
+    dst[2] = fns?.[2] ? fns[2](t) : base[2];
+  };
   if (!Number.isFinite(t) || t <= keyframes[0].time) {
-    const value = keyframes[0].post;
-    out[0] = value[0]; out[1] = value[1]; out[2] = value[2];
+    resolvePost(keyframes[0], out);
     return true;
   }
   const last = keyframes[keyframes.length - 1];
   if (t >= last.time) {
-    out[0] = last.post[0]; out[1] = last.post[1]; out[2] = last.post[2];
+    resolvePost(last, out);
     return true;
   }
 
@@ -403,13 +411,17 @@ export function evaluateKeyframesInto(keyframes: Keyframe[], t: number, out: Vec
   const a = keyframes[lo];
   const b = keyframes[hi];
   if (a.lerp === "step" || b.time <= a.time) {
-    out[0] = a.post[0]; out[1] = a.post[1]; out[2] = a.post[2];
+    resolvePost(a, out);
     return true;
   }
+  const ap: Vec3 = [0, 0, 0];
+  const bp: Vec3 = [0, 0, 0];
   const fraction = (t - a.time) / (b.time - a.time);
-  out[0] = a.post[0] + (b.post[0] - a.post[0]) * fraction;
-  out[1] = a.post[1] + (b.post[1] - a.post[1]) * fraction;
-  out[2] = a.post[2] + (b.post[2] - a.post[2]) * fraction;
+  resolvePost(a, ap);
+  resolvePost(b, bp);
+  out[0] = ap[0] + (bp[0] - ap[0]) * fraction;
+  out[1] = ap[1] + (bp[1] - ap[1]) * fraction;
+  out[2] = ap[2] + (bp[2] - ap[2]) * fraction;
   return true;
 }
 

@@ -43,13 +43,18 @@ function readRgbaPixels(texture: THREE.Texture): ArrayLike<number> | null {
   if (!width || !height || typeof document === "undefined") return null;
 
   try {
+    // 缩小采样（code review P3）：全分辨率 readback 对 2048²/4096² 纹理分配 16-64MB
+    // 并阻塞主线程数十 ms（每纹理一次，模型构建关键路径）；alpha 模式分类只需
+    // 有界样本，256px 封顶即可
+    const MAX_SAMPLE = 256;
+    const scale = Math.min(1, MAX_SAMPLE / Math.max(width, height));
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return null;
-    ctx.drawImage(texture.image as CanvasImageSource, 0, 0, width, height);
-    return ctx.getImageData(0, 0, width, height).data;
+    ctx.drawImage(texture.image as CanvasImageSource, 0, 0, canvas.width, canvas.height);
+    return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
   } catch {
     // Preserve rendering for unsupported/tainted image sources.
     return null;
