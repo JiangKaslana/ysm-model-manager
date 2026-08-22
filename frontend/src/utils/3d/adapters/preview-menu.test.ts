@@ -342,7 +342,7 @@ describe("mountPreviewRootMenu", () => {
     expect(appendBtns.length).toBe(1);
     (appendBtns[0] as HTMLElement).click();
     expect(switchTo).toHaveBeenCalledWith("/m/b.vrm", { keepInScene: true });
-    // 行本体点击仍是跨类型替换（switchExternal）
+    // 行本体点击仍是跨类型替换（switchExternal）——重建语义不变
     const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
     (rows[1] as HTMLElement).click();
     expect(switchExternal).toHaveBeenCalledWith("/m/b.vrm", ["/m/a.ysm", "/m/b.vrm"]);
@@ -405,6 +405,27 @@ describe("mountPreviewRootMenu", () => {
     // 行本体点击仍是跨类型替换（switchExternal）
     (overlay.querySelector('[data-testid="preview-switch-item"]') as HTMLElement).click();
     expect(switchExternal).toHaveBeenCalledWith("/m/x.vrm", ["/m/a.ysm"]);
+    handle.dispose();
+  });
+
+  it("角色面板加载入口：当前目录 tab 歧义 .json 同源候选回退 switchTo（不复建）", () => {
+    const switchTo = vi.fn();
+    const switchExternal = vi.fn(async () => {});
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm", "/m/b.json"],
+      getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "ysm",
+      switchTo,
+      switchExternal,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
+    modelBtn!.click();
+    // /m/b.json 是歧义扩展名（resolveTypeSafe 返回 null），但 siblings 即同目录兄弟契约，
+    // 应回退为同源 → 行本体走 switchTo 复用外壳替换（不触发 switchExternal 重建）
+    const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
+    (rows[1] as HTMLElement).click();
+    expect(switchTo).toHaveBeenCalledWith("/m/b.json");
+    expect(switchExternal).not.toHaveBeenCalled();
     handle.dispose();
   });
 

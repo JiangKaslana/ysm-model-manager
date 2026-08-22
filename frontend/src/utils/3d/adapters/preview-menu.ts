@@ -1042,10 +1042,15 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         // sameType 仅用于 row.onclick（行本体点击）路由：同源 → switchTo 复用外壳替换，
         // 跨源 → switchExternal 跨适配器替换。与"追加"语义无关。
         // 类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型（resolveTypeSafe 解析）。
+        // 候选类型无法可靠识别（歧义扩展名如 .vrm/.zip 经 resolveTypeSafe 返回 null）时，
+        // 保守判定为「不同源」——走 switchExternal 跨适配器替换，避免用当前适配器 build
+        // 认不得的类型导致加载失败。这同时也修正了原 curType="" 时同源 YSM(.ysm/.json)
+        // 被误判跨源、触发整段重建的 bug（现 curType 由 adapter.id 兜底为 "ysm"）。
         const candType = resolveTypeSafe(p);
+        const curType = ctx.getCurrentRtype?.() ?? "";
         const sameType = viaType
-          ? activeTab === ctx.getCurrentRtype?.()
-          : !!candType && candType === ctx.getCurrentRtype?.();
+          ? activeTab === curType
+          : !!candType && candType === curType;
         const row = document.createElement("div");
         row.className = "ysm-preview-menu-row";
         row.dataset.testid = "preview-switch-item";

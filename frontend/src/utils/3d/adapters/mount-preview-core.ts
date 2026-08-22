@@ -353,7 +353,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getCamBridge: () => camBridge,
     getSiblings: () => (opts.siblings ?? []).filter((p) => p !== currentPath),
     getCurrentPath: () => currentPath,
-    getCurrentRtype: () => opts.rtype ?? "",
+    getCurrentRtype: () => opts.rtype ?? adapter.id,
     getCurrentSubtype: () => opts.subtype ?? "",
     getModelsByType: opts.getModelsByType ? (t: string, s?: string) => opts.getModelsByType!(t, s) : undefined,
     getTypeTabs: opts.getTypeTabs ? () => opts.getTypeTabs!() : undefined,
