@@ -470,10 +470,10 @@ describe("mountPreviewRootMenu", () => {
     const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
     const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
     const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "");
-    // 当前类型 ysm 高亮（记忆越界不污染）；「当前目录」tab 保留可达（code review P2）
+    // 当前类型 ysm 高亮（记忆越界不污染）；当前目录 tab 已根除——加载角色路径限定，不容其他
     expect(ysmTab.style.background).toContain("124");
     expect(ysmTab.style.background).toContain("131");
-    expect(dirTab).toBeDefined();
+    expect(dirTab).toBeUndefined();
     handle.dispose();
   });
 
@@ -491,9 +491,9 @@ describe("mountPreviewRootMenu", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
     const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
-    // 「当前目录」tab 保留（rtype=""，不持久化——code review P2 恢复混合目录可达）
+    // 当前目录 tab 已根除：不存在 rtype="" 的按钮（加载角色路径限定，不容其他）
     const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "");
-    expect(dirTab).toBeDefined();
+    expect(dirTab).toBeUndefined();
     const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
     // 记忆与当前类型都不在 tabs → 高亮第一个类型 tab（ysm）
     expect(ysmTab.style.background).toContain("124");

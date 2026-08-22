@@ -1008,9 +1008,6 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     };
     tabBar.appendChild(b);
   };
-  // 「当前目录」tab（key=""，不持久化——临时视图）：恢复混合类型目录的兄弟切换
-  // 可达性（code review P2：此前移除后 siblings 视图仅在 rtypes 空时可达，混合目录回归）
-  mkTab("", tr("preview.switchDirTab", "当前目录"));
   for (const r of rtypes) mkTab(r, RESOURCE_TYPE_LABELS[r] || r);
 
   const listBody = document.createElement("div");
