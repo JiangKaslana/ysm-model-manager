@@ -60,6 +60,11 @@ import { mountPreviewRootMenu, type PreviewMenuHandle } from "./preview-menu.ts"
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { type CameraControlBridge } from "./camera-controls.ts";
 import type { BoneSelectInfo, BoneMaps } from "../model3d.ts";
+import {
+  PREVIEW_FRAME_INTERVAL_MS,
+  previewPixelRatio,
+  shouldRenderPreviewFrame,
+} from "../render-budget.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
 export interface PreviewBuildCtx {
@@ -288,7 +293,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     overlay = document.createElement("div");
     overlay.id = "ysm-overlay-3d";
     overlay.style.cssText =
-      "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#1a1b2e;display:flex;flex-direction:column";
+      "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#11111b;display:flex;flex-direction:column";
     document.body.appendChild(overlay);
     body = document.createElement("div");
     body.style.cssText = "flex:1;display:flex;position:relative;overflow:hidden";
@@ -400,7 +405,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // 复用单例 scene（多模型共享同一场景）
     if (!_singletonScene) {
       _singletonScene = new THREE.Scene();
-      _singletonScene.background = new THREE.Color("#1a1b2e");
+      _singletonScene.background = new THREE.Color("#171820");
     }
     scene = _singletonScene;
     // 复用单例 camera（多模型共用同一相机，controls 控制同一套）
@@ -414,9 +419,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     camera = _singletonCamera;
     // 复用单例 renderer（唯一 WebGL context）
     if (!_singletonRenderer) {
-      _singletonRenderer = new THREE.WebGLRenderer({ antialias: true });
+      _singletonRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: "high-performance",
+      });
       _singletonRenderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
-      _singletonRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      _singletonRenderer.setPixelRatio(previewPixelRatio(window.devicePixelRatio));
       _singletonRenderer.domElement.style.touchAction = "none";
       viewContainer.appendChild(_singletonRenderer.domElement);
     }
@@ -555,10 +563,16 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       const _up = new THREE.Vector3(0, 1, 0);
       const _right = new THREE.Vector3();
       const _move = new THREE.Vector3();
-      let lastTime = performance.now();
+      let lastTime = performance.now() - PREVIEW_FRAME_INTERVAL_MS;
+      let nextFrameTime = performance.now();
       function animate(): void {
         _globalAnimId = requestAnimationFrame(animate);
         const now = performance.now();
+        if (!shouldRenderPreviewFrame(now, nextFrameTime, document.hidden === true)) return;
+        nextFrameTime += PREVIEW_FRAME_INTERVAL_MS;
+        if (nextFrameTime < now - PREVIEW_FRAME_INTERVAL_MS) {
+          nextFrameTime = now + PREVIEW_FRAME_INTERVAL_MS;
+        }
         const dt = Math.min((now - lastTime) / 1000, 0.1);
         lastTime = now;
         // 推进水面波纹动画（wetness>0 时 visible）
@@ -617,8 +631,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
 
   // 操作提示条（自动消失，两种模式通用）
   const tip = document.createElement("div");
-  tip.style.cssText = "padding:6px 12px;background:rgba(124,131,255,0.2);color:#fff;font-size:12px;text-align:center;flex-shrink:0;font-weight:500";
-  tip.textContent = "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
+  tip.style.cssText = "padding:5px 12px;background:#1b1c24;border-bottom:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.7);font-size:11px;text-align:center;flex-shrink:0";
+  tip.textContent = "WASD 移动 · 空格/Shift 上下 · 拖动旋转 · 滚轮缩放 · ESC 关闭";
   overlay.insertBefore(tip, body);
   // 保存 timeoutId 供 cleanup 时 clearTimeout
   let tipTimeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {

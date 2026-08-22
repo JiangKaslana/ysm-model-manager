@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #11111b;
+      }
+    </style>
     <title>YSM 模型管理器</title>
     <link
       rel="icon"
@@ -93,14 +101,6 @@
             document.getElementById("global-loader").style.display = "none";
           }
         });
-
-        setTimeout(() => {
-          window.bus?.emit("toast:show", {
-            msg: "✅ YSM 管理器 v1.0 预告版",
-            duration: 3000,
-            type: "success",
-          });
-        }, 500);
       });
     </script>
   </body>

@@ -12,6 +12,7 @@
 //   - reflectionMode 三档：envmap-only (SSR off) / envmap+ssr (默认，SSR 叠上 envmap 反射当屏外 fallback) / ssr-only (SSR 无屏外补全)
 
 import * as THREE from "three";
+import { previewPixelRatio } from "../render-budget.ts";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
@@ -209,10 +210,11 @@ export class PostprocessingCapability implements SceneCapability, Postprocessing
 
   private buildComposer(): void {
     this.disposeComposer();
-    const w = Math.max(this.renderer.domElement.width, 1);
-    const h = Math.max(this.renderer.domElement.height, 1);
+    const logicalSize = this.renderer.getSize(new THREE.Vector2());
+    const w = Math.max(logicalSize.x, 1);
+    const h = Math.max(logicalSize.y, 1);
     this.composer = new EffectComposer(this.renderer);
-    this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.composer.setPixelRatio(previewPixelRatio(window.devicePixelRatio));
     this.composer.setSize(w, h);
 
     this.renderPass = new RenderPass(this.scene, this.camera);
