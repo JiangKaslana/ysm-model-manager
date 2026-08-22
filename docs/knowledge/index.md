@@ -2,7 +2,7 @@
 
 # 知识卡索引
 
-> 总计: 98 张知识卡
+> 总计: 99 张知识卡
 
 > 用途: AI 代理根据分类 + 关键词定位知识卡，摘要提供快速上下文。
 
@@ -77,7 +77,7 @@
 - **resource-packs**（资源包功能 resource-packs）：**已删除（2026-08-18）**。原 `frontend/src/features/resource-packs.ts` 是一个薄 wrapper，把仓库页的各类资源包 tab 统一委托给 `<app-resource-manager…
 - **version-updater**（版本更新 version-updater）：`version-updater.ts` 是应用自更新的前端入口：启动时静默检查（受 6 小时频次限制）→ 发现新版本以可点击 toast 通知；设置页按钮手动检查 → 弹出带更新日志的 `modalConfirm` → 调 `DoUpda…
 
-## go（31 张）
+## go（32 张）
 
 *Go 后端包（安装、下载、回收站、YSM 解析等）*
 
@@ -85,6 +85,7 @@
 |------|------|------|--------|
 | 🏗 cli_quality_audit | CLI 质量摸排 Checklist | architecture | CLI, 质量摸排, 代码审核, 代码审查, bug 排查, 审计, 白名单, 绑定层, 覆盖率, 健康分 |
 | 🍃 doctor_gate_overlap | 质量闸门双调度器重叠审计 | leaf | 双调度器, 质量闸门重叠, doctor gate 差异, 治理红线下沉 |
+| 🏗 fbx-cli-pipeline | FBX CLI 处理管线 fbx-cli-pipeline | architecture | FBX, CLI, 命令行, 转换, glTF, GLB, fbx2gltf, assimp, qmuntal, 加载模型, 模型格式 |
 | 🏗 go-android-platform-guard | Android 平台守卫（Go 侧） | architecture | Android, 平台守卫, RevealInExplorer, OpenFolder, RestartApplication, xdg-open, 重启, Node.js, sidecar, watcher, 平台隔离, build tag |
 | 🏗 go-avatar | 头像 go/avatar | architecture | 头像, 作者, 创作者, avatar, 缓存, 缩略图 |
 | 🏗 go-container | 统一容器桥接层 go/container | architecture | 容器, 解包, zip, 7z, ContainerReader, 归档, 压缩包, 目录容器 |
@@ -119,6 +120,7 @@
 
 - **cli_quality_audit**（CLI 质量摸排 Checklist）：本文档记录 YSM 项目 Go CLI 层（`go/cli/` + `internal/app/` + `frontend/src/services/`）代码审核的**高频问题模式**与**修复 Checklist**。2026-08-19…
 - **doctor_gate_overlap**（质量闸门双调度器重叠审计）：2026-08-14 摸排结论：推送测试链路本身不臃肿，但质量闸门体系存在**双调度器 + 双重实现**，约 250 行重复逻辑，已出现参数漂移。
+- **fbx-cli-pipeline**（FBX CLI 处理管线 fbx-cli-pipeline）：**CLI 模式处理 FBX 的成熟路径，不是「Go 直接解析 FBX」，而是「现成转换器转中间格式 + 成熟库读取」的双段式**：
 - **go-android-platform-guard**（Android 平台守卫（Go 侧））：ADR-047「平台守卫批量」：Go 侧对 Android 上**无效或不适用的桌面能力**显式拒绝/降级，避免 `xdg-open`/`exec` 链静默失败（错误分类反模式——失败要可见）。结合既有的 build-tag 平台双文件（`…
 - **go-avatar**（头像 go/avatar）：`go/avatar/` 包负责创作者头像的提取与缓存：从模型文件（.ysm 二进制 / .zip / 解压目录 .json）的 `metadata.authors[].avatar` 声明中取出头像图片，缓存到**平台配置根 `os.Us…
 - **go-container**（统一容器桥接层 go/container）：`go/container/` 包是统一容器桥接层（ADR-068）：收敛 ysm/geometry/avatar/packs 各自独立的「打开容器→找条目」实现（调研实测 zip.OpenReader 10 处 / zip.NewRead…

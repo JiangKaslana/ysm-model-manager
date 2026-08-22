@@ -1927,8 +1927,8 @@
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:109` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:233` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
 | `LoadModelOpts()` | `frontend/src/views/app-preview/loader:11` | loadModelData 选项（Bedrock 通用模型加载控制） |
-| `loadModelData()` | `frontend/src/views/app-preview/loader:25` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
-| `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:151` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
+| `loadModelData()` | `frontend/src/views/app-preview/loader:29` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
+| `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:170` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
 | `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:37` | — |
 | `createMaid3D()` | `frontend/src/views/app-preview/maid-3d:50` | 打开车万女仆 3D 预览（Bedrock generic 模式）。 |
 | `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:82` | 关闭活跃女仆 3D 预览 |
