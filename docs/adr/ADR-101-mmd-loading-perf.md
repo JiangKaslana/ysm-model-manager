@@ -99,7 +99,7 @@
 | 立即 | A. Three.js 预加载 | ✅ 已实现 | AI |
 | 立即 | B. Go bridge 批量读取 | ✅ 已实现 | AI |
 | 短期 | E. KTX2 压缩 | 进行中（隔壁） | 隔壁 AI |
-| 中期 | C. PMX Worker 化 | 待评估 | 待定 |
+| 中期 | C. PMX Worker 化 | ✅ 已实现（opt-in，`mmd-pmx-worker` 开关 + `mmd-pmx-parser.worker.ts`） | AI |
 | 长期 | D. 纹理异步上传 | 待评估 | 待定 |
 
 ## 验证方法
