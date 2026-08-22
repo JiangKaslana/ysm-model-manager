@@ -61,7 +61,6 @@ app --cli --files-root <路径> export [选项...]
 |------|------|------|
 | `--model` | string — 模型文件路径 |
 | `--output` | string — 输出文件路径 |
-| `--format` | string （默认: json）— 导出格式: json 或 bone-structure |
 
 
 ### `install`

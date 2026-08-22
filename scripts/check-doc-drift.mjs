@@ -26,7 +26,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
-import { parseFrontmatter, getScalar, parseSourceFiles } from './_lib/frontmatter.mjs';
+import { parseFrontmatter, getScalar, parseSourceFiles, parseAdrHeader } from './_lib/frontmatter.mjs';
 
 const ADR_DIR = path.join(ROOT, 'docs/adr');
 const KC_DIR = path.join(ROOT, 'docs/knowledge');
@@ -66,17 +66,16 @@ function checkAdr() {
 
   const fileMeta = {};
   for (const f of files) {
-    const text = fs.readFileSync(path.join(ADR_DIR, f), 'utf-8');
-    const titleM = text.match(/^# ADR-(\d{3})[：:]\s*(.+)$/m);
-    if (!titleM) {
-      errors.push(`[ADR] ${f} 缺少 '# ADR-NNN：' 标题`);
+    const hdr = parseAdrHeader(path.join(ADR_DIR, f));
+    if (hdr.error) {
+      errors.push(`[ADR] ${f} 首部解析失败（${hdr.error}）`);
       continue;
     }
-    const num = parseInt(titleM[1], 10);
+    const num = hdr.num;
     if (fileMeta[num]) {
       errors.push(`[ADR] 编号 ADR-${String(num).padStart(3, '0')} 撞号：${fileMeta[num].file} 与 ${f}`);
     }
-    fileMeta[num] = { file: f, num };
+    fileMeta[num] = { file: f, num, title: hdr.title };
   }
 
   const regText = readText('docs/adr/index.md');

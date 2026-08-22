@@ -21,13 +21,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './_lib/scan-files.mjs';
+import { parseAdrHeader } from './_lib/frontmatter.mjs';
 import {
   RE_SUPERSEDED_BY,
+  RE_PARTIAL,
   RE_CLAIM_A,
   RE_CLAIM_B,
   RE_SELF_DEPRECATED,
   RE_DEPRECATED_WORD,
   RE_NEGATED,
+  RE_NEGATED_CLAIM,
   RE_TABLE_FIRST_COL,
   RE_TABLE_VERB,
   RE_TABLE_NEGATED,
@@ -36,6 +39,7 @@ import {
 
 const RE_CLAIM_A_G = globalOf(RE_CLAIM_A);
 const RE_CLAIM_B_G = globalOf(RE_CLAIM_B);
+const RE_NEGATED_CLAIM_G = globalOf(RE_NEGATED_CLAIM);
 
 const ADR_DIR = path.join(ROOT, 'docs', 'adr');
 const FLAG_CHECK = process.argv.includes('--check');
@@ -44,50 +48,8 @@ const FLAG_QUIET = process.argv.includes('--quiet');
 // ── 已知勘误注记白名单（人工核对后登记，非取代关系，不再报 ④） ──
 const KNOWN_ERRATA = new Set();
 
-// ── ADR 首部解析（YSM 格式：`- **状态**：xxx`）──────────
-
-function parseAdrHeader(filePath) {
-  const text = fs.readFileSync(filePath, 'utf8');
-  const lines = text.split(/\r?\n/);
-  let num = null;
-  let title = '';
-  let status = '';
-  let statusLine = -1;
-  // new-adr.mjs 写独立行 `- **被取代**：[ADR-NNN] 取代`（P1-1：读取侧兼容）
-  let supersededBy = null;
-
-  for (let i = 0; i < Math.min(lines.length, 20); i++) {
-    const line = lines[i];
-
-    // # ADR-NNN：标题（支持中文冒号）
-    const mTitle = line.match(/^#\s+ADR-(\d{3})[：:]\s*(.+)/);
-    if (mTitle) {
-      num = parseInt(mTitle[1], 10);
-      title = mTitle[2].trim();
-      continue;
-    }
-
-    // - **状态**：xxx（YSM 格式：无序列表 + 中文冒号）
-    const mStatus = line.match(/^-\s*\*\*状态\*\*\s*[：:]\s*(.+)/);
-    if (mStatus) {
-      status = mStatus[1].trim();
-      statusLine = i;
-      continue;
-    }
-
-    // - **被取代**：[ADR-NNN] 取代（new-adr --supersedes 写入的独立标注行）
-    const mSup = line.match(/^-\s*\*\*被取代\*\*\s*[：:]\s*\[?ADR-(\d+)\]?\s*(?:取代|替代|推翻|退役)/);
-    if (mSup && supersededBy === null) {
-      supersededBy = parseInt(mSup[1], 10);
-    }
-  }
-
-  if (num === null) return { error: '未找到 ADR 编号' };
-  if (!status) return { error: '未找到可解析的状态字段' };
-  if (!title) return { error: '未找到 ADR 标题' };
-
-  return { num, title, status, statusLine, supersededBy };
-}
+// [ADR-114 §被补充] 首部解析统一走共享库 parseAdrHeader（_lib/frontmatter.mjs），
+// 兼容 list/blockquote/table 三种格式 + 中文冒号。原局部实现与共享库并行，已消除。
 
 // ── 主流程 ─────────────────────────────────────────────
 
@@ -133,7 +95,7 @@ function main() {
     // ① 状态行声明「被 ADR-NNN 取代」，或独立 `- **被取代**：` 行（new-adr --supersedes 写入，P1-1）
     const mBy = meta.status.match(RE_SUPERSEDED_BY)
       ?? (meta.supersededBy != null ? { 1: String(meta.supersededBy) } : null);
-    const isPartial = Boolean(mBy) && /部分|局部|§\d|条目\s*\d/.test(meta.status);
+    const isPartial = Boolean(mBy) && RE_PARTIAL.test(meta.status);
     if (mBy && parseInt(mBy[1], 10) !== num) {
       // ①b 校验取代者编号存在性：指向不存在 ADR 的错写（非法编号/幽灵号）应报可疑而非照录已登记（P2-3）
       const byNum = parseInt(mBy[1], 10);

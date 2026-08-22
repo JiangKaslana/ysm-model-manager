@@ -47,7 +47,7 @@ _ysm_complete() {
     creator) COMPREPLY=( $(compgen -W "--help" -- "$cur") ); return ;;
     dedup) COMPREPLY=( $(compgen -W "--help" -- "$cur") ); return ;;
     download) COMPREPLY=( $(compgen -W "--help" -- "$cur") ); return ;;
-    export) COMPREPLY=( $(compgen -W "--help --model --output --format" -- "$cur") ); return ;;
+    export) COMPREPLY=( $(compgen -W "--help --model --output" -- "$cur") ); return ;;
     file-bench) COMPREPLY=( $(compgen -W "--help --dir --file --iterations --output --compare" -- "$cur") ); return ;;
     gui-flow) COMPREPLY=( $(compgen -W "--help --model --verbose" -- "$cur") ); return ;;
     health-report) COMPREPLY=( $(compgen -W "--help --dir --output --bench" -- "$cur") ); return ;;

@@ -1,10 +1,15 @@
 /**
- * frontmatter.mjs — 知识卡 YAML frontmatter 解析共享库（零依赖）。
+ * frontmatter.mjs — 知识卡/ADR 首部解析共享库（零依赖）。
  *
  * 用法：
- *   import { parseFrontmatter, getScalar, getList, parseSourceFiles }
+ *   import { parseFrontmatter, getScalar, getList, parseSourceFiles, parseAdrHeader }
  *     from './_lib/frontmatter.mjs';
+ *
+ * 注：原为知识卡专用（ADR-013 期），ADR-114 扩容后增加 `parseAdrHeader`
+ * 供 gen-docs-index / check-adr-health / gen-adr-supersede / check-doc-drift
+ * 共用单一入口（ADR-114 §被补充 元治理）。
  */
+import fs from 'node:fs';
 
 /** 提取 frontmatter 块字符串（`---...---` 之间），无则 null。 */
 export function parseFrontmatter(text) {
@@ -88,4 +93,80 @@ export function parseSourceFiles(fm) {
     }
   }
   return out;
+}
+
+/**
+ * 解析 ADR 文件首部，返回 { num, title, status, date, statusLine }。
+ * `statusLine` 为状态行的 0-based 行号，gen-adr-supersede 据此界定正文扫描起点。
+ * 支持 list / blockquote / table 三种首部格式，兼容中文冒号（：）与无冒号标题。
+ * 与 gen-docs-index / check-adr-health / check-doc-drift / gen-adr-supersede
+ * 共用单一入口，杜绝多脚本各写一套解析口径的漂移（ADR-114 §被补充 元治理）。
+ *
+ * @param {string} filePath — ADR 文件绝对路径
+ * @returns {{num:number,title:string,status:string,date:string,statusLine:number,supersededBy:number|null,supersedes:string} | {error:string}}
+ */
+export function parseAdrHeader(filePath) {
+  const text = fs.readFileSync(filePath, 'utf8');
+  const lines = text.split(/\r?\n/);
+
+  let num = null;
+  let title = '';
+  let status = '';
+  let date = '';
+  let statusLine = -1;
+  let supersededBy = null;
+  let supersedes = '';
+
+  for (let i = 0; i < Math.min(lines.length, 25); i++) {
+    const line = lines[i];
+
+    // 标题：# ADR-NNN：Title 或 # ADR-NNN: Title 或 # ADR-NNN Title
+    const mTitle = line.match(/^#\s+ADR-(\d{3})\s*[：:]\s*(.+)/)
+      || line.match(/^#\s+ADR-(\d{3})\s+(.+)/);
+    if (mTitle && num === null) {
+      num = parseInt(mTitle[1], 10);
+      title = mTitle[2].trim();
+      continue;
+    }
+
+    // **状态** 三种格式：blockquote / list / table
+    const mStatus = line.match(/^>\s*\*\*状态\*\*\s*[：:]\s*(.+)/)
+      || line.match(/^[-*]\s*\*\*状态\*\*\s*[：:]\s*(.+)/)
+      || line.match(/^\|\s*\*\*状态\*\*\s*\|\s*(.+?)\s*\|\s*$/);
+    if (mStatus) {
+      status = mStatus[1].trim();
+      statusLine = i;
+      continue;
+    }
+
+    // **日期**
+    const mDate = line.match(/^[-*]\s*\*\*日期\*\*\s*[：:]\s*(.+)/)
+      || line.match(/^\|\s*\*\*日期\*\*\s*\|\s*(.+?)\s*\|\s*$/);
+    if (mDate) {
+      date = mDate[1].trim();
+      continue;
+    }
+
+    // **被取代**：[ADR-NNN] 取代（new-adr.mjs --supersedes 写入的独立标注行）
+    const mSupBy = line.match(/^[-*]\s*\*\*被取代\*\*\s*[：:]\s*\[?ADR-(\d+)\]?/);
+    if (mSupBy && supersededBy === null) {
+      supersededBy = parseInt(mSupBy[1], 10);
+      continue;
+    }
+
+    // **被补充**：[ADR-NNN]（后续 ADR 对本 ADR 的补充/扩展）
+    const mSup = line.match(/^[-*]\s*\*\*被补充\*\*\s*[：:]\s*(.+)/);
+    if (mSup && !supersedes) {
+      supersedes = mSup[1].trim();
+      continue;
+    }
+
+    if (line.startsWith('---') && status) break;
+  }
+
+  if (num === null) return { error: '未找到 ADR 编号' };
+  if (!status) return { error: '未找到可解析的状态字段' };
+  if (!title) return { error: '未找到 ADR 标题' };
+
+  return { num, title, status, date, statusLine, supersededBy, supersedes };
 }

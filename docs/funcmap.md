@@ -35,7 +35,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 26 | 204 |
+| Go(internal)·应用入口 | 26 | 203 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
@@ -47,7 +47,7 @@
 | frontend/views | 117 | 338 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **443** | **1911** |
+| **合计** | **443** | **1910** |
 
 ## Go·头像
 
@@ -693,25 +693,24 @@
 | `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:436` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
 | `App.SaveScreenshotFile()` | `internal/app/app_model:498` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `ReadFileMeta()` | `internal/app/app_model:191` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
-| `App.ExportBoneStructures()` | `internal/app/app_scan:26` | ========== 批量导出骨骼结构 ========== |
-| `App.ExportModelStructureJSON()` | `internal/app/app_scan:82` | ExportModelStructureJSON 导出单模型骨骼结构 |
-| `App.SearchModels()` | `internal/app/app_scan:120` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
-| `App.SearchAllModels()` | `internal/app/app_scan:261` | SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。 |
-| `App.ScanModelEntries()` | `internal/app/app_scan:378` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
-| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:400` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
-| `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:424` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
-| `App.ClearScanCache()` | `internal/app/app_scan:455` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
-| `App.ListModelAuthors()` | `internal/app/app_scan:460` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
-| `App.GenerateRepoIndex()` | `internal/app/app_scan:469` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
-| `App.ScanLocalAuthors()` | `internal/app/app_scan:477` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
-| `App.ListVersionInstances()` | `internal/app/app_scan:486` | — |
-| `App.GetGlobalCustomDir()` | `internal/app/app_scan:490` | — |
-| `App.ListFileNames()` | `internal/app/app_scan:496` | — |
-| `App.ListAllFilePaths()` | `internal/app/app_scan:513` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
-| `App.CheckFileExists()` | `internal/app/app_scan:522` | — |
-| `App.OpenFolder()` | `internal/app/app_scan:614` | — |
-| `App.OpenInstanceFolder()` | `internal/app/app_scan:650` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
-| `progressReader.Read()` | `internal/app/app_scan:684` | — |
+| `App.ExportModelStructureJSON()` | `internal/app/app_scan:26` | ========== 导出单模型骨骼结构 ========== ExportModelStructureJSON 导出单模型骨骼结构 |
+| `App.SearchModels()` | `internal/app/app_scan:64` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
+| `App.SearchAllModels()` | `internal/app/app_scan:205` | SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。 |
+| `App.ScanModelEntries()` | `internal/app/app_scan:322` | ScanModelEntries 用户可见的扫描入口（Wails 绑定），记录操作日志。 |
+| `App.ScanModelEntriesWithLabel()` | `internal/app/app_scan:344` | ScanModelEntriesWithLabel 同 ScanModelEntries，但操作日志附带资源类型标签 （如「资源包」「光影包」「模型」），便于在操作日志面板区分扫描 |
+| `App.ScanModelEntriesFiltered()` | `internal/app/app_scan:368` | ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions 注 |
+| `App.ClearScanCache()` | `internal/app/app_scan:399` | ClearScanCache 清除扫描缓存（下载/导入后调用） |
+| `App.ListModelAuthors()` | `internal/app/app_scan:404` | ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘） |
+| `App.GenerateRepoIndex()` | `internal/app/app_scan:413` | GenerateRepoIndex 生成 index.json（含 GitHub Actions workflow 模板） |
+| `App.ScanLocalAuthors()` | `internal/app/app_scan:421` | ScanLocalAuthors 扫描所有本地资源目录，从文件名提取作者 |
+| `App.ListVersionInstances()` | `internal/app/app_scan:430` | — |
+| `App.GetGlobalCustomDir()` | `internal/app/app_scan:434` | — |
+| `App.ListFileNames()` | `internal/app/app_scan:440` | — |
+| `App.ListAllFilePaths()` | `internal/app/app_scan:457` | ListAllFilePaths 递归列出指定目录下的所有文件完整路径（不限制扩展名） |
+| `App.CheckFileExists()` | `internal/app/app_scan:466` | — |
+| `App.OpenFolder()` | `internal/app/app_scan:558` | — |
+| `App.OpenInstanceFolder()` | `internal/app/app_scan:594` | OpenInstanceFolder 按资源类型打开整合包内资源存储目录 扁平化架构下，统一使用 instanceDir（如 EntityPlayer、config/yes_ste |
+| `progressReader.Read()` | `internal/app/app_scan:628` | — |
 | `App.GetModelTags()` | `internal/app/app_tags:19` | GetModelTags 返回指定模型文件的所有标签 |
 | `App.SetModelTags()` | `internal/app/app_tags:29` | SetModelTags 设置指定模型文件的标签列表（覆盖写入） |
 | `App.ListByTag()` | `internal/app/app_tags:38` | ListByTag 返回所有打了指定标签的文件路径列表 |
