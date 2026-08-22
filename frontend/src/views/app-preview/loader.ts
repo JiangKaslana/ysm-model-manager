@@ -11,6 +11,10 @@ import type { BedrockGeometry } from "./geometry.ts";
 export interface LoadModelOpts {
   /** 跳过 WASM 解码（用于非 YSM 格式的 Bedrock 模型，如车万女仆） */
   skipWasm?: boolean;
+  /** 单角色过滤：按 zip/7z 内 SubModel.SourcePath 只解析单模型 geometry（多角色包切角色用）。
+   *  仅对 Go 兜底解析路径生效（.ysm 为二进制不可分 entry，忽略此字段）。
+   *  AnalyzeBedrockModelEntry 未命中时自动回退 AnalyzeBedrockModel（全量合并）。 */
+  subPath?: string;
 }
 
 /**
@@ -75,8 +79,23 @@ export async function loadModelData(
 
   // 非 YSM/ZIP/JSON 或 WASM 失败/空骨骼 → 走 Go
   if (!model?.bones?.length) {
-    const { AnalyzeBedrockModel } = await getApp();
-    model = (await AnalyzeBedrockModel(modelPath)) as BedrockGeometry | null;
+    const app = await getApp();
+    // subPath 模式：先试单条目解析（多角色包切角色），再回退全量
+    if (opts.subPath && typeof app.AnalyzeBedrockModelEntry === "function") {
+      const entryModel = (await app.AnalyzeBedrockModelEntry(modelPath, opts.subPath)) as
+        | BedrockGeometry
+        | null
+        | undefined;
+      if (entryModel?.bones?.length) {
+        model = entryModel;
+        ctx.appendDebug(null, `[L0] 单角色解析：${opts.subPath}`);
+        _decodedBy = "📦 Go 单角色（L0 清单）";
+      }
+    }
+    if (!model) {
+      const { AnalyzeBedrockModel } = app;
+      model = (await AnalyzeBedrockModel(modelPath)) as BedrockGeometry | null;
+    }
 
     if (model && !model._authors && _wasmAuthors.length) {
       model._authors = _wasmAuthors;

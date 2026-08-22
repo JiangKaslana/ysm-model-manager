@@ -44,6 +44,21 @@ export function AnalyzeBedrockModel(modelPath: string): $CancellablePromise<type
     return $Call.ByID(2221616526, modelPath);
 }
 
+/**
+ * AnalyzeBedrockModelEntry 按 SubModel.SourcePath 只解析归档内单模型 geometry（多角色包角色切换用）。
+ * 
+ * 路径守卫：与 AnalyzeBedrockModel 对齐 isPathInRootOrSelf；subPath 是 zip/7z 内 entry 路径，只用于
+ * 归档内 geoFile 匹配，不涉及文件系统。
+ * 
+ * 返回规则：
+ *   - 单条目命中 → BedrockModel 为该单角色 Bones（BoneCount/CubeCount 对应单模型）；Textures/TextureNames 仍全量（切纹理不换 PNG 集合，只换 texIdx）
+ *   - 单条目未命中 → 空 BedrockModel{}（前端据此回退到全量解析 AnalyzeBedrockModel）
+ *   - ext == .ysm / .json（非压缩包）或 subPath 空 → 空 BedrockModel{}
+ */
+export function AnalyzeBedrockModelEntry(modelPath: string, subPath: string): $CancellablePromise<types$0.BedrockModel> {
+    return $Call.ByID(3264818422, modelPath, subPath);
+}
+
 export function AnalyzeYSMModel(path: string): $CancellablePromise<ysm$0.YSMModelMeta> {
     return $Call.ByID(87919393, path);
 }

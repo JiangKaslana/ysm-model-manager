@@ -41,6 +41,10 @@ export interface MaidOpenOptions {
   /** 打开时默认选中的子模型索引（多角色包内切换）。
    *  取值范围 [0, subModels.length)；越界或缺省 = 载入第 0 个（或未过滤的合并模型，后续接过滤）。 */
   subModelIdx?: number;
+  /** 选中 subModel 的 zip 内相对路径（SubModel.SourcePath），有值时走 AnalyzeBedrockModelEntry 单模型解析。
+   *  由调用方根据 subModelIdx 从 subModels[subModelIdx].sourcePath 推导并显式传入（因为 loader 是外部闭包，
+   *  createMaid3D 内部拿不到 subModels 清单）。 */
+  subPath?: string;
 }
 
 /**
@@ -231,14 +235,24 @@ export async function showMaidPreview(
     unsubAndroidBack = registerAndroidBackHandler(() => { close3D(); return true; });
     try {
       const sel = subs[_selSubIdx];
+      // subPath：选中角色的 zip 内相对路径，用于 Go AnalyzeBedrockModelEntry 单模型解析
+      // 若 subModel.sourcePath 未声明（L1 兜底清单），则不走单 entry 路径，回退全量合并。
+      const subPath = subs.length > 1 ? sel?.sourcePath : undefined;
       // texIdx 优先级：选中角色的 texSlot（若声明）→ 默认 0
       const texStart = sel && typeof sel.texSlot === "number" && modelInfo?.textureCount
         ? Math.min(sel.texSlot, modelInfo.textureCount - 1)
         : 0;
       await createMaid3D(path, texStart, {
-        loader: async (p) => (await loadModelData(p, ctx, { skipWasm: true })).model,
+        loader: async (p) =>
+          (
+            await loadModelData(p, ctx, {
+              skipWasm: true,
+              subPath,
+            })
+          ).model,
         onClose,
         subModelIdx: subs.length > 1 ? _selSubIdx : undefined,
+        subPath,
       });
     } catch (e) {
       if (gen !== _model3dGen) return;

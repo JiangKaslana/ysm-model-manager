@@ -146,6 +146,7 @@ export const MOCK_DATA = {
   // ===== 契约守卫补全：以下 binding 为 e2e 未触达函数，显式占位 undefined（防漏加漂移）=====
   AnalyzeYSMModel: undefined,
   AnalyzeBedrockModel: undefined,
+  AnalyzeBedrockModelEntry: undefined,
   AllTags: undefined,
   BackupWorkshopCreators: undefined,
   BatchExtractCreatorAvatars: undefined,

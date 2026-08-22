@@ -144,7 +144,8 @@ func TestMaidL0_MalformedJSON_Fallback(t *testing.T) {
 // ===== 以下 3 个测试对应实战比对出的 3 个真实世界 bug =====
 
 // ① model_list 键（TLM 真实格式）：当前实现只认 model[] → 忽略；
-//    修复后 model[] 和 model_list[] 都认，合并取非空。
+//
+//	修复后 model[] 和 model_list[] 都认，合并取非空。
 func TestMaidL0_ModelListKey(t *testing.T) {
 	manifest := `{
 		"pack_name": "蔚蓝档案-阿露",
@@ -185,9 +186,10 @@ func TestMaidL0_ModelListKey(t *testing.T) {
 }
 
 // ② 多命名空间选"清单最长者"为真正的命名空间：
-//    touhou_little_maid.zip 里 credits 目录的 maid_model.json 比主清单先出现，
-//    原"首次匹配"策略会把 maidNs 锁到 credits，主清单被忽略。
-//    修复：遍历所有 maid_model.json，选 model/model_list 数最多的那个。
+//
+//	touhou_little_maid.zip 里 credits 目录的 maid_model.json 比主清单先出现，
+//	原"首次匹配"策略会把 maidNs 锁到 credits，主清单被忽略。
+//	修复：遍历所有 maid_model.json，选 model/model_list 数最多的那个。
 func TestMaidL0_MultiNs_PickLongestManifest(t *testing.T) {
 	creditsManifest := `{"pack_name":"鸣谢","model_list":[{"model_id":"credits:sazuki","name":"sazuki dev"}]}`
 	mainManifest := `{
@@ -233,9 +235,10 @@ func TestMaidL0_MultiNs_PickLongestManifest(t *testing.T) {
 }
 
 // ③ model_id → zip 路径推断：当清单条目的 model/ texture 字段缺席时，
-//    按"命名空间 + 候选后缀 + model_id 后缀去 namespace:"的方式还原 zip 路径。
-//    这里还覆盖 fallback：清单声明了 model_id 但对应路径不存在时，
-//    从该命名空间的 geoFiles 集合按 basename 模糊再匹配一次（防止后缀不匹配）。
+//
+//	按"命名空间 + 候选后缀 + model_id 后缀去 namespace:"的方式还原 zip 路径。
+//	这里还覆盖 fallback：清单声明了 model_id 但对应路径不存在时，
+//	从该命名空间的 geoFiles 集合按 basename 模糊再匹配一次（防止后缀不匹配）。
 func TestMaidL0_ModelIdPathInfer(t *testing.T) {
 	manifest := `{
 		"model_list": [
@@ -268,5 +271,104 @@ func TestMaidL0_ModelIdPathInfer(t *testing.T) {
 	}
 	if model.SubModels[0].Name != "勇者" || model.SubModels[1].Name != "女主角" {
 		t.Errorf("SubModels = %+v", model.SubModels)
+	}
+}
+
+// ===== TestParseFromZipEntry 单 subPath 抽取单角色 Bones =====
+// 策略：用 maidEntriesMixed() 构造 L0 2 角色 zip，取每个 SubModel.SourcePath，
+// 调 ParseFromZipEntry(srcPath) → 应得 单 BoneCount=1（不是合并 2），且 pngs 仍全量。
+func TestParseFromZipEntry(t *testing.T) {
+	data := makeZipRaw(t, maidEntriesMixed())
+	full, _, _ := ParseFromZip(data, int64(len(data)))
+	if full == nil {
+		t.Fatal("合并解析应为非 nil")
+	}
+	if len(full.SubModels) != 2 {
+		t.Fatalf("SubModels = %d, 期望 2（L0）", len(full.SubModels))
+	}
+
+	for i, sm := range full.SubModels {
+		g, pngs := ParseFromZipEntry(data, int64(len(data)), sm.SourcePath)
+		if g == nil {
+			t.Fatalf("sub[%d] name=%s sourcePath=%q 未命中 geo", i, sm.Name, sm.SourcePath)
+		}
+		// 角色单抽：BoneCount 应 = 1（不是合并的 2）
+		if g.BoneCount != 1 {
+			t.Errorf("sub[%d] BoneCount = %d, 期望 1（单模型）", i, g.BoneCount)
+		}
+		if len(g.Bones) != 1 {
+			t.Errorf("sub[%d] len(Bones) = %d, 期望 1", i, len(g.Bones))
+		}
+		// pngs 仍全量（L0 清单只有 2 张纹理）
+		if len(pngs) != 2 {
+			t.Errorf("sub[%d] pngs = %d, 期望 2（切角色不换 PNG 集合）", i, len(pngs))
+		}
+	}
+
+	// 未命中 → nil
+	g, _ := ParseFromZipEntry(data, int64(len(data)), "does/not/exist.json")
+	if g != nil {
+		t.Errorf("未命中路径期望返回 nil, 实际 BoneCount=%d", g.BoneCount)
+	}
+	// subPath 空 → nil
+	g, _ = ParseFromZipEntry(data, int64(len(data)), "")
+	if g != nil {
+		t.Errorf("空 subPath 期望返回 nil, 实际 BoneCount=%d", g.BoneCount)
+	}
+}
+
+// ===== TestParseFromZipEntry_MatchDegradation 三层匹配降级 =====
+// 构造 3 组形态不同的 subPath：绝对路径 / 含命名空间冒号前缀形式 / 仅 basename，
+// 都应最终命中到同一个 geoFile。
+func TestParseFromZipEntry_MatchDegradation(t *testing.T) {
+	entries := []rawZipEntry{
+		{name: "assets/droneeee/models/entity/drone.json", method: 0, data: maidMiniGeo("drone", 0)},
+		{name: "assets/droneeee/textures/entity/drone.png", method: 0, data: "D"},
+		// 清单没声明，但 geoFiles 也会收集（L1 兜底，collectArchiveFiles 会收）
+		{name: "assets/droneeee/models/entity/satellite.geo.json", method: 0, data: maidMiniGeo("sat", 1)},
+	}
+	data := makeZipRaw(t, entries)
+
+	cases := []struct {
+		name    string
+		subPath string
+	}{
+		{"1-abs", "assets/droneeee/models/entity/drone.json"},
+		{"2-nsStrip 命名空间前缀剥离", "droneeee/models/entity/drone.json"}, // trimAssets 会剥离 droneeee/ → 等同
+		{"3-basename 模糊", "drone"},
+		{"4-basename+.json", "drone.json"},
+		{"5-反斜杠 Windows 形式", "assets\\droneeee\\models\\entity\\drone.json"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g, pngs := ParseFromZipEntry(data, int64(len(data)), c.subPath)
+			if g == nil {
+				t.Fatalf("case %q subPath=%q 未命中", c.name, c.subPath)
+			}
+			if g.BoneCount != 1 {
+				t.Errorf("case %q BoneCount = %d", c.name, g.BoneCount)
+			}
+			if len(pngs) != 1 {
+				t.Errorf("case %q pngs = %d, 期望 1", c.name, len(pngs))
+			}
+		})
+	}
+}
+
+// ===== TestMatchGeoEntryBySubPath_EdgeCases =====
+func TestMatchGeoEntryBySubPath_EdgeCases(t *testing.T) {
+	gfs := []geoEntry{
+		{name: "assets/touhou/models/reimu.geo.json", data: []byte("x")},
+		{name: "assets/touhou/models/marisa.json", data: []byte("x")},
+	}
+	if _, ok := matchGeoEntryBySubPath(gfs, ""); ok {
+		t.Error("空 subPath 应返回 ok=false")
+	}
+	if _, ok := matchGeoEntryBySubPath(nil, "reimu"); ok {
+		t.Error("nil geoFiles 应返回 ok=false")
+	}
+	// 完全不相关路径
+	if _, ok := matchGeoEntryBySubPath(gfs, "models/nope.json"); ok {
+		t.Error("不相关 subPath 应返回 ok=false")
 	}
 }

@@ -330,6 +330,68 @@ func (a *App) AnalyzeBedrockModel(modelPath string) types.BedrockModel {
 	return *geoJSON
 }
 
+// AnalyzeBedrockModelEntry 按 SubModel.SourcePath 只解析归档内单模型 geometry（多角色包角色切换用）。
+//
+// 路径守卫：与 AnalyzeBedrockModel 对齐 isPathInRootOrSelf；subPath 是 zip/7z 内 entry 路径，只用于
+// 归档内 geoFile 匹配，不涉及文件系统。
+//
+// 返回规则：
+//   - 单条目命中 → BedrockModel 为该单角色 Bones（BoneCount/CubeCount 对应单模型）；Textures/TextureNames 仍全量（切纹理不换 PNG 集合，只换 texIdx）
+//   - 单条目未命中 → 空 BedrockModel{}（前端据此回退到全量解析 AnalyzeBedrockModel）
+//   - ext == .ysm / .json（非压缩包）或 subPath 空 → 空 BedrockModel{}
+func (a *App) AnalyzeBedrockModelEntry(modelPath, subPath string) types.BedrockModel {
+	if subPath == "" {
+		return types.BedrockModel{}
+	}
+	for _, suffix := range []string{".ban", ".disabled"} {
+		if strings.HasSuffix(strings.ToLower(modelPath), suffix) {
+			modelPath = modelPath[:len(modelPath)-len(suffix)]
+			break
+		}
+	}
+	if !a.isPathInRootOrSelf(modelPath) {
+		return types.BedrockModel{}
+	}
+	ext := strings.ToLower(filepath.Ext(modelPath))
+	if ext == ".ysm" {
+		// .ysm 为二进制不可分 entry；让前端回退到全量解析
+		return types.BedrockModel{}
+	}
+	data, err := os.ReadFile(modelPath)
+	if err != nil {
+		return types.BedrockModel{}
+	}
+	var geoJSON *types.BedrockModel
+	var texData [][]byte
+
+	switch ext {
+	case ".zip":
+		geoJSON, texData = geometry.ParseFromZipEntry(data, int64(len(data)), subPath)
+	case ".7z":
+		geoJSON, texData = geometry.ParseFrom7zEntry(data, int64(len(data)), subPath)
+	case ".json":
+		// 提取目录：subPath 视为绝对 / 相对 FindGeometryInExtractedYSM 可读路径
+		if filepath.IsAbs(subPath) && a.isPathInRootOrSelf(subPath) {
+			geoJSON, texData = ysm.FindGeometryInExtractedYSM(subPath)
+		}
+	}
+
+	if geoJSON == nil {
+		return types.BedrockModel{}
+	}
+	var textures []string
+	for _, td := range texData {
+		if len(td) > 0 {
+			textures = append(textures, "data:image/png;base64,"+base64.StdEncoding.EncodeToString(td))
+		}
+	}
+	if len(textures) > 0 {
+		geoJSON.Texture = textures[0]
+		geoJSON.Textures = textures
+	}
+	return *geoJSON
+}
+
 func (a *App) GetModel3DSpec(modelPath string) string {
 	// 剥禁用后缀（.ban/.disabled），与 scanner 口径一致
 	for _, suffix := range []string{".ban", ".disabled"} {
