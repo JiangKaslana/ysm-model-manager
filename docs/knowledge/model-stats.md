@@ -1,7 +1,7 @@
 ---
 kind: model-stats
 name: Web Worker 模型统计层 model-stats
-tier: leaf
+tier: architecture
 category: core
 source_files:
   - frontend/src/workers/stats-core.ts
@@ -58,8 +58,14 @@ invariant_anchors:
 - 降级时 `hasError: false`（统计失败不影响搜索结果可用性，仅数值为 0）
 - 批量统计串行（`requestSeq` 保证顺序），批间不可并行
 
+## 消费方
+
+- **`toolbar-search.ts`**（`openAdvFilterDialog`）— 消费 `consumeWebSearchDegraded` 降级标记，Worker 不可用时 toast 提示"数值条件已忽略"；消费 `onStatsProgress` 显示多线程统计角标 `🧵×N ⚙️ x/y`
+- **`web-fs.ts`**（`searchWebModels`）— 消费 `batchStatsWebModels` 返回值，null 时走「数值 0 + hasError: false」降级路径
+
 ## 相关
 
+- [toolbar-search.md](./toolbar-search.md) — 搜索编排层，消费降级标记与进度回调
 - [backend-idb](./backend-idb.md) — `searchWebModels` 数值条件统计来源（本层被其消费）
 - [ysm-wasm](./ysm-wasm.md) — Worker 内 WASM 加载（`ysm-worker-loader.ts` 独立于主线程单例）
 - ADR-071（网页版审计增强 #7 移动/复制 + #8 日志持久化 + 统计数值条件）
