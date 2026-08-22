@@ -15,7 +15,7 @@
 | go/executil | 2 | 2 |
 | go/fileops | 4 | 14 |
 | Go·文件系统 | 10 | 18 |
-| Go·几何 | 2 | 8 |
+| Go·几何 | 2 | 10 |
 | Go·导入 | 2 | 16 |
 | Go·安装 | 1 | 9 |
 | go/instance | 1 | 2 |
@@ -35,7 +35,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 26 | 201 |
+| Go(internal)·应用入口 | 26 | 202 |
 | 前端·根 (app-modules/bus) | 3 | 17 |
 | frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
@@ -47,7 +47,7 @@
 | frontend/views | 115 | 331 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **441** | **1895** |
+| **合计** | **441** | **1898** |
 
 ## Go·头像
 
@@ -215,11 +215,13 @@
 |------|--------|------|
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:74` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:84` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:1023` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:1033` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `IsMainModelName()` | `go/geometry/archive:1046` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:1058` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1153` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
+| `ParseFromZip()` | `go/geometry/archive:1109` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:1119` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `ParseFromZipEntry()` | `go/geometry/archive:1138` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
+| `ParseFrom7zEntry()` | `go/geometry/archive:1168` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
+| `IsMainModelName()` | `go/geometry/archive:1258` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:1270` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1365` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
 | `ParseBedrockGeometry()` | `go/geometry/parse:188` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -682,9 +684,10 @@
 | `App.ReadFileBytesBatch()` | `internal/app/app_model:110` | ReadFileBytesBatch 批量读取多个文件（ADR-101：MMD 纹理加载优化）。 |
 | `App.ReadFileBytesBatchWithMeta()` | `internal/app/app_model:215` | ReadFileBytesBatchWithMeta 批量读取文件并返回内容 + SHA256 哈希。 |
 | `App.AnalyzeBedrockModel()` | `internal/app/app_model:275` | — |
-| `App.GetModel3DSpec()` | `internal/app/app_model:333` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:374` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:436` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.AnalyzeBedrockModelEntry()` | `internal/app/app_model:342` | AnalyzeBedrockModelEntry 按 SubModel.SourcePath 只解析归档内单模型 geometry（多角色包角色切换用）。 |
+| `App.GetModel3DSpec()` | `internal/app/app_model:395` | — |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:436` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:498` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `ReadFileMeta()` | `internal/app/app_model:191` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
 | `App.ExportBoneStructures()` | `internal/app/app_scan:26` | ========== 批量导出骨骼结构 ========== |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:82` | ExportModelStructureJSON 导出单模型骨骼结构 |

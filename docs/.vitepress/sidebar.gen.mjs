@@ -1319,6 +1319,10 @@ export const autoSidebar = [
             "link": "/knowledge/doctor_gate_overlap"
           },
           {
+            "text": "FBX CLI 处理管线 fbx-cli-pipeline",
+            "link": "/knowledge/fbx-cli-pipeline"
+          },
+          {
             "text": "仓库审计 go/repoaudit",
             "link": "/knowledge/go_repoaudit"
           },

@@ -144,8 +144,7 @@ func TestMaidL0_MalformedJSON_Fallback(t *testing.T) {
 // ===== 以下 3 个测试对应实战比对出的 3 个真实世界 bug =====
 
 // ① model_list 键（TLM 真实格式）：当前实现只认 model[] → 忽略；
-//
-//	修复后 model[] 和 model_list[] 都认，合并取非空。
+//    修复后 model[] 和 model_list[] 都认，合并取非空。
 func TestMaidL0_ModelListKey(t *testing.T) {
 	manifest := `{
 		"pack_name": "蔚蓝档案-阿露",
@@ -186,10 +185,9 @@ func TestMaidL0_ModelListKey(t *testing.T) {
 }
 
 // ② 多命名空间选"清单最长者"为真正的命名空间：
-//
-//	touhou_little_maid.zip 里 credits 目录的 maid_model.json 比主清单先出现，
-//	原"首次匹配"策略会把 maidNs 锁到 credits，主清单被忽略。
-//	修复：遍历所有 maid_model.json，选 model/model_list 数最多的那个。
+//    touhou_little_maid.zip 里 credits 目录的 maid_model.json 比主清单先出现，
+//    原"首次匹配"策略会把 maidNs 锁到 credits，主清单被忽略。
+//    修复：遍历所有 maid_model.json，选 model/model_list 数最多的那个。
 func TestMaidL0_MultiNs_PickLongestManifest(t *testing.T) {
 	creditsManifest := `{"pack_name":"鸣谢","model_list":[{"model_id":"credits:sazuki","name":"sazuki dev"}]}`
 	mainManifest := `{
@@ -235,10 +233,9 @@ func TestMaidL0_MultiNs_PickLongestManifest(t *testing.T) {
 }
 
 // ③ model_id → zip 路径推断：当清单条目的 model/ texture 字段缺席时，
-//
-//	按"命名空间 + 候选后缀 + model_id 后缀去 namespace:"的方式还原 zip 路径。
-//	这里还覆盖 fallback：清单声明了 model_id 但对应路径不存在时，
-//	从该命名空间的 geoFiles 集合按 basename 模糊再匹配一次（防止后缀不匹配）。
+//    按"命名空间 + 候选后缀 + model_id 后缀去 namespace:"的方式还原 zip 路径。
+//    这里还覆盖 fallback：清单声明了 model_id 但对应路径不存在时，
+//    从该命名空间的 geoFiles 集合按 basename 模糊再匹配一次（防止后缀不匹配）。
 func TestMaidL0_ModelIdPathInfer(t *testing.T) {
 	manifest := `{
 		"model_list": [

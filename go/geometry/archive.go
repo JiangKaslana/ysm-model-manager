@@ -116,6 +116,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 						Model   json.RawMessage `json:"model"`
 						Texture json.RawMessage `json:"texture"`
 					} `json:"player"`
+					Projectiles json.RawMessage `json:"projectiles"`
 				} `json:"files"`
 			}
 			if err := json.Unmarshal(buf, &ysm); err != nil {
@@ -155,6 +156,48 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 										texOrder = append(texOrder, tn)
 									}
 								}
+							}
+						}
+					}
+				}
+				// 解析 projectiles 数组：追加纹理到 texOrder、模型到 modelOrder
+				if len(ysm.Files.Projectiles) > 0 {
+					var projs []struct {
+						Model   string          `json:"model"`
+						Texture json.RawMessage `json:"texture"`
+					}
+					if json.Unmarshal(ysm.Files.Projectiles, &projs) == nil {
+						for _, pr := range projs {
+							// 纹理：texture 可能是 dict {"uv": "..."} 或字符串
+							texRaw := strings.TrimSpace(string(pr.Texture))
+							var texPath string
+							if strings.HasPrefix(texRaw, `{`) {
+								var obj struct {
+									Uv string `json:"uv"`
+								}
+								if json.Unmarshal(pr.Texture, &obj) == nil {
+									texPath = obj.Uv
+								}
+							} else {
+								var sval string
+								if json.Unmarshal(pr.Texture, &sval) == nil {
+									texPath = sval
+								}
+							}
+							if texPath != "" {
+								tn := texPath
+								if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+									tn = tn[idx+1:]
+								}
+								if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+									tn = tn[idx+1:]
+								}
+								tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+								texOrder = append(texOrder, tn)
+							}
+							// 模型：追加到 modelOrder，让 texIdxMap 反推能覆盖投射物
+							if pr.Model != "" {
+								modelOrder = append(modelOrder, pr.Model)
 							}
 						}
 					}
@@ -438,6 +481,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 						Model   json.RawMessage `json:"model"`
 						Texture json.RawMessage `json:"texture"`
 					} `json:"player"`
+					Projectiles json.RawMessage `json:"projectiles"`
 				} `json:"files"`
 			}
 			if err := json.Unmarshal(buf, &ysm); err != nil {
@@ -475,6 +519,48 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 										texOrder = append(texOrder, strings.ToLower(tn))
 									}
 								}
+							}
+						}
+					}
+				}
+				// 解析 projectiles 数组：追加纹理到 texOrder、模型到 modelOrder
+				if len(ysm.Files.Projectiles) > 0 {
+					var projs []struct {
+						Model   string          `json:"model"`
+						Texture json.RawMessage `json:"texture"`
+					}
+					if json.Unmarshal(ysm.Files.Projectiles, &projs) == nil {
+						for _, pr := range projs {
+							// 纹理：texture 可能是 dict {"uv": "..."} 或字符串
+							texRaw := strings.TrimSpace(string(pr.Texture))
+							var texPath string
+							if strings.HasPrefix(texRaw, `{`) {
+								var obj struct {
+									Uv string `json:"uv"`
+								}
+								if json.Unmarshal(pr.Texture, &obj) == nil {
+									texPath = obj.Uv
+								}
+							} else {
+								var sval string
+								if json.Unmarshal(pr.Texture, &sval) == nil {
+									texPath = sval
+								}
+							}
+							if texPath != "" {
+								tn := texPath
+								if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+									tn = tn[idx+1:]
+								}
+								if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+									tn = tn[idx+1:]
+								}
+								tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+								texOrder = append(texOrder, tn)
+							}
+							// 模型：追加到 modelOrder，让 texIdxMap 反推能覆盖投射物
+							if pr.Model != "" {
+								modelOrder = append(modelOrder, pr.Model)
 							}
 						}
 					}
@@ -1039,6 +1125,132 @@ func ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte) {
 	defer r.Close()
 	geo, pngs, _ := parseModelFromEntries(r.Entries(), "7z")
 	return geo, pngs
+}
+
+// ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。
+// 不合并多角色 bones，直接返回单角色 BedrockModel；纹理 pngs 仍全量返回（切换角色只是换骨骼，不换纹理集合）。
+// 命中失败 → geo=nil。调用方需自行兜底（如回到全量合并解析）。
+//
+// subPath 匹配策略（与 L0 SubModel.SourcePath 生成口径一致，三层降级命中）：
+//  1. 精确（lower + ToSlash）zip entry 路径命中
+//  2. 对 subPath 去掉 "assets/<ns>/" 前缀后，再精确/相对命名空间前缀命中
+//  3. basename 模糊（去 .json/.geo.json，或只截取 lastSegment 去后缀，按 geoFiles basename 字典取首条）
+func ParseFromZipEntry(data []byte, size int64, subPath string) (*types.BedrockModel, [][]byte) {
+	if subPath == "" {
+		return nil, nil
+	}
+	r, err := container.OpenZipBytes(data, size)
+	if err != nil {
+		return nil, nil
+	}
+	defer r.Close()
+	entries := r.Entries()
+	// PNG 全量须与 ParseFromZip 同口径：L0 清单过滤（否则 SubModel.TexSlot = i 会指错纹理数组下标）。
+	// 先调 parseModelFromEntries 拿 pngs（L0/L1 过滤好），geo 我们不合并，另行 collectArchiveFiles → 单 entry 选。
+	_, pngs, _ := parseModelFromEntries(entries, "zip")
+	_, _, geoFiles, fallbackPngs, _, _ := collectArchiveFiles(entries)
+	if len(pngs) == 0 {
+		pngs = fallbackPngs
+	}
+	if len(geoFiles) == 0 {
+		return nil, pngs
+	}
+	if gf, ok := matchGeoEntryBySubPath(geoFiles, subPath); ok {
+		g := ParseBedrockGeometry(gf.data)
+		if g != nil {
+			return g, pngs
+		}
+	}
+	return nil, pngs
+}
+
+// ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。
+func ParseFrom7zEntry(data []byte, size int64, subPath string) (*types.BedrockModel, [][]byte) {
+	if subPath == "" {
+		return nil, nil
+	}
+	r, err := container.Open7zBytes(data, size)
+	if err != nil {
+		log.Printf("[geometry] 打开 7z 失败: %v", err)
+		return nil, nil
+	}
+	defer r.Close()
+	entries := r.Entries()
+	_, pngs, _ := parseModelFromEntries(entries, "7z")
+	_, _, geoFiles, fallbackPngs, _, _ := collectArchiveFiles(entries)
+	if len(pngs) == 0 {
+		pngs = fallbackPngs
+	}
+	if len(geoFiles) == 0 {
+		return nil, pngs
+	}
+	if gf, ok := matchGeoEntryBySubPath(geoFiles, subPath); ok {
+		g := ParseBedrockGeometry(gf.data)
+		if g != nil {
+			return g, pngs
+		}
+	}
+	return nil, pngs
+}
+
+// matchGeoEntryBySubPath 从 geoFiles 中挑一个匹配 subPath 的条目。
+// subPath 为空 → 未命中。匹配策略：exact ToSlash lower → 命名空间相对 → basename（去 json/geo.json）
+func matchGeoEntryBySubPath(geoFiles []geoEntry, subPath string) (geoEntry, bool) {
+	if subPath == "" {
+		return geoEntry{}, false
+	}
+	sp := strings.ToLower(filepath.ToSlash(subPath))
+	// 1) exact full path
+	for _, gf := range geoFiles {
+		if strings.ToLower(filepath.ToSlash(gf.name)) == sp {
+			return gf, true
+		}
+	}
+	// 2) 命名空间前缀剥离（subPath 形如 assets/droneeee/models/entity/x.json
+	//    而 geoFiles 里的 name 也可能写绝对路径或不含 assets 前缀的相对路径——
+	//    先去掉 assets/<ns>/ 段再互相比对）
+	trimAssets := func(p string) string {
+		p = strings.ToLower(filepath.ToSlash(p))
+		if strings.HasPrefix(p, "assets/") {
+			// 截到第二个 "/" 之后（assets/<ns>/xxx → xxx）
+			if rest := strings.TrimPrefix(p, "assets/"); strings.Contains(rest, "/") {
+				return rest[strings.Index(rest, "/")+1:]
+			}
+		}
+		// 去掉任意首段 "xxx/"（命名空间前缀去头）
+		if idx := strings.Index(p, "/"); idx >= 0 && idx+1 < len(p) {
+			return p[idx+1:]
+		}
+		return p
+	}
+	spRel := trimAssets(sp)
+	if spRel != sp {
+		for _, gf := range geoFiles {
+			if trimAssets(gf.name) == spRel {
+				return gf, true
+			}
+		}
+	}
+	// 3) basename 模糊：去 .json/.geo.json 后 basename 相等
+	geoBase := func(p string) string {
+		p = strings.ToLower(filepath.ToSlash(p))
+		if idx := strings.LastIndex(p, "/"); idx >= 0 {
+			p = p[idx+1:]
+		}
+		p = strings.TrimSuffix(p, ".geo.json")
+		p = strings.TrimSuffix(p, ".json")
+		return p
+	}
+	spBase := geoBase(sp)
+	if spBase == "" {
+		return geoEntry{}, false
+	}
+	for _, gf := range geoFiles {
+		if geoBase(gf.name) == spBase {
+			return gf, true
+		}
+	}
+	return geoEntry{}, false
 }
 
 // IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。
