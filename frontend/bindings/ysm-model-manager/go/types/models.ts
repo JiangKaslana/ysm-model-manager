@@ -163,6 +163,11 @@ export interface BedrockModel {
      * ysm.json metadata 段（名称/许可/作者/链接，详情页用）
      */
     "metadata"?: YsmMetadata | null;
+
+    /**
+     * zip 内文件归属清单（parseGlobalResources 轻量版，只识别不解析）
+     */
+    "fileInventory"?: FileInventory | null;
 }
 
 /**
@@ -218,6 +223,42 @@ export interface Cube2D {
 export interface CustomFileInfo {
     "Name": string;
     "LinkType": LinkType;
+}
+
+/**
+ * FileInventory zip 内文件归属清单（对齐 Modern YSM parseGlobalResources 的分流思想，
+ * 但只识别归属、不解析内容——不造双路径，前端直接消费准确清单，不再事后按文件名猜）。
+ */
+export interface FileInventory {
+    /**
+     * *.animation.json（真动画文件路径）
+     */
+    "animations"?: string[] | null;
+
+    /**
+     * *.animation_controller.json（动画控制器）
+     */
+    "controllers"?: string[] | null;
+
+    /**
+     * *.lang（本地化资源）
+     */
+    "langFiles"?: string[] | null;
+
+    /**
+     * *.inc（include 资源）
+     */
+    "incFiles"?: string[] | null;
+
+    /**
+     * 旧格式几何（main.json/arm.json/arrow.json/info.json，无 ysm.json 场景）
+     */
+    "legacyModels"?: string[] | null;
+
+    /**
+     * avatar/ 下的图片（作者头像，非主纹理）
+     */
+    "avatars"?: string[] | null;
 }
 
 /**

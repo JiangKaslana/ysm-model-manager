@@ -96,6 +96,45 @@ type geoEntry struct {
 	data []byte
 }
 
+// classifyFileInventory 识别 zip 内所有文件的归属（parseGlobalResources 轻量版：
+// 只识别不解析，Go 端承担文件识别能力，前端消费准确归属清单，不再事后按文件名猜）。
+// 纯新增能力，不改变既有收集（animJSONs/pngs 等数组内容不动，零 fallback 干扰）。
+func classifyFileInventory(entries []container.Entry) *types.FileInventory {
+	inv := &types.FileInventory{}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		low := strings.ToLower(e.Name())
+		switch {
+		case strings.HasSuffix(low, ".animation_controller.json"):
+			inv.Controllers = append(inv.Controllers, e.Name())
+		case strings.HasSuffix(low, ".animation.json"):
+			inv.Animations = append(inv.Animations, e.Name())
+		case strings.HasSuffix(low, ".lang"):
+			inv.LangFiles = append(inv.LangFiles, e.Name())
+		case strings.HasSuffix(low, ".inc"):
+			inv.IncFiles = append(inv.IncFiles, e.Name())
+		case (strings.HasSuffix(low, ".png") || strings.HasSuffix(low, ".jpg")) && strings.Contains(low, "avatar/"):
+			inv.Avatars = append(inv.Avatars, e.Name())
+		case strings.HasSuffix(low, ".json") && !strings.Contains(low, "ysm.json") && isLegacyGeometryName(low):
+			inv.LegacyModels = append(inv.LegacyModels, e.Name())
+		}
+	}
+	return inv
+}
+
+// isLegacyGeometryName 旧格式几何文件名约定（Modern YSM parseLegacyFormat 同口径：
+// 无 ysm.json 的包以 main/arm/arrow/info 等固定名作为模型声明）
+func isLegacyGeometryName(lowPath string) bool {
+	for _, p := range []string{"main.json", "arm.json", "arrow.json", "info.json"} {
+		if strings.HasSuffix(lowPath, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // projEntry 收集投射物/载具模型路径 + 声明的纹理名，
 // texIdxMap 构建时用 texName 查 texOrder 位置分配 texSlot。
 type projEntry struct {
@@ -1327,6 +1366,9 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	if geo != nil && (ysmMeta.Name != "" || ysmMeta.Tips != "" || len(ysmMeta.Authors) > 0 || ysmMeta.License != nil || len(ysmMeta.Links) > 0) {
 		geo.Metadata = &ysmMeta
 	}
+	if geo != nil {
+		geo.FileInventory = classifyFileInventory(entries)
+	}
 	return geo, pngs, animJSONs, geoFiles
 }
 
@@ -1493,7 +1535,16 @@ func ParseComponentsFromZip(data []byte, size int64) ([]types.BedrockModel, []st
 	}
 	defer r.Close()
 	modelOrder, texOrder, geoFiles, pngs, pngNames, _ := collectArchiveFiles(r.Entries())
-	return buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames)
+	models, texNames, err := buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames)
+	if err != nil {
+		return nil, nil, err
+	}
+	// 文件归属清单（只识别不解析）：每个组件挂同一 zip 清单，前端取任一组件即可得
+	inv := classifyFileInventory(r.Entries())
+	for i := range models {
+		models[i].FileInventory = inv // 值类型 range 副本不写回，须按索引
+	}
+	return models, texNames, nil
 }
 
 // buildComponents 组件化收集：main 优先排序 + TexSlot 全局化 + 独立解析。
@@ -1610,5 +1661,14 @@ func ParseComponentsFrom7z(data []byte, size int64) ([]types.BedrockModel, []str
 	}
 	defer r.Close()
 	modelOrder, texOrder, geoFiles, pngs, pngNames, _ := collectArchiveFiles(r.Entries())
-	return buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames)
+	models, texNames, err := buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames)
+	if err != nil {
+		return nil, nil, err
+	}
+	// 文件归属清单（只识别不解析）：每个组件挂同一 zip 清单，前端取任一组件即可得
+	inv := classifyFileInventory(r.Entries())
+	for i := range models {
+		models[i].FileInventory = inv // 值类型 range 副本不写回，须按索引
+	}
+	return models, texNames, nil
 }
