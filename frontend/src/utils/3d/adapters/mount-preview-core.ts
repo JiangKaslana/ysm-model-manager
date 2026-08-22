@@ -837,6 +837,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         menuItems: built.menuItems ?? null,
         onBonePick: built.onBonePick ?? null,
       });
+      // ADR-076 v2 Phase 3：注册后立刻注入菜单项，否则 dock-menu 无适配器专属控件
+      if (built.menuItems) menuHandle.setAdapterItems(built.menuItems);
     }
 
     // ADR-076 v2 Phase 3：适配器控件全部经声明式根菜单注入（ctx.menu.setAdapterItems / built.menuItems）

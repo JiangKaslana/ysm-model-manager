@@ -35,22 +35,14 @@ const mockVoxelCall = vi.fn(() =>
   ),
 );
 
-/** 提取 buildLitematicScene 创建的 DOM 元素（通过检查 setAdapterItems 传入的菜单项 render） */
+/** 提取 buildLitematicScene 返回的 menuItems（由 mount-preview-core 负责注入到 dock-menu） */
 async function extractMenuDOM(): Promise<{
   slicePanel: HTMLElement;
   items: PreviewMenuItemDef[];
 }> {
-  const captured: PreviewMenuItemDef[][] = [];
-  const mockMenu = {
-    setAdapterItems: (items: PreviewMenuItemDef[]) => { captured.push(items); },
-    openPanel: vi.fn(),
-    refreshDock: vi.fn(),
-    dispose: vi.fn(),
-  };
   const ctx = makeMockCtx();
-  (ctx.menu as any) = mockMenu;
-  await buildLitematicScene(ctx, "/a.litematic", mockVoxelCall);
-  const items = captured[0] ?? [];
+  const built = await buildLitematicScene(ctx, "/a.litematic", mockVoxelCall);
+  const items = built.menuItems ?? [];
   const list = document.createElement("div");
   if (items[0]?.render) items[0].render(list, {} as any);
   return { slicePanel: list, items };
