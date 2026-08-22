@@ -798,6 +798,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-115：➕ 追加语义收敛：同类型 switchTo / 跨类型 switchExternal 类型分发（ADR-093 T4-b）",
+        "link": "/adr/ADR-115-append-semantics"
+      },
+      {
         "text": "ADR-114：每组件独立纹理（perComponent Textures）",
         "link": "/adr/ADR-114-per-component-textures"
       },
