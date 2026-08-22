@@ -117,7 +117,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			}
 			buf := readLimitedEntry(rc)
 			var ysm struct {
-				Metadata   types.YsmMetadata `json:"metadata"`
+				Metadata types.YsmMetadata `json:"metadata"`
 				Properties struct {
 					DefaultTexture string `json:"default_texture"`
 				} `json:"properties"`
@@ -559,7 +559,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			}
 			buf := readLimitedEntry(rc)
 			var ysm struct {
-				Metadata   types.YsmMetadata `json:"metadata"`
+				Metadata types.YsmMetadata `json:"metadata"`
 				Properties struct {
 					DefaultTexture string `json:"default_texture"`
 				} `json:"properties"`

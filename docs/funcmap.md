@@ -31,7 +31,7 @@
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 10 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 6 | 84 |
+| Go·类型 | 6 | 85 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -47,7 +47,7 @@
 | frontend/views | 115 | 331 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **441** | **1901** |
+| **合计** | **441** | **1902** |
 
 ## Go·头像
 
@@ -215,13 +215,13 @@
 |------|--------|------|
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:75` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:85` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:1324` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:1335` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `ParseFromZipEntry()` | `go/geometry/archive:1354` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
-| `ParseFrom7zEntry()` | `go/geometry/archive:1380` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
-| `IsMainModelName()` | `go/geometry/archive:1467` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:1479` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1596` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
+| `ParseFromZip()` | `go/geometry/archive:1334` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:1345` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `ParseFromZipEntry()` | `go/geometry/archive:1364` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
+| `ParseFrom7zEntry()` | `go/geometry/archive:1390` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
+| `IsMainModelName()` | `go/geometry/archive:1477` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:1489` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1606` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
 | `ParseBedrockGeometry()` | `go/geometry/parse:205` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -450,12 +450,13 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `BedrockModel()` | `go/types/bedrock:4` | BedrockModel 基岩版模型几何体摘要（用于 2D 预览） |
-| `SubModel()` | `go/types/bedrock:27` | SubModel 子模型条目（多角色加载）。 |
-| `Bone2D()` | `go/types/bedrock:34` | Bone2D 骨骼简化信息（只用于 2D 线条图） |
-| `Cube2D()` | `go/types/bedrock:44` | Cube2D 立方体信息 |
-| `YsmMetadata()` | `go/types/bedrock:62` | YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。 |
-| `YsmLicense()` | `go/types/bedrock:71` | YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}） |
-| `YsmAuthor()` | `go/types/bedrock:77` | YsmAuthor 作者条目 |
+| `FileInventory()` | `go/types/bedrock:28` | FileInventory zip 内文件归属清单（对齐 Modern YSM parseGlobalResources 的分流思想， 但只识别归属、不解析内容——不造双路径，前端 |
+| `SubModel()` | `go/types/bedrock:39` | SubModel 子模型条目（多角色加载）。 |
+| `Bone2D()` | `go/types/bedrock:46` | Bone2D 骨骼简化信息（只用于 2D 线条图） |
+| `Cube2D()` | `go/types/bedrock:56` | Cube2D 立方体信息 |
+| `YsmMetadata()` | `go/types/bedrock:74` | YsmMetadata ysm.json 的 metadata 段（模型详情：名称/许可/作者/链接）。 |
+| `YsmLicense()` | `go/types/bedrock:83` | YsmLicense 许可信息（wine_fox：{"type": "CC BY-NC-SA 4.0"}） |
+| `YsmAuthor()` | `go/types/bedrock:89` | YsmAuthor 作者条目 |
 | `AppConfig()` | `go/types/config:8` | AppConfig 应用持久化配置 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"）， 取 |
 | `PackInfo()` | `go/types/config:48` | PackInfo 模型整合包信息（ysm-pack.json） |
 | `WorkshopPresetSearch()` | `go/types/config:55` | WorkshopPresetSearch 预设搜索词 |
