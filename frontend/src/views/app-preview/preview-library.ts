@@ -79,7 +79,11 @@ export async function openModel3DFullscreen(path: string, options?: OpenModel3DO
 }
 
 interface PreviewExtras extends Mount3DOptions {
-  switchExternal?: (path: string) => Promise<void>;
+  switchExternal?: (
+    path: string,
+    siblings?: string[],
+    options?: { keepInScene?: boolean },
+  ) => Promise<void>;
 }
 
 /** 按资源类型（+可选子类型）扫描候选模型路径（轻量：GetRepoRoot + ScanModelEntriesFiltered，
@@ -110,7 +114,10 @@ export async function scanModelsByType(rtype: string, subtype = ""): Promise<str
 /** 给 mount3D opts 注入「跨类型换角色」入口 + 按类型懒加载数据源。各 createXxx3D 统一经此接入 */
 export function withPreviewExtras<T extends Mount3DOptions>(opts: T): T & PreviewExtras {
   return Object.assign(opts as T & PreviewExtras, {
-    switchExternal: (p: string, s?: string[]) => openModel3DFullscreen(p, s ? { siblings: s } : undefined),
+    // keepInScene → cooperate（openModel3DFullscreen 有活跃会话时走 switchPreview
+    // 主门按类型路由同台追加，ADR-093 T4）：跨类型 ➕ 复用此入口，不再直接不给
+    switchExternal: (p: string, s?: string[], options?: { keepInScene?: boolean }) =>
+      openModel3DFullscreen(p, { siblings: s, cooperate: options?.keepInScene === true }),
     getModelsByType: scanModelsByType,
     // ADR-111 收口：类型 tab 统一从 resource_types.json 派生（getPreviewableTypeTabs），
     // 不再由 opener 注册副作用（Object.keys(_openers)）派生——后者混用 preview key 与

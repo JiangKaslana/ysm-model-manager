@@ -325,7 +325,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("角色面板加载入口：跨类型兄弟行无 ➕（守卫恢复——跨类型追加走错适配器）", () => {
+  it("角色面板加载入口：跨类型兄弟行有 ➕（走 switchExternal 同台追加）", () => {
     const switchTo = vi.fn();
     const switchExternal = vi.fn(async () => {});
     const handle = mountPreviewRootMenu(overlay, makeCtx({
@@ -337,12 +337,14 @@ describe("mountPreviewRootMenu", () => {
     }));
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
-    // /m/b.vrm 是跨类型兄弟：无 ➕（code review P2 守卫恢复——追加走当前会话
-    // adapter.build，跨类型会喂错格式解析失败）；行本体点击仍走 switchExternal
+    // /m/b.vrm 是跨类型兄弟：有 ➕，但点击走 switchExternal keepInScene（openModel3DFullscreen
+    // cooperate → switchPreview 主门按类型路由同台追加，ADR-093 T4）——不喂给当前 ysm adapter
     const appendBtns = overlay.querySelectorAll('[data-testid="preview-switch-append"]');
-    expect(appendBtns.length).toBe(0);
+    expect(appendBtns.length).toBe(1);
+    (appendBtns[0] as HTMLElement).click();
+    expect(switchExternal).toHaveBeenCalledWith("/m/b.vrm", ["/m/a.ysm", "/m/b.vrm"], { keepInScene: true });
     expect(switchTo).not.toHaveBeenCalled();
-    // 行本体点击仍是跨类型替换（switchExternal）——重建语义不变
+    // 行本体点击仍是跨类型替换（switchExternal，无 keepInScene）——重建语义不变
     const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
     (rows[1] as HTMLElement).click();
     expect(switchExternal).toHaveBeenCalledWith("/m/b.vrm", ["/m/a.ysm", "/m/b.vrm"]);
@@ -376,7 +378,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("角色面板加载入口：类型 tab 跨类型候选行无 ➕（守卫恢复——跨类型追加走错适配器）", async () => {
+  it("角色面板加载入口：类型 tab 跨类型候选行有 ➕（走 switchExternal 同台追加）", async () => {
     const switchTo = vi.fn();
     const switchExternal = vi.fn(async () => {});
     const handle = mountPreviewRootMenu(overlay, makeCtx({
@@ -397,10 +399,12 @@ describe("mountPreviewRootMenu", () => {
     await vi.waitFor(() => {
       expect(overlay.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(1);
     });
-    // 跨类型候选：无 ➕（code review P2 守卫恢复——追加走当前会话 adapter.build，
-    // 跨类型会喂错格式解析失败）；行本体点击仍走 switchExternal
+    // 跨类型候选：有 ➕，点击走 switchExternal keepInScene（switchPreview 主门
+    // 按类型路由同台追加，ADR-093 T4）——不喂给当前 ysm adapter
     const appendBtn = overlay.querySelector('[data-testid="preview-switch-append"]') as HTMLElement;
-    expect(appendBtn).toBeNull();
+    expect(appendBtn).not.toBeNull();
+    appendBtn.click();
+    expect(switchExternal).toHaveBeenCalledWith("/m/x.vrm", ["/m/a.ysm"], { keepInScene: true });
     expect(switchTo).not.toHaveBeenCalled();
     // 行本体点击仍是跨类型替换（switchExternal）
     (overlay.querySelector('[data-testid="preview-switch-item"]') as HTMLElement).click();

@@ -47,7 +47,7 @@ export interface PreviewMenuCtx {
   switchTo: (path: string, options?: { keepInScene?: boolean }) => void;
   /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标，由 app 层 openModel3DFullscreen 提供）。
    *  第二参透传 siblings，切换后新会话「当前目录」tab 有候选（P1-2） */
-  switchExternal?: (path: string, siblings?: string[]) => Promise<void> | void;
+  switchExternal?: (path: string, siblings?: string[], options?: { keepInScene?: boolean }) => Promise<void> | void;
   /** 卸载已加载角色（mount3D 注入：移除 roots + dispose + 注册表注销 + 相机重算） */
   unloadRole?: (id: string) => void;
 }
@@ -1067,13 +1067,12 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         lb.textContent = p.split(/[/\\]/).pop() || p;
         row.append(ic, lb);
         // 行尾「➕ 追加」：keepInScene 多角色同框（角色面板内打通追加加载）。
-        // 仅同类型候选可 ➕——追加走 ctx.switchTo（当前会话 adapter.build，
-        // switchToSession 无类型 dispatch），跨类型追加会把 .vrm/.pmx 喂给当前
-        // ysm/mmd adapter 解析失败（code review P2：f86129bf 移除守卫的
-        // 「跨类型叠加同样可行」假设不成立）；跨类型行本体点击已由下方
-        // switchExternal 正确路由（L1090）。
+        // 同类型候选走 ctx.switchTo keepInScene（当前会话 adapter）；跨类型候选
+        // 走 ctx.switchExternal(keepInScene)——openModel3DFullscreen cooperate →
+        // switchPreview 主门按类型路由同台追加（ADR-093 T4），用目标类型 opener，
+        // 不喂给当前会话 adapter（避免走错适配器解析失败）。
         // stopPropagation 防触发行本体替换语义。
-        if (!isCur && sameType) {
+        if (!isCur) {
           const append = document.createElement("button");
           append.dataset.testid = "preview-switch-append";
           append.textContent = "➕";
@@ -1083,7 +1082,11 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
           append.onclick = (ev): void => {
             ev.stopPropagation();
             closePopup();
-            void ctx.switchTo(p, { keepInScene: true });
+            if (!sameType && ctx.switchExternal) {
+              void ctx.switchExternal(p, ctx.getSiblings(), { keepInScene: true });
+            } else {
+              void ctx.switchTo(p, { keepInScene: true });
+            }
           };
           row.appendChild(append);
         }

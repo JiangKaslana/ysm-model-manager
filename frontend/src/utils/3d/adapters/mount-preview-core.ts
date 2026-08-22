@@ -226,7 +226,7 @@ export interface Mount3DOptions {
   cooperate?: boolean;
   /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标；app 层 openModel3DFullscreen 注入）。
    *  第二参透传 siblings（当前会话候选），避免切换后新会话「当前目录」tab 为空 */
-  switchExternal?: (path: string, siblings?: string[]) => Promise<void>;
+  switchExternal?: (path: string, siblings?: string[], options?: { keepInScene?: boolean }) => Promise<void>;
   /** 当前会话资源类型（如 ysm/EntityPlayer/vrm/resourcepack）；类型 tab 点击时判断同类型走 switchTo */
   rtype?: string;
   /** 当前会话子类型（如 EntityPlayer/CustomAnim）——用于类型 tab 扫描时按 subtype 隔离扩展名 */
@@ -366,7 +366,11 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       const active = _handles[_handles.length - 1];
       void active?.handle.switchTo?.(p, options);
     },
-    switchExternal: opts.switchExternal ? (p: string, s?: string[]): void => { void opts.switchExternal!(p, s); } : undefined,
+    switchExternal: opts.switchExternal
+      ? (p: string, s?: string[], options?: { keepInScene?: boolean }): void => {
+          void opts.switchExternal!(p, s, options);
+        }
+      : undefined,
     unloadRole,
   });
   // ADR-093 T5：注册表菜单 sink（selectModel 时按活跃模型换菜单项）
