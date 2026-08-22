@@ -104,6 +104,11 @@ list（`[config,...]`）双形态——先试 `[]struct`（list），失败再�
 纹理槽位——2026-08-22 修复，补 `projectiles[]`/`vehicles[]`/`arrow` 到
 `texOrder`/`modelOrder`，支持 dict/list 双形态。
 
+**texOrder 去重**：`vehicles` 段多个实体可指向同一模型+纹理（如 horse 和 mule
+都指向 foxcar.json + foxcar.png）。旧逻辑重复追加 foxcar 到 texOrder，导致
+后续纹理 texSlot 偏移一位——minecart 从 slot=5 偏移到 slot=6，采样到 boat.png，
+显示橙色（木色调）而非灰色。2026-08-22 修复，texOrder append 前线性去重。
+
 ### 2.5 Mesh 合并策略：按 (boneId, texIdx, rotation) 分组
 
 **决策**：同一骨骼下多个 cube 的 mesh 按 `(boneId, texIdx, rotation)` 三元组合并，
