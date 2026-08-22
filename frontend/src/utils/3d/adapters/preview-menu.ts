@@ -961,14 +961,15 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
 /** 上次选中的类型 tab 持久化键（全局记忆，跨模型/跨会话）："" = 当前目录 */
 const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
 
-/** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮。
+/** 3D 内模型切换面板：各资源类型 tab 懒加载候选，当前项高亮。
  *  默认高亮优先级：① 用户手动记忆的类型（localStorage）② 当前模型自身类型（getCurrentRtype）
- *  ③ 当前目录。当前目录不再是默认高亮项，降级为手动备选。 */
+ *  ③ 第一个类型 tab。「当前目录」tab 已移除（记忆/当前类型生效后可少一个 tab）；
+ *  rtypes 为空（无注册路由）时仍走 siblings 列表兜底，不空白。 */
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
   const curRtype = ctx.getCurrentRtype?.() ?? "";
-  // 默认高亮：手动记忆优先；记忆无效（无/越界）则回退当前模型类型；再不行才当前目录
+  // 默认高亮：手动记忆优先；记忆无效（无/越界）则回退当前模型类型；再不行第一个类型（rtypes 空则 "" 走 siblings 兜底）
   const remembered = safeGet(PREVIEW_LAST_RTYPE_KEY);
   let activeTab: string;
   if (remembered !== null && rtypes.includes(remembered)) {
@@ -976,10 +977,10 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
   } else if (curRtype && rtypes.includes(curRtype)) {
     activeTab = curRtype;
   } else {
-    activeTab = "";
+    activeTab = rtypes[0] ?? "";
   }
 
-  // 类型 tab 行：「当前目录」恒在首位，后接各资源类型（点击懒加载）
+  // 类型 tab 行：各资源类型（点击懒加载），「当前目录」tab 已移除
   const tabBar = document.createElement("div");
   tabBar.style.cssText =
     "display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.12);flex-wrap:wrap;flex-shrink:0";
@@ -994,7 +995,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       (key === activeTab ? ";background:rgba(124,131,255,0.35);color:#fff" : "");
     b.onclick = (): void => {
       activeTab = key;
-      // 全局记忆：持久化本次选中类型（含当前目录 ""）
+      // 全局记忆：持久化本次选中类型
       safeSet(PREVIEW_LAST_RTYPE_KEY, key);
       // 高亮当前 tab
       for (const tb of Array.from(tabBar.children)) {
@@ -1006,7 +1007,6 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     };
     tabBar.appendChild(b);
   };
-  mkTab("", tr("preview.switchDirTab", "当前目录"));
   for (const r of rtypes) mkTab(r, RESOURCE_TYPE_LABELS[r] || r);
 
   const listBody = document.createElement("div");
@@ -1022,7 +1022,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     const gen = ++reqGen;
     listBody.innerHTML = "";
     const draw = (paths: string[], viaType: boolean): void => {
-      // 类型 tab 候选过滤当前项（避免点击自己整段重建，P3-4）；当前目录 tab 已由 getSiblings 过滤
+      // 类型 tab 候选过滤当前项（避免点击自己整段重建，P3-4）；siblings 分支（activeTab===""）已由 getSiblings 过滤当前项
       const shown = viaType ? paths.filter((p) => norm(p) !== norm(cur)) : paths;
       if (shown.length === 0) {
         const empty = document.createElement("div");

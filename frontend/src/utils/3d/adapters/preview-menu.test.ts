@@ -439,16 +439,16 @@ describe("mountPreviewRootMenu", () => {
     modelBtn!.click();
     const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
     const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
-    const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "") as HTMLElement;
-    // 当前类型 ysm 高亮（记忆越界不污染），当前目录不高亮
+    const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "");
+    // 当前类型 ysm 高亮（记忆越界不污染），当前目录 tab 已移除
     expect(ysmTab.style.background).toContain("124");
     expect(ysmTab.style.background).toContain("131");
-    expect(dirTab.style.background).not.toContain("124, 131");
+    expect(dirTab).toBeUndefined();
     handle.dispose();
     localStorage.removeItem("ysm.preview.lastRtype");
   });
 
-  it("类型 tab 默认高亮：记忆与当前类型均越界 → 回退当前目录", () => {
+  it("类型 tab 默认高亮：记忆与当前类型均越界 → 高亮第一个类型 tab（无当前目录 tab）", () => {
     const switchTo = vi.fn();
     localStorage.setItem("ysm.preview.lastRtype", "litematic");
     const handle = mountPreviewRootMenu(overlay, makeCtx({
@@ -462,12 +462,13 @@ describe("mountPreviewRootMenu", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
     const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
-    const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "") as HTMLElement;
+    // 当前目录 tab 已移除：不存在 rtype="" 的按钮
+    const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "");
+    expect(dirTab).toBeUndefined();
     const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
-    // 记忆与当前类型都不在 tabs → 当前目录高亮
-    expect(dirTab.style.background).toContain("124");
-    expect(dirTab.style.background).toContain("131");
-    expect(ysmTab.style.background).not.toContain("124, 131");
+    // 记忆与当前类型都不在 tabs → 高亮第一个类型 tab（ysm）
+    expect(ysmTab.style.background).toContain("124");
+    expect(ysmTab.style.background).toContain("131");
     handle.dispose();
     localStorage.removeItem("ysm.preview.lastRtype");
   });
