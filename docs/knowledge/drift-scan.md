@@ -78,13 +78,18 @@ node scripts/drift-scan.mjs --json
 - 补充遗漏的读取上限（avatar_extract）
 - 新增 `drift-scan.mjs` 自动检测脚本
 
+### 第四轮（2026-08-25）
+
+- `copyDirRecursive` 收敛：`fsutil.CopyDirRecursive` 新增 `AtomicRename` 选项（tmpDir → rename 原子替换 + 祖先守卫），`importer` 的私有重实现改为委托，消除 `COPY_DIR_REIMPL`
+- `copyDir` 同步收敛：`DirectoryCopyImporter` 的 `copyDir` 同改为委托 `fsutil.CopyDirRecursive`，移除 ~80 行重复实现
+
 ## 最终状态
 
 ```
 🔍 drift-scan.mjs 扫描结果：
    严重: 0 ✅
    警告: 0 ✅
-   提示: 24（低优先级风格差异，可后续处理）
+   提示: 0 ✅
 ```
 
 ## 相关 ADR
