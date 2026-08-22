@@ -29,13 +29,15 @@ invariant_anchors:
 ## 核心职责
 
 - `parse.go` — 标准 geometry JSON 解析（骨骼/立方体/UV/旋转/纹理槽）
-- `archive.go` — ZIP/7z 存档解包：ysm.json 清单（model/texture 顺序）、多 geometry 文件合并、cube→texSlot 绑定、PNG 纹理与动画 JSON 收集、首张 PNG 快速缩略；**容器打开统一走 `go/container`（ADR-068）**——`ExtractFirstPNGFromZip/7z` 入口经 `OpenZipBytes/Open7zBytes` + 格式无关 `extractFirstPNG`，`collectArchiveFiles` 消费 `container.Entry`，删除原 ParseFrom7z/ParseFromZip 对称外壳 ~294 行（公开签名不变）
+- `archive.go` — ZIP/7z 存档解包：ysm.json 清单（model/texture 顺序）、多 geometry 文件合并、cube→texSlot 绑定、PNG 纹理与动画 JSON 收集、首张 PNG 快速缩略；**容器打开统一走 `go/container`（ADR-068）**——`ExtractFirstPNGFromZip/7z` 入口经 `OpenZipBytes/Open7zBytes` + 格式无关 `extractFirstPNG`，`collectArchiveFiles` 消费 `container.Entry`，删除原 ParseFrom7z/ParseFromZip 对称外壳 ~294 行（公开签名不变）；**zip/7z 六入口（ParseFrom*/ParseFrom*Entry/ParseComponentsFrom*）已收敛**为 `openArchiveBytes` 单一打开点 + 共享实现（`parseModelFromArchive` / `parseFromArchiveEntry` / `parseComponentsFromArchive`），六导出函数变薄包装，改解析逻辑只改共享实现
 
 ## 对外 API / 入口
 
 - `ParseBedrockGeometry(data []byte) *types.BedrockModel` — 解析单个 geometry JSON；输入上限 100MB；UV 兼容数组与 per-face 对象两种形态；失败返回 nil
 - `ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []string)` — 从 ZIP 解析，返回（合并模型、纹理 PNG 列表、动画 JSON 字符串列表）；模型文件与纹理均按 ysm.json 声明顺序稳定排序
 - `ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte)` — 7z 版（`github.com/bodgit/sevenzip`），返回模型与纹理；不单独分流动画 JSON（动画文件当 geometry 解析失败后自然跳过）
+- `ParseFromZipEntry(data []byte, size int64, subPath string)` / `ParseFrom7zEntry(...)` — 按 subPath（L0 SubModel.SourcePath 口径）解析单个 geometry 文件；三层降级命中（精确→命名空间相对→basename 模糊），命中失败返回 nil
+- `ParseComponentsFromZip(data []byte, size int64)` / `ParseComponentsFrom7z(...)` — 多组件解析（YSMViewer 式）：每个模型文件独立组件（含 arm/载具，不合并不排除），main 优先排序 + perComponent 独立纹理；返回（组件数组、纹理名数组、error）
 - `ExtractFirstPNGFromZip(data []byte, size int64) []byte` / `ExtractFirstPNGFrom7z(data []byte, size int64) []byte` — 提取第一张 PNG 做快速预览
 
 ## 与其他子系统关系
@@ -46,7 +48,7 @@ invariant_anchors:
 
 ## 不变量
 
-- 存档内单文件读取上限走 `types.MaxReadLimit`（50MB，全仓单点常量：`geometry/archive.go` 的 `readLimitedEntry`、`ysm/*` 的解析入口均引用同值）：`LimitReader(limit+1)` 探测截断，超限/读错拒绝并跳过，ADR-033 修复——不再静默截断装盘
+- 存档内单文件读取上限走 `types.MaxReadLimit`（50MB，全仓单点常量）：`geometry/archive.go` 各读取点**直接调 `fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))`**（原包内转发 `readLimitedEntry` 已删除，收敛为直调），`ysm/*` 解析入口同值；`LimitReader(limit+1)` 探测截断，超限/读错拒绝并跳过，ADR-033 修复——不再静默截断装盘
 - `ParseBedrockGeometry` 输入上限 100MB（`maxParseSize`），超限拒绝并记日志
 - **cube 字段覆盖**：解析 origin/size/pivot/uv（数组或 per-face 对象）/rotation/texture/inflate/mirror。`inflate`（Blockbench 膨胀）与 `mirror`（镜像）2026-08-09 补齐（P2）——此前 .ysm 走 wasm 解码时 YSMParser 已把 inflate 烘焙进几何尺寸，Go 原生解析 zip/7z/json 却丢弃字段导致老模型（1.10+ 导出）尺寸偏小/纹理方向错；现在两条路径口径一致
 - `ysm.json` 是清单不是模型文件，不参与 geometry 解析；文件名含 animation/controller 的 JSON 归入动画而非模型（仅 ZIP 路径分流）
@@ -56,6 +58,8 @@ invariant_anchors:
 - texSlot 映射为「第 i 个模型 → 第 i 个纹理」，索引超出纹理数量时钳到最后一张（`ti >= texCount` → `texCount-1`）；`texOrder` 为空时退化为按模型数量取索引
 - 纹理只收 `.png`/`.jpg`；不按尺寸过滤小纹理（64×64 合法贴图可 <4KB，与 .ysm 解压路径口径一致）；头像/预览图仅由 `avatar/` 路径与基名前缀排除
 - 解析失败统一返回 nil/空，由调用方决定降级路径，不 panic
+- **合并路径 vs 组件化路径是本质差异，禁止用 `excludeArm bool` 之类参数强统一**：`parseModelFromEntries`（ParseFromZip/ParseFromZipEntry 单模型合并）排除 arm 占位（避免两对手臂 + texIdx 错位）；`buildComponents`（ParseComponentsFromZip/7z 组件化）保留 arm 作独立组件（YSMViewer 口径）。两者输出结构不同（单个 `BedrockModel` vs 组件数组），函数签名也随之不同，强行合并只会引入分支复杂度
+- **zip/7z 六入口已收敛，禁止退回双份路径**：新增功能/修 bug 只改共享实现（`parseModelFromArchive` / `parseFromArchiveEntry` / `parseComponentsFromArchive`）+ `openArchiveBytes`。若需新增 zip/7z 进入点，加薄包装调共享实现，勿复制 open + 解析循环
 
 ## 相关
 
