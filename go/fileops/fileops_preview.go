@@ -53,11 +53,10 @@ func ExtractPreviewTexture(modelPath string) string {
 	// 否则 readLimitedFile(剥离后路径) 命中不存在文件（陷阱：先改路径后读原文件）。
 	readPath := modelPath
 	extPath := modelPath
-	for _, suffix := range []string{".ban", ".disabled"} {
-		if strings.HasSuffix(strings.ToLower(extPath), suffix) {
-			extPath = extPath[:len(extPath)-len(suffix)]
-			break
-		}
+	if strings.HasSuffix(strings.ToLower(extPath), ".ban") {
+		extPath = types.StripBanSuffix(extPath)
+	} else if strings.HasSuffix(strings.ToLower(extPath), ".disabled") {
+		extPath = extPath[:len(extPath)-len(".disabled")]
 	}
 	ext := strings.ToLower(filepath.Ext(extPath))
 	var png []byte

@@ -102,9 +102,9 @@ const RULES = [
   {
     id: "INLINE_BAN_STRIP",
     severity: "error",
-    desc: "内联 .ban 后缀剥离 [:len(name)-4]（应使用 types.StripBanSuffix）",
+    desc: "内联 .ban 后缀剥离 [:len(name)-4] 或 [:len(name)-len(\".ban\")]（应使用 types.StripBanSuffix）",
     glob: "*.go",
-    regex: /\[:len\([^)]+\)-4\]/,
+    regex: /\[:len\([^)]+\)-(?:4|len\("\.ban"\))\]/,
     exclude: [/types\/extensions\.go/, /test/],
     // 排除注释行和函数定义本身
     filter: (line) => !line.startsWith("//") && !line.startsWith("return name[:len(name)-4]"),

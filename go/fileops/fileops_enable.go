@@ -68,7 +68,7 @@ func ToggleModelEnable(root, path string) (bool, error) {
 		}
 		if strings.HasSuffix(strings.ToLower(path), ".ban") {
 			// 文件自身也带 .ban（旧状态残留）：优先还原父目录再还原文件
-			fileNew := path[:len(path)-len(".ban")]
+			fileNew := types.StripBanSuffix(path)
 			if _, err := os.Stat(fileNew); err == nil {
 				return false, fmt.Errorf("目标已存在: %s", fileNew)
 			}
@@ -77,7 +77,7 @@ func ToggleModelEnable(root, path string) (bool, error) {
 			}
 		}
 		// 大小写不敏感去 .ban 后缀（Windows 上 .BAN 目录也能还原）
-		dirNew := bannedParent[:len(bannedParent)-len(".ban")]
+		dirNew := types.StripBanSuffix(bannedParent)
 		if _, err := os.Stat(dirNew); err == nil {
 			return false, fmt.Errorf("目标已存在: %s", dirNew)
 		}
@@ -111,9 +111,8 @@ func ToggleModelEnable(root, path string) (bool, error) {
 		}
 	}
 	if strings.HasSuffix(strings.ToLower(path), ".ban") {
-		// 用长度切片去 .ban 后缀（大小写不敏感，与目录级 L421 一致）。
-		// 原 TrimSuffix 大小写敏感，`x.ysm.BAN` 触发检测后不剥离 → os.Rename(path,path) 空转假启用
-		newPath := path[:len(path)-len(".ban")]
+		// 委托 types.StripBanSuffix（单一事实来源），不内联切片防口径漂移。
+		newPath := types.StripBanSuffix(path)
 		if _, err := os.Stat(newPath); err == nil {
 			return false, fmt.Errorf("目标已存在: %s", newPath)
 		}
