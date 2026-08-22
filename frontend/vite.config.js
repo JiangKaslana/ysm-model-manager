@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import { fileURLToPath } from "url";
 import { resolve } from "path";
 import { wailsBindingsResolve } from "./vite-wails-bindings-resolve.ts";
+import { wasmDataStubs } from "./vite-wasm-data-stubs.ts";
 
 export default defineConfig({
   root: ".",
@@ -12,6 +13,9 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+  },
+  worker: {
+    plugins: () => [wasmDataStubs()],
   },
   // utils/resource/{types,extensions}.ts 直接 import 仓库根 resource_types.json
   // （单一事实来源，构建期内联）。Vite 6 显式 allow 会完全替换默认 workspace root，
@@ -35,5 +39,5 @@ export default defineConfig({
       ],
     },
   },
-  plugins: [wailsBindingsResolve],
+  plugins: [wailsBindingsResolve, wasmDataStubs()],
 });

@@ -231,6 +231,16 @@ retry:
 		// 一整个 []ModelEntry）持续滞留，内存增长；Load 命中过期时顺手 Delete
 		scanCache.Delete(dir)
 	}
+	// Keep the public Go/Wails contract stable while production Windows builds progressively move
+	// scanner internals to Rust. Unsupported platforms or bridge failures use the proven Go path.
+	if rustEntries, cacheable, handled := scanEntriesWithRust(dir); handled {
+		stored := append([]types.ModelEntry(nil), rustEntries...)
+		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
+		if cacheable && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
+			scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
+		}
+		return rustEntries, false
+	}
 	// 在途合并：同目录并发扫描共享一次 walk——首个调用方注册航班成为 owner，
 	// 后续调用方并入航班等待，取克隆结果且 hit=true（薄壳不重复记扫描日志）
 	fl := &scanFlight{}

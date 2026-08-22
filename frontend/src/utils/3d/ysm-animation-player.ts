@@ -16,57 +16,76 @@
 
 import * as THREE from "three";
 import {
-  evaluateClip,
+  evaluateKeyframesInto,
   type AnimationClip,
+  type BoneChannels,
   type BoneHierarchyNode,
+  type Vec3,
 } from "../animation/animation.ts";
 
-/** YSM 骨骼动画播放器接口 */
 export interface YsmAnimPlayer {
-  /** 应用一帧变换到骨骼（由 adapter update 每帧调用，dt 秒） */
   apply(dt: number): void;
-  /** 释放内部状态（dispose 时调用） */
   dispose(): void;
-  /** 播放/暂停切换 */
   toggle(): void;
-  /** 是否正在播放 */
   isPlaying(): boolean;
-  /** 当前时间（秒） */
   getTime(): number;
-  /** 当前 clip 时长（秒） */
   getDuration(): number;
-  /** 当前 clip 索引 */
   currentIndex(): number;
-  /** 可用 clip 列表 */
   clips(): ReadonlyArray<{ label: string }>;
-  /** 总 clip 数 */
   clipCount(): number;
-  /** 切换到指定 clip（0-based index；越界静默忽略） */
   selectClip(index: number): void;
-  /** 是否正在播放有效动画（供感知层判断是否暂停呼吸/眨眼） */
   isAnimActive(): boolean;
 }
 
+interface CompiledTrack {
+  node: THREE.Object3D;
+  channels: BoneChannels;
+  rotation: Vec3;
+  position: Vec3;
+  scale: Vec3;
+  euler: THREE.Euler;
+  targetQuaternion: THREE.Quaternion;
+  restQuaternion: THREE.Quaternion | null;
+  slerpAlpha: number;
+}
+
 /**
- * 构建 YSM 骨骼动画播放器。
- * @param boneByName   spec.bones[].name → THREE.Object3D（骨骼节点，通常是 Group）映射
- * @param clips        动画剪辑列表（至少 1 个）
- * @param boneHierarchy 骨骼层级 [{name, parent}] 供 evaluateClip 传播
- * @param clipLabels   每 clip 的显示名；缺省时用 "Clip 0", "Clip 1"...
+ * Builds a YSM animation player whose per-frame path reuses every temporary object.
+ * boneHierarchy remains in the signature for API compatibility; Three.js already
+ * propagates the local transforms through the Object3D hierarchy.
  */
 export function createYsmAnimPlayer(
   boneByName: Map<string, THREE.Object3D>,
   clips: AnimationClip[],
-  boneHierarchy: BoneHierarchyNode[],
+  _boneHierarchy: BoneHierarchyNode[],
   clipLabels?: string[],
 ): YsmAnimPlayer {
   if (clips.length === 0) throw new Error("YSM animation player requires at least one clip");
 
   const rawLabels = clipLabels ?? clips.map((_, i) => `Clip ${i}`);
-  const labels: readonly { label: string }[] = rawLabels.slice(0, clips.length).map((l) => ({ label: l }));
+  const labels = rawLabels.slice(0, clips.length).map((label) => ({ label }));
+  const compiledClips = clips.map((clip) =>
+    Object.entries(clip.bones).flatMap(([boneName, channels]): CompiledTrack[] => {
+      const node = boneByName.get(boneName);
+      if (!node) return [];
+      return [{
+        node,
+        channels,
+        rotation: [0, 0, 0],
+        position: [0, 0, 0],
+        scale: [1, 1, 1],
+        euler: new THREE.Euler(0, 0, 0, "XYZ"),
+        targetQuaternion: new THREE.Quaternion(),
+        restQuaternion: null,
+        slerpAlpha: 0,
+      }];
+    }),
+  );
+
   let currentIdx = 0;
   let elapsed = 0;
   let playing = true;
+  const slerpRate = 5;
 
   // L3 混合状态：base = 构造期姿态（未动画骨骼的回落目标）；
   // rest = 混合段起点（selectClip/dispose 后从当前姿态重新采集），alpha 累加到 1。
@@ -89,9 +108,8 @@ export function createYsmAnimPlayer(
 
   return {
     apply(dt: number): void {
-      if (!playing || clips.length === 0) return;
+      if (!playing) return;
       const clip = getClip();
-
       elapsed += dt;
       if (clip.loop && clip.length > 0) {
         elapsed = ((elapsed % clip.length) + clip.length) % clip.length;
@@ -169,7 +187,6 @@ export function createYsmAnimPlayer(
       restPose.clear();
       blendAlpha.clear();
     },
-
     toggle(): void {
       if (elapsed >= getClip().length && !getClip().loop) {
         elapsed = 0;
@@ -178,13 +195,12 @@ export function createYsmAnimPlayer(
         playing = !playing;
       }
     },
-
-    isPlaying(): boolean { return playing; },
-    getTime(): number { return elapsed; },
-    getDuration(): number { return getClip().length || 0; },
-    currentIndex(): number { return currentIdx; },
-    clips(): ReadonlyArray<{ label: string }> { return labels; },
-    clipCount(): number { return clips.length; },
+    isPlaying: () => playing,
+    getTime: () => elapsed,
+    getDuration: () => getClip().length || 0,
+    currentIndex: () => currentIdx,
+    clips: () => labels,
+    clipCount: () => clips.length,
     selectClip(index: number): void {
       if (index < 0 || index >= clips.length) return;
       currentIdx = index;

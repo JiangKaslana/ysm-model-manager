@@ -10,8 +10,8 @@ import { friendlyError } from "./dom/errors.ts";
  * 收敛 5 处 `import(...).catch` 模板（app-tree/sidebar/content/resource-manager/sync-manager）。
  * 用字面量路径确保 Vite 构建时解析。
  */
-export const loadView = (name: string, importer: () => Promise<unknown>): void => {
-  importer().catch((e) => {
+export const loadView = (name: string, importer: () => Promise<unknown>): Promise<void> => {
+  return importer().then(() => undefined).catch((e) => {
     console.warn(`[module] 组件加载失败: ${name}`, e);
     bus.emit("toast:show", {
       msg: "❌ " + friendlyError(e, "组件加载失败"),

@@ -35,6 +35,15 @@ export function getModelRootCount(): number {
  */
 export function cullModelGroups(camera: THREE.Camera): void {
   if (modelRoots.length === 0) return;
+  for (let i = modelRoots.length - 1; i >= 0; i--) {
+    if (!modelRoots[i].parent) modelRoots.splice(i, 1);
+  }
+  if (modelRoots.length === 0) return;
+  if (modelRoots.length === 1) {
+    const obj = modelRoots[0];
+    obj.visible = Boolean((obj as THREE.Mesh).isMesh || obj.children.length > 0);
+    return;
+  }
   _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_projScreenMatrix);
 

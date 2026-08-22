@@ -26,6 +26,7 @@
 | Go·路径 | 1 | 6 |
 | Go·回收站 | 2 | 19 |
 | go/repoaudit | 1 | 9 |
+| go/rustbridge | 2 | 3 |
 | go/scanner | 1 | 10 |
 | Go·同步 | 7 | 23 |
 | Go·标签 | 1 | 8 |
@@ -36,18 +37,18 @@
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
 | Go(internal)·应用入口 | 26 | 203 |
-| 前端·根 (app-modules/bus) | 3 | 17 |
+| 前端·根 (app-modules/bus) | 4 | 18 |
 | frontend/backend | 18 | 99 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 17 | 82 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 140 | 546 |
+| 前端·工具 | 143 | 555 |
 | frontend/views | 117 | 338 |
-| 前端·WASM | 6 | 12 |
+| 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **443** | **1910** |
+| **合计** | **451** | **1925** |
 
 ## Go·头像
 
@@ -363,6 +364,14 @@
 | `DedupSummary()` | `go/repoaudit/repoaudit:93` | DedupSummary 去重维度汇总（HealthReport 追加） |
 | `HealthReport()` | `go/repoaudit/repoaudit:100` | HealthReport 完整体检：审计 + 去重（GUI 与 CLI health-report 同一载荷） |
 
+## go/rustbridge
+
+| 符号 | 文件:行 | 说明 |
+|------|--------|------|
+| `Scan()` | `go/rustbridge/bridge_windows:24` | — |
+| `ScanError()` | `go/rustbridge/types_windows:7` | — |
+| `ScanResponse()` | `go/rustbridge/types_windows:12` | — |
+
 ## go/scanner
 
 | 符号 | 文件:行 | 说明 |
@@ -373,10 +382,10 @@
 | `InvalidatePath()` | `go/scanner/scanner:163` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
 | `ScanEntries()` | `go/scanner/scanner:194` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:201` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:367` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:421` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:451` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:514` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ComputeFileHash()` | `go/scanner/scanner:377` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:431` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:461` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:524` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -818,6 +827,7 @@
 | `BusEvents()` | `frontend/src/bus:70` | — |
 | `BusEventName()` | `frontend/src/bus:121` | — |
 | `Bus()` | `frontend/src/bus:147` | — |
+| `revealMainWindow()` | `frontend/src/startup-reveal:2` | Wait until the DOM has been upgraded and painted before exposing the native window. |
 | `normalizeTheme()` | `frontend/src/theme-core:18` | 主题归一化：白名单外一律回落 system（P2 修复后持久层也只写合法值） |
 | `applyTheme()` | `frontend/src/theme-core:22` | — |
 | `initTheme()` | `frontend/src/theme-core:37` | — |
@@ -1314,17 +1324,17 @@
 | `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:149` | 获取共享解码器（懒创建） |
 | `disposeTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:157` | 释放共享解码器 |
 | `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:169` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:65` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:84` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:110` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:120` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:166` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:171` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
-| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:191` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:204` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:210` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:215` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:233` | — |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:72` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:91` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:117` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:127` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:173` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:178` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
+| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:198` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:211` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:217` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:222` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:240` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1438,11 +1448,11 @@
 | `DEFAULT_LIGHT_PARAMS()` | `frontend/src/utils/3d/caps/light-capability:103` | — |
 | `LIGHT_PRESETS()` | `frontend/src/utils/3d/caps/light-capability:113` | 模型类别预设（对齐 SkyCapability.MODEL_SKY_PRESETS 模式） |
 | `LightCapability()` | `frontend/src/utils/3d/caps/light-capability:229` | ============ LightCapability ============ |
-| `ReflectionMode()` | `frontend/src/utils/3d/caps/postprocessing-capability:32` | 反射模式三档：envmap-only 纯环境贴图、envmap+ssr SSR+屏外 fallback、ssr-only 纯 SSR（屏外会变黑） |
-| `PostprocessingParams()` | `frontend/src/utils/3d/caps/postprocessing-capability:34` | — |
-| `DEFAULT_POSTPROC_PARAMS()` | `frontend/src/utils/3d/caps/postprocessing-capability:84` | — |
-| `POSTPROC_PRESETS()` | `frontend/src/utils/3d/caps/postprocessing-capability:111` | 模型类别后处理预设 |
-| `PostprocessingCapability()` | `frontend/src/utils/3d/caps/postprocessing-capability:150` | — |
+| `ReflectionMode()` | `frontend/src/utils/3d/caps/postprocessing-capability:33` | 反射模式三档：envmap-only 纯环境贴图、envmap+ssr SSR+屏外 fallback、ssr-only 纯 SSR（屏外会变黑） |
+| `PostprocessingParams()` | `frontend/src/utils/3d/caps/postprocessing-capability:35` | — |
+| `DEFAULT_POSTPROC_PARAMS()` | `frontend/src/utils/3d/caps/postprocessing-capability:85` | — |
+| `POSTPROC_PRESETS()` | `frontend/src/utils/3d/caps/postprocessing-capability:112` | 模型类别后处理预设 |
+| `PostprocessingCapability()` | `frontend/src/utils/3d/caps/postprocessing-capability:151` | — |
 | `ReflectorParams()` | `frontend/src/utils/3d/caps/reflector-capability:18` | — |
 | `DEFAULT_REFLECTOR_PARAMS()` | `frontend/src/utils/3d/caps/reflector-capability:34` | — |
 | `REFLECTOR_PRESETS()` | `frontend/src/utils/3d/caps/reflector-capability:45` | 模型类别反光预设：反光强度按材质风格适配（toon 不要强反射，PBR 角色中等，方块/体素弱） |
@@ -1465,7 +1475,7 @@
 | `SkyCapability()` | `frontend/src/utils/3d/caps/sky-capability:81` | — |
 | `disposeDebugGroup()` | `frontend/src/utils/3d/cleanup-helper:14` | 释放 debug 叠加层中的所有 Three.js 资源（geometry / material / texture）。 |
 | `disposeSceneMeshes()` | `frontend/src/utils/3d/cleanup-helper:40` | 遍历场景图释放所有 Mesh 的 geometry 和 material。 |
-| `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:55` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
+| `safeDisposeRenderer()` | `frontend/src/utils/3d/cleanup-helper:59` | 安全释放 renderer（dispose 可能因已释放而抛错）。 |
 | `eulerToQuaternion()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `isIdentityQuat()` | `frontend/src/utils/3d/cube-mesh` | — |
 | `hasBoneRotation()` | `frontend/src/utils/3d/cube-mesh` | — |
@@ -1477,7 +1487,7 @@
 | `unregisterModelRoot()` | `frontend/src/utils/3d/frustum-cull:21` | 注销模型根节点（adapter dispose 时调用） |
 | `getModelRootCount()` | `frontend/src/utils/3d/frustum-cull:27` | 获取当前注册的模型根节点数 |
 | `cullModelGroups()` | `frontend/src/utils/3d/frustum-cull:36` | 对所有已注册的模型根节点做视锥裁剪。 |
-| `clearModelRoots()` | `frontend/src/utils/3d/frustum-cull:59` | 清空所有注册（session 结束时调用） |
+| `clearModelRoots()` | `frontend/src/utils/3d/frustum-cull:68` | 清空所有注册（session 结束时调用） |
 | `IKChain()` | `frontend/src/utils/3d/ik-solver:21` | IK 链：从 root 到 endEffector 的 THREE.Object3D 有序数组（含两端） |
 | `IKConfig()` | `frontend/src/utils/3d/ik-solver:24` | IK 求解配置 |
 | `IKResult()` | `frontend/src/utils/3d/ik-solver:42` | IK 求解结果 |
@@ -1497,10 +1507,11 @@
 | `clearLoadTraces()` | `frontend/src/utils/3d/load-trace:61` | — |
 | `loadMcTints()` | `frontend/src/utils/3d/mc-tints:29` | 预载 vendored tints 表（幂等；失败抛错由调用方降级兜底）。 |
 | `getTintColorSync()` | `frontend/src/utils/3d/mc-tints:51` | 取某染色类别在某 biome 下的颜色（默认 plains）。 |
-| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:27` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
+| `bakeMeshGroups()` | `frontend/src/utils/3d/mesh-baker:9` | Bake cube-local transforms once, then batch by animated bone and texture. |
+| `addMeshToBoneGroup()` | `frontend/src/utils/3d/mesh-builder:26` | 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。 |
 | `compKey()` | `frontend/src/utils/3d/mesh:17` | 组件内骨骼 key（mi: 组件下标, id: 骨骼 id）。renderModel3D 与 buildSceneMesh 共用，随 mesh 迁移。 |
 | `disposeMaterial()` | `frontend/src/utils/3d/mesh:35` | 释放材质（含所有位图贴图），null/undefined 安全。 |
-| `buildSceneMesh()` | `frontend/src/utils/3d/mesh:48` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
+| `buildSceneMesh()` | `frontend/src/utils/3d/mesh:53` | 构建 3D 场景网格（组件分组 + 骨骼树），返回供渲染/交互使用的组结构。 |
 | `mmdBonesToBoneNodes()` | `frontend/src/utils/3d/mmd-bones:16` | MMD 骨骼 → bone-tools BoneNode[]（id = pmx 索引字符串；越界父/自引用 → null 根） |
 | `MmdBonePickResult()` | `frontend/src/utils/3d/mmd-bones:32` | 拾取结果（pickMmdBone 命中） |
 | `pickMmdBone()` | `frontend/src/utils/3d/mmd-bones:39` | MMD 骨骼拾取：射线到骨骼 worldPosition 距离命中（Bone 无几何，网格归属拾取不适用） |
@@ -1534,7 +1545,6 @@
 | `loadTdRotMode()` | `frontend/src/utils/3d/model3d` | — |
 | `SpecBone3D()` | `frontend/src/utils/3d/model3d:11` | — |
 | `SpecMeshGroup3D()` | `frontend/src/utils/3d/model3d:19` | — |
-| `SpecModelGroup3D()` | `frontend/src/utils/3d/model3d:31` | — |
 | `Spec3D()` | `frontend/src/utils/3d/model3d:39` | — |
 | `BoneSelectInfo()` | `frontend/src/utils/3d/model3d:44` | 骨骼选中信息（window._3dOnBoneSelect 回调参数） |
 | `BoneMaps()` | `frontend/src/utils/3d/model3d:58` | 骨骼层级映射（dispatch 拾取归属用，ADR-093 T5） |
@@ -1564,6 +1574,12 @@
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:78` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:89` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:102` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
+| `PREVIEW_FRAME_INTERVAL_MS()` | `frontend/src/utils/3d/render-budget:2` | — |
+| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:7` | — |
+| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:13` | — |
+| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:18` | — |
+| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:26` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
+| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:40` | — |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |
@@ -1595,18 +1611,20 @@
 | `BoneData()` | `frontend/src/utils/3d/spec-builder:99` | BoneData — Go threejs/spec.go BoneData |
 | `MeshData()` | `frontend/src/utils/3d/spec-builder:109` | MeshData — Go threejs/spec.go MeshData |
 | `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:128` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `TextureAlphaMode()` | `frontend/src/utils/3d/texture-alpha:3` | — |
+| `getTextureAlphaMode()` | `frontend/src/utils/3d/texture-alpha:8` | Classify alpha once per cached texture so material setup can choose a render path. |
 | `TextureCacheImpl()` | `frontend/src/utils/3d/texture-cache:17` | — |
-| `textureCache()` | `frontend/src/utils/3d/texture-cache:62` | 全局单例（随 3D 会话生命周期；disposeAll 由 cleanup-3d.ts 调用） |
+| `textureCache()` | `frontend/src/utils/3d/texture-cache:70` | 全局单例（随 3D 会话生命周期；disposeAll 由 cleanup-3d.ts 调用） |
 | `VrmMaterialListItem()` | `frontend/src/utils/3d/vrm-materials:11` | 材质列表项（listVrmMaterials） |
 | `VrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:17` | 材质详情（getVrmMaterialDetail） |
 | `listVrmMaterials()` | `frontend/src/utils/3d/vrm-materials:28` | 材质列表：vrm.scene 遍历所有 Mesh.material（含数组材质） |
 | `setVrmMaterialVisible()` | `frontend/src/utils/3d/vrm-materials:38` | 材质显隐：Material.visible（MToon/标准/基础均支持） |
 | `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
-| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:25` | YSM 骨骼动画播放器接口 |
-| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:57` | 构建 YSM 骨骼动画播放器。 |
-| `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:22` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
-| `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:43` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
+| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:26` | — |
+| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:57` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
+| `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:24` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
+| `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:45` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:12` | 三维向量 [x, y, z] |
 | `MolangAxes()` | `frontend/src/utils/animation/animation:15` | Molang 轴三元组（null = 该轴为纯数字，取 Keyframe 对应轴值） |
@@ -1617,8 +1635,9 @@
 | `BoneHierarchyNode()` | `frontend/src/utils/animation/animation:55` | 骨骼层级节点 |
 | `parseBedrockAnimationJSON()` | `frontend/src/utils/animation/animation:245` | 解析完整的基岩版动画 JSON 字符串 |
 | `evaluateKeyframes()` | `frontend/src/utils/animation/animation:354` | 在指定时间 t 对一组关键帧求值 |
-| `evaluateClip()` | `frontend/src/utils/animation/animation:401` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
-| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:534` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
+| `evaluateKeyframesInto()` | `frontend/src/utils/animation/animation:388` | Allocation-free keyframe evaluation for the per-frame preview hot path. |
+| `evaluateClip()` | `frontend/src/utils/animation/animation:435` | 对整个动画 clip 在指定时间求值（支持骨骼层级） |
+| `ysmAnimClipLabels()` | `frontend/src/utils/animation/animation:568` | YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。 |
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |
@@ -1962,7 +1981,7 @@
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:12` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:24` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:53` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） |
-| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:155` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
+| `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:161` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
 | `resolveMorphSiblings()` | `frontend/src/views/app-preview/morph-siblings:6` | CustomMorph 目录下所有 VPD 姿势文件（含子目录）；失败返回 [] |
 | `resolveMorphAnimSiblings()` | `frontend/src/views/app-preview/morph-siblings:22` | CustomMorph 目录下所有 VMD 动画文件（含子目录）；失败返回 [] |
 | `createPack3D()` | `frontend/src/views/app-preview/pack-3d:30` | 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） |
@@ -2133,7 +2152,9 @@
 | `initYSMParser()` | `frontend/src/wasm/ysm-parser:92` | — |
 | `decodeYsmFileFromMemory()` | `frontend/src/wasm/ysm-parser:187` | 内存解析 .ysm（优先路径 — 无文件 I/O，直接传入字节数组） 返回 [{path, data}]，失败返回 null |
 | `decodeYsmFile()` | `frontend/src/wasm/ysm-parser:236` | 通过 callMain + MEMFS 解码 .ysm（回退路径） 保留以兼容旧的 WASM 编译 |
+| `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt.d:1` | — |
 | `_getWasmBinaryMt()` | `frontend/src/wasm/ysm-wasm-data-mt:4` | — |
+| `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data.d:1` | — |
 | `_getWasmBinary()` | `frontend/src/wasm/ysm-wasm-data:3` | — |
 | `initYsmParserInWorker()` | `frontend/src/wasm/ysm-worker-loader:68` | Worker 内独立初始化 WASM（懒加载单例，生命周期等同 Worker 本身）。 |
 | `initYsmParserInWorkerMt()` | `frontend/src/wasm/ysm-worker-loader:81` | ADR-079 M3/M4：pthread 多线程版初始化（需 crossOriginIsolated=true——SharedArrayBuffer 前提，见 backend/c |

@@ -31,7 +31,8 @@
 | `paths/` | 路径安全 〔源码 1: safe.go · 测试 2〕 |
 | `recycle/` | 回收站管理 〔源码 2: recycle.go recycle_clean.go · 测试 9〕 |
 | `repoaudit/` | 仓库健康审计核心（GUI 绑定层与 CLI 共用，防双轨口径漂移） 〔源码 1: repoaudit.go · 测试 1〕 |
-| `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 1: scanner.go · 测试 5〕 |
+| `rustbridge/` | Windows Rust 扫描 DLL 的嵌入、校验、加载与窄 ABI 适配层 〔源码 4: bridge_windows.go doc.go embedded_windows.go types_windows.go〕 |
+| `scanner/` | 模型扫描 + 作者提取 + 仓库索引（ADR-003 P2 Logic Sinking） 〔源码 3: rust_backend_stub.go rust_backend_windows.go scanner.go · 测试 6〕 |
 | `sync/` | 整合包同步 〔源码 7: sync.go sync_diff.go sync_dirlevel.go sync_discovery.go sync_hash.go sync_push.go sync_relink.go · 测试 9〕 |
 | `tags/` | 模型标签持久化存储 〔源码 1: tags.go · 测试 3〕 |
 | `texture_cache/` | 纹理缓存管理（KTX2/PNG 缓存，支持后台编码与快速命中） 〔源码 1: texture_cache.go · 测试 1〕 |
@@ -68,7 +69,7 @@
 | `ui/` | 🥉 ui-helpers 原生 DOM 组件库（自 MikuMikuAR 迁移：slide-row / rows / header-toggle / advanced-rows / collapsible / preset / card / loading + 自包含 CSS 模块 `ui-components-styles.ts`，经 `installUiComponentsStyles()` / `uiComponentsStyleSheet` 接入） 〔源码 18 · 子目录 1: __tests__/〕 |
 | `utils/` | 工具函数（display / fmt / dom / icon / summarize / model3d） 〔源码 6: array.ts gh-links.ts main-thread-watch.ts module-loader.ts safe-error-msg.ts types-re-export.ts · 测试 3 · 子目录 8: 3d/ animation/ core/ debug/ dom/ format/ icon/ resource/〕 |
 | `views/` | 页面级视图组件（app-content / app-tree / app-preview 等） 〔子目录 9: app-content/ app-nav/ app-preview/ app-resource-manager/ app-sidebar/ app-sync-manager/ app-toast/ app-tree/ context-menu/〕 |
-| `wasm/` | WASM 生成数据（base64 豁免文件） 〔源码 6: ysm-glue-data-mt.js ysm-glue-data.js ysm-parser.ts ysm-wasm-data-mt.js ysm-wasm-data.js ysm-worke…〕 |
+| `wasm/` | WASM 生成数据（base64 豁免文件） 〔源码 8: ysm-glue-data-mt.js ysm-glue-data.js ysm-parser.ts ysm-wasm-data-mt.d.ts ysm-wasm-data-mt.js ysm-…〕 |
 | `web-spike/` | 网页版 spike 入口（main.ts，构建/冒烟验证） 〔源码 1: main.ts〕 |
 | `workers/` | Web Worker 批量统计（searchWebModels 数值条件走 Worker 线程，主线程零解析负载） 〔源码 3: stats-core.ts stats-protocol.ts stats.worker.ts · 测试 1〕 |
 | `app-modules.test.ts` | app-modules 主题/隐私模式启动链测试（normalizeTheme / safeGet / initTheme / applyUIPrefs） |
@@ -76,6 +77,8 @@
 | `bus.test.ts` | 事件总线测试 |
 | `bus.ts` | 事件总线 |
 | `real-data-fuzz.test.ts` | 真实数据模糊测试（资源类型/schema 契约） |
+| `startup-reveal.test.ts` | 首屏显示时序与幂等行为回归测试 |
+| `startup-reveal.ts` | 桌面端首屏就绪后再显示窗口，避免启动阶段旧 UI 或黑色背景闪现 |
 | `theme-core.ts` | 主题系统核心（normalizeTheme / applyTheme / initTheme + 隐私模式兜底） |
 
 <!-- /GEN: frontend-structure -->
@@ -90,10 +93,10 @@
 | `README.md` | 项目说明（面向用户） |
 | `creators.json` | 创作者数据 |
 | `embed.go` | 内嵌资源声明（embed 文件系统） |
-| `link-checker-out.json` | link-checker 脚本输出（链接有效性扫描结果缓存） |
+| `link-checker-out.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `main.go` | 程序入口（薄壳，GUI 构建） |
 | `main_test.go` | 根级测试（App 生命周期/CLI 冒烟） |
-| `opencode.json` | OpenCode AI 编辑器配置（IDE 集成） |
+| `opencode.json` | ⚠️ 用途待补（在 docs/project-map.md 本表补一句） |
 | `resource_types.json` | 资源类型注册表单一事实来源（扩展名/子目录/安装目标/预览/detector，编译期嵌入 go/types） |
 | `wails.json` | Wails 配置 |
 | `workshop-github.json` | 工坊 GitHub 关联 |

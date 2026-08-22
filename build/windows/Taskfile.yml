@@ -109,6 +109,13 @@ tasks:
       CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'
       GOARCH: '{{.ARCH | default ARCH}}'
 
+  build:rust-bridge:
+    summary: Builds the embedded Rust scanner bridge
+    internal: true
+    cmds:
+      - cargo build --release --locked --manifest-path rust-wails-bridge/Cargo.toml
+      - powershell -NoProfile -Command "New-Item -ItemType Directory -Force 'go/rustbridge/bin' | Out-Null; Copy-Item -Force 'rust-wails-bridge/target/release/ysm_model_manager_wails_bridge.dll' 'go/rustbridge/bin/ysm_model_manager_wails_bridge.dll'"
+
   build:native:
     summary: Builds the application using native Go cross-compilation
     internal: true
@@ -116,6 +123,7 @@ tasks:
       - task: common:go:mod:tidy
       # embed 前置：构建内嵌的更新助手 helper（见 build:helper）
       - task: build:helper
+      - task: build:rust-bridge
       - task: common:build:frontend
         vars:
           BUILD_FLAGS:
@@ -138,7 +146,7 @@ tasks:
       - cmd: rm -f *.syso
         platforms: [linux, darwin]
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui -X ysm-model-manager/go/version.Version={{.APP_VERSION}}"{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if or .EXTRA_TAGS (eq .OBFUSCATED "true")}}-tags {{if eq .OBFUSCATED "true"}}wails_obfuscated{{if .EXTRA_TAGS}},{{end}}{{end}}{{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if eq .ARCH "amd64"}},rust_backend{{end}}{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui -X ysm-model-manager/go/version.Version={{.APP_VERSION}}"{{end}}'
     env:
       GOOS: windows
       CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'

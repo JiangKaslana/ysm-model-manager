@@ -28,7 +28,7 @@ export interface SpecMeshGroup3D {
   localRotation?: number[];
 }
 
-export interface SpecModelGroup3D {
+interface SpecModelGroup3D {
   id?: string;
   name?: string;
   defaultVisible?: boolean;

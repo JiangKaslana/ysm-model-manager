@@ -44,6 +44,14 @@ export class TextureCacheImpl {
     // 归零保留缓存（下次 acquire 可复用），由 disposeAll 清理
   }
 
+  /** Remove a failed/corrupt texture immediately so the next acquire can retry. */
+  invalidate(url: string): void {
+    const entry = this.cache.get(url);
+    if (!entry) return;
+    try { entry.tex.dispose(); } catch { /* defensive cleanup */ }
+    this.cache.delete(url);
+  }
+
   /** session 结束时释放所有缓存纹理 */
   disposeAll(): void {
     for (const [, entry] of this.cache) {

@@ -53,15 +53,21 @@ func main() {
 	appStruct.SetApp(wailsApp)
 
 	// 创建主窗口（Wails v3 API：WebviewWindowOptions + Window.NewWithOptions）
-	wnd := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "YSM 模型管理器",
-		Width:  1280,
-		Height: 800,
-		URL:    "/",
-	})
+	wnd := wailsApp.Window.NewWithOptions(mainWindowOptions())
 	appStruct.SetMainWindow(wnd)
 
 	if err := wailsApp.Run(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func mainWindowOptions() application.WebviewWindowOptions {
+	return application.WebviewWindowOptions{
+		Title:            "YSM 模型管理器",
+		Width:            1280,
+		Height:           800,
+		URL:              "/",
+		Hidden:           true,
+		BackgroundColour: application.NewRGB(17, 17, 27),
 	}
 }

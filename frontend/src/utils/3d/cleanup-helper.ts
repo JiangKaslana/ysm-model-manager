@@ -37,14 +37,18 @@ export function disposeDebugGroup(debugGroup: THREE.Group | null): void {
  * 释放内容层（ysm-object removeFromScene）与自建壳（renderModel3D cleanup）复用。
  * 调用前需确保场景图中的 Object3D 引用已清理。
  */
-export function disposeSceneMeshes(root: THREE.Object3D): void {
+export function disposeSceneMeshes(
+  root: THREE.Object3D,
+  options: { disposeTextures?: boolean } = {},
+): void {
+  const disposeTextures = options.disposeTextures ?? true;
   root.traverse((c) => {
     const mesh = c as THREE.Mesh;
     if (mesh.isMesh) {
       mesh.geometry?.dispose();
       if (Array.isArray(mesh.material))
-        mesh.material.forEach((m) => disposeMaterial(m));
-      else disposeMaterial(mesh.material);
+        mesh.material.forEach((m) => disposeMaterial(m, disposeTextures));
+      else disposeMaterial(mesh.material, disposeTextures);
     }
   });
 }
