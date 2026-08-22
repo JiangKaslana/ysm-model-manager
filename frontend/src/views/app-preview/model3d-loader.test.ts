@@ -13,11 +13,9 @@ const { getAppMock, specMock, buildSpecMock, isViewerModeMock, decodeWasmMock, t
   decodeWasmMock: vi.fn(),
   tsSpecBuilderMock: vi.fn(),
   fakeTextureCache: {
-    acquire: (_url: string, make: (u: string) => import("three").Texture) => {
-      const tex = make(_url);
-      return tex.userData.loadError ? null : tex;
-    },
+    acquire: (_url: string, make: (u: string) => import("three").Texture) => make(_url),
     release: () => {},
+    invalidate: vi.fn(),
     disposeAll: () => {},
   },
 }));
@@ -203,6 +201,40 @@ describe("preloadModel / fetchSpec", () => {
       });
       expect(r.texArr).toHaveLength(6);
       expect(r.texArr.every((t) => t !== null)).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("全量纹理清单中的空槽必须保留，避免后续 texIdx 错位成紫色", async () => {
+    specMock.mockResolvedValue(spec());
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      const r = await preloadModel({
+        _modelPath: "/m/texture-hole.ysm",
+        textures: ["u1", "", "u3"],
+        textureNames: ["base", "", "overlay"],
+      });
+      expect(r.texArr).toHaveLength(3);
+      expect(r.texArr[0]).toBeInstanceOf(THREE.Texture);
+      expect(r.texArr[1]).toBeNull();
+      expect(r.texArr[2]).toBeInstanceOf(THREE.Texture);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("只有 textures[0] 而没有 texture 字段时仍加载首纹理", async () => {
+    specMock.mockResolvedValue(spec());
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      const r = await preloadModel({
+        _modelPath: "/m/array-only-texture.ysm",
+        textures: ["skin.png"],
+        textureNames: ["skin"],
+      });
+      expect(r.texArr).toHaveLength(1);
+      expect(r.texArr[0]).toBeInstanceOf(THREE.Texture);
     } finally {
       vi.unstubAllGlobals();
     }

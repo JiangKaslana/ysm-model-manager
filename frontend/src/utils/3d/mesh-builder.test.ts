@@ -61,4 +61,20 @@ describe("YSM material alpha partition", () => {
     expect(material.alphaTest).toBe(0.1);
     expect(material.depthWrite).toBe(true);
   });
+
+  it("falls back to the first valid texture instead of rendering magenta", () => {
+    const fallback = rgbaTexture(255);
+    const bone = new THREE.Group();
+    addMeshToBoneGroup(
+      bone,
+      { ...meshData, texIdx: 2 },
+      [fallback, null],
+      0,
+      true,
+    );
+
+    const material = (bone.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    expect(material.map).toBe(fallback);
+    expect(material.color.getHex()).toBe(0xffffff);
+  });
 });

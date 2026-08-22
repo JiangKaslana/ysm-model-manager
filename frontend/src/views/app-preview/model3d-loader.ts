@@ -89,6 +89,12 @@ export async function loadTextures(urls?: string[]): Promise<(THREE.Texture | nu
         : Promise.resolve(),
     ),
   );
+  for (let i = 0; i < texArr.length; i++) {
+    if (texArr[i]?.userData.loadError) {
+      if (urls[i]) textureCache.invalidate(urls[i]);
+      texArr[i] = null;
+    }
+  }
   if (texArr.every((t) => t === null))
     console.warn("[3D] 纹理加载失败，模型将显示为 fallback 颜色");
   return texArr;
@@ -155,8 +161,8 @@ export async function preloadModel(model: ModelLike): Promise<{
 }> {
   const spec = await fetchSpec(model);
   // 实际纹理清单（URL + 名）；多组件走数组，单组件走单一 texture
-  const actualUrls = model.textures && model.textures.length > 1
-    ? model.textures.filter((u): u is string => Boolean(u))
+  const actualUrls = model.textures && model.textures.length > 0
+    ? model.textures
     : (model.texture ? [model.texture] : []);
   // name 索引：优先显式 textureNames；缺失时从 URL 基名派生（R1 契约比对用）
   const actualNames = (model as { textureNames?: string[] }).textureNames
