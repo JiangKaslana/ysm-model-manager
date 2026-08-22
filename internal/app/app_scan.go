@@ -16,6 +16,7 @@ import (
 
 	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/packs"
 	"ysm-model-manager/go/scanner"
 	ysmsync "ysm-model-manager/go/sync"
 	"ysm-model-manager/go/types"
@@ -376,12 +377,24 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 		for _, e := range allowedExts {
 			extSet[strings.ToLower(e)] = true
 		}
+		registry := types.LoadRegistry()
 		filtered := make([]types.ModelEntry, 0, len(entries))
 		for _, e := range entries {
-			if extSet[strings.ToLower(filepath.Ext(e.Path))] {
-				e.Type = rtype
-				filtered = append(filtered, e)
+			ext := strings.ToLower(filepath.Ext(e.Path))
+			if !extSet[ext] {
+				continue
 			}
+			// 容器扩展名（.zip/.7z）的类型归属不可靠扩展名判定（ADR-067）：
+			// 任何类型都可能被打包进容器，扩展名只表示「可能是」，必须打开容器
+			// 按内部 ZipEntries 内容指纹核验真实类型，不匹配 rtype 则丢弃。
+			// 非容器扩展名维持扩展名白名单直接收的旧行为。
+			if types.IsContainerExt(ext) {
+				if detected := packs.DetectResourceType(e.Path, registry); detected != rtype {
+					continue
+				}
+			}
+			e.Type = rtype
+			filtered = append(filtered, e)
 		}
 		entries = filtered
 	}
