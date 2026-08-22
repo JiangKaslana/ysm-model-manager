@@ -21,27 +21,31 @@ function triangle(
   };
 }
 
+function specWithMeshes(meshGroups: SpecMeshGroup3D[]): Spec3D {
+  return {
+    models: [{
+      id: "main",
+      bones: [{
+        id: "root",
+        name: "root",
+        localPosition: [0, 0, 0],
+        localRotation: [0, 0, 0, 1],
+      }],
+      meshGroups,
+    }],
+  };
+}
+
 describe("buildYsmObject mesh baking", () => {
   it("bakes rotated cubes on the same bone and texture into one draw object", () => {
     const halfTurnZ = new THREE.Quaternion().setFromAxisAngle(
       new THREE.Vector3(0, 0, 1),
       Math.PI,
     );
-    const spec: Spec3D = {
-      models: [{
-        id: "main",
-        bones: [{
-          id: "root",
-          name: "root",
-          localPosition: [0, 0, 0],
-          localRotation: [0, 0, 0, 1],
-        }],
-        meshGroups: [
-          triangle("plain", [0, 0, 0], [0, 0, 0, 1]),
-          triangle("rotated", [2, 0, 0], halfTurnZ.toArray()),
-        ],
-      }],
-    };
+    const spec = specWithMeshes([
+      triangle("plain", [0, 0, 0], [0, 0, 0, 1]),
+      triangle("rotated", [2, 0, 0], halfTurnZ.toArray()),
+    ]);
 
     const handle = buildYsmObject(spec, [], 0);
     const bone = handle.boneGroupMap.get("0:root")!;
@@ -59,18 +63,9 @@ describe("buildYsmObject mesh baking", () => {
   it("does not dispose textures owned by the shared texture cache", () => {
     const texture = rgbaTexture(255);
     const disposeSpy = vi.spyOn(texture, "dispose");
-    const spec: Spec3D = {
-      models: [{
-        id: "main",
-        bones: [{
-          id: "root",
-          name: "root",
-          localPosition: [0, 0, 0],
-          localRotation: [0, 0, 0, 1],
-        }],
-        meshGroups: [triangle("plain", [0, 0, 0], [0, 0, 0, 1])],
-      }],
-    };
+    const spec = specWithMeshes([
+      triangle("plain", [0, 0, 0], [0, 0, 0, 1]),
+    ]);
     const scene = new THREE.Scene();
     const handle = buildYsmObject(spec, [texture], 0);
     scene.add(handle.rootGroup);
@@ -81,21 +76,10 @@ describe("buildYsmObject mesh baking", () => {
   });
 
   it("keeps partial-alpha cubes separate for transparent depth sorting", () => {
-    const spec: Spec3D = {
-      models: [{
-        id: "main",
-        bones: [{
-          id: "root",
-          name: "root",
-          localPosition: [0, 0, 0],
-          localRotation: [0, 0, 0, 1],
-        }],
-        meshGroups: [
-          triangle("near", [0, 0, 0], [0, 0, 0, 1]),
-          triangle("far", [0, 0, 2], [0, 0, 0, 1]),
-        ],
-      }],
-    };
+    const spec = specWithMeshes([
+      triangle("near", [0, 0, 0], [0, 0, 0, 1]),
+      triangle("far", [0, 0, 2], [0, 0, 0, 1]),
+    ]);
 
     const handle = buildYsmObject(spec, [rgbaTexture(128)], 0);
     const bone = handle.boneGroupMap.get("0:root")!;

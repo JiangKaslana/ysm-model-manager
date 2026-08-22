@@ -311,14 +311,8 @@ export function evaluateKeyframes(keyframes: Keyframe[], t: number): Vec3 | null
   if (t >= keyframes[keyframes.length - 1].time)
     return [...(keyframes[keyframes.length - 1].post || [0, 0, 0])];
 
-  // 二分查找
-  let lo = 0;
-  let hi = keyframes.length - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (keyframes[mid].time <= t) lo = mid;
-    else hi = mid;
-  }
+  const lo = findKeyframeLowerIndex(keyframes, t);
+  const hi = lo + 1;
 
   const a = keyframes[lo];
   const b = keyframes[hi];
@@ -353,13 +347,8 @@ export function evaluateKeyframesInto(keyframes: Keyframe[], t: number, out: Vec
     return true;
   }
 
-  let lo = 0;
-  let hi = keyframes.length - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (keyframes[mid].time <= t) lo = mid;
-    else hi = mid;
-  }
+  const lo = findKeyframeLowerIndex(keyframes, t);
+  const hi = lo + 1;
   const a = keyframes[lo];
   const b = keyframes[hi];
   if (a.lerp === "step" || b.time <= a.time) {
@@ -371,6 +360,17 @@ export function evaluateKeyframesInto(keyframes: Keyframe[], t: number, out: Vec
   out[1] = a.post[1] + (b.post[1] - a.post[1]) * fraction;
   out[2] = a.post[2] + (b.post[2] - a.post[2]) * fraction;
   return true;
+}
+
+function findKeyframeLowerIndex(keyframes: Keyframe[], t: number): number {
+  let lo = 0;
+  let hi = keyframes.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (keyframes[mid].time <= t) lo = mid;
+    else hi = mid;
+  }
+  return lo;
 }
 
 /**
