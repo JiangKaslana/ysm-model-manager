@@ -41,6 +41,7 @@ export const MOCK_DATA = {
   ScanModelEntriesFiltered: [
     { Name: "model-a.ysm", Path: "/e2e/repo/model-a.ysm", Size: 1024, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
     { Name: "model-b.ysm", Path: "/e2e/repo/model-b.ysm", Size: 2048, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
+    { Name: "subdir-model.ysm", Path: "/e2e/repo/subdir/subdir-model.ysm", Size: 512, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
   ],
   ListVersionInstances: [
     { Name: "1.20.1-Fabric", VersionDir: "/e2e/mc/1.20.1-Fabric" },

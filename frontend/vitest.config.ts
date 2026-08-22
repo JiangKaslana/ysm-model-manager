@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { wasmDataStubs } from "./vite-wasm-data-stubs.ts";
 
 // 测试环境分流约定（瓶颈治理，参照 MikuMikuAR ADR-255）：
 // isolate=true 下 happy-dom 是每文件重建（~1.2s/文件），环境累加曾是墙钟大头。
@@ -7,6 +8,7 @@ import { defineConfig } from "vitest/config";
 // 源模块顶层 window 副作用须惰性化（typeof window !== "undefined" 守卫），
 // 如 bus.ts / app-modules.ts / debug.ts——否则 import 链在 node 下报 window is not defined。
 export default defineConfig({
+  plugins: [wasmDataStubs()],
   test: {
     include: ["src/**/*.test.{js,ts}"],
     environment: "happy-dom",
