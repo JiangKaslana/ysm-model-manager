@@ -140,6 +140,77 @@ describe("frustum-cull", () => {
     expect(g2.visible).toBe(false);
   });
 
+  describe("多组件 bounding box 只计可见子树（修复②：载具/投射物隐藏不撑大 box）", () => {
+    /** 构造带 geometry.boundingBox 的 mesh（expandBoxVisible 依赖已计算 bbox） */
+    function makeMeshWithBounds(min: [number, number, number], max: [number, number, number]): THREE.Mesh {
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      geo.computeBoundingBox();
+      // 手动覆盖 boundingBox 以控制范围
+      geo.boundingBox!.min.set(min[0], min[1], min[2]);
+      geo.boundingBox!.max.set(max[0], max[1], max[2]);
+      return new THREE.Mesh(geo);
+    }
+
+    it("隐藏的子组件（车）不计入 rootGroup 的 bounding box", () => {
+      // 模拟 wine_fox 多组件：rootGroup 下有 main（角色，小范围）+ foxcar（车，远端大范围）
+      const rootGroup = new THREE.Group();
+      const mainGroup = new THREE.Group();
+      mainGroup.add(makeMeshWithBounds([-2, 0, -2], [2, 40, 2]));
+      const foxcarGroup = new THREE.Group();
+      // 车在远端，bounding 极大——若计入会把整体 box 撑到视锥外
+      foxcarGroup.add(makeMeshWithBounds([-19, 4, -34], [19, 30, 12]));
+      foxcarGroup.visible = false; // 载具默认隐藏（修复① 的契约）
+      rootGroup.add(mainGroup);
+      rootGroup.add(foxcarGroup);
+
+      const scene = new THREE.Scene();
+      scene.add(rootGroup);
+      // 需要两个 root 触发多根路径（单根特例不裁剪）
+      const otherRoot = makeGroup("other");
+      otherRoot.position.set(0, 0, 0);
+      scene.add(otherRoot);
+      registerModelRoot(rootGroup);
+      registerModelRoot(otherRoot);
+
+      // 相机正对原点，角色在原点 → 若 box 只计 main 应可见
+      const cam = makeCamera();
+      cam.position.set(0, 20, 50);
+      cam.lookAt(0, 20, 0);
+      cullModelGroups(cam);
+
+      // 若 foxcar 被错误计入 box，整体 box 会偏到 [-19,-34] 远端，
+      // bounding sphere 中心偏移 + 半径变大 → 可能被剔除（闪烁根源）
+      expect(rootGroup.visible).toBe(true);
+      expect(foxcarGroup.visible).toBe(false); // 隐藏的载具保持隐藏
+      unregisterModelRoot(rootGroup);
+      unregisterModelRoot(otherRoot);
+    });
+
+    it("所有子组件都隐藏时 rootGroup 被裁剪（box 为空）", () => {
+      const rootGroup = new THREE.Group();
+      const mainGroup = new THREE.Group();
+      mainGroup.visible = false;
+      const foxcarGroup = new THREE.Group();
+      foxcarGroup.visible = false;
+      rootGroup.add(mainGroup);
+      rootGroup.add(foxcarGroup);
+
+      const scene = new THREE.Scene();
+      scene.add(rootGroup);
+      const otherRoot = makeGroup("other");
+      scene.add(otherRoot);
+      registerModelRoot(rootGroup);
+      registerModelRoot(otherRoot);
+
+      cullModelGroups(makeCamera());
+
+      // 全部子树隐藏 → box 为空 → rootGroup.visible = false
+      expect(rootGroup.visible).toBe(false);
+      unregisterModelRoot(rootGroup);
+      unregisterModelRoot(otherRoot);
+    });
+  });
+
   describe("视锥裁剪开关", () => {
     it("默认开启（无存储值 → undefined → true，性能保留）", () => {
       localStorage.removeItem("ysm_3d_frustumCull");

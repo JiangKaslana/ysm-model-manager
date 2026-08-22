@@ -9,6 +9,7 @@ const _frustum = new THREE.Frustum();
 const _projScreenMatrix = new THREE.Matrix4();
 const _box = new THREE.Box3();
 const _sphere = new THREE.Sphere();
+const _vec = new THREE.Vector3();
 
 /** 需要裁剪的模型根节点列表（adapter 在 scene.add 时注册） */
 const modelRoots: THREE.Object3D[] = [];
@@ -55,7 +56,11 @@ export function cullModelGroups(camera: THREE.Camera): void {
       modelRoots.splice(i, 1);
       continue;
     }
-    _box.setFromObject(obj);
+    // 只累加 visible 子树：Box3.setFromObject 默认计入 visible=false 的子节点，
+    // 多组件模型里隐藏的车/载具会把 bounding box 撑大并偏移，导致视锥剔除在
+    // 边界来回翻转（角色闪烁）。手写递归跳过 !visible 子树修复此问题。
+    _box.makeEmpty();
+    expandBoxVisible(obj, _box);
     if (_box.isEmpty()) {
       obj.visible = false;
       continue;
@@ -63,6 +68,31 @@ export function cullModelGroups(camera: THREE.Camera): void {
     _box.getBoundingSphere(_sphere);
     obj.visible = _frustum.intersectsSphere(_sphere);
   }
+}
+
+/** 递归展开 bounding box，只计入 visible 子树（跳过隐藏的载具/投射物组件） */
+function expandBoxVisible(obj: THREE.Object3D, box: THREE.Box3): void {
+  if (!obj.visible) return;
+  // 无条件更新世界矩阵：render loop 外的测试路径可能未 updateMatrixWorld，
+  // matrixWorldNeedsUpdate 守卫不可靠（new Group() 初始即 false）。对齐
+  // Box3.setFromObject 内部 updateWorldMatrix(true, true) 语义。
+  obj.updateWorldMatrix(true, true);
+  const mesh = obj as THREE.Mesh;
+  if (mesh.isMesh && mesh.geometry) {
+    // geometry.boundingBox 默认 null，需显式计算（对齐 Box3.setFromObject 内部行为）
+    let bb = mesh.geometry.boundingBox;
+    if (!bb) {
+      mesh.geometry.computeBoundingBox();
+      bb = mesh.geometry.boundingBox;
+    }
+    if (bb && !bb.isEmpty()) {
+      _vec.copy(bb.min).applyMatrix4(mesh.matrixWorld);
+      box.expandByPoint(_vec);
+      _vec.copy(bb.max).applyMatrix4(mesh.matrixWorld);
+      box.expandByPoint(_vec);
+    }
+  }
+  for (const child of obj.children) expandBoxVisible(child, box);
 }
 
 /** 清空所有注册（session 结束时调用） */

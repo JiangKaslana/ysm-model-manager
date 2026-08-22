@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 
 	"ysm-model-manager/go/types"
 )
@@ -146,16 +147,28 @@ func buildModelGroup(model types.BedrockModel, compID string, texIdxBase int) (M
 	if compName == "" {
 		compName = compID
 	}
+	// 组件可见性分类：仅 main（角色主体）默认可见；
+	// arm/载具/投射物等辅助组件默认隐藏，由动画控制器按游戏状态点亮。
+	// 多组件模型（如 wine_fox 的 player+foxcar）若全部点亮，
+	// 载具 bounding box 会撑大整体剔除范围 → 视锥边界抖动 → 角色闪烁。
 	return ModelGroup{
 		ID:             compID,
 		Name:           compName,
-		DefaultVisible: true,
+		DefaultVisible: isDefaultVisibleComponent(compName),
 		TextureWidth:   texW,
 		TextureHeight:  texH,
 		TextureID:      texID,
 		Bones:          bones,
 		MeshGroups:     meshes,
 	}, nil
+}
+
+// isDefaultVisibleComponent 判断组件是否默认可见。
+// 仅 main（角色主体）默认可见；arm/载具/投射物等辅助组件默认隐藏。
+func isDefaultVisibleComponent(compName string) bool {
+	base := strings.ToLower(compName)
+	base = strings.TrimSuffix(base, ".geo")
+	return base == "main"
 }
 
 // buildCubeMeshData 立方体几何构建（测试直接调用，保留为导出符号）。

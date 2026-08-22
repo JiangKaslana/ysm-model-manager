@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-22T16:33:25.438Z",
+  "generated": "2026-08-22T19:20:36.583Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|dependencies|molangjs",
@@ -100,6 +100,7 @@
     "src/utils/3d/semantic-morphs.ts|exports|MMD_SEMANTIC_MORPH_CANDIDATES",
     "src/utils/3d/semantic-morphs.ts|exports|SEMANTIC_MORPH_IDS",
     "src/utils/3d/spec-builder.ts|types|SubModel",
+    "src/utils/animation/animation.ts|exports|evaluateKeyframesInto",
     "src/utils/animation/animation.ts|types|MolangAxes",
     "src/utils/animation/molang-lib/molang-prism-syntax.js|file|src/utils/animation/molang-lib/molang-prism-syntax.js",
     "src/utils/dom/virtual-scroll.ts|exports|VS_BUFFER",
@@ -112,6 +113,7 @@
     "src/views/app-preview/geometry.ts|types|BedrockBone",
     "src/views/app-preview/geometry.ts|types|BedrockCube",
     "src/views/app-preview/index.ts|exports|appPreviewStyle",
+    "src/views/app-preview/litematic-3d.ts|exports|appendLitematicPreview",
     "src/views/app-preview/litematic-3d.ts|exports|invalidateLitematicPreview",
     "src/views/app-preview/litematic-3d.ts|exports|switchLitematicPreview",
     "src/views/app-preview/maid-3d.ts|exports|createMaid3D",
@@ -196,6 +198,7 @@
     "src/utils/format/ysm-anim-config.ts#src/views/app-preview/wasm.ts",
     "src/utils/resource/types.test.ts#src/utils/resource/types.ts",
     "src/views/app-content/diagnostics/perf-cli.ts#src/views/app-content/diagnostics/perf-cli.ts",
+    "src/views/app-content/diagnostics/perf.test.ts#src/views/app-content/diagnostics/perf.test.ts",
     "src/views/app-content/site/edit.ts#src/views/app-content/site/edit.ts",
     "src/views/app-preview/fbx-3d.ts#src/views/app-preview/ysm-3d.ts",
     "src/views/app-preview/litematic-3d.test.ts#src/views/app-preview/litematic-3d.test.ts",
