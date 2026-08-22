@@ -3,7 +3,6 @@
 package geometry
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"log"
@@ -191,241 +190,49 @@ type projEntry struct {
 // 与 ParseFromZip 原内联逻辑等价，但 geoFiles **不排除 arm**（arm 过滤由合并版调用方
 // filterArmModels 做；组件版需要 arm 作为独立组件）。entries 现为 container.Entry（ADR-068）。
 func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []string, geoFiles []geoEntry, pngs [][]byte, pngNames, animJSONs []string) {
-	var projModels []projEntry // 投射物/载具模型，player 模型解析完统一追加（texOrder 同序）
-	for _, e := range entries {
-		low := strings.ToLower(e.Name())
-		if strings.HasSuffix(low, "ysm.json") && !e.IsDir() {
-			rc, err := e.Open()
-			if err != nil {
-				continue
+	// ysm.json 统一解析（结构解码共享；口径后处理留在本函数，清单版：player.texture 去扩展名）
+	md := parseYsmArchive(entries, "[geometry]")
+
+	// texOrder：player.texture 先、projectiles/vehicles/arrow 后。
+	// uv 对象剥反斜杠、裸字符串不剥（复刻原内联不对称）；先小写再去 .png/.jpg 扩展名。
+	for _, t := range md.PlayerTexs {
+		tn := t.path
+		if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+			tn = tn[idx+1:]
+		}
+		if t.isUV {
+			if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+				tn = tn[idx+1:]
 			}
-			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-			var ysm struct {
-				// RawMessage 而非严格类型：松散/畸形 metadata 段不得拖垮核心解析
-				// （code review P2：license 为字符串等会令整个 ysm.json unmarshal 失败）
-				Metadata   json.RawMessage `json:"metadata"`
-				Properties struct {
-					DefaultTexture string `json:"default_texture"`
-				} `json:"properties"`
-				Files struct {
-					Player struct {
-						Model   json.RawMessage `json:"model"`
-						Texture json.RawMessage `json:"texture"`
-					} `json:"player"`
-					Projectiles json.RawMessage `json:"projectiles"`
-					Vehicles    json.RawMessage `json:"vehicles"`
-					Arrow       json.RawMessage `json:"arrow"`
-				} `json:"files"`
+		}
+		tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+		texOrder = append(texOrder, tn)
+	}
+	for _, pm := range md.ProjModels {
+		if pm.texName == "" {
+			continue
+		}
+		tn := texBasenameNoExt(pm.texName)
+		// 去重：vehicles 段 horse+mule 都指向 foxcar.png，
+		// 重复追加会导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）
+		alreadyIn := false
+		for _, ex := range texOrder {
+			if ex == tn {
+				alreadyIn = true
+				break
 			}
-			if err := json.Unmarshal(buf, &ysm); err != nil {
-				log.Printf("[geometry] 解析 ysm.json 失败: %v", err)
-			} else {
-				// 解析 texture 顺序
-				if len(ysm.Files.Player.Texture) > 0 {
-					texRaw := string(ysm.Files.Player.Texture)
-					if strings.HasPrefix(strings.TrimSpace(texRaw), `[`) {
-						var arr []json.RawMessage
-						if json.Unmarshal(ysm.Files.Player.Texture, &arr) == nil {
-							for _, item := range arr {
-								s := strings.TrimSpace(string(item))
-								if strings.HasPrefix(s, `{`) {
-									var obj struct {
-										Uv string `json:"uv"`
-									}
-									if json.Unmarshal(item, &obj) == nil && obj.Uv != "" {
-										tn := obj.Uv
-										if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-										texOrder = append(texOrder, tn)
-									}
-								} else {
-									var sval string
-									if json.Unmarshal(item, &sval) == nil && sval != "" {
-										tn := sval
-										if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-										texOrder = append(texOrder, tn)
-									}
-								}
-							}
-						}
-					}
-				}
-				// 解析 projectiles/vehicles/arrow：支持 list/dict/single 三形态。
-				// list: [{model,texture},...]（声明序即切片序）
-				// dict: {minecraft:arrow: {model,texture}}（json.Decoder Token 流保序，
-				//   避免 Go map 迭代随机化导致 texOrder/TexSlot 跨运行不稳定）
-				// single: {model,texture}（arrow 段单实体直接声明）
-				// 纹理追加到 texOrder（player 后）、模型先收集到 projModels、player 模型
-				// 解析完再统一追加（审核 P2：顺序错位致主模型绑投射物纹理槽）。
-				for _, raw := range []json.RawMessage{ysm.Files.Projectiles, ysm.Files.Vehicles, ysm.Files.Arrow} {
-					if len(raw) == 0 {
-						continue
-					}
-					var projs []struct {
-						Model   string          `json:"model"`
-						Texture json.RawMessage `json:"texture"`
-					}
-					rawTrim := strings.TrimSpace(string(raw))
-					if strings.HasPrefix(rawTrim, `[`) {
-						// list 形态：声明序即切片序
-						_ = json.Unmarshal(raw, &projs)
-					} else if strings.HasPrefix(rawTrim, `{`) {
-						// 区分 dict {minecraft:xxx: {model,texture}} 与 single {model,texture}：
-						// 按**首个 key 名**判别（按首 value 判别会误判：dict 首条被当 single 只收
-						// 一条、arrow 单对象落 dict 分支收零条——审核 P2）
-						dec := json.NewDecoder(bytes.NewReader(raw))
-						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							firstKey, err := dec.Token()
-							if err != nil {
-								continue
-							}
-							if ks, ok := firstKey.(string); ok && (ks == "model" || ks == "texture") {
-								// single 形态：{model, texture} 直读整段
-								var single struct {
-									Model   string          `json:"model"`
-									Texture json.RawMessage `json:"texture"`
-								}
-								if json.Unmarshal(raw, &single) == nil {
-									projs = append(projs, single)
-								}
-							} else {
-								// dict 形态：json.Decoder Token 流保序遍历全部条目
-								projs = projs[:0]
-								dec2 := json.NewDecoder(bytes.NewReader(raw))
-								if tok2, err := dec2.Token(); err == nil && tok2 == json.Delim('{') {
-									for dec2.More() {
-										_, _ = dec2.Token() // key（minecraft:xxx）
-										var cfg struct {
-											Model   string          `json:"model"`
-											Texture json.RawMessage `json:"texture"`
-										}
-										if dec2.Decode(&cfg) == nil {
-											projs = append(projs, cfg)
-										}
-									}
-								}
-							}
-						}
-					}
-					for _, pr := range projs {
-						texRaw := strings.TrimSpace(string(pr.Texture))
-						var texPath string
-						if strings.HasPrefix(texRaw, `{`) {
-							var obj struct {
-								Uv string `json:"uv"`
-							}
-							if json.Unmarshal(pr.Texture, &obj) == nil {
-								texPath = obj.Uv
-							}
-						} else {
-							var sval string
-							if json.Unmarshal(pr.Texture, &sval) == nil {
-								texPath = sval
-							}
-						}
-						if texPath != "" {
-							tn := texPath
-							if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-								tn = tn[idx+1:]
-							}
-							if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-								tn = tn[idx+1:]
-							}
-							tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-							// 去重：vehicles 段 horse+mule 都指向 foxcar.png，
-							// 重复追加会导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）
-							alreadyIn := false
-							for _, ex := range texOrder {
-								if ex == tn {
-									alreadyIn = true
-									break
-								}
-							}
-							if !alreadyIn {
-								texOrder = append(texOrder, tn)
-							}
-						}
-						if pr.Model != "" {
-							// 收集模型路径 + 声明的纹理名，texIdxMap 构建时用 texName 查 texOrder 位置
-							projModels = append(projModels, projEntry{model: pr.Model, texName: texPath})
-						}
-					}
-				}
-				// 解析 model 字段（支持 4 种格式）
-				raw := strings.TrimSpace(string(ysm.Files.Player.Model))
-				if len(raw) > 0 {
-					if raw[0] == '[' {
-						var arr []json.RawMessage
-						if json.Unmarshal(ysm.Files.Player.Model, &arr) == nil {
-							for _, item := range arr {
-								s := strings.TrimSpace(string(item))
-								if len(s) > 0 && s[0] == '{' {
-									var obj struct {
-										Path string `json:"path"`
-										Name string `json:"name"`
-									}
-									if json.Unmarshal(item, &obj) == nil {
-										n := obj.Path
-										if n == "" {
-											n = obj.Name
-										}
-										if n != "" {
-											modelOrder = append(modelOrder, n)
-										}
-									}
-								} else {
-									var sval string
-									if json.Unmarshal(item, &sval) == nil && sval != "" {
-										modelOrder = append(modelOrder, sval)
-									}
-								}
-							}
-						}
-					} else if raw[0] == '{' {
-						// map 格式：JSON 对象**写入序**即 Bedrock 声明序（main 通常最先声明）。
-						// Go map 丢失写入序，必须 json.Decoder Token 流式保序遍历——
-						// sort.Strings 键排序会把 main 排到 arm 后，导致 texSlot 绑定错位（P2 修复）。
-						dec := json.NewDecoder(bytes.NewReader(ysm.Files.Player.Model))
-						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							for dec.More() {
-								keyTok, err := dec.Token()
-								if err != nil {
-									break
-								}
-								_, _ = keyTok.(string) // 键名仅作引用，写入序即声明序
-								var val string
-								if err := dec.Decode(&val); err != nil {
-									break
-								}
-								if val != "" {
-									modelOrder = append(modelOrder, val)
-								}
-							}
-						}
-					} else {
-						var sval string
-						if json.Unmarshal(ysm.Files.Player.Model, &sval) == nil && sval != "" {
-							modelOrder = append(modelOrder, sval)
-						}
-					}
-				}
-			}
-			break
+		}
+		if !alreadyIn {
+			texOrder = append(texOrder, tn)
 		}
 	}
 
-	// 投射物模型统一在 player 模型之后追加：texOrder 已是 player 先、投射物后，
-	// modelOrder 同序才能让 texIdxMap 位置绑定不错位（审核 P2）
-	for _, pm := range projModels {
-		modelOrder = append(modelOrder, pm.model)
+	// modelOrder：player 模型先、投射物模型后（与 texOrder 同序，texIdxMap 位置绑定不错位）
+	modelOrder = append(modelOrder, md.ModelOrder...)
+	for _, pm := range md.ProjModels {
+		if pm.model != "" {
+			modelOrder = append(modelOrder, pm.model)
+		}
 	}
 
 	// maid-model 命名空间检测（与 parseModelFromEntries 同口径）
@@ -628,251 +435,62 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	var pngs [][]byte
 	var pngNames []string
 	var animJSONs []string
-	var ysmMeta types.YsmMetadata // ysm.json metadata 段（循环内填充，return 前挂到 geo）
+	var ysmMeta types.YsmMetadata // ysm.json metadata 段（return 前挂到 geo）
+
+	// ysm.json 统一解析（结构解码共享；口径后处理留在本函数）。metadata 段单独容错：
+	// 失败仅忽略（保持零值不挂载），核心解析不受影响。
+	md := parseYsmArchive(entries, logPrefix)
+	if len(md.Metadata) > 0 {
+		if err := json.Unmarshal(md.Metadata, &ysmMeta); err != nil {
+			log.Printf("%s metadata 段解析失败（忽略）: %v", logPrefix, err)
+			ysmMeta = types.YsmMetadata{} // 失败即清零：Go json 部分填充会残留非 nil 指针（如 License），防误挂载
+		}
+	}
 
 	var modelOrder []string
 	var texOrder []string
 	// modelTexName: 模型路径 → 声明的纹理名（小写 basename 去扩展名）。
 	// texIdxMap 构建时用它查 texOrder 位置分配 texSlot，而非按 modelOrder 序号
 	// 截断——避免 plane.json（共用 texture.png）被截断到 arrow.png 槽位。
-	var projModels []projEntry
-	for _, e := range entries {
-		low := strings.ToLower(e.Name())
-		if strings.HasSuffix(low, "ysm.json") && !e.IsDir() {
-			rc, err := e.Open()
-			if err != nil {
-				continue
+	projModels := make([]projEntry, 0, len(md.ProjModels))
+
+	// texOrder：player.texture 先、projectiles/vehicles/arrow 后（模型版口径：保留扩展名）。
+	// uv 对象剥反斜杠、裸字符串不剥（复刻原内联不对称）；仅小写，不去扩展名。
+	for _, t := range md.PlayerTexs {
+		tn := t.path
+		if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+			tn = tn[idx+1:]
+		}
+		if t.isUV {
+			if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+				tn = tn[idx+1:]
 			}
-			buf := fsutil.ReadLimitedEntry(rc, int64(maxExtractSize))
-			var ysm struct {
-				// RawMessage 而非严格类型：松散/畸形 metadata 段不得拖垮核心解析
-				// （code review P2：license 为字符串等会令整个 ysm.json unmarshal 失败）
-				Metadata   json.RawMessage `json:"metadata"`
-				Properties struct {
-					DefaultTexture string `json:"default_texture"`
-				} `json:"properties"`
-				Files struct {
-					Player struct {
-						Model   json.RawMessage `json:"model"`
-						Texture json.RawMessage `json:"texture"`
-					} `json:"player"`
-					Projectiles json.RawMessage `json:"projectiles"`
-					Vehicles    json.RawMessage `json:"vehicles"`
-					Arrow       json.RawMessage `json:"arrow"`
-				} `json:"files"`
-			}
-			if err := json.Unmarshal(buf, &ysm); err != nil {
-				log.Printf("%s 解析 ysm.json 失败: %v", logPrefix, err)
-			} else {
-				// metadata 段单独解析 + 容错：失败仅忽略（保持零值不挂载），核心解析不受影响
-				if len(ysm.Metadata) > 0 {
-					if err := json.Unmarshal(ysm.Metadata, &ysmMeta); err != nil {
-						log.Printf("%s metadata 段解析失败（忽略）: %v", logPrefix, err)
-						ysmMeta = types.YsmMetadata{} // 失败即清零：Go json 部分填充会残留非 nil 指针（如 License），防误挂载
-					}
-				}
-				// 解析 texture 顺序
-				if len(ysm.Files.Player.Texture) > 0 {
-					texRaw := string(ysm.Files.Player.Texture)
-					if strings.HasPrefix(strings.TrimSpace(texRaw), `[`) {
-						var arr []json.RawMessage
-						if json.Unmarshal(ysm.Files.Player.Texture, &arr) == nil {
-							for _, item := range arr {
-								s := strings.TrimSpace(string(item))
-								if strings.HasPrefix(s, `{`) {
-									var obj struct {
-										Uv string `json:"uv"`
-									}
-									if json.Unmarshal(item, &obj) == nil && obj.Uv != "" {
-										tn := obj.Uv
-										if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										texOrder = append(texOrder, strings.ToLower(tn))
-									}
-								} else {
-									var sval string
-									if json.Unmarshal(item, &sval) == nil && sval != "" {
-										tn := sval
-										if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-											tn = tn[idx+1:]
-										}
-										texOrder = append(texOrder, strings.ToLower(tn))
-									}
-								}
-							}
-						}
-					}
-				}
-				// 解析 projectiles/vehicles/arrow：支持 list/dict/single 三形态。
-				// list: [{model,texture},...]（声明序即切片序）
-				// dict: {minecraft:arrow: {model,texture}}（json.Decoder Token 流保序，
-				//   避免 Go map 迭代随机化导致 texOrder/TexSlot 跨运行不稳定）
-				// single: {model,texture}（arrow 段单实体直接声明）
-				// 纹理追加到 texOrder（player 后）、模型先收集到 projModels、player 模型
-				// 解析完再统一追加（审核 P2：顺序错位致主模型绑投射物纹理槽）。
-				for _, raw := range []json.RawMessage{ysm.Files.Projectiles, ysm.Files.Vehicles, ysm.Files.Arrow} {
-					if len(raw) == 0 {
-						continue
-					}
-					var projs []struct {
-						Model   string          `json:"model"`
-						Texture json.RawMessage `json:"texture"`
-					}
-					rawTrim := strings.TrimSpace(string(raw))
-					if strings.HasPrefix(rawTrim, `[`) {
-						// list 形态：声明序即切片序
-						_ = json.Unmarshal(raw, &projs)
-					} else if strings.HasPrefix(rawTrim, `{`) {
-						// 区分 dict {minecraft:xxx: {model,texture}} 与 single {model,texture}：
-						// 按**首个 key 名**判别（按首 value 判别会误判：dict 首条被当 single 只收
-						// 一条、arrow 单对象落 dict 分支收零条——审核 P2）
-						dec := json.NewDecoder(bytes.NewReader(raw))
-						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							firstKey, err := dec.Token()
-							if err != nil {
-								continue
-							}
-							if ks, ok := firstKey.(string); ok && (ks == "model" || ks == "texture") {
-								// single 形态：{model, texture} 直读整段
-								var single struct {
-									Model   string          `json:"model"`
-									Texture json.RawMessage `json:"texture"`
-								}
-								if json.Unmarshal(raw, &single) == nil {
-									projs = append(projs, single)
-								}
-							} else {
-								// dict 形态：json.Decoder Token 流保序遍历全部条目
-								projs = projs[:0]
-								dec2 := json.NewDecoder(bytes.NewReader(raw))
-								if tok2, err := dec2.Token(); err == nil && tok2 == json.Delim('{') {
-									for dec2.More() {
-										_, _ = dec2.Token() // key（minecraft:xxx）
-										var cfg struct {
-											Model   string          `json:"model"`
-											Texture json.RawMessage `json:"texture"`
-										}
-										if dec2.Decode(&cfg) == nil {
-											projs = append(projs, cfg)
-										}
-									}
-								}
-							}
-						}
-					}
-					for _, pr := range projs {
-						texRaw := strings.TrimSpace(string(pr.Texture))
-						var texPath string
-						if strings.HasPrefix(texRaw, `{`) {
-							var obj struct {
-								Uv string `json:"uv"`
-							}
-							if json.Unmarshal(pr.Texture, &obj) == nil {
-								texPath = obj.Uv
-							}
-						} else {
-							var sval string
-							if json.Unmarshal(pr.Texture, &sval) == nil {
-								texPath = sval
-							}
-						}
-						if texPath != "" {
-							tn := texPath
-							if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-								tn = tn[idx+1:]
-							}
-							if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-								tn = tn[idx+1:]
-							}
-							tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-							// 去重：vehicles 段 horse+mule 都指向 foxcar.png，
-							// 重复追加会导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）
-							alreadyIn := false
-							for _, ex := range texOrder {
-								if ex == tn {
-									alreadyIn = true
-									break
-								}
-							}
-							if !alreadyIn {
-								texOrder = append(texOrder, tn)
-							}
-						}
-						if pr.Model != "" {
-							// 收集模型路径 + 声明的纹理名，texIdxMap 构建时用 texName 查 texOrder 位置
-							projModels = append(projModels, projEntry{model: pr.Model, texName: texPath})
-						}
-					}
-				}
-				// 解析 model 字段（支持 4 种格式）
-				raw := strings.TrimSpace(string(ysm.Files.Player.Model))
-				if len(raw) > 0 {
-					if raw[0] == '[' {
-						var arr []json.RawMessage
-						if json.Unmarshal(ysm.Files.Player.Model, &arr) == nil {
-							for _, item := range arr {
-								s := strings.TrimSpace(string(item))
-								if len(s) > 0 && s[0] == '{' {
-									var obj struct {
-										Path string `json:"path"`
-										Name string `json:"name"`
-									}
-									if json.Unmarshal(item, &obj) == nil {
-										n := obj.Path
-										if n == "" {
-											n = obj.Name
-										}
-										if n != "" {
-											modelOrder = append(modelOrder, n)
-										}
-									}
-								} else {
-									var sval string
-									if json.Unmarshal(item, &sval) == nil && sval != "" {
-										modelOrder = append(modelOrder, sval)
-									}
-								}
-							}
-						}
-					} else if raw[0] == '{' {
-						// map 格式：JSON 对象**写入序**即 Bedrock 声明序（main 通常最先声明）。
-						// Go map 丢失写入序，必须 json.Decoder Token 流式保序遍历——
-						// sort.Strings 键排序会把 main 排到 arm 后，导致 texSlot 绑定错位（P2 修复）。
-						dec := json.NewDecoder(bytes.NewReader(ysm.Files.Player.Model))
-						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							for dec.More() {
-								keyTok, err := dec.Token()
-								if err != nil {
-									break
-								}
-								_, _ = keyTok.(string) // 键名仅作引用，写入序即声明序
-								var val string
-								if err := dec.Decode(&val); err != nil {
-									break
-								}
-								if val != "" {
-									modelOrder = append(modelOrder, val)
-								}
-							}
-						}
-					} else {
-						var sval string
-						if json.Unmarshal(ysm.Files.Player.Model, &sval) == nil && sval != "" {
-							modelOrder = append(modelOrder, sval)
-						}
-					}
+		}
+		texOrder = append(texOrder, strings.ToLower(tn))
+	}
+	for _, pm := range md.ProjModels {
+		if pm.texName != "" {
+			tn := texBasenameNoExt(pm.texName)
+			// 去重：vehicles 段 horse+mule 都指向 foxcar.png，
+			// 重复追加会导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）
+			alreadyIn := false
+			for _, ex := range texOrder {
+				if ex == tn {
+					alreadyIn = true
+					break
 				}
 			}
-			break
+			if !alreadyIn {
+				texOrder = append(texOrder, tn)
+			}
+		}
+		if pm.model != "" {
+			projModels = append(projModels, pm)
 		}
 	}
 
-	// 投射物模型统一在 player 模型之后追加：texOrder 已是 player 先、投射物后，
-	// modelOrder 同序才能让 texIdxMap 位置绑定不错位（主模型保持槽 0）
+	// modelOrder：player 模型先、投射物模型后（与 texOrder 同序，texIdxMap 位置绑定不错位）
+	modelOrder = append(modelOrder, md.ModelOrder...)
 	for _, pm := range projModels {
 		modelOrder = append(modelOrder, pm.model)
 	}
