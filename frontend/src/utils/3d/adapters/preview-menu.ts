@@ -16,6 +16,7 @@ import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
 import { RESOURCE_TYPE_LABELS, resolveTypeSafe } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
+import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 import { t } from "../../../core/i18n/t.ts";
 import type { MenuControlDef, SceneCapability } from "../caps/scene-capability.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
@@ -957,11 +958,17 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
   });
 }
 
-/** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮。 */
+/** 上次选中的类型 tab 持久化键（全局记忆，跨模型/跨会话）："" = 当前目录 */
+const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
+
+/** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮。
+ *  默认高亮上次点击的类型（localStorage 全局记忆）；若该类型不在当前 tabs 列表，回退当前目录。 */
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
-  let activeTab = ""; // "" = 当前目录（siblings）
+  // 全局记忆：读上次类型，单源容错——不在当前 tabs 则回退 ""（当前目录）
+  const remembered = safeGet(PREVIEW_LAST_RTYPE_KEY);
+  let activeTab = remembered !== null && rtypes.includes(remembered) ? remembered : "";
 
   // 类型 tab 行：「当前目录」恒在首位，后接各资源类型（点击懒加载）
   const tabBar = document.createElement("div");
@@ -978,6 +985,8 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       (key === activeTab ? ";background:rgba(124,131,255,0.35);color:#fff" : "");
     b.onclick = (): void => {
       activeTab = key;
+      // 全局记忆：持久化本次选中类型（含当前目录 ""）
+      safeSet(PREVIEW_LAST_RTYPE_KEY, key);
       // 高亮当前 tab
       for (const tb of Array.from(tabBar.children)) {
         (tb as HTMLElement).style.background = (tb as HTMLElement).dataset.rtype === key

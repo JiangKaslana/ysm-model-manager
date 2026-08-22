@@ -397,5 +397,54 @@ describe("mountPreviewRootMenu", () => {
     expect(switchExternal).toHaveBeenCalledWith("/m/x.vrm", ["/m/a.ysm"]);
     handle.dispose();
   });
+
+  it("类型 tab 全局记忆：默认高亮上次点击的类型（localStorage 持久化）", async () => {
+    const switchTo = vi.fn();
+    localStorage.setItem("ysm.preview.lastRtype", "vrm");
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm"],
+      getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "ysm",
+      getTypeTabs: () => ["ysm", "vrm"],
+      getModelsByType: async () => ["/m/x.vrm"],
+      switchTo,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
+    modelBtn!.click();
+    // vrm tab 应为默认高亮（background 非 transparent，含高亮色 rgba(124,131,255,...)）
+    const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
+    const vrmTab = Array.from(tabs).find((t) => t.dataset.rtype === "vrm") as HTMLElement;
+    expect(vrmTab.style.background).toContain("124");
+    expect(vrmTab.style.background).toContain("131");
+    await vi.waitFor(() => {
+      expect(overlay.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(1);
+    });
+    handle.dispose();
+    localStorage.removeItem("ysm.preview.lastRtype");
+  });
+
+  it("类型 tab 全局记忆：记忆类型不在当前 tabs 列表 → 回退当前目录高亮", () => {
+    const switchTo = vi.fn();
+    localStorage.setItem("ysm.preview.lastRtype", "litematic");
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
+      getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "ysm",
+      getTypeTabs: () => ["ysm", "vrm"],
+      getModelsByType: async () => [],
+      switchTo,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
+    modelBtn!.click();
+    const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
+    const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "") as HTMLElement;
+    const vrmTab = Array.from(tabs).find((t) => t.dataset.rtype === "vrm") as HTMLElement;
+    // 当前目录（""）高亮，litematic 不在列表故不回显
+    expect(dirTab.style.background).toContain("124");
+    expect(dirTab.style.background).toContain("131");
+    expect(vrmTab.style.background).not.toContain("124, 131");
+    handle.dispose();
+    localStorage.removeItem("ysm.preview.lastRtype");
+  });
 });
 
