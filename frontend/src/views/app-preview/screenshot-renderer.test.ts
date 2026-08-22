@@ -7,7 +7,7 @@
 //  - P3 修复：空 base64（GPU 异常）不入结果集
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, threeStub } =
+const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, buildYsmObjectMock, threeStub } =
   vi.hoisted(() => {
     class FakeVec {
       x = 0;
@@ -98,6 +98,7 @@ const { getAppMock, specMock, loadTexturesMock, buildSceneMeshMock, threeStub } 
       specMock: vi.fn(),
       loadTexturesMock: vi.fn(),
       buildSceneMeshMock: vi.fn(),
+      buildYsmObjectMock: vi.fn(),
       threeStub: {
         WebGLRenderer: FakeWebGLRenderer,
         Scene: FakeScene,
@@ -132,6 +133,7 @@ vi.mock("../../utils/3d/mesh.ts", () => ({
   buildSceneMesh: buildSceneMeshMock,
   compKey: (mi: number, boneId: string) => `${mi}:${boneId}`,
 }));
+vi.mock("../../utils/3d/ysm-object.ts", () => ({ buildYsmObject: buildYsmObjectMock }));
 vi.mock("three", () => threeStub);
 
 import { renderMultiAngle } from "./screenshot-renderer.ts";
@@ -161,6 +163,10 @@ function stubSceneGraph() {
   buildSceneMeshMock.mockReturnValue({
     boneGroupMap: new Map([["0:root", bg]]),
     rootGroup,
+  });
+  buildYsmObjectMock.mockReturnValue({
+    rootGroup,
+    removeFromScene: vi.fn(),
   });
 }
 
@@ -221,8 +227,8 @@ describe("renderMultiAngle — 防御路径", () => {
     }
   });
 
-  it("buildSceneMesh 抛错 → 返回 null（场景构建段防御）", async () => {
-    buildSceneMeshMock.mockImplementation(() => {
+  it("buildYsmObject 抛错 → 返回 null（场景构建段防御）", async () => {
+    buildYsmObjectMock.mockImplementation(() => {
       throw new Error("mesh boom");
     });
     expect(await renderMultiAngle("/m/a.ysm", [])).toBeNull();
@@ -246,6 +252,7 @@ describe("renderMultiAngle — 成功路径", () => {
     ]);
     expect(shots!.every((s) => s.base64 === "QUFB")).toBe(true);
     expect(lastRenderer().render).toHaveBeenCalledTimes(4);
+    expect(buildYsmObjectMock).toHaveBeenCalledTimes(1);
   });
 
   it("opts.size 生效 → setSize 使用指定尺寸", async () => {
@@ -265,4 +272,3 @@ describe("renderMultiAngle — 成功路径", () => {
     expect(lastRenderer().forceContextLoss).toHaveBeenCalledTimes(1);
   });
 });
-

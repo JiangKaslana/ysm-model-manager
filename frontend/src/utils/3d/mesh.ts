@@ -32,13 +32,18 @@ const ALL_TEXTURE_KEYS = [
 ] as const;
 
 /** 释放材质（含所有位图贴图），null/undefined 安全。 */
-export function disposeMaterial(m: THREE.Material | null | undefined): void {
+export function disposeMaterial(
+  m: THREE.Material | null | undefined,
+  disposeTextures = true,
+): void {
   if (!m) return;
   // 显式释放纹理：material.dispose() 不保证清除 mat.map 等引用（实测验证）
-  for (const key of ALL_TEXTURE_KEYS) {
-    const tex = (m as unknown as Record<string, unknown | THREE.Texture | null>)[key];
-    if (tex && typeof (tex as THREE.Texture).dispose === "function") {
-      try { (tex as THREE.Texture).dispose(); } catch {}
+  if (disposeTextures) {
+    for (const key of ALL_TEXTURE_KEYS) {
+      const tex = (m as unknown as Record<string, unknown | THREE.Texture | null>)[key];
+      if (tex && typeof (tex as THREE.Texture).dispose === "function") {
+        try { (tex as THREE.Texture).dispose(); } catch {}
+      }
     }
   }
   try { m.dispose(); } catch {}

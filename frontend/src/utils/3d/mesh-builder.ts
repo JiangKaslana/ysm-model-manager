@@ -3,13 +3,11 @@
 import * as THREE from "three";
 import type { SpecMeshGroup3D, SpecModelGroup3D } from "./model3d.ts";
 import { applyRotationIfNonIdentity } from "./quaternion.ts";
+import { getTextureAlphaMode } from "./texture-alpha.ts";
 
 /** ysmview 风格材质配置（索引 2.16 魔法数值收敛） */
 const MATERIAL_OPTS = {
   side: THREE.FrontSide,
-  transparent: true,
-  alphaTest: 0.1,
-  depthWrite: true,
 } as const;
 /** 纹理缺失/越界时的品红错误色（可见化兜底） */
 const ERROR_COLOR_MAGENTA = 0xff00ff;
@@ -36,6 +34,8 @@ export function addMeshToBoneGroup(
   geo.setAttribute("normal", new THREE.Float32BufferAttribute(md.normals, 3));
   geo.setAttribute("uv", new THREE.Float32BufferAttribute(md.uvs, 2));
   geo.setIndex(md.indices);
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
 
   // 纹理索引：多组件用 md.texIdx（Go 端全局槽位），单组件用调用方 texIdx
   const mti = multiModel ? (md.texIdx ?? 0) : (texIdx ?? 0);
@@ -57,10 +57,14 @@ export function addMeshToBoneGroup(
   }
 
   // ysmview 风格材质：FrontSide + transparent + alphaTest 0.1 + depthWrite（配置收敛于 MATERIAL_OPTS）
+  const alphaMode = mt ? getTextureAlphaMode(mt) : "opaque";
   const mat = mt
     ? new THREE.MeshBasicMaterial({
         map: mt,
         ...MATERIAL_OPTS,
+        transparent: alphaMode === "blend",
+        alphaTest: alphaMode === "cutout" ? 0.1 : 0,
+        depthWrite: alphaMode !== "blend",
       })
     : new THREE.MeshBasicMaterial({
         color: texIdxMismatch ? ERROR_COLOR_MAGENTA : FALLBACK_COLOR_GRAY,

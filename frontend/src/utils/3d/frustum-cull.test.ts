@@ -104,6 +104,20 @@ describe("frustum-cull", () => {
     expect(g.visible).toBe(true);
   });
 
+  it("single-model preview skips recursive group bounds and uses mesh culling", () => {
+    const g = makeGroup("single");
+    const scene = new THREE.Scene();
+    scene.add(g);
+    registerModelRoot(g);
+    const boundsSpy = vi.spyOn(THREE.Box3.prototype, "setFromObject");
+
+    cullModelGroups(makeCamera());
+
+    expect(boundsSpy).not.toHaveBeenCalled();
+    expect(g.visible).toBe(true);
+    boundsSpy.mockRestore();
+  });
+
   it("多模型独立裁剪", () => {
     const g1 = makeGroup("near");
     g1.position.set(0, 0, 0);

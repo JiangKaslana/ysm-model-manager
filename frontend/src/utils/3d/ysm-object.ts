@@ -14,10 +14,11 @@ import * as THREE from "three";
 import { buildSceneMesh, compKey } from "./mesh.ts";
 import { addMeshToBoneGroup } from "./mesh-builder.ts";
 import { bakeMeshGroups } from "./mesh-baker.ts";
+import { getTextureAlphaMode } from "./texture-alpha.ts";
 import { disposeSceneMeshes } from "./cleanup-helper.ts";
 import { getBoneList } from "./bone-list.ts";
 import { setBoneVisible, toggleBone, showModelGroup } from "./bone-visibility.ts";
-import type { Spec3D } from "./model3d.ts";
+import type { Spec3D, SpecMeshGroup3D } from "./model3d.ts";
 
 /** YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 */
 export interface YsmObjectHandle {
@@ -45,11 +46,20 @@ export function buildYsmObject(
   texIdx = 0,
 ): YsmObjectHandle {
   const { boneGroupMap, rootGroup, modelGroups } = buildSceneMesh(spec);
+  const multiModel = (spec.models?.length ?? 1) > 1;
 
   // 网格合并 + 挂载（原 renderModel3D 内联逻辑；合并结果本地化，不写回 spec）
   for (const [mi, mg] of (spec.models || []).entries()) {
     if (!mg.meshGroups?.length) continue;
-    const merged = bakeMeshGroups(mg.meshGroups);
+    const batchable: SpecMeshGroup3D[] = [];
+    const translucent: SpecMeshGroup3D[] = [];
+    for (const mesh of mg.meshGroups) {
+      const textureIndex = multiModel ? (mesh.texIdx ?? 0) : texIdx;
+      const texture = texArr[textureIndex] ?? null;
+      if (texture && getTextureAlphaMode(texture) === "blend") translucent.push(mesh);
+      else batchable.push(mesh);
+    }
+    const merged = [...bakeMeshGroups(batchable), ...translucent];
     // Keep the source spec immutable so cached model data can be reused safely.
     for (const md of merged) {
       const bg = boneGroupMap.get(compKey(mi, md.boneId));
@@ -57,7 +67,7 @@ export function buildYsmObject(
       if (md.texIdx === undefined) {
         console.warn("[model3d] mesh 缺 texIdx（spec 契约破坏），回退 0", spec.models?.length);
       }
-      addMeshToBoneGroup(bg, md, texArr, texIdx, (spec.models?.length ?? 1) > 1);
+      addMeshToBoneGroup(bg, md, texArr, texIdx, multiModel);
     }
   }
 
@@ -72,7 +82,7 @@ export function buildYsmObject(
     getBoneList: () => getBoneList(spec),
     removeFromScene(scene: THREE.Scene): void {
       scene.remove(rootGroup);
-      disposeSceneMeshes(rootGroup);
+      disposeSceneMeshes(rootGroup, { disposeTextures: false });
     },
   };
 }
