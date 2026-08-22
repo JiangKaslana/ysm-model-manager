@@ -12,7 +12,7 @@
 // 全程轻量获取文件——不再全量扫描各仓库、不再按扩展名分类贴标签。
 
 import { getApp } from "../../backend/app.ts";
-import { RESOURCE_TYPE_LABELS, resolvePreviewKey, resolvePreviewKeyToRtype } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPE_LABELS, resolvePreviewKey, resolvePreviewKeyToRtype, getPreviewableTypeTabs } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { switchPreview, hasActivePreview } from "../../utils/3d/adapters/mount-preview-core.ts";
 
@@ -112,7 +112,10 @@ export function withPreviewExtras<T extends Mount3DOptions>(opts: T): T & Previe
   return Object.assign(opts as T & PreviewExtras, {
     switchExternal: (p: string, s?: string[]) => openModel3DFullscreen(p, s ? { siblings: s } : undefined),
     getModelsByType: scanModelsByType,
-    getTypeTabs: () => getRegisteredRoutes(),
+    // ADR-111 收口：类型 tab 统一从 resource_types.json 派生（getPreviewableTypeTabs），
+    // 不再由 opener 注册副作用（Object.keys(_openers)）派生——后者混用 preview key 与
+    // rtype ID，导致 tab 语义与 nav 下拉双源不一致。此处仅取 key 列表维持最小改动面。
+    getTypeTabs: () => getPreviewableTypeTabs().map((t) => t.key),
   });
 }
 

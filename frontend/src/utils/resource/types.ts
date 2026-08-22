@@ -223,6 +223,41 @@ export const NO_3D_TYPES: ReadonlySet<string> = new Set(
   Object.values(RESOURCE_CAPS).filter((cap) => cap.preview !== "3d").map((cap) => cap.id),
 );
 
+/**
+ * 3D 切换面板类型 tab 的单一事实来源（ADR-111 收口）。
+ * 此前 preview-switch-tabs 由 `Object.keys(_openers)` 副作用派生——opener 注册 key 混用
+ * preview key（"mmd"/"vrm"/"mmd-scene"）与真实 rtype ID（"ysm"/"fbx"），导致 tab 语义
+ * 与 nav 下拉（走 GROUP_TYPE_OPTIONS 真实 rtype）双源不一致。
+ *
+ * 本函数统一从 resource_types.json 派生：筛选顶层 `preview === "3d"` 的类型，按 variants
+ * 展开为适配器 key（EntityPlayer → ["mmd","vrm"]），无 variant 的类型用自己的 id（如 "ysm"）。
+ * 标签统一走 RESOURCE_TYPE_LABELS，杜绝手写 HTML / opener 副作用两套口径。
+ *
+ * 返回顺序即 tab 展示顺序，由 resource_types.json 条目顺序决定（新增类型自动尾部追加）。
+ */
+export interface PreviewTab {
+  /** 适配器路由 key（喂给 resolvePreviewKeyToRtype 反解为真实 rtype） */
+  key: string;
+  /** 展示标签 */
+  label: string;
+}
+
+export function getPreviewableTypeTabs(): PreviewTab[] {
+  const tabs: PreviewTab[] = [];
+  for (const t of registryEntries) {
+    if (!t.id) continue;
+    const cap = RESOURCE_CAPS[t.id];
+    if (!cap || cap.preview !== "3d") continue;
+    const variants = t.variants?.map((v) => v.preview).filter((p): p is string => !!p) ?? [];
+    const keys = variants.length > 0 ? Array.from(new Set(variants)) : [t.id];
+    const label = RESOURCE_TYPE_LABELS[t.id] || t.id;
+    for (const key of keys) {
+      tabs.push({ key, label });
+    }
+  }
+  return tabs;
+}
+
 /** 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） */
 export function matchTypeByExt(path: string, typeId: string): boolean {
   const cap = RESOURCE_CAPS[typeId];

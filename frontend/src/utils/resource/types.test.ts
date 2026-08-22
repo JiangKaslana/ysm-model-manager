@@ -6,6 +6,7 @@ import {
   RESOURCE_TYPES,
   RESOURCE_TYPE_LABELS,
   ALL_RESOURCE_TYPES,
+  NO_3D_TYPES,
   AMBIGUOUS_EXTS,
   resolveTypeSafe,
   VOXEL_RPC_BY_EXT,
@@ -14,6 +15,7 @@ import {
   GROUP_TYPE_OPTIONS,
   groupLabelOf,
   groupStorageRootOf,
+  getPreviewableTypeTabs,
 } from "./types.ts";
 import resourceTypesJson from "../../../../resource_types.json";
 
@@ -373,5 +375,56 @@ describe("resolvePreviewKeyToRtype 预览键反解资源类型 ID", () => {
   it("未知键回退自身（不抛错，静默降级为原键）", () => {
     expect(resolvePreviewKeyToRtype("totally-unknown-key")).toBe("totally-unknown-key");
     expect(resolvePreviewKeyToRtype("")).toBe("");
+  });
+});
+
+// ===== getPreviewableTypeTabs（ADR-111 收口：3D 切换面板 tab 单一事实来源）=====
+describe("getPreviewableTypeTabs 3D 切换面板 tab 派生", () => {
+  const tabs = getPreviewableTypeTabs();
+  const keys = tabs.map((t) => t.key);
+
+  it("仅含 preview='3d' 的类型，排除 thumbnail/none 类型", () => {
+    const allowed = new Set(ALL_RESOURCE_TYPES.filter((id) => !NO_3D_TYPES.has(id)));
+    const previewKeys = new Set<string>();
+    for (const rt of resourceTypesJson.resourceTypes) {
+      if (rt.variants) for (const v of rt.variants) previewKeys.add(v.preview);
+    }
+    for (const t of tabs) {
+      const isRealRtype = allowed.has(t.key);
+      const isPreviewKey = previewKeys.has(t.key);
+      expect(isRealRtype || isPreviewKey, `tab key 既非 3d 类型也非 preview key: ${t.key}`).toBe(true);
+    }
+  });
+
+  it("EntityPlayer 的 variants 展开为 mmd + vrm tab（.pmx/.pmd 同映射 mmd 已去重）", () => {
+    const mmdTabs = tabs.filter((t) => t.key === "mmd");
+    const vrmFromEntity = tabs.filter((t) => t.key === "vrm" && t.label === "角色模型");
+    expect(mmdTabs.length).toBe(1);
+    // vrm 是 EntityPlayer 与 SceneModel 共享预览格式，tab 去重后至少含一个归属「角色模型」的 vrm
+    expect(vrmFromEntity.length).toBeGreaterThanOrEqual(1);
+    expect(mmdTabs[0].label).toBe("角色模型");
+  });
+
+  it("无 variants 的 3d 类型用自己的 id 作 key（ysm / fbx / blueprint / maid-model …）", () => {
+    for (const id of ["ysm", "fbx", "blueprint", "litematic", "maid-model"]) {
+      expect(keys).toContain(id);
+    }
+  });
+
+  it("preview≠3d 的类型不出现（如 mmd-shader / CustomAnim 等纯动作/着色器类型）", () => {
+    for (const excluded of ["CustomAnim", "CustomMorph", "StageAnim", "mmd-shader", "DefaultAnim"]) {
+      expect(keys).not.toContain(excluded);
+    }
+  });
+
+  it("已知数据不一致：resourcepack 标 preview=thumbnail 却注册了 3D opener（待 JSON 标注修正）", () => {
+    // 现状：pack-3d.ts 注册了 resourcepack opener，但 resource_types.json 标的是 thumbnail，
+    // 故 getPreviewableTypeTabs 按 preview==='3d' 派生会排除它——功能回归点，记入 ADR/待办。
+    // 此处断言「当前确实不含」，把不一致固化为已知事实，防止静默漂移。
+    expect(keys).not.toContain("resourcepack");
+  });
+
+  it("每个 tab 都有非空标签", () => {
+    expect(tabs.every((t) => t.label.length > 0)).toBe(true);
   });
 });

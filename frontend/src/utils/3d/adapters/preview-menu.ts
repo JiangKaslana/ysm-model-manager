@@ -14,7 +14,7 @@ import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
-import { RESOURCE_TYPE_LABELS, resolveTypeSafe } from "../../resource/types.ts";
+import { RESOURCE_TYPE_LABELS, resolveTypeSafe, getPreviewableTypeTabs } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 import { t } from "../../../core/i18n/t.ts";
@@ -969,6 +969,12 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
   const curRtype = ctx.getCurrentRtype?.() ?? "";
+  // ADR-111 收口：tab 标签统一从 getPreviewableTypeTabs 派生（preview key → 类型中文标签，
+  // 如 "vrm"/"mmd" → "角色模型"），不再依赖 RESOURCE_TYPE_LABELS[key]（preview key 不在其中）。
+  const tabLabelOf = (key: string): string => {
+    const hit = getPreviewableTypeTabs().find((t) => t.key === key);
+    return hit?.label ?? RESOURCE_TYPE_LABELS[key] ?? key;
+  };
   // 默认高亮：手动记忆优先；记忆无效（无/越界）则回退当前模型类型；再不行第一个类型（rtypes 空则 "" 走 siblings 兜底）
   const remembered = safeGet(PREVIEW_LAST_RTYPE_KEY);
   let activeTab: string;
@@ -1008,7 +1014,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     };
     tabBar.appendChild(b);
   };
-  for (const r of rtypes) mkTab(r, RESOURCE_TYPE_LABELS[r] || r);
+  for (const r of rtypes) mkTab(r, tabLabelOf(r));
 
   const listBody = document.createElement("div");
   listBody.style.cssText = "max-height:240px;overflow-y:auto";
