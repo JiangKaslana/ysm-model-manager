@@ -95,11 +95,18 @@ type geoEntry struct {
 	data []byte
 }
 
+// projEntry 收集投射物/载具模型路径 + 声明的纹理名，
+// texIdxMap 构建时用 texName 查 texOrder 位置分配 texSlot。
+type projEntry struct {
+	model   string
+	texName string // 声明的纹理名（小写 basename 去扩展名）
+}
+
 // collectArchiveFiles 从压缩包收集 ysm.json 映射/模型文件/纹理（合并版与组件版共用）。
 // 与 ParseFromZip 原内联逻辑等价，但 geoFiles **不排除 arm**（arm 过滤由合并版调用方
 // filterArmModels 做；组件版需要 arm 作为独立组件）。entries 现为 container.Entry（ADR-068）。
 func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []string, geoFiles []geoEntry, pngs [][]byte, pngNames, animJSONs []string) {
-	var projModels []string // 投射物/载具模型，player 模型解析完统一追加（texOrder 同序）
+	var projModels []projEntry // 投射物/载具模型，player 模型解析完统一追加（texOrder 同序）
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, "ysm.json") && !e.IsDir() {
@@ -248,7 +255,8 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 							texOrder = append(texOrder, tn)
 						}
 						if pr.Model != "" {
-							projModels = append(projModels, pr.Model)
+							// 收集模型路径 + 声明的纹理名，texIdxMap 构建时用 texName 查 texOrder 位置
+							projModels = append(projModels, projEntry{model: pr.Model, texName: texPath})
 						}
 					}
 				}
@@ -317,7 +325,9 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 
 	// 投射物模型统一在 player 模型之后追加：texOrder 已是 player 先、投射物后，
 	// modelOrder 同序才能让 texIdxMap 位置绑定不错位（审核 P2）
-	modelOrder = append(modelOrder, projModels...)
+	for _, pm := range projModels {
+		modelOrder = append(modelOrder, pm.model)
+	}
 
 	// maid-model 命名空间检测（与 parseModelFromEntries 同口径）
 	var maidNs string
@@ -522,7 +532,10 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	var modelOrder []string
 	var texOrder []string
-	var projModels []string // 投射物/载具模型，player 模型之后追加（texOrder 同序）
+	// modelTexName: 模型路径 → 声明的纹理名（小写 basename 去扩展名）。
+	// texIdxMap 构建时用它查 texOrder 位置分配 texSlot，而非按 modelOrder 序号
+	// 截断——避免 plane.json（共用 texture.png）被截断到 arrow.png 槽位。
+	var projModels []projEntry
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, "ysm.json") && !e.IsDir() {
@@ -669,7 +682,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 							texOrder = append(texOrder, tn)
 						}
 						if pr.Model != "" {
-							projModels = append(projModels, pr.Model)
+							// 收集模型路径 + 声明的纹理名，texIdxMap 构建时用 texName 查 texOrder 位置
+							projModels = append(projModels, projEntry{model: pr.Model, texName: texPath})
 						}
 					}
 				}
@@ -738,7 +752,9 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	// 投射物模型统一在 player 模型之后追加：texOrder 已是 player 先、投射物后，
 	// modelOrder 同序才能让 texIdxMap 位置绑定不错位（主模型保持槽 0）
-	modelOrder = append(modelOrder, projModels...)
+	for _, pm := range projModels {
+		modelOrder = append(modelOrder, pm.model)
+	}
 
 	var geoFiles []geoEntry
 
@@ -1090,17 +1106,54 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	if texCount == 0 {
 		texCount = len(modelOrder)
 	}
+	// modelTexName: 模型 basename → 声明的纹理名（小写 basename 去扩展名）。
+	// texIdxMap 构建时用它查 texOrder 位置分配 texSlot，而非按 modelOrder 序号
+	// 截断——避免 plane.json（共用 texture.png）被截断到 arrow.png 槽位。
+	modelTexName := make(map[string]string, len(projModels))
+	for _, pm := range projModels {
+		mp := pm.model
+		if idx := strings.LastIndex(mp, "/"); idx >= 0 {
+			mp = mp[idx+1:]
+		}
+		if idx := strings.LastIndex(mp, "\\"); idx >= 0 {
+			mp = mp[idx+1:]
+		}
+		mp = strings.TrimSuffix(strings.TrimSuffix(mp, ".geo.json"), ".json")
+		// texName: 小写 basename 去扩展名
+		tn := pm.texName
+		if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+			tn = tn[idx+1:]
+		}
+		if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+			tn = tn[idx+1:]
+		}
+		tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+		modelTexName[mp] = tn
+	}
 	if len(modelOrder) > 0 {
 		for i, p := range modelOrder {
 			p = filepath.ToSlash(p)
 			if idx := strings.LastIndex(p, "/"); idx >= 0 {
 				p = p[idx+1:]
 			}
-			ti := i
-			if ti >= texCount {
-				ti = texCount - 1
+			bn := strings.TrimSuffix(strings.TrimSuffix(p, ".json"), ".geo.json")
+			// 优先按声明的纹理名查 texOrder 位置；查不到再按 modelOrder 序号兜底
+			ti := -1
+			if texName, ok := modelTexName[bn]; ok && texName != "" {
+				for j, tn := range texOrder {
+					if tn == texName {
+						ti = j
+						break
+					}
+				}
 			}
-			texIdxMap[strings.TrimSuffix(p, ".json")] = ti
+			if ti < 0 {
+				ti = i
+				if ti >= texCount {
+					ti = texCount - 1
+				}
+			}
+			texIdxMap[bn] = ti
 		}
 	}
 
