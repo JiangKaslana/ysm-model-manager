@@ -31,8 +31,13 @@ export interface FbxParseResponse {
 class TextureNameProxyLoader extends THREE.Loader {
   load(url: string, onLoad?: (tex: THREE.Texture) => void): THREE.Texture {
     const tex = new THREE.Texture();
-    const fileName = url.split(/[\\/]/).pop() ?? url;
-    captureTextureName(tex, fileName);
+    // 内嵌纹理（data:/blob: URI）已在场景内、主线程无需磁盘读取——取 basename 会得到
+    // base64 载荷的垃圾片段，texUrlMap 按它查磁盘必失败 → 内嵌纹理 ASCII FBX 静默丢纹理
+    // （主线程 blob 路径正常，worker 路径分叉，审核 P3）
+    if (!/^(data|blob):/i.test(url)) {
+      const fileName = url.split(/[\\/]/).pop() ?? url;
+      captureTextureName(tex, fileName);
+    }
     onLoad?.(tex);
     return tex;
   }

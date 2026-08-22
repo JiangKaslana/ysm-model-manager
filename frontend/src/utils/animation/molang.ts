@@ -22,6 +22,7 @@ export type MolangFn = (animTime: number) => number;
 // 用 as unknown as 绕过——运行时确认可正常 new 实例化。
 const parser = new (Molang as unknown as new () => {
   parse(expr: string, variables: Record<string, number>): number;
+  resetVariables(): void;
   variableHandler: ((key: string, variables: object) => number) | null;
 })();
 // 未知 query/variable → 0：mod 扩展的游戏态查询（ysm.*/按键/药效等）在预览器
@@ -47,9 +48,13 @@ function makeVariables(animTime: number): Record<string, number> {
 export function compileMolang(expr: string): MolangFn | null {
   if (typeof expr !== "string" || expr.trim() === "") return null;
   try {
+    // 每次求值前重置可变变量：molangjs 的 temp./variable. 赋值会写进单例 parser 的
+    // self.variables，不重置则跨帧/clip/模型泄漏（Bedrock 语义 temp. 每帧重置，审核 P3）
+    parser.resetVariables();
     parser.parse(expr, makeVariables(0)); // 试探编译，非法表达式此处抛错
     return (animTime: number): number => {
       try {
+        parser.resetVariables();
         const v = parser.parse(expr, makeVariables(animTime));
         // L4：编译成功但运行时产生 Infinity/NaN（如 1e999、除以零）→ 零占位
         // 对齐 P1 Infinity 守卫口径，避免 NaN 穿透到渲染层

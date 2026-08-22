@@ -273,6 +273,13 @@ export function buildFbxSceneFromData(data: FbxSceneData, config: FbxSceneBuilde
   });
   // 第二遍：应用局部变换 + 按 parent 索引挂接（parent=-1 → 挂根）
   const group = new THREE.Group();
+  // 根容器自身变换（Z-up→Y-up 矫正等）随数据回传并应用——否则 worker 路径重建出
+  // 恒等根，Z-up FBX 侧躺（与主线程 blob 路径分叉，审核 P2）
+  if (data.rootTransform) {
+    group.position.fromArray(data.rootTransform.position);
+    group.quaternion.fromArray(data.rootTransform.quaternion);
+    group.scale.fromArray(data.rootTransform.scale);
+  }
   data.nodes.forEach((node, i) => {
     const obj = built[i];
     if (!obj) return;

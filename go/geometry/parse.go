@@ -6,6 +6,7 @@ package geometry
 import (
 	"encoding/json"
 	"log"
+	"sort"
 	"strings"
 
 	"ysm-model-manager/go/types"
@@ -143,16 +144,32 @@ func parseOldFormat(data []byte) *types.BedrockModel {
 	}
 	formatVersion, _ := unquoteString(top["format_version"])
 
-	for key, val := range top {
-		if !strings.HasPrefix(key, "geometry.") {
-			continue
+	// 确定性选取 geometry.* 条目：Go map 迭代序随机，直接 for-range 首个命中会让
+	// 同一文件（多 geometry.* 键）在不同运行/进程选到不同模型（审核 P3）
+	var keys []string
+	for key := range top {
+		if strings.HasPrefix(key, "geometry.") {
+			keys = append(keys, key)
 		}
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	sort.Strings(keys)
+	// 规范键 geometry.model（Blockbench 导出默认）优先，否则按字典序取最小
+	for i, k := range keys {
+		if k == "geometry.model" && i > 0 {
+			keys[0], keys[i] = keys[i], keys[0]
+			break
+		}
+	}
+	for _, key := range keys {
 		var oldGeom struct {
 			TextureWidth  float64    `json:"texturewidth"`
 			TextureHeight float64    `json:"textureheight"`
 			Bones         []boneJSON `json:"bones"`
 		}
-		if err := json.Unmarshal(val, &oldGeom); err != nil {
+		if err := json.Unmarshal(top[key], &oldGeom); err != nil {
 			log.Printf("[geometry] 旧版格式 %s 解析失败: %v", key, err)
 			continue
 		}

@@ -88,6 +88,13 @@ export interface FbxClipData {
 export interface FbxSceneData {
   nodes: FbxNodeData[];
   animations: FbxClipData[];
+  /** 根容器自身的局部变换（vendor FBXLoader 把 Z-up→Y-up 矫正设在返回根组上，
+   *  不随数据回传则重建端恒等根 → worker 路径 Z-up FBX 侧躺，与主线程分叉，审核 P2） */
+  rootTransform?: {
+    position: number[];
+    quaternion: number[];
+    scale: number[];
+  };
 }
 
 const textureFileNames = new WeakMap<THREE.Texture, string>();
@@ -229,6 +236,11 @@ export function fbxSceneToData(group: THREE.Object3D): FbxSceneData {
   const anims = (group as THREE.Object3D & { animations?: THREE.AnimationClip[] }).animations;
   return {
     nodes,
+    rootTransform: {
+      position: [group.position.x, group.position.y, group.position.z],
+      quaternion: [group.quaternion.x, group.quaternion.y, group.quaternion.z, group.quaternion.w],
+      scale: [group.scale.x, group.scale.y, group.scale.z],
+    },
     animations: (anims ?? []).map((clip) => ({
       name: clip.name,
       duration: clip.duration,

@@ -222,7 +222,7 @@
 | `IsMainModelName()` | `go/geometry/archive:1380` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
 | `ParseComponentsFromZip()` | `go/geometry/archive:1392` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
 | `ParseComponentsFrom7z()` | `go/geometry/archive:1487` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
-| `ParseBedrockGeometry()` | `go/geometry/parse:188` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
+| `ParseBedrockGeometry()` | `go/geometry/parse:205` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
 
@@ -1236,7 +1236,7 @@
 | `FBX_TARGET_MAX_DIM()` | `frontend/src/utils/3d/adapters/fbx-adapter:31` | FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160）， 与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 |
 | `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:34` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |
 | `normalizeFbxScale()` | `frontend/src/utils/3d/adapters/fbx-adapter:50` | Box3 尺度归一（ADR-112 P1）：DCC 导出单位混乱（cm/m/Unity units 可差 100×）时， 模型要么小到穿近平面看不见、要么顶天立地顶爆场景能力。均匀 |
-| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:154` | 构建 FBX 内容场景（ADR-112 地基）。 |
+| `buildFbxScene()` | `frontend/src/utils/3d/adapters/fbx-adapter:163` | 构建 FBX 内容场景（ADR-112 地基）。 |
 | `FbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:17` | FBX 解析器管理器（接口对齐 PmxParser） |
 | `createFbxParser()` | `frontend/src/utils/3d/adapters/fbx-parser:26` | 创建 FBX 解析器（Worker）。测试/受限环境无 Worker → always-fail 降级守卫， 调用方（fbx-adapter）会 fallback 到主线程 FBX |
 | `FbxSceneBuilderConfig()` | `frontend/src/utils/3d/adapters/fbx-parser:91` | 场景重建配置 |
@@ -1250,8 +1250,8 @@
 | `FbxNodeData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:65` | 场景节点（非骨骼：Group 或 Mesh；parent = nodes 下标，-1 = 根） |
 | `FbxClipData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:78` | — |
 | `FbxSceneData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:88` | — |
-| `captureTextureName()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:95` | — |
-| `fbxSceneToData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:202` | — |
+| `captureTextureName()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:102` | — |
+| `fbxSceneToData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:209` | — |
 | `InputOptions()` | `frontend/src/utils/3d/adapters/input-and-animation:15` | 输入绑定所需的最小依赖集（原 mount3D 内嵌状态） |
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
@@ -1617,7 +1617,7 @@
 | `Easings()` | `frontend/src/utils/animation/molang-lib/easing:2` | — |
 | `Molang()` | `frontend/src/utils/animation/molang-lib/molang:11` | — |
 | `MolangFn()` | `frontend/src/utils/animation/molang:18` | Molang 求值函数：入参为当前动画时间（秒，即 query.anim_time） |
-| `compileMolang()` | `frontend/src/utils/animation/molang:47` | 编译 Molang 表达式为求值闭包。 |
+| `compileMolang()` | `frontend/src/utils/animation/molang:48` | 编译 Molang 表达式为求值闭包。 |
 | `stagger()` | `frontend/src/utils/animation/stagger:11` | — |
 | `moveItem()` | `frontend/src/utils/array:8` | 将 arr[from] 移到 arr[to]（原地修改，返回同一数组）。 |
 | `swallowError()` | `frontend/src/utils/core/async:11` | 吞掉 promise 的异常并记录日志（比空 `.catch(() =&gt; {})` 可调试）。 |

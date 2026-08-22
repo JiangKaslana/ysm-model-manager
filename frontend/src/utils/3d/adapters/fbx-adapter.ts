@@ -132,15 +132,24 @@ async function buildFbxTexUrlMap(
       }
     }
   }
-  for (const name of names) {
-    try {
-      // 磁盘文件名大小写可能不一致 → 原样 + lowercase 双试
-      let b64 = await port.readFileBytes(`${dir}/${name}`);
-      if (!b64) b64 = await port.readFileBytes(`${dir}/${name.toLowerCase()}`);
-      if (!b64) continue;
-      const bytes = bytesToArrayBuffer(b64ToBytes(b64));
-      map.set(name, URL.createObjectURL(new Blob([bytes], { type: "image/png" })));
-    } catch { /* 单个纹理读取失败跳过，不阻断渲染 */ }
+  // 有界并发读取（对齐 mmd-adapter TEXTURE_READ_CHUNK_SIZE=4，ADR-101）：
+  // 串行 Go RPC 让加载延迟随纹理数线性增长（审核 P3）
+  const CHUNK_SIZE = 4;
+  const nameList = [...names];
+  for (let i = 0; i < nameList.length; i += CHUNK_SIZE) {
+    const chunk = nameList.slice(i, i + CHUNK_SIZE);
+    await Promise.all(
+      chunk.map(async (name) => {
+        try {
+          // 磁盘文件名大小写可能不一致 → 原样 + lowercase 双试
+          let b64 = await port.readFileBytes(`${dir}/${name}`);
+          if (!b64) b64 = await port.readFileBytes(`${dir}/${name.toLowerCase()}`);
+          if (!b64) return;
+          const bytes = bytesToArrayBuffer(b64ToBytes(b64));
+          map.set(name, URL.createObjectURL(new Blob([bytes], { type: "image/png" })));
+        } catch { /* 单个纹理读取失败跳过，不阻断渲染 */ }
+      }),
+    );
   }
   return map;
 }
@@ -152,6 +161,8 @@ async function buildFbxTexUrlMap(
  * @param port  数据端口（readFileBytes / 可选诊断日志）
  */
 export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: FbxDataPort): Promise<PreviewScene> {
+  // 纹理 blob URL 收集：dispose 时统一 revoke，防止每次预览累积泄漏（审核 P3）
+  let texBlobUrls: string[] = [];
   // 1) 取字节 → ArrayBuffer + blob URL（Wails 读不了本地盘，必须经 Go RPC 取字节再包 URL）
   const tStart = performance.now();
   const b64 = await port.readFileBytes(path);
@@ -178,6 +189,7 @@ export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: Fb
         // texUrlMap：worker 只登记纹理文件名，主线程读真实字节建 blob URL 挂贴图
         // （发现1 P2：此前从不构建 → worker 路径纹理恒缺失，静默回归）
         const texUrlMap = await buildFbxTexUrlMap(resp.data, path, port);
+        texBlobUrls = [...texUrlMap.values()];
         group = buildFbxSceneFromData(resp.data, { texUrlMap }) as THREE.Group & { animations: THREE.AnimationClip[] };
         const { meshCount } = countFbxStats(group);
         await fbxDiag(
@@ -267,6 +279,8 @@ export async function buildFbxScene(ctx: PreviewBuildCtx, path: string, port: Fb
           if (Array.isArray(mat)) mat.forEach((m) => disposeMaterial(m));
           else if (mat) disposeMaterial(mat as THREE.Material);
         });
+        // 纹理 blob URL 释放（预览关闭后不再需要；未完成的 TextureLoader.load 会静默失败）
+        for (const u of texBlobUrls) URL.revokeObjectURL(u);
       } catch {
         /* 释放容错 */
       }
