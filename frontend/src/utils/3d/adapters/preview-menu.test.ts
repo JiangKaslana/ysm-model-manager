@@ -325,7 +325,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("角色面板加载入口：当前目录 tab 跨类型兄弟行也有 ➕（追加与类型无关）", () => {
+  it("角色面板加载入口：跨类型兄弟行无 ➕（守卫恢复——跨类型追加走错适配器）", () => {
     const switchTo = vi.fn();
     const switchExternal = vi.fn(async () => {});
     const handle = mountPreviewRootMenu(overlay, makeCtx({
@@ -337,11 +337,11 @@ describe("mountPreviewRootMenu", () => {
     }));
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
-    // /m/b.vrm 是跨类型兄弟：仍有 ➕（追加与类型无关）；点击 ➕ 走 keepInScene 追加
+    // /m/b.vrm 是跨类型兄弟：无 ➕（code review P2 守卫恢复——追加走当前会话
+    // adapter.build，跨类型会喂错格式解析失败）；行本体点击仍走 switchExternal
     const appendBtns = overlay.querySelectorAll('[data-testid="preview-switch-append"]');
-    expect(appendBtns.length).toBe(1);
-    (appendBtns[0] as HTMLElement).click();
-    expect(switchTo).toHaveBeenCalledWith("/m/b.vrm", { keepInScene: true });
+    expect(appendBtns.length).toBe(0);
+    expect(switchTo).not.toHaveBeenCalled();
     // 行本体点击仍是跨类型替换（switchExternal）——重建语义不变
     const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
     (rows[1] as HTMLElement).click();
@@ -376,7 +376,7 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("角色面板加载入口：类型 tab 跨类型候选行也有 ➕（追加与类型无关）", async () => {
+  it("角色面板加载入口：类型 tab 跨类型候选行无 ➕（守卫恢复——跨类型追加走错适配器）", async () => {
     const switchTo = vi.fn();
     const switchExternal = vi.fn(async () => {});
     const handle = mountPreviewRootMenu(overlay, makeCtx({
@@ -397,11 +397,11 @@ describe("mountPreviewRootMenu", () => {
     await vi.waitFor(() => {
       expect(overlay.querySelectorAll('[data-testid="preview-switch-item"]').length).toBe(1);
     });
-    // 跨类型候选：有 ➕ 追加按钮（追加与类型无关）；点击 ➕ 走 keepInScene
+    // 跨类型候选：无 ➕（code review P2 守卫恢复——追加走当前会话 adapter.build，
+    // 跨类型会喂错格式解析失败）；行本体点击仍走 switchExternal
     const appendBtn = overlay.querySelector('[data-testid="preview-switch-append"]') as HTMLElement;
-    expect(appendBtn).not.toBeNull();
-    appendBtn.click();
-    expect(switchTo).toHaveBeenCalledWith("/m/x.vrm", { keepInScene: true });
+    expect(appendBtn).toBeNull();
+    expect(switchTo).not.toHaveBeenCalled();
     // 行本体点击仍是跨类型替换（switchExternal）
     (overlay.querySelector('[data-testid="preview-switch-item"]') as HTMLElement).click();
     expect(switchExternal).toHaveBeenCalledWith("/m/x.vrm", ["/m/a.ysm"]);

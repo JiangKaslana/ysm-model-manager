@@ -1067,10 +1067,13 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         lb.textContent = p.split(/[/\\]/).pop() || p;
         row.append(ic, lb);
         // 行尾「➕ 追加」：keepInScene 多角色同框（角色面板内打通追加加载）。
-        // 任何非当前候选均可追加，与类型无关——switchToSession 复用共享 scene，
-        // 跨类型（如 VRM/PMX/YSM/Litematic）叠加同样可行，不存在"走错适配器"的物理限制。
+        // 仅同类型候选可 ➕——追加走 ctx.switchTo（当前会话 adapter.build，
+        // switchToSession 无类型 dispatch），跨类型追加会把 .vrm/.pmx 喂给当前
+        // ysm/mmd adapter 解析失败（code review P2：f86129bf 移除守卫的
+        // 「跨类型叠加同样可行」假设不成立）；跨类型行本体点击已由下方
+        // switchExternal 正确路由（L1090）。
         // stopPropagation 防触发行本体替换语义。
-        if (!isCur) {
+        if (!isCur && sameType) {
           const append = document.createElement("button");
           append.dataset.testid = "preview-switch-append";
           append.textContent = "➕";

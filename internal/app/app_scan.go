@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fsutil"
@@ -357,6 +358,35 @@ func (a *App) ScanModelEntriesWithLabel(dir string, label string) []types.ModelE
 	return entries
 }
 
+// containerTypeCache 容器类型指纹缓存（path → fingerprint）：
+// ScanModelEntriesFiltered 每次类型 tab 渲染都调用，容器条目（.zip/.7z）逐次
+// DetectResourceType 会重开归档——文件未变时复用指纹，避免 N 个归档每次全重扫
+// （code review P3，conf 0.50→核实成立：前端 scanModelsByType 每次 tab 渲染调用）
+var containerTypeCache sync.Map
+
+type containerFingerprint struct {
+	modTime  time.Time
+	size     int64
+	detected string
+}
+
+// cachedContainerType 返回容器真实类型（带文件指纹缓存）；文件变化（modtime/size）时重核验
+func cachedContainerType(path string, registry *types.ResourceTypeRegistry) string {
+	info, err := os.Stat(path)
+	if err != nil {
+		return ""
+	}
+	if v, ok := containerTypeCache.Load(path); ok {
+		fp := v.(containerFingerprint)
+		if fp.modTime.Equal(info.ModTime()) && fp.size == info.Size() {
+			return fp.detected
+		}
+	}
+	detected := packs.DetectResourceType(path, registry)
+	containerTypeCache.Store(path, containerFingerprint{modTime: info.ModTime(), size: info.Size(), detected: detected})
+	return detected
+}
+
 // ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions
 // 注册表做类型特定扩展名过滤。前端预览菜单切换模型场景用——EntityPlayer 类型需排除
 // .vmd/.vpd 动作文件，仅保留 .pmx/.pmd/.zip 模型/容器文件。
@@ -389,7 +419,7 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 			// 按内部 ZipEntries 内容指纹核验真实类型，不匹配 rtype 则丢弃。
 			// 非容器扩展名维持扩展名白名单直接收的旧行为。
 			if types.IsContainerExt(ext) {
-				if detected := packs.DetectResourceType(e.Path, registry); detected != rtype {
+				if detected := cachedContainerType(e.Path, registry); detected != rtype {
 					continue
 				}
 			}
@@ -411,6 +441,7 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 // ClearScanCache 清除扫描缓存（下载/导入后调用）
 func (a *App) ClearScanCache() {
 	scanner.InvalidateCache()
+	containerTypeCache.Clear() // code review P3：容器指纹随扫描缓存一起失效（下载/导入后）
 }
 
 // ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘）
