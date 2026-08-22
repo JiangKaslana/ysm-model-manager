@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import { fileURLToPath } from "url";
 import { resolve } from "path";
 import { wailsBindingsResolve } from "./vite-wails-bindings-resolve.ts";
+import { wasmDataStubs } from "./vite-wasm-data-stubs.ts";
 
 export default defineConfig({
   root: ".",
@@ -35,5 +36,5 @@ export default defineConfig({
       ],
     },
   },
-  plugins: [wailsBindingsResolve],
+  plugins: [wailsBindingsResolve, wasmDataStubs()],
 });
