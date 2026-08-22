@@ -93,6 +93,33 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
+  it("渲染器点按切换 chrome：首次隐藏、再次点按恢复同一面板（非关闭浮窗、非空白）", () => {
+    const viewEl = document.createElement("div");
+    mountPreviewRootMenu(
+      overlay,
+      makeCtx({ getViewContainer: () => viewEl, getSiblings: () => ["/m/b.ysm"] }),
+    );
+    // 经 dock 打开 scene 组菜单（菜单内容渲染进 .slide-list）
+    (overlay.querySelector(`[data-testid="dock-scene"]`) as HTMLElement).click();
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    expect(popup.querySelector(".slide-list")?.childElementCount ?? 0).toBeGreaterThan(0);
+
+    const tap = (): void => {
+      viewEl.dispatchEvent(new MouseEvent("pointerdown", { clientX: 0, clientY: 0 }));
+      viewEl.dispatchEvent(new MouseEvent("pointerup", { clientX: 0, clientY: 0 }));
+    };
+    // 点按 → 隐藏
+    tap();
+    expect(popup.style.display).toBe("none");
+    // 面板 DOM 仍在（隐藏而非删除）
+    expect(popup.querySelector(".slide-list")?.childElementCount ?? 0).toBeGreaterThan(0);
+    // 再次点按 → 恢复同一面板（display 回 flex，内容仍在）
+    tap();
+    expect(popup.style.display).toBe("flex");
+    expect(popup.querySelector(".slide-list")?.childElementCount ?? 0).toBeGreaterThan(0);
+  });
+
   it("点击 model 组（多 panel：roles + adapter model）→ 组根视图列项，点击项下钻面板", () => {
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const adapterModelItem = {

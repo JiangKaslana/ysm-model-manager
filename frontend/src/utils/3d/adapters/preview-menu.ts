@@ -488,8 +488,9 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     popup.style.display = "flex";
   };
   const hideMenu = (): void => {
+    // 仅隐藏：display:none，DOM+导航栈保留（不调 menu.reset()）。
+    // 这样「再点渲染器」能恢复【同一个面板】而非空白，且 ✕/← 语义不串。
     popup.style.display = "none";
-    menu.reset();
   };
   // 根级 ✕（SlideMenu onClose）语义 = 关闭整个 3D 预览（对齐旧 close 菜单项）
   menu.setOnClose(() => {
@@ -620,12 +621,25 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     });
   };
 
-  // ---- 点击 3D 渲染器区域关闭菜单（不全局杀弹窗）----
+  // ---- 渲染器点按：切换 chrome 可见性（隐藏↔恢复同一面板，非关闭浮窗）----
+  // 隐藏只切 display，DOM+导航栈保留 → 再点恢复的是同一个面板（不会变空白）。
+  // pointerdown/up + 位移/时长阈值区分「点按」与「拖拽旋转」，避免旋转误触切换。
   const viewEl = ctx.getViewContainer();
-  const onViewClick = (): void => {
-    hideMenu();
-  };
-  viewEl.addEventListener("click", onViewClick);
+  const tapAbort = new AbortController();
+  let downX = 0, downY = 0, downT = 0;
+  viewEl.addEventListener("pointerdown", (e: PointerEvent): void => {
+    downX = e.clientX; downY = e.clientY; downT = performance.now();
+  }, { signal: tapAbort.signal });
+  viewEl.addEventListener("pointerup", (e: PointerEvent): void => {
+    const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+    if (moved > 5 || performance.now() - downT > 400) return; // 拖拽/长按 → 交给 OrbitControls
+    const list = popup.querySelector<HTMLElement>(".slide-list");
+    if (popup.style.display !== "none") {
+      popup.style.display = "none";                  // 隐藏（栈/DOM/面板内容保留）
+    } else if (list && list.childElementCount > 0) {
+      popup.style.display = "flex";                  // 恢复同一面板（从未打开过则不显空白）
+    }
+  }, { signal: tapAbort.signal });
 
   // ---- 句柄 ----
   const setAdapterItems = (items: PreviewMenuItemDef[]): void => {
@@ -654,7 +668,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   const handle: PreviewMenuHandle = {
     dispose: (): void => {
-      viewEl.removeEventListener("click", onViewClick);
+      tapAbort.abort();
       menu.dispose();
       dock.remove();
       popup.remove();
