@@ -31,7 +31,7 @@
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 10 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 6 | 80 |
+| Go·类型 | 6 | 81 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -47,7 +47,7 @@
 | frontend/views | 115 | 330 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **441** | **1892** |
+| **合计** | **441** | **1893** |
 
 ## Go·头像
 
@@ -215,11 +215,11 @@
 |------|--------|------|
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:74` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:84` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:644` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:654` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `IsMainModelName()` | `go/geometry/archive:667` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:679` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:774` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
+| `ParseFromZip()` | `go/geometry/archive:772` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:782` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `IsMainModelName()` | `go/geometry/archive:795` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:807` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:902` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
 | `ParseBedrockGeometry()` | `go/geometry/parse:188` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -448,8 +448,9 @@
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
 | `BedrockModel()` | `go/types/bedrock:4` | BedrockModel 基岩版模型几何体摘要（用于 2D 预览） |
-| `Bone2D()` | `go/types/bedrock:19` | Bone2D 骨骼简化信息（只用于 2D 线条图） |
-| `Cube2D()` | `go/types/bedrock:29` | Cube2D 立方体信息 |
+| `SubModel()` | `go/types/bedrock:21` | SubModel 子模型条目（多角色加载）。 |
+| `Bone2D()` | `go/types/bedrock:29` | Bone2D 骨骼简化信息（只用于 2D 线条图） |
+| `Cube2D()` | `go/types/bedrock:39` | Cube2D 立方体信息 |
 | `AppConfig()` | `go/types/config:8` | AppConfig 应用持久化配置 独立路径下沉为 CustomRoots map（ADR-095）：以资源类型 id 为 key（如 "ysm"→"D:/.../ysm"）， 取 |
 | `PackInfo()` | `go/types/config:48` | PackInfo 模型整合包信息（ysm-pack.json） |
 | `WorkshopPresetSearch()` | `go/types/config:55` | WorkshopPresetSearch 预设搜索词 |

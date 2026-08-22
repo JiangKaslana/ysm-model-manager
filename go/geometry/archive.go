@@ -303,20 +303,47 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 
 // parseModelFromEntries 共享主体：ysm.json 解析 + model/texture 顺序 + geo/png/anim 收集，
 // 构建 BedrockModel。logTag 用于日志前缀（"zip" / "7z"）。
+//
+// 清单分层（L0 权威 → L1 兜底）：
+//
+//	L0：maid_model.json model[] 数组（TLM 自有结构）—— 列出角色名 + 模型路径 + 纹理路径
+//	L1：遍历 zip 内 .json 枚举 + 文件名排序（无 L0 或 L0 非法时启用）
+//
+// L0 生效时：geoFiles / pngs / modelOrder / texOrder 全部从清单派生，多余的文件
+// （如 junk_geo.json、外来命名空间内容）一律丢弃，避免顺序/纹理绑定被污染。
 func parseModelFromEntries(entries []container.Entry, logTag string) (*types.BedrockModel, [][]byte, []string) {
 	logPrefix := "[geometry]"
 	if logTag != "zip" {
 		logPrefix = logPrefix + " " + logTag
 	}
-	// maid-model 命名空间检测：ZIP 含 assets/<namespace>/maid_model.json 时，
-	// 后续 JSON 只处理该命名空间的 entity 文件，跳过描述符和其他命名空间
+
+	// maidManifestItem 对应 L0 maid_model.json model[] 的单条
+	type maidManifestItem struct {
+		Name    string `json:"name"`
+		Model   string `json:"model"`   // 相对命名空间根的路径（如 "models/reimu.geo.json"）
+		Texture string `json:"texture"` // 相对路径（如 "textures/reimu.png"）
+	}
+
+	// ===== 1. 命名空间检测 + L0 清单解析 =====
 	var maidNs string
+	var maidManifest []maidManifestItem // 非 nil 且 len>0 表示 L0 生效
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, "/maid_model.json") {
 			parts := strings.Split(low, "/")
 			if len(parts) >= 3 {
 				maidNs = strings.Join(parts[:len(parts)-1], "/") + "/"
+			}
+			// 尝试解析 L0 model[] 清单（解析失败只是 L0 降级，不阻断后续）
+			if rc, err := e.Open(); err == nil {
+				buf := readLimitedEntry(rc)
+				var manifest struct {
+					Model []maidManifestItem `json:"model"`
+				}
+				if json.Unmarshal(buf, &manifest) == nil && len(manifest.Model) > 0 {
+					maidManifest = manifest.Model
+					log.Printf("%s maid-model L0 清单: %d 个角色", logPrefix, len(maidManifest))
+				}
 			}
 			break
 		}
@@ -522,6 +549,68 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		}
 	}
 
+	// ===== 1.5 L0 清单过滤：L0 生效时 geoFiles/pngs/modelOrder/texOrder 全部派生自清单 =====
+	if len(maidManifest) > 0 {
+		// 构建 zip 条目路径 → entry 的快速索引（用于把清单的相对路径映射为真实 entry 数据）
+		entryByPath := make(map[string]container.Entry, len(entries))
+		for _, e := range entries {
+			entryByPath[strings.ToLower(e.Name())] = e
+		}
+
+		// modelOrder / texOrder 从清单派生（权威顺序），geoFiles / pngs 只收清单引用的条目
+		l0GeoFiles := make([]geoEntry, 0, len(maidManifest))
+		l0Pngs := make([][]byte, 0, len(maidManifest))
+		l0PngNames := make([]string, 0, len(maidManifest))
+		l0ModelOrder := make([]string, 0, len(maidManifest))
+		l0TexOrder := make([]string, 0, len(maidManifest))
+
+		for _, item := range maidManifest {
+			// --- 模型：maidNs + item.Model（归一化后查 entryByPath） ---
+			modelAbs := strings.ToLower(maidNs + strings.TrimPrefix(filepath.ToSlash(item.Model), "/"))
+			if e, ok := entryByPath[modelAbs]; ok {
+				if rc, err := e.Open(); err == nil {
+					buf := readLimitedEntry(rc)
+					if len(buf) > 0 && !isArmModelName(e.Name()) {
+						l0GeoFiles = append(l0GeoFiles, geoEntry{name: e.Name(), data: buf})
+						l0ModelOrder = append(l0ModelOrder, filepath.ToSlash(item.Model))
+					}
+				}
+			}
+			// --- 纹理：同上 ---
+			if item.Texture != "" {
+				texAbs := strings.ToLower(maidNs + strings.TrimPrefix(filepath.ToSlash(item.Texture), "/"))
+				if e, ok := entryByPath[texAbs]; ok {
+					if rc, err := e.Open(); err == nil {
+						pngData := readLimitedEntry(rc)
+						if len(pngData) > 0 {
+							tn := e.Name()
+							if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+								tn = tn[idx+1:]
+							}
+							if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+								tn = tn[idx+1:]
+							}
+							tn = strings.TrimSuffix(tn, ".png")
+							tn = strings.TrimSuffix(tn, ".jpg")
+							l0Pngs = append(l0Pngs, pngData)
+							l0PngNames = append(l0PngNames, tn)
+							l0TexOrder = append(l0TexOrder, strings.ToLower(filepath.Base(item.Texture)))
+						}
+					}
+				}
+			}
+		}
+
+		// 只有清单至少命中了 1 个模型才用 L0 覆盖（空命中视为清单与 zip 内容脱节，回退 L1）
+		if len(l0GeoFiles) > 0 {
+			geoFiles = l0GeoFiles
+			pngs = l0Pngs
+			pngNames = l0PngNames
+			modelOrder = l0ModelOrder
+			texOrder = l0TexOrder
+		}
+	}
+
 	// 移除第一人称手臂模型占位：避免 arm.json 占据 texIdx 槽位导致 main 纹理错位
 	modelOrder = filterArmModels(modelOrder)
 
@@ -636,6 +725,47 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 	// 纹理名与 pngs 同序（同一循环收集 + 同一 orderMap 排序），供前端纹理列表显示
 	if geo != nil {
 		geo.TextureNames = pngNames
+
+		// ===== SubModels 清单：L0 优先 → L1 兜底 =====
+		if len(maidManifest) > 0 {
+			// L0：Name 取自 manifest，SourcePath 是 zip 内绝对路径，TexSlot 对应 manifest 下标
+			l0Subs := make([]types.SubModel, 0, len(maidManifest))
+			for i, item := range maidManifest {
+				if item.Name == "" {
+					continue
+				}
+				l0Subs = append(l0Subs, types.SubModel{
+					Name:       item.Name,
+					SourcePath: maidNs + strings.TrimPrefix(filepath.ToSlash(item.Model), "/"),
+					TexSlot:    i,
+				})
+			}
+			if len(l0Subs) > 0 {
+				geo.SubModels = l0Subs
+			}
+		}
+		if len(geo.SubModels) == 0 && len(geoFiles) > 0 {
+			// L1 兜底：从 geoFiles 派生（Name=basename 去 .geo.json/.json 后缀）
+			l1Subs := make([]types.SubModel, 0, len(geoFiles))
+			for i, gf := range geoFiles {
+				subName := filepath.ToSlash(gf.name)
+				if idx := strings.LastIndex(subName, "/"); idx >= 0 {
+					subName = subName[idx+1:]
+				}
+				subName = strings.TrimSuffix(subName, ".geo.json")
+				subName = strings.TrimSuffix(subName, ".json")
+				slot := i
+				if slot >= len(pngs) && len(pngs) > 0 {
+					slot = len(pngs) - 1
+				}
+				l1Subs = append(l1Subs, types.SubModel{
+					Name:       subName,
+					SourcePath: gf.name,
+					TexSlot:    slot,
+				})
+			}
+			geo.SubModels = l1Subs
+		}
 	}
 	return geo, pngs, animJSONs
 }
