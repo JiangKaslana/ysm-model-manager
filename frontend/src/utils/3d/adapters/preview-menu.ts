@@ -1039,8 +1039,9 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       }
       shown.forEach((p) => {
         const isCur = norm(p) === norm(cur);
-        // 同类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型
-        // （resolveTypeSafe 解析，歧义扩展名/异类型不提供 ➕，防跨类型追加走错适配器）
+        // sameType 仅用于 row.onclick（行本体点击）路由：同源 → switchTo 复用外壳替换，
+        // 跨源 → switchExternal 跨适配器替换。与"追加"语义无关。
+        // 类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型（resolveTypeSafe 解析）。
         const candType = resolveTypeSafe(p);
         const sameType = viaType
           ? activeTab === ctx.getCurrentRtype?.()
@@ -1058,8 +1059,10 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         lb.textContent = p.split(/[/\\]/).pop() || p;
         row.append(ic, lb);
         // 行尾「➕ 追加」：keepInScene 多角色同框（角色面板内打通追加加载）。
-        // 当前项与跨类型候选不显示；stopPropagation 防触发行本体替换语义。
-        if (!isCur && sameType) {
+        // 任何非当前候选均可追加，与类型无关——switchToSession 复用共享 scene，
+        // 跨类型（如 VRM/PMX/YSM/Litematic）叠加同样可行，不存在"走错适配器"的物理限制。
+        // stopPropagation 防触发行本体替换语义。
+        if (!isCur) {
           const append = document.createElement("button");
           append.dataset.testid = "preview-switch-append";
           append.textContent = "➕";
