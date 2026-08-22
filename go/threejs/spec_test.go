@@ -286,25 +286,69 @@ func TestBuildBoneLocalPosition_XFlip(t *testing.T) {
 	}
 }
 
-// 旋转序锁定：eulerToQuaternion 当前口径 = Rx*Ry*Rz（spec.go:699，对齐 YSMViewer C#
-// ThreeJsPayloadBuilder）；ModernYSM Java 侧 JOML 右乘连调 rotateZ→rotateY→rotateX
-// 等价 Rz*Ry*Rx，顺序相反（ADR-042 §2.1 审计 ⚠️ 待视觉裁决）。本测试锁定 Go 现行口径，
-// 防止未来按 Java 盲改破坏 ADR-041 已对齐的 C# 基准；若裁决改为 Java 序，改这里即显形。
-func TestEulerToQuaternion_OrderLock_RxRyRz(t *testing.T) {
-	// 三轴非零欧拉角：Go 口径 Rx(30)*Ry(45)*Rz(60) 的四元数
-	q := eulerToQuaternion(-30, -45, 60) // 调用方已取反 X/Y（ConvertBones 约定）
-	// 与 Java Rz(60)*Ry(45)*Rx(30) 顺序不同 → 数值不相等（锁定差异存在）
-	qJavaOrder := eulerToQuaternionJavaOrder(30, 45, 60)
-	diff := math.Abs(q[0]-qJavaOrder[0]) + math.Abs(q[1]-qJavaOrder[1]) +
-		math.Abs(q[2]-qJavaOrder[2]) + math.Abs(q[3]-qJavaOrder[3])
-	if diff < 1e-3 {
-		t.Fatalf("Go(Rx*Ry*Rz) 与 Java(Rz*Ry*Rx) 四元数不应相同，diff=%v（顺序差异被抹平？）", diff)
+// 旋转序锁定：eulerToQuaternion 现行口径 = Rz*Ry*Rx（ZYX intrinsic，spec.go:361，
+// 对齐 Blockbench euler_order='ZYX' + frontend quaternion.ts，ADR-042 §2.1 裁决）。
+// 本测试用独立四元数乘法公式锁定 ZYX 数值，并负向断言与旧 Rx*Ry*Rz 序不同——
+// 若未来被改回旧序，数值断言失败即显形（旧版仅断言"与 Java 序不同"，角度符号差恒成立，守卫空转）。
+func TestEulerToQuaternion_OrderLock_ZYX(t *testing.T) {
+	// 三轴非零欧拉角：Go 口径 Rz(60)*Ry(-45)*Rx(-30) 的四元数（调用方已取反 X/Y）
+	q := eulerToQuaternion(-30, -45, 60)
+	// 独立参考：q = qz ⊗ qy ⊗ qx（ZYX intrinsic）
+	qRef := zyxQuat(-30, -45, 60)
+	if diff := quatDiff(q, qRef); diff > 1e-6 {
+		t.Fatalf("eulerToQuaternion = %v, want ZYX 参考 %v, diff=%v（旋转序漂移？）", q, qRef, diff)
 	}
-	// 锁定 Go 现行数值（防止意外漂移）：对纯 X 轴仍应等于 TestEulerToQuaternion90X 口径
+	// 负向锁定：与旧 Rx*Ry*Rz 序（q = qx ⊗ qy ⊗ qz）数值必须不同，防止回退旧序
+	qOld := xyzQuat(-30, -45, 60)
+	if diff := quatDiff(q, qOld); diff < 1e-3 {
+		t.Fatalf("ZYX 与旧 Rx*Ry*Rz 序四元数不应相同, diff=%v（顺序差异被抹平？）", diff)
+	}
+	// 纯 X 轴仍应等于 TestEulerToQuaternion90X 口径
 	q90 := eulerToQuaternion(-90, 0, 0)
 	if math.Abs(q90[0]-(-0.70710678)) > 1e-4 {
 		t.Fatalf("90X qx = %v, want ≈ -0.7071", q90[0])
 	}
+}
+
+// zyxQuat 独立参考：ZYX intrinsic 序四元数 q = qz ⊗ qy ⊗ qx（与 eulerToQuaternion 展开等价但独立推导）。
+func zyxQuat(rxDeg, ryDeg, rzDeg float64) [4]float64 {
+	return quatMul(quatMul(axisQuat(2, rzDeg), axisQuat(1, ryDeg)), axisQuat(0, rxDeg))
+}
+
+// xyzQuat 旧 Rx*Ry*Rz 序参考：q = qx ⊗ qy ⊗ qz（仅测试用，负向锁定防回退）。
+func xyzQuat(rxDeg, ryDeg, rzDeg float64) [4]float64 {
+	return quatMul(quatMul(axisQuat(0, rxDeg), axisQuat(1, ryDeg)), axisQuat(2, rzDeg))
+}
+
+// axisQuat 绕 axis（0=x,1=y,2=z）旋转 deg 度的单位四元数 {x,y,z,w}。
+func axisQuat(axis int, deg float64) [4]float64 {
+	half := deg * math.Pi / 360.0
+	s, c := math.Sin(half), math.Cos(half)
+	switch axis {
+	case 0:
+		return [4]float64{s, 0, 0, c}
+	case 1:
+		return [4]float64{0, s, 0, c}
+	default:
+		return [4]float64{0, 0, s, c}
+	}
+}
+
+// quatMul 四元数乘法（Hamilton 积，{x,y,z,w}）。
+func quatMul(a, b [4]float64) [4]float64 {
+	ax, ay, az, aw := a[0], a[1], a[2], a[3]
+	bx, by, bz, bw := b[0], b[1], b[2], b[3]
+	return [4]float64{
+		aw*bx + ax*bw + ay*bz - az*by,
+		aw*by - ax*bz + ay*bw + az*bx,
+		aw*bz + ax*by - ay*bx + az*bw,
+		aw*bw - ax*bx - ay*by - az*bz,
+	}
+}
+
+// quatDiff 两四元数曼哈顿距离（{x,y,z,w}）。
+func quatDiff(a, b [4]float64) float64 {
+	return math.Abs(a[0]-b[0]) + math.Abs(a[1]-b[1]) + math.Abs(a[2]-b[2]) + math.Abs(a[3]-b[3])
 }
 
 // eulerToQuaternionJavaOrder 复现 ModernYSM calculateBoneMatrix 的旋转序

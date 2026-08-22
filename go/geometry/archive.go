@@ -99,6 +99,7 @@ type geoEntry struct {
 // 与 ParseFromZip 原内联逻辑等价，但 geoFiles **不排除 arm**（arm 过滤由合并版调用方
 // filterArmModels 做；组件版需要 arm 作为独立组件）。entries 现为 container.Entry（ADR-068）。
 func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []string, geoFiles []geoEntry, pngs [][]byte, pngNames, animJSONs []string) {
+	var projModels []string // 投射物/载具模型，player 模型解析完统一追加（texOrder 同序）
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, "ysm.json") && !e.IsDir() {
@@ -117,6 +118,8 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 						Texture json.RawMessage `json:"texture"`
 					} `json:"player"`
 					Projectiles json.RawMessage `json:"projectiles"`
+					Vehicles    json.RawMessage `json:"vehicles"`
+					Arrow       json.RawMessage `json:"arrow"`
 				} `json:"files"`
 			}
 			if err := json.Unmarshal(buf, &ysm); err != nil {
@@ -160,45 +163,61 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 						}
 					}
 				}
-				// 解析 projectiles 数组：追加纹理到 texOrder、模型到 modelOrder
-				if len(ysm.Files.Projectiles) > 0 {
+				// 解析 projectiles/vehicles/arrow：支持 dict（minecraft:arrow→config）
+				// 与 list（[config,...]）双形态；纹理追加到 texOrder（player 后）、模型先收集到
+				// projModels、player 模型解析完再统一追加（审核 P2：顺序错位致主模型绑投射物纹理槽）。
+				// arrow 段是单实体直接声明（{model,texture}），同样按 dict 路径处理。
+				for _, raw := range []json.RawMessage{ysm.Files.Projectiles, ysm.Files.Vehicles, ysm.Files.Arrow} {
+					if len(raw) == 0 {
+						continue
+					}
 					var projs []struct {
 						Model   string          `json:"model"`
 						Texture json.RawMessage `json:"texture"`
 					}
-					if json.Unmarshal(ysm.Files.Projectiles, &projs) == nil {
-						for _, pr := range projs {
-							// 纹理：texture 可能是 dict {"uv": "..."} 或字符串
-							texRaw := strings.TrimSpace(string(pr.Texture))
-							var texPath string
-							if strings.HasPrefix(texRaw, `{`) {
-								var obj struct {
-									Uv string `json:"uv"`
-								}
-								if json.Unmarshal(pr.Texture, &obj) == nil {
-									texPath = obj.Uv
-								}
-							} else {
-								var sval string
-								if json.Unmarshal(pr.Texture, &sval) == nil {
-									texPath = sval
-								}
+					if json.Unmarshal(raw, &projs) != nil {
+						// dict 形态：map[minecraft:xxx]→config；转成保序切片再解析
+						var pm map[string]struct {
+							Model   string          `json:"model"`
+							Texture json.RawMessage `json:"texture"`
+						}
+						if json.Unmarshal(raw, &pm) != nil {
+							continue
+						}
+						projs = projs[:0]
+						for _, v := range pm {
+							projs = append(projs, v)
+						}
+					}
+					for _, pr := range projs {
+						texRaw := strings.TrimSpace(string(pr.Texture))
+						var texPath string
+						if strings.HasPrefix(texRaw, `{`) {
+							var obj struct {
+								Uv string `json:"uv"`
 							}
-							if texPath != "" {
-								tn := texPath
-								if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-									tn = tn[idx+1:]
-								}
-								if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-									tn = tn[idx+1:]
-								}
-								tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-								texOrder = append(texOrder, tn)
+							if json.Unmarshal(pr.Texture, &obj) == nil {
+								texPath = obj.Uv
 							}
-							// 模型：追加到 modelOrder，让 texIdxMap 反推能覆盖投射物
-							if pr.Model != "" {
-								modelOrder = append(modelOrder, pr.Model)
+						} else {
+							var sval string
+							if json.Unmarshal(pr.Texture, &sval) == nil {
+								texPath = sval
 							}
+						}
+						if texPath != "" {
+							tn := texPath
+							if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+								tn = tn[idx+1:]
+							}
+							if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+								tn = tn[idx+1:]
+							}
+							tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+							texOrder = append(texOrder, tn)
+						}
+						if pr.Model != "" {
+							projModels = append(projModels, pr.Model)
 						}
 					}
 				}
@@ -264,6 +283,10 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 			break
 		}
 	}
+
+	// 投射物模型统一在 player 模型之后追加：texOrder 已是 player 先、投射物后，
+	// modelOrder 同序才能让 texIdxMap 位置绑定不错位（审核 P2）
+	modelOrder = append(modelOrder, projModels...)
 
 	// maid-model 命名空间检测（与 parseModelFromEntries 同口径）
 	var maidNs string
@@ -444,6 +467,10 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	var maidNs string
 	var maidManifest []maidManifestItem // 非 nil 且 len>0 表示 L0 生效
+	// manifest 下标 → 实际解析到的 zip 路径 / 纹理名（L0 过滤循环填充、SubModels 构建消费，
+	// 两处不在同一 if 作用域，声明提到函数级）
+	resolvedPathByItem := make(map[int]string)
+	texNameByItem := make(map[int]string)
 	if len(candidates) > 0 {
 		// 启发式：条目数最长者 = 主包清单
 		best := candidates[0]
@@ -464,6 +491,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 
 	var modelOrder []string
 	var texOrder []string
+	var projModels []string // 投射物/载具模型，player 模型之后追加（texOrder 同序）
 	for _, e := range entries {
 		low := strings.ToLower(e.Name())
 		if strings.HasSuffix(low, "ysm.json") && !e.IsDir() {
@@ -482,6 +510,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 						Texture json.RawMessage `json:"texture"`
 					} `json:"player"`
 					Projectiles json.RawMessage `json:"projectiles"`
+					Vehicles    json.RawMessage `json:"vehicles"`
+					Arrow       json.RawMessage `json:"arrow"`
 				} `json:"files"`
 			}
 			if err := json.Unmarshal(buf, &ysm); err != nil {
@@ -523,45 +553,61 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 						}
 					}
 				}
-				// 解析 projectiles 数组：追加纹理到 texOrder、模型到 modelOrder
-				if len(ysm.Files.Projectiles) > 0 {
+				// 解析 projectiles/vehicles/arrow：支持 dict（minecraft:arrow→config）
+				// 与 list（[config,...]）双形态；纹理追加到 texOrder（player 后）、模型先收集到
+				// projModels、player 模型解析完再统一追加（审核 P2：顺序错位致主模型绑投射物纹理槽）。
+				// arrow 段是单实体直接声明（{model,texture}），同样按 dict 路径处理。
+				for _, raw := range []json.RawMessage{ysm.Files.Projectiles, ysm.Files.Vehicles, ysm.Files.Arrow} {
+					if len(raw) == 0 {
+						continue
+					}
 					var projs []struct {
 						Model   string          `json:"model"`
 						Texture json.RawMessage `json:"texture"`
 					}
-					if json.Unmarshal(ysm.Files.Projectiles, &projs) == nil {
-						for _, pr := range projs {
-							// 纹理：texture 可能是 dict {"uv": "..."} 或字符串
-							texRaw := strings.TrimSpace(string(pr.Texture))
-							var texPath string
-							if strings.HasPrefix(texRaw, `{`) {
-								var obj struct {
-									Uv string `json:"uv"`
-								}
-								if json.Unmarshal(pr.Texture, &obj) == nil {
-									texPath = obj.Uv
-								}
-							} else {
-								var sval string
-								if json.Unmarshal(pr.Texture, &sval) == nil {
-									texPath = sval
-								}
+					if json.Unmarshal(raw, &projs) != nil {
+						// dict 形态：map[minecraft:xxx]→config；转成保序切片再解析
+						var pm map[string]struct {
+							Model   string          `json:"model"`
+							Texture json.RawMessage `json:"texture"`
+						}
+						if json.Unmarshal(raw, &pm) != nil {
+							continue
+						}
+						projs = projs[:0]
+						for _, v := range pm {
+							projs = append(projs, v)
+						}
+					}
+					for _, pr := range projs {
+						texRaw := strings.TrimSpace(string(pr.Texture))
+						var texPath string
+						if strings.HasPrefix(texRaw, `{`) {
+							var obj struct {
+								Uv string `json:"uv"`
 							}
-							if texPath != "" {
-								tn := texPath
-								if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-									tn = tn[idx+1:]
-								}
-								if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-									tn = tn[idx+1:]
-								}
-								tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-								texOrder = append(texOrder, tn)
+							if json.Unmarshal(pr.Texture, &obj) == nil {
+								texPath = obj.Uv
 							}
-							// 模型：追加到 modelOrder，让 texIdxMap 反推能覆盖投射物
-							if pr.Model != "" {
-								modelOrder = append(modelOrder, pr.Model)
+						} else {
+							var sval string
+							if json.Unmarshal(pr.Texture, &sval) == nil {
+								texPath = sval
 							}
+						}
+						if texPath != "" {
+							tn := texPath
+							if idx := strings.LastIndex(tn, "/"); idx >= 0 {
+								tn = tn[idx+1:]
+							}
+							if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
+								tn = tn[idx+1:]
+							}
+							tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+							texOrder = append(texOrder, tn)
+						}
+						if pr.Model != "" {
+							projModels = append(projModels, pr.Model)
 						}
 					}
 				}
@@ -627,6 +673,10 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			break
 		}
 	}
+
+	// 投射物模型统一在 player 模型之后追加：texOrder 已是 player 先、投射物后，
+	// modelOrder 同序才能让 texIdxMap 位置绑定不错位（主模型保持槽 0）
+	modelOrder = append(modelOrder, projModels...)
 
 	var geoFiles []geoEntry
 
@@ -796,7 +846,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			return modelID
 		}
 
-		for _, item := range maidManifest {
+		for i, item := range maidManifest {
 			// ====== 决定 item 相对路径：形式 A 优先 → 否则走形式 B ======
 			// 注意 droneeee 一类的包，条目写成 {model: "ns:models/entity/x.json"}——
 			// 这是"命名空间前缀 + 相对路径"的混合写法，不是 zip 内路径。
@@ -840,6 +890,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 							if len(buf) > 0 && !isArmModelName(e.Name()) {
 								l0GeoFiles = append(l0GeoFiles, geoEntry{name: e.Name(), data: buf})
 								l0ModelOrder = append(l0ModelOrder, abs[len(maidNs):])
+								resolvedPathByItem[i] = abs
 							}
 						}
 						goto resolveTexture
@@ -853,6 +904,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 							if len(buf) > 0 && !isArmModelName(first.e.Name()) {
 								l0GeoFiles = append(l0GeoFiles, geoEntry{name: first.e.Name(), data: buf})
 								l0ModelOrder = append(l0ModelOrder, first.path[len(maidNs):])
+								resolvedPathByItem[i] = first.path
 							}
 						}
 						goto resolveTexture
@@ -869,6 +921,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 						if len(buf) > 0 && !isArmModelName(e.Name()) {
 							l0GeoFiles = append(l0GeoFiles, geoEntry{name: e.Name(), data: buf})
 							l0ModelOrder = append(l0ModelOrder, filepath.ToSlash(modelRel))
+							resolvedPathByItem[i] = modelAbs
 						}
 					}
 				}
@@ -891,6 +944,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 								l0Pngs = append(l0Pngs, pngData)
 								l0PngNames = append(l0PngNames, tn)
 								l0TexOrder = append(l0TexOrder, strings.ToLower(filepath.Base(e.Name())))
+								texNameByItem[i] = strings.ToLower(tn)
 								continue
 							}
 						}
@@ -909,6 +963,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 								l0Pngs = append(l0Pngs, pngData)
 								l0PngNames = append(l0PngNames, tn)
 								l0TexOrder = append(l0TexOrder, strings.ToLower(filepath.Base(first.path)))
+								texNameByItem[i] = strings.ToLower(tn)
 								continue
 							}
 						}
@@ -930,6 +985,7 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 							l0Pngs = append(l0Pngs, pngData)
 							l0PngNames = append(l0PngNames, tn)
 							l0TexOrder = append(l0TexOrder, strings.ToLower(filepath.Base(textureRel)))
+							texNameByItem[i] = strings.ToLower(tn)
 						}
 					}
 				}
@@ -1029,12 +1085,13 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		}
 	}
 
+	// orderMap 的 key 必须与查询 key 同口径——
+	// texOrder 条目是「小写 basename 含扩展名」（如 tex1.png），而查询 key 是
+	// `strings.ToLower(pngNames[i])`（pngNames 已 TrimSuffix 去扩展名，如 tex1），
+	// 原实现 key 永不命中 → 「纹理按声明顺序排序」形同死代码，TexSlot 绑定错位。
+	// 声明提到 if 外：L0 SubModel.TexSlot 需按排序后槽位换算（审核 P3）
+	orderMap := make(map[string]int, len(texOrder))
 	if len(texOrder) > 0 {
-		// orderMap 的 key 必须与查询 key 同口径——
-		// texOrder 条目是「小写 basename 含扩展名」（如 tex1.png），而查询 key 是
-		// `strings.ToLower(pngNames[i])`（pngNames 已 TrimSuffix 去扩展名，如 tex1），
-		// 原实现 key 永不命中 → 「纹理按声明顺序排序」形同死代码，TexSlot 绑定错位。
-		orderMap := make(map[string]int, len(texOrder))
 		for i, n := range texOrder {
 			bn := strings.TrimSuffix(n, ".png")
 			bn = strings.TrimSuffix(bn, ".jpg")
@@ -1069,10 +1126,21 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 				if item.Name == "" {
 					continue
 				}
+				// SourcePath 用实际解析到的 zip 路径（形式 B model_id 推断时 item.Model 为空，
+				// 直接拼 maidNs 会得到命名空间目录 → 单角色匹配必失败，静默回退全量合并模型）；
+				// 未解析到则留空 → 前端 subPath undefined 走兜底。
+				// TexSlot 用条目纹理在排序后纹理数组的下标（texNameByItem → orderMap），
+				// 而非 manifest 下标（纹理解析失败的条目会使 l0Pngs 收缩、下标漂移）。
+				slot := 0
+				if tn, ok := texNameByItem[i]; ok {
+					if s, ok2 := orderMap[tn]; ok2 {
+						slot = s
+					}
+				}
 				l0Subs = append(l0Subs, types.SubModel{
 					Name:       item.Name,
-					SourcePath: maidNs + strings.TrimPrefix(filepath.ToSlash(item.Model), "/"),
-					TexSlot:    i,
+					SourcePath: resolvedPathByItem[i],
+					TexSlot:    slot,
 				})
 			}
 			if len(l0Subs) > 0 {

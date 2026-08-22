@@ -96,7 +96,8 @@ for (const z of zips) {
   // L1 粗略估计：从 info.entries 里统计 *.geo.json / *.json 数量（排除 animation/controller/ysm/描述符）
   let l1GeoCount = 0;
   let l1PngCount = 0;
-  const maidNs = info.entries.find((e) => e.toLowerCase().endsWith("/maid_model.json"))?.toLowerCase().split("/").slice(0, -1).join("/") + "/" || "";
+  const maidEntry = info.entries.find((e) => e.toLowerCase().endsWith("/maid_model.json"));
+  const maidNs = (maidEntry ? maidEntry.toLowerCase().split("/").slice(0, -1).join("/") + "/" : "");
   for (const e of info.entries) {
     const low = e.toLowerCase();
     if (maidNs && !low.startsWith(maidNs)) continue;

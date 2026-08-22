@@ -39,8 +39,9 @@ export async function loadModelData(
   let _wasmAuthors: BedrockGeometry["_authors"] = [];
   let _wasmAvatars: Record<string, string> = {};
 
-  // 查缓存
-  const cached = cacheGet(modelPath);
+  // 查缓存：subPath（L0 单角色）必须并入缓存键，否则切角色命中旧角色几何（审核 P2）
+  const cacheKey = opts.subPath ? `${modelPath}#sub:${opts.subPath}` : modelPath;
+  const cached = cacheGet(cacheKey);
   const cachedGeo = cached?.geometry as BedrockGeometry | undefined;
   if (cachedGeo?.bones?.length) {
     model = cachedGeo;
@@ -67,8 +68,8 @@ export async function loadModelData(
         model._animClips = decoded.animations as AnimationClip[];
       }
       _decodedBy = "🧠 WASM 内置解码";
-      cacheSet(modelPath, {
-        ...(cacheGet(modelPath) || {}),
+      cacheSet(cacheKey, {
+        ...(cacheGet(cacheKey) || {}),
         geometry: model,
         _decodedBy,
       });
@@ -81,6 +82,7 @@ export async function loadModelData(
   if (!model?.bones?.length) {
     const app = await getApp();
     // subPath 模式：先试单条目解析（多角色包切角色），再回退全量
+    let subPathUsed = false;
     if (opts.subPath && typeof app.AnalyzeBedrockModelEntry === "function") {
       const entryModel = (await app.AnalyzeBedrockModelEntry(modelPath, opts.subPath)) as
         | BedrockGeometry
@@ -88,6 +90,7 @@ export async function loadModelData(
         | undefined;
       if (entryModel?.bones?.length) {
         model = entryModel;
+        subPathUsed = true;
         ctx.appendDebug(null, `[L0] 单角色解析：${opts.subPath}`);
         _decodedBy = "📦 Go 单角色（L0 清单）";
       }
@@ -135,14 +138,15 @@ export async function loadModelData(
           finalSize: "—",
         });
       }
-      cacheSet(modelPath, {
-        ...(cacheGet(modelPath) || {}),
+      const decodedLabel = subPathUsed ? "📦 Go 单角色（L0 清单）" : "📦 Go 原生解析";
+      cacheSet(cacheKey, {
+        ...(cacheGet(cacheKey) || {}),
         texture: model.texture as string | undefined,
         geometry: model,
         animations: goClips.length > 0 ? goClips : undefined,
-        _decodedBy: "📦 Go 原生解析",
+        _decodedBy: decodedLabel,
       });
-      _decodedBy = "📦 Go 原生解析";
+      _decodedBy = decodedLabel;
     }
   }
 
