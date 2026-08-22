@@ -1230,8 +1230,8 @@
 |------|--------|------|
 | `CameraControlBridge()` | `frontend/src/utils/3d/adapters/camera-controls:13` | 相机控制桥：shared/self 双模式统一构建旋转/速度/重置控件的回调集合（方案 A：消灭 ysm-adapter 双份实现） |
 | `buildCameraControls()` | `frontend/src/utils/3d/adapters/camera-controls:31` | 在根菜单 camera 面板内追加通用相机控件（旋转模式 / 速度滑条 / 重置视角），shared/self 双模式复用 |
-| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:29` | — |
-| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:68` | — |
+| `CleanupContext()` | `frontend/src/utils/3d/adapters/cleanup-3d:40` | — |
+| `runFullCleanup()` | `frontend/src/utils/3d/adapters/cleanup-3d:79` | — |
 | `FbxDataPort()` | `frontend/src/utils/3d/adapters/fbx-adapter:24` | FBX 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `FBX_TARGET_MAX_DIM()` | `frontend/src/utils/3d/adapters/fbx-adapter:31` | FBX 归一化目标：包围盒最长边（单位）。对齐 MMD 厘米惯例（1.6m 人体 ≈ 160）， 与场景能力雾距（50-800，厘米尺度）及 MMD 同框尺度一致；cm/m 导出差 |
 | `FbxScaleInfo()` | `frontend/src/utils/3d/adapters/fbx-adapter:34` | Box3 尺度归一结果（factor 供诊断日志回显，size/center 为缩放后坐标） |

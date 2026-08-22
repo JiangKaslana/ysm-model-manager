@@ -21,6 +21,17 @@ import { sceneRegistry } from "./scene-registry.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 import { textureCache } from "../texture-cache.ts";
 import { clearModelRoots } from "../frustum-cull.ts";
+import { dbg } from "../../../utils/debug/debug.ts";
+
+// ── GPU Info 类型（替代 as unknown as 类型断言）─────────────────────────────
+interface GpuMemoryInfo {
+  geometries: number;
+  textures: number;
+}
+
+interface GpuRendererInfo {
+  memory?: GpuMemoryInfo;
+}
 
 // ── CleanupContext ────────────────────────────────────────────────────────
 // 所有可从 mount3D 作用域松绑的外部引用，统一经此接口注入。
@@ -68,9 +79,10 @@ export interface CleanupContext {
 export function runFullCleanup(ctx: CleanupContext): void {
   // GPU 内存泄漏检测：记录清理前的 renderer.info.memory
   if (ctx.renderer) {
-    const memBefore = (ctx.renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
+    const info = (ctx.renderer as unknown as { info?: GpuRendererInfo }).info;
+    const memBefore = info?.memory;
     if (memBefore) {
-      console.log(`[gpu-leak] cleanup before: geometries=${memBefore.geometries} textures=${memBefore.textures}`);
+      dbg("gpu-leak", { phase: "cleanup before", geometries: memBefore.geometries, textures: memBefore.textures });
     }
   }
   ctx.menuHandle.dispose();
@@ -126,9 +138,10 @@ export function runFullCleanup(ctx: CleanupContext): void {
   ctx.adapter.onClose?.();
   // GPU 内存泄漏检测：记录清理后的 renderer.info.memory（renderer.dispose 后 info 仍可读）
   if (ctx.renderer) {
-    const memAfter = (ctx.renderer as unknown as { info?: { memory?: { geometries: number; textures: number } } }).info?.memory;
+    const info = (ctx.renderer as unknown as { info?: GpuRendererInfo }).info;
+    const memAfter = info?.memory;
     if (memAfter) {
-      console.log(`[gpu-leak] cleanup after: geometries=${memAfter.geometries} textures=${memAfter.textures}`);
+      dbg("gpu-leak", { phase: "cleanup after", geometries: memAfter.geometries, textures: memAfter.textures });
     }
   }
 }
