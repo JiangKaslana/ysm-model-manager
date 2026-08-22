@@ -43,6 +43,31 @@ export function fill3DPanel(
   // 纹理列表
   if (texArr.length > 0) {
     panel.appendChild(sec("🎨 纹理 (" + texArr.length + ")"));
+    // 当前组件绑定：显示选中组件声明的纹理（方案 B：声明纹理 vs 实际绑定两层显示）
+    const bindingRow = document.createElement("div");
+    bindingRow.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0;margin-bottom:2px";
+    const bindingLabel = document.createElement("span");
+    bindingLabel.textContent = "当前组件绑定";
+    const bindingValue = document.createElement("span");
+    bindingValue.style.color = "rgba(255,255,255,0.9)";
+    bindingValue.textContent = "全量";
+    bindingRow.appendChild(bindingLabel);
+    bindingRow.appendChild(bindingValue);
+    panel.appendChild(bindingRow);
+    // 组件选择器 onchange 追加更新绑定行（不覆盖已有 showModelGroup）
+    const updateBinding = (): void => {
+      const idx = parseInt(modelSel.value, 10);
+      if (isNaN(idx) || idx < 0) {
+        bindingValue.textContent = "全量";
+        return;
+      }
+      const mgItem = spec.models?.[idx] as { texSlot?: number; name?: string } | undefined;
+      const slot = mgItem?.texSlot ?? 0;
+      const url = model.textures?.[slot] || model.texture || "";
+      const name = model.textureNames?.[slot] || url.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") || "纹理 " + (slot + 1);
+      bindingValue.textContent = name;
+    };
+    modelSel.addEventListener("change", updateBinding);
     for (let i = 0; i < texArr.length; i++) {
       const tex = texArr[i];
       const w = tex?.userData?.imgWidth || (tex?.image as HTMLImageElement | undefined)?.naturalWidth || 0;
