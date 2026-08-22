@@ -69,6 +69,29 @@ func TestClassifyFileInventory_Direct(t *testing.T) {
 	}
 }
 
+// isLegacyGeometryName 的 .geo 变体识别（code review P3：与 IsMainModelName/isArmModelName 同口径）
+func TestIsLegacyGeometryName(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"models/main.json", true},
+		{"models/main.geo.json", true}, // Blockbench 导出约定变体
+		{"models/arm.json", true},
+		{"models/arm.geo.json", true},
+		{"models/arrow.json", true},
+		{"info.json", true},
+		{"models/player.json", false}, // 非约定名
+		{"animations/main.animation.json", false},
+		{"ysm.json", false},
+	}
+	for _, c := range cases {
+		if got := isLegacyGeometryName(c.path); got != c.want {
+			t.Errorf("isLegacyGeometryName(%q) = %v, 期望 %v", c.path, got, c.want)
+		}
+	}
+}
+
 // checkInv 断言 FileInventory 分类（与 fixture 文件对应）
 func checkInv(t *testing.T, inv *types.FileInventory) {
 	t.Helper()

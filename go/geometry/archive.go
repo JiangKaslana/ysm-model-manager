@@ -124,11 +124,21 @@ func classifyFileInventory(entries []container.Entry) *types.FileInventory {
 	return inv
 }
 
+// legacyGeometryNames 旧格式几何文件基名（无 ysm.json 场景）。含 .geo 变体：
+// 与 IsMainModelName/isArmModelName 同口径（code review P3：main.geo.json 等
+// 会被当 geometry 解析但此前漏分类）；package-level 避免 per-entry 重建分配（P3）。
+var legacyGeometryNames = []string{"main", "main.geo", "arm", "arm.geo", "arrow", "info"}
+
 // isLegacyGeometryName 旧格式几何文件名约定（Modern YSM parseLegacyFormat 同口径：
 // 无 ysm.json 的包以 main/arm/arrow/info 等固定名作为模型声明）
 func isLegacyGeometryName(lowPath string) bool {
-	for _, p := range []string{"main.json", "arm.json", "arrow.json", "info.json"} {
-		if strings.HasSuffix(lowPath, p) {
+	// zip 内路径恒为正斜杠，不能用 filepath.Base（Windows 按 \ 分割会失效）
+	if i := strings.LastIndexByte(lowPath, '/'); i >= 0 {
+		lowPath = lowPath[i+1:]
+	}
+	base := strings.TrimSuffix(lowPath, ".json")
+	for _, n := range legacyGeometryNames {
+		if base == n {
 			return true
 		}
 	}
