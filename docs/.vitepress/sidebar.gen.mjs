@@ -1343,6 +1343,10 @@ export const autoSidebar = [
             "link": "/knowledge/go-avatar"
           },
           {
+            "text": "CLI 搜索命令 search",
+            "link": "/knowledge/go-cli-search"
+          },
+          {
             "text": "统一容器桥接层 go/container",
             "link": "/knowledge/go-container"
           },
@@ -1531,6 +1535,10 @@ export const autoSidebar = [
           {
             "text": "测试工具 test-utils（G-1 抗脆弱测试基础设施）",
             "link": "/knowledge/test-utils"
+          },
+          {
+            "text": "工具栏搜索编排 toolbar-search",
+            "link": "/knowledge/toolbar-search"
           },
           {
             "text": "UI 组件库 ui-components",

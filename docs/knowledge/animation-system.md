@@ -7,6 +7,11 @@ source_files:
   - frontend/src/utils/animation/animation.ts
   - frontend/src/utils/animation/animate.ts
   - frontend/src/utils/animation/stagger.ts
+  - frontend/src/utils/animation/molang.ts
+  - frontend/src/utils/animation/molang-lib/molang.js
+  - frontend/src/utils/animation/molang-lib/easing.js
+  - frontend/src/utils/animation/molang-lib/math.js
+  - frontend/src/utils/animation/molang-lib/molang-prism-syntax.js
   - frontend/src/utils/3d/ysm-animation-player.ts
 tests:
   - frontend/src/utils/animation/animate.test.ts
@@ -34,6 +39,7 @@ use_when:
 - 基岩版动画 JSON 解析（loop/animation_length/bones 三通道关键帧；Molang 表达式检测并跳过）
 - 关键帧插值求值（线性/step）与骨骼层级变换传播（父级变换累积到子级）
 - UI 数字滚动动画与列表 stagger 入场延迟计算
+- **Molang 表达式编译**（ADR-100 L4）：内嵌 molangjs 源码，把 `.animation.json` 里的 Molang 字符串编译为 `(animTime) => number` 求值闭包；安全口径：DSL 解析器非 eval；性能口径：LRU 缓存 400 条，加载期编译 AST / 运行期纯求值
 
 ## 对外 API / 入口
 
@@ -49,6 +55,13 @@ use_when:
 `stagger.ts`：
 - `stagger(index, step=30, max=300): number` — 入场动画延迟毫秒数 `min(index*step, max)`，用于 `animation-delay:${stagger(i)}ms`
 
+`molang.ts`（ADR-100 L4）：
+- `compileMolang(expr: string): MolangFn | null` — 编译 Molang 表达式为求值闭包；表达式非法/为空返回 null（调用方走零占位降级）
+- `MolangFn` 类型：`(animTime: number) => number`
+- 嵌入策略：molangjs npm 包因 ESM/CJS 混用无法直接 import，本项目采用**源码内嵌**策略（`molang-lib/` 目录保留 MIT 许可原始版权头）
+- 变量上下文：`query.anim_time` / `q.anim_time` / `query.life_time` / `q.life_time` / `query.delta_time` / `q.delta_time`
+- 未知变量 → 0：mod 扩展的游戏态查询（`ysm.*`/按键/药效等）在预览器无宿主语境，优雅降级而非抛错
+
 ## 与其他子系统关系
 
 - `parseBedrockAnimationJSON` 消费方：`app-preview/wasm.ts`（+`loader.ts`，WASM 解码出的动画 JSON）
@@ -56,6 +69,7 @@ use_when:
 - `animateNumber` 消费方：`app-tree/render.ts`、`app-sidebar/events.ts`（统计数字滚动）
 - `stagger` 消费方：`app-content/index.ts`、`app-sync-manager/tpl.ts`、`dialogs/batch-rename.ts`、`features/community/render.ts`、`app-content/site/render.ts`（卡片入场）
 - 全局开关：`app-modules.ts` 按设置切换 `document.documentElement` 的 `no-animations` class；CSS 侧对卡片/弹窗/主题动效统一 `animation: none !important`
+- **Molang 消费方**：`animation.ts` 的 `parseAxisItem` / `parseKeyValue` / `extractKeyframe` 在解析阶段调用 `compileMolang`；`resolveFramePost` / `evaluateKeyframesInto` 在求值阶段调用编译后的 `MolangFn`
 
 ## 上游留档：YSMParser 动画模型 ID 映射（v0.3.6）
 

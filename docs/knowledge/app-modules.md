@@ -6,6 +6,7 @@ category: ui
 source_files:
   - frontend/src/app-modules.ts
   - frontend/src/utils/module-loader.ts
+  - frontend/src/startup-reveal.ts
 tests:
   - frontend/src/app-modules.test.ts
 use_when:
@@ -17,6 +18,8 @@ use_when:
   - 检查更新
   - import 组件
   - 新组件注册
+  - 窗口显示
+  - startup reveal
 ---
 
 # 组件入口 app-modules
@@ -34,6 +37,7 @@ use_when:
   - `registerContextMenus()` 注册右键菜单映射——注意：**实际在 `core/handlers/global.ts`（经 `registerGlobalHandlers` ← app-content connectedCallback）调用，非本文件**（仅此处链路调用一次）
   - 主题：`applyTheme`（cyber/warm/pro/sakura/ocean/mint/system 白名单，system 跟随 `prefers-color-scheme`）挂 `window.applyTheme`；`initTheme` 从 Go `LoadAppConfig` 或 localStorage 读主题，**归一化后回写合法值**（白名单外回落 system，防脏值污染持久层）；`applyUIPrefs`（定义在 `views/app-content/settings/ui-prefs.ts`，本文件启动 IIFE 内 import 调用）应用字号（`--fs-scale`）/字体/密度/动画开关（`.no-animations`）
   - 启动 IIFE：`initTheme()` → `applyUIPrefs()` → `checkUpdateSilent()` 静默检查更新（**静态导入** `features/version-updater.ts`，非动态 import）
+- **窗口显示**：经 `startup-reveal.ts` 的 `revealMainWindow(show)` 控制——等待 DOM 升级 + 两帧 rAF 完成后调 `show()`；rAF 节流兜底 1.5s 超时强制显示（防止隐藏窗口下 Chromium/WebView2 节流导致窗口永久不可见）
   - 杂项：capture 阶段拦截旧版 document 拖拽处理器（`#ws-page` / `#dl-drop` / `.ws-page` 区域）；dev 模式（`?dev=1` 或 localStorage `_devtools`）启用 F12/Ctrl+Shift+I 打开 DevTools（`Window.OpenDevTools`）
 
 ## 对外 API / 入口
