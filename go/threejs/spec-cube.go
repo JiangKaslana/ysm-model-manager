@@ -12,6 +12,10 @@ import (
 func applyInflate(c types.Cube2D) (ox, oy, oz, sx, sy, sz float64) {
 	ox, oy, oz = c.Origin[0], c.Origin[1], c.Origin[2]
 	sx, sy, sz = c.Size[0], c.Size[1], c.Size[2]
+	// Blockbench parseCube L662: from[0] = -(from[0] + size[0])
+	// Bedrock JSON cube.origin 是"左下角"，Blockbench 内部 X 镜像到"右下角"。
+	// 咱们骨骼 pivot X 翻号（computeBoneLocalPos），cube origin 也必须 X 翻号对齐。
+	ox = -(ox + sx)
 	if c.Inflate != 0 {
 		ox -= c.Inflate
 		oy -= c.Inflate
@@ -40,6 +44,9 @@ func clampThickness(sx, sy, sz float64) (float64, float64, float64) {
 // resolveCubePivot 解析 cube pivot：未显式设置时用 cube 中心。
 func resolveCubePivot(c types.Cube2D, ox, oy, oz, sx, sy, sz float64) [3]float64 {
 	cp := [3]float64{c.Pivot[0], c.Pivot[1], c.Pivot[2]}
+	// Blockbench parseCube L659: cube 旋转中心 X 翻号（origin[0] *= -1）
+	// 与顶点 X 镜像（ox = -(ox+sx)）配套，保证 cube 绕正确中心旋转。
+	cp[0] = -cp[0]
 	if !c.PivotSet {
 		cp = [3]float64{ox + sx*0.5, oy + sy*0.5, oz + sz*0.5}
 	}
@@ -119,9 +126,11 @@ func packFaceVertices(lx, ly, lz, hx, hy, hz float64, faceUVs [6][8]float64, has
 	return positions, normals, uvs, indices
 }
 
-// computeMeshLocalPos 计算 mesh 本地位置（bonePivot - cubePivot，X 翻转对齐 C#）。
+// computeMeshLocalPos 计算 mesh 本地位置。
+// cp[0] 已 X 翻号（= -Pivot[0]），所以 localPos[0] = bonePivot.x + cp[0]
+// = bonePivot.x - Pivot[0]（对齐 Blockbench mesh.position = cube.origin - parent.origin）。
 func computeMeshLocalPos(bonePivot vec3, cp [3]float64) [3]float64 {
-	return [3]float64{bonePivot.x - cp[0], cp[1] - bonePivot.y, cp[2] - bonePivot.z}
+	return [3]float64{bonePivot.x + cp[0], cp[1] - bonePivot.y, cp[2] - bonePivot.z}
 }
 
 // checkFinite 复查有限性（用于入口守卫和派生运算后复查）。

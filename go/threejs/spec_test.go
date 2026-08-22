@@ -43,7 +43,8 @@ func TestBuildSingleCube(t *testing.T) {
 	if !strings.Contains(out, `"name":"b1"`) {
 		t.Fatalf("bone b1 missing in: %s", out)
 	}
-	// mesh localPosition = X 翻转对齐 C#（ConvertBones）→ bonePivot - cubePivot = [0,0,0] - [4,4,4]
+	// mesh localPosition — cp[0] 已 X 翻号（= -Pivot[0]），localPos[0] = bonePivot.x + cp[0]
+	// = 0 + (-4) = -4（对齐 Blockbench mesh.position = cube.origin - parent.origin）
 	if !strings.Contains(out, `"localPosition":[-4,4,4]`) {
 		t.Fatalf("mesh localPosition mismatch: %s", out)
 	}

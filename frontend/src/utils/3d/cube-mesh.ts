@@ -82,6 +82,11 @@ export function buildCubeMeshData(
   let sy = c.size[1];
   let sz = c.size[2];
 
+  // Blockbench parseCube L662: from[0] = -(from[0] + size[0])
+  // Bedrock JSON cube.origin 是"左下角"，Blockbench 内部 X 镜像到"右下角"。
+  // 咱们骨骼 pivot X 翻号（computeBoneLocalPos），cube origin 也必须 X 翻号对齐。
+  ox = -(ox + sx);
+
   // Blockbench inflate（像素单位）：origin 各轴 -i、size 各轴 +2i
   if (c.inflate !== 0) {
     ox -= c.inflate;
@@ -102,6 +107,9 @@ export function buildCubeMeshData(
   if (sz < THICKNESS_EPSILON) sz = THICKNESS_EPSILON;
 
   let cp: [number, number, number] = [c.pivot[0], c.pivot[1], c.pivot[2]];
+  // Blockbench parseCube L659: cube 旋转中心 X 翻号（origin[0] *= -1）
+  // 与顶点 X 镜像（ox = -(ox+sx)）配套，保证 cube 绕正确中心旋转。
+  cp[0] = -cp[0];
   // cube 未显式 pivot → 用 cube 中心作为旋转中心
   if (!c.pivotSet) {
     cp = [ox + sx * 0.5, oy + sy * 0.5, oz + sz * 0.5];
@@ -193,9 +201,10 @@ export function buildCubeMeshData(
     indices.push(bi, bi + 2, bi + 1, bi + 2, bi + 3, bi + 1);
   }
 
-  // Mesh local position = bonePivot - cubePivot（X 翻转对齐 C# ConvertBones；顶点已相对 cubePivot）
+  // Mesh local position — cp[0] 已 X 翻号（= -Pivot[0]），所以 localPos[0] = bonePivot.x + cp[0]
+  // = bonePivot.x - Pivot[0]（对齐 Blockbench mesh.position = cube.origin - parent.origin）
   const meshID = boneID + "_" + cubeIdx;
-  const localPos: [number, number, number] = [bonePivot.x - cp[0], cp[1] - bonePivot.y, cp[2] - bonePivot.z];
+  const localPos: [number, number, number] = [bonePivot.x + cp[0], cp[1] - bonePivot.y, cp[2] - bonePivot.z];
 
   // Cube rotation → quaternion (CreateBlockbenchQuaternion)
   const localRot = eulerToQuaternion(-c.rotation[0], -c.rotation[1], c.rotation[2]);

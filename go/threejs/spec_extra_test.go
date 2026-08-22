@@ -285,9 +285,9 @@ func TestBuildCubeMeshData_Valid(t *testing.T) {
 	if len(md.Indices) != 6*6 { // 6 faces * 6 indices
 		t.Errorf("Indices 长度 = %d, 期望 36", len(md.Indices))
 	}
-	// localPosition = X 翻转对齐 C#（ConvertBones）→ bonePivot - cubePivot = [0,0,0] - [4,4,4]
+	// localPos[0] = bonePivot.x + cp[0] = 0 + (-4) = -4（cp[0] 已 X 翻号 = -Pivot[0]）
 	if md.LocalPosition != [3]float64{-4, 4, 4} {
-		t.Errorf("LocalPosition = %v, 期望 [4,4,4]", md.LocalPosition)
+		t.Errorf("LocalPosition = %v, 期望 [-4,4,4]", md.LocalPosition)
 	}
 }
 
@@ -441,13 +441,13 @@ func TestBuildCubeMeshData_PivotFallback(t *testing.T) {
 	if md == nil {
 		t.Fatal("有效 cube 应返回非 nil")
 	}
-	// fallback pivot = 中心 [4,4,4] → localPos = bonePivot(0) - cp，但 Y 轴翻转对齐
-	// C#（cp[1]-bonePivot.y）→ [-4, 4, 4]
+	// fallback pivot = 中心 → cp = [-4, 4, 4]（cube origin X 镜像后 ox=-8, sx=8, 中心=-4）
+	// localPos[0] = bonePivot.x + cp[0] = 0 + (-4) = -4（cp[0] 已 X 翻号）
 	lp := md.LocalPosition
 	if lp[0] != -4 || lp[1] != 4 || lp[2] != 4 {
-		t.Errorf("无 pivot 应 fallback 到 cube 中心: localPos = %v, 期望 [-4 4 4]（Y 翻转对齐）", lp)
+		t.Errorf("无 pivot 应 fallback 到 cube 中心: localPos = %v, 期望 [-4 4 4]", lp)
 	}
-	// 顶点相对中心：cube 8x8 中心 4 → lx=-4, hx=4（X 翻转对齐后同）
+	// fallback pivot 跟着 ox 镜像变（cp = ox + sx/2），lx/hx 相对 cp 偏移不变 → 顶点不变
 	if md.Positions[0] != 4 || md.Positions[12] != -4 {
 		t.Errorf("顶点应相对中心对称: xMax=%v xMin=%v, 期望 4 / -4", md.Positions[0], md.Positions[12])
 	}
@@ -472,8 +472,8 @@ func TestBuildCubeMeshData_ExplicitZeroPivot(t *testing.T) {
 	if lp[0] != 0 || lp[1] != 0 || lp[2] != 0 {
 		t.Errorf("显式 pivot [0,0,0] 应保留原点旋转中心: localPos = %v, 期望 [0 0 0]（不得 fallback 到中心）", lp)
 	}
-	// 顶点相对原点：cube 8x8 → lx=0, hx=8
-	if md.Positions[0] != 8 || md.Positions[12] != 0 {
-		t.Errorf("顶点应相对模型原点: xMax=%v xMin=%v, 期望 8 / 0", md.Positions[0], md.Positions[12])
+	// 顶点相对原点：cube 8x8 X 镜像后 fx=-8, tx=0 → lx=-8, hx=0
+	if md.Positions[0] != 0 || md.Positions[12] != -8 {
+		t.Errorf("顶点应相对模型原点: xMax=%v xMin=%v, 期望 0 / -8", md.Positions[0], md.Positions[12])
 	}
 }

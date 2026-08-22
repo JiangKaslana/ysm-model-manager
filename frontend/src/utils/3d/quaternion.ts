@@ -6,9 +6,11 @@
 // ===== eulerToQuaternion — Go threejs/spec.go eulerToQuaternion（L756-812）=====
 
 /**
- * 欧拉角（度）→ 四元数，旋转顺序: Rx * Ry * Rz (Three.js 默认)。
+ * 欧拉角（度）→ 四元数，旋转顺序: Rz * Ry * Rx (ZYX intrinsic = XYZ extrinsic)。
  * 口径：调用方传入的是已取反角度（X/Y 取反、Z 不取反）。
- * 对齐 Go threejs/spec.go eulerToQuaternion（L756-812）。
+ * 对齐 Blockbench Format.euler_order='ZYX'（io/format.ts:704）+ Three.js Euler(order='ZYX')。
+ * ADR-042 §2.1 裁决：从 Rx×Ry×Rz（ADR-041 YSMViewer 口径）改为 Rz×Ry×Rx（Blockbench 活规范），
+ * 修复三轴非零 cube 旋转顶点错位（主题正确、小部件错）。
  */
 export function eulerToQuaternion(rxDeg: number, ryDeg: number, rzDeg: number): [number, number, number, number] {
   const rx = rxDeg * Math.PI / 180.0;
@@ -22,16 +24,17 @@ export function eulerToQuaternion(rxDeg: number, ryDeg: number, rzDeg: number): 
   const cosZ = Math.cos(rz);
   const sinZ = Math.sin(rz);
 
-  // 3x3 rotation matrix: M = Rx * Ry * Rz
-  const m00 = cosY * cosZ;
-  const m01 = -cosY * sinZ;
-  const m02 = sinY;
-  const m10 = cosX * sinZ + sinX * sinY * cosZ;
-  const m11 = cosX * cosZ - sinX * sinY * sinZ;
-  const m12 = -sinX * cosY;
-  const m20 = sinX * sinZ - cosX * sinY * cosZ;
-  const m21 = sinX * cosZ + cosX * sinY * sinZ;
-  const m22 = cosX * cosY;
+  // 3x3 rotation matrix: M = Rz * Ry * Rx (ZYX intrinsic order)
+  // 展开式：M = Rz(cz,sz) × Ry(cy,sy) × Rx(cx,sx)
+  const m00 = cosZ * cosY;
+  const m01 = cosZ * sinY * sinX - sinZ * cosX;
+  const m02 = cosZ * sinY * cosX + sinZ * sinX;
+  const m10 = sinZ * cosY;
+  const m11 = sinZ * sinY * sinX + cosZ * cosX;
+  const m12 = sinZ * sinY * cosX - cosZ * sinX;
+  const m20 = -sinY;
+  const m21 = cosY * sinX;
+  const m22 = cosY * cosX;
 
   // 旋转矩阵 → 四元数
   const trace = m00 + m11 + m22;

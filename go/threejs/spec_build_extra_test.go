@@ -255,6 +255,7 @@ func TestBuildCubeMeshData_LocalPosOverflow(t *testing.T) {
 		Pivot:    [3]float64{-1e308, 0, 0},
 		PivotSet: true,
 	}
+	// bonePivot.x(1e308) - cp[0](-1e308) = 2e308 → 溢出
 	if md := buildCubeMeshData(c, vec3{1e308, 0, 0}, 64, 64, "b1", 0); md != nil {
 		t.Fatal("mesh localPos 溢出应返回 nil")
 	}
