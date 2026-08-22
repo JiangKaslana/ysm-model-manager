@@ -1621,10 +1621,10 @@
 | `setVrmMaterialVisible()` | `frontend/src/utils/3d/vrm-materials:38` | 材质显隐：Material.visible（MToon/标准/基础均支持） |
 | `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
-| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:26` | — |
-| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:57` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
+| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:27` | — |
+| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:58` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:24` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
-| `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:45` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
+| `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:49` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
 | `Vec3()` | `frontend/src/utils/animation/animation:12` | 三维向量 [x, y, z] |
 | `MolangAxes()` | `frontend/src/utils/animation/animation:15` | Molang 轴三元组（null = 该轴为纯数字，取 Keyframe 对应轴值） |

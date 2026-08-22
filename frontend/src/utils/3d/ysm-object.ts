@@ -41,13 +41,26 @@ export interface YsmObjectHandle {
  * 纯 three 场景图构建，无渲染壳依赖。
  * ADR-114 perComponent：componentTexMap 按组件名查独立纹理数组，
  * 不再依赖全局 texArr[texIdx] 槽位顺序。
+ *
+ * 兼容调用（重载分派，避免破坏性 API 变更）：
+ *   - 新口径：buildYsmObject(spec, texArr, componentTexMap, texIdx?)
+ *   - 旧口径：buildYsmObject(spec, texArr, texIdx?)
  */
 export function buildYsmObject(
   spec: Spec3D,
   texArr: (THREE.Texture | null)[],
-  componentTexMap: Map<string, (THREE.Texture | null)[]>,
+  componentTexMapOrTexIdx: Map<string, (THREE.Texture | null)[]> | number = new Map<
+    string,
+    (THREE.Texture | null)[]
+  >(),
   texIdx = 0,
 ): YsmObjectHandle {
+  const componentTexMap = componentTexMapOrTexIdx instanceof Map
+    ? componentTexMapOrTexIdx
+    : new Map<string, (THREE.Texture | null)[]>();
+  const resolvedTexIdx = componentTexMapOrTexIdx instanceof Map
+    ? texIdx
+    : componentTexMapOrTexIdx;
   const { boneGroupMap, rootGroup, modelGroups } = buildSceneMesh(spec);
   const multiModel = (spec.models?.length ?? 1) > 1;
 
@@ -57,7 +70,7 @@ export function buildYsmObject(
     const batchable: SpecMeshGroup3D[] = [];
     const translucent: SpecMeshGroup3D[] = [];
     for (const mesh of mg.meshGroups) {
-      const textureIndex = multiModel ? (mesh.texIdx ?? 0) : texIdx;
+      const textureIndex = multiModel ? (mesh.texIdx ?? 0) : resolvedTexIdx;
       const texture = texArr[textureIndex] ?? null;
       if (texture && getTextureAlphaMode(texture) === "blend") translucent.push(mesh);
       else batchable.push(mesh);

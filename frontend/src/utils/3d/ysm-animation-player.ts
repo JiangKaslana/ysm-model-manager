@@ -16,6 +16,7 @@
 
 import * as THREE from "three";
 import {
+  evaluateClip,
   evaluateKeyframesInto,
   type AnimationClip,
   type BoneChannels,
@@ -57,7 +58,7 @@ interface CompiledTrack {
 export function createYsmAnimPlayer(
   boneByName: Map<string, THREE.Object3D>,
   clips: AnimationClip[],
-  _boneHierarchy: BoneHierarchyNode[],
+  boneHierarchy: BoneHierarchyNode[],
   clipLabels?: string[],
 ): YsmAnimPlayer {
   if (clips.length === 0) throw new Error("YSM animation player requires at least one clip");
