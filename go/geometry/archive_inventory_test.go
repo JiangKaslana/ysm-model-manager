@@ -152,6 +152,41 @@ func TestParseLegacyMetadata_Malformed(t *testing.T) {
 	}
 }
 
+func TestParseLegacyMetadata_NestedInfoJSONIgnored(t *testing.T) {
+	// code review P2：嵌套/无关 *info.json 不参与——textures/skin_info.json
+	// 有 name 也不得挂载（旧格式约定根级 info.json）
+	data := makeZipWithFiles(t, map[string]string{
+		"models/main.json":        minimalMainJSON,
+		"textures/skin.png":       tinyPNG(),
+		"textures/skin_info.json": `{"name":"皮肤信息"}`,
+	})
+	geo, _, _ := ParseFromZip(data, int64(len(data)))
+	if geo == nil {
+		t.Fatal("geo 应为非 nil")
+	}
+	if geo.Metadata != nil {
+		t.Errorf("嵌套 skin_info.json 不应挂载, 实际 %+v", geo.Metadata)
+	}
+}
+
+func TestParseLegacyMetadata_EmptyPlaceholder_Continues(t *testing.T) {
+	// code review P2：空占位 {} 不得早退抑制后续候选——INFO.json（大小写变体）
+	// 有效时应取到（continue 而非 return nil）
+	data := makeZipWithFiles(t, map[string]string{
+		"models/main.json":  minimalMainJSON,
+		"textures/skin.png": tinyPNG(),
+		"info.json":         `{}`,
+		"INFO.json":         `{"name":"大写有效"}`,
+	})
+	geo, _, _ := ParseFromZip(data, int64(len(data)))
+	if geo == nil {
+		t.Fatal("geo 应为非 nil")
+	}
+	if geo.Metadata == nil || geo.Metadata.Name != "大写有效" {
+		t.Errorf("空占位后应继续找到有效候选, 实际 %+v", geo.Metadata)
+	}
+}
+
 // isLegacyGeometryName 的 .geo 变体识别（code review P3：与 IsMainModelName/isArmModelName 同口径）
 func TestIsLegacyGeometryName(t *testing.T) {
 	cases := []struct {

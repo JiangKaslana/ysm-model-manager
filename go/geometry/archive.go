@@ -150,8 +150,9 @@ func isLegacyGeometryName(lowPath string) bool {
 // 缺失/畸形返回 nil（容错，不阻断解析）；license 字符串映射为 License{Type}。
 func parseLegacyMetadata(entries []container.Entry) *types.YsmMetadata {
 	for _, e := range entries {
-		low := strings.ToLower(e.Name())
-		if !strings.HasSuffix(low, "info.json") {
+		// 只匹配根级 info.json（旧格式约定单个根文件）：嵌套/无关 *info.json
+		// （textures/skin_info.json、assets/<ns>/info.json 等）不参与（code review P2）
+		if e.IsDir() || !strings.EqualFold(e.Name(), "info.json") {
 			continue
 		}
 		rc, err := e.Open()
@@ -183,7 +184,8 @@ func parseLegacyMetadata(entries []container.Entry) *types.YsmMetadata {
 		if m.Name != "" || m.Tips != "" || m.License != nil || len(m.Authors) > 0 {
 			return m
 		}
-		return nil
+		// 空占位（{}）不 return——继续找后续候选（code review P2：一个空 info.json
+		// 不得抑制同 archive 中其他有效候选；根级仅一个时最终落到循环末 return nil）
 	}
 	return nil
 }
