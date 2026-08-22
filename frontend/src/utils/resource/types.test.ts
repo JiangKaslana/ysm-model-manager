@@ -417,11 +417,16 @@ describe("getPreviewableTypeTabs 3D 切换面板 tab 派生", () => {
     }
   });
 
-  it("已知数据不一致：resourcepack 标 preview=thumbnail 却注册了 3D opener（待 JSON 标注修正）", () => {
-    // 现状：pack-3d.ts 注册了 resourcepack opener，但 resource_types.json 标的是 thumbnail，
-    // 故 getPreviewableTypeTabs 按 preview==='3d' 派生会排除它——功能回归点，记入 ADR/待办。
-    // 此处断言「当前确实不含」，把不一致固化为已知事实，防止静默漂移。
-    expect(keys).not.toContain("resourcepack");
+  it("resourcepack 已标 preview='3d' 且有 3D opener，派生纳入对应 tab", () => {
+    // ADR-111 收口修正：resourcepack 有 pack-3d.ts opener，JSON 标注已从 thumbnail 升为 3d，
+    // 派生结果应纳入，消除旧面板 resourcepack tab 回归。
+    expect(keys).toContain("resourcepack");
+  });
+
+  it("shaderpack 仍标 preview='thumbnail'（无 3D opener），派生不纳入", () => {
+    // shaderpack 实际无 3D 预览能力（pack-3d.ts 仅注册 resourcepack），维持 thumbnail 标注，
+    // 派生结果不应含 shaderpack——防止无 opener 的类型混入 3D 切换面板。
+    expect(keys).not.toContain("shaderpack");
   });
 
   it("每个 tab 都有非空标签", () => {
