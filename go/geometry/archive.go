@@ -163,10 +163,13 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 						}
 					}
 				}
-				// 解析 projectiles/vehicles/arrow：支持 dict（minecraft:arrow→config）
-				// 与 list（[config,...]）双形态；纹理追加到 texOrder（player 后）、模型先收集到
-				// projModels、player 模型解析完再统一追加（审核 P2：顺序错位致主模型绑投射物纹理槽）。
-				// arrow 段是单实体直接声明（{model,texture}），同样按 dict 路径处理。
+				// 解析 projectiles/vehicles/arrow：支持 list/dict/single 三形态。
+				// list: [{model,texture},...]（声明序即切片序）
+				// dict: {minecraft:arrow: {model,texture}}（json.Decoder Token 流保序，
+				//   避免 Go map 迭代随机化导致 texOrder/TexSlot 跨运行不稳定）
+				// single: {model,texture}（arrow 段单实体直接声明）
+				// 纹理追加到 texOrder（player 后）、模型先收集到 projModels、player 模型
+				// 解析完再统一追加（审核 P2：顺序错位致主模型绑投射物纹理槽）。
 				for _, raw := range []json.RawMessage{ysm.Files.Projectiles, ysm.Files.Vehicles, ysm.Files.Arrow} {
 					if len(raw) == 0 {
 						continue
@@ -175,18 +178,42 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 						Model   string          `json:"model"`
 						Texture json.RawMessage `json:"texture"`
 					}
-					if json.Unmarshal(raw, &projs) != nil {
-						// dict 形态：map[minecraft:xxx]→config；转成保序切片再解析
-						var pm map[string]struct {
-							Model   string          `json:"model"`
-							Texture json.RawMessage `json:"texture"`
-						}
-						if json.Unmarshal(raw, &pm) != nil {
-							continue
-						}
-						projs = projs[:0]
-						for _, v := range pm {
-							projs = append(projs, v)
+					rawTrim := strings.TrimSpace(string(raw))
+					if strings.HasPrefix(rawTrim, `[`) {
+						// list 形态：声明序即切片序
+						_ = json.Unmarshal(raw, &projs)
+					} else if strings.HasPrefix(rawTrim, `{`) {
+						// 区分 dict {minecraft:xxx: {model,texture}} 与 single {model,texture}
+						dec := json.NewDecoder(bytes.NewReader(raw))
+						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
+							_, err := dec.Token() // 第一个 key
+							if err != nil {
+								continue
+							}
+							// 读第一个 value：若能解码成 struct{Model,Texture} 且 Model 非空 → single
+							var single struct {
+								Model   string          `json:"model"`
+								Texture json.RawMessage `json:"texture"`
+							}
+							if decodeErr := dec.Decode(&single); decodeErr == nil && single.Model != "" {
+								projs = append(projs, single)
+							} else {
+								// dict 形态：json.Decoder Token 流保序遍历
+								projs = projs[:0]
+								dec2 := json.NewDecoder(bytes.NewReader(raw))
+								if tok2, err := dec2.Token(); err == nil && tok2 == json.Delim('{') {
+									for dec2.More() {
+										_, _ = dec2.Token() // key（minecraft:xxx）
+										var cfg struct {
+											Model   string          `json:"model"`
+											Texture json.RawMessage `json:"texture"`
+										}
+										if dec2.Decode(&cfg) == nil {
+											projs = append(projs, cfg)
+										}
+									}
+								}
+							}
 						}
 					}
 					for _, pr := range projs {
@@ -553,10 +580,13 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 						}
 					}
 				}
-				// 解析 projectiles/vehicles/arrow：支持 dict（minecraft:arrow→config）
-				// 与 list（[config,...]）双形态；纹理追加到 texOrder（player 后）、模型先收集到
-				// projModels、player 模型解析完再统一追加（审核 P2：顺序错位致主模型绑投射物纹理槽）。
-				// arrow 段是单实体直接声明（{model,texture}），同样按 dict 路径处理。
+				// 解析 projectiles/vehicles/arrow：支持 list/dict/single 三形态。
+				// list: [{model,texture},...]（声明序即切片序）
+				// dict: {minecraft:arrow: {model,texture}}（json.Decoder Token 流保序，
+				//   避免 Go map 迭代随机化导致 texOrder/TexSlot 跨运行不稳定）
+				// single: {model,texture}（arrow 段单实体直接声明）
+				// 纹理追加到 texOrder（player 后）、模型先收集到 projModels、player 模型
+				// 解析完再统一追加（审核 P2：顺序错位致主模型绑投射物纹理槽）。
 				for _, raw := range []json.RawMessage{ysm.Files.Projectiles, ysm.Files.Vehicles, ysm.Files.Arrow} {
 					if len(raw) == 0 {
 						continue
@@ -565,18 +595,42 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 						Model   string          `json:"model"`
 						Texture json.RawMessage `json:"texture"`
 					}
-					if json.Unmarshal(raw, &projs) != nil {
-						// dict 形态：map[minecraft:xxx]→config；转成保序切片再解析
-						var pm map[string]struct {
-							Model   string          `json:"model"`
-							Texture json.RawMessage `json:"texture"`
-						}
-						if json.Unmarshal(raw, &pm) != nil {
-							continue
-						}
-						projs = projs[:0]
-						for _, v := range pm {
-							projs = append(projs, v)
+					rawTrim := strings.TrimSpace(string(raw))
+					if strings.HasPrefix(rawTrim, `[`) {
+						// list 形态：声明序即切片序
+						_ = json.Unmarshal(raw, &projs)
+					} else if strings.HasPrefix(rawTrim, `{`) {
+						// 区分 dict {minecraft:xxx: {model,texture}} 与 single {model,texture}
+						dec := json.NewDecoder(bytes.NewReader(raw))
+						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
+							_, err := dec.Token() // 第一个 key
+							if err != nil {
+								continue
+							}
+							// 读第一个 value：若能解码成 struct{Model,Texture} 且 Model 非空 → single
+							var single struct {
+								Model   string          `json:"model"`
+								Texture json.RawMessage `json:"texture"`
+							}
+							if decodeErr := dec.Decode(&single); decodeErr == nil && single.Model != "" {
+								projs = append(projs, single)
+							} else {
+								// dict 形态：json.Decoder Token 流保序遍历
+								projs = projs[:0]
+								dec2 := json.NewDecoder(bytes.NewReader(raw))
+								if tok2, err := dec2.Token(); err == nil && tok2 == json.Delim('{') {
+									for dec2.More() {
+										_, _ = dec2.Token() // key（minecraft:xxx）
+										var cfg struct {
+											Model   string          `json:"model"`
+											Texture json.RawMessage `json:"texture"`
+										}
+										if dec2.Decode(&cfg) == nil {
+											projs = append(projs, cfg)
+										}
+									}
+								}
+							}
 						}
 					}
 					for _, pr := range projs {

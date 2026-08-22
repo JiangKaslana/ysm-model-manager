@@ -137,7 +137,6 @@ function simulateCubeTexSlots(ysmPath, modelDir) {
 
   // texIdxMap: 模型文件 basename（去 .json）→ TexSlot
   // archive.go L884-901：按 modelOrder 序分配，ti = i，截断到 texCount-1
-  const texCount = texOrder.length;
   const texIdxMap = {};
   for (const [modelPath, _texName] of Object.entries(modelTexMap)) {
     // basename 去 .json
