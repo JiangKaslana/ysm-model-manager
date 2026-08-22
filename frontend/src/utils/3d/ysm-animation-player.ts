@@ -117,14 +117,32 @@ export function createYsmAnimPlayer(
           _targetQuat.copy(base.quat);
         }
         if (transform?.position) {
-          _targetPos.set(transform.position[0], transform.position[1], transform.position[2]);
+          // 游戏内口径（NativeModelRenderer.calculateBoneMatrix L217-221 / RenderUtils
+          // prepMatrixForBone L95）：动画位移是**相对位移**——叠加到骨骼旋转中心
+          // （localPosition），而非覆盖；X 轴取负（游戏内 -posX）。骨骼 Group 在像素
+          // 空间（外层 modelScale=1/16 整体缩放），位移直接像素值叠加，与游戏内 /16
+          // 换算后等效（对拍 compare-bone-anim.mjs 实证：修复前 posΔ 4~32 全红）。
+          _targetPos.set(
+            base.pos.x - transform.position[0],
+            base.pos.y + transform.position[1],
+            base.pos.z + transform.position[2],
+          );
         } else {
           _targetPos.copy(base.pos);
         }
         if (transform?.scale) {
-          _targetScale.set(transform.scale[0], transform.scale[1], transform.scale[2]);
+          const [sx, sy, sz] = transform.scale;
+          if (sx === 0 && sy === 0 && sz === 0) {
+            // 游戏内 scale=0 → 整骨不可见（calculateBoneMatrix L213-215 isVisible=false），
+            // 而非塌缩成点
+            node.visible = false;
+          } else {
+            node.visible = true;
+            _targetScale.set(sx, sy, sz);
+          }
         } else {
           _targetScale.copy(base.scale);
+          node.visible = true;
         }
 
         let rest = restPose.get(boneName);

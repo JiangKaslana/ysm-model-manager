@@ -798,6 +798,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-114：每组件独立纹理（perComponent Textures）",
+        "link": "/adr/ADR-114-per-component-textures"
+      },
+      {
         "text": "ADR-113：YSM 骨骼动画 Molang 求值器与欧拉序修复（L4）",
         "link": "/adr/ADR-113-ysm-molang"
       },

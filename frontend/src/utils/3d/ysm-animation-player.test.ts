@@ -34,7 +34,7 @@ describe("createYsmAnimPlayer", () => {
     const bone = makeBone("root");
     const player = createYsmAnimPlayer(new Map([["root", bone]]), [makeClip(2)], H, ["run"]);
     player.apply(1.0);
-    expect(bone.position.x).toBeCloseTo(1.0, 5);
+    expect(bone.position.x).toBeCloseTo(-1.0, 5); // 游戏内口径：动画位移 X 取负叠加（base 0 - tx 1）
   });
 
   it("toggle/isPlaying 状态切换", () => {
@@ -52,7 +52,7 @@ describe("createYsmAnimPlayer", () => {
     const bone = makeBone("root");
     const player = createYsmAnimPlayer(new Map([["root", bone]]), [makeClip(2)], H, ["run"]);
     player.apply(3.0);
-    expect(bone.position.x).toBeCloseTo(1.0, 5); // 3%2=1
+    expect(bone.position.x).toBeCloseTo(-1.0, 5); // 3%2=1 → X 取负（游戏内口径）
   });
 
   it("非 loop 动画超过 clip.length 后暂停在末帧", () => {
@@ -252,15 +252,15 @@ describe("createYsmAnimPlayer", () => {
     const player = createYsmAnimPlayer(new Map([["root", bone]]), [clipA, clipB], H, ["a", "b"]);
 
     for (let i = 0; i < 10; i++) player.apply(0.05);
-    expect(bone.position.x).toBeCloseTo(1.0, 5); // clipA 收敛
+    expect(bone.position.x).toBeCloseTo(-1.0, 5); // clipA pos=[1,0,0] → base 0 - 1（X 取负）
 
     player.selectClip(1);
-    player.apply(0.02); // 一小步：应停在 1→5 途中
-    expect(bone.position.x).toBeGreaterThan(1.0);
-    expect(bone.position.x).toBeLessThan(5.0);
+    player.apply(0.02); // 一小步：应停在 -1→-5 途中
+    expect(bone.position.x).toBeLessThan(-1.0);
+    expect(bone.position.x).toBeGreaterThan(-5.0);
 
     for (let i = 0; i < 30; i++) player.apply(0.05);
-    expect(bone.position.x).toBeCloseTo(5.0, 4); // 最终收敛到 clipB
+    expect(bone.position.x).toBeCloseTo(-5.0, 4); // 最终收敛到 clipB（0-5）
   });
 
   it("L3: 新 clip 未触及的骨骼渐回 base 姿态，而非钉在旧姿态", () => {
@@ -277,12 +277,12 @@ describe("createYsmAnimPlayer", () => {
     );
 
     for (let i = 0; i < 10; i++) player.apply(0.05);
-    expect(arm.position.x).toBeCloseTo(2.0, 5); // arm 被 clipA 推到 x=2
+    expect(arm.position.x).toBeCloseTo(-2.0, 5); // arm 被 clipA 推到 x=-2（0-2，X 取负）
 
     player.selectClip(1);
     player.apply(0.02); // 一小步：arm 应开始回落但仍在途中
-    expect(arm.position.x).toBeGreaterThan(0);
-    expect(arm.position.x).toBeLessThan(2.0);
+    expect(arm.position.x).toBeLessThan(0);
+    expect(arm.position.x).toBeGreaterThan(-2.0);
 
     for (let i = 0; i < 30; i++) player.apply(0.05);
     expect(arm.position.x).toBeCloseTo(0, 4); // 渐回 base（构造期姿态）
