@@ -150,8 +150,8 @@ describe("mountPreviewRootMenu", () => {
     handle.dispose();
   });
 
-  it("🧍 dock 按钮：无加载角色（litematic 等单静态模型）→ 组根视图，adapter model 项仍可达", () => {
-    // sceneRegistry 空（litematic 不注册角色）→ 保留组根，保证其专属工具（切片）不丢失
+  it("🧍 dock 按钮：始终直达 roles 面板（与是否加载角色无关），adapter model 项不在 dock 根", () => {
+    // Phase A：🧍 永远开 roles 面板，单模型实例工具下沉角色详情，不再平铺 dock 根
     const handle = mountPreviewRootMenu(overlay, makeCtx({ getSiblings: () => ["/m/b.ysm"] }));
     const adapterModelItem = {
       id: "model",
@@ -170,12 +170,8 @@ describe("mountPreviewRootMenu", () => {
     modelBtn!.click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
-    // 组根视图同时列出 roles 行与 adapter model 行
-    expect(overlay.querySelector(`[data-testid="preview-roles"]`)).not.toBeNull();
-    expect(overlay.querySelector(`[data-testid="preview-${adapterModelItem.id}"]`)).not.toBeNull();
-    // 点击 adapter model 行 → 下钻面板
-    (overlay.querySelector(`[data-testid="preview-${adapterModelItem.id}"]`) as HTMLElement).click();
-    expect(overlay.textContent).toContain("MODEL-PANEL");
+    // adapter model 项不再作为 dock 根行出现（下沉到角色详情，未加载角色时不显示）
+    expect(overlay.querySelector(`[data-testid="preview-${adapterModelItem.id}"]`)).toBeNull();
     handle.dispose();
   });
 

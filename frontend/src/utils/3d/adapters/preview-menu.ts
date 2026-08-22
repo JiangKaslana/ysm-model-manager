@@ -603,36 +603,6 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
         .filter((d) => !(d.sharedOnly && ctx.selfMode))
         .filter((d) => !(d.requiresEnvironment && !sceneCapabilityRegistry.getById("sky") && !sceneCapabilityRegistry.getById("ground") && !ctx.getSkyCap() && !ctx.getGroundCap()));
     PREVIEW_MENU_GROUPS.forEach((g) => {
-      // 模型组特殊分支：
-      // - 已加载角色（YS'M/PMX/VSM 多角色同框，sceneRegistry 非空）→ 🧍 永远快捷直达 roles 面板。
-      //   单模型实例工具（模型信息/截图/骨骼/材料）保留 dockGroup:"model" 不变，
-      //   下沉到角色详情内可达（fillRoles→roleDetailView 按 dockGroup:"model" 过滤）。
-      // - 无角色（litematic 等单静态模型，sceneRegistry 空）→ 走通用组根分支，
-      //   保证其 model 组专属工具（如切片）仍可达，不丢失能力。
-      if (g.id === "model") {
-        const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
-        if (!rolesDef) return;
-        const btn = document.createElement("button");
-        btn.className = "preview-dock-navbtn";
-        btn.dataset.testid = "dock-" + g.id;
-        btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
-        btn.onclick = (e: MouseEvent): void => {
-          e.stopPropagation();
-          // 角色注册表状态在**点击时**实时求值：renderDock 烘焙快照会与注册表漂移
-          // （menuItems 为 null 的角色注册不触发重渲染、部分卸载路径不触发 sink——审核 P2）
-          const items = groupItemsFor(g, allItems);
-          if (sceneRegistry.getAll().length > 0) {
-            showMenu(makePanelView(rolesDef));
-          } else {
-            const panels = items.filter((d) => d.kind === "panel");
-            if (panels.length === 1 && items.length === 1) showMenu(makePanelView(panels[0]));
-            else showMenu(makeGroupView(g, items));
-          }
-        };
-        dock.appendChild(btn);
-        return;
-      }
-
       const groupItems = groupItemsFor(g, allItems);
       if (groupItems.length === 0) return;
 
@@ -642,6 +612,16 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation();
+        // 模型组：🧍 永远快捷直达 roles 面板（角色级管理，多角色同框核心）。
+        // 单模型实例工具（模型信息/截图/骨骼/材料）保留 dockGroup:"model" 不变，
+        // 下沉到角色详情内可达（roleDetailView 按 dockGroup:"model" 过滤 entry.menuItems）。
+        if (g.id === "model") {
+          const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
+          if (rolesDef) {
+            showMenu(makePanelView(rolesDef));
+            return;
+          }
+        }
         const panels = groupItems.filter((d) => d.kind === "panel");
         // 快捷直达：组内仅一个 panel 项
         if (panels.length === 1 && groupItems.length === 1) {

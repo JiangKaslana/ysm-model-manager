@@ -330,9 +330,10 @@ export async function buildLitematicScene(
     sep,
     axisLabel,
   });
-  ctx.menu.setAdapterItems(sliceItems);
-
   return {
+    // ADR-093：声明式分层切片控件 → 经角色详情面板可达（roleDetailView 按 dockGroup:"model" 过滤 entry.menuItems）
+    // 与 ysm/mmd/vrm 对称：built.menuItems 喂角色详情，不再经 setAdapterItems 平铺 dock 根（避免旧菜单冗余行）
+    menuItems: sliceItems,
     dispose(): void {
       unregisterModelRoot(modelGroup);
       instancedMeshes.forEach((m) => {

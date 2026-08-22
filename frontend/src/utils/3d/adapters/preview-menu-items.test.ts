@@ -252,7 +252,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     document.body.innerHTML = "";
   });
 
-  it("ysm 数组：🧍 模型组按钮出现，点击列出全部 menu 行（自适应）", () => {
+  it("ysm 数组：🧍 模型组按钮出现，点击直达 roles 面板（adapter model 项不在 dock 根）", () => {
     const items = ysmMenuItems(fakeYsmOpts());
     const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.ysm"],
@@ -261,11 +261,13 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 无加载角色（未注册 sceneRegistry 角色）→ 组根视图列出 ysm 项 + core 同组项（自愈推导）
+    // Phase A：🧍 始终直达 roles 面板（角色管理）；adapter model 组项下沉角色详情，不在 dock 根
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    // ysm model 组项（模型信息/截图/骨骼/材料）不再作为 dock 根行出现（下沉到角色详情）
     const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
-    const coreDock = deriveTestIds(CORE_MENU_ITEMS.filter((d) => d.dockGroup === "model"));
-    [...adapterDock, ...coreDock].forEach((tid) => {
-      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+    adapterDock.forEach((tid) => {
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).toBeNull();
     });
     handle.dispose();
   });
@@ -279,13 +281,13 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 无加载角色 → 组根视图列出 mmd model 组项（自愈推导）
+    // Phase A：🧍 始终直达 roles 面板（adapter model 组项下沉角色详情，不在 dock 根）
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
     const adapterDockModel = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
     adapterDockModel.forEach((tid) => {
-      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).toBeNull();
     });
-    const rolesId = CORE_MENU_ITEMS.find((d) => d.id === "roles")!.id;
-    expect(overlay.querySelector(`[data-testid="preview-${rolesId}"]`)).not.toBeNull();
 
     // 多 panel 组（play + perception）→ 渲染组根行列表
     const motionGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "motion")!.id;
@@ -308,13 +310,13 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 无加载角色 → 组根视图列出 vrm model 组项（自愈推导）
+    // Phase A：🧍 始终直达 roles 面板（adapter model 组项下沉角色详情，不在 dock 根）
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
     const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
     adapterDock.forEach((tid) => {
-      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).toBeNull();
     });
-    const rolesId = CORE_MENU_ITEMS.find((d) => d.id === "roles")!.id;
-    expect(overlay.querySelector(`[data-testid="preview-${rolesId}"]`)).not.toBeNull();
     handle.dispose();
   });
 
