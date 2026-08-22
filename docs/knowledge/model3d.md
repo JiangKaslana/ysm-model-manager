@@ -21,6 +21,12 @@ use_when:
 invariant_anchors:
   - frontend/src/utils/3d/cube-mesh.ts|computeBoneLocalPos
   - frontend/src/views/app-preview/model3d-loader.ts|specCache
+quick_groups:
+  - 3D 预览与模型追加
+quick_intents:
+  - 相机控制、OrbitControls
+quick_risk_lines:
+  - 相机定位公式固定：position(0, 80, -120), target(0, 80, 0)
 ---
 
 # 3D 预览渲染 model3d

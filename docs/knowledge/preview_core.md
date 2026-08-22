@@ -24,6 +24,22 @@ invariant_anchors:
   - frontend/src/utils/3d/adapters/mount-preview-core.ts|_singletonScene.background
   - frontend/src/utils/3d/caps/sky-capability.ts|SkyCapability
   - frontend/src/utils/3d/adapters/mount-preview-core.ts|PreviewAdapter
+quick_groups:
+  - 3D 预览与模型追加
+quick_intents:
+  - 追加模型、同台加载、多模型同框
+  - 模型切换、会话内替换
+  - 3D 预览菜单、根菜单、dock 按钮
+  - VRM 动画播放、VRMA
+quick_risk_lines:
+  - 跨类型必须走 switchExternal，禁止直接调 adapter.build
+  - switchTo 仅同类型；跨类型用 switchExternal
+  - 适配器项经 setAdapterItems 注入，禁止内联
+  - 必须 mixer.update(dt) → vrm.update(dt)，禁止手动 vrm.humanoid.update()
+pitfalls:
+  - 「preview-menu.ts:1085」跨类型追加走错适配器 → 必须经 switchExternal → openModel3DFullscreen(cooperate)
+  - 「skeleton.ts:82」异步回调写入已卸载 DOM → 每个 await 后检查 container.isConnected
+  - 「vrm.humanoid.update()」手动调用导致 T-pose 回归 → 只用 vrm.update(dt)
 ---
 
 # 统一 3D 预览核心 preview-core

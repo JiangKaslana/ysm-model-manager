@@ -5,28 +5,31 @@
 
 ## 信息流
 
-### 知识查询流程（AI 优先）
+### AI 知识查询流程（任务开始前必跑）
 
 ```
-用户问题
+用户问题 / 任务
   ↓
-1. 查 docs/knowledge/routes-quick.md（急速版路由表，高频场景秒级定位）
-   ├─ 命中 → 直接读首选知识卡（如 preview_core.md、go-scanner.md）
-   └─ 未命中 → 查 docs/knowledge/routes.md（全量自动生成路由）
+1. docs/knowledge/routes-quick.md ← AI 第一站：高频场景秒级定位
+   ├─ 命中 → 直读首选知识卡（如 preview_core.md）
+   └─ 未命中 → 2.
+2. docs/knowledge/routes.md ← 全量路由兜底
+   ├─ 命中 → 同 1，读卡
+   └─ 仍未命中 → 3.
+3. grep -r <关键词> docs/knowledge/ ← 卡正文兜底
+   └─ 仍未命中 → 回退到源码 / CLI 实证
   ↓
-2. 打开首选知识卡 → 按 source_files 跳转源码
-  ↓
-3. 需要决策背景 → 查 docs/adr/ 对应 ADR
-  ↓
-4. 仍未命中 → 回退到 grep -r <关键词> docs/knowledge/
+4. 按知识卡 source_files 跳源码；需决策背景 → 查 docs/adr/
 ```
 
-**高频场景速查**（详见 [`routes-quick.md`](docs/knowledge/routes-quick.md)）：
-- 3D 预览追加/切换 → `preview_core.md`（红线：跨类型必须走 `switchExternal`；tab 与类型来源 = `resource_types.json` + Go 扫描，前端只渲染，禁手搓判定）
-- 模型扫描 → `go-scanner.md`
-- 导入/安装 → `go-importer.md` / `go-installer.md`
-- Wails 绑定 → `wails-bridge.md`（禁止直调 `window.go`；前端只消费 Go 已筛/已归类数据，禁本地重算类型/重筛/重聚合，见「前端 vs Go 职责红线」）
-- IndexedDB → `backend-idb.md`（事务必须接 `abort` 事件）\n\n## 硬约束
+**角色分工**：
+- `index.md` — 人工按分类速查，AI 不用
+- `routes-quick.md` — AI 首选入口（高频路径）
+- `routes.md` — 全量路由，quick 未命中时兜底
+
+**未命中回退原则**：不要猜、不要编；grep 全库仍空，直接读源码 / 跑 CLI 实证。
+
+## 硬约束
 
 > 检索阶段：按「信息流」知识查询流程（routes-quick.md → 路由表 → 知识卡 → source_files），了解源码位置与设计背景。仅当路由表未命中时，回退到 `grep -r <关键词> docs/knowledge/`。
 > 计划阶段：grep `docs/adr/`，了解问题由来。

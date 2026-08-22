@@ -17,6 +17,17 @@ use_when:
 invariant_anchors:
   - go/scanner/scanner.go|fsutil.IsRecycleDir
   - go/scanner/scanner.go|IsYsmEntryJSON
+quick_groups:
+  - 模型扫描与仓库管理
+quick_intents:
+  - 扫描模型、ScanModelEntries
+  - 资源类型识别、rtype 判定
+  - 去重检测、dedup
+  - 整合包同步、sync
+  - 仓库审计、健康分
+quick_risk_lines:
+  - 容器指纹缓存失效需调 ClearScanCache
+  - resource_types.json 是唯一事实来源
 ---
 
 # 扫描核心 go/scanner
