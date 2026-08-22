@@ -198,6 +198,113 @@ func TestCopyDirRecursive_RollbackOnFailure(t *testing.T) {
 	}
 }
 
+func TestCopyDirRecursive_AtomicRename_DstMissing(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "a.txt"), []byte("AAA"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(src, "sub"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "sub", "b.txt"), []byte("BBB"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := filepath.Join(t.TempDir(), "dst")
+	err := CopyDirRecursive(src, dst, CopyDirOptions{AtomicRename: true, Overwrite: true})
+	if err != nil {
+		t.Fatalf("AtomicRename 目标不存在失败: %v", err)
+	}
+	// 验证内容
+	data, err := os.ReadFile(filepath.Join(dst, "a.txt"))
+	if err != nil || string(data) != "AAA" {
+		t.Fatalf("a.txt 内容不符: %q", string(data))
+	}
+	data, err = os.ReadFile(filepath.Join(dst, "sub", "b.txt"))
+	if err != nil || string(data) != "BBB" {
+		t.Fatalf("sub/b.txt 内容不符: %q", string(data))
+	}
+	// 不得残留临时目录
+	matches, _ := filepath.Glob(filepath.Join(src, ".tmp_copy_*"))
+	if len(matches) != 0 {
+		t.Fatalf("成功路径不应残留临时目录: %v", matches)
+	}
+}
+
+func TestCopyDirRecursive_AtomicRename_OverwriteExisting(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "a.txt"), []byte("NEW"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := filepath.Join(t.TempDir(), "target")
+	// 预置旧目录
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dst, "old.txt"), []byte("OLD"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := CopyDirRecursive(src, dst, CopyDirOptions{AtomicRename: true, Overwrite: true})
+	if err != nil {
+		t.Fatalf("AtomicRename 覆盖已有目录失败: %v", err)
+	}
+	// 新文件存在
+	data, err := os.ReadFile(filepath.Join(dst, "a.txt"))
+	if err != nil || string(data) != "NEW" {
+		t.Fatalf("新文件缺失: %v %q", err, string(data))
+	}
+	// 旧文件应被整体替换
+	if _, err := os.Stat(filepath.Join(dst, "old.txt")); err == nil {
+		t.Fatal("旧文件应被整体替换")
+	}
+	// 备份目录应被清理
+	matches, _ := filepath.Glob(filepath.Join(filepath.Dir(dst), "target.bak-*"))
+	if len(matches) != 0 {
+		t.Fatalf("备份目录应被清理，实际残留 %d 个", len(matches))
+	}
+}
+
+func TestCopyDirRecursive_AtomicRename_AncestorGuard(t *testing.T) {
+	src := t.TempDir()
+	if err := os.WriteFile(filepath.Join(src, "a.txt"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// dst 是 src 的后代 → 拒绝
+	dst := filepath.Join(src, "sub", "out")
+	err := CopyDirRecursive(src, dst, CopyDirOptions{AtomicRename: true, Overwrite: true})
+	if err == nil {
+		t.Fatal("src 包含 dst 时应拒绝")
+	}
+	if !strings.Contains(err.Error(), "死循环") {
+		t.Errorf("错误信息应包含死循环提示: %v", err)
+	}
+
+	// src == dst → 拒绝
+	err = CopyDirRecursive(src, src, CopyDirOptions{AtomicRename: true, Overwrite: true})
+	if err == nil {
+		t.Fatal("src == dst 时应拒绝")
+	}
+	if !strings.Contains(err.Error(), "相同") {
+		t.Errorf("错误信息应包含相同提示: %v", err)
+	}
+}
+
+func TestCopyDirRecursive_AtomicRename_SrcIsFile(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "afile")
+	if err := os.WriteFile(src, []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(dir, "out")
+	err := CopyDirRecursive(src, dst, CopyDirOptions{AtomicRename: true, Overwrite: true})
+	if err == nil {
+		t.Fatal("源是文件时应报错")
+	}
+}
+
 func TestRelJoin(t *testing.T) {
 	// 使用 filepath.Join 构造跨平台兼容路径
 	dst := filepath.Join("dst")
