@@ -183,22 +183,26 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 						// list 形态：声明序即切片序
 						_ = json.Unmarshal(raw, &projs)
 					} else if strings.HasPrefix(rawTrim, `{`) {
-						// 区分 dict {minecraft:xxx: {model,texture}} 与 single {model,texture}
+						// 区分 dict {minecraft:xxx: {model,texture}} 与 single {model,texture}：
+						// 按**首个 key 名**判别（按首 value 判别会误判：dict 首条被当 single 只收
+						// 一条、arrow 单对象落 dict 分支收零条——审核 P2）
 						dec := json.NewDecoder(bytes.NewReader(raw))
 						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							_, err := dec.Token() // 第一个 key
+							firstKey, err := dec.Token()
 							if err != nil {
 								continue
 							}
-							// 读第一个 value：若能解码成 struct{Model,Texture} 且 Model 非空 → single
-							var single struct {
-								Model   string          `json:"model"`
-								Texture json.RawMessage `json:"texture"`
-							}
-							if decodeErr := dec.Decode(&single); decodeErr == nil && single.Model != "" {
-								projs = append(projs, single)
+							if ks, ok := firstKey.(string); ok && (ks == "model" || ks == "texture") {
+								// single 形态：{model, texture} 直读整段
+								var single struct {
+									Model   string          `json:"model"`
+									Texture json.RawMessage `json:"texture"`
+								}
+								if json.Unmarshal(raw, &single) == nil {
+									projs = append(projs, single)
+								}
 							} else {
-								// dict 形态：json.Decoder Token 流保序遍历
+								// dict 形态：json.Decoder Token 流保序遍历全部条目
 								projs = projs[:0]
 								dec2 := json.NewDecoder(bytes.NewReader(raw))
 								if tok2, err := dec2.Token(); err == nil && tok2 == json.Delim('{') {
@@ -410,7 +414,7 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 //
 // L0 生效时：geoFiles / pngs / modelOrder / texOrder 全部从清单派生，多余的文件
 // （如 junk_geo.json、外来命名空间内容）一律丢弃，避免顺序/纹理绑定被污染。
-func parseModelFromEntries(entries []container.Entry, logTag string) (*types.BedrockModel, [][]byte, []string) {
+func parseModelFromEntries(entries []container.Entry, logTag string) (*types.BedrockModel, [][]byte, []string, []geoEntry) {
 	logPrefix := "[geometry]"
 	if logTag != "zip" {
 		logPrefix = logPrefix + " " + logTag
@@ -600,22 +604,26 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 						// list 形态：声明序即切片序
 						_ = json.Unmarshal(raw, &projs)
 					} else if strings.HasPrefix(rawTrim, `{`) {
-						// 区分 dict {minecraft:xxx: {model,texture}} 与 single {model,texture}
+						// 区分 dict {minecraft:xxx: {model,texture}} 与 single {model,texture}：
+						// 按**首个 key 名**判别（按首 value 判别会误判：dict 首条被当 single 只收
+						// 一条、arrow 单对象落 dict 分支收零条——审核 P2）
 						dec := json.NewDecoder(bytes.NewReader(raw))
 						if tok, err := dec.Token(); err == nil && tok == json.Delim('{') {
-							_, err := dec.Token() // 第一个 key
+							firstKey, err := dec.Token()
 							if err != nil {
 								continue
 							}
-							// 读第一个 value：若能解码成 struct{Model,Texture} 且 Model 非空 → single
-							var single struct {
-								Model   string          `json:"model"`
-								Texture json.RawMessage `json:"texture"`
-							}
-							if decodeErr := dec.Decode(&single); decodeErr == nil && single.Model != "" {
-								projs = append(projs, single)
+							if ks, ok := firstKey.(string); ok && (ks == "model" || ks == "texture") {
+								// single 形态：{model, texture} 直读整段
+								var single struct {
+									Model   string          `json:"model"`
+									Texture json.RawMessage `json:"texture"`
+								}
+								if json.Unmarshal(raw, &single) == nil {
+									projs = append(projs, single)
+								}
 							} else {
-								// dict 形态：json.Decoder Token 流保序遍历
+								// dict 形态：json.Decoder Token 流保序遍历全部条目
 								projs = projs[:0]
 								dec2 := json.NewDecoder(bytes.NewReader(raw))
 								if tok2, err := dec2.Token(); err == nil && tok2 == json.Delim('{') {
@@ -1224,7 +1232,9 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			geo.SubModels = l1Subs
 		}
 	}
-	return geo, pngs, animJSONs
+	// 顺带返回过滤后的 geoFiles（L0/L1 口径、排 arm）：ParseFromZipEntry 复用同一趟解析
+	// 的 geoFiles 做 subPath 匹配，避免二次全量遍历（审核 P3）
+	return geo, pngs, animJSONs, geoFiles
 }
 
 // ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。
@@ -1234,7 +1244,8 @@ func ParseFromZip(data []byte, size int64) (*types.BedrockModel, [][]byte, []str
 		return nil, nil, nil
 	}
 	defer r.Close()
-	return parseModelFromEntries(r.Entries(), "zip")
+	geo, pngs, anims, _ := parseModelFromEntries(r.Entries(), "zip")
+	return geo, pngs, anims
 }
 
 // ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。
@@ -1245,7 +1256,7 @@ func ParseFrom7z(data []byte, size int64) (*types.BedrockModel, [][]byte) {
 		return nil, nil
 	}
 	defer r.Close()
-	geo, pngs, _ := parseModelFromEntries(r.Entries(), "7z")
+	geo, pngs, _, _ := parseModelFromEntries(r.Entries(), "7z")
 	return geo, pngs
 }
 
@@ -1268,12 +1279,8 @@ func ParseFromZipEntry(data []byte, size int64, subPath string) (*types.BedrockM
 	defer r.Close()
 	entries := r.Entries()
 	// PNG 全量须与 ParseFromZip 同口径：L0 清单过滤（否则 SubModel.TexSlot = i 会指错纹理数组下标）。
-	// 先调 parseModelFromEntries 拿 pngs（L0/L1 过滤好），geo 我们不合并，另行 collectArchiveFiles → 单 entry 选。
-	_, pngs, _ := parseModelFromEntries(entries, "zip")
-	_, _, geoFiles, fallbackPngs, _, _ := collectArchiveFiles(entries)
-	if len(pngs) == 0 {
-		pngs = fallbackPngs
-	}
+	// 一趟解析同时拿 pngs + 过滤后 geoFiles（subPath 匹配用），不再二次 collectArchiveFiles 全量遍历（审核 P3）
+	_, pngs, _, geoFiles := parseModelFromEntries(entries, "zip")
 	if len(geoFiles) == 0 {
 		return nil, pngs
 	}
@@ -1298,11 +1305,8 @@ func ParseFrom7zEntry(data []byte, size int64, subPath string) (*types.BedrockMo
 	}
 	defer r.Close()
 	entries := r.Entries()
-	_, pngs, _ := parseModelFromEntries(entries, "7z")
-	_, _, geoFiles, fallbackPngs, _, _ := collectArchiveFiles(entries)
-	if len(pngs) == 0 {
-		pngs = fallbackPngs
-	}
+	// 同 ParseFromZipEntry：一趟解析拿 pngs + 过滤后 geoFiles，不再二次 collectArchiveFiles（审核 P3）
+	_, pngs, _, geoFiles := parseModelFromEntries(entries, "7z")
 	if len(geoFiles) == 0 {
 		return nil, pngs
 	}

@@ -203,9 +203,10 @@ function verifyModel(modelDir) {
     }
   }
 
-  // 4. 投射物模型 .json 都存在？
+  // 4. 投射物模型 .json 都存在？（texture 检查在下方有独立守卫，此处仅守卫 model 存在性，
+  //     原重复条件 `modelFile==='?' || modelFile==='?'` 是笔误，审核 P3）
   for (const proj of alloc.projectiles) {
-    if (proj.modelFile === '?' || proj.modelFile === '?') continue;
+    if (proj.modelFile === '?') continue;
     const modelPath = join(modelsDir, proj.modelFile);
     if (!existsSync(modelPath)) {
       issues.push({
