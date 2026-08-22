@@ -2,18 +2,23 @@ package types
 
 // BedrockModel 基岩版模型几何体摘要（用于 2D 预览）
 type BedrockModel struct {
-	BoneCount    int        `json:"boneCount"`
-	CubeCount    int        `json:"cubeCount"`
-	Texture      string     `json:"texture,omitempty"`      // 纹理图 base64 data URI（单纹理兼容）
-	Textures     []string   `json:"textures,omitempty"`     // 多纹理 base64 data URI 数组
-	TextureNames []string   `json:"textureNames,omitempty"` // 纹理文件名（去扩展名），与 Textures 同序
-	SourceName   string     `json:"sourceName,omitempty"`   // 组件源模型文件名（去扩展名，如 main/arm/arrow），UI 组件名用
-	Format       string     `json:"format,omitempty"`       // "1.12.0" 等
-	TexWidth     int        `json:"texWidth,omitempty"`
-	TexHeight    int        `json:"texHeight,omitempty"`
-	Bones        []Bone2D   `json:"bones,omitempty"`
-	Animations   []string   `json:"animations,omitempty"` // 动画 JSON 字符串数组
-	SubModels    []SubModel `json:"subModels,omitempty"`  // L0/L1 派生的子模型清单（多角色包内切换用）
+	BoneCount    int      `json:"boneCount"`
+	CubeCount    int      `json:"cubeCount"`
+	Texture      string   `json:"texture,omitempty"`      // 纹理图 base64 data URI（单纹理兼容）
+	Textures     []string `json:"textures,omitempty"`     // 多纹理 base64 data URI 数组（全量，2D 预览用）
+	TextureNames []string `json:"textureNames,omitempty"` // 纹理文件名（去扩展名），与 Textures 同序
+	// ComponentTextures 每组件独立纹理（ADR-114 perComponent）。
+	// key = 组件源模型名（main/arm/arrow/minecart/boat/foxcar/trident）
+	// value = 该组件声明的纹理 base64 data URI 数组（通常 1 张）
+	// 3D 渲染用此字段；为空时 fallback 到 Textures[0]。
+	ComponentTextures map[string][]string `json:"componentTextures,omitempty"`
+	SourceName        string              `json:"sourceName,omitempty"` // 组件源模型文件名（去扩展名，如 main/arm/arrow），UI 组件名用
+	Format            string              `json:"format,omitempty"`     // "1.12.0" 等
+	TexWidth          int                 `json:"texWidth,omitempty"`
+	TexHeight         int                 `json:"texHeight,omitempty"`
+	Bones             []Bone2D            `json:"bones,omitempty"`
+	Animations        []string            `json:"animations,omitempty"` // 动画 JSON 字符串数组
+	SubModels         []SubModel          `json:"subModels,omitempty"`  // L0/L1 派生的子模型清单（多角色包内切换用）
 }
 
 // SubModel 子模型条目（多角色加载）。

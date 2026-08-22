@@ -177,8 +177,8 @@ func TestParseComponentsFrom7z_Full(t *testing.T) {
 			t.Errorf("texNames[%d] = %q, 期望 %q", i, texNames[i], want)
 		}
 	}
-	// TexSlot 全局化：main→0, arm→1, arrow→2（未声明段）
-	wantSlots := []int{0, 1, 2}
+	// ADR-114 perComponent：每组件 cube.TexSlot=0（用自己的第 0 张纹理）
+	wantSlots := []int{0, 0, 0}
 	for i, comp := range comps {
 		slot := comp.Bones[0].Cubes[0].TexSlot
 		if slot != wantSlots[i] {
@@ -291,11 +291,12 @@ func TestParseComponentsFrom7z_ModelObjects(t *testing.T) {
 			t.Errorf("texNames[%d] = %q, 期望 %q", i, texNames[i], want)
 		}
 	}
+	// ADR-114 perComponent：每组件 cube.TexSlot=0（用自己的第 0 张纹理）
 	if slot := comps[0].Bones[0].Cubes[0].TexSlot; slot != 0 {
-		t.Errorf("组件 0 texSlot = %d, 期望 0（main 声明序 0）", slot)
+		t.Errorf("组件 0 texSlot = %d, 期望 0（perComponent）", slot)
 	}
-	if slot := comps[1].Bones[0].Cubes[0].TexSlot; slot != 1 {
-		t.Errorf("组件 1 texSlot = %d, 期望 1（extra 声明序 1）", slot)
+	if slot := comps[1].Bones[0].Cubes[0].TexSlot; slot != 0 {
+		t.Errorf("组件 1 texSlot = %d, 期望 0（perComponent）", slot)
 	}
 }
 

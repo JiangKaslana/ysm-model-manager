@@ -100,8 +100,8 @@ func TestComponentsFromRealSample(t *testing.T) {
 	}
 	for _, b := range comps[1].Bones {
 		for _, c := range b.Cubes {
-			if c.TexSlot != 1 {
-				t.Errorf("arm 组件 cube TexSlot = %d, 期望 1", c.TexSlot)
+			if c.TexSlot != 0 {
+				t.Errorf("arm 组件 cube TexSlot = %d, 期望 0（ADR-114 perComponent）", c.TexSlot)
 			}
 		}
 	}

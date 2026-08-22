@@ -41,8 +41,8 @@ import { createBreathController } from "../perception/breath.ts";
 export interface YsmAdapterOptions {
   /** path → model 加载器（由 skeleton 层注入：loadModelData(p, ctx)，含缓存/WASM/Go 兜底） */
   loader: (path: string) => Promise<BedrockGeometry | null>;
-  /** preloadModel 注入（视图壳层数据转换：model → { texArr, spec }，含 WASM/Go 兜底） */
-  preload: (model: unknown) => Promise<{ texArr: (THREE.Texture | null)[]; spec: unknown }>;
+  /** preloadModel 注入（视图壳层数据转换：model → { texArr, spec, componentTexMap }，含 WASM/Go 兜底） */
+  preload: (model: unknown) => Promise<{ texArr: (THREE.Texture | null)[]; spec: unknown; componentTexMap: Map<string, (THREE.Texture | null)[]> }>;
   /** 用户切换纹理时触发重建（旧 overlay 清理 + 按新 texIdx 重新挂载） */
   onTextureChange?: (texIdx: number) => void;
   /** core 关闭（ESC / 关闭按钮 / 切模型 cleanup）时回调：复位调用方状态 + 注销 android-back */
@@ -112,10 +112,10 @@ export async function buildYsmScene(
   if (!model) throw new Error("模型数据加载失败: " + path);
 
   const texIdx = opts.texIdx ?? 0;
-  const { texArr, spec } = await opts.preload(model);
+  const { texArr, spec, componentTexMap } = await opts.preload(model);
 
   // 内容层：spec → 场景图（§5.7 shared 化，renderModel3D 同款 buildYsmObject）
-  const obj: YsmObjectHandle = buildYsmObject(spec as Spec3D, texArr, texIdx);
+  const obj: YsmObjectHandle = buildYsmObject(spec as Spec3D, texArr, componentTexMap, texIdx);
   ctx.scene.add(obj.rootGroup);
   registerModelRoot(obj.rootGroup);
 

@@ -15,6 +15,8 @@ export interface ModelLike {
   texture?: string;
   /** R1 契约校验用：Go 端返回的纹理名数组 */
   textureNames?: string[];
+  /** ADR-114 perComponent：组件名→声明的纹理 base64 数组 */
+  componentTextures?: Record<string, string[]>;
 }
 
 /** Go 返回的 3D spec（models 数组） */
@@ -152,6 +154,8 @@ async function fetchSpecViaWasmFallback(model: ModelLike): Promise<ModelSpec | n
 export async function preloadModel(model: ModelLike): Promise<{
   texArr: (THREE.Texture | null)[];
   spec: ModelSpec;
+  /** ADR-114 perComponent：组件名→Texture 数组（3D 渲染用，每组件独立纹理） */
+  componentTexMap: Map<string, (THREE.Texture | null)[]>;
 }> {
   const spec = await fetchSpec(model);
   // 实际纹理清单（URL + 名）；多组件走数组，单组件走单一 texture
@@ -172,6 +176,17 @@ export async function preloadModel(model: ModelLike): Promise<{
   // 会把 6 张声明纹理截断成 3 张（面板「纹理 (3)」），且 arrow texSlot=6 越界品红。
   const urls = actualUrls;
   const texArr = await loadTextures(urls);
+  // ADR-114 perComponent：每组件独立纹理对象，不再依赖全局 texArr 槽位顺序。
+  // Go 端 buildComponents 填 ComponentTextures[compName] = [declaredTexBase64]，
+  // 前端按组件名查自己的纹理数组。
+  const componentTexMap = new Map<string, (THREE.Texture | null)[]>();
+  const compTex = (model as ModelLike).componentTextures;
+  if (compTex) {
+    for (const [compName, texBase64Arr] of Object.entries(compTex)) {
+      const compTexArr = await loadTextures(texBase64Arr);
+      componentTexMap.set(compName, compTexArr);
+    }
+  }
   const order = (spec as ModelSpec).texArrOrder as string[] | undefined;
   // R1 契约校验：texArrOrder[i] = 组件 i 实际贴图名（Go 端按 texSlot 分配，多组件可**共享**
   // 同一张声明纹理，如 arm 与 main 共享 skin；未声明组件用 basename）。故改为**存在性**比对：
@@ -190,5 +205,5 @@ export async function preloadModel(model: ModelLike): Promise<{
       }
     }
   }
-  return { texArr, spec };
+  return { texArr, spec, componentTexMap };
 }

@@ -18,18 +18,16 @@ const FALLBACK_COLOR_GRAY = 0xcccccc;
 
 /**
  * 从 spec mesh group 数据构建 THREE.Mesh 并添加到 boneGroup。
+ * ADR-114 perComponent：compTexArr 是当前组件自己的纹理数组（通常 1 张），
+ * 不再用全局 texArr[texIdx] 查——根治 texOrder 顺序变动导致的错位。
  * @param bg 骨骼组（添加目标）
  * @param md 单个 mesh group 数据
- * @param texArr 纹理数组
- * @param texIdx 调用方指定的纹理索引（单组件模式）
- * @param multiModel 是否多组件模式
+ * @param compTexArr 当前组件的纹理数组（perComponent）
  */
 export function addMeshToBoneGroup(
   bg: THREE.Group,
   md: SpecMeshGroup3D,
-  texArr: (THREE.Texture | null)[],
-  texIdx: number,
-  multiModel: boolean,
+  compTexArr: (THREE.Texture | null)[],
 ): void {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(md.positions, 3));
@@ -37,21 +35,16 @@ export function addMeshToBoneGroup(
   geo.setAttribute("uv", new THREE.Float32BufferAttribute(md.uvs, 2));
   geo.setIndex(md.indices);
 
-  // 纹理索引：多组件用 md.texIdx（Go 端全局槽位），单组件用调用方 texIdx
-  const mti = multiModel ? (md.texIdx ?? 0) : (texIdx ?? 0);
-
-  // 错误可见化：texIdx 越界/缺图时不再静默顶替 texArr[0]
+  // ADR-114 perComponent：每组件独立纹理，cube.TexSlot=0 → compTexArr[0]
   let mt: THREE.Texture | null = null;
   let texIdxMismatch = false;
-  if (texArr.length > 0) {
-    if (mti >= 0 && mti < texArr.length && texArr[mti]) {
-      mt = texArr[mti];
+  if (compTexArr.length > 0) {
+    if (compTexArr[0]) {
+      mt = compTexArr[0];
     } else {
       texIdxMismatch = true;
       console.warn(
-        `[model3d] texIdx=${mti} 越界或缺图（texArr 长=${texArr.length}），` +
-          `组件 boneId=${md.boneId ?? "?"} 无法定位纹理，改用品红错误材质`,
-        { multiModel, mdTexIdx: md.texIdx, callerTexIdx: texIdx },
+        `[model3d] 组件纹理缺失（compTexArr[0]=null），boneId=${md.boneId ?? "?"}，改用品红错误材质`,
       );
     }
   }

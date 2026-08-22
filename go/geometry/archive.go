@@ -4,6 +4,7 @@ package geometry
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"log"
@@ -1474,8 +1475,8 @@ func ParseComponentsFromZip(data []byte, size int64) ([]types.BedrockModel, []st
 		return nil, nil, err
 	}
 	defer r.Close()
-	modelOrder, texOrder, geoFiles, _, _, _ := collectArchiveFiles(r.Entries())
-	return buildComponents(geoFiles, modelOrder, texOrder)
+	modelOrder, texOrder, geoFiles, pngs, pngNames, _ := collectArchiveFiles(r.Entries())
+	return buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames)
 }
 
 // buildComponents 组件化收集：main 优先排序 + TexSlot 全局化 + 独立解析。
@@ -1484,10 +1485,18 @@ func ParseComponentsFromZip(data []byte, size int64) ([]types.BedrockModel, []st
 // 返回 texNames（组件序纹理名，R1 契约校验用）：取「组件在 modelOrder **声明序**中的
 // 原始位置 j」的 texOrder[j]（main 优先只影响显示排序，不改变纹理槽基——P2 修复）；
 // 无声明/越界用组件 basename（补扫段 texArr 按名排序与组件补扫按名一致）。
-func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string) ([]types.BedrockModel, []string, error) {
+// buildComponents 组件化收集：每组件独立纹理（ADR-114 perComponent）。
+// cube.TexSlot = 0（每组件用自己的第 0 张），不再全局 texOrder 位置分配。
+// ComponentTextures[componentName] = [declaredTexBase64]，前端按组件名查纹理。
+func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs [][]byte, pngNames []string) ([]types.BedrockModel, []string, error) {
 	orderMap := make(map[string]int, len(modelOrder))
 	for i, p := range modelOrder {
 		orderMap[filepath.ToSlash(p)] = i
+	}
+	// pngNameMap：纹理名（小写 basename 去扩展名）→ pngs 索引
+	pngNameMap := make(map[string]int, len(pngNames))
+	for i, n := range pngNames {
+		pngNameMap[strings.ToLower(n)] = i
 	}
 	// 排序：main 优先 + modelOrder 相对序；modelOrder 为空（ysm.json 无 player.model
 	// 声明或解析失败）时回退 IsMainModelName 优先 + 路径字典序——与 WASM 路径同口径（P2）。
@@ -1519,42 +1528,56 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string) ([]type
 	// （组件序尾部未声明段按路径排序，与 texArr 按名段一致）。——P2 修复：
 	// 之前 texSlot=组件序会让 main 非首位时贴错纹理（如 model:["arm","main"] 时 main 贴 arm）。
 	texNames := make([]string, 0, len(geoFiles))
-	undeclSeq := 0 // 未声明组件按名段序号（texSlot 基 = len(texOrder)）
+	// ADR-114 perComponent：每组件独立纹理，cube.TexSlot=0（用自己的第 0 张）。
+	// texOrder 仅用于查"组件声明的纹理名"，不再作为全局槽位索引。
+	compTex := make(map[string][]string, len(geoFiles))
 	for _, gf := range geoFiles {
 		g := ParseBedrockGeometry(gf.data)
 		if g == nil || g.BoneCount == 0 {
 			continue
 		}
-		texSlot := len(texOrder) + undeclSeq
-		if j, declared := orderMap[filepath.ToSlash(gf.name)]; declared && len(texOrder) > 0 {
-			if j < len(texOrder) {
-				texSlot = j // 已声明且在纹理声明范围内：贴 texArr[j]
-			} else {
-				texSlot = len(texOrder) - 1 // 模型多于纹理声明：钳到最后一张声明纹理
-			}
-		} else {
-			undeclSeq++ // 未声明 / 无纹理声明：按名段
-		}
-		for bi := range g.Bones {
-			for ci := range g.Bones[bi].Cubes {
-				g.Bones[bi].Cubes[ci].CubeTexW = g.TexWidth
-				g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
-				g.Bones[bi].Cubes[ci].TexSlot = texSlot
-			}
-		}
-		// TrimSuffix 先 .geo.json 后 .json：main.geo.json → "main" 而非 "main.geo"（P2）
+		// 组件源模型名（去扩展名）：main/arm/arrow/minecart/boat/foxcar/trident
 		geoName := filepath.ToSlash(gf.name)
 		if idx := strings.LastIndex(geoName, "/"); idx >= 0 {
 			geoName = geoName[idx+1:]
 		}
-		tn := strings.TrimSuffix(strings.TrimSuffix(geoName, ".geo.json"), ".json")
-		// texNames[i] = 组件实际贴图名（texSlot 指向声明序则用声明名，否则组件 basename）——
-		// 前端 R1 存在性校验：期望名必须存在于 texArr 实际清单（共享槽位不再误报）
-		if texSlot < len(texOrder) && texOrder[texSlot] != "" {
-			tn = texOrder[texSlot]
+		compName := strings.TrimSuffix(strings.TrimSuffix(geoName, ".geo.json"), ".json")
+
+		// 查组件声明的纹理名：按 modelOrder 声明序位置 j → texOrder[j]
+		declaredTexName := ""
+		if j, declared := orderMap[filepath.ToSlash(gf.name)]; declared && j < len(texOrder) {
+			declaredTexName = texOrder[j]
 		}
-		// SourceName = 组件源模型文件名（去扩展名，如 main/arm/arrow），UI 组件名用
-		g.SourceName = strings.TrimSuffix(strings.TrimSuffix(geoName, ".geo.json"), ".json")
+
+		// 按声明的纹理名查 pngNameMap → pngs[idx] → base64
+		var texBase64 string
+		if declaredTexName != "" {
+			if idx, ok := pngNameMap[declaredTexName]; ok && idx < len(pngs) {
+				texBase64 = "data:image/png;base64," + base64.StdEncoding.EncodeToString(pngs[idx])
+			}
+		}
+
+		// 每组件 cube.TexSlot=0（perComponent，用自己的第 0 张纹理）
+		for bi := range g.Bones {
+			for ci := range g.Bones[bi].Cubes {
+				g.Bones[bi].Cubes[ci].CubeTexW = g.TexWidth
+				g.Bones[bi].Cubes[ci].CubeTexH = g.TexHeight
+				g.Bones[bi].Cubes[ci].TexSlot = 0
+			}
+		}
+
+		// 填 ComponentTextures[compName] = [texBase64]
+		if texBase64 != "" {
+			compTex[compName] = []string{texBase64}
+		}
+
+		// texNames[i] = 组件声明的纹理名（无声明用 basename）
+		tn := compName
+		if declaredTexName != "" {
+			tn = declaredTexName
+		}
+		g.SourceName = compName
+		g.ComponentTextures = compTex
 		texNames = append(texNames, tn)
 		comps = append(comps, *g)
 	}
@@ -1569,6 +1592,6 @@ func ParseComponentsFrom7z(data []byte, size int64) ([]types.BedrockModel, []str
 		return nil, nil, err
 	}
 	defer r.Close()
-	modelOrder, texOrder, geoFiles, _, _, _ := collectArchiveFiles(r.Entries())
-	return buildComponents(geoFiles, modelOrder, texOrder)
+	modelOrder, texOrder, geoFiles, pngs, pngNames, _ := collectArchiveFiles(r.Entries())
+	return buildComponents(geoFiles, modelOrder, texOrder, pngs, pngNames)
 }

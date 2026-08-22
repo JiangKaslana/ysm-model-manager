@@ -37,10 +37,13 @@ export interface YsmObjectHandle {
 /**
  * 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。
  * 纯 three 场景图构建，无渲染壳依赖。
+ * ADR-114 perComponent：componentTexMap 按组件名查独立纹理数组，
+ * 不再依赖全局 texArr[texIdx] 槽位顺序。
  */
 export function buildYsmObject(
   spec: Spec3D,
   texArr: (THREE.Texture | null)[],
+  componentTexMap: Map<string, (THREE.Texture | null)[]>,
   texIdx = 0,
 ): YsmObjectHandle {
   const { boneGroupMap, rootGroup, modelGroups } = buildSceneMesh(spec);
@@ -108,13 +111,16 @@ export function buildYsmObject(
     // spec 每次由 preloadModel 重新生成，写回不污染跨会话；多实例若未来出现
     // 需改为克隆 spec 后合并（当前无此场景）。
     mg.meshGroups = merged;
+    // ADR-114 perComponent：按组件名查 componentTexMap，fallback 全局 texArr
+    const compName = mg.name ?? `comp_${mi}`;
+    const compTexArr = componentTexMap.get(compName) ?? texArr;
     for (const md of mg.meshGroups) {
       const bg = boneGroupMap.get(compKey(mi, md.boneId));
       if (!bg) continue;
       if (md.texIdx === undefined) {
         console.warn("[model3d] mesh 缺 texIdx（spec 契约破坏），回退 0", spec.models?.length);
       }
-      addMeshToBoneGroup(bg, md, texArr, texIdx, (spec.models?.length ?? 1) > 1);
+      addMeshToBoneGroup(bg, md, compTexArr);
     }
   }
 
