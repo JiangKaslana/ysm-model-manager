@@ -62,8 +62,10 @@ var flightJoins atomic.Int64
 var walkStartHook func()
 
 type scanFlight struct {
-	wg      sync.WaitGroup
-	entries []types.ModelEntry
+	wg         sync.WaitGroup
+	entries    []types.ModelEntry
+	gen        uint64 // owner 启动时捕获的 cacheGen（waiter 失效守卫比较用）
+	keyVersion uint64 // owner 启动时捕获的 per-key 版本
 }
 
 const scanCacheTTL = 30 * time.Second
@@ -231,19 +233,11 @@ retry:
 		// 一整个 []ModelEntry）持续滞留，内存增长；Load 命中过期时顺手 Delete
 		scanCache.Delete(dir)
 	}
-	// Keep the public Go/Wails contract stable while production Windows builds progressively move
-	// scanner internals to Rust. Unsupported platforms or bridge failures use the proven Go path.
-	if rustEntries, cacheable, handled := scanEntriesWithRust(dir); handled {
-		stored := append([]types.ModelEntry(nil), rustEntries...)
-		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
-		if cacheable && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
-			scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
-		}
-		return rustEntries, false
-	}
-	// 在途合并：同目录并发扫描共享一次 walk——首个调用方注册航班成为 owner，
-	// 后续调用方并入航班等待，取克隆结果且 hit=true（薄壳不重复记扫描日志）
-	fl := &scanFlight{}
+	// 在途合并：同目录并发扫描共享一次 walk/Rust 扫描——首个调用方注册航班成为
+	// owner，后续调用方并入航班等待，取克隆结果且 hit=true（薄壳不重复记扫描日志）。
+	// 置于 Rust 快路径之前：Windows（Rust handled=true）下并发请求同样并入航班去重
+	// （code review P3：Rust 分支原先在 merge 之前，Windows 全量绕过单飞行去重）
+	fl := &scanFlight{gen: gen, keyVersion: keyVersion}
 	fl.wg.Add(1)
 	if prev, loaded := inFlight.LoadOrStore(dir, fl); loaded {
 		other := prev.(*scanFlight)
@@ -253,8 +247,11 @@ retry:
 		// （InvalidateCache/InvalidatePath 在 import/enable/disable 完成时触发）时，
 		// 不得吞下失效前的旧扫描结果——重比版本，变了就 retry 重来
 		// （重新捕获版本 → 查缓存（已清）→ 注册新航班/自己走盘，对齐无航班行为）
+		// code review P3：比较 **flight 启动时** 版本（other.gen/other.keyVersion），
+		// 而非 waiter 自身进入时捕获的版本——waiter 在失效后加入时自身捕获已是最新，
+		// 与当前值恒等、守卫失效，会吞下 owner 失效前读到的旧扫描结果
 		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
-		if cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
+		if cacheGen.Load() == other.gen && kvNow.(*atomic.Uint64).Load() == other.keyVersion {
 			return append([]types.ModelEntry{}, other.entries...), true
 		}
 		goto retry
@@ -263,6 +260,18 @@ retry:
 		inFlight.Delete(dir)
 		fl.wg.Done()
 	}()
+	// Keep the public Go/Wails contract stable while production Windows builds progressively move
+	// scanner internals to Rust. Unsupported platforms or bridge failures use the proven Go path.
+	// owner 身份已定（waiter 已并入航班）——Rust 结果同样记录到航班供 waiter 取。
+	if rustEntries, cacheable, handled := scanEntriesWithRust(dir); handled {
+		stored := append([]types.ModelEntry(nil), rustEntries...)
+		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
+		if cacheable && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
+			scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
+		}
+		fl.entries = stored
+		return rustEntries, false
+	}
 	walkCount.Add(1)
 	if walkStartHook != nil {
 		walkStartHook()

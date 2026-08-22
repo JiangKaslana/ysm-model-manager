@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
 | 前端·工具 | 143 | 555 |
-| frontend/views | 117 | 338 |
+| frontend/views | 117 | 339 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **451** | **1925** |
+| **合计** | **451** | **1926** |
 
 ## Go·头像
 
@@ -376,16 +376,16 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `SetErrorSink()` | `go/scanner/scanner:92` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
-| `SetConfigFunc()` | `go/scanner/scanner:123` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
-| `InvalidateCache()` | `go/scanner/scanner:148` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
-| `InvalidatePath()` | `go/scanner/scanner:163` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
-| `ScanEntries()` | `go/scanner/scanner:194` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
-| `ScanEntriesWithHit()` | `go/scanner/scanner:201` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:377` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:431` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:461` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:524` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `SetErrorSink()` | `go/scanner/scanner:94` | SetErrorSink 注入扫描错误回调（薄壳 internal/app 启动时调用，如 AddOpLog 包装） |
+| `SetConfigFunc()` | `go/scanner/scanner:125` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
+| `InvalidateCache()` | `go/scanner/scanner:150` | InvalidateCache 清空全部扫描缓存（下载/导入/同步后调用） |
+| `InvalidatePath()` | `go/scanner/scanner:165` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
+| `ScanEntries()` | `go/scanner/scanner:196` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
+| `ScanEntriesWithHit()` | `go/scanner/scanner:203` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
+| `ComputeFileHash()` | `go/scanner/scanner:386` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:440` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:470` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:533` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -1621,8 +1621,8 @@
 | `setVrmMaterialVisible()` | `frontend/src/utils/3d/vrm-materials:38` | 材质显隐：Material.visible（MToon/标准/基础均支持） |
 | `setVrmMaterialOpacity()` | `frontend/src/utils/3d/vrm-materials:48` | 材质透明度（0-1）：opacity 设置 + transparent 联动 |
 | `getVrmMaterialDetail()` | `frontend/src/utils/3d/vrm-materials:62` | 材质详情：name/可见/透明/类型（越界返回 null） |
-| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:27` | — |
-| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:58` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
+| `YsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:26` | — |
+| `createYsmAnimPlayer()` | `frontend/src/utils/3d/ysm-animation-player:45` | Builds a YSM animation player whose per-frame path reuses every temporary object. |
 | `YsmObjectHandle()` | `frontend/src/utils/3d/ysm-object:24` | YSM 内容场景句柄：挂进任意 scene 后的内容层操作与释放 |
 | `buildYsmObject()` | `frontend/src/utils/3d/ysm-object:49` | 构建 YSM 内容场景图：spec → rootGroup（骨骼分组 + 网格挂载 + 纹理绑定）。 |
 | `animateNumber()` | `frontend/src/utils/animation/animate:15` | 里程表滚动进位动画 |
@@ -1830,10 +1830,11 @@
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
 | `setHTML()` | `frontend/src/views/app-content/diagnostics/perf-cli:20` | 写入某容器 HTML；容器不存在时静默跳过 |
-| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:36` | 结果区段头 |
-| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:134` | — |
-| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:217` | — |
-| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:309` | — |
+| `sectionHeader()` | `frontend/src/views/app-content/diagnostics/perf-cli:36` | 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） |
+| `bindPerfCopyHandlers()` | `frontend/src/views/app-content/diagnostics/perf-cli:76` | — |
+| `runSingleBench()` | `frontend/src/views/app-content/diagnostics/perf-cli:192` | — |
+| `runGuiFlow()` | `frontend/src/views/app-content/diagnostics/perf-cli:276` | — |
+| `runPerfLog()` | `frontend/src/views/app-content/diagnostics/perf-cli:369` | — |
 | `formatTime()` | `frontend/src/views/app-content/diagnostics/perf-trace:11` | — |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf-trace:18` | 渲染加载剖析区段（取最近一条 trace 渲染甘特图 + 资产清单） |
 | `renderLoadTraceSection()` | `frontend/src/views/app-content/diagnostics/perf` | — |

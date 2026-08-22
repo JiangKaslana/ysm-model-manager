@@ -17,7 +17,6 @@
 import * as THREE from "three";
 import {
   evaluateClip,
-  evaluateKeyframesInto,
   type AnimationClip,
   type BoneChannels,
   type BoneHierarchyNode,
@@ -38,18 +37,6 @@ export interface YsmAnimPlayer {
   isAnimActive(): boolean;
 }
 
-interface CompiledTrack {
-  node: THREE.Object3D;
-  channels: BoneChannels;
-  rotation: Vec3;
-  position: Vec3;
-  scale: Vec3;
-  euler: THREE.Euler;
-  targetQuaternion: THREE.Quaternion;
-  restQuaternion: THREE.Quaternion | null;
-  slerpAlpha: number;
-}
-
 /**
  * Builds a YSM animation player whose per-frame path reuses every temporary object.
  * boneHierarchy remains in the signature for API compatibility; Three.js already
@@ -65,28 +52,10 @@ export function createYsmAnimPlayer(
 
   const rawLabels = clipLabels ?? clips.map((_, i) => `Clip ${i}`);
   const labels = rawLabels.slice(0, clips.length).map((label) => ({ label }));
-  const compiledClips = clips.map((clip) =>
-    Object.entries(clip.bones).flatMap(([boneName, channels]): CompiledTrack[] => {
-      const node = boneByName.get(boneName);
-      if (!node) return [];
-      return [{
-        node,
-        channels,
-        rotation: [0, 0, 0],
-        position: [0, 0, 0],
-        scale: [1, 1, 1],
-        euler: new THREE.Euler(0, 0, 0, "XYZ"),
-        targetQuaternion: new THREE.Quaternion(),
-        restQuaternion: null,
-        slerpAlpha: 0,
-      }];
-    }),
-  );
 
   let currentIdx = 0;
   let elapsed = 0;
   let playing = true;
-  const slerpRate = 5;
 
   // L3 混合状态：base = 构造期姿态（未动画骨骼的回落目标）；
   // rest = 混合段起点（selectClip/dispose 后从当前姿态重新采集），alpha 累加到 1。
