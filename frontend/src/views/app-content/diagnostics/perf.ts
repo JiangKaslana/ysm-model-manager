@@ -5,13 +5,14 @@
 // ADR-040 拆分后每文件 ≤400 行红线；本文件仅 ~30 行。
 
 import type { EscFn } from "./logs.ts";
-import { runSingleBench, runGuiFlow, runPerfLog } from "./perf-cli.ts";
+import { runSingleBench, runGuiFlow, runPerfLog, bindPerfCopyHandlers } from "./perf-cli.ts";
 import { renderLoadTraceSection } from "./perf-trace.ts";
 
 export { renderLoadTraceSection } from "./perf-trace.ts";
 
 /** 初始化性能面板（single-bench / gui-flow / perf-log / 加载剖析） */
 export function initPerfPanel(root: ShadowRoot, esc: EscFn): void {
+  bindPerfCopyHandlers(root);
   root
     .getElementById("diag-perf-run")
     ?.addEventListener("click", () => runSingleBench(root, esc));

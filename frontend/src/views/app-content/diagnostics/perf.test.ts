@@ -88,7 +88,7 @@ function makeRoot(): ShadowRoot {
     <input id="diag-perf-model">
     <input id="diag-perf-iter">
     <div id="diag-perf-single"></div>
-    <div id="diag-perf-gui"></div>
+    <div id="diag-perf-gui-out"></div>
     <div id="diag-perf-hist"></div>
     <div id="diag-load-trace"></div>
   `;
@@ -199,12 +199,29 @@ describe("gui-flow 面板", () => {
     initPerfPanel(root, esc);
     (root.getElementById("diag-perf-gui") as HTMLElement).click();
     await new Promise((r) => setTimeout(r, 10));
-    const out = root.getElementById("diag-perf-gui") as HTMLElement;
+    const out = root.getElementById("diag-perf-gui-out") as HTMLElement;
     expect(out.textContent).toContain("① 配置加载");
     expect(out.textContent).toContain("② 模型扫描");
     // 失败行存在 → 有红色失败提示
     expect(out.textContent).toContain("③ 模型分析");
     expect(out.querySelector("[class*='perf-gui-fail']")).toBeTruthy();
+  });
+
+  it("结果容器与按钮 id 隔离：点击结果区不会触发重跑", async () => {
+    executeCLI.mockResolvedValue({
+      status: "success",
+      command: "gui-flow",
+      data: { output: GUI_OUTPUT },
+    });
+    const root = makeRoot();
+    initPerfPanel(root, esc);
+    (root.getElementById("diag-perf-gui") as HTMLElement).click();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(executeCLI).toHaveBeenCalledTimes(1);
+    // 点击结果容器本身不应再触发 executeCLI
+    (root.getElementById("diag-perf-gui-out") as HTMLElement).click();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(executeCLI).toHaveBeenCalledTimes(1);
   });
 });
 

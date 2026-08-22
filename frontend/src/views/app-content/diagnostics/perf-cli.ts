@@ -32,10 +32,68 @@ function errorHTML(msg: string, esc: EscFn): string {
   return `<div class="diag-stat diag-stat-error">❌ ${esc(msg)}</div>`;
 }
 
-/** 结果区段头 */
-export function sectionHeader(icon: string, label: string): string {
-  return `<div class="perf-section" style="margin-top:10px;font-size:var(--fs-sm);font-weight:600;color:var(--txt);display:flex;align-items:center;gap:6px">
-<span>${icon}</span><span>${label}</span></div>`;
+/** 结果区段头（可选复制按钮：data-perf-copy 供事件委托识别） */
+export function sectionHeader(icon: string, label: string, rawText?: string): string {
+  const copyBtn =
+    rawText !== undefined
+      ? `<button type="button" data-perf-copy class="btn-base perf-copy-btn" style="margin-left:auto;padding:2px 8px;font-size:var(--fs-xs);line-height:1.4" title="复制原始输出到剪贴板">📋 复制</button>`
+      : "";
+  const wrapper =
+    rawText !== undefined
+      ? ` data-perf-raw="${encodeURIComponent(rawText)}"`
+      : "";
+  return `<div class="perf-section" style="margin-top:10px;font-size:var(--fs-sm);font-weight:600;color:var(--txt);display:flex;align-items:center;gap:6px"${wrapper}>
+<span>${icon}</span><span>${label}</span>${copyBtn}</div>`;
+}
+
+/** 统一复制：优先 navigator.clipboard，降级 textarea + execCommand */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* 兜底到下方 textarea */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/** 为三个结果容器注册复制按钮事件委托（只绑一次） */
+let perfCopyBound = false;
+export function bindPerfCopyHandlers(root: ShadowRoot): void {
+  if (perfCopyBound) return;
+  perfCopyBound = true;
+  for (const id of ["diag-perf-single", "diag-perf-gui-out", "diag-perf-hist"]) {
+    const el = root.getElementById(id);
+    if (!el) continue;
+    el.addEventListener("click", async (e) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.matches?.("[data-perf-copy]")) return;
+      const section = target.closest<HTMLElement>("[data-perf-raw]");
+      const raw = section?.dataset.perfRaw;
+      if (raw === undefined) return;
+      const text = decodeURIComponent(raw);
+      const ok = await copyText(text);
+      bus.emit("toast:show", {
+        msg: ok ? "✅ 已复制原始输出到剪贴板" : "❌ 复制失败，请手动框选复制",
+        duration: ok ? 2000 : 3000,
+        type: ok ? undefined : "error",
+      });
+    });
+  }
 }
 
 // ===== B-3 性能趋势图：single-bench 历史存储（safeGet/safeSet，localStorage）+ SVG 折线 =====
@@ -201,9 +259,10 @@ export async function runSingleBench(root: ShadowRoot, esc: EscFn): Promise<void
       })
       .join("");
     savePerfRecord(stages);
+    const rawOutput = resp.data.output;
     out.innerHTML =
-      sectionHeader("⚡", t("diagnostics.perfSingleResult")) +
-      `<div class="perf-bars" style="padding:8px 2px">${bars}</div>` +
+      sectionHeader("⚡", t("diagnostics.perfSingleResult"), rawOutput) +
+      `<div class="perf-bars" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${bars}</div>` +
       `<div class="perf-total">⏱️ ${t("diagnostics.perfTotal")}: ${total.toFixed(2)}ms</div>` +
       renderPerfTrendSection(esc);
   } catch (e) {
@@ -216,7 +275,7 @@ export async function runSingleBench(root: ShadowRoot, esc: EscFn): Promise<void
 // ===== gui-flow：6 阶段状态（✅/❌ + 耗时） =====
 export async function runGuiFlow(root: ShadowRoot, esc: EscFn): Promise<void> {
   const gen = ++perfGuiSeq;
-  const out = root.getElementById("diag-perf-gui");
+  const out = root.getElementById("diag-perf-gui-out");
   if (!out) return;
   if (resolveWebMode()) {
     bus.emit("toast:show", {
@@ -238,6 +297,7 @@ export async function runGuiFlow(root: ShadowRoot, esc: EscFn): Promise<void> {
       return;
     }
     const lines = resp.data.output.split("\n");
+    const rawOutput = resp.data.output;
 
     // 阶段行：`✅ [1] ① 配置加载 (1.23ms)`；后续缩进行是该阶段描述
     const stageRe = /^([✅❌])\s*\[\d+\]\s*(.+?)\s*\(([\d.]+)ms\)$/;
@@ -294,8 +354,8 @@ export async function runGuiFlow(root: ShadowRoot, esc: EscFn): Promise<void> {
       ? `<div class="diag-stat diag-stat-error">❌ ${t("diagnostics.perfGuiFailed")}</div>`
       : "";
     out.innerHTML =
-      sectionHeader("🩺", t("diagnostics.perfGuiResult")) +
-      `<div class="perf-gui" style="padding:8px 2px">${rows}</div>` +
+      sectionHeader("🩺", t("diagnostics.perfGuiResult"), rawOutput) +
+      `<div class="perf-gui" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${rows}</div>` +
       totalLine +
       failLine;
   } catch (e) {
@@ -360,9 +420,10 @@ export async function runPerfLog(root: ShadowRoot, esc: EscFn): Promise<void> {
 </div>`;
       })
       .join("");
+    const rawOutput = resp.data.output;
     out.innerHTML =
-      sectionHeader("🗒️", t("diagnostics.perfHistResult")) +
-      `<div class="perf-hist" style="padding:8px 2px">${cards}</div>`;
+      sectionHeader("🗒️", t("diagnostics.perfHistResult"), rawOutput) +
+      `<div class="perf-hist" style="padding:8px 2px;user-select:text;-webkit-user-select:text">${cards}</div>`;
   } catch (e) {
     if (gen !== perfHistSeq) return;
     console.error("[diagnostics] perf-log 失败:", e);

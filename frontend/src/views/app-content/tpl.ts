@@ -136,7 +136,7 @@ export function diagnosticsHTML(): string {
 <button class="btn-base" id="diag-perf-refresh-trace">🔍 ${t("diagnostics.loadTraceRefresh")}</button>
 </div>
 <div id="diag-perf-single"></div>
-<div id="diag-perf-gui"></div>
+<div id="diag-perf-gui-out"></div>
 <div id="diag-perf-hist"></div>
 <div id="diag-load-trace"></div>
 </div>
