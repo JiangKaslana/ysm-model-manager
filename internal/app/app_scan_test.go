@@ -4,6 +4,8 @@
 package app
 
 import (
+	"archive/zip"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -814,3 +816,92 @@ func TestSearchModels_ZeroBoneFilter(t *testing.T) {
 		t.Errorf("唯一有效结果应为 valid_model, got path %s", results[0].Path)
 	}
 }
+
+// ===== ScanModelEntriesFiltered 容器指纹校验（档 A 回归守卫）=====
+// 容器扩展名（.zip/.7z）的类型归属不可靠扩展名判定：扫描某类型 tab 时，
+// 目录内任何 .zip 都会被该类型的 extensions 白名单命中（如 EntityPlayer 的 [.pmx,.pmd,.vrm,.zip]），
+// 但 zip 内部可能是 resourcepack / ysm / 无关内容。必须用 DetectResourceType 打开
+// 容器核验内部 ZipEntries 指纹，类型不匹配 rtype 的容器必须丢弃。
+
+// writeZip 用标准库造一个含指定条目的真实 zip 文件（不依赖 testutil，规避 internal 可见性）
+func writeZip(t *testing.T, path string, entries ...string) {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, name := range entries {
+		if _, err := zw.Create(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestScanModelEntriesFiltered_ContainerFingerprint(t *testing.T) {
+	// 中性目录名：不得命中任何类型的 instanceDir/storageSubDir（隔离 Phase 1 路径消歧变量）
+	base := t.TempDir()
+	dir := filepath.Join(base, "scan_filter_dir")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1) 内部含 .vrm 的 zip → DetectResourceType 命中 EntityPlayer（zipEntries 含 .vrm）
+	//    → 扫 EntityPlayer tab 应收
+	writeZip(t, filepath.Join(dir, "vrm_real.zip"), "model.vrm", "textures/tex.png")
+	// 2) 内部含 pack.mcmeta 的 zip → 命中 resourcepack → 扫 EntityPlayer tab 应丢弃
+	writeZip(t, filepath.Join(dir, "rp_pack.zip"), "pack.mcmeta")
+	// 3) 非容器 .vrm 文件 → 扩展名直接命中 → 应收（验证非容器分支不受影响）
+	if err := os.WriteFile(filepath.Join(dir, "scene.vrm"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 4) 内部无关的 zip（readme 条目）→ 无类型指纹 → 扫 EntityPlayer tab 应丢弃
+	writeZip(t, filepath.Join(dir, "notes.zip"), "readme.txt")
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	got := a.ScanModelEntriesFiltered(dir, "EntityPlayer", "", "角色模型")
+
+	// 期望仅 vrm_real.zip + scene.vrm 两条；rp_pack.zip / notes.zip 因内部非 EntityPlayer 被丢弃
+	if len(got) != 2 {
+		t.Fatalf("EntityPlayer tab 应仅收 2 条（内部 vrm 的 zip + 非容器 .vrm），实际 %d 条: %+v", len(got), got)
+	}
+	names := make(map[string]bool)
+	for _, e := range got {
+		names[filepath.Base(e.Path)] = true
+		if e.Type != "EntityPlayer" {
+			t.Errorf("条目 %s 的 Type 应为 EntityPlayer, 实际 %q", e.Path, e.Type)
+		}
+	}
+	if !names["vrm_real.zip"] || !names["scene.vrm"] {
+		t.Errorf("应收 vrm_real.zip 与 scene.vrm, 实际 %v", names)
+	}
+	if names["rp_pack.zip"] || names["notes.zip"] {
+		t.Errorf("内部非 EntityPlayer 的容器不应被收, 实际 %v", names)
+	}
+}
+
+func TestScanModelEntriesFiltered_ContainerMatchesOwnType(t *testing.T) {
+	// 反向守卫：扫 resourcepack tab 时，内部含 pack.mcmeta 的 zip 应被收，
+	// 内部含 .vrm 的 zip 应被丢弃——证实容器指纹是按「扫的类型」而非「任意类型」过滤。
+	base := t.TempDir()
+	dir := filepath.Join(base, "scan_filter_dir2")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeZip(t, filepath.Join(dir, "rp_pack.zip"), "pack.mcmeta")
+	writeZip(t, filepath.Join(dir, "vrm_real.zip"), "model.vrm")
+
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	got := a.ScanModelEntriesFiltered(dir, "resourcepack", "", "资源包")
+
+	if len(got) != 1 {
+		t.Fatalf("resourcepack tab 应仅收 1 条（rp_pack.zip），实际 %d 条: %+v", len(got), got)
+	}
+	if filepath.Base(got[0].Path) != "rp_pack.zip" {
+		t.Errorf("resourcepack tab 应收 rp_pack.zip, 实际 %s", got[0].Path)
+	}
+}
+
