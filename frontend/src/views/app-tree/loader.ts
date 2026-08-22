@@ -98,7 +98,7 @@ export async function loadEntries(
         size: e.Size,
         modTime: e.ModTime,
         banned: bannedResults[i] || false,
-        type: "",
+        type: e.type || "",
       };
     });
     return { filesRoot, entries };

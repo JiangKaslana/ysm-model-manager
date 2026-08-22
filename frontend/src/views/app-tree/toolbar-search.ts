@@ -1,7 +1,6 @@
 // ===== toolbar-search.ts — 工具栏搜索/筛选/导入逻辑（从 toolbar-events.ts 拆出，ADR-040 P1）=====
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { bus } from "../../bus.ts";
 import { getExts } from "../../utils/resource/extensions.ts";
 import { modalAdvFilter, type AdvFilterValue } from "../../utils/dom/dialogs/adv-filter.ts";
@@ -110,7 +109,7 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
     vm._renderTree();
     return;
   }
-  const { SearchModels, ListByTag, GetRepoRoot } =
+  const { SearchModels, ListByTag } =
     await getApp();
 
   // 1. 按标签筛选（如果有）
@@ -140,7 +139,7 @@ export async function openAdvFilterDialog($: $Id, vm: AppTree): Promise<void> {
 
   let modelPaths: Set<string> | null = null;
   if (hasRange) {
-    const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+    const filesRoot = vm._filesRoot;
     if (!filesRoot) {
       bus.emit("toast:show", {
         msg: "请先配置仓库目录",

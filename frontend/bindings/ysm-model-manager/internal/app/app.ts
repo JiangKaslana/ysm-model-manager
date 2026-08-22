@@ -347,6 +347,14 @@ export function GenerateRepoIndex(repoPath: string): $CancellablePromise<string>
 }
 
 /**
+ * GetAllRepoRoots 遍历所有注册资源类型，返回 rtype → root 映射（供跨类型搜索）。
+ * 仅返回目录真实存在且可访问的类型；空 root/不存在的目录跳过。
+ */
+export function GetAllRepoRoots(): $CancellablePromise<{ [_ in string]?: string } | null> {
+    return $Call.ByID(454948853);
+}
+
+/**
  * GetAllowedCLICommands 返回可用 CLI 命令列表
  * 列表由 main.go 从 cli 注册表注入（SetAllowedCommands），新增命令自动可见
  */
@@ -1057,6 +1065,15 @@ export function ScanModelEntriesFiltered(dir: string, rtype: string, subtype: st
  */
 export function ScanModelEntriesWithLabel(dir: string, label: string): $CancellablePromise<types$0.ModelEntry[] | null> {
     return $Call.ByID(3762097925, dir, label);
+}
+
+/**
+ * SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。
+ * allRoots 为 rtype→root 映射（由 GetAllRepoRoots 提供）；每个搜索结果携带 Type 字段。
+ * 关键词/数值过滤逻辑与 SearchModels 一致，但扫描范围覆盖全部类型。
+ */
+export function SearchAllModels(allRoots: { [_ in string]?: string } | null, keyword: string, minBones: number, maxBones: number, minCubes: number, maxCubes: number, minTex: number, maxTex: number): $CancellablePromise<types$0.SearchResult[] | null> {
+    return $Call.ByID(2041765860, allRoots, keyword, minBones, maxBones, minCubes, maxCubes, minTex, maxTex);
 }
 
 /**

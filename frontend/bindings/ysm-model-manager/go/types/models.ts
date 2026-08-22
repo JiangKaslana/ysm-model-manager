@@ -395,6 +395,13 @@ export interface ModelEntry {
     "HasTags": boolean;
 
     /**
+     * Type 资源类型 ID（如 "ysm"/"EntityPlayer"/"resourcepack"）。
+     * ScanModelEntriesFiltered 按 rtype 过滤时自动填充；未指定 rtype 时为 ""。
+     * 前端据此展示类型图标/标签，无需从 Path 反推类型。
+     */
+    "type"?: string;
+
+    /**
      * SubDir MMD 用途子目录分组（ADR-096）：文件位于 mmdSubdirNames 命中的
      * 用途子目录内时填子目录名（如 SceneModel/CustomAnim）；根下或其他类型恒为 ""。
      * 前端据此按子目录分组展示，无需从 Path 推导。
@@ -439,6 +446,11 @@ export interface SearchResult {
     "texWidth": number;
     "texHeight": number;
     "hasError": boolean;
+
+    /**
+     * 资源类型 ID（跨类型搜索时携带）
+     */
+    "type"?: string;
 }
 
 /**

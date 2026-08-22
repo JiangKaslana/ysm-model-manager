@@ -255,6 +255,100 @@ func modelMatchesFilters(model types.BedrockModel, minBones, maxBones, minCubes,
 	return true
 }
 
+// SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。
+// allRoots 为 rtype→root 映射（由 GetAllRepoRoots 提供）；每个搜索结果携带 Type 字段。
+// 关键词/数值过滤逻辑与 SearchModels 一致，但扫描范围覆盖全部类型。
+func (a *App) SearchAllModels(allRoots map[string]string, keyword string, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) []types.SearchResult {
+	if len(allRoots) == 0 {
+		return nil
+	}
+	kw := strings.ToLower(strings.TrimSpace(keyword))
+
+	// 收集所有类型的条目，每个条目携带类型标记
+	type typedEntry struct {
+		entry types.ModelEntry
+		rtype string
+	}
+	var all []typedEntry
+	for rtype, root := range allRoots {
+		entries := a.ScanModelEntries(root)
+		for _, e := range entries {
+			all = append(all, typedEntry{entry: e, rtype: rtype})
+		}
+	}
+	if len(all) == 0 {
+		return nil
+	}
+
+	// Phase 1：关键词预过滤
+	var candidates []typedEntry
+	if kw != "" {
+		for _, te := range all {
+			name := strings.ToLower(te.entry.Name)
+			if strings.Contains(name, kw) || strings.Contains(strings.ToLower(te.entry.Path), kw) {
+				candidates = append(candidates, te)
+			}
+		}
+	} else {
+		candidates = all
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	// Phase 2：并发分析 + 过滤
+	type indexedResult struct {
+		index  int
+		result *types.SearchResult
+	}
+	workers := runtime.NumCPU()
+	if workers < 2 {
+		workers = 2
+	}
+	taskCh := make(chan int, len(candidates))
+	resultCh := make(chan indexedResult, len(candidates))
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range taskCh {
+				te := candidates[idx]
+				model := a.AnalyzeBedrockModel(te.entry.Path)
+				if !modelMatchesFilters(model, minBones, maxBones, minCubes, maxCubes, minTex, maxTex) {
+					continue
+				}
+				resultCh <- indexedResult{
+					index: idx,
+					result: &types.SearchResult{
+						Name: te.entry.Name, Path: te.entry.Path, Type: te.rtype,
+						BoneCount: model.BoneCount, CubeCount: model.CubeCount,
+						TexWidth: model.TexWidth, TexHeight: model.TexHeight,
+					},
+				}
+			}
+		}()
+	}
+	for i := range candidates {
+		taskCh <- i
+	}
+	close(taskCh)
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+	var results []types.SearchResult
+	for r := range resultCh {
+		if r.result != nil {
+			results = append(results, *r.result)
+		}
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
+	return results
+}
+
 // ========== 模型扫描（薄壳）==========
 // scanModelEntries 扫描核心（无操作日志）：watcher 自动同步等后台路径使用，
 // 避免自动化触发刷屏操作日志面板。保持单返回值以兼容 watcher.ScanFunc 契约。
@@ -332,7 +426,7 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 		return nil
 	}
 	entries, hit := a.scanModelEntriesWithHit(dir)
-	// 按 rtype（+subtype）扩展名白名单过滤
+	// 按 rtype（+subtype）扩展名白名单过滤，并填充 Type 字段
 	if allowedExts := types.SupportedExtsForSubtype(rtype, subtype); len(allowedExts) > 0 {
 		extSet := make(map[string]bool, len(allowedExts))
 		for _, e := range allowedExts {
@@ -341,6 +435,7 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 		filtered := make([]types.ModelEntry, 0, len(entries))
 		for _, e := range entries {
 			if extSet[strings.ToLower(filepath.Ext(e.Path))] {
+				e.Type = rtype
 				filtered = append(filtered, e)
 			}
 		}

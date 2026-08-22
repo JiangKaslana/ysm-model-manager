@@ -212,6 +212,20 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 	return "", nil
 }
 
+// GetAllRepoRoots 遍历所有注册资源类型，返回 rtype → root 映射（供跨类型搜索）。
+// 仅返回目录真实存在且可访问的类型；空 root/不存在的目录跳过。
+func (a *App) GetAllRepoRoots() map[string]string {
+	registry := types.LoadRegistry()
+	result := make(map[string]string, len(registry.ResourceTypes))
+	for _, rt := range registry.ResourceTypes {
+		root, _ := a.GetRepoRoot(rt.ID)
+		if root != "" {
+			result[rt.ID] = root
+		}
+	}
+	return result
+}
+
 // filesRootForSync 返回资源类型的整合包同步基准目录（FilesRoot/{group}/{storageSubDir}）。
 // 壳-叶架构已移除：所有类型统一走 GetRepoRoot（语义即 FilesRoot 派生路径）。
 func (a *App) filesRootForSync(rtype string) (string, error) {
