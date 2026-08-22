@@ -1713,6 +1713,10 @@ export const autoSidebar = [
             "link": "/knowledge/extensibility-round2"
           },
           {
+            "text": "AI 急速版路由表（高频场景）",
+            "link": "/knowledge/routes-quick"
+          },
+          {
             "text": "Vitest 环境切换规则",
             "link": "/knowledge/vitest-env-switch"
           },
