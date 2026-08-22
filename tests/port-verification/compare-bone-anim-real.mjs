@@ -19,13 +19,14 @@
  * 世界旋转：matToQuat(WorldMat) 双方对比（与原点无关）。
  * 退出码 0=全绿 / 1=有分歧。
  */
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..", ".."); // tests/port-verification → 仓库根
-const MODEL_DIR = join(REPO, "upstream", "[YSM模型]官方开源wine_fox_json", "01_taisho_maid");
+// YSM_MODEL_DIR 环境变量指定模型目录（批量扫描用）；默认官方开源 wine_fox 01_taisho_maid
+const MODEL_DIR = process.env.YSM_MODEL_DIR || join(REPO, "upstream", "[YSM模型]官方开源wine_fox_json", "01_taisho_maid");
 
 // ============================================================
 // 矩阵/四元数工具（列主序 4x4）
@@ -207,18 +208,38 @@ function ourWorldMats(params) {
 
 // ============================================================
 // 主流程：采样动画 → 双方世界矩阵 → 逐骨骼对比
-// 用法：node compare-bone-anim-real.mjs [clip名] [t]  （默认首个 clip、中点时刻）
+// 用法：node compare-bone-anim-real.mjs [clip名] [t]
+//   YSM_MODEL_DIR 环境变量指定模型目录（默认 01_taisho_maid）；
+//   动画文件从 ysm.json files.player.animation 声明发现（首个值），
+//   无声明/读取失败 → 静态姿态对拍（params 全 0，兼容中文文件名套装如 15_kluonoa）
 // ============================================================
-const animJson = JSON.parse(readFileSync(join(MODEL_DIR, "animations", "main.animation.json"), "utf8"));
-const clipEntries = Object.entries(animJson.animations || {});
-const clipArg = process.argv[2];
-const [clipName, clip] = (clipArg ? clipEntries.find(([n]) => n === clipArg) : null) || clipEntries[0] || [];
-if (!clip) { console.error("无动画 clip"); process.exit(1); }
-// 采样时刻：argv[3] 指定，否则 clip 中点（有动画效果）
-const len = clip.animation_length || 1;
-const t = process.argv[3] !== undefined ? parseFloat(process.argv[3]) : len / 2;
+let animPath = null;
+try {
+  const ysmJson = JSON.parse(readFileSync(join(MODEL_DIR, "ysm.json"), "utf8"));
+  const animDecl = ysmJson?.files?.player?.animation;
+  if (animDecl && typeof animDecl === "object" && !Array.isArray(animDecl)) {
+    const first = Object.values(animDecl)[0];
+    if (typeof first === "string") animPath = join(MODEL_DIR, first);
+  } else if (Array.isArray(animDecl) && animDecl.length > 0) {
+    animPath = join(MODEL_DIR, animDecl[0]);
+  }
+} catch { /* 无 ysm.json → 兜底 main.animation.json */ }
+if (!animPath) {
+  const fallback = join(MODEL_DIR, "animations", "main.animation.json");
+  if (existsSync(fallback)) animPath = fallback;
+}
 
-const params = buildBoneParams(clip, t);
+let clipName = "静态", clip = null, t = 0;
+if (animPath) {
+  try {
+    const entries = Object.entries(JSON.parse(readFileSync(animPath, "utf8")).animations || {});
+    const clipArg = process.argv[2];
+    [clipName, clip] = (clipArg ? entries.find(([n]) => n === clipArg) : null) || entries[0] || [null, null];
+  } catch { clipName = "静态"; clip = null; }
+}
+const len = clip?.animation_length || 1;
+if (clip) t = process.argv[3] !== undefined ? parseFloat(process.argv[3]) : len / 2;
+const params = clip ? buildBoneParams(clip, t) : new Float64Array(bones.length * 12);
 const game = gameWorldMats(params);
 const ours = ourWorldMats(params);
 
@@ -244,7 +265,7 @@ for (let i = 0; i < bones.length; i++) {
   rows.push({ name: b.name, posDelta, rotDelta, fail, gHidden: !game.visible[i], oHidden: !ours.visible[i] });
 }
 
-console.log(`════ 真实模型逐骨骼对拍（wine_fox 01_taisho_maid · main.json ${bones.length} 骨骼 · clip「${clipName}」t=${t.toFixed(2)}s）════\n`);
+console.log(`════ 真实模型逐骨骼对拍（${basename(MODEL_DIR)} · main.json ${bones.length} 骨骼 · ${clipName === "静态" ? "静态姿态（无动画）" : `clip「${clipName}」t=${t.toFixed(2)}s`}）════\n`);
 console.log(`分歧骨骼: ${failCount}/${bones.length}  最大 posΔ=${maxPos.toFixed(4)}（${maxPosBone}） 最大 rotΔ=${maxRot.toFixed(4)}（${maxRotBone}）\n`);
 if (failCount > 0) {
   console.log("分歧明细（前 15）:");
