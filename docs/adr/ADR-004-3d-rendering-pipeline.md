@@ -69,16 +69,22 @@ eulerToQuaternion(-rx, -ry, -rz)  // 三轴取反
 ### 2.4 纹理排序：按 ysm.json 声明顺序，不按 PNG 尺寸
 
 **决策**：纹理索引按 `ysm.json` 中 `files.player.model[]` 的声明顺序分配，
-不按 PNG 文件名或尺寸排序。
+不按 PNG 文件名或尺寸排序。投射物纹理（arrow.png、trident.png）从
+`files.projectiles[]` 的 `texture.uv` 派生，追加到 `texOrder`；
+投射物模型路径追加到 `modelOrder`，让 `texIdxMap` 反推自动覆盖投射物，
+不再需要"arrow 排序第一"特例排除。
 
 | 路径 | 实现 | 状态 |
 |------|------|------|
-| ZIP | `archive.go` 解析 `model[]` → `texIdxMap` → `Cube2D.TexSlot` → `MeshData.TexIdx` | ✅ |
+| ZIP | `archive.go` 解析 `model[]` + `projectiles[]` → `texIdxMap` → `Cube2D.TexSlot` → `MeshData.TexIdx` | ✅ |
 | 7z/extracted | 同逻辑 | ⚠️ 较弱（7z 不读 ysm.json） |
 | CLI fallback | 不设 TexSlot | ⚠️ 已知限制 |
 | WASM | `preview-wasm.js` 按 `ysmTexOrder` 排序 | ✅ |
 
 **回退尝试**：曾按 PNG 尺寸排序纹理，但纹理顺序应遵循模型声明，非文件名猜测。
+也曾只读 `files.player.texture[]` 不读 `files.projectiles[]`，导致投射物
+纹理没进 `texOrder`、TexSlot 靠 .json 文件序反推、arrow 排序第一时抢主体
+纹理槽位——2026-08-22 修复，补 `projectiles[]` 到 `texOrder`/`modelOrder`。
 
 ### 2.5 Mesh 合并策略：按 (boneId, texIdx, rotation) 分组
 
