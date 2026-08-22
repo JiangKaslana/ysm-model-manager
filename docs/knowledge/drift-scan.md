@@ -83,6 +83,11 @@ node scripts/drift-scan.mjs --json
 - `copyDirRecursive` 收敛：`fsutil.CopyDirRecursive` 新增 `AtomicRename` 选项（tmpDir → rename 原子替换 + 祖先守卫），`importer` 的私有重实现改为委托，消除 `COPY_DIR_REIMPL`
 - `copyDir` 同步收敛：`DirectoryCopyImporter` 的 `copyDir` 同改为委托 `fsutil.CopyDirRecursive`，移除 ~80 行重复实现
 
+### 第五轮（2026-08-25）
+
+- 修复 `drift-scan.mjs` 的 `INLINE_BAN_STRIP` 正则盲区：原只匹配 `[:len(name)-4]`，漏了 `[:len(path)-len(".ban")]` 写法
+- 收敛 4 处内联 `.ban` 剥离：`fileops_enable.go` ×3、`fileops_preview.go` ×1，改用 `types.StripBanSuffix`
+
 ## 最终状态
 
 ```
