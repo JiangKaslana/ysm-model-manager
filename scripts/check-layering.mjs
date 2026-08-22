@@ -183,13 +183,24 @@ function main() {
       console.log(`✖ 基线未更新（存在守卫拦截）`);
       process.exit(1);
     }
+    const newEntries = [...new Set(tracked.map(key))].sort();
+    // 仅当 entries 内容发生实质性变化时才重写文件：避免 generatedAt 日期在
+    // 反向边无增减时被无谓改写 → 触发 git 跟踪 churn（守护契约不受日期影响）。
+    const prevSorted = Array.isArray(baseline?.entries) ? [...baseline.entries].sort() : [];
+    const unchanged =
+      prevSorted.length === newEntries.length &&
+      prevSorted.every((e, i) => e === newEntries[i]);
+    if (unchanged) {
+      console.log(`[layering] 基线无变化（${newEntries.length} 条反向边），跳过写入`);
+      process.exit(0);
+    }
     const data = {
       _comment: '前端分层反向边基线（R3 core→上层 / R4 features→views）。仅允许减少，不允许增加。更新: node scripts/check-layering.mjs --update',
       generatedAt: new Date().toISOString().slice(0, 10),
-      entries: [...new Set(tracked.map(key))].sort(),
+      entries: newEntries,
     };
     writeFileSync(BASELINE_FILE, JSON.stringify(data, null, 2) + '\n');
-    console.log(`[layering] 基线已更新: ${relative(REPO_ROOT, BASELINE_FILE)}（${data.entries.length} 条反向边）${force && added.length ? `（--force 覆盖 ${added.length} 条新增）` : ''}`);
+    console.log(`[layering] 基线已更新: ${relative(REPO_ROOT, BASELINE_FILE)}（${newEntries.length} 条反向边）${force && added.length ? `（--force 覆盖 ${added.length} 条新增）` : ''}`);
     process.exit(0);
   }
 
