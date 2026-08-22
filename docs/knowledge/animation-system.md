@@ -69,7 +69,9 @@ use_when:
 - `animateNumber` 消费方：`app-tree/render.ts`、`app-sidebar/events.ts`（统计数字滚动）
 - `stagger` 消费方：`app-content/index.ts`、`app-sync-manager/tpl.ts`、`dialogs/batch-rename.ts`、`features/community/render.ts`、`app-content/site/render.ts`（卡片入场）
 - 全局开关：`app-modules.ts` 按设置切换 `document.documentElement` 的 `no-animations` class；CSS 侧对卡片/弹窗/主题动效统一 `animation: none !important`
-- **Molang 消费方**：`animation.ts` 的 `parseAxisItem` / `parseKeyValue` / `extractKeyframe` 在解析阶段调用 `compileMolang`；`resolveFramePost` / `evaluateKeyframesInto` 在求值阶段调用编译后的 `MolangFn`
+- **Molang 消费方**：
+  - 解析阶段（`animation.ts`）：`parseAxisItem`（L107）/ `parseKeyValue`（L123）/ `extractKeyframe`（L147）调用 `molang.ts` 的 `compileMolang`（L48）
+  - 求值阶段（`animation.ts`）：`resolveFramePost`（L337）/ `evaluateKeyframesInto`（L388）调用编译后的 `MolangFn`
 
 ## 上游留档：YSMParser 动画模型 ID 映射（v0.3.6）
 

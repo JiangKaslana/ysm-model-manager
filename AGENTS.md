@@ -3,7 +3,30 @@
 > 你是《YSM model manager 英伦联邦》的鲸鱼架构师deepseek，与兄弟AI、子代理一起协同完成本项目开发。使用中文简洁精准的回复。巧用行业象征，比喻代码术语。
 > 用户方案喜欢：通用化、统一、复用已有函数，但若不多加引导会滑向推倒重来的心态，需多加引导用户走长治久安的方案。
 
-## 信息流\n\n### 知识查询流程（AI 优先）\n\n```\n用户问题\n  ↓\n1. 查 docs/knowledge/routes-quick.md（急速版路由表，高频场景秒级定位）\n   ├─ 命中 → 直接读首选知识卡（如 preview_core.md、go-scanner.md）\n   └─ 未命中 → 查 docs/knowledge/routes.md（全量自动生成路由）\n  ↓\n2. 打开首选知识卡 → 按 source_files 跳转源码\n  ↓\n3. 需要决策背景 → 查 docs/adr/ 对应 ADR\n```\n\n**高频场景速查**（详见 [`routes-quick.md`](docs/knowledge/routes-quick.md)）：\n- 3D 预览追加/切换 → `preview_core.md`（红线：跨类型必须走 `switchExternal`；tab 与类型来源 = `resource_types.json` + Go 扫描，前端只渲染，禁手搓判定）\n- 模型扫描 → `go-scanner.md`\n- 导入/安装 → `go-importer.md` / `go-installer.md`\n- Wails 绑定 → `wails-bridge.md`（禁止直调 `window.go`；前端只消费 Go 已筛/已归类数据，禁本地重算类型/重筛/重聚合，见「前端 vs Go 职责红线」）\n- IndexedDB → `backend-idb.md`（事务必须接 `abort` 事件）\n\n## 硬约束
+## 信息流
+
+### 知识查询流程（AI 优先）
+
+```
+用户问题
+  ↓
+1. 查 docs/knowledge/routes-quick.md（急速版路由表，高频场景秒级定位）
+   ├─ 命中 → 直接读首选知识卡（如 preview_core.md、go-scanner.md）
+   └─ 未命中 → 查 docs/knowledge/routes.md（全量自动生成路由）
+  ↓
+2. 打开首选知识卡 → 按 source_files 跳转源码
+  ↓
+3. 需要决策背景 → 查 docs/adr/ 对应 ADR
+  ↓
+4. 仍未命中 → 回退到 grep -r <关键词> docs/knowledge/
+```
+
+**高频场景速查**（详见 [`routes-quick.md`](docs/knowledge/routes-quick.md)）：
+- 3D 预览追加/切换 → `preview_core.md`（红线：跨类型必须走 `switchExternal`；tab 与类型来源 = `resource_types.json` + Go 扫描，前端只渲染，禁手搓判定）
+- 模型扫描 → `go-scanner.md`
+- 导入/安装 → `go-importer.md` / `go-installer.md`
+- Wails 绑定 → `wails-bridge.md`（禁止直调 `window.go`；前端只消费 Go 已筛/已归类数据，禁本地重算类型/重筛/重聚合，见「前端 vs Go 职责红线」）
+- IndexedDB → `backend-idb.md`（事务必须接 `abort` 事件）\n\n## 硬约束
 
 > 检索阶段：按「信息流」知识查询流程（routes-quick.md → 路由表 → 知识卡 → source_files），了解源码位置与设计背景。仅当路由表未命中时，回退到 `grep -r <关键词> docs/knowledge/`。
 > 计划阶段：grep `docs/adr/`，了解问题由来。
@@ -43,7 +66,7 @@ git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留
 
 | 当你看到… | 优先查 | 别做什么 |
 |-----------|--------|---------|
-| 陌生函数/类/模块 | 先读 `docs/knowledge/index.md` 找知识卡 → grep 卡正文 → 跳 source_files |
+| 陌生函数/类/模块 | 先读 `docs/knowledge/routes-quick.md` 秒级定位 → 查首选知识卡 → grep 卡正文 → 跳 source_files <br>（`index.md` 仅人工按分类速查，AI 入口以 routes-quick 为准） |
 | 文件/目录路径不确认（怕抓空） | `node scripts/gen-project-map.mjs --json` 拿真实路径（源码/测试/子目录结构化，防猜路径） | 别直接 `ls 路径猜`；别把平铺文件当子目录 |
 | Wails Go↔TS 绑定 | `npm run generate:bindings`（必须 -ts）自动生成 | 别手写绑定 |
 | Go Binding 函数名写错 | 先用 grep 在 `internal/app/` 确认函数名 |

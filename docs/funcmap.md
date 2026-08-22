@@ -1487,10 +1487,10 @@
 | `unregisterModelRoot()` | `frontend/src/utils/3d/frustum-cull:23` | 注销模型根节点（adapter dispose 时调用） |
 | `getModelRootCount()` | `frontend/src/utils/3d/frustum-cull:29` | 获取当前注册的模型根节点数 |
 | `cullModelGroups()` | `frontend/src/utils/3d/frustum-cull:38` | 对所有已注册的模型根节点做视锥裁剪。 |
-| `clearModelRoots()` | `frontend/src/utils/3d/frustum-cull:95` | 清空所有注册（session 结束时调用） |
-| `isFrustumCullEnabled()` | `frontend/src/utils/3d/frustum-cull:105` | 视锥裁剪开关是否启用（undefined → 默认开；safeGet 隐私模式安全） |
-| `setFrustumCullEnabled()` | `frontend/src/utils/3d/frustum-cull:111` | 设置视锥裁剪开关（设置面板开关调用） |
-| `restoreModelGroupsVisible()` | `frontend/src/utils/3d/frustum-cull:116` | 关闭剔除时恢复所有注册模型根可见性（幂等） |
+| `clearModelRoots()` | `frontend/src/utils/3d/frustum-cull:99` | 清空所有注册（session 结束时调用） |
+| `isFrustumCullEnabled()` | `frontend/src/utils/3d/frustum-cull:109` | 视锥裁剪开关是否启用（undefined → 默认开；safeGet 隐私模式安全） |
+| `setFrustumCullEnabled()` | `frontend/src/utils/3d/frustum-cull:115` | 设置视锥裁剪开关（设置面板开关调用） |
+| `restoreModelGroupsVisible()` | `frontend/src/utils/3d/frustum-cull:120` | 关闭剔除时恢复所有注册模型根可见性（幂等） |
 | `IKChain()` | `frontend/src/utils/3d/ik-solver:21` | IK 链：从 root 到 endEffector 的 THREE.Object3D 有序数组（含两端） |
 | `IKConfig()` | `frontend/src/utils/3d/ik-solver:24` | IK 求解配置 |
 | `IKResult()` | `frontend/src/utils/3d/ik-solver:42` | IK 求解结果 |
