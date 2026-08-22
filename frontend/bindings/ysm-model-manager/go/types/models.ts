@@ -145,6 +145,11 @@ export interface BedrockModel {
      * 动画 JSON 字符串数组
      */
     "animations"?: string[] | null;
+
+    /**
+     * L0/L1 派生的子模型清单（多角色包内切换用）
+     */
+    "subModels"?: SubModel[] | null;
 }
 
 /**
@@ -380,6 +385,27 @@ export interface SearchResult {
     "texWidth": number;
     "texHeight": number;
     "hasError": boolean;
+}
+
+/**
+ * SubModel 子模型条目（多角色加载）。
+ * 来源优先级：L0（maid_model.json model[] 权威清单）→ L1（geoFiles 枚举兜底）。
+ */
+export interface SubModel {
+    /**
+     * 角色名（L0 直接取自 model[].name；L1 取自 geometry 文件名去后缀）
+     */
+    "name": string;
+
+    /**
+     * 条目的 zip 内相对路径（用于精确比对去重）
+     */
+    "sourcePath"?: string;
+
+    /**
+     * 默认绑定的纹理槽索引（对应 Textures 数组下标）
+     */
+    "texSlot"?: number;
 }
 
 /**

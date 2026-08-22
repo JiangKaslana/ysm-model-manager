@@ -17,6 +17,7 @@ import { esc } from "../../utils/dom/html.ts";
 import { setActive3DClose } from "./skeleton.ts";
 import { registerAndroidBackHandler } from "../../utils/dom/android-bridge.ts";
 import type { PreviewCtx } from "./utils.ts";
+import type { BedrockSubModel } from "./geometry.ts";
 
 /** 数据读取注入 */
 async function readFileBytes(path: string): Promise<string | null> {
@@ -37,6 +38,9 @@ export interface MaidOpenOptions {
   loader: (path: string) => Promise<BedrockGeometry | null>;
   onClose?: () => void;
   siblings?: string[];
+  /** 打开时默认选中的子模型索引（多角色包内切换）。
+   *  取值范围 [0, subModels.length)；越界或缺省 = 载入第 0 个（或未过滤的合并模型，后续接过滤）。 */
+  subModelIdx?: number;
 }
 
 /**
@@ -48,9 +52,9 @@ export async function createMaid3D(
   texIdx = 0,
   opts: MaidOpenOptions,
 ): Promise<void> {
-  const rebuild = (idx: number): void => {
+  const rebuild = (idx: number, subIdx?: number): void => {
     cleanupPreview();
-    void createMaid3D(path, idx, opts);
+    void createMaid3D(path, idx, { ...opts, subModelIdx: subIdx ?? opts.subModelIdx });
   };
   cleanupPreview();
   await mount3D(
@@ -67,7 +71,8 @@ export async function createMaid3D(
         fillShotPanel: fillYsmShotPanel,
         attachBoneSelect: attachYsmBoneSelect,
       },
-    }),
+      subModelIdx: opts.subModelIdx ?? 0,
+    } as Parameters<typeof makeYsmAdapter>[1]),
     path,
     withPreviewExtras({ siblings: opts.siblings }),
   );
@@ -105,8 +110,16 @@ export async function showMaidPreview(
 </div>
 <button class="preview-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">&#x1F3A8;</span></button>`;
 
-  // 调用 Go 端分析模型数据
-  let modelInfo: { boneCount?: number; cubeCount?: number; textureCount?: number; format?: string; texWidth?: number; texHeight?: number } | null = null;
+  // 调用 Go 端分析模型数据（含 subModels L0 清单）
+  let modelInfo: {
+    boneCount?: number;
+    cubeCount?: number;
+    textureCount?: number;
+    format?: string;
+    texWidth?: number;
+    texHeight?: number;
+    subModels?: BedrockSubModel[];
+  } | null = null;
   try {
     const { AnalyzeBedrockModel } = await getApp();
     const model = await AnalyzeBedrockModel(path);
@@ -114,40 +127,83 @@ export async function showMaidPreview(
       modelInfo = {
         boneCount: model.boneCount,
         cubeCount: model.cubeCount,
-        textureCount: model.textures?.length || (model.texture ? 1 : 0),
-        format: model.format,
-        texWidth: model.texWidth,
-        texHeight: model.texHeight,
+        textureCount: (model.textures as unknown[] | undefined)?.length || (model.texture ? 1 : 0),
+        format: model.format as string | undefined,
+        texWidth: model.texWidth as number | undefined,
+        texHeight: model.texHeight as number | undefined,
+        subModels: model.subModels as BedrockSubModel[] | undefined,
       };
     }
   } catch (e) {
     console.warn("[maid-preview] AnalyzeBedrockModel:", e);
   }
 
-  // 渲染详细信息
-  const detailRows: string[] = [];
-  if (modelInfo) {
-    if (modelInfo.format) detailRows.push(`<div class="dp-hint">📐 格式版本: ${esc(modelInfo.format)}</div>`);
-    if (modelInfo.boneCount !== undefined) detailRows.push(`<div class="dp-hint">🦴 骨骼数: ${modelInfo.boneCount}</div>`);
-    if (modelInfo.cubeCount !== undefined) detailRows.push(`<div class="dp-hint">📦 方块数: ${modelInfo.cubeCount}</div>`);
-    if (modelInfo.textureCount !== undefined && modelInfo.textureCount > 0) {
-      detailRows.push(`<div class="dp-hint">🎨 纹理数: ${modelInfo.textureCount}</div>`);
+  // UI 状态：选中的子模型索引（多角色包）
+  let _selSubIdx = 0;
+  const subs = modelInfo?.subModels && modelInfo.subModels.length > 0 ? modelInfo.subModels : [];
+
+  // 渲染详细信息（对 subs.length>1 的包：若选中了单个角色，摘要应显示该 subModel 的 texSlot/名字）
+  const renderDetail = (): string => {
+    const rows: string[] = [];
+    if (modelInfo?.format) rows.push(`<div class="dp-hint">📐 格式版本: ${esc(modelInfo.format)}</div>`);
+    const sel = subs[_selSubIdx];
+    if (subs.length > 1 && sel) {
+      rows.push(`<div class="dp-hint">🧸 选中角色: <b>${esc(sel.name)}</b></div>`);
+    }
+    if (modelInfo?.boneCount !== undefined) rows.push(`<div class="dp-hint">🦴 骨骼数: ${modelInfo.boneCount}</div>`);
+    if (modelInfo?.cubeCount !== undefined) rows.push(`<div class="dp-hint">📦 方块数: ${modelInfo.cubeCount}</div>`);
+    if (modelInfo?.textureCount !== undefined && modelInfo.textureCount > 0) {
+      rows.push(`<div class="dp-hint">🎨 纹理数: ${modelInfo.textureCount}</div>`);
       if (modelInfo.texWidth && modelInfo.texHeight) {
-        detailRows.push(`<div class="dp-hint">📏 纹理尺寸: ${modelInfo.texWidth}×${modelInfo.texHeight}</div>`);
+        rows.push(`<div class="dp-hint">📏 纹理尺寸: ${modelInfo.texWidth}×${modelInfo.texHeight}</div>`);
       }
     }
-  }
+    return rows.join("");
+  };
 
-  ctx.root.innerHTML = `<div class="content" id="preview-content">
+  // 渲染子模型选择列表（>1 才显示；能力驱动）
+  const renderSubList = (): string => {
+    if (subs.length <= 1) return "";
+    const chips = subs
+      .map((s, i) => {
+        const active = i === _selSubIdx ? ' class="active"' : "";
+        return `<li data-idx="${i}"${active}><span class="chip-name">${esc(s.name)}</span>${s.texSlot !== undefined ? `<span class="chip-slot">🎨${s.texSlot}</span>` : ""}</li>`;
+      })
+      .join("");
+    return `<div class="dp-submodels">
+      <div class="dp-hint" style="font-weight:600;margin-bottom:8px">🧩 L0 清单角色 (${subs.length})</div>
+      <ul class="dp-sublist" role="listbox">${chips}</ul>
+    </div>`;
+  };
+
+  const render = (): void => {
+    const detail = renderDetail();
+    const subList = renderSubList();
+    ctx.root.innerHTML = `<div class="content" id="preview-content">
   <h3>🧸 ${t("preview.modelInfo")}</h3>
   <div class="dp-placeholder">
     <div class="big-icon">🧸</div>
     <div class="dp-hint" style="font-weight:600">${esc(basename)}</div>
     <div class="dp-hint">Bedrock Edition Model</div>
-    ${detailRows.length > 0 ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px">${detailRows.join("")}</div>` : `<div class="dp-hint" style="margin-top:8px;font-size:11px;color:var(--txt-dim)">⚠️ 无法读取模型数据</div>`}
+    ${detail ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px">${detail}</div>` : `<div class="dp-hint" style="margin-top:8px;font-size:11px;color:var(--txt-dim)">⚠️ 无法读取模型数据</div>`}
+    ${subList ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">${subList}</div>` : ""}
   </div>
 </div>
 <button class="preview-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">&#x1F3A8;</span></button>`;
+
+    // subModel 选中点击
+    ctx.root.querySelectorAll<HTMLLIElement>(".dp-sublist li").forEach((li) => {
+      li.onclick = () => {
+        const idx = Number(li.getAttribute("data-idx"));
+        if (!Number.isFinite(idx) || idx < 0 || idx >= subs.length) return;
+        _selSubIdx = idx;
+        render();
+      };
+    });
+    // FAB 接线（含选中的 subModelIdx + 默认 texSlot）
+    const btn3d = ctx.root.getElementById("btn-3d-preview");
+    if (btn3d) btn3d.onclick = () => { void _toggle3D(); };
+  };
 
   await ctx.loadPreviewImage(path);
 
@@ -174,9 +230,15 @@ export async function showMaidPreview(
     setActive3DClose(() => close3D());
     unsubAndroidBack = registerAndroidBackHandler(() => { close3D(); return true; });
     try {
-      await createMaid3D(path, 0, {
+      const sel = subs[_selSubIdx];
+      // texIdx 优先级：选中角色的 texSlot（若声明）→ 默认 0
+      const texStart = sel && typeof sel.texSlot === "number" && modelInfo?.textureCount
+        ? Math.min(sel.texSlot, modelInfo.textureCount - 1)
+        : 0;
+      await createMaid3D(path, texStart, {
         loader: async (p) => (await loadModelData(p, ctx, { skipWasm: true })).model,
         onClose,
+        subModelIdx: subs.length > 1 ? _selSubIdx : undefined,
       });
     } catch (e) {
       if (gen !== _model3dGen) return;
@@ -185,6 +247,5 @@ export async function showMaidPreview(
     _loading3D = false;
   };
 
-  const btn3d = ctx.root.getElementById("btn-3d-preview");
-  if (btn3d) btn3d.onclick = (): void => { void _toggle3D(); };
+  render();
 }

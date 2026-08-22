@@ -43,11 +43,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 140 | 545 |
-| frontend/views | 115 | 330 |
+| 前端·工具 | 140 | 546 |
+| frontend/views | 115 | 331 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **441** | **1893** |
+| **合计** | **441** | **1895** |
 
 ## Go·头像
 
@@ -1582,10 +1582,11 @@
 | `Vec3()` | `frontend/src/utils/3d/spec-builder:23` | vec3 — Go threejs/spec.go L55 |
 | `Cube2D()` | `frontend/src/utils/3d/spec-builder:30` | Cube2D — Go types/bedrock.go Cube2D |
 | `BedrockModel()` | `frontend/src/utils/3d/spec-builder:56` | BedrockModel — Go types/bedrock.go BedrockModel |
-| `ModelGroup()` | `frontend/src/utils/3d/spec-builder:72` | ModelGroup — Go threejs/spec.go ModelGroup |
-| `BoneData()` | `frontend/src/utils/3d/spec-builder:84` | BoneData — Go threejs/spec.go BoneData |
-| `MeshData()` | `frontend/src/utils/3d/spec-builder:94` | MeshData — Go threejs/spec.go MeshData |
-| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:113` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
+| `SubModel()` | `frontend/src/utils/3d/spec-builder:72` | SubModel 子模型条目（Go types/bedrock.go SubModel）。 |
+| `ModelGroup()` | `frontend/src/utils/3d/spec-builder:87` | ModelGroup — Go threejs/spec.go ModelGroup |
+| `BoneData()` | `frontend/src/utils/3d/spec-builder:99` | BoneData — Go threejs/spec.go BoneData |
+| `MeshData()` | `frontend/src/utils/3d/spec-builder:109` | MeshData — Go threejs/spec.go MeshData |
+| `buildSpecFromGeometryJSON()` | `frontend/src/utils/3d/spec-builder:128` | 从 bedrock geometry JSON 构建 3D spec（纯 TS，无 Go 依赖）。 |
 | `TextureCacheImpl()` | `frontend/src/utils/3d/texture-cache:17` | — |
 | `textureCache()` | `frontend/src/utils/3d/texture-cache:62` | 全局单例（随 3D 会话生命周期；disposeAll 由 cleanup-3d.ts 调用） |
 | `VrmMaterialListItem()` | `frontend/src/utils/3d/vrm-materials:11` | 材质列表项（listVrmMaterials） |
@@ -1910,9 +1911,10 @@
 | `invalidateFbxPreview()` | `frontend/src/views/app-preview/fbx-3d:50` | 任意新预览派发时调用，作废在途 FBX 加载 |
 | `resolveFbxSiblings()` | `frontend/src/views/app-preview/fbx-siblings:10` | 同类型 FBX 模型候选（GetRepoRoot(fbx) → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:6` | Bedrock 方块 |
-| `BedrockBone()` | `frontend/src/views/app-preview/geometry:17` | Bedrock 骨骼 |
-| `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:32` | 解析后的 Bedrock geometry |
-| `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:68` | 从 JSON 字符串解析 Bedrock geometry |
+| `BedrockSubModel()` | `frontend/src/views/app-preview/geometry:19` | SubModel 子模型条目（Go types/bedrock.go SubModel）。 |
+| `BedrockBone()` | `frontend/src/views/app-preview/geometry:26` | Bedrock 骨骼 |
+| `BedrockGeometry()` | `frontend/src/views/app-preview/geometry:41` | 解析后的 Bedrock geometry |
+| `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:79` | 从 JSON 字符串解析 Bedrock geometry |
 | `appPreviewStyle()` | `frontend/src/views/app-preview/index:9` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:26` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:44` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
@@ -1924,11 +1926,11 @@
 | `LoadModelOpts()` | `frontend/src/views/app-preview/loader:11` | loadModelData 选项（Bedrock 通用模型加载控制） |
 | `loadModelData()` | `frontend/src/views/app-preview/loader:25` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
 | `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:151` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
-| `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:36` | — |
-| `createMaid3D()` | `frontend/src/views/app-preview/maid-3d:46` | 打开车万女仆 3D 预览（Bedrock generic 模式）。 |
-| `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:77` | 关闭活跃女仆 3D 预览 |
-| `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:82` | 作废在途女仆 3D 加载 |
-| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:91` | 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。 |
+| `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:37` | — |
+| `createMaid3D()` | `frontend/src/views/app-preview/maid-3d:50` | 打开车万女仆 3D 预览（Bedrock generic 模式）。 |
+| `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:82` | 关闭活跃女仆 3D 预览 |
+| `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:87` | 作废在途女仆 3D 加载 |
+| `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:96` | 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。 |
 | `createMmd3D()` | `frontend/src/views/app-preview/mmd-3d:78` | 打开 MMD 3D 预览（.pmx/.pmd 直引 @moeru/three-mmd）；siblings 提供同类型候选以渲染 topBar 切换下拉（ADR-066 §5.6） |
 | `cleanupMmd3D()` | `frontend/src/views/app-preview/mmd-3d:83` | 清理 MMD 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `appendMmdPreview()` | `frontend/src/views/app-preview/mmd-3d:88` | 同台追加 MMD 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |

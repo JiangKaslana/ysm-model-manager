@@ -20,6 +20,7 @@ export type {
     PackInfo,
     RuntimeLog,
     SearchResult,
+    SubModel,
     VersionInstance,
     WindowState,
     WorkshopCreator,
