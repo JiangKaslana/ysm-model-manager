@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
 | 前端·工具 | 143 | 558 |
-| frontend/views | 117 | 339 |
+| frontend/views | 117 | 340 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **451** | **1929** |
+| **合计** | **451** | **1930** |
 
 ## Go·头像
 
@@ -1956,8 +1956,9 @@
 | `appPreviewStyle()` | `frontend/src/views/app-preview/index:9` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:26` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
 | `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:44` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
-| `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:49` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:54` | 任意新预览派发时调用，作废在途体素加载 |
+| `appendLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:49` | 同台追加 Litematic/蓝图 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4），与 mmd/vrm 对称 |
+| `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:54` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
+| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:59` | 任意新预览派发时调用，作废在途体素加载 |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:28` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:109` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:233` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |

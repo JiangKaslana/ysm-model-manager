@@ -6,7 +6,7 @@
 import { mount3D, cleanupPreview, invalidatePreview, switchPreview, type PreviewAdapter, type Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { buildLitematicScene } from "../../utils/3d/adapters/litematic-adapter.ts";
 import { getApp } from "../../backend/app.ts";
-import { registerReRoute, withPreviewExtras } from "./preview-library.ts";
+import { registerReRoute, withPreviewExtras, openModel3DFullscreen } from "./preview-library.ts";
 import { RESOURCE_TYPES, VOXEL_RPC_BY_EXT, extOf } from "../../utils/resource/types.ts";
 
 /** voxelCall 注入（视图壳层保留 getApp；适配器 0 backend import，ADR-072 边界判据） */
@@ -43,6 +43,11 @@ registerReRoute(RESOURCE_TYPES.BLUEPRINT, (path, siblings) =>
 /** 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） */
 export async function switchLitematicPreview(path: string): Promise<void> {
   await switchPreview(path);
+}
+
+/** 同台追加 Litematic/蓝图 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4），与 mmd/vrm 对称 */
+export async function appendLitematicPreview(path: string): Promise<void> {
+  await openModel3DFullscreen(path, { cooperate: true });
 }
 
 /** 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 */
