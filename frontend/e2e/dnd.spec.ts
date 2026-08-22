@@ -43,7 +43,11 @@ async function dispatchFileDragOnTree(
       const dt = new DataTransfer();
       dt.items.add(new File(["e2e-content"], name, { type: "" }));
       const fire = (type: string): void => {
-        const ev = new DragEvent(type, { bubbles: true, cancelable: true });
+        const ev = new DragEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        });
         // Chromium 构造器忽略 dataTransfer → 只读属性强制注入
         Object.defineProperty(ev, "dataTransfer", {
           value: dt,
@@ -101,7 +105,11 @@ test.describe("拖拽导入（DnD）", () => {
       const tree = root?.getElementById("tree");
       if (!tree) throw new Error("app-tree #tree 未就绪");
       const dt = new DataTransfer(); // 无 items
-      const ev = new DragEvent("dragover", { bubbles: true, cancelable: true });
+      const ev = new DragEvent("dragover", {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
       Object.defineProperty(ev, "dataTransfer", {
         value: dt,
         configurable: true,
