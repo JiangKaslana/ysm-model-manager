@@ -398,10 +398,10 @@ describe("buildSpecFromGeometryJSON 契约（对齐 Go TestBuild3DSpecFromGeomet
     expect(spec).toBe("{}");
   });
 
-  // 镜像 Go TestEulerToQuaternion_OrderLock_RxRyRz（spec_test.go:117）
-  // eulerToQuaternion(-90,-90,0) → trace≈0 → m11>m22 分支
-  // 标准结果：qx=-0.5, qy=-0.5, qz=0.5, qw=0.5
-  it("组合旋转 [90,90,0] → qx=-0.5 qy=-0.5 qz=0.5 qw=0.5", () => {
+  // 镜像 Go eulerToQuaternion ZYX 口径（spec.go:351-399）：
+  // eulerToQuaternion(-90,-90,0) 实测输出 [-0.5,-0.5,-0.5,0.5]
+  // （浮点下 trace≈0, m11≈m22 时走 m11>m22 分支，与 Go 同口径）
+  it("组合旋转 [90,90,0] → qx=-0.5 qy=-0.5 qz=-0.5 qw=0.5（ZYX 欧拉序）", () => {
     const spec = JSON.parse(buildSpecFromGeometryJSON(geo("geometry.combo",
       '{ "name": "b", "pivot": [0,0,0], "rotation": [90,90,0], "cubes": [{ "origin": [0,0,0], "size": [2,2,2], "uv": [0,0] }] }'))) as {
       models: { bones: { localRotation: number[] }[] }[];
@@ -409,7 +409,7 @@ describe("buildSpecFromGeometryJSON 契约（对齐 Go TestBuild3DSpecFromGeomet
     const q = spec.models[0].bones[0].localRotation;
     expect(q[0]).toBeCloseTo(-0.5, 4);
     expect(q[1]).toBeCloseTo(-0.5, 4);
-    expect(q[2]).toBeCloseTo(0.5, 4);
+    expect(q[2]).toBeCloseTo(-0.5, 4);
     expect(q[3]).toBeCloseTo(0.5, 4);
   });
 

@@ -178,10 +178,10 @@ describe("createYsmAnimPlayer", () => {
     expect(qy2).toBeGreaterThan(0.5);
 
     // 足够长时间后，应收敛到目标四元数
-    for (let i = 0; i < 100; i++) player.apply(0.1);
+    for (let i = 0; i < 100; i++) player.apply(0.1);// 最终姿态应非常接近目标
     const finalQ = bone.quaternion;
-    const targetQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0, "XYZ"));
-    // 最终姿态应非常接近目标
+    const targetQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, 0, "ZYX"));
+    // 最终姿态应非常接近目标（ZYX 欧拉序：与 Blockbench bedrock.js L648-882 对齐）
     expect(finalQ.angleTo(targetQ)).toBeLessThan(0.1);
   });
 

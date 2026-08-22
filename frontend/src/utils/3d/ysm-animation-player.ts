@@ -108,9 +108,11 @@ export function createYsmAnimPlayer(
         const transform = transforms.get(boneName);
 
         // 目标姿态：clip 通道值；缺通道回落 base（停播骨骼渐回零位的来源）
+        // L4 修复（ADR-100 骨骼朝向遗留）：Bedrock 格式欧拉序为 ZYX（Blockbench bedrock.js
+        // L648-882），而非 THREE.Euler 默认 XYZ。错误序会导致旋转轴错乱，角色"乱飞"。
         if (transform?.rotation) {
           const [rx, ry, rz] = transform.rotation;
-          _targetQuat.setFromEuler(_targetEuler.set(rx, ry, rz, "XYZ"));
+          _targetQuat.setFromEuler(_targetEuler.set(rz, ry, rx, "ZYX"));
         } else {
           _targetQuat.copy(base.quat);
         }
