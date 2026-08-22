@@ -798,6 +798,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-113：YSM 骨骼动画 Molang 求值器与欧拉序修复（L4）",
+        "link": "/adr/ADR-113-ysm-molang"
+      },
+      {
         "text": "ADR-112：FBX 格式接入与独立预览地基",
         "link": "/adr/ADR-112-fbx-loader-preview-foundation"
       },
@@ -840,10 +844,6 @@ export const autoSidebar = [
       {
         "text": "ADR-101: MMD 场景加载性能分析与优化方向",
         "link": "/adr/ADR-101-mmd-loading-perf"
-      },
-      {
-        "text": "ADR-101：YSM 骨骼动画 Molang 求值器（L4）",
-        "link": "/adr/ADR-101-ysm-molang-evaluator"
       },
       {
         "text": "ADR-100：YSM 骨骼动画播放——L1 基础播放",
@@ -1732,6 +1732,10 @@ export const autoSidebar = [
           {
             "text": "第 01 区域 · 第 4 章 · 只改了一半的名字",
             "link": "/novel/01-解码与几何/04-只改了一半的名字"
+          },
+          {
+            "text": "第 01 区域 · 第 5 章 · 镜中的右手",
+            "link": "/novel/01-解码与几何/05-镜中的右手"
           }
         ]
       },
