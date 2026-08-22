@@ -55,17 +55,21 @@ export function fill3DPanel(
     bindingRow.appendChild(bindingValue);
     panel.appendChild(bindingRow);
     // 组件选择器 onchange 追加更新绑定行（不覆盖已有 showModelGroup）
+    // texArrOrder[idx] = 组件 idx 声明的纹理名（Go 端按 texSlot 分配，多组件可共享同一张）
+    const texArrOrder = (spec as { texArrOrder?: string[] }).texArrOrder;
     const updateBinding = (): void => {
       const idx = parseInt(modelSel.value, 10);
       if (isNaN(idx) || idx < 0) {
         bindingValue.textContent = "全量";
         return;
       }
-      const mgItem = spec.models?.[idx] as { texSlot?: number; name?: string } | undefined;
-      const slot = mgItem?.texSlot ?? 0;
-      const url = model.textures?.[slot] || model.texture || "";
-      const name = model.textureNames?.[slot] || url.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") || "纹理 " + (slot + 1);
-      bindingValue.textContent = name;
+      const declared = texArrOrder?.[idx];
+      if (declared) {
+        bindingValue.textContent = declared;
+      } else {
+        // texArrOrder 缺失（WASM 路径）→ 按全量纹理兜底
+        bindingValue.textContent = "全量";
+      }
     };
     modelSel.addEventListener("change", updateBinding);
     for (let i = 0; i < texArr.length; i++) {

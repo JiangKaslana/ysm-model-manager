@@ -2090,9 +2090,9 @@
 | `setRenderMode()` | `frontend/src/views/app-tree/render:49` | Set render mode to localStorage |
 | `buildTree()` | `frontend/src/views/app-tree/render:54` | — |
 | `flattenVisible()` | `frontend/src/views/app-tree/render:112` | — |
-| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:263` | 断开虚拟滚动相关监听 |
-| `renderTree()` | `frontend/src/views/app-tree/render:272` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:339` | — |
+| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:267` | 断开虚拟滚动相关监听 |
+| `renderTree()` | `frontend/src/views/app-tree/render:276` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:343` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |
