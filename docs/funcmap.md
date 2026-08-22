@@ -215,13 +215,13 @@
 |------|--------|------|
 | `ExtractFirstPNGFromZip()` | `go/geometry/archive:74` | ExtractFirstPNGFromZip 从 ZIP 中提取第一张 PNG 图片（用于快速预览） |
 | `ExtractFirstPNGFrom7z()` | `go/geometry/archive:84` | ExtractFirstPNGFrom7z 从 7z 中提取第一张 PNG 图片（用于快速预览） |
-| `ParseFromZip()` | `go/geometry/archive:1294` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
-| `ParseFrom7z()` | `go/geometry/archive:1305` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
-| `ParseFromZipEntry()` | `go/geometry/archive:1324` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
-| `ParseFrom7zEntry()` | `go/geometry/archive:1350` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
-| `IsMainModelName()` | `go/geometry/archive:1437` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
-| `ParseComponentsFromZip()` | `go/geometry/archive:1449` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
-| `ParseComponentsFrom7z()` | `go/geometry/archive:1544` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
+| `ParseFromZip()` | `go/geometry/archive:1316` | ParseFromZip 从 ZIP 字节中解析 Bedrock Geometry 并提取纹理和动画。 |
+| `ParseFrom7z()` | `go/geometry/archive:1327` | ParseFrom7z 从 7z 字节中解析 Bedrock Geometry 并提取纹理。 |
+| `ParseFromZipEntry()` | `go/geometry/archive:1346` | ParseFromZipEntry 按 subPath（zip 内路径，L0 SubModel.SourcePath 口径）解析单个 geometry 文件。 |
+| `ParseFrom7zEntry()` | `go/geometry/archive:1372` | ParseFrom7zEntry 对应 ParseFromZipEntry 的 7z 版本；subPath 匹配策略完全一致。 |
+| `IsMainModelName()` | `go/geometry/archive:1459` | IsMainModelName 判断模型文件是否为主组件（main.json / main.geo.json）。 |
+| `ParseComponentsFromZip()` | `go/geometry/archive:1471` | ParseComponentsFromZip 多组件解析（YSMViewer 式）：zip 内每个模型文件独立组件， 含 arm/载具等组件（不合并、不排除）；main 优先排序， |
+| `ParseComponentsFrom7z()` | `go/geometry/archive:1566` | ParseComponentsFrom7z 多组件解析（7z 版）：与 ParseComponentsFromZip 同构， 复用 collectArchiveFiles/buil |
 | `ParseBedrockGeometry()` | `go/geometry/parse:205` | ParseBedrockGeometry 解析 Bedrock geometry JSON。 |
 
 ## Go·导入
@@ -1256,7 +1256,7 @@
 | `InputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:29` | 输入事件 handler 集合（供 fullCleanup 解绑用） |
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:28` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
-| `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:384` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
+| `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:378` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:60` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:170` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:177` | — |
@@ -2090,9 +2090,9 @@
 | `setRenderMode()` | `frontend/src/views/app-tree/render:49` | Set render mode to localStorage |
 | `buildTree()` | `frontend/src/views/app-tree/render:54` | — |
 | `flattenVisible()` | `frontend/src/views/app-tree/render:112` | — |
-| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:267` | 断开虚拟滚动相关监听 |
-| `renderTree()` | `frontend/src/views/app-tree/render:276` | — |
-| `updateStat()` | `frontend/src/views/app-tree/render:343` | — |
+| `cleanupVirtualScroll()` | `frontend/src/views/app-tree/render:263` | 断开虚拟滚动相关监听 |
+| `renderTree()` | `frontend/src/views/app-tree/render:272` | — |
+| `updateStat()` | `frontend/src/views/app-tree/render:339` | — |
 | `fileRowCommon()` | `frontend/src/views/app-tree/row-common:11` | 文件行公共计算：path 转义、开关状态、禁用 class、类型图标、缩进 |
 | `folderRowCommon()` | `frontend/src/views/app-tree/row-common:34` | 文件夹行公共计算：图标、颜色、箭头、开关 class、显示名、缩进 |
 | `listFileRowHTML()` | `frontend/src/views/app-tree/row-tpl-list:8` | 文件行 HTML（紧凑列表模式：icon + name + size，无 hover actions、无 date、无 tag dot） |

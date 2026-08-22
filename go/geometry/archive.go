@@ -252,7 +252,18 @@ func collectArchiveFiles(entries []container.Entry) (modelOrder, texOrder []stri
 								tn = tn[idx+1:]
 							}
 							tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-							texOrder = append(texOrder, tn)
+							// 去重：vehicles 段 horse+mule 都指向 foxcar.png，
+							// 重复追加会导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）
+							alreadyIn := false
+							for _, ex := range texOrder {
+								if ex == tn {
+									alreadyIn = true
+									break
+								}
+							}
+							if !alreadyIn {
+								texOrder = append(texOrder, tn)
+							}
 						}
 						if pr.Model != "" {
 							// 收集模型路径 + 声明的纹理名，texIdxMap 构建时用 texName 查 texOrder 位置
@@ -679,7 +690,18 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 								tn = tn[idx+1:]
 							}
 							tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-							texOrder = append(texOrder, tn)
+							// 去重：vehicles 段 horse+mule 都指向 foxcar.png，
+							// 重复追加会导致后续纹理 texSlot 偏移（minecart 采样到 boat.png）
+							alreadyIn := false
+							for _, ex := range texOrder {
+								if ex == tn {
+									alreadyIn = true
+									break
+								}
+							}
+							if !alreadyIn {
+								texOrder = append(texOrder, tn)
+							}
 						}
 						if pr.Model != "" {
 							// 收集模型路径 + 声明的纹理名，texIdxMap 构建时用 texName 查 texOrder 位置
