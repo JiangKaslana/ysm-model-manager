@@ -17,16 +17,22 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const REPO_ROOT = resolve(__dirname, '..');
 const CUBE_MESH_TS = resolve(REPO_ROOT, 'frontend/src/utils/3d/cube-mesh.ts');
-const ESBUILD_BIN = resolve(REPO_ROOT, 'frontend/node_modules/esbuild/bin/esbuild');
+
+// esbuild 解析：port-align.mjs 在仓库根，从 frontend/ 向上走 Node 模块解析，
+// 找到 esbuild/bin/esbuild。不硬编码 node_modules 路径，兼容 hoisting。
+const require = createRequire(join(REPO_ROOT, 'frontend', 'package.json'));
+const ESBUILD_PKG = require.resolve('esbuild/package.json');
+const ESBUILD_BIN = resolve(dirname(ESBUILD_PKG), 'bin', 'esbuild');
 
 const TOL = 1e-3; // 几何/位置/四元数对照容差（吸收零厚度 0.001 微调；真实分歧 ≥ 1.0）
 
@@ -37,20 +43,26 @@ async function loadTsPort() {
   const tmp = mkdtempSync(join(tmpdir(), 'port-align-'));
   const outfile = join(tmp, 'cube-mesh.bundle.mjs');
   try {
-    execFileSync(process.execPath, [
-      ESBUILD_BIN,
-      CUBE_MESH_TS,
-      '--bundle',
-      '--format=esm',
-      '--platform=node',
-      `--outfile=${outfile}`,
-    ], { stdio: 'pipe' });
+    try {
+      execFileSync(process.execPath, [
+        ESBUILD_BIN,
+        CUBE_MESH_TS,
+        '--bundle',
+        '--format=esm',
+        '--platform=node',
+        `--outfile=${outfile}`,
+      ], { stdio: 'pipe' });
+    } catch (e) {
+      console.error('[port-align] esbuild 打包 TS 端口失败：', e.stderr?.toString() || e.message);
+      rmSync(tmp, { recursive: true, force: true });
+      process.exit(2);
+    }
+    const mod = await import(pathToFileURL(outfile).href);
+    return { mod, cleanup: () => rmSync(tmp, { recursive: true, force: true }) };
   } catch (e) {
-    console.error('[port-align] esbuild 打包 TS 端口失败：', e.stderr?.toString() || e.message);
-    process.exit(2);
+    rmSync(tmp, { recursive: true, force: true });
+    throw e;
   }
-  const mod = await import(pathToFileURL(outfile).href);
-  return { mod, cleanup: () => rmSync(tmp, { recursive: true, force: true }) };
 }
 
 // ============================================================
@@ -151,7 +163,10 @@ function oracleCube(s, bonePivot) {
     [fx, fy, tz], [tx, fy, tz], [fx, ty, tz], [tx, ty, tz],
   ];
 
-  // mesh localPosition = bonePivot + cp（对齐 cube-mesh.ts:207）
+  // mesh localPosition（轴非对称，对齐 cube-mesh.ts:206 + computeMeshLocalPos）：
+  //   X: bonePivot[0] + cp[0]  — cp[0] 已 X 翻号(=-pivot[0])，+ cp[0] = bonePivot.x - pivot.x
+  //   Y: cp[1] - bonePivot[1]  — Y 不翻号
+  //   Z: cp[2] - bonePivot[2]  — Z 不翻号
   const localPosition = [
     bonePivot[0] + cp[0],
     cp[1] - bonePivot[1],
