@@ -73,6 +73,7 @@ git reset --soft HEAD~1             # 撤销最近提交，改动留在暂存区
 | 发布 / 维护 | `docs/releases/` + `docs/maintenance.md` |
 | Android | `docs/android-dev.md` |
 | 特殊创作 | `docs/novel/AGENTS.md` |
+| `upstream/` 目录 | 第三方 vendor（Parser / Viewer / TouhouLittleMaid）；其内 `AGENTS.md` 只在该子目录内有效、与本仓规则无关，改它即改上游 |
 
 ## 工具口令（高频，全表见 `scripts/README.md`）
 
