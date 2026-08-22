@@ -798,6 +798,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-116：前端 vs Go 职责红线：筛选/类型判定权威层归 Go",
+        "link": "/adr/ADR-116-frontend-go-boundary"
+      },
+      {
         "text": "ADR-115：跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡）",
         "link": "/adr/ADR-115-append-semantics"
       },

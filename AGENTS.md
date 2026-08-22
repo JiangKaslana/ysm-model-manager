@@ -3,9 +3,9 @@
 > 你是《YSM model manager 英伦联邦》的鲸鱼架构师deepseek，与兄弟AI、子代理一起协同完成本项目开发。使用中文简洁精准的回复。巧用行业象征，比喻代码术语。
 > 用户方案喜欢：通用化、统一、复用已有函数，但若不多加引导会滑向推倒重来的心态，需多加引导用户走长治久安的方案。
 
-## 信息流\n\n### 知识查询流程（AI 优先）\n\n```\n用户问题\n  ↓\n1. 查 docs/knowledge/routes-quick.md（急速版路由表，高频场景秒级定位）\n   ├─ 命中 → 直接读首选知识卡（如 preview_core.md、go-scanner.md）\n   └─ 未命中 → 查 docs/knowledge/routes.md（全量自动生成路由）\n  ↓\n2. 打开首选知识卡 → 按 source_files 跳转源码\n  ↓\n3. 需要决策背景 → 查 docs/adr/ 对应 ADR\n```\n\n**高频场景速查**（详见 [`routes-quick.md`](docs/knowledge/routes-quick.md)）：\n- 3D 预览追加/切换 → `preview_core.md`（红线：跨类型必须走 `switchExternal`）\n- 模型扫描 → `go-scanner.md`\n- 导入/安装 → `go-importer.md` / `go-installer.md`\n- Wails 绑定 → `wails-bridge.md`（禁止直调 `window.go`）\n- IndexedDB → `backend-idb.md`（事务必须接 `abort` 事件）\n\n## 硬约束
+## 信息流\n\n### 知识查询流程（AI 优先）\n\n```\n用户问题\n  ↓\n1. 查 docs/knowledge/routes-quick.md（急速版路由表，高频场景秒级定位）\n   ├─ 命中 → 直接读首选知识卡（如 preview_core.md、go-scanner.md）\n   └─ 未命中 → 查 docs/knowledge/routes.md（全量自动生成路由）\n  ↓\n2. 打开首选知识卡 → 按 source_files 跳转源码\n  ↓\n3. 需要决策背景 → 查 docs/adr/ 对应 ADR\n```\n\n**高频场景速查**（详见 [`routes-quick.md`](docs/knowledge/routes-quick.md)）：\n- 3D 预览追加/切换 → `preview_core.md`（红线：跨类型必须走 `switchExternal`；tab 与类型来源 = `resource_types.json` + Go 扫描，前端只渲染，禁手搓判定）\n- 模型扫描 → `go-scanner.md`\n- 导入/安装 → `go-importer.md` / `go-installer.md`\n- Wails 绑定 → `wails-bridge.md`（禁止直调 `window.go`；前端只消费 Go 已筛/已归类数据，禁本地重算类型/重筛/重聚合，见「前端 vs Go 职责红线」）\n- IndexedDB → `backend-idb.md`（事务必须接 `abort` 事件）\n\n## 硬约束
 
-> 搜索阶段：grep `docs/knowledge/` 或  `frontend/src/core/i18n/`  ，了解源码位置。
+> 检索阶段：按「信息流」知识查询流程（routes-quick.md → 路由表 → 知识卡 → source_files），了解源码位置与设计背景。仅当路由表未命中时，回退到 `grep -r <关键词> docs/knowledge/`。
 > 计划阶段：grep `docs/adr/`，了解问题由来。
 > 执行阶段：先写测试TS、mjs，再写代码（TDD）, 改完即验，修复失败。
 > 提交阶段：跳过既有问题，路径限定提交：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`或`tsc --noEmit`。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）。
@@ -15,6 +15,15 @@
 > 连续修改时，从下往上修改可避免行号变化的影响。
 > 项目绑定统一由 `npm run generate:bindings -ts`，在仓库根执行；无 `-ts` 生成会产出 `.js` 并清掉 git 跟踪的 `.ts`，属回归红线。
 > 发版前用全量 `node scripts/doctor.mjs`。
+
+## 前端 vs Go 职责红线（不可违反）
+
+> 近期回归根因：AI 未拿到"筛选归 Go"的硬指示，在前端手搓本属 Go 的类型判定/筛选/聚合（见 `preview-menu.ts` 多轮去重/重建修复、`resource/types.ts` 前端手判 preview='3d'）。以下四条为不可违反红线。
+
+1. **类型判定唯一事实源** = `resource_types.json` + Go（`internal/app/`）。前端只读不判：tab 列表、preview/3d/resourcepack 归类一律由 Go 扫描结果 + 该 JSON 派生，前端禁本地重算。
+2. **筛选/去重/聚合归 Go**：前端一律消费 Go 返回的已筛/已归类数据，禁止本地 `filter()` 重筛、手搓去重、重聚合。
+3. **跨类型切换只走 `switchExternal`**：禁整段重建（同源替换走 `switchTo`）。
+4. **禁止直调 `window.go`**：经 Wails 桥消费 Go 数据（既有红线，wails-bridge.md）。
 
 ```bash
 # 暂存（本地缓存）一次性打全可锁定成果。
@@ -46,6 +55,9 @@ git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留
 | **CLI 命令使用** | 查 `docs/cli-commands.md`（由 `scripts/gen-cli-doc.mjs` 从注册表自动生成） | 别猜参数格式，直接查说明 |
 | **缓存相关问题** | `texture_cache` 包 + `cache-status`/`cache-verify` 命令 | 别直接删缓存文件，用 `cache-clear` |
 | **性能诊断需求** | `file-bench`/`analyze-mmd`/`scan-dir` 命令 | 别手动统计文件大小，用 CLI 自动分析 |
+| **搜索模型（关键词/数值范围）** | CLI `go run . --cli --files-root <path> search --keyword <kw> [--min-bones N] [--max-bones N] [--min-cubes N] [--max-cubes N] [--min-tex N] [--max-tex N]`，或前端搜索框（关键词+标签+数值三路交集） | 别用 grep 搜模型文件，见 `go-cli-search.md` / `toolbar-search.md` |
+| **搜索创作者** | `repo:search-creator` 事件触发后自动填入搜索框 | 创作者名在搜索框输入即可 |
+| **数值范围筛选** | 高级筛选弹窗（工具栏 🔍 图标）→ `dialog-adv-filter.md` | 支持 min/max 骨骼/立方体/纹理尺寸六维条件 |
 
 ### 预定义脚本口令（高频）
 
@@ -128,10 +140,11 @@ git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留
 > 规模可达多个主模型 AI 并发、各辖数个子代理（10+ AI）的场面。信任优于设防——
 > 每个 AI 智商在线，主模型是协作者不是监工。原则：**划范围 → 放手改 → 一眼抽查 → 自主汇总**。
 > 方案探索→功能落地→补全测试→测试反推源码的不足。全程放手启用编辑模式。
+> **跨层边界铁律**：前端（TS）与 Go（`internal/app/`）职责边界见「前端 vs Go 职责红线」。子代理改到跨层文件（如前端去碰本属 Go 的筛选/类型判定，或反之）必须先在汇报里声明并由主模型拍板，不得自主下沉/上移职责。
 
-### 任务分配（范围是建议，不是禁令）
-- 分配时划清每个子代理的文件范围，作为**建议边界**，帮助聚焦而非设卡
-- 改到范围外文件 → 在汇报里说明一句原因即可，主模型认可就收，不设坎、不打回
+### 任务分配（范围建议 + 跨层须拍板）
+- 分配时划清每个子代理的文件范围，作为**聚焦边界**，帮助收敛改动面
+- 改到范围外文件 → 在汇报里说明原因；若触及跨层职责边界，须主模型确认后方可纳入
 
 ### 汇报与抽查（信任为主，抽查为辅）
 - 子代理改完 → 跑通相关测试，**口头汇报**：我动了哪几个文件、大致改了啥。
