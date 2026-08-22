@@ -43,11 +43,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 140 | 546 |
+| 前端·工具 | 140 | 547 |
 | frontend/views | 115 | 331 |
 | 前端·WASM | 6 | 12 |
 | frontend/workers | 2 | 14 |
-| **合计** | **441** | **1898** |
+| **合计** | **441** | **1899** |
 
 ## Go·头像
 
@@ -373,10 +373,10 @@
 | `InvalidatePath()` | `go/scanner/scanner:163` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
 | `ScanEntries()` | `go/scanner/scanner:194` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:201` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:363` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:417` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:447` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:510` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ComputeFileHash()` | `go/scanner/scanner:367` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:421` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:451` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:514` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -1691,11 +1691,12 @@
 | `resolveAndroidRepoDir()` | `frontend/src/utils/dom/directory-picker:25` | Android 共享仓库目录解析（双端桥接：授权引导 + 定位公共目录）。 |
 | `pickDirectory()` | `frontend/src/utils/dom/directory-picker:65` | 选择目录：桌面走系统对话框；查看器模式（Android/网页版）走授权检查 + 自动定位公共目录 |
 | `stripBanSuffix()` | `frontend/src/utils/dom/display:9` | 剥离 .ban 禁用后缀（大小写不敏感）。 |
-| `ParsedModelName()` | `frontend/src/utils/dom/display:14` | 解析后的模型文件名字段 |
-| `parseModelName()` | `frontend/src/utils/dom/display:53` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
-| `renderDisplayName()` | `frontend/src/utils/dom/display:122` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
-| `renderModelName()` | `frontend/src/utils/dom/display:191` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
-| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:200` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
+| `modelDisplayName()` | `frontend/src/utils/dom/display:19` | 从完整路径提取模型显示名。 |
+| `ParsedModelName()` | `frontend/src/utils/dom/display:29` | 解析后的模型文件名字段 |
+| `parseModelName()` | `frontend/src/utils/dom/display:68` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
+| `renderDisplayName()` | `frontend/src/utils/dom/display:137` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
+| `renderModelName()` | `frontend/src/utils/dom/display:206` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
+| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:215` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `isFileExistsError()` | `frontend/src/utils/dom/errors:87` | 判断错误消息是否为「文件已存在」冲突（索引 4.2 收敛）。 |

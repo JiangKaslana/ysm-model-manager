@@ -323,7 +323,11 @@ retry:
 			emitScanError("[scanner] 获取文件信息失败 %s: %v，跳过该文件", p, err)
 			return nil
 		}
-		e := types.ModelEntry{Name: filepath.Base(p), Path: p, Ext: originalExt}
+		name := filepath.Base(p)
+		if types.IsYsmEntryJSON(name) {
+			name = filepath.Base(filepath.Dir(p))
+		}
+		e := types.ModelEntry{Name: name, Path: p, Ext: originalExt}
 		e.Size = info.Size()
 		e.ModTime = info.ModTime().UnixMilli()
 		// 计算 SHA256 供同步系统使用（GetInstanceStatus 依赖哈希匹配）
