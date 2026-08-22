@@ -1,0 +1,87 @@
+use crate::response::{scan_json, ScanResponse};
+use std::{panic::AssertUnwindSafe, ptr, slice, str};
+
+/// Owned byte buffer returned across the C ABI.
+#[repr(C)]
+pub struct YsmBuffer {
+    pub ptr: *mut u8,
+    pub len: usize,
+    pub cap: usize,
+}
+
+impl YsmBuffer {
+    fn from_vec(mut bytes: Vec<u8>) -> Self {
+        let buffer = Self {
+            ptr: bytes.as_mut_ptr(),
+            len: bytes.len(),
+            cap: bytes.capacity(),
+        };
+        std::mem::forget(bytes);
+        buffer
+    }
+}
+
+fn input_utf8<'a>(ptr: *const u8, len: usize, label: &str) -> Result<&'a str, String> {
+    if len == 0 {
+        return Ok("");
+    }
+    if ptr.is_null() {
+        return Err(format!("{label} pointer is null"));
+    }
+    // SAFETY: the ABI contract requires `ptr` to reference `len` readable bytes.
+    let bytes = unsafe { slice::from_raw_parts(ptr, len) };
+    str::from_utf8(bytes).map_err(|error| format!("{label} is not UTF-8: {error}"))
+}
+
+fn encode_response(response: ScanResponse) -> YsmBuffer {
+    let bytes = serde_json::to_vec(&response).unwrap_or_else(|error| {
+        format!(r#"{{"entries":[],"errors":[],"cacheable":false,"error":"response serialization failed: {error}"}}"#).into_bytes()
+    });
+    YsmBuffer::from_vec(bytes)
+}
+
+/// Scan one library root and return a UTF-8 JSON response through `out`.
+///
+/// # Safety
+/// Non-empty input pointers must reference their declared readable byte ranges. `out` must point
+/// to writable storage for one [`YsmBuffer`].
+#[no_mangle]
+pub unsafe extern "C" fn ysm_scan_json(
+    root_ptr: *const u8,
+    root_len: usize,
+    registry_ptr: *const u8,
+    registry_len: usize,
+    out: *mut YsmBuffer,
+) -> i32 {
+    if out.is_null() {
+        return -1;
+    }
+    let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let root = input_utf8(root_ptr, root_len, "root")?;
+        let registry = input_utf8(registry_ptr, registry_len, "registry")?;
+        Ok::<_, String>(scan_json(root, registry))
+    }));
+    let response = match result {
+        Ok(Ok(response)) => response,
+        Ok(Err(error)) => ScanResponse::fatal(error),
+        Err(_) => ScanResponse::fatal("Rust scanner panicked"),
+    };
+    // SAFETY: null was rejected above and the caller owns writable output storage.
+    unsafe { ptr::write(out, encode_response(response)) };
+    0
+}
+
+/// Release a buffer returned by [`ysm_scan_json`].
+///
+/// # Safety
+/// The parts must be unchanged and released exactly once.
+#[no_mangle]
+pub unsafe extern "C" fn ysm_buffer_free(ptr: *mut u8, len: usize, cap: usize) {
+    if ptr.is_null() {
+        return;
+    }
+    // SAFETY: these parts came from `Vec<u8>` and ownership is transferred back once.
+    unsafe {
+        drop(Vec::from_raw_parts(ptr, len, cap));
+    }
+}

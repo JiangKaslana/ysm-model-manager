@@ -206,6 +206,16 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 		// 一整个 []ModelEntry）持续滞留，内存增长；Load 命中过期时顺手 Delete
 		scanCache.Delete(dir)
 	}
+	// Keep the public Go/Wails contract stable while production Windows builds progressively move
+	// scanner internals to Rust. Unsupported platforms or bridge failures use the proven Go path.
+	if rustEntries, cacheable, handled := scanEntriesWithRust(dir); handled {
+		stored := append([]types.ModelEntry(nil), rustEntries...)
+		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
+		if cacheable && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
+			scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
+		}
+		return rustEntries, false
+	}
 	entries := []types.ModelEntry{}
 	// 根目录级 walk 失败标记——目录不存在/无权限时 WalkDir
 	// 仅回调一次 err 后结束，原实现打印后返回空列表并照常 Store 进缓存 30s，

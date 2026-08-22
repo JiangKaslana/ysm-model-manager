@@ -60,6 +60,22 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "   ✅ helper 已编译到 go/updater/" -ForegroundColor Green
 
+# 1c. 构建并嵌入 Rust 扫描桥。前端/Wails 绑定保持不变，只有扫描热路径切到 Rust；
+# bridge DLL 作为字节嵌入主 exe，发布目录仍然只有一个可执行文件。
+Write-Host "🦀 构建 Rust 扫描桥..." -ForegroundColor Yellow
+Set-Location $ProjectRoot
+cargo build --release --locked --manifest-path rust-wails-bridge/Cargo.toml 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Rust bridge 构建失败" -ForegroundColor Red
+    exit 1
+}
+$RustBridgeDir = "$ProjectRoot\go\rustbridge\bin"
+New-Item -ItemType Directory -Path $RustBridgeDir -Force | Out-Null
+Copy-Item -Force `
+    "$ProjectRoot\rust-wails-bridge\target\release\ysm_model_manager_wails_bridge.dll" `
+    "$RustBridgeDir\ysm_model_manager_wails_bridge.dll"
+Write-Host "   ✅ Rust bridge 已嵌入准备完成" -ForegroundColor Green
+
 # 2. 运行代码生成（litematic block_ids 等）
 Write-Host "🧬 代码生成..." -ForegroundColor Yellow
 Set-Location $ProjectRoot
@@ -75,7 +91,7 @@ if ($LASTEXITCODE -ne 0) {
 #          将前端资源打包进单文件 exe；更新助手 ysm-updater-helper.exe 已在步骤 1b 构建。
 Write-Host "🦫 编译主程序 $VerTag ..." -ForegroundColor Yellow
 Set-Location $ProjectRoot
-go build -ldflags "-X ysm-model-manager/go/version.Version=$VerTag" -o "$OutputDir\$ExeName" . 2>&1
+go build -tags "rust_backend" -ldflags "-X ysm-model-manager/go/version.Version=$VerTag" -o "$OutputDir\$ExeName" . 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ go build 失败" -ForegroundColor Red
     exit 1
