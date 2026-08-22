@@ -962,13 +962,22 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
 const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
 
 /** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮。
- *  默认高亮上次点击的类型（localStorage 全局记忆）；若该类型不在当前 tabs 列表，回退当前目录。 */
+ *  默认高亮优先级：① 用户手动记忆的类型（localStorage）② 当前模型自身类型（getCurrentRtype）
+ *  ③ 当前目录。当前目录不再是默认高亮项，降级为手动备选。 */
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
-  // 全局记忆：读上次类型，单源容错——不在当前 tabs 则回退 ""（当前目录）
+  const curRtype = ctx.getCurrentRtype?.() ?? "";
+  // 默认高亮：手动记忆优先；记忆无效（无/越界）则回退当前模型类型；再不行才当前目录
   const remembered = safeGet(PREVIEW_LAST_RTYPE_KEY);
-  let activeTab = remembered !== null && rtypes.includes(remembered) ? remembered : "";
+  let activeTab: string;
+  if (remembered !== null && rtypes.includes(remembered)) {
+    activeTab = remembered;
+  } else if (curRtype && rtypes.includes(curRtype)) {
+    activeTab = curRtype;
+  } else {
+    activeTab = "";
+  }
 
   // 类型 tab 行：「当前目录」恒在首位，后接各资源类型（点击懒加载）
   const tabBar = document.createElement("div");

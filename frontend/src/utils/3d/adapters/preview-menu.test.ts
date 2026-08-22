@@ -423,8 +423,9 @@ describe("mountPreviewRootMenu", () => {
     localStorage.removeItem("ysm.preview.lastRtype");
   });
 
-  it("类型 tab 全局记忆：记忆类型不在当前 tabs 列表 → 回退当前目录高亮", () => {
+  it("类型 tab 默认高亮：记忆越界但当前模型类型在 tabs → 高亮当前类型（非当前目录）", () => {
     const switchTo = vi.fn();
+    // 记忆一个越界类型（如之前看过的 litematic），但当前模型是 ysm
     localStorage.setItem("ysm.preview.lastRtype", "litematic");
     const handle = mountPreviewRootMenu(overlay, makeCtx({
       getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
@@ -437,14 +438,59 @@ describe("mountPreviewRootMenu", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
     modelBtn!.click();
     const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
+    const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
     const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "") as HTMLElement;
-    const vrmTab = Array.from(tabs).find((t) => t.dataset.rtype === "vrm") as HTMLElement;
-    // 当前目录（""）高亮，litematic 不在列表故不回显
-    expect(dirTab.style.background).toContain("124");
-    expect(dirTab.style.background).toContain("131");
-    expect(vrmTab.style.background).not.toContain("124, 131");
+    // 当前类型 ysm 高亮（记忆越界不污染），当前目录不高亮
+    expect(ysmTab.style.background).toContain("124");
+    expect(ysmTab.style.background).toContain("131");
+    expect(dirTab.style.background).not.toContain("124, 131");
     handle.dispose();
     localStorage.removeItem("ysm.preview.lastRtype");
+  });
+
+  it("类型 tab 默认高亮：记忆与当前类型均越界 → 回退当前目录", () => {
+    const switchTo = vi.fn();
+    localStorage.setItem("ysm.preview.lastRtype", "litematic");
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
+      getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "unknown-rtype",
+      getTypeTabs: () => ["ysm", "vrm"],
+      getModelsByType: async () => [],
+      switchTo,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
+    modelBtn!.click();
+    const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
+    const dirTab = Array.from(tabs).find((t) => t.dataset.rtype === "") as HTMLElement;
+    const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
+    // 记忆与当前类型都不在 tabs → 当前目录高亮
+    expect(dirTab.style.background).toContain("124");
+    expect(dirTab.style.background).toContain("131");
+    expect(ysmTab.style.background).not.toContain("124, 131");
+    handle.dispose();
+    localStorage.removeItem("ysm.preview.lastRtype");
+  });
+
+  it("类型 tab 默认高亮：无记忆 + 当前类型在 tabs → 直接高亮当前类型", () => {
+    const switchTo = vi.fn();
+    localStorage.removeItem("ysm.preview.lastRtype");
+    const handle = mountPreviewRootMenu(overlay, makeCtx({
+      getSiblings: () => ["/m/a.ysm", "/m/b.ysm"],
+      getCurrentPath: () => "/m/a.ysm",
+      getCurrentRtype: () => "ysm",
+      getTypeTabs: () => ["ysm", "vrm"],
+      getModelsByType: async () => [],
+      switchTo,
+    }));
+    const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-model"]`);
+    modelBtn!.click();
+    const tabs = overlay.querySelectorAll<HTMLElement>('[data-testid="preview-switch-tab"]');
+    const ysmTab = Array.from(tabs).find((t) => t.dataset.rtype === "ysm") as HTMLElement;
+    // 开 YSM 模型默认就高亮 YSM（你反馈的核心痛点）
+    expect(ysmTab.style.background).toContain("124");
+    expect(ysmTab.style.background).toContain("131");
+    handle.dispose();
   });
 });
 
