@@ -1676,6 +1676,14 @@ func buildComponents(geoFiles []geoEntry, modelOrder, texOrder []string, pngs []
 		if j, declared := orderMap[filepath.ToSlash(gf.name)]; declared && j < len(texOrder) {
 			declaredTexName = texOrder[j]
 		}
+		// 未声明纹理的组件：同名 basename 纹理兜底（arm → arm.png；对齐 YSMViewer
+		// 每组件独立纹理口径——Go 端识别组件同名纹理，前端不再 fallback 全局贴错/灰。
+		// 三叉戟灰根因修复：投射物/子组件未声明纹理时 compTex 曾无条目）
+		if declaredTexName == "" {
+			if _, ok := pngNameMap[compName]; ok {
+				declaredTexName = compName
+			}
+		}
 
 		// 按声明的纹理名查 pngNameMap → pngs[idx] → base64
 		var texBase64 string
