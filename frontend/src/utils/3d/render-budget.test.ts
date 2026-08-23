@@ -1,18 +1,44 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import {
   PREVIEW_FRAME_INTERVAL_MS,
   previewPixelRatio,
   createAdaptiveRenderBudget,
   sampleAdaptivePixelRatio,
   shouldRenderPreviewFrame,
+  getMaxPixelRatio,
+  MAX_PIXEL_RATIO_KEY,
 } from "./render-budget.ts";
 
 describe("3D preview render budget", () => {
+  // code review P3：previewPixelRatio 现经 getMaxPixelRatio 读 localStorage——
+  // 清 key 使断言确定性（不依赖环境存储状态）
+  beforeEach(() => {
+    localStorage.removeItem(MAX_PIXEL_RATIO_KEY);
+  });
+
   it("caps high-DPI rendering at 1.5x", () => {
     expect(previewPixelRatio(1)).toBe(1);
     expect(previewPixelRatio(1.25)).toBe(1.25);
     expect(previewPixelRatio(2)).toBe(1.5);
     expect(previewPixelRatio(3)).toBe(1.5);
+  });
+
+  it("getMaxPixelRatio：缺省 1.5 / 非法值回退 / clamp 到 [0.5, 2]", () => {
+    expect(getMaxPixelRatio()).toBe(1.5); // 无 key → 缺省
+    localStorage.setItem(MAX_PIXEL_RATIO_KEY, "abc");
+    expect(getMaxPixelRatio()).toBe(1.5); // 非法 → 回退
+    localStorage.setItem(MAX_PIXEL_RATIO_KEY, "0");
+    expect(getMaxPixelRatio()).toBe(1.5); // 0 → 回退
+    localStorage.setItem(MAX_PIXEL_RATIO_KEY, "-1");
+    expect(getMaxPixelRatio()).toBe(1.5); // 负 → 回退
+    localStorage.setItem(MAX_PIXEL_RATIO_KEY, "0.25");
+    expect(getMaxPixelRatio()).toBe(0.5); // 低于下限 → clamp 0.5
+    localStorage.setItem(MAX_PIXEL_RATIO_KEY, "100");
+    expect(getMaxPixelRatio()).toBe(2); // 高于上限 → clamp 2
+    localStorage.setItem(MAX_PIXEL_RATIO_KEY, "0.5");
+    expect(getMaxPixelRatio()).toBe(0.5); // 下边界
+    localStorage.setItem(MAX_PIXEL_RATIO_KEY, "2");
+    expect(getMaxPixelRatio()).toBe(2); // 上边界
   });
 
   it("caps rendering near 60fps and pauses while hidden", () => {

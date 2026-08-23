@@ -135,6 +135,9 @@ func Audit(dirPath string) (Result, error) {
 	var largestFile string
 	var largestSize int64
 	resources := map[string]int{}
+	// code review P3：注册表加载提升到 walk 外——per-file TypeByLocation 不再
+	// 每文件 LoadRegistry（mutex + 解析开销——大仓库线性放大）
+	reg := types.LoadRegistry()
 
 	err := filepath.WalkDir(dirPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -179,7 +182,7 @@ func Audit(dirPath string) (Result, error) {
 		// （.zip 被 14 类型声明）last-wins 归最后一个声明者，mmd/PMX 下模型包 zip
 		// 会误归 DefaultMorph——目录归属优先（TypeByLocation），容器未命中标
 		// "container"（与 gui-flow 统计口径一致，2026-08-23 修复）。
-		typeName := types.TypeByLocation(path, types.LoadRegistry())
+		typeName := types.TypeByLocation(path, reg)
 		if typeName == "" {
 			if types.IsContainerExt(ext) {
 				typeName = "container"

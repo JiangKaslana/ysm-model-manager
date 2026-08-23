@@ -24,7 +24,7 @@ import { ENV_PRESET_LINKAGE, type EnvPresetId } from "../caps/environment-capabi
 import { sceneRegistry, type ModelEntry } from "./scene-registry.ts";
 import type { FogCapability } from "../caps/fog-capability.ts";
 import { isFrustumCullEnabled, setFrustumCullEnabled } from "../frustum-cull.ts";
-import { getMaxPixelRatio } from "../render-budget.ts";
+import { getMaxPixelRatio, MAX_PIXEL_RATIO_KEY } from "../render-budget.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
@@ -1355,7 +1355,6 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   // 渲染分辨率上限 slider（控制 render-budget 的 pixelRatio cap，0.5–2.0）
   // 持久化键 ysm_3d_maxPixelRatio 由 render-budget.ts 的 getMaxPixelRatio 读取；
   // 写入用 safeSet（隐私模式安全）。改后需重新进入 3D 预览生效（renderer 创建时读）。
-  const RES_KEY = "ysm_3d_maxPixelRatio";
   const resCap = getMaxPixelRatio();
 
   const resRow = document.createElement("div");
@@ -1378,7 +1377,7 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   resSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
   resSlider.oninput = (): void => {
     const v = Number(resSlider.value);
-    safeSet(RES_KEY, String(v));
+    safeSet(MAX_PIXEL_RATIO_KEY, String(v));
     resVal.textContent = `${v.toFixed(2)}x`;
   };
   resRow.append(resHead, resSlider);

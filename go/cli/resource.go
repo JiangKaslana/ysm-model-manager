@@ -51,8 +51,8 @@ type resourceStats struct {
 // （.zip 被 14 类型声明）last-wins 归最后一个声明者，mmd/PMX 下模型包 zip
 // 会误归 DefaultMorph（2026-08-23 与 gui-flow/仓库体检同源修复）；容器未命中
 // 标 "container"。
-func addClassified(path, ext string, stats *resourceStats) {
-	t := types.TypeByLocation(path, types.LoadRegistry())
+func addClassified(path, ext string, stats *resourceStats, reg *types.ResourceTypeRegistry) {
+	t := types.TypeByLocation(path, reg)
 	if t == "" {
 		if types.IsContainerExt(ext) {
 			t = "container"
@@ -90,6 +90,8 @@ func runResourceScan(ctx *CmdContext) error {
 	}
 
 	threshold := cliScanLargeFileThreshold
+	// code review P3：注册表加载提升到 walk 外（per-file TypeByLocation 不再每文件 LoadRegistry）
+	reg := types.LoadRegistry()
 
 	err = filepath.Walk(*dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -122,7 +124,7 @@ func runResourceScan(ctx *CmdContext) error {
 		}
 
 		// 按类型分类统计（location 路由 + 扩展名兜底）
-		addClassified(path, ext, &result.Stats)
+		addClassified(path, ext, &result.Stats, reg)
 
 		return nil
 	})

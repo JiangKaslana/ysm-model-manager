@@ -1,14 +1,17 @@
 import { safeGet } from "../../utils/dom/storage.ts";
 
 const PREVIEW_MAX_PIXEL_RATIO_DEFAULT = 1.5;
-const MAX_PIXEL_RATIO_KEY = "ysm_3d_maxPixelRatio";
+// 存储键单一事实来源（code review P3：preview-menu 设置面板写同一键——不再双份硬编码）
+export const MAX_PIXEL_RATIO_KEY = "ysm_3d_maxPixelRatio";
 
-/** 读取用户设置的渲染分辨率上限（设置面板 slider 持久化）；缺省 1.5 */
+/** 读取用户设置的渲染分辨率上限（设置面板 slider 持久化）；缺省 1.5。
+ *  clamp 到滑块范围 [0.5, 2]（code review P3：陈旧/手改 localStorage 值
+ *  （"0.01"/"100"）不产生离谱像素比——与设置面板显示/控件一致）。 */
 export function getMaxPixelRatio(): number {
   const v = safeGet(MAX_PIXEL_RATIO_KEY);
   if (v === null) return PREVIEW_MAX_PIXEL_RATIO_DEFAULT;
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n : PREVIEW_MAX_PIXEL_RATIO_DEFAULT;
+  return Number.isFinite(n) && n > 0 ? Math.min(2, Math.max(0.5, n)) : PREVIEW_MAX_PIXEL_RATIO_DEFAULT;
 }
 
 export const PREVIEW_FRAME_INTERVAL_MS = 1000 / 60;
