@@ -42,7 +42,7 @@ invariant_anchors:
 
 ## 核心职责
 
-- `index.ts` — `<app-sidebar>` 生命周期编排：`observedAttributes: ["rtype"]`、订阅刷新事件、全选/同步所选（推送走 `sync:download:missing` 事件 + correlation token，拉取直调 `PullResourceFromInstance`）、`_reload` 带 `_loading` 并发守卫
+- `index.ts` — `<app-sidebar>` 生命周期编排：`observedAttributes: ["rtype"]`、订阅刷新事件、全选/同步所选（推送走 `sync:download:missing` 事件 + correlation token，拉取直调 `PullResourceFromInstance`）、`_reload` 带 `_loading` 并发守卫。**构造函数 rtype 缺省读 `currentRepoType()`**（P1 修复：tpl.ts 挂载 `<app-sidebar>` 不传 rtype 属性，此前恒回落 YSM，整合包标题首屏显示 `(ysm)` 须手动切导航标签才被 `repo:rtype-changed` 纠正；现与仓库页 `initRepositoryPage` 的 `savedRtype` 恢复逻辑对齐，首屏即正确）
 - `tpl.ts` — 布局模板：`headerHTML` / `footerHTML` / `listContainerHTML` / `vcHeaderHTML`（版本卡片头）
 - `data.ts` — 数据层类型：`SidebarInstance` 接口
 - `loader.ts` — `loadInstances(rtype)`：调 Go 拉取实例与同步状态并转换为渲染格式（含 MMD `.pmx` 变体按父文件夹聚合 `groupMmdVariants`），前后派发 `loading:start` / `loading:end`；**同 rtype 在途请求合并**（2026-08-21：`_inflight` 表按归一后 rtype 键去重并发调用，空 rtype 回退 ysm 同键——配合 go/scanner 在途合并，治点击整合包时多组件并发触发的重复扫描刷屏）
@@ -52,7 +52,7 @@ invariant_anchors:
 
 ## 对外 API / 入口
 
-- 自定义元素：`<app-sidebar rtype="ysm">`（属性变更触发 `_reload` 与按钮文案更新）
+- 自定义元素：`<app-sidebar rtype="ysm">`（属性变更触发 `_reload` 与按钮文案更新；**属性缺省时构造函数读 `currentRepoType()`**——localStorage `repo_rtype` 权威源，app-nav 切换器落盘，首屏整合包标题即显示当前全局类型而非默认 YSM）
 - 监听 bus：`stats:refresh`（300ms 防抖重载）、`repo:rtype-changed`（随仓库页类型切换重载）、`sync:download:done`（按 token 匹配推送结果，30s 超时）
 - 派发 bus：`package:selected`、`ctx:show`、`sync:download:missing`（含 token）、`toast:show`、`stats:refresh`、`tree:reload`、`nav:change`（底部路径按钮跳设置页）、`loading:start` / `loading:end`
 - Go 调用：统一经 `getApp()` 取绑定（ADR-012 红线，禁 `window.go.main.App.*`）——`LoadAppConfig` / `ListVersionInstances` / `GetResourceInstanceStatus` / `GetRepoRoot`（loader.ts）、`PullResourceFromInstance`（index.ts 拉取）、`LoadAppConfig` / `SaveAppConfig` / `GetMinecraftPaths`（events.ts bindFooter 自动检测 MC 路径）；「推送到整合包」由 `core/context-menus.ts` 的 `file.push-to-pack` 走 `InstallModelTo`（见知识卡 `context_menu`）
