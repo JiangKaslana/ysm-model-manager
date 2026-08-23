@@ -1,6 +1,7 @@
 package ysm
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +12,10 @@ import (
 func TestFindComponentsInExtractedYSM_WineFoxReal(t *testing.T) {
 	dir := filepath.Join("..", "..", "upstream", "[YSM模型]官方开源wine_fox_json", "01_taisho_maid")
 	ysmPath := filepath.Join(dir, "ysm.json")
+	// upstream 不入库（.gitignore 排除），CI/干净 checkout 无真实数据——缺失时跳过而非失败
+	if _, err := os.Stat(ysmPath); os.IsNotExist(err) {
+		t.Skipf("跳过：真实 wine_fox 数据不在仓库（upstream 不入库）: %s", ysmPath)
+	}
 	comps, texNames := FindComponentsInExtractedYSM(ysmPath)
 
 	if len(comps) != 7 {
