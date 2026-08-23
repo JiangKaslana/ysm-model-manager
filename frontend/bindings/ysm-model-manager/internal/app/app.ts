@@ -606,6 +606,19 @@ export function ImportModelFolder(folderName: string, subpath: string, files: ty
 }
 
 /**
+ * ImportModelFolderTo 带页面上下文类型的文件夹整组导入（拖拽导入上下文路由）。
+ * rtype 来自前端当前树的根属性——树根本就派生自注册表路由配置，前端只透传不判型；
+ * 上下文优先：注册表校验通过即按该类型仓库根落盘，解决 .zip 多类型歧义文件夹
+ * 被内容推断兜底进 ysm 根的结构性失灵（maid-model 等仅注册 .zip 的类型永不可达）。
+ * 空串/未注册类型回退 inferFolderType 内容推断（兼容导入页等无上下文入口）。
+ * 提醒非阻断：内容明确归属其他单一类型且与上下文不符时记一条 warn 日志，
+ * 落盘仍按上下文执行——用户拖到哪页就落哪页的根。
+ */
+export function ImportModelFolderTo(folderName: string, subpath: string, rtype: string, files: types$0.ImportFileItem[] | null): $CancellablePromise<void> {
+    return $Call.ByID(435971586, folderName, subpath, rtype, files);
+}
+
+/**
  * ImportResourcePack 使用策略模式导入资源包
  */
 export function ImportResourcePack(srcPath: string, rtype: string): $CancellablePromise<string> {
