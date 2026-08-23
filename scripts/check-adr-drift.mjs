@@ -50,21 +50,25 @@ const KNOWN_REPAID = [
     tokens: ['DownloadQueue', '↔', 'App', '对象级循环引用', '持有', '*App'],
     fact: 'DownloadQueue↔App 循环已打破：改为回调注入（downloadFn/emitFn/logFn），无 *App 字段',
   },
+  {
+    // 误判「app_scan.go（691 行）仍需进一步下沉」——实测核心已下沉 go/scanner，691 行为门面 + helper
+    // 命中条件：文档同时含 app_scan.go（行数）+ 明确「未下沉/进一步下沉/下沉重心」债务表述
+    tokens: ['app_scan.go', '下沉'],
+    exclude: ['已下沉', 'go/scanner', '门面', '非未还债', '核心逻辑已下沉'],
+    fact: 'app_scan.go 核心已下沉 go/scanner（扫描/哈希/缓存/作者提取/索引）；691 行是 Binding 门面 + helper，非未还债',
+  },
 ];
 
-// 文档侧漂移：全部 token 同时出现，且 exclude 中无一出现 → 命中
+// 文档侧漂移：含全部 token 的段落中，存在「无翻牌排除词」的段落 → 命中
 function docHasDrift(text, item) {
   const hit = item.tokens.every((t) => text.includes(t));
   if (!hit) return false;
-  if (item.exclude && item.exclude.length) {
-    // code review P3：exclude 限定在含 token 的段落内判断——整文档判断会让
-    // 泛用短语（如「评估时点」）在无关段落出现一次就整条失效（护栏 fail-open，
-    // 该抓的漂移抓不到）。翻牌标记须与漂移表述同段才算数。
-    const paras = text.split(/\n\s*\n/);
-    const tokenParas = paras.filter((p) => item.tokens.some((t) => p.includes(t)));
-    if (tokenParas.some((p) => item.exclude.some((x) => p.includes(x)))) return false;
-  }
-  return true;
+  if (!item.exclude || !item.exclude.length) return true;
+  // 段落级判断：翻牌标记须与漂移表述同段才算数。
+  // 若存在任一含 token 段落且不含任何排除词 → 漂移（该段落未被翻牌覆盖）。
+  const paras = text.split(/\n\s*\n/);
+  const tokenParas = paras.filter((p) => item.tokens.every((t) => p.includes(t)));
+  return tokenParas.some((p) => !item.exclude.some((x) => p.includes(x)));
 }
 
 // ---- 代码侧正向断言（事实源 = 源码）----
