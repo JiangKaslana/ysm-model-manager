@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 146 | 578 |
-| frontend/views | 117 | 332 |
+| frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **455** | **1928** |
+| **合计** | **455** | **1929** |
 
 ## Go·头像
 
@@ -2005,7 +2005,8 @@
 | `invalidateScenePreview()` | `frontend/src/views/app-preview/scene-3d:92` | 任意新预览派发时调用，作废在途场景加载 |
 | `resolveSceneSiblings()` | `frontend/src/views/app-preview/scene-siblings:8` | 场景模型候选（只扫 SceneModel 子目录）；失败返回 [] |
 | `AngleShot()` | `frontend/src/views/app-preview/screenshot-renderer:13` | — |
-| `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:19` | — |
+| `RenderMultiAngleOptions()` | `frontend/src/views/app-preview/screenshot-renderer:18` | — |
+| `renderMultiAngle()` | `frontend/src/views/app-preview/screenshot-renderer:25` | — |
 | `resolveSiblingsByType()` | `frontend/src/views/app-preview/siblings:13` | 解析某资源类型的同目录候选主文件路径列表。 |
 | `PanelHandle()` | `frontend/src/views/app-preview/skeleton-fill-panel:10` | fill3DPanel 需要的句柄子集（Model3DHandleX / YsmContentHandle 均满足——结构兼容） |
 | `fill3DPanel()` | `frontend/src/views/app-preview/skeleton-fill-panel:18` | — |

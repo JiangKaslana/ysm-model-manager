@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-23T13:01:32.525Z",
+  "generated": "2026-08-23T13:23:31.295Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|esbuild",
@@ -172,6 +172,7 @@
     "src/views/app-preview/mmd-controls.ts#src/views/app-preview/vrm-controls.ts",
     "src/views/app-preview/mmd-controls.ts#src/views/app-preview/ysm-controls.ts",
     "src/views/app-preview/skeleton-render.test.ts#src/views/app-preview/skeleton.test.ts",
+    "src/views/app-preview/skeleton-render.ts#src/views/app-preview/skeleton-render.ts",
     "src/views/app-preview/wasm.ts#src/workers/stats-core.ts",
     "src/views/app-sidebar/app-sidebar.sync.test.ts#src/views/app-sidebar/app-sidebar.sync.test.ts",
     "src/views/app-sidebar/loader.test.ts#src/views/app-sidebar/loader.test.ts",
