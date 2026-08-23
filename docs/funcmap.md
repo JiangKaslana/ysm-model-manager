@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 145 | 558 |
+| 前端·工具 | 145 | 559 |
 | frontend/views | 117 | 332 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **454** | **1903** |
+| **合计** | **454** | **1904** |
 
 ## Go·头像
 
@@ -1548,13 +1548,14 @@
 | `isIdentityQuat()` | `frontend/src/utils/3d/quaternion:78` | 判定四元数是否≈单位四元数（浮点 epsilon）。 |
 | `hasBoneRotation()` | `frontend/src/utils/3d/quaternion:89` | 判定骨骼旋转是否实际生效（四元数 ≠ 单位四元数，epsilon 口径）。 |
 | `applyRotationIfNonIdentity()` | `frontend/src/utils/3d/quaternion:102` | 若旋转四元数非单位四元数，则赋值到 Three.js 对象的 quaternion；单位四元数跳过（保持默认）。 |
-| `getMaxPixelRatio()` | `frontend/src/utils/3d/render-budget:7` | 读取用户设置的渲染分辨率上限（设置面板 slider 持久化）；缺省 1.5 |
-| `PREVIEW_FRAME_INTERVAL_MS()` | `frontend/src/utils/3d/render-budget:14` | — |
-| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:19` | — |
-| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:25` | — |
-| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:30` | — |
-| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:38` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
-| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:52` | — |
+| `MAX_PIXEL_RATIO_KEY()` | `frontend/src/utils/3d/render-budget:5` | — |
+| `getMaxPixelRatio()` | `frontend/src/utils/3d/render-budget:10` | 读取用户设置的渲染分辨率上限（设置面板 slider 持久化）；缺省 1.5。 |
+| `PREVIEW_FRAME_INTERVAL_MS()` | `frontend/src/utils/3d/render-budget:17` | — |
+| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:22` | — |
+| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:28` | — |
+| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:33` | — |
+| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:41` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
+| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:55` | — |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |
