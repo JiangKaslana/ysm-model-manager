@@ -242,16 +242,22 @@ func GetCacheStats() CacheStats {
 // 缓存是衍生数据，删错可经 WriteCached 重新生成，故淘汰失败仅记录日志、不中断写入。
 
 var (
-	maxCacheBytes = int64(1 << 30)        // 容量上限（0 = 不限）
-	maxEntryAge   = 30 * 24 * time.Hour   // 条目 TTL（0 = 不按 TTL 删）
-	pruneInterval = 5 * time.Minute       // 写路径限频间隔（0 = 每次写都触发）
-	pruneMu       sync.Mutex              // 保护 lastPrune 的并发读写
+	maxCacheBytes = int64(1 << 30)      // 容量上限（0 = 不限）
+	maxEntryAge   = 30 * 24 * time.Hour // 条目 TTL（0 = 不按 TTL 删）
+	pruneInterval = 5 * time.Minute     // 写路径限频间隔（0 = 每次写都触发）
+	pruneMu       sync.Mutex            // 保护 lastPrune 与 SetCacheLimits 的并发读写
 	lastPrune     time.Time
+	// removeFile 删除实现：测试可注入替换以模拟删除失败（P2 记账失真回归）
+	removeFile = os.Remove
 )
 
 // SetCacheLimits 覆盖淘汰阈值（测试/配置注入用）。
 // maxBytes<=0 表示不限容量；maxAge<=0 表示不按 TTL 删；interval<=0 表示每次写入都触发淘汰。
+// 锁内写包级变量，与 maybePrune 的限频读互斥；但仍须在任何并发写/淘汰开始之前调用
+// （Prune 内读取阈值不加锁——运行时阈值应视为启动期常量）。
 func SetCacheLimits(maxBytes int64, maxAge, interval time.Duration) {
+	pruneMu.Lock()
+	defer pruneMu.Unlock()
 	maxCacheBytes = maxBytes
 	maxEntryAge = maxAge
 	pruneInterval = interval
@@ -285,11 +291,17 @@ func Prune() (PruneResult, error) {
 		path string
 		size int64
 		mod  time.Time
+		tmp  bool // 写入中间产物 .tmp（仅按 TTL 清，不占容量预算）
 	}
 	var files []entry
 	now := time.Now()
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".ktx2") {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		isTmp := strings.HasSuffix(name, ".tmp")
+		if !isTmp && !strings.HasSuffix(name, ".ktx2") {
 			continue
 		}
 		info, err := e.Info()
@@ -297,9 +309,10 @@ func Prune() (PruneResult, error) {
 			continue
 		}
 		files = append(files, entry{
-			path: filepath.Join(dir, e.Name()),
+			path: filepath.Join(dir, name),
 			size: info.Size(),
 			mod:  info.ModTime(),
+			tmp:  isTmp,
 		})
 	}
 	totalFiles := len(files)
@@ -312,47 +325,60 @@ func Prune() (PruneResult, error) {
 		return files[i].path < files[j].path
 	})
 
-	remove := func(p string) {
-		if err := os.Remove(p); err != nil {
+	// remove 成功返回 true 才记账——删除失败（占用/只读）不得虚报 FreedBytes、
+	// 不得低估 Remaining，且容量段失败时不减 total（继续尝试下一个直到达标）。
+	remove := func(p string) bool {
+		if err := removeFile(p); err != nil {
 			log.Printf("texture_cache: 淘汰删除失败 %s: %v", p, err)
-			return
+			return false
 		}
 		res.RemovedCount++
+		return true
 	}
 
-	// 1) TTL：超龄文件直接删（mtime 近似最后写入，LRU 语义）
+	// 1) TTL：超龄文件直接删（mtime 近似最后写入，LRU 语义）；.tmp 崩溃残留顺带清超龄。
+	//    删除失败的超龄文件留在 kept，Remaining 如实反映磁盘现状，下轮自愈。
 	if maxEntryAge > 0 {
 		cutoff := now.Add(-maxEntryAge)
 		kept := files[:0]
 		for _, f := range files {
-			if f.mod.Before(cutoff) {
-				remove(f.path)
+			if f.mod.Before(cutoff) && remove(f.path) {
 				res.FreedBytes += f.size
-			} else {
-				kept = append(kept, f)
+				continue
 			}
+			kept = append(kept, f)
 		}
 		files = kept
 	}
 
-	// 2) 容量：总大小超上限，从最旧删到达标
+	// 2) 容量：.ktx2 总大小超上限，从最旧删到达标（.tmp 不占容量预算）
 	if maxCacheBytes > 0 {
 		var total int64
 		for _, f := range files {
+			if f.tmp {
+				continue
+			}
 			total += f.size
 		}
 		for _, f := range files {
+			if f.tmp {
+				continue
+			}
 			if total <= maxCacheBytes {
 				break
 			}
-			remove(f.path)
-			total -= f.size
-			res.FreedBytes += f.size
+			if remove(f.path) {
+				total -= f.size
+				res.FreedBytes += f.size
+			}
 		}
 		res.Remaining = total
 	} else {
 		var total int64
 		for _, f := range files {
+			if f.tmp {
+				continue
+			}
 			total += f.size
 		}
 		res.Remaining = total
