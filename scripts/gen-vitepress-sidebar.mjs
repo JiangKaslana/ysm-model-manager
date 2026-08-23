@@ -134,7 +134,6 @@ const ARCH_ORDER = [
   'maintenance.md',
   'pitfalls.md',
   'review-report.md',
-  'audit-report-2026-08-06.md',
 ];
 const archWeight = (name) => {
   const i = ARCH_ORDER.indexOf(name);
@@ -218,6 +217,20 @@ function novelItemsBuilder() {
   return groups;
 }
 
+// ---------- 6.5 审计系列（audit/，按编号排序，折叠） ----------
+// 08-06 初版总报告 + r1-r14 细分审计 + framework。当前事实源为 r1-r14，总报告为历史基线。
+const auditItems = (() => {
+  const abs = join(DOCS, 'audit');
+  if (!statSync(abs, { throwIfNoEntry: false })?.isDirectory()) return [];
+  const files = readdirSync(abs)
+    .filter((f) => f.endsWith('.md') && !['README.md', 'index.md'].includes(f))
+    .sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  return files.map((f) => {
+    const rel = join('audit', f).replace(/\\/g, '/');
+    return { text: readTitle(rel) || f.replace(/\.md$/, ''), link: linkify(rel) };
+  });
+})();
+
 // ---------- 组装 ----------
 // 全部分组统一 collapsed: true（侧边栏只导航，浏览交给分组主站页 /xxx/）；
 // 唯一例外：用户指南置顶展开，让新手一眼看到功能分类（子分组仍折叠保持整洁）。
@@ -226,6 +239,7 @@ const sidebar = [
   { text: '发版记录', link: '/releases/', collapsed: true, items: releasesItems },
   { text: '架构与规范', link: '/architecture', collapsed: true, items: archItems },
   { text: '决策记录 (ADR)', link: '/adr/', collapsed: true, items: adrItems },
+  { text: '审计', link: '/audit/', collapsed: true, items: auditItems },
   { text: '知识卡', link: '/knowledge/', collapsed: true, items: knowledgeItemsBuilder() },
   { text: '小说', link: '/novel/', collapsed: true, items: novelItemsBuilder() },
 ];

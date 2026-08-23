@@ -63,13 +63,13 @@ const KNOWN_REPAID = [
 // 若复核段被删除/篡改，说明有人试图把已还债重新标为开放债，报 DRIFT。
 // 判定：文件必须存在且含「状态复核（2026-08-23）」锚点。
 const AUDIT_REVIEWED = [
-  'docs/audit-r1-3d-engine-core-2026-08-18.md',
-  'docs/audit-r7-performance-memory-2026-08-18.md',
-  'docs/audit-r9-3d-preview-resource-management-2026-08-18.md',
-  'docs/audit-r10-animation-resource-management-2026-08-18.md',
-  'docs/audit-r11-texture-lifecycle-2026-08-18.md',
-  'docs/audit-r12-scene-switch-race-2026-08-18.md',
-  'docs/audit-r14-coverage-2026-08-18.md',
+  'docs/audit/audit-r1-3d-engine-core-2026-08-18.md',
+  'docs/audit/audit-r7-performance-memory-2026-08-18.md',
+  'docs/audit/audit-r9-3d-preview-resource-management-2026-08-18.md',
+  'docs/audit/audit-r10-animation-resource-management-2026-08-18.md',
+  'docs/audit/audit-r11-texture-lifecycle-2026-08-18.md',
+  'docs/audit/audit-r12-scene-switch-race-2026-08-18.md',
+  'docs/audit/audit-r14-coverage-2026-08-18.md',
 ];
 
 // 文档侧漂移：含全部 token 的段落中，存在「无翻牌排除词」的段落 → 命中
