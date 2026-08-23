@@ -45,10 +45,10 @@
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
 | 前端·工具 | 145 | 557 |
-| frontend/views | 117 | 333 |
+| frontend/views | 117 | 332 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **453** | **1901** |
+| **合计** | **453** | **1900** |
 
 ## Go·头像
 
@@ -1956,13 +1956,12 @@
 | `MaterialControlBridge()` | `frontend/src/views/app-preview/mmd-controls:166` | 材质控制桥：复用 mmd-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在视图层（ADR-072） |
 | `buildMaterialControls()` | `frontend/src/views/app-preview/mmd-controls:182` | 在 container 渲染 MMD 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `fillMmdShotPanel()` | `frontend/src/views/app-preview/mmd-controls:263` | MMD 截图面板填充（ADR-052 P3：对齐 ysm-controls fillYsmShotPanel 范式）。 |
-| `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:10` | 同类型 MMD 模型候选（GetRepoRoot 类型根 → ScanModelEntriesFiltered 主文件 Path 列表）；失败返回 []（下拉不渲染） |
+| `resolveMmdSiblings()` | `frontend/src/views/app-preview/mmd-siblings:13` | 同类型 MMD 模型候选（委托共享底座 resolveSiblingsByType）；失败返回 []（下拉不渲染） |
 | `ModelLike()` | `frontend/src/views/app-preview/model3d-loader:12` | 模型对象（轻量接口，覆盖 loadTextures/fetchSpec/preloadModel 用到的字段） |
 | `ModelSpec()` | `frontend/src/views/app-preview/model3d-loader:24` | Go 返回的 3D spec（models 数组） |
 | `loadTextures()` | `frontend/src/views/app-preview/model3d-loader:53` | 并行加载纹理 URL 列表，返回 THREE.Texture 数组（P0 优化：纹理缓存池，同 URL 复用） |
 | `preloadModel()` | `frontend/src/views/app-preview/model3d-loader:161` | 预加载：spec 先行，纹理按全量清单加载（texArr 槽位 = cube texSlot 下标） |
-| `resolveMorphSiblings()` | `frontend/src/views/app-preview/morph-siblings:6` | CustomMorph 目录下所有 VPD 姿势文件（含子目录）；失败返回 [] |
-| `resolveMorphAnimSiblings()` | `frontend/src/views/app-preview/morph-siblings:22` | CustomMorph 目录下所有 VMD 动画文件（含子目录）；失败返回 [] |
+| `resolveMorphSiblings()` | `frontend/src/views/app-preview/morph-siblings:8` | CustomMorph 目录下所有候选文件（含子目录）；失败返回 [] |
 | `createPack3D()` | `frontend/src/views/app-preview/pack-3d:30` | 打开资源包模型 3D 预览（ADR-084 L2：zip 当文件夹，entries 作 siblings） |
 | `cleanupPack3D()` | `frontend/src/views/app-preview/pack-3d:50` | 清理资源包 3D（WebGL renderer + rAF 循环）：组件销毁前调用，防 GPU 资源残留 |
 | `invalidatePackPreview()` | `frontend/src/views/app-preview/pack-3d:55` | 任意新预览派发时调用，作废在途资源包加载 |
