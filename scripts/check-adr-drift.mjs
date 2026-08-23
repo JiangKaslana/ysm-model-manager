@@ -56,7 +56,14 @@ const KNOWN_REPAID = [
 function docHasDrift(text, item) {
   const hit = item.tokens.every((t) => text.includes(t));
   if (!hit) return false;
-  if (item.exclude && item.exclude.some((x) => text.includes(x))) return false;
+  if (item.exclude && item.exclude.length) {
+    // code review P3：exclude 限定在含 token 的段落内判断——整文档判断会让
+    // 泛用短语（如「评估时点」）在无关段落出现一次就整条失效（护栏 fail-open，
+    // 该抓的漂移抓不到）。翻牌标记须与漂移表述同段才算数。
+    const paras = text.split(/\n\s*\n/);
+    const tokenParas = paras.filter((p) => item.tokens.some((t) => p.includes(t)));
+    if (tokenParas.some((p) => item.exclude.some((x) => p.includes(x)))) return false;
+  }
   return true;
 }
 

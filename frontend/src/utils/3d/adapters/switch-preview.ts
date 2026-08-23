@@ -98,9 +98,10 @@ export async function switchToSession(
   // P3-2：空路径守卫——空路径会触发 adapter.build(ctx, "") 加载未定义内容
   if (!newPath || !newPath.trim()) return;
   const keep = options?.keepInScene === true;
-  ctx.inFlight = true;
 
-  // ADR-093 T6：同台追加超量拦截（GPU/内存上限）
+  // ADR-093 T6：同台追加超量拦截（GPU/内存上限）——必须先于 inFlight 置位，
+  // 否则上限命中提前 return 会把 inFlight 卡死 true（后续所有切换被静默丢弃）
+  //（code review P1：其他 early-return 路径都重置了，此守卫曾漏——r12 竞态抑制后成死锁）
   if (keep && sceneRegistry.count() >= MAX_MODELS) {
     bus.emit("toast:show", {
       msg: `同场景模型已达上限（${MAX_MODELS}），无法继续追加`,
@@ -109,6 +110,7 @@ export async function switchToSession(
     });
     return;
   }
+  ctx.inFlight = true;
 
   // 1) 清理旧内容层：菜单会通过 ctx.menu.setAdapterItems 在 build 时自动重建，无需手动清理
 
