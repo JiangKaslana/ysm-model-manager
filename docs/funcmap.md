@@ -43,12 +43,12 @@
 | 前端·特性 | 17 | 82 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
-| frontend/ui | 18 | 99 |
+| frontend/ui | 18 | 77 |
 | 前端·工具 | 145 | 566 |
 | frontend/views | 117 | 340 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **453** | **1938** |
+| **合计** | **453** | **1916** |
 
 ## Go·头像
 
@@ -1167,42 +1167,20 @@
 | `createHeaderToggle()` | `frontend/src/ui/ui-header-toggle:26` | 创建标题栏小型开关。返回 `&lt;label class="toggle header-toggle"&gt;`， 含双触发去重（跳过 target===input 的 synthetic |
 | `ControlOptions()` | `frontend/src/ui/ui-helpers` | — |
 | `slideRow()` | `frontend/src/ui/ui-helpers` | — |
-| `SlideRowExtra()` | `frontend/src/ui/ui-helpers` | — |
-| `TrailingAction()` | `frontend/src/ui/ui-helpers` | — |
 | `initControl()` | `frontend/src/ui/ui-helpers` | — |
 | `addToggleRow()` | `frontend/src/ui/ui-helpers` | — |
 | `addSliderRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addModeRow()` | `frontend/src/ui/ui-helpers` | — |
-| `sliderRow()` | `frontend/src/ui/ui-helpers` | — |
 | `toggleRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addDangerRow()` | `frontend/src/ui/ui-helpers` | — |
 | `addFieldRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addInfoGrid()` | `frontend/src/ui/ui-helpers` | — |
-| `addInfoCard()` | `frontend/src/ui/ui-helpers` | — |
-| `addEmptyRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addCardTitle()` | `frontend/src/ui/ui-helpers` | — |
-| `addWatchDirRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addActionRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addDisabledRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addInlineToggleRow()` | `frontend/src/ui/ui-helpers` | — |
 | `createHeaderToggle()` | `frontend/src/ui/ui-helpers` | — |
-| `HeaderToggleConfig()` | `frontend/src/ui/ui-helpers` | — |
 | `addColorSliderRow()` | `frontend/src/ui/ui-helpers` | — |
 | `addModeSlider()` | `frontend/src/ui/ui-helpers` | — |
 | `addVector3SliderRow()` | `frontend/src/ui/ui-helpers` | — |
-| `addCollapsible()` | `frontend/src/ui/ui-helpers` | — |
-| `addSectionTitle()` | `frontend/src/ui/ui-helpers` | — |
-| `addPresetChip()` | `frontend/src/ui/ui-helpers` | — |
-| `buildPresetChipGroup()` | `frontend/src/ui/ui-helpers` | — |
-| `addClearRow()` | `frontend/src/ui/ui-helpers` | — |
-| `PresetChipItem()` | `frontend/src/ui/ui-helpers` | — |
 | `cardContainer()` | `frontend/src/ui/ui-helpers` | — |
 | `withLoadingIndicator()` | `frontend/src/ui/ui-helpers` | — |
 | `createSlideMenu()` | `frontend/src/ui/ui-helpers` | — |
 | `SlideMenuHandle()` | `frontend/src/ui/ui-helpers` | — |
 | `SlideMenuView()` | `frontend/src/ui/ui-helpers` | — |
-| `installSlideMenuStyles()` | `frontend/src/ui/ui-helpers` | — |
-| `slideMenuStyleSheet()` | `frontend/src/ui/ui-helpers` | — |
 | `withLoadingIndicator()` | `frontend/src/ui/ui-loading:10` | — |
 | `PresetChipItem()` | `frontend/src/ui/ui-preset:16` | 单个预设芯片的描述。 |
 | `buildPresetChipGroup()` | `frontend/src/ui/ui-preset:35` | 渲染一组 preset-chip（统一 .preset-group 容器 + addPresetChip 布局）。 |
