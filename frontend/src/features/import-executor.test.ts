@@ -9,11 +9,13 @@ import { t } from "../core/i18n/t.ts";
 const mocks = vi.hoisted(() => ({
   ImportModelFile: vi.fn().mockResolvedValue(undefined),
   ImportModelFolder: vi.fn().mockResolvedValue(undefined),
+  ImportModelFolderTo: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../backend/app.ts", () => ({
   getApp: vi.fn().mockResolvedValue({
     ImportModelFile: mocks.ImportModelFile,
     ImportModelFolder: mocks.ImportModelFolder,
+    ImportModelFolderTo: mocks.ImportModelFolderTo,
   }),
 }));
 
@@ -79,6 +81,7 @@ describe("executeCollected — 静默导入入口", () => {
     ImportHistory.clear();
     mocks.ImportModelFile.mockClear();
     mocks.ImportModelFolder.mockClear();
+    mocks.ImportModelFolderTo.mockClear();
   });
 
   it("散落 ysm 单文件 → 直导", async () => {
@@ -135,6 +138,27 @@ describe("executeCollected — 静默导入入口", () => {
     expect(r.singles).toBe(0);
     expect(mocks.ImportModelFile).not.toHaveBeenCalled();
     expect(mocks.ImportModelFolder).not.toHaveBeenCalled();
+  });
+
+  it("带上下文 rtype → 文件夹走 ImportModelFolderTo（上下文路由落盘）", async () => {
+    const r = await executeCollected(
+      [{ file: mkFile("pack.zip"), relPath: "女仆包/pack.zip" }],
+      "maid-model",
+    );
+    expect(r.folders).toBe(1);
+    expect(mocks.ImportModelFolderTo).toHaveBeenCalledTimes(1);
+    expect(mocks.ImportModelFolder).not.toHaveBeenCalled();
+    const [folderName, subpath, rtype, items] = mocks.ImportModelFolderTo.mock.calls[0];
+    expect(folderName).toBe("女仆包");
+    expect(subpath).toBe("");
+    expect(rtype).toBe("maid-model");
+    expect(items).toEqual([{ RelPath: "pack.zip", Base64: "QUJD" }]);
+  });
+
+  it("无上下文（默认空串）→ 保持 ImportModelFolder 内容推断旧路径", async () => {
+    await executeCollected([{ file: mkFile("a.ysm"), relPath: "包/a.ysm" }]);
+    expect(mocks.ImportModelFolder).toHaveBeenCalledTimes(1);
+    expect(mocks.ImportModelFolderTo).not.toHaveBeenCalled();
   });
 
   it("同名文件两次拖入 → 两次执行（去重由后端 FILE_EXISTS / 调用方保证，执行器不拦历史重复）", async () => {

@@ -164,6 +164,30 @@ func (a *App) CopyModelFile(src, dstDir string) error {
 // 使 MMD 文件夹落到 EntityPlayer 根而非 ysm 根（ADR-092 子类型落位根基）。
 func (a *App) ImportModelFolder(folderName, subpath string, files []types.ImportFileItem) error {
 	rtype := inferFolderType(files)
+	return a.importModelFolderAs(rtype, folderName, subpath, files)
+}
+
+// ImportModelFolderTo 带页面上下文类型的文件夹整组导入（拖拽导入上下文路由）。
+// rtype 来自前端当前树的根属性——树根本就派生自注册表路由配置，前端只透传不判型；
+// 上下文优先：注册表校验通过即按该类型仓库根落盘，解决 .zip 多类型歧义文件夹
+// 被内容推断兜底进 ysm 根的结构性失灵（maid-model 等仅注册 .zip 的类型永不可达）。
+// 空串/未注册类型回退 inferFolderType 内容推断（兼容导入页等无上下文入口）。
+// 提醒非阻断：内容明确归属其他单一类型且与上下文不符时记一条 warn 日志，
+// 落盘仍按上下文执行——用户拖到哪页就落哪页的根。
+func (a *App) ImportModelFolderTo(folderName, subpath, rtype string, files []types.ImportFileItem) error {
+	rtype = strings.TrimSpace(rtype)
+	if rtype == "" || types.RegistryType(rtype) == nil {
+		return a.ImportModelFolder(folderName, subpath, files)
+	}
+	if mismatch := inferExplicitFolderType(files); mismatch != "" && mismatch != rtype {
+		a.AddOpLog("import", folderName, "", "", 0, "warn",
+			fmt.Sprintf("内容特征指向 %s，按当前页面类型 %s 落盘", mismatch, rtype))
+	}
+	return a.importModelFolderAs(rtype, folderName, subpath, files)
+}
+
+// importModelFolderAs 按给定 rtype 解析仓库根并整组写入 + 失效扫描缓存
+func (a *App) importModelFolderAs(rtype, folderName, subpath string, files []types.ImportFileItem) error {
 	root, _ := a.GetRepoRoot(rtype)
 	if root == "" {
 		return fmt.Errorf("请先设置文件存储路径")
@@ -173,6 +197,23 @@ func (a *App) ImportModelFolder(folderName, subpath string, files []types.Import
 	}
 	scanner.InvalidateCache()
 	return nil
+}
+
+// inferExplicitFolderType 返回内容明确归属的单一类型；歧义/未知返回空串。
+// 与 inferFolderType 的差别：不吞 ysm 兜底——专供「提醒非阻断」场景区分真 ysm 与兜底。
+func inferExplicitFolderType(files []types.ImportFileItem) string {
+	for _, f := range files {
+		rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(f.RelPath)))
+		ext := strings.ToLower(filepath.Ext(rel))
+		if ext == ".json" {
+			continue // json 不参与明确判定（ysm.json 入口语义属 inferFolderType 职责）
+		}
+		rtypes := types.ExtBelongsTo(ext)
+		if len(rtypes) == 1 {
+			return rtypes[0]
+		}
+	}
+	return ""
 }
 
 // inferFolderType 从文件夹文件列表推断资源类型：

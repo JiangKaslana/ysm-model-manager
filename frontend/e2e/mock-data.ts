@@ -79,6 +79,7 @@ export const MOCK_DATA = {
   // 拖拽导入（import-executor 直调，返回 undefined 表示静默成功）
   ImportModelFile: undefined,
   ImportModelFolder: undefined,
+  ImportModelFolderTo: undefined,
   DeleteResourcePack: undefined,
   OpenFolder: undefined,
   ReadShaderpackLang: JSON.stringify({ name: "光影包测试", entries: {} }),

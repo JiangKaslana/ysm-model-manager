@@ -136,10 +136,13 @@ export const directImport = async (file: File): Promise<void> => {
   }
 };
 
-/** 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） */
+/** 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证）
+ *  rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走
+ *  ImportModelFolderTo 上下文路由（用户拖到哪页落哪页的根），空串走后端内容推断。 */
 export const importFolder = async (
   dir: string,
   files: CollectedEntry[],
+  rtype = "",
 ): Promise<void> => {
   // 并发守护：与 directImport 的 _inFlight 对称，阻止同一文件夹重复提交
   // BUG-FIX（审核 2026-08-20）：原 key 仅用 dir（顶层文件夹名），不同来源的同名
@@ -181,8 +184,12 @@ export const importFolder = async (
       toast("❌ " + t("import.emptyFolder"), "error", 4000);
       return;
     }
-    const { ImportModelFolder } = await getApp();
-    await ImportModelFolder(folderName, subpath, items);
+    const App = await getApp();
+    if (rtype) {
+      await App.ImportModelFolderTo(folderName, subpath, rtype, items);
+    } else {
+      await App.ImportModelFolder(folderName, subpath, items);
+    }
     ImportHistory.push({
       name: folderName + "（文件夹）",
       time: new Date().toLocaleTimeString(),
@@ -214,6 +221,7 @@ export const importFolder = async (
  */
 export const executeCollected = async (
   collected: CollectedEntry[],
+  rtype = "",
 ): Promise<{ folders: number; singles: number }> => {
   const log = (msg: string) =>
     getApp().then((app) => app.AddOpLog?.("import", msg, "", "", 0, "ok", "")).catch(() => {});
@@ -221,7 +229,7 @@ export const executeCollected = async (
   const { folders, singles } = groupCollected(collected);
   log(`分组: folders=${folders.length} singles=${singles.length}`);
   for (const g of folders) {
-    await importFolder(g.dir, g.files);
+    await importFolder(g.dir, g.files, rtype);
   }
   for (const c of singles) {
     await directImport(c.file);

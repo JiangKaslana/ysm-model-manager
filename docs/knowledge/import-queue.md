@@ -38,6 +38,7 @@ invariant_anchors:
 
 - `directImport(file)`：`FileReader` 读 base64 → `ImportModelFile(name, base64)`（保留原文件名，类型路由/冲突判定全在 Go 端）→ 写 `ImportHistory` → `stats:refresh`+`tree:reload`+toast
 - `importFolder(dir, files)`：按顶层目录名为模型名、`dir` 前缀之前的路径为 `subpath`，逐个文件转 base64 后调 `ImportModelFolder(folderName, subpath, items)`（保留嵌套层级）；捕获 `FILE_EXISTS`/「目标已存在」时提示改名重导
+- **上下文路由（2026-08-24）**：`importFolder(dir, files, rtype)` / `executeCollected(collected, rtype)` 支持透传页面上下文类型——`<app-tree>` 把自身根属性经 `bindTreeDnD(el, rtype)` 传入，非空时走 Go 新绑定 `ImportModelFolderTo(folderName, subpath, rtype, items)` 按该类型仓库根落盘（解决 `.zip` 六类型歧义文件夹被内容推断兜底进 ysm 根、maid-model 等仅注册 `.zip` 的类型永不可达的结构性失灵）；空串/未注册回退 `inferFolderType` 内容推断；内容明确归属其他单一类型时后端记 warn OpLog 不阻断。类型判定仍在 Go，前端只透传树上下文
 - `executeCollected(collected)`：`groupCollected` 分组后先整组文件夹、后散落单文件，返回 `{ folders, singles }` 计数供调用方判空
 - `ImportHistory`：模块级内存历史（`records` / `push` / `rename` / `clear`），每次变更 `bus.emit("import:history-changed")`
 

@@ -28,11 +28,13 @@ const isEditable = (el: EventTarget | null): boolean => {
 /**
  * 处理 drop 事件：收集文件 → 过滤 → 执行导入。
  * busy 状态由调用方（bindTreeDnD 闭包）传入，避免模块级状态跨实例污染。
+ * rtype：页面上下文类型（当前树根属性）——非空时文件夹整组按该类型仓库根落盘。
  */
 export async function handleTreeDrop(
   e: DragEvent,
   isBusy: () => boolean,
   setBusy: (v: boolean) => void,
+  rtype = "",
 ): Promise<void> {
   e.preventDefault();
   // eslint-disable-next-line no-console
@@ -120,7 +122,7 @@ export async function handleTreeDrop(
     }
 
     const total = collected.length;
-    const r = await executeCollected(collected);
+    const r = await executeCollected(collected, rtype);
     logDrop(`drop: 导入完成 folders=${r.folders} singles=${r.singles}`);
     if (r.folders === 0 && r.singles === 0 && total > 0) {
       logDrop("drop: execute 返回 0 成功但 total>0（全部被 filter 过滤）");
@@ -139,8 +141,10 @@ export async function handleTreeDrop(
  * 在目标容器上注册仓库页 DnD 事件。
  * 由 <app-tree> connectedCallback 调用，返回 cleanup 函数。
  * busy 状态随闭包隔离，每个 <app-tree> 实例独立守卫。
+ * rtype：当前树根属性（本就派生自 Go 路由配置，前端只透传）——文件夹导入
+ * 按该类型仓库根落盘，空串回退后端内容推断。
  */
-export function bindTreeDnD(container: HTMLElement): () => void {
+export function bindTreeDnD(container: HTMLElement, rtype = ""): () => void {
   let _dropBusy = false;
   const isBusy = () => _dropBusy;
   const setBusy = (v: boolean) => { _dropBusy = v; };
@@ -204,7 +208,7 @@ export function bindTreeDnD(container: HTMLElement): () => void {
       hasFiles: !!(e.dataTransfer?.files && e.dataTransfer.files.length > 0),
     });
     if (hintEl) hintEl.style.display = "none";
-    void handleTreeDrop(e, isBusy, setBusy).catch((err) => {
+    void handleTreeDrop(e, isBusy, setBusy, rtype).catch((err) => {
       console.error("[tree-dnd] 拖放处理失败:", err);
       bus.emit("toast:show", {
         // 显式化：friendlyError 展示 Go 结构化错误（ADR-082 续），
