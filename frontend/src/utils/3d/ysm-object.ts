@@ -74,12 +74,16 @@ export function buildYsmObject(
     const batchable: SpecMeshGroup3D[] = [];
     const translucent: SpecMeshGroup3D[] = [];
     for (const mesh of mg.meshGroups) {
-      // Per-component textures use their own local slot space (currently slot 0),
-      // exactly like addMeshToBoneGroup below. Looking in the global array here
-      // can classify a translucent component as opaque and bake its cubes together.
-      const textureIndex = usesComponentTextures
-        ? 0
-        : multiModel ? (mesh.texIdx ?? 0) : resolvedTexIdx;
+      // Per-component textures use their own local slot space, exactly like
+      // addMeshToBoneGroup below. Looking in the global array here can classify
+      // a translucent component as opaque and bake its cubes together.
+      // code review P2/P3：分类索引与绑定一致（组件分支用 mesh.texIdx——与
+      // addMeshToBoneGroup 的 md.texIdx 绑定一致——texIdx≠0 时不再用 slot 0 误判
+      // alpha 模式）；嵌套三元展平为 if/else（TS 规则禁嵌套三元）
+      let textureIndex: number;
+      if (usesComponentTextures) textureIndex = mesh.texIdx ?? 0;
+      else if (multiModel) textureIndex = mesh.texIdx ?? 0;
+      else textureIndex = resolvedTexIdx;
       const texture = compTexArr[textureIndex] ?? null;
       if (texture && getTextureAlphaMode(texture) === "blend") translucent.push(mesh);
       else batchable.push(mesh);

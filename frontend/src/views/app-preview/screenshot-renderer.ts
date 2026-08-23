@@ -53,10 +53,14 @@ export async function renderMultiAngle(
     }
     if (!spec?.models?.length) return null;
     const texArr = await loadTextures(texUrls);
+    // code review P3：组件纹理并行加载（原 for...of 逐个 await——N 个组件串行
+    // 往返——Promise.all 并行，Map 在 task 内填充）
     const componentTexMap = new Map<string, (THREE.Texture | null)[]>();
-    for (const [componentName, componentUrls] of Object.entries(opts.componentTextures ?? {})) {
-      componentTexMap.set(componentName, await loadTextures(componentUrls));
-    }
+    await Promise.all(
+      Object.entries(opts.componentTextures ?? {}).map(async ([componentName, componentUrls]) => {
+        componentTexMap.set(componentName, await loadTextures(componentUrls));
+      }),
+    );
 
     renderer = new THREE.WebGLRenderer({
       preserveDrawingBuffer: true,
