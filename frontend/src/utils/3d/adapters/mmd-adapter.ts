@@ -821,7 +821,13 @@ export async function buildMmdScene(
         if (i === curIdx || i >= clips.length) return;
         curIdx = i;
         action?.stop();
+        // 切换动作前先复位骨骼到绑定姿势：AnimationMixer 是绝对值覆盖语义，新 VMD
+        // 未记录的骨骼会残留上一动作末态（串动作）——skeleton.pose() 提供干净起点
+        mesh.skeleton?.pose();
         action = mixer.clipAction(clips[i].clip);
+        // 归零重播：clipAction 按 clip 缓存同一 action，不 reset 会从上次停下的时间继续播
+        //（重复切换同一 VMD 不从第 0 帧开始），与「切换即从头播」直觉不一致
+        action.reset();
         if (playing) action.play();
         // 轨道相机联动（P2 审核）：切换到另一 VMD 时重绑相机轨道——cameraClips 与 clips
         // 下标对齐；目标无相机关键帧（null）→ 停掉旧相机轨道，避免上一个动作的镜头

@@ -802,3 +802,108 @@ describe("mmd-pmx-worker 开关（默认主线程 MMDLoader 完整加载，worke
     expect(hoisted.loaderLoadAsyncMock).toHaveBeenCalledWith("/mmd/miku/miku.pmx");
   });
 });
+
+// ---- VMD 切换动作：拉回绑定姿势再播 + action.reset 归零（避免未覆盖骨骼残留旧动作）----
+describe("VMD select 切换：骨骼复位 + action 归零重播", () => {
+  /** 带 select 下拉的 panels 桩（复刻 mmd-controls.ts fillMmdPlayPanel 的 select 接线） */
+  function makePanelsWithSelect(): MmdPanelHooks {
+    const base = makeMmdPanels();
+    return {
+      ...base,
+      fillPlayPanel: (list, bridge) => {
+        const sel = document.createElement("select");
+        sel.id = "mmd-motion-sel";
+        bridge.clips.forEach((c, i) => {
+          const opt = document.createElement("option");
+          opt.value = String(i);
+          opt.textContent = c.label;
+          sel.appendChild(opt);
+        });
+        sel.onchange = (): void => { bridge.select(Number(sel.value) || 0); };
+        list.appendChild(sel);
+      },
+    };
+  }
+
+  it("select 切换动作：先复位骨骼（skeleton.pose）+ 新 action.reset 归零", async () => {
+    vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:mock-url");
+    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+    // 构造带 skeleton 属性的 mesh（普通 Mesh 即可；select 里 mesh.skeleton?.pose() 可选链调用，
+    // 普通 Mesh 的 Box3 包围盒不走 applyBoneTransform，避免 SkinnedMesh 骨骼矩阵初始化负担）
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshBasicMaterial());
+    const skeleton = new THREE.Skeleton([new THREE.Bone()]);
+    (mesh as unknown as { skeleton: THREE.Skeleton }).skeleton = skeleton;
+    const poseSpy = vi.spyOn(skeleton, "pose");
+    hoisted.loaderLoadAsyncMock.mockImplementation(() =>
+      Promise.resolve({
+        mesh,
+        pmx: { bones: [], materials: [], morphs: [] },
+        update: hoisted.mmdUpdateMock,
+        updateWithMixer: hoisted.mmdUpdateWithMixerMock,
+        dispose: hoisted.mmdDisposeMock,
+      }),
+    );
+
+    // 两个 VMD → 两个 clip
+    hoisted.readBytesMock.mockImplementation((p: string) => Promise.resolve(btoa(p)));
+    hoisted.listPathsMock.mockResolvedValue([
+      "/mmd/miku/miku.pmx",
+      "/mmd/miku/a.vmd",
+      "/mmd/miku/b.vmd",
+    ]);
+    hoisted.vmdParseMock.mockResolvedValue({});
+    let buildCall = 0;
+    hoisted.buildAnimMock.mockImplementation(() => {
+      buildCall += 1;
+      return new THREE.AnimationClip(`motion${buildCall}`, -1, []);
+    });
+
+    // spy clipAction：包装返回 action 的 reset，统计被调用次数
+    const resetCalls: number[] = [];
+    const origClipAction = THREE.AnimationMixer.prototype.clipAction;
+    const clipActionSpy = vi
+      .spyOn(THREE.AnimationMixer.prototype, "clipAction")
+      .mockImplementation(function (
+        this: THREE.AnimationMixer,
+        clip: string | THREE.AnimationClip,
+      ): THREE.AnimationAction | null {
+        const action = origClipAction.call(this, clip as THREE.AnimationClip);
+        if (!action) return null;
+        const origReset = action.reset.bind(action);
+        action.reset = (): THREE.AnimationAction => {
+          resetCalls.push(1);
+          return origReset();
+        };
+        return action;
+      });
+
+    try {
+      const { ctx } = makeCtx();
+      const built = await buildMmdScene(ctx, "/mmd/miku/miku.pmx", makePort(), makePanelsWithSelect());
+      expect(hoisted.buildAnimMock).toHaveBeenCalledTimes(2);
+
+      // 通过下拉切换动作 0 → 1
+      const playItem = registeredItems(ctx).find((i) => i.id === "play");
+      expect(playItem).toBeDefined();
+      const list = document.createElement("div");
+      playItem!.render!(list, () => {});
+      const sel = list.querySelector<HTMLSelectElement>("#mmd-motion-sel");
+      expect(sel).not.toBeNull();
+      const beforeReset = resetCalls.length;
+      sel!.value = "1";
+      sel!.dispatchEvent(new Event("change"));
+
+      expect(poseSpy, "切换动作前应复位骨骼到绑定姿势（防未覆盖骨骼残留旧动作）").toHaveBeenCalled();
+      expect(
+        resetCalls.length - beforeReset,
+        "切换动作时新 action 应 reset 归零（重复切换同一 VMD 也从头播）",
+      ).toBeGreaterThan(0);
+
+      built.dispose();
+      expect(revokeURL).toHaveBeenCalled();
+    } finally {
+      clipActionSpy.mockRestore();
+    }
+  });
+});
