@@ -60,9 +60,9 @@ export async function openModel3DFullscreen(path: string, options?: OpenModel3DO
   // 复位注册表 + 复原单例），再建新模型——把本函数注释「cooperate=false 会先清理旧的
   // 活跃全屏层」从名义变实际；对 ysm/mmd/vrm/litematic 所有类型的「二次点击资源列表」
   // 统一生效，不影响 cooperate=true 的 keepInScene 追加语义，也不影响会话内 switchTo 切换。
-  if (!options?.cooperate && hasActivePreview()) {
-    cleanupPreview();
-  }
+  // 注意：清理须在 opener 解析成功之后执行（code review P2）——类型探测失败或
+  // routeKey 未注册（非 3D 资源/后端暂不可用）时提前清理会销毁用户当前活跃 3D 会话，
+  // 旧会话本应在此类失败导航下存活，只弹 toast。
   if (options?.cooperate && hasActivePreview()) {
     await switchPreview(path, { keepInScene: true });
     return;
@@ -78,6 +78,9 @@ export async function openModel3DFullscreen(path: string, options?: OpenModel3DO
   const routeKey = resolvePreviewKey(path, rtype);
   const opener = _openers[routeKey];
   if (opener) {
+    if (!options?.cooperate && hasActivePreview()) {
+      cleanupPreview();
+    }
     await opener(path, siblings);
     return;
   }
