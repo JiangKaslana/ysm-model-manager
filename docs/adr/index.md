@@ -17,15 +17,15 @@ permalink: /adr/
 | 状态 | 数量 |
 |------|------|
 | [⚠️ 已采纳但遗留未修复](#已采纳但遗留未修复) | 0 |
-| [🔄 部分采纳](#部分采纳) | 9 |
-| [✅ 已采纳](#已采纳) | 103 |
+| [🔄 部分采纳](#部分采纳) | 8 |
+| [✅ 已采纳](#已采纳) | 104 |
 | [❌ 已取代](#已取代) | 1 |
 | [🧊 已废弃](#已废弃) | 0 |
 | [❓ 未归类](#未归类) | 0 |
 
 ## 按状态分组导航
 
-### 🔄 部分采纳（9）
+### 🔄 部分采纳（8）
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
@@ -33,13 +33,12 @@ permalink: /adr/
 | [ADR-092](./ADR-092-resource-type-group-routing.md) | 资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并 | 🔄 部分采纳 |
 | [ADR-088](./ADR-088-parallel-dispatch.md) | 检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行 | 🔄 部分采纳 |
 | [ADR-077](./ADR-077-bottom-nav-shell-convergence.md) | 底部导航通用外壳收敛（D1+D3 落地） | 🔄 部分采纳 ⚠️ 被 [ADR-076] |
-| [ADR-062](./ADR-062-appconfig-configurable-thresholds.md) | AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项 | 🔄 部分采纳 |
 | [ADR-061](./ADR-061-3d.md) | 3D 渲染器能力边界与后续方向 | 🔄 部分采纳 |
 | [ADR-042](./ADR-042-modernysm-pivot-rotation.md) | 渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植 | 🔄 部分采纳 |
 | [ADR-024](./ADR-024-multi-resource-federation.md) | 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表） | 🔄 部分采纳 |
 | [ADR-004](./ADR-004-3d-rendering-pipeline.md) | 3D 骨骼渲染管线与坐标系决策 | 🔄 部分采纳 ⚠️ 被 [ADR-041] |
 
-### ✅ 已采纳（103）
+### ✅ 已采纳（104）
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
@@ -91,6 +90,7 @@ permalink: /adr/
 | [ADR-065](./ADR-065-instance-rtype-registry-single-source.md) | 整合包侧资源类型语义收敛：rtype 分支注册表驱动单点 | ✅ 已采纳 |
 | [ADR-064](./ADR-064-sync-convergence-scanner-single-source.md) | 同步层对比收敛：scanner 单一扫描源，对比实现单点化 | ✅ 已采纳 |
 | [ADR-063](./ADR-063-updater-semver-semantics.md) | updater 版本比较语义化：semver 库接入替代手写比较 | ✅ 已采纳 |
+| [ADR-062](./ADR-062-appconfig-configurable-thresholds.md) | AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项 | ✅ 已采纳 |
 | [ADR-060](./ADR-060-dnd-component-scoped-registration.md) | 拖拽导入收敛：按组件域注册，去掉全局遮罩 | ✅ 已采纳 |
 | [ADR-059](./ADR-059-cli-removal-standalone-exe.md) | CLI 移除与裸 exe 发布 | ✅ 已采纳 |
 | [ADR-058](./ADR-058-standalone-exe-embedded-data.md) | 纯 exe 发布模型：数据编译期内嵌 | ✅ 已采纳 |
@@ -209,7 +209,7 @@ permalink: /adr/
 | ADR-065 | 整合包侧资源类型语义收敛：rtype 分支注册表驱动单点 | ✅ 已采纳 | 2026-08-15 |
 | ADR-064 | 同步层对比收敛：scanner 单一扫描源，对比实现单点化 | ✅ 已采纳 | 2026-08-15 |
 | ADR-063 | updater 版本比较语义化：semver 库接入替代手写比较 | ✅ 已采纳 | 2026-08-15 |
-| ADR-062 | AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项 | 🔄 部分采纳 | 2026-08-15 |
+| ADR-062 | AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项 | ✅ 已采纳 | 2026-08-15 |
 | ADR-061 | 3D 渲染器能力边界与后续方向 | 🔄 部分采纳 | 2026-08-14 |
 | ADR-060 | 拖拽导入收敛：按组件域注册，去掉全局遮罩 | ✅ 已采纳 | 2026-08-14 |
 | ADR-059 | CLI 移除与裸 exe 发布 | ✅ 已采纳 | 2026-08-14 |

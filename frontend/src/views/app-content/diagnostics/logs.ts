@@ -3,6 +3,7 @@
 import { t } from "../../../core/i18n/t.ts";
 import { getApp } from "../../../backend/app.ts";
 import { renderDisplayName } from "../../../utils/dom/display.ts";
+import { stagger } from "../../../utils/animation/stagger.ts";
 
 /** 转义函数签名（与组件 _esc 一致） */
 export type EscFn = (s: unknown) => string;
@@ -130,7 +131,7 @@ export async function loadDiagnosticsLogs(root: ShadowRoot, esc: EscFn): Promise
         // 被外层 catch 吞掉 → 日志列表永远显示「加载日志失败」）。TS 编译期暴露，
         // 按意图改为 l.Status（与 statusLabel 同源）
         parts.push(
-          `<div class="log-row" style="animation-delay:${Math.min(i * 20, 400)}ms">
+          `<div class="log-row" style="animation-delay:${stagger(i, 20, 400)}ms">
 <span class="log-status ${l.Status || ""}">${statusLabel}</span>
 <span class="log-msg">${msg}</span>
 <span class="log-time">${timeStr}</span>
@@ -183,7 +184,7 @@ export async function loadRuntimeLogs(root: ShadowRoot, esc: EscFn): Promise<voi
               second: "2-digit",
             })
           : "";
-        return `<div class="log-row" style="animation-delay:${Math.min(i * 20, 400)}ms">
+        return `<div class="log-row" style="animation-delay:${stagger(i, 20, 400)}ms">
 <span class="log-status">🕹️</span>
 <span class="log-msg" style="white-space:pre-wrap">${esc(l.Message || "")}</span>
 <span class="log-time">${timeStr}</span>

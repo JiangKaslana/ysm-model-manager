@@ -7,6 +7,7 @@ import { executeCLI } from "../../../services/cli-bridge.ts";
 import { resolveWebMode } from "../../../backend/platform.ts";
 import { bus } from "../../../bus.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
+import { stagger } from "../../../utils/animation/stagger.ts";
 import type { EscFn } from "./logs.ts";
 import { safeErrorMessage } from "../../../utils/safe-error-msg.ts";
 
@@ -415,7 +416,7 @@ export async function runPerfLog(root: ShadowRoot, esc: EscFn): Promise<void> {
         const body = e.body.length
           ? `<span class="perf-hist-body">${e.body.map((d) => esc(d)).join("<br>")}</span>`
           : "";
-        return `<div class="perf-hist-card" style="animation-delay:${Math.min(i * 30, 300)}ms">
+        return `<div class="perf-hist-card" style="animation-delay:${stagger(i)}ms">
 <span class="perf-hist-head">🗓️ ${esc(e.date)} · ${esc(e.area)} · <code>${esc(e.commit)}</code></span>${body}
 </div>`;
       })
