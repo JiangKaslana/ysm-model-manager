@@ -185,6 +185,7 @@ const DOC_STATIC_TOOLS = [
  * adr-check（adr 域已跑）不在此重复执行（2026-08-14 审核去重）。 */
 const DOC_EXTRA_SCRIPTS = [
   'check-knowledge-drift.mjs',
+  'check-adr-drift.mjs', // ADR 描述 vs 代码现实漂移守护（2026-08-23 新增）
 ];
 
 /** push 模式按变更域补挂的前端静态工具（2026-08-17 P1-1 修复）：
