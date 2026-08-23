@@ -170,6 +170,26 @@ describe("preloadModel / fetchSpec", () => {
     }
   });
 
+  it("ADR-114：spec.componentTextures → componentTexMap（perComponent 数据源统一）", async () => {
+    // wine_fox 根因修复：GetModel3DSpec 注入 componentTextures，前端按组件名取图，
+    // 未声明组件（arrow 等）不再依赖全局 texArr 槽位
+    specMock.mockResolvedValue(
+      JSON.stringify({
+        models: [{ meshGroups: [{ boneId: "root", positions: [0, 0, 0], normals: [], uvs: [], indices: [] }] }],
+        componentTextures: { comp_1: ["data:image/png;base64,QUJD"] },
+      }),
+    );
+    vi.stubGlobal("Image", FakeImage as never);
+    try {
+      const r = await preloadModel({ _modelPath: "/m/comptex.json", textures: ["skin.png"] });
+      const arr = r.componentTexMap.get("comp_1"); // 键 = BuildMulti 的 mg.name（comp_N）
+      expect(arr).toHaveLength(1);
+      expect(arr?.[0]).toBeInstanceOf(THREE.Texture);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("R1 契约：顺序一致 → 不 warn", async () => {
     specMock.mockResolvedValue(spec(["a.png", "b.png"]));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

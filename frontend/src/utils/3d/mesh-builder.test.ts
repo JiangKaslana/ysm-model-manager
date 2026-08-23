@@ -62,20 +62,24 @@ describe("YSM material alpha partition", () => {
     expect(material.depthWrite).toBe(true);
   });
 
-  it("falls back to the first valid texture instead of rendering magenta", () => {
-    const fallback = rgbaTexture(255);
+  it("越界不静默贴错图：灰色占位 + console.error（兜底根除）", () => {
+    const other = rgbaTexture(255);
     const bone = new THREE.Group();
-    addMeshToBoneGroup(
-      bone,
-      { ...meshData, texIdx: 2 },
-      [fallback, null],
-      0,
-      true,
-    );
-
+    const errors: unknown[][] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      errors.push(args);
+    });
+    try {
+      // 全局回退路径（compTexArr 空）+ md.texIdx=2 越界 arr 长 2：旧行为扫数组贴第一张
+      // （贴错皮肤还装没事，wine_fox 多组件渲染错乱的帮凶）；现行为灰色诚实占位 + 明确报错
+      addMeshToBoneGroup(bone, { ...meshData, texIdx: 2 }, [], 0, true, [other, null]);
+    } finally {
+      spy.mockRestore();
+    }
     const material = (bone.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
-    expect(material.map).toBe(fallback);
-    expect(material.color.getHex()).toBe(0xffffff);
+    expect(material.map).toBeNull(); // 绝不贴别的图
+    expect(material.color.getHex()).toBe(0xcccccc); // 灰色占位
+    expect(errors).toHaveLength(1);
   });
 
   it("uses the per-component local slot 0 instead of the global md.texIdx (code review P3)", () => {

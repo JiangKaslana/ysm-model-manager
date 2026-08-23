@@ -5,6 +5,7 @@ package ysm
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"os"
@@ -568,6 +569,19 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 	// texNames[i] = 组件实际贴图名（texSlot 指向声明序则用声明名，否则组件 basename）——
 	// 前端 R1 存在性校验：期望名必须存在于 texArr 实际清单（共享槽位不再误报）。
 	texNames := make([]string, 0, len(orderedNames))
+	// textures/ 同名纹理索引（小写 basename → 文件路径）：未声明组件按 YSM 游戏语义
+	// 用**同名纹理**（ADR-114 perComponent，前端按组件名取图）——此前解压目录路径缺
+	// 这层关联，arrow 等投射物在前端 texArr 越界被静默兜底贴错皮肤（wine_fox 根因）。
+	pngNameMap := make(map[string]string)
+	if entries, err := os.ReadDir(filepath.Join(dir, "textures")); err == nil {
+		for _, e := range entries {
+			if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".png") {
+				continue
+			}
+			ext := filepath.Ext(e.Name())
+			pngNameMap[strings.ToLower(strings.TrimSuffix(e.Name(), ext))] = filepath.Join(dir, "textures", e.Name())
+		}
+	}
 	undeclSeq := 0
 	for _, mn := range orderedNames {
 		base := mn
@@ -590,9 +604,11 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 				if geoData != nil {
 					gj := geometry.ParseBedrockGeometry(geoData)
 					if gj != nil {
+						onDeclTex := false
 						texSlot := len(texOrderNames) + undeclSeq
 						if j, declared := declPos[mn]; declared && len(texOrderNames) > 0 {
-							if j < len(texOrderNames) {
+							onDeclTex = j < len(texOrderNames)
+							if onDeclTex {
 								texSlot = j // 已声明且在纹理声明范围内：贴 texArr[j]
 							} else {
 								texSlot = len(texOrderNames) - 1 // 模型多于纹理声明：钳到最后一张声明纹理
@@ -602,6 +618,31 @@ func FindComponentsInExtractedYSM(ysmJsonPath string) ([]types.BedrockModel, []s
 						}
 						if texSlot < len(texOrderNames) && texOrderNames[texSlot] != "" {
 							tn = texOrderNames[texSlot]
+						}
+						// 未声明组件（按名段）同名纹理兜底（perComponent）：命中挂
+						// ComponentTextures、texNames 置空（前端 R1 校验跳过空值）；
+						// 已声明组件不填——保留全局 texArr[texSlot] 多皮肤切换语义。
+						if !onDeclTex {
+							if pngPath, ok := pngNameMap[tn]; ok {
+								if pngData := readFileLimited(pngPath); pngData != nil {
+									gj.ComponentTextures = map[string][]string{
+										base: {"data:image/png;base64," + base64.StdEncoding.EncodeToString(pngData)},
+									}
+									texNames = append(texNames, "")
+									gj.SourceName = base
+									for bi := range gj.Bones {
+										for ci := range gj.Bones[bi].Cubes {
+											// TexSlot=0 对齐 zip 路径 buildComponents 口径：
+											// perComponent 组件用自己的第 0 张，全局槽位不再消费
+											gj.Bones[bi].Cubes[ci].TexSlot = 0
+											gj.Bones[bi].Cubes[ci].CubeTexW = gj.TexWidth
+											gj.Bones[bi].Cubes[ci].CubeTexH = gj.TexHeight
+										}
+									}
+									comps = append(comps, *gj)
+									break
+								}
+							}
 						}
 						texNames = append(texNames, tn)
 						// SourceName = 组件源模型文件名（去扩展名，如 main/arm/arrow），UI 组件名用

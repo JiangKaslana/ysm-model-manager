@@ -401,6 +401,10 @@ func (a *App) GetModel3DSpec(modelPath string) string {
 			if len(texNames) > 0 {
 				spec = injectTexArrOrder(spec, texNames)
 			}
+			// ADR-114 perComponent：组件名 → [data URI] 注入 spec——此前该数据只存在于
+			// AnalyzeBedrockModel 链（zip/7z 的 ParseFromZipEntry 未填、解压目录合并路径无
+			// 组件概念），前端从未拿到过；统一从 3D spec 注入，三路（zip/7z/解压目录）同源。
+			spec = injectComponentTextures(spec, comps)
 			return spec
 		}
 	}
@@ -441,6 +445,38 @@ func injectTexArrOrder(spec string, texNames []string) string {
 		return spec
 	}
 	m["texArrOrder"] = texNames
+	b, err := json.Marshal(m)
+	if err != nil {
+		return spec
+	}
+	return string(b)
+}
+
+// injectComponentTextures 在 spec JSON 中注入 componentTextures（ADR-114 perComponent：
+// 组件名 → [data URI 纹理]）。全部为空时原样返回（不注入空对象）。
+// 键 = "comp_<i>"，对齐 threejs.BuildMulti 的 ModelGroup 命名（且同样跳过空骨骼组件，
+// 保证 comps[i] ↔ spec.models 键一一对应）——前端 ysm-object 以 mg.name 查表命中。
+func injectComponentTextures(spec string, comps []types.BedrockModel) string {
+	compTex := make(map[string][]string)
+	for i := range comps {
+		if len(comps[i].Bones) == 0 || len(comps[i].ComponentTextures) == 0 {
+			continue
+		}
+		for _, arr := range comps[i].ComponentTextures {
+			if len(arr) > 0 {
+				compTex[fmt.Sprintf("comp_%d", i)] = arr
+				break // 每组件取第一条有效纹理（当前口径单张主纹理）
+			}
+		}
+	}
+	if len(compTex) == 0 {
+		return spec
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(spec), &m); err != nil {
+		return spec
+	}
+	m["componentTextures"] = compTex
 	b, err := json.Marshal(m)
 	if err != nil {
 		return spec

@@ -221,8 +221,11 @@ function parseBedrockGeometry(data: string): BedrockModel | null {
         texSlot: c.texture ?? 0, // 对齐 Go `Texture int` 缺省 0（未声明 texture 不丢 texIdx 键）
         inflate: c.inflate ?? 0,
         mirror: c.mirror ?? false,
-        cubeTexW: 0,
-        cubeTexH: 0,
+        // 对齐 Go 端：per-cube 记住来源 geometry 的纹理尺寸——多组件不同
+        // texture_width（如 main=256 / arrow=64 / foxcar=512）时 UV 归一化
+        // 各用各的基准，恒 0 会全部退回第一个 geometry 的尺寸导致缩放错
+        cubeTexW: texW,
+        cubeTexH: texH,
       });
     }
     let boneRot: [number, number, number] = [0, 0, 0];

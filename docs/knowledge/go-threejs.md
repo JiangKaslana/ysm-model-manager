@@ -34,6 +34,7 @@ invariant_anchors:
 - `Build(model types.BedrockModel) (string, error)` — 单组件构建入口，输入解析好的 BedrockModel，输出 JSON 字符串；无骨骼时返回 `"{}"`；内部委托 `buildModelGroup(model, compID, texIdxBase)`（骨架层构建由 `buildModelGroup` 抽取共用，`boneByName` 反查表建在 `boneIdx` 旁——两表语义不同：boneIdx 用 boneDone 去重、boneByName 保留 model.Bones 原始顺序供补充缺失骨骼/断裂父子链）
 - `BuildMulti(models []types.BedrockModel, texIdxBase []int) (string, error)` — **多组件构建入口**（2026-08 多组件解析配套）：输入多个 BedrockModel（main/arm/arrow 等组件）+ 各组件纹理槽基址，复用 `buildModelGroup` 逐组件构建后合并为单一 spec（前端以 modelGroup 组件树 + compKey 骨骼作用域隔离渲染，`showModelGroup(-1)` 全部显示）
 - 输出结构类型：`Model3DSpec`（models 列表）、`ModelGroup`（纹理尺寸/骨骼/网格组）、`BoneData`（localPosition + localRotation 四元数 [x,y,z,w] + parentId）、`MeshData`（positions/normals/uvs/indices/texIdx 纹理槽）
+- **GetModel3DSpec 注入（internal/app）**：多组件分支在 spec JSON 上追加 `texArrOrder`（组件序期望纹理名，perComponent 组件为空串——前端 R1 校验跳过空值）与 `componentTextures`（`injectComponentTextures`，键 = `comp_<i>` 对齐 `BuildMulti` ModelGroup 命名且同样跳过空骨骼组件；值 = ADR-114 perComponent 同名纹理 data URI）。zip/7z/解压目录三路同源，前端 `preloadModel` 据此建 `componentTexMap`
 
 ## 与其他子系统关系
 

@@ -734,6 +734,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-117：地面材质 spec 单一事实源",
+        "link": "/adr/ADR-117-ground-material-spec"
+      },
+      {
         "text": "ADR-116：前端 vs Go 职责红线：筛选/类型判定权威层归 Go",
         "link": "/adr/ADR-116-frontend-go-boundary"
       },
@@ -1614,6 +1618,10 @@ export const autoSidebar = [
           {
             "text": "YSM 动画分组与配置菜单提取",
             "link": "/knowledge/format-ysm-anim-config"
+          },
+          {
+            "text": "地面材质 spec 单一事实源 ground-surface-spec",
+            "link": "/knowledge/ground_surface_spec"
           },
           {
             "text": "MC 环境光遮蔽(AO) 权重 + biome 配色 参考实现",

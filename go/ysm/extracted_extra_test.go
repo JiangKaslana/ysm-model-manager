@@ -9,6 +9,7 @@ package ysm
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -426,17 +427,27 @@ func TestFindComponentsInExtractedYSM_StringModelPlusModelsDir(t *testing.T) {
 	if comps[0].SourceName != "main" {
 		t.Errorf("组件 0 应为 main, got %q", comps[0].SourceName)
 	}
-	// main 已声明 → 贴声明纹理 skin（texSlot=0）；arm/arrow 未声明 → 按名段 basename
-	wantNames := []string{"skin", "arm", "arrow"}
+	// main 已声明 → 贴声明纹理 skin（texSlot=0）；arm/arrow 未声明 → 按名段
+	// 命中同名 png（textures/arm.png、arrow.png）→ ADR-114 perComponent 接管，
+	// texNames 置空（前端 R1 校验跳过空值）。
+	wantNames := []string{"skin", "", ""}
 	for i, w := range wantNames {
 		if texNames[i] != w {
 			t.Fatalf("texNames[%d] = %q, 期望 %q", i, texNames[i], w)
 		}
 	}
-	// 组件 TexSlot：main=0（声明序）、arm=1、arrow=2（按名段）
-	for i, slot := range []int{0, 1, 2} {
+	// 组件 TexSlot：main=0（声明序贴 texArr）；arm/arrow perComponent 接管 →
+	// TexSlot=0（对齐 zip buildComponents 口径：用自己的第 0 张，全局槽位不消费）
+	for i, slot := range []int{0, 0, 0} {
 		if got := comps[i].Bones[0].Cubes[0].TexSlot; got != slot {
 			t.Errorf("组件 %d (%s) cube TexSlot = %d, 期望 %d", i, comps[i].SourceName, got, slot)
+		}
+	}
+	// 未声明组件挂同名纹理 ComponentTextures（data URI），键 = 组件 basename
+	for idx, name := range []string{"arm", "arrow"} {
+		ct, ok := comps[idx+1].ComponentTextures[name]
+		if !ok || len(ct) != 1 || !strings.HasPrefix(ct[0], "data:image/png;base64,") {
+			t.Errorf("组件 %s 应有 perComponent 纹理 [1 张 data URI], got %v", name, comps[idx+1].ComponentTextures)
 		}
 	}
 }

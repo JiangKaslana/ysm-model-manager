@@ -266,8 +266,8 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `BuildSyncItems()` | `go/instance/instance:26` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
-| `ResourceTypeInfo()` | `go/instance/instance:17` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
+| `BuildSyncItems()` | `go/instance/instance:27` | BuildSyncItems 组装整合包内各资源类型的同步状态项（纯逻辑，root 由调用方注入） subtype 指定子类型目录名（如 EntityPlayer/SceneMod |
+| `ResourceTypeInfo()` | `go/instance/instance:18` | ResourceTypeInfo 资源类型注册表条目（BuildSyncItems 需要的字段） |
 
 ## go/internal
 
@@ -708,8 +708,8 @@
 | `App.AnalyzeBedrockModel()` | `internal/app/app_model:275` | — |
 | `App.AnalyzeBedrockModelEntry()` | `internal/app/app_model:337` | AnalyzeBedrockModelEntry 按 SubModel.SourcePath 只解析归档内单模型 geometry（多角色包角色切换用）。 |
 | `App.GetModel3DSpec()` | `internal/app/app_model:385` | — |
-| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:421` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:483` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:425` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:519` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `ReadFileMeta()` | `internal/app/app_model:191` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:28` | ========== 导出单模型骨骼结构 ========== ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:66` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |
@@ -1413,9 +1413,9 @@
 | `DEFAULT_FOG_PARAMS()` | `frontend/src/utils/3d/caps/fog-capability:30` | — |
 | `FOG_PRESETS()` | `frontend/src/utils/3d/caps/fog-capability:40` | 模型类别雾预设：材质特性不同，雾浓度/远近做合理初始值 |
 | `FogCapability()` | `frontend/src/utils/3d/caps/fog-capability:68` | — |
-| `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:15` | — |
-| `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:36` | — |
-| `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:48` | — |
+| `GroundParams()` | `frontend/src/utils/3d/caps/ground-capability:36` | — |
+| `DEFAULT_GROUND_PARAMS()` | `frontend/src/utils/3d/caps/ground-capability:57` | — |
+| `GroundCapability()` | `frontend/src/utils/3d/caps/ground-capability:70` | — |
 | `GroundSurfaceMode()` | `frontend/src/utils/3d/caps/ground-surface-spec:17` | 地面表面模式（扁平枚举：来源 × 画布样式合一，避免双字段耦合守卫） |
 | `GroundMaterialParams()` | `frontend/src/utils/3d/caps/ground-surface-spec:19` | — |
 | `DEFAULT_GROUND_SURFACE_PARAMS()` | `frontend/src/utils/3d/caps/ground-surface-spec:40` | — |

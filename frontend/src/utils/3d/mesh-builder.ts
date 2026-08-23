@@ -47,21 +47,18 @@ export function addMeshToBoneGroup(
   // 品红 warning（如 arrow texSlot=6 对 compTexArr 长度 1），多纹理组件还可能绑错
   const mti = arr === compTexArr ? 0 : multiModel ? (md.texIdx ?? 0) : (texIdx ?? 0);
 
-  // Invalid slots fall back to the first valid texture. Keep the warning for diagnostics,
-  // but do not turn a recoverable mapping problem into a magenta production render.
+  // 纹理槽位缺失时**不再静默兜底贴错图**（坏文明根除）：旧行为「找第一张可用」
+  // 会把别的组件皮肤贴上还装没事（wine_fox 多组件渲染错乱的帮凶）；灰色占位 +
+  // 明确报错至少诚实暴露映射断裂，便于定位数据源问题。
   let mt: THREE.Texture | null = null;
   if (arr.length > 0) {
     if (mti >= 0 && mti < arr.length && arr[mti]) {
       mt = arr[mti];
     } else {
-      // 统一兜底：两条路径（perComponent / 全局回退）都用"找第一张可用纹理"，
-      // 只有整个数组都 null 时才灰色——避免 perComponent 灰色 vs 全局找第一张的不一致
-      const fallbackIndex = arr.findIndex((texture) => texture !== null);
-      if (fallbackIndex >= 0) mt = arr[fallbackIndex];
-      console.warn(
-        `[model3d] texIdx=${mti} 越界或缺图（arr长=${arr.length}），` +
-          `组件 boneId=${md.boneId ?? "?"} 回退纹理槽 ${fallbackIndex}`,
-        { multiModel, mdTexIdx: md.texIdx, callerTexIdx: texIdx, fallbackIndex },
+      console.error(
+        `[model3d] 纹理槽位缺失: 组件 ${md.boneId} 期望索引 ${mti}` +
+          `（可用纹理 ${arr.filter(Boolean).length}/${arr.length}），以灰色占位渲染`,
+        { multiModel, mdTexIdx: md.texIdx, callerTexIdx: texIdx },
       );
     }
   }

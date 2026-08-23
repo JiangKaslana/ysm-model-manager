@@ -187,10 +187,12 @@ export async function preloadModel(model: ModelLike): Promise<{
   const urls = actualUrls;
   const texArr = await loadTextures(urls);
   // ADR-114 perComponent：每组件独立纹理对象，不再依赖全局 texArr 槽位顺序。
-  // Go 端 buildComponents 填 ComponentTextures[compName] = [declaredTexBase64]，
-  // 前端按组件名查自己的纹理数组。
+  // 数据源统一（spec 注入优先）：GetModel3DSpec 把 ComponentTextures 注入
+  // spec.componentTextures（zip/7z/解压目录三路同源）；model.componentTextures
+  // 保留兼容（旧数据链）。
   const componentTexMap = new Map<string, (THREE.Texture | null)[]>();
-  const compTex = (model as ModelLike).componentTextures;
+  const compTex = (spec as { componentTextures?: Record<string, string[]> }).componentTextures
+    ?? (model as ModelLike).componentTextures;
   if (compTex) {
     for (const [compName, texBase64Arr] of Object.entries(compTex)) {
       const compTexArr = await loadTextures(texBase64Arr);
