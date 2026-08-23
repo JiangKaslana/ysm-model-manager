@@ -1029,7 +1029,7 @@
 | `groupSites()` | `frontend/src/features/community/render:215` | 按 group 分组站点（缺省 browse）。纯函数，供单测覆盖（ADR-023 L3）。 |
 | `renderCardsHTML()` | `frontend/src/features/community/render:232` | 生成左栏站点卡片 HTML |
 | `renderRepoHeaderHTML()` | `frontend/src/features/community/render:282` | 生成仓库模型页面的头部 HTML（含返回按钮、计数、筛选按钮等） |
-| `showRepoModels()` | `frontend/src/features/community/show-repo-models:25` | 显示 GitHub 仓库模型列表（比对本地已有文件） 包含：本地扫描、sourceLabel构建、countMissing、renderRepoHeaderHTML、bindRep |
+| `showRepoModels()` | `frontend/src/features/community/show-repo-models:27` | 显示 GitHub 仓库模型列表（比对本地已有文件） 包含：本地扫描、sourceLabel构建、countMissing、renderRepoHeaderHTML、bindRep |
 | `VirtualListOpts()` | `frontend/src/features/community/virtual-list:8` | — |
 | `VirtualList()` | `frontend/src/features/community/virtual-list:21` | — |
 | `createVirtualList()` | `frontend/src/features/community/virtual-list:31` | — |

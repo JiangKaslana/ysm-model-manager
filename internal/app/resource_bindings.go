@@ -618,7 +618,7 @@ func (a *App) RepoHealthAuditAll() string {
 		return findDuplicateErrorJSON("请先配置仓库目录")
 	}
 	type auditResult struct {
-		rtype  string
+		rtype string
 		report repoaudit.HealthReport
 		err    error
 	}
