@@ -3,9 +3,12 @@ package cli
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"ysm-model-manager/go/packs"
+	"ysm-model-manager/go/repoaudit"
 	"ysm-model-manager/go/texture_cache"
 	"ysm-model-manager/go/types"
 	"ysm-model-manager/internal/app"
@@ -68,15 +71,21 @@ func runGUIFlow(ctx *CmdContext) error {
 	if targetModel != "" {
 		results = append(results, runPhaseModelAnalyze(ctx.App, targetModel))
 
-		// ============ Phase 4: 纹理缓存检查 ============
-		results = append(results, runPhaseTextureCache(targetModel))
+		// PMX/PMD 加载链路在 Three.js 前端（@moeru/three-mmd），CLI 无解析器，
+		// ④⑤⑥ 阶段（纹理缓存/数据准备/渲染预估）依赖 AnalyzeBedrockModel（仅 Bedrock geometry），
+		// 对 PMX 会产出假数据——跳过并在③阶段已明确告知限制。
+		ext := strings.ToLower(filepath.Ext(targetModel))
+		if ext != ".pmx" && ext != ".pmd" {
+			// ============ Phase 4: 纹理缓存检查 ============
+			results = append(results, runPhaseTextureCache(targetModel))
 
-		// ============ Phase 5: 数据准备（IPC 传输模拟）============
-		results = append(results, runPhaseDataPrep(ctx.App, targetModel))
+			// ============ Phase 5: 数据准备（IPC 传输模拟）============
+			results = append(results, runPhaseDataPrep(ctx.App, targetModel))
 
-		// ============ Phase 6: 渲染预估 ============
-		if *verbose {
-			results = append(results, runPhaseRenderEstimate(ctx.App, targetModel, *verbose))
+			// ============ Phase 6: 渲染预估 ============
+			if *verbose {
+				results = append(results, runPhaseRenderEstimate(ctx.App, targetModel, *verbose))
+			}
 		}
 	} else {
 		results = append(results, guiFlowResult{
@@ -117,6 +126,46 @@ func runPhaseConfigLoad(a *app.App) guiFlowResult {
 	}
 }
 
+// scanSummaryByType 按注册表类型聚合扫描结果。
+// 返回 {typeID: count} 与首个「分析阶段可处理」的模型路径（.ysm 优先）。
+// 原实现硬编码 yml/ysm/other 三槽，MMD 的 PMX/PMD 等注册表类型全归 "other"，
+// 导致纯 MMD 仓库统计失真（"其他: 333"）——现按注册表真实类型展示分布。
+// firstModel 只选 .ysm（分析阶段 AnalyzeBedrockModel 仅支持 Bedrock geometry），
+// PMX 等类型不提升，保持原「未找到可分析的模型」语义（用户可 --model 显式指定）。
+func scanSummaryByType(entries []types.ModelEntry) (map[string]int, string) {
+	byType := make(map[string]int)
+	var firstModel string
+	registry := types.LoadRegistry()
+	for _, e := range entries {
+		ext := strings.ToLower(filepath.Ext(e.Path))
+		id := classifyForScan(e.Path, ext, registry)
+		byType[id]++
+		if firstModel == "" && ext == ".ysm" {
+			firstModel = e.Path
+		}
+	}
+	return byType, firstModel
+}
+
+// classifyForScan 轻量类型判定（gui-flow 扫描统计专用）：
+// 非容器 → packs.DetectResourceType（路径消歧 + 扩展名，零文件打开——MMD 子类型
+// 共享 .pmx 时经 StorageSubDir 准确归属，如 mmd/PMX/ 目录 → EntityPlayer）；
+// 容器（.zip/.7z）→ repoaudit.Classify 扩展名兜底（统计场景不打开容器内容指纹，
+// zip 打开成本高，精确判定由扫描/同步链路负责，此处仅展示分布）。
+func classifyForScan(path, ext string, registry *types.ResourceTypeRegistry) string {
+	if !types.IsContainerExt(ext) {
+		if id := packs.DetectResourceType(path, registry); id != "" {
+			return id
+		}
+		return "other"
+	}
+	id := repoaudit.Classify(ext)
+	if id == "" {
+		return "other"
+	}
+	return id
+}
+
 // runPhaseModelScan 模拟模型扫描
 func runPhaseModelScan(a *app.App, filesRoot string) guiFlowResult {
 	start := time.Now()
@@ -133,39 +182,25 @@ func runPhaseModelScan(a *app.App, filesRoot string) guiFlowResult {
 		}
 	}
 
-	// 统计模型类型
-	yamlCount := 0
-	ysmCount := 0
-	otherCount := 0
-	var firstModel string
-
-	for _, e := range entries {
-		ext := strings.ToLower(filepath.Ext(e.Path))
-		if ext == ".yml" || ext == ".yaml" {
-			yamlCount++
-		} else if ext == ".ysm" {
-			ysmCount++
-			if firstModel == "" {
-				firstModel = e.Path
-			}
-		} else {
-			otherCount++
-		}
-		// 如果没有 YSM，用 YAML
-		if firstModel == "" && (ext == ".yml" || ext == ".yaml") {
-			firstModel = e.Path
-		}
+	byType, firstModel := scanSummaryByType(entries)
+	// 类型分布可读化：注册表类型 id（EntityPlayer/ysm/...）→ count；未命中归 other
+	parts := make([]string, 0, len(byType))
+	for id, n := range byType {
+		parts = append(parts, fmt.Sprintf("%s: %d", id, n))
 	}
+	// 稳定输出（map 遍历无序，测试/展示确定性）
+	sort.Strings(parts)
+	dist := strings.Join(parts, ", ")
 
 	return guiFlowResult{
 		Stage:    "② 模型扫描",
 		Duration: elapsed,
 		Success:  true,
 		Description: fmt.Sprintf(
-			"✅ 发现 %d 个模型 (%.0f models/sec)\n   YAML: %d, YSM: %d, 其他: %d\n   首个模型: %s",
+			"✅ 发现 %d 个模型 (%.0f models/sec)\n   类型分布: %s\n   首个模型: %s",
 			len(entries),
 			float64(len(entries))/elapsed.Seconds(),
-			yamlCount, ysmCount, otherCount,
+			dist,
 			firstModel,
 		),
 	}
@@ -174,6 +209,22 @@ func runPhaseModelScan(a *app.App, filesRoot string) guiFlowResult {
 // runPhaseModelAnalyze 模拟模型分析
 func runPhaseModelAnalyze(a *app.App, modelPath string) guiFlowResult {
 	start := time.Now()
+	ext := strings.ToLower(filepath.Ext(modelPath))
+
+	// PMX/PMD 分派：Go 端无 PMX 骨骼/纹理解析器（MMD 加载链路在 Three.js 前端
+	// @moeru/three-mmd），AnalyzeBedrockModel 对 PMX 必然失败/假数据——明确告知
+	// 限制并引导 GUI 3D 预览实测，不再硬跑（此前对 PMX 输出「分析失败」误导用户）。
+	if ext == ".pmx" || ext == ".pmd" {
+		return guiFlowResult{
+			Stage:    "③ 模型分析",
+			Duration: time.Since(start),
+			Success:  true,
+			Description: fmt.Sprintf(
+				"ℹ️ PMX/PMD 加载链路在 Three.js 前端（@moeru/three-mmd），CLI 不模拟\n   文件: %s\n   请在 GUI 3D 预览实测首帧耗时",
+				filepath.Base(modelPath),
+			),
+		}
+	}
 
 	model := a.AnalyzeBedrockModel(modelPath)
 	elapsed := time.Since(start)
