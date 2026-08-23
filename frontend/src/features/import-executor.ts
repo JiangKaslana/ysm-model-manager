@@ -8,7 +8,7 @@ import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { getApp } from "../backend/app.ts";
 import { importWebFiles } from "../backend/browser-adapter.ts";
-import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+import { currentRepoType } from "./repo-rtype.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
 import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
@@ -241,7 +241,7 @@ export const importWebFilesWithToast = async (
   onFinally?: () => void,
 ): Promise<{ imported: number; failed: number }> => {
   try {
-    const r = await importWebFiles(files, RESOURCE_TYPES.YSM);
+    const r = await importWebFiles(files, currentRepoType());
     bus.emit("toast:show", {
       msg:
         r.failed > 0

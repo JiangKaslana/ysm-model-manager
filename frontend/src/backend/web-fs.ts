@@ -32,6 +32,7 @@ import type { ModelEntry } from "../../bindings/ysm-model-manager/go/types/model
 import resourceTypesJson from "../../../resource_types.json" with { type: "json" };
 // rtype 魔法字符串统一走 RESOURCE_TYPES 常量（治理红线 R7）
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+import { currentRepoType } from "../features/repo-rtype.ts";
 // ADR-066 识别层对齐：RESOURCE_EXTS（resource_types.json 派生）驱动主文件判定，
 // 让网页版模型库显示全类型（.nbt/.schematic/.litematic/.pmx/.pmd/.vrca/.vrm），
 // 不再 YSM 单类型硬编码（原 mainFileRank 只认 .ysm/.zip/ysm.json）
@@ -212,7 +213,7 @@ export async function rescanFsaRoot(): Promise<{ ok: boolean; imported: number; 
 async function scanFsaHandle(handle: unknown): Promise<{ ok: boolean; imported: number; failed: number; dir: string }> {
   const files: File[] = [];
   await _collectModelFiles(handle as _FsaDirHandle, files);
-  const { imported, failed } = await importWebFiles(files, RESOURCE_TYPES.YSM);
+  const { imported, failed } = await importWebFiles(files, currentRepoType());
   return { ok: true, imported, failed, dir: (handle as _FsaDirHandle).name };
 }
 
