@@ -750,27 +750,57 @@ func TestScanSummaryByType(t *testing.T) {
 	entries := []types.ModelEntry{
 		{Path: `/repo/mmd/PMX/2.大学学姐/角色A.pmx`},
 		{Path: `/repo/mmd/PMX/2.大学学姐/角色B.pmx`},
-		{Path: `/repo/mmd/PMX/动作A.vmd`},
+		{Path: `/repo/mmd/PMX/2.大学学姐/动作A.vmd`},
+		{Path: `/repo/mmd/PMX/角色包.zip`}, // 模型包容器：目录归属 > 扩展名（location 路由）
 		{Path: `/repo/ysm/模型A.ysm`},
 		{Path: `/repo/ysm/模型B.ysm`},
 		{Path: `/repo/misc/说明.txt`},
 	}
 	byType, first := scanSummaryByType(entries)
 
-	// PMX 经路径消歧（mmd/PMX 祖先目录命中 EntityPlayer.storageSubDir）归 EntityPlayer
-	if byType["EntityPlayer"] != 2 {
-		t.Errorf("EntityPlayer 计数 = %d, 期望 2 (byType=%v)", byType["EntityPlayer"], byType)
+	// PMX 目录下全部资源（.pmx/.vmd/.zip）经 location 路由归 EntityPlayer
+	if byType["EntityPlayer"] != 4 {
+		t.Errorf("EntityPlayer 计数 = %d, 期望 4（pmx×2+vmd+zip）(byType=%v)", byType["EntityPlayer"], byType)
 	}
 	if byType["ysm"] != 2 {
 		t.Errorf("ysm 计数 = %d, 期望 2", byType["ysm"])
 	}
-	// .vmd 在 PMX 目录下应同样归 EntityPlayer（同 storageSubDir 消歧），.txt 未命中注册表才落 other
+	// .txt 未命中注册表才落 other
 	if byType["other"] != 1 {
 		t.Errorf("other 计数 = %d, 期望 1（仅 txt）", byType["other"])
 	}
 	// firstModel 只选 .ysm
 	if !strings.HasSuffix(first, "模型A.ysm") {
 		t.Errorf("firstModel = %q, 期望 .ysm 模型", first)
+	}
+}
+
+// TestClassifyForScan_LocationRouting 目录归属 > 扩展名（MMD 子类型 location 路由）：
+// mmd/PMX 目录下 zip 模型包/表情/动作文件都归 EntityPlayer（此前 zip 被
+// repoaudit.Classify 归到最后一个声明 .zip 的 DefaultMorph——217 个 PMX 包误统计）；
+// 更深目录优先（mmd/PMX/DefaultMorph 下归 DefaultMorph）。
+func TestClassifyForScan_LocationRouting(t *testing.T) {
+	registry := types.LoadRegistry()
+
+	// mmd/PMX 目录（EntityPlayer.storageSubDir=PMX）下各类文件归 EntityPlayer
+	cases := []struct {
+		path string
+		ext  string
+		want string
+	}{
+		{`/repo/mmd/PMX/角色包.zip`, ".zip", "EntityPlayer"},             // 模型包容器
+		{`/repo/mmd/PMX/表情.vpd`, ".vpd", "EntityPlayer"},              // 表情文件
+		{`/repo/mmd/PMX/动作.vmd`, ".vmd", "EntityPlayer"},              // 动作文件
+		{`/repo/mmd/PMX/角色.pmx`, ".pmx", "EntityPlayer"},              // 裸模型
+		{`/repo/mmd/DefaultMorph/表情.vpd`, ".vpd", "DefaultMorph"},     // 各自目录归属
+		{`/repo/mmd/CustomAnim/动作.vmd`, ".vmd", "CustomAnim"},         // 各自目录归属
+		{`/repo/mmd/PMX/DefaultMorph/内嵌.vpd`, ".vpd", "DefaultMorph"}, // 深目录优先
+		{`/repo/ysm/模型A.ysm`, ".ysm", "ysm"},
+	}
+	for _, tc := range cases {
+		if got := classifyForScan(tc.path, tc.ext, registry); got != tc.want {
+			t.Errorf("classifyForScan(%s) = %q, 期望 %q", tc.path, got, tc.want)
+		}
 	}
 }
 

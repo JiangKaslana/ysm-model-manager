@@ -147,12 +147,17 @@ func scanSummaryByType(entries []types.ModelEntry) (map[string]int, string) {
 	return byType, firstModel
 }
 
-// classifyForScan 轻量类型判定（gui-flow 扫描统计专用）：
-// 非容器 → packs.DetectResourceType（路径消歧 + 扩展名，零文件打开——MMD 子类型
-// 共享 .pmx 时经 StorageSubDir 准确归属，如 mmd/PMX/ 目录 → EntityPlayer）；
-// 容器（.zip/.7z）→ repoaudit.Classify 扩展名兜底（统计场景不打开容器内容指纹，
-// zip 打开成本高，精确判定由扫描/同步链路负责，此处仅展示分布）。
+// classifyForScan 轻量类型判定（gui-flow 扫描统计专用，不打开容器内容指纹）：
+//  1. 祖先目录归属优先（任意扩展名）：mmd/PMX/xxx.zip 或 xxx.vpd 都归 EntityPlayer——
+//     目录归属（storageSubDir/instanceDir 命中）> 扩展名归属（location 路由语义，
+//     模型包目录下的容器/表情/动作文件都是该类型的资源）；
+//  2. 非容器 → packs.DetectResourceType（路径消歧 + 扩展名，零文件打开）；
+//  3. 容器兜底 → repoaudit.Classify（共享扩展名 .zip 被 14 类型声明，Classify 归
+//     最后一个声明者——仅作目录消歧未命中时的最后兜底）。
 func classifyForScan(path, ext string, registry *types.ResourceTypeRegistry) string {
+	if id := classifyByAncestorDir(path, registry); id != "" {
+		return id
+	}
 	if !types.IsContainerExt(ext) {
 		if id := packs.DetectResourceType(path, registry); id != "" {
 			return id
@@ -164,6 +169,44 @@ func classifyForScan(path, ext string, registry *types.ResourceTypeRegistry) str
 		return "other"
 	}
 	return id
+}
+
+// classifyByAncestorDir 祖先目录归属判定（MMD 子类型 location 路由）：从最深祖先到
+// 最浅遍历，命中某类型 storageSubDir/instanceDir（后缀匹配）即归该类型，不校验扩展名。
+// 深目录优先：mmd/PMX/DefaultMorph/ 下文件归 DefaultMorph（而非外层 EntityPlayer）。
+// 修复：此前容器分支直接 repoaudit.Classify(".zip")，共享扩展名归最后一个声明者
+// （DefaultMorph），导致 mmd/PMX 下 217 个模型包 zip 全部误统计为 DefaultMorph。
+func classifyByAncestorDir(path string, registry *types.ResourceTypeRegistry) string {
+	dir := filepath.Dir(path)
+	if dir == "." || dir == "" {
+		return ""
+	}
+	// 祖先目录收集（深 → 浅，filepath.Dir 逐级上溯）
+	var ancestors []string
+	d := dir
+	for d != "." && d != "" && d != string(filepath.Separator) {
+		ancestors = append(ancestors, d)
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
+		}
+		d = parent
+	}
+	for _, anc := range ancestors {
+		ancNorm := filepath.ToSlash(strings.ToLower(anc))
+		for _, rt := range registry.ResourceTypes {
+			for _, c := range []string{rt.InstanceDir, rt.StorageSubDir} {
+				if c == "" {
+					continue
+				}
+				cNorm := filepath.ToSlash(strings.ToLower(c))
+				if ancNorm == cNorm || strings.HasSuffix(ancNorm, "/"+cNorm) {
+					return rt.ID
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // runPhaseModelScan 模拟模型扫描

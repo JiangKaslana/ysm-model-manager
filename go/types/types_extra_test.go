@@ -585,3 +585,4 @@ func TestFindInstDir_Resourcepack_NoFallback(t *testing.T) {
 		t.Fatalf("resourcepack 不得兜底，应返回标准路径: got=%s, 期望 %s", got, want)
 	}
 }
+
