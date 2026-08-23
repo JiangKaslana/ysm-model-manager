@@ -43,18 +43,18 @@ describe("rebuildParsedName", () => {
     expect(rebuildParsedName("foo.ysm", p)).toBe("foo.ysm");
   });
 
-  it("banned 文件保留 .ban 尾缀，且角色名不残留 .ysm", () => {
+  it("banned 文件迁移为 .disabled 尾缀，且角色名不残留 .ysm", () => {
     // P2 回归：原实现 ext 取 "ban"、角色名残留 ".ysm"
     const p = mkParsed({ author: "作者", work: "作品", chara: "角色" });
     expect(rebuildParsedName("[作者]【作品】角色.ysm.ban", p)).toBe(
-      "[作者]【作品】角色.ysm.ban",
+      "[作者]【作品】角色.ysm.disabled",
     );
   });
 
   it("banned 且解析失败时：先剥 .ban 再剥扩展名回退角色名", () => {
     // P2 回归：剥 .ban 顺序不可反，否则回退名残留 .ysm
     const p = mkParsed();
-    expect(rebuildParsedName("foo.ysm.ban", p)).toBe("foo.ysm.ban");
+    expect(rebuildParsedName("foo.ysm.ban", p)).toBe("foo.ysm.disabled");
   });
 
   it("扩展名保留原名（非 ysm 也保留）", () => {
@@ -77,14 +77,14 @@ describe("rebuildParsedName", () => {
     ).toBe("[新作者]【新作品】角色 (2024-01).ysm");
   });
 
-  it("override 为空字符串时回退解析值（.ban 尾缀完整保留）", () => {
+  it("override 为空字符串时回退解析值（.disabled 尾缀完整保留）", () => {
     const p = mkParsed({ author: "作者", work: "作品", chara: "角色", date: "2024-01" });
     expect(
       rebuildParsedName("[作者]【作品】角色 (2024-01).ysm.ban", p, {
         author: "",
         work: "新作品",
       }),
-    ).toBe("[作者]【新作品】角色 (2024-01).ysm.ban");
+    ).toBe("[作者]【新作品】角色 (2024-01).ysm.disabled");
   });
 
   it("全空字段重建后不改变原名（幂等）", () => {
