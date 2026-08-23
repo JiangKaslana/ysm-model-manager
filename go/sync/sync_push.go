@@ -43,7 +43,10 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 				// 多层物理路径：用 InstallDirRel 保留仓库层级结构
 				// 例如 missing=globalDir/vendor/character/modelA → targetDir/vendor/character/modelA
 				rel, relErr := filepath.Rel(globalDir, missing)
-				if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				// code review P3：rel == "."（missing == globalDir——目录根本身是模型文件夹）
+				// 也回退 InstallDir（InstallDirRel 的 rel=="." 拒绝会静默推送失败——与旧
+				// 行为一致：basename 落位）
+				if relErr != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 					// 越界回退到 InstallDir 原语义（basename 落位）
 					err = installer.InstallDir(missing, targetDir, globalDir, linkMode, rtype)
 				} else {
