@@ -1,3 +1,5 @@
+//go:build !rust_backend
+
 // ===== scanner 在途合并（single-flight）测试 =====
 // 背景（2026-08-21）：点击整合包时前端多组件并发请求 GetResourceInstanceStatus，
 // 同目录的两次扫描在途重叠——缓存「扫完才 Store」导致重叠请求双双真扫

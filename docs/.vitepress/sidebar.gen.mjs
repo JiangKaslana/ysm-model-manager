@@ -734,6 +734,10 @@ export const autoSidebar = [
     "collapsed": true,
     "items": [
       {
+        "text": "ADR-118：面级透明分类：mesh 级 alpha 误判数据与分阶段落地",
+        "link": "/adr/ADR-118-face-level-translucency"
+      },
+      {
         "text": "ADR-117：地面材质 spec 单一事实源",
         "link": "/adr/ADR-117-ground-material-spec"
       },
