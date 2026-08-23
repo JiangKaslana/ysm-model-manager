@@ -178,3 +178,16 @@ export function disposeMaterial(m: THREE.Material | null | undefined): void {
 1. **废弃纹理检测**：在 `Texture.dispose()` 后设置标志位，debug 模式检查残留引用
 2. **统一辅助函数**：考虑将 `disposeAllTextures(material)` 提取为独立工具函数，避免 3 处重复
 3. **集成测试**：添加端到端测试验证 MToon 材质 dispose 后 GPU 内存释放
+
+---
+
+## 状态复核（2026-08-23）
+
+> 复核方法：对照本报告 P1（disposeMaterial/safeDisposeMat/tryDisposeMat 仅释放 `map`）与 P2（light-capability 遗漏 `emissiveMap`），实证 `frontend/src/utils/3d/` 当前代码现实。
+
+| 项 | 报告评级 | 2026-08-23 代码现实 | 结论 |
+|----|---------|-------------------|------|
+| P1 disposeMaterial 仅释放 map | 🔴 待修 | `disposeMaterial` 已从 `mesh.ts` 统一收缴；`fbx-adapter.ts:129` / `mmd-adapter.ts:120` 遍历全纹理槽（map/normalMap/specularMap/alphaMap/emissiveMap），无"仅 map"残留 | ✅ 已修 |
+| P2 light-capability 遗漏 emissiveMap | 🟡 待修 | `caps/light-capability.ts` 经统一 dispose 体系（`dispose():741-748` 释放 key/fill/rim/ambient/spotlight + disposeCone 释放 geometry），材质纹理经 `disposeMaterial` 全槽释放 | ✅ 已修 |
+
+**复核结论**：本报告 P1/P2 均已构成历史债务并已偿还。`cleanup-3d.ts` 的 `safeDisposeMat` 亦已升级为全槽释放。报告原文（2026-08-18 时态快照）保留不变。

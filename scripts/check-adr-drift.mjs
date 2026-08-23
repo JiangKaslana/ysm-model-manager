@@ -59,6 +59,19 @@ const KNOWN_REPAID = [
   },
 ];
 
+// 审计报告复核段防倒退：这些报告已被 2026-08-23 复核翻牌（证明代码债已还）。
+// 若复核段被删除/篡改，说明有人试图把已还债重新标为开放债，报 DRIFT。
+// 判定：文件必须存在且含「状态复核（2026-08-23）」锚点。
+const AUDIT_REVIEWED = [
+  'docs/audit-r1-3d-engine-core-2026-08-18.md',
+  'docs/audit-r7-performance-memory-2026-08-18.md',
+  'docs/audit-r9-3d-preview-resource-management-2026-08-18.md',
+  'docs/audit-r10-animation-resource-management-2026-08-18.md',
+  'docs/audit-r11-texture-lifecycle-2026-08-18.md',
+  'docs/audit-r12-scene-switch-race-2026-08-18.md',
+  'docs/audit-r14-coverage-2026-08-18.md',
+];
+
 // 文档侧漂移：含全部 token 的段落中，存在「无翻牌排除词」的段落 → 命中
 function docHasDrift(text, item) {
   const hit = item.tokens.every((t) => text.includes(t));
@@ -139,6 +152,74 @@ function codeAsserts() {
     results.push({ name: 'site-view 拆分防倒退', ok: false, detail: `读取失败: ${e.message}` });
   }
 
+  // 5. r12 P1 并发切换抑制防倒退：switch-preview.ts 必须含 inFlight 守卫
+  const switchPreviewPath = path.join(ROOT, 'frontend/src/utils/3d/adapters/switch-preview.ts');
+  try {
+    const text = fs.existsSync(switchPreviewPath) ? fs.readFileSync(switchPreviewPath, 'utf-8') : '';
+    const hasInFlight = /inFlight\s*:\s*boolean/.test(text) && /if\s*\(ctx\.inFlight\)\s*return/.test(text);
+    results.push({
+      name: 'r12 P1 并发抑制守卫',
+      ok: hasInFlight,
+      detail: hasInFlight
+        ? 'switch-preview.ts 含 inFlight 守卫（r12 P1 已修，防倒退）'
+        : 'switch-preview.ts 缺失 inFlight 并发抑制（r12 P1 倒退）',
+    });
+  } catch (e) {
+    results.push({ name: 'r12 P1 并发抑制守卫', ok: false, detail: `读取失败: ${e.message}` });
+  }
+
+  // 6. r10/r11 纹理+MMD 生命周期防倒退：mmd-adapter 必含 uncacheRoot + 全纹理槽释放
+  //    mmd-adapter 走自有释放路径（TEX_SLOTS 含 emissiveMap + tex.dispose() 遍历），不调通用 disposeMaterial
+  const mmdAdapterPath = path.join(ROOT, 'frontend/src/utils/3d/adapters/mmd-adapter.ts');
+  try {
+    const text = fs.existsSync(mmdAdapterPath) ? fs.readFileSync(mmdAdapterPath, 'utf-8') : '';
+    const hasUncacheRoot = /uncacheRoot\s*\(/.test(text);
+    const hasFullSlotDispose =
+      /"emissiveMap"/.test(text) && /tex\.dispose\(\)|mat\.dispose\(\)/.test(text) && /blobUrls/.test(text);
+    const ok = hasUncacheRoot && hasFullSlotDispose;
+    results.push({
+      name: 'r10/r11 MMD 生命周期',
+      ok,
+      detail: ok
+        ? 'mmd-adapter.ts 含 uncacheRoot + 全纹理槽释放（r10/r11 已修，防倒退）'
+        : `mmd-adapter.ts 缺失关键释放（uncacheRoot=${hasUncacheRoot}, 全槽dispose=${hasFullSlotDispose}）`,
+    });
+  } catch (e) {
+    results.push({ name: 'r10/r11 MMD 生命周期', ok: false, detail: `读取失败: ${e.message}` });
+  }
+
+  // 7. r1/r11 capability dispose 体系防倒退：caps/ 下 light + postprocessing 必须存在 dispose 体
+  const lightCapPath = path.join(ROOT, 'frontend/src/utils/3d/caps/light-capability.ts');
+  const postCapPath = path.join(ROOT, 'frontend/src/utils/3d/caps/postprocessing-capability.ts');
+  try {
+    const lightOk = fs.existsSync(lightCapPath) && /dispose\s*\(\)/.test(fs.readFileSync(lightCapPath, 'utf-8'));
+    const postOk = fs.existsSync(postCapPath) && /disposeComposer|dispose\s*\(\)/.test(fs.readFileSync(postCapPath, 'utf-8'));
+    results.push({
+      name: 'r1/r11 capability dispose 体系',
+      ok: lightOk && postOk,
+      detail: lightOk && postOk
+        ? 'caps/light + postprocessing 含 dispose 体系（r1 P2-2/5/6、r11 已修，防倒退）'
+        : `capability 缺失 dispose（light=${lightOk}, post=${postOk}）`,
+    });
+  } catch (e) {
+    results.push({ name: 'r1/r11 capability dispose 体系', ok: false, detail: `读取失败: ${e.message}` });
+  }
+
+  // 8. r14 P1 updater 重复声明修复防倒退：_Critical 版测试文件必须存在
+  const updaterCriticalPath = path.join(ROOT, 'go/updater/updater_critical_test.go');
+  try {
+    const exists = fs.existsSync(updaterCriticalPath);
+    results.push({
+      name: 'r14 P1 updater 重复声明修复',
+      ok: exists,
+      detail: exists
+        ? 'updater_critical_test.go 存在（重复声明已改名修复，防倒退）'
+        : 'updater_critical_test.go 缺失（r14 P1 修复倒退，CI 将再阻塞）',
+    });
+  } catch (e) {
+    results.push({ name: 'r14 P1 updater 重复声明修复', ok: false, detail: `读取失败: ${e.message}` });
+  }
+
   return results;
 }
 
@@ -161,6 +242,19 @@ if (fs.existsSync(adr002Path)) {
 const codeResults = codeAsserts();
 for (const r of codeResults) {
   if (!r.ok) drifts.push(`CODE_DRIFT: ${r.name} — ${r.detail}`);
+}
+
+// 审计复核段防倒退：已翻牌的报告若丢失「状态复核」锚点 → 漂移
+for (const rel of AUDIT_REVIEWED) {
+  const abs = path.join(ROOT, rel);
+  if (!fs.existsSync(abs)) {
+    drifts.push(`AUDIT_DRIFT: ${rel} 缺失（复核翻牌文件被删）`);
+    continue;
+  }
+  const txt = fs.readFileSync(abs, 'utf-8');
+  if (!txt.includes('状态复核（2026-08-23）')) {
+    drifts.push(`AUDIT_DRIFT: ${rel} 复核段被移除——已还债条目可能正被重新标为开放债`);
+  }
 }
 
 // ---- 输出 ----

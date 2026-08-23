@@ -163,3 +163,15 @@ npx vitest run src/utils/3d/adapters/mmd-adapter.test.ts
 # 构建
 npx vite build
 ```
+
+---
+
+## 状态复核（2026-08-23）
+
+> 复核方法：对照本报告 P1（MMD dispose 补 `uncacheRoot()`），实证 `frontend/src/utils/3d/adapters/mmd-adapter.ts` 当前代码现实。
+
+| 项 | 报告评级 | 2026-08-23 代码现实 | 结论 |
+|----|---------|-------------------|------|
+| P1 MMD dispose 补 `uncacheRoot()` | 🔴 待修 | `mmd-adapter.ts:960` `mixer.uncacheRoot(mesh)` 已落地，对齐 `vrm-adapter.ts` ADR-084 L2（stopAllAction + uncacheRoot + VRMUtils.deepDispose） | ✅ 已修 |
+
+**复核结论**：本报告唯一 P1 已构成历史债务并已偿还。Blob URL 回收、VRM 测试覆盖等其余项报告本身已标 ✅。报告原文（2026-08-18 时态快照）保留不变。

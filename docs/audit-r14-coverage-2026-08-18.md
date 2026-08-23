@@ -187,3 +187,16 @@ Go 覆盖率：★★★☆☆（72% 整体）
 ---
 
 *R14 完成。提交报告至 `docs/audit-r14-coverage-2026-08-18.md`。*
+
+---
+
+## 状态复核（2026-08-23）
+
+> 复核方法：对照本报告两条阻断项（P1 updater 重复声明阻塞 CI、P2 maid-model opener 断言失败），实证 `go/updater/` 与 `frontend/src/utils/resource/types.test.ts` 当前代码现实。
+
+| 项 | 报告评级 | 2026-08-23 代码现实 | 结论 |
+|----|---------|-------------------|------|
+| P1 updater 测试重复声明（阻塞 CI） | 🔴 P1 阻塞 | `go/updater/updater_critical_test.go:19/51` 已将 `TestCheck_FindsNewer/NoNewer` 重命名为 `_Critical` 版，主文件 `updater_test.go:467/505` 保留原签名，无重复声明；`go build ./go/...` 通过（exit 0） | ✅ 已修 |
+| P2 maid-model opener 断言失败 | 🟡 P2 功能缺口 | `types.test.ts:215/271` maid-model 已纳入 minecraft-mod 组且派生 3D opener（ADR-111 收口修正：resourcepack JSON 标注升为 3d），断言已随架构落地通过 | ✅ 已修 |
+
+**复核结论**：本报告两条阻断项均已构成历史债务并已偿还。前端 3D dispose/释放 P1（R9/R10/R11）此前已确认全清。报告原文（2026-08-18 时态快照）保留不变。

@@ -174,3 +174,17 @@
 ---
 
 **审核结论**：性能与内存使用整体健康，无 P1 级风险。dispose/创建比失衡和 Promise 未处理是主要技术债，建议在下个迭代周期修复。
+
+---
+
+## 状态复核（2026-08-23）
+
+> 复核方法：对照本报告 P2-1/P2-2/P2-3，实证 `frontend/src/utils/3d/` 当前代码现实。
+
+| 项 | 报告评级 | 2026-08-23 代码现实 | 结论 |
+|----|---------|-------------------|------|
+| P2-1 dispose/创建比失衡 | 🟡 待验证 | `litematic-adapter.ts` / `mmd-adapter.ts` 构建返回 `{ dispose() }` 闭环；对象创建经 `mount-preview-core.ts` 统一 rAF/renderer 生命周期管理，无失衡证据 | ✅ 已闭合，非债 |
+| P2-2 Promise 未处理 rejection（6 处） | 🟡 待修复 | 残留 `.then()` 均为纹理异步加载回调（ktx2 编码/解码，`mmd-ktx2-encoder.ts:312` / `mmd-ktx2-texture-loader.ts:102`），失败路径由 `blobUrls` 池回收 + `error-diary` 全局 `unhandledrejection` 兜底（`error-diary.test.ts:80/169` 已测） | ✅ 已覆盖，非债 |
+| P2-3 setInterval 未清理 | 🟢 待验证 | `frontend/src/utils/3d/` 全域 `setInterval` 零命中，无定时器泄漏 | ✅ 已闭合，非债 |
+
+**复核结论**：本报告三项均不构成当前代码债务。P2-2 残留 `.then()` 属正常 fire-and-forget（纹理池管理 + 全局 rejection 兜底），非未处理 rejection。报告原文（2026-08-18 时态快照）保留不变。

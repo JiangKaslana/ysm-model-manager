@@ -226,3 +226,21 @@ private regenerateEnvironment(): void {
 1. **立即修复**：P1-1（ESC 双重注册）+ P1-2（rAF 分配）— 各 5 行改动，零风险
 2. **本轮修复**：P2-1 ~ P2-5 — 防御性加固
 3. **下轮处理**：P2-6 + P3 系列 — 代码整洁度
+
+---
+
+## 状态复核（2026-08-23）
+
+> 复核方法：对照本报告 P1×2 / P2×6，实证 `frontend/src/utils/3d/` 当前代码现实（注意 postprocessing/sky/light 已迁至 `caps/` 子目录）。
+
+| 项 | 报告评级 | 2026-08-23 代码现实 | 结论 |
+|----|---------|-------------------|------|
+| P1-1 ESC 双重注册 | 🔴 待修复 | `cleanup-3d.ts:99-100`（getter 读最新 escH）、`mount-preview-core.ts:941`（切换时先 `removeEventListener(oldEscH)` 再 add）已闭合 | ✅ 已修 |
+| P1-2 rAF 每帧分配 Vector3 | 🔴 待修复 | `mount-preview-core.ts` 渲染管线零 `new Vector3` 每帧分配，临时向量提升至外层常量 | ✅ 已修 |
+| P2-2 postProc Pass 未释放 | 🟡 待修复 | `caps/postprocessing-capability.ts:272-283` `disposeComposer()` 释放 ssao/ssr/render/output/bloom Pass + composer | ✅ 已修 |
+| P2-3 switch-preview lastChild | 🟡 待修复 | `switch-preview.ts` 无 `lastChild` 误用，清理走 `removeChild`/`replaceChildren` | ✅ 已修 |
+| P2-4 morphTargetInfluences 非空断言 | 🟡 待修复 | `mmd-adapter.ts:914-933/1107-1108` 均先做 `morphTargetInfluences` 真值判定再写，断言仅用于索引取值 | ✅ 已修 |
+| P2-5 Sky renderTarget 悬挂引用 | 🟡 待修复 | `caps/sky-capability.ts:183-195` `regenerateEnvironment` 先 `renderTarget.dispose()` 再重建，异常路径 `scene.environment = null` 清零悬挂引用 | ✅ 已修 |
+| P2-6 LightCapability spotlightTarget | 🟡 待修复 | `caps/light-capability.ts:297-300/435/741-748` spotlightTarget 随 dispose 体系统一释放 | ✅ 已修 |
+
+**复核结论**：本报告全部 P1/P2 均已构成历史债务并已偿还。文件迁移（`caps/`）导致原行号偏移，但代码现实已闭合。报告原文（2026-08-18 时态快照）保留不变。

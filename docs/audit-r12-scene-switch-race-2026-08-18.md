@@ -283,3 +283,16 @@ const switchCtx: SwitchContext = {
 - **R10**：AnimationMixer uncacheRoot 对齐，mmd/vrm 生命周期一致
 - **R11**：纹理字段全量释放，fallback 路径已补齐
 - **R12**：场景切换竞态，现有守卫覆盖大部分场景，P1 修复补充并发抑制
+
+---
+
+## 状态复核（2026-08-23）
+
+> 复核方法：对照本报告 P1（无并发切换抑制，表中"并发切换抑制 | 0 ❌"）与 P2（aborted 按值捕获），实证 `frontend/src/utils/3d/adapters/switch-preview.ts` 与 `mount-preview-core.ts` 当前代码现实。
+
+| 项 | 报告评级 | 2026-08-23 代码现实 | 结论 |
+|----|---------|-------------------|------|
+| P1 并发切换抑制 | 🔴 0 ❌（缺失） | `switch-preview.ts:72-113` `inFlight` 守卫：切换中后续请求直接丢弃，全出口（L152/180/186/268）复位；先于 ADR-093 T6 超量拦截置位避免卡死 | ✅ 已修 |
+| P2 aborted 按值捕获 | 🟢 理论缺陷 | `mount-preview-core.ts:389` `aborted = { v: false }` 改为引用对象，L835/L963 读 `aborted.v`，切换时 `aborted.v = true` 经引用传递生效，值捕获缺陷已闭合 | ✅ 已修 |
+
+**复核结论**：本报告 P1（并发抑制）与 P2（aborted 值捕获）均已构成历史债务并已偿还。gen counter（myGen/_gen）+ isDisposed 原有守卫仍保留作纵深防御。报告原文（2026-08-18 时态快照）保留不变。
