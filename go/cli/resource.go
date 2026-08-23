@@ -17,6 +17,7 @@ import (
 func init() {
 	RegisterCommandC("resource-scan", CatResource, "扫描模型仓库资源，统计资产分布", runResourceScan)
 	RegisterCommandC("repo-audit", CatResource, "仓库健康审计（完整性 + 缓存 + 资产）", runRepoAudit)
+	RegisterCommandC("resource-types", CatResource, "输出资源类型注册表（验证 resource_types.json 读取能力）", runResourceTypes)
 }
 
 // resourceScanResult 资源扫描结果
@@ -283,4 +284,61 @@ func printRepoAuditResult(result repoaudit.Result) {
 	} else {
 		fmt.Printf("\n✅ 无警告\n")
 	}
+}
+
+// runResourceTypes 输出资源类型注册表内容，用于验证 resource_types.json 读取能力。
+// table 模式给摘要（id/group/preview/detector/目录/扩展名），json 模式 dump 全部已读字段。
+func runResourceTypes(ctx *CmdContext) error {
+	fs := newCmdFlagSet("resource-types")
+	typeFilter := fs.String("type", "", "只显示指定类型 id（不填=全部）")
+	outputFormat := fs.String("format", "table", "输出格式: json 或 table")
+	_, err := parseFlags(fs, ctx.Args)
+	if err != nil {
+		return err
+	}
+
+	all := types.LoadRegistry().ResourceTypes
+	entries := all
+	if *typeFilter != "" {
+		var filtered []types.ResourceType
+		for _, rt := range all {
+			if rt.ID == *typeFilter {
+				filtered = append(filtered, rt)
+			}
+		}
+		if len(filtered) == 0 {
+			return newParamErrf("未知类型 id: %s", *typeFilter)
+		}
+		entries = filtered
+	}
+
+	if *outputFormat == "json" {
+		data, err := json.MarshalIndent(entries, "", "  ")
+		if err != nil {
+			return newRuntimeErrf("JSON 序列化失败: %v", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
+	// table 摘要，按 id 排序保证稳定输出
+	sort.Slice(entries, func(i, j int) bool { return entries[i].ID < entries[j].ID })
+	fmt.Printf("📦 资源类型注册表（共 %d 个类型）:\n\n", len(entries))
+	fmt.Printf("%-16s %-5s %-5s %-9s %-18s %-16s %s\n",
+		"ID", "Group", "Pre", "Detector", "InstanceDir", "StorageSubDir", "扩展名")
+	fmt.Println(strings.Repeat("-", 120))
+	for _, rt := range entries {
+		fmt.Printf("%-16s %-5s %-5s %-9s %-18s %-16s %s\n",
+			rt.ID, truncate(rt.Group, 5), truncate(rt.Preview, 5), truncate(rt.Detector, 9),
+			truncate(rt.InstanceDir, 18), truncate(rt.StorageSubDir, 16), strings.Join(rt.Extensions, ","))
+	}
+	return nil
+}
+
+// truncate 截断字符串到指定字节宽（超长加省略号），避免表格列挤压
+func truncate(s string, width int) string {
+	if len(s) <= width {
+		return s
+	}
+	return s[:width-1] + "…"
 }

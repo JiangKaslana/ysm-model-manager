@@ -770,3 +770,63 @@ describe("unloadRole 真实路径（角色面板卸载）", () => {
     cleanupPreview();
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────
+// describe: ESC 关闭（fullCleanup）后再次 mount 的 canvas 重新挂载回归
+// 用户报告：第一次进 3D 预览正常且能追加，第二次进 3D 预览空白/无反应。
+// 根因：fullCleanup 移除 viewContainer（含 canvas）但保留 _singletonRenderer；
+// 再次 mount3D 复用 renderer 时未把 canvas 重新挂载到新 viewContainer。
+// ──────────────────────────────────────────────────────────────────────
+describe("ESC 关闭后再次 mount（canvas 重新挂载回归）", () => {
+  it("fullCleanup 后再次 mount3D：renderer canvas 被重新挂载到新 viewContainer", async () => {
+    // 让 fake document 真正注册 keydown handler（mount3D 内部 addEventListener 注册 escH）
+    const keyHandlers: Array<(e: { key: string }) => void> = [];
+    const doc = (globalThis as any).document;
+    doc.addEventListener = vi.fn((ev: string, h: any) => {
+      if (ev === "keydown") keyHandlers.push(h);
+    });
+    doc.removeEventListener = vi.fn((ev: string, h: any) => {
+      const i = keyHandlers.indexOf(h);
+      if (i >= 0) keyHandlers.splice(i, 1);
+    });
+
+    // spy WebGLRenderer：domElement 用 fake createElement('canvas') 创建，可精确跟踪挂载
+    const rendererSpy: any = vi
+      .spyOn(THREE as any, "WebGLRenderer")
+      .mockImplementation((function (this: any) {
+        const domEl: any = document.createElement("canvas");
+        return {
+          domElement: domEl,
+          setSize: vi.fn(),
+          setPixelRatio: vi.fn(),
+          render: vi.fn(),
+          dispose: vi.fn(),
+        };
+      }) as any);
+
+    try {
+      // 首次 mount（创建外壳 + renderer canvas 挂载）
+      await mount3D(syncAdapter() as PreviewAdapter, "/a.nbt");
+      const domEl = rendererSpy.mock.results[0]?.value?.domElement;
+      expect(domEl).toBeDefined();
+      const appendCount = (): number =>
+        fakeAppendChild.mock.calls.filter((c) => c[0] === domEl).length;
+      expect(appendCount()).toBeGreaterThanOrEqual(1); // 首次已挂载到 viewContainer
+
+      // ESC 关闭 → fullCleanup：保留 _singletonRenderer，置空 viewContainer/overlay 单例
+      expect(keyHandlers.length).toBeGreaterThan(0);
+      keyHandlers[keyHandlers.length - 1]({ key: "Escape" });
+
+      // 第二次 mount（用户再次进入 3D 预览）：必须把旧 canvas 重新挂载到新 viewContainer
+      fakeAppendChild.mockClear();
+      await mount3D(syncAdapter() as PreviewAdapter, "/b.nbt");
+      expect(
+        appendCount(),
+        "再次进入 3D 预览后 canvas 必须重新挂载（否则渲染循环照常跑但 canvas 脱离 DOM → 空白/无反应）",
+      ).toBe(1);
+    } finally {
+      rendererSpy.mockRestore();
+    }
+    cleanupPreview();
+  });
+});

@@ -440,6 +440,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       viewContainer.appendChild(_singletonRenderer.domElement);
     }
     renderer = _singletonRenderer;
+    // 修复：fullCleanup（ESC/关闭按钮）会移除旧 viewContainer（连同 canvas），但
+    // 保留 _singletonRenderer——再次 mount3D 复用 renderer 时若不重新挂载 canvas，
+    // 渲染循环照常跑但 canvas 已脱离 DOM → 用户「第二次进 3D 预览」看到空白/无反应。
+    if (_singletonRenderer.domElement.parentNode !== viewContainer) {
+      viewContainer.appendChild(_singletonRenderer.domElement);
+    }
     // 程序化能力（ADR-073 L1 + 统一注册表）：由 registry 统一创建并持久化
     const caps = sceneCapabilityRegistry.createAll({ scene, renderer, camera });
     skyCap = (sceneCapabilityRegistry.getById("sky") as SkyCapability) ?? null;

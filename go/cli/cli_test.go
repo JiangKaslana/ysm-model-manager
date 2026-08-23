@@ -1905,3 +1905,65 @@ func TestConfigLinkMode_InvalidMode_Errors(t *testing.T) {
 		t.Errorf("无效模式应报错, got: %v", err)
 	}
 }
+
+// ===== resource-types 注册表读取能力 =====
+
+// pointRegistryToRepoRoot 把 types 注册表路径指向仓库根 resource_types.json（单一事实来源），
+// 结束后恢复默认（"resource_types.json"），避免污染后续测试。
+func pointRegistryToRepoRoot(t *testing.T) {
+	t.Helper()
+	types.SetRegistryPath(filepath.Join("..", "..", "resource_types.json"))
+	t.Cleanup(func() { types.SetRegistryPath("resource_types.json") })
+}
+
+func TestResourceTypes_Table(t *testing.T) {
+	pointRegistryToRepoRoot(t)
+	out := captureOutput(t, func() {
+		if err := runResourceTypes(&CmdContext{App: &app.App{}, Args: []string{}}); err != nil {
+			t.Errorf("runResourceTypes 不应报错: %v", err)
+		}
+	})
+	if !strings.Contains(out, "资源类型注册表") {
+		t.Errorf("table 输出应含标题, got: %q", out)
+	}
+	if !strings.Contains(out, "ysm") || !strings.Contains(out, "maid-model") {
+		t.Errorf("table 输出应含 ysm / maid-model 类型, got: %q", out)
+	}
+}
+
+func TestResourceTypes_JSON(t *testing.T) {
+	pointRegistryToRepoRoot(t)
+	out := captureOutput(t, func() {
+		if err := runResourceTypes(&CmdContext{App: &app.App{}, Args: []string{"--format", "json"}}); err != nil {
+			t.Errorf("runResourceTypes json 不应报错: %v", err)
+		}
+	})
+	var entries []types.ResourceType
+	if err := json.Unmarshal([]byte(out), &entries); err != nil {
+		t.Fatalf("json 输出应可反序列化: %v\n输出: %s", err, out)
+	}
+	if len(entries) == 0 {
+		t.Fatal("json 输出不应为空")
+	}
+	for _, rt := range entries {
+		if rt.ID == "" {
+			t.Errorf("存在空 ID 条目: %+v", rt)
+		}
+	}
+}
+
+func TestResourceTypes_TypeFilter(t *testing.T) {
+	pointRegistryToRepoRoot(t)
+	out := captureOutput(t, func() {
+		if err := runResourceTypes(&CmdContext{App: &app.App{}, Args: []string{"--type", "ysm"}}); err != nil {
+			t.Errorf("runResourceTypes --type 不应报错: %v", err)
+		}
+	})
+	if !strings.Contains(out, "ysm") {
+		t.Errorf("过滤后应含 ysm, got: %q", out)
+	}
+	// 未知类型 → 参数错误
+	if err := runResourceTypes(&CmdContext{App: &app.App{}, Args: []string{"--type", "nope"}}); err == nil {
+		t.Fatal("未知类型应报参数错误")
+	}
+}

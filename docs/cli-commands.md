@@ -4,7 +4,7 @@
 > 静态提取生成，**单一事实来源 = 源码注册**。新增命令/子命令/选项只改 `go/cli/` 源码，
 > 重跑本脚本即同步；`--check` 已接入 `doctor.mjs` 防漂移。
 >
-> 顶层命令共 **38** 个。入口姿势与常用场景见根 `AGENTS.md`「CLI 模式使用说明」。
+> 顶层命令共 **39** 个。入口姿势与常用场景见根 `AGENTS.md`「CLI 模式使用说明」。
 
 <!-- GEN: cli-commands -->
 ## 模型管理
@@ -481,6 +481,20 @@ app --cli --files-root <路径> resource-scan [选项...]
 |------|------|------|
 | `--dir` | string — 目录路径（默认使用 --files-root） |
 | `--output` | string — 输出文件路径（JSON 格式） |
+
+
+### `resource-types`
+输出资源类型注册表（验证 resource_types.json 读取能力）
+
+```bash
+app --cli --files-root <路径> resource-types [选项...]
+```
+
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `--type` | string — 只显示指定类型 id（不填=全部） |
+| `--format` | string （默认: table）— 输出格式: json 或 table |
 
 
 ### `scan`
