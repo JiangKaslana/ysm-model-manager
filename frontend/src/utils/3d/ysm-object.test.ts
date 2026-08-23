@@ -36,6 +36,19 @@ function specWithMeshes(meshGroups: SpecMeshGroup3D[]): Spec3D {
   };
 }
 
+/** 双组件 spec（multiModel 分支用例用；第二组件无网格，验证全局 texArr 槽位回退） */
+function specWithTwoModels(
+  meshGroups0: SpecMeshGroup3D[],
+  meshGroups1: SpecMeshGroup3D[],
+): Spec3D {
+  return {
+    models: [
+      { ...specWithMeshes(meshGroups0).models![0] },
+      { ...specWithMeshes(meshGroups1).models![0], id: "arrow", name: "arrow" },
+    ],
+  };
+}
+
 describe("buildYsmObject mesh baking", () => {
   it("bakes rotated cubes on the same bone and texture into one draw object", () => {
     const halfTurnZ = new THREE.Quaternion().setFromAxisAngle(
@@ -106,9 +119,11 @@ describe("buildYsmObject mesh baking", () => {
     expect(meshes.map((mesh) => mesh.position.z)).toEqual([0, 2]);
   });
 
-  it("classifies per-component textures by their own slot space (texIdx ≠ 0)", () => {
-    // 组件纹理数组槽位 1 是 blend：分类必须用组件局部空间的 mesh.texIdx，
-    // 而非组件槽位 0 或全局数组（任一错位都会把 blend 组件误判 opaque 烘掉）
+  it("classifies per-component textures by local slot 0, ignoring the global texIdx", () => {
+    // 组件纹理绑定端（mesh-builder）对组件数组恒用局部槽 0（arr === compTexArr ? 0）；
+    // 分类必须同用槽 0——mesh.texIdx 是全局槽位（WASM 路径 = 组件文件序 i），对组件
+    // 数组（通常长 1）越界 → 误判 null → blend 组件被烘进不透明批次。
+    // 槽 0 = opaque、槽 1 = blend，texIdx=1：分类按槽 0 → batchable → 烘焙成 1 个 mesh
     const near = { ...triangle("near", [0, 0, 0], [0, 0, 0, 1]), texIdx: 1 };
     const far = { ...triangle("far", [0, 0, 2], [0, 0, 0, 1]), texIdx: 1 };
     const spec = specWithMeshes([near, far]);
@@ -120,7 +135,41 @@ describe("buildYsmObject mesh baking", () => {
     const bone = handle.boneGroupMap.get("0:root")!;
     const meshes = bone.children.filter((child) => child instanceof THREE.Mesh);
 
+    expect(meshes).toHaveLength(1);
+  });
+
+  it("keeps per-component blend at local slot 0 translucent even with a non-zero global texIdx", () => {
+    // 槽 0 = blend：即使 mesh.texIdx≠0，分类仍按局部槽 0 判 translucent（与绑定一致），
+    // 不得因 texIdx 越界误判 opaque 而把透明组件烘焙掉
+    const near = { ...triangle("near", [0, 0, 0], [0, 0, 0, 1]), texIdx: 1 };
+    const far = { ...triangle("far", [0, 0, 2], [0, 0, 0, 1]), texIdx: 1 };
+    const spec = specWithMeshes([near, far]);
+    const componentTextures = new Map([
+      ["main", [rgbaTexture(128)]],
+    ]);
+
+    const handle = buildYsmObject(spec, [rgbaTexture(255)], componentTextures, 0);
+    const bone = handle.boneGroupMap.get("0:root")!;
+    const meshes = bone.children.filter((child) => child instanceof THREE.Mesh);
+
     expect(meshes).toHaveLength(2);
+  });
+
+  it("non-component multi-model meshes bind the global texture slot (md.texIdx), not slot 0", () => {
+    // 无组件纹理（componentTexMap 缺省）→ 非组件多组件：分类/绑定都用全局 texArr[mesh.texIdx]。
+    // 回归：修复前 compTexArr = texArr（引用相等）被 mesh-builder 误判为组件数组 → 恒绑槽 0；
+    // 修复后显式传 [] → 回退全局 → 绑定 texArr[1]（blend）→ 材质 map 应为 texArr[1]
+    const near = { ...triangle("near", [0, 0, 0], [0, 0, 0, 1]), texIdx: 1 };
+    const spec = specWithTwoModels([near], []);
+    const texArr = [rgbaTexture(255), rgbaTexture(128)]; // 槽 1 = blend
+    const handle = buildYsmObject(spec, texArr, 0);
+    const bone = handle.boneGroupMap.get("0:root")!;
+    const meshes = bone.children.filter((child) => child instanceof THREE.Mesh);
+
+    expect(meshes).toHaveLength(1); // texArr[1] = blend → translucent → 不烘焙
+    const material = (meshes[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    expect(material.map).toBe(texArr[1]); // 绑定全局槽 1，而非槽 0
+    expect(material.transparent).toBe(true);
   });
 
   it("sets material render flags from the resolved alpha mode", () => {

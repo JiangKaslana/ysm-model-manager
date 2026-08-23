@@ -60,4 +60,25 @@ func TestInjectComponentTextures(t *testing.T) {
 	if mFb.ComponentTextures["comp_0"][0] != "data:image/png;base64,FALL" {
 		t.Errorf("fallback 键应为 comp_0，实际 %v", mFb.ComponentTextures)
 	}
+
+	// SourceName 碰撞（zip 内两个子目录同名 geometry 文件）：后写覆盖前写并 log 告警
+	// ——不静默丢映射（前端查表命中错图），诚实暴露数据问题
+	compsDup := []types.BedrockModel{
+		{SourceName: "dup", Bones: []types.Bone2D{{Name: "a"}}, ComponentTextures: map[string][]string{"a": {"data:image/png;base64,DUP1"}}},
+		{SourceName: "dup", Bones: []types.Bone2D{{Name: "b"}}, ComponentTextures: map[string][]string{"b": {"data:image/png;base64,DUP2"}}},
+	}
+	gotDup := injectComponentTextures(`{"models":[{"id":"comp_0","name":"dup"},{"id":"comp_1","name":"dup"}]}`, compsDup)
+	var mDup struct {
+		ComponentTextures map[string][]string `json:"componentTextures"`
+	}
+	if err := json.Unmarshal([]byte(gotDup), &mDup); err != nil {
+		t.Fatalf("碰撞注入后应为合法 JSON: %v", err)
+	}
+	// 后写覆盖：键存在但值为后一个组件的纹理
+	if len(mDup.ComponentTextures) != 1 {
+		t.Fatalf("碰撞应收敛为 1 个 key，实际 %v", mDup.ComponentTextures)
+	}
+	if mDup.ComponentTextures["dup"][0] != "data:image/png;base64,DUP2" {
+		t.Errorf("碰撞后键 dup 应为后写纹理 DUP2，实际 %v", mDup.ComponentTextures)
+	}
 }

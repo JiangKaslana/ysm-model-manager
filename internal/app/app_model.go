@@ -469,6 +469,11 @@ func injectComponentTextures(spec string, comps []types.BedrockModel) string {
 				if key == "" {
 					key = fmt.Sprintf("comp_%d", i)
 				}
+				if _, exists := compTex[key]; exists {
+					// SourceName 碰撞（如 zip 内两个子目录同名 geometry 文件）：后写覆盖前写，
+					// 前一个组件的纹理映射被静默丢弃 → 前端查表命中错图。诚实告警暴露数据问题。
+					log.Printf("[app] injectComponentTextures: SourceName 碰撞 key=%q（组件 %d 与先前组件同名），纹理映射被覆盖，检查模型组件命名", key, i)
+				}
 				compTex[key] = arr
 				break // 每组件取第一条有效纹理（当前口径单张主纹理）
 			}

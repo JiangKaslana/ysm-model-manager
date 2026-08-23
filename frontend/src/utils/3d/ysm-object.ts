@@ -70,21 +70,20 @@ export function buildYsmObject(
     const compName = mg.name || mg.id || `comp_${mi}`;
     const mappedComponentTextures = componentTexMap.get(compName);
     const usesComponentTextures = Boolean(mappedComponentTextures?.length);
-    const compTexArr = usesComponentTextures ? mappedComponentTextures! : texArr;
     const batchable: SpecMeshGroup3D[] = [];
     const translucent: SpecMeshGroup3D[] = [];
     for (const mesh of mg.meshGroups) {
-      // Per-component textures use their own local slot space, exactly like
-      // addMeshToBoneGroup below. Looking in the global array here can classify
-      // a translucent component as opaque and bake its cubes together.
-      // code review P2/P3：分类索引与绑定一致（组件分支用 mesh.texIdx——与
-      // addMeshToBoneGroup 的 md.texIdx 绑定一致——texIdx≠0 时不再用 slot 0 误判
-      // alpha 模式）；嵌套三元展平为 if/else（TS 规则禁嵌套三元）
+      // 分类索引与绑定索引同一空间（原版 ModernYSM 亦按单一 textureIndex 判定透明与绑定）：
+      // 组件分支 → 组件局部槽 0（mesh-builder 对组件数组恒用 arr === compTexArr ? 0）；
+      // 非组件 → 全局 texArr[mesh.texIdx]（multiModel）/ texArr[resolvedTexIdx]（单模型）。
+      // 19d9b2ad 曾改组件分支为 mesh.texIdx（全局槽位，WASM 路径 = 组件文件序 i）——
+      // 对组件数组（通常长 1）越界 → null → blend 组件误判 batchable 被烘进不透明批次。
+      const classifyArr = usesComponentTextures ? mappedComponentTextures! : texArr;
       let textureIndex: number;
-      if (usesComponentTextures) textureIndex = mesh.texIdx ?? 0;
+      if (usesComponentTextures) textureIndex = 0;
       else if (multiModel) textureIndex = mesh.texIdx ?? 0;
       else textureIndex = resolvedTexIdx;
-      const texture = compTexArr[textureIndex] ?? null;
+      const texture = classifyArr[textureIndex] ?? null;
       if (texture && getTextureAlphaMode(texture) === "blend") translucent.push(mesh);
       else batchable.push(mesh);
     }
@@ -97,7 +96,11 @@ export function buildYsmObject(
       if (md.texIdx === undefined) {
         console.warn("[model3d] mesh 缺 texIdx（spec 契约破坏），回退 0", spec.models?.length);
       }
-      addMeshToBoneGroup(bg, md, compTexArr, md.texIdx ?? 0, true);
+      // 绑定索引与分类同空间：组件分支传组件数组（mesh-builder 局部槽 0）；
+      // 非组件传 [] + 全局 texArr——传 texArr 会被 arr === compTexArr 误判为组件数组，
+      // 导致全局槽位 md.texIdx 恒失效（修复前非组件多组件全绑 texArr[0]）。
+      const bindArr = usesComponentTextures ? mappedComponentTextures! : [];
+      addMeshToBoneGroup(bg, md, bindArr, resolvedTexIdx, multiModel, texArr);
     }
   }
 
