@@ -22,7 +22,15 @@ func (a *App) InstallModelFile(src, mcRoot string) (string, error) {
 }
 
 func (a *App) InstallModelTo(src, customDir string) error {
-	err := installer.Install(src, customDir, a.ysmRoot(), a.getLinkMode())
+	// 注册表驱动路由仓库根：取代硬编码 a.ysmRoot()，使 vrm/vmd/nbt/zip 等非 YSM
+	// 资源也能通过 installer.Install 的 IsInside 路径守卫，进入硬链接分支。
+	// YSM 走 GetRepoRoot("ysm") 与 a.ysmRoot() 结果完全一致，行为零回归。
+	rtype := a.DetectResourceType(src)
+	if rtype == "" {
+		rtype = "ysm" // 兜底兼容原行为
+	}
+	root, _ := a.GetRepoRoot(rtype)
+	err := installer.Install(src, customDir, root, a.getLinkMode())
 	if err != nil {
 		a.logger.Add(filepath.Base(src), src, customDir, 0, "failed", err.Error())
 	} else {

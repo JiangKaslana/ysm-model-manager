@@ -650,16 +650,16 @@
 | `App.IsFileBanned()` | `internal/app/app_files:240` | — |
 | `App.InstallModelFile()` | `internal/app/app_install_import:20` | ========== 安装 ========== |
 | `App.InstallModelTo()` | `internal/app/app_install_import:24` | — |
-| `App.InstallModelWithOverlay()` | `internal/app/app_install_import:34` | — |
-| `App.SyncCustomToRepo()` | `internal/app/app_install_import:39` | SyncCustomToRepo 同步整合包自定义目录到仓库（执行逻辑下沉 go/sync） |
-| `App.ImportModelFile()` | `internal/app/app_install_import:43` | — |
-| `App.DetectZipType()` | `internal/app/app_install_import:48` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
-| `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:56` | — |
-| `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:64` | — |
-| `App.ImportModelFileTo()` | `internal/app/app_install_import:84` | — |
-| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:88` | — |
-| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:95` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
-| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:100` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
+| `App.InstallModelWithOverlay()` | `internal/app/app_install_import:42` | — |
+| `App.SyncCustomToRepo()` | `internal/app/app_install_import:47` | SyncCustomToRepo 同步整合包自定义目录到仓库（执行逻辑下沉 go/sync） |
+| `App.ImportModelFile()` | `internal/app/app_install_import:51` | — |
+| `App.DetectZipType()` | `internal/app/app_install_import:56` | DetectZipType 通过 ZIP 内容检测资源类型（供前端导入路由使用） |
+| `App.ImportModelFileSkipCheck()` | `internal/app/app_install_import:64` | — |
+| `App.ImportModelFileOverwrite()` | `internal/app/app_install_import:72` | — |
+| `App.ImportModelFileTo()` | `internal/app/app_install_import:92` | — |
+| `App.ImportModelFileOverwriteTo()` | `internal/app/app_install_import:96` | — |
+| `App.ImportModelFileToMMD()` | `internal/app/app_install_import:103` | ImportModelFileToMMD 导入 MMD 模型文件到指定用途子目录（ADR-096）。 |
+| `App.ImportModelFileOverwriteToMMD()` | `internal/app/app_install_import:108` | ImportModelFileOverwriteToMMD 覆盖导入 MMD 模型文件到指定用途子目录。 |
 | `App.CountInstanceResources()` | `internal/app/app_install_instance:26` | CountInstanceResources 统计指定整合包中可清空的资源文件数 只统计仓库中已有的文件（同 clearInstanceDir 逻辑） rtype 为空时统计全部类 |
 | `App.ClearInstanceResources()` | `internal/app/app_install_instance:66` | ClearInstanceResources 清空指定整合包中已同步的文件 insName: 整合包名, rtype: 资源类型（空=全部, 非空=只清此类型） 返回清除的文件数量 |
 | `App.DeduplicateCustomDir()` | `internal/app/app_install_instance:152` | DeduplicateCustomDir 按 SHA256 哈希去重（执行逻辑下沉 go/recycle） |
