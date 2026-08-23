@@ -242,10 +242,10 @@ func GetCacheStats() CacheStats {
 // 缓存是衍生数据，删错可经 WriteCached 重新生成，故淘汰失败仅记录日志、不中断写入。
 
 var (
-	maxCacheBytes = int64(1 << 30)      // 容量上限（0 = 不限）
-	maxEntryAge   = 30 * 24 * time.Hour // 条目 TTL（0 = 不按 TTL 删）
-	pruneInterval = 5 * time.Minute     // 写路径限频间隔（0 = 每次写都触发）
-	pruneMu       sync.Mutex            // 保护 lastPrune 的并发读写
+	maxCacheBytes = int64(1 << 30)        // 容量上限（0 = 不限）
+	maxEntryAge   = 30 * 24 * time.Hour   // 条目 TTL（0 = 不按 TTL 删）
+	pruneInterval = 5 * time.Minute       // 写路径限频间隔（0 = 每次写都触发）
+	pruneMu       sync.Mutex              // 保护 lastPrune 的并发读写
 	lastPrune     time.Time
 )
 

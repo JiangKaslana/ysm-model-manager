@@ -3,10 +3,12 @@
  * check-deadcode-baseline.mjs — 死代码 / 重复代码基线守卫。
  *
  * 调用 knip（死代码）+ jscpd（重复代码）的 JSON 输出，与基线
- * scripts/baseline/deadcode-baseline.json 对比：
- *   - 新增发现项      → ERROR（阻断，需清理或显式 --update-baseline 纳入）
+ * scripts/baseline/deadcode-baseline.json 对比，并按「归属裁剪」分流：
+ *   - 新增 ∩ 责任文件集（staged / 未推送提交改动）→ ERROR（自己的债自己还）
+ *   - 新增 ∩ 责任集为空 → 自动收编进基线 + INFO 留痕（他人遗留债务不拦路，但记账）
  *   - 基线已知项      → OK（放行，支持渐进清理）
- *   - 基线中已消失项  → INFO（已清理，--update-baseline 后移除）
+ *   - 基线中已消失项  → INFO（已清理；收编写盘时一并移除）
+ *   - 无 git 上下文可归属 → 严格模式：全部新增阻断（fail-closed）
  *
  * 依赖：frontend/ 需安装 knip + jscpd（npm i -D knip jscpd）。
  *
@@ -24,6 +26,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { ROOT } from './_lib/scan-files.mjs';
+import { splitNewFindings } from './_lib/deadcode-attrib.mjs';
 
 const FRONTEND = path.join(ROOT, 'frontend');
 const BASELINE_FILE = path.join(ROOT, 'scripts/baseline/deadcode-baseline.json');
@@ -128,6 +131,29 @@ function parseJscpd() {
   }
 }
 
+// ── 责任文件集解析（归属裁剪）─────────────────────────
+// 三级回退：staged（commit 场景）→ 未推送提交 diff（push 场景）→ null（严格模式）。
+// 返回仓库根相对 posix 路径数组；null = 无 git 上下文，调用方全阻断（fail-closed）。
+
+function resolveResponsibleFiles() {
+  const git = (...args) => {
+    const r = spawnSync('git', args, { encoding: 'utf-8' });
+    return r.status === 0 ? r.stdout : null;
+  };
+  const staged = git('diff', '--cached', '--name-only');
+  if (staged !== null && staged.trim()) {
+    return staged.trim().split('\n').filter(Boolean).map((p) => p.replace(/\\/g, '/'));
+  }
+  const upstream = git('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}');
+  if (upstream !== null && upstream.trim()) {
+    const pushed = git('diff', '--name-only', `${upstream.trim()}...HEAD`);
+    if (pushed !== null && pushed.trim()) {
+      return pushed.trim().split('\n').filter(Boolean);
+    }
+  }
+  return null;
+}
+
 // ── 主流程 ────────────────────────────────────────────
 
 function main() {
@@ -179,8 +205,35 @@ function main() {
     const goneK = [...baseK].filter((k) => !current.knip.includes(k));
     const goneJ = [...baseJ].filter((k) => !current.jscpd.includes(k));
 
-    for (const k of newK) errors.push(`[新增死代码] ${k}`);
-    for (const k of newJ) errors.push(`[新增重复代码] ${k}`);
+    const newKeys = [...newK, ...newJ];
+    const responsible = resolveResponsibleFiles();
+    const strictMode = responsible === null;
+    const { blocking, absorbable } = splitNewFindings(newKeys, strictMode ? null : new Set(responsible));
+
+    for (const k of blocking) {
+      errors.push(`[新增死代码/重复代码·归属本次改动] ${k}`);
+    }
+    for (const k of absorbable) {
+      infos.push(`[自动收编] 非本次改动的遗留发现: ${k}`);
+    }
+    if (strictMode && newKeys.length > 0) {
+      infos.push('严格模式：无 staged / 未推送上下文可归属，全部新增按阻断处理');
+    }
+
+    // 自动收编：无阻断项且有他人遗留债务时刷新基线（与 --update-baseline 同守卫，
+    // 工具执行失败禁止写盘防洗白）；CI（--json）只报告不写盘。
+    if (blocking.length === 0 && absorbable.length > 0 && !JSON_OUT) {
+      const canWrite = !(knipFindings.length === 0 && knipOut === null)
+        && !(jscpdFindings.length === 0 && jscpdOut === null);
+      if (canWrite) {
+        fs.mkdirSync(path.dirname(BASELINE_FILE), { recursive: true });
+        fs.writeFileSync(BASELINE_FILE, JSON.stringify({ generated: new Date().toISOString(), ...current }, null, 2) + '\n');
+        infos.push(`基线已自动收编并写盘：${current.knip.length} 条 knip + ${current.jscpd.length} 条 jscpd`);
+      } else {
+        for (const k of absorbable) errors.push(`[收编失败·工具未执行成功，拒绝写盘] ${k}`);
+      }
+    }
+
     for (const k of goneK.slice(0, 10)) infos.push(`[已清理] knip 基线项消失: ${k}`);
     for (const k of goneJ.slice(0, 10)) infos.push(`[已清理] jscpd 基线项消失: ${k}`);
   } else {
@@ -208,8 +261,8 @@ function main() {
   if (errors.length) {
     for (const e of errors.slice(0, 25)) console.log(`❌ ${e}`);
     if (errors.length > 25) console.log(`  … 其余 ${errors.length - 25} 条（--json 全量）`);
-    console.log('→ 修复: node scripts/check-deadcode-baseline.mjs --update-baseline（接受现状）或删除未引用导出');
-    console.log('\n退出码 1（新增死代码/重复代码阻断）。');
+    console.log('→ 归属本次改动的债：删除未引用导出，或确认保留后 --update-baseline 纳入');
+    console.log('\n退出码 1（新增死代码/重复代码·归属本次改动，阻断）。');
     process.exit(1);
   }
   console.log('✅ 无新增死代码/重复代码（基线内已知项放行）。');
