@@ -51,31 +51,31 @@ invariant_anchors:
 2. **`_filterPaths`（精确路径交集）**：按 `fullPath` 精确匹配 Set，来自高级筛选弹窗的标签 ∩ 搜索条件交集
 
 渲染时，搜索态走 `hl(e.name, search)`（utils/dom/html.ts）高亮命中文字，非搜索态走 `renderDisplayName()`（治理红线 4.3）。
-- **MMD 子目录分组展示（ADR-096 P3）**：`loader.ts:107-112` 在加载 MMD 类型扫描结果时，若 `ModelEntry.subdir` 非空（如 `SceneModel`），拼接到 `relPath` 前缀，文件树自动按子目录分组（无需改 `render.ts` 建树逻辑）；网页版 `scanWebModels`（`backend/web-fs.ts`）同步从 `name` 字段提取 `subdir` 字段
+- **MMD 子目录分组展示（ADR-096 P3）**：`loader.ts` 的 `loadEntries` 在加载 MMD 类型扫描结果时，若 `ModelEntry.subdir` 非空（如 `SceneModel`），拼接到 `relPath` 前缀，文件树自动按子目录分组（无需改 `render.ts` 建树逻辑）；网页版 `scanWebModels`（`backend/web-fs.ts`）同步从 `name` 字段提取 `subdir` 字段
 - `_initKeyboardShortcuts` / `_deleteSelected` — 键盘快捷键 / 批量删除
 - 子模块：`bus-handlers.ts`（事件处理）/ `events.ts`（委托）/ `virtual-scroll.ts`（虚拟滚动）/ `loader.ts`（数据加载抽象层）/ `authors.ts`（作者列表加载）/ `toolbar-events.ts`（工具栏 UI 绑定）
 
 ## 响应式属性与代际守卫
 
-- `observedAttributes` 仅声明 `root` 属性，`attributeChangedCallback`（index.ts:154-179）响应 root 值变更，触发 `_load` → `_renderTree` 重新加载并渲染
+- `observedAttributes` 仅声明 `root` 属性，`attributeChangedCallback` 响应 root 值变更，触发 `_load` → `_renderTree` 重新加载并渲染
 - 挂载时序保护：`_ready` 标志区分首次挂载与后续属性变更——`attributeChangedCallback` 在 `_ready=false` 时不启动加载，改为置 `_pendingRoot=true`，`connectedCallback` 的 `_load` 完成后检测并补加载最新 root（防「树停在 spinner」）
-- 代际守卫 `_gen`（index.ts:66）：`connectedCallback` 入口和 `attributeChangedCallback` 内均 `++_gen` 生成代际号；异步 `_load` 完成后用 `gen === this._gen` 校验，若期间 root 已切换则丢弃本次过期加载的渲染（防旧类型数据覆盖新类型树），是 app-tree 多资源类型快速切换的核心机制
+- 代际守卫 `_gen`：`connectedCallback` 入口和 `attributeChangedCallback` 内均 `++_gen` 生成代际号；异步 `_load` 完成后用 `gen === this._gen` 校验，若期间 root 已切换则丢弃本次过期加载的渲染（防旧类型数据覆盖新类型树），是 app-tree 多资源类型快速切换的核心机制
 
 ## 工具栏功能（toolbar-events.ts）
 
-`bindToolbarEvents`（toolbar-events.ts:240-442）绑定工具栏所有 UI 入口，对外功能清单：
+`bindToolbarEvents`（toolbar-events.ts）绑定工具栏所有 UI 入口，对外功能清单：
 
 | 功能 | 触发元素 | 说明 |
 |------|----------|------|
-| 高级筛选弹窗 | `#btn-adv-filter` 点击 → `openAdvFilterDialog`（:25-204） | 弹窗输入关键词/标签/骨骼/立方体/纹理数值范围，回填 inline 面板并调用后端 SearchModels |
-| 排序下拉 | `#sort` change（:322） | name/size/date 排序 |
-| 视图模式切换 | `#btn-view-mode` click（:328-339） | grid ⇄ list 切换，持久化到 localStorage |
-| 作者下拉菜单 | `#menu-authors` pointerenter/click（:376-388）→ `fillAuthorMenu`（:207-237） | 点击作者名自动填入搜索框并触发搜索 |
-| 全选 / 反选 | `#sel-all` click（:243-263） | 基于当前可见行切换 `selectState.keys` |
-| 导出骨骼名 | `#repo-export` click（:265-309） | 调用 Go `ExportBoneStructures`，Blob 下载 |
-| 生成仓库索引 | `data-more="genindex"`（:511-555） | 调用 Go `GenerateRepoIndex`，网页版触发下载，桌面端写盘 |
+| 高级筛选弹窗 | `#btn-adv-filter` 点击 → `openAdvFilterDialog`（toolbar-search.ts） | 弹窗输入关键词/标签/骨骼/立方体/纹理数值范围，回填 inline 面板并调用后端 SearchModels |
+| 排序下拉 | `#sort` change | name/size/date 排序 |
+| 视图模式切换 | `#btn-view-mode` click | grid ⇄ list 切换，持久化到 localStorage |
+| 作者下拉菜单 | `#menu-authors` pointerenter/click → `fillAuthorMenu` | 点击作者名自动填入搜索框并触发搜索 |
+| 全选 / 反选 | `#sel-all` click | 基于当前可见行切换 `selectState.keys` |
+| 导出骨骼名 | `#repo-export` click | 调用 Go `ExportBoneStructures`，Blob 下载 |
+| 生成仓库索引 | `data-more="genindex"` | 调用 Go `GenerateRepoIndex`，网页版触发下载，桌面端写盘 |
 
-`_loadAuthorsAsync`（index.ts:193-199）在 `connectedCallback` 内延迟调用 `loadAuthors` 加载作者列表至 `_authors`，供 `fillAuthorMenu` 填充下拉。
+`_loadAuthorsAsync` 在 `connectedCallback` 内延迟调用 `loadAuthors` 加载作者列表至 `_authors`，供 `fillAuthorMenu` 填充下拉。
 
 ## 与其他子系统关系
 
@@ -90,9 +90,9 @@ invariant_anchors:
 - **「📂 打开文件夹」/「📁 导入文件夹」Android 双端桥（ADR-046）**：两按钮均不可调 Wails Dialog（`SelectDirectory`/`OpenFolder` 在 Android 由官方/Go 守卫报错）——Android 分支统一走 `resolveAndroidRepoDir()`（directory-picker.ts，授权引导 + 定位公共仓库目录 + toast 提示路径），桌面行为不变
 - 使用 Shadow DOM 隔离样式
 - 组件拆分遵循 app-xxx 规范（index/tpl/row-tpl/data/render/events）
-- 动态 import 链路带 `.catch` 兜底（如 ha-preview 解析模块加载失败以 toast 提示，见 events.ts:196）
+- 动态 import 链路带 `.catch` 兜底（如 ha-preview 解析模块加载失败以 toast 提示，见 events.ts）
 - **选中态在数据变更链路（回收/重命名）成功后必须清空**（P2 修复：`selectState` 是模块级单例，bus-handlers 的 dir:recycle / batch:rename / dir:batch-rename 成功后清 keys+lastKey——原旧路径滞留会显示「已选 N 个文件」并对已不存在路径误删）
-- **instance-actions 契约口径（2026-08-09 收敛）**：① 同步键口径 = Go `sync_push.go` `SyncCustomToRepo` 的去重规则（Hash 优先 + 原始 Name 兜底、复制保留相对路径）——前端**不**自行按 `.ban` 剥离裸名 Set 计数，`uploaded` 直接信任 Go 返回值（单一事实来源，防「📤 N」撒谎/漏同步）；② `addImportLog` 调用源已迁移至 `core/handlers/sync.ts:184/207`（原 `instance-actions.ts` 模块已删除，知识卡保留此标注供追溯）；sourcePath=源、targetDir=目标，调用方不得装反/漏传
+- **instance-actions 契约口径（2026-08-09 收敛）**：① 同步键口径 = Go `sync_push.go` `SyncCustomToRepo` 的去重规则（Hash 优先 + 原始 Name 兜底、复制保留相对路径）——前端**不**自行按 `.ban` 剥离裸名 Set 计数，`uploaded` 直接信任 Go 返回值（单一事实来源，防「📤 N」撒谎/漏同步）；② `AddImportLog` 调用源已迁移至 `core/handlers/sync.ts`（原 `instance-actions.ts` 模块已删除，知识卡保留此标注供追溯）；sourcePath=源、targetDir=目标，调用方不得装反/漏传
 
 ## 相关
 

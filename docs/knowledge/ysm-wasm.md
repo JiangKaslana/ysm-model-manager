@@ -6,7 +6,7 @@ category: utils
 source_files:
   - frontend/src/wasm/
   - internal/app/wasm_decoder.go
-  - go/avatar/avatar.go
+  - go/avatar/avatar_decode.go
 use_when:
   - WASM
   - YSMParser
@@ -36,10 +36,10 @@ YSMParser WASM 的前端胶水层（算法口径与 YSMViewer 一致）：`ysm-p
 
 发版不打包 exe 时，`.ysm` 解码的唯一路径（`app_model.go` `runYSMParserOnFile`：`FindCLI()` 找不到 exe → `decodeYSMViaNodeJS`）：
 
-1. `findNodeJS()` 在 PATH 找 `node`/`node.exe`（`wasm_decoder.go:27`），无 node 则此路径不可用；
+1. `findNodeJS()` 在 PATH 找 `node`/`node.exe`（`wasm_decoder.go` 内 `nodeJSPath` 包级变量），无 node 则此路径不可用；
 2. 内嵌 glue + wasm 写临时目录，拼 `decode.cjs`：`require(glue)` → `await YSMParser({ wasmBinary, noInitialRun: true })` → `FS.writeFile('/input/model.ysm')` → **`mod.callMain(['-i','/input','-o','/output'])`** → 递归收集 `/output`，打 `FILES_JSON:` 标记；
-3. 子进程 `HideWindow` + **context 超时护栏**（`wasm_decoder.go` `exec.CommandContext` + `ysmNodeDecodeTimeout` 60s，node 卡死超时即弃；`limitedBuffer` 流式截断 stdout/stderr——`ysmDecodeMaxOutput` 200MB 输出上限 + stderr 8MB 封顶，防解压炸弹膨胀父进程内存，`go/avatar/avatar.go` 同源同款）；输出经 `geometry.ParseBedrockGeometry` 合并多骨骼/纹理 base64 → `types.BedrockModel`；
-4. **纯 Node 即可解码，不依赖浏览器**（已实测 `upstream/` 下 10 个 .ysm 全部解出骨骼/动画/纹理/头像）。`go/avatar/avatar.go` `DecodeYSMFiles` 同机制复用（头像提取）。
+3. 子进程 `HideWindow` + **context 超时护栏**（`wasm_decoder.go` `exec.CommandContext` + `ysmNodeDecodeTimeout` 60s，node 卡死超时即弃；`limitedBuffer` 流式截断 stdout/stderr——`ysmDecodeMaxOutput` 200MB 输出上限 + stderr 8MB 封顶，防解压炸弹膨胀父进程内存，`go/avatar/avatar_decode.go` 同源同款）；输出经 `geometry.ParseBedrockGeometry` 合并多骨骼/纹理 base64 → `types.BedrockModel`；
+4. **纯 Node 即可解码，不依赖浏览器**（已实测 `upstream/` 下 10 个 .ysm 全部解出骨骼/动画/纹理/头像）。`go/avatar/avatar_decode.go` `DecodeYSMFiles` 同机制复用（头像提取）。
 
 ## 核心职责
 

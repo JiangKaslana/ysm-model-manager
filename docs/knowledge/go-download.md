@@ -15,6 +15,11 @@ use_when:
 perf:
   - io-bound
   - single-thread
+invariant_anchors:
+  - go/download/download.go|TruncationError
+  - go/download/download.go|ErrPartialResponse
+  - go/download/download.go|ErrChecksumMismatch
+  - go/download/download.go|HTTPStatusError
 ---
 
 # 下载器 go/download
