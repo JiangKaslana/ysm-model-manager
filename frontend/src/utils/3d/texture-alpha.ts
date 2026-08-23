@@ -15,13 +15,18 @@ export function getTextureAlphaMode(texture: THREE.Texture): TextureAlphaMode {
   return mode;
 }
 
+const BLEND_MIN_RATIO = 0.005;
+
 function classifyRgba(data: ArrayLike<number>): TextureAlphaMode {
   let hasTransparent = false;
+  let translucent = 0;
+  const total = data.length / 4;
   for (let i = 3; i < data.length; i += 4) {
     const alpha = data[i] ?? 255;
-    if (alpha > 0 && alpha < 255) return "blend";
-    if (alpha === 0) hasTransparent = true;
+    if (alpha > 0 && alpha < 255) translucent++;
+    else if (alpha === 0) hasTransparent = true;
   }
+  if (translucent / total > BLEND_MIN_RATIO) return "blend";
   return hasTransparent ? "cutout" : "opaque";
 }
 
