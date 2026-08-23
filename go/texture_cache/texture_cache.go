@@ -12,12 +12,16 @@ package texture_cache
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"ysm-model-manager/go/fsutil"
 )
@@ -101,6 +105,8 @@ func WriteCached(hash string, data []byte) error {
 			return fmt.Errorf("texture_cache: 写入缓存（重命名降级）%s: %w", path, writeErr)
 		}
 	}
+	// 写后限频淘汰：缓存只增不减会长期膨胀，写路径是最自然的收敛触发点
+	maybePrune()
 	return nil
 }
 
@@ -229,4 +235,144 @@ func GetCacheStats() CacheStats {
 	}
 
 	return stats
+}
+
+// ===== 缓存淘汰（容量上限 + TTL）=====
+// 默认限制：容量 1GB（与 repoaudit warnCacheSizeGB 对齐）、TTL 30 天、写后每 5 分钟扫一次。
+// 缓存是衍生数据，删错可经 WriteCached 重新生成，故淘汰失败仅记录日志、不中断写入。
+
+var (
+	maxCacheBytes = int64(1 << 30)      // 容量上限（0 = 不限）
+	maxEntryAge   = 30 * 24 * time.Hour // 条目 TTL（0 = 不按 TTL 删）
+	pruneInterval = 5 * time.Minute     // 写路径限频间隔（0 = 每次写都触发）
+	pruneMu       sync.Mutex            // 保护 lastPrune 的并发读写
+	lastPrune     time.Time
+)
+
+// SetCacheLimits 覆盖淘汰阈值（测试/配置注入用）。
+// maxBytes<=0 表示不限容量；maxAge<=0 表示不按 TTL 删；interval<=0 表示每次写入都触发淘汰。
+func SetCacheLimits(maxBytes int64, maxAge, interval time.Duration) {
+	maxCacheBytes = maxBytes
+	maxEntryAge = maxAge
+	pruneInterval = interval
+}
+
+// PruneResult 一次淘汰的结果（供日志与测试断言）
+type PruneResult struct {
+	RemovedCount int   // 成功删除的文件数
+	FreedBytes   int64 // 释放的字节
+	KeptCount    int   // 保留的文件数
+	Remaining    int64 // 保留的总字节
+}
+
+// Prune 淘汰纹理缓存：先清超龄（TTL），再按容量从最旧删到上限内。
+// 可被 repoaudit / CLI / 应用启动按需调用；WriteCached 写路径也会限频自动触发。
+func Prune() (PruneResult, error) {
+	var res PruneResult
+	dir := CacheDir()
+	if dir == "" {
+		return res, nil // 平台配置根不可用：no-op
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return res, nil
+		}
+		return res, fmt.Errorf("texture_cache: 扫描缓存目录 %s: %w", dir, err)
+	}
+
+	type entry struct {
+		path string
+		size int64
+		mod  time.Time
+	}
+	var files []entry
+	now := time.Now()
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".ktx2") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		files = append(files, entry{
+			path: filepath.Join(dir, e.Name()),
+			size: info.Size(),
+			mod:  info.ModTime(),
+		})
+	}
+	totalFiles := len(files)
+
+	// 最旧优先排序（确定性：同 mtime 按路径字典序）
+	sort.SliceStable(files, func(i, j int) bool {
+		if !files[i].mod.Equal(files[j].mod) {
+			return files[i].mod.Before(files[j].mod)
+		}
+		return files[i].path < files[j].path
+	})
+
+	remove := func(p string) {
+		if err := os.Remove(p); err != nil {
+			log.Printf("texture_cache: 淘汰删除失败 %s: %v", p, err)
+			return
+		}
+		res.RemovedCount++
+	}
+
+	// 1) TTL：超龄文件直接删（mtime 近似最后写入，LRU 语义）
+	if maxEntryAge > 0 {
+		cutoff := now.Add(-maxEntryAge)
+		kept := files[:0]
+		for _, f := range files {
+			if f.mod.Before(cutoff) {
+				remove(f.path)
+				res.FreedBytes += f.size
+			} else {
+				kept = append(kept, f)
+			}
+		}
+		files = kept
+	}
+
+	// 2) 容量：总大小超上限，从最旧删到达标
+	if maxCacheBytes > 0 {
+		var total int64
+		for _, f := range files {
+			total += f.size
+		}
+		for _, f := range files {
+			if total <= maxCacheBytes {
+				break
+			}
+			remove(f.path)
+			total -= f.size
+			res.FreedBytes += f.size
+		}
+		res.Remaining = total
+	} else {
+		var total int64
+		for _, f := range files {
+			total += f.size
+		}
+		res.Remaining = total
+	}
+
+	res.KeptCount = totalFiles - res.RemovedCount
+	return res, nil
+}
+
+// maybePrune 写路径限频触发：距上次扫描未达间隔则跳过，避免每次写都 O(n) 扫目录。
+// lastPrune 在锁内更新后于锁外执行 Prune，避免慢扫描阻塞并发写。
+func maybePrune() {
+	pruneMu.Lock()
+	if pruneInterval > 0 && !lastPrune.IsZero() && time.Since(lastPrune) < pruneInterval {
+		pruneMu.Unlock()
+		return
+	}
+	lastPrune = time.Now()
+	pruneMu.Unlock()
+	if _, err := Prune(); err != nil {
+		log.Printf("texture_cache: 写后淘汰失败: %v", err)
+	}
 }

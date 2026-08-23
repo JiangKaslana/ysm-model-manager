@@ -30,7 +30,7 @@
 | go/scanner | 1 | 10 |
 | Go·同步 | 7 | 25 |
 | Go·标签 | 1 | 8 |
-| go/texture_cache | 1 | 10 |
+| go/texture_cache | 1 | 13 |
 | Go·Three.js | 1 | 6 |
 | Go·类型 | 7 | 90 |
 | Go·更新器 | 1 | 10 |
@@ -48,7 +48,7 @@
 | frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **458** | **1947** |
+| **合计** | **458** | **1950** |
 
 ## Go·头像
 
@@ -436,16 +436,19 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `TextureHash()` | `go/texture_cache/texture_cache:38` | TextureHash 计算文件内容的 SHA256 哈希，用作缓存 key。 |
-| `CachePath()` | `go/texture_cache/texture_cache:53` | CachePath 返回给定哈希对应的缓存文件路径。 |
-| `ReadCached()` | `go/texture_cache/texture_cache:63` | ReadCached 读取缓存中的 KTX2 数据。 |
-| `WriteCached()` | `go/texture_cache/texture_cache:83` | WriteCached 写入 KTX2 数据到缓存。 |
-| `HasCached()` | `go/texture_cache/texture_cache:108` | HasCached 检查缓存中是否存在指定哈希的 KTX2 文件。 |
-| `ClearCache()` | `go/texture_cache/texture_cache:124` | ClearCache 清空纹理缓存目录（用于测试或用户主动清理）。 |
-| `ListCacheFiles()` | `go/texture_cache/texture_cache:156` | ListCacheFiles 列出所有缓存文件 |
-| `GetCacheStats()` | `go/texture_cache/texture_cache:202` | GetCacheStats 获取缓存统计 |
-| `CacheEntry()` | `go/texture_cache/texture_cache:149` | CacheEntry 缓存条目信息 |
-| `CacheStats()` | `go/texture_cache/texture_cache:195` | CacheStats 缓存统计信息 |
+| `TextureHash()` | `go/texture_cache/texture_cache:42` | TextureHash 计算文件内容的 SHA256 哈希，用作缓存 key。 |
+| `CachePath()` | `go/texture_cache/texture_cache:57` | CachePath 返回给定哈希对应的缓存文件路径。 |
+| `ReadCached()` | `go/texture_cache/texture_cache:67` | ReadCached 读取缓存中的 KTX2 数据。 |
+| `WriteCached()` | `go/texture_cache/texture_cache:87` | WriteCached 写入 KTX2 数据到缓存。 |
+| `HasCached()` | `go/texture_cache/texture_cache:114` | HasCached 检查缓存中是否存在指定哈希的 KTX2 文件。 |
+| `ClearCache()` | `go/texture_cache/texture_cache:130` | ClearCache 清空纹理缓存目录（用于测试或用户主动清理）。 |
+| `ListCacheFiles()` | `go/texture_cache/texture_cache:162` | ListCacheFiles 列出所有缓存文件 |
+| `GetCacheStats()` | `go/texture_cache/texture_cache:208` | GetCacheStats 获取缓存统计 |
+| `SetCacheLimits()` | `go/texture_cache/texture_cache:254` | SetCacheLimits 覆盖淘汰阈值（测试/配置注入用）。 |
+| `Prune()` | `go/texture_cache/texture_cache:270` | Prune 淘汰纹理缓存：先清超龄（TTL），再按容量从最旧删到上限内。 |
+| `CacheEntry()` | `go/texture_cache/texture_cache:155` | CacheEntry 缓存条目信息 |
+| `CacheStats()` | `go/texture_cache/texture_cache:201` | CacheStats 缓存统计信息 |
+| `PruneResult()` | `go/texture_cache/texture_cache:261` | PruneResult 一次淘汰的结果（供日志与测试断言） |
 
 ## Go·Three.js
 

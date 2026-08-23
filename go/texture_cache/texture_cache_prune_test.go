@@ -1,0 +1,174 @@
+package texture_cache
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+// setCacheDir 把 CacheDir 指向临时目录，测试结束自动还原
+func setCacheDir(t *testing.T) string {
+	t.Helper()
+	old := CacheDir
+	t.Cleanup(func() { CacheDir = old })
+	dir := t.TempDir()
+	CacheDir = func() string { return dir }
+	return dir
+}
+
+// setLimits 覆盖淘汰阈值，测试结束自动还原
+func setLimits(t *testing.T, maxBytes int64, maxAge, interval time.Duration) {
+	t.Helper()
+	oldBytes, oldAge, oldInterval := maxCacheBytes, maxEntryAge, pruneInterval
+	t.Cleanup(func() {
+		maxCacheBytes, maxEntryAge, pruneInterval = oldBytes, oldAge, oldInterval
+	})
+	SetCacheLimits(maxBytes, maxAge, interval)
+}
+
+// writeCacheFile 写一个缓存文件并设置 mtime（控制 TTL/容量排序）
+func writeCacheFile(t *testing.T, dir, name string, data []byte, mod time.Time) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, mod, mod); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestPrune_EmptyCacheDir(t *testing.T) {
+	setCacheDir(t)
+	setLimits(t, 1024, time.Hour, 0)
+	res, err := Prune()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RemovedCount != 0 {
+		t.Fatalf("空目录不应删除任何文件，got %d", res.RemovedCount)
+	}
+}
+
+func TestPrune_CacheDirUnavailable(t *testing.T) {
+	old := CacheDir
+	t.Cleanup(func() { CacheDir = old })
+	CacheDir = func() string { return "" }
+	res, err := Prune()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RemovedCount != 0 {
+		t.Fatalf("缓存目录不可用时应 no-op，got %d", res.RemovedCount)
+	}
+}
+
+func TestPrune_SkipsNonKtx2(t *testing.T) {
+	dir := setCacheDir(t)
+	setLimits(t, 0, 0, 0) // 无容量上限、无 TTL：只应验证扩展名过滤
+	writeCacheFile(t, dir, "aaa.ktx2", []byte("x"), time.Now())
+	writeCacheFile(t, dir, "notes.txt", []byte("x"), time.Now().Add(-100*time.Hour))
+	res, err := Prune()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RemovedCount != 0 {
+		t.Fatalf("非 .ktx2 不应参与淘汰，got %d", res.RemovedCount)
+	}
+}
+
+func TestPrune_OverCapacity_DeletesOldest(t *testing.T) {
+	dir := setCacheDir(t)
+	base := time.Now().Add(-time.Minute)
+	// mtime 递增：aaa 最旧 → ccc 最新
+	writeCacheFile(t, dir, "aaa.ktx2", make([]byte, 100), base)
+	writeCacheFile(t, dir, "bbb.ktx2", make([]byte, 200), base.Add(time.Minute))
+	writeCacheFile(t, dir, "ccc.ktx2", make([]byte, 300), base.Add(2*time.Minute))
+	// 上限 400：总 600 超限 → 删 aaa(100) 剩 500 仍超 → 删 bbb(200) 剩 300 ≤400
+	setLimits(t, 400, 0, 0)
+	res, err := Prune()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RemovedCount != 2 {
+		t.Fatalf("应删 2 个最旧文件，got %d", res.RemovedCount)
+	}
+	if res.FreedBytes != 300 {
+		t.Fatalf("应释放 300B，got %d", res.FreedBytes)
+	}
+	if res.Remaining != 300 {
+		t.Fatalf("剩余应为 300B，got %d", res.Remaining)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "aaa.ktx2")); !os.IsNotExist(err) {
+		t.Fatal("aaa 应被删（最旧）")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "bbb.ktx2")); !os.IsNotExist(err) {
+		t.Fatal("bbb 应被删")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "ccc.ktx2")); err != nil {
+		t.Fatal("ccc 应保留（最新）")
+	}
+}
+
+func TestPrune_TTL_ExpiredRemoved_FreshKept(t *testing.T) {
+	dir := setCacheDir(t)
+	setLimits(t, 0, time.Hour, 0) // 1 小时 TTL，无容量上限
+	writeCacheFile(t, dir, "old.ktx2", []byte("x"), time.Now().Add(-2*time.Hour))
+	writeCacheFile(t, dir, "new.ktx2", []byte("x"), time.Now())
+	res, err := Prune()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RemovedCount != 1 {
+		t.Fatalf("应只删超龄的 1 个，got %d", res.RemovedCount)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "old.ktx2")); !os.IsNotExist(err) {
+		t.Fatal("old 应被删（超龄）")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "new.ktx2")); err != nil {
+		t.Fatal("new 应保留（新鲜）")
+	}
+}
+
+func TestPrune_CombinedTTLAndCapacity(t *testing.T) {
+	dir := setCacheDir(t)
+	now := time.Now()
+	// 一个超龄大文件 + 三个新鲜文件
+	writeCacheFile(t, dir, "expired.ktx2", make([]byte, 500), now.Add(-2*time.Hour))
+	writeCacheFile(t, dir, "f1.ktx2", make([]byte, 100), now)
+	writeCacheFile(t, dir, "f2.ktx2", make([]byte, 100), now)
+	writeCacheFile(t, dir, "f3.ktx2", make([]byte, 100), now)
+	// TTL 1 小时先删 expired(500)；容量 150 再删最旧：f1(100) → 剩 200 仍超 → f2(100) → 剩 100
+	setLimits(t, 150, time.Hour, 0)
+	res, err := Prune()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RemovedCount != 3 {
+		t.Fatalf("应删 3 个（1 超龄 + 2 超容量），got %d", res.RemovedCount)
+	}
+	if res.Remaining != 100 {
+		t.Fatalf("剩余应为 100B，got %d", res.Remaining)
+	}
+}
+
+func TestWriteCached_TriggersPrune(t *testing.T) {
+	setCacheDir(t)
+	setLimits(t, 250, 0, 0) // interval=0 → 每次写都触发；容量 250
+	for i := 0; i < 4; i++ {
+		if err := WriteCached(fmt.Sprintf("hash%d", i), make([]byte, 100)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 每次写后 prune 到 ≤250：写满 4 个（400B）后应只剩最新的 2 个（200B）
+	stats := GetCacheStats()
+	if stats.FileCount != 2 {
+		t.Fatalf("写路径自动淘汰后应剩 2 个，got %d", stats.FileCount)
+	}
+	if stats.TotalSize != 200 {
+		t.Fatalf("剩余应 200B，got %d", stats.TotalSize)
+	}
+}
