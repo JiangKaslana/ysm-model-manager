@@ -779,6 +779,30 @@ describe("审核补充：边界与异步路径", () => {
   });
 });
 
+// ===== appendLitematicPreview 对称契约（Phase B-1，2026-08-24）=====
+// 轻量：只验证它经统一路由主门收口为 cooperate=true（keepInScene 追加），
+// 不触发真实 3D mount。与 appendMmdPreview/appendVrmPreview 同层薄委托，不测内部实现。
+describe("appendLitematicPreview — 同台追加入口对称 mmd/vrm", () => {
+  it("调 openModel3DFullscreen 且透传 cooperate:true", async () => {
+    const lib = await import("./preview-library.ts");
+    const spy = vi.spyOn(lib, "openModel3DFullscreen").mockResolvedValue(undefined);
+    const { appendLitematicPreview } = await import("./litematic-3d.ts");
+    await appendLitematicPreview("/b.litematic");
+    expect(spy).toHaveBeenCalledWith("/b.litematic", { cooperate: true });
+    spy.mockRestore();
+  });
+
+  it("cooperate 缺省不为 false（保持追加语义，不误触替换清理）", async () => {
+    const lib = await import("./preview-library.ts");
+    const spy = vi.spyOn(lib, "openModel3DFullscreen").mockResolvedValue(undefined);
+    const { appendLitematicPreview } = await import("./litematic-3d.ts");
+    await appendLitematicPreview("/c.blueprint");
+    const opts = spy.mock.calls[0]?.[1];
+    expect(opts?.cooperate).toBe(true);
+    spy.mockRestore();
+  });
+});
+
 /** 直接移除 overlay（避免污染后续用例；内部状态由 afterEach cleanupVoxel3D 清理）。
  * 注意：不能靠「点第一个 button」关闭——ADR-076 v2 后第一个 button 是 ⚙️ 根菜单按钮，
  * close 收进菜单项，直接 removeChild 更稳。 */
