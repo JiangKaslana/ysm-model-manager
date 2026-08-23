@@ -59,8 +59,12 @@ export function fill3DPanel(
     bindingRow.appendChild(bindingValue);
     panel.appendChild(bindingRow);
     // 组件选择器 onchange 追加更新绑定行（不覆盖已有 showModelGroup）
-    // texArrOrder[idx] = 组件 idx 声明的纹理名（Go 端按 texSlot 分配，多组件可共享同一张）
+    // texArrOrder[idx] = 组件 idx 声明的纹理名（Go 端按 texSlot 分配，多组件可共享同一张）。
+    // 注意：perComponent 组件（arrow/载具/⊗ 投射物，纹理在 ComponentTextures）texArrOrder 为
+    // 空串，不能直接显示「全量」——那会把「组件已绑定专属纹理」的事实藏掉（wine_fox arrow 只读
+    // skin 的观感根因）。命中 componentTextures 时按组件名诚实地显示其专属纹理。
     const texArrOrder = (spec as { texArrOrder?: string[] }).texArrOrder;
+    const componentTextures = (spec as { componentTextures?: Record<string, string[]> }).componentTextures;
     const updateBinding = (): void => {
       const idx = parseInt(modelSel.value, 10);
       if (isNaN(idx) || idx < 0) {
@@ -70,10 +74,15 @@ export function fill3DPanel(
       const declared = texArrOrder?.[idx];
       if (declared) {
         bindingValue.textContent = declared;
-      } else {
-        // texArrOrder 缺失（WASM 路径）→ 按全量纹理兜底
-        bindingValue.textContent = "全量";
+        return;
       }
+      // perComponent 组件：按 spec.models[idx].name（SourceName）查 componentTextures
+      const mgName = (spec.models as Array<{ name?: string; id?: string }> | undefined)?.[idx]?.name;
+      if (mgName && componentTextures?.[mgName]?.length) {
+        bindingValue.textContent = mgName + "（组件专属）";
+        return;
+      }
+      bindingValue.textContent = "全量";
     };
     modelSel.addEventListener("change", updateBinding);
     for (let i = 0; i < texArr.length; i++) {

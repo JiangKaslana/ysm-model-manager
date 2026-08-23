@@ -593,4 +593,36 @@ describe("fill3DPanel", () => {
     }
     document.body.removeChild(panel);
   });
+
+  it("当前组件绑定：perComponent 组件按 componentTextures 显示组件专属纹理，而非兜底 全量", () => {
+    const panel = document.createElement("div");
+    panel.id = "preview-panel";
+    document.body.appendChild(panel);
+    const model = makeModel({
+      textures: ["t.png"],
+      textureNames: ["skin"],
+    }) as never;
+    const handle = make3DHandle();
+    handle.getModelGroupCount = vi.fn(() => 2) as typeof handle.getModelGroupCount;
+    handle.getBoneList = vi.fn(() => []) as typeof handle.getBoneList;
+    const modelSel = document.createElement("select");
+    // 多组件 spec：main 走全局 texArrOrder（skin），arrow 是 perComponent（texArrOrder 空串）
+    const spec = {
+      models: [
+        { name: "main", bones: [{ _cubeCount: 1 }], textureWidth: 64, textureHeight: 32 },
+        { name: "arrow", bones: [{ _cubeCount: 1 }], textureWidth: 64, textureHeight: 32 },
+      ],
+      texArrOrder: ["skin", ""],
+      componentTextures: { arrow: ["data:image/png;base64,QUJD"] },
+    } as never;
+    const texArr = [makeFakeTex()] as unknown as import("three").Texture[];
+    fill3DPanel(panel, model, texArr, spec, handle, modelSel);
+    expect(panel.textContent).toContain("当前组件绑定");
+    // 切到 arrow（perComponent 组件）→ 绑定行须显示组件专属纹理，不得吞成 全量
+    modelSel.value = "1";
+    modelSel.dispatchEvent(new Event("change"));
+    expect(panel.textContent).toContain("arrow");
+    expect(panel.textContent).not.toContain("全量");
+    document.body.removeChild(panel);
+  });
 });
