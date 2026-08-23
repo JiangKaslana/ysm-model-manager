@@ -17,33 +17,28 @@ permalink: /adr/
 | 状态 | 数量 |
 |------|------|
 | [⚠️ 已采纳但遗留未修复](#已采纳但遗留未修复) | 0 |
-| [🔄 部分采纳](#部分采纳) | 8 |
-| [✅ 已采纳](#已采纳) | 104 |
+| [🔄 部分采纳](#部分采纳) | 2 |
+| [✅ 已采纳](#已采纳) | 110 |
 | [❌ 已取代](#已取代) | 1 |
 | [🧊 已废弃](#已废弃) | 0 |
 | [❓ 未归类](#未归类) | 0 |
 
 ## 按状态分组导航
 
-### 🔄 部分采纳（8）
+### 🔄 部分采纳（2）
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
-| [ADR-114](./ADR-114-per-component-textures.md) | 每组件独立纹理（perComponent Textures） | 🔄 部分采纳 |
-| [ADR-092](./ADR-092-resource-type-group-routing.md) | 资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并 | 🔄 部分采纳 |
-| [ADR-088](./ADR-088-parallel-dispatch.md) | 检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行 | 🔄 部分采纳 |
 | [ADR-077](./ADR-077-bottom-nav-shell-convergence.md) | 底部导航通用外壳收敛（D1+D3 落地） | 🔄 部分采纳 ⚠️ 被 [ADR-076] |
 | [ADR-061](./ADR-061-3d.md) | 3D 渲染器能力边界与后续方向 | 🔄 部分采纳 |
-| [ADR-042](./ADR-042-modernysm-pivot-rotation.md) | 渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植 | 🔄 部分采纳 |
-| [ADR-024](./ADR-024-multi-resource-federation.md) | 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表） | 🔄 部分采纳 |
-| [ADR-004](./ADR-004-3d-rendering-pipeline.md) | 3D 骨骼渲染管线与坐标系决策 | 🔄 部分采纳 ⚠️ 被 [ADR-041] |
 
-### ✅ 已采纳（104）
+### ✅ 已采纳（110）
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
 | [ADR-116](./ADR-116-frontend-go-boundary.md) | 前端 vs Go 职责红线：筛选/类型判定权威层归 Go | ✅ 已采纳 |
 | [ADR-115](./ADR-115-append-semantics.md) | 跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡） | ✅ 已采纳 |
+| [ADR-114](./ADR-114-per-component-textures.md) | 每组件独立纹理（perComponent Textures） | ✅ 已采纳 |
 | [ADR-113](./ADR-113-ysm-molang.md) | YSM 骨骼动画 Molang 求值器与欧拉序修复（L4） | ✅ 已采纳 |
 | [ADR-112](./ADR-112-fbx-loader-preview-foundation.md) | FBX 格式接入与独立预览地基 | ✅ 已采纳 |
 | [ADR-111](./ADR-111-variants-decouple.md) | variants 解耦——类别—格式分层，角色模型合并 PMX/VRM | ✅ 已采纳 |
@@ -64,9 +59,11 @@ permalink: /adr/
 | [ADR-095](./ADR-095-open-folder-installdir.md) | OpenInstanceFolder 打开资源存储目录而非模组扫描目录 | ✅ 已采纳 |
 | [ADR-094](./ADR-094-mmd-subdir-position-routing.md) | MMD 子类型位置路由：3d-skin 目录层级优先于扩展名 | ✅ 已采纳 |
 | [ADR-093](./ADR-093-multi-model-scene-core.md) | 多模型同框引擎核心（注册表/dispatch/相机累加/路由接缝/上限） | ✅ 已采纳 |
+| [ADR-092](./ADR-092-resource-type-group-routing.md) | 资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并 | ✅ 已采纳 |
 | [ADR-091](./ADR-091-v2-2026-08-17.md) | 架构债务总览 v2（2026-08-17 并发审计） | ✅ 已采纳 |
 | [ADR-090](./ADR-090-vitest-env-optimization.md) | vitest 环境切换与 npm 三件套并行优化 | ✅ 已采纳 |
 | [ADR-089](./ADR-089-test-env-split-continued.md) | 测试环境切分持续推进：慢测试定位与 node 环境甄别 | ✅ 已采纳 |
+| [ADR-088](./ADR-088-parallel-dispatch.md) | 检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行 | ✅ 已采纳 |
 | [ADR-087](./ADR-087-ai-automation-takeq.md) | AI 自动化取巧——pre-commit 智能 stage 与无脑指令下沉 | ✅ 已采纳 |
 | [ADR-086](./ADR-086-check-system-reduction.md) | 检查体系减负与赋能决策表 | ✅ 已采纳 |
 | [ADR-085](./ADR-085-menu-single-source.md) | 3D 预览菜单单一事实来源：注册表驱动 + 状态单向流 | ✅ 已采纳 |
@@ -108,6 +105,7 @@ permalink: /adr/
 | [ADR-045](./ADR-045-i18n-framework.md) | 前端 i18n 轻量框架 | ✅ 已采纳 |
 | [ADR-044](./ADR-044-code-writing-governance.md) | 代码写法治理范式：31 批审核反推的系统性不足与收敛策略 | ✅ 已采纳 |
 | [ADR-043](./ADR-043-check-scripts-fail-closed-contract.md) | 检查脚本 fail-closed 三态契约（扫描不完整必须显式暴露，禁止假绿） | ✅ 已采纳 |
+| [ADR-042](./ADR-042-modernysm-pivot-rotation.md) | 渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植 | ✅ 已采纳 |
 | [ADR-041](./ADR-041-spec-render-alignment.md) | 渲染对齐：Go spec 对齐 YSMViewer（C# ThreeJsPayloadBuilder） | ✅ 已采纳 |
 | [ADR-040](./ADR-040-architecture-scale-governance.md) | 架构规模治理——前端大文件拆分与 internal 下沉收口 | ✅ 已采纳 |
 | [ADR-039](./ADR-039-audit-remaining-decisions.md) | 两轮功能审核后的遗留决策项与处置方向 | ✅ 已采纳 |
@@ -125,6 +123,7 @@ permalink: /adr/
 | [ADR-027](./ADR-027-web-component-contract-normalization.md) | Web Component 对外契约规范化 | ✅ 已采纳 |
 | [ADR-026](./ADR-026-ysm-parser-ethics-boundary.md) | YSM 解析器集成伦理边界 | ✅ 已采纳 |
 | [ADR-025](./ADR-025-download-mirror-fallback.md) | 工坊下载镜像回退架构 | ✅ 已采纳 |
+| [ADR-024](./ADR-024-multi-resource-federation.md) | 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表） | ✅ 已采纳 |
 | [ADR-023](./ADR-023-test-framework.md) | 测试体系 | ✅ 已采纳 |
 | [ADR-022](./ADR-022-vitepress-site.md) | VitePress 建站 | ✅ 已采纳 |
 | [ADR-021](./ADR-021-declarative-menu-testing.md) | 前端声明式菜单自动化测试方案 | ✅ 已采纳 ⚠️ 被 [ADR-037] |
@@ -143,6 +142,7 @@ permalink: /adr/
 | [ADR-007](./ADR-007-context-menu-structure.md) | 右键菜单代码组织决策 | ✅ 已采纳 |
 | [ADR-006](./ADR-006-rename-strictness.md) | 重命名文件名格式约束决策 | ✅ 已采纳 |
 | [ADR-005](./ADR-005-frontend-governance-rules.md) | 前端治理规则体系 | ✅ 已采纳 |
+| [ADR-004](./ADR-004-3d-rendering-pipeline.md) | 3D 骨骼渲染管线与坐标系决策 | ✅ 已采纳 ⚠️ 被 [ADR-041] |
 | [ADR-003](./ADR-003-logic-sinking.md) | 业务逻辑从 Binding 层下沉至纯 Go 包（Logic Sinking） | ✅ 已采纳 |
 | [ADR-002](./ADR-002-project-health-assessment.md) | 项目全面评估与改进方向 | ✅ 已采纳 |
 | [ADR-001](./ADR-001-wails3-migration.md) | 升级至 Wails 3 | ✅ 已采纳 |
@@ -159,7 +159,7 @@ permalink: /adr/
 |------|------|------|------|
 | ADR-116 | 前端 vs Go 职责红线：筛选/类型判定权威层归 Go | ✅ 已采纳 | 2026-08-23 |
 | ADR-115 | 跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡） | ✅ 已采纳 | 2026-08-23 |
-| ADR-114 | 每组件独立纹理（perComponent Textures） | 🔄 部分采纳 | 2026-08-22 |
+| ADR-114 | 每组件独立纹理（perComponent Textures） | ✅ 已采纳 | 2026-08-22 |
 | ADR-113 | YSM 骨骼动画 Molang 求值器与欧拉序修复（L4） | ✅ 已采纳 | 2026-08-22 |
 | ADR-112 | FBX 格式接入与独立预览地基 | ✅ 已采纳 | 2026-08-21 |
 | ADR-111 | variants 解耦——类别—格式分层，角色模型合并 PMX/VRM | ✅ 已采纳 | 2026-08-21 |
@@ -180,11 +180,11 @@ permalink: /adr/
 | ADR-095 | OpenInstanceFolder 打开资源存储目录而非模组扫描目录 | ✅ 已采纳 | 2026-08-18 |
 | ADR-094 | MMD 子类型位置路由：3d-skin 目录层级优先于扩展名 | ✅ 已采纳 | 2026-08-18 |
 | ADR-093 | 多模型同框引擎核心（注册表/dispatch/相机累加/路由接缝/上限） | ✅ 已采纳 | 2026-08-18 |
-| ADR-092 | 资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并 | 🔄 部分采纳 | 2026-08-18 |
+| ADR-092 | 资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并 | ✅ 已采纳 | 2026-08-18 |
 | ADR-091 | 架构债务总览 v2（2026-08-17 并发审计） | ✅ 已采纳 | 2026-08-17 |
 | ADR-090 | vitest 环境切换与 npm 三件套并行优化 | ✅ 已采纳 | 2026-08-17 |
 | ADR-089 | 测试环境切分持续推进：慢测试定位与 node 环境甄别 | ✅ 已采纳 | 2026-08-17 |
-| ADR-088 | 检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行 | 🔄 部分采纳 | 2026-08-17 |
+| ADR-088 | 检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行 | ✅ 已采纳 | 2026-08-17 |
 | ADR-087 | AI 自动化取巧——pre-commit 智能 stage 与无脑指令下沉 | ✅ 已采纳 | 2026-08-17 |
 | ADR-086 | 检查体系减负与赋能决策表 | ✅ 已采纳 | 2026-08-17 |
 | ADR-085 | 3D 预览菜单单一事实来源：注册表驱动 + 状态单向流 | ✅ 已采纳 | 2026-08-16 |
@@ -229,7 +229,7 @@ permalink: /adr/
 | ADR-045 | 前端 i18n 轻量框架 | ✅ 已采纳 | 2026-08-09 |
 | ADR-044 | 代码写法治理范式：31 批审核反推的系统性不足与收敛策略 | ✅ 已采纳 | 2026-08-09 |
 | ADR-043 | 检查脚本 fail-closed 三态契约（扫描不完整必须显式暴露，禁止假绿） | ✅ 已采纳 | 2026-08-09 |
-| ADR-042 | 渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植 | 🔄 部分采纳 | 2026-08-09 |
+| ADR-042 | 渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植 | ✅ 已采纳 | 2026-08-09 |
 | ADR-041 | 渲染对齐：Go spec 对齐 YSMViewer（C# ThreeJsPayloadBuilder） | ✅ 已采纳 | 2026-08-08 |
 | ADR-040 | 架构规模治理——前端大文件拆分与 internal 下沉收口 | ✅ 已采纳 | 2026-08-06 |
 | ADR-039 | 两轮功能审核后的遗留决策项与处置方向 | ✅ 已采纳 | 2026-08-06 |
@@ -247,7 +247,7 @@ permalink: /adr/
 | ADR-027 | Web Component 对外契约规范化 | ✅ 已采纳 | 2026-08-04 |
 | ADR-026 | YSM 解析器集成伦理边界 | ✅ 已采纳 | 2026-08-04（原决策 2026-06-07） |
 | ADR-025 | 工坊下载镜像回退架构 | ✅ 已采纳 | 2026-08-04（原方案 2026-06-06 定稿） |
-| ADR-024 | 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表） | 🔄 部分采纳 | 2026-08-04（决策时间线：联邦愿景 2025-06-07 起草 / P7 多资源计划 2026-06-10 定稿 / 注册表现行落地） |
+| ADR-024 | 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表） | ✅ 已采纳 | 2026-08-04（决策时间线：联邦愿景 2025-06-07 起草 / P7 多资源计划 2026-06-10 定稿 / 注册表现行落地） |
 | ADR-023 | 测试体系 | ✅ 已采纳 | 2026-08-03（初定），2026-08-04（L3 落地 + 覆盖率基线 + 进门禁/CI + 阈值红线 + 补测报告脚本） |
 | ADR-022 | VitePress 建站 | ✅ 已采纳 | 2026-08-03 |
 | ADR-021 | 前端声明式菜单自动化测试方案 | ✅ 已采纳 ⚠️ 被 [ADR-037] | 2026-08-03 |
@@ -266,7 +266,7 @@ permalink: /adr/
 | ADR-007 | 右键菜单代码组织决策 | ✅ 已采纳 | 2026-08-03 |
 | ADR-006 | 重命名文件名格式约束决策 | ✅ 已采纳 | 2026-08-03 |
 | ADR-005 | 前端治理规则体系 | ✅ 已采纳 | 2026-08-03（初定，规则时间线 v1.5.1 → 持续维护） |
-| ADR-004 | 3D 骨骼渲染管线与坐标系决策 | 🔄 部分采纳 ⚠️ 被 [ADR-041] | 2026-08-03（初定，决策时间线 v1.5.1 → v1.8.7） |
+| ADR-004 | 3D 骨骼渲染管线与坐标系决策 | ✅ 已采纳 ⚠️ 被 [ADR-041] | 2026-08-03（初定，决策时间线 v1.5.1 → v1.8.7） |
 | ADR-003 | 业务逻辑从 Binding 层下沉至纯 Go 包（Logic Sinking） | ✅ 已采纳 | 2026-08-03（初定），原方案记录于 2026-06-16 |
 | ADR-002 | 项目全面评估与改进方向 | ✅ 已采纳 | 2026-08-03 |
 | ADR-001 | 升级至 Wails 3 | ✅ 已采纳 | 2026-07-14 |

@@ -1,12 +1,12 @@
 # ADR-114：每组件独立纹理（perComponent Textures）
 
-- **状态**：🔄 部分采纳
+- **状态**：✅ 已采纳（落地：go/types/bedrock.go ComponentTextures + go/geometry/archive.go buildComponents 填充 + 前端 model3d-loader 消费，archive_comptex_test.go 10 用例全绿，commit 70337615）
 - **日期**：2026-08-22
 - **决策人**：鲸鱼架构师 deepseek
 
 | 字段 | 值 |
 |------|-----|
-| 状态 | 🔄 部分采纳 |
+| 状态 | ✅ 已采纳 |
 | 日期 | 2026-08-22 |
 | 决策者 | 鲸鱼架构师 deepseek |
 | 关联 | ADR-004 §2.4（texSlot 分配）、ADR-042（cube 变换链） |

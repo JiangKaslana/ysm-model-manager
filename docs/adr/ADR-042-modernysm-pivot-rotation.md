@@ -1,6 +1,6 @@
 # ADR-042：渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植
 
-- **状态**：🔄 部分采纳（决策成立，实施排期中）
+- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.2 二进制直读 / §2.3 动画纯计算移植仍排期，属后续演进项）
 - **日期**：2026-08-09
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`upstream/ModernYSM-1.20.1-forge` / `go/threejs/spec.go` / `frontend/src/utils/3d/model3d.ts` / `frontend/src/utils/animation/` / `docs/knowledge/ysm_baked.md` / `docs/knowledge/animation-system.md` / `tests/port-verification/`
