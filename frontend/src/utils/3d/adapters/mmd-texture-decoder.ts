@@ -45,7 +45,7 @@ export interface TextureDecoder {
 }
 
 /** 创建纹理解码器（Worker 池） */
-export function createTextureDecoder(config: TexDecodeConfig = {}): TextureDecoder {
+function createTextureDecoder(config: TexDecodeConfig = {}): TextureDecoder {
   const maxWorkers = config.maxWorkers ?? TEX_DECODE_WORKER_COUNT;
   const timeoutMs = config.timeoutMs ?? 8000;
 
@@ -154,7 +154,7 @@ export function getTextureDecoder(): TextureDecoder {
 }
 
 /** 释放共享解码器 */
-export function disposeTextureDecoder(): void {
+function disposeTextureDecoder(): void {
   if (sharedDecoder) {
     sharedDecoder.dispose();
     sharedDecoder = null;

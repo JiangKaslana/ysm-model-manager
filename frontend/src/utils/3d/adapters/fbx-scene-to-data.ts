@@ -62,7 +62,7 @@ export interface FbxMeshData {
 }
 
 /** 场景节点（非骨骼：Group 或 Mesh；parent = nodes 下标，-1 = 根） */
-export interface FbxNodeData {
+interface FbxNodeData {
   name: string;
   parent: number;
   isMesh: boolean;
@@ -75,7 +75,7 @@ export interface FbxNodeData {
   mesh?: FbxMeshData;
 }
 
-export interface FbxClipData {
+interface FbxClipData {
   name: string;
   duration: number;
   tracks: Array<{

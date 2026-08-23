@@ -89,7 +89,7 @@ function sniffTexSize(arr: Uint8Array): { w: number; h: number } | null {
  * 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations }
  * 不依赖组件实例（无 this 引用），可独立调用
  */
-export async function doDecodeYsmViaWasm(
+async function doDecodeYsmViaWasm(
   modelPath: string,
 ): Promise<DecodedYsm | null> {
   const cached = cacheGet(modelPath);

@@ -52,7 +52,7 @@ export interface MaidOpenOptions {
  * 打开车万女仆 3D 预览（Bedrock generic 模式）。
  * 与 YSM 共享 spec→Three.js 渲染管道，跳过动画/语义骨骼等 YSM 专属特性。
  */
-export async function createMaid3D(
+async function createMaid3D(
   path: string,
   texIdx = 0,
   opts: MaidOpenOptions,

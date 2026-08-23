@@ -1074,7 +1074,7 @@ export async function buildMmdScene(
  *   position: (x, y, z) → (x, y, -z)  // 翻转 Z
  *   rotation: (rx, ry, rz, rw) → (-rx, -ry, rz, rw)  // 翻转 X/Y
  */
-export function applyVPDToMesh(mesh: THREE.SkinnedMesh, vpd: VpdObject): void {
+function applyVPDToMesh(mesh: THREE.SkinnedMesh, vpd: VpdObject): void {
   const vpdBones = vpd?.bones;
   if (!vpdBones) return;
 

@@ -410,7 +410,7 @@ export function makeYsmAdapter(path: string, opts: YsmAdapterOptions): PreviewAd
 }
 
 /** 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） */
-export interface YsmBonePanelRef {
+interface YsmBonePanelRef {
   current: (() => void) | null;
 }
 

@@ -522,7 +522,7 @@ interface WebSearchResult {
   hasError: boolean;
 }
 
-export async function searchWebModels(
+async function searchWebModels(
   filesRoot: string,
   keyword: string,
   minBones = 0,

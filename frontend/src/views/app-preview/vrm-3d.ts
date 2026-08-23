@@ -47,12 +47,12 @@ export async function createVrm3D(path: string, opts?: Mount3DOptions): Promise<
 }
 
 /** 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） */
-export async function switchVrmPreview(path: string): Promise<void> {
+async function switchVrmPreview(path: string): Promise<void> {
   await switchPreview(path);
 }
 
 /** 同台追加 VRM 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） */
-export async function appendVrmPreview(path: string): Promise<void> {
+async function appendVrmPreview(path: string): Promise<void> {
   await openModel3DFullscreen(path, { cooperate: true });
 }
 

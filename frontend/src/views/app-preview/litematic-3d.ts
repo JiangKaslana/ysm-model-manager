@@ -41,7 +41,7 @@ registerReRoute(RESOURCE_TYPES.BLUEPRINT, (path, siblings) =>
 );
 
 /** 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） */
-export async function switchLitematicPreview(path: string): Promise<void> {
+async function switchLitematicPreview(path: string): Promise<void> {
   await switchPreview(path);
 }
 
@@ -56,6 +56,6 @@ export function cleanupVoxel3D(): void {
 }
 
 /** 任意新预览派发时调用，作废在途体素加载 */
-export function invalidateLitematicPreview(): void {
+function invalidateLitematicPreview(): void {
   invalidatePreview();
 }

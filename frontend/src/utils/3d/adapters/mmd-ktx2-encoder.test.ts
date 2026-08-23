@@ -140,7 +140,7 @@ describe("encodeAndCacheTexture", () => {
 
   it("超大纹理（>4096²）跳过编码 → 记 warn 而非 fail", async () => {
     // 注入直接抛 TextureTooLargeError 的实现（encodeToKTX2 的尺寸守卫行为）
-    const { TextureTooLargeError } = await import("./mmd-ktx2-encoder.ts");
+    const { TextureTooLargeError } = await import("./mmd-ktx2-basis.ts");
     hoisted.ktx2EncodeMock.mockRejectedValue(new TextureTooLargeError(8192, 8192));
 
     const port = makePort();
