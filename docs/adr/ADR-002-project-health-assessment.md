@@ -52,7 +52,7 @@ CSS 1,419 行 / HTML 182 行），前端 + 后端 + 工具脚本三侧均有明�
 | 后端依赖方向 | **A-** | 单向 `internal/app/ → go/`，无包级循环 |
 | 后端分层 | **B-** | 已分 package，但 `App` struct 仍是单体 god-object（100+ 方法） |
 | 循环依赖 | **A-** | 仅 1 处同包内对象级循环（`DownloadQueue ↔ App`） |
-| Binding 层重量 | **B-** | 已下沉约 35%（P0/P1/P1.5）；`app_install.go` 原 1,315 行债务**已还**——现瘦身为 10 行薄壳，业务逻辑迁至 `app_install_instance.go`（537 行，独立可测）。剩余未下沉重心转向 `app_scan.go`（691 行）等 |
+| Binding 层重量 | **B-** | 核心下沉已完成（下载器 P0 / 头像提取 P1 / 哈希对比 P1.5 / 安装 P1 / 扫描 P1）；`app_install.go` 原 1,315 行债务**已还**——现瘦身为 10 行薄壳，逻辑迁至 `app_install_instance.go`（537 行）。`app_scan.go`（691 行）核心已下沉 `go/scanner`，691 行为 Binding 门面方法 + helper，非未还债 |
 | 测试覆盖 | **B** | 契约测试 6/6 全过；Go 核心业务包（installer / sync / download）测试薄弱 |
 | 工具脚本健康度 | **C** | 25 个一次性脚本未清理，1 个半成品（`safe-edit-service.py`，`do_GET` 内 `pass`） |
 
@@ -65,7 +65,7 @@ CSS 1,419 行 / HTML 182 行），前端 + 后端 + 工具脚本三侧均有明�
 `App` struct（`internal/app/`）挂载 **100+ 方法**，分散在 21 个文件中（评估时点 17 个，随拆分推进略增）。
 逻辑下沉计划已完成下载器（P0）、头像提取（P1）、哈希对比（P1.5），
 **最大单笔债务 `app_install.go` 已还债**：原 1,315 行、50+ 方法（含 import / relink / sync 系列）已下沉至 `go/installer/` 与 `app_install_instance.go`（537 行，对象化、独立可测），`app_install.go` 现为 10 行薄壳。
-剩余重心转向 `app_scan.go`（691 行，含 930 行单测）等文件的进一步下沉。
+**`app_scan.go` 核心逻辑已下沉 `go/scanner`**（扫描/哈希/缓存/作者提取/索引生成），其 691 行实为 Wails 绑定门面方法（28 个 `func (a *App)`）+ 纯函数 helper，并配套 950 行 `app_scan_test.go` + `go/scanner` 1300 行单测——**非未还债，无需进一步下沉**。Binding 层 god-object 拆分主线（逻辑下沉 + 循环打断）实质已收口，残余 100+ 方法为门面层固有体量。
 
 `DownloadQueue ↔ App` 循环引用**已打破**：`DownloadQueue` 不再持有 `*App`，改为构造时注入 `downloadFn / emitFn / logFn` 三个回调（`NewDownloadQueue(...)` 签名见 `app_download.go:51`），`App` 单向持有 `queue *DownloadQueue`（`app.go:34`）。`internal/app/app_download_test.go` 已有 3 处 `NewDownloadQueue(...)` 独立单测，`DownloadQueue` 已能脱离 `App` 测（**P1 已完成**）。
 
@@ -107,11 +107,11 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 |--------|------|------|
 | **P0** | `site-view.js` 拆分（1,268 → ≤400 行/文件） | 唯一 RED 级别前端大文件，违反 AGENTS.md §五.3 拆分规范 |
 | **P0** | 清理 25 个一次性脚本 → 归档至 `scripts/_archive/` | AI 代理误导源，`safe-edit-service.py` 半成品应删除 |
-| **P1** | ~~`app_install.go` 逻辑下沉至 `go/installer/`~~ **✅ 已完成** | 原 1,315 行债务已还：`app_install.go` 瘦身为 10 行薄壳，逻辑迁至 `app_install_instance.go`（537 行）。剩余下沉重心转 `app_scan.go` 等 |
+| **P1** | ~~`app_install.go` 逻辑下沉至 `go/installer/`~~ **✅ 已完成** | 原 1,315 行债务已还：`app_install.go` 瘦身为 10 行薄壳，逻辑迁至 `app_install_instance.go`（537 行）。`app_scan.go` 核心亦已下沉 `go/scanner`（见 §3.1） |
 | **P1** | ~~打破 `DownloadQueue ↔ App` 循环引用~~ **✅ 已完成** | 已改 callback 注入模式（`downloadFn/emitFn/logFn`），`app_download_test.go` 独立单测就位，解锁独立测试 |
-| **P2** | 为 `installer` / `sync` / `download` 补单元测试 | 重构前必须建立安全网 |
-| **P2** | 修复 `line-counter.py` 的 `package_lines()` bug | 当前统计文件数而非行数 |
-| **P3** | 审视 AGENTS.md 治理规则，删除"创伤反应"式规则 | 给新项目留呼吸空间 |
+| **P2** | ~~为 `installer` / `sync` / `download` 补单元测试~~ **✅ 已完成** | 三包单测已就位（installer 4 / sync 9 / download 5 测试文件，全仓 151 个 go 测试文件）；`app_scan_test.go` 950 行 + `go/scanner` 1300 行 |
+| **P2** | ~~修复 `line-counter.py` 的 `package_lines()` bug~~ **✅ 已完成（前提已消失）** | `line-counter.py` 已迁移为 `line-counter.mjs`（2026-08-03），逻辑逐点保真含 package_lines 行为，原 py 已废弃 |
+| **P3** | ~~审视 AGENTS.md 治理规则，删除"创伤反应"式规则~~ **✅ 已完成** | 当前 AGENTS.md 已无"严禁/绝对不能"等过度防御表述（grep 实证） |
 
 ---
 
@@ -119,16 +119,17 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 
 - **正面**：明确了项目当前健康状态和改进路线；优先级列表可直接转为 TASK_PLAN.md 条目。
 - **负面**：评估本身不修复任何问题；真正的工作量在 P0-P1 任务中，预计需持续数周落地。
-- **进度更新**：原 P1 任务 `app_install.go` 下沉**已完成**（见 §3.1 / §4），该条风险提示已失效；当前 P1 开放项仅剩 `DownloadQueue ↔ App` 循环引用打断。
+- **进度更新**：原 P1 任务 `app_install.go` 下沉**已完成**（见 §3.1 / §4），该条风险提示已失效；`DownloadQueue ↔ App` 循环引用打断**亦已完成**（改为回调注入，详见 §4 P1 翻牌）；`app_scan.go` 核心逻辑已下沉至 `go/scanner`（见 §3.1 / L55 勘误），691 行实为 Binding 门面方法 + helper，非未还债。Binding 层 god-object 拆分主线实质已收口。
 
 ---
 
 ## 6. 受影响范围
 
 - `frontend/src/views/app-content/community/site-view.js` → 拆分为多文件
-- `internal/app/app_install.go` → **已完成**业务下沉（`go/installer/` + `app_install_instance.go`），现为薄壳；后续 `app_scan.go` 等同类下沉参照此范式
-- `internal/app/app_download.go` → 打破 `DownloadQueue` 循环引用
-- `go/installer/` / `go/sync/` / `go/download/` → 新增单元测试
+- `internal/app/app_install.go` → **已完成**业务下沉（`go/installer/` + `app_install_instance.go`），现为薄壳
+- `internal/app/app_scan.go` → 核心已下沉 `go/scanner`，Binding 层门面方法保留，非待办
+- `internal/app/app_download.go` → **已完成**打破 `DownloadQueue` 循环引用（回调注入模式）
+- `go/installer/` / `go/sync/` / `go/download/` / `go/scanner/` → 单元测试已建立
 - `scripts/` → 25 个一次性脚本迁移至 `scripts/_archive/`，半成品删除
 - `scripts/line-counter.py` → 修复 `package_lines()` 统计逻辑
 - `docs/architecture/logic-sinking.md` → 需同步更新 P2/P3 任务状态
