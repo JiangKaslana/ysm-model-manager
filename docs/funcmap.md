@@ -253,14 +253,14 @@
 |------|--------|------|
 | `Install()` | `go/installer/installer:45` | Install 安装模型到目标目录（支持链接模式） |
 | `InstallLocked()` | `go/installer/installer:53` | InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `InstallDir()` | `go/installer/installer:150` | InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式） 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件 rtype 用于过滤文件 |
-| `InstallDirRel()` | `go/installer/installer:160` | InstallDirRel 安装目录到 dstRoot/&lt;relSlash&gt;（保留仓库多层物理路径）。 |
-| `InstallDirLocked()` | `go/installer/installer:167` | InstallDirLocked 与 InstallDir 语义相同，但不重复加锁——供已持锁调用方使用。 |
-| `InstallToGlobal()` | `go/installer/installer:405` | InstallToGlobal 安装到全局 custom 目录 |
-| `InstallWithOverlay()` | `go/installer/installer:431` | InstallWithOverlay 带冲突检查的安装 |
-| `CopyFile()` | `go/installer/installer:512` | CopyFile 复制文件到目标目录（带互斥锁） |
-| `CopyFileLocked()` | `go/installer/installer:520` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `IsValidRepoRoot()` | `go/installer/installer:670` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
+| `InstallDir()` | `go/installer/installer:148` | InstallDir 安装整个目录下的所有文件到目标目录。 |
+| `InstallDirRel()` | `go/installer/installer:158` | InstallDirRel 安装目录到 dstRoot/&lt;relSlash&gt;（保留仓库多层物理路径）。 |
+| `InstallDirLocked()` | `go/installer/installer:165` | InstallDirLocked 与 InstallDir 语义相同，但不重复加锁——供已持锁调用方使用。 |
+| `InstallToGlobal()` | `go/installer/installer:404` | InstallToGlobal 安装到全局 custom 目录 |
+| `InstallWithOverlay()` | `go/installer/installer:430` | InstallWithOverlay 带冲突检查的安装 |
+| `CopyFile()` | `go/installer/installer:511` | CopyFile 复制文件到目标目录（带互斥锁） |
+| `CopyFileLocked()` | `go/installer/installer:519` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
+| `IsValidRepoRoot()` | `go/installer/installer:669` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
 
 ## go/instance
 

@@ -140,19 +140,38 @@ func evalSymlinksOrKeep(p string) string {
 	return p
 }
 
-// InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式）
-// 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件
-// rtype 用于过滤文件类型（如 MMD 排除 .vrm）
+// InstallDir 安装整个目录下的所有文件到目标目录。
+// 目录级类型（EntityPlayer/maid-model 等）使用此函数——它会将 srcDir 的
+// 所有文件/子目录按类型白名单过滤后复制（或硬链接/克隆）到 dstDir/<basename>。
+// 多层物理路径场景请使用 InstallDirRel 保留仓库层级。
+// rtype 用于过滤文件类型（如 MMD 排除 .vrm）。
 func InstallDir(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 	InstallLock.Lock()
 	defer InstallLock.Unlock()
-	return InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype)
+	return installDirAtLocked(srcDir, dstDir, "", filesRoot, linkMode, rtype)
 }
 
-// InstallDirLocked 安装整个目录下的所有文件到目标目录（调用方须已持有 InstallLock，
-// 禁止直接调用）。语义与 InstallDir 一致，但不重复加锁——供 sync.RelinkDir 等
-// 已持锁调用方使用（防重入死锁）。
+// InstallDirRel 安装目录到 dstRoot/<relSlash>（保留仓库多层物理路径）。
+// relSlash 须为正斜杠分隔的相对路径（如 "vendor/character/modelA"），
+// 空字符串回退到 InstallDir 原语义（basename 落位）。
+// 用于多层物理路径同步——避免目录级推送拍扁层级结构。
+func InstallDirRel(srcDir, dstRoot, relSlash, filesRoot, linkMode, rtype string) error {
+	InstallLock.Lock()
+	defer InstallLock.Unlock()
+	return installDirAtLocked(srcDir, dstRoot, relSlash, filesRoot, linkMode, rtype)
+}
+
+// InstallDirLocked 与 InstallDir 语义相同，但不重复加锁——供已持锁调用方使用。
 func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
+	return installDirAtLocked(srcDir, dstDir, "", filesRoot, linkMode, rtype)
+}
+
+// installDirAtLocked 安装目录到目标位置。relInside 控制最终落位：
+//   - 空字符串：finalDst = dstDir/<basename>（InstallDir 原语义，向后兼容）
+//   - 非空    ：finalDst = dstDir/<relInside>（保留仓库多层物理路径）
+//
+// relInside 须为正斜杠分隔的干净相对路径，禁止 ".." 穿越和绝对路径。
+func installDirAtLocked(srcDir, dstDir, relInside, filesRoot, linkMode, rtype string) error {
 	srcDir = strings.TrimSpace(srcDir)
 	dstDir = strings.TrimSpace(dstDir)
 	if srcDir == "" || dstDir == "" {
@@ -194,7 +213,25 @@ func InstallDirLocked(srcDir, dstDir, filesRoot, linkMode, rtype string) error {
 		}
 	}
 
-	finalDst := filepath.Join(dstDir, filepath.Base(srcDir))
+	// 计算 finalDst：relInside 非空时用它作为相对路径（保留多层物理路径），
+	// 否则回退到 basename 语义
+	var finalDst string
+	if relInside != "" {
+		// 路径清洗：防 ".." 穿越、绝对路径、Windows 盘符相对路径（ADS 风险）
+		rel := filepath.FromSlash(relInside)
+		rel = filepath.Clean(rel)
+		if rel == "." || rel == ".." ||
+			strings.HasPrefix(rel, ".."+string(filepath.Separator)) ||
+			filepath.IsAbs(rel) ||
+			filepath.VolumeName(rel) != "" ||
+			strings.HasPrefix(relInside, "/") {
+			return types.AppError{Code: types.ErrInvalidPath, Operation: "安装目录", SourcePath: relInside, Reason: "相对路径非法（禁止 .. 穿越、绝对路径或盘符前缀）"}
+		}
+		finalDst = filepath.Join(dstDir, rel)
+	} else {
+		finalDst = filepath.Join(dstDir, filepath.Base(srcDir))
+	}
+
 	// finalDst 落在 srcDir 内同样死递归（srcDir 与 dstDir
 	// 不同但嵌套时，如 dstDir 是 srcDir 的子目录）——在递归入口再守一道
 	if paths.IsInside(srcDir, finalDst) == nil {

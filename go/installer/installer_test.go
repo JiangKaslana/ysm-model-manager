@@ -636,3 +636,111 @@ func TestInstallDir_DstExistedRollback(t *testing.T) {
 		t.Fatalf("已存在 finalDst 不应被回滚删除: %v", err)
 	}
 }
+
+// TestInstallDirRel_PlacesUnderRelPath: InstallDirRel 应将目录按 relSlash 指定的相对路径落位，
+// 保留仓库多层物理路径（ADR 多层物理路径同步）。
+func TestInstallDirRel_PlacesUnderRelPath(t *testing.T) {
+	repo, custom, _, _ := setupTestDirs(t)
+
+	// 源目录：repo/东方/角色A/model （多层嵌套）
+	srcDir := filepath.Join(repo, "东方", "角色A", "model")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(srcDir, "tex"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "char.pmx"), []byte("pmx"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "tex", "toon.png"), []byte("png"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// relSlash="东方/角色A/model" → finalDst=custom/东方/角色A/model
+	err := InstallDirRel(srcDir, custom, "东方/角色A/model", repo, "copy", "EntityPlayer")
+	if err != nil {
+		t.Fatalf("InstallDirRel() = %v", err)
+	}
+
+	dstPmx := filepath.Join(custom, "东方", "角色A", "model", "char.pmx")
+	if _, err := os.Stat(dstPmx); os.IsNotExist(err) {
+		t.Fatal("多层路径下的 char.pmx 未找到")
+	}
+	dstPng := filepath.Join(custom, "东方", "角色A", "model", "tex", "toon.png")
+	if _, err := os.Stat(dstPng); os.IsNotExist(err) {
+		t.Fatal("多层路径下的 tex/toon.png 未找到")
+	}
+}
+
+// TestInstallDirRel_EmptyRelFallsBack: relSlash 为空时应回退到 InstallDir 原语义（basename 落位）
+func TestInstallDirRel_EmptyRelFallsBack(t *testing.T) {
+	repo, custom, _, _ := setupTestDirs(t)
+
+	srcDir := filepath.Join(repo, "mydir")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "file.pmx"), []byte("pmx"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := InstallDirRel(srcDir, custom, "", repo, "copy", "EntityPlayer")
+	if err != nil {
+		t.Fatalf("InstallDirRel('') = %v", err)
+	}
+
+	// rel 为空 → finalDst=custom/mydir （与 InstallDir 原语义一致）
+	dst := filepath.Join(custom, "mydir", "file.pmx")
+	if _, err := os.Stat(dst); os.IsNotExist(err) {
+		t.Fatal("空 rel 应回退到 basename 语义")
+	}
+}
+
+// TestInstallDirRel_RejectsEscape: relSlash 含 ".." 或绝对路径时应返回错误
+func TestInstallDirRel_RejectsEscape(t *testing.T) {
+	repo, custom, _, _ := setupTestDirs(t)
+
+	srcDir := filepath.Join(repo, "model")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name string
+		rel  string
+	}{
+		{"parent_escape", "../escape"},
+		{"dot_dot_only", ".."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := InstallDirRel(srcDir, custom, tc.rel, repo, "copy", "EntityPlayer")
+			if err == nil {
+				t.Errorf("rel=%q 应返回错误", tc.rel)
+			}
+		})
+	}
+	// 绝对路径测试：Windows 用盘符路径，Unix 用 / 前缀
+	absRel := filepath.VolumeName(repo) + `\abs\path`
+	if absRel == `\abs\path` || absRel == "" {
+		absRel = `/abs/path`
+	}
+	t.Run("absolute_path", func(t *testing.T) {
+		err := InstallDirRel(srcDir, custom, absRel, repo, "copy", "EntityPlayer")
+		if err == nil {
+			t.Errorf("rel=%q 应返回错误", absRel)
+		}
+	})
+	// Windows 盘符相对路径：C:foo（无反斜杠）在 Windows 上被 filepath.IsAbs 误判为非绝对，
+	// 但 Win32 会把冒号当 ADS 分隔符，需额外守卫
+	// Linux 上 C:foo 是合法目录名，跳过
+	if runtime.GOOS == "windows" {
+		t.Run("volume_relative_path", func(t *testing.T) {
+			err := InstallDirRel(srcDir, custom, `C:foo\bar`, repo, "copy", "EntityPlayer")
+			if err == nil {
+				t.Error("Windows 盘符相对路径 C:foo\\bar 应返回错误（ADS 风险）")
+			}
+		})
+	}
+}

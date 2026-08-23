@@ -40,15 +40,14 @@ func PushResources(rtype, globalDir, targetDir, linkMode string, logger Logger) 
 			if stErr == nil && !fi.IsDir() {
 				err = installer.Install(missing, targetDir, globalDir, linkMode)
 			} else {
-				// 多层物理路径：计算相对路径保留目录层级
+				// 多层物理路径：用 InstallDirRel 保留仓库层级结构
 				// 例如 missing=globalDir/vendor/character/modelA → targetDir/vendor/character/modelA
 				rel, relErr := filepath.Rel(globalDir, missing)
 				if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-					// 越界回退到旧行为（targetDir/{basename}）
+					// 越界回退到 InstallDir 原语义（basename 落位）
 					err = installer.InstallDir(missing, targetDir, globalDir, linkMode, rtype)
 				} else {
-					dstDir := filepath.Join(targetDir, filepath.Dir(rel))
-					err = installer.InstallDir(missing, dstDir, globalDir, linkMode, rtype)
+					err = installer.InstallDirRel(missing, targetDir, filepath.ToSlash(rel), globalDir, linkMode, rtype)
 				}
 			}
 			if err == nil {

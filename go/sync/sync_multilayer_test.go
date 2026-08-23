@@ -573,3 +573,138 @@ func TestSyncResourcesDirLevel_EmptyDirSkipped(t *testing.T) {
 			len(result.Synced), len(result.Missing), len(result.Extra))
 	}
 }
+
+// ===== InstallDirRel 驱动的目录级推送到位测试 =====
+
+// TestSyncResourcesDirLevel_RelPathKeys_NoCollision: 不同子目录下的同名目录不应碰撞丢失
+// 场景：cat1/pack 与 cat2/pack 都是独立模型 → 都应出现在 Missing 中
+func TestSyncResourcesDirLevel_RelPathKeys_NoCollision(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	// 创建两个同名但不同子目录的模型文件夹
+	for _, cat := range []string{"cat1", "cat2"} {
+		packDir := filepath.Join(globalDir, cat, "pack")
+		os.MkdirAll(packDir, 0755)
+		os.WriteFile(filepath.Join(packDir, "model.ysm"), []byte("{}"), 0644)
+	}
+
+	result := SyncResourcesDirLevel(globalDir, instDir, "ysm")
+
+	if len(result.Missing) != 2 {
+		t.Fatalf("应有 2 个 Missing（cat1/pack + cat2/pack），got %d: %v", len(result.Missing), result.Missing)
+	}
+	if len(result.Synced) != 0 {
+		t.Errorf("应有 0 个 Synced，got %d", len(result.Synced))
+	}
+}
+
+// TestSyncResourcesDirLevel_NestedMirror_Synced: 两边镜像时 Synced 应保留相对路径
+func TestSyncResourcesDirLevel_NestedMirror_Synced(t *testing.T) {
+	globalDir := t.TempDir()
+	instDir := t.TempDir()
+
+	for _, dir := range []string{"东方", "西方"} {
+		modelDir := filepath.Join(globalDir, dir, "角色A")
+		os.MkdirAll(modelDir, 0755)
+		os.WriteFile(filepath.Join(modelDir, "char.pmx"), []byte("pmx"), 0644)
+
+		instModelDir := filepath.Join(instDir, dir, "角色A")
+		os.MkdirAll(instModelDir, 0755)
+		os.WriteFile(filepath.Join(instModelDir, "char.pmx"), []byte("pmx"), 0644)
+	}
+
+	result := SyncResourcesDirLevel(globalDir, instDir, "EntityPlayer")
+
+	if len(result.Synced) != 2 {
+		t.Fatalf("应有 2 个 Synced，got %d: %v", len(result.Synced), result.Synced)
+	}
+	if len(result.Missing) != 0 {
+		t.Errorf("应有 0 个 Missing，got %d", len(result.Missing))
+	}
+	// Synced 条目应包含相对路径层级
+	for _, s := range result.Synced {
+		rel, _ := filepath.Rel(globalDir, s)
+		if !strings.Contains(rel, string(filepath.Separator)) {
+			t.Errorf("Synced 应包含多级路径，got rel=%s", rel)
+		}
+	}
+}
+
+// TestPushResources_DirLevel_PreservesHierarchy: 目录级推送应保留多层物理路径
+// 场景：globalDir/东方/角色A/{char.pmx, tex/toon.png} → targetDir/东方/角色A/char.pmx
+// 验证 InstallDirRel 正确驱动层级保留
+func TestPushResources_DirLevel_PreservesHierarchy(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	targetDir := filepath.Join(base, "inst", ".minecraft", "3d-skin", "EntityPlayer")
+	_ = os.MkdirAll(globalDir, 0755)
+	_ = os.MkdirAll(targetDir, 0755)
+
+	// 创建嵌套模型目录
+	modelDir := filepath.Join(globalDir, "东方", "角色A")
+	os.MkdirAll(filepath.Join(modelDir, "tex"), 0755)
+	os.WriteFile(filepath.Join(modelDir, "char.pmx"), []byte("pmx-model"), 0644)
+	os.WriteFile(filepath.Join(modelDir, "tex", "toon.png"), []byte("png-tex"), 0644)
+
+	count, err := PushResources("EntityPlayer", globalDir, targetDir, "copy", nil)
+	if err != nil {
+		t.Fatalf("PushResources 失败: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("应推送 1 个文件夹，实际 %d", count)
+	}
+
+	// 验证层级保留：targetDir/东方/角色A/char.pmx 存在（非 targetDir/char.pmx 扁平）
+	expectedPmx := filepath.Join(targetDir, "东方", "角色A", "char.pmx")
+	data, err := os.ReadFile(expectedPmx)
+	if err != nil {
+		t.Fatalf("多层路径推送失败：%v", err)
+	}
+	if string(data) != "pmx-model" {
+		t.Errorf("内容不正确: %s", data)
+	}
+
+	// 验证嵌套子目录也被保留
+	expectedPng := filepath.Join(targetDir, "东方", "角色A", "tex", "toon.png")
+	if _, err := os.Stat(expectedPng); os.IsNotExist(err) {
+		t.Fatalf("嵌套子目录 tex/toon.png 未保留在多层路径下")
+	}
+
+	// 二次推送应为 0（幂等验证——relKey 匹配已存在）
+	count2, err2 := PushResources("EntityPlayer", globalDir, targetDir, "copy", nil)
+	if err2 != nil {
+		t.Fatalf("二次推送失败: %v", err2)
+	}
+	if count2 != 0 {
+		t.Fatalf("二次推送应为 0（已同步），实际 %d", count2)
+	}
+}
+
+// TestPushResources_FolderLevelMMD_Compatibility: 验证原有 FolderLevelMMD 行为不受影响
+// （rel 为空 → InstallDirRel 回退到 InstallDir basename 语义）
+func TestPushResources_FolderLevelMMD_Compatibility(t *testing.T) {
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	targetDir := filepath.Join(base, "inst", ".minecraft", "resourcepacks")
+	_ = os.MkdirAll(globalDir, 0755)
+	_ = os.MkdirAll(targetDir, 0755)
+
+	os.MkdirAll(filepath.Join(globalDir, "mmdmodel"), 0755)
+	os.WriteFile(filepath.Join(globalDir, "mmdmodel", "char.pmx"), []byte("pmx"), 0644)
+
+	count, err := PushResources("EntityPlayer", globalDir, targetDir, "copy", nil)
+	if err != nil {
+		t.Fatalf("Push MMD 失败: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("应推送 1 个 MMD 文件夹，实际 %d", count)
+	}
+
+	// 根层级：rel="mmdmodel" → InstallDirRel(targetDir, "mmdmodel") = targetDir/mmdmodel
+	// 等价于旧 InstallDir 行为
+	dst := filepath.Join(targetDir, "mmdmodel", "char.pmx")
+	if _, err := os.Stat(dst); os.IsNotExist(err) {
+		t.Fatalf("根层级模型文件夹应按原语义落位: %v", err)
+	}
+}
