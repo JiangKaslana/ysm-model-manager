@@ -147,7 +147,7 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
   // 性能面板：single-bench / gui-flow / perf-log（CLI 消费层，perf-cli.ts）+ 加载剖析（trace store 消费层，perf-trace.ts）
   // ADR-040 拆到 perf.ts 入口；业务逻辑已下沉至 perf-cli.ts / perf-trace.ts
   initPerfPanel(root, esc);
-  // 仓库体检：Go 端 RepoHealthAuditAll（全仓库同源审计），点击执行
+  // 仓库体检：Go 端 RepoHealthAudit（当前类型单仓库审计，动态感知 repo-rtype），点击执行
   root.getElementById("diag-scan-health")?.addEventListener("click", async () => {
     const list = root.getElementById("diag-health-list") as HTMLElement | null;
     if (!list) return;

@@ -6,6 +6,7 @@ import { t } from "../../../core/i18n/t.ts";
 import { getApp } from "../../../backend/app.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
 import { formatBytes } from "../../../utils/dom/format.ts";
+import { currentRepoType } from "../../../features/repo-rtype.ts";
 import type { EscFn } from "./logs.ts";
 
 // 重入守卫：体检扫描大量 await（Walk 全目录 + SHA256），快速连点并发覆盖 innerHTML
@@ -42,7 +43,9 @@ interface HealthReport {
 }
 
 /**
- * 仓库体检：调 Go 端 RepoHealthAuditAll（全仓库同源审计）并渲染结果。
+ * 仓库体检：调 Go 端 RepoHealthAudit（当前类型单仓库审计）并渲染结果——
+ * 动态感知当前资源类型（repo-rtype，等价树视图 vm._filesRoot 的类型来源），
+ * 切蓝图扫蓝图、精准建议；不用全仓（RepoHealthAuditAll 合并报告泛泛且全扫耗时）。
  * @param list 结果容器（#diag-health-list）
  * @param esc HTML 转义函数
  */
@@ -56,8 +59,9 @@ export async function runHealthAudit(
     list.innerHTML =
       '<div class="stat-row diag-stat diag-stat-muted">⏳ ' + t("diagnostics.healthScanning") + "</div>";
 
-    const { RepoHealthAuditAll } = await getApp();
-    const raw = await RepoHealthAuditAll();
+    const { RepoHealthAudit, GetRepoRoot } = await getApp();
+    const filesRoot = await GetRepoRoot(currentRepoType());
+    const raw = await RepoHealthAudit(filesRoot);
     const report = parseHealthReport(raw);
     if (report instanceof Error) {
       // 后端业务错误（如路径超出仓库目录），展示原文案
