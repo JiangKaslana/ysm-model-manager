@@ -17,13 +17,13 @@ func TestTexBasenameNoExt_ToLowerFirst(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"textures/FOXCAR.PNG", "foxcar"},  // 大写扩展名必须剥除（修复前返回 "foxcar.png"）
-		{"textures/arrow.png", "arrow"},    // 常规小写
-		{"textures/skin.jpg", "skin"},      // .jpg 也要剥
-		{"textures/SubDir/TEX.PNG", "tex"}, // 去目录 + 大写扩展名
-		{"textures\\win\\MIX.JPG", "mix"},  // 反斜杠目录 + 大写
-		{"textures/boat.PNG", "boat"},      // 项目符号纹理同路径
-		{"textures/plain", "plain"},        // 无扩展名原样
+		{"textures/FOXCAR.PNG", "foxcar"},   // 大写扩展名必须剥除（修复前返回 "foxcar.png"）
+		{"textures/arrow.png", "arrow"},     // 常规小写
+		{"textures/skin.jpg", "skin"},       // .jpg 也要剥
+		{"textures/SubDir/TEX.PNG", "tex"},  // 去目录 + 大写扩展名
+		{"textures\\win\\MIX.JPG", "mix"},   // 反斜杠目录 + 大写
+		{"textures/boat.PNG", "boat"},       // 项目符号纹理同路径
+		{"textures/plain", "plain"},         // 无扩展名原样
 	}
 	for _, c := range cases {
 		if got := texBasenameNoExt(c.in); got != c.want {
