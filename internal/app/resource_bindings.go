@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"ysm-model-manager/go/dedup"
 	"ysm-model-manager/go/fileops"
@@ -607,6 +608,71 @@ func (a *App) RepoHealthAudit(dir string) string {
 		return findDuplicateErrorJSON(err.Error())
 	}
 	return marshalJSON("RepoHealthAudit", report, findDuplicateErrorJSON("JSON 序列化失败"))
+}
+
+// RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。
+// 无有效目录时返回错误提示（与 RepoHealthAudit 同源格式）。
+func (a *App) RepoHealthAuditAll() string {
+	roots := a.GetAllRepoRoots()
+	if len(roots) == 0 {
+		return findDuplicateErrorJSON("请先配置仓库目录")
+	}
+	type auditResult struct {
+		rtype  string
+		report repoaudit.HealthReport
+		err    error
+	}
+	results := make([]auditResult, 0, len(roots))
+	for rtype, root := range roots {
+		rpt, err := repoaudit.HealthReportFor(root)
+		results = append(results, auditResult{rtype: rtype, report: rpt, err: err})
+	}
+	// 合并：资源汇总 + 分数加权 + 警告汇集
+	merged := repoaudit.HealthReport{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Directory: "（全仓库）",
+		Resources: repoaudit.ResourceSummary{ByType: make(map[string]int)},
+	}
+	scoreSum := 0
+	scoreCount := 0
+	for _, r := range results {
+		if r.err != nil {
+			merged.Warnings = append(merged.Warnings, fmt.Sprintf("[%s] %v", r.rtype, r.err))
+			continue
+		}
+		merged.Resources.TotalFiles += r.report.Resources.TotalFiles
+		merged.Resources.TotalSize += r.report.Resources.TotalSize
+		for k, v := range r.report.Resources.ByType {
+			merged.Resources.ByType[k] += v
+		}
+		if r.report.Resources.LargestSize > merged.Resources.LargestSize {
+			merged.Resources.LargestFile = r.report.Resources.LargestFile
+			merged.Resources.LargestSize = r.report.Resources.LargestSize
+		}
+		merged.Completeness.Checked += r.report.Completeness.Checked
+		merged.Completeness.Valid += r.report.Completeness.Valid
+		merged.Completeness.Invalid += r.report.Completeness.Invalid
+		merged.Dedup.Groups += r.report.Dedup.Groups
+		merged.Dedup.ExtraFiles += r.report.Dedup.ExtraFiles
+		merged.Dedup.Reclaim += r.report.Dedup.Reclaim
+		merged.Warnings = append(merged.Warnings, r.report.Warnings...)
+		scoreSum += r.report.Score * r.report.Resources.TotalFiles
+		scoreCount += r.report.Resources.TotalFiles
+	}
+	// 缓存全局唯一（texture_cache），只取一次——取第一个有效结果
+	for _, r := range results {
+		if r.err == nil {
+			merged.Cache = r.report.Cache
+			break
+		}
+	}
+	if scoreCount > 0 {
+		merged.Score = scoreSum / scoreCount
+	}
+	if merged.Completeness.Checked > 0 {
+		merged.Completeness.Percentage = float64(merged.Completeness.Valid) / float64(merged.Completeness.Checked) * 100
+	}
+	return marshalJSON("RepoHealthAudit", merged, findDuplicateErrorJSON("JSON 序列化失败"))
 }
 
 // InstallResourceToInstance 将资源文件安装到指定整合包

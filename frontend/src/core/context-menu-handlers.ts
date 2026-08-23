@@ -36,7 +36,7 @@ async function runBatchFileOp(
   }
   _batchBusy = true;
   try {
-    const resolved = await resolveDstDir(op.dialog);
+    const resolved = await resolveDstDir(op.dialog, ctx.rtype);
     if (!resolved) return;
     const { folder, dstDir } = resolved;
     const app = await getApp();

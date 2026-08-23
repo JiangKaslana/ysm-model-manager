@@ -935,6 +935,14 @@ export function RepoHealthAudit(dir: string): $CancellablePromise<string> {
 }
 
 /**
+ * RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。
+ * 无有效目录时返回错误提示（与 RepoHealthAudit 同源格式）。
+ */
+export function RepoHealthAuditAll(): $CancellablePromise<string> {
+    return $Call.ByID(2158058199);
+}
+
+/**
  * ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值）
  */
 export function ResetResourceRoot(rtype: string): $CancellablePromise<void> {

@@ -38,7 +38,7 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
         icon: "📂",
         okText: "移动",
         emptyMsg: "❌ 请先配置存储路径",
-      });
+      }, ctx.rtype);
       if (!resolved) return;
       const { folder, dstDir } = resolved;
       const { MoveModelFile } = await getApp();
@@ -56,7 +56,7 @@ export const FILE_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
         icon: "📋",
         okText: "复制",
         emptyMsg: "❌ 请先配置仓库目录",
-      });
+      }, ctx.rtype);
       if (!resolved) return;
       const { folder, dstDir } = resolved;
       const { CopyModelFile } = await getApp();

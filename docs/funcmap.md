@@ -36,7 +36,7 @@
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
-| Go(internal)·应用入口 | 26 | 203 |
+| Go(internal)·应用入口 | 26 | 204 |
 | 前端·根 (app-modules/bus) | 4 | 18 |
 | frontend/backend | 18 | 97 |
 | 前端·核心 | 18 | 36 |
@@ -48,7 +48,7 @@
 | frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **453** | **1897** |
+| **合计** | **453** | **1898** |
 
 ## Go·头像
 
@@ -775,35 +775,36 @@
 | `App.PlazaZoomReset()` | `internal/app/plaza_window:139` | — |
 | `cookieJar.SetCookies()` | `internal/app/proxy:138` | — |
 | `cookieJar.Cookies()` | `internal/app/proxy:160` | — |
-| `App.LoadResourceTypes()` | `internal/app/resource_bindings:26` | LoadResourceTypes 加载资源类型注册表 |
-| `App.ReadPackMeta()` | `internal/app/resource_bindings:36` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
-| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:60` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
-| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:104` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
-| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:109` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
-| `App.ReadSchematic()` | `internal/app/resource_bindings:114` | ReadSchematic 读取 .schematic 文件基本信息 |
-| `App.ReadNbtStructure()` | `internal/app/resource_bindings:123` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
-| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:132` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
-| `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:142` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
-| `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:147` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
-| `App.DetectResourceType()` | `internal/app/resource_bindings:157` | DetectResourceType 检测指定文件的资源类型 |
-| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:170` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
-| `App.GetRepoRoot()` | `internal/app/resource_bindings:185` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
-| `App.GetAllRepoRoots()` | `internal/app/resource_bindings:217` | GetAllRepoRoots 遍历所有注册资源类型，返回 rtype → root 映射（供跨类型搜索）。 |
-| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:241` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
-| `App.ToggleResourcePack()` | `internal/app/resource_bindings:313` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
-| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:359` | IsResourcePackEnabled 检查资源包是否启用 |
-| `App.SelectImportZip()` | `internal/app/resource_bindings:364` | SelectImportZip 打开文件选择器选取 .zip 文件 |
-| `App.SelectImportFile()` | `internal/app/resource_bindings:377` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
-| `App.SetResourceRoot()` | `internal/app/resource_bindings:399` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
-| `App.ResetResourceRoot()` | `internal/app/resource_bindings:419` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
-| `App.ImportResourcePack()` | `internal/app/resource_bindings:453` | ImportResourcePack 使用策略模式导入资源包 |
-| `App.ImportByType()` | `internal/app/resource_bindings:466` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
-| `App.DeleteResourcePack()` | `internal/app/resource_bindings:486` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
-| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:557` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
-| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:573` | CountDuplicateFiles 快速统计重复文件数量。 |
-| `App.InvalidateScanCache()` | `internal/app/resource_bindings:586` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
-| `App.RepoHealthAudit()` | `internal/app/resource_bindings:593` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
-| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:614` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
+| `App.LoadResourceTypes()` | `internal/app/resource_bindings:27` | LoadResourceTypes 加载资源类型注册表 |
+| `App.ReadPackMeta()` | `internal/app/resource_bindings:37` | ReadPackMeta 读取资源包信息（pack.mcmeta + pack.png） |
+| `App.ReadShaderpackLang()` | `internal/app/resource_bindings:61` | ReadShaderpackLang 读取光影包 lang/en_US.lang 提取显示名 |
+| `App.GetNbtVoxelData()` | `internal/app/resource_bindings:105` | GetNbtVoxelData 读取 .nbt 结构文件体素数据 |
+| `App.GetSchematicVoxelData()` | `internal/app/resource_bindings:110` | GetSchematicVoxelData 读取 .schematic 文件体素数据 |
+| `App.ReadSchematic()` | `internal/app/resource_bindings:115` | ReadSchematic 读取 .schematic 文件基本信息 |
+| `App.ReadNbtStructure()` | `internal/app/resource_bindings:124` | ReadNbtStructure 读取 .nbt 结构文件基本信息 |
+| `App.ReadLitematicMeta()` | `internal/app/resource_bindings:133` | ReadLitematicMeta 读取投影文件元数据（作者/时间/版本/方块统计/预览图） |
+| `App.GetLitematicVoxelData()` | `internal/app/resource_bindings:143` | GetLitematicVoxelData 读取投影文件体素数据（按颜色分组的方块位置） |
+| `App.SetVoxelMaxBlocks()` | `internal/app/resource_bindings:148` | SetVoxelMaxBlocks 设置 3D 体素渲染上限，0=恢复默认 200000 |
+| `App.DetectResourceType()` | `internal/app/resource_bindings:158` | DetectResourceType 检测指定文件的资源类型 |
+| `App.GetDefaultRepoRoot()` | `internal/app/resource_bindings:171` | GetDefaultRepoRoot 返回平台默认公共仓库根目录（不含类型子目录）。 |
+| `App.GetRepoRoot()` | `internal/app/resource_bindings:186` | GetRepoRoot 根据资源类型返回对应的仓库根目录 |
+| `App.GetAllRepoRoots()` | `internal/app/resource_bindings:218` | GetAllRepoRoots 遍历所有注册资源类型，返回 rtype → root 映射（供跨类型搜索）。 |
+| `App.EnsureStorageDirs()` | `internal/app/resource_bindings:242` | EnsureStorageDirs 预创建所有注册资源类型的存储子目录 （FilesRoot/{group}/{storageSubDir}，或各类型专属覆写路径）。 |
+| `App.ToggleResourcePack()` | `internal/app/resource_bindings:314` | ToggleResourcePack 切换资源包的启用/禁用状态（.zip ↔ .zip.disabled） 补路径守卫——原实现 os.Rename 对任意路径可重命名（对齐 T |
+| `App.IsResourcePackEnabled()` | `internal/app/resource_bindings:360` | IsResourcePackEnabled 检查资源包是否启用 |
+| `App.SelectImportZip()` | `internal/app/resource_bindings:365` | SelectImportZip 打开文件选择器选取 .zip 文件 |
+| `App.SelectImportFile()` | `internal/app/resource_bindings:378` | SelectImportFile 打开文件选择器，按给定扩展名过滤 filter 格式: "显示名|*.ext1;*.ext2" |
+| `App.SetResourceRoot()` | `internal/app/resource_bindings:400` | SetResourceRoot 设置指定资源类型的自定义根路径（空=恢复默认） ADR-095：写入 cfg.CustomRoots[rtype]；删除则清空该 key。 |
+| `App.ResetResourceRoot()` | `internal/app/resource_bindings:420` | ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值） |
+| `App.ImportResourcePack()` | `internal/app/resource_bindings:454` | ImportResourcePack 使用策略模式导入资源包 |
+| `App.ImportByType()` | `internal/app/resource_bindings:467` | ImportByType 统一导入入口——根据资源类型自动选择导入策略 |
+| `App.DeleteResourcePack()` | `internal/app/resource_bindings:487` | DeleteResourcePack 删除资源（目录感知，ADR-038 D3.6）： 统一入口——根据 rtype.isDir 决定语义： isDir=true:  删除文件所在 |
+| `App.FindDuplicateFiles()` | `internal/app/resource_bindings:558` | FindDuplicateFiles 扫描目录返回所有重复文件分组（JSON 字符串）。 |
+| `App.CountDuplicateFiles()` | `internal/app/resource_bindings:574` | CountDuplicateFiles 快速统计重复文件数量。 |
+| `App.InvalidateScanCache()` | `internal/app/resource_bindings:587` | InvalidateScanCache 清空扫描缓存，下次扫描获取最新数据（委托 ClearScanCache） |
+| `App.RepoHealthAudit()` | `internal/app/resource_bindings:594` | RepoHealthAudit 一键全仓体检（审计 + 去重），返回 JSON 字符串。 |
+| `App.RepoHealthAuditAll()` | `internal/app/resource_bindings:615` | RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。 |
+| `App.InstallResourceToInstance()` | `internal/app/resource_bindings:680` | InstallResourceToInstance 将资源文件安装到指定整合包 rtype: 资源类型（resourcepack/shaderpack 等），srcPath: 源文 |
 | `App.ListPackModels()` | `internal/app/resourcepack_models:49` | ListPackModels 枚举资源包容器内的 block/item 模型 JSON 条目路径（升序）。 |
 | `App.ReadPackEntry()` | `internal/app/resourcepack_models:74` | ReadPackEntry 读取容器内条目内容（base64 字符串）。 |
 | `limitedBuffer.Write()` | `internal/app/wasm_decoder:86` | — |
@@ -945,7 +946,7 @@
 | `refreshUI()` | `frontend/src/core/context-menu-shared:15` | 通知树组件和统计面板刷新 |
 | `toast()` | `frontend/src/core/context-menu-shared:21` | 显示 toast 通知 |
 | `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:26` | 路径安全过滤：禁止逃逸段（. |
-| `resolveDstDir()` | `frontend/src/core/context-menu-shared:37` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
+| `resolveDstDir()` | `frontend/src/core/context-menu-shared:38` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
 | `registerContextMenus()` | `frontend/src/core/context-menus:76` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:29` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:51` | 注册 UI 报错落日记功能。 |
@@ -1797,12 +1798,12 @@
 | `contentUtilCSS()` | `frontend/src/views/app-content/content-util:2` | — |
 | `scanConflicts()` | `frontend/src/views/app-content/diagnostics/conflicts:15` | — |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/dedup:25` | 去重结果容器统一显式传入（消除 mock root 包装 + 幽灵 id diag-dedup-list）。 |
-| `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:50` | 仓库体检：调 Go 端 RepoHealthAudit（同源审计）并渲染结果。 |
-| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:97` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
-| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:123` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
-| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:176` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
+| `runHealthAudit()` | `frontend/src/views/app-content/diagnostics/health:49` | 仓库体检：调 Go 端 RepoHealthAuditAll（全仓库同源审计）并渲染结果。 |
+| `parseHealthReport()` | `frontend/src/views/app-content/diagnostics/health:95` | 解析 RepoHealthAudit 返回的 JSON 字符串。 |
+| `renderHealthReport()` | `frontend/src/views/app-content/diagnostics/health:121` | 渲染体检报告（分数环 + 完整性/缓存/资源/去重 + 警告），全部走 esc() 防注入 |
+| `formatSize()` | `frontend/src/views/app-content/diagnostics/health:174` | 字节大小人性化——委托至 formatBytes（单一事实来源，消灭多处实现口径漂移） |
 | `startDedup()` | `frontend/src/views/app-content/diagnostics/init` | — |
-| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:23` | 初始化诊断页所有功能 |
+| `initDiagnostics()` | `frontend/src/views/app-content/diagnostics/init:22` | 初始化诊断页所有功能 |
 | `EscFn()` | `frontend/src/views/app-content/diagnostics/logs:8` | 转义函数签名（与组件 _esc 一致） |
 | `loadDiagnosticsLogs()` | `frontend/src/views/app-content/diagnostics/logs:44` | — |
 | `loadRuntimeLogs()` | `frontend/src/views/app-content/diagnostics/logs:159` | 加载运行时日志（watcher/sync 等标准库 log 输出） |
@@ -2080,8 +2081,8 @@
 | `selectState()` | `frontend/src/views/app-tree/data:4` | 多选状态 |
 | `toggleSelect()` | `frontend/src/views/app-tree/data:16` | 切换选中状态 |
 | `selectSingle()` | `frontend/src/views/app-tree/data:31` | 单选：清空后选中单个并设为 lastKey（用于单击选中，避免外部直接写 selectState） |
-| `updateSelectCount()` | `frontend/src/views/app-tree/events:18` | — |
-| `bindTreeEvents()` | `frontend/src/views/app-tree/events:125` | — |
+| `updateSelectCount()` | `frontend/src/views/app-tree/events:19` | — |
+| `bindTreeEvents()` | `frontend/src/views/app-tree/events:126` | — |
 | `appTreeStyle()` | `frontend/src/views/app-tree/index:11` | — |
 | `AppTree()` | `frontend/src/views/app-tree/index:61` | — |
 | `TreeEntry()` | `frontend/src/views/app-tree/loader:10` | 树条目（loader 转换后的渲染格式） |

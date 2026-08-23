@@ -252,6 +252,7 @@ export const MOCK_DATA = {
   RenameDir: undefined,
   ReplaceWorkshopCreatorsFromJSON: undefined,
   RepoHealthAudit: undefined,
+  RepoHealthAuditAll: undefined, // 全仓库体检（binding 重生成后补键，契约断言）
   ResetResourceRoot: undefined,
   ResetWorkshopConfigs: undefined,
   RestartApplication: undefined,

@@ -6,7 +6,6 @@ import { bus } from "../../../bus.ts";
 import { getApp } from "../../../backend/app.ts";
 import { can } from "../../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../../utils/dom/errors.ts";
-import { RESOURCE_TYPES } from "../../../utils/resource/types.ts";
 import { loadDiagnosticsLogs, loadRuntimeLogs, type EscFn } from "./logs.ts";
 import { scanConflicts } from "./conflicts.ts";
 import { initPerfPanel, renderLoadTraceSection } from "./perf.ts";
@@ -148,18 +147,11 @@ export function initDiagnostics(root: ShadowRoot, esc: EscFn): void {
   // 性能面板：single-bench / gui-flow / perf-log（CLI 消费层，perf-cli.ts）+ 加载剖析（trace store 消费层，perf-trace.ts）
   // ADR-040 拆到 perf.ts 入口；业务逻辑已下沉至 perf-cli.ts / perf-trace.ts
   initPerfPanel(root, esc);
-  // 仓库体检：Go 端 RepoHealthAudit（同源审计），点击执行；缺省仓库根由后端解析
+  // 仓库体检：Go 端 RepoHealthAuditAll（全仓库同源审计），点击执行
   root.getElementById("diag-scan-health")?.addEventListener("click", async () => {
     const list = root.getElementById("diag-health-list") as HTMLElement | null;
     if (!list) return;
-    let filesRoot = "";
-    try {
-      const { GetRepoRoot } = await getApp();
-      filesRoot = (await GetRepoRoot(RESOURCE_TYPES.YSM)) || "";
-    } catch {
-      // 拿不到根则后端按空解析（跳过错误，体检容错）
-    }
-    await runHealthAudit(list, esc, filesRoot);
+    await runHealthAudit(list, esc);
   });
   // 左栏按钮切换
   root.querySelectorAll(".diag-btn[data-diag]").forEach((btn) => {

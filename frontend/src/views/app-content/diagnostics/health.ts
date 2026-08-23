@@ -1,6 +1,6 @@
 // ===== 诊断页：仓库体检（runHealthAudit） =====
 // ADR-040 按职责切文件：体检 / 去重（dedup.ts）/ 冲突扫描（conflicts.ts）并列。
-// 数据源：Go 端 RepoHealthAudit（go/repoaudit 唯一实现，GUI/CLI 同源消双轨）——
+// 数据源：Go 端 RepoHealthAuditAll（go/repoaudit 全仓库审计，GUI/CLI 同源消双轨）——
 // 前端不再自算健康分，只做展示。
 import { t } from "../../../core/i18n/t.ts";
 import { getApp } from "../../../backend/app.ts";
@@ -42,15 +42,13 @@ interface HealthReport {
 }
 
 /**
- * 仓库体检：调 Go 端 RepoHealthAudit（同源审计）并渲染结果。
+ * 仓库体检：调 Go 端 RepoHealthAuditAll（全仓库同源审计）并渲染结果。
  * @param list 结果容器（#diag-health-list）
  * @param esc HTML 转义函数
- * @param filesRoot 仓库根目录（缺省时后端自行解析；调用方传 GetRepoRoot 的返回值）
  */
 export async function runHealthAudit(
   list: HTMLElement,
   esc: EscFn,
-  filesRoot: string,
 ): Promise<void> {
   if (_healthBusy) return;
   _healthBusy = true;
@@ -58,8 +56,8 @@ export async function runHealthAudit(
     list.innerHTML =
       '<div class="stat-row diag-stat diag-stat-muted">⏳ ' + t("diagnostics.healthScanning") + "</div>";
 
-    const { RepoHealthAudit } = await getApp();
-    const raw = await RepoHealthAudit(filesRoot || "");
+    const { RepoHealthAuditAll } = await getApp();
+    const raw = await RepoHealthAuditAll();
     const report = parseHealthReport(raw);
     if (report instanceof Error) {
       // 后端业务错误（如路径超出仓库目录），展示原文案

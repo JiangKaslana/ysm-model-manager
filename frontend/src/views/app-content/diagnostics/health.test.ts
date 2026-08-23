@@ -82,43 +82,43 @@ describe("renderHealthReport", () => {
 });
 
 describe("runHealthAudit", () => {
-  it("成功：RepoHealthAudit 返回 JSON → 渲染到容器", async () => {
-    getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => JSON.stringify(buildReport())) });
+  it("成功：RepoHealthAuditAll 返回 JSON → 渲染到容器", async () => {
+    getApp.mockResolvedValue({ RepoHealthAuditAll: vi.fn(() => JSON.stringify(buildReport())) });
     const list = document.createElement("div");
-    await runHealthAudit(list, esc, "/repo");
+    await runHealthAudit(list, esc);
     await waitFor(() => expect(list.innerHTML).toContain("85"));
     expect(list.innerHTML).toContain("健康");
     expect(list.innerHTML).toContain("数据源");
   });
 
   it("后端业务错误 {error: string} → 展示原文案（非'解析失败'）", async () => {
-    getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => JSON.stringify({ error: "路径超出仓库目录" })) });
+    getApp.mockResolvedValue({ RepoHealthAuditAll: vi.fn(() => JSON.stringify({ error: "路径超出仓库目录" })) });
     const list = document.createElement("div");
-    await runHealthAudit(list, esc, "");
+    await runHealthAudit(list, esc);
     await waitFor(() => expect(list.innerHTML).toContain("路径超出仓库目录"));
     expect(list.innerHTML).not.toContain("解析失败");
   });
 
   it("真解析失败（非法 JSON）→ 展示解析失败文案", async () => {
-    getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => "not json") });
+    getApp.mockResolvedValue({ RepoHealthAuditAll: vi.fn(() => "not json") });
     const list = document.createElement("div");
-    await runHealthAudit(list, esc, "/repo");
+    await runHealthAudit(list, esc);
     await waitFor(() => expect(list.innerHTML).toContain("❌"));
     expect(list.innerHTML).toContain("解析失败");
     expect(list.innerHTML).not.toContain("路径超出仓库目录");
   });
 
   it("调用异常 → 展示错误（friendlyError）", async () => {
-    getApp.mockResolvedValue({ RepoHealthAudit: vi.fn(() => Promise.reject(new Error("boom"))) });
+    getApp.mockResolvedValue({ RepoHealthAuditAll: vi.fn(() => Promise.reject(new Error("boom"))) });
     const list = document.createElement("div");
-    await runHealthAudit(list, esc, "/repo");
+    await runHealthAudit(list, esc);
     await waitFor(() => expect(list.innerHTML).toContain("❌"));
   });
 
   it("重入守卫：并发第二次调用直接返回", async () => {
     let resolveFn: (v: string) => void = () => {};
     getApp.mockResolvedValue({
-      RepoHealthAudit: vi.fn(
+      RepoHealthAuditAll: vi.fn(
         () =>
           new Promise<string>((res) => {
             resolveFn = res;
@@ -126,8 +126,8 @@ describe("runHealthAudit", () => {
       ),
     });
     const list = document.createElement("div");
-    const p1 = runHealthAudit(list, esc, "/repo");
-    await runHealthAudit(list, esc, "/repo"); // 第二次应被守卫吞掉
+    const p1 = runHealthAudit(list, esc);
+    await runHealthAudit(list, esc); // 第二次应被守卫吞掉
     resolveFn(JSON.stringify(buildReport()));
     await p1;
     await waitFor(() => expect(list.innerHTML).toContain("85"));
