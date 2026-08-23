@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 148 | 587 |
+| 前端·工具 | 149 | 595 |
 | frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **457** | **1938** |
+| **合计** | **458** | **1946** |
 
 ## Go·头像
 
@@ -1256,11 +1256,11 @@
 | `bindInputHandlers()` | `frontend/src/utils/3d/adapters/input-and-animation:46` | 创建并绑定所有 3D 预览输入事件：WASD 键盘 + 拖拽自转 + resize。 |
 | `buildLitematicScene()` | `frontend/src/utils/3d/adapters/litematic-adapter:29` | Litematic 内容构建：把体素网格挂入核心 scene，返回 dispose + 分层控件钩子。 |
 | `litematicMenuItems()` | `frontend/src/utils/3d/adapters/litematic-adapter:394` | 构造 litematic 专属菜单项： 分层切片调节（axis/layer 控件）作为 🧍 模型组的一个面板项， 点击后弹出面板，内含轴选择 + 分层模式 + 滑块控件。 |
-| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:60` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
-| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:170` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
-| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:177` | — |
-| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1118` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
-| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1150` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
+| `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:61` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
+| `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:171` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
+| `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:178` | — |
+| `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1133` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
+| `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1165` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:12` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
 | `filterAnimFiles()` | `frontend/src/utils/3d/adapters/mmd-anim-library:24` | 从文件列表中筛选动作文件（.vmd / .vpd） |
 | `BasisEncoderLike()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:13` | BasisEncoder 实例的最小接口（embind 运行时提供） |
@@ -1302,6 +1302,13 @@
 | `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:40` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
 | `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:149` | 获取共享解码器（懒创建） |
 | `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:169` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
+| `bytesToBase64()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay` | — |
+| `findZipEntry()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay` | — |
+| `MmdZipConfig()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:21` | ZIP 解析产物（传给 overlay 的配置） |
+| `resolveMmdZipConfig()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:40` | 解压 zip + 找 .pmx/.pmd 模型 → 返回 MmdZipConfig。 |
+| `makeZipOverlayPort()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:113` | 创建 ZIP Overlay Port：包装 MmdDataPort， 将 zip 内路径前缀（如 "/repo/miku.zip!/"）路由到内存中的 zip entries。 |
+| `prepareMmdZipInput()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:227` | 构造完整的 zip 包装流程： 检测 zip → 解析 zip → 创建 overlay → 返回 { port, rootPath, modelUrl } 调用方只需： cons |
+| `zipFindEntry()` | `frontend/src/utils/3d/adapters/mmd-zip-overlay:244` | 从 zip entries 中按名称查找（大小写不敏感，basename 匹配） |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:73` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:92` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
 | `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:118` | — |
@@ -1377,6 +1384,7 @@
 | `AlphaIndex()` | `frontend/src/utils/3d/alpha-index:18` | — |
 | `b64ToBytes()` | `frontend/src/utils/3d/base64:6` | base64 → Uint8Array（Go []byte 的 base64 序列化） |
 | `bytesToArrayBuffer()` | `frontend/src/utils/3d/base64:15` | Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView&lt;ArrayBuffer&gt;，规避 SharedArrayBuffer 泛型） |
+| `bytesToBase64()` | `frontend/src/utils/3d/base64:20` | Uint8Array → base64（分块防栈溢出，对齐 atob 解码口径） |
 | `BoneInfoLite()` | `frontend/src/utils/3d/bone-list:6` | getBoneList 返回的扁平骨骼信息 |
 | `getBoneList()` | `frontend/src/utils/3d/bone-list:16` | 从 spec 中提取第一组件（main）的骨骼列表。 |
 | `buildBoneHierarchy()` | `frontend/src/utils/3d/bone-raycast:14` | 构建骨骼层级路径映射（name/id/parent/children）。 |
