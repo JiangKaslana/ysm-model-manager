@@ -1,4 +1,16 @@
-const PREVIEW_MAX_PIXEL_RATIO = 1.5;
+import { safeGet } from "../../utils/dom/storage.ts";
+
+const PREVIEW_MAX_PIXEL_RATIO_DEFAULT = 1.5;
+const MAX_PIXEL_RATIO_KEY = "ysm_3d_maxPixelRatio";
+
+/** 读取用户设置的渲染分辨率上限（设置面板 slider 持久化）；缺省 1.5 */
+export function getMaxPixelRatio(): number {
+  const v = safeGet(MAX_PIXEL_RATIO_KEY);
+  if (v === null) return PREVIEW_MAX_PIXEL_RATIO_DEFAULT;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : PREVIEW_MAX_PIXEL_RATIO_DEFAULT;
+}
+
 export const PREVIEW_FRAME_INTERVAL_MS = 1000 / 60;
 const ADAPTIVE_SAMPLE_FRAMES = 30;
 const SLOW_FRAME_MS = 22;
@@ -12,7 +24,7 @@ export interface AdaptiveRenderBudget {
 
 export function previewPixelRatio(devicePixelRatio: number): number {
   if (!Number.isFinite(devicePixelRatio) || devicePixelRatio <= 0) return 1;
-  return Math.min(devicePixelRatio, PREVIEW_MAX_PIXEL_RATIO);
+  return Math.min(devicePixelRatio, getMaxPixelRatio());
 }
 
 export function createAdaptiveRenderBudget(

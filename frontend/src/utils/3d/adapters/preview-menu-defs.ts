@@ -13,7 +13,7 @@
 // - 有场景/相机能力（shared 模式）→ 显示「🎛️ 场景」
 
 export type PreviewMenuItemKind = "panel" | "action" | "divider";
-export type PreviewMenuGroupId = "model" | "motion" | "env" | "scene";
+export type PreviewMenuGroupId = "model" | "motion" | "env" | "scene" | "settings";
 
 export interface PreviewMenuItemDef {
   /** 稳定 id；渲染为 data-testid="preview-<id>"，必要时保留 legacyTestId 兼容既有 e2e 选择器 */
@@ -54,6 +54,9 @@ export const PREVIEW_MENU_GROUPS: PreviewMenuGroupDef[] = [
   { id: "env", icon: "🌍", fallback: "环境" },
   // 场景组只留相机/灯光/阴影/后处理（icon 换 🎛️ 与 🌍 环境区分）
   { id: "scene", icon: "🎛️", fallback: "场景" },
+  // 设置独立成组：聚合所有场景能力（sky/ground/fog/shadow/reflector/postprocessing/light）的控件，
+  // 用户一处调全部，即时生效。与 🌍 环境的区别：环境是能力开关+下钻参数，设置是平铺总览。
+  { id: "settings", icon: "⚙️", fallback: "设置" },
 ];
 
 /**
@@ -119,5 +122,16 @@ export const CORE_MENU_ITEMS: PreviewMenuItemDef[] = [
     kind: "panel",
     sharedOnly: true,
     dockGroup: "scene",
+  },
+  // 设置面板：聚合所有 sceneCapabilityRegistry 中的 cap 控件，平铺渲染。
+  // 不走 sharedOnly——self 模式若有 cap 也应可调（self 模式 cap 少，自然降级）。
+  // fillSettings 容错：cap 不存在时跳过该分组，不渲染空 section。
+  {
+    id: "settings",
+    icon: "⚙️",
+    labelKey: "preview.settings",
+    fallback: "设置",
+    kind: "panel",
+    dockGroup: "settings",
   },
 ];

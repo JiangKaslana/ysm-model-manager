@@ -23,6 +23,8 @@ import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 import { ENV_PRESET_LINKAGE, type EnvPresetId } from "../caps/environment-capability.ts";
 import { sceneRegistry, type ModelEntry } from "./scene-registry.ts";
 import type { FogCapability } from "../caps/fog-capability.ts";
+import { isFrustumCullEnabled, setFrustumCullEnabled } from "../frustum-cull.ts";
+import { getMaxPixelRatio } from "../render-budget.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
@@ -543,6 +545,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     lighting: (list) => fillLighting(list, ctx),
     shadow: (list) => fillShadow(list, ctx),
     postproc: (list) => fillPostprocessing(list, ctx),
+    settings: (list) => fillSettings(list, ctx),
   };
   const runners: Record<string, () => void> = {
     close: () => ctx.close(),
@@ -1297,4 +1300,93 @@ function fillShadow(list: HTMLElement, _ctx: PreviewMenuCtx): void {
 function fillPostprocessing(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   const fromReg = sceneCapabilityRegistry.getById("postprocessing") as import("../caps/postprocessing-capability.ts").PostprocessingCapability | null;
   fillCapOrFallback(list, fromReg, "preview.noPostprocCap", "进入 3D 后再打开后处理面板");
+}
+
+/**
+ * 设置面板：3D 预览器的性能 / 画质总开关。
+ *
+ * 定位（2026-08-23 用户决策）：设置面板 = 性能/画质开关，
+ * 与 🌍 环境面板（管环境能力参数）职责正交。
+ *
+ * 分组：
+ * - ⚡ 性能：视锥裁剪开关（多模型同框省渲染）——关掉后镜头外模型仍渲染
+ * - 🎨 画质：渲染分辨率上限（控制 pixelRatio cap）——降分辨率换帧率
+ *
+ * 后续可加：帧率上限、Bloom 总开关、PMREM 开关、能力检测降级等。
+ * 每个开关都走 localStorage 持久化，用户调了即时生效。
+ */
+function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
+  list.innerHTML = "";
+
+  // ── ⚡ 性能分组 ──
+  const perfHeader = document.createElement("div");
+  perfHeader.style.cssText = "padding:8px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+  perfHeader.textContent = tr("preview.settingsPerf", "性能");
+  list.appendChild(perfHeader);
+
+  // 视锥裁剪开关
+  const cullRow = document.createElement("div");
+  cullRow.className = "slide-item";
+  cullRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+  const cullLabelBox = document.createElement("div");
+  cullLabelBox.style.cssText = "flex:1;display:flex;align-items:center;gap:8px;min-width:0";
+  const cullLabel = document.createElement("span");
+  cullLabel.className = "slide-label";
+  cullLabel.textContent = tr("preview.settingsFrustumCull", "视锥裁剪");
+  cullLabel.style.fontSize = "12px";
+  const cullHint = document.createElement("span");
+  cullHint.style.cssText = "font-size:11px;color:rgba(255,255,255,0.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  cullHint.textContent = tr("preview.settingsFrustumCullHint", "镜头外模型跳过渲染，省 GPU");
+  cullLabelBox.append(cullLabel, cullHint);
+  const cullToggle = createHeaderToggle({
+    value: isFrustumCullEnabled(),
+    onChange: (v: boolean): void => setFrustumCullEnabled(v),
+    bind: (): boolean => isFrustumCullEnabled(),
+  });
+  cullRow.append(cullLabelBox, cullToggle);
+  list.appendChild(cullRow);
+
+  // ── 🎨 画质分组（后续加渲染分辨率上限等，先占位）──
+  const qualHeader = document.createElement("div");
+  qualHeader.style.cssText = "padding:12px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+  qualHeader.textContent = tr("preview.settingsQuality", "画质");
+  list.appendChild(qualHeader);
+
+  // 渲染分辨率上限 slider（控制 render-budget 的 pixelRatio cap，0.5–2.0）
+  // 持久化键 ysm_3d_maxPixelRatio 由 render-budget.ts 的 getMaxPixelRatio 读取；
+  // 写入用 safeSet（隐私模式安全）。改后需重新进入 3D 预览生效（renderer 创建时读）。
+  const RES_KEY = "ysm_3d_maxPixelRatio";
+  const resCap = getMaxPixelRatio();
+
+  const resRow = document.createElement("div");
+  resRow.className = "slide-item";
+  resRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+  const resHead = document.createElement("div");
+  resHead.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.7)";
+  const resName = document.createElement("span");
+  resName.className = "slide-label";
+  resName.textContent = tr("preview.settingsMaxPixelRatio", "渲染分辨率上限");
+  const resVal = document.createElement("span");
+  resVal.textContent = `${resCap.toFixed(2)}x`;
+  resHead.append(resName, resVal);
+  const resSlider = document.createElement("input");
+  resSlider.type = "range";
+  resSlider.min = "0.5";
+  resSlider.max = "2";
+  resSlider.step = "0.25";
+  resSlider.value = String(resCap);
+  resSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+  resSlider.oninput = (): void => {
+    const v = Number(resSlider.value);
+    safeSet(RES_KEY, String(v));
+    resVal.textContent = `${v.toFixed(2)}x`;
+  };
+  resRow.append(resHead, resSlider);
+  list.appendChild(resRow);
+
+  // 说明文字：改动下次打开 3D 预览生效（pixelRatio 在 renderer 创建时读取）
+  const note = document.createElement("div");
+  note.style.cssText = "padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5";
+  note.textContent = tr("preview.settingsNote", "分辨率上限需重新进入 3D 预览生效；其余开关即时生效。");
+  list.appendChild(note);
 }
