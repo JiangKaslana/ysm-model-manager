@@ -241,3 +241,17 @@ class ResourceTracker {
 ---
 
 **审核结论**：AnimationMixer 清理机制正确，无内存泄漏。主要问题为 P1 级 Texture 释放逻辑冗余和 P2 级 Raycaster 可复用优化。dispose 覆盖率 46.9%，核心路径已覆盖，剩余为防御性遍历补充。
+
+---
+
+## 状态复核（2026-08-23）
+
+> 复核方法：对照本报告 P0/P1/P2 三项，实证 `frontend/src/utils/3d/adapters/` 当前代码现实。
+
+| 项 | 报告评级 | 2026-08-23 代码现实 | 结论 |
+|----|---------|-------------------|------|
+| P0 AnimationMixer 未 dispose | 🔴 初始误判，正文已确认 ✅ 无需修复 | `mmd-adapter.ts:959-961`（`stopAllAction` + `uncacheRoot(mesh)` 对齐 ADR-084 L2）、`vrm-adapter.ts`（`stopAllAction` + `uncacheRoot` + `VRMUtils.deepDispose`）均正确实现 | ✅ 维持"无需修复" |
+| P1 Texture 释放逻辑冗余 | 🟡 待修复（pack-model-adapter.ts，3 行） | `pack-model-adapter.ts` 已重构为 `textureCache.acquire/release` 引用计数模式（L34/L176-181），原"material.dispose 后显式 texture.dispose 冗余"已不存在——被更优的缓存方案取代 | ✅ 已演进，非冗余 |
+| P2 Raycaster 可复用 | 🟢 非紧急（mount-preview-core.ts:382） | 报告行号已偏移；真实创建点为 `mount-preview-core.ts:519`（`onUnifiedPick` 点击拾取回调内）与 `vrm-bone-ui.ts:127`（点击拾取），均为**低频事件路径**局部变量，非每帧/每次 mount 创建。收益趋零 | ✅ 维持"非紧急"，无需改动 |
+
+**复核结论**：本报告三项均不构成当前代码债务。P0 维持原结论；P1 被 `textureCache` 重构消化（优于原建议）；P2 描述失真（行号偏移 + 低频路径），维持非紧急。报告原文（2026-08-18 时态快照）保留不变。

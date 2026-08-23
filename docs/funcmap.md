@@ -1319,7 +1319,7 @@
 | `PreviewMenuItemDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:18` | — |
 | `PreviewMenuGroupDef()` | `frontend/src/utils/3d/adapters/preview-menu-defs:43` | 底栏分组定义（能力驱动：组内无任何可显示项时不渲染该组按钮） |
 | `PREVIEW_MENU_GROUPS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:49` | — |
-| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:66` | core 固定菜单项（不依赖适配器注入）： - roles：模型组唯一 core 项（已加载角色管理 + 底部内嵌加载入口 fillSwitch； 2026-08-21 合并：独立 |
+| `CORE_MENU_ITEMS()` | `frontend/src/utils/3d/adapters/preview-menu-defs:69` | core 固定菜单项（不依赖适配器注入）： - roles：模型组唯一 core 项（已加载角色管理 + 底部内嵌加载入口 fillSwitch； 2026-08-21 合并：独立 |
 | `PreviewMenuCtx()` | `frontend/src/utils/3d/adapters/preview-menu:28` | 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 |
 | `renderCapControls()` | `frontend/src/utils/3d/adapters/preview-menu:62` | 通用控件渲染器：将 MenuControlDef[] 渲染为 DOM 行，替代手写 fill* 函数 |
 | `PreviewMenuHandle()` | `frontend/src/utils/3d/adapters/preview-menu:458` | 根菜单句柄：dispose 解绑；setAdapterItems 替换适配器专属项；openPanel 直接打开指定面板；refreshDock 在 caps 创建后重渲染底栏（A |
