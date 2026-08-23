@@ -881,6 +881,8 @@
   "preview.postprocessingGroupSsr": "SSR パラメータ",
   "preview.lightGroupParams": "光源パラメータ",
   "preview.shadowGroupParams": "陰影パラメータ",
+  "preview.settings": "設定",
+  "preview.noSettings": "3D 画面に入ってから開いてください",
   "preview.postprocessing": "ポストプロセス",
   "preview.postprocessingDesc": "ブルーム / SSAO / トーンマッピング / 露出",
   "preview.toneMapping": "トーンマッピング",

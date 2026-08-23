@@ -881,6 +881,8 @@
   "preview.postprocessingGroupSsr": "SSR Parameters",
   "preview.lightGroupParams": "Light Parameters",
   "preview.shadowGroupParams": "Shadow Parameters",
+  "preview.settings": "Settings",
+  "preview.noSettings": "Open settings panel after entering 3D",
   "preview.postprocessing": "Post-processing",
   "preview.postprocessingDesc": "Bloom / SSAO / Tone mapping / Exposure",
   "preview.toneMapping": "Tone Mapping",

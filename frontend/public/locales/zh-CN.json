@@ -881,6 +881,8 @@
   "preview.postprocessingGroupSsr": "SSR 参数",
   "preview.lightGroupParams": "光源参数",
   "preview.shadowGroupParams": "阴影参数",
+  "preview.settings": "设置",
+  "preview.noSettings": "进入 3D 后再打开设置面板",
   "preview.postprocessing": "后处理",
   "preview.postprocessingDesc": "Bloom / SSAO / 色调映射 / 曝光",
   "preview.toneMapping": "色彩映射",

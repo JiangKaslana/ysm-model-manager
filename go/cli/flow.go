@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"ysm-model-manager/go/packs"
-	"ysm-model-manager/go/repoaudit"
 	"ysm-model-manager/go/texture_cache"
 	"ysm-model-manager/go/types"
 	"ysm-model-manager/internal/app"
@@ -164,11 +163,10 @@ func classifyForScan(path, ext string, registry *types.ResourceTypeRegistry) str
 		}
 		return "other"
 	}
-	id := repoaudit.Classify(ext)
-	if id == "" {
-		return "other"
-	}
-	return id
+	// code review P3：容器兜底诚实标 "container"——repoaudit.Classify(ext) 对共享
+	// 扩展名 .zip（14 类型声明）last-wins 归任意类型（与内容无关——误导分布）；
+	// Classify 也不返回 ""（miss 归 other）——死代码 `if id == ""` 一并删除
+	return "container"
 }
 
 // classifyByAncestorDir 祖先目录归属判定（MMD 子类型 location 路由）：从最深祖先到
@@ -235,15 +233,20 @@ func runPhaseModelScan(a *app.App, filesRoot string) guiFlowResult {
 	sort.Strings(parts)
 	dist := strings.Join(parts, ", ")
 
+	// code review P1：保留机器可读 token（YAML: n, YSM: n）——gui-flow-gate.mjs 的
+	// hasModel 判定解析它（旧格式正则）；新"类型分布"格式（注册表 id 小写）不含
+	// YAML:/YSM: 大写 token，gate 会静默降级（fail-open 跳过 ③④⑤ 强验证）
+	ysmCount := byType["ysm"]
 	return guiFlowResult{
 		Stage:    "② 模型扫描",
 		Duration: elapsed,
 		Success:  true,
 		Description: fmt.Sprintf(
-			"✅ 发现 %d 个模型 (%.0f models/sec)\n   类型分布: %s\n   首个模型: %s",
+			"✅ 发现 %d 个模型 (%.0f models/sec)\n   类型分布: %s [YAML: 0, YSM: %d]\n   首个模型: %s",
 			len(entries),
 			float64(len(entries))/elapsed.Seconds(),
 			dist,
+			ysmCount,
 			firstModel,
 		),
 	}
