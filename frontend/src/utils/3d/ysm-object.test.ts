@@ -105,6 +105,48 @@ describe("buildYsmObject mesh baking", () => {
     expect(meshes).toHaveLength(2);
     expect(meshes.map((mesh) => mesh.position.z)).toEqual([0, 2]);
   });
+
+  it("classifies per-component textures by their own slot space (texIdx ≠ 0)", () => {
+    // 组件纹理数组槽位 1 是 blend：分类必须用组件局部空间的 mesh.texIdx，
+    // 而非组件槽位 0 或全局数组（任一错位都会把 blend 组件误判 opaque 烘掉）
+    const near = { ...triangle("near", [0, 0, 0], [0, 0, 0, 1]), texIdx: 1 };
+    const far = { ...triangle("far", [0, 0, 2], [0, 0, 0, 1]), texIdx: 1 };
+    const spec = specWithMeshes([near, far]);
+    const componentTextures = new Map([
+      ["main", [rgbaTexture(255), rgbaTexture(128)]],
+    ]);
+
+    const handle = buildYsmObject(spec, [rgbaTexture(255)], componentTextures, 0);
+    const bone = handle.boneGroupMap.get("0:root")!;
+    const meshes = bone.children.filter((child) => child instanceof THREE.Mesh);
+
+    expect(meshes).toHaveLength(2);
+  });
+
+  it("sets material render flags from the resolved alpha mode", () => {
+    const buildMaterial = (alpha: number): THREE.MeshBasicMaterial => {
+      const spec = specWithMeshes([triangle("m", [0, 0, 0], [0, 0, 0, 1])]);
+      const handle = buildYsmObject(spec, [rgbaTexture(alpha)], 0);
+      const bone = handle.boneGroupMap.get("0:root")!;
+      const mesh = bone.children.find((child) => child instanceof THREE.Mesh) as THREE.Mesh;
+      return mesh.material as THREE.MeshBasicMaterial;
+    };
+
+    const opaque = buildMaterial(255);
+    expect(opaque.transparent).toBe(false);
+    expect(opaque.alphaTest).toBe(0);
+    expect(opaque.depthWrite).toBe(true);
+
+    const blend = buildMaterial(128);
+    expect(blend.transparent).toBe(true);
+    expect(blend.alphaTest).toBe(0);
+    expect(blend.depthWrite).toBe(false);
+
+    const cutout = buildMaterial(0);
+    expect(cutout.transparent).toBe(false);
+    expect(cutout.alphaTest).toBeCloseTo(0.1);
+    expect(cutout.depthWrite).toBe(true);
+  });
 });
 
 function rgbaTexture(alpha: number): THREE.DataTexture {
