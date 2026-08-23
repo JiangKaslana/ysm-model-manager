@@ -444,11 +444,11 @@
 | `ClearCache()` | `go/texture_cache/texture_cache:130` | ClearCache 清空纹理缓存目录（用于测试或用户主动清理）。 |
 | `ListCacheFiles()` | `go/texture_cache/texture_cache:162` | ListCacheFiles 列出所有缓存文件 |
 | `GetCacheStats()` | `go/texture_cache/texture_cache:208` | GetCacheStats 获取缓存统计 |
-| `SetCacheLimits()` | `go/texture_cache/texture_cache:254` | SetCacheLimits 覆盖淘汰阈值（测试/配置注入用）。 |
-| `Prune()` | `go/texture_cache/texture_cache:270` | Prune 淘汰纹理缓存：先清超龄（TTL），再按容量从最旧删到上限内。 |
+| `SetCacheLimits()` | `go/texture_cache/texture_cache:258` | SetCacheLimits 覆盖淘汰阈值（测试/配置注入用）。 |
+| `Prune()` | `go/texture_cache/texture_cache:276` | Prune 淘汰纹理缓存：先清超龄（TTL），再按容量从最旧删到上限内。 |
 | `CacheEntry()` | `go/texture_cache/texture_cache:155` | CacheEntry 缓存条目信息 |
 | `CacheStats()` | `go/texture_cache/texture_cache:201` | CacheStats 缓存统计信息 |
-| `PruneResult()` | `go/texture_cache/texture_cache:261` | PruneResult 一次淘汰的结果（供日志与测试断言） |
+| `PruneResult()` | `go/texture_cache/texture_cache:267` | PruneResult 一次淘汰的结果（供日志与测试断言） |
 
 ## Go·Three.js
 
@@ -655,10 +655,10 @@
 | `App.MoveModelFile()` | `internal/app/app_files:144` | MoveModelFile 移动（findMoveRoot 遍历所有已配置根做路径安全校验， 修复原硬编码 cfg.FilesRoot 导致自定义根下文件无法移动的 bug。 |
 | `App.CopyModelFile()` | `internal/app/app_files:153` | CopyModelFile 复制（同 MoveModelFile 修复：findMoveRoot 多根校验，fail-closed） |
 | `App.ImportModelFolder()` | `internal/app/app_files:165` | ImportModelFolder 文件夹型模型整组导入（YSM 解压目录 / MMD 模型目录，保留子目录层级，ADR-038 关联） folderName = 仓库文件夹名（模 |
-| `App.ImportModelFolderTo()` | `internal/app/app_files:177` | ImportModelFolderTo 带页面上下文类型的文件夹整组导入（拖拽导入上下文路由）。 |
-| `App.RevealInExplorer()` | `internal/app/app_files:244` | ========== 在资源管理器中显示 ========== |
-| `App.ToggleModelEnable()` | `internal/app/app_files:273` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
-| `App.IsFileBanned()` | `internal/app/app_files:281` | — |
+| `App.ImportModelFolderTo()` | `internal/app/app_files:183` | ImportModelFolderTo 带页面上下文类型的文件夹整组导入（拖拽导入上下文路由）。 |
+| `App.RevealInExplorer()` | `internal/app/app_files:253` | ========== 在资源管理器中显示 ========== |
+| `App.ToggleModelEnable()` | `internal/app/app_files:282` | ========== 启用/禁用 ========== ToggleModelEnable 切换 .ban 状态（fileops 纯逻辑 + 薄壳缓存失效） |
+| `App.IsFileBanned()` | `internal/app/app_files:290` | — |
 | `App.InstallModelFile()` | `internal/app/app_install_import:20` | ========== 安装 ========== |
 | `App.InstallModelTo()` | `internal/app/app_install_import:24` | — |
 | `App.InstallModelWithOverlay()` | `internal/app/app_install_import:42` | — |
@@ -1056,7 +1056,7 @@
 | `FolderGroup()` | `frontend/src/features/dnd-shared:39` | 文件夹组：dir 为顶层目录名（可能含多级嵌套，组内文件保留完整 relPath） |
 | `groupCollected()` | `frontend/src/features/dnd-shared:51` | 将收集到的条目分组： - 有目录前缀的条目 → 按「顶层目录」整组（dir = 第一段路径），组内保留完整 relPath（支持多层嵌套） - 无目录前缀的散落文件 → 单文件队列 |
 | `handleTreeDrop()` | `frontend/src/features/import-dnd:33` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
-| `bindTreeDnD()` | `frontend/src/features/import-dnd:147` | 在目标容器上注册仓库页 DnD 事件。 |
+| `bindTreeDnD()` | `frontend/src/features/import-dnd:150` | 在目标容器上注册仓库页 DnD 事件。 |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
 | `ImportFile()` | `frontend/src/features/import-executor:19` | 带相对路径的 File（文件夹导入时标记 _relPath） |
 | `ImportRecord()` | `frontend/src/features/import-executor:22` | 已导入历史条目（导入 tab「已导入」列表数据源） |
@@ -1064,8 +1064,8 @@
 | `ImportHistory()` | `frontend/src/features/import-executor:39` | — |
 | `directImport()` | `frontend/src/features/import-executor:97` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
 | `importFolder()` | `frontend/src/features/import-executor:142` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） rtype：页面上下文类型（当前树根属性，派生自注册表路由配置）——非空走 Im |
-| `executeCollected()` | `frontend/src/features/import-executor:222` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:247` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `executeCollected()` | `frontend/src/features/import-executor:224` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:249` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:42` | 加载资历最深、仓库评分、热力图和每日推荐 |
 | `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
 | `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |

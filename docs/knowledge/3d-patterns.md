@@ -67,9 +67,9 @@ Three.js 等第三方库的 TypeScript 类型有时不够精确，或历史遗�
 3. **预定义常量提取**：将魔法值或重复对象提为模块级常量（如 `UpVec`、`DEBUG_THEME`）。
 
 ### 示例
-- `mount-preview-core.ts:192-193`：`let composer: EffectComposer | null = null`（原为 `any`）
-- `render-loop.ts:8-9`：`const UpVec = new THREE.Vector3(0, 1, 0)`（模块级缓存）
-- `debug-render.ts:8-15`：`const DEBUG_THEME = { ... } as const`（主题常量收敛）
+- `mount-preview-core.ts`：`let composer: EffectComposer | null = null`（原为 `any`）
+- 模块级缓存：`const UpVec = new THREE.Vector3(0, 1, 0)`
+- `debug-render.ts`：`const DEBUG_THEME = { ... } as const`（主题常量收敛）
 
 ### 适用场景
 - Three.js/WebGL 相关代码（类型边界模糊）
@@ -90,9 +90,9 @@ per-frame 代码中频繁 `new` 对象（如 `Vector3`）会产生 GC 压力，�
 3. **模块级常量**：不随帧变化的向量（如 `UpVec`）提为模块级常量，避免重复创建。
 
 ### 示例
-- `render-loop.ts:28-31`：接口新增四个 Vector3 复用字段
-- `render-loop.ts:47-50`：`ctx.camera.getWorldDirection(ctx._cd)` 替代 `new Vector3()`
-- `render-loop.ts:9`：`const UpVec = new THREE.Vector3(0, 1, 0)` 模块级缓存
+- `render-budget.ts`：接口新增四个 Vector3 复用字段
+- 渲染循环内：`ctx.camera.getWorldDirection(ctx._cd)` 替代 `new Vector3()`
+- 模块级缓存：`const UpVec = new THREE.Vector3(0, 1, 0)`
 
 ### 适用场景
 - 60fps 渲染循环
@@ -117,9 +117,9 @@ per-frame 代码中频繁 `new` 对象（如 `Vector3`）会产生 GC 压力，�
 3. 注意：调试场景下需配合 dispose 链清理缓存（否则内存泄漏）。
 
 ### 示例
-- `debug-render.ts:18`：`const _labelTexCache = new Map<string, THREE.CanvasTexture>()`
-- `debug-render.ts:21-22`：`const cached = _labelTexCache.get(key); if (cached) return cached;`
-- `debug-render.ts:40`：`_labelTexCache.set(key, tex);`
+- `debug-render.ts`：`const _labelTexCache = new Map<string, THREE.CanvasTexture>()`
+- 命中检查：`const cached = _labelTexCache.get(key); if (cached) return cached;`
+- 写入缓存：`_labelTexCache.set(key, tex);`
 
 ### 适用场景
 - 调试/开发工具渲染
@@ -144,9 +144,9 @@ per-frame 代码中频繁 `new` 对象（如 `Vector3`）会产生 GC 压力，�
 3. 在 `ctx.unsubs` 中注册清理回调，保证组件销毁时自动清理。
 
 ### 示例
-- `skeleton.ts:21`：`let _prevAbort: AbortController | null = null`（替代 `_prevWindowMove/_prevWindowUp`）
-- `skeleton.ts:99-101`：`_prevAbort?.abort(); const ac = new AbortController(); _prevAbort = ac;`
-- `skeleton.ts:105-107`：`window.addEventListener(..., opts); ctx.unsubs?.push(() => { ac.abort(); ... });`
+- `skeleton.ts`：`let _prevAbort: AbortController | null = null`（替代 `_prevWindowMove/_prevWindowUp`）
+- `skeleton.ts`：`_prevAbort?.abort(); const ac = new AbortController(); _prevAbort = ac;`
+- `skeleton.ts`：`window.addEventListener(..., opts); ctx.unsubs?.push(() => { ac.abort(); ... });`
 
 ### 适用场景
 - 窗口级事件监听（pointermove、resize、keydown）

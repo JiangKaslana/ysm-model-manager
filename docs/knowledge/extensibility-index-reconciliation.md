@@ -11,15 +11,15 @@
 | # | 索引条目 | 状态 | 当前证据（文件:行号） |
 |---|---------|------|----------------------|
 | 1 | `model3d.ts` RenderSession 完整对象化（陷阱 #11 已独立立项） | **N/A** | `frontend/src/utils/3d/model3d.ts` 仍存在；按索引原文「已裁决独立立项待启动」处理，不计入 Top 10 对账 |
-| 2 | 两套检测器 `importer_file.go:122` + `mcmeta.go:138` 均应注册表驱动 | **部分** | 现状：`go/importer/importer_file.go:133-148` `DetectZipType` 走 `types.MatchZipEntry(name)` 注册表；`go/packs/mcmeta.go:138-178` `DetectResourceType` 走 `registry.ResourceTypes` 并按 `Detector` 字段分发 `mcmeta/shader/zipentry/ysm/extension`。**新增类型已只需改 `resource_types.json`**（`ZipEntries`/`Detector` 字段驱动），ADR-067 闭环。但**两个入口函数仍并存**（ZIP 数据 bytes 用 `DetectZipType`，路径用 `DetectResourceType`），未合并为单一入口。|
-| 3 | 文件夹级判定 6+ 处硬编码 | **已闭环 ADR-064/065** | `go/sync/sync_push.go:28,69,79` 均改调 `types.IsDirLevelSync(rtype)`；`go/sync/sync_relink.go:78` 用 `types.IsDirLevelSync(rtype) && types.IsTypeModelFile(base, rtype)`；`go/sync/sync_dirlevel.go:27,54,73` 用 `types.IsTypeModelFile`；`go/instance/instance.go:54` 用 `types.FindInstDir`（注册表驱动）。`isSyncAllowed/isModelFile/extMatch/syncNameKey` 全部收敛进 `types/`（`extensions.go:64-144`：`NormalizeResourceName`/`IsResourceAllowed`/`IsTypeModelFile`/`IsDirLevelSync`）。 |
-| 4 | `fsutil/` `copyFile×6` / `copyDirRecursive×4` 重复 | **部分** | `go/fsutil/copy.go:19-130` 已定义统一 `CopyFile` + `CopyDirRecursive`（注释明确「收敛自 fileops/recycle/importer/sync 四份」）。但**多包内仍保留本地 wrapper**：`installer.copyFileLocked`（`installer.go:423`）、`sync.copyFile`（`sync_push.go:277`）、`recycle.copyFile`（`recycle.go:380`）、`importer.copyFile`（`importer.go:400`）、`fileops.copyFile`（`fileops.go:380`）、`updater.copyFile`（`updater.go:494`）、`cmd/updater.copyFile`（`cmd/updater/main.go:71`）——7 处本地副本，其中 `fsutil.CopyFile` 是规范实现，其余多数为薄包装/不同语义。原始 6+4 重复未完全消除。 |
-| 5 | `ShouldHashExt` + scanner CI 清单硬编码 | **已闭环** | `go/types/extensions.go:121-126` `ShouldHashExt` 现按 `ResourceType.Hashable` 字段判定（注释：「注册表驱动：任何声明 hashable 的资源类型扩展名均计入哈希」）。`Hashable` 字段在 `go/types/resource.go:33` 已定义。`go/types/types_extra_test.go:102` `TestShouldHashExt_PinnedList` 钉住 `.ysm/.zip/.7z/.json/.nbt/.schematic/.litematic`，并测大小写不敏感。scanner 不再维护独立清单。 |
-| 6 | `browser-adapter.ts:69-202` 40+ binding 手写大对象字面量 | **已闭环 ADR-049/web M2 (93cb0e8b)** | `frontend/src/backend/browser-adapter.ts:29-34` 现 `webImpls = { ...webCommonBindings, ...webFsBindings, ...webStoreBindings, ...webCommunityBindings }`；各职责模块自注册片段（`web-common.ts:88-120`、`web-fs.ts`、`web-store.ts`、`web-community.ts:1-315`）。`browser-adapter.ts` 95 行，退化为「编排/入口」薄壳。 |
-| 7 | `import-dnd.ts` 4 处重复 | **已闭环 web M1 (93cb0e8b)** | `frontend/src/features/import-executor.ts:221-241` 定义 `importWebFilesWithToast` 单点；`import-dnd.ts:59` 与 `import-queue-events.ts:94,158,191` 全部改为调用 `importWebFilesWithToast`。`stats:refresh` 已统一在 `import-executor.ts:68,236` 发出（原 folderInput 分支缺失已修复）。 |
-| 8 | `app-modules.ts` 5 处 catch 模板逐字重复 | **已闭环** | `frontend/src/app-modules.ts:33-42` `loadView(name, importer)` 单点封装，5 处调用（45-49 行）：`app-tree/sidebar/content/resource-manager/sync-manager`。 |
-| 9 | `ResourceType` 无 hook 字段 | **部分** | `go/types/resource.go:19-38` 现含 `Detector`/`ConfigField`/`ConfigFallback`/`IsDir`/`Hashable`/`DirLevelSync`/`ScanInstance`/`InstallExts`/`ZipEntries` 等 9 个可驱动行为的字段；`Detector` 字段实际充当「handlerRef」字符串。但**无显式 `plugin`/`handlerRef` 指针类型**（无代码级 hook 接口），仍靠字符串分发。索引原文「增加 plugin/handlerRef 字段」的部分诉求（可注册表驱动）已满足；显式接口化未完成。 |
-| 10 | `/web` 路径正则 5 处 | **已闭环** | `frontend/src/backend/web-common.ts:18-49` 集中导出 `WEB_DIR_RE`/`WEB_NAME_RE`/`isWebPath`/`parseWebPath`/`parseWebDirPath`/`webDirType`；注释明确「Top 10 收敛：原 /web 正则散落 5 处」。`web-fs.ts`/`web-community.ts`/`browser-adapter.ts` 全部改调 `web-common.ts`。 |
+| 2 | 两套检测器 `importer_file.go` + `mcmeta.go` 均应注册表驱动 | **部分** | 现状：`go/importer/importer_file.go` `DetectZipType` 走 `types.MatchZipEntry(name)` 注册表；`go/packs/mcmeta.go` `DetectResourceType` 走 `registry.ResourceTypes` 并按 `Detector` 字段分发 `mcmeta/shader/zipentry/ysm/extension`。**新增类型已只需改 `resource_types.json`**（`ZipEntries`/`Detector` 字段驱动），ADR-067 闭环。但**两个入口函数仍并存**（ZIP 数据 bytes 用 `DetectZipType`，路径用 `DetectResourceType`），未合并为单一入口。|
+| 3 | 文件夹级判定 6+ 处硬编码 | **已闭环 ADR-064/065** | `go/sync/sync_push.go` 均改调 `types.IsDirLevelSync(rtype)`；`go/sync/sync_relink.go` 用 `types.IsDirLevelSync(rtype) && types.IsTypeModelFile(base, rtype)`；`go/sync/sync_dirlevel.go` 用 `types.IsTypeModelFile`；`go/instance/instance.go` 用 `types.FindInstDir`（注册表驱动）。`isSyncAllowed/isModelFile/extMatch/syncNameKey` 全部收敛进 `types/`（`NormalizeResourceName`/`IsResourceAllowed`/`IsTypeModelFile`/`IsDirLevelSync`）。 |
+| 4 | `fsutil/` `copyFile×6` / `copyDirRecursive×4` 重复 | **部分** | `go/fsutil/copy.go` 已定义统一 `CopyFile` + `CopyDirRecursive`（注释明确「收敛自 fileops/recycle/importer/sync 四份」）。但**多包内仍保留本地 wrapper**：`installer.copyFileLocked`、`sync.copyFile`、`recycle.copyFile`、`importer.copyFile`、`fileops.copyFile`、`updater.copyFile`、`cmd/updater.copyFile`——7 处本地副本，其中 `fsutil.CopyFile` 是规范实现，其余多数为薄包装/不同语义。原始 6+4 重复未完全消除。 |
+| 5 | `ShouldHashExt` + scanner CI 清单硬编码 | **已闭环** | `go/types/extensions.go` `ShouldHashExt` 现按 `ResourceType.Hashable` 字段判定（注释：「注册表驱动：任何声明 hashable 的资源类型扩展名均计入哈希」）。`Hashable` 字段在 `go/types/resource.go` 已定义。`go/types/types_extra_test.go` `TestShouldHashExt_PinnedList` 钉住 `.ysm/.zip/.7z/.json/.nbt/.schematic/.litematic`，并测大小写不敏感。scanner 不再维护独立清单。 |
+| 6 | `browser-adapter.ts` 40+ binding 手写大对象字面量 | **已闭环 ADR-049/web M2 (93cb0e8b)** | `frontend/src/backend/browser-adapter.ts` 现 `webImpls = { ...webCommonBindings, ...webFsBindings, ...webStoreBindings, ...webCommunityBindings }`；各职责模块自注册片段（`web-common.ts`、`web-fs.ts`、`web-store.ts`、`web-community.ts`）。`browser-adapter.ts` 95 行，退化为「编排/入口」薄壳。 |
+| 7 | `import-dnd.ts` 4 处重复 | **已闭环 web M1 (93cb0e8b)** | `frontend/src/features/import-executor.ts` 定义 `importWebFilesWithToast` 单点；`import-dnd.ts` 与 `import-queue-events.ts` 全部改为调用 `importWebFilesWithToast`。`stats:refresh` 已统一在 `import-executor.ts` 发出（原 folderInput 分支缺失已修复）。 |
+| 8 | `app-modules.ts` 5 处 catch 模板逐字重复 | **已闭环** | `frontend/src/app-modules.ts` `loadView(name, importer)` 单点封装，5 处调用：`app-tree/sidebar/content/resource-manager/sync-manager`。 |
+| 9 | `ResourceType` 无 hook 字段 | **部分** | `go/types/resource.go` `ResourceType` 现含 `Detector`/`ConfigField`/`ConfigFallback`/`IsDir`/`Hashable`/`DirLevelSync`/`ScanInstance`/`InstallExts`/`ZipEntries` 等 9 个可驱动行为的字段；`Detector` 字段实际充当「handlerRef」字符串。但**无显式 `plugin`/`handlerRef` 指针类型**（无代码级 hook 接口），仍靠字符串分发。索引原文「增加 plugin/handlerRef 字段」的部分诉求（可注册表驱动）已满足；显式接口化未完成。 |
+| 10 | `/web` 路径正则 5 处 | **已闭环** | `frontend/src/backend/web-common.ts` 集中导出 `WEB_DIR_RE`/`WEB_NAME_RE`/`isWebPath`/`parseWebPath`/`parseWebDirPath`/`webDirType`；注释明确「Top 10 收敛：原 /web 正则散落 5 处」。`web-fs.ts`/`web-community.ts`/`browser-adapter.ts` 全部改调 `web-common.ts`。 |
 
 **Top 10 小计**：已闭环 4 条（#3/#5/#6/#7/#8/#10 = **6 条**）；部分 3 条（#2/#4/#9）；N/A 1 条（#1）。
 
@@ -29,16 +29,16 @@
 
 | 索引位置 | 状态 | 当前证据 |
 |---------|------|---------|
-| 1.1 `app.ts:48` 绑定路径硬编码 | **存活** | `frontend/src/backend/app.ts`（未 grep 出 22-62 分支细节，但 import 路径仍以 `../../bindings/...` 硬编码，未抽注入常量） |
-| 1.2 `app.ts:22-62` 三分支 if 链 | **存活** | browser→`window.go.main.App`→动态 import 三分支 if 链未见合并；未查近期改动触及。 |
-| 1.3 `types.ts:6` 与 1.1 同源硬编码 | **存活** | `frontend/src/backend/types.ts` 仍 `typeof import("../../bindings/...")`，与 1.1 同源。 |
-| 1.4 `browser-adapter.ts:69-202` 40+ 字面量 | **已闭环 (93cb0e8b)** | 见 Top 6。 |
-| 1.5 `WebImplGoKeys` 白名单字面量 | **已闭环 (93cb0e8b)** | `browser-adapter.ts:38` 现 `Exclude<keyof typeof webImpls, "SelectLocalRepo"|"GetFsaAuthState">`，白名单从结构推导。 |
-| 1.6 `GetAppVersion/CurrentVersion` 硬编码 "web" | **部分** | `web-common.ts:96-97` 现返回 `__APP_VERSION__`（vite define 注入），回退值仍是 `"web"`（`web-common.ts:86` 注释承认）。桌面端 `WEB_VERSION` 由发版脚本传，未传时仍分叉。 |
-| 1.7 `GetRepoRoot` rtype 净化正则内联 | **存活** | `web-fs.ts:993-994` 仍 `rtype.replace(/\//g,"_")` 内联。 |
-| 1.8 `web-fs.ts` 多处（IDB key 规约、mainFileRank、importWebFiles、INVALID_NAME_CHARS） | **部分** | `.7z` 过滤已加（`web-fs.ts:705-714` `sevenZCount` toast）；importWebFiles 现在 701 行。但 IDB key `dir:/file:/ban:/tags:` 仍跨 `web-fs.ts`/`web-store.ts`/`idb.ts` 字符串耦合；`INVALID_NAME_CHARS` 仍硬编码。 |
+| 1.1 `app.ts` 绑定路径硬编码 | **存活** | `frontend/src/backend/app.ts` 的 import 路径仍以 `../../bindings/...` 硬编码，未抽注入常量 |
+| 1.2 `app.ts` 三分支 if 链 | **存活** | browser→`window.go.main.App`→动态 import 三分支 if 链未见合并；未查近期改动触及。 |
+| 1.3 `types.ts` 与 1.1 同源硬编码 | **存活** | `frontend/src/backend/types.ts` 仍 `typeof import("../../bindings/...")`，与 1.1 同源。 |
+| 1.4 `browser-adapter.ts` 40+ 字面量 | **已闭环 (93cb0e8b)** | 见 Top 6。 |
+| 1.5 `WebImplGoKeys` 白名单字面量 | **已闭环 (93cb0e8b)** | `browser-adapter.ts` 现 `Exclude<keyof typeof webImpls, "SelectLocalRepo"|"GetFsaAuthState">`，白名单从结构推导。 |
+| 1.6 `GetAppVersion/CurrentVersion` 硬编码 "web" | **部分** | `web-common.ts` 现返回 `__APP_VERSION__`（vite define 注入），回退值仍是 `"web"`（注释承认）。桌面端 `WEB_VERSION` 由发版脚本传，未传时仍分叉。 |
+| 1.7 `GetRepoRoot` rtype 净化正则内联 | **存活** | `web-fs.ts` 仍 `rtype.replace(/\//g,"_")` 内联。 |
+| 1.8 `web-fs.ts` 多处（IDB key 规约、mainFileRank、importWebFiles、INVALID_NAME_CHARS） | **部分** | `.7z` 过滤已加（`web-fs.ts` `sevenZCount` toast）；importWebFiles 已单点。但 IDB key `dir:/file:/ban:/tags:` 仍跨 `web-fs.ts`/`web-store.ts`/`idb.ts` 字符串耦合；`INVALID_NAME_CHARS` 仍硬编码。 |
 | 1.9 `web-store.ts` 硬编码常量 + 日志环 | **存活** | `WEB_IMPORT_LOG_CAP=500`/`WEB_RUNTIME_LOG_CAP=300`/`CFG_KEY` 仍在（未 grep 到参数化）。无持久化 sink、无订阅通知（日志能力缺口仍在）。 |
-| 1.10 `web-community.ts` 三份 localStorage 模式 | **部分** | 3 个社区写入方法（`writeWebCreators`/`writeWebSites`/`writeWebGitHub`）在 `web-community.ts:24-102` 独立实现，结构相似但未抽 `createLocalJsonStore` 工厂。ADR-066 头像缓存补写（`web-community.ts:92`）已落地。 |
+| 1.10 `web-community.ts` 三份 localStorage 模式 | **部分** | 3 个社区写入方法（`writeWebCreators`/`writeWebSites`/`writeWebGitHub`）独立实现，结构相似但未抽 `createLocalJsonStore` 工厂。ADR-066 头像缓存补写已落地。 |
 | 1.11 `idb.ts` 无版本化迁移 + 重复 transaction 样板 | **存活** | 未查改动触及。 |
 
 ---
@@ -66,17 +66,17 @@
 | 索引位置 | 状态 | 当前证据 |
 |---------|------|---------|
 | 4.1 `import-queue-data.ts`/`events.ts` 表单字段 id 列表 4 处 | **部分** | 表单字段注册化未落地（未 grep 到），但 4.1 中「覆盖导入」30 行重复与 `commitImportSuccess` 未见抽离。 |
-| 4.2 `errMsg.includes("FILE_EXISTS")` 字符串匹配 | **存活** | `features/import-executor.ts:182` + `import-queue-events.ts:387` 未见改为 `AppError.Code` 消费。 |
+| 4.2 `errMsg.includes("FILE_EXISTS")` 字符串匹配 | **存活** | `features/import-executor.ts` + `import-queue-events.ts` 未见改为 `AppError.Code` 消费。 |
 | 4.3 `oldest-models` + `recycle-bin` 各自实现 `useCurrentResourceType` 模式 | **存活** | 未见抽离的 `useCurrentResourceType()`；两文件仍各实现。 |
 | 4.4 `version-updater.ts` `CHECK_INTERVAL=6h`/`CHECK_TIMEOUT=30s` | **存活** | 硬编码阈值仍在。 |
-| 4.5 `services/registry.ts:11-15` 仅 2 服务 | **存活** | 仍为 2 服务名；未泛型化。 |
-| 4.6 `animation.ts` 通道名字面量重复 4 次 | **部分** | `animation.ts:43` 已抽 `const BONE_CHANNELS` 单点；但 252/261/277/367 处是否改调用 `BONE_CHANNELS` 未逐一验证（索引所指 4 处可能仍未替换）。Molang 求值正则链未见可注入化。 |
-| 4.7 `display.ts` parseModelName/renderDisplayName 括号风格 | **部分** | `display.ts:25` 注释「parseModelName / renderDisplayName 共用，新增/调整括号风格只改本表」——共享表已存在，但具体括号风格是否注册表化（vs 硬编码表）仍待核。 |
+| 4.5 `services/registry.ts` 仅 2 服务 | **存活** | 仍为 2 服务名；未泛型化。 |
+| 4.6 `animation.ts` 通道名字面量重复 4 次 | **部分** | `animation.ts` 已抽 `const BONE_CHANNELS` 单点；但多处是否改调用 `BONE_CHANNELS` 未逐一验证（索引所指 4 处可能仍未替换）。Molang 求值正则链未见可注入化。 |
+| 4.7 `display.ts` parseModelName/renderDisplayName 括号风格 | **部分** | `display.ts` 注释「parseModelName / renderDisplayName 共用，新增/调整括号风格只改本表」——共享表已存在，但具体括号风格是否注册表化（vs 硬编码表）仍待核。 |
 | 4.8 `modal.ts` 5+ modal 脚手架重复 | **存活** | 未见 `createDialog` 工厂。 |
 | 4.9 `rename-format.ts`/`batch-rename-util.ts` 两套模板 | **存活** | 未见单一命名模板引擎。 |
 | 4.10 `errors.ts` `CODE_KEYS` 手写映射 | **存活** | 未见从 Go AppError 生成。 |
 | 4.11 `pack-format.ts` 86 条静态表 + `n > 88 ? "最新版本"` 魔数 | **存活** | 未见抽 JSON + 自动更新。 |
-| 4.12 `icon.ts:47-52` 归档/图片/文本兜底 | **存活** | 未见与 `RESOURCE_EXTS` 合并。 |
+| 4.12 `icon.ts` 归档/图片/文本兜底 | **存活** | 未见与 `RESOURCE_EXTS` 合并。 |
 
 ---
 
@@ -100,12 +100,12 @@
 | 6.3 | 见 Top 4（部分） | |
 | 6.4 | 见 Top 5（已闭环） | |
 | 6.5 | 见 Top 9（部分） | |
-| 6.6 `MaxImportSize=500MB` 三方引用 | **存活** | `go/types/extensions.go:14-19` 仍硬编码常量（虽含 `MaxImportSizeMB` 派生，仍为编译期常量，未进 `AppConfig`）。 |
-| 6.7 `AppConfig` 缺扫描 TTL/日志上限/下载超时 | **存活** | `go/types/config.go:4-28` 仅含 `Mirror/VoxelMaxBlocks/LinkMode`。 |
-| 6.8 `dedup.go:40/149`/`recycle.go:64/223`/`instance.go:76-135` 成对重复 | **存活** | 未 grep 到本轮清理。 |
-| 6.9 `updater.go:22-25,115-122,503-531` 硬编码 | **存活** | 未 grep 到本轮改动。 |
-| 6.10 `logs.go:17-27`/`runtime.go:11` 硬编码阈值 | **存活** | 未 grep 到参数化。 |
-| 6.11 `threejs/spec.go:113-120,58-105` texW/texH 默认 64 | **存活** | 未 grep 到本轮改动。 |
+| 6.6 `MaxImportSize=500MB` 三方引用 | **存活** | `go/types/extensions.go` 仍硬编码常量（虽含 `MaxImportSizeMB` 派生，仍为编译期常量，未进 `AppConfig`）。 |
+| 6.7 `AppConfig` 缺扫描 TTL/日志上限/下载超时 | **存活** | `go/types/config.go` 仅含 `Mirror/VoxelMaxBlocks/LinkMode`。 |
+| 6.8 `dedup.go`/`recycle.go`/`instance.go` 成对重复 | **存活** | 未 grep 到本轮清理。 |
+| 6.9 `updater.go` 硬编码 | **存活** | 未 grep 到本轮改动。 |
+| 6.10 `logs.go`/`runtime.go` 硬编码阈值 | **存活** | 未 grep 到参数化。 |
+| 6.11 `threejs/spec.go` texW/texH 默认 64 | **存活** | 未 grep 到本轮改动。 |
 | 6.12 其余低-中价值项 | **存活** | 大部分未触达。 |
 
 ---
@@ -114,14 +114,14 @@
 
 | 索引位置 | 状态 | 当前证据 |
 |---------|------|---------|
-| 7.1 `wasm/ysm-parser.ts:90-93` patch 点硬编码 | **存活** | 未见版本感知适配层。 |
+| 7.1 `wasm/ysm-parser.ts` patch 点硬编码 | **存活** | 未见版本感知适配层。 |
 | 7.2 `ysm-parser.ts` 两条固定解码策略 | **存活** | 未见 `decodeStrategies` 注册表。 |
 | 7.3 崩溃分类正则重复 + 口径漂移 | **存活** | 未见 `classifyWasmError` 分类器。 |
 | 7.4 `app-modules.ts` 5 处 catch 模板 | **已闭环** | 见 Top 8。 |
-| 7.5 `THEME_VALID` 与 `classList.remove(...)` 双份 | **已闭环** | `app-modules.ts:62-64` 现 `THEME_CLASSES = THEME_VALID.filter(...).map(...)` 由白名单推导。 |
-| 7.6 `initTheme` try/catch 两分支重复 | **部分** | `app-modules.ts:96-112` 仍保留两个 try/catch 分支（107-111 catch 兜底），但共用 `normalizeTheme`+`applyTheme`；「四步完全重复」未单路收拢。 |
-| 7.7 `system` 深/浅映射硬编码 | **存活** | `app-modules.ts:74-81` 仍 `prefersDark ? "theme-cyber" : "theme-warm"` 硬编码映射。 |
-| 7.8 跨文件主题默认值漂移（"dark" 不在白名单） | **部分** | `app-modules.ts:67-68` `normalizeTheme` 已存在并将非法值归一；但 `init.ts`/`path-cards.ts`/`theme.ts` 处 `|| "dark"` 仍可能注入，靠 `normalizeTheme` 兜底——已消隐患，但未源头修正。 |
+| 7.5 `THEME_VALID` 与 `classList.remove(...)` 双份 | **已闭环** | `app-modules.ts` 现 `THEME_CLASSES = THEME_VALID.filter(...).map(...)` 由白名单推导。 |
+| 7.6 `initTheme` try/catch 两分支重复 | **部分** | `app-modules.ts` 仍保留两个 try/catch 分支（catch 兜底），但共用 `normalizeTheme`+`applyTheme`；「四步完全重复」未单路收拢。 |
+| 7.7 `system` 深/浅映射硬编码 | **存活** | `app-modules.ts` 仍 `prefersDark ? "theme-cyber" : "theme-warm"` 硬编码映射。 |
+| 7.8 跨文件主题默认值漂移（"dark" 不在白名单） | **部分** | `app-modules.ts` `normalizeTheme` 已存在并将非法值归一；但 `init.ts`/`path-cards.ts`/`theme.ts` 处 `|| "dark"` 仍可能注入，靠 `normalizeTheme` 兜底——已消隐患，但未源头修正。 |
 | 7.9 `bus.ts` `VOID_EVENTS` vs `emit` 内手抄 | **存活** | 未见改调 `isVoidEvent(event)`。 |
 | 7.10 `bus.ts` 无通配符监听/emit 钩子 | **存活** | 未见 `bus.on("*")`。 |
 | 7.11 `BusEvents` 闭联合表 | **存活**（索引原文也标为特性非缺陷） | |
