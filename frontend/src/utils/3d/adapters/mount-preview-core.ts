@@ -67,7 +67,6 @@ import {
   previewPixelRatio,
   sampleAdaptivePixelRatio,
   shouldRenderAtFps,
-  shouldRenderPreviewFrame,
 } from "../render-budget.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
@@ -647,7 +646,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         // ADR-081 L2：后处理体积光管线
         const rendered = postProc ? postProc.render(dt, lightCap) : false;
         if (!rendered) rd.render(sc, cam);
-        const nextPixelRatio = sampleAdaptivePixelRatio(adaptiveBudget, now);
+        const nextPixelRatio = sampleAdaptivePixelRatio(adaptiveBudget, now, interval);
         if (nextPixelRatio !== null) {
           rd.setPixelRatio(nextPixelRatio);
           rd.setSize(viewContainer.clientWidth, viewContainer.clientHeight);

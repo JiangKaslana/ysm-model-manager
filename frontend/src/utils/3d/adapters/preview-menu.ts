@@ -24,7 +24,7 @@ import { ENV_PRESET_LINKAGE, type EnvPresetId } from "../caps/environment-capabi
 import { sceneRegistry, type ModelEntry } from "./scene-registry.ts";
 import type { FogCapability } from "../caps/fog-capability.ts";
 import { isFrustumCullEnabled, setFrustumCullEnabled } from "../frustum-cull.ts";
-import { getMaxFps, MAX_FPS_KEY, getMaxPixelRatio, MAX_PIXEL_RATIO_KEY } from "../render-budget.ts";
+import { getMaxFps, invalidateMaxFpsCache, MAX_FPS_KEY, getMaxPixelRatio, MAX_PIXEL_RATIO_KEY } from "../render-budget.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
@@ -1373,6 +1373,7 @@ function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   fpsSel.value = String(getMaxFps());
   fpsSel.onchange = (): void => {
     safeSet(MAX_FPS_KEY, fpsSel.value);
+    invalidateMaxFpsCache(); // rAF 热路径缓存失效（render-budget 模块级）
   };
   fpsRow.append(fpsLabel, fpsSel);
   list.appendChild(fpsRow);

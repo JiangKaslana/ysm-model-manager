@@ -17,7 +17,7 @@
 | Go·文件系统 | 10 | 18 |
 | Go·几何 | 2 | 10 |
 | Go·导入 | 2 | 16 |
-| Go·安装 | 1 | 9 |
+| Go·安装 | 1 | 10 |
 | go/instance | 1 | 2 |
 | go/internal | 1 | 3 |
 | Go·Litematic | 4 | 9 |
@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 145 | 563 |
+| 前端·工具 | 145 | 564 |
 | frontend/views | 117 | 332 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **454** | **1910** |
+| **合计** | **454** | **1912** |
 
 ## Go·头像
 
@@ -253,13 +253,14 @@
 |------|--------|------|
 | `Install()` | `go/installer/installer:45` | Install 安装模型到目标目录（支持链接模式） |
 | `InstallLocked()` | `go/installer/installer:53` | InstallLocked 安装模型到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `InstallDir()` | `go/installer/installer:146` | InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式） 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件 rtype 用于过滤文件 |
-| `InstallDirLocked()` | `go/installer/installer:155` | InstallDirLocked 安装整个目录下的所有文件到目标目录（调用方须已持有 InstallLock， 禁止直接调用）。语义与 InstallDir 一致，但不重复加锁—— |
-| `InstallToGlobal()` | `go/installer/installer:368` | InstallToGlobal 安装到全局 custom 目录 |
-| `InstallWithOverlay()` | `go/installer/installer:394` | InstallWithOverlay 带冲突检查的安装 |
-| `CopyFile()` | `go/installer/installer:475` | CopyFile 复制文件到目标目录（带互斥锁） |
-| `CopyFileLocked()` | `go/installer/installer:483` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
-| `IsValidRepoRoot()` | `go/installer/installer:633` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
+| `InstallDir()` | `go/installer/installer:150` | InstallDir 安装整个目录下的所有文件到目标目录（支持链接模式） 用于 MMD/VRC 模型，.pmx/.pmd 文件所在文件夹包含纹理等配套文件 rtype 用于过滤文件 |
+| `InstallDirRel()` | `go/installer/installer:160` | InstallDirRel 安装目录到 dstRoot/&lt;relSlash&gt;（保留仓库多层物理路径）。 |
+| `InstallDirLocked()` | `go/installer/installer:167` | InstallDirLocked 与 InstallDir 语义相同，但不重复加锁——供已持锁调用方使用。 |
+| `InstallToGlobal()` | `go/installer/installer:405` | InstallToGlobal 安装到全局 custom 目录 |
+| `InstallWithOverlay()` | `go/installer/installer:431` | InstallWithOverlay 带冲突检查的安装 |
+| `CopyFile()` | `go/installer/installer:512` | CopyFile 复制文件到目标目录（带互斥锁） |
+| `CopyFileLocked()` | `go/installer/installer:520` | CopyFileLocked 复制文件到目标目录（调用方须已持有 InstallLock，禁止直接调用）。 |
+| `IsValidRepoRoot()` | `go/installer/installer:670` | IsValidRepoRoot 禁止选择系统敏感目录作为仓库 跨平台实现：禁止根目录、系统关键目录 |
 
 ## go/instance
 
@@ -394,14 +395,14 @@
 |------|--------|------|
 | `ResourceDiff()` | `go/sync/sync_diff:31` | ResourceDiff 按调用方提供的 key（文件名或相对路径，ADR-064 阶段二统一为 relKey 相对路径）对比两侧条目：   - 同名同大小（或含目录条目）→ Sy |
 | `DiffEntry()` | `go/sync/sync_diff:17` | DiffEntry 一侧目录的同步条目（文件或资源包文件夹）。 |
-| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:190` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
+| `SyncResourcesDirLevel()` | `go/sync/sync_dirlevel:192` | SyncResourcesDirLevel 按文件夹名对比资源（用于 YSM 的 ysm.json 文件夹和 MMD 的 .pmx/.pmd 文件夹） 以文件夹名为单位，一个文件夹 |
 | `ListVersions()` | `go/sync/sync_discovery:15` | — |
 | `HasDotMinecraftSubdirs()` | `go/sync/sync_discovery:30` | HasDotMinecraftSubdirs 检测目录的子目录中是否包含 .minecraft/ 或 minecraft/（用于识别 instances 目录） |
 | `FindMinecraftDir()` | `go/sync/sync_discovery:47` | FindMinecraftDir 在给定目录下查找 .minecraft 或 minecraft 子目录，返回找到的路径 |
 | `ListVersionsFunc()` | `go/sync/sync_discovery:13` | ListVersionsFunc 列出版本实例（函数类型，测试时可注入 mock） |
 | `CompareGlobalInstanceHashes()` | `go/sync/sync_hash:29` | CompareGlobalInstanceHashes 对比全局目录和整合包实例子目录，返回每个实例的 Missing / Extra / Synced 状态。 |
 | `HasModInDirFn()` | `go/sync/sync_hash:19` | HasModInDirFn 判断 mods 目录是否含有指定类型 mod 的函数类型。 |
-| `PushResources()` | `go/sync/sync_push:27` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） 多层物理路径支持：   对于 dirLevelSync 类型 |
+| `PushResources()` | `go/sync/sync_push:28` | PushResources 推送缺失资源到整合包（folder 级类型用 SyncResourcesDirLevel） 多层物理路径支持： 对于 dirLevelSync 类型，会 |
 | `PullResources()` | `go/sync/sync_push:89` | PullResources 拉取整合包多余资源回仓库 持 InstallLock：从实例目录复制文件回仓库，与 SyncToggleStatus/RelinkDir 等并发操作同一 |
 | `PullSingleResource()` | `go/sync/sync_push:189` | PullSingleResource 拉取单个资源（文件夹/文件）回仓库 持 InstallLock：从实例目录复制文件回仓库，与并发同步操作互斥（ADR-056） |
 | `PushSingleResource()` | `go/sync/sync_push:227` | PushSingleResource 推送单个资源到整合包： 文件夹 / .json/.pmx/.pmd（文件夹级类型）走 InstallDir，其余 Install。 |
@@ -505,29 +506,29 @@
 | `FindInstDir()` | `go/types/findinst:71` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `TypeByLocation()` | `go/types/location:17` | TypeByLocation 祖先目录归属判定（location 路由，MMD 子类型共享扩展名消歧）： path 的祖先目录命中某类型 storageSubDir/instanc |
 | `SetBundledRegistryJSON()` | `go/types/resource:20` | SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。 |
-| `ResourceType.EffectiveExtensions()` | `go/types/resource:100` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |
-| `ResourceType.MatchZipEntry()` | `go/types/resource:118` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
-| `SetRegistryPath()` | `go/types/resource:153` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
-| `LoadRegistry()` | `go/types/resource:164` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
-| `BundledRegistryJSON()` | `go/types/resource:318` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
-| `RegistryType()` | `go/types/resource:325` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
-| `ResourceTypeRegistry.FindByID()` | `go/types/resource:331` | FindByID 按 id 查找资源类型，不存在时返回 nil（深拷贝） |
-| `ModKeywordsFor()` | `go/types/resource:350` | ModKeywordsFor 从注册表查询资源类型的 mod 文件名关键词（ADR-110）：   - 类型自身有 mod.jarKeywords → 返回   - 类型无声明但所 |
-| `ModMetaFor()` | `go/types/resource:377` | ModMetaFor 从注册表查询内容检测型资源类型的 mod 信息（ADR-110）：   - 类型有 mod.modId → 返回 (modId, displayName) |
-| `FormatRange.UnmarshalJSON()` | `go/types/resource:392` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
-| `PackMeta.Desc()` | `go/types/resource:488` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
+| `ResourceType.EffectiveExtensions()` | `go/types/resource:101` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |
+| `ResourceType.MatchZipEntry()` | `go/types/resource:119` | MatchZipEntry 检测 ZIP 条目名是否命中本类型的特征条目（小写不敏感） ADR-082 S1：任意层级段后缀匹配——对路径按 / 分段，每个段后缀都参与指纹匹配， |
+| `SetRegistryPath()` | `go/types/resource:154` | SetRegistryPath 设置注册表文件路径（仅测试用） 加锁保护：并发调用 LoadRegistry + SetRegistryPath 触发数据竞争（审计 P1 #2）。 |
+| `LoadRegistry()` | `go/types/resource:165` | LoadRegistry 加载资源类型注册表（单一事实来源 = 编译期嵌入的 resource_types.json）。 |
+| `BundledRegistryJSON()` | `go/types/resource:319` | BundledRegistryJSON 返回编译期内嵌的资源类型注册表原始 JSON 字节（单一事实来源）。 |
+| `RegistryType()` | `go/types/resource:326` | RegistryType 按 id 查找资源类型，不存在时返回 nil 返回深拷贝：结构体按值拷贝仅能防标量字段篡改，Extensions 切片仍共享缓存 底层数组——调用方修改 |
+| `ResourceTypeRegistry.FindByID()` | `go/types/resource:332` | FindByID 按 id 查找资源类型，不存在时返回 nil（深拷贝） |
+| `ModKeywordsFor()` | `go/types/resource:351` | ModKeywordsFor 从注册表查询资源类型的 mod 文件名关键词（ADR-110）：   - 类型自身有 mod.jarKeywords → 返回   - 类型无声明但所 |
+| `ModMetaFor()` | `go/types/resource:378` | ModMetaFor 从注册表查询内容检测型资源类型的 mod 信息（ADR-110）：   - 类型有 mod.modId → 返回 (modId, displayName) |
+| `FormatRange.UnmarshalJSON()` | `go/types/resource:393` | UnmarshalJSON 实现 json.Unmarshaler，支持 int / [int] / [int,int] 三种格式 |
+| `PackMeta.Desc()` | `go/types/resource:489` | Desc 返回 description 的可读文本（处理 string / JSON text component 对象 / 数组） |
 | `ResourceTypeRegistry()` | `go/types/resource:25` | ResourceTypeRegistry 资源类型注册表 |
 | `ResourceType()` | `go/types/resource:30` | ResourceType 一种受支持的资源类型定义 |
 | `ModRequirement()` | `go/types/resource:63` | ModRequirement mod 依赖声明（ADR-110）：   - JarKeywords：文件名关键词匹配（如 "mmdskin" 匹配 mmdskin-1.0.jar） |
 | `Variant()` | `go/types/resource:72` | Variant 格式变体声明（ADR-111：variants 解耦）： 同一资源类型内不同格式变体的预览器路由。 |
-| `NestedPattern()` | `go/types/resource:92` | NestedPattern 嵌套模型模式配置（ADR-XXX）： 支持任意深度的嵌套路径检测，用于识别多层嵌套的模型结构。 |
-| `ZipEntryMatch()` | `go/types/resource:109` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
-| `FormatRange()` | `go/types/resource:386` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
-| `PackMeta()` | `go/types/resource:477` | PackMeta 资源包信息（来自 pack.mcmeta） |
-| `LitematicMeta()` | `go/types/resource:495` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
-| `LitematicBlockStat()` | `go/types/resource:512` | LitematicBlockStat 方块类型统计 |
-| `LitematicVoxelData()` | `go/types/resource:518` | LitematicVoxelData 体素渲染数据 |
-| `VoxelGroup()` | `go/types/resource:526` | VoxelGroup 同一颜色的方块组 |
+| `NestedPattern()` | `go/types/resource:93` | NestedPattern 嵌套模型模式配置（ADR-XXX）： 支持任意深度的嵌套路径检测，用于识别多层嵌套的模型结构。 |
+| `ZipEntryMatch()` | `go/types/resource:110` | ZipEntryMatch ZIP 内容特征条目：检测 ZIP 内是否存在命中条目名 |
+| `FormatRange()` | `go/types/resource:387` | FormatRange 资源包 supported_formats 范围（可为 int 或 [int,int]） |
+| `PackMeta()` | `go/types/resource:478` | PackMeta 资源包信息（来自 pack.mcmeta） |
+| `LitematicMeta()` | `go/types/resource:496` | LitematicMeta 投影文件元数据（对应 .litematic 中 Metadata compound） |
+| `LitematicBlockStat()` | `go/types/resource:513` | LitematicBlockStat 方块类型统计 |
+| `LitematicVoxelData()` | `go/types/resource:519` | LitematicVoxelData 体素渲染数据 |
+| `VoxelGroup()` | `go/types/resource:527` | VoxelGroup 同一颜色的方块组 |
 | `StatusToLevel()` | `go/types/types:130` | StatusToLevel 将 ImportLog 的 Status 字符串映射到日志级别。 |
 | `AppError.WithCause()` | `go/types/types:178` | WithCause 附加底层错误，使 errors.Is/As 可以穿透 AppError 判定 errno/哨兵。 |
 | `AppError.Unwrap()` | `go/types/types:184` | Unwrap 暴露底层错误链（ADR-051：配合 WithCause 恢复结构化错误判定能力） |
@@ -1299,17 +1300,17 @@
 | `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:40` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
 | `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:149` | 获取共享解码器（懒创建） |
 | `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:169` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
-| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:74` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
-| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:93` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
-| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:119` | — |
-| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:129` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
-| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:175` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
-| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:180` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
-| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:200` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
-| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:213` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
-| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:219` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
-| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:224` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
-| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:242` | — |
+| `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:73` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
+| `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:92` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
+| `PreviewAdapter()` | `frontend/src/utils/3d/adapters/mount-preview-core:118` | — |
+| `PreviewHandle()` | `frontend/src/utils/3d/adapters/mount-preview-core:128` | 统一预览句柄（D 步 ysm 接入时经此暴露内容层方法） |
+| `invalidatePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:174` | 任意新预览派发时调用，作废在途加载（对齐 invalidateVrmPreview / invalidateLitematicPreview） |
+| `cleanupPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:179` | 清理所有 3D 预览（dispose built + 移除 scene children，保留 renderer/canvas/overlay 存活避免黑屏） |
+| `_resetSingletons()` | `frontend/src/utils/3d/adapters/mount-preview-core:199` | 测试用：重置所有模块级单例状态（不影响生产代码路径） |
+| `switchPreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:212` | 当前会话内切换到另一模型（复用外壳重建内容层，ADR-066 §5.6）；无活跃会话时 no-op |
+| `hasActivePreview()` | `frontend/src/utils/3d/adapters/mount-preview-core:218` | 是否存在活跃 3D 预览会话（多模型同台追加的前置判定，ADR-093 T4） |
+| `Mount3DOptions()` | `frontend/src/utils/3d/adapters/mount-preview-core:223` | mount3D 附加选项（ADR-066 §5.6 3D 内模型切换） |
+| `mount3D()` | `frontend/src/utils/3d/adapters/mount-preview-core:241` | — |
 | `buildPackScene()` | `frontend/src/utils/3d/adapters/pack-model-adapter` | — |
 | `PackDeps()` | `frontend/src/utils/3d/adapters/pack-model-adapter:22` | Go 绑定依赖（薄包装层经 getApp 注入，对齐 vrm/litematic 工厂模式） |
 | `makePackAdapter()` | `frontend/src/utils/3d/adapters/pack-model-adapter:38` | 工厂：适配器持 zipPath（容器路径），buildPath 即 entry path（虚拟文件夹下的文件路径） |
@@ -1554,14 +1555,15 @@
 | `getMaxPixelRatio()` | `frontend/src/utils/3d/render-budget:10` | 读取用户设置的渲染分辨率上限（设置面板 slider 持久化）；缺省 1.5。 |
 | `PREVIEW_FRAME_INTERVAL_MS()` | `frontend/src/utils/3d/render-budget:17` | — |
 | `MAX_FPS_KEY()` | `frontend/src/utils/3d/render-budget:23` | — |
-| `getMaxFps()` | `frontend/src/utils/3d/render-budget:27` | 读取用户设置的帧率上限；缺省 60。返回 fps 数值（0 = 不限制）。 |
-| `getFrameIntervalMs()` | `frontend/src/utils/3d/render-budget:36` | 当前帧间隔（ms）：fps=0（不限制）→ 极小间隔（rAF 每帧都渲染）。 |
-| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:44` | — |
-| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:50` | — |
-| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:55` | — |
-| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:63` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
-| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:77` | — |
-| `shouldRenderAtFps()` | `frontend/src/utils/3d/render-budget:88` | 帧率上限节流版：now 已到/过 nextFrame 才渲染。 |
+| `invalidateMaxFpsCache()` | `frontend/src/utils/3d/render-budget:30` | — |
+| `getMaxFps()` | `frontend/src/utils/3d/render-budget:33` | — |
+| `getFrameIntervalMs()` | `frontend/src/utils/3d/render-budget:44` | 当前帧间隔（ms）：fps=0（不限制）→ 极小间隔（rAF 每帧都渲染）。 |
+| `AdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:52` | — |
+| `previewPixelRatio()` | `frontend/src/utils/3d/render-budget:58` | — |
+| `createAdaptiveRenderBudget()` | `frontend/src/utils/3d/render-budget:63` | — |
+| `sampleAdaptivePixelRatio()` | `frontend/src/utils/3d/render-budget:74` | Returns a new pixel ratio only when sustained frame delivery is too slow. |
+| `shouldRenderPreviewFrame()` | `frontend/src/utils/3d/render-budget:90` | — |
+| `shouldRenderAtFps()` | `frontend/src/utils/3d/render-budget:101` | 帧率上限节流版：now 已到/过 nextFrame 才渲染。 |
 | `addStandardSceneLights()` | `frontend/src/utils/3d/scene-lights:13` | 添加 3D 场景标准主灯（AmbientLight 0xffffff@1.0 + DirectionalLight 0xffffff@2 位于 [10,30,20]）。 |
 | `ScreenshotOpts()` | `frontend/src/utils/3d/screenshot:13` | 截图选项 |
 | `screenshotFromRenderer()` | `frontend/src/utils/3d/screenshot:27` | 从活跃的 renderer/scene/camera 截图，返回 PNG/JPEG base64（无 data: 前缀）。 |

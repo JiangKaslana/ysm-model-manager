@@ -24,11 +24,19 @@ export const MAX_FPS_KEY = "ysm_3d_maxFps";
 const FPS_UNCAPPED = 0; // 0 = 不限制（rAF 原生 ~60fps 或显示器刷新率）
 
 /** 读取用户设置的帧率上限；缺省 60。返回 fps 数值（0 = 不限制）。 */
+// code review P3：getMaxFps 模块级缓存——rAF 热路径每帧调用（60-144fps 下每秒
+// 60-144 次同步 localStorage 读）——设置变更时由 preview-menu 调 invalidateMaxFpsCache
+let _maxFpsCache: number | null = null;
+export function invalidateMaxFpsCache(): void {
+  _maxFpsCache = null;
+}
 export function getMaxFps(): number {
+  if (_maxFpsCache !== null) return _maxFpsCache;
   const v = safeGet(MAX_FPS_KEY);
   if (v === null) return MAX_FPS_DEFAULT;
   const n = Number(v);
   if (!Number.isFinite(n) || n < 0) return MAX_FPS_DEFAULT;
+  _maxFpsCache = n;
   return n;
 }
 
@@ -59,17 +67,22 @@ export function createAdaptiveRenderBudget(
   return { pixelRatio, sampleStart: now, sampleFrames: 0 };
 }
 
-/** Returns a new pixel ratio only when sustained frame delivery is too slow. */
+/** Returns a new pixel ratio only when sustained frame delivery is too slow.
+ *  capIntervalMs = 用户帧率上限的帧间隔（FPS cap——code review P2：30fps 时
+ *  帧间隔 ~33ms > SLOW_FRAME_MS(22ms)，采样器会把用户强制节流误判为慢机器而
+ *  降级到 0.75 地板——阈值为 max(SLOW_FRAME_MS, capInterval) 不降级）。 */
 export function sampleAdaptivePixelRatio(
   budget: AdaptiveRenderBudget,
   now: number,
+  capIntervalMs = 0,
 ): number | null {
   budget.sampleFrames++;
   if (budget.sampleFrames < ADAPTIVE_SAMPLE_FRAMES) return null;
   const averageFrameMs = (now - budget.sampleStart) / budget.sampleFrames;
   budget.sampleStart = now;
   budget.sampleFrames = 0;
-  if (averageFrameMs <= SLOW_FRAME_MS || budget.pixelRatio <= MIN_PIXEL_RATIO) return null;
+  const threshold = Math.max(SLOW_FRAME_MS, capIntervalMs || 0);
+  if (averageFrameMs <= threshold || budget.pixelRatio <= MIN_PIXEL_RATIO) return null;
   budget.pixelRatio = Math.max(MIN_PIXEL_RATIO, budget.pixelRatio - 0.25);
   return budget.pixelRatio;
 }

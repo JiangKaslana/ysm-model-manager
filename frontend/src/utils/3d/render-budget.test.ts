@@ -41,6 +41,24 @@ describe("3D preview render budget", () => {
     expect(getMaxPixelRatio()).toBe(2); // 上边界
   });
 
+  it("sampleAdaptivePixelRatio：FPS cap 帧间隔内不降级（code review P2）", () => {
+    // 30fps cap → 帧间隔 ~33ms > SLOW_FRAME_MS(22ms)——avgFrameMs 33 <= 阈值 33 不降级
+    const budget = createAdaptiveRenderBudget(1.5, 0);
+    let changed: number | null = null;
+    for (let frame = 1; frame <= 30; frame++) {
+      changed = sampleAdaptivePixelRatio(budget, frame * 33, 33);
+    }
+    expect(changed).toBeNull();
+    expect(budget.pixelRatio).toBe(1.5);
+    // 无 cap（interval 0）→ 阈值退回 22ms——33ms 帧间隔仍降级（原行为）
+    const budget2 = createAdaptiveRenderBudget(1.5, 0);
+    let changed2: number | null = null;
+    for (let frame = 1; frame <= 30; frame++) {
+      changed2 = sampleAdaptivePixelRatio(budget2, frame * 33, 0);
+    }
+    expect(changed2).toBe(1.25);
+  });
+
   it("caps rendering near 60fps and pauses while hidden", () => {
     expect(shouldRenderPreviewFrame(8, PREVIEW_FRAME_INTERVAL_MS, false)).toBe(false);
     expect(shouldRenderPreviewFrame(17, PREVIEW_FRAME_INTERVAL_MS, false)).toBe(true);
