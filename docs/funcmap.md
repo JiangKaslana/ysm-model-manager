@@ -2043,7 +2043,7 @@
 | `bindCardEvents()` | `frontend/src/views/app-sidebar/events:30` | — |
 | `resetSelectedEmit()` | `frontend/src/views/app-sidebar/events:162` | 复位去重标记：组件真正卸载（disconnectedCallback）时调用—— 同组件 reload 不复位（去重跨 reload 生效），仅新挂载会话才需重置（P2 复核修复） |
 | `bindFooter()` | `frontend/src/views/app-sidebar/events:195` | — |
-| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:11` | — |
+| `appSidebarStyle()` | `frontend/src/views/app-sidebar/index:12` | — |
 | `MmdVariantGroups()` | `frontend/src/views/app-sidebar/loader:20` | MMD 变体聚合结果 |
 | `loadInstances()` | `frontend/src/views/app-sidebar/loader:36` | 从 Go 加载整合包实例列表，转换为 render 需要的格式（同 rtype 在途请求合并） 去重只服务「读并发」（多组件同时触发 reload），若变异完成的刷新并入变异前发起 |
 | `groupMmdVariants()` | `frontend/src/views/app-sidebar/loader:166` | 对 MMD 类型，按父文件夹聚合 .pmx 变体文件。 |

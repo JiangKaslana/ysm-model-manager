@@ -67,8 +67,7 @@ CSS 1,419 行 / HTML 182 行），前端 + 后端 + 工具脚本三侧均有明�
 **最大单笔债务 `app_install.go` 已还债**：原 1,315 行、50+ 方法（含 import / relink / sync 系列）已下沉至 `go/installer/` 与 `app_install_instance.go`（537 行，对象化、独立可测），`app_install.go` 现为 10 行薄壳。
 剩余重心转向 `app_scan.go`（691 行，含 930 行单测）等文件的进一步下沉。
 
-`DownloadQueue ↔ App` 存在对象级循环引用（`NewDownloadQueue(a)` 持有 `*App`），
-导致 `DownloadQueue` 无法脱离 `App` 独立测试（**P1 待办，详见 ADR-002 §4 路线图**）。
+`DownloadQueue ↔ App` 循环引用**已打破**：`DownloadQueue` 不再持有 `*App`，改为构造时注入 `downloadFn / emitFn / logFn` 三个回调（`NewDownloadQueue(...)` 签名见 `app_download.go:51`），`App` 单向持有 `queue *DownloadQueue`（`app.go:34`）。`internal/app/app_download_test.go` 已有 3 处 `NewDownloadQueue(...)` 独立单测，`DownloadQueue` 已能脱离 `App` 测（**P1 已完成**）。
 
 ### 3.2 前端：`site-view.js` 是最大单点
 
@@ -109,7 +108,7 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 | **P0** | `site-view.js` 拆分（1,268 → ≤400 行/文件） | 唯一 RED 级别前端大文件，违反 AGENTS.md §五.3 拆分规范 |
 | **P0** | 清理 25 个一次性脚本 → 归档至 `scripts/_archive/` | AI 代理误导源，`safe-edit-service.py` 半成品应删除 |
 | **P1** | ~~`app_install.go` 逻辑下沉至 `go/installer/`~~ **✅ 已完成** | 原 1,315 行债务已还：`app_install.go` 瘦身为 10 行薄壳，逻辑迁至 `app_install_instance.go`（537 行）。剩余下沉重心转 `app_scan.go` 等 |
-| **P1** | 打破 `DownloadQueue ↔ App` 循环引用 | 改为 callback 模式，解锁独立测试 |
+| **P1** | ~~打破 `DownloadQueue ↔ App` 循环引用~~ **✅ 已完成** | 已改 callback 注入模式（`downloadFn/emitFn/logFn`），`app_download_test.go` 独立单测就位，解锁独立测试 |
 | **P2** | 为 `installer` / `sync` / `download` 补单元测试 | 重构前必须建立安全网 |
 | **P2** | 修复 `line-counter.py` 的 `package_lines()` bug | 当前统计文件数而非行数 |
 | **P3** | 审视 AGENTS.md 治理规则，删除"创伤反应"式规则 | 给新项目留呼吸空间 |
