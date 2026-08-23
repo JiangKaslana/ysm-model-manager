@@ -14,7 +14,7 @@
 import { getApp } from "../../backend/app.ts";
 import { RESOURCE_TYPE_LABELS, resolvePreviewKey, resolvePreviewKeyToRtype, getPreviewableTypeTabs } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
-import { switchPreview, hasActivePreview } from "../../utils/3d/adapters/mount-preview-core.ts";
+import { switchPreview, hasActivePreview, cleanupPreview } from "../../utils/3d/adapters/mount-preview-core.ts";
 
 /** 跨类型换角色注册表：各 createXxx3D 模块加载时注册，路由侧不反向 import 包装器（破循环） */
 const _openers: Record<string, (path: string, siblings?: string[]) => Promise<void>> = {};
@@ -56,6 +56,13 @@ export interface OpenModel3DOptions {
 export async function openModel3DFullscreen(path: string, options?: OpenModel3DOptions): Promise<void> {
   if (!path) return;
   const siblings = options?.siblings;
+  // 方案 A：cooperate=false 且有活跃会话时，先清理旧的活跃全屏层（释放旧内容层 +
+  // 复位注册表 + 复原单例），再建新模型——把本函数注释「cooperate=false 会先清理旧的
+  // 活跃全屏层」从名义变实际；对 ysm/mmd/vrm/litematic 所有类型的「二次点击资源列表」
+  // 统一生效，不影响 cooperate=true 的 keepInScene 追加语义，也不影响会话内 switchTo 切换。
+  if (!options?.cooperate && hasActivePreview()) {
+    cleanupPreview();
+  }
   if (options?.cooperate && hasActivePreview()) {
     await switchPreview(path, { keepInScene: true });
     return;

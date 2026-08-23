@@ -127,7 +127,7 @@ export function computeBoneLocalPos(
 - `mount3D(adapter, path, opts?)` — 会话外壳主入口（单实例 renderer/scene/camera/controls/rAF）
 - `switchPreview(path, { keepInScene? })` — 会话内切换 / 同台追加（ADR-066 §5.6；keep 追加即多模型同框）
 - `cleanupPreview()` / `invalidatePreview()` — 清理与在途作废竞态守卫
-- `preview-library.ts` `openModel3DFullscreen(path, { cooperate? })` — 跨类型统一路由入口（ADR-093 T4）
+- `preview-library.ts` `openModel3DFullscreen(path, { cooperate? })` — 跨类型统一路由入口（ADR-093 T4）；**方案 A（2026-08-24）**：`cooperate=false` 且有活跃会话时先 `cleanupPreview()` 清理旧活跃全屏层（释放旧内容层 + 复位注册表 + 复原单例），再建新模型——把本函数注释「cooperate=false 会先清理旧的活跃全屏层」从名义变实际；对 ysm/mmd/vrm/litematic 所有类型的「二次点击资源列表」统一生效，不影响 `cooperate=true` 的 keepInScene 追加语义，也不影响会话内 `switchTo` 切换。契约测试见 `preview-library-replace.test.ts`
 - 截图：`utils/3d/screenshot.ts` 纯函数（接收 renderer+scene+camera）+ `screenshot-renderer.ts` 离屏多角度
 
 `model3d-loader.ts`：
