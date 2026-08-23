@@ -280,6 +280,10 @@ export const autoSidebar = [
         "link": "/releases/v1.13.0"
       },
       {
+        "text": "v1.13.1 — 3D 求值器落地 + 类型判定归 Go + 多角色/多蓝图同框",
+        "link": "/releases/v1.13.1"
+      },
+      {
         "text": "v1.2.0 — 开发者对比（技术细节）",
         "link": "/releases/v1.2.0-compare"
       },
