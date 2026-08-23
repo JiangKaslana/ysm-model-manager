@@ -1855,7 +1855,7 @@
 | `initTheme()` | `frontend/src/views/app-content/settings/theme:24` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
 | `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:12` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
 | `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:52` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
-| `initWorkerPrefs()` | `frontend/src/views/app-content/settings/worker-prefs:44` | 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 |
+| `initWorkerPrefs()` | `frontend/src/views/app-content/settings/worker-prefs:35` | 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:38` | 本地创作者（绑定 + 运行时附加字段） |
