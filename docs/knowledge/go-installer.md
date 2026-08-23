@@ -43,6 +43,7 @@ invariant_anchors:
 ## 与其他子系统关系
 
 - 被 `internal/app/app_install.go`（安装/全局安装/覆盖安装）与 `internal/app/resource_bindings.go`（资源类型推送）调用
+- `internal/app/app_install_import.go:InstallModelTo`（右键「推送到整合包」入口）**已按 `DetectResourceType(src)` 路由 `GetRepoRoot(rtype)` 作为 `filesRoot`**（2026-08-23 修复：此前硬编码 `a.ysmRoot()`，导致非 YSM 单文件在 `installer.Install` 的 `IsInside` 守卫被拦、永远进不了硬链接分支）。YSM 走 `GetRepoRoot("ysm")` 与 `a.ysmRoot()` 结果一致，行为零回归；非 YSM（vrm/vmd/nbt/zip…）首次能过守卫进入链接分支。
 - 被 [go_sync](./go-sync.md) 的 `sync_push.go`（推送）与 `sync_relink.go`（重链接）调用——同步差异算出来后由本包执行落地
 - 依赖 [go_paths](./go-paths.md)（`ContainsMinecraftMarker` / `IsInside`）、[go_types](./go-types.md)（`AppError` / `IsSupportedExt` / `AllExts`）
 - 与 [go_download](./go-download.md) **无直接调用关系**：下载产物先入仓库，再由上层触发安装
