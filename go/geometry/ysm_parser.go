@@ -50,9 +50,11 @@ func texBasenameNoExt(path string) string {
 	if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
 		tn = tn[idx+1:]
 	}
-	tn = strings.TrimSuffix(tn, ".png")
-	tn = strings.TrimSuffix(tn, ".jpg")
-	return strings.ToLower(tn)
+	// code review P2（conf 0.85→核实成立）：顺序必须先 ToLower 再 TrimSuffix——
+	// 旧内联代码（archive.go 旧 L342/791）即此序；反序时大写扩展名（TEX.PNG）
+	// 去不掉，texOrder 去重与 texIdxMap 查找失配，texSlot 静默错绑
+	tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
+	return tn
 }
 
 // extractTexNameRaw 从纹理 RawMessage 提取原文路径（{uv} 对象或裸字符串），不做任何加工。
