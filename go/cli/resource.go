@@ -335,10 +335,13 @@ func runResourceTypes(ctx *CmdContext) error {
 	return nil
 }
 
-// truncate 截断字符串到指定字节宽（超长加省略号），避免表格列挤压
+// truncate 截断字符串到指定显示宽（按 rune 计数，超长加省略号），避免表格列挤压。
+// 不能按字节切片——CJK 组名/预览名是常态（如 "模型" 6 字节 2 rune），字节截断会
+// 把 rune 切半输出非法 UTF-8（code review P3）。
 func truncate(s string, width int) string {
-	if len(s) <= width {
+	r := []rune(s)
+	if len(r) <= width {
 		return s
 	}
-	return s[:width-1] + "…"
+	return string(r[:width-1]) + "…"
 }

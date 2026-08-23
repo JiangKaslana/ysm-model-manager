@@ -107,16 +107,14 @@ export async function resolveMmdZipConfig(
  *   port     — 包装后的 MmdDataPort（传给 buildMmdScene）
  *   rootPath — 虚拟根路径（如 "/repo/miku.zip!/"）
  *             buildMmdScene 内部 dirPath 计算会自动以此为基准
- *   modelUrl — 模型 blob URL（直接传给 MMDLoader，不经过 port）
+ * （模型本体 blob 由 buildMmdScene 自行构造并纳入 blobUrls 清理，
+ *   此处不再创建 modelUrl——未消费的 blob URL 会随每次 zip 预览泄漏，code review P2）
  */
 export function makeZipOverlayPort(
   inner: MmdDataPort,
   config: MmdZipConfig,
-): { port: MmdDataPort; rootPath: string; modelUrl: string } {
+): { port: MmdDataPort; rootPath: string } {
   const ROOT = config.zipPath + "!/";
-  const modelUrl = URL.createObjectURL(
-    new Blob([bytesToArrayBuffer(config.modelBytes)]),
-  );
 
   const overlay: MmdDataPort = {
     // ---- readFileBytes：虚拟路径 → zip entry ----
@@ -190,27 +188,26 @@ export function makeZipOverlayPort(
     getCachedTexture: inner.getCachedTexture,
   };
 
-  return { port: overlay, rootPath: ROOT, modelUrl };
+  return { port: overlay, rootPath: ROOT };
 }
 
 /**
  * 构造完整的 zip 包装流程：
- *   检测 zip → 解析 zip → 创建 overlay → 返回 { port, rootPath, modelUrl }
+ *   检测 zip → 解析 zip → 创建 overlay → 返回 { port, rootPath }
  * 调用方只需：
- *   const { port, rootPath, modelUrl } = await prepareMmdZipInput(path, port);
+ *   const { port, rootPath } = await prepareMmdZipInput(path, port);
  *   const scene = await buildMmdScene(ctx, rootPath, port, panels);
- * 然后用 modelUrl 替代原模型 blob URL 即可。
+ * （模型本体由 buildMmdScene 从 modelBytes 自建 blob URL，无需此处生成）
  */
 export async function prepareMmdZipInput(
   path: string,
   port: MmdDataPort,
-): Promise<{ port: MmdDataPort; rootPath: string; modelUrl: string; modelBytes: Uint8Array; modelBase: string; modelEntry: string }> {
+): Promise<{ port: MmdDataPort; rootPath: string; modelBytes: Uint8Array; modelBase: string; modelEntry: string }> {
   const config = await resolveMmdZipConfig(path, port);
-  const { port: overlay, rootPath, modelUrl } = makeZipOverlayPort(port, config);
+  const { port: overlay, rootPath } = makeZipOverlayPort(port, config);
   return {
     port: overlay,
     rootPath,
-    modelUrl,
     modelBytes: config.modelBytes,
     modelBase: config.modelBase,
     modelEntry: config.modelEntry,

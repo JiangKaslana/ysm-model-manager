@@ -256,29 +256,6 @@ export async function buildMmdScene(
   const blobUrlToRel = new Map<string, string>();
   // blob URL → hash 映射（后台 KTX2 编码用）
   const blobUrlToHash = new Map<string, string>();
-  // ---- 纹理处理辅助：将字节 → blob URL → 注册到 texMap ----
-  function registerTextureBlob(rel: string, bytes: Uint8Array): void {
-    const lower = rel.toLowerCase().replace(/\\/g, "/");
-    const baseName = lower.split("/").pop() || "";
-    // 假 TGA 检测
-    if (lower.endsWith(".tga") && !isLikelyTga(bytes)) return;
-    const blob = new Blob([bytesToArrayBuffer(bytes)]);
-    const url = URL.createObjectURL(blob);
-    blobUrls.push(url);
-    // Worker 解码任务（TGA 跳过）
-    if (!lower.endsWith(".tga")) {
-      const ext = lower.split(".").pop() || "";
-      const mimeMap: Record<string, string> = {
-        png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
-        bmp: "image/bmp", gif: "image/gif", webp: "image/webp",
-      };
-      const mime = mimeMap[ext] || "image/png";
-      decodeTasks.push({ relPath: rel || baseName, bytes: bytesToArrayBuffer(bytes), mimeType: mime });
-    }
-    texMap.set(rel, url);
-    texMap.set(baseName, url);
-    blobUrlToRel.set(url, rel);
-  }
 
   // ---- 文件清单：ListAllFilePaths 递归列全部文件（磁盘/zip 统一走此路径）----
   try {
