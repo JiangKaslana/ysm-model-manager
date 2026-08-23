@@ -504,6 +504,29 @@ func TestResolveInstDirTarget_MaidModelStandard(t *testing.T) {
 	}
 }
 
+// TestResolveInstDirTarget_MmdSubtype_3dSkinPrefix 防回归：ADR-094 位置路由要求
+// MMD 子类型（SceneModel 等）实例目录必须带 3d-skin/ 前缀，否则会在版本根直拼
+// 裸子目录名（如 versions/x/SceneModel）导致目录不存在报错。
+func TestResolveInstDirTarget_MmdSubtype_3dSkinPrefix(t *testing.T) {
+	for _, id := range []string{"SceneModel", "CustomMorph", "mmd-shader", "fbx", "CustomAnim"} {
+		if types.RegistryType(id) == nil {
+			t.Skipf("注册表暂无 %s 条目，跳过", id)
+		}
+		rt := types.RegistryType(id)
+		// 位置路由约定：MMD 组 instanceDir 必须是 3d-skin 整树根或其子目录（3d-skin/<子名>）。
+		// CustomAnim/StageAnim/DefaultAnim 等壳类型合法值为 "3d-skin" 本身；
+		// SceneModel/CustomMorph/mmd-shader/fbx 必须是 "3d-skin/<子名>"。
+		if rt.InstanceDir != "3d-skin" && !strings.HasPrefix(rt.InstanceDir, "3d-skin/") {
+			t.Errorf("%s instanceDir = %q, 期望为 3d-skin 或 3d-skin/ 前缀（位置路由）", id, rt.InstanceDir)
+		}
+		instDir := t.TempDir()
+		want := filepath.Join(instDir, rt.InstanceDir)
+		if got := resolveInstDirTarget(instDir, id); got != want {
+			t.Errorf("%s 拼接 = %q, 期望 %q", id, got, want)
+		}
+	}
+}
+
 // ===== SearchModels 并发优化测试 =====
 
 // geoJSON 创建可解析的 Bedrock 几何 JSON
