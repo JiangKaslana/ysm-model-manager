@@ -34,6 +34,7 @@ invariant_anchors:
 - `OpenZipPath(path)` / `OpenZipBytes(data, size)` — zip 容器的路径/内存双入口（内存版供 avatar/geometry 已持有 `[]byte` 的场景，避免多一次 syscall）
 - `Open7zPath(path)` / `Open7zBytes(data, size)` — 7z 容器双入口（`bodgit/sevenzip` 只读库，无 Writer）
 - `OpenDir(root)` — 目录容器（`filepath.WalkDir` 收集相对路径条目、正斜杠名），供已解压资源包/光影包分支迁移
+- `ZipMatchesEntries(path, match func(string) bool) bool` — 打开 zip 枚举条目名、任一命中 `match` 即 true；非 zip 路径 / 打开失败（含**损坏 zip**）一律返回 false。消费方：`types.IsTypeModelFile` 对 `zipentry` 检测器类型做 `.zip` 内含指纹校验（581c3ec8），使同步推送/拉取不再把纯打包物/坏包当模型搬运
 - `Entry` 接口方法：`Name()`（正斜杠名）、`IsDir()`、`UncompressedSize64()`（zip/7z 原值；目录版取 FileInfo.Size）、`Open() (io.ReadCloser, error)`
 
 ## 与其他子系统关系
