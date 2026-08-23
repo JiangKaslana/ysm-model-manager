@@ -57,6 +57,7 @@ vi.mock("../../backend/app.ts", () => ({
     MoveToRecycle: MoveToRecycleMock,
     RemoveDir: RemoveDirMock,
     ScanModelEntries: ScanModelEntriesMock,
+    ScanModelEntriesFiltered: ScanModelEntriesMock,
     RenameFile: RenameFileMock,
     ClearScanCache: ClearScanCacheMock,
     GetRepoRoot: vi.fn().mockResolvedValue("/repo"),
