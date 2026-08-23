@@ -22,22 +22,24 @@ func TestRelKeyDirLevel_Basic(t *testing.T) {
 		name     string
 		root     string
 		path     string
+		isDir    bool
 		expected string
 	}{
-		{"root-level file", "/repo", "/repo/pack.zip", "pack"},
-		{"nested file", "/repo", "/repo/vendor/pack.zip", "vendor/pack"},
-		{"deeply nested file", "/repo", "/repo/a/b/c/pack.zip", "a/b/c/pack"},
-		{"dir-level folder", "/repo", "/repo/EntityPlayer/ModelA", "entityplayer/modela"},
-		{"nested dir-level folder", "/repo", "/repo/category/sub/ModelA", "category/sub/modela"},
-		{"disable suffix stripped", "/repo", "/repo/pack.zip.disabled", "pack"},
-		{"ban suffix stripped", "/repo", "/repo/pack.zip.ban", "pack"},
-		{"json extension", "/repo", "/repo/model.ysm.json", "model.ysm"},
+		{"root-level file", "/repo", "/repo/pack.zip", false, "pack"},
+		{"nested file", "/repo", "/repo/vendor/pack.zip", false, "vendor/pack"},
+		{"deeply nested file", "/repo", "/repo/a/b/c/pack.zip", false, "a/b/c/pack"},
+		// code review P3：目录键带尾随 "/"（与兄弟同名平铺文件区分——防 map 覆盖）
+		{"dir-level folder", "/repo", "/repo/EntityPlayer/ModelA", true, "entityplayer/modela/"},
+		{"nested dir-level folder", "/repo", "/repo/category/sub/ModelA", true, "category/sub/modela/"},
+		{"disable suffix stripped", "/repo", "/repo/pack.zip.disabled", false, "pack"},
+		{"ban suffix stripped", "/repo", "/repo/pack.zip.ban", false, "pack"},
+		{"json extension", "/repo", "/repo/model.ysm.json", false, "model.ysm"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := relKeyDirLevel(tt.root, tt.path)
+			got := relKeyDirLevel(tt.root, tt.path, tt.isDir)
 			if got != tt.expected {
-				t.Errorf("relKeyDirLevel(%q, %q) = %q, want %q", tt.root, tt.path, got, tt.expected)
+				t.Errorf("relKeyDirLevel(%q, %q, %v) = %q, want %q", tt.root, tt.path, tt.isDir, got, tt.expected)
 			}
 		})
 	}
@@ -45,12 +47,12 @@ func TestRelKeyDirLevel_Basic(t *testing.T) {
 
 func TestRelKeyDirLevel_EdgeCases(t *testing.T) {
 	// 路径不在 root 下 → 返回带 ".." 的路径（filepath.Rel 行为）
-	got := relKeyDirLevel("/repo", "/other/file.zip")
+	got := relKeyDirLevel("/repo", "/other/file.zip", false)
 	if got == "" || !strings.HasPrefix(got, "..") {
 		t.Errorf("越界路径应返回以 .. 开头的路径，got %q", got)
 	}
 	// 根路径自身 → 返回空（无扩展名可剥离，且 filepath.Rel 返回 "."）
-	if got := relKeyDirLevel("/repo", "/repo"); got != "" {
+	if got := relKeyDirLevel("/repo", "/repo", false); got != "" {
 		t.Errorf("根路径自身应返回空，got %q", got)
 	}
 }

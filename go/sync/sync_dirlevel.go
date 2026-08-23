@@ -192,7 +192,7 @@ func checkEntryFiles(path string, entryFiles []string) bool {
 // 身份相同；扩展名不是模型身份的一部分）。
 // 多层物理路径支持：返回的 key 包含完整相对路径层级，如 "vendor/character/pack"
 // 而非扁平化的 "pack"。
-func relKeyDirLevel(root, path string) string {
+func relKeyDirLevel(root, path string, isDir bool) string {
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
 		return ""
@@ -203,6 +203,12 @@ func relKeyDirLevel(root, path string) string {
 	// 剥离扩展名——模型身份不以扩展名区分
 	if ext := filepath.Ext(rel); ext != "" {
 		rel = strings.TrimSuffix(rel, ext)
+	}
+	// code review P3：目录键加尾随 "/"——与兄弟平铺文件（同名剥扩展名）区分——
+	// 文件"嵌套1/动力臂.ysm"与目录"嵌套1/动力臂/"不再同键（map last-write-wins
+	// 曾让文件覆盖目录——模型包静默丢失）
+	if isDir {
+		rel += "/"
 	}
 	return rel
 }
@@ -232,7 +238,7 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 			if !info.IsDir() {
 				// 平铺模型文件：在任意深度收集（不再限定 rootDir 顶层）
 				if types.IsTypeModelFile(path, rtype) {
-					if key := relKeyDirLevel(rootDir, path); key != "" {
+					if key := relKeyDirLevel(rootDir, path, false); key != "" {
 						entries[key] = path
 					}
 				}
@@ -250,11 +256,17 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 				// 容器目录混入直接平铺模型文件（.ysm/.zip）也会被 isDirTypeModelFolder 判真，
 				// 但若它同时含子模型文件夹，则是「容器」而非「叶子模型夹」——整体收编 SkipDir
 				// 会吞掉子夹层级（如 嵌套1/ 内含平铺 .ysm + 01_taisho_maid/ + 嵌套2/ 深层）。
-				// 此时下钻保留各子夹层级，让 nestDirLevelTree 重建容器；自身不作为单元。
+				// 此时下钻保留各子夹层级，让 nestDirLevelTree 重建容器。
 				if containsModelSubfolder(path, rtype) {
+					// code review P3：容器下钻时也注册自身键（目录 marker）——与对侧同名
+					// 叶子目录（仅平铺文件——pre-fix 安装）键一致，避免键集不相交产生
+					// 幻影 Missing+Extra（内容相同却显示分歧）
+					if key := relKeyDirLevel(rootDir, path, true); key != "" {
+						entries[key] = path
+					}
 					return nil
 				}
-				if key := relKeyDirLevel(rootDir, path); key != "" {
+				if key := relKeyDirLevel(rootDir, path, true); key != "" {
 					entries[key] = path
 				}
 				return filepath.SkipDir

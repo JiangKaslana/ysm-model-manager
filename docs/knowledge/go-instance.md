@@ -45,6 +45,7 @@ invariant_anchors:
 - **文件夹图标 📁，扁平文件才用类型图标**（💎）；`isDirEntry` 时 icon 默认 `📁`，disabled/legacy 各自覆盖 ⛔/🔗，diverged 聚合夹用 🗂️
 - **missing 夹展开显仓库侧预览**：`buildChildrenForDir` 不再要求实例侧存在——仓库是绝对权威源，missing（仓库有整合包无）夹从仓库侧列内部文件清单（全标 missing）供预览待推内容
 - **missing/optional 夹保持自身状态，仅 synced 夹提升 diverged**：整体缺失/整体多余不降级成「部分差异」；`aggregateStatus` 保留 optional 语义（纯实例独有容器 → optional 可拉取，非误归 diverged）
+- **disabled 归入聚合「中立」而非 hasPush**：禁用项是用户刻意 .ban 的内容，不应驱动容器级 push（防整夹 InstallDir 覆盖 .ban）；含 synced+disabled 无 missing/optional 的容器聚合为 synced、不出现 push。`relOf` 前缀归属带分隔符守卫（`p == basedir || HasPrefix(p, basedir+sep)`），防两根呈前缀嵌套（`D:\repo` vs `D:\repo-instance`）误归属
 - **容器 Path 按聚合状态选源侧**：`dirLevelContainerPath`——optional（可拉取）→ 实例根（pull 源），其余（可推送/同步）→ 全局根（push 源），避免混合夹锁错源侧
 - **同段名叶子/容器冲突防御**：`nestDirLevelTree.insert` 对「同段名先是叶子、又作容器段下钻」用 `__self` 子项收容，防覆盖容器与 nil map 写入 panic
 

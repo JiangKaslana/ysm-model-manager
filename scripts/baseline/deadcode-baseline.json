@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-23T08:11:58.421Z",
+  "generated": "2026-08-23T13:01:32.525Z",
   "knip": [
     "package.json|binaries|wails3",
     "package.json|devDependencies|esbuild",
@@ -49,6 +49,8 @@
     "src/utils/3d/bone-tools.ts|exports|findAncestorBoneId",
     "src/utils/3d/camera-control.ts|file|src/utils/3d/camera-control.ts",
     "src/utils/3d/caps/environment-capability.ts|exports|drawEnvEquirect",
+    "src/utils/3d/caps/ground-surface-spec.ts|exports|TILE_WORLD_SIZE",
+    "src/utils/3d/caps/ground-surface-spec.ts|types|GroundSurfaceAppearanceSpec",
     "src/utils/3d/caps/light-capability.ts|types|AmbientLightParams",
     "src/utils/3d/caps/sky-capability.ts|types|SkyModelType",
     "src/utils/3d/cleanup-helper.ts|exports|safeDisposeRenderer",
@@ -92,6 +94,8 @@
     "src/views/app-preview/ysm-3d.ts|exports|invalidateYsmPreview",
     "src/views/app-preview/ysm-controls.ts|types|CameraControlBridge",
     "src/views/app-preview/ysm-controls.ts|types|YsmModel",
+    "src/views/app-sync-manager/tpl.ts|exports|syncFileRowHTML",
+    "src/views/app-sync-manager/tpl.ts|types|SyncFile",
     "src/workers/stats-protocol.ts|types|StatsWorkerError",
     "src/workers/stats-protocol.ts|types|StatsWorkerProgress",
     "src/workers/stats-protocol.ts|types|StatsWorkerResult"
@@ -171,6 +175,7 @@
     "src/views/app-preview/wasm.ts#src/workers/stats-core.ts",
     "src/views/app-sidebar/app-sidebar.sync.test.ts#src/views/app-sidebar/app-sidebar.sync.test.ts",
     "src/views/app-sidebar/loader.test.ts#src/views/app-sidebar/loader.test.ts",
+    "src/views/app-sync-manager/index.test.ts#src/views/app-sync-manager/index.test.ts",
     "src/views/app-tree/bus-handlers.ts#src/views/app-tree/bus-handlers.ts",
     "src/views/app-tree/row-tpl-list.ts#src/views/app-tree/row-tpl.ts",
     "src/views/app-tree/toolbar-events.test.ts#src/views/app-tree/toolbar-events.test.ts",
