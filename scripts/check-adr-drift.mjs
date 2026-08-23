@@ -107,6 +107,21 @@ function codeAsserts() {
     results.push({ name: 'DownloadQueue 无 *App 字段', ok: false, detail: `读取失败: ${e.message}` });
   }
 
+  // 3. scripts/ 下不应残留 .py 一次性脚本（Python→Node 全量迁移 295ac07e 已清理）
+  const scriptsDir = path.join(ROOT, 'scripts');
+  try {
+    const pyFiles = fs.readdirSync(scriptsDir).filter((f) => f.endsWith('.py'));
+    results.push({
+      name: 'scripts/ 无残留 .py 脚本',
+      ok: pyFiles.length === 0,
+      detail: pyFiles.length === 0
+        ? 'scripts/ 零 .py 文件（Python→Node 迁移已完成）'
+        : `残留 ${pyFiles.length} 个 .py：${pyFiles.slice(0, 5).join(', ')}…（应迁移为 .mjs 或删除）`,
+    });
+  } catch (e) {
+    results.push({ name: 'scripts/ 无残留 .py 脚本', ok: false, detail: `读取失败: ${e.message}` });
+  }
+
   return results;
 }
 

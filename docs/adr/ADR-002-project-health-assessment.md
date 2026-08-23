@@ -54,7 +54,7 @@ CSS 1,419 行 / HTML 182 行），前端 + 后端 + 工具脚本三侧均有明�
 | 循环依赖 | **A-** | 仅 1 处同包内对象级循环（`DownloadQueue ↔ App`） |
 | Binding 层重量 | **B-** | 核心下沉已完成（下载器 P0 / 头像提取 P1 / 哈希对比 P1.5 / 安装 P1 / 扫描 P1）；`app_install.go` 原 1,315 行债务**已还**——现瘦身为 10 行薄壳，逻辑迁至 `app_install_instance.go`（537 行）。`app_scan.go`（691 行）核心已下沉 `go/scanner`，691 行为 Binding 门面方法 + helper，非未还债 |
 | 测试覆盖 | **B** | 契约测试 6/6 全过；Go 核心业务包（installer / sync / download）测试薄弱 |
-| 工具脚本健康度 | **C** | 25 个一次性脚本未清理，1 个半成品（`safe-edit-service.py`，`do_GET` 内 `pass`） |
+| 工具脚本健康度 | **A** | Python→Node 全量迁移已完成（`295ac07e`），25 个一次性 `*.py` 脚本随迁移清理，`safe-edit-service.py` 半成品已删除；当前 78 个 `.mjs` 统一运行时（详见 `scripts/README.md`「已删除」段） |
 
 ---
 
@@ -76,16 +76,15 @@ CSS 1,419 行 / HTML 182 行），前端 + 后端 + 工具脚本三侧均有明�
 按 AGENTS.md §五.3 的拆分规范，至少应拆为：
 `index.js` + `render.js` + `events.js` + `data.js`。
 
-### 3.3 工具脚本：25 个一次性文件是债务
+### 3.3 工具脚本：Python→Node 迁移已完成（原 §3.3 债务已清偿）
 
-38 个 Python 脚本中：
-- 生产级（支持 `--json`）：5 个（`review.py` / `link-checker.py` / `type-consistency.py` / `release-notes-gen.py` / `bug-search.py`）
-- 实用级：9 个
-- 一次性 / 调试：25 个（`check_*.py` 11 个，`fix_*.py` 3 个，`inspect_*.py` 2 个等）
-- 半成品：1 个（`safe-edit-service.py`，`do_GET` 备份逻辑为空的 `pass`）
+> **状态更新（2026-08-23 复核）**：原评估时点（2026-08-18）记录的「25 个一次性 Python 脚本未清理 + `safe-edit-service.py` 半成品」**已于 `295ac07e` 全量迁移清理**，当时 `scripts/README.md` 已同步「已删除」段，仅 ADR-002 滞后。当前 `scripts/` 零 `.py` 文件、78 个 `.mjs` 统一运行时。
 
-25 个一次性脚本对 AI 代理构成误导风险：`inspect_ysm5.py` 已被 `inspect_ysm.py` 合并替代，
-但文件名未改、代码未删，AI 代理可能误用已废弃版本。
+历史快照（评估时点，仅作归档参考，非当前状态）：
+- 当时 38 个 Python 脚本中：生产级 5 个、实用级 9 个、一次性/调试 25 个、半成品 1 个（`safe-edit-service.py`）。
+- 风险点：`inspect_ysm5.py` 曾被 `inspect_ysm.py` 合并替代——该问题随 Python 脚本整体迁移至 `inspect_ysm.mjs` 已根治。
+
+当前治理健康度已由 `check-script-hygiene.mjs` / `check-deadcode-baseline.mjs` 等自动化护栏守护（见 `scripts/README.md` 治理检查段），无需人工清点一次性脚本。
 
 ### 3.4 测试：只有合同测试，没有逻辑测试
 
@@ -106,7 +105,7 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 | 优先级 | 任务 | 理由 |
 |--------|------|------|
 | **P0** | `site-view.js` 拆分（1,268 → ≤400 行/文件） | 唯一 RED 级别前端大文件，违反 AGENTS.md §五.3 拆分规范 |
-| **P0** | 清理 25 个一次性脚本 → 归档至 `scripts/_archive/` | AI 代理误导源，`safe-edit-service.py` 半成品应删除 |
+| **P0** | ~~清理 25 个一次性脚本 → 归档至 `scripts/_archive/`~~ **✅ 已完成** | Python→Node 全量迁移（`295ac07e`）已清理 25 个 `*.py` 一次性脚本 + 删除 `safe-edit-service.py` 半成品；`scripts/README.md`「已删除」段已记，治理由 `check-script-hygiene.mjs` 等护栏守护 |
 | **P1** | ~~`app_install.go` 逻辑下沉至 `go/installer/`~~ **✅ 已完成** | 原 1,315 行债务已还：`app_install.go` 瘦身为 10 行薄壳，逻辑迁至 `app_install_instance.go`（537 行）。`app_scan.go` 核心亦已下沉 `go/scanner`（见 §3.1） |
 | **P1** | ~~打破 `DownloadQueue ↔ App` 循环引用~~ **✅ 已完成** | 已改 callback 注入模式（`downloadFn/emitFn/logFn`），`app_download_test.go` 独立单测就位，解锁独立测试 |
 | **P2** | ~~为 `installer` / `sync` / `download` 补单元测试~~ **✅ 已完成** | 三包单测已就位（installer 4 / sync 9 / download 5 测试文件，全仓 151 个 go 测试文件）；`app_scan_test.go` 950 行 + `go/scanner` 1300 行 |
@@ -130,9 +129,9 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 - `internal/app/app_scan.go` → 核心已下沉 `go/scanner`，Binding 层门面方法保留，非待办
 - `internal/app/app_download.go` → **已完成**打破 `DownloadQueue` 循环引用（回调注入模式）
 - `go/installer/` / `go/sync/` / `go/download/` / `go/scanner/` → 单元测试已建立
-- `scripts/` → 25 个一次性脚本迁移至 `scripts/_archive/`，半成品删除
-- `scripts/line-counter.py` → 修复 `package_lines()` 统计逻辑
-- `docs/architecture/logic-sinking.md` → 需同步更新 P2/P3 任务状态
+- `scripts/` → **已完成** Python→Node 全量迁移（`295ac07e`），25 个一次性 `*.py` 清理 + `safe-edit-service.py` 半成品删除；详见 `scripts/README.md`「已删除」段
+- `scripts/line-counter.py` → **已完成** 迁移为 `line-counter.mjs`（2026-08-03 保真迁移，含 package_lines 行为）
+- `docs/architecture/logic-sinking.md` → 规划项，实际未创建（无文件可改）
 
 ---
 
@@ -140,10 +139,10 @@ Go 端有 17 个 `_test.go`，但核心业务包（`avatar` / `download` / `sync
 
 | 来源 | 命令 | 结果 |
 |------|------|------|
-| 代码量 | `python3 scripts/line-counter.py` | Go 15,153 / JS 22,736 / CSS 1,419 |
-| 大文件 | `line-counter.py` 内建阈值 | 2 RED + 4 YELLOW |
+| 代码量 | `node scripts/line-counter.mjs` | Go 15,153 / JS 22,736 / CSS 1,419（评估时点，随版本漂移） |
+| 大文件 | `line-counter.mjs` 内建阈值 | 2 RED + 4 YELLOW（评估时点） |
 | 编译 | `go build ./go/...` | 干净，exit 0 |
 | 前端构建 | `cd frontend; npx vite build` | 干净，零 error |
-| 契约测试 | `python3 tests/python/*.py` | 6/6 全绿 |
+| 契约测试 | `for f in tests/*.mjs; do node "$f"; done` | 6/6 全绿（评估时点，当前已迁移为 `.mjs` 契约测试） |
 | 架构 | `docs/architecture/architecture.md` + `logic-sinking.md` | ADR 文档 + 源码验证 |
 | 脚本 | `scripts/README.md` + 目录扫描 | 38 个，分类如 §2 表 |
