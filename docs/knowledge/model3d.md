@@ -87,7 +87,7 @@ export function computeBoneLocalPos(
 **渲染循环与交互**：
 - 默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降）
 - **3D 操作键位 / 相机偏好持久化**（localStorage）：键位存 `KeyboardEvent.code` 物理键，相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）
-- **材质为 ysmview 风格**：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true`
+- **材质为 ysmview 风格**：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true`；alpha 模式由 `texture-alpha.ts getTextureAlphaMode` 逐纹理分类并缓存 userData（ADR-118 Phase A：半透明像素占比 ≤0.5% 视为杂点不判 blend——wine_fox 实测错路面 80.9%→35.6%，8 模型 blend→cutout 翻正，18_wedding 真混合保持 blend）
 - **debug 叠加层**（`debug-render.ts`）：`state.debugMode = "normal"|"pivot"|"bone"` 切换，`rebuildDebug(scene, rootGroup, boneGroupMap, spec, state)` 重建叠加层
 - **cleanup**（`cleanup-helper.ts`）：资源释放工具，遍历子对象并调用 `geometry/material/texture` 的 `dispose()`，确保 WebGL 资源完全释放
 

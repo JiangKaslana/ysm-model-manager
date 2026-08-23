@@ -1,6 +1,6 @@
 # ADR-118：面级透明分类：mesh 级 alpha 误判数据与分阶段落地
 
-- **状态**：已采纳（Accepted）——采纳「分阶段路线」，实施时机由纹理竞争排查结论触发
+- **状态**：已采纳（Accepted）——Phase A 已实施（2026-08-23，纹理竞争排查落地后点火）；Phase B 待真混合模型质量问题触发
 - **日期**：2026-08-23
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`scripts/translucency-probe.mjs`; `frontend/src/utils/3d/texture-alpha.ts`; `frontend/src/utils/3d/ysm-object.ts`; upstream/ModernYSM-1.20.1-forge `YSMClientMapper.TranslucencyScanner`
@@ -34,7 +34,7 @@ ModernYSM（upstream vendor）用 **TranslucencyScanner**：加载时逐像素�
 
 | 阶段 | 内容 | 规模 | 触发条件 |
 |------|------|------|----------|
-| **A 快赢版** | `classifyRgba` 加阈值守卫：半透明像素占比 < ~0.5% 判 cutout（杂点免疫） | 十行级 + 测试 | 纹理竞争排查落地后仍复现透明异常；或新模型接入暴露杂点误判 |
+| **A 快赢版** ✅ 已实施 | `classifyRgba` 加阈值守卫：半透明像素占比 < ~0.5% 判 cutout（杂点免疫） | 十行级 + 测试 | 2026-08-23 纹理竞争排查落地后实施，实测见 §5 |
 | **B 完整面级版** | AlphaIndex 移植进前端管线（buildYsmObject / mesh-builder / mesh-baker），按面拆分几何分组路由材质 | 重活，跨渲染核心 | A 后仍有真混合模型渲染质量问题（如 18_wedding 类），或需要面级精度做排序优化 |
 
 配套决策：
@@ -78,3 +78,17 @@ ModernYSM（upstream vendor）用 **TranslucencyScanner**：加载时逐像素�
 | 18_wedding | 93.9% | 含 1219 真 blend 面，是真混合案例——blend 路径有价值但不可全局化 |
 
 方法学：零依赖 Node zlib 解 PNG（colorType 0/2/3/4/6，bitDepth 8，非隔行）；AlphaIndex 复刻 TranslucencyScanner（像素 flags + TILE=8 前缀和网格）；globalMode 与前端 `classifyRgba` 同口径（any-translucent→blend / only-hole→cutout）；boxUvFaces 兼容 box-UV 数组与 per-face uv 对象（负 uv_size 归一化）。扫描 `models/*.json` 的 `bones[].cubes[]`。
+
+## 5. Phase A 落地实测（2026-08-23）
+
+实现：`texture-alpha.ts classifyRgba` 改为统计半透明像素占比，`> BLEND_MIN_RATIO(0.005)` 才判 blend；测试 `texture-alpha.test.ts` 6 用例（含杂点免疫与超阈保持 blend 双向锁定）。
+
+探针新旧口径对比（同 wine_fox 语料）：
+
+| 指标 | 旧口径（任一半透明→blend） | 新口径（阈值 0.5%） |
+|------|------|------|
+| 错路总面数 | 107,825（80.9%） | **47,405（35.6%）** |
+| blend→cutout 翻正模型 | — | 8 个（01_taisho / 08_sta / 13_matured / 14_momo / 15_kluonoa / 19_nine_tailed / 20_survivor / 22_elf） |
+| 真混合模型 | 18_wedding 判 blend（对） | 18_wedding 保持 blend（对） |
+
+剩余 35.6% 为 cutout 全局模型拖 opaque 面白跑 alphaTest——纯性能/纯度问题而非 depthWrite 正确性危害，归 Phase B 面级拆分范畴。

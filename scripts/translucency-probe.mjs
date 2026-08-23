@@ -149,15 +149,18 @@ class AlphaIndex {
   }
 }
 
-/** 纹理全局模式——与前端 classifyRgba 同口径：有半透明→blend；只有全透→cutout */
-function globalMode(png) {
+/** 纹理全局模式——与前端 classifyRgba 同口径：半透明占比超阈→blend；只有全透→cutout */
+function globalMode(png, blendMinRatio = 0) {
   let hasHole = false;
+  let translucent = 0;
   const px = png.rgba;
+  const total = px.length / 4;
   for (let i = 3; i < px.length; i += 4) {
     const a = px[i];
-    if (a > 0 && a < 255) return "blend";
-    if (a === 0) hasHole = true;
+    if (a > 0 && a < 255) translucent++;
+    else if (a === 0) hasHole = true;
   }
+  if (translucent / total > blendMinRatio) return "blend";
   return hasHole ? "cutout" : "opaque";
 }
 
@@ -208,12 +211,14 @@ function analyzeModel(modelDir, modelName) {
   // 加载全部纹理建索引；主纹理 = skin.png 或最大文件
   const texFiles = fs.readdirSync(texDir).filter((f) => f.endsWith(".png"));
   const indexes = new Map();
-  const modes = new Map();
+  const modesOld = new Map();
+  const modesThr = new Map();
   for (const f of texFiles) {
     try {
       const png = decodePng(fs.readFileSync(path.join(texDir, f)));
       indexes.set(f, new AlphaIndex(png));
-      modes.set(f, globalMode(png));
+      modesOld.set(f, globalMode(png));
+      modesThr.set(f, globalMode(png, 0.005));
     } catch (e) {
       console.warn(`  [skip] ${f}: ${e.message}`);
     }
@@ -221,10 +226,12 @@ function analyzeModel(modelDir, modelName) {
   if (!indexes.size) return null;
   const primary = texFiles.includes("skin.png") ? "skin.png" : texFiles[0];
   const idx = indexes.get(primary);
-  const texGlobalMode = modes.get(primary);
+  const texGlobalMode = modesOld.get(primary);
+  const texGlobalModeThr = modesThr.get(primary);
 
   let totalFaces = 0, divergent = 0, blendFaces = 0, cutoutFaces = 0;
   let divArea = 0, totalArea = 0;
+  let divergentThr = 0, divAreaThr = 0;
   const modelFiles = fs.readdirSync(geoDir).filter((f) => f.endsWith(".json"));
 
   for (const mf of modelFiles) {
@@ -247,14 +254,17 @@ function analyzeModel(modelDir, modelName) {
           if (fm === "blend") blendFaces++;
           if (fm === "cutout") cutoutFaces++;
           if (fm !== texGlobalMode) { divergent++; divArea += area; }
+          const gmThr = modesThr.get(primary);
+          if (fm !== gmThr) { divergentThr++; divAreaThr += area; }
         }
       }
     }
   }
-  return { modelName, primary, texGlobalMode,
+  return { modelName, primary, texGlobalMode, texGlobalModeThr,
     totalFaces, divergent, blendFaces, cutoutFaces,
+    divergentThr, divAreaRatioThr: totalArea ? (divAreaThr / totalArea) : 0,
     divAreaRatio: totalArea ? (divArea / totalArea) : 0,
-    mixedTextures: [...modes.entries()].filter(([, m]) => m !== "opaque").map(([n, m]) => `${n}:${m}`) };
+    mixedTextures: [...modesOld.entries()].filter(([, m]) => m !== "opaque").map(([n, m]) => `${n}:${m}`) };
 }
 
 // 入口：每个参数目录递归一层找含 ysm.json 的模型夹
@@ -281,19 +291,25 @@ for (const d of dirs) {
 }
 
 console.log(
-  "模型".padEnd(18) + "全局模式".padEnd(9) +
+  "模型".padEnd(18) + "旧→新模式".padEnd(12) +
   "总面数".padStart(7) + "错路面".padStart(7) + "错路面积%".padStart(9) +
-  "blend面".padStart(8) + "cutout面".padStart(8)
+  "新错路面".padStart(8) + "blend面".padStart(8) + "cutout面".padStart(8)
 );
 for (const r of rows) {
   console.log(
-    r.modelName.slice(0, 16).padEnd(18) + r.texGlobalMode.padEnd(9) +
+    r.modelName.slice(0, 16).padEnd(18) +
+    `${r.texGlobalMode}→${r.texGlobalModeThr}`.padEnd(12) +
     String(r.totalFaces).padStart(7) + String(r.divergent).padStart(7) +
     (r.divAreaRatio * 100).toFixed(1).padStart(8) + "%" +
+    String(r.divergentThr).padStart(8) +
     String(r.blendFaces).padStart(8) + String(r.cutoutFaces).padStart(8)
   );
 }
 const totFaces = rows.reduce((s, r) => s + r.totalFaces, 0);
 const totDiv = rows.reduce((s, r) => s + r.divergent, 0);
-console.log(`\n合计 ${rows.length} 模型 ${totFaces} 面，面级≠全局模式 ${totDiv} 面` +
+const totDivThr = rows.reduce((s, r) => s + r.divergentThr, 0);
+console.log(`\n合计 ${rows.length} 模型 ${totFaces} 面`);
+console.log(`  旧口径（无阈值）错路 ${totDiv} 面` +
   (totFaces ? `（${((totDiv / totFaces) * 100).toFixed(1)}%）` : ""));
+console.log(`  新口径（阈值 0.5%）错路 ${totDivThr} 面` +
+  (totFaces ? `（${((totDivThr / totFaces) * 100).toFixed(1)}%）` : ""));
