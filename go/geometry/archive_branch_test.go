@@ -791,3 +791,67 @@ func TestBuildComponents_ModelTexNameMap(t *testing.T) {
 		}
 	}
 }
+
+// TestTextureCategories_CaseInsensitiveReorder 验证：texOrder 已小写（475/495 行）但
+// pngNames 保留 zip 原始大小写（如 textures/Skin.png）时，TextureCategories 重排比较
+// 必须大小写不敏感——否则大写纹理名匹配失败 → ordered[i] 全空 → 分类静默丢失
+// （code review P2，同函数 958/966 行排序比较器均已 ToLower，此处保持口径一致）。
+func TestTextureCategories_CaseInsensitiveReorder(t *testing.T) {
+	ysm := `{"files":{"player":{"model":["model.geo.json"],"texture":["textures/Skin.png"]}}}`
+	data := testutil.MakeZipBytes(t, map[string]string{
+		"ysm.json":          ysm,
+		"model.geo.json":    validGeoJSON,
+		"textures/Skin.png": "PNG-DATA", // 大写 S：texOrder 会存 skin.png，pngNames 保留 Skin
+	})
+	model, _, _ := ParseFromZip(data, int64(len(data)))
+	if model == nil {
+		t.Fatal("模型不应为 nil")
+	}
+	if len(model.TextureNames) != 1 || model.TextureNames[0] != "Skin" {
+		t.Fatalf("TextureNames = %v, 期望 [Skin]", model.TextureNames)
+	}
+	if len(model.TextureCategories) != 1 {
+		t.Fatalf("TextureCategories 长度 = %d, 期望 1（大写纹理名分类不得丢失）", len(model.TextureCategories))
+	}
+	if model.TextureCategories[0] != "player" {
+		t.Errorf("TextureCategories[0] = %q, 期望 player", model.TextureCategories[0])
+	}
+}
+
+// TestTextureCategories_L0Rebuild 验证：L0（maid_model.json）覆盖 texOrder 时 texCategories
+// 必须同步重建（code review P3）——不重建则仍对应 ysm 派生旧 texOrder：
+// ysm 只声明 1 张纹理（texCategories 长 1），L0 声明 2 张 → 重排第二项 j=1 越界 → 分类丢失。
+func TestTextureCategories_L0Rebuild(t *testing.T) {
+	ysm := `{"files":{"player":{"model":["main.geo.json"],"texture":["textures/Skin.png"]}}}`
+	maid := `{
+		"pack_name": "L0 分类测试",
+		"model": [
+			{"name": "reimu", "model": "models/reimu.geo.json", "texture": "textures/Reimu.png"},
+			{"name": "marisa", "model": "models/marisa.geo.json", "texture": "textures/Marisa.png"}
+		]
+	}`
+	data := testutil.MakeZipBytes(t, map[string]string{
+		"ysm.json":                             ysm,
+		"assets/touhou/maid_model.json":        maid,
+		"assets/touhou/models/reimu.geo.json":  validGeoJSON,
+		"assets/touhou/models/marisa.geo.json": validGeoJSON,
+		"assets/touhou/textures/Reimu.png":     "PNG-DATA",
+		"assets/touhou/textures/Marisa.png":    "PNG-DATA",
+	})
+	model, _, _ := ParseFromZip(data, int64(len(data)))
+	if model == nil {
+		t.Fatal("L0 清单合法时模型不应为 nil")
+	}
+	// L0 生效：texOrder 被 maid_model.json 清单覆盖为 2 项，texCategories 应同步重建为 2 项全 player
+	if len(model.TextureNames) != 2 {
+		t.Fatalf("TextureNames 长度 = %d, 期望 2（L0 清单 2 张纹理）", len(model.TextureNames))
+	}
+	if len(model.TextureCategories) != 2 {
+		t.Fatalf("TextureCategories 长度 = %d, 期望 2（L0 覆盖后须同步重建）", len(model.TextureCategories))
+	}
+	for i, cat := range model.TextureCategories {
+		if cat != "player" {
+			t.Errorf("TextureCategories[%d] = %q, 期望 player（L0 清单纹理全为主模型皮肤）", i, cat)
+		}
+	}
+}

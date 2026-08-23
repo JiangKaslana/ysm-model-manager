@@ -827,6 +827,14 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			pngNames = l0PngNames
 			modelOrder = l0ModelOrder
 			texOrder = l0TexOrder
+			// texCategories 与 texOrder 同序，L0 覆盖后必须同步重建（code review P3）：
+			// 不重建则仍对应 ysm 派生的旧 texOrder，后续重排块（texCategories[j] 按新
+			// texOrder 位置 j 索引）会错位/丢分类。L0 清单（maid_model.json）纹理全部是
+			// 主模型皮肤声明，统一归 "player"（可切换皮肤，skeleton-fill-panel 消费）。
+			texCategories = make([]string, len(l0TexOrder))
+			for i := range texCategories {
+				texCategories[i] = "player"
+			}
 		}
 	}
 
@@ -979,11 +987,14 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 		if len(texCategories) > 0 && len(texOrder) > 0 {
 			ordered := make([]string, len(pngNames))
 			for i, pn := range pngNames {
-				// 在 texOrder 中找到 pngNames[i] 对应的位置，取同位置的 texCategories
+				// 在 texOrder 中找到 pngNames[i] 对应的位置，取同位置的 texCategories。
+				// texOrder 已小写（475/495 行），pngNames 保留 zip 原始大小写——比较须
+				// 大小写不敏感（同函数 958/966 行排序比较器均已 ToLower，此处保持口径一致）。
+				lowPn := strings.ToLower(pn)
 				for j, tn := range texOrder {
 					bn := strings.TrimSuffix(tn, ".png")
 					bn = strings.TrimSuffix(bn, ".jpg")
-					if bn == pn || tn == pn {
+					if bn == lowPn || strings.ToLower(tn) == lowPn {
 						if j < len(texCategories) {
 							ordered[i] = texCategories[j]
 						}
