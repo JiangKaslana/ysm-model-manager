@@ -38,17 +38,17 @@
 | Go·YSM 核心 | 7 | 26 |
 | Go(internal)·应用入口 | 26 | 203 |
 | 前端·根 (app-modules/bus) | 4 | 18 |
-| frontend/backend | 18 | 99 |
+| frontend/backend | 18 | 97 |
 | 前端·核心 | 18 | 36 |
 | 前端·特性 | 17 | 82 |
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 145 | 566 |
-| frontend/views | 117 | 340 |
+| 前端·工具 | 145 | 556 |
+| frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **453** | **1916** |
+| **合计** | **453** | **1897** |
 
 ## Go·头像
 
@@ -863,7 +863,6 @@
 | `extractZip()` | `frontend/src/backend/extract:142` | 解压 ZIP 数据，返回 {entries, metas}。 |
 | `gbkDecodeEntry()` | `frontend/src/backend/extract:178` | 尝试 GBK 解码 fflateKey 的原始字节（当 gpf bit 11 未设时）。 |
 | `detectZipType()` | `frontend/src/backend/extract:196` | detectZipType：扫描 ZIP local file header 文件名段（不解压数据）， 识别资源类型。Go DetectZipType 的 1:1 TS 平移 （g |
-| `STORES()` | `frontend/src/backend/idb:16` | — |
 | `Store()` | `frontend/src/backend/idb:17` | — |
 | `openDB()` | `frontend/src/backend/idb:21` | — |
 | `__resetDBForTest()` | `frontend/src/backend/idb:139` | 仅测试用：重置单例连接 + 降级标志（避免用例间共享状态） |
@@ -917,7 +916,6 @@
 | `scanWebModels()` | `frontend/src/backend/web-fs:254` | — |
 | `readWebFile()` | `frontend/src/backend/web-fs:313` | 读文件（/web/&lt;type&gt;/&lt;rest&gt; → IDB → base64；wasm.ts 解码链零改动复用） 模型组 name 与组内 rel 在 file key 中无缝拼接（ |
 | `scanAllWebModels()` | `frontend/src/backend/web-fs:489` | 扫描全部资源类型的模型（供标签聚合 / 子目录映射等全库操作） |
-| `searchWebModels()` | `frontend/src/backend/web-fs:525` | — |
 | `WebModelStats()` | `frontend/src/backend/web-stats` | — |
 | `STATS_BATCH_LIMIT()` | `frontend/src/backend/web-stats` | — |
 | `onStatsProgress()` | `frontend/src/backend/web-stats:40` | 注册批量统计进度回调（done/total 为该批已处理模型数；传 null 注销） |
@@ -1240,8 +1238,6 @@
 | `FbxMaterialData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:29` | — |
 | `FbxSkeletonData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:45` | — |
 | `FbxMeshData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:56` | — |
-| `FbxNodeData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:65` | 场景节点（非骨骼：Group 或 Mesh；parent = nodes 下标，-1 = 根） |
-| `FbxClipData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:78` | — |
 | `FbxSceneData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:88` | — |
 | `captureTextureName()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:102` | — |
 | `fbxSceneToData()` | `frontend/src/utils/3d/adapters/fbx-scene-to-data:209` | — |
@@ -1253,7 +1249,6 @@
 | `MmdDataPort()` | `frontend/src/utils/3d/adapters/mmd-adapter:60` | MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） |
 | `MmdPanelHooks()` | `frontend/src/utils/3d/adapters/mmd-adapter:170` | 面板填充回调（视图层注入，解除 utils→views 运行时分层违规 R1；缺失时菜单 render 退化为 no-op） |
 | `buildMmdScene()` | `frontend/src/utils/3d/adapters/mmd-adapter:177` | — |
-| `applyVPDToMesh()` | `frontend/src/utils/3d/adapters/mmd-adapter:1077` | Worker 路径下的 VPD 姿势应用： 复刻 applyVPD() 的核心逻辑（坐标转换 + 骨骼变换 + morph 影响）， 但不依赖 MMDLoader 产出的完整 MM |
 | `MmdMenuItemsOpts()` | `frontend/src/utils/3d/adapters/mmd-adapter:1118` | mmdMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `mmdMenuItems()` | `frontend/src/utils/3d/adapters/mmd-adapter:1150` | MMD 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放（+ 条件 bones）。 |
 | `getCustomAnimPath()` | `frontend/src/utils/3d/adapters/mmd-anim-library:12` | 获取 MMD 动作库（CustomAnim）的绝对路径。 |
@@ -1264,14 +1259,11 @@
 | `MAX_KTX2_PIXELS()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:65` | 单纹理像素上限：超过则跳过 KTX2 编码。 |
 | `TextureTooLargeError()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:68` | 超大纹理跳过编码的标记错误（encodeAndCacheTexture 据此记 warn 而非 fail） |
 | `encodeToKTX2Basis()` | `frontend/src/utils/3d/adapters/mmd-ktx2-basis:81` | 将 RGBA ImageData 编码为 KTX2（Basis Universal ETC1S）。 |
-| `TextureTooLargeError()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder` | — |
-| `MAX_KTX2_PIXELS()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder` | — |
 | `cancelPendingEncodings()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:71` | 取消所有待执行的编码（已在执行的不受影响） |
 | `resetEncoderState()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:83` | 重置编码器状态（测试用） |
-| `encodeToKTX2()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:202` | 主线程编码入口：优先走 Worker（mmd-ktx2-worker.ts）避免 WASM 同步编码阻塞 UI； Worker 不可用（测试/受限环境）时降级同步编码。 |
-| `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:232` | 测试用：注入编码实现（默认走本地 WASM） |
-| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:243` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
-| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:293` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
+| `__setEncodeImplForTest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:231` | 测试用：注入编码实现（默认走本地 WASM） |
+| `encodeAndCacheTexture()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:242` | 将单个 PNG 纹理编码为 KTX2 并缓存。 |
+| `scheduleBackgroundEncoding()` | `frontend/src/utils/3d/adapters/mmd-ktx2-encoder:292` | 遍历 mesh 材质，对有 KTX2 缓存需要的纹理进行后台编码。 |
 | `Ktx2TextureLoaderDeps()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:21` | 拦截 loader 依赖注入（装配方提供） |
 | `Ktx2TextureLoader()` | `frontend/src/utils/3d/adapters/mmd-ktx2-texture-loader:61` | — |
 | `Ktx2EncodeRequest()` | `frontend/src/utils/3d/adapters/mmd-ktx2-worker:9` | 主线程 → Worker 的请求 |
@@ -1298,9 +1290,7 @@
 | `TexDecodeConfig()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:15` | 解码器配置 |
 | `DecodedTexture()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:23` | 解码结果条目 |
 | `TextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:40` | 解码管理器：创建 Worker 池、分发任务、收集结果。 |
-| `createTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:48` | 创建纹理解码器（Worker 池） |
 | `getTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:149` | 获取共享解码器（懒创建） |
-| `disposeTextureDecoder()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:157` | 释放共享解码器 |
 | `applyWorkerDecodedTextures()` | `frontend/src/utils/3d/adapters/mmd-texture-decoder:169` | 将 Worker 解码的 ImageBitmap 应用到 MMD 模型的材质纹理： 1. |
 | `PreviewBuildCtx()` | `frontend/src/utils/3d/adapters/mount-preview-core:72` | 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） |
 | `PreviewScene()` | `frontend/src/utils/3d/adapters/mount-preview-core:91` | 适配器返回的内容场景契约（对齐 Model3DHandleX，方法全部可选，便于纯静态渲染） |
@@ -1363,13 +1353,11 @@
 | `VrmBonePanelCtx()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:21` | 骨骼面板上下文：core 外壳注入（extraPanel 标准契约） |
 | `RenderVrmBonePanel()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:31` | 骨骼面板渲染契约：返回清理函数（面板移除时调用） |
 | `makeBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:37` | 通用骨骼面板渲染器（ADR-074 S3：从 VRM 专属抽通用版，喂 BoneTree 而非 VRM）。 |
-| `makeVrmBonePanelRenderer()` | `frontend/src/utils/3d/adapters/vrm-bone-ui:157` | 构造 VRM 骨骼面板渲染器（extraPanel 呑约）。 |
 | `buildVrmBoneNodes()` | `frontend/src/utils/3d/adapters/vrm-bone:20` | 从 vrm.humanoid 提取标准人形骨骼列表（id = HumanoidBoneName 如 "leftUpperArm"）。 |
 | `buildVrmBoneTree()` | `frontend/src/utils/3d/adapters/vrm-bone:52` | 从 vrm.humanoid 直接构建通用骨骼树（buildBoneNodes → buildBoneTree 一步到位） |
 | `YsmAdapterOptions()` | `frontend/src/utils/3d/adapters/ysm-adapter:42` | 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 |
 | `buildYsmScene()` | `frontend/src/utils/3d/adapters/ysm-adapter:102` | 构建 YSM 3D 内容并挂载到统一外壳（shared 模式）。 |
 | `makeYsmAdapter()` | `frontend/src/utils/3d/adapters/ysm-adapter:399` | 工厂：构造统一 PreviewAdapter（shared 模式） |
-| `YsmBonePanelRef()` | `frontend/src/utils/3d/adapters/ysm-adapter:413` | 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） |
 | `YsmMenuItemsOpts()` | `frontend/src/utils/3d/adapters/ysm-adapter:418` | ysmMenuItems 组装依赖：适配器 build 内组装；测试可构造假依赖遍历真实菜单表 |
 | `ysmMenuItems()` | `frontend/src/utils/3d/adapters/ysm-adapter:452` | YSM 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 截图 / 骨骼。 |
 | `b64ToBytes()` | `frontend/src/utils/3d/base64:6` | base64 → Uint8Array（Go []byte 的 base64 序列化） |
@@ -1932,7 +1920,6 @@
 | `invalidateEmptyPreview()` | `frontend/src/views/app-preview/empty-3d:45` | 作废在途空场景加载 |
 | `createFbx3D()` | `frontend/src/views/app-preview/fbx-3d:40` | 打开 FBX 3D 预览（独立资产：模型 + 内嵌动画）；siblings 透传同类型候选（ADR-066 §5.6） |
 | `cleanupFbx3D()` | `frontend/src/views/app-preview/fbx-3d:45` | 清理 FBX 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateFbxPreview()` | `frontend/src/views/app-preview/fbx-3d:50` | 任意新预览派发时调用，作废在途 FBX 加载 |
 | `resolveFbxSiblings()` | `frontend/src/views/app-preview/fbx-siblings:10` | 同类型 FBX 模型候选（GetRepoRoot(fbx) → ScanModelEntries 主文件 Path 列表）；失败返回 []（下拉不渲染） |
 | `BedrockCube()` | `frontend/src/views/app-preview/geometry:6` | Bedrock 方块 |
 | `BedrockSubModel()` | `frontend/src/views/app-preview/geometry:19` | SubModel 子模型条目（Go types/bedrock.go SubModel）。 |
@@ -1941,10 +1928,8 @@
 | `parseBedrockGeometryFromJSON()` | `frontend/src/views/app-preview/geometry:79` | 从 JSON 字符串解析 Bedrock geometry |
 | `appPreviewStyle()` | `frontend/src/views/app-preview/index:9` | — |
 | `createLitematic3D()` | `frontend/src/views/app-preview/litematic-3d:26` | 打开 Litematic/蓝图 体素 3D 预览（voxelFn 由注册表 VOXEL_RPC_BY_EXT 解析）；siblings 提供同类型候选 |
-| `switchLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:44` | 当前 Litematic 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
 | `appendLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:49` | 同台追加 Litematic/蓝图 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4），与 mmd/vrm 对称 |
 | `cleanupVoxel3D()` | `frontend/src/views/app-preview/litematic-3d:54` | 清理体素 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
-| `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-3d:59` | 任意新预览派发时调用，作废在途体素加载 |
 | `invalidateLitematicPreview()` | `frontend/src/views/app-preview/litematic-meta:28` | P2 修复（code_review）：任意新预览派发时推进代际——原 litematicGen 只在 showLitematic 自身递增，litematic A 解析中切到 YS |
 | `showLitematic()` | `frontend/src/views/app-preview/litematic-meta:109` | 显示投影文件详情面板（tab 布局） |
 | `cleanupLitematic3D()` | `frontend/src/views/app-preview/litematic-meta:233` | 组件销毁时清理体素 3D（转发至 litematic-3d，避免 index 静态依赖 Three.js 渲染模块） |
@@ -1952,7 +1937,6 @@
 | `loadModelData()` | `frontend/src/views/app-preview/loader:29` | 加载模型几何数据 + 纹理（优先路径，阻塞渲染） 统一路径：缓存 → WASM 解码（仅 .ysm）→ Go AnalyzeBedrockModel 兜底 作者/头像延迟到 fil |
 | `fillAuthorsAsync()` | `frontend/src/views/app-preview/loader:174` | 异步补全作者/头像信息（不阻塞首帧渲染） 在几何渲染完成后调用，后台补齐作者名 + 头像 URL |
 | `MaidOpenOptions()` | `frontend/src/views/app-preview/maid-3d:38` | — |
-| `createMaid3D()` | `frontend/src/views/app-preview/maid-3d:55` | 打开车万女仆 3D 预览（Bedrock generic 模式）。 |
 | `cleanupMaid3D()` | `frontend/src/views/app-preview/maid-3d:87` | 关闭活跃女仆 3D 预览 |
 | `invalidateMaidPreview()` | `frontend/src/views/app-preview/maid-3d:92` | 作废在途女仆 3D 加载 |
 | `showMaidPreview()` | `frontend/src/views/app-preview/maid-3d:101` | 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。 |
@@ -2026,15 +2010,12 @@
 | `setPrefer3D()` | `frontend/src/views/app-preview/utils:63` | — |
 | `stripYsgpTextHeader()` | `frontend/src/views/app-preview/utils:147` | 剥离 YSGP 文本头部，返回标准二进制格式 |
 | `createVrm3D()` | `frontend/src/views/app-preview/vrm-3d:45` | 打开 VRM 3D 预览（.vrm 直引 three-vrm）；siblings 提供同类型候选以渲染 topBar 切换下拉 |
-| `switchVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:50` | 当前 VRM 会话内切换模型（复用外壳重建内容层，不重建 renderer；ADR-066 §5.6） |
-| `appendVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:55` | 同台追加 VRM 模型：经统一路由主门收口（cooperate → keepInScene 追加，ADR-093 T4） |
 | `cleanupVrm3D()` | `frontend/src/views/app-preview/vrm-3d:60` | 清理 VRM 3D（WebGL renderer + rAF 循环）：组件销毁/再次创建前调用，防 GPU 资源残留 |
 | `invalidateVrmPreview()` | `frontend/src/views/app-preview/vrm-3d:65` | 任意新预览派发时调用，作废在途 VRM 加载 |
 | `VrmMaterialControlBridge()` | `frontend/src/views/app-preview/vrm-controls:15` | 材质控制桥：复用 vrm-materials.ts 纯逻辑层（显隐/透明/详情），DOM 渲染在本文件 |
 | `buildVrmMaterialControls()` | `frontend/src/views/app-preview/vrm-controls:27` | 在 container 渲染 VRM 材质面板：每行 = 显隐开关（👁/🚫）+ 名称 + 透明度滑条。 |
 | `makeVrmPanelRenderer()` | `frontend/src/views/app-preview/vrm-controls:94` | VRM 菜单面板渲染器（声明式菜单 item.render 回调） |
 | `decodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:20` | — |
-| `doDecodeYsmViaWasm()` | `frontend/src/views/app-preview/wasm:92` | 通过前端 WASM 解码 .ysm，返回 { texture, geometry, animations } 不依赖组件实例（无 this 引用），可独立调用 |
 | `YsmOpenOptions()` | `frontend/src/views/app-preview/ysm-3d:42` | — |
 | `createYsm3D()` | `frontend/src/views/app-preview/ysm-3d:55` | 打开 YSM 3D 预览（统一外壳 shared 模式，path 驱动）。 |
 | `cleanupYsm3D()` | `frontend/src/views/app-preview/ysm-3d:88` | 关闭活跃 YSM 3D 预览（WebGL renderer + rAF + overlay 全清） |
