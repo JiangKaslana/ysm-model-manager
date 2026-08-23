@@ -35,7 +35,7 @@ impl Drop for TempRoot {
 }
 
 fn registry() -> &'static str {
-    r#"{"resourceTypes":[{"extensions":[".ysm",".json"],"hashable":true}]}"#
+    r#"{"resourceTypes":[{"id":"ysm","extensions":[".ysm",".json"],"hashable":true}]}"#
 }
 
 #[test]
@@ -48,9 +48,27 @@ fn response_preserves_wails_model_entry_contract() {
     assert_eq!(entry["Name"], "hero.ysm");
     assert_eq!(entry["Size"], 4);
     assert_eq!(entry["Ext"], ".ysm");
+    assert!(entry["ModTime"].as_i64().unwrap() > 0);
     assert_eq!(entry["HasTags"], false);
     assert_eq!(entry["Hash"].as_str().unwrap().len(), 64);
     assert!(entry.get("subdir").is_none());
+}
+
+#[test]
+fn response_uses_parent_directory_name_for_ysm_json() {
+    let root = TempRoot::new();
+    let model_dir = root.0.join("official-winefox");
+    fs::create_dir_all(&model_dir).unwrap();
+    fs::write(model_dir.join("ysm.json"), b"{}").unwrap();
+
+    let value = serde_json::to_value(scan_json(root.0.to_str().unwrap(), registry())).unwrap();
+    let entries = value["entries"].as_array().unwrap();
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0]["Name"], "official-winefox");
+    assert_eq!(entries[0]["Size"], 2);
+    assert!(entries[0]["ModTime"].as_i64().unwrap() > 0);
+    assert_eq!(entries[0]["Hash"].as_str().unwrap().len(), 64);
 }
 
 #[test]

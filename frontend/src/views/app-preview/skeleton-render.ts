@@ -164,7 +164,11 @@ export function buildBoneExportRow(
  * 截图保存内部逻辑（供 3D overlay 使用）
  */
 export async function saveScreenshot(
-  model: BedrockGeometry & { textures?: string[] | null; _modelPath?: string },
+  model: BedrockGeometry & {
+    textures?: string[] | null;
+    componentTextures?: Record<string, string[]>;
+    _modelPath?: string;
+  },
   key: string,
   setShotState: (icon: string) => void,
   screenshotFn?: () => Promise<string | null>,
@@ -183,7 +187,10 @@ export async function saveScreenshot(
         model.textures && model.textures.length > 1
           ? model.textures
           : [model.texture || ""];
-      const results = await renderMultiAngle(model._modelPath || "", texUrls, { size: 512 });
+      const results = await renderMultiAngle(model._modelPath || "", texUrls, {
+        size: 512,
+        componentTextures: model.componentTextures,
+      });
       b64 = results?.[0]?.base64 ?? null;
     }
     if (!b64) {
@@ -200,7 +207,10 @@ export async function saveScreenshot(
       model.textures && model.textures.length > 1
         ? model.textures
         : [model.texture || ""];
-    const results = await renderMultiAngle(model._modelPath || "", texUrls, { size: 512 });
+    const results = await renderMultiAngle(model._modelPath || "", texUrls, {
+      size: 512,
+      componentTextures: model.componentTextures,
+    });
     if (!results) return;
     const hit = results.find((r) => r.name === key);
     if (hit) await SaveScreenshotFile(base + "_" + key + ".png", hit.base64);

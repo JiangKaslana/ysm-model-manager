@@ -67,18 +67,25 @@ export function buildYsmObject(
   // 网格合并 + 挂载（原 renderModel3D 内联逻辑；合并结果本地化，不写回 spec）
   for (const [mi, mg] of (spec.models || []).entries()) {
     if (!mg.meshGroups?.length) continue;
+    const compName = mg.name || mg.id || `comp_${mi}`;
+    const mappedComponentTextures = componentTexMap.get(compName);
+    const usesComponentTextures = Boolean(mappedComponentTextures?.length);
+    const compTexArr = usesComponentTextures ? mappedComponentTextures! : texArr;
     const batchable: SpecMeshGroup3D[] = [];
     const translucent: SpecMeshGroup3D[] = [];
     for (const mesh of mg.meshGroups) {
-      const textureIndex = multiModel ? (mesh.texIdx ?? 0) : resolvedTexIdx;
-      const texture = texArr[textureIndex] ?? null;
+      // Per-component textures use their own local slot space (currently slot 0),
+      // exactly like addMeshToBoneGroup below. Looking in the global array here
+      // can classify a translucent component as opaque and bake its cubes together.
+      const textureIndex = usesComponentTextures
+        ? 0
+        : multiModel ? (mesh.texIdx ?? 0) : resolvedTexIdx;
+      const texture = compTexArr[textureIndex] ?? null;
       if (texture && getTextureAlphaMode(texture) === "blend") translucent.push(mesh);
       else batchable.push(mesh);
     }
     const merged = [...bakeMeshGroups(batchable), ...translucent];
     // ADR-114 perComponent：按组件名查 componentTexMap，fallback 全局 texArr
-    const compName = mg.name ?? `comp_${mi}`;
-    const compTexArr = componentTexMap.get(compName) ?? texArr;
     // Keep the source spec immutable so cached model data can be reused safely.
     for (const md of merged) {
       const bg = boneGroupMap.get(compKey(mi, md.boneId));

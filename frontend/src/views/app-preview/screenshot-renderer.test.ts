@@ -241,6 +241,29 @@ describe("renderMultiAngle — 防御路径", () => {
 });
 
 describe("renderMultiAngle — 成功路径", () => {
+  it("酒狐回归：把每组件纹理映射传给共享 YSM 场景构建器", async () => {
+    const globalTexture = { id: "global" };
+    const mainTexture = { id: "main" };
+    const arrowTexture = { id: "arrow" };
+    loadTexturesMock
+      .mockResolvedValueOnce([globalTexture])
+      .mockResolvedValueOnce([mainTexture])
+      .mockResolvedValueOnce([arrowTexture]);
+
+    await renderMultiAngle("/m/fox.ysm", ["global.png"], {
+      componentTextures: {
+        main: ["main.png"],
+        arrow: ["arrow.png"],
+      },
+    });
+
+    const componentTexMap = buildYsmObjectMock.mock.calls[0]?.[2];
+    expect(componentTexMap).toBeInstanceOf(Map);
+    expect(componentTexMap.get("main")).toEqual([mainTexture]);
+    expect(componentTexMap.get("arrow")).toEqual([arrowTexture]);
+    expect(buildYsmObjectMock.mock.calls[0]?.[3]).toBe(0);
+  });
+
   it("4 角度渲染 → 返回 front/45/side/back45 且 base64 非空", async () => {
     const shots = await renderMultiAngle("/m/a.ysm", ["t.png"]);
     expect(shots).not.toBeNull();

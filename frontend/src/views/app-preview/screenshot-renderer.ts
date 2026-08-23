@@ -15,11 +15,17 @@ export interface AngleShot {
   base64: string;
 }
 
+export interface RenderMultiAngleOptions {
+  size?: number;
+  /** Component name -> texture URLs/base64 entries, matching the live preview path. */
+  componentTextures?: Record<string, string[]>;
+}
+
 // renderMultiAngle 透明背景多角度截图
 export async function renderMultiAngle(
   modelPath: string,
   texUrls: string[],
-  opts: { size?: number } = {},
+  opts: RenderMultiAngleOptions = {},
 ): Promise<AngleShot[] | null> {
   const size = opts.size || 512;
   let renderer: THREE.WebGLRenderer | null = null;
@@ -47,6 +53,10 @@ export async function renderMultiAngle(
     }
     if (!spec?.models?.length) return null;
     const texArr = await loadTextures(texUrls);
+    const componentTexMap = new Map<string, (THREE.Texture | null)[]>();
+    for (const [componentName, componentUrls] of Object.entries(opts.componentTextures ?? {})) {
+      componentTexMap.set(componentName, await loadTextures(componentUrls));
+    }
 
     renderer = new THREE.WebGLRenderer({
       preserveDrawingBuffer: true,
@@ -61,7 +71,7 @@ export async function renderMultiAngle(
     scene = new THREE.Scene();
     addStandardSceneLights(scene);
 
-    ysmObject = buildYsmObject(spec, texArr, 0);
+    ysmObject = buildYsmObject(spec, texArr, componentTexMap, 0);
     const { rootGroup } = ysmObject;
     scene.add(rootGroup);
 

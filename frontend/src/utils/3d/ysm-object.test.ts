@@ -88,6 +88,23 @@ describe("buildYsmObject mesh baking", () => {
     expect(meshes).toHaveLength(2);
     expect(meshes.map((mesh) => mesh.position.z)).toEqual([0, 2]);
   });
+
+  it("uses the component texture when deciding transparent mesh batching", () => {
+    const spec = specWithMeshes([
+      triangle("near", [0, 0, 0], [0, 0, 0, 1]),
+      triangle("far", [0, 0, 2], [0, 0, 0, 1]),
+    ]);
+    const componentTextures = new Map([
+      ["main", [rgbaTexture(128)]],
+    ]);
+
+    const handle = buildYsmObject(spec, [rgbaTexture(255)], componentTextures, 0);
+    const bone = handle.boneGroupMap.get("0:root")!;
+    const meshes = bone.children.filter((child) => child instanceof THREE.Mesh);
+
+    expect(meshes).toHaveLength(2);
+    expect(meshes.map((mesh) => mesh.position.z)).toEqual([0, 2]);
+  });
 });
 
 function rgbaTexture(alpha: number): THREE.DataTexture {
