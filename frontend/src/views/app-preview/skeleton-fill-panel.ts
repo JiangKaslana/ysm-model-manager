@@ -21,6 +21,7 @@ export function fill3DPanel(
     textures?: string[] | null;
     _modelPath?: string;
     textureNames?: string[];
+    textureCategories?: string[];
     boneCount?: number;
     bones?: unknown[];
   },
@@ -42,7 +43,10 @@ export function fill3DPanel(
 
   // 纹理列表
   if (texArr.length > 0) {
-    panel.appendChild(sec("🎨 纹理 (" + texArr.length + ")"));
+    // 按 textureCategories 区分可切换皮肤（player）与组件专属纹理
+    const cats = model.textureCategories || [];
+    const switchableCount = cats.filter((c) => c === "player").length || texArr.length;
+    panel.appendChild(sec("🎨 纹理 (" + switchableCount + ")" + (texArr.length > switchableCount ? " / " + texArr.length + " 全量" : "")));
     // 当前组件绑定：显示选中组件声明的纹理（方案 B：声明纹理 vs 实际绑定两层显示）
     const bindingRow = document.createElement("div");
     bindingRow.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0;margin-bottom:2px";
@@ -87,7 +91,10 @@ export function fill3DPanel(
       const tCtx = img.getContext("2d");
       if (tex?.image) tCtx!.drawImage(tex.image as HTMLImageElement, 0, 0, 16, 16);
       d.appendChild(img);
-      d.innerHTML += `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(name)}</span><span style="color:rgba(255,255,255,0.4);font-size:10px;flex-shrink:0">${w}×${h}</span>`;
+      const cat = cats[i] || "";
+      const catLabel = cat && cat !== "player" ? cat : "";
+      const catBadge = catLabel ? `<span style="color:rgba(255,255,255,0.35);font-size:9px;padding:0 4px;border:1px solid rgba(255,255,255,0.12);border-radius:3px;flex-shrink:0">${catLabel}</span>` : "";
+      d.innerHTML += `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(name)}</span>${catBadge}<span style="color:rgba(255,255,255,0.4);font-size:10px;flex-shrink:0">${w}×${h}</span>`;
       panel.appendChild(d);
     }
   }

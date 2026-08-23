@@ -7,6 +7,11 @@ type BedrockModel struct {
 	Texture      string   `json:"texture,omitempty"`      // 纹理图 base64 data URI（单纹理兼容）
 	Textures     []string `json:"textures,omitempty"`     // 多纹理 base64 data URI 数组（全量，2D 预览用）
 	TextureNames []string `json:"textureNames,omitempty"` // 纹理文件名（去扩展名），与 Textures 同序
+	// TextureCategories 纹理分类标记，与 TextureNames 同序同长度。
+	// "player" = player.texture[] 声明，可切换皮肤；
+	// "projectile" / "vehicle" / "arrow" = 组件专属纹理（不可切换）；
+	// "" = 未分类（无 ysm.json 时，前端兜底显示）。
+	TextureCategories []string `json:"textureCategories,omitempty"`
 	// ComponentTextures 每组件独立纹理（ADR-114 perComponent）。
 	// key = 组件源模型名（main/arm/arrow/minecart/boat/foxcar/trident）
 	// value = 该组件声明的纹理 base64 data URI 数组（通常 1 张）

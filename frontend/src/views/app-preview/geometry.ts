@@ -61,6 +61,10 @@ export interface BedrockGeometry {
   textures?: string[];
   /** 纹理文件名（去扩展名），与 textures 同序（Go AnalyzeBedrockModel / WASM 解码填充） */
   textureNames?: string[];
+  /** 纹理分类标记，与 textureNames 同序同长度。
+   * "player" = 可切换皮肤；"projectile"/"vehicle"/"arrow" = 组件专属纹理；
+   * "" = 未分类。Go 端按 ysm.json 声明填充，前端面板据此区分显示。 */
+  textureCategories?: string[];
   texture?: string | null;
   /** L0 清单派生的子模型列表（多角色包内切换用） */
   subModels?: BedrockSubModel[];
