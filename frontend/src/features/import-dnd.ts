@@ -143,8 +143,11 @@ export async function handleTreeDrop(
  * busy 状态随闭包隔离，每个 <app-tree> 实例独立守卫。
  * rtype：当前树根属性（本就派生自 Go 路由配置，前端只透传）——文件夹导入
  * 按该类型仓库根落盘，空串回退后端内容推断。
+ * 支持传 getter（P2 审核修复）：root 属性支持动态切换（attributeChangedCallback），
+ * 按值捕获会在切根后闭包残留旧类型 → 拖到 B 页落 A 根的静默错位；
+ * drop 时惰性解析保证始终读最新树类型。
  */
-export function bindTreeDnD(container: HTMLElement, rtype = ""): () => void {
+export function bindTreeDnD(container: HTMLElement, rtype: string | (() => string) = ""): () => void {
   let _dropBusy = false;
   const isBusy = () => _dropBusy;
   const setBusy = (v: boolean) => { _dropBusy = v; };
@@ -208,7 +211,8 @@ export function bindTreeDnD(container: HTMLElement, rtype = ""): () => void {
       hasFiles: !!(e.dataTransfer?.files && e.dataTransfer.files.length > 0),
     });
     if (hintEl) hintEl.style.display = "none";
-    void handleTreeDrop(e, isBusy, setBusy, rtype).catch((err) => {
+    const rt = typeof rtype === "function" ? rtype() : rtype;
+    void handleTreeDrop(e, isBusy, setBusy, rt).catch((err) => {
       console.error("[tree-dnd] 拖放处理失败:", err);
       bus.emit("toast:show", {
         // 显式化：friendlyError 展示 Go 结构化错误（ADR-082 续），

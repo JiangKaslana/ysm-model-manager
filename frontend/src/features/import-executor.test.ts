@@ -3,6 +3,7 @@
 // 覆盖：单文件直导、文件夹整组、执行入口分组、历史广播、去重、ysm.json 引导
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { bus } from "../bus.ts";
+import { getApp } from "../backend/app.ts";
 import { executeCollected, directImport, importFolder, ImportHistory } from "./import-executor.ts";
 import { t } from "../core/i18n/t.ts";
 
@@ -289,5 +290,16 @@ describe("importFolder — 组内读失败跳过 / 空组 / busy / FILE_EXISTS",
       ),
     ).toBe(true);
     off();
+  });
+
+  it("rtype 非空但旧桥缺 ImportModelFolderTo（typeof 守卫）→ 回退 ImportModelFolder 内容推断旧路", async () => {
+    mocks.ImportModelFolderTo.mockClear();
+    vi.mocked(getApp).mockResolvedValueOnce({
+      ImportModelFile: mocks.ImportModelFile,
+      ImportModelFolder: mocks.ImportModelFolder,
+    } as never);
+    await importFolder("包", [{ file: mkFile("m.ysm"), relPath: "包/m.ysm" }], "maid-model");
+    expect(mocks.ImportModelFolder).toHaveBeenCalledTimes(1);
+    expect(mocks.ImportModelFolderTo).not.toHaveBeenCalled();
   });
 });

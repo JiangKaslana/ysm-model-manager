@@ -185,7 +185,9 @@ export const importFolder = async (
       return;
     }
     const App = await getApp();
-    if (rtype) {
+    // P3 审核修复：旧桥/Android 绑定时序缺 ImportModelFolderTo 时 typeof 守卫，
+    // 退回内容推断旧路径而非整条拖入 TypeError（文档承诺的空上下文兜底语义）
+    if (rtype && typeof App.ImportModelFolderTo === "function") {
       await App.ImportModelFolderTo(folderName, subpath, rtype, items);
     } else {
       await App.ImportModelFolder(folderName, subpath, items);

@@ -167,6 +167,10 @@ func (a *App) ImportModelFolder(folderName, subpath string, files []types.Import
 	return a.importModelFolderAs(rtype, folderName, subpath, files)
 }
 
+// fallbackRepoType 全局兜底类型（默认仓库页上下文同源）：内容推断歧义/未知时的落点；
+// 也是「中性页」标记——该页拖入时内容推断优先于上下文（见 ImportModelFolderTo）。
+const fallbackRepoType = "ysm"
+
 // ImportModelFolderTo 带页面上下文类型的文件夹整组导入（拖拽导入上下文路由）。
 // rtype 来自前端当前树的根属性——树根本就派生自注册表路由配置，前端只透传不判型；
 // 上下文优先：注册表校验通过即按该类型仓库根落盘，解决 .zip 多类型歧义文件夹
@@ -174,12 +178,17 @@ func (a *App) ImportModelFolder(folderName, subpath string, files []types.Import
 // 空串/未注册类型回退 inferFolderType 内容推断（兼容导入页等无上下文入口）。
 // 提醒非阻断：内容明确归属其他单一类型且与上下文不符时记一条 warn 日志，
 // 落盘仍按上下文执行——用户拖到哪页就落哪页的根。
+// 例外（审核 P3-4）：上下文为默认中性类型时让位内容推断、整条走 ImportModelFolder
+// 旧路（含 ysm.json 入口优先级与兜底），最常用入口不静默改数据落点。
 func (a *App) ImportModelFolderTo(folderName, subpath, rtype string, files []types.ImportFileItem) error {
 	rtype = strings.TrimSpace(rtype)
 	if rtype == "" || types.RegistryType(rtype) == nil {
 		return a.ImportModelFolder(folderName, subpath, files)
 	}
 	if mismatch := inferExplicitFolderType(files); mismatch != "" && mismatch != rtype {
+		if rtype == fallbackRepoType {
+			return a.ImportModelFolder(folderName, subpath, files)
+		}
 		a.AddOpLog("import", folderName, "", "", 0, "warn",
 			fmt.Sprintf("内容特征指向 %s，按当前页面类型 %s 落盘", mismatch, rtype))
 	}
@@ -227,7 +236,7 @@ func inferFolderType(files []types.ImportFileItem) string {
 		base := filepath.Base(rel)
 		// ysm.json 是 YSM 解压目录入口，优先
 		if ext == ".json" && types.IsYsmEntryJSON(base) {
-			return "ysm"
+			return fallbackRepoType
 		}
 		if ext == ".json" {
 			continue // 其他 json 不参与类型判定
@@ -237,7 +246,7 @@ func inferFolderType(files []types.ImportFileItem) string {
 			return rtypes[0]
 		}
 	}
-	return "ysm"
+	return fallbackRepoType
 }
 
 // ========== 在资源管理器中显示 ==========

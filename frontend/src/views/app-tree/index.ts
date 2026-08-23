@@ -125,9 +125,10 @@ export class AppTree extends WebComponentBase {
       // 也能经 disconnectedCallback 正常移除，避免 keydown 监听泄漏）
       this._initKeyboardShortcuts();
 
-      // 仓库页 DnD 绑定（组件级，ADR-060）；透传当前树类型作导入落盘上下文
+      // 仓库页 DnD 绑定（组件级，ADR-060）；透传当前树类型作导入落盘上下文。
+      // P2 审核修复：传 getter 而非按值——root 支持动态切换，闭包惰性解析防旧类型残留
       const treeDnDEl = this._root.getElementById("tree");
-      if (treeDnDEl) this._unsubs.push(bindTreeDnD(treeDnDEl, this._rootAttr || this._typeFilter));
+      if (treeDnDEl) this._unsubs.push(bindTreeDnD(treeDnDEl, () => this._rootAttr || this._typeFilter));
 
       // 监听创作者详情→搜索本地模型
       this._unsubs.push(

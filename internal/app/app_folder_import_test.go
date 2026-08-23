@@ -3,6 +3,7 @@
 // 注册表校验通过 → 按该类型仓库根落盘；空串/未注册类型 → 回退 inferFolderType
 // 内容推断（兼容导入页等无上下文入口）；内容明确归属其他单一类型时仅记
 // OpLog 提醒不阻断——用户拖到哪页就落哪页的根。
+// 例外：默认中性类型（ysm）上下文让位内容推断，整条走 ImportModelFolder 旧路。
 package app
 
 import (
@@ -73,4 +74,36 @@ func TestImportModelFolderTo_MismatchWarnsButImports(t *testing.T) {
 		t.Fatalf("错位时仍应落在上下文类型根 %s: %v", want, err)
 	}
 	// 提醒走 a.logger.AddOpLog 写环形日志（tempdir），不在此断言日志内容——语义由实现保证
+}
+
+func TestImportModelFolderTo_NeutralContextYieldsToInference(t *testing.T) {
+	base := t.TempDir()
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	// 默认页上下文 ysm + 内容明确归属 litematic：恢复 ADR-092 内容推断落位（审核 P3-4）
+	files := []types.ImportFileItem{folderItem("track.litematic")}
+	if err := a.ImportModelFolderTo("MMD模型", "", "ysm", files); err != nil {
+		t.Fatalf("中性上下文让位推断导入失败: %v", err)
+	}
+	want := filepath.Join(base, types.GroupStorageRoot("litematic"), "MMD模型")
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("默认页应让位内容推断落 litematic 根 %s: %v", want, err)
+	}
+	neutral := filepath.Join(base, types.GroupStorageRoot("ysm"), "MMD模型")
+	if _, err := os.Stat(neutral); !os.IsNotExist(err) {
+		t.Errorf("不应按中性上下文落 ysm 根 %s", neutral)
+	}
+}
+
+func TestImportModelFolderTo_NeutralContextAmbiguousStaysFallback(t *testing.T) {
+	base := t.TempDir()
+	a := scanApp(t, types.AppConfig{FilesRoot: base})
+	// 默认页上下文 ysm + zip 歧义：与旧兜底同源，落 ysm 根
+	files := []types.ImportFileItem{folderItem("pack.zip")}
+	if err := a.ImportModelFolderTo("某资源包", "", "ysm", files); err != nil {
+		t.Fatalf("中性上下文歧义导入失败: %v", err)
+	}
+	want := filepath.Join(base, types.GroupStorageRoot("ysm"), "某资源包")
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("歧义内容在默认页应落 ysm 兜底根 %s: %v", want, err)
+	}
 }
