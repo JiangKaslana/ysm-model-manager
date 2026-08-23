@@ -7,6 +7,7 @@ import { defineConfig } from "vite";
 import { fileURLToPath } from "url";
 import { resolve } from "path";
 import { wailsBindingsResolve } from "./vite-wails-bindings-resolve.ts";
+import { wasmDataStubs } from "./vite-wasm-data-stubs.ts";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 
@@ -34,6 +35,11 @@ export default defineConfig({
       },
     },
   },
+  // worker 是独立 bundle，顶层 plugins 不覆盖 worker 内 import；
+  // 须单独挂 wasmDataStubs 让 worker 里的 ysm-wasm-data.js 缺失时也能构建（与主配置对齐）
+  worker: {
+    plugins: () => [wasmDataStubs()],
+  },
   server: {
     fs: {
       allow: [
@@ -42,5 +48,5 @@ export default defineConfig({
       ],
     },
   },
-  plugins: [wailsBindingsResolve],
+  plugins: [wailsBindingsResolve, wasmDataStubs()],
 });
