@@ -156,7 +156,8 @@ function codeAsserts() {
   const switchPreviewPath = path.join(ROOT, 'frontend/src/utils/3d/adapters/switch-preview.ts');
   try {
     const text = fs.existsSync(switchPreviewPath) ? fs.readFileSync(switchPreviewPath, 'utf-8') : '';
-    const hasInFlight = /inFlight\s*:\s*boolean/.test(text) && /if\s*\(ctx\.inFlight\)\s*return/.test(text);
+    // code review P3：放宽格式敏感——加花括号/删 : boolean 注解的合法重构不误报
+    const hasInFlight = /inFlight\s*(:\s*boolean)?\b/.test(text) && /if\s*\(\s*ctx\.inFlight\s*\)\s*\{?\s*return/.test(text);
     results.push({
       name: 'r12 P1 并发抑制守卫',
       ok: hasInFlight,
@@ -175,7 +176,7 @@ function codeAsserts() {
     const text = fs.existsSync(mmdAdapterPath) ? fs.readFileSync(mmdAdapterPath, 'utf-8') : '';
     const hasUncacheRoot = /uncacheRoot\s*\(/.test(text);
     const hasFullSlotDispose =
-      /"emissiveMap"/.test(text) && /tex\.dispose\(\)|mat\.dispose\(\)/.test(text) && /blobUrls/.test(text);
+      /["']emissiveMap["']/.test(text) && /tex\.dispose\(\)|mat\.dispose\(\)/.test(text) && /blobUrls?/.test(text);
     const ok = hasUncacheRoot && hasFullSlotDispose;
     results.push({
       name: 'r10/r11 MMD 生命周期',

@@ -151,8 +151,8 @@ func scanSummaryByType(entries []types.ModelEntry) (map[string]int, string) {
 //     目录归属（storageSubDir/instanceDir 命中）> 扩展名归属（location 路由语义，
 //     模型包目录下的容器/表情/动作文件都是该类型的资源）；
 //  2. 非容器 → packs.DetectResourceType（路径消歧 + 扩展名，零文件打开）；
-//  3. 容器兜底 → repoaudit.Classify（共享扩展名 .zip 被 14 类型声明，Classify 归
-//     最后一个声明者——仅作目录消歧未命中时的最后兜底）。
+//  3. 容器兜底（目录消歧未命中）→ 诚实标 "container"（不归任意类型——共享扩展名
+//     .zip 被 14 类型声明，last-wins 归任意类型会误导分布）。
 func classifyForScan(path, ext string, registry *types.ResourceTypeRegistry) string {
 	if id := types.TypeByLocation(path, registry); id != "" {
 		return id
@@ -199,15 +199,17 @@ func runPhaseModelScan(a *app.App, filesRoot string) guiFlowResult {
 	// hasModel 判定解析它（旧格式正则）；新"类型分布"格式（注册表 id 小写）不含
 	// YAML:/YSM: 大写 token，gate 会静默降级（fail-open 跳过 ③④⑤ 强验证）
 	ysmCount := byType["ysm"]
+	yamlCount := byType["yml"] // 派生（注册表无 .yml 类型时为 0——不硬编码常量）
 	return guiFlowResult{
 		Stage:    "② 模型扫描",
 		Duration: elapsed,
 		Success:  true,
 		Description: fmt.Sprintf(
-			"✅ 发现 %d 个模型 (%.0f models/sec)\n   类型分布: %s [YAML: 0, YSM: %d]\n   首个模型: %s",
+			"✅ 发现 %d 个模型 (%.0f models/sec)\n   类型分布: %s [YAML: %d, YSM: %d]\n   首个模型: %s",
 			len(entries),
 			float64(len(entries))/elapsed.Seconds(),
 			dist,
+			yamlCount,
 			ysmCount,
 			firstModel,
 		),
