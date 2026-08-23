@@ -274,12 +274,12 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          powershell -ExecutionPolicy Bypass -File .\scripts\build-android.ps1 "${{ needs.prepare.outputs.version }}" -Arch arm64 -Production
+          pwsh -ExecutionPolicy Bypass -File .\scripts\build-android.ps1 "${{ needs.prepare.outputs.version }}" -Arch arm64 -Production
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: 打包（build-android.ps1，无 keystore → debug）
         if: steps.check_ks.outputs.has_keystore != 'true'
         run: |
-          powershell -ExecutionPolicy Bypass -File .\scripts\build-android.ps1 "${{ needs.prepare.outputs.version }}" -Arch arm64
+          pwsh -ExecutionPolicy Bypass -File .\scripts\build-android.ps1 "${{ needs.prepare.outputs.version }}" -Arch arm64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: 上传产物
         uses: actions/upload-artifact@v6
