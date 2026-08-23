@@ -32,7 +32,7 @@
 | Go·标签 | 1 | 8 |
 | go/texture_cache | 1 | 10 |
 | Go·Three.js | 1 | 6 |
-| Go·类型 | 6 | 85 |
+| Go·类型 | 6 | 87 |
 | Go·更新器 | 1 | 10 |
 | Go·监听 | 1 | 6 |
 | Go·YSM 核心 | 7 | 26 |
@@ -48,7 +48,7 @@
 | frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **453** | **1898** |
+| **合计** | **453** | **1900** |
 
 ## Go·头像
 
@@ -172,11 +172,11 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `ToggleModelEnable()` | `go/fileops/fileops_enable:22` | ToggleModelEnable 切换 .ban 状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 . |
-| `IsFileBanned()` | `go/fileops/fileops_enable:136` | IsFileBanned 判断路径是否被 .ban 标记（文件级或目录级，ADR-038 D3.7） |
+| `ToggleModelEnable()` | `go/fileops/fileops_enable:26` | ToggleModelEnable 切换禁用状态文件（返回是否处于启用态；缓存失效由薄壳处理） ADR-038 D3.7：src 为 ysm.json 时提升为父目录级 .disa |
+| `IsFileBanned()` | `go/fileops/fileops_enable:141` | IsFileBanned 判断路径是否被禁用标记（文件级或目录级，ADR-038 D3.7） 支持新标准 .disabled 和历史 .ban。 |
 | `FindPreviewImage()` | `go/fileops/fileops_preview:24` | FindPreviewImage 查找模型同目录的预览图并转 data URI |
 | `ExtractPreviewTexture()` | `go/fileops/fileops_preview:50` | ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json） |
-| `GetPackInfo()` | `go/fileops/fileops_preview:156` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
+| `GetPackInfo()` | `go/fileops/fileops_preview:154` | GetPackInfo 读取 ysm-pack.json（root 为空时按绝对路径处理） |
 | `SetConfigFunc()` | `go/fileops/fileops:28` | SetConfigFunc 注入运行阈值配置源（ADR-062：薄壳 internal/app 启动时调用） |
 | `CreateDir()` | `go/fileops/fileops:61` | CreateDir 在 root 下创建子目录（校验非法字符，与 RenameDir 对齐） |
 | `RenameDir()` | `go/fileops/fileops:79` | RenameDir 重命名目录（仅改末段，保持父目录） |
@@ -382,10 +382,10 @@
 | `InvalidatePath()` | `go/scanner/scanner:165` | InvalidatePath 删除指定目录的扫描缓存（启用/禁用 .ban 后调用） |
 | `ScanEntries()` | `go/scanner/scanner:196` | ScanEntries 扫描目录下的模型文件（含 .recycle 排除、扩展名过滤、SHA256 哈希、30s TTL 缓存） |
 | `ScanEntriesWithHit()` | `go/scanner/scanner:203` | ScanEntriesWithHit 同 ScanEntries，但额外返回是否命中 30s 缓存。 |
-| `ComputeFileHash()` | `go/scanner/scanner:386` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
-| `ListModelAuthors()` | `go/scanner/scanner:440` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
-| `ScanLocalAuthors()` | `go/scanner/scanner:470` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
-| `GenerateRepoIndex()` | `go/scanner/scanner:533` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
+| `ComputeFileHash()` | `go/scanner/scanner:384` | ComputeFileHash 计算文件的 SHA256 哈希（用于同步系统文件匹配） |
+| `ListModelAuthors()` | `go/scanner/scanner:431` | ListModelAuthors 从扫描条目提取 [作者] 前缀统计（按出现次数降序） |
+| `ScanLocalAuthors()` | `go/scanner/scanner:461` | ScanLocalAuthors 扫描各资源类型根目录，从文件名提取 [作者]（roots: rtype→root） |
+| `GenerateRepoIndex()` | `go/scanner/scanner:524` | GenerateRepoIndex 扫描仓库目录，生成 index.json（供 GitHub Actions/Linux 消费，正斜杠路径） |
 
 ## Go·同步
 
@@ -410,9 +410,9 @@
 | `GetInstanceStatus()` | `go/sync/sync:27` | GetInstanceStatus 获取整合包状态（使用真实 ListVersions） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.C |
 | `GetInstanceStatusWith()` | `go/sync/sync:33` | GetInstanceStatusWith 可注入的整合包状态获取（测试用） rtype: 资源类型 ID（如 "ysm"），用于解析特定子目录；为空时使用 ins.CustomD |
 | `SyncToggleStatus()` | `go/sync/sync:190` | SyncToggleStatus 同步启用/禁用状态 |
-| `SyncResources()` | `go/sync/sync:349` | — |
-| `SortEntries()` | `go/sync/sync:400` | SortEntries 按名称排序模型条目 |
-| `GetLinkType()` | `go/sync/sync:407` | GetLinkType 判断文件的链接类型 |
+| `SyncResources()` | `go/sync/sync:353` | — |
+| `SortEntries()` | `go/sync/sync:404` | SortEntries 按名称排序模型条目 |
+| `GetLinkType()` | `go/sync/sync:411` | GetLinkType 判断文件的链接类型 |
 | `ScanFunc()` | `go/sync/sync:23` | ScanFunc 扫描模型（函数类型，由 app.go 注入） |
 
 ## Go·标签
@@ -477,27 +477,29 @@
 | `IsContainerExt()` | `go/types/extensions:69` | IsContainerExt 判断扩展名是否是容器扩展名（大小写不敏感）。 |
 | `IsSupportedExt()` | `go/types/extensions:76` | IsSupportedExt 检查扩展名是否被任何资源类型支持。 |
 | `IsYsmEntryJSON()` | `go/types/extensions:92` | IsYsmEntryJSON 判断是否为 YSM 解压目录的唯一清单入口 ysm.json（大小写不敏感） ADR-038 D2：.json 仅放行 ysm.json；包内 geo |
-| `StripBanSuffix()` | `go/types/extensions:99` | StripBanSuffix 剥离 .ban 禁用后缀（大小写不敏感）。 |
-| `NormalizeResourceName()` | `go/types/extensions:109` | NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）： 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyn |
-| `IsResourceAllowed()` | `go/types/extensions:121` | IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）： 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json（ |
-| `IsTypeModelFile()` | `go/types/extensions:140` | IsTypeModelFile 判断文件名是否为指定资源类型的模型文件（ADR-064 收敛）： 扩展名命中该类型注册表扩展集（SupportedExtsForType），.jso |
-| `ShouldHashExt()` | `go/types/extensions:166` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配）。 |
-| `IsDirLevelSync()` | `go/types/extensions:184` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
-| `IsScanInstance()` | `go/types/extensions:197` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。 |
-| `InstallExtsFor()` | `go/types/extensions:206` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
-| `MatchZipEntry()` | `go/types/extensions:217` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
-| `ExtBelongsTo()` | `go/types/extensions:232` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个）。 |
-| `SupportedExtsForType()` | `go/types/extensions:251` | SupportedExtsForType 返回指定资源类型的所有扩展名。 |
-| `SupportedExtsForSubtype()` | `go/types/extensions:264` | SupportedExtsForSubtype 返回指定资源类型的扩展名。 |
-| `StorageSubDir()` | `go/types/extensions:270` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
-| `GroupOf()` | `go/types/extensions:279` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
-| `GroupStorageRoot()` | `go/types/extensions:291` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
-| `GroupLabel()` | `go/types/extensions:308` | GroupLabel 返回分组显示名（从注册表各类型的 groupLabel 字段派生，消除 resourceGroups 冗余源）； 取该组第一个有 groupLabel 的类型 |
-| `GroupIcon()` | `go/types/extensions:322` | GroupIcon 返回分组图标（从注册表各类型的 groupIcon 字段派生）。 |
-| `SubDirMap()` | `go/types/extensions:347` | SubDirMap 返回指定资源类型在整合包实例版本目录中的实例子目录 |
-| `SubDirAll()` | `go/types/extensions:363` | SubDirAll 返回所有资源类型在整合包实例中的版本子目录映射 |
-| `AllSubDirs()` | `go/types/extensions:375` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
-| `SubDirEntry()` | `go/types/extensions:336` | SubDirEntry 资源类型的版本子目录信息 |
+| `StripDisableSuffix()` | `go/types/extensions:102` | StripDisableSuffix 剥离禁用后缀（大小写不敏感，依次尝试 .disabled/.ban）。 |
+| `StripBanSuffix()` | `go/types/extensions:113` | StripBanSuffix 保留向后兼容——内部委托 StripDisableSuffix。 |
+| `IsDisableSuffix()` | `go/types/extensions:118` | IsDisableSuffix 判断文件名是否带禁用后缀（.disabled/.ban，大小写不敏感）。 |
+| `NormalizeResourceName()` | `go/types/extensions:131` | NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）： 小写 + 去除 .disabled/.ban 禁用后缀。原 sync.isSyn |
+| `IsResourceAllowed()` | `go/types/extensions:143` | IsResourceAllowed 判断文件名是否属于受支持的同步资源（ADR-064 收敛）： 扩展名命中注册表全扩展集（AllExts），.json 仅放行 ysm.json（ |
+| `IsTypeModelFile()` | `go/types/extensions:162` | IsTypeModelFile 判断文件名是否为指定资源类型的模型文件（ADR-064 收敛）： 扩展名命中该类型注册表扩展集（SupportedExtsForType），.jso |
+| `ShouldHashExt()` | `go/types/extensions:188` | ShouldHashExt 判断扩展名是否需要计算 SHA256 哈希（用于同步系统文件匹配）。 |
+| `IsDirLevelSync()` | `go/types/extensions:206` | IsDirLevelSync 判断 rtype 是否为文件夹级资源同步类型 （sync.SyncResourcesDirLevel 按文件夹名对比；注册表 dirLevelSync |
+| `IsScanInstance()` | `go/types/extensions:219` | IsScanInstance 判断 rtype 是否需要 instance 视图额外扫描整合包目录。 |
+| `InstallExtsFor()` | `go/types/extensions:228` | InstallExtsFor 返回 rtype 的安装白名单扩展名（空=全部放行，仅可执行文件黑名单除外） installer.installDirRecursive 的 isAl |
+| `MatchZipEntry()` | `go/types/extensions:239` | MatchZipEntry 按注册表 zipEntries 特征匹配 ZIP 条目名，返回命中的资源类型 ID。 |
+| `ExtBelongsTo()` | `go/types/extensions:254` | ExtBelongsTo 返回扩展名所属的资源类型 ID 列表（可能多个）。 |
+| `SupportedExtsForType()` | `go/types/extensions:273` | SupportedExtsForType 返回指定资源类型的所有扩展名。 |
+| `SupportedExtsForSubtype()` | `go/types/extensions:286` | SupportedExtsForSubtype 返回指定资源类型的扩展名。 |
+| `StorageSubDir()` | `go/types/extensions:292` | StorageSubDir 每种资源类型在 FilesRoot 下的存储子目录 从 resource_types.json 注册表读取，无匹配时返回 rtype 自身 |
+| `GroupOf()` | `go/types/extensions:301` | GroupOf 返回资源类型所属分组 id（ADR-092） 从注册表 group 字段读取；无 group 字段时返回空串（表示单级平铺、不参与分组）。 |
+| `GroupStorageRoot()` | `go/types/extensions:313` | GroupStorageRoot 返回资源类型在 FilesRoot 下的分组存储根目录（ADR-092 两层路由）：   - 有 group：FilesRoot/{group}/ |
+| `GroupLabel()` | `go/types/extensions:330` | GroupLabel 返回分组显示名（从注册表各类型的 groupLabel 字段派生，消除 resourceGroups 冗余源）； 取该组第一个有 groupLabel 的类型 |
+| `GroupIcon()` | `go/types/extensions:344` | GroupIcon 返回分组图标（从注册表各类型的 groupIcon 字段派生）。 |
+| `SubDirMap()` | `go/types/extensions:369` | SubDirMap 返回指定资源类型在整合包实例版本目录中的实例子目录 |
+| `SubDirAll()` | `go/types/extensions:385` | SubDirAll 返回所有资源类型在整合包实例中的版本子目录映射 |
+| `AllSubDirs()` | `go/types/extensions:397` | AllSubDirs 返回所有资源类型的版本子目录信息（遍历用） |
+| `SubDirEntry()` | `go/types/extensions:358` | SubDirEntry 资源类型的版本子目录信息 |
 | `FindInstDir()` | `go/types/findinst:66` | FindInstDir 查找整合包中指定资源类型的子目录：  1. |
 | `SetBundledRegistryJSON()` | `go/types/resource:20` | SetBundledRegistryJSON 由根包 main 注入编译期内嵌的注册表字节（单源：仓库根 resource_types.json）。 |
 | `ResourceType.EffectiveExtensions()` | `go/types/resource:78` | EffectiveExtensions 返回资源类型的有效扩展名集（小写化）。 |
@@ -684,10 +686,10 @@
 | `App.MoveToRecycle()` | `internal/app/app_install_recycle:17` | ========== 回收站 ========== |
 | `App.MoveToRecycleEx()` | `internal/app/app_install_recycle:38` | — |
 | `App.ClearCustomDir()` | `internal/app/app_install_recycle:91` | — |
-| `App.ListRecycleBin()` | `internal/app/app_install_recycle:163` | — |
-| `App.RestoreFromRecycle()` | `internal/app/app_install_recycle:180` | — |
-| `App.DeleteFromRecycle()` | `internal/app/app_install_recycle:201` | — |
-| `App.EmptyRecycleBin()` | `internal/app/app_install_recycle:217` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
+| `App.ListRecycleBin()` | `internal/app/app_install_recycle:161` | — |
+| `App.RestoreFromRecycle()` | `internal/app/app_install_recycle:178` | — |
+| `App.DeleteFromRecycle()` | `internal/app/app_install_recycle:199` | — |
+| `App.EmptyRecycleBin()` | `internal/app/app_install_recycle:215` | EmptyRecycleBin 清空所有已配置资源根目录的回收站，返回删除条目总数。 |
 | `App.AnalyzeYSMModel()` | `internal/app/app_model:39` | — |
 | `App.ExtractYsmSummary()` | `internal/app/app_model:43` | — |
 | `App.ExtractYSMHeader()` | `internal/app/app_model:57` | — |
