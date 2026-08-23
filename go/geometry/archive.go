@@ -858,16 +858,8 @@ func parseModelFromEntries(entries []container.Entry, logTag string) (*types.Bed
 			mp = mp[idx+1:]
 		}
 		mp = strings.TrimSuffix(strings.TrimSuffix(mp, ".geo.json"), ".json")
-		// texName: 小写 basename 去扩展名
-		tn := pm.texName
-		if idx := strings.LastIndex(tn, "/"); idx >= 0 {
-			tn = tn[idx+1:]
-		}
-		if idx := strings.LastIndex(tn, "\\"); idx >= 0 {
-			tn = tn[idx+1:]
-		}
-		tn = strings.TrimSuffix(strings.TrimSuffix(strings.ToLower(tn), ".png"), ".jpg")
-		modelTexName[mp] = tn
+		// texName: 小写 basename 去扩展名（收敛自内联，口径与 texBasenameNoExt 同）
+		modelTexName[mp] = texBasenameNoExt(pm.texName)
 	}
 	if len(modelOrder) > 0 {
 		for i, p := range modelOrder {
