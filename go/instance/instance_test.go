@@ -496,13 +496,191 @@ func TestBuildSyncItems_DirLevelNoChildrenForMissing(t *testing.T) {
 		t.Fatal("未找到 packB 条目")
 	}
 
-	// packB 应是 Missing 状态
+	// packB 应是 Missing 状态（整体缺失，不降级为 diverged）
 	if packItem.Status != types.SyncStatusMissing {
 		t.Errorf("packB 应为 Missing，实际 %s", packItem.Status)
 	}
 
-	// Missing 文件夹不应有 children（实例侧不存在）
-	if len(packItem.Children) != 0 {
-		t.Errorf("Missing 文件夹不应有 children，实际 %d", len(packItem.Children))
+	// Missing 文件夹仍应展示仓库侧子项清单（仓库是权威源，待推送内容可预览）
+	// 子项均标 missing（实例侧不存在）
+	if len(packItem.Children) == 0 {
+		t.Errorf("Missing 文件夹应展示仓库侧 children（待推送预览），实际为空")
+	}
+	for _, c := range packItem.Children {
+		if c.Status != types.SyncStatusMissing {
+			t.Errorf("Missing 夹子项 %q 应为 missing，实际 %q", c.Name, c.Status)
+		}
+	}
+}
+
+// TestBuildSyncItems_MissingDirRepoPreview 验证「仓库有完整层级、整合包不可见」的真实模型文件夹
+// 场景：[Almeta_owx]【galgame】类：仓库根下真模型夹直接含多个 .ysm + 贴图，实例侧缺失 →
+// 夹子保持 missing（整体缺失、非部分差异），展开的 children 从仓库侧列全部子项（标 missing）供预览
+func TestBuildSyncItems_MissingDirRepoPreview(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
+	}
+	if !types.IsDirLevelSync("ysm") {
+		t.Skip("ysm 非 dirLevel 类型，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(filepath.Join(base, "inst"), sub)
+	_ = os.MkdirAll(instDir, 0755)
+
+	// 仓库根下真模型夹（无子目录，直接含 .ysm + 贴图），实例侧无此夹
+	pack := filepath.Join(globalDir, "[Almeta_owx]【galgame】")
+	_ = os.MkdirAll(pack, 0755)
+	_ = os.WriteFile(filepath.Join(pack, "Eanes2024-10.ysm"), []byte("e"), 0644)
+	_ = os.WriteFile(filepath.Join(pack, "丛雨-常服murasame2023-05.ysm"), []byte("m"), 0644)
+	_ = os.WriteFile(filepath.Join(pack, "Eanes_45.png"), []byte("png"), 0644)
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "💎"}}, map[string]string{"ysm": globalDir}, "")
+
+	// 找到真模型夹条目（顶层，因它自身是模型夹含 .ysm → 收集为单元，非容器）
+	var packItem *types.ResourceSyncItem
+	for i := range items {
+		if items[i].Name == "[Almeta_owx]【galgame】" {
+			packItem = &items[i]
+			break
+		}
+	}
+	if packItem == nil {
+		t.Fatal("未找到 [Almeta_owx]【galgame】 条目")
+	}
+	// 整体缺失 → 保持 missing（不降级 diverged）；isDir 可展开
+	if packItem.Status != types.SyncStatusMissing {
+		t.Errorf("缺失真模型夹应保持 missing，实际 %q", packItem.Status)
+	}
+	if !packItem.IsDir {
+		t.Error("缺失真模型夹 IsDir 应为 true（可展开预览）")
+	}
+	// 文件夹图标应为 📁（非类型图标 💎）——文件夹用文件夹图标，扁平文件才用类型图标
+	if packItem.Icon != "📁" {
+		t.Errorf("缺失真模型夹图标应为 📁，实际 %q", packItem.Icon)
+	}
+	// children 从仓库侧列出内部模型文件（可预览待推内容）
+	if len(packItem.Children) == 0 {
+		t.Fatal("缺失模型夹应展示仓库侧 children（预览待推清单）")
+	}
+	childByName := map[string]types.SyncStatus{}
+	for _, c := range packItem.Children {
+		childByName[c.Name] = c.Status
+	}
+	for _, fn := range []string{"Eanes2024-10.ysm", "丛雨-常服murasame2023-05.ysm"} {
+		if st, ok := childByName[fn]; !ok || st != types.SyncStatusMissing {
+			t.Errorf("待推文件 %q 应为 missing（仓库侧预览），实际 %v", fn, st)
+		}
+	}
+}
+
+// TestBuildSyncItems_NestedContainerDir 验证中间目录（仅含子模型文件夹、自身非模型文件夹）
+// 在展示层重建为容器节点：父夹作为可展开 isDir 项，子模型夹挂为 children
+// 场景：[YSM模型]官方开源wine_fox_json/ {01_taisho_maid, 02_new_year} 各含 .ysm
+// wine_fox_json 自身不直接含模型文件 → 不应被作为独立同步单元，而应作为容器
+func TestBuildSyncItems_NestedContainerDir(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
+	}
+	if !types.IsDirLevelSync("ysm") {
+		t.Skip("ysm 非 dirLevel 类型，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(filepath.Join(base, "inst"), sub)
+	_ = os.MkdirAll(instDir, 0755)
+
+	// 全局：父夹 wine_fox_json 下有两个子模型夹，各自含 .ysm（实例侧空 → 全 missing）
+	parent := filepath.Join(globalDir, "[YSM模型]官方开源wine_fox_json")
+	for _, name := range []string{"01_taisho_maid", "02_new_year"} {
+		child := filepath.Join(parent, name)
+		_ = os.MkdirAll(child, 0755)
+		_ = os.WriteFile(filepath.Join(child, name+".ysm"), []byte("m"), 0644)
+	}
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir}, "")
+
+	// 顶层应只出现父夹容器（2 个子夹被收入其中，不再平铺在根）
+	if len(items) != 1 {
+		t.Fatalf("应只返回 1 个顶层容器（父夹），实际 %d 条: %+v", len(items), items)
+	}
+	parentItem := items[0]
+	if parentItem.Name != "[YSM模型]官方开源wine_fox_json" {
+		t.Errorf("顶层应为父夹容器，got %q", parentItem.Name)
+	}
+	if !parentItem.IsDir {
+		t.Error("父夹容器 IsDir 应为 true")
+	}
+	// 容器聚合状态：子夹均 missing（实例空）→ 整体有可推送差异
+	if parentItem.Status != types.SyncStatusDiverged && parentItem.Status != types.SyncStatusMissing {
+		t.Errorf("父夹容器应聚合为 diverged/missing（子夹缺失），got %q", parentItem.Status)
+	}
+	// children 应为两个子模型夹，不再平铺在根
+	if len(parentItem.Children) != 2 {
+		t.Fatalf("父夹容器应有 2 个 children（子模型夹），实际 %d", len(parentItem.Children))
+	}
+	childNames := map[string]bool{}
+	for _, c := range parentItem.Children {
+		childNames[c.Name] = true
+		if !c.IsDir {
+			t.Errorf("子模型夹 %q IsDir 应为 true", c.Name)
+		}
+	}
+	if !childNames["01_taisho_maid"] || !childNames["02_new_year"] {
+		t.Errorf("children 应含两个子模型夹，实际 %v", childNames)
+	}
+}
+
+// TestBuildSyncItems_NestedContainer_DeepHierarchy 验证多层嵌套镜像磁盘层级
+// 仓库怎么来，整合包就怎么来：每一层中间目录都建为可展开容器
+func TestBuildSyncItems_NestedContainer_DeepHierarchy(t *testing.T) {
+	sub := types.SubDirMap("ysm")
+	if sub == "" {
+		t.Skip("ysm 无 InstanceDir 配置，跳过")
+	}
+	if !types.IsDirLevelSync("ysm") {
+		t.Skip("ysm 非 dirLevel 类型，跳过")
+	}
+	base := t.TempDir()
+	globalDir := filepath.Join(base, "global")
+	instDir := filepath.Join(filepath.Join(base, "inst"), sub)
+	_ = os.MkdirAll(instDir, 0755)
+
+	// 深度嵌套：vendor/authors/character/model.ysm（实例空 → 全 missing）
+	deep := filepath.Join(globalDir, "vendor", "authors", "character")
+	_ = os.MkdirAll(deep, 0755)
+	_ = os.WriteFile(filepath.Join(deep, "model.ysm"), []byte("m"), 0644)
+
+	ins := &types.VersionInstance{Name: "t", VersionDir: filepath.Join(base, "inst")}
+	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "ysm", Icon: "📦"}}, map[string]string{"ysm": globalDir}, "")
+
+	// 顶层：vendor（容器），其下 authors → character（模型文件夹叶子），逐步下钻
+	if len(items) != 1 {
+		t.Fatalf("顶层应为 vendor 容器，实际 %d 条", len(items))
+	}
+	vendor := items[0]
+	if vendor.Name != "vendor" || !vendor.IsDir {
+		t.Fatalf("vendor 应为容器，got %+v", vendor)
+	}
+	if len(vendor.Children) != 1 {
+		t.Fatalf("vendor.children 应为 authors，实际 %d", len(vendor.Children))
+	}
+	authors := vendor.Children[0]
+	if authors.Name != "authors" || !authors.IsDir {
+		t.Fatalf("authors 应为容器，got %+v", authors)
+	}
+	if len(authors.Children) != 1 {
+		t.Fatalf("authors.children 应为 character，实际 %d", len(authors.Children))
+	}
+	char := authors.Children[0]
+	if char.Name != "character" || !char.IsDir {
+		t.Fatalf("character 应为模型文件夹叶子，got %+v", char)
+	}
+	if char.Status != types.SyncStatusMissing {
+		t.Errorf("character 应为 missing（实例空），got %q", char.Status)
 	}
 }

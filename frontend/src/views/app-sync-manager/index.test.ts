@@ -410,4 +410,62 @@ describe("app-sync-manager（testid 钩子 + 同步交互）", () => {
     expect(el.querySelectorAll(".sm-file").length).toBe(1);
     unmountElement(el);
   });
+
+  it("多层嵌套目录 → 递归渲染可展开 sm-dir（镜像磁盘层级）", async () => {
+    const el = document.createElement("app-sync-manager");
+    el.setAttribute("instance", "test");
+    document.body.appendChild(el);
+    await waitFor(() => el.querySelector(".sm-status-tab") !== null, 5000);
+
+    const self = el as unknown as {
+      _selectedType: string;
+      _allItems: SyncItem[];
+      _filteredItems: SyncItem[];
+      _typeConfig: Array<{ id: string; name?: string; icon?: string; dirLevelSync: boolean }>;
+      _dirOpen: Record<string, boolean>;
+      _filesRoots: Record<string, string>;
+      _doRender: () => void;
+    };
+    self._selectedType = "ysm";
+    self._typeConfig = [{ id: "ysm", name: "YSM", icon: "💎", dirLevelSync: true }];
+    // 三层容器：vendor → authors → character（模型文件夹叶子，含文件级 children）
+    self._allItems = [{
+      path: "/repo/ysm/vendor", name: "vendor", status: "diverged", type: "ysm", icon: "🗂️", size: 0, isDir: true,
+      children: [{
+        path: "/repo/ysm/vendor/authors", name: "authors", status: "diverged", type: "ysm", icon: "🗂️", size: 0, isDir: true,
+        children: [{
+          path: "/repo/ysm/vendor/authors/character", name: "character", status: "missing", type: "ysm", icon: "💎", size: 4096, isDir: true,
+          children: [{ path: "/repo/ysm/vendor/authors/character/model.ysm", name: "model.ysm", status: "missing", type: "ysm", icon: "💎", size: 4096, isDir: false }],
+        }],
+      }],
+    }];
+    self._filteredItems = self._allItems;
+    self._filesRoots = { "ysm": "/repo/ysm" };
+    self._dirOpen = {};
+
+    self._doRender();
+    await sleep(100);
+    // 折叠：仅顶层 vendor 一个 sm-dir，无子项渲染
+    expect(el.querySelectorAll(".sm-dir").length).toBe(1);
+    expect(el.querySelectorAll(".sm-file").length).toBe(0);
+
+    // 逐层展开：vendor ▸ → authors ▸ → character ▸ → 渲染 model.ysm
+    (el.querySelector(".sm-dir") as HTMLElement).click();
+    await sleep(150);
+    expect(el.querySelectorAll(".sm-dir").length).toBe(2); // vendor + authors
+    // 展开第二层 authors（data-path 精确匹配，避免误点 vendor）
+    const authors = el.querySelector('.sm-dir[data-path="/repo/ysm/vendor/authors"]') as HTMLElement;
+    expect(authors).toBeTruthy();
+    authors.click();
+    await sleep(150);
+    expect(el.querySelectorAll(".sm-dir").length).toBe(3); // + character
+    const character = el.querySelector('.sm-dir[data-path="/repo/ysm/vendor/authors/character"]') as HTMLElement;
+    expect(character).toBeTruthy();
+    character.click();
+    await sleep(150);
+    // 展开全部 → 出现 model.ysm 文件行
+    expect(el.querySelectorAll(".sm-file").length).toBe(1);
+    expect(el.querySelector('.sm-file[data-path="/repo/ysm/vendor/authors/character/model.ysm"]')).toBeTruthy();
+    unmountElement(el);
+  });
 });

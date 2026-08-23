@@ -6,6 +6,7 @@ package instance
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"ysm-model-manager/go/fsutil"
@@ -70,19 +71,21 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		// defaultStatus 为分支默认状态；isLegacy 仅 Extra 分支传（旧仓库硬链接检测），其余传 nil。
 		isDirLevel := types.IsDirLevelSync(rt.ID)
 
+		// per-type 收集 扁平单元；dirLevel 类型在循环末尾树化（nestDirLevelTree），
+		// 中间目录重建为容器节点——仓库怎么来，整合包就怎么来（镜像磁盘层级）
+		var typeItems []types.ResourceSyncItem
+
 		// buildChildrenForDir 为 dirLevelSync 类型的文件夹构建子条目列表
 		// 通过 DiffFolderContents 获取文件夹内容级差异
 		buildChildrenForDir := func(globalPath, instPath string) []types.ResourceSyncItem {
-			// 只在两侧路径都存在时才做内容级 diff
+			// 仓库是权威源：只要仓库侧文件夹存在即可构建子项（供 missing 夹预览
+			// 待推送文件）。实例侧缺失时 DiffFolderContents 对其扫描为空 → 全局文件全标
+			// missing——仓库怎么来，整合包就怎么来。
 			if _, err1 := os.Stat(globalPath); err1 != nil {
 				return nil
 			}
-			if _, err2 := os.Stat(instPath); err2 != nil {
-				return nil
-			}
 			// DiffFolderContents 返回全局侧文件清单（synced 条目含在结果中——前端
-			// 子文件列表需全量展示）；code review P3：移除早期 len(diffs)==0 返回
-			// （实现从不返回空——含模型文件的文件夹必有 synced 条目——死代码）
+			// 子文件列表需全量展示）；实例侧目录不存在时自然降级为全部 missing
 			diffs := ysmsync.DiffFolderContents(globalPath, instPath, rt.ID)
 			children := make([]types.ResourceSyncItem, 0, len(diffs))
 			for _, d := range diffs {
@@ -125,6 +128,11 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 			isDisabled := types.IsDisableSuffix(lowName)
 			status := defaultStatus
 			icon := rt.Icon
+			// 文件夹用 📁，扁平文件才用类型图标（💎）——避免「真模型夹/容器」误显示为
+			// 独立模型图标。disabled/legacy 仍各自覆盖
+			if isDirEntry {
+				icon = "📁"
+			}
 			if isDisabled {
 				status = types.SyncStatusDisabled
 				icon = "⛔"
@@ -144,7 +152,9 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 					instPath = filepath.Join(instDir, rel)
 				}
 				children = buildChildrenForDir(p, instPath)
-				// 有内容差异 → 聚合为 diverged（继承 missing 的可操作属性）
+				// 仅「两侧都在但内容有差异」的夹聚合为 diverged（继承 missing 可操作）：
+				// 对 synced 夹，子项有非 synced → diverged；missing/optional 夹保持自身状态——
+				// 整体缺失/整体多余不降级成「部分差异」，但子项清单照常展示（仓库是权威源）
 				if len(children) > 0 {
 					hasDiff := false
 					for _, c := range children {
@@ -154,15 +164,16 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 						}
 					}
 					// code review P2：diverged 提升不覆盖 Disabled/Legacy（status 仍为默认才
-					// 提升——禁用/遗留文件夹的 ⛔/🔗 状态优先，UI 不提供禁用内容的推送按钮）
-					if hasDiff && status == defaultStatus {
+					// 提升）；且仅 synced 夹提升——missing 夹（子项全 missing）与 optional 夹
+					// 保持自身状态，避免「整体缺失」误标成「部分差异」
+					if hasDiff && defaultStatus == types.SyncStatusSynced && status == defaultStatus {
 						status = types.SyncStatusDiverged
 						icon = "🗂️"
 					}
 				}
 			}
 
-			items = append(items, types.ResourceSyncItem{
+			typeItems = append(typeItems, types.ResourceSyncItem{
 				Path: p, Name: filepath.Base(p),
 				Status: status, Type: rt.ID, Icon: icon, Size: sizeOf(p),
 				IsDir: isDir, Children: children,
@@ -186,8 +197,157 @@ func BuildSyncItems(ins *types.VersionInstance, rtypes []ResourceTypeInfo, files
 		// 兜底 Walk（IsScanInstance）已移除——ADR-064 阶段二：SyncResources 相对路径
 		// 对比全树递归收集所有受支持文件（含嵌套），同名不同目录不再 map 去重丢失，
 		// 原兜底（SyncResources 丢同名文件时补全）已无新增条目可补，删除防重复列示。
+
+		// dirLevel 类型：重建展示树，中间目录变容器节点，镜像磁盘层级
+		if isDirLevel {
+			typeItems = nestDirLevelTree(typeItems, globalDir, instDir)
+		}
+		items = append(items, typeItems...)
 	}
 	return items
 }
 
 // isResourcePackFolder 检查目录是否是资源包文件夹（内含 pack.mcmeta）——统一走 fsutil 收敛实现
+
+// nestTreeNode 展示树节点：中间目录（容器）或叶子单元
+type nestTreeNode struct {
+	// 容器字段
+	isDir   bool
+	relPath string // 相对仓库/实例根，段连接符 "/"
+	// 叶子字段（isDir=false 或叶子模型夹）
+	leaf *types.ResourceSyncItem
+	// 容器 children：key = 下一路径段（目录段，不含扩展名判断——直接用段名）
+	children map[string]*nestTreeNode
+}
+
+// nestDirLevelTree 把扁平 dirLevel 同步单元按相对路径段重建为嵌套展示树。
+// 设计：模型文件夹/文件是叶子单元（保留现有 children——文件级 diff）；
+// 仅含子模型的中间目录（如 wine_fox_json）自动生成容器节点（isDir=true + 聚合状态）。
+// 顶层只返回根下直接子项（children 深度嵌套），镜像磁盘真实层级。
+// 路径基准：Synced/Missing 是全局路径（globalDir 下），Extra 是实例路径（instDir 下）——
+// 逐条按命中 root 剥离出相对路径段。
+func nestDirLevelTree(flat []types.ResourceSyncItem, globalDir, instDir string) []types.ResourceSyncItem {
+	root := &nestTreeNode{children: map[string]*nestTreeNode{}}
+	relOf := func(p string) (string, bool) {
+		for _, basedir := range []string{globalDir, instDir} {
+			if basedir == "" || !strings.HasPrefix(p, basedir) {
+				continue
+			}
+			rel, err := filepath.Rel(basedir, p)
+			if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+				return "", false
+			}
+			return filepath.ToSlash(rel), true
+		}
+		return "", false
+	}
+	// 为每个条目计算相对 root 的路径段，并挂入树
+	for i := range flat {
+		it := &flat[i]
+		rel, ok := relOf(it.Path)
+		if !ok {
+			// 路径无法归属任一 root（防御）——保持扁平顶层
+			root.children[it.Path] = &nestTreeNode{leaf: it}
+			continue
+		}
+		segs := strings.Split(rel, "/")
+		cur := root
+		for _, s := range segs[:len(segs)-1] {
+			nxt, ok := cur.children[s]
+			if !ok {
+				nxt = &nestTreeNode{isDir: true, children: map[string]*nestTreeNode{}}
+				cur.children[s] = nxt
+			}
+			cur = nxt
+		}
+		last := segs[len(segs)-1]
+		cur.children[last] = &nestTreeNode{leaf: it}
+	}
+	return treeChildren(root, "", globalDir, instDir)
+}
+
+// treeChildren 把容器节点 children 展平为 ResourceSyncItem 列表
+// 容器：isDir=true + 聚合状态（若子项有非 synced 差异 → diverged）；叶子原样返回
+// baseRel：容器相对 root 的路径（段连接符 "/"）；root 用于还原容器绝对路径供 push/pull
+func treeChildren(node *nestTreeNode, baseRel, globalDir, instDir string) []types.ResourceSyncItem {
+	if len(node.children) == 0 {
+		return nil
+	}
+	// 排序保证确定性输出
+	keys := make([]string, 0, len(node.children))
+	for k := range node.children {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	out := make([]types.ResourceSyncItem, 0, len(keys))
+	for _, k := range keys {
+		c := node.children[k]
+		if c.leaf != nil {
+			// 相对路径重建：叶子单元保留自身路径与状态
+			out = append(out, *c.leaf)
+			continue
+		}
+		// 容器：递归构建 children，聚合状态
+		childRel := joinRel(baseRel, k)
+		children := treeChildren(c, childRel, globalDir, instDir)
+		status := aggregateStatus(children)
+		icon := "📁"
+		if status == types.SyncStatusDiverged || status == types.SyncStatusMissing {
+			icon = "🗂️"
+		}
+		// 容器绝对路径：按子项来源侧还原——含可拉取(optional/legacy)子项走实例侧，
+		// 否则(可推送/同步)走全局侧。作为前端展开 key 与容器级 push/pull 的 data-path
+		containerPath := dirLevelContainerPath(children, childRel, globalDir, instDir)
+		out = append(out, types.ResourceSyncItem{
+			Path:     containerPath,
+			Name:     k,
+			Status:   status,
+			Icon:     icon,
+			IsDir:    true,
+			Children: children,
+		})
+	}
+	return out
+}
+
+// dirLevelContainerPath 按子项来源侧还原容器目录的绝对路径。
+// 任一子项 optional/legacy（实例侧独有）→ 用实例根；否则用全局根（可推送/同步）。
+func dirLevelContainerPath(children []types.ResourceSyncItem, rel, globalDir, instDir string) string {
+	sep := string(filepath.Separator)
+	relPath := strings.ReplaceAll(rel, "/", sep)
+	hasInstSide := false
+	for _, c := range children {
+		if c.Status == types.SyncStatusOptional || c.Status == types.SyncStatusLegacy {
+			hasInstSide = true
+			break
+		}
+	}
+	base := globalDir
+	if hasInstSide {
+		base = instDir
+	}
+	if base == "" {
+		return rel
+	}
+	return filepath.Join(base, relPath)
+}
+
+// joinRel 拼接相对路径段
+func joinRel(parent, seg string) string {
+	if parent == "" {
+		return seg
+	}
+	return parent + "/" + seg
+}
+
+// aggregateStatus 聚合子项状态：全部 synced → synced；任一 missing/diverged/disabled（可推送差异）
+// 或 optional/legacy（可拉取差异）→ diverged；否则 synced
+func aggregateStatus(children []types.ResourceSyncItem) types.SyncStatus {
+	for _, c := range children {
+		if c.Status != types.SyncStatusSynced {
+			return types.SyncStatusDiverged
+		}
+	}
+	return types.SyncStatusSynced
+}

@@ -132,24 +132,49 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
   const htmlParts: string[] = [];
 
   self._filteredItems.forEach((item, i) => {
-    if (item.isDir) {
-      // 文件夹行：可展开
-      const isOpen = !!dirOpen[item.path];
-      htmlParts.push(syncDirRowHTML(item.path, item, isOpen, i, item.path));
-
-      // 展开时渲染 children（带真实状态的子文件）
-      if (isOpen && item.children && item.children.length > 0) {
-        const baseIndent = 32; // 2 * 16px
-        item.children.forEach((child, ci) => {
-          const childHtml = itemHTML(child, i + ci + 1);
-          htmlParts.push('<div style="padding-left:' + baseIndent + 'px">' + childHtml + '</div>');
-        });
-      }
-    } else {
-      // 扁平文件行
-      htmlParts.push(itemHTML(item, i));
-    }
+    renderNode(self, item, "", htmlParts, i);
   });
 
   listEl.innerHTML = htmlParts.join("");
+}
+
+/**
+ * 递归渲染一个同步节点及其 children。
+ * 镜像磁盘层级：中间目录（isDir 且含 children）渲染为可展开 sm-dir，
+ * 其子项递归下沉；扁平文件渲染为 sm-item。
+ * @param self 组件实例
+ * @param item 当前节点
+ * @param indentPadding 继承缩进（px），递归层层累加
+ * @param htmlParts 输出缓冲
+ * @param index 动画错峰基准
+ */
+function renderNode(
+  self: SyncRenderSelf,
+  item: SyncItem,
+  indentPadding: string,
+  htmlParts: string[],
+  index: number,
+): void {
+  const dirOpen = self._dirOpen || {};
+  const isDir = item.isDir;
+  const hasChildren = !!(item.children && item.children.length > 0);
+  // 目录且未展开，或本无 children → 该子树的叶子/子树到此为止不再下钻
+  const isOpen = isDir && !!dirOpen[item.path] && hasChildren;
+
+  const wrapped = (contentHTML: string): string =>
+    indentPadding ? '<div style="padding-left:26px">' + contentHTML + "</div>" : contentHTML;
+
+  if (!isDir) {
+    // 扁平文件行
+    htmlParts.push(wrapped(itemHTML(item, index)));
+    return;
+  }
+
+  // 目录行：可展开 sm-dir
+  htmlParts.push(wrapped(syncDirRowHTML(item.path, item, isOpen, index, item.path)));
+  if (isOpen && item.children) {
+    item.children.forEach((child, ci) => {
+      renderNode(self, child, "  ", htmlParts, index + ci + 1);
+    });
+  }
 }
