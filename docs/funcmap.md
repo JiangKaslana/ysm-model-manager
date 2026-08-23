@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 77 |
-| 前端·工具 | 145 | 556 |
+| 前端·工具 | 145 | 557 |
 | frontend/views | 117 | 333 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **453** | **1900** |
+| **合计** | **453** | **1901** |
 
 ## Go·头像
 
@@ -1677,7 +1677,7 @@
 | `RenameFields()` | `frontend/src/utils/dom/dialogs/rename-format:7` | 重命名字段（调用方已 trim） |
 | `BuildModelNameOptions()` | `frontend/src/utils/dom/dialogs/rename-format:21` | 命名模板引擎选项（索引 4.9 收敛 buildRenameName / rebuildParsedName 两套手工拼接）： - fillDefaults=true：空作品补「未 |
 | `ModelNameFields()` | `frontend/src/utils/dom/dialogs/rename-format:27` | 命名模板输入字段（variant 可选：单重命名有、批量重建无） |
-| `buildModelName()` | `frontend/src/utils/dom/dialogs/rename-format:40` | 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.ban]` 单一模板引擎——buildRenameName（缺省填充）与 rebuildPar |
+| `buildModelName()` | `frontend/src/utils/dom/dialogs/rename-format:40` | 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.disabled]` 单一模板引擎——buildRenameName（缺省填充）与 rebui |
 | `buildRenameName()` | `frontend/src/utils/dom/dialogs/rename-format:60` | 按 YSM 命名规范拼接新文件名：`[作者]【品牌】角色-变体 (年月).ext` 品牌缺省「未知」、角色缺省「?」，与预览一致（收敛自 buildModelName，索引 4.9 |
 | `showRenameDialog()` | `frontend/src/utils/dom/dialogs/rename:16` | 弹出重命名对话框 |
 | `modalTagEditor()` | `frontend/src/utils/dom/dialogs/tag-editor:15` | 弹出标签编辑弹窗 |
@@ -1686,12 +1686,13 @@
 | `addTagToSet()` | `frontend/src/utils/dom/dialogs/tag-set:19` | 向标签集合添加一个标签（已 trim）： 空输入 → 原样返回；重复 → error「标签已存在」；超长 → error「最多 20 个字符」； 合法 → 排序后返回新数组。错误文 |
 | `resolveAndroidRepoDir()` | `frontend/src/utils/dom/directory-picker:25` | Android 共享仓库目录解析（双端桥接：授权引导 + 定位公共目录）。 |
 | `pickDirectory()` | `frontend/src/utils/dom/directory-picker:65` | 选择目录：桌面走系统对话框；查看器模式（Android/网页版）走授权检查 + 自动定位公共目录 |
-| `stripBanSuffix()` | `frontend/src/utils/dom/display:9` | 剥离 .ban 禁用后缀（大小写不敏感）。 |
-| `ParsedModelName()` | `frontend/src/utils/dom/display:14` | 解析后的模型文件名字段 |
-| `parseModelName()` | `frontend/src/utils/dom/display:53` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
-| `renderDisplayName()` | `frontend/src/utils/dom/display:122` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
-| `renderModelName()` | `frontend/src/utils/dom/display:191` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
-| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:200` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
+| `stripDisableSuffix()` | `frontend/src/utils/dom/display:14` | 剥离禁用后缀（.disabled / .ban，大小写不敏感）。 |
+| `stripBanSuffix()` | `frontend/src/utils/dom/display:19` | 剥离禁用后缀（.disabled / .ban，大小写不敏感）。 |
+| `ParsedModelName()` | `frontend/src/utils/dom/display:22` | 解析后的模型文件名字段 |
+| `parseModelName()` | `frontend/src/utils/dom/display:61` | 解析模型文件名 → 结构化字段 支持格式: [作者]【作品】角色变体2023-05.ysm 也兼容: [作者]《作品》角色变体2023-05.ysm |
+| `renderDisplayName()` | `frontend/src/utils/dom/display:130` | 渲染美化文件名 HTML（通用接口） 应用 CSS 变量: --meta-author, --meta-work, --meta-date |
+| `renderModelName()` | `frontend/src/utils/dom/display:199` | renderModelName = renderDisplayName 别名，options.showExt 支持 |
+| `renderModelNameWithHighlight()` | `frontend/src/utils/dom/display:208` | 搜索高亮版：先对纯文本高亮，再渲染 HTML，避免 keyword 命中 HTML 标签内容破坏 DOM |
 | `friendlyError()` | `frontend/src/utils/dom/errors:44` | 将 Go 错误转换为友好提示 |
 | `stripPathSegments()` | `frontend/src/utils/dom/errors:72` | — |
 | `isFileExistsError()` | `frontend/src/utils/dom/errors:87` | 判断错误消息是否为「文件已存在」冲突（索引 4.2 收敛）。 |

@@ -112,11 +112,11 @@ func TestToggleModelEnable(t *testing.T) {
 	if err != nil || enabled {
 		t.Fatalf("禁用应返回 enabled=false: %v", err)
 	}
-	if !IsFileBanned(path + ".ban") {
-		t.Fatal(".ban 应被识别")
+	if !IsFileBanned(path + ".disabled") {
+		t.Fatal(".disabled 应被识别")
 	}
 	// 启用
-	enabled, err = ToggleModelEnable(dir, path+".ban")
+	enabled, err = ToggleModelEnable(dir, path+".disabled")
 	if err != nil || !enabled {
 		t.Fatalf("启用应返回 enabled=true: %v", err)
 	}
@@ -129,26 +129,32 @@ func TestIsFileBanned(t *testing.T) {
 	if !IsFileBanned("x.ysm.ban") {
 		t.Fatal(".ban 后缀应识别")
 	}
+	if !IsFileBanned("x.ysm.disabled") {
+		t.Fatal(".disabled 后缀应识别")
+	}
 	if IsFileBanned("x.ysm") {
 		t.Fatal("非 .ban 不应识别")
 	}
 	if !IsFileBanned("X.YSM.BAN") {
 		t.Fatal("大小写不敏感")
 	}
+	if !IsFileBanned("X.YSM.DISABLED") {
+		t.Fatal("大小写不敏感 .disabled")
+	}
 }
 
 // P3 补测（code_review）：ToggleModelEnable 根级守卫——path==root 必须拒绝且
-// root 未被改名成 .ban（原仅 ysm.json 分支有守卫，非 ysm.json 输入可整仓库隔离）
+// root 未被改名成 .disabled（原仅 ysm.json 分支有守卫，非 ysm.json 输入可整仓库隔离）
 func TestToggleModelEnable_RootRejected(t *testing.T) {
 	dir := t.TempDir()
 	_, err := ToggleModelEnable(dir, dir)
 	if err == nil {
 		t.Fatal("path==root 应拒绝")
 	}
-	// 断言用 os.Stat 检查 dir.ban 是否实际存在——IsFileBanned 只查路径后缀、
-	// 对 dir+".ban" 这类以 .ban 结尾的路径恒返回 true，不能用于验证「未改名」
-	if _, err := os.Stat(dir + ".ban"); err == nil {
-		t.Fatal("根目录不得被改名成 .ban")
+	// 断言用 os.Stat 检查 dir.disabled 是否实际存在——IsFileBanned 只查路径后缀、
+	// 对 dir+".disabled" 这类以 .disabled 结尾的路径恒返回 true，不能用于验证「未改名」
+	if _, err := os.Stat(dir + ".disabled"); err == nil {
+		t.Fatal("根目录不得被改名成 .disabled")
 	}
 	if _, err := os.Stat(dir); err != nil {
 		t.Fatalf("根目录应原样保留: %v", err)
@@ -736,29 +742,29 @@ func TestDeleteModelFile_RootLevelYsmJsonFallsBack(t *testing.T) {
 	}
 }
 
-// ====== ADR-038 D3.7：Toggle 目录级 .ban（整组禁用） ======
+// ====== ADR-038 D3.7：Toggle 目录级 .disabled（整组禁用） ======
 
 func TestToggleModelEnable_YsmJsonDisablesParentDir(t *testing.T) {
 	base := t.TempDir()
 	modelDir := makeYsmModelDir(base, "模型A")
 	ysmPath := filepath.Join(modelDir, "ysm.json")
 
-	// 对 ysm.json 禁用 → 父目录重命名为 .ban（整组）
+	// 对 ysm.json 禁用 → 父目录重命名为 .disabled（整组）
 	enabled, err := ToggleModelEnable(base, ysmPath)
 	if err != nil || enabled {
 		t.Fatalf("禁用应返回 enabled=false: %v", err)
 	}
-	bannedDir := modelDir + ".ban"
+	bannedDir := modelDir + ".disabled"
 	if _, err := os.Stat(bannedDir); err != nil {
 		t.Fatalf("父目录应重命名为 %s: %v", bannedDir, err)
 	}
 	// 目录内 ysm.json 路径经 IsFileBanned 应识别为禁用
 	bannedYsm := filepath.Join(bannedDir, "ysm.json")
 	if !IsFileBanned(bannedYsm) {
-		t.Fatal("目录级 .ban 下的 ysm.json 应识别为禁用")
+		t.Fatal("目录级 .disabled 下的 ysm.json 应识别为禁用")
 	}
 
-	// 启用：.ban 目录内的 ysm.json 传入 → 父目录还原
+	// 启用：.disabled 目录内的 ysm.json 传入 → 父目录还原
 	enabled, err = ToggleModelEnable(base, bannedYsm)
 	if err != nil || !enabled {
 		t.Fatalf("启用应返回 enabled=true: %v", err)
@@ -769,7 +775,7 @@ func TestToggleModelEnable_YsmJsonDisablesParentDir(t *testing.T) {
 }
 
 func TestToggleModelEnable_RootLevelYsmJsonFallsBack(t *testing.T) {
-	// 根级 ysm.json（父目录 == 仓库根）：不得把仓库根重命名为 .ban
+	// 根级 ysm.json（父目录 == 仓库根）：不得把仓库根重命名为 .disabled
 	base := t.TempDir()
 	rootYsm := filepath.Join(base, "ysm.json")
 	if err := os.WriteFile(rootYsm, []byte(`{"spec":1}`), 0644); err != nil {
@@ -777,16 +783,16 @@ func TestToggleModelEnable_RootLevelYsmJsonFallsBack(t *testing.T) {
 	}
 	modelDir := makeYsmModelDir(base, "模型A")
 
-	// 禁用：应回退到文件级 .ban（ysm.json → ysm.json.ban），仓库根不动
+	// 禁用：应回退到文件级 .disabled（ysm.json → ysm.json.disabled），仓库根不动
 	enabled, err := ToggleModelEnable(base, rootYsm)
 	if err != nil || enabled {
 		t.Fatalf("禁用应返回 enabled=false: %v", err)
 	}
-	if _, err := os.Stat(rootYsm + ".ban"); err != nil {
-		t.Fatalf("根级 ysm.json 应回退文件级 .ban: %v", err)
+	if _, err := os.Stat(rootYsm + ".disabled"); err != nil {
+		t.Fatalf("根级 ysm.json 应回退文件级 .disabled: %v", err)
 	}
-	if _, err := os.Stat(base + ".ban"); err == nil {
-		t.Fatal("仓库根不应被重命名成 .ban")
+	if _, err := os.Stat(base + ".disabled"); err == nil {
+		t.Fatal("仓库根不应被重命名成 .disabled")
 	}
 	if _, err := os.Stat(modelDir); err != nil {
 		t.Fatalf("仓库内模型不应受影响: %v", err)
@@ -794,7 +800,7 @@ func TestToggleModelEnable_RootLevelYsmJsonFallsBack(t *testing.T) {
 }
 
 func TestToggleModelEnable_MixedDirEnableSymmetry(t *testing.T) {
-	// P2b 修复验证：目录级 .ban 下，非 ysm.json 文件启用应还原父目录（与 IsFileBanned 对称）
+	// P2b 修复验证：目录级 .disabled 下，非 ysm.json 文件启用应还原父目录（与 IsFileBanned 对称）
 	base := t.TempDir()
 	modelDir := makeYsmModelDir(base, "模型A")
 	// 混入一个松散 .ysm（模拟混合内容目录）
@@ -807,13 +813,13 @@ func TestToggleModelEnable_MixedDirEnableSymmetry(t *testing.T) {
 	if _, err := ToggleModelEnable(base, filepath.Join(modelDir, "ysm.json")); err != nil {
 		t.Fatalf("禁用失败: %v", err)
 	}
-	bannedDir := modelDir + ".ban"
-	// 目录内松散 .ysm 应识别为禁用（父目录 .ban）
+	bannedDir := modelDir + ".disabled"
+	// 目录内松散 .ysm 应识别为禁用（父目录 .disabled）
 	bannedLoose := filepath.Join(bannedDir, "loose.ysm")
 	if !IsFileBanned(bannedLoose) {
-		t.Fatal("目录级 .ban 下的松散 .ysm 应识别为禁用")
+		t.Fatal("目录级 .disabled 下的松散 .ysm 应识别为禁用")
 	}
-	// 启用松散 .ysm → 应还原父目录（整组启用），而非给文件加 .ban
+	// 启用松散 .ysm → 应还原父目录（整组启用），而非给文件加 .disabled
 	enabled, err := ToggleModelEnable(base, bannedLoose)
 	if err != nil || !enabled {
 		t.Fatalf("启用应返回 enabled=true: %v", err)
@@ -821,7 +827,7 @@ func TestToggleModelEnable_MixedDirEnableSymmetry(t *testing.T) {
 	if _, err := os.Stat(modelDir); err != nil {
 		t.Fatalf("父目录应还原: %v", err)
 	}
-	// 文件不应被加 .ban 后缀（原路径应存在）
+	// 文件不应被加 .disabled 后缀（原路径应存在）
 	if _, err := os.Stat(looseYsm); err != nil {
 		t.Fatalf("松散 .ysm 不应被重命名: %v", err)
 	}
@@ -832,9 +838,17 @@ func TestIsFileBanned_DirBan(t *testing.T) {
 	if !IsFileBanned("x.ysm.ban") {
 		t.Fatal("文件级 .ban 应识别")
 	}
+	// 文件级 .disabled
+	if !IsFileBanned("x.ysm.disabled") {
+		t.Fatal("文件级 .disabled 应识别")
+	}
 	// 目录级 .ban：父目录名 .ban 结尾
 	if !IsFileBanned(filepath.Join("模型A.ban", "ysm.json")) {
 		t.Fatal("父目录级 .ban 应识别")
+	}
+	// 目录级 .disabled：父目录名 .disabled 结尾
+	if !IsFileBanned(filepath.Join("模型A.disabled", "ysm.json")) {
+		t.Fatal("父目录级 .disabled 应识别")
 	}
 	// 正常路径不误判
 	if IsFileBanned(filepath.Join("模型A", "ysm.json")) {

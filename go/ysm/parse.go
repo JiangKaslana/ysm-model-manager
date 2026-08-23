@@ -49,9 +49,9 @@ func AnalyzeYSMModel(path string) YSMModelMeta {
 	ext := strings.ToLower(filepath.Ext(path))
 	// .ysm 也可能没有扩展名或 .zip 扩展
 	if ext != ".ysm" && ext != ".zip" {
-		// 去掉 .ban 再检查
-		if strings.HasSuffix(strings.ToLower(path), ".ban") {
-			base := types.StripBanSuffix(path)
+		// 去掉禁用后缀再检查
+		if types.IsDisableSuffix(path) {
+			base := types.StripDisableSuffix(path)
 			ext2 := strings.ToLower(filepath.Ext(base))
 			if ext2 != ".ysm" && ext2 != ".zip" {
 				meta.HasError = true

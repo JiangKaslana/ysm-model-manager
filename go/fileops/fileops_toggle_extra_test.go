@@ -125,7 +125,7 @@ func TestToggleModelEnable_DirBanDirNewExists(t *testing.T) {
 	}
 }
 
-// 无 root（空字符串）：ysm.json 仍应提升为父目录级 .ban（整组禁用）
+// 无 root（空字符串）：ysm.json 仍应提升为父目录级 .disabled（整组禁用）
 func TestToggleModelEnable_YsmJsonLiftWithoutRoot(t *testing.T) {
 	base := t.TempDir()
 	modelDir := makeYsmModelDir(base, "模型A")
@@ -133,30 +133,30 @@ func TestToggleModelEnable_YsmJsonLiftWithoutRoot(t *testing.T) {
 	if err != nil || enabled {
 		t.Fatalf("禁用应 enabled=false: %v", err)
 	}
-	if _, err := os.Stat(modelDir + ".ban"); err != nil {
-		t.Fatalf("无 root 时 ysm.json 也应整组禁用（父目录 .ban）: %v", err)
+	if _, err := os.Stat(modelDir + ".disabled"); err != nil {
+		t.Fatalf("无 root 时 ysm.json 也应整组禁用（父目录 .disabled）: %v", err)
 	}
 }
 
-// 启用时还原目标已存在（.ban 文件旁已有原文件）→ 报错
+// 启用时还原目标已存在（.disabled 文件旁已有原文件）→ 报错
 func TestToggleModelEnable_EnableTargetExists(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "m.ysm")
 	if err := os.WriteFile(path, []byte("x"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// 预置 .ban 目标文件 → 禁用时应报错（目标已存在）
-	if err := os.WriteFile(path+".ban", []byte("y"), 0644); err != nil {
+	// 预置 .disabled 目标文件 → 禁用时应报错（目标已存在）
+	if err := os.WriteFile(path+".disabled", []byte("y"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ToggleModelEnable(dir, path); err == nil {
-		t.Fatal("禁用目标 .ban 已存在应报错")
+		t.Fatal("禁用目标 .disabled 已存在应报错")
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("原文件应保留: %v", err)
 	}
-	// 清理预置的 .ban 后，改为测试启用侧：先禁用成功，再预置还原目标 → 启用应报错
-	if err := os.Remove(path + ".ban"); err != nil {
+	// 清理预置的 .disabled 后，改为测试启用侧：先禁用成功，再预置还原目标 → 启用应报错
+	if err := os.Remove(path + ".disabled"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ToggleModelEnable(dir, path); err != nil {
@@ -165,10 +165,10 @@ func TestToggleModelEnable_EnableTargetExists(t *testing.T) {
 	if err := os.WriteFile(path, []byte("z"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ToggleModelEnable(dir, path+".ban"); err == nil {
+	if _, err := ToggleModelEnable(dir, path+".disabled"); err == nil {
 		t.Fatal("启用目标已存在应报错")
 	}
-	if _, err := os.Stat(path + ".ban"); err != nil {
-		t.Fatalf(".ban 文件应保留: %v", err)
+	if _, err := os.Stat(path + ".disabled"); err != nil {
+		t.Fatalf(".disabled 文件应保留: %v", err)
 	}
 }

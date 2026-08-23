@@ -149,11 +149,11 @@ func TestSyncAllSyncsInstances(t *testing.T) {
 	if cacheClears.Load() != 1 {
 		t.Fatalf("clearCacheFn 应被调用 1 次，实际 %d", cacheClears.Load())
 	}
-	if _, err := os.Stat(filepath.Join(customDir, "foo.ysm.ban")); err != nil {
-		t.Errorf("foo.ysm 未被禁用（期望生成 foo.ysm.ban）: %v", err)
+	if _, err := os.Stat(filepath.Join(customDir, "foo.ysm.disabled")); err != nil {
+		t.Errorf("foo.ysm 未被禁用（期望生成 foo.ysm.disabled）: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(customDir, "foo.ysm")); !os.IsNotExist(err) {
-		t.Error("foo.ysm 应已被重命名为 .ban")
+		t.Error("foo.ysm 应已被重命名为 .disabled")
 	}
 	if _, err := os.Stat(filepath.Join(customDir, "bar.ysm")); err != nil {
 		t.Errorf("bar.ysm 不应被改动: %v", err)

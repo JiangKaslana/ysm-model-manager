@@ -48,15 +48,13 @@ func FindPreviewImage(modelPath string) string {
 
 // ExtractPreviewTexture 从模型文件中提取预览纹理（zip/7z/ysm/json）
 func ExtractPreviewTexture(modelPath string) string {
-	// 剥禁用后缀（.ban/.disabled），与 scanner 口径一致——禁用条目也应能预览。
-	// 剥离仅用于扩展名判定：磁盘上文件名仍带 .ban，读取必须用原始路径，
+	// 剥禁用后缀（.disabled/.ban），与 scanner 口径一致——禁用条目也应能预览。
+	// 剥离仅用于扩展名判定：磁盘上文件名仍带禁用后缀，读取必须用原始路径，
 	// 否则 readLimitedFile(剥离后路径) 命中不存在文件（陷阱：先改路径后读原文件）。
 	readPath := modelPath
 	extPath := modelPath
-	if strings.HasSuffix(strings.ToLower(extPath), ".ban") {
-		extPath = types.StripBanSuffix(extPath)
-	} else if strings.HasSuffix(strings.ToLower(extPath), ".disabled") {
-		extPath = extPath[:len(extPath)-len(".disabled")]
+	if types.IsDisableSuffix(extPath) {
+		extPath = types.StripDisableSuffix(extPath)
 	}
 	ext := strings.ToLower(filepath.Ext(extPath))
 	var png []byte

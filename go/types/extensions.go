@@ -93,14 +93,36 @@ func IsYsmEntryJSON(baseName string) bool {
 	return strings.EqualFold(strings.TrimSpace(baseName), "ysm.json")
 }
 
-// StripBanSuffix 剥离 .ban 禁用后缀（大小写不敏感）。
-// 单一事实来源——sync/scanner/ysm/installer 的 .ban 剥离均委托本函数，
-// 防多处内联 `name[:len(name)-4]` 口径漂移。
-func StripBanSuffix(name string) string {
-	if strings.HasSuffix(strings.ToLower(name), ".ban") {
-		return name[:len(name)-4]
+// DisableSuffixes 禁用后缀列表（新标准 .disabled 在前，历史 .ban 兼容在后）。
+var DisableSuffixes = []string{".disabled", ".ban"}
+
+// StripDisableSuffix 剥离禁用后缀（大小写不敏感，依次尝试 .disabled/.ban）。
+// 单一事实来源——sync/scanner/ysm/installer/fileops 的禁用后缀剥离均委托本函数，
+// 防多处内联 `name[:len(name)-N]` 口径漂移。
+func StripDisableSuffix(name string) string {
+	lower := strings.ToLower(name)
+	for _, sfx := range DisableSuffixes {
+		if strings.HasSuffix(lower, sfx) {
+			return name[:len(name)-len(sfx)]
+		}
 	}
 	return name
+}
+
+// StripBanSuffix 保留向后兼容——内部委托 StripDisableSuffix。
+func StripBanSuffix(name string) string {
+	return StripDisableSuffix(name)
+}
+
+// IsDisableSuffix 判断文件名是否带禁用后缀（.disabled/.ban，大小写不敏感）。
+func IsDisableSuffix(name string) bool {
+	lower := strings.ToLower(name)
+	for _, sfx := range DisableSuffixes {
+		if strings.HasSuffix(lower, sfx) {
+			return true
+		}
+	}
+	return false
 }
 
 // NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）：

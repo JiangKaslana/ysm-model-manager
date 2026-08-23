@@ -2,8 +2,8 @@
 // 覆盖：copyFile 的 Lstat 失败、符号链接源拒绝、MkdirAll 失败、io.Copy 失败
 // （源为目录）、Rename 失败（目标为已存在目录）+ 半截 tmp 清理；
 // copyDirRecursive 的整树回滚（目标已存在、树内符号链接）；
-// CopyModelFile 忽略兄弟 `<src>.ban`（.ban 是文件名重命名约定，
-// 兄弟 .ban 属撞名的无关被禁模型，不复制也不报错——与 MoveModelFile 对齐）。
+// CopyModelFile 忽略兄弟 `<src>.disabled`（.disabled 是文件名重命名约定，
+// 兄弟 .disabled 属撞名的无关被禁模型，不复制也不报错——与 MoveModelFile 对齐）。
 package fileops
 
 import (
@@ -152,8 +152,8 @@ func TestCopyDirRecursive_SymlinkRejected(t *testing.T) {
 	}
 }
 
-// CopyModelFile 不再把兄弟 `<src>.ban` 当作禁用标记（.ban 是文件名重命名约定，
-// 后缀随文件名自然携带；兄弟 .ban 属于撞名的无关被禁模型）：
+// CopyModelFile 不再把兄弟 `<src>.disabled` 当作禁用标记（.disabled 是文件名重命名约定，
+// 后缀随文件名自然携带；兄弟 .disabled 属于撞名的无关被禁模型）：
 // 兄弟 symlink 不应被复制，也不应导致复制失败
 func TestCopyModelFile_IgnoresBanSibling(t *testing.T) {
 	dir := t.TempDir()
@@ -165,18 +165,18 @@ func TestCopyModelFile_IgnoresBanSibling(t *testing.T) {
 	if err := os.WriteFile(banTarget, []byte("x"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(banTarget, src+".ban"); err != nil {
+	if err := os.Symlink(banTarget, src+".disabled"); err != nil {
 		t.Skipf("os.Symlink 不可用（需权限）: %v", err)
 	}
 	dstDir := filepath.Join(dir, "sub")
 	if err := CopyModelFile(dir, src, dstDir); err != nil {
-		t.Fatalf("兄弟 .ban 不应影响复制: %v", err)
+		t.Fatalf("兄弟 .disabled 不应影响复制: %v", err)
 	}
-	// dst 存在；兄弟 .ban 未被复制
+	// dst 存在；兄弟 .disabled 未被复制
 	if _, err := os.Stat(filepath.Join(dstDir, "m.ysm")); err != nil {
 		t.Fatalf("dst 缺失: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dstDir, "m.ysm.ban")); !os.IsNotExist(err) {
-		t.Fatalf("兄弟 .ban 不应被复制: %v", err)
+	if _, err := os.Stat(filepath.Join(dstDir, "m.ysm.disabled")); !os.IsNotExist(err) {
+		t.Fatalf("兄弟 .disabled 不应被复制: %v", err)
 	}
 }

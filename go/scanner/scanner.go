@@ -304,11 +304,11 @@ retry:
 			if d.Name() == ".github" {
 				return filepath.SkipDir
 			}
-			// 目录级 .ban（fileops.ToggleModelEnable 对文件夹模型整组禁用时
-			// 把父目录改名 modelA.ban，ADR-038 D3.7）不得被扫描为活跃条目——
-			// 原实现只过滤文件级 .ban，目录级禁用模型会以活跃身份进入 sync 的
+			// 目录级禁用（fileops.ToggleModelEnable 对文件夹模型整组禁用时
+			// 把父目录改名 modelA.disabled / modelA.ban，ADR-038 D3.7）不得被扫描为活跃条目——
+			// 原实现只过滤文件级禁用，目录级禁用模型会以活跃身份进入 sync 的
 			// repoHash/repoName，被 GetInstanceStatus 列为 Missing 或 SyncToggleStatus 重新启用
-			if strings.HasSuffix(strings.ToLower(d.Name()), ".ban") {
+			if types.IsDisableSuffix(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -326,9 +326,7 @@ retry:
 		}
 		// .json 只允许 ysm.json（动作/动画文件不应单独扫描推送）
 		if originalExt == ".json" {
-			baseName := strings.ToLower(filepath.Base(p))
-			baseName = strings.TrimSuffix(baseName, ".ban")
-			baseName = strings.TrimSuffix(baseName, ".disabled")
+			baseName := types.NormalizeResourceName(filepath.Base(p))
 			if !types.IsYsmEntryJSON(baseName) {
 				return nil
 			}
@@ -406,17 +404,10 @@ func ComputeFileHash(path string) string {
 
 // ========== 作者提取 ==========
 
-// stripDisableSuffix 剥离 .ban/.disabled 禁用后缀（口径与 ScanEntries 一致，三处共用防漂移）
-// .ban 剥离委托 types.StripBanSuffix（单一事实来源）。
+// stripDisableSuffix 剥离 .disabled/.ban 禁用后缀（口径与 ScanEntries 一致，三处共用防漂移）
+// 委托 types.StripDisableSuffix（单一事实来源）。
 func stripDisableSuffix(name string) string {
-	lower := strings.ToLower(name)
-	if strings.HasSuffix(lower, ".ban") {
-		return types.StripBanSuffix(name)
-	}
-	if strings.HasSuffix(lower, ".disabled") {
-		return name[:len(name)-len(".disabled")]
-	}
-	return name
+	return types.StripDisableSuffix(name)
 }
 
 // extractAuthor 从文件名提取 [作者] 前缀（无前缀或格式非法返回空串）
@@ -621,11 +612,11 @@ jobs:
             var list []entry
             filepath.WalkDir(".", func(p string, d os.DirEntry, err error) error {
               if err != nil || d.IsDir() { return nil }
-              // 扩展名口径与 Go 侧 scanner.ScanEntries 对齐（含 .ban/.disabled 恢复、
+              // 扩展名口径与 Go 侧 scanner.ScanEntries 对齐（含 .disabled/.ban 恢复、
               // .json 仅收 ysm.json）；扩展清单与 go/types 注册表（resource_types.json）同步
               lower := strings.ToLower(p)
               restored := ""
-              if strings.HasSuffix(lower, ".ban") { restored = types.StripBanSuffix(p) } else if strings.HasSuffix(lower, ".disabled") { restored = p[:len(p)-9] }
+              if strings.HasSuffix(lower, ".disabled") { restored = p[:len(p)-len(".disabled")] } else if strings.HasSuffix(lower, ".ban") { restored = p[:len(p)-len(".ban")] }
               ext := strings.ToLower(filepath.Ext(p))
               if restored != "" { ext = strings.ToLower(filepath.Ext(restored)) }
               if ext == ".json" {

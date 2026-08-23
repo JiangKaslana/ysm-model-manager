@@ -107,8 +107,7 @@ func (a *App) ClearCustomDir(customDir string) (int, error) {
 		repoByName[e.Name] = e
 		// 双 key 登记：scanner 的 Name 含 .ban/.disabled 后缀（filepath.Base 原始名），
 		// 而 customDir 侧 lookupName 剥后缀——不登记剥后缀名则仓库禁用条目永远匹配不上
-		stripped := strings.TrimSuffix(e.Name, ".ban")
-		stripped = strings.TrimSuffix(stripped, ".disabled")
+		stripped := types.StripDisableSuffix(e.Name)
 		if stripped != e.Name {
 			repoByName[stripped] = e
 		}
@@ -134,8 +133,7 @@ func (a *App) ClearCustomDir(customDir string) (int, error) {
 			return nil
 		}
 
-		lookupName := strings.TrimSuffix(fileName, ".ban")
-		lookupName = strings.TrimSuffix(lookupName, ".disabled")
+		lookupName := types.StripDisableSuffix(fileName)
 
 		_, hasName := repoByName[lookupName]
 		if !hasName {
