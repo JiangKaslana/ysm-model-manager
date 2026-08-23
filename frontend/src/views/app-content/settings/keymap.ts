@@ -5,6 +5,7 @@
 import { bus } from "../../../bus.ts";
 import { loadTdKeymap, type TdKeyAction } from "../../../utils/3d/model3d.ts";
 import { safeGet, safeSet, safeRemove } from "../../../utils/dom/storage.ts";
+import { TOAST_MS } from "../../../utils/dom/toast-ms.ts";
 
 // 单一捕获守卫：同一时刻仅允许一个键位捕获，且设置页卸载后自动失效，杜绝全局 keydown 劫持
 let _activeCapture: ((e: KeyboardEvent) => void) | null = null;
@@ -13,8 +14,8 @@ let _activeCapture: ((e: KeyboardEvent) => void) | null = null;
 // 成功/冲突提示 toast 时长（ms）
 const DEFAULT_CAM_SPEED = "20";
 const KEY_BTN_MIN_WIDTH = "64px";
-const TOAST_SUCCESS_MS = 1500;
-const TOAST_WARN_MS = 2500;
+const TOAST_SUCCESS_MS = TOAST_MS.quick;
+const TOAST_WARN_MS = TOAST_MS.info;
 
 const TD_ACTIONS: Array<{ key: TdKeyAction; label: string }> = [
   { key: "forward", label: "前移" },

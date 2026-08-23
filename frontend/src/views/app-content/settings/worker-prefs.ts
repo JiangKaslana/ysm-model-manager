@@ -4,9 +4,10 @@
 // 设置页提供手动开关作为回退保险。读写统一走 safeGet/safeSet（隐私模式安全）。
 import { bus } from "../../../bus.ts";
 import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
+import { TOAST_MS } from "../../../utils/dom/toast-ms.ts";
 
 // 魔法数值收敛：偏好变更成功 toast 展示时长（ms）
-const TOAST_DURATION_MS = 1500;
+const TOAST_DURATION_MS = TOAST_MS.quick;
 
 interface WorkerSwitch {
   id: string;

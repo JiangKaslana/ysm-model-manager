@@ -3,6 +3,7 @@ import { bus } from "../bus.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { getApp } from "../backend/app.ts";
 import { refreshUI, toast, resolveDstDir } from "./context-menu-shared.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 import type { MenuCtx } from "./context-menu-handlers.ts";
 
 /** dir 类 handler 子表 */

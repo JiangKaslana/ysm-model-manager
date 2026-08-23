@@ -44,11 +44,11 @@
 | 前端·服务 | 2 | 18 |
 | frontend/test-utils | 5 | 43 |
 | frontend/ui | 18 | 99 |
-| 前端·工具 | 144 | 564 |
+| 前端·工具 | 145 | 566 |
 | frontend/views | 117 | 340 |
 | 前端·WASM | 8 | 14 |
 | frontend/workers | 2 | 14 |
-| **合计** | **452** | **1936** |
+| **合计** | **453** | **1938** |
 
 ## Go·头像
 
@@ -940,14 +940,14 @@
 
 | 符号 | 文件:行 | 说明 |
 |------|--------|------|
-| `DIR_HANDLERS()` | `frontend/src/core/context-menu-dir-handlers:9` | dir 类 handler 子表 |
-| `FILE_HANDLERS()` | `frontend/src/core/context-menu-file-handlers:12` | file 类 handler 子表 |
-| `MenuCtx()` | `frontend/src/core/context-menu-handlers:73` | — |
-| `HANDLERS()` | `frontend/src/core/context-menu-handlers:76` | 行为 handler 表（instance + batch + merge file/dir） |
-| `refreshUI()` | `frontend/src/core/context-menu-shared:14` | 通知树组件和统计面板刷新 |
-| `toast()` | `frontend/src/core/context-menu-shared:20` | 显示 toast 通知 |
-| `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:25` | 路径安全过滤：禁止逃逸段（. |
-| `resolveDstDir()` | `frontend/src/core/context-menu-shared:36` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
+| `DIR_HANDLERS()` | `frontend/src/core/context-menu-dir-handlers:10` | dir 类 handler 子表 |
+| `FILE_HANDLERS()` | `frontend/src/core/context-menu-file-handlers:13` | file 类 handler 子表 |
+| `MenuCtx()` | `frontend/src/core/context-menu-handlers:74` | — |
+| `HANDLERS()` | `frontend/src/core/context-menu-handlers:77` | 行为 handler 表（instance + batch + merge file/dir） |
+| `refreshUI()` | `frontend/src/core/context-menu-shared:15` | 通知树组件和统计面板刷新 |
+| `toast()` | `frontend/src/core/context-menu-shared:21` | 显示 toast 通知 |
+| `isUnsafeFolderName()` | `frontend/src/core/context-menu-shared:26` | 路径安全过滤：禁止逃逸段（. |
+| `resolveDstDir()` | `frontend/src/core/context-menu-shared:37` | 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。 |
 | `registerContextMenus()` | `frontend/src/core/context-menus:76` | 注册右键菜单映射（ctx:show → menu:show）；由 registerGlobalHandlers 统一调用，unsub 收集进 unsubs 清理 |
 | `__TEST__resetDiary()` | `frontend/src/core/error-diary:29` | 仅测试用：重置注册状态使下次 registerErrorDiary 可重新注册。 |
 | `registerErrorDiary()` | `frontend/src/core/error-diary:51` | 注册 UI 报错落日记功能。 |
@@ -1046,18 +1046,18 @@
 | `handleTreeDrop()` | `frontend/src/features/import-dnd:32` | 处理 drop 事件：收集文件 → 过滤 → 执行导入。 |
 | `bindTreeDnD()` | `frontend/src/features/import-dnd:143` | 在目标容器上注册仓库页 DnD 事件。 |
 | `isImportableFile()` | `frontend/src/features/import-executor` | — |
-| `ImportFile()` | `frontend/src/features/import-executor:18` | 带相对路径的 File（文件夹导入时标记 _relPath） |
-| `ImportRecord()` | `frontend/src/features/import-executor:21` | 已导入历史条目（导入 tab「已导入」列表数据源） |
-| `CollectedEntry()` | `frontend/src/features/import-executor:29` | 收集条目（文件 + 相对路径） |
-| `ImportHistory()` | `frontend/src/features/import-executor:38` | — |
-| `directImport()` | `frontend/src/features/import-executor:96` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
-| `importFolder()` | `frontend/src/features/import-executor:139` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
-| `executeCollected()` | `frontend/src/features/import-executor:214` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
-| `importWebFilesWithToast()` | `frontend/src/features/import-executor:238` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
+| `ImportFile()` | `frontend/src/features/import-executor:19` | 带相对路径的 File（文件夹导入时标记 _relPath） |
+| `ImportRecord()` | `frontend/src/features/import-executor:22` | 已导入历史条目（导入 tab「已导入」列表数据源） |
+| `CollectedEntry()` | `frontend/src/features/import-executor:30` | 收集条目（文件 + 相对路径） |
+| `ImportHistory()` | `frontend/src/features/import-executor:39` | — |
+| `directImport()` | `frontend/src/features/import-executor:97` | 单文件直接导入（保留原文件名，后端自动路由类型 + 冲突覆盖确认） |
+| `importFolder()` | `frontend/src/features/import-executor:140` | 文件夹整组导入（含 ysm.json 模型目录或普通文件夹；组内至少 1 个支持文件由调用方保证） |
+| `executeCollected()` | `frontend/src/features/import-executor:215` | 执行一组拖拽收集的条目（静默导入入口）： 文件夹 → 整组（组内至少 1 个支持文件）；散落单文件 → 直导。 |
+| `importWebFilesWithToast()` | `frontend/src/features/import-executor:239` | 网页版导入执行（ADR-049 Phase 3）：拖入/选择文件 → importWebFiles 直写 IndexedDB → toast 反馈 → tree/stats 刷新。 |
 | `loadOldestModel()` | `frontend/src/features/oldest-models:42` | 加载资历最深、仓库评分、热力图和每日推荐 |
-| `RecycleHost()` | `frontend/src/features/recycle-bin:28` | app-content 组件实例（initRecycleBin 依赖的成员） |
-| `isPathInRoot()` | `frontend/src/features/recycle-bin:39` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
-| `initRecycleBin()` | `frontend/src/features/recycle-bin:49` | 初始化回收站管理，返回清理函数 |
+| `RecycleHost()` | `frontend/src/features/recycle-bin:29` | app-content 组件实例（initRecycleBin 依赖的成员） |
+| `isPathInRoot()` | `frontend/src/features/recycle-bin:40` | 判断条目路径是否位于资源根目录内（带路径分隔符边界，P3 修复）。 |
+| `initRecycleBin()` | `frontend/src/features/recycle-bin:50` | 初始化回收站管理，返回清理函数 |
 | `currentRepoType()` | `frontend/src/features/repo-rtype:18` | 读取当前仓库资源类型（时刻值）。 |
 | `useCurrentResourceType()` | `frontend/src/features/repo-rtype:28` | 订阅当前仓库资源类型。 |
 | `UpdateInfo()` | `frontend/src/features/version-updater:12` | 更新信息（CheckUpdate 返回） |
@@ -1740,6 +1740,8 @@
 | `safeGet()` | `frontend/src/utils/dom/storage:7` | 安全读：存储不可用时返回 null（调用方走默认值回退） |
 | `safeSet()` | `frontend/src/utils/dom/storage:16` | 安全写：存储不可用时静默忽略持久化（不中断调用方） |
 | `safeRemove()` | `frontend/src/utils/dom/storage:25` | 安全删：存储不可用时静默忽略（不中断调用方） |
+| `TOAST_MS()` | `frontend/src/utils/dom/toast-ms:6` | — |
+| `ToastType()` | `frontend/src/utils/dom/toast-ms:22` | toast:show 的 type 取值域（与 ToastPayload.type 对齐） |
 | `VS_BUFFER()` | `frontend/src/utils/dom/virtual-scroll:8` | 可见行缓冲：上下各多渲染 BUFFER 行，保证快速滚动不露白 |
 | `calcVisibleRange()` | `frontend/src/utils/dom/virtual-scroll:17` | 根据滚动位置计算可见行范围。 |
 | `installScrollSync()` | `frontend/src/utils/dom/virtual-scroll:36` | 在滚动容器上安装监听，滚动时经 rAF 合并后触发重渲（一帧最多一次）。 |
@@ -1865,7 +1867,7 @@
 | `PageDefinition()` | `frontend/src/views/app-content/page-registry:22` | — |
 | `PAGE_REGISTRY()` | `frontend/src/views/app-content/page-registry:29` | — |
 | `initSettings()` | `frontend/src/views/app-content/settings/init:30` | 初始化设置页所有事件绑定 |
-| `initKeymap()` | `frontend/src/views/app-content/settings/keymap:129` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
+| `initKeymap()` | `frontend/src/views/app-content/settings/keymap:130` | 初始化 3D 预览操作：键位网格 + 恢复默认 + 相机速度 + 默认旋转模式 |
 | `saveCfg()` | `frontend/src/views/app-content/settings/path-cards:24` | — |
 | `bindPathClick()` | `frontend/src/views/app-content/settings/path-cards:52` | — |
 | `initAdvancedGrid()` | `frontend/src/views/app-content/settings/path-cards:194` | — |
@@ -1878,9 +1880,9 @@
 | `toastError()` | `frontend/src/views/app-content/settings/store:26` | — |
 | `resetSettingsStore()` | `frontend/src/views/app-content/settings/store:35` | 重置模块级状态（initSettings 开头调用；重复执行时清空上次残留） |
 | `initTheme()` | `frontend/src/views/app-content/settings/theme:24` | 初始化主题段：主题卡片点击切换 + 自动切换下拉框 |
-| `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:11` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
-| `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:51` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
-| `initWorkerPrefs()` | `frontend/src/views/app-content/settings/worker-prefs:43` | 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 |
+| `applyUIPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:12` | 应用 UI 偏好到 CSS 变量（字号/字体/密度/动画）——启动链与设置页共用（ADR-040 拆分去重） |
+| `initUiPrefs()` | `frontend/src/views/app-content/settings/ui-prefs:52` | 初始化界面与体验设置：应用偏好 + 绑定字号/字体/密度/动画/默认页变更 |
+| `initWorkerPrefs()` | `frontend/src/views/app-content/settings/worker-prefs:44` | 初始化 3D 解析 worker 开关：读取现有偏好回填 + 绑定变更 |
 | `RepoAuthorLike()` | `frontend/src/views/app-content/site-view:12` | 作者计数条目（绑定 ListModelAuthors 元素：string 或 {Name, Count}） |
 | `RenderSiteViewCtx()` | `frontend/src/views/app-content/site-view:15` | 竚点视图渲染上下文（index.ts _initWorkshop 传入） |
 | `LocalCreatorLike()` | `frontend/src/views/app-content/site-view:38` | 本地创作者（绑定 + 运行时附加字段） |
@@ -2090,19 +2092,19 @@
 | `vcHeaderHTML()` | `frontend/src/views/app-sidebar/tpl:100` | 单个整合包卡片头部。 |
 | `EventSelf()` | `frontend/src/views/app-sync-manager/events:9` | — |
 | `bindEvents()` | `frontend/src/views/app-sync-manager/events:17` | 绑定所有 DOM 事件（状态筛选 / 单行操作按钮 / dir-level 文件夹展开折叠） |
-| `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:26` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
-| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:68` | — |
-| `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:16` | — |
-| `performSingleOp()` | `frontend/src/views/app-sync-manager/network:29` | 统一推送 / 拉取单文件操作。 |
+| `SyncManagerSelf()` | `frontend/src/views/app-sync-manager/index:27` | 合并四子模块（store / renderer / events / network）对组件实例的接口需求， 一统江湖，消除各处 `as any` 桥接。各子模块可改从此导入。 |
+| `AppSyncManager()` | `frontend/src/views/app-sync-manager/index:69` | — |
+| `NetworkSelf()` | `frontend/src/views/app-sync-manager/network:14` | — |
+| `performSingleOp()` | `frontend/src/views/app-sync-manager/network:27` | 统一推送 / 拉取单文件操作。 |
 | `SyncRenderSelf()` | `frontend/src/views/app-sync-manager/renderer:23` | — |
 | `render()` | `frontend/src/views/app-sync-manager/renderer:36` | 主渲染入口：设置骨架 → 类型标签 → 状态标签 → 列表 |
 | `LAST_TYPE_KEY()` | `frontend/src/views/app-sync-manager/state:13` | — |
 | `_lastSelectedType()` | `frontend/src/views/app-sync-manager/state:17` | — |
 | `setLastSelectedType()` | `frontend/src/views/app-sync-manager/state:19` | — |
-| `SyncStoreSelf()` | `frontend/src/views/app-sync-manager/store:14` | — |
-| `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:20` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
-| `loadData()` | `frontend/src/views/app-sync-manager/store:43` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
-| `applyFilter()` | `frontend/src/views/app-sync-manager/store:66` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
+| `SyncStoreSelf()` | `frontend/src/views/app-sync-manager/store:13` | — |
+| `loadTypeConfig()` | `frontend/src/views/app-sync-manager/store:19` | 加载资源类型配置（LoadResourceTypes） 过期代际/已卸载静默丢弃；加载失败 toast 提醒 + 空数组降级。 |
+| `loadData()` | `frontend/src/views/app-sync-manager/store:42` | 加载实例同步状态（GetInstanceSyncStatus） 过期代际丢弃；加载失败 toast 提醒 + 空数组。 |
+| `applyFilter()` | `frontend/src/views/app-sync-manager/store:65` | 应用类型 + 状态筛选，写入 self._filteredItems。 |
 | `SyncItem()` | `frontend/src/views/app-sync-manager/tpl:9` | 同步列表项（GetInstanceSyncStatus 返回 JSON 条目） |
 | `SyncFile()` | `frontend/src/views/app-sync-manager/tpl:21` | 子条目（从仓库 ScanModelEntriesWithLabel 扫出的内部文件，用于 dir-level 层级展示） |
 | `syncDirRowHTML()` | `frontend/src/views/app-sync-manager/tpl:31` | 文件夹行 HTML（dir-level 层级展示：箭头 + 图标 + 名称 + 大小 + 操作按钮） 点击整行切换展开/折叠；push/pull 按钮冒泡到文件行层，由 event |

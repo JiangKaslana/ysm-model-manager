@@ -7,6 +7,7 @@ import { bus, type ToastPayload } from "../bus.ts";
 import { modalPrompt } from "../utils/dom/dialogs/modal.ts";
 import { getApp } from "../backend/app.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 
 type ToastType = NonNullable<ToastPayload["type"]>;
 
@@ -17,7 +18,7 @@ export function refreshUI(): void {
 }
 
 /** 显示 toast 通知 */
-export function toast(msg: string, duration = 3000, type: ToastType = "success"): void {
+export function toast(msg: string, duration: number = TOAST_MS.normal, type: ToastType = "success"): void {
   bus.emit("toast:show", { msg, duration, type });
 }
 

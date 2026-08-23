@@ -13,6 +13,7 @@ import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
 import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { dbg } from "../utils/debug/debug.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = File & { _relPath?: string };
@@ -60,7 +61,7 @@ export const ImportHistory = {
   },
 };
 
-const toast = (msg: string, type: "success" | "error" | "warn" | "info", duration = 3000): void => {
+const toast = (msg: string, type: "success" | "error" | "warn" | "info", duration: number = TOAST_MS.normal): void => {
   bus.emit("toast:show", { msg, duration, type });
 };
 

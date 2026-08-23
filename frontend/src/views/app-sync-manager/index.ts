@@ -12,6 +12,7 @@ import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
 import { esc } from "../../utils/dom/html.ts";
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import { getApp } from "../../backend/app.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import {
@@ -52,7 +53,7 @@ import { LAST_TYPE_KEY, _lastSelectedType, setLastSelectedType } from "./state.t
 // 2026-08-18：sm-tabs 移除后类型完全由全局 nav 下拉驱动——订阅 repo:rtype-changed 跟随，
 // 状态主键统一 repo_rtype（state.ts），LAST_TYPE_KEY 仅历史兼容。
 
-const TOAST_MS_LONG = 5000;
+const TOAST_MS_LONG = TOAST_MS.long;
 
 /** 按需加载当前 rtype 的 FilesRoot 仓库根路径（缓存到 _filesRoots，供 renderer 建树时扫描子条目） */
 async function loadRepoRoots(self: SyncManagerSelf, rtype: string): Promise<void> {

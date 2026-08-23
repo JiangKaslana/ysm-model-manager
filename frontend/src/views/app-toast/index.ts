@@ -5,6 +5,7 @@ import { esc } from "../../utils/dom/html.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 // 别名导入：show() 内局部变量 `t` 是 toast 元素，直接用 `t` 会被遮蔽
 import { t as tr } from "../../core/i18n/t.ts";
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 
 /** toast 元素（含关闭定时器） */
 type ToastEl = HTMLElement & {
@@ -13,10 +14,10 @@ type ToastEl = HTMLElement & {
 
 // ── 魔法数值收敛 ──────────────────────────────────
 const MAX_TOASTS = 5;        // 同时显示上限，超出同步移除最早的
-const DEFAULT_DURATION = 4000; // 默认展示时长 ms
+const DEFAULT_DURATION = TOAST_MS.verbose; // 默认展示时长 ms
 const SLIDE_OUT_MS = 200;    // 退出动画时长 ms（与 CSS slideOut 同步）
-const OK_TOAST_MS = 2000;    // 成功反馈 toast 展示时长 ms
-const ERR_TOAST_MS = 3000;   // 失败反馈 toast 展示时长 ms
+const OK_TOAST_MS = TOAST_MS.success;    // 成功反馈 toast 展示时长 ms
+const ERR_TOAST_MS = TOAST_MS.normal;   // 失败反馈 toast 展示时长 ms
 
 class AppToast extends WebComponentBase {
   _unsub: (() => void) | undefined;
@@ -81,7 +82,7 @@ class AppToast extends WebComponentBase {
   show(
     msg: string,
     undoCallback: (() => void) | null,
-    duration = DEFAULT_DURATION,
+    duration: number = DEFAULT_DURATION,
     type = "",
     clickCallback?: () => void,
   ): void {

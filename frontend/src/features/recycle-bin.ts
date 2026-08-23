@@ -8,6 +8,7 @@ import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { getApp } from "../backend/app.ts";
 import { useCurrentResourceType } from "./repo-rtype.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 
 // ===== 常量（魔法数值集中管理 — code_review P3）=====
 /** 恢复/删除前的 leaving 滑出动画时长（ms），与 content-util.css 的 .leaving 过渡对齐 */
@@ -16,13 +17,13 @@ const LEAVE_ANIM_MS = 150;
 const STAGGER_STEP_MS = 25;
 const STAGGER_MAX_MS = 400;
 /** 恢复/删除成功 toast 时长（ms） */
-const TOAST_ACTION_OK_MS = 2000;
+const TOAST_ACTION_OK_MS = TOAST_MS.success;
 /** 恢复/删除失败 toast 时长（ms） */
-const TOAST_ACTION_ERR_MS = 3000;
+const TOAST_ACTION_ERR_MS = TOAST_MS.normal;
 /** 清空（批量）成功 toast 时长（ms） */
-const TOAST_EMPTY_OK_MS = 3000;
+const TOAST_EMPTY_OK_MS = TOAST_MS.normal;
 /** 清空（批量）失败 toast 时长（ms） */
-const TOAST_EMPTY_ERR_MS = 5000;
+const TOAST_EMPTY_ERR_MS = TOAST_MS.long;
 
 /** app-content 组件实例（initRecycleBin 依赖的成员） */
 export interface RecycleHost {
