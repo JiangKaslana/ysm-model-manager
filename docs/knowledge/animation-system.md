@@ -7,6 +7,11 @@ source_files:
   - frontend/src/utils/animation/animation.ts
   - frontend/src/utils/animation/animate.ts
   - frontend/src/utils/animation/stagger.ts
+  - frontend/src/utils/animation/molang.ts
+  - frontend/src/utils/animation/molang-lib/molang.js
+  - frontend/src/utils/animation/molang-lib/easing.js
+  - frontend/src/utils/animation/molang-lib/math.js
+  - frontend/src/utils/animation/molang-lib/molang-prism-syntax.js
   - frontend/src/utils/3d/ysm-animation-player.ts
 tests:
   - frontend/src/utils/animation/animate.test.ts
@@ -34,6 +39,7 @@ use_when:
 - 基岩版动画 JSON 解析（loop/animation_length/bones 三通道关键帧；Molang 表达式检测并跳过）
 - 关键帧插值求值（线性/step）与骨骼层级变换传播（父级变换累积到子级）
 - UI 数字滚动动画与列表 stagger 入场延迟计算
+- **Molang 表达式编译**（ADR-100 L4）：内嵌 molangjs 源码，把 `.animation.json` 里的 Molang 字符串编译为 `(animTime) => number` 求值闭包；安全口径：DSL 解析器非 eval；性能口径：LRU 缓存 400 条，加载期编译 AST / 运行期纯求值
 
 ## 对外 API / 入口
 
@@ -49,6 +55,13 @@ use_when:
 `stagger.ts`：
 - `stagger(index, step=30, max=300): number` — 入场动画延迟毫秒数 `min(index*step, max)`，用于 `animation-delay:${stagger(i)}ms`
 
+`molang.ts`（ADR-100 L4）：
+- `compileMolang(expr: string): MolangFn | null` — 编译 Molang 表达式为求值闭包；表达式非法/为空返回 null（调用方走零占位降级）
+- `MolangFn` 类型：`(animTime: number) => number`
+- 嵌入策略：molangjs npm 包因 ESM/CJS 混用无法直接 import，本项目采用**源码内嵌**策略（`molang-lib/` 目录保留 MIT 许可原始版权头）
+- 变量上下文：`query.anim_time` / `q.anim_time` / `query.life_time` / `q.life_time` / `query.delta_time` / `q.delta_time`
+- 未知变量 → 0：mod 扩展的游戏态查询（`ysm.*`/按键/药效等）在预览器无宿主语境，优雅降级而非抛错
+
 ## 与其他子系统关系
 
 - `parseBedrockAnimationJSON` 消费方：`app-preview/wasm.ts`（+`loader.ts`，WASM 解码出的动画 JSON）
@@ -56,6 +69,9 @@ use_when:
 - `animateNumber` 消费方：`app-tree/render.ts`、`app-sidebar/events.ts`（统计数字滚动）
 - `stagger` 消费方：`app-content/index.ts`、`app-sync-manager/tpl.ts`、`dialogs/batch-rename.ts`、`features/community/render.ts`、`app-content/site/render.ts`（卡片入场）
 - 全局开关：`app-modules.ts` 按设置切换 `document.documentElement` 的 `no-animations` class；CSS 侧对卡片/弹窗/主题动效统一 `animation: none !important`
+- **Molang 消费方**：
+  - 解析阶段（`animation.ts`）：`parseAxisItem`（L107）/ `parseKeyValue`（L123）/ `extractKeyframe`（L147）调用 `molang.ts` 的 `compileMolang`（L48）
+  - 求值阶段（`animation.ts`）：`resolveFramePost`（L337）/ `evaluateKeyframesInto`（L388）调用编译后的 `MolangFn`
 
 ## 上游留档：YSMParser 动画模型 ID 映射（v0.3.6）
 
@@ -85,7 +101,7 @@ use_when:
 - evaluateKeyframes 对空数组/越界时间返回端点值或 null，不抛异常（`t=NaN` 时二分插值产生 NaN 向量，无守卫，P3 观察）
 - `no-animations` 开关作用于 CSS animation；JS 驱动的动画（模型动画求值/数字滚动）不受该 class 影响，属模型数据呈现而非装饰动效
 - 播放循环（RAF）由消费方组件自行管理并须在卸载时 cancelAnimationFrame；曾有的 AnimationPlayer 封装类因长期无消费方已在死代码清理中移除，如需播放器请基于 evaluateClip 重建
-- **求值链路当前休眠**（审计 2026-08-08/2026-08-09）：`evaluateClip` / `evaluateKeyframes` 全仓无运行时消费方（grep 仅测试命中），模型动画求值处于潜伏态；`animateNumber` 实际返回取消函数 `() => void`（**JSDoc 已标注 `@returns 取消函数`**——旧文「文档签名漏记」已自愈），消费方 app-tree/render.ts:369、app-sidebar/events.ts:225 **忽略取消函数**（快速连续渲染叠加未清理 timer，P3 观察）；`isMolang` 为死代码（仅定义处命中）
+- **求值链路运行时消费方**（2026-08-21 更新）：`evaluateClip` 由 YSM 动画播放器消费（`utils/3d/ysm-animation-player.ts`，ADR-100 L1-L3，每帧 localOnly 求值驱动骨骼 Group）；`parseBedrockAnimationJSON` 消费方 `app-preview/wasm.ts`（+loader.ts）与 `ysm-adapter.ts`（动画扫描）；`animateNumber` 实际返回取消函数 `() => void`（**JSDoc 已标注 `@returns 取消函数`**），消费方 app-tree/render.ts:369、app-sidebar/events.ts:225 **忽略取消函数**（快速连续渲染叠加未清理 timer，P3 观察）；`isMolang` 为死代码（仅定义处命中）
 - **层级传播未应用父级旋转**（animation.ts:414-419，P3 观察）：注释声称「子级位移经父级旋转后」累加，实现却是纯向量相加 `pp+cp`、旋转仅欧拉角分量相加——父级非零旋转时传播结果错误；求值链路休眠态无运行时影响，属唤醒前的设计降级点（唤醒需先补旋转矩阵/四元数传播，测试仅覆盖无旋转父级）
 - **消费方文件名漂移已修正**（2026-08-09）：`parseBedrockAnimationJSON` 消费方为 `app-preview/wasm.ts:525`（+loader.ts:71，旧文 preview-wasm.ts 已过时）；stagger 消费方含 `app-content/site/render.ts`（旧文 site-view.ts 过时）；测试文件均为 `.ts`（旧文 .js 过时）
 

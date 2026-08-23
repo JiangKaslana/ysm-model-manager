@@ -1,6 +1,6 @@
 # ADR-077：底部导航通用外壳收敛（D1+D3 落地）
 
-- **状态**：🔄 部分采纳（D1/D3 已被 ADR-076 v2 的声明式根菜单方案替代；相机控件桥已下沉到 `camera-controls.ts`；原 `buildBottomNav`/`BottomNavMenu`/`buildViewMenu` 函数未实现，因设计方案已演进）
+- **状态**：❌ 已取代（被 ADR-076 v2 声明式根菜单方案全面替代；原 `buildBottomNav`/`BottomNavMenu`/`buildViewMenu` 函数未实现，因设计方案已演进）
 - **被取代**：[ADR-076 v2] 取代 D1/D3 底部导航方案，改为声明式根菜单
 - **日期**：2026-08-16
 - **决策人**：Jieling（人类首席架构师）、AI 代理

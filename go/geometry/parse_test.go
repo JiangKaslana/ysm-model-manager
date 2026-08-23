@@ -241,3 +241,116 @@ func TestParseBedrockGeometry_NoDescription(t *testing.T) {
 		t.Errorf("BoneCount = %d, 期望 1", m.BoneCount)
 	}
 }
+
+// ====== 旧版 geometry.* 格式（车万女仆等 mod 使用）======
+
+const oldFormatGeom = `{
+  "format_version": "1.10.0",
+  "geometry.model": {
+    "texturewidth": 128,
+    "textureheight": 128,
+    "visible_bounds_width": 3,
+    "visible_bounds_height": 2,
+    "visible_bounds_offset": [0, 0, 0],
+    "bones": [
+      {
+        "name": "head", "parent": "body", "pivot": [0, 18, 0],
+        "cubes": [
+          {"origin": [-4, 18, -4], "size": [8, 8, 8], "uv": [0, 12]}
+        ]
+      },
+      {
+        "name": "hair", "parent": "head", "pivot": [0, 18, 4],
+        "rotation": [10, 0, 0],
+        "cubes": [
+          {"origin": [3, 8, 3], "size": [1, 10, 1], "uv": [32, 56]}
+        ]
+      }
+    ]
+  }
+}`
+
+func TestParseBedrockGeometry_OldFormat(t *testing.T) {
+	m := ParseBedrockGeometry([]byte(oldFormatGeom))
+	if m == nil {
+		t.Fatal("旧版格式应解析成功")
+	}
+	if m.Format != "1.10.0" {
+		t.Errorf("Format = %q, 期望 1.10.0", m.Format)
+	}
+	if m.TexWidth != 128 || m.TexHeight != 128 {
+		t.Errorf("TexWidth/TexHeight = %d/%d, 期望 128/128", m.TexWidth, m.TexHeight)
+	}
+	if m.BoneCount != 2 || m.CubeCount != 2 {
+		t.Errorf("BoneCount/CubeCount = %d/%d, 期望 2/2", m.BoneCount, m.CubeCount)
+	}
+	head := m.Bones[0]
+	if head.Name != "head" || head.Parent != "body" {
+		t.Errorf("head.Name/Parent = %q/%q", head.Name, head.Parent)
+	}
+	if head.Pivot != [3]float64{0, 18, 0} {
+		t.Errorf("head.Pivot = %v", head.Pivot)
+	}
+	hair := m.Bones[1]
+	if hair.Name != "hair" || hair.Parent != "head" {
+		t.Errorf("hair.Name/Parent = %q/%q", hair.Name, hair.Parent)
+	}
+	if hair.Rotation != [3]float64{10, 0, 0} {
+		t.Errorf("hair.Rotation = %v, 期望 [10,0,0]", hair.Rotation)
+	}
+}
+
+func TestParseBedrockGeometry_OldFormatNamedKey(t *testing.T) {
+	// geometry.<entity_name> 形式（非 geometry.model）
+	geom := `{"format_version":"1.10.0","geometry.hakurei_reimu":{"texturewidth":64,"textureheight":64,"bones":[{"name":"body","cubes":[{"origin":[0,0,0],"size":[8,12,4],"uv":[0,0]}]}]}}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("旧版命名 geometry 键应解析成功")
+	}
+	if m.TexWidth != 64 || m.TexHeight != 64 {
+		t.Errorf("TexWidth/TexHeight = %d/%d, 期望 64/64", m.TexWidth, m.TexHeight)
+	}
+	if m.BoneCount != 1 || m.Bones[0].Name != "body" {
+		t.Errorf("骨骼解析异常: BoneCount=%d", m.BoneCount)
+	}
+}
+
+func TestParseBedrockGeometry_OldFormatTexClamp(t *testing.T) {
+	// 旧版格式纹理尺寸溢出也应钳制
+	geom := `{"format_version":"1.10.0","geometry.model":{"texturewidth":1e100,"textureheight":-5,"bones":[{"name":"b","cubes":[]}]}}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("旧版格式溢出应仍解析成功")
+	}
+	if m.TexWidth != 0 || m.TexHeight != 0 {
+		t.Errorf("TexWidth/TexHeight = %d/%d, 期望 0/0（钳制）", m.TexWidth, m.TexHeight)
+	}
+}
+
+func TestParseBedrockGeometry_NonGeometryDescriptor(t *testing.T) {
+	// maid_model.json 类描述符文件（无 geometry 键）→ 返回 nil
+	desc := `{"pack_name":"test","author":["a"],"model_list":[{"model_id":"test:foo"}]}`
+	m := ParseBedrockGeometry([]byte(desc))
+	if m != nil {
+		t.Fatalf("描述符文件应返回 nil, got %+v", m)
+	}
+}
+
+func TestParseBedrockGeometry_NewFormatPreferred(t *testing.T) {
+	// 同时含 minecraft:geometry 和 geometry.* → 优先新版
+	geom := `{
+		"format_version": "1.16.0",
+		"minecraft:geometry": [{"description":{"texture_width":32,"texture_height":32},"bones":[{"name":"new","cubes":[]}]}],
+		"geometry.model": {"texturewidth":128,"textureheight":128,"bones":[{"name":"old","cubes":[]}]}
+	}`
+	m := ParseBedrockGeometry([]byte(geom))
+	if m == nil {
+		t.Fatal("应解析成功")
+	}
+	if m.Bones[0].Name != "new" {
+		t.Errorf("应优先新版格式, 首个骨骼 = %q", m.Bones[0].Name)
+	}
+	if m.TexWidth != 32 {
+		t.Errorf("TexWidth = %d, 期望 32（新版）", m.TexWidth)
+	}
+}

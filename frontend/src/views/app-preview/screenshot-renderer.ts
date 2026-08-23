@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { bus } from "../../bus.ts";
 import { getApp } from "../../backend/app.ts";
 import { loadTextures } from "./model3d-loader.ts";
-import { buildSceneMesh, compKey, disposeMaterial } from "../../utils/3d/mesh.ts";
+import { buildYsmObject, type YsmObjectHandle } from "../../utils/3d/ysm-object.ts";
 import { addStandardSceneLights } from "../../utils/3d/scene-lights.ts";
 import { screenshotFromRenderer } from "../../utils/3d/screenshot.ts";
 import { type Spec3D } from "../../utils/3d/model3d.ts";
@@ -24,6 +24,7 @@ export async function renderMultiAngle(
   const size = opts.size || 512;
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
+  let ysmObject: YsmObjectHandle | null = null;
   try {
     let spec: Spec3D | null = null;
     try {
@@ -60,54 +61,9 @@ export async function renderMultiAngle(
     scene = new THREE.Scene();
     addStandardSceneLights(scene);
 
-    const { boneGroupMap, rootGroup } = buildSceneMesh(spec);
+    ysmObject = buildYsmObject(spec, texArr, 0);
+    const { rootGroup } = ysmObject;
     scene.add(rootGroup);
-
-    // Mesh 创建（组件索引 mi 参与骨骼组查找，与 model3d.ts renderModel3D 的
-    // compKey(mi, md.boneId) 口径一致——多组件 spec 下同名骨骼需按组件定位）
-    for (const [mi, mg] of (spec.models || []).entries()) {
-      if (!mg.meshGroups?.length) continue;
-      for (const md of mg.meshGroups) {
-        const bg = boneGroupMap.get(compKey(mi, md.boneId));
-        if (!bg) continue;
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute(
-          "position",
-          new THREE.Float32BufferAttribute(md.positions || [], 3),
-        );
-        geo.setAttribute(
-          "normal",
-          new THREE.Float32BufferAttribute(md.normals || [], 3),
-        );
-        geo.setAttribute("uv", new THREE.Float32BufferAttribute(md.uvs || [], 2));
-        geo.setIndex(md.indices || []);
-        const mti = md.texIdx ?? 0;
-        const mt = texArr.length > 0 ? texArr[mti] || texArr[0] : null;
-        const mat = mt
-          ? new THREE.MeshBasicMaterial({
-              map: mt,
-              alphaTest: mti > 0 ? 0.5 : 0.02,
-              transparent: true,
-              side: mti > 0 ? THREE.BackSide : THREE.DoubleSide,
-            })
-          : new THREE.MeshBasicMaterial({
-              color: 0x44aa88,
-              side: THREE.DoubleSide,
-            });
-        const mesh = new THREE.Mesh(geo, mat);
-        const lp = md.localPosition || [0, 0, 0];
-        mesh.position.set(lp[0], lp[1], lp[2]);
-        const lr = md.localRotation || [0, 0, 0, 1];
-        if (
-          lr[3] !== 1 ||
-          lr[0] !== 0 ||
-          lr[1] !== 0 ||
-          lr[2] !== 0
-        )
-          mesh.quaternion.set(lr[0], lr[1], lr[2], lr[3]);
-        bg.add(mesh);
-      }
-    }
 
     scene.updateMatrixWorld();
     const box = new THREE.Box3().setFromObject(rootGroup);
@@ -145,24 +101,13 @@ export async function renderMultiAngle(
     }
     return results;
   } catch (e) {
-    // P2 修复：场景构建段（buildSceneMesh/创建 mesh/Box3）抛错也要返回 null 而非 reject
+    // P2 修复：场景构建段（buildYsmObject/Box3）抛错也要返回 null 而非 reject
     console.warn("[screenshot] 渲染失败:", e);
     return null;
   } finally {
     // 统一清理：无论成功/失败/异常都必须释放 WebGL 资源，防上下文累积（陷阱 #8）
     if (renderer) {
-      scene?.traverse((obj) => {
-        if ((obj as THREE.Mesh).isMesh) {
-          const mesh = obj as THREE.Mesh;
-          mesh.geometry?.dispose();
-          // P3 修复（code_review）：恢复数组材质分支——three.js 的 mesh.material 可为
-          // Material | Material[]，`mat?.dispose()` 对数组短路不释放；与 model3d.ts:826-828
-          // 的清理逻辑保持一致，防未来多材质 mesh 泄漏 GPU 资源
-          const mat = mesh.material;
-          if (Array.isArray(mat)) mat.forEach((m) => disposeMaterial(m));
-          else disposeMaterial(mat);
-        }
-      });
+      if (scene && ysmObject) ysmObject.removeFromScene(scene);
       renderer.dispose();
       // P3 修复：dispose 后强制释放上下文，避免延迟到 GC
       (renderer as unknown as { forceContextLoss?: () => void }).forceContextLoss?.();

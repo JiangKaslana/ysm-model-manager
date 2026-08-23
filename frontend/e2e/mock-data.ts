@@ -41,6 +41,7 @@ export const MOCK_DATA = {
   ScanModelEntriesFiltered: [
     { Name: "model-a.ysm", Path: "/e2e/repo/model-a.ysm", Size: 1024, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
     { Name: "model-b.ysm", Path: "/e2e/repo/model-b.ysm", Size: 2048, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
+    { Name: "subdir-model.ysm", Path: "/e2e/repo/subdir/subdir-model.ysm", Size: 512, ModTime: 0, Ext: ".ysm", Hash: "", HasTags: false },
   ],
   ListVersionInstances: [
     { Name: "1.20.1-Fabric", VersionDir: "/e2e/mc/1.20.1-Fabric" },
@@ -140,12 +141,13 @@ export const MOCK_DATA = {
   // 对齐 binding 契约 Promise<number>（同步文件数）——原 undefined 类型错位
   SyncCustomToRepo: 0,
   GetModelTexSizes: [],
-  ExportBoneStructures: "",
+  SearchAllModels: [],
   SearchModels: [],
   GenerateRepoIndex: "",
   // ===== 契约守卫补全：以下 binding 为 e2e 未触达函数，显式占位 undefined（防漏加漂移）=====
   AnalyzeYSMModel: undefined,
   AnalyzeBedrockModel: undefined,
+  AnalyzeBedrockModelEntry: undefined,
   AllTags: undefined,
   BackupWorkshopCreators: undefined,
   BatchExtractCreatorAvatars: undefined,
@@ -181,6 +183,7 @@ export const MOCK_DATA = {
   ExtractYsmSummary: undefined,
   FindDuplicateFiles: undefined,
   FindPreviewImage: undefined,
+  GetAllRepoRoots: undefined,
   GetAllowedCLICommands: undefined,
   GetConfigPath: undefined,
   GetDefaultRepoRoot: undefined,
@@ -249,6 +252,7 @@ export const MOCK_DATA = {
   RenameDir: undefined,
   ReplaceWorkshopCreatorsFromJSON: undefined,
   RepoHealthAudit: undefined,
+  RepoHealthAuditAll: undefined, // 全仓库体检（binding 重生成后补键，契约断言）
   ResetResourceRoot: undefined,
   ResetWorkshopConfigs: undefined,
   RestartApplication: undefined,

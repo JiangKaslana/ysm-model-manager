@@ -8,7 +8,7 @@ permalink: /adr/
 
 # 决策记录（ADR）
 
-> 架构决策日志，共 **109** 篇。决策真相源 = 各 ADR 文件首部「状态」行；本页为登记表 + 规范索引（单文件承载全部）。
+> 架构决策日志，共 **113** 篇。决策真相源 = 各 ADR 文件首部「状态」行；本页为登记表 + 规范索引（单文件承载全部）。
 
 > 所有 ADR 存放于本目录。**写新 ADR 前必读本节**——防撞号靠登记，不靠自觉。
 
@@ -16,125 +16,255 @@ permalink: /adr/
 
 | 状态 | 数量 |
 |------|------|
-| 🔄 部分采纳 | 8 |
-| ⚠️ 已采纳但遗留未修复 | 0 |
-| ✅ 已采纳 | 100 |
-| 🧊 已废弃 | 0 |
-| ❌ 已取代 | 1 |
+| [⚠️ 已采纳但遗留未修复](#已采纳但遗留未修复) | 0 |
+| [🔄 部分采纳](#部分采纳) | 0 |
+| [✅ 已采纳](#已采纳) | 111 |
+| [❌ 已取代](#已取代) | 2 |
+| [🧊 已废弃](#已废弃) | 0 |
+| [❓ 未归类](#未归类) | 0 |
 
-## 登记表
+## 按状态分组导航
+
+### ✅ 已采纳（111）
+
+| ADR | 标题 | 状态 |
+|-----|------|------|
+| [ADR-116](./ADR-116-frontend-go-boundary.md) | 前端 vs Go 职责红线：筛选/类型判定权威层归 Go | ✅ 已采纳 |
+| [ADR-115](./ADR-115-append-semantics.md) | 跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡） | ✅ 已采纳 |
+| [ADR-114](./ADR-114-per-component-textures.md) | 每组件独立纹理（perComponent Textures） | ✅ 已采纳 |
+| [ADR-113](./ADR-113-ysm-molang.md) | YSM 骨骼动画 Molang 求值器与欧拉序修复（L4） | ✅ 已采纳 |
+| [ADR-112](./ADR-112-fbx-loader-preview-foundation.md) | FBX 格式接入与独立预览地基 | ✅ 已采纳 |
+| [ADR-111](./ADR-111-variants-decouple.md) | variants 解耦——类别—格式分层，角色模型合并 PMX/VRM | ✅ 已采纳 |
+| [ADR-110](./ADR-110-mod-registry.md) | mod 依赖下沉注册表，消除 Go 硬编码 | ✅ 已采纳 |
+| [ADR-108](./ADR-108-camera-framing-bounding-box.md) | 相机取景包围盒计算策略 | ✅ 已采纳 |
+| [ADR-107](./ADR-107-sky-godrays-volumetric.md) | 天空体积光束 god rays（日出/日落） | ✅ 已采纳 |
+| [ADR-106](./ADR-106-preview-env-menu-drill-visual.md) | 3D 预览环境菜单两级下钻与可视化控件扩展 | ✅ 已采纳 |
+| [ADR-105](./ADR-105-subtype-self-describing.md) | subtype 完整自描述化：零继承识别单元（MMD 落地，光影包预留） | ✅ 已采纳 |
+| [ADR-104](./ADR-104-resource-subtype-layer.md) | 资源类型子类层（subtypes）统一：大类/小类/防御性检验三层架构 | ✅ 已采纳 |
+| [ADR-103](./ADR-103-registry-load-single-source.md) | 注册表加载单源化与僵尸覆盖分支清理 | ✅ 已采纳 |
+| [ADR-102](./ADR-102-cli-embedded-return-diagnostic-platform.md) | CLI 内嵌模式回归与诊断协同平台 | ✅ 已采纳 |
+| [ADR-101](./ADR-101-mmd-loading-perf.md) | MMD 场景加载性能分析与优化方向 | ✅ 已采纳 |
+| [ADR-100](./ADR-100-ysm-bone-animation.md) | YSM 骨骼动画播放——L1 基础播放 | ✅ 已采纳 |
+| [ADR-099](./ADR-099-3d-scenecapability-cap-tab-ssr.md) | 3D 预览 SceneCapability 注册表架构与能力分层（九 cap 接入、顶层五 tab 菜单映射、反射模式三档 SSR 闭环） | ✅ 已采纳 |
+| [ADR-098](./ADR-098-3d-preview-perf.md) | 3D 预览性能优化——纹理复用 + 视锥裁剪 + 按需更新 | ✅ 已采纳 |
+| [ADR-097](./ADR-097-scene-capability-registry.md) | 3D SceneCapability 注册表 + 模型切换复用架构 | ✅ 已采纳 |
+| [ADR-096](./ADR-096-global-storage-hierarchy.md) | 全局库存储分层规范：MMD 子目录三链路消费 | ✅ 已采纳 |
+| [ADR-095](./ADR-095-open-folder-installdir.md) | OpenInstanceFolder 打开资源存储目录而非模组扫描目录 | ✅ 已采纳 |
+| [ADR-094](./ADR-094-mmd-subdir-position-routing.md) | MMD 子类型位置路由：3d-skin 目录层级优先于扩展名 | ✅ 已采纳 |
+| [ADR-093](./ADR-093-multi-model-scene-core.md) | 多模型同框引擎核心（注册表/dispatch/相机累加/路由接缝/上限） | ✅ 已采纳 |
+| [ADR-092](./ADR-092-resource-type-group-routing.md) | 资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并 | ✅ 已采纳 |
+| [ADR-091](./ADR-091-v2-2026-08-17.md) | 架构债务总览 v2（2026-08-17 并发审计） | ✅ 已采纳 |
+| [ADR-090](./ADR-090-vitest-env-optimization.md) | vitest 环境切换与 npm 三件套并行优化 | ✅ 已采纳 |
+| [ADR-089](./ADR-089-test-env-split-continued.md) | 测试环境切分持续推进：慢测试定位与 node 环境甄别 | ✅ 已采纳 |
+| [ADR-088](./ADR-088-parallel-dispatch.md) | 检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行 | ✅ 已采纳 |
+| [ADR-087](./ADR-087-ai-automation-takeq.md) | AI 自动化取巧——pre-commit 智能 stage 与无脑指令下沉 | ✅ 已采纳 |
+| [ADR-086](./ADR-086-check-system-reduction.md) | 检查体系减负与赋能决策表 | ✅ 已采纳 |
+| [ADR-085](./ADR-085-menu-single-source.md) | 3D 预览菜单单一事实来源：注册表驱动 + 状态单向流 | ✅ 已采纳 |
+| [ADR-084](./ADR-084-personal-lighting.md) | 个人灯光系统（Personal Lighting）——三点布光 + 聚光灯 + 体积光双引擎 | ✅ 已采纳 |
+| [ADR-083](./ADR-083-semantic-layer.md) | 语义层双抽象——跨格式语义骨骼 + 语义 morph + 感知层程序化生命力 | ✅ 已采纳 |
+| [ADR-082](./ADR-082-zipentries-any-fingerprint.md) | 材质包识别长治久安：zipEntries 任意层级指纹（any 模式）+ detector 容器统一 | ✅ 已采纳 |
+| [ADR-081](./ADR-081-semantic-bone-layer.md) | 语义骨骼层——跨格式语义骨骼统一抽象 | ✅ 已采纳 |
+| [ADR-080](./ADR-080-pack-model-adapter.md) | 资源包 block/item 模型 JSON 解析与渲染（PackModelAdapter） | ✅ 已采纳 |
+| [ADR-079](./ADR-079-wasm-pthread-mt-decode.md) | WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游 | ✅ 已采纳 |
+| [ADR-076](./ADR-076-preview-bottom-nav-shell.md) | 3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编） | ✅ 已采纳 ⚠️ 被 [ADR-079] |
+| [ADR-075](./ADR-075-preview-bottom-nav-environment-menu.md) | 3D 预览环境控件收进环境菜单契约 | ✅ 已采纳 |
+| [ADR-074](./ADR-074-bone-hierarchy-toolkit.md) | 3D 骨骼层级通用工具：统一 YSM/MMD/VRM 的骨骼列表·拾取·显隐 | ✅ 已采纳 |
+| [ADR-073](./ADR-073-federal-render-caps.md) | 联邦 3D 渲染能力共享策略（程序化天空为首个落地能力） | ✅ 已采纳 |
+| [ADR-072](./ADR-072-3d-organization-adapter-sink.md) | 3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters | ✅ 已采纳 |
+| [ADR-071](./ADR-071-web-capability-boundary-7z-community.md) | 网页版能力边界：.7z 明确不支持 + 社区站点编辑保存补齐 | ✅ 已采纳 |
+| [ADR-070](./ADR-070-web-voxel-3d-ts-port.md) | 网页版体素 3D：蓝图/投影预览 TS 平移 voxel 解析 | ✅ 已采纳 |
+| [ADR-069](./ADR-069-container-archive-unification.md) | 内容识别统一：ysm 作为解密容器参与 zip/7z 指纹匹配 | ✅ 已采纳 |
+| [ADR-068](./ADR-068-container-reader-abstraction.md) | 统一容器桥接层：ContainerReader 抽象收敛 ysm/geometry/avatar 解包重复 | ✅ 已采纳 |
+| [ADR-067](./ADR-067-zip-packaged-resource-detection.md) | zip 化资源识别：扩展名歧义消解与内容指纹覆盖 | ✅ 已采纳 |
+| [ADR-066](./ADR-066-universal-resource-preview.md) | 全资源预览器：统一预览契约与注册表驱动分发 | ✅ 已采纳 |
+| [ADR-065](./ADR-065-instance-rtype-registry-single-source.md) | 整合包侧资源类型语义收敛：rtype 分支注册表驱动单点 | ✅ 已采纳 |
+| [ADR-064](./ADR-064-sync-convergence-scanner-single-source.md) | 同步层对比收敛：scanner 单一扫描源，对比实现单点化 | ✅ 已采纳 |
+| [ADR-063](./ADR-063-updater-semver-semantics.md) | updater 版本比较语义化：semver 库接入替代手写比较 | ✅ 已采纳 |
+| [ADR-062](./ADR-062-appconfig-configurable-thresholds.md) | AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项 | ✅ 已采纳 |
+| [ADR-061](./ADR-061-3d.md) | 3D 渲染器能力边界与后续方向 | ✅ 已采纳 |
+| [ADR-060](./ADR-060-dnd-component-scoped-registration.md) | 拖拽导入收敛：按组件域注册，去掉全局遮罩 | ✅ 已采纳 |
+| [ADR-059](./ADR-059-cli-removal-standalone-exe.md) | CLI 移除与裸 exe 发布 | ✅ 已采纳 |
+| [ADR-058](./ADR-058-standalone-exe-embedded-data.md) | 纯 exe 发布模型：数据编译期内嵌 | ✅ 已采纳 |
+| [ADR-057](./ADR-057-3d-preview-fab-responsive.md) | 3D 预览悬浮触发按钮与双端响应式控制层 | ✅ 已采纳 |
+| [ADR-056](./ADR-056-shared-install-lock.md) | 共享单锁：安装/同步/回收去重并发互斥 | ✅ 已采纳 |
+| [ADR-055](./ADR-055-redlines-content-baseline.md) | 红线门禁行号不敏感比对 | ✅ 已采纳 |
+| [ADR-054](./ADR-054-test-perf-governance.md) | 测试性能治理：fixtures 裁剪与 vitest 环境分流 | ✅ 已采纳 |
+| [ADR-053](./ADR-053-web-bridge-boundary.md) | 网页版桥接能力边界（ADR-049 增强 B1–B3 收尾） | ✅ 已采纳 |
+| [ADR-052](./ADR-052-render-session-objectification.md) | RenderSession 对象化：model3d 场景状态收敛与回调方法化 | ✅ 已采纳 |
+| [ADR-051](./ADR-051-error-classification-single-source.md) | 错误分类单一事实来源：结构化错误码替代双份文本匹配表 | ✅ 已采纳 |
+| [ADR-049](./ADR-049-web-edition-bridge.md) | 网页版（Web 端）桥接：backend 适配器 + IndexedDB 模型库 | ✅ 已采纳 |
+| [ADR-048](./ADR-048-ci-workflow-split-cache.md) | CI 工作流架构：双 workflow 拆分 + 可复用测试门禁 + 三层缓存 + 版本单点 | ✅ 已采纳 |
+| [ADR-047](./ADR-047-android-usability-plan.md) | Android 可用性落地规划：触屏交互 + FileAccessor 抽象（ADR-046 P2 实施） | ✅ 已采纳 |
+| [ADR-046](./ADR-046-cross-platform-feasibility.md) | 全平台化可行性调查（对照 MikuMikuAR） | ✅ 已采纳 |
+| [ADR-045](./ADR-045-i18n-framework.md) | 前端 i18n 轻量框架 | ✅ 已采纳 |
+| [ADR-044](./ADR-044-code-writing-governance.md) | 代码写法治理范式：31 批审核反推的系统性不足与收敛策略 | ✅ 已采纳 |
+| [ADR-043](./ADR-043-check-scripts-fail-closed-contract.md) | 检查脚本 fail-closed 三态契约（扫描不完整必须显式暴露，禁止假绿） | ✅ 已采纳 |
+| [ADR-042](./ADR-042-modernysm-pivot-rotation.md) | 渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植 | ✅ 已采纳 |
+| [ADR-041](./ADR-041-spec-render-alignment.md) | 渲染对齐：Go spec 对齐 YSMViewer（C# ThreeJsPayloadBuilder） | ✅ 已采纳 |
+| [ADR-040](./ADR-040-architecture-scale-governance.md) | 架构规模治理——前端大文件拆分与 internal 下沉收口 | ✅ 已采纳 |
+| [ADR-039](./ADR-039-audit-remaining-decisions.md) | 两轮功能审核后的遗留决策项与处置方向 | ✅ 已采纳 |
+| [ADR-038](./ADR-038-ysm-folder-model-contract.md) | YSM 文件夹模型统一契约：ysm.json 单一入口与整组操作 | ✅ 已采纳 |
+| [ADR-037](./ADR-037-e2e-introduction.md) | E2E 测试引入（Playwright + vite dev 纯前端模式） | ✅ 已采纳 |
+| [ADR-036](./ADR-036-3d-op-keymap.md) | 3D 预览操作键位与相机偏好可配置 | ✅ 已采纳 |
+| [ADR-035](./ADR-035-forward-governance-initiatives.md) | 远期治理立项：组件测试与 CI 门槛 | ✅ 已采纳 |
+| [ADR-034](./ADR-034-remaining-debt-after-12-round-audit.md) | 12 轮审计后的剩余技术债盘点与处置方向 | ✅ 已采纳 |
+| [ADR-033](./ADR-033-updater-download-truncation-version-compare.md) | 更新包下载截断检测与版本比较加固 | ✅ 已采纳 |
+| [ADR-032](./ADR-032-sync-diff-detection-failure-visibility.md) | 同步差异检测与失败可见性加固 | ✅ 已采纳 |
+| [ADR-031](./ADR-031-watcher-lifecycle-sync-serialization.md) | 文件监听生命周期与同步串行化加固 | ✅ 已采纳 |
+| [ADR-030](./ADR-030-backend-robustness-contract.md) | 后端持久化与健壮性契约 | ✅ 已采纳 |
+| [ADR-029](./ADR-029-ysmparser-wasm-embed.md) | YSMParser 解码架构：WASM 内嵌取代 sidecar EXE | ✅ 已采纳 |
+| [ADR-028](./ADR-028-installer-atomic-link-relink.md) | 安装器链接模式原子替换与 relink 回滚保护 | ✅ 已采纳 |
+| [ADR-027](./ADR-027-web-component-contract-normalization.md) | Web Component 对外契约规范化 | ✅ 已采纳 |
+| [ADR-026](./ADR-026-ysm-parser-ethics-boundary.md) | YSM 解析器集成伦理边界 | ✅ 已采纳 |
+| [ADR-025](./ADR-025-download-mirror-fallback.md) | 工坊下载镜像回退架构 | ✅ 已采纳 |
+| [ADR-024](./ADR-024-multi-resource-federation.md) | 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表） | ✅ 已采纳 |
+| [ADR-023](./ADR-023-test-framework.md) | 测试体系 | ✅ 已采纳 |
+| [ADR-022](./ADR-022-vitepress-site.md) | VitePress 建站 | ✅ 已采纳 |
+| [ADR-021](./ADR-021-declarative-menu-testing.md) | 前端声明式菜单自动化测试方案 | ✅ 已采纳 ⚠️ 被 [ADR-037] |
+| [ADR-020](./ADR-020-script-toolchain.md) | 脚本体系 | ✅ 已采纳 |
+| [ADR-019](./ADR-019-knowledge-base.md) | 知识卡体系 | ✅ 已采纳 |
+| [ADR-018](./ADR-018-user-guide.md) | 用户指南体系 | ✅ 已采纳 |
+| [ADR-017](./ADR-017-frontend-enhancement-backlog.md) | 前端增强待办决策 | ✅ 已采纳 |
+| [ADR-016](./ADR-016-ui-experience-improvement.md) | 前端 UI 体验优化决策 | ✅ 已采纳 |
+| [ADR-015](./ADR-015-unified-animation-system.md) | 前端统一动画系统设计决策 | ✅ 已采纳 |
+| [ADR-014](./ADR-014-typescript-migration.md) | 前端 TypeScript 渐进迁移 | ✅ 已采纳 |
+| [ADR-013](./ADR-013-governance-convergence.md) | 治理体系收敛 — 文档宪法对账与联邦基线对齐 | ✅ 已采纳 |
+| [ADR-012](./ADR-012-binding-call-consistency.md) | Wails Binding 调用路径一致性 | ✅ 已采纳 |
+| [ADR-011](./ADR-011-path-separator-inconsistency.md) | 前端路径拼接分隔符不一致 | ✅ 已采纳 |
+| [ADR-010](./ADR-010-resource-type-literals.md) | 资源类型字面量硬编码治理 | ✅ 已采纳 |
+| [ADR-008](./ADR-008-event-registration-pattern.md) | 事件注册位置与防重复规范 | ✅ 已采纳 |
+| [ADR-007](./ADR-007-context-menu-structure.md) | 右键菜单代码组织决策 | ✅ 已采纳 |
+| [ADR-006](./ADR-006-rename-strictness.md) | 重命名文件名格式约束决策 | ✅ 已采纳 |
+| [ADR-005](./ADR-005-frontend-governance-rules.md) | 前端治理规则体系 | ✅ 已采纳 |
+| [ADR-004](./ADR-004-3d-rendering-pipeline.md) | 3D 骨骼渲染管线与坐标系决策 | ✅ 已采纳 ⚠️ 被 [ADR-041] |
+| [ADR-003](./ADR-003-logic-sinking.md) | 业务逻辑从 Binding 层下沉至纯 Go 包（Logic Sinking） | ✅ 已采纳 |
+| [ADR-002](./ADR-002-project-health-assessment.md) | 项目全面评估与改进方向 | ✅ 已采纳 |
+| [ADR-001](./ADR-001-wails3-migration.md) | 升级至 Wails 3 | ✅ 已采纳 |
+
+### ❌ 已取代（2）
+
+| ADR | 标题 | 状态 |
+|-----|------|------|
+| [ADR-077](./ADR-077-bottom-nav-shell-convergence.md) | 底部导航通用外壳收敛（D1+D3 落地） | ❌ 已取代 ⚠️ 被 [ADR-076] |
+| [ADR-050](./ADR-050-plaza-browser-window.md) | 模型广场 · 浏览器窗口（Wails 第二窗口） | ❌ 已取代 |
+
+## 登记表（新→旧）
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| ADR-001 | 升级至 Wails 3 | ✅ 已采纳 | 2026-07-14 |
-| ADR-002 | 项目全面评估与改进方向 | ✅ 已采纳 | 2026-08-03 |
-| ADR-003 | 业务逻辑从 Binding 层下沉至纯 Go 包（Logic Sinking） | ✅ 已采纳（P0/P1/P1.5/P2/P3 全部完成） | 2026-08-03（初定），原方案记录于 2026-06-16 |
-| ADR-004 | 3D 骨骼渲染管线与坐标系决策 | 🔄 部分采纳（§2.1 渲染管线单一事实来源仍有效；§2.2/§2.3 被 ADR-041 取代） | 2026-08-03（初定，决策时间线 v1.5.1 → v1.8.7） |
-| ADR-005 | 前端治理规则体系 | ✅ 已采纳 | 2026-08-03（初定，规则时间线 v1.5.1 → 持续维护） |
-| ADR-006 | 重命名文件名格式约束决策 | ✅ 已采纳 | 2026-08-03 |
-| ADR-007 | 右键菜单代码组织决策 | ✅ 已采纳 | 2026-08-03 |
-| ADR-008 | 事件注册位置与防重复规范 | ✅ 已采纳 | 2026-08-03 |
-| ADR-010 | 资源类型字面量硬编码治理 | ✅ 已采纳（2026-08-03 清零完成） | 2026-08-03 |
-| ADR-011 | 前端路径拼接分隔符不一致 | ✅ 已采纳（2026-08-04 清零完成：前端路径拼接统一正斜杠） | 2026-08-03 |
-| ADR-012 | Wails Binding 调用路径一致性 | ✅ 已采纳（2026-08-04 全量统一：业务代码直接 import(bindings) 全部改走 getApp()） | 2026-08-03 |
-| ADR-013 | 治理体系收敛 — 文档宪法对账与联邦基线对齐 | ✅ 已采纳 | 2026-08-03 |
-| ADR-014 | 前端 TypeScript 渐进迁移 | ✅ 已采纳 | 2026-08-03 |
-| ADR-015 | 前端统一动画系统设计决策 | ✅ 已采纳 | 2026-08-03（初定，决策时间线 v1.7.6） |
-| ADR-016 | 前端 UI 体验优化决策 | ✅ 已采纳（P0/P1/P2 全部完成） | 2026-08-03（初定，决策时间线 2026-06-16） |
-| ADR-017 | 前端增强待办决策 | ✅ 已采纳（E-1/E-2 已完成） | 2026-08-03 |
-| ADR-018 | 用户指南体系 | ✅ 已采纳 | 2026-08-03 |
-| ADR-019 | 知识卡体系 | ✅ 已采纳 | 2026-08-03 |
-| ADR-020 | 脚本体系 | ✅ 已采纳 | 2026-08-03 |
-| ADR-021 | 前端声明式菜单自动化测试方案 | ✅ 已采纳（A/B 层已实施；C 层 E2E 条款已被 ADR-037 推翻） | 2026-08-03 |
-| ADR-022 | VitePress 建站 | ✅ 已采纳（VitePress 迁移完成 + 本地构建验证通过 2026-08-05 + CI 部署流水线就绪 `pages-deploy.yml`） | 2026-08-03 |
-| ADR-023 | 测试体系 | ✅ 已采纳（L1/L2/L3 三层全部落地并接入质量门禁——pre-push-gate / doctor / CI + v8 覆盖率阈值；L3 用例 26 文件持续扩充中） | 2026-08-03（初定），2026-08-04（L3 落地 + 覆盖率基线 + 进门禁/CI + 阈值红线 + 补测报告脚本） |
-| ADR-024 | 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表） | 🔄 部分采纳（基础联邦架构仍有效，但部分资源类型定义已过时） | 2026-08-04（决策时间线：联邦愿景 2025-06-07 起草 / P7 多资源计划 2026-06-10 定稿 / 注册表现行落地） |
-| ADR-025 | 工坊下载镜像回退架构 | ✅ 已采纳 | 2026-08-04（原方案 2026-06-06 定稿） |
-| ADR-026 | YSM 解析器集成伦理边界 | ✅ 已采纳 | 2026-08-04（原决策 2026-06-07） |
-| ADR-027 | Web Component 对外契约规范化 | ✅ 已采纳 | 2026-08-04 |
-| ADR-028 | 安装器链接模式原子替换与 relink 回滚保护 | ✅ 已采纳 | 2026-08-04 |
-| ADR-029 | YSMParser 解码架构：WASM 内嵌取代 sidecar EXE | ✅ 已采纳 | 2026-08-04 |
-| ADR-030 | 后端持久化与健壮性契约 | ✅ 已采纳 | 2026-08-04 |
-| ADR-031 | 文件监听生命周期与同步串行化加固 | ✅ 已采纳 | 2026-08-04 |
-| ADR-032 | 同步差异检测与失败可见性加固 | ✅ 已采纳 | 2026-08-04 |
-| ADR-033 | 更新包下载截断检测与版本比较加固 | ✅ 已采纳 | 2026-08-04 |
-| ADR-034 | 12 轮审计后的剩余技术债盘点与处置方向 | ✅ 已采纳 | 2026-08-04 |
-| ADR-035 | 远期治理立项：组件测试与 CI 门槛 | ✅ 已采纳（立项登记，实施排期中；2026-08-09 增补 G-4 E2E 覆盖广度报告） | 2026-08-04 |
-| ADR-036 | 3D 预览操作键位与相机偏好可配置 | ✅ 已采纳 | 2026-08-04 |
-| ADR-037 | E2E 测试引入（Playwright + vite dev 纯前端模式） | ✅ 已采纳（推翻了 ADR-021「C 层 E2E 不引入」决策） | 2026-08-04 |
-| ADR-038 | YSM 文件夹模型统一契约：ysm.json 单一入口与整组操作 | ✅ 已采纳（D2 白名单 + D3 整组操作均已落地） | 2026-08-05 |
-| ADR-039 | 两轮功能审核后的遗留决策项与处置方向 | ✅ 已采纳 | 2026-08-06 |
-| ADR-040 | 架构规模治理——前端大文件拆分与 internal 下沉收口 | ✅ 已采纳 | 2026-08-06 |
-| ADR-041 | 渲染对齐：Go spec 对齐 YSMViewer（C# ThreeJsPayloadBuilder） | ✅ 已采纳 | 2026-08-08 |
-| ADR-042 | 渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植 | 🔄 部分采纳（决策成立，实施排期中） | 2026-08-09 |
-| ADR-043 | 检查脚本 fail-closed 三态契约（扫描不完整必须显式暴露，禁止假绿） | ✅ 已采纳 | 2026-08-09 |
-| ADR-044 | 代码写法治理范式：31 批审核反推的系统性不足与收敛策略 | ✅ 已采纳 | 2026-08-09 |
-| ADR-045 | 前端 i18n 轻量框架 | ✅ 已采纳 | 2026-08-09 |
-| ADR-046 | 全平台化可行性调查（对照 MikuMikuAR） | ✅ 已采纳（P1 桌面三平台 + P2 Android 主体已实施，P3 iOS 待立项） | 2026-08-09 |
-| ADR-047 | Android 可用性落地规划：触屏交互 + FileAccessor 抽象（ADR-046 P2 实施） | ✅ 已采纳 | 2026-08-09 |
-| ADR-048 | CI 工作流架构：双 workflow 拆分 + 可复用测试门禁 + 三层缓存 + 版本单点 | ✅ 已采纳 | 2026-08-10 |
-| ADR-049 | 网页版（Web 端）桥接：backend 适配器 + IndexedDB 模型库 | ✅ 已采纳（功能全落地：Phase 0-3 + P2-2 3D 渲染闭环 + Web e2e + 部署配置；本地验证通过，线上 URL 验证算通过） | 2026-08-10 |
-| ADR-050 | 模型广场 · 浏览器窗口（Wails 第二窗口） | ❌ 已取代（Phase 1 反向代理实现已验证不可行：Wails v3 WebView2 多窗口反代理注入下载拦截在 Windows 环境下反复踩坑，决策废弃 Phase 2/3） | 2026-08-11 |
-| ADR-051 | 错误分类单一事实来源：结构化错误码替代双份文本匹配表 | ✅ 已采纳 | 2026-08-11 |
-| ADR-052 | RenderSession 对象化：model3d 场景状态收敛与回调方法化 | ✅ 已采纳 | 2026-08-11 |
-| ADR-053 | 网页版桥接能力边界（ADR-049 增强 B1–B3 收尾） | ✅ 已采纳（Accepted；2026-08-14 修订：MoveModelFile/CopyModelFile 由 C 类升为 A 类 P0，见 §5 修订记录） | 2026-08-12 |
-| ADR-054 | 测试性能治理：fixtures 裁剪与 vitest 环境分流 | ✅ 已采纳 | 2026-08-12 |
-| ADR-055 | 红线门禁行号不敏感比对 | ✅ 已采纳 | 2026-08-12 |
-| ADR-056 | 共享单锁：安装/同步/回收去重并发互斥 | ✅ 已采纳 | 2026-08-13 |
-| ADR-057 | 3D 预览悬浮触发按钮与双端响应式控制层 | ✅ 已采纳（方向已定，编码实现按 §2.8 小步快跑落地） | 2026-08-13 |
-| ADR-058 | 纯 exe 发布模型：数据编译期内嵌 | ✅ 已采纳 | 2026-08-14 |
-| ADR-059 | CLI 移除与裸 exe 发布 | ✅ 已采纳 | 2026-08-14 |
-| ADR-060 | 拖拽导入收敛：按组件域注册，去掉全局遮罩 | ✅ 已采纳 | 2026-08-14 |
-| ADR-061 | 3D 渲染器能力边界与后续方向 | 🔄 部分采纳（方向已定，编码待立项落地） | 2026-08-14 |
-| ADR-062 | AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项 | 🔄 部分采纳（方向已定，编码待立项落地） | 2026-08-15 |
-| ADR-063 | updater 版本比较语义化：semver 库接入替代手写比较 | ✅ 已采纳（semver 库 golang.org/x/mod/semver 已接入，isNewer 已改造为库比较 + 脏 tag 回退手写，预发布语义门控默认关闭；测试用例覆盖 v1.0.0 vs v1.0.0-beta.1、多段版本、+build 元数据等边界） | 2026-08-15 |
-| ADR-064 | 同步层对比收敛：scanner 单一扫描源，对比实现单点化 | ✅ 已采纳（阶段一 + 阶段二均已落地：d05afa3e） | 2026-08-15 |
-| ADR-065 | 整合包侧资源类型语义收敛：rtype 分支注册表驱动单点 | ✅ 已采纳（落地：e120b5cf——4 处 rtype 硬编码字面量收敛注册表驱动） | 2026-08-15 |
-| ADR-066 | 全资源预览器：统一预览契约与注册表驱动分发 | ✅ 已采纳（P0 硬编码派发墙、P1 VrmAdapter、P2 MmdAdapter、P3 mountPreview 统一核心、P3-E YSM 入 core 全部已落地；`utils/3d/adapters/` 五适配器完整，统一 `mount3D` 入口） | 2026-08-16 |
-| ADR-067 | zip 化资源识别：扩展名歧义消解与内容指纹覆盖 | ✅ 已采纳（S1+S2+S4 原子落地 `6e504851`，S5 检测层收敛落地 `9f1a20e1`；.7z 内容检测遗留见 §3） | 2026-08-16 |
-| ADR-068 | 统一容器桥接层：ContainerReader 抽象收敛 ysm/geometry/avatar 解包重复 | ✅ 已采纳（接口 + geometry/avatar/ysm 迁移已落地：d01a37ee） | 2026-08-16 |
-| ADR-069 | 内容识别统一：ysm 作为解密容器参与 zip/7z 指纹匹配 | ✅ 已采纳（识别层已统一：`DetectResourceType`/`DetectZipType` 不再扩展名直判 .ysm，走 `MatchZipEntry` 注册表指纹匹配；前端 `loader.ts` isWasmCapable 由注册表派生；`resource_types.json` 中 ysm 声明 `zipEntries` 指纹；Go/TS 双端指纹匹配已落地） | 2026-08-16 |
-| ADR-070 | 网页版体素 3D：蓝图/投影预览 TS 平移 voxel 解析 | ✅ 已采纳（M1 门控 + meta 恢复 → M2 TS 平移 voxel → M3 门控移除接入，web 蓝图/投影 3D 全链路贯通） | 2026-08-16 |
-| ADR-071 | 网页版能力边界：.7z 明确不支持 + 社区站点编辑保存补齐 | ✅ 已采纳（M1 .7z 提示落地；M2 社区编辑已由 R3-P0 实现——见 §4 补注） | 2026-08-16 |
-| ADR-072 | 3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters | ✅ 已采纳（根治三主线落地：薄包装归位 views `4413fb2a` + `resolveMmdSiblings` 断环 `761138dd` + adapter 注入化消反向依赖 `ca1780e7`；终态 `utils/3d/adapters` 0 backend import，check-circular/check-layering 双零） | 2026-08-16 |
-| ADR-073 | 联邦 3D 渲染能力共享策略（程序化天空为首个落地能力） | ✅ 已采纳 | 2026-08-16 |
-| ADR-074 | 3D 骨骼层级通用工具：统一 YSM/MMD/VRM 的骨骼列表·拾取·显隐 | ✅ 已采纳 | 2026-08-16 |
-| ADR-075 | 3D 预览环境控件收进环境菜单契约 | ✅ 已采纳 | 2026-08-16 |
-| ADR-076 | 3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编） | ✅ 已采纳（Phase 1+2 全部落地：顶栏砍掉→声明式根菜单，ysm/mmd 适配器专属控件收编进根菜单，旧脚手架代码已删除；Phase 3 extraControls 已按设计处理——litematic 保留常驻例外、vrm 改走根菜单） | 2026-08-16 |
-| ADR-077 | 底部导航通用外壳收敛（D1+D3 落地） | 🔄 部分采纳（D1/D3 已被 ADR-076 v2 的声明式根菜单方案替代；相机控件桥已下沉到 `camera-controls.ts`；原 `buildBottomNav`/`BottomNavMenu`/`buildViewMenu` 函数未实现，因设计方案已演进） | 2026-08-16 |
-| ADR-079 | WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游 | ✅ 已采纳（M1-M4 全落地：网页 COI SW / 桌面中间件 / 重编译 pthread / 接入降级） | 2026-08-16 |
-| ADR-080 | 资源包 block/item 模型 JSON 解析与渲染（PackModelAdapter） | ✅ 已采纳 | 2026-08-16 |
-| ADR-081 | 语义骨骼层——跨格式语义骨骼统一抽象 | ✅ 已采纳（L1 呼吸 + L2 注视追踪已落地，L3 眨眼/LipSync 格式特化待接入） | 2026-08-17 |
-| ADR-082 | 材质包识别长治久安：zipEntries 任意层级指纹（any 模式）+ detector 容器统一 | ✅ 已采纳 | 2026-08-16 |
-| ADR-083 | 语义层双抽象——跨格式语义骨骼 + 语义 morph + 感知层程序化生命力 | ✅ 已采纳（语义骨骼 + 语义 morph + 5 感知模块全落地） | 2026-08-17 |
-| ADR-084 | 个人灯光系统（Personal Lighting）——三点布光 + 聚光灯 + 体积光双引擎 | ✅ 已采纳 | 2026-08-16 |
-| ADR-085 | 3D 预览菜单单一事实来源：注册表驱动 + 状态单向流 | ✅ 已采纳 | 2026-08-16 |
-| ADR-086 | 检查体系减负与赋能决策表 | ✅ 已采纳 | 2026-08-17 |
-| ADR-087 | AI 自动化取巧——pre-commit 智能 stage 与无脑指令下沉 | ✅ 已采纳 | 2026-08-17 |
-| ADR-088 | 检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行 | 🔄 部分采纳 | 2026-08-17 |
-| ADR-089 | 测试环境切分持续推进：慢测试定位与 node 环境甄别 | ✅ 已采纳 | 2026-08-17 |
-| ADR-090 | vitest 环境切换与 npm 三件套并行优化 | ✅ 已采纳 | 2026-08-17 |
-| ADR-091 | 架构债务总览 v2（2026-08-17 并发审计） | ✅ 已采纳 | 2026-08-17 |
-| ADR-092 | 资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并 | 🔄 部分采纳（group 层第 1 层已落地；MMD 子类型物理目录预建于 ADR-103） | 2026-08-18 |
-| ADR-093 | 多模型同框引擎核心（注册表/dispatch/相机累加/路由接缝/上限） | ✅ 已采纳 | 2026-08-18 |
-| ADR-094 | MMD 子类型位置路由：3d-skin 目录层级优先于扩展名 | ✅ 已采纳 | 2026-08-18 |
-| ADR-095 | OpenInstanceFolder 打开资源存储目录而非模组扫描目录 | ✅ 已采纳 | 2026-08-18 |
-| ADR-096 | 全局库存储分层规范：MMD 子目录三链路消费 | ✅ 已采纳 | 2026-08-18 |
-| ADR-097 | 3D SceneCapability 注册表 + 模型切换复用架构 | ✅ 已采纳 | 2026-08-18 |
-| ADR-098 | 3D 预览性能优化——纹理复用 + 视锥裁剪 + 按需更新 | ✅ 已采纳 | 2026-08-18 |
-| ADR-099 | 3D 预览 SceneCapability 注册表架构与能力分层（九 cap 接入、顶层五 tab 菜单映射、反射模式三档 SSR 闭环） | ✅ 已采纳 | 2026-08-18 |
-| ADR-100 | YSM 骨骼动画播放——L1 基础播放 | ✅ 已采纳 | 2026-08-18 |
-| ADR-101 | MMD 场景加载性能分析与优化方向 | ✅ 已采纳 | 2026-08-18 |
-| ADR-102 | CLI 内嵌模式回归与诊断协同平台 | ✅ 已采纳 | 2026-08-19 |
-| ADR-103 | 注册表加载单源化与僵尸覆盖分支清理 | ✅ 已采纳 | 2026-08-19 |
-| ADR-104 | 资源类型子类层（subtypes）统一：大类/小类/防御性检验三层架构 | ✅ 已采纳 | 2026-08-19 |
-| ADR-105 | subtype 完整自描述化：零继承识别单元（MMD 落地，光影包预留） | ✅ 已采纳 | 2026-08-19 |
-| ADR-106 | 3D 预览环境菜单两级下钻与可视化控件扩展 | ✅ 已采纳 | 2026-08-20 |
-| ADR-107 | 天空体积光束 god rays（日出/日落） | ✅ 已采纳 | 2026-08-21 |
-| ADR-108 | 相机取景包围盒计算策略 | ✅ 已采纳 | 2026-08-20 |
-| ADR-110 | mod 依赖下沉注册表，消除 Go 硬编码 | ✅ 已采纳 | 2026-08-21 |
-| ADR-111 | variants 解耦——类别—格式分层，角色模型合并 PMX/VRM | ✅ 已采纳 | 2026-08-21 |
+| ADR-116 | 前端 vs Go 职责红线：筛选/类型判定权威层归 Go | ✅ 已采纳 | 2026-08-23 |
+| ADR-115 | 跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡） | ✅ 已采纳 | 2026-08-23 |
+| ADR-114 | 每组件独立纹理（perComponent Textures） | ✅ 已采纳 | 2026-08-22 |
+| ADR-113 | YSM 骨骼动画 Molang 求值器与欧拉序修复（L4） | ✅ 已采纳 | 2026-08-22 |
 | ADR-112 | FBX 格式接入与独立预览地基 | ✅ 已采纳 | 2026-08-21 |
+| ADR-111 | variants 解耦——类别—格式分层，角色模型合并 PMX/VRM | ✅ 已采纳 | 2026-08-21 |
+| ADR-110 | mod 依赖下沉注册表，消除 Go 硬编码 | ✅ 已采纳 | 2026-08-21 |
+| ADR-108 | 相机取景包围盒计算策略 | ✅ 已采纳 | 2026-08-20 |
+| ADR-107 | 天空体积光束 god rays（日出/日落） | ✅ 已采纳 | 2026-08-21 |
+| ADR-106 | 3D 预览环境菜单两级下钻与可视化控件扩展 | ✅ 已采纳 | 2026-08-20 |
+| ADR-105 | subtype 完整自描述化：零继承识别单元（MMD 落地，光影包预留） | ✅ 已采纳 | 2026-08-19 |
+| ADR-104 | 资源类型子类层（subtypes）统一：大类/小类/防御性检验三层架构 | ✅ 已采纳 | 2026-08-19 |
+| ADR-103 | 注册表加载单源化与僵尸覆盖分支清理 | ✅ 已采纳 | 2026-08-19 |
+| ADR-102 | CLI 内嵌模式回归与诊断协同平台 | ✅ 已采纳 | 2026-08-19 |
+| ADR-101 | MMD 场景加载性能分析与优化方向 | ✅ 已采纳 | 2026-08-18 |
+| ADR-100 | YSM 骨骼动画播放——L1 基础播放 | ✅ 已采纳 | 2026-08-18 |
+| ADR-099 | 3D 预览 SceneCapability 注册表架构与能力分层（九 cap 接入、顶层五 tab 菜单映射、反射模式三档 SSR 闭环） | ✅ 已采纳 | 2026-08-18 |
+| ADR-098 | 3D 预览性能优化——纹理复用 + 视锥裁剪 + 按需更新 | ✅ 已采纳 | 2026-08-18 |
+| ADR-097 | 3D SceneCapability 注册表 + 模型切换复用架构 | ✅ 已采纳 | 2026-08-18 |
+| ADR-096 | 全局库存储分层规范：MMD 子目录三链路消费 | ✅ 已采纳 | 2026-08-18 |
+| ADR-095 | OpenInstanceFolder 打开资源存储目录而非模组扫描目录 | ✅ 已采纳 | 2026-08-18 |
+| ADR-094 | MMD 子类型位置路由：3d-skin 目录层级优先于扩展名 | ✅ 已采纳 | 2026-08-18 |
+| ADR-093 | 多模型同框引擎核心（注册表/dispatch/相机累加/路由接缝/上限） | ✅ 已采纳 | 2026-08-18 |
+| ADR-092 | 资源类型分组（Group）分层路由：Minecraft / Minecraft-Mod / MMD 总目录归并 | ✅ 已采纳 | 2026-08-18 |
+| ADR-091 | 架构债务总览 v2（2026-08-17 并发审计） | ✅ 已采纳 | 2026-08-17 |
+| ADR-090 | vitest 环境切换与 npm 三件套并行优化 | ✅ 已采纳 | 2026-08-17 |
+| ADR-089 | 测试环境切分持续推进：慢测试定位与 node 环境甄别 | ✅ 已采纳 | 2026-08-17 |
+| ADR-088 | 检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行 | ✅ 已采纳 | 2026-08-17 |
+| ADR-087 | AI 自动化取巧——pre-commit 智能 stage 与无脑指令下沉 | ✅ 已采纳 | 2026-08-17 |
+| ADR-086 | 检查体系减负与赋能决策表 | ✅ 已采纳 | 2026-08-17 |
+| ADR-085 | 3D 预览菜单单一事实来源：注册表驱动 + 状态单向流 | ✅ 已采纳 | 2026-08-16 |
+| ADR-084 | 个人灯光系统（Personal Lighting）——三点布光 + 聚光灯 + 体积光双引擎 | ✅ 已采纳 | 2026-08-16 |
+| ADR-083 | 语义层双抽象——跨格式语义骨骼 + 语义 morph + 感知层程序化生命力 | ✅ 已采纳 | 2026-08-17 |
+| ADR-082 | 材质包识别长治久安：zipEntries 任意层级指纹（any 模式）+ detector 容器统一 | ✅ 已采纳 | 2026-08-16 |
+| ADR-081 | 语义骨骼层——跨格式语义骨骼统一抽象 | ✅ 已采纳 | 2026-08-17 |
+| ADR-080 | 资源包 block/item 模型 JSON 解析与渲染（PackModelAdapter） | ✅ 已采纳 | 2026-08-16 |
+| ADR-079 | WASM pthread 多线程解码：三端 COOP/COEP 注入 + 重编译上游 | ✅ 已采纳 | 2026-08-16 |
+| ADR-077 | 底部导航通用外壳收敛（D1+D3 落地） | ❌ 已取代 ⚠️ 被 [ADR-076] | 2026-08-16 |
+| ADR-076 | 3D 预览通用导航与弹窗脚手架收敛契约（v3 — 声明式根菜单 + 适配器项收编） | ✅ 已采纳 ⚠️ 被 [ADR-079] | 2026-08-16 |
+| ADR-075 | 3D 预览环境控件收进环境菜单契约 | ✅ 已采纳 | 2026-08-16 |
+| ADR-074 | 3D 骨骼层级通用工具：统一 YSM/MMD/VRM 的骨骼列表·拾取·显隐 | ✅ 已采纳 | 2026-08-16 |
+| ADR-073 | 联邦 3D 渲染能力共享策略（程序化天空为首个落地能力） | ✅ 已采纳 | 2026-08-16 |
+| ADR-072 | 3D 代码归置与预览派发注册表化：适配器下沉 utils/3d/adapters | ✅ 已采纳 | 2026-08-16 |
+| ADR-071 | 网页版能力边界：.7z 明确不支持 + 社区站点编辑保存补齐 | ✅ 已采纳 | 2026-08-16 |
+| ADR-070 | 网页版体素 3D：蓝图/投影预览 TS 平移 voxel 解析 | ✅ 已采纳 | 2026-08-16 |
+| ADR-069 | 内容识别统一：ysm 作为解密容器参与 zip/7z 指纹匹配 | ✅ 已采纳 | 2026-08-16 |
+| ADR-068 | 统一容器桥接层：ContainerReader 抽象收敛 ysm/geometry/avatar 解包重复 | ✅ 已采纳 | 2026-08-16 |
+| ADR-067 | zip 化资源识别：扩展名歧义消解与内容指纹覆盖 | ✅ 已采纳 | 2026-08-16 |
+| ADR-066 | 全资源预览器：统一预览契约与注册表驱动分发 | ✅ 已采纳 | 2026-08-16 |
+| ADR-065 | 整合包侧资源类型语义收敛：rtype 分支注册表驱动单点 | ✅ 已采纳 | 2026-08-15 |
+| ADR-064 | 同步层对比收敛：scanner 单一扫描源，对比实现单点化 | ✅ 已采纳 | 2026-08-15 |
+| ADR-063 | updater 版本比较语义化：semver 库接入替代手写比较 | ✅ 已采纳 | 2026-08-15 |
+| ADR-062 | AppConfig 可配置化下沉：运行阈值与检查间隔从常量收敛为配置项 | ✅ 已采纳 | 2026-08-15 |
+| ADR-061 | 3D 渲染器能力边界与后续方向 | ✅ 已采纳 | 2026-08-14 |
+| ADR-060 | 拖拽导入收敛：按组件域注册，去掉全局遮罩 | ✅ 已采纳 | 2026-08-14 |
+| ADR-059 | CLI 移除与裸 exe 发布 | ✅ 已采纳 | 2026-08-14 |
+| ADR-058 | 纯 exe 发布模型：数据编译期内嵌 | ✅ 已采纳 | 2026-08-14 |
+| ADR-057 | 3D 预览悬浮触发按钮与双端响应式控制层 | ✅ 已采纳 | 2026-08-13 |
+| ADR-056 | 共享单锁：安装/同步/回收去重并发互斥 | ✅ 已采纳 | 2026-08-13 |
+| ADR-055 | 红线门禁行号不敏感比对 | ✅ 已采纳 | 2026-08-12 |
+| ADR-054 | 测试性能治理：fixtures 裁剪与 vitest 环境分流 | ✅ 已采纳 | 2026-08-12 |
+| ADR-053 | 网页版桥接能力边界（ADR-049 增强 B1–B3 收尾） | ✅ 已采纳 | 2026-08-12 |
+| ADR-052 | RenderSession 对象化：model3d 场景状态收敛与回调方法化 | ✅ 已采纳 | 2026-08-11 |
+| ADR-051 | 错误分类单一事实来源：结构化错误码替代双份文本匹配表 | ✅ 已采纳 | 2026-08-11 |
+| ADR-050 | 模型广场 · 浏览器窗口（Wails 第二窗口） | ❌ 已取代 | 2026-08-11 |
+| ADR-049 | 网页版（Web 端）桥接：backend 适配器 + IndexedDB 模型库 | ✅ 已采纳 | 2026-08-10 |
+| ADR-048 | CI 工作流架构：双 workflow 拆分 + 可复用测试门禁 + 三层缓存 + 版本单点 | ✅ 已采纳 | 2026-08-10 |
+| ADR-047 | Android 可用性落地规划：触屏交互 + FileAccessor 抽象（ADR-046 P2 实施） | ✅ 已采纳 | 2026-08-09 |
+| ADR-046 | 全平台化可行性调查（对照 MikuMikuAR） | ✅ 已采纳 | 2026-08-09 |
+| ADR-045 | 前端 i18n 轻量框架 | ✅ 已采纳 | 2026-08-09 |
+| ADR-044 | 代码写法治理范式：31 批审核反推的系统性不足与收敛策略 | ✅ 已采纳 | 2026-08-09 |
+| ADR-043 | 检查脚本 fail-closed 三态契约（扫描不完整必须显式暴露，禁止假绿） | ✅ 已采纳 | 2026-08-09 |
+| ADR-042 | 渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植 | ✅ 已采纳 | 2026-08-09 |
+| ADR-041 | 渲染对齐：Go spec 对齐 YSMViewer（C# ThreeJsPayloadBuilder） | ✅ 已采纳 | 2026-08-08 |
+| ADR-040 | 架构规模治理——前端大文件拆分与 internal 下沉收口 | ✅ 已采纳 | 2026-08-06 |
+| ADR-039 | 两轮功能审核后的遗留决策项与处置方向 | ✅ 已采纳 | 2026-08-06 |
+| ADR-038 | YSM 文件夹模型统一契约：ysm.json 单一入口与整组操作 | ✅ 已采纳 | 2026-08-05 |
+| ADR-037 | E2E 测试引入（Playwright + vite dev 纯前端模式） | ✅ 已采纳 | 2026-08-04 |
+| ADR-036 | 3D 预览操作键位与相机偏好可配置 | ✅ 已采纳 | 2026-08-04 |
+| ADR-035 | 远期治理立项：组件测试与 CI 门槛 | ✅ 已采纳 | 2026-08-04 |
+| ADR-034 | 12 轮审计后的剩余技术债盘点与处置方向 | ✅ 已采纳 | 2026-08-04 |
+| ADR-033 | 更新包下载截断检测与版本比较加固 | ✅ 已采纳 | 2026-08-04 |
+| ADR-032 | 同步差异检测与失败可见性加固 | ✅ 已采纳 | 2026-08-04 |
+| ADR-031 | 文件监听生命周期与同步串行化加固 | ✅ 已采纳 | 2026-08-04 |
+| ADR-030 | 后端持久化与健壮性契约 | ✅ 已采纳 | 2026-08-04 |
+| ADR-029 | YSMParser 解码架构：WASM 内嵌取代 sidecar EXE | ✅ 已采纳 | 2026-08-04 |
+| ADR-028 | 安装器链接模式原子替换与 relink 回滚保护 | ✅ 已采纳 | 2026-08-04 |
+| ADR-027 | Web Component 对外契约规范化 | ✅ 已采纳 | 2026-08-04 |
+| ADR-026 | YSM 解析器集成伦理边界 | ✅ 已采纳 | 2026-08-04（原决策 2026-06-07） |
+| ADR-025 | 工坊下载镜像回退架构 | ✅ 已采纳 | 2026-08-04（原方案 2026-06-06 定稿） |
+| ADR-024 | 多资源类型联邦架构（ResourceAdapter + resource_types.json 注册表） | ✅ 已采纳 | 2026-08-04（决策时间线：联邦愿景 2025-06-07 起草 / P7 多资源计划 2026-06-10 定稿 / 注册表现行落地） |
+| ADR-023 | 测试体系 | ✅ 已采纳 | 2026-08-03（初定），2026-08-04（L3 落地 + 覆盖率基线 + 进门禁/CI + 阈值红线 + 补测报告脚本） |
+| ADR-022 | VitePress 建站 | ✅ 已采纳 | 2026-08-03 |
+| ADR-021 | 前端声明式菜单自动化测试方案 | ✅ 已采纳 ⚠️ 被 [ADR-037] | 2026-08-03 |
+| ADR-020 | 脚本体系 | ✅ 已采纳 | 2026-08-03 |
+| ADR-019 | 知识卡体系 | ✅ 已采纳 | 2026-08-03 |
+| ADR-018 | 用户指南体系 | ✅ 已采纳 | 2026-08-03 |
+| ADR-017 | 前端增强待办决策 | ✅ 已采纳 | 2026-08-03 |
+| ADR-016 | 前端 UI 体验优化决策 | ✅ 已采纳 | 2026-08-03（初定，决策时间线 2026-06-16） |
+| ADR-015 | 前端统一动画系统设计决策 | ✅ 已采纳 | 2026-08-03（初定，决策时间线 v1.7.6） |
+| ADR-014 | 前端 TypeScript 渐进迁移 | ✅ 已采纳 | 2026-08-03 |
+| ADR-013 | 治理体系收敛 — 文档宪法对账与联邦基线对齐 | ✅ 已采纳 | 2026-08-03 |
+| ADR-012 | Wails Binding 调用路径一致性 | ✅ 已采纳 | 2026-08-03 |
+| ADR-011 | 前端路径拼接分隔符不一致 | ✅ 已采纳 | 2026-08-03 |
+| ADR-010 | 资源类型字面量硬编码治理 | ✅ 已采纳 | 2026-08-03 |
+| ADR-008 | 事件注册位置与防重复规范 | ✅ 已采纳 | 2026-08-03 |
+| ADR-007 | 右键菜单代码组织决策 | ✅ 已采纳 | 2026-08-03 |
+| ADR-006 | 重命名文件名格式约束决策 | ✅ 已采纳 | 2026-08-03 |
+| ADR-005 | 前端治理规则体系 | ✅ 已采纳 | 2026-08-03（初定，规则时间线 v1.5.1 → 持续维护） |
+| ADR-004 | 3D 骨骼渲染管线与坐标系决策 | ✅ 已采纳 ⚠️ 被 [ADR-041] | 2026-08-03（初定，决策时间线 v1.5.1 → v1.8.7） |
+| ADR-003 | 业务逻辑从 Binding 层下沉至纯 Go 包（Logic Sinking） | ✅ 已采纳 | 2026-08-03（初定），原方案记录于 2026-06-16 |
+| ADR-002 | 项目全面评估与改进方向 | ✅ 已采纳 | 2026-08-03 |
+| ADR-001 | 升级至 Wails 3 | ✅ 已采纳 | 2026-07-14 |
 
 ## 使用规则（硬约束）
 
@@ -142,9 +272,9 @@ permalink: /adr/
 2. **占号**：写文件**前**先在本表登记占号（并提交登记），再创建文件——多会话并行时以登记顺序为准，撞号者必须让位改号。
 3. **命名**：文件名 `ADR-NNN-kebab-case.md`（如 `ADR-013-governance-convergence.md`）。
 4. **必填字段**：状态 / 日期 / 决策人 / 相关；正文结构：背景（Context）→ 决策（Decision）→ 后果（Consequences）→ 数据溯源。
-5. **状态值**：`✅ 已采纳` / `🔄 部分采纳` / `🧊 已废弃` / `❌ 已取代` / `⚠️ 已采纳（违规或未修复，自动从文件首部识别）`。状态变更只改文件首部，本页由 `gen-docs-index.mjs` 自动重写。
+5. **状态值**：`✅ 已采纳` / `🔄 部分采纳` / `🧊 已废弃` / `❌ 已取代` / `⚠️ 已采纳（违规或未修复，自动从文件首部识别）`。状态变更只改文件首部，本页由 `gen-docs-index.mjs` 自动重写。取代关系用 `- **被取代**：[ADR-NNN] 取代` 独立行标注（`gen-adr-supersede.mjs` 扫描）。
 6. **新 ADR 落地后**：本页自动重写（改文件首部即可），无需手动同步；历史 `PROJECT_STATUS.md` 已冻结于 `docs/archive/`，不再维护。
 
 ---
 
-*登记表由 `gen-docs-index.mjs` 自动重写；一致性校验已接入：`node scripts/check-adr-health.mjs`（状态值域 + 登记同步 + 技术债）+ `node scripts/check-doc-drift.mjs`（编号连续性/漏登/幽灵）。*
+*登记表由 `gen-docs-index.mjs` 自动重写；一致性校验已接入：`node scripts/check-adr-health.mjs`（状态值域 + 登记同步 + 技术债）+ `node scripts/check-doc-drift.mjs`（编号连续性/漏登/幽灵）+ `node scripts/gen-adr-supersede.mjs`（取代关系扫描）。*

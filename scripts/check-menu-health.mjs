@@ -10,7 +10,7 @@
  *   1. id 全局唯一（渲染为 data-testid="preview-<id>"，撞车则 e2e 寻址失效）
  *   2. labelKey 非空
  *   3. labelKey 在 zh-CN 语言包存在（三语一致性由 locales-consistency.test 保证）
- *   4. dockGroup ∈ {model, motion, scene} 或 无（非法值导致 dock 按钮进错组）
+ *   4. dockGroup ∈ PreviewMenuGroupId 联合类型（单一事实来源，自动从 preview-menu-defs.ts 推导）或 无（非法值导致 dock 按钮进错组）
  *   5. kind ∈ {panel, action, divider}
  *   6. panel 项必有 render；action 项必有 run（缺失则面板/动作不可执行）
  *
@@ -38,10 +38,23 @@ const MENU_FILES = [
 ];
 const LOCALE_FILE = 'frontend/src/core/i18n/locales/zh-CN.ts';
 const LEGAL_KINDS = new Set(['panel', 'action', 'divider']);
-const LEGAL_GROUPS = new Set(['model', 'motion', 'scene']);
 
 function readRel(rel) {
   return fs.readFileSync(path.resolve(ROOT, rel), 'utf-8');
+}
+
+// 合法 dockGroup 从单一事实来源 preview-menu-defs.ts 的 `PreviewMenuGroupId` 联合类型推导，
+// 不在此处硬编码第二份清单——否则新增组（如 2026-08-19 的 "env"）时漏改闸门即双源漂移、误阻断推送。
+const LEGAL_GROUPS = deriveLegalGroups();
+
+function deriveLegalGroups() {
+  const defs = readRel(MENU_FILES[0]);
+  const m = defs.match(/type\s+PreviewMenuGroupId\s*=\s*([^;]+);/);
+  const ids = m ? [...m[1].matchAll(/"([a-z0-9-]+)"/g)].map((x) => x[1]) : [];
+  if (!ids.length) {
+    throw new Error('check-menu-health: 无法从 preview-menu-defs.ts 推导 PreviewMenuGroupId（单一事实来源缺失），拒绝用兜底硬编码清单');
+  }
+  return new Set(ids);
 }
 
 // 收集 zh-CN 语言包所有 preview.* 键
@@ -160,7 +173,7 @@ for (const it of allItems) {
       rule: 'dockGroup-valid',
       item: it.id,
       file: it.file,
-      detail: `dockGroup "${it.dockGroup}" 非法（须为 model/motion/scene）`,
+      detail: `dockGroup "${it.dockGroup}" 非法（须为 ${[...LEGAL_GROUPS].join('/')}）`,
     });
   }
   // 5. kind 合法

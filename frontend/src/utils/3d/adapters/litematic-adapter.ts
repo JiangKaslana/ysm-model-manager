@@ -9,6 +9,7 @@ import { screenshotFromRenderer } from "../screenshot.ts"; // ADR-052 P3：截�
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import type { PreviewBuildCtx, PreviewScene } from "./mount-preview-core.ts";
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
+import { recordLoadTrace } from "../load-trace.ts";
 
 /** 体素数据（GetLitematicVoxelData 等返回 JSON） */
 interface VoxelData {
@@ -30,6 +31,7 @@ export async function buildLitematicScene(
   path: string,
   voxelCall: (path: string) => Promise<string>,
 ): Promise<PreviewScene> {
+  const tStart = performance.now();
   ctx.loadingEl.innerHTML =
     '<div style="font-size:32px">🧊</div><div>' + t("preview.loadingVoxels") + '</div><div style="width:200px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:30%;background:var(--accent,#7c83ff);border-radius:2px;animation:preview-prog 1.5s ease-in-out infinite"></div></div>';
 
@@ -141,6 +143,19 @@ export async function buildLitematicScene(
   }
 
   ctx.loadingEl.remove(); // 体素网格构建完成，移除占位（旧 litematic-3d.ts:208 同款）
+
+  // 加载剖析：perf 面板甘特图消费
+  try {
+    const blockCount = data.groups?.reduce((s, g) => s + (g.positions?.length ?? 0), 0) ?? 0;
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "litematic",
+      path,
+      stages: [{ name: "读取+构建", ms: Math.round(performance.now() - tStart), status: "ok" }],
+      assets: { files: 1, textures: 0, materials: data.groups?.length ?? 0, animations: 0 },
+      ok: true,
+    });
+  } catch { /* perf trace 失败不影响渲染 */ }
 
   // 分层渲染逻辑（UI 元素经 litematicMenuItems 注入 ⚙️ 根菜单分层面板，ADR-076 v2 Phase 3）
   const rawGroups = data.groups;
@@ -330,9 +345,10 @@ export async function buildLitematicScene(
     sep,
     axisLabel,
   });
-  ctx.menu.setAdapterItems(sliceItems);
-
   return {
+    // ADR-093：声明式分层切片控件 → 经角色详情面板可达（roleDetailView 按 dockGroup:"model" 过滤 entry.menuItems）
+    // 与 ysm/mmd/vrm 对称：built.menuItems 喂角色详情，不再经 setAdapterItems 平铺 dock 根（避免旧菜单冗余行）
+    menuItems: sliceItems,
     dispose(): void {
       unregisterModelRoot(modelGroup);
       instancedMeshes.forEach((m) => {

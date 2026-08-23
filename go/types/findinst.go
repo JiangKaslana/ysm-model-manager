@@ -48,11 +48,16 @@ func dirContainsFlag(root, flag string) bool {
 }
 
 // FindInstDir 查找整合包中指定资源类型的子目录：
-//  1. 优先使用标准子目录名（如 schematics）——但仅当其中确实包含该类型文件
-//  2. 标准目录不存在 / 存在但无该类型文件 → 扫描整合包版本目录下所有子目录，
-//     找包含该类型文件的目录（P5 修复：Sable Schematics 等模组把蓝图放在
-//     Sable-Schematics/ 等非标准目录，标准 schematics 目录存在但为空时原实现
-//     直接返回空目录 → 蓝图识别不到；现改为无文件时继续兜底）
+//  1. 优先使用标准子目录名（由 subDir 传入，已含多级前缀如 3d-skin/SceneModel）
+//     ——仅当其中确实包含该类型文件时返回标准目录。
+//  2. 标准目录不存在 / 存在但无该类型文件 → 默认**直接返回标准路径**，不兜底扫描。
+//
+// 设计纪律（2026-08-23 收敛）：**不为文件操作设置兜底目录**。FindInstDir 的消费者
+// 是同步 / 哈希 / 回收站清理等破坏性文件操作入口，兜底扫描一旦越界命中错误目录
+// （如 MMD 子类型 subDir=3d-skin/SceneModel 缺失时扫到 config 树里混放的 .pmx），
+// 下游同步 / 回收站会对错误目录做删改，安全性归零。因此兜底扫描**默认关闭**，
+// 仅当类型的 ScanInstance==true（注册表显式声明）时才开启——目前仅 blueprint
+// （schematics）因 Sable-Schematics 模组把蓝图放在非标准兄弟目录而合法需要。
 //
 // ADR-095 收紧：.json 不再作为独立的「含该类型文件」证据（config 目录下模组
 // 配置文件泛滥，ysm 的扩展名含 .json 时 config 树会被误判为模型目录）；ysm 的
@@ -113,7 +118,15 @@ func FindInstDir(versionDir, subDir, rtype string) string {
 	if len(extSet) == 0 && !isYsm {
 		return standard // 没有扩展名信息，返回标准路径（ysm 仍可经标志文件判定）
 	}
-	// 标准目录不存在 / 存在但无该类型文件（非容器类型）→ 兜底扫描其他子目录
+	// 兜底扫描门控：默认关闭，仅注册表显式声明 ScanInstance==true 的类型开启
+	// （目前仅 blueprint：Sable-Schematics 模组把蓝图放在非标准兄弟目录）。
+	// 其余类型（含全部 MMD 子类型 / ysm / resourcepack 等）标准目录缺失或空时
+	// 一律返回标准路径，绝不越界扫描 versionDir 一级目录——避免同步 / 回收站
+	// 对错误目录（如 config 树）做删改，安全性归零。
+	if !rt.ScanInstance {
+		return standard
+	}
+	// 标准目录不存在 / 存在但无该类型文件（仅 ScanInstance 类型）→ 兜底扫描其他子目录
 	entries, err := os.ReadDir(versionDir)
 	if err != nil {
 		return standard

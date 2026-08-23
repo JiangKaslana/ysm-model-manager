@@ -12,6 +12,7 @@ import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { initWorkshopPage as _initWorkshopPage } from "./init-workshop.ts";
 import { initGithubPage as _initGithubPage } from "./init-github.ts";
+import { initYSMHubPage as _initYSMHubPage } from "./init-ysmhub.ts";
 
 /** app-content 组件接口（供页面初始化函数访问） */
 export interface AppContentHost {
@@ -97,19 +98,55 @@ function bindTabs(
   prefix: string,
   ids: string[],
 ): void {
-  const tabs = host._root.querySelectorAll(tabSelector);
+  const tabs = Array.from(host._root.querySelectorAll<HTMLElement>(tabSelector));
   if (!tabs.length) return;
+
+  // ARIA 语义化：tablist + tab + tabpanel（一次性注入，避免重复 setAttribute）
+  const tabList = tabs[0].parentElement;
+  if (tabList && tabList.getAttribute("role") !== "tablist") {
+    tabList.setAttribute("role", "tablist");
+  }
+  tabs.forEach((btn, i) => {
+    const tabId = btn.dataset.tab || ids[i] || "";
+    const panelId = prefix + "-tab-" + tabId;
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("id", prefix + "-tab-btn-" + tabId);
+    btn.setAttribute("aria-controls", panelId);
+    btn.setAttribute("tabindex", i === 0 ? "0" : "-1"); // roving tabindex
+    const panel = host._root.getElementById(panelId);
+    if (panel) {
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", btn.id);
+      if (i !== 0) panel.setAttribute("hidden", "");
+    }
+  });
+
   const inited: Record<string, boolean> = {};
-  tabs.forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const tab = (btn as HTMLElement).dataset.tab || "";
-      tabs.forEach((t) => t.classList.toggle("active", t === btn));
-      ids.forEach((id) => {
-        const el = host._root.getElementById(prefix + "-tab-" + id);
-        if (el) el.style.display = id === tab ? "" : "none";
-      });
-      // 首次切换到非默认 tab 时初始化内容
-      if (!inited[tab] && tab !== ids[0]) {
+
+  /** 切 tab 核心逻辑（click/keyboard 共用） */
+  const activate = async (targetBtn: HTMLElement): Promise<void> => {
+    const tab = targetBtn.dataset.tab || "";
+    // 切换按钮态
+    tabs.forEach((t, i) => {
+      const isActive = t === targetBtn;
+      t.classList.toggle("active", isActive);
+      t.setAttribute("aria-selected", String(isActive));
+      t.setAttribute("tabindex", isActive ? "0" : "-1"); // roving tabindex
+    });
+    // 切换内容卡
+    ids.forEach((id) => {
+      const el = host._root.getElementById(prefix + "-tab-" + id);
+      if (!el) return;
+      if (id === tab) {
+        el.style.display = "";
+        el.removeAttribute("hidden");
+      } else {
+        el.style.display = "none";
+        el.setAttribute("hidden", "");
+      }
+    });
+    // 首次切换到非默认 tab 时初始化内容
+    if (!inited[tab] && tab !== ids[0]) {
         const container = host._root.getElementById(prefix + "-tab-" + tab);
         if (!container) return;
         // P3 修复（审核，陷阱 #3）：懒初始化是 async 链（动态 import / 业务 init），
@@ -172,6 +209,39 @@ function bindTabs(
         // initResourcePacks 分支已删除（P2 审计：tpl 无对应 repo-tab 按钮与容器 id，
         // 双重复死不可达；资源类型切换改由 app-nav 资源切换器重渲染 <app-tree>）。
         // wrapper（features/resource-packs.ts）保留作兼容层，见 resource-packs 知识卡。
+    }
+  };
+
+  tabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btn.focus();
+      void activate(btn);
+    });
+    // WAI-ARIA Tabs 键盘模式
+    btn.addEventListener("keydown", (e) => {
+      const idx = tabs.indexOf(btn);
+      let next: HTMLElement | undefined;
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        next = tabs[(idx + 1) % tabs.length];
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        next = tabs[(idx - 1 + tabs.length) % tabs.length];
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        next = tabs[0];
+      } else if (e.key === "End") {
+        e.preventDefault();
+        next = tabs[tabs.length - 1];
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        void activate(btn);
+        return;
+      }
+      if (next) {
+        next.focus();
+        // 自动激活（WAI-ARIA automatic activation 模式：切 tab 即切换内容）
+        void activate(next);
       }
     });
   });
@@ -181,7 +251,7 @@ function bindTabs(
  * 初始化设置页
  */
 export async function initSettingsPage(host: AppContentHost): Promise<void> {
-  bindTabs(host, ".stg-tab", "stg", ["basic", "ui", "about", "credits"]);
+  bindTabs(host, ".stg-tab", "stg", ["basic", "ui", "parser", "about", "credits"]);
   try {
     await initSettings(host._root);
   } catch (e) {
@@ -202,6 +272,11 @@ export function initWorkshopPage(host: never): void {
  */
 export function initGithubPage(host: never): void {
   _initGithubPage(host as never);
+}
+
+/** 初始化 YSM Hub 模型页 */
+export function initYSMHubPage(host: never): void {
+  _initYSMHubPage(host as never);
 }
 
 // ===== 最近选中模型（供导航栏 3D 一键跳转复用；app-tree 在 model:select 时写入）=====

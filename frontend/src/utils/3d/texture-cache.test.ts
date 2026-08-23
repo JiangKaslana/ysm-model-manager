@@ -44,6 +44,18 @@ describe("TextureCache 险恶测试", () => {
     expect(() => cache.release("ghost.png")).not.toThrow();
   });
 
+  it("invalidate 释放坏纹理并允许同 URL 重新创建", () => {
+    const broken = makeFakeTex();
+    cache.acquire("broken.png", () => broken);
+    cache.invalidate("broken.png");
+    const replacement = makeFakeTex();
+    const got = cache.acquire("broken.png", () => replacement);
+
+    expect(broken.dispose).toHaveBeenCalledTimes(1);
+    expect(got).toBe(replacement);
+    expect(cache.size).toBe(1);
+  });
+
   it("disposeAll 释放所有缓存纹理", () => {
     const t1 = makeFakeTex();
     const t2 = makeFakeTex();

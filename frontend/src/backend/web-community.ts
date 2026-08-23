@@ -14,7 +14,7 @@ import { safeErrorMessage } from "../utils/safe-error-msg.ts";
 import { scanWebModels, readWebFile, collectAllWebEntries, typeFromWebDir } from "./web-fs.ts";
 import { WEB_ROOT, arrayBufferToBase64 } from "./web-common.ts";
 import { safeGet, safeSet, safeRemove } from "../utils/dom/storage.ts";
-import { stripBanSuffix } from "../utils/dom/display.ts";
+import { stripDisableSuffix } from "../utils/dom/display.ts";
 
 // --- 社区/工坊数据（ADR-049 桥接增强 Batch 2）---
 // 网页版无 Go 侧磁盘配置文件：bundled JSON 作默认，localStorage 作用户覆盖层
@@ -152,9 +152,9 @@ async function batchExtractCreatorAvatars(): Promise<Record<string, string>> {
 // 纯前端可复现：基于 IDB 模型库（scanWebModels）推导，与桌面 scanner.go 同口径
 // （[作者] 前缀提取、计数降序、类型合并）。网页版无磁盘，GenerateRepoIndex 返回
 // index.json 内容字符串（调用方在 web 模式触发下载，对齐桌面写盘语义）。
-/** 从文件名提取 [作者] 前缀（去除 .ban 后缀）；非括号名返回 null */
+/** 从文件名提取 [作者] 前缀（去除 .disabled/.ban 后缀）；非括号名返回 null */
 function extractBracketAuthor(name: string): string | null {
-  const n = stripBanSuffix(name);
+  const n = stripDisableSuffix(name);
   if (!n.startsWith("[")) return null;
   const idx = n.indexOf("]");
   if (idx <= 0) return null;

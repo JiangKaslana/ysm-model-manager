@@ -2,8 +2,8 @@
 // RESOURCE_TYPES / RESOURCE_TYPE_LABELS 保留手写：JSON 无「标签→ID」映射，且短标签
 // （如 "模型"/"MMD"）≠ JSON 的 name 全名（"YSM 模型"/"MMD 角色模型"），短标签参与 Go 端
 // ScanModelEntriesWithLabel 扫描匹配，语义由前端契约决定，不能从 JSON 派生。
-// ALL_RESOURCE_TYPES 从根 resource_types.json 的 id 派生（vite 构建期内联，防增删漂移）。
-import resourceTypesJson from "../../../../resource_types.json" with { type: "json" };
+// ALL_RESOURCE_TYPES 等派生表统一消费 schema.ts 的 allResourceTypes（T2 单点解析）。
+import { allResourceTypes } from "./schema.ts";
 
 /** 资源类型 ID（键为类型标签，值为内部 ID） */
 export const RESOURCE_TYPES: Record<string, string> = {
@@ -43,29 +43,8 @@ export const RESOURCE_TYPE_LABELS: Record<string, string> = {
   "fbx": "FBX 模型/动画",
 };
 
-/** JSON 条目（缺 id 的脏数据过滤掉，防 undefined 混入类型列表） */
-interface ResourceTypeIdEntry {
-  id?: string;
-  group?: string;
-  subtypes?: Array<{
-    name?: string;
-    label?: string;
-    icon?: string;
-    userImportable?: boolean;
-    default?: boolean;
-  }>;
-  variants?: Array<{ ext: string; preview: string }>;
-}
-
-const registryEntries: ResourceTypeIdEntry[] =
-  (resourceTypesJson as { resourceTypes?: ResourceTypeIdEntry[] }).resourceTypes ?? [];
-if (registryEntries.length === 0) {
-  // 结构漂移显式暴露，避免空数组被误当"无资源类型"静默吞掉（联动 app-sidebar 加载）
-  console.error("[resource] resource_types.json 解析为空或结构异常，ALL_RESOURCE_TYPES 降级为空列表");
-}
-
 /** 全部资源类型 ID 列表（从 resource_types.json id 派生，单一事实来源） */
-export const ALL_RESOURCE_TYPES: string[] = registryEntries
+export const ALL_RESOURCE_TYPES: string[] = allResourceTypes
   .map((t) => t.id)
   .filter((id): id is string => typeof id === "string" && id.length > 0);
 
@@ -75,13 +54,26 @@ export const ALL_RESOURCE_TYPES: string[] = registryEntries
  * 无 variants 或未命中时回退 rtype 自身（兼容无变体类型）。
  */
 export function resolvePreviewKey(filePath: string, rtype: string): string {
-  const entry = registryEntries.find((t) => t.id === rtype);
+  const entry = allResourceTypes.find((t) => t.id === rtype);
   if (entry?.variants?.length) {
     // 复用 extOf 统一扩展名提取口径（split(".") 对无扩展名文件名会误产出 ".Makefile"）
     const variant = entry.variants.find((v) => v.ext === extOf(filePath));
     if (variant) return variant.preview;
   }
   return rtype;
+}
+
+/**
+ * 预览键反解为资源类型 ID（ADR-111 逆向）。
+ * 角色面板类型 tab 传入的是预览键（如 "mmd"），但 Go 侧 ScanModelEntriesFiltered
+ * 需要真实资源类型 ID（如 "EntityPlayer"）才能命中扩展名白名单过滤。
+ * 未命中时回退 previewKey 自身（兼容已是资源类型 ID 的场景）。
+ */
+export function resolvePreviewKeyToRtype(previewKey: string): string {
+  const entry = allResourceTypes.find((t) =>
+    t.variants?.some((v) => v.preview === previewKey),
+  );
+  return entry?.id ?? previewKey;
 }
 
 // ===== 资源分组派生（ADR-092：FilesRoot/{group}/{storageSubDir} 两层路由）=====
@@ -92,14 +84,13 @@ export function resolvePreviewKey(filePath: string, rtype: string): string {
 /** 分组元数据（id → {name, icon, order}），从各类型 group 字段派生 */
 export const GROUP_META: Record<string, { name: string; icon: string; order: number }> = {};
 const groupSeen: string[] = [];
-for (const t of registryEntries) {
+for (const t of allResourceTypes) {
   const gid = t.group || "";
   if (!gid || GROUP_META[gid]) continue;
   // 从注册表读取 groupLabel/groupIcon（仅该组首个类型携带）
-  const raw = t as { groupLabel?: string; groupIcon?: string };
   GROUP_META[gid] = {
-    name: raw.groupLabel || gid,
-    icon: raw.groupIcon || "📦",
+    name: t.groupLabel || gid,
+    icon: t.groupIcon || "📦",
     order: groupSeen.length,
   };
   groupSeen.push(gid);
@@ -107,7 +98,7 @@ for (const t of registryEntries) {
 
 /** 资源类型 → 所属分组 id（无 group 字段返回空串 = 单级平铺） */
 export const GROUP_OF: Record<string, string> = {};
-for (const t of registryEntries) {
+for (const t of allResourceTypes) {
   if (t.id) GROUP_OF[t.id] = t.group || "";
 }
 
@@ -129,7 +120,7 @@ export interface GroupTypeOption {
 }
 export const GROUP_TYPE_OPTIONS: Record<string, GroupTypeOption[]> = (() => {
   const result: Record<string, GroupTypeOption[]> = {};
-  for (const t of registryEntries) {
+  for (const t of allResourceTypes) {
     if (!t.id || !GROUP_OF[t.id]) continue;
     const g = GROUP_OF[t.id];
     const label = RESOURCE_TYPE_LABELS[t.id] || GROUP_META[g]?.name || t.id;
@@ -145,9 +136,7 @@ export const GROUP_TYPE_OPTIONS: Record<string, GroupTypeOption[]> = (() => {
  */
 export function groupStorageRootOf(typeId: string): string {
   const group = GROUP_OF[typeId];
-  const rt = (resourceTypesJson as {
-    resourceTypes?: Array<{ id?: string; storageSubDir?: string }>;
-  }).resourceTypes?.find((t) => t.id === typeId);
+  const rt = allResourceTypes.find((t) => t.id === typeId);
   const sub = rt?.storageSubDir || typeId;
   return group ? `${group}/${sub}` : sub;
 }
@@ -173,23 +162,9 @@ interface ResourceCap {
   preview: string; // "3d" | "thumbnail" | "none" ...
 }
 
-interface RawResourceType {
-  id?: string;
-  name?: string;
-  icon?: string;
-  extensions?: string[];
-  preview?: string;
-  detector?: string;
-  instanceDir?: string;
-  zipEntries?: { name?: string; match?: string }[];
-}
-
-const rawTypes: RawResourceType[] =
-  (resourceTypesJson as { resourceTypes?: RawResourceType[] }).resourceTypes ?? [];
-
 /** 全部资源类型能力，从 resource_types.json 派生（单一事实来源）。内部派生层，外部用安全入口 resolveTypeSafe / matchTypeByExt */
 const RESOURCE_CAPS: Record<string, ResourceCap> = {};
-for (const t of rawTypes) {
+for (const t of allResourceTypes) {
   if (!t.id) continue;
   RESOURCE_CAPS[t.id] = {
     id: t.id,
@@ -209,6 +184,47 @@ for (const t of rawTypes) {
 export const NO_3D_TYPES: ReadonlySet<string> = new Set(
   Object.values(RESOURCE_CAPS).filter((cap) => cap.preview !== "3d").map((cap) => cap.id),
 );
+
+/**
+ * 3D 切换面板类型 tab 的单一事实来源（ADR-111 收口）。
+ * 此前 preview-switch-tabs 由 `Object.keys(_openers)` 副作用派生——opener 注册 key 混用
+ * preview key（"mmd"/"vrm"/"mmd-scene"）与真实 rtype ID（"ysm"/"fbx"），导致 tab 语义
+ * 与 nav 下拉（走 GROUP_TYPE_OPTIONS 真实 rtype）双源不一致。
+ *
+ * 本函数统一从 resource_types.json 派生：筛选顶层 `preview === "3d"` 的类型，按 variants
+ * 展开为适配器 key（EntityPlayer → ["mmd","vrm"]），无 variant 的类型用自己的 id（如 "ysm"）。
+ * 标签统一走 RESOURCE_TYPE_LABELS，杜绝手写 HTML / opener 副作用两套口径。
+ *
+ * 返回顺序即 tab 展示顺序，由 resource_types.json 条目顺序决定（新增类型自动尾部追加）。
+ */
+export interface PreviewTab {
+  /** 适配器路由 key（喂给 resolvePreviewKeyToRtype 反解为真实 rtype） */
+  key: string;
+  /** 展示标签 */
+  label: string;
+}
+
+export function getPreviewableTypeTabs(): PreviewTab[] {
+  const tabs: PreviewTab[] = [];
+  const seen = new Set<string>();
+  for (const t of allResourceTypes) {
+    if (!t.id) continue;
+    const cap = RESOURCE_CAPS[t.id];
+    if (!cap || cap.preview !== "3d") continue;
+    const variants = t.variants?.map((v) => v.preview).filter((p): p is string => !!p) ?? [];
+    const keys = variants.length > 0 ? Array.from(new Set(variants)) : [t.id];
+    const label = RESOURCE_TYPE_LABELS[t.id] || t.id;
+    for (const key of keys) {
+      // preview key 跨类型共享（如 vrm 同时归属 EntityPlayer / SceneModel），
+      // 按 key 去重保留首个命中类型（JSON 顺序：EntityPlayer 在前 → vrm 标「角色模型」），
+      // 点击该 key 时 resolvePreviewKeyToRtype 仍按文件路径反解到正确 rtype，能力不丢。
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tabs.push({ key, label });
+    }
+  }
+  return tabs;
+}
 
 /** 路径是否属于指定类型（按注册表 extensions 判定，不处理歧义扩展名） */
 export function matchTypeByExt(path: string, typeId: string): boolean {
@@ -294,7 +310,7 @@ function resolveTypeByPath(path: string): string | null {
     ancestors.push(segments.slice(0, i).join("/"));
   }
 
-  for (const t of rawTypes) {
+  for (const t of allResourceTypes) {
     if (!t.id || !t.instanceDir) continue;
     if (!t.extensions?.includes(ext)) continue;
     const instDirNorm = t.instanceDir.toLowerCase();
@@ -322,7 +338,7 @@ function segmentSuffixes(name: string): string[] {
  * （exact/prefix/suffix 三种模式），未命中返回 null。
  */
 export function matchZipEntryTS(name: string): string | null {
-  for (const t of rawTypes) {
+  for (const t of allResourceTypes) {
     if (!t.id || !t.zipEntries || t.zipEntries.length === 0) continue;
     for (const m of t.zipEntries) {
       const mlow = (m.name || "").toLowerCase();

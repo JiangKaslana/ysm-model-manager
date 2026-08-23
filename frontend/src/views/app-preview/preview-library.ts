@@ -12,7 +12,7 @@
 // 全程轻量获取文件——不再全量扫描各仓库、不再按扩展名分类贴标签。
 
 import { getApp } from "../../backend/app.ts";
-import { RESOURCE_TYPE_LABELS, resolvePreviewKey } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPE_LABELS, resolvePreviewKey, resolvePreviewKeyToRtype, getPreviewableTypeTabs } from "../../utils/resource/types.ts";
 import type { Mount3DOptions } from "../../utils/3d/adapters/mount-preview-core.ts";
 import { switchPreview, hasActivePreview } from "../../utils/3d/adapters/mount-preview-core.ts";
 
@@ -79,24 +79,32 @@ export async function openModel3DFullscreen(path: string, options?: OpenModel3DO
 }
 
 interface PreviewExtras extends Mount3DOptions {
-  switchExternal?: (path: string) => Promise<void>;
+  switchExternal?: (
+    path: string,
+    siblings?: string[],
+    options?: { keepInScene?: boolean },
+  ) => Promise<void>;
 }
 
 /** 按资源类型（+可选子类型）扫描候选模型路径（轻量：GetRepoRoot + ScanModelEntriesFiltered，
  * 复用文件树扫描缓存，不逐文件解析）。供 3D 内切换模型的类型 tab 点击时懒加载。
+ * export 供测试断言「预览键反解后的真实 rtype」到达 Go 绑定（批次6 P3）。
  *
  * 扩展名过滤由后端 ScanModelEntriesFiltered 完成——按 rtype+subtype 的 extensions 白名单
  * 过滤，排除非模型文件（如 EntityPlayer 类型自动排除 .vmd/.vpd 动作文件）。
  * @param rtype 资源类型 id（如 "EntityPlayer"）
  * @param subtype 可选子类型 id（如 "EntityPlayer"），为空时用父类型扩展名
  */
-async function scanModelsByType(rtype: string, subtype = ""): Promise<string[]> {
+export async function scanModelsByType(rtype: string, subtype = ""): Promise<string[]> {
   try {
+    // 预览键反解为真实资源类型 ID（"mmd" → "EntityPlayer"），
+    // 使 Go 侧 ScanModelEntriesFiltered 命中扩展名白名单过滤
+    const realRtype = resolvePreviewKeyToRtype(rtype);
     const { GetRepoRoot, ScanModelEntriesFiltered } = await getApp();
-    const root = await GetRepoRoot(rtype);
+    const root = await GetRepoRoot(realRtype);
     if (!root) return [];
-    const label = RESOURCE_TYPE_LABELS[rtype] || rtype;
-    const raw = (await ScanModelEntriesFiltered(root, rtype, subtype, label)) as Array<{ Path?: string }>;
+    const label = RESOURCE_TYPE_LABELS[realRtype] || realRtype;
+    const raw = (await ScanModelEntriesFiltered(root, realRtype, subtype, label)) as Array<{ Path?: string }>;
     return (raw || []).map((e) => e.Path).filter((p): p is string => !!p);
   } catch {
     return [];
@@ -106,9 +114,15 @@ async function scanModelsByType(rtype: string, subtype = ""): Promise<string[]> 
 /** 给 mount3D opts 注入「跨类型换角色」入口 + 按类型懒加载数据源。各 createXxx3D 统一经此接入 */
 export function withPreviewExtras<T extends Mount3DOptions>(opts: T): T & PreviewExtras {
   return Object.assign(opts as T & PreviewExtras, {
-    switchExternal: (p: string, s?: string[]) => openModel3DFullscreen(p, s ? { siblings: s } : undefined),
+    // keepInScene → cooperate（openModel3DFullscreen 有活跃会话时走 switchPreview
+    // 主门按类型路由同台追加，ADR-093 T4）：跨类型 ➕ 复用此入口，不再直接不给
+    switchExternal: (p: string, s?: string[], options?: { keepInScene?: boolean }) =>
+      openModel3DFullscreen(p, { siblings: s, cooperate: options?.keepInScene === true }),
     getModelsByType: scanModelsByType,
-    getTypeTabs: () => getRegisteredRoutes(),
+    // ADR-111 收口：类型 tab 统一从 resource_types.json 派生（getPreviewableTypeTabs），
+    // 不再由 opener 注册副作用（Object.keys(_openers)）派生——后者混用 preview key 与
+    // rtype ID，导致 tab 语义与 nav 下拉双源不一致。此处仅取 key 列表维持最小改动面。
+    getTypeTabs: () => getPreviewableTypeTabs().map((t) => t.key),
   });
 }
 

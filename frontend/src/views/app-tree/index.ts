@@ -20,14 +20,16 @@ export { appTreeStyle };
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { headerHTML, footerHTML, spinnerHTML } from "./tpl.ts";
 import { renderTree, updateStat, getRenderMode, setRenderMode, cleanupVirtualScroll, type RenderMode, type TreeRow } from "./render.ts";
-import { bindTreeEvents } from "./events.ts";
+import { ROW_H_GRID, ROW_H_LIST } from "./virtual-scroll.ts";
+import { bindTreeEvents, updateSelectCount } from "./events.ts";
 import { bindToolbarEvents } from "./toolbar-events.ts";
 import { get } from "../../services/registry.ts";
 import type { loadEntries, TreeEntry } from "./loader.ts";
 import { bindBusEvents } from "./bus-handlers.ts";
 import { loadAuthors, type AuthorInfo } from "./authors.ts";
 import { bus } from "../../bus.ts";
-import { selectState } from "./data.ts";
+import { selectState, selectSingle } from "./data.ts";
+import { rememberModelPath } from "../app-content/init-pages.ts";
 import { dbg } from "../../utils/debug/debug.ts";
 import { getApp } from "../../backend/app.ts";
 import { modalConfirm } from "../../utils/dom/dialogs/modal.ts";
@@ -248,7 +250,7 @@ export class AppTree extends WebComponentBase {
   _renderLayout(): void {
     this._root.innerHTML =
       headerHTML() +
-      '<div class="list" id="tree">' +
+      '<div class="list" id="tree" role="tree" aria-label="模型文件列表">' +
       spinnerHTML() +
       "</div>" +
       '<div class="tree-drop-hint" id="tree-drop-hint"><span class="dot"></span><span id="tree-drop-text"></span></div>' +
@@ -356,6 +358,47 @@ export class AppTree extends WebComponentBase {
           return;
         const rtype = this._rootAttr || RESOURCE_TYPES.YSM;
         this._deleteSelected(paths, rtype);
+      }
+
+      // ArrowUp/Down — 方向键导航文件列表（不按住 Ctrl/Shift 时单选移动）
+      // 焦点范围守卫（codereview 批次3 P1）：必须限定在树自身内——document 级监听
+      // 会把全局方向键都劫持（3D 预览相机移动 / app-nav 导航 / 面板滚动都会误触发
+      // 换选 + model:select 重载）；非树内焦点直接放行
+      if (
+        (e.key === "ArrowDown" || e.key === "ArrowUp") &&
+        !e.ctrlKey && !e.metaKey && !e.altKey &&
+        target?.tagName !== "INPUT" && target?.tagName !== "TEXTAREA" &&
+        target && this._root.contains(target)
+      ) {
+        const container = this._root.getElementById("tree");
+        if (!container) return;
+        const fileRows = (container._vsRows || []).filter(r => r.type === "file");
+        if (!fileRows.length) return;
+        e.preventDefault();
+
+        const currentIdx = fileRows.findIndex(r => r.key === selectState.lastKey);
+        const nextIdx = e.key === "ArrowDown"
+          ? Math.min(currentIdx + 1, fileRows.length - 1)
+          : Math.max(currentIdx - 1, 0);
+
+        const nextKey = fileRows[nextIdx].key;
+        selectSingle(nextKey);
+        this._renderTree();
+        updateSelectCount(this._root);
+        bus.emit("model:select", { path: nextKey });
+        rememberModelPath(nextKey);
+
+        // 滚动到可见（虚拟滚动：按行高计算 scrollTop）
+        const allRows = container._vsRows || [];
+        const rowIdx = allRows.findIndex(r => r.key === nextKey);
+        if (rowIdx >= 0) {
+          const rowH = container._vsMode === "list" ? ROW_H_LIST : ROW_H_GRID;
+          const targetScroll = rowIdx * rowH;
+          // 只在目标行不在视口内时滚动
+          if (targetScroll < container.scrollTop || targetScroll + rowH > container.scrollTop + container.clientHeight) {
+            container.scrollTop = targetScroll;
+          }
+        }
       }
     }) as unknown as EventListener;
     // 只注册 document 级：shadow 内组合键事件会 composed 冒泡，双注册会导致 Delete 双触发

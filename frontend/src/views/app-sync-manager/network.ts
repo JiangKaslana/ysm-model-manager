@@ -7,9 +7,7 @@
 import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
-
-const TOAST_MS_SHORT = 2000;
-const TOAST_MS_NORMAL = 3000;
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 
 import type { SyncManagerSelf } from "./index.ts";
 
@@ -46,7 +44,7 @@ export async function performSingleOp(
     }
     if (!self.isConnected) return;
     const msg = op === "push" ? "✅ 已推送" : "✅ 已拉取";
-    bus.emit("toast:show", { msg, duration: TOAST_MS_SHORT });
+    bus.emit("toast:show", { msg, duration: TOAST_MS.success });
     const gen = self._gen;
     await cb.doLoadData();
     if (gen !== self._gen || !self.isConnected) return;
@@ -56,7 +54,7 @@ export async function performSingleOp(
     if (!self.isConnected) return;
     bus.emit("toast:show", {
       msg: "❌ " + friendlyError(e),
-      duration: TOAST_MS_NORMAL,
+      duration: TOAST_MS.normal,
       type: "error",
     });
   } finally {

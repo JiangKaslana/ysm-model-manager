@@ -156,7 +156,7 @@ const ALL_STATIC_TOOLS = [
   'check-dynamic-import.mjs',
   { tool: 'auto-import.mjs', args: ['--strict'] },
   { tool: 'gen-project-map.mjs', args: ['--check'] },
-  { tool: 'funcmap.mjs', args: ['--check'] },
+  { tool: 'funcmap.mjs', args: ['--check'], autoFix: true },
   { tool: 'build-novel-index.mjs', args: ['--check'] },
   { tool: 'gen-cli-doc.mjs', args: ['--check'] },
   { tool: 'gen-cli-completion.mjs', args: ['--check'] },
@@ -172,7 +172,7 @@ const DOC_STATIC_TOOLS = [
   'check-doc-drift.mjs',
   'check-adr-health.mjs',
   { tool: 'gen-project-map.mjs', args: ['--check'] },
-  { tool: 'funcmap.mjs', args: ['--check'] },
+  { tool: 'funcmap.mjs', args: ['--check'], autoFix: true },
   { tool: 'build-novel-index.mjs', args: ['--check'] },
   { tool: 'gen-cli-doc.mjs', args: ['--check'] },
   { tool: 'gen-cli-completion.mjs', args: ['--check'] },
@@ -185,6 +185,7 @@ const DOC_STATIC_TOOLS = [
  * adr-check（adr 域已跑）不在此重复执行（2026-08-14 审核去重）。 */
 const DOC_EXTRA_SCRIPTS = [
   'check-knowledge-drift.mjs',
+  'check-adr-drift.mjs', // ADR 描述 vs 代码现实漂移守护（2026-08-23 新增）
 ];
 
 /** push 模式按变更域补挂的前端静态工具（2026-08-17 P1-1 修复）：
@@ -343,6 +344,26 @@ async function main() {
           .join(' ');
         if (cnt) note = cnt;
       } catch { /* 非 JSON 输出，退回 rc 判定 */ }
+      // autoFix（2026-08-23 用户诉求"gen 产物老要 AI 手打刷新"）：--check FAIL 的
+      // gen 产物工具自动跑写盘版刷新后重验——修"提交间隙 funcmap.md 过期 → doctor FAIL"
+      // 的鸡生蛋（pre-commit 只在提交时跑 gen；间隙跑 doctor 需手打 node scripts/funcmap.mjs）
+      if (!ok && typeof entry === 'object' && entry.autoFix) {
+        const fixR = sh(`node scripts/${tool} --json`); // 写盘刷新（无 --check）
+        if (fixR.rc === 0) {
+          const re = sh(`node scripts/${tool} --json ${extraArgs.join(' ')}`);
+          let reOk = re.rc === 0;
+          try {
+            const s2 = JSON.parse(re.out);
+            const sm = s2._summary || s2;
+            if (typeof sm.ok === 'boolean') reOk = sm.ok;
+            else if (typeof sm.errors === 'number') reOk = sm.errors === 0;
+          } catch { /* 非 JSON 输出，退回 rc 判定 */ }
+          if (reOk) {
+            ok = true;
+            note = `autoFix: ${tool} 已自动刷新`;
+          }
+        }
+      }
       record(tool, ok, { time: Date.now() - t0, note, tail: !ok ? r.out.trim().split('\n').slice(-4).join('\n') : '' });
     }
   };

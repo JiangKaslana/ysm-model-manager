@@ -5,10 +5,12 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 
@@ -252,6 +254,8 @@ func (a *App) LoadAppConfig() types.AppConfig {
 		return a.configCache
 	}
 	readJSONFile(configPath(), &a.configCache)
+	// ADR-095: 将废弃的独立配置字段（YsmRoot/MmdRoot 等）迁移到 CustomRoots map
+	migrateLegacyConfigFields(&a.configCache)
 	a.configLoaded = true
 	return a.configCache
 }
@@ -483,4 +487,64 @@ func (a *App) ValidateMinecraftDir(dir string) (string, string) {
 		return abs, ""
 	}
 	return "", "未检测到 .minecraft 文件夹。请选择包含 versions/ 或 instances/ 等子目录的游戏目录"
+}
+
+// ========== 配置迁移（ADR-095）==========
+
+// getConfigFieldByReflection 通过反射读取 AppConfig 中指定字段的值
+func getConfigFieldByReflection(cfg types.AppConfig, fieldName string) string {
+	v := reflect.ValueOf(cfg)
+	f := v.FieldByName(fieldName)
+	if !f.IsValid() {
+		return ""
+	}
+	if f.Kind() == reflect.String {
+		return f.String()
+	}
+	return ""
+}
+
+// clearDeprecatedFields 清空 AppConfig 中标记为废弃的字段
+func clearDeprecatedFields(cfg *types.AppConfig) {
+	v := reflect.ValueOf(cfg).Elem()
+	// 与 types/config.go 中 Deprecated 注释块对应
+	deprecatedFields := []string{
+		"YsmRoot", "ResourcepackRoot", "ShaderpackRoot", "SchematicRoot",
+		"LitematicRoot", "MmdRoot", "VrcRoot",
+	}
+	for _, fieldName := range deprecatedFields {
+		f := v.FieldByName(fieldName)
+		if f.IsValid() && f.CanSet() && f.Kind() == reflect.String {
+			f.SetString("")
+		}
+	}
+}
+
+// migrateLegacyConfigFields 将 AppConfig 中已废弃的独立字段迁移到 CustomRoots map。
+// 遍历注册表，将 configField 指向的旧字段值（如 YsmRoot, MmdRoot）搬运到 CustomRoots[rtype]，
+// 清空旧字段防止双源。仅在首次加载时执行，后续使用 CustomRoots 作为唯一事实源。
+func migrateLegacyConfigFields(cfg *types.AppConfig) {
+	if cfg.CustomRoots == nil {
+		cfg.CustomRoots = make(map[string]string)
+	}
+
+	registry := types.LoadRegistry()
+	for _, rt := range registry.ResourceTypes {
+		if rt.ConfigField == "" {
+			continue
+		}
+
+		fieldValue := getConfigFieldByReflection(*cfg, rt.ConfigField)
+		if fieldValue == "" {
+			continue
+		}
+
+		if _, exists := cfg.CustomRoots[rt.ID]; !exists {
+			cfg.CustomRoots[rt.ID] = fieldValue
+			log.Printf("[config-migrate] 迁移 %s: %s -> CustomRoots[%s]", rt.ConfigField, fieldValue, rt.ID)
+		}
+	}
+
+	// 迁移后清空废弃字段，防止双源写入
+	clearDeprecatedFields(cfg)
 }

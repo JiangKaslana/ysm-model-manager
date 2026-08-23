@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as THREE from "three";
 import type { PreviewBuildCtx } from "./mount-preview-core.ts";
-import { buildFbxScene } from "./fbx-adapter.ts";
+import { buildFbxScene, FBX_TARGET_MAX_DIM, normalizeFbxScale } from "./fbx-adapter.ts";
 
 const hoisted = vi.hoisted(() => {
   const loadImpl = vi.fn();
@@ -79,6 +79,10 @@ describe("fbx-adapter", () => {
     // 相机取景已设置
     expect((ctx.camera as THREE.PerspectiveCamera).position.length()).toBeGreaterThan(0);
     expect((ctx.controls as { update: () => void }).update).toHaveBeenCalled();
+    // ADR-112 P1 尺度归一：mock 单位立方体（1×1×1）被放大到规范最长边，
+    // 相机按归一后尺寸取景（far = maxDim*50，z = maxDim*1.6）
+    expect((ctx.camera as THREE.PerspectiveCamera).far).toBeCloseTo(FBX_TARGET_MAX_DIM * 50, 0);
+    expect((ctx.camera as THREE.PerspectiveCamera).position.z).toBeCloseTo(FBX_TARGET_MAX_DIM * 1.6, 0);
     // perFrame 驱动不抛（mixer.update）
     expect(() => built.update?.(0.016)).not.toThrow();
     // dispose 释放并移出场景
@@ -101,5 +105,61 @@ describe("fbx-adapter", () => {
     const built = await buildFbxScene(ctx, "/y.fbx", { readFileBytes: hoisted.readBytesMock });
     expect(() => built.update?.(0.016)).not.toThrow();
     expect(() => built.dispose()).not.toThrow();
+  });
+});
+
+function boxMaxDim(obj: THREE.Object3D): number {
+  const size = new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3());
+  return Math.max(size.x, size.y, size.z);
+}
+
+describe("normalizeFbxScale（ADR-112 P1 尺度归一）", () => {
+  it("厘米导出（180 单位）等比缩小收敛到规范最长边，factor<1", () => {
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(180, 120, 60), new THREE.MeshStandardMaterial()));
+    const info = normalizeFbxScale(group);
+    expect(info.factor).toBeLessThan(1);
+    expect(info.factor).toBeCloseTo(FBX_TARGET_MAX_DIM / 180, 6);
+    expect(boxMaxDim(group)).toBeCloseTo(FBX_TARGET_MAX_DIM, 6);
+    // 等比缩放：宽高比保持
+    const size = new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3());
+    expect(size.y / size.x).toBeCloseTo(120 / 180, 6);
+  });
+
+  it("米制导出（0.18 单位）等比放大收敛到规范最长边，factor>1", () => {
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18)));
+    const info = normalizeFbxScale(group);
+    expect(info.factor).toBeGreaterThan(1);
+    expect(boxMaxDim(group)).toBeCloseTo(FBX_TARGET_MAX_DIM, 6);
+    // 返回的 size 为缩放后尺寸（信息回显一致）
+    expect(info.size.x).toBeCloseTo(FBX_TARGET_MAX_DIM, 6);
+  });
+
+  it("已达规范最长的模型 factor≈1 不变形", () => {
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(FBX_TARGET_MAX_DIM, FBX_TARGET_MAX_DIM * 0.5, FBX_TARGET_MAX_DIM * 0.3)));
+    const info = normalizeFbxScale(group);
+    expect(info.factor).toBeCloseTo(1, 6);
+    expect(boxMaxDim(group)).toBeCloseTo(FBX_TARGET_MAX_DIM, 6);
+  });
+
+  it("空组（无几何）退化 no-op：factor=1 不抛错，scale 原样", () => {
+    const group = new THREE.Group();
+    group.scale.setScalar(2);
+    const info = normalizeFbxScale(group);
+    expect(info.factor).toBe(1);
+    expect(group.scale.x).toBe(2);
+  });
+
+  it("归一化不触碰内嵌动画（clip 列表原样保留）", () => {
+    const group = new THREE.Group();
+    const clip = new THREE.AnimationClip("run", 1, []);
+    (group as unknown as { animations: THREE.AnimationClip[] }).animations = [clip];
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(180, 180, 180)));
+    normalizeFbxScale(group);
+    const anims = (group as unknown as { animations: THREE.AnimationClip[] }).animations;
+    expect(anims).toHaveLength(1);
+    expect(anims[0]).toBe(clip);
   });
 });

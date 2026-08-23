@@ -18,14 +18,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseFrontmatter, getScalar } from './_lib/frontmatter.mjs';
 import { parseArgs } from './_lib/parse-args.mjs';
-import { ROOT } from './_lib/scan-files.mjs';
-
-const KNOW_DIR = path.join(ROOT, 'docs', 'knowledge');
-
-/** 非知识卡文件（与 check-knowledge-drift / gen-docs-index 保持一致；含本项目 AGENTS.md） */
-const NON_CARDS = new Set([
-  'README.md', 'index.md', 'AGENTS.md', 'menu-map.md', 'graph.md', 'tier-review.md',
-]);
+// [ADR-114 §被补充] 常量共享层
+import { KNOWLEDGE_NON_CARDS as NON_CARDS, KNOW_DIR } from './_lib/knowledge-cards.mjs';
 
 /** 解析 frontmatter：返回 { name, body, h1Exists }。 */
 function parseCard(text) {

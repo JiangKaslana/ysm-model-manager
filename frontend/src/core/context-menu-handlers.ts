@@ -13,6 +13,7 @@ import { DIR_HANDLERS } from "./context-menu-dir-handlers.ts";
 // 共享原语（toast/refreshUI/isUnsafeFolderName/resolveDstDir）下沉至
 // context-menu-shared.ts，破除 handlers ↔ {file,dir}-handlers 循环依赖
 import { refreshUI, toast, isUnsafeFolderName, resolveDstDir } from "./context-menu-shared.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 
 /**
  * batch.move / batch.copy 共用模板。
@@ -35,7 +36,7 @@ async function runBatchFileOp(
   }
   _batchBusy = true;
   try {
-    const resolved = await resolveDstDir(op.dialog);
+    const resolved = await resolveDstDir(op.dialog, ctx.rtype);
     if (!resolved) return;
     const { folder, dstDir } = resolved;
     const app = await getApp();

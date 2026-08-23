@@ -1,12 +1,18 @@
 /**
  * 基岩版动画 JSON 解析 + 插值引擎（类型化版 — ADR-014 P2 大件收尾）
- * YSM 使用标准基岩版格式，Molang 表达式值跳过
+ * YSM 使用标准基岩版格式；Molang 表达式经 molangjs 编译为求值闭包（ADR-100 L4，
+ * 编译失败零占位降级），求值时机在 evaluateKeyframes（anim_time = 求值时间 t）。
  */
+
+import { compileMolang, type MolangFn } from "./molang.ts";
 
 // ── 类型定义 ────────────────────────────────────────
 
 /** 三维向量 [x, y, z] */
 export type Vec3 = [number, number, number];
+
+/** Molang 轴三元组（null = 该轴为纯数字，取 Keyframe 对应轴值） */
+export type MolangAxes = [MolangFn | null, MolangFn | null, MolangFn | null];
 
 /** 关键帧 */
 export interface Keyframe {
@@ -14,6 +20,9 @@ export interface Keyframe {
   post: Vec3;
   pre: Vec3;
   lerp: "linear" | "step";
+  /** Molang 动态轴（L4）：非 null 轴在求值时以 anim_time 上下文覆盖 post/pre 对应轴 */
+  postMolang?: MolangAxes;
+  preMolang?: MolangAxes;
 }
 
 /** 单骨骼三通道 */
@@ -88,46 +97,65 @@ function foldMolangConstant(str: unknown): number | null {
   return null;
 }
 
-/** 尝试将关键帧值解析为 [x,y,z] 数字数组 */
-function parseKeyValue(v: unknown): Vec3 | null {
+/** 关键帧值解析结果：数字基底 + 可选 Molang 动态轴（求值时覆盖对应轴） */
+interface ParsedKeyValue {
+  vec: Vec3;
+  molang?: MolangAxes;
+}
+
+/** 解析单个轴值：数字直取；字符串先常量折叠，折不动则 Molang 编译（失败零占位） */
+function parseAxisItem(item: unknown): { num: number; fn: MolangFn | null } {
+  if (typeof item === "number") {
+    return { num: Number.isFinite(item) ? item : 0, fn: null };
+  }
+  if (typeof item === "string") {
+    const folded = foldMolangConstant(item);
+    // L4：foldMolangConstant 对 "1e999" 等科学计数法返回 Infinity，需继续守卫
+    if (folded !== null && Number.isFinite(folded)) return { num: folded, fn: null };
+    const fn = compileMolang(item);
+    return { num: 0, fn };
+  }
+  const n = Number(item);
+  return { num: Number.isFinite(n) ? n : 0, fn: null };
+}
+
+/** 尝试将关键帧值解析为 [x,y,z] 数字基底 + 可选 Molang 轴 */
+function parseKeyValue(v: unknown): ParsedKeyValue | null {
   if (Array.isArray(v) && v.length === 3) {
-    const nums = v.map((item) => {
-      if (typeof item === "string") {
-        const folded = foldMolangConstant(item);
-        if (folded !== null) return folded;
-      }
-      return Number(item);
-    });
+    const items = v.map(parseAxisItem);
+    const vec = [items[0].num, items[1].num, items[2].num] as Vec3;
+    const fns: MolangAxes = [items[0].fn, items[1].fn, items[2].fn];
     // P1 修复（反推审核）：isNaN 不挡 Infinity（isNaN(Infinity)=false）——Infinity
-    // 轴值穿透后插值输出 NaN 传播渲染层；统一 Number.isFinite
-    if (nums.some((n) => !Number.isFinite(n))) {
-      // 部分轴不可折叠时保留可解析的轴，不可解析的用 0 占位
-      return nums.map((n) => (Number.isFinite(n) ? n : 0)) as Vec3;
-    }
-    return nums as Vec3;
+    // 轴值穿透后插值输出 NaN 传播渲染层；统一 Number.isFinite（parseAxisItem 已守卫）
+    return { vec, molang: fns.some(Boolean) ? fns : undefined };
   }
   if (typeof v === "number") {
     // P1 修复（反推审核）：单一数值同样挡 Infinity/NaN
-    return Number.isFinite(v) ? [v, v, v] : null;
+    return Number.isFinite(v) ? { vec: [v, v, v] } : null;
   }
   if (typeof v === "string") {
     const folded = foldMolangConstant(v);
-    if (folded !== null) return [folded, folded, folded];
+    if (folded !== null) return { vec: [folded, folded, folded] };
+    // L4：标量 Molang 字符串 → 三轴同式编译（旧口径整帧丢弃；编译失败零占位保留帧）
+    const fn = compileMolang(v);
+    return { vec: [0, 0, 0], molang: fn ? [fn, fn, fn] : undefined };
   }
-  return null; // Molang 或其他
+  return null;
 }
 
-/** 从关键帧对象解析 {post, pre, lerp_mode} */
+/** 从关键帧对象解析 {post, pre, lerp_mode}（L4：附带 Molang 动态轴） */
 function extractKeyframe(kv: unknown): {
   post: Vec3;
   pre: Vec3;
   lerp: "linear" | "step";
+  postMolang?: MolangAxes;
+  preMolang?: MolangAxes;
 } | null {
   if (kv === null || kv === undefined) return null;
   if (Array.isArray(kv)) {
     const val = parseKeyValue(kv);
     if (!val) return null;
-    return { post: val, pre: val, lerp: "linear" };
+    return { post: val.vec, pre: val.vec, lerp: "linear", postMolang: val.molang, preMolang: val.molang };
   }
   if (typeof kv === "object") {
     const obj = kv as RawKeyframeObject;
@@ -139,7 +167,14 @@ function extractKeyframe(kv: unknown): {
     // lerp_mode 合法值只有 linear/step，非 step 一律按 linear
     const lerp: "linear" | "step" =
       obj.lerp_mode === "step" ? "step" : "linear";
-    return { post, pre: pre ?? post, lerp };
+    const preVal = pre ?? post;
+    return { post: post.vec, pre: preVal.vec, lerp, postMolang: post.molang, preMolang: preVal.molang };
+  }
+  // L4：标量字符串（Molang/可折叠常量）改道 parseKeyValue（旧口径落入 Number() 被整帧丢弃）
+  if (typeof kv === "string") {
+    const val = parseKeyValue(kv);
+    if (!val) return null;
+    return { post: val.vec, pre: val.vec, lerp: "linear", postMolang: val.molang, preMolang: val.molang };
   }
   // 单数值
   const n = Number(kv);
@@ -171,7 +206,10 @@ function parseChannel(channelData: unknown): Keyframe[] {
     .map(([t, raw]) => {
       const kf = extractKeyframe(raw);
       if (!kf) return null;
-      return { time: t, post: kf.post, pre: kf.pre, lerp: kf.lerp };
+      const out: Keyframe = { time: t, post: kf.post, pre: kf.pre, lerp: kf.lerp };
+      if (kf.postMolang) out.postMolang = kf.postMolang;
+      if (kf.preMolang) out.preMolang = kf.preMolang;
+      return out;
     })
     .filter((k): k is Keyframe => Boolean(k));
 }
@@ -295,23 +333,99 @@ export function parseBedrockAnimationJSON(jsonStr: string): {
   return { clips, errors };
 }
 
+/** L4：解析帧的 Molang 动态轴（anim_time = 求值时间 t）；无动态轴原样返回数字基底 */
+function resolveFramePost(kf: Keyframe, t: number): Vec3 {
+  const fns = kf.postMolang;
+  const base = kf.post || [0, 0, 0];
+  if (!fns) return base;
+  return [
+    fns[0] ? fns[0](t) : base[0],
+    fns[1] ? fns[1](t) : base[1],
+    fns[2] ? fns[2](t) : base[2],
+  ];
+}
+
 /**
  * 在指定时间 t 对一组关键帧求值
  * @param keyframes 排序后的关键帧数组
- * @param t 时间（秒）
+ * @param t 时间（秒，即 Molang 上下文的 query.anim_time）
  * @returns 插值后的值 [x,y,z] | null
  */
 export function evaluateKeyframes(keyframes: Keyframe[], t: number): Vec3 | null {
   if (!keyframes?.length) return null;
-  // P2 修复（审核，NaN 守卫）：非法时间直接返回首帧（防御调用方传 NaN/Infinity）
+  // P2 修复（审核，NaN 守卫）：非法时间直接返回首帧（防御调用方传 NaN/Infinity；
+  // NaN 无法喂 Molang，取数字基底）
   if (!Number.isFinite(t)) return [...(keyframes[0].post || [0, 0, 0])];
 
-  // 超出范围
-  if (t <= keyframes[0].time) return [...(keyframes[0].post || [0, 0, 0])];
+  // 超出范围（Molang 轴仍按当前 t 求值，对齐 Bedrock q.anim_time 语义）
+  if (t <= keyframes[0].time) return [...resolveFramePost(keyframes[0], t)];
   if (t >= keyframes[keyframes.length - 1].time)
-    return [...(keyframes[keyframes.length - 1].post || [0, 0, 0])];
+    return [...resolveFramePost(keyframes[keyframes.length - 1], t)];
 
-  // 二分查找
+  const lo = findKeyframeLowerIndex(keyframes, t);
+  const hi = lo + 1;
+
+  const a = keyframes[lo];
+  const b = keyframes[hi];
+
+  // step 插值：直接返回当前帧的 post 值
+  if (a.lerp === "step") return [...resolveFramePost(a, t)];
+
+  // 线性插值（端点先 Molang 求值再 lerp，对齐 GeckoLib/ModernYSM 口径）
+  const dt = b.time - a.time;
+  if (dt <= 0) return [...resolveFramePost(a, t)];
+  const frac = (t - a.time) / dt;
+  const ap = resolveFramePost(a, t);
+  const bp = resolveFramePost(b, t);
+  return [
+    ap[0] + (bp[0] - ap[0]) * frac,
+    ap[1] + (bp[1] - ap[1]) * frac,
+    ap[2] + (bp[2] - ap[2]) * frac,
+  ];
+}
+
+/** Allocation-free keyframe evaluation for the per-frame preview hot path. */
+export function evaluateKeyframesInto(keyframes: Keyframe[], t: number, out: Vec3): boolean {
+  if (!keyframes?.length) return false;
+  // Molang 动态轴（code review P2：PR 热路径丢 postMolang——静默回归，冻结在基姿态）：
+  // 与 resolveFramePost 同口径，postMolang 存在时按当前 t 求值；写回 dst 保持低分配
+  const resolvePost = (kf: Keyframe, dst: Vec3): void => {
+    const base = kf.post || [0, 0, 0];
+    const fns = kf.postMolang;
+    dst[0] = fns?.[0] ? fns[0](t) : base[0];
+    dst[1] = fns?.[1] ? fns[1](t) : base[1];
+    dst[2] = fns?.[2] ? fns[2](t) : base[2];
+  };
+  if (!Number.isFinite(t) || t <= keyframes[0].time) {
+    resolvePost(keyframes[0], out);
+    return true;
+  }
+  const last = keyframes[keyframes.length - 1];
+  if (t >= last.time) {
+    resolvePost(last, out);
+    return true;
+  }
+
+  const lo = findKeyframeLowerIndex(keyframes, t);
+  const hi = lo + 1;
+  const a = keyframes[lo];
+  const b = keyframes[hi];
+  if (a.lerp === "step" || b.time <= a.time) {
+    resolvePost(a, out);
+    return true;
+  }
+  const ap: Vec3 = [0, 0, 0];
+  const bp: Vec3 = [0, 0, 0];
+  const fraction = (t - a.time) / (b.time - a.time);
+  resolvePost(a, ap);
+  resolvePost(b, bp);
+  out[0] = ap[0] + (bp[0] - ap[0]) * fraction;
+  out[1] = ap[1] + (bp[1] - ap[1]) * fraction;
+  out[2] = ap[2] + (bp[2] - ap[2]) * fraction;
+  return true;
+}
+
+function findKeyframeLowerIndex(keyframes: Keyframe[], t: number): number {
   let lo = 0;
   let hi = keyframes.length - 1;
   while (hi - lo > 1) {
@@ -319,24 +433,7 @@ export function evaluateKeyframes(keyframes: Keyframe[], t: number): Vec3 | null
     if (keyframes[mid].time <= t) lo = mid;
     else hi = mid;
   }
-
-  const a = keyframes[lo];
-  const b = keyframes[hi];
-
-  // step 插值：直接返回当前帧的 post 值
-  if (a.lerp === "step") return [...a.post];
-
-  // 线性插值（防御空值）
-  const dt = b.time - a.time;
-  if (dt <= 0) return a.post ? [...a.post] : [0, 0, 0];
-  const frac = (t - a.time) / dt;
-  const ap = a.post || [0, 0, 0];
-  const bp = b.post || [0, 0, 0];
-  return [
-    ap[0] + (bp[0] - ap[0]) * frac,
-    ap[1] + (bp[1] - ap[1]) * frac,
-    ap[2] + (bp[2] - ap[2]) * frac,
-  ];
+  return lo;
 }
 
 /**
@@ -471,4 +568,16 @@ export function evaluateClip(
   }
 
   return result;
+}
+
+/**
+ * YSM 动画 clip 播放列表标签策略（ADR-100 L3 全 clip 列表）。
+ * 单 clip 文件保持文件名口径（不改动既有展示）；多 clip 文件以
+ * 「文件名 · clip 名」区分，无名 clip 用序号兜底。
+ * @param fileBase 动画文件基名（已去 .animation.json 后缀）
+ * @param clips    该文件解析出的全部 clip
+ */
+export function ysmAnimClipLabels(fileBase: string, clips: AnimationClip[]): string[] {
+  if (clips.length <= 1) return [fileBase];
+  return clips.map((clip, i) => `${fileBase} · ${clip.name || `#${i + 1}`}`);
 }

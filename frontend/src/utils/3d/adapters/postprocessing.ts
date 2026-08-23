@@ -9,5 +9,6 @@ export interface PostprocessingLike {
   /** 每帧渲染；返回 true 表示已接管渲染（composer.render），false 表示调用方需 renderer.render */
   render(dt: number, lightCap: LightCapability | null): boolean;
   setSize(width: number, height: number): void;
+  setPixelRatio?(pixelRatio: number): void;
   dispose(): void;
 }

@@ -336,6 +336,66 @@ describe("buildYsmScene 动画播放器集成（ADR-100）", () => {
     expect(preview.dispose).toBeDefined();
     preview.dispose();
   });
+
+  it("内嵌动画 model._animClips → 注入 play 菜单项（单文件 .ysm 无磁盘动画文件）", async () => {
+    const ctx = makeCtx();
+    const clip = {
+      name: "idle",
+      loop: true,
+      length: 1,
+      bones: {
+        root: { position: [{ time: 0, post: [0, 0, 0], pre: [0, 0, 0], lerp: "linear" }] },
+      },
+    };
+    const loader = vi.fn(
+      async () => ({ bones: [], _animClips: [clip] } as unknown as BedrockGeometry),
+    );
+
+    // 故意不注入 listAllFilePaths/readTextFile：单文件模型磁盘没有 .animation.json
+    const preview = await buildYsmScene(ctx, "/m/model.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+    });
+
+    const items = registeredItems(ctx.menu);
+    expect(items.find((i) => i.id === "ysm-play")).toBeDefined();
+
+    preview.dispose();
+  });
+
+  it("磁盘 .animation.json 含 UTF-8 中文 → 正确解码，clip 名不乱码", async () => {
+    const ctx = makeCtx();
+    const loader = vi.fn(async () => ({ bones: [] } as unknown as BedrockGeometry));
+    const jsonStr = JSON.stringify({
+      animations: {
+        挥手: { animation_length: 1, loop: true, bones: { root: { position: { "0": [0, 0, 0] } } } },
+        鞠躬: { animation_length: 1, loop: true, bones: { root: { position: { "0": [0, 0, 0] } } } },
+      },
+    });
+    const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+    const listPaths = vi.fn().mockResolvedValue(["/m/anim/motion.animation.json"]);
+    const readTextFile = vi.fn().mockResolvedValue(b64);
+    let firstLabel: string | null = null;
+
+    const preview = await buildYsmScene(ctx, "/m/anim/model.ysm", {
+      loader,
+      preload: mocks.preloadModel,
+      listAllFilePaths: listPaths,
+      readTextFile,
+      fillPlayPanel: (_list, bridge) => {
+        firstLabel = bridge.clips[0]?.label ?? null;
+      },
+    });
+
+    const items = registeredItems(ctx.menu);
+    const playItem = items.find((i) => i.id === "ysm-play");
+    expect(playItem).toBeDefined();
+    playItem!.render!(document.createElement("div"), () => {});
+    // 多 clip 标签 = 「文件名 · clip 名」；乱码解码会让 clip 名变 Latin-1 杂音
+    expect(firstLabel).toBe("motion · 挥手");
+
+    preview.dispose();
+  });
 });
 
 describe("ysmMenuItems 独立菜单表测试", () => {

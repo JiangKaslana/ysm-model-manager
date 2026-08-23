@@ -29,6 +29,12 @@ use_when:
 invariant_anchors:
   - frontend/src/backend/app.ts|_appPromise = null
   - frontend/src/backend/platform.ts|resolveWebMode
+quick_groups:
+  - 后端桥接与数据存储
+quick_intents:
+  - Wails 绑定、Go 调用
+quick_risk_lines:
+  - 前端必须经 getApp() 访问，禁止直调 window.go
 ---
 
 # Wails 桥接 app.ts

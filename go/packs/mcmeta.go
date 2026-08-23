@@ -151,17 +151,46 @@ func DetectResourceType(path string, registry *types.ResourceTypeRegistry) strin
 		return id
 	}
 
-	// Phase 2：扩展名兜底（现有行为，路径消歧未命中时回退）
+	// Phase 2：扩展名兜底——指纹 pass/fail 竞争，通过者按 Priority 裁决
+	// （专用指纹类型 > 通用指纹类型），同 Priority 取注册表顺序在前者。
+	// 容器只打开一次：所有容器指纹类型共享同一份条目列表（发现3 P3），
+	// 跨类型不比较匹配条目数——模式宽窄不可比（shaderpack 的 shaders/ 前缀可匹配
+	// 多条目，resourcepack 的 pack.mcmeta 至多 1 条，比数会把资源包误判为光影包，发现1 P2）。
+	var bestID string
+	bestPriority := 0
+	var containerEntries []container.Entry
+	var containerOpened bool
 	for _, rt := range registry.ResourceTypes {
-		extOK := hasExt(ext, rt.EffectiveExtensions())
-		if !extOK {
+		if !hasExt(ext, rt.EffectiveExtensions()) {
 			continue
 		}
-		if detectorPasses(path, ext, isContainer, &rt) {
-			return rt.ID
+		pass := false
+		if isContainer && (rt.Detector == "ysm" || rt.Detector == "zipentry" || rt.Detector == "mcmeta" || rt.Detector == "shader") {
+			// 容器指纹类型共享一次打开：ysm 走段后缀指纹，其余走 ZipEntries 匹配
+			if !containerOpened {
+				containerOpened = true
+				if r, err := container.Open(path); err == nil {
+					containerEntries = r.Entries()
+					r.Close()
+				}
+			}
+			if rt.Detector == "ysm" {
+				pass = matchYsmEntries(containerEntries)
+			} else {
+				pass = countZipEntryMatches(containerEntries, &rt) > 0
+			}
+		} else if detectorPasses(path, ext, isContainer, &rt) {
+			pass = true
+		}
+		if !pass {
+			continue
+		}
+		if bestID == "" || rt.Priority > bestPriority {
+			bestID = rt.ID
+			bestPriority = rt.Priority
 		}
 	}
-	return ""
+	return bestID
 }
 
 // detectByPathDisambiguation 路径消歧：遍历文件所有祖先目录，检查是否匹配某类型的 InstanceDir。
@@ -186,18 +215,33 @@ func detectByPathDisambiguation(path string, ext string, isContainer bool, regis
 	}
 
 	for _, rt := range registry.ResourceTypes {
-		if rt.InstanceDir == "" {
+		// 路径消歧认两条路径：InstanceDir（整合包安装目录）+ StorageSubDir（仓库目录）。
+		// 仓库内的 maid-model/*.zip 祖先目录即 storageSubDir，必须能打赢内容指纹兜底。
+		candidates := []string{rt.InstanceDir, rt.StorageSubDir}
+		hasCandidate := false
+		for _, c := range candidates {
+			if c != "" {
+				hasCandidate = true
+				break
+			}
+		}
+		if !hasCandidate {
 			continue
 		}
 		if !hasExt(ext, rt.EffectiveExtensions()) {
 			continue
 		}
-		instDirNorm := filepath.ToSlash(strings.ToLower(rt.InstanceDir))
 		for _, anc := range ancestors {
 			ancNorm := filepath.ToSlash(strings.ToLower(anc))
-			if strings.HasSuffix(ancNorm, "/"+instDirNorm) || ancNorm == instDirNorm {
-				if detectorPasses(path, ext, isContainer, &rt) {
-					return rt.ID
+			for _, c := range candidates {
+				if c == "" {
+					continue
+				}
+				cNorm := filepath.ToSlash(strings.ToLower(c))
+				if strings.HasSuffix(ancNorm, "/"+cNorm) || ancNorm == cNorm {
+					if detectorPasses(path, ext, isContainer, &rt) {
+						return rt.ID
+					}
 				}
 			}
 		}
@@ -228,14 +272,47 @@ func detectorPasses(path string, ext string, isContainer bool, rt *types.Resourc
 // 走 container 统一打开——.7z 也参与内容指纹（ADR-067 §3 遗留，原仅 zip；
 // sevenzip 只读但可枚举条目）。条目名统一 lowercase（与 MatchZipEntry 内部 ToLower 幂等）。
 func matchZipArchive(path string, rt *types.ResourceType) bool {
+	return matchZipArchiveCount(path, rt) > 0
+}
+
+// matchZipArchiveCount 打开容器并返回匹配的条目数（供 matchZipArchive 使用；
+// Phase 2 多类型竞争请用 countZipEntryMatches 共享一次打开）
+func matchZipArchiveCount(path string, rt *types.ResourceType) int {
 	r, err := container.Open(path)
 	if err != nil {
-		return false
+		return 0
 	}
 	defer r.Close()
-	for _, e := range r.Entries() {
-		if rt.MatchZipEntry(e.Name()) {
-			return true
+	return countZipEntryMatches(r.Entries(), rt)
+}
+
+// countZipEntryMatches 对已打开的条目列表统计匹配数（去重：同一文件被多条规则
+// 命中只计一次；Phase 2 所有容器类型共享一次打开后逐类型计数）
+func countZipEntryMatches(entries []container.Entry, rt *types.ResourceType) int {
+	count := 0
+	matchedEntries := make(map[string]bool)
+	for _, e := range entries {
+		entryName := e.Name()
+		if rt.MatchZipEntry(entryName) {
+			if !matchedEntries[entryName] {
+				matchedEntries[entryName] = true
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// matchYsmEntries 对已打开的条目列表做 ysm 指纹判定（ysm.json / models/ 任意层级段后缀），
+// 与 isYsmFile 的容器分支同口径（ADR-082 S1）；Phase 2 共享一次打开后复用
+func matchYsmEntries(entries []container.Entry) bool {
+	for _, e := range entries {
+		segs := strings.Split(filepath.ToSlash(strings.ToLower(e.Name())), "/")
+		for i := range segs {
+			seg := strings.Join(segs[i:], "/")
+			if seg == "ysm.json" || strings.HasPrefix(seg, "models/") {
+				return true
+			}
 		}
 	}
 	return false
@@ -274,16 +351,7 @@ func isYsmFile(path string) bool {
 		return false
 	}
 	defer r.Close()
-	for _, e := range r.Entries() {
-		segs := strings.Split(filepath.ToSlash(strings.ToLower(e.Name())), "/")
-		for i := range segs {
-			seg := strings.Join(segs[i:], "/")
-			if seg == "ysm.json" || strings.HasPrefix(seg, "models/") {
-				return true
-			}
-		}
-	}
-	return false
+	return matchYsmEntries(r.Entries())
 }
 
 // ReadShaderpackLang 从光影包 ZIP 中读取 lang/en_US.lang，尝试提取显示名

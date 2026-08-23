@@ -9,7 +9,6 @@ const {
   SearchModelsMock,
   ListByTagMock,
   GetRepoRootMock,
-  ExportBoneStructuresMock,
   OpenFolderMock,
   SelectImportFileMock,
   ImportByTypeMock,
@@ -24,7 +23,6 @@ const {
   SearchModelsMock: vi.fn(),
   ListByTagMock: vi.fn(),
   GetRepoRootMock: vi.fn(),
-  ExportBoneStructuresMock: vi.fn(),
   OpenFolderMock: vi.fn(),
   SelectImportFileMock: vi.fn(),
   ImportByTypeMock: vi.fn(),
@@ -42,7 +40,6 @@ vi.mock("../../backend/app.ts", () => ({
     SearchModels: SearchModelsMock,
     ListByTag: ListByTagMock,
     GetRepoRoot: GetRepoRootMock,
-    ExportBoneStructures: ExportBoneStructuresMock,
     OpenFolder: OpenFolderMock,
     SelectImportFile: SelectImportFileMock,
     ImportByType: ImportByTypeMock,
@@ -89,7 +86,6 @@ function makeRoot(): { root: ShadowRoot; get: (id: string) => HTMLElement | null
     <input id="af-minTex" data-testid="tree-af-min-tex" />
     <input id="af-maxTex" data-testid="tree-af-max-tex" />
     <button id="sel-all" data-testid="tree-sel-all">全选</button>
-    <button id="repo-export" data-testid="tree-repo-export">导出</button>
     <button id="btn-repo" data-testid="tree-repo">仓库</button>
     <select id="sort" data-testid="tree-sort"><option value="name">名称</option><option value="size">大小</option><option value="date">日期</option></select>
     <button id="btn-view-mode" data-testid="tree-view-mode">☰</button>
@@ -166,7 +162,6 @@ beforeEach(() => {
   GetRepoRootMock.mockResolvedValue("/repo");
   ListByTagMock.mockResolvedValue([]);
   SearchModelsMock.mockResolvedValue([]);
-  ExportBoneStructuresMock.mockResolvedValue("bones.txt");
   OpenFolderMock.mockResolvedValue(undefined);
   SelectImportFileMock.mockResolvedValue("/x/a.ysm");
   SelectDirectoryMock.mockResolvedValue("/x/dir");
@@ -346,10 +341,10 @@ describe("bindToolbarEvents — 高级筛选弹窗", () => {
     expect(toasts.some((t) => t.type === "warn" && t.msg.includes("无匹配"))).toBe(true);
   });
 
-  it("GetRepoRoot 空 → warn toast 且不搜索", async () => {
+  it("_filesRoot 空 → warn toast 且不搜索", async () => {
     const { root, get, getByTestId } = makeRoot();
     const vm = makeVM(root);
-    GetRepoRootMock.mockResolvedValue("");
+    vm._filesRoot = null; // toolbar-search.ts 读 vm._filesRoot，非 GetRepoRoot
     modalAdvFilterMock.mockResolvedValue({
       keyword: "x",
       minBones: null,
@@ -460,35 +455,6 @@ describe("bindToolbarEvents — 全选/反选", () => {
 });
 
 describe("bindToolbarEvents — 导出/导航/搜索/排序/视图", () => {
-  it("repo-export 成功 → toast + 下载", async () => {
-    const { root, get, getByTestId } = makeRoot();
-    const vm = makeVM(root);
-    const createURL = vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:mock");
-    const revokeURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-    bindToolbarEvents(root, vm as never);
-
-    getByTestId("tree-repo-export")!.click();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(ExportBoneStructuresMock).toHaveBeenCalledWith("/repo");
-    expect(createURL).toHaveBeenCalled();
-    expect(toasts.some((t) => t.msg.includes("骨骼结构已导出"))).toBe(true);
-  });
-
-  it("repo-export 未配置存储路径 → warn toast", async () => {
-    const { root, get, getByTestId } = makeRoot();
-    const vm = makeVM(root);
-    vm._filesRoot = null;
-    GetRepoRootMock.mockResolvedValue("");
-    bindToolbarEvents(root, vm as never);
-
-    getByTestId("tree-repo-export")!.click();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(toasts.some((t) => t.msg.includes("请先配置存储路径"))).toBe(true);
-    expect(ExportBoneStructuresMock).not.toHaveBeenCalled();
-  });
-
   it("btn-repo → nav:change settings", () => {
     const { root, get, getByTestId } = makeRoot();
     const vm = makeVM(root);

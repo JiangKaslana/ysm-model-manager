@@ -1,12 +1,13 @@
 // ===== 仓库模型显示（共享逻辑，供 init-workshop.ts 和 init-github.ts 复用）=====
 import { getApp } from "../../backend/app.ts";
 import { dbg } from "../../utils/debug/debug.ts";
-import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
+import { currentRepoType } from "../repo-rtype.ts";
 import { countMissing, renderRepoHeaderHTML } from "./render.ts";
 import { bindRepoEvents } from "./events.ts";
 import type { WorkshopModel } from "./render.ts";
 import type { WorkshopSite } from "../../../bindings/ysm-model-manager/go/types/models.ts";
-import { stripBanSuffix } from "../../utils/dom/display.ts";
+import { stripDisableSuffix } from "../../utils/dom/display.ts";
 
 /**
  * 显示 GitHub 仓库模型列表（比对本地已有文件）
@@ -21,6 +22,7 @@ import { stripBanSuffix } from "../../utils/dom/display.ts";
  * @param models - 模型列表
  * @param source - 数据源标识（"raw" | "jsd" | "api"）
  * @param searchResults - 搜索结果容器 DOM 元素
+ * @param rtype - 资源类型（缺省取 currentRepoType()，GitHub 页显式传 YSM）
  */
 export async function showRepoModels(
   esc: (s: unknown) => string,
@@ -32,7 +34,9 @@ export async function showRepoModels(
   models: WorkshopModel[],
   source: string,
   searchResults: HTMLElement,
+  rtype?: string,
 ): Promise<void> {
+  const effectiveRtype = rtype || currentRepoType();
   // _currentRepo 检测过时的异步响应（防快速切换乱序覆盖）
   let _currentRepo = "";
   _currentRepo = repo;
@@ -44,12 +48,12 @@ export async function showRepoModels(
     const AppM = await getApp();
     const cfg = await AppM.LoadAppConfig();
     mirror = cfg.mirror || "";
-    const filesRoot = AppM.GetRepoRoot ? await AppM.GetRepoRoot(RESOURCE_TYPES.YSM) : "";
+    const filesRoot = AppM.GetRepoRoot ? await AppM.GetRepoRoot(effectiveRtype) : "";
     if (filesRoot) {
       if (AppM.ClearScanCache) await AppM.ClearScanCache();
-      const entries = (await AppM.ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
+      const entries = (await AppM.ScanModelEntriesWithLabel(filesRoot, RESOURCE_TYPE_LABELS[effectiveRtype] ?? effectiveRtype)) || [];
       entries.forEach((e) => {
-        const n = stripBanSuffix(e.Name || "");
+        const n = stripDisableSuffix(e.Name || "");
         localMap.set(n, e.Hash || "");
       });
     }
@@ -107,7 +111,7 @@ export async function showRepoModels(
     dlPrefix,
     repo,
     source,
-    showRepoModels: () => showRepoModels(esc, repoEventsCleanup, setRepoEventsCleanup, currentSite, setCurrentSite, repo, models, source, searchResults),
+    showRepoModels: () => showRepoModels(esc, repoEventsCleanup, setRepoEventsCleanup, currentSite, setCurrentSite, repo, models, source, searchResults, effectiveRtype),
     backToSite: () => {
       if (currentSite) {
         setCurrentSite(currentSite); // 触发重新渲染

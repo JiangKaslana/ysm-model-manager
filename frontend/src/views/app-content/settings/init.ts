@@ -16,6 +16,7 @@ import { GH_RELEASES } from "../../../utils/gh-links.ts";
 import { bindPathClick, saveCfg, initAdvancedGrid, initMcDetect } from "./path-cards.ts";
 import { initTheme } from "./theme.ts";
 import { initUiPrefs } from "./ui-prefs.ts";
+import { initWorkerPrefs } from "./worker-prefs.ts";
 import { initKeymap } from "./keymap.ts";
 import { resetSettingsStore, cfg, isBusy, setBusy, toastError } from "./store.ts";
 
@@ -304,6 +305,9 @@ export async function initSettings(root: ShadowRoot): Promise<void> {
 
   // ===== 界面与体验设置（字体/密度/动画/默认页 → ui-prefs.ts）=====
   initUiPrefs(root);
+
+  // ===== 3D 解析 worker 开关（FBX / MMD PMX → worker-prefs.ts）=====
+  initWorkerPrefs(root);
 
   // ===== 3D 预览操作（键位/相机速度/旋转模式 → keymap.ts）=====
   initKeymap(root);

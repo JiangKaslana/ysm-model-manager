@@ -3,12 +3,20 @@ import { renderFormattedText } from "../format/mc-format.ts";
 import { esc } from "./html.ts";
 
 /**
- * 剥离 .ban 禁用后缀（大小写不敏感）。
- * 前端单一事实来源——对齐 Go types.StripBanSuffix，消灭多处内联口径漂移。
+ * 禁用后缀正则——对齐 Go types.DisableSuffixes（新标准 .disabled 在前，历史 .ban 兼容）。
  */
-export function stripBanSuffix(name: string): string {
-  return /\.ban$/i.test(name) ? name.slice(0, -4) : name;
+const DISABLE_RE = /\.(disabled|ban)$/i;
+
+/**
+ * 剥离禁用后缀（.disabled / .ban，大小写不敏感）。
+ * 前端单一事实来源——对齐 Go types.StripDisableSuffix，消灭多处内联口径漂移。
+ */
+export function stripDisableSuffix(name: string): string {
+  return name.replace(DISABLE_RE, "");
 }
+
+/** @deprecated 用 stripDisableSuffix（保留别名防外部断链） */
+export const stripBanSuffix = stripDisableSuffix;
 
 /** 解析后的模型文件名字段 */
 export interface ParsedModelName {
@@ -99,7 +107,7 @@ export function parseModelName(raw: string): ParsedModelName {
 
   return {
     raw,
-    isBanned: /\.ban$/i.test(raw),
+    isBanned: DISABLE_RE.test(raw),
     author,
     work,
     chara: chara || "",

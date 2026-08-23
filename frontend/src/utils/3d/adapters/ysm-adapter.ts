@@ -31,17 +31,19 @@ import { makeBonePanelRenderer } from "./vrm-bone-ui.ts"; // ADR-074 S2: 通用�
 import { buildPerceptionControls, type PerceptionState, type PerceptionCapability } from "./perception-controls.ts";
 import { registerModelRoot, unregisterModelRoot } from "../frustum-cull.ts";
 import { createYsmAnimPlayer, type YsmAnimPlayer } from "../ysm-animation-player.ts";
-import { parseBedrockAnimationJSON } from "../../animation/animation.ts";
+import { parseBedrockAnimationJSON, ysmAnimClipLabels, type AnimationClip } from "../../animation/animation.ts";
+import { b64ToBytes } from "../base64.ts";
 import type { MmdPlayBridge } from "../../../views/app-preview/mmd-controls.ts";
 import { ysmSemanticBoneMap } from "../semantic-bones.ts";
 import { createBreathController } from "../perception/breath.ts";
+import { recordLoadTrace } from "../load-trace.ts";
 
 /** 适配器可选项：loader 注入（预览面板语境数据加载链）/ 纹理重建 / 关闭回调 */
 export interface YsmAdapterOptions {
   /** path → model 加载器（由 skeleton 层注入：loadModelData(p, ctx)，含缓存/WASM/Go 兜底） */
   loader: (path: string) => Promise<BedrockGeometry | null>;
-  /** preloadModel 注入（视图壳层数据转换：model → { texArr, spec }，含 WASM/Go 兜底） */
-  preload: (model: unknown) => Promise<{ texArr: (THREE.Texture | null)[]; spec: unknown }>;
+  /** preloadModel 注入（视图壳层数据转换：model → { texArr, spec, componentTexMap }，含 WASM/Go 兜底） */
+  preload: (model: unknown) => Promise<{ texArr: (THREE.Texture | null)[]; spec: unknown; componentTexMap: Map<string, (THREE.Texture | null)[]> }>;
   /** 用户切换纹理时触发重建（旧 overlay 清理 + 按新 texIdx 重新挂载） */
   onTextureChange?: (texIdx: number) => void;
   /** core 关闭（ESC / 关闭按钮 / 切模型 cleanup）时回调：复位调用方状态 + 注销 android-back */
@@ -106,15 +108,22 @@ export async function buildYsmScene(
     throw new Error("YSM shared 模式需要核心提供 scene/camera/controls/renderer");
   }
 
+  const tStart = performance.now();
   // 数据层：path → model（skeleton 注入的预览面板加载链）
+  const tLoadStart = performance.now();
   const model = await opts.loader(path);
+  const tLoadEnd = performance.now();
   if (!model) throw new Error("模型数据加载失败: " + path);
 
   const texIdx = opts.texIdx ?? 0;
-  const { texArr, spec } = await opts.preload(model);
+  const tPreloadStart = performance.now();
+  const { texArr, spec, componentTexMap } = await opts.preload(model);
+  const tPreloadEnd = performance.now();
 
   // 内容层：spec → 场景图（§5.7 shared 化，renderModel3D 同款 buildYsmObject）
-  const obj: YsmObjectHandle = buildYsmObject(spec as Spec3D, texArr, texIdx);
+  const tBuildStart = performance.now();
+  const obj: YsmObjectHandle = buildYsmObject(spec as Spec3D, texArr, componentTexMap, texIdx);
+  const tBuildEnd = performance.now();
   ctx.scene.add(obj.rootGroup);
   registerModelRoot(obj.rootGroup);
 
@@ -178,14 +187,14 @@ export async function buildYsmScene(
   // 成功路径：移除核心 loadingEl（错误/空数据由核心保留并提示）
   ctx.loadingEl.remove();
 
-  // ---- YSM 骨骼动画（ADR-100 L1+L2）：扫描同目录 .animation.json ----
+  // ---- YSM 骨骼动画（ADR-100 L1+L2+L3）：内嵌 clips 优先，磁盘扫描兜底 ----
   // ADR-Bedrock 通用化：generic 模式跳过动画/语义骨骼/呼吸（女仆等通用 Bedrock 模型）
   const isGenericMode = opts.mode === "generic";
   let animPlayer: YsmAnimPlayer | null = null;
   let animBridge: MmdPlayBridge | null = null;
   let semanticBones: import("../semantic-bones.ts").SemanticBoneMap | null = null;
   let breath: ReturnType<typeof createBreathController> | null = null;
-  if (!isGenericMode && opts.listAllFilePaths && opts.readTextFile) {
+  if (!isGenericMode) {
     try {
       const specBones = (spec as Spec3D).models?.flatMap((m) => m.bones ?? []) ?? [];
       // 语义骨骼映射（L2）
@@ -193,47 +202,58 @@ export async function buildYsmScene(
       // 呼吸控制器（L2，动画播放时暂停）
       breath = createBreathController();
 
-      const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
-      const files = (await opts.listAllFilePaths(dirPath)) || [];
-      const animFiles = files.filter((f) => f.toLowerCase().endsWith(".animation.json"));
-      if (animFiles.length > 0) {
-        const allClips: Array<{ label: string; clip: import("../../animation/animation.ts").AnimationClip }> = [];
+      const allClips: Array<{ label: string; clip: AnimationClip }> = [];
+      const embedded = model._animClips ?? [];
+      if (embedded.length > 0) {
+        // 内嵌动画优先：WASM/Go 解码已解析的 clips——单文件 .ysm 的主来源
+        // （旧口径只扫磁盘，单文件模型磁盘没有 .animation.json → 动作面板空列表）
+        embedded.forEach((clip, i) => {
+          allClips.push({ label: clip.name || `Clip ${i + 1}`, clip });
+        });
+      } else if (opts.listAllFilePaths && opts.readTextFile) {
+        // 磁盘兜底：无内嵌动画时扫同目录 .animation.json
+        const dirPath = path.replace(/[^/\\]*$/, "").replace(/[/\\]$/, "");
+        const files = (await opts.listAllFilePaths(dirPath)) || [];
+        const animFiles = files.filter((f) => f.toLowerCase().endsWith(".animation.json"));
         for (const animFile of animFiles) {
           try {
             const b64 = await opts.readTextFile(animFile);
             if (!b64) continue;
-            const bin = atob(b64) as string;
-            const text = [...bin].map((c) => String.fromCharCode(c.charCodeAt(0))).join("");
+            // UTF-8 正确解码（旧 atob 直转会让中文 clip 名乱码）
+            const text = new TextDecoder("utf-8").decode(b64ToBytes(b64));
             const { clips } = parseBedrockAnimationJSON(text);
             if (clips.length > 0) {
-              allClips.push({
-                label: animFile.split(/[/\\]/).pop()!.replace(/\.animation\.json$/i, ""),
-                clip: clips[0],
-              });
+              // L3 全 clip 列表：同一 .animation.json 内多 clip 全部收录
+              // （旧口径只取 clips[0]，多动作定义被静默丢弃——ADR-100 已知遗留）
+              const fileBase = animFile.split(/[/\\]/).pop()!.replace(/\.animation\.json$/i, "");
+              const fileLabels = ysmAnimClipLabels(fileBase, clips);
+              for (let ci = 0; ci < clips.length; ci++) {
+                allClips.push({ label: fileLabels[ci], clip: clips[ci] });
+              }
             }
           } catch { /* 单个文件解析失败跳过 */ }
         }
-        if (allClips.length > 0) {
-          // 构建 boneByName：spec.bones[].name → 骨骼 Group（boneGroupMap 值为 Group 层级节点）
-          const boneByName = new Map<string, THREE.Object3D>();
-          for (const sb of specBones) {
-            const group = obj.boneGroupMap.get(sb.id);
-            if (group) boneByName.set(sb.name, group);
-          }
-          const hierarchy: import("../../animation/animation.ts").BoneHierarchyNode[] =
-            specBones.map((b) => ({ name: b.name, parent: b.parentId ?? undefined }));
-          const labels = allClips.map((c) => c.label);
-          const clips = allClips.map((c) => c.clip);
-          animPlayer = createYsmAnimPlayer(boneByName, clips, hierarchy, labels);
-          animBridge = {
-            clips: allClips.map((c) => ({ label: c.label })),
-            isPlaying: () => animPlayer?.isPlaying() ?? false,
-            toggle: () => animPlayer?.toggle(),
-            currentIndex: () => animPlayer?.currentIndex() ?? 0,
-            select: (i: number) => animPlayer?.selectClip(i),
-            animDir: null,
-          };
+      }
+      if (allClips.length > 0) {
+        // 构建 boneByName：spec.bones[].name → 骨骼 Group（boneGroupMap 值为 Group 层级节点）
+        const boneByName = new Map<string, THREE.Object3D>();
+        for (const sb of specBones) {
+          const group = obj.boneGroupMap.get(sb.id);
+          if (group) boneByName.set(sb.name, group);
         }
+        const hierarchy: import("../../animation/animation.ts").BoneHierarchyNode[] =
+          specBones.map((b) => ({ name: b.name, parent: b.parentId ?? undefined }));
+        const labels = allClips.map((c) => c.label);
+        const clips = allClips.map((c) => c.clip);
+        animPlayer = createYsmAnimPlayer(boneByName, clips, hierarchy, labels);
+        animBridge = {
+          clips: allClips.map((c) => ({ label: c.label })),
+          isPlaying: () => animPlayer?.isPlaying() ?? false,
+          toggle: () => animPlayer?.toggle(),
+          currentIndex: () => animPlayer?.currentIndex() ?? 0,
+          select: (i: number) => animPlayer?.selectClip(i),
+          animDir: null,
+        };
       }
     } catch {
       /* 动画扫描失败 → 静默降级，不影响模型渲染 */
@@ -306,6 +326,33 @@ export async function buildYsmScene(
   };
   ctx.renderer!.domElement.addEventListener("keydown", onFKeyDown);
 
+  // 加载剖析：perf 面板甘特图消费（读取+解析+纹理由 preloadModel 上报；本层补 build 段）
+  try {
+    const specTyped = spec as Spec3D;
+    const allBones = specTyped.models?.flatMap(m => m.bones ?? []) ?? [];
+    const texCount = texArr.filter(Boolean).length;
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "ysm",
+      path,
+      stages: [
+        { name: "读取", ms: Math.round(tLoadStart - tStart), status: "ok" },
+        { name: "解析", ms: Math.round(tLoadEnd - tLoadStart), status: "ok" },
+        { name: "纹理加载", ms: Math.round(tPreloadEnd - tPreloadStart), status: "ok" },
+        { name: "build", ms: Math.round(tBuildEnd - tBuildStart), status: "ok" },
+      ],
+      assets: {
+        files: 1,
+        textures: texCount,
+        bones: allBones.length,
+        cubes: (model as { cubeCount?: number }).cubeCount ?? 0,
+        materials: specTyped.models?.length ?? 0,
+        animations: 0,
+      },
+      ok: true,
+    });
+  } catch { /* perf trace 失败不影响渲染 */ }
+
   return {
     dispose(): void {
       rayCleanup();
@@ -363,7 +410,7 @@ export function makeYsmAdapter(path: string, opts: YsmAdapterOptions): PreviewAd
 }
 
 /** 骨骼面板清理引用（菜单项 render 与 adapter dispose 共享，防重入泄漏） */
-export interface YsmBonePanelRef {
+interface YsmBonePanelRef {
   current: (() => void) | null;
 }
 

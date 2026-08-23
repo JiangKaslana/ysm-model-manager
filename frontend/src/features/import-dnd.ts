@@ -153,7 +153,11 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   // WebView2 在 Shadow DOM 内的 drop 事件存在已知限制（overflow:auto 容器吞 drop），
   // 因此在 document 层监听，通过 e.target 判断是否命中 app-tree 子树。
   // 这样 drop 事件不受 ShadowRoot 边界影响，始终能触发。
-  const isInTree = (el: EventTarget | null): boolean => {
+  const isInTree = (event: Event): boolean => {
+    if (event.composedPath().some((node) => node === container || node === hintEl)) {
+      return true;
+    }
+    const el = event.target;
     if (!el) return false;
     const node = el as Node;
     // 向上遍历 shadow boundary。⚠️ 必须用 parentNode 而非 parentElement：
@@ -163,15 +167,18 @@ export function bindTreeDnD(container: HTMLElement): () => void {
     let current: Node | null = node;
     while (current) {
       if (current === container || current === hintEl) return true;
-      const root = current.getRootNode();
-      if (root === current) break; // 已到 document 根，不再有 shadow boundary
-      current = current.parentNode;
+      if (current.parentNode) {
+        current = current.parentNode;
+        continue;
+      }
+      // ShadowRoot.parentNode is null in real browsers; cross the boundary via host.
+      current = current instanceof ShadowRoot ? current.host : null;
     }
     return false;
   };
 
   const onDragOver = (e: DragEvent): void => {
-    if (!isInTree(e.target)) return;
+    if (!isInTree(e)) return;
     if (isEditable(e.target)) return;
     if (!e.dataTransfer?.types?.includes("Files")) return;
     e.preventDefault();
@@ -182,13 +189,13 @@ export function bindTreeDnD(container: HTMLElement): () => void {
   };
 
   const onDragLeave = (e: DragEvent): void => {
-    if (!isInTree(e.target)) return;
+    if (!isInTree(e)) return;
     if (!(e.currentTarget === e.relatedTarget || (e.relatedTarget as HTMLElement | null)?.closest?.(container.tagName === "APP-TREE" ? "app-tree" : ".list"))) return;
     if (hintEl) hintEl.style.display = "none";
   };
 
   const onDrop = (e: DragEvent): void => {
-    if (!isInTree(e.target)) return;
+    if (!isInTree(e)) return;
     // eslint-disable-next-line no-console
     console.log("[dnd] drop fired", {
       files: e.dataTransfer?.files?.length ?? 0,

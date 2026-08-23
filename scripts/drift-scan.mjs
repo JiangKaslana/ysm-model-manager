@@ -102,9 +102,9 @@ const RULES = [
   {
     id: "INLINE_BAN_STRIP",
     severity: "error",
-    desc: "内联 .ban 后缀剥离 [:len(name)-4]（应使用 types.StripBanSuffix）",
+    desc: "内联 .ban 后缀剥离 [:len(name)-4] 或 [:len(name)-len(\".ban\")]（应使用 types.StripBanSuffix）",
     glob: "*.go",
-    regex: /\[:len\([^)]+\)-4\]/,
+    regex: /\[:len\([^)]+\)-(?:4|len\("\.ban"\))\]/,
     exclude: [/types\/extensions\.go/, /test/],
     // 排除注释行和函数定义本身
     filter: (line) => !line.startsWith("//") && !line.startsWith("return name[:len(name)-4]"),
@@ -155,6 +155,15 @@ const RULES = [
     glob: "*.go",
     regex: /^func copyDirRecursive\(/,
     exclude: [/fsutil\/copy\.go/, /test/],
+    // 薄包装降噪：函数体若委托 fsutil.CopyDirRecursive 即为已收敛适配器（ADR-044），
+    // 仅标记真正独立实现（如 importer.go 的原子整树复制，语义独特暂不可收敛）。
+    filter: (line, content, lineIdx) => {
+      const lines = content.split("\n");
+      for (let i = lineIdx; i < Math.min(lineIdx + 20, lines.length); i++) {
+        if (lines[i].includes("fsutil.CopyDirRecursive")) return false;
+      }
+      return true;
+    },
   },
   {
     id: "ERROR_WRAP_V",

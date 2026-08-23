@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -377,7 +376,6 @@ func runExport(ctx *CmdContext) error {
 	fs := newCmdFlagSet("export")
 	modelPath := fs.String("model", "", "模型文件路径")
 	outputPath := fs.String("output", "", "输出文件路径")
-	format := fs.String("format", "json", "导出格式: json 或 bone-structure")
 	_, err := parseFlags(fs, ctx.Args)
 	if err != nil {
 		return err
@@ -387,17 +385,7 @@ func runExport(ctx *CmdContext) error {
 		return newParamErrf("--model 参数不能为空")
 	}
 
-	var content string
-	switch *format {
-	case "bone-structure":
-		structure, err := ctx.App.ExportBoneStructures(filepath.Dir(*modelPath))
-		if err != nil {
-			return newRuntimeErrf("导出骨骼结构失败: %v", err)
-		}
-		content = structure
-	default:
-		content = ctx.App.ExportModelStructureJSON(*modelPath)
-	}
+	content := ctx.App.ExportModelStructureJSON(*modelPath)
 
 	if content == "" {
 		return newRuntimeErrf("导出内容为空")

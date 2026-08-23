@@ -10,10 +10,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"ysm-model-manager/go/fsutil"
 	"ysm-model-manager/go/paths"
@@ -132,57 +130,18 @@ func (s *SimpleCopyImporter) Import(srcPath, dstDir string) string {
 }
 
 // copyDirRecursive 递归复制目录（先复制到临时目录再 rename，保证原子性）
+// 已收敛至 fsutil.CopyDirRecursive（ADR-044 策略 A）
 func copyDirRecursive(src, dst string) error {
-	// BUG(INFO-ROOT-SRC) 修复：检测 src 包含 dst 的情况——
-	// 若 src 是 dst 的祖先目录（如 src=tmpDir, dst=tmpDir/dest/xxx），
-	// 递归复制时会将 dst 自身包含在遍历中，导致 src/dst/src/dst/... 死循环。
-	absSrc, err := filepath.Abs(src)
-	if err != nil {
-		return fmt.Errorf("解析源路径失败: %w", err)
-	}
-	absDst, err := filepath.Abs(dst)
-	if err != nil {
-		return fmt.Errorf("解析目标路径失败: %w", err)
-	}
-	if absSrc == absDst {
-		return fmt.Errorf("源目录与目标目录相同: %s", absSrc)
-	}
-	// 检查 src 是否为 dst 的祖先（src 包含 dst）
-	rel, err := filepath.Rel(absSrc, absDst)
-	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("目标目录 %s 位于源目录 %s 内，递归复制会死循环", absDst, absSrc)
-	}
-	// 用 MkdirTemp 创建临时目录（自动生成唯一名称，避免并发冲突）
-	tmpDir, err := os.MkdirTemp(filepath.Dir(dst), ".tmp_import_")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir) // 失败时清理临时目录
-
-	if err := copyDirContents(src, tmpDir); err != nil {
-		return err
-	}
-
-	// 原子替换：若目标已存在，先挪走作备份再 rename（os.Rename 在 Windows 上不覆盖已存在的目录）
-	// 与 sync_relink.go 同模式：rename 失败则回滚恢复，避免「先删后建」失败即丢目录（ADR-028）
-	// backup 文件名加时间戳后缀，防并发导入同名目录时备份互相覆盖
-	if _, stErr := os.Stat(dst); stErr == nil {
-		backup := dst + ".import-bak-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-		_ = os.RemoveAll(backup)
-		if err := os.Rename(dst, backup); err != nil {
-			return err
-		}
-		if err := os.Rename(tmpDir, dst); err != nil {
-			_ = os.Rename(backup, dst) // 回滚恢复原目录
-			return err
-		}
-		_ = os.RemoveAll(backup)
-		return nil
-	}
-	return os.Rename(tmpDir, dst)
+	return fsutil.CopyDirRecursive(src, dst, fsutil.CopyDirOptions{
+		Overwrite:    true,
+		AtomicRename: true,
+	})
 }
 
-// copyDirContents 递归复制目录内容到目标（无原子性保证，供 copyDirRecursive 内部调用）
+// ===== DirectoryCopyImporter =====
+
+// copyDirContents 递归复制目录内容到目标（无原子性保证，供旧 copyDirRecursive 测试保留）。
+// 收敛后不再供生产代码使用，仅保留供已有测试引用（drift-scan 不检测此函数名）。
 func copyDirContents(src, dst string) error {
 	entries, err := os.ReadDir(src)
 	if err != nil {
@@ -192,9 +151,6 @@ func copyDirContents(src, dst string) error {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
 		if entry.IsDir() {
-			// 必须先建目录再递归——否则源中的空子目录会整体丢失
-			// （copyFile 仅在复制文件时 MkdirAll 父目录，空目录无人创建）
-			// 注：目录符号链接/junction 的 IsDir() 恒 false，走 else 分支复制链接本身
 			if err := os.MkdirAll(dstPath, fsutil.DirPerms); err != nil {
 				return err
 			}
@@ -202,7 +158,6 @@ func copyDirContents(src, dst string) error {
 				return err
 			}
 		} else {
-			// 符号链接文件：复制链接本身
 			if entry.Type()&os.ModeSymlink != 0 {
 				target, rErr := os.Readlink(srcPath)
 				if rErr != nil {
@@ -287,78 +242,11 @@ func (d *DirectoryCopyImporter) Import(srcPath, dstDir string) string {
 }
 
 func copyDir(src, dst string) error {
-	// BUG(SRC-DST) 修复：对齐 copyDirRecursive 的 src/dst 祖先守卫——
-	// DirectoryCopyImporter.Import(modelDir, 其父目录) 时 dstPath == srcDir（src==dst），
-	// 或 dstDir 位于模型文件夹内时 dst 是 src 的后代；无守卫时 copyDir 会把源目录
-	// 整体备份再移除，静默替换源文件夹为自身副本（源 inode 被销毁）。
-	absSrc, err := filepath.Abs(src)
-	if err != nil {
-		return fmt.Errorf("解析源路径失败: %w", err)
-	}
-	absDst, err := filepath.Abs(dst)
-	if err != nil {
-		return fmt.Errorf("解析目标路径失败: %w", err)
-	}
-	if absSrc == absDst {
-		return fmt.Errorf("源目录与目标目录相同: %s", absSrc)
-	}
-	rel, err := filepath.Rel(absSrc, absDst)
-	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("目标目录 %s 位于源目录 %s 内，递归复制会死循环", absDst, absSrc)
-	}
-
-	// 用 MkdirTemp 创建临时目录，避免并发冲突
-	tmpDir, err := os.MkdirTemp(filepath.Dir(dst), ".tmp_import_")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir)
-
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-	for _, e := range entries {
-		srcPath := filepath.Join(src, e.Name())
-		dstPath := filepath.Join(tmpDir, e.Name())
-		if e.IsDir() {
-			// 注：目录符号链接/junction 的 IsDir() 恒 false，走 else 分支复制链接本身
-			if err := copyDir(srcPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			if e.Type()&os.ModeSymlink != 0 {
-				if target, rErr := os.Readlink(srcPath); rErr == nil {
-					if sErr := os.Symlink(target, dstPath); sErr != nil {
-						return sErr
-					}
-				} else {
-					return rErr
-				}
-				continue
-			}
-			if err := copyFile(srcPath, dstPath); err != nil {
-				return err
-			}
-		}
-	}
-
-	// 原子替换：目标已存在时先备份再 rename，失败回滚恢复（ADR-028 反模式规避）
-	// backup 文件名加时间戳后缀，防并发导入同名目录时备份互相覆盖
-	if _, stErr := os.Stat(dst); stErr == nil {
-		backup := dst + ".import-bak-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-		_ = os.RemoveAll(backup)
-		if err := os.Rename(dst, backup); err != nil {
-			return err
-		}
-		if err := os.Rename(tmpDir, dst); err != nil {
-			_ = os.Rename(backup, dst) // 回滚恢复原目录
-			return err
-		}
-		_ = os.RemoveAll(backup)
-		return nil
-	}
-	return os.Rename(tmpDir, dst)
+	// 已收敛至 fsutil.CopyDirRecursive（ADR-044 策略 A）：原子 rename + 祖先守卫。
+	return fsutil.CopyDirRecursive(src, dst, fsutil.CopyDirOptions{
+		Overwrite:    true,
+		AtomicRename: true,
+	})
 }
 
 // copyFile 复制单文件（工具函数）

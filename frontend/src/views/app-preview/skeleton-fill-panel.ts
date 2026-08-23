@@ -43,6 +43,35 @@ export function fill3DPanel(
   // 纹理列表
   if (texArr.length > 0) {
     panel.appendChild(sec("🎨 纹理 (" + texArr.length + ")"));
+    // 当前组件绑定：显示选中组件声明的纹理（方案 B：声明纹理 vs 实际绑定两层显示）
+    const bindingRow = document.createElement("div");
+    bindingRow.style.cssText = "display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.6);padding:1px 0;margin-bottom:2px";
+    const bindingLabel = document.createElement("span");
+    bindingLabel.textContent = "当前组件绑定";
+    const bindingValue = document.createElement("span");
+    bindingValue.style.color = "rgba(255,255,255,0.9)";
+    bindingValue.textContent = "全量";
+    bindingRow.appendChild(bindingLabel);
+    bindingRow.appendChild(bindingValue);
+    panel.appendChild(bindingRow);
+    // 组件选择器 onchange 追加更新绑定行（不覆盖已有 showModelGroup）
+    // texArrOrder[idx] = 组件 idx 声明的纹理名（Go 端按 texSlot 分配，多组件可共享同一张）
+    const texArrOrder = (spec as { texArrOrder?: string[] }).texArrOrder;
+    const updateBinding = (): void => {
+      const idx = parseInt(modelSel.value, 10);
+      if (isNaN(idx) || idx < 0) {
+        bindingValue.textContent = "全量";
+        return;
+      }
+      const declared = texArrOrder?.[idx];
+      if (declared) {
+        bindingValue.textContent = declared;
+      } else {
+        // texArrOrder 缺失（WASM 路径）→ 按全量纹理兜底
+        bindingValue.textContent = "全量";
+      }
+    };
+    modelSel.addEventListener("change", updateBinding);
     for (let i = 0; i < texArr.length; i++) {
       const tex = texArr[i];
       const w = tex?.userData?.imgWidth || (tex?.image as HTMLImageElement | undefined)?.naturalWidth || 0;

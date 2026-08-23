@@ -1,0 +1,178 @@
+#!/usr/bin/env node
+/**
+ * gen-routes-quick.mjs — AI 急速版路由表自动生成器（ADR-114 §急速表）。
+ *
+ * 从知识卡 frontmatter 的 quick_groups / quick_intents / quick_risk_lines / pitfalls
+ * 字段生成 docs/knowledge/routes-quick.md，替代手工维护版。
+ *
+ * 输入（知识卡 frontmatter，全部可选；缺字段视为该卡不参与急速表）:
+ *   quick_groups:     场景分组名（与 quick_intents 按索引配对，值即分组标题）
+ *   quick_intents:    用户意图关键词（每行一个，按索引与 quick_groups 配对）
+ *   quick_risk_lines: 红线警告（按索引与 quick_intents 配对；缺省则该行红线填 -）
+ *   pitfalls:         陷阱列表，格式 "「位置」描述 → 正确做法"（如无前缀则整段作陷阱描述）
+ *
+ * 输出分组:
+ *   - 按 quick_groups 值分组，组内按 quick_intents 排序（稳定）
+ *   - pitfalls 独立汇总到「高频陷阱速查」段
+ *   - 关联 ADR 取自卡片的 adr: 字段；无则填 -
+ *   - 仅处理 tier: architecture 且带 quick_groups 的卡
+ *
+ * 用法:
+ *   node scripts/gen-routes-quick.mjs            # 写入 docs/knowledge/routes-quick.md
+ *   node scripts/gen-routes-quick.mjs --check    # 只校验不写入，不同则 exit 1（CI 用）
+ *   node scripts/gen-routes-quick.mjs --help     # 用法说明
+ *
+ * 零依赖（仅 node:fs / node:path）。
+ * 退出码: 0 成功, 1 失败。
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { parseArgs } from './_lib/parse-args.mjs';
+import { parseFrontmatter, getScalar, getList } from './_lib/frontmatter.mjs';
+import { KNOW_DIR, KNOWLEDGE_NON_CARDS } from './_lib/knowledge-cards.mjs';
+
+const OUT_PATH = path.join(KNOW_DIR, 'routes-quick.md');
+const BANNER =
+  '<!-- 本文件由 scripts/gen-routes-quick.mjs 自动生成，请勿手改。重跑：node scripts/gen-routes-quick.mjs -->';
+const END_MARK = '<!--  END_GENERATED_SECTION -->';
+
+function fm(text, key) { return getScalar(parseFrontmatter(text), key); }
+function fmList(text, key) { return getList(parseFrontmatter(text), key); }
+function cell(s) { return String(s).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim(); }
+
+/** 卡片 adr: 字段 → ADR-XXX 字符串；无则 -。 */
+function adrLabel(text) {
+  const adrs = fmList(text, 'adr').map((a) => String(a)).filter((a) => /ADR-\d+/i.test(a));
+  return adrs.length ? adrs.join(', ') : '-';
+}
+
+/** 解析单条 pitfalls 记录: "「位置」描述 → 正确做法" → { trap, pos, fix }。 */
+function parsePitfall(raw) {
+  const s = String(raw).trim();
+  const arrow = s.indexOf(' → ');
+  const left = arrow === -1 ? s : s.slice(0, arrow);
+  const right = arrow === -1 ? '-' : s.slice(arrow + 3).trim();
+  const pos = (left.match(/「(.+?)」/) || [])[1]
+    || (left.match(/`(.+?)`/) || [])[1];
+  let trap = left
+    .replace(/「[^」]+」/, '')
+    .replace(/`[^`]+`/, '')
+    .replace(/\s+→\s*$/, '')
+    .trim();
+  if (!trap) trap = pos || '-';
+  return { trap, pos: pos ? `\`${pos}\`` : '-', fix: cell(right) };
+}
+
+function render(cards) {
+  const rows = [];
+  for (const c of cards) {
+    const n = Math.min(c.groups.length, c.intents.length);
+    for (let i = 0; i < n; i++) {
+      rows.push({
+        group: c.groups[i],
+        intent: c.intents[i],
+        risk: c.risks.length > i ? c.risks[i] : '-',
+        adr: c.adr,
+        card: c,
+      });
+    }
+  }
+  const pitfalls = cards.flatMap((c) => c.pitfalls.map((p) => parsePitfall(p)));
+
+  // 按 group 值分组（保留首次出现顺序），组内按 intent 排序
+  const groupOrder = [];
+  const groupMap = new Map();
+  for (const r of rows) {
+    if (!groupMap.has(r.group)) { groupOrder.push(r.group); groupMap.set(r.group, []); }
+    groupMap.get(r.group).push(r);
+  }
+  for (const g of groupOrder) {
+    groupMap.get(g).sort((a, b) => a.intent.localeCompare(b.intent, 'zh-CN'));
+  }
+
+  const out = [];
+  out.push(BANNER, '', '# AI 急速版路由表（高频场景）', '');
+  out.push('> 本表由知识卡 frontmatter 的 `quick_*` 字段自动生成。');
+  out.push('> 新增高频场景请在对应知识卡 frontmatter 补充 `quick_groups`/`quick_intents`/`quick_risk_lines`/`pitfalls`。');
+  out.push('');
+
+  for (const g of groupOrder) {
+    const rs = groupMap.get(g);
+    out.push(`## 🎯 ${g}`, '', '| 用户意图 | 首选卡 | 红线警告 | 关联 ADR |', '|----------|--------|----------|----------|');
+    for (const r of rs) {
+      const primary = `[${cell(r.card.name)}](./${r.card.file})`;
+      const risk = r.risk === '-' ? '-' : cell(r.risk);
+      out.push(`| ${cell(r.intent)} | ${primary} | ${risk} | ${cell(r.adr)} |`);
+    }
+    out.push('');
+  }
+
+  if (pitfalls.length) {
+    out.push('## 🚨 高频陷阱速查', '', '| 陷阱 | 位置 | 正确做法 |', '|------|------|----------|');
+    for (const p of pitfalls) out.push(`| ${cell(p.trap)} | ${cell(p.pos)} | ${p.fix} |`);
+    out.push('');
+  }
+
+  out.push('---', END_MARK);
+  return out.join('\n') + '\n';
+}
+
+function main() {
+  const args = parseArgs(process.argv.slice(2), { bools: ['check'], strings: [], defaults: {} });
+  if (args.help) {
+    const src = fs.readFileSync(process.argv[1], 'utf-8');
+    const s = src.indexOf('/**'), e = src.indexOf('*/', s);
+    console.log(src.slice(s, e + 2).replace(/^ \* ?/gm, '').trim());
+    process.exit(0);
+  }
+  if (args.unknown.length) {
+    console.error(`❌ 未知参数: ${args.unknown.join(', ')}（--help 查看用法）`);
+    process.exit(1);
+  }
+  if (!fs.existsSync(KNOW_DIR)) {
+    console.error('❌ docs/knowledge/ 不存在，请确认在仓库根目录运行');
+    process.exit(1);
+  }
+
+  const cards = [];
+  for (const f of fs.readdirSync(KNOW_DIR).filter((f) => f.endsWith('.md'))) {
+    if (KNOWLEDGE_NON_CARDS.has(f)) continue;
+    const text = fs.readFileSync(path.join(KNOW_DIR, f), 'utf8');
+    if (!parseFrontmatter(text)) continue;
+    if (fm(text, 'tier') !== 'architecture') continue;
+    const groups = fmList(text, 'quick_groups');
+    if (!groups.length) continue;
+    cards.push({
+      file: f,
+      name: fm(text, 'name') || f.replace(/\.md$/, ''),
+      groups,
+      intents: fmList(text, 'quick_intents'),
+      risks: fmList(text, 'quick_risk_lines'),
+      adr: adrLabel(text),
+      pitfalls: fmList(text, 'pitfalls'),
+    });
+  }
+  cards.sort((a, b) => a.file.localeCompare(b.file));
+
+  const output = render(cards);
+  const total = cards.reduce((s, c) => s + Math.min(c.groups.length, c.intents.length), 0);
+  const pitCount = cards.reduce((s, c) => s + c.pitfalls.length, 0);
+  console.error(`📄 ${cards.length} 张卡带 quick_groups，${total} 条高频意图，${pitCount} 条陷阱`);
+
+  if (args.check) {
+    const existing = fs.existsSync(OUT_PATH) ? fs.readFileSync(OUT_PATH, 'utf8') : '';
+    if (existing !== output) {
+      console.error(`❌ ${OUT_PATH} 未同步，请运行: node scripts/gen-routes-quick.mjs`);
+      process.exit(1);
+    }
+    console.log(`✅ ${OUT_PATH} 已同步`);
+    return;
+  }
+
+  const tmp = OUT_PATH + '.tmp';
+  fs.writeFileSync(tmp, output);
+  fs.renameSync(tmp, OUT_PATH);
+  console.log(`✅ 已写入 ${path.relative(process.cwd(), OUT_PATH)}`);
+}
+
+main();

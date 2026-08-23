@@ -1,6 +1,6 @@
 ---
 kind: adr
-status: draft
+status: accepted
 title: "ADR-088：检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行"
 date: 2026-08-17
 authors: [deepseek, jieling]
@@ -9,7 +9,7 @@ related: [ADR-086, ADR-087, scripts/pre-push-gate.mjs, scripts/_lib/contract-tes
 
 # ADR-088：检查体系并行调度——pre-push-gate 域间并行 + 静态工具分组 + pre-commit gen 并行
 
-- **状态**：🔄 部分采纳
+- **状态**：✅ 已采纳（pre-push-gate 域间 Promise.all 并行落地；静态工具分组/其余子项收益有限或已回退，不构成未偿还债）
 - **日期**：2026-08-17
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`ADR-086`、`ADR-087`、`scripts/pre-push-gate.mjs`、`scripts/_lib/contract-tests.mjs`

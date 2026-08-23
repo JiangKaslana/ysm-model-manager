@@ -64,19 +64,20 @@ func TestGetRepoRoot_FallbackChain(t *testing.T) {
 	cfg := types.AppConfig{FilesRoot: base}
 
 	t.Run("specificRoot 优先于 FilesRoot", func(t *testing.T) {
-		// ysm 类型无 ConfigField 专属覆写 → 走 FilesRoot；此处用带专属字段的类型验证优先序
-		// （registry 类型如 resourcepack 有 ConfigField=ResourcepackRoot）
+		// ysm 类型无专属覆写 → 走 FilesRoot；此处用带 CustomRoots 条目的类型验证优先序
 		cfg2 := types.AppConfig{
-			FilesRoot:        base,
-			ResourcepackRoot: filepath.Join(base, "rp-override"),
+			FilesRoot: base,
+			CustomRoots: map[string]string{
+				"resourcepack": filepath.Join(base, "rp-override"),
+			},
 		}
 		a := repoApp(t, cfg2)
 		got, err := a.GetRepoRoot("resourcepack")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got != cfg2.ResourcepackRoot {
-			t.Errorf("specificRoot 应优先, got %q want %q", got, cfg2.ResourcepackRoot)
+		if got != cfg2.CustomRoots["resourcepack"] {
+			t.Errorf("specificRoot 应优先, got %q want %q", got, cfg2.CustomRoots["resourcepack"])
 		}
 	})
 
@@ -151,40 +152,45 @@ func TestGetRepoRoot_PlatformDefault(t *testing.T) {
 	})
 }
 
-// TestRepoRootForSync 整合包同步基准目录解析：
+// TestFilesRootForSync 整合包同步基准目录解析：
 // 扁平化架构下，所有类型统一走 GetRepoRoot，返回 FilesRoot/{group}/{storageSubDir}。
-// MMD 子类型（EntityPlayer 等）各自独立，专属 MmdRoot 优先。
-func TestRepoRootForSync(t *testing.T) {
+// MMD 子类型（EntityPlayer 等）各自独立，专属 CustomRoots 优先。
+func TestFilesRootForSync(t *testing.T) {
 	base := t.TempDir()
 
 	t.Run("EntityPlayer 走 group/storageSubDir", func(t *testing.T) {
 		a := repoApp(t, types.AppConfig{FilesRoot: base})
-		got, err := a.repoRootForSync("EntityPlayer")
+		got, err := a.filesRootForSync("EntityPlayer")
 		if err != nil {
 			t.Fatal(err)
 		}
 		// 用生产函数派生期望值（而非手写快照），注册表改了测试自动跟
 		want := filepath.Join(base, types.GroupStorageRoot("EntityPlayer"))
 		if got != want {
-			t.Errorf("repoRootForSync(EntityPlayer) 应为 group/storageSubDir, got %q want %q", got, want)
+			t.Errorf("filesRootForSync(EntityPlayer) 应为 group/storageSubDir, got %q want %q", got, want)
 		}
 	})
 
-	t.Run("专属 MmdRoot 优先", func(t *testing.T) {
+	t.Run("专属 CustomRoots 优先", func(t *testing.T) {
 		override := filepath.Join(base, "mmd-override")
-		a := repoApp(t, types.AppConfig{FilesRoot: base, MmdRoot: override})
-		got, err := a.repoRootForSync("EntityPlayer")
+		a := repoApp(t, types.AppConfig{
+			FilesRoot: base,
+			CustomRoots: map[string]string{
+				"EntityPlayer": override,
+			},
+		})
+		got, err := a.filesRootForSync("EntityPlayer")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if got != override {
-			t.Errorf("专属 MmdRoot 应优先, got %q want %q", got, override)
+			t.Errorf("专属 CustomRoots 应优先, got %q want %q", got, override)
 		}
 	})
 
 	t.Run("YSM 走 GetRepoRoot", func(t *testing.T) {
 		a := repoApp(t, types.AppConfig{FilesRoot: base})
-		got, err := a.repoRootForSync("ysm")
+		got, err := a.filesRootForSync("ysm")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,7 +202,7 @@ func TestRepoRootForSync(t *testing.T) {
 
 	t.Run("FilesRoot 为空回退 GetRepoRoot（不 panic）", func(t *testing.T) {
 		a := repoApp(t, types.AppConfig{})
-		got, err := a.repoRootForSync("EntityPlayer")
+		got, err := a.filesRootForSync("EntityPlayer")
 		if err != nil {
 			t.Fatal(err)
 		}

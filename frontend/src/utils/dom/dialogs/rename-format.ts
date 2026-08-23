@@ -16,7 +16,7 @@ export interface RenameFields {
  * 命名模板引擎选项（索引 4.9 收敛 buildRenameName / rebuildParsedName 两套手工拼接）：
  * - fillDefaults=true：空作品补「未知」、空角色补「?」（单重命名缺省填充语义）；
  * - fillDefaults=false：空段跳过（批量重建语义，角色回退文件名由调用方预先算好）；
- * - keepBan=true：保留 .ban 尾缀（批量重命名场景）。
+ * - keepBan=true：保留禁用尾缀（批量重命名场景）。
  */
 export interface BuildModelNameOptions {
   fillDefaults?: boolean;
@@ -33,8 +33,8 @@ export interface ModelNameFields {
 }
 
 /**
- * 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.ban]`
- * 单一模板引擎——buildRenameName（缺省填充）与 rebuildParsedName（空段跳过 + .ban）
+ * 按 YSM 命名规范拼接文件名：`[作者]【作品】角色[-变体] (年月).ext[.disabled]`
+ * 单一模板引擎——buildRenameName（缺省填充）与 rebuildParsedName（空段跳过 + .disabled）
  * 共用，语义差异走选项，不再各自手写拼接（索引 4.9）。
  */
 export function buildModelName(
@@ -50,7 +50,7 @@ export function buildModelName(
   else if (opts.fillDefaults) parts.push("?");
   if (f.variant) parts.push("-" + f.variant);
   if (f.date) parts.push(" (" + f.date + ")");
-  return parts.join("") + "." + ext + (opts.keepBan ? ".ban" : "");
+  return parts.join("") + "." + ext + (opts.keepBan ? ".disabled" : "");
 }
 
 /**

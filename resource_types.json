@@ -15,9 +15,9 @@
       "configField": "ResourcepackRoot",
       "instanceDir": "resourcepacks",
       "instanceLevel": false,
-      "preview": "thumbnail",
+      "preview": "3d",
       "detector": "mcmeta",
-      "scanInstance": true,
+      "scanInstance": false,
       "zipEntries": [
         {
           "name": "pack.mcmeta",
@@ -46,7 +46,7 @@
       "instanceLevel": false,
       "preview": "thumbnail",
       "detector": "shader",
-      "scanInstance": true,
+      "scanInstance": false,
       "zipEntries": [
         {
           "name": "shaders/",
@@ -114,6 +114,7 @@
       "name": "车万女仆模型",
       "icon": "🧸",
       "group": "minecraft-mod",
+      "priority": 10,
       "extensions": [
         ".zip"
       ],
@@ -237,7 +238,7 @@
       ],
       "storageSubDir": "PMX",
       "configField": "MmdRoot",
-      "instanceDir": "3d-skin",
+      "instanceDir": "3d-skin/EntityPlayer",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
@@ -293,7 +294,7 @@
       ],
       "storageSubDir": "SceneModel",
       "configField": "MmdRoot",
-      "instanceDir": "SceneModel",
+      "instanceDir": "3d-skin/SceneModel",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "zipentry",
@@ -344,7 +345,7 @@
       ],
       "storageSubDir": "CustomAnim",
       "configField": "MmdRoot",
-      "instanceDir": "3d-skin",
+      "instanceDir": "3d-skin/CustomAnim",
       "instanceLevel": false,
       "preview": "thumbnail",
       "detector": "zipentry",
@@ -373,7 +374,7 @@
       ],
       "storageSubDir": "CustomMorph",
       "configField": "MmdRoot",
-      "instanceDir": "CustomMorph",
+      "instanceDir": "3d-skin/CustomMorph",
       "instanceLevel": false,
       "preview": "thumbnail",
       "detector": "zipentry",
@@ -413,18 +414,6 @@
         {
           "name": ".vmd",
           "match": "suffix"
-        },
-        {
-          "name": ".mp3",
-          "match": "suffix"
-        },
-        {
-          "name": ".ogg",
-          "match": "suffix"
-        },
-        {
-          "name": ".wav",
-          "match": "suffix"
         }
       ],
       "isDir": true,
@@ -448,7 +437,7 @@
       ],
       "storageSubDir": "shader",
       "configField": "MmdRoot",
-      "instanceDir": "shader",
+      "instanceDir": "3d-skin/shader",
       "instanceLevel": false,
       "preview": "none",
       "detector": "zipentry",
@@ -477,7 +466,7 @@
       ],
       "storageSubDir": "DefaultAnim",
       "configField": "MmdRoot",
-      "instanceDir": "3d-skin",
+      "instanceDir": "3d-skin/DefaultAnim",
       "instanceLevel": false,
       "preview": "thumbnail",
       "detector": "zipentry",
@@ -506,7 +495,7 @@
       ],
       "storageSubDir": "DefaultMorph",
       "configField": "MmdRoot",
-      "instanceDir": "3d-skin",
+      "instanceDir": "3d-skin/DefaultMorph",
       "instanceLevel": false,
       "preview": "thumbnail",
       "detector": "zipentry",
@@ -534,7 +523,7 @@
       ],
       "storageSubDir": "FBX",
       "configField": "MmdRoot",
-      "instanceDir": "CustomAnim",
+      "instanceDir": "3d-skin/CustomAnim",
       "instanceLevel": false,
       "preview": "3d",
       "detector": "extension",

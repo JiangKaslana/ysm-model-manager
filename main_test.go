@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func TestCustomJSMiddleware(t *testing.T) {
@@ -51,4 +53,18 @@ func TestCustomJSMiddleware(t *testing.T) {
 			t.Error("下游 handler 应被调用")
 		}
 	})
+}
+
+func TestMainWindowUsesFirstPaintBackground(t *testing.T) {
+	options := mainWindowOptions()
+	want := application.NewRGB(17, 17, 27)
+	if options.BackgroundColour != want {
+		t.Fatalf("startup background = %#v, want %#v", options.BackgroundColour, want)
+	}
+}
+
+func TestMainWindowStaysHiddenUntilFrontendIsReady(t *testing.T) {
+	if !mainWindowOptions().Hidden {
+		t.Fatal("main window must start hidden so the pre-rendered shell is never visible")
+	}
 }

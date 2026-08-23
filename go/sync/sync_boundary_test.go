@@ -717,7 +717,7 @@ func TestSyncToggleStatus_EnableTargetExistsSkipped(t *testing.T) {
 // 十三、SyncToggleStatus 禁用分支「存在即跳过」
 // =====================================================================
 
-// TestSyncToggleStatus_DisableTargetExistsSkipped 禁用分支：文件需禁用但 .ban 已存在 → 跳过
+// TestSyncToggleStatus_DisableTargetExistsSkipped 禁用分支：文件需禁用但 .disabled 已存在 → 跳过
 func TestSyncToggleStatus_DisableTargetExistsSkipped(t *testing.T) {
 	base := t.TempDir()
 	repoDir := filepath.Join(base, "repo")
@@ -726,10 +726,10 @@ func TestSyncToggleStatus_DisableTargetExistsSkipped(t *testing.T) {
 	_ = os.MkdirAll(customDir, 0755)
 
 	// repo: model_a.ban → custom 的 model_a.ysm 应禁用，
-	// 但 custom 同时已有 model_a.ysm.ban → 跳过
+	// 但 custom 同时已有 model_a.ysm.disabled → 跳过
 	_ = os.WriteFile(filepath.Join(repoDir, "model_a.ysm.ban"), []byte("repo"), 0644)
 	_ = os.WriteFile(filepath.Join(customDir, "model_a.ysm"), []byte("active"), 0644)
-	_ = os.WriteFile(filepath.Join(customDir, "model_a.ysm.ban"), []byte("existing-ban"), 0644)
+	_ = os.WriteFile(filepath.Join(customDir, "model_a.ysm.disabled"), []byte("existing-disabled"), 0644)
 
 	scanFn := func(dir string) []types.ModelEntry {
 		return []types.ModelEntry{
@@ -742,7 +742,7 @@ func TestSyncToggleStatus_DisableTargetExistsSkipped(t *testing.T) {
 		t.Fatalf("不应报错: %v", err)
 	}
 	if disable != 0 {
-		t.Errorf("禁用应 = 0（.ban 已存在跳过），实际 %d", disable)
+		t.Errorf("禁用应 = 0（.disabled 已存在跳过），实际 %d", disable)
 	}
 	if enable != 0 {
 		t.Errorf("启用应 = 0，实际 %d", enable)

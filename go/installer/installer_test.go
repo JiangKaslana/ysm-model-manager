@@ -82,6 +82,50 @@ func TestInstall_Hardlink(t *testing.T) {
 	}
 }
 
+// TestInstall_NonYSMFile_PerTypeRepoRoot 回归测试：修复 InstallModelTo 仓库根写死 a.ysmRoot()
+// 前，非 YSM 单文件（.vrm/.vmd/.nbt/...）因不在 ysmRoot 内被 IsInside 守卫拦下、永远进不了硬链接分支。
+// 现 installer.Install 收 filesRoot=对应类型仓库根，应通过守卫并成功硬链接。
+func TestInstall_NonYSMFile_PerTypeRepoRoot(t *testing.T) {
+	cases := []string{".vrm", ".vmd", ".nbt", ".zip"}
+	for _, ext := range cases {
+		t.Run(ext, func(t *testing.T) {
+			// 该类型专属仓库根（模拟 GetRepoRoot(rtype) 返回，非 ysmRoot）
+			repoRoot := t.TempDir()
+			mcRoot := t.TempDir()
+			mcDir := filepath.Join(mcRoot, ".minecraft")
+			if err := os.MkdirAll(mcDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+			customDir := filepath.Join(mcDir, "versions", "1.20.1-Fabric", "config", "yes_steve_model", "custom")
+			if err := os.MkdirAll(customDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+			src := filepath.Join(repoRoot, "resource"+ext)
+			if err := os.WriteFile(src, []byte("payload"), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// 关键断言：用该类型仓库根作为 filesRoot 安装，应通过 IsInside 守卫（不再报 ErrInvalidPath）
+			// 并成功建立硬链接（验证硬链接分支被命中）
+			if err := Install(src, customDir, repoRoot, "hardlink"); err != nil {
+				t.Fatalf("Install(%s, hardlink) = %v", ext, err)
+			}
+			dst := filepath.Join(customDir, filepath.Base(src))
+			si, err := os.Stat(src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			di, err := os.Stat(dst)
+			if err != nil {
+				t.Fatalf("%s 硬链接目标未创建", ext)
+			}
+			if !os.SameFile(si, di) {
+				t.Fatalf("%s 目标不是指向源文件的硬链接（硬链接分支未命中）", ext)
+			}
+		})
+	}
+}
+
 func TestInstall_Symlink(t *testing.T) {
 	repo, custom, _, src := setupTestDirs(t)
 

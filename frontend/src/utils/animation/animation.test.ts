@@ -6,6 +6,7 @@ import {
   evaluateKeyframes,
   parseBedrockAnimationJSON,
   evaluateClip,
+  ysmAnimClipLabels,
 } from "./animation.ts";
 import type { Keyframe, AnimationClip } from "./animation.ts";
 
@@ -277,7 +278,80 @@ describe("evaluateClip 变换传播", () => {
     expect(res.errors).toEqual([]);
     const clip = res.clips[0];
     const kf = clip!.bones.b!.position![0];
-    expect(kf.post).toEqual([0, 2, 3]); // Infinity 轴 → 0 占位
+    // L4：1e999 → Infinity 非合法数字，parseAxisItem 守卫将其置 0
+    expect(kf.post).toEqual([0, 2, 3]);
     expect(kf.post.every((n) => Number.isFinite(n))).toBe(true);
+  });
+});
+
+describe("ysmAnimClipLabels 标签策略（L3 全 clip 列表）", () => {
+  function clipOf(name: string): AnimationClip {
+    return { name, loop: true, length: 1, bones: {} };
+  }
+
+  it("单 clip 保持文件名口径（回归保护：不改动现有展示）", () => {
+    expect(ysmAnimClipLabels("run", [clipOf("animation.model.run")])).toEqual(["run"]);
+  });
+
+  it("多 clip 以「文件名 · clip 名」区分", () => {
+    expect(ysmAnimClipLabels("player", [clipOf("idle"), clipOf("walk")])).toEqual([
+      "player · idle",
+      "player · walk",
+    ]);
+  });
+
+  it("多 clip 中无名 clip 用序号兜底", () => {
+    expect(ysmAnimClipLabels("misc", [clipOf(""), clipOf("jump")])).toEqual([
+      "misc · #1",
+      "misc · jump",
+    ]);
+  });
+});
+
+describe("Molang 关键帧求值（ADR-100 L4）", () => {
+  function parseOne(bones: unknown): AnimationClip {
+    const res = parseBedrockAnimationJSON(
+      JSON.stringify({ animations: { x: { animation_length: 1, loop: true, bones } } }),
+    );
+    expect(res.errors).toEqual([]);
+    expect(res.clips).toHaveLength(1);
+    return res.clips[0];
+  }
+
+  it("标量 Molang 帧：按 anim_time 求值（三轴同式）", () => {
+    const clip = parseOne({ b: { rotation: { "0": "query.anim_time * 90" } } });
+    expect(clip.hasMolang).toBe(true);
+    expect(evaluateKeyframes(clip.bones.b!.rotation!, 0.5)).toEqual([45, 45, 45]);
+    expect(evaluateKeyframes(clip.bones.b!.rotation!, 1)).toEqual([90, 90, 90]);
+  });
+
+  it("逐轴混合数组：Molang 轴 + 数字轴各归各位", () => {
+    const clip = parseOne({ b: { position: { "0": ["query.anim_time * 2", 3, 0] } } });
+    expect(evaluateKeyframes(clip.bones.b!.position!, 1)).toEqual([2, 3, 0]);
+  });
+
+  it("对象形态 pre/post 的 Molang 帧", () => {
+    const clip = parseOne({
+      b: { position: { "0": { post: "query.anim_time * 4", pre: 0, lerp_mode: "linear" } } },
+    });
+    expect(evaluateKeyframes(clip.bones.b!.position!, 0.5)).toEqual([2, 2, 2]);
+  });
+
+  it("Molang 端点与数字端点之间的线性插值（端点先求值再 lerp）", () => {
+    const clip = parseOne({
+      b: { position: { "0": "query.anim_time * 10", "1": [20, 5, 5] } },
+    });
+    // t=0.5：帧0 molang 求值=[5,5,5]，帧1=[20,5,5]，线性中点=[12.5,5,5]
+    expect(evaluateKeyframes(clip.bones.b!.position!, 0.5)).toEqual([12.5, 5, 5]);
+  });
+
+  it("非法 Molang 编译失败 → 零占位保留帧，解析不抛错", () => {
+    const clip = parseOne({ b: { rotation: { "0": "(((" } } });
+    expect(clip.bones.b!.rotation![0].post).toEqual([0, 0, 0]);
+  });
+
+  it("可折叠常量优先于 Molang 编译（回归保护）", () => {
+    const clip = parseOne({ b: { rotation: { "0": "q.life_time * 0 + 30" } } });
+    expect(evaluateKeyframes(clip.bones.b!.rotation!, 0.5)).toEqual([30, 30, 30]);
   });
 });

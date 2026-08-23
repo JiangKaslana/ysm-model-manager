@@ -116,8 +116,8 @@ YSM L1 只有 1 个 clip，`clips.length === 1`，下拉框不渲染（与 MMD �
 - **名称匹配局限**：`.animation.json` 的骨骼名必须与 `spec.bones[].name` 完全一致，大小写敏感。不匹配的骨骼静默跳过（不报错）
 - **Group vs Bone**：YSM 骨骼是 `THREE.Group` 层级树（`mesh.ts` 构建），非 `THREE.Bone`。播放器操作 `Object3D.position/quaternion/scale`，不涉及 SkinnedMesh 骨骼蒙皮——静态网格随 Group 变换整体移动，无蒙皮变形效果。对于方块人模型足够，但对精细模型（如有弯折手臂）动画可能看起来僵硬
 - **语义骨骼命中率依赖作者命名**：YSM 无标准命名规范，`YSM_SEMANTIC_CANDIDATES` 覆盖 Blockbench/MC 常见导出名，但自由命名模型命中率低。感知层（呼吸/眨眼）优雅降级（缺省骨骼静默跳过），不影响渲染
-- **多 clip 只取每文件首 clip**：`.animation.json` 可含多个 clip，当前只取 `clips[0]`。若模型有多个动作定义在同一文件，后续 clip 被忽略
-- **切 clip 首帧旋转跳变**：`selectClip` 时 `restQuaternions.clear()` 导致首帧从 rest→目标直接跳变（非平滑过渡）。当前可接受（动画切换本就是离散事件），若需平滑可加过渡帧
+- ~~**多 clip 只取每文件首 clip**~~ → **L3 已修复（2026-08-21）**：同一 `.animation.json` 内全部 clip 收录，标签策略 `ysmAnimClipLabels`（单 clip 保持文件名口径；多 clip 以「文件名 · clip 名」区分）
+- ~~**切 clip 首帧旋转跳变**~~ → **L3 已修复（2026-08-21）**：三通道（rotation/position/scale）统一 alpha 累加混合模型——`selectClip` 清空混合状态，下一帧从**当前姿态**重新采集 rest 淡入新 clip（对齐 YSMViewer「从不硬切」口径）；构造期捕获 base 姿态，新 clip 未触及的骨骼渐回 base（停播骨骼渐回零位，YSMViewer Aura3DRenderer 同款收尾）
 
 ### 已知遗留
 
@@ -139,6 +139,54 @@ YSM L1 只有 1 个 clip，`clips.length === 1`，下拉框不渲染（与 MMD �
 | 4 | `frontend/src/views/app-preview/ysm-3d.ts` | 注入 `listAllFilePaths` + `readTextFile` 端口 | ✅ |
 | 5 | `frontend/src/utils/3d/semantic-bones.ts` | 新增 `YSM_SEMANTIC_CANDIDATES` + `ysmSemanticBoneMap` | ✅ L2 (4d92eac9) |
 | 6 | ADR-100 本文档 | 决策记录 | ✅ |
+| 7 | L3 平滑过渡：`ysm-animation-player.ts` 三通道 alpha 混合 + base 姿态回落；`animation.ts` 新增 `ysmAnimClipLabels`；`ysm-adapter.ts` 全 clip 收录 | 切 clip 淡入 + 未触及骨骼渐回 + 多 clip 列表 | ✅ (2026-08-21) |
+| 8 | L4 Molang 求值器：`molang.ts`（内嵌 molangjs 源码 MIT）+ `animation.ts` postMolang/preMolang + evaluateKeyframes 求值贯通 | 表达式关键帧真动起来 | ✅ (2026-08-22) |
+| 9 | L4 欧拉序修复：`ysm-animation-player.ts:113` XYZ→ZYX | 修复三轴非零旋转骨骼动画"乱飞" | ✅ (2026-08-22) |
+
+---
+
+## 3b. L4 扩展：Molang 求值器 + 欧拉序修复（2026-08-22）
+
+### 3b.1 Molang 表达式关键帧（L4a）
+
+**问题**：`.animation.json` 中的字符串轴（如 `"rotation": { "0": "query.anim_time * 90" }`）
+在 `parseBedrockAnimationJSON` 中标记 `hasMolang=true`，但 `evaluateKeyframes` 对字符串值走
+`Number(item)` 路径得到 NaN 后整帧丢弃——Molang 表达式形同虚设。
+
+**决策**：**源码内嵌 `molangjs`**（MIT，Blockbench 官方依赖 ^1.7.0），避开上游 npm 包
+`"type":"module"` + CJS dist 混用的打包 bug（Node 层报 `module is not defined`）。
+不引入 npm 依赖，保留 MIT 版权声明，就地 import `./molang-lib/molang.js`。
+
+**设计要点**：
+- 单例 parser，`cache_enabled` 默认开（400 条 LRU），表达式编译一次运行期纯求值
+- `variableHandler = () => 0`：mod 扩展查询（ysm.*/按键/药效）在预览器无宿主语境时优雅降级
+- `use_radians = false`（默认）：三角函数按角度制，Bedrock 格式约定
+- `compileMolang(expr)` 返回 `(animTime) => number`；编译失败/非法/空串 → null，调用方走零占位
+- `Infinity/NaN` 守卫：编译成功但运行时产生 Infinity（如 `"1e999"`）→ 零占位
+
+### 3b.2 欧拉序修复（L4b）
+
+**问题**：`ysm-animation-player.ts:113` 用 `Euler(rx,ry,rz,'XYZ')` 构造目标四元数，
+而 `quaternion.ts`（spec 渲染层）和 Go `eulerToQuaternion` 早已是 **ZYX** 口径
+（ADR-042 §2.1 裁决），导致三轴非零旋转骨骼在动画播放时姿态错乱——俗称"角色乱飞"。
+
+**修复**：`Euler(rz,ry,rx,'ZYX')`，与 Blockbench `bedrock.js L648-882` 对齐。
+spec 渲染层无需改动（已正确），仅播放器路径滞后；修复后静态渲染与动态播放口径统一。
+
+### 3b.3 文件清单（L4）
+
+| 文件 | 说明 |
+|------|------|
+| `frontend/src/utils/animation/molang.ts` | Molang 求值器封装 |
+| `frontend/src/utils/animation/molang.test.ts` | 7 项测试 |
+| `frontend/src/utils/animation/molang-lib/*` | 内嵌 molangjs 源码（MIT） |
+| `frontend/src/utils/animation/animation.ts` | Keyframe postMolang/preMolang、parseAxisItem、resolveFramePost |
+| `frontend/src/utils/animation/animation.test.ts` | +6 项 Molang 关键帧测试 |
+| `frontend/src/utils/3d/ysm-animation-player.ts` | XYZ→ZYX 欧拉序修复 |
+| `frontend/src/utils/3d/ysm-animation-player.test.ts` | ZYX 证伪测试（与 XYZ 差角 >0.5 rad） |
+| `frontend/src/utils/3d/spec-builder.test.ts` | 修正 combo 旋转测试期望值（对齐 ZYX 实测输出） |
+| `frontend/test-setup.ts` | TextDecoder 兜底（happy-dom 不提供） |
+| `docs/knowledge/animation-system.md` | "求值链路休眠"过时表述更正 |
 
 ---
 

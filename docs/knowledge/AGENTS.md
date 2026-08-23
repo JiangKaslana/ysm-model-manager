@@ -34,7 +34,7 @@ use_when:                    # 用户自然语言关键词
 
 ### 查询
 
-1. 用户提问 → 查 `index.md` 枢纽索引定位知识卡
+1. 用户提问 → 查 `routes-quick.md`（AI 第一站）→ `routes.md`（意图路由表，自动生成）兜底命中首选知识卡
 2. 打开对应 `kind.md` 获取上下文
 3. 需要源码细节 → 按 `source_files` 路径跳转
 
@@ -80,7 +80,7 @@ node scripts/check-knowledge-drift.mjs --affected <f>…  # 主动：源码变�
 - 逃生阀：`YSM_SKIP_KNOWLEDGE_HINT=1 git commit`
 - 设计取舍：放在 `prepare-commit-msg` 而非 `pre-push`——push 处于流程末端、阻断体验差、diff 范围过大（整分支累积），不适合做 advisory
 
-**索引/生成物同步（pre-commit）**：`.githooks/pre-commit` 在 commit 时自动跑秒级 gen（含 `gen-knowledge-index` / `gen-knowledge-h1/symbols/adr/tests`）并 `git add docs/`，失败仅提示不阻断；逃生阀 `YSM_SKIP_GEN=1`。知识卡 index/字段同步无需手动跑。
+**索引/生成物同步（pre-commit）**：`.githooks/pre-commit` 在 commit 时自动跑秒级 gen（清单以 `GEN_CMDS` 为准）并以 mtime/size 快照 diff 只 stage 本次 gen 实际 touch 的文件，不再无差别 `git add docs/`；失败仅提示不阻断；逃生阀 `YSM_SKIP_GEN=1`。知识卡 index/字段同步无需手动跑。
 
 
 ## 分类映射
@@ -108,6 +108,9 @@ node scripts/check-knowledge-drift.mjs --affected <f>…  # 主动：源码变�
 | 脚本 | 用途 |
 |------|------|
 | `scripts/_lib/frontmatter.mjs` | frontmatter 解析共享库 |
+| `scripts/_lib/knowledge-cards.mjs` | 知识卡常量共享层（KNOWLEDGE_ORDER / CATEGORY_LABELS / NON_CARDS） |
 | `scripts/gen-knowledge-index.mjs` | 按分类生成 `index.md` |
+| `scripts/gen-routes.mjs` | AI 意图路由表自动生成（`routes.md`） |
+| `scripts/gen-routes-quick.mjs` | AI 高频路由表自动生成（`routes-quick.md`，第一站） |
 | `scripts/check-knowledge-drift.mjs` | 知识卡漂移检查（ERROR/WARN） |
 | `scripts/new-knowledge-card.mjs` | 卡片模板生成器 |

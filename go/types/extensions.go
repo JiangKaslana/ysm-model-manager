@@ -7,6 +7,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"ysm-model-manager/go/container"
 )
 
 // ===== 已移除壳-叶架构（ADR-XXX 大统一）=====
@@ -93,14 +95,36 @@ func IsYsmEntryJSON(baseName string) bool {
 	return strings.EqualFold(strings.TrimSpace(baseName), "ysm.json")
 }
 
-// StripBanSuffix 剥离 .ban 禁用后缀（大小写不敏感）。
-// 单一事实来源——sync/scanner/ysm/installer 的 .ban 剥离均委托本函数，
-// 防多处内联 `name[:len(name)-4]` 口径漂移。
-func StripBanSuffix(name string) string {
-	if strings.HasSuffix(strings.ToLower(name), ".ban") {
-		return name[:len(name)-4]
+// DisableSuffixes 禁用后缀列表（新标准 .disabled 在前，历史 .ban 兼容在后）。
+var DisableSuffixes = []string{".disabled", ".ban"}
+
+// StripDisableSuffix 剥离禁用后缀（大小写不敏感，依次尝试 .disabled/.ban）。
+// 单一事实来源——sync/scanner/ysm/installer/fileops 的禁用后缀剥离均委托本函数，
+// 防多处内联 `name[:len(name)-N]` 口径漂移。
+func StripDisableSuffix(name string) string {
+	lower := strings.ToLower(name)
+	for _, sfx := range DisableSuffixes {
+		if strings.HasSuffix(lower, sfx) {
+			return name[:len(name)-len(sfx)]
+		}
 	}
 	return name
+}
+
+// StripBanSuffix 保留向后兼容——内部委托 StripDisableSuffix。
+func StripBanSuffix(name string) string {
+	return StripDisableSuffix(name)
+}
+
+// IsDisableSuffix 判断文件名是否带禁用后缀（.disabled/.ban，大小写不敏感）。
+func IsDisableSuffix(name string) bool {
+	lower := strings.ToLower(name)
+	for _, sfx := range DisableSuffixes {
+		if strings.HasSuffix(lower, sfx) {
+			return true
+		}
+	}
+	return false
 }
 
 // NormalizeResourceName 归一化资源文件名用于同步匹配（ADR-064 收敛）：
@@ -138,7 +162,10 @@ func IsResourceAllowed(name string) bool {
 // 与 isModelFile 严格语义一致；extMatch 的空集放行分支在 BuildSyncItems 中
 // 不会触发——未知类型早被 SubDirMap 空拦截跳过）。
 func IsTypeModelFile(name, rtype string) bool {
-	base := NormalizeResourceName(name)
+	// filepath.Base 兼容裸名与完整路径调用（code review P1：4 个调用点已改传完整
+	// 路径——裸名精确判断（ysm.json 特判/ext）对完整路径失效会误判）；zip 分支
+	// 用原始 name 开文件（见下），不受 base 取 Base 影响
+	base := NormalizeResourceName(filepath.Base(name))
 	// ysm.json 特判（.json 扩展名在注册表中但只有 ysm.json 算模型文件）：
 	// 仅当该类型扩展集含 .json（ysm）时放行——resourcepack/shaderpack 扩展集
 	// 只有 .zip，整合包目录散落的 ysm.json 不得作为其独立同步条目（P3 修复：
@@ -152,8 +179,17 @@ func IsTypeModelFile(name, rtype string) bool {
 		return false
 	}
 	ext := strings.ToLower(filepath.Ext(base))
+	rt := RegistryType(rtype)
 	for _, e := range SupportedExtsForType(rtype) {
 		if ext == strings.ToLower(e) && !strings.EqualFold(e, ".json") {
+			// zipentry 检测器类型：.zip 是「装模型的容器」而非模型实体，
+			// 必须枚举 zip 内含条目、命中本类型 zipEntries 指纹才算模型
+			// （与 packs.DetectResourceType 的 case "zipentry" 语义对齐）。
+			// 否则任何 .zip（坏包/纯打包物）会被同步推送/拉取链路误判为
+			// 顶层模型文件搬运——ADR 收敛：不为文件操作放粗放判定。
+			if strings.EqualFold(e, ".zip") && rt != nil && rt.Detector == "zipentry" {
+				return container.ZipMatchesEntries(name, rt.MatchZipEntry)
+			}
 			return true
 		}
 	}

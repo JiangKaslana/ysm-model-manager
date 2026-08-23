@@ -11,6 +11,7 @@ import { can } from "../../utils/dom/capabilities.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
 import { flashBtn } from "../../utils/dom/feedback.ts";
 import { rememberModelPath } from "../app-content/init-pages.ts";
+import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 
 const ENABLE_MULTI_SELECT = true;
 
@@ -348,6 +349,8 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
         y: e.clientY,
         type: "dir",
         dir: fh.dataset.dir,
+        // 右键移动/复制跟随当前树类型（resolveDstDir 按 rtype 路由，code review P3）
+        rtype: vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM,
       });
       return;
     }
@@ -378,6 +381,7 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
           type: "batch",
           count: selectedPaths.length,
           paths: selectedPaths,
+          rtype: vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM,
         });
         return;
       }
@@ -391,6 +395,7 @@ export function bindTreeEvents(container: HTMLElement, vm: AppTree): void {
         path: fullPath || "",
         banned,
         name,
+        rtype: vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM,
       });
     }
   });

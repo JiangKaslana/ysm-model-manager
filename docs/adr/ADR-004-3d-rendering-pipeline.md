@@ -1,6 +1,6 @@
 # ADR-004：3D 骨骼渲染管线与坐标系决策
 
-- **状态**：🔄 部分采纳（§2.1 渲染管线单一事实来源仍有效；§2.2/§2.3 被 ADR-041 取代）
+- **状态**：✅ 已采纳（§2.1 渲染管线单一事实来源仍有效；§2.2/§2.3 被 ADR-041 取代，非未偿还债）
 - **被取代**：[ADR-041] 取代 §2.2（X 轴不取反 → 翻转）/ §2.3（三轴取反 → Z 不取反），以 C# ThreeJsPayloadBuilder 源码级对比（tests/port-verification 归零）为证
 - **日期**：2026-08-03（初定，决策时间线 v1.5.1 → v1.8.7）
 - **决策人**：Jieling（人类首席架构师）、DeepSeek V4 Pro / V4 Flash、Qwen3.7 Plus、GLM-5.1
@@ -68,17 +68,46 @@ eulerToQuaternion(-rx, -ry, -rz)  // 三轴取反
 
 ### 2.4 纹理排序：按 ysm.json 声明顺序，不按 PNG 尺寸
 
-**决策**：纹理索引按 `ysm.json` 中 `files.player.model[]` 的声明顺序分配，
-不按 PNG 文件名或尺寸排序。
+**决策**：纹理索引按 `ysm.json` 中 `files` 段的声明顺序分配，
+不按 PNG 文件名或尺寸排序。`files` 段有 4 种声明位置：
+
+| 段 | 形态 | 语义 |
+|----|------|------|
+| `player` | dict | 主体模型（main/arm）+ 可切换皮肤集 |
+| `projectiles` | dict/list | 投射物（arrow/trident）+ 独立纹理 |
+| `vehicles` | dict/list | 载具/坐骑（boat/foxcar/minecart/horse）+ 独立纹理 |
+| `arrow` | dict | 单实体直接声明（`{model, texture}`） |
+
+`projectiles`/`vehicles` 支持 dict（`minecraft:arrow`→config）与
+list（`[config,...]`）双形态——先试 `[]struct`（list），失败再试
+`map[string]struct`（dict）。`arrow` 段是单实体直接声明，按 dict 路径处理。
+纹理 basename 追加到 `texOrder`，模型路径追加到 `modelOrder`，
+让 `texIdxMap` 反推自动覆盖投射物/载具，不再需要"arrow 排序第一"特例排除。
+
+**texSlot 分配**：`texIdxMap` 构建时优先按模型声明的纹理名查 `texOrder`
+位置分配 texSlot；查不到再按 modelOrder 序号兜底（含截断到 texCount-1）。
+旧逻辑按 modelOrder 序号分配，17_mini 的 plane.json（声明 texture.png，
+跟 main 共用）orderIdx=2 被截断到 slot=1（arrow.png），导致 plane
+渲染时用了 arrow 的纹理——"位置对了但贴图怪怪的"。新逻辑让 plane.json
+按声明的 texture.png 查到 slot=0，跟 main 共用同一张纹理。
 
 | 路径 | 实现 | 状态 |
 |------|------|------|
-| ZIP | `archive.go` 解析 `model[]` → `texIdxMap` → `Cube2D.TexSlot` → `MeshData.TexIdx` | ✅ |
+| ZIP | `archive.go` 解析 `player` + `projectiles` + `vehicles` + `arrow` → `texIdxMap` → `Cube2D.TexSlot` → `MeshData.TexIdx` | ✅ |
 | 7z/extracted | 同逻辑 | ⚠️ 较弱（7z 不读 ysm.json） |
 | CLI fallback | 不设 TexSlot | ⚠️ 已知限制 |
 | WASM | `preview-wasm.js` 按 `ysmTexOrder` 排序 | ✅ |
 
 **回退尝试**：曾按 PNG 尺寸排序纹理，但纹理顺序应遵循模型声明，非文件名猜测。
+也曾只读 `files.player.texture[]` 不读 `files.projectiles[]`，导致投射物
+纹理没进 `texOrder`、TexSlot 靠 .json 文件序反推、arrow 排序第一时抢主体
+纹理槽位——2026-08-22 修复，补 `projectiles[]`/`vehicles[]`/`arrow` 到
+`texOrder`/`modelOrder`，支持 dict/list 双形态。
+
+**texOrder 去重**：`vehicles` 段多个实体可指向同一模型+纹理（如 horse 和 mule
+都指向 foxcar.json + foxcar.png）。旧逻辑重复追加 foxcar 到 texOrder，导致
+后续纹理 texSlot 偏移一位——minecart 从 slot=5 偏移到 slot=6，采样到 boat.png，
+显示橙色（木色调）而非灰色。2026-08-22 修复，texOrder append 前线性去重。
 
 ### 2.5 Mesh 合并策略：按 (boneId, texIdx, rotation) 分组
 

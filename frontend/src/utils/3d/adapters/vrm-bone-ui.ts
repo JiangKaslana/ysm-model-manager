@@ -154,6 +154,6 @@ export function makeBonePanelRenderer(tree: BoneTree | null): RenderVrmBonePanel
  * 用法：vrm-adapter 的 buildVrmScene 把本函数的返回值挂到 PreviewScene.extraPanel。
  * 内部 lazy 构建骨骼树（VRM 加载完成后才有 humanoid），拾取联动挂载在 viewContainer click。
  */
-export function makeVrmBonePanelRenderer(vrm: VRM): RenderVrmBonePanel {
+function makeVrmBonePanelRenderer(vrm: VRM): RenderVrmBonePanel {
   return makeBonePanelRenderer(buildVrmBoneTree(vrm));
 }

@@ -136,4 +136,67 @@ describe("loadInstances", () => {
     expect(result[2].status).toBe("missing");
     expect(result[2].missing).toBe(1);
   });
+
+  it("并发同 rtype → 在途去重：只发一次状态请求（空 rtype 归一到 ysm 同键）", async () => {
+    const { LoadAppConfig, ListVersionInstances, GetResourceInstanceStatus, GetRepoRoot } = mockBindings();
+    LoadAppConfig.mockResolvedValue({ mcRoot: "/mc" });
+    ListVersionInstances.mockResolvedValue([{ Name: "A", VersionDir: "/v/a", Exists: true }]);
+    GetRepoRoot.mockResolvedValue("/repo");
+    // 挂起状态请求制造在途窗口；resolvers 收集全部请求的放行器
+    const resolvers: Array<() => void> = [];
+    GetResourceInstanceStatus.mockImplementation(
+      () => new Promise((resolve) => { resolvers.push(() => resolve([])); }),
+    );
+    const p1 = loadInstances("ysm");
+    const p2 = loadInstances("ysm");
+    const p3 = loadInstances(""); // 空 rtype 回退 ysm → 与 p1/p2 同键合并（入口同步判定）
+    // 等首个请求真正到达状态接口（loadInstances 前置还有数步 await）
+    await vi.waitFor(() => {
+      expect(GetResourceInstanceStatus).toHaveBeenCalled();
+    });
+    resolvers.forEach((r) => r());
+    const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+    expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(1);
+    expect(r1.map((i) => i.name)).toEqual(["A"]);
+    expect(r2).toEqual(r1); // 等待方共享同一结果
+    expect(r3).toEqual(r1);
+  });
+
+  it("完成后同 rtype 再次请求 → 重新发起（在途表清理，不陈旧共享）", async () => {
+    const { LoadAppConfig, ListVersionInstances, GetResourceInstanceStatus, GetRepoRoot } = mockBindings();
+    LoadAppConfig.mockResolvedValue({ mcRoot: "/mc" });
+    ListVersionInstances.mockResolvedValue([{ Name: "A", VersionDir: "/v/a", Exists: true }]);
+    GetRepoRoot.mockResolvedValue("/repo");
+    GetResourceInstanceStatus.mockResolvedValue([]);
+    await loadInstances("ysm");
+    await loadInstances("ysm");
+    expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it("变异后刷新 force=true → 绕过在途去重，重新发起请求（sync/导入完成场景）", async () => {
+    const { LoadAppConfig, ListVersionInstances, GetResourceInstanceStatus, GetRepoRoot } = mockBindings();
+    LoadAppConfig.mockResolvedValue({ mcRoot: "/mc" });
+    ListVersionInstances.mockResolvedValue([{ Name: "A", VersionDir: "/v/a", Exists: true }]);
+    GetRepoRoot.mockResolvedValue("/repo");
+    // 首次请求挂起（变异前的在途读请求）
+    const resolvers: Array<() => void> = [];
+    GetResourceInstanceStatus.mockImplementation(
+      () => new Promise((resolve) => { resolvers.push(() => resolve([])); }),
+    );
+    const p1 = loadInstances("ysm");
+    await vi.waitFor(() => {
+      expect(GetResourceInstanceStatus).toHaveBeenCalled();
+    });
+    // 变异完成触发的刷新：force=true 不得并入 p1，必须新发请求拿最新数据
+    const p2 = loadInstances("ysm", { force: true });
+    await vi.waitFor(() => {
+      expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(2);
+    });
+    // force 请求仍在途时，普通读请求恢复去重 → 并入 p2（force 只对变异刷新生效）
+    const p3 = loadInstances("ysm");
+    expect(p3).toBe(p2);
+    resolvers.forEach((r) => r());
+    await Promise.all([p1, p2]);
+    expect(GetResourceInstanceStatus).toHaveBeenCalledTimes(2);
+  });
 });

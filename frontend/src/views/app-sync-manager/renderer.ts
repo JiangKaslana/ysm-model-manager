@@ -134,7 +134,7 @@ async function renderList(self: SyncRenderSelf, listEl: HTMLElement): Promise<vo
   // 按路径天然层级展示（subdir 非空时提为顶层文件夹；文件夹=SyncItem 本身，
   // 展开后扫仓库子条目显示内部文件）。无仓库根时兜底走平铺。
   if (isDirLevelSync(self)) {
-    if (!self._repoRoots[self._selectedType]) {
+    if (!self._filesRoots[self._selectedType]) {
       listEl.innerHTML = self._filteredItems.map((it, i) => itemHTML(it, i)).join("");
     } else {
       listEl.innerHTML = await renderSyncTree(self, self._filteredItems);

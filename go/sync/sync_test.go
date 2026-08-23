@@ -616,11 +616,11 @@ func TestSyncToggleStatus_EnableDisable(t *testing.T) {
 		t.Errorf("应启用 1 个（model_b），实际 %d", enable)
 	}
 	// 验证文件状态
-	if _, err := os.Stat(filepath.Join(customDir, "model_a.ysm.ban")); os.IsNotExist(err) {
-		t.Error("model_a 应已被禁（.ban）")
+	if _, err := os.Stat(filepath.Join(customDir, "model_a.ysm.disabled")); os.IsNotExist(err) {
+		t.Error("model_a 应已被禁（.disabled）")
 	}
 	if _, err := os.Stat(filepath.Join(customDir, "model_b.ysm")); os.IsNotExist(err) {
-		t.Error("model_b 应已被启用（去掉 .ban）")
+		t.Error("model_b 应已被启用（去掉禁用后缀）")
 	}
 }
 

@@ -242,8 +242,8 @@ func MoveModelFile(root, src, dstDir string) error {
 	}
 	if err := renameForMove(src, dst); err != nil {
 		// 跨设备/跨卷移动：os.Rename 返回 EXDEV，回退到复制+删除源。
-		// .ban 禁用态是文件名重命名约定（ToggleModelEnable 把 path 重命名为
-		// path+".ban"），后缀随文件/目录名自然携带，无需额外处理兄弟文件
+		// 禁用态是文件名重命名约定（ToggleModelEnable 把 path 重命名为
+		// path+".disabled"），后缀随文件/目录名自然携带，无需额外处理兄弟文件
 		if !fsutil.IsCrossDeviceErr(err) {
 			return err
 		}
@@ -345,8 +345,8 @@ func CopyModelFile(root, src, dstDir string) error {
 	if err := copyFile(src, dst); err != nil {
 		return err
 	}
-	// .ban 禁用态是文件名重命名约定（ToggleModelEnable：path → path+".ban"），
-	// 后缀随文件/目录名自然携带——不再处理兄弟 `<src>.ban`（那属于撞名的
+	// 禁用态是文件名重命名约定（ToggleModelEnable：path → path+".disabled"），
+	// 后缀随文件/目录名自然携带——不再处理兄弟 `<src>.disabled`（那属于撞名的
 	// 无关被禁模型，复制/失败回滚均会误伤；与 MoveModelFile 语义对齐）
 	return nil
 }

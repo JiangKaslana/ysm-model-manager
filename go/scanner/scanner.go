@@ -43,6 +43,31 @@ type scanCacheEntry struct {
 	expiresAt time.Time
 }
 
+// ========== 在途合并（single-flight）==========
+// 背景（2026-08-21）：点击整合包时前端多组件并发请求实例状态，同目录扫描在途重叠——
+// 缓存「扫完才 Store」让重叠请求双双真扫（操作日志同秒出现两条相同目录记录）。
+// 同目录并发扫描共享一次 walk：首个请求注册航班走盘，后续请求等待并取克隆结果，
+// 返回 hit=true 让薄壳不重复记扫描日志（唯一真扫的 owner 返回 hit=false）。
+
+// inFlight 在途航班表：dir → *scanFlight
+var inFlight sync.Map
+
+// walkCount 真实走盘次数（诊断/测试用：验证在途合并与缓存效果）
+var walkCount atomic.Int64
+
+// flightJoins 并入在途航班的等待方计数（诊断/测试用）
+var flightJoins atomic.Int64
+
+// walkStartHook 走盘开始钩子（仅测试注入：制造确定性在途重叠；生产恒 nil）
+var walkStartHook func()
+
+type scanFlight struct {
+	wg         sync.WaitGroup
+	entries    []types.ModelEntry
+	gen        uint64 // owner 启动时捕获的 cacheGen（waiter 失效守卫比较用）
+	keyVersion uint64 // owner 启动时捕获的 per-key 版本
+}
+
 const scanCacheTTL = 30 * time.Second
 
 // configFunc 运行阈值配置注入（ADR-062：薄壳 internal/app 传入 AppConfig；
@@ -182,7 +207,9 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 	}
 	// 记录扫描开始时间（进入时），TTL 从此时刻算，不被扫描耗时侵蚀
 	startTime := time.Now()
+retry:
 	// 记录进入时代际：扫描期间若缓存被失效，Store 前比对并丢弃结果
+	// （retry 重来会重新捕获——失效后的等待方对齐「无航班」的 fresh 语义）
 	gen := cacheGen.Load()
 	// 记录进入时 per-key 版本——InvalidatePath 只递增本 key，
 	// Store 前比对 keyVersion 防止「刚失效又被本目录在途扫描重新 Store」
@@ -205,6 +232,49 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 		// 或 InvalidateCache 时被替换/清除，长期运行扫描过大量目录后过期 entry（各含
 		// 一整个 []ModelEntry）持续滞留，内存增长；Load 命中过期时顺手 Delete
 		scanCache.Delete(dir)
+	}
+	// 在途合并：同目录并发扫描共享一次 walk/Rust 扫描——首个调用方注册航班成为
+	// owner，后续调用方并入航班等待，取克隆结果且 hit=true（薄壳不重复记扫描日志）。
+	// 置于 Rust 快路径之前：Windows（Rust handled=true）下并发请求同样并入航班去重
+	// （code review P3：Rust 分支原先在 merge 之前，Windows 全量绕过单飞行去重）
+	fl := &scanFlight{gen: gen, keyVersion: keyVersion}
+	fl.wg.Add(1)
+	if prev, loaded := inFlight.LoadOrStore(dir, fl); loaded {
+		other := prev.(*scanFlight)
+		flightJoins.Add(1)
+		other.wg.Wait()
+		// 等待方失效守卫（与 owner Store 前同口径）：航班期间缓存被失效
+		// （InvalidateCache/InvalidatePath 在 import/enable/disable 完成时触发）时，
+		// 不得吞下失效前的旧扫描结果——重比版本，变了就 retry 重来
+		// （重新捕获版本 → 查缓存（已清）→ 注册新航班/自己走盘，对齐无航班行为）
+		// code review P3：比较 **flight 启动时** 版本（other.gen/other.keyVersion），
+		// 而非 waiter 自身进入时捕获的版本——waiter 在失效后加入时自身捕获已是最新，
+		// 与当前值恒等、守卫失效，会吞下 owner 失效前读到的旧扫描结果
+		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
+		if cacheGen.Load() == other.gen && kvNow.(*atomic.Uint64).Load() == other.keyVersion {
+			return append([]types.ModelEntry{}, other.entries...), true
+		}
+		goto retry
+	}
+	defer func() {
+		inFlight.Delete(dir)
+		fl.wg.Done()
+	}()
+	// Keep the public Go/Wails contract stable while production Windows builds progressively move
+	// scanner internals to Rust. Unsupported platforms or bridge failures use the proven Go path.
+	// owner 身份已定（waiter 已并入航班）——Rust 结果同样记录到航班供 waiter 取。
+	if rustEntries, cacheable, handled := scanEntriesWithRust(dir); handled {
+		stored := append([]types.ModelEntry(nil), rustEntries...)
+		kvNow, _ := keyVersions.LoadOrStore(dir, &atomic.Uint64{})
+		if cacheable && cacheGen.Load() == gen && kvNow.(*atomic.Uint64).Load() == keyVersion {
+			scanCache.Store(dir, scanCacheEntry{entries: stored, expiresAt: startTime.Add(scanTTL())})
+		}
+		fl.entries = stored
+		return rustEntries, false
+	}
+	walkCount.Add(1)
+	if walkStartHook != nil {
+		walkStartHook()
 	}
 	entries := []types.ModelEntry{}
 	// 根目录级 walk 失败标记——目录不存在/无权限时 WalkDir
@@ -234,11 +304,11 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 			if d.Name() == ".github" {
 				return filepath.SkipDir
 			}
-			// 目录级 .ban（fileops.ToggleModelEnable 对文件夹模型整组禁用时
-			// 把父目录改名 modelA.ban，ADR-038 D3.7）不得被扫描为活跃条目——
-			// 原实现只过滤文件级 .ban，目录级禁用模型会以活跃身份进入 sync 的
+			// 目录级禁用（fileops.ToggleModelEnable 对文件夹模型整组禁用时
+			// 把父目录改名 modelA.disabled / modelA.ban，ADR-038 D3.7）不得被扫描为活跃条目——
+			// 原实现只过滤文件级禁用，目录级禁用模型会以活跃身份进入 sync 的
 			// repoHash/repoName，被 GetInstanceStatus 列为 Missing 或 SyncToggleStatus 重新启用
-			if strings.HasSuffix(strings.ToLower(d.Name()), ".ban") {
+			if types.IsDisableSuffix(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -256,9 +326,7 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 		}
 		// .json 只允许 ysm.json（动作/动画文件不应单独扫描推送）
 		if originalExt == ".json" {
-			baseName := strings.ToLower(filepath.Base(p))
-			baseName = strings.TrimSuffix(baseName, ".ban")
-			baseName = strings.TrimSuffix(baseName, ".disabled")
+			baseName := types.NormalizeResourceName(filepath.Base(p))
 			if !types.IsYsmEntryJSON(baseName) {
 				return nil
 			}
@@ -272,7 +340,11 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 			emitScanError("[scanner] 获取文件信息失败 %s: %v，跳过该文件", p, err)
 			return nil
 		}
-		e := types.ModelEntry{Name: filepath.Base(p), Path: p, Ext: originalExt}
+		name := filepath.Base(p)
+		if types.IsYsmEntryJSON(name) {
+			name = filepath.Base(filepath.Dir(p))
+		}
+		e := types.ModelEntry{Name: name, Path: p, Ext: originalExt}
 		e.Size = info.Size()
 		e.ModTime = info.ModTime().UnixMilli()
 		// 计算 SHA256 供同步系统使用（GetInstanceStatus 依赖哈希匹配）
@@ -293,6 +365,8 @@ func ScanEntriesWithHit(dir string) ([]types.ModelEntry, bool) {
 	// 克隆 slice 后 Store，避免 sync.Map.Load 读到 WalkDir 中途
 	// append 的部分写入（单线程 Wails 场景安全，但并发扫描无 race）
 	stored := append([]types.ModelEntry(nil), entries...)
+	// 航班结果供等待方克隆取用（须在 wg.Done 前写入——defer 于函数返回时放行等待方）
+	fl.entries = stored
 	// 整目录失败（walkFailed）不写缓存——失败结果带 30s TTL 缓存会
 	// 让「目录不可读」持续显示为空（用户修好权限后 30s 内仍假空）；
 	// 仅缓存完整扫描结果
@@ -330,17 +404,10 @@ func ComputeFileHash(path string) string {
 
 // ========== 作者提取 ==========
 
-// stripDisableSuffix 剥离 .ban/.disabled 禁用后缀（口径与 ScanEntries 一致，三处共用防漂移）
-// .ban 剥离委托 types.StripBanSuffix（单一事实来源）。
+// stripDisableSuffix 剥离 .disabled/.ban 禁用后缀（口径与 ScanEntries 一致，三处共用防漂移）
+// 委托 types.StripDisableSuffix（单一事实来源）。
 func stripDisableSuffix(name string) string {
-	lower := strings.ToLower(name)
-	if strings.HasSuffix(lower, ".ban") {
-		return types.StripBanSuffix(name)
-	}
-	if strings.HasSuffix(lower, ".disabled") {
-		return name[:len(name)-len(".disabled")]
-	}
-	return name
+	return types.StripDisableSuffix(name)
 }
 
 // extractAuthor 从文件名提取 [作者] 前缀（无前缀或格式非法返回空串）
@@ -545,11 +612,11 @@ jobs:
             var list []entry
             filepath.WalkDir(".", func(p string, d os.DirEntry, err error) error {
               if err != nil || d.IsDir() { return nil }
-              // 扩展名口径与 Go 侧 scanner.ScanEntries 对齐（含 .ban/.disabled 恢复、
+              // 扩展名口径与 Go 侧 scanner.ScanEntries 对齐（含 .disabled/.ban 恢复、
               // .json 仅收 ysm.json）；扩展清单与 go/types 注册表（resource_types.json）同步
               lower := strings.ToLower(p)
               restored := ""
-              if strings.HasSuffix(lower, ".ban") { restored = types.StripBanSuffix(p) } else if strings.HasSuffix(lower, ".disabled") { restored = p[:len(p)-9] }
+              if strings.HasSuffix(lower, ".disabled") { restored = p[:len(p)-len(".disabled")] } else if strings.HasSuffix(lower, ".ban") { restored = p[:len(p)-len(".ban")] }
               ext := strings.ToLower(filepath.Ext(p))
               if restored != "" { ext = strings.ToLower(filepath.Ext(restored)) }
               if ext == ".json" {

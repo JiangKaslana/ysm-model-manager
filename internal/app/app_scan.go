@@ -17,67 +17,13 @@ import (
 
 	"ysm-model-manager/go/executil"
 	"ysm-model-manager/go/fsutil"
+	"ysm-model-manager/go/packs"
 	"ysm-model-manager/go/scanner"
 	ysmsync "ysm-model-manager/go/sync"
 	"ysm-model-manager/go/types"
 )
 
-// ========== 批量导出骨骼结构 ==========
-func (a *App) ExportBoneStructures(filesRoot string) (string, error) {
-	entries := a.ScanModelEntries(filesRoot)
-	if len(entries) == 0 {
-		return "", fmt.Errorf("仓库中没有模型文件")
-	}
-
-	var lines []string
-	lines = append(lines, "YSM Model Manager — 骨骼结构批量导出")
-	lines = append(lines, fmt.Sprintf("仓库: %s", filesRoot))
-	lines = append(lines, fmt.Sprintf("文件总数: %d", len(entries)))
-	lines = append(lines, fmt.Sprintf("导出时间: %s", time.Now().Format("2006-01-02 15:04:05")))
-	lines = append(lines, "")
-	lines = append(lines, "="+strings.Repeat("=", 78))
-	lines = append(lines, "")
-
-	totalBones := 0
-	totalCubes := 0
-	parsedCount := 0
-	failCount := 0
-
-	for i, entry := range entries {
-		model := a.AnalyzeBedrockModel(entry.Path)
-		relPath := entry.Name
-		lines = append(lines, fmt.Sprintf("[%d/%d] %s", i+1, len(entries), relPath))
-		if model.BoneCount > 0 {
-			parsedCount++
-			totalBones += model.BoneCount
-			totalCubes += model.CubeCount
-			lines = append(lines, fmt.Sprintf("  🦴 骨骼: %d  |  📦 立方体: %d  |  📐 纹理: %dx%d",
-				model.BoneCount, model.CubeCount, model.TexWidth, model.TexHeight))
-			for _, b := range model.Bones {
-				cs := len(b.Cubes)
-				if cs > 0 {
-					lines = append(lines, fmt.Sprintf("  ├─ %s (%d 方)", b.Name, cs))
-				} else {
-					lines = append(lines, fmt.Sprintf("  ├─ %s (结构骨骼)", b.Name))
-				}
-			}
-		} else {
-			failCount++
-			lines = append(lines, "  ⚠️ 未解析到骨骼数据")
-		}
-		lines = append(lines, "")
-	}
-	lines = append(lines, "="+strings.Repeat("=", 78))
-	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("✅ 成功解析: %d / %d", parsedCount, len(entries)))
-	lines = append(lines, fmt.Sprintf("❌ 解析失败: %d", failCount))
-	lines = append(lines, fmt.Sprintf("🦴 骨骼总数: %d", totalBones))
-	lines = append(lines, fmt.Sprintf("📦 立方体总数: %d", totalCubes))
-	lines = append(lines, "")
-	lines = append(lines, "--- 生成完毕 ---")
-	return strings.Join(lines, "\n"), nil
-}
-
+// ========== 导出单模型骨骼结构 ==========
 // ExportModelStructureJSON 导出单模型骨骼结构
 func (a *App) ExportModelStructureJSON(modelPath string) string {
 	model := a.AnalyzeBedrockModel(modelPath)
@@ -255,6 +201,100 @@ func modelMatchesFilters(model types.BedrockModel, minBones, maxBones, minCubes,
 	return true
 }
 
+// SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。
+// allRoots 为 rtype→root 映射（由 GetAllRepoRoots 提供）；每个搜索结果携带 Type 字段。
+// 关键词/数值过滤逻辑与 SearchModels 一致，但扫描范围覆盖全部类型。
+func (a *App) SearchAllModels(allRoots map[string]string, keyword string, minBones, maxBones, minCubes, maxCubes, minTex, maxTex int) []types.SearchResult {
+	if len(allRoots) == 0 {
+		return nil
+	}
+	kw := strings.ToLower(strings.TrimSpace(keyword))
+
+	// 收集所有类型的条目，每个条目携带类型标记
+	type typedEntry struct {
+		entry types.ModelEntry
+		rtype string
+	}
+	var all []typedEntry
+	for rtype, root := range allRoots {
+		entries := a.ScanModelEntries(root)
+		for _, e := range entries {
+			all = append(all, typedEntry{entry: e, rtype: rtype})
+		}
+	}
+	if len(all) == 0 {
+		return nil
+	}
+
+	// Phase 1：关键词预过滤
+	var candidates []typedEntry
+	if kw != "" {
+		for _, te := range all {
+			name := strings.ToLower(te.entry.Name)
+			if strings.Contains(name, kw) || strings.Contains(strings.ToLower(te.entry.Path), kw) {
+				candidates = append(candidates, te)
+			}
+		}
+	} else {
+		candidates = all
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	// Phase 2：并发分析 + 过滤
+	type indexedResult struct {
+		index  int
+		result *types.SearchResult
+	}
+	workers := runtime.NumCPU()
+	if workers < 2 {
+		workers = 2
+	}
+	taskCh := make(chan int, len(candidates))
+	resultCh := make(chan indexedResult, len(candidates))
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range taskCh {
+				te := candidates[idx]
+				model := a.AnalyzeBedrockModel(te.entry.Path)
+				if !modelMatchesFilters(model, minBones, maxBones, minCubes, maxCubes, minTex, maxTex) {
+					continue
+				}
+				resultCh <- indexedResult{
+					index: idx,
+					result: &types.SearchResult{
+						Name: te.entry.Name, Path: te.entry.Path, Type: te.rtype,
+						BoneCount: model.BoneCount, CubeCount: model.CubeCount,
+						TexWidth: model.TexWidth, TexHeight: model.TexHeight,
+					},
+				}
+			}
+		}()
+	}
+	for i := range candidates {
+		taskCh <- i
+	}
+	close(taskCh)
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+	var results []types.SearchResult
+	for r := range resultCh {
+		if r.result != nil {
+			results = append(results, *r.result)
+		}
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
+	return results
+}
+
 // ========== 模型扫描（薄壳）==========
 // scanModelEntries 扫描核心（无操作日志）：watcher 自动同步等后台路径使用，
 // 避免自动化触发刷屏操作日志面板。保持单返回值以兼容 watcher.ScanFunc 契约。
@@ -318,6 +358,35 @@ func (a *App) ScanModelEntriesWithLabel(dir string, label string) []types.ModelE
 	return entries
 }
 
+// containerTypeCache 容器类型指纹缓存（path → fingerprint）：
+// ScanModelEntriesFiltered 每次类型 tab 渲染都调用，容器条目（.zip/.7z）逐次
+// DetectResourceType 会重开归档——文件未变时复用指纹，避免 N 个归档每次全重扫
+// （code review P3，conf 0.50→核实成立：前端 scanModelsByType 每次 tab 渲染调用）
+var containerTypeCache sync.Map
+
+type containerFingerprint struct {
+	modTime  time.Time
+	size     int64
+	detected string
+}
+
+// cachedContainerType 返回容器真实类型（带文件指纹缓存）；文件变化（modtime/size）时重核验
+func cachedContainerType(path string, registry *types.ResourceTypeRegistry) string {
+	info, err := os.Stat(path)
+	if err != nil {
+		return ""
+	}
+	if v, ok := containerTypeCache.Load(path); ok {
+		fp := v.(containerFingerprint)
+		if fp.modTime.Equal(info.ModTime()) && fp.size == info.Size() {
+			return fp.detected
+		}
+	}
+	detected := packs.DetectResourceType(path, registry)
+	containerTypeCache.Store(path, containerFingerprint{modTime: info.ModTime(), size: info.Size(), detected: detected})
+	return detected
+}
+
 // ScanModelEntriesFiltered 同 ScanModelEntriesWithLabel，但额外按 rtype（+可选 subtype）的 extensions
 // 注册表做类型特定扩展名过滤。前端预览菜单切换模型场景用——EntityPlayer 类型需排除
 // .vmd/.vpd 动作文件，仅保留 .pmx/.pmd/.zip 模型/容器文件。
@@ -332,17 +401,30 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 		return nil
 	}
 	entries, hit := a.scanModelEntriesWithHit(dir)
-	// 按 rtype（+subtype）扩展名白名单过滤
+	// 按 rtype（+subtype）扩展名白名单过滤，并填充 Type 字段
 	if allowedExts := types.SupportedExtsForSubtype(rtype, subtype); len(allowedExts) > 0 {
 		extSet := make(map[string]bool, len(allowedExts))
 		for _, e := range allowedExts {
 			extSet[strings.ToLower(e)] = true
 		}
+		registry := types.LoadRegistry()
 		filtered := make([]types.ModelEntry, 0, len(entries))
 		for _, e := range entries {
-			if extSet[strings.ToLower(filepath.Ext(e.Path))] {
-				filtered = append(filtered, e)
+			ext := strings.ToLower(filepath.Ext(e.Path))
+			if !extSet[ext] {
+				continue
 			}
+			// 容器扩展名（.zip/.7z）的类型归属不可靠扩展名判定（ADR-067）：
+			// 任何类型都可能被打包进容器，扩展名只表示「可能是」，必须打开容器
+			// 按内部 ZipEntries 内容指纹核验真实类型，不匹配 rtype 则丢弃。
+			// 非容器扩展名维持扩展名白名单直接收的旧行为。
+			if types.IsContainerExt(ext) {
+				if detected := cachedContainerType(e.Path, registry); detected != rtype {
+					continue
+				}
+			}
+			e.Type = rtype
+			filtered = append(filtered, e)
 		}
 		entries = filtered
 	}
@@ -359,6 +441,7 @@ func (a *App) ScanModelEntriesFiltered(dir string, rtype string, subtype string,
 // ClearScanCache 清除扫描缓存（下载/导入后调用）
 func (a *App) ClearScanCache() {
 	scanner.InvalidateCache()
+	containerTypeCache.Clear() // code review P3：容器指纹随扫描缓存一起失效（下载/导入后）
 }
 
 // ListModelAuthors 统计 [作者] 前缀（走扫描缓存，不重复读磁盘）

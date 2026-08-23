@@ -679,10 +679,6 @@ export const autoSidebar = [
         "link": "/review-report"
       },
       {
-        "text": "YSM 模型管理器 — 代码质量审计报告",
-        "link": "/audit-report-2026-08-06"
-      },
-      {
         "text": "YSM — 🥉 ui-helpers 组件库迁移与设计集成",
         "link": "/3d-DESIGN"
       },
@@ -697,66 +693,6 @@ export const autoSidebar = [
       {
         "text": "Android 开发手册（ADR-046 P2）",
         "link": "/android-dev"
-      },
-      {
-        "text": "审核框架",
-        "link": "/audit-framework"
-      },
-      {
-        "text": "第 R1 轮审核报告：3D 引擎核心层",
-        "link": "/audit-r1-3d-engine-core-2026-08-18"
-      },
-      {
-        "text": "R10 审核：动画系统资源管理",
-        "link": "/audit-r10-animation-resource-management-2026-08-18"
-      },
-      {
-        "text": "审计 R11 — 纹理生命周期管理",
-        "link": "/audit-r11-texture-lifecycle-2026-08-18"
-      },
-      {
-        "text": "审计 R12 — 场景切换竞态与 dispose/build 重叠",
-        "link": "/audit-r12-scene-switch-race-2026-08-18"
-      },
-      {
-        "text": "审计 R13 — Go 侧资源管理审计",
-        "link": "/audit-r13-go-resource-management-2026-08-18"
-      },
-      {
-        "text": "R14 — 全量测试覆盖率审计报告",
-        "link": "/audit-r14-coverage-2026-08-18"
-      },
-      {
-        "text": "第 2 轮审核报告：Go 后端路径层（fileops/sync/installer/recycle/download）",
-        "link": "/audit-r2-go-backend-2026-08-18"
-      },
-      {
-        "text": "R3 审核报告：Wails Binding 层（internal/app）",
-        "link": "/audit-r3-wails-binding-2026-08-18"
-      },
-      {
-        "text": "R4 审核报告：MMD 子类型目录落位（commit 7420399c）",
-        "link": "/audit-r4-mmd-subdir-sync-2026-08-18"
-      },
-      {
-        "text": "R5 审核报告：前端数据层与服务（backend/core/services）",
-        "link": "/audit-r5-frontend-data-layer-2026-08-18"
-      },
-      {
-        "text": "R6 审核报告：安全横切扫描（全仓）",
-        "link": "/audit-r6-security-scan-2026-08-18"
-      },
-      {
-        "text": "R7 审核报告：性能与内存审计",
-        "link": "/audit-r7-performance-memory-2026-08-18"
-      },
-      {
-        "text": "R8 审核报告：测试覆盖缺口审计",
-        "link": "/audit-r8-test-coverage-gaps-2026-08-18"
-      },
-      {
-        "text": "R9 专项审核报告：3D 预览器资源管理问题",
-        "link": "/audit-r9-3d-preview-resource-management-2026-08-18"
       },
       {
         "text": "CLI 命令参考",
@@ -797,6 +733,22 @@ export const autoSidebar = [
     "link": "/adr/",
     "collapsed": true,
     "items": [
+      {
+        "text": "ADR-116：前端 vs Go 职责红线：筛选/类型判定权威层归 Go",
+        "link": "/adr/ADR-116-frontend-go-boundary"
+      },
+      {
+        "text": "ADR-115：跨类型同台追加必须走 switchExternal 主门路由（➕ 三态行为契约见知识卡）",
+        "link": "/adr/ADR-115-append-semantics"
+      },
+      {
+        "text": "ADR-114：每组件独立纹理（perComponent Textures）",
+        "link": "/adr/ADR-114-per-component-textures"
+      },
+      {
+        "text": "ADR-113：YSM 骨骼动画 Molang 求值器与欧拉序修复（L4）",
+        "link": "/adr/ADR-113-ysm-molang"
+      },
       {
         "text": "ADR-112：FBX 格式接入与独立预览地基",
         "link": "/adr/ADR-112-fbx-loader-preview-foundation"
@@ -1240,6 +1192,77 @@ export const autoSidebar = [
     ]
   },
   {
+    "text": "审计",
+    "link": "/audit/",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "审核框架",
+        "link": "/audit/audit-framework"
+      },
+      {
+        "text": "第 R1 轮审核报告：3D 引擎核心层",
+        "link": "/audit/audit-r1-3d-engine-core-2026-08-18"
+      },
+      {
+        "text": "R10 审核：动画系统资源管理",
+        "link": "/audit/audit-r10-animation-resource-management-2026-08-18"
+      },
+      {
+        "text": "审计 R11 — 纹理生命周期管理",
+        "link": "/audit/audit-r11-texture-lifecycle-2026-08-18"
+      },
+      {
+        "text": "审计 R12 — 场景切换竞态与 dispose/build 重叠",
+        "link": "/audit/audit-r12-scene-switch-race-2026-08-18"
+      },
+      {
+        "text": "审计 R13 — Go 侧资源管理审计",
+        "link": "/audit/audit-r13-go-resource-management-2026-08-18"
+      },
+      {
+        "text": "R14 — 全量测试覆盖率审计报告",
+        "link": "/audit/audit-r14-coverage-2026-08-18"
+      },
+      {
+        "text": "第 2 轮审核报告：Go 后端路径层（fileops/sync/installer/recycle/download）",
+        "link": "/audit/audit-r2-go-backend-2026-08-18"
+      },
+      {
+        "text": "R3 审核报告：Wails Binding 层（internal/app）",
+        "link": "/audit/audit-r3-wails-binding-2026-08-18"
+      },
+      {
+        "text": "R4 审核报告：MMD 子类型目录落位（commit 7420399c）",
+        "link": "/audit/audit-r4-mmd-subdir-sync-2026-08-18"
+      },
+      {
+        "text": "R5 审核报告：前端数据层与服务（backend/core/services）",
+        "link": "/audit/audit-r5-frontend-data-layer-2026-08-18"
+      },
+      {
+        "text": "R6 审核报告：安全横切扫描（全仓）",
+        "link": "/audit/audit-r6-security-scan-2026-08-18"
+      },
+      {
+        "text": "R7 审核报告：性能与内存审计",
+        "link": "/audit/audit-r7-performance-memory-2026-08-18"
+      },
+      {
+        "text": "R8 审核报告：测试覆盖缺口审计",
+        "link": "/audit/audit-r8-test-coverage-gaps-2026-08-18"
+      },
+      {
+        "text": "R9 专项审核报告：3D 预览器资源管理问题",
+        "link": "/audit/audit-r9-3d-preview-resource-management-2026-08-18"
+      },
+      {
+        "text": "YSM 模型管理器 — 代码质量审计报告",
+        "link": "/audit/audit-report-2026-08-06"
+      }
+    ]
+  },
+  {
     "text": "知识卡",
     "link": "/knowledge/",
     "collapsed": true,
@@ -1315,6 +1338,10 @@ export const autoSidebar = [
             "link": "/knowledge/doctor_gate_overlap"
           },
           {
+            "text": "FBX CLI 处理管线 fbx-cli-pipeline",
+            "link": "/knowledge/fbx-cli-pipeline"
+          },
+          {
             "text": "仓库审计 go/repoaudit",
             "link": "/knowledge/go_repoaudit"
           },
@@ -1325,6 +1352,10 @@ export const autoSidebar = [
           {
             "text": "头像 go/avatar",
             "link": "/knowledge/go-avatar"
+          },
+          {
+            "text": "CLI 搜索命令 search",
+            "link": "/knowledge/go-cli-search"
           },
           {
             "text": "统一容器桥接层 go/container",
@@ -1427,6 +1458,10 @@ export const autoSidebar = [
             "link": "/knowledge/go-ysm-parser"
           },
           {
+            "text": "Rust 桥 rustbridge",
+            "link": "/knowledge/rustbridge"
+          },
+          {
             "text": "Wails Binding API 总览 internal/app",
             "link": "/knowledge/wails-bindings"
           }
@@ -1511,6 +1546,10 @@ export const autoSidebar = [
           {
             "text": "测试工具 test-utils（G-1 抗脆弱测试基础设施）",
             "link": "/knowledge/test-utils"
+          },
+          {
+            "text": "工具栏搜索编排 toolbar-search",
+            "link": "/knowledge/toolbar-search"
           },
           {
             "text": "UI 组件库 ui-components",
@@ -1693,6 +1732,10 @@ export const autoSidebar = [
             "link": "/knowledge/extensibility-round2"
           },
           {
+            "text": "AI 急速版路由表（高频场景）",
+            "link": "/knowledge/routes-quick"
+          },
+          {
             "text": "Vitest 环境切换规则",
             "link": "/knowledge/vitest-env-switch"
           },
@@ -1728,6 +1771,10 @@ export const autoSidebar = [
           {
             "text": "第 01 区域 · 第 4 章 · 只改了一半的名字",
             "link": "/novel/01-解码与几何/04-只改了一半的名字"
+          },
+          {
+            "text": "第 01 区域 · 第 5 章 · 镜中的右手",
+            "link": "/novel/01-解码与几何/05-镜中的右手"
           }
         ]
       },

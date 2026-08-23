@@ -14,14 +14,17 @@ import type { SkyCapability } from "../caps/sky-capability.ts";
 import type { GroundCapability } from "../caps/ground-capability.ts";
 import type { LightCapability } from "../caps/light-capability.ts";
 import { createHeaderToggle } from "../../../ui/ui-header-toggle.ts";
-import { RESOURCE_TYPE_LABELS, resolveTypeSafe } from "../../resource/types.ts";
+import { RESOURCE_TYPE_LABELS, resolveTypeSafe, getPreviewableTypeTabs } from "../../resource/types.ts";
 import { ensureFabStyles } from "../../../utils/dom/fab.ts";
+import { safeGet, safeSet } from "../../../utils/dom/storage.ts";
 import { t } from "../../../core/i18n/t.ts";
 import type { MenuControlDef, SceneCapability } from "../caps/scene-capability.ts";
 import { sceneCapabilityRegistry } from "../caps/scene-capability-registry.ts";
 import { ENV_PRESET_LINKAGE, type EnvPresetId } from "../caps/environment-capability.ts";
 import { sceneRegistry, type ModelEntry } from "./scene-registry.ts";
 import type { FogCapability } from "../caps/fog-capability.ts";
+import { isFrustumCullEnabled, setFrustumCullEnabled } from "../frustum-cull.ts";
+import { getMaxPixelRatio } from "../render-budget.ts";
 
 /** 根菜单上下文：core 在 mount3D 内组装，全部经 getter 暴露避免闭包捕获过期值 */
 export interface PreviewMenuCtx {
@@ -46,7 +49,7 @@ export interface PreviewMenuCtx {
   switchTo: (path: string, options?: { keepInScene?: boolean }) => void;
   /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标，由 app 层 openModel3DFullscreen 提供）。
    *  第二参透传 siblings，切换后新会话「当前目录」tab 有候选（P1-2） */
-  switchExternal?: (path: string, siblings?: string[]) => Promise<void> | void;
+  switchExternal?: (path: string, siblings?: string[], options?: { keepInScene?: boolean }) => Promise<void> | void;
   /** 卸载已加载角色（mount3D 注入：移除 roots + dispose + 注册表注销 + 相机重算） */
   unloadRole?: (id: string) => void;
 }
@@ -488,8 +491,9 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     popup.style.display = "flex";
   };
   const hideMenu = (): void => {
+    // 仅隐藏：display:none，DOM+导航栈保留（不调 menu.reset()）。
+    // 这样「再点渲染器」能恢复【同一个面板】而非空白，且 ✕/← 语义不串。
     popup.style.display = "none";
-    menu.reset();
   };
   // 根级 ✕（SlideMenu onClose）语义 = 关闭整个 3D 预览（对齐旧 close 菜单项）
   menu.setOnClose(() => {
@@ -537,11 +541,11 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   const fillers: Record<string, (list: HTMLElement, menu?: SlideMenuHandle) => void> = {
     environment: (list, _menu) => fillEnvironment(list, ctx, menu),
     camera: (list) => buildCameraControls(list, ctx.getCamBridge()),
-    switch: (list) => fillSwitch(list, ctx, hideMenu),
     roles: (list, menu) => fillRoles(list, ctx, hideMenu, makeRow, makePanelView, menu!, (items) => menuHandleOut?.setAdapterItems(items)),
     lighting: (list) => fillLighting(list, ctx),
     shadow: (list) => fillShadow(list, ctx),
     postproc: (list) => fillPostprocessing(list, ctx),
+    settings: (list) => fillSettings(list, ctx),
   };
   const runners: Record<string, () => void> = {
     close: () => ctx.close(),
@@ -596,12 +600,14 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
   const renderDock = (): void => {
     dock.innerHTML = "";
     const allItems = [...CORE_MENU_ITEMS, ...adapterItems];
-    PREVIEW_MENU_GROUPS.forEach((g) => {
-      const groupItems = allItems
+    // 组内工具过滤链（model 特殊分支与通用分支共用，防两处漂移——审核 P3）
+    const groupItemsFor = (g: PreviewMenuGroupDef, allItems: PreviewMenuItemDef[]): PreviewMenuItemDef[] =>
+      allItems
         .filter((d) => d.dockGroup === g.id && d.kind !== "divider")
         .filter((d) => !(d.sharedOnly && ctx.selfMode))
-        .filter((d) => !(d.needsSiblings && ctx.getSiblings().length === 0))
         .filter((d) => !(d.requiresEnvironment && !sceneCapabilityRegistry.getById("sky") && !sceneCapabilityRegistry.getById("ground") && !ctx.getSkyCap() && !ctx.getGroundCap()));
+    PREVIEW_MENU_GROUPS.forEach((g) => {
+      const groupItems = groupItemsFor(g, allItems);
       if (groupItems.length === 0) return;
 
       const btn = document.createElement("button");
@@ -610,6 +616,16 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
       btn.innerHTML = `<span class="preview-ic">${g.icon}</span><span class="preview-dock-navlabel">${g.fallback}</span>`;
       btn.onclick = (e: MouseEvent): void => {
         e.stopPropagation();
+        // 模型组：🧍 永远快捷直达 roles 面板（角色级管理，多角色同框核心）。
+        // 单模型实例工具（模型信息/截图/骨骼/材料）保留 dockGroup:"model" 不变，
+        // 下沉到角色详情内可达（roleDetailView 按 dockGroup:"model" 过滤 entry.menuItems）。
+        if (g.id === "model") {
+          const rolesDef = allItems.find((d) => d.id === "roles" && d.kind === "panel");
+          if (rolesDef) {
+            showMenu(makePanelView(rolesDef));
+            return;
+          }
+        }
         const panels = groupItems.filter((d) => d.kind === "panel");
         // 快捷直达：组内仅一个 panel 项
         if (panels.length === 1 && groupItems.length === 1) {
@@ -622,12 +638,25 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
     });
   };
 
-  // ---- 点击 3D 渲染器区域关闭菜单（不全局杀弹窗）----
+  // ---- 渲染器点按：切换 chrome 可见性（隐藏↔恢复同一面板，非关闭浮窗）----
+  // 隐藏只切 display，DOM+导航栈保留 → 再点恢复的是同一个面板（不会变空白）。
+  // pointerdown/up + 位移/时长阈值区分「点按」与「拖拽旋转」，避免旋转误触切换。
   const viewEl = ctx.getViewContainer();
-  const onViewClick = (): void => {
-    hideMenu();
-  };
-  viewEl.addEventListener("click", onViewClick);
+  const tapAbort = new AbortController();
+  let downX = 0, downY = 0, downT = 0;
+  viewEl.addEventListener("pointerdown", (e: PointerEvent): void => {
+    downX = e.clientX; downY = e.clientY; downT = performance.now();
+  }, { signal: tapAbort.signal });
+  viewEl.addEventListener("pointerup", (e: PointerEvent): void => {
+    const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+    if (moved > 5 || performance.now() - downT > 400) return; // 拖拽/长按 → 交给 OrbitControls
+    const list = popup.querySelector<HTMLElement>(".slide-list");
+    if (popup.style.display !== "none") {
+      popup.style.display = "none";                  // 隐藏（栈/DOM/面板内容保留）
+    } else if (list && list.childElementCount > 0) {
+      popup.style.display = "flex";                  // 恢复同一面板（从未打开过则不显空白）
+    }
+  }, { signal: tapAbort.signal });
 
   // ---- 句柄 ----
   const setAdapterItems = (items: PreviewMenuItemDef[]): void => {
@@ -656,7 +685,7 @@ export function mountPreviewRootMenu(overlay: HTMLElement, ctx: PreviewMenuCtx):
 
   const handle: PreviewMenuHandle = {
     dispose: (): void => {
-      viewEl.removeEventListener("click", onViewClick);
+      tapAbort.abort();
       menu.dispose();
       dock.remove();
       popup.remove();
@@ -932,14 +961,35 @@ function fillEnvironment(list: HTMLElement, ctx: PreviewMenuCtx, menu?: SlideMen
   });
 }
 
-/** 3D 内模型切换面板：类型 tab（当前目录 + 各资源类型）懒加载候选，当前项高亮；
- *  底部提供手动路径输入支持跨类型切换。 */
+/** 上次选中的类型 tab 持久化键（全局记忆，跨模型/跨会话）："" = 当前目录 */
+const PREVIEW_LAST_RTYPE_KEY = "ysm.preview.lastRtype";
+
+/** 3D 内模型切换面板：各资源类型 tab 懒加载候选，当前项高亮。
+ *  默认高亮优先级：① 用户手动记忆的类型（localStorage）② 当前模型自身类型（getCurrentRtype）
+ *  ③ 第一个类型 tab。「当前目录」tab 已移除（记忆/当前类型生效后可少一个 tab）；
+ *  rtypes 为空（无注册路由）时仍走 siblings 列表兜底，不空白。 */
 function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => void): void {
   const cur = ctx.getCurrentPath();
   const rtypes = ctx.getTypeTabs?.() ?? [];
-  let activeTab = ""; // "" = 当前目录（siblings）
+  const curRtype = ctx.getCurrentRtype?.() ?? "";
+  // ADR-111 收口：tab 标签统一从 getPreviewableTypeTabs 派生（preview key → 类型中文标签，
+  // 如 "vrm"/"mmd" → "角色模型"），不再依赖 RESOURCE_TYPE_LABELS[key]（preview key 不在其中）。
+  const tabLabelOf = (key: string): string => {
+    const hit = getPreviewableTypeTabs().find((t) => t.key === key);
+    return hit?.label ?? RESOURCE_TYPE_LABELS[key] ?? key;
+  };
+  // 默认高亮：手动记忆优先；记忆无效（无/越界）则回退当前模型类型；再不行第一个类型（rtypes 空则 "" 走 siblings 兜底）
+  const remembered = safeGet(PREVIEW_LAST_RTYPE_KEY);
+  let activeTab: string;
+  if (remembered !== null && rtypes.includes(remembered)) {
+    activeTab = remembered;
+  } else if (curRtype && rtypes.includes(curRtype)) {
+    activeTab = curRtype;
+  } else {
+    activeTab = rtypes[0] ?? "";
+  }
 
-  // 类型 tab 行：「当前目录」恒在首位，后接各资源类型（点击懒加载）
+  // 类型 tab 行：各资源类型（点击懒加载），「当前目录」tab 已移除
   const tabBar = document.createElement("div");
   tabBar.style.cssText =
     "display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.12);flex-wrap:wrap;flex-shrink:0";
@@ -954,6 +1004,9 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       (key === activeTab ? ";background:rgba(124,131,255,0.35);color:#fff" : "");
     b.onclick = (): void => {
       activeTab = key;
+      // 全局记忆：持久化本次选中类型（「当前目录」tab 不持久化——临时视图，
+      // 不污染跨会话类型记忆，code review P2）
+      if (key !== "") safeSet(PREVIEW_LAST_RTYPE_KEY, key);
       // 高亮当前 tab
       for (const tb of Array.from(tabBar.children)) {
         (tb as HTMLElement).style.background = (tb as HTMLElement).dataset.rtype === key
@@ -964,8 +1017,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     };
     tabBar.appendChild(b);
   };
-  mkTab("", tr("preview.switchDirTab", "当前目录"));
-  for (const r of rtypes) mkTab(r, RESOURCE_TYPE_LABELS[r] || r);
+  for (const r of rtypes) mkTab(r, tabLabelOf(r));
 
   const listBody = document.createElement("div");
   listBody.style.cssText = "max-height:240px;overflow-y:auto";
@@ -980,7 +1032,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
     const gen = ++reqGen;
     listBody.innerHTML = "";
     const draw = (paths: string[], viaType: boolean): void => {
-      // 类型 tab 候选过滤当前项（避免点击自己整段重建，P3-4）；当前目录 tab 已由 getSiblings 过滤
+      // 类型 tab 候选过滤当前项（避免点击自己整段重建，P3-4）；siblings 分支（activeTab===""）已由 getSiblings 过滤当前项
       const shown = viaType ? paths.filter((p) => norm(p) !== norm(cur)) : paths;
       if (shown.length === 0) {
         const empty = document.createElement("div");
@@ -993,12 +1045,18 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
       }
       shown.forEach((p) => {
         const isCur = norm(p) === norm(cur);
-        // 同类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型
-        // （resolveTypeSafe 解析，歧义扩展名/异类型不提供 ➕，防跨类型追加走错适配器）
+        // sameType 仅用于 row.onclick（行本体点击）路由：同源 → switchTo 复用外壳替换，
+        // 跨源 → switchExternal 跨适配器替换。与"追加"语义无关。
+        // 类型判定：类型 tab 按 activeTab；当前目录 tab 按候选实际类型（resolveTypeSafe 解析）。
+        // 候选类型无法可靠识别（歧义扩展名如 .vrm/.zip 经 resolveTypeSafe 返回 null）时，
+        // 保守判定为「不同源」——走 switchExternal 跨适配器替换，避免用当前适配器 build
+        // 认不得的类型导致加载失败。这同时也修正了原 curType="" 时同源 YSM(.ysm/.json)
+        // 被误判跨源、触发整段重建的 bug（现 curType 由 adapter.id 兜底为 "ysm"）。
         const candType = resolveTypeSafe(p);
+        const curType = ctx.getCurrentRtype?.() ?? "";
         const sameType = viaType
-          ? activeTab === ctx.getCurrentRtype?.()
-          : !!candType && candType === ctx.getCurrentRtype?.();
+          ? activeTab === curType
+          : !!candType && candType === curType;
         const row = document.createElement("div");
         row.className = "ysm-preview-menu-row";
         row.dataset.testid = "preview-switch-item";
@@ -1012,8 +1070,12 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
         lb.textContent = p.split(/[/\\]/).pop() || p;
         row.append(ic, lb);
         // 行尾「➕ 追加」：keepInScene 多角色同框（角色面板内打通追加加载）。
-        // 当前项与跨类型候选不显示；stopPropagation 防触发行本体替换语义。
-        if (!isCur && sameType) {
+        // 同类型候选走 ctx.switchTo keepInScene（当前会话 adapter）；跨类型候选
+        // 走 ctx.switchExternal(keepInScene)——openModel3DFullscreen cooperate →
+        // switchPreview 主门按类型路由同台追加（ADR-093 T4），用目标类型 opener，
+        // 不喂给当前会话 adapter（避免走错适配器解析失败）。
+        // stopPropagation 防触发行本体替换语义。
+        if (!isCur) {
           const append = document.createElement("button");
           append.dataset.testid = "preview-switch-append";
           append.textContent = "➕";
@@ -1023,7 +1085,11 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
           append.onclick = (ev): void => {
             ev.stopPropagation();
             closePopup();
-            void ctx.switchTo(p, { keepInScene: true });
+            if (!sameType && ctx.switchExternal) {
+              void ctx.switchExternal(p, ctx.getSiblings(), { keepInScene: true });
+            } else {
+              void ctx.switchTo(p, { keepInScene: true });
+            }
           };
           row.appendChild(append);
         }
@@ -1057,37 +1123,6 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
 
   list.append(tabBar, listBody);
   renderRows();
-
-  // 分隔线 + 手动路径输入（支持跨类型加载，无需退出 3D；P2-1 补回）
-  const sep = document.createElement("div");
-  sep.style.cssText = "height:1px;background:rgba(255,255,255,0.1);margin:6px 10px";
-  list.appendChild(sep);
-
-  const inputRow = document.createElement("div");
-  inputRow.style.cssText = "display:flex;gap:4px;padding:4px 10px 8px";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = tr("preview.switchPathPlaceholder", "输入模型文件路径…");
-  input.style.cssText =
-    "flex:1;font-size:13px;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);" +
-    "background:rgba(255,255,255,0.06);color:#fff;outline:none";
-  const goByPath = (): void => {
-    const path = input.value.trim();
-    if (!path) return;
-    closePopup();
-    if (ctx.switchExternal) void ctx.switchExternal(path, ctx.getSiblings());
-    else void ctx.switchTo(path);
-  };
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") goByPath();
-  });
-  const btn = document.createElement("button");
-  btn.className = "ysm-btn";
-  btn.textContent = tr("preview.switchByPath", "手动加载模型");
-  btn.style.cssText = "font-size:12px;padding:4px 10px;white-space:nowrap";
-  btn.onclick = goByPath;
-  inputRow.append(input, btn);
-  list.appendChild(inputRow);
 }
 
 /**
@@ -1095,7 +1130,7 @@ function fillSwitch(list: HTMLElement, ctx: PreviewMenuCtx, closePopup: () => vo
  * 顶部列出已加载角色（sceneRegistry），行首 radio 切换焦点、点名字进详情
  * （按该角色 menuItems 的 model 组 panel 能力显示——vrm/mmd/ysm 各显所能，
  * 间接解决不同格式可查看内容不一致的问题）、行尾 ⚙ 进工具面板（卸载角色，
- * 少用但重要）；底部复用 fillSwitch 加载入口（siblings + 类型 tab + 手动路径）。
+ * 少用但重要）；底部复用 fillSwitch 加载入口（siblings + 类型 tab）。
  */
 function fillRoles(
   list: HTMLElement,
@@ -1226,6 +1261,23 @@ function fillRoles(
   fillSwitch(list, ctx, closePopup);
 }
 
+/** 能力面板通用渲染：cap 存在 → renderCapControls；不存在 → 渲染单行 fallback 提示 */
+function fillCapOrFallback(
+  list: HTMLElement,
+  cap: { getMenuControls: () => MenuControlDef[] } | null | undefined,
+  noCapKey: string,
+  noCapFallback: string,
+): void {
+  if (!cap) {
+    const row = document.createElement("div");
+    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
+    row.textContent = tr(noCapKey, noCapFallback);
+    list.appendChild(row);
+    return;
+  }
+  renderCapControls(list, cap.getMenuControls());
+}
+
 /** 灯光面板（ADR-081 L1 + 统一注册表）：从 light cap 的 getMenuControls() 自动渲染 */
 function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
   const lightFromReg = sceneCapabilityRegistry.getById("light") as import("../caps/light-capability.ts").LightCapability | null;
@@ -1235,39 +1287,106 @@ function fillLighting(list: HTMLElement, ctx: PreviewMenuCtx): void {
     if (fromCtx && "getMenuControls" in fromCtx) return fromCtx as unknown as import("../caps/light-capability.ts").LightCapability;
     return null;
   })();
-  const noCap = (): void => {
-    const row = document.createElement("div");
-    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    row.textContent = tr("preview.noLightCap", "\u8FDB\u5165 3D \u540E\u518D\u6253\u5F00\u706F\u5149\u9762\u677F");
-    list.appendChild(row);
-  };
-  if (!lightCap) { noCap(); return; }
-
-  renderCapControls(list, lightCap.getMenuControls());
+  fillCapOrFallback(list, lightCap, "preview.noLightCap", "\u8FDB\u5165 3D \u540E\u518D\u6253\u5F00\u706F\u5149\u9762\u677F");
 }
 
 /** 阴影面板：从注册表 shadow cap 的 getMenuControls() 渲染 */
 function fillShadow(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   const fromReg = sceneCapabilityRegistry.getById("shadow") as import("../caps/shadow-capability.ts").ShadowCapability | null;
-  const noCap = (): void => {
-    const row = document.createElement("div");
-    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    row.textContent = tr("preview.noShadowCap", "进入 3D 后再打开阴影面板");
-    list.appendChild(row);
-  };
-  if (!fromReg) { noCap(); return; }
-  renderCapControls(list, fromReg.getMenuControls());
+  fillCapOrFallback(list, fromReg, "preview.noShadowCap", "进入 3D 后再打开阴影面板");
 }
 
 /** 后处理面板：从注册表 postprocessing cap 的 getMenuControls() 渲染 */
-function fillPostprocessing(list: HTMLElement, ctx: PreviewMenuCtx): void {
+function fillPostprocessing(list: HTMLElement, _ctx: PreviewMenuCtx): void {
   const fromReg = sceneCapabilityRegistry.getById("postprocessing") as import("../caps/postprocessing-capability.ts").PostprocessingCapability | null;
-  const noCap = (): void => {
-    const row = document.createElement("div");
-    row.style.cssText = "padding:8px 10px;color:rgba(255,255,255,0.5);font-size:12px";
-    row.textContent = tr("preview.noPostprocCap", "进入 3D 后再打开后处理面板");
-    list.appendChild(row);
+  fillCapOrFallback(list, fromReg, "preview.noPostprocCap", "进入 3D 后再打开后处理面板");
+}
+
+/**
+ * 设置面板：3D 预览器的性能 / 画质总开关。
+ *
+ * 定位（2026-08-23 用户决策）：设置面板 = 性能/画质开关，
+ * 与 🌍 环境面板（管环境能力参数）职责正交。
+ *
+ * 分组：
+ * - ⚡ 性能：视锥裁剪开关（多模型同框省渲染）——关掉后镜头外模型仍渲染
+ * - 🎨 画质：渲染分辨率上限（控制 pixelRatio cap）——降分辨率换帧率
+ *
+ * 后续可加：帧率上限、Bloom 总开关、PMREM 开关、能力检测降级等。
+ * 每个开关都走 localStorage 持久化，用户调了即时生效。
+ */
+function fillSettings(list: HTMLElement, _ctx: PreviewMenuCtx): void {
+  list.innerHTML = "";
+
+  // ── ⚡ 性能分组 ──
+  const perfHeader = document.createElement("div");
+  perfHeader.style.cssText = "padding:8px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+  perfHeader.textContent = tr("preview.settingsPerf", "性能");
+  list.appendChild(perfHeader);
+
+  // 视锥裁剪开关
+  const cullRow = document.createElement("div");
+  cullRow.className = "slide-item";
+  cullRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px";
+  const cullLabelBox = document.createElement("div");
+  cullLabelBox.style.cssText = "flex:1;display:flex;align-items:center;gap:8px;min-width:0";
+  const cullLabel = document.createElement("span");
+  cullLabel.className = "slide-label";
+  cullLabel.textContent = tr("preview.settingsFrustumCull", "视锥裁剪");
+  cullLabel.style.fontSize = "12px";
+  const cullHint = document.createElement("span");
+  cullHint.style.cssText = "font-size:11px;color:rgba(255,255,255,0.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  cullHint.textContent = tr("preview.settingsFrustumCullHint", "镜头外模型跳过渲染，省 GPU");
+  cullLabelBox.append(cullLabel, cullHint);
+  const cullToggle = createHeaderToggle({
+    value: isFrustumCullEnabled(),
+    onChange: (v: boolean): void => setFrustumCullEnabled(v),
+    bind: (): boolean => isFrustumCullEnabled(),
+  });
+  cullRow.append(cullLabelBox, cullToggle);
+  list.appendChild(cullRow);
+
+  // ── 🎨 画质分组（后续加渲染分辨率上限等，先占位）──
+  const qualHeader = document.createElement("div");
+  qualHeader.style.cssText = "padding:12px 10px 4px;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px";
+  qualHeader.textContent = tr("preview.settingsQuality", "画质");
+  list.appendChild(qualHeader);
+
+  // 渲染分辨率上限 slider（控制 render-budget 的 pixelRatio cap，0.5–2.0）
+  // 持久化键 ysm_3d_maxPixelRatio 由 render-budget.ts 的 getMaxPixelRatio 读取；
+  // 写入用 safeSet（隐私模式安全）。改后需重新进入 3D 预览生效（renderer 创建时读）。
+  const RES_KEY = "ysm_3d_maxPixelRatio";
+  const resCap = getMaxPixelRatio();
+
+  const resRow = document.createElement("div");
+  resRow.className = "slide-item";
+  resRow.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:6px 10px";
+  const resHead = document.createElement("div");
+  resHead.style.cssText = "display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.7)";
+  const resName = document.createElement("span");
+  resName.className = "slide-label";
+  resName.textContent = tr("preview.settingsMaxPixelRatio", "渲染分辨率上限");
+  const resVal = document.createElement("span");
+  resVal.textContent = `${resCap.toFixed(2)}x`;
+  resHead.append(resName, resVal);
+  const resSlider = document.createElement("input");
+  resSlider.type = "range";
+  resSlider.min = "0.5";
+  resSlider.max = "2";
+  resSlider.step = "0.25";
+  resSlider.value = String(resCap);
+  resSlider.style.cssText = "width:100%;cursor:pointer;accent-color:var(--accent,#7c83ff)";
+  resSlider.oninput = (): void => {
+    const v = Number(resSlider.value);
+    safeSet(RES_KEY, String(v));
+    resVal.textContent = `${v.toFixed(2)}x`;
   };
-  if (!fromReg) { noCap(); return; }
-  renderCapControls(list, fromReg.getMenuControls());
+  resRow.append(resHead, resSlider);
+  list.appendChild(resRow);
+
+  // 说明文字：改动下次打开 3D 预览生效（pixelRatio 在 renderer 创建时读取）
+  const note = document.createElement("div");
+  note.style.cssText = "padding:8px 10px;font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5";
+  note.textContent = tr("preview.settingsNote", "分辨率上限需重新进入 3D 预览生效；其余开关即时生效。");
+  list.appendChild(note);
 }

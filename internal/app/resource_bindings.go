@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
+	"time"
 
 	"ysm-model-manager/go/dedup"
 	"ysm-model-manager/go/fileops"
@@ -213,9 +213,23 @@ func (a *App) GetRepoRoot(rtype string) (string, error) {
 	return "", nil
 }
 
-// repoRootForSync 返回资源类型的整合包同步基准目录。
-// 壳-叶架构已移除：所有类型统一走 GetRepoRoot。
-func (a *App) repoRootForSync(rtype string) (string, error) {
+// GetAllRepoRoots 遍历所有注册资源类型，返回 rtype → root 映射（供跨类型搜索）。
+// 仅返回目录真实存在且可访问的类型；空 root/不存在的目录跳过。
+func (a *App) GetAllRepoRoots() map[string]string {
+	registry := types.LoadRegistry()
+	result := make(map[string]string, len(registry.ResourceTypes))
+	for _, rt := range registry.ResourceTypes {
+		root, _ := a.GetRepoRoot(rt.ID)
+		if root != "" {
+			result[rt.ID] = root
+		}
+	}
+	return result
+}
+
+// filesRootForSync 返回资源类型的整合包同步基准目录（FilesRoot/{group}/{storageSubDir}）。
+// 壳-叶架构已移除：所有类型统一走 GetRepoRoot（语义即 FilesRoot 派生路径）。
+func (a *App) filesRootForSync(rtype string) (string, error) {
 	return a.GetRepoRoot(rtype)
 }
 
@@ -234,7 +248,7 @@ func (a *App) EnsureStorageDirs() error {
 	for _, rt := range registry.ResourceTypes {
 		root, err := a.GetRepoRoot(rt.ID)
 		// 诊断打点：打印每个类型的路由推导，定位"目录扁平散开"问题
-		log.Printf("[storage] EnsureStorageDirs: id=%s group=%q sub=%q groupRoot=%q -> repoRoot=%q err=%v",
+		log.Printf("[storage] EnsureStorageDirs: id=%s group=%q sub=%q groupRoot=%q -> filesRoot=%q err=%v",
 			rt.ID, rt.Group, rt.StorageSubDir, types.GroupStorageRoot(rt.ID), root, err)
 		if err != nil {
 			if firstErr == nil {
@@ -273,10 +287,9 @@ func repoDirAccessible(dir string) bool {
 }
 
 // specificRoot 返回资源类型的专属覆写路径。
-// ADR-095：优先从 cfg.CustomRoots map 读取，其次回退到 AppConfig 旧字段（反射读取）。
+// ADR-095：从 cfg.CustomRoots map 读取（迁移后唯一事实源）。
 // 先查 rtype 自身 key，再查 rt.ConfigFallback（如 vrc → EntityPlayer），都无则返回空串。
 func specificRoot(cfg types.AppConfig, rtype string) string {
-	// 1. 优先从 CustomRoots map 读取（新方式）
 	if cfg.CustomRoots != nil {
 		if root := cfg.CustomRoots[rtype]; root != "" {
 			return root
@@ -289,32 +302,6 @@ func specificRoot(cfg types.AppConfig, rtype string) string {
 		}
 	}
 
-	// 2. 回退到 AppConfig 旧字段（向后兼容）
-	rt := types.RegistryType(rtype)
-	if rt != nil && rt.ConfigField != "" {
-		if root := getConfigFieldByReflection(cfg, rt.ConfigField); root != "" {
-			return root
-		}
-		if rt.ConfigFallback != "" {
-			if root := getConfigFieldByReflection(cfg, rt.ConfigFallback); root != "" {
-				return root
-			}
-		}
-	}
-
-	return ""
-}
-
-// getConfigFieldByReflection 通过反射读取 AppConfig 中指定字段的值
-func getConfigFieldByReflection(cfg types.AppConfig, fieldName string) string {
-	v := reflect.ValueOf(cfg)
-	f := v.FieldByName(fieldName)
-	if !f.IsValid() {
-		return ""
-	}
-	if f.Kind() == reflect.String {
-		return f.String()
-	}
 	return ""
 }
 
@@ -522,11 +509,11 @@ func (a *App) DeleteResourcePack(path, rtype string) error {
 		}
 	} else {
 		// 文件型资源：按 rtype 获取对应仓库根（非 ysm 类型可能在其他根下）
-		repoRoot, _ := a.GetRepoRoot(rtype)
-		if repoRoot == "" {
-			repoRoot = a.ysmRoot()
+		filesRoot, _ := a.GetRepoRoot(rtype)
+		if filesRoot == "" {
+			filesRoot = a.ysmRoot()
 		}
-		if err := fileops.DeleteModelFile(repoRoot, path); err != nil {
+		if err := fileops.DeleteModelFile(filesRoot, path); err != nil {
 			return err
 		}
 	}
@@ -621,6 +608,71 @@ func (a *App) RepoHealthAudit(dir string) string {
 		return findDuplicateErrorJSON(err.Error())
 	}
 	return marshalJSON("RepoHealthAudit", report, findDuplicateErrorJSON("JSON 序列化失败"))
+}
+
+// RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。
+// 无有效目录时返回错误提示（与 RepoHealthAudit 同源格式）。
+func (a *App) RepoHealthAuditAll() string {
+	roots := a.GetAllRepoRoots()
+	if len(roots) == 0 {
+		return findDuplicateErrorJSON("请先配置仓库目录")
+	}
+	type auditResult struct {
+		rtype  string
+		report repoaudit.HealthReport
+		err    error
+	}
+	results := make([]auditResult, 0, len(roots))
+	for rtype, root := range roots {
+		rpt, err := repoaudit.HealthReportFor(root)
+		results = append(results, auditResult{rtype: rtype, report: rpt, err: err})
+	}
+	// 合并：资源汇总 + 分数加权 + 警告汇集
+	merged := repoaudit.HealthReport{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Directory: "（全仓库）",
+		Resources: repoaudit.ResourceSummary{ByType: make(map[string]int)},
+	}
+	scoreSum := 0
+	scoreCount := 0
+	for _, r := range results {
+		if r.err != nil {
+			merged.Warnings = append(merged.Warnings, fmt.Sprintf("[%s] %v", r.rtype, r.err))
+			continue
+		}
+		merged.Resources.TotalFiles += r.report.Resources.TotalFiles
+		merged.Resources.TotalSize += r.report.Resources.TotalSize
+		for k, v := range r.report.Resources.ByType {
+			merged.Resources.ByType[k] += v
+		}
+		if r.report.Resources.LargestSize > merged.Resources.LargestSize {
+			merged.Resources.LargestFile = r.report.Resources.LargestFile
+			merged.Resources.LargestSize = r.report.Resources.LargestSize
+		}
+		merged.Completeness.Checked += r.report.Completeness.Checked
+		merged.Completeness.Valid += r.report.Completeness.Valid
+		merged.Completeness.Invalid += r.report.Completeness.Invalid
+		merged.Dedup.Groups += r.report.Dedup.Groups
+		merged.Dedup.ExtraFiles += r.report.Dedup.ExtraFiles
+		merged.Dedup.Reclaim += r.report.Dedup.Reclaim
+		merged.Warnings = append(merged.Warnings, r.report.Warnings...)
+		scoreSum += r.report.Score * r.report.Resources.TotalFiles
+		scoreCount += r.report.Resources.TotalFiles
+	}
+	// 缓存全局唯一（texture_cache），只取一次——取第一个有效结果
+	for _, r := range results {
+		if r.err == nil {
+			merged.Cache = r.report.Cache
+			break
+		}
+	}
+	if scoreCount > 0 {
+		merged.Score = scoreSum / scoreCount
+	}
+	if merged.Completeness.Checked > 0 {
+		merged.Completeness.Percentage = float64(merged.Completeness.Valid) / float64(merged.Completeness.Checked) * 100
+	}
+	return marshalJSON("RepoHealthAudit", merged, findDuplicateErrorJSON("JSON 序列化失败"))
 }
 
 // InstallResourceToInstance 将资源文件安装到指定整合包

@@ -7,7 +7,15 @@
 //    localStorage，测试内裸调（beforeEach clear / setItem）会炸；注入内存实现，
 //    happy-dom 环境自带 localStorage（in 判断跳过）。ADR-089 编写约定配套基建。
 import { vi } from "vitest";
+import { TextDecoder as NodeTextDecoder } from "node:util";
 import { zhCN } from "./src/core/i18n/locales/zh-CN.ts";
+
+// 0.5 TextDecoder 兜底（happy-dom 不提供该全局；真实运行时 WebView2/浏览器原生具备）——
+// YSM .animation.json 磁盘兜底扫描等 UTF-8 解码场景测试依赖。
+// 用 typeof 判定而非 in：happy-dom 可能声明属性但未实现。
+if (typeof (globalThis as { TextDecoder?: unknown }).TextDecoder !== "function") {
+  (globalThis as Record<string, unknown>).TextDecoder = NodeTextDecoder;
+}
 
 // 0. idb 层全局共享 mock（2026-08-17，isolate:false 穿透修复）——
 // browser-adapter 系测试原各自 vi.hoisted 独立 store + per-file vi.mock("./idb.ts")，
@@ -84,7 +92,47 @@ if (!("localStorage" in globalThis)) {
   });
 }
 
-// 4. three 全局 mock（2026-08-17，isolate:false 审核模式修复）
+// 4. molangjs mock（molangjs package.json 含 "type":"module"，其 dist/molang.cjs.js 又
+//    用 CJS module.exports——Node 层把 .cjs 当 ESM 解析会报 `module is not defined`，属
+//    上游打包 bug。用 vi.mock 模拟一个精简实现，满足 L4 求值口径即可，不做生产级解析器）
+vi.mock("molangjs", () => {
+  class Molang {
+    cache_enabled = true;
+    use_radians = false;
+    variableHandler: null | ((key: string, _vars: object) => number) = null;
+    global_variables: Record<string, string | number> = {};
+    parse(expr: string, variables: Record<string, number>): number {
+      if (!expr || expr.trim() === "") throw new Error("empty expression");
+      // 最小安全求值：把 query.anim_time 等替换为变量值，剩下的当作 JS 表达式求值
+      // （注意：不注入外部变量，只有 query/variable 从入参获取，其余 math.sin 等来自 Math）
+      let sanitized = expr.trim();
+      // 替换 query./q. 前缀（保留变量名）
+      sanitized = sanitized.replace(/\b(query|q)\./g, "");
+      // 替换变量引用（注意：key 含点号，需转义）
+      for (const [key, val] of Object.entries(variables)) {
+        const escaped = key.replace(/\./g, '\\.');
+        const regex = new RegExp(`\\b${escaped}\\b`, "g");
+        sanitized = sanitized.replace(regex, String(val));
+      }
+      // 替换 math. 函数调用（角度制：Bedrock 三角函数按度数，JS Math 按弧度）
+      // 先做函数名替换，再做弧度转换包裹
+      sanitized = sanitized.replace(/math\.(sin|cos|tan)\(/g, 'MATH_TRIG(');
+      sanitized = sanitized.replace(/MATH_TRIG\(([^)]+)\)/g, (_, arg) => `Math.sin((${arg})*Math.PI/180)`);
+      // 其他 math. 函数
+      sanitized = sanitized.replace(/math\.(asin|acos|atan|sqrt|abs|min|max|floor|ceil|round)\(/g, (_, fn) => `Math.${fn}(`);
+      try {
+        const result = eval(sanitized);
+        return typeof result === "number" ? result : 0;
+      } catch {
+        throw new Error(`invalid molang: ${expr}`);
+      }
+    }
+    resetVariables(): void {}
+  }
+  return { default: Molang };
+});
+
+// 5. three 全局 mock（2026-08-17，isolate:false 审核模式修复）
 // 根因：isolate:false 共享模块图，先跑的兄弟测试（mmd-adapter 等）把真实 three
 // 求值进共享图，mount-preview-core 的 `import * as THREE` 绑定固化指向真实 three，
 // 后跑文件的 per-file vi.mock("three") 无法改写已求值绑定 → 真实 WebGLRenderer 在

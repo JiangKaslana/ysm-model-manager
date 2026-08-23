@@ -36,7 +36,7 @@ node scripts/doctor.mjs         # 发版前全量闸门
 
 ## Go → JS 边界铁律
 
-> 根 AGENTS §"硬约束" + `docs/architecture.md` §绑定模式是主来源，这里列 Go 侧的落地动作。
+> 根 AGENTS §「工作准则·职责归属」 + `docs/architecture.md` §绑定模式是主来源，这里列 Go 侧的落地动作。
 
 - **`[]byte` 走 JSON 即 base64**：Go `[]byte` 经 JSON 序列化自动变 base64 字符串（JSON 规范行为）。前端拿到的是 base64，不是裸字节；Go 侧无需手动编码，JS 侧 `atob` / `Buffer.from(..., 'base64')` 解码
 - **`bool` 三态陷阱**：Go `bool` 默认 `false`，无法区分"值为假"和"未设置"。需要三态时**改用 `*bool`（指针）或显式 `Optional` 包裹类型**，不要用 `bool` + 额外标记
@@ -46,7 +46,7 @@ node scripts/doctor.mjs         # 发版前全量闸门
 
 ## Wails 绑定契约
 
-- **绑定由 `npm run generate:bindings` 生成**，禁止手写（见根 AGENTS §硬约束）
+- **绑定由 `npm run generate:bindings` 生成**，禁止手写（见根 AGENTS §「工作准则·职责归属」）
 - 命令必须带 `-ts` 参数：产出 `.ts` 文件，前端以 `.js` 后缀 import、由 vite `wailsBindingsResolve` 重定向
 - **改 Go 侧导出函数签名 → 必须重新 generate:bindings**；否则前端拿到的是旧契约
 - 绑定函数名先 `grep` 在 `internal/app/` 确认，不要凭空写
@@ -60,7 +60,7 @@ node scripts/doctor.mjs         # 发版前全量闸门
 - **`sync.Once` 只执行一次**：并发初始化用 `sync.Once` 安全；但**重置场景不能用**，改 `sync.Mutex` + 手动状态
 - **文件路径用 `filepath` 不用字符串拼接**：`filepath.Join`、`filepath.Clean`、`filepath.Abs`。禁止 `"C:\\" + name` 式拼接
 - **不要裸 `os.Open` 做批量读取**：大文件用 `bufio.Reader`，带超时用 `context.Context` + `ioutil.NopCloser`
-- **日志用统一 `logs` 包**：不要到处 `fmt.Println`；调试信息走 `logs.Debug` 或根 AGENTS §"环形日志面板"
+- **日志用统一 `logs` 包**：不要到处 `fmt.Println`；调试信息走 `logs.Debug` 或根 AGENTS「环形日志面板」
 
 ## 提交纪律
 

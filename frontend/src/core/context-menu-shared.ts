@@ -7,6 +7,7 @@ import { bus, type ToastPayload } from "../bus.ts";
 import { modalPrompt } from "../utils/dom/dialogs/modal.ts";
 import { getApp } from "../backend/app.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 
 type ToastType = NonNullable<ToastPayload["type"]>;
 
@@ -17,7 +18,7 @@ export function refreshUI(): void {
 }
 
 /** 显示 toast 通知 */
-export function toast(msg: string, duration = 3000, type: ToastType = "success"): void {
+export function toast(msg: string, duration: number = TOAST_MS.normal, type: ToastType = "success"): void {
   bus.emit("toast:show", { msg, duration, type });
 }
 
@@ -32,13 +33,14 @@ export function isUnsafeFolderName(folder: string): boolean {
 /**
  * 解析「移动/复制到文件夹」的目标路径（batch.move / batch.copy / file.move / file.copy 共用）。
  * 用户取消或校验失败时返回 null（已 toast 告知）。
+ * @param rtype 资源类型 ID（如 "ysm"/"EntityPlayer"），为空时回退 YSM。
  */
 export async function resolveDstDir(opts: {
   title: string;
   icon: string;
   okText: string;
   emptyMsg: string;
-}): Promise<{ folder: string; dstDir: string } | null> {
+}, rtype?: string): Promise<{ folder: string; dstDir: string } | null> {
   const folder = await modalPrompt({
     title: opts.title,
     icon: opts.icon,
@@ -55,7 +57,7 @@ export async function resolveDstDir(opts: {
     return null;
   }
   const { GetRepoRoot } = await getApp();
-  const filesRoot = await GetRepoRoot(RESOURCE_TYPES.YSM);
+  const filesRoot = await GetRepoRoot(rtype || RESOURCE_TYPES.YSM);
   if (!filesRoot) {
     bus.emit("toast:show", {
       msg: opts.emptyMsg,

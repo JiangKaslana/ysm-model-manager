@@ -116,3 +116,7 @@ review_diff.txt
 review_diff_tmp.txt
 scan-i18n-keys.mjs
 frontend/src/wasm/ysm-wasm-data*.js
+
+# Rust 构建产物（rust-core / rust-wails-bridge 编译输出，不入库）
+rust-core/target/
+rust-wails-bridge/target/

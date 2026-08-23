@@ -14,10 +14,12 @@ export function fileRowHTML(
   nmCls = "",
   indent: number | null | undefined,
   rowCls = "",
+  ariaLevel = 1,
 ): string {
   const { p, fp, checked, ban, typeIcon, pad } = fileRowCommon(e, icon, indent);
   const tagMark = e.HasTags ? `<span class="tag-dot" title="${t("tree.hasTags")}">🏷️</span>` : "";
-  return `<div class="fl${ban}${rowCls}" data-testid="tree-file" data-path="${p}" data-fullpath="${fp}"${pad}>
+  const selected = rowCls.includes("selected");
+  return `<div class="fl${ban}${rowCls}" role="treeitem" aria-level="${ariaLevel}" aria-selected="${selected}" data-testid="tree-file" data-path="${p}" data-fullpath="${fp}"${pad}>
 <span class="ck${checked}" data-testid="tree-toggle" data-path="${p}" data-fullpath="${fp}"></span>
 <span class="ficon">${typeIcon}</span>
 <span class="nm${nmCls}">${tagMark}${nmHtml}</span>
@@ -37,11 +39,12 @@ export function folderRowHTML(
   hasEnabled: boolean,
   hasDisabled: boolean,
   indent: number | null | undefined,
+  ariaLevel = 1,
 ): string {
   const { fi, nc, lk, ar, ac, ckCls, dispName, pad } = folderRowCommon(
     k, full, isOpen, isLocked, hasEnabled, hasDisabled, indent,
   );
-  return `<div class="fh${lk}" data-testid="tree-dir" data-dir="${esc(full)}"${pad}>
+  return `<div class="fh${lk}" role="treeitem" aria-level="${ariaLevel}" aria-expanded="${isOpen}" data-testid="tree-dir" data-dir="${esc(full)}"${pad}>
 <span class="ck${ckCls}" data-testid="tree-dir-toggle" data-dir="${esc(full)}"></span>
 <span class="ar${ac}">${ar}</span>
 <span class="nm" style="color:${nc}">${fi} ${dispName}</span></div>`;

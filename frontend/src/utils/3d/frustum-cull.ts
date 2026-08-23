@@ -3,11 +3,13 @@
 // 本工具在 Group 级做 BoundingSphere 测试，visible=false 后 Three.js 跳过整组遍历。
 // 用途：多模型同框时，镜头外的模型整组跳过（省 matrixWorld 递归 + mesh 遍历）。
 import * as THREE from "three";
+import { safeGet, safeSet } from "../dom/storage.ts";
 
 const _frustum = new THREE.Frustum();
 const _projScreenMatrix = new THREE.Matrix4();
 const _box = new THREE.Box3();
 const _sphere = new THREE.Sphere();
+const _vec = new THREE.Vector3();
 
 /** 需要裁剪的模型根节点列表（adapter 在 scene.add 时注册） */
 const modelRoots: THREE.Object3D[] = [];
@@ -35,6 +37,15 @@ export function getModelRootCount(): number {
  */
 export function cullModelGroups(camera: THREE.Camera): void {
   if (modelRoots.length === 0) return;
+  for (let i = modelRoots.length - 1; i >= 0; i--) {
+    if (!modelRoots[i].parent) modelRoots.splice(i, 1);
+  }
+  if (modelRoots.length === 0) return;
+  if (modelRoots.length === 1) {
+    const obj = modelRoots[0];
+    obj.visible = Boolean((obj as THREE.Mesh).isMesh || obj.children.length > 0);
+    return;
+  }
   _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_projScreenMatrix);
 
@@ -45,7 +56,11 @@ export function cullModelGroups(camera: THREE.Camera): void {
       modelRoots.splice(i, 1);
       continue;
     }
-    _box.setFromObject(obj);
+    // 只累加 visible 子树：Box3.setFromObject 默认计入 visible=false 的子节点，
+    // 多组件模型里隐藏的车/载具会把 bounding box 撑大并偏移，导致视锥剔除在
+    // 边界来回翻转（角色闪烁）。手写递归跳过 !visible 子树修复此问题。
+    _box.makeEmpty();
+    expandBoxVisible(obj, _box);
     if (_box.isEmpty()) {
       obj.visible = false;
       continue;
@@ -55,7 +70,53 @@ export function cullModelGroups(camera: THREE.Camera): void {
   }
 }
 
+/** 递归展开 bounding box，只计入 visible 子树（跳过隐藏的载具/投射物组件） */
+function expandBoxVisible(obj: THREE.Object3D, box: THREE.Box3): void {
+  if (!obj.visible) return;
+  // 无条件更新世界矩阵：render loop 外的测试路径可能未 updateMatrixWorld，
+  // matrixWorldNeedsUpdate 守卫不可靠（new Group() 初始即 false）。对齐
+  // Box3.setFromObject 内部 updateWorldMatrix(true, true) 语义。
+  obj.updateWorldMatrix(true, true);
+  const mesh = obj as THREE.Mesh;
+  if (mesh.isMesh && mesh.geometry) {
+    // geometry.boundingBox 默认 null，需显式计算（对齐 Box3.setFromObject 内部行为）
+    let bb = mesh.geometry.boundingBox;
+    if (!bb) {
+      mesh.geometry.computeBoundingBox();
+      bb = mesh.geometry.boundingBox;
+    }
+    if (bb && !bb.isEmpty()) {
+      _vec.copy(bb.min).applyMatrix4(mesh.matrixWorld);
+      box.expandByPoint(_vec);
+      _vec.copy(bb.max).applyMatrix4(mesh.matrixWorld);
+      box.expandByPoint(_vec);
+    }
+  }
+  for (const child of obj.children) expandBoxVisible(child, box);
+}
+
 /** 清空所有注册（session 结束时调用） */
 export function clearModelRoots(): void {
   modelRoots.length = 0;
+}
+
+// ===== 视锥裁剪开关（localStorage 持久化，设置面板可关）=====
+// 默认开（多模型同框省渲染的性能收益）；剔除失误（误藏模型/闪烁）时用户可关，
+// 关闭后所有注册根恢复可见（视觉优先，牺牲一点多模型同框性能）。
+const CULL_ENABLED_KEY = "ysm_3d_frustumCull";
+
+/** 视锥裁剪开关是否启用（undefined → 默认开；safeGet 隐私模式安全） */
+export function isFrustumCullEnabled(): boolean {
+  const v = safeGet(CULL_ENABLED_KEY);
+  return v === null ? true : v !== "0";
+}
+
+/** 设置视锥裁剪开关（设置面板开关调用） */
+export function setFrustumCullEnabled(enabled: boolean): void {
+  safeSet(CULL_ENABLED_KEY, enabled ? "1" : "0");
+}
+
+/** 关闭剔除时恢复所有注册模型根可见性（幂等） */
+export function restoreModelGroupsVisible(): void {
+  for (const root of modelRoots) root.visible = true;
 }

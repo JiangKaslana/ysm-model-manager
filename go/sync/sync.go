@@ -51,8 +51,8 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 	// 预构建 relKey 映射（非哈希类型回退：MMD/VRC 等 ShouldHashExt 为 false 的类型用路径+大小比对）
 	repoByRelKey := make(map[string][]types.ModelEntry)
 	for _, e := range repoEntries {
-		// 禁用的模型（.ban）不应出现在缺失列表，同时归入 bannedHashes
-		if strings.HasSuffix(strings.ToLower(e.Name), ".ban") {
+		// 禁用的模型（.disabled/.ban）不应出现在缺失列表，同时归入 bannedHashes
+		if types.IsDisableSuffix(e.Name) {
 			if e.Hash != "" {
 				bannedHashes[e.Hash] = true
 			}
@@ -167,9 +167,9 @@ func GetInstanceStatusWith(mcRoot, repoDir, rtype string, scanFn ScanFunc, listF
 		// 收集 custom 目录下每个文件的链接类型
 		for _, c := range customEntries {
 			linkType := GetLinkType(c.Path)
-			// 去掉 .ban 后缀，方便前端匹配
+			// 去掉禁用后缀，方便前端匹配
 			status.Files = append(status.Files, types.CustomFileInfo{
-				Name:     types.StripBanSuffix(c.Name),
+				Name:     types.StripDisableSuffix(c.Name),
 				LinkType: linkType,
 			})
 		}
@@ -195,19 +195,22 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 	}
 	repoEntries := scanFn(filesRoot)
 	repoHash := make(map[string]bool) // hash → banned
-	repoName := make(map[string]bool) // relPath(去.ban) → banned，用于同名不同文件夹的文件
+	repoName := make(map[string]bool) // relPath(去禁用后缀) → banned，用于同名不同文件夹的文件
 	filesRootClean := strings.ToLower(filepath.Clean(filesRoot)) + string(filepath.Separator)
 	for _, e := range repoEntries {
-		banned := strings.HasSuffix(strings.ToLower(e.Name), ".ban")
+		banned := types.IsDisableSuffix(e.Name)
 		// 用路径前缀限定：relPath 带至少一级父文件夹，避免跨文件夹撞名
 		ePath := strings.ToLower(e.Path)
 		if strings.HasPrefix(ePath, filesRootClean) {
 			rel := strings.TrimPrefix(ePath, filesRootClean)
+			rel = strings.TrimSuffix(rel, ".disabled")
 			rel = strings.TrimSuffix(rel, ".ban")
 			repoName[rel] = banned
 		} else {
 			// fallback：纯文件名（顶层文件）
-			baseName := strings.TrimSuffix(strings.ToLower(e.Name), ".ban")
+			baseName := strings.ToLower(e.Name)
+			baseName = strings.TrimSuffix(baseName, ".disabled")
+			baseName = strings.TrimSuffix(baseName, ".ban")
 			repoName[baseName] = banned
 		}
 		if e.Hash != "" {
@@ -237,9 +240,9 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 			return nil
 		}
 		actualPath := p
-		isCurrentlyBanned := strings.HasSuffix(strings.ToLower(p), ".ban")
+		isCurrentlyBanned := types.IsDisableSuffix(p)
 		if isCurrentlyBanned {
-			actualPath = types.StripBanSuffix(p)
+			actualPath = types.StripDisableSuffix(p)
 		}
 		ext := strings.ToLower(filepath.Ext(actualPath))
 		if !types.IsSupportedExt(ext) {
@@ -258,6 +261,7 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 			pLower := strings.ToLower(p)
 			if strings.HasPrefix(pLower, customDirClean) {
 				rel := strings.TrimPrefix(pLower, customDirClean)
+				rel = strings.TrimSuffix(rel, ".disabled")
 				rel = strings.TrimSuffix(rel, ".ban")
 				shouldBeBanned, matched = repoName[rel]
 			}
@@ -272,16 +276,16 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 		}
 
 		if shouldBeBanned && !isCurrentlyBanned {
-			newPath := p + ".ban"
+			newPath := p + ".disabled"
 			if _, err := os.Stat(newPath); err == nil {
 				return nil // 目标已存在，跳过
 			}
 			ops = append(ops, renameOp{src: p, dst: newPath})
 		} else if !shouldBeBanned && isCurrentlyBanned {
-			newPath := types.StripBanSuffix(p)
+			newPath := types.StripDisableSuffix(p)
 			// 启用分支补目标存在性检查——与禁用分支「存在即跳过」
 			// 对称；原 os.Rename 会静默覆盖既有同名文件（内容不同则数据丢失，仅 Windows
-			// 目标被占用时失败）；目标已存在且非 .ban 时跳过本次改名
+			// 目标被占用时失败）；目标已存在且非禁用后缀时跳过本次改名
 			if _, err := os.Stat(newPath); err == nil {
 				return nil
 			}
@@ -296,7 +300,7 @@ func SyncToggleStatus(instanceCustomDir, filesRoot string, scanFn ScanFunc) (int
 	var failures []string
 	for _, op := range ops {
 		if err := os.Rename(op.src, op.dst); err == nil {
-			if strings.HasSuffix(strings.ToLower(op.dst), ".ban") {
+			if types.IsDisableSuffix(op.dst) {
 				disableCount++
 			} else {
 				enableCount++

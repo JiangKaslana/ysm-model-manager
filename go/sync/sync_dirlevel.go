@@ -24,7 +24,7 @@ func isDirTypeModelFolder(path string, rtype string) bool {
 		if e.IsDir() {
 			continue
 		}
-		if types.IsTypeModelFile(e.Name(), rtype) {
+		if types.IsTypeModelFile(filepath.Join(path, e.Name()), rtype) {
 			return true
 		}
 	}
@@ -71,8 +71,7 @@ func SyncResourcesDirLevel(globalDir, instanceDir, rtype string) types.ResourceS
 				// 顶层平铺模型文件（path 直接在 rootDir 下）
 				if filepath.Clean(filepath.Dir(path)) == filepath.Clean(rootDir) {
 					low := strings.ToLower(info.Name())
-					base := types.NormalizeResourceName(low)
-					if types.IsTypeModelFile(base, rtype) {
+					if types.IsTypeModelFile(path, rtype) {
 						key := strings.TrimSuffix(low, filepath.Ext(low))
 						entries[key] = path
 					}

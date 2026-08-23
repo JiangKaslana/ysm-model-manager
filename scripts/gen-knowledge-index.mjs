@@ -16,23 +16,14 @@ import path from 'node:path';
 import { ROOT, readText, writeText } from './_lib/scan-files.mjs';
 import { parseFrontmatter, getScalar, getList } from './_lib/frontmatter.mjs';
 import { parseArgs } from './_lib/parse-args.mjs';
+// [ADR-114 §被补充] 常量共享层：CATEGORY_LABELS / NON_CARDS / KNOW_DIR 从 _lib/knowledge-cards.mjs 引入
+// （原散落本文件 / gen-knowledge-adr / gen-knowledge-h1 / gen-knowledge-tests / gen-vitepress-sidebar 5 处，
+// 本文件为第一处消解）
+import { CATEGORY_LABELS, KNOWLEDGE_NON_CARDS as NON_CARDS, KNOW_DIR as KC_DIR } from './_lib/knowledge-cards.mjs';
 
-const KC_DIR = path.join(ROOT, 'docs', 'knowledge');
-const OUTPUT = path.join(KC_DIR, 'index.md');
 const { check: CHECK } = parseArgs(process.argv.slice(2), { bools: ['check'] });
 
-// ── 配置 ─────────────────────────────────────────────
-
-const CATEGORY_LABELS = {
-  core: '核心基础设施（事件总线、页面状态、Wails 桥接）',
-  go: 'Go 后端包（安装、下载、回收站、YSM 解析等）',
-  ui: '前端 UI 组件（tree、sidebar、preview、content）',
-  feature: '业务功能（导入队列、同步、社区）',
-  utils: '工具函数（display、fmt、dom、animation）',
-  config: '配置与注册表（resource_types、AppConfig）',
-};
-
-const NON_CARDS = new Set(['index.md', 'README.md', 'AGENTS.md']);
+const OUTPUT = path.join(KC_DIR, 'index.md');
 
 /**
  * 使用说明（原 docs/knowledge/README.md 操作手册，并入 index 后由生成器承载）。

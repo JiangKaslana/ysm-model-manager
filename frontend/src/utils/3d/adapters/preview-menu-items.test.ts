@@ -239,7 +239,7 @@ describe("真实菜单表结构（遍历 ysm/mmd/vrm 真实注入项）", () => 
       "mmd-bones-entry",
       "vrm-material-entry",
       "vrm-bones-entry",
-      "mmd-switch",
+      "ysm-roles-entry",
       "env-menu-btn",
     ].forEach((anchor) => expect(legacies, `缺锚点 ${anchor}`).toContain(anchor));
   });
@@ -252,7 +252,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     document.body.innerHTML = "";
   });
 
-  it("ysm 数组：🧍 模型组按钮出现，点击列出全部 menu 行（自适应）", () => {
+  it("ysm 数组：🧍 模型组按钮出现，点击直达 roles 面板（adapter model 项不在 dock 根）", () => {
     const items = ysmMenuItems(fakeYsmOpts());
     const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.ysm"],
@@ -261,11 +261,13 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 自愈：从真实菜单表推导期望选择器（ysm 项 + core 同组项）
+    // Phase A：🧍 始终直达 roles 面板（角色管理）；adapter model 组项下沉角色详情，不在 dock 根
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
+    // ysm model 组项（模型信息/截图/骨骼/材料）不再作为 dock 根行出现（下沉到角色详情）
     const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
-    const coreDock = deriveTestIds(CORE_MENU_ITEMS.filter((d) => d.dockGroup === "model" && d.id === "switch"));
-    [...adapterDock, ...coreDock].forEach((tid) => {
-      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+    adapterDock.forEach((tid) => {
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).toBeNull();
     });
     handle.dispose();
   });
@@ -279,13 +281,13 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 自愈：从真实菜单表推导 🧍 组期望选择器
+    // Phase A：🧍 始终直达 roles 面板（adapter model 组项下沉角色详情，不在 dock 根）
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
     const adapterDockModel = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
     adapterDockModel.forEach((tid) => {
-      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).toBeNull();
     });
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    expect(overlay.querySelector(`[data-testid="preview-${switchId}"]`)).not.toBeNull();
 
     // 多 panel 组（play + perception）→ 渲染组根行列表
     const motionGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "motion")!.id;
@@ -299,7 +301,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("vrm 数组：🧍 模型组从菜单表推导，骨骼与 core switch 同行渲染（自适应）", () => {
+  it("vrm 数组：🧍 模型组从菜单表推导，骨骼与 core roles 同行渲染（自适应）", () => {
     const items = vrmMenuItems(fakeVrmOpts());
     const { overlay, handle } = mountWith(items, {
       getSiblings: () => ["/m/b.vrm"],
@@ -308,13 +310,13 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
     modelBtn!.click();
-    // 自愈：从真实菜单表推导期望选择器
+    // Phase A：🧍 始终直达 roles 面板（adapter model 组项下沉角色详情，不在 dock 根）
+    const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
+    expect(popup.style.display).toBe("flex");
     const adapterDock = deriveTestIds(items.filter((d) => d.dockGroup === "model"));
     adapterDock.forEach((tid) => {
-      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).not.toBeNull();
+      expect(overlay.querySelector(`[data-testid="${tid}"]`), tid).toBeNull();
     });
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    expect(overlay.querySelector(`[data-testid="preview-${switchId}"]`)).not.toBeNull();
     handle.dispose();
   });
 
@@ -348,7 +350,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
   });
 
   it("能力驱动：无 siblings → model dock 仍显示（路径输入兜底）；selfMode + 无环境能力 → 无 🌍/🎛️ 组", () => {
-    // 无 siblings → switch 不再被过滤（needsSiblings 已移除），dock-model 始终可见
+    // roles 为模型组恒定 core 项（内嵌加载入口含路径兜底），dock-model 始终可见
     const noSib = mountWith([], {});
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     expect(noSib.overlay.querySelector(`[data-testid="dock-${modelGroupId}"]`)).not.toBeNull();
@@ -363,7 +365,7 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     noScene.handle.dispose();
   });
 
-  it("提供 siblings → 🧍 组出现切换模型；选中条目触发 switchTo（换角色）", async () => {
+  it("提供 siblings → 🧍 组角色面板内嵌加载入口列候选；选中条目触发 switchTo（换角色）", async () => {
     const switchTo = vi.fn();
     const { overlay, handle } = mountWith([], {
       getSiblings: () => ["/m/a.ysm", "/m/b.vrm"],
@@ -373,9 +375,8 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     expect(modelBtn).not.toBeNull();
+    // 无适配器项 → 模型组仅 roles → 单 panel 快捷直达角色面板（内嵌加载入口）
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     const rows = overlay.querySelectorAll('[data-testid="preview-switch-item"]');
@@ -385,20 +386,16 @@ describe("dock 行全量渲染（遍历真实菜单数组驱动）", () => {
     handle.dispose();
   });
 
-  it("无 siblings → dock-model 可见（类型 tab 兜底），面板内显示空态（路径输入保留）", () => {
+  it("无 siblings → dock-model 可见（类型 tab 兜底），角色面板加载入口显示空态（路径输入保留）", () => {
     const { overlay, handle } = mountWith([], { getSiblings: () => [] });
     const modelGroupId = PREVIEW_MENU_GROUPS.find((g) => g.id === "model")!.id;
     expect(overlay.querySelector(`[data-testid="dock-${modelGroupId}"]`)).not.toBeNull();
-    // 点击 model 打开 switch 面板，应显示空态文字，路径输入框保留（P2-1 补回）
+    // 点击 model 快捷直达角色面板，加载入口应显示空态文字
     const modelBtn = overlay.querySelector<HTMLElement>(`[data-testid="dock-${modelGroupId}"]`);
     modelBtn!.click();
-    const switchId = CORE_MENU_ITEMS.find((d) => d.id === "switch")!.id;
-    (overlay.querySelector(`[data-testid="preview-${switchId}"]`) as HTMLElement).click();
     const popup = overlay.querySelector(".ysm-preview-menu") as HTMLElement;
     expect(popup.style.display).toBe("flex");
     expect(popup.textContent).toContain("无其他模型");
-    // 路径输入保留（跨类型手动加载；类型 tab 由 adapter getTypeTabs 注入）
-    expect(popup.querySelector("input[type='text']")).not.toBeNull();
     handle.dispose();
   });
 });
@@ -457,12 +454,12 @@ describe("面板渲染（安全 panel 逐个打开）", () => {
     handle.dispose();
   });
 
-  it("core switch 面板：siblings 行渲染", () => {
+  it("core roles 面板：内嵌加载入口渲染 siblings 行", () => {
     const { overlay, handle } = mountWith([], {
       getSiblings: () => ["/m/b.ysm"],
       getCurrentPath: () => "/m/b.ysm",
     });
-    handle.openPanel("switch");
+    handle.openPanel("roles");
     expect(overlay.textContent).toContain("b.ysm");
     handle.dispose();
   });

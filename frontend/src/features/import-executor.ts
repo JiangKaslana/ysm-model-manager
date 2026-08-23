@@ -8,11 +8,12 @@ import { bus } from "../bus.ts";
 import { t } from "../core/i18n/t.ts";
 import { getApp } from "../backend/app.ts";
 import { importWebFiles } from "../backend/browser-adapter.ts";
-import { RESOURCE_TYPES } from "../utils/resource/types.ts";
+import { currentRepoType } from "./repo-rtype.ts";
 import { groupCollected, isImportableFile } from "./dnd-shared.ts";
 import { isYsmName } from "../utils/icon/icon.ts";
 import { isFileExistsError, friendlyError } from "../utils/dom/errors.ts";
 import { dbg } from "../utils/debug/debug.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 
 /** 带相对路径的 File（文件夹导入时标记 _relPath） */
 export type ImportFile = File & { _relPath?: string };
@@ -60,7 +61,7 @@ export const ImportHistory = {
   },
 };
 
-const toast = (msg: string, type: "success" | "error" | "warn" | "info", duration = 3000): void => {
+const toast = (msg: string, type: "success" | "error" | "warn" | "info", duration: number = TOAST_MS.normal): void => {
   bus.emit("toast:show", { msg, duration, type });
 };
 
@@ -240,7 +241,7 @@ export const importWebFilesWithToast = async (
   onFinally?: () => void,
 ): Promise<{ imported: number; failed: number }> => {
   try {
-    const r = await importWebFiles(files, RESOURCE_TYPES.YSM);
+    const r = await importWebFiles(files, currentRepoType());
     bus.emit("toast:show", {
       msg:
         r.failed > 0

@@ -1,6 +1,7 @@
 // ===== app-content 页面模板 =====
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
 import { t } from "../../core/i18n/t.ts";
+export { ysmHubHTML } from "./tpl-ysmhub.ts";
 import { isViewerMode } from "../../utils/dom/android-bridge.ts";
 
 // P1 修复（ADR-040）：settingsHTML 已拆至 tpl-settings.ts，此处 re-export 兼容
@@ -136,7 +137,7 @@ export function diagnosticsHTML(): string {
 <button class="btn-base" id="diag-perf-refresh-trace">🔍 ${t("diagnostics.loadTraceRefresh")}</button>
 </div>
 <div id="diag-perf-single"></div>
-<div id="diag-perf-gui"></div>
+<div id="diag-perf-gui-out"></div>
 <div id="diag-perf-hist"></div>
 <div id="diag-load-trace"></div>
 </div>

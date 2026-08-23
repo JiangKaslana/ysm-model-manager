@@ -17,6 +17,8 @@ import { esc } from "../../utils/dom/html.ts";
 import { setActive3DClose } from "./skeleton.ts";
 import { registerAndroidBackHandler } from "../../utils/dom/android-bridge.ts";
 import type { PreviewCtx } from "./utils.ts";
+import type { BedrockSubModel } from "./geometry.ts";
+import type { YsmMetadata } from "../../../bindings/ysm-model-manager/go/types/models.ts";
 
 /** 数据读取注入 */
 async function readFileBytes(path: string): Promise<string | null> {
@@ -37,20 +39,27 @@ export interface MaidOpenOptions {
   loader: (path: string) => Promise<BedrockGeometry | null>;
   onClose?: () => void;
   siblings?: string[];
+  /** 打开时默认选中的子模型索引（多角色包内切换）。
+   *  取值范围 [0, subModels.length)；越界或缺省 = 载入第 0 个（或未过滤的合并模型，后续接过滤）。 */
+  subModelIdx?: number;
+  /** 选中 subModel 的 zip 内相对路径（SubModel.SourcePath），有值时走 AnalyzeBedrockModelEntry 单模型解析。
+   *  由调用方根据 subModelIdx 从 subModels[subModelIdx].sourcePath 推导并显式传入（因为 loader 是外部闭包，
+   *  createMaid3D 内部拿不到 subModels 清单）。 */
+  subPath?: string;
 }
 
 /**
  * 打开车万女仆 3D 预览（Bedrock generic 模式）。
  * 与 YSM 共享 spec→Three.js 渲染管道，跳过动画/语义骨骼等 YSM 专属特性。
  */
-export async function createMaid3D(
+async function createMaid3D(
   path: string,
   texIdx = 0,
   opts: MaidOpenOptions,
 ): Promise<void> {
-  const rebuild = (idx: number): void => {
+  const rebuild = (idx: number, subIdx?: number): void => {
     cleanupPreview();
-    void createMaid3D(path, idx, opts);
+    void createMaid3D(path, idx, { ...opts, subModelIdx: subIdx ?? opts.subModelIdx });
   };
   cleanupPreview();
   await mount3D(
@@ -67,7 +76,8 @@ export async function createMaid3D(
         fillShotPanel: fillYsmShotPanel,
         attachBoneSelect: attachYsmBoneSelect,
       },
-    }),
+      subModelIdx: opts.subModelIdx ?? 0,
+    } as Parameters<typeof makeYsmAdapter>[1]),
     path,
     withPreviewExtras({ siblings: opts.siblings }),
   );
@@ -84,8 +94,8 @@ export function invalidateMaidPreview(): void {
 }
 
 /**
- * 车万女仆详情预览（简化版：基本信息卡 + FAB 进 3D）。
- * 不同于 YSM 的丰富元数据（作者/动画/配置菜单），女仆模型展示简洁明细。
+ * 车万女仆详情预览（基本信息卡 + 详细数据 + FAB 进 3D）。
+ * 调用 Go 端 AnalyzeBedrockModel 获取骨骼数、方块数、纹理等详细信息。
  * FAB 接线复用 skeleton 的 3D overlay 管理（_active3DClose / android-back）。
  */
 export async function showMaidPreview(
@@ -93,15 +103,141 @@ export async function showMaidPreview(
   path: string,
 ): Promise<void> {
   const basename = path.split(/[/\\]/).pop() || path;
+  // 先显示加载状态
   ctx.root.innerHTML = `<div class="content" id="preview-content">
   <h3>🧸 ${t("preview.modelInfo")}</h3>
   <div class="dp-placeholder">
     <div class="big-icon">🧸</div>
     <div class="dp-hint">${esc(basename)}</div>
     <div class="dp-hint">Bedrock Edition Model</div>
+    <div class="dp-hint" style="margin-top:8px;font-size:11px;color:var(--txt-dim)">⏳ 分析模型数据...</div>
   </div>
 </div>
 <button class="preview-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">&#x1F3A8;</span></button>`;
+
+  // 调用 Go 端分析模型数据（含 subModels L0 清单）
+  let modelInfo: {
+    boneCount?: number;
+    cubeCount?: number;
+    textureCount?: number;
+    format?: string;
+    texWidth?: number;
+    texHeight?: number;
+    subModels?: BedrockSubModel[];
+    metadata?: YsmMetadata;
+  } | null = null;
+  try {
+    const { AnalyzeBedrockModel } = await getApp();
+    const model = await AnalyzeBedrockModel(path);
+    if (model) {
+      modelInfo = {
+        boneCount: model.boneCount,
+        cubeCount: model.cubeCount,
+        textureCount: (model.textures as unknown[] | undefined)?.length || (model.texture ? 1 : 0),
+        format: model.format as string | undefined,
+        texWidth: model.texWidth as number | undefined,
+        texHeight: model.texHeight as number | undefined,
+        subModels: model.subModels as BedrockSubModel[] | undefined,
+        metadata: model.metadata ?? undefined,
+      };
+    }
+  } catch (e) {
+    console.warn("[maid-preview] AnalyzeBedrockModel:", e);
+  }
+
+  // UI 状态：选中的子模型索引（多角色包）
+  let _selSubIdx = 0;
+  const subs = modelInfo?.subModels && modelInfo.subModels.length > 0 ? modelInfo.subModels : [];
+
+  // 渲染详细信息（对 subs.length>1 的包：若选中了单个角色，摘要应显示该 subModel 的 texSlot/名字）
+  const renderDetail = (): string => {
+    const rows: string[] = [];
+    if (modelInfo?.format) rows.push(`<div class="dp-hint">📐 格式版本: ${esc(modelInfo.format)}</div>`);
+    const sel = subs[_selSubIdx];
+    if (subs.length > 1 && sel) {
+      rows.push(`<div class="dp-hint">🧸 选中角色: <b>${esc(sel.name)}</b></div>`);
+    }
+    if (modelInfo?.boneCount !== undefined) rows.push(`<div class="dp-hint">🦴 骨骼数: ${modelInfo.boneCount}</div>`);
+    if (modelInfo?.cubeCount !== undefined) rows.push(`<div class="dp-hint">📦 方块数: ${modelInfo.cubeCount}</div>`);
+    if (modelInfo?.textureCount !== undefined && modelInfo.textureCount > 0) {
+      rows.push(`<div class="dp-hint">🎨 纹理数: ${modelInfo.textureCount}</div>`);
+      if (modelInfo.texWidth && modelInfo.texHeight) {
+        rows.push(`<div class="dp-hint">📏 纹理尺寸: ${modelInfo.texWidth}×${modelInfo.texHeight}</div>`);
+      }
+    }
+    // ysm.json metadata 段（name/license/tips/authors，Modern YSM RawMetadata 对齐）
+    const md = modelInfo?.metadata;
+    if (md) {
+      if (md.name) rows.push(`<div class="dp-hint" style="font-weight:600">🏷️ ${esc(md.name)}</div>`);
+      if (md.license?.type) rows.push(`<div class="dp-hint">📜 许可: ${esc(md.license.type)}</div>`);
+      if (md.tips) rows.push(`<div class="dp-hint" style="white-space:pre-line;font-size:11px">💬 ${esc(md.tips ?? "")}</div>`);
+      if (md.authors && md.authors.length > 0) {
+        rows.push(`<div class="dp-hint" style="font-weight:600;margin-top:6px">✒️ 作者 (${md.authors.length})</div>`);
+        for (const a of md.authors) {
+          const contact =
+            a.contact && Object.keys(a.contact).length > 0
+              ? Object.entries(a.contact)
+                  .map(([p, u]) => {
+                    const url = u ?? "";
+                    // scheme 白名单（http/https/mailto）防 javascript: 等注入（code review P2 XSS）
+                    return /^(https?:|mailto:)/i.test(url)
+                      ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(p ?? "")}</a>`
+                      : esc(p ?? "");
+                  })
+                  .join(" · ")
+              : "";
+          rows.push(
+            `<div class="dp-hint" style="font-size:11px;color:var(--muted)">${esc(a.name ?? "")}${a.role ? `（${esc(a.role ?? "")}）` : ""}${contact ? ` — ${contact}` : ""}</div>`,
+          );
+        }
+      }
+    }
+    return rows.join("");
+  };
+
+  // 渲染子模型选择列表（>1 才显示；能力驱动）
+  const renderSubList = (): string => {
+    if (subs.length <= 1) return "";
+    const chips = subs
+      .map((s, i) => {
+        const active = i === _selSubIdx ? ' class="active"' : "";
+        return `<li data-idx="${i}"${active}><span class="chip-name">${esc(s.name)}</span>${s.texSlot !== undefined ? `<span class="chip-slot">🎨${s.texSlot}</span>` : ""}</li>`;
+      })
+      .join("");
+    return `<div class="dp-submodels">
+      <div class="dp-hint" style="font-weight:600;margin-bottom:8px">🧩 L0 清单角色 (${subs.length})</div>
+      <ul class="dp-sublist" role="listbox">${chips}</ul>
+    </div>`;
+  };
+
+  const render = (): void => {
+    const detail = renderDetail();
+    const subList = renderSubList();
+    ctx.root.innerHTML = `<div class="content" id="preview-content">
+  <h3>🧸 ${t("preview.modelInfo")}</h3>
+  <div class="dp-placeholder">
+    <div class="big-icon">🧸</div>
+    <div class="dp-hint" style="font-weight:600">${esc(basename)}</div>
+    <div class="dp-hint">Bedrock Edition Model</div>
+    ${detail ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px">${detail}</div>` : `<div class="dp-hint" style="margin-top:8px;font-size:11px;color:var(--txt-dim)">⚠️ 无法读取模型数据</div>`}
+    ${subList ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">${subList}</div>` : ""}
+  </div>
+</div>
+<button class="preview-fab" id="btn-3d-preview" title="${t("preview.title3d")}" aria-label="${t("preview.title3d")}"><span class="preview-ic">&#x1F3A8;</span></button>`;
+
+    // subModel 选中点击
+    ctx.root.querySelectorAll<HTMLLIElement>(".dp-sublist li").forEach((li) => {
+      li.onclick = () => {
+        const idx = Number(li.getAttribute("data-idx"));
+        if (!Number.isFinite(idx) || idx < 0 || idx >= subs.length) return;
+        _selSubIdx = idx;
+        render();
+      };
+    });
+    // FAB 接线（含选中的 subModelIdx + 默认 texSlot）
+    const btn3d = ctx.root.getElementById("btn-3d-preview");
+    if (btn3d) btn3d.onclick = () => { void _toggle3D(); };
+  };
 
   await ctx.loadPreviewImage(path);
 
@@ -128,9 +264,25 @@ export async function showMaidPreview(
     setActive3DClose(() => close3D());
     unsubAndroidBack = registerAndroidBackHandler(() => { close3D(); return true; });
     try {
-      await createMaid3D(path, 0, {
-        loader: async (p) => (await loadModelData(p, ctx, { skipWasm: true })).model,
+      const sel = subs[_selSubIdx];
+      // subPath：选中角色的 zip 内相对路径，用于 Go AnalyzeBedrockModelEntry 单模型解析
+      // 若 subModel.sourcePath 未声明（L1 兜底清单），则不走单 entry 路径，回退全量合并。
+      const subPath = subs.length > 1 ? sel?.sourcePath : undefined;
+      // texIdx 优先级：选中角色的 texSlot（若声明）→ 默认 0
+      const texStart = sel && typeof sel.texSlot === "number" && modelInfo?.textureCount
+        ? Math.min(sel.texSlot, modelInfo.textureCount - 1)
+        : 0;
+      await createMaid3D(path, texStart, {
+        loader: async (p) =>
+          (
+            await loadModelData(p, ctx, {
+              skipWasm: true,
+              subPath,
+            })
+          ).model,
         onClose,
+        subModelIdx: subs.length > 1 ? _selSubIdx : undefined,
+        subPath,
       });
     } catch (e) {
       if (gen !== _model3dGen) return;
@@ -139,6 +291,5 @@ export async function showMaidPreview(
     _loading3D = false;
   };
 
-  const btn3d = ctx.root.getElementById("btn-3d-preview");
-  if (btn3d) btn3d.onclick = (): void => { void _toggle3D(); };
+  render();
 }

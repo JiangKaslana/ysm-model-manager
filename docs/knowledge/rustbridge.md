@@ -1,0 +1,76 @@
+---
+kind: rustbridge
+name: Rust 桥 rustbridge
+tier: architecture
+category: go
+source_files:
+  - go/rustbridge/bridge_windows.go
+  - go/rustbridge/doc.go
+  - go/rustbridge/embedded_windows.go
+  - go/rustbridge/types_windows.go
+  - rust-core/src/model.rs
+  - rust-core/src/policy.rs
+  - rust-core/src/scan.rs
+  - rust-wails-bridge/
+tests:
+  - rust-core/src/tests.rs
+use_when:
+  - Rust 扫描器
+  - rust_backend
+  - 桥 DLL
+  - Wails 后端迁移 Rust
+---
+
+# Rust 桥 rustbridge
+
+> 窄原生适配器：Wails 后端迁移 Rust 期的临时桥——Windows 生产构建（`rust_backend` tag）下用 Rust 扫描器替代 Go scanner 的窄接口。
+
+## 范围与构建
+
+- **包**：`go/rustbridge/`——全部文件带 `//go:build windows && rust_backend`，非 Windows 或无 tag 编译时被排除
+- **桥 DLL**：`rust-wails-bridge/`（Rust crate）编译产出 `ysm_model_manager_wails_bridge.dll`，由 `build/windows/Taskfile.yml` 的 `build:rust-bridge` 构建并拷贝到 `go/rustbridge/bin/`（`platforms: [windows]` 守卫——非 Windows 交叉构建不产 .dll）
+- **embed**：`embedded_windows.go` 用 `go:embed` 嵌入桥 DLL + sha256 校验 + 落盘；生产前端不直接 import 本包（doc.go 契约）
+
+## 契约
+
+- **types_windows.go**：`ScanError{Path, Message}` / `ScanResponse{Entries: []types.ModelEntry, Errors}`——对齐 `rust-core`（`ModelEntry` 含 `rtype`，见 `rust-core/src/model.rs`）+ Go `types.ModelEntry`
+- **bridge_windows.go**：syscall/unsafe 直调 DLL（JSON 序列化），扫描结果经 `ScanResponse` 返回
+
+## 与 Go scanner 的契约对齐（红线）
+
+Rust 扫描路径必须与 Go scanner 单点口径一致（code review 反复核实的教训）：
+
+| 契约点 | Rust 口径 | Go 单点 |
+|--------|----------|---------|
+| `.json` 条目门禁 | 仅 `ysm.json`（`is_model_json_name`） | `types.IsYsmEntryJSON`（ADR-038 D2：.json 仅放行 ysm.json；legacy 几何是 FileInventory 分类非扫描条目） |
+| 条目名 | ysm.json → 父目录名 | `scanner.go` 同口径重命名 |
+| 类型字段 | `ModelEntry.rtype`（registry 首声明优先） | `e.Type`（`SupportedExtsForSubtype` 白名单） |
+
+- **CI 覆盖**（`.github/workflows/test.yml`）：cargo test（rust-core + rust-wails-bridge）+ 构建桥 DLL + `go test -tags rust_backend`——rust_backend 路径不再零覆盖
+- **测试**：`rust-core/src/tests.rs` 的 `scan_preserves_go_filter_contract` 锁条目门禁（main/info.json 不入条目 + rtype 传播）
+
+## 验证方式（AI 动 Rust 的入口——安全网）
+
+> 很少有 AI 动 Rust——动之前先读本节：改完跑本地验证，语义靠契约测试兜底。
+
+- **本地验证（必跑）**：
+  ```bash
+  cargo test --manifest-path rust-core/Cargo.toml          # 扫描器核心单测（契约锁在 tests.rs）
+  cargo test --manifest-path rust-wails-bridge/Cargo.toml   # 桥 crate
+  ```
+- **契约锁**：`rust-core/src/tests.rs` 的 `scan_preserves_go_filter_contract`——锁 ysm.json 条目门禁（main/info 不入条目）+ rtype 传播与 Go scanner 一致——**改 Rust 扫描逻辑必须过它**（语义漂移当场红）
+- **CI 门禁**（`.github/workflows/test.yml`）：cargo test × 2 crate + `cargo build --release --locked` 产 DLL + `go test -tags rust_backend`（Windows 生产路径——rust_backend 覆盖不再为零）
+- **构建**：`build/windows/Taskfile.yml` 的 `build:rust-bridge`（`platforms: [windows]` 守卫——非 Windows 交叉构建不产 .dll）
+
+## Rust 化三闸（防双源歧义 / 滑坡——缺一不批）
+
+> 背景：担心 Go/Rust 双源歧义 + "都塞 Rust 那 C++ 也要"滑坡。三闸是止滑闸——Rust 化是"性能证据驱动的最窄下沉"（scan 并发 4x 是唯一模板）。
+
+1. **性能证据**：`file-bench` / `concurrent-bench` profile 证明该路径是热点（scan 的 serial 17s → parallel 4.5s 是模板）——无证据的 Rust 化是过度工程
+2. **契约测试**：Go/Rust 双实现语义等价——tests.rs 断言锁定（`scan_preserves_go_filter_contract` 是模板）——**非热路径禁止双源**（同步/解析/索引保持 Go 单点权威，避免漂移）
+3. **不扩散**：Rust 只做并行加速壳——业务逻辑（parseYsmArchive/SyncToggleStatus/索引）不 Rust 化——新增 Rust 模块需三闸 + ADR 决策
+
+## 相关
+
+- ADR：ADR-115（红线范式——跨类型/跨实现不得绕过单点契约）
+- 源码：`rust-core/`（Rust 扫描器核心）、`rust-wails-bridge/`（桥 crate）、`go/rustbridge/`（Go 侧窄适配器）

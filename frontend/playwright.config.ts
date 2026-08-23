@@ -30,7 +30,7 @@ export default defineConfig({
   },
   // 内置 webServer：自动启动/关闭 vite dev
   webServer: {
-    command: "npx vite --port 5173 --host 127.0.0.1",
+    command: "npx vite --config vite.e2e.config.ts --port 5173 --host 127.0.0.1",
     url: "http://127.0.0.1:5173",
     reuseExistingServer: !process.env.CI,
     cwd: ".",

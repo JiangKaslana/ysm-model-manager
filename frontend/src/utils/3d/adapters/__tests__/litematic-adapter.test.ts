@@ -50,11 +50,10 @@ describe("litematicMenuItems — 菜单项结构契约", () => {
     expect(item.run).toBeUndefined();
   });
 
-  it("返回项无 danger / sharedOnly / needsSiblings / requiresEnvironment", () => {
+  it("返回项无 danger / sharedOnly / requiresEnvironment", () => {
     const [item] = litematicMenuItems(makeEls());
     expect(item.danger).toBeUndefined();
     expect(item.sharedOnly).toBeUndefined();
-    expect(item.needsSiblings).toBeUndefined();
     expect(item.requiresEnvironment).toBeUndefined();
   });
 });

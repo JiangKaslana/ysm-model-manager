@@ -346,6 +346,26 @@
 .no-animations .dlg-overlay.dlg-closing .dlg-box { animation: none !important; }
 
 /* ===== 无障碍支持：焦点状态 ===== */
+/* 跳过链接：默认隐藏（屏外），获得焦点时显现 */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 0 0 6px 6px;
+  z-index: 99999;
+  transition: top 0.15s ease;
+  font-size: var(--fs-sm);
+}
+.skip-link:focus-visible {
+  top: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+  outline: none;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

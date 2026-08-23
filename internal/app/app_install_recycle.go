@@ -60,6 +60,12 @@ func (a *App) findRecycleRoot(src string) string {
 		cfg.MmdRoot,
 		cfg.VrcRoot,
 	}
+	// CustomRoots 纳入根列表（迁移后废弃字段已清空，recycle 必须查新源——codereview 批次3 P2）
+	if cfg.CustomRoots != nil {
+		for _, r := range cfg.CustomRoots {
+			roots = append(roots, r)
+		}
+	}
 	for _, r := range roots {
 		if r == "" {
 			continue
@@ -101,8 +107,7 @@ func (a *App) ClearCustomDir(customDir string) (int, error) {
 		repoByName[e.Name] = e
 		// 双 key 登记：scanner 的 Name 含 .ban/.disabled 后缀（filepath.Base 原始名），
 		// 而 customDir 侧 lookupName 剥后缀——不登记剥后缀名则仓库禁用条目永远匹配不上
-		stripped := strings.TrimSuffix(e.Name, ".ban")
-		stripped = strings.TrimSuffix(stripped, ".disabled")
+		stripped := types.StripDisableSuffix(e.Name)
 		if stripped != e.Name {
 			repoByName[stripped] = e
 		}
@@ -128,8 +133,7 @@ func (a *App) ClearCustomDir(customDir string) (int, error) {
 			return nil
 		}
 
-		lookupName := strings.TrimSuffix(fileName, ".ban")
-		lookupName = strings.TrimSuffix(lookupName, ".disabled")
+		lookupName := types.StripDisableSuffix(fileName)
 
 		_, hasName := repoByName[lookupName]
 		if !hasName {
@@ -238,6 +242,12 @@ func (a *App) allRecycleRoots(cfg types.AppConfig) []string {
 		cfg.LitematicRoot,
 		cfg.MmdRoot,
 		cfg.VrcRoot,
+	}
+	// CustomRoots 纳入根列表（迁移后废弃字段已清空，回收站须查新源——codereview 批次3 P2）
+	if cfg.CustomRoots != nil {
+		for _, r := range cfg.CustomRoots {
+			roots = append(roots, r)
+		}
 	}
 	result := []string{}
 	for _, r := range roots {

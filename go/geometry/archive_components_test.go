@@ -54,12 +54,9 @@ func TestParseComponentsFromZip(t *testing.T) {
 	if len(comps) != 3 {
 		t.Fatalf("组件数 = %d, 期望 3（main/arm/arrow）", len(comps))
 	}
-	// R1 契约：texNames[i] = 组件实际贴图名（texSlot 指向声明序用声明名；未声明段用组件 basename）
-	if len(texNames) != 3 {
-		t.Fatalf("texNames 长度 = %d, 期望 3", len(texNames))
-	}
-	// arm 声明序越界（j=1 >= len(texOrder)=1）→ 钳制共享 skin；arrow 未声明 → 按名段名
-	wantNames := []string{"skin", "skin", "arrow"}
+	// ADR-114 perComponent：texNames = 组件声明的纹理名（无声明用 basename）
+	// main→skin（声明 textures/skin.png）、arm→arm（未声明纹理，用 basename）、arrow→arrow
+	wantNames := []string{"skin", "arm", "arrow"}
 	for i, want := range wantNames {
 		if texNames[i] != want {
 			t.Errorf("texNames[%d] = %q, 期望 %q", i, texNames[i], want)
@@ -69,12 +66,11 @@ func TestParseComponentsFromZip(t *testing.T) {
 	if comps[0].BoneCount == 0 {
 		t.Fatal("组件 0 应为 main（非空）")
 	}
-	// TexSlot：main=0(skin)、arm 钳制=0(skin)（同实体共享）、arrow=1(arrow.png 未声明段)
+	// ADR-114 perComponent：每组件 cube.TexSlot=0（用自己的第 0 张纹理）
 	for i, c := range comps {
 		slot := c.Bones[0].Cubes[0].TexSlot
-		wantSlot := []int{0, 0, 1}[i]
-		if slot != wantSlot {
-			t.Fatalf("组件 %d texSlot = %d, 期望 %d", i, slot, wantSlot)
+		if slot != 0 {
+			t.Fatalf("组件 %d texSlot = %d, 期望 0（perComponent）", i, slot)
 		}
 		if c.Bones[0].Cubes[0].CubeTexW != 64 || c.Bones[0].Cubes[0].CubeTexH != 32 {
 			t.Fatalf("组件 %d CubeTexW/H 未设置: %d/%d", i, c.Bones[0].Cubes[0].CubeTexW, c.Bones[0].Cubes[0].CubeTexH)

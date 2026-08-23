@@ -437,9 +437,9 @@ func TestParseComponentsFromZip_ModelMapBadValue(t *testing.T) {
 	if len(comps) != 1 {
 		t.Fatalf("组件数 = %d, 期望 1", len(comps))
 	}
-	// 未声明：texSlot = 1+0，texNames 用组件 basename
-	if slot := comps[0].Bones[0].Cubes[0].TexSlot; slot != 1 {
-		t.Errorf("texSlot = %d, 期望 1（未声明段基 = len(texOrder)）", slot)
+	// ADR-114 perComponent：未声明组件 cube.TexSlot=0（用自己的第 0 张）
+	if slot := comps[0].Bones[0].Cubes[0].TexSlot; slot != 0 {
+		t.Errorf("texSlot = %d, 期望 0（perComponent）", slot)
 	}
 	if len(texNames) != 1 || texNames[0] != "main" {
 		t.Errorf("texNames = %v, 期望 [main]（未声明用 basename）", texNames)
@@ -466,13 +466,13 @@ func TestParseComponentsFromZip_NoDeclarations(t *testing.T) {
 	if comps[0].Bones[0].Name != "head" {
 		t.Errorf("组件 0 = %q, 期望 head（main 优先）", comps[0].Bones[0].Name)
 	}
-	// 无纹理声明：texSlot = 未声明段序号 0,1,2；texNames = basename
+	// ADR-114 perComponent：无纹理声明时 cube.TexSlot=0（每组件用自己的第 0 张）
 	for i, want := range []string{"main", "arm", "arrow"} {
 		if texNames[i] != want {
 			t.Errorf("texNames[%d] = %q, 期望 %q", i, texNames[i], want)
 		}
-		if slot := comps[i].Bones[0].Cubes[0].TexSlot; slot != i {
-			t.Errorf("组件 %d texSlot = %d, 期望 %d", i, slot, i)
+		if slot := comps[i].Bones[0].Cubes[0].TexSlot; slot != 0 {
+			t.Errorf("组件 %d texSlot = %d, 期望 0（perComponent）", i, slot)
 		}
 	}
 }

@@ -227,3 +227,25 @@ func (c *dirContainer) Close() error     { return nil }
 func OpenDir(root string) (Reader, error) {
 	return openDir(root)
 }
+
+// ZipMatchesEntries 打开 zip 容器并枚举条目名，任一命中 match 即返回 true。
+// 打开失败（含损坏 zip / 非 zip 路径）一律返回 false——调用方据此把坏包/
+// 不含目标指纹的 zip 安全排除，绝不误判为某类型资源（同步推送/拉取链路
+// 据此避免把纯打包物或坏包当模型搬运）。match 接收小写条目名（与
+// types.ResourceType.MatchZipEntry 内部 ToLower 幂等一致）。
+func ZipMatchesEntries(path string, match func(string) bool) bool {
+	if !strings.EqualFold(filepath.Ext(path), ".zip") {
+		return false
+	}
+	rc, err := OpenZipPath(path)
+	if err != nil {
+		return false
+	}
+	defer rc.Close()
+	for _, e := range rc.Entries() {
+		if match(strings.ToLower(e.Name())) {
+			return true
+		}
+	}
+	return false
+}

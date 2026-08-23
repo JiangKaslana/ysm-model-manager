@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"ysm-model-manager/go/texture_cache"
+	"ysm-model-manager/go/types"
 	"ysm-model-manager/internal/app"
 )
 
@@ -739,6 +740,99 @@ func TestGUIFlow_DoesNotWriteRealConfig(t *testing.T) {
 	after, afterExists := readCfg()
 	if beforeExists != afterExists || !bytes.Equal(before, after) {
 		t.Errorf("gui-flow 不应写盘真实用户配置 %s\n  before: %q\n  after:  %q", cfgPath, before, after)
+	}
+}
+
+// TestScanSummaryByType 扫描统计按注册表类型聚合（PMX 不再归 "other"）：
+// MMD 仓库 100 个 PMX 此前全部落入 "其他: 333" 槽（硬编码 yml/ysm/other），
+// 现按路径消歧 + 注册表展示真实类型分布；firstModel 仅提升 .ysm（分析阶段可处理）。
+func TestScanSummaryByType(t *testing.T) {
+	entries := []types.ModelEntry{
+		{Path: `/repo/mmd/PMX/2.大学学姐/角色A.pmx`},
+		{Path: `/repo/mmd/PMX/2.大学学姐/角色B.pmx`},
+		{Path: `/repo/mmd/PMX/2.大学学姐/动作A.vmd`},
+		{Path: `/repo/mmd/PMX/角色包.zip`}, // 模型包容器：目录归属 > 扩展名（location 路由）
+		{Path: `/repo/ysm/模型A.ysm`},
+		{Path: `/repo/ysm/模型B.ysm`},
+		{Path: `/repo/misc/说明.txt`},
+	}
+	byType, first := scanSummaryByType(entries)
+
+	// PMX 目录下全部资源（.pmx/.vmd/.zip）经 location 路由归 EntityPlayer
+	if byType["EntityPlayer"] != 4 {
+		t.Errorf("EntityPlayer 计数 = %d, 期望 4（pmx×2+vmd+zip）(byType=%v)", byType["EntityPlayer"], byType)
+	}
+	if byType["ysm"] != 2 {
+		t.Errorf("ysm 计数 = %d, 期望 2", byType["ysm"])
+	}
+	// .txt 未命中注册表才落 other
+	if byType["other"] != 1 {
+		t.Errorf("other 计数 = %d, 期望 1（仅 txt）", byType["other"])
+	}
+	// firstModel 只选 .ysm
+	if !strings.HasSuffix(first, "模型A.ysm") {
+		t.Errorf("firstModel = %q, 期望 .ysm 模型", first)
+	}
+}
+
+// TestClassifyForScan_LocationRouting 目录归属 > 扩展名（MMD 子类型 location 路由）：
+// mmd/PMX 目录下 zip 模型包/表情/动作文件都归 EntityPlayer（此前 zip 被
+// repoaudit.Classify 归到最后一个声明 .zip 的 DefaultMorph——217 个 PMX 包误统计）；
+// 更深目录优先（mmd/PMX/DefaultMorph 下归 DefaultMorph）。
+func TestClassifyForScan_LocationRouting(t *testing.T) {
+	registry := types.LoadRegistry()
+
+	// mmd/PMX 目录（EntityPlayer.storageSubDir=PMX）下各类文件归 EntityPlayer
+	cases := []struct {
+		path string
+		ext  string
+		want string
+	}{
+		{`/repo/mmd/PMX/角色包.zip`, ".zip", "EntityPlayer"},             // 模型包容器
+		{`/repo/mmd/PMX/表情.vpd`, ".vpd", "EntityPlayer"},              // 表情文件
+		{`/repo/mmd/PMX/动作.vmd`, ".vmd", "EntityPlayer"},              // 动作文件
+		{`/repo/mmd/PMX/角色.pmx`, ".pmx", "EntityPlayer"},              // 裸模型
+		{`/repo/mmd/DefaultMorph/表情.vpd`, ".vpd", "DefaultMorph"},     // 各自目录归属
+		{`/repo/mmd/CustomAnim/动作.vmd`, ".vmd", "CustomAnim"},         // 各自目录归属
+		{`/repo/mmd/PMX/DefaultMorph/内嵌.vpd`, ".vpd", "DefaultMorph"}, // 深目录优先
+		{`/repo/ysm/模型A.ysm`, ".ysm", "ysm"},
+	}
+	for _, tc := range cases {
+		if got := classifyForScan(tc.path, tc.ext, registry); got != tc.want {
+			t.Errorf("classifyForScan(%s) = %q, 期望 %q", tc.path, got, tc.want)
+		}
+	}
+}
+
+// TestScanSummaryByType_PmxOnly 纯 PMX 仓库：分布如实展示，firstModel 为空（CLI 不模拟 PMX 分析）
+func TestScanSummaryByType_PmxOnly(t *testing.T) {
+	entries := []types.ModelEntry{
+		{Path: `/repo/mmd/PMX/角色A.pmx`},
+		{Path: `/repo/mmd/PMX/角色B.pmx`},
+	}
+	byType, first := scanSummaryByType(entries)
+	if byType["EntityPlayer"] != 2 {
+		t.Errorf("EntityPlayer 计数 = %d, 期望 2", byType["EntityPlayer"])
+	}
+	if first != "" {
+		t.Errorf("纯 PMX 仓库 firstModel = %q, 期望空（无 .ysm 可分析）", first)
+	}
+}
+
+// TestGUIFlow_PmxTarget 指定 PMX 目标：③ 阶段明确提示 CLI 不模拟，而非「分析失败」假象；
+// 且不再产出 ④⑤⑥ 假数据阶段。
+func TestGUIFlow_PmxTarget(t *testing.T) {
+	out := captureOutput(t, func() {
+		_ = runGUIFlow(&CmdContext{App: app.NewApp(), FilesRoot: t.TempDir(), Args: []string{"--model", "/repo/角色A.pmx", "--verbose"}})
+	})
+	if !strings.Contains(out, "PMX/PMD 加载链路在 Three.js 前端") {
+		t.Errorf("PMX 目标应提示 CLI 不模拟, 输出:\n%s", out)
+	}
+	if strings.Contains(out, "分析失败") {
+		t.Errorf("PMX 目标不应报「分析失败」（误导），输出:\n%s", out)
+	}
+	if strings.Contains(out, "纹理缓存") {
+		t.Errorf("PMX 目标不应执行 ④ 纹理缓存（AnalyzeBedrockModel 假数据），输出:\n%s", out)
 	}
 }
 

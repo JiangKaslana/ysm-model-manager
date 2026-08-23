@@ -1,0 +1,13 @@
+[package]
+name = "ysm-model-manager-wails-bridge"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ysm-model-manager-core = { path = "../rust-core" }

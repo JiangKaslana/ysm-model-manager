@@ -47,6 +47,12 @@ use_when:
 invariant_anchors:
   - frontend/src/backend/idb.ts|openDB
   - frontend/src/backend/browser-adapter.ts|browserAdapter
+quick_groups:
+  - 后端桥接与数据存储
+quick_intents:
+  - IndexedDB、网页版存储
+quick_risk_lines:
+  - 事务必须接线 complete/error/abort 三事件
 ---
 
 # 浏览器后端 IndexedDB 封装

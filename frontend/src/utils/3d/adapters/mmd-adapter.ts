@@ -20,6 +20,7 @@ import { createPmxParser, buildPmxSceneSliced, type PmxParser, type PmxBuildResu
 import { Ktx2TextureLoader } from "./mmd-ktx2-texture-loader.ts";
 import { startMainThreadWatch, formatLongTask } from "../../../utils/main-thread-watch.ts";
 import { recordLoadTrace } from "../load-trace.ts";
+import { b64ToBytes, bytesToArrayBuffer } from "../base64.ts";
 import type {
   MmdBottomNavCtx,
   MmdPlayBridge,
@@ -54,20 +55,6 @@ import { getCustomAnimPath, filterAnimFiles } from "./mmd-anim-library.ts";
  * 若项目纹理数量大或网络/磁盘 I/O 慢，可调大（如 8/16）；内存紧张则调小（如 2）。
  * ADR-101：对齐后端 goroutine 池设计哲学。 */
 const TEXTURE_READ_CHUNK_SIZE = 4;
-
-/** base64 → Uint8Array（ReadFileBytes 返回 Go []byte 的 base64 序列化） */
-function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const len = bin.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-
-/** Uint8Array → ArrayBuffer（Blob 构造要求 ArrayBufferView<ArrayBuffer>，规避 SharedArrayBuffer 泛型） */
-function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-}
 
 /** MMD 数据端口（视图壳注入，适配器 0 backend import——ADR-072 边界判据） */
 export interface MmdDataPort {
@@ -786,7 +773,7 @@ export async function buildMmdScene(
   // MMDToon 材质对光有响应，补环境 + 主光 + 半球光（对齐 vrm-adapter 灯位）
 
   // ---- 声明式根菜单专属项（ADR-076 v2 Phase 2）：model / 材质 / 播放 ----
-  // 切换模型归 core switch 项（needsSiblings），相机归 core camera 项（sharedOnly）。
+  // 切换模型归 core roles 项（角色面板内嵌加载入口），相机归 core camera 项（sharedOnly）。
   // 菜单表提取为可导出 mmdMenuItems()：测试遍历同一份真实数组断言结构（对齐 MikuMikuAR）。
   const navCtx: MmdBottomNavCtx = {
     mmd: mmd!,
@@ -1087,7 +1074,7 @@ export async function buildMmdScene(
  *   position: (x, y, z) → (x, y, -z)  // 翻转 Z
  *   rotation: (rx, ry, rz, rw) → (-rx, -ry, rz, rw)  // 翻转 X/Y
  */
-export function applyVPDToMesh(mesh: THREE.SkinnedMesh, vpd: VpdObject): void {
+function applyVPDToMesh(mesh: THREE.SkinnedMesh, vpd: VpdObject): void {
   const vpdBones = vpd?.bones;
   if (!vpdBones) return;
 

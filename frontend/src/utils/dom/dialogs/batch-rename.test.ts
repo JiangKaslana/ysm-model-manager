@@ -39,14 +39,14 @@ afterEach(() => {
 });
 
 describe("showBatchRenameDialog — banned 文件处理", () => {
-  it("foo2024.ysm.ban → 新名保留 .ban 尾缀且扩展名为 ysm（不误判为 .ban）", async () => {
+  it("foo2024.ysm.ban → 新名迁移 .disabled 尾缀且扩展名为 ysm（不误判为 .ban）", async () => {
     const { onApply, pending, dlg } = await open([
       { Name: "foo2024.ysm.ban", Path: "/dir/foo2024.ysm.ban" },
     ]);
 
-    // 默认 updateAll 已生成新名（日期规范化 " (2024)"），预览应含 .ysm.ban
+    // 默认 updateAll 已生成新名（日期规范化 " (2024)"），预览应含 .ysm.disabled
     const preview = dlg.querySelector("#br-preview") as HTMLElement;
-    expect(preview.innerHTML).toContain(".ysm.ban");
+    expect(preview.innerHTML).toContain(".ysm.disabled");
 
     (dlg.querySelector("#br-apply") as HTMLElement).click();
     await pending;
@@ -54,9 +54,9 @@ describe("showBatchRenameDialog — banned 文件处理", () => {
     expect(onApply).toHaveBeenCalledTimes(1);
     const changes = onApply.mock.calls[0][0] as BatchRenameChange[];
     expect(changes[0].oldName).toBe("foo2024.ysm.ban");
-    expect(changes[0].newName).toMatch(/\.ysm\.ban$/);
+    expect(changes[0].newName).toMatch(/\.ysm\.disabled$/);
     // 扩展名是 ysm 而非 ban，角色名无 .ysm 残留
-    expect(changes[0].newName).toContain("foo (2024).ysm.ban");
+    expect(changes[0].newName).toContain("foo (2024).ysm.disabled");
   });
 
   it("普通文件 a2024.ysm → 新名以 .ysm 结尾，无 .ban", async () => {

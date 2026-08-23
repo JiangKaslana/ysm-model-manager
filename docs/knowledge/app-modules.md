@@ -6,6 +6,7 @@ category: ui
 source_files:
   - frontend/src/app-modules.ts
   - frontend/src/utils/module-loader.ts
+  - frontend/src/startup-reveal.ts
 tests:
   - frontend/src/app-modules.test.ts
 use_when:
@@ -17,6 +18,8 @@ use_when:
   - 检查更新
   - import 组件
   - 新组件注册
+  - 窗口显示
+  - startup reveal
 ---
 
 # 组件入口 app-modules
@@ -31,9 +34,10 @@ use_when:
   - 服务注册：`register("loadInstances", ...)`（app-sidebar/loader）与 `register("loadEntries", ...)`（app-tree/loader）写入 `services/registry.ts`
   - 静态导入轻量组件：`context-menu.ts` / `app-toast.ts`（失败直接报错，不 try/catch 以免静默吞错）
   - 动态导入重组件：`app-nav` / `app-tree` / `app-sidebar` / `app-content` / `app-resource-manager` / `app-sync-manager`（字面量路径确保 Vite 构建解析，`.catch` 输出 `console.warn` 告警不阻塞）——其中 `app-nav` 通过启动 IIFE（`await initI18n()` 后 `await import`）延迟加载，避免首帧渲染时 i18n bundle 尚未就绪导致 `[i18n]` 缺失 key 警告
-  - `registerContextMenus()` 注册右键菜单映射——注意：**实际在 `core/handlers/global.ts`（经 `registerGlobalHandlers` ← app-content connectedCallback）调用，非本文件**（仅此处链路调用一次）
+  - 右键菜单注册：`registerContextMenus()` 由 `core/handlers/global.ts` 经 `registerGlobalHandlers` 单次调用（app-modules.ts 不直接调用）
   - 主题：`applyTheme`（cyber/warm/pro/sakura/ocean/mint/system 白名单，system 跟随 `prefers-color-scheme`）挂 `window.applyTheme`；`initTheme` 从 Go `LoadAppConfig` 或 localStorage 读主题，**归一化后回写合法值**（白名单外回落 system，防脏值污染持久层）；`applyUIPrefs`（定义在 `views/app-content/settings/ui-prefs.ts`，本文件启动 IIFE 内 import 调用）应用字号（`--fs-scale`）/字体/密度/动画开关（`.no-animations`）
   - 启动 IIFE：`initTheme()` → `applyUIPrefs()` → `checkUpdateSilent()` 静默检查更新（**静态导入** `features/version-updater.ts`，非动态 import）
+- **窗口显示**：经 `startup-reveal.ts` 的 `revealMainWindow(show)` 控制——等待 DOM 升级 + 两帧 rAF 完成后调 `show()`；rAF 节流兜底 1.5s 超时强制显示（防止隐藏窗口下 Chromium/WebView2 节流导致窗口永久不可见）
   - 杂项：capture 阶段拦截旧版 document 拖拽处理器（`#ws-page` / `#dl-drop` / `.ws-page` 区域）；dev 模式（`?dev=1` 或 localStorage `_devtools`）启用 F12/Ctrl+Shift+I 打开 DevTools（`Window.OpenDevTools`）
 
 ## 对外 API / 入口
@@ -53,7 +57,7 @@ use_when:
 ## 不变量
 
 - 新组件一律在此登记 import；轻量组件静态导入（失败显式报错），重组件动态导入（失败 `console.warn` 告警不阻塞启动）
-- `registerContextMenus()` 只调用一次，重复注册会造成菜单 handler 翻倍（ADR-008）
+- 右键菜单只注册一次（由 `global.ts` 调用），重复注册会造成菜单 handler 翻倍（ADR-008）
 - 不引入 `window.__*` 全局变量（治理红线 §3.1）；唯一例外是显式声明类型的 `window.applyTheme`
 - 主题白名单外的值一律回落 `system`；动画全局开关经 `document.documentElement` 的 `.no-animations` 类控制，组件动画必须响应该类
 - **隐私模式 localStorage 读写全部走 safe 包装**（P3 修复：`initTheme` 的 try/catch 两分支、`applyUIPrefs` 四项、`_devtools` 标志——原裸调在存储禁用时抛错会中断启动 IIFE 或中止模块求值）；`?dev=1` 与 `_devtools` 均生效（`_devtools` 无写入方，实际仅 ?dev=1 可用，注释声明）

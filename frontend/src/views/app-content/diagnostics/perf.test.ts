@@ -1,8 +1,12 @@
+// @vitest-environment happy-dom
 // ===== 诊断页：性能面板测试 =====
 // 覆盖：
 //  - single-bench：7 阶段柱状渲染 / 缺 model 错误 / 命令失败兜底 / 代际守卫丢弃陈旧响应
 //  - gui-flow：6 阶段状态渲染 / 失败阶段红字提示
 //  - perf-log：优化历史卡片渲染
+//  - 加载剖析：甘特图 + 资产清单渲染（通过 facade perf.ts re-export 路由）
+// 注：业务逻辑已拆至 perf-cli.ts（CLI 三块）/ perf-trace.ts（加载剖析）；
+// 本测试通过 facade initPerfPanel / renderLoadTraceSection 集成验证，保证接口契约不变。
 // mock cli-bridge.executeCLI（web 模式在测试环境视为 native，resolveWebMode=false）
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { initPerfPanel, renderLoadTraceSection } from "./perf.ts";
@@ -84,7 +88,7 @@ function makeRoot(): ShadowRoot {
     <input id="diag-perf-model">
     <input id="diag-perf-iter">
     <div id="diag-perf-single"></div>
-    <div id="diag-perf-gui"></div>
+    <div id="diag-perf-gui-out"></div>
     <div id="diag-perf-hist"></div>
     <div id="diag-load-trace"></div>
   `;
@@ -195,12 +199,29 @@ describe("gui-flow 面板", () => {
     initPerfPanel(root, esc);
     (root.getElementById("diag-perf-gui") as HTMLElement).click();
     await new Promise((r) => setTimeout(r, 10));
-    const out = root.getElementById("diag-perf-gui") as HTMLElement;
+    const out = root.getElementById("diag-perf-gui-out") as HTMLElement;
     expect(out.textContent).toContain("① 配置加载");
     expect(out.textContent).toContain("② 模型扫描");
     // 失败行存在 → 有红色失败提示
     expect(out.textContent).toContain("③ 模型分析");
     expect(out.querySelector("[class*='perf-gui-fail']")).toBeTruthy();
+  });
+
+  it("结果容器与按钮 id 隔离：点击结果区不会触发重跑", async () => {
+    executeCLI.mockResolvedValue({
+      status: "success",
+      command: "gui-flow",
+      data: { output: GUI_OUTPUT },
+    });
+    const root = makeRoot();
+    initPerfPanel(root, esc);
+    (root.getElementById("diag-perf-gui") as HTMLElement).click();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(executeCLI).toHaveBeenCalledTimes(1);
+    // 点击结果容器本身不应再触发 executeCLI
+    (root.getElementById("diag-perf-gui-out") as HTMLElement).click();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(executeCLI).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -267,5 +288,50 @@ describe("加载剖析面板", () => {
     await Promise.resolve();
     const out = root.getElementById("diag-load-trace") as HTMLElement;
     expect(out.textContent).toContain("暂无加载记录");
+  });
+
+  it("YSM trace（4 段）→ 渲染骨骼/立方体/纹理 + format=YSM", async () => {
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "ysm",
+      path: "./ysm/maid.ysm",
+      stages: [
+        { name: "读取", ms: 5, status: "ok" },
+        { name: "解析", ms: 120, status: "ok" },
+        { name: "纹理加载", ms: 340, status: "ok" },
+        { name: "build", ms: 89, status: "ok" },
+      ],
+      assets: { files: 1, textures: 4, bones: 96, cubes: 312, materials: 3, animations: 2 },
+      ok: true,
+    });
+    const root = makeRoot();
+    renderLoadTraceSection(root, esc);
+    const out = root.getElementById("diag-load-trace") as HTMLElement;
+    expect(out.innerHTML).toContain("<svg");
+    expect(out.textContent).toContain("maid.ysm");
+    expect(out.textContent).toContain("YSM"); // format 显示
+    expect(out.textContent).toContain("96");  // bones
+    expect(out.textContent).toContain("312"); // cubes
+    expect(out.textContent).toContain("4");   // textures
+    expect(out.textContent).toContain("读取");
+    expect(out.textContent).toContain("build");
+  });
+
+  it("Litematic trace（1 段）→ 渲染阶段名 + materials", async () => {
+    recordLoadTrace({
+      ts: Date.now(),
+      format: "litematic",
+      path: "./blueprints/castle.litematic",
+      stages: [{ name: "读取+构建", ms: 230, status: "ok" }],
+      assets: { files: 1, textures: 0, materials: 12, animations: 0 },
+      ok: true,
+    });
+    const root = makeRoot();
+    renderLoadTraceSection(root, esc);
+    const out = root.getElementById("diag-load-trace") as HTMLElement;
+    expect(out.innerHTML).toContain("<svg");
+    expect(out.textContent).toContain("castle.litematic");
+    expect(out.textContent).toContain("LITEMATIC");
+    expect(out.textContent).toContain("12"); // materials
   });
 });

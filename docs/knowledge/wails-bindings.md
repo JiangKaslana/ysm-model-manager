@@ -70,7 +70,7 @@ use_when:
 - `RestartApplication() → void` — 重启应用（更新完成后调用）
 - `OpenInBrowser(url) → void` — 系统默认浏览器打开链接（而非 WebView2 内嵌）
 - `OpenFolder(dir) → void` — 在文件管理器中打开文件夹
-- `OpenInstanceFolder(instDir, rtype) → void` — 按资源类型打开整合包子目录；目录不存在时回退实例根目录
+- `OpenInstanceFolder(instDir, rtype, subdir) → void` — 按资源类型打开整合包子目录（路径由 `resolveInstDirTarget(instDir, rtype)` 用 `rtype.instanceDir` 推导）；`subdir` 参数保留为 Wails 绑定兼容、已不参与路由；目录不存在**不回退**（用户手动放错位置由他负责，见 app_scan.go:632 注释）
 - `RevealInExplorer(path) → void` — 在资源管理器中定位并显示文件
 - `SelectDirectory() → string` — 弹出目录选择对话框，返回所选路径
 - `SaveWindowPosition(x, y, width, height) → void` — 持久化窗口位置与尺寸

@@ -13,6 +13,7 @@ export type {
     Bone2D,
     Cube2D,
     CustomFileInfo,
+    FileInventory,
     ImportFileItem,
     ImportLog,
     InstanceStatus,
@@ -20,9 +21,13 @@ export type {
     PackInfo,
     RuntimeLog,
     SearchResult,
+    SubModel,
     VersionInstance,
     WindowState,
     WorkshopCreator,
     WorkshopPresetSearch,
-    WorkshopSite
+    WorkshopSite,
+    YsmAuthor,
+    YsmLicense,
+    YsmMetadata
 } from "./models.js";

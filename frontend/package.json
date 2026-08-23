@@ -18,13 +18,15 @@
     "typecheck": "tsc --noEmit",
     "test:e2e:web": "playwright test --config playwright.web.config.ts",
     "codemod": "node ../scripts/codemod.mjs",
-    "generate:bindings": "cd .. && wails3 generate bindings -clean=true -ts -i"
+    "generate:bindings": "cd .. && wails3 generate bindings -clean=true -ts -i",
+    "verify:port": "node ../scripts/port-align.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.0.0",
     "@types/three": "^0.185.4",
     "@vitest/coverage-v8": "^4.1.10",
+    "esbuild": "^0.25.0",
     "happy-dom": "^20.11.1",
     "jscpd": "^5.0.14",
     "knip": "^6.31.0",

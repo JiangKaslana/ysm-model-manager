@@ -6,6 +6,7 @@ category: ui
 source_files:
   - frontend/src/views/app-toast/index.ts
   - frontend/src/utils/dom/feedback.ts
+  - frontend/src/utils/dom/toast-ms.ts
 use_when:
   - toast
   - 通知
@@ -31,7 +32,7 @@ invariant_anchors:
 ## 对外 API / 入口
 
 - 自定义元素：`<app-toast>`
-- 监听 bus：`toast:show`，载荷 `{ msg, undo?, duration?, type?, click? }`（`type`：`error` / `success` / `info` / `warn`，默认时长 4000ms）
+- 监听 bus：`toast:show`，载荷 `{ msg, undo?, duration?, type?, click? }`（`type`：`error` / `success` / `info` / `warn`；默认时长 4000ms 来自 `utils/dom/toast-ms.ts` 的 `TOAST_MS.verbose`——**零散魔法数字已收敛至该单一事实源，消费方统一引用语义档**）
 - 实例方法：`show(msg, undoCallback, duration, type, clickCallback)`（一般不经由方法直调，统一走 bus）
 - 派发 bus：无
 

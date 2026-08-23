@@ -336,3 +336,46 @@ describe("loadModelData — authors 填补", () => {
     expect(goModel._authors?.[0]).toMatchObject({ name: "作者X", avatarUrl: null });
   });
 });
+
+describe("loadModelData — _animClips 挂载（动画数据统一供给适配器）", () => {
+  it("WASM 解码含 animations → 挂到 model._animClips", async () => {
+    const clip = { name: "idle" };
+    const decoded = geo();
+    const decode = vi.fn().mockResolvedValue({ geometry: decoded, animations: [clip], authors: [] });
+
+    const r = await loadModelData("/m/a.ysm", ctx({ decode }));
+
+    expect(r.model?._animClips).toEqual([clip]);
+  });
+
+  it("Go 动画 JSON 解析出 clips → 挂到 model._animClips（不只写缓存）", async () => {
+    const goModel = geo({ animations: ['{"animations":{}}'] });
+    AnalyzeMock.mockResolvedValue(goModel);
+    parseAnimMock.mockReturnValue({ clips: ["clipA", "clipB"], errors: [] });
+
+    const r = await loadModelData("/m/b.json", ctx());
+
+    expect(r.model?._animClips).toEqual(["clipA", "clipB"]);
+  });
+
+  it("缓存命中且缓存有 animations → 挂到 model._animClips", async () => {
+    const cached = geo();
+    cacheGetMock.mockReturnValue({
+      geometry: cached,
+      animations: ["clipC"],
+      _decodedBy: "🧠 WASM 内置解码",
+    });
+
+    const r = await loadModelData("/m/a.ysm", ctx());
+
+    expect(r.model?._animClips).toEqual(["clipC"]);
+  });
+
+  it("无任何动画来源 → _animClips 保持 undefined（适配器走磁盘兜底）", async () => {
+    const decode = vi.fn().mockResolvedValue({ geometry: geo(), animations: [], authors: [] });
+
+    const r = await loadModelData("/m/a.ysm", ctx({ decode }));
+
+    expect(r.model?._animClips).toBeUndefined();
+  });
+});

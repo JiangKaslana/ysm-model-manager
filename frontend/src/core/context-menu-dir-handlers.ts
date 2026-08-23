@@ -3,6 +3,7 @@ import { bus } from "../bus.ts";
 import { friendlyError } from "../utils/dom/errors.ts";
 import { getApp } from "../backend/app.ts";
 import { refreshUI, toast, resolveDstDir } from "./context-menu-shared.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 import type { MenuCtx } from "./context-menu-handlers.ts";
 
 /** dir 类 handler 子表 */
@@ -17,7 +18,7 @@ export const DIR_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
         icon: "📂",
         okText: "移动",
         emptyMsg: "❌ 请先配置存储路径",
-      });
+      }, ctx.rtype);
       if (!resolved) return;
       const { folder, dstDir } = resolved;
       const { MoveModelFile } = await getApp();
@@ -35,7 +36,7 @@ export const DIR_HANDLERS: Record<string, (ctx: MenuCtx) => void> = {
         icon: "📋",
         okText: "复制",
         emptyMsg: "❌ 请先配置仓库目录",
-      });
+      }, ctx.rtype);
       if (!resolved) return;
       const { folder, dstDir } = resolved;
       const { CopyModelFile } = await getApp();

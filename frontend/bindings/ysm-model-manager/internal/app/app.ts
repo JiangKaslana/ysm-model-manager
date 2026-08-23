@@ -44,6 +44,21 @@ export function AnalyzeBedrockModel(modelPath: string): $CancellablePromise<type
     return $Call.ByID(2221616526, modelPath);
 }
 
+/**
+ * AnalyzeBedrockModelEntry 按 SubModel.SourcePath 只解析归档内单模型 geometry（多角色包角色切换用）。
+ * 
+ * 路径守卫：与 AnalyzeBedrockModel 对齐 isPathInRootOrSelf；subPath 是 zip/7z 内 entry 路径，只用于
+ * 归档内 geoFile 匹配，不涉及文件系统。
+ * 
+ * 返回规则：
+ *   - 单条目命中 → BedrockModel 为该单角色 Bones（BoneCount/CubeCount 对应单模型）；Textures/TextureNames 仍全量（切纹理不换 PNG 集合，只换 texIdx）
+ *   - 单条目未命中 → 空 BedrockModel{}（前端据此回退到全量解析 AnalyzeBedrockModel）
+ *   - ext == .ysm / .json（非压缩包）或 subPath 空 → 空 BedrockModel{}
+ */
+export function AnalyzeBedrockModelEntry(modelPath: string, subPath: string): $CancellablePromise<types$0.BedrockModel> {
+    return $Call.ByID(3264818422, modelPath, subPath);
+}
+
 export function AnalyzeYSMModel(path: string): $CancellablePromise<ysm$0.YSMModelMeta> {
     return $Call.ByID(87919393, path);
 }
@@ -265,13 +280,7 @@ export function ExecuteCLI(command: string, args: { [_ in string]?: any } | null
 }
 
 /**
- * ========== 批量导出骨骼结构 ==========
- */
-export function ExportBoneStructures(filesRoot: string): $CancellablePromise<string> {
-    return $Call.ByID(2854573701, filesRoot);
-}
-
-/**
+ * ========== 导出单模型骨骼结构 ==========
  * ExportModelStructureJSON 导出单模型骨骼结构
  */
 export function ExportModelStructureJSON(modelPath: string): $CancellablePromise<string> {
@@ -329,6 +338,14 @@ export function FindPreviewImage(modelPath: string): $CancellablePromise<string>
  */
 export function GenerateRepoIndex(repoPath: string): $CancellablePromise<string> {
     return $Call.ByID(1563740856, repoPath);
+}
+
+/**
+ * GetAllRepoRoots 遍历所有注册资源类型，返回 rtype → root 映射（供跨类型搜索）。
+ * 仅返回目录真实存在且可访问的类型；空 root/不存在的目录跳过。
+ */
+export function GetAllRepoRoots(): $CancellablePromise<{ [_ in string]?: string } | null> {
+    return $Call.ByID(454948853);
 }
 
 /**
@@ -918,6 +935,14 @@ export function RepoHealthAudit(dir: string): $CancellablePromise<string> {
 }
 
 /**
+ * RepoHealthAuditAll 全仓库体检：遍历所有已配置资源类型根目录，合并审计结果。
+ * 无有效目录时返回错误提示（与 RepoHealthAudit 同源格式）。
+ */
+export function RepoHealthAuditAll(): $CancellablePromise<string> {
+    return $Call.ByID(2158058199);
+}
+
+/**
  * ResetResourceRoot 恢复指定资源类型的路径为默认（清空自定义值）
  */
 export function ResetResourceRoot(rtype: string): $CancellablePromise<void> {
@@ -1042,6 +1067,15 @@ export function ScanModelEntriesFiltered(dir: string, rtype: string, subtype: st
  */
 export function ScanModelEntriesWithLabel(dir: string, label: string): $CancellablePromise<types$0.ModelEntry[] | null> {
     return $Call.ByID(3762097925, dir, label);
+}
+
+/**
+ * SearchAllModels 跨类型搜索：遍历所有已配置资源类型的根目录，并发扫描 + 合并结果。
+ * allRoots 为 rtype→root 映射（由 GetAllRepoRoots 提供）；每个搜索结果携带 Type 字段。
+ * 关键词/数值过滤逻辑与 SearchModels 一致，但扫描范围覆盖全部类型。
+ */
+export function SearchAllModels(allRoots: { [_ in string]?: string } | null, keyword: string, minBones: number, maxBones: number, minCubes: number, maxCubes: number, minTex: number, maxTex: number): $CancellablePromise<types$0.SearchResult[] | null> {
+    return $Call.ByID(2041765860, allRoots, keyword, minBones, maxBones, minCubes, maxCubes, minTex, maxTex);
 }
 
 /**

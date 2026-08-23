@@ -26,6 +26,8 @@ import path from 'node:path';
 import { ROOT, readText, writeText } from './_lib/scan-files.mjs';
 import { spawnSync } from 'node:child_process';
 import { GUIDE_ORDER, GUIDE_GROUPS } from './_lib/guide-order.mjs';
+import { parseAdrHeader } from './_lib/frontmatter.mjs';
+import { classifyStatus, DISPLAY_GROUPS, STATE_LABEL } from './_lib/adr-status-categories.mjs';
 
 const ADR_DIR = path.join(ROOT, 'docs', 'adr');
 const ADR_INDEX_FILE = path.join(ADR_DIR, 'index.md');
@@ -96,6 +98,8 @@ function applyWholeFile(file, content, label) {
 
 // ── ADR 解析与状态映射（状态值域以 adr-check.mjs 为准）──
 
+// ── ADR 解析与状态分类（[ADR-114 §被补充] 统一走共享库）──
+
 function parseAdrs() {
   const files = fs
     .readdirSync(ADR_DIR)
@@ -103,47 +107,30 @@ function parseAdrs() {
     .sort();
   const list = [];
   for (const f of files) {
-    const text = fs.readFileSync(path.join(ADR_DIR, f), 'utf8');
-    const titleM = text.match(/^# ADR-(\d{3})[：:]\s*(.+)$/m);
-    const statusM = text.match(/^-\s*\*\*状态\*\*[：:]\s*(.+)$/m);
-    const dateM = text.match(/^-\s*\*\*日期\*\*[：:]\s*(.+)$/m);
-    if (!titleM) {
-      // 与 adr-check.mjs 的 TITLE_MISSING 一致：无标题 ADR 不应静默跳过，生成器落一条提示
-      console.error(`[WARN] ${f} 缺少 '# ADR-NNN：' 标题（将被登记表忽略，adr-check 会阻断）`);
+    const hdr = parseAdrHeader(path.join(ADR_DIR, f));
+    if (hdr.error) {
+      console.error(`[WARN] ${f} 首部解析失败（${hdr.error}），将被登记表忽略`);
       continue;
     }
     list.push({
-      num: parseInt(titleM[1], 10),
+      num: hdr.num,
       file: f,
-      title: titleM[2].trim(),
-      statusRaw: statusM ? statusM[1].trim() : '',
-      date: dateM ? dateM[1].trim() : '-',
+      title: hdr.title,
+      statusRaw: hdr.status,
+      date: hdr.date || '-',
+      supersededBy: hdr.supersededBy ?? null,
+      statusLine: hdr.statusLine,
     });
   }
-  return list.sort((a, b) => a.num - b.num);
+  return list.sort((a, b) => b.num - a.num); // 新→旧（与 BABY 版对齐，最新决策在最前）
 }
 
-function mapStatus(raw) {
-  const s = raw.trim();
-  const tail = (() => {
-    const m = s.match(/（([^）]*)）$/);
-    if (!m) return '';
-    const inner = m[1]
-      .split(/[，,]/)
-      .map((x) => x.trim())
-      .filter((x) => x && !/^[A-Za-z\s]+$/.test(x));
-    return inner.length ? `（${inner.join('，')}）` : '';
-  })();
-  if (/已废弃/.test(s)) return `🧊 已废弃${tail}`;
-  if (/已取代/.test(s)) return `❌ 已取代${tail}`;
-  if (/部分采纳/.test(s)) return `🔄 部分采纳${tail}`;
-  if (/已采纳/.test(s)) {
-    // 契约（ADR_USAGE_RULES：「违规或未修复，自动从文件首部识别」）：裸「违规/不一致/未修复」→ ⚠️；
-    // 但「违规已修复 / 不一致已修复」不属遗留未修复 → ✅（code_review P2 双向一致）
-    if ((/违规|不一致|未修复/.test(s)) && !/已修复/.test(s)) return `⚠️ 已采纳${tail}`;
-    return `✅ 已采纳${tail}`;
-  }
-  return s;
+function mapStatus(adr) {
+  const key = classifyStatus(adr.statusRaw);
+  const label = STATE_LABEL[key] ?? key;
+  const supersededBy = adr.supersededBy;
+  const tail = supersededBy ? ` ⚠️ 被 [ADR-${String(supersededBy).padStart(3, '0')}]` : '';
+  return `${label}${tail}`;
 }
 
 // ── adr 分区：登记表 + 状态统计 ────────────────────────
@@ -152,21 +139,15 @@ function buildAdrRegistry(list) {
   let out = '| 编号 | 标题 | 状态 | 日期 |\n';
   out += '|------|------|------|------|\n';
   for (const a of list) {
-    out += `| ADR-${pad(a.num)} | ${escCell(a.title)} | ${mapStatus(a.statusRaw)} | ${escCell(a.date)} |\n`;
+    out += `| ADR-${pad(a.num)} | ${escCell(a.title)} | ${mapStatus(a)} | ${escCell(a.date)} |\n`;
   }
   return out;
 }
 
 // ── adr 分区：规范索引页（docs/adr/index.md，整文件重写）────
 
-/** 状态 → 规范索引分组名（锚点 = 分组标题，Jekyll 可渲染）。 */
-const INDEX_GROUPS = [
-  { key: 'partial', title: '🔄 部分采纳', anchor: '部分采纳' },
-  { key: 'unfixed', title: '⚠️ 已采纳但遗留未修复', anchor: '已采纳但遗留未修复' },
-  { key: 'accepted', title: '✅ 已采纳', anchor: '已采纳' },
-  { key: 'deprecated', title: '🧊 已废弃', anchor: '已废弃' },
-  { key: 'replaced', title: '❌ 已取代', anchor: '已取代' },
-];
+// [ADR-114 §被补充] 索引分组从共享库 DISPLAY_GROUPS 导入（替代原 INDEX_GROUPS 常量），
+// 补词/删词只改 _lib/adr-status-categories.mjs 一处。
 
 /**
  * 使用规则（硬约束）——原 docs/adr/README.md 手写段，合并至 index 后由生成器承载。
@@ -177,19 +158,17 @@ const ADR_USAGE_RULES = [
   '2. **占号**：写文件**前**先在本表登记占号（并提交登记），再创建文件——多会话并行时以登记顺序为准，撞号者必须让位改号。',
   '3. **命名**：文件名 `ADR-NNN-kebab-case.md`（如 `ADR-013-governance-convergence.md`）。',
   '4. **必填字段**：状态 / 日期 / 决策人 / 相关；正文结构：背景（Context）→ 决策（Decision）→ 后果（Consequences）→ 数据溯源。',
-  '5. **状态值**：`✅ 已采纳` / `🔄 部分采纳` / `🧊 已废弃` / `❌ 已取代` / `⚠️ 已采纳（违规或未修复，自动从文件首部识别）`。状态变更只改文件首部，本页由 `gen-docs-index.mjs` 自动重写。',
+  '5. **状态值**：`✅ 已采纳` / `🔄 部分采纳` / `🧊 已废弃` / `❌ 已取代` / `⚠️ 已采纳（违规或未修复，自动从文件首部识别）`。状态变更只改文件首部，本页由 `gen-docs-index.mjs` 自动重写。取代关系用 `- **被取代**：[ADR-NNN] 取代` 独立行标注（`gen-adr-supersede.mjs` 扫描）。',
   '6. **新 ADR 落地后**：本页自动重写（改文件首部即可），无需手动同步；历史 `PROJECT_STATUS.md` 已冻结于 `docs/archive/`，不再维护。',
 ];
 
 function groupAdrs(list) {
-  const groups = { accepted: [], partial: [], unfixed: [], deprecated: [], replaced: [] };
+  const groups = {};
+  for (const g of DISPLAY_GROUPS) groups[g.key] = [];
   for (const a of list) {
-    const st = mapStatus(a.statusRaw);
-    if (st.startsWith('🔄')) groups.partial.push(a);
-    else if (st.startsWith('🧊')) groups.deprecated.push(a);
-    else if (st.startsWith('❌')) groups.replaced.push(a);
-    else if (st.startsWith('⚠️')) groups.unfixed.push(a);
-    else groups.accepted.push(a);
+    const key = classifyStatus(a.statusRaw);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(a);
   }
   return groups;
 }
@@ -197,6 +176,9 @@ function groupAdrs(list) {
 function buildAdrIndex(list) {
   const groups = groupAdrs(list);
   const total = list.length;
+
+  // 使用规则中状态枚举已从 4 态扩展为 6 桶（含 unknown）
+  const STATUS_EXAMPLES = DISPLAY_GROUPS.map((g) => g.label).join(' / ');
 
   let out = '---\n';
   out += 'layout: page\n';
@@ -208,17 +190,31 @@ function buildAdrIndex(list) {
   out += `> 架构决策日志，共 **${total}** 篇。决策真相源 = 各 ADR 文件首部「状态」行；本页为登记表 + 规范索引（单文件承载全部）。\n\n`;
   out += '> 所有 ADR 存放于本目录。**写新 ADR 前必读本节**——防撞号靠登记，不靠自觉。\n\n';
 
-  // 状态分布总览（统计；登记表为全量明细，不另设重复的分组表）
+  // 状态分布总览（6 桶，含计数 + 锚点跳转）
   out += '## 按状态分布\n\n';
   out += '| 状态 | 数量 |\n';
   out += '|------|------|\n';
-  for (const g of INDEX_GROUPS) {
-    out += `| ${g.title} | ${groups[g.key].length} |\n`;
+  for (const g of DISPLAY_GROUPS) {
+    out += `| [${g.label}](#${g.anchor}) | ${groups[g.key]?.length ?? 0} |\n`;
   }
   out += '\n';
 
-  // 登记表（全量明细 + 占号/对账契约：行格式 `| ADR-NNN | 标题 | 状态 | 日期 |`，adr-check/new-adr 机器消费）
-  out += '## 登记表\n\n';
+  // 按状态分组导航（锚点跳转，新→旧）
+  out += '## 按状态分组导航\n\n';
+  for (const g of DISPLAY_GROUPS) {
+    const items = groups[g.key] || [];
+    if (items.length === 0) continue;
+    out += `### ${g.label}（${items.length}）\n\n`;
+    out += '| ADR | 标题 | 状态 |\n';
+    out += '|-----|------|------|\n';
+    for (const a of items) {
+      out += `| [ADR-${pad(a.num)}](${hrefTo(a.file)}) | ${escCell(a.title)} | ${mapStatus(a)} |\n`;
+    }
+    out += '\n';
+  }
+
+  // 登记表（全量明细，新→旧）
+  out += '## 登记表（新→旧）\n\n';
   out += buildAdrRegistry(list);
   out += '\n';
 
@@ -227,10 +223,14 @@ function buildAdrIndex(list) {
   for (const r of ADR_USAGE_RULES) out += `${r}\n`;
   out += '\n';
 
-  // 尾部维护说明
   out += '---\n\n';
-  out += '*登记表由 `gen-docs-index.mjs` 自动重写；一致性校验已接入：`node scripts/check-adr-health.mjs`（状态值域 + 登记同步 + 技术债）+ `node scripts/check-doc-drift.mjs`（编号连续性/漏登/幽灵）。*\n';
+  out += '*登记表由 `gen-docs-index.mjs` 自动重写；一致性校验已接入：`node scripts/check-adr-health.mjs`（状态值域 + 登记同步 + 技术债）+ `node scripts/check-doc-drift.mjs`（编号连续性/漏登/幽灵）+ `node scripts/gen-adr-supersede.mjs`（取代关系扫描）。*\n';
   return out;
+}
+
+/** 登记表行内的 ADR 文件名 → 相对链接。 */
+function hrefTo(file) {
+  return `./${file}`;
 }
 
 // ── releases 分区：最近版本 + 版本全览 ─────────────────

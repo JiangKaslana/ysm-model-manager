@@ -61,6 +61,21 @@ export interface BedrockModel {
   sourceName: string;
   format: string;
   bones: Bone2D[];
+  /** L0 清单派生的子模型列表（多角色包内切换用）；
+   *  来源优先级：L0（maid_model.json model/model_list 权威清单）→ L1（geoFiles 枚举兜底）
+   *  无多角色时可能缺省或长度为 1。 */
+  subModels?: SubModel[];
+}
+
+/** SubModel 子模型条目（Go types/bedrock.go SubModel）。
+ *  一个 zip/7z 包内含多角色时的切换单元。 */
+export interface SubModel {
+  /** 角色名（L0 取自清单 name；L1 取自 geometry 文件名 basename） */
+  name: string;
+  /** 条目的 zip 内相对路径（用于精确比对去重 / 按单条目重新解析） */
+  sourcePath?: string;
+  /** 默认绑定的纹理槽索引（对应 BedrockGeometry.textures / textureNames 数组下标） */
+  texSlot?: number;
 }
 
 /** Model3DSpec — Go threejs/spec.go Model3DSpec */

@@ -6,6 +6,7 @@ import {
   RESOURCE_TYPES,
   RESOURCE_TYPE_LABELS,
   ALL_RESOURCE_TYPES,
+  NO_3D_TYPES,
   AMBIGUOUS_EXTS,
   resolveTypeSafe,
   VOXEL_RPC_BY_EXT,
@@ -14,6 +15,7 @@ import {
   GROUP_TYPE_OPTIONS,
   groupLabelOf,
   groupStorageRootOf,
+  getPreviewableTypeTabs,
 } from "./types.ts";
 import resourceTypesJson from "../../../../resource_types.json";
 
@@ -337,5 +339,107 @@ describe("resolvePreviewKey 按 variants 分发预览器", () => {
     expect(extOf("/repo/Makefile")).toBe("");
     expect(extOf("Makefile")).toBe("");
     expect(resolvePreviewKey("/repo/Makefile", "EntityPlayer")).toBe("EntityPlayer");
+  });
+});
+
+// ===== resolvePreviewKeyToRtype（ADR-111 逆向，批次6 P3 补测）=====
+import { resolvePreviewKeyToRtype } from "./types.ts";
+
+describe("resolvePreviewKeyToRtype 预览键反解资源类型 ID", () => {
+  it("mmd → EntityPlayer（角色面板 tab → 真实 rtype 白名单过滤）", () => {
+    expect(resolvePreviewKeyToRtype("mmd")).toBe("EntityPlayer");
+  });
+
+  it("vrm → EntityPlayer（与 mmd 同归 EntityPlayer，正向/反向一致）", () => {
+    expect(resolvePreviewKeyToRtype("vrm")).toBe("EntityPlayer");
+  });
+
+  it("mmd-scene → SceneModel", () => {
+    expect(resolvePreviewKeyToRtype("mmd-scene")).toBe("SceneModel");
+  });
+
+  it("正向→反向 round-trip：resolvePreviewKey → resolvePreviewKeyToRtype 还原", () => {
+    // 从 JSON 取一条真实 variant 断言正反一致（防 JSON 漂移）
+    const entity = resourceTypesJson.resourceTypes.find((t: any) => t.id === "EntityPlayer");
+    expect(entity?.variants?.length ?? 0).toBeGreaterThan(0);
+    for (const v of entity?.variants || []) {
+      expect(resolvePreviewKeyToRtype(v.preview)).toBe(entity!.id);
+    }
+  });
+
+  it("已是资源类型 ID 的键回退自身（fbx / ysm）", () => {
+    expect(resolvePreviewKeyToRtype("fbx")).toBe("fbx");
+    expect(resolvePreviewKeyToRtype("ysm")).toBe("ysm");
+  });
+
+  it("未知键回退自身（不抛错，静默降级为原键）", () => {
+    expect(resolvePreviewKeyToRtype("totally-unknown-key")).toBe("totally-unknown-key");
+    expect(resolvePreviewKeyToRtype("")).toBe("");
+  });
+});
+
+// ===== getPreviewableTypeTabs（ADR-111 收口：3D 切换面板 tab 单一事实来源）=====
+describe("getPreviewableTypeTabs 3D 切换面板 tab 派生", () => {
+  const tabs = getPreviewableTypeTabs();
+  const keys = tabs.map((t) => t.key);
+
+  it("仅含 preview='3d' 的类型，排除 thumbnail/none 类型", () => {
+    const allowed = new Set(ALL_RESOURCE_TYPES.filter((id) => !NO_3D_TYPES.has(id)));
+    const previewKeys = new Set<string>();
+    for (const rt of resourceTypesJson.resourceTypes) {
+      if (rt.variants) for (const v of rt.variants) previewKeys.add(v.preview);
+    }
+    for (const t of tabs) {
+      const isRealRtype = allowed.has(t.key);
+      const isPreviewKey = previewKeys.has(t.key);
+      expect(isRealRtype || isPreviewKey, `tab key 既非 3d 类型也非 preview key: ${t.key}`).toBe(true);
+    }
+  });
+
+  it("EntityPlayer 的 variants 展开为 mmd + vrm tab（.pmx/.pmd 同映射 mmd 已去重）", () => {
+    const mmdTabs = tabs.filter((t) => t.key === "mmd");
+    const vrmTabs = tabs.filter((t) => t.key === "vrm");
+    expect(mmdTabs.length).toBe(1);
+    // vrm 是 EntityPlayer 与 SceneModel 共享预览格式，按 key 去重后只保留首个命中（EntityPlayer），
+    // 故 vrm 恰好 1 个 tab、且标签归属「角色模型」（而非 SceneModel 的「场景模型」）。
+    expect(vrmTabs.length).toBe(1);
+    expect(vrmTabs[0].label).toBe("角色模型");
+    expect(mmdTabs[0].label).toBe("角色模型");
+  });
+
+  it("tab 的 preview key 全局唯一（共享 preview key 跨类型去重，不出现重复 tab）", () => {
+    const keyCounts = new Map<string, number>();
+    for (const t of tabs) keyCounts.set(t.key, (keyCounts.get(t.key) ?? 0) + 1);
+    for (const [key, count] of keyCounts) {
+      expect(count, `preview key "${key}" 出现 ${count} 次，应唯一`).toBe(1);
+    }
+  });
+
+  it("无 variants 的 3d 类型用自己的 id 作 key（ysm / fbx / blueprint / maid-model …）", () => {
+    for (const id of ["ysm", "fbx", "blueprint", "litematic", "maid-model"]) {
+      expect(keys).toContain(id);
+    }
+  });
+
+  it("preview≠3d 的类型不出现（如 mmd-shader / CustomAnim 等纯动作/着色器类型）", () => {
+    for (const excluded of ["CustomAnim", "CustomMorph", "StageAnim", "mmd-shader", "DefaultAnim"]) {
+      expect(keys).not.toContain(excluded);
+    }
+  });
+
+  it("resourcepack 已标 preview='3d' 且有 3D opener，派生纳入对应 tab", () => {
+    // ADR-111 收口修正：resourcepack 有 pack-3d.ts opener，JSON 标注已从 thumbnail 升为 3d，
+    // 派生结果应纳入，消除旧面板 resourcepack tab 回归。
+    expect(keys).toContain("resourcepack");
+  });
+
+  it("shaderpack 仍标 preview='thumbnail'（无 3D opener），派生不纳入", () => {
+    // shaderpack 实际无 3D 预览能力（pack-3d.ts 仅注册 resourcepack），维持 thumbnail 标注，
+    // 派生结果不应含 shaderpack——防止无 opener 的类型混入 3D 切换面板。
+    expect(keys).not.toContain("shaderpack");
+  });
+
+  it("每个 tab 都有非空标签", () => {
+    expect(tabs.every((t) => t.label.length > 0)).toBe(true);
   });
 });

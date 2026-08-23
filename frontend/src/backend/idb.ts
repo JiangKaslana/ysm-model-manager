@@ -13,7 +13,7 @@
 const DB_NAME = "ysm-model-manager-web";
 const DB_VERSION = 1;
 
-export const STORES = ["files", "config"] as const;
+const STORES = ["files", "config"] as const;
 export type Store = (typeof STORES)[number];
 
 let dbPromise: Promise<IDBDatabase> | null = null;

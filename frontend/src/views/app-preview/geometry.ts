@@ -1,5 +1,7 @@
 // ===== preview 工具函数（纯函数，无组件依赖） =====
 
+import type { AnimationClip } from "../../utils/animation/animation.ts";
+
 /** Bedrock 方块 */
 export interface BedrockCube {
   origin: number[];
@@ -9,6 +11,15 @@ export interface BedrockCube {
   uv: number[] | string;
   faceUV: string;
   texSlot: number;
+}
+
+/** SubModel 子模型条目（Go types/bedrock.go SubModel）。
+ *  与 spec-builder.ts 的 SubModel 定义保持一致；这里重复声明是为了
+ *  geometry.ts 不反向依赖 utils/3d（边界清晰）。 */
+export interface BedrockSubModel {
+  name: string;
+  sourcePath?: string;
+  texSlot?: number;
 }
 
 /** Bedrock 骨骼 */
@@ -43,11 +54,16 @@ export interface BedrockGeometry {
   _avatars?: Record<string, string>;
   _modelPath?: string;
   _texMappingLog?: unknown[];
+  /** 已解析动画 clips（WASM 内嵌解码 / Go 兜底 / 缓存回填统一挂载，供 ysm-adapter 播放；
+   *  区别于 `animations`（Go 透传的原始 JSON 字符串数组） */
+  _animClips?: AnimationClip[];
   animations?: unknown[];
   textures?: string[];
   /** 纹理文件名（去扩展名），与 textures 同序（Go AnalyzeBedrockModel / WASM 解码填充） */
   textureNames?: string[];
   texture?: string | null;
+  /** L0 清单派生的子模型列表（多角色包内切换用） */
+  subModels?: BedrockSubModel[];
   [key: string]: unknown;
 }
 

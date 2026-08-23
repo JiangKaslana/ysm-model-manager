@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 
 	"ysm-model-manager/go/types"
 )
@@ -146,16 +147,28 @@ func buildModelGroup(model types.BedrockModel, compID string, texIdxBase int) (M
 	if compName == "" {
 		compName = compID
 	}
+	// 组件可见性分类：仅 main（角色主体）默认可见；
+	// arm/载具/投射物等辅助组件默认隐藏，由动画控制器按游戏状态点亮。
+	// 多组件模型（如 wine_fox 的 player+foxcar）若全部点亮，
+	// 载具 bounding box 会撑大整体剔除范围 → 视锥边界抖动 → 角色闪烁。
 	return ModelGroup{
 		ID:             compID,
 		Name:           compName,
-		DefaultVisible: true,
+		DefaultVisible: isDefaultVisibleComponent(compName),
 		TextureWidth:   texW,
 		TextureHeight:  texH,
 		TextureID:      texID,
 		Bones:          bones,
 		MeshGroups:     meshes,
 	}, nil
+}
+
+// isDefaultVisibleComponent 判断组件是否默认可见。
+// 仅 main（角色主体）默认可见；arm/载具/投射物等辅助组件默认隐藏。
+func isDefaultVisibleComponent(compName string) bool {
+	base := strings.ToLower(compName)
+	base = strings.TrimSuffix(base, ".geo")
+	return base == "main"
 }
 
 // buildCubeMeshData 立方体几何构建（测试直接调用，保留为导出符号）。
@@ -358,15 +371,17 @@ func eulerToQuaternion(rxDeg, ryDeg, rzDeg float64) [4]float64 {
 	sinY := math.Sin(ry)
 	cosZ := math.Cos(rz)
 	sinZ := math.Sin(rz)
-	m00 := cosY * cosZ
-	m01 := -cosY * sinZ
-	m02 := sinY
-	m10 := cosX*sinZ + sinX*sinY*cosZ
-	m11 := cosX*cosZ - sinX*sinY*sinZ
-	m12 := -sinX * cosY
-	m20 := sinX*sinZ - cosX*sinY*cosZ
-	m21 := sinX*cosZ + cosX*sinY*sinZ
-	m22 := cosX * cosY
+	// M = Rz * Ry * Rx (ZYX intrinsic order) — 对齐 Blockbench euler_order='ZYX' + frontend quaternion.ts (ADR-042 §2.1)
+	// 展开式：M = Rz(cz,sz) × Ry(cy,sy) × Rx(cx,sx)
+	m00 := cosZ * cosY
+	m01 := cosZ*sinY*sinX - sinZ*cosX
+	m02 := cosZ*sinY*cosX + sinZ*sinX
+	m10 := sinZ * cosY
+	m11 := sinZ*sinY*sinX + cosZ*cosX
+	m12 := sinZ*sinY*cosX - cosZ*sinX
+	m20 := -sinY
+	m21 := cosY * sinX
+	m22 := cosY * cosX
 	trace := m00 + m11 + m22
 	var qw, qx, qy, qz float64
 	if trace > 0 {

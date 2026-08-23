@@ -8,21 +8,21 @@ import { loadResourceRegistry } from "../utils/resource/registry.ts";
 import { RESOURCE_TYPES } from "../utils/resource/types.ts";
 import { getApp } from "../backend/app.ts";
 import { useCurrentResourceType } from "./repo-rtype.ts";
+import { stagger } from "../utils/animation/stagger.ts";
+import { TOAST_MS } from "../utils/dom/toast-ms.ts";
 
 // ===== 常量（魔法数值集中管理 — code_review P3）=====
 /** 恢复/删除前的 leaving 滑出动画时长（ms），与 content-util.css 的 .leaving 过渡对齐 */
 const LEAVE_ANIM_MS = 150;
-/** 列表入场动画错峰步进（ms）：i*STAGGER_STEP_MS，封顶 STAGGER_MAX_MS */
-const STAGGER_STEP_MS = 25;
-const STAGGER_MAX_MS = 400;
+
 /** 恢复/删除成功 toast 时长（ms） */
-const TOAST_ACTION_OK_MS = 2000;
+const TOAST_ACTION_OK_MS = TOAST_MS.success;
 /** 恢复/删除失败 toast 时长（ms） */
-const TOAST_ACTION_ERR_MS = 3000;
+const TOAST_ACTION_ERR_MS = TOAST_MS.normal;
 /** 清空（批量）成功 toast 时长（ms） */
-const TOAST_EMPTY_OK_MS = 3000;
+const TOAST_EMPTY_OK_MS = TOAST_MS.normal;
 /** 清空（批量）失败 toast 时长（ms） */
-const TOAST_EMPTY_ERR_MS = 5000;
+const TOAST_EMPTY_ERR_MS = TOAST_MS.long;
 
 /** app-content 组件实例（initRecycleBin 依赖的成员） */
 export interface RecycleHost {
@@ -150,9 +150,9 @@ export function initRecycleBin(app: RecycleHost): () => void {
       if (count) count.textContent = icon + " " + entries.length + " 个文件";
       list.innerHTML = entries
         .map((e, i) => {
-          const name = e.Name.replace(/\.(ysm|zip|7z)\.ban$/i, ".$1");
+          const name = e.Name.replace(/\.(ysm|zip|7z)\.(disabled|ban)$/i, ".$1");
           const size = Number.isFinite(e.Size) ? fmtSize(e.Size as number) : "?";
-          return `<div class="recy-item" data-testid="recy-item" style="animation-delay:${Math.min(i * STAGGER_STEP_MS, STAGGER_MAX_MS)}ms;display:flex;flex-direction:column;gap:2px;padding:5px 8px;border-radius:5px;background:var(--bg);font-size:var(--fs-sm)">
+          return `<div class="recy-item" data-testid="recy-item" style="animation-delay:${stagger(i, 25, 400)}ms;display:flex;flex-direction:column;gap:2px;padding:5px 8px;border-radius:5px;background:var(--bg);font-size:var(--fs-sm)">
 <div style="display:flex;align-items:center;gap:6px">
 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt);cursor:pointer" title="${t("oldest.clickDetail", { name: esc(e.Path) })}" data-path="${esc(e.Path)}">${renderDisplayName(name)}</span>
 <span style="font-size:var(--fs-xs);color:var(--muted)">${size}</span>

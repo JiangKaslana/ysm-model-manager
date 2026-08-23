@@ -6,6 +6,7 @@ import { getApp } from "../../../backend/app.ts";
 import { renderDisplayName } from "../../../utils/dom/display.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../../utils/resource/types.ts";
 import { resolveWebMode } from "../../../backend/platform.ts";
+import { stagger } from "../../../utils/animation/stagger.ts";
 import type { EscFn } from "./logs.ts";
 
 // P3 修复（子代理审计，重入守卫）：scanConflicts 并发标志——快速 3 连点会并发扫描
@@ -73,7 +74,7 @@ export async function scanConflicts(root: ShadowRoot, esc: EscFn): Promise<void>
       if (!ins.Exists) continue;
       const entries = (await ScanModelEntriesWithLabel(ins.CustomDir, RESOURCE_TYPE_LABELS[RESOURCE_TYPES.YSM])) || [];
       instanceFiles[ins.Name] = entries.map((e) => ({
-        name: e.Name.replace(/\.ban$/i, ""),
+        name: e.Name.replace(/\.(disabled|ban)$/i, ""),
       }));
     }
 
@@ -98,7 +99,7 @@ export async function scanConflicts(root: ShadowRoot, esc: EscFn): Promise<void>
 
     let html = `<div class="stat-row diag-msg diag-msg-error" style="animation:conflictRowIn .3s ease">⚠️ ${t("diagnostics.conflictsFound", { n: conflicts.length })}</div>`;
     conflicts.slice(0, 50).forEach(([name, insNames], i) => {
-      const delay = Math.min(i * 30, 600);
+      const delay = stagger(i, 30, 600);
       html += `<div class="conflict-row" style="animation-delay:${delay}ms">
 <span class="conflict-name">${renderDisplayName(name)}</span>
 <span class="conflict-ver">${t("diagnostics.modpackCount", { n: insNames.length })}</span>

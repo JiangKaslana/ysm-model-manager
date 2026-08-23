@@ -1,6 +1,6 @@
 # ADR-042：渲染复现借鉴上游 ModernYSM：二进制直读 pivot/rotation 与动画纯计算移植
 
-- **状态**：🔄 部分采纳（决策成立，实施排期中）
+- **状态**：✅ 已采纳（§2.1 骨骼矩阵算法——旋转序 ZYX、cube 变换链已落地 commit b8fc3211，知识卡 go-threejs.md 沉淀；§2.2 二进制直读 / §2.3 动画纯计算移植仍排期，属后续演进项）
 - **日期**：2026-08-09
 - **决策人**：Jieling（人类首席架构师）、AI 代理
 - **相关**：`upstream/ModernYSM-1.20.1-forge` / `go/threejs/spec.go` / `frontend/src/utils/3d/model3d.ts` / `frontend/src/utils/animation/` / `docs/knowledge/ysm_baked.md` / `docs/knowledge/animation-system.md` / `tests/port-verification/`
@@ -33,7 +33,8 @@
 | 要点 | 游戏内实现 | 对照对象 | 审计结论（2026-08-09） |
 |------|-----------|---------|------------------------|
 | **pivot 平移** | `translate((pivotX - animTx), (pivotY + animTy), (pivotZ + animTz)) × 0.0625`，**X 取负** | `spec.go:528` 等 12 处 localPosition | ✅ Go `localPos={pp.x-bp.x, bp.y-pp.y, bp.z-pp.z}` 已 X 翻转，口径一致（YSMViewer C# ConvertBones 同款） |
-| **旋转序** | `rotateZ → rotateY → rotateX`（Z→Y→X） | `eulerToQuaternion(-rx,-ry,+rz)`，ADR-041 | ⚠️ **顺序相反**：Go/C# 是 `M = Rx*Ry*Rz`（spec.go:699），Java JOML 右乘连调 `rotateZ→rotateY→rotateX` = `Rz*Ry*Rx`。同一欧拉角两套顺序结果不同——需视觉验证裁决（ADR 第 3 节双基准歧义） |
+| **旋转序** | `rotateZ → rotateY → rotateX`（Z→Y→X） | `eulerToQuaternion(-rx,-ry,+rz)`，ADR-041 | ✅ **已裁决并落地（2026-08-22）**：Go/TS `eulerToQuaternion` 从 `M = Rx*Ry*Rz`（ADR-041 YSMViewer 口径）改为 `M = Rz*Ry*Rx`（ZYX intrinsic，对齐 Blockbench `Format.euler_order='ZYX'` + Three.js `Euler(order='ZYX')`）。证据：Blockbench `io/format.ts:704` 默认 `euler_order='ZYX'`，Bedrock 格式未覆盖；wine_fox `Tail2.cube#0` `rotation=[-15,-57.25,-90]` 手算对照，旧口径顶点 `[-3.019,-0.183,0.684]` vs 新口径 `[-1.595,2.237,-1.439]`，Blockbench 活规范取后者。单轴旋转四元数不变（旧 `TestEulerToQuaternion90X` 断言仍 pass），三轴非零 cube 顶点修正——"主题正确、小部件错"根因消除。 |
+| **cube 变换链** | `parseCube` L659 `origin[0]*=-1` + L662 `from[0]=-(from[0]+size[0])`；`updateTransform` `mesh.position=cube.origin-parent.origin` | `buildCubeMeshData`/`applyInflate`/`resolveCubePivot`/`computeMeshLocalPos` | ✅ **已落地（2026-08-22）**：cube 从 Bedrock JSON 到渲染顶点补齐 3 层 Blockbench X 镜像/翻号——(1) cube origin X 镜像 `ox=-(ox+sx)`（`parseCube` L662）；(2) cube pivot X 翻号 `cp[0]=-cp[0]`（`parseCube` L659）；(3) mesh localPos[0] 符号 `bonePivot.x+cp[0]`（Blockbench `mesh.position=cube.origin-parent.origin`，`cp[0]` 已翻号=`-Pivot[0]`）。之前 0 层 → 顶点 X 跟 Blockbench 相反，三轴非零 cube 旋转后朝向错位。验证：`tests/port-verification/compare-cube-vertices.mjs` 逐顶点对拍 3 组 cube（Skirt 三轴 / UpBody 无旋转 / Tail2 三轴），diff=0.0000；视觉验收：裙子/小部件朝向计算精度大幅提升到正确水平。 |
 | **scale** | `scale==0 → 不可见`（三轴全零才隐藏），普通 scale 组合 | spec LocalRotation/Scale | ❌ **未建模**：`BoneData`（spec.go:32-38）无 Scale 字段，静态 spec 不含 scale；动画 scale 由前端 animation.ts 驱动（§2.3 落地前为空） |
 | **隐藏联动** | **父不可见 → 子必不可见**（`NativeModelRenderer.java:186-189`） | `model3d.ts:801` setBoneVisible 需核对 | ❌ **未建模**：前端 setBoneVisible/toggleBone 仅按骨骼名操作自身子树，无「父隐子隐」自动联动；spec 亦无可见性传播字段（§2.3 动画驱动隐藏前不生效） |
 | **背面剔除** | cullable quad 做仿射投影 `det <= 0` 剔除（`det > 0 才画`） | 与 three.js 默认背面剔除口径核对 | ✅ 前端统一 `side: THREE.FrontSide`（model3d.ts:339/344）+ `alphaTest 0.1`，与 Java 正向剔除语义一致（y 轴向上约定下同向） |
@@ -77,7 +78,7 @@
 - **动画复活**：molang 解释 + 插值/blend/transition 落地后，从"静止在默认姿态"→"按动画文件驱动"，对游戏复现价值最高。
 
 ### 负面 / 风险
-- **2.1 是视觉变更**：旋转序/背面剔除若与现行 three.js 有差异，可能引起视觉回退；须以对比测试 + 截图回归保障，不应盲回盲改。
+- ~~**2.1 是视觉变更**：旋转序/背面剔除若与现行 three.js 有差异，可能引起视觉回退；须以对比测试 + 截图回归保障，不应盲回盲改。~~ → **已落地（2026-08-22）**：`eulerToQuaternion` 改 ZYX intrinsic，Go test + 前端 typecheck 全绿，旧 `TestEulerToQuaternion90X` 单轴断言仍 pass。三轴非零 cube 顶点修正，"主题正确、小部件错"根因消除。视觉验收基准：与 Blockbench 打开同一模型渲染一致。
 - **2.2 取数成本未定**：WASM C++ 侧是否保留原始 pivot/rotation 需验证；若需 Go 二次解析，工作量大。
 - **2.3 scope 大**：完整移植含 molang 求值器 + 状态机，需分阶段，先 inner 计算后 facade。
 - **双基准歧义**：ADR-041 的 YSMViewer（C#）与本 ADR 的模组（Java）冲突时无现成裁决准则；需人工视觉验证定夺，避免单一基准反复。

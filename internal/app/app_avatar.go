@@ -34,8 +34,8 @@ func (a *App) BatchExtractCreatorAvatars() (map[string]string, error) {
 	seen := map[string]string{}
 	for _, e := range entries {
 		name := e.Name
-		if strings.HasSuffix(strings.ToLower(name), ".ban") {
-			name = types.StripBanSuffix(name)
+		if types.IsDisableSuffix(name) {
+			name = types.StripDisableSuffix(name)
 		}
 		if strings.HasPrefix(name, "[") {
 			if idx := strings.Index(name, "]"); idx > 0 {
@@ -88,8 +88,8 @@ func (a *App) DebugExtractCreatorAvatar(authorName string) map[string]string {
 	var foundPath string
 	for _, e := range entries {
 		name := e.Name
-		if strings.HasSuffix(strings.ToLower(name), ".ban") {
-			name = types.StripBanSuffix(name)
+		if types.IsDisableSuffix(name) {
+			name = types.StripDisableSuffix(name)
 		}
 		if strings.HasPrefix(name, "[") {
 			if idx := strings.Index(name, "]"); idx > 0 {

@@ -20,12 +20,13 @@ invariant_anchors:
 
 ## 概览
 
-HTML 转义与搜索高亮工具。`esc()` 是全前端 HTML 转义的统一入口，也是治理红线指定的转义函数。
+HTML 转义、搜索高亮与全局 toast 时长语义常量。`esc()` 是全前端 HTML 转义的统一入口，也是治理红线指定的转义函数；`toast-ms.ts` 是全应用 toast 时长的单一事实源（6 档语义常量，消费方禁止内联魔法数字）。
 
 ## 核心职责
 
 - HTML 特殊字符转义（innerHTML 拼接防注入）
 - 搜索关键词高亮（转义后返回 `<mark>` 包裹的安全 HTML）
+- toast 时长语义化：`TOAST_MS` 6 档常量（quick=1500 / success=2000 / info=2500 / normal=3000 / verbose=4000 / long=5000），替换各处重复命名与内联数字；契约测试 `toast-ms.test.ts` 断言语档值与单调性
 
 ## 对外 API / 入口
 
@@ -43,6 +44,7 @@ HTML 转义与搜索高亮工具。`esc()` 是全前端 HTML 转义的统一入�
 - `&` 必须最先替换，避免二次转义后续生成的实体
 - hl 只高亮首个命中（全量高亮请用 display.ts 的 renderModelNameWithHighlight）
 - **hl 在原始 text 上定位**（非先整体转义——`&lt;` 错位陷阱有判别性测试锁定：`hl("&lt;","lt")` → `&amp;<mark>lt</mark>;`，P3 补测）；**Unicode 大小写折叠长度变化（如土耳其 İ）时降级纯转义**（P3 修复：折叠后 idx 用于切片原始 text 会静默错切空 mark）
+- toast 时长：消费方一律引用 `TOAST_MS` 语义档，禁止内联魔法数字或另起同名命名（防止语义漂移）
 
 ## 相关
 

@@ -3,6 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #11111b;
+      }
+      html:not(.app-ready) body {
+        visibility: hidden;
+      }
+    </style>
     <title>YSM 模型管理器</title>
     <link
       rel="icon"
@@ -15,9 +26,13 @@
     <script type="module" src="src/app-modules.ts"></script>
   </head>
   <body style="margin: 0; overflow: hidden">
+    <!-- 跳过链接：键盘用户直达主内容 -->
+    <a href="#main-content" class="skip-link" aria-label="跳过导航，直达主内容">跳过导航</a>
     <div style="display: flex; height: 100vh; overflow: hidden">
-      <app-nav></app-nav>
-      <app-content></app-content>
+      <app-nav aria-label="主导航"></app-nav>
+      <!-- 跳过链接目标需可聚焦：fragment 跳转不滚动（overflow:hidden），
+           tabindex=-1 让键盘焦点真正移入主内容区（codereview 批次3 P3） -->
+      <app-content id="main-content" tabindex="-1" aria-label="主内容区"></app-content>
     </div>
     <div
       id="global-loader"
@@ -93,14 +108,6 @@
             document.getElementById("global-loader").style.display = "none";
           }
         });
-
-        setTimeout(() => {
-          window.bus?.emit("toast:show", {
-            msg: "✅ YSM 管理器 v1.0 预告版",
-            duration: 3000,
-            type: "success",
-          });
-        }, 500);
       });
     </script>
   </body>

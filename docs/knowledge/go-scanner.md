@@ -17,6 +17,17 @@ use_when:
 invariant_anchors:
   - go/scanner/scanner.go|fsutil.IsRecycleDir
   - go/scanner/scanner.go|IsYsmEntryJSON
+quick_groups:
+  - 模型扫描与仓库管理
+quick_intents:
+  - 扫描模型、ScanModelEntries
+  - 资源类型识别、rtype 判定
+  - 去重检测、dedup
+  - 整合包同步、sync
+  - 仓库审计、健康分
+quick_risk_lines:
+  - 容器指纹缓存失效需调 ClearScanCache
+  - resource_types.json 是唯一事实来源
 ---
 
 # 扫描核心 go/scanner
@@ -48,6 +59,7 @@ invariant_anchors:
 
 - `ScanEntries(dir)` — 单返回值薄壳：内部 `ScanEntriesWithHit(dir)` 丢弃 `bool` 后返回条目
 - `ScanEntriesWithHit(dir)` — 扫描核心（缓存 30s，`.recycle` 跳过），返回 `(entries []ModelEntry, hit bool)`，调用方据此决定是否记录扫描日志，避免 30s 内重复访问同一目录时刷屏操作日志面板
+- **在途合并（single-flight，2026-08-21）**：缓存「扫完才 Store」，同目录并发请求在途重叠时会双双真扫（点击整合包时前端多组件并发要状态 → 操作日志同秒重复条目）。`inFlight`（`sync.Map: dir → *scanFlight`）让首个调用方注册航班走盘，后续调用方 `wg.Wait()` 并入航班取**克隆**结果且返回 `hit=true`（薄壳不重复记日志）；唯一 owner 返回 `hit=false`。`walkCount`/`flightJoins` 为诊断计数。测试 `scanner_singleflight_test.go`（walkStartHook 制造确定性重叠）
 - `InvalidateCache()` / `InvalidatePath(dir)` — 缓存失效（导入/启用禁用后调用）
 - `ComputeFileHash(path)` — SHA256
 - `ListModelAuthors` / `ScanLocalAuthors` — 作者统计

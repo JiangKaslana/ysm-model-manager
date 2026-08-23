@@ -4,6 +4,7 @@ import { dbg } from "../../utils/debug/debug.ts";
 import { WebComponentBase } from "../../utils/dom/web-component-base.ts";
 import { refreshAdoptedStyleSheets } from "../../utils/dom/css-hmr.ts";
 import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS, ALL_RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { currentRepoType } from "../../features/repo-rtype.ts";
 import { sidebarCSS } from "./sidebar-css.ts";
 // 模块级样式表（HMR 热更新回注入用：export 给 hot.accept 拿新实例）。
 // 环境守卫对齐 ui-components-styles.ts：node/happy-dom 无 CSSStyleSheet 时返回
@@ -63,7 +64,11 @@ class AppSidebar extends WebComponentBase {
     super();
     this._root = this.attachShadow({ mode: "open" });
     this._root.adoptedStyleSheets = [appSidebarStyle];
-    this._rtype = this.getAttribute("rtype") || RESOURCE_TYPES.YSM;
+    // P1 修复（ADR-104 整合包视图首屏 rtype 回落）：tpl.ts 挂载 <app-sidebar> 不传 rtype
+    // 属性，此前恒回落 YSM，整合包标题首屏显示 (ysm) 需手动切标签才被纠正。
+    // 对齐仓库页 initRepositoryPage 的 savedRtype 恢复：属性优先，缺省读
+    // currentRepoType()（localStorage repo_rtype 权威源，由 app-nav 切换器落盘）。
+    this._rtype = this.getAttribute("rtype") || currentRepoType();
   }
 
   attributeChangedCallback(name: string, oldVal: string | null, newVal: string | null): void {
@@ -82,10 +87,12 @@ class AppSidebar extends WebComponentBase {
     this._renderLayout();
 
     // 监听刷新事件（300ms 防抖，防止短时间内多次重载）
+    // force=true：stats:refresh 由变异操作（sync 拉取/删除/导入/启停）完成后触发，
+    // 必须绕过 loadInstances 在途去重——否则并入变异前发起的在途请求，拿到旧实例列表
     this._unsubs.push(
       bus.on("stats:refresh", () => {
         clearTimeout(this._debounceTimer ?? undefined);
-        this._debounceTimer = setTimeout(() => this._reload(), 300);
+        this._debounceTimer = setTimeout(() => this._reload(true), 300);
       }),
     );
 
@@ -361,7 +368,7 @@ class AppSidebar extends WebComponentBase {
     this._restoreCheckboxes();
   }
 
-  private async _reload(): Promise<void> {
+  private async _reload(force = false): Promise<void> {
     if (this._loading) {
       // 丢弃语义会导致 rtype 快速切换时 _instances 与 _rtype 错配：
       // 记下补跑请求，当前完成后用最新 rtype 再跑一次
@@ -371,7 +378,7 @@ class AppSidebar extends WebComponentBase {
     this._loading = true;
     const gen = ++this._reloadGen;
     try {
-      const instances = await get<typeof loadInstances>("loadInstances")(this._rtype);
+      const instances = await get<typeof loadInstances>("loadInstances")(this._rtype, force ? { force: true } : undefined);
       if (gen !== this._reloadGen) return; // 已被更新的重载取代，丢弃过期结果
       this._instances = instances;
       dbg(

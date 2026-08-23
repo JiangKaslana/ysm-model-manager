@@ -267,14 +267,25 @@ export function buildModelGroup(model: BedrockModel, compID: string, texIdxBase:
 
   // Name 用组件源模型文件名（main/arm/arrow，UI 组件选择器显示），空则回退 compID
   const compName = model.sourceName || compID;
+  // 组件可见性分类：仅 main（角色主体）默认可见；
+  // arm/载具/投射物等辅助组件默认隐藏，由动画控制器按游戏状态点亮。
+  // 多组件模型（如 wine_fox 的 player+foxcar）若全部点亮，
+  // 载具 bounding box 会撑大整体剔除范围 → 视锥边界抖动 → 角色闪烁。
   return {
     id: compID,
     name: compName,
-    defaultVisible: true,
+    defaultVisible: isDefaultVisibleComponent(compName),
     textureWidth: texW,
     textureHeight: texH,
     textureId: texID,
     bones,
     meshGroups: meshes,
   };
+}
+
+/** 组件默认可见性判定：仅 main（角色主体）默认可见；其余辅助组件默认隐藏 */
+function isDefaultVisibleComponent(compName: string): boolean {
+  let base = compName.toLowerCase();
+  base = base.replace(/\.geo$/, "");
+  return base === "main";
 }

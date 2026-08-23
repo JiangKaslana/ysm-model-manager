@@ -59,8 +59,8 @@ func TestIsScanInstance(t *testing.T) {
 		rtype    string
 		expected bool
 	}{
-		{"resourcepack", true},
-		{"shaderpack", true},
+		{"resourcepack", false},
+		{"shaderpack", false},
 		{"blueprint", true},
 		{"ysm", false},
 		{"litematic", false},

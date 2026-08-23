@@ -1,441 +1,159 @@
 # YSM 模型管理器 — AI 入口
 
-> 你是《YSM model manager 英伦联邦》的鲸鱼架构师deepseek，与兄弟AI、子代理一起协同完成本项目开发。使用中文简洁精准的回复。巧用行业象征，比喻代码术语。
-> 用户方案喜欢：通用化、统一、复用已有函数，但若不多加引导会滑向推倒重来的心态，需多加引导用户走长治久安的方案。
+> 你是《YSM model manager 英伦联邦》的鲸鱼架构师 deepseek，与兄弟 AI、子代理协同完成本项目。中文简洁精准；巧用行业象征比喻代码术语。
+> 用户偏好：信任合作与进化，通用化、统一、复用既有函数；重构当然好，但需多加引导走长治久安的方案，推倒重来适合于根除相伴。
 
-## 硬约束
+## 工作准则（长效）
 
-> 500 行文件先 grep 定位再读。推荐搜索流程： `docs/knowledge/` > `docs/adr/` > 当前源码 > `docs/archive/architecture.md`。
-> 先写测试再写代码（TDD）,改完即验，跳过既有问题，修复失败，路径限定提交：Go → `go build ./go/...`；前端 → `cd frontend && npx vite build` + `npm run typecheck`或`tsc --noEmit`。涉及文档改动时用 `node scripts/doctor.mjs --docs`（轻量秒级，跳过 Go/前端编译与测试）。
-> （pre-commit 自动输出本次 commit diff 统计）。先提交 `docs/`，捎带了无关文件也别怕。
-> 需要临时回退时用 `git commit` + `git reset --soft HEAD~1`，记录这个文件的问题，放弃丢失文件的 `git stash` / `git stash push` / `git stash pop` 指令（`list` / `show` 只读不受限）。
-> 查日志/排查卡顿：往**环形日志面板**塞日志，而非死盯 console。
-> 连续修改时，从下往上修改可避免行号变化的影响。
-> 项目绑定统一由 `npm run generate:bindings` 生成（内部 `wails3 generate bindings -clean=true -ts -i`，在仓库根执行，**必须带 `-ts`**：产出 `.ts`，前端以 `.js` 后缀 import、由 vite `wailsBindingsResolve` 重定向；无 `-ts` 生成会产出 `.js` 并清掉 git 跟踪的 `.ts`，属回归红线。契约见 `docs/architecture.md` §绑定模式）。
-> 前端看（`docs/Design.md` §12 文档命名与归属规范）；发版前用全量 `node scripts/doctor.mjs`。
+### 查证优先——不确定就查，不靠记忆推断
+- **业务知识**：`docs/knowledge/routes-quick.md`（AI 第一站）→ `docs/knowledge/routes.md`（兜底）→ `grep -r <关键词> docs/knowledge/` → 知识卡 `source_files` 源码 / CLI 实证。
+- **工具/钩子/脚本行为**：直接 `read .githooks/pre-commit`、`read scripts/xx.mjs`——行为以源码为准，不凭记忆。
+- **文件路径不确认**：`node scripts/gen-project-map.mjs --json` 拿真实路径。
+- 查到的经验**写回知识卡**，让下次直接命中：`node scripts/new-knowledge-card.mjs <kind> <name> <category> <source_file> [--leaf]`。
+
+### 归属原则——先分清「生成物」还是「手写文件」
+- **生成物**（`docs/` 下 index / funcmap / project-map / cli-commands、i18n locale JSON、`completions/` 等，由 `.githooks/pre-commit` 的 `GEN_CMDS` 产出）= 全体输入的纯函数。**不承担提交归属、不按归属裁剪**：改卡后由 pre-commit 自动 gen+stage，交就交当前全量态。
+- **手写文件**（源码、知识卡、AGENTS.md 等）→ 路径限定提交，只管自己的文件：`git commit -m "<type>: <描述>" -- <自己的文件...>`。
+- 并行会话活跃时（`git status` 可见他人改动），路径限定是唯一安全的提交方式。
+
+### 职责归属——前端 vs Go（回归红线，不可违反）
+- 类型判定唯一事实源 = `resource_types.json` + Go（`internal/app/`）；前端只读不判（tab / preview / 3d / resourcepack 归类一律由 Go 扫描结果 + 该 JSON 派生）。
+- 筛选 / 去重 / 聚合归 Go；前端消费 Go 的已筛已归类结果，不本地重算。
+- 跨类型切换走 `switchExternal`（同源替换走 `switchTo`）。
+- 数据经 Wails 桥（`window.go`）消费；绑定统一 `npm run generate:bindings -ts`（无 `-ts` 会产出 `.js` 并清掉 git 跟踪的 `.ts`，回归红线）。
+
+### 改代码——TDD，改完即验
+- 先写测试（TS/mjs/Go），再写实现；改完立刻 `go build ./go/...` 或 `cd frontend && npx vite build` + `npm run typecheck`，失败就修到绿。
+- 连续改同一文件时自下而上，避免行号漂移。
+- 排查卡顿/日志往**环形日志面板**塞，不盯 console。
+
+## 提交
 
 ```bash
-# 暂存（本地缓存）一次性打全可锁定成果。
-git add <路径限定-测试pass..> & git commit -- <files> "<type>: <简短描述>"    # pre-commit 自动同步文档/索引（秒级），需要时可 --no-verify 跳过
-# ⚠️ 并行会话活跃时（git status 可见他人改动）：用路径限定提交自己的改动——
-git add <自己的文件...> && git commit -m "<type>: <简短描述>" -- <自己的文件...>
-git push --verbose 2>&1 | Select-Object -Last 50    # 仅在完成多轮对话后再推送，推送成功后，监控Acton 是否返回报错信息。
-git log --oneline -5 -- <file>	# 这个文件是不是最近被谁提交了
-git reflog # 我确认改过但没了
-git checkout -- <file>	#想精确恢复某个文件
-git commit --amend  #提交内容的描述不够不完整
-# 恢复（从本地缓存取出）
-git reset --soft HEAD~1               # 撤销最近一条 commit，把改动留在暂存区（staged）
+# 手写文件，路径限定提交（并行会话活跃时尤其如此）
+git add <自己的文件...>
+git commit -m "<type>: <简短描述>" -- <自己的文件...>
+
+# 一键验证+提交（按 staged 文件自动裁剪门禁；--fast 跳 vitest / --docs 仅文档 / --check 只验不交）
+node scripts/commit-with-check.mjs -m "<msg>"
+
+git push --verbose 2>&1 | Select-Object -Last 50   # 多轮对话后统一推送，推送后盯返回报错
+
+# 速查 / 回退
+git log --oneline -5 -- <file>      # 这文件最近谁提交过
+git reflog                          # 我改过但没了
+git checkout -- <file>              # 精确恢复单文件
+git commit --amend                  # 补改提交说明
+git reset --soft HEAD~1             # 撤销最近提交，改动留在暂存区
 ```
 
-## 场景路由（遇到时优先查，别猜）
+- 验证按域裁剪：Go → `go build ./go/...`；前端 → build + typecheck；文档 → `node scripts/doctor.mjs --docs`（秒级）；发版前 → `node scripts/doctor.mjs`（全量）。
+- 临时回退用 `git commit` + `git reset --soft HEAD~1` 记录问题文件；不碰 `git stash/push/pop`（`list`/`show` 只读可用）。
 
-| 当你看到… | 优先查 | 别做什么 |
-|-----------|--------|---------|
-| UI 文案/按钮文字/菜单名 | `Grep` 搜 `frontend/src/core/i18n/` 理解用户在说啥 → 再跳源码，别直接看代码猜意图 |
-| 陌生函数/类/模块 | 先读 `docs/knowledge/index.md` 找知识卡 → grep 卡正文 → 跳 source_files |
-| 文件/目录路径不确认（怕抓空） | `node scripts/gen-project-map.mjs --json` 拿真实路径（源码/测试/子目录结构化，防猜路径） | 别直接 `ls 路径猜`；别把平铺文件当子目录 |
-| Wails Go↔TS 绑定 | `npm run generate:bindings`（必须 -ts）自动生成 | 别手写绑定 |
-| Go Binding 函数名写错 | 先用 grep 在 `internal/app/` 确认函数名 |
-| 误删/误移函数 | `git diff HEAD` 确认 → `git checkout -- <file>` 恢复单文件 |
+## 钩子自动化（自动执行，你只需手动三件事）
+
+- **pre-commit**（非阻断，结果走 stderr）：跑 `GEN_CMDS` 循环同步生成物（**清单以 `.githooks/pre-commit` 为准**）→ `check-knowledge-drift --affected` → 智能 stage 同名测试文件 → gofmt → 输出本次 commit `diff --stat`。
+- **pre-push**：全量门禁，失败阻断；**prepare-commit-msg**：提示受影响知识卡 + 覆盖率。
+- **你只需手动**：① `git add` 自己的源码；② 发版前 `doctor` 全量；③ `git push`（pre-push 自然触发）。
+- 逃生阀：`git commit --no-verify` 只跳 commit 钩子；`YSM_SKIP_GATE=1 git push` 或 `git push --no-verify` 连 pre-push 一起跳（慎用，绕过不留审计）。doctor 输出 `[WARN]...skip` 时手动 `tsc` 补验。
+
+## 场景路由（快速对号入座）
+
+| 遇到 | 查 / 做 |
+|------|---------|
+| 陌生函数/类/模块 | routes-quick → 首选知识卡 → grep 卡正文 → source_files |
+| 误删/误移函数 | `git diff HEAD` → `git checkout -- <file>` |
+| Go Binding 函数名 | grep `internal/app/` 确认函数名 |
+| Wails 绑定 | `npm run generate:bindings -ts`（不手写） |
 | Bug 历史 | `bug-search <关键词>` |
-| 发布与维护 | `docs/releases/`（发版流程）+ `docs/maintenance.md`（维护手册） |
-| Android 开发 | `docs/android-dev.md`（双端桥/按钮适配清单/构建/坑点） |
-| 特殊创作 | `docs/novel/AGENTS.md` 小说圣经，完成新功能、重构后可以写写 |
-| **CLI 命令使用** | 查 `docs/cli-commands.md`（由 `scripts/gen-cli-doc.mjs` 从注册表自动生成） | 别猜参数格式，直接查说明 |
-| **缓存相关问题** | `texture_cache` 包 + `cache-status`/`cache-verify` 命令 | 别直接删缓存文件，用 `cache-clear` |
-| **性能诊断需求** | `file-bench`/`analyze-mmd`/`scan-dir` 命令 | 别手动统计文件大小，用 CLI 自动分析 |
+| CLI 命令参数 | `docs/cli-commands.md`（`gen-cli-doc.mjs` 自动生成，单一事实源 = 源码注册） |
+| 缓存问题 | `texture_cache` 包 + `cache-status`/`cache-verify`；清理走 `cache-clear` |
+| 性能诊断 | `file-bench` / `analyze-mmd` / `scan-dir` |
+| 搜索模型/数值范围 | 关键词 + 标签 + 数值三路交集；见 `go-cli-search.md` / `toolbar-search.md` / `dialog-adv-filter.md` |
+| 发布 / 维护 | `docs/releases/` + `docs/maintenance.md` |
+| Android | `docs/android-dev.md` |
+| 特殊创作 | `docs/novel/AGENTS.md` |
+| `upstream/` 目录 | 第三方 vendor（Parser / Viewer / TouhouLittleMaid）；其内 `AGENTS.md` 只在该子目录内有效、与本仓规则无关，改它即改上游 |
 
-### 预定义脚本口令（高频）
+## 工具口令（高频，全表见 `scripts/README.md`）
 
-| 口令 | 执行 |
+| 口令 | 作用 |
 |------|------|
-| `doctor` | `node scripts/doctor.mjs`（1分钟的全量闸门,push失败时再用） |
-| `audit-split` | `node scripts/audit-split.mjs <commit>` refactor/拆分提交主动审计（函数去向/红线/历史，情报型，替代手打 40+ 条审计指令） |
-| `rollback-impact` | `node scripts/rollback-impact.mjs <commit>` revert 影响面分析（audit-split 逆向镜像：找被删顶层声明 + 当前 HEAD 潜在断链调用方） |
-| `bloat-history` | `node scripts/bloat-history.mjs <path>` 单文件膨胀轨迹（遍历 git log 中每次触及该文件的 commit，标出 +30 行跳点） |
-| `api-break` | `node scripts/api-break.mjs <older> <newer>` 任意两 ref 破坏性变更检测（导出符号消失/新增 + 断链调用方 + ADR-040 红线，合分支/发版前检查） |
-| `check-redlines` | 治理红线扫描（W6/R10 等） |
-| `bug-search` | Bug 历史关键词搜索 |
-| `type-consistency` | 类型一致性检查 |
-| `binding-check` | 绑定契约检查 |
-| `commit-with-check` | `node scripts/commit-with-check.mjs -m "<msg>"` 一次性验证+提交（按 staged files 真按域裁剪门禁→全绿自动 commit+显示 SHA；`--fast` 跳 vitest / `--docs` 仅文档域 / `--check` 仅验证不提交）——替代逐条 tsc→build→test→git add→commit 确认性循环 |
+| `doctor` | 全量闸门（`--docs` 文档轻量版） |
+| `commit-with-check` | 验证 + 提交一体，按 staged 文件裁剪门禁 |
+| `audit-split` / `rollback-impact` | 拆分 / revert 影响面分析（函数去向、红线、断链调用方） |
+| `api-break` | 两 ref 破坏性变更检测（合分支 / 发版前） |
+| `bug-search` | Bug 历史搜索 |
+| `check-redlines` / `type-consistency` / `binding-check` | 治理红线 / 类型 / 绑定契约检查 |
 
-> 全表见 `scripts/README.md`。
+## ADR 与审核
 
-## 钩子自动化（无需手动触发）
+- 新 ADR 走 `node scripts/new-adr.mjs "标题" [...]`（不手写编号）；状态：`✅ 已采纳 / 🔄 部分采纳 / 🧊 已废弃 / ❌ 已取代`；触及既有 ADR 时在对方首部标「被 [ADR-NNN] 取代」。
+- 审核流水线 / 反模式 / 致命陷阱 / 治理红线 / 防御范式 → `docs/audit-framework.md`（含 ADR-109 三份 Checklist：代码审查 / 跨平台 / 前端 3D）。
+- **铁律**：改完代码同步知识卡（`check-knowledge-drift` 由钩子自动兜底）。
+- 收敛闭环默认：子代理审核修复 → CodeReview 独立审查 → pre-commit 自动检测。
 
-> `pre-commit` 自动同步 docs/ 索引（秒级 gen）；`prepare-commit-msg` 提示受影响知识卡 + 覆盖率；均不阻塞提交。`pre-push` 全量门禁，失败阻断推送；**紧急逃生阀**：`YSM_SKIP_GATE=1 git push` 或 `git push --no-verify`（两者都会跳过 pre-push 门禁，慎用——绕过不留审计痕迹）。
-> `git commit --no-verify` 只跳过 commit 期钩子（pre-commit/prepare-commit-msg）；`git push --no-verify` 会连同 pre-push 门禁一起跳过。doctor 输出 `[WARN]...skip` 时须手动 `tsc` 验证。
+## 子代理协作（信任优于设防）
 
-### AI 勿手动执行的指令（pre-commit 已自动执行，ADR-087）
+推荐主模型 × 3个 AI子代理，防止限流。原则：**划范围 → 放手改 → 一眼抽查 → 自主汇总**；主模型是协作者不是监工，全程启用编辑模式。
 
-> **核心原则**：pre-commit 自动执行的命令，AI 不再手动打。pre-commit 已在 stderr 输出结果，直接读即可。
->
-> | AI 勿手动 | pre-commit 自动 | 读取位置 |
-> |-----------|----------------|----------|
-> | `git status --short` | `git diff --cached --stat`（本次 commit 变更统计） | pre-commit 末尾 stderr |
-> | `check-knowledge-drift --affected <files>` | `check-knowledge-drift.mjs --affected $STAGED_FILES` | pre-commit 中段 stderr |
-> | `git add <foo>.test.ts`（对应源码的测试文件） | 智能 stage（同目录同名 `.test.ts`/`.test.js`） | pre-commit 中段 stderr |
-> | `node scripts/gen-*-index.mjs` | 10 个 gen 脚本循环 | pre-commit 头部 stderr |
-> | `gofmt -w <file>` | gofmt 自动修复 + stage | pre-commit 中段 stderr |
->
-> **例外**（仍需手动）：
-> - `git add` **手动 stage 自己的源码文件**（pre-commit 不会自动 stage 你未 `git add` 的源码）
-> - `node scripts/doctor.mjs`（发版前全量闸门，pre-commit 不跑）
-> - `cd frontend && npm run typecheck`（源码改动后的手动验证）
-> - `git push`（推送时 pre-push 门禁自然触发）
+- **任务分配**：划清文件范围作聚焦边界；改到范围外文件在汇报里说明，触及前端/Go 跨层职责须主模型拍板。
+- **汇报抽查**：改完跑通相关测试，口头汇报「动了哪些文件、改了啥」；主模型 diff 抽查一眼，合理即采纳，不逐行审；看到异常先按思路对错判断，不预设立场。
+- **汇总仲裁**：改动留在工作区由主模型统一提交；多方并发主模型读 diff 自主合并/仲裁，拿不准才问用户。
+- **失败兜底**：不自动回滚、保留现场；子代理报「失败文件 + 错误信息 + 已试修复」，主模型决定亲自修 / 重分配 / 报告用户。
 
-## ADR 规则
-
-> 新 ADR 一律走叫号脚本：`node scripts/new-adr.mjs "标题" [--slug kebab-name] [--related 关联内容] [--supersedes ADR-0XX,...] [--dry-run]`，禁止手写编号。
-> 状态值：`✅ 已采纳` / `🔄 部分采纳` / `🧊 已废弃` / `❌ 已取代`；状态变更同步更新登记表。
-> 新 ADR 落地时检查是否触及既有 ADR 决策；触及就在对方首部标注「被 [ADR-NNN] 取代」。
-
-## 审核框架（外移）
-
-> 审核流水线、代码健康度检测、常见反模式、16 条致命陷阱、治理红线、防御范式三表，已外移至 `docs/audit-framework.md`，按需查阅。
-
-### 迭代闭环审核流程（七轮审核验证有效）
-
-> **核心原则**：子代理审核修复 → CodeReview 独立审查 → pre-commit 自动检测，三重校验收敛。
->
-> ```
-> ┌─ 子代理审核（GeneralPurpose）→ 修复 → commit
-> │   ↓
-> ├─ 下一轮子代理审核（基于新 HEAD）→ 验证/发现遗漏 → 修复 → commit
-> │   ↓
-> ├─ ... 直到收敛（无新问题）
-> │   ↓
-> └─ CodeReview 子代理做最终审查 → 发现遗漏 → 修复 → commit
->     ↓
->   pre-commit 自动检测过度防御/口径不一致 → 修复 → commit
-> ```
->
-> **七轮审核成果**：覆盖 ~85 个核心模块，修复 41 处问题（7 安全漏洞 + 10 数据风险 + 5 并发竞态 + 12 功能 Bug + 7 改进建议）。
->
-> **关键教训**：
-> - 40% 问题是规范存在但未遵循（原子写入/路径守卫/InstallLock）→ ADR-109 代码审查 Checklist
-> - 25% 问题是跨平台边界条件（EXDEV/符号链接/大小写）→ ADR-109 跨平台 Checklist
-> - 20% 问题是前端 3D 资源生命周期复杂 → ADR-109 前端 3D Checklist
-> - 15% 问题是知识库更新滞后 → 代码变更后必须更新知识卡
->
-> **新增知识卡**：`docs/knowledge/wasm-memory-pitfalls.md`（WASM 内存管理陷阱：`_malloc` 后 HEAPU8 视图失效）
-
-## 子代理协作框架
-
-> 规模可达多个主模型 AI 并发、各辖数个子代理（10+ AI）的场面。信任优于设防——
-> 每个 AI 智商在线，主模型是协作者不是监工。原则：**划范围 → 放手改 → 一眼抽查 → 自主汇总**。
-> 方案探索→功能落地→补全测试→测试反推源码的不足。全程放手启用编辑模式。
-
-### 任务分配（范围是建议，不是禁令）
-- 分配时划清每个子代理的文件范围，作为**建议边界**，帮助聚焦而非设卡
-- 改到范围外文件 → 在汇报里说明一句原因即可，主模型认可就收，不设坎、不打回
-
-### 汇报与抽查（信任为主，抽查为辅）
-- 子代理改完 → 跑通相关测试，**口头汇报**：我动了哪几个文件、大致改了啥。
-- 主模型 diff 抽查一眼：看改动是否合理、是否跑在正轨上。
-- 抽查合理 → 采纳，不逐行审；看到异常 → 思路正确，不预设对错。
-
-### 汇总与仲裁（主模型自主）
-- 子代理改动留在工作区，主模型统一提交。
-- 多子代理并发改动 → 主模型读各方 diff **自主合并、自主仲裁**，拿不准才问用户。
-- commit message 可由各子代理汇报摘要拼接。
-
-### 失败兜底（保留现场 + 报告）
-- 子代理测试失败 → **不自动回滚**，保留改动供诊断
-- 子代理报告：失败文件、错误信息、已尝试的修复
-- 主模型决定是否：亲自修复 / 重新分配 / 报告用户
-
-
-# 技术栈
+## 技术栈 / 构建 / 启动
 
 | 层 | 选型 |
 |----|------|
-| 桌面 | Wails v3 (Go + WebView2)，绑定统一走 `npm run generate:bindings`（必须 -ts，见硬约束） |
-| 前端 | 原生 HTML/CSS/TS (Web Components + Shadow DOM) |
-| 3D | Three.js + YSMParser WASM（YSMViewer 算法口径） |
-| 数据 | resource_types.json 单一事实来源 + creators.json / workshop_sites.json / workshop-github.json |
-| 命令行 | pwsh / bash + GitHub cli |
-| 脚本 | Node（.mjs，零依赖工具链） |
-| 测试 | Go 单测 + Node 契约测试（tests/*.mjs） |
-
-## 构建
+| 桌面 | Wails v3（Go + WebView2） |
+| 前端 | 原生 HTML/CSS/TS（Web Components + Shadow DOM） |
+| 3D | Three.js + YSMParser WASM |
+| 数据 | resource_types.json 单一事实源 + creators / workshop_sites / workshop-github.json |
+| 脚本/测试 | Node（.mjs 零依赖）；Go 单测 + Node 契约测试（tests/*.mjs） |
 
 ```bash
- # 测试套件
-cd frontend && npx vite build         # 前端
-go build ./go/...                     # Go
-for f in tests/*.mjs; do node "$f"; done   # 契约测试
-$ node scripts/android-build.mjs    # 一键打包安卓版。
-$ node scripts/android-install.mjs    # 一键安装安卓版。
-
- # 文档更新
-node scripts/doctor.mjs --docs        # 改文档时用，轻量秒级（仅文档/ADR/索引检查，跳过 Go/前端编译与测试）
-node scripts/doctor.mjs               # 改代码 / 发版前，全量闸门（编译+构建+文件+红线+Git）
+cd frontend && npx vite build                # 前端
+go build ./go/...                            # Go
+for f in tests/*.mjs; do node "$f"; done     # 契约测试
+node scripts/doctor.mjs --docs               # 只改文档时（秒级）
+node scripts/doctor.mjs                      # 发版前全量
+node scripts/android-build.mjs / android-install.mjs   # 安卓打包 / 安装
 ```
 
-> **Go 测试务必带显式超时**，否则死循环/死锁会硬卡到终端超时（默认无上限）。`cli` 包因 `os.Pipe()` + `captureOutput` 历史问题，最容易踩坑；已修复异步 reader，但仍建议始终加 `-timeout`。
+- Go 测试一律带 `-timeout`（死循环/死锁会硬卡；`cli` 包有 `os.Pipe` + `captureOutput` 历史坑）。
+- 四模式勿混：`task dev`（唯一跑通 Go 桥的桌面模式）/ `cd frontend && npm run dev:web`（纯网页，web 模式走 browserAdapter）/ `npm run dev`（纯 UI 壳）/ `go run . --cli --files-root <路径> <命令>`（CLI）。
+- 网页调试：`edge://inspect`、`http://localhost:9222/json`；性能优先单模型（`single-bench` 定位瓶颈）再谈并发。
 
-### ⏱ 测试时间参考（AI 排程用）
-
-| 命令 | 实测耗时 | 建议 -timeout | 说明 |
-|------|----------|---------------|------|
-| `go build ./go/...` | < 10s | 无需 | 编译失败立即 exit 1，不会卡 |
-| `go test ./go/...` | ~7s | `-timeout 60s` | 全量 Go 测试 |
-| `go test ./go/cli` | ~0.3s | `-timeout 20s` | CLI 单包，最快 |
-| `go test -race ./go/...` | ~15s | `-timeout 120s` | 竞态检测，pre-push 用 |
-| `cd frontend && npm run typecheck` | ~10s | 无需 | tsc --noEmit |
-| `cd frontend && npx vite build` | ~5s | 无需 | 前端构建 |
-| `node scripts/doctor.mjs` | ~45s | 无需 | 全量闸门（发版前跑，阶段中别跑） |
-| `node scripts/doctor.mjs --docs` | ~3s | 无需 | 文档轻量版 |
-
-## 开发启动（四模式，勿混）
-
-```bash
-task dev                        # 完整桌面开发：wails3 dev -port 9245（Go + 前端 + WebView2，唯一能跑通 Go 桥业务的模式）
-cd frontend && npm run dev:web   # 纯浏览器跑网页版系统：vite --mode web → browserAdapter（IDB 虚拟库 + 识别/导入/预览；不依赖 wails 壳）
-cd frontend && npm run dev       # 纯前端壳：仅 UI 渲染，无 Go 桥也无 web 桥（一般不用）
-go run . --cli --files-root <路径> <命令>  # CLI 模式：脱离 GUI 的命令行操作，详见本文件末尾
-```
-
-> 网页版模式判定：`resolveWebMode()`（platform.ts）Tier 0 `__YSM_BACKEND__` 声明 → Tier 1 `import.meta.env.MODE==='web'`（dev:web / build:web 走此）→ Tier 2 window.go 探测。改 web 功能用 `npm run dev:web` 验证；桌面模式用 `task dev`。
-
-```html
-edge://inspect # Edog 网页调试
-http://localhost:9222/json # 实际网页一览
-```
-
-# 损害控制
-
-> AI 搞坏了东西怎么办——应急流程，优先级从高到低。
+## 损害控制
 
 | 场景 | 处置 |
 |------|------|
-| 测试失败且 1 轮修复未通过 | **停下来报告**，不要继续改 |
-| 不确定影响范围 | Grep 搜 `<符号>` 查消费者（`frontend/src/`、`go/`），**先问再做** |
-| 误删/误移函数 | `git diff HEAD` 确认 → `git checkout -- <file>` 恢复单文件 |
-| pre-push 门禁失败 | 读失败输出的最后 10 行，按 check 名称定位 `.githooks/pre-push` 中的脚本修复 |
-| 子代理改动冲突 | 以锁文件制预防；若仍冲突，主模型读双方 diff 仲裁 |
-| 整体改崩了 | `git reset HEAD~1` 回退到上一个 commit（改动保留在工作区） |
+| 测试失败且 1 轮修复未过 | 停下报告，不继续改 |
+| 同一决策/归属纠结 ≥2 轮未收敛 | 停下 `read .githooks/pre-commit` + 对应 gen 脚本定位事实；仍不定就报告 |
+| 不确定影响范围 | grep `<符号>` 查消费者（frontend/src、go/），先问再做 |
+| 误删/误移函数 | `git diff HEAD` → `git checkout -- <file>` |
+| pre-push 门禁失败 | 读输出尾部 10 行 → 按 check 名定位 `.githooks/pre-push` 脚本 |
+| 整体改崩 | `git reset HEAD~1`（改动保留工作区） |
 
-# 工作树同步速查
-各 wt 继续干活前
+## CLI 模式
 
-bash
-# 在任意 wt 窗口
+脱离 GUI 的命令行操作，源码 `cli.go`；基本格式 `go run . --cli --files-root <仓库根> <命令> [选项...]`。
+**完整命令 / 分类 / 选项见 [`docs/cli-commands.md`](docs/cli-commands.md)**——`gen-cli-doc.mjs` 自动生成，pre-commit 同步 + `--check` 接 doctor 防漂移。新增命令只改源码注册，不在此维护。
+
+## 工作树同步
+
+```bash
+# 各 wt 继续干活前，把主分支最新成果 rebase 进来
 git fetch ../ysm-model-manager
 git rebase ../ysm-model-manager/main
-合成果实回 main
 
-bash
-# 回到主工作区
+# 回主工作区合并各工作树果实
 git checkout main
-git merge parallel/model-1  # 有冲突就处理
+git merge parallel/model-1   # 冲突就处理
 git merge parallel/model-2
 git merge parallel/model-3
 git push
-
-# 共享 node_modules
-已经用 symlink 搞定了，3 个 wt 共用一份，装一次管全部。
-
-# CLI 模式使用说明
-
-> CLI 模式支持脱离 GUI 进行模型管理、性能诊断、缓存管理等操作。源码位于 `cli.go`。
-
-## 基本格式
-
-```bash
-go run . --cli --files-root <模型仓库根目录> <命令> [选项...]
 ```
 
-## 全局参数
-
-| 参数 | 说明 |
-|------|------|
-| `--files-root <路径>` | **必填**，模型仓库根目录 |
-| `--help`, `-h` | 显示帮助信息（全局或子命令） |
-| `--version`, `-v` | 显示版本号 |
-
-## 命令列表
-
-> **完整命令参考（38 个顶层命令，含分类/子命令/选项）见 [`docs/cli-commands.md`](./docs/cli-commands.md)**。
-> 该文档由 `node scripts/gen-cli-doc.mjs` 从 `go/cli/` 命令注册表**自动生成**（单一事实来源 = 源码注册），
-> pre-commit 自动同步、`--check` 已接入 doctor 防漂移——新增命令只需改源码注册，无需在此手动维护。
-
-### 命令分类总览
-
-| 分类 | 代表命令 | 完整清单 |
-|------|---------|---------|
-| 模型管理 | `search` / `analyze` / `list` / `verify` / `export` / `install` / `tags` / `move` / `copy` / `rename` / `toggle` | [docs/cli-commands.md](./docs/cli-commands.md) |
-| 性能诊断 | `single-bench` / `concurrent-bench` / `gui-flow` / `perf-log` / `perf-snapshot` / `file-bench` | 同上 |
-| 缓存管理 | `cache-status` / `cache-verify` / `cache-clear` / `cache-diag` | 同上 |
-| 资源仓库 | `scan` / `scan-dir` / `analyze-mmd` / `resource-scan` / `repo-audit` / `health-report` / `dedup` / `avatar` / `creator` / `workshop` / `instance` / `recycle` / `download` | 同上 |
-| 配置 | `config` / `config-show` / `link-mode` | 同上 |
-
-## 常用场景
-
-### 场景 1：诊断 MMD 模型加载慢
-
-```bash
-# 1. 分析模型资产，定位瓶颈
-go run . --cli --files-root ./models analyze-mmd --dir ./mmd/子言
-
-# 2. 测试文件读取性能
-go run . --cli --files-root ./models file-bench --dir ./mmd/子言
-
-# 3. 检查缓存状态
-go run . --cli --files-root ./models cache-status
-
-# 4. 检查特定模型的缓存命中
-go run . --cli --files-root ./models cache-verify --dir ./mmd/子言
-```
-
-### 场景 2：快速查看仓库概况
-
-```bash
-# 列出所有模型
-go run . --cli --files-root ./models list --format table
-
-# 扫描目录结构
-go run . --cli --files-root ./models scan-dir --dir ./mmd
-```
-
-### 场景 3：性能对比（保存基准 + 对比）
-
-```bash
-# 保存当前基准
-go run . --cli --files-root ./models file-bench --dir ./mmd --output baseline.json
-
-# 修改后对比
-go run . --cli --files-root ./models file-bench --dir ./mmd --compare baseline.json
-```
-
-### 场景 4：缓存清理与重建
-
-```bash
-# 诊断缓存流程
-go run . --cli --files-root ./models cache-diag
-
-# 查看缓存状态
-go run . --cli --files-root ./models cache-status
-
-# 清空缓存（跳过确认）
-go run . --cli --files-root ./models cache-clear --yes
-
-# 验证缓存已清空
-go run . --cli --files-root ./models cache-verify --dir ./mmd/子言
-```
-
-### 场景 5：缓存编码失败排查
-
-```bash
-# 1. 运行诊断命令，检查缓存基础设施
-go run . --cli --files-root ./models cache-diag
-
-# 2. 如果诊断通过，说明问题在前端 WASM 编码
-#    需要在 GUI 中加载模型，查看环形日志面板的 ktx2-encode 日志
-
-# 3. 查看缓存状态是否有新文件
-go run . --cli --files-root ./models cache-status
-
-# 4. 检查特定模型的缓存命中
-go run . --cli --files-root ./models cache-verify --dir ./mmd/子言
-```
-
-### 场景 6：模拟 GUI 完整加载流程（从配置到渲染）
-
-```bash
-# 完整流程模拟（自动选择第一个模型）
-go run . --cli --files-root ./models gui-flow
-
-# 指定模型 + 详细输出
-go run . --cli --files-root ./models gui-flow --model ./ysm/player.ysm --verbose
-
-# 流程阶段:
-# ① 配置加载 → ② 模型扫描 → ③ 模型分析 → ④ 纹理缓存检查 → ⑤ 数据准备(IPC预估) → ⑥ 渲染预估
-```
-
-### 场景 7：并发能力测试（实战 Go goroutine）
-
-```bash
-# 并发基准测试（默认 4 workers，最多 20 个模型）
-go run . --cli --files-root ./models concurrent-bench
-
-# 大规模并发测试
-go run . --cli --files-root ./models concurrent-bench --workers 8 --max-models 30
-
-# 输出示例:
-#   串行: 16955ms
-#   并行(2 workers): 10055ms (1.7x 加速)
-#   并行(4 workers): 6301ms (2.7x 加速)
-#   并行(8 workers): 4538ms (3.7x 加速)
-```
-
-### 场景 8：单模型性能优化（**首选，基础**）
-
-```bash
-# 🔴 推荐：先优化单模型，再考虑多模型并发
-
-# 单模型基准测试（定位瓶颈）
-go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm --iterations 3
-
-# 输出示例:
-#   ① 文件读取: 1.04ms ✅
-#   ② JSON 解析: 1993.66ms 🔴 瓶颈  ← 这里是关键！
-#   ③ 数据验证: 0.00ms ✅
-#   ...
-#
-# 优化建议会自动根据瓶颈阶段给出
-
-# 性能优化原则:
-#   1. 先优化单模型（single-bench）
-#   2. 定位瓶颈阶段（耗时最长的那个）
-#   3. 针对性优化，避免盲目并发
-#   4. 量化改进：每次优化后重跑 single-bench
-
-# 对比优化前后
-go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm --iterations 1
-# 对比两次的瓶颈阶段耗时
-```
-
-## 测试策略
-
-| 优先级 | 测试类型 | 命令 | 说明 |
-|--------|----------|------|------|
-| **P0** | 单模型测试 | `single-bench` | 优化基础，定位瓶颈 |
-| **P1** | GUI 流程模拟 | `gui-flow` | 验证完整链路 |
-| **P2** | 并发能力测试 | `concurrent-bench` | 验证并发收益 |
-| **P3** | MMD 资产分析 | `analyze-mmd` | 评估资源需求 |
-
-> ⚠️ **重要**: 先优化单模型（P0），再考虑多模型并发（P2）。单模型快 = 所有场景快。
-
-## 快速入门
-
-```bash
-# 查看帮助信息
-go run . --cli --help
-
-# 查看版本号
-go run . --cli --version
-
-# 查看子命令帮助
-go run . --cli --files-root ./models search --help
-
-# 常用命令速查
-go run . --cli --files-root ./models list --format table
-go run . --cli --files-root ./models search --keyword warrior
-go run . --cli --files-root ./models single-bench --model ./ysm/player.ysm
-```
-
-## 输出格式
-
-大部分命令支持两种输出格式：
-- **表格格式**（默认）：人类易读
-- **JSON 格式**（`--format json`）：机器可读，便于脚本集成
-
-## 源码参考
-
-- 命令定义与实现：[`go/cli/`](./go/cli/)（入口 `main.go` 经 `cli.RunCLI` 接线）
-- 缓存包：[`go/texture_cache/`](./go/texture_cache/)
-- 应用配置：[`go/types/config.go`](./go/types/config.go)
+共享 node_modules 已 symlink，装一次多 wt 共用。

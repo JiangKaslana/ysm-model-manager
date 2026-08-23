@@ -4,6 +4,7 @@
 // app-sidebar 在 app-content shadow root 内且有自身 shadow root——两层嵌套用 evaluate 穿透。
 import { test, expect } from "./fixture.ts";
 import { gotoApp } from "./helpers.ts";
+import { ALL_RESOURCE_TYPES } from "../src/utils/resource/types.ts";
 
 /** 导航到整合包管理页（原生 click 触发 nav:change） */
 async function gotoInstances(page: import("@playwright/test").Page): Promise<void> {
@@ -103,11 +104,11 @@ test.describe("侧栏 push/pull 菜单", () => {
     // 固定 waitForTimeout(300) 纯属多余且是 flake 源——改 expect.poll 轮询菜单项数
     await expect
       .poll(async () => getMenuItems(page, "sidebar-push-menu"), { timeout: 3000 })
-      .toBe(9);
+      .toBe(ALL_RESOURCE_TYPES.length + 1);
 
     // 下拉菜单应包含资源类型选项（全部 + 8 种资源类型 = 9 项，含 maid-model 兜底追加）
     const itemCount = await getMenuItems(page, "sidebar-push-menu");
-    expect(itemCount).toBe(9);
+    expect(itemCount).toBe(ALL_RESOURCE_TYPES.length + 1);
   });
 
   test("点击拉取按钮 → 下拉菜单显示资源类型选项", async ({ page }) => {
@@ -118,9 +119,9 @@ test.describe("侧栏 push/pull 菜单", () => {
     expect(clicked).toBe(true);
     await expect
       .poll(async () => getMenuItems(page, "sidebar-pull-menu"), { timeout: 3000 })
-      .toBe(9);
+      .toBe(ALL_RESOURCE_TYPES.length + 1);
 
     const itemCount = await getMenuItems(page, "sidebar-pull-menu");
-    expect(itemCount).toBe(9);
+    expect(itemCount).toBe(ALL_RESOURCE_TYPES.length + 1);
   });
 });

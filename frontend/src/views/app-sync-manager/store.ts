@@ -6,10 +6,9 @@
 import { getApp } from "../../backend/app.ts";
 import { bus } from "../../bus.ts";
 import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { TOAST_MS } from "../../utils/dom/toast-ms.ts";
 import type { SyncManagerSelf } from "./index.ts";
 import type { SyncItem } from "./tpl.ts";
-
-const TOAST_MS_NORMAL = 3000;
 
 export type SyncStoreSelf = SyncManagerSelf;
 
@@ -30,7 +29,7 @@ export async function loadTypeConfig(self: SyncStoreSelf): Promise<void> {
     self._typeConfig = [];
     bus.emit("toast:show", {
       msg: "⚠️ 资源类型配置加载失败",
-      duration: TOAST_MS_NORMAL,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
   }
@@ -52,7 +51,7 @@ export async function loadData(self: SyncStoreSelf): Promise<void> {
     self._allItems = [];
     bus.emit("toast:show", {
       msg: "⚠️ 同步状态加载失败",
-      duration: TOAST_MS_NORMAL,
+      duration: TOAST_MS.normal,
       type: "warn",
     });
   }

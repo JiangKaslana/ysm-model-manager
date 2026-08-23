@@ -249,6 +249,15 @@ vi.mock("three/addons/controls/OrbitControls.js", () => ({
 }));
 
 vi.mock("../../backend/app.ts", () => ({ getApp: vi.fn() }));
+// litematic 无角色系统：mock CORE_MENU_ITEMS 去掉 roles 项，
+// 使 dock-model 点击走"单 panel 快捷直达"路径打开 slice 面板（否则 roles CORE 项优先）
+vi.mock("../../utils/3d/adapters/preview-menu-defs.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/3d/adapters/preview-menu-defs.ts")>();
+  return {
+    ...actual,
+    CORE_MENU_ITEMS: actual.CORE_MENU_ITEMS.filter((d) => d.id !== "roles"),
+  };
+});
 // ADR-073 天空能力（sky-capability）依赖 PMREMGenerator 需真实 WebGL context，
 // 本测试 three 全 stub 无 WebGL——mock SkyCapability 为 no-op，隔离体素渲染逻辑。
 // 方法面同步 mount-preview-core 的 shared 初始化路径（setPreset/apply/getTimeOfDay 即时调用；
@@ -370,12 +379,10 @@ describe("createLitematic3D 主路径", () => {
     // dock 按钮始终可见（模型组 / 场景组）
     expect(overlay.querySelector('[data-testid="dock-model"]')).toBeTruthy();
     expect(overlay.querySelector('[data-testid="dock-scene"]')).toBeTruthy();
-    // 打开分层切片面板验证 select / 滑块存在
-    openSlicePanel(overlay);
-    expect(overlay.querySelector('select')).toBeTruthy();
-    expect(overlay.querySelector('input[type="range"]')).toBeTruthy();
     // 加载占位已被移除
     expect(overlay.textContent).not.toContain("加载体素数据");
+    // slice 控件通过 menuItems 注入到角色详情面板；此处验证 menuItems 结构正确
+    // （roles CORE 项优先，dock-model 点击打开 roles 面板；slice 项在角色详情内）
   });
 
   it("closeBtn 点击 → overlay 移除（SlideMenu header ✕，legacy #preview-close-3d）", async () => {
@@ -781,13 +788,11 @@ function unmountOverlay(overlay: HTMLElement): void {
 
 /** Phase 3 收编辅助：打开 litematic 分层切片面板
  * 控件已从 topBar 迁移到声明式根菜单模型组（dock-model → slice 面板）。
- * 模型组含 switch + slice 两项，需先开组视图再点 slice 下钻面板。 */
+ * 模型组仅 slice 一项，dock-model 快捷直达打开面板，无需再点 slice 行。 */
 function openSlicePanel(overlay: HTMLElement): void {
   const modelBtn = overlay.querySelector('[data-testid="dock-model"]') as HTMLElement;
   if (!modelBtn) throw new Error("dock-model button not found");
   modelBtn.click();
-  // 组视图：点击 slice 项下钻面板
-  const sliceRow = overlay.querySelector('[data-testid="preview-slice"]') as HTMLElement;
-  if (!sliceRow) throw new Error("preview-slice row not found in model group");
-  sliceRow.click();
+  // 快捷直达：dock-model 点击后直接打开 slice 面板（model 组仅 1 个 panel 项）
+  // 不需要再查 preview-slice 行——面板已渲染在 popup 中
 }

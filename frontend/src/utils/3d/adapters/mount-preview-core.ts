@@ -42,7 +42,7 @@ import { safeErrorMessage } from "../../safe-error-msg.ts";
 import { sceneRegistry } from "./scene-registry.ts";
 import { fitCameraToRoots } from "../camera-setup.ts";
 import { assembleBoneSelectInfo, getMeshBoneId } from "../bone-raycast.ts";
-import { cullModelGroups } from "../frustum-cull.ts";
+import { cullModelGroups, isFrustumCullEnabled, restoreModelGroupsVisible } from "../frustum-cull.ts";
 import { logWarn } from "../../core/log.ts";
 import { bindInputHandlers } from "./input-and-animation.ts";
 import type { InputOptions } from "./input-and-animation.ts";
@@ -60,6 +60,13 @@ import { mountPreviewRootMenu, type PreviewMenuHandle } from "./preview-menu.ts"
 import type { PreviewMenuItemDef } from "./preview-menu-defs.ts";
 import { type CameraControlBridge } from "./camera-controls.ts";
 import type { BoneSelectInfo, BoneMaps } from "../model3d.ts";
+import {
+  PREVIEW_FRAME_INTERVAL_MS,
+  createAdaptiveRenderBudget,
+  previewPixelRatio,
+  sampleAdaptivePixelRatio,
+  shouldRenderPreviewFrame,
+} from "../render-budget.ts";
 
 /** 适配器构建时可用的通用外壳句柄（内容层据此注入场景/灯光/定相机） */
 export interface PreviewBuildCtx {
@@ -219,7 +226,7 @@ export interface Mount3DOptions {
   cooperate?: boolean;
   /** 跨类型跳转（切换模型选中不同类型：关当前 + 开目标；app 层 openModel3DFullscreen 注入）。
    *  第二参透传 siblings（当前会话候选），避免切换后新会话「当前目录」tab 为空 */
-  switchExternal?: (path: string, siblings?: string[]) => Promise<void>;
+  switchExternal?: (path: string, siblings?: string[], options?: { keepInScene?: boolean }) => Promise<void>;
   /** 当前会话资源类型（如 ysm/EntityPlayer/vrm/resourcepack）；类型 tab 点击时判断同类型走 switchTo */
   rtype?: string;
   /** 当前会话子类型（如 EntityPlayer/CustomAnim）——用于类型 tab 扫描时按 subtype 隔离扩展名 */
@@ -288,7 +295,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     overlay = document.createElement("div");
     overlay.id = "ysm-overlay-3d";
     overlay.style.cssText =
-      "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#1a1b2e;display:flex;flex-direction:column";
+      "position:fixed;inset:0;z-index:var(--z-fullscreen);background:#11111b;display:flex;flex-direction:column";
     document.body.appendChild(overlay);
     body = document.createElement("div");
     body.style.cssText = "flex:1;display:flex;position:relative;overflow:hidden";
@@ -346,7 +353,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     getCamBridge: () => camBridge,
     getSiblings: () => (opts.siblings ?? []).filter((p) => p !== currentPath),
     getCurrentPath: () => currentPath,
-    getCurrentRtype: () => opts.rtype ?? "",
+    getCurrentRtype: () => opts.rtype ?? adapter.id,
     getCurrentSubtype: () => opts.subtype ?? "",
     getModelsByType: opts.getModelsByType ? (t: string, s?: string) => opts.getModelsByType!(t, s) : undefined,
     getTypeTabs: opts.getTypeTabs ? () => opts.getTypeTabs!() : undefined,
@@ -357,9 +364,17 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     },
     switchTo: (p: string, options?: { keepInScene?: boolean }) => {
       const active = _handles[_handles.length - 1];
-      void active?.handle.switchTo?.(p, options);
+      const r = active?.handle.switchTo?.(p, options);
+      if (r) void r.catch((err: unknown) => logWarn("preview-menu", `switchTo 切换失败: ${String(err)}`));
     },
-    switchExternal: opts.switchExternal ? (p: string, s?: string[]): void => { void opts.switchExternal!(p, s); } : undefined,
+    switchExternal: opts.switchExternal
+      ? (p: string, s?: string[], options?: { keepInScene?: boolean }): void => {
+          const r = opts.switchExternal!(p, s, options) as Promise<void> | void;
+          if (r && typeof r.catch === "function") {
+            void r.catch((err: unknown) => logWarn("preview-menu", `switchExternal 切换失败: ${String(err)}`));
+          }
+        }
+      : undefined,
     unloadRole,
   });
   // ADR-093 T5：注册表菜单 sink（selectModel 时按活跃模型换菜单项）
@@ -371,7 +386,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
   viewContainer.appendChild(loadingEl);
 
   // ===== §4 基础设施创建（scene/camera/renderer/OrbitControls/灯光/resize）=====
-  let aborted = false;
+  let aborted = { v: false };
   // 可变 ESC 处理函数：switchTo 后重新赋值
   let escH = (e: KeyboardEvent): void => {
     if (e.key === "Escape") {
@@ -380,7 +395,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     }
   };
   function closeOverlay(): void {
-    aborted = true;
+    aborted.v = true;
     document.removeEventListener("keydown", escH);
     // 早期路径（cleanupFn 尚未赋值）：清理 tip 定时器 + 菜单，再拆 overlay
     if (tipTimeoutId) {
@@ -400,7 +415,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // 复用单例 scene（多模型共享同一场景）
     if (!_singletonScene) {
       _singletonScene = new THREE.Scene();
-      _singletonScene.background = new THREE.Color("#1a1b2e");
+      _singletonScene.background = new THREE.Color("#171820");
     }
     scene = _singletonScene;
     // 复用单例 camera（多模型共用同一相机，controls 控制同一套）
@@ -414,9 +429,12 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     camera = _singletonCamera;
     // 复用单例 renderer（唯一 WebGL context）
     if (!_singletonRenderer) {
-      _singletonRenderer = new THREE.WebGLRenderer({ antialias: true });
+      _singletonRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: "high-performance",
+      });
       _singletonRenderer.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
-      _singletonRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      _singletonRenderer.setPixelRatio(previewPixelRatio(window.devicePixelRatio));
       _singletonRenderer.domElement.style.touchAction = "none";
       viewContainer.appendChild(_singletonRenderer.domElement);
     }
@@ -555,10 +573,25 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       const _up = new THREE.Vector3(0, 1, 0);
       const _right = new THREE.Vector3();
       const _move = new THREE.Vector3();
-      let lastTime = performance.now();
+      let lastTime = performance.now() - PREVIEW_FRAME_INTERVAL_MS;
+      let nextFrameTime = performance.now();
+      const adaptiveBudget = createAdaptiveRenderBudget(
+        previewPixelRatio(window.devicePixelRatio),
+        performance.now(),
+      );
       function animate(): void {
         _globalAnimId = requestAnimationFrame(animate);
         const now = performance.now();
+        if (!shouldRenderPreviewFrame(now, nextFrameTime, document.hidden === true)) {
+          // 跳过帧（隐藏/节流）：推进采样起点——隐藏期间墙钟继续走但 sampleFrames
+          // 不涨，恢复后平均帧时虚高会把像素比误降级，重复最小化渐进降到地板（code review P3）
+          adaptiveBudget.sampleStart = now;
+          return;
+        }
+        nextFrameTime += PREVIEW_FRAME_INTERVAL_MS;
+        if (nextFrameTime < now - PREVIEW_FRAME_INTERVAL_MS) {
+          nextFrameTime = now + PREVIEW_FRAME_INTERVAL_MS;
+        }
         const dt = Math.min((now - lastTime) / 1000, 0.1);
         lastTime = now;
         // 推进水面波纹动画（wetness>0 时 visible）
@@ -595,7 +628,9 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         // 驱动所有 session 的 perFrame 回调
         for (const fn of _globalPerFrames) {
           const pfStart = performance.now();
-          try { fn(dt); } catch (_) {}
+          try { fn(dt); } catch (err) {
+            logWarn("perFrame", `session 回调异常: ${String(err)}`);
+          }
           const pfMs = performance.now() - pfStart;
           const pfNow = performance.now();
           if (pfMs > PER_FRAME_WARN_MS && pfNow - _lastPerFrameWarnTs > PER_FRAME_WARN_THROTTLE_MS) {
@@ -603,11 +638,19 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
             logWarn("perFrame", `阻塞 ${pfMs.toFixed(1)}ms (>${PER_FRAME_WARN_MS}ms 阈值)`);
           }
         }
-        // 视锥裁剪
-        cullModelGroups(cam);
+        // 视锥裁剪（设置开关：关 → 跳过并恢复可见性——剔除失误会误藏模型，可关闭）
+        if (isFrustumCullEnabled()) cullModelGroups(cam);
+        else restoreModelGroupsVisible();
         // ADR-081 L2：后处理体积光管线
         const rendered = postProc ? postProc.render(dt, lightCap) : false;
         if (!rendered) rd.render(sc, cam);
+        const nextPixelRatio = sampleAdaptivePixelRatio(adaptiveBudget, now);
+        if (nextPixelRatio !== null) {
+          rd.setPixelRatio(nextPixelRatio);
+          rd.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+          postProc?.setPixelRatio?.(nextPixelRatio);
+          postProc?.setSize(viewContainer.clientWidth, viewContainer.clientHeight);
+        }
       }
       animate();
     }
@@ -617,8 +660,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
 
   // 操作提示条（自动消失，两种模式通用）
   const tip = document.createElement("div");
-  tip.style.cssText = "padding:6px 12px;background:rgba(124,131,255,0.2);color:#fff;font-size:12px;text-align:center;flex-shrink:0;font-weight:500";
-  tip.textContent = "🎮 WASD 移动 | 空格/Shift 上下 | 🖱 拖拽旋转 | 🔍 滚轮缩放 | ESC 关闭";
+  tip.style.cssText = "padding:5px 12px;background:#1b1c24;border-bottom:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.7);font-size:11px;text-align:center;flex-shrink:0";
+  tip.textContent = "WASD 移动 · 空格/Shift 上下 · 拖动旋转 · 滚轮缩放 · ESC 关闭";
   overlay.insertBefore(tip, body);
   // 保存 timeoutId 供 cleanup 时 clearTimeout
   let tipTimeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
@@ -713,6 +756,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     },
     getHandle: () => _handles[_handles.length - 1]?.handle ?? null,
     aborted,
+    inFlight: false,
     isDisposed,
     myGen,
     getGen: () => _gen,
@@ -788,7 +832,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
       },
       path,
     );
-    if (aborted || myGen !== _gen) {
+    if (aborted.v || myGen !== _gen) {
       // 加载期间被 ESC / invalidate 打断：完整拆除（含 rAF 循环与 WebGL renderer），
       // 避免外壳资源泄漏；内容层 GPU 资源经 fullCleanup 一并释放。
       fullCleanup();
@@ -837,6 +881,8 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
         menuItems: built.menuItems ?? null,
         onBonePick: built.onBonePick ?? null,
       });
+      // ADR-076 v2 Phase 3：注册后立刻注入菜单项，否则 dock-menu 无适配器专属控件
+      if (built.menuItems) menuHandle.setAdapterItems(built.menuItems);
     }
 
     // ADR-076 v2 Phase 3：适配器控件全部经声明式根菜单注入（ctx.menu.setAdapterItems / built.menuItems）
@@ -914,7 +960,7 @@ export async function mount3D(adapter: PreviewAdapter, path: string, opts: Mount
     // P2 守卫（对齐旧 skeleton close3D 语义）：加载期间被 ESC/切模型/invalidate
     // 打断后迟到的失败不得再弹错——否则关闭后 1~2s 突然冒「加载失败」toast，
     // 掩盖用户主动关闭的意图（旧实现 skeleton.ts 的 gen 守卫，迁移到核心统一承担）。
-    if (aborted || myGen !== _gen) return;
+    if (aborted.v || myGen !== _gen) return;
     console.error("[preview 3D] 加载失败:", e);
     loadingEl.innerHTML = `<div style="font-size:32px">⚠️</div><div>${t("preview.loadFailed")}: ${esc(safeErrorMessage(e))}</div>`;
     bus.emit("toast:show", {

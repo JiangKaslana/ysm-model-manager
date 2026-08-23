@@ -130,7 +130,6 @@ async function blobUrlToBase64(blobUrl: string): Promise<string> {
 // 核心实现已抽取到 mmd-ktx2-basis.ts（主线程与 Worker 共用，无 DOM 依赖）。
 // 本文件保留编码调度/并发/缓存逻辑，并在此处导出兼容符号。
 
-export { TextureTooLargeError, MAX_KTX2_PIXELS } from "./mmd-ktx2-basis.ts";
 import { encodeToKTX2Basis, TextureTooLargeError, MAX_KTX2_PIXELS } from "./mmd-ktx2-basis.ts";
 // type-only import：不产生运行时 import（worker 文件含 self.onmessage，主线程不能执行它）
 import type { Ktx2EncodeRequest, Ktx2EncodeResponse } from "./mmd-ktx2-worker.ts";
@@ -199,7 +198,7 @@ function terminateKtx2Workers(): void {
  * Worker 不可用（测试/受限环境）时降级同步编码。
  * 测试注入点 __setEncodeImplForTest 会整体替换此函数，故测试不触碰 Worker。
  */
-export async function encodeToKTX2(img: { data: Uint8Array; width: number; height: number }): Promise<ArrayBuffer> {
+async function encodeToKTX2(img: { data: Uint8Array; width: number; height: number }): Promise<ArrayBuffer> {
   // 超大纹理直接跳过（主线程先拦，语义清晰；worker 内 encodeToKTX2Basis 也有双保险）
   if (img.width * img.height > MAX_KTX2_PIXELS) {
     throw new TextureTooLargeError(img.width, img.height);

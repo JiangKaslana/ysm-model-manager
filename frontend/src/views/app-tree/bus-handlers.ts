@@ -1,7 +1,7 @@
 // ===== app-tree bus 事件处理 =====
 import { t } from "../../core/i18n/t.ts";
 import { friendlyError } from "../../utils/dom/errors.ts";
-import { RESOURCE_TYPES } from "../../utils/resource/types.ts";
+import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS } from "../../utils/resource/types.ts";
 import { bus } from "../../bus.ts";
 import { get } from "../../services/registry.ts";
 import type { loadEntries } from "./loader.ts";
@@ -161,12 +161,13 @@ export function bindBusEvents(vm: AppTree): Array<() => void> {
   unsubs.push(
     bus.on("dir:batch-rename", async ({ dir }) => {
       try {
-        const { ScanModelEntries, GetRepoRoot } =
+        const { ScanModelEntriesFiltered, GetRepoRoot } =
           await getApp();
         const rtype = vm._rootAttr || vm._typeFilter || RESOURCE_TYPES.YSM;
         const filesRoot = await GetRepoRoot(rtype);
         const absDir = filesRoot ? filesRoot + "/" + dir : dir;
-        const entries = (await ScanModelEntries(absDir)) || [];
+        const label = RESOURCE_TYPE_LABELS[rtype] || rtype;
+        const entries = (await ScanModelEntriesFiltered(absDir, rtype, "", label)) || [];
         if (!entries || !entries.length) {
           bus.emit("toast:show", {
             msg: "📂 文件夹为空",

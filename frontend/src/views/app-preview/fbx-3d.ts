@@ -47,6 +47,6 @@ export function cleanupFbx3D(): void {
 }
 
 /** 任意新预览派发时调用，作废在途 FBX 加载 */
-export function invalidateFbxPreview(): void {
+function invalidateFbxPreview(): void {
   invalidatePreview();
 }

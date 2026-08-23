@@ -105,25 +105,25 @@ func TestBuildSyncItems_SyncedPackFolderExactlyOnce(t *testing.T) {
 	}
 }
 
-// TestBuildSyncItems_InstExtraFile resourcepack 类型下 instDir 独有 .zip
-// （全局侧没有）应显示为 Optional——ADR-064 阶段二后由 SyncResources 相对路径
-// 对比的 Extra 产生（原兜底 Walk 已移除）；非资源包扩展名（.txt）仍过滤。
+// TestBuildSyncItems_InstExtraFile resourcepack 类型下实例标准目录（resourcepacks）
+// 独有 .zip（全局侧没有）应显示为 Optional——由 SyncResources 相对路径对比的
+// Extra 产生；非资源包扩展名（.txt）仍过滤。2026-08-23 收敛：resourcepack
+// scanInstance=false，不再兜底扫描 instDir 根，zip 必须位于标准 resourcepacks 目录。
 func TestBuildSyncItems_InstExtraFile(t *testing.T) {
 	base := t.TempDir()
 	globalDir := filepath.Join(base, "global")
-	instDir := filepath.Join(base, "inst")
+	instDir := filepath.Join(base, "resourcepacks")
 	if err := os.MkdirAll(globalDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(instDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	// 全局侧为空 → SyncResources 的 Synced/Missing/Extra 均空 → 兜底 Walk 是唯一来源
-	// instDir 独有 .zip（资源包合法扩展名）→ 应被兜底添加
+	// 实例标准目录（versionDir/resourcepacks）独有 .zip（资源包合法扩展名）→ Optional
 	if err := os.WriteFile(filepath.Join(instDir, "pack-user.zip"), []byte("zip"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// instDir 独有 .txt（非资源包扩展名）→ extMatch 过滤，不应添加
+	// 实例标准目录独有 .txt（非资源包扩展名）→ extMatch 过滤，不应添加
 	if err := os.WriteFile(filepath.Join(instDir, "notes.txt"), []byte("x"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -131,13 +131,13 @@ func TestBuildSyncItems_InstExtraFile(t *testing.T) {
 	items := BuildSyncItems(ins, []ResourceTypeInfo{{ID: "resourcepack", Icon: "🎨"}}, map[string]string{"resourcepack": globalDir}, "")
 	// 应恰好 1 条：pack-user.zip（optional），notes.txt 被过滤
 	if len(items) != 1 {
-		t.Fatalf("兜底 Walk 应添加 1 条（pack-user.zip），实际 %d 条: %+v", len(items), items)
+		t.Fatalf("实例标准目录应产出 1 条（pack-user.zip），实际 %d 条: %+v", len(items), items)
 	}
 	if items[0].Name != "pack-user.zip" {
-		t.Errorf("兜底条目应为 pack-user.zip, got %q", items[0].Name)
+		t.Errorf("条目应为 pack-user.zip, got %q", items[0].Name)
 	}
 	if items[0].Status != types.SyncStatusOptional {
-		t.Errorf("instDir 独有文件应标 optional, got %q", items[0].Status)
+		t.Errorf("实例独有文件应标 optional, got %q", items[0].Status)
 	}
 }
 
@@ -162,9 +162,9 @@ func TestBuildSyncItems_UnknownTypeSkip(t *testing.T) {
 func TestBuildSyncItems_IndependentTypes(t *testing.T) {
 	base := t.TempDir()
 
-	// EntityPlayer 全局与实例目录
+	// EntityPlayer 全局与实例目录（位置路由：instanceDir=3d-skin/EntityPlayer 壳根）
 	epGlobal := filepath.Join(base, "mmd")
-	epInst := filepath.Join(base, "inst", "EntityPlayer")
+	epInst := filepath.Join(base, "inst", "3d-skin", "EntityPlayer")
 	_ = os.MkdirAll(epGlobal, 0755)
 	_ = os.MkdirAll(epInst, 0755)
 
@@ -353,12 +353,12 @@ func TestBuildSyncItems_YsmJSONEntryOnly(t *testing.T) {
 }
 
 // TestBuildSyncItems_SyncedFileNoDup 同名文件两侧一致 → Synced 恰好 1 条：
-// ADR-064 阶段二后由 SyncResources 相对路径对比保证（原"主循环+兜底 Walk 去重"
-// 场景已随兜底移除自然消失）。
+// 由 SyncResources 相对路径对比保证。2026-08-23 收敛：resourcepack 不再兜底，
+// 文件必须位于标准 resourcepacks 目录（全局侧 global + 实例侧 inst/resourcepacks）。
 func TestBuildSyncItems_SyncedFileNoDup(t *testing.T) {
 	base := t.TempDir()
 	globalDir := filepath.Join(base, "global")
-	instDir := filepath.Join(base, "inst")
+	instDir := filepath.Join(base, "resourcepacks")
 	if err := os.MkdirAll(globalDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -374,7 +374,7 @@ func TestBuildSyncItems_SyncedFileNoDup(t *testing.T) {
 		if it.Name == "pack.zip" {
 			count++
 			if it.Status != types.SyncStatusSynced {
-				t.Errorf("pack.zip 应 Synced（主循环），兜底 Walk 不应重复添加为 Optional，实际 %q", it.Status)
+				t.Errorf("pack.zip 应 Synced（相对路径对比），实际 %q", it.Status)
 			}
 		}
 	}

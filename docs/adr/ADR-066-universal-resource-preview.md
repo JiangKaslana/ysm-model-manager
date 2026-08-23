@@ -20,11 +20,11 @@
 | ysm | .ysm/.zip/.json | 3d | YSMParser WASM → go/threejs.Build → Spec3D | `model3d.ts`（`renderModel3D`） |
 | create-blueprint | .nbt/.schematic | 3d | Go `GetNbt/SchematicVoxelData` → InstancedMesh | `litematic-3d.ts`（`createLitematic3D`） |
 | litematic | .litematic | 3d | Go `GetLitematicVoxelData` → InstancedMesh | `litematic-3d.ts` |
-| mmd-skin | .pmx/.pmd | **none** | three-mmd（babylon-mmd parser） | 🆕 路线 B |
-| vrchat-avatar | .vrca/.vrm | **none** | GLTFLoader + @pixiv/three-vrm | 🆕 路线 B |
+| mmd-skin | .pmx/.pmd | **3d** | three-mmd（babylon-mmd parser） | ✅ 路线 B（已落地 `b5c8f190`） |
+| vrchat-avatar | .vrca/.vrm | **3d** | GLTFLoader + @pixiv/three-vrm | ✅ 路线 B（已落地 `04ed819e`） |
 | resourcepack / shaderpack | .zip | thumbnail | 纹理/mcmeta | 缩略图通道 |
 
-`renderModel3D` 与 `createLitematic3D` 是**两套独立的 renderer / rAF loop / OrbitControls / cleanup**。`mmd-skin` / `vrchat-avatar` 仍是 `preview: "none"`（resource_types.json:143 / :168）。若路线 B 不收敛直接落地，会变成**第三条路径**——正是 AGENTS.md 警告的「格式散装 / 各写一套 loader」。
+`renderModel3D` 与 `createLitematic3D` 是**两套独立的 renderer / rAF loop / OrbitControls / cleanup**（现已由 ADR-066 P3 `mountPreview` 统一核心收敛）。`mmd-skin` / `vrchat-avatar` 曾是 `preview: "none"`（已改为 `3d`，见上方表格）。
 
 ### 1.3 尚未动手就撞上的墙：硬编码资源路径 / 扩展名派发
 
@@ -141,7 +141,7 @@ mountPreview(container, scene)  ← 唯一渲染核心（接管 renderer / rAF /
 | `YsmAdapter` | Spec3D | `root`=buildSceneMesh(spec) | 既有包一层 |
 | `LitematicAdapter` / `BlueprintAdapter` | voxel JSON | `root`=InstancedMesh | 复用 litematic |
 | `VrmAdapter` | .vrm/.vrca | three-vrm 场景 + springbone | 路线 B（glTF 原生，最干净） |
-| `MmdAdapter` | .pmx/.pmd | three-mmd 场景 + IK | 路线 B（实验态，见 §3 风险） |
+| `MmdAdapter` | .pmx/.pmd | three-mmd 场景 + IK + VMD 动画/相机关键帧 | 路线 B（✅ 已落地，见 §5.6） |
 | `ThumbnailAdapter` | zip/meta | 缩略图卡片（不进 3D 核心） | 既有 |
 
 ### D4 · 双管线收敛
@@ -152,12 +152,12 @@ mountPreview(container, scene)  ← 唯一渲染核心（接管 renderer / rAF /
 
 ### D5 · 富格式走前端直引（路线 B，已拍板）
 
-VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js 适配（`@moeru/three-mmd`，其 parser 直接借 `babylon-mmd`）。MMD 解析大脑在 Babylon 侧，与联邦 Babylon 9.19.x 栈天然对齐；MMD 在 Three.js 侧的社区库为实验态，P2 须评估成熟度或改走联邦 Babylon 分屏视图。
+VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js 适配（`@moeru/three-mmd`，其 parser 直接借 `babylon-mmd`）。MMD 解析大脑在 Babylon 侧，与联邦 Babylon 9.19.x 栈天然对齐。**P2 已落地**（`mmd-adapter.ts`，含 VMD 动画/IK/morph/toon/Ammo 物理全开）。
 
-### 不纳入本次范围
+### 范围变更（实施后更新）
 
-- 动画播放：默认静态预览（`architecture.md §4.3` 明写「不需要动画」）；VRM/MMD 动画价值后续独立立项。
-- 缩略图类型（resourcepack/shaderpack）是否进统一入口：维持独立缩略图卡片，仅 5 个 3D 类型纳入 `mountPreview`（待用户拍板）。
+- ~~动画播放：默认静态预览~~ → **已完成**。MMD 动画（`mmd-adapter.ts:674-703`，`VmdObject.ParseFromBuffer` + `buildAnimation` + `buildCameraAnimation` + `mmd-controls.ts` 播放/暂停面板）+ VRM 动画（`vrm-adapter.ts`，`.vrma` 动作库 + springbone）均已实现，`mmd-anim-library.ts` 提供动作库路径解析。**音频播放归 babymmd 客户端**（ADR-073），YSM 仅管理/预览不播放。
+- 缩略图类型（resourcepack/shaderpack）是否进统一入口：维持独立缩略图卡片，仅 3D 类型纳入 `mountPreview`。
 - `go/threejs.Build` 跨平台：已由 ADR-049 P2-2 纯 TS 移植解决（`spec-builder.ts` 双边测试锁定），原 WASM 化路线 B 暂缓（ROI 负，见 `docs/roadmap/routeB-research.md`）。
 
 ---
@@ -171,7 +171,7 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
 - VRM/MMD 直引天然跨平台，契合「网页 + 移动 + 桌面」全平台定位。
 
 **负面 / 风险**：
-- 🔴 **MmdAdapter 成熟度**：three-mmd 实验态（v0.1.1），其 IK/动画为自写移植版（`mmd-ik-solver.ts` 532 行标 "adapted from babylon-mmd"），未受同等战场检验；建议先评估 `babylon-mmd` 直桥或 MMD→GLB 离线烘焙。
+- ~~🔴 **MmdAdapter 成熟度**：three-mmd 实验态~~ → ✅ **已落地**（2026-08-16 `b5c8f190`，`mmd-adapter.ts` 1242 行）。`@moeru/three-mmd` v0.1.1 + `@moeru/three-mmd-physics-ammo` Ammo.js 物理后端，含 VMD 动画/IK/morph/toon 全开，`mmd-adapter.test.ts` 全覆盖。性能优化见 ADR-101。
 - 🔴 **坐标口径（陷阱 #11）**：vrm/mmd 自带坐标系，需验证与现有相机/网格对齐，避免历史 9 次 fix 重演。
 - 🟡 **依赖体积**：three-vrm + babylon-mmd parser 增包体，需 tree-shaking 评估。
 - 🟡 **D1 迁移面**：`loader.ts`/`index.ts`/`litematic-meta.ts` 三处散硬判断须迁移到 `types` 单点，含对应测试断言迁移。
@@ -203,7 +203,7 @@ VRM 用 `@pixiv/three-vrm` + `GLTFLoader`；MMD 用 `babylon-mmd` 的 Three.js �
 - **落地计划（P0 先解墙，再扩能力）**：
   - **P0**：D1 注册表驱动派发（解硬编码墙，零新格式）；
   - **P1**：`VrmAdapter`（three-vrm，最干净，价值最高）；
-  - **P2**：`MmdAdapter`（three-mmd / 或 babylon-mmd 直桥，标实验态）；
+  - **P2**：`MmdAdapter`（three-mmd，✅ 已落地 `b5c8f190`，含 VMD 动画）；
   - **P3**：ysm/blueprint/litematic 包成适配器接入 `mountPreview` 单一核心，消灭双 renderer；
   - **P4**：跨平台——ysm 的 `go/threejs.Build` 已由 ADR-049 P2-2 TS 移植闭环（WASM 化暂缓，`docs/roadmap/routeB-research.md`）；VRM/MMD 天然纯前端。
 
@@ -295,7 +295,7 @@ M 留待 P3-E 经注册表单点派发。
 - **背景/动机**：`_prefer3D` 偏好语义回归修复（`b2fafea6`）后，用户主动关闭 3D 不再自动弹全屏；但用户指出「想看多个模型时更妥当的办法是在 3D 界面内加载模型」——退出 3D → 回列表 → 点下一个 → 再进 3D 的来回跳转不是正解，应在渲染器内直接切换。
 - **范围**：`mount-preview-core` 的 topBar（或 overlay 内）新增模型切换入口（前/后/下拉列表），在当前 3D 会话内直接卸载旧模型、挂载新模型，复用同一 renderer/rAF/controls/灯光，不重建外壳。
 - **实现位点**：`mount3D` 外壳提供切换 API（如 `mount3D` 返回的 `PreviewHandle` 增 `switchTo?(path)`，或 core 暴露 `setAdapterPath`）；各适配器 `build()` 已可复用（`PreviewAdapter` 契约天然支持换 path 重建内容层）。
-- **边界**：不新增动作/场景/表情等渲染器级悬浮按钮（动画价值后续独立立项，ADR-066 §不纳入本次范围 同口径）；MMD 动画（`MmdAdapter` P2）不动此入口。
+- **边界**：不新增动作/场景/表情等渲染器级悬浮按钮（**VMD 动画/播放已实现**，见 `mmd-controls.ts` / `mmd-adapter.ts`；此处边界指「3D 内模型切换按钮」不与播放面板冲突，非排除动画）。
 - **与既有语义的关系**：切模型由「偏好自动弹」改为「3D 内显式切换」后，`_prefer3D` 自动弹语义可逐步淡出（用户主动打开 3D 才进全屏），但保留「切模型保留偏好」不回归（`b2fafea6` 口径）。
 
 **文件层级归置（用户拍板方案 A，2026-08-16）——3D 菜单控件代码归层**：

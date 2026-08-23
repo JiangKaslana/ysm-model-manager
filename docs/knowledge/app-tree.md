@@ -41,6 +41,16 @@ invariant_anchors:
 - `AppTree` 生命周期：`connectedCallback`（渲染布局 → 绑定工具栏/事件委托/键盘 → `_unsubs` 收集 bus 订阅）→ `disconnectedCallback`（清理订阅 / keydown / 虚拟滚动）
   - `_unsubs` 仅收集 bus 订阅（`bindBusEvents` 返回的 unsub 数组 + `bus.on("tree:set-search")`），DOM 委托事件（click/contextmenu，通过 `addEventListener` 绑定于 `#tree` 等容器）随 ShadowRoot detach 自动清理，不进入 `_unsubs`
 - `_load` — 加载条目数据；`_renderTree` — 渲染树（grid/list 双模式）
+- 搜索状态：`_search`（关键词字符串）和 `_filterPaths`（精确路径 Set）共同驱动树过滤
+
+### 搜索过滤与渲染管线
+
+搜索过滤在 `render.ts` 的 `buildTree` 函数中实现，两条过滤路径为 **AND 关系**：
+
+1. **`_search`（关键词匹配）**：`trim().toLowerCase()` 后按 `relPath.includes(query)` 匹配模型路径（非仅文件名），匹配结果目录自动展开
+2. **`_filterPaths`（精确路径交集）**：按 `fullPath` 精确匹配 Set，来自高级筛选弹窗的标签 ∩ 搜索条件交集
+
+渲染时，搜索态走 `hl(e.name, search)`（utils/dom/html.ts）高亮命中文字，非搜索态走 `renderDisplayName()`（治理红线 4.3）。
 - **MMD 子目录分组展示（ADR-096 P3）**：`loader.ts:107-112` 在加载 MMD 类型扫描结果时，若 `ModelEntry.subdir` 非空（如 `SceneModel`），拼接到 `relPath` 前缀，文件树自动按子目录分组（无需改 `render.ts` 建树逻辑）；网页版 `scanWebModels`（`backend/web-fs.ts`）同步从 `name` 字段提取 `subdir` 字段
 - `_initKeyboardShortcuts` / `_deleteSelected` — 键盘快捷键 / 批量删除
 - 子模块：`bus-handlers.ts`（事件处理）/ `events.ts`（委托）/ `virtual-scroll.ts`（虚拟滚动）/ `loader.ts`（数据加载抽象层）/ `authors.ts`（作者列表加载）/ `toolbar-events.ts`（工具栏 UI 绑定）

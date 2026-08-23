@@ -1,18 +1,7 @@
 // ===== 创意工坊数据加载（类型化版 — ADR-014 P3 features）=====
 // tryFetchModels + 进度条
 import { safeErrorMessage } from "../../utils/safe-error-msg.ts";
-
-/**
- * HTML 转义（防 XSS）
- */
-function escHTML(s: string): string {
-  return (s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+import { esc } from "../../utils/dom/html.ts";
 
 /**
  * 创建进度条 UI（插入到 searchResults 容器）
@@ -30,7 +19,7 @@ export function showProgress(
   // P3 修复（审核发现）：label 未经转义直接拼入 innerHTML——当前调用方
   // 全部使用硬编码字符串（无 XSS 风险），但函数是 export 的公共 API，
   // 未来若传入用户可控数据即构成 XSS；统一转义（硬编码字符串转义无副作用）
-  const safeLabel = escHTML(label || "");
+  const safeLabel = esc(label || "");
   searchResults.innerHTML =
     '<div class="gh-progress-box">' +
     '<div class="gh-progress-label">' +
