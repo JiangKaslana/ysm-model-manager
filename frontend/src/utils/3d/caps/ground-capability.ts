@@ -1,8 +1,9 @@
 // ===== GroundCapability：地面能力（ADR-073 同款 caps/ 能力模式）=====
 // 统一核心注入（mount-preview-core），YSM/VRM/MMD/Litematic 零改动继承。
-// GridHelper 地面 + visible 开关；apply() 挂入场景，dispose() 移除并释放，
-// 作用域不泄漏到其它预览（对齐 SkyCapability 生命周期口径）。
-// 实现 SceneCapability 统一接口，支持注册表自动发现 + 菜单控件 + 持久化。
+// GridHelper 地面 + 表面材质层（spec 单源，见 ground-surface-spec.ts）+ 水面叠加层；
+// apply() 挂入场景，dispose() 移除并释放，作用域不泄漏到其它预览
+// （对齐 SkyCapability 生命周期口径）。实现 SceneCapability 统一接口，
+// 支持注册表自动发现 + 菜单控件 + 持久化。
 
 import * as THREE from "three";
 import {
@@ -11,8 +12,28 @@ import {
   persistState,
   restoreState,
 } from "./scene-capability.ts";
+import {
+  DEFAULT_GROUND_SURFACE_PARAMS,
+  buildGroundSurfaceSpec,
+  groundSurfaceNeedsRebuild,
+  generateSurfacePixels,
+  applyGroundSurfaceStructural,
+  applyGroundSurfaceAppearance,
+  type GroundMaterialParams,
+  type GroundSurfaceMode,
+  type GroundSurfaceSpec,
+  type GroundSurfaceStructuralSpec,
+} from "./ground-surface-spec.ts";
+import { dbg } from "../../debug/debug.ts";
 
-export interface GroundParams {
+/** 程序化表面纹理边长（plain/grid/checker 共用；512² 够细且重建成本低） */
+const SURFACE_TEX_SIZE = 512;
+/** matSource 合法值白名单（loadState 校验用） */
+const GROUND_SURFACE_MODES: readonly GroundSurfaceMode[] = [
+  "none", "solid", "plain", "grid", "checker", "texture",
+];
+
+export interface GroundParams extends GroundMaterialParams {
   /** 地面网格尺寸（世界单位） */
   size: number;
   /** 网格分段 */
@@ -34,6 +55,7 @@ export interface GroundParams {
 }
 
 export const DEFAULT_GROUND_PARAMS: GroundParams = {
+  ...DEFAULT_GROUND_SURFACE_PARAMS, // mat* 材质字段（matSource 默认 none）
   size: 50,
   divisions: 50,
   colorCenter: 0x444466,
@@ -55,6 +77,12 @@ export class GroundCapability implements SceneCapability {
   private grid: THREE.GridHelper;
   private water: THREE.Mesh; // 半透明水面叠加层（wetness>0 时显示）
   private waterTime: { value: number }; // 水面波纹动画 time uniform
+  private surface: THREE.Mesh; // 表面材质层（spec 单源驱动；matSource=none 时隐藏）
+  private surfaceMat: THREE.MeshStandardMaterial | null = null; // 当前表面材质（重建时换新）
+  private surfaceTex: THREE.Texture | null = null; // 当前挂载纹理（自建才 dispose）
+  private surfaceSpec: GroundSurfaceSpec | null = null; // 当前 spec（重建判别基准）
+  private customTex: THREE.Texture | null = null; // 自定义贴图缓存（独立于材质生命周期）
+  private customTexName = ""; // 自定义贴图文件名（菜单 hint + token）
   private params: GroundParams;
   private enabled: boolean;
 
@@ -127,6 +155,15 @@ export class GroundCapability implements SceneCapability {
     this.water.position.y = 0.01; // 略高于网格避免 z-fighting
     this.water.name = "ysm-ground-water";
     this.water.visible = this.params.wetness > 0;
+
+    // 表面材质层：介于网格（y=0）与水面（y=0.01）之间；
+    // 材质/纹理由 refreshSurface() 按 spec 创建（初始 matSource=none → 隐藏占位）
+    const surfaceGeo = new THREE.PlaneGeometry(this.params.size, this.params.size);
+    this.surface = new THREE.Mesh(surfaceGeo);
+    this.surface.rotation.x = -Math.PI / 2;
+    this.surface.position.y = 0.005;
+    this.surface.name = "ysm-ground-surface";
+    this.refreshSurface();
   }
 
   /** 推进水面波纹动画（render loop 调用） */
@@ -141,11 +178,14 @@ export class GroundCapability implements SceneCapability {
     if (!this.enabled) return;
     if (!this.grid.parent) this.scene.add(this.grid);
     if (!this.water.parent) this.scene.add(this.water);
+    if (!this.surface.parent) this.scene.add(this.surface);
   }
 
-  /** 地面显隐开关（水面跟随） */
+  /** 地面显隐开关（水面/表面层跟随） */
   setVisible(v: boolean): void {
+    this.params.visible = v;
     this.grid.visible = v;
+    this.updateSurfaceVisible();
     this.water.visible = v && this.params.wetness > 0;
   }
 
@@ -159,6 +199,7 @@ export class GroundCapability implements SceneCapability {
     else {
       if (this.grid.parent) this.grid.parent.remove(this.grid);
       if (this.water.parent) this.water.parent.remove(this.water);
+      if (this.surface.parent) this.surface.parent.remove(this.surface);
     }
   }
 
@@ -252,6 +293,170 @@ export class GroundCapability implements SceneCapability {
     return new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
   }
 
+  // ══ 表面材质层（spec 单源，借鉴 MikuMikuAR ADR-226）══
+  // 所有 mat* setter 只改 params 后调 refreshSurface()；
+  // structural 变化 → rebuildSurface（新材质+新纹理），appearance 变化 → applyGroundSurfaceAppearance 原地。
+  // 禁止绕过 refreshSurface 直接 mutate 材质（合约测试锁死两路径等价性）。
+
+  /** 程序化像素 → DataTexture（SRGB：albedo 语义；RepeatWrapping 平铺） */
+  private makeGeneratedTexture(st: GroundSurfaceStructuralSpec): THREE.DataTexture {
+    const px = generateSurfacePixels(st, SURFACE_TEX_SIZE);
+    const tex = new THREE.DataTexture(px, SURFACE_TEX_SIZE, SURFACE_TEX_SIZE, THREE.RGBAFormat);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  /** 当前贴图身份 token（自定义贴图用「文件名:尺寸」，程序化为 ""） */
+  private currentTextureToken(): string {
+    if (!this.customTex) return "";
+    const img = this.customTex.image as { width?: number; height?: number } | undefined;
+    return `${this.customTexName}:${img?.width ?? 0}x${img?.height ?? 0}`;
+  }
+
+  /** 重建路径：按 spec 建全新材质与纹理（旧的自建纹理释放，customTex 缓存不动） */
+  private rebuildSurface(spec: GroundSurfaceSpec): void {
+    const st = { ...spec.structural };
+    let tex: THREE.Texture | null = null;
+    if (st.mode === "texture") {
+      tex = this.customTex ?? this.makeGeneratedTexture({ ...st, mode: "solid" }); // 无缓存先占位纯色
+    } else if (st.mode !== "solid" && st.mode !== "none") {
+      tex = this.makeGeneratedTexture(st);
+    } // solid/none：color 直出，无贴图
+
+    if (this.surfaceMat) {
+      if (this.surfaceTex && this.surfaceTex !== this.customTex) {
+        try { this.surfaceTex.dispose(); } catch (_) { /* 防御性释放 */ }
+      }
+      this.surfaceMat.dispose();
+    }
+    this.surfaceTex = tex;
+    this.surfaceMat = new THREE.MeshStandardMaterial();
+    applyGroundSurfaceStructural(this.surfaceMat, st, tex);
+    applyGroundSurfaceAppearance(this.surfaceMat, spec, this.params.size);
+    this.surface.material = this.surfaceMat;
+  }
+
+  /** 唯一变更入口：判别重建/原地并落地（所有 setter 的必经之路） */
+  private refreshSurface(): void {
+    const next = buildGroundSurfaceSpec(this.params, this.currentTextureToken());
+    if (!this.surfaceSpec || groundSurfaceNeedsRebuild(this.surfaceSpec, next)) {
+      this.rebuildSurface(next);
+    } else if (this.surfaceMat) {
+      applyGroundSurfaceAppearance(this.surfaceMat, next, this.params.size);
+    }
+    this.surfaceSpec = next;
+    this.updateSurfaceVisible();
+  }
+
+  /** 显隐门控：总开关 × 网格显隐 × 模式非 none（水面层独立于表面层） */
+  private updateSurfaceVisible(): void {
+    this.surface.visible =
+      this.enabled && this.params.visible && this.params.matSource !== "none";
+  }
+
+  /** 自定义贴图加载完成入口（openTexturePicker 异步解码后调用；测试直接注入） */
+  acceptLoadedTexture(tex: THREE.Texture, name: string): void {
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    if (this.customTex) {
+      try { this.customTex.dispose(); } catch (_) { /* 防御性释放 */ }
+    }
+    this.customTex = tex;
+    this.customTexName = name;
+    this.params.matSource = "texture";
+    this.refreshSurface();
+  }
+
+  /** 清除自定义贴图缓存并回退 plain（texture 模式时） */
+  clearCustomTexture(): void {
+    const wasAttached = this.surfaceTex === this.customTex;
+    if (this.customTex) {
+      try { this.customTex.dispose(); } catch (_) { /* 防御性释放 */ }
+      this.customTex = null;
+      this.customTexName = "";
+    }
+    if (this.params.matSource === "texture") this.params.matSource = "plain";
+    if (wasAttached) this.surfaceTex = null; // 重建时不再误判归属
+    this.refreshSurface();
+  }
+
+  /** 文件选择器（对齐 environment-capability customHdr 口径：不持久化二进制） */
+  private openTexturePicker(): void {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = (): void => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      new THREE.TextureLoader().loadAsync(url)
+        .then((tex) => this.acceptLoadedTexture(tex, file.name))
+        .catch(() => dbg("ground-tex-load-fail", { name: file.name }))
+        .finally(() => URL.revokeObjectURL(url));
+    };
+    input.click();
+  }
+
+  // ── 材质参数 setter/getter（全部经 refreshSurface 单路径落地）──
+  getMatSource(): GroundSurfaceMode {
+    return this.params.matSource;
+  }
+  setMatSource(mode: GroundSurfaceMode): void {
+    this.params.matSource = mode;
+    this.refreshSurface();
+  }
+  setMatColor(hex: number): void {
+    this.params.matColor = hex;
+    this.refreshSurface();
+  }
+  setMatLineColor(hex: number): void {
+    this.params.matLineColor = hex;
+    this.refreshSurface();
+  }
+  setMatGridSize(n: number): void {
+    this.params.matGridSize = Math.max(2, Math.round(n));
+    this.refreshSurface();
+  }
+  getMatOpacity(): number {
+    return this.params.matOpacity;
+  }
+  setMatOpacity(v: number): void {
+    this.params.matOpacity = Math.max(0, Math.min(1, v));
+    this.refreshSurface();
+  }
+  getMatScale(): number {
+    return this.params.matScale;
+  }
+  setMatScale(v: number): void {
+    this.params.matScale = Math.max(0.25, Math.min(8, v));
+    this.refreshSurface();
+  }
+  getMatRotation(): number {
+    return this.params.matRotationDeg;
+  }
+  setMatRotation(deg: number): void {
+    this.params.matRotationDeg = ((deg % 360) + 360) % 360;
+    this.refreshSurface();
+  }
+  getMatRoughness(): number {
+    return this.params.matRoughness;
+  }
+  setMatRoughness(v: number): void {
+    this.params.matRoughness = Math.max(0, Math.min(1, v));
+    this.refreshSurface();
+  }
+  getMatMetalness(): number {
+    return this.params.matMetalness;
+  }
+  setMatMetalness(v: number): void {
+    this.params.matMetalness = Math.max(0, Math.min(1, v));
+    this.refreshSurface();
+  }
+
   isEnabled(): boolean {
     return this.enabled;
   }
@@ -308,10 +513,135 @@ export class GroundCapability implements SceneCapability {
         getValue: () => this.getNormalStrength(),
         setValue: (v) => this.setNormalStrength(v as number),
       },
+      // ── 表面材质组（spec 单源：structural 走重建，appearance 走原地）──
+      {
+        id: "ground-mat-source",
+        kind: "select",
+        labelKey: "preview.groundMatSource",
+        fallback: "表面材质",
+        group: "preview.groundGroupMaterial",
+        select: [
+          { value: "none", label: "无" },
+          { value: "solid", label: "纯色" },
+          { value: "plain", label: "素面" },
+          { value: "grid", label: "网格" },
+          { value: "checker", label: "棋盘" },
+          { value: "texture", label: "自定义贴图" },
+        ],
+        getValue: () => this.getMatSource(),
+        setValue: (v) => this.setMatSource(v as GroundSurfaceMode),
+      },
+      {
+        id: "ground-mat-color",
+        kind: "color",
+        labelKey: "preview.groundMatColor",
+        fallback: "底色",
+        group: "preview.groundGroupMaterial",
+        getValue: () => this.params.matColor,
+        setValue: (v) => this.setMatColor(v as number),
+      },
+      {
+        id: "ground-mat-line-color",
+        kind: "color",
+        labelKey: "preview.groundMatLineColor",
+        fallback: "线色",
+        group: "preview.groundGroupMaterial",
+        getValue: () => this.params.matLineColor,
+        setValue: (v) => this.setMatLineColor(v as number),
+      },
+      {
+        id: "ground-mat-grid-size",
+        kind: "slider",
+        labelKey: "preview.groundMatGridSize",
+        fallback: "格数",
+        group: "preview.groundGroupMaterial",
+        slider: { min: 2, max: 32, step: 1 },
+        getValue: () => this.params.matGridSize,
+        setValue: (v) => this.setMatGridSize(Math.round(v as number)),
+      },
+      {
+        id: "ground-mat-texture",
+        kind: "button",
+        labelKey: "preview.groundMatPick",
+        fallback: "选择贴图",
+        group: "preview.groundGroupMaterial",
+        button: {
+          textKey: "preview.groundMatPick",
+          getHint: () => this.customTexName || "",
+          variant: "primary",
+          action: () => this.openTexturePicker(),
+        },
+        getValue: () => null,
+        setValue: () => {},
+      },
+      {
+        id: "ground-mat-clear",
+        kind: "button",
+        labelKey: "preview.groundMatClear",
+        fallback: "清除贴图",
+        group: "preview.groundGroupMaterial",
+        button: {
+          textKey: "preview.groundMatClear",
+          variant: "ghost",
+          action: () => this.clearCustomTexture(),
+        },
+        getValue: () => null,
+        setValue: () => {},
+      },
+      {
+        id: "ground-mat-opacity",
+        kind: "slider",
+        labelKey: "preview.groundMatOpacity",
+        fallback: "表面不透明度",
+        group: "preview.groundGroupMaterial",
+        slider: { min: 0, max: 1, step: 0.05 },
+        getValue: () => this.getMatOpacity(),
+        setValue: (v) => this.setMatOpacity(v as number),
+      },
+      {
+        id: "ground-mat-scale",
+        kind: "slider",
+        labelKey: "preview.groundMatScale",
+        fallback: "纹理缩放",
+        group: "preview.groundGroupMaterial",
+        slider: { min: 0.25, max: 8, step: 0.25 },
+        getValue: () => this.getMatScale(),
+        setValue: (v) => this.setMatScale(v as number),
+      },
+      {
+        id: "ground-mat-rotation",
+        kind: "slider",
+        labelKey: "preview.groundMatRotation",
+        fallback: "纹理旋转",
+        group: "preview.groundGroupMaterial",
+        slider: { min: 0, max: 360, step: 5, unit: "°" },
+        getValue: () => this.getMatRotation(),
+        setValue: (v) => this.setMatRotation(v as number),
+      },
+      {
+        id: "ground-mat-roughness",
+        kind: "slider",
+        labelKey: "preview.groundMatRoughness",
+        fallback: "粗糙度",
+        group: "preview.groundGroupMaterial",
+        slider: { min: 0, max: 1, step: 0.05 },
+        getValue: () => this.getMatRoughness(),
+        setValue: (v) => this.setMatRoughness(v as number),
+      },
+      {
+        id: "ground-mat-metalness",
+        kind: "slider",
+        labelKey: "preview.groundMatMetalness",
+        fallback: "金属度",
+        group: "preview.groundGroupMaterial",
+        slider: { min: 0, max: 1, step: 0.05 },
+        getValue: () => this.getMatMetalness(),
+        setValue: (v) => this.setMatMetalness(v as number),
+      },
     ];
   }
 
-  /** 保存状态到 localStorage */
+  /** 保存状态到 localStorage（mat 字段纯数据可持久化；texture 二进制不存） */
   saveState(): void {
     persistState(this.id, {
       visible: this.params.visible,
@@ -320,10 +650,19 @@ export class GroundCapability implements SceneCapability {
       waterColor: this.params.waterColor,
       waterOpacity: this.params.waterOpacity,
       normalStrength: this.params.normalStrength,
+      matSource: this.params.matSource === "texture" ? "texture" : this.params.matSource,
+      matColor: this.params.matColor,
+      matLineColor: this.params.matLineColor,
+      matGridSize: this.params.matGridSize,
+      matOpacity: this.params.matOpacity,
+      matScale: this.params.matScale,
+      matRotationDeg: this.params.matRotationDeg,
+      matRoughness: this.params.matRoughness,
+      matMetalness: this.params.matMetalness,
     });
   }
 
-  /** 从 localStorage 恢复状态 */
+  /** 从 localStorage 恢复状态（texture 模式二进制未持久化 → 回退 plain） */
   loadState(): void {
     const state = restoreState(this.id);
     if (!state) return;
@@ -336,12 +675,26 @@ export class GroundCapability implements SceneCapability {
     if (typeof state.waterColor === "number") this.setWaterColor(state.waterColor);
     if (typeof state.waterOpacity === "number") this.setWaterOpacity(state.waterOpacity);
     if (typeof state.normalStrength === "number") this.setNormalStrength(state.normalStrength);
+    // ── 材质字段：白名单校验 + texture 无缓存回退 ──
+    if (typeof state.matSource === "string" && GROUND_SURFACE_MODES.includes(state.matSource as GroundSurfaceMode)) {
+      this.params.matSource =
+        state.matSource === "texture" && !this.customTex ? "plain" : (state.matSource as GroundSurfaceMode);
+    }
+    if (typeof state.matColor === "number") this.params.matColor = state.matColor;
+    if (typeof state.matLineColor === "number") this.params.matLineColor = state.matLineColor;
+    if (typeof state.matGridSize === "number") this.params.matGridSize = state.matGridSize;
+    if (typeof state.matOpacity === "number") this.setMatOpacity(state.matOpacity);
+    if (typeof state.matScale === "number") this.setMatScale(state.matScale);
+    if (typeof state.matRotationDeg === "number") this.setMatRotation(state.matRotationDeg);
+    if (typeof state.matRoughness === "number") this.setMatRoughness(state.matRoughness);
+    if (typeof state.matMetalness === "number") this.setMatMetalness(state.matMetalness);
   }
 
-  /** 移除并释放（GridHelper 材质可能是数组，遍历 dispose） */
+  /** 移除并释放（GridHelper 材质可能是数组，遍历 dispose；surface 连同纹理一并释放） */
   dispose(): void {
     if (this.grid.parent) this.grid.parent.remove(this.grid);
     if (this.water.parent) this.water.parent.remove(this.water);
+    if (this.surface.parent) this.surface.parent.remove(this.surface);
     this.grid.geometry.dispose();
     const mat = this.grid.material;
     if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
@@ -354,5 +707,18 @@ export class GroundCapability implements SceneCapability {
       try { waterMat.normalMap.dispose(); } catch (_) { /* 防御性释放 */ }
     }
     waterMat.dispose();
+    // 表面层：材质 + 当前挂载纹理 + 自定义贴图缓存全部释放
+    this.surface.geometry.dispose();
+    if (this.surfaceMat) {
+      if (this.surfaceTex && this.surfaceTex !== this.customTex) {
+        try { this.surfaceTex.dispose(); } catch (_) { /* 防御性释放 */ }
+      }
+      this.surfaceMat.dispose();
+      this.surfaceMat = null;
+    }
+    if (this.customTex) {
+      try { this.customTex.dispose(); } catch (_) { /* 防御性释放 */ }
+      this.customTex = null;
+    }
   }
 }
