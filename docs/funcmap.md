@@ -709,7 +709,7 @@
 | `App.AnalyzeBedrockModelEntry()` | `internal/app/app_model:337` | AnalyzeBedrockModelEntry 按 SubModel.SourcePath 只解析归档内单模型 geometry（多角色包角色切换用）。 |
 | `App.GetModel3DSpec()` | `internal/app/app_model:385` | — |
 | `App.Build3DSpecFromGeometryJSON()` | `internal/app/app_model:425` | Build3DSpecFromGeometryJSON 从 bedrock geometry JSON 构建 3D spec（纯 Go，无 Node 依赖）。 |
-| `App.SaveScreenshotFile()` | `internal/app/app_model:519` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
+| `App.SaveScreenshotFile()` | `internal/app/app_model:524` | SaveScreenshotFile 保存 base64 PNG 到磁盘（供 JS 批量截图用） 路径守卫：限制在 os.TempDir()/ysm-preview 内，禁止绝对路 |
 | `ReadFileMeta()` | `internal/app/app_model:191` | ReadFileMeta 是 ReadFileBytesBatchWithMeta 的单个文件元信息。 |
 | `App.ExportModelStructureJSON()` | `internal/app/app_scan:28` | ========== 导出单模型骨骼结构 ========== ExportModelStructureJSON 导出单模型骨骼结构 |
 | `App.SearchModels()` | `internal/app/app_scan:66` | ========== 高级搜索 ========== SearchModels 扫描模型条目后按关键词、骨骼数、立方体数、纹理尺寸范围过滤。 |

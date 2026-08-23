@@ -160,7 +160,7 @@ export function computeBoneLocalPos(
 - **Three.js 资源 dispose 模式**：移除 `Object3D` 时，`Object3D.remove()` 只从场景图移除引用，**不释放底层 WebGL 资源**。必须遍历子对象并调用 `geometry?.dispose()`、`material?.dispose()`、`texture?.dispose()`
 - 几何计算（顶点/UV/四元数）在 Go 端完成，前端不得私改几何口径；JS 兜底算法（model3d-spec.ts）已废弃，不再承担降级职责
 - **纹理绑定不静默兜底**（2026-08-23 根除）：`mesh-builder.ts` 槽位越界/缺图 → 灰色占位 + `console.error`（含组件 boneId/期望索引），**绝不「找第一张可用」贴错图**——贴错皮肤还装没事比诚实暴露映射断裂糟糕得多（wine_fox 多组件渲染错乱帮凶）。排查入口：环形日志搜 `纹理槽位缺失`
-- **perComponent 纹理链**：Go `FindComponentsInExtractedYSM`（解压目录）/`buildComponents`（zip/7z）给未声明组件挂同名纹理 `ComponentTextures`（TexSlot=0 局部索引）→ `GetModel3DSpec` 经 `injectComponentTextures` 注入 `spec.componentTextures` → 前端 `preloadModel` 转 `componentTexMap` → `ysm-object.ts` 按 `mg.name`（`comp_<i>`）查表。**键必须是 comp_N**：SourceName（main/arm/arrow）与 ModelGroup 名不同空间，混用恒 miss
+- **perComponent 纹理链**：Go `FindComponentsInExtractedYSM`（解压目录）/`buildComponents`（zip/7z）给未声明组件挂同名纹理 `ComponentTextures`（TexSlot=0 局部索引）→ `GetModel3DSpec` 经 `injectComponentTextures` 注入 `spec.componentTextures` → 前端 `preloadModel` 转 `componentTexMap` → `ysm-object.ts` 按 `mg.name || mg.id` 查表。**键 = SourceName**（如 "main"/"arm"/"arrow"），与 spec.models[i].name 同源（BuildMulti 中 Name=SourceName，fallback compID="comp_N"）。Go 侧注入时若 SourceName 为空则 fallback `comp_<i>`；前端查表顺序 `mg.name || mg.id` 两路均能命中
 - 治理红线 R1：模块级状态不挂 `window.__*`（场景状态收敛进 mount3D 会话 + sceneRegistry）
 
 ## ⚠️ 大文件性能阈值

@@ -172,17 +172,22 @@ describe("preloadModel / fetchSpec", () => {
 
   it("ADR-114：spec.componentTextures → componentTexMap（perComponent 数据源统一）", async () => {
     // wine_fox 根因修复：GetModel3DSpec 注入 componentTextures，前端按组件名取图，
-    // 未声明组件（arrow 等）不再依赖全局 texArr 槽位
+    // 未声明组件（arrow 等）不再依赖全局 texArr 槽位。
+    // 键 = SourceName（如 "main"/"arrow"），对齐 spec.models[i].name；
+    // 前端 ysm-object.ts 以 mg.name || mg.id 查表，SourceName 直连命中。
     specMock.mockResolvedValue(
       JSON.stringify({
-        models: [{ meshGroups: [{ boneId: "root", positions: [0, 0, 0], normals: [], uvs: [], indices: [] }] }],
-        componentTextures: { comp_1: ["data:image/png;base64,QUJD"] },
+        models: [
+          { id: "comp_0", name: "main", meshGroups: [{ boneId: "root", positions: [0, 0, 0], normals: [], uvs: [], indices: [] }] },
+          { id: "comp_1", name: "arrow", meshGroups: [{ boneId: "root", positions: [0, 0, 0], normals: [], uvs: [], indices: [] }] },
+        ],
+        componentTextures: { arrow: ["data:image/png;base64,QUJD"] },
       }),
     );
     vi.stubGlobal("Image", FakeImage as never);
     try {
       const r = await preloadModel({ _modelPath: "/m/comptex.json", textures: ["skin.png"] });
-      const arr = r.componentTexMap.get("comp_1"); // 键 = BuildMulti 的 mg.name（comp_N）
+      const arr = r.componentTexMap.get("arrow"); // 键 = SourceName（spec.models[i].name）
       expect(arr).toHaveLength(1);
       expect(arr?.[0]).toBeInstanceOf(THREE.Texture);
     } finally {

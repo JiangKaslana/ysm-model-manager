@@ -454,8 +454,9 @@ func injectTexArrOrder(spec string, texNames []string) string {
 
 // injectComponentTextures 在 spec JSON 中注入 componentTextures（ADR-114 perComponent：
 // 组件名 → [data URI 纹理]）。全部为空时原样返回（不注入空对象）。
-// 键 = "comp_<i>"，对齐 threejs.BuildMulti 的 ModelGroup 命名（且同样跳过空骨骼组件，
-// 保证 comps[i] ↔ spec.models 键一一对应）——前端 ysm-object 以 mg.name 查表命中。
+// 键 = comps[i].SourceName（如 "main"/"arm"/"arrow"），与 spec.models[i].name 同源——
+// BuildMulti 中 Name = SourceName（若无则 fallback compID = "comp_N"），前端 ysm-object
+// 以 mg.name || mg.id 查表，两者均须能命中；用 SourceName 直连，避免 index-based 错位。
 func injectComponentTextures(spec string, comps []types.BedrockModel) string {
 	compTex := make(map[string][]string)
 	for i := range comps {
@@ -464,7 +465,11 @@ func injectComponentTextures(spec string, comps []types.BedrockModel) string {
 		}
 		for _, arr := range comps[i].ComponentTextures {
 			if len(arr) > 0 {
-				compTex[fmt.Sprintf("comp_%d", i)] = arr
+				key := comps[i].SourceName
+				if key == "" {
+					key = fmt.Sprintf("comp_%d", i)
+				}
+				compTex[key] = arr
 				break // 每组件取第一条有效纹理（当前口径单张主纹理）
 			}
 		}
