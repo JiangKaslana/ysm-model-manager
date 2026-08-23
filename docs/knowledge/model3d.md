@@ -88,7 +88,7 @@ export function computeBoneLocalPos(
 - 默认 OrbitControls 轨道模式，`setRotationMode(false)` 切自由相机（WASD 平移 + 空格/Shift 升降）
 - **3D 操作键位 / 相机偏好持久化**（localStorage）：键位存 `KeyboardEvent.code` 物理键，相机速度 `td-cam-speed`（2–200，默认 20），旋转模式 `td-rot-mode`（orbit/free）
 - **材质为 ysmview 风格**：`FrontSide + transparent + alphaTest:0.1 + depthWrite:true`；alpha 模式由 `texture-alpha.ts getTextureAlphaMode` 逐纹理分类并缓存 userData（ADR-118 Phase A：半透明像素占比 ≤0.5% 视为杂点不判 blend——wine_fox 实测错路面 80.9%→35.6%，8 模型 blend→cutout 翻正，18_wedding 真混合保持 blend）
-- **面级透明路由**（ADR-118 Phase B）：`getTextureAlphaInfo(texture)` 一次读像素同时产出全局 mode + `alpha-index.ts` AlphaIndex（小矩形精确扫描 / 大矩形 TILE=8 前缀和）缓存 `userData.ysmAlphaInfo`；`face-split.ts splitMeshByFaceAlpha` 逐三角形 UV 包围盒查 flags 分桶（严格口径：any translucent→blend / hole→cutout / else opaque），`ysm-object.ts` 统一碎片流——cutout/opaque 碎片按 `boneId:texIdx:mode` 烘合，**blend 碎片保持独立 mesh 不烘合**（逐 mesh 深度排序契约）；flipY=true 或无索引纹理回退整图模式。YSM 主链路 `model3d-loader.ts:62` flipY=false，v 即图像行域无需翻转
+- **面级透明路由**（ADR-118 Phase B）：`getTextureAlphaInfo(texture)` 一次读像素同时产出全局 mode + `alpha-index.ts` AlphaIndex（小矩形精确扫描 / 大矩形 TILE=8 前缀和）缓存 `userData.ysmAlphaInfo`；`face-split.ts splitMeshByFaceAlpha` 逐三角形 UV 包围盒查 flags 分桶（严格口径：any translucent→blend / hole→cutout / else opaque），`ysm-object.ts` 统一碎片流——cutout/opaque 碎片按 `boneId:texIdx:mode` 烘合，**blend 碎片保持独立 mesh 不烘合**（逐 mesh 深度排序契约）；flipY=true 或无索引纹理回退整图模式。YSM 主链路 `model3d-loader.ts` flipY=false，v 即图像行域无需翻转
 - **debug 叠加层**（`debug-render.ts`）：`state.debugMode = "normal"|"pivot"|"bone"` 切换，`rebuildDebug(scene, rootGroup, boneGroupMap, spec, state)` 重建叠加层
 - **cleanup**（`cleanup-helper.ts`）：资源释放工具，遍历子对象并调用 `geometry/material/texture` 的 `dispose()`，确保 WebGL 资源完全释放
 
@@ -191,19 +191,19 @@ collectOutputFiles → FS.readFile    ← 拷贝⑤：JS 侧读取解码结果
 parseBedrockGeometry → JSON.parse   ← 拷贝⑥：字符串化 + 解析
 ```
 
-**关键点**：拷贝③④⑤⑥在解码过程中并存，但拷贝③（`_malloc`）在 `finally` 块中 `_free` 释放（`ysm-parser.ts:225`），拷贝⑤在读取后通过 `wipeDir` 清理 MEMFS 残留（`ysm-parser.ts:276-278`）。**不存在长期泄漏，但解码瞬间 peak 内存可达 ~3-4× 文件大小。**
+**关键点**：拷贝③④⑤⑥在解码过程中并存，但拷贝③（`_malloc`）在 `finally` 块中 `_free` 释放（`ysm-parser.ts`），拷贝⑤在读取后通过 `wipeDir` 清理 MEMFS 残留（`ysm-parser.ts`）。**不存在长期泄漏，但解码瞬间 peak 内存可达 ~3-4× 文件大小。**
 
 ### 当前 100MB 防线（四层互锁）
 
 | 层 | 文件 | 常量 | 阶段 |
 |----|------|------|------|
-| 导入层（网页） | `web-common.ts:51` | `MAX_IMPORT_BYTES = 100MB` | 拖入/选择文件时过滤 |
-| 导入层（桌面） | `import-dnd.ts:100` | 引用 `MAX_IMPORT_BYTES` | 拖入文件时过滤 |
-| ZIP 解压 | `extract.ts:25-27` | `MAX_ZIP_FILE_BYTES = 100MB` | 单 entry 解压前拦截 |
-| NBT 解析 | `nbt-parse.ts:38` | `MAX_NBT_BYTES = 100MB` | 解压后 NBT 解析前 |
-| Spec 构建 | `spec-builder.ts:18` | `MAX_PARSE_SIZE = 100MB` | 解析 bedrock geometry JSON 前 |
-| Go 侧（桌面） | `geometry/parse.go:13` | `maxParseSize = 100MB` | 服务端解析 |
-| Go 侧（桌面） | `litematic/nbt.go:15` | `maxDecodedBytes = 100MB` | 服务端 NBT 解析 |
+| 导入层（网页） | `web-common.ts` | `MAX_IMPORT_BYTES = 100MB` | 拖入/选择文件时过滤 |
+| 导入层（桌面） | `import-dnd.ts` | 引用 `MAX_IMPORT_BYTES` | 拖入文件时过滤 |
+| ZIP 解压 | `extract.ts` | `MAX_ZIP_FILE_BYTES = 100MB` | 单 entry 解压前拦截 |
+| NBT 解析 | `nbt-parse.ts` | `MAX_NBT_BYTES = 100MB` | 解压后 NBT 解析前 |
+| Spec 构建 | `spec-builder.ts` | `MAX_PARSE_SIZE = 100MB` | 解析 bedrock geometry JSON 前 |
+| Go 侧（桌面） | `geometry/parse.go` | `maxParseSize = 100MB` | 服务端解析 |
+| Go 侧（桌面） | `litematic/nbt.go` | `maxDecodedBytes = 100MB` | 服务端 NBT 解析 |
 
 所有 100MB 阈值同源（继承自 Go `geometry/parse.go` 的设计值），但 **从未在网页版真实设备上实证**——包括低端手机（4GB RAM）、中端平板、旧款 Chromebook 等边缘场景。
 
@@ -211,10 +211,10 @@ parseBedrockGeometry → JSON.parse   ← 拷贝⑥：字符串化 + 解析
 
 | 策略 | 状态 | 说明 |
 |------|------|------|
-| `_malloc` → `_free` | ✅ 已落地 | `ysm-parser.ts:225` finally 块释放 |
+| `_malloc` → `_free` | ✅ 已落地 | `ysm-parser.ts` finally 块释放 |
 | MEMFS `wipeDir` | ✅ 已落地 | `decodeYsmFile` 末尾清理 `/output` 和 `/input`；`decodeYsmFileFromMemory` 不写 MEMFS，无需清理 |
-| 并发去重守卫 | ✅ 已落地 | `wasm.ts:17` `_decodeInFlight` Map，同一路径只解码一次 |
-| LRU spec 缓存 | ✅ 已落地 | `model3d-loader.ts:26` `SPEC_CACHE_MAX = 20`，用 Map 淘汰 |
+| 并发去重守卫 | ✅ 已落地 | `wasm.ts` `_decodeInFlight` Map，同一路径只解码一次 |
+| LRU spec 缓存 | ✅ 已落地 | `model3d-loader.ts` `SPEC_CACHE_MAX = 20`，用 Map 淘汰 |
 | Worker 独立 HEAP | ✅ 已落地 | `ysm-worker-loader.ts` stats worker 内独立 WASM 实例，不占主线程 HEAP |
 | base64 中间态及时释放 | ⚠️ 依赖 GC | `b64ToBytes` 返回的 `Uint8Array` 在 `_decodeYsmViaWasm` 内无显式释放，依赖 V8 GC（解码结束后自然可达） |
 | 大文件导入后 IDB 残留 | ⚠️ 未评估 | 100MB 文件写入 IDB 后删除，IDB 是否及时回收空间未验证 |

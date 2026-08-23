@@ -73,7 +73,7 @@ invariant_anchors:
 ## 不变量
 
 - `.ban` 后缀 = 禁用模型：仓库侧 `.ban` 文件不进缺失列表；实例中对应哈希的文件标记 Disabled 而非 Extra
-- **`.ban` 剥离/判断现状分布（2026-08-23 审计）**：sync.go 内 5 处——3 处已委托 `types.StripBanSuffix`（L119/121/172：Disabled/Extra/status.Name）+ 2 处内联判断（L55/201 `strings.HasSuffix(strings.ToLower(name), ".ban")`）+ 1 处内联剥离（L210 `strings.TrimSuffix(strings.ToLower(e.Name), ".ban")`——repoName 匹配 key，供「同名不同文件夹」的复制/重命名/匹配消费，sync.go:198-215 banned 记录）。**警告（勿擅自归一）**：L210 内联与 `types.NormalizeResourceName` **语义不等价**（后者额外剥 `.disabled`）——直接替换会改变 repoName key 与 banned 匹配行为；若要归一，先加单测锁定 repoName key 语义（含 `.disabled` 文件的 banned 记录行为）再动。ADR-064 归口声明（归一化归 types 管）见 [ADR-064](../adr/ADR-064-sync-convergence-scanner-single-source.md)，L210 是落地后的漏网内联
+- **`.ban` 剥离/判断现状分布（2026-08-23 审计）**：sync.go 内 5 处——3 处已委托 `types.StripBanSuffix`（Disabled/Extra/status.Name）+ 2 处内联判断（`strings.HasSuffix(strings.ToLower(name), ".ban")`）+ 1 处内联剥离（`strings.TrimSuffix(strings.ToLower(e.Name), ".ban")`——repoName 匹配 key，供「同名不同文件夹」的复制/重命名/匹配消费，sync.go banned 记录段）。**警告（勿擅自归一）**：内联剥离与 `types.NormalizeResourceName` **语义不等价**（后者额外剥 `.disabled`）——直接替换会改变 repoName key 与 banned 匹配行为；若要归一，先加单测锁定 repoName key 语义（含 `.disabled` 文件的 banned 记录行为）再动。ADR-064 归口声明（归一化归 types 管）见 [ADR-064](../adr/ADR-064-sync-convergence-scanner-single-source.md)，该内联是落地后的漏网
 - 哈希全量计算（`scanner.ComputeFileHash`，`sync.go computeHash` 委托）；文件 >500MB（`types.MaxImportSize`）返回空串跳过哈希（同步对空哈希跳过匹配），读错误同样返回空
 - **所有扫描路径都必须排除 `.recycle`**，与 `scanner.ScanEntries` 口径对齐：`SyncResources` 的 collect（`sync.go`，统一 collect 闭包内 `fsutil.IsRecycleDir` SkipDir）、`SyncResourcesDirLevel` 的 `collectEntries`（sync_dirlevel.go）均跳过；`SyncToggleStatus` 用 `strings.Contains(strings.ToLower(p), ".recycle")` 检查整个路径（sync.go），非路径前缀匹配——漏排会把回收站里的模型当成仓库活跃模型，同步管理器显示 missing 且可被推送回实例（回归测试 `TestSyncResources_IgnoresRecycleDir`）
 - 跳过回收站时带 `path != 根目录` 守卫：若用户把仓库根/实例根本身命名为 `.recycle` 则不跳过，否则整次扫描会直接空掉
@@ -81,14 +81,14 @@ invariant_anchors:
 - `SyncResources` 对比 key 为**相对路径**（`relKey`：小写 + 正斜杠 + 去 `.disabled`/`.ban`，ADR-064 阶段二），同名文件按**大小**判定内容是否变化（复制会改 mtime，mtime 不可靠），大小不同归入 Missing 视为待更新；三个结果列表返回前均 `sort.Strings` 排序
 - 扩展名过滤统一走 `types.IsResourceAllowed`（`types.AllExts()` + `.json` 仅 `ysm.json`）与 `types.IsTypeModelFile`（单类型扩展集 + `ysm.json`），原 `isSyncAllowed` / `isModelFile` / `instance.extMatch` 三处同义实现已收敛（ADR-064 阶段一）
 - **`SyncResourcesDirLevel` 容器 vs 叶子模型夹判定**（`collectEntries`，sync_dirlevel.go）：目录被 `isDirTypeModelFolder` 判真（直接含 .ysm/.ysm.json）后，若还直接含子模型文件夹（`containsModelSubfolder` 为真），则是「容器」而非「叶子模型夹」——**不下钻整体收编 SkipDir**，而继续下钻保留各子夹层级，由 `go/instance` 的 `nestDirLevelTree` 重建容器树。收发场景：`嵌套1/` 内含直接平铺 `动力臂.ysm` + `01_taisho_maid/` + `嵌套2/` 深层子夹，若被整体收编会把子夹层级吞掉，前端退化成摊平的 `01_taisho_maid/ysm.json` 文件行（违背仓库层级镜像）；只有「叶子模型夹」（含模型文件但无子模型夹）才 SkipDir 收编为单同步单元
-- **两阶段遍历-执行模式**（`SyncToggleStatus`，`sync.go:162-231`）：`filepath.WalkDir` 回调中**不直接执行** `os.Rename`，而是先收集 `[]renameOp`（含源路径、目标路径、操作类型），遍历完成后再批量执行。原因：`filepath.WalkDir` 在遍历过程中修改目录结构（如重命名文件）会导致后续条目被跳过或重复处理——文件丢失/重复/损坏风险。这是本包最重要的设计模式，所有在 WalkDir 回调中修改文件系统的操作都必须遵循此模式
-- `SyncToggleStatus` 与 `go/installer` 共用包级 `installer.InstallLock`（`sync.Mutex`，统一单锁——[ADR-056](../adr/ADR-056-shared-install-lock.md) 成文：2026-08-12 起原两包各自 `installLock`/`syncLock` 互不感知的并发竞态收敛为共享同一把锁，`sync.go:139-140`；2026-08-13 补齐回收/去重入口），防止与安装操作并发写同一文件
+- **两阶段遍历-执行模式**（`SyncToggleStatus`，sync.go）：`filepath.WalkDir` 回调中**不直接执行** `os.Rename`，而是先收集 `[]renameOp`（含源路径、目标路径、操作类型），遍历完成后再批量执行。原因：`filepath.WalkDir` 在遍历过程中修改目录结构（如重命名文件）会导致后续条目被跳过或重复处理——文件丢失/重复/损坏风险。这是本包最重要的设计模式，所有在 WalkDir 回调中修改文件系统的操作都必须遵循此模式
+- `SyncToggleStatus` 与 `go/installer` 共用包级 `installer.InstallLock`（`sync.Mutex`，统一单锁——[ADR-056](../adr/ADR-056-shared-install-lock.md) 成文：2026-08-12 起原两包各自 `installLock`/`syncLock` 互不感知的并发竞态收敛为共享同一把锁，sync.go `InstallLock.Lock()`；2026-08-13 补齐回收/去重入口），防止与安装操作并发写同一文件
 - `RelinkDir`（sync_relink.go）整段持 `InstallLock`：自身对 custom 目录的 `os.Rename`/`os.RemoveAll`（目录级分支备份/回滚）纳锁，内部对 `installer.Install/InstallDir/CopyFile` 改用 **`*Locked` 变体**（`InstallLocked`/`InstallDirLocked`/`CopyFileLocked`，installer.go 新增导出）——避免同 goroutine 重入非重入 mutex 死锁（曾踩：整段持锁 + 调公开函数 → sync 测试挂起 119s）
 - 文件被占用（如 Minecraft 锁定）时 `isFileLocked` 识别后静默跳过不阻塞（errno 优先：Win ERROR_SHARING_VIOLATION(32) / Unix EBUSY(16)，再按消息兜底）
 - `RelinkDir` 处理文件夹级类型时先把旧目录 rename 成 `.relink-bak`，重建成功才删备份、失败则回滚恢复——不能先 `RemoveAll` 再重建，否则失败即整目录丢失。**根层平铺的 ysm.json/.pmx 退化为 `installer.Install` 单文件路径**（P1 修复：`dstParent == customDir` 时原逻辑会把整个实例目录 rename 走、同目录其他模型随备份 RemoveAll 丢失）
-- 硬链接检测跨平台分实现，系统调用失败一律降级 `LinkCopy`；`GetLinkType` 必须先 `os.Lstat` 判 `os.ModeSymlink`（`sync.go:602-614`）——用 `os.Stat` 会跟随链接、把符号链接误判成普通文件，进而按「复制」策略走回收站
+- 硬链接检测跨平台分实现，系统调用失败一律降级 `LinkCopy`；`GetLinkType` 必须先 `os.Lstat` 判 `os.ModeSymlink`——用 `os.Stat` 会跟随链接、把符号链接误判成普通文件，进而按「复制」策略走回收站
 - 链接类型是删除策略依据：硬链接(nlink>1)/符号链接直接删，普通文件才移回收站（致命陷阱 #8）
-- 拉取侧 `copyFile`（`sync_push.go:228`）已修复为 **tmp+rename 原子落地**（P3 修复）：带 defer 清理半截文件，失败不清理残留；`copyDirRecursive`（`sync_push.go:271`）递归复制时保留符号链接语义（`os.Readlink` + `os.Symlink`），不跟随复制——与 [go_recycle](./go-recycle.md) 的 `copyDirRecursive` 口径已对齐
+- 拉取侧 `copyFile`（sync_push.go）已修复为 **tmp+rename 原子落地**（P3 修复）：带 defer 清理半截文件，失败不清理残留；`copyDirRecursive`（sync_push.go）递归复制时保留符号链接语义（`os.Readlink` + `os.Symlink`），不跟随复制——与 [go_recycle](./go-recycle.md) 的 `copyDirRecursive` 口径已对齐
 - 实例 custom 目录固定为 `config/yes_steve_model/custom`
 
 ## 已知限制 / 待治理（2026-08-24 审计）
@@ -97,7 +97,7 @@ invariant_anchors:
 
 - **目录级 key 冲突静默丢失**：同级目录 `模型包/` 与文件 `模型包.zip` 的 `relKeyDirLevel` 都归一为 `<parent>/模型包`（目录键仅加尾随 `/` 区分叶子文件，但 zip 与目录同名剥扩展名后仍同段）→ map last-write-wins 丢一个。头注释已声明的已知限制（sync_dirlevel.go L24-25），待治理方向：key 保留扩展名或冲突时报错可见
 - **patternFind 重复子树扫描**（性能）：`isDirTypeModelFolder` → `findNestedModelDir` 对 Walk 访问的每个目录做整棵子树递归搜索，祖先层与子孙层重复 IO。头注释已声明（sync_dirlevel.go L26-28）；剪枝需谨慎验证「EntryDir 嵌套在非 EntryDir 目录名下」场景
-- **DiffFolderContents 只比存在性不比内容**（正确性）：两侧同名同相对路径的文件一律标 synced，**不做哈希对比**（sync_dirlevel.go:344 注释明示）→ 实例侧文件被修改/损坏后仍显示 ✅ 已同步。若治理：对 size 不同即可判 diverged（与 `ResourceDiff` 同名不同大小口径对齐），不必全量 SHA256
+- **DiffFolderContents 只比存在性不比内容**（正确性）：两侧同名同相对路径的文件一律标 synced，**不做哈希对比**（sync_dirlevel.go 注释明示）→ 实例侧文件被修改/损坏后仍显示 ✅ 已同步。若治理：对 size 不同即可判 diverged（与 `ResourceDiff` 同名不同大小口径对齐），不必全量 SHA256
 - **key 小写归一 vs 路径敏感操作**：`relKey` / `relKeyDirLevel` 把整个相对路径转小写做身份 key，push/pull 却用原路径——大小写敏感 FS（Linux 服务器仓库）上 `Pack/` 与 `pack/` 视为同一模型但操作各走各路，可能错配
 - **状态对比 IO 放大**：`BuildSyncItems` 每类型先 `collectEntries` 双侧全树 Walk，再对每个 synced/diverged 夹调 `DiffFolderContents`（内部又是双侧全树 Walk）+ `containsModelSubfolder`/`isDirTypeModelFolder` 逐层 ReadDir——大仓库 IO 成倍叠加。治理方向：diff 结果缓存或一次遍历同时收集夹内文件
 - **SyncToggleStatus 三级匹配的兜底误伤面**（观察项）：哈希 → 相对路径 → 纯文件名三级匹配的最后一级是 basename——同名不同路径的不同模型会被互相匹配启禁状态（sync.go fallback 注释自认「旧仓库特例」）；新仓库数据齐全时该兜底应可收紧

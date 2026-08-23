@@ -175,9 +175,9 @@ per-frame 代码中频繁 `new` 对象（如 `Vector3`）会产生 GC 压力，�
 4. 同步修复缩进不一致（间接暴露的代码质量信号）。
 
 ### 示例
-- `model-group-builder.ts:29-74`：提取 `fixOrphanBoneChain(bones, modelBones, pivots): void`
-- `model-group-builder.ts:232-233`：调用点 `fixOrphanBoneChain(bones, model.bones, pivots);`
-- 原内联段（43 行）迁移后，`buildModelGroup` 函数圈复杂度显著降低
+- `model-group-builder.ts`：提取 `fixOrphanBoneChain(bones, modelBones, pivots): void`
+- 调用点：`fixOrphanBoneChain(bones, model.bones, pivots);`
+- 原内联段迁移后，`buildModelGroup` 函数圈复杂度显著降低
 
 ### 适用场景
 - 函数超过 50 行且包含多层嵌套
@@ -204,16 +204,10 @@ Three.js 资源（几何体、材质、纹理、渲染器）需要成对 dispose
 4. **安全包装**：`safeDisposeRenderer()` 捕获 dispose 可能的异常（重复 dispose 场景）。
 
 ### 示例
-- `mount-preview-core.ts:622-639`：分层清理链
-  ```typescript
-  skyCap?.dispose();           // L624
-  groundCap?.dispose();        // L628
-  lightCap?.dispose();         // L632
-  composer?.dispose();         // L636
-  ```
-- `cleanup-helper.ts:14-32`：`disposeDebugGroup()` — 遍历 debugGroup 释放 Mesh/Line/Sprite
-- `cleanup-helper.ts:40-50`：`disposeSceneMeshes()` — 通用场景图清理
-- `cleanup-helper.ts:55-57`：`safeDisposeRenderer()` — 异常安全包装
+- `mount-preview-core.ts`：分层清理链（skyCap/groundCap/lightCap/composer 逐一 dispose）
+- `cleanup-helper.ts`：`disposeDebugGroup()` — 遍历 debugGroup 释放 Mesh/Line/Sprite
+- `cleanup-helper.ts`：`disposeSceneMeshes()` — 通用场景图清理
+- `cleanup-helper.ts`：`safeDisposeRenderer()` — 异常安全包装
 
 ### 适用场景
 - 所有 Three.js 相关代码
@@ -240,16 +234,16 @@ Three.js 资源（几何体、材质、纹理、渲染器）需要成对 dispose
 3. `openModel3DFullscreen()` 查表派发，无类型注册时 toast 提示。
 
 ### 示例
-- `preview-library.ts:42-46`：
+- `preview-library.ts`：
   ```typescript
   const _openers: Record<string, (path: string) => Promise<void>> = {};
   export function registerReRoute(rtype: string, opener: (path: string) => Promise<void>): void {
     _openers[rtype] = opener;
   }
   ```
-- `mmd-3d.ts:13`：`registerReRoute(RESOURCE_TYPES.MMD, (path) => createMmd3D(path));`
-- `ysm-3d.ts:26`：`registerReRoute(RESOURCE_TYPES.YSM, openYsmFullscreen);`
-- `preview-library.ts:83-88`：查表派发逻辑
+- `mmd-3d.ts`：`registerReRoute(RESOURCE_TYPES.MMD, (path) => createMmd3D(path));`
+- `ysm-3d.ts`：`registerReRoute(RESOURCE_TYPES.YSM, openYsmFullscreen);`
+- `preview-library.ts`：查表派发逻辑（`openModel3DFullscreen` 内 `_openers[rtype]`）
 
 ### 适用场景
 - 多模块互相依赖的循环引用
@@ -275,7 +269,7 @@ Three.js 资源（几何体、材质、纹理、渲染器）需要成对 dispose
 3. 保留空数组返回，避免中断调用链。
 
 ### 示例
-- `preview-library.ts:64-65`：
+- `preview-library.ts`：
   ```typescript
   import("../../bus.ts").then(({ bus }) => 
     bus.emit("toast:show", { msg: "库加载失败", duration: 3000, type: "warn" })
@@ -306,11 +300,11 @@ Three.js 资源（几何体、材质、纹理、渲染器）需要成对 dispose
 4. `isDisposed` 对象处理 dispose 后的防护。
 
 ### 示例
-- `mount-preview-core.ts:125`：`let _gen = 0;`
-- `mount-preview-core.ts:165`：`const myGen = ++_gen;`
-- `mount-preview-core.ts:280`：`let aborted = false;`
-- `mount-preview-core.ts:514`：`if (aborted || myGen !== _gen) { fullCleanup(); return; }`
-- `mount-preview-core.ts:684`：`if (aborted || isDisposed.v || myGen !== _gen) return;`
+- `mount-preview-core.ts`：`let _gen = 0;`（模块级代际计数器）
+- `mount-preview-core.ts`：`const myGen = ++_gen;`（调用时捕获当前代际）
+- `mount-preview-core.ts`：`let aborted = false;`（ESC/手动关闭标记）
+- `mount-preview-core.ts`：`if (aborted || myGen !== _gen) { fullCleanup(); return; }`（过期任务丢弃）
+- `mount-preview-core.ts`：`if (aborted || isDisposed.v || myGen !== _gen) return;`（dispose 后防护）
 
 ### 适用场景
 - 异步加载 + 状态更新
@@ -338,12 +332,8 @@ Three.js 资源（几何体、材质、纹理、渲染器）需要成对 dispose
 3. typeof 守卫避免 stub 环境误崩。
 
 ### 示例
-- `skeleton.ts:70`：`if (!container.isConnected) return;`
-- `skeleton.ts:78`：`if (!container.isConnected) return;`
-- `mount-preview-core.ts:644-645`：
-  ```typescript
-  if (typeof (sc as unknown as { traverse?: unknown }).traverse === "function") {
-  ```
+- `skeleton.ts`：`if (!container.isConnected) return;`（异步回调入口守卫）
+- `mount-preview-core.ts`：`if (typeof (sc as unknown as { traverse?: unknown }).traverse === "function")`（typeof 守卫）
 
 ### 适用场景
 - Web Component 生命周期管理
